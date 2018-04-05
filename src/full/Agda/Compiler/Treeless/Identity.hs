@@ -18,7 +18,7 @@ detectIdentityFunctions q t =
   case isIdentity q t of
     Nothing     -> return t
     Just (n, k) -> do
-      markInline q
+      markInline True q
       def <- theDef <$> getConstInfo q
       return $ mkTLam n $ TVar k
 

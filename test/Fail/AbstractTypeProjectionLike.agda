@@ -9,6 +9,7 @@ abstract
 
 f : ∀ A → Id A → Id A
 f A x = x
+{-# NOINLINE f #-}
 
 postulate
   foo : ∀{X : Set} (x y : X) → x ≡ y → Set

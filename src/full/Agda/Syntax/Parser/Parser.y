@@ -162,6 +162,7 @@ import Agda.Utils.Impossible
     'IMPOSSIBLE'              { TokKeyword KwIMPOSSIBLE $$ }
     'INJECTIVE'               { TokKeyword KwINJECTIVE $$ }
     'INLINE'                  { TokKeyword KwINLINE $$ }
+    'NOINLINE'                { TokKeyword KwNOINLINE $$ }
     'MEASURE'                 { TokKeyword KwMEASURE $$ }
     'NO_TERMINATION_CHECK'    { TokKeyword KwNO_TERMINATION_CHECK $$ }
     'NO_POSITIVITY_CHECK'     { TokKeyword KwNO_POSITIVITY_CHECK $$ }
@@ -295,6 +296,7 @@ Token
     | 'IMPOSSIBLE'              { TokKeyword KwIMPOSSIBLE $1 }
     | 'INJECTIVE'               { TokKeyword KwINJECTIVE $1 }
     | 'INLINE'                  { TokKeyword KwINLINE $1 }
+    | 'NOINLINE'                { TokKeyword KwNOINLINE $1 }
     | 'MEASURE'                 { TokKeyword KwMEASURE $1 }
     | 'NO_TERMINATION_CHECK'    { TokKeyword KwNO_TERMINATION_CHECK $1 }
     | 'NO_POSITIVITY_CHECK'     { TokKeyword KwNO_POSITIVITY_CHECK $1 }
@@ -1466,6 +1468,7 @@ DeclarationPragma
   | StaticPragma             { $1 }
   | InjectivePragma          { $1 }
   | InlinePragma             { $1 }
+  | NoInlinePragma           { $1 }
   | ImportPragma             { $1 }
   | ImportUHCPragma          { $1 }
   | ImpossiblePragma         { $1 }
@@ -1555,7 +1558,12 @@ StaticPragma
 InlinePragma :: { Pragma }
 InlinePragma
   : '{-#' 'INLINE' PragmaQName '#-}'
-    { InlinePragma (getRange ($1,$2,$3,$4)) $3 }
+    { InlinePragma (getRange ($1,$2,$3,$4)) True $3 }
+
+NoInlinePragma :: { Pragma }
+NoInlinePragma
+  : '{-#' 'NOINLINE' PragmaQName '#-}'
+    { InlinePragma (getRange ($1,$2,$3,$4)) False $3 }
 
 InjectivePragma :: { Pragma }
 InjectivePragma

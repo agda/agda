@@ -531,8 +531,10 @@ instance Pretty Pragma where
       hsep $ [text "STATIC", pretty i]
     pretty (InjectivePragma _ i) =
       hsep $ [text "INJECTIVE", pretty i]
-    pretty (InlinePragma _ i) =
+    pretty (InlinePragma _ True i) =
       hsep $ [text "INLINE", pretty i]
+    pretty (InlinePragma _ False i) =
+      hsep $ [text "NOINLINE", pretty i]
     pretty (ImportPragma _ i) =
       hsep $ [text "IMPORT", text i]
     pretty (ImportUHCPragma _ i) =

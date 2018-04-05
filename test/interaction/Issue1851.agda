@@ -31,6 +31,7 @@ REL A B = A → B → Set
 flip : {A B : Set} {C : A → B → Set₁} →
        ((x : A) (y : B) → C x y) → ((y : B) (x : A) → C x y)
 flip f = λ y x → f x y
+{-# NOINLINE flip #-}
 
 infixr 4 _⇒_
 _⇒_ : {A B : Set} → REL A B → REL A B → Set

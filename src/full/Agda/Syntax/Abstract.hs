@@ -209,7 +209,7 @@ data Pragma
     -- ^ For coinductive records, use pragma instead of regular
     --   @eta-equality@ definition (as it is might make Agda loop).
   | InjectivePragma QName
-  | InlinePragma QName
+  | InlinePragma Bool QName -- INLINE or NOINLINE
   | DisplayPragma QName [NamedArg Pattern] Expr
   deriving (Data, Show, Eq)
 

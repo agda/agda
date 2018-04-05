@@ -172,8 +172,8 @@ setFunctionFlag flag val q = modifyGlobalDefinition q $ set (theDefLens . funFla
 markStatic :: QName -> TCM ()
 markStatic = setFunctionFlag FunStatic True
 
-markInline :: QName -> TCM ()
-markInline = setFunctionFlag FunInline True
+markInline :: Bool -> QName -> TCM ()
+markInline b = setFunctionFlag FunInline b
 
 markInjective :: QName -> TCM ()
 markInjective q = modifyGlobalDefinition q $ \def -> def { defInjective = True }

@@ -691,11 +691,12 @@ checkPragma r p =
             Function{} -> markStatic x
             _          -> typeError $ GenericError "STATIC directive only works on functions"
         A.InjectivePragma x -> markInjective x
-        A.InlinePragma x -> do
+        A.InlinePragma b x -> do
           def <- getConstInfo x
           case theDef def of
-            Function{} -> markInline x
-            _          -> typeError $ GenericError "INLINE directive only works on functions"
+            Function{} -> markInline b x
+            _          -> typeError $ GenericError $ sINLINE ++ " directive only works on functions"
+              where sINLINE = if b then "INLINE" else "NOINLINE"
         A.OptionsPragma{} -> typeError $ GenericError $ "OPTIONS pragma only allowed at beginning of file, before top module declaration"
         A.DisplayPragma f ps e -> checkDisplayPragma f ps e
         A.EtaPragma r -> do
