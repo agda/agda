@@ -67,11 +67,12 @@ tokens :-
 <0,code,bol_,layout_,empty_layout_,imp_dir_>
     $white_nonl+    ;
 
-<pragma_> $white_notab ;
+<pragma_,fpragma_> $white_notab ;
 
 -- Pragmas
-<0,code,pragma_> "{-#"                 { beginWith pragma $ symbol SymOpenPragma }
-<pragma_>   "#-}"                      { endWith $ symbol SymClosePragma }
+<0,code,pragma_>   "{-#"               { beginWith pragma  $ symbol SymOpenPragma }
+<fpragma_>         "{-#"               { beginWith fpragma $ symbol SymOpenPragma }
+<pragma_,fpragma_> "#-}"               { endWith $ symbol SymClosePragma }
 <pragma_>   "BUILTIN"                  { keyword KwBUILTIN }
 <pragma_>   "CATCHALL"                 { keyword KwCATCHALL }
 <pragma_>   "COMPILED"                 { keyword KwCOMPILED }
@@ -82,7 +83,7 @@ tokens :-
 <pragma_>   "COMPILED_TYPE"            { keyword KwCOMPILED_TYPE }
 <pragma_>   "COMPILED_UHC"             { keyword KwCOMPILED_UHC }
 <pragma_>   "COMPILE"                  { keyword KwCOMPILE }
-<pragma_>   "FOREIGN"                  { keyword KwFOREIGN }
+<pragma_>   "FOREIGN"                  { endWith $ beginWith fpragma $ keyword KwFOREIGN }
 <pragma_>   "DISPLAY"                  { keyword KwDISPLAY }
 <pragma_>   "ETA"                      { keyword KwETA }
 <pragma_>   "HASKELL"                  { keyword KwHASKELL }
@@ -91,6 +92,7 @@ tokens :-
 <pragma_>   "IMPOSSIBLE"               { keyword KwIMPOSSIBLE }
 <pragma_>   "INJECTIVE"                { keyword KwINJECTIVE }
 <pragma_>   "INLINE"                   { keyword KwINLINE }
+<pragma_>   "NOINLINE"                 { keyword KwNOINLINE }
 <pragma_>   "LINE"                     { keyword KwLINE }
 <pragma_>   "MEASURE"                  { keyword KwMEASURE }
 <pragma_>   "NO_POSITIVITY_CHECK"      { keyword KwNO_POSITIVITY_CHECK }
@@ -101,7 +103,7 @@ tokens :-
 <pragma_>   "REWRITE"                  { keyword KwREWRITE }
 <pragma_>   "STATIC"                   { keyword KwSTATIC }
 <pragma_>   "TERMINATING"              { keyword KwTERMINATING }
-<pragma_>   . # [ $white ] +           { withInterval $ TokString }
+<pragma_,fpragma_> . # [ $white ] +    { withInterval $ TokString }
 
 -- Comments
     -- We need to rule out pragmas here. Usually longest match would take
@@ -260,6 +262,11 @@ layout = layout_
 -}
 pragma :: LexState
 pragma = pragma_
+
+-- | The state inside a FOREIGN pragma. This needs to be different so that we don't
+--   lex further strings as pragma keywords.
+fpragma :: LexState
+fpragma = fpragma_
 
 {-| We enter this state from 'newLayoutContext' when the token following a
     layout keyword is to the left of (or at the same column as) the current

@@ -4,6 +4,7 @@ open import Common.Level
 
 const : ∀ {a b} {A : Set a} {B : Set b} → A → B → A
 const x = λ _ → x
+{-# NOINLINE const #-}
 
 ℓ : Level
 ℓ = const lzero (Set ℓ)

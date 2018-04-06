@@ -1,5 +1,5 @@
-Issue256.agda:13,1-14,24
+Issue256.agda:14,1-15,24
 Termination checking failed for the following functions:
   ℓ
 Problematic calls:
-  ℓ (at Issue256.agda:14,22-23)
+  ℓ (at Issue256.agda:15,22-23)

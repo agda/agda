@@ -9,6 +9,10 @@ open import Common.Prelude
 plusOne :: Integer -> Integer
 plusOne n = n + 1
 
+{-# INLINE plusTwo #-}
+plusTwo :: Integer -> Integer
+plusTwo = plusOne . plusOne
+
 #-}
 
 postulate

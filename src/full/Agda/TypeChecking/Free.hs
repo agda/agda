@@ -18,6 +18,7 @@
 
 module Agda.TypeChecking.Free
     ( FreeVars(..)
+    , VarCounts(..)
     , Free
     , IsVarSet(..)
     , IgnoreSorts(..)
@@ -226,6 +227,20 @@ instance IsVarSet VarSet where withVarOcc _ = id
 instance IsVarSet [Int]  where withVarOcc _ = id
 instance IsVarSet Any    where withVarOcc _ = id
 instance IsVarSet All    where withVarOcc _ = id
+
+newtype VarCounts = VarCounts { varCounts :: IntMap Int }
+
+instance Semigroup VarCounts where
+  VarCounts fv1 <> VarCounts fv2 = VarCounts (Map.unionWith (+) fv1 fv2)
+
+instance Monoid VarCounts where
+  mempty = VarCounts Map.empty
+  mappend = (<>)
+
+instance IsVarSet VarCounts where withVarOcc _ = id
+
+instance Singleton Variable VarCounts where
+  singleton i = VarCounts $ Map.singleton i 1
 
 -- * Collecting free variables.
 

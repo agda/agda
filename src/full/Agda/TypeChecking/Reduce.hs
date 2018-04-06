@@ -41,6 +41,7 @@ import {-# SOURCE #-} Agda.TypeChecking.Reduce.Fast
 
 import Agda.Utils.Function
 import Agda.Utils.Functor
+import Agda.Utils.Lens
 import Agda.Utils.Monad
 import Agda.Utils.HashMap (HashMap)
 import Agda.Utils.Size
@@ -609,6 +610,24 @@ reduceHead' v = do -- ignoreAbstractMode $ do
         Record{ recClause = Just _ }    -> red
         _                               -> return $ notBlocked v
     _ -> return $ notBlocked v
+
+-- | Unfold a single inlined function.
+unfoldInlined :: Term -> TCM Term
+unfoldInlined = runReduceM . unfoldInlined'
+
+unfoldInlined' :: Term -> ReduceM Term
+unfoldInlined' v = do
+  inTypes <- view eWorkingOnTypes
+  case v of
+    _ | inTypes -> return v -- Don't inline in types (to avoid unfolding of goals)
+    Def f es -> do
+      def <- theDef <$> getConstInfo f
+      case def of   -- Only for simple definitions with no pattern matching (TODO: maybe copatterns?)
+        Function{ funCompiled = Just Done{}, funDelayed = NotDelayed }
+          | def ^. funInline ->
+          ignoreBlocking <$> unfoldDefinitionE False (return . notBlocked) (Def f []) f es
+        _ -> return v
+    _ -> return v
 
 -- | Apply a definition using the compiled clauses, or fall back to
 --   ordinary clauses if no compiled clauses exist.

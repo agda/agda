@@ -638,6 +638,12 @@ instance LensFreeVariables FreeVariables where
   setFreeVariables = const
   mapFreeVariables = id
 
+hasNoFreeVariables :: LensFreeVariables a => a -> Bool
+hasNoFreeVariables x =
+  case getFreeVariables x of
+    UnknownFVs  -> False
+    KnownFVs fv -> IntSet.null fv
+
 ---------------------------------------------------------------------------
 -- * Argument decoration
 ---------------------------------------------------------------------------

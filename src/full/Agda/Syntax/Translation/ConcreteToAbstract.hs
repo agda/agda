@@ -1833,15 +1833,16 @@ instance ToAbstract C.Pragma [A.Pragma] where
             "INJECTIVE used on ambiguous name " ++ prettyShow x
           _        -> genericError "Target of INJECTIVE pragma should be a defined symbol"
       return [ A.InjectivePragma y ]
-  toAbstract (C.InlinePragma _ x) = do
+  toAbstract (C.InlinePragma _ b x) = do
       e <- toAbstract $ OldQName x Nothing
+      let sINLINE = if b then "INLINE" else "NOINLINE"
       y <- case e of
           A.Def  x -> return x
           A.Proj _ p | Just x <- getUnambiguous p -> return x
           A.Proj _ x -> genericError $
-            "INLINE used on ambiguous name " ++ prettyShow x
-          _        -> genericError "Target of INLINE pragma should be a function"
-      return [ A.InlinePragma y ]
+            sINLINE ++ " used on ambiguous name " ++ prettyShow x
+          _        -> genericError $ "Target of " ++ sINLINE ++ " pragma should be a function"
+      return [ A.InlinePragma b y ]
   toAbstract (C.BuiltinPragma _ b q) | isUntypedBuiltin b = do
     bindUntypedBuiltin b =<< toAbstract (ResolveQName q)
     return []

@@ -324,14 +324,17 @@ following primitive operations::
     reduce : Term → TC Term
 
     -- Get the current context. Returns the context in reverse order, so that
-    -- it is indexable by deBruijn index.
+    -- it is indexable by deBruijn index. Note that the types in the context are
+    -- valid in the rest of the context. To use in the current context they need
+    -- to be weakened by 1 + their position in the list.
     getContext : TC (List (Arg Type))
 
     -- Extend the current context with a variable of the given type.
     extendContext : ∀ {a} {A : Set a} → Arg Type → TC A → TC A
 
     -- Set the current context. Takes a context telescope with the outer-most
-    -- entry first, in contrast to 'getContext'.
+    -- entry first, in contrast to 'getContext'. Each type should be valid in the
+    -- context formed by the preceding elements in the list.
     inContext : ∀ {a} {A : Set a} → List (Arg Type) → TC A → TC A
 
     -- Quote a value, returning the corresponding Term.

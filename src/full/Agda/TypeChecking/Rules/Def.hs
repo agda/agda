@@ -40,6 +40,7 @@ import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Conversion
+import Agda.TypeChecking.Inlining
 import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Patterns.Abstract (expandPatternSynonyms)
@@ -358,6 +359,7 @@ checkFunDefS t ai delayed extlam with i name withSub cs = do
           -- If there was a pragma for this definition, we can set the
           -- funTerminates field directly.
           useTerPragma $ defaultDefn ai name fullType $
+             autoInline $
              set funMacro (ismacro || Info.defMacro i == MacroDef) $
              emptyFunction
              { funClauses        = cs

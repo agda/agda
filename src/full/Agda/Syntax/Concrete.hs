@@ -404,7 +404,7 @@ data Pragma
   | CompilePragma             Range String QName String -- ^ first string is backend name
   | StaticPragma              Range QName
   | InjectivePragma           Range QName
-  | InlinePragma              Range QName
+  | InlinePragma              Range Bool QName  -- ^ INLINE or NOINLINE
   | ImportPragma              Range String
     -- ^ Invariant: The string must be a valid Haskell module name.
   | ImportUHCPragma           Range String
@@ -668,7 +668,7 @@ instance HasRange Pragma where
   getRange (ForeignPragma r _ _)             = r
   getRange (StaticPragma r _)                = r
   getRange (InjectivePragma r _)             = r
-  getRange (InlinePragma r _)                = r
+  getRange (InlinePragma r _ _)              = r
   getRange (ImportPragma r _)                = r
   getRange (ImportUHCPragma r _)             = r
   getRange (ImpossiblePragma r)              = r
@@ -862,7 +862,7 @@ instance KillRange Pragma where
   killRange (HaskellCodePragma _ s)           = HaskellCodePragma noRange s
   killRange (StaticPragma _ q)                = killRange1 (StaticPragma noRange) q
   killRange (InjectivePragma _ q)             = killRange1 (InjectivePragma noRange) q
-  killRange (InlinePragma _ q)                = killRange1 (InlinePragma noRange) q
+  killRange (InlinePragma _ b q)              = killRange1 (InlinePragma noRange b) q
   killRange (ImportPragma _ s)                = ImportPragma noRange s
   killRange (ImportUHCPragma _ s)             = ImportUHCPragma noRange s
   killRange (CompilePragma _ b q s)           = killRange1 (\ q -> CompilePragma noRange b q s) q
@@ -1002,7 +1002,7 @@ instance NFData Pragma where
   rnf (ForeignPragma _ b s)             = rnf b `seq` rnf s
   rnf (StaticPragma _ a)                = rnf a
   rnf (InjectivePragma _ a)             = rnf a
-  rnf (InlinePragma _ a)                = rnf a
+  rnf (InlinePragma _ _ a)              = rnf a
   rnf (ImportPragma _ a)                = rnf a
   rnf (ImportUHCPragma _ a)             = rnf a
   rnf (ImpossiblePragma _)              = ()
