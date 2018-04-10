@@ -36,8 +36,8 @@ checking declaration
 {-# BUILTIN LEVEL Level #-}
 { checkExpr
 inferred def  Level
-   :  Set
-   -->  Level
+  : Set
+  --> Level
 compareTerm Set =< Set : Set₁
 Solving awake constraints. 0 remaining.
 }
@@ -49,8 +49,8 @@ syntax lzero ...
 postulate lzero : Level
 { checkExpr
 inferred def  Level
-   :  Set
-   -->  Level
+  : Set
+  --> Level
 term _0 :DirEq .#Lacking_Level_Builtins#
 term _0 :DirEq .#Lacking_Level_Builtins#
 solving _0 := .#Lacking_Level_Builtins#
@@ -68,8 +68,8 @@ syntax lsuc ...
 postulate lsuc : (ℓ : Level) → Level
 { checkExpr
 inferred def  Level
-   :  Set
-   -->  Level
+  : Set
+  --> Level
 term _1 :DirEq .#Lacking_Level_Builtins#
 term _1 :DirEq .#Lacking_Level_Builtins#
 solving _1 := .#Lacking_Level_Builtins#
@@ -78,8 +78,8 @@ Solving awake constraints. 0 remaining.
 }
 { checkExpr
 inferred def  Level
-   :  Set
-   -->  Level
+  : Set
+  --> Level
 term _2 ℓ :DirEq .#Lacking_Level_Builtins#
 term _2 ℓ :DirEq .#Lacking_Level_Builtins#
 solving _2 := λ ℓ → .#Lacking_Level_Builtins#
@@ -99,8 +99,8 @@ syntax _⊔_ ...
 postulate _⊔_ : (ℓ₁ ℓ₂ : Level) → Level
 { checkExpr
 inferred def  Level
-   :  Set
-   -->  Level
+  : Set
+  --> Level
 term _3 :DirEq .#Lacking_Level_Builtins#
 term _3 :DirEq .#Lacking_Level_Builtins#
 solving _3 := .#Lacking_Level_Builtins#
@@ -109,8 +109,8 @@ Solving awake constraints. 0 remaining.
 }
 { checkExpr
 inferred def  Level
-   :  Set
-   -->  Level
+  : Set
+  --> Level
 term _4 ℓ₁ ℓ₂ :DirEq .#Lacking_Level_Builtins#
 term _4 ℓ₁ ℓ₂ :DirEq .#Lacking_Level_Builtins#
 solving _4 := λ ℓ₁ ℓ₂ → .#Lacking_Level_Builtins#
@@ -126,8 +126,8 @@ checking declaration
 {-# BUILTIN LEVELZERO lzero #-}
 { checkExpr
 inferred def  lzero
-   :  Level
-   -->  lzero
+  : Level
+  --> lzero
 coerce term      v  = lzero
        from type t1 = Level
        to type   t2 = Level
@@ -140,8 +140,8 @@ checking declaration
 {-# BUILTIN LEVELSUC lsuc #-}
 { checkExpr
 inferred def  lsuc
-   :  Level → Level
-   -->  lsuc
+  : Level → Level
+  --> lsuc
 coerce term      v  = lsuc
        from type t1 = Level → Level
        to type   t2 = Level → Level
@@ -154,8 +154,8 @@ checking declaration
 {-# BUILTIN LEVELMAX _⊔_ #-}
 { checkExpr
 inferred def  _⊔_
-   :  Level → Level → Level
-   -->  _⊔_
+  : Level → Level → Level
+  --> _⊔_
 coerce term      v  = _⊔_
        from type t1 = Level → Level → Level
        to type   t2 = Level → Level → Level

@@ -69,6 +69,10 @@ import Agda.Utils.Tuple
 #include "undefined.h"
 import Agda.Utils.Impossible
 
+-----------------------------------------------------------------------------
+-- * Applications
+-----------------------------------------------------------------------------
+
 -- | @checkApplication hd args e t@ checks an application.
 --   Precondition: @Application hs args = appView e@
 --
@@ -219,6 +223,10 @@ inferApplication exh hd args e =
           v <- postponeArgs problem exh r args t $ \ vs _ -> unfoldInlined (f vs)
           return (v, t)
 
+-----------------------------------------------------------------------------
+-- * Heads
+-----------------------------------------------------------------------------
+
 inferHeadDef :: ProjOrigin -> QName -> TCM (Args -> Term, Type)
 inferHeadDef o x = do
   proj <- isProjection x
@@ -278,31 +286,38 @@ inferHead e = do
 
 inferDef :: (Args -> Term) -> QName -> TCM (Term, Type)
 inferDef mkTerm x =
-    traceCall (InferDef x) $ do
+  traceCall (InferDef x) $ do
     -- getConstInfo retrieves the *absolute* (closed) type of x
     -- instantiateDef relativizes it to the current context
     d  <- instantiateDef =<< getConstInfo x
     -- irrelevant defs are only allowed in irrelevant position
-    let drel = defRelevance d
-    when (drel /= Relevant) $ do
-      rel <- asks envRelevance
-      reportSDoc "tc.irr" 50 $ vcat
-        [ text "declaration relevance =" <+> text (show drel)
-        , text "context     relevance =" <+> text (show rel)
-        ]
-      unless (drel `moreRelevant` rel) $ typeError $ DefinitionIsIrrelevant x
+    checkRelevance x (defRelevance d)
     -- since x is considered living in the top-level, we have to
     -- apply it to the current context
     vs <- freeVarsToApply x
-    reportSDoc "tc.term.def" 60 $ do
-      text "freeVarsToApply to def " <+> hsep (map (text . show) vs)
-    reportSDoc "tc.term.def" 10 $ do
-      text "inferred def " <+> prettyTCM x <+> hsep (map prettyTCM vs)
     let t = defType d
-    reportSDoc "tc.term.def" 10 $ nest 2 $ text " : " <+> prettyTCM t
-    let v = mkTerm vs -- applies x to vs, dropping parameters
-    reportSDoc "tc.term.def" 10 $ nest 2 $ text " --> " <+> prettyTCM v
+        v = mkTerm vs -- applies x to vs, dropping parameters
+    debug vs t v
     return (v, t)
+  where
+    debug vs t v = do
+      reportSDoc "tc.term.def" 60 $
+        text "freeVarsToApply to def " <+> hsep (map (text . show) vs)
+      reportSDoc "tc.term.def" 10 $ vcat
+        [ text "inferred def " <+> prettyTCM x <+> hsep (map prettyTCM vs)
+        , nest 2 $ text ":" <+> prettyTCM t
+        , nest 2 $ text "-->" <+> prettyTCM v ]
+
+-- | The second argument is the relevance of the first.
+checkRelevance :: QName -> Relevance -> TCM ()
+checkRelevance _ Relevant = return () -- relevance functions can be used in any context.
+checkRelevance x drel = do
+  rel <- asks envRelevance
+  reportSDoc "tc.irr" 50 $ vcat
+    [ text "declaration relevance =" <+> text (show drel)
+    , text "context     relevance =" <+> text (show rel)
+    ]
+  unless (drel `moreRelevant` rel) $ typeError $ DefinitionIsIrrelevant x
 
 -- | @checkHeadApplication e t hd args@ checks that @e@ has type @t@,
 -- assuming that @e@ has the form @hd args@. The corresponding
@@ -439,6 +454,10 @@ checkHeadApplication e t hd args = do
     checkArguments' expandLast (getRange hd) args t0 t $ \vs t1 -> do
       v <- unfoldInlined (f vs)
       coerce v t1 t
+
+-----------------------------------------------------------------------------
+-- * Spines
+-----------------------------------------------------------------------------
 
 -- | Check a list of arguments: @checkArgs args t0 t1@ checks that
 --   @t0 = Delta -> t0'@ and @args : Delta@. Inserts hidden arguments to
