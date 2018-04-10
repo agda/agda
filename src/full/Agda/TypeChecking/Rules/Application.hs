@@ -53,10 +53,6 @@ import Agda.TypeChecking.Injectivity
 
 import Agda.Utils.Either
 import Agda.Utils.Except
-  ( ExceptT
-  , MonadError(catchError, throwError)
-  , runExceptT
-  )
 import Agda.Utils.Functor
 import Agda.Utils.List
 import Agda.Utils.Maybe
@@ -106,55 +102,9 @@ checkApplication hd args e t = do
       checkConstructorApplication e t con args
 
     -- Subcase: ambiguous constructor
-    A.Con (AmbQ cs0) -> do
-      -- First we should figure out which constructor we want.
-      reportSLn "tc.check.term" 40 $ "Ambiguous constructor: " ++ prettyShow cs0
-
-      -- Get the datatypes of the various constructors
-      let getData Constructor{conData = d} = d
-          getData _                        = __IMPOSSIBLE__
-      reportSLn "tc.check.term" 40 $ "  ranges before: " ++ show (getRange cs0)
-      -- We use the reduced constructor when disambiguating, but
-      -- the original constructor for type checking. This is important
-      -- since they may have different types (different parameters).
-      -- See issue 279.
-      -- Andreas, 2017-08-13, issue #2686: ignore abstract constructors
-      (cs, cons)  <- unzip . snd . partitionEithers <$> do
-         forM (toList cs0) $ \ c -> mapRight (c,) <$> getConForm c
-      reportSLn "tc.check.term" 40 $ "  reduced: " ++ prettyShow cons
-      case cons of
-        []    -> typeError $ AbstractConstructorNotInScope $ headNe cs0
-        [con] -> do
-          let c = setConName (fromMaybe __IMPOSSIBLE__ $ headMaybe cs) con
-          reportSLn "tc.check.term" 40 $ "  only one non-abstract constructor: " ++ prettyShow c
-          storeDisambiguatedName $ conName c
-          checkConstructorApplication e t c args
-        _   -> do
-          dcs <- zipWithM (\ c con -> (, setConName c con) . getData . theDef <$> getConInfo con) cs cons
-          -- Type error
-          let badCon t = typeError $ flip DoesNotConstructAnElementOf t $
-                fromMaybe __IMPOSSIBLE__ $ headMaybe cs
-          -- Lets look at the target type at this point
-          let getCon :: TCM (Maybe ConHead)
-              getCon = do
-                TelV tel t1 <- telView t
-                addContext tel $ do
-                 reportSDoc "tc.check.term.con" 40 $ nest 2 $
-                   text "target type: " <+> prettyTCM t1
-                 ifBlockedType t1 (\ m t -> return Nothing) $ \ _ t' ->
-                   caseMaybeM (isDataOrRecord $ unEl t') (badCon t') $ \ d ->
-                     case [ c | (d', c) <- dcs, d == d' ] of
-                       [c] -> do
-                         reportSLn "tc.check.term" 40 $ "  decided on: " ++ prettyShow c
-                         storeDisambiguatedName $ conName c
-                         return $ Just c
-                       []  -> badCon $ t' $> Def d []
-                       cs  -> typeError $ CantResolveOverloadedConstructorsTargetingSameDatatype d $ map conName cs
-          let unblock = isJust <$> getCon -- to unblock, call getCon later again
-          mc <- getCon
-          case mc of
-            Just c  -> checkConstructorApplication e t c args
-            Nothing -> postponeTypeCheckingProblem (CheckExpr e t) unblock
+    A.Con (AmbQ cs0) -> disambiguateConstructor cs0 t >>= \ case
+      Left unblock -> postponeTypeCheckingProblem (CheckExpr e t) unblock
+      Right c      -> checkConstructorApplication e t c args
 
     -- Subcase: pattern synonym
     A.PatternSyn n -> do
@@ -751,4 +701,53 @@ postponeArgs (us, es, t0) exph r args t k = do
         , nest 2 $ text "remaining" <+> sep [ prettyList (map (prettyA . namedThing . unArg) es)
                                             , nest 2 $ text ":" <+> prettyTCM t0 ] ]
   postponeTypeCheckingProblem_ (CheckArgs exph r es t0 t $ \vs t -> k (us ++ vs) t)
+
+-- | Returns an unblocking action in case of failure.
+disambiguateConstructor :: NonemptyList QName -> Type -> TCM (Either (TCM Bool) ConHead)
+disambiguateConstructor cs0 t = do
+  reportSLn "tc.check.term" 40 $ "Ambiguous constructor: " ++ prettyShow cs0
+
+  -- Get the datatypes of the various constructors
+  let getData Constructor{conData = d} = d
+      getData _                        = __IMPOSSIBLE__
+  reportSLn "tc.check.term" 40 $ "  ranges before: " ++ show (getRange cs0)
+  -- We use the reduced constructor when disambiguating, but
+  -- the original constructor for type checking. This is important
+  -- since they may have different types (different parameters).
+  -- See issue 279.
+  -- Andreas, 2017-08-13, issue #2686: ignore abstract constructors
+  (cs, cons)  <- unzip . snd . partitionEithers <$> do
+     forM (toList cs0) $ \ c -> mapRight (c,) <$> getConForm c
+  reportSLn "tc.check.term" 40 $ "  reduced: " ++ prettyShow cons
+  case cons of
+    []    -> typeError $ AbstractConstructorNotInScope $ headNe cs0
+    [con] -> do
+      let c = setConName (fromMaybe __IMPOSSIBLE__ $ headMaybe cs) con
+      reportSLn "tc.check.term" 40 $ "  only one non-abstract constructor: " ++ prettyShow c
+      storeDisambiguatedName $ conName c
+      return (Right c)
+    _   -> do
+      dcs <- zipWithM (\ c con -> (, setConName c con) . getData . theDef <$> getConInfo con) cs cons
+      -- Type error
+      let badCon t = typeError $ flip DoesNotConstructAnElementOf t $
+            fromMaybe __IMPOSSIBLE__ $ headMaybe cs
+      -- Lets look at the target type at this point
+      let getCon :: TCM (Maybe ConHead)
+          getCon = do
+            TelV tel t1 <- telView t
+            addContext tel $ do
+             reportSDoc "tc.check.term.con" 40 $ nest 2 $
+               text "target type: " <+> prettyTCM t1
+             ifBlockedType t1 (\ m t -> return Nothing) $ \ _ t' ->
+               caseMaybeM (isDataOrRecord $ unEl t') (badCon t') $ \ d ->
+                 case [ c | (d', c) <- dcs, d == d' ] of
+                   [c] -> do
+                     reportSLn "tc.check.term" 40 $ "  decided on: " ++ prettyShow c
+                     storeDisambiguatedName $ conName c
+                     return $ Just c
+                   []  -> badCon $ t' $> Def d []
+                   cs  -> typeError $ CantResolveOverloadedConstructorsTargetingSameDatatype d $ map conName cs
+      getCon >>= \ case
+        Nothing -> return $ Left $ isJust <$> getCon
+        Just c  -> return $ Right c
 
