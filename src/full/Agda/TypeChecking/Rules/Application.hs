@@ -2,8 +2,7 @@
 {-# LANGUAGE NondecreasingIndentation #-}
 
 module Agda.TypeChecking.Rules.Application
-  ( checkArguments
-  , checkArguments'
+  ( checkArguments'
   , checkArguments_
   , checkApplication
   , inferApplication
