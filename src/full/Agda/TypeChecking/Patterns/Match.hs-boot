@@ -6,7 +6,6 @@ import Data.IntMap (IntMap)
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad
-import {-# SOURCE #-} Agda.TypeChecking.Pretty (PrettyTCM)
 import Agda.TypeChecking.Substitute (DeBruijn)
 
 import Agda.Utils.Empty

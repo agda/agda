@@ -7,7 +7,6 @@ import Control.Monad
 
 import Data.List (genericTake)
 import Data.Maybe (fromMaybe)
-import qualified Data.Set as Set
 
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Views (deepUnscope)
@@ -17,7 +16,6 @@ import Agda.Syntax.Position
 import qualified Agda.Syntax.Info as Info
 
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Monad.Builtin (primLevel)
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Substitute
@@ -35,12 +33,7 @@ import Agda.Interaction.Options
 
 import Agda.Utils.Except
 import Agda.Utils.List
-import Agda.Utils.Monad
-import Agda.Utils.Permutation
-import qualified Agda.Utils.Pretty as P
 import Agda.Utils.Size
-import Agda.Utils.Tuple
-import qualified Agda.Utils.VarSet as VarSet
 
 #include "undefined.h"
 import Agda.Utils.Impossible
