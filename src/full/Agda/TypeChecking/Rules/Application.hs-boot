@@ -19,6 +19,7 @@ checkArguments_ :: ExpandHidden -> Range -> [NamedArg A.Expr] -> Telescope ->
 
 checkApplication :: A.Expr -> A.Args -> A.Expr -> Type -> TCM Term
 
+inferApplication :: ExpandHidden -> A.Expr -> A.Args -> A.Expr -> TCM (Term, Type)
+
 checkHeadApplication :: A.Expr -> Type -> A.Expr -> [NamedArg A.Expr] -> TCM Term
 
-inferHead :: A.Expr -> TCM (Args -> Term, Type)

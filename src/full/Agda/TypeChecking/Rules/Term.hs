@@ -1408,7 +1408,7 @@ inferExpr :: A.Expr -> TCM (Term, Type)
 inferExpr = inferExpr' DontExpandLast
 
 inferExpr' :: ExpandHidden -> A.Expr -> TCM (Term, Type)
-inferExpr' exh e = do
+inferExpr' exh e = traceCall (InferExpr e) $ do
   let Application hd args = appView e
   reportSDoc "tc.infer" 30 $ vcat
     [ text "inferExpr': appView of " <+> prettyA e
@@ -1418,20 +1418,7 @@ inferExpr' exh e = do
   reportSDoc "tc.infer" 60 $ vcat
     [ text $ "  hd (raw) = " ++ show hd
     ]
-  if not $ defOrVar hd then fallback else traceCall (InferExpr e) $ do
-    case unScope $ hd of
-      A.Proj o p | isAmbiguous p -> inferProjApp e o (unAmbQ p) args
-      _ -> do
-        (f, t0) <- inferHead hd
-        res <- runExceptT $ checkArguments exh (getRange hd) args t0 (sort Prop)
-        case res of
-          Right (vs, t1) -> (,t1) <$> unfoldInlined (f vs)
-          Left t1 -> fallback -- blocked on type t1
-  where
-    fallback = do
-      t <- workOnTypes $ newTypeMeta_
-      v <- checkExpr e t
-      return (v,t)
+  inferApplication exh hd args e
 
 defOrVar :: A.Expr -> Bool
 defOrVar A.Var{} = True

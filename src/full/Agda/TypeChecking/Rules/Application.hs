@@ -1,6 +1,13 @@
 {-# LANGUAGE CPP                      #-}
 
-module Agda.TypeChecking.Rules.Application where
+module Agda.TypeChecking.Rules.Application
+  ( checkArguments
+  , checkArguments'
+  , checkArguments_
+  , checkApplication
+  , inferApplication
+  , checkHeadApplication
+  ) where
 
 #if MIN_VERSION_base(4,11,0)
 import Prelude hiding ( (<>), null )
@@ -238,9 +245,25 @@ checkApplication hd args e t = do
         ]
       return v
 
----------------------------------------------------------------------------
--- * Applications
----------------------------------------------------------------------------
+-- | Precondition: @Application hd args = appView e@.
+inferApplication :: ExpandHidden -> A.Expr -> A.Args -> A.Expr -> TCM (Term, Type)
+inferApplication exh hd args e | not (defOrVar hd) = do
+  t <- workOnTypes $ newTypeMeta_
+  v <- checkExpr e t
+  return (v, t)
+inferApplication exh hd args e =
+  case unScope hd of
+    A.Proj o p | isAmbiguous p -> inferProjApp e o (unAmbQ p) args
+    _ -> do
+      (f, t0) <- inferHead hd
+      let r = getRange hd
+      res <- runExceptT $ checkArguments exh (getRange hd) args t0 typeDontCare
+      case res of
+        Right (vs, t1) -> (,t1) <$> unfoldInlined (f vs)
+        Left problem -> do
+          t <- workOnTypes $ newTypeMeta_
+          v <- postponeArgs problem exh r args t $ \ vs _ -> unfoldInlined (f vs)
+          return (v, t)
 
 inferHeadDef :: ProjOrigin -> QName -> TCM (Args -> Term, Type)
 inferHeadDef o x = do
@@ -712,17 +735,20 @@ checkArguments' exph r args t0 t k = do
     Right (vs, t1) -> k vs t1
       -- vs = evaluated args
       -- t1 = remaining type (needs to be subtype of t)
-    Left (us, es, t0) -> do
-      reportSDoc "tc.term.expr.args" 80 $
-        sep [ text "postponed checking arguments"
-            , nest 4 $ prettyList (map (prettyA . namedThing . unArg) args)
-            , nest 2 $ text "against"
-            , nest 4 $ prettyTCM t0 ] $$
-        sep [ text "progress:"
-            , nest 2 $ text "checked" <+> prettyList (map prettyTCM us)
-            , nest 2 $ text "remaining" <+> sep [ prettyList (map (prettyA . namedThing . unArg) es)
-                                                , nest 2 $ text ":" <+> prettyTCM t0 ] ]
-      postponeTypeCheckingProblem_ (CheckArgs exph r es t0 t $ \vs t -> k (us ++ vs) t)
+    Left problem -> postponeArgs problem exph r args t k
       -- if unsuccessful, postpone checking until t0 unblocks
 
+postponeArgs :: (Args, [NamedArg A.Expr], Type) -> ExpandHidden -> Range -> [NamedArg A.Expr] -> Type ->
+                (Args -> Type -> TCM Term) -> TCM Term
+postponeArgs (us, es, t0) exph r args t k = do
+  reportSDoc "tc.term.expr.args" 80 $
+    sep [ text "postponed checking arguments"
+        , nest 4 $ prettyList (map (prettyA . namedThing . unArg) args)
+        , nest 2 $ text "against"
+        , nest 4 $ prettyTCM t0 ] $$
+    sep [ text "progress:"
+        , nest 2 $ text "checked" <+> prettyList (map prettyTCM us)
+        , nest 2 $ text "remaining" <+> sep [ prettyList (map (prettyA . namedThing . unArg) es)
+                                            , nest 2 $ text ":" <+> prettyTCM t0 ] ]
+  postponeTypeCheckingProblem_ (CheckArgs exph r es t0 t $ \vs t -> k (us ++ vs) t)
 
