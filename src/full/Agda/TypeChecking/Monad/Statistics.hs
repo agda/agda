@@ -5,6 +5,7 @@ module Agda.TypeChecking.Monad.Statistics
     ) where
 
 import qualified Data.Map as Map
+import Control.DeepSeq
 
 import qualified Text.PrettyPrint.Boxes as Boxes
 
@@ -51,7 +52,11 @@ modifyCounter x f = modifyStatistics $ force . update
     -- Or use insertLookupWithKey?
     -- update m = old `seq` m' where
     --   (old, m') = Map.insertLookupWithKey (\ _ new old -> f old) x dummy m
-    force m = sum (Map.elems m) `seq` m
+    -- Ulf, 2018-04-10: Neither of these approaches are strict enough in the
+    -- map (nor are they less hacky). It's not enough to be strict in the
+    -- values stored in the map, we also need to be strict in the *structure*
+    -- of the map. A less hacky solution is to deepseq the map.
+    force m = rnf m `seq` m
     update  = Map.insertWith (\ new old -> f old) x dummy
     dummy   = f 0
 
