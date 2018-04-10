@@ -55,9 +55,9 @@ modifyCounter x f = modifyStatistics $ force . update
     update  = Map.insertWith (\ new old -> f old) x dummy
     dummy   = f 0
 
--- | Print the given statistics if verbosity "profile" is given.
+-- | Print the given statistics if verbosity "profile.ticks" is given.
 printStatistics :: Int -> Maybe C.TopLevelModuleName -> Statistics -> TCM ()
-printStatistics vl mmname stats = verboseS "profile" vl $ do
+printStatistics vl mmname stats = verboseS "profile.ticks" vl $ do
   unlessNull (Map.toList stats) $ \ stats -> do
     let -- First column (left aligned) is accounts.
         col1 = Boxes.vcat Boxes.left  $ map (Boxes.text . fst) stats
