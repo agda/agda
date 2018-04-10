@@ -953,19 +953,18 @@ inferOrCheckProjApp e o ds args mt = do
               (_,_) <- checkKnownArguments (take k args) pars tfull
 
               -- Check remaining arguments
-              let tc = fromMaybe typeDontCare mt
-              let r  = getRange e
-              z <- runExceptT $ checkArguments ExpandLast r (drop (k+1) args) tb tc
+              let tc    = fromMaybe typeDontCare mt
+                  r     = getRange e
+                  args' = drop (k + 1) args
+              z <- runExceptT $ checkArguments ExpandLast r args' tb tc
               case z of
                 Right (us, trest) -> return (u `apply` us, trest)
-                -- We managed to check a part of es and got us1, but es2 remain.
-                Left (us1, es2, trest1) -> do
+                Left problem -> do
                   -- In the inference case:
                   -- To create a postponed type checking problem,
                   -- we do not use typeDontCare, but create a meta.
                   tc <- caseMaybe mt newTypeMeta_ return
-                  v <- postponeTypeCheckingProblem_ $
-                    CheckArgs ExpandLast r es2 trest1 tc $ \ us2 trest ->
-                      coerce (u `apply` us1 `apply` us2) trest tc
+                  v  <- postponeArgs problem ExpandLast r args' tc $ \ us trest ->
+                          coerce (u `apply` us) trest tc
                   return (v, tc)
 
