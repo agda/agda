@@ -7,8 +7,8 @@ import Agda.Syntax.Internal
 import Agda.Syntax.Position
 import Agda.TypeChecking.Monad.Base
 
-checkArguments' :: ExpandHidden -> Range -> [NamedArg A.Expr] -> Type -> Type ->
-                   (Args -> Type -> TCM Term) -> TCM Term
+checkArguments :: ExpandHidden -> Range -> [NamedArg A.Expr] -> Type -> Type ->
+                  (Args -> Type -> TCM Term) -> TCM Term
 
 checkArguments_ :: ExpandHidden -> Range -> [NamedArg A.Expr] -> Telescope ->
                    TCM (Args, Telescope)
