@@ -339,39 +339,11 @@ checkHeadApplication e t hd args = do
   pOr       <- fmap primFunName <$> getPrimitive' "primPOr"
   pComp       <- fmap primFunName <$> getPrimitive' "primComp"
   mglue     <- getPrimitiveName' builtin_glue
+  let isSharp c = Just c == (nameOfSharp <$> kit)
   case hd of
-    A.Con cs | Just c <- getUnambiguous cs, Just c == (nameOfSharp <$> kit) -> do
-      -- Type checking # generated #-wrapper. The # that the user can write will be a Def,
-      -- but the sharp we generate in the body of the wrapper is a Con.
-      defaultResult
-    A.Con cs | Just c <- getUnambiguous cs -> do
-      (f, t0) <- inferHead hd
-      reportSDoc "tc.term.con" 5 $ vcat
-        [ text "checkHeadApplication inferred" <+>
-          prettyTCM c <+> text ":" <+> prettyTCM t0
-        ]
-      expandLast <- asks envExpandLast
-      checkArguments expandLast (getRange hd) args t0 t $ \vs t1 -> do
-        TelV eTel eType <- telView t
-        -- If the expected type @eType@ is a metavariable we have to make
-        -- sure it's instantiated to the proper pi type
-        TelV fTel fType <- telViewUpTo (size eTel) t1
-        -- We know that the target type of the constructor (fType)
-        -- does not depend on fTel so we can compare fType and eType
-        -- first.
-
-        when (size eTel > size fTel) $
-          typeError $ UnequalTypes CmpLeq t1 t -- switch because of contravariance
-          -- Andreas, 2011-05-10 report error about types rather  telescopes
-          -- compareTel CmpLeq eTel fTel >> return () -- This will fail!
-
-        reportSDoc "tc.term.con" 10 $ addContext eTel $ vcat
-          [ text "checking" <+>
-            prettyTCM fType <+> text "?<=" <+> prettyTCM eType
-          ]
-        blockTerm t $ unfoldInlined =<< f vs <$ workOnTypes (do
-          addContext eTel $ leqType fType eType
-          compareTel t t1 CmpLeq eTel fTel)
+    -- Type checking #. The # that the user can write will be a Def, but the
+    -- sharp we generate in the body of the wrapper is a Con.
+    A.Def c | isSharp c -> checkSharpApplication e t c args
     (A.Def c) | Just c == pComp -> do
         defaultResult' $ Just $ \ vs t1 -> do
           case vs of
@@ -509,7 +481,6 @@ checkHeadApplication e t hd args = do
           ]
 
       blockTerm t $ e' <$ workOnTypes (leqType forcedType t)
-    A.Con _  -> __IMPOSSIBLE__
     _ -> defaultResult
   where
   defaultResult = defaultResult' Nothing
@@ -1051,4 +1022,88 @@ inferOrCheckProjApp e o ds args mt = do
                   v  <- postponeArgs problem ExpandLast r args' tc $ \ us trest ->
                           coerce (u `applyE` us) trest tc
                   return (v, tc)
+
+-----------------------------------------------------------------------------
+-- * Coinduction
+-----------------------------------------------------------------------------
+
+checkSharpApplication :: A.Expr -> Type -> QName -> [NamedArg A.Expr] -> TCM Term
+checkSharpApplication e t c args = do
+  arg <- case args of
+           [a] | visible a -> return $ namedArg a
+           _ -> typeError $ GenericError $ prettyShow c ++ " must be applied to exactly one argument."
+
+  -- The name of the fresh function.
+  i <- fresh :: TCM Int
+  let name = filter (/= '_') (prettyShow $ A.nameConcrete $ A.qnameName c) ++ "-" ++ show i
+
+  kit <- coinductionKit'
+  let flat = nameOfFlat kit
+      inf  = nameOfInf  kit
+
+  -- Add the type signature of the fresh function to the
+  -- signature.
+  -- To make sure we can type check the generated function we have to make
+  -- sure that its type is \inf. The reason for this is that we don't yet
+  -- postpone checking of patterns when we don't know their types (Issue480).
+  forcedType <- do
+    lvl <- levelType
+    (_, l) <- newValueMeta RunMetaOccursCheck lvl
+    lv  <- levelView l
+    (_, a) <- newValueMeta RunMetaOccursCheck (sort $ Type lv)
+    return $ El (Type lv) $ Def inf [Apply $ setHiding Hidden $ defaultArg l, Apply $ defaultArg a]
+
+  wrapper <- inFreshModuleIfFreeParams $ do
+    c' <- setRange (getRange c) <$>
+            liftM2 qualify (killRange <$> currentModule)
+                           (freshName_ name)
+
+    -- Define and type check the fresh function.
+    rel <- asks envRelevance
+    abs <- aModeToDef <$> asks envAbstractMode
+    let info   = A.mkDefInfo (A.nameConcrete $ A.qnameName c') noFixity'
+                             PublicAccess abs noRange
+        core   = A.LHSProj { A.lhsDestructor = unambiguous flat
+                           , A.lhsFocus      = defaultNamedArg $ A.LHSHead c' []
+                           , A.lhsPats       = [] }
+        clause = A.Clause (A.LHS empty core) []
+                          (A.RHS arg Nothing)
+                          [] False
+
+    i <- currentOrFreshMutualBlock
+
+    -- If we are in irrelevant position, add definition irrelevantly.
+    -- TODO: is this sufficient?
+    addConstant c' =<< do
+      let ai = setRelevance rel defaultArgInfo
+      useTerPragma $
+        (defaultDefn ai c' forcedType emptyFunction)
+        { defMutual = i }
+
+    checkFunDef NotDelayed info c' [clause]
+
+    reportSDoc "tc.term.expr.coind" 15 $ do
+      def <- theDef <$> getConstInfo c'
+      vcat $
+        [ text "The coinductive wrapper"
+        , nest 2 $ prettyTCM rel <> prettyTCM c' <+> text ":"
+        , nest 4 $ prettyTCM t
+        , nest 2 $ prettyA clause
+        , text "The definition is" <+> text (show $ funDelayed def) <>
+          text "."
+        ]
+    return c'
+
+  -- The application of the fresh function to the relevant
+  -- arguments.
+  e' <- Def wrapper . map Apply <$> getContextArgs
+
+  reportSDoc "tc.term.expr.coind" 15 $ vcat $
+      [ text "The coinductive constructor application"
+      , nest 2 $ prettyTCM e
+      , text "was translated into the application"
+      , nest 2 $ prettyTCM e'
+      ]
+
+  blockTerm t $ e' <$ workOnTypes (leqType forcedType t)
 
