@@ -9,16 +9,16 @@ import Agda.TypeChecking.Monad.Base
 import Agda.Utils.Except ( ExceptT )
 
 checkArguments :: ExpandHidden -> Range -> [NamedArg A.Expr] -> Type -> Type ->
-                  ExceptT (Args, [NamedArg A.Expr], Type) TCM (Args, Type)
+                  ExceptT (Elims, [NamedArg A.Expr], Type) TCM (Elims, Type)
 
 checkArguments' :: ExpandHidden -> Range -> [NamedArg A.Expr] -> Type -> Type ->
-                   (Args -> Type -> TCM Term) -> TCM Term
+                   (Elims-> Type -> TCM Term) -> TCM Term
 
 checkArguments_ :: ExpandHidden -> Range -> [NamedArg A.Expr] -> Telescope ->
-                   TCM (Args, Telescope)
+                   TCM (Elims, Telescope)
 
 checkApplication :: A.Expr -> A.Args -> A.Expr -> Type -> TCM Term
 
 checkHeadApplication :: A.Expr -> Type -> A.Expr -> [NamedArg A.Expr] -> TCM Term
 
-inferHead :: A.Expr -> TCM (Args -> Term, Type)
+inferHead :: A.Expr -> TCM (Elims -> Term, Type)
