@@ -476,12 +476,11 @@ checkArgumentsE exh r [] t0 t1 =
       t1' <- unEl <$> reduce t1
       implicitArgs (-1) (expand t1') t0
     where
-      expand (Pi (Dom info _) _)   Hidden = not (hidden info) &&
-                                            exh == ExpandLast
-      expand _                     Hidden = exh == ExpandLast
-      expand (Pi (Dom info _) _) Instance{} = not $ isInstance info
-      expand _                   Instance{} = True
-      expand _                  NotHidden = False
+      expand (Pi dom _) Hidden     = not (hidden dom) && exh == ExpandLast
+      expand _          Hidden     = exh == ExpandLast
+      expand (Pi dom _) Instance{} = not $ isInstance dom
+      expand _          Instance{} = True
+      expand _          NotHidden  = False
 
 -- Case: argument given.
 checkArgumentsE exh r args0@(arg@(Arg info e) : args) t0 t1 =
