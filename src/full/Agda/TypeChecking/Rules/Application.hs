@@ -3,7 +3,6 @@
 
 module Agda.TypeChecking.Rules.Application
   ( checkArguments
-  , checkArguments'
   , checkArguments_
   , checkApplication
   , inferApplication
@@ -71,6 +70,10 @@ import Agda.Utils.Tuple
 
 #include "undefined.h"
 import Agda.Utils.Impossible
+
+-----------------------------------------------------------------------------
+-- * Applications
+-----------------------------------------------------------------------------
 
 -- | @checkApplication hd args e t@ checks an application.
 --   Precondition: @Application hs args = appView e@
@@ -214,13 +217,17 @@ inferApplication exh hd args e =
     _ -> do
       (f, t0) <- inferHead hd
       let r = getRange hd
-      res <- runExceptT $ checkArguments exh (getRange hd) args t0 typeDontCare
+      res <- runExceptT $ checkArgumentsE exh (getRange hd) args t0 typeDontCare
       case res of
         Right (vs, t1) -> (,t1) <$> unfoldInlined (f vs)
         Left problem -> do
           t <- workOnTypes $ newTypeMeta_
           v <- postponeArgs problem exh r args t $ \ vs _ -> unfoldInlined (f vs)
           return (v, t)
+
+-----------------------------------------------------------------------------
+-- * Heads
+-----------------------------------------------------------------------------
 
 inferHeadDef :: ProjOrigin -> QName -> TCM (Elims -> Term, Type)
 inferHeadDef o x = do
@@ -281,31 +288,38 @@ inferHead e = do
 
 inferDef :: (Args -> Term) -> QName -> TCM (Term, Type)
 inferDef mkTerm x =
-    traceCall (InferDef x) $ do
+  traceCall (InferDef x) $ do
     -- getConstInfo retrieves the *absolute* (closed) type of x
     -- instantiateDef relativizes it to the current context
     d  <- instantiateDef =<< getConstInfo x
     -- irrelevant defs are only allowed in irrelevant position
-    let drel = defRelevance d
-    when (drel /= Relevant) $ do
-      rel <- asks envRelevance
-      reportSDoc "tc.irr" 50 $ vcat
-        [ text "declaration relevance =" <+> text (show drel)
-        , text "context     relevance =" <+> text (show rel)
-        ]
-      unless (drel `moreRelevant` rel) $ typeError $ DefinitionIsIrrelevant x
+    checkRelevance x (defRelevance d)
     -- since x is considered living in the top-level, we have to
     -- apply it to the current context
     vs <- freeVarsToApply x
-    reportSDoc "tc.term.def" 60 $ do
-      text "freeVarsToApply to def " <+> hsep (map (text . show) vs)
-    reportSDoc "tc.term.def" 10 $ do
-      text "inferred def " <+> prettyTCM x <+> hsep (map prettyTCM vs)
     let t = defType d
-    reportSDoc "tc.term.def" 10 $ nest 2 $ text " : " <+> prettyTCM t
-    let v = mkTerm vs -- applies x to vs, dropping parameters
-    reportSDoc "tc.term.def" 10 $ nest 2 $ text " --> " <+> prettyTCM v
+        v = mkTerm vs -- applies x to vs, dropping parameters
+    debug vs t v
     return (v, t)
+  where
+    debug vs t v = do
+      reportSDoc "tc.term.def" 60 $
+        text "freeVarsToApply to def " <+> hsep (map (text . show) vs)
+      reportSDoc "tc.term.def" 10 $ vcat
+        [ text "inferred def " <+> prettyTCM x <+> hsep (map prettyTCM vs)
+        , nest 2 $ text ":" <+> prettyTCM t
+        , nest 2 $ text "-->" <+> prettyTCM v ]
+
+-- | The second argument is the relevance of the first.
+checkRelevance :: QName -> Relevance -> TCM ()
+checkRelevance _ Relevant = return () -- relevance functions can be used in any context.
+checkRelevance x drel = do
+  rel <- asks envRelevance
+  reportSDoc "tc.irr" 50 $ vcat
+    [ text "declaration relevance =" <+> text (show drel)
+    , text "context     relevance =" <+> text (show rel)
+    ]
+  unless (drel `moreRelevant` rel) $ typeError $ DefinitionIsIrrelevant x
 
 -- | @checkHeadApplication e t hd args@ checks that @e@ has type @t@,
 -- assuming that @e@ has the form @hd args@. The corresponding
@@ -337,7 +351,7 @@ checkHeadApplication e t hd args = do
           prettyTCM c <+> text ":" <+> prettyTCM t0
         ]
       expandLast <- asks envExpandLast
-      checkArguments' expandLast (getRange hd) args t0 t $ \vs t1 -> do
+      checkArguments expandLast (getRange hd) args t0 t $ \vs t1 -> do
         TelV eTel eType <- telView t
         -- If the expected type @eType@ is a metavariable we have to make
         -- sure it's instantiated to the proper pi type
@@ -502,7 +516,7 @@ checkHeadApplication e t hd args = do
   defaultResult' mk = do
     (f, t0) <- inferHead hd
     expandLast <- asks envExpandLast
-    checkArguments' expandLast (getRange hd) args t0 t $ \vs t1 -> do
+    checkArguments expandLast (getRange hd) args t0 t $ \vs t1 -> do
       let check = do
            k <- mk
            as <- allApplyElims vs
@@ -510,36 +524,39 @@ checkHeadApplication e t hd args = do
       v <- unfoldInlined (f vs)
       maybe id (\ ck m -> blockTerm t $ ck >> m) check $ coerce v t1 t
 
+-----------------------------------------------------------------------------
+-- * Spines
+-----------------------------------------------------------------------------
+
 -- | Check a list of arguments: @checkArgs args t0 t1@ checks that
 --   @t0 = Delta -> t0'@ and @args : Delta@. Inserts hidden arguments to
 --   make this happen.  Returns the evaluated arguments @vs@, the remaining
 --   type @t0'@ (which should be a subtype of @t1@) and any constraints @cs@
 --   that have to be solved for everything to be well-formed.
 
-checkArguments :: ExpandHidden -> Range -> [NamedArg A.Expr] -> Type -> Type ->
+checkArgumentsE :: ExpandHidden -> Range -> [NamedArg A.Expr] -> Type -> Type ->
                   ExceptT (Elims, [NamedArg A.Expr], Type) TCM (Elims, Type)
 
 -- Case: no arguments, do not insert trailing hidden arguments: We are done.
-checkArguments DontExpandLast _ [] t0 t1 = return ([], t0)
+checkArgumentsE DontExpandLast _ [] t0 t1 = return ([], t0)
 
 -- Case: no arguments, but need to insert trailing hiddens.
-checkArguments exh r [] t0 t1 =
+checkArgumentsE exh r [] t0 t1 =
     traceCallE (CheckArguments r [] t0 t1) $ lift $ do
       t1' <- unEl <$> reduce t1
       mapFst (map Apply) <$> implicitArgs (-1) (expand t1') t0
     where
-      expand (Pi (Dom{domInfo = info}) _)   Hidden = not (hidden info) &&
-                                            exh == ExpandLast
-      expand _                     Hidden = exh == ExpandLast
-      expand (Pi Dom{domInfo = info} _) Instance{} = not $ isInstance info
-      expand _                   Instance{} = True
-      expand _                  NotHidden = False
+      expand (Pi dom _) Hidden     = not (hidden dom) && exh == ExpandLast
+      expand _          Hidden     = exh == ExpandLast
+      expand (Pi dom _) Instance{} = not $ isInstance dom
+      expand _          Instance{} = True
+      expand _          NotHidden  = False
 
 -- Case: argument given.
-checkArguments exh r args0@(arg@(Arg info e) : args) t0 t1 =
+checkArgumentsE exh r args0@(arg@(Arg info e) : args) t0 t1 =
     traceCallE (CheckArguments r args0 t0 t1) $ do
       lift $ reportSDoc "tc.term.args" 30 $ sep
-        [ text "checkArguments"
+        [ text "checkArgumentsE"
 --        , text "  args0 =" <+> prettyA args0
         , nest 2 $ vcat
           [ text "e     =" <+> prettyA e
@@ -614,7 +631,7 @@ checkArguments exh r args0@(arg@(Arg info e) : args) t0 t1 =
                   checkNamedArg (Arg info' e') a
                 -- save relevance info' from domain in argument
                 addCheckedArgs us (Apply $ Arg info' u) $
-                  checkArguments exh (fuseRange r e) args (absApp b u) t1
+                  checkArgumentsE exh (fuseRange r e) args (absApp b u) t1
             | otherwise -> do
                 reportSDoc "error" 10 $ nest 2 $ vcat
                   [ text $ "info      = " ++ show info
@@ -629,7 +646,7 @@ checkArguments exh r args0@(arg@(Arg info e) : args) t0 t1 =
                 lift $ reportSDoc "tc.term.args" 30 $ text $ show bA
                 u <- lift $ checkExpr (namedThing e) =<< elInf primInterval
                 addCheckedArgs us (IApply (unArg x) (unArg y) u) $
-                  checkArguments exh (fuseRange r e) args (El s $ unArg bA `apply` [argN u]) t1
+                  checkArgumentsE exh (fuseRange r e) args (El s $ unArg bA `apply` [argN u]) t1
           _ -> shouldBePi
   where
     addCheckedArgs us u rec =
@@ -649,24 +666,24 @@ checkArguments_
      -- ^ Checked arguments and remaining telescope if successful.
 checkArguments_ exh r args tel = do
     z <- runExceptT $
-      checkArguments exh r args (telePi tel typeDontCare) typeDontCare
+      checkArgumentsE exh r args (telePi tel typeDontCare) typeDontCare
     case z of
       Right (args, t) -> do
         let TelV tel' _ = telView' t
         return (args, tel')
       Left _ -> __IMPOSSIBLE__  -- type cannot be blocked as it is generated by telePi
 
--- | @checkArguments' exph r args t0 t k@ tries @checkArguments exph args t0 t@.
+-- | @checkArguments exph r args t0 t k@ tries @checkArgumentsE exph args t0 t@.
 -- If it succeeds, it continues @k@ with the returned results.  If it fails,
 -- it registers a postponed typechecking problem and returns the resulting new
 -- meta variable.
 --
 -- Checks @e := ((_ : t0) args) : t@.
-checkArguments' ::
+checkArguments ::
   ExpandHidden -> Range -> [NamedArg A.Expr] -> Type -> Type ->
   (Elims -> Type -> TCM Term) -> TCM Term
-checkArguments' exph r args t0 t k = do
-  z <- runExceptT $ checkArguments exph r args t0 t
+checkArguments exph r args t0 t k = do
+  z <- runExceptT $ checkArgumentsE exph r args t0 t
   case z of
     Right (vs, t1) -> k vs t1
       -- vs = evaluated args
@@ -746,7 +763,7 @@ checkConstructorApplication org t c args = do
                args' = dropArgs pnames args
            -- check the non-parameter arguments
            expandLast <- asks envExpandLast
-           checkArguments' expandLast (getRange c) args' ctype' t $ \es t' -> do
+           checkArguments expandLast (getRange c) args' ctype' t $ \es t' -> do
              let us = fromMaybe __IMPOSSIBLE__ (allApplyElims es)
              reportSDoc "tc.term.con" 20 $ nest 2 $ vcat
                [ text "us     =" <+> prettyTCM us
@@ -1020,19 +1037,18 @@ inferOrCheckProjApp e o ds args mt = do
               (_,_) <- checkKnownArguments (take k args) pars tfull
 
               -- Check remaining arguments
-              let tc = fromMaybe typeDontCare mt
-              let r  = getRange e
-              z <- runExceptT $ checkArguments ExpandLast r (drop (k+1) args) tb tc
+              let tc    = fromMaybe typeDontCare mt
+                  r     = getRange e
+                  args' = drop (k + 1) args
+              z <- runExceptT $ checkArgumentsE ExpandLast r args' tb tc
               case z of
                 Right (us, trest) -> return (u `applyE` us, trest)
-                -- We managed to check a part of es and got us1, but es2 remain.
-                Left (us1, es2, trest1) -> do
+                Left problem -> do
                   -- In the inference case:
                   -- To create a postponed type checking problem,
                   -- we do not use typeDontCare, but create a meta.
                   tc <- caseMaybe mt newTypeMeta_ return
-                  v <- postponeTypeCheckingProblem_ $
-                    CheckArgs ExpandLast r es2 trest1 tc $ \ us2 trest ->
-                      coerce (u `applyE` us1 `applyE` us2) trest tc
+                  v  <- postponeArgs problem ExpandLast r args' tc $ \ us trest ->
+                          coerce (u `applyE` us) trest tc
                   return (v, tc)
 

@@ -1025,9 +1025,10 @@ coerce v t1 t2 = blockTerm t2 $ do
   if n <= 0 then fallback else do
     ifBlockedType b2 (\ _ _ -> fallback) $ \ _ _ -> do
       (args, t1') <- implicitArgs n notVisible t1
-      coerceSize leqType (v `apply` args) t1' t2
+      let v' = v `apply` args
+      v' <$ coerceSize leqType v' t1' t2
   where
-    fallback = coerceSize leqType v t1 t2
+    fallback = v <$ coerceSize leqType v t1 t2
 
 -- | Account for situations like @k : (Size< j) <= (Size< k + 1)@
 --
@@ -1039,7 +1040,7 @@ coerce v t1 t2 = blockTerm t2 $ do
 --   For now, we do a cheap heuristics.
 --
 --   Precondition: types are reduced.
-coerceSize :: (Type -> Type -> TCM ()) -> Term -> Type -> Type -> TCM Term
+coerceSize :: (Type -> Type -> TCM ()) -> Term -> Type -> Type -> TCM ()
 coerceSize leqType v t1 t2 = workOnTypes $ do
     reportSDoc "tc.conv.coerce" 70 $
       text "coerceSize" <+> vcat
@@ -1047,8 +1048,8 @@ coerceSize leqType v t1 t2 = workOnTypes $ do
         , text "from type t1 =" <+> pretty t1
         , text "to type   t2 =" <+> pretty t2
         ]
-    let fallback = v <$ leqType t1 t2
-        done = caseMaybeM (isSizeType t1) fallback $ \ b1 -> return v
+    let fallback = leqType t1 t2
+        done = caseMaybeM (isSizeType t1) fallback $ \ _ -> return ()
     -- Andreas, 2015-07-22, Issue 1615:
     -- If t1 is a meta and t2 a type like Size< v2, we need to make sure we do not miss
     -- the constraint v < v2!
@@ -1059,7 +1060,7 @@ coerceSize leqType v t1 t2 = workOnTypes $ do
       mv <- sizeMaxView v
       if any (\case{ DOtherSize{} -> True; _ -> False }) mv then fallback else do
       -- Andreas, 2015-02-11 do not instantiate metas here (triggers issue 1203).
-      ifM (tryConversion $ dontAssignMetas $ leqType t1 t2) (return v) $ {- else -} do
+      unlessM (tryConversion $ dontAssignMetas $ leqType t1 t2) $ do
         -- A (most probably weaker) alternative is to just check syn.eq.
         -- ifM (snd <$> checkSyntacticEquality t1 t2) (return v) $ {- else -} do
         reportSDoc "tc.conv.coerce" 20 $ text "coercing to a size type"

@@ -6,13 +6,9 @@ import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Internal
 import Agda.Syntax.Position
 import Agda.TypeChecking.Monad.Base
-import Agda.Utils.Except ( ExceptT )
 
 checkArguments :: ExpandHidden -> Range -> [NamedArg A.Expr] -> Type -> Type ->
-                  ExceptT (Elims, [NamedArg A.Expr], Type) TCM (Elims, Type)
-
-checkArguments' :: ExpandHidden -> Range -> [NamedArg A.Expr] -> Type -> Type ->
-                   (Elims-> Type -> TCM Term) -> TCM Term
+                  (Elims -> Type -> TCM Term) -> TCM Term
 
 checkArguments_ :: ExpandHidden -> Range -> [NamedArg A.Expr] -> Telescope ->
                    TCM (Elims, Telescope)

@@ -24,7 +24,7 @@ endif
 logDir = $(LOG_DIR)/$(TAG)
 logFiles = $(patsubst %,$(logDir)/%,$(allTests))
 
-verbose = -v0 -v profile:100
+verbose = -v0 -v profile:1 -v profile.constraints:10 -v profile.metas:10
 
 all : clean $(logDir) $(logFiles)
 
