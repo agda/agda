@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP                      #-}
+{-# LANGUAGE NondecreasingIndentation #-}
 
 module Agda.TypeChecking.Rules.Application
   ( checkArguments
@@ -6,7 +7,6 @@ module Agda.TypeChecking.Rules.Application
   , checkArguments_
   , checkApplication
   , inferApplication
-  , checkHeadApplication
   ) where
 
 #if MIN_VERSION_base(4,11,0)
@@ -17,9 +17,11 @@ import Prelude hiding ( null )
 
 import Control.Arrow (first, second)
 import Control.Monad.Trans
+import Control.Monad.Trans.Maybe
 import Control.Monad.Reader
 
 import Data.Maybe
+import qualified Data.List as List
 import Data.Either (partitionEithers)
 import Data.Traversable (sequenceA)
 import Data.Void
@@ -35,23 +37,26 @@ import Agda.Syntax.Fixity
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Position
 
-import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Datatypes
+import Agda.TypeChecking.Free
 import Agda.TypeChecking.Implicit
+import Agda.TypeChecking.Injectivity
 import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.Level
 import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.Names
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Primitive
+import Agda.TypeChecking.Monad
+import Agda.TypeChecking.Monad.Builtin
+import Agda.TypeChecking.Pretty
+import Agda.TypeChecking.Records
 import Agda.TypeChecking.Reduce
-import Agda.TypeChecking.Substitute
-import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Rules.Def
 import Agda.TypeChecking.Rules.Term
-import Agda.TypeChecking.Injectivity
+import Agda.TypeChecking.Substitute
+import Agda.TypeChecking.Telescope
 
 import Agda.Utils.Either
 import Agda.Utils.Except
@@ -301,110 +306,6 @@ inferDef mkTerm x =
     let v = mkTerm vs -- applies x to vs, dropping parameters
     reportSDoc "tc.term.def" 10 $ nest 2 $ text " --> " <+> prettyTCM v
     return (v, t)
-
--- | Check the type of a constructor application. This is easier than
---   a general application since the implicit arguments can be inserted
---   without looking at the arguments to the constructor.
-checkConstructorApplication :: A.Expr -> Type -> ConHead -> [NamedArg A.Expr] -> TCM Term
-checkConstructorApplication org t c args = do
-  reportSDoc "tc.term.con" 50 $ vcat
-    [ text "entering checkConstructorApplication"
-    , nest 2 $ vcat
-      [ text "org  =" <+> prettyTCM org
-      , text "t    =" <+> prettyTCM t
-      , text "c    =" <+> prettyTCM c
-      , text "args =" <+> prettyTCM args
-    ] ]
-  let paramsGiven = checkForParams args
-  if paramsGiven then fallback else do
-    reportSDoc "tc.term.con" 50 $ text "checkConstructorApplication: no parameters explicitly supplied, continuing..."
-    cdef  <- getConInfo c
-    let Constructor{conData = d, conPars = npars} = theDef cdef
-    reportSDoc "tc.term.con" 50 $ nest 2 $ text "d    =" <+> prettyTCM d
-    -- Issue 661: t maybe an evaluated form of d .., so we evaluate d
-    -- as well and then check wether we deal with the same datatype
-    t0 <- reduce (Def d [])
-    case (t0, unEl t) of -- Only fully applied constructors get special treatment
-      (Def d0 _, Def d' es) -> do
-        let ~(Just vs) = allApplyElims es
-        reportSDoc "tc.term.con" 50 $ nest 2 $ text "d0   =" <+> prettyTCM d0
-        reportSDoc "tc.term.con" 50 $ nest 2 $ text "d'   =" <+> prettyTCM d'
-        reportSDoc "tc.term.con" 50 $ nest 2 $ text "vs   =" <+> prettyTCM vs
-        if d' /= d0 then fallback else do
-         -- Issue 661: d' may take more parameters than d, in particular
-         -- these additional parameters could be a module parameter telescope.
-         -- Since we get the constructor type ctype from d but the parameters
-         -- from t = Def d' vs, we drop the additional parameters.
-         npars' <- getNumberOfParameters d'
-         caseMaybe (sequenceA $ List2 (Just npars, npars')) fallback $ \ (List2 (n, n')) -> do
-           reportSDoc "tc.term.con" 50 $ nest 2 $ text $ "n    = " ++ show n
-           reportSDoc "tc.term.con" 50 $ nest 2 $ text $ "n'   = " ++ show n'
-           when (n > n')  -- preprocessor does not like ', so put on next line
-             __IMPOSSIBLE__
-           let ps    = take n $ drop (n' - n) vs
-               ctype = defType cdef
-           reportSDoc "tc.term.con" 20 $ vcat
-             [ text "special checking of constructor application of" <+> prettyTCM c
-             , nest 2 $ vcat [ text "ps     =" <+> prettyTCM ps
-                             , text "ctype  =" <+> prettyTCM ctype ] ]
-           let ctype' = ctype `piApply` ps
-           reportSDoc "tc.term.con" 20 $ nest 2 $ text "ctype' =" <+> prettyTCM ctype'
-           -- get the parameter names
-           let TelV ptel _ = telView'UpTo n ctype
-           let pnames = map (fmap fst) $ telToList ptel
-           -- drop the parameter arguments
-               args' = dropArgs pnames args
-           -- check the non-parameter arguments
-           expandLast <- asks envExpandLast
-           checkArguments' expandLast (getRange c) args' ctype' t $ \es t' -> do
-             let us = fromMaybe __IMPOSSIBLE__ (allApplyElims es)
-             reportSDoc "tc.term.con" 20 $ nest 2 $ vcat
-               [ text "us     =" <+> prettyTCM us
-               , text "t'     =" <+> prettyTCM t' ]
-             coerce (Con c ConOCon (map Apply us)) t' t
-      _ -> do
-        reportSDoc "tc.term.con" 50 $ nest 2 $ text "we are not at a datatype, falling back"
-        fallback
-  where
-    fallback = checkHeadApplication org t (A.Con (unambiguous $ conName c)) args
-
-    -- Check if there are explicitly given hidden arguments,
-    -- in which case we fall back to default type checking.
-    -- We could work harder, but let's not for now.
-    --
-    -- Andreas, 2012-04-18: if all inital args are underscores, ignore them
-    checkForParams args =
-      let (hargs, rest) = span (not . visible) args
-          notUnderscore A.Underscore{} = False
-          notUnderscore _              = True
-      in  any notUnderscore $ map (unScope . namedArg) hargs
-
-    -- Drop the constructor arguments that correspond to parameters.
-    dropArgs [] args                = args
-    dropArgs ps []                  = args
-    dropArgs ps args@(arg : args')
-      | Just p   <- name,
-        Just ps' <- namedPar p ps   = dropArgs ps' args'
-      | Nothing  <- name,
-        Just ps' <- unnamedPar h ps = dropArgs ps' args'
-      | otherwise                   = args
-      where
-        name = fmap rangedThing . nameOf $ unArg arg
-        h    = getHiding arg
-
-        namedPar   x = dropPar ((x ==) . unDom)
-        unnamedPar h = dropPar (sameHiding h)
-
-        dropPar this (p : ps) | this p    = Just ps
-                              | otherwise = dropPar this ps
-        dropPar _ [] = Nothing
-
--- | "pathAbs (PathView s _ l a x y) t" builds "(\ t) : pv"
---   Preconditions: PathView is PathType, and t[i0] = x, t[i1] = y
-pathAbs :: PathView -> Abs Term -> TCM Term
-pathAbs (OType _) t = __IMPOSSIBLE__
-pathAbs (PathType s path l a x y) t = do
-  return $ Lam defaultArgInfo t
 
 -- | @checkHeadApplication e t hd args@ checks that @e@ has type @t@,
 -- assuming that @e@ has the form @hd args@. The corresponding
@@ -787,6 +688,114 @@ postponeArgs (us, es, t0) exph r args t k = do
                                             , nest 2 $ text ":" <+> prettyTCM t0 ] ]
   postponeTypeCheckingProblem_ (CheckArgs exph r es t0 t $ \vs t -> k (us ++ vs) t)
 
+-----------------------------------------------------------------------------
+-- * Constructors
+-----------------------------------------------------------------------------
+
+-- | Check the type of a constructor application. This is easier than
+--   a general application since the implicit arguments can be inserted
+--   without looking at the arguments to the constructor.
+checkConstructorApplication :: A.Expr -> Type -> ConHead -> [NamedArg A.Expr] -> TCM Term
+checkConstructorApplication org t c args = do
+  reportSDoc "tc.term.con" 50 $ vcat
+    [ text "entering checkConstructorApplication"
+    , nest 2 $ vcat
+      [ text "org  =" <+> prettyTCM org
+      , text "t    =" <+> prettyTCM t
+      , text "c    =" <+> prettyTCM c
+      , text "args =" <+> prettyTCM args
+    ] ]
+  let paramsGiven = checkForParams args
+  if paramsGiven then fallback else do
+    reportSDoc "tc.term.con" 50 $ text "checkConstructorApplication: no parameters explicitly supplied, continuing..."
+    cdef  <- getConInfo c
+    let Constructor{conData = d, conPars = npars} = theDef cdef
+    reportSDoc "tc.term.con" 50 $ nest 2 $ text "d    =" <+> prettyTCM d
+    -- Issue 661: t maybe an evaluated form of d .., so we evaluate d
+    -- as well and then check wether we deal with the same datatype
+    t0 <- reduce (Def d [])
+    case (t0, unEl t) of -- Only fully applied constructors get special treatment
+      (Def d0 _, Def d' es) -> do
+        let ~(Just vs) = allApplyElims es
+        reportSDoc "tc.term.con" 50 $ nest 2 $ text "d0   =" <+> prettyTCM d0
+        reportSDoc "tc.term.con" 50 $ nest 2 $ text "d'   =" <+> prettyTCM d'
+        reportSDoc "tc.term.con" 50 $ nest 2 $ text "vs   =" <+> prettyTCM vs
+        if d' /= d0 then fallback else do
+         -- Issue 661: d' may take more parameters than d, in particular
+         -- these additional parameters could be a module parameter telescope.
+         -- Since we get the constructor type ctype from d but the parameters
+         -- from t = Def d' vs, we drop the additional parameters.
+         npars' <- getNumberOfParameters d'
+         caseMaybe (sequenceA $ List2 (Just npars, npars')) fallback $ \ (List2 (n, n')) -> do
+           reportSDoc "tc.term.con" 50 $ nest 2 $ text $ "n    = " ++ show n
+           reportSDoc "tc.term.con" 50 $ nest 2 $ text $ "n'   = " ++ show n'
+           when (n > n')  -- preprocessor does not like ', so put on next line
+             __IMPOSSIBLE__
+           let ps    = take n $ drop (n' - n) vs
+               ctype = defType cdef
+           reportSDoc "tc.term.con" 20 $ vcat
+             [ text "special checking of constructor application of" <+> prettyTCM c
+             , nest 2 $ vcat [ text "ps     =" <+> prettyTCM ps
+                             , text "ctype  =" <+> prettyTCM ctype ] ]
+           let ctype' = ctype `piApply` ps
+           reportSDoc "tc.term.con" 20 $ nest 2 $ text "ctype' =" <+> prettyTCM ctype'
+           -- get the parameter names
+           let TelV ptel _ = telView'UpTo n ctype
+           let pnames = map (fmap fst) $ telToList ptel
+           -- drop the parameter arguments
+               args' = dropArgs pnames args
+           -- check the non-parameter arguments
+           expandLast <- asks envExpandLast
+           checkArguments' expandLast (getRange c) args' ctype' t $ \es t' -> do
+             let us = fromMaybe __IMPOSSIBLE__ (allApplyElims es)
+             reportSDoc "tc.term.con" 20 $ nest 2 $ vcat
+               [ text "us     =" <+> prettyTCM us
+               , text "t'     =" <+> prettyTCM t' ]
+             coerce (Con c ConOCon (map Apply us)) t' t
+      _ -> do
+        reportSDoc "tc.term.con" 50 $ nest 2 $ text "we are not at a datatype, falling back"
+        fallback
+  where
+    fallback = checkHeadApplication org t (A.Con (unambiguous $ conName c)) args
+
+    -- Check if there are explicitly given hidden arguments,
+    -- in which case we fall back to default type checking.
+    -- We could work harder, but let's not for now.
+    --
+    -- Andreas, 2012-04-18: if all inital args are underscores, ignore them
+    checkForParams args =
+      let (hargs, rest) = span (not . visible) args
+          notUnderscore A.Underscore{} = False
+          notUnderscore _              = True
+      in  any notUnderscore $ map (unScope . namedArg) hargs
+
+    -- Drop the constructor arguments that correspond to parameters.
+    dropArgs [] args                = args
+    dropArgs ps []                  = args
+    dropArgs ps args@(arg : args')
+      | Just p   <- name,
+        Just ps' <- namedPar p ps   = dropArgs ps' args'
+      | Nothing  <- name,
+        Just ps' <- unnamedPar h ps = dropArgs ps' args'
+      | otherwise                   = args
+      where
+        name = fmap rangedThing . nameOf $ unArg arg
+        h    = getHiding arg
+
+        namedPar   x = dropPar ((x ==) . unDom)
+        unnamedPar h = dropPar (sameHiding h)
+
+        dropPar this (p : ps) | this p    = Just ps
+                              | otherwise = dropPar this ps
+        dropPar _ [] = Nothing
+
+-- | "pathAbs (PathView s _ l a x y) t" builds "(\ t) : pv"
+--   Preconditions: PathView is PathType, and t[i0] = x, t[i1] = y
+pathAbs :: PathView -> Abs Term -> TCM Term
+pathAbs (OType _) t = __IMPOSSIBLE__
+pathAbs (PathType s path l a x y) t = do
+  return $ Lam defaultArgInfo t
+
 -- | Returns an unblocking action in case of failure.
 disambiguateConstructor :: NonemptyList QName -> Type -> TCM (Either (TCM Bool) ConHead)
 disambiguateConstructor cs0 t = do
@@ -835,4 +844,195 @@ disambiguateConstructor cs0 t = do
       getCon >>= \ case
         Nothing -> return $ Left $ isJust <$> getCon
         Just c  -> return $ Right c
+
+---------------------------------------------------------------------------
+-- * Projections
+---------------------------------------------------------------------------
+
+-- | Inferring the type of an overloaded projection application.
+--   See 'inferOrCheckProjApp'.
+
+inferProjApp :: A.Expr -> ProjOrigin -> NonemptyList QName -> A.Args -> TCM (Term, Type)
+inferProjApp e o ds args0 = inferOrCheckProjApp e o ds args0 Nothing
+
+-- | Checking the type of an overloaded projection application.
+--   See 'inferOrCheckProjApp'.
+
+checkProjApp  :: A.Expr -> ProjOrigin -> NonemptyList QName -> A.Args -> Type -> TCM Term
+checkProjApp e o ds args0 t = do
+  (v, ti) <- inferOrCheckProjApp e o ds args0 (Just t)
+  coerce v ti t
+
+-- | Inferring or Checking an overloaded projection application.
+--
+--   The overloaded projection is disambiguated by inferring the type of its
+--   principal argument, which is the first visible argument.
+
+inferOrCheckProjApp
+  :: A.Expr
+     -- ^ The whole expression which constitutes the application.
+  -> ProjOrigin
+     -- ^ The origin of the projection involved in this projection application.
+  -> NonemptyList QName
+     -- ^ The projection name (potentially ambiguous).
+  -> A.Args
+     -- ^ The arguments to the projection.
+  -> Maybe Type
+     -- ^ The expected type of the expression (if 'Nothing', infer it).
+  -> TCM (Term, Type)
+     -- ^ The type-checked expression and its type (if successful).
+inferOrCheckProjApp e o ds args mt = do
+  reportSDoc "tc.proj.amb" 20 $ vcat
+    [ text "checking ambiguous projection"
+    , text $ "  ds   = " ++ prettyShow ds
+    , text   "  args = " <+> sep (map prettyTCM args)
+    , text   "  t    = " <+> caseMaybe mt (text "Nothing") prettyTCM
+    ]
+
+  let refuse :: String -> TCM (Term, Type)
+      refuse reason = typeError $ GenericError $
+        "Cannot resolve overloaded projection "
+        ++ prettyShow (A.nameConcrete $ A.qnameName $ headNe ds)
+        ++ " because " ++ reason
+      refuseNotApplied = refuse "it is not applied to a visible argument"
+      refuseNoMatching = refuse "no matching candidate found"
+      refuseNotRecordType = refuse "principal argument is not of record type"
+
+      -- Postpone the whole type checking problem
+      -- if type of principal argument (or the type where we get it from)
+      -- is blocked by meta m.
+      postpone m = do
+        tc <- caseMaybe mt newTypeMeta_ return
+        v <- postponeTypeCheckingProblem (CheckExpr e tc) $ isInstantiatedMeta m
+        return (v, tc)
+
+  -- The following cases need to be considered:
+  -- 1. No arguments to the projection.
+  -- 2. Arguments (parameters), but not the principal argument.
+  -- 3. Argument(s) including the principal argument.
+
+  -- For now, we only allow ambiguous projections if the first visible
+  -- argument is the record value.
+
+  case filter (visible . snd) $ zip [0..] args of
+
+    -- Case: we have no visible argument to the projection.
+    -- In inference mode, we really need the visible argument, postponing does not help
+    [] -> caseMaybe mt refuseNotApplied $ \ t -> do
+      -- If we have the type, we can try to get the type of the principal argument.
+      -- It is the first visible argument.
+      TelV _ptel core <- telViewUpTo' (-1) (not . visible) t
+      ifBlockedType core (\ m _ -> postpone m) $ {-else-} \ _ core -> do
+      ifNotPiType core (\ _ -> refuseNotApplied) $ {-else-} \ dom _b -> do
+      ifBlockedType (unDom dom) (\ m _ -> postpone m) $ {-else-} \ _ ta -> do
+      caseMaybeM (isRecordType ta) refuseNotRecordType $ \ (_q, _pars, defn) -> do
+      case defn of
+        Record { recFields = fs } -> do
+          case catMaybes $ for fs $ \ (Arg _ f) -> List.find (f ==) (toList ds) of
+            [] -> refuseNoMatching
+            [d] -> do
+              storeDisambiguatedName d
+              (,t) <$> checkHeadApplication e t (A.Proj o $ unambiguous d) args
+            _ -> __IMPOSSIBLE__
+        _ -> __IMPOSSIBLE__
+
+    -- Case: we have a visible argument
+    ((k, arg) : _) -> do
+      (v0, ta) <- inferExpr $ namedArg arg
+      reportSDoc "tc.proj.amb" 25 $ vcat
+        [ text "  principal arg " <+> prettyTCM arg
+        , text "  has type "      <+> prettyTCM ta
+        ]
+      -- ta should be a record type (after introducing the hidden args in v0)
+      (vargs, ta) <- implicitArgs (-1) (not . visible) ta
+      let v = v0 `apply` vargs
+      ifBlockedType ta (\ m _ -> postpone m) {-else-} $ \ _ ta -> do
+      caseMaybeM (isRecordType ta) refuseNotRecordType $ \ (q, _pars0, _) -> do
+
+          -- try to project it with all of the possible projections
+          let try d = do
+              reportSDoc "tc.proj.amb" 30 $ vcat
+                [ text $ "trying projection " ++ prettyShow d
+                , text "  td  = " <+> caseMaybeM (getDefType d ta) (text "Nothing") prettyTCM
+                ]
+
+              -- get the original projection name
+              isP <- isProjection d
+              reportSDoc "tc.proj.amb" 40 $ vcat $
+                [ text $ "  isProjection = " ++ caseMaybe isP "no" (const "yes")
+                ] ++ caseMaybe isP [] (\ Projection{ projProper = proper, projOrig = orig } ->
+                [ text $ "  proper       = " ++ show proper
+                , text $ "  orig         = " ++ prettyShow orig
+                ])
+
+              -- Andreas, 2017-01-21, issue #2422
+              -- The scope checker considers inherited projections (from nested records)
+              -- as projections and allows overloading.  However, since they are defined
+              -- as *composition* of projections, the type checker does *not* recognize them,
+              -- and @isP@ will be @Nothing@.
+              -- However, we can ignore this, as we only need the @orig@inal projection name
+              -- for removing false ambiguity.  Thus, we skip these checks:
+
+              -- Projection{ projProper = proper, projOrig = orig } <- MaybeT $ return isP
+              -- guard $ isJust proper
+              let orig = caseMaybe isP d projOrig
+
+              -- try to eliminate
+              (dom, u, tb) <- MaybeT (projectTyped v ta o d `catchError` \ _ -> return Nothing)
+              reportSDoc "tc.proj.amb" 30 $ vcat
+                [ text "  dom = " <+> prettyTCM dom
+                , text "  u   = " <+> prettyTCM u
+                , text "  tb  = " <+> prettyTCM tb
+                ]
+              (q', pars, _) <- MaybeT $ isRecordType $ unDom dom
+              reportSDoc "tc.proj.amb" 30 $ vcat
+                [ text "  q   = " <+> prettyTCM q
+                , text "  q'  = " <+> prettyTCM q'
+                ]
+              guard (q == q')
+              -- Get the type of the projection and check
+              -- that the first visible argument is the record value.
+              tfull <- lift $ defType <$> getConstInfo d
+              TelV tel _ <- lift $ telViewUpTo' (-1) (not . visible) tfull
+              reportSDoc "tc.proj.amb" 30 $ vcat
+                [ text $ "  size tel  = " ++ show (size tel)
+                , text $ "  size pars = " ++ show (size pars)
+                ]
+              -- See issue 1960 for when the following assertion fails for
+              -- the correct disambiguation.
+              -- guard (size tel == size pars)
+              return (orig, (d, (pars, (dom, u, tb))))
+
+          cands <- groupOn fst . catMaybes <$> mapM (runMaybeT . try) (toList ds)
+          case cands of
+            [] -> refuseNoMatching
+            [[]] -> refuseNoMatching
+            (_:_:_) -> refuse $ "several matching candidates found: "
+                 ++ prettyShow (map (fst . snd) $ concat cands)
+            -- case: just one matching projection d
+            -- the term u = d v
+            -- the type tb is the type of this application
+            [ (_orig, (d, (pars, (_dom,u,tb)))) : _ ] -> do
+              storeDisambiguatedName d
+
+              -- Check parameters
+              tfull <- typeOfConst d
+              (_,_) <- checkKnownArguments (take k args) pars tfull
+
+              -- Check remaining arguments
+              let tc = fromMaybe typeDontCare mt
+              let r  = getRange e
+              z <- runExceptT $ checkArguments ExpandLast r (drop (k+1) args) tb tc
+              case z of
+                Right (us, trest) -> return (u `applyE` us, trest)
+                -- We managed to check a part of es and got us1, but es2 remain.
+                Left (us1, es2, trest1) -> do
+                  -- In the inference case:
+                  -- To create a postponed type checking problem,
+                  -- we do not use typeDontCare, but create a meta.
+                  tc <- caseMaybe mt newTypeMeta_ return
+                  v <- postponeTypeCheckingProblem_ $
+                    CheckArgs ExpandLast r es2 trest1 tc $ \ us2 trest ->
+                      coerce (u `applyE` us1 `applyE` us2) trest tc
+                  return (v, tc)
 
