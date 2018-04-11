@@ -117,7 +117,7 @@ runAgdaWithOptions backends generateHTML interaction progName opts
             Bench.print
 
             -- Print accumulated statistics.
-            printStatistics 20 Nothing =<< use lensAccumStatistics
+            printStatistics 1 Nothing =<< use lensAccumStatistics
   where
     checkFile = Just <$> do
       when (optInteractive opts) $ liftIO $ putStr splashScreen
