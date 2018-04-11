@@ -235,8 +235,8 @@ syntax primIMin ...
 primitive primIMin : I → I → I
 { checkExpr
 inferred def  I
-   :  Setω
-   -->  I
+  : Setω
+  --> I
 coerce term      v  = I
        from type t1 = Setω
        to type   t2 = Set _0
@@ -248,8 +248,8 @@ Solving awake constraints. 0 remaining.
 }
 { checkExpr
 inferred def  I
-   :  Setω
-   -->  I
+  : Setω
+  --> I
 coerce term      v  = I
        from type t1 = Setω
        to type   t2 = Set _1
@@ -261,8 +261,8 @@ Solving awake constraints. 0 remaining.
 }
 { checkExpr
 inferred def  I
-   :  Setω
-   -->  I
+  : Setω
+  --> I
 coerce term      v  = I
        from type t1 = Setω
        to type   t2 = Set _2
@@ -286,8 +286,8 @@ syntax primIMax ...
 primitive primIMax : I → I → I
 { checkExpr
 inferred def  I
-   :  Setω
-   -->  I
+  : Setω
+  --> I
 coerce term      v  = I
        from type t1 = Setω
        to type   t2 = Set _3
@@ -299,8 +299,8 @@ Solving awake constraints. 0 remaining.
 }
 { checkExpr
 inferred def  I
-   :  Setω
-   -->  I
+  : Setω
+  --> I
 coerce term      v  = I
        from type t1 = Setω
        to type   t2 = Set _4
@@ -312,8 +312,8 @@ Solving awake constraints. 0 remaining.
 }
 { checkExpr
 inferred def  I
-   :  Setω
-   -->  I
+  : Setω
+  --> I
 coerce term      v  = I
        from type t1 = Setω
        to type   t2 = Set _5
@@ -337,8 +337,8 @@ syntax primINeg ...
 primitive primINeg : I → I
 { checkExpr
 inferred def  I
-   :  Setω
-   -->  I
+  : Setω
+  --> I
 coerce term      v  = I
        from type t1 = Setω
        to type   t2 = Set _6
@@ -350,8 +350,8 @@ Solving awake constraints. 0 remaining.
 }
 { checkExpr
 inferred def  I
-   :  Setω
-   -->  I
+  : Setω
+  --> I
 coerce term      v  = I
        from type t1 = Setω
        to type   t2 = Set _7
@@ -377,8 +377,8 @@ syntax itIsOne ...
 postulate itIsOne : IsOne i1
 { checkExpr
 inferred def  IsOne
-   :  I → Setω
-   -->  IsOne
+  : I → Setω
+  --> IsOne
 { checkExpr
 coerce term      v  = i1
        from type t1 = I
@@ -410,8 +410,8 @@ postulate IsOne1 : ∀ i j → IsOne i → IsOne (primIMax i j)
 }
 { checkExpr
 inferred def  IsOne
-   :  (I → Setω)
-   -->  IsOne
+  : (I → Setω)
+  --> IsOne
 { checkExpr
 coerce term      v  = i
        from type t1 = _10
@@ -436,12 +436,12 @@ Solving awake constraints. 0 remaining.
 }
 { checkExpr
 inferred def  IsOne
-   :  I → Setω
-   -->  IsOne
+  : I → Setω
+  --> IsOne
 { checkExpr
 inferred def  primIMax
-   :  I → I → I
-   -->  primIMax
+  : I → I → I
+  --> primIMax
 { checkExpr
 coerce term      v  = i
        from type t1 = I
@@ -494,8 +494,8 @@ postulate IsOne2 : ∀ i j → IsOne j → IsOne (primIMax i j)
 }
 { checkExpr
 inferred def  IsOne
-   :  (I → Setω)
-   -->  IsOne
+  : (I → Setω)
+  --> IsOne
 { checkExpr
 coerce term      v  = j
        from type t1 = (_18 i)
@@ -520,12 +520,12 @@ Solving awake constraints. 0 remaining.
 }
 { checkExpr
 inferred def  IsOne
-   :  I → Setω
-   -->  IsOne
+  : I → Setω
+  --> IsOne
 { checkExpr
 inferred def  primIMax
-   :  I → I → I
-   -->  primIMax
+  : I → I → I
+  --> primIMax
 { checkExpr
 coerce term      v  = i
        from type t1 = _16
@@ -572,8 +572,8 @@ checking declaration
 {-# BUILTIN ITISONE itIsOne #-}
 { checkExpr
 inferred def  itIsOne
-   :  IsOne i1
-   -->  itIsOne
+  : IsOne i1
+  --> itIsOne
 coerce term      v  = itIsOne
        from type t1 = IsOne i1
        to type   t2 = IsOne i1
@@ -586,8 +586,8 @@ checking declaration
 {-# BUILTIN ISONE1 IsOne1 #-}
 { checkExpr
 inferred def  IsOne1
-   :  (i j : I) → IsOne i → IsOne (primIMax i j)
-   -->  IsOne1
+  : (i j : I) → IsOne i → IsOne (primIMax i j)
+  --> IsOne1
 coerce term      v  = IsOne1
        from type t1 = (i j : I) → IsOne i → IsOne (primIMax i j)
        to type   t2 = (i j : I) (i2 : IsOne i) → IsOne (primIMax i j)
@@ -604,8 +604,8 @@ checking declaration
 {-# BUILTIN ISONE2 IsOne2 #-}
 { checkExpr
 inferred def  IsOne2
-   :  (i j : I) → IsOne j → IsOne (primIMax i j)
-   -->  IsOne2
+  : (i j : I) → IsOne j → IsOne (primIMax i j)
+  --> IsOne2
 coerce term      v  = IsOne2
        from type t1 = (i j : I) → IsOne j → IsOne (primIMax i j)
        to type   t2 = (i j : I) (j1 : IsOne j) → IsOne (primIMax i j)
@@ -636,8 +636,8 @@ postulate
 }
 { checkExpr
 inferred def  Partial
-   :  {a = a₁ : .Agda.Primitive.Level} (A : Set a₁) → I → Setω
-   -->  Partial
+  : {a = a₁ : .Agda.Primitive.Level} (A : Set a₁) → I → Setω
+  --> Partial
 { checkExpr
 { checkExpr
 coerce term      v  = a
@@ -679,10 +679,10 @@ Solving awake constraints. 0 remaining.
 }
 { checkExpr
 inferred def  PartialP
-   :  {a = a₁ : .Agda.Primitive.Level} (φ : I)
-      (A₁ : .(o : IsOne φ) → Set a₁) →
-      Setω
-   -->  PartialP
+  : {a = a₁ : .Agda.Primitive.Level} (φ : I)
+    (A₁ : .(o : IsOne φ) → Set a₁) →
+    Setω
+  --> PartialP
 { checkExpr
 coerce term      v  = i0
        from type t1 = I
@@ -731,9 +731,9 @@ Solving awake constraints. 0 remaining.
 Solving awake constraints. 0 remaining.
 { checkExpr
 inferred def  isOneEmpty
-   :  {a : .Agda.Primitive.Level} {A : Partial (Set a) i0} →
-      PartialP i0 A
-   -->  isOneEmpty
+  : {a : .Agda.Primitive.Level} {A : Partial (Set a) i0} →
+    PartialP i0 A
+  --> isOneEmpty
 coerce term      v  = isOneEmpty
        from type t1 = .(p : IsOne i0) → _A_28 p
        to type   t2 = .(o : IsOne i0) → .A _
@@ -768,8 +768,8 @@ primitive
 }
 { checkExpr
 inferred def  I
-   :  Setω
-   -->  I
+  : Setω
+  --> I
 coerce term      v  = I
        from type t1 = Setω
        to type   t2 = Set _31
@@ -812,13 +812,13 @@ Solving awake constraints. 0 remaining.
 }
 { checkExpr
 inferred def  Partial
-   :  {a = a₁ : .Agda.Primitive.Level} (A₁ : Set a₁) → I → Setω
-   -->  Partial
+  : {a = a₁ : .Agda.Primitive.Level} (A₁ : Set a₁) → I → Setω
+  --> Partial
 { checkExpr
 { checkExpr
 inferred def  primIMax
-   :  I → I → I
-   -->  primIMax
+  : I → I → I
+  --> primIMax
 { checkExpr
 coerce term      v  = i
        from type t1 = _34
@@ -933,8 +933,8 @@ primitive
 }
 { checkExpr
 inferred def  I
-   :  Setω
-   -->  I
+  : Setω
+  --> I
 coerce term      v  = I
        from type t1 = Setω
        to type   t2 = Set _41
@@ -946,8 +946,8 @@ Solving awake constraints. 0 remaining.
 }
 { checkExpr
 inferred def  Partial
-   :  {a = a₁ : .Agda.Primitive.Level} (A : Set a₁) → I → Setω
-   -->  Partial
+  : {a = a₁ : .Agda.Primitive.Level} (A : Set a₁) → I → Setω
+  --> Partial
 { checkExpr
 { checkExpr
 coerce term      v  = a
@@ -973,8 +973,8 @@ Solving awake constraints. 0 remaining.
 }
 { checkExpr
 inferred def  primIMax
-   :  I → I → I
-   -->  primIMax
+  : I → I → I
+  --> primIMax
 { checkExpr
 coerce term      v  = i
        from type t1 = I
@@ -1006,10 +1006,10 @@ Solving awake constraints. 0 remaining.
 }
 { checkExpr
 inferred def  PartialP
-   :  ({a = a₁ : .Agda.Primitive.Level} (φ : I)
-       (A₁ : .(o : IsOne φ) → Set a₁) →
-       Setω)
-   -->  PartialP
+  : ({a = a₁ : .Agda.Primitive.Level} (φ : I)
+     (A₁ : .(o : IsOne φ) → Set a₁) →
+     Setω)
+  --> PartialP
 { checkExpr
 coerce term      v  = i
        from type t1 = I
@@ -1022,8 +1022,8 @@ Solving awake constraints. 0 remaining.
 { checkExpr
 { checkExpr
 inferred def  IsOne1
-   :  (i₁ j₁ : I) → IsOne i₁ → IsOne (primIMax i₁ j₁)
-   -->  IsOne1
+  : (i₁ j₁ : I) → IsOne i₁ → IsOne (primIMax i₁ j₁)
+  --> IsOne1
 { checkExpr
 coerce term      v  = i
        from type t1 = I
@@ -1069,10 +1069,10 @@ Solving awake constraints. 0 remaining.
 }
 { checkExpr
 inferred def  PartialP
-   :  ({a = a₁ : .Agda.Primitive.Level} (φ : I)
-       (A₁ : .(o : IsOne φ) → Set a₁) →
-       Setω)
-   -->  PartialP
+  : ({a = a₁ : .Agda.Primitive.Level} (φ : I)
+     (A₁ : .(o : IsOne φ) → Set a₁) →
+     Setω)
+  --> PartialP
 { checkExpr
 coerce term      v  = j
        from type t1 = I
@@ -1085,8 +1085,8 @@ Solving awake constraints. 0 remaining.
 { checkExpr
 { checkExpr
 inferred def  IsOne2
-   :  (i₁ j₁ : I) → IsOne j₁ → IsOne (primIMax i₁ j₁)
-   -->  IsOne2
+  : (i₁ j₁ : I) → IsOne j₁ → IsOne (primIMax i₁ j₁)
+  --> IsOne2
 { checkExpr
 coerce term      v  = i
        from type t1 = I
@@ -1132,14 +1132,14 @@ Solving awake constraints. 0 remaining.
 }
 { checkExpr
 inferred def  PartialP
-   :  {a = a₁ : .Agda.Primitive.Level} (φ : I)
-      (A₁ : .(o : IsOne φ) → Set a₁) →
-      Setω
-   -->  PartialP
+  : {a = a₁ : .Agda.Primitive.Level} (φ : I)
+    (A₁ : .(o : IsOne φ) → Set a₁) →
+    Setω
+  --> PartialP
 { checkExpr
 inferred def  primIMax
-   :  I → I → I
-   -->  primIMax
+  : I → I → I
+  --> primIMax
 { checkExpr
 coerce term      v  = i
        from type t1 = I
@@ -1280,8 +1280,8 @@ primitive
 }
 { checkExpr
 inferred def  I
-   :  Setω
-   -->  I
+  : Setω
+  --> I
 coerce term      v  = I
        from type t1 = Setω
        to type   t2 = Set _52
@@ -1295,8 +1295,8 @@ Solving awake constraints. 0 remaining.
 }
 { checkExpr
 inferred def  I
-   :  Setω
-   -->  I
+  : Setω
+  --> I
 coerce term      v  = I
        from type t1 = Setω
        to type   t2 = Set (_55 A)
@@ -1311,8 +1311,8 @@ Solving awake constraints. 0 remaining.
 }
 { checkExpr
 inferred def  Partial
-   :  {a = a₁ : .Agda.Primitive.Level} (A₁ : Set a₁) → I → Setω
-   -->  Partial
+  : {a = a₁ : .Agda.Primitive.Level} (A₁ : Set a₁) → I → Setω
+  --> Partial
 { checkExpr
 { checkExpr
 coerce term      v  = i
