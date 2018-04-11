@@ -336,47 +336,13 @@ checkHeadApplication e t hd args = do
   case hd of
     -- Type checking #. The # that the user can write will be a Def, but the
     -- sharp we generate in the body of the wrapper is a Con.
-    A.Def c  | isSharp c                              -> checkSharpApplication e t c args
-    A.Con cs | Just c <- getUnambiguous cs, isSharp c -> defaultResult
-
-    A.Con cs | Just c <- getUnambiguous cs -> do
+    A.Def c | isSharp c -> checkSharpApplication e t c args
+    _ -> do
       (f, t0) <- inferHead hd
-      reportSDoc "tc.term.con" 5 $ vcat
-        [ text "checkHeadApplication inferred" <+>
-          prettyTCM c <+> text ":" <+> prettyTCM t0
-        ]
       expandLast <- asks envExpandLast
       checkArguments expandLast (getRange hd) args t0 t $ \vs t1 -> do
-        TelV eTel eType <- telView t
-        -- If the expected type @eType@ is a metavariable we have to make
-        -- sure it's instantiated to the proper pi type
-        TelV fTel fType <- telViewUpTo (size eTel) t1
-        -- We know that the target type of the constructor (fType)
-        -- does not depend on fTel so we can compare fType and eType
-        -- first.
-
-        when (size eTel > size fTel) $
-          typeError $ UnequalTypes CmpLeq t1 t -- switch because of contravariance
-          -- Andreas, 2011-05-10 report error about types rather  telescopes
-          -- compareTel CmpLeq eTel fTel >> return () -- This will fail!
-
-        reportSDoc "tc.term.con" 10 $ addContext eTel $ vcat
-          [ text "checking" <+>
-            prettyTCM fType <+> text "?<=" <+> prettyTCM eType
-          ]
-        blockTerm t $ unfoldInlined =<< f vs <$ workOnTypes (do
-          addContext eTel $ leqType fType eType
-          compareTel t t1 CmpLeq eTel fTel)
-
-    A.Con _  -> __IMPOSSIBLE__
-    _ -> defaultResult
-  where
-  defaultResult = do
-    (f, t0) <- inferHead hd
-    expandLast <- asks envExpandLast
-    checkArguments expandLast (getRange hd) args t0 t $ \vs t1 -> do
-      v <- unfoldInlined (f vs)
-      coerce v t1 t
+        v <- unfoldInlined (f vs)
+        coerce v t1 t
 
 -----------------------------------------------------------------------------
 -- * Spines
