@@ -5,29 +5,24 @@ module Agda.TypeChecking.Constraints where
 
 import Prelude hiding (null)
 
-import Control.Applicative hiding (empty)
-
 import Control.Monad
 import Control.Monad.Reader
-import Control.Monad.State
-import Control.Monad.Trans.Maybe
 
 import qualified Data.List as List
 import qualified Data.Set as Set
 
 import Agda.Syntax.Internal
 
-import Agda.TypeChecking.Free
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.InstanceArguments
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
-import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.LevelConstraints
 import Agda.TypeChecking.SizedTypes
 import Agda.TypeChecking.MetaVars.Mention
 import Agda.TypeChecking.Warnings
 
+import {-# SOURCE #-} Agda.TypeChecking.Rules.Application
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Def
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Term
 import {-# SOURCE #-} Agda.TypeChecking.Conversion
@@ -35,14 +30,11 @@ import {-# SOURCE #-} Agda.TypeChecking.MetaVars
 import {-# SOURCE #-} Agda.TypeChecking.Empty
 
 import Agda.Utils.Except ( MonadError(throwError) )
-import Agda.Utils.Functor
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Pretty (prettyShow)
 import Agda.Utils.Lens
-import Agda.Utils.Size
-import qualified Agda.Utils.VarSet as VarSet
 
 #include "undefined.h"
 import Agda.Utils.Impossible

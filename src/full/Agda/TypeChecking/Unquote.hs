@@ -6,18 +6,15 @@ module Agda.TypeChecking.Unquote where
 import Prelude hiding ((<>))
 #endif
 
-import Control.Arrow ((&&&), (***), first, second)
-import Control.Monad.State (StateT(..), evalStateT, get, gets, put, modify)
-import Control.Monad.Reader (ReaderT(..), ask, asks)
-import Control.Monad.Writer (WriterT(..), execWriterT, runWriterT, tell)
+import Control.Arrow (first, second)
+import Control.Monad.State
+import Control.Monad.Reader
+import Control.Monad.Writer hiding ((<>))
 import Control.Monad.Trans (lift)
-import Control.Monad
 
 import Data.Char
 import Data.Maybe (fromMaybe)
 import Data.Traversable (traverse)
-import Data.Map (Map)
-import qualified Data.Map as Map
 import Data.Word
 
 import Agda.Syntax.Common
@@ -27,23 +24,16 @@ import Agda.Syntax.Literal
 import Agda.Syntax.Position
 import Agda.Syntax.Fixity
 import Agda.Syntax.Info
-import Agda.Syntax.Translation.InternalToAbstract
 import Agda.Syntax.Translation.ReflectedToAbstract
 
-import Agda.TypeChecking.CompiledClause
-import Agda.TypeChecking.DropArgs
-import Agda.TypeChecking.Free
-import Agda.TypeChecking.Level
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
-import Agda.TypeChecking.Reduce.Monad
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Quote
 import Agda.TypeChecking.Conversion
-import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.EtaContract
 import Agda.TypeChecking.Primitive
 
@@ -59,14 +49,9 @@ import Agda.Utils.Except
 import Agda.Utils.Either
 import Agda.Utils.FileName
 import Agda.Utils.Lens
-import Agda.Utils.Maybe
-import Agda.Utils.Maybe.Strict (toLazy)
 import Agda.Utils.Monad
-import Agda.Utils.Permutation ( Permutation(Perm), compactP )
 import Agda.Utils.Pretty (prettyShow)
 import Agda.Utils.String ( Str(Str), unStr )
-import Agda.Utils.VarSet (VarSet)
-import qualified Agda.Utils.VarSet as Set
 import qualified Agda.Interaction.Options.Lenses as Lens
 
 #include "undefined.h"

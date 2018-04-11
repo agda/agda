@@ -64,6 +64,7 @@ import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Unquote
 import Agda.TypeChecking.Warnings
 
+import Agda.TypeChecking.Rules.Application
 import Agda.TypeChecking.Rules.Term
 import Agda.TypeChecking.Rules.Data    ( checkDataDef )
 import Agda.TypeChecking.Rules.Record  ( checkRecDef )

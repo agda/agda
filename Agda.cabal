@@ -404,6 +404,7 @@ library
                     Agda.TypeChecking.Reduce.Monad
                     Agda.TypeChecking.Rewriting
                     Agda.TypeChecking.Rewriting.NonLinMatch
+                    Agda.TypeChecking.Rules.Application
                     Agda.TypeChecking.Rules.Builtin
                     Agda.TypeChecking.Rules.Builtin.Coinduction
                     Agda.TypeChecking.Rules.Data

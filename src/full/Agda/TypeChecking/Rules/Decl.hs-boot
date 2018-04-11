@@ -1,9 +1,9 @@
 
 module Agda.TypeChecking.Rules.Decl where
 
-import Agda.Syntax.Info        (ModuleInfo)
-import Agda.Syntax.Abstract    (QName, Declaration, ModuleName, ModuleApplication, ScopeCopyInfo)
-import Agda.TypeChecking.Monad (TCM)
+import Agda.Syntax.Info (ModuleInfo)
+import Agda.Syntax.Abstract
+import Agda.TypeChecking.Monad.Base (TCM)
 
 checkDecls :: [Declaration] -> TCM ()
 checkDecl  :: Declaration -> TCM ()

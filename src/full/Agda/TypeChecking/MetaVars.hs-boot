@@ -2,8 +2,7 @@ module Agda.TypeChecking.MetaVars where
 
 import Agda.Syntax.Common           ( Arg, Dom )
 import Agda.Syntax.Internal         ( MetaId, Term, Type, Args, Abs, Telescope )
-import Agda.Syntax.Internal.Generic ( TermLike )
-import Agda.TypeChecking.Monad.Base ( TCM, RunMetaOccursCheck(..), CompareDirection(..), Candidate )
+import Agda.TypeChecking.Monad.Base ( TCM, RunMetaOccursCheck, CompareDirection )
 
 type Condition = Dom Type -> Abs Type -> Bool
 newArgsMeta'      :: Condition -> Type -> TCM Args

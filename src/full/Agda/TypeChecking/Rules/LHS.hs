@@ -17,16 +17,13 @@ import Prelude hiding ( mapM, null, sequence )
 
 import Data.Maybe
 
-import Control.Applicative hiding (empty)
-import Control.Arrow (first, second, (***), left, right)
+import Control.Arrow (left)
 import Control.Monad
 import Control.Monad.State
-import Control.Monad.Reader
 import Control.Monad.Writer hiding ((<>))
 import Control.Monad.Trans.Maybe
 
 import Data.Either (partitionEithers)
-import Data.Function (on)
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
 import Data.List (delete, sortBy, stripPrefix, (\\), findIndex)
@@ -34,8 +31,6 @@ import qualified Data.List as List
 import Data.Monoid ( Monoid, mempty, mappend )
 import Data.Semigroup ( Semigroup )
 import qualified Data.Semigroup as Semigroup
-import Data.Traversable
-import Data.Map (Map)
 import qualified Data.Map as Map
 
 import Agda.Interaction.Highlighting.Generate (storeDisambiguatedName)
@@ -46,14 +41,11 @@ import Agda.Syntax.Internal as I
 import Agda.Syntax.Internal.Pattern
 import Agda.Syntax.Abstract (IsProjP(..))
 import qualified Agda.Syntax.Abstract as A
-import qualified Agda.Syntax.Abstract.Pattern as A
 import Agda.Syntax.Abstract.Views (asView, deepUnscope)
 import Agda.Syntax.Common as Common
 import Agda.Syntax.Info as A
 import Agda.Syntax.Literal
 import Agda.Syntax.Position
-import Agda.Syntax.Scope.Base (ScopeInfo, emptyScopeInfo)
-
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin (litType, constructorForm)
@@ -70,7 +62,6 @@ import Agda.TypeChecking.Patterns.Abstract
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Records hiding (getRecordConstructor)
 import Agda.TypeChecking.Reduce
-import Agda.TypeChecking.Rewriting
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Primitive hiding (Nat)
@@ -83,18 +74,15 @@ import Agda.TypeChecking.Rules.LHS.Unify
 import Agda.TypeChecking.Rules.LHS.Implicit
 import Agda.TypeChecking.Rules.Data
 
-import Agda.Utils.Either
 import Agda.Utils.Except (MonadError(..), ExceptT, runExceptT)
 import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List
-import Agda.Utils.ListT
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.NonemptyList
 import Agda.Utils.Null
-import Agda.Utils.Permutation
 import Agda.Utils.Pretty (prettyShow)
 import Agda.Utils.Singleton
 import Agda.Utils.Size

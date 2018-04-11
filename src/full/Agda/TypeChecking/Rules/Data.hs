@@ -7,7 +7,6 @@ import Control.Monad
 
 import Data.List (genericTake)
 import Data.Maybe (fromMaybe)
-import qualified Data.Set as Set
 
 import qualified Agda.Syntax.Abstract as A
 import qualified Agda.Syntax.Concrete.Name as C
@@ -42,12 +41,8 @@ import Agda.Interaction.Options
 
 import Agda.Utils.Except
 import Agda.Utils.List
-import Agda.Utils.Monad
-import Agda.Utils.Permutation
 import qualified Agda.Utils.Pretty as P
 import Agda.Utils.Size
-import Agda.Utils.Tuple
-import qualified Agda.Utils.VarSet as VarSet
 
 #include "undefined.h"
 import Agda.Utils.Impossible
