@@ -186,13 +186,11 @@ updateProblemEqs eqs = do
             (ProblemEq (A.VarP x) v a :) <$> update (ProblemEq p' v a)
           A.ConP cpi ambC ps -> do
             (c',_) <- disambiguateConstructor ambC d pars
-            unless (conName c == conName c') $ do
-              reportSLn "impossible" 10 $ unlines
-                [ "updateProblemEqs: conName mismatch"
-                , "  conName c  = " ++ show (conName c)
-                , "  conName c' = " ++ show (conName c')
-                ]
-              __IMPOSSIBLE__
+
+            -- Issue #3014: If the constructor is forced but the user wrote a
+            -- different constructor,that's an error. We simply keep the
+            -- problem equation, this will result in a proper error message later.
+            if conName c /= conName c' then return [eq] else do
 
             -- Insert implicit patterns
             ps <- insertImplicitPatterns ExpandLast ps ctel
