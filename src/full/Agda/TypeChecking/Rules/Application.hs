@@ -334,16 +334,15 @@ checkRelevance x drel = do
 -- not be any need to insert hidden lambdas.
 checkHeadApplication :: A.Expr -> Type -> A.Expr -> [NamedArg A.Expr] -> TCM Term
 checkHeadApplication e t hd args = do
-  kit   <- coinductionKit
+  sharp <- fmap nameOfSharp <$> coinductionKit
   conId <- fmap getPrimName <$> getBuiltin' builtinConId
   pOr   <- fmap primFunName <$> getPrimitive' "primPOr"
   pComp <- fmap primFunName <$> getPrimitive' "primComp"
   mglue <- getPrimitiveName' builtin_glue
-  let isSharp c = Just c == (nameOfSharp <$> kit)
   case hd of
     -- Type checking #. The # that the user can write will be a Def, but the
     -- sharp we generate in the body of the wrapper is a Con.
-    A.Def c | isSharp c -> checkSharpApplication e t c args
+    A.Def c | Just c == sharp -> checkSharpApplication e t c args
 
     -- Cubical primitives
     A.Def c | Just c == pComp -> defaultResult' $ Just $ checkPrimComp c
@@ -382,14 +381,14 @@ checkArgumentsE :: ExpandHidden -> Range -> [NamedArg A.Expr] -> Type -> Type ->
 checkArgumentsE DontExpandLast _ [] t0 t1 = return ([], t0)
 
 -- Case: no arguments, but need to insert trailing hiddens.
-checkArgumentsE exh r [] t0 t1 =
+checkArgumentsE ExpandLast r [] t0 t1 =
     traceCallE (CheckArguments r [] t0 t1) $ lift $ do
       t1' <- unEl <$> reduce t1
       mapFst (map Apply) <$> implicitArgs (-1) (expand t1') t0
     where
-      expand (Pi dom _) Hidden     = not (hidden dom) && exh == ExpandLast
-      expand _          Hidden     = exh == ExpandLast
-      expand (Pi dom _) Instance{} = not $ isInstance dom
+      expand (Pi dom _) Hidden     = not (hidden dom)
+      expand _          Hidden     = True
+      expand (Pi dom _) Instance{} = not (isInstance dom)
       expand _          Instance{} = True
       expand _          NotHidden  = False
 
