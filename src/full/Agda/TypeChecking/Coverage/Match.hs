@@ -63,14 +63,6 @@ match cs ps = foldr choice No $ zipWith matchIt [0..] cs
     No        +++ _ = No
     m@Block{} +++ _ = m
 
--- | Convert the root of a term into a pattern constructor, if possible.
-buildPattern :: Term -> Maybe DeBruijnPattern
-buildPattern (Con c ci es) = Just $
-  let args = fromMaybe __IMPOSSIBLE__ $ allApplyElims es in
-  ConP c (toConPatternInfo ci) $ map (fmap $ unnamed . dotP) args
-buildPattern (Var i [])     = Just $ deBruijnVar i
-buildPattern _              = Nothing
-
 -- | A pattern that matches anything (modulo eta).
 isTrivialPattern :: (HasConstInfo m) => Pattern' a -> m Bool
 isTrivialPattern p = case p of
@@ -165,7 +157,7 @@ noMatchLit _ _ = No
 -- | Use this function if a literal pattern should cover a split clause variable pattern.
 yesMatchLit :: MatchLit
 yesMatchLit l q@VarP{} = Yes ([q], [l])
-yesMatchLit l (DotP o t) = maybe No (yesMatchLit l) $ buildPattern t
+yesMatchLit l (DotP o t) = No
 yesMatchLit _ ConP{}   = No
 yesMatchLit _ ProjP{}  = No
 yesMatchLit _ LitP{}   = __IMPOSSIBLE__
@@ -305,6 +297,6 @@ matchPat mlit p@(ConP c _ ps) q = case q of
   ConP c' i qs
     | c == c'   -> matchPats mlit ps qs
     | otherwise -> No
-  DotP o t  -> maybe No (matchPat mlit p) $ buildPattern t
+  DotP o t  -> No
   LitP _  -> __IMPOSSIBLE__  -- split clause has no literal patterns
   ProjP{} -> __IMPOSSIBLE__  -- excluded by typing

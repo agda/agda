@@ -45,6 +45,7 @@ import Agda.TypeChecking.Coverage.Match
 import Agda.TypeChecking.Coverage.SplitTree
 
 import Agda.TypeChecking.Datatypes (getConForm)
+import Agda.TypeChecking.Patterns.Internal (dotPatternsToPatterns)
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Reduce
@@ -240,6 +241,7 @@ cover f cs sc@(SClause tel ps _ _ target) = do
     , nest 2 $ text "ps   =" <+> do addContext tel $ prettyTCMPatternList ps
     ]
   cs' <- normaliseProjP cs
+  ps <- (traverse . traverse . traverse) dotPatternsToPatterns ps
   case match cs' ps of
     Yes (i,(mps,ls0)) -> do
       exact <- allM mps isTrivialPattern

@@ -386,6 +386,7 @@ library
                     Agda.TypeChecking.Monad.Trace
                     Agda.TypeChecking.Monad
                     Agda.TypeChecking.Patterns.Abstract
+                    Agda.TypeChecking.Patterns.Internal
                     Agda.TypeChecking.Patterns.Match
                     Agda.TypeChecking.Polarity
                     Agda.TypeChecking.Positivity
