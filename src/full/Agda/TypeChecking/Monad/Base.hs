@@ -1898,7 +1898,7 @@ data Call = CheckClause Type A.SpineClause
           | IsType_ A.Expr
           | InferVar Name
           | InferDef QName
-          | CheckArguments Range [NamedArg A.Expr] Type Type
+          | CheckArguments Range [NamedArg A.Expr] Type (Maybe Type)
           | CheckDataDef Range Name [A.LamBinding] [A.Constructor]
           | CheckRecDef Range Name [A.LamBinding] [A.Constructor]
           | CheckConstructor QName Telescope Sort A.Constructor

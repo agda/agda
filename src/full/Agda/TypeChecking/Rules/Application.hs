@@ -216,7 +216,7 @@ inferApplication exh hd args e =
     _ -> do
       (f, t0) <- inferHead hd
       let r = getRange hd
-      res <- runExceptT $ checkArgumentsE exh (getRange hd) args t0 typeDontCare
+      res <- runExceptT $ checkArgumentsE exh (getRange hd) args t0 Nothing
       case res of
         Right (vs, t1) -> (,t1) <$> unfoldInlined (f vs)
         Left problem -> do
@@ -369,34 +369,34 @@ traceCallE call m = do
 --   type @t0'@ (which should be a subtype of @t1@) and any constraints @cs@
 --   that have to be solved for everything to be well-formed.
 
-checkArgumentsE :: ExpandHidden -> Range -> [NamedArg A.Expr] -> Type -> Type ->
+checkArgumentsE :: ExpandHidden -> Range -> [NamedArg A.Expr] -> Type -> Maybe Type ->
                   ExceptT (Elims, [NamedArg A.Expr], Type) TCM (Elims, Type)
 
 -- Case: no arguments, do not insert trailing hidden arguments: We are done.
-checkArgumentsE DontExpandLast _ [] t0 t1 = return ([], t0)
+checkArgumentsE DontExpandLast _ [] t0 _ = return ([], t0)
 
 -- Case: no arguments, but need to insert trailing hiddens.
-checkArgumentsE ExpandLast r [] t0 t1 =
-    traceCallE (CheckArguments r [] t0 t1) $ lift $ do
-      t1' <- unEl <$> reduce t1
-      mapFst (map Apply) <$> implicitArgs (-1) (expand t1') t0
+checkArgumentsE ExpandLast r [] t0 mt1 =
+    traceCallE (CheckArguments r [] t0 mt1) $ lift $ do
+      mt1' <- traverse (unEl <.> reduce) mt1
+      mapFst (map Apply) <$> implicitArgs (-1) (expand mt1') t0
     where
-      expand (Pi dom _) Hidden     = not (hidden dom)
-      expand _          Hidden     = True
-      expand (Pi dom _) Instance{} = not (isInstance dom)
-      expand _          Instance{} = True
-      expand _          NotHidden  = False
+      expand (Just (Pi dom _)) Hidden     = not (hidden dom)
+      expand _                 Hidden     = True
+      expand (Just (Pi dom _)) Instance{} = not (isInstance dom)
+      expand _                 Instance{} = True
+      expand _                 NotHidden  = False
 
 -- Case: argument given.
-checkArgumentsE exh r args0@(arg@(Arg info e) : args) t0 t1 =
-    traceCallE (CheckArguments r args0 t0 t1) $ do
+checkArgumentsE exh r args0@(arg@(Arg info e) : args) t0 mt1 =
+    traceCallE (CheckArguments r args0 t0 mt1) $ do
       lift $ reportSDoc "tc.term.args" 30 $ sep
         [ text "checkArgumentsE"
 --        , text "  args0 =" <+> prettyA args0
         , nest 2 $ vcat
           [ text "e     =" <+> prettyA e
           , text "t0    =" <+> prettyTCM t0
-          , text "t1    =" <+> prettyTCM t1
+          , text "mt1   =" <+> maybe (text "Nothing") prettyTCM mt1
           ]
         ]
       -- First, insert implicit arguments, depending on current argument @arg@.
@@ -465,7 +465,7 @@ checkArgumentsE exh r args0@(arg@(Arg info e) : args) t0 t1 =
                   checkNamedArg (Arg info' e') a
                 -- save relevance info' from domain in argument
                 addCheckedArgs us (Apply $ Arg info' u) $
-                  checkArgumentsE exh (fuseRange r e) args (absApp b u) t1
+                  checkArgumentsE exh (fuseRange r e) args (absApp b u) mt1
             | otherwise -> do
                 reportSDoc "error" 10 $ nest 2 $ vcat
                   [ text $ "info      = " ++ show info
@@ -493,7 +493,7 @@ checkArguments_
      -- ^ Checked arguments and remaining telescope if successful.
 checkArguments_ exh r args tel = do
     z <- runExceptT $
-      checkArgumentsE exh r args (telePi tel typeDontCare) typeDontCare
+      checkArgumentsE exh r args (telePi tel typeDontCare) Nothing
     case z of
       Right (args, t) -> do
         let TelV tel' _ = telView' t
@@ -510,7 +510,7 @@ checkArguments ::
   ExpandHidden -> Range -> [NamedArg A.Expr] -> Type -> Type ->
   (Elims -> Type -> TCM Term) -> TCM Term
 checkArguments exph r args t0 t k = do
-  z <- runExceptT $ checkArgumentsE exph r args t0 t
+  z <- runExceptT $ checkArgumentsE exph r args t0 (Just t)
   case z of
     Right (vs, t1) -> k vs t1
       -- vs = evaluated args
@@ -857,10 +857,9 @@ inferOrCheckProjApp e o ds args mt = do
               (_,_) <- checkKnownArguments (take k args) pars tfull
 
               -- Check remaining arguments
-              let tc    = fromMaybe typeDontCare mt
-                  r     = getRange e
+              let r     = getRange e
                   args' = drop (k + 1) args
-              z <- runExceptT $ checkArgumentsE ExpandLast r args' tb tc
+              z <- runExceptT $ checkArgumentsE ExpandLast r args' tb mt
               case z of
                 Right (us, trest) -> return (u `applyE` us, trest)
                 Left problem -> do
