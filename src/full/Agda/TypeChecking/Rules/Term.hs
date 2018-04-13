@@ -682,7 +682,8 @@ checkRecordExpression mfs e t = do
       es <- insertMissingFields r meta fs axs
 
       args <- checkArguments_ ExpandLast re es (recTel def `apply` vs) >>= \case
-        (args, remainingTel) | null remainingTel -> return args
+        (elims, remainingTel) | null remainingTel
+                              , Just args <- allApplyElims elims -> return args
         _ -> __IMPOSSIBLE__
       -- Don't need to block here!
       reportSDoc "tc.term.rec" 20 $ text $ "finished record expression"
@@ -1088,8 +1089,8 @@ checkMeta newMeta t i = fst <$> checkOrInferMeta newMeta (Just t) i
 
 -- | Infer the type of a meta variable.
 --   If it is a new one, we create a new meta for its type.
-inferMeta :: (Type -> TCM (MetaId, Term)) -> A.MetaInfo -> TCM (Args -> Term, Type)
-inferMeta newMeta i = mapFst apply <$> checkOrInferMeta newMeta Nothing i
+inferMeta :: (Type -> TCM (MetaId, Term)) -> A.MetaInfo -> TCM (Elims -> Term, Type)
+inferMeta newMeta i = mapFst applyE <$> checkOrInferMeta newMeta Nothing i
 
 -- | Type check a meta variable.
 --   If its type is not given, we return its type, or a fresh one, if it is a new meta.

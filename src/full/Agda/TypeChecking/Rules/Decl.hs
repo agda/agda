@@ -857,7 +857,8 @@ checkSectionApplication' i m1 (A.SectionApp ptel m2 args) copyInfo = do
       ]
     -- Now, type check arguments.
     ts <- (noConstraints $ checkArguments_ DontExpandLast (getRange i) args tel') >>= \case
-      (ts, etaTel') | (size etaTel == size etaTel') -> return ts
+      (ts', etaTel') | (size etaTel == size etaTel')
+                     , Just ts <- allApplyElims ts' -> return ts
       _ -> __IMPOSSIBLE__
     -- Perform the application of the module parameters.
     let aTel = tel' `apply` ts
