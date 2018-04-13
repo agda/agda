@@ -61,12 +61,12 @@ addConstraint c = do
       , prettyTCM c ]
     -- Need to reduce to reveal possibly blocking metas
     c <- reduce =<< instantiateFull c
-    c' <- simpl c
-    if (c /= c')
+    cs <- simpl c
+    if ([c] /= cs)
       then do
-        reportSDoc "tc.constr.add" 20 $ text "  simplified:" <+> prettyTCM c'
-        solveConstraint_ c'
-      else addConstraint' c'
+        reportSDoc "tc.constr.add" 20 $ text "  simplified:" <+> prettyList (map prettyTCM cs)
+        mapM_ solveConstraint_ cs
+      else mapM_ addConstraint' cs
     -- the added constraint can cause IFS constraints to be solved (but only
     -- the constraints which aren’t blocked on an uninstantiated meta)
     unless (isIFSConstraint c) $
@@ -84,18 +84,14 @@ addConstraint c = do
     isLvl _          = False
 
     -- Try to simplify a level constraint
-    simpl :: Constraint -> TCM Constraint
-    simpl c = if not $ isLvl c then return c else do
+    simpl :: Constraint -> TCM [Constraint]
+    simpl c = if not $ isLvl c then return [c] else do
       cs <- map theConstraint <$> getAllConstraints
       lvls <- instantiateFull $ List.filter (isLvl . clValue) cs
       when (not $ null lvls) $ do
         reportSDoc "tc.constr.lvl" 40 $ text "simplifying level constraint" <+> prettyTCM c
                                         $$ nest 2 (hang (text "using") 2 (prettyTCM lvls))
-      let c' = simplifyLevelConstraint c $ map clValue lvls
-      reportSDoc "tc.constr.lvl" 40 $
-        if c' /= c then text "simplified to" <+> prettyTCM c'
-                   else text "no simplification"
-      return c'
+      return $ simplifyLevelConstraint c $ map clValue lvls
 
 -- | Don't allow the argument to produce any constraints.
 noConstraints :: TCM a -> TCM a

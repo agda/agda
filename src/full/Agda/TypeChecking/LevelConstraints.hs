@@ -3,6 +3,7 @@
 module Agda.TypeChecking.LevelConstraints ( simplifyLevelConstraint ) where
 
 import qualified Data.List as List
+import Data.Maybe
 import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Substitute
@@ -18,13 +19,15 @@ import Agda.Utils.Impossible
 --   The constraints doesn't necessarily have to live in the same context, but
 --   they do need to be universally quanitfied over the context. This function
 --   takes care of renaming variables when checking for matches.
-simplifyLevelConstraint :: Constraint -> [Constraint] -> Constraint
+simplifyLevelConstraint :: Constraint -> [Constraint] -> [Constraint]
 simplifyLevelConstraint new old =
   case inequalities new of
-    [a :=< b] | any (matchLeq (b :=< a)) leqs -> LevelCmp CmpEq (Max [a]) (Max [b])
-    _ -> new
+    Just eqs -> map simpl eqs
+    Nothing  -> [new]
   where
-    leqs = concatMap inequalities old
+    simpl (a :=< b) | any (matchLeq (b :=< a)) leqs = LevelCmp CmpEq  (Max [a]) (Max [b])
+                    | otherwise                     = LevelCmp CmpLeq (Max [a]) (Max [b])
+    leqs = concat $ catMaybes $ map inequalities old
 
 data Leq = PlusLevel :=< PlusLevel
   deriving (Show, Eq)
@@ -49,17 +52,19 @@ matchLeq (a :=< b) (c :=< d)
 
 -- | Turn a level constraint into a list of level inequalities, if possible.
 
-inequalities :: Constraint -> [Leq]
+inequalities :: Constraint -> Maybe [Leq]
 
-inequalities (LevelCmp CmpLeq (Max as) (Max [b])) = map (:=< b) as  -- Andreas, 2016-09-28
+inequalities (LevelCmp CmpLeq (Max as) (Max [b])) = Just $ map (:=< b) as  -- Andreas, 2016-09-28
   -- Why was this most natural case missing?
   -- See test/Succeed/LevelLeqGeq.agda for where it is useful!
 
 -- These are very special cases only, in no way complete:
-inequalities (LevelCmp CmpEq (Max [a, b]) (Max [c]))
-  | a == c = [b :=< a]
-  | b == c = [a :=< b]
-inequalities (LevelCmp CmpEq (Max [a]) (Max [b, c]))
-  | a == b = [c :=< b]
-  | a == c = [b :=< c]
-inequalities _ = []
+inequalities (LevelCmp CmpEq (Max as) (Max [b])) =
+  case break (== b) as of
+    (as0, _ : as1) -> Just [ a :=< b | a <- as0 ++ as1 ]
+    _              -> Nothing
+inequalities (LevelCmp CmpEq (Max [b]) (Max as)) =
+  case break (== b) as of
+    (as0, _ : as1) -> Just [ a :=< b | a <- as0 ++ as1 ]
+    _              -> Nothing
+inequalities _ = Nothing
