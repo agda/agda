@@ -1,6 +1,9 @@
-SizedTypesRigidVarClash.agda:12,13-14
+SizedTypesRigidVarClash.agda:12,9-14
 Cannot solve size constraints
-[.i, .j, x] (_size_10 .i .j x) ≤ .j
-[.i, .j, x] .i ≤ (_size_10 .i .j x)
+[.i, .j, x] .i ≤ _size_10 .i .j x
+[.i, .j, x] _size_10 .i .j x ≤ .j
 Reason: size constraint graph constrains size hypotheses
-when checking that the expression x has type Nat
+when checking that the inferred type of an application
+  Nat
+matches the expected type
+  Nat

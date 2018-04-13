@@ -1,3 +1,6 @@
-Issue1194j.agda:21,10-11
-D₁ !=< D₂ of type Set
-when checking that the expression a has type D₂
+Issue1194j.agda:21,8-13
+D₂ !=< D₁ of type Set
+when checking that the inferred type of an application
+  D₂
+matches the expected type
+  D₁

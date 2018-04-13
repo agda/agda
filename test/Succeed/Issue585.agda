@@ -62,3 +62,5 @@ data _⊢_∈_ {n} (Γ : Ctxt n) : Tm n → Ty → Set where
 -- WAS: Agda seems to loop when checking Ω-has-any-type.
 
 -- NOW: this should leave metas unsolved.
+
+-- LATER: the meta is solved

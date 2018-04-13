@@ -1432,6 +1432,12 @@ instance PrettyTCM Call where
       pwords "to a function of type" ++
       [prettyTCM t0]
 
+    CheckTargetType r infTy expTy -> sep
+      [ text "when checking that the inferred type of an application"
+      , nest 2 $ prettyTCM infTy
+      , text "matches the expected type"
+      , nest 2 $ prettyTCM expTy ]
+
     CheckRecDef _ x ps cs ->
       fsep $ pwords "when checking the definition of" ++ [prettyTCM x]
 

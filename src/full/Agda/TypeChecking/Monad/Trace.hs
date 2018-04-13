@@ -90,6 +90,7 @@ traceCall mkCall m = do
     InferVar{}                -> True
     InferDef{}                -> True
     CheckArguments{}          -> True
+    CheckTargetType{}         -> False
     CheckDataDef{}            -> True
     CheckRecDef{}             -> True
     CheckConstructor{}        -> True
