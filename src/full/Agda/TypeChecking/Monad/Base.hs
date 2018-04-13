@@ -143,6 +143,7 @@ data PreScopeState = PreScopeState
     -- ^ @{-# FOREIGN #-}@ code that should be included in the compiled output.
     -- Does not include code for imported modules.
   , stPreFreshInteractionId :: !InteractionId
+  , stPreUserWarnings       :: !(Map A.QName String)
   }
 
 type DisambiguatedNames = IntMap A.QName
@@ -285,6 +286,7 @@ initPreScopeState = PreScopeState
   , stPreImportedInstanceDefs = Map.empty
   , stPreForeignCode          = Map.empty
   , stPreFreshInteractionId   = 0
+  , stPreUserWarnings         = Map.empty
   }
 
 initPostScopeState :: PostScopeState
@@ -383,6 +385,11 @@ stFreshInteractionId :: Lens' InteractionId TCState
 stFreshInteractionId f s =
   f (stPreFreshInteractionId (stPreScopeState s)) <&>
   \x -> s {stPreScopeState = (stPreScopeState s) {stPreFreshInteractionId = x}}
+
+stUserWarnings :: Lens' (Map A.QName String) TCState
+stUserWarnings f s =
+  f (stPreUserWarnings (stPreScopeState s)) <&>
+  \ x -> s {stPreScopeState = (stPreScopeState s) {stPreUserWarnings = x}}
 
 stBackends :: Lens' [Backend] TCState
 stBackends f s =
@@ -694,6 +701,8 @@ data Interface = Interface
   , iSignature       :: Signature
   , iDisplayForms    :: DisplayForms
     -- ^ Display forms added for imported identifiers.
+  , iUserWarnings    :: Map A.QName String
+    -- ^ User warnings for imported identifiers
   , iBuiltin         :: BuiltinThings (String, QName)
   , iForeignCode     :: Map BackendName [ForeignCode]
   , iHighlighting    :: HighlightingInfo
@@ -705,8 +714,9 @@ data Interface = Interface
   deriving Show
 
 instance Pretty Interface where
-  pretty (Interface sourceH importedM moduleN scope insideS signature display builtin
-                    foreignCode highlighting pragmaO patternS warnings) =
+  pretty (Interface sourceH importedM moduleN scope insideS signature display
+                    userwarn builtin foreignCode highlighting pragmaO patternS
+                    warnings) =
     hang (text "Interface") 2 $ vcat
       [ text "source hash:"         <+> (pretty . show) sourceH
       , text "imported modules:"    <+> (pretty . show) importedM
@@ -715,6 +725,7 @@ instance Pretty Interface where
       , text "inside scope:"        <+> (pretty . show) insideS
       , text "signature:"           <+> (pretty . show) signature
       , text "display:"             <+> (pretty . show) display
+      , text "user warnings:"       <+> (pretty . show) userwarn
       , text "builtin:"             <+> (pretty . show) builtin
       , text "Foreign code:"        <+> (pretty . show) foreignCode
       , text "highlighting:"        <+> (pretty . show) highlighting
@@ -2453,6 +2464,8 @@ data Warning
   | DeprecationWarning String String String
     -- ^ `DeprecationWarning old new version`:
     --   `old` is deprecated, use `new` instead. This will be an error in Agda `version`.
+  | UserWarning String
+    -- ^ User-defined warning (e.g. to mention that a name is deprecated)
   deriving (Show , Data)
 
 
@@ -2483,6 +2496,7 @@ warningName w = case w of
   SafeFlagPrimTrustMe        -> SafeFlagPrimTrustMe_
   SafeFlagNoPositivityCheck  -> SafeFlagNoPositivityCheck_
   SafeFlagPolarity           -> SafeFlagPolarity_
+  UserWarning{}              -> UserWarning_
 
 data TCWarning
   = TCWarning

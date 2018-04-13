@@ -98,6 +98,7 @@ classifyWarning w = case w of
   DeprecationWarning{}       -> AllWarnings
   NicifierIssue{}            -> AllWarnings
   InversionDepthReached{}    -> AllWarnings
+  UserWarning{}              -> AllWarnings
   TerminationIssue{}         -> ErrorWarnings
   CoverageIssue{}            -> ErrorWarnings
   CoverageNoExactSplit{}     -> ErrorWarnings

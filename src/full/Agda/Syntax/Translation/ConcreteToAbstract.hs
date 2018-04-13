@@ -510,7 +510,14 @@ instance ToAbstract OldQName A.Expr where
     reportSLn "scope.name" 10 $ "resolved " ++ prettyShow x ++ ": " ++ prettyShow qx
     case qx of
       VarName x' _         -> return $ A.Var x'
-      DefinedName _ d      -> return $ nameExpr d
+      DefinedName _ d      -> do
+        -- In case we find a defined name, we start by checking whether there's
+        -- a warning attached to it
+        reportSDoc "scope.warning" 50 $ text $ "Checking usage of " ++ prettyShow d
+        mstr <- Map.lookup (anameName d) <$> use stUserWarnings
+        forM_ mstr (warning . UserWarning)
+        -- and then we return the name
+        return $ nameExpr d
       FieldName     ds     -> return $ A.Proj ProjPrefix $ AmbQ (fmap anameName ds)
       ConstructorName ds   -> return $ A.Con $ AmbQ (fmap anameName ds)
       UnknownName          -> notInScope x
@@ -1901,6 +1908,11 @@ instance ToAbstract C.Pragma [A.Pragma] where
 
     rhs <- toAbstract rhs
     return [A.DisplayPragma hd ps rhs]
+
+  toAbstract (C.WarningOnUsage _ oqn str) = do
+    qn <- toAbstract $ OldName oqn
+    stUserWarnings %= Map.insert qn str
+    pure []
 
   -- Termination checking pragmes are handled by the nicifier
   toAbstract C.TerminationCheckPragma{} = __IMPOSSIBLE__

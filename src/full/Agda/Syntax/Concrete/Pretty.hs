@@ -550,6 +550,7 @@ instance Pretty Pragma where
         NonTerminating         -> text "NON_TERMINATING"
         Terminating            -> text "TERMINATING"
         TerminationMeasure _ x -> hsep $ [text "MEASURE", pretty x]
+    pretty (WarningOnUsage _ nm str) = hsep [ text "WARNING_ON_USAGE", pretty nm, text str ]
     pretty (CatchallPragma _) = text "CATCHALL"
     pretty (DisplayPragma _ lhs rhs) = text "DISPLAY" <+> sep [ pretty lhs <+> text "=", nest 2 $ pretty rhs ]
     pretty (NoPositivityCheckPragma _) = text "NO_POSITIVITY_CHECK"

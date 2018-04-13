@@ -103,6 +103,7 @@ tokens :-
 <pragma_>   "REWRITE"                  { keyword KwREWRITE }
 <pragma_>   "STATIC"                   { keyword KwSTATIC }
 <pragma_>   "TERMINATING"              { keyword KwTERMINATING }
+<pragma_>   "WARNING_ON_USAGE"         { keyword KwWARNING_ON_USAGE }
 <pragma_,fpragma_> . # [ $white ] +    { withInterval $ TokString }
 
 -- Comments

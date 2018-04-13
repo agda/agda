@@ -129,7 +129,7 @@ mergeInterface i = do
             Just b1 = Map.lookup b bs
             Just b2 = Map.lookup b bi
     mapM_ check (map fst $ Map.toList $ Map.intersection bs bi)
-    addImportedThings sig bi (iPatternSyns i) (iDisplayForms i) warns
+    addImportedThings sig bi (iPatternSyns i) (iDisplayForms i) (iUserWarnings i) warns
     reportSLn "import.iface.merge" 20 $
       "  Rebinding primitives " ++ show prim
     mapM_ rebind prim
@@ -140,12 +140,13 @@ mergeInterface i = do
 
 addImportedThings ::
   Signature -> BuiltinThings PrimFun ->
-  A.PatternSynDefns -> DisplayForms -> [TCWarning] -> TCM ()
-addImportedThings isig ibuiltin patsyns display warnings = do
+  A.PatternSynDefns -> DisplayForms -> Map A.QName String -> [TCWarning] -> TCM ()
+addImportedThings isig ibuiltin patsyns display userwarn warnings = do
   stImports              %= \ imp -> unionSignatures [imp, isig]
   stImportedBuiltins     %= \ imp -> Map.union imp ibuiltin
   stPatternSynImports    %= \ imp -> Map.union imp patsyns
   stImportedDisplayForms %= \ imp -> HMap.unionWith (++) imp display
+  stUserWarnings         %= \ imp -> Map.union imp userwarn
   stTCWarnings           %= \ imp -> List.union imp warnings
   addImportedInstances isig
 
@@ -499,6 +500,7 @@ typeCheck x file isMain = do
       isig     <- use stImports
       ibuiltin <- use stImportedBuiltins
       display  <- use stImportsDisplayForms
+      userwarn <- use stUserWarnings
       ipatsyns <- getPatternSynImports
       ho       <- getInteractionOutputCallback
       -- Every interface is treated in isolation. Note: Some changes to
@@ -521,7 +523,7 @@ typeCheck x file isMain = do
                setInteractionOutputCallback ho
                stModuleToSource .= mf
                setVisitedModules vs
-               addImportedThings isig ibuiltin ipatsyns display []
+               addImportedThings isig ibuiltin ipatsyns display userwarn []
 
                r  <- withMsgs $ createInterface file x isMain
                mf <- use stModuleToSource
@@ -944,6 +946,7 @@ buildInterface file topLevel syntaxInfo pragmas = do
     display <- HMap.filter (not . null) . HMap.map (filter isClosed) <$> use stImportsDisplayForms
     -- TODO: Kill some ranges?
     (display, sig) <- eliminateDeadCode display =<< getSignature
+    userwarns <- use stUserWarnings
     -- Andreas, 2015-02-09 kill ranges in pattern synonyms before
     -- serialization to avoid error locations pointing to external files
     -- when expanding a pattern synoym.
@@ -960,6 +963,7 @@ buildInterface file topLevel syntaxInfo pragmas = do
       , iInsideScope     = topLevelScope topLevel
       , iSignature       = sig
       , iDisplayForms    = display
+      , iUserWarnings    = userwarns
       , iBuiltin         = builtin'
       , iForeignCode     = foreignCode
       , iHighlighting    = syntaxInfo
