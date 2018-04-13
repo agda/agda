@@ -1174,13 +1174,6 @@ domainFree info x =
       , A.metaNameSuggestion = prettyShow $ A.nameConcrete x
       }
 
-traceCallE :: Call -> ExceptT e TCM r -> ExceptT e TCM r
-traceCallE call m = do
-  z <- lift $ traceCall call $ runExceptT m
-  case z of
-    Right e  -> return e
-    Left err -> throwError err
-
 -- | Check arguments whose value we already know.
 --
 --   This function can be used to check user-supplied parameters

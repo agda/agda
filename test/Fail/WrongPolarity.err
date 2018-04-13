@@ -1,4 +1,6 @@
 WrongPolarity.agda:25,23-36
 ↑ i !=< i of type Size
-when checking that the expression dumpNat {i} n has type
-Sink (Nat {↑ i})
+when checking that the inferred type of an application
+  Sink (Nat {i})
+matches the expected type
+  Sink (Nat {↑ i})

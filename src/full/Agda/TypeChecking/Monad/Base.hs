@@ -952,9 +952,14 @@ data MetaInstantiation
         | BlockedConst Term  -- ^ solution blocked by unsolved constraints
         | PostponedTypeCheckingProblem (Closure TypeCheckingProblem) (TCM Bool)
 
+-- | Solving a 'CheckArgs' constraint may or may not check the target type. If
+--   it did, it returns a handle to any unsolved constraints.
+data CheckedTarget = CheckedTarget (Maybe ProblemId)
+                   | NotCheckedTarget
+
 data TypeCheckingProblem
   = CheckExpr A.Expr Type
-  | CheckArgs ExpandHidden Range [NamedArg A.Expr] Type Type (Elims -> Type -> TCM Term)
+  | CheckArgs ExpandHidden Range [NamedArg A.Expr] Type Type (Elims -> Type -> CheckedTarget -> TCM Term)
   | CheckLambda (Arg ([WithHiding Name], Maybe Type)) A.Expr Type
     -- ^ @(λ (xs : t₀) → e) : t@
     --   This is not an instance of 'CheckExpr' as the domain type
@@ -1928,7 +1933,8 @@ data Call = CheckClause Type A.SpineClause
           | IsType_ A.Expr
           | InferVar Name
           | InferDef QName
-          | CheckArguments Range [NamedArg A.Expr] Type Type
+          | CheckArguments Range [NamedArg A.Expr] Type (Maybe Type)
+          | CheckTargetType Range Type Type
           | CheckDataDef Range Name [A.LamBinding] [A.Constructor]
           | CheckRecDef Range Name [A.LamBinding] [A.Constructor]
           | CheckConstructor QName Telescope Sort A.Constructor
@@ -1958,6 +1964,7 @@ instance Pretty Call where
     pretty InferVar{}                = text "InferVar"
     pretty InferDef{}                = text "InferDef"
     pretty CheckArguments{}          = text "CheckArguments"
+    pretty CheckTargetType{}         = text "CheckTargetType"
     pretty CheckDataDef{}            = text "CheckDataDef"
     pretty CheckRecDef{}             = text "CheckRecDef"
     pretty CheckConstructor{}        = text "CheckConstructor"
@@ -1988,6 +1995,7 @@ instance HasRange Call where
     getRange (InferVar x)                    = getRange x
     getRange (InferDef f)                    = getRange f
     getRange (CheckArguments r _ _ _)        = r
+    getRange (CheckTargetType r _ _)         = r
     getRange (CheckDataDef i _ _ _)          = getRange i
     getRange (CheckRecDef i _ _ _)           = getRange i
     getRange (CheckConstructor _ _ _ c)      = getRange c

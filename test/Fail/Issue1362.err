@@ -1,4 +1,6 @@
 Issue1362.agda:25,7-41
 quote D != quote M₁.D of type QName
-when checking that the expression
-cong getType {quote D} {quote D} ? has type type₁ ≡ type₂
+when checking that the inferred type of an application
+  getType (quote D) ≡ getType (quote D)
+matches the expected type
+  type₁ ≡ type₂

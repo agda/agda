@@ -1,3 +1,6 @@
-Issue690b.agda:31,9-28
+Issue690b.agda:31,9-27
 Rec (_A_7 f) !=< D of type Set
-when checking that the expression fold (D , refl , f) has type D
+when checking that the inferred type of an application
+  Rec (_A_7 f)
+matches the expected type
+  D

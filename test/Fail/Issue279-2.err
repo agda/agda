@@ -1,3 +1,6 @@
-Issue279-2.agda:20,10-12
-The constructor tt does not construct an element of ⊥
-when checking that the expression tt has type ⊥
+Issue279-2.agda:20,7-12
+⊥ !=< ⊤ of type Set
+when checking that the inferred type of an application
+  M.P ⊥ tt
+matches the expected type
+  M.P ⊤ tt

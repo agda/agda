@@ -1,5 +1,7 @@
 Issue380.agda:21,16-27
-Sigma (_a_30 y z == _a_30 y z) (_B_28 y z) !=<
-fst z == fst y → _26 y z == snd z of type Set
-when checking that the expression refl , refl has type
-fst z == fst y → _26 y z == snd z
+Sigma (_A_27 y z) (_B_28 y z) !=< fst z == fst y → _26 y z == snd z
+of type Set
+when checking that the inferred type of an application
+  Sigma (_A_27 y z) (_B_28 y z)
+matches the expected type
+  fst z == fst y → _26 y z == snd z
