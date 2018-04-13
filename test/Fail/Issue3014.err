@@ -1,0 +1,4 @@
+Issue3014.agda:9,14-19
+Cannot pattern match because the (refined) argument true is not a
+variable.
+when checking that the pattern false has type Bool
