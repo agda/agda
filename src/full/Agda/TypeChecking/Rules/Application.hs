@@ -467,6 +467,7 @@ checkArgumentsE' chk exh r args0@(arg@(Arg info e) : args) t0 mt1 =
               | otherwise = lift $ typeError $ WrongNamedArgument arg
 
         viewPath <- lift pathView'
+
         -- Check the target type if we can get away with it.
         chk' <- lift $
           case (chk, mt1) of
@@ -539,7 +540,7 @@ checkArgumentsE' chk exh r args0@(arg@(Arg info e) : args) t0 mt1 =
                 lift $ reportSDoc "tc.term.args" 30 $ text $ show bA
                 u <- lift $ checkExpr (namedThing e) =<< elInf primInterval
                 addCheckedArgs us (IApply (unArg x) (unArg y) u) $
-                  checkArgumentsE exh (fuseRange r e) args (El s $ unArg bA `apply` [argN u]) t1
+                  checkArgumentsE exh (fuseRange r e) args (El s $ unArg bA `apply` [argN u]) mt1
           _ -> shouldBePi
   where
     addCheckedArgs us u rec = do
