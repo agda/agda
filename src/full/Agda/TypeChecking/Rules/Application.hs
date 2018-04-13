@@ -356,6 +356,13 @@ checkHeadApplication e t hd args = do
 -- * Spines
 -----------------------------------------------------------------------------
 
+traceCallE :: Call -> ExceptT e TCM r -> ExceptT e TCM r
+traceCallE call m = do
+  z <- lift $ traceCall call $ runExceptT m
+  case z of
+    Right e  -> return e
+    Left err -> throwError err
+
 -- | Check a list of arguments: @checkArgs args t0 t1@ checks that
 --   @t0 = Delta -> t0'@ and @args : Delta@. Inserts hidden arguments to
 --   make this happen.  Returns the evaluated arguments @vs@, the remaining
