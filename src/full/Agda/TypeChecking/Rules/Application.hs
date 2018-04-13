@@ -334,74 +334,22 @@ checkRelevance x drel = do
 -- not be any need to insert hidden lambdas.
 checkHeadApplication :: A.Expr -> Type -> A.Expr -> [NamedArg A.Expr] -> TCM Term
 checkHeadApplication e t hd args = do
-  kit       <- coinductionKit
-  conId     <- fmap getPrimName <$> getBuiltin' builtinConId
-  pOr       <- fmap primFunName <$> getPrimitive' "primPOr"
-  pComp       <- fmap primFunName <$> getPrimitive' "primComp"
-  mglue     <- getPrimitiveName' builtin_glue
+  kit   <- coinductionKit
+  conId <- fmap getPrimName <$> getBuiltin' builtinConId
+  pOr   <- fmap primFunName <$> getPrimitive' "primPOr"
+  pComp <- fmap primFunName <$> getPrimitive' "primComp"
+  mglue <- getPrimitiveName' builtin_glue
   let isSharp c = Just c == (nameOfSharp <$> kit)
   case hd of
     -- Type checking #. The # that the user can write will be a Def, but the
     -- sharp we generate in the body of the wrapper is a Con.
     A.Def c | isSharp c -> checkSharpApplication e t c args
-    (A.Def c) | Just c == pComp -> do
-        defaultResult' $ Just $ \ vs t1 -> do
-          case vs of
-            [l,a,phi,u,a0] -> do
-              iz <- Arg defaultArgInfo <$> intervalUnview IZero
-              ty <- elInf $ primPartial <#> (pure $ unArg l `apply` [iz]) <@> (pure $ unArg a `apply` [iz]) <@> (pure $ unArg phi)
-              equalTerm ty -- (El (getSort t1) (apply (unArg a) [iz]))
-                  (Lam defaultArgInfo $ NoAbs "_" $ unArg a0)
-                  (apply (unArg u) [iz])
-            _ -> typeError $ GenericError $ show c ++ " must be fully applied"
 
-
-    (A.Def c) | Just c == conId -> do
-                    defaultResult' $ Just $ \ vs t1 -> do
-                      case vs of
-                       [_,_,_,_,phi,p] -> do
-                          iv@(PathType s _ l a x y) <- idViewAsPath t1
-                          let ty = pathUnview iv
-                          -- the following duplicates reduction of phi
-                          const_x <- blockTerm ty $ do
-                              equalTermOnFace (unArg phi) (El s (unArg a)) (unArg x) (unArg y)
-                              pathAbs iv (NoAbs (stringToArgName "_") (unArg x))
-                          equalTermOnFace (unArg phi) ty (unArg p) const_x   -- G,phi |- p = \ i . x
-
-                          -- phi <- reduce phi
-                          -- forallFaceMaps (unArg phi) $ \ alpha -> do
-                          --   iv@(PathType s _ l a x y) <- idViewAsPath (applySubst alpha t1)
-                          --   let ty = pathUnview iv
-                          --   equalTerm (El s (unArg a)) (unArg x) (unArg y) -- precondition for cx being well-typed at ty
-                          --   cx <- pathAbs iv (NoAbs (stringToArgName "_") (applySubst alpha (unArg x)))
-                          --   equalTerm ty (applySubst alpha (unArg p)) cx   -- G,phi |- p = \ i . x
-                       _ -> typeError $ GenericError $ show c ++ " must be fully applied"
-    (A.Def c) | Just c == pOr -> do
-                    defaultResult' $ Just $ \ vs t1 -> do
-                      case vs of
-                       [l,phi1,phi2,a,u,v] -> do
-                          phi <- intervalUnview (IMin phi1 phi2)
-                          reportSDoc "tc.term.por" 10 $ text (show phi)
-                          -- phi <- reduce phi
-                          -- alphas <- toFaceMaps phi
-                          -- reportSDoc "tc.term.por" 10 $ text (show alphas)
-                          equalTermOnFace phi t1 (unArg u) (unArg v)
-                       _ -> typeError $ GenericError $ show c ++ " must be fully applied"
-    (A.Def c) | Just c == mglue -> do
-                    defaultResult' $ Just $ \ vs t1 -> do
-                      case vs of
-                       [la,lb,bA,phi,bT,f,pf,t,a] -> do
-                          let iinfo = setRelevance Irrelevant defaultArgInfo
-                          v <- runNamesT [] $ do
-                                [f,t] <- mapM (open . unArg) [f,t]
-                                glam iinfo "o" $ \ o -> f <..> o <@> (t <..> o)
-                          ty <- runNamesT [] $ do
-                                [lb,phi,bA] <- mapM (open . unArg) [lb,phi,bA]
-                                elInf $ cl primPartialP <#> lb <@> phi <@> (glam iinfo "o" $ \ _ -> bA)
-                          let a' = Lam iinfo (NoAbs "o" $ unArg a)
-                          equalTerm ty a' v
-
-                       _ -> typeError $ GenericError $ show c ++ " must be fully applied"
+    -- Cubical primitives
+    A.Def c | Just c == pComp -> defaultResult' $ Just $ checkPrimComp c
+    A.Def c | Just c == conId -> defaultResult' $ Just $ checkConId c
+    A.Def c | Just c == pOr   -> defaultResult' $ Just $ checkPOr c
+    A.Def c | Just c == mglue -> defaultResult' $ Just $ checkGlue c
 
     _ -> defaultResult
   where
@@ -698,13 +646,6 @@ checkConstructorApplication org t c args = do
         dropPar this (p : ps) | this p    = Just ps
                               | otherwise = dropPar this ps
         dropPar _ [] = Nothing
-
--- | "pathAbs (PathView s _ l a x y) t" builds "(\ t) : pv"
---   Preconditions: PathView is PathType, and t[i0] = x, t[i1] = y
-pathAbs :: PathView -> Abs Term -> TCM Term
-pathAbs (OType _) t = __IMPOSSIBLE__
-pathAbs (PathType s path l a x y) t = do
-  return $ Lam defaultArgInfo t
 
 -- | Returns an unblocking action in case of failure.
 disambiguateConstructor :: NonemptyList QName -> Type -> TCM (Either (TCM Bool) ConHead)
@@ -1028,4 +969,74 @@ checkSharpApplication e t c args = do
       ]
 
   blockTerm t $ e' <$ workOnTypes (leqType forcedType t)
+
+-----------------------------------------------------------------------------
+-- * Cubical
+-----------------------------------------------------------------------------
+
+-- | "pathAbs (PathView s _ l a x y) t" builds "(\ t) : pv"
+--   Preconditions: PathView is PathType, and t[i0] = x, t[i1] = y
+pathAbs :: PathView -> Abs Term -> TCM Term
+pathAbs (OType _) t = __IMPOSSIBLE__
+pathAbs (PathType s path l a x y) t = do
+  return $ Lam defaultArgInfo t
+
+checkPrimComp :: QName -> Args -> Type -> TCM ()
+checkPrimComp c vs _ = do
+  case vs of
+    [l, a, phi, u, a0] -> do
+      iz <- Arg defaultArgInfo <$> intervalUnview IZero
+      ty <- elInf $ primPartial <#> (pure $ unArg l `apply` [iz]) <@> (pure $ unArg a `apply` [iz]) <@> (pure $ unArg phi)
+      equalTerm ty -- (El (getSort t1) (apply (unArg a) [iz]))
+          (Lam defaultArgInfo $ NoAbs "_" $ unArg a0)
+          (apply (unArg u) [iz])
+    _ -> typeError $ GenericError $ show c ++ " must be fully applied"
+
+checkConId :: QName -> Args -> Type -> TCM ()
+checkConId c vs t1 = do
+  case vs of
+   [_, _, _, _, phi, p] -> do
+      iv@(PathType s _ l a x y) <- idViewAsPath t1
+      let ty = pathUnview iv
+      -- the following duplicates reduction of phi
+      const_x <- blockTerm ty $ do
+          equalTermOnFace (unArg phi) (El s (unArg a)) (unArg x) (unArg y)
+          pathAbs iv (NoAbs (stringToArgName "_") (unArg x))
+      equalTermOnFace (unArg phi) ty (unArg p) const_x   -- G, phi |- p = \ i . x
+
+      -- phi <- reduce phi
+      -- forallFaceMaps (unArg phi) $ \ alpha -> do
+      --   iv@(PathType s _ l a x y) <- idViewAsPath (applySubst alpha t1)
+      --   let ty = pathUnview iv
+      --   equalTerm (El s (unArg a)) (unArg x) (unArg y) -- precondition for cx being well-typed at ty
+      --   cx <- pathAbs iv (NoAbs (stringToArgName "_") (applySubst alpha (unArg x)))
+      --   equalTerm ty (applySubst alpha (unArg p)) cx   -- G, phi |- p = \ i . x
+   _ -> typeError $ GenericError $ show c ++ " must be fully applied"
+
+checkPOr :: QName -> Args -> Type -> TCM ()
+checkPOr c vs t1 = do
+  case vs of
+   [l, phi1, phi2, a, u, v] -> do
+      phi <- intervalUnview (IMin phi1 phi2)
+      reportSDoc "tc.term.por" 10 $ text (show phi)
+      -- phi <- reduce phi
+      -- alphas <- toFaceMaps phi
+      -- reportSDoc "tc.term.por" 10 $ text (show alphas)
+      equalTermOnFace phi t1 (unArg u) (unArg v)
+   _ -> typeError $ GenericError $ show c ++ " must be fully applied"
+
+checkGlue :: QName -> Args -> Type -> TCM ()
+checkGlue c vs _ = do
+  case vs of
+   [la, lb, bA, phi, bT, f, pf, t, a] -> do
+      let iinfo = setRelevance Irrelevant defaultArgInfo
+      v <- runNamesT [] $ do
+            [f, t] <- mapM (open . unArg) [f, t]
+            glam iinfo "o" $ \ o -> f <..> o <@> (t <..> o)
+      ty <- runNamesT [] $ do
+            [lb, phi, bA] <- mapM (open . unArg) [lb, phi, bA]
+            elInf $ cl primPartialP <#> lb <@> phi <@> (glam iinfo "o" $ \ _ -> bA)
+      let a' = Lam iinfo (NoAbs "o" $ unArg a)
+      equalTerm ty a' v
+   _ -> typeError $ GenericError $ show c ++ " must be fully applied"
 
