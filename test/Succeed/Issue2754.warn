@@ -442,6 +442,8 @@ inferred def  IsOne
 inferred def  primIMax
   : I → I → I
   --> primIMax
+compareTerm I =< I : Setω
+Solving awake constraints. 0 remaining.
 { checkExpr
 coerce term      v  = i
        from type t1 = I
@@ -462,11 +464,6 @@ term (_12 i) :DirLeq I
 solving _12 := λ i → I
 Solving awake constraints. 0 remaining.
 }
-coerce term      v  = primIMax i j
-       from type t1 = I
-       to type   t2 = I
-compareTerm I =< I : Setω
-Solving awake constraints. 0 remaining.
 }
 coerce term      v  = IsOne (primIMax i j)
        from type t1 = Setω
@@ -526,6 +523,8 @@ inferred def  IsOne
 inferred def  primIMax
   : I → I → I
   --> primIMax
+compareTerm I =< I : Setω
+Solving awake constraints. 0 remaining.
 { checkExpr
 coerce term      v  = i
        from type t1 = _16
@@ -546,11 +545,6 @@ coerce term      v  = j
 compareTerm I =< I : Setω
 Solving awake constraints. 0 remaining.
 }
-coerce term      v  = primIMax i j
-       from type t1 = I
-       to type   t2 = I
-compareTerm I =< I : Setω
-Solving awake constraints. 0 remaining.
 }
 coerce term      v  = IsOne (primIMax i j)
        from type t1 = Setω
@@ -819,6 +813,8 @@ inferred def  Partial
 inferred def  primIMax
   : I → I → I
   --> primIMax
+compareTerm I =< I : Setω
+Solving awake constraints. 0 remaining.
 { checkExpr
 coerce term      v  = i
        from type t1 = _34
@@ -845,11 +841,6 @@ term (_36 i) :DirLeq I
 solving _36 := λ {a} {A} i → I
 Solving awake constraints. 0 remaining.
 }
-coerce term      v  = primIMax i j
-       from type t1 = I
-       to type   t2 = I
-compareTerm I =< I : Setω
-Solving awake constraints. 0 remaining.
 }
 term _a_38 i j :DirEq a
 term _a_38 i j :DirEq a
@@ -975,6 +966,8 @@ Solving awake constraints. 0 remaining.
 inferred def  primIMax
   : I → I → I
   --> primIMax
+compareTerm I =< I : Setω
+Solving awake constraints. 0 remaining.
 { checkExpr
 coerce term      v  = i
        from type t1 = I
@@ -989,11 +982,6 @@ coerce term      v  = j
 compareTerm I =< I : Setω
 Solving awake constraints. 0 remaining.
 }
-coerce term      v  = primIMax i j
-       from type t1 = I
-       to type   t2 = I
-compareTerm I =< I : Setω
-Solving awake constraints. 0 remaining.
 }
 coerce term      v  = Partial (Set a) (primIMax i j)
        from type t1 = Setω
@@ -1038,6 +1026,8 @@ coerce term      v  = j
 compareTerm I =< I : Setω
 Solving awake constraints. 0 remaining.
 }
+compareTerm IsOne (primIMax i j) =< IsOne (primIMax i j) : Setω
+Solving awake constraints. 0 remaining.
 { checkExpr
 coerce term      v  = z
        from type t1 = (IsOne i)
@@ -1045,11 +1035,6 @@ coerce term      v  = z
 compareTerm (IsOne i) =< (IsOne i) : Setω
 Solving awake constraints. 0 remaining.
 }
-coerce term      v  = IsOne1 i j z
-       from type t1 = IsOne (primIMax i j)
-       to type   t2 = IsOne (primIMax i j)
-compareTerm IsOne (primIMax i j) =< IsOne (primIMax i j) : Setω
-Solving awake constraints. 0 remaining.
 }
 term _a_45 i j :DirEq a
 term _a_45 i j :DirEq a
@@ -1101,6 +1086,8 @@ coerce term      v  = j
 compareTerm I =< I : Setω
 Solving awake constraints. 0 remaining.
 }
+compareTerm IsOne (primIMax i j) =< IsOne (primIMax i j) : Setω
+Solving awake constraints. 0 remaining.
 { checkExpr
 coerce term      v  = z
        from type t1 = (IsOne j)
@@ -1108,11 +1095,6 @@ coerce term      v  = z
 compareTerm (IsOne j) =< (IsOne j) : Setω
 Solving awake constraints. 0 remaining.
 }
-coerce term      v  = IsOne2 i j z
-       from type t1 = IsOne (primIMax i j)
-       to type   t2 = IsOne (primIMax i j)
-compareTerm IsOne (primIMax i j) =< IsOne (primIMax i j) : Setω
-Solving awake constraints. 0 remaining.
 }
 term _a_47 i j :DirEq a
 term _a_47 i j :DirEq a
@@ -1140,6 +1122,8 @@ inferred def  PartialP
 inferred def  primIMax
   : I → I → I
   --> primIMax
+compareTerm I =< I : Setω
+Solving awake constraints. 0 remaining.
 { checkExpr
 coerce term      v  = i
        from type t1 = I
@@ -1154,11 +1138,6 @@ coerce term      v  = j
 compareTerm I =< I : Setω
 Solving awake constraints. 0 remaining.
 }
-coerce term      v  = primIMax i j
-       from type t1 = I
-       to type   t2 = I
-compareTerm I =< I : Setω
-Solving awake constraints. 0 remaining.
 }
 { checkExpr
 coerce term      v  = A
@@ -1439,6 +1418,8 @@ compareTerm
   A i0 → A i1 = A i0 → A i1
   : Set (a i0 .Agda.Primitive.⊔ a i1)
 Solving awake constraints. 1 remaining.
+compareTerm .Agda.Primitive.Level =< .Agda.Primitive.Level : Set
+Solving awake constraints. 0 remaining.
 { checkExpr
 coerce term      v  = i
        from type t1 = I
@@ -1446,11 +1427,6 @@ coerce term      v  = i
 compareTerm I =< I : Setω
 Solving awake constraints. 0 remaining.
 }
-coerce term      v  = a i
-       from type t1 = .Agda.Primitive.Level
-       to type   t2 = .Agda.Primitive.Level
-compareTerm .Agda.Primitive.Level =< .Agda.Primitive.Level : Set
-Solving awake constraints. 0 remaining.
 Solving awake constraints. 1 remaining.
 compareTerm a i = a i : .Agda.Primitive.Level
 Solving awake constraints. 0 remaining.
