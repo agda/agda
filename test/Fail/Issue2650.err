@@ -1,3 +1,3 @@
-Issue2650.agda:28,14-18
-a != b of type A
-when checking that the expression refl has type _29 i ≡ .b
+Issue2650.agda:27,68-71
+A !=< PathP (λ _ → A) b a of type Set
+when checking that the expression H i has type PathP (λ _ → A) b a
