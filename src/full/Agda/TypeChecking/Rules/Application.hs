@@ -462,8 +462,8 @@ checkArgumentsE' chk exh r args0@(arg@(Arg info e) : args) t0 mt1 =
               TelV tel tgt <- telViewUpTo n t0'
               let dep = any (< n) $ IntSet.toList $ freeVars tgt
                   vis = all visible (telToList tel)
-                  isRigid (Pi dom _) = return $ visible dom
-                  isRigid (Def d _)  = theDef <$> getConstInfo d >>= return . \ case
+                  isRigid (El _ (Pi dom _)) = return $ visible dom
+                  isRigid (El _ (Def d _))  = theDef <$> getConstInfo d >>= return . \ case
                     Axiom{}                   -> True
                     AbstractDefn{}            -> True
                     Function{funClauses = cs} -> null cs
@@ -472,7 +472,7 @@ checkArgumentsE' chk exh r args0@(arg@(Arg info e) : args) t0 mt1 =
                     Constructor{}             -> __IMPOSSIBLE__
                     Primitive{}               -> False
                   isRigid _           = return False
-              rigid <- isRigid (unEl tgt)
+              rigid <- isRigid tgt
               if | dep       -> return chk    -- must be non-dependent
                  | not rigid -> return chk    -- with a rigid target
                  | not vis   -> return chk    -- and only visible arguments
