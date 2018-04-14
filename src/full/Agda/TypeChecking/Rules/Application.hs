@@ -476,6 +476,7 @@ checkArgumentsE' chk exh r args0@(arg@(Arg info e) : args) t0 mt1 =
               TelV tel tgt <- telViewUpTo n t0'
               let dep = any (< n) $ IntSet.toList $ freeVars tgt
                   vis = all visible (telToList tel)
+                  isRigid t | PathType{} <- viewPath t = return False -- Path is not rigid!
                   isRigid (El _ (Pi dom _)) = return $ visible dom
                   isRigid (El _ (Def d _))  = theDef <$> getConstInfo d >>= return . \ case
                     Axiom{}                   -> True
