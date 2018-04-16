@@ -9,7 +9,7 @@ id x = x
 
 λx→x = id
 
-{-# WARNING_ON_USAGE λx→x DEPRECATED: Use `id` instead of `λx→x` #-}
+{-# WARNING_ON_USAGE λx→x "DEPRECATED: Use `id` instead of `λx→x`" #-}
 
 open import Agda.Builtin.Equality
 

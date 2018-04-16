@@ -1646,8 +1646,12 @@ PolarityPragma
 
 WarningOnUsagePragma :: { Pragma }
 WarningOnUsagePragma
-  : '{-#' 'WARNING_ON_USAGE' PragmaQName PragmaStrings '#-}'
-  {  WarningOnUsage (getRange ($1,$2,$3,$5)) $3 (unwords $4) }
+  : '{-#' 'WARNING_ON_USAGE' PragmaQName literal '#-}'
+  {%  case $4 of
+        { LitString r str -> return $ WarningOnUsage (getRange ($1,$2,$3,r,$5)) $3 str
+        ; _ -> parseError "Expected string literal"
+        }
+  }
 
 -- Possibly empty list of polarities. Reversed.
 Polarities :: { [(Range, Occurrence)] }
