@@ -1,0 +1,6 @@
+Issue3032-termination.agda:10,1-19,18
+Termination checking failed for the following functions:
+  foo
+Problematic calls:
+  foo t bar
+    (at Issue3032-termination.agda:13,24-27)
