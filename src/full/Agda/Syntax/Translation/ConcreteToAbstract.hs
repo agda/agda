@@ -2104,7 +2104,7 @@ instance ToAbstract (A.LHSCore' C.Expr) (A.LHSCore' A.Expr) where
 -- bound anywhere in the pattern.
 
 instance ToAbstract (A.Pattern' C.Expr) (A.Pattern' A.Expr) where
-  toAbstract = traverse $ insideDotPattern . toAbstract
+  toAbstract = traverse $ insideDotPattern . toAbstractCtx DotPatternCtx  -- Issue #3033
 
 resolvePatternIdentifier ::
   Range -> C.QName -> Maybe (Set A.Name) -> ScopeM (A.Pattern' C.Expr)
