@@ -218,6 +218,8 @@ prettyWarning wng = liftTCM $ case wng of
 
     NicifierIssue w -> sayWhere (getRange w) $ pretty w
 
+    UserWarning str -> text str
+
 prettyTCWarnings :: [TCWarning] -> TCM String
 prettyTCWarnings = fmap (unlines . intersperse "") . prettyTCWarnings'
 
@@ -281,6 +283,7 @@ applyFlagsToTCWarnings ifs ws = do
           SafeFlagPolarity             -> True
           DeprecationWarning{}         -> True
           NicifierIssue{}              -> True
+          UserWarning{}                -> True
 
   return $ sfp ++ filter (cleanUp . tcWarning) ws
 

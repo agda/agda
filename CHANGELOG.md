@@ -383,6 +383,14 @@ Pragmas and options
 
   Disables automatic inlining of `f`.
 
+* New pragma WARNING_ON_USAGE
+
+  ```
+  {-# WARNING_ON_USAGE QName Message #}
+  ```
+
+  Prints Message whenever QName is used.
+
 Emacs mode
 ----------
 

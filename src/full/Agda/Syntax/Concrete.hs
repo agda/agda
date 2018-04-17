@@ -417,6 +417,8 @@ data Pragma
   | TerminationCheckPragma    Range (TerminationCheck Name)
     -- ^ Applies to the following function (and all that are mutually recursive with it)
     --   or to the functions in the following mutual block.
+  | WarningOnUsage            Range QName String
+    -- ^ Applies to the named function
   | CatchallPragma            Range
     -- ^ Applies to the following function clause.
   | DisplayPragma             Range Pattern Expr
@@ -674,6 +676,7 @@ instance HasRange Pragma where
   getRange (ImpossiblePragma r)              = r
   getRange (EtaPragma r _)                   = r
   getRange (TerminationCheckPragma r _)      = r
+  getRange (WarningOnUsage r _ _)            = r
   getRange (CatchallPragma r)                = r
   getRange (DisplayPragma r _ _)             = r
   getRange (NoPositivityCheckPragma r)       = r
@@ -869,6 +872,7 @@ instance KillRange Pragma where
   killRange (ForeignPragma _ b s)             = ForeignPragma noRange b s
   killRange (ImpossiblePragma _)              = ImpossiblePragma noRange
   killRange (TerminationCheckPragma _ t)      = TerminationCheckPragma noRange (killRange t)
+  killRange (WarningOnUsage _ nm str)         = WarningOnUsage noRange nm str
   killRange (CatchallPragma _)                = CatchallPragma noRange
   killRange (DisplayPragma _ lhs rhs)         = killRange2 (DisplayPragma noRange) lhs rhs
   killRange (EtaPragma _ q)                   = killRange1 (EtaPragma noRange) q
@@ -1008,6 +1012,7 @@ instance NFData Pragma where
   rnf (ImpossiblePragma _)              = ()
   rnf (EtaPragma _ a)                   = rnf a
   rnf (TerminationCheckPragma _ a)      = rnf a
+  rnf (WarningOnUsage _ a b)            = rnf a `seq` rnf b
   rnf (CatchallPragma _)                = ()
   rnf (DisplayPragma _ a b)             = rnf a `seq` rnf b
   rnf (NoPositivityCheckPragma _)       = ()

@@ -42,6 +42,8 @@ Index of pragmas
 
 * :ref:`NOINLINE <inline_pragma>`
 
+* :ref:`WARNING_ON_USAGE <warning_pragma>`
+
 See also :ref:`command-line-pragmas`.
 
 .. _inline_pragma:
@@ -75,3 +77,26 @@ Example::
 
   {-# INLINE _o_ #-} -- force inlining
 
+
+.. _warning_pragma:
+
+The ``WARNING_ON_USAGE`` pragma
+_______________________________________
+
+A library author can use a ``WARNING_ON_USAGE`` pragma to attach to a defined
+name a warning to be raised whenever this name is used.
+
+This would typically be used to declare a name 'DEPRECATED' and advise the
+end-user to port their code before the feature is dropped.
+
+Example::
+
+  -- The new name for the identity
+  id : {A : Set} → A → A
+  id x = x
+
+  -- The deprecated name
+  λx→x = id
+
+  -- The warning
+  {-# WARNING_ON_USAGE λx→x "DEPRECATED: Use `id` instead of `λx→x`" #-}

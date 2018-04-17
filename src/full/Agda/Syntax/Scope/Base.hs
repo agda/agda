@@ -462,7 +462,7 @@ zipScope fd fm fs s1 s2 =
                zipWith' (,) (scopeNameSpaces s1) (scopeNameSpaces s2)
          , assert (nsid == nsid')
          ]
-     , scopeImports = Map.union (scopeImports s1) (scopeImports s2)
+     , scopeImports  = (Map.union `on` scopeImports)  s1 s2
      }
   where
     assert True  = True

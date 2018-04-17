@@ -82,11 +82,11 @@ tokens :-
 <pragma_>   "COMPILED_JS"              { keyword KwCOMPILED_JS }
 <pragma_>   "COMPILED_TYPE"            { keyword KwCOMPILED_TYPE }
 <pragma_>   "COMPILED_UHC"             { keyword KwCOMPILED_UHC }
-<pragma_>   "COMPILE"                  { keyword KwCOMPILE }
+<pragma_>   "COMPILE"                  { endWith $ beginWith fpragma $ keyword KwCOMPILE }
 <pragma_>   "FOREIGN"                  { endWith $ beginWith fpragma $ keyword KwFOREIGN }
 <pragma_>   "DISPLAY"                  { keyword KwDISPLAY }
 <pragma_>   "ETA"                      { keyword KwETA }
-<pragma_>   "HASKELL"                  { keyword KwHASKELL }
+<pragma_>   "HASKELL"                  { endWith $ beginWith fpragma $ keyword KwHASKELL }
 <pragma_>   "IMPORT"                   { keyword KwIMPORT }
 <pragma_>   "IMPORT_UHC"               { keyword KwIMPORT_UHC }
 <pragma_>   "IMPOSSIBLE"               { keyword KwIMPOSSIBLE }
@@ -103,7 +103,9 @@ tokens :-
 <pragma_>   "REWRITE"                  { keyword KwREWRITE }
 <pragma_>   "STATIC"                   { keyword KwSTATIC }
 <pragma_>   "TERMINATING"              { keyword KwTERMINATING }
-<pragma_,fpragma_> . # [ $white ] +    { withInterval $ TokString }
+<pragma_>   "WARNING_ON_USAGE"         { keyword KwWARNING_ON_USAGE }
+<pragma_>   . # [ $white \" ] +        { withInterval $ TokString } -- we recognise string literals in pragmas
+<fpragma_>  . # [ $white ] +           { withInterval $ TokString }
 
 -- Comments
     -- We need to rule out pragmas here. Usually longest match would take
@@ -229,7 +231,7 @@ tokens :-
 
 -- Literals
 <0,code> \'             { litChar }
-<0,code> \"             { litString }
+<0,code,pragma_> \"     { litString }
 <0,code> @integer       { literal LitNat }
 <0,code> @float         { literal LitFloat }
 
