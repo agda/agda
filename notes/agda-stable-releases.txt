@@ -171,7 +171,7 @@ be followed:
 
 * Close in the bug tracker the milestone VERSION.
 
-* Update Agda Manual on Readthedocs.org (see Issue #2844)
+* Update Agda Manual on Readthedocs.org (see Issues #2844 and #3035)
 
   ** You need Admin permissions on the Agda readthedocs.org project
      (current admins: asr, andreasabel, phile314)
@@ -181,6 +181,9 @@ be followed:
   ** Mark $VERSION as active
 
   ** Set the default documentation version to $VERSION
+
+  ** If a release candidate was released then remove the associated
+     documentation.
 
 * Announce on the Agda developers mailing list the creation of the
   NEWVERSION branch in the standard library to be used with the stable

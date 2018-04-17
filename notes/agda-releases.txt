@@ -191,7 +191,7 @@ followed:
 
   ** Update the Main page.
 
-* Update Agda Manual on Readthedocs.org (see Issue #2844)
+* Update Agda Manual on Readthedocs.org (see Issues #2844 and #3035)
 
   ** You need Admin permissions on the Agda readthedocs.org project
      (current admins: asr, andreasabel, phile314)
@@ -201,6 +201,9 @@ followed:
   ** Mark $VERSION as active
 
   ** Set the default documentation version to $VERSION
+
+  ** If a release candidate was released then remove the associated
+     documentation.
 
 * Announce the release of the new version on the Agda mailing lists
   (users and developers).
