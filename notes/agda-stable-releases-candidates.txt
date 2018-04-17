@@ -83,7 +83,7 @@ the following procedure can be followed:
 
   Do not forget to test the Emacs mode.
 
-* Tag the relase candidate (do not forget to record the changes above
+* Tag the release candidate (do not forget to record the changes above
   first):
 
     cd $BASE
