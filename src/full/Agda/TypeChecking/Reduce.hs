@@ -1289,11 +1289,12 @@ instance InstantiateFull Clause where
 
 instance InstantiateFull Interface where
     instantiateFull' (Interface h ms mod scope inside
-                               sig display b foreignCode
+                               sig display userwarn b foreignCode
                                highlighting pragmas patsyns warnings) =
         Interface h ms mod scope inside
             <$> instantiateFull' sig
             <*> instantiateFull' display
+            <*> return userwarn
             <*> instantiateFull' b
             <*> return foreignCode
             <*> return highlighting

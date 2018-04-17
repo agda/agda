@@ -136,6 +136,7 @@ data WarningName
   | SafeFlagPrimTrustMe_
   | SafeFlagNoPositivityCheck_
   | SafeFlagPolarity_
+  | UserWarning_
   deriving (Eq, Ord, Show, Read, Enum, Bounded)
 
 -- | The flag corresponding to a warning is precisely the name of the constructor
@@ -228,3 +229,4 @@ warningNameDescription w = case w of
   SafeFlagPrimTrustMe_             -> "`primTrustMe' usages with the safe flag."
   SafeFlagNoPositivityCheck_       -> "`NO_POSITIVITY_CHECK' pragmas with the safe flag."
   SafeFlagPolarity_                -> "`POLARITY' pragmas with the safe flag."
+  UserWarning_                     -> "User-defined warning added using the 'WARNING_ON_USAGE' pragma."

@@ -13,8 +13,9 @@ import Agda.TypeChecking.Serialise.Instances.Internal ()
 import Agda.TypeChecking.Serialise.Instances.Errors ()
 
 instance EmbPrj Interface where
-  icod_ (Interface a b c d e f g h i j k l m) = icodeN' Interface a b c d e f g h i j k l m
+  icod_ (Interface a b c d e f g h i j k l m n) = icodeN' Interface a b c d e f g h i j k l m n
 
   value = vcase valu where
-    valu [a, b, c, d, e, f, g, h, i, j, k, l, m] = valuN Interface a b c d e f g h i j k l m
-    valu _                                       = malformed
+    valu [a, b, c, d, e, f, g, h, i, j, k, l, m, n] =
+      valuN Interface a b c d e f g h i j k l m n
+    valu _ = malformed
