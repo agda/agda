@@ -34,8 +34,10 @@ open import Relation.Unary using (_⟨×⟩_; _⟨→⟩_) renaming (_⊆_ to _�
 import Data.Product.Relation.Pointwise.Dependent as Σ
 open import Data.Sum.Relation.Pointwise
 
-open import Data.List.Any.Membership.Propositional
+open import Data.List.Membership.Propositional
+open import Data.List.Relation.BagAndSetEquality
 open Related.EquationalReasoning
+
 private
   module ×⊎ {k ℓ} = CommutativeSemiring (×⊎-CommutativeSemiring k ℓ)
   open module ListMonad {ℓ} =
