@@ -70,6 +70,14 @@ matrix:
           sources:
             - hvr-ghc
 
+    - env: TEST=STACKAGE GHC_VER=8.4.1 BUILD=STACK ARGS="--stack-yaml stack-8.4.1.yaml --system-ghc"
+      addons:
+        apt:
+          packages:
+            - ghc-8.4.1
+          sources:
+            - hvr-ghc
+
     - env: TEST=STACKAGE GHC_VER=8.2.2 BUILD=STACK ARGS="--stack-yaml stack-8.2.2.yaml --system-ghc"
       addons:
         apt:
@@ -91,14 +99,6 @@ matrix:
         apt:
           packages:
             - ghc-7.10.3
-          sources:
-            - hvr-ghc
-
-    - env: TEST=STACKAGE GHC_VER=8.4.1 BUILD=STACK ARGS="--stack-yaml stack-8.4.1.yaml --system-ghc"
-      addons:
-        apt:
-          packages:
-            - ghc-8.4.1
           sources:
             - hvr-ghc
 
