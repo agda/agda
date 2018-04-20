@@ -26,7 +26,7 @@ open import Category.Monad
 
 open import Issue854.Types using (Sig)
 open import Issue854.TypesSemantics using (⌊_⌋^Sig)
-open import Data.List.Any.Membership.Propositional
+open import Data.List.Membership.Propositional
 \end{code}
 }
 
