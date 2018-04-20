@@ -4,9 +4,9 @@ Release notes for Agda version 2.5.4
 Installation and infrastructure
 -------------------------------
 
-* Added support for GHC 8.2.2 and GHC 8.4.1.
+* Added support for GHC 8.2.2 and GHC 8.4.2.
 
-  Note that GHC 8.4.1 requires `cabal-install` ≥ 2.2.0.0.
+  Note that GHC 8.4.2 requires `cabal-install` ≥ 2.2.0.0.
 
 * Removed support for GHC 7.8.4.
 
