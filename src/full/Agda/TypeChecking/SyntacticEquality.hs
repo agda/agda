@@ -127,7 +127,9 @@ instance SynEq Sort where
     (s, s') <- lift $ instantiate' (s, s')
     case (s, s') of
       (Type l  , Type l'   ) -> levelSort <$$> synEq l l'
-      (DLub a b, DLub a' b') -> dLub <$$> synEq a a' <**> synEq' b b'
+      (PiSort a b, PiSort a' b') -> piSort <$$> synEq a a' <**> synEq' b b'
+      (UnivSort a, UnivSort a') -> univSort <$$> synEq a a'
+      (SizeUniv, SizeUniv  ) -> pure2 s
       (Prop    , Prop      ) -> pure2 s
       (Inf     , Inf       ) -> pure2 s
       _ -> inequal (s, s')

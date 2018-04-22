@@ -193,6 +193,8 @@ instance Instantiate Constraint where
   instantiate' (IsEmpty r t)        = IsEmpty r <$> instantiate' t
   instantiate' (CheckSizeLtSat t)   = CheckSizeLtSat <$> instantiate' t
   instantiate' c@CheckFunDef{}      = return c
+  instantiate' (HasBiggerSort a)    = HasBiggerSort <$> instantiate' a
+  instantiate' (HasPTSRule a b)     = uncurry HasPTSRule <$> instantiate' (a,b)
 
 instance Instantiate e => Instantiate (Map k e) where
     instantiate' = traverse instantiate'
@@ -254,11 +256,12 @@ instance Reduce Sort where
         red s = do
           s <- instantiate' s
           case s of
-            DLub s1 s2 -> do
-              s <- dLub <$> reduce' s1 <*> reduce' s2
-              case s of
-                DLub{}  -> return s
-                _       -> reduce' s   -- TODO: not so nice
+            PiSort s1 s2 -> do
+              (s1,s2) <- reduce' (s1,s2)
+              maybe (return $ PiSort s1 s2) reduce' $ piSort' s1 s2
+            UnivSort s' -> do
+              s' <- reduce' s'
+              maybe (return $ UnivSort s') reduce' $ univSort' s'
             Prop       -> return s
             Type s'    -> levelSort <$> reduce' s'
             Inf        -> return Inf
@@ -688,6 +691,8 @@ instance Reduce Constraint where
   reduce' (IsEmpty r t)         = IsEmpty r <$> reduce' t
   reduce' (CheckSizeLtSat t)    = CheckSizeLtSat <$> reduce' t
   reduce' c@CheckFunDef{}       = return c
+  reduce' (HasBiggerSort a)     = HasBiggerSort <$> reduce' a
+  reduce' (HasPTSRule a b)      = uncurry HasPTSRule <$> reduce' (a,b)
 
 instance Reduce e => Reduce (Map k e) where
     reduce' = traverse reduce'
@@ -752,7 +757,8 @@ instance Simplify Elim where
 instance Simplify Sort where
     simplify' s = do
       case s of
-        DLub s1 s2 -> dLub <$> simplify' s1 <*> simplify' s2
+        PiSort s1 s2 -> piSort <$> simplify' s1 <*> simplify' s2
+        UnivSort s -> univSort <$> simplify' s
         Type s     -> levelSort <$> simplify' s
         Prop       -> return s
         Inf        -> return s
@@ -832,6 +838,8 @@ instance Simplify Constraint where
   simplify' (IsEmpty r t)         = IsEmpty r <$> simplify' t
   simplify' (CheckSizeLtSat t)    = CheckSizeLtSat <$> simplify' t
   simplify' c@CheckFunDef{}       = return c
+  simplify' (HasBiggerSort a)     = HasBiggerSort <$> simplify' a
+  simplify' (HasPTSRule a b)      = uncurry HasPTSRule <$> simplify' (a,b)
 
 instance Simplify Bool where
   simplify' = return
@@ -877,7 +885,8 @@ instance Normalise Sort where
     normalise' s = do
       s <- reduce' s
       case s of
-        DLub s1 s2 -> dLub <$> normalise' s1 <*> normalise' s2
+        PiSort s1 s2 -> piSort <$> normalise' s1 <*> normalise' s2
+        UnivSort s -> univSort <$> normalise' s
         Prop       -> return s
         Type s     -> levelSort <$> normalise' s
         Inf        -> return Inf
@@ -977,6 +986,8 @@ instance Normalise Constraint where
   normalise' (IsEmpty r t)         = IsEmpty r <$> normalise' t
   normalise' (CheckSizeLtSat t)    = CheckSizeLtSat <$> normalise' t
   normalise' c@CheckFunDef{}       = return c
+  normalise' (HasBiggerSort a)     = HasBiggerSort <$> normalise' a
+  normalise' (HasPTSRule a b)      = uncurry HasPTSRule <$> normalise' (a,b)
 
 instance Normalise Bool where
   normalise' = return
@@ -1042,7 +1053,8 @@ instance InstantiateFull Sort where
         case s of
             Type n     -> levelSort <$> instantiateFull' n
             Prop       -> return s
-            DLub s1 s2 -> dLub <$> instantiateFull' s1 <*> instantiateFull' s2
+            PiSort s1 s2 -> piSort <$> instantiateFull' s1 <*> instantiateFull' s2
+            UnivSort s -> univSort <$> instantiateFull' s
             Inf        -> return s
             SizeUniv   -> return s
 
@@ -1166,6 +1178,8 @@ instance InstantiateFull Constraint where
     IsEmpty r t         -> IsEmpty r <$> instantiateFull' t
     CheckSizeLtSat t    -> CheckSizeLtSat <$> instantiateFull' t
     c@CheckFunDef{}     -> return c
+    HasBiggerSort a     -> HasBiggerSort <$> instantiateFull' a
+    HasPTSRule a b      -> uncurry HasPTSRule <$> instantiateFull' (a,b)
 
 instance (InstantiateFull a) => InstantiateFull (Elim' a) where
   instantiateFull' (Apply v) = Apply <$> instantiateFull' v

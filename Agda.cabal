@@ -431,6 +431,7 @@ library
                     Agda.TypeChecking.SizedTypes.Syntax
                     Agda.TypeChecking.SizedTypes.Utils
                     Agda.TypeChecking.SizedTypes.WarshallSolver
+                    Agda.TypeChecking.Sort
                     Agda.TypeChecking.Substitute
                     Agda.TypeChecking.Substitute.Class
                     Agda.TypeChecking.Substitute.DeBruijn

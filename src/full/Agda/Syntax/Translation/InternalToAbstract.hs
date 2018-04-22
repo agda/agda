@@ -1043,11 +1043,15 @@ instance Reify Sort Expr where
         I.SizeUniv  -> do
           I.Def sizeU [] <- primSizeUniv
           return $ A.Def sizeU
-        I.DLub s1 s2 -> do
-          lub <- freshName_ ("dLub" :: String) -- TODO: hack
+        I.PiSort s1 s2 -> do
+          pis <- freshName_ ("piSort" :: String) -- TODO: hack
           (e1,e2) <- reify (s1, I.Lam defaultArgInfo $ fmap Sort s2)
           let app x y = A.App defaultAppInfo_ x (defaultNamedArg y)
-          return $ A.Var lub `app` e1 `app` e2
+          return $ A.Var pis `app` e1 `app` e2
+        I.UnivSort s -> do
+          univs <- freshName_ ("univSort" :: String) -- TODO: hack
+          e <- reify s
+          return $ A.App defaultAppInfo_ (A.Var univs) $ defaultNamedArg e
 
 instance Reify Level Expr where
   reifyWhen = reifyWhenE

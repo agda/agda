@@ -421,20 +421,22 @@ instance Occurs Sort where
             YesUnfold -> reduce s
             NoUnfold  -> instantiate s
     case s' of
-      DLub s1 s2 -> uncurry DLub <$> occurs red (weakly ctx) m xs (s1,s2)
+      PiSort s1 s2 -> uncurry PiSort <$> occurs red (weakly ctx) m xs (s1,s2)
       Type a     -> Type <$> occurs red ctx m xs a
       Prop       -> return s'
       Inf        -> return s'
       SizeUniv   -> return s'
+      UnivSort s -> UnivSort <$> occurs red (weakly ctx) m xs s
 
   metaOccurs m s = do
     s <- instantiate s
     case s of
-      DLub s1 s2 -> metaOccurs m (s1,s2)
+      PiSort s1 s2 -> metaOccurs m (s1,s2)
       Type a     -> metaOccurs m a
       Prop       -> return ()
       Inf        -> return ()
       SizeUniv   -> return ()
+      UnivSort s -> metaOccurs m s
 
 instance Occurs a => Occurs (Elim' a) where
   occurs red ctx m xs e@(Proj _ f) = do
@@ -639,7 +641,8 @@ instance FoldRigid Sort where
       Prop       -> mempty
       Inf        -> mempty
       SizeUniv   -> mempty
-      DLub s1 s2 -> fold (s1, s2)
+      PiSort s1 s2 -> fold (s1, s2)
+      UnivSort s -> fold s
     where fold = foldRigid f
 
 instance FoldRigid Level where

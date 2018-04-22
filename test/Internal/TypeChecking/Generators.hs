@@ -456,7 +456,8 @@ instance ShrinkC Sort Sort where
     Prop       -> __IMPOSSIBLE__
     Inf        -> []
     SizeUniv   -> []
-    DLub s1 s2 -> __IMPOSSIBLE__
+    PiSort s1 s2 -> __IMPOSSIBLE__
+    UnivSort s -> __IMPOSSIBLE__
   noShrink = id
 
 instance ShrinkC Telescope Telescope where
