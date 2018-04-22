@@ -618,7 +618,7 @@ garr :: (Relevance -> Relevance) -> TCM Type -> TCM Type -> TCM Type
 garr f a b = do
   a' <- a
   b' <- b
-  return $ El (getSort a' `sLub` getSort b') $
+  return $ El (funSort (getSort a') (getSort b')) $
            Pi (Dom (mapRelevance f defaultArgInfo) a') (NoAbs "_" b')
 
 gpi :: ArgInfo -> String -> TCM Type -> TCM Type -> TCM Type
@@ -626,7 +626,7 @@ gpi info name a b = do
   a <- a
   b <- addContext (name, Dom info a) b
   let y = stringToArgName name
-  return $ El (getSort a `dLub` Abs y (getSort b))
+  return $ El (piSort (getSort a) (Abs y (getSort b)))
               (Pi (Dom info a) (Abs y b))
 
 hPi, nPi :: String -> TCM Type -> TCM Type -> TCM Type
@@ -659,9 +659,6 @@ el t = El (mkType 0) <$> t
 
 tset :: TCM Type
 tset = return $ sort (mkType 0)
-
-tSetOmega :: TCM Type
-tSetOmega = return $ sort Inf
 
 sSizeUniv :: Sort
 sSizeUniv = mkType 0

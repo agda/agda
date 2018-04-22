@@ -80,7 +80,8 @@ instance GetDefs Sort where
     Prop      -> return ()
     Inf       -> return ()
     SizeUniv  -> return ()
-    DLub s s' -> getDefs s >> getDefs s'
+    PiSort s s' -> getDefs s >> getDefs s'
+    UnivSort s  -> getDefs s
 
 instance GetDefs Level where
   getDefs (Max ls) = getDefs ls

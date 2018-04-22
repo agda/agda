@@ -179,7 +179,8 @@ instance AbsTerm Sort where
     Prop       -> Prop
     Inf        -> Inf
     SizeUniv   -> SizeUniv
-    DLub s1 s2 -> DLub (absS s1) (absS s2)
+    PiSort s1 s2 -> PiSort (absS s1) (absS s2)
+    UnivSort s -> UnivSort $ absS s
     where absS x = absTerm u x
 
 instance AbsTerm Level where

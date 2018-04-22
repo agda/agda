@@ -2,7 +2,7 @@
 (agda2-info-action "*Type-checking*" "" nil)
 (agda2-highlight-clear)
 (agda2-status-action "")
-(agda2-info-action "*All Goals, Errors*" "?0 : Set (_4 p r P _~_ p p') Sort _4 [ at Issue1205.agda:10,25-35 ] ———— Errors ———————————————————————————————————————————————— Failed to solve the following constraints: dLub (Set p) (λ p → dLub (Set p) (λ p' → Set (_4 p r P _~_ p p'))) =< Set (lsuc p ⊔ lsuc r) " nil)
+(agda2-info-action "*All Goals, Errors*" "?0 : Set (_4 p r P _~_ p p') Sort _4 [ at Issue1205.agda:10,25-35 ] ———— Errors ———————————————————————————————————————————————— Failed to solve the following constraints: piSort (Set p) (λ p → piSort (Set p) (λ p' → Set (_4 p r P _~_ p p'))) =< Set (lsuc p ⊔ lsuc r) Has PTS rule: (piSort (Set p) (λ p → piSort (Set p) (λ p' → Set (_4 p r P _~_ p p'))),Set₁) Has PTS rule: (Set (p ⊔ lsuc r) , piSort (piSort (Set p) (λ p → piSort (Set p) (λ p' → Set (_4 p r P _~_ p p')))) (λ f → Set₁)) Has PTS rule: (Set (lsuc p) , piSort (Set (p ⊔ lsuc r)) (λ _~_ → piSort (piSort (Set p) (λ p → piSort (Set p) (λ p' → Set (_4 p r P _~_ p p')))) (λ f → Set₁))) Has PTS rule: (Set p , Set (_4 p r P _~_ p₁ p')) Has PTS rule: (Set p , piSort (Set p) (λ p' → Set (_4 p r P _~_ p₁ p'))) " nil)
 ((last . 1) . (agda2-goals-action '(0)))
 (agda2-give-action 0 "p ~ p'")
 (agda2-status-action "")

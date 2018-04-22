@@ -130,7 +130,8 @@ instance UsableRelevance Sort where
     Prop   -> return True
     Inf    -> return True
     SizeUniv -> return True
-    DLub s1 s2 -> usableRel rel (s1,s2)
+    PiSort s1 s2 -> usableRel rel (s1,s2)
+    UnivSort s -> usableRel rel s
 
 instance UsableRelevance Level where
   usableRel rel (Max ls) = usableRel rel ls

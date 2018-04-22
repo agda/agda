@@ -18,9 +18,20 @@ Failed to solve the following constraints:
   _31 := Maybe [blocked on problem 34]
   [34] Set _a_30 → Set _a_30 =< _1 : Set (.Agda.Primitive.lsuc _a_30)
   .Agda.Primitive.lsuc _a_30 = _0
-  dLub Set₁ (λ a → Set (_7 m mzero .Agda.Primitive.⊔ _10 m mzero))
+  piSort Set₁ (λ a → Set (_7 m mzero .Agda.Primitive.⊔ _10 m mzero))
     =< Set₁
-  dLub Set₁ (λ a → Set (_2 m)) =< Set₁
+  piSort Set₁ (λ a → Set (_2 m)) =< Set₁
+  Has PTS rule: (piSort Set₁
+                 (λ a → Set (_7 m mzero .Agda.Primitive.⊔ _10 m mzero)),Set₁)
+  Has PTS rule: (piSort Set₁ (λ a → Set (_2 m)) , piSort
+                                                  (piSort Set₁
+                                                   (λ a →
+                                                      Set
+                                                      (_7 m mzero .Agda.Primitive.⊔ _10 m mzero)))
+                                                  (λ mplus → Set₁))
+  Has PTS rule: (Set₁ , Set
+                        (_7 m mzero .Agda.Primitive.⊔ _10 m mzero))
+  Has PTS rule: (Set₁ , Set (_2 m))
 Unsolved metas at the following locations:
   Issue399.agda:7,20-21
   Issue399.agda:8,30-33

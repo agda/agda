@@ -1022,8 +1022,10 @@ leqSort s1 s2 = catchConstraint (SortCmp CmpLeq s1 s2) $ do
       -- (_       , SizeUniv) -> no
 
       (Inf     , _       ) -> equalSort s1 s2
-      (DLub{}  , _       ) -> postpone
-      (_       , DLub{}  ) -> postpone
+      (PiSort{}, _       ) -> postpone
+      (_       , PiSort{}) -> postpone
+      (UnivSort{}, _     ) -> postpone
+      (_     , UnivSort{}) -> postpone
 
 leqLevel :: Level -> Level -> TCM ()
 leqLevel a b = liftTCM $ do
@@ -1388,8 +1390,10 @@ equalSort s1 s2 = do
             --   equalSort s0 s1
             --   underAbstraction_ s2 $ \s2 -> equalSort s0 s2
 
-            (DLub{}  , _       )             -> postpone
-            (_       , DLub{}  )             -> postpone
+            (PiSort{}, _       )             -> postpone
+            (_       , PiSort{})             -> postpone
+            (UnivSort{}, _         )         -> postpone
+            (_         , UnivSort{})         -> postpone
 
 ---------------------------------------------------------------------------
 -- * Definitions
