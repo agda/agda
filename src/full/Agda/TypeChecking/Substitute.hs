@@ -652,7 +652,7 @@ instance Subst Term Term where
     Lit l       -> Lit l
     Level l     -> levelTm $ applySubst rho l
     Pi a b      -> uncurry Pi $ applySubst rho (a,b)
-    Sort s      -> sortTm $ applySubst rho s
+    Sort s      -> Sort $ applySubst rho s
     DontCare mv -> dontCare $ applySubst rho mv
 
 instance Subst Term a => Subst Term (Type' a) where
@@ -660,7 +660,7 @@ instance Subst Term a => Subst Term (Type' a) where
 
 instance Subst Term Sort where
   applySubst rho s = case s of
-    Type n     -> levelSort $ sub n
+    Type n     -> Type $ sub n
     Prop       -> Prop
     Inf        -> Inf
     SizeUniv   -> SizeUniv
@@ -1228,12 +1228,6 @@ piSort a b = fromMaybe (PiSort a b) $ piSort' a b
 -- * Level stuff
 ---------------------------------------------------------------------------
 
-lvlView :: Term -> Level
-lvlView v = case v of
-  Level l       -> l
-  Sort (Type l) -> l
-  _             -> Max [Plus 0 $ UnreducedLevel v]
-
 levelMax :: [PlusLevel] -> Level
 levelMax as0 = Max $ ns ++ List.sort bs
   where
@@ -1273,28 +1267,6 @@ levelMax as0 = Max $ ns ++ List.sort bs
       | otherwise     = Plus n a : subsume [ b | b@(Plus _ a') <- bs, a /= a' ]
       where
         ns = [ m | Plus m a'  <- bs, a == a', m > n ]
-
-sortTm :: Sort -> Term
-sortTm (Type l) = Sort $ levelSort l
-sortTm s        = Sort s
-
-levelSort :: Level -> Sort
-levelSort (Max as)
-  | List.any (levelIs Inf     ) as = Inf
-  | List.any (levelIs SizeUniv) as = SizeUniv
-  where
-    levelIs s ClosedLevel{}     = False
-    levelIs s (Plus _ l)        = atomIs s l
-    atomIs s (NeutralLevel _ a) = tmIs s a
-    atomIs s (UnreducedLevel a) = tmIs s a
-    atomIs s MetaLevel{}        = False
-    atomIs s BlockedLevel{}     = False
-    tmIs s (Sort s')            = s == s'
-    tmIs s _                    = False
-levelSort l =
-  case levelTm l of
-    Sort s -> s
-    _      -> Type l
 
 levelTm :: Level -> Term
 levelTm l =

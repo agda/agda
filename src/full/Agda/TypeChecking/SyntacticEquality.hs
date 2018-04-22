@@ -86,7 +86,7 @@ instance SynEq Term where
       (Lit   l   , Lit   l'    ) | l == l' -> pure2 $ v
       (Lam   h b , Lam   h' b' ) | h == h' -> Lam h   <$$> synEq b b'
       (Level l   , Level l'    )           -> levelTm <$$> synEq l l'
-      (Sort  s   , Sort  s'    )           -> sortTm  <$$> synEq s s'
+      (Sort  s   , Sort  s'    )           -> Sort    <$$> synEq s s'
       (Pi    a b , Pi    a' b' )           -> Pi      <$$> synEq a a' <**> synEq' b b'
       (DontCare _, DontCare _  )           -> pure (v, v')
          -- Irrelevant things are syntactically equal. ALT:
@@ -126,7 +126,7 @@ instance SynEq Sort where
   synEq s s' = do
     (s, s') <- lift $ instantiate' (s, s')
     case (s, s') of
-      (Type l  , Type l'   ) -> levelSort <$$> synEq l l'
+      (Type l  , Type l'   ) -> Type <$$> synEq l l'
       (PiSort a b, PiSort a' b') -> piSort <$$> synEq a a' <**> synEq' b b'
       (UnivSort a, UnivSort a') -> univSort <$$> synEq a a'
       (SizeUniv, SizeUniv  ) -> pure2 s
