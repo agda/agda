@@ -105,7 +105,7 @@ instance Instantiate Term where
       BlockedConst _                   -> return t
       PostponedTypeCheckingProblem _ _ -> return t
   instantiate' (Level l) = levelTm <$> instantiate' l
-  instantiate' (Sort s) = sortTm <$> instantiate' s
+  instantiate' (Sort s) = Sort <$> instantiate' s
   instantiate' t = return t
 
 instance Instantiate Level where
@@ -141,7 +141,7 @@ instance Instantiate Type where
 
 instance Instantiate Sort where
   instantiate' s = case s of
-    Type l -> levelSort <$> instantiate' l
+    Type l -> Type <$> instantiate' l
     _      -> return s
 
 instance Instantiate Elim where
@@ -263,7 +263,7 @@ instance Reduce Sort where
               s' <- reduce' s'
               maybe (return $ UnivSort s') reduce' $ univSort' s'
             Prop       -> return s
-            Type s'    -> levelSort <$> reduce' s'
+            Type s'    -> Type <$> reduce' s'
             Inf        -> return Inf
             SizeUniv   -> return SizeUniv
 
@@ -368,7 +368,7 @@ slowReduceTerm v = do
           -- instantiated module.
           v <- unfoldDefinition False reduceB' (Con c ci []) (conName c) args
           traverse reduceNat v
-      Sort s   -> fmap sortTm <$> reduceB' s
+      Sort s   -> fmap Sort <$> reduceB' s
       Level l  -> ifM (elem LevelReductions <$> asks envAllowedReductions)
                     {- then -} (fmap levelTm <$> reduceB' l)
                     {- else -} done
@@ -735,7 +735,7 @@ instance Simplify Term where
           NoSimplification  -> Def f <$> simplify' vs
       MetaV x vs -> MetaV x  <$> simplify' vs
       Con c ci vs-> Con c ci <$> simplify' vs
-      Sort s     -> sortTm   <$> simplify' s
+      Sort s     -> Sort     <$> simplify' s
       Level l    -> levelTm  <$> simplify' l
       Pi a b     -> Pi       <$> simplify' a <*> simplify' b
       Lit l      -> return v
@@ -759,7 +759,7 @@ instance Simplify Sort where
       case s of
         PiSort s1 s2 -> piSort <$> simplify' s1 <*> simplify' s2
         UnivSort s -> univSort <$> simplify' s
-        Type s     -> levelSort <$> simplify' s
+        Type s     -> Type <$> simplify' s
         Prop       -> return s
         Inf        -> return s
         SizeUniv   -> return s
@@ -888,7 +888,7 @@ instance Normalise Sort where
         PiSort s1 s2 -> piSort <$> normalise' s1 <*> normalise' s2
         UnivSort s -> univSort <$> normalise' s
         Prop       -> return s
-        Type s     -> levelSort <$> normalise' s
+        Type s     -> Type <$> normalise' s
         Inf        -> return Inf
         SizeUniv   -> return SizeUniv
 
@@ -909,7 +909,7 @@ slowNormaliseArgs v = case v of
   Lit _       -> return v
   Level l     -> levelTm    <$> normalise' l
   Lam h b     -> Lam h      <$> normalise' b
-  Sort s      -> sortTm     <$> normalise' s
+  Sort s      -> Sort       <$> normalise' s
   Pi a b      -> uncurry Pi <$> normalise' (a, b)
   DontCare _  -> return v
 
@@ -1051,7 +1051,7 @@ instance InstantiateFull Sort where
     instantiateFull' s = do
         s <- instantiate' s
         case s of
-            Type n     -> levelSort <$> instantiateFull' n
+            Type n     -> Type <$> instantiateFull' n
             Prop       -> return s
             PiSort s1 s2 -> piSort <$> instantiateFull' s1 <*> instantiateFull' s2
             UnivSort s -> univSort <$> instantiateFull' s
@@ -1074,7 +1074,7 @@ instance InstantiateFull Term where
           Lit _       -> return v
           Level l     -> levelTm <$> instantiateFull' l
           Lam h b     -> Lam h <$> instantiateFull' b
-          Sort s      -> sortTm <$> instantiateFull' s
+          Sort s      -> Sort <$> instantiateFull' s
           Pi a b      -> uncurry Pi <$> instantiateFull' (a,b)
           DontCare v  -> dontCare <$> instantiateFull' v
 
