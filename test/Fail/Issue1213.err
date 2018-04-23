@@ -1,4 +1,3 @@
-Issue1213.agda:22,8-22
-⊤ != ⊥ of type Set (lsuc (lzero' _15))
-when checking that the expression IsZero (suc _) has type
-Set (lsuc (lzero' _15))
+Issue1213.agda:23,8-10
+⊤ !=< ⊥ of type Set _a_16
+when checking that the expression tt has type IsZero (suc _15)

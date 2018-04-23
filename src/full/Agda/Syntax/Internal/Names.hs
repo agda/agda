@@ -106,6 +106,7 @@ instance NamesIn Sort where
     SizeUniv -> Set.empty
     PiSort a b -> namesIn (a, b)
     UnivSort a -> namesIn a
+    MetaS _ es -> namesIn es
 
 instance NamesIn Term where
   namesIn v = case v of

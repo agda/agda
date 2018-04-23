@@ -139,6 +139,7 @@ instance EmbPrj I.Sort where
   icod_ Inf         = icodeN 2 Inf
   icod_ (PiSort a b) = __IMPOSSIBLE__
   icod_ (UnivSort a) = __IMPOSSIBLE__
+  icod_ (MetaS a b)  = __IMPOSSIBLE__
 
   value = vcase valu where
     valu []        = valuN Prop

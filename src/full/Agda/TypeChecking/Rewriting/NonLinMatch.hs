@@ -109,6 +109,7 @@ instance PatternFrom Sort NLPat where
       SizeUniv -> done
       PiSort _ _ -> done
       UnivSort _ -> done
+      MetaS{}  -> __IMPOSSIBLE__
 
 instance PatternFrom Term NLPat where
   patternFrom r k v = do

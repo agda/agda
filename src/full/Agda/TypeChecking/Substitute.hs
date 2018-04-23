@@ -666,6 +666,7 @@ instance Subst Term Sort where
     SizeUniv   -> SizeUniv
     PiSort s1 s2 -> PiSort (sub s1) (sub s2)
     UnivSort s -> UnivSort $ sub s
+    MetaS x es -> MetaS x $ sub es
     where sub x = applySubst rho x
 
 instance Subst Term Level where
@@ -1279,3 +1280,14 @@ unLevelAtom (MetaLevel x es)   = MetaV x es
 unLevelAtom (NeutralLevel _ v) = v
 unLevelAtom (UnreducedLevel v) = v
 unLevelAtom (BlockedLevel _ v) = v
+
+levelSucView :: Level -> Maybe Level
+levelSucView (Max as) = Max <$> traverse atomPred as
+  where
+    atomPred :: PlusLevel -> Maybe PlusLevel
+    atomPred (ClosedLevel n)
+      | n > 0     = Just $ ClosedLevel (n-1)
+      | otherwise = Nothing
+    atomPred (Plus n l)
+      | n > 0     = Just $ Plus (n-1) l
+      | otherwise = Nothing

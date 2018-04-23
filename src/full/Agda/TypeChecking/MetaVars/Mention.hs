@@ -48,6 +48,7 @@ instance MentionsMeta Sort where
     SizeUniv   -> False
     PiSort s1 s2 -> mentionsMeta x (s1, s2)
     UnivSort s -> mentionsMeta x s
+    MetaS m es -> x == m || mentionsMeta x es
 
 instance MentionsMeta t => MentionsMeta (Abs t) where
   mentionsMeta x = mentionsMeta x . unAbs

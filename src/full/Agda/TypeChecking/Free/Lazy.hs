@@ -285,6 +285,7 @@ instance Free Sort where
       SizeUniv   -> mempty
       PiSort s1 s2 -> go WeaklyRigid $ freeVars' (s1, s2)
       UnivSort s -> go WeaklyRigid $ freeVars' s
+      MetaS x es -> go (Flexible $ singleton x) $ freeVars' es
 
 instance Free Level where
   freeVars' (Max as) = freeVars' as

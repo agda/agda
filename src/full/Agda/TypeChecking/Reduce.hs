@@ -141,8 +141,11 @@ instance Instantiate Type where
 
 instance Instantiate Sort where
   instantiate' s = case s of
-    Type l -> Type <$> instantiate' l
-    _      -> return s
+    MetaS x es -> instantiate' (MetaV x es) >>= \case
+      Sort s'      -> return s'
+      MetaV x' es' -> return $ MetaS x' es'
+      _            -> __IMPOSSIBLE__
+    _ -> return s
 
 instance Instantiate Elim where
   instantiate' (Apply v) = Apply <$> instantiate' v
@@ -266,6 +269,7 @@ instance Reduce Sort where
             Type s'    -> Type <$> reduce' s'
             Inf        -> return Inf
             SizeUniv   -> return SizeUniv
+            MetaS x es -> return s
 
 instance Reduce Elim where
   reduce' (Apply v) = Apply <$> reduce' v
@@ -763,6 +767,7 @@ instance Simplify Sort where
         Prop       -> return s
         Inf        -> return s
         SizeUniv   -> return s
+        MetaS x es -> MetaS x <$> simplify' es
 
 instance Simplify Level where
   simplify' (Max as) = levelMax <$> simplify' as
@@ -891,6 +896,7 @@ instance Normalise Sort where
         Type s     -> Type <$> normalise' s
         Inf        -> return Inf
         SizeUniv   -> return SizeUniv
+        MetaS x es -> return s
 
 instance Normalise Type where
     normalise' (El s t) = El <$> normalise' s <*> normalise' t
@@ -1057,6 +1063,7 @@ instance InstantiateFull Sort where
             UnivSort s -> univSort <$> instantiateFull' s
             Inf        -> return s
             SizeUniv   -> return s
+            MetaS x es -> MetaS x <$> instantiateFull' es
 
 instance (InstantiateFull a) => InstantiateFull (Type' a) where
     instantiateFull' (El s t) =

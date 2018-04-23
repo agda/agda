@@ -132,6 +132,7 @@ instance SynEq Sort where
       (SizeUniv, SizeUniv  ) -> pure2 s
       (Prop    , Prop      ) -> pure2 s
       (Inf     , Inf       ) -> pure2 s
+      (MetaS x es , MetaS x' es') | x == x' -> MetaS x <$$> synEq es es'
       _ -> inequal (s, s')
 
 -- | Syntactic equality ignores sorts.

@@ -1,4 +1,3 @@
 Issue2408-error.agda:15,8-9
-.(a : A) → Set (l a) !=< A → X
-because this would result in an invalid use of Setω
+Set (lsuc (l a)) != Set₁
 when checking that the expression F has type A → X

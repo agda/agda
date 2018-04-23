@@ -427,6 +427,9 @@ instance Occurs Sort where
       Inf        -> return s'
       SizeUniv   -> return s'
       UnivSort s -> UnivSort <$> occurs red (weakly ctx) m xs s
+      MetaS x es -> do
+        MetaV x es <- occurs red ctx m xs (MetaV x es)
+        return $ MetaS x es
 
   metaOccurs m s = do
     s <- instantiate s
@@ -437,6 +440,7 @@ instance Occurs Sort where
       Inf        -> return ()
       SizeUniv   -> return ()
       UnivSort s -> metaOccurs m s
+      MetaS x es -> metaOccurs m $ MetaV x es
 
 instance Occurs a => Occurs (Elim' a) where
   occurs red ctx m xs e@(Proj _ f) = do
@@ -643,6 +647,7 @@ instance FoldRigid Sort where
       SizeUniv   -> mempty
       PiSort s1 s2 -> fold (s1, s2)
       UnivSort s -> fold s
+      MetaS{}    -> mempty
     where fold = foldRigid f
 
 instance FoldRigid Level where
@@ -767,8 +772,10 @@ performKill kills m a = do
   -- (de Bruijn level order).
   let perm = Perm n
              [ i | (i, Arg _ False) <- zip [0..] kills ]
-  m' <- newMeta (mvInfo mv) (mvPriority mv) perm
-                (HasType __IMPOSSIBLE__ a)
+      judg = case mvJudgement mv of
+        HasType{} -> HasType __IMPOSSIBLE__ a
+        IsSort{}  -> IsSort  __IMPOSSIBLE__ a
+  m' <- newMeta (mvInfo mv) (mvPriority mv) perm judg
   -- Andreas, 2010-10-15 eta expand new meta variable if necessary
   etaExpandMetaSafe m'
   let -- Arguments to new meta (de Bruijn indices)

@@ -1,4 +1,4 @@
 Issue735.agda:16,12-16
-((A₁ : Set _9) → Set _9) !=< Set _9 of type
-Set (Common.Level.lsuc _9)
-when checking that the expression List has type Set _9
+((A₁ : Set _a_10) → Set _a_10) !=< Set _a_10 of type
+Set (Common.Level.lsuc _a_10)
+when checking that the expression List has type Set _a_10
