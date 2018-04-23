@@ -71,11 +71,17 @@ inferPiSort s1 s2 = do
   -- we do instantiateFull here to perhaps remove some (flexible)
   -- dependencies of s2 on var 0, thus allowing piSort' to reduce
   s2 <- instantiateFull s2
-  case piSort' s1 s2 of
-    Just s -> return s
-    Nothing -> do
-      addConstraint $ HasPTSRule s1 s2
-      return $ PiSort s1 s2
+
+  --Jesper, 2018-04-23: disabled PTS constraints for now,
+  --this assumes that piSort can only be blocked by unsolved metas.
+
+  --case piSort' s1 s2 of
+  --  Just s -> return s
+  --  Nothing -> do
+  --    addConstraint $ HasPTSRule s1 s2
+  --    return $ PiSort s1 s2
+
+  return $ piSort s1 s2
 
 -- | As @inferPiSort@, but for a nondependent function type.
 inferFunSort :: Sort -> Sort -> TCM Sort

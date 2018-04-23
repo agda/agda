@@ -24,23 +24,6 @@ Failed to solve the following constraints:
      piSort (_7 m mzero) (λ _ → piSort (_10 m mzero) (λ _ → Set)))
     =< Set₁
   piSort Set₁ (λ a → piSort (_2 m) (λ _ → Set)) =< Set₁
-  Has PTS rule: (piSort Set₁
-                 (λ a →
-                    piSort (_7 m mzero) (λ _ → piSort (_10 m mzero) (λ _ → Set))),Set₁)
-  Has PTS rule: (piSort Set₁
-                 (λ a → piSort (_2 m) (λ _ → Set)) , piSort
-                                                     (piSort Set₁
-                                                      (λ a →
-                                                         piSort (_7 m mzero)
-                                                         (λ _ → piSort (_10 m mzero) (λ _ → Set))))
-                                                     (λ mplus → Set₁))
-  Has PTS rule: (_10 m mzero,Set)
-  Has PTS rule: (_7 m mzero,piSort (_10 m mzero) (λ _ → Set))
-  Has PTS rule: (Set₁ , piSort (_7 m mzero)
-                        (λ _ → piSort (_10 m mzero) (λ _ → Set)))
-  Has PTS rule: (_2 m,Set)
-  Has PTS rule: (Set₁ , piSort (_2 m) (λ _ → Set))
-  Has PTS rule: (_0,Set₂)
 Unsolved metas at the following locations:
   Issue399.agda:7,20-21
   Issue399.agda:8,30-33
