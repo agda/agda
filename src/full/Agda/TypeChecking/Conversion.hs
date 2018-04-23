@@ -1373,6 +1373,12 @@ equalSort s1 s2 = do
             (UnivSort s , Type b     )
               | Just b' <- levelSucView b -> equalSort s (Type b')
 
+            -- if @PiSort a b == Set0@, then @b == Set0@
+            -- we use this fact to solve metas in @b@,
+            -- hopefully allowing the @PiSort@ to reduce.
+            (Type (Max []) , PiSort a b   ) -> piSortEqualToSet0 a b
+            (PiSort a b    , Type (Max [])) -> piSortEqualToSet0 a b
+
             -- @PiSort a b == SizeUniv@ iff @b == SizeUniv@
             (SizeUniv   , PiSort a b ) ->
               underAbstraction_ b $ equalSort SizeUniv
@@ -1401,6 +1407,18 @@ equalSort s1 s2 = do
         reportSLn "tc.meta.sort" 30 $ "Assigning meta sort"
         reportSDoc "tc.meta.sort" 50 $ text "meta" <+> sep [pretty x, prettyList $ map pretty es, pretty s]
         assignE DirEq x es (Sort s) __IMPOSSIBLE__
+
+      -- equate @piSort a b@ to @Set0@
+      -- note: this assumes @piSort a b == Set0@ implies @b == Set0@,
+      -- which becomes invalid if we add Prop.
+      piSortEqualToSet0 a b = do
+        let set0 = Type $ Max []
+        underAbstraction_ b $ equalSort set0
+        -- we may have instantiated some metas, so @a@ could reduce
+        a <- reduce a
+        case funSort' a set0 of
+          Just s  -> equalSort s set0
+          Nothing -> addConstraint $ SortCmp CmpEq (funSort a set0) set0
 
 ---------------------------------------------------------------------------
 -- * Definitions
