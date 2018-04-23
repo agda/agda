@@ -212,6 +212,7 @@ data Sort
   | SizeUniv    -- ^ @SizeUniv@, a sort inhabited by type @Size@.
   | PiSort Sort (Abs Sort) -- ^ Sort of the pi type.
   | UnivSort Sort -- ^ Sort of another sort.
+  | MetaS {-# UNPACK #-} !MetaId Elims
   deriving (Data, Show)
 
 -- | A level is a maximum expression of 0..n 'PlusLevel' expressions
@@ -1014,6 +1015,7 @@ instance TermSize Sort where
     SizeUniv  -> 1
     PiSort s s' -> 1 + tsize s + tsize s'
     UnivSort s -> 1 + tsize s
+    MetaS _ es -> 1 + tsize es
 
 instance TermSize Level where
   tsize (Max as) = 1 + tsize as
@@ -1080,6 +1082,7 @@ instance KillRange Sort where
     Type a     -> killRange1 Type a
     PiSort s1 s2 -> killRange2 PiSort s1 s2
     UnivSort s -> killRange1 UnivSort s
+    MetaS x es -> killRange1 (MetaS x) es
 
 instance KillRange Substitution where
   killRange IdS                  = IdS
@@ -1236,6 +1239,7 @@ instance Pretty Sort where
                       <+> parens (sep [ text ("λ " ++ absName b ++ " ->")
                                       , nest 2 $ pretty (unAbs b) ])
       UnivSort s -> mparens (p > 9) $ text "univSort" <+> prettyPrec 10 s
+      MetaS x es -> prettyPrec p $ MetaV x es
 
 instance Pretty Type where
   prettyPrec p (El _ a) = prettyPrec p a
@@ -1292,6 +1296,7 @@ instance NFData Sort where
     SizeUniv -> ()
     PiSort a b -> rnf (a, unAbs b)
     UnivSort a -> rnf a
+    MetaS _ es -> rnf es
 
 instance NFData Level where
   rnf (Max as) = rnf as

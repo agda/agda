@@ -1,37 +1,46 @@
 Failed to solve the following constraints:
   _37 := λ {.a} → mymaybemplus [blocked on problem 42]
-  _11 := (_ : _1) [a] :? Set (_10 m mzero)
-  _8 := (_ : _1) [a] :? Set (_7 m mzero)
-  _3 := (_ : _1) [a] :? Set (_2 m)
-  [42, 43] _9 _32 (λ {.a} → _35) =< Maybe .a
-             : Set (_7 _32 (λ {.a} → _35))
+  _11 := (_ : _1) [a] :? _10 m mzero
+  _8 := (_ : _1) [a] :? _7 m mzero
+  _3 := (_ : _1) [a] :? _2 m
+  [42, 43] _9 _32 (λ {.a} → _35) =< Maybe .a : _7 _32 (λ {.a} → _35)
   [42, 44] _12 _32 (λ {.a} → _35) =< Maybe .a
-             : Set (_10 _32 (λ {.a} → _35))
-  _10 _32 (λ {.a} → _35) = .Agda.Primitive.lzero
-  .Agda.Primitive.lzero = _10 _32 (λ {.a} → _35)
-  _7 _32 (λ {.a} → _35) = .Agda.Primitive.lzero
-  .Agda.Primitive.lzero = _7 _32 (λ {.a} → _35)
+             : _10 _32 (λ {.a} → _35)
+  _10 _32 (λ {.a} → _35) = Set
+  Set = piSort (_10 _32 (λ {.a} → _35)) (λ _ → Set)
+  _7 _32 (λ {.a} → _35) = Set
+  Set
+    = piSort (_7 _32 (λ {.a} → _35))
+      (λ _ → piSort (_10 _32 (λ {.a} → _35)) (λ _ → Set))
   _34 := λ {.a} → mymaybemzero [blocked on problem 37]
-  [37, 38] _4 _32 =< Maybe .a : Set (_2 _32)
-  _2 _32 = .Agda.Primitive.lzero
-  .Agda.Primitive.lzero = _2 _32
+  [37, 38] _4 _32 =< Maybe .a : _2 _32
+  _2 _32 = Set
+  Set = piSort (_2 _32) (λ _ → Set)
   _31 := Maybe [blocked on problem 34]
   [34] Set _a_30 → Set _a_30 =< _1 : Set (.Agda.Primitive.lsuc _a_30)
-  .Agda.Primitive.lsuc _a_30 = _0
-  piSort Set₁ (λ a → Set (_7 m mzero .Agda.Primitive.⊔ _10 m mzero))
+  Set (.Agda.Primitive.lsuc _a_30) = _0
+  piSort Set₁
+  (λ a →
+     piSort (_7 m mzero) (λ _ → piSort (_10 m mzero) (λ _ → Set)))
     =< Set₁
-  piSort Set₁ (λ a → Set (_2 m)) =< Set₁
+  piSort Set₁ (λ a → piSort (_2 m) (λ _ → Set)) =< Set₁
   Has PTS rule: (piSort Set₁
-                 (λ a → Set (_7 m mzero .Agda.Primitive.⊔ _10 m mzero)),Set₁)
-  Has PTS rule: (piSort Set₁ (λ a → Set (_2 m)) , piSort
-                                                  (piSort Set₁
-                                                   (λ a →
-                                                      Set
-                                                      (_7 m mzero .Agda.Primitive.⊔ _10 m mzero)))
-                                                  (λ mplus → Set₁))
-  Has PTS rule: (Set₁ , Set
-                        (_7 m mzero .Agda.Primitive.⊔ _10 m mzero))
-  Has PTS rule: (Set₁ , Set (_2 m))
+                 (λ a →
+                    piSort (_7 m mzero) (λ _ → piSort (_10 m mzero) (λ _ → Set))),Set₁)
+  Has PTS rule: (piSort Set₁
+                 (λ a → piSort (_2 m) (λ _ → Set)) , piSort
+                                                     (piSort Set₁
+                                                      (λ a →
+                                                         piSort (_7 m mzero)
+                                                         (λ _ → piSort (_10 m mzero) (λ _ → Set))))
+                                                     (λ mplus → Set₁))
+  Has PTS rule: (_10 m mzero,Set)
+  Has PTS rule: (_7 m mzero,piSort (_10 m mzero) (λ _ → Set))
+  Has PTS rule: (Set₁ , piSort (_7 m mzero)
+                        (λ _ → piSort (_10 m mzero) (λ _ → Set)))
+  Has PTS rule: (_2 m,Set)
+  Has PTS rule: (Set₁ , piSort (_2 m) (λ _ → Set))
+  Has PTS rule: (_0,Set₂)
 Unsolved metas at the following locations:
   Issue399.agda:7,20-21
   Issue399.agda:8,30-33

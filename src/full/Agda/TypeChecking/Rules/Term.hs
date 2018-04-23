@@ -706,7 +706,6 @@ checkRecordExpression mfs e t = do
           vs  <- newArgsMeta rt
           target <- reduce $ piApply rt vs
           s  <- case unEl target of
-                  Level l -> return $ Type l
                   Sort s  -> return s
                   v       -> do
                     reportSDoc "impossible" 10 $ vcat

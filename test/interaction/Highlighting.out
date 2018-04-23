@@ -17,5 +17,5 @@
 (agda2-highlight-add-annotations '(265 274 (keyword) nil) '(282 286 (keyword) nil) '(287 293 (keyword) nil) '(367 376 (keyword) nil) '(404 410 (keyword) nil) '(411 412 (number) nil) '(423 486 (comment) nil) '(489 511 (comment) nil))
 (agda2-highlight-add-annotations '(279 280 (unsolvedmeta) nil))
 (agda2-status-action "")
-(agda2-info-action "*All Goals, Errors*" "Sort _4 [ at Highlighting.agda:20,15-16 ] _5 : Set _4 [ at Highlighting.agda:20,15-16 ] ———— Errors ———————————————————————————————————————————————— Highlighting.agda:6,1-18,8 Termination checking failed for the following functions: R.Q Problematic calls: Q (at Highlighting.agda:18,7-8) " nil)
+(agda2-info-action "*All Goals, Errors*" "Sort _4 [ at Highlighting.agda:20,15-16 ] _5 : _4 [ at Highlighting.agda:20,15-16 ] ———— Errors ———————————————————————————————————————————————— Highlighting.agda:6,1-18,8 Termination checking failed for the following functions: R.Q Problematic calls: Q (at Highlighting.agda:18,7-8) " nil)
 ((last . 1) . (agda2-goals-action '()))

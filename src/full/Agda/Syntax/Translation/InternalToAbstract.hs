@@ -1052,6 +1052,7 @@ instance Reify Sort Expr where
           univs <- freshName_ ("univSort" :: String) -- TODO: hack
           e <- reify s
           return $ A.App defaultAppInfo_ (A.Var univs) $ defaultNamedArg e
+        I.MetaS x es -> reify $ I.MetaV x es
 
 instance Reify Level Expr where
   reifyWhen = reifyWhenE

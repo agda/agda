@@ -372,6 +372,14 @@ checkSort action s =
       addContext (absName b, defaultDom (sort a) :: Dom Type) $ do
         PiSort a . Abs (absName b) <$> checkSort action (absBody b)
     UnivSort s -> UnivSort <$> checkSort action s
+    MetaS x es -> do -- we assume sort meta instantiations to be well-formed
+      a <- metaType x
+      let self = Sort $ MetaS x []
+      ((_,v),_) <- inferSpine' action a self self es
+      case v of
+        Sort s     -> return s
+        MetaV x es -> return $ MetaS x es
+        _          -> __IMPOSSIBLE__
 
 -- | Check if level is well-formed.
 checkLevel :: Action -> Level -> TCM Level

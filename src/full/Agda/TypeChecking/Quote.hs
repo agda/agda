@@ -153,6 +153,7 @@ quotingKit = do
       quoteSort SizeUniv = pure unsupportedSort
       quoteSort PiSort{} = pure unsupportedSort
       quoteSort UnivSort{} = pure unsupportedSort
+      quoteSort (MetaS x es) = quoteTerm $ MetaV x es
 
       quoteType :: Type -> ReduceM Term
       quoteType (El _ t) = quoteTerm t
