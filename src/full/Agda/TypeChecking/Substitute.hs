@@ -1048,11 +1048,8 @@ deriving instance Ord Sort
 deriving instance Eq Level
 deriving instance Ord Level
 deriving instance Eq PlusLevel
-deriving instance Ord LevelAtom
 deriving instance Eq NotBlocked
-deriving instance Ord NotBlocked
 deriving instance Eq t => Eq (Blocked t)
-deriving instance Ord t => Ord (Blocked t)
 deriving instance Eq Candidate
 
 deriving instance (Subst t a, Eq a)  => Eq  (Tele a)
@@ -1070,6 +1067,9 @@ instance Ord PlusLevel where
 
 instance Eq LevelAtom where
   (==) = (==) `on` unLevelAtom
+
+instance Ord LevelAtom where
+  compare = compare `on` unLevelAtom
 
 -- | Syntactic 'Type' equality, ignores sort annotations.
 instance Eq a => Eq (Type' a) where
