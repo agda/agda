@@ -5,7 +5,7 @@
 
 open import Agda.Builtin.Equality
 
-data O A : Set where
+data O (A : Set) : Set where
   leaf : O A
   node : (A → O A) → O A
 
@@ -20,7 +20,7 @@ test1 (node f) leaf     = test1 (f a) (node f)
 test1 (node f) (node g) = test1 (node λ x → f x) (g a)
 -- Should pass even with the eta-expansion.
 
-data Q A : Set where
+data Q (A : Set) : Set where
   leaf : Q A
   node : (f g : A → Q A) (p : f ≡ g) → Q A
 

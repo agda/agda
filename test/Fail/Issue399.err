@@ -7,15 +7,13 @@ Failed to solve the following constraints:
   [42, 44] _12 _32 (λ {.a} → _35) =< Maybe .a
              : _10 _32 (λ {.a} → _35)
   _10 _32 (λ {.a} → _35) = Set
-  Set = piSort (_10 _32 (λ {.a} → _35)) (λ _ → Set)
+  piSort (_10 _32 (λ {.a} → _35)) (λ _ → Set) = Set
   _7 _32 (λ {.a} → _35) = Set
-  Set
-    = piSort (_7 _32 (λ {.a} → _35))
-      (λ _ → piSort (_10 _32 (λ {.a} → _35)) (λ _ → Set))
+  piSort (_7 _32 (λ {.a} → _35)) (λ _ → Set) = Set
   _34 := λ {.a} → mymaybemzero [blocked on problem 37]
   [37, 38] _4 _32 =< Maybe .a : _2 _32
   _2 _32 = Set
-  Set = piSort (_2 _32) (λ _ → Set)
+  piSort (_2 _32) (λ _ → Set) = Set
   _31 := Maybe [blocked on problem 34]
   [34] Set _a_30 → Set _a_30 =< _1 : Set (.Agda.Primitive.lsuc _a_30)
   Set (.Agda.Primitive.lsuc _a_30) = _0
