@@ -68,6 +68,9 @@ hasBiggerSort = void . inferUnivSort
 inferPiSort :: Sort -> Abs Sort -> TCM Sort
 inferPiSort s1 s2 = do
   (s1,s2) <- reduce (s1,s2)
+  -- we do instantiateFull here to perhaps remove some (flexible)
+  -- dependencies of s2 on var 0, thus allowing piSort' to reduce
+  s2 <- instantiateFull s2
   case piSort' s1 s2 of
     Just s -> return s
     Nothing -> do
