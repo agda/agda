@@ -1,10 +1,3 @@
-Failed to solve the following constraints:
-  Has PTS rule: (Set , piSort Set
-                       (λ y → piSort (piSort _2 (λ B → Set)) (λ w → Set₁)))
-  Has PTS rule: (Set , piSort (piSort _2 (λ B → Set)) (λ w → Set₁))
-  Has PTS rule: (piSort _2 (λ B → Set),Set₁)
-  Has PTS rule: (_2,Set)
-  Has PTS rule: (Set , piSort _2 (λ B → Set))
 Unsolved metas at the following locations:
   Issue427.agda:7,28-29
   Issue427.agda:12,34-35

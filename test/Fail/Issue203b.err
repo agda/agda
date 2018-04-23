@@ -1,10 +1,6 @@
 Failed to solve the following constraints:
   b =< _14 A B
   a =< _14 A B
-  Has PTS rule: (Set (a ⊔ lsuc b) , Set (lsuc (_14 A B)))
-  Has PTS rule: (Set (lsuc a) , piSort (Set (a ⊔ lsuc b))
-                                (λ B → Set (lsuc (_14 A B))))
-  Has PTS rule: (_2,Set (lsuc a))
 Unsolved metas at the following locations:
   Issue203b.agda:8,11-12
   Issue203b.agda:12,48-49

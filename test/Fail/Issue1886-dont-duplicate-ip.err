@@ -1,7 +1,3 @@
-Failed to solve the following constraints:
-  Has PTS rule: (_0,Set₁)
-  Has PTS rule: (_0,piSort _0 (λ y → Set₁))
-  Has PTS rule: (Set₁ , piSort _0 (λ x → piSort _0 (λ y → Set₁)))
 Unsolved metas at the following locations:
   Issue1886-dont-duplicate-ip.agda:8,25-29
 Unsolved interaction metas at the following locations:
