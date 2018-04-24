@@ -210,11 +210,9 @@ data Sort
   | Prop        -- ^ Dummy sort.
   | Inf         -- ^ @Setω@.
   | SizeUniv    -- ^ @SizeUniv@, a sort inhabited by type @Size@.
-  | DLub Sort (Abs Sort)
-    -- ^ Dependent least upper bound.
-    --   If the free variable occurs in the second sort,
-    --   the whole thing should reduce to Inf,
-    --   otherwise it's the normal lub.
+  | PiSort Sort (Abs Sort) -- ^ Sort of the pi type.
+  | UnivSort Sort -- ^ Sort of another sort.
+  | MetaS {-# UNPACK #-} !MetaId Elims
   deriving (Data, Show)
 
 -- | A level is a maximum expression of 0..n 'PlusLevel' expressions
@@ -687,25 +685,17 @@ dontCare v =
 
 -- | A dummy type.
 typeDontCare :: Type
-typeDontCare = El Prop (Sort Prop)
+typeDontCare = sort Prop
 
 -- | Top sort (Set\omega).
 topSort :: Type
-topSort = El Inf (Sort Inf)
+topSort = sort Inf
 
 sort :: Sort -> Type
-sort s = El (sSuc s) $ Sort s
+sort s = El (UnivSort s) $ Sort s
 
 varSort :: Int -> Sort
 varSort n = Type $ Max [Plus 0 $ NeutralLevel mempty $ var n]
-
--- | Get the next higher sort.
-sSuc :: Sort -> Sort
-sSuc Prop            = mkType 1
-sSuc Inf             = Inf
-sSuc SizeUniv        = SizeUniv
-sSuc (DLub a b)      = DLub (sSuc a) (fmap sSuc b)
-sSuc (Type l)        = Type $ levelSuc l
 
 levelSuc :: Level -> Level
 levelSuc (Max []) = Max [ClosedLevel 1]
@@ -1023,7 +1013,9 @@ instance TermSize Sort where
     Prop      -> 1
     Inf       -> 1
     SizeUniv  -> 1
-    DLub s s' -> 1 + tsize s + tsize s'
+    PiSort s s' -> 1 + tsize s + tsize s'
+    UnivSort s -> 1 + tsize s
+    MetaS _ es -> 1 + tsize es
 
 instance TermSize Level where
   tsize (Max as) = 1 + tsize as
@@ -1088,7 +1080,9 @@ instance KillRange Sort where
     Inf        -> Inf
     SizeUniv   -> SizeUniv
     Type a     -> killRange1 Type a
-    DLub s1 s2 -> killRange2 DLub s1 s2
+    PiSort s1 s2 -> killRange2 PiSort s1 s2
+    UnivSort s -> killRange1 UnivSort s
+    MetaS x es -> killRange1 (MetaS x) es
 
 instance KillRange Substitution where
   killRange IdS                  = IdS
@@ -1240,10 +1234,12 @@ instance Pretty Sort where
       Prop -> text "Prop"
       Inf -> text "Setω"
       SizeUniv -> text "SizeUniv"
-      DLub s b -> mparens (p > 9) $
-        text "dlub" <+> prettyPrec 10 s
-                    <+> parens (sep [ text ("λ " ++ absName b ++ " ->")
-                                    , nest 2 $ pretty (unAbs b) ])
+      PiSort s b -> mparens (p > 9) $
+        text "piSort" <+> prettyPrec 10 s
+                      <+> parens (sep [ text ("λ " ++ absName b ++ " ->")
+                                      , nest 2 $ pretty (unAbs b) ])
+      UnivSort s -> mparens (p > 9) $ text "univSort" <+> prettyPrec 10 s
+      MetaS x es -> prettyPrec p $ MetaV x es
 
 instance Pretty Type where
   prettyPrec p (El _ a) = prettyPrec p a
@@ -1298,7 +1294,9 @@ instance NFData Sort where
     Prop     -> ()
     Inf      -> ()
     SizeUniv -> ()
-    DLub a b -> rnf (a, unAbs b)
+    PiSort a b -> rnf (a, unAbs b)
+    UnivSort a -> rnf a
+    MetaS _ es -> rnf es
 
 instance NFData Level where
   rnf (Max as) = rnf as

@@ -1,4 +1,4 @@
 Issue659.agda:32,11-15
-(((ℓ : Level) → R ℓ) → {a : Level} {A : Set a} → A → A) !=<
-(P _k_28 _A_30) because this would result in an invalid use of Setω
-when checking that the expression M.id has type P _k_28 _A_30
+(Set _a_29) != Setω
+when checking that the expression M.id has type
+P k₁ ((ℓ : Level) → R ℓ)

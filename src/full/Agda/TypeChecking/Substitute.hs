@@ -652,7 +652,7 @@ instance Subst Term Term where
     Lit l       -> Lit l
     Level l     -> levelTm $ applySubst rho l
     Pi a b      -> uncurry Pi $ applySubst rho (a,b)
-    Sort s      -> sortTm $ applySubst rho s
+    Sort s      -> Sort $ applySubst rho s
     DontCare mv -> dontCare $ applySubst rho mv
 
 instance Subst Term a => Subst Term (Type' a) where
@@ -660,11 +660,13 @@ instance Subst Term a => Subst Term (Type' a) where
 
 instance Subst Term Sort where
   applySubst rho s = case s of
-    Type n     -> levelSort $ sub n
+    Type n     -> Type $ sub n
     Prop       -> Prop
     Inf        -> Inf
     SizeUniv   -> SizeUniv
-    DLub s1 s2 -> DLub (sub s1) (sub s2)
+    PiSort s1 s2 -> PiSort (sub s1) (sub s2)
+    UnivSort s -> UnivSort $ sub s
+    MetaS x es -> MetaS x $ sub es
     where sub x = applySubst rho x
 
 instance Subst Term Level where
@@ -792,6 +794,8 @@ instance Subst Term Constraint where
     FindInScope m b cands    -> FindInScope m b (rf cands)
     UnBlock{}                -> c
     CheckFunDef{}            -> c
+    HasBiggerSort s          -> HasBiggerSort (rf s)
+    HasPTSRule s1 s2         -> HasPTSRule (rf s1) (rf s2)
     where
       rf x = applySubst rho x
 
@@ -971,7 +975,7 @@ bindsWithHidingToTel = bindsWithHidingToTel' nameToArgName
 mkPi :: Dom (ArgName, Type) -> Type -> Type
 mkPi (Dom info (x, a)) b = el $ Pi (Dom info a) (mkAbs x b)
   where
-    el = El $ dLub (getSort a) (Abs x (getSort b)) -- dLub checks x freeIn
+    el = El $ piSort (getSort a) (Abs x (getSort b)) -- piSort checks x freeIn
 
 mkLam :: Arg ArgName -> Term -> Term
 mkLam a v = Lam (argInfo a) (Abs (unArg a) v)
@@ -982,9 +986,7 @@ telePi' reAbs = telePi where
   telePi (ExtendTel u tel) t = el $ Pi u $ reAbs b
     where
       b  = (`telePi` t) <$> tel
-      s1 = getSort u
-      s2 = getSort <$> b
-      el = El $ dLub s1 s2
+      el = El $ piSort (getSort u) (getSort <$> b)
 
 -- | Uses free variable analysis to introduce 'NoAbs' bindings.
 telePi :: Telescope -> Type -> Type
@@ -1047,11 +1049,8 @@ deriving instance Ord Sort
 deriving instance Eq Level
 deriving instance Ord Level
 deriving instance Eq PlusLevel
-deriving instance Ord LevelAtom
 deriving instance Eq NotBlocked
-deriving instance Ord NotBlocked
 deriving instance Eq t => Eq (Blocked t)
-deriving instance Ord t => Ord (Blocked t)
 deriving instance Eq Candidate
 
 deriving instance (Subst t a, Eq a)  => Eq  (Tele a)
@@ -1069,6 +1068,9 @@ instance Ord PlusLevel where
 
 instance Eq LevelAtom where
   (==) = (==) `on` unLevelAtom
+
+instance Ord LevelAtom where
+  compare = compare `on` unLevelAtom
 
 -- | Syntactic 'Type' equality, ignores sort annotations.
 instance Eq a => Eq (Type' a) where
@@ -1166,65 +1168,66 @@ instance (Subst t a, Ord a) => Ord (Elim' a) where
   Proj{}   `compare` Apply{}  = GT
 
 ---------------------------------------------------------------------------
--- * Level stuff
+-- * Sort stuff
 ---------------------------------------------------------------------------
 
--- | The ``rule'', if Agda is considered as a functional
---   pure type system (pts).
---
---   TODO: This needs to be properly implemented, requiring
---   refactoring of Agda's handling of levels.
---   Without impredicativity or 'SizeUniv', Agda's pts rule is
---   just the least upper bound, which is total and commutative.
---   The handling of levels relies on this simplification.
-pts :: Sort -> Sort -> Sort
-pts = sLub
+-- | Get the next higher sort.
+univSort' :: Sort -> Maybe Sort
+univSort' (Type l) = Just $ Type $ levelSuc l
+univSort' s        = Nothing
 
-sLub :: Sort -> Sort -> Sort
-sLub s Prop = s
-sLub Prop s = s
-sLub Inf _ = Inf
-sLub _ Inf = Inf
-sLub SizeUniv s = s         -- one can freely quantify over sizes in any Set
-sLub _ SizeUniv = SizeUniv  -- but everything resulting in a size lives in the SizeUniv
-sLub (Type (Max as)) (Type (Max bs)) = Type $ levelMax (as ++ bs)
--- sLub (DLub a b) c = DLub (sLub a c) b -- no longer commutative!
-sLub (DLub a NoAbs{}) c = __IMPOSSIBLE__
-sLub (DLub a (Abs x b)) c = DLub a $ Abs x $ sLub b $ raise 1 c
-sLub a (DLub b c) = DLub (sLub a b) c
+univSort :: Sort -> Sort
+univSort s = fromMaybe (UnivSort s) $ univSort' s
 
--- | Dependent least upper bound, to assign a level to expressions
---   like @forall i -> Set i@.
---
---   @dLub s1 \i.s2 = \omega@ if @i@ appears in the rigid variables of @s2@.
-dLub :: Sort -> Abs Sort -> Sort
-dLub s1 (NoAbs _ s2) = sLub s1 s2
-dLub s1 b@(Abs _ s2) = case occurrence 0 s2 of
-  Flexible _    -> DLub s1 b
-  -- Andreas, 2017-01-18, issue #2408:
-  -- The sort of @.(a : A) → Set (f a)@ in context @f : .A → Level@
-  -- is @dLub Set λ a → Set (lsuc (f a))@, but @DLub@s are not serialized.
-  -- Alternatives:
-  -- 1. -- Irrelevantly -> sLub s1 (absApp b $ DontCare $ Sort Prop)
-  --    We cheat here by simplifying the sort to @Set (lsuc (f *))@
-  --    where * is a dummy value.  The rationale is that @f * = f a@ (irrelevance!)
-  --    and that if we already have a neutral level @f a@
-  --    it should not hurt to have @f *@ even if type @A@ is empty.
-  --    However: sorts are printed in error messages when sorts do not match.
-  --    Also, sorts with a dummy like Prop would be ill-typed.
-  -- 2. We keep the DLub, and serialize it.
-  --    That's clean and principled, even though DLubs make level solving harder.
-  Irrelevantly  -> DLub s1 b
-  NoOccurrence  -> sLub s1 (noabsApp __IMPOSSIBLE__ b)
-  StronglyRigid -> Inf
-  Unguarded     -> Inf
-  WeaklyRigid   -> Inf
+-- | Compute the sort of a function type from the sorts of its
+--   domain and codomain.
+funSort' :: Sort -> Sort -> Maybe Sort
+funSort' a b = case (a, b) of
+  (Inf           , _            ) -> Just Inf
+  (_             , Inf          ) -> Just Inf
+  (Type (Max as) , Type (Max bs)) -> Just $ Type $ Max $ as ++ bs
+  (SizeUniv      , b            ) -> Just b
+  (_             , SizeUniv     ) -> Just SizeUniv
+  (a             , b            ) -> Nothing
 
-lvlView :: Term -> Level
-lvlView v = case v of
-  Level l       -> l
-  Sort (Type l) -> l
-  _             -> Max [Plus 0 $ UnreducedLevel v]
+funSort :: Sort -> Sort -> Sort
+funSort a b = fromMaybe (PiSort a (NoAbs underscore b)) $ funSort' a b
+
+-- | Compute the sort of a pi type from the sorts of its domain
+--   and codomain.
+piSort' :: Sort -> Abs Sort -> Maybe Sort
+piSort' a      (NoAbs _ b) = funSort' a b
+piSort' a bAbs@(Abs   _ b) = case occurrence 0 b of
+    NoOccurrence  -> funSort' a $ noabsApp {-'-} __IMPOSSIBLE__ bAbs
+    -- Andreas, 2017-01-18, issue #2408:
+    -- The sort of @.(a : A) → Set (f a)@ in context @f : .A → Level@
+    -- is @dLub Set λ a → Set (lsuc (f a))@, but @DLub@s are not serialized.
+    -- Alternatives:
+    -- 1. -- Irrelevantly -> sLub s1 (absApp b $ DontCare $ Sort Prop)
+    --    We cheat here by simplifying the sort to @Set (lsuc (f *))@
+    --    where * is a dummy value.  The rationale is that @f * = f a@ (irrelevance!)
+    --    and that if we already have a neutral level @f a@
+    --    it should not hurt to have @f *@ even if type @A@ is empty.
+    --    However: sorts are printed in error messages when sorts do not match.
+    --    Also, sorts with a dummy like Prop would be ill-typed.
+    -- 2. We keep the DLub, and serialize it.
+    --    That's clean and principled, even though DLubs make level solving harder.
+    -- Jesper, 2018-04-20: another alternative:
+    -- 3. Return @Inf@ as in the relevant case. This is conservative and might result
+    --    in more occurrences of @Setω@ than desired, but at least it doesn't pollute
+    --    the sort system with new 'exotic' sorts.
+    Irrelevantly  -> Just Inf
+    StronglyRigid -> Just Inf
+    Unguarded     -> Just Inf
+    WeaklyRigid   -> Just Inf
+    Flexible _    -> Nothing
+
+piSort :: Sort -> Abs Sort -> Sort
+piSort a b = fromMaybe (PiSort a b) $ piSort' a b
+
+---------------------------------------------------------------------------
+-- * Level stuff
+---------------------------------------------------------------------------
 
 levelMax :: [PlusLevel] -> Level
 levelMax as0 = Max $ ns ++ List.sort bs
@@ -1266,28 +1269,6 @@ levelMax as0 = Max $ ns ++ List.sort bs
       where
         ns = [ m | Plus m a'  <- bs, a == a', m > n ]
 
-sortTm :: Sort -> Term
-sortTm (Type l) = Sort $ levelSort l
-sortTm s        = Sort s
-
-levelSort :: Level -> Sort
-levelSort (Max as)
-  | List.any (levelIs Inf     ) as = Inf
-  | List.any (levelIs SizeUniv) as = SizeUniv
-  where
-    levelIs s ClosedLevel{}     = False
-    levelIs s (Plus _ l)        = atomIs s l
-    atomIs s (NeutralLevel _ a) = tmIs s a
-    atomIs s (UnreducedLevel a) = tmIs s a
-    atomIs s MetaLevel{}        = False
-    atomIs s BlockedLevel{}     = False
-    tmIs s (Sort s')            = s == s'
-    tmIs s _                    = False
-levelSort l =
-  case levelTm l of
-    Sort s -> s
-    _      -> Type l
-
 levelTm :: Level -> Term
 levelTm l =
   case l of
@@ -1299,3 +1280,14 @@ unLevelAtom (MetaLevel x es)   = MetaV x es
 unLevelAtom (NeutralLevel _ v) = v
 unLevelAtom (UnreducedLevel v) = v
 unLevelAtom (BlockedLevel _ v) = v
+
+levelSucView :: Level -> Maybe Level
+levelSucView (Max as) = Max <$> traverse atomPred as
+  where
+    atomPred :: PlusLevel -> Maybe PlusLevel
+    atomPred (ClosedLevel n)
+      | n > 0     = Just $ ClosedLevel (n-1)
+      | otherwise = Nothing
+    atomPred (Plus n l)
+      | n > 0     = Just $ Plus (n-1) l
+      | otherwise = Nothing

@@ -33,6 +33,7 @@ import Agda.TypeChecking.ProjectionLike (elimView)
 import Agda.TypeChecking.Records (getDefType)
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
+import Agda.TypeChecking.Sort
 import Agda.TypeChecking.Telescope
 
 import Agda.Utils.Functor (($>))
@@ -76,10 +77,10 @@ checkType' t = do
         let goInside = case b of Abs{}   -> addContext (absName b, a)
                                  NoAbs{} -> id
         goInside $ checkType' $ unAbs b
-      return $ dLub s1 s2
+      inferPiSort s1 s2
     Sort s -> do
       _ <- checkSort defaultAction s
-      return $ sSuc s
+      inferUnivSort s
     Var i es   -> do
       a <- typeOfBV i
       checkTypeSpine a (Var i   []) es
@@ -187,8 +188,8 @@ checkInternal' action v t = do
       -- TODO: checkPTS sa sb s
       goInside $ Pi a . mkRng <$> checkInternal' action (unEl $ unAbs b) (sort sb)
     Sort s     -> do
-      s <- checkSort action s  -- this ensures @s /= Inf@
-      Sort s <$ ((sSuc s `leqSort`) =<< shouldBeSort t)
+      s <- checkSort action s
+      Sort s <$ ((sortFitsIn s) =<< shouldBeSort t) -- sortFitsIn ensures @s /= Inf@
     Level l    -> do
       l <- checkLevel action l
       Level l <$ ((`subtype` t) =<< levelType)
@@ -364,13 +365,21 @@ checkSort action s =
     Type l   -> Type <$> checkLevel action l
     Prop     -> __IMPOSSIBLE__
       -- the dummy Prop should not be part of a term we check
-    Inf      -> typeError $ SetOmegaNotValidType
-      -- we cannot have Setω on the lhs of the colon
-    SizeUniv -> typeError $ InvalidTypeSort s
-    DLub a b -> do
+    Inf      -> return Inf
+    SizeUniv -> return SizeUniv
+    PiSort a b -> do
       a <- checkSort action a
       addContext (absName b, defaultDom (sort a) :: Dom Type) $ do
-        DLub a . Abs (absName b) <$> checkSort action (absBody b)
+        PiSort a . Abs (absName b) <$> checkSort action (absBody b)
+    UnivSort s -> UnivSort <$> checkSort action s
+    MetaS x es -> do -- we assume sort meta instantiations to be well-formed
+      a <- metaType x
+      let self = Sort $ MetaS x []
+      ((_,v),_) <- inferSpine' action a self self es
+      case v of
+        Sort s     -> return s
+        MetaV x es -> return $ MetaS x es
+        _          -> __IMPOSSIBLE__
 
 -- | Check if level is well-formed.
 checkLevel :: Action -> Level -> TCM Level
@@ -416,8 +425,8 @@ inferSort t = case t of
       a <- metaType x
       (_, s) <- eliminate (MetaV x []) a es
       shouldBeSort s
-    Pi a b     -> return $ dLub (getSort a) (getSort <$> b)
-    Sort s     -> return $ sSuc s
+    Pi a b     -> inferPiSort (getSort a) (getSort <$> b)
+    Sort s     -> inferUnivSort s
     Con{}      -> __IMPOSSIBLE__
     Lit{}      -> __IMPOSSIBLE__
     Lam{}      -> __IMPOSSIBLE__

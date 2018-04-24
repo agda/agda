@@ -659,7 +659,9 @@ instance ExtractCalls Sort where
       Inf        -> return empty
       SizeUniv   -> return empty
       Type t     -> terUnguarded $ extract t  -- no guarded levels
-      DLub s1 s2 -> extract (s1, s2)
+      PiSort s1 s2 -> extract (s1, s2)
+      UnivSort s -> extract s
+      MetaS x es -> return empty
 
 -- | Extract recursive calls from a type.
 

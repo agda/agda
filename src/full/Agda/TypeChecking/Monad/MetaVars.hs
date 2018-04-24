@@ -472,7 +472,7 @@ instance UnFreezeMeta Term where
   unfreezeMeta _             = return ()
 
 instance UnFreezeMeta Sort where
-  unfreezeMeta (Type l)      = unfreezeMeta l
+  unfreezeMeta (MetaS x _)   = unfreezeMeta x
   unfreezeMeta _             = return ()
 
 instance UnFreezeMeta Level where

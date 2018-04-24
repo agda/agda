@@ -105,7 +105,7 @@ instance Instantiate Term where
       BlockedConst _                   -> return t
       PostponedTypeCheckingProblem _ _ -> return t
   instantiate' (Level l) = levelTm <$> instantiate' l
-  instantiate' (Sort s) = sortTm <$> instantiate' s
+  instantiate' (Sort s) = Sort <$> instantiate' s
   instantiate' t = return t
 
 instance Instantiate Level where
@@ -141,8 +141,11 @@ instance Instantiate Type where
 
 instance Instantiate Sort where
   instantiate' s = case s of
-    Type l -> levelSort <$> instantiate' l
-    _      -> return s
+    MetaS x es -> instantiate' (MetaV x es) >>= \case
+      Sort s'      -> return s'
+      MetaV x' es' -> return $ MetaS x' es'
+      _            -> __IMPOSSIBLE__
+    _ -> return s
 
 instance Instantiate Elim where
   instantiate' (Apply v) = Apply <$> instantiate' v
@@ -193,6 +196,8 @@ instance Instantiate Constraint where
   instantiate' (IsEmpty r t)        = IsEmpty r <$> instantiate' t
   instantiate' (CheckSizeLtSat t)   = CheckSizeLtSat <$> instantiate' t
   instantiate' c@CheckFunDef{}      = return c
+  instantiate' (HasBiggerSort a)    = HasBiggerSort <$> instantiate' a
+  instantiate' (HasPTSRule a b)     = uncurry HasPTSRule <$> instantiate' (a,b)
 
 instance Instantiate e => Instantiate (Map k e) where
     instantiate' = traverse instantiate'
@@ -254,15 +259,17 @@ instance Reduce Sort where
         red s = do
           s <- instantiate' s
           case s of
-            DLub s1 s2 -> do
-              s <- dLub <$> reduce' s1 <*> reduce' s2
-              case s of
-                DLub{}  -> return s
-                _       -> reduce' s   -- TODO: not so nice
+            PiSort s1 s2 -> do
+              (s1,s2) <- reduce' (s1,s2)
+              maybe (return $ PiSort s1 s2) reduce' $ piSort' s1 s2
+            UnivSort s' -> do
+              s' <- reduce' s'
+              maybe (return $ UnivSort s') reduce' $ univSort' s'
             Prop       -> return s
-            Type s'    -> levelSort <$> reduce' s'
+            Type s'    -> Type <$> reduce' s'
             Inf        -> return Inf
             SizeUniv   -> return SizeUniv
+            MetaS x es -> return s
 
 instance Reduce Elim where
   reduce' (Apply v) = Apply <$> reduce' v
@@ -365,7 +372,7 @@ slowReduceTerm v = do
           -- instantiated module.
           v <- unfoldDefinition False reduceB' (Con c ci []) (conName c) args
           traverse reduceNat v
-      Sort s   -> fmap sortTm <$> reduceB' s
+      Sort s   -> fmap Sort <$> reduceB' s
       Level l  -> ifM (elem LevelReductions <$> asks envAllowedReductions)
                     {- then -} (fmap levelTm <$> reduceB' l)
                     {- else -} done
@@ -688,6 +695,8 @@ instance Reduce Constraint where
   reduce' (IsEmpty r t)         = IsEmpty r <$> reduce' t
   reduce' (CheckSizeLtSat t)    = CheckSizeLtSat <$> reduce' t
   reduce' c@CheckFunDef{}       = return c
+  reduce' (HasBiggerSort a)     = HasBiggerSort <$> reduce' a
+  reduce' (HasPTSRule a b)      = uncurry HasPTSRule <$> reduce' (a,b)
 
 instance Reduce e => Reduce (Map k e) where
     reduce' = traverse reduce'
@@ -730,7 +739,7 @@ instance Simplify Term where
           NoSimplification  -> Def f <$> simplify' vs
       MetaV x vs -> MetaV x  <$> simplify' vs
       Con c ci vs-> Con c ci <$> simplify' vs
-      Sort s     -> sortTm   <$> simplify' s
+      Sort s     -> Sort     <$> simplify' s
       Level l    -> levelTm  <$> simplify' l
       Pi a b     -> Pi       <$> simplify' a <*> simplify' b
       Lit l      -> return v
@@ -752,11 +761,13 @@ instance Simplify Elim where
 instance Simplify Sort where
     simplify' s = do
       case s of
-        DLub s1 s2 -> dLub <$> simplify' s1 <*> simplify' s2
-        Type s     -> levelSort <$> simplify' s
+        PiSort s1 s2 -> piSort <$> simplify' s1 <*> simplify' s2
+        UnivSort s -> univSort <$> simplify' s
+        Type s     -> Type <$> simplify' s
         Prop       -> return s
         Inf        -> return s
         SizeUniv   -> return s
+        MetaS x es -> MetaS x <$> simplify' es
 
 instance Simplify Level where
   simplify' (Max as) = levelMax <$> simplify' as
@@ -832,6 +843,8 @@ instance Simplify Constraint where
   simplify' (IsEmpty r t)         = IsEmpty r <$> simplify' t
   simplify' (CheckSizeLtSat t)    = CheckSizeLtSat <$> simplify' t
   simplify' c@CheckFunDef{}       = return c
+  simplify' (HasBiggerSort a)     = HasBiggerSort <$> simplify' a
+  simplify' (HasPTSRule a b)      = uncurry HasPTSRule <$> simplify' (a,b)
 
 instance Simplify Bool where
   simplify' = return
@@ -877,11 +890,13 @@ instance Normalise Sort where
     normalise' s = do
       s <- reduce' s
       case s of
-        DLub s1 s2 -> dLub <$> normalise' s1 <*> normalise' s2
+        PiSort s1 s2 -> piSort <$> normalise' s1 <*> normalise' s2
+        UnivSort s -> univSort <$> normalise' s
         Prop       -> return s
-        Type s     -> levelSort <$> normalise' s
+        Type s     -> Type <$> normalise' s
         Inf        -> return Inf
         SizeUniv   -> return SizeUniv
+        MetaS x es -> return s
 
 instance Normalise Type where
     normalise' (El s t) = El <$> normalise' s <*> normalise' t
@@ -900,7 +915,7 @@ slowNormaliseArgs v = case v of
   Lit _       -> return v
   Level l     -> levelTm    <$> normalise' l
   Lam h b     -> Lam h      <$> normalise' b
-  Sort s      -> sortTm     <$> normalise' s
+  Sort s      -> Sort       <$> normalise' s
   Pi a b      -> uncurry Pi <$> normalise' (a, b)
   DontCare _  -> return v
 
@@ -977,6 +992,8 @@ instance Normalise Constraint where
   normalise' (IsEmpty r t)         = IsEmpty r <$> normalise' t
   normalise' (CheckSizeLtSat t)    = CheckSizeLtSat <$> normalise' t
   normalise' c@CheckFunDef{}       = return c
+  normalise' (HasBiggerSort a)     = HasBiggerSort <$> normalise' a
+  normalise' (HasPTSRule a b)      = uncurry HasPTSRule <$> normalise' (a,b)
 
 instance Normalise Bool where
   normalise' = return
@@ -1040,11 +1057,13 @@ instance InstantiateFull Sort where
     instantiateFull' s = do
         s <- instantiate' s
         case s of
-            Type n     -> levelSort <$> instantiateFull' n
+            Type n     -> Type <$> instantiateFull' n
             Prop       -> return s
-            DLub s1 s2 -> dLub <$> instantiateFull' s1 <*> instantiateFull' s2
+            PiSort s1 s2 -> piSort <$> instantiateFull' s1 <*> instantiateFull' s2
+            UnivSort s -> univSort <$> instantiateFull' s
             Inf        -> return s
             SizeUniv   -> return s
+            MetaS x es -> MetaS x <$> instantiateFull' es
 
 instance (InstantiateFull a) => InstantiateFull (Type' a) where
     instantiateFull' (El s t) =
@@ -1062,7 +1081,7 @@ instance InstantiateFull Term where
           Lit _       -> return v
           Level l     -> levelTm <$> instantiateFull' l
           Lam h b     -> Lam h <$> instantiateFull' b
-          Sort s      -> sortTm <$> instantiateFull' s
+          Sort s      -> Sort <$> instantiateFull' s
           Pi a b      -> uncurry Pi <$> instantiateFull' (a,b)
           DontCare v  -> dontCare <$> instantiateFull' v
 
@@ -1166,6 +1185,8 @@ instance InstantiateFull Constraint where
     IsEmpty r t         -> IsEmpty r <$> instantiateFull' t
     CheckSizeLtSat t    -> CheckSizeLtSat <$> instantiateFull' t
     c@CheckFunDef{}     -> return c
+    HasBiggerSort a     -> HasBiggerSort <$> instantiateFull' a
+    HasPTSRule a b      -> uncurry HasPTSRule <$> instantiateFull' (a,b)
 
 instance (InstantiateFull a) => InstantiateFull (Elim' a) where
   instantiateFull' (Apply v) = Apply <$> instantiateFull' v
