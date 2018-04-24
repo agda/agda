@@ -613,7 +613,7 @@ instance Abstract v => Abstract (HashMap k v) where
 abstractArgs :: Abstract a => Args -> a -> a
 abstractArgs args x = abstract tel x
     where
-        tel   = foldr (\(Arg info x) -> ExtendTel (Dom info $ sort Prop) . Abs x)
+        tel   = foldr (\(Arg info x) -> ExtendTel (Dom info $ dummyType) . Abs x)
                       EmptyTel
               $ zipWith (<$) names args
         names = cycle $ map (stringToArgName . (:[])) ['a'..'z']

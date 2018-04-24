@@ -156,7 +156,7 @@ newSortMeta' judge =
   ifM hasUniversePolymorphism (newSortMetaCtx' judge =<< getContextArgs)
   -- else (no universe polymorphism)
   $ do i   <- createMetaInfo
-       x   <- newMeta i normalMetaPriority (idP 0) $ judge typeDontCare
+       x   <- newMeta i normalMetaPriority (idP 0) $ judge dummyType
        return $ MetaS x []
 
 -- | Create a sort meta that may be instantiated with 'Inf' (Setω).
@@ -168,7 +168,7 @@ newSortMetaCtx' judge vs = do
   ifM typeInType (return $ mkType 0) $ {- else -} do
     i   <- createMetaInfo
     tel <- getContextTelescope
-    let t = telePi_ tel typeDontCare
+    let t = telePi_ tel dummyType
     x   <- newMeta i normalMetaPriority (idP 0) $ judge t
     reportSDoc "tc.meta.new" 50 $
       text "new sort meta" <+> prettyTCM x <+> text ":" <+> prettyTCM t
@@ -265,7 +265,7 @@ newValueMetaCtx' b a tel perm vs = do
   return (x, u)
 
 newTelMeta :: Telescope -> TCM Args
-newTelMeta tel = newArgsMeta (abstract tel $ typeDontCare)
+newTelMeta tel = newArgsMeta (abstract tel $ dummyType)
 
 type Condition = Dom Type -> Abs Type -> Bool
 
@@ -316,7 +316,7 @@ newRecordMeta r pars = do
 newRecordMetaCtx :: QName -> Args -> Telescope -> Permutation -> Args -> TCM Term
 newRecordMetaCtx r pars tel perm ctx = do
   ftel   <- flip apply pars <$> getRecordFieldTypes r
-  fields <- newArgsMetaCtx (telePi_ ftel $ sort Prop) tel perm ctx
+  fields <- newArgsMetaCtx (telePi_ ftel dummyType) tel perm ctx
   con    <- getRecordConstructor r
   return $ Con con ConOSystem (map Apply fields)
 

@@ -683,9 +683,17 @@ dontCare v =
     DontCare{} -> v
     _          -> DontCare v
 
+-- | A dummy sort.
+dummySort :: Sort
+dummySort = Prop
+
+-- | A dummy term.
+dummyTerm :: Term
+dummyTerm = Sort dummySort
+
 -- | A dummy type.
-typeDontCare :: Type
-typeDontCare = sort Prop
+dummyType :: Type
+dummyType = sort dummySort
 
 -- | Top sort (Set\omega).
 topSort :: Type
