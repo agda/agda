@@ -1282,6 +1282,7 @@ unLevelAtom (UnreducedLevel v) = v
 unLevelAtom (BlockedLevel _ v) = v
 
 levelSucView :: Level -> Maybe Level
+levelSucView (Max []) = Nothing
 levelSucView (Max as) = Max <$> traverse atomPred as
   where
     atomPred :: PlusLevel -> Maybe PlusLevel
