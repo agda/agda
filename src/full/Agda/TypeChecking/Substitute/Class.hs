@@ -147,7 +147,7 @@ dropS n (u :# rho)         = dropS (n - 1) rho
 dropS n (Strengthen _ rho) = dropS (n - 1) rho
 dropS n (Lift 0 rho)       = __IMPOSSIBLE__
 dropS n (Lift m rho)       = wkS 1 $ dropS (n - 1) $ liftS (m - 1) rho
-dropS n (EmptyS err)       = __IMPOSSIBLE__
+dropS n (EmptyS err)       = absurd err
 
 -- | @applySubst (ρ `composeS` σ) v == applySubst ρ (applySubst σ v)@
 composeS :: Subst a a => Substitution' a -> Substitution' a -> Substitution' a
