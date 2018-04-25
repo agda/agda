@@ -224,7 +224,6 @@ compareTerm' cmp a m n =
   catchConstraint (ValueCmp cmp a' m n) $ do
     reportSDoc "tc.conv.term" 30 $ fsep
       [ text "compareTerm", prettyTCM m, prettyTCM cmp, prettyTCM n, text ":", prettyTCM a' ]
-    proofIrr <- proofIrrelevance
     isSize   <- isJust <$> isSizeType a'
     s        <- reduce $ getSort a'
     mlvl     <- tryMaybe primLevel
@@ -234,7 +233,7 @@ compareTerm' cmp a m n =
       , text $ "(Just (unEl a') == mlvl) = " ++ show (Just (unEl a') == mlvl)
       ]
     case s of
-      Prop | proofIrr -> return ()
+      Prop            -> return ()
       _    | isSize   -> compareSizes cmp m n
       _               -> case unEl a' of
         a | Just a == mlvl -> do

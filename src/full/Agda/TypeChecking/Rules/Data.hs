@@ -130,14 +130,6 @@ checkDataDef i name ps cs =
         let s      = dataSort dataDef
             cons   = map A.axiomName cs  -- get constructor names
 
-        -- If proof irrelevance is enabled we have to check that datatypes in
-        -- Prop contain at most one element.
-        do  proofIrr <- proofIrrelevance
-            case (proofIrr, s, cs) of
-                (True, Prop, _:_:_) -> setCurrentRange cons $
-                                         typeError PropMustBeSingleton
-                _                   -> return ()
-
         -- Add the datatype to the signature with its constructors.
         -- It was previously added without them.
         addConstant name $
