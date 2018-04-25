@@ -744,8 +744,7 @@ checkLeftHandSide c f ps a withSub' strippedPats = Bench.billToCPS [Bench.Typing
 
         newCxt <- computeLHSContext vars delta
 
-        updateContext paramSub (const newCxt)
-          $ applyRelevanceToContext (getRelevance b) $ do
+        updateContext paramSub (const newCxt) $ do
 
           reportSDoc "tc.lhs.top" 10 $ text "bound pattern variables"
           reportSDoc "tc.lhs.top" 60 $ nest 2 $ text "context = " <+> (pretty =<< getContextTelescope)
@@ -806,7 +805,7 @@ checkLHS
   => Maybe QName      -- ^ The name of the definition we are checking.
   -> LHSState a       -- ^ The current state.
   -> tcm a
-checkLHS mf st@(LHSState tel ip problem target) = do
+checkLHS mf st@(LHSState tel ip problem target) = updateRelevance $ do
   if isSolvedProblem problem then
     liftTCM $ (problem ^. problemCont) st
   else do
@@ -817,12 +816,7 @@ checkLHS mf st@(LHSState tel ip problem target) = do
     let splitsToTry = splitStrategy $ problem ^. problemEqs
 
     foldr trySplit trySplitRest splitsToTry >>= \case
-      Right st' -> do
-        -- If the new target type is irrelevant, we need to continue in irr. cxt.
-        -- (see Issue 939).
-        let rel = getRelevance $ st' ^. lhsTarget
-        applyRelevanceToContext rel $ checkLHS mf st'
-
+      Right st' -> checkLHS mf st'
       -- If no split works, give error from first split.
       -- This is conservative, but might not be the best behavior.
       -- It might be better to print all the errors instead.
@@ -830,6 +824,14 @@ checkLHS mf st@(LHSState tel ip problem target) = do
       Left []      -> __IMPOSSIBLE__
 
   where
+
+    -- If the target type is irrelevant or in Prop,
+    -- we need to check the lhs in irr. cxt. (see Issue 939).
+    updateRelevance cont = do
+      rel <- liftTCM (reduce $ getSort $ unArg target) >>= \case
+        Prop -> return Irrelevant
+        _    -> return $ getRelevance target
+      applyRelevanceToContext rel cont
 
     trySplit :: ProblemEq
              -> tcm (Either [TCErr] (LHSState a))
