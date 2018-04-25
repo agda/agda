@@ -7,6 +7,7 @@ module Agda.TypeChecking.Rules.LHS
   , LHSResult(..)
   , bindAsPatterns
   , IsFlexiblePattern(..)
+  , checkSortOfSplitVar
   ) where
 
 #if MIN_VERSION_base(4,11,0)
@@ -19,6 +20,7 @@ import Data.Maybe
 
 import Control.Arrow (left)
 import Control.Monad
+import Control.Monad.Reader
 import Control.Monad.State
 import Control.Monad.Writer hiding ((<>))
 import Control.Monad.Trans.Maybe
@@ -924,6 +926,8 @@ checkLHS mf st@(LHSState tel ip problem target) = do
       -- We should be at a data/record type
       (d, pars, ixs) <- addContext delta1 $ isDataOrRecordType dom
 
+      checkSortOfSplitVar a
+
       -- The constructor should construct an element of this datatype
       (c, b) <- liftTCM $ addContext delta1 $ case ambC of
         Just ambC -> disambiguateConstructor ambC d pars
@@ -1448,3 +1452,10 @@ checkParameters dc d pars = liftTCM $ do
       t <- typeOfConst d
       compareArgs [] [] t (Def d []) vs (take (length vs) pars)
     _ -> __IMPOSSIBLE__
+
+checkSortOfSplitVar :: (MonadTCM tcm, MonadError TCErr tcm, LensSort a) => a -> tcm ()
+checkSortOfSplitVar a = liftTCM (reduce $ getSort a) >>= \case
+  Type{} -> return ()
+  _      -> softTypeError =<< do
+    liftTCM $ GenericDocError <$> sep
+      [ text "Cannot split on datatype in sort" , prettyTCM (getSort a) ]
