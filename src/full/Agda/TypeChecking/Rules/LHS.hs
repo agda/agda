@@ -651,16 +651,46 @@ checkLeftHandSide c f ps a withSub' strippedPats = Bench.billToCPS [Bench.Typing
         -- Compute substitution from the out patterns @qs0@
         let notProj ProjP{} = False
             notProj _       = True
-                        -- Note: This works because we can't change the number of
-                        --       arguments in the lhs of a with-function relative to
-                        --       the parent function.
-            numPats   = length $ takeWhile (notProj . namedArg) qs0
-            -- In the case of a non-with function the pattern substitution
-            -- should be weakened by the number of non-parameter patterns to
-            -- get the paramSub.
-            withSub = fromMaybe (wkS (numPats - length cxt) idS) withSub'
+            numPats  = length $ takeWhile (notProj . namedArg) qs0
+
+            -- We have two slightly different cases here: normal function and
+            -- with-function. In both cases the goal is to build a substitution
+            -- from the context Γ of the previous checkpoint to the current lhs
+            -- context Δ:
+            --
+            --    Δ ⊢ paramSub : Γ
+            --
+            --  * Normal function, f
+            --
+            --    Γ = cxt = module parameter telescope of f
+            --    Ψ = non-parameter arguments of f (we have f : Γ Ψ → A)
+            --    Δ   ⊢ patSub  : Γ Ψ
+            --    Γ Ψ ⊢ weakSub : Γ
+            --    paramSub = patSub ∘ weakSub
+            --
+            --  * With-function
+            --
+            --    Γ = lhs context of the parent clause (cxt = [])
+            --    Ψ = argument telescope of with-function
+            --    Θ = inserted implicit patterns not in Ψ (#2827)
+            --        (this happens if the goal computes to an implicit
+            --         function type after some matching in the with-clause)
+            --
+            --    Ψ   ⊢ withSub : Γ
+            --    Δ   ⊢ patSub  : Ψ Θ
+            --    Ψ Θ ⊢ weakSub : Ψ
+            --    paramSub = patSub ∘ weakSub ∘ withSub
+            --
+            --    To compute Θ we can look at the arity of the with-function
+            --    and compare it to numPats. This works since the with-function
+            --    type is fully reduced.
+
+            weakSub :: Substitution
+            weakSub | isJust withSub' = wkS (max 0 $ numPats - arity a) idS -- if numPats < arity, Θ is empty
+                    | otherwise       = wkS (numPats - length cxt) idS
+            withSub  = fromMaybe idS withSub'
             patSub   = (map (patternToTerm . namedArg) $ reverse $ take numPats qs0) ++# (EmptyS __IMPOSSIBLE__)
-            paramSub = composeS patSub withSub
+            paramSub = patSub `composeS` weakSub `composeS` withSub
 
         eqs <- addContext delta $ checkPatternLinearity eqs
 
@@ -696,8 +726,9 @@ checkLeftHandSide c f ps a withSub' strippedPats = Bench.billToCPS [Bench.Typing
           nest 2 $ vcat
                  [ text "vars   = " <+> text (show vars)
                  ]
-        reportSDoc "tc.lhs.top" 20 $ nest 2 $ text "patSub   = " <+> pretty patSub
         reportSDoc "tc.lhs.top" 20 $ nest 2 $ text "withSub  = " <+> pretty withSub
+        reportSDoc "tc.lhs.top" 20 $ nest 2 $ text "weakSub  = " <+> pretty weakSub
+        reportSDoc "tc.lhs.top" 20 $ nest 2 $ text "patSub   = " <+> pretty patSub
         reportSDoc "tc.lhs.top" 20 $ nest 2 $ text "paramSub = " <+> pretty paramSub
 
         newCxt <- computeLHSContext vars delta
