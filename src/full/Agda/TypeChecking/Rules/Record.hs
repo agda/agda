@@ -346,9 +346,15 @@ defineCompR name params fsT fns rect = do
   reportSDoc "tc.rec.cxt" 30 $ prettyTCM params
   reportSDoc "tc.rec.cxt" 30 $ prettyTCM fsT
   reportSDoc "tc.rec.cxt" 30 $ text $ show rect
-  if all isJust [i,iz,io,imin,imax,ineg,comp,por,one]
+  sortsOk <- allM (rect : map unDom (flattenTel fsT)) sortOk
+  if sortsOk && all isJust [i,iz,io,imin,imax,ineg,comp,por,one]
     then defineCompR' name params fsT fns rect
     else return Nothing
+  where
+    sortOk :: Type -> TCM Bool
+    sortOk a = reduce (getSort a) >>= \case
+      Type{} -> return True
+      _      -> return False
 
 defineCompR , defineCompR' ::
   QName          -- ^ some name, e.g. record name

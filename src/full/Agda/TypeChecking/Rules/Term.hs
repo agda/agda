@@ -932,13 +932,8 @@ checkExpr e t0 =
         A.Fun _ (Arg info a) b -> do
             a' <- isType_ a
             b' <- isType_ b
-<<<<<<< HEAD
-            s <- ptsRule a' b'
-            let v = Pi (defaultArgDom info a') (NoAbs underscore b')
-=======
             s  <- inferFunSort (getSort a') (getSort b')
-            let v = Pi (Dom info a') (NoAbs underscore b')
->>>>>>> 6313e7d6d253cbab2958881daf8519ddf2d3fe5b
+            let v = Pi (defaultArgDom info a') (NoAbs underscore b')
             noFunctionsIntoSize b' $ El s v
             coerce v (sort s) t
         A.Set _ n    -> do

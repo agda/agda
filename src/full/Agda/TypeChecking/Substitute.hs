@@ -1009,13 +1009,9 @@ bindsWithHidingToTel = bindsWithHidingToTel' nameToArgName
 mkPi :: Dom (ArgName, Type) -> Type -> Type
 mkPi !dom b = el $ Pi a (mkAbs x b)
   where
-<<<<<<< HEAD
     x = fst $ unDom dom
     a = snd <$> dom
-    el = El $ dLub (getSort a) (Abs x (getSort b)) -- dLub checks x freeIn
-=======
     el = El $ piSort (getSort a) (Abs x (getSort b)) -- piSort checks x freeIn
->>>>>>> 6313e7d6d253cbab2958881daf8519ddf2d3fe5b
 
 mkLam :: Arg ArgName -> Term -> Term
 mkLam a v = Lam (argInfo a) (Abs (unArg a) v)
@@ -1216,65 +1212,6 @@ instance (Subst t a, Ord a) => Ord (Elim' a) where
 -- * Sort stuff
 ---------------------------------------------------------------------------
 
-<<<<<<< HEAD
--- | The ``rule'', if Agda is considered as a functional
---   pure type system (pts).
---
---   TODO: This needs to be properly implemented, requiring
---   refactoring of Agda's handling of levels.
---   Without impredicativity or 'SizeUniv', Agda's pts rule is
---   just the least upper bound, which is total and commutative.
---   The handling of levels relies on this simplification.
-pts :: Sort -> Sort -> Sort
-pts = sLub
-
-sLub :: Sort -> Sort -> Sort
-sLub s Prop = s
-sLub Prop s = s
-sLub Inf _ = Inf
-sLub _ Inf = Inf
-sLub SizeUniv s = s         -- one can freely quantify over sizes in any Set
-sLub _ SizeUniv = SizeUniv  -- but everything resulting in a size lives in the SizeUniv
-sLub (Type (Max as)) (Type (Max bs)) = Type $ levelMax (as ++ bs)
--- sLub (DLub a b) c = DLub (sLub a c) b -- no longer commutative!
-sLub (DLub a NoAbs{}) c = __IMPOSSIBLE__
-sLub (DLub a (Abs x b)) c = DLub a $ Abs x $ sLub b $ raise 1 c
-sLub a (DLub b c) = DLub (sLub a b) c
-
--- | Dependent least upper bound, to assign a level to expressions
---   like @forall i -> Set i@.
---
---   @dLub s1 \i.s2 = \omega@ if @i@ appears in the rigid variables of @s2@.
-dLub :: Sort -> Abs Sort -> Sort
-dLub Inf _ = Inf
-dLub s1 (NoAbs _ s2) = sLub s1 s2
-dLub s1 b@(Abs _ s2) = case occurrence 0 s2 of
-  Flexible _    -> DLub s1 b
-  -- Andreas, 2017-01-18, issue #2408:
-  -- The sort of @.(a : A) → Set (f a)@ in context @f : .A → Level@
-  -- is @dLub Set λ a → Set (lsuc (f a))@, but @DLub@s are not serialized.
-  -- Alternatives:
-  -- 1. -- Irrelevantly -> sLub s1 (absApp b $ DontCare $ Sort Prop)
-  --    We cheat here by simplifying the sort to @Set (lsuc (f *))@
-  --    where * is a dummy value.  The rationale is that @f * = f a@ (irrelevance!)
-  --    and that if we already have a neutral level @f a@
-  --    it should not hurt to have @f *@ even if type @A@ is empty.
-  --    However: sorts are printed in error messages when sorts do not match.
-  --    Also, sorts with a dummy like Prop would be ill-typed.
-  -- 2. We keep the DLub, and serialize it.
-  --    That's clean and principled, even though DLubs make level solving harder.
-  Irrelevantly  -> DLub s1 b
-  NoOccurrence  -> sLub s1 (noabsApp __IMPOSSIBLE__ b)
-  StronglyRigid -> Inf
-  Unguarded     -> Inf
-  WeaklyRigid   -> Inf
-
-lvlView :: Term -> Level
-lvlView v = case v of
-  Level l       -> l
-  Sort (Type l) -> l
-  _             -> Max [Plus 0 $ UnreducedLevel v]
-=======
 -- | Get the next higher sort.
 univSort' :: Sort -> Maybe Sort
 univSort' (Type l) = Just $ Type $ levelSuc l
@@ -1332,7 +1269,6 @@ piSort a b = fromMaybe (PiSort a b) $ piSort' a b
 ---------------------------------------------------------------------------
 -- * Level stuff
 ---------------------------------------------------------------------------
->>>>>>> 6313e7d6d253cbab2958881daf8519ddf2d3fe5b
 
 levelMax :: [PlusLevel] -> Level
 levelMax as0 = Max $ ns ++ List.sort bs

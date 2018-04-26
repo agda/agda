@@ -754,7 +754,7 @@ primComp = do
                  Pi a b | nelims > 0  -> redReturn =<< compPi t a b (ignoreBlocking sphi) u a0
                         | otherwise -> fallback
 
-                 s@Sort{} -> compSort fallback iz io ineg phi u a0 s
+                 Sort (Type l) -> compSort fallback iz io ineg phi u a0 l
 
                  Def q [Apply la, Apply lb, Apply bA, Apply phi', Apply bT, Apply f, Apply pf] | Just q == mGlue -> do
                    compGlue phi u a0 la lb bA phi' bT f pf
@@ -874,14 +874,14 @@ primComp = do
       [la,lb,bA,phi',bT,f,pf] <- mapM open xs
       pure tCGlue <#> la <#> lb <@> bA <@> phi' <@> bT <@> f <@> pf <@> phi <@> u <@> a0
 
-  compSort fallback iz io ineg phi u a0 s = do
+  compSort fallback iz io ineg phi u a0 l = do
    checkPrims <- all isJust <$> sequence [getBuiltin' builtinPathToEquiv, getPrimitiveTerm' builtinGlue]
    if not checkPrims then fallback else (redReturn =<<) . runNamesT [] $ do
     p2equiv <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinPathToEquiv
     tGlue <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveTerm' builtinGlue
     tComp <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveTerm' "primComp"
     tEmpty <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinIsOneEmpty
-    l <- open $ runNames [] (lam "i" (\ _ -> pure $ Level $ lvlView s))
+    l <- open $ runNames [] (lam "i" (\ _ -> pure $ Level l))
     [phi,e,a0] <- mapM (open . unArg) [phi,u,a0]
     let transp p = pure tComp <#> l <@> p <@> iz
                               <@> lam "i" (\ i -> pure tEmpty <#> (l <@> i)
@@ -1620,13 +1620,8 @@ garr :: Monad tcm => (Relevance -> Relevance) -> tcm Type -> tcm Type -> tcm Typ
 garr f a b = do
   a' <- a
   b' <- b
-<<<<<<< HEAD
-  return $ El (getSort a' `sLub` getSort b') $
-    Pi (mapRelevance f $ defaultDom a') (NoAbs "_" b')
-=======
   return $ El (funSort (getSort a') (getSort b')) $
-           Pi (Dom (mapRelevance f defaultArgInfo) a') (NoAbs "_" b')
->>>>>>> 6313e7d6d253cbab2958881daf8519ddf2d3fe5b
+    Pi (mapRelevance f $ defaultDom a') (NoAbs "_" b')
 
 gpi :: (MonadTCM tcm, MonadDebug tcm)
     => ArgInfo -> String -> tcm Type -> tcm Type -> tcm Type
@@ -1634,13 +1629,8 @@ gpi info name a b = do
   a <- a
   b <- addContext (name, defaultArgDom info a) b
   let y = stringToArgName name
-<<<<<<< HEAD
-  return $ El (getSort a `dLub` Abs y (getSort b))
-              (Pi (defaultArgDom info a) (Abs y b))
-=======
   return $ El (piSort (getSort a) (Abs y (getSort b)))
-              (Pi (Dom info a) (Abs y b))
->>>>>>> 6313e7d6d253cbab2958881daf8519ddf2d3fe5b
+              (Pi (defaultArgDom info a) (Abs y b))
 
 hPi, nPi :: (MonadTCM tcm, MonadDebug tcm)
          => String -> tcm Type -> tcm Type -> tcm Type
@@ -1716,12 +1706,6 @@ el t = El (mkType 0) <$> t
 tset :: Monad tcm => tcm Type
 tset = return $ sort (mkType 0)
 
-<<<<<<< HEAD
-tSetOmega :: Monad tcm => tcm Type
-tSetOmega = return $ sort Inf
-
-=======
->>>>>>> 6313e7d6d253cbab2958881daf8519ddf2d3fe5b
 sSizeUniv :: Sort
 sSizeUniv = mkType 0
 -- Andreas, 2016-04-14 switching off SizeUniv, unfixing issue #1428

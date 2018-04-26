@@ -109,7 +109,7 @@ coreBuiltins =
                                                 (El (varSort 1) <$> varM 0 <@> primIZero) -->
                                                 (El (varSort 1) <$> varM 0 <@> primIOne) -->
                                                 return (sort $ varSort 1)))
-  , (builtinInterval           |-> BuiltinData tSetOmega [builtinIZero,builtinIOne])
+  , (builtinInterval           |-> BuiltinData (return $ sort Inf) [builtinIZero,builtinIOne])
   , (builtinSub                |-> builtinPostulate (runNamesT [] $ hPi' "a" (el $ cl primLevel) $ \ a ->
                                                      nPi' "A" (el' (cl primLevelSuc <@> a) (Sort . tmSort <$> a)) $ \ bA ->
                                                      nPi' "φ" (elInf $ cl primInterval) $ \ phi ->

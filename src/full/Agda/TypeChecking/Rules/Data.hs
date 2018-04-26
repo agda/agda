@@ -18,7 +18,7 @@ import qualified Agda.Syntax.Info as Info
 import Agda.Syntax.Scope.Monad
 import Agda.Syntax.Fixity
 
-import Agda.TypeChecking.CompiledClause.Compile
+import {-# SOURCE #-} Agda.TypeChecking.CompiledClause.Compile
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin -- (primLevel)
 import Agda.TypeChecking.Constraints
@@ -41,6 +41,7 @@ import Agda.Interaction.Options
 
 import Agda.Utils.Except
 import Agda.Utils.List
+import Agda.Utils.Monad
 import qualified Agda.Utils.Pretty as P
 import Agda.Utils.Size
 
@@ -207,6 +208,8 @@ checkConstructor d tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
         -- (to avoid impredicative existential types)
         debugFitsIn s
         arity <- fitsIn forcedArgs t s
+        -- this may have instantiated some metas in s, so we reduce
+        s <- reduce s
         debugAdd c t
 
         TelV fields _ <- telView t
@@ -225,8 +228,7 @@ checkConstructor d tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
 
               -- nofIxs == 0 means the data type can be reconstructed
               -- by appling the QName d to the parameters.
-              dataT <- El <$> (dataSort . theDef <$> getConstInfo d)
-                          <*> (pure $ Def d $ map Apply $ teleArgs params)
+              dataT <- El s <$> (pure $ Def d $ map Apply $ teleArgs params)
 
               reportSDoc "tc.data.con.comp" 5 $ vcat $
                 [ text "params =" <+> pretty params
@@ -303,7 +305,8 @@ defineCompData d con params names fsT t = do
     por <- getPrimitiveTerm' "primPOr"
     one <- getBuiltin' builtinItIsOne
     return $ maybe False (const True) $ sequence [i,iz,io,imin,imax,ineg,comp,por,one]
-  if not haveCubicalThings then return Nothing else do
+  sortsOk <- allM (t : map unDom (flattenTel fsT)) sortOk
+  if not sortsOk || not haveCubicalThings then return Nothing else do
     (compName, gamma , ty, _ , bodies) <-
       defineCompForFields (\ t p -> apply (Def p []) [argN t]) d params fsT (map argN names) t
     let clause = Clause
@@ -321,6 +324,11 @@ defineCompData d con params names fsT t = do
     setCompiledClauses compName =<< inTopContext (compileClauses Nothing cs)
     setTerminates compName True
     return $ Just compName
+  where
+    sortOk :: Type -> TCM Bool
+    sortOk a = reduce (getSort a) >>= \case
+      Type{} -> return True
+      _      -> return False
 
 -- Andrea: TODO handle Irrelevant fields somehow.
 defineProjections :: QName      -- datatype name
@@ -411,6 +419,7 @@ defineCompForFields applyProj name params fsT fns rect = do
                 pPi' "o" phi $ \ _ -> absApp <$> rect' <*> i) -->
                (absApp <$> rect' <*> pure iz) --> (absApp <$> rect' <*> pure io)
   reportSDoc "comp.rec" 20 $ prettyTCM compType
+  reportSDoc "comp.rec" 60 $ text $ "sort = " ++ show (getSort rect')
 
   noMutualBlock $ addConstant compName $ (defaultDefn defaultArgInfo compName compType
     (emptyFunction { funTerminates = Just True }))
@@ -420,16 +429,21 @@ defineCompForFields applyProj name params fsT fns rect = do
   TelV gamma rtype <- telView compType
 
   let
+      drect_gamma = liftS 1 (raiseS (size gamma - size deltaI)) `applySubst` rect'
+
+  reportSDoc "comp.rec" 60 $ text $ "sort = " ++ show (getSort drect_gamma)
+
+  let
       -- Γ, i : I ⊢ Φ
       fsT' = liftS 1 (raiseS (size gamma - size deltaI)) `applySubst`
               (sub params `applySubst` fsT) -- Δ^I, i : I ⊢ Φ
 
       -- Γ ⊢ rect_gamma_lvl : I -> Level
       -- Γ ⊢ rect_gamma     : (i : I) -> Set (rect_gamma_lvl i)  -- record type
-      (rect_gamma_lvl, rect_gamma) = (lam_i (Level . lvlView . Sort . getSort $ drect_gamma) , lam_i (unEl drect_gamma))
+      (rect_gamma_lvl, rect_gamma) = (lam_i (Level l) , lam_i (unEl drect_gamma))
         where
-          drect_gamma = liftS 1 (raiseS (size gamma - size deltaI)) `applySubst` rect'
           lam_i = Lam defaultArgInfo . Abs "i"
+          Type l = getSort drect_gamma
 
       -- Γ ⊢ compR Γ : rtype
       compTerm = Def compName [] `apply` teleArgs gamma
@@ -467,19 +481,25 @@ defineCompForFields applyProj name params fsT fns rect = do
                                | fn <- reverse fns] `applySubst`
                        flattenTel fsT' -- Γ, i : I, Φ ⊢ Φ
 
-      mkBody (fname, filled_ty') = let
+      mkBody (fname, filled_ty') = do
+        let
           proj t = (`applyProj` unArg fname) <$> t
           filled_ty = Lam defaultArgInfo (Abs "i" $ (unEl . unDom) filled_ty')
           -- Γ ⊢ l : I -> Level of filled_ty
-          lvl = Lam defaultArgInfo (Abs "i" $ (Level . lvlView . Sort . getSort . unDom) filled_ty')
-        in runNames [] $ do
+        Type l <- reduce $ getSort $ unDom filled_ty'
+        let lvl = Lam defaultArgInfo (Abs "i" $ Level l)
+        return $ runNames [] $ do
              lvl <- open lvl
              [phi,w,w0] <- mapM (open . var) [2,1,0]
              pure comp <#> lvl <@> pure filled_ty
                                <@> phi
                                <@> (lam "i" $ \ i -> lam "o" $ \ o -> proj $ w <@> i <@> o) -- TODO wait for phi = 1
                                <@> proj w0
-  return $ (compName, gamma, rtype, clause_types, map mkBody (zip fns filled_types))
+
+  reportSDoc "comp.rec" 60 $ text $ "filled_types sorts:" ++ show (map (getSort . unDom) filled_types)
+
+  bodys <- mapM mkBody (zip fns filled_types)
+  return $ (compName, gamma, rtype, clause_types, bodys)
   where
     -- record type in 'exponentiated' context
     -- (params : Δ^I), i : I |- T[params i]

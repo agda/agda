@@ -730,20 +730,9 @@ sort s = El (UnivSort s) $ Sort s
 varSort :: Int -> Sort
 varSort n = Type $ Max [Plus 0 $ NeutralLevel mempty $ var n]
 
-<<<<<<< HEAD
 tmSort :: Term -> Sort
 tmSort t = Type $ Max [Plus 0 $ UnreducedLevel t]
 
--- | Get the next higher sort.
-sSuc :: Sort -> Sort
-sSuc Prop            = mkType 1
-sSuc Inf             = Inf
-sSuc SizeUniv        = SizeUniv
-sSuc (DLub a b)      = DLub (sSuc a) (fmap sSuc b)
-sSuc (Type l)        = Type $ levelSuc l
-
-=======
->>>>>>> 6313e7d6d253cbab2958881daf8519ddf2d3fe5b
 levelSuc :: Level -> Level
 levelSuc (Max []) = Max [ClosedLevel 1]
 levelSuc (Max as) = Max $ map inc as
