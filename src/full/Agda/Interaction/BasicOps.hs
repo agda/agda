@@ -353,6 +353,7 @@ data OutputConstraint a b
       | IsEmptyType a
       | SizeLtSat a
       | FindInScopeOF b a [(a,a)]
+      | PTSInstance b b
   deriving (Functor)
 
 -- | A subset of 'OutputConstraint'.
@@ -382,6 +383,7 @@ outputFormId (OutputForm _ _ o) = out o
       IsEmptyType _              -> __IMPOSSIBLE__   -- Should never be used on IsEmpty constraints
       SizeLtSat{}                -> __IMPOSSIBLE__
       FindInScopeOF _ _ _        -> __IMPOSSIBLE__
+      PTSInstance i _            -> i
 
 instance Reify ProblemConstraint (Closure (OutputForm Expr Expr)) where
   reify (PConstr pids cl) = enterClosure cl $ \c -> buildClosure =<< (OutputForm (getRange c) (Set.toList pids) <$> reify c)
@@ -450,6 +452,10 @@ instance Reify Constraint (OutputConstraint Expr Expr) where
     reify (IsEmpty r a) = IsEmptyType <$> reify a
     reify (CheckSizeLtSat a) = SizeLtSat  <$> reify a
     reify (CheckFunDef d i q cs) = __IMPOSSIBLE__
+    reify (HasBiggerSort a) = OfType <$> reify a <*> reify (UnivSort a)
+    reify (HasPTSRule a b) = do
+      (a,(x,b)) <- reify (a,b)
+      return $ PTSInstance a b
 
 -- ASR TODO (28 December 2014): This function will be unnecessary when
 -- using a Pretty instance for OutputConstraint instead of the Show
@@ -491,6 +497,7 @@ instance (Show a,Show b) => Show (OutputConstraint a b) where
       where
       showCand (tm,ty) = indent 6 $ show tm ++ " : " ++ show ty
       indent n s = List.intercalate ("\n" ++ replicate n ' ') $ lines s
+    show (PTSInstance a b)      = "PTS instance for " ++ show (a,b)
 
 instance (ToConcrete a c, ToConcrete b d) =>
          ToConcrete (OutputForm a b) (OutputForm c d) where
@@ -524,6 +531,7 @@ instance (ToConcrete a c, ToConcrete b d) =>
     toConcrete (FindInScopeOF s t cs) =
       FindInScopeOF <$> toConcrete s <*> toConcrete t
                     <*> mapM (\(tm,ty) -> (,) <$> toConcrete tm <*> toConcrete ty) cs
+    toConcrete (PTSInstance a b) = PTSInstance <$> toConcrete a <*> toConcrete b
 
 instance (Pretty a, Pretty b) => Pretty (OutputConstraint' a b) where
   pretty (OfType' e t) = pretty e <+> text ":" <+> pretty t

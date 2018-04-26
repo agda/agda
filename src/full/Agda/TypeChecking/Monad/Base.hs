@@ -790,6 +790,8 @@ data Constraint
   | LevelCmp Comparison Level Level
 --  | ShortCut MetaId Term Type
 --    -- ^ A delayed instantiation.  Replaces @ValueCmp@ in 'postponeTypeCheckingProblem'.
+  | HasBiggerSort Sort
+  | HasPTSRule Sort (Abs Sort)
   | UnBlock MetaId
   | Guarded Constraint ProblemId
   | IsEmpty Range Type
@@ -835,6 +837,8 @@ instance Free Constraint where
       CheckSizeLtSat u      -> freeVars' u
       FindInScope _ _ cs    -> freeVars' cs
       CheckFunDef _ _ _ _   -> mempty
+      HasBiggerSort s       -> freeVars' s
+      HasPTSRule s1 s2      -> freeVars' (s1 , s2)
 
 instance TermLike Constraint where
   foldTerm f = \case
@@ -851,6 +855,8 @@ instance TermLike Constraint where
       Guarded c _            -> __IMPOSSIBLE__  -- foldTerm c -- Not yet implemented
       FindInScope _ _ cs     -> __IMPOSSIBLE__  -- Not yet implemented
       CheckFunDef _ _ _ _    -> __IMPOSSIBLE__  -- Not yet implemented
+      HasBiggerSort _        -> __IMPOSSIBLE__  -- Not yet implemented
+      HasPTSRule _ _         -> __IMPOSSIBLE__  -- Not yet implemented
   traverseTermM f c = __IMPOSSIBLE__ -- Not yet implemented
 
 

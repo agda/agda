@@ -1620,8 +1620,13 @@ garr :: Monad tcm => (Relevance -> Relevance) -> tcm Type -> tcm Type -> tcm Typ
 garr f a b = do
   a' <- a
   b' <- b
+<<<<<<< HEAD
   return $ El (getSort a' `sLub` getSort b') $
     Pi (mapRelevance f $ defaultDom a') (NoAbs "_" b')
+=======
+  return $ El (funSort (getSort a') (getSort b')) $
+           Pi (Dom (mapRelevance f defaultArgInfo) a') (NoAbs "_" b')
+>>>>>>> 6313e7d6d253cbab2958881daf8519ddf2d3fe5b
 
 gpi :: (MonadTCM tcm, MonadDebug tcm)
     => ArgInfo -> String -> tcm Type -> tcm Type -> tcm Type
@@ -1629,8 +1634,13 @@ gpi info name a b = do
   a <- a
   b <- addContext (name, defaultArgDom info a) b
   let y = stringToArgName name
+<<<<<<< HEAD
   return $ El (getSort a `dLub` Abs y (getSort b))
               (Pi (defaultArgDom info a) (Abs y b))
+=======
+  return $ El (piSort (getSort a) (Abs y (getSort b)))
+              (Pi (Dom info a) (Abs y b))
+>>>>>>> 6313e7d6d253cbab2958881daf8519ddf2d3fe5b
 
 hPi, nPi :: (MonadTCM tcm, MonadDebug tcm)
          => String -> tcm Type -> tcm Type -> tcm Type
@@ -1706,9 +1716,12 @@ el t = El (mkType 0) <$> t
 tset :: Monad tcm => tcm Type
 tset = return $ sort (mkType 0)
 
+<<<<<<< HEAD
 tSetOmega :: Monad tcm => tcm Type
 tSetOmega = return $ sort Inf
 
+=======
+>>>>>>> 6313e7d6d253cbab2958881daf8519ddf2d3fe5b
 sSizeUniv :: Sort
 sSizeUniv = mkType 0
 -- Andreas, 2016-04-14 switching off SizeUniv, unfixing issue #1428

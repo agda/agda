@@ -62,6 +62,7 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Rules.LHS
 import Agda.TypeChecking.SizedTypes
 import Agda.TypeChecking.SizedTypes.Solve
+import Agda.TypeChecking.Sort
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Unquote
@@ -110,7 +111,7 @@ isType_ e = traceCall (IsType_ e) $ do
     A.Fun i (Arg info t) b -> do
       a <- setArgInfo info . defaultDom <$> isType_ t
       b <- isType_ b
-      s <- ptsRule a b
+      s <- inferFunSort (getSort a) (getSort b)
       let t' = El s $ Pi a $ NoAbs underscore b
       noFunctionsIntoSize b t'
       return t'
@@ -120,6 +121,7 @@ isType_ e = traceCall (IsType_ e) $ do
         t0  <- instantiateFull =<< isType_ e
         tel <- instantiateFull tel
         return (t0, telePi tel t0)
+      checkTelePiSort t'
       noFunctionsIntoSize t0 t'
       return t'
     A.Set _ n    -> do
@@ -166,9 +168,6 @@ isType_ e = traceCall (IsType_ e) $ do
         _ -> __IMPOSSIBLE__
 
     _ -> fallback
-
-ptsRule :: (LensSort a, LensSort b) => a -> b -> TCM Sort
-ptsRule a b = pts <$> reduce (getSort a) <*> reduce (getSort b)
 
 -- | Ensure that a (freshly created) function type does not inhabit 'SizeUniv'.
 --   Precondition:  When @noFunctionsIntoSize t tBlame@ is called,
@@ -750,7 +749,6 @@ checkRecordExpression mfs e t = do
           vs  <- newArgsMeta rt
           target <- reduce $ piApply rt vs
           s  <- case unEl target of
-                  Level l -> return $ Type l
                   Sort s  -> return s
                   v       -> do
                     reportSDoc "impossible" 10 $ vcat
@@ -871,7 +869,7 @@ checkExpr e t0 =
             reportSDoc "tc.univ.poly" 10 $
               text "checking Set " <+> prettyTCM n <+>
               text "against" <+> prettyTCM t
-            coerce (Sort $ Type n) (sort $ sSuc $ Type n) t
+            coerce (Sort $ Type n) (sort $ Type $ levelSuc n) t
 
         e0@(A.App i q (Arg ai e))
           | A.Quote _ <- unScope q, visible ai -> do
@@ -921,6 +919,7 @@ checkExpr e t0 =
                     t0  <- instantiateFull =<< isType_ e
                     tel <- instantiateFull tel
                     return (t0, telePi tel t0)
+            checkTelePiSort t'
             noFunctionsIntoSize t0 t'
             let s = getSort t'
                 v = unEl t'
@@ -933,8 +932,13 @@ checkExpr e t0 =
         A.Fun _ (Arg info a) b -> do
             a' <- isType_ a
             b' <- isType_ b
+<<<<<<< HEAD
             s <- ptsRule a' b'
             let v = Pi (defaultArgDom info a') (NoAbs underscore b')
+=======
+            s  <- inferFunSort (getSort a') (getSort b')
+            let v = Pi (Dom info a') (NoAbs underscore b')
+>>>>>>> 6313e7d6d253cbab2958881daf8519ddf2d3fe5b
             noFunctionsIntoSize b' $ El s v
             coerce v (sort s) t
         A.Set _ n    -> do

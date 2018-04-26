@@ -277,7 +277,9 @@ instance Free Sort where
       Prop       -> mempty
       Inf        -> mempty
       SizeUniv   -> mempty
-      DLub s1 s2 -> weakly <$> freeVars' (s1, s2)
+      PiSort s1 s2 -> weakly <$> freeVars' (s1, s2)
+      UnivSort s -> weakly <$> freeVars' s
+      MetaS x es -> flexible <$> freeVars' es
 
 instance Free Level where
   freeVars' (Max as) = freeVars' as

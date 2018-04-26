@@ -1113,25 +1113,40 @@ leqSort s1 s2 = catchConstraint (SortCmp CmpLeq s1 s2) $ do
                         , prettyTCM s2 ]
         ]
   case (s1, s2) of
-
-      (_       , Inf     ) -> yes
-
-      (SizeUniv, _       ) -> equalSort s1 s2
-      (_       , SizeUniv) -> equalSort s1 s2
-
+      -- The most basic rule: @Set l =< Set l'@ iff @l =< l'@
       (Type a  , Type b  ) -> leqLevel a b
 
-      (Prop    , Prop    ) -> yes
-      (Prop    , Type _  ) -> yes
-      (Type _  , Prop    ) -> no
+      -- Prop is currently not supported
+      (Prop    , _       ) -> __IMPOSSIBLE__
+      (_       , Prop    ) -> __IMPOSSIBLE__
 
-      -- (SizeUniv, SizeUniv) -> yes
-      -- (SizeUniv, _       ) -> no
-      -- (_       , SizeUniv) -> no
-
+      -- Setω is the top sort
+      (_       , Inf     ) -> yes
       (Inf     , _       ) -> equalSort s1 s2
-      (DLub{}  , _       ) -> postpone
-      (_       , DLub{}  ) -> postpone
+
+      -- Set0 and SizeUniv are bottom sorts
+      -- note: this ceases to hold if we add @Prop =< Set0@
+      (_       , Type (Max [])) -> equalSort s1 s2
+      (_       , SizeUniv) -> equalSort s1 s2
+
+      -- If we compare @univSort s@ against @Set (lsuc l)@,
+      -- we can simplify the comparison.
+      (UnivSort s, Type b    )
+        | Just b' <- levelSucView b -> leqSort s (Type b')
+      (Type a    , UnivSort s)
+        | Just a' <- levelSucView a -> leqSort (Type a') s
+
+      -- SizeUniv is unrelated to any Set l
+      (SizeUniv, Type{}  ) -> no
+
+      -- PiSort, UnivSort and MetaS might reduce once we instantiate
+      -- more metas, so we postpone.
+      (PiSort{}, _       ) -> postpone
+      (_       , PiSort{}) -> postpone
+      (UnivSort{}, _     ) -> postpone
+      (_     , UnivSort{}) -> postpone
+      (MetaS{} , _       ) -> postpone
+      (_       , MetaS{} ) -> postpone
 
 leqLevel :: Level -> Level -> TCM ()
 leqLevel a b = liftTCM $ do
@@ -1431,28 +1446,6 @@ equalSort s1 s2 = do
             yes      = return ()
             no       = unlessM typeInType $ typeError $ UnequalSorts s1 s2
 
-            -- Test whether a level is infinity.
-            isInf ClosedLevel{}   = no
-            isInf (Plus _ l) = case l of
-              MetaLevel x es -> assignE DirEq x es (Sort Inf) $ equalAtom topSort
-                -- Andreas, 2015-02-14
-                -- This seems to be a hack, as a level meta is instantiated
-                -- by a sort.
-              NeutralLevel _ v -> case v of
-                Sort Inf -> yes
-                _        -> no
-              _ -> no
-
-            -- Equate a level with SizeUniv.
-            eqSizeUniv l0 = case l0 of
-              Plus 0 l -> case l of
-                MetaLevel x es -> assignE DirEq x es (Sort SizeUniv) $ equalAtom topSort
-                NeutralLevel _ v -> case v of
-                  Sort SizeUniv -> yes
-                  _ -> no
-                _ -> no
-              _ -> no
-
         reportSDoc "tc.conv.sort" 30 $ sep
           [ text "equalSort"
           , vcat [ nest 2 $ fsep [ prettyTCM s1 <+> text "=="
@@ -1464,40 +1457,76 @@ equalSort s1 s2 = do
 
         case (s1, s2) of
 
-            (Type a  , Type b  ) -> equalLevel a b
+            -- before anything else, try syntactic equality
+            _ | s1 == s2              -> return ()
 
-            (SizeUniv, SizeUniv) -> yes
-            (SizeUniv, Type (Max as@(_:_))) -> mapM_ eqSizeUniv as
-            (Type (Max as@(_:_)), SizeUniv) -> mapM_ eqSizeUniv as
-            (SizeUniv, _       ) -> no
-            (_       , SizeUniv) -> no
+            -- one side is a meta sort: try to instantiate
+            -- In case both sides are meta sorts, instantiate the
+            -- bigger (i.e. more recent) one.
+            (MetaS x es , MetaS y es')
+              | x < y                  -> meta y es' s1
+              | otherwise              -> meta x es s2
+            (MetaS x es , _          ) -> meta x es s2
+            (_          , MetaS x es ) -> meta x es s1
 
-            (Prop    , Prop    ) -> yes
-            (Type _  , Prop    ) -> no
-            (Prop    , Type _  ) -> no
+            -- diagonal cases for rigid sorts
+            (Type a     , Type b     ) -> equalLevel a b
+            (SizeUniv   , SizeUniv   ) -> yes
+            (Prop       , Prop       ) -> yes
+            (Inf        , Inf        ) -> yes
 
-            (Inf     , Inf     )             -> yes
-            (Inf     , Type (Max as@(_:_)))  -> mapM_ isInf as
-            (Type (Max as@(_:_)), Inf)       -> mapM_ isInf as
-            -- Andreas, 2014-06-27:
-            -- @Type (Max [])@ (which is Set0) falls through to error.
-            (Inf     , _       )             -> no
-            (_       , Inf     )             -> no
+            -- @UnivSort s == Set (lsuc l)@ iff @s == Set l@
+            (Type a     , UnivSort s )
+              | Just a' <- levelSucView a -> equalSort (Type a') s
+            (UnivSort s , Type b     )
+              | Just b' <- levelSucView b -> equalSort s (Type b')
 
-            -- Andreas, 2014-06-27:  Why are there special cases for Set0?
-            -- Andreas, 2015-02-14:  Probably because s ⊔ s' = Set0
-            -- entailed that both s and s' are Set0.
-            -- This is no longer true if  SizeUniv ⊔ s = s
+            -- if @PiSort a b == Set0@, then @b == Set0@
+            -- we use this fact to solve metas in @b@,
+            -- hopefully allowing the @PiSort@ to reduce.
+            (Type (Max []) , PiSort a b   ) -> piSortEqualToSet0 a b
+            (PiSort a b    , Type (Max [])) -> piSortEqualToSet0 a b
 
-            -- (DLub s1 s2, s0@(Type (Max []))) -> do
-            --   equalSort s1 s0
-            --   underAbstraction_ s2 $ \s2 -> equalSort s2 s0
-            -- (s0@(Type (Max [])), DLub s1 s2) -> do
-            --   equalSort s0 s1
-            --   underAbstraction_ s2 $ \s2 -> equalSort s0 s2
+            -- @PiSort a b == SizeUniv@ iff @b == SizeUniv@
+            (SizeUniv   , PiSort a b ) ->
+              underAbstraction_ b $ equalSort SizeUniv
+            (PiSort a b , SizeUniv   ) ->
+              underAbstraction_ b $ equalSort SizeUniv
 
-            (DLub{}  , _       )             -> postpone
-            (_       , DLub{}  )             -> postpone
+            -- Prop and SizeUniv don't contain any universes,
+            -- so they cannot be a UnivSort
+            (Prop       , UnivSort s ) -> no
+            (UnivSort s , Prop       ) -> no
+            (SizeUniv   , UnivSort s ) -> no
+            (UnivSort s , SizeUniv   ) -> no
+
+            -- PiSort and UnivSort could compute later, so we postpone
+            (PiSort{}   , _          ) -> postpone
+            (_          , PiSort{}   ) -> postpone
+            (UnivSort{} , _          ) -> postpone
+            (_          , UnivSort{} ) -> postpone
+
+            -- any other combinations of sorts are not equal
+            (_          , _          ) -> no
+
+    where
+      -- perform assignment (MetaS x es) := s
+      meta x es s = do
+        reportSLn "tc.meta.sort" 30 $ "Assigning meta sort"
+        reportSDoc "tc.meta.sort" 50 $ text "meta" <+> sep [pretty x, prettyList $ map pretty es, pretty s]
+        assignE DirEq x es (Sort s) __IMPOSSIBLE__
+
+      -- equate @piSort a b@ to @Set0@
+      -- note: this assumes @piSort a b == Set0@ implies @b == Set0@,
+      -- which becomes invalid if we add Prop.
+      piSortEqualToSet0 a b = do
+        let set0 = Type $ Max []
+        underAbstraction_ b $ equalSort set0
+        -- we may have instantiated some metas, so @a@ could reduce
+        a <- reduce a
+        case funSort' a set0 of
+          Just s  -> equalSort s set0
+          Nothing -> addConstraint $ SortCmp CmpEq (funSort a set0) set0
 
 
 -- -- This should probably represent face maps with a more precise type

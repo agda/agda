@@ -633,7 +633,7 @@ dataStrategy :: Int -> UnifyStrategy
 dataStrategy k s = do
   Equal (Dom _ _ a) u v <- liftTCM $ eqConstructorForm =<< eqUnLevel (getEqualityUnraised k s)
   case unEl a of
-    Def d es -> do
+    Def d es | Type{} <- getSort a -> do
       npars <- catMaybesMP $ liftTCM $ getNumberOfParameters d
       let (pars,ixs) = splitAt npars $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
       hpars <- fromMaybeMP $ isHom k pars

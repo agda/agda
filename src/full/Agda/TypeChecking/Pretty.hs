@@ -321,6 +321,11 @@ instance PrettyTCM Constraint where
         CheckFunDef d i q cs -> do
             t <- defType <$> getConstInfo q
             prettyTCM q <+> text ":" <+> prettyTCM t
+        HasBiggerSort a -> text "Has bigger sort:" <+> prettyTCM a
+        HasPTSRule a b -> text "Has PTS rule:" <+> case b of
+          NoAbs _ b -> prettyTCM (a,b)
+          Abs x b   -> text "(" <> prettyTCM a <+> text "," <+> addContext x (prettyTCM b) <> text ")"
+
       where
         prettyCmp :: (PrettyTCM a, PrettyTCM b) => TCM Doc -> a -> b -> TCM Doc
         prettyCmp cmp x y = prettyTCMCtx TopCtx x <?> (cmp <+> prettyTCMCtx TopCtx y)

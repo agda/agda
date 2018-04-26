@@ -8,5 +8,5 @@ postulate RawFunctor : ∀ {ℓ} (F : Set ℓ → Set ℓ) → Set (lsuc ℓ)
 
 -- Broken occurs check for levels made this not infer properly
 postulate
-  sequence⁻¹ : ∀ {F}{A} {P : A → Set} → RawFunctor F →
+  sequence⁻¹ : ∀ {F}{A : Set} {P : A → Set} → RawFunctor F →
                  F (∀ i → P i) → ∀ i → F (P i)

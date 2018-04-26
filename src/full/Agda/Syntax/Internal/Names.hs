@@ -104,7 +104,9 @@ instance NamesIn Sort where
     Prop     -> Set.empty
     Inf      -> Set.empty
     SizeUniv -> Set.empty
-    DLub a b -> namesIn (a, b)
+    PiSort a b -> namesIn (a, b)
+    UnivSort a -> namesIn a
+    MetaS _ es -> namesIn es
 
 instance NamesIn Term where
   namesIn v = case v of

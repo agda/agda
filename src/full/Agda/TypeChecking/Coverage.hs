@@ -39,6 +39,7 @@ import Agda.Syntax.Internal.Pattern
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
 
+import Agda.TypeChecking.Rules.LHS (checkSortOfSplitVar)
 import Agda.TypeChecking.Rules.LHS.Problem (allFlexVars)
 import Agda.TypeChecking.Rules.LHS.Unify
 
@@ -846,7 +847,9 @@ split' ind allowPartialCover fixtarget sc@(SClause tel ps _ cps target) (Blockin
             ]
           throwError (GenericSplitError "precomputed set of constructors does not cover all cases")
 
-    _  -> return $ Right $ Covering (lookupPatternVar sc x) ns
+    _  -> do
+      liftTCM $ checkSortOfSplitVar $ unDom t
+      return $ Right $ Covering (lookupPatternVar sc x) ns
 
   where
     inContextOfT, inContextOfDelta2 :: (MonadTCM tcm, MonadDebug tcm) => tcm a -> tcm a

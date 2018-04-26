@@ -19,6 +19,7 @@ import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.LevelConstraints
 import Agda.TypeChecking.SizedTypes
+import Agda.TypeChecking.Sort
 import Agda.TypeChecking.MetaVars.Mention
 import Agda.TypeChecking.Warnings
 
@@ -225,6 +226,8 @@ solveConstraint_ (UnBlock m)                =
       OpenIFS -> __IMPOSSIBLE__
 solveConstraint_ (FindInScope m b cands)      = findInScope m cands
 solveConstraint_ (CheckFunDef d i q cs)       = checkFunDef d i q cs
+solveConstraint_ (HasBiggerSort a)            = hasBiggerSort a
+solveConstraint_ (HasPTSRule a b)             = hasPTSRule a b
 
 checkTypeCheckingProblem :: TypeCheckingProblem -> TCM Term
 checkTypeCheckingProblem p = case p of
