@@ -696,8 +696,8 @@ instance Subst Term Sort where
     Prop       -> Prop
     Inf        -> Inf
     SizeUniv   -> SizeUniv
-    PiSort s1 s2 -> PiSort (sub s1) (sub s2)
-    UnivSort s -> UnivSort $ sub s
+    PiSort s1 s2 -> piSort (sub s1) (sub s2)
+    UnivSort s -> univSort $ sub s
     MetaS x es -> MetaS x $ sub es
     where sub x = applySubst rho x
 
