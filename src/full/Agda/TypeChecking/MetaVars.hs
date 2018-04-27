@@ -290,13 +290,18 @@ newArgsMetaCtx' condition (El s tm) tel perm ctx = do
   tm <- reduce tm
   case tm of
     Pi dom@(Dom{domInfo = info, unDom = a}) codom | condition dom codom -> do
+      let r    = getRelevance info
+          -- Issue #3031: It's not enough to applyRelevanceToContext, since most (all?)
+          -- of the context lives in tel. Don't forget the arguments in ctx.
+          tel' = telFromList . map (inverseApplyRelevance r) . telToList $ tel
+          ctx' = (map . mapRelevance) (r `inverseComposeRelevance`) ctx
       (_, u) <- applyRelevanceToContext (getRelevance info) $
                {-
                  -- Andreas, 2010-09-24 skip irrelevant record fields when eta-expanding a meta var
                  -- Andreas, 2010-10-11 this is WRONG, see Issue 347
                 if r == Irrelevant then return DontCare else
                 -}
-                 newValueMetaCtx RunMetaOccursCheck a tel perm ctx
+                 newValueMetaCtx RunMetaOccursCheck a tel' perm ctx'
       args <- newArgsMetaCtx' condition (codom `absApp` u) tel perm ctx
       return $ Arg info u : args
     _  -> return []
