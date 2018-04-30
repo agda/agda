@@ -1,12 +1,6 @@
 -- cj-xu and fredriknordvallforsberg, 2018-04-30
 
-postulate
-  IO : Set → Set
-  return : {A : Set} -> A -> IO A
-
-{-# BUILTIN IO IO #-}
-{-# COMPILE GHC IO = type IO #-}
-{-# COMPILE GHC return = \ _ -> return #-}
+open import Common.IO
 
 data Bool : Set where
   true false : Bool
