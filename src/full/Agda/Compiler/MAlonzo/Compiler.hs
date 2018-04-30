@@ -387,7 +387,9 @@ definition env Defn{defName = q, defType = ty, theDef = d} = do
 
         tydecl  f ts t = HS.TypeSig [f] (foldr HS.TyFun t ts)
         funbind f ps b = HS.FunBind [HS.Match f ps (HS.UnGuardedRhs b) emptyBinds]
-        tyfunbind f ts t ps b = [tydecl f ts t, funbind f ps b]
+        tyfunbind f ts t ps b =
+          let ts' = ts ++ (replicate (length ps - length ts) mazAnyType)
+          in [tydecl f ts' t, funbind f ps b]
 
     -- The definition of the non-stripped function
     (ps0, _) <- lamView <$> closedTerm (foldr ($) T.TErased $ replicate (length used) T.TLam)
