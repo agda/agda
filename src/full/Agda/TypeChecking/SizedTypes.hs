@@ -416,6 +416,7 @@ getSizeMetas interactionMetas = do
         let no = return Nothing
         mi <- lookupMeta m
         case mvJudgement mi of
+          _ | BlockedConst{} <- mvInstantiation mi -> no  -- Blocked terms should not be touched (#2637, #2881)
           HasType _ a -> do
             TelV tel b <- telView a
             -- b is reduced
