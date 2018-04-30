@@ -219,7 +219,9 @@ solveConstraint_ (UnBlock m)                =
       -- I think this is because the size solver instantiates
       -- some metas with infinity but does not clean up the UnBlock constraints.
       -- See also issue #2637.
-      InstV{} -> return ()
+      -- Ulf, 2018-04-30: The size solver shouldn't touch blocked terms! They have
+      -- a twin meta that it's safe to solve.
+      InstV{} -> __IMPOSSIBLE__
       -- Open (whatever that means)
       Open -> __IMPOSSIBLE__
       OpenIFS -> __IMPOSSIBLE__
