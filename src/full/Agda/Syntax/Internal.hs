@@ -862,6 +862,13 @@ arity t = case unEl t of
 notInScopeName :: ArgName -> ArgName
 notInScopeName = stringToArgName . ("." ++) . argNameToString
 
+-- | Remove the dot from a notInScopeName. This is used when printing function
+--   types that have abstracted over not-in-scope names.
+unNotInScopeName :: ArgName -> ArgName
+unNotInScopeName = stringToArgName . undot . argNameToString
+  where undot ('.':s) = s
+        undot s       = s
+
 -- | Pick the better name suggestion, i.e., the one that is not just underscore.
 class Suggest a b where
   suggest :: a -> b -> String
