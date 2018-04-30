@@ -461,7 +461,8 @@ reifyTerm expandAnonDefs0 v = do
             {- else -} (reify a)
       where
         mkPi b (Arg info a) = do
-          (x, b) <- reify b
+          -- #2776: Out-of-scope dots are not helpful at this point.
+          (x, b) <- reify b{ absName = unNotInscopeName $ absName b }
           return $ A.Pi noExprInfo [TypedBindings noRange $ Arg info (TBind noRange [pure x] a)] b
         -- We can omit the domain type if it doesn't have any free variables
         -- and it's mentioned in the target type.
