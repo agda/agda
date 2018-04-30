@@ -225,7 +225,10 @@ quotingKit = do
                     -- unless (n >= h + nh) __IMPOSSIBLE__
                     -- Actually, no, it does not!  ExtLam is not touched by module application.
                     -- TODO: fixe me!  See #2404.
-                    extlam !@ list (map (quoteClause . (`apply` (take (h + nh) ts))) cs)
+                    -- Ulf 2018-04-30: Looking at the printing code (InternalToAbstract) it seems
+                    -- like h and nh should be added on top of the getDefFreeVars. At least this
+                    -- fixes the problem.
+                    extlam !@ list (map (quoteClause . (`apply` (take (n + h + nh) ts))) cs)
               qx Function{ funCompiled = Just Fail, funClauses = [cl] } =
                     extlam !@ list [quoteClause $ dropArgs (length (namedClausePats cl) - 1) cl]
               qx _ = def !@! quoteName x
