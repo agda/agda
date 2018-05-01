@@ -997,6 +997,7 @@ DomainFreeBindingAbsurd
 
 DoStmts :: { [DoStmt] }
 DoStmts : DoStmt              { [$1] }
+        | DoStmt vsemi        { [$1] }    -- #3046
         | DoStmt semi DoStmts { $1 : $3 }
 
 DoStmt :: { DoStmt }
@@ -1734,6 +1735,7 @@ Declarations0
 Declarations1 :: { [Declaration] }
 Declarations1
     : Declaration semi Declarations1 { $1 ++ $3 }
+    | Declaration vsemi              { $1 } -- #3046
     | Declaration                    { $1 }
 
 TopDeclarations :: { [Declaration] }
