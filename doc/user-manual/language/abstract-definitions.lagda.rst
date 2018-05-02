@@ -133,7 +133,9 @@ the abstract definitions of the parent module are transparent::
 Thus, child modules can see into the representation choices of their
 parent modules.  However, parent modules cannot see like this into
 child modules, nor can sibling modules see through each others abstract
-definitions.
+definitions. An exception to this is anonymous modules, which share
+abstract scope with their parent module, allowing parent or sibling
+modules to see inside their abstract definitions.
 
 The reach of the ``abstract`` keyword does not extend into modules::
 
