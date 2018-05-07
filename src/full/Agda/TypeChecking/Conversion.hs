@@ -1638,15 +1638,6 @@ compareInterval cmp i t u = do
    blockedOrMeta Blocked{} = True
    blockedOrMeta (NotBlocked _ (MetaV{})) = True
    blockedOrMeta _ = False
-   -- we don't want to generate new constraints here because
-   -- 1) in some situations the same constraint would get generated twice.
-   -- 2) unless things are completely accepted we are going to throw patternViolation anyway.
-   preventConstraints m = do
-      cs <- use stSleepingConstraints
-      -- assumes m won't take things off the sleeping contraints
-      r <- m
-      stSleepingConstraints .= cs
-      return r
 
 
 type Conj = (Map.Map Int (Set.Set Bool),[Term])
@@ -1672,9 +1663,13 @@ leqConj (rs,rst) (qs,qst) = do
     False -> return False
     True  -> do
       interval <- elInf $ primInterval
-      let eqT t u = withFreezeMetas $ ifNoConstraints (compareAtom CmpEq interval t u)
-                                                      (\ _ -> return True)
-                                                      (\ _ _ -> return False)
+
+      -- we don't want to generate new constraints here because
+      -- 1) in some situations the same constraint would get generated twice.
+      -- 2) unless things are completely accepted we are going to
+      --    throw patternViolation in compareInterval.
+      let eqT t u = tryConversion (compareAtom CmpEq interval t u)
+
       let listSubset ts us = and <$> forM ts (\ t ->
                               or <$> forM us (\ u -> eqT t u)) -- TODO shortcut
       listSubset qst rst
