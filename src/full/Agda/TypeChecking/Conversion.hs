@@ -1626,8 +1626,8 @@ compareInterval cmp i t u = do
       interval <- elInf $ primInterval
       compareAtom CmpEq interval t u
     _ | otherwise -> do
-      x <- preventConstraints $ leqInterval it iu
-      y <- preventConstraints $ leqInterval iu it
+      x <- leqInterval it iu
+      y <- leqInterval iu it
       let final = isCanonical it && isCanonical iu
       if x && y then reportSDoc "tc.conv.interval" 15 $ text "Ok! }" else
         if final then typeError $ UnequalTerms cmp t u i
