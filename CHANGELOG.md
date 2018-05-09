@@ -550,6 +550,59 @@ LaTeX backend
 * `postprocess-latex.pl` does not add extra spaces around tagged `\Agda*{}`
   commands anymore.
 
+HTML backend
+------------
+
+* An identifier (excluding bound variables),
+  gets the identifier itself as an anchor,
+  _in addition_ to the file position
+  [Issue [#2756](https://github.com/agda/agda/issues/2756)].
+  In Agda 2.5.3, the identifier anchor would _replace_ the file position anchor
+  [Issue [#2604](https://github.com/agda/agda/issues/2604)].
+
+  Symbolic anchors look like
+  ```html
+  <a id="test1">
+  <a id="M.bla">
+  ```
+  while file position anchors just give the character position in the file:
+  ```html
+  <a id="42">
+  ```
+
+  Top-level module names do not get a symbolic anchor, since the position of
+  a top-level module is defined to be the beginning of the file.
+
+  Example:
+
+  ```agda
+  module Issue2604 where   -- Character position anchor
+
+  test1 : Set₁             -- Issue2604.html#test1
+  test1 = bla
+    where
+    bla = Set              -- Only character position anchor
+
+  test2 : Set₁             -- Issue2604.html#test2
+  test2 = bla
+    where
+    bla = Set              -- Only character position anchor
+
+  test3 : Set₁             -- Issue2604.html#test3
+  test3 = bla
+    module M where         -- Issue2604.html#M
+    bla = Set              -- Issue2604.html#M.bla
+
+  module NamedModule where -- Issue2604.html#NamedModule
+    test4 : Set₁           -- Issue2604.html#NamedModule.test4
+    test4 = M.bla
+
+  module _ where           -- Only character position anchor
+    test5 : Set₁           -- Only character position anchor
+    test5 = M.bla
+  ```
+
+
 Release notes for Agda version 2.5.3
 ====================================
 
