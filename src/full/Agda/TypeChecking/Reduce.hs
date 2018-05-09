@@ -8,6 +8,7 @@ import Prelude hiding (mapM)
 import Control.Monad.Reader hiding (mapM)
 
 import qualified Data.List as List
+import Data.List ((\\))
 import Data.Maybe
 import Data.Map (Map)
 import Data.Traversable
@@ -333,8 +334,9 @@ instance Reduce Term where
 shouldTryFastReduce :: ReduceM Bool
 shouldTryFastReduce = do
   allowed <- asks envAllowedReductions
-  let allAllowed = List.delete NonTerminatingReductions allowed == allReductions
-  return allAllowed
+  let optionalReductions = [NonTerminatingReductions, UnconfirmedReductions]
+      requiredReductions = allReductions \\ optionalReductions
+  return $ (allowed \\ optionalReductions) == requiredReductions
 
 maybeFastReduceTerm :: Term -> ReduceM (Blocked Term)
 maybeFastReduceTerm v = do

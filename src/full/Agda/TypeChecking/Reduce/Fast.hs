@@ -102,6 +102,7 @@ import Debug.Trace
 data CompactDef =
   CompactDef { cdefDelayed        :: Bool
              , cdefNonterminating :: Bool
+             , cdefUnconfirmed    :: Bool
              , cdefDef            :: CompactDefn
              , cdefRewriteRules   :: RewriteRules
              }
@@ -276,6 +277,7 @@ compactDef bEnv def rewr = do
   return $
     CompactDef { cdefDelayed        = defDelayed def == Delayed
                , cdefNonterminating = defNonterminating def
+               , cdefUnconfirmed    = defTerminationUnconfirmed def
                , cdefDef            = cdefn
                , cdefRewriteRules   = rewr
                }
@@ -373,6 +375,7 @@ data Normalisation = WHNF | NF
 
 data ReductionFlags = ReductionFlags
   { allowNonTerminating :: Bool
+  , allowUnconfirmed    :: Bool
   , hasRewriting        :: Bool }
 
 -- | The entry point to the reduction machine.
@@ -403,6 +406,7 @@ fastReduce' norm v = do
                    else return []
     compactDef bEnv info rewr
   let flags = ReductionFlags{ allowNonTerminating = elem NonTerminatingReductions allowedReductions
+                            , allowUnconfirmed    = elem UnconfirmedReductions allowedReductions
                             , hasRewriting        = rwr }
   ReduceM $ \ redEnv -> reduceTm redEnv bEnv (memoQName constInfo) norm flags v
 
@@ -806,8 +810,10 @@ reduceTm rEnv bEnv !constInfo normalisation ReductionFlags{..} =
         Def f [] ->
           let CompactDef{ cdefDelayed        = delayed
                         , cdefNonterminating = nonterm
+                        , cdefUnconfirmed    = unconf
                         , cdefDef            = def } = constInfo f
               dontUnfold = (nonterm && not allowNonTerminating) ||
+                           (unconf  && not allowUnconfirmed)    ||
                            (delayed && not (unfoldDelayed ctrl))
           in case def of
             CFun{ cfunCompiled = cc }
