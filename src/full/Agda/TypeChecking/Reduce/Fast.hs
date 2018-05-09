@@ -371,16 +371,15 @@ memoQName f = unsafePerformIO $ do
 data Normalisation = WHNF | NF
   deriving (Eq)
 
--- | The entry point to the reduction machine. First argument: allow
---   unfolding of non-terminating functions.
-fastReduce :: Bool -> Term -> ReduceM (Blocked Term)
+-- | The entry point to the reduction machine.
+fastReduce :: Term -> ReduceM (Blocked Term)
 fastReduce = fastReduce' WHNF
 
-fastNormalise :: Bool -> Term -> ReduceM Term
-fastNormalise nt v = ignoreBlocking <$> fastReduce' NF nt v
+fastNormalise :: Term -> ReduceM Term
+fastNormalise v = ignoreBlocking <$> fastReduce' NF v
 
-fastReduce' :: Normalisation -> Bool -> Term -> ReduceM (Blocked Term)
-fastReduce' norm allowNonTerminating v = do
+fastReduce' :: Normalisation -> Term -> ReduceM (Blocked Term)
+fastReduce' norm v = do
   let name (Con c _ _) = c
       name _         = __IMPOSSIBLE__
   zero    <- fmap name <$> getBuiltin' builtinZero
@@ -392,6 +391,8 @@ fastReduce' norm allowNonTerminating v = do
   trustme <- fmap primFunName <$> getPrimitive' "primTrustMe"
   let bEnv = BuiltinEnv { bZero = zero, bSuc = suc, bTrue = true, bFalse = false, bRefl = refl,
                           bPrimForce = force, bPrimTrustMe = trustme }
+  allowedReductions <- asks envAllowedReductions
+  let allowNonTerminating = elem NonTerminatingReductions allowedReductions
   rwr <- optRewriting <$> pragmaOptions
   constInfo <- unKleisli $ \f -> do
     info <- getConstInfo f
