@@ -371,6 +371,10 @@ memoQName f = unsafePerformIO $ do
 data Normalisation = WHNF | NF
   deriving (Eq)
 
+data ReductionFlags = ReductionFlags
+  { allowNonTerminating :: Bool
+  , hasRewriting        :: Bool }
+
 -- | The entry point to the reduction machine.
 fastReduce :: Term -> ReduceM (Blocked Term)
 fastReduce = fastReduce' WHNF
@@ -392,14 +396,15 @@ fastReduce' norm v = do
   let bEnv = BuiltinEnv { bZero = zero, bSuc = suc, bTrue = true, bFalse = false, bRefl = refl,
                           bPrimForce = force, bPrimTrustMe = trustme }
   allowedReductions <- asks envAllowedReductions
-  let allowNonTerminating = elem NonTerminatingReductions allowedReductions
   rwr <- optRewriting <$> pragmaOptions
   constInfo <- unKleisli $ \f -> do
     info <- getConstInfo f
     rewr <- if rwr then instantiateRewriteRules =<< getRewriteRulesFor f
                    else return []
     compactDef bEnv info rewr
-  ReduceM $ \ redEnv -> reduceTm redEnv bEnv (memoQName constInfo) norm allowNonTerminating rwr v
+  let flags = ReductionFlags{ allowNonTerminating = elem NonTerminatingReductions allowedReductions
+                            , hasRewriting        = rwr }
+  ReduceM $ \ redEnv -> reduceTm redEnv bEnv (memoQName constInfo) norm flags v
 
 unKleisli :: (a -> ReduceM b) -> ReduceM (a -> b)
 unKleisli f = ReduceM $ \ env x -> unReduceM (f x) env
@@ -735,8 +740,8 @@ unusedPointer = Pure (Closure (Value $ notBlocked ())
 --   'getConstInfo' function, a couple of flags (allow non-terminating function unfolding, and
 --   whether rewriting is enabled), and a term to reduce. The result is the weak-head normal form of
 --   the term with an attached blocking tag.
-reduceTm :: ReduceEnv -> BuiltinEnv -> (QName -> CompactDef) -> Normalisation -> Bool -> Bool -> Term -> Blocked Term
-reduceTm rEnv bEnv !constInfo normalisation allowNonTerminating hasRewriting =
+reduceTm :: ReduceEnv -> BuiltinEnv -> (QName -> CompactDef) -> Normalisation -> ReductionFlags -> Term -> Blocked Term
+reduceTm rEnv bEnv !constInfo normalisation ReductionFlags{..} =
     compileAndRun . traceDoc (text "-- fast reduce --")
   where
     -- Helpers to get information from the ReduceEnv.
