@@ -102,6 +102,7 @@ import Debug.Trace
 data CompactDef =
   CompactDef { cdefDelayed        :: Bool
              , cdefNonterminating :: Bool
+             , cdefUnconfirmed    :: Bool
              , cdefDef            :: CompactDefn
              , cdefRewriteRules   :: RewriteRules
              }
@@ -276,6 +277,7 @@ compactDef bEnv def rewr = do
   return $
     CompactDef { cdefDelayed        = defDelayed def == Delayed
                , cdefNonterminating = defNonterminating def
+               , cdefUnconfirmed    = defTerminationUnconfirmed def
                , cdefDef            = cdefn
                , cdefRewriteRules   = rewr
                }
@@ -375,16 +377,20 @@ memoQName f = unsafePerformIO $ do
 data Normalisation = WHNF | NF
   deriving (Eq)
 
--- | The entry point to the reduction machine. First argument: allow
---   unfolding of non-terminating functions.
-fastReduce :: Bool -> Term -> ReduceM (Blocked Term)
+data ReductionFlags = ReductionFlags
+  { allowNonTerminating :: Bool
+  , allowUnconfirmed    :: Bool
+  , hasRewriting        :: Bool }
+
+-- | The entry point to the reduction machine.
+fastReduce :: Term -> ReduceM (Blocked Term)
 fastReduce = fastReduce' WHNF
 
-fastNormalise :: Bool -> Term -> ReduceM Term
-fastNormalise nt v = ignoreBlocking <$> fastReduce' NF nt v
+fastNormalise :: Term -> ReduceM Term
+fastNormalise v = ignoreBlocking <$> fastReduce' NF v
 
-fastReduce' :: Normalisation -> Bool -> Term -> ReduceM (Blocked Term)
-fastReduce' norm allowNonTerminating v = do
+fastReduce' :: Normalisation -> Term -> ReduceM (Blocked Term)
+fastReduce' norm v = do
   let name (Con c _ _) = c
       name _         = __IMPOSSIBLE__
   zero    <- fmap name <$> getBuiltin' builtinZero
@@ -396,13 +402,17 @@ fastReduce' norm allowNonTerminating v = do
   trustme <- fmap primFunName <$> getPrimitive' "primTrustMe"
   let bEnv = BuiltinEnv { bZero = zero, bSuc = suc, bTrue = true, bFalse = false, bRefl = refl,
                           bPrimForce = force, bPrimTrustMe = trustme }
+  allowedReductions <- asks envAllowedReductions
   rwr <- optRewriting <$> pragmaOptions
   constInfo <- unKleisli $ \f -> do
     info <- getConstInfo f
     rewr <- if rwr then instantiateRewriteRules =<< getRewriteRulesFor f
                    else return []
     compactDef bEnv info rewr
-  ReduceM $ \ redEnv -> reduceTm redEnv bEnv (memoQName constInfo) norm allowNonTerminating rwr v
+  let flags = ReductionFlags{ allowNonTerminating = elem NonTerminatingReductions allowedReductions
+                            , allowUnconfirmed    = elem UnconfirmedReductions allowedReductions
+                            , hasRewriting        = rwr }
+  ReduceM $ \ redEnv -> reduceTm redEnv bEnv (memoQName constInfo) norm flags v
 
 unKleisli :: (a -> ReduceM b) -> ReduceM (a -> b)
 unKleisli f = ReduceM $ \ env x -> unReduceM (f x) env
@@ -752,8 +762,8 @@ unusedPointer = Pure (Closure (Value $ notBlocked ())
 --   'getConstInfo' function, a couple of flags (allow non-terminating function unfolding, and
 --   whether rewriting is enabled), and a term to reduce. The result is the weak-head normal form of
 --   the term with an attached blocking tag.
-reduceTm :: ReduceEnv -> BuiltinEnv -> (QName -> CompactDef) -> Normalisation -> Bool -> Bool -> Term -> Blocked Term
-reduceTm rEnv bEnv !constInfo normalisation allowNonTerminating hasRewriting =
+reduceTm :: ReduceEnv -> BuiltinEnv -> (QName -> CompactDef) -> Normalisation -> ReductionFlags -> Term -> Blocked Term
+reduceTm rEnv bEnv !constInfo normalisation ReductionFlags{..} =
     compileAndRun . traceDoc (text "-- fast reduce --")
   where
     -- Helpers to get information from the ReduceEnv.
@@ -820,8 +830,10 @@ reduceTm rEnv bEnv !constInfo normalisation allowNonTerminating hasRewriting =
           evalIApplyAM spine ctrl $
           let CompactDef{ cdefDelayed        = delayed
                         , cdefNonterminating = nonterm
+                        , cdefUnconfirmed    = unconf
                         , cdefDef            = def } = constInfo f
               dontUnfold = (nonterm && not allowNonTerminating) ||
+                           (unconf  && not allowUnconfirmed)    ||
                            (delayed && not (unfoldDelayed ctrl))
           in case def of
             CFun{ cfunCompiled = cc }

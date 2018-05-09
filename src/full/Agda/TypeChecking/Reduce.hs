@@ -8,6 +8,7 @@ import Prelude hiding (mapM)
 import Control.Monad.Reader hiding (mapM)
 
 import qualified Data.List as List
+import Data.List ((\\))
 import Data.Maybe
 import Data.Map (Map)
 import Data.Traversable
@@ -355,13 +356,12 @@ reduceIApply' reduceB' d [] = d
 instance Reduce Term where
   reduceB' = {-# SCC "reduce'<Term>" #-} maybeFastReduceTerm
 
--- | @Just nt@ means run fast reduce with @allowNonterminatingReductions = nt@.
-shouldTryFastReduce :: ReduceM (Maybe Bool)
+shouldTryFastReduce :: ReduceM Bool
 shouldTryFastReduce = do
   allowed <- asks envAllowedReductions
-  let notAll = List.delete NonTerminatingReductions allowed /= allReductions
-  return $ if notAll then Nothing
-                     else Just (elem NonTerminatingReductions allowed)
+  let optionalReductions = [NonTerminatingReductions, UnconfirmedReductions]
+      requiredReductions = allReductions \\ optionalReductions
+  return $ (allowed \\ optionalReductions) == requiredReductions
 
 maybeFastReduceTerm :: Term -> ReduceM (Blocked Term)
 maybeFastReduceTerm v = do
@@ -377,9 +377,7 @@ maybeFastReduceTerm v = do
       _         -> maybeFast v
   where
     isOpen x = isOpenMeta . mvInstantiation <$> lookupMeta x
-    maybeFast v = shouldTryFastReduce >>= \ case
-      Nothing -> slowReduceTerm v
-      Just nt -> fastReduce nt v
+    maybeFast v = ifM shouldTryFastReduce (fastReduce v) (slowReduceTerm v)
 
 slowReduceTerm :: Term -> ReduceM (Blocked Term)
 slowReduceTerm v = do
@@ -938,9 +936,7 @@ instance Normalise Type where
     normalise' (El s t) = El <$> normalise' s <*> normalise' t
 
 instance Normalise Term where
-    normalise' v = shouldTryFastReduce >>= \ case
-      Nothing -> slowNormaliseArgs =<< reduce' v
-      Just nt -> fastNormalise nt v
+    normalise' v = ifM shouldTryFastReduce (fastNormalise v) (slowNormaliseArgs =<< reduce' v)
 
 slowNormaliseArgs :: Term -> ReduceM Term
 slowNormaliseArgs v = case v of
