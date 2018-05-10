@@ -183,6 +183,9 @@ allowedVar i (relVs, nonstrictVs, irrVs) = i `elem` relVs
 takeRelevant :: Vars -> [Nat]
 takeRelevant (relVs, nonstrictVs, irrVs) = relVs
 
+takeAll :: Vars -> [Nat]
+takeAll (rel, nst, irr) = rel ++ nst ++ irr
+
 liftUnderAbs :: Vars -> Vars
 liftUnderAbs (relVs, nonstrictVs, irrVs) = (0 : map (1+) relVs, map (+1) nonstrictVs, map (1+) irrVs)
 
@@ -319,7 +322,7 @@ instance Occurs Term where
                     -- Andreas, 2014-03-02, see issue 1070:
                     -- Do not prune when meta is projected!
                     caseMaybe (allApplyElims es) (throwError err) $ \ vs -> do
-                      killResult <- prune m' vs (takeRelevant xs)
+                      killResult <- prune m' vs (takeAll xs)
                       if (killResult == PrunedEverything)
                         -- after successful pruning, restart occurs check
                         then occurs red ctx m xs =<< instantiate (MetaV m' es)
