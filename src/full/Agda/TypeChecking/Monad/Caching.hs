@@ -57,7 +57,8 @@ restorePostScopeState pss = do
     in  s{stPostScopeState = pss'}
   where
     mergeIPMap lm sm = Map.mapWithKey (\k v -> maybe v (`mergeIP` v) (Map.lookup k lm)) sm
-    mergeIP li si = si {ipMeta = ipMeta li}
+    -- see #1338 on why we need to use the new ranges.
+    mergeIP li si = li { ipRange = ipRange si }
 
 modifyCache
   :: (Maybe LoadedFileCache -> Maybe LoadedFileCache)
