@@ -729,7 +729,7 @@ instance Simplify Term where
       Def f vs   -> do
         let keepGoing simp v = return (simp, notBlocked v)
         (simpl, v) <- unfoldDefinition' False keepGoing (Def f []) f vs
-        traceSDoc "tc.simplify'" 20 (
+        traceSDoc "tc.simplify'" 90 (
           text ("simplify': unfolding definition returns " ++ show simpl)
             <+> prettyTCM (ignoreBlocking v)) $ do
         case simpl of
