@@ -113,8 +113,11 @@ foldMatch match = loop where
             -- continue to the next patterns (and potentially block on them)
             -- because the splitting order in the case tree may not be
             -- left-to-right.
-            (r', vs') <- loop ps vs
-            let vs1 = v' : vs'
+            (r', _vs') <- loop ps vs
+            -- Issue 2968: do not use vs' here, because it might
+            -- contain ill-typed terms due to eta-expansion at wrong
+            -- type.
+            let vs1 = v' : vs
             case r' of
               Yes s' us' -> return (No         , vs1)
               No         -> return (No         , vs1)
