@@ -98,7 +98,7 @@ buildSubstitution err n vs = parallelS $ map unArg $ matchedArgs err n vs
 -- upon failure, no further matching is performed.
 
 foldMatch
-  :: forall p v . (p -> v -> ReduceM (Match Term, v))
+  :: forall p v . IsProjP p => (p -> v -> ReduceM (Match Term, v))
   -> [p] -> [v] -> ReduceM (Match Term, [v])
 foldMatch match = loop where
   loop :: [p] -> [v] -> ReduceM (Match Term, [v])
@@ -108,13 +108,17 @@ foldMatch match = loop where
       (p : ps, v : vs) -> do
         (r, v') <- match p v
         case r of
+          No | Just{} <- isProjP p -> return (No, v' : vs)
           No         -> do
             -- Issue 2964: Even when the first pattern doesn't match we should
             -- continue to the next patterns (and potentially block on them)
             -- because the splitting order in the case tree may not be
             -- left-to-right.
-            (r', vs') <- loop ps vs
-            let vs1 = v' : vs'
+            (r', _vs') <- loop ps vs
+            -- Issue 2968: do not use vs' here, because it might
+            -- contain ill-typed terms due to eta-expansion at wrong
+            -- type.
+            let vs1 = v' : vs
             case r' of
               Yes s' us' -> return (No         , vs1)
               No         -> return (No         , vs1)
