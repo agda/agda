@@ -238,7 +238,7 @@ checkStrictlyPositive mi qset = disableDestructiveUpdate $ do
         -- If there is no outgoing edge @ArgNode q i@, all @n@ arguments are @Unused@.
         -- Otherwise, we obtain the occurrences from the Graph.
         let findOcc i = fromMaybe Unused $ Graph.lookup (ArgNode q i) (DefNode q) g
-            args = caseMaybe (Map.lookup q maxs) (replicate n Unused) $ \ m ->
+            args = -- caseMaybe (Map.lookup q maxs) (replicate n Unused) $ \ m ->
               map findOcc [0 .. n-1]  -- [0 .. max m (n - 1)] -- triggers issue #3049
         reportSDoc "tc.pos.args" 10 $ sep
           [ text "args of" <+> prettyTCM q <+> text "="
