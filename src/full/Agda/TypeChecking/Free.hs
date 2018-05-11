@@ -56,7 +56,7 @@ import Agda.Syntax.Internal
 
 import Agda.TypeChecking.Free.Lazy
   ( Free(..) , FreeEnv(..), initFreeEnv
-  , VarOcc(..), topVarOcc, VarMap, IgnoreSorts(..), Variable, SingleVar
+  , VarOcc(..), topVarOcc, TheVarMap, theVarMap, IgnoreSorts(..), Variable, SingleVar
   , MetaSet, IsVarSet(..), runFreeM
   )
 import qualified Agda.TypeChecking.Free.Lazy as Free
@@ -315,8 +315,8 @@ allFreeVars :: Free a => a -> VarSet
 allFreeVars = runFree Set.singleton IgnoreNot
 
 -- | Collect all free variables together with information about their occurrence.
-allFreeVarsWithOcc :: Free a => a -> VarMap
-allFreeVarsWithOcc = runFree (singleton . (,topVarOcc)) IgnoreNot
+allFreeVarsWithOcc :: Free a => a -> TheVarMap
+allFreeVarsWithOcc = theVarMap . runFree (singleton . (,topVarOcc)) IgnoreNot
 
 -- | Collect all relevant free variables, possibly ignoring sorts.
 allRelevantVarsIgnoring :: Free a => IgnoreSorts -> a -> VarSet
