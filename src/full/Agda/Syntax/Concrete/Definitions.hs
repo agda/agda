@@ -1305,6 +1305,8 @@ niceDeclarations ds = do
           -- Andreas, 2017-10-09, issue #2576, raise error about missing type signature
           -- in ConcreteToAbstract rather than here.
           NiceFunClause{} -> return ()
+          -- Andreas, 2018-05-11, issue #3052, allow pat.syn.s in mutual blocks
+          NicePatternSyn{} -> return ()
           -- Otherwise, only categorized signatures and definitions are allowed (data/record/fun)
           d -> when (declKind d == OtherDecl) $ throwError $ NotAllowedInMutual d
 
