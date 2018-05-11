@@ -1185,7 +1185,7 @@ funSort' :: Sort -> Sort -> Maybe Sort
 funSort' a b = case (a, b) of
   (Inf           , _            ) -> Just Inf
   (_             , Inf          ) -> Just Inf
-  (Type (Max as) , Type (Max bs)) -> Just $ Type $ Max $ as ++ bs
+  (Type (Max as) , Type (Max bs)) -> Just $ Type $ levelMax $ as ++ bs
   (SizeUniv      , b            ) -> Just b
   (_             , SizeUniv     ) -> Just SizeUniv
   (a             , b            ) -> Nothing
