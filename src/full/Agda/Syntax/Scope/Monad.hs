@@ -310,7 +310,7 @@ getNotation x ns = do
 
 -- | Bind a variable.
 bindVariable
-  :: Bool    -- ^ Let-bound variable?
+  :: Binder  -- ^ @λ@, @Π@, @let@, ...?
   -> C.Name  -- ^ Concrete name.
   -> A.Name  -- ^ Abstract name.
   -> ScopeM ()

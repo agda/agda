@@ -476,7 +476,7 @@ instance ToAbstract c a => ToAbstract (Maybe c) (Maybe a) where
 -- Names ------------------------------------------------------------------
 
 data NewName a = NewName
-  { newLetBound :: Bool -- bound by a @let@?
+  { newBinder   :: Binder -- what kind of binder?
   , newName     :: a
   }
 
@@ -552,7 +552,7 @@ instance ToAbstract PatName APatName where
         y <- (AssocList.lookup x <$> getVarsToBind) >>= \case
           Just (LocalVar y _ _) -> return $ setRange (getRange x) y
           Nothing -> freshAbstractName_ x
-        addVarToBind x $ LocalVar y False []
+        addVarToBind x $ LocalVar y PatternBound []
         return $ VarPatName y
       patCon ds = do
         reportSLn "scope.pat" 10 $ "it was a con: " ++ prettyShow (fmap anameName ds)
@@ -898,7 +898,7 @@ instance ToAbstract C.Expr A.Expr where
 
   -- Quoting
       C.QuoteGoal _ x e -> do
-        x' <- toAbstract (NewName False x)
+        x' <- toAbstract (NewName LetBound x)
         e' <- toAbstract e
         return $ A.QuoteGoal (ExprRange $ getRange e) x' e'
       C.QuoteContext r -> return $ A.QuoteContext (ExprRange r)
@@ -932,7 +932,7 @@ instance ToAbstract c a => ToAbstract (FieldAssignment' c) (FieldAssignment' a) 
   toAbstract = traverse toAbstract
 
 instance ToAbstract C.LamBinding A.LamBinding where
-  toAbstract (C.DomainFree info x) = A.DomainFree info <$> toAbstract (NewName False x)
+  toAbstract (C.DomainFree info x) = A.DomainFree info <$> toAbstract (NewName LambdaBound x)
   toAbstract (C.DomainFull tb)     = A.DomainFull <$> toAbstract tb
 
 makeDomainFull :: C.LamBinding -> C.TypedBindings
@@ -947,7 +947,7 @@ instance ToAbstract C.TypedBindings A.TypedBindings where
 instance ToAbstract C.TypedBinding A.TypedBinding where
   toAbstract (C.TBind r xs t) = do
     t' <- toAbstractCtx TopCtx t
-    xs' <- toAbstract $ map (fmap (NewName False)) xs
+    xs' <- toAbstract $ map (fmap (NewName LambdaBound)) xs
     return $ A.TBind r xs' t'
   toAbstract (C.TLet r ds) = A.TLet r <$> toAbstract (LetDefs ds)
 
@@ -1242,7 +1242,7 @@ instance ToAbstract LetDef [A.LetBinding] where
               t <- toAbstract t
               -- We bind the name here to make sure it's in scope for the LHS (#917).
               -- It's unbound for the RHS in letToAbstract.
-              x <- toAbstract (NewName True $ mkBoundName x fx)
+              x <- toAbstract (NewName LetBound $ mkBoundName x fx)
               (x', e) <- letToAbstract cl
               -- If InstanceDef set info to Instance
               let info' | instanc == InstanceDef = makeInstance info
@@ -2228,7 +2228,7 @@ instance ToAbstract C.Pattern (A.Pattern' C.Expr) where
     toAbstract (C.ParenP _ p)   = toAbstract p
     toAbstract (C.LitP l)       = return $ A.LitP l
     toAbstract p0@(C.AsP r x p) = do
-        x <- toAbstract (NewName False x)
+        x <- toAbstract (NewName PatternBound x)
         p <- toAbstract p
         return $ A.AsP (PatRange r) x p
     -- we have to do dot patterns at the end

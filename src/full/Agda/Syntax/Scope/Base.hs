@@ -119,14 +119,22 @@ instance Eq ScopeInfo where
 -- | Local variables.
 type LocalVars = AssocList C.Name LocalVar
 
+-- | For each bound variable, we want to know whether it was bound by a
+--   λ, Π, module telescope, pattern, or @let@.
+data Binder
+  = LambdaBound  -- ^ @λ@ (currently also used for @Π@ and module parameters)
+  | PatternBound -- ^ @f ... =@
+  | LetBound     -- ^ @let ... in@
+  deriving (Data, Show, Eq)
+
 -- | A local variable can be shadowed by an import.
 --   In case of reference to a shadowed variable, we want to report
 --   a scope error.
 data LocalVar = LocalVar
   { localVar        :: A.Name
     -- ^ Unique ID of local variable.
-  , localLetBound   :: Bool
-    -- ^ Flag whether the variable is introduced by a @let@.
+  , localBinder     :: Binder
+    -- ^ Kind of binder used to introduce the variable (@λ@, @let@, ...).
   , localShadowedBy :: [AbstractName]
      -- ^ If this list is not empty, the local variable is
      --   shadowed by one or more imports.
@@ -303,7 +311,7 @@ data ResolvedName
   = -- | Local variable bound by λ, Π, module telescope, pattern, @let@.
     VarName
     { resolvedVar      :: A.Name
-    , resolvedLetBound :: Bool    -- ^ Variable bound by @let@?
+    , resolvedBinder   :: Binder    -- ^ What kind of binder?
     }
 
   | -- | Function, data/record type, postulate.
