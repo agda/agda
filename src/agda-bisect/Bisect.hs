@@ -51,6 +51,8 @@ data Options = Options
   , extraArguments            :: Bool
   , cabalOptions              :: [String]
   , skipStrings               :: [String]
+  , onlyOnBranches            :: [String]
+  , skipBranches              :: [String]
   , logFile                   :: Maybe String
   , start                     :: Either FilePath (String, String)
   , dryRun                    :: Maybe (Either FilePath String)
@@ -119,6 +121,17 @@ options =
                  help ("Skip commits with commit messages " ++
                        "containing one of the following strings: " ++
                        intercalate ", " (map show ciSkipStrings))))
+    <*> many (strOption (long "on-branch" <>
+                         help ("Skip commits that are not on BRANCH " ++
+                               "(if this option is repeated, then " ++
+                               "commits that are not on any of the " ++
+                               "given branches are skipped)") <>
+                         metavar "BRANCH" <>
+                         completer branchCompleter))
+    <*> many (strOption (long "not-on-branch" <>
+                         help "Skip commits that are on BRANCH" <>
+                         metavar "BRANCH" <>
+                         completer branchCompleter))
     <*> optional
           (strOption (long "log" <>
                       help "Store a git bisect log in FILE" <>
@@ -237,7 +250,16 @@ options =
   -- The man page for one version of git rev-parse states that "While
   -- the ref name encoding is unspecified, UTF-8 is preferred as some
   -- output processing may assume ref names in UTF-8".
-  commitCompleter = commandCompleter "git" ["tag", "--list", "*"]
+
+  -- A completer for tags.
+  commitCompleter =
+    commandCompleter "git"
+      ["for-each-ref", "--format=%(refname:short)", "refs/tags/"]
+
+  -- A completer for branches.
+  branchCompleter =
+    commandCompleter "git"
+      ["for-each-ref", "--format=%(refname:short)", "refs/heads/"]
 
 -- | The top-level program.
 
@@ -275,6 +297,20 @@ currentCommit = do
   dropFinalNewline s = case reverse s of
     '\n' : s -> reverse s
     _        -> s
+
+-- | The branches that contain the current git commit.
+
+currentBranches :: IO [String]
+currentBranches = do
+  s <- withEncoding char8 $
+         readProcess "git"
+           [ "for-each-ref"
+           , "--format=%(refname:short)"
+           , "refs/heads/"
+           , "--contains=HEAD"
+           ]
+           ""
+  return $ lines s
 
 -- | Raises an error if the given string does not refer to a unique
 -- git revision.
@@ -322,7 +358,8 @@ bisect opts =
 
   run :: IO ()
   run = do
-    before <- currentCommit
+    before   <- currentCommit
+    branches <- currentBranches
 
     msg <- withUTF8Ignore $
              readProcess "git" [ "show"
@@ -333,6 +370,12 @@ bisect opts =
                                ] ""
 
     r <- if any (`isInfixOf` msg) (skipStrings opts)
+              ||
+            any (`elem` branches) (skipBranches opts)
+              ||
+            (not (null $ onlyOnBranches opts)
+               &&
+             not (any (`elem` branches) (onlyOnBranches opts)))
          then return Skip
          else installAndRunAgda opts
 
