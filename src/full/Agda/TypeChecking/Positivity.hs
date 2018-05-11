@@ -250,16 +250,14 @@ checkStrictlyPositive mi qset = disableDestructiveUpdate $ do
         setArgOccurrences q $!! args
 
 getDefArity :: Definition -> TCM Int
-getDefArity def = case theDef def of
-  defn@Function{} -> do
-    let dropped = projectionArgs defn
-    -- TODO: instantiateFull followed by arity could perhaps be
-    -- optimised, presumably the instantiation can be performed
-    -- lazily.
-    subtract dropped . arity <$> instantiateFull (defType def)
-  Datatype{ dataPars = n } -> return n
-  Record{ recPars = n }    -> return n
-  _                        -> return 0
+getDefArity def = do
+  let dropped = case theDef def of
+        defn@Function{} -> projectionArgs defn
+        _ -> 0
+  -- TODO: instantiateFull followed by arity could perhaps be
+  -- optimised, presumably the instantiation can be performed
+  -- lazily.
+  subtract dropped . arity <$> instantiateFull (defType def)
 
 -- Operations on occurrences -------------------------------------------
 

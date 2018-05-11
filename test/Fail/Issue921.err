@@ -4,5 +4,6 @@ Termination checking failed for the following functions:
 Problematic calls:
   weaken Δ ○ snd xtc.eq ms
   pullback x₁ m
+    (at Issue921.agda:94,81-89)
   pullback-var
     (at Issue921.agda:106,99-111)

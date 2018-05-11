@@ -1,6 +1,7 @@
 -- Andreas, 2017-04-26, issue #2554
 -- Allow mutual sized types in successor style.
 
+-- {-# OPTIONS -v tc.pos.args:100 #-}
 -- {-# OPTIONS -v tc.pos:100 #-}
 -- {-# OPTIONS -v tc.polarity:20 #-}
 
