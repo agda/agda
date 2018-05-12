@@ -920,7 +920,7 @@ atTopLevel m = inConcreteMode $ do
       -- Unfortunately, referring to let-bound variables
       -- from the top level module telescope will for now result in a not-in-scope error.
       let names :: [A.Name]
-          names = map localVar $ filter ((False ==) . localLetBound) $ map snd $ reverse $ scopeLocals scope
+          names = map localVar $ filter ((LetBound /=) . localBinder) $ map snd $ reverse $ scopeLocals scope
       -- Andreas, 2016-12-31, issue #2371
       -- The following is an unnecessary complication, as shadowed locals
       -- are not in scope anyway (they are ambiguous).

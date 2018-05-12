@@ -102,6 +102,17 @@ instance EmbPrj KindOfName where
     valu [5] = valuN MacroName
     valu _   = malformed
 
+instance EmbPrj Binder where
+  icod_ LambdaBound   = icodeN' LambdaBound
+  icod_ PatternBound  = icodeN 1 PatternBound
+  icod_ LetBound      = icodeN 2 LetBound
+
+  value = vcase valu where
+    valu []  = valuN LambdaBound
+    valu [1] = valuN PatternBound
+    valu [2] = valuN LetBound
+    valu _   = malformed
+
 instance EmbPrj LocalVar where
   icod_ (LocalVar a b c)  = icodeN' LocalVar a b c
 
