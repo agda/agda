@@ -19,7 +19,7 @@ import qualified Agda.Syntax.Abstract as A
 import qualified Agda.Syntax.Info as A
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
-import Agda.Syntax.Scope.Base  ( ResolvedName(..) )
+import Agda.Syntax.Scope.Base  ( ResolvedName(..), Binder(..) )
 import Agda.Syntax.Scope.Monad ( resolveName )
 import Agda.Syntax.Translation.ConcreteToAbstract
 import Agda.Syntax.Translation.InternalToAbstract
@@ -93,26 +93,21 @@ parseVariables f tel ii rng ss = do
        , text $ "number of locals= " ++ show nlocals
        ]
 
-    -- Compute which variables correspond to module parameters. These cannot be split on.
-    -- Note: these are not necessarily the outer-most bound variables, since
-    -- module parameter refinement may have instantiated them, or
-    -- with-abstraction might have reshuffled the variables (#2181).
-    pars <- freeVarsToApply f
-    let nonSplittableVars = [ i | Var i [] <- map unArg pars ]
-
     -- Resolve each string to a variable.
     forM ss $ \ s -> do
-      let failNotVar = typeError $ GenericError $ "Not a variable: " ++ s
-          done i
-            | i < 0                    = typeError $ GenericError $
-               "Cannot split on local variable " ++ s
-               -- See issue #2239
-
-            | elem i nonSplittableVars = typeError $ GenericError $
-               "Cannot split on variable " ++ s ++ ". It is either a module parameter " ++
-               "or already instantiated by a dot pattern"
-
-            | otherwise                = return i
+      let failNotVar      = typeError $ GenericError $ "Not a variable: " ++ s
+          failUnbound     = typeError $ GenericError $ "Unbound variable " ++ s
+          failAmbiguous   = typeError $ GenericError $ "Ambiguous variable " ++ s
+          failLocal       = typeError $ GenericError $
+            "Cannot split on local variable " ++ s
+          failModuleBound = typeError $ GenericError $
+            "Cannot split on module parameter " ++ s
+          failLetBound v  = typeError . GenericError $
+            "cannot split on let-bound variable " ++ s
+          failInstantiatedVar v = typeError . GenericDocError =<< sep
+              [ text $ "Cannot split on variable " ++ s ++ ", because it is bound to"
+              , prettyTCM v
+              ]
 
       -- Note: the range in the concrete name is only approximate.
       resName <- resolveName $ C.QName $ C.Name r $ C.stringNameParts s
@@ -126,23 +121,31 @@ parseVariables f tel ii rng ss = do
 
         -- If s is a variable name in scope, get its de Bruijn index
         -- via the type checker.
-        VarName x _ -> do
+        VarName x b -> do
           (v, _) <- getVarInfo x
-          case v of
-            Var i [] -> done $ i - nlocals
-            _        -> typeError . GenericDocError =<< sep
-              [ text $ "Cannot split on variable " ++ s ++ ", because it is bound to"
-              , prettyTCM v
-              ]
+          case (v , b) of
+            -- Slightly dangerous: the pattern variable `x` may be
+            -- refined to the module parameter `var i`. But in this
+            -- case the instantiation could as well be the other way
+            -- around, so the new clauses will still make sense.
+            (Var i [] , PatternBound) -> do
+              when (i < nlocals) __IMPOSSIBLE__
+              return $ i - nlocals
+            (Var i [] , LambdaBound)
+              | i < nlocals -> failLocal
+              | otherwise   -> failModuleBound
+            (Var i [] , LetBound) -> failLetBound v
+            (_        , _       ) -> failInstantiatedVar v
 
         -- If s is not a name, compare it to the printed variable representation.
         -- This fallback is to enable splitting on hidden variables.
         UnknownName -> do
           case filter ((s ==) . fst) xs of
-            []      -> typeError $ GenericError $ "Unbound variable " ++ s
-            [(_,i)] -> done $ i - nlocals
+            []                    -> failUnbound
+            [(_,i)] | i < nlocals -> failLocal
+                    | otherwise   -> return $ i - nlocals
             -- Issue 1325: Variable names in context can be ambiguous.
-            _       -> typeError $ GenericError $ "Ambiguous variable " ++ s
+            _                     -> failAmbiguous
 
 -- | Lookup the clause for an interaction point in the signature.
 --   Returns the CaseContext, the clause itself, and a list of previous clauses
