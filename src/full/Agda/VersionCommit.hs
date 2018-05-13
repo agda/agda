@@ -17,9 +17,9 @@ commitInfo = case $(gitHash) of
   "UNKNOWN" -> Nothing
   hash      -> Just $ abbrev hash ++ dirty
   where
-    -- | Check if there are uncommitted changes
-    dirty | $(gitDirty) = "-dirty"
-          | otherwise   = ""
+    -- | Check if any tracked files have uncommitted changes
+    dirty | $(gitDirtyTracked) = "-dirty"
+          | otherwise          = ""
 
     -- | Abbreviate a commit hash while keeping it unambiguous
     abbrev = take 7
