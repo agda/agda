@@ -244,20 +244,16 @@ cover f cs sc@(SClause tel ps _ _ target) = do
   cs' <- normaliseProjP cs
   ps <- (traverse . traverse . traverse) dotPatternsToPatterns ps
   case match cs' ps of
-    Yes (i,(mps,ls0)) -> do
+    Yes (i,mps) -> do
       exact <- allM mps isTrivialPattern
       let noExactClause = if exact || clauseCatchall (cs !! i)
                           then Set.empty
                           else Set.singleton i
       reportSLn "tc.cover.cover" 10 $ "pattern covered by clause " ++ show i
       -- Check if any earlier clauses could match with appropriate literals
-      let lsis = mapMaybe (\(j,c) -> (,j) <$> matchLits c ps) $ zip [0..i-1] cs
-      reportSLn "tc.cover.cover"  10 $ "literal matches: " ++ show lsis
-      -- Andreas, 2016-10-08, issue #2243 (#708)
-      -- If we have several literal matches with the same literals
-      -- only take the first matching clause of these.
-      let is = Map.elems $ Map.fromListWith min $ (ls0,i) : lsis
-      return $ CoverResult (SplittingDone (size tel)) (Set.fromList is) [] noExactClause
+      let is = [ j | (j, c) <- zip [0..i-1] cs, matchLits c ps ]
+      reportSLn "tc.cover.cover"  10 $ "literal matches: " ++ show is
+      return $ CoverResult (SplittingDone (size tel)) (Set.fromList (i : is)) [] noExactClause
 
     No        ->  do
       reportSLn "tc.cover" 20 $ "pattern is not covered"

@@ -1,12 +1,6 @@
 Issue1988.agda:9,1-26
 Builtin REFL no longer exists. It is now bound by BUILTIN EQUALITY
 when checking the pragma BUILTIN REFL refl
-Issue2243.agda:9,1-12
-Unreachable clause
-when checking the definition of f
-Issue708quote.agda:9,1-29
-Unreachable clause
-when checking the definition of example
 OldCompilerPragmas.agda:18,1-26
 The IMPORT pragma has been deprecated. Use
 {-# FOREIGN GHC import qualified Data.Maybe #-} instead. This will
@@ -71,10 +65,6 @@ Issue1988.agda:9,1-26
 Builtin REFL no longer exists. It is now bound by BUILTIN EQUALITY
 when checking the pragma BUILTIN REFL refl
 
-Issue708quote.agda:9,1-29
-Unreachable clause
-when checking the definition of example
-
 RewritingEmptyPragma.agda:3,1-16
 Empty REWRITE pragma
 when scope checking the declaration
@@ -133,10 +123,6 @@ The IMPORT pragma has been deprecated. Use
 be an error in Agda 2.6.
 when scope checking the declaration
   {-# IMPORT Data.Maybe #-}
-
-Issue2243.agda:9,1-12
-Unreachable clause
-when checking the definition of f
 
 Unreachable.agda:21,1-23,19
 Unreachable clauses

@@ -44,7 +44,7 @@ We try to split on this column first.
 -}
 
 -- | Match the given patterns against a list of clauses
-match :: [Clause] -> [NamedArg DeBruijnPattern] -> Match (Nat,([DeBruijnPattern],[Literal]))
+match :: [Clause] -> [NamedArg DeBruijnPattern] -> Match (Nat,[DeBruijnPattern])
 match cs ps = foldr choice No $ zipWith matchIt [0..] cs
   where
     -- If liberal matching on literals fails or blocks we go with that.
@@ -74,9 +74,8 @@ isTrivialPattern p = case p of
   ProjP{}     -> return False
 
 -- | If matching succeeds, we return the instantiation of the clause pattern vector
---   to obtain the split clause pattern vector, plus the literals of the clause patterns
---   matched against split clause variables.
-type MatchResult = Match ([DeBruijnPattern],[Literal])
+--   to obtain the split clause pattern vector.
+type MatchResult = Match [DeBruijnPattern]
 
 -- | If matching is inconclusive (@Block@) we want to know which
 --   variables are blocking the match.
@@ -156,18 +155,18 @@ noMatchLit _ _ = No
 
 -- | Use this function if a literal pattern should cover a split clause variable pattern.
 yesMatchLit :: MatchLit
-yesMatchLit l q@VarP{} = Yes ([q], [l])
+yesMatchLit l q@VarP{} = Yes [q]
 yesMatchLit l (DotP o t) = No
 yesMatchLit _ ConP{}   = No
 yesMatchLit _ ProjP{}  = No
 yesMatchLit _ LitP{}   = __IMPOSSIBLE__
 
 -- | Check if a clause could match given generously chosen literals
-matchLits :: Clause -> [NamedArg DeBruijnPattern] -> Maybe [Literal]
+matchLits :: Clause -> [NamedArg DeBruijnPattern] -> Bool
 matchLits c ps =
   case matchClause yesMatchLit ps 0 c of
-    Yes (qs,ls) -> Just ls
-    _ -> Nothing
+    Yes _ -> True
+    _ -> False
 
 -- | @matchClause mlit qs i c@ checks whether clause @c@ number @i@
 --   covers a split clause with patterns @qs@.
@@ -283,7 +282,7 @@ matchPat
      --   If 'Yes', also the instantiation @rs@ of the clause pattern variables
      --   to produce the split clause pattern, @p[rs] = q@.
 
-matchPat _    VarP{}   q = Yes ([q],[])
+matchPat _    VarP{}   q = Yes [q]
 matchPat _    DotP{}   q = mempty
 -- Jesper, 2014-11-04: putting 'Yes [q]' here triggers issue 1333.
 -- Not checking for trivial patterns should be safe here, as dot patterns are
