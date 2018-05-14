@@ -485,6 +485,16 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
             let ps' = map (unnamed (A.WildP empty) <$) qs'
             stripConP d us b c ConOCon qs' ps'
 
+          -- Jesper, 2018-05-13, issue #2998.
+          -- We also allow turning a constructor pattern into a variable.
+          -- In general this is not type-safe since the types of some variables
+          -- in the constructor pattern may have changed, so we have to
+          -- re-check these solutions when checking the with clause (see LHS.hs)
+          A.VarP x -> do
+            tell [ProblemEq (A.VarP x) (patternToTerm q') a]
+            let ps' = map (unnamed (A.WildP empty) <$) qs'
+            stripConP d us b c ConOCon qs' ps'
+
           A.ConP _ (A.AmbQ cs') ps' -> do
             -- Check whether the with-clause constructor can be (possibly trivially)
             -- disambiguated to be equal to the parent-clause constructor.
