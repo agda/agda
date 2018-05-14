@@ -253,6 +253,23 @@ Language
   This may have a minor impact on with-abstraction and code using `--rewriting`
   since η-equality is not used in these cases.
 
+* When using `with`, it is now allowed to replace any pattern from the parent
+  clause by a variable in the with clause. For example:
+
+  ```agda
+    f : List ℕ → List ℕ
+    f [] = []
+    f (x ∷ xs) with x ≤? 10
+    f xs | p = {!!}
+  ```
+
+  In the with clause, `xs` is treated as a let-bound variable with value
+  `.x ∷ .xs` (where `.x : ℕ` and `.xs : List ℕ` are out of scope) and
+  `p : Dec (.x ≤ 10)`.
+
+  Since with-abstraction may change the type of variables, instantiations
+  of variables in the with clause are type checked again after with-abstraction.
+
 ### Builtins
 
 * Added support for built-in 64-bit machine words.

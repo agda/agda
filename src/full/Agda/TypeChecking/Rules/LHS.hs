@@ -54,6 +54,7 @@ import Agda.TypeChecking.Monad.Builtin (litType, constructorForm)
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Constraints
+import Agda.TypeChecking.CheckInternal (checkInternal)
 import Agda.TypeChecking.Datatypes hiding (isDataOrRecordType)
 import Agda.TypeChecking.Errors (dropTopLevelModule)
 import Agda.TypeChecking.Irrelevance
@@ -173,6 +174,7 @@ updateProblemEqs eqs = do
     updates = concat <.> traverse update
 
     update :: ProblemEq -> TCM [ProblemEq]
+    update eq@(ProblemEq A.WildP{} _ _) = return []
     update eq@(ProblemEq p v a) = reduce v >>= constructorForm >>= \case
       Con c ci es -> do
         let vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
@@ -219,8 +221,6 @@ updateProblemEqs eqs = do
           _ -> return [eq]
 
       Lit l | A.LitP l' <- p , l == l' -> return []
-
-      _ | A.WildP{} <- p -> return []
 
       _ -> return [eq]
 
@@ -567,6 +567,15 @@ bindAsPatterns (AsB x v a : asb) ret = do
         ]
   addLetBinding defaultArgInfo x v a $ bindAsPatterns asb ret
 
+-- | Since with-abstraction can change the type of a variable, we have to
+--   recheck the stripped with patterns when checking a with function.
+recheckStrippedWithPattern :: ProblemEq -> TCM ()
+recheckStrippedWithPattern (ProblemEq p v a) = checkInternal v (unDom a)
+  `catchError` \_ -> typeError . GenericDocError =<< vcat
+    [ text "Ill-typed pattern after with abstraction: " <+> prettyA p
+    , text "(perhaps you can replace it by `_`?)"
+    ]
+
 -- | Result of checking the LHS of a clause.
 data LHSResult = LHSResult
   { lhsParameters   :: Nat
@@ -758,6 +767,10 @@ checkLeftHandSide c f ps a withSub' strippedPats = Bench.billToCPS [Bench.Typing
   -- with-desugaring to the state.
   let withSub = fromMaybe __IMPOSSIBLE__ withSub'
   withEqs <- updateProblemEqs $ applySubst withSub strippedPats
+  -- Jesper, 2017-05-13: re-check the stripped patterns here!
+  inTopContext $ addContext (st0 ^. lhsTel) $
+    forM_ withEqs recheckStrippedWithPattern
+
   let st = over (lhsProblem . problemEqs) (++ withEqs) st0
 
   -- doing the splits:
