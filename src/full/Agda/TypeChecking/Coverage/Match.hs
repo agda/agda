@@ -93,41 +93,39 @@ data Match a
 data BlockingVar  = BlockingVar
   { blockingVarNo   :: Nat
     -- ^ De Bruijn index of variable blocking the match.
-  , blockingVarCons :: Maybe [ConHead]
-    -- ^ @Nothing@ means there is an overlapping match for this variable.
+  , blockingVarCons :: [ConHead]
+    -- ^ List of the encountered constructors in this position.
+  , blockingVarOverlap :: Bool
+    -- ^ @True@ means there is an overlapping match for this variable.
     --   This happens if one clause has a constructor pattern at this position,
     --   and another a variable.  It is also used for "just variable".
-    --
-    --   @Just cons@ means that it is an non-overlapping match and
-    --   @cons@ are the encountered constructors.
   } deriving (Show)
 
 instance Pretty BlockingVar where
-  pretty (BlockingVar i mcs) = case mcs of
-    Nothing -> text $ "blocking var " ++ show i ++ " (overlapping)"
-    Just cs -> text ("blocking var " ++ show i ++ " (non-overlapping); constructors:")
-      <+> pretty cs
+  pretty (BlockingVar i cs o) =
+    text ("blocking var " ++ show i) <+>
+    text (if o then " (overlapping)" else " (non-overlapping)") <+>
+    text "; constructors:" <+> pretty cs
 
 type BlockingVars = [BlockingVar]
 
 -- | Lens for 'blockingVarCons'.
-mapBlockingVarCons :: (Maybe [ConHead] -> Maybe [ConHead]) -> BlockingVar -> BlockingVar
+mapBlockingVarCons :: ([ConHead] -> [ConHead]) -> BlockingVar -> BlockingVar
 mapBlockingVarCons f b = b { blockingVarCons = f (blockingVarCons b) }
 
-clearBlockingVarCons :: BlockingVar -> BlockingVar
-clearBlockingVarCons = mapBlockingVarCons $ const Nothing
+setBlockingVarOverlap :: BlockingVar -> BlockingVar
+setBlockingVarOverlap = \x -> x { blockingVarOverlap = True }
 
 overlapping :: BlockingVars -> BlockingVars
-overlapping = map clearBlockingVarCons
+overlapping = map setBlockingVarOverlap
 
 -- | Left dominant merge of blocking vars.
 zipBlockingVars :: BlockingVars -> BlockingVars -> BlockingVars
 zipBlockingVars xs ys = map upd xs
   where
-    upd (BlockingVar x (Just cons))
-      | Just (BlockingVar _ (Just cons')) <- List.find ((x ==) . blockingVarNo) ys
-                          = BlockingVar x (Just $ cons ++ cons')
-    upd (BlockingVar x _) = BlockingVar x Nothing
+    upd (BlockingVar x cons o) = case List.find ((x ==) . blockingVarNo) ys of
+      Just (BlockingVar _ cons' o') -> BlockingVar x (cons ++ cons') (o || o')
+      Nothing -> BlockingVar x cons True
 
 -- | @choice m m'@ combines the match results @m@ of a function clause
 --   with the (already combined) match results $m'$ of the later clauses.
@@ -292,7 +290,7 @@ matchPat mlit (LitP l) q = mlit l q
 matchPat _    (ProjP _ d) (ProjP _ d') = if d == d' then mempty else No
 matchPat _    ProjP{} _ = __IMPOSSIBLE__
 matchPat mlit p@(ConP c _ ps) q = case q of
-  VarP _ x -> Block (Any False) [BlockingVar (dbPatVarIndex x) (Just [c])]
+  VarP _ x -> Block (Any False) [BlockingVar (dbPatVarIndex x) [c] False]
   ConP c' i qs
     | c == c'   -> matchPats mlit ps qs
     | otherwise -> No

@@ -410,7 +410,7 @@ inferMissingClause f (SClause tel ps _ cps (Just t)) = setCurrentRange f $ do
 inferMissingClause _ (SClause _ _ _ _ Nothing) = __IMPOSSIBLE__
 
 splitStrategy :: BlockingVars -> Telescope -> TCM BlockingVars
-splitStrategy bs tel = return $ updateLast clearBlockingVarCons xs
+splitStrategy bs tel = return $ updateLast setBlockingVarOverlap xs
   -- Make sure we do not insists on precomputed coverage when
   -- we make our last try to split.
   -- Otherwise, we will not get a nice error message.
@@ -704,7 +704,7 @@ data AllowPartialCover
 
 -- | Entry point from @Interaction.MakeCase@.
 splitClauseWithAbsurd :: SplitClause -> Nat -> TCM (Either SplitError (Either SplitClause Covering))
-splitClauseWithAbsurd c x = split' Inductive NoAllowPartialCover NoFixTarget c (BlockingVar x Nothing)
+splitClauseWithAbsurd c x = split' Inductive NoAllowPartialCover NoFixTarget c (BlockingVar x [] True)
   -- Andreas, 2016-05-03, issue 1950:
   -- Do not introduce trailing pattern vars after split,
   -- because this does not work for with-clauses.
@@ -713,7 +713,7 @@ splitClauseWithAbsurd c x = split' Inductive NoAllowPartialCover NoFixTarget c (
 --   @splitLast CoInductive@ is used in the @refine@ tactics.
 
 splitLast :: Induction -> Telescope -> [NamedArg DeBruijnPattern] -> TCM (Either SplitError Covering)
-splitLast ind tel ps = split ind NoAllowPartialCover sc (BlockingVar 0 Nothing)
+splitLast ind tel ps = split ind NoAllowPartialCover sc (BlockingVar 0 [] True)
   where sc = SClause tel ps empty empty Nothing
 
 -- | @split ind splitClause x = return res@
@@ -781,7 +781,7 @@ split' :: Induction
        -> SplitClause
        -> BlockingVar
        -> TCM (Either SplitError (Either SplitClause Covering))
-split' ind allowPartialCover fixtarget sc@(SClause tel ps _ cps target) (BlockingVar x mcons) =
+split' ind allowPartialCover fixtarget sc@(SClause tel ps _ cps target) (BlockingVar x pcons' overlap) =
  liftTCM $ runExceptT $ do
 
   debugInit tel x ps cps
@@ -829,7 +829,7 @@ split' ind allowPartialCover fixtarget sc@(SClause tel ps _ cps target) (Blockin
   -- all the data type constructors
   -- Andreas, 2017-10-08 ... unless partial covering is explicitly allowed.
     _ | allowPartialCover == NoAllowPartialCover,
-        Just pcons' <- mcons,
+        overlap == False,
         let pcons = map conName pcons',
         let cons = (map fst ns),
         let diff = Set.fromList cons Set.\\ Set.fromList pcons,
