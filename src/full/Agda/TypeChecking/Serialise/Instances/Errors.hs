@@ -26,7 +26,7 @@ import Agda.Utils.Lens
 import Agda.Utils.Impossible
 
 instance EmbPrj TCWarning where
-  icod_ (TCWarning a b c) = icodeN' TCWarning a b c
+  icod_ (TCWarning a b c d) = icodeN' TCWarning a b c d
 
   value = valueN TCWarning
 

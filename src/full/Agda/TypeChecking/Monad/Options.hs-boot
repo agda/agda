@@ -11,3 +11,5 @@ type VerboseKey = String
 
 hasVerbosity :: HasOptions m => VerboseKey -> Int -> m Bool
 verboseS :: (MonadReader TCEnv m, HasOptions m) => VerboseKey -> Int -> m () -> m ()
+
+enableCaching :: TCM Bool
