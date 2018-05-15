@@ -8,6 +8,7 @@ import Data.Maybe ( catMaybes )
 import Control.Monad (guard, forM_)
 
 import Agda.TypeChecking.Monad.Base
+import Agda.TypeChecking.Monad.Caching
 import {-# SOURCE #-} Agda.TypeChecking.Errors
 import {-# SOURCE #-} Agda.TypeChecking.Pretty
 
@@ -35,12 +36,13 @@ warning_ :: MonadTCM tcm => Warning -> tcm TCWarning
 warning_ w = do
   r <- view eRange
   c <- view eCall
+  b <- liftTCM areWeCaching
   -- NicifierIssues print their own error locations in their list of
   -- issues (but we might need to keep the overall range `r` for
   -- comparing ranges)
   let r' = case w of { NicifierIssue{} -> NoRange ; _ -> r }
   p <- liftTCM $ sayWhen r' c $ prettyWarning w
-  liftTCM $ return $ TCWarning r w p
+  liftTCM $ return $ TCWarning r w p b
 
 -- | @applyWarningMode@ filters out the warnings the user has not requested
 -- Users are not allowed to ignore non-fatal errors.

@@ -243,8 +243,8 @@ applyFlagsToTCWarnings ifs ws = do
   -- This is a way to collect all of them and remove duplicates.
   let pragmas w = case tcWarning w of { SafeFlagPragma ps -> ([w], ps); _ -> ([], []) }
   let sfp = case fmap nub (foldMap pragmas ws) of
-              (TCWarning r w p:_, sfp) ->
-                 [TCWarning r (SafeFlagPragma sfp) p]
+              (TCWarning r w p b:_, sfp) ->
+                 [TCWarning r (SafeFlagPragma sfp) p b]
               _                        -> []
 
 

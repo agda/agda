@@ -11,6 +11,7 @@ module Agda.TypeChecking.Monad.Caching
     -- * Activating/deactivating
   , activateLoadedFileCache
   , cachingStarts
+  , areWeCaching
   , noCacheForImportedModule
 
     -- * Restoring the 'PostScopeState'
@@ -26,7 +27,7 @@ import Agda.Interaction.Options
 
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Debug
-import Agda.TypeChecking.Monad.Options
+import {-# SOURCE #-} Agda.TypeChecking.Monad.Options
 
 import Agda.Utils.Lens
 import Agda.Utils.Monad
@@ -39,6 +40,10 @@ cachingStarts :: TCM ()
 cachingStarts = do
     NameId _ m <- use stFreshNameId
     stFreshNameId .= NameId 1 m
+    stAreWeCaching .= True
+
+areWeCaching :: TCM Bool
+areWeCaching = use stAreWeCaching
 
 -- | Writes a 'TypeCheckAction' to the current log, using the current
 -- 'PostScopeState'
@@ -53,12 +58,18 @@ restorePostScopeState pss = do
   reportSLn "cache" 10 $ "restorePostScopeState"
   modify $ \s ->
     let ipoints = s^.stInteractionPoints
-        pss' = pss{stPostInteractionPoints = stPostInteractionPoints pss `mergeIPMap` ipoints}
+        ws = s^.stTCWarnings
+        pss' = pss{stPostInteractionPoints = stPostInteractionPoints pss `mergeIPMap` ipoints
+                  ,stPostTCWarnings = stPostTCWarnings pss `mergeWarnings` ws
+                  }
     in  s{stPostScopeState = pss'}
   where
     mergeIPMap lm sm = Map.mapWithKey (\k v -> maybe v (`mergeIP` v) (Map.lookup k lm)) sm
     -- see #1338 on why we need to use the new ranges.
     mergeIP li si = li { ipRange = ipRange si }
+
+    mergeWarnings loading current = [ w | w <- current, not $ tcWarningCached w ]
+                                 ++ [ w | w <- loading,       tcWarningCached w ]
 
 modifyCache
   :: (Maybe LoadedFileCache -> Maybe LoadedFileCache)

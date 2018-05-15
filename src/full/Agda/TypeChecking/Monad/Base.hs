@@ -191,6 +191,7 @@ data PostScopeState = PostScopeState
   , stPostFreshCheckpointId   :: !CheckpointId
   , stPostFreshInt            :: !Int
   , stPostFreshNameId         :: !NameId
+  , stPostAreWeCaching        :: !Bool
   }
 
 -- | A mutual block of names in the signature.
@@ -314,6 +315,7 @@ initPostScopeState = PostScopeState
   , stPostFreshCheckpointId    = 1
   , stPostFreshInt             = 0
   , stPostFreshNameId           = NameId 0 0
+  , stPostAreWeCaching         = False
   }
 
 initState :: TCState
@@ -520,6 +522,12 @@ stFreshInt :: Lens' Int TCState
 stFreshInt f s =
   f (stPostFreshInt (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostFreshInt = x}}
+
+-- use @areWeCaching@ from the Caching module instead.
+stAreWeCaching :: Lens' Bool TCState
+stAreWeCaching f s =
+  f (stPostAreWeCaching (stPostScopeState s)) <&>
+  \x -> s {stPostScopeState = (stPostScopeState s) {stPostAreWeCaching = x}}
 
 stBuiltinThings :: TCState -> BuiltinThings PrimFun
 stBuiltinThings s = (s^.stLocalBuiltins) `Map.union` (s^.stImportedBuiltins)
@@ -2520,6 +2528,8 @@ data TCWarning
         -- ^ The warning itself
     , tcWarningPrintedWarning :: Doc
         -- ^ The warning printed in the state and environment where it was raised
+    , tcWarningCached :: Bool
+        -- ^ Should the warning be affected by caching.
     }
   deriving Show
 
