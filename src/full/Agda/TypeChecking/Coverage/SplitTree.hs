@@ -18,6 +18,9 @@ import Data.Tree
 import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
+import Agda.Syntax.Literal
+
+import Agda.TypeChecking.Pretty ( PrettyTCM(..) )
 
 import Agda.Utils.Monad
 import Agda.Utils.Pretty
@@ -25,8 +28,8 @@ import Agda.Utils.Pretty
 #include "undefined.h"
 import Agda.Utils.Impossible
 
-type SplitTree  = SplitTree'  QName
-type SplitTrees = SplitTrees' QName
+type SplitTree  = SplitTree'  SplitTag
+type SplitTrees = SplitTrees' SplitTag
 
 -- | Abstract case tree shape.
 data SplitTree' a
@@ -46,6 +49,25 @@ data SplitTree' a
 --   so many constructors per data type, and there is no need for
 --   random access.
 type SplitTrees' a = [(a, SplitTree' a)]
+
+-- | Tag for labeling branches of a split tree. Each branch is associated to
+--   either a constructor or a literal, or is a catchall branch (currently
+--   only used for splitting on a literal type).
+data SplitTag
+  = SplitCon QName
+  | SplitLit Literal
+  | SplitCatchall
+  deriving (Show, Eq, Ord)
+
+instance Pretty SplitTag where
+  pretty (SplitCon c)  = pretty c
+  pretty (SplitLit l)  = pretty l
+  pretty SplitCatchall = underscore
+
+instance PrettyTCM SplitTag where
+  prettyTCM (SplitCon c)  = prettyTCM c
+  prettyTCM (SplitLit l)  = prettyTCM l
+  prettyTCM SplitCatchall = return underscore
 
 -- * Printing a split tree
 

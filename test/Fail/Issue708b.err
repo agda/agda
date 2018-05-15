@@ -1,0 +1,5 @@
+Issue708b.agda:5,1-6,16
+Incomplete pattern matching for test. Missing cases:
+  test (x ∷ [])
+  test (x ∷ x₁ ∷ x₂)
+when checking the definition of test

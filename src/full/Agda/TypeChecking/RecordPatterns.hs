@@ -24,6 +24,8 @@ import qualified Data.Traversable
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Internal.Pattern as I
+import Agda.Syntax.Literal
+
 import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Coverage.SplitTree
 import Agda.TypeChecking.EtaContract
@@ -119,11 +121,13 @@ cutSublist i n row =
       (mid , last) = splitAt n rest
   in  (init, mid, last)
 
-getEtaAndArity :: QName -> TCM (Bool, Nat)
-getEtaAndArity c =
+getEtaAndArity :: SplitTag -> TCM (Bool, Nat)
+getEtaAndArity (SplitCon c) =
   for (getConstructorInfo c) $ \case
     DataCon n        -> (False, n)
     RecordCon eta fs -> (eta == YesEta, size fs)
+getEtaAndArity (SplitLit l) = return (False, 0)
+getEtaAndArity SplitCatchall = return (False, 1)
 
 translateCompiledClauses :: CompiledClauses -> TCM CompiledClauses
 translateCompiledClauses cc = do
@@ -296,7 +300,8 @@ isRecordCase _ = return Nothing
 
 -- | Split tree annotation.
 data RecordSplitNode = RecordSplitNode
-  { splitCon           :: QName  -- ^ Constructor name for this branch.
+  { splitTag           :: SplitTag
+                                 -- ^ Constructor name/literal for this branch.
   , splitArity         :: Int    -- ^ Arity of the constructor.
   , splitRecordPattern :: Bool   -- ^ Should we translate this split away?
   }

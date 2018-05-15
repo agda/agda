@@ -1,9 +1,9 @@
-Issue2243.agda:9,1-12
+Issue3065.agda:13,1-22
 Unreachable clause
-when checking the definition of f
+when checking the definition of test
 
 ———— All done; warnings encountered ————————————————————————
 
-Issue2243.agda:9,1-12
+Issue3065.agda:13,1-22
 Unreachable clause
-when checking the definition of f
+when checking the definition of test

@@ -1,0 +1,5 @@
+Issue3064.agda:11,1-14
+Incomplete pattern matching for test. Missing cases:
+  snd (test 'a')
+  test c
+when checking the definition of test

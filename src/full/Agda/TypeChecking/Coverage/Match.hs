@@ -4,6 +4,8 @@ module Agda.TypeChecking.Coverage.Match where
 
 import Control.Monad.State
 
+import Prelude hiding ( null )
+
 import qualified Data.List as List
 import Data.Maybe (mapMaybe, isJust, fromMaybe)
 import Data.Monoid ( Monoid, mempty, mappend, mconcat )
@@ -17,11 +19,14 @@ import Agda.Syntax.Internal.Pattern ()
 import Agda.Syntax.Literal
 
 import Agda.TypeChecking.Monad
+import Agda.TypeChecking.Pretty ( PrettyTCM(..) )
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Substitute
 
+import Agda.Utils.Null
 import Agda.Utils.Permutation
-import Agda.Utils.Pretty ( Pretty(pretty), text, (<+>) )
+import Agda.Utils.Pretty ( Pretty(..), text, (<+>), cat , prettyList_ )
+import qualified Agda.Utils.Pretty as P
 import Agda.Utils.Size
 import Agda.Utils.List
 import Agda.Utils.Monad
@@ -44,24 +49,86 @@ We try to split on this column first.
 -}
 
 -- | Match the given patterns against a list of clauses
-match :: [Clause] -> [NamedArg DeBruijnPattern] -> Match (Nat,[DeBruijnPattern])
+match :: [Clause] -> [NamedArg SplitPattern] -> Match (Nat,[SplitPattern])
 match cs ps = foldr choice No $ zipWith matchIt [0..] cs
   where
-    -- If liberal matching on literals fails or blocks we go with that.
-    -- If it succeeds we use the result from conservative literal matching.
-    -- This is to make sure that we split enough when literals are involved.
-    -- For instance,
-    --    f ('x' :: 'y' :: _) = ...
-    --    f (c :: s) = ...
-    -- would never split the tail of the list if we only used conservative
-    -- literal matching.
-    matchIt i c = (i,) <$>
-      matchClause yesMatchLit ps i c +++
-      matchClause noMatchLit  ps i c
+    matchIt i c = (i,) <$> matchClause ps c
 
-    Yes _     +++ m = m
-    No        +++ _ = No
-    m@Block{} +++ _ = m
+-- | For each variable in the patterns of a split clause, we remember the
+--   de Bruijn-index and the literals excluded by previous matches.
+data SplitPatVar = SplitPatVar
+  { splitPatVarName   :: PatVarName
+  , splitPatVarIndex  :: Int
+  , splitExcludedLits :: [Literal]
+  } deriving (Show)
+
+instance Pretty SplitPatVar where
+  prettyPrec _ x =
+    (text $ patVarNameToString (splitPatVarName x)) P.<>
+    (text $ "@" ++ show (splitPatVarIndex x)) P.<>
+    (ifNull (splitExcludedLits x) empty $ \lits ->
+      text "\\{" P.<> prettyList_ lits P.<> text "}")
+
+instance PrettyTCM SplitPatVar where
+  prettyTCM = prettyTCM . var . splitPatVarIndex
+
+type SplitPattern = Pattern' SplitPatVar
+
+toSplitVar :: DBPatVar -> SplitPatVar
+toSplitVar x = SplitPatVar (dbPatVarName x) (dbPatVarIndex x) []
+
+fromSplitVar :: SplitPatVar -> DBPatVar
+fromSplitVar x = DBPatVar (splitPatVarName x) (splitPatVarIndex x)
+
+toSplitPatterns :: [NamedArg DeBruijnPattern] -> [NamedArg SplitPattern]
+toSplitPatterns = (fmap . fmap . fmap . fmap) toSplitVar
+
+fromSplitPatterns :: [NamedArg SplitPattern] -> [NamedArg DeBruijnPattern]
+fromSplitPatterns = (fmap . fmap . fmap . fmap) fromSplitVar
+
+instance DeBruijn SplitPattern where
+  debruijnNamedVar n i  = varP $ SplitPatVar n i []
+  deBruijnView _        = Nothing
+
+type SplitPSubstitution = Substitution' SplitPattern
+
+toSplitPSubst :: PatternSubstitution -> SplitPSubstitution
+toSplitPSubst = (fmap . fmap) toSplitVar
+
+fromSplitPSubst :: SplitPSubstitution -> PatternSubstitution
+fromSplitPSubst = (fmap . fmap) fromSplitVar
+
+applySplitPSubst :: (Subst Term a) => SplitPSubstitution -> a -> a
+applySplitPSubst = applyPatSubst . fromSplitPSubst
+
+-- TODO: merge this instance and the one for DeBruijnPattern in
+-- Substitute.hs into one for Subst (Pattern' a) (Pattern' a).
+instance Subst SplitPattern SplitPattern where
+  applySubst IdS p = p
+  applySubst rho p = case p of
+    VarP o x     ->
+      usePatOrigin o $
+      useName (splitPatVarName x) $
+      useExcludedLits (splitExcludedLits x) $
+      lookupS rho $ splitPatVarIndex x
+    DotP o u     -> DotP o $ applySplitPSubst rho u
+    ConP c ci ps -> ConP c ci $ applySubst rho ps
+    LitP x       -> p
+    ProjP{}      -> p
+
+    where
+      useName :: PatVarName -> SplitPattern -> SplitPattern
+      useName n (VarP o x)
+        | isUnderscore (splitPatVarName x)
+        = VarP o $ x { splitPatVarName = n }
+      useName _ x = x
+
+      useExcludedLits :: [Literal] -> SplitPattern -> SplitPattern
+      useExcludedLits lits = \case
+        (VarP o x) -> VarP o $ x
+          { splitExcludedLits = lits ++ splitExcludedLits x }
+        p -> p
+
 
 -- | A pattern that matches anything (modulo eta).
 isTrivialPattern :: (HasConstInfo m) => Pattern' a -> m Bool
@@ -75,43 +142,61 @@ isTrivialPattern p = case p of
 
 -- | If matching succeeds, we return the instantiation of the clause pattern vector
 --   to obtain the split clause pattern vector.
-type MatchResult = Match [DeBruijnPattern]
+type MatchResult = Match [SplitPattern]
 
 -- | If matching is inconclusive (@Block@) we want to know which
 --   variables are blocking the match.
 data Match a
   = Yes a   -- ^ Matches unconditionally.
   | No      -- ^ Definitely does not match.
-  | Block Any BlockingVars
-            -- ^ Could match if non-empty list of blocking variables
-            --   is instantiated properly.
-            --   Also 'Any' is 'True' if all clauses have a result split.
-            --   (Only then can we do result splitting.)
+  | Block
+    { blockedOnResult :: Bool
+      -- ^ True if the clause has a result split
+    , blockedOnVars :: BlockingVars
+      -- ^ @BlockingVar i cs ls o@ means variable @i@ is blocked on
+      -- constructors @cs@ and literals @ls@.
+    }
   deriving (Functor)
 
 -- | Variable blocking a match.
-data BlockingVar  = BlockingVar
-  { blockingVarNo   :: Nat
+data BlockingVar = BlockingVar
+  { blockingVarNo  :: Nat
     -- ^ De Bruijn index of variable blocking the match.
   , blockingVarCons :: [ConHead]
-    -- ^ List of the encountered constructors in this position.
+    -- ^ Constructors in this position.
+  , blockingVarLits :: [Literal]
+    -- ^ Literals in this position.
   , blockingVarOverlap :: Bool
-    -- ^ @True@ means there is an overlapping match for this variable.
-    --   This happens if one clause has a constructor pattern at this position,
-    --   and another a variable.  It is also used for "just variable".
+    -- ^ True if at least one clause has a variable pattern in this
+    --   position.
   } deriving (Show)
 
 instance Pretty BlockingVar where
-  pretty (BlockingVar i cs o) =
-    text ("blocking var " ++ show i) <+>
-    text (if o then " (overlapping)" else " (non-overlapping)") <+>
-    text "; constructors:" <+> pretty cs
+  pretty (BlockingVar i cs ls o) = cat
+    [ text ("variable " ++ show i)
+    , if null cs then empty else text " blocked on constructors" <+> pretty cs
+    , if null ls then empty else text " blocked on literals" <+> pretty ls
+    , if o then text " (overlapping)" else empty
+    ]
 
 type BlockingVars = [BlockingVar]
+
+blockedOnConstructor :: Nat -> ConHead -> Match a
+blockedOnConstructor i c = Block False [BlockingVar i [c] [] False]
+
+blockedOnLiteral :: Nat -> Literal -> Match a
+blockedOnLiteral i l = Block False [BlockingVar i [] [l] False]
+
+blockedOnProjection :: Match a
+blockedOnProjection = Block True []
 
 -- | Lens for 'blockingVarCons'.
 mapBlockingVarCons :: ([ConHead] -> [ConHead]) -> BlockingVar -> BlockingVar
 mapBlockingVarCons f b = b { blockingVarCons = f (blockingVarCons b) }
+
+-- | Lens for 'blockingVarLits'.
+mapBlockingVarLits :: ([Literal] -> [Literal]) -> BlockingVar -> BlockingVar
+mapBlockingVarLits f b = b { blockingVarLits = f (blockingVarLits b) }
 
 setBlockingVarOverlap :: BlockingVar -> BlockingVar
 setBlockingVarOverlap = \x -> x { blockingVarOverlap = True }
@@ -123,9 +208,9 @@ overlapping = map setBlockingVarOverlap
 zipBlockingVars :: BlockingVars -> BlockingVars -> BlockingVars
 zipBlockingVars xs ys = map upd xs
   where
-    upd (BlockingVar x cons o) = case List.find ((x ==) . blockingVarNo) ys of
-      Just (BlockingVar _ cons' o') -> BlockingVar x (cons ++ cons') (o || o')
-      Nothing -> BlockingVar x cons True
+    upd (BlockingVar x cons lits o) = case List.find ((x ==) . blockingVarNo) ys of
+      Just (BlockingVar _ cons' lits' o') -> BlockingVar x (cons ++ cons') (lits ++ lits') (o || o')
+      Nothing -> BlockingVar x cons lits True
 
 -- | @choice m m'@ combines the match results @m@ of a function clause
 --   with the (already combined) match results $m'$ of the later clauses.
@@ -134,56 +219,25 @@ zipBlockingVars xs ys = map upd xs
 --   If one clause unconditionally matches ('Yes') we do not look further.
 choice :: Match a -> Match a -> Match a
 choice (Yes a)      _            = Yes a
-choice (Block r xs) (Block s ys) = Block (Any $ getAny r && getAny s) $
-  zipBlockingVars xs ys
+choice (Block r xs) (Block s ys) = Block (r && s) $ zipBlockingVars xs ys
 choice (Block r xs) (Yes _)      = Block r $ overlapping xs
 choice m@Block{}    No           = m
 choice No           m            = m
 
--- | Could the literal cover (an instantiation of) the split clause pattern?
---   Basically, the split clause pattern needs to be a variable.
---
---   Note: literal patterns do not occur in the split clause
---   since we cannot split into all possible literals (that would be infeasible).
-type MatchLit = Literal -> DeBruijnPattern -> MatchResult
-
--- | Use this function if literal patterns should not cover a split clause pattern.
-noMatchLit :: MatchLit
-noMatchLit _ _ = No
-
--- | Use this function if a literal pattern should cover a split clause variable pattern.
-yesMatchLit :: MatchLit
-yesMatchLit l q@VarP{} = Yes [q]
-yesMatchLit l (DotP o t) = No
-yesMatchLit _ ConP{}   = No
-yesMatchLit _ ProjP{}  = No
-yesMatchLit _ LitP{}   = __IMPOSSIBLE__
-
--- | Check if a clause could match given generously chosen literals
-matchLits :: Clause -> [NamedArg DeBruijnPattern] -> Bool
-matchLits c ps =
-  case matchClause yesMatchLit ps 0 c of
-    Yes _ -> True
-    _ -> False
-
--- | @matchClause mlit qs i c@ checks whether clause @c@ number @i@
+-- | @matchClause qs i c@ checks whether clause @c@
 --   covers a split clause with patterns @qs@.
 matchClause
-  :: MatchLit
-     -- ^ Consider literals?
-  -> [NamedArg DeBruijnPattern]
+  :: [NamedArg SplitPattern]
      -- ^ Split clause patterns @qs@.
-  -> Nat
-     -- ^ Clause number @i@.
   -> Clause
      -- ^ Clause @c@ to cover split clause.
   -> MatchResult
      -- ^ Result.
      --   If 'Yes' the instantiation @rs@ such that @(namedClausePats c)[rs] == qs@.
-matchClause mlit qs i c = matchPats mlit (namedClausePats c) qs
+matchClause qs c = matchPats (namedClausePats c) qs
 
 
--- | @matchPats mlit ps qs@ checks whether a function clause with patterns
+-- | @matchPats ps qs@ checks whether a function clause with patterns
 --   @ps@ covers a split clause with patterns @qs@.
 --
 --   Issue #842 / #1986: This is accepted:
@@ -199,18 +253,16 @@ matchClause mlit qs i c = matchPats mlit (namedClausePats c) qs
 --   in @mconcat []@ which is @Yes []@.
 
 matchPats
-  :: MatchLit
-     -- ^ Matcher for literals.
-  -> [NamedArg (Pattern' a)]
+  :: [NamedArg (Pattern' a)]
      -- ^ Clause pattern vector @ps@ (to cover split clause pattern vector).
-  -> [NamedArg DeBruijnPattern]
+  -> [NamedArg SplitPattern]
      -- ^ Split clause pattern vector @qs@ (to be covered by clause pattern vector).
   -> MatchResult
      -- ^ Result.
      --   If 'Yes' the instantiation @rs@ such that @ps[rs] == qs@.
 
-matchPats mlit ps qs = mconcat $ [ projPatternsLeftInSplitClause ] ++
-    zipWith (matchPat mlit) (map namedArg ps) (map namedArg qs) ++
+matchPats ps qs = mconcat $ [ projPatternsLeftInSplitClause ] ++
+    zipWith matchPat (map namedArg ps) (map namedArg qs) ++
     [ projPatternsLeftInMatchedClause ]
   where
     -- Patterns left in split clause:
@@ -231,7 +283,7 @@ matchPats mlit ps qs = mconcat $ [ projPatternsLeftInSplitClause ] ++
     projPatternsLeftInMatchedClause =
         case mapMaybe isProjP psrest of
             [] -> mempty               -- no proj. patterns left
-            ds -> Block (Any True) []  -- proj. patterns left
+            ds -> blockedOnProjection  -- proj. patterns left
 
 
 -- | Combine results of checking whether function clause patterns
@@ -252,7 +304,7 @@ instance Semigroup a => Semigroup (Match a) where
   Yes _      <> m          = m
   No         <> _          = No
   Block{}    <> No         = No
-  Block r xs <> Block s ys = Block (r <> s) (xs <> ys)
+  Block r xs <> Block s ys = Block (r || s) (xs ++ ys)
   m@Block{}  <> Yes{}      = m
 
 instance (Semigroup a, Monoid a) => Monoid (Match a) where
@@ -260,40 +312,47 @@ instance (Semigroup a, Monoid a) => Monoid (Match a) where
   mappend = (<>)
 
 
--- | @matchPat mlit p q@ checks whether a function clause pattern @p@
+-- | @matchPat p q@ checks whether a function clause pattern @p@
 --   covers a split clause pattern @q@.  There are three results:
 --   @Yes rs@ means it covers, because @p@ is a variable pattern. @rs@ collects
 --   the instantiations of the variables in @p@ s.t. @p[rs] = q@.
 --   @No@ means it does not cover.
 --   @Block [x]@ means @p@ is a proper instance of @q@ and could become
 --   a cover if @q@ was split on variable @x@.
+--   @BlockLit [x] means @p@ is a proper instance of @q@ and could become
+--   a cover if variable @x@ is instantiated with an appropriate literal.
 
 matchPat
-  :: MatchLit
-     -- ^ Matcher for literals.
-  -> Pattern' a
+  :: Pattern' a
      -- ^ Clause pattern @p@ (to cover split clause pattern).
-  -> DeBruijnPattern
+  -> SplitPattern
      -- ^ Split clause pattern @q@ (to be covered by clause pattern).
   -> MatchResult
      -- ^ Result.
      --   If 'Yes', also the instantiation @rs@ of the clause pattern variables
      --   to produce the split clause pattern, @p[rs] = q@.
 
-matchPat _    VarP{}   q = Yes [q]
-matchPat _    DotP{}   q = mempty
+matchPat VarP{}   q = Yes [q]
+matchPat DotP{}   q = mempty
 -- Jesper, 2014-11-04: putting 'Yes [q]' here triggers issue 1333.
 -- Not checking for trivial patterns should be safe here, as dot patterns are
 -- guaranteed to match if the rest of the pattern does, so some extra splitting
 -- on them doesn't change the reduction behaviour.
-matchPat mlit (LitP l) q = mlit l q
-matchPat _    (ProjP _ d) (ProjP _ d') = if d == d' then mempty else No
-matchPat _    ProjP{} _ = __IMPOSSIBLE__
-matchPat mlit p@(ConP c _ ps) q = case q of
-  VarP _ x -> Block (Any False) [BlockingVar (dbPatVarIndex x) [c] False]
+matchPat p@(LitP l) q = case q of
+  VarP _ x -> if l `elem` splitExcludedLits x
+              then No
+              else blockedOnLiteral (splitPatVarIndex x) l
+  ConP{}   -> No
+  DotP{}   -> No
+  LitP l'  -> if l == l' then Yes [] else No
+  ProjP{}  -> __IMPOSSIBLE__  -- excluded by typing
+matchPat (ProjP _ d) (ProjP _ d') = if d == d' then mempty else No
+matchPat ProjP{} _ = __IMPOSSIBLE__
+matchPat p@(ConP c _ ps) q = case q of
+  VarP _ x -> blockedOnConstructor (splitPatVarIndex x) c
   ConP c' i qs
-    | c == c'   -> matchPats mlit ps qs
+    | c == c'   -> matchPats ps qs
     | otherwise -> No
   DotP o t  -> No
-  LitP _  -> __IMPOSSIBLE__  -- split clause has no literal patterns
-  ProjP{} -> __IMPOSSIBLE__  -- excluded by typing
+  LitP _    -> No
+  ProjP{}   -> __IMPOSSIBLE__  -- excluded by typing

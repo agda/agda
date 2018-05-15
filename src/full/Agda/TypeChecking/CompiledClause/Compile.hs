@@ -138,13 +138,16 @@ compileWithSplitTree t cs = case t of
                            , catchAllBranch = catchAll }
       = br{ conBranches    = updCons cons
           , etaBranch      = Nothing
-          , litBranches    = compile <$> lits
-          , catchAllBranch = compile <$> catchAll
+          , litBranches    = updLits lits
+          , catchAllBranch = updCatchall catchAll
           }
       where
         updCons = Map.mapWithKey $ \ c cl ->
-         caseMaybe (lookup c ts) compile compileWithSplitTree <$> cl
+         caseMaybe (lookup (SplitCon c) ts) compile compileWithSplitTree <$> cl
          -- When the split tree is finished, we continue with @compile@.
+        updLits = Map.mapWithKey $ \ l cl ->
+          caseMaybe (lookup (SplitLit l) ts) compile compileWithSplitTree cl
+        updCatchall = fmap $ caseMaybe (lookup SplitCatchall ts) compile compileWithSplitTree
     compiles _ Branches{etaBranch = Just{}} = __IMPOSSIBLE__  -- we haven't inserted eta matches yet
 
 compile :: Cls -> CompiledClauses
