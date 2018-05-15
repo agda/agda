@@ -148,26 +148,43 @@ instance CoArbitrary OtherAspect where
 
 instance Arbitrary Aspects where
   arbitrary = do
-    aspect  <- arbitrary
-    other   <- arbitrary
-    note    <- maybeGen string
-    defSite <- arbitrary
-    return (Aspects { aspect = aspect, otherAspects = other
-                     , note = note, definitionSite = defSite })
+    aspect     <- arbitrary
+    other      <- arbitrary
+    note       <- maybeGen string
+    defSite    <- arbitrary
+    tokenBased <- arbitrary
+    return (Aspects { aspect         = aspect
+                    , otherAspects   = other
+                    , note           = note
+                    , definitionSite = defSite
+                    , tokenBased     = tokenBased
+                    })
     where string = listOfElements "abcdefABCDEF/\\.\"'@()åäö\n"
 
-  shrink (Aspects a o n d) =
-    [ Aspects a o n d | a <- shrink a ] ++
-    [ Aspects a o n d | o <- shrink o ] ++
-    [ Aspects a o n d | n <- shrink n ] ++
-    [ Aspects a o n d | d <- shrink d ]
+  shrink (Aspects a o n d t) =
+    [ Aspects a o n d t | a <- shrink a ] ++
+    [ Aspects a o n d t | o <- shrink o ] ++
+    [ Aspects a o n d t | n <- shrink n ] ++
+    [ Aspects a o n d t | d <- shrink d ] ++
+    [ Aspects a o n d t | t <- shrink t ]
 
 instance CoArbitrary Aspects where
-  coarbitrary (Aspects aspect otherAspects note defSite) =
+  coarbitrary (Aspects aspect otherAspects note defSite tokenBased) =
     coarbitrary aspect .
     coarbitrary otherAspects .
     coarbitrary note .
-    coarbitrary defSite
+    coarbitrary defSite .
+    coarbitrary tokenBased
+
+instance Arbitrary TokenBased where
+  arbitrary = elements [TokenBased, NotOnlyTokenBased]
+
+  shrink TokenBased        = [NotOnlyTokenBased]
+  shrink NotOnlyTokenBased = []
+
+instance CoArbitrary TokenBased where
+  coarbitrary TokenBased        = variant 0
+  coarbitrary NotOnlyTokenBased = variant 1
 
 instance Arbitrary DefinitionSite where
   arbitrary = liftM4 DefinitionSite arbitrary arbitrary arbitrary $ maybeGen string

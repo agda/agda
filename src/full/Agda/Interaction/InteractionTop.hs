@@ -316,7 +316,8 @@ handleCommand wrap onFail cmd = handleNastyErrors $ wrap $ do
         unless (null s1) $ mapM_ putResponse $
             [ Resp_DisplayInfo $ Info_Error s ] ++
             tellEmacsToJumpToError (getRange e) ++
-            [ Resp_HighlightingInfo info method modFile ] ++
+            [ Resp_HighlightingInfo info KeepHighlighting
+                                    method modFile ] ++
             [ Resp_Status $ Status { sChecked = False
                                    , sShowImplicitArguments = x
                                    } ]
@@ -509,6 +510,20 @@ data Interaction' range
   | Cmd_load_highlighting_info
                         FilePath
 
+    -- | Tells Agda to compute token-based highlighting information
+    -- for the file.
+    --
+    -- This command works even if the file's module name does not
+    -- match its location in the file system, or if the file is not
+    -- scope-correct. Furthermore no file names are put in the
+    -- generated output. Thus it is fine to put source code into a
+    -- temporary file before calling this command. However, the file
+    -- extension should be correct.
+    --
+    -- If the second argument is 'Remove', then the (presumably
+    -- temporary) file is removed after it has been read.
+  | Cmd_tokenHighlighting FilePath Remove
+
     -- | Tells Agda to compute highlighting information for the expression just
     --   spliced into an interaction point.
   | Cmd_highlight InteractionId range String
@@ -593,6 +608,13 @@ data IOTCM' range
          -- -^ What to do
             deriving (Show, Read, Functor, Foldable, Traversable)
 
+-- | Used to indicate whether something should be removed or not.
+
+data Remove
+  = Remove
+  | Keep
+  deriving (Show, Read)
+
 ---------------------------------------------------------
 -- Read instances
 
@@ -675,6 +697,7 @@ independent :: Interaction -> Bool
 independent (Cmd_load {})                   = True
 independent (Cmd_compile {})                = True
 independent (Cmd_load_highlighting_info {}) = True
+independent Cmd_tokenHighlighting {}        = True
 independent Cmd_show_version                = True
 independent _                               = False
 
@@ -787,6 +810,19 @@ interpret (Cmd_load_highlighting_info source) = do
                 return Nothing
     mapM_ putResponse resp
 
+interpret (Cmd_tokenHighlighting source remove) = do
+  info <- do source <- liftIO (absolute source)
+             lift $ (Just <$> generateTokenInfo source)
+                       `catchError` \_ ->
+                    return Nothing
+      `finally`
+    case remove of
+      Remove -> liftIO $ removeFile source
+      Keep   -> return ()
+  case info of
+    Just info -> lift $ printHighlightingInfo RemoveHighlighting info
+    Nothing   -> return ()
+
 interpret (Cmd_highlight ii rng s) = do
   scope <- getOldInteractionScope ii
   removeOldInteractionScope ii
@@ -795,7 +831,8 @@ interpret (Cmd_highlight ii rng s) = do
            B.parseExpr rng s
     e <- try ("Highlighting failed to scope check expression in " ++ show ii) $
            concreteToAbstract scope e
-    lift $ printHighlightingInfo =<< generateTokenInfoFromString rng s
+    lift $ printHighlightingInfo KeepHighlighting =<<
+             generateTokenInfoFromString rng s
     lift $ highlightExpr e
   where
     handle :: ExceptT String TCM () -> CommandM ()
@@ -1084,7 +1121,7 @@ cmd_load' file argv unsolvedOK mode cmd = do
     putResponse Resp_ClearRunningInfo
 
     -- Remove any prior syntax highlighting.
-    putResponse Resp_ClearHighlighting
+    putResponse (Resp_ClearHighlighting NotOnlyTokenBased)
 
 
     ok <- lift $ Imp.typeCheckMain f mode
@@ -1194,7 +1231,8 @@ give_gen force ii rng s0 giveRefine = do
     -- the highlighting is moved together with the text when the hole goes away.
     -- To make it work for refine we'd have to adjust the ranges.
     when literally $ lift $ do
-      printHighlightingInfo =<< generateTokenInfoFromString rng s
+      printHighlightingInfo KeepHighlighting =<<
+        generateTokenInfoFromString rng s
       highlightExpr ae
     putResponse $ Resp_GiveAction ii $ mkNewTxt literally ce
     lift $ reportSLn "interaction.give" 30 $ "putResponse GiveAction passed"
@@ -1484,7 +1522,7 @@ tellToUpdateHighlighting
   :: Maybe (HighlightingInfo, HighlightingMethod, ModuleToSource) -> IO [Response]
 tellToUpdateHighlighting Nothing                = return []
 tellToUpdateHighlighting (Just (info, method, modFile)) =
-  return [Resp_HighlightingInfo info method modFile]
+  return [Resp_HighlightingInfo info KeepHighlighting method modFile]
 
 -- | Tells the Emacs mode to go to the first error position (if any).
 

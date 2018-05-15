@@ -59,9 +59,12 @@ import Agda.Interaction.FindFile
 import {-# SOURCE #-} Agda.Interaction.InteractionTop (showOpenMetas)
 import Agda.Interaction.Options
 import qualified Agda.Interaction.Options.Lenses as Lens
-import Agda.Interaction.Highlighting.Precise (HighlightingInfo, mergeC, compress)
+import Agda.Interaction.Highlighting.Precise
+  (HighlightingInfo, compress)
 import Agda.Interaction.Highlighting.Generate
 import Agda.Interaction.Highlighting.Vim
+import Agda.Interaction.Response
+  (RemoveTokenBasedHighlighting(KeepHighlighting))
 
 import Agda.Utils.Except ( MonadError(catchError, throwError) )
 import Agda.Utils.FileName
@@ -579,8 +582,7 @@ highlightFromInterface i file = do
   reportSLn "import.iface" 5 $
     "Generating syntax info for " ++ filePath file ++
     " (read from interface)."
-  printHighlightingInfo (iHighlighting i)
-
+  printHighlightingInfo KeepHighlighting (iHighlighting i)
 
 readInterface :: FilePath -> TCM (Maybe Interface)
 readInterface file = do
@@ -690,7 +692,7 @@ createInterface file mname isMain = Bench.billTo [Bench.TopModule mname] $
     Bench.billTo [Bench.Highlighting] $ do
       -- Generate and print approximate syntax highlighting info.
       ifTopLevelAndHighlightingLevelIs NonInteractive $
-        printHighlightingInfo fileTokenInfo
+        printHighlightingInfo KeepHighlighting fileTokenInfo
       let onlyScope = isMain == MainInterface ScopeCheck
       ifTopLevelAndHighlightingLevelIsOr NonInteractive onlyScope $
         mapM_ (\ d -> generateAndPrintSyntaxInfo d Partial onlyScope) ds
@@ -745,7 +747,8 @@ createInterface file mname isMain = Bench.billTo [Bench.TopModule mname] $
 
       -- Move any remaining token highlighting to stSyntaxInfo.
       toks <- use stTokens
-      ifTopLevelAndHighlightingLevelIs NonInteractive $ printHighlightingInfo toks
+      ifTopLevelAndHighlightingLevelIs NonInteractive $
+        printHighlightingInfo KeepHighlighting toks
       stTokens .= mempty
 
       -- Grabbing warnings and unsolved metas to highlight them
@@ -757,7 +760,7 @@ createInterface file mname isMain = Bench.billTo [Bench.TopModule mname] $
         P.text "collected unsolved: " P.<> prettyTCM unsolved
       let warningInfo = compress $ foldMap warningHighlighting $ unsolved ++ warnings
 
-      stSyntaxInfo %= \inf -> mergeC (inf `mappend` toks) warningInfo
+      stSyntaxInfo %= \inf -> (inf `mappend` toks) `mappend` warningInfo
 
       whenM (optGenerateVimFile <$> commandLineOptions) $
         -- Generate Vim file.

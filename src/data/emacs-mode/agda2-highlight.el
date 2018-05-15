@@ -445,21 +445,23 @@ The aspects currently recognised are the following:
   "Set up the `annotation' library for use with `agda2-mode'."
   (setq annotation-bindings agda2-highlight-faces))
 
-(defun agda2-highlight-apply (&rest cmds)
+(defun agda2-highlight-apply (remove &rest cmds)
   "Adds the syntax highlighting information in the annotation list CMDS.
 
-Old syntax highlighting information is not removed."
+If REMOVE is nil, then old syntax highlighting information is not
+removed. Otherwise all token-based syntax highlighting is removed."
   (let (;; Ignore read-only status, otherwise this function may fail.
         (inhibit-read-only t))
     (apply 'annotation-load
            "Click mouse-2 to jump to definition"
+           remove
            cmds)))
 
-(defun agda2-highlight-add-annotations (&rest cmds)
+(defun agda2-highlight-add-annotations (remove &rest cmds)
   "Like `agda2-highlight-apply'.
 But only if `agda2-highlight-in-progress' is non-nil."
   (if agda2-highlight-in-progress
-      (apply 'agda2-highlight-apply cmds)))
+      (apply 'agda2-highlight-apply remove cmds)))
 
 (defun agda2-highlight-load (file)
   "Load syntax highlighting information from FILE.
@@ -481,12 +483,15 @@ is non-nil."
           (agda2-highlight-load file))
     (delete-file file)))
 
-(defun agda2-highlight-clear nil
-  "Remove all syntax highlighting added by `agda2-highlight-reload'."
+(defun agda2-highlight-clear (&optional token-based)
+  "Remove all syntax highlighting.
+
+If TOKEN-BASED is non-nil, then only token-based highlighting is
+removed."
   (interactive)
   (let ((inhibit-read-only t))
        ; Ignore read-only status, otherwise this function may fail.
-    (annotation-remove-annotations)))
+    (annotation-remove-annotations token-based)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Administrative details

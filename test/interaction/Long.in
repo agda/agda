@@ -1,3 +1,4 @@
+top_command (cmd_tokenHighlighting currentFile Keep)
 top_command (cmd_load_highlighting_info currentFile)
 top_command (cmd_load currentFile [])
 top_command (cmd_load_highlighting_info currentFile)

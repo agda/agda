@@ -9,9 +9,11 @@ module Agda.Interaction.Highlighting.Precise
   , OtherAspect(..)
   , Aspects(..)
   , DefinitionSite(..)
+  , TokenBased(..)
   , File(..)
   , HighlightingInfo
     -- ** Creation
+  , parserBased
   , singleton
   , several
     -- ** Merging
@@ -124,6 +126,8 @@ data Aspects = Aspects
   , definitionSite :: Maybe DefinitionSite
     -- ^ The definition site of the annotated thing, if applicable and
     --   known. File positions are counted from 1.
+  , tokenBased :: !TokenBased
+    -- ^ Is this entry token-based?
   }
   deriving Show
 
@@ -142,8 +146,15 @@ data DefinitionSite = DefinitionSite
 instance Eq DefinitionSite where
   DefinitionSite m p _ _ == DefinitionSite m' p' _ _ = m == m' && p == p'
 
+-- | Is the highlighting \"token-based\", i.e. based only on
+-- information from the lexer?
+
+data TokenBased = TokenBased | NotOnlyTokenBased
+  deriving (Eq, Show)
+
 instance Eq Aspects where
-  Aspects a o _ d == Aspects a' o' _ d' = (a, List.nub o, d) == (a', List.nub o', d')
+  Aspects a o _ d t == Aspects a' o' _ d' t' =
+    (a, List.nub o, d, t) == (a', List.nub o', d', t')
 
 -- | A 'File' is a mapping from file positions to meta information.
 --
@@ -158,6 +169,12 @@ type HighlightingInfo = CompressedFile
 
 ------------------------------------------------------------------------
 -- Creation
+
+-- | A variant of 'mempty' with 'tokenBased' set to
+-- 'NotOnlyTokenBased'.
+
+parserBased :: Aspects
+parserBased = mempty { tokenBased = NotOnlyTokenBased }
 
 -- | @'singleton' rs m@ is a file whose positions are those in @rs@,
 -- and in which every position is associated with @m@.
@@ -174,6 +191,14 @@ several rs m = mconcat $ map (\r -> singleton r m) rs
 ------------------------------------------------------------------------
 -- Merging
 
+instance Semigroup TokenBased where
+  b1@NotOnlyTokenBased <> b2 = b1
+  TokenBased           <> b2 = b2
+
+instance Monoid TokenBased where
+  mempty  = TokenBased
+  mappend = (<>)
+
 -- | Merges meta information.
 
 mergeAspects :: Aspects -> Aspects -> Aspects
@@ -189,6 +214,7 @@ mergeAspects m1 m2 = Aspects
       (Nothing, Just n2) -> Just n2
       (Nothing, Nothing) -> Nothing
   , definitionSite = (mplus `on` definitionSite) m1 m2
+  , tokenBased     = tokenBased m1 <> tokenBased m2
   }
 
 instance Semigroup Aspects where
@@ -200,6 +226,7 @@ instance Monoid Aspects where
     , otherAspects   = []
     , note           = Nothing
     , definitionSite = Nothing
+    , tokenBased     = mempty
     }
   mappend = (<>)
 

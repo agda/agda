@@ -6,6 +6,7 @@
 
 module Agda.Interaction.Response
   ( Response (..)
+  , RemoveTokenBasedHighlighting (..)
   , MakeCaseVariant (..)
   , DisplayInfo (..)
   , Status (..)
@@ -33,7 +34,11 @@ import Agda.Utils.Impossible
 --   so the user can have timely response even during long computations.
 
 data Response
-    = Resp_HighlightingInfo HighlightingInfo HighlightingMethod ModuleToSource
+    = Resp_HighlightingInfo
+        HighlightingInfo
+        RemoveTokenBasedHighlighting
+        HighlightingMethod
+        ModuleToSource
     | Resp_Status Status
     | Resp_JumpToError FilePath Int32
     | Resp_InteractionPoints [InteractionId]
@@ -45,10 +50,21 @@ data Response
     | Resp_RunningInfo Int String
       -- ^ The integer is the message's debug level.
     | Resp_ClearRunningInfo
-    | Resp_ClearHighlighting
+    | Resp_ClearHighlighting TokenBased
+      -- ^ Clear highlighting of the given kind.
     | Resp_DoneAborting
       -- ^ A command sent when an abort command has completed
       -- successfully.
+
+-- | Should token-based highlighting be removed in conjunction with
+-- the application of new highlighting (in order to reduce the risk of
+-- flicker)?
+
+data RemoveTokenBasedHighlighting
+  = RemoveHighlighting
+    -- ^ Yes, remove all token-based highlighting from the file.
+  | KeepHighlighting
+    -- ^ No.
 
 -- | There are two kinds of \"make case\" commands.
 

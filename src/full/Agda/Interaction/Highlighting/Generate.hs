@@ -36,6 +36,8 @@ import Data.Void
 import Agda.Interaction.Response (Response(Resp_HighlightingInfo))
 import Agda.Interaction.Highlighting.Precise
 import Agda.Interaction.Highlighting.Range
+import Agda.Interaction.Response
+  (RemoveTokenBasedHighlighting(KeepHighlighting))
 
 import qualified Agda.TypeChecking.Errors as E
 import Agda.TypeChecking.MetaVars (isBlockedTerm)
@@ -101,7 +103,7 @@ highlightAsTypeChecked rPre r m
   r'        = rToR (P.continuousPerLine r)
   delta     = rPre' `minus` r'
   clear     = mempty
-  highlight = mempty { otherAspects = [TypeChecks] }
+  highlight = parserBased { otherAspects = [TypeChecks] }
 
   wrap rs x y = do
     p rs x
@@ -109,12 +111,16 @@ highlightAsTypeChecked rPre r m
     p rs y
     return v
     where
-    p rs x = printHighlightingInfo (singletonC rs x)
+    p rs x = printHighlightingInfo KeepHighlighting (singletonC rs x)
 
 -- | Lispify and print the given highlighting information.
 
-printHighlightingInfo :: MonadTCM tcm => HighlightingInfo -> tcm ()
-printHighlightingInfo info = do
+printHighlightingInfo ::
+  MonadTCM tcm =>
+  RemoveTokenBasedHighlighting ->
+  HighlightingInfo ->
+  tcm ()
+printHighlightingInfo remove info = do
   modToSrc <- use stModuleToSource
   method   <- view eHighlightingMethod
   liftTCM $ reportSLn "highlighting" 50 $ unlines
@@ -124,7 +130,7 @@ printHighlightingInfo info = do
     ]
   unless (null $ ranges info) $ do
     liftTCM $ appInteractionOutputCallback $
-        Resp_HighlightingInfo info method modToSrc
+        Resp_HighlightingInfo info remove method modToSrc
 
 -- | Highlighting levels.
 
@@ -189,7 +195,7 @@ generateAndPrintSyntaxInfo decl hlLevel updateState = do
           Just i  -> ( fromIntegral $ P.posPos $ P.iStart i
                      , fromIntegral $ P.posPos $ P.iEnd i)
     (prevTokens, (curTokens, postTokens)) <-
-      (second (splitAtC to)) . splitAtC from <$> use stTokens
+      second (splitAtC to) . splitAtC from <$> use stTokens
 
     -- theRest needs to be placed before nameInfo here since record
     -- field declarations contain QNames. constructorInfo also needs
@@ -210,7 +216,7 @@ generateAndPrintSyntaxInfo decl hlLevel updateState = do
       stTokens     .= prevTokens `mappend` postTokens
 
     ifTopLevelAndHighlightingLevelIs NonInteractive $
-      printHighlightingInfo syntaxInfo
+      printHighlightingInfo KeepHighlighting syntaxInfo
   where
   -- All names mentioned in the syntax tree (not bound variables).
   names :: [A.AmbiguousQName]
@@ -241,22 +247,26 @@ generateAndPrintSyntaxInfo decl hlLevel updateState = do
     ]
     where
     bound n = nameToFile modMap file [] (A.nameConcrete n) P.noRange
-                         (\isOp -> mempty { aspect = Just $ Name (Just Bound) isOp })
+                         (\isOp -> parserBased { aspect =
+                                     Just $ Name (Just Bound) isOp })
                          (Just $ A.nameBindingSite n)
 
     patsyn n =               -- TODO: resolve overloading
               nameToFileA modMap file (I.headAmbQ n) True $ \isOp ->
-                  mempty { aspect = Just $ Name (Just $ Constructor Common.Inductive) isOp }
+                  parserBased { aspect =
+                    Just $ Name (Just $ Constructor Common.Inductive) isOp }
 
     macro n = nameToFileA modMap file n True $ \isOp ->
-                  mempty { aspect = Just $ Name (Just Macro) isOp }
+                  parserBased { aspect = Just $ Name (Just Macro) isOp }
 
     field m n = nameToFile modMap file m n P.noRange
-                           (\isOp -> mempty { aspect = Just $ Name (Just Field) isOp })
+                           (\isOp -> parserBased { aspect =
+                                       Just $ Name (Just Field) isOp })
                            Nothing
     asName n = nameToFile modMap file []
                           n P.noRange
-                          (\isOp -> mempty { aspect = Just $ Name (Just Module) isOp })
+                          (\isOp -> parserBased { aspect =
+                                      Just $ Name (Just Module) isOp })
                           Nothing
 
     -- For top level modules, we set the binding site to the beginning of the file
@@ -265,8 +275,10 @@ generateAndPrintSyntaxInfo decl hlLevel updateState = do
     mod isTopLevelModule n =
       nameToFile modMap file []
                  (A.nameConcrete n) P.noRange
-                 (\isOp -> mempty { aspect = Just $ Name (Just Module) isOp })
-                 (Just $ applyWhen isTopLevelModule P.beginningOfFile $ A.nameBindingSite n)
+                 (\isOp -> parserBased { aspect =
+                             Just $ Name (Just Module) isOp })
+                 (Just $ applyWhen isTopLevelModule P.beginningOfFile $
+                           A.nameBindingSite n)
 
     getVarAndField :: A.Expr -> File
     getVarAndField (A.Var x)            = bound x
@@ -277,7 +289,9 @@ generateAndPrintSyntaxInfo decl hlLevel updateState = do
     -- Ulf, 2014-04-09: It would be nicer to have it on Named_ a, but
     -- you can't have polymorphic functions in universeBi.
     getNamedArg :: Common.RString -> File
-    getNamedArg x = singleton (rToR $ P.getRange x) mempty{ aspect = Just $ Name (Just Argument) False }
+    getNamedArg x = singleton (rToR $ P.getRange x) $
+                       parserBased { aspect =
+                         Just $ Name (Just Argument) False }
 
     getLet :: A.LetBinding -> File
     getLet (A.LetBind _ _ x _ _)     = bound x
@@ -305,7 +319,7 @@ generateAndPrintSyntaxInfo decl hlLevel updateState = do
       | Just _ <- isProjP e = mempty
       | otherwise =
           singleton (rToR $ P.getRange pi)
-                (mempty { otherAspects = [DottedPattern] })
+                (parserBased { otherAspects = [DottedPattern] })
     getPattern' (A.PatternSynP _ q _) = patsyn q
     getPattern' (A.RecP _ fs) = mconcat [ field [] x | FieldAssignment x _ <- fs ]
     getPattern' _             = mempty
@@ -347,7 +361,7 @@ generateAndPrintSyntaxInfo decl hlLevel updateState = do
     getModuleInfo :: SI.ModuleInfo -> File
     getModuleInfo (SI.ModuleInfo { SI.minfoAsTo   = asTo
                                  , SI.minfoAsName = name }) =
-      singleton (rToR asTo) (mempty { aspect = Just Symbol })
+      singleton (rToR asTo) (parserBased { aspect = Just Symbol })
         `mappend`
       maybe mempty asName name
 
@@ -519,13 +533,14 @@ printSyntaxInfo :: P.Range -> TCM ()
 printSyntaxInfo r = do
   syntaxInfo <- use stSyntaxInfo
   ifTopLevelAndHighlightingLevelIs NonInteractive $
-      printHighlightingInfo (selectC r syntaxInfo)
-
+      printHighlightingInfo KeepHighlighting (selectC r syntaxInfo)
 
 -- | Prints syntax highlighting info for an error.
 
 printErrorInfo :: TCErr -> TCM ()
-printErrorInfo e = printHighlightingInfo . compress =<< errorHighlighting e
+printErrorInfo e =
+  printHighlightingInfo KeepHighlighting . compress =<<
+    errorHighlighting e
 
 -- | Generate highlighting for error.
 --   Does something special for termination errors.
@@ -546,9 +561,9 @@ errorHighlighting e = do
   -- Print new highlighting.
   s <- E.prettyError e
   let error = singleton (rToR r)
-         $ mempty { otherAspects = [Error]
-                  , note         = Just s
-                  }
+         $ parserBased { otherAspects = [Error]
+                       , note         = Just s
+                       }
   return $ mconcat [ erase, error ]
 
 -- | Generate syntax highlighting for warnings.
@@ -588,7 +603,7 @@ warningHighlighting w = case tcWarning w of
 terminationErrorHighlighting :: [TerminationError] -> File
 terminationErrorHighlighting termErrs = functionDefs `mappend` callSites
   where
-    m            = mempty { otherAspects = [TerminationProblem] }
+    m            = parserBased { otherAspects = [TerminationProblem] }
     functionDefs = Fold.foldMap (\x -> singleton (rToR $ bindingSite x) m) $
                    concatMap M.termErrFunctions termErrs
     callSites    = Fold.foldMap (\r -> singleton (rToR r) m) $
@@ -602,20 +617,20 @@ positivityErrorHighlighting :: I.QName -> OccursWhere -> File
 positivityErrorHighlighting q o = several (rToR <$> P.getRange q : rs) m
   where
     rs = case o of Unknown -> []; Known r _ -> [r]
-    m  = mempty { otherAspects = [PositivityProblem] }
+    m  = parserBased { otherAspects = [PositivityProblem] }
 
 unreachableErrorHighlighting :: P.Range -> File
 unreachableErrorHighlighting r = singleton (rToR $ P.continuousPerLine r) m
-  where m = mempty { otherAspects = [ReachabilityProblem] }
+  where m = parserBased { otherAspects = [ReachabilityProblem] }
 
 coverageErrorHighlighting :: P.Range -> File
 coverageErrorHighlighting r = singleton (rToR $ P.continuousPerLine r) m
-  where m = mempty { otherAspects = [CoverageProblem] }
+  where m = parserBased { otherAspects = [CoverageProblem] }
 
 
 catchallHighlighting :: P.Range -> File
 catchallHighlighting r = singleton (rToR $ P.continuousPerLine r) m
-  where m = mempty { otherAspects = [CatchallClause] }
+  where m = parserBased { otherAspects = [CatchallClause] }
 
 
 -- | Generates and prints syntax highlighting information for unsolved
@@ -626,7 +641,7 @@ printUnsolvedInfo = do
   metaInfo       <- computeUnsolvedMetaWarnings
   constraintInfo <- computeUnsolvedConstraints
 
-  printHighlightingInfo
+  printHighlightingInfo KeepHighlighting
     (compress $ metaInfo `mappend` constraintInfo)
 
 -- | Generates syntax highlighting information for unsolved meta
@@ -647,7 +662,7 @@ computeUnsolvedMetaWarnings = do
 
 metasHighlighting :: [P.Range] -> File
 metasHighlighting rs = several (map (rToR . P.continuousPerLine) rs)
-                     $ mempty { otherAspects = [UnsolvedMeta] }
+                     $ parserBased { otherAspects = [UnsolvedMeta] }
 
 -- | Generates syntax highlighting information for unsolved constraints
 --   (ideally: that are not connected to a meta variable).
@@ -658,7 +673,7 @@ computeUnsolvedConstraints = constraintsHighlighting <$> getAllConstraints
 constraintsHighlighting :: Constraints -> File
 constraintsHighlighting cs =
   several (map (rToR . P.continuousPerLine) rs)
-          (mempty { otherAspects = [UnsolvedConstraint] })
+          (parserBased { otherAspects = [UnsolvedConstraint] })
   where
   -- get ranges of interesting unsolved constraints
   rs = (`mapMaybe` (map theConstraint cs)) $ \case
@@ -697,7 +712,7 @@ generate modMap file kinds (A.AmbQ qs) =
     -- Note that all names in an AmbiguousQName should have the same
     -- concrete name, so either they are all operators, or none of
     -- them are.
-    m isOp  = mempty { aspect = Just $ Name kind isOp }
+    m isOp  = parserBased { aspect = Just $ Name kind isOp }
     include = allEqual (map bindingSite $ Fold.toList qs)
 
 -- | Converts names to suitable 'File's.
