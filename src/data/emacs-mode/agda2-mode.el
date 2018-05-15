@@ -1215,14 +1215,13 @@ is inserted, and point is placed before this text."
   (agda2-term))
 
 (defun agda2-term ()
-  "Send a SIGTERM signal to the Agda2 process, then kill its buffer."
+  "Interrupt the Agda process and kill its buffer."
   (interactive)
+  (when (and agda2-process
+             (process-status agda2-process))
+    (interrupt-process agda2-process))
   (when (buffer-live-p agda2-process-buffer)
-    (with-current-buffer agda2-process-buffer
-      (condition-case nil
-          (signal-process agda2-process 'SIGTERM)
-        (error nil))
-      (kill-buffer))))
+    (kill-buffer agda2-process-buffer)))
 
 (defmacro agda2-maybe-normalised (name comment cmd want)
   "This macro constructs a function NAME which runs CMD.
@@ -2011,12 +2010,10 @@ VERSION is empty, then agda and agda-mode are used instead.)"
     (unless (file-readable-p agda-mode-path)
       (error "%s" (concat "Could not read " agda-mode-path)))
 
-    ;; Kill some processes/buffers related to Agda.
-    (when (and agda2-process
-               (process-status agda2-process))
-      (kill-process agda2-process))
-    (when (buffer-live-p agda2-process-buffer)
-      (kill-buffer agda2-process-buffer))
+    ;; Turn off the Agda mode.
+    (agda2-quit)
+
+    ;; Kill some buffers related to Agda.
     (when (buffer-live-p agda2-info-buffer)
       (kill-buffer agda2-info-buffer))
     (when (and agda2-debug-buffer-name
