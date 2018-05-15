@@ -63,13 +63,19 @@ showAspects modFile (r, m) = L $
       ++
     [L $ map A $ toAtoms m]
       ++
-    [A $ maybe "nil" quote $ note m]
-      ++
-    (maybeToList $ fmap defSite $ definitionSite m)
+    dropNils (
+      [A $ maybe "nil" quote $ note m]
+        ++
+      (maybeToList $ fmap defSite $ definitionSite m))
   where
   defSite (DefinitionSite m p _ _) =
     Cons (A $ quote $ filePath f) (A $ show p)
     where f = Map.findWithDefault __IMPOSSIBLE__ m modFile
+
+  dropNils =
+    reverse .
+    dropWhile (== A "nil") .
+    reverse
 
 -- | Turns syntax highlighting information into a list of
 -- S-expressions.
