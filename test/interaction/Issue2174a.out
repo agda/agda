@@ -9,7 +9,7 @@
 ((last . 3) . (agda2-maybe-goto '("Issue2174a.agda" . 1)))
 (agda2-highlight-load-and-delete-action)
 (agda2-status-action "")
-(agda2-highlight-load-and-delete-action)
+(agda2-highlight-add-annotations 'nil '(3 4 (symbol) t) '(5 6 (symbol) t))
 (agda2-highlight-add-annotations 'nil '(1 2 (postulate) nil nil ("Issue2174a.agda" . 83)))
 (agda2-give-action 0 'no-paren)
 (agda2-status-action "")

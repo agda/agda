@@ -1239,9 +1239,11 @@ give_gen force ii rng s0 giveRefine = do
     -- the highlighting is moved together with the text when the hole goes away.
     -- To make it work for refine we'd have to adjust the ranges.
     when literally $ lift $ do
-      printHighlightingInfo KeepHighlighting =<<
-        generateTokenInfoFromString rng s
-      highlightExpr ae
+      l <- envHighlightingLevel <$> ask
+      when (l /= None) $ do
+        printHighlightingInfo KeepHighlighting =<<
+          generateTokenInfoFromString rng s
+        highlightExpr ae
     putResponse $ Resp_GiveAction ii $ mkNewTxt literally ce
     lift $ reportSLn "interaction.give" 30 $ "putResponse GiveAction passed"
     -- display new goal set (if not measuring time)
