@@ -113,5 +113,8 @@ view l = asks (^. l)
 locally :: MonadReader o m => Lens' i o -> (i -> i) -> m a -> m a
 locally l = local . over l
 
+locally' :: ((o -> o) -> m a -> m a) -> Lens' i o -> (i -> i) -> m a -> m a
+locally' local l = local . over l
+
 key :: Ord k => k -> Lens' (Maybe v) (Map k v)
 key k f m = f (Map.lookup k m) <&> \ v -> Map.alter (const v) k m

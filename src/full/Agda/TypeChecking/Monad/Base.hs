@@ -2963,8 +2963,18 @@ mapRedEnvSt :: (TCEnv -> TCEnv) -> (TCState -> TCState) -> ReduceEnv
             -> ReduceEnv
 mapRedEnvSt f g (ReduceEnv e s) = ReduceEnv (f e) (g s)
 
+-- Lenses
+reduceEnv :: Lens' TCEnv ReduceEnv
+reduceEnv f s = f (redEnv s) <&> \ e -> s { redEnv = e }
+
+reduceSt :: Lens' TCState ReduceEnv
+reduceSt f s = f (redSt s) <&> \ e -> s { redSt = e }
+
 newtype ReduceM a = ReduceM { unReduceM :: ReduceEnv -> a }
 --  deriving (Functor, Applicative, Monad)
+
+onReduceEnv :: (ReduceEnv -> ReduceEnv) -> ReduceM a -> ReduceM a
+onReduceEnv f (ReduceM m) = ReduceM (m . f)
 
 fmapReduce :: (a -> b) -> ReduceM a -> ReduceM b
 fmapReduce f (ReduceM m) = ReduceM $ \ e -> f $! m e
@@ -3006,8 +3016,8 @@ runReduceF f = do
   return $ \x -> unReduceM (f x) (ReduceEnv e s)
 
 instance MonadReader TCEnv ReduceM where
-  ask = ReduceM redEnv
-  local f (ReduceM m) = ReduceM (m . mapRedEnv f)
+  ask   = ReduceM redEnv
+  local = onReduceEnv . mapRedEnv
 
 ---------------------------------------------------------------------------
 -- * Type checking monad transformer

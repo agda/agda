@@ -338,6 +338,9 @@ getVerbosity = optVerbose <$> pragmaOptions
 
 type VerboseKey = String
 
+parseVerboseKey :: VerboseKey -> [String]
+parseVerboseKey = wordsBy (`elem` ".:")
+
 -- | Check whether a certain verbosity level is activated.
 --
 --   Precondition: The level must be non-negative.
@@ -346,7 +349,7 @@ hasVerbosity :: HasOptions m => VerboseKey -> Int -> m Bool
 hasVerbosity k n | n < 0     = __IMPOSSIBLE__
                  | otherwise = do
     t <- getVerbosity
-    let ks = wordsBy (`elem` ".:") k
+    let ks = parseVerboseKey k
         m  = last $ 0 : Trie.lookupPath ks t
     return (n <= m)
 
@@ -355,7 +358,7 @@ hasVerbosity k n | n < 0     = __IMPOSSIBLE__
 {-# SPECIALIZE hasExactVerbosity :: VerboseKey -> Int -> TCM Bool #-}
 hasExactVerbosity :: HasOptions m => VerboseKey -> Int -> m Bool
 hasExactVerbosity k n =
-  (Just n ==) . Trie.lookup (wordsBy (`elem` ".:") k) <$> getVerbosity
+  (Just n ==) . Trie.lookup (parseVerboseKey k) <$> getVerbosity
 
 -- | Run a computation if a certain verbosity level is activated (exact match).
 
@@ -371,3 +374,14 @@ whenExactVerbosity k n = whenM $ liftTCM $ hasExactVerbosity k n
 {-# SPECIALIZE verboseS :: MonadTCM tcm => VerboseKey -> Int -> tcm () -> tcm () #-}
 verboseS :: (MonadReader TCEnv m, HasOptions m) => VerboseKey -> Int -> m () -> m ()
 verboseS k n action = whenM (hasVerbosity k n) $ locally eIsDebugPrinting (const True) action
+
+-- | Verbosity lens.
+verbosity :: VerboseKey -> Lens' Int TCState
+verbosity k = stPragmaOptions . verbOpt . Trie.valueAt (parseVerboseKey k) . defaultTo 0
+  where
+    verbOpt :: Lens' (Trie String Int) PragmaOptions
+    verbOpt f opts = f (optVerbose opts) <&> \ v -> opts { optVerbose = v }
+
+    defaultTo :: Eq a => a -> Lens' a (Maybe a)
+    defaultTo x f m = f (fromMaybe x m) <&> \ v -> if v == x then Nothing else Just v
+
