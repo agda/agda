@@ -403,7 +403,7 @@ highlight_ d = do
       fields (d@A.Field{}        : ds)  = d : fields ds
       fields (_                  : ds)  = fields ds
       fields []                         = []
-      -- Andreas, 2016-01-22, issue 1791
+      -- Andreas, 2016-01-22, issue 1790
       -- The expression denoting the record constructor type
       -- is replace by a dummy expression in order to /not/
       -- generate highlighting from it.
