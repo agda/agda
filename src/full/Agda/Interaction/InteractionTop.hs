@@ -783,6 +783,8 @@ interpret ToggleImplicitArgs = do
              ps { optShowImplicit = not $ optShowImplicit ps } }
 
 interpret (Cmd_load_highlighting_info source) = do
+  l <- envHighlightingLevel <$> ask
+  when (l /= None) $ do
     -- Make sure that the include directories have
     -- been set.
     setCommandLineOpts =<< lift commandLineOptions
@@ -811,10 +813,14 @@ interpret (Cmd_load_highlighting_info source) = do
     mapM_ putResponse resp
 
 interpret (Cmd_tokenHighlighting source remove) = do
-  info <- do source <- liftIO (absolute source)
-             lift $ (Just <$> generateTokenInfo source)
-                       `catchError` \_ ->
-                    return Nothing
+  info <- do l <- envHighlightingLevel <$> ask
+             if l == None
+               then return Nothing
+               else do
+                 source <- liftIO (absolute source)
+                 lift $ (Just <$> generateTokenInfo source)
+                           `catchError` \_ ->
+                        return Nothing
       `finally`
     case remove of
       Remove -> liftIO $ removeFile source
@@ -824,16 +830,18 @@ interpret (Cmd_tokenHighlighting source remove) = do
     Nothing   -> return ()
 
 interpret (Cmd_highlight ii rng s) = do
-  scope <- getOldInteractionScope ii
-  removeOldInteractionScope ii
-  handle $ do
-    e <- try ("Highlighting failed to parse expression in " ++ show ii) $
-           B.parseExpr rng s
-    e <- try ("Highlighting failed to scope check expression in " ++ show ii) $
-           concreteToAbstract scope e
-    lift $ printHighlightingInfo KeepHighlighting =<<
-             generateTokenInfoFromString rng s
-    lift $ highlightExpr e
+  l <- envHighlightingLevel <$> ask
+  when (l /= None) $ do
+    scope <- getOldInteractionScope ii
+    removeOldInteractionScope ii
+    handle $ do
+      e <- try ("Highlighting failed to parse expression in " ++ show ii) $
+             B.parseExpr rng s
+      e <- try ("Highlighting failed to scope check expression in " ++ show ii) $
+             concreteToAbstract scope e
+      lift $ printHighlightingInfo KeepHighlighting =<<
+               generateTokenInfoFromString rng s
+      lift $ highlightExpr e
   where
     handle :: ExceptT String TCM () -> CommandM ()
     handle m = do
