@@ -338,6 +338,9 @@ getVerbosity = optVerbose <$> pragmaOptions
 
 type VerboseKey = String
 
+parseVerboseKey :: VerboseKey -> [String]
+parseVerboseKey = wordsBy (`elem` ".:")
+
 -- | Check whether a certain verbosity level is activated.
 --
 --   Precondition: The level must be non-negative.
@@ -346,7 +349,7 @@ hasVerbosity :: HasOptions m => VerboseKey -> Int -> m Bool
 hasVerbosity k n | n < 0     = __IMPOSSIBLE__
                  | otherwise = do
     t <- getVerbosity
-    let ks = wordsBy (`elem` ".:") k
+    let ks = parseVerboseKey k
         m  = last $ 0 : Trie.lookupPath ks t
     return (n <= m)
 
@@ -355,7 +358,7 @@ hasVerbosity k n | n < 0     = __IMPOSSIBLE__
 {-# SPECIALIZE hasExactVerbosity :: VerboseKey -> Int -> TCM Bool #-}
 hasExactVerbosity :: HasOptions m => VerboseKey -> Int -> m Bool
 hasExactVerbosity k n =
-  (Just n ==) . Trie.lookup (wordsBy (`elem` ".:") k) <$> getVerbosity
+  (Just n ==) . Trie.lookup (parseVerboseKey k) <$> getVerbosity
 
 -- | Run a computation if a certain verbosity level is activated (exact match).
 
