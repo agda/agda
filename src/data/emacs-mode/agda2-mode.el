@@ -187,8 +187,10 @@ to this variable to take effect."
 
 (defcustom agda2-highlight-after-inactivity-interval 0.2
   "Highlight the buffer when Emacs has been idle for the given time.
-Only token-based highlighting is performed. Highlighting is only
-performed if the buffer is (marked as being) modified."
+After the last modification of the buffer. Only token-based
+highlighting is performed. Highlighting is only performed if the
+buffer is (marked as being) modified, the Agda process is not
+busy, and `agda2-highlight-level' is not `none'."
   :group 'agda2-highlight
   :type '(choice (const :tag "Turn off this feature" nil)
                  (restricted-sexp
@@ -1919,10 +1921,14 @@ busy with something. This command does not save the buffer."
   "Compute token-based highlighting after Emacs has been idle.
 Only if `agda2-highlight-after-inactivity-interval' is a
 non-negative number. The number is interpreted as the number of
-seconds of inactivity that is required before highlighting is
-updated. Furthermore nothing happens unless, after the given
-amount of time, the buffer is marked as being modified, the Agda
-process is not busy, and `agda2-highlight-level' is not `none'.
+seconds of continuous inactivity that is required before
+highlighting is updated. Furthermore nothing happens unless,
+after the given amount of time, the buffer is marked as being
+modified, the Agda process is not busy, and
+`agda2-highlight-level' is not `none'.
+
+When this procedure is invoked previous, pending invocations are
+cancelled.
 
 This procedure is intended to be used in `after-change-functions'."
   (when (and (numberp agda2-highlight-after-inactivity-interval)
