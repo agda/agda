@@ -11,6 +11,7 @@ module Agda.Utils.Trie
   , toList, toAscList, toListOrderedBy
   , lookup, member, lookupPath, lookupTrie
   , mapSubTries, filter
+  , valueAt
   ) where
 
 import Prelude hiding (null, lookup, filter)
@@ -28,6 +29,7 @@ import qualified Data.List as List
 
 import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Null
+import Agda.Utils.Lens
 
 -- | Finite map from @[k]@ to @v@.
 --
@@ -161,4 +163,10 @@ filter p (Trie mv ts) = Trie mv' (Map.filter (not . null) $ filter p <$> ts)
       case mv of
         Strict.Just v | p v -> mv
         _                   -> Strict.Nothing
+
+-- | Key lens.
+valueAt :: Ord k => [k] -> Lens' (Maybe v) (Trie k v)
+valueAt path f t = f (lookup path t) <&> \ case
+  Nothing -> delete path t
+  Just v  -> insert path v t
 
