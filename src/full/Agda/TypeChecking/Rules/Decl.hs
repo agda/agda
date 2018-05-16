@@ -395,15 +395,10 @@ highlight_ d = do
       -- all that remains is the module declaration.
     A.RecSig{}               -> highlight d
     A.RecDef i x ind eta c ps tel cs ->
-      highlight (A.RecDef i x ind eta c [] dummy (fields cs))
-      -- The telescope and all record module declarations except
-      -- for the fields have already been highlighted.
+      highlight (A.RecDef i x ind eta c [] dummy cs)
+      -- The telescope has already been highlighted.
       where
-      fields (A.ScopedDecl _ ds1 : ds2) = fields ds1 ++ fields ds2
-      fields (d@A.Field{}        : ds)  = d : fields ds
-      fields (_                  : ds)  = fields ds
-      fields []                         = []
-      -- Andreas, 2016-01-22, issue 1791
+      -- Andreas, 2016-01-22, issue 1790
       -- The expression denoting the record constructor type
       -- is replace by a dummy expression in order to /not/
       -- generate highlighting from it.

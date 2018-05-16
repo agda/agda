@@ -799,9 +799,8 @@ createInterface file mname isMain = Bench.billTo [Bench.TopModule mname] $
 
     -- Serialization.
     reportSLn "import.iface.create" 7 $ "Starting serialization."
-    syntaxInfo <- use stSyntaxInfo
     i <- Bench.billTo [Bench.Serialization, Bench.BuildInterface] $ do
-      buildInterface file topLevel syntaxInfo options
+      buildInterface file topLevel options
 
     reportSLn "tc.top" 101 $ unlines $
       "Signature:" :
@@ -921,12 +920,10 @@ buildInterface
   :: AbsolutePath
   -> TopLevelInfo
      -- ^ 'TopLevelInfo' for the current module.
-  -> HighlightingInfo
-     -- ^ Syntax highlighting info for the module.
   -> [OptionsPragma]
      -- ^ Options set in @OPTIONS@ pragmas.
   -> TCM Interface
-buildInterface file topLevel syntaxInfo pragmas = do
+buildInterface file topLevel pragmas = do
     reportSLn "import.iface" 5 "Building interface..."
     let m = topLevelModuleName topLevel
     scope'  <- getScope
@@ -952,6 +949,7 @@ buildInterface file topLevel syntaxInfo pragmas = do
     -- TODO: Kill some ranges?
     (display, sig) <- eliminateDeadCode display =<< getSignature
     userwarns <- use stUserWarnings
+    syntaxInfo <- use stSyntaxInfo
     -- Andreas, 2015-02-09 kill ranges in pattern synonyms before
     -- serialization to avoid error locations pointing to external files
     -- when expanding a pattern synoym.

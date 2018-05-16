@@ -1,0 +1,3 @@
+-- Checks that highlighting is generated correctly for all the code in
+-- the record module.
+IOTCM currentFile NonInteractive Direct (Cmd_load currentFile [])
