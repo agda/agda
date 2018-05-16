@@ -10,7 +10,7 @@
 (agda2-highlight-load-and-delete-action)
 (agda2-status-action "")
 (agda2-highlight-load-and-delete-action)
-(agda2-highlight-add-annotations '(1 2 (postulate) nil ("Issue2174a.agda" . 83)))
+(agda2-highlight-add-annotations 'nil '(1 2 (postulate) nil nil ("Issue2174a.agda" . 83)))
 (agda2-give-action 0 'no-paren)
 (agda2-status-action "")
 (agda2-info-action "*All Goals*" "?1 : Set ?2 : Set " nil)

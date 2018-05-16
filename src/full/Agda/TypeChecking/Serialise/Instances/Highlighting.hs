@@ -89,7 +89,7 @@ instance EmbPrj HP.OtherAspect where
     valu _   = malformed
 
 instance EmbPrj HP.Aspects where
-  icod_ (HP.Aspects a b c d) = icodeN' HP.Aspects a b c d
+  icod_ (HP.Aspects a b c d e) = icodeN' HP.Aspects a b c d e
 
   value = valueN HP.Aspects
 
@@ -102,3 +102,12 @@ instance EmbPrj HP.CompressedFile where
   icod_ (HP.CompressedFile f) = icodeN' HP.CompressedFile f
 
   value = valueN HP.CompressedFile
+
+instance EmbPrj HP.TokenBased where
+  icod_ HP.TokenBased        = icodeN 0 ()
+  icod_ HP.NotOnlyTokenBased = icodeN' HP.NotOnlyTokenBased
+
+  value = vcase valu where
+    valu [0] = valuN HP.TokenBased
+    valu []  = valuN HP.NotOnlyTokenBased
+    valu _   = malformed

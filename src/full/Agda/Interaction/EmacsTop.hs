@@ -25,6 +25,7 @@ import Agda.Interaction.Response as R
 import Agda.Interaction.InteractionTop
 import Agda.Interaction.EmacsCommand hiding (putResponse)
 import Agda.Interaction.Highlighting.Emacs
+import Agda.Interaction.Highlighting.Precise (TokenBased(..))
 import Agda.Interaction.Options
 
 import Agda.VersionCommit
@@ -121,8 +122,8 @@ formatWarningsAndErrors g w e = (body, title)
 -- | Convert Response to an elisp value for the interactive emacs frontend.
 
 lispifyResponse :: Response -> IO [Lisp String]
-lispifyResponse (Resp_HighlightingInfo info method modFile) =
-  (:[]) <$> lispifyHighlightingInfo info method modFile
+lispifyResponse (Resp_HighlightingInfo info remove method modFile) =
+  (:[]) <$> lispifyHighlightingInfo info remove method modFile
 lispifyResponse (Resp_DisplayInfo info) = return $ case info of
     Info_CompilationOk w e -> f body "*Compilation result*"
       where (body, _) = formatWarningsAndErrors "The module was successfully compiled.\n" w e -- abusing the goals field since we ignore the title
@@ -152,7 +153,13 @@ lispifyResponse (Resp_DisplayInfo info) = return $ case info of
     Info_Intro s -> f (render s) "*Intro*"
     Info_Version -> f ("Agda version " ++ versionWithCommitInfo) "*Agda Version*"
   where f content bufname = [ display_info' False bufname content ]
-lispifyResponse Resp_ClearHighlighting = return [ L [ A "agda2-highlight-clear" ] ]
+lispifyResponse (Resp_ClearHighlighting tokenBased) =
+  return [ L $ A "agda2-highlight-clear" :
+               case tokenBased of
+                 NotOnlyTokenBased -> []
+                 TokenBased        ->
+                   [ Q (lispifyTokenBased tokenBased) ]
+         ]
 lispifyResponse Resp_DoneAborting = return [ L [ A "agda2-abort-done" ] ]
 lispifyResponse Resp_ClearRunningInfo = return [ clearRunningInfo ]
 -- FNF: if Info_Warning comes back into use, the above should be

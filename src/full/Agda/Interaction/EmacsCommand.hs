@@ -35,6 +35,7 @@ data Lisp a
     -- ^ List.
   | Q (Lisp a)
     -- Quoted expression.
+  deriving Eq
 
 instance Pretty a => Pretty (Lisp a) where
   pretty (A a )     = pretty a

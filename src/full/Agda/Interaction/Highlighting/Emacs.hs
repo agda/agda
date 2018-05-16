@@ -4,11 +4,13 @@
 
 module Agda.Interaction.Highlighting.Emacs
   ( lispifyHighlightingInfo
+  , lispifyTokenBased
   ) where
 
 import Agda.Interaction.Highlighting.Precise
 import Agda.Interaction.Highlighting.Range
 import Agda.Interaction.EmacsCommand
+import Agda.Interaction.Response
 import Agda.Syntax.Common
 import Agda.TypeChecking.Monad
   (TCM, envHighlightingMethod, HighlightingMethod(..), ModuleToSource)
@@ -63,13 +65,28 @@ showAspects modFile (r, m) = L $
       ++
     [L $ map A $ toAtoms m]
       ++
-    [A $ maybe "nil" quote $ note m]
-      ++
-    (maybeToList $ fmap defSite $ definitionSite m)
+    dropNils (
+      [lispifyTokenBased (tokenBased m)]
+        ++
+      [A $ maybe "nil" quote $ note m]
+        ++
+      (maybeToList $ fmap defSite $ definitionSite m))
   where
   defSite (DefinitionSite m p _ _) =
     Cons (A $ quote $ filePath f) (A $ show p)
     where f = Map.findWithDefault __IMPOSSIBLE__ m modFile
+
+  dropNils =
+    reverse .
+    dropWhile (== A "nil") .
+    reverse
+
+-- | Formats the 'TokenBased' tag for the Emacs backend. No quotes are
+-- added.
+
+lispifyTokenBased :: TokenBased -> Lisp String
+lispifyTokenBased TokenBased        = A "t"
+lispifyTokenBased NotOnlyTokenBased = A "nil"
 
 -- | Turns syntax highlighting information into a list of
 -- S-expressions.
@@ -81,18 +98,22 @@ showAspects modFile (r, m) = L $
 
 lispifyHighlightingInfo
   :: HighlightingInfo
+  -> RemoveTokenBasedHighlighting
   -> HighlightingMethod
   -> ModuleToSource
      -- ^ Must contain a mapping for every definition site's module.
   -> IO (Lisp String)
-lispifyHighlightingInfo h method modFile = do
+lispifyHighlightingInfo h remove method modFile = do
   case ranges h of
     _             | method == Direct                   -> direct
     ((_, mi) : _) | otherAspects mi == [TypeChecks] ||
                     mi == mempty                       -> direct
     _                                                  -> indirect
   where
-  info     = map (showAspects modFile) (ranges h)
+  info     = (case remove of
+                RemoveHighlighting -> A "remove"
+                KeepHighlighting   -> A "nil") :
+             map (showAspects modFile) (ranges h)
 
   direct   = return $ L (A "agda2-highlight-add-annotations" :
                          map Q info)

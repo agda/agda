@@ -185,6 +185,17 @@ to this variable to take effect."
 (if (and (equal agda2-fontset-name "fontset-agda2") window-system)
     (create-fontset-from-fontset-spec agda2-fontset-spec-of-fontset-agda2 t t))
 
+(defcustom agda2-highlight-after-inactivity-interval 0.2
+  "Highlight the buffer when Emacs has been idle for the given time.
+Only token-based highlighting is performed. Highlighting is only
+performed if the buffer is (marked as being) modified."
+  :group 'agda2-highlight
+  :type '(choice (const :tag "Turn off this feature" nil)
+                 (restricted-sexp
+                  :tag "Seconds"
+                  :match-alternatives ((lambda (n)
+                                         (and (numberp n) (>= n 0)))))))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; Global and buffer-local vars, initialization
 
@@ -381,6 +392,10 @@ Note that this variable is not buffer-local.")
 (defvar agda2-in-agda2-file-buffer nil
   "Was `agda2-file-buffer' active when `agda2-output-filter' started?
 Note that this variable is not buffer-local.")
+
+(defvar agda2-highlight-after-inactivity-timer nil
+  "Timer used to update token-based highlighting after inactivity.")
+(make-variable-buffer-local 'agda2-highlight-after-inactivity-timer)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; agda2-mode
@@ -1210,19 +1225,23 @@ is inserted, and point is placed before this text."
 (defun agda2-quit ()
   "Quit and clean up after agda2."
   (interactive)
+  (when (timerp agda2-highlight-after-inactivity-timer)
+    (cancel-timer agda2-highlight-after-inactivity-timer))
+  (remove-hook 'after-change-functions
+               'agda2-highlight-after-inactivity 'local)
   (remove-hook 'first-change-hook 'agda2-abort-highlighting 'local)
+  (remove-hook 'after-save-hook 'agda2-highlight-tokens 'local)
   (agda2-remove-annotations)
   (agda2-term))
 
 (defun agda2-term ()
-  "Send a SIGTERM signal to the Agda2 process, then kill its buffer."
+  "Interrupt the Agda process and kill its buffer."
   (interactive)
+  (when (and agda2-process
+             (process-status agda2-process))
+    (interrupt-process agda2-process))
   (when (buffer-live-p agda2-process-buffer)
-    (with-current-buffer agda2-process-buffer
-      (condition-case nil
-          (signal-process agda2-process 'SIGTERM)
-        (error nil))
-      (kill-buffer))))
+    (kill-buffer agda2-process-buffer)))
 
 (defmacro agda2-maybe-normalised (name comment cmd want)
   "This macro constructs a function NAME which runs CMD.
@@ -1837,6 +1856,13 @@ a file is loaded."
   ;; things). Syntax table setup for comments is done elsewhere.
   (set (make-local-variable 'comment-use-syntax) t)
 
+  ;; Update token-based highlighting after the buffer has been saved
+  ;; and after Emacs has been idle for a certain amount of time (and
+  ;; the buffer has been modified).
+  (add-hook 'after-save-hook 'agda2-highlight-tokens nil 'local)
+  (add-hook 'after-change-functions 'agda2-highlight-after-inactivity
+            nil 'local)
+
   ;; Support for proper filling of text in comments (requires that
   ;; Filladapt is activated).
   (when (featurep 'filladapt)
@@ -1860,6 +1886,56 @@ From the beginning of the current line to the end of the buffer."
           (goto-char (point-max))
           (comment-dwim nil))
       (pop-mark))))
+
+(defun agda2-all-extensions (filename)
+  "Return all of FILENAME's extensions.
+
+FILENAME must not contain any extensions treated specially by
+`file-name-extension', such as ~3~."
+  (let ((ext     (concat "." (file-name-extension filename)))
+        (newname (file-name-sans-extension filename)))
+    (if (equal newname filename)
+        ""
+      (concat (agda2-all-extensions newname) ext))))
+
+(defun agda2-highlight-tokens nil
+  "Compute token-based highlighting information.
+
+Unless `agda2-highlight-level' is `none' or the Agda process is
+busy with something. This command does not save the buffer."
+  (unless (or agda2-in-progress
+              (equal agda2-highlight-level 'none))
+    (let ((tmp (make-temp-file "agda2-" nil
+                               (agda2-all-extensions
+                                (file-name-nondirectory
+                                 (buffer-file-name))))))
+      (write-region nil nil tmp nil 'do-not-display-message)
+      (agda2-go 'do-not-save nil t t
+                "Cmd_tokenHighlighting"
+                (agda2-string-quote tmp)
+                "Remove"))))
+
+(defun agda2-highlight-after-inactivity (beg end len)
+  "Compute token-based highlighting after Emacs has been idle.
+Only if `agda2-highlight-after-inactivity-interval' is a
+non-negative number. The number is interpreted as the number of
+seconds of inactivity that is required before highlighting is
+updated. Furthermore nothing happens unless, after the given
+amount of time, the buffer is marked as being modified, the Agda
+process is not busy, and `agda2-highlight-level' is not `none'.
+
+This procedure is intended to be used in `after-change-functions'."
+  (when (and (numberp agda2-highlight-after-inactivity-interval)
+             (>= agda2-highlight-after-inactivity-interval 0))
+    (when (timerp agda2-highlight-after-inactivity-timer)
+      (cancel-timer agda2-highlight-after-inactivity-timer))
+    (setq agda2-highlight-after-inactivity-timer
+          (run-with-idle-timer agda2-highlight-after-inactivity-interval
+                               nil
+                               `(lambda nil
+                                 (with-current-buffer ,(current-buffer)
+                                   (when (buffer-modified-p)
+                                     (agda2-highlight-tokens))))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Go to definition site
@@ -2011,12 +2087,10 @@ VERSION is empty, then agda and agda-mode are used instead.)"
     (unless (file-readable-p agda-mode-path)
       (error "%s" (concat "Could not read " agda-mode-path)))
 
-    ;; Kill some processes/buffers related to Agda.
-    (when (and agda2-process
-               (process-status agda2-process))
-      (kill-process agda2-process))
-    (when (buffer-live-p agda2-process-buffer)
-      (kill-buffer agda2-process-buffer))
+    ;; Turn off the Agda mode.
+    (agda2-quit)
+
+    ;; Kill some buffers related to Agda.
     (when (buffer-live-p agda2-info-buffer)
       (kill-buffer agda2-info-buffer))
     (when (and agda2-debug-buffer-name
