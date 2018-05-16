@@ -88,15 +88,25 @@ given position."
             t)
         (error "File does not exist or is unreadable: %s." file)))))
 
-(defun annotation-append-text-property (start end prop values)
-  "Merges VALUES to text property PROP between START and END."
+(defun annotation-merge-faces (start end faces)
+  "Helper procedure used by `annotation-annotate'.
+For each position in the range the FACES are merged
+with the current value of the annotation-faces text property, and
+both the face and the annotation-faces text properties are set to
+the resulting list of faces.
+
+Precondition: START and END must be numbers, and START must be
+less than END."
+  (assert (condition-case nil (< start end) (error nil)))
   (let ((pos start)
         mid)
     (while (< pos end)
-      (setq mid (next-single-property-change pos prop nil end))
-      (let* ((old-values (get-text-property pos prop))
-             (all-values (union old-values values)))
-        (put-text-property pos mid prop all-values)
+      (setq mid (next-single-property-change pos 'annotation-faces
+                                             nil end))
+      (let* ((old-faces (get-text-property pos 'annotation-faces))
+             (all-faces (union old-faces faces)))
+        (mapc (lambda (prop) (put-text-property pos mid prop all-faces))
+              '(annotation-faces face))
         (setq pos mid)))))
 
 (defun annotation-annotate
@@ -111,8 +121,11 @@ that have been set by this function are deleted. Otherwise the
 following happens.
 
 All the symbols in ANNS are looked up in `annotation-bindings',
-and the face text property for the given character range is set
-to the resulting list of faces.
+and the resulting list of faces is used to set the face text
+property. For each position in the range the faces are merged
+with the current value of the annotation-faces text property, and
+both the face and the annotation-faces text properties are set to
+the resulting list of faces.
 
 If TOKEN-BASED is non-nil, then the annotation-token-based
 property is set to t. This means that all text properties set by
@@ -147,8 +160,9 @@ with)."
                                  anns)))
             (props nil))
         (when faces
-          (annotation-append-text-property start end 'face faces)
-          (add-to-list 'props 'face))
+          (annotation-merge-faces start end faces)
+          (add-to-list 'props 'face)
+          (add-to-list 'props 'annotation-faces))
         (when token-based
           (add-text-properties start end
                                `(annotation-token-based t))
