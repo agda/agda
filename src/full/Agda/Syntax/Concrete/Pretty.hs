@@ -196,13 +196,12 @@ instance Pretty Expr where
 
             HiddenArg _ e -> braces' $ pretty e
             InstanceArg _ e -> dbraces $ pretty e
+            Lam _ bs (AbsurdLam _ h) -> lambda <+> fsep (map pretty bs) <+> absurd h
             Lam _ bs e ->
                 sep [ lambda <+> fsep (map pretty bs) <+> arrow
                     , nest 2 $ pretty e
                     ]
-            AbsurdLam _ NotHidden  -> lambda <+> text "()"
-            AbsurdLam _ Instance{} -> lambda <+> text "{{}}"
-            AbsurdLam _ Hidden     -> lambda <+> text "{}"
+            AbsurdLam _ h -> lambda <+> absurd h
             ExtendedLam _ pes -> lambda <+> bracesAndSemicolons (map pretty pes)
             Fun _ e1 e2 ->
                 sep [ pretty e1 <+> arrow
@@ -244,6 +243,10 @@ instance Pretty Expr where
             DontCare e -> text "." <> parens (pretty e)
             Equal _ a b -> pretty a <+> text "=" <+> pretty b
             Ellipsis _  -> text "..."
+        where
+          absurd NotHidden  = text "()"
+          absurd Instance{} = text "{{}}"
+          absurd Hidden     = text "{}"
 
 instance (Pretty a, Pretty b) => Pretty (Either a b) where
   pretty = either pretty pretty
