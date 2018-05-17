@@ -13,6 +13,7 @@ import Agda.Syntax.Position
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Coverage
+import Agda.TypeChecking.Coverage.Match ( fromSplitPatterns )
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Reduce
@@ -74,7 +75,7 @@ isEmptyType r t = caseEitherM (loop t) failure return
             Left UnificationStuck{} -> return $ Left DontKnow
             Left _                  -> return $ Left Fail
             Right cov -> do
-              let ps = map (namedArg . last . scPats) $ splitClauses cov
+              let ps = map (namedArg . last . fromSplitPatterns . scPats) $ splitClauses cov
               if (null ps) then return (Right ()) else
                 Left . FailBecause <$> do typeError_ $ ShouldBeEmpty t ps
 

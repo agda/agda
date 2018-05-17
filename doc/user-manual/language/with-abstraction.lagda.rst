@@ -341,8 +341,8 @@ See :ref:`the-inspect-idiom` below for an alternative approach.
 
 .. _with-clause-underscore:
 
-Using underscores in pattern repetition
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Using underscores and variables in pattern repetition
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 If an ellipsis `...` cannot be used, the with-clause has to repeat (or
 refine) the patterns of the parent clause.  Since Agda 2.5.3, such
@@ -367,6 +367,19 @@ are not needed.  Here is a (slightly contrived) example::
     test  r  (fTrue p)  with  R.f r
     test  _  (fTrue ())    |  false
     test  _  _             |  true  = true!  -- underscore instead of (isTrue _)
+
+Since Agda 2.5.4, patterns can also be replaced by a variable::
+
+    f : List Nat → List Nat
+    f [] = []
+    f (x ∷ xs) with f xs
+    f xs0 | r = ?
+
+The variable `xs0` is treated as a let-bound variable with value `.x ∷
+.xs` (where `.x : Nat` and `.xs : List Nat` are out of scope). Since
+with-abstraction may change the type of variables, the instantiation
+of such let-bound variables are type checked again after
+with-abstraction.
 
 ..
   ::

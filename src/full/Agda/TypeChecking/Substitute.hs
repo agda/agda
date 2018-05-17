@@ -900,32 +900,38 @@ fromPatternSubstitution = fmap patternToTerm
 applyPatSubst :: (Subst Term a) => PatternSubstitution -> a -> a
 applyPatSubst = applySubst . fromPatternSubstitution
 
+
+usePatOrigin :: PatOrigin -> Pattern' a -> Pattern' a
+usePatOrigin o p = case patternOrigin p of
+  Nothing         -> p
+  Just PatOSplit  -> p
+  Just PatOAbsurd -> p
+  Just _          -> case p of
+    (VarP _ x) -> VarP o x
+    (DotP _ u) -> DotP o u
+    (ConP c (ConPatternInfo (Just _) ft b l) ps)
+      -> ConP c (ConPatternInfo (Just o) ft b l) ps
+    ConP{}  -> __IMPOSSIBLE__
+    LitP{}  -> __IMPOSSIBLE__
+    ProjP{} -> __IMPOSSIBLE__
+
 instance Subst DeBruijnPattern DeBruijnPattern where
   applySubst IdS p = p
   applySubst rho p = case p of
-    VarP o x     -> useOrigin o $ useName (dbPatVarName x) $ lookupS rho $ dbPatVarIndex x
+    VarP o x     ->
+      usePatOrigin o $
+      useName (dbPatVarName x) $
+      lookupS rho $ dbPatVarIndex x
     DotP o u     -> DotP o $ applyPatSubst rho u
     ConP c ci ps -> ConP c ci $ applySubst rho ps
     LitP x       -> p
     ProjP{}      -> p
     where
       useName :: PatVarName -> DeBruijnPattern -> DeBruijnPattern
-      useName n (VarP o x) | isUnderscore (dbPatVarName x) = debruijnNamedVar n (dbPatVarIndex x)
+      useName n (VarP o x)
+        | isUnderscore (dbPatVarName x)
+        = VarP o $ x { dbPatVarName = n }
       useName _ x = x
-
-      useOrigin :: PatOrigin -> DeBruijnPattern -> DeBruijnPattern
-      useOrigin o p = case patternOrigin p of
-        Nothing         -> p
-        Just PatOSplit  -> p
-        Just PatOAbsurd -> p
-        Just _          -> case p of
-          (VarP _ x) -> VarP o x
-          (DotP _ u) -> DotP o u
-          (ConP c (ConPatternInfo (Just _) ft b l) ps)
-            -> ConP c (ConPatternInfo (Just o) ft b l) ps
-          ConP{}  -> __IMPOSSIBLE__
-          LitP{}  -> __IMPOSSIBLE__
-          ProjP{} -> __IMPOSSIBLE__
 
 instance Subst Term Range where
   applySubst _ = id

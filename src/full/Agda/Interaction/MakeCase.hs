@@ -26,6 +26,7 @@ import Agda.Syntax.Translation.InternalToAbstract
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Coverage
+import Agda.TypeChecking.Coverage.Match ( SplitPatVar(..) , SplitPattern , applySplitPSubst , fromSplitPatterns )
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.RecordPatterns
 import Agda.TypeChecking.Reduce
@@ -294,7 +295,7 @@ makeCase hole rng s = withInteractionId hole $ do
 
   -- Finds the new variable corresponding to an old one, if any.
   newVar :: SplitClause -> Nat -> Maybe Nat
-  newVar c x = case applyPatSubst (scSubst c) (var x) of
+  newVar c x = case applySplitPSubst (scSubst c) (var x) of
     Var y [] -> Just y
     _        -> Nothing
 
@@ -313,19 +314,20 @@ makePatternVarsVisible [] sc = sc
 makePatternVarsVisible is sc@SClause{ scPats = ps } =
   sc{ scPats = mapNamedArgPattern mkVis ps }
   where
-  mkVis :: NamedArg DeBruijnPattern -> NamedArg DeBruijnPattern
-  mkVis (Arg ai (Named n (VarP o (DBPatVar x i))))
+  mkVis :: NamedArg SplitPattern -> NamedArg SplitPattern
+  mkVis (Arg ai (Named n (VarP o (SplitPatVar x i ls))))
     | i `elem` is =
       -- We could introduce extra consistency checks, like
       -- if visible ai then __IMPOSSIBLE__ else
       -- or passing the parsed name along and comparing it with @x@
-      Arg (setOrigin CaseSplit ai) $ Named n $ VarP PatOSplit $ DBPatVar x i
+      Arg (setOrigin CaseSplit ai) $ Named n $ VarP PatOSplit $ SplitPatVar x i ls
   mkVis np = np
 
 -- | Make clause with no rhs (because of absurd match).
 
 makeAbsurdClause :: QName -> SplitClause -> TCM A.Clause
-makeAbsurdClause f (SClause tel ps _ _ t) = do
+makeAbsurdClause f (SClause tel sps _ _ t) = do
+  let ps = fromSplitPatterns sps
   reportSDoc "interaction.case" 10 $ vcat
     [ text "Interaction.MakeCase.makeAbsurdClause: split clause:"
     , nest 2 $ vcat
