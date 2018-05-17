@@ -85,8 +85,9 @@ insertImplicitPatternsT exh            ps a = do
       case hs of
         [] -> do
           a <- reduce a
-          case unEl a of
-            Pi arg b -> do
+          a <- piOrPath a
+          case a of
+            Left (arg, b) -> do
               (p :) <$> insertImplicitPatternsT exh ps (absBody b)
             _ -> return (p : ps)
         hs -> insertImplicitPatternsT exh (hs ++ p : ps) (telePi tel b)

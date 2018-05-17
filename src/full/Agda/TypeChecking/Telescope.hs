@@ -386,6 +386,16 @@ pathViewAsPi'whnf t = do
 
     OType t    -> return $ Right t
 
+-- | returns Left (a,b) in case the type is @Pi a b@ or @PathP b _ _@
+--   assumes the type is in whnf.
+piOrPath :: Type -> TCM (Either (Dom Type, Abs Type) Type)
+piOrPath t = do
+  t <- pathViewAsPi'whnf t
+  case t of
+    Left (p,_) -> return $ Left p
+    Right (El _ (Pi a b)) -> return $ Left (a,b)
+    Right t -> return $ Right t
+
 isPath :: Type -> TCM (Maybe (Dom Type, Abs Type))
 isPath t = either Just (const Nothing) <$> pathViewAsPi t
 
