@@ -22,6 +22,7 @@ module Agda.Syntax.Translation.InternalToAbstract
   ) where
 
 import Prelude hiding (mapM_, mapM, null)
+import Control.Arrow ((&&&))
 import Control.Monad.State hiding (mapM_, mapM)
 import Control.Monad.Reader hiding (mapM_, mapM)
 
@@ -526,7 +527,17 @@ reifyTerm expandAnonDefs0 v = do
                 | isAbsurdLambdaName x -> do
                   -- get hiding info from last pattern, which should be ()
                   let h = getHiding $ last $ namedClausePats cl
-                  elims (A.AbsurdLam exprNoRange h) =<< reify (drop n es)
+                      n = length (namedClausePats cl) - 1  -- drop all args before the absurd one
+                      absLam = A.AbsurdLam exprNoRange h
+                  if | n > length es -> do -- We don't have all arguments before the absurd one!
+                        let name (I.VarP _ x) = patVarNameToString $ dbPatVarName x
+                            name _            = __IMPOSSIBLE__  -- only variables before absurd pattern
+                            vars = map (getArgInfo &&& name . namedArg) $ drop (length es) $ init $ namedClausePats cl
+                            lam (i, s) = do
+                              x <- freshName_ s
+                              return $ A.Lam exprNoRange (A.DomainFree i $ A.BindName x)
+                        foldr ($) absLam <$> mapM lam vars
+                      | otherwise -> elims absLam =<< reify (drop n es)
 
       -- Otherwise (no absurd lambda):
        _ -> do
