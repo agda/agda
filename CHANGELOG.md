@@ -320,11 +320,17 @@ Language
 Pragmas and options
 -------------------
 
-* The `--caching` option is now a valid pragma.
-  You can (sometimes) speed up re-typechecking in `--interaction` mode
-  by adding this option on top of your Agda file.
+* The `--caching` option is ON by default and is also a valid pragma.
+  Caching can (sometimes) speed up re-typechecking in `--interaction`
+  mode by reusing the result of the previous typechecking for the
+  prefix of the file that has not changed (with a granularity at the
+  level of declarations/mutual blocks).
+
+  It can be turned off by passing ```--no-caching``` to ```agda``` or
+  with the following at the top of your file.
+
   ```agda
-    {-# OPTIONS --caching #-}
+    {-# OPTIONS --no-caching #-}
   ```
 
 * The `--sharing` and `--no-sharing` options have been deprecated and do
