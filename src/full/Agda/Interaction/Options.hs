@@ -247,7 +247,7 @@ defaultPragmaOptions = PragmaOptions
   , optSafe                      = False
   , optWarningMode               = defaultWarningMode
   , optCompileNoMain             = False
-  , optCaching                   = False
+  , optCaching                   = True
   , optCountClusters             = False
   }
 
@@ -692,7 +692,7 @@ pragmaOptions =
     , Option []     ["no-main"] (NoArg compileFlagNoMain)
                     "do not treat the requested module as the main module of a program when compiling"
     , Option []     ["caching"] (NoArg $ cachingFlag True)
-                    "enable caching of typechecking (experimental) (default: OFF)"
+                    "enable caching of typechecking (default)"
     , Option []     ["no-caching"] (NoArg $ cachingFlag False)
                     "disable caching of typechecking"
     , Option []     ["count-clusters"] (NoArg countClustersFlag)
