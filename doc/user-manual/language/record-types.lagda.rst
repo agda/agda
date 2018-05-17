@@ -17,6 +17,10 @@
 Record Types
 ************
 
+.. contents::
+   :depth: 2
+   :local:
+
 Records are types for grouping values together. They generalise the
 dependent product type by providing named fields and (optional)
 further components.
@@ -291,7 +295,8 @@ include a new binding for ``length`` (for instance ``length = _``).
 Record modules
 --------------
 
-Along with a new type, a record declaration also defines a module containing
+Along with a new type, a record declaration also defines a module with the same name, parameterised
+over an element of the record type containing
 the projection functions. This allows records to be "opened", bringing the
 fields into scope. For instance
 
@@ -300,6 +305,14 @@ fields into scope. For instance
   swap : {A B : Set} → Pair A B → Pair B A
   swap p = snd , fst
     where open Pair p
+
+In the example, the record module ``Pair`` has the shape
+
+.. code-block:: agda
+
+  module Pair {A B : Set} (p : Pair A B) where
+    fst : A
+    snd : B
 
 It's possible to add arbitrary definitions to the record module, by defining them
 inside the record declaration
