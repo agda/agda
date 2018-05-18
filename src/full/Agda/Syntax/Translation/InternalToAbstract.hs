@@ -1093,7 +1093,7 @@ instance Reify (QNamed System) [A.Clause] where
       ps <- stripImplicits $ ps ++ [defaultNamedArg ep]
       let
         lhs = SpineLHS (LHSRange noRange) f ps
-        result = A.Clause (spineToLhs lhs) [] rhs [] False
+        result = A.Clause (spineToLhs lhs) [] rhs A.noWhereDecls False
       return result
 
 instance Reify Type Expr where
