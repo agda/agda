@@ -809,7 +809,7 @@ split' ind allowPartialCover fixtarget sc@(SClause tel ps _ cps target) (Blockin
 
       computeLitNeighborhoods = do
         typeOk <- liftTCM $ do
-          t' <- litType $ headWithDefault __IMPOSSIBLE__ plits
+          t' <- litType $ headWithDefault {-'-} __IMPOSSIBLE__ plits
           liftTCM $ dontAssignMetas $ tryConversion $ equalType (unDom t) t'
         unless typeOk $ throwError . NotADatatype =<< do liftTCM $ buildClosure (unDom t)
         ns <- forM plits $ \lit -> do
