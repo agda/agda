@@ -355,7 +355,7 @@ makeAbstractClause f rhs cl = do
 
   lhs <- A.clauseLHS <$> makeAbsurdClause f cl
   reportSDoc "interaction.case" 60 $ text "reified lhs: " <+> text (show lhs)
-  return $ A.Clause lhs [] rhs [] False
+  return $ A.Clause lhs [] rhs A.noWhereDecls False
   -- let ii = InteractionId (-1)  -- Dummy interaction point since we never type check this.
   --                              -- Can end up in verbose output though (#1842), hence not __IMPOSSIBLE__.
   -- let info = A.emptyMetaInfo   -- metaNumber = Nothing in order to print as ?, not ?n

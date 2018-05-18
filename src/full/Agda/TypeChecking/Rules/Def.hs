@@ -127,7 +127,7 @@ isAlias cs t =
   where
     isMeta (MetaV x _) = Just x
     isMeta _           = Nothing
-    trivialClause [A.Clause (A.LHS i (A.LHSHead f [])) _ (A.RHS e mc) [] _] = Just (e, mc)
+    trivialClause [A.Clause (A.LHS i (A.LHSHead f [])) _ (A.RHS e mc) (A.WhereDecls _ []) _] = Just (e, mc)
     trivialClause _ = Nothing
 
 -- | Check a trivial definition of the form @f = e@
@@ -596,7 +596,7 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps absurdPat trhs _ _asb) rhs0 =
         let rhs'     = insertPatterns pats rhs
             (rhs'', outerWhere) -- the where clauses should go on the inner-most with
               | null qes  = (rhs', wh)
-              | otherwise = (A.RewriteRHS qes strippedPats rhs' wh, [])
+              | otherwise = (A.RewriteRHS qes strippedPats rhs' wh, A.noWhereDecls)
             -- Andreas, 2014-03-05 kill range of copied patterns
             -- since they really do not have a source location.
             cl = A.Clause (A.LHS i $ insertPatternsLHSCore pats $ A.LHSHead x $ killRange aps)
@@ -801,10 +801,10 @@ checkWithFunction cxtNames (WithFunction f aux t delta delta1 delta2 vs as b qs 
 
 -- | Type check a where clause.
 checkWhere
-  :: [A.Declaration] -- ^ Where-declarations to check.
-  -> TCM a           -- ^ Continuation.
+  :: A.WhereDeclarations -- ^ Where-declarations to check.
+  -> TCM a               -- ^ Continuation.
   -> TCM a
-checkWhere ds ret = loop ds
+checkWhere (A.WhereDecls whmod ds) ret = loop ds
   where
     loop ds = case ds of
       [] -> ret

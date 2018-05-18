@@ -322,9 +322,17 @@ data Clause' lhs = Clause
       -- ^ Only in with-clauses where we inherit some already checked patterns from the parent.
       --   These live in the context of the parent clause left-hand side.
   , clauseRHS        :: RHS
-  , clauseWhereDecls :: [Declaration]
+  , clauseWhereDecls :: WhereDeclarations
   , clauseCatchall   :: Bool
   } deriving (Data, Show, Functor, Foldable, Traversable, Eq)
+
+data WhereDeclarations = WhereDecls
+  { whereModule :: Maybe ModuleName
+  , whereDecls  :: [Declaration]
+  } deriving (Data, Show, Eq)
+
+noWhereDecls :: WhereDeclarations
+noWhereDecls = WhereDecls Nothing []
 
 type Clause = Clause' LHS
 type SpineClause = Clause' SpineLHS
@@ -349,7 +357,7 @@ data RHS
       --   if this rewrite follows a with.
     , rewriteRHS        :: RHS
       -- ^ The RHS should not be another @RewriteRHS@.
-    , rewriteWhereDecls :: [Declaration]
+    , rewriteWhereDecls :: WhereDeclarations
       -- ^ The where clauses are attached to the @RewriteRHS@ by
       ---  the scope checker (instead of to the clause).
     }
@@ -655,6 +663,9 @@ instance HasRange RHS where
     getRange (WithRHS _ e cs)         = fuseRange e cs
     getRange (RewriteRHS xes _ rhs wh) = getRange (map snd xes, rhs, wh)
 
+instance HasRange WhereDeclarations where
+  getRange (WhereDecls _ ds) = getRange ds
+
 instance HasRange LetBinding where
     getRange (LetBind i _ _ _ _     ) = getRange i
     getRange (LetPatBind  i _ _      ) = getRange i
@@ -785,6 +796,9 @@ instance KillRange RHS where
   killRange (WithRHS q e cs)         = killRange3 WithRHS q e cs
   killRange (RewriteRHS xes spats rhs wh) = killRange4 RewriteRHS xes spats rhs wh
 
+instance KillRange WhereDeclarations where
+  killRange (WhereDecls a b) = killRange2 WhereDecls a b
+
 instance KillRange LetBinding where
   killRange (LetBind   i info a b c) = killRange5 LetBind i info a b c
   killRange (LetPatBind i a b       ) = killRange3 LetPatBind i a b
@@ -867,6 +881,9 @@ instance AllNames RHS where
   allNames AbsurdRHS{}               = Seq.empty
   allNames (WithRHS q _ cls)         = q <| allNames cls
   allNames (RewriteRHS qes _ rhs cls) = Seq.fromList (map fst qes) >< allNames rhs >< allNames cls
+
+instance AllNames WhereDeclarations where
+  allNames (WhereDecls _ ds) = allNames ds
 
 instance AllNames Expr where
   allNames Var{}                   = Seq.empty

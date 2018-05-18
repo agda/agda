@@ -178,9 +178,9 @@ groupClauses (pc@(Path p c) : pcs) = (c, Path p (rhs c) : grp) : groupClauses re
     rhsExpr _       = __IMPOSSIBLE__
 
 clauseToPath :: Clause -> ScopeM (ProjPath Clause)
-clauseToPath (Clause (LHS i lhs) spats (RHS e c) [] catchall) =
-  fmap (\ lhs -> Clause (LHS i lhs) spats (RHS e c) [] catchall) <$> lhsToPath [] lhs
-clauseToPath (Clause lhs _ (RHS e _) (_:_) _) = typeError $ NotImplemented $ "copattern clauses with where declarations"
+clauseToPath (Clause (LHS i lhs) spats (RHS e c) wh@(WhereDecls _ []) catchall) =
+  fmap (\ lhs -> Clause (LHS i lhs) spats (RHS e c) wh catchall) <$> lhsToPath [] lhs
+clauseToPath (Clause lhs _ (RHS e _) (WhereDecls _ (_:_)) _) = typeError $ NotImplemented $ "copattern clauses with where declarations"
 clauseToPath (Clause lhs _ _ wheredecls _) = typeError $ NotImplemented $ "copattern clauses with absurd, with or rewrite right hand side"
 
 lhsToPath :: [ProjEntry] -> LHSCore -> ScopeM (ProjPath LHSCore)
@@ -335,6 +335,9 @@ instance Rename RHS where
       AbsurdRHS             -> e
       WithRHS n es cs       -> WithRHS n (rename rho es) (rename rho cs)
       RewriteRHS nes spats r ds -> RewriteRHS (rename rho nes) (rename rho spats) (rename rho r) (rename rho ds)
+
+instance Rename WhereDeclarations where
+  rename rho (WhereDecls m ds) = WhereDecls m (rename rho ds)
 
 instance Rename LHS where
   rename rho (LHS i core) = LHS i (rename rho core)
