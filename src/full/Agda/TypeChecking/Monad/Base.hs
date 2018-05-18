@@ -1429,10 +1429,14 @@ data System = System
 
 -- | Additional information for extended lambdas.
 data ExtLamInfo = ExtLamInfo
-  { extLamNumHidden :: Int  -- Number of hidden args to be dropped when printing.
-  , extLamNumNonHid :: Int  -- Number of visible args to be dropped when printing.
+  { extLamModule    :: ModuleName
+    -- ^ For complicated reasons the scope checker decides the QName of a
+    --   pattern lambda, and thus its module. We really need to decide the
+    --   module during type checking though, since if the lambda appears in a
+    --   refined context the module picked by the scope checker has very much
+    --   the wrong parameters.
   , extLamSys :: !(Maybe System)
-  } deriving (Data, Show)
+  } deriving (Data, Eq, Ord, Show)
 
 modifySystem :: (System -> System) -> ExtLamInfo -> ExtLamInfo
 modifySystem f e = let !e' = e { extLamSys = f <$> extLamSys e } in e'
@@ -3337,7 +3341,7 @@ instance KillRange System where
   killRange (System tel sys) = System (killRange tel) (killRange sys)
 
 instance KillRange ExtLamInfo where
-  killRange (ExtLamInfo x y r) = ExtLamInfo x y (killRange r)
+  killRange (ExtLamInfo m sys) = killRange2 ExtLamInfo m sys
 
 instance KillRange FunctionFlag where
   killRange = id

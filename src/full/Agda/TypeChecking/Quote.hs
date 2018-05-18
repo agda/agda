@@ -40,6 +40,7 @@ import Agda.Utils.String ( Str(Str), unStr )
 import Agda.Utils.VarSet (VarSet)
 import qualified Agda.Utils.VarSet as Set
 import Agda.Utils.FileName
+import Agda.Utils.Size
 
 #include "undefined.h"
 
@@ -216,19 +217,11 @@ quotingKit = do
             let
               conOrProjPars = defParameters defn
               ts = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
-              qx Function{ funExtLam = Just (ExtLamInfo h nh _), funClauses = cs } = do
+              qx Function{ funExtLam = Just (ExtLamInfo m _), funClauses = cs } = do
                     -- An extended lambda should not have any extra parameters!
                     unless (null conOrProjPars) __IMPOSSIBLE__
-                    -- Andreas, 2017-01-23 quoting Ulf
-                    -- "One would hope that @n@ includes the @h + nh@ parameters of the ext.lam."
-                    -- Let's see!
-                    -- unless (n >= h + nh) __IMPOSSIBLE__
-                    -- Actually, no, it does not!  ExtLam is not touched by module application.
-                    -- TODO: fixe me!  See #2404.
-                    -- Ulf 2018-04-30: Looking at the printing code (InternalToAbstract) it seems
-                    -- like h and nh should be added on top of the getDefFreeVars. At least this
-                    -- fixes the problem.
-                    extlam !@ list (map (quoteClause . (`apply` (take (n + h + nh) ts))) cs)
+                    n <- size <$> lookupSection m
+                    extlam !@ list (map (quoteClause . (`apply` (take n ts))) cs)
               qx Function{ funCompiled = Just Fail, funClauses = [cl] } =
                     extlam !@ list [quoteClause $ dropArgs (length (namedClausePats cl) - 1) cl]
               qx _ = def !@! quoteName x
