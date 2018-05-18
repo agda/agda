@@ -1973,6 +1973,7 @@ data Call = CheckClause Type A.SpineClause
           | CheckIsEmpty Range Type
           | CheckWithFunctionType A.Expr
           | CheckSectionApplication Range ModuleName A.ModuleApplication
+          | CheckNamedWhere ModuleName
           | ScopeCheckExpr C.Expr
           | ScopeCheckDeclaration NiceDeclaration
           | ScopeCheckLHS C.QName C.Pattern
@@ -2001,6 +2002,7 @@ instance Pretty Call where
     pretty CheckPragma{}             = text "CheckPragma"
     pretty CheckPrimitive{}          = text "CheckPrimitive"
     pretty CheckWithFunctionType{}   = text "CheckWithFunctionType"
+    pretty CheckNamedWhere{}         = text "CheckNamedWhere"
     pretty ScopeCheckExpr{}          = text "ScopeCheckExpr"
     pretty ScopeCheckDeclaration{}   = text "ScopeCheckDeclaration"
     pretty ScopeCheckLHS{}           = text "ScopeCheckLHS"
@@ -2032,6 +2034,7 @@ instance HasRange Call where
     getRange (CheckPragma r _)               = r
     getRange (CheckPrimitive i _ _)          = getRange i
     getRange CheckWithFunctionType{}         = noRange
+    getRange (CheckNamedWhere m)             = getRange m
     getRange (ScopeCheckExpr e)              = getRange e
     getRange (ScopeCheckDeclaration d)       = getRange d
     getRange (ScopeCheckLHS _ p)             = getRange p

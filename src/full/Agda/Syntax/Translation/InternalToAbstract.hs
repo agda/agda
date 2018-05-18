@@ -809,12 +809,12 @@ instance BlankVars A.ProblemEq where
   blank bound = id
 
 instance BlankVars A.Clause where
-  blank bound (A.Clause lhs strippedPats rhs [] ca) =
+  blank bound (A.Clause lhs strippedPats rhs (A.WhereDecls _ []) ca) =
     let bound' = varsBoundIn lhs `Set.union` bound
     in  A.Clause (blank bound' lhs)
                  (blank bound' strippedPats)
-                 (blank bound' rhs) [] ca
-  blank bound (A.Clause lhs strippedPats rhs (_:_) ca) = __IMPOSSIBLE__
+                 (blank bound' rhs) noWhereDecls ca
+  blank bound (A.Clause lhs strippedPats rhs _ ca) = __IMPOSSIBLE__
 
 instance BlankVars A.LHS where
   blank bound (A.LHS i core) = A.LHS i $ blank bound core
@@ -1069,7 +1069,7 @@ instance Reify NamedClause A.Clause where
     rhs <- caseMaybe (clauseBody cl) (return AbsurdRHS) $ \ e -> do
        RHS <$> reify e <*> pure Nothing
     reportSLn "reify.clause" 60 $ "reifying NamedClause, rhs = " ++ show rhs
-    let result = A.Clause (spineToLhs lhs) [] rhs [] (I.clauseCatchall cl)
+    let result = A.Clause (spineToLhs lhs) [] rhs A.noWhereDecls (I.clauseCatchall cl)
     reportSLn "reify.clause" 60 $ "reified NamedClause, result = " ++ show result
     return result
     where

@@ -16,6 +16,7 @@ import Agda.Syntax.Common
 import Agda.Syntax.Position
 import qualified Agda.Syntax.Concrete as C
 import qualified Agda.Syntax.Abstract as A
+import qualified Agda.Syntax.Abstract.Views as A
 import qualified Agda.Syntax.Info as A
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
@@ -271,7 +272,7 @@ makeCase hole rng s = withInteractionId hole $ do
             if isAbsurd then makeAbsurdClause f sc else makeAbstractClause f rhs sc
     reportSDoc "interaction.case" 65 $ vcat
       [ text "split result:"
-      , nest 2 $ vcat $ map (text . show) cs
+      , nest 2 $ vcat $ map (text . show . A.deepUnscope) cs
       ]
     checkClauseIsClean ipCl
     return (f, casectxt, cs)
@@ -355,7 +356,7 @@ makeAbstractClause f rhs cl = do
 
   lhs <- A.clauseLHS <$> makeAbsurdClause f cl
   reportSDoc "interaction.case" 60 $ text "reified lhs: " <+> text (show lhs)
-  return $ A.Clause lhs [] rhs [] False
+  return $ A.Clause lhs [] rhs A.noWhereDecls False
   -- let ii = InteractionId (-1)  -- Dummy interaction point since we never type check this.
   --                              -- Can end up in verbose output though (#1842), hence not __IMPOSSIBLE__.
   -- let info = A.emptyMetaInfo   -- metaNumber = Nothing in order to print as ?, not ?n

@@ -728,18 +728,16 @@ instance ToConcrete LetBinding [C.Declaration] where
       -- Note that the range of the declaration site is dropped.
       ret []
 
-data AsWhereDecls = AsWhereDecls [A.Declaration]
-
-instance ToConcrete AsWhereDecls WhereClause where
-  bindToConcrete (AsWhereDecls []) ret = ret C.NoWhere
-  bindToConcrete (AsWhereDecls ds@[Section _ am _ _]) ret = do
+instance ToConcrete A.WhereDeclarations WhereClause where
+  bindToConcrete (A.WhereDecls _ []) ret = ret C.NoWhere
+  bindToConcrete (A.WhereDecls (Just am) [A.Section _ _ _ ds]) ret = do
     ds' <- declsToConcrete ds
     cm  <- unqualify <$> lookupModule am
     -- Andreas, 2016-07-08 I put PublicAccess in the following SomeWhere
     -- Should not really matter for printing...
     let wh' = (if isNoName cm then AnyWhere else SomeWhere cm PublicAccess) $ ds'
     local (openModule' am defaultImportDir id) $ ret wh'
-  bindToConcrete (AsWhereDecls ds) ret =
+  bindToConcrete (A.WhereDecls _ ds) ret =
     ret . AnyWhere =<< declsToConcrete ds
 
 mergeSigAndDef :: [C.Declaration] -> [C.Declaration]
@@ -778,7 +776,7 @@ instance ToConcrete A.RHS (C.RHS, [C.Expr], [C.Expr], [C.Declaration]) where
       cs <- noTakenNames $ concat <$> toConcrete cs
       return (C.AbsurdRHS, [], es, cs)
     toConcrete (A.RewriteRHS xeqs _spats rhs wh) = do
-      wh <- declsToConcrete wh
+      wh <- declsToConcrete (A.whereDecls wh)
       (rhs, eqs', es, whs) <- toConcrete rhs
       unless (null eqs')
         __IMPOSSIBLE__
@@ -805,7 +803,7 @@ instance ToConcrete a C.LHS => ToConcrete (A.Clause' a) [C.Declaration] where
   toConcrete (A.Clause lhs _ rhs wh catchall) =
       bindToConcrete lhs $ \case
           C.LHS p _ _ -> do
-            bindToConcrete (AsWhereDecls wh) $ \ wh' -> do
+            bindToConcrete wh $ \ wh' -> do
                 (rhs', eqs, with, wcs) <- toConcreteTop rhs
                 return $ FunClause (C.LHS p eqs with) rhs' wh' catchall : wcs
 

@@ -1971,7 +1971,7 @@ instance ToAbstract C.Clause A.Clause where
     if not (null eqs)
       then do
         rhs <- toAbstract =<< toAbstractCtx TopCtx (RightHandSide eqs with wcs' rhs whds)
-        return $ A.Clause lhs' [] rhs [] catchall
+        return $ A.Clause lhs' [] rhs A.noWhereDecls catchall
       else do
         -- ASR (16 November 2015) Issue 1137: We ban termination
         -- pragmas inside `where` clause.
@@ -1982,10 +1982,12 @@ instance ToAbstract C.Clause A.Clause where
         (rhs, ds) <- whereToAbstract (getRange wh) whname whds $
                       toAbstractCtx TopCtx (RightHandSide eqs with wcs' rhs [])
         rhs <- toAbstract rhs
+                 -- #2897: we need to restrict named where modules in refined contexts,
+                 --        so remember whether it was named here
         return $ A.Clause lhs' [] rhs ds catchall
 
-whereToAbstract :: Range -> Maybe (C.Name, Access) -> [C.Declaration] -> ScopeM a -> ScopeM (a, [A.Declaration])
-whereToAbstract _ _      []   inner = (,[]) <$> inner
+whereToAbstract :: Range -> Maybe (C.Name, Access) -> [C.Declaration] -> ScopeM a -> ScopeM (a, A.WhereDeclarations)
+whereToAbstract _ whname []   inner = (, A.noWhereDecls) <$> inner
 whereToAbstract r whname whds inner = do
   -- Create a fresh concrete name if there isn't (a proper) one.
   (m, acc) <- do
@@ -2007,7 +2009,7 @@ whereToAbstract r whname whds inner = do
    void $ -- We can ignore the returned default A.ImportDirective.
     openModule_ (C.QName m) $
       defaultImportDir { publicOpen = True }
-  return (x, ds)
+  return (x, A.WhereDecls (am <$ whname) ds)
 
 data RightHandSide = RightHandSide
   { rhsRewriteEqn :: [C.RewriteEqn]    -- ^ @rewrite e@ (many)
@@ -2021,7 +2023,7 @@ data AbstractRHS
   = AbsurdRHS'
   | WithRHS' [A.Expr] [ScopeM C.Clause]  -- ^ The with clauses haven't been translated yet
   | RHS' A.Expr C.Expr
-  | RewriteRHS' [A.Expr] AbstractRHS [A.Declaration]
+  | RewriteRHS' [A.Expr] AbstractRHS A.WhereDeclarations
 
 qualifyName_ :: A.Name -> ScopeM A.QName
 qualifyName_ x = do

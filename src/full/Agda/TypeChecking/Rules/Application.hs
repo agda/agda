@@ -990,7 +990,7 @@ checkSharpApplication e t c args = do
                            , A.lhsPats       = [] }
         clause = A.Clause (A.LHS empty core) []
                           (A.RHS arg Nothing)
-                          [] False
+                          A.noWhereDecls False
 
     i <- currentOrFreshMutualBlock
 

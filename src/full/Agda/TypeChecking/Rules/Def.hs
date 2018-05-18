@@ -130,7 +130,7 @@ isAlias cs t =
   where
     isMeta (MetaV x _) = Just x
     isMeta _           = Nothing
-    trivialClause [A.Clause (A.LHS i (A.LHSHead f [])) _ (A.RHS e mc) [] _] = Just (e, mc)
+    trivialClause [A.Clause (A.LHS i (A.LHSHead f [])) _ (A.RHS e mc) (A.WhereDecls _ []) _] = Just (e, mc)
     trivialClause _ = Nothing
 
 -- | Check a trivial definition of the form @f = e@
@@ -801,7 +801,7 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps absurdPat trhs _ _asb _) rhs0
         let rhs'     = insertPatterns pats rhs
             (rhs'', outerWhere) -- the where clauses should go on the inner-most with
               | null qes  = (rhs', wh)
-              | otherwise = (A.RewriteRHS qes strippedPats rhs' wh, [])
+              | otherwise = (A.RewriteRHS qes strippedPats rhs' wh, A.noWhereDecls)
             -- Andreas, 2014-03-05 kill range of copied patterns
             -- since they really do not have a source location.
             cl = A.Clause (A.LHS i $ insertPatternsLHSCore pats $ A.LHSHead x $ killRange aps)
@@ -1006,10 +1006,12 @@ checkWithFunction cxtNames (WithFunction f aux t delta delta1 delta2 vs as b qs 
 
 -- | Type check a where clause.
 checkWhere
-  :: [A.Declaration] -- ^ Where-declarations to check.
-  -> TCM a           -- ^ Continuation.
+  :: A.WhereDeclarations -- ^ Where-declarations to check.
+  -> TCM a               -- ^ Continuation.
   -> TCM a
-checkWhere ds ret = loop ds
+checkWhere wh@(A.WhereDecls whmod ds) ret = do
+  ensureNoNamedWhereInRefinedContext whmod
+  loop ds
   where
     loop ds = case ds of
       [] -> ret
@@ -1019,6 +1021,32 @@ checkWhere ds ret = loop ds
             checkDecls ds
             ret
       _ -> __IMPOSSIBLE__
+
+    -- #2897: We can't handle named where-modules in refined contexts.
+    ensureNoNamedWhereInRefinedContext Nothing = return ()
+    ensureNoNamedWhereInRefinedContext (Just m) = traceCall (CheckNamedWhere m) $ do
+      args <- map unArg <$> (moduleParamsToApply =<< currentModule)
+      unless (isWeakening args) $ -- weakened contexts are fine
+        genericDocError =<< do
+          names <- map (argNameToString . fst . unDom) . telToList <$>
+                    (lookupSection =<< currentModule)
+          let pr x v = text (x ++ " =") <+> prettyTCM v
+          vcat
+            [ fsep (pwords $ "Named where-modules are not allowed when module parameters have been refined by pattern matching. " ++
+                             "See https://github.com/agda/agda/issues/2897.")
+            , text $ "In this case the module parameter" ++
+                     (if length args > 0 then "s have" else " has") ++
+                     " been refined to"
+            , nest 2 $ vcat (zipWith pr names args) ]
+      where
+        isWeakening [] = True
+        isWeakening (Var i [] : args) = isWk (i - 1) args
+          where
+            isWk i []                = True
+            isWk i (Var j [] : args) = i == j && isWk (i - 1) args
+            isWk _ _ = False
+        isWeakening _ = False
+
 
 -- | Enter a new section during type-checking.
 

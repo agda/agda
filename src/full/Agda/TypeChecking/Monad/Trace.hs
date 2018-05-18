@@ -100,6 +100,7 @@ traceCall mkCall m = do
     CheckIsEmpty{}            -> True
     CheckWithFunctionType{}   -> True
     CheckSectionApplication{} -> True
+    CheckNamedWhere{}         -> False
     ScopeCheckExpr{}          -> False
     ScopeCheckDeclaration{}   -> False
     ScopeCheckLHS{}           -> False
