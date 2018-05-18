@@ -16,6 +16,7 @@ import Agda.Syntax.Common
 import Agda.Syntax.Position
 import qualified Agda.Syntax.Concrete as C
 import qualified Agda.Syntax.Abstract as A
+import qualified Agda.Syntax.Abstract.Views as A
 import qualified Agda.Syntax.Info as A
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
@@ -271,7 +272,7 @@ makeCase hole rng s = withInteractionId hole $ do
             if isAbsurd then makeAbsurdClause f sc else makeAbstractClause f rhs sc
     reportSDoc "interaction.case" 65 $ vcat
       [ text "split result:"
-      , nest 2 $ vcat $ map (text . show) cs
+      , nest 2 $ vcat $ map (text . show . A.deepUnscope) cs
       ]
     checkClauseIsClean ipCl
     return (f, casectxt, cs)
