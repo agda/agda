@@ -1436,7 +1436,7 @@ data ExtLamInfo = ExtLamInfo
     --   refined context the module picked by the scope checker has very much
     --   the wrong parameters.
   , extLamSys :: !(Maybe System)
-  } deriving (Data, Eq, Ord, Show)
+  } deriving (Data, Show)
 
 modifySystem :: (System -> System) -> ExtLamInfo -> ExtLamInfo
 modifySystem f e = let !e' = e { extLamSys = f <$> extLamSys e } in e'

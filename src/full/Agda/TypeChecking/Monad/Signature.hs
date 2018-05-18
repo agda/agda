@@ -853,8 +853,8 @@ getDefModule :: HasConstInfo m => QName -> m ModuleName
 getDefModule f = do
   def <- getConstInfo f
   return $ case theDef def of
-    Function{ funExtLam = Just (ExtLamInfo m) } -> m
-    _                                           -> qnameModule f
+    Function{ funExtLam = Just (ExtLamInfo m _) } -> m
+    _                                             -> qnameModule f
 
 -- | Compute the number of free variables of a defined name. This is the sum of
 --   number of parameters shared with the current module and the number of

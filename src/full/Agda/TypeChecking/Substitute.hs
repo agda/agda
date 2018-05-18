@@ -395,7 +395,7 @@ instance Apply CompiledClauses where
       len = length args
 
 instance Apply ExtLamInfo where
-  apply (ExtLamInfo n h sys) args = ExtLamInfo n h (apply sys args)
+  apply (ExtLamInfo m sys) args = ExtLamInfo m (apply sys args)
 
 instance Apply System where
   -- We assume we apply a system only to arguments introduced by
