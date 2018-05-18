@@ -1408,8 +1408,12 @@ noCompiledRep = Map.empty
 
 -- | Additional information for extended lambdas.
 data ExtLamInfo = ExtLamInfo
-  { extLamNumHidden :: Int  -- Number of hidden args to be dropped when printing.
-  , extLamNumNonHid :: Int  -- Number of visible args to be dropped when printing.
+  { extLamModule    :: ModuleName
+    -- ^ For complicated reasons the scope checker decides the QName of a
+    --   pattern lambda, and thus its module. We really need to decide the
+    --   module during type checking though, since if the lambda appears in a
+    --   refined context the module picked by the scope checker has very much
+    --   the wrong parameters.
   } deriving (Data, Eq, Ord, Show)
 
 -- | Additional information for projection 'Function's.
@@ -3303,7 +3307,7 @@ instance KillRange EtaEquality where
   killRange = id
 
 instance KillRange ExtLamInfo where
-  killRange = id
+  killRange (ExtLamInfo m) = killRange1 ExtLamInfo m
 
 instance KillRange FunctionFlag where
   killRange = id

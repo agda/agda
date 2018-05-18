@@ -543,11 +543,10 @@ reifyTerm expandAnonDefs0 v = do
 
         -- Check whether we have an extended lambda and display forms are on.
         df <- displayFormsEnabled
-        toppars <- size <$> do lookupSection $ qnameModule x
-        let extLam = case def of
-             Function{ funExtLam = Just{}, funProjection = Just{} } -> __IMPOSSIBLE__
-             Function{ funExtLam = Just (ExtLamInfo h nh) } -> Just (toppars + h + nh)
-             _ -> Nothing
+        extLam <- case def of
+          Function{ funExtLam = Just{}, funProjection = Just{} } -> __IMPOSSIBLE__
+          Function{ funExtLam = Just (ExtLamInfo m) } -> Just . size <$> lookupSection m
+          _ -> return Nothing
         case extLam of
           Just pars | df -> reifyExtLam x pars (defClauses defn) es
 
@@ -1022,9 +1021,11 @@ instance Reify NamedClause A.Clause where
     ps  <- reifyPatterns $ namedClausePats cl
     lhs <- uncurry (SpineLHS empty) <$> reifyDisplayFormP f ps []
     -- Unless @toDrop@ we have already dropped the module patterns from the clauses
-    -- (e.g. for extended lambdas).
+    -- (e.g. for extended lambdas). We still get here with toDrop = True and
+    -- pattern lambdas when doing make-case, so take care to drop the right
+    -- number of parameters.
     lhs <- if not toDrop then return lhs else do
-      nfv <- getDefFreeVars f `catchError` \_ -> return 0
+      nfv <- (size <.> lookupSection =<< getDefModule f) `catchError` \_ -> return 0
       return $ dropParams nfv lhs
     lhs <- stripImps lhs
     reportSLn "reify.clause" 60 $ "reifying NamedClause, lhs = " ++ show lhs

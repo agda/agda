@@ -488,11 +488,12 @@ checkAbsurdLambda i h e t = do
 -- Precondition: @e = ExtendedLam i di qname cs@
 checkExtendedLambda :: A.ExprInfo -> A.DefInfo -> QName -> [A.Clause] ->
                        A.Expr -> Type -> TCM Term
-checkExtendedLambda i di qname cs e t = do
+checkExtendedLambda i di qname cs e t = inFreshModuleIfFreeParams $ do
    -- Andreas, 2016-06-16 issue #2045
    -- Try to get rid of unsolved size metas before we
    -- fix the type of the extended lambda auxiliary function
    solveSizeConstraints DontDefaultToInfty
+   lamMod <- currentModule  -- Note: might not be qnameModule qname due to inFreshModuleIfFreeParams (see #2883)
    t <- instantiateFull t
    ifBlockedType t (\ m t' -> postponeTypeCheckingProblem_ $ CheckExpr e t') $ \ _ t -> do
      j   <- currentOrFreshMutualBlock
@@ -504,14 +505,6 @@ checkExtendedLambda i di qname cs e t = do
        text "extended lambda's implementation \"" <> prettyTCM qname <>
        text "\" has type: " $$ prettyTCM t -- <+> text " where clauses: " <+> text (show cs)
      args     <- getContextArgs
-     freevars <- getCurrentModuleFreeVars
-     let argsNoParam = drop freevars args -- don't count module parameters
-     let (hid, notHid) = List.partition notVisible argsNoParam
-     reportSDoc "tc.term.exlam" 30 $ vcat $
-       [ text "dropped args: " <+> prettyTCM (take freevars args)
-       , text "hidden  args: " <+> prettyTCM hid
-       , text "visible args: " <+> prettyTCM notHid
-       ]
 
      -- Andreas, Ulf, 2016-02-02: We want to postpone type checking an extended lambda
      -- in case the lhs checker failed due to insufficient type info for the patterns.
@@ -522,7 +515,7 @@ checkExtendedLambda i di qname cs e t = do
        addConstant qname =<< do
          useTerPragma $
            (defaultDefn info qname t emptyFunction) { defMutual = j }
-       checkFunDef' t info NotDelayed (Just $ ExtLamInfo (length hid) (length notHid)) Nothing di qname cs
+       checkFunDef' t info NotDelayed (Just $ ExtLamInfo lamMod) Nothing di qname cs
        return $ Def qname $ map Apply args)
      `catchIlltypedPatternBlockedOnMeta` \ (err, x) -> do
        -- We could not check the extended lambda because we are blocked on a meta.

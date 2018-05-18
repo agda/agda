@@ -52,6 +52,7 @@ import Agda.Syntax.Concrete.Generic as C
 import Agda.Syntax.Concrete.Pretty ()
 import Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Pretty
+import qualified Agda.Syntax.Internal as I
 import Agda.Syntax.Info (mkDefInfo)
 import Agda.Syntax.Translation.ConcreteToAbstract
 import Agda.Syntax.Translation.AbstractToConcrete hiding (withScope)
@@ -962,14 +963,12 @@ interpret (Cmd_make_case ii rng s) = do
   liftCommandMT (B.withInteractionId ii) $ do
     hidden <- lift $ showImplicitArguments
     tel <- lift $ lookupSection (qnameModule f) -- don't shadow the names in this telescope
-    let cs'  :: [A.Clause] = List.map (extlam_dropLLifted casectxt hidden) cs
-    pcs      :: [Doc]     <- lift $ inTopContext $ addContext tel $ mapM prettyA cs'
-    let pcs' :: [String]   = List.map (extlam_dropName casectxt . render) pcs
+    pcs      :: [Doc]      <- lift $ inTopContext $ addContext tel $ mapM prettyA cs
+    let pcs' :: [String]    = List.map (extlam_dropName casectxt . render) pcs
     lift $ reportSDoc "interaction.case" 60 $ TCP.vcat
       [ TCP.text "InteractionTop.Cmd_make_case"
       , TCP.nest 2 $ TCP.vcat
         [ TCP.text "cs   = " TCP.<+> TCP.vcat (map prettyA cs)
-        , TCP.text "cs'  = " TCP.<+> TCP.vcat (map prettyA cs')
         , TCP.text "pcs  = " TCP.<+> TCP.vcat (map return pcs)
         , TCP.text "pcs' = " TCP.<+> TCP.vcat (map TCP.text pcs')
         ]
@@ -978,7 +977,6 @@ interpret (Cmd_make_case ii rng s) = do
       [ TCP.text "InteractionTop.Cmd_make_case"
       , TCP.nest 2 $ TCP.vcat
         [ TCP.text "cs   = " TCP.<+> TCP.text (show cs)
-        , TCP.text "cs'  = " TCP.<+> TCP.text (show cs')
         ]
       ]
     putResponse $ Resp_MakeCase (makeCaseVariant casectxt) pcs'
@@ -1000,15 +998,6 @@ interpret (Cmd_make_case ii rng s) = do
         replEquals ("=" : ws) = "→" : ws
         replEquals (w   : ws) = w : replEquals ws
         replEquals []         = []
-
-    -- Drops pattern added to extended lambda functions when lambda lifting them
-    extlam_dropLLifted :: CaseContext -> Bool -> A.Clause -> A.Clause
-    extlam_dropLLifted Nothing _ x = x
-    extlam_dropLLifted _ _ (A.Clause (A.LHS _ A.LHSProj{}) _ _ _ _) = __IMPOSSIBLE__
-    extlam_dropLLifted _ _ (A.Clause (A.LHS _ A.LHSWith{}) _ _ _ _) = __IMPOSSIBLE__
-    extlam_dropLLifted (Just (ExtLamInfo h nh)) hidden cl@A.Clause{ A.clauseLHS = A.LHS info (A.LHSHead name nps) }
-      = let n = if hidden then h + nh else nh
-        in cl{ A.clauseLHS = A.LHS info (A.LHSHead name (drop n nps)) }
 
 interpret (Cmd_compute cmode ii rng s) = display_info . Info_NormalForm =<< do
   liftLocalState $ do

@@ -229,7 +229,7 @@ instance EmbPrj ProjLams where
   value = valueN ProjLams
 
 instance EmbPrj ExtLamInfo where
-  icod_ (ExtLamInfo a b) = icodeN' ExtLamInfo a b
+  icod_ (ExtLamInfo a) = icodeN' ExtLamInfo a
 
   value = valueN ExtLamInfo
 
