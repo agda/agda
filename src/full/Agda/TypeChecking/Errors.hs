@@ -1475,6 +1475,9 @@ instance PrettyTCM Call where
     CheckPatternShadowing c -> fsep $
       pwords "when checking the clause" ++ [prettyA c]
 
+    CheckNamedWhere m -> fsep $
+      pwords "when checking the named where block" ++ [prettyA m]
+
     InferVar x ->
       fsep $ pwords "when inferring the type of" ++ [prettyTCM x]
 

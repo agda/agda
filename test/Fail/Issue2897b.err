@@ -1,0 +1,8 @@
+Issue2897b.agda:11,12-14
+Named where-modules are not allowed when module parameters have
+been refined by pattern matching. See
+https://github.com/agda/agda/issues/2897.
+In this case the module parameters have been refined to
+  n = 0
+  m = m
+when checking the named where block M'
