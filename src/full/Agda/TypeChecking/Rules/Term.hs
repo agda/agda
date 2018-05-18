@@ -1011,6 +1011,7 @@ checkExpr e t0 =
         reduce a >>= isSizeType >>= \case
           Just (BoundedLt u) -> ifBlocked u (\ _ _ -> fallback) $ \ _ v -> do
             ifM (checkSizeNeverZero v) proceed fallback
+            `catchError` \_ -> fallback
           _ -> proceed
 
     | otherwise = fallback
