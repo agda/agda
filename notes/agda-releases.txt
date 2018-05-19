@@ -73,8 +73,7 @@ followed:
   should ensure that the Emacs mode can be compiled without errors or
   warnings (except for the "cl package required at runtime" warning).
 
-* Remove the Cabal tests-suites `agda-tests` and `internal-tests` from
-  Agda.cabal.
+* Remove the Cabal test-suite from Agda.cabal.
 
 * Update the user manual:
 
@@ -85,6 +84,11 @@ followed:
     cabal configure
     cabal check
     cabal sdist
+
+* Build documentation for uploading to Hackage. Adapted from
+  https://hackage.haskell.org/upload (2018-05-19):
+
+    cabal haddock --for-hackage --haddock-option=--hyperlinked-source
 
 * Ensure that the package builds properly (with multiple versions of GHC if
   possible) in Linux, MacOS X and Windows.
@@ -104,12 +108,12 @@ followed:
     cd $BASE
     git tag -a v$VERSION -m "Agda $VERSION release"
 
-* Upload the tarball and the documentation (tested with
+* Upload the tarball and the documentation to Hackage (tested with
   cabal-install >= 2.0.0.0):
 
     cd $BASE
-    cabal upload --publish dist/Agda-$VERSION.tar.gz
-    cabal upload --publish -d dist/Agda-$VERSION.tar.gz
+    cabal upload dist/Agda-$VERSION.tar.gz
+    cabal upload -d dist/Agda-$VERSION-docs.tar.gz
 
 * Restore the Cabal tests-suites `agda-tests` and `internal-tests`
   from Agda.cabal.
