@@ -11,13 +11,13 @@ be followed:
 
 * Get a clean Agda repository.
 
-    MAJORVERSION=<current-Agda-version-eg-2.4.0>
-    VERSION=<current-stable-version-eg-2.4.0.2>
+    MAJORVERSION=<current-development-version-eg-2.4.2>
+    VERSION=<current-released-version-eg-2.4.0.2>
     git clone git@github.com:agda/agda.git agda-release
     cd agda-release
     git checkout stable-$MAJORVERSION
 
-* Change VERSION to MAJORVERSION in:
+* Change the release candidate version to $MAJORVERSION in:
 
     .ghci
     Agda.cabal
@@ -46,7 +46,7 @@ be followed:
     source-repository this
       type:     git
       location: https://github.com/agda/agda.git
-      tag:      v$VERSION
+      tag:      v$MAJORVERSION
 
 * Remove -Werror and -fprof-auto from Agda.cabal (this is required by
   `cabal --check`).
@@ -60,8 +60,7 @@ be followed:
   ensure that the Emacs mode can be compiled without errors or
   warnings (except for the "cl package required at runtime" warning).
 
-* Remove the Cabal tests-suites `agda-tests` and `internal-tests` from
-  Agda.cabal.
+* Remove the Cabal test-suite from Agda.cabal.
 
 * Update the user manual:
 
@@ -73,14 +72,18 @@ be followed:
     cabal check
     cabal sdist
 
+* Build documentation for uploading to Hackage. Adapted from
+  https://hackage.haskell.org/upload (2018-05-19):
+
+    cabal haddock --for-hackage --haddock-option=--hyperlinked-source
+
 * Ensure that the package builds properly (with multiple versions of GHC if
   possible) in Linux, MacOS X and Windows.
 
     BASE=`pwd`
-    VERSION=<version>
     cd ${TMPDIR:-/tmp}
-    tar xzf $BASE/dist/Agda-$VERSION.tar.gz
-    cd Agda-$VERSION
+    tar xzf $BASE/dist/Agda-$MAJORVERSION.tar.gz
+    cd Agda-$MAJORVERSION
     cabal install
 
   Do not forget to test the Emacs mode.
@@ -88,14 +91,14 @@ be followed:
 * Tag the relase (do not forget to record the changes above first):
 
     cd $BASE
-    git tag -a v$VERSION -m "Agda $VERSION stable release"
+    git tag -a v$MAJORVERSION -m "Agda $MAJORVERSION stable release"
 
-* Upload the tarball and the documentation (tested with
+* Upload the tarball and the documentation to Hackage (tested with
   cabal-install >= 2.0.0.0):
 
     cd $BASE
-    cabal upload --publish dist/Agda-$VERSION.tar.gz
-    cabal upload --publish -d dist/Agda-$VERSION.tar.gz
+    cabal upload dist/Agda-$MAJORVERSION.tar.gz
+    cabal upload -d dist/Agda-$MAJORVERSION-docs.tar.gz
 
 * Is the documentation missing on Hackage (see #1940)? You can use the
   `neil` program for uploading the documentation:
@@ -113,7 +116,7 @@ be followed:
 
 * Update the version number to the new version
 
-    NEWVERSION=<VERSION + 1>
+    NEWVERSION=<MAJORVERSION + 1>
 
   in the following files:
 
@@ -127,7 +130,7 @@ be followed:
 * Add a new header to CHANGELOG.
 
 * Create a new branch in the standard library repository from the
-  VERSION branch called NEWVERSION.
+  MAJORVERSION branch called NEWVERSION.
 
 * Disable force push on the NEWVERSION branch of the standard library, see
 
@@ -169,7 +172,7 @@ be followed:
 
     git push
 
-* Close in the bug tracker the milestone VERSION.
+* Close in the bug tracker the milestone $MAJORVERSION.
 
 * Update Agda Manual on Readthedocs.org (see Issues #2844 and #3035)
 
@@ -178,15 +181,15 @@ be followed:
 
   ** Go to readthedocs.org -> Agda Project -> Admin -> Versions
 
-  ** Mark $VERSION as active
+  ** Mark $MAJORVERSION as active
 
-  ** Set the default documentation version to $VERSION
+  ** Set the default documentation version to $MAJORVERSION
 
   ** If a release candidate was released then remove the associated
      documentation.
 
 * Announce on the Agda developers mailing list the creation of the
-  NEWVERSION branch in the standard library to be used with the stable
+  $NEWVERSION branch in the standard library to be used with the stable
   branch of Agda.
 
 * Update the Agda Wiki:
@@ -200,7 +203,7 @@ be followed:
 
   ** Update the Main page.
 
-  ** Update the standard library page (tested with Agda $VERSION).
+  ** Update the standard library page (tested with Agda $MAJORVERSION).
 
 * Announce the release of the new version on the Agda mailing lists
   (users and developers).

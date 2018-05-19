@@ -5,17 +5,21 @@ the following procedure can be followed:
 
 * Get a clean Agda repository.
 
-    MAJORVERSION=<current-Agda-version-eg-2.4.2>
-    VERSION=<current-stable-version-eg-2.4.0.2>
+    MAJORVERSION=<current-development-version-eg-2.4.2>
+    VERSION=<current-released-version-eg-2.4.0.2>
     git clone git@github.com:agda/agda.git agda-release
     cd agda-release
     git checkout stable-$MAJORVERSION
 
-* The version of the RC is the current version released + current date
+* Create the branch used for the release
 
-    RC_VERSION=<current-released-version-current-date-eg-2.4.2.3.20150913>
+    git checkout -b release-$MAJORVERSION
 
-* Change VERSION to RC_VERSION in:
+* The version of the RC is $VERSION + current date
+
+    RC_VERSION=<current-released-version-current-date-eg-2.4.0.2.20150913>
+
+* Change $MAYOR_VERSION to $RC_VERSION in:
 
     .ghci
     Agda.cabal
@@ -59,8 +63,7 @@ the following procedure can be followed:
   ensure that the Emacs mode can be compiled without errors or
   warnings (except for the "cl package required at runtime" warning).
 
-* Remove the Cabal tests-suites `agda-tests` and `internal-tests` from
-  Agda.cabal.
+* Remove the Cabal test-suite from Agda.cabal.
 
 * Update the user manual:
 
@@ -71,6 +74,11 @@ the following procedure can be followed:
     cabal configure
     cabal check
     cabal sdist
+
+* Build documentation for uploading to Hackage. Adapted from
+  https://hackage.haskell.org/upload (2018-05-19):
+
+    cabal haddock --for-hackage --haddock-option=--hyperlinked-source
 
 * Ensure that the package builds properly (with multiple versions of GHC if
   possible) in Linux, MacOS X and Windows.
@@ -83,25 +91,24 @@ the following procedure can be followed:
 
   Do not forget to test the Emacs mode.
 
+* Upload to Hackage the RC (tested with cabal-install >= 2.0.0.0):
+
+    cd $BASE
+    cabal upload dist/Agda-$RC_VERSION.tar.gz
+    cabal upload -d dist/Agda-$RC_VERSION-docs.tar.gz
+
 * Tag the release candidate (do not forget to record the changes above
   first):
 
     cd $BASE
-    git tag -a v$RC_VERSION -m "Agda $VERSION release candidate n"
-
-* Upload the tarball and the documentation (tested with
-  cabal-install >= 2.0.0.0):
-
-    cd $BASE
-    cabal upload dist/Agda-$VERSION.tar.gz
-    cabal upload -d dist/Agda-$VERSION.tar.gz
+    git tag -a v$RC_VERSION -m "Agda $MAJORVERSION release candidate n"
 
 * Restore the Cabal tests-suites `agda-tests` and `internal-tests`
   from Agda.cabal.
 
 * Restore -Werror and -fprof-auto in Agda.cabal.
 
-* Restore the version number VERSION in:
+* Restore the version number $MAJOR_VERSION in:
 
     .ghci
     Agda.cabal
@@ -113,29 +120,9 @@ the following procedure can be followed:
     test/interaction/Issue1244a.out
     test/interaction/Issue1244b.out
 
-* Tag and push the standard library used for testing the release
-  candidate (requires Git >= 1.8.3) (untested):
+* Push all changes (in the release-$MAJORVERSION branch):
 
-    cd std-lib
-    git tag -a v$RC_VERSION -m "Agda standard library compatible with Agda $VERSION release candidate n"
-    git push --follow-tags
-
-* Push all changes and merge into 'master' branch (requires Git >= 1.8.3).
-
-    git push --follow-tags
-
-    git checkout master
-    git merge stable-$MAJORVERSION
-
-* Push into master
-
-    git push
+    git push --set-upstream --follow-tags
 
 * Announce the release candidate on the Agda mailing lists (users and
   developers).
-
-  Note that the announce shouldn't include
-
-    https://github.com/agda/agda/releases/tag/$RC_VERSION.tar.gz
-
-  but $BASE/dist/Agda-$RC_VERSION.tar.gz.
