@@ -90,7 +90,7 @@ checkDataDef i name ps cs =
                           , prettyTCM t0
                           ]
                   else throwError err
-              return s
+              reduce s
 
             reportSDoc "tc.data.sort" 20 $ vcat
               [ text "checking datatype" <+> prettyTCM name
@@ -140,7 +140,7 @@ checkDataDef i name ps cs =
 -- | Ensure that the type is a sort.
 --   If it is not directly a sort, compare it to a 'newSortMetaBelowInf'.
 forceSort :: Type -> TCM Sort
-forceSort t = case unEl t of
+forceSort t = reduce (unEl t) >>= \case
   Sort s -> return s
   _      -> do
     s <- newSortMetaBelowInf
