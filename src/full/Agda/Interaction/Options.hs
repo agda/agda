@@ -132,6 +132,7 @@ data PragmaOptions = PragmaOptions
   , optShowIrrelevant            :: Bool
   , optUseUnicode                :: Bool
   , optVerbose                   :: Verbosity
+  , optProp                      :: Bool
   , optAllowUnsolved             :: Bool
   , optDisablePositivity         :: Bool
   , optTerminationCheck          :: Bool
@@ -219,6 +220,7 @@ defaultPragmaOptions = PragmaOptions
   , optShowIrrelevant            = False
   , optUseUnicode                = True
   , optVerbose                   = defaultVerbosity
+  , optProp                      = False
   , optExperimentalIrrelevance   = False
   , optIrrelevantProjections     = True
   , optAllowUnsolved             = False
@@ -354,6 +356,8 @@ sharingFlag _ o = return o
 cachingFlag :: Bool -> Flag PragmaOptions
 cachingFlag b o = return $ o { optCaching = b }
 
+enablePropFlag :: Flag PragmaOptions
+enablePropFlag o = return $ o { optProp = True }
 
 experimentalIrrelevanceFlag :: Flag PragmaOptions
 experimentalIrrelevanceFlag o = return $ o { optExperimentalIrrelevance = True }
@@ -619,6 +623,8 @@ pragmaOptions =
                     "don't use unicode characters when printing terms"
     , Option ['v']  ["verbose"] (ReqArg verboseFlag "N")
                     "set verbosity level to N"
+    , Option []     ["enable-prop"] (NoArg enablePropFlag)
+                    "enable use of the Prop universe"
     , Option []     ["allow-unsolved-metas"] (NoArg allowUnsolvedFlag)
                     "succeed and create interface file regardless of unsolved meta variables"
     , Option []     ["no-positivity-check"] (NoArg noPositivityFlag)

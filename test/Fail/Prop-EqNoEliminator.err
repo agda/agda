@@ -1,0 +1,3 @@
+Prop-EqNoEliminator.agda:8,14-18
+Cannot split on datatype in Prop unless target is irrelevant
+when checking that the pattern refl has type x ≡P y

@@ -207,7 +207,7 @@ type Telescope = Tele (Dom Type)
 --
 data Sort
   = Type Level  -- ^ @Set ℓ@.
-  | Prop        -- ^ Dummy sort.
+  | Prop        -- ^ @Prop@.
   | Inf         -- ^ @Setω@.
   | SizeUniv    -- ^ @SizeUniv@, a sort inhabited by type @Size@.
   | PiSort Sort (Abs Sort) -- ^ Sort of the pi type.

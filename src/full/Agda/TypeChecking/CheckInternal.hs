@@ -363,8 +363,7 @@ checkSort :: Action -> Sort -> TCM Sort
 checkSort action s =
   case s of
     Type l   -> Type <$> checkLevel action l
-    Prop     -> __IMPOSSIBLE__
-      -- the dummy Prop should not be part of a term we check
+    Prop     -> return Prop
     Inf      -> return Inf
     SizeUniv -> return SizeUniv
     PiSort a b -> do
