@@ -117,7 +117,7 @@ recordModule = mnameFromList . qnameToList
 --   does not refer to a record or the record is abstract.
 getRecordDef :: QName -> TCM Defn
 getRecordDef r = maybe err return =<< isRecord r
-  where err = typeError $ ShouldBeRecordType (El Prop $ Def r [])
+  where err = typeError $ ShouldBeRecordType (El dummySort $ Def r [])
 
 -- | Get the record name belonging to a field name.
 getRecordOfField :: QName -> TCM (Maybe QName)
@@ -667,7 +667,7 @@ isSingletonRecordModuloRelevance r ps = mapRight isJust <$> isSingletonRecord' T
 
 -- | Return the unique (closed) inhabitant if exists.
 --   In case of counting irrelevance in, the returned inhabitant
---   contains garbage.
+--   contains dummy terms.
 isSingletonRecord' :: Bool -> QName -> Args -> TCM (Either MetaId (Maybe Term))
 isSingletonRecord' regardIrrelevance r ps = do
   reportSLn "tc.meta.eta" 30 $ "Is " ++ prettyShow r ++ " a singleton record type?"
@@ -683,7 +683,7 @@ isSingletonRecord' regardIrrelevance r ps = do
       ExtendTel dom tel
         | isIrrelevant dom && regardIrrelevance -> do
           underAbstraction dom tel $ \ tel ->
-            emap (Arg (domInfo dom) garbage :) <$> check tel
+            emap (Arg (domInfo dom) dummyTerm :) <$> check tel
         | otherwise -> do
           isSing <- isSingletonType' regardIrrelevance $ unDom dom
           case isSing of
@@ -691,8 +691,6 @@ isSingletonRecord' regardIrrelevance r ps = do
             Right Nothing  -> return $ Right Nothing
             Right (Just v) -> underAbstraction dom tel $ \ tel ->
               emap (Arg (domInfo dom) v :) <$> check tel
-  garbage :: Term
-  garbage = Sort Prop
 
 -- | Check whether a type has a unique inhabitant and return it.
 --   Can be blocked by a metavar.

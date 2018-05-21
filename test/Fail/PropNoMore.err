@@ -1,4 +1,3 @@
 PropNoMore.agda:5,7-11
-Not in scope:
-  Prop at PropNoMore.agda:5,7-11
-when scope checking Prop
+Use the --enable-prop flag to use the Prop universe
+when checking that the expression Prop is a type

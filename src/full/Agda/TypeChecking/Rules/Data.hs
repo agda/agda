@@ -92,9 +92,7 @@ checkDataDef i name ps cs =
               -- However, it might give the dreaded "Cannot instantiate meta..."
               -- error which we replace by a more understandable error
               -- in case of a suspected dependency.
-              -- Jesper, 2017-09-14: since Set i depends non-strictly on i,
-              -- we need to create the new meta in a nonstrict context.
-              s <- applyRelevanceToContext NonStrict newSortMetaBelowInf
+              s <- newSortMetaBelowInf
               catchError_ (addContext ixTel $ equalType s0 $ raise nofIxs $ sort s) $ \ err ->
                   if any (`freeIn` s0) [0..nofIxs - 1] then typeError . GenericDocError =<<
                      fsep [ text "The sort of" <+> prettyTCM name
@@ -102,7 +100,7 @@ checkDataDef i name ps cs =
                           , prettyTCM t0
                           ]
                   else throwError err
-              return s
+              reduce s
 
             reportSDoc "tc.data.sort" 20 $ vcat
               [ text "checking datatype" <+> prettyTCM name
@@ -142,14 +140,6 @@ checkDataDef i name ps cs =
         let s      = dataSort dataDef
             cons   = map A.axiomName cs  -- get constructor names
 
-        -- If proof irrelevance is enabled we have to check that datatypes in
-        -- Prop contain at most one element.
-        do  proofIrr <- proofIrrelevance
-            case (proofIrr, s, cs) of
-                (True, Prop, _:_:_) -> setCurrentRange cons $
-                                         typeError PropMustBeSingleton
-                _                   -> return ()
-
         -- Add the datatype to the signature with its constructors.
         -- It was previously added without them.
         addConstant name $
@@ -160,11 +150,10 @@ checkDataDef i name ps cs =
 -- | Ensure that the type is a sort.
 --   If it is not directly a sort, compare it to a 'newSortMetaBelowInf'.
 forceSort :: Type -> TCM Sort
-forceSort t = case unEl t of
+forceSort t = reduce (unEl t) >>= \case
   Sort s -> return s
   _      -> do
-    -- Universes depend non-strictly on their argument
-    s <- applyRelevanceToContext NonStrict newSortMetaBelowInf
+    s <- newSortMetaBelowInf
     equalType t (sort s)
     return s
 

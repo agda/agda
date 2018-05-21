@@ -106,6 +106,12 @@ checkRecDef i name ind eta con ps contel fields =
       unless (null idxTel) $ typeError $ ShouldBeASort t0
       s <- forceSort s
 
+      -- needed for impredicative Prop (not implemented yet)
+      -- ftel <- return $
+      --   if s == Prop
+      --   then telFromList $ map (setRelevance Irrelevant) $ telToList ftel
+      --   else ftel
+
       reportSDoc "tc.rec" 20 $ do
         gamma <- getContextTelescope  -- the record params (incl. module params)
         text "gamma = " <+> inTopContext (prettyTCM gamma)

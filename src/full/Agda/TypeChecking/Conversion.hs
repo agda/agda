@@ -230,7 +230,7 @@ compareTerm' cmp a m n =
   catchConstraint (ValueCmp cmp a' m n) $ do
     reportSDoc "tc.conv.term" 30 $ fsep
       [ text "compareTerm", prettyTCM m, prettyTCM cmp, prettyTCM n, text ":", prettyTCM a' ]
-    proofIrr <- proofIrrelevance
+    propIrr  <- isPropEnabled
     isSize   <- isJust <$> isSizeType a'
     s        <- reduce $ getSort a'
     mlvl     <- tryMaybe primLevel
@@ -240,7 +240,7 @@ compareTerm' cmp a m n =
       , text $ "(Just (unEl a') == mlvl) = " ++ show (Just (unEl a') == mlvl)
       ]
     case s of
-      Prop | proofIrr -> return ()
+      Prop | propIrr  -> return ()
       _    | isSize   -> compareSizes cmp m n
       _               -> case unEl a' of
         a | Just a == mlvl -> do
@@ -292,7 +292,7 @@ compareTerm' cmp a m n =
                   -- No subtyping on record terms
                   c <- getRecordConstructor r
                   -- Record constructors are covariant (see test/succeed/CovariantConstructors).
-                  compareArgs (repeat $ polFromCmp cmp) [] (telePi_ tel $ sort Prop) (Con c ConOSystem []) m' n'
+                  compareArgs (repeat $ polFromCmp cmp) [] (telePi_ tel dummyType) (Con c ConOSystem []) m' n'
 
             else (do pathview <- pathView a'
                      equalPath pathview a' m n)
@@ -1112,22 +1112,24 @@ leqSort s1 s2 = catchConstraint (SortCmp CmpLeq s1 s2) $ do
         , nest 2 $ fsep [ prettyTCM s1 <+> text "=<"
                         , prettyTCM s2 ]
         ]
+  propEnabled <- isPropEnabled
   case (s1, s2) of
       -- The most basic rule: @Set l =< Set l'@ iff @l =< l'@
       (Type a  , Type b  ) -> leqLevel a b
 
-      -- Prop is currently not supported
-      (Prop    , _       ) -> __IMPOSSIBLE__
-      (_       , Prop    ) -> __IMPOSSIBLE__
+      -- Prop is below any @Set l@
+      (Prop    , Type{}  ) -> yes
 
       -- Setω is the top sort
       (_       , Inf     ) -> yes
       (Inf     , _       ) -> equalSort s1 s2
 
-      -- Set0 and SizeUniv are bottom sorts
-      -- note: this ceases to hold if we add @Prop =< Set0@
-      (_       , Type (Max [])) -> equalSort s1 s2
+      -- SizeUniv and Prop are bottom sorts.
+      -- So is @Set0@ if @Prop@ is not enabled.
       (_       , SizeUniv) -> equalSort s1 s2
+      (_       , Prop)     -> equalSort s1 s2
+      (_       , Type (Max []))
+        | not propEnabled  -> equalSort s1 s2
 
       -- If we compare @univSort s@ against @Set (lsuc l)@,
       -- we can simplify the comparison.
@@ -1455,6 +1457,8 @@ equalSort s1 s2 = do
                  ]
           ]
 
+        propEnabled <- isPropEnabled
+
         case (s1, s2) of
 
             -- before anything else, try syntactic equality
@@ -1484,8 +1488,13 @@ equalSort s1 s2 = do
             -- if @PiSort a b == Set0@, then @b == Set0@
             -- we use this fact to solve metas in @b@,
             -- hopefully allowing the @PiSort@ to reduce.
-            (Type (Max []) , PiSort a b   ) -> piSortEqualToSet0 a b
-            (PiSort a b    , Type (Max [])) -> piSortEqualToSet0 a b
+            (Type (Max []) , PiSort a b   )
+              | not propEnabled             -> piSortEqualsBottom set0 a b
+            (PiSort a b    , Type (Max []))
+              | not propEnabled             -> piSortEqualsBottom set0 a b
+
+            (Prop          , PiSort a b   ) -> piSortEqualsBottom Prop a b
+            (PiSort a b    , Prop         ) -> piSortEqualsBottom Prop a b
 
             -- @PiSort a b == SizeUniv@ iff @b == SizeUniv@
             (SizeUniv   , PiSort a b ) ->
@@ -1516,17 +1525,17 @@ equalSort s1 s2 = do
         reportSDoc "tc.meta.sort" 50 $ text "meta" <+> sep [pretty x, prettyList $ map pretty es, pretty s]
         assignE DirEq x es (Sort s) __IMPOSSIBLE__
 
-      -- equate @piSort a b@ to @Set0@
-      -- note: this assumes @piSort a b == Set0@ implies @b == Set0@,
-      -- which becomes invalid if we add Prop.
-      piSortEqualToSet0 a b = do
-        let set0 = Type $ Max []
-        underAbstraction_ b $ equalSort set0
+      set0 = Type $ Max []
+
+      -- equate @piSort a b@ to @s0@, which is assumed to be a (closed) bottom sort
+      -- i.e. @piSort a b == s0@ implies @b == s0@.
+      piSortEqualsBottom s0 a b = do
+        underAbstraction_ b $ equalSort s0
         -- we may have instantiated some metas, so @a@ could reduce
         a <- reduce a
-        case funSort' a set0 of
-          Just s  -> equalSort s set0
-          Nothing -> addConstraint $ SortCmp CmpEq (funSort a set0) set0
+        case funSort' a s0 of
+          Just s  -> equalSort s s0
+          Nothing -> addConstraint $ SortCmp CmpEq (funSort a s0) s0
 
 
 -- -- This should probably represent face maps with a more precise type

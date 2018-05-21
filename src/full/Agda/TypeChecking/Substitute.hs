@@ -645,7 +645,7 @@ instance Abstract v => Abstract (HashMap k v) where
 abstractArgs :: Abstract a => Args -> a -> a
 abstractArgs args x = abstract tel x
     where
-        tel   = foldr (\arg@(Arg info x) -> ExtendTel (sort Prop <$ domFromArg arg) . Abs x)
+        tel   = foldr (\arg@(Arg info x) -> ExtendTel (dummyType <$ domFromArg arg) . Abs x)
                       EmptyTel
               $ zipWith (<$) names args
         names = cycle $ map (stringToArgName . (:[])) ['a'..'z']
@@ -1221,6 +1221,7 @@ instance (Subst t a, Ord a) => Ord (Elim' a) where
 -- | Get the next higher sort.
 univSort' :: Sort -> Maybe Sort
 univSort' (Type l) = Just $ Type $ levelSuc l
+univSort' Prop     = Just $ mkType 0
 univSort' s        = Nothing
 
 univSort :: Sort -> Sort
@@ -1235,6 +1236,8 @@ funSort' a b = case (a, b) of
   (Type (Max as) , Type (Max bs)) -> Just $ Type $ levelMax $ as ++ bs
   (SizeUniv      , b            ) -> Just b
   (_             , SizeUniv     ) -> Just SizeUniv
+  (Prop          , b            ) -> Just b
+  (a             , Prop         ) -> Just a -- no impredicativity for now
   (a             , b            ) -> Nothing
 
 funSort :: Sort -> Sort -> Sort

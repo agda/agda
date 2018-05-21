@@ -447,6 +447,7 @@ data UnifyStep
     }
   | Conflict
     { conflictAt         :: Int
+    , conflictType       :: Type
     , conflictDatatype   :: QName
     , conflictParameters :: Args
     , conflictLeft       :: Term
@@ -454,6 +455,7 @@ data UnifyStep
     }
   | Cycle
     { cycleAt            :: Int
+    , cycleType          :: Type
     , cycleDatatype      :: QName
     , cycleParameters    :: Args
     , cycleVar           :: Int
@@ -512,15 +514,17 @@ instance PrettyTCM UnifyStep where
       , text "indices:    " <+> prettyList_ (map prettyTCM ixs)
       , text "constructor:" <+> prettyTCM c
       ])
-    Conflict k d pars u v -> text "Conflict" $$ nest 2 (vcat $
+    Conflict k a d pars u v -> text "Conflict" $$ nest 2 (vcat $
       [ text "position:   " <+> text (show k)
+      , text "type:       " <+> prettyTCM a
       , text "datatype:   " <+> prettyTCM d
       , text "parameters: " <+> prettyList_ (map prettyTCM pars)
       , text "lhs:        " <+> prettyTCM u
       , text "rhs:        " <+> prettyTCM v
       ])
-    Cycle k d pars i u -> text "Cycle" $$ nest 2 (vcat $
+    Cycle k a d pars i u -> text "Cycle" $$ nest 2 (vcat $
       [ text "position:   " <+> text (show k)
+      , text "type:       " <+> prettyTCM a
       , text "datatype:   " <+> prettyTCM d
       , text "parameters: " <+> prettyList_ (map prettyTCM pars)
       , text "variable:   " <+> text (show i)
@@ -642,9 +646,9 @@ dataStrategy k s = do
          <+> text " with (homogeneous) parameters " <+> prettyTCM hpars
       case (u, v) of
         (Con c _ _   , Con c' _ _  ) | c == c' -> return $ Injectivity k a d hpars ixs c
-        (Con c _ _   , Con c' _ _  ) -> return $ Conflict k d hpars u v
-        (Var i []  , v         ) -> ifOccursStronglyRigid i v $ return $ Cycle k d hpars i v
-        (u         , Var j []  ) -> ifOccursStronglyRigid j u $ return $ Cycle k d hpars j u
+        (Con c _ _   , Con c' _ _  ) -> return $ Conflict k a d hpars u v
+        (Var i []  , v         ) -> ifOccursStronglyRigid i v $ return $ Cycle k a d hpars i v
+        (u         , Var j []  ) -> ifOccursStronglyRigid j u $ return $ Cycle k a d hpars j u
         _ -> mzero
     _ -> mzero
   where
@@ -785,8 +789,8 @@ injectivePragmaStrategy k s = do
 
 skipIrrelevantStrategy :: Int -> UnifyStrategy
 skipIrrelevantStrategy k s = do
-  let i = getEqInfo k s
-  guard $ isIrrelevant i
+  let Equal a _ _ = getEquality k s
+  guard $ isIrrelevant (domInfo a) || getSort a == Prop
   return $ SkipIrrelevantEquation k
 
 

@@ -5,22 +5,22 @@ module _ where
 
 open import Agda.Builtin.Nat
 
-module Prop (n : Nat) where
+module Prop' (n : Nat) where
 
-  data Prop : Set where
-    _∧_ _∨_ : Prop → Prop → Prop
+  data Prop' : Set where
+    _∧_ _∨_ : Prop' → Prop' → Prop'
 
-open Prop zero
+open Prop' zero
 
-data DView : Prop → Set where
-  case₁ : (a b c : Prop) → DView ((a ∨ b) ∧ c)
-  case₂ : (a : Prop)     → DView a
+data DView : Prop' → Set where
+  case₁ : (a b c : Prop') → DView ((a ∨ b) ∧ c)
+  case₂ : (a : Prop')     → DView a
 
-dView : (p : Prop) → DView p
+dView : (p : Prop') → DView p
 dView ((a ∨ b) ∧ c) = case₁  _ _ _
 dView a             = case₂ _
 
-dist-∧ : Prop → Prop
+dist-∧ : Prop' → Prop'
 dist-∧ p with dView p
 dist-∧ .((a ∨ b) ∧ c) | case₁ a b c = dist-∧ (a ∧ c)
 dist-∧ a              | case₂ .a = a

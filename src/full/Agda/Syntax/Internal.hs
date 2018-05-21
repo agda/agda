@@ -211,7 +211,7 @@ type Telescope = Tele (Dom Type)
 --
 data Sort
   = Type Level  -- ^ @Set ℓ@.
-  | Prop        -- ^ Dummy sort.
+  | Prop        -- ^ @Prop@.
   | Inf         -- ^ @Setω@.
   | SizeUniv    -- ^ @SizeUniv@, a sort inhabited by type @Size@.
   | PiSort Sort (Abs Sort) -- ^ Sort of the pi type.
@@ -716,9 +716,17 @@ dontCare v =
     DontCare{} -> v
     _          -> DontCare v
 
+-- | A dummy sort.
+dummySort :: Sort
+dummySort = Prop
+
+-- | A dummy term.
+dummyTerm :: Term
+dummyTerm = Sort dummySort
+
 -- | A dummy type.
-typeDontCare :: Type
-typeDontCare = sort Prop
+dummyType :: Type
+dummyType = sort dummySort
 
 -- | Top sort (Set\omega).
 topSort :: Type

@@ -234,7 +234,7 @@ instance AddContext Telescope where
 
 -- | Context entries without a type have this dummy type.
 dummyDom :: Dom Type
-dummyDom = defaultDom typeDontCare
+dummyDom = defaultDom dummyType
 
 -- | Go under an abstraction.
 {-# SPECIALIZE underAbstraction :: Subst t a => Dom Type -> Abs a -> (a -> TCM b) -> TCM b #-}

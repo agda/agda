@@ -895,7 +895,7 @@ checkWithRHS x aux t (LHSResult npars delta ps _absurdPat trhs _ _asb _) vs0 as 
             v    = Def aux $ map Apply $ us0 ++ us1 ++ map defaultArg withArgs ++ us2
         -- Andreas, 2013-02-26 add with-name to signature for printing purposes
         addConstant aux =<< do
-          useTerPragma $ defaultDefn defaultArgInfo aux typeDontCare emptyFunction
+          useTerPragma $ defaultDefn defaultArgInfo aux dummyType emptyFunction
 
         -- Andreas, 2013-02-26 separate msgs to see which goes wrong
         reportSDoc "tc.with.top" 20 $

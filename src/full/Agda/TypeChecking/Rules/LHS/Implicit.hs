@@ -41,7 +41,7 @@ implicitP info = Arg (setOrigin Inserted info) $ unnamed $ A.WildP $ PatRange $ 
 insertImplicitPatterns :: ExpandHidden -> [NamedArg A.Pattern] ->
                           Telescope -> TCM [NamedArg A.Pattern]
 insertImplicitPatterns exh ps tel =
-  insertImplicitPatternsT exh ps (telePi tel typeDontCare)
+  insertImplicitPatternsT exh ps (telePi tel dummyType)
 
 -- | Insert trailing SizeLt patterns, if any.
 insertImplicitSizeLtPatterns :: Type -> TCM [NamedArg A.Pattern]

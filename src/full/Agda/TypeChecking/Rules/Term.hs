@@ -126,6 +126,10 @@ isType_ e = traceCall (IsType_ e) $ do
       return t'
     A.Set _ n    -> do
       return $ sort (mkType n)
+    A.Prop _ -> do
+      unlessM isPropEnabled $ genericError
+        "Use the --enable-prop flag to use the Prop universe"
+      return $ sort Prop
     A.App i s arg
       | visible arg,
         A.Set _ 0 <- unScope s ->
@@ -836,7 +840,11 @@ checkExpr e t0 =
 
     e <- scopedExpr e
 
-    tryInsertHiddenLambda e t $ case e of
+    let irrelevantIfProp = if getSort t == Prop
+                           then applyRelevanceToContext Irrelevant
+                           else id
+
+    irrelevantIfProp $ tryInsertHiddenLambda e t $ case e of
 
         A.ScopedExpr scope e -> __IMPOSSIBLE__ -- setScope scope >> checkExpr e t
 
@@ -932,7 +940,9 @@ checkExpr e t0 =
         A.Set _ n    -> do
           coerce (Sort $ mkType n) (sort $ mkType $ n + 1) t
         A.Prop _     -> do
-          typeError $ GenericError "Prop is no longer supported"
+          unlessM isPropEnabled $ genericError
+            "Use the --enable-prop flag to use the Prop universe"
+          coerce (Sort Prop) (sort $ mkType 0) t
 
         A.Rec _ fs  -> checkRecordExpression fs e t
 
@@ -1336,7 +1346,7 @@ checkLetBinding b@(A.LetPatBind i p e) ret =
     p <- expandPatternSynonyms p
     (v, t) <- inferExpr' ExpandLast e
     let -- construct a type  t -> dummy  for use in checkLeftHandSide
-        t0 = El (getSort t) $ Pi (defaultDom t) (NoAbs underscore typeDontCare)
+        t0 = El (getSort t) $ Pi (defaultDom t) (NoAbs underscore dummyType)
         p0 = Arg defaultArgInfo (Named Nothing p)
     reportSDoc "tc.term.let.pattern" 10 $ vcat
       [ text "let-binding pattern p at type t"

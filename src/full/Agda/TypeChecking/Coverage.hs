@@ -48,6 +48,7 @@ import Agda.TypeChecking.Coverage.SplitTree
 
 import Agda.TypeChecking.Conversion (tryConversion, equalType)
 import Agda.TypeChecking.Datatypes (getConForm)
+import Agda.TypeChecking.Irrelevance (applyRelevanceToContext)
 import Agda.TypeChecking.Patterns.Internal (dotPatternsToPatterns)
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Substitute
@@ -237,7 +238,7 @@ data CoverResult = CoverResult
 --
 cover :: QName -> [Clause] -> SplitClause ->
          TCM CoverResult
-cover f cs sc@(SClause tel ps _ _ target) = do
+cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
   reportSDoc "tc.cover.cover" 10 $ inTopContext $ vcat
     [ text "checking coverage of pattern:"
     , nest 2 $ text "tel  =" <+> prettyTCM tel
@@ -291,6 +292,14 @@ cover f cs sc@(SClause tel ps _ _ target) = do
         continue xs YesAllowPartialCover $ \ err -> do
           typeError $ SplitError err
   where
+    updateRelevance :: TCM a -> TCM a
+    updateRelevance cont = do
+      rel <- caseMaybe target (return Relevant) $ \b -> do
+        reduce (getSort $ unArg b) >>= \case
+          Prop -> return Irrelevant
+          _    -> return $ getRelevance b
+      applyRelevanceToContext rel cont
+
     continue
       :: [BlockingVar]
       -> AllowPartialCover
@@ -790,7 +799,6 @@ split' :: Induction
        -> TCM (Either SplitError (Either SplitClause Covering))
 split' ind allowPartialCover fixtarget sc@(SClause tel ps _ cps target) (BlockingVar x pcons' plits overlap) =
  liftTCM $ runExceptT $ do
-
   debugInit tel x ps cps
 
   -- Split the telescope at the variable
@@ -881,6 +889,10 @@ split' ind allowPartialCover fixtarget sc@(SClause tel ps _ cps target) (Blockin
       return $ Right $ Covering (lookupPatternVar sc x) ns
 
   where
+    rel = caseMaybe target Relevant $ \b -> case getSort (unArg b) of
+            Prop -> Irrelevant
+            _    -> getRelevance b
+
     inContextOfT, inContextOfDelta2 :: (MonadTCM tcm, MonadDebug tcm) => tcm a -> tcm a
     inContextOfT      = addContext tel . escapeContext (x + 1)
     inContextOfDelta2 = addContext tel . escapeContext x

@@ -101,7 +101,7 @@ data Expr
   | Pi   ExprInfo Telescope Expr       -- ^ Dependent function space @Γ → A@.
   | Fun  ExprInfo (Arg Expr) Expr      -- ^ Non-dependent function space.
   | Set  ExprInfo Integer              -- ^ @Set@, @Set1@, @Set2@, ...
-  | Prop ExprInfo                      -- ^ @Prop@ (no longer supported, used as dummy type).
+  | Prop ExprInfo                      -- ^ @Prop@
   | Let  ExprInfo [LetBinding] Expr    -- ^ @let bs in e@.
   | ETel Telescope                     -- ^ Only used when printing telescopes.
   | Rec  ExprInfo RecordAssigns        -- ^ Record construction.

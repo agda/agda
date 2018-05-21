@@ -261,8 +261,8 @@ getInputFile' = mapM (liftIO . absolute) =<< do
 hasInputFile :: TCM Bool
 hasInputFile = isJust <$> optInputFile <$> commandLineOptions
 
-proofIrrelevance :: TCM Bool
-proofIrrelevance = optProofIrrelevance <$> pragmaOptions
+isPropEnabled :: TCM Bool
+isPropEnabled = optProp <$> pragmaOptions
 
 {-# SPECIALIZE hasUniversePolymorphism :: TCM Bool #-}
 hasUniversePolymorphism :: HasOptions m => m Bool

@@ -1407,7 +1407,7 @@ primTrustMe = do
     -- Andreas, 2013-07-22.
     -- Note that we cannot call the conversion checker here,
     -- because 'reduce' might be called in a context where
-    -- some bound variables do not have a type (just 'Prop),
+    -- some bound variables do not have a type (just dummyType),
     -- and the conversion checker for eliminations does not
     -- like this.
     -- We can only do untyped equality, e.g., by normalisation.
