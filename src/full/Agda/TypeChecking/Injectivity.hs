@@ -231,16 +231,19 @@ data MaybeAbort = Abort | KeepGoing
 -- | Precondition: The first argument must be blocked and the second must be
 --                 neutral.
 useInjectivity :: CompareDirection -> Type -> Term -> Term -> TCM ()
-useInjectivity dir ty blk neu = do
+useInjectivity dir ty blk neu = locally eInjectivityDepth succ $ do
   inv <- functionInverse blk
   -- Injectivity might cause non-termination for unsatisfiable constraints
-  -- (#431). Look at the number of active problems to detect this.
+  -- (#431, #3067). Look at the number of active problems and the injectivity
+  -- depth to detect this.
   nProblems <- Set.size <$> view eActiveProblems
+  injDepth  <- view eInjectivityDepth
+  let depth = max nProblems injDepth
   maxDepth  <- maxInversionDepth
   case inv of
     NoInv            -> fallback  -- not invertible
     Inv f blkArgs hdMap
-      | nProblems > maxDepth -> warning (InversionDepthReached f) >> fallback
+      | depth > maxDepth -> warning (InversionDepthReached f) >> fallback
       | otherwise -> do
       reportSDoc "tc.inj.use" 30 $ fsep $
         pwords "useInjectivity on" ++

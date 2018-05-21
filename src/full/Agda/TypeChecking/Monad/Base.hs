@@ -2179,6 +2179,10 @@ data TCEnv =
                 -- ^ Did we encounter a simplification (proper match)
                 --   during the current reduction process?
           , envAllowedReductions :: AllowedReductions
+          , envInjectivityDepth :: Int
+                -- ^ Injectivity can cause non-termination for unsolvable contraints
+                --   (#431, #3067). Keep a limit on the nesting depth of injectivity
+                --   uses.
           , envCompareBlocked :: Bool
                 -- ^ Can we compare blocked things during conversion?
                 --   No by default.
@@ -2247,6 +2251,7 @@ initEnv = TCEnv { envContext             = []
                 , envAppDef                 = Nothing
                 , envSimplification         = NoSimplification
                 , envAllowedReductions      = allReductions
+                , envInjectivityDepth       = 0
                 , envCompareBlocked         = False
                 , envPrintDomainFreePi      = False
                 , envPrintMetasBare         = False
@@ -2359,6 +2364,9 @@ eSimplification f e = f (envSimplification e) <&> \ x -> e { envSimplification =
 
 eAllowedReductions :: Lens' AllowedReductions TCEnv
 eAllowedReductions f e = f (envAllowedReductions e) <&> \ x -> e { envAllowedReductions = x }
+
+eInjectivityDepth :: Lens' Int TCEnv
+eInjectivityDepth f e = f (envInjectivityDepth e) <&> \ x -> e { envInjectivityDepth = x }
 
 eCompareBlocked :: Lens' Bool TCEnv
 eCompareBlocked f e = f (envCompareBlocked e) <&> \ x -> e { envCompareBlocked = x }
