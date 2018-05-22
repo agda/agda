@@ -113,6 +113,18 @@ data TCState = TCSt
 class Monad m => ReadTCState m where
   getTCState :: m TCState
 
+instance ReadTCState m => ReadTCState (MaybeT m) where
+  getTCState = lift getTCState
+
+instance ReadTCState m => ReadTCState (ListT m) where
+  getTCState = lift getTCState
+
+instance ReadTCState m => ReadTCState (ExceptT err m) where
+  getTCState = lift getTCState
+
+instance (Monoid w, ReadTCState m) => ReadTCState (WriterT w m) where
+  getTCState = lift getTCState
+
 instance Show TCState where
   show _ = "TCSt{}"
 
@@ -3034,6 +3046,44 @@ instance MonadReader TCEnv ReduceM where
   ask   = ReduceM redEnv
   local = onReduceEnv . mapRedEnv
 
+useR :: (ReadTCState m) => Lens' a TCState -> m a
+useR l = (^.l) <$> getTCState
+
+askR :: ReduceM ReduceEnv
+askR = ReduceM ask
+
+localR :: (ReduceEnv -> ReduceEnv) -> ReduceM a -> ReduceM a
+localR f = ReduceM . local f . unReduceM
+
+instance HasOptions ReduceM where
+  pragmaOptions      = useR stPragmaOptions
+  commandLineOptions = do
+    p  <- useR stPragmaOptions
+    cl <- stPersistentOptions . stPersistentState <$> getTCState
+    return $ cl{ optPragmaOptions = p }
+
+class ( Applicative m
+      , MonadReader TCEnv m
+      , ReadTCState m
+      , HasOptions m
+      ) => MonadReduce m where
+  liftReduce :: ReduceM a -> m a
+
+instance MonadReduce m => MonadReduce (MaybeT m) where
+  liftReduce = lift . liftReduce
+
+instance MonadReduce m => MonadReduce (ListT m) where
+  liftReduce = lift . liftReduce
+
+instance MonadReduce m => MonadReduce (ExceptT err m) where
+  liftReduce = lift . liftReduce
+
+instance (Monoid w, MonadReduce m) => MonadReduce (WriterT w m) where
+  liftReduce = lift . liftReduce
+
+instance MonadReduce ReduceM where
+  liftReduce = id
+
 ---------------------------------------------------------------------------
 -- * Type checking monad transformer
 ---------------------------------------------------------------------------
@@ -3076,6 +3126,9 @@ instance MonadError TCErr (TCMT IO) where
             newState <- readIORef r
             writeIORef r $ oldState { stPersistentState = stPersistentState newState }
       unTCM (h err) r e
+
+instance MonadIO m => MonadReduce (TCMT m) where
+  liftReduce = liftTCM . runReduceM
 
 -- | Interaction monad.
 

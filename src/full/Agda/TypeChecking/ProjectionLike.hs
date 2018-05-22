@@ -173,7 +173,7 @@ elimView loneProjToLambda v = do
 
 -- | Which @Def@types are eligible for the principle argument
 --   of a projection-like function?
-eligibleForProjectionLike :: QName -> TCM Bool
+eligibleForProjectionLike :: (HasConstInfo m) => QName -> m Bool
 eligibleForProjectionLike d = eligible . theDef <$> getConstInfo d
   where
   eligible = \case

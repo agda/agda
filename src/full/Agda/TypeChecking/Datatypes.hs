@@ -27,7 +27,7 @@ import Agda.Utils.Impossible
 ---------------------------------------------------------------------------
 
 -- | Get true constructor with record fields.
-getConHead :: QName -> TCM (Either SigError ConHead)
+getConHead :: (HasConstInfo m) => QName -> m (Either SigError ConHead)
 getConHead c = mapRight (conSrcCon . theDef) <$> getConstInfo' c
 
 -- | Get true constructor with fields, expanding literals to constructors
@@ -104,9 +104,10 @@ getConType c t = do
 --
 --   Precondition: @t@ is reduced.
 getFullyAppliedConType
-  :: ConHead  -- ^ Constructor.
+  :: (HasConstInfo m, MonadReduce m, MonadDebug m)
+  => ConHead  -- ^ Constructor.
   -> Type     -- ^ Reduced type of the fully applied constructor.
-  -> TCM (Maybe ((QName, Type, Args), Type))
+  -> m (Maybe ((QName, Type, Args), Type))
        -- ^ @Nothing@ if not data or record type.
        --
        --   @Just ((d, dt, pars), ct)@ otherwise, where

@@ -44,30 +44,12 @@ import Agda.Utils.Pretty
 #include "undefined.h"
 import Agda.Utils.Impossible
 
-gets :: (TCState -> a) -> ReduceM a
-gets f = f . redSt <$> ReduceM ask
-
-useR :: Lens' a TCState -> ReduceM a
-useR l = gets (^.l)
-
-askR :: ReduceM ReduceEnv
-askR = ReduceM ask
-
-localR :: (ReduceEnv -> ReduceEnv) -> ReduceM a -> ReduceM a
-localR f = ReduceM . local f . unReduceM
-
-instance HasOptions ReduceM where
-  pragmaOptions      = useR stPragmaOptions
-  commandLineOptions = do
-    p  <- useR stPragmaOptions
-    cl <- gets $ stPersistentOptions . stPersistentState
-    return $ cl{ optPragmaOptions = p }
-
 instance HasBuiltins ReduceM where
   getBuiltinThing b = liftM2 mplus (Map.lookup b <$> useR stLocalBuiltins)
                                    (Map.lookup b <$> useR stImportedBuiltins)
 
-constructorForm :: Term -> ReduceM Term
+constructorForm :: (HasBuiltins m, MonadReduce m)
+                => Term -> m Term
 constructorForm v = do
   mz <- getBuiltin' builtinZero
   ms <- getBuiltin' builtinSuc
@@ -83,7 +65,7 @@ enterClosure (Closure sig env scope cps x) f = localR (mapRedEnvSt inEnv inState
 
 withFreshR :: HasFresh i => (i -> ReduceM a) -> ReduceM a
 withFreshR f = do
-  s <- gets id
+  s <- getTCState
   let (i, s') = nextFresh s
   localR (mapRedSt $ const s') (f i)
 
@@ -143,7 +125,7 @@ instance MonadDebug ReduceM where
       return $ return s
 
 instance HasConstInfo ReduceM where
-  getRewriteRulesFor = defaultGetRewriteRulesFor (gets id)
+  getRewriteRulesFor = defaultGetRewriteRulesFor getTCState
   getConstInfo' q = do
     ReduceEnv env st <- askR
     defaultGetConstInfo st env q

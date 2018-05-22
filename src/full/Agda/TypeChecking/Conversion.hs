@@ -123,7 +123,7 @@ compareTerm cmp a u v = do
     , nest 2 $ text ":" <+> prettyTCM a
     ]
   -- Check syntactic equality. This actually saves us quite a bit of work.
-  ((u, v), equal) <- runReduceM $ SynEq.checkSyntacticEquality u v
+  ((u, v), equal) <- SynEq.checkSyntacticEquality u v
   -- OLD CODE, traverses the *full* terms u v at each step, even if they
   -- are different somewhere.  Leads to infeasibility in issue 854.
   -- (u, v) <- instantiateFull (u, v)
@@ -682,7 +682,7 @@ compareRelevance CmpLeq = (<=)
 --   #2384.
 antiUnify :: ProblemId -> Type -> Term -> Term -> TCM Term
 antiUnify pid a u v = do
-  ((u, v), eq) <- runReduceM (SynEq.checkSyntacticEquality u v)
+  ((u, v), eq) <- SynEq.checkSyntacticEquality u v
   if eq then return u else do
   (u, v) <- reduce (u, v)
   case (u, v) of

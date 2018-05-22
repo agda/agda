@@ -115,20 +115,22 @@ maybePrimDef prim = tryMaybe $ do
     Def f [] <- prim
     return f
 
-levelView :: Term -> TCM Level
+levelView :: (HasBuiltins m, MonadReduce m, MonadDebug m)
+          => Term -> m Level
 levelView a = do
   reportSLn "tc.level.view" 50 $ "{ levelView " ++ show a
-  v <- runReduceM $ levelView' a
+  v <- levelView' a
   reportSLn "tc.level.view" 50 $ "  view: " ++ show v ++ "}"
   return v
 
-levelView' :: Term -> ReduceM Level
+levelView' :: (HasBuiltins m, MonadReduce m, MonadDebug m)
+           => Term -> m Level
 levelView' a = do
   Def lzero [] <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinLevelZero
   Def lsuc  [] <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinLevelSuc
   Def lmax  [] <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinLevelMax
   let view a = do
-        a <- reduce' a
+        a <- reduce a
         case a of
           Level l -> return l
           Def s [Apply arg]
@@ -142,7 +144,7 @@ levelView' a = do
   return v
   where
     mkAtom a = do
-      b <- reduceB' a
+      b <- reduceB a
       return $ case b of
         NotBlocked _ (MetaV m as) -> atom $ MetaLevel m as
         NotBlocked r _            -> atom $ NeutralLevel r $ ignoreBlocking b
