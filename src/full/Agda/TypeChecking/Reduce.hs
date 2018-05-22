@@ -51,23 +51,23 @@ import Agda.Utils.Tuple
 #include "undefined.h"
 import Agda.Utils.Impossible
 
-instantiate :: Instantiate a => a -> TCM a
-instantiate = runReduceM . instantiate'
+instantiate :: (Instantiate a, MonadReduce m) => a -> m a
+instantiate = liftReduce . instantiate'
 
-instantiateFull :: InstantiateFull a => a -> TCM a
-instantiateFull = runReduceM . instantiateFull'
+instantiateFull :: (InstantiateFull a, MonadReduce m) => a -> m a
+instantiateFull = liftReduce . instantiateFull'
 
-reduce :: Reduce a => a -> TCM a
-reduce = runReduceM . reduce'
+reduce :: (Reduce a, MonadReduce m) => a -> m a
+reduce = liftReduce . reduce'
 
-reduceB :: Reduce a => a -> TCM (Blocked a)
-reduceB = runReduceM . reduceB'
+reduceB :: (Reduce a, MonadReduce m) => a -> m (Blocked a)
+reduceB = liftReduce . reduceB'
 
-normalise :: Normalise a => a -> TCM a
-normalise = runReduceM . normalise'
+normalise :: (Normalise a, MonadReduce m) => a -> m a
+normalise = liftReduce . normalise'
 
-simplify :: Simplify a => a -> TCM a
-simplify = runReduceM . simplify'
+simplify :: (Simplify a, MonadReduce m) => a -> m a
+simplify = liftReduce . simplify'
 
 -- | Meaning no metas left in the instantiation.
 isFullyInstantiatedMeta :: MetaId -> TCM Bool
@@ -550,11 +550,9 @@ reduceDefCopy f es = do
             NoReduction{}        -> return $ NoReduction ()
 
 -- | Reduce simple (single clause) definitions.
-reduceHead :: Term -> TCM (Blocked Term)
-reduceHead = runReduceM . reduceHead'
-
-reduceHead' :: Term -> ReduceM (Blocked Term)
-reduceHead' v = do -- ignoreAbstractMode $ do
+reduceHead :: (HasBuiltins m, HasConstInfo m, MonadReduce m, MonadDebug m)
+           => Term -> m (Blocked Term)
+reduceHead v = do -- ignoreAbstractMode $ do
   -- Andreas, 2013-02-18 ignoreAbstractMode leads to information leakage
   -- see Issue 796
 
@@ -571,7 +569,7 @@ reduceHead' v = do -- ignoreAbstractMode $ do
         " is treated " ++ if isAbstract then "abstractly" else "concretely"
         ) $ do
       let v0  = Def f []
-          red = unfoldDefinitionE False reduceHead' v0 f es
+          red = liftReduce $ unfoldDefinitionE False reduceHead v0 f es
       def <- theDef <$> getConstInfo f
       case def of
         -- Andreas, 2012-11-06 unfold aliases (single clause terminating functions)
@@ -588,11 +586,8 @@ reduceHead' v = do -- ignoreAbstractMode $ do
     _ -> return $ notBlocked v
 
 -- | Unfold a single inlined function.
-unfoldInlined :: Term -> TCM Term
-unfoldInlined = runReduceM . unfoldInlined'
-
-unfoldInlined' :: Term -> ReduceM Term
-unfoldInlined' v = do
+unfoldInlined :: (HasConstInfo m, MonadReduce m) => Term -> m Term
+unfoldInlined v = do
   inTypes <- view eWorkingOnTypes
   case v of
     _ | inTypes -> return v -- Don't inline in types (to avoid unfolding of goals)
@@ -600,7 +595,7 @@ unfoldInlined' v = do
       def <- theDef <$> getConstInfo f
       case def of   -- Only for simple definitions with no pattern matching (TODO: maybe copatterns?)
         Function{ funCompiled = Just Done{}, funDelayed = NotDelayed }
-          | def ^. funInline ->
+          | def ^. funInline -> liftReduce $
           ignoreBlocking <$> unfoldDefinitionE False (return . notBlocked) (Def f []) f es
         _ -> return v
     _ -> return v

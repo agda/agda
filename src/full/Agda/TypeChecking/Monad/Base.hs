@@ -3003,7 +3003,7 @@ instance MonadReader TCEnv ReduceM where
   ask   = ReduceM redEnv
   local = onReduceEnv . mapRedEnv
 
-useR :: Lens' a TCState -> ReduceM a
+useR :: (ReadTCState m) => Lens' a TCState -> m a
 useR l = (^.l) <$> getTCState
 
 askR :: ReduceM ReduceEnv
