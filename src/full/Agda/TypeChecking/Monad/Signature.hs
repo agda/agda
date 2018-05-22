@@ -716,8 +716,8 @@ instance HasConstInfo m => HasConstInfo (StateT s m) where
   getRewriteRulesFor = lift . getRewriteRulesFor
 
 {-# INLINE getConInfo #-}
-getConInfo :: MonadTCM tcm => ConHead -> tcm Definition
-getConInfo = liftTCM . getConstInfo . conName
+getConInfo :: HasConstInfo m => ConHead -> m Definition
+getConInfo = getConstInfo . conName
 
 -- | Look up the polarity of a definition.
 getPolarity :: QName -> TCM [Polarity]

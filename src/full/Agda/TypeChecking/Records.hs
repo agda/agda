@@ -225,7 +225,8 @@ origProjection f = do
 --   Precondition: @t@ is reduced.
 --
 --   See also: 'Agda.TypeChecking.Datatypes.getConType'
-getDefType :: QName -> Type -> TCM (Maybe Type)
+getDefType :: (HasConstInfo m, MonadReduce m, MonadDebug m)
+           => QName -> Type -> m (Maybe Type)
 getDefType f t = do
   -- Andreas, Issue #1973: we need to take the original projection
   -- since the parameters from the reduced type t are correct for

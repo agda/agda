@@ -5,5 +5,5 @@ import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Substitute
 
-piApplyM :: Type -> Args -> TCM Type
+piApplyM :: MonadReduce m => Type -> Args -> m Type
 telView :: Type -> TCM TelView

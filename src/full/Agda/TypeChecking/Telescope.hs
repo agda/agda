@@ -319,42 +319,42 @@ telViewUpTo' n p t = do
 
 -- | Decomposing a function type.
 
-mustBePi :: MonadTCM tcm => Type -> tcm (Dom Type, Abs Type)
+mustBePi :: MonadReduce m => Type -> m (Dom Type, Abs Type)
 mustBePi t = ifNotPiType t __IMPOSSIBLE__ $ \ a b -> return (a,b)
 
 -- | If the given type is a @Pi@, pass its parts to the first continuation.
 --   If not (or blocked), pass the reduced type to the second continuation.
-ifPi :: MonadTCM tcm => Term -> (Dom Type -> Abs Type -> tcm a) -> (Term -> tcm a) -> tcm a
+ifPi :: MonadReduce m => Term -> (Dom Type -> Abs Type -> m a) -> (Term -> m a) -> m a
 ifPi t yes no = do
-  t <- liftTCM $ reduce t
+  t <- reduce t
   case t of
     Pi a b -> yes a b
     _      -> no t
 
 -- | If the given type is a @Pi@, pass its parts to the first continuation.
 --   If not (or blocked), pass the reduced type to the second continuation.
-ifPiType :: MonadTCM tcm => Type -> (Dom Type -> Abs Type -> tcm a) -> (Type -> tcm a) -> tcm a
+ifPiType :: MonadReduce m => Type -> (Dom Type -> Abs Type -> m a) -> (Type -> m a) -> m a
 ifPiType (El s t) yes no = ifPi t yes (no . El s)
 
 -- | If the given type is blocked or not a @Pi@, pass it reduced to the first continuation.
 --   If it is a @Pi@, pass its parts to the second continuation.
-ifNotPi :: MonadTCM tcm => Term -> (Term -> tcm a) -> (Dom Type -> Abs Type -> tcm a) -> tcm a
+ifNotPi :: MonadReduce m => Term -> (Term -> m a) -> (Dom Type -> Abs Type -> m a) -> m a
 ifNotPi = flip . ifPi
 
 -- | If the given type is blocked or not a @Pi@, pass it reduced to the first continuation.
 --   If it is a @Pi@, pass its parts to the second continuation.
-ifNotPiType :: MonadTCM tcm => Type -> (Type -> tcm a) -> (Dom Type -> Abs Type -> tcm a) -> tcm a
+ifNotPiType :: MonadReduce m => Type -> (Type -> m a) -> (Dom Type -> Abs Type -> m a) -> m a
 ifNotPiType = flip . ifPiType
 
 -- | A safe variant of piApply.
 
-piApplyM :: Type -> Args -> TCM Type
+piApplyM :: MonadReduce m => Type -> Args -> m Type
 piApplyM t []           = return t
 piApplyM t (arg : args) = do
   (_, b) <- mustBePi t
   absApp b (unArg arg) `piApplyM` args
 
-piApply1 :: MonadTCM tcm => Type -> Term -> tcm Type
+piApply1 :: MonadReduce m => Type -> Term -> m Type
 piApply1 t v = do
   (_, b) <- mustBePi t
   return $ absApp b v
