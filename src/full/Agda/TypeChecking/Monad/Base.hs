@@ -3003,6 +3003,32 @@ instance MonadReader TCEnv ReduceM where
   ask   = ReduceM redEnv
   local = onReduceEnv . mapRedEnv
 
+useR :: Lens' a TCState -> ReduceM a
+useR l = (^.l) <$> getTCState
+
+askR :: ReduceM ReduceEnv
+askR = ReduceM ask
+
+localR :: (ReduceEnv -> ReduceEnv) -> ReduceM a -> ReduceM a
+localR f = ReduceM . local f . unReduceM
+
+instance HasOptions ReduceM where
+  pragmaOptions      = useR stPragmaOptions
+  commandLineOptions = do
+    p  <- useR stPragmaOptions
+    cl <- stPersistentOptions . stPersistentState <$> getTCState
+    return $ cl{ optPragmaOptions = p }
+
+class ( Applicative m
+      , MonadReader TCEnv m
+      , ReadTCState m
+      , HasOptions m
+      ) => MonadReduce m where
+  liftReduce :: ReduceM a -> m a
+
+instance MonadReduce ReduceM where
+  liftReduce = id
+
 ---------------------------------------------------------------------------
 -- * Type checking monad transformer
 ---------------------------------------------------------------------------
@@ -3045,6 +3071,9 @@ instance MonadError TCErr (TCMT IO) where
             newState <- readIORef r
             writeIORef r $ oldState { stPersistentState = stPersistentState newState }
       unTCM (h err) r e
+
+instance MonadIO m => MonadReduce (TCMT m) where
+  liftReduce = liftTCM . runReduceM
 
 -- | Interaction monad.
 
