@@ -27,7 +27,7 @@ import Agda.Utils.Impossible
 ---------------------------------------------------------------------------
 
 -- | Get true constructor with record fields.
-getConHead :: QName -> TCM (Either SigError ConHead)
+getConHead :: (HasConstInfo m) => QName -> m (Either SigError ConHead)
 getConHead c = mapRight (conSrcCon . theDef) <$> getConstInfo' c
 
 -- | Get true constructor with fields, expanding literals to constructors

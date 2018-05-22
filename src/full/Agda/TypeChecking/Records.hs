@@ -8,6 +8,7 @@ import Prelude hiding ((<>))
 #endif
 
 import Control.Monad
+import Control.Monad.Reader
 import Control.Monad.Trans.Maybe
 
 import Data.Function
@@ -345,7 +346,8 @@ isInductiveRecord :: QName -> TCM Bool
 isInductiveRecord r = maybe False (\ d -> recInduction d /= Just CoInductive) <$> isRecord r
 
 -- | Check if a type is an eta expandable record and return the record identifier and the parameters.
-isEtaRecordType :: Type -> TCM (Maybe (QName, Args))
+isEtaRecordType :: (HasConstInfo m)
+                => Type -> m (Maybe (QName, Args))
 isEtaRecordType a = case unEl a of
   Def d es -> do
     let vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
@@ -563,10 +565,12 @@ etaExpandRecord' forceEta r pars u = do
   (tel, _, _, args) <- etaExpandRecord'_ forceEta r pars def u
   return (tel, args)
 
-etaExpandRecord_ :: QName -> Args -> Defn -> Term -> TCM (Telescope, ConHead, ConInfo, Args)
+etaExpandRecord_ :: (MonadReader TCEnv m, HasOptions m, MonadDebug m)
+                 => QName -> Args -> Defn -> Term -> m (Telescope, ConHead, ConInfo, Args)
 etaExpandRecord_ = etaExpandRecord'_ False
 
-etaExpandRecord'_ :: Bool -> QName -> Args -> Defn -> Term -> TCM (Telescope, ConHead, ConInfo, Args)
+etaExpandRecord'_ :: (MonadReader TCEnv m, HasOptions m, MonadDebug m)
+                  => Bool -> QName -> Args -> Defn -> Term -> m (Telescope, ConHead, ConInfo, Args)
 etaExpandRecord'_ forceEta r pars def u = do
   let Record{ recConHead     = con
             , recFields      = xs

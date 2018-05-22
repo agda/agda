@@ -711,6 +711,10 @@ instance (Monoid w, HasConstInfo m) => HasConstInfo (WriterT w m) where
   getConstInfo' = lift . getConstInfo'
   getRewriteRulesFor = lift . getRewriteRulesFor
 
+instance HasConstInfo m => HasConstInfo (StateT s m) where
+  getConstInfo' = lift . getConstInfo'
+  getRewriteRulesFor = lift . getRewriteRulesFor
+
 {-# INLINE getConInfo #-}
 getConInfo :: MonadTCM tcm => ConHead -> tcm Definition
 getConInfo = liftTCM . getConstInfo . conName
@@ -1096,7 +1100,8 @@ usesCopatterns q = do
 
 -- | Apply a function @f@ to its first argument, producing the proper
 --   postfix projection if @f@ is a projection.
-applyDef :: ProjOrigin -> QName -> Arg Term -> TCM Term
+applyDef :: (HasConstInfo m)
+         => ProjOrigin -> QName -> Arg Term -> m Term
 applyDef o f a = do
   let fallback = return $ Def f [Apply a]
   caseMaybeM (isProjection f) fallback $ \ isP -> do

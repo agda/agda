@@ -15,7 +15,7 @@ import Agda.TypeChecking.Monad.Base
 -- import Agda.TypeChecking.Functions  -- LEADS TO IMPORT CYCLE
 import Agda.TypeChecking.Substitute
 
-import Agda.Utils.Except ( MonadError(catchError) )
+import Agda.Utils.Except
 import Agda.Utils.Lens
 import Agda.Utils.Monad
 import Agda.Utils.Maybe
@@ -28,6 +28,12 @@ class (Functor m, Applicative m, Monad m) => HasBuiltins m where
   getBuiltinThing :: String -> m (Maybe (Builtin PrimFun))
 
 instance HasBuiltins m => HasBuiltins (MaybeT m) where
+  getBuiltinThing b = lift $ getBuiltinThing b
+
+instance HasBuiltins m => HasBuiltins (ExceptT e m) where
+  getBuiltinThing b = lift $ getBuiltinThing b
+
+instance HasBuiltins m => HasBuiltins (StateT s m) where
   getBuiltinThing b = lift $ getBuiltinThing b
 
 litType :: Literal -> TCM Type
