@@ -166,6 +166,7 @@ data Expr
   | DontCare Expr                              -- ^ to print irrelevant things
   | Equal Range Expr Expr                      -- ^ ex: @a = b@, used internally in the parser
   | Ellipsis Range                             -- ^ @...@, used internally to parse patterns.
+  | Generalized Expr
   deriving Data
 
 -- | Concrete patterns. No literals in patterns at the moment.
@@ -346,6 +347,7 @@ type TypeSignatureOrInstanceBlock = Declaration
 data Declaration
   = TypeSig ArgInfo Name Expr
   -- ^ Axioms and functions can be irrelevant. (Hiding should be NotHidden)
+  | Generalize ArgInfo Name Expr -- ^ Variables to be generalized, can be hidden and/or irrelevant.
   | Field IsInstance Name (Arg Expr) -- ^ Record field, can be hidden and/or irrelevant.
   | FunClause LHS RHS WhereClause Bool
   | DataSig     Range Induction Name [LamBinding] Expr -- ^ lone data signature in mutual block
@@ -573,6 +575,7 @@ instance HasRange Expr where
       DontCare{}         -> noRange
       Equal r _ _        -> r
       Ellipsis r         -> r
+      Generalized e      -> getRange e
 
 -- instance HasRange Telescope where
 --     getRange (TeleBind bs) = getRange bs
@@ -609,6 +612,7 @@ instance HasRange ModuleAssignment where
 
 instance HasRange Declaration where
   getRange (TypeSig _ x t)         = fuseRange x t
+  getRange (Generalize _ x t)      = fuseRange x t
   getRange (Field _ x t)           = fuseRange x t
   getRange (FunClause lhs rhs wh _) = fuseRange lhs rhs `fuseRange` wh
   getRange (DataSig r _ _ _ _)     = r
@@ -743,6 +747,7 @@ instance KillRange BoundName where
 
 instance KillRange Declaration where
   killRange (TypeSig i n e)         = killRange2 (TypeSig i) n e
+  killRange (Generalize i n e)      = killRange2 (Generalize i) n e
   killRange (Field i n a)           = killRange2 (Field i) n a
   killRange (FunClause l r w ca)    = killRange4 FunClause l r w ca
   killRange (DataSig _ i n l e)     = killRange4 (DataSig noRange) i n l e
@@ -805,6 +810,7 @@ instance KillRange Expr where
   killRange (DontCare e)         = killRange1 DontCare e
   killRange (Equal _ x y)        = Equal noRange x y
   killRange (Ellipsis _)         = Ellipsis noRange
+  killRange (Generalized e)      = killRange1 Generalized e
 
 instance KillRange LamBinding where
   killRange (DomainFree i b) = killRange2 DomainFree i b
@@ -934,6 +940,7 @@ instance NFData Expr where
   rnf (DontCare a)       = rnf a
   rnf (Equal _ a b)      = rnf a `seq` rnf b
   rnf (Ellipsis _)       = ()
+  rnf (Generalized e)    = rnf e
 
 -- | Ranges are not forced.
 
@@ -959,6 +966,7 @@ instance NFData Pattern where
 
 instance NFData Declaration where
   rnf (TypeSig a b c)         = rnf a `seq` rnf b `seq` rnf c
+  rnf (Generalize a b c)      = rnf a `seq` rnf b `seq` rnf c
   rnf (Field a b c)           = rnf a `seq` rnf b `seq` rnf c
   rnf (FunClause a b c d)     = rnf a `seq` rnf b `seq` rnf c `seq` rnf d
   rnf (DataSig _ a b c d)     = rnf a `seq` rnf b `seq` rnf c `seq` rnf d

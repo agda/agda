@@ -198,6 +198,7 @@ recordConstructorType fields = build <$> mapM validForLet fs
         C.DataDef{}           -> failure
         C.RecDef{}            -> failure
         C.NicePatternSyn{}    -> failure
+        C.NiceGeneralize{}    -> failure
         C.NiceUnquoteDecl{}   -> failure
         C.NiceUnquoteDef{}    -> failure
 
@@ -516,6 +517,12 @@ instance ToAbstract OldQName A.Expr where
         reportSDoc "scope.warning" 50 $ text $ "Checking usage of " ++ prettyShow d
         mstr <- Map.lookup (anameName d) <$> use stUserWarnings
         forM_ mstr (warning . UserWarning)
+        -- then we take note of generalized names used
+        when (anameKind d == GeneralizeName) $ do
+            gvs <- use stGeneralizedVars
+            case gvs of
+                Just s -> stGeneralizedVars .= Just (Set.insert (anameName d) s)
+                Nothing -> typeError $ GeneralizeNotSupportedHere $ anameName d
         -- and then we return the name
         return $ nameExpr d
       FieldName     ds     -> return $ A.Proj ProjPrefix $ AmbQ (fmap anameName ds)
@@ -915,6 +922,24 @@ instance ToAbstract C.Expr A.Expr where
   -- DontCare
       C.DontCare e -> A.DontCare <$> toAbstract e
 
+  -- forall-generalize
+      C.Generalized e -> do
+        (s, e) <- collectGeneralizables $ toAbstract e
+        pure $ A.generalized s e
+       where
+        collectGeneralizables :: ScopeM a -> ScopeM (Set I.QName, a)
+        collectGeneralizables m = bracket_ open close $ do
+            a <- m
+            s <- use stGeneralizedVars
+            case s of
+                Nothing -> __IMPOSSIBLE__
+                Just s -> return (s, a)
+          where
+            open = do
+                gvs <- use stGeneralizedVars
+                stGeneralizedVars .= Just mempty
+                pure gvs
+            close = (stGeneralizedVars .=)
 
 instance ToAbstract C.ModuleAssignment (A.ModuleName, [A.LetBinding]) where
   toAbstract (C.ModuleAssignment m es i)
@@ -1378,6 +1403,15 @@ instance ToAbstract NiceDeclaration A.Declaration where
       -- check the postulate
       toAbstractNiceAxiom A.NoFunSig NotMacroDef d
 
+    C.NiceGeneralize r f i x t -> do
+      reportSLn "scope.decl" 10 $ "found nice generalize: " ++ prettyShow x
+      t_ <- toAbstractCtx TopCtx t
+      let (s, t) = unGeneralized t_
+      reportSLn "scope.decl" 50 $ "generalizations: " ++ show (Set.toList s, t)
+      y <- freshAbstractQName f x
+      bindName PublicAccess GeneralizeName x y
+      return [A.Generalize s (mkDefInfoInstance x f PublicAccess ConcreteDef NotInstanceDef NotMacroDef r) i y t]
+
   -- Fields
     C.NiceField r f p a i x t -> do
       unless (p == PublicAccess) $ genericError "Record fields can not be private"
@@ -1661,6 +1695,10 @@ instance ToAbstract NiceDeclaration A.Declaration where
         return [ A.Axiom funSig (mkDefInfoInstance x f p a i isMacro r) info mp y t' ]
       toAbstractNiceAxiom _ _ _ = __IMPOSSIBLE__
 
+unGeneralized :: A.Expr -> (Set.Set I.QName, A.Expr)
+unGeneralized (A.Generalized s t) = (s, t)
+unGeneralized (A.ScopedExpr si e) = A.ScopedExpr si <$> unGeneralized e
+unGeneralized t = (mempty, t)
 
 -- | Make sure definition is in same module as signature.
 class LivesInCurrentModule a where

@@ -824,6 +824,7 @@ instance BlankVars A.Expr where
     A.ExtendedLam i d f cs -> A.ExtendedLam i d f $ blank bound cs
     A.Pi i tel e           -> let bound' = varsBoundIn tel `Set.union` bound
                               in  uncurry (A.Pi i) $ blank bound' (tel, e)
+    A.Generalized {}       -> __IMPOSSIBLE__
     A.Fun i a b            -> uncurry (A.Fun i) $ blank bound (a, b)
     A.Set _ _              -> e
     A.Prop _               -> e

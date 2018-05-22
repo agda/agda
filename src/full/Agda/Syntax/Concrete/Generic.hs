@@ -149,6 +149,7 @@ instance ExprLike Expr where
      DontCare e         -> f $ DontCare               $ mapE e
      Equal{}            -> f $ e0
      Ellipsis{}         -> f $ e0
+     Generalized e      -> f $ Generalized            $ mapE e
    where mapE e = mapExpr f e
 
 instance ExprLike FieldAssignment where
@@ -201,6 +202,7 @@ instance ExprLike ModuleApplication where
 instance ExprLike Declaration where
   mapExpr f e0 = case e0 of
      TypeSig ai x e            -> TypeSig ai x                         $ mapE e
+     Generalize ai x e         -> Generalize ai x                      $ mapE e
      Field i x e               -> Field i x                            $ mapE e
      FunClause lhs rhs wh ca   -> FunClause (mapE lhs) (mapE rhs) (mapE wh) (mapE ca)
      DataSig r ind x bs e      -> DataSig r ind x (mapE bs)            $ mapE e

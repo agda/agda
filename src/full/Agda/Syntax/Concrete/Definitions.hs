@@ -149,6 +149,7 @@ data NiceDeclaration
   | DataDef Range Fixity' IsAbstract PositivityCheck Name [LamBinding] [NiceConstructor]
   | RecDef Range Fixity' IsAbstract PositivityCheck Name (Maybe (Ranged Induction)) (Maybe HasEta) (Maybe (ThingWithFixity Name, IsInstance)) [LamBinding] [NiceDeclaration]
   | NicePatternSyn Range Fixity' Name [Arg Name] Pattern
+  | NiceGeneralize Range Fixity' ArgInfo Name Expr
   | NiceUnquoteDecl Range [Fixity'] Access IsAbstract IsInstance TerminationCheck [Name] Expr
   | NiceUnquoteDef Range [Fixity'] Access IsAbstract TerminationCheck [Name] Expr
   deriving (Data, Show)
@@ -308,6 +309,7 @@ instance HasRange NiceDeclaration where
   getRange (NiceRecSig r _ _ _ _ _ _ _)      = r
   getRange (NiceDataSig r _ _ _ _ _ _ _)     = r
   getRange (NicePatternSyn r _ _ _ _)        = r
+  getRange (NiceGeneralize r _ _ _ _)        = r
   getRange (NiceFunClause r _ _ _ _ _)       = r
   getRange (NiceUnquoteDecl r _ _ _ _ _ _ _) = r
   getRange (NiceUnquoteDef r _ _ _ _ _ _)    = r
@@ -406,6 +408,7 @@ declName NiceImport{}        = "Import statements"
 declName NicePragma{}        = "Pragmas"
 declName PrimitiveFunction{} = "Primitive declarations"
 declName NicePatternSyn{}    = "Pattern synonyms"
+declName NiceGeneralize{}    = "Generalized variables"
 declName NiceUnquoteDecl{}   = "Unquoted declarations"
 declName NiceUnquoteDef{}    = "Unquoted definitions"
 declName NiceRecSig{}        = "Records"
@@ -732,6 +735,7 @@ declKind NiceImport{}                     = OtherDecl
 declKind NicePragma{}                     = OtherDecl
 declKind NiceFunClause{}                  = OtherDecl
 declKind NicePatternSyn{}                 = OtherDecl
+declKind NiceGeneralize{}                 = OtherDecl
 declKind NiceUnquoteDecl{}                = OtherDecl
 
 -- | Compute parameters of a data or record signature or definition.
@@ -800,6 +804,7 @@ niceDeclarations ds = do
     declaredNames :: Declaration -> [Name]
     declaredNames d = case d of
       TypeSig _ x _        -> [x]
+      Generalize _ x _     -> [x]
       Field _ x _          -> [x]
       FunClause (LHS p [] []) _ _ _
         | IdentP (QName x) <- removeSingletonRawAppP p
@@ -885,6 +890,10 @@ niceDeclarations ds = do
           -- register x as lone type signature, to recognize clauses later
           addLoneSig x (FunName termCheck)
           return ([FunSig (getRange d) fx PublicAccess ConcreteDef NotInstanceDef NotMacroDef info termCheck x t] , ds)
+
+        (Generalize info x t)            -> do
+          fx <- getFixity x
+          return ([NiceGeneralize (getRange d) fx info x t] , ds)
 
         (FunClause lhs _ _ _)         -> do
           termCheck <- use terminationCheckPragma
@@ -1356,6 +1365,7 @@ niceDeclarations ds = do
         termCheck DataDef{}                          = TerminationCheck
         termCheck RecDef{}                           = TerminationCheck
         termCheck NicePatternSyn{}                   = TerminationCheck
+        termCheck NiceGeneralize{}                   = TerminationCheck
 
         -- ASR (26 December 2015): Do not positivity check a mutual
         -- block if any of its inner declarations comes with a
@@ -1417,6 +1427,7 @@ niceDeclarations ds = do
         DataDef{}                        -> return d
         RecDef{}                         -> return d
         NicePatternSyn{}                 -> return d
+        NiceGeneralize{}                 -> return d
 
     setInstance :: Updater IsInstance
     setInstance i = case i of
@@ -1486,6 +1497,7 @@ instance MakeAbstract NiceDeclaration where
       NiceOpen{}                       -> return d
       NiceImport{}                     -> return d
       NicePatternSyn{}                 -> return d
+      NiceGeneralize{}                 -> return d
 
 instance MakeAbstract Clause where
   mkAbstract (Clause x catchall lhs rhs wh with) = do
@@ -1548,6 +1560,7 @@ instance MakePrivate NiceDeclaration where
       DataDef{}                                -> return $ d
       RecDef{}                                 -> return $ d
       NicePatternSyn _ _ _ _ _                 -> return $ d
+      NiceGeneralize{}                         -> return d
 
 instance MakePrivate Clause where
   mkPrivate o (Clause x catchall lhs rhs wh with) = do
@@ -1640,6 +1653,7 @@ fixitiesAndPolarities = foldMap $ \ d -> case d of
   -- We expand these boring cases to trigger a revisit
   -- in case the @Declaration@ type is extended in the future.
   TypeSig     {}  -> mempty
+  Generalize  {}  -> mempty
   Field       {}  -> mempty
   FunClause   {}  -> mempty
   DataSig     {}  -> mempty
@@ -1687,6 +1701,7 @@ notSoNiceDeclarations d = fixityDecl d ++
     RecDef r _ _ _ x i e c bs ds     -> [Record r x i e (unThing <$> c) bs Nothing $ concatMap notSoNiceDeclarations ds]
       where unThing (ThingWithFixity c _, inst) = (c, inst)
     NicePatternSyn r _ n as p        -> [PatternSyn r n as p]
+    NiceGeneralize r _ i n e         -> [Generalize i n e]
     NiceUnquoteDecl r _ _ _ i _ x e  -> inst i [UnquoteDecl r x e]
     NiceUnquoteDef r _ _ _ _ x e     -> [UnquoteDef r x e]
   where
@@ -1703,6 +1718,7 @@ notSoNiceDeclarations d = fixityDecl d ++
           NiceDataSig _ f _ _ _ x _ _       -> [(x, f)]
           FunSig _ f _ _ _ _ _ _ x _        -> [(x, f)]
           NicePatternSyn _ f x _ _          -> [(x, f)]
+          NiceGeneralize _ f _ x _          -> [(x, f)]
           NiceUnquoteDecl _ fs _ _ _ _ xs _ -> zip xs fs
           NiceUnquoteDef _ fs _ _ _ xs _    -> zip xs fs
           NiceMutual{}      -> []
@@ -1740,5 +1756,6 @@ niceHasAbstract d =
     DataDef _ _ a _ _ _ _           -> Just a
     RecDef _ _ a _ _ _ _ _ _ _      -> Just a
     NicePatternSyn{}                -> Nothing
+    NiceGeneralize{}                -> Nothing
     NiceUnquoteDecl _ _ _ a _ _ _ _ -> Just a
     NiceUnquoteDef _ _ _ a _ _ _    -> Just a

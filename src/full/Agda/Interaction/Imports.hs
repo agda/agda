@@ -51,6 +51,7 @@ import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Primitive
 import Agda.TypeChecking.Pretty as P
 import Agda.TypeChecking.DeadCode
+import Agda.TypeChecking.Rules.Decl ( filterGeneralizables )
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 
 import Agda.TheTypeChecker
@@ -726,6 +727,9 @@ createInterface file mname isMain = Bench.billTo [Bench.TopModule mname] $
         Bench.billTo [Bench.Typing] $ mapM_ checkDeclCached ds `finally_` cacheCurrentLog
         reportSLn "import.iface.create" 7 $ "Finished type checking."
 
+    filterGeneralizables
+
+
     -- Ulf, 2013-11-09: Since we're rethrowing the error, leave it up to the
     -- code that handles that error to reset the state.
     -- Ulf, 2013-11-13: Errors are now caught and highlighted in InteractionTop.
@@ -856,7 +860,8 @@ getUnsolvedMetas :: TCM [Range]
 getUnsolvedMetas = do
   openMetas            <- getOpenMetas
   interactionMetas     <- getInteractionMetas
-  getUniqueMetasRanges (openMetas List.\\ interactionMetas)
+  generalizeMetas      <- getGeneralizeMetas
+  getUniqueMetasRanges ((openMetas List.\\ interactionMetas) List.\\ generalizeMetas)
 
 getAllUnsolved :: TCM [TCWarning]
 getAllUnsolved = do

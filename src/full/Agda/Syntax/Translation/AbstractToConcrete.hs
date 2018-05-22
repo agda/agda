@@ -574,6 +574,8 @@ instance ToConcrete A.Expr C.Expr where
         piTel (A.Pi _ tel e) = (tel ++) -*- id $ piTel e
         piTel e              = ([], e)
 
+    toConcrete (A.Generalized _ e) = C.Generalized <$> toConcrete e
+
     toConcrete (A.Fun i a b) =
         bracket piBrackets
         $ do a' <- toConcreteCtx (if irr then DotPatternCtx else FunctionSpaceDomainCtx) a
@@ -833,6 +835,13 @@ instance ToConcrete A.Declaration [C.Declaration] where
            Nothing   -> []
            Just occs -> [C.Pragma (PolarityPragma noRange x' occs)]) ++
         [C.Postulate (getRange i) [C.TypeSig info x' t']]
+
+  toConcrete (A.Generalize s i j x t) = do
+    x' <- unsafeQNameToName <$> toConcrete x
+    withAbstractPrivate i $
+      withInfixDecl i x'  $ do
+      t' <- toConcreteTop t
+      return [C.Generalize j x' $ C.Generalized t']
 
   toConcrete (A.Field i x t) = do
     x' <- unsafeQNameToName <$> toConcrete x

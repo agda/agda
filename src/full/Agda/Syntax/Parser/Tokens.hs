@@ -32,12 +32,13 @@ data Keyword
         | KwUnquote | KwUnquoteDecl | KwUnquoteDef
         | KwSyntax
         | KwPatternSyn | KwTactic | KwCATCHALL
+        | KwGeneralize
         | KwNO_POSITIVITY_CHECK | KwPOLARITY
     deriving (Eq, Show)
 
 layoutKeywords :: [Keyword]
 layoutKeywords =
-    [ KwLet, KwWhere, KwDo, KwPostulate, KwMutual, KwAbstract, KwPrivate, KwInstance, KwMacro, KwPrimitive, KwField ]
+    [ KwLet, KwWhere, KwDo, KwPostulate, KwMutual, KwAbstract, KwPrivate, KwInstance, KwMacro, KwPrimitive, KwField, KwGeneralize ]
 
 data Symbol
         = SymDot | SymSemi | SymVirtualSemi | SymBar
