@@ -3,6 +3,7 @@ module Agda.TypeChecking.Inlining (autoInline) where
 
 import qualified Data.IntMap as IntMap
 
+import Agda.Interaction.Options
 import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.CompiledClause
@@ -10,9 +11,11 @@ import Agda.TypeChecking.Free
 import Agda.Utils.Lens
 
 -- | Mark a definition to be inlined if it satisfies the inlining criterion.
-autoInline :: Defn -> Defn
-autoInline defn | shouldInline defn = set funInline True defn
-autoInline defn = defn
+autoInline :: Defn -> TCM Defn
+autoInline defn = do
+  inlining <- optAutoInline <$> pragmaOptions
+  if | inlining, shouldInline defn -> return $ set funInline True defn
+     | otherwise                   -> return defn
 
 shouldInline :: Defn -> Bool
 shouldInline Function{funCompiled = Just cc} = shouldInline' cc
