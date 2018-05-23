@@ -1,7 +1,7 @@
 {-# OPTIONS --copatterns #-}
 
 open import Common.Prelude
-open import Common.Product
+open import Common.Sigma
 
 postulate
   A : Set

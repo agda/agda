@@ -5,7 +5,7 @@
 open import Common.Equality
 open import Common.Level
 open import Common.Prelude renaming (Nat to ℕ)
-open import Common.Product
+open import Common.Sigma
 open import Common.Reflection
 
 data Even  : ℕ → Set where

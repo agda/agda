@@ -1,6 +1,6 @@
 -- Andreas, 2016-05-04 shrunk from the standard library
 
-open import Common.Product
+open import Common.Sigma
 
 record ⊤ : Set where
 

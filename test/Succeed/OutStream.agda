@@ -3,7 +3,7 @@
 
 open import Common.Size
 open import Common.Prelude
-open import Common.Product
+open import Common.Sigma
 
 -- Sized streams via head/tail.
 

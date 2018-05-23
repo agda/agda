@@ -1,6 +1,6 @@
 -- Andreas, 2014-10-09, issue reported by jesper.cockx
 
-open import Common.Product
+open import Common.Sigma
 
 pattern foo x = x , x
 -- Should complain about non-linearity.

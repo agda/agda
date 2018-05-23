@@ -2,7 +2,7 @@
 
 module SplitResult where
 
-open import Common.Product
+open import Common.Sigma
 
 test : {A B : Set} (a : A) (b : B) → A × B
 test a b = {!!}

@@ -1,6 +1,6 @@
 -- Andreas, 2015-07-20, record patterns
 
-open import Common.Product
+open import Common.Sigma
 open import Common.Prelude
 open import Common.Equality
 

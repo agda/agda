@@ -1,7 +1,7 @@
 -- Andreas, 2015-06-24
 
 open import Common.Equality
-open import Common.Product
+open import Common.Sigma
 
 Sing : {A : Set} (a : A) → Set
 Sing a = ∃ λ b → a ≡ b

@@ -5,7 +5,7 @@
 -- {-# OPTIONS -v tc.conv.elim:25 -v tc.conv.atom:30 -v tc.conv.term:30 --show-implicit #-}
 
 open import Common.Size
-open import Common.Product
+open import Common.Sigma
 
 -- U (i : contravariant)
 record U (i : Size) : Set where

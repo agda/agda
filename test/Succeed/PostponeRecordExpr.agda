@@ -2,7 +2,7 @@
 -- Postpone checking of record expressions when type is blocked.
 -- Guess type of record expressions when type is blocked.
 
-open import Common.Product
+open import Common.Sigma
 open import Common.Prelude
 open import Common.Equality
 

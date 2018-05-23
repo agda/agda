@@ -1,5 +1,5 @@
 open import Common.Prelude renaming (Nat to ℕ; _+_ to _+ℕ_)
-open import Common.Product
+open import Common.Sigma
 open import Common.Equality
 
 postulate

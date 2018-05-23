@@ -2,7 +2,7 @@
 
 open import Common.Size
 open import Common.Prelude
-open import Common.Product renaming (proj₁ to fst; proj₂ to snd)
+open import Common.Sigma renaming (proj₁ to fst; proj₂ to snd)
 
 record Stream (i : Size) (A : Set) : Set where
   coinductive

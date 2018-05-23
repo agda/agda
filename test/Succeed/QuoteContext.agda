@@ -2,7 +2,7 @@ module QuoteContext where
 
 open import Common.Level
 open import Common.Prelude
-open import Common.Product
+open import Common.Sigma
 open import Common.Equality
 open import Common.Reflection
 
