@@ -487,7 +487,6 @@ compareAtom cmp t m n =
           case (m, n) of
             (Pi{}, Pi{}) -> equalFun m n
 
-            (Sort s1, Sort Inf) -> return ()
             (Sort s1, Sort s2) -> compareSort CmpEq s1 s2
 
             (Lit l1, Lit l2) | l1 == l2 -> return ()
