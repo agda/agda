@@ -706,9 +706,15 @@ instance PrettyTCM TypeError where
     UnequalBecauseOfUniverseConflict cmp s t -> fsep $
       [prettyTCM s, notCmp cmp, prettyTCM t, text "because this would result in an invalid use of Setω" ]
 
-    UnequalTerms cmp s t a -> do
-      (d1, d2, d) <- prettyInEqual s t
-      fsep $ [return d1, notCmp cmp, return d2] ++ pwords "of type" ++ [prettyTCM a] ++ [return d]
+    UnequalTerms cmp s t a -> case (s,t) of
+      (Sort s1      , Sort s2      )
+        | CmpEq  <- cmp              -> prettyTCM $ UnequalSorts s1 s2
+        | CmpLeq <- cmp              -> prettyTCM $ NotLeqSort s1 s2
+      (Sort MetaS{} , t            ) -> prettyTCM $ ShouldBeASort $ El Inf t
+      (s            , Sort MetaS{} ) -> prettyTCM $ ShouldBeASort $ El Inf s
+      (_            , _            ) -> do
+        (d1, d2, d) <- prettyInEqual s t
+        fsep $ [return d1, notCmp cmp, return d2] ++ pwords "of type" ++ [prettyTCM a] ++ [return d]
 
 -- UnequalLevel is UNUSED
 --   UnequalLevel cmp s t -> fsep $
