@@ -101,7 +101,7 @@ new_to_old_FV (New.FV a b c d e) = Old.FV a b c (Map.keysSet d) e
 ty :: Term
 ty = Pi (defaultDom ab) $ Abs "x" $ El (Type $ Max []) $ var 5
   where
-    a  = El Prop $
+    a  = El (Prop $ Max []) $
            var 4
     b  = El (Type $ Max []) $
            Sort $ Type $ Max []

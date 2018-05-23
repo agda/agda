@@ -147,6 +147,7 @@ data Expr
   | Set Range                                  -- ^ ex: @Set@
   | Prop Range                                 -- ^ ex: @Prop@
   | SetN Range Integer                         -- ^ ex: @Set0, Set1, ..@
+  | PropN Range Integer                        -- ^ ex: @Prop0, Prop1, ..@
   | Rec Range RecordAssignments                -- ^ ex: @record {x = a; y = b}@, or @record { x = a; M1; M2 }@
   | RecUpdate Range Expr [FieldAssignment]     -- ^ ex: @record e {x = a; y = b}@
   | Let Range [Declaration] (Maybe Expr)       -- ^ ex: @let Ds in e@, missing body when parsing do-notation let
@@ -553,6 +554,7 @@ instance HasRange Expr where
       Set r              -> r
       Prop r             -> r
       SetN r _           -> r
+      PropN r _          -> r
       Let r _ _          -> r
       Paren r _          -> r
       IdiomBrackets r _  -> r
@@ -789,6 +791,7 @@ instance KillRange Expr where
   killRange (Set _)              = Set noRange
   killRange (Prop _)             = Prop noRange
   killRange (SetN _ n)           = SetN noRange n
+  killRange (PropN _ n)          = PropN noRange n
   killRange (Rec _ ne)           = killRange1 (Rec noRange) ne
   killRange (RecUpdate _ e ne)   = killRange2 (RecUpdate noRange) e ne
   killRange (Let _ d e)          = killRange2 (Let noRange) d e
@@ -919,6 +922,7 @@ instance NFData Expr where
   rnf (Set _)            = ()
   rnf (Prop _)           = ()
   rnf (SetN _ a)         = rnf a
+  rnf (PropN _ a)        = rnf a
   rnf (Rec _ a)          = rnf a
   rnf (RecUpdate _ a b)  = rnf a `seq` rnf b
   rnf (Let _ a b)        = rnf a `seq` rnf b

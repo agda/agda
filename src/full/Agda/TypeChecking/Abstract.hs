@@ -176,7 +176,7 @@ instance AbsTerm Type where
 instance AbsTerm Sort where
   absTerm u s = case s of
     Type n     -> Type $ absS n
-    Prop       -> Prop
+    Prop n     -> Prop $ absS n
     Inf        -> Inf
     SizeUniv   -> SizeUniv
     PiSort s1 s2 -> PiSort (absS s1) (absS s2)

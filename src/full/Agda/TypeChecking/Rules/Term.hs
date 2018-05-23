@@ -126,23 +126,26 @@ isType_ e = traceCall (IsType_ e) $ do
       return t'
     A.Set _ n    -> do
       return $ sort (mkType n)
-    A.Prop _ -> do
+    A.Prop _ n -> do
       unlessM isPropEnabled $ genericError
         "Use the --enable-prop flag to use the Prop universe"
-      return $ sort Prop
+      return $ sort (mkProp n)
     A.App i s arg
       | visible arg,
         A.Set _ 0 <- unScope s ->
       ifNotM hasUniversePolymorphism
           (typeError $ GenericError "Use --universe-polymorphism to enable level arguments to Set")
-      $ {- else -} do
-        lvl <- levelType
-        -- allow NonStrict variables when checking level
-        --   Set : (NonStrict) Level -> Set\omega
-        n   <- levelView =<< do
-          applyRelevanceToContext NonStrict $
-            checkNamedArg arg lvl
-        return $ sort (Type n)
+      -- allow NonStrict variables when checking level
+      --   Set : (NonStrict) Level -> Set\omega
+      $ {- else -} applyRelevanceToContext NonStrict $
+          sort . Type <$> checkLevel arg
+    A.App i s arg
+      | visible arg,
+        A.Prop _ 0 <- unScope s ->
+      ifNotM hasUniversePolymorphism
+          (typeError $ GenericError "Use --universe-polymorphism to enable level arguments to Prop")
+      $ {- else -} applyRelevanceToContext NonStrict $
+          sort . Prop <$> checkLevel arg
 
     -- Issue #707: Check an existing interaction point
     A.QuestionMark minfo ii -> caseMaybeM (lookupInteractionMeta ii) fallback $ \ x -> do
@@ -172,6 +175,11 @@ isType_ e = traceCall (IsType_ e) $ do
         _ -> __IMPOSSIBLE__
 
     _ -> fallback
+
+checkLevel :: NamedArg A.Expr -> TCM Level
+checkLevel arg = do
+  lvl <- levelType
+  levelView =<< checkNamedArg arg lvl
 
 -- | Ensure that a (freshly created) function type does not inhabit 'SizeUniv'.
 --   Precondition:  When @noFunctionsIntoSize t tBlame@ is called,
@@ -840,7 +848,7 @@ checkExpr e t0 =
 
     e <- scopedExpr e
 
-    let irrelevantIfProp = if getSort t == Prop
+    let irrelevantIfProp = if isProp (getSort t)
                            then applyRelevanceToContext Irrelevant
                            else id
 
@@ -939,10 +947,10 @@ checkExpr e t0 =
             coerce v (sort s) t
         A.Set _ n    -> do
           coerce (Sort $ mkType n) (sort $ mkType $ n + 1) t
-        A.Prop _     -> do
+        A.Prop _ n   -> do
           unlessM isPropEnabled $ genericError
             "Use the --enable-prop flag to use the Prop universe"
-          coerce (Sort Prop) (sort $ mkType 0) t
+          coerce (Sort $ mkProp n) (sort $ mkType $ n + 1) t
 
         A.Rec _ fs  -> checkRecordExpression fs e t
 

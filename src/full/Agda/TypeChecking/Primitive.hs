@@ -760,7 +760,7 @@ primComp = do
                    compGlue phi u a0 la lb bA phi' bT f pf
 
                  -- Path/PathP
-                 d | PathType _ _ _ bA x y <- pathV (El Prop d) -> do
+                 d | PathType _ _ _ bA x y <- pathV (El dummySort d) -> do
                    if nelims > 0 then compPathP iz ineg imax sphi u a0 l bA x y else fallback
 
                  Def q [Apply _ , Apply bA , Apply x , Apply y] | Just q == mId -> do

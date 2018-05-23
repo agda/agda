@@ -175,6 +175,7 @@ import Agda.Utils.Impossible
     'TERMINATING'             { TokKeyword KwTERMINATING $$ }
 
     setN                      { TokSetN $$ }
+    propN                     { TokPropN $$ }
     tex                       { TokTeX $$ }
     comment                   { TokComment $$ }
 
@@ -310,6 +311,7 @@ Token
     | 'WARNING_ON_USAGE'        { TokKeyword KwWARNING_ON_USAGE $1 }
 
     | setN                      { TokSetN $1 }
+    | propN                     { TokPropN $1 }
     | tex                       { TokTeX $1 }
     | comment                   { TokComment $1 }
 
@@ -722,6 +724,7 @@ Expr3NoCurly
     | 'quoteContext'                    { QuoteContext (getRange $1) }
     | 'unquote'                         { Unquote (getRange $1) }
     | setN                              { SetN (getRange (fst $1)) (snd $1) }
+    | propN                             { PropN (getRange (fst $1)) (snd $1) }
     | '{{' Expr DoubleCloseBrace                        { InstanceArg (getRange ($1,$2,$3))
                                                           (maybeNamed $2) }
     | '(' Expr ')'                      { Paren (getRange ($1,$2,$3)) $2 }
@@ -1869,6 +1872,7 @@ mkName (i, s) = do
                 SymEndComment        -> __IMPOSSIBLE__ -- "the end-of-comment brace"
               TokString{}   -> __IMPOSSIBLE__
               TokSetN{}     -> "a type universe"
+              TokPropN{}    -> "a prop universe"
               TokTeX{}      -> __IMPOSSIBLE__  -- used by the LaTeX backend only
               TokComment{}  -> __IMPOSSIBLE__
               TokDummy{}    -> __IMPOSSIBLE__

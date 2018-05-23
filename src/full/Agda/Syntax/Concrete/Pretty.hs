@@ -214,6 +214,7 @@ instance Pretty Expr where
             Set _   -> text "Set"
             Prop _  -> text "Prop"
             SetN _ n    -> text "Set" <> text (showIndex n)
+            PropN _ n   -> text "Prop" <> text (showIndex n)
             Let _ ds me  ->
                 sep [ text "let" <+> vcat (map pretty ds)
                     , maybe empty (\ e -> text "in" <+> pretty e) me

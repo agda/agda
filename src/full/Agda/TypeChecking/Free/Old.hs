@@ -274,7 +274,7 @@ instance Free Sort where
     ifM ((IgnoreAll ==) <$> asks fcIgnoreSorts) mempty $ {- else -}
     case s of
       Type a     -> freeVars' a
-      Prop       -> mempty
+      Prop a     -> freeVars' a
       Inf        -> mempty
       SizeUniv   -> mempty
       PiSort s1 s2 -> weakly <$> freeVars' (s1, s2)

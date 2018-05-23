@@ -380,7 +380,7 @@ checkSort :: Action -> Sort -> TCM Sort
 checkSort action s =
   case s of
     Type l   -> Type <$> checkLevel action l
-    Prop     -> return Prop
+    Prop l   -> Prop <$> checkLevel action l
     Inf      -> return Inf
     SizeUniv -> return SizeUniv
     PiSort a b -> do

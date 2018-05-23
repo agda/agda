@@ -69,6 +69,12 @@ lexToken =
               , ":"
               ]
 
+isSub :: Char -> Bool
+isSub c = '\x2080' <= c && c <= '\x2089'
+
+readSubscript :: [Char] -> Integer
+readSubscript = read . map (\c -> toEnum (fromEnum c - 0x2080 + fromEnum '0'))
+
 postToken :: Token -> Token
 postToken (TokId (r, "\x03bb")) = TokSymbol SymLambda r
 postToken (TokId (r, "\x2026")) = TokSymbol SymEllipsis r
@@ -82,8 +88,10 @@ postToken (TokId (r, s))
   | set == "Set" && all isSub n = TokSetN (r, readSubscript n)
   where
     (set, n)      = splitAt 3 s
-    isSub c       = '\x2080' <= c && c <= '\x2089'
-    readSubscript = read . map (\c -> toEnum (fromEnum c - 0x2080 + fromEnum '0'))
+postToken (TokId (r, s))
+  | prop == "Prop" && all isSub n = TokPropN (r, readSubscript n)
+  where
+    (prop, n)     = splitAt 4 s
 postToken t = t
 
 -- | Use the input string from the previous input (with the appropriate

@@ -427,7 +427,7 @@ instance Occurs Sort where
     case s' of
       PiSort s1 s2 -> uncurry PiSort <$> occurs red (weakly ctx) m xs (s1,s2)
       Type a     -> Type <$> occurs red ctx m xs a
-      Prop       -> return s'
+      Prop a     -> Prop <$> occurs red ctx m xs a
       Inf        -> return s'
       SizeUniv   -> return s'
       UnivSort s -> UnivSort <$> occurs red (weakly ctx) m xs s
@@ -440,7 +440,7 @@ instance Occurs Sort where
     case s of
       PiSort s1 s2 -> metaOccurs m (s1,s2)
       Type a     -> metaOccurs m a
-      Prop       -> return ()
+      Prop a     -> metaOccurs m a
       Inf        -> return ()
       SizeUniv   -> return ()
       UnivSort s -> metaOccurs m s
@@ -651,7 +651,7 @@ instance FoldRigid Sort where
   foldRigid f s =
     case s of
       Type l     -> fold l
-      Prop       -> mempty
+      Prop l     -> fold l
       Inf        -> mempty
       SizeUniv   -> mempty
       PiSort s1 s2 -> fold (s1, s2)

@@ -1,4 +1,3 @@
 Issue735.agda:16,12-16
-((A₁ : Set _a_10) → Set _a_10) !=< Set _a_10 of type
-Set (Common.Level.lsuc _a_10)
-when checking that the expression List has type Set _a_10
+((A₁ : Set _a_10) → Set _a_10) should be a sort, but it isn't
+when checking that the expression List has type _9

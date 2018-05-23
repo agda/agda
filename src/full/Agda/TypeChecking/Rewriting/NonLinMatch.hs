@@ -108,7 +108,7 @@ instance PatternFrom Sort NLPat where
     let done = return PWild
     case s of
       Type l   -> patternFrom Irrelevant k (Level l)
-      Prop     -> done
+      Prop l   -> done --TODO
       Inf      -> done
       SizeUniv -> done
       PiSort _ _ -> done

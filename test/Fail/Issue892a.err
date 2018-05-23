@@ -1,3 +1,3 @@
 Issue892a.agda:11,7-10
-R → Set !=< Set of type Set₁
-when checking that the expression R.g has type Set
+R → Set should be a sort, but it isn't
+when checking that the expression R.g has type _0

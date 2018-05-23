@@ -870,7 +870,8 @@ instance ToAbstract C.Expr A.Expr where
   -- Sorts
       C.Set _    -> return $ A.Set (ExprRange $ getRange e) 0
       C.SetN _ n -> return $ A.Set (ExprRange $ getRange e) n
-      C.Prop _   -> return $ A.Prop $ ExprRange $ getRange e
+      C.Prop _   -> return $ A.Prop (ExprRange $ getRange e) 0
+      C.PropN _ n -> return $ A.Prop (ExprRange $ getRange e) n
 
   -- Let
       e0@(C.Let _ ds (Just e)) ->
