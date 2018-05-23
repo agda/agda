@@ -4,6 +4,16 @@ followed:
 * First, release a release candidate (see
   notes/agda-releases-candidates).
 
+* Finish the CHANGELOG.
+
+* Update README.md, if necessary.
+
+* Update the LICENSE file, if necessary.
+
+* Update STACKAGE resolvers, if necessary.
+
+* Verify that the Travis builds have no errors.
+
 * The $FILES variable represents the files where it is necessary to
   change the version number.
 
@@ -22,8 +32,6 @@ followed:
 * Update in the bug tracker the milestone field of open issues to the
   next Agda version.
 
-* Verify that the Travis builds have no errors.
-
 * Get a clean Agda repository.
 
     git clone git@github.com:agda/agda agda-release
@@ -40,12 +48,6 @@ followed:
 
     NEXT_VERSION=<current-version-plus-0.1.0>
     NEXT_VERSION=2.6.0
-
-* Finish the CHANGELOG.
-
-* Update README.md, if necessary.
-
-* Update the LICENSE file, if necessary.
 
 * Update the version numbers to $VERSION in $FILES.
 
