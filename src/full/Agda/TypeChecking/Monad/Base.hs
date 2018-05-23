@@ -2215,6 +2215,11 @@ data TCEnv =
                 -- ^ Until we get a termination checker for instance search (#1743) we
                 --   limit the search depth to ensure termination.
           , envIsDebugPrinting :: Bool
+          , envPrintingPatternLambdas :: [QName]
+                -- ^ #3004: pattern lambdas with copatterns may refer to themselves. We
+                --   don't have a good story for what to do in this case, but at least
+                --   printing shouldn't loop. Here we keep track of which pattern lambdas
+                --   we are currently in the process of printing.
           , envCallByNeed :: Bool
                 -- ^ Use call-by-need evaluation for reductions.
           , envCurrentCheckpoint :: CheckpointId
@@ -2271,6 +2276,7 @@ initEnv = TCEnv { envContext             = []
                 , envUnquoteFlags           = defaultUnquoteFlags
                 , envInstanceDepth          = 0
                 , envIsDebugPrinting        = False
+                , envPrintingPatternLambdas = []
                 , envCallByNeed             = True
                 , envCurrentCheckpoint      = 0
                 , envCheckpoints            = Map.singleton 0 IdS
@@ -2397,6 +2403,9 @@ eInstanceDepth f e = f (envInstanceDepth e) <&> \ x -> e { envInstanceDepth = x 
 
 eIsDebugPrinting :: Lens' Bool TCEnv
 eIsDebugPrinting f e = f (envIsDebugPrinting e) <&> \ x -> e { envIsDebugPrinting = x }
+
+ePrintingPatternLambdas :: Lens' [QName] TCEnv
+ePrintingPatternLambdas f e = f (envPrintingPatternLambdas e) <&> \ x -> e { envPrintingPatternLambdas = x }
 
 eCallByNeed :: Lens' Bool TCEnv
 eCallByNeed f e = f (envCallByNeed e) <&> \ x -> e { envCallByNeed = x }
