@@ -130,7 +130,7 @@ instance SynEq Sort where
       (PiSort a b, PiSort a' b') -> piSort <$$> synEq a a' <**> synEq' b b'
       (UnivSort a, UnivSort a') -> univSort <$$> synEq a a'
       (SizeUniv, SizeUniv  ) -> pure2 s
-      (Prop    , Prop      ) -> pure2 s
+      (Prop l  , Prop l'   ) -> Prop <$$> synEq l l'
       (Inf     , Inf       ) -> pure2 s
       (MetaS x es , MetaS x' es') | x == x' -> MetaS x <$$> synEq es es'
       _ -> inequal (s, s')

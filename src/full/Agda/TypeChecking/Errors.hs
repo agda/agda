@@ -1250,7 +1250,7 @@ instance PrettyTCM TypeError where
       where
         cxt' = cxt `abstract` raise (size cxt) (nameCxt names)
         nameCxt [] = EmptyTel
-        nameCxt (x : xs) = ExtendTel (defaultDom (El I.Prop $ I.var 0)) $
+        nameCxt (x : xs) = ExtendTel (defaultDom (El dummySort $ I.var 0)) $
           NoAbs (P.prettyShow x) $ nameCxt xs
 
     NeedOptionCopatterns -> fsep $

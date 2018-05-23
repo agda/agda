@@ -134,20 +134,20 @@ instance EmbPrj LevelAtom where
 
 instance EmbPrj I.Sort where
   icod_ (Type  a  ) = icodeN 0 Type a
-  icod_ Prop        = icodeN' Prop
-  icod_ SizeUniv    = icodeN 1 SizeUniv
-  icod_ Inf         = icodeN 2 Inf
-  icod_ (PiSort a b) = icodeN 3 PiSort a b
-  icod_ (UnivSort a) = icodeN 4 UnivSort a
+  icod_ (Prop  a  ) = icodeN 1 Prop a
+  icod_ SizeUniv    = icodeN 2 SizeUniv
+  icod_ Inf         = icodeN 3 Inf
+  icod_ (PiSort a b) = icodeN 4 PiSort a b
+  icod_ (UnivSort a) = icodeN 5 UnivSort a
   icod_ (MetaS a b)  = __IMPOSSIBLE__
 
   value = vcase valu where
-    valu []        = valuN Prop
     valu [0, a]    = valuN Type  a
-    valu [1]       = valuN SizeUniv
-    valu [2]       = valuN Inf
-    valu [3, a, b] = valuN PiSort a b
-    valu [4, a]    = valuN UnivSort a
+    valu [1, a]    = valuN Prop  a
+    valu [2]       = valuN SizeUniv
+    valu [3]       = valuN Inf
+    valu [4, a, b] = valuN PiSort a b
+    valu [5, a]    = valuN UnivSort a
     valu _         = malformed
 
 instance EmbPrj DisplayForm where

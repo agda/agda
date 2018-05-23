@@ -394,6 +394,7 @@ tokenHighlighting = merge . map tokenToCFile
 
   tokenToCFile :: T.Token -> CompressedFile
   tokenToCFile (T.TokSetN (i, _))               = aToF PrimitiveType (P.getRange i)
+  tokenToCFile (T.TokPropN (i, _))              = aToF PrimitiveType (P.getRange i)
   tokenToCFile (T.TokKeyword T.KwSet  i)        = aToF PrimitiveType (P.getRange i)
   tokenToCFile (T.TokKeyword T.KwProp i)        = aToF PrimitiveType (P.getRange i)
   tokenToCFile (T.TokKeyword T.KwForall i)      = aToF Symbol (P.getRange i)

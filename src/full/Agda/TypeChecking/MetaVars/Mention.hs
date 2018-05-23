@@ -43,7 +43,7 @@ instance MentionsMeta Type where
 instance MentionsMeta Sort where
   mentionsMeta x s = case s of
     Type l     -> mentionsMeta x l
-    Prop       -> False
+    Prop l     -> mentionsMeta x l
     Inf        -> False
     SizeUniv   -> False
     PiSort s1 s2 -> mentionsMeta x (s1, s2)

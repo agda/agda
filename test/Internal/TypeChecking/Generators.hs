@@ -227,7 +227,7 @@ genElims conf = unSizedList <$> genC (isntTypeConf conf)
 
 instance GenC Sort where
   genC conf = frequency $
-    (propF, return Prop) :
+    (propF, return (mkProp 0)) :
     zip setFs (map (return . mkType) [0..])
     where
       freq f = f $ tcFrequencies conf
@@ -450,10 +450,10 @@ instance ShrinkC a b => ShrinkC (Elim' a) (Elim' b) where
 
 -- Andreas 2010-09-21: simplify? since Sort Prop is no longer abused as DontCare
 instance ShrinkC Sort Sort where
-  shrinkC conf Prop = []
-  shrinkC conf s = Prop : case s of
+  shrinkC conf Prop{} = []
+  shrinkC conf s = mkProp 0 : case s of
     Type n     -> [] -- No Level instance yet -- Type <$> shrinkC conf n
-    Prop       -> __IMPOSSIBLE__
+    Prop{}     -> __IMPOSSIBLE__
     Inf        -> []
     SizeUniv   -> []
     PiSort s1 s2 -> __IMPOSSIBLE__
@@ -473,7 +473,7 @@ instance ShrinkC Type Type where
 
 instance ShrinkC Term Term where
   shrinkC conf (DontCare _)  = []
-  shrinkC conf (Sort Prop) = []
+  shrinkC conf (Sort Prop{}) = []
   shrinkC conf t           = filter validType $ case t of
     Var i es     -> map unArg (argsFromElims es) ++
                     (uncurry Var <$> shrinkC conf (VarName i, NoType es))

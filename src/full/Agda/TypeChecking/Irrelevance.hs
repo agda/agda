@@ -127,7 +127,7 @@ instance UsableRelevance a => UsableRelevance (Type' a) where
 instance UsableRelevance Sort where
   usableRel rel s = case s of
     Type l -> usableRel rel l
-    Prop   -> return True
+    Prop l -> usableRel rel l
     Inf    -> return True
     SizeUniv -> return True
     PiSort s1 s2 -> usableRel rel (s1,s2)

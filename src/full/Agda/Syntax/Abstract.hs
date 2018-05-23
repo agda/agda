@@ -100,7 +100,7 @@ data Expr
   | Pi   ExprInfo Telescope Expr       -- ^ Dependent function space @Γ → A@.
   | Fun  ExprInfo (Arg Expr) Expr      -- ^ Non-dependent function space.
   | Set  ExprInfo Integer              -- ^ @Set@, @Set1@, @Set2@, ...
-  | Prop ExprInfo                      -- ^ @Prop@
+  | Prop ExprInfo Integer              -- ^ @Prop@, @Prop1@, @Prop2@, ...
   | Let  ExprInfo [LetBinding] Expr    -- ^ @let bs in e@.
   | ETel Telescope                     -- ^ Only used when printing telescopes.
   | Rec  ExprInfo RecordAssigns        -- ^ Record construction.
@@ -511,7 +511,7 @@ instance Eq Expr where
   Pi a1 b1 c1             == Pi a2 b2 c2             = (a1, b1, c1) == (a2, b2, c2)
   Fun a1 b1 c1            == Fun a2 b2 c2            = (a1, b1, c1) == (a2, b2, c2)
   Set a1 b1               == Set a2 b2               = (a1, b1) == (a2, b2)
-  Prop a1                 == Prop a2                 = a1 == a2
+  Prop a1 b1              == Prop a2 b2              = (a1, b1) == (a2, b2)
   Let a1 b1 c1            == Let a2 b2 c2            = (a1, b1, c1) == (a2, b2, c2)
   ETel a1                 == ETel a2                 = a1 == a2
   Rec a1 b1               == Rec a2 b2               = (a1, b1) == (a2, b2)
@@ -593,7 +593,7 @@ instance HasRange Expr where
     getRange (Pi i _ _)            = getRange i
     getRange (Fun i _ _)           = getRange i
     getRange (Set i _)             = getRange i
-    getRange (Prop i)              = getRange i
+    getRange (Prop i _)            = getRange i
     getRange (Let i _ _)           = getRange i
     getRange (Rec i _)             = getRange i
     getRange (RecUpdate i _ _)     = getRange i
@@ -716,7 +716,7 @@ instance KillRange Expr where
   killRange (Pi i a b)             = killRange3 Pi i a b
   killRange (Fun i a b)            = killRange3 Fun i a b
   killRange (Set i n)              = killRange2 Set i n
-  killRange (Prop i)               = killRange1 Prop i
+  killRange (Prop i n)             = killRange2 Prop i n
   killRange (Let i ds e)           = killRange3 Let i ds e
   killRange (Rec i fs)             = killRange2 Rec i fs
   killRange (RecUpdate i e fs)     = killRange3 RecUpdate i e fs
@@ -1075,7 +1075,7 @@ instance SubstExpr Expr where
     Pi   i t e            -> Pi i (substExpr s t) (substExpr s e)
     Fun  i ae e           -> Fun i (substExpr s ae) (substExpr s e)
     Set  i n              -> e
-    Prop i                -> e
+    Prop i n              -> e
     Let  i ls e           -> Let i (substExpr s ls) (substExpr s e)
     ETel t                -> e
     Rec  i nes            -> Rec i (substExpr s nes)

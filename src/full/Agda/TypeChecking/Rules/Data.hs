@@ -319,7 +319,9 @@ fitsIn forceds t s = do
         unless (sa == SizeUniv) $ sa `leqSort` s
       addContext (absName b, dom) $ do
         succ <$> fitsIn forceds' (absBody b) (raise 1 s)
-    _ -> return 0 -- getSort t `leqSort` s  -- Andreas, 2013-04-13 not necessary since constructor type ends in data type
+    _ -> do
+      getSort t `leqSort` s
+      return 0
 
 -- | Return the parameters that share variables with the indices
 -- nonLinearParameters :: Int -> Type -> TCM [Int]

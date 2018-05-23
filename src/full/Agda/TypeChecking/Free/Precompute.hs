@@ -79,7 +79,7 @@ instance PrecomputeFreeVars Sort where
   precomputeFreeVars s =
     case s of
       Type a     -> Type <$> precomputeFreeVars a
-      Prop       -> pure s
+      Prop a     -> Prop <$> precomputeFreeVars a
       Inf        -> pure s
       SizeUniv   -> pure s
       PiSort s1 s2 -> uncurry PiSort <$> precomputeFreeVars (s1, s2)

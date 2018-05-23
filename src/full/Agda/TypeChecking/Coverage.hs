@@ -296,8 +296,8 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
     updateRelevance cont = do
       rel <- caseMaybe target (return Relevant) $ \b -> do
         reduce (getSort $ unArg b) >>= \case
-          Prop -> return Irrelevant
-          _    -> return $ getRelevance b
+          Prop{} -> return Irrelevant
+          _      -> return $ getRelevance b
       applyRelevanceToContext rel cont
 
     continue
@@ -888,8 +888,8 @@ split' ind allowPartialCover fixtarget sc@(SClause tel ps _ cps target) (Blockin
 
   where
     rel = caseMaybe target Relevant $ \b -> case getSort (unArg b) of
-            Prop -> Irrelevant
-            _    -> getRelevance b
+            Prop{} -> Irrelevant
+            _      -> getRelevance b
 
     inContextOfT, inContextOfDelta2 :: (MonadTCM tcm, MonadDebug tcm) => tcm a -> tcm a
     inContextOfT      = addContext tel . escapeContext (x + 1)

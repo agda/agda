@@ -32,7 +32,7 @@ record ⊤ : Prop  where
   constructor tt
 
 -- We have Prop : Set₀, so we can store predicates in a small datatype:
-data NatProp : Set where
+data NatProp : Set₁ where
   c : (Nat → Prop) → NatProp
 
 -- To define more interesting predicates, we need to define them by pattern matching:

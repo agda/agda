@@ -67,6 +67,7 @@ data Token
           -- Other tokens
         | TokString (Interval, String)  -- arbitrary string, used in pragmas
         | TokSetN (Interval, Integer)
+        | TokPropN (Interval, Integer)
         | TokTeX (Interval, String)
         | TokComment (Interval, String)
         | TokDummy      -- Dummy token to make Happy not complain
@@ -82,6 +83,7 @@ instance HasRange Token where
   getRange (TokSymbol _ i)     = getRange i
   getRange (TokString (i, _))  = getRange i
   getRange (TokSetN (i, _))    = getRange i
+  getRange (TokPropN (i, _))   = getRange i
   getRange (TokTeX (i, _))     = getRange i
   getRange (TokComment (i, _)) = getRange i
   getRange TokDummy            = noRange

@@ -207,7 +207,7 @@ type Telescope = Tele (Dom Type)
 --
 data Sort
   = Type Level  -- ^ @Set ℓ@.
-  | Prop        -- ^ @Prop@.
+  | Prop Level  -- ^ @Prop ℓ@.
   | Inf         -- ^ @Setω@.
   | SizeUniv    -- ^ @SizeUniv@, a sort inhabited by type @Size@.
   | PiSort Sort (Abs Sort) -- ^ Sort of the pi type.
@@ -685,7 +685,7 @@ dontCare v =
 
 -- | A dummy sort.
 dummySort :: Sort
-dummySort = Prop
+dummySort = Prop (Max [])
 
 -- | A dummy term.
 dummyTerm :: Term
@@ -714,10 +714,17 @@ levelSuc (Max as) = Max $ map inc as
 mkType :: Integer -> Sort
 mkType n = Type $ Max [ClosedLevel n | n > 0]
 
+mkProp :: Integer -> Sort
+mkProp n = Prop $ Max [ClosedLevel n | n > 0]
+
 isSort :: Term -> Maybe Sort
 isSort v = case v of
   Sort s -> Just s
   _      -> Nothing
+
+isProp :: Sort -> Bool
+isProp Prop{} = True
+isProp _      = False
 
 impossibleTerm :: String -> Int -> Term
 impossibleTerm file line = Lit $ LitString noRange $ unlines
@@ -1025,7 +1032,7 @@ instance TermSize Term where
 instance TermSize Sort where
   tsize s = case s of
     Type l    -> 1 + tsize l
-    Prop      -> 1
+    Prop l    -> 1 + tsize l
     Inf       -> 1
     SizeUniv  -> 1
     PiSort s s' -> 1 + tsize s + tsize s'
@@ -1091,10 +1098,10 @@ instance (KillRange a) => KillRange (Type' a) where
 
 instance KillRange Sort where
   killRange s = case s of
-    Prop       -> Prop
     Inf        -> Inf
     SizeUniv   -> SizeUniv
     Type a     -> killRange1 Type a
+    Prop a     -> killRange1 Prop a
     PiSort s1 s2 -> killRange2 PiSort s1 s2
     UnivSort s -> killRange1 UnivSort s
     MetaS x es -> killRange1 (MetaS x) es
@@ -1246,7 +1253,9 @@ instance Pretty Sort where
       Type (Max []) -> text "Set"
       Type (Max [ClosedLevel n]) -> text $ "Set" ++ show n
       Type l -> mparens (p > 9) $ text "Set" <+> prettyPrec 10 l
-      Prop -> text "Prop"
+      Prop (Max []) -> text "Prop"
+      Prop (Max [ClosedLevel n]) -> text $ "Prop" ++ show n
+      Prop l -> mparens (p > 9) $ text "Prop" <+> prettyPrec 10 l
       Inf -> text "Setω"
       SizeUniv -> text "SizeUniv"
       PiSort s b -> mparens (p > 9) $
@@ -1306,7 +1315,7 @@ instance NFData Type where
 instance NFData Sort where
   rnf s = case s of
     Type l   -> rnf l
-    Prop     -> ()
+    Prop l   -> rnf l
     Inf      -> ()
     SizeUniv -> ()
     PiSort a b -> rnf (a, unAbs b)

@@ -130,6 +130,7 @@ instance ExprLike Expr where
      Set{}              -> f $ e0
      Prop{}             -> f $ e0
      SetN{}             -> f $ e0
+     PropN{}            -> f $ e0
      Rec r es           -> f $ Rec r                  $ mapE es
      RecUpdate r e es   -> f $ RecUpdate r (mapE e)   $ mapE es
      Let r ds e         -> f $ Let r       (mapE ds)  $ mapE e

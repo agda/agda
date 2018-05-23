@@ -832,7 +832,7 @@ instance BlankVars A.Expr where
                               in  uncurry (A.Pi i) $ blank bound' (tel, e)
     A.Fun i a b            -> uncurry (A.Fun i) $ blank bound (a, b)
     A.Set _ _              -> e
-    A.Prop _               -> e
+    A.Prop _ _             -> e
     A.Let _ _ _            -> __IMPOSSIBLE__
     A.Rec i es             -> A.Rec i $ blank bound es
     A.RecUpdate i e es     -> uncurry (A.RecUpdate i) $ blank bound (e, es)
@@ -1060,7 +1060,11 @@ instance Reify Sort Expr where
         I.Type a -> do
           a <- reify a
           return $ A.App defaultAppInfo_ (A.Set noExprInfo 0) (defaultNamedArg a)
-        I.Prop       -> return $ A.Prop noExprInfo
+        I.Prop (I.Max [])                -> return $ A.Prop noExprInfo 0
+        I.Prop (I.Max [I.ClosedLevel n]) -> return $ A.Prop noExprInfo n
+        I.Prop a -> do
+          a <- reify a
+          return $ A.App defaultAppInfo_ (A.Prop noExprInfo 0) (defaultNamedArg a)
         I.Inf       -> A.Var <$> freshName_ ("Setω" :: String)
         I.SizeUniv  -> do
           I.Def sizeU [] <- primSizeUniv

@@ -234,7 +234,7 @@ compareTerm' cmp a m n =
       , text $ "(Just (unEl a') == mlvl) = " ++ show (Just (unEl a') == mlvl)
       ]
     case s of
-      Prop | propIrr  -> return ()
+      Prop{} | propIrr -> return ()
       _    | isSize   -> compareSizes cmp m n
       _               -> case unEl a' of
         a | Just a == mlvl -> do
@@ -1008,17 +1008,21 @@ leqSort s1 s2 = catchConstraint (SortCmp CmpLeq s1 s2) $ do
       -- The most basic rule: @Set l =< Set l'@ iff @l =< l'@
       (Type a  , Type b  ) -> leqLevel a b
 
-      -- Prop is below any @Set l@
-      (Prop    , Type{}  ) -> yes
+      -- Likewise for @Prop@
+      (Prop a  , Prop b  ) -> leqLevel a b
+
+      -- @Prop l@ is below @Set l@
+      (Prop a  , Type b  ) -> leqLevel a b
+      (Type a  , Prop b  ) -> no
 
       -- Setω is the top sort
       (_       , Inf     ) -> yes
       (Inf     , _       ) -> equalSort s1 s2
 
-      -- SizeUniv and Prop are bottom sorts.
+      -- @SizeUniv@ and @Prop0@ are bottom sorts.
       -- So is @Set0@ if @Prop@ is not enabled.
       (_       , SizeUniv) -> equalSort s1 s2
-      (_       , Prop)     -> equalSort s1 s2
+      (_       , Prop (Max [])) -> equalSort s1 s2
       (_       , Type (Max []))
         | not propEnabled  -> equalSort s1 s2
 
@@ -1029,8 +1033,9 @@ leqSort s1 s2 = catchConstraint (SortCmp CmpLeq s1 s2) $ do
       (Type a    , UnivSort s)
         | Just a' <- levelSucView a -> leqSort (Type a') s
 
-      -- SizeUniv is unrelated to any Set l
+      -- SizeUniv is unrelated to any @Set l@ or @Prop l@
       (SizeUniv, Type{}  ) -> no
+      (SizeUniv, Prop{}  ) -> no
 
       -- PiSort, UnivSort and MetaS might reduce once we instantiate
       -- more metas, so we postpone.
@@ -1367,14 +1372,8 @@ equalSort s1 s2 = do
             -- diagonal cases for rigid sorts
             (Type a     , Type b     ) -> equalLevel a b
             (SizeUniv   , SizeUniv   ) -> yes
-            (Prop       , Prop       ) -> yes
+            (Prop a     , Prop b     ) -> equalLevel a b
             (Inf        , Inf        ) -> yes
-
-            -- @UnivSort s == Set (lsuc l)@ iff @s == Set l@
-            (Type a     , UnivSort s )
-              | Just a' <- levelSucView a -> equalSort (Type a') s
-            (UnivSort s , Type b     )
-              | Just b' <- levelSucView b -> equalSort s (Type b')
 
             -- if @PiSort a b == Set0@, then @b == Set0@
             -- we use this fact to solve metas in @b@,
@@ -1384,8 +1383,8 @@ equalSort s1 s2 = do
             (PiSort a b    , Type (Max []))
               | not propEnabled             -> piSortEqualsBottom set0 a b
 
-            (Prop          , PiSort a b   ) -> piSortEqualsBottom Prop a b
-            (PiSort a b    , Prop         ) -> piSortEqualsBottom Prop a b
+            (Prop (Max []) , PiSort a b   ) -> piSortEqualsBottom prop0 a b
+            (PiSort a b    , Prop (Max [])) -> piSortEqualsBottom prop0 a b
 
             -- @PiSort a b == SizeUniv@ iff @b == SizeUniv@
             (SizeUniv   , PiSort a b ) ->
@@ -1393,12 +1392,12 @@ equalSort s1 s2 = do
             (PiSort a b , SizeUniv   ) ->
               underAbstraction_ b $ equalSort SizeUniv
 
-            -- Prop and SizeUniv don't contain any universes,
+            -- @Prop0@ and @SizeUniv@ don't contain any universes,
             -- so they cannot be a UnivSort
-            (Prop       , UnivSort s ) -> no
-            (UnivSort s , Prop       ) -> no
-            (SizeUniv   , UnivSort s ) -> no
-            (UnivSort s , SizeUniv   ) -> no
+            (Prop (Max []) , UnivSort s )   -> no
+            (UnivSort s    , Prop (Max [])) -> no
+            (SizeUniv      , UnivSort s )   -> no
+            (UnivSort s    , SizeUniv   )   -> no
 
             -- PiSort and UnivSort could compute later, so we postpone
             (PiSort{}   , _          ) -> postpone
@@ -1417,6 +1416,7 @@ equalSort s1 s2 = do
         assignE DirEq x es (Sort s) __IMPOSSIBLE__
 
       set0 = Type $ Max []
+      prop0 = Prop $ Max []
 
       -- equate @piSort a b@ to @s0@, which is assumed to be a (closed) bottom sort
       -- i.e. @piSort a b == s0@ implies @b == s0@.
