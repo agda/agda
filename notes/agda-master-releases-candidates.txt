@@ -18,7 +18,7 @@ following procedure can be followed:
 
 * Update the LICENSE file, if necessary.
 
-* Update STACKAGE resolvers, if necessary.
+* Update Stackage resolvers, if necessary.
 
 * Verify that the Travis builds have no errors.
 
