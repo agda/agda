@@ -182,7 +182,7 @@ library
   if impl(ghc >= 8.0) && impl(ghc < 8.4)
     build-depends: transformers == 0.5.2.0
 
-  if impl(ghc >= 7.10.3) && impl(ghc < 8.0)
+  if impl(ghc >= 7.10) && impl(ghc < 8.0)
     build-depends: transformers == 0.4.2.0
 
   -- zlib >= 0.6.1 is broken with GHC < 7.10.3. See Issue 1518.
