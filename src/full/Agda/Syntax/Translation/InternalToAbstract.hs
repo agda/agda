@@ -543,12 +543,18 @@ reifyTerm expandAnonDefs0 v = do
 
         -- Check whether we have an extended lambda and display forms are on.
         df <- displayFormsEnabled
+
+        -- #3004: give up if we have to print a pattern lambda inside its own body!
+        alreadyPrinting <- view ePrintingPatternLambdas
+
         extLam <- case def of
           Function{ funExtLam = Just{}, funProjection = Just{} } -> __IMPOSSIBLE__
           Function{ funExtLam = Just (ExtLamInfo m) } -> Just . size <$> lookupSection m
           _ -> return Nothing
         case extLam of
-          Just pars | df -> reifyExtLam x pars (defClauses defn) es
+          Just pars | df, notElem x alreadyPrinting ->
+            locally ePrintingPatternLambdas (x :) $
+            reifyExtLam x pars (defClauses defn) es
 
         -- Otherwise (ordinary function call):
           _ -> do
