@@ -319,8 +319,7 @@ checkFunDefS t ai delayed extlam with i name withSub cs = do
         inTopContext $ addConstant name =<< do
           -- If there was a pragma for this definition, we can set the
           -- funTerminates field directly.
-          useTerPragma $ defaultDefn ai name fullType $
-             autoInline $
+          defn <- autoInline $
              set funMacro (ismacro || Info.defMacro i == MacroDef) $
              emptyFunction
              { funClauses        = cs
@@ -332,6 +331,7 @@ checkFunDefS t ai delayed extlam with i name withSub cs = do
              , funWith           = with
              , funCopatternLHS   = hasProjectionPatterns cc
              }
+          useTerPragma $ defaultDefn ai name fullType defn
 
         reportSDoc "tc.def.fun" 10 $ do
           sep [ text "added " <+> prettyTCM name <+> text ":"

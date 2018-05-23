@@ -40,6 +40,10 @@ Language
     - Uses each argument at most once.
     - Does not use all its arguments.
 
+  Automatic inlining can be turned off using the flag `--no-auto-inline`. This
+  can be useful when debugging tactics that may be affected by whether or not
+  a particular definition is being inlined.
+
 ### Syntax
 
 * Do-notation.
