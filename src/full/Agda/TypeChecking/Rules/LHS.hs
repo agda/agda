@@ -201,8 +201,26 @@ updateProblemEqs eqs = do
             reportSDoc "tc.lhs.imp" 20 $
               text "insertImplicitPatternsT returned" <+> fsep (map prettyA ps)
 
-            unless (length ps == length vs) $
-              typeError $ WrongNumberOfConstructorArguments (conName c) (length vs) (length ps)
+            -- Check argument count and hiding (not just count: #3074)
+            let checkArgs [] [] = return ()
+                checkArgs (p : ps) (v : vs)
+                  | getHiding p == getHiding v = checkArgs ps vs
+                  | otherwise                  = setCurrentRange p $ genericDocError =<< do
+                      fsep $ pwords ("Expected an " ++ which (getHiding v) ++ " argument " ++
+                                     "instead of "  ++ which (getHiding p) ++ " argument") ++
+                             [ prettyA p ]
+                  where which NotHidden  = "explicit"
+                        which Hidden     = "implicit"
+                        which Instance{} = "instance"
+                checkArgs [] vs = genericDocError =<< do
+                    fsep $ pwords "Too few arguments to constructor" ++ [prettyTCM c <> text ","] ++
+                           pwords ("expected " ++ show n ++ " more explicit "  ++ arguments)
+                  where n = length (filter visible vs)
+                        arguments | n == 1    = "argument"
+                                  | otherwise = "arguments"
+                checkArgs (p : _) [] = setCurrentRange p $ genericDocError =<< do
+                  fsep $ pwords "Too many arguments to constructor" ++ [prettyTCM c]
+            checkArgs ps vs
 
             updates $ zipWith3 ProblemEq (map namedArg ps) (map unArg vs) bs
 

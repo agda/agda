@@ -1,4 +1,3 @@
-Issue1202.agda:7,6-11
-The constructor c expects 2 arguments (including hidden ones), but
-has been given 3 (including hidden ones)
+Issue1202.agda:7,10-11
+Too many arguments to constructor c
 when checking that the pattern c a b has type D A
