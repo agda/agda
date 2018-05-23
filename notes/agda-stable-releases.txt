@@ -10,7 +10,7 @@ be followed:
 
 * Update the LICENSE file, if necessary.
 
-* Update STACKAGE resolvers, if necessary.
+* Update Stackage resolvers, if necessary.
 
 * Verify that the Travis builds have no errors.
 
@@ -209,3 +209,5 @@ be followed:
 
 * Announce the release of the new version on the Agda mailing lists
   (users and developers).
+
+* Enable the released version of Agda on Stackage, if necessary.

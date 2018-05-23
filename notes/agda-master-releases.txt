@@ -10,7 +10,7 @@ followed:
 
 * Update the LICENSE file, if necessary.
 
-* Update STACKAGE resolvers, if necessary.
+* Update Stackage resolvers, if necessary.
 
 * Verify that the Travis builds have no errors.
 
@@ -215,6 +215,8 @@ followed:
   (users and developers).
 
 * Close in the bug tracker the milestone $VERSION.
+
+* Enable the released version of Agda on Stackage, if necessary.
 
 ------------------------------------------------------------------------------
 Outdated (2016-04-16)
