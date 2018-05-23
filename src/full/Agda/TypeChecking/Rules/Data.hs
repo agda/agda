@@ -186,7 +186,12 @@ checkConstructor d tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
         -- is contained in the sort of the data type
         -- (to avoid impredicative existential types)
         debugFitsIn s
-        arity <- fitsIn forcedArgs t s
+        -- To allow propositional squash, we turn @Prop ℓ@ into @Set ℓ@
+        -- for the purpose of checking the type of the constructors.
+        let s' = case s of
+              Prop l -> Type l
+              _      -> s
+        arity <- fitsIn forcedArgs t s'
         debugAdd c t
 
         -- add parameters to constructor type and put into signature
