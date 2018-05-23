@@ -165,6 +165,9 @@ data PragmaOptions = PragmaOptions
   , optCountClusters             :: Bool
     -- ^ Count extended grapheme clusters rather than code points when
     -- generating LaTeX.
+  , optAutoInline                :: Bool
+    -- ^ Automatic compile-time inlining for simple definitions (unless marked
+    --   NOINLINE).
   }
   deriving (Show, Eq)
 
@@ -249,6 +252,7 @@ defaultPragmaOptions = PragmaOptions
   , optCompileNoMain             = False
   , optCaching                   = True
   , optCountClusters             = False
+  , optAutoInline                = True
   }
 
 -- | The default termination depth.
@@ -405,6 +409,9 @@ countClustersFlag o =
   throwError
     "Cluster counting has not been enabled in this build of Agda."
 #endif
+
+noAutoInlineFlag :: Flag PragmaOptions
+noAutoInlineFlag o = return $ o { optAutoInline = False }
 
 latexDirFlag :: FilePath -> Flag CommandLineOptions
 latexDirFlag d o = return $ o { optLaTeXDir = d }
@@ -704,6 +711,9 @@ pragmaOptions =
                      "has not been enabled in this build of Agda)"
 #endif
                     )
+    , Option []     ["no-auto-inline"] (NoArg noAutoInlineFlag)
+                    ("disable automatic compile-time inlining " ++
+                     "(only definitions marked INLINE will be inlined)")
     ]
 
 -- | Used for printing usage info.

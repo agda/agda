@@ -277,6 +277,10 @@ Other features
       Disable projection of irrelevant
       record fields (see :ref:`irrelevance`)
 
+:samp:`--no-auto-inline`
+      Disable automatic compile-time inlining.
+      Only definitions marked INLINE will be inlined.
+
 
 .. _warnings:
 
