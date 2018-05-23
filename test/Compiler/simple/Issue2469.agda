@@ -8,7 +8,7 @@ open import Agda.Builtin.IO
 open import Common.IO
 open import Common.Prelude
 open import Common.Sum
-open import Common.Product
+open import Common.Sigma
 
 
 data F : Nat → Set where

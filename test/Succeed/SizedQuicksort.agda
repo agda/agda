@@ -4,7 +4,7 @@ module _ where
 
 open import Common.Size
 open import Common.Prelude using (Bool; true; false; if_then_else_)
-open import Common.Product
+open import Common.Sigma
 
 -- sized lists
 

@@ -2,7 +2,7 @@
 
 -- {-# OPTIONS -v tc.term.exlam:50 #-}
 
-open import Common.Product
+open import Common.Sigma
 
 data Nat : Set where
   zero : Nat

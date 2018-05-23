@@ -3,7 +3,7 @@
 module DontPruneBlocked where
 
 open import Common.Equality
-open import Common.Product
+open import Common.Sigma
 
 data Bool : Set where
   true false : Bool

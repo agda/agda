@@ -5,7 +5,7 @@
 
 open import Common.Prelude using (⊤)
 open import Common.Equality
-open import Common.Product
+open import Common.Sigma
 -- assuming _×_ is a record type (not data type)
 
 module _ (A : Set) (let T = ⊤ → {p : A × A} → A) (f : T) where

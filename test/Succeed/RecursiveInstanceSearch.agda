@@ -1,7 +1,7 @@
 module RecursiveInstanceSearch where
 
 open import Common.Prelude
-open import Common.Product
+open import Common.Sigma
 
 _&&_ : Bool → Bool → Bool
 true && b = b

@@ -6,7 +6,7 @@
 -- checker, @bar'@ is rejected for it.
 
 open import Common.Prelude renaming (Nat to ℕ)
-open import Common.Product
+open import Common.Sigma
 open import Common.Coinduction
 open import Common.Equality
 

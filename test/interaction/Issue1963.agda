@@ -2,7 +2,7 @@
 
 {-# OPTIONS --postfix-projections #-}
 
-open import Common.Product
+open import Common.Sigma
 open import Common.Bool
 
 pair : ∀{A : Set}(a : A) → A × A

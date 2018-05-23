@@ -5,7 +5,7 @@ module WithoutKRestrictive where
 
 open import Common.Level
 open import Common.Equality
-open import Common.Product
+open import Common.Sigma
 
 data ℕ : Set where
   zero : ℕ

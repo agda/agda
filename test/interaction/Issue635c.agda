@@ -1,7 +1,7 @@
 
 open import Common.Prelude
 open import Common.Equality
-open import Common.Product
+open import Common.Sigma
 
 test : (p : Bool × Bool) → proj₁ p ≡ true → Set
 test _ e = {!e!}

@@ -2,7 +2,7 @@
 
 -- Since type constructors are considered injective by the forcing analysis we are able to define the type for the "russel" paradox:
 
-open import Common.Product
+open import Common.Sigma
 
 Type = Set₁
 

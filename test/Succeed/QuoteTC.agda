@@ -4,7 +4,7 @@ module _ where
 open import Common.Prelude hiding (_>>=_)
 open import Common.Reflection
 open import Common.Equality
-open import Common.Product
+open import Common.Sigma
 
 sum : List Nat → Nat
 sum [] = 0

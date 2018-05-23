@@ -3,7 +3,7 @@
 {-# OPTIONS --copatterns #-}
 
 open import Common.Prelude hiding (map)
-open import Common.Product
+open import Common.Sigma
 open import Common.Equality
 
 dup : {A : Set} → A → A × A

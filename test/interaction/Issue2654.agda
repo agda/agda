@@ -6,7 +6,7 @@
 -- {-# OPTIONS --postfix-projections #-}
 -- {-# OPTIONS -v interaction.case:60 #-}
 
-open import Common.Product
+open import Common.Sigma
 
 dup : ∀{A : Set} (a : A) → A × A
 dup = λ { x → {!!}  }  -- C-c C-c RET
