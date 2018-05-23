@@ -1,7 +1,7 @@
 -- Andrea & Andreas, 2014-11-12
 -- Pruning projected vars during solving
 
-open import Common.Product
+open import Common.Sigma
 open import Common.Equality
 
 postulate

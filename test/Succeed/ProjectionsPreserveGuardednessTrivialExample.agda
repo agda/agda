@@ -4,7 +4,7 @@ module ProjectionsPreserveGuardednessTrivialExample where
 
 open import Common.Level
 open import Common.Coinduction
-open import Common.Product
+open import Common.Sigma
 
 -- Streams
 

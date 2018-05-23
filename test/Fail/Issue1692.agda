@@ -4,7 +4,7 @@
 
 open import Common.Level
 open import Common.Equality
-open import Common.Product
+open import Common.Sigma
 
 postulate
   Key   : Set

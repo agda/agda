@@ -1,7 +1,7 @@
 {-# OPTIONS --copatterns #-}
 
 open import Common.Equality
-open import Common.Product
+open import Common.Sigma
 
 id : {A : Set} → A → A
 id x = x

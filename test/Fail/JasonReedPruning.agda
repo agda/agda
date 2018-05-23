@@ -9,7 +9,7 @@
 module JasonReedPruning where
 
 open import Common.Equality
-open import Common.Product
+open import Common.Sigma
 
 data o : Set where
   f : o -> o

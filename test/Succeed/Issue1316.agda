@@ -1,7 +1,7 @@
 -- Andreas, 2015-09-12, issue reported by F Mazzoli
 -- {-# OPTIONS -v tc.meta.assign.proj:85 #-}
 
-open import Common.Product
+open import Common.Sigma
 open import Common.Equality
 
 module _ (A : Set) where

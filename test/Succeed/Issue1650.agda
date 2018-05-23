@@ -4,7 +4,7 @@
 -- {-# OPTIONS -v tc.cc:30 #-}
 
 open import Common.Bool
-open import Common.Product
+open import Common.Sigma
 open import Common.Equality
 
 postulate

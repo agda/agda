@@ -3,7 +3,7 @@
 
 {-# OPTIONS --postfix-projections #-}
 
-open import Common.Product
+open import Common.Sigma
 open import Common.Equality
 
 testProj : {A : Set}{B : A → Set}(y z : Σ A B) →

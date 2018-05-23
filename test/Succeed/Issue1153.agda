@@ -5,7 +5,7 @@
 -- {-# OPTIONS -v tc.meta.assign:25 -v tc.meta.kill:40 #-}
 
 open import Common.Equality
-open import Common.Product
+open import Common.Sigma
 
 postulate
   F : Set → Set
