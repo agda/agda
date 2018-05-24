@@ -19,6 +19,7 @@ module Agda.TypeChecking.Coverage
 import Prelude hiding (null)
 
 import Control.Monad
+import Control.Monad.Reader
 import Control.Monad.Trans ( lift )
 
 import Data.Either (lefts)
@@ -294,10 +295,10 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
   where
     updateRelevance :: TCM a -> TCM a
     updateRelevance cont = do
-      rel <- caseMaybe target (return Relevant) $ \b -> do
-        reduce (getSort $ unArg b) >>= \case
-          Prop{} -> return Irrelevant
-          _      -> return $ getRelevance b
+      let rel = caseMaybe target Relevant $ \b ->
+                  if isProp (unArg b)
+                  then Irrelevant
+                  else getRelevance b
       applyRelevanceToContext rel cont
 
     continue
@@ -861,6 +862,11 @@ split' ind allowPartialCover fixtarget sc@(SClause tel ps _ cps target) (Blockin
                , scTarget             = Nothing
                }
 
+    -- Jesper, 2018-05-24: If the datatype is in Prop we can
+    -- only do empty splits, unless the target is in Prop too.
+    (_ : _) | isProp t && not (isIrrelevant relTarget) ->
+      throwError . IrrelevantDatatype =<< do liftTCM $ buildClosure (unDom t)
+
     -- Andreas, 2011-10-03
     -- if more than one constructor matches, we cannot be irrelevant
     -- (this piece of code is unreachable if --experimental-irrelevance is off)
@@ -887,9 +893,10 @@ split' ind allowPartialCover fixtarget sc@(SClause tel ps _ cps target) (Blockin
       return $ Right $ Covering (lookupPatternVar sc x) ns
 
   where
-    rel = caseMaybe target Relevant $ \b -> case getSort (unArg b) of
-            Prop{} -> Irrelevant
-            _      -> getRelevance b
+    relTarget = caseMaybe target Relevant $ \b ->
+            if isProp (unArg b)
+            then Irrelevant
+            else getRelevance b
 
     inContextOfT, inContextOfDelta2 :: (MonadTCM tcm, MonadDebug tcm) => tcm a -> tcm a
     inContextOfT      = addContext tel . escapeContext (x + 1)
