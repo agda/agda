@@ -167,6 +167,7 @@ data PragmaOptions = PragmaOptions
   , optAutoInline                :: Bool
     -- ^ Automatic compile-time inlining for simple definitions (unless marked
     --   NOINLINE).
+  , optPrintPatternSynonyms      :: Bool
   }
   deriving (Show, Eq)
 
@@ -251,6 +252,7 @@ defaultPragmaOptions = PragmaOptions
   , optCaching                   = True
   , optCountClusters             = False
   , optAutoInline                = True
+  , optPrintPatternSynonyms      = True
   }
 
 -- | The default termination depth.
@@ -409,6 +411,9 @@ countClustersFlag o =
 
 noAutoInlineFlag :: Flag PragmaOptions
 noAutoInlineFlag o = return $ o { optAutoInline = False }
+
+noPrintPatSynFlag :: Flag PragmaOptions
+noPrintPatSynFlag o = return $ o { optPrintPatternSynonyms = False }
 
 latexDirFlag :: FilePath -> Flag CommandLineOptions
 latexDirFlag d o = return $ o { optLaTeXDir = d }
@@ -706,6 +711,8 @@ pragmaOptions =
     , Option []     ["no-auto-inline"] (NoArg noAutoInlineFlag)
                     ("disable automatic compile-time inlining " ++
                      "(only definitions marked INLINE will be inlined)")
+    , Option []     ["no-print-pattern-synonyms"] (NoArg noPrintPatSynFlag)
+                    "expand pattern synonyms when printing terms"
     ]
 
 -- | Used for printing usage info.
