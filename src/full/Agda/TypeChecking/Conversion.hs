@@ -234,7 +234,7 @@ compareTerm' cmp a m n =
       , text $ "(Just (unEl a') == mlvl) = " ++ show (Just (unEl a') == mlvl)
       ]
     case s of
-      Prop{} | propIrr -> return ()
+      Prop{} | propIrr -> compareIrrelevant a' m n
       _    | isSize   -> compareSizes cmp m n
       _               -> case unEl a' of
         a | Just a == mlvl -> do
