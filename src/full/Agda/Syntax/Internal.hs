@@ -758,9 +758,13 @@ isSort v = case v of
   Sort s -> Just s
   _      -> Nothing
 
-isProp :: Sort -> Bool
-isProp Prop{} = True
-isProp _      = False
+isProp :: LensSort a => a -> Bool
+isProp x = case getSort x of
+             Prop{} -> True
+             _      -> False
+
+isIrrelevantOrProp :: (LensRelevance a, LensSort a) => a -> Bool
+isIrrelevantOrProp x = isIrrelevant x || isProp x
 
 impossibleTerm :: String -> Int -> Term
 impossibleTerm file line = Lit $ LitString noRange $ unlines

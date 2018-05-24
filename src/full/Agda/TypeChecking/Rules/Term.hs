@@ -848,7 +848,7 @@ checkExpr e t0 =
 
     e <- scopedExpr e
 
-    let irrelevantIfProp = if isProp (getSort t)
+    let irrelevantIfProp = if isProp t
                            then applyRelevanceToContext Irrelevant
                            else id
 

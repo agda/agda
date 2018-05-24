@@ -686,7 +686,7 @@ isSingletonRecord' regardIrrelevance r ps = do
     case tel of
       EmptyTel -> return $ Right $ Just []
       ExtendTel dom tel
-        | isIrrelevant dom && regardIrrelevance -> do
+        | isIrrelevantOrProp dom && regardIrrelevance -> do
           underAbstraction dom tel $ \ tel ->
             emap (Arg (domInfo dom) dummyTerm :) <$> check tel
         | otherwise -> do

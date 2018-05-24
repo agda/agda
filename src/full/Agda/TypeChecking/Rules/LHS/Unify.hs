@@ -790,7 +790,7 @@ injectivePragmaStrategy k s = do
 skipIrrelevantStrategy :: Int -> UnifyStrategy
 skipIrrelevantStrategy k s = do
   let Equal a _ _ = getEquality k s
-  guard $ isIrrelevant (domInfo a) || isProp (getSort a)
+  guard $ isIrrelevantOrProp a
   return $ SkipIrrelevantEquation k
 
 
