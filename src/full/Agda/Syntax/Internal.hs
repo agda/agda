@@ -727,6 +727,9 @@ isProp x = case getSort x of
              Prop{} -> True
              _      -> False
 
+isIrrelevantOrProp :: (LensRelevance a, LensSort a) => a -> Bool
+isIrrelevantOrProp x = isIrrelevant x || isProp x
+
 impossibleTerm :: String -> Int -> Term
 impossibleTerm file line = Lit $ LitString noRange $ unlines
   [ "An internal error has occurred. Please report this as a bug."
