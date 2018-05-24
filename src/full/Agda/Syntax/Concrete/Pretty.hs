@@ -627,18 +627,21 @@ prettyOpApp q es = merge [] $ prOp ms xs es
            NoName{}  -> __IMPOSSIBLE__
 
     prOp :: [Name] -> [NamePart] -> [NamedArg (MaybePlaceholder a)] -> [(Doc, Maybe PositionInName)]
-    prOp ms (Hole : xs) (e : es) = (pretty e, case namedArg e of
-                                                Placeholder p -> Just p
-                                                _             -> Nothing) :
-                                   prOp ms xs es
+    prOp ms (Hole : xs) (e : es) =
+      case namedArg e of
+        Placeholder p   -> (qual ms $ pretty e, Just p) : prOp [] xs es
+        NoPlaceholder{} -> (pretty e, Nothing) : prOp ms xs es
+          -- Module qualifier needs to go on section holes (#3072)
     prOp _  (Hole : _)  []       = __IMPOSSIBLE__
-    prOp ms (Id x : xs) es       = ( pretty (foldr Qual (QName (Name noRange $ [Id x])) ms)
+    prOp ms (Id x : xs) es       = ( qual ms $ pretty $ Name noRange $ [Id x]
                                    , Nothing
                                    ) : prOp [] xs es
       -- Qualify the name part with the module.
       -- We then clear @ms@ such that the following name parts will not be qualified.
 
     prOp _  []       es          = map (\e -> (pretty e, Nothing)) es
+
+    qual ms doc = hcat $ punctuate (text ".") $ map pretty ms ++ [doc]
 
     -- Section underscores should be printed without surrounding
     -- whitespace. This function takes care of that.
