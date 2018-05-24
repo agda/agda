@@ -1349,10 +1349,12 @@ recoverPatternSyn applySyn match e fallback = do
   doFold <- asks foldPatternSynonyms
   if not doFold then fallback else do
     psyns  <- lift getAllPatternSyns
+    scope  <- lift getScope
     let isConP ConP{} = True    -- #2828: only fold pattern synonyms with
         isConP _      = False   --        constructor rhs
         cands = [ (q, args, score rhs) | (q, psyndef@(_, rhs)) <- reverse $ Map.toList psyns,
-                                         isConP rhs, Just args <- [match psyndef e] ]
+                                         isConP rhs, Just args <- [match psyndef e],
+                                         isNameInScope q scope ]
         cmp (_, _, x) (_, _, y) = flip compare x y
     case sortBy cmp cands of
       (q, args, _) : _ -> toConcrete $ applySyn q $ (map . fmap) unnamed args
