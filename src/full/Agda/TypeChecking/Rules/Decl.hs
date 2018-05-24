@@ -918,7 +918,7 @@ checkSectionApplication' i m1 (A.RecordModuleIFS x) copyInfo = do
     typeError $ GenericError $ prettyShow (qnameToConcrete name) ++ " is not a parameterised section"
 
   addContext telInst $ do
-    vs <- moduleParamsToApply $ qnameModule name
+    vs <- moduleParamsToApply x
     reportSDoc "tc.mod.apply" 20 $ vcat
       [ nest 2 $ text "vs      =" <+> sep (map prettyTCM vs)
       , nest 2 $ text "args    =" <+> sep (map (parens . prettyTCM) args)
