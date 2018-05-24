@@ -56,10 +56,11 @@ import Agda.Syntax.Abstract.PatternSynonyms
 import Agda.Syntax.Scope.Base
 
 import Agda.TypeChecking.Monad.State (getScope, getAllPatternSyns)
-import Agda.TypeChecking.Monad.Base  (TCM, NamedMeta(..), stBuiltinThings, BuiltinThings, Builtin(..))
+import Agda.TypeChecking.Monad.Base  (TCM, NamedMeta(..), stBuiltinThings, BuiltinThings, Builtin(..), pragmaOptions)
 import Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Monad.Options
 import Agda.TypeChecking.Monad.Builtin
+import Agda.Interaction.Options
 
 import qualified Agda.Utils.AssocList as AssocList
 import Agda.Utils.Either
@@ -100,12 +101,13 @@ makeEnv scope = do
                  noScopeCheck b || isNameInScope q scope -> return [(b, q)]
         _                                                -> return []
   builtinList <- concat <$> mapM builtin [ builtinFromNat, builtinFromString, builtinFromNeg, builtinZero, builtinSuc ]
+  foldPatSyns <- optPrintPatternSynonyms <$> pragmaOptions
   return $
     Env { takenNames   = Set.union vars defs
         , currentScope = scope
         , builtins     = Map.fromList builtinList
         , preserveIIds = False
-        , foldPatternSynonyms = True
+        , foldPatternSynonyms = foldPatSyns
         }
   where
     vars  = Set.fromList $ map fst $ scopeLocals scope

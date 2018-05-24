@@ -397,6 +397,11 @@ Pragmas and options
   unsatisfiable constraints [Issue [#431](https://github.com/agda/agda/issues/431)].
   This option is only expected to be necessary in pathological cases.
 
+* New option `--no-print-pattern-synonyms`.
+
+  This disables the use of pattern synonyms in output from Agda.
+  See [Issue [#2902](https://github.com/agda/agda/issues/2902)] for situations
+  where this might be desirable.
 
 * New fine-grained control over the warning machinery: ability to (en/dis)able
   warnings on a one-by-one basis.
