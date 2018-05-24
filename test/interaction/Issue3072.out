@@ -1,0 +1,6 @@
+(agda2-status-action "")
+(agda2-info-action "*Type-checking*" "" nil)
+(agda2-highlight-clear)
+(agda2-status-action "")
+(agda2-info-action "*All Goals*" "?0 : R (C._∘ id) ?1 : R (id C.∘_) " nil)
+((last . 1) . (agda2-goals-action '(0 1)))
