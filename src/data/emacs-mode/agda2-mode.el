@@ -986,7 +986,8 @@ Assumes that <clause> = {!<variables>!} is on one line."
   "Display the string STATUS in the current buffer's mode line.
 \(precondition: the current buffer has to use the Agda mode as the
 major mode)."
-  (setq agda2-buffer-external-status status))
+  (setq agda2-buffer-external-status status)
+  (force-mode-line-update))
 
 (defmacro agda2-warning-or-info-buffer (buffer kind title)
   "Used to define the functions agda2-warning-buffer and agda2-info-buffer."
