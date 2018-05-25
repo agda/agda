@@ -6,4 +6,3 @@
 ((last . 1) . (agda2-goals-action '(0 1 2)))
 (agda2-status-action "")
 (agda2-info-action "*Constraints*" "_28 := λ .n → _27 .n [blocked by problem 51] [51] _25 := λ .n → ?2 .n [blocked by problem 52] [51] _23 := λ .n → ∞ [blocked by problem 52] [51,52] (f ∞ (?2 .n)) = (f ∞ .n) : X [51,53] (h ∞ (?2 .n)) = (h ∞ .n) : P (f ∞ (_26 .n)) " nil)
-((last . 1) . (agda2-goals-action '(0 1 2)))

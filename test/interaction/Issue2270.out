@@ -14,7 +14,5 @@
 ((last . 1) . (agda2-goals-action '(4 5 2 3)))
 (agda2-status-action "")
 (agda2-info-action "*Current Goal*" "μ (_+ A)" nil)
-((last . 1) . (agda2-goals-action '(4 5 2 3)))
 (agda2-status-action "")
 (agda2-info-action "*Current Goal*" "μ (λ section → section + A)" nil)
-((last . 1) . (agda2-goals-action '(4 5 2 3)))

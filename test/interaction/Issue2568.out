@@ -6,4 +6,3 @@
 ((last . 1) . (agda2-goals-action '(0)))
 (agda2-status-action "")
 (agda2-info-action "*Inferred Type*" "T _a_5" nil)
-((last . 1) . (agda2-goals-action '(0)))

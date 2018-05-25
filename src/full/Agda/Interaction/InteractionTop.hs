@@ -708,8 +708,40 @@ independent _                               = False
 -- run?
 
 updateInteractionPointsAfter :: Interaction -> Bool
-updateInteractionPointsAfter Cmd_tokenHighlighting{} = False
-updateInteractionPointsAfter _                       = True
+updateInteractionPointsAfter Cmd_load{}                          = True
+updateInteractionPointsAfter Cmd_compile{}                       = True
+updateInteractionPointsAfter Cmd_constraints{}                   = False
+updateInteractionPointsAfter Cmd_metas{}                         = False
+updateInteractionPointsAfter Cmd_show_module_contents_toplevel{} = False
+updateInteractionPointsAfter Cmd_search_about_toplevel{}         = False
+updateInteractionPointsAfter Cmd_solveAll{}                      = True
+updateInteractionPointsAfter Cmd_solveOne{}                      = True
+updateInteractionPointsAfter Cmd_infer_toplevel{}                = False
+updateInteractionPointsAfter Cmd_compute_toplevel{}              = False
+updateInteractionPointsAfter Cmd_load_highlighting_info{}        = False
+updateInteractionPointsAfter Cmd_tokenHighlighting{}             = False
+updateInteractionPointsAfter Cmd_highlight{}                     = True
+updateInteractionPointsAfter ShowImplicitArgs{}                  = False
+updateInteractionPointsAfter ToggleImplicitArgs{}                = False
+updateInteractionPointsAfter Cmd_give{}                          = True
+updateInteractionPointsAfter Cmd_refine{}                        = True
+updateInteractionPointsAfter Cmd_intro{}                         = True
+updateInteractionPointsAfter Cmd_refine_or_intro{}               = True
+updateInteractionPointsAfter Cmd_auto{}                          = True
+updateInteractionPointsAfter Cmd_context{}                       = False
+updateInteractionPointsAfter Cmd_helper_function{}               = False
+updateInteractionPointsAfter Cmd_infer{}                         = False
+updateInteractionPointsAfter Cmd_goal_type{}                     = False
+updateInteractionPointsAfter Cmd_goal_type_context{}             = False
+updateInteractionPointsAfter Cmd_goal_type_context_infer{}       = False
+updateInteractionPointsAfter Cmd_goal_type_context_check{}       = False
+updateInteractionPointsAfter Cmd_show_module_contents{}          = False
+updateInteractionPointsAfter Cmd_make_case{}                     = True
+updateInteractionPointsAfter Cmd_compute{}                       = False
+updateInteractionPointsAfter Cmd_why_in_scope{}                  = False
+updateInteractionPointsAfter Cmd_why_in_scope_toplevel{}         = False
+updateInteractionPointsAfter Cmd_show_version{}                  = False
+updateInteractionPointsAfter Cmd_abort{}                         = False
 
 -- | Interpret an interaction
 

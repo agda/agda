@@ -6,4 +6,3 @@
 ((last . 1) . (agda2-goals-action '()))
 (agda2-status-action "Checked")
 (agda2-info-action "*Inferred Type*" "Identity (_+ 0)" nil)
-((last . 1) . (agda2-goals-action '()))

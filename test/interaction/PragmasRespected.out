@@ -6,7 +6,6 @@
 ((last . 1) . (agda2-goals-action '()))
 (agda2-status-action "Checked,ShowImplicit")
 (agda2-info-action "*Inferred Type*" "Foo {Set}" nil)
-((last . 1) . (agda2-goals-action '()))
 (agda2-status-action "")
 (agda2-info-action "*Type-checking*" "" nil)
 (agda2-highlight-clear)
@@ -15,4 +14,3 @@
 ((last . 1) . (agda2-goals-action '()))
 (agda2-status-action "Checked,ShowImplicit")
 (agda2-info-action "*Inferred Type*" "Foo {Set}" nil)
-((last . 1) . (agda2-goals-action '()))
