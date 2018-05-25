@@ -529,14 +529,6 @@ checkExtendedLambda i di qname cs e t = do
            (defaultDefn info qname t emptyFunction) { defMutual = j }
        checkFunDef' t info NotDelayed (Just $ ExtLamInfo lamMod) Nothing di qname cs
        return $ Def qname $ map Apply args)
-     `catchIlltypedPatternBlockedOnMeta` \ (err, x) -> do
-       -- We could not check the extended lambda because we are blocked on a meta.
-       -- It has to be blocked on some meta, so we can postpone,
-       -- being sure it will be retried when a meta is solved
-       -- (which might be the blocking meta in which case we actually make progress).
-       reportSDoc "tc.term.exlam" 50 $ vcat $
-         [ text "checking extended lambda got stuck on meta: " <+> text (show x) ]
-       postponeTypeCheckingProblem (CheckExpr e t) $ isInstantiatedMeta x
   where
     -- Concrete definitions cannot use information about abstract things.
     abstract ConcreteDef = inConcreteMode
@@ -957,6 +949,15 @@ checkExpr e t0 =
 
         -- Application
         _   | Application hd args <- appView e -> checkApplication hd args e t
+
+      `catchIlltypedPatternBlockedOnMeta` \ (err, x) -> do
+        -- We could not check the term because the type of some pattern is blocked.
+        -- It has to be blocked on some meta, so we can postpone,
+        -- being sure it will be retried when a meta is solved
+        -- (which might be the blocking meta in which case we actually make progress).
+        reportSDoc "tc.term" 50 $ vcat $
+          [ text "checking pattern got stuck on meta: " <+> text (show x) ]
+        postponeTypeCheckingProblem (CheckExpr e t) $ isInstantiatedMeta x
 
   where
   -- | Call checkExpr with an hidden lambda inserted if appropriate,
