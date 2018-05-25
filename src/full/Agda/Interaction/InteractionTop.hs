@@ -342,7 +342,9 @@ runInteraction (IOTCM current highlighting highlightingMethod cmd) =
     withCurrentFile $ interpret cmd
 
     cf <- gets theCurrentFile
-    when (Just current == (fst <$> cf)) $
+    when (updateInteractionPointsAfter cmd
+            &&
+          Just current == (fst <$> cf)) $
         putResponse . Resp_InteractionPoints =<< gets theInteractionPoints
 
   where
@@ -701,6 +703,13 @@ independent (Cmd_load_highlighting_info {}) = True
 independent Cmd_tokenHighlighting {}        = True
 independent Cmd_show_version                = True
 independent _                               = False
+
+-- | Should 'Resp_InteractionPoints' be issued after the command has
+-- run?
+
+updateInteractionPointsAfter :: Interaction -> Bool
+updateInteractionPointsAfter Cmd_tokenHighlighting{} = False
+updateInteractionPointsAfter _                       = True
 
 -- | Interpret an interaction
 
