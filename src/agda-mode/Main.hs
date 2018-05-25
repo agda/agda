@@ -147,6 +147,7 @@ setupString files = unlines
   , "(load-file (let ((coding-system-for-read 'utf-8))"
   , "                (shell-command-to-string \""
                         ++ identifier files ++ "\")))"
+  , "(require 'agda2-mode)"
   ]
 
 ------------------------------------------------------------------------
