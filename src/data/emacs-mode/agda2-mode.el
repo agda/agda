@@ -447,7 +447,7 @@ agda2-include-dirs is not bound." :warning))
        (error (error "Unable to change the font; change agda2-fontset-name or tweak agda2-fontset-spec-of-fontset-agda2"))))
  ;; Deactivate highlighting if the buffer is edited before
  ;; typechecking is complete.
- (add-hook 'first-change-hook 'agda2-abort-highlighting nil 'local)
+ (add-hook 'after-change-functions 'agda2-abort-highlighting nil 'local)
  ;; If Agda is not running syntax highlighting does not work properly.
  (unless (eq 'run (agda2-process-status))
    (agda2-restart))
@@ -759,9 +759,9 @@ reloaded from `agda2-highlighting-file', unless
   (unless agda2-in-progress
       (setq agda2-highlight-in-progress nil)))
 
-(defun agda2-abort-highlighting nil
+(defun agda2-abort-highlighting (beg end len)
   "Abort any interactive highlighting.
-This function should be used in `first-change-hook'."
+This function should be used in `after-change-functions'."
   (when agda2-highlight-in-progress
     (setq agda2-highlight-in-progress nil)
     (message "\"%s\" has been modified. Interrupting highlighting."
@@ -1231,7 +1231,7 @@ is inserted, and point is placed before this text."
     (cancel-timer agda2-highlight-after-inactivity-timer))
   (remove-hook 'after-change-functions
                'agda2-highlight-after-inactivity 'local)
-  (remove-hook 'first-change-hook 'agda2-abort-highlighting 'local)
+  (remove-hook 'after-change-functions 'agda2-abort-highlighting 'local)
   (remove-hook 'after-save-hook 'agda2-highlight-tokens 'local)
   (agda2-remove-annotations)
   (agda2-term))
