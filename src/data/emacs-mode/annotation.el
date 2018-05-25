@@ -194,6 +194,7 @@ with)."
 (defmacro annotation-preserve-mod-p-and-undo (&rest code)
   "Run CODE preserving both the undo data and the modification bit.
 Modification hooks are also disabled."
+  (declare (debug (&rest form)))
   (let ((modp (make-symbol "modp")))
   `(let ((,modp (buffer-modified-p))
          ;; Don't check if the file is being modified by some other process.

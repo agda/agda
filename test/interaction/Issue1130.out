@@ -6,7 +6,5 @@
 ((last . 1) . (agda2-goals-action '(0 1)))
 (agda2-status-action "")
 (agda2-info-action-and-copy "*Helper function*" "id' : ∀ {A} → A → A " nil)
-((last . 1) . (agda2-goals-action '(0 1)))
 (agda2-status-action "")
 (agda2-info-action-and-copy "*Helper function*" "g : ∀ A (a : A) {B : A → Set} → B a " nil)
-((last . 1) . (agda2-goals-action '(0 1)))

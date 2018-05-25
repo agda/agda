@@ -37,27 +37,27 @@ prompt = "Agda2> "
 -- dependency on the Agda library.
 
 command
-  :: String         -- ^ The name of the command (minus @Cmd_@).
-  -> FilePath       -- ^ The file to operate on.
-  -> Maybe String   -- ^ Non-default highlighting arguments.
-  -> Maybe [String] -- ^ Optional arguments to the command (other than
-                    --   the file name).
+  :: String       -- ^ The name of the command (minus @Cmd_@).
+  -> FilePath     -- ^ The file to operate on.
+  -> Maybe String -- ^ Non-default highlighting arguments.
+  -> Maybe String -- ^ Optional arguments to the command (including
+                  --   the file name, if required).
   -> String
 command cmd f mHigh mArgs =
   "IOTCM " ++ show f ++ " " ++ high ++ " " ++
-    "(Cmd_" ++ cmd ++ " " ++ show f ++ args ++ ")"
+    "(Cmd_" ++ cmd ++ " " ++ args ++ ")"
   where
   high = case mHigh of
     Nothing -> "None Indirect"
     Just h  -> h
   args = case mArgs of
     Nothing   -> ""
-    Just args -> " " ++ showList args ""
+    Just args -> " " ++ args
 
 -- | Constructs a (certain kind of) "load" command from a file name.
 
 loadCommand :: FilePath -> String
-loadCommand f = command "load" f Nothing (Just [])
+loadCommand f = command "load" f Nothing (Just $ show f ++ "[]")
 
 -- | Reads at most the given number of characters from the given
 -- handle. Stops reading if a newline character is encountered, and in

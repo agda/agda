@@ -6,4 +6,3 @@
 ((last . 1) . (agda2-goals-action '()))
 (agda2-status-action "")
 (agda2-info-action "*Constraints*" "_5 := foo [blocked by problem 3] [3] _3 =< Set : _2 _2 = Set₁ (piSort Set (λ _ → _2)) = Set₁ " nil)
-((last . 1) . (agda2-goals-action '()))

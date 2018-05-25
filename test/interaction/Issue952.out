@@ -6,4 +6,3 @@
 ((last . 1) . (agda2-goals-action '(0)))
 (agda2-status-action "")
 (agda2-info-action "*Inferred Type*" "{A = A₁ : Set₁} {B = B₁ : Set₁} (C₁ : Set) → C₁ → C₁" nil)
-((last . 1) . (agda2-goals-action '(0)))
