@@ -12,7 +12,9 @@ main :: IO ()
 main = runAgda [] $ \(AgdaCommands { .. }) -> do
 
   let load = do
-        send $ command "load" file (Just "Interactive Direct") (Just [])
+        send $ command "load" file
+                       (Just "Interactive Direct")
+                       (Just $ show file ++ " []")
         echoUntilPrompt
 
   -- Discard the first prompt.

@@ -68,7 +68,8 @@ main = runAgda [] $ \(AgdaCommands { .. }) -> do
   -- Load the main module (with caching turned on), add some more
   -- lines of code, and reload the module.
   let loadBug = do
-        send $ command "load" mainFile Nothing (Just ["--caching"])
+        send $ command "load" mainFile Nothing
+                 (Just $ show mainFile ++ " " ++ show ["--caching"])
         echoUntilPrompt
   loadBug
   writeUTF8File mainFile incorrectCode
