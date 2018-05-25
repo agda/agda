@@ -35,7 +35,8 @@ main = runAgda [] $ \(AgdaCommands { .. }) -> do
   -- moduleToSource map for lib, and this should not cause an internal
   -- error.
   send $ command "load_highlighting_info" badFile
-           (Just "NonInteractive Indirect") Nothing
+           (Just "NonInteractive Indirect")
+           (Just $ show badFile)
   echoUntilPrompt
 
   -- Clean up.
