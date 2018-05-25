@@ -70,16 +70,22 @@ CABAL_INSTALL_BIN_OPTS = --disable-library-profiling \
 CABAL_CONFIGURE_OPTS = $(SLOW_CABAL_INSTALL_OPTS) \
                        $(CABAL_INSTALL_BIN_OPTS)
 
+# Ensures that the Git hash that is sometimes displayed by --version
+# is correct (#2988).
+.PHONY : ensure-hash-is-correct
+ensure-hash-is-correct :
+	touch src/full/Agda/VersionCommit.hs
+
 .PHONY : quick-install-bin
-quick-install-bin :
+quick-install-bin : ensure-hash-is-correct
 	$(QUICK_CABAL_INSTALL) $(CABAL_INSTALL_BIN_OPTS)
 
 .PHONY : install-bin
-install-bin :
+install-bin : ensure-hash-is-correct
 	$(CABAL_INSTALL) $(CABAL_INSTALL_BIN_OPTS)
 
 .PHONY : install-prof-bin
-install-prof-bin :
+install-prof-bin : ensure-hash-is-correct
 	$(CABAL_INSTALL) --enable-library-profiling --enable-profiling \
           --program-suffix=_p $(CABAL_INSTALL_OPTS)
 
@@ -90,7 +96,7 @@ install-prof-bin :
 # is used. The suffix "-debug" is used for the binaries.
 
 .PHONY : install-debug
-install-debug :
+install-debug : ensure-hash-is-correct
 	$(CABAL_INSTALL) --disable-library-profiling \
         -fdebug --program-suffix=-debug --builddir=$(BUILD_DIR)-debug \
         $(CABAL_INSTALL_OPTS)
@@ -140,7 +146,7 @@ user-manual-linkcheck :
 
 ## Making the full language ###############################################
 
-$(AGDA_BIN):
+$(AGDA_BIN): ensure-hash-is-correct
 	$(CABAL_CMD) build $(CABAL_OPTS)
 
 .PHONY : full
@@ -389,7 +395,7 @@ install-agda-bisect :
 # HPC
 
 .PHONY: hpc-build
-hpc-build:
+hpc-build: ensure-hash-is-correct
 	$(CABAL_CMD) clean $(CABAL_OPTS)
 	$(CABAL_CMD) configure --enable-library-coverage $(CABAL_INSTALL_OPTS)
 	$(CABAL_CMD) build $(CABAL_OPTS)
