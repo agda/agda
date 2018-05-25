@@ -383,13 +383,22 @@ applySection' new ptel old ts ScopeCopyInfo{ renNames = rd, renModules = rm } = 
     copyDef ts (x, y) = do
       def <- getConstInfo x
       np  <- argsToUse (qnameModule x)
-      copyDef' np def
+      -- Issue #3083: We need to use the hiding from the telescope of the
+      -- original module. This can be different than the hiding for the common
+      -- parent in the case of record modules.
+      hidings <- map getHiding . telToList <$> lookupSection (qnameModule x)
+      let ts' = zipWith setHiding hidings ts
+      commonTel <- lookupSection (commonParentModule old $ qnameModule x)
+      reportSLn "tc.mod.apply" 80 $ init $ unlines
+        [ "copyDef " ++ prettyShow x ++ " -> " ++ prettyShow y
+        , "ts' = " ++ prettyShow ts' ]
+      copyDef' ts' np def
       where
-        copyDef' np d = do
+        copyDef' ts np d = do
           reportSLn "tc.mod.apply" 60 $ "making new def for " ++ prettyShow y ++ " from " ++ prettyShow x ++ " with " ++ show np ++ " args " ++ show (defAbstract d)
-          reportSLn "tc.mod.apply" 80 $
-            "args = " ++ show ts' ++ "\n" ++
-            "old type = " ++ prettyShow (defType d)
+          reportSLn "tc.mod.apply" 80 $ init $ unlines
+            [ "args = " ++ show ts'
+            , "old type = " ++ prettyShow (defType d) ]
           reportSLn "tc.mod.apply" 80 $
             "new type = " ++ prettyShow t
           addConstant y =<< nd y
