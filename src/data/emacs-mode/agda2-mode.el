@@ -10,7 +10,7 @@
 
 ;;; Code:
 
-(defvar agda2-version "2.5.3.20180519"
+(defvar agda2-version "2.5.3.20180526"
   "The version of the Agda mode.
 Note that the same version of the Agda executable must be used.")
 
