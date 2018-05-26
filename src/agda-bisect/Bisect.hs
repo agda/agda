@@ -37,7 +37,8 @@ defaultFlags =
   , "--no-libraries"
   ]
 
--- | The path to the compiled Agda executable.
+-- | The path to the compiled Agda executable. (If caching is not
+-- enabled.)
 
 compiledAgda :: FilePath
 compiledAgda = ".cabal-sandbox/bin/agda"
@@ -49,10 +50,12 @@ data Options = Options
   , mustOutput, mustNotOutput :: [String]
   , mustFinishWithin          :: Maybe Int
   , extraArguments            :: Bool
+  , compiler                  :: Maybe String
   , cabalOptions              :: [String]
   , skipStrings               :: [String]
   , onlyOnBranches            :: [String]
   , skipBranches              :: [String]
+  , cacheBuilds               :: Bool
   , logFile                   :: Maybe String
   , start                     :: Either FilePath (String, String)
   , dryRun                    :: Maybe (Either FilePath String)
@@ -103,19 +106,17 @@ options =
     <*> (not <$>
          switch (long "no-extra-arguments" <>
                  help "Do not give any extra arguments to Agda"))
-    <*> ((\mc opts ->
-             maybe [] (\c -> ["--with-compiler=" ++ c]) mc ++ opts) <$>
-         optional
-           (strOption (long "compiler" <>
-                       help "Use COMPILER to compile Agda" <>
-                       metavar "COMPILER" <>
-                       action "command")) <*>
-         many
-           (strOption (long "cabal-option" <>
-                       help "Additional option given to cabal install" <>
-                       metavar "OPTION" <>
-                       completer (commandCompleter "cabal"
-                                    ["install", "--list-options"]))))
+    <*> optional
+          (strOption (long "compiler" <>
+                      help "Use COMPILER to compile Agda" <>
+                      metavar "COMPILER" <>
+                      action "command"))
+    <*> many
+          (strOption (long "cabal-option" <>
+                      help "Additional option given to cabal install" <>
+                      metavar "OPTION" <>
+                      completer (commandCompleter "cabal"
+                                   ["install", "--list-options"])))
     <*> ((\skip -> if skip then ciSkipStrings else []) <$>
          switch (long "skip-skipped" <>
                  help ("Skip commits with commit messages " ++
@@ -132,6 +133,8 @@ options =
                          help "Skip commits that are on BRANCH" <>
                          metavar "BRANCH" <>
                          completer branchCompleter))
+    <*> switch (long "cache" <>
+                help "Cache builds")
     <*> optional
           (strOption (long "log" <>
                       help "Store a git bisect log in FILE" <>
@@ -222,6 +225,18 @@ options =
         , "Agda executable as the first argument. Note that usual"
         , "platform conventions (like the PATH) are used to determine"
         , "what program PROGRAM refers to."
+        ]
+
+    , paragraph
+        [ "If --cache is used then compiled binaries are cached, and if"
+        , "the current commit has already been cached, then it is not"
+        , "rebuilt. An attempt is made to copy data files, but this"
+        , "attempt could fail (and in that case the bisection process"
+        , "is not interrupted). The library is not installed, tests"
+        , "that rely on the Agda library should not use this option."
+        , "Note that no attempt is made to control the bisection"
+        , "process so that cached commits are preferred over other"
+        , "ones."
         ]
 
     , paragraph
@@ -402,10 +417,9 @@ data Result = Good | Bad | Skip
 installAndRunAgda :: Options -> IO Result
 installAndRunAgda opts = do
   ok <- installAgda opts
-  if not ok then
-    return Skip
-   else
-    runAgda compiledAgda opts
+  case ok of
+    Nothing   -> return Skip
+    Just agda -> runAgda agda opts
 
 -- | Runs Agda. Returns 'True' iff the result is satisfactory.
 
@@ -494,33 +508,84 @@ runAgda agda opts = do
   indent = unlines . map ("  " ++) . lines
 
 -- | Tries to install Agda.
+--
+-- If the installation is successful, then the path to the Agda binary
+-- is returned.
 
-installAgda :: Options -> IO Bool
-installAgda opts =
-  uncurry bracket_ makeBuildEasier $ do
-    ok <- cabalInstall opts "Agda.cabal"
-    if not ok then
-      return False
-     else do
-      let executable = "src/main/Agda-executable.cabal"
-      exists <- doesFileExist executable
-      if exists then
-        cabalInstall opts executable
-       else
-        return True
+installAgda :: Options -> IO (Maybe FilePath)
+installAgda opts
+  | cacheBuilds opts = do
+      commit <- currentCommit
+      let agda = cachedAgda commit
+      exists <- doesFileExist agda
+      if not exists then install else do
+        copyDataFiles opts
+        return (Just agda)
+  | otherwise = install
+  where
+  install =
+    uncurry bracket_ makeBuildEasier $ do
+      ok <- cabalInstall opts "Agda.cabal"
+      case ok of
+        Nothing -> return ok
+        Just _  -> do
+          let executable = "src/main/Agda-executable.cabal"
+          exists <- doesFileExist executable
+          if exists then
+            cabalInstall opts executable
+           else
+            return ok
 
 -- | Tries to install the package in the given cabal file.
+--
+-- If the installation is successful, then the path to the Agda binary
+-- is returned (on the assumption that the built package includes a
+-- binary called @agda@).
 
-cabalInstall :: Options -> FilePath -> IO Bool
-cabalInstall opts file =
-  callProcessWithResult "cabal" $
+cabalInstall :: Options -> FilePath -> IO (Maybe FilePath)
+cabalInstall opts file = do
+  commit <- currentCommit
+  ok <- callProcessWithResult "cabal" $
     [ "install"
     , "--force-reinstalls"
     , "--disable-library-profiling"
     , "--disable-documentation"
-    ] ++ cabalOptions opts ++
+    ] ++ (if cacheBuilds opts then ["--program-suffix=-" ++ commit]
+                              else [])
+      ++ compilerFlag opts
+      ++ cabalOptions opts ++
     [ file
     ]
+  return $
+    case (ok, cacheBuilds opts) of
+      (True, False) -> Just compiledAgda
+      (True, True)  -> Just (cachedAgda commit)
+      (False, _)    -> Nothing
+
+-- | Tries to copy data files to the correct location.
+--
+-- This command is somewhat brittle. It relies on @cabal copy@ copying
+-- data files before possibly failing to copy other files, and it
+-- ignores the exit codes of the programs it calls.
+
+copyDataFiles :: Options -> IO ()
+copyDataFiles opts = do
+  callProcessWithResult "cabal" (["configure"] ++ compilerFlag opts)
+  callProcessWithResult "cabal" ["copy", "-v"]
+  return ()
+
+-- | The path to the cached Agda binary (if any) for a certain commit.
+
+cachedAgda :: String -> FilePath
+cachedAgda commit = compiledAgda ++ "-" ++ commit
+
+-- | Generates a @--with-compiler=…@ flag if the user has specified
+-- that a specific compiler should be used.
+
+compilerFlag :: Options -> [String]
+compilerFlag opts = case compiler opts of
+  Nothing -> []
+  Just c  -> ["--with-compiler=" ++ c]
 
 -- | The first command tries to increase the chances that Agda will
 -- build. The second command undoes any changes performed to the
