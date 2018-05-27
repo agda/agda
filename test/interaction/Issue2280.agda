@@ -3,7 +3,7 @@
 -- (Issue discovered by code review.)
 
 open import Common.Equality
-open import Common.Sigma
+open import Common.Product
 
 data Bool : Set where
   true false : Bool

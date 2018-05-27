@@ -1,7 +1,7 @@
 {-# OPTIONS -v tc.with.display:30 #-}
 -- {-# OPTIONS -v tc.with.strip:30 #-}
 
-open import Common.Sigma
+open import Common.Product
 open import Common.Prelude
 open import Common.Equality
 

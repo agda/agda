@@ -5,7 +5,7 @@
 
 module _ where
 
-open import Common.Sigma
+open import Common.Product
 
 -- No inverse should be created for swap by
 -- checkInjectivity, since we are dealing with a record constructor.

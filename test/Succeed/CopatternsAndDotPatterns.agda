@@ -4,7 +4,7 @@
 -- {-# OPTIONS -v tc.cover.splittree:15 -v tc.cc:15 #-}
 
 open import Common.Level
-open import Common.Sigma
+open import Common.Product
 
 mutual
   data Delay (A : Set) : Set where

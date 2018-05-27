@@ -5,7 +5,7 @@
 
 open import Common.Equality
 open import Common.Prelude
-open import Common.Sigma
+open import Common.Product
 
 thing : Bool → Bool × Bool
 proj₁ (thing true) = false

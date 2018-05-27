@@ -4,7 +4,7 @@
 -- {-# OPTIONS -v tc.pos.occ:70  #-}
 
 open import Common.Prelude
-open import Common.Sigma
+open import Common.Product
 
 dup : (b : Bool) (X : Set) → Set × Set
 dup true  X = (X → X) , X

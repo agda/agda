@@ -6,7 +6,7 @@
 module ProjectionNotNormalized where
 
 open import Common.Level renaming (lsuc to suc)
-open import Common.Sigma
+open import Common.Product
 open Σ public
 
 record Setoid c ℓ : Set (suc (c ⊔ ℓ)) where

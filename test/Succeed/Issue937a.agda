@@ -6,7 +6,7 @@ module Issue937a where
 
 open import Common.Prelude
 open import Common.Equality
-open import Common.Sigma
+open import Common.Product
 
 T : (b : Bool) → Set
 T true = Nat

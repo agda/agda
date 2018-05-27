@@ -9,7 +9,7 @@
 
 module Issue1999 where
 
-import Common.Sigma as P using (_×_ ; proj₂)
+import Common.Product as P using (_×_ ; proj₂)
 
 module One (A : Set) where
   open P public

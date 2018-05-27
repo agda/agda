@@ -1,4 +1,4 @@
-open import Common.Sigma
+open import Common.Product
 open import Agda.Builtin.Equality
 
 data ⊥ : Set where

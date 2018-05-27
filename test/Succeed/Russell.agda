@@ -3,7 +3,7 @@
 {-# OPTIONS --without-K --type-in-type #-}
 module Russell where
 
-open import Common.Sigma
+open import Common.Product
 open import Common.Equality
 
 data ⊥ : Set where

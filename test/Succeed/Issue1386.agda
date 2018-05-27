@@ -4,7 +4,7 @@
 -- Andreas, 2014-12-07 found a bug in pruning
 
 open import Common.Prelude
-open import Common.Sigma
+open import Common.Product
 open import Common.Equality
 
 postulate
