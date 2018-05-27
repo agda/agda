@@ -1,7 +1,7 @@
 -- As reported by Andreas on 2017-01-23
 
 open import Common.Equality
-open import Common.Sigma
+open import Common.Product
 
 data Bool : Set where
   true false : Bool

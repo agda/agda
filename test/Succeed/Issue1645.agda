@@ -1,6 +1,6 @@
 -- Andreas, 2015-09-12
 
-open import Common.Sigma
+open import Common.Product
 open import Common.Equality
 
 module _ (A : Set) where

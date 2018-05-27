@@ -7,7 +7,7 @@
 module _ where
 
 open import Common.Equality
-open import Common.Sigma
+open import Common.Product
 
 module SynchronousIO (I O : Set) where
 

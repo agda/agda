@@ -1,4 +1,4 @@
-module Common.Sigma where
+module Common.Product where
 
 open import Common.Level
 

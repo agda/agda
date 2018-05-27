@@ -9,7 +9,7 @@
 
 -- {-# OPTIONS -v tc.pos:10 #-}
 
-open import Common.Sigma
+open import Common.Product
 open import Common.List
 
 record ⊤ {a} : Set a where

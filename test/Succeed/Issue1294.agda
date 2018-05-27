@@ -3,7 +3,7 @@
 {-# OPTIONS --copatterns #-}
 
 import Common.Level
-open import Common.Sigma
+open import Common.Product
 
 postulate Nat : Set
 

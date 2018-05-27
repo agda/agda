@@ -2,7 +2,7 @@ open import Agda.Builtin.List
 open import Agda.Builtin.Nat
 open import Agda.Builtin.Reflection
 open import Agda.Builtin.Unit
-open import Common.Sigma
+open import Common.Product
 
 {-# TERMINATING #-}
 

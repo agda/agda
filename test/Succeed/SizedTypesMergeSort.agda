@@ -4,7 +4,7 @@ module SizedTypesMergeSort where
 
 open import Common.Size
 open import Common.Prelude using (Bool; true; false; if_then_else_)
-open import Common.Sigma
+open import Common.Product
 
 module Old where
 

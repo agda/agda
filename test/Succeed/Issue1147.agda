@@ -4,7 +4,7 @@
 module Succeed.Issue1147 where
 
 open import Common.Equality
-open import Common.Sigma
+open import Common.Product
 open import Common.Prelude
 
 postulate

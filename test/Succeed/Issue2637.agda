@@ -11,7 +11,7 @@
 module _ (Z : Set) where
 
 open import Common.Size
-open import Common.Sigma
+open import Common.Product
 
 postulate
   map    : (A B C : Set) → (A → C) → A × B → C × B

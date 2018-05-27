@@ -3,7 +3,7 @@
 module _ where
 
 open import Common.Equality
-open import Common.Sigma
+open import Common.Product
 
 postulate
   A : Set

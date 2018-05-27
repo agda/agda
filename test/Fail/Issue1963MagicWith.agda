@@ -6,7 +6,7 @@
 -- {-# OPTIONS -v tc.cc:60 #-}
 -- {-# OPTIONS -v tc.conv.elim:50 #-}
 
-open import Common.Sigma
+open import Common.Product
 open import Common.Nat
 
 record True  : Set where

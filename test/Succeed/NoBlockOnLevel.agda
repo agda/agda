@@ -3,7 +3,7 @@
 module NoBlockOnLevel where
 
 open import Common.Level
-open import Common.Sigma
+open import Common.Product
 
 BSetoid : ∀ c → Set (lsuc c)
 BSetoid c = Set c
