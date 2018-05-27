@@ -1,7 +1,7 @@
 -- Andreas, 2015-06-24 Parsing of forall should be like lambda
 
 open import Common.Prelude
-open import Common.Sigma
+open import Common.Product
 
 test : ⊤ × ∀ (B : Set) → B → B  -- should parse
 test = _ , λ B b → b

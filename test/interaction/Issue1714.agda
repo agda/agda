@@ -3,7 +3,7 @@
 
 module _ where
 
-import Common.Sigma as Prod hiding (proj₁) -- proj₁ should be highlighted as field
+import Common.Product as Prod hiding (proj₁) -- proj₁ should be highlighted as field
 
 open Prod using (_×_)                        -- _×_ should be highlighted as record type
 

@@ -6,7 +6,7 @@ module Issue907a where
 
 import Common.Level
 open import Common.Prelude
-open import Common.Sigma
+open import Common.Product
 
 data Vec (A : Set) : Nat → Set where
   [] : Vec A zero

@@ -1,7 +1,7 @@
 {-# OPTIONS --without-K #-}
 open import Common.Prelude
 open import Common.Equality
-open import Common.Sigma
+open import Common.Product
 
 data _≅_ {A : Set} (a : A) : {B : Set} (b : B) → Set where
   refl : a ≅ a

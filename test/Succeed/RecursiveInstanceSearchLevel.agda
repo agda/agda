@@ -1,7 +1,7 @@
 module Succeed.RecursiveInstanceSearchLevel where
 
 open import Common.Prelude
-open import Common.Sigma
+open import Common.Product
 open import Common.Equality
 
 -- Definition of truncation levels. We wrap the definition into a datatype in

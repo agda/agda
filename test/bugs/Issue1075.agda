@@ -13,7 +13,7 @@
 module Issue1075 where
 
 open import Common.Prelude renaming (Nat to ℕ) hiding (map; length)
-open import Common.Sigma
+open import Common.Product
 open import Common.Sum
 open import Common.Equality
 

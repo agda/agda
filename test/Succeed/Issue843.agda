@@ -2,7 +2,7 @@
 -- Andreas, 2013-05-06 deep let-bound patterns were translated wrongly
 module Issue843 {A B C : Set} (a : A) (b : B) (c : C) where
 
-open import Common.Sigma
+open import Common.Product
 open import Common.Equality
 
 T : Set
