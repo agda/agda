@@ -1,0 +1,6 @@
+Issue3090-end-of-comment.agda:4,24-24
+Issue3090-end-of-comment.agda:4,24: in the name -}, the part -} is not valid because it is the end-of-comment brace
+#-}<ERROR>
+
+
+-- Should fail with a parse ...

@@ -1,0 +1,6 @@
+Issue3090-as.agda:4,23-23
+Issue3090-as.agda:4,23: in the name @, the part @ is not valid because it is used for as-patterns
+#-}<ERROR>
+
+
+-- Should fail with a parse ...
