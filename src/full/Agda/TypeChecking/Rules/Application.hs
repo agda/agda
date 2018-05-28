@@ -472,9 +472,9 @@ checkArgumentsE' chk exh r args0@(arg@(Arg info e) : args) t0 mt1 =
                     Constructor{}             -> __IMPOSSIBLE__
                     Primitive{}               -> False
                   isRigid _           = return False
-              rigid <- isRigid tgt
+              rigid <- (||) <$> isRigid tgt <*> isRigid t1
               if | dep       -> return chk    -- must be non-dependent
-                 | not rigid -> return chk    -- with a rigid target
+                 | not rigid -> return chk    -- with a rigid target (either expected or inferred)
                  | not vis   -> return chk    -- and only visible arguments
                  | otherwise -> do
                   let tgt1 = applySubst (strengthenS __IMPOSSIBLE__ $ size tel) tgt
