@@ -1,0 +1,6 @@
+Issue3090-lbrace.agda:4,23-23
+Issue3090-lbrace.agda:4,23: in the name {, the part { is not valid because it is used for hidden arguments
+#-}<ERROR>
+
+
+-- Should fail with a parse ...

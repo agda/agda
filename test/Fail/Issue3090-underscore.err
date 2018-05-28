@@ -1,0 +1,6 @@
+Issue3090-underscore.agda:4,23-23
+Issue3090-underscore.agda:4,23: in the name _, the part _ is not valid because it is used for anonymous identifiers
+#-}<ERROR>
+
+
+-- Should fail with a parse ...
