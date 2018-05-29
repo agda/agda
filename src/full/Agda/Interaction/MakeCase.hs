@@ -83,10 +83,10 @@ parseVariables f tel ii rng ss = do
     let nlocals = n - size tel
     unless (nlocals >= 0) __IMPOSSIBLE__
 
+    fv <- getDefFreeVars f
     reportSDoc "interaction.case" 20 $ do
       m   <- currentModule
       tel <- lookupSection m
-      fv  <- getDefFreeVars f
       vcat
        [ text "parseVariables:"
        , text "current module  =" <+> prettyTCM m
@@ -142,12 +142,19 @@ parseVariables f tel ii rng ss = do
         -- If s is not a name, compare it to the printed variable representation.
         -- This fallback is to enable splitting on hidden variables.
         UnknownName -> do
-          case filter ((s ==) . fst) xs of
-            []                    -> failUnbound
-            [(_,i)] | i < nlocals -> failLocal
-                    | otherwise   -> return $ i - nlocals
+          let xs' = filter ((s ==) . fst) xs
+          when (null xs') $ failUnbound
+          -- Andreas, 2018-05-28, issue #3095
+          -- We want to act on an ambiguous name if it corresponds to only one local index.
+          let xs'' = mapMaybe (\ (_,i) -> if i < nlocals then Nothing else Just $ i - nlocals) xs'
+          when (null xs'') $ failLocal
+          -- Filter out variable bound by parent function or module.
+          let xs''' = mapMaybe (\ i -> if i < fv then Nothing else Just i) xs''
+          case xs''' of
+            []  -> failModuleBound
+            [i] -> return i
             -- Issue 1325: Variable names in context can be ambiguous.
-            _                     -> failAmbiguous
+            _   -> failAmbiguous
 
 -- | Lookup the clause for an interaction point in the signature.
 --   Returns the CaseContext, the clause itself, and a list of previous clauses
