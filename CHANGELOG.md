@@ -321,6 +321,19 @@ Language
 
   Previously it was given the name `ω`.
 
+### Reflection
+
+* New TC primitive: `declarePostulate`. [Issue
+  [#2782](https://github.com/agda/agda/issues/2782)]
+
+  ```agda
+    declarePostulate : Arg Name → Type → TC ⊤
+  ```
+
+  This can be used to declare new postulates. The Visibility of the
+  Arg must not be hidden. This feature fails when executed with
+  `--safe` flag from command-line.
+
 Pragmas and options
 -------------------
 
@@ -812,15 +825,6 @@ Language
   the `-v` flag at the command line, or in an `OPTIONS` pragma. For instance,
   giving `-v a.b.c:10` enables printing from `debugPrint "a.b.c.d" 10 msg`. In the
   Emacs mode, debug output ends up in the `*Agda debug*` buffer.
-
-* New TC primitive: `declarePostulate`.
-
-  ```agda
-    declarePostulate : Arg Name → Type → TC ⊤
-  ```
-
-  This can be used to declare new postulates. The Visibility of the Arg must not be
-  hidden. This feature fails when executed with `--safe` flag from command-line.
 
 ### Built-ins
 
