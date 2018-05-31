@@ -48,7 +48,7 @@ import Agda.Utils.Impossible
 inferUnivSort :: Sort -> TCM Sort
 inferUnivSort s = do
   s <- reduce s
-  case univSort' s of
+  univSort' s >>= \case
     Just s' -> return s'
     Nothing -> do
       addConstraint $ HasBiggerSort s
