@@ -1026,13 +1026,6 @@ leqSort s1 s2 = catchConstraint (SortCmp CmpLeq s1 s2) $ do
       (_       , Type (Max []))
         | not propEnabled  -> equalSort s1 s2
 
-      -- If we compare @univSort s@ against @Set (lsuc l)@,
-      -- we can simplify the comparison.
-      (UnivSort s, Type b    )
-        | Just b' <- levelSucView b -> leqSort s (Type b')
-      (Type a    , UnivSort s)
-        | Just a' <- levelSucView a -> leqSort (Type a') s
-
       -- SizeUniv is unrelated to any @Set l@ or @Prop l@
       (SizeUniv, Type{}  ) -> no
       (SizeUniv, Prop{}  ) -> no
