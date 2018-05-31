@@ -979,11 +979,11 @@ instantiateRewriteRule :: (Functor m, HasConstInfo m, HasOptions m,
                            ReadTCState m, MonadReader TCEnv m, MonadDebug m)
                        => RewriteRule -> m RewriteRule
 instantiateRewriteRule rew = do
-  traceSLn "rewriting" 60 ("instantiating rewrite rule " ++ show (rewName rew) ++ " to the local context.") $ do
+  traceSLn "rewriting" 95 ("instantiating rewrite rule " ++ show (rewName rew) ++ " to the local context.") $ do
   vs  <- freeVarsToApply $ rewName rew
   let rew' = rew `apply` vs
-  traceSLn "rewriting" 60 ("instantiated rewrite rule: ") $ do
-  traceSLn "rewriting" 60 (show rew') $ do
+  traceSLn "rewriting" 95 ("instantiated rewrite rule: ") $ do
+  traceSLn "rewriting" 95 (show rew') $ do
   return rew'
 
 instantiateRewriteRules :: (Functor m, HasConstInfo m, HasOptions m,
