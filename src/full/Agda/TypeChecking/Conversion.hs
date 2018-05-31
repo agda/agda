@@ -1005,6 +1005,9 @@ leqSort s1 s2 = catchConstraint (SortCmp CmpLeq s1 s2) $ do
         ]
   propEnabled <- isPropEnabled
   case (s1, s2) of
+      -- before anything else, try syntactic equality
+      _ | s1 == s2         -> return ()
+
       -- The most basic rule: @Set l =< Set l'@ iff @l =< l'@
       (Type a  , Type b  ) -> leqLevel a b
 
