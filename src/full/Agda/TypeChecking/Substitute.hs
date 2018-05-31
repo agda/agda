@@ -29,6 +29,8 @@ import Data.Monoid
 import Debug.Trace (trace)
 import Language.Haskell.TH.Syntax (thenCmp) -- lexicographic combination of Ordering
 
+import Agda.Interaction.Options
+
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
@@ -46,6 +48,7 @@ import Agda.TypeChecking.Substitute.DeBruijn
 import Agda.Utils.Empty
 import Agda.Utils.Functor
 import Agda.Utils.List
+import Agda.Utils.Monad
 import Agda.Utils.Permutation
 import Agda.Utils.Size
 import Agda.Utils.Tuple
@@ -1181,6 +1184,10 @@ instance (Subst t a, Ord a) => Ord (Elim' a) where
 univSort' :: (HasOptions m) => Sort -> m (Maybe Sort)
 univSort' (Type l) = return $ Just $ Type $ levelSuc l
 univSort' (Prop l) = return $ Just $ Type $ levelSuc l
+univSort' Inf      =
+  ifM (optOmegaInOmega <$> pragmaOptions)
+  {-then-} (return $ Just Inf)
+  {-else-} (return $ Nothing)
 univSort' s        = return $ Nothing
 
 univSort :: (HasOptions m) => Sort -> m Sort
