@@ -606,8 +606,8 @@ assign dir x args v = do
     "MetaVars.assign: assigning meta  " ++ show x ++ "  with args  " ++ show args ++ "  to  " ++ show v
 
   case (v, mvJudgement mvar) of
-      (Sort Inf, HasType{}) -> typeError SetOmegaNotValidType
-      _                     -> return ()
+      (Sort s, HasType{}) -> hasBiggerSort s
+      _                   -> return ()
 
   -- We don't instantiate frozen mvars
   when (mvFrozen mvar == Frozen) $ do
