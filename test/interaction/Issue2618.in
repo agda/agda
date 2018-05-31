@@ -1,0 +1,6 @@
+top_command (cmd_load currentFile [])
+goal_command 0 cmd_give "print (λ { X → X })"
+goal_command 1 cmd_give "print (λ { X → X })"
+goal_command 2 cmd_give "print (λ { X → X })"
+goal_command 3 cmd_give "print (λ { X → A })"
+goal_command 4 cmd_give "print (λ { X → A })"
