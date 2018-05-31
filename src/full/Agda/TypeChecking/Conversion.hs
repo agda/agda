@@ -853,26 +853,22 @@ compareType cmp ty1@(El s1 a1) ty2@(El s2 a2) =
                 , text "s2 =" <+> prettyTCM s2
                 ]
               ]
-            case clValue e of
-              -- Issue 659: Better error message
-              SetOmegaNotValidType -> typeError $ UnequalBecauseOfUniverseConflict cmp a1 a2
-              _ -> do
-                -- This error will probably be more informative
-                compareTerm cmp (sort s1) a1 a2
-                -- Throw the original error if the above doesn't
-                -- give an error (for instance, due to pending
-                -- constraints).
-                -- Or just ignore it... We run into this with irrelevant levels
-                -- which may show up in sort constraints, causing them to fail.
-                -- In any case it's not safe to ignore the error, for instance
-                -- a1 might be Set and a2 a meta of type Set, in which case we
-                -- really need the sort comparison to fail, instead of silently
-                -- instantiating the meta.
-                -- Andreas, 2013-10-31 Maybe the error went away
-                -- when we compared the types.  So we try the sort comparison
-                -- again, this time not catching the error.  (see Issue 930)
-                -- throwError err
-                compareSort CmpEq s1 s2
+            -- This error will probably be more informative
+            compareTerm cmp (sort s1) a1 a2
+            -- Throw the original error if the above doesn't
+            -- give an error (for instance, due to pending
+            -- constraints).
+            -- Or just ignore it... We run into this with irrelevant levels
+            -- which may show up in sort constraints, causing them to fail.
+            -- In any case it's not safe to ignore the error, for instance
+            -- a1 might be Set and a2 a meta of type Set, in which case we
+            -- really need the sort comparison to fail, instead of silently
+            -- instantiating the meta.
+            -- Andreas, 2013-10-31 Maybe the error went away
+            -- when we compared the types.  So we try the sort comparison
+            -- again, this time not catching the error.  (see Issue 930)
+            -- throwError err
+            compareSort CmpEq s1 s2
           _             -> throwError err
         compareTerm cmp (sort s1) a1 a2
         return ()

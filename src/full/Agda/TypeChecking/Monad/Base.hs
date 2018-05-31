@@ -2742,7 +2742,6 @@ data TypeError
         | ShouldBeRecordPattern DeBruijnPattern
         | NotAProjectionPattern (NamedArg A.Pattern)
         | NotAProperTerm
-        | SetOmegaNotValidType
         | InvalidTypeSort Sort
             -- ^ This sort is not a type expression.
         | InvalidType Term
