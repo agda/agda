@@ -8,6 +8,7 @@ import Control.Monad.Reader
 import Control.Monad.State
 
 import qualified Data.List as List
+import qualified Data.IntSet as IntSet
 import Data.Traversable hiding (mapM, sequence)
 
 import Agda.Syntax.Abstract.Views (isSet)
@@ -19,7 +20,7 @@ import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.CompiledClause (CompiledClauses'(Fail))
 import Agda.TypeChecking.MetaVars
-import Agda.TypeChecking.MetaVars.Occurs (killArgs,PruneResult(..))
+import Agda.TypeChecking.MetaVars.Occurs (killArgs,PruneResult(..),rigidVarsNotContainedIn)
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import qualified Agda.TypeChecking.SyntacticEquality as SynEq
@@ -1004,6 +1005,10 @@ leqSort s1 s2 = catchConstraint (SortCmp CmpLeq s1 s2) $ do
                         , prettyTCM s2 ]
         ]
   propEnabled <- isPropEnabled
+
+  let fvsRHS = IntSet.toList $ allFreeVars s2
+  badRigid <- s1 `rigidVarsNotContainedIn` fvsRHS
+
   case (s1, s2) of
       -- before anything else, try syntactic equality
       _ | s1 == s2         -> return ()
@@ -1032,6 +1037,10 @@ leqSort s1 s2 = catchConstraint (SortCmp CmpLeq s1 s2) $ do
       -- SizeUniv is unrelated to any @Set l@ or @Prop l@
       (SizeUniv, Type{}  ) -> no
       (SizeUniv, Prop{}  ) -> no
+
+      -- If the first sort rigidly depends on a variable and the second
+      -- sort does not mention this variable, the second sort must be Inf.
+      (_       , _       ) | badRigid -> equalSort s2 Inf
 
       -- PiSort, UnivSort and MetaS might reduce once we instantiate
       -- more metas, so we postpone.
