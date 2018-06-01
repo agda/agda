@@ -641,7 +641,7 @@ comp' ineq lhs@(TrBr trs1 e1) rhs@(TrBr trs2 e2) = comp ineq e1 e2
           b2 <- f cl as
           return $ b1 && b2
 
-         ALProj{} -> __IMPOSSIBLE__
+         ALProj{} -> return False  -- Not impossible: #2966
 
 
          ALConPar as -> f cl as
