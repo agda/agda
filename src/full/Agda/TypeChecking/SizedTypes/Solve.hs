@@ -493,7 +493,7 @@ solveCluster flag ccs = do
     iterateSolver Map.empty hg csF emptySolution
 
   -- Convert solution to meta instantiation.
-  forM_ (Map.assocs $ theSolution sol) $ \ (m, a) -> do
+  solved <- fmap Set.unions $ forM (Map.assocs $ theSolution sol) $ \ (m, a) -> do
     unless (validOffset a) __IMPOSSIBLE__
     -- Solution does not contain metas
     u <- unSizeExpr $ fmap __IMPOSSIBLE__ a
@@ -513,8 +513,9 @@ solveCluster flag ccs = do
       [ text $ "  xs = " ++ show xs
       , text $ "  u  = " ++ show u
       ]
-    unlessM (isFrozen x) $
+    ifM (isFrozen x) (return Set.empty) $ do
       assignMeta n x t xs u
+      return $ Set.singleton x
     -- WRONG:
     -- let partialSubst = List.sort $ zip xs $ map var $ downFrom n
     -- assignMeta' n x t (length xs) partialSubst u
@@ -526,8 +527,7 @@ solveCluster flag ccs = do
   ims <- Set.fromList <$> getInteractionMetas
 
   --  ms = unsolved size metas from cluster
-  let ms = Set.fromList (map sizeMetaId metas) Set.\\  -- Some CPP or ghc does not like trailing backslash, thus, this comment!
-             Set.mapMonotonic MetaId (Map.keysSet $ theSolution sol)
+  let ms = Set.fromList (map sizeMetaId metas) Set.\\ solved
   --  Make sure they do not contain an interaction point
   let noIP = Set.null $ Set.intersection ims ms
 
