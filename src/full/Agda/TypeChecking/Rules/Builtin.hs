@@ -724,5 +724,19 @@ bindBuiltinNoDef b q = inTopContext $ do
                 }
             | otherwise = Axiom
 
+    Just (BuiltinPrim name axioms) -> do
+      PrimImpl t pf <- lookupPrimitiveFunction name
+      bindPrimitive name $ pf { primFunName = q }
+      let v   = Def q []
+          def = Primitive { primAbstr    = ConcreteDef
+                          , primName     = name
+                          , primClauses  = []
+                          , primInv      = NotInjective
+                          , primCompiled = Nothing
+                          }
+      addConstant q $ defaultDefn defaultArgInfo q t def
+      axioms v
+      bindBuiltinName b v
+
     Just{}  -> __IMPOSSIBLE__
     Nothing -> __IMPOSSIBLE__ -- typeError $ NoSuchBuiltinName b
