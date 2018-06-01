@@ -22,3 +22,13 @@ HFun.apply test {β} = {!!} -- C-c C-c
 
 -- EXPECTED:
 -- HFun.apply test {β} x = ?
+
+open import Agda.Builtin.Bool
+
+test' : {a b : Bool} → Bool → Bool
+test' {b = z} x = {!x!}
+
+-- Splitting on x should yield
+
+-- test {b = z} false = {!!}
+-- test {b = z} true = {!!}
