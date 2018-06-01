@@ -1065,7 +1065,9 @@ instance Reify Sort Expr where
         I.Prop a -> do
           a <- reify a
           return $ A.App defaultAppInfo_ (A.Prop noExprInfo 0) (defaultNamedArg a)
-        I.Inf       -> A.Var <$> freshName_ ("Setω" :: String)
+        I.Inf       -> do
+          I.Def inf [] <- primSetOmega
+          return $ A.Def inf
         I.SizeUniv  -> do
           I.Def sizeU [] <- primSizeUniv
           return $ A.Def sizeU

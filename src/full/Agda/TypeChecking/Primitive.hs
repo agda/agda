@@ -516,6 +516,11 @@ mkPrimLevelMax = do
     Max bs <- levelView' $ unArg b
     redReturn $ Level $ levelMax $ as ++ bs
 
+mkPrimSetOmega :: TCM PrimitiveImpl
+mkPrimSetOmega = do
+  let t = sort $ UnivSort Inf
+  return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 0 $ \_ -> redReturn $ Sort Inf
+
 mkPrimFun1TCM :: (FromTerm a, ToTerm b, TermLike b) =>
                  TCM Type -> (a -> ReduceM b) -> TCM PrimitiveImpl
 mkPrimFun1TCM mt f = do
@@ -739,6 +744,9 @@ primitiveFunctions = Map.fromList
   , "primLevelZero"       |-> mkPrimLevelZero
   , "primLevelSuc"        |-> mkPrimLevelSuc
   , "primLevelMax"        |-> mkPrimLevelMax
+
+  -- Sorts
+  , "primSetOmega"        |-> mkPrimSetOmega
 
   -- Floating point functions
   , "primNatToFloat"      |-> mkPrimFun1 (fromIntegral    :: Nat -> Double)

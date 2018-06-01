@@ -30,3 +30,5 @@ postulate
 {-# BUILTIN LEVELZERO lzero #-}
 {-# BUILTIN LEVELSUC  lsuc  #-}
 {-# BUILTIN LEVELMAX  _⊔_   #-}
+
+{-# BUILTIN SETOMEGA Setω #-}
