@@ -255,6 +255,10 @@ Other features
       Ignore universe levels (this makes Agda
       inconsistent; see :ref:`universe-levels`)
 
+:samp:`--omega-in-omega`
+      Enable typing rule `Setω : Setω` (this makes
+      Agda inconsistent).
+
 :samp:`--sized-types`
       Use sized types (default, inconsistent with
       "musical" coinduction; see :ref:`sized-types`)

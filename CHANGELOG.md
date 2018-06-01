@@ -1,6 +1,29 @@
 Release notes for Agda version 2.5.5
 ====================================
 
+Language
+--------
+
+* New builtin SETOMEGA.
+
+  Agda's top sort Setω is now defined as a builtin in Agda.Primitive
+  and can be renamed when importing that module.
+
+* New option --omega-in-omega.
+
+  The option `--omega-in-omega` enables the typing rule `Setω : Setω`.
+  Example:
+  ```agda
+  {-# OPTIONS --omega-in-omega #-}
+  open import Agda.Primitive
+
+  data Type : Setω where
+    el : ∀ {ℓ} → Set ℓ → Type
+  ```
+  Like `--type-in-type`, this makes Agda inconsistent. However, code
+  written using `--omega-in-omega` is still compatible with normal
+  universe-polymorphic code and can be used in such files.
+
 Release notes for Agda version 2.5.4
 ====================================
 

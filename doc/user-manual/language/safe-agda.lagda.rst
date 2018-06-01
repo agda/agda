@@ -23,7 +23,8 @@ Here is a list of the features ``--safe`` is incompatible with:
 
 * ``--no-termination-check`` gives loopy programs any type.
 
-* ``--type-in-type`` allows the user to encode the Girard-Hurken paradox.
+* ``--type-in-type`` and ``--omega-in-omega`` allow the user to encode
+  the Girard-Hurken paradox.
 
 * ``--injective-type-constructors`` together with excluded middle leads
   to an inconsistency via Chnug-Kil Hur's construction.
