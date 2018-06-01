@@ -147,6 +147,9 @@ primBody s = maybe unimplemented (fromRight (hsVarUQ . HS.Ident) <$>) $
   , "primLevelSuc"    |-> return "(\\ _ -> ())"
   , "primLevelMax"    |-> return "(\\ _ _ -> ())"
 
+  -- Sorts
+  , "primSetOmega"    |-> return "()"
+
   -- Natural number functions
   , "primNatPlus"      |-> binNat "(+)"
   , "primNatMinus"     |-> binNat "(\\ x y -> max 0 (x - y))"

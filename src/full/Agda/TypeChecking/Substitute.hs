@@ -30,6 +30,8 @@ import Data.Monoid
 import Debug.Trace (trace)
 import Language.Haskell.TH.Syntax (thenCmp) -- lexicographic combination of Ordering
 
+import Agda.Interaction.Options
+
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
@@ -47,6 +49,7 @@ import Agda.TypeChecking.Substitute.DeBruijn
 import Agda.Utils.Empty
 import Agda.Utils.Functor
 import Agda.Utils.List
+import Agda.Utils.Monad
 import Agda.Utils.Permutation
 import Agda.Utils.Size
 import Agda.Utils.Tuple
@@ -697,7 +700,7 @@ instance Subst Term Sort where
     Inf        -> Inf
     SizeUniv   -> SizeUniv
     PiSort s1 s2 -> piSort (sub s1) (sub s2)
-    UnivSort s -> univSort $ sub s
+    UnivSort s -> UnivSort $ sub s
     MetaS x es -> MetaS x $ sub es
     where sub x = applySubst rho x
 
@@ -1219,13 +1222,17 @@ instance (Subst t a, Ord a) => Ord (Elim' a) where
 ---------------------------------------------------------------------------
 
 -- | Get the next higher sort.
-univSort' :: Sort -> Maybe Sort
-univSort' (Type l) = Just $ Type $ levelSuc l
-univSort' (Prop l) = Just $ Type $ levelSuc l
-univSort' s        = Nothing
+univSort' :: (HasOptions m) => Sort -> m (Maybe Sort)
+univSort' (Type l) = return $ Just $ Type $ levelSuc l
+univSort' (Prop l) = return $ Just $ Type $ levelSuc l
+univSort' Inf      =
+  ifM (optOmegaInOmega <$> pragmaOptions)
+  {-then-} (return $ Just Inf)
+  {-else-} (return $ Nothing)
+univSort' s        = return $ Nothing
 
-univSort :: Sort -> Sort
-univSort s = fromMaybe (UnivSort s) $ univSort' s
+univSort :: (HasOptions m) => Sort -> m Sort
+univSort s = fromMaybe (UnivSort s) <$> univSort' s
 
 -- | Compute the sort of a function type from the sorts of its
 --   domain and codomain.

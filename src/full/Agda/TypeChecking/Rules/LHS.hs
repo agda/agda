@@ -1608,12 +1608,15 @@ checkParameters dc d pars = liftTCM $ do
     _ -> __IMPOSSIBLE__
 
 checkSortOfSplitVar :: (MonadTCM tcm, MonadError TCErr tcm, LensSort a) => a -> tcm ()
-checkSortOfSplitVar a = liftTCM (reduce $ getSort a) >>= \case
-  Type{} -> return ()
-  Prop{} -> asks envRelevance >>= \case
-    Irrelevant -> return ()
-    _          -> softTypeError $ GenericError
-      "Cannot split on datatype in Prop unless target is irrelevant"
-  _      -> softTypeError =<< do
-    liftTCM $ GenericDocError <$> sep
-      [ text "Cannot split on datatype in sort" , prettyTCM (getSort a) ]
+checkSortOfSplitVar a = do
+  infOk <- optOmegaInOmega <$> pragmaOptions
+  liftTCM (reduce $ getSort a) >>= \case
+    Type{} -> return ()
+    Prop{} -> asks envRelevance >>= \case
+      Irrelevant -> return ()
+      _          -> softTypeError $ GenericError
+        "Cannot split on datatype in Prop unless target is irrelevant"
+    Inf{} | infOk -> return ()
+    _      -> softTypeError =<< do
+      liftTCM $ GenericDocError <$> sep
+        [ text "Cannot split on datatype in sort" , prettyTCM (getSort a) ]

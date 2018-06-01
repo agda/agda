@@ -383,7 +383,6 @@ errorString err = case err of
   NoSuchPrimitiveFunction{}                -> "NoSuchPrimitiveFunction"
   NotAModuleExpr{}                         -> "NotAModuleExpr"
   NotAProperTerm                           -> "NotAProperTerm"
-  SetOmegaNotValidType{}                   -> "SetOmegaNotValidType"
   InvalidType{}                            -> "InvalidType"
   InvalidTypeSort{}                        -> "InvalidTypeSort"
   FunctionTypeInSizeUniv{}                 -> "FunctionTypeInSizeUniv"
@@ -685,8 +684,6 @@ instance PrettyTCM TypeError where
       [prettyTCM t] ++ pwords "should be a Path or PathP type, but it isn't"
 
     NotAProperTerm -> fwords "Found a malformed term"
-
-    SetOmegaNotValidType -> fwords "Setω is not a valid type"
 
     InvalidTypeSort s -> fsep $ [prettyTCM s] ++ pwords "is not a valid type"
     InvalidType v -> fsep $ [prettyTCM v] ++ pwords "is not a valid type"

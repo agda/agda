@@ -10,6 +10,7 @@ import Control.Monad.State
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Set as Set
+import qualified Data.IntSet as IntSet
 
 #if __GLASGOW_HASKELL__ <= 708
 import Data.Traversable ( traverse )
@@ -24,7 +25,7 @@ import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.CompiledClause (CompiledClauses'(Fail))
 import Agda.TypeChecking.MetaVars
-import Agda.TypeChecking.MetaVars.Occurs (killArgs,PruneResult(..))
+import Agda.TypeChecking.MetaVars.Occurs (killArgs,PruneResult(..),rigidVarsNotContainedIn)
 import Agda.TypeChecking.Names
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
@@ -960,26 +961,22 @@ compareType cmp ty1@(El s1 a1) ty2@(El s2 a2) =
                 , text "s2 =" <+> prettyTCM s2
                 ]
               ]
-            case clValue e of
-              -- Issue 659: Better error message
-              SetOmegaNotValidType -> typeError $ UnequalBecauseOfUniverseConflict cmp a1 a2
-              _ -> do
-                -- This error will probably be more informative
-                compareTerm cmp (sort s1) a1 a2
-                -- Throw the original error if the above doesn't
-                -- give an error (for instance, due to pending
-                -- constraints).
-                -- Or just ignore it... We run into this with irrelevant levels
-                -- which may show up in sort constraints, causing them to fail.
-                -- In any case it's not safe to ignore the error, for instance
-                -- a1 might be Set and a2 a meta of type Set, in which case we
-                -- really need the sort comparison to fail, instead of silently
-                -- instantiating the meta.
-                -- Andreas, 2013-10-31 Maybe the error went away
-                -- when we compared the types.  So we try the sort comparison
-                -- again, this time not catching the error.  (see Issue 930)
-                -- throwError err
-                compareSort CmpEq s1 s2
+            -- This error will probably be more informative
+            compareTerm cmp (sort s1) a1 a2
+            -- Throw the original error if the above doesn't
+            -- give an error (for instance, due to pending
+            -- constraints).
+            -- Or just ignore it... We run into this with irrelevant levels
+            -- which may show up in sort constraints, causing them to fail.
+            -- In any case it's not safe to ignore the error, for instance
+            -- a1 might be Set and a2 a meta of type Set, in which case we
+            -- really need the sort comparison to fail, instead of silently
+            -- instantiating the meta.
+            -- Andreas, 2013-10-31 Maybe the error went away
+            -- when we compared the types.  So we try the sort comparison
+            -- again, this time not catching the error.  (see Issue 930)
+            -- throwError err
+            compareSort CmpEq s1 s2
           _             -> throwError err
         compareTerm cmp (sort s1) a1 a2
         return ()
@@ -1112,7 +1109,14 @@ leqSort s1 s2 = catchConstraint (SortCmp CmpLeq s1 s2) $ do
                         , prettyTCM s2 ]
         ]
   propEnabled <- isPropEnabled
+
+  let fvsRHS = IntSet.toList $ allFreeVars s2
+  badRigid <- s1 `rigidVarsNotContainedIn` fvsRHS
+
   case (s1, s2) of
+      -- before anything else, try syntactic equality
+      _ | s1 == s2         -> return ()
+
       -- The most basic rule: @Set l =< Set l'@ iff @l =< l'@
       (Type a  , Type b  ) -> leqLevel a b
 
@@ -1134,16 +1138,13 @@ leqSort s1 s2 = catchConstraint (SortCmp CmpLeq s1 s2) $ do
       (_       , Type (Max []))
         | not propEnabled  -> equalSort s1 s2
 
-      -- If we compare @univSort s@ against @Set (lsuc l)@,
-      -- we can simplify the comparison.
-      (UnivSort s, Type b    )
-        | Just b' <- levelSucView b -> leqSort s (Type b')
-      (Type a    , UnivSort s)
-        | Just a' <- levelSucView a -> leqSort (Type a') s
-
       -- SizeUniv is unrelated to any @Set l@ or @Prop l@
       (SizeUniv, Type{}  ) -> no
       (SizeUniv, Prop{}  ) -> no
+
+      -- If the first sort rigidly depends on a variable and the second
+      -- sort does not mention this variable, the second sort must be Inf.
+      (_       , _       ) | badRigid -> equalSort s2 Inf
 
       -- PiSort, UnivSort and MetaS might reduce once we instantiate
       -- more metas, so we postpone.

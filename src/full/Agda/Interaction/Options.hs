@@ -140,6 +140,7 @@ data PragmaOptions = PragmaOptions
     -- ^ Cut off structural order comparison at some depth in termination checker?
   , optCompletenessCheck         :: Bool
   , optUniverseCheck             :: Bool
+  , optOmegaInOmega              :: Bool
   , optSizedTypes                :: Bool
   , optInjectiveTypeConstructors :: Bool
   , optGuardingTypeConstructors  :: Bool
@@ -234,6 +235,7 @@ defaultPragmaOptions = PragmaOptions
   , optTerminationDepth          = defaultCutOff
   , optCompletenessCheck         = True
   , optUniverseCheck             = True
+  , optOmegaInOmega              = False
   , optSizedTypes                = True
   , optInjectiveTypeConstructors = False
   , optGuardingTypeConstructors  = False
@@ -332,6 +334,7 @@ unsafePragmaOptions opts =
   [ "--no-positivity-check"                      | optDisablePositivity opts         ] ++
   [ "--no-termination-check"                     | not (optTerminationCheck opts)    ] ++
   [ "--type-in-type"                             | not (optUniverseCheck opts)       ] ++
+  [ "--omega-in-omega"                           | optOmegaInOmega opts              ] ++
   -- [ "--sized-types"                              | optSizedTypes opts                ] ++
   [ "--injective-type-constructors"              | optInjectiveTypeConstructors opts ] ++
   [ "--guardedness-preserving-type-constructors" | optGuardingTypeConstructors opts  ] ++
@@ -435,6 +438,9 @@ dontCompletenessCheckFlag _ =
 dontUniverseCheckFlag :: Flag PragmaOptions
 dontUniverseCheckFlag o = return $ o { optUniverseCheck        = False
                                      }
+omegaInOmegaFlag :: Flag PragmaOptions
+omegaInOmegaFlag o = return $ o { optOmegaInOmega = True }
+
 etaFlag :: Flag PragmaOptions
 etaFlag o = return $ o { optEta = True }
 
@@ -655,6 +661,8 @@ pragmaOptions =
                     "the option has been removed"
     , Option []     ["type-in-type"] (NoArg dontUniverseCheckFlag)
                     "ignore universe levels (this makes Agda inconsistent)"
+    , Option []     ["omega-in-omega"] (NoArg omegaInOmegaFlag)
+                    "enable typing rule Setω : Setω (this makes Agda inconsistent)"
     , Option []     ["sized-types"] (NoArg sizedTypes)
                     "use sized types (default, inconsistent with `musical' coinduction)"
     , Option []     ["no-sized-types"] (NoArg noSizedTypes)

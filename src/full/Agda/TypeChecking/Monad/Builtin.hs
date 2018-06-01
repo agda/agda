@@ -142,6 +142,7 @@ primInteger, primIntegerPos, primIntegerNegSuc,
     primEquality, primRefl,
     primRewrite, -- Name of rewrite relation
     primLevel, primLevelZero, primLevelSuc, primLevelMax,
+    primSetOmega,
     primFromNat, primFromNeg, primFromString,
     -- builtins for reflection:
     primQName, primArgInfo, primArgArgInfo, primArg, primArgArg, primAbs, primAbsAbs, primAgdaTerm, primAgdaTermVar,
@@ -250,6 +251,7 @@ primLevel        = getBuiltin builtinLevel
 primLevelZero    = getBuiltin builtinLevelZero
 primLevelSuc     = getBuiltin builtinLevelSuc
 primLevelMax     = getBuiltin builtinLevelMax
+primSetOmega     = getBuiltin builtinSetOmega
 primFromNat      = getBuiltin builtinFromNat
 primFromNeg      = getBuiltin builtinFromNeg
 primFromString   = getBuiltin builtinFromString
@@ -368,6 +370,7 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinInf, builtinSharp, builtinFlat,
   builtinEquality, builtinRefl, builtinRewrite, builtinLevelMax,
   builtinLevel, builtinLevelZero, builtinLevelSuc,
+  builtinSetOmega,
   builtinFromNat, builtinFromNeg, builtinFromString,
   builtinQName, builtinAgdaSort, builtinAgdaSortSet, builtinAgdaSortLit,
   builtinAgdaSortUnsupported,
@@ -482,6 +485,7 @@ builtinLevelMax                      = "LEVELMAX"
 builtinLevel                         = "LEVEL"
 builtinLevelZero                     = "LEVELZERO"
 builtinLevelSuc                      = "LEVELSUC"
+builtinSetOmega                      = "SETOMEGA"
 builtinFromNat                       = "FROMNAT"
 builtinFromNeg                       = "FROMNEG"
 builtinFromString                    = "FROMSTRING"
@@ -607,6 +611,7 @@ builtinsNoDef =
   , builtinSub
   , builtinIZero
   , builtinIOne
+  , builtinSetOmega
   ]
 
 -- | The coinductive primitives.

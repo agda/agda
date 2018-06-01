@@ -43,6 +43,7 @@ import {-# SOURCE #-} Agda.TypeChecking.Reduce.Fast
 import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.Lens
+import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.HashMap (HashMap)
 import Agda.Utils.Size
@@ -269,7 +270,7 @@ instance Reduce Sort where
               maybe (return $ PiSort s1 s2) reduce' $ piSort' s1 s2
             UnivSort s' -> do
               s' <- reduce' s'
-              maybe (return $ UnivSort s') reduce' $ univSort' s'
+              caseMaybeM (univSort' s') (return $ UnivSort s') reduce'
             Prop s'    -> Prop <$> reduce' s'
             Type s'    -> Type <$> reduce' s'
             Inf        -> return Inf
@@ -788,7 +789,7 @@ instance Simplify Sort where
     simplify' s = do
       case s of
         PiSort s1 s2 -> piSort <$> simplify' s1 <*> simplify' s2
-        UnivSort s -> univSort <$> simplify' s
+        UnivSort s -> univSort =<< simplify' s
         Type s     -> Type <$> simplify' s
         Prop s     -> Prop <$> simplify' s
         Inf        -> return s
@@ -920,7 +921,7 @@ instance Normalise Sort where
       s <- reduce' s
       case s of
         PiSort s1 s2 -> piSort <$> normalise' s1 <*> normalise' s2
-        UnivSort s -> univSort <$> normalise' s
+        UnivSort s -> univSort =<< normalise' s
         Prop s     -> Prop <$> normalise' s
         Type s     -> Type <$> normalise' s
         Inf        -> return Inf
@@ -1091,7 +1092,7 @@ instance InstantiateFull Sort where
             Type n     -> Type <$> instantiateFull' n
             Prop n     -> Prop <$> instantiateFull' n
             PiSort s1 s2 -> piSort <$> instantiateFull' s1 <*> instantiateFull' s2
-            UnivSort s -> univSort <$> instantiateFull' s
+            UnivSort s -> univSort =<< instantiateFull' s
             Inf        -> return s
             SizeUniv   -> return s
             MetaS x es -> MetaS x <$> instantiateFull' es

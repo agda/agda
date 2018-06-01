@@ -654,7 +654,7 @@ instance FoldRigid Sort where
       Prop l     -> fold l
       Inf        -> mempty
       SizeUniv   -> mempty
-      PiSort s1 s2 -> fold (s1, s2)
+      PiSort s1 s2 -> mempty
       UnivSort s -> fold s
       MetaS{}    -> mempty
     where fold = foldRigid f

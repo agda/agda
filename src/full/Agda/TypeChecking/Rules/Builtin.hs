@@ -324,6 +324,7 @@ coreBuiltins =
   , (builtinLevelZero          |-> BuiltinPrim "primLevelZero" (const $ return ()))
   , (builtinLevelSuc           |-> BuiltinPrim "primLevelSuc" (const $ return ()))
   , (builtinLevelMax           |-> BuiltinPrim "primLevelMax" verifyMax)
+  , (builtinSetOmega           |-> BuiltinPrim "primSetOmega" (const $ return ()))
   , (builtinAgdaClause         |-> BuiltinData tset [builtinAgdaClauseClause, builtinAgdaClauseAbsurd])
   , (builtinAgdaClauseClause   |-> BuiltinDataCons (tlist (targ tpat) --> tterm --> tclause))
   , (builtinAgdaClauseAbsurd   |-> BuiltinDataCons (tlist (targ tpat) --> tclause))
@@ -860,16 +861,19 @@ bindBuiltinNoDef b q = inTopContext $ do
                 , funTerminates = Just True
                 }
             | otherwise = Axiom
-    Just (BuiltinPrim s _verify) -> do
-      PrimImpl t pf <- lookupPrimitiveFunction s
-      bindPrimitive s (pf {primFunName = q})
-      addConstant q $
-        defaultDefn defaultArgInfo q t $
-          Primitive { primAbstr    = ConcreteDef -- TODO fix (Info.defAbstract i)
-                    , primName     = s
-                    , primClauses  = []
-                    , primInv      = NotInjective
-                    , primCompiled = Just (CC.Done [] $ Def q []) }
+    Just (BuiltinPrim name axioms) -> do
+      PrimImpl t pf <- lookupPrimitiveFunction name
+      bindPrimitive name $ pf { primFunName = q }
+      let v   = Def q []
+          def = Primitive { primAbstr    = ConcreteDef
+                          , primName     = name
+                          , primClauses  = []
+                          , primInv      = NotInjective
+                          , primCompiled = Just (CC.Done [] $ Def q [])
+                          }
+      addConstant q $ defaultDefn defaultArgInfo q t def
+      axioms v
+      bindBuiltinName b v
     Just (BuiltinDataCons mt) -> do
       t <- mt
       d <- return $! getPrimName $ unEl t

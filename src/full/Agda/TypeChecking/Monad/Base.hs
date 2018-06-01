@@ -125,6 +125,9 @@ instance ReadTCState m => ReadTCState (ExceptT err m) where
 instance (Monoid w, ReadTCState m) => ReadTCState (WriterT w m) where
   getTCState = lift getTCState
 
+instance ReadTCState m => ReadTCState (StateT s m) where
+  getTCState = lift getTCState
+
 instance Show TCState where
   show _ = "TCSt{}"
 
@@ -2770,7 +2773,6 @@ data TypeError
         | ShouldBeRecordPattern DeBruijnPattern
         | NotAProjectionPattern (NamedArg A.Pattern)
         | NotAProperTerm
-        | SetOmegaNotValidType
         | InvalidTypeSort Sort
             -- ^ This sort is not a type expression.
         | InvalidType Term
@@ -3088,6 +3090,9 @@ instance MonadReduce m => MonadReduce (ExceptT err m) where
   liftReduce = lift . liftReduce
 
 instance (Monoid w, MonadReduce m) => MonadReduce (WriterT w m) where
+  liftReduce = lift . liftReduce
+
+instance (MonadReduce m) => MonadReduce (StateT w m) where
   liftReduce = lift . liftReduce
 
 instance MonadReduce ReduceM where

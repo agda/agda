@@ -1,2 +1,3 @@
 Failed to solve the following constraints:
-  Has bigger sort: Setω
+  Has bigger sort: .Agda.Primitive.Setω
+  Has bigger sort: univSort .Agda.Primitive.Setω
