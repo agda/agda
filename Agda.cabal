@@ -619,3 +619,178 @@ executable agda-mode
                   , filepath >= 1.4.0.0 && < 1.5
                   , process >= 1.2.3.0 && < 1.7
   default-language: Haskell2010
+
+-- Cabal testsuite integration has some serious bugs, but we
+-- can still make it work. See also:
+-- https://github.com/haskell/cabal/issues/1938
+-- https://github.com/haskell/cabal/issues/2214
+-- https://github.com/haskell/cabal/issues/1953
+--
+-- This test suite should only be run using the Makefile.
+-- The Makefile sets up the required environment,
+-- executing the tests using cabal directly is almost
+-- guarantued to fail. See also Issue 1490.
+test-suite agda-tests
+  type:             exitcode-stdio-1.0
+  hs-source-dirs:   test/
+  main-is:          Main.hs
+  other-modules:      Compiler.Tests
+                    , Fail.Tests
+                    , Interactive.Tests
+                    , Internal.Helpers
+                    , Internal.Interaction.Highlighting.Precise
+                    , Internal.Interaction.Highlighting.Range
+                    , Internal.Interaction.Library
+                    , Internal.Interaction.Options
+                    , Internal.Syntax.Abstract.Name
+                    , Internal.Syntax.Common
+                    , Internal.Syntax.Concrete.Name
+                    , Internal.Syntax.Internal
+                    , Internal.Syntax.Parser.Parser
+                    , Internal.Syntax.Position
+                    , Internal.Termination.CallGraph
+                    , Internal.Termination.CallMatrix
+                    , Internal.Termination.Order
+                    , Internal.Termination.Semiring
+                    , Internal.Termination.SparseMatrix
+                    , Internal.Termination.Termination
+                    , Internal.Tests
+                    , Internal.TypeChecking
+                    , Internal.TypeChecking.Substitute
+                    , Internal.TypeChecking.Free
+                    , Internal.TypeChecking.Free.Lazy
+                    , Internal.TypeChecking.Generators
+                    , Internal.TypeChecking.Irrelevance
+                    , Internal.TypeChecking.Monad.Base
+                    , Internal.TypeChecking.Positivity
+                    , Internal.TypeChecking.Positivity.Occurrence
+                    , Internal.TypeChecking.Rules.LHS.Problem
+                    , Internal.TypeChecking.SizedTypes
+                    , Internal.TypeChecking.SizedTypes.Syntax
+                    , Internal.TypeChecking.SizedTypes.WarshallSolver
+                    , Internal.Utils.Bag
+                    , Internal.Utils.BiMap
+                    , Internal.Utils.Cluster
+                    , Internal.Utils.Either
+                    , Internal.Utils.Favorites
+                    , Internal.Utils.FileName
+                    , Internal.Utils.Graph.AdjacencyMap.Unidirectional
+                    , Internal.Utils.IntSet
+                    , Internal.Utils.List
+                    , Internal.Utils.ListT
+                    , Internal.Utils.Monoid
+                    , Internal.Utils.Maybe.Strict
+                    , Internal.Utils.PartialOrd
+                    , Internal.Utils.Permutation
+                    , Internal.Utils.Three
+                    , Internal.Utils.Trie
+                    , Internal.Utils.Warshall
+                    , LaTeXAndHTML.Tests
+                    , LibSucceed.Tests
+                    , Succeed.Tests
+                    , UserManual.Tests
+                    , Utils
+
+  build-depends:  Agda
+                , array >= 0.5.1.0 && < 0.6
+                , base >= 4.8.0.0 && < 4.12
+                , bytestring >= 0.10.6.0 && < 0.11
+                , containers >= 0.5.6.2 && < 0.6
+                , directory >= 1.2.2.0 && < 1.4
+                , filepath >= 1.4.0.0 && < 1.5
+                , filemanip >= 0.3.6.3 && < 0.4
+                , mtl >= 2.2.1 && < 2.3
+                , process >= 1.2.3.0 && < 1.7
+                , process-extras >= 0.3.0 && < 0.3.4 || >= 0.4.1.3 && < 0.5 || >= 0.7.1 && < 0.8
+                , QuickCheck >= 2.11 && < 2.12
+                , regex-tdfa >= 1.2.0 && < 1.3
+                , regex-tdfa-text >= 1.0.0.3 && < 1.1
+                , tasty >= 0.10 && < 1.1
+                , tasty-hunit >= 0.9.2 && < 0.11
+                , tasty-quickcheck >= 0.9.2 && < 0.11
+                , tasty-silver >= 3.1.8 && < 3.2
+                , temporary >= 1.2.0.3 && < 1.3
+                , text >= 0.11.3.1 && < 1.3
+                , unix-compat >= 0.4.3.1 && < 0.6
+                , uri-encode >= 1.5.0.4 && < 1.6
+
+  if impl(ghc < 8.0)
+    -- provide/emulate `Data.Semigroups` API for pre-GHC8
+    build-depends:  semigroups == 0.18.*
+
+  default-language:  Haskell2010
+
+  default-extensions:  ConstraintKinds
+                     , DataKinds
+                     , DefaultSignatures
+                     , DeriveFoldable
+                     , DeriveFunctor
+                     , DeriveTraversable
+                     , ExistentialQuantification
+                     , FlexibleContexts
+                     , FlexibleInstances
+                     , FunctionalDependencies
+                     , LambdaCase
+                     , MultiParamTypeClasses
+                     , MultiWayIf
+                     , NamedFieldPuns
+                     , RankNTypes
+                     , RecordWildCards
+                     , ScopedTypeVariables
+                     , StandaloneDeriving
+                     , TypeSynonymInstances
+                     , TupleSections
+
+  -- Initially, we disable all the warnings.
+  ghc-options: -threaded
+               -w
+
+  -- This option must be the first one after disabling the warnings. See
+  -- Issue #2094.
+  if impl(ghc >= 8.0)
+    ghc-options: -Wunrecognised-warning-flags
+
+  if impl(ghc >= 7.10)
+    ghc-options: -fwarn-deprecated-flags
+                 -fwarn-deriving-typeable
+                 -fwarn-dodgy-exports
+                 -fwarn-dodgy-foreign-imports
+                 -fwarn-dodgy-imports
+                 -fwarn-duplicate-exports
+                 -fwarn-empty-enumerations
+                 -fwarn-hi-shadowing
+                 -fwarn-identities
+                 -fwarn-incomplete-patterns
+                 -fwarn-inline-rule-shadowing
+                 -fwarn-missing-fields
+                 -fwarn-missing-methods
+                 -fwarn-missing-signatures
+                 -fwarn-tabs
+                 -fwarn-typed-holes
+                 -fwarn-overflowed-literals
+                 -fwarn-overlapping-patterns
+                 -fwarn-unrecognised-pragmas
+                 -fwarn-unticked-promoted-constructors
+                 -fwarn-unused-do-bind
+                 -fwarn-warnings-deprecations
+                 -fwarn-wrong-do-bind
+
+  -- These options will be removed in GHC 8.0.1.
+  if impl(ghc >= 7.10) && impl(ghc < 8.0)
+    ghc-options: -fwarn-context-quantification
+                 -fwarn-duplicate-constraints
+                 -fwarn-pointless-pragmas
+
+  if impl(ghc >= 8.0)
+    ghc-options: -Wmissing-pattern-synonym-signatures
+                 -Wnoncanonical-monad-instances
+                 -Wnoncanonical-monoid-instances
+                 -Wsemigroup
+                 -Wunused-foralls
+
+  -- ASR (2017-04-11). TODO: Using -Wmissing-home-modules generates an
+  -- error.
+  if impl(ghc >= 8.2)
+    ghc-options: -Wcpp-undef
+                 -Wsimplifiable-class-constraints
+                 -Wunbanged-strict-patterns
