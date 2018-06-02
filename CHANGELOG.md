@@ -677,7 +677,6 @@ For 2.5.4, the following issues have been closed
   - [#987](https://github.com/agda/agda/issues/987): --html anchors could be more informative
   - [#1054](https://github.com/agda/agda/issues/1054): Inlined Agda code in LaTeX backend
   - [#1131](https://github.com/agda/agda/issues/1131): Infix definitions not allowed in let definitions
-  - [#1144](https://github.com/agda/agda/issues/1144): Commented goals in literate agda
   - [#1169](https://github.com/agda/agda/issues/1169): Auto fails with non-terminating function
   - [#1268](https://github.com/agda/agda/issues/1268): Hard to print type of variable if the type starts with an instance argument
   - [#1384](https://github.com/agda/agda/issues/1384): Order of constructor arguments matters for coverage checker
@@ -838,7 +837,6 @@ For 2.5.4, the following issues have been closed
   - [#3050](https://github.com/agda/agda/issues/3050): We revert back to call-by-name during positivity checking
   - [#3051](https://github.com/agda/agda/issues/3051): Pattern synonyms should be allowed in mutual blocks
   - [#3052](https://github.com/agda/agda/issues/3052): Another recent inference change
-  - [#3058](https://github.com/agda/agda/issues/3058): C-c C-c produces invalid pattern
   - [#3062](https://github.com/agda/agda/issues/3062): Literal match does not respect first-match semantics
   - [#3063](https://github.com/agda/agda/issues/3063): Internal error in Agda.TypeChecking.Forcing
   - [#3064](https://github.com/agda/agda/issues/3064): Coverage checker bogus on literals combined with copatterns
