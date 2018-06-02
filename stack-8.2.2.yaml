@@ -1,4 +1,4 @@
-resolver: lts-11.10
+resolver: lts-11.11
 
 extra-deps:
 - async-2.2.1
