@@ -514,7 +514,6 @@ library
 
   -- Initially, we disable all the warnings.
   ghc-options: -w
-               -Werror
 
   -- This option must be the first one after disabling the warnings. See
   -- Issue #2094.
@@ -566,8 +565,6 @@ library
                  -- -Wmissing-home-modules
                  -Wsimplifiable-class-constraints
                  -Wunbanged-strict-patterns
-
-  ghc-prof-options: -fprof-auto
 
   default-language: Haskell2010
   default-extensions: ConstraintKinds
@@ -747,7 +744,6 @@ test-suite agda-tests
   -- Initially, we disable all the warnings.
   ghc-options: -threaded
                -w
-               -Werror
 
   -- This option must be the first one after disabling the warnings. See
   -- Issue #2094.
