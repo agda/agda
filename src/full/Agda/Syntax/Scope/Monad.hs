@@ -686,8 +686,12 @@ openModule_ cm dir = do
   (adir, s') <- applyImportDirectiveM cm dir . inScopeBecause (Opened cm) . removeOnlyQualified . restrictPrivate =<< getNamedScope m
   let s  = setScopeAccess acc s'
   let ns = scopeNameSpace acc s
-  checkForClashes ns
   modifyCurrentScope (`mergeScope` s)
+  -- Andreas, 2018-06-03, issue #3057:
+  -- If we simply check for ambiguous exported identifiers _after_
+  -- importing the new identifiers into the current scope, we also
+  -- catch the case of importing an ambiguous identifier.
+  checkForClashes
 
   -- Importing names might shadow existing locals.
   verboseS "scope.locals" 10 $ do
@@ -706,25 +710,22 @@ openModule_ cm dir = do
   where
     -- Only checks for clashes that would lead to the same
     -- name being exported twice from the module.
-    checkForClashes new = when (publicOpen dir) $ do
+    checkForClashes = when (publicOpen dir) $ do
 
-        old <- allThingsInScope . restrictPrivate <$> (getNamedScope =<< getCurrentModule)
+        exported <- allThingsInScope . restrictPrivate <$> (getNamedScope =<< getCurrentModule)
 
-        let defClashes = Map.toList $ Map.intersectionWith (,) (nsNames new) (nsNames old)
-            modClashes = Map.toList $ Map.intersectionWith (,) (nsModules new) (nsModules old)
-
-            -- No ambiguity if concrete identifier is mapped to
-            -- single, identical abstract identifiers.
-            realClash (_, ([x],[y])) = x /= y
-            realClash _              = True
+        -- Get all exported concrete names that are mapped to at least 2 abstract names
+        let defClashes = filter (\ (_c, as) -> length as >= 2) $ Map.toList $ nsNames exported
+            modClashes = filter (\ (_c, as) -> length as >= 2) $ Map.toList $ nsModules exported
 
             -- No ambiguity if concrete identifier is only mapped to
             -- constructor names or only to projection names.
-            defClash (_, (qs0, qs1)) = not $ all (== ConName) ks || all (==FldName) ks
-              where ks = map anameKind $ qs0 ++ qs1
+            defClash (_, qs) = not $ all (== ConName) ks || all (==FldName) ks
+              where ks = map anameKind qs
         -- We report the first clashing exported identifier.
-        unlessNull (filter (\ x -> realClash x && defClash x) defClashes) $
-          \ ((x, (_, q:_)) : _) -> typeError $ ClashingDefinition (C.QName x) (anameName q)
+        unlessNull (filter (\ x -> defClash x) defClashes) $
+          \ ((x, q:_) : _) -> typeError $ ClashingDefinition (C.QName x) $ anameName q
 
-        unlessNull (filter realClash modClashes) $ \ ((_, (m0:_, m1:_)) : _) ->
-          typeError $ ClashingModule (amodName m0) (amodName m1)
+        unlessNull modClashes $ \ ((_, ms) : _) -> do
+          caseMaybe (last2 ms) __IMPOSSIBLE__ $ \ (m0, m1) -> do
+            typeError $ ClashingModule (amodName m0) (amodName m1)
