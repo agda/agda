@@ -179,7 +179,8 @@ the `Agda wiki <http://wiki.portal.chalmers.se/agda/pmwiki.php>`_:
 * In the top-level directory of the Agda source tree
 
   * Follow the :ref:`instructions <installation-from-hackage>` for
-    installing Agda from Hackage or
+    installing Agda from Hackage (except run ``cabal install``
+    instead of ``cabal install Agda``) or
 
   * You can try to install Agda (including a compiled Emacs mode) by
     running the following command:
