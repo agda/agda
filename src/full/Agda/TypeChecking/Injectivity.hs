@@ -84,6 +84,7 @@ headSymbol v = do -- ignoreAbstractMode $ do
     Level{} -> return Nothing
     MetaV{} -> return Nothing
     DontCare{} -> return Nothing
+    Dummy s -> __IMPOSSIBLE_VERBOSE__ s
 
 -- | Do a full whnf and treat neutral terms as rigid. Used on the arguments to
 --   an injective functions and to the right-hand side.
@@ -103,6 +104,7 @@ headSymbol' v = do
       Level{}    -> return Nothing
       MetaV{}    -> return Nothing
       DontCare{} -> return Nothing
+      Dummy s    -> __IMPOSSIBLE_VERBOSE__ s
 
 -- | Does deBruijn variable i correspond to a top-level argument, and if so
 --   which one (index from the left).
@@ -389,4 +391,3 @@ forcePiUsingInjectivity t = reduceB t >>= \ case
     fallback  = return ()
     err       = typeError (ShouldBePi t)
     success _ = return ()
-

@@ -536,6 +536,7 @@ instance TermToPattern Term DeBruijnPattern where
     -- Leaves.
     Var i []    -> varP . (`DBPatVar` i) . prettyShow <$> nameOfBV i
     Lit l       -> return $ LitP l
+    Dummy s     -> __IMPOSSIBLE_VERBOSE__ s
     t           -> return $ dotP t
 
 
@@ -919,6 +920,9 @@ instance ExtractCalls Term where
       Level l -> -- billTo [Benchmark.Termination, Benchmark.Level] $ do
         -- Andreas, 2014-03-26 Benchmark discontinued, < 0.3% spent on levels.
         extract l
+
+      -- Dummy.
+      Dummy{} -> return empty
 
 -- | Extract recursive calls from level expressions.
 

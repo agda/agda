@@ -733,6 +733,7 @@ etaExpandEquationStrategy k s = do
       Level _    -> __IMPOSSIBLE__
       MetaV _ _  -> return False
       DontCare _ -> return False
+      Dummy s    -> __IMPOSSIBLE_VERBOSE__ s
 
     tel = varTel s `abstract` telFromList (take k $ telToList $ eqTel s)
 

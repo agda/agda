@@ -262,6 +262,7 @@ instance Free Term where
     Level l    -> freeVars' l
     MetaV _ ts -> flexible <$> freeVars' ts
     DontCare mt -> irrelevantly <$> freeVars' mt
+    Dummy{} -> mempty
 
 instance Free Type where
   freeVars' (El s t) =

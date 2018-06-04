@@ -266,6 +266,7 @@ insidePi t ret =
     Level{}    -> __IMPOSSIBLE__
     MetaV{}    -> __IMPOSSIBLE__
     DontCare{} -> __IMPOSSIBLE__
+    Dummy s    -> __IMPOSSIBLE_VERBOSE__ s
 
 -- | A meta _M is rigidly constrained if there is a constraint _M us == D vs,
 -- for inert D. Such metas can safely be instantiated by recursive instance
@@ -290,6 +291,7 @@ rigidlyConstrainedMetas = do
           Level{}    -> return False
           DontCare{} -> return False
           Lam{}      -> __IMPOSSIBLE__
+          Dummy s    -> __IMPOSSIBLE_VERBOSE__ s
     rigidMetas c =
       case clValue $ theConstraint c of
         ValueCmp _ _ u v ->
@@ -345,6 +347,7 @@ areThereNonRigidMetaArguments t = case t of
     MetaV{}  -> __IMPOSSIBLE__
     Pi{}     -> __IMPOSSIBLE__
     DontCare{} -> __IMPOSSIBLE__
+    Dummy s    -> __IMPOSSIBLE_VERBOSE__ s
   where
     areThereNonRigidMetaArgs :: Elims -> TCM (Maybe MetaId)
     areThereNonRigidMetaArgs []             = return Nothing

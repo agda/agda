@@ -67,6 +67,7 @@ instance GetDefs Term where
     Level l    -> getDefs l
     MetaV x vs -> getDefs x >> getDefs vs
     DontCare v -> getDefs v
+    Dummy{}    -> return ()
 
 instance GetDefs MetaId where
   getDefs x = doMeta x

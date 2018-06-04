@@ -1236,6 +1236,7 @@ inverseSubst args = map (mapFst unArg) <$> loop (zip args terms)
         Arg _ Pi{}       -> neutralArg
         Arg _ Sort{}     -> neutralArg
         Arg _ Level{}    -> neutralArg
+        Arg _ (Dummy s)  -> __IMPOSSIBLE_VERBOSE__ s
 
     -- managing an assoc list where duplicate indizes cannot be irrelevant vars
     append :: Res -> Res -> Res

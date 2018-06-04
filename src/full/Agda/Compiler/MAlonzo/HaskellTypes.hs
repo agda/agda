@@ -177,6 +177,7 @@ haskellType' t = runToHs (unEl t) (fromType t)
         Sort{}     -> return hsUnit
         MetaV{}    -> throwError (BadMeta v)
         DontCare{} -> throwError (BadDontCare v)
+        Dummy s    -> __IMPOSSIBLE_VERBOSE__ s
 
 haskellType :: QName -> TCM HS.Type
 haskellType q = do

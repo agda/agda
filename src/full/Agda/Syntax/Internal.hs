@@ -118,6 +118,11 @@ data Term = Var {-# UNPACK #-} !Int Elims -- ^ @x es@ neutral
             -- ^ Irrelevant stuff in relevant position, but created
             --   in an irrelevant context.  Basically, an internal
             --   version of the irrelevance axiom @.irrAx : .A -> A@.
+          | Dummy String
+            -- ^ A (part of a) term or type which is only used for internal purposes.
+            --   Replaces the @Sort Prop@ hack.
+            --   The @String@ typically describes the location where we create this dummy,
+            --   but can contain other information as well.
   deriving (Data, Show)
 
 type ConInfo = ConOrigin
@@ -913,6 +918,7 @@ hasElims v =
     Sort{}     -> Nothing
     Level{}    -> Nothing
     DontCare{} -> Nothing
+    Dummy{}    -> Nothing
 
 -- | Drop 'Apply' constructor. (Unsafe!)
 argFromElim :: Elim' a -> Arg a
@@ -1032,6 +1038,7 @@ instance TermSize Term where
     Pi a b      -> 1 + tsize a + tsize b
     Sort s      -> tsize s
     DontCare mv -> tsize mv
+    Dummy{}     -> 1
 
 instance TermSize Sort where
   tsize s = case s of
@@ -1083,6 +1090,7 @@ instance KillRange Term where
     Pi a b      -> killRange2 Pi a b
     Sort s      -> killRange1 Sort s
     DontCare mv -> killRange1 DontCare mv
+    Dummy{}     -> v
 
 instance KillRange Level where
   killRange (Max as) = killRange1 Max as
@@ -1200,6 +1208,7 @@ instance Pretty Term where
       Level l     -> prettyPrec p l
       MetaV x els -> pretty x `pApp` els
       DontCare v  -> prettyPrec p v
+      Dummy s     -> parens $ text s
     where
       pApp d els = mparens (not (null els) && p > 9) $
                    sep [d, nest 2 $ fsep (map (prettyPrec 10) els)]
@@ -1312,6 +1321,7 @@ instance NFData Term where
     Level l    -> rnf l
     MetaV _ es -> rnf es
     DontCare v -> rnf v
+    Dummy _    -> ()
 
 instance NFData Type where
   rnf (El s v) = rnf (s, v)

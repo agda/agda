@@ -42,6 +42,7 @@ binAppView t = case t of
   Sort _     -> noApp
   MetaV _ _  -> noApp
   DontCare _ -> noApp
+  Dummy{}    -> __IMPOSSIBLE__
   where
     noApp = NoApp t
     app f [] = noApp

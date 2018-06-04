@@ -277,6 +277,7 @@ instance Occurs Term where
           Lam h f     -> Lam h <$> occ ctx f
           Level l     -> Level <$> occ ctx l
           Lit l       -> return v
+          Dummy{}     -> return v
           DontCare v  -> if ctx == Irrel then
                            dontCare <$> occurs red ctx m xs v
                          else
@@ -345,6 +346,7 @@ instance Occurs Term where
       Lam h f    -> metaOccurs m f
       Level l    -> metaOccurs m l
       Lit l      -> return ()
+      Dummy{}    -> return ()
       DontCare v -> metaOccurs m v
       Def d vs   -> metaOccurs m d >> metaOccurs m vs
       Con c _ vs -> metaOccurs m vs
@@ -561,6 +563,7 @@ hasBadRigid xs t = do
     Con c _ es | otherwise -> failure
     Lit{}        -> failure -- matchable
     MetaV{}      -> failure -- potentially matchable
+    Dummy{}      -> return False
 
 -- | Check whether a term @Def f es@ is finally stuck.
 --   Currently, we give only a crude approximation.
@@ -636,6 +639,7 @@ instance FoldRigid Term where
       Level l    -> fold l
       MetaV{}    -> mempty
       DontCare{} -> mempty
+      Dummy{}    -> mempty
     where fold = foldRigid f
 
 instance FoldRigid Type where

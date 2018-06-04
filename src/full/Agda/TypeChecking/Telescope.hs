@@ -393,6 +393,7 @@ getOutputTypeName t = do
       MetaV{}  -> __IMPOSSIBLE__
       Pi{}     -> __IMPOSSIBLE__
       DontCare{} -> __IMPOSSIBLE__
+      Dummy s    -> __IMPOSSIBLE_VERBOSE__ s
 
 addTypedInstance :: QName -> Type -> TCM ()
 addTypedInstance x t = do

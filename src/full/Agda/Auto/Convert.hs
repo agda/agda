@@ -379,6 +379,7 @@ instance Conversion TOM I.Term (MExp O) where
         return $ NotM $ Pi Nothing (getHiding info) (Free.freeIn 0 y) x' (Abs (Id name) y')
       I.Sort (I.Type (I.Max [I.ClosedLevel l])) -> return $ NotM $ Sort $ Set $ fromIntegral l
       I.Sort _ -> return $ NotM $ Sort UnknownSort
+      I.Dummy{}-> return $ NotM $ Sort UnknownSort
       t@I.MetaV{} -> do
         t <- lift $ instantiate t
         case t of
@@ -422,6 +423,7 @@ fmExp m (I.Pi x y)  = fmType m (Cm.unDom x) || fmType m (I.unAbs y)
 fmExp m (I.Sort _) = False
 fmExp m (I.MetaV mid _) = mid == m
 fmExp m (I.DontCare _) = False
+fmExp _ I.Dummy{} = False
 
 fmExps :: I.MetaId -> I.Args -> Bool
 fmExps m [] = False

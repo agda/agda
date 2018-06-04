@@ -240,6 +240,7 @@ quotingKit = do
           MetaV x es -> meta !@! quoteMeta currentFile x @@ quoteArgs vs
             where vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
           DontCare{} -> pure unsupported -- could be exposed at some point but we have to take care
+          Dummy s    -> __IMPOSSIBLE_VERBOSE__ s
 
       defParameters :: Definition -> [ReduceM Term]
       defParameters def = map par hiding

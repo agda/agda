@@ -901,6 +901,7 @@ reduceTm rEnv bEnv !constInfo normalisation ReductionFlags{..} =
         Level{}    -> fallbackAM s
         Sort{}     -> fallbackAM s
         DontCare{} -> fallbackAM s
+        Dummy{}    -> fallbackAM s
 
       where done = Eval (mkValue (notBlocked ()) cl) ctrl
             shiftElims t env0 env es = do
@@ -1004,6 +1005,7 @@ reduceTm rEnv bEnv !constInfo normalisation ReductionFlags{..} =
           Sort{}     -> True
           Level{}    -> True
           DontCare{} -> True
+          Dummy{}    -> False
           MetaV{}    -> False
           Var{}      -> False
           Def q _  -- Type constructors (data/record) are considered canonical for 'primForce'.
@@ -1369,4 +1371,3 @@ instance Pretty (ControlFrame s) where
   prettyPrec p (ApplyK spine)           = mparens (p > 9) $ text "ApplyK" <?> prettyList spine
   prettyPrec p NormaliseK               = text "NormaliseK"
   prettyPrec p (ArgK cl _)              = mparens (p > 9) $ sep [ text "ArgK" <+> prettyPrec 10 cl ]
-

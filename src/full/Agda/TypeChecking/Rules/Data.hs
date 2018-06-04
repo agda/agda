@@ -428,3 +428,4 @@ isCoinductive t = do
     Sort  {} -> return (Just False)
     MetaV {} -> return Nothing
     DontCare{} -> __IMPOSSIBLE__
+    Dummy s    -> __IMPOSSIBLE_VERBOSE__ s

@@ -370,6 +370,7 @@ instance HasPolarity Term where
     Sort s     -> return [] -- polarities i s -- return []
     MetaV _ ts -> map (const Invariant) <$> polarities i ts
     DontCare t -> polarities i t -- return []
+    Dummy{}    -> return []
 
 instance HasPolarity Level where
   polarities i (Max as) = polarities i as

@@ -18,6 +18,7 @@ instance MentionsMeta Term where
     Pi a b       -> mm (a, b)
     Sort s       -> mm s
     Level l      -> mm l
+    Dummy{}      -> False
     DontCare v   -> False   -- we don't have to look inside don't cares when deciding to wake constraints
     MetaV y args -> x == y || mm args   -- TODO: we really only have to look one level deep at meta args
     where
