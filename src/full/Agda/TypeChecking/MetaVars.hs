@@ -15,6 +15,8 @@ import qualified Data.Map as Map
 import qualified Data.Foldable as Fold
 import qualified Data.Traversable as Trav
 
+import Agda.Interaction.Options
+
 import Agda.Syntax.Abstract.Name as A
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
@@ -114,20 +116,6 @@ assignTerm' x tel v = do
     reportSLn "tc.meta.assign" 70 $ prettyShow x ++ " := " ++ show v ++ "\n  in " ++ show tel
      -- verify (new) invariants
     whenM (not <$> asks envAssignMetas) __IMPOSSIBLE__
-
-{- TODO make double-checking work
--- currently, it does not work since types of sort-metas are inaccurate!
-
-    -- Andreas, 2013-10-25 double check solution before assigning
-    m <- lookupMeta x
-    case mvJudgement m of
-      HasType _ a -> dontAssignMetas $ checkInternal t a
-      IsSort{}    -> return ()  -- skip double check since type of meta is not accurate
--}
-    -- Andreas, 2013-10-25 double check solution before assigning
-    -- Andreas, 2013-11-30 this seems to open a can of worms...
-    -- dontAssignMetas $ do
-    --   checkInternal t . jMetaType . mvJudgement =<< lookupMeta x
 
     verboseS "profile.metas" 10 $ liftTCM $ tickMax "max-open-metas" . (fromIntegral . size) =<< getOpenMetas
     modifyMetaStore $ ins x $ InstV tel $ killRange v
@@ -921,7 +909,7 @@ assignMeta' m x t n ids v = do
     reportSDoc "tc.meta.assign" 15 $ text "type of meta =" <+> prettyTCM t
     reportSDoc "tc.meta.assign" 70 $ text "type of meta =" <+> text (show t)
 
-    TelV tel' _ <- telViewUpTo n t
+    TelV tel' a <- telViewUpTo n t
     reportSDoc "tc.meta.assign" 30 $ text "tel'  =" <+> prettyTCM tel'
     reportSDoc "tc.meta.assign" 30 $ text "#args =" <+> text (show n)
     -- Andreas, 2013-09-17 (AIM XVIII): if t does not provide enough
@@ -933,17 +921,20 @@ assignMeta' m x t n ids v = do
     -- Perform the assignment (and wake constraints).
 
     let vsol = abstract tel' v'
-    -- -- Andreas, 2013-10-25 double check solution before assigning
-    -- -- Andreas, 2017-07-28
-    -- m <- lookupMeta x
-    -- case mvJudgement m of
-    --   IsSort{}    -> return ()  -- skip double check since type of meta is not accurate
-    --   HasType _ a -> do
-    --     reportSDoc "tc.meta.check" 30 $ vcat
-    --       [ text "double checking solution"
-    --       , nest 2 $ prettyTCM vsol <+> text " : " <+> prettyTCM a
-    --       ]
-    --     dontAssignMetas $ checkInternal vsol a  -- This can crash at assignTerm'!
+
+    -- Andreas, 2013-10-25 double check solution before assigning
+    whenM (optDoubleCheck <$> pragmaOptions) $ dontAssignMetas $ do
+      m <- lookupMeta x
+      reportSDoc "tc.meta.check" 30 $ text "double checking solution"
+      addContext tel' $ case mvJudgement m of
+        HasType{} -> do
+          reportSDoc "tc.meta.check" 30 $ nest 2 $
+            prettyTCM v' <+> text " : " <+> prettyTCM a
+          checkInternal v' a
+        IsSort{}  -> void $ do
+          reportSDoc "tc.meta.check" 30 $ nest 2 $
+            prettyTCM v' <+> text " is a sort"
+          checkSort defaultAction =<< shouldBeSort (El __DUMMY_SORT__ v')
 
     reportSDoc "tc.meta.assign" 10 $
       text "solving" <+> prettyTCM x <+> text ":=" <+> prettyTCM vsol

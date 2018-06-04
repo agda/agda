@@ -19,6 +19,8 @@ import Data.Traversable (Traversable, traverse, forM, mapM)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
+import Agda.Interaction.Options
+
 import Agda.Syntax.Common
 import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Concrete (exprFieldA)
@@ -46,7 +48,7 @@ import Agda.TypeChecking.Patterns.Abstract (expandPatternSynonyms)
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Free
-import Agda.TypeChecking.CheckInternal (checkType, inferSort)
+import Agda.TypeChecking.CheckInternal
 import Agda.TypeChecking.With
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Injectivity
@@ -446,6 +448,15 @@ checkClause t withSub c@(A.Clause (A.SpineLHS i x aps) strippedPats rhs0 wh catc
         -- the context with the parent (but withSub will take you from parent
         -- to child).
         inTopContext $ Bench.billTo [Bench.Typing, Bench.With] $ checkWithFunction cxtNames with
+
+        whenM (optDoubleCheck <$> pragmaOptions) $ case body of
+          Just v  -> do
+            reportSDoc "tc.lhs.top" 30 $ vcat
+              [ text "double checking rhs"
+              , nest 2 (prettyTCM v <+> text " : " <+> prettyTCM (unArg trhs))
+              ]
+            checkInternal v $ unArg trhs
+          Nothing -> return ()
 
         reportSDoc "tc.lhs.top" 10 $ vcat
           [ text "Clause before translation:"

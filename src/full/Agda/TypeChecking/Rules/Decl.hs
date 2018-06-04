@@ -43,6 +43,7 @@ import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 
+import Agda.TypeChecking.CheckInternal
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Errors
@@ -570,6 +571,10 @@ checkAxiom funSig i info0 mp x e = whenAbstractFreezeMetasAfter i $ do
     , nest 2 $ prettyTCM rel <> prettyTCM x <+> text ":" <+> prettyTCM t
     , nest 2 $ text "of sort " <+> prettyTCM (getSort t)
     ]
+
+  -- Jesper, 2018-06-05: should be done AFTER generalizing
+  --whenM (optDoubleCheck <$> pragmaOptions) $ workOnTypes $ do
+  --  checkInternal (unEl t) (sort $ getSort t)
 
   -- Andreas, 2015-03-17 Issue 1428: Do not postulate sizes in parametrized
   -- modules!
