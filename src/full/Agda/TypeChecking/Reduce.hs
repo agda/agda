@@ -407,6 +407,7 @@ slowReduceTerm v = do
       Var _ es  -> iapp es
       Lam _ _  -> done
       DontCare _ -> done
+      Dummy{}    -> done
     where
       -- NOTE: reduceNat can traverse the entire term.
       reduceNat v@(Con c ci []) = do
@@ -773,6 +774,7 @@ instance Simplify Term where
       Var i vs   -> Var i    <$> simplify' vs
       Lam h v    -> Lam h    <$> simplify' v
       DontCare v -> dontCare <$> simplify' v
+      Dummy{}    -> return v
 
 simplifyBlocked' :: Simplify t => Blocked t -> ReduceM t
 simplifyBlocked' (Blocked _ t) = return t
@@ -951,6 +953,7 @@ slowNormaliseArgs v = case v of
   Sort s      -> Sort       <$> normalise' s
   Pi a b      -> uncurry Pi <$> normalise' (a, b)
   DontCare _  -> return v
+  Dummy{}     -> return v
 
 instance Normalise Elim where
   normalise' (Apply v) = Apply <$> normalise' v
@@ -1123,6 +1126,7 @@ instance InstantiateFull Term where
           Sort s      -> Sort <$> instantiateFull' s
           Pi a b      -> uncurry Pi <$> instantiateFull' (a,b)
           DontCare v  -> dontCare <$> instantiateFull' v
+          Dummy{}     -> return v
 
 instance InstantiateFull Level where
   instantiateFull' (Max as) = levelMax <$> instantiateFull' as

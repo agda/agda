@@ -341,7 +341,7 @@ castConstraintToCurrentContext cl = do
             -- Turn cand into a substitution.
             -- Since we ignored the free variables in sorts, we better patch up
             -- the substitution with some dummy term rather than __IMPOSSIBLE__.
-            return $ parallelS $ map (maybe dummyTerm var) cand
+            return $ parallelS $ map (maybe __DUMMY_TERM__ var) cand
           ) return -- Phew, we've got the checkpoint! All is well.
   -- Apply substitution to constraint and pray that the Gods are merciful on us.
   return $ applySubst sigma (clValue cl)

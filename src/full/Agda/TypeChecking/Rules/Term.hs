@@ -1355,7 +1355,7 @@ checkLetBinding b@(A.LetPatBind i p e) ret =
     p <- expandPatternSynonyms p
     (v, t) <- inferExpr' ExpandLast e
     let -- construct a type  t -> dummy  for use in checkLeftHandSide
-        t0 = El (getSort t) $ Pi (defaultDom t) (NoAbs underscore dummyType)
+        t0 = El (getSort t) $ Pi (defaultDom t) (NoAbs underscore __DUMMY_TYPE__)
         p0 = Arg defaultArgInfo (Named Nothing p)
     reportSDoc "tc.term.let.pattern" 10 $ vcat
       [ text "let-binding pattern p at type t"

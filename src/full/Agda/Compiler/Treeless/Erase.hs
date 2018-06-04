@@ -305,5 +305,5 @@ getTypeInfo t0 = do
         Nothing ->
           case I.theDef def of
             I.Function{ funClauses = cs } ->
-              sumTypeInfo <$> mapM (maybe (return Empty) (getTypeInfo . El dummySort) . clauseBody) cs
+              sumTypeInfo <$> mapM (maybe (return Empty) (getTypeInfo . El __DUMMY_SORT__) . clauseBody) cs
             _ -> return NotErasable

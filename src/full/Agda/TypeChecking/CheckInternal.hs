@@ -97,6 +97,7 @@ checkType' t = do
     v@Lit{}    -> typeError $ InvalidType v
     v@Level{}  -> typeError $ InvalidType v
     DontCare v -> checkType' $ t $> v
+    Dummy s    -> __IMPOSSIBLE_VERBOSE__ s
 
 checkTypeSpine :: Type -> Term -> Elims -> TCM Sort
 checkTypeSpine a self es = shouldBeSort =<< do snd <$> inferSpine a self es
@@ -196,6 +197,7 @@ checkInternal' action v t = do
       l <- checkLevel action l
       Level l <$ ((`subtype` t) =<< levelType)
     DontCare v -> DontCare <$> checkInternal' action v t
+    Dummy s -> __IMPOSSIBLE_VERBOSE__ s
 
 -- | Make sure a constructor is fully applied
 --   and infer the type of the constructor.
@@ -448,6 +450,7 @@ inferSort t = case t of
     Lam{}      -> __IMPOSSIBLE__
     Level{}    -> __IMPOSSIBLE__
     DontCare{} -> __IMPOSSIBLE__
+    Dummy s    -> __IMPOSSIBLE_VERBOSE__ s
 
 -- | @eliminate t self es@ eliminates value @self@ of type @t@ by spine @es@
 --   and returns the remaining value and its type.

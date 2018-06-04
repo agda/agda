@@ -75,6 +75,7 @@ instance Apply Term where
       Level{}     -> __IMPOSSIBLE__
       Pi _ _      -> __IMPOSSIBLE__
       Sort _      -> __IMPOSSIBLE__
+      Dummy{}     -> __IMPOSSIBLE__
       DontCare mv -> dontCare $ mv `applyE` es  -- Andreas, 2011-10-02
         -- need to go under DontCare, since "with" might resurrect irrelevant term
 
@@ -648,7 +649,7 @@ instance Abstract v => Abstract (HashMap k v) where
 abstractArgs :: Abstract a => Args -> a -> a
 abstractArgs args x = abstract tel x
     where
-        tel   = foldr (\arg@(Arg info x) -> ExtendTel (dummyType <$ domFromArg arg) . Abs x)
+        tel   = foldr (\arg@(Arg info x) -> ExtendTel (__DUMMY_TYPE__ <$ domFromArg arg) . Abs x)
                       EmptyTel
               $ zipWith (<$) names args
         names = cycle $ map (stringToArgName . (:[])) ['a'..'z']
@@ -689,6 +690,7 @@ instance Subst Term Term where
     Pi a b      -> uncurry Pi $ applySubst rho (a,b)
     Sort s      -> Sort $ applySubst rho s
     DontCare mv -> dontCare $ applySubst rho mv
+    Dummy{}     -> t
 
 instance Subst Term a => Subst Term (Type' a) where
   applySubst rho (El s t) = applySubst rho s `El` applySubst rho t
@@ -1136,6 +1138,7 @@ instance Eq Term where
   Level l    == Level l'     = l == l'
   MetaV m vs == MetaV m' vs' = m == m' && vs == vs'
   DontCare _ == DontCare _   = True
+  Dummy{}    == Dummy{}      = True
   _          == _            = False
 
 instance Ord Term where
@@ -1167,6 +1170,9 @@ instance Ord Term where
   MetaV{}    `compare` _          = LT
   _          `compare` MetaV{}    = GT
   DontCare{} `compare` DontCare{} = EQ
+  DontCare{} `compare` _          = LT
+  _          `compare` DontCare{} = GT
+  Dummy{}    `compare` Dummy{}    = EQ
 
 -- Andreas, 2017-10-04, issue #2775, ignore irrelevant arguments during with-abstraction.
 --

@@ -213,11 +213,11 @@ instance AddContext (Dom Type) where
   contextSize _ = 1
 
 instance AddContext Name where
-  addContext x = addContext (x, dummyDom)
+  addContext x = addContext (x, __DUMMY_DOM__)
   contextSize _ = 1
 
 instance {-# OVERLAPPING #-} AddContext String where
-  addContext s = addContext (s, dummyDom)
+  addContext s = addContext (s, __DUMMY_DOM__)
   contextSize _ = 1
 
 instance AddContext (KeepNames Telescope) where
@@ -231,10 +231,6 @@ instance AddContext Telescope where
     loop EmptyTel          = ret
     loop (ExtendTel t tel) = underAbstraction' id t tel loop
   contextSize = size
-
--- | Context entries without a type have this dummy type.
-dummyDom :: Dom Type
-dummyDom = defaultDom dummyType
 
 -- | Go under an abstraction.
 {-# SPECIALIZE underAbstraction :: Subst t a => Dom Type -> Abs a -> (a -> TCM b) -> TCM b #-}
@@ -251,7 +247,7 @@ underAbstraction' wrap t a k = addContext (wrap $ realName $ absName a, t) $ k $
 -- | Go under an abstract without worrying about the type to add to the context.
 {-# SPECIALIZE underAbstraction_ :: Subst t a => Abs a -> (a -> TCM b) -> TCM b #-}
 underAbstraction_ :: (Subst t a, MonadTCM tcm, MonadDebug tcm) => Abs a -> (a -> tcm b) -> tcm b
-underAbstraction_ = underAbstraction dummyDom
+underAbstraction_ = underAbstraction __DUMMY_DOM__
 
 getLetBindings :: MonadTCM tcm => tcm [(Name,(Term,Dom Type))]
 getLetBindings = do

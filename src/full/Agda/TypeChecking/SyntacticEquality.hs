@@ -95,6 +95,7 @@ instance SynEq Term where
       (DontCare _, DontCare _  )           -> pure (v, v')
          -- Irrelevant things are syntactically equal. ALT:
          -- DontCare <$$> synEq v v'
+      (Dummy{}   , Dummy{}     )           -> pure (v, v')
       _                                    -> inequal (v, v')
 
 instance SynEq Level where

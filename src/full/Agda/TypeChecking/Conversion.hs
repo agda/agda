@@ -293,7 +293,7 @@ compareTerm' cmp a m n =
                   -- No subtyping on record terms
                   c <- getRecordConstructor r
                   -- Record constructors are covariant (see test/succeed/CovariantConstructors).
-                  compareArgs (repeat $ polFromCmp cmp) [] (telePi_ tel dummyType) (Con c ConOSystem []) m' n'
+                  compareArgs (repeat $ polFromCmp cmp) [] (telePi_ tel __DUMMY_TYPE__) (Con c ConOSystem []) m' n'
 
             else (do pathview <- pathView a'
                      equalPath pathview a' m n)

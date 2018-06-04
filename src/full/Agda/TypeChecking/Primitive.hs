@@ -760,7 +760,7 @@ primComp = do
                    compGlue phi u a0 la lb bA phi' bT f pf
 
                  -- Path/PathP
-                 d | PathType _ _ _ bA x y <- pathV (El dummySort d) -> do
+                 d | PathType _ _ _ bA x y <- pathV (El __DUMMY_SORT__ d) -> do
                    if nelims > 0 then compPathP iz ineg imax sphi u a0 l bA x y else fallback
 
                  Def q [Apply _ , Apply bA , Apply x , Apply y] | Just q == mId -> do
@@ -1407,7 +1407,7 @@ primTrustMe = do
     -- Andreas, 2013-07-22.
     -- Note that we cannot call the conversion checker here,
     -- because 'reduce' might be called in a context where
-    -- some bound variables do not have a type (just dummyType),
+    -- some bound variables do not have a type (just __DUMMY_TYPE__),
     -- and the conversion checker for eliminations does not
     -- like this.
     -- We can only do untyped equality, e.g., by normalisation.
@@ -1468,7 +1468,7 @@ genPrimForce b ret = do
                     _          -> False
                 MetaV{}    -> return False
                 Var{}      -> return False
-
+                Dummy s    -> __IMPOSSIBLE_VERBOSE__ s
         ifM (isWHNF u)
             (redReturn $ ret (unArg f) (ignoreBlocking u))
             (return $ NoReduction $ map notReduced [a, b, s, t] ++ [reduced u, notReduced f])

@@ -72,6 +72,7 @@ instance PrecomputeFreeVars Term where
       Level l    -> Level      <$> precomputeFreeVars l
       MetaV x es -> MetaV x    <$> precomputeFreeVars es
       DontCare t -> DontCare   <$> precomputeFreeVars t
+      Dummy{}    -> pure t
 
 -- The other instances are boilerplate.
 
@@ -119,4 +120,3 @@ instance PrecomputeFreeVars a => PrecomputeFreeVars (Maybe a) where
 
 instance (PrecomputeFreeVars a, PrecomputeFreeVars b) => PrecomputeFreeVars (a, b) where
   precomputeFreeVars (x, y) = (,) <$> precomputeFreeVars x <*> precomputeFreeVars y
-

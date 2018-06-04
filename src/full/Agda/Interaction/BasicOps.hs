@@ -734,6 +734,7 @@ metaHelperType norm ii rng s = case words s of
       I.Sort{}     -> pure v
       I.Level{}    -> pure v
       I.MetaV{}    -> pure v
+      I.Dummy{}    -> pure v
     onNamesElims f = traverse $ traverse $ onNamesTm f
     onNamesArgs f  = traverse $ traverse $ onNamesTm f
     onNamesAbs f   = onNamesAbs' f (stringToArgName <.> f . argNameToString)

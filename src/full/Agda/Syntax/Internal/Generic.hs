@@ -95,6 +95,7 @@ instance TermLike Term where
     Lit _       -> f t
     Sort _      -> f t
     DontCare mv -> f =<< DontCare <$> traverseTermM f mv
+    Dummy{}     -> f t
 
   foldTerm f t = f t `mappend` case t of
     Var i xs    -> foldTerm f xs
@@ -107,6 +108,7 @@ instance TermLike Term where
     Lit _       -> mempty
     Sort _      -> mempty
     DontCare mv -> foldTerm f mv
+    Dummy{}     -> mempty
 
 instance TermLike Level where
   traverseTermM f (Max as) = Max <$> traverseTermM f as

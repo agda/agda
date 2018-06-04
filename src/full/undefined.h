@@ -5,3 +5,9 @@
 
 #define __UNREACHABLE__ (throwImpossible (Unreachable __FILE__ __LINE__))
 #define __CRASH_WHEN__ (\ k n -> whenExactVerbosity k n __UNREACHABLE__)
+
+#define __DUMMY_TERM__  (dummyTerm  __FILE__ __LINE__)
+#define __DUMMY_TYPE__  (dummyType  __FILE__ __LINE__)
+#define __DUMMY_SORT__  (dummySort  __FILE__ __LINE__)
+#define __DUMMY_LEVEL__ (dummyLevel __FILE__ __LINE__)
+#define __DUMMY_DOM__   (dummyDom   __FILE__ __LINE__)

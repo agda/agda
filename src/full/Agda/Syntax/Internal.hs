@@ -118,6 +118,11 @@ data Term = Var {-# UNPACK #-} !Int Elims -- ^ @x es@ neutral
             -- ^ Irrelevant stuff in relevant position, but created
             --   in an irrelevant context.  Basically, an internal
             --   version of the irrelevance axiom @.irrAx : .A -> A@.
+          | Dummy String
+            -- ^ A (part of a) term or type which is only used for internal purposes.
+            --   Replaces the @Sort Prop@ hack.
+            --   The @String@ typically describes the location where we create this dummy,
+            --   but can contain other information as well.
   deriving (Data, Show)
 
 type ConInfo = ConOrigin
@@ -716,17 +721,41 @@ dontCare v =
     DontCare{} -> v
     _          -> DontCare v
 
--- | A dummy sort.
-dummySort :: Sort
-dummySort = Prop (Max [])
+-- | Aux: A dummy term to constitute a dummy term/level/sort/type.
+dummyTerm' :: String -> Int -> Term
+dummyTerm' file line = Dummy $ file ++ ":" ++ show line
 
--- | A dummy term.
-dummyTerm :: Term
-dummyTerm = Sort dummySort
+-- | Aux: A dummy level to constitute a level/sort.
+dummyLevel' :: String -> Int -> Level
+dummyLevel' file line = unreducedLevel $ dummyTerm' file line
 
--- | A dummy type.
-dummyType :: Type
-dummyType = sort dummySort
+-- | A dummy term created at location.
+--   Note: use macro __DUMMY_TERM__ !
+dummyTerm :: String -> Int -> Term
+dummyTerm file line = dummyTerm' ("dummyTerm: " ++ file) line
+
+-- | A dummy level created at location.
+--   Note: use macro __DUMMY_LEVEL__ !
+dummyLevel :: String -> Int -> Level
+dummyLevel file line = dummyLevel' ("dummyLevel: " ++ file) line
+
+-- | A dummy sort created at location.
+--   Note: use macro __DUMMY_SORT__ !
+dummySort :: String -> Int -> Sort
+dummySort file = Prop . (dummyLevel' $ "dummySort: " ++ file)
+
+-- | A dummy type created at location.
+--   Note: use macro __DUMMY_TYPE__ !
+dummyType :: String -> Int -> Type
+dummyType file line = El (Prop $ unreducedLevel $ Dummy "") (dummyTerm' ("dummyType: " ++ file) line)
+
+-- | Context entries without a type have this dummy type.
+--   Note: use macro __DUMMY_DOM__ !
+dummyDom :: String -> Int -> Dom Type
+dummyDom file line = defaultDom $ dummyType file line
+
+unreducedLevel :: Term -> Level
+unreducedLevel v = Max [ Plus 0 $ UnreducedLevel v ]
 
 -- | Top sort (Set\omega).
 topSort :: Type
@@ -767,17 +796,10 @@ isIrrelevantOrProp :: (LensRelevance a, LensSort a) => a -> Bool
 isIrrelevantOrProp x = isIrrelevant x || isProp x
 
 impossibleTerm :: String -> Int -> Term
-impossibleTerm file line = Lit $ LitString noRange $ unlines
+impossibleTerm file line = Dummy $ unlines
   [ "An internal error has occurred. Please report this as a bug."
   , "Location of the error: " ++ file ++ ":" ++ show line
   ]
-
-hackReifyToMeta :: Term
-hackReifyToMeta = DontCare $ Lit $ LitNat noRange (-42)
-
-isHackReifyToMeta :: Term -> Bool
-isHackReifyToMeta (DontCare (Lit (LitNat r (-42)))) = r == noRange
-isHackReifyToMeta _ = False
 
 ---------------------------------------------------------------------------
 -- * Telescopes.
@@ -949,6 +971,7 @@ hasElims v =
     Sort{}     -> Nothing
     Level{}    -> Nothing
     DontCare{} -> Nothing
+    Dummy{}    -> Nothing
 
 -- | Drop 'Apply' constructor. (Unsafe!)
 argFromElim :: Elim' a -> Arg a
@@ -1071,6 +1094,7 @@ instance TermSize Term where
     Pi a b      -> 1 + tsize a + tsize b
     Sort s      -> tsize s
     DontCare mv -> tsize mv
+    Dummy{}     -> 1
 
 instance TermSize Sort where
   tsize s = case s of
@@ -1122,6 +1146,7 @@ instance KillRange Term where
     Pi a b      -> killRange2 Pi a b
     Sort s      -> killRange1 Sort s
     DontCare mv -> killRange1 DontCare mv
+    Dummy{}     -> v
 
 instance KillRange Level where
   killRange (Max as) = killRange1 Max as
@@ -1239,6 +1264,7 @@ instance Pretty Term where
       Level l     -> prettyPrec p l
       MetaV x els -> pretty x `pApp` els
       DontCare v  -> prettyPrec p v
+      Dummy s     -> parens $ text s
     where
       pApp d els = mparens (not (null els) && p > 9) $
                    sep [d, nest 2 $ fsep (map (prettyPrec 10) els)]
@@ -1352,6 +1378,7 @@ instance NFData Term where
     Level l    -> rnf l
     MetaV _ es -> rnf es
     DontCare v -> rnf v
+    Dummy _    -> ()
 
 instance NFData Type where
   rnf (El s v) = rnf (s, v)

@@ -495,8 +495,8 @@ translateRecordPatterns clause = do
       -- Permutation taking the new variable and dot patterns to the
       -- new telescope.
       newPerm = adjustForDotPatterns $
-                  reorderTel_ $ map (maybe dummyDom snd) newTel'
-        -- It is important that dummyDom does not mention any variable
+                  reorderTel_ $ map (maybe __DUMMY_DOM__ snd) newTel'
+        -- It is important that __DUMMY_DOM__ does not mention any variable
         -- (see the definition of reorderTel).
         where
         isDotP n = case List.genericIndex cs n of

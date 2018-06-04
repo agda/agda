@@ -483,6 +483,7 @@ reifyTerm expandAnonDefs0 v = do
       ifM (asks envPrintMetasBare) {-then-} (return x') {-else-} $
         elims x' =<< reify es
     I.DontCare v -> A.DontCare <$> reifyTerm expandAnonDefs v
+    I.Dummy s -> return $ A.Lit $ LitString noRange s
   where
     -- Andreas, 2012-10-20  expand a copy if not in scope
     -- to improve error messages.
