@@ -146,14 +146,22 @@ type CoverM = ExceptT SplitError TCM
 --
 coverageCheck :: QName -> Type -> [Clause] -> TCM SplitTree
 coverageCheck f t cs = do
+  reportSLn "tc.cover.top" 30 $ "entering coverageCheck for " ++ show f
   TelV gamma a <- telViewUpToPath (-1) t
+  reportSLn "tc.cover.top" 30 $ "coverageCheck: computed telView"
+
   let -- n             = arity
       -- xs            = variable patterns fitting lgamma
       n            = size gamma
       xs           =  map (setOrigin Inserted) $ teleNamedArgs gamma
+
+  reportSLn "tc.cover.top" 30 $ "coverageCheck: getDefFreeVars"
+
       -- The initial module parameter substitutions need to be weakened by the
       -- number of arguments that aren't module parameters.
   fv           <- getDefFreeVars f
+
+  reportSLn "tc.cover.top" 30 $ "coverageCheck: getting checkpoints"
 
   -- TODO: does this make sense? Why are we weakening by n - fv?
   checkpoints <- applySubst (raiseS (n - fv)) <$> view eCheckpoints
