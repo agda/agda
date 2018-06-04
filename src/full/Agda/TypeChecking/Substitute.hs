@@ -668,7 +668,7 @@ instance Subst Term Sort where
     Inf        -> Inf
     SizeUniv   -> SizeUniv
     PiSort s1 s2 -> piSort (sub s1) (sub s2)
-    UnivSort s -> UnivSort $ sub s
+    UnivSort s -> univSort Nothing $ sub s
     MetaS x es -> MetaS x $ sub es
     where sub x = applySubst rho x
 
@@ -1181,17 +1181,20 @@ instance (Subst t a, Ord a) => Ord (Elim' a) where
 ---------------------------------------------------------------------------
 
 -- | Get the next higher sort.
-univSort' :: (HasOptions m) => Sort -> m (Maybe Sort)
-univSort' (Type l) = return $ Just $ Type $ levelSuc l
-univSort' (Prop l) = return $ Just $ Type $ levelSuc l
-univSort' Inf      =
+univSort' :: Maybe Sort -> Sort -> Maybe Sort
+univSort' univInf (Type l) = Just $ Type $ levelSuc l
+univSort' univInf (Prop l) = Just $ Type $ levelSuc l
+univSort' univInf Inf      = univInf
+univSort' univInf s        = Nothing
+
+univSort :: Maybe Sort -> Sort -> Sort
+univSort univInf s = fromMaybe (UnivSort s) $ univSort' univInf s
+
+univInf :: (HasOptions m) => m (Maybe Sort)
+univInf =
   ifM (optOmegaInOmega <$> pragmaOptions)
   {-then-} (return $ Just Inf)
-  {-else-} (return $ Nothing)
-univSort' s        = return $ Nothing
-
-univSort :: (HasOptions m) => Sort -> m Sort
-univSort s = fromMaybe (UnivSort s) <$> univSort' s
+  {-else-} (return Nothing)
 
 -- | Compute the sort of a function type from the sorts of its
 --   domain and codomain.
