@@ -272,9 +272,9 @@ instance Match NLPat Sort where
     _                -> matchingBlocked $ NotBlocked ReallyNotBlocked ()
 
 instance (Match a b, Subst t1 a, Subst t2 b) => Match (Abs a) (Abs b) where
-  match r gamma k (Abs n p) (Abs _ v) = match r gamma (ExtendTel dummyDom (Abs n k)) p v
-  match r gamma k (Abs n p) (NoAbs _ v) = match r gamma (ExtendTel dummyDom (Abs n k)) p (raise 1 v)
-  match r gamma k (NoAbs n p) (Abs _ v) = match r gamma (ExtendTel dummyDom (Abs n k)) (raise 1 p) v
+  match r gamma k (Abs n p) (Abs _ v) = match r gamma (ExtendTel __DUMMY_DOM__ (Abs n k)) p v
+  match r gamma k (Abs n p) (NoAbs _ v) = match r gamma (ExtendTel __DUMMY_DOM__ (Abs n k)) p (raise 1 v)
+  match r gamma k (NoAbs n p) (Abs _ v) = match r gamma (ExtendTel __DUMMY_DOM__ (Abs n k)) (raise 1 p) v
   match r gamma k (NoAbs _ p) (NoAbs _ v) = match r gamma k p v
 
 instance Match NLPat Level where
@@ -337,7 +337,7 @@ instance Match NLPat Term where
           Lam i u -> do
             let pbody = PDef f (raise 1 ps ++ [Apply $ Arg i $ PTerm (var 0)])
                 body  = absBody u
-            match r gamma (ExtendTel dummyDom (Abs (absName u) k)) pbody body
+            match r gamma (ExtendTel __DUMMY_DOM__ (Abs (absName u) k)) pbody body
           MetaV m es -> do
             matchingBlocked $ Blocked m ()
           v' -> do -- @f@ may be a record constructor as well
@@ -369,7 +369,7 @@ instance Match NLPat Term where
         Lam info u -> do
           let pbody = PBoundVar i (raise 1 ps ++ [Apply $ Arg info $ PTerm (var 0)])
               body  = absBody u
-          match r gamma (ExtendTel dummyDom (Abs (absName u) k)) pbody body
+          match r gamma (ExtendTel __DUMMY_DOM__ (Abs (absName u) k)) pbody body
         MetaV m es -> matchingBlocked $ Blocked m ()
         _ -> no (text "")
       PTerm u -> tellEq gamma k u v

@@ -540,7 +540,7 @@ checkArguments_
      -- ^ Checked arguments and remaining telescope if successful.
 checkArguments_ exh r args tel = do
     z <- runExceptT $
-      checkArgumentsE exh r args (telePi tel dummyType) Nothing
+      checkArgumentsE exh r args (telePi tel __DUMMY_TYPE__) Nothing
     case z of
       Right (args, t, _) -> do
         let TelV tel' _ = telView' t

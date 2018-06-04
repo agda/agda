@@ -118,7 +118,7 @@ recordModule = mnameFromList . qnameToList
 --   does not refer to a record or the record is abstract.
 getRecordDef :: QName -> TCM Defn
 getRecordDef r = maybe err return =<< isRecord r
-  where err = typeError $ ShouldBeRecordType (El dummySort $ Def r [])
+  where err = typeError $ ShouldBeRecordType (El __DUMMY_SORT__ $ Def r [])
 
 -- | Get the record name belonging to a field name.
 getRecordOfField :: QName -> TCM (Maybe QName)
@@ -685,7 +685,7 @@ isSingletonRecord' regardIrrelevance r ps = do
       ExtendTel dom tel
         | isIrrelevantOrProp dom && regardIrrelevance -> do
           underAbstraction dom tel $ \ tel ->
-            emap (Arg (domInfo dom) dummyTerm :) <$> check tel
+            emap (Arg (domInfo dom) __DUMMY_TERM__ :) <$> check tel
         | otherwise -> do
           isSing <- isSingletonType' regardIrrelevance $ unDom dom
           case isSing of

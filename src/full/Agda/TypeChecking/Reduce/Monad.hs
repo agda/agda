@@ -91,7 +91,7 @@ underAbstraction t a f =
     realName s = if isNoName s then "x" else s
 
 underAbstraction_ :: Subst t a => Abs a -> (a -> ReduceM b) -> ReduceM b
-underAbstraction_ = underAbstraction dummyDom
+underAbstraction_ = underAbstraction __DUMMY_DOM__
 
 lookupMeta :: MetaId -> ReduceM MetaVariable
 lookupMeta i = fromMaybe __IMPOSSIBLE__ . Map.lookup i <$> useR stMetaStore

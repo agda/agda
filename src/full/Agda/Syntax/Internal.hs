@@ -688,17 +688,41 @@ dontCare v =
     DontCare{} -> v
     _          -> DontCare v
 
--- | A dummy sort.
-dummySort :: Sort
-dummySort = Prop (Max [])
+-- | Aux: A dummy term to constitute a dummy term/level/sort/type.
+dummyTerm' :: String -> Int -> Term
+dummyTerm' file line = Dummy $ file ++ ":" ++ show line
 
--- | A dummy term.
-dummyTerm :: Term
-dummyTerm = Sort dummySort
+-- | Aux: A dummy level to constitute a level/sort.
+dummyLevel' :: String -> Int -> Level
+dummyLevel' file line = unreducedLevel $ dummyTerm' file line
 
--- | A dummy type.
-dummyType :: Type
-dummyType = sort dummySort
+-- | A dummy term created at location.
+--   Note: use macro __DUMMY_TERM__ !
+dummyTerm :: String -> Int -> Term
+dummyTerm file line = dummyTerm' ("dummyTerm: " ++ file) line
+
+-- | A dummy level created at location.
+--   Note: use macro __DUMMY_LEVEL__ !
+dummyLevel :: String -> Int -> Level
+dummyLevel file line = dummyLevel' ("dummyLevel: " ++ file) line
+
+-- | A dummy sort created at location.
+--   Note: use macro __DUMMY_SORT__ !
+dummySort :: String -> Int -> Sort
+dummySort file = Prop . (dummyLevel' $ "dummySort: " ++ file)
+
+-- | A dummy type created at location.
+--   Note: use macro __DUMMY_TYPE__ !
+dummyType :: String -> Int -> Type
+dummyType file line = El (Prop $ unreducedLevel $ Dummy "") (dummyTerm' ("dummyType: " ++ file) line)
+
+-- | Context entries without a type have this dummy type.
+--   Note: use macro __DUMMY_DOM__ !
+dummyDom :: String -> Int -> Dom Type
+dummyDom file line = defaultDom $ dummyType file line
+
+unreducedLevel :: Term -> Level
+unreducedLevel v = Max [ Plus 0 $ UnreducedLevel v ]
 
 -- | Top sort (Set\omega).
 topSort :: Type
@@ -736,17 +760,10 @@ isIrrelevantOrProp :: (LensRelevance a, LensSort a) => a -> Bool
 isIrrelevantOrProp x = isIrrelevant x || isProp x
 
 impossibleTerm :: String -> Int -> Term
-impossibleTerm file line = Lit $ LitString noRange $ unlines
+impossibleTerm file line = Dummy $ unlines
   [ "An internal error has occurred. Please report this as a bug."
   , "Location of the error: " ++ file ++ ":" ++ show line
   ]
-
-hackReifyToMeta :: Term
-hackReifyToMeta = DontCare $ Lit $ LitNat noRange (-42)
-
-isHackReifyToMeta :: Term -> Bool
-isHackReifyToMeta (DontCare (Lit (LitNat r (-42)))) = r == noRange
-isHackReifyToMeta _ = False
 
 ---------------------------------------------------------------------------
 -- * Telescopes.
