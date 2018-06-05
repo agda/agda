@@ -1207,7 +1207,7 @@ checkGeneralized s m = do
 
     addTheVar info n v ty t ns = do
         ty <- instantiateFull ty
-        t' <- mkPi (Dom info (n, ty)) <$> abstractType ty v t
+        t' <- mkPi (defaultArgDom info (n, ty)) <$> abstractType ty v t
         reportSDoc "tc.decl.gen" 20 $ vcat
             [ text $ "generalize "
             , text $ prettyShow t
