@@ -103,6 +103,7 @@ import Agda.Utils.Impossible
     'eta-equality'            { TokKeyword KwEta $$ }
     'field'                   { TokKeyword KwField $$ }
     'forall'                  { TokKeyword KwForall $$ }
+    'generalize'              { TokKeyword KwGeneralize $$ }
     'hiding'                  { TokKeyword KwHiding $$ }
     'import'                  { TokKeyword KwImport $$ }
     'in'                      { TokKeyword KwIn $$ }
@@ -239,6 +240,7 @@ Token
     | 'eta-equality'            { TokKeyword KwEta $1 }
     | 'field'                   { TokKeyword KwField $1 }
     | 'forall'                  { TokKeyword KwForall $1 }
+    | 'generalize'              { TokKeyword KwGeneralize $1 }
     | 'hiding'                  { TokKeyword KwHiding $1 }
     | 'import'                  { TokKeyword KwImport $1 }
     | 'in'                      { TokKeyword KwIn $1 }
@@ -1130,6 +1132,7 @@ Declaration
     | Record        { [$1] }
     | RecordSig     { [$1] }  -- lone record signature in mutual block
     | Infix         { [$1] }
+    | Generalize    {  $1  }
     | Mutual        { [$1] }
     | Abstract      { [$1] }
     | Private       { [$1] }
@@ -1154,14 +1157,14 @@ Declaration
 -- Type signatures of the form "n1 n2 n3 ... : Type", with at least
 -- one bound name.
 TypeSigs :: { [Declaration] }
-TypeSigs : SpaceIds ':' Expr { map (\ x -> TypeSig defaultArgInfo x $3) $1 }
+TypeSigs : SpaceIds ':' Expr { map (\ x -> typeSig defaultArgInfo x $3) $1 }
 
 -- A variant of TypeSigs where any sub-sequence of names can be marked
 -- as hidden or irrelevant using braces and dots:
 -- {n1 .n2} n3 .n4 {n5} .{n6 n7} ... : Type.
 ArgTypeSigs :: { [Arg Declaration] }
 ArgTypeSigs
-  : ArgIds ':' Expr { map (fmap (\ x -> TypeSig defaultArgInfo x $3)) $1 }
+  : ArgIds ':' Expr { map (fmap (\ x -> typeSig defaultArgInfo x $3)) $1 }
   | 'overlap' ArgIds ':' Expr {%
       let setOverlap x =
             case getHiding x of
@@ -1169,7 +1172,7 @@ ArgTypeSigs
               _          ->
                 parseErrorAt (fromJust $ rStart' $ getRange $1)
                              "The 'overlap' keyword only applies to instance fields (fields marked with {{ }})"
-      in T.traverse (setOverlap . fmap (\ x -> TypeSig defaultArgInfo x $4)) $2 }
+      in T.traverse (setOverlap . fmap (\ x -> typeSig defaultArgInfo x $4)) $2 }
   | 'instance' ArgTypeSignatures {
     let
       setInstance (TypeSig info x t) = TypeSig (makeInstance info) x t
@@ -1243,6 +1246,13 @@ Fields : 'field' ArgTypeSignatures
                            _          -> NotInstanceDef
                 toField (Arg info (TypeSig info' x t)) = Field (inst info') x (Arg info t)
               in map toField $2 }
+
+-- Variable declarations for automatic generalization
+Generalize :: { [Declaration] }
+Generalize : 'generalize' ArgTypeSignatures
+            { let
+                toGeneralize (Arg info (TypeSig _ x t)) = Generalize info x t
+              in map toGeneralize $2 }
 
 -- Mutually recursive declarations.
 Mutual :: { Declaration }
@@ -2168,7 +2178,7 @@ funClauseOrTypeSigs lhs mrhs wh = do
         LHS _ _ (_:_) -> parseError "Illegal: with in type signature"
         LHS _ (_:_) _ -> parseError "Illegal: rewrite in type signature"
         LHS p _ _ | hasWithPatterns p -> parseError "Illegal: with patterns in type signature"
-        LHS p [] []  -> map (\ (x, y) -> TypeSig x y e) <$> patternToNames p
+        LHS p [] []  -> map (\ (x, y) -> typeSig x y e) <$> patternToNames p
       _ -> parseError "A type signature cannot have a where clause"
 
 parseDisplayPragma :: Range -> Position -> String -> Parser Pragma
@@ -2177,5 +2187,8 @@ parseDisplayPragma r pos s =
     ParseOk s [FunClause (LHS lhs [] []) (RHS rhs) NoWhere ca] | null (parseInp s) ->
       return $ DisplayPragma r lhs rhs
     _ -> parseError "Invalid DISPLAY pragma. Should have form {-# DISPLAY LHS = RHS #-}."
+
+typeSig :: ArgInfo -> Name -> Expr -> Declaration
+typeSig i n e = TypeSig i n (Generalized e)
 
 }

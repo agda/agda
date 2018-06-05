@@ -143,6 +143,7 @@ instance ExprLike Expr where
       AbsurdLam{}             -> pure e0
       ExtendedLam ei di x cls -> ExtendedLam ei di x <$> recurse cls
       Pi ei tel e             -> Pi ei <$> recurse tel <*> recurse e
+      Generalized  s e        -> Generalized s <$> recurse e
       Fun ei arg e            -> Fun ei <$> recurse arg <*> recurse e
       Set{}                   -> pure e0
       Prop{}                  -> pure e0
@@ -179,6 +180,7 @@ instance ExprLike Expr where
       AbsurdLam{}          -> m
       ExtendedLam _ _ _ cs -> m `mappend` fold cs
       Pi _ tel e           -> m `mappend` fold tel `mappend` fold e
+      Generalized _ e      -> m `mappend` fold e
       Fun _ e e'           -> m `mappend` fold e `mappend` fold e'
       Set{}                -> m
       Prop{}               -> m
@@ -215,6 +217,7 @@ instance ExprLike Expr where
       AbsurdLam{}             -> f e
       ExtendedLam ei di x cls -> f =<< ExtendedLam ei di x <$> trav cls
       Pi ei tel e             -> f =<< Pi ei <$> trav tel <*> trav e
+      Generalized s e         -> f =<< Generalized s <$> trav e
       Fun ei arg e            -> f =<< Fun ei <$> trav arg <*> trav e
       Set{}                   -> f e
       Prop{}                  -> f e
@@ -376,6 +379,7 @@ instance ExprLike Declaration where
   recurseExpr f d =
     case d of
       Axiom a d i mp x e        -> Axiom a d i mp x <$> rec e
+      Generalize s i j x e      -> Generalize s i j x <$> rec e
       Field i x e               -> Field i x <$> rec e
       Primitive i x e           -> Primitive i x <$> rec e
       Mutual i ds               -> Mutual i <$> rec ds

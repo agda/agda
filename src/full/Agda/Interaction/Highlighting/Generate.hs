@@ -483,6 +483,7 @@ nameKinds hlLevel decl = do
   declToKind (A.ScopedDecl {})      = id
   declToKind (A.Open {})            = id
   declToKind (A.PatternSynDef q _ _) = insert q (Constructor Common.Inductive)
+  declToKind (A.Generalize _ _ _ q _)  = insert q Postulate
   declToKind (A.FunDef  _ q _ _)     = insert q Function
   declToKind (A.UnquoteDecl _ _ qs _) = foldr (\ q f -> insert q Function . f) id qs
   declToKind (A.UnquoteDef _ qs _)    = foldr (\ q f -> insert q Function . f) id qs
@@ -652,6 +653,7 @@ printUnsolvedInfo = do
 computeUnsolvedMetaWarnings :: TCM File
 computeUnsolvedMetaWarnings = do
   is <- getInteractionMetas
+  gs <- getGeneralizeMetas
 
   -- We don't want to highlight blocked terms, since
   --   * there is always at least one proper meta responsible for the blocking
@@ -659,7 +661,7 @@ computeUnsolvedMetaWarnings = do
   let notBlocked m = not <$> isBlockedTerm m
   ms <- filterM notBlocked =<< getOpenMetas
 
-  rs <- mapM getMetaRange (ms \\ is)
+  rs <- mapM getMetaRange ((ms \\ is) \\ gs)
   return $ metasHighlighting rs
 
 metasHighlighting :: [P.Range] -> File

@@ -147,6 +147,8 @@ data PreScopeState = PreScopeState
     -- ^ Pattern synonyms of the current file.  Serialized.
   , stPrePatternSynImports  :: !A.PatternSynDefns
     -- ^ Imported pattern synonyms.  Must not be serialized!
+  , stPreGeneralizedVars    :: !(Maybe (Set QName))
+    -- ^ Collected generalizable variables; used during scope checking of terms
   , stPrePragmaOptions      :: !PragmaOptions
     -- ^ Options applying to the current file. @OPTIONS@
     -- pragmas only affect this field.
@@ -182,6 +184,7 @@ data PostScopeState = PostScopeState
     --   Initialized to the current mutual block before the check.
     --   During occurs check, we remove definitions from this set
     --   as soon we have checked them.
+  , stPostGeneralizables      :: !(Map QName ((Set QName, ArgInfo), MetaStore))
   , stPostSignature           :: !Signature
     -- ^ Declared identifiers of the current file.
     --   These will be serialized after successful type checking.
@@ -296,6 +299,7 @@ initPreScopeState = PreScopeState
   , stPreScope                = emptyScopeInfo
   , stPrePatternSyns          = Map.empty
   , stPrePatternSynImports    = Map.empty
+  , stPreGeneralizedVars      = mempty
   , stPrePragmaOptions        = defaultInteractionOptions
   , stPreImportedBuiltins     = Map.empty
   , stPreImportedDisplayForms = HMap.empty
@@ -315,6 +319,7 @@ initPostScopeState = PostScopeState
   , stPostSleepingConstraints  = []
   , stPostDirty                = False
   , stPostOccursCheckDefs      = Set.empty
+  , stPostGeneralizables       = Map.empty
   , stPostSignature            = emptySignature
   , stPostModuleCheckpoints    = Map.empty
   , stPostImportsDisplayForms  = HMap.empty
@@ -382,6 +387,11 @@ stPatternSynImports :: Lens' A.PatternSynDefns TCState
 stPatternSynImports f s =
   f (stPrePatternSynImports (stPreScopeState s)) <&>
   \x -> s {stPreScopeState = (stPreScopeState s) {stPrePatternSynImports = x}}
+
+stGeneralizedVars :: Lens' (Maybe (Set QName)) TCState
+stGeneralizedVars f s =
+  f (stPreGeneralizedVars (stPreScopeState s)) <&>
+  \x -> s {stPreScopeState = (stPreScopeState s) {stPreGeneralizedVars = x}}
 
 stPragmaOptions :: Lens' PragmaOptions TCState
 stPragmaOptions f s =
@@ -457,6 +467,11 @@ stOccursCheckDefs :: Lens' (Set QName) TCState
 stOccursCheckDefs f s =
   f (stPostOccursCheckDefs (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostOccursCheckDefs = x}}
+
+stGeneralizableMetas :: Lens' (Map QName ((Set QName, ArgInfo), MetaStore)) TCState
+stGeneralizableMetas f s =
+  f (stPostGeneralizables (stPostScopeState s)) <&>
+  \x -> s {stPostScopeState = (stPostScopeState s) {stPostGeneralizables = x}}
 
 stSignature :: Lens' Signature TCState
 stSignature f s =
@@ -2821,6 +2836,8 @@ data TypeError
         | WithClausePatternMismatch A.Pattern (NamedArg DeBruijnPattern)
         | FieldOutsideRecord
         | ModuleArityMismatch A.ModuleName Telescope [NamedArg A.Expr]
+        | GeneralizeCyclicDependency
+        | GeneralizeUnsolvedMeta
     -- Coverage errors
 -- UNUSED:        | IncompletePatternMatching Term [Elim] -- can only happen if coverage checking is switched off
         | SplitError SplitError
@@ -2862,6 +2879,7 @@ data TypeError
         | DuplicateImports C.QName [C.ImportedName]
         | InvalidPattern C.Pattern
         | RepeatedVariablesInPattern [C.Name]
+        | GeneralizeNotSupportedHere A.QName
     -- Concrete to Abstract errors
         | NotAModuleExpr C.Expr
             -- ^ The expr was used in the right hand side of an implicit module
@@ -2895,6 +2913,7 @@ data TypeError
     -- Language option errors
         | NeedOptionCopatterns
         | NeedOptionRewriting
+        | NeedOptionGeneralize
     -- Failure associated to warnings
         | NonFatalErrors [TCWarning]
     -- Instance search errors

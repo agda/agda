@@ -19,6 +19,7 @@ import Data.Either (partitionEithers)
 import Data.Monoid (mappend)
 import qualified Data.List as List
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 
 import Agda.Interaction.Options
 import Agda.Interaction.Highlighting.Generate (storeDisambiguatedName)
@@ -39,6 +40,7 @@ import Agda.Syntax.Scope.Base ( ThingsInScope, AbstractName
 import Agda.Syntax.Scope.Monad (getNamedScope, freshAbstractQName)
 import Agda.Syntax.Translation.InternalToAbstract (reify)
 
+import Agda.TypeChecking.Abstract
 import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Conversion
@@ -87,6 +89,7 @@ import Agda.Utils.NonemptyList
 import Agda.Utils.Pretty ( prettyShow )
 import qualified Agda.Utils.Pretty as P
 import Agda.Utils.Size
+import qualified Agda.Utils.Graph.TopSort as Graph
 import Agda.Utils.Tuple
 
 #include "undefined.h"
@@ -930,6 +933,19 @@ checkExpr e t0 =
                    , nest 2 $ text "cxt =" <+> (prettyTCM =<< getContextTelescope)
                    ]
             coerce v (sort s) t
+
+        A.Generalized s e -> do
+            (t0, t') <- checkGeneralized s $ isType_ e
+            noFunctionsIntoSize t0 t'
+            let s = getSort t'
+                v = unEl t'
+            when (s == Inf) $ reportSDoc "tc.term.sort" 20 $
+              vcat [ text ("reduced to omega:")
+                   , nest 2 $ text "t   =" <+> prettyTCM t'
+                   , nest 2 $ text "cxt =" <+> (prettyTCM =<< getContextTelescope)
+                   ]
+            coerce v (sort s) t
+
         A.Fun _ (Arg info a) b -> do
             a' <- isType_ a
             b' <- isType_ b
@@ -1114,6 +1130,82 @@ unquoteTactic tac hole goal k = do
         postponeTypeCheckingProblem (UnquoteTactic tac hole goal) unblock
     Left err -> typeError $ UnquoteFailed err
     Right _ -> k
+
+---------------------------------------------------------------------------
+-- * Generalized identifiers
+---------------------------------------------------------------------------
+
+type NameOrMeta = Either MetaId QName
+
+checkGeneralized :: Set.Set QName -> TCM Type -> TCM (Type, Type)
+checkGeneralized s m = do
+    ropt <- optGeneralize <$> pragmaOptions
+    unless ropt $ typeError NeedOptionGeneralize
+    t <- disableDestructiveUpdate m
+    ((extra, vs), ms) <- collectNames mempty $ Set.toList s
+    let metas = List.nub [ mi | Left mi <- extra ++ concatMap (\(a,b)->[a,b]) vs ]
+    vsm <- fmap concat $ forM metas $ \mi ->
+        (\me -> [(Left mi, Left de) | de <- me, de `elem` metas]) . allMetas <$> (getMetaType mi >>= instantiateFull)
+    reportSDoc "tc.decl.gen" 50 $ text $ "dependencies " ++ show (extra, vs, vsm)
+    case Graph.topSort extra $ vs ++ vsm of
+      Nothing -> typeError GeneralizeCyclicDependency
+      Just sorted -> do
+        reportSDoc "tc.decl.gen" 50 $ text $ "topSort " ++ show sorted
+        t <- reduce =<< instantiateFull t
+        t' <- addVars t $ reverse sorted
+        modifyMetaStore (ms `mappend`)
+        unless (List.null $ allMetas t') $ typeError GeneralizeUnsolvedMeta
+        forM_ [n | Left n <- sorted, Map.notMember n ms] $ \n ->
+            modifyMetaStore $ flip Map.adjust n $ \me ->
+                me {mvInstantiation = InstV [] (error ("meta var " ++ show n ++ " was generalized"))} -- TODO
+        reportSDoc "tc.decl.gen" 40 $ vcat
+          [ text "generalized"
+          , nest 2 $ text "t  =" <+> prettyTCM t
+          , nest 2 $ text "t' =" <+> prettyTCM t' ]
+        pure (t, t')
+  where
+    -- find dependent open metas
+    findMetas mi Open = pure [mi]
+    findMetas _ (InstV _ t) = fmap concat $ instantiateFull t >>= \t ->
+        forM (allMetas t) (\mi -> findMetas mi =<< (mvInstantiation <$> lookupMeta mi))
+    findMetas _ _ = pure []
+
+    collectNames :: Set.Set QName -> [QName]
+                 -> TCM (([NameOrMeta], [(NameOrMeta, NameOrMeta)]), MetaStore)
+    collectNames _ [] = return mempty
+    collectNames acc (n: ns)
+        | n `Set.member` acc = collectNames acc ns
+        | otherwise = do
+            ((se, _), metas) <- fromMaybe __IMPOSSIBLE__ . Map.lookup n <$> use stGeneralizableMetas
+            mopen <- fmap concat $ forM (Map.keys metas) $ \mi ->
+                findMetas mi =<< (mvInstantiation <$> lookupMeta mi)
+            let more = Set.toList se
+            ((([Right n], ((,) (Right n) <$> ((Left <$> mopen) ++ (Right <$> more)))), metas) `mappend`)
+                <$> collectNames (Set.insert n acc) (more ++ ns)
+
+    addVars t [] = return t
+    addVars t (Left n : ns) = do
+        me <- lookupMeta n
+        ty <- getMetaType n
+        let nas = miNameSuggestion $ mvInfo me
+        addTheVar (defaultArgInfo {argInfoHiding = Hidden, argInfoOrigin = Inserted})
+                  (if List.null nas then "Meta" else nas)
+                  (MetaV n []) ty t ns
+    addVars t (Right n : ns) = do
+        ((_, info), _) <- fromMaybe __IMPOSSIBLE__ . Map.lookup n <$> use stGeneralizableMetas
+        i <- getConstInfo n
+        addTheVar info (last $ C.nameStringParts $ nameConcrete $ qnameName n) (Def n []) (defType i) t ns
+
+    addTheVar info n v ty t ns = do
+        ty <- instantiateFull ty
+        t' <- mkPi (Dom info (n, ty)) <$> abstractType ty v t
+        reportSDoc "tc.decl.gen" 20 $ vcat
+            [ text $ "generalize "
+            , text $ prettyShow t
+            , text "  to  "
+            , text $ prettyShow t'
+            ]
+        addVars t' ns
 
 ---------------------------------------------------------------------------
 -- * Meta variables

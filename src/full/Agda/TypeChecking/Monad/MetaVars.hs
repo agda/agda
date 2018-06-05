@@ -364,6 +364,11 @@ withMetaInfo :: Closure Range -> TCM a -> TCM a
 withMetaInfo mI cont = enterClosure mI $ \ r ->
   setCurrentRange r cont
 
+-- | Get all metas that correspond to generalizable variables.
+getGeneralizeMetas :: TCM [MetaId]
+getGeneralizeMetas =
+  concatMap (Map.keys . snd) . Map.elems <$> use stGeneralizableMetas
+
 getInstantiatedMetas :: TCM [MetaId]
 getInstantiatedMetas = do
     store <- getMetaStore

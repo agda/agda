@@ -127,7 +127,8 @@ termDecl' d = case d of
     A.Pragma {}           -> return mempty
     A.Open {}             -> return mempty
     A.PatternSynDef {}    -> return mempty
-        -- open and pattern synonym defs are just artifacts from the concrete syntax
+    A.Generalize {}       -> return mempty
+        -- open, pattern synonym and generalize defs are just artifacts from the concrete syntax
     A.ScopedDecl scope ds -> {- withScope_ scope $ -} termDecls ds
         -- scope is irrelevant as we are termination checking Syntax.Internal
     A.RecSig{}            -> return mempty

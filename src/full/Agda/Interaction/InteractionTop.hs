@@ -1095,7 +1095,8 @@ showOpenMetas = do
   -- Show unsolved implicit arguments simplified.
   unsolvedNotOK <- not . optAllowUnsolved <$> pragmaOptions
   hms <- (guard unsolvedNotOK >>) <$> B.typesOfHiddenMetas B.Simplified
-  dh <- mapM showA' hms
+  gs <- getGeneralizeMetas
+  dh <- mapM showA' $ filter (flip List.notElem gs . nmid . metaId) hms
   return $ di ++ dh
   where
     metaId (B.OfType i _) = i
@@ -1430,6 +1431,7 @@ whyInScope s = display_info . Info_WhyInScope =<< do
         pKind ConName        = TCP.text "constructor"
         pKind FldName        = TCP.text "record field"
         pKind PatternSynName = TCP.text "pattern synonym"
+        pKind GeneralizeName = TCP.text "generalizable variable"
         pKind MacroName      = TCP.text "macro name"
         pKind QuotableName   = TCP.text "quotable name"
 

@@ -372,6 +372,10 @@ errorString err = case err of
   ModuleNameDoesntMatchFileName {}         -> "ModuleNameDoesntMatchFileName"
   NeedOptionCopatterns{}                   -> "NeedOptionCopatterns"
   NeedOptionRewriting{}                    -> "NeedOptionRewriting"
+  NeedOptionGeneralize{}                   -> "NeedOptionGeneralize"
+  GeneralizeNotSupportedHere{}             -> "GeneralizeNotSupportedHere"
+  GeneralizeCyclicDependency{}             -> "GeneralizeCyclicDependency"
+  GeneralizeUnsolvedMeta{}                 -> "GeneralizeUnsolvedMeta"
   NoBindingForBuiltin{}                    -> "NoBindingForBuiltin"
   NoParseForApplication{}                  -> "NoParseForApplication"
   NoParseForLHS{}                          -> "NoParseForLHS"
@@ -1259,6 +1263,18 @@ instance PrettyTCM TypeError where
 
     NeedOptionRewriting  -> fsep $
       pwords "Option --rewriting needed to add and use rewrite rules"
+
+    NeedOptionGeneralize -> fsep $
+      pwords "Option --generalize needed to add and use generalize rules"
+
+    GeneralizeNotSupportedHere x -> fsep $
+      pwords $ "Generalizable variable " ++ show x ++ " is not supported here"
+
+    GeneralizeCyclicDependency -> fsep $
+      pwords "Cyclic dependency between generalized variables"
+
+    GeneralizeUnsolvedMeta -> fsep $
+      pwords "Unsolved meta not generalized"
 
     NonFatalErrors ws -> foldr1 ($$) $ fmap prettyTCM ws
 
