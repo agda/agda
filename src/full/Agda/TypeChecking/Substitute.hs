@@ -74,7 +74,7 @@ instance Apply Term where
       Lit{}       -> __IMPOSSIBLE__
       Level{}     -> __IMPOSSIBLE__
       Pi _ _      -> __IMPOSSIBLE__
-      Sort _      -> __IMPOSSIBLE__
+      Sort s      -> Sort $ s `applyE` es
       Dummy{}     -> __IMPOSSIBLE__
       DontCare mv -> dontCare $ mv `applyE` es  -- Andreas, 2011-10-02
         -- need to go under DontCare, since "with" might resurrect irrelevant term
@@ -174,7 +174,9 @@ argToDontCare (Arg ai v)
 
 instance Apply Sort where
   applyE s [] = s
-  applyE s _  = __IMPOSSIBLE__
+  applyE s es = case s of
+    MetaS x es' -> MetaS x $ es' ++ es
+    _ -> __IMPOSSIBLE__
 
 -- @applyE@ does not make sense for telecopes, definitions, clauses etc.
 

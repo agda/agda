@@ -863,17 +863,26 @@ checkExpr e t0 =
           ifNotM hasUniversePolymorphism
               (typeError $ GenericError "Use --universe-polymorphism to enable level arguments to Set")
           $ {- else -} do
-            lvl <- levelType
             -- allow NonStrict variables when checking level
             --   Set : (NonStrict) Level -> Set\omega
-            n   <- levelView =<< do
-              applyRelevanceToContext NonStrict $
-                checkNamedArg arg lvl
+            n <- applyRelevanceToContext NonStrict $ checkLevel arg
             -- check that Set (l+1) <= t
             reportSDoc "tc.univ.poly" 10 $
               text "checking Set " <+> prettyTCM n <+>
               text "against" <+> prettyTCM t
             coerce (Sort $ Type n) (sort $ Type $ levelSuc n) t
+
+        -- check |- Prop l : t  (requires universe polymorphism)
+        A.App i s arg@(Arg ai l)
+          | A.Prop _ 0 <- unScope s, visible ai ->
+          ifNotM hasUniversePolymorphism
+              (typeError $ GenericError "Use --universe-polymorphism to enable level arguments to Prop")
+          $ {- else -} do
+            n <- applyRelevanceToContext NonStrict $ checkLevel arg
+            reportSDoc "tc.univ.poly" 10 $
+              text "checking Prop " <+> prettyTCM n <+>
+              text "against" <+> prettyTCM t
+            coerce (Sort $ Prop n) (sort $ Type $ levelSuc n) t
 
         e0@(A.App i q (Arg ai e))
           | A.Quote _ <- unScope q, visible ai -> do
