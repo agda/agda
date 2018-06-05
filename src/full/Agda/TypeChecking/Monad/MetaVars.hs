@@ -183,10 +183,12 @@ createMetaInfo' :: RunMetaOccursCheck -> TCM MetaInfo
 createMetaInfo' b = do
   r   <- getCurrentRange
   cl  <- buildClosure r
+  gen <- view eGeneralizeMetas
   return MetaInfo
     { miClosRange       = cl
     , miMetaOccursCheck = b
     , miNameSuggestion  = ""
+    , miGeneralizable   = gen
     }
 
 setValueMetaName :: Term -> MetaNameSuggestion -> TCM ()

@@ -183,8 +183,8 @@ instance Subst Term a => Apply (Tele a) where
   apply (ExtendTel _ tel) (t : ts) = lazyAbsApp tel (unArg t) `apply` ts
 
 instance Apply Definition where
-  apply (Defn info x t pol occ df m c inst copy ma inj d) args =
-    Defn info x (piApply t args) (apply pol args) (apply occ args) df m c inst copy ma inj (apply d args)
+  apply (Defn info x t pol occ gens df m c inst copy ma inj d) args =
+    Defn info x (piApply t args) (apply pol args) (apply occ args) (apply gens args) df m c inst copy ma inj (apply d args)
 
 instance Apply RewriteRule where
   apply r args =
@@ -205,6 +205,9 @@ instance {-# OVERLAPPING #-} Apply [Occ.Occurrence] where
 
 instance {-# OVERLAPPING #-} Apply [Polarity] where
   apply pol args = List.drop (length args) pol
+
+instance {-# OVERLAPPING #-} Apply [DoGeneralize] where
+  apply gens args = List.drop (length args) gens
 
 -- | Make sure we only drop variable patterns.
 instance {-# OVERLAPPING #-} Apply [NamedArg (Pattern' a)] where
@@ -498,8 +501,8 @@ instance Abstract Telescope where
   ExtendTel arg xtel `abstract` tel = ExtendTel arg $ xtel <&> (`abstract` tel)
 
 instance Abstract Definition where
-  abstract tel (Defn info x t pol occ df m c inst copy ma inj d) =
-    Defn info x (abstract tel t) (abstract tel pol) (abstract tel occ) df m c inst copy ma inj (abstract tel d)
+  abstract tel (Defn info x t pol occ gens df m c inst copy ma inj d) =
+    Defn info x (abstract tel t) (abstract tel pol) (abstract tel occ) (abstract tel gens) df m c inst copy ma inj (abstract tel d)
 
 -- | @tel ⊢ (Γ ⊢ lhs ↦ rhs : t)@ becomes @tel, Γ ⊢ lhs ↦ rhs : t)@
 --   we do not need to change lhs, rhs, and t since they live in Γ.
@@ -515,6 +518,10 @@ instance {-# OVERLAPPING #-} Abstract [Occ.Occurrence] where
 instance {-# OVERLAPPING #-} Abstract [Polarity] where
   abstract tel []  = []
   abstract tel pol = replicate (size tel) Invariant ++ pol -- TODO: check polarity
+
+instance {-# OVERLAPPING #-} Abstract [DoGeneralize] where
+  abstract tel []  = []
+  abstract tel gen = replicate (size tel) NoGeneralize ++ gen
 
 instance Abstract Projection where
   abstract tel p = p

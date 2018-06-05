@@ -1042,6 +1042,9 @@ data RunMetaOccursCheck
   | DontRunMetaOccursCheck
   deriving (Eq , Ord , Show)
 
+data DoGeneralize = YesGeneralize | NoGeneralize
+  deriving (Eq, Ord, Show, Data)
+
 -- | @MetaInfo@ is cloned from one meta to the next during pruning.
 data MetaInfo = MetaInfo
   { miClosRange       :: Closure Range -- TODO: Not so nice. But we want both to have the environment of the meta (Closure) and its range.
@@ -1050,6 +1053,8 @@ data MetaInfo = MetaInfo
   , miNameSuggestion  :: MetaNameSuggestion
     -- ^ Used for printing.
     --   @Just x@ if meta-variable comes from omitted argument with name @x@.
+  , miGeneralizable   :: DoGeneralize
+    -- ^ Should this meta be generalized if unsolved?
   }
 
 -- | Name suggestion for meta variable.  Empty string means no suggestion.
@@ -1357,6 +1362,8 @@ data Definition = Defn
     --   23,    3
     --   27,    1
 
+  , defArgGeneralizable :: [DoGeneralize]
+    -- ^ Metas created when checking an argument inherit the argument's 'DoGeneralize' flag.
   , defDisplay        :: [LocalDisplayForm]
   , defMutual         :: MutualId
   , defCompiledRep    :: CompiledRepresentation
@@ -1384,6 +1391,7 @@ defaultDefn info x t def = Defn
   , defType           = t
   , defPolarity       = []
   , defArgOccurrences = []
+  , defArgGeneralizable = []
   , defDisplay        = defaultDisplayForm x
   , defMutual         = 0
   , defCompiledRep    = noCompiledRep
@@ -2246,6 +2254,8 @@ data TCEnv =
           , envCheckpoints :: Map CheckpointId Substitution
                 -- ^ Keeps the substitution from each previous checkpoint to
                 --   the current context.
+          , envGeneralizeMetas :: DoGeneralize
+                -- ^ Should new metas generalized over.
           }
     deriving Data
 
@@ -2298,6 +2308,7 @@ initEnv = TCEnv { envContext             = []
                 , envCallByNeed             = True
                 , envCurrentCheckpoint      = 0
                 , envCheckpoints            = Map.singleton 0 IdS
+                , envGeneralizeMetas        = NoGeneralize
                 }
 
 disableDestructiveUpdate :: TCM a -> TCM a
@@ -2433,6 +2444,9 @@ eCurrentCheckpoint f e = f (envCurrentCheckpoint e) <&> \ x -> e { envCurrentChe
 
 eCheckpoints :: Lens' (Map CheckpointId Substitution) TCEnv
 eCheckpoints f e = f (envCheckpoints e) <&> \ x -> e { envCheckpoints = x }
+
+eGeneralizeMetas :: Lens' DoGeneralize TCEnv
+eGeneralizeMetas f e = f (envGeneralizeMetas e) <&> \ x -> e { envGeneralizeMetas = x }
 
 ---------------------------------------------------------------------------
 -- ** Context
@@ -3375,8 +3389,8 @@ instance KillRange Section where
   killRange (Section tel) = killRange1 Section tel
 
 instance KillRange Definition where
-  killRange (Defn ai name t pols occs displ mut compiled inst copy ma inj def) =
-    killRange12 Defn ai name t pols occs displ mut compiled inst copy ma inj def
+  killRange (Defn ai name t pols occs gens displ mut compiled inst copy ma inj def) =
+    killRange13 Defn ai name t pols occs gens displ mut compiled inst copy ma inj def
     -- TODO clarify: Keep the range in the defName field?
 
 instance KillRange NLPat where
@@ -3450,6 +3464,9 @@ instance KillRange Polarity where
   killRange = id
 
 instance KillRange IsForced where
+  killRange = id
+
+instance KillRange DoGeneralize where
   killRange = id
 
 instance KillRange DisplayTerm where

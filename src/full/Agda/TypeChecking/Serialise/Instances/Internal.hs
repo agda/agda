@@ -185,8 +185,8 @@ instance EmbPrj MutualId where
   value n         = MutId `fmap` value n
 
 instance EmbPrj Definition where
-  icod_ (Defn a b c d e f g h i j k l m) =
-    icodeN' Defn a b (P.killRange c) d e f g h i j k l m
+  icod_ (Defn a b c d e f g h i j k l m n) =
+    icodeN' Defn a b (P.killRange c) d e f g h i j k l m n
 
   value = valueN Defn
 
@@ -252,6 +252,14 @@ instance EmbPrj IsForced where
 
   value 0 = return Forced
   value 1 = return NotForced
+  value _ = malformed
+
+instance EmbPrj DoGeneralize where
+  icod_ YesGeneralize = return 0
+  icod_ NoGeneralize  = return 1
+
+  value 0 = return YesGeneralize
+  value 1 = return NoGeneralize
   value _ = malformed
 
 instance EmbPrj Occurrence where
