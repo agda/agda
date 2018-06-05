@@ -470,6 +470,7 @@ checkArgumentsE' chk exh r args0@(arg@(Arg info e) : args) t0 mt1 =
                     Datatype{}                -> True
                     Record{}                  -> True
                     Constructor{}             -> __IMPOSSIBLE__
+                    GeneralizableVar{}        -> __IMPOSSIBLE__
                     Primitive{}               -> False
                   isRigid _           = return False
               rigid <- isRigid tgt

@@ -296,6 +296,7 @@ instance EmbPrj Defn where
   icod_ (Constructor a b c d e f g h)           = icodeN 4 Constructor a b c d e f g h
   icod_ (Primitive   a b c d e)                 = icodeN 5 Primitive a b c d e
   icod_ AbstractDefn{}                          = __IMPOSSIBLE__
+  icod_ GeneralizableVar                        = icodeN 6 GeneralizableVar
 
   value = vcase valu where
     valu [0]                                     = valuN Axiom
@@ -304,6 +305,7 @@ instance EmbPrj Defn where
     valu [3, a, b, c, d, e, f, g, h, i, j]       = valuN Record  a b c d e f g h i j
     valu [4, a, b, c, d, e, f, g, h]             = valuN Constructor a b c d e f g h
     valu [5, a, b, c, d, e]                      = valuN Primitive   a b c d e
+    valu [6]                                     = valuN GeneralizableVar
     valu _                                       = malformed
 
 instance EmbPrj FunctionFlag where

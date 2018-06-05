@@ -550,6 +550,7 @@ registerGeneralize s info n m = do
             <$> forM (Set.toList ms_) (\mi -> (,) mi <$> lookupMeta mi)
     modifyMetaStore (ms `mappend`)
     stGeneralizableMetas %= Map.insert n ((s, info), ms)
+    modifySignature $ updateDefinition n $ updateTheDef $ \ _ -> GeneralizableVar
     return t
 
 -- | Type check an axiom.

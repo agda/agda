@@ -416,6 +416,7 @@ isCoinductive t = do
         Datatype    { dataInduction = Inductive   } -> return (Just False)
         Record      {  recInduction = Just CoInductive } -> return (Just True)
         Record      {  recInduction = _                } -> return (Just False)
+        GeneralizableVar{} -> __IMPOSSIBLE__
         Constructor {} -> __IMPOSSIBLE__
         Primitive   {} -> __IMPOSSIBLE__
         AbstractDefn{} -> __IMPOSSIBLE__

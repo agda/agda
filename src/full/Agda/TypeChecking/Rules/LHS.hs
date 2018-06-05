@@ -343,6 +343,7 @@ noShadowingOfConstructors mkCall eqs =
           Function    {} -> return ()
           Record      {} -> return ()
           Constructor {} -> __IMPOSSIBLE__
+          GeneralizableVar{} -> __IMPOSSIBLE__
           -- TODO: in the future some stuck primitives might allow constructors
           Primitive   {} -> return ()
       Var   {} -> return ()
@@ -1250,6 +1251,7 @@ isDataOrRecordType dom@(Dom info a) = liftTCM (reduceB a) >>= \case
 
       Constructor{} -> __IMPOSSIBLE__
       Primitive{}   -> __IMPOSSIBLE__
+      GeneralizableVar{} -> __IMPOSSIBLE__
 
     -- variable or metavariable: fail softly
     Var{}      -> softTypeError =<< notData

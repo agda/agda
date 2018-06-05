@@ -1523,8 +1523,8 @@ data FunctionFlag
   | FunMacro   -- ^ Is this function a macro?
   deriving (Data, Eq, Ord, Enum, Show)
 
-data Defn = Axiom
-            -- ^ Postulate.
+data Defn = Axiom -- ^ Postulate
+          | GeneralizableVar -- ^ Generalizable variable (introduced in `generalize` block)
           | AbstractDefn Defn
             -- ^ Returned by 'getConstInfo' if definition is abstract.
           | Function
@@ -1651,6 +1651,7 @@ instance Pretty Definition where
 
 instance Pretty Defn where
   pretty Axiom = text "Axiom"
+  pretty GeneralizableVar{} = text "GeneralizableVar"
   pretty (AbstractDefn def) = text "AbstractDefn" <?> parens (pretty def)
   pretty Function{..} =
     text "Function {" <?> vcat
@@ -1897,6 +1898,7 @@ defTerminationUnconfirmed _ = False
 defAbstract :: Definition -> IsAbstract
 defAbstract d = case theDef d of
     Axiom{}                   -> ConcreteDef
+    GeneralizableVar{}        -> ConcreteDef
     AbstractDefn{}            -> AbstractDef
     Function{funAbstr = a}    -> a
     Datatype{dataAbstr = a}   -> a
@@ -1908,6 +1910,7 @@ defForced :: Definition -> [IsForced]
 defForced d = case theDef d of
     Constructor{conForced = fs} -> fs
     Axiom{}                     -> []
+    GeneralizableVar{}          -> []
     AbstractDefn{}              -> []
     Function{}                  -> []
     Datatype{}                  -> []
@@ -3426,6 +3429,7 @@ instance KillRange Defn where
   killRange def =
     case def of
       Axiom -> Axiom
+      GeneralizableVar -> GeneralizableVar
       AbstractDefn{} -> __IMPOSSIBLE__ -- only returned by 'getConstInfo'!
       Function cls comp tt inv mut isAbs delayed proj flags term extlam with copat ->
         killRange13 Function cls comp tt inv mut isAbs delayed proj flags term extlam with copat

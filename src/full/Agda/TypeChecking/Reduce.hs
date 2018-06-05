@@ -1264,6 +1264,7 @@ instance InstantiateFull DisplayTerm where
 instance InstantiateFull Defn where
     instantiateFull' d = case d of
       Axiom{} -> return d
+      GeneralizableVar{} -> return d
       AbstractDefn d -> AbstractDefn <$> instantiateFull' d
       Function{ funClauses = cs, funCompiled = cc, funInv = inv } -> do
         (cs, cc, inv) <- instantiateFull' (cs, cc, inv)

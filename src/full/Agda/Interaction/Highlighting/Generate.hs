@@ -464,6 +464,7 @@ nameKinds hlLevel decl = do
 
   defnToKind :: Defn -> NameKind
   defnToKind   M.Axiom{}                           = Postulate
+  defnToKind   M.GeneralizableVar{}                = Bound    -- TODO: separate kind for generalizable vars
   defnToKind d@M.Function{} | isProperProjection d = Field
                             | otherwise            = Function
   defnToKind   M.Datatype{}                        = Datatype

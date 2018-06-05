@@ -620,7 +620,8 @@ computeOccurrences' q = inConcreteOrAbstractMode q $ \ def -> do
     Constructor{} -> return emptyOB
     Axiom{}       -> return emptyOB
     Primitive{}   -> return emptyOB
-    AbstractDefn{}-> __IMPOSSIBLE__
+    AbstractDefn{}     -> __IMPOSSIBLE__
+    GeneralizableVar{} -> __IMPOSSIBLE__
 
 -- Building the occurrence graph ------------------------------------------
 
