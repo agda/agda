@@ -1105,11 +1105,11 @@ checkGeneralized s m = do
     let metas = List.nub [ mi | Left mi <- extra ++ concatMap (\(a,b)->[a,b]) vs ]
     vsm <- fmap concat $ forM metas $ \mi ->
         (\me -> [(Left mi, Left de) | de <- me, de `elem` metas]) . allMetas <$> (getMetaType mi >>= instantiateFull)
-    reportSDoc "tc.decl.ax" 50 $ text $ "dependencies " ++ show (extra, vs, vsm)
+    reportSDoc "tc.decl.gen" 50 $ text $ "dependencies " ++ show (extra, vs, vsm)
     case Graph.topSort extra $ vs ++ vsm of
       Nothing -> typeError GeneralizeCyclicDependency
       Just sorted -> do
-        reportSDoc "tc.decl.ax" 50 $ text $ "topSort " ++ show sorted
+        reportSDoc "tc.decl.gen" 50 $ text $ "topSort " ++ show sorted
         t <- reduce =<< instantiateFull t
         t' <- addVars t $ reverse sorted
         modifyMetaStore (ms `mappend`)
@@ -1117,6 +1117,10 @@ checkGeneralized s m = do
         forM_ [n | Left n <- sorted, Map.notMember n ms] $ \n ->
             modifyMetaStore $ flip Map.adjust n $ \me ->
                 me {mvInstantiation = InstV [] (error ("meta var " ++ show n ++ " was generalized"))} -- TODO
+        reportSDoc "tc.decl.gen" 40 $ vcat
+          [ text "generalized"
+          , nest 2 $ text "t  =" <+> prettyTCM t
+          , nest 2 $ text "t' =" <+> prettyTCM t' ]
         pure (t, t')
   where
     -- find dependent open metas
@@ -1139,22 +1143,20 @@ checkGeneralized s m = do
                 <$> collectNames (Set.insert n acc) (more ++ ns)
 
     addVars t [] = return t
-    addVars t (Left n: ns) = do
+    addVars t (Left n : ns) = do
         me <- lookupMeta n
         ty <- getMetaType n
         let nas = miNameSuggestion $ mvInfo me
         addTheVar (defaultArgInfo {argInfoHiding = Hidden, argInfoOrigin = Inserted})
                   (if List.null nas then "Meta" else nas)
                   (MetaV n []) ty t ns
-    addVars t (Right n: ns) = do
+    addVars t (Right n : ns) = do
         ((_, info), _) <- fromMaybe __IMPOSSIBLE__ . Map.lookup n <$> use stGeneralizableMetas
         i <- getConstInfo n
         addTheVar info (last $ C.nameStringParts $ nameConcrete $ qnameName n) (Def n []) (defType i) t ns
 
     addTheVar info n v ty t ns = do
-        vs <- getContextArgs
-        ty <- reduce =<< instantiateFull =<< piApplyM ty vs
-        v <- reduce $ apply v vs
+        ty <- instantiateFull ty
         t' <- mkPi (Dom info (n, ty)) <$> abstractType ty v t
         reportSDoc "tc.decl.gen" 20 $ vcat
             [ text $ "generalize "
