@@ -153,6 +153,7 @@ data PragmaOptions = PragmaOptions
   , optExactSplit                :: Bool
   , optEta                       :: Bool
   , optRewriting                 :: Bool  -- ^ Can rewrite rules be added and used?
+  , optGeneralize                :: Bool
   , optPostfixProjections        :: Bool
       -- ^ Should system generated projections 'ProjSystem' be printed
       --   postfix (True) or prefix (False).
@@ -245,6 +246,7 @@ defaultPragmaOptions = PragmaOptions
   , optExactSplit                = False
   , optEta                       = True
   , optRewriting                 = False
+  , optGeneralize                = False
   , optPostfixProjections        = False
   , optInstanceSearchDepth       = 500
   , optInversionMaxDepth         = 50
@@ -489,6 +491,9 @@ noExactSplitFlag o = return $ o { optExactSplit = False }
 rewritingFlag :: Flag PragmaOptions
 rewritingFlag o = return $ o { optRewriting = True }
 
+generalizeFlag :: Flag PragmaOptions
+generalizeFlag o = return $ o { optGeneralize = True }
+
 postfixProjectionsFlag :: Flag PragmaOptions
 postfixProjectionsFlag o = return $ o { optPostfixProjections = True }
 
@@ -691,6 +696,8 @@ pragmaOptions =
                     "default records to no-eta-equality"
     , Option []     ["rewriting"] (NoArg rewritingFlag)
                     "enable declaration and use of REWRITE rules"
+    , Option []     ["generalize"] (NoArg generalizeFlag)
+                    "enable automatic generalization of predefined variable bindings"
     , Option []     ["postfix-projections"] (NoArg postfixProjectionsFlag)
                     "make postfix projection notation the default"
     , Option []     ["instance-search-depth"] (ReqArg instanceDepthFlag "N")

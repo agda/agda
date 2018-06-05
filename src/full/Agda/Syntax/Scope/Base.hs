@@ -245,6 +245,7 @@ data KindOfName
   | FldName        -- ^ Record field name.
   | DefName        -- ^ Ordinary defined name.
   | PatternSynName -- ^ Name of a pattern synonym.
+  | GeneralizeName -- ^ Name to be generalized
   | MacroName      -- ^ Name of a macro
   | QuotableName   -- ^ A name that can only be quoted.
   deriving (Eq, Show, Data, Enum, Bounded)

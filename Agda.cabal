@@ -459,6 +459,7 @@ library
                     Agda.Utils.Function
                     Agda.Utils.Geniplate
                     Agda.Utils.Graph.AdjacencyMap.Unidirectional
+                    Agda.Utils.Graph.TopSort
                     Agda.Utils.Hash
                     Agda.Utils.HashMap
                     Agda.Utils.Haskell.Syntax

@@ -21,6 +21,7 @@ import Data.Maybe
 import Data.Map (Map)
 import qualified Data.Sequence as Seq
 import qualified Data.Set as Set
+import qualified Data.Map as Map
 import Data.Set (Set)
 
 import Agda.Interaction.Options
@@ -28,6 +29,7 @@ import Agda.Interaction.Highlighting.Generate
 
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Views (deepUnscopeDecl, deepUnscopeDecls)
+import qualified Agda.Syntax.Concrete.Name as C
 import Agda.Syntax.Internal
 import qualified Agda.Syntax.Reflected as R
 import qualified Agda.Syntax.Info as Info
@@ -77,6 +79,7 @@ import Agda.Termination.TermCheck
 import Agda.Utils.Except
 import Agda.Utils.Functor
 import Agda.Utils.Function
+import qualified Agda.Utils.HashMap as HMap
 import Agda.Utils.Lens
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
@@ -146,6 +149,14 @@ checkDecls ds = do
   -- Andreas, 2011-05-30, unfreezing moved to Interaction/Imports
   -- whenM onTopLevel unfreezeMetas
 
+filterGeneralizables :: TCM ()
+filterGeneralizables = do
+    g <- use stGeneralizableMetas
+    stSignature . sigDefinitions %= HMap.filterWithKey (\k _ -> not $ k `Map.member` g)
+    gms <- getGeneralizeMetas
+    modifyMetaStore $ Map.filterWithKey (\k _ -> not $ k `List.elem` gms)
+
+
 -- | Type check a single declaration.
 
 checkDecl :: A.Declaration -> TCM ()
@@ -167,8 +178,9 @@ checkDecl d = setCurrentRange d $ do
         impossible  m = m $>  __IMPOSSIBLE__
                         -- We're definitely inside a mutual block.
 
-    finalChecks <- case d of
+    (finalChecks, metas) <- metasCreatedBy $ case d of
       A.Axiom{}                -> meta $ checkTypeSignature d
+      A.Generalize s i info x e -> meta $ inConcreteMode $ registerGeneralize s info x $ checkAxiom A.NoFunSig i info Nothing x e
       A.Field{}                -> typeError FieldOutsideRecord
       A.Primitive i x e        -> meta $ checkPrimitive i x e
       A.Mutual i ds            -> mutual i ds $ checkMutual i ds
@@ -225,8 +237,11 @@ checkDecl d = setCurrentRange d $ do
         checkingWhere <- asks envCheckingWhere
         solveSizeConstraints $ if checkingWhere then DontDefaultToInfty else DefaultToInfty
         wakeupConstraints_   -- Size solver might have unblocked some constraints
-        reportSLn "tc.decl" 20 $ "Freezing all metas."
-        _ <- freezeMetas
+        case d of
+            A.Generalize{} -> pure ()
+            _ -> do
+                reportSLn "tc.decl" 20 $ "Freezing all metas."
+                forM_ metas $ \mi -> updateMetaVar mi $ \mv -> mv { mvFrozen = Frozen }
         theMutualChecks
 
     where
@@ -388,6 +403,7 @@ highlight_ d = do
     A.DataSig{}              -> highlight d
     A.Open{}                 -> highlight d
     A.PatternSynDef{}        -> highlight d
+    A.Generalize{}           -> highlight d
     A.UnquoteDecl{}          -> highlight d
     A.UnquoteDef{}           -> highlight d
     A.Section i x tel _      -> highlight (A.Section i x tel [])
@@ -518,6 +534,24 @@ whenAbstractFreezeMetasAfter Info.DefInfo{ defAccess, defAbstract} m = do
       , text "We froze the following ones of these:       " <+> sep (map prettyTCM xs)
       ]
     return a
+
+registerGeneralize :: Set QName -> ArgInfo -> QName -> TCM a -> TCM a
+registerGeneralize s info n m = do
+    ropt <- optGeneralize <$> pragmaOptions
+    unless ropt $ typeError NeedOptionGeneralize
+    (t, ms_) <- metasCreatedBy m
+    let ns = last $ C.nameStringParts $ nameConcrete $ qnameName n
+        setName i "" = ns ++ "." ++ show i
+        setName _ x  = ns ++ "." ++ x
+        adjust (i, (mi, mv)) = (,) mi $
+            mv { mvPriority = MetaPriority (-20)
+               , mvInfo = (mvInfo mv) {miNameSuggestion = setName i $ miNameSuggestion (mvInfo mv) }
+               }
+    ms <- Map.fromList . map adjust . zip [1..] . filter (isOpenMeta . mvInstantiation . snd)
+            <$> forM (Set.toList ms_) (\mi -> (,) mi <$> lookupMeta mi)
+    modifyMetaStore (ms `mappend`)
+    stGeneralizableMetas %= Map.insert n ((s, info), ms)
+    return t
 
 -- | Type check an axiom.
 checkAxiom :: A.Axiom -> Info.DefInfo -> ArgInfo ->
@@ -960,6 +994,7 @@ instance ShowHead A.Declaration where
       A.RecSig       {} -> "RecSig"
       A.RecDef       {} -> "RecDef"
       A.PatternSynDef{} -> "PatternSynDef"
+      A.Generalize   {} -> "Generalize"
       A.UnquoteDecl  {} -> "UnquoteDecl"
       A.ScopedDecl   {} -> "ScopedDecl"
       A.UnquoteDef   {} -> "UnquoteDef"

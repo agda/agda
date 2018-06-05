@@ -22,6 +22,7 @@ import Data.Map (Map)
 import Data.Maybe
 import Data.Sequence (Seq, (<|), (><))
 import qualified Data.Sequence as Seq
+import qualified Data.Set as Set
 import Data.Traversable
 import Data.Void
 
@@ -98,6 +99,7 @@ data Expr
   | AbsurdLam ExprInfo Hiding          -- ^ @λ()@ or @λ{}@.
   | ExtendedLam ExprInfo DefInfo QName [Clause]
   | Pi   ExprInfo Telescope Expr       -- ^ Dependent function space @Γ → A@.
+  | Generalized (Set.Set QName) Expr   -- ^ Like a Pi, but the ordering is not known
   | Fun  ExprInfo (Arg Expr) Expr      -- ^ Non-dependent function space.
   | Set  ExprInfo Integer              -- ^ @Set@, @Set1@, @Set2@, ...
   | Prop ExprInfo Integer              -- ^ @Prop@, @Prop1@, @Prop2@, ...
@@ -115,6 +117,12 @@ data Expr
                                        -- ^ @tactic e x1 .. xn | y1 | .. | yn@
   | DontCare Expr                      -- ^ For printing @DontCare@ from @Syntax.Internal@.
   deriving (Data, Show)
+
+-- | Smart constructor for Generalized
+generalized :: Set.Set QName -> Expr -> Expr
+generalized s e
+    | Set.null s = e
+    | otherwise = Generalized s e
 
 -- | Record field assignment @f = e@.
 type Assign  = FieldAssignment' Expr
@@ -152,6 +160,7 @@ instance Pretty ScopeCopyInfo where
 
 data Declaration
   = Axiom      Axiom DefInfo ArgInfo (Maybe [Occurrence]) QName Expr
+  | Generalize (Set.Set QName) DefInfo ArgInfo QName Expr
     -- ^ Type signature (can be irrelevant, but not hidden).
     --
     -- The fourth argument contains an optional assignment of
@@ -188,6 +197,7 @@ class GetDefInfo a where
 
 instance GetDefInfo Declaration where
   getDefInfo (Axiom _ i _ _ _ _)    = Just i
+  getDefInfo (Generalize _ i _ _ _) = Just i
   getDefInfo (Field i _ _)          = Just i
   getDefInfo (Primitive i _ _)      = Just i
   getDefInfo (ScopedDecl _ (d:_))   = getDefInfo d
@@ -249,6 +259,7 @@ data LetBinding
   | LetDeclaredVariable BindName
     -- ^ Only used for highlighting. Refers to the first occurrence of
     -- @x@ in @let x : A; x = e@.
+--  | LetGeneralize DefInfo ArgInfo Expr
   deriving (Data, Show, Eq)
 
 
@@ -509,6 +520,7 @@ instance Eq Expr where
   AbsurdLam a1 b1         == AbsurdLam a2 b2         = (a1, b1) == (a2, b2)
   ExtendedLam a1 b1 c1 d1 == ExtendedLam a2 b2 c2 d2 = (a1, b1, c1, d1) == (a2, b2, c2, d2)
   Pi a1 b1 c1             == Pi a2 b2 c2             = (a1, b1, c1) == (a2, b2, c2)
+  Generalized a1 b1       == Generalized a2 b2       = (a1, b1) == (a2, b2)
   Fun a1 b1 c1            == Fun a2 b2 c2            = (a1, b1, c1) == (a2, b2, c2)
   Set a1 b1               == Set a2 b2               = (a1, b1) == (a2, b2)
   Prop a1 b1              == Prop a2 b2              = (a1, b1) == (a2, b2)
@@ -532,6 +544,7 @@ instance Eq Declaration where
   ScopedDecl _ a1                == ScopedDecl _ a2                = a1 == a2
 
   Axiom a1 b1 c1 d1 e1 f1        == Axiom a2 b2 c2 d2 e2 f2        = (a1, b1, c1, d1, e1, f1) == (a2, b2, c2, d2, e2, f2)
+  Generalize a1 b1 c1 d1 e1      == Generalize a2 b2 c2 d2 e2      = (a1, b1, c1, d1, e1) == (a2, b2, c2, d2, e2)
   Field a1 b1 c1                 == Field a2 b2 c2                 = (a1, b1, c1) == (a2, b2, c2)
   Primitive a1 b1 c1             == Primitive a2 b2 c2             = (a1, b1, c1) == (a2, b2, c2)
   Mutual a1 b1                   == Mutual a2 b2                   = (a1, b1) == (a2, b2)
@@ -591,6 +604,7 @@ instance HasRange Expr where
     getRange (AbsurdLam i _)       = getRange i
     getRange (ExtendedLam i _ _ _) = getRange i
     getRange (Pi i _ _)            = getRange i
+    getRange (Generalized _ x)     = getRange x
     getRange (Fun i _ _)           = getRange i
     getRange (Set i _)             = getRange i
     getRange (Prop i _)            = getRange i
@@ -611,6 +625,7 @@ instance HasRange Expr where
 
 instance HasRange Declaration where
     getRange (Axiom    _ i _ _ _ _  ) = getRange i
+    getRange (Generalize _ i _ _ _)   = getRange i
     getRange (Field      i _ _      ) = getRange i
     getRange (Mutual     i _        ) = getRange i
     getRange (Section    i _ _ _    ) = getRange i
@@ -714,6 +729,7 @@ instance KillRange Expr where
   killRange (AbsurdLam i h)        = killRange2 AbsurdLam i h
   killRange (ExtendedLam i n d ps) = killRange4 ExtendedLam i n d ps
   killRange (Pi i a b)             = killRange3 Pi i a b
+  killRange (Generalized s x)      = killRange1 (Generalized s) x
   killRange (Fun i a b)            = killRange3 Fun i a b
   killRange (Set i n)              = killRange2 Set i n
   killRange (Prop i n)             = killRange2 Prop i n
@@ -734,6 +750,7 @@ instance KillRange Expr where
 
 instance KillRange Declaration where
   killRange (Axiom    p i a b c d     ) = killRange4 (\i a c d -> Axiom p i a b c d) i a c d
+  killRange (Generalize s i j x e     ) = killRange4 (Generalize s) i j x e
   killRange (Field      i a b         ) = killRange3 Field      i a b
   killRange (Mutual     i a           ) = killRange2 Mutual     i a
   killRange (Section    i a b c       ) = killRange4 Section    i a b c
@@ -855,6 +872,7 @@ instance AllNames QName where
 
 instance AllNames Declaration where
   allNames (Axiom   _ _ _ _ q _)      = Seq.singleton q
+  allNames (Generalize _ _ _ q _)     = Seq.singleton q
   allNames (Field     _   q _)        = Seq.singleton q
   allNames (Primitive _   q _)        = Seq.singleton q
   allNames (Mutual     _ defs)        = allNames defs
@@ -900,6 +918,7 @@ instance AllNames Expr where
   allNames AbsurdLam{}             = Seq.empty
   allNames (ExtendedLam _ _ q cls) = q <| allNames cls
   allNames (Pi _ tel e)            = allNames tel >< allNames e
+  allNames (Generalized s e)       = Seq.fromList (Set.toList s) >< allNames e  -- TODO: or just (allNames e)?
   allNames (Fun _ e1 e2)           = allNames e1 >< allNames e2
   allNames Set{}                   = Seq.empty
   allNames Prop{}                  = Seq.empty
@@ -979,6 +998,7 @@ instance NameToExpr AbstractName where
   nameExpr d = mk (anameKind d) $ anameName d
     where
     mk DefName        x = Def x
+    mk GeneralizeName x = Def x
     mk FldName        x = Proj ProjSystem $ unambiguous x
     mk ConName        x = Con $ unambiguous x
     mk PatternSynName x = PatternSyn $ unambiguous x
@@ -1022,6 +1042,9 @@ patternToExpr (WithP r p)         = __IMPOSSIBLE__
 
 type PatternSynDefn = ([Arg Name], Pattern' Void)
 type PatternSynDefns = Map QName PatternSynDefn
+
+type GeneralizableDefn = (Set.Set QName, Arg Expr)
+type GeneralizableDefns = Map QName GeneralizableDefn
 
 lambdaLiftExpr :: [Name] -> Expr -> Expr
 lambdaLiftExpr []     e = e
@@ -1073,6 +1096,7 @@ instance SubstExpr Expr where
     AbsurdLam i h         -> e
     ExtendedLam i di n cs -> __IMPOSSIBLE__   -- Maybe later...
     Pi   i t e            -> Pi i (substExpr s t) (substExpr s e)
+    Generalized ns e      -> Generalized ns (substExpr s e)
     Fun  i ae e           -> Fun i (substExpr s ae) (substExpr s e)
     Set  i n              -> e
     Prop i n              -> e

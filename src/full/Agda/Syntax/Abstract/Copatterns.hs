@@ -276,6 +276,7 @@ instance Rename Expr where
       AbsurdLam{}           -> e
       ExtendedLam i i' n cs -> ExtendedLam i i' n (rename rho cs)
       Pi i tel e            -> Pi i (rename rho tel) (rename rho e)
+      Generalized s e       -> Generalized s (rename rho e)
       Fun i a e             -> Fun i (rename rho a) (rename rho e)
       Set{}                 -> e
       Prop{}                -> e

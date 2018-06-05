@@ -244,6 +244,7 @@ instance Pretty Expr where
             DontCare e -> text "." <> parens (pretty e)
             Equal _ a b -> pretty a <+> text "=" <+> pretty b
             Ellipsis _  -> text "..."
+            Generalized e -> pretty e
         where
           absurd NotHidden  = text "()"
           absurd Instance{} = text "{{}}"
@@ -378,6 +379,7 @@ instance Pretty Declaration where
                 sep [ prettyRelevance i $ pretty x <+> text ":"
                     , nest 2 $ pretty e
                     ]
+            Generalize i x e -> text "generalize" <+> pretty (TypeSig i x e)
             Field inst x (Arg i e) ->
                 sep [ text "field"
                     , nest 2 $ mkInst inst $ mkOverlap i $
