@@ -434,8 +434,7 @@ DoubleCloseBrace
   | '}' '}' {%
       if posPos (fromJust (rEnd' (getRange $2))) -
          posPos (fromJust (rStart' (getRange $1))) > 2
-      then parseErrorAt (fromJust (rStart' (getRange $2)))
-         "Expecting '}}', found separated '}'s."
+      then parseErrorRange $2 "Expecting '}}', found separated '}'s."
       else return $ getRange ($1, $2)
     }
 
@@ -1169,8 +1168,7 @@ ArgTypeSigs
       let setOverlap x =
             case getHiding x of
               Instance _ -> return $ makeInstance' YesOverlap x
-              _          ->
-                parseErrorAt (fromJust $ rStart' $ getRange $1)
+              _          -> parseErrorRange $1
                              "The 'overlap' keyword only applies to instance fields (fields marked with {{ }})"
       in T.traverse (setOverlap . fmap (\ x -> typeSig defaultArgInfo x $4)) $2 }
   | 'instance' ArgTypeSignatures {
@@ -1397,7 +1395,7 @@ Open : MaybeOpen 'import' ModuleName OpenArgs ImportDirective {%
           -- Andreas, 2017-05-13, issue #2579
           -- Nisse reports that importing with instantation but without open
           -- could be usefule for bringing instances into scope.
-          -- -- | DontOpen <- doOpen -> parseErrorAt (fromJust $ rStart' $ getRange $2) "An import statement with module instantiation does not actually import the module.  This statement achieves nothing.  Either add the `open' keyword or bind the instantiated module with an `as' clause."
+          -- -- | DontOpen <- doOpen -> parseErrorRange $2 "An import statement with module instantiation does not actually import the module.  This statement achieves nothing.  Either add the `open' keyword or bind the instantiated module with an `as' clause."
           | otherwise -> return
               [ impStm noRange
               , appStm (noName $ beginningOf $ getRange m) es
@@ -2000,8 +1998,7 @@ verifyImportDirective i =
          $ sort xs
     of
         []  -> return i
-        yss -> let Just pos = rStart' $ getRange $ head $ concat yss in
-               parseErrorAt pos $
+        yss -> parseErrorRange (head $ concat yss) $
                 "Repeated name" ++ s ++ " in import directive: " ++
                 concat (intersperse ", " $ map (show . head) yss)
             where
@@ -2020,10 +2017,9 @@ data RecordDirective
    deriving (Eq,Show)
 
 verifyRecordDirectives :: [RecordDirective] -> Parser (Maybe (Ranged Induction), Maybe HasEta, Maybe (Name, IsInstance))
-verifyRecordDirectives xs | null rs = return (ltm is, ltm es, ltm cs)
-                          | otherwise = let Just pos = rStart' $ (head rs) in
-                                          parseErrorAt pos $ "Repeated record directives at: \n" ++ intercalate "\n" (map show rs)
-
+verifyRecordDirectives xs
+  | null rs = return (ltm is, ltm es, ltm cs)
+  | otherwise = parseErrorRange (head rs) $ "Repeated record directives at: \n" ++ intercalate "\n" (map show rs)
  where
   ltm :: [a] -> Maybe a
   ltm [] = Nothing
@@ -2081,8 +2077,7 @@ exprToLHS e = LHS <$> exprToPattern e
 --   valid pattern.
 exprToPattern :: Expr -> Parser Pattern
 exprToPattern e = do
-    let Just pos = rStart' $ getRange e
-        failure = parseErrorAt pos $ "Not a valid pattern: " ++ show e
+    let failure = parseErrorRange e $ "Not a valid pattern: " ++ show e
     case e of
         Ident x                 -> return $ IdentP x
         App _ e1 e2             -> AppP <$> exprToPattern e1
@@ -2117,9 +2112,7 @@ opAppExprToPattern (Ordinary e) = exprToPattern e
 --   valid identifier.
 exprToName :: Expr -> Parser Name
 exprToName (Ident (QName x)) = return x
-exprToName e =
-  let Just pos = rStart' $ getRange e in
-  parseErrorAt pos $ "Not a valid identifier: " ++ show e
+exprToName e = parseErrorRange e $ "Not a valid identifier: " ++ prettyShow e
 
 stripSingletonRawApp :: Expr -> Expr
 stripSingletonRawApp (RawApp _ [e]) = stripSingletonRawApp e
