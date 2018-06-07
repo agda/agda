@@ -936,7 +936,7 @@ checkExpr' cmp e t0 =
             coerce cmp v (sort s) t
 
         A.Generalized s e -> do
-            (t0, t') <- checkGeneralized s $ isType_ e
+            (_, t0, t') <- checkGeneralized s $ isType_ e
             noFunctionsIntoSize t0 t'
             let s = getSort t'
                 v = unEl t'
@@ -1138,7 +1138,8 @@ unquoteTactic tac hole goal k = do
 
 type NameOrMeta = Either MetaId QName
 
-checkGeneralized :: Set.Set QName -> TCM Type -> TCM (Type, Type)
+-- | Generalize a type over a set of (used) generalizable variables.
+checkGeneralized :: Set.Set QName -> TCM Type -> TCM (Int, Type, Type)
 checkGeneralized s m = do
     t <- disableDestructiveUpdate m
     ((extra, vs), ms) <- collectNames mempty $ Set.toList s
@@ -1161,7 +1162,7 @@ checkGeneralized s m = do
           [ text "generalized"
           , nest 2 $ text "t  =" <+> prettyTCM t
           , nest 2 $ text "t' =" <+> prettyTCM t' ]
-        pure (t, t')
+        pure (length sorted, t, t')
   where
     -- find dependent open metas
     findMetas mi Open = pure [mi]
