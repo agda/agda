@@ -537,8 +537,6 @@ whenAbstractFreezeMetasAfter Info.DefInfo{ defAccess, defAbstract} m = do
 
 registerGeneralize :: Set QName -> ArgInfo -> QName -> TCM a -> TCM a
 registerGeneralize s info n m = do
-    ropt <- optGeneralize <$> pragmaOptions
-    unless ropt $ typeError NeedOptionGeneralize
     (t, ms_) <- metasCreatedBy m
     let ns = last $ C.nameStringParts $ nameConcrete $ qnameName n
         setName i "" = ns ++ "." ++ show i

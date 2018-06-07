@@ -1,4 +1,4 @@
-{-# OPTIONS --without-K --rewriting --generalize #-}
+{-# OPTIONS --without-K --rewriting #-}
 
 module Generalize where
 

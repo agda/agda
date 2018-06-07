@@ -1,5 +1,3 @@
-{-# OPTIONS --generalize #-}
-
 open import Agda.Builtin.Nat
 
 generalize {n} : Nat
