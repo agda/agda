@@ -1148,8 +1148,6 @@ type NameOrMeta = Either MetaId QName
 
 checkGeneralized :: Set.Set QName -> TCM Type -> TCM (Type, Type)
 checkGeneralized s m = do
-    ropt <- optGeneralize <$> pragmaOptions
-    unless ropt $ typeError NeedOptionGeneralize
     t <- disableDestructiveUpdate m
     ((extra, vs), ms) <- collectNames mempty $ Set.toList s
     let metas = List.nub [ mi | Left mi <- extra ++ concatMap (\(a,b)->[a,b]) vs ]

@@ -154,7 +154,6 @@ data PragmaOptions = PragmaOptions
   , optEta                       :: Bool
   , optRewriting                 :: Bool  -- ^ Can rewrite rules be added and used?
   , optCubical                   :: Bool
-  , optGeneralize                :: Bool
   , optPostfixProjections        :: Bool
       -- ^ Should system generated projections 'ProjSystem' be printed
       --   postfix (True) or prefix (False).
@@ -248,7 +247,6 @@ defaultPragmaOptions = PragmaOptions
   , optEta                       = True
   , optRewriting                 = False
   , optCubical                   = False
-  , optGeneralize                = False
   , optPostfixProjections        = False
   , optInstanceSearchDepth       = 500
   , optInversionMaxDepth         = 50
@@ -497,9 +495,6 @@ rewritingFlag o = return $ o { optRewriting = True }
 cubicalFlag :: Flag PragmaOptions
 cubicalFlag o = return $ o { optCubical = True, optWithoutK = True }
 
-generalizeFlag :: Flag PragmaOptions
-generalizeFlag o = return $ o { optGeneralize = True }
-
 postfixProjectionsFlag :: Flag PragmaOptions
 postfixProjectionsFlag o = return $ o { optPostfixProjections = True }
 
@@ -704,8 +699,6 @@ pragmaOptions =
                     "enable declaration and use of REWRITE rules"
     , Option []     ["cubical"] (NoArg cubicalFlag)
                     "enable cubical features (e.g. overloads lambdas for paths), implies --without-K"
-    , Option []     ["generalize"] (NoArg generalizeFlag)
-                    "enable automatic generalization of predefined variable bindings"
     , Option []     ["postfix-projections"] (NoArg postfixProjectionsFlag)
                     "make postfix projection notation the default"
     , Option []     ["instance-search-depth"] (ReqArg instanceDepthFlag "N")

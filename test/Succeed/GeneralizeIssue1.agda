@@ -1,5 +1,3 @@
-{-# OPTIONS --generalize #-}
-
 generalize
   S : Set
 

@@ -2913,7 +2913,6 @@ data TypeError
     -- Language option errors
         | NeedOptionCopatterns
         | NeedOptionRewriting
-        | NeedOptionGeneralize
     -- Failure associated to warnings
         | NonFatalErrors [TCWarning]
     -- Instance search errors
