@@ -181,7 +181,7 @@ checkDecl d = setCurrentRange d $ do
 
     (finalChecks, metas) <- metasCreatedBy $ case d of
       A.Axiom{}                -> meta $ checkTypeSignature d
-      A.Generalize s i info x e -> meta $ inConcreteMode $ registerGeneralize s info x $ checkAxiom A.NoFunSig i info Nothing x e
+      A.Generalize s i info x e -> meta $ inConcreteMode $ checkGeneralize s i info x e
       A.Field{}                -> typeError FieldOutsideRecord
       A.Primitive i x e        -> meta $ checkPrimitive i x e
       A.Mutual i ds            -> mutual i ds $ checkMutual i ds
@@ -536,10 +536,11 @@ whenAbstractFreezeMetasAfter Info.DefInfo{ defAccess, defAbstract} m = do
       ]
     return a
 
-registerGeneralize :: Set QName -> ArgInfo -> QName -> TCM a -> TCM a
-registerGeneralize s info n m = do
-    (t, ms_) <- metasCreatedBy m
-    let ns = last $ C.nameStringParts $ nameConcrete $ qnameName n
+checkGeneralize :: Set QName -> Info.DefInfo -> ArgInfo -> QName -> A.Expr -> TCM ()
+checkGeneralize s i info x e = do
+    -- Check the signature and collect the created metas.
+    (_, ms_) <- metasCreatedBy $ checkAxiom A.NoFunSig i info Nothing x e
+    let ns = last $ C.nameStringParts $ nameConcrete $ qnameName x
         setName i "" = ns ++ "." ++ show i
         setName _ x  = ns ++ "." ++ x
         adjust (i, (mi, mv)) = (,) mi $
@@ -549,9 +550,8 @@ registerGeneralize s info n m = do
     ms <- Map.fromList . map adjust . zip [1..] . filter (isOpenMeta . mvInstantiation . snd)
             <$> forM (Set.toList ms_) (\mi -> (,) mi <$> lookupMeta mi)
     modifyMetaStore (ms `mappend`)
-    stGeneralizableMetas %= Map.insert n ((s, info), ms)
-    modifySignature $ updateDefinition n $ updateTheDef $ \ _ -> GeneralizableVar
-    return t
+    stGeneralizableMetas %= Map.insert x ((s, info), ms)
+    modifySignature $ updateDefinition x $ updateTheDef $ \ _ -> GeneralizableVar
 
 -- | Type check an axiom.
 checkAxiom :: A.Axiom -> Info.DefInfo -> ArgInfo ->
