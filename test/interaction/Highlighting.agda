@@ -29,3 +29,12 @@ postulate _+_ _×_ : Set → Set → Set
 infixl 4 _×_ _+_
   -- Issue #2140: the operators should be highlighted also in the
   -- fixity declaration.
+
+-- Issue #3120, jump-to-definition for record field tags
+-- in record expressions and patterns.
+
+anR : ∀ A → R A
+anR A = record { X = A ; P = λ _ → A }
+
+idR : ∀ A → R A → R A
+idR A r@record { X = X; P = P } = record r { X = X }

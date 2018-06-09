@@ -34,7 +34,7 @@ import Data.Semigroup ( Semigroup )
 import qualified Data.Semigroup as Semigroup
 import qualified Data.Map as Map
 
-import Agda.Interaction.Highlighting.Generate (storeDisambiguatedName)
+import Agda.Interaction.Highlighting.Generate (storeDisambiguatedName, disambiguateRecordFields)
 import Agda.Interaction.Options
 import Agda.Interaction.Options.Lenses
 
@@ -43,6 +43,7 @@ import Agda.Syntax.Internal.Pattern
 import Agda.Syntax.Abstract (IsProjP(..))
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Views (asView, deepUnscope)
+import Agda.Syntax.Concrete (FieldAssignment'(..))
 import Agda.Syntax.Common as Common
 import Agda.Syntax.Info as A
 import Agda.Syntax.Literal
@@ -225,10 +226,18 @@ updateProblemEqs eqs = do
             updates $ zipWith3 ProblemEq (map namedArg ps) (map unArg vs) bs
 
           A.RecP pi fs -> do
-            axs <- recordFieldNames . theDef <$> getConstInfo d
+            axs <- recFields . theDef <$> getConstInfo d
+
+            -- Andreas, 2018-09-06, issue #3122.
+            -- Associate the concrete record field names used in the record pattern
+            -- to their counterpart in the record type definition.
+            disambiguateRecordFields (map _nameFieldA fs) (map unArg axs)
+
+            let cxs = map (fmap (nameConcrete . qnameName)) axs
+
             -- In fs omitted explicit fields are replaced by underscores,
             -- and the fields are put in the correct order.
-            ps <- insertMissingFields d (const $ A.WildP patNoRange) fs axs
+            ps <- insertMissingFields d (const $ A.WildP patNoRange) fs cxs
 
             -- We also need to insert missing implicit or instance fields.
             ps <- insertImplicitPatterns ExpandLast ps ctel
