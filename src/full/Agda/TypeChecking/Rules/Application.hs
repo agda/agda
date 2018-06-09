@@ -330,24 +330,31 @@ inferDef mkTerm x =
 
 -- | The second argument is the definition of the first.
 checkRelevance :: QName -> Definition -> TCM ()
-checkRelevance x def = do
+checkRelevance x def = maybe (return ()) typeError =<< checkRelevance' x def
+
+-- | The second argument is the definition of the first.
+--   Returns 'Nothing' if ok, otherwise the error message.
+checkRelevance' :: QName -> Definition -> TCM (Maybe TypeError)
+checkRelevance' x def = do
   case defRelevance def of
-    Relevant -> return () -- relevance functions can be used in any context.
+    Relevant -> return Nothing -- relevance functions can be used in any context.
     drel -> do
       -- Andreas,, 2018-06-09, issue #2170
       -- irrelevant projections are only allowed if --irrelevant-projections
-      whenJust (isProjection_ $ theDef def) $ const $ do
-        unlessM (optIrrelevantProjections <$> pragmaOptions) $ do
-          typeError . GenericDocError =<< do
-            sep [ text "Projection " , prettyTCM x, text " is irrelevant."
-                , text " Turn on option --irrelevant-projections to use it (unsafe)."
-                ]
-      rel <- asks envRelevance
-      reportSDoc "tc.irr" 50 $ vcat
-        [ text "declaration relevance =" <+> text (show drel)
-        , text "context     relevance =" <+> text (show rel)
+      ifM (return (isJust $ isProjection_ $ theDef def) `and2M`
+           (not .optIrrelevantProjections <$> pragmaOptions)) {-then-} needIrrProj {-else-} $ do
+        rel <- asks envRelevance
+        reportSDoc "tc.irr" 50 $ vcat
+          [ text "declaration relevance =" <+> text (show drel)
+          , text "context     relevance =" <+> text (show rel)
+          ]
+        return $ if (drel `moreRelevant` rel) then Nothing else Just $ DefinitionIsIrrelevant x
+  where
+  needIrrProj = Just . GenericDocError <$> do
+    sep [ text "Projection " , prettyTCM x, text " is irrelevant."
+        , text " Turn on option --irrelevant-projections to use it (unsafe)."
         ]
-      unless (drel `moreRelevant` rel) $ typeError $ DefinitionIsIrrelevant x
+
 
 -- | @checkHeadApplication e t hd args@ checks that @e@ has type @t@,
 -- assuming that @e@ has the form @hd args@. The corresponding
@@ -896,7 +903,8 @@ inferOrCheckProjApp e o ds args mt = do
                   ]
 
                 -- get the original projection name
-                isP <- isProjection d
+                def <- lift $ getConstInfo d
+                let isP = isProjection_ $ theDef def
                 reportSDoc "tc.proj.amb" 40 $ vcat $
                   [ text $ "  isProjection = " ++ caseMaybe isP "no" (const "yes")
                   ] ++ caseMaybe isP [] (\ Projection{ projProper = proper, projOrig = orig } ->
@@ -931,7 +939,7 @@ inferOrCheckProjApp e o ds args mt = do
                 guard (q == q')
                 -- Get the type of the projection and check
                 -- that the first visible argument is the record value.
-                tfull <- lift $ defType <$> getConstInfo d
+                let tfull = defType def
                 TelV tel _ <- lift $ telViewUpTo' (-1) (not . visible) tfull
                 reportSDoc "tc.proj.amb" 30 $ vcat
                   [ text $ "  size tel  = " ++ show (size tel)
@@ -940,6 +948,8 @@ inferOrCheckProjApp e o ds args mt = do
                 -- See issue 1960 for when the following assertion fails for
                 -- the correct disambiguation.
                 -- guard (size tel == size pars)
+
+                guard =<< do isNothing <$> do lift $ checkRelevance' d def
                 return (orig, (d, (pars, (dom, u, tb))))
 
           cands <- groupOn fst . catMaybes <$> mapM (runMaybeT . try) (toList ds)

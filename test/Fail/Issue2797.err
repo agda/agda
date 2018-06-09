@@ -1,0 +1,4 @@
+Issue2797.agda:27,9-15
+Cannot resolve overloaded projection nat because no matching
+candidate found
+when checking that the expression s .nat has type Nat
