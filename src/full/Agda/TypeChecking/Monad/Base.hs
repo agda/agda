@@ -1053,8 +1053,8 @@ data MetaInfo = MetaInfo
   , miNameSuggestion  :: MetaNameSuggestion
     -- ^ Used for printing.
     --   @Just x@ if meta-variable comes from omitted argument with name @x@.
-  , miGeneralizable   :: DoGeneralize
-    -- ^ Should this meta be generalized if unsolved?
+  , miGeneralizable   :: Arg DoGeneralize
+    -- ^ Should this meta be generalized if unsolved? If so, at what ArgInfo?
   }
 
 -- | Name suggestion for meta variable.  Empty string means no suggestion.

@@ -188,7 +188,7 @@ createMetaInfo' b = do
     { miClosRange       = cl
     , miMetaOccursCheck = b
     , miNameSuggestion  = ""
-    , miGeneralizable   = gen
+    , miGeneralizable   = hide $ defaultArg gen
     }
 
 setValueMetaName :: Term -> MetaNameSuggestion -> TCM ()
@@ -209,6 +209,11 @@ setMetaNameSuggestion mi s = unless (null s || isUnderscore s) $ do
     "setting name of meta " ++ prettyShow mi ++ " to " ++ s
   updateMetaVar mi $ \ mvar ->
     mvar { mvInfo = (mvInfo mvar) { miNameSuggestion = s }}
+
+setMetaArgInfo :: MetaId -> ArgInfo -> TCM ()
+setMetaArgInfo m i = updateMetaVar m $ \ mv ->
+  mv { mvInfo = (mvInfo mv)
+        { miGeneralizable = setArgInfo i (miGeneralizable (mvInfo mv)) } }
 
 updateMetaVarRange :: MetaId -> Range -> TCM ()
 updateMetaVarRange mi r = updateMetaVar mi (setRange r)
