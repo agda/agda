@@ -250,7 +250,7 @@ instance Apply Defn where
             , funProjection = Just p0} ->
       case p0 `apply` args of
         p@Projection{ projIndex = n }
-          | n < 0     -> __IMPOSSIBLE__
+          | n < 0     -> d { funProjection = __IMPOSSIBLE__ } -- TODO (#3123): we actually get here!
           -- case: applied only to parameters
           | n > 0     -> d { funProjection = Just p }
           -- case: applied also to record value (n == 0)
