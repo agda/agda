@@ -1,6 +1,3 @@
-
-{-# OPTIONS --copatterns #-}
-
 module Issue939 where
 
 record Sigma (A : Set)(P : A → Set) : Set where
@@ -21,11 +18,12 @@ ex = record
        ; snd = p
        }
 
+-- Note: we do not need --irrelevant-projections to use them on the lhs.
 ex' : Sigma A P
 fst ex' = x
 snd ex' = p
 
--- Giving p yields the following error:
+-- WAS: Giving p yields the following error:
 -- Identifier p is declared irrelevant, so it cannot be used here
 -- when checking that the expression p has type P (fst ex')
 

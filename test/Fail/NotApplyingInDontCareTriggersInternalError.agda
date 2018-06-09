@@ -1,12 +1,15 @@
 -- Andreas, 2011-10-02
+
+{-# OPTIONS --irrelevant-projections #-}
+
 module NotApplyingInDontCareTriggersInternalError where
 import Common.Irrelevance
 
 postulate
   Val : Set
-  App : Val -> Val -> Val -> Set
+  App : Val → Val → Val → Set
 
-Rel = Val -> Val -> Set
+Rel = Val → Val → Set
 
 Transitive : Rel → Set
 Transitive R = ∀ {t1 t2 t3} → R t1 t2 → R t2 t3 → R t1 t3

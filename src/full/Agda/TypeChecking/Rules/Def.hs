@@ -140,15 +140,10 @@ checkAlias t' ai delayed i name e mc = atClause name 0 (A.RHS e mc) $ do
     , text (prettyShow name) <+> equals <+> prettyTCM e
     ]
 
-{-
-  -- Infer the type of the rhs
-  (v, t) <- applyRelevanceToContext (getRelevance ai) $
-                                    inferOrCheck e (Just t')
-  -- v <- coerce v t t'
--}
-
-  -- Infer the type of the rhs
-  v <- applyRelevanceToContext (getRelevance ai) $ checkDontExpandLast CmpLeq e t'
+  -- Infer the type of the rhs.
+  -- Andreas, 2018-06-09, issue #2170.
+  -- The context will only be resurrected if we have --irrelevant-projections.
+  v <- applyRelevanceToContextFunBody (getRelevance ai) $ checkDontExpandLast CmpLeq e t'
   let t = t'
 
   reportSDoc "tc.def.alias" 20 $ text "checkAlias: finished checking"
@@ -246,7 +241,7 @@ checkFunDefS t ai delayed extlam with i name withSub cs = do
         cs <- traceCall NoHighlighting $ do -- To avoid flicker.
           forM (zip cs [0..]) $ \ (c, clauseNo) -> do
             atClause name clauseNo (A.clauseRHS c) $ do
-              c <- applyRelevanceToContext (getRelevance ai) $ do
+              c <- applyRelevanceToContextFunBody (getRelevance ai) $ do
                 checkClause t withSub c
               -- Andreas, 2013-11-23 do not solve size constraints here yet
               -- in case we are checking the body of an extended lambda.

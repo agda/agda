@@ -1,4 +1,7 @@
 -- Andreas, bug found 2011-12-31
+
+{-# OPTIONS --irrelevant-projections #-}
+
 module Issue543 where
 
 import Common.Level

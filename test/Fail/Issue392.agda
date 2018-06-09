@@ -1,5 +1,9 @@
 -- Andreas, 2011-09-11
+
+{-# OPTIONS --irrelevant-projections #-}
+
 module Issue392 where
+
 import Common.Irrelevance
 
 -- Create an non-irrelevant record R1 (at least one field relevant).

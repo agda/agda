@@ -376,10 +376,13 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
       reportSDoc "tc.rec.proj" 25 $ nest 2 $ text "finalt=" <+> do
         inTopContext $ prettyTCM finalt
 
-      -- Andreas, 2012-02-20 do not add irrelevant projections if
-      -- disabled by --no-irrelevant-projections
-      ifM (return (rel == Irrelevant) `and2M` do not . optIrrelevantProjections <$> pragmaOptions) recurse $ do
-
+      -- -- Andreas, 2012-02-20 do not add irrelevant projections if
+      -- -- disabled by --no-irrelevant-projections
+      -- ifM (return (rel == Irrelevant) `and2M` do not . optIrrelevantProjections <$> pragmaOptions) recurse $ do
+      -- Andreas, 2018-06-09 issue #2170
+      -- Always create irrelevant projections (because the scope checker accepts irrelevant fields).
+      -- If --no-irrelevant-projections, then their use should be disallowed by the type checker for expressions.
+      do
         reportSDoc "tc.rec.proj" 10 $ sep
           [ text "adding projection"
           , nest 2 $ prettyTCM projname <+> text ":" <+> inTopContext (prettyTCM finalt)

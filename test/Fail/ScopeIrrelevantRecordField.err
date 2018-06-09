@@ -1,10 +1,6 @@
-ScopeIrrelevantRecordField.agda:10,9-17
-Not in scope:
-  Bla.bla0
-  at ScopeIrrelevantRecordField.agda:10,9-17
-    (did you mean
-       'Bla.bla1' or
-       'Bla.bla4' or
-       'Bla' or
-       'bla0''?)
-when scope checking Bla.bla0
+ScopeIrrelevantRecordField.agda:11,9-17
+Projection 
+Bla.bla0
+ is irrelevant.
+ Turn on option --irrelevant-projections to use it (unsafe).
+when checking that the expression Bla.bla0 has type Bla → Set

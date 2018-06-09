@@ -1,5 +1,8 @@
 -- Andreas, 2012-04-18, bug reported by sanzhiyan
 -- {-# OPTIONS -v tc.with:100 #-}
+
+{-# OPTIONS --irrelevant-projections #-}
+
 module Issue610-4 where
 
 import Common.Level
@@ -34,4 +37,3 @@ baa ()
 
 yoink : ⊥
 yoink = baa moo
-

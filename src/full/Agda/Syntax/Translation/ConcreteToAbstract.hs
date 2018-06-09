@@ -1424,11 +1424,15 @@ instance ToAbstract NiceDeclaration A.Declaration where
           maskIP e                     = e
       t' <- toAbstractCtx TopCtx $ mapExpr maskIP t
       y  <- freshAbstractQName f x
-      irrProj <- optIrrelevantProjections <$> pragmaOptions
-      unless (isIrrelevant t && not irrProj) $
-        -- Andreas, 2010-09-24: irrelevant fields are not in scope
-        -- this ensures that projections out of irrelevant fields cannot occur
-        -- Ulf: unless you turn on --irrelevant-projections
+      -- Andreas, 2018-06-09 issue #2170
+      -- We want dependent irrelevance without irrelevant projections,
+      -- thus, do not disable irrelevant projections via the scope checker.
+      -- irrProj <- optIrrelevantProjections <$> pragmaOptions
+      -- unless (isIrrelevant t && not irrProj) $
+      --   -- Andreas, 2010-09-24: irrelevant fields are not in scope
+      --   -- this ensures that projections out of irrelevant fields cannot occur
+      --   -- Ulf: unless you turn on --irrelevant-projections
+      do
         bindName p FldName x y
       return [ A.Field (mkDefInfoInstance x f p a i NotMacroDef r) y t' ]
 
