@@ -883,8 +883,8 @@ leqType = compareType CmpLeq
 --   currently it only tries to fix problems with hidden function types.
 --
 --   Precondition: @a@ and @b@ are reduced.
-coerce :: Term -> Type -> Type -> TCM Term
-coerce v t1 t2 = blockTerm t2 $ do
+coerce :: Comparison -> Term -> Type -> Type -> TCM Term
+coerce cmp v t1 t2 = blockTerm t2 $ do
   verboseS "tc.conv.coerce" 10 $ do
     (a1,a2) <- reify (t1,t2)
     let dbglvl = if isSet a1 && isSet a2 then 50 else 10
@@ -893,12 +893,14 @@ coerce v t1 t2 = blockTerm t2 $ do
         [ text "term      v  =" <+> prettyTCM v
         , text "from type t1 =" <+> prettyTCM a1
         , text "to type   t2 =" <+> prettyTCM a2
+        , text "comparison   =" <+> prettyTCM cmp
         ]
     reportSDoc "tc.conv.coerce" 70 $
       text "coerce" <+> vcat
         [ text "term      v  =" <+> pretty v
         , text "from type t1 =" <+> pretty t1
         , text "to type   t2 =" <+> pretty t2
+        , text "comparison   =" <+> pretty cmp
         ]
   -- v <$ do workOnTypes $ leqType t1 t2
   -- take off hidden/instance domains from t1 and t2
@@ -914,9 +916,9 @@ coerce v t1 t2 = blockTerm t2 $ do
     ifBlockedType b2 (\ _ _ -> fallback) $ \ _ _ -> do
       (args, t1') <- implicitArgs n notVisible t1
       let v' = v `apply` args
-      v' <$ coerceSize leqType v' t1' t2
+      v' <$ coerceSize (compareType cmp) v' t1' t2
   where
-    fallback = v <$ coerceSize leqType v t1 t2
+    fallback = v <$ coerceSize (compareType cmp) v t1 t2
 
 -- | Account for situations like @k : (Size< j) <= (Size< k + 1)@
 --

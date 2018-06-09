@@ -1010,9 +1010,9 @@ data CheckedTarget = CheckedTarget (Maybe ProblemId)
                    | NotCheckedTarget
 
 data TypeCheckingProblem
-  = CheckExpr A.Expr Type
+  = CheckExpr Comparison A.Expr Type
   | CheckArgs ExpandHidden Range [NamedArg A.Expr] Type Type (Elims -> Type -> CheckedTarget -> TCM Term)
-  | CheckLambda (Arg ([WithHiding Name], Maybe Type)) A.Expr Type
+  | CheckLambda Comparison (Arg ([WithHiding Name], Maybe Type)) A.Expr Type
     -- ^ @(λ (xs : t₀) → e) : t@
     --   This is not an instance of 'CheckExpr' as the domain type
     --   has already been checked.
@@ -1954,7 +1954,7 @@ data Call = CheckClause Type A.SpineClause
           | CheckPattern A.Pattern Telescope Type
           | CheckLetBinding A.LetBinding
           | InferExpr A.Expr
-          | CheckExprCall A.Expr Type
+          | CheckExprCall Comparison A.Expr Type
           | CheckDotPattern A.Expr Term
           | CheckPatternShadowing A.SpineClause
           | CheckProjection Range QName Type
@@ -2018,7 +2018,7 @@ instance HasRange Call where
     getRange (CheckClause _ c)               = getRange c
     getRange (CheckPattern p _ _)            = getRange p
     getRange (InferExpr e)                   = getRange e
-    getRange (CheckExprCall e _)             = getRange e
+    getRange (CheckExprCall _ e _)           = getRange e
     getRange (CheckLetBinding b)             = getRange b
     getRange (CheckProjection r _ _)         = r
     getRange (IsTypeCall e s)                = getRange e

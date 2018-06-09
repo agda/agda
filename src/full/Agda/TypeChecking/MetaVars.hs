@@ -373,9 +373,9 @@ postponeTypeCheckingProblem_ :: TypeCheckingProblem -> TCM Term
 postponeTypeCheckingProblem_ p = do
   postponeTypeCheckingProblem p (unblock p)
   where
-    unblock (CheckExpr _ t)           = unblockedTester t
+    unblock (CheckExpr _ _ t)         = unblockedTester t
     unblock (CheckArgs _ _ _ t _ _)   = unblockedTester t  -- The type of the head of the application.
-    unblock (CheckLambda _ _ t)       = unblockedTester t
+    unblock (CheckLambda _ _ _ t)     = unblockedTester t
     unblock (UnquoteTactic _ _ _)     = __IMPOSSIBLE__     -- unquote problems must be supply their own tester
 
 -- | Create a postponed type checking problem @e : t@ that waits for conditon
@@ -409,9 +409,9 @@ postponeTypeCheckingProblem p unblock = do
 
 -- | Type of the term that is produced by solving the 'TypeCheckingProblem'.
 problemType :: TypeCheckingProblem -> TCM Type
-problemType (CheckExpr _ t           ) = return t
+problemType (CheckExpr _ _ t         ) = return t
 problemType (CheckArgs _ _ _ _ t _ )   = return t  -- The target type of the application.
-problemType (CheckLambda _ _ t       ) = return t
+problemType (CheckLambda _ _ _ t     ) = return t
 problemType (UnquoteTactic tac hole t) = return t
 
 -- | Eta expand metavariables listening on the current meta.

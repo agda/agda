@@ -148,7 +148,7 @@ checkAlias t' ai delayed i name e mc = atClause name 0 (A.RHS e mc) $ do
 -}
 
   -- Infer the type of the rhs
-  v <- applyRelevanceToContext (getRelevance ai) $ checkDontExpandLast e t'
+  v <- applyRelevanceToContext (getRelevance ai) $ checkDontExpandLast CmpLeq e t'
   let t = t'
 
   reportSDoc "tc.def.alias" 20 $ text "checkAlias: finished checking"

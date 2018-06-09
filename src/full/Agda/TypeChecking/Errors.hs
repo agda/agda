@@ -1426,7 +1426,7 @@ instance PrettyTCM Call where
 
     InferExpr e -> fsep $ pwords "when inferring the type of" ++ [prettyA e]
 
-    CheckExprCall e t -> fsep $
+    CheckExprCall cmp e t -> fsep $
       pwords "when checking that the expression"
       ++ [prettyA e] ++ pwords "has type" ++ [prettyTCM t]
 
