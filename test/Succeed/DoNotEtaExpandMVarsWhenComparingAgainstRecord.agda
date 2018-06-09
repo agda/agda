@@ -1,4 +1,7 @@
 -- 2010-10-15
+-- 2018-06-09
+
+{-# OPTIONS --irrelevant-projections #-}
 
 module DoNotEtaExpandMVarsWhenComparingAgainstRecord where
 

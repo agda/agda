@@ -229,7 +229,7 @@ defaultPragmaOptions = PragmaOptions
   , optVerbose                   = defaultVerbosity
   , optProp                      = True
   , optExperimentalIrrelevance   = False
-  , optIrrelevantProjections     = True
+  , optIrrelevantProjections     = False -- off by default in > 2.5.4, see issue #2170
   , optAllowUnsolved             = False
   , optDisablePositivity         = False
   , optTerminationCheck          = True
@@ -340,6 +340,7 @@ unsafePragmaOptions opts =
   -- [ "--sized-types"                              | optSizedTypes opts                ] ++
   [ "--injective-type-constructors"              | optInjectiveTypeConstructors opts ] ++
   [ "--guardedness-preserving-type-constructors" | optGuardingTypeConstructors opts  ] ++
+  [ "--irrelevant-projections"                   | optIrrelevantProjections opts     ] ++
   [ "--experimental-irrelevance"                 | optExperimentalIrrelevance opts   ] ++
   [ "--rewriting"                                | optRewriting opts                 ] ++
   [ "--cubical and --with-K"                     | optCubical opts, not $ optWithoutK opts ] ++
@@ -378,6 +379,9 @@ noPropFlag o = return $ o { optProp = False }
 
 experimentalIrrelevanceFlag :: Flag PragmaOptions
 experimentalIrrelevanceFlag o = return $ o { optExperimentalIrrelevance = True }
+
+irrelevantProjectionsFlag :: Flag PragmaOptions
+irrelevantProjectionsFlag o = return $ o { optIrrelevantProjections = True }
 
 noIrrelevantProjectionsFlag :: Flag PragmaOptions
 noIrrelevantProjectionsFlag o = return $ o { optIrrelevantProjections = False }
@@ -680,12 +684,14 @@ pragmaOptions =
                     "disable universe polymorphism"
     , Option []     ["universe-polymorphism"] (NoArg universePolymorphismFlag)
                     "enable universe polymorphism (default)"
+    , Option []     ["irrelevant-projections"] (NoArg irrelevantProjectionsFlag)
+                    "enable projection of irrelevant record fields and similar irrelevant definitions (inconsistent)"
     , Option []     ["no-irrelevant-projections"] (NoArg noIrrelevantProjectionsFlag)
-                    "disable projection of irrelevant record fields"
+                    "disable projection of irrelevant record fields and similar irrelevant definitions (default)"
     , Option []     ["experimental-irrelevance"] (NoArg experimentalIrrelevanceFlag)
                     "enable potentially unsound irrelevance features (irrelevant levels, irrelevant data matching)"
     , Option []     ["with-K"] (NoArg withKFlag)
-                    "enable the K rule in pattern matching"
+                    "enable the K rule in pattern matching (default)"
     , Option []     ["without-K"] (NoArg withoutKFlag)
                     "disable the K rule in pattern matching"
     , Option []     ["copatterns"] (NoArg copatternsFlag)

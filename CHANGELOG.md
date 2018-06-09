@@ -1,8 +1,8 @@
 Release notes for Agda version 2.5.5
 ====================================
 
-Language
---------
+Pragmas and options
+-------------------
 
 * New builtin SETOMEGA.
 
@@ -23,6 +23,11 @@ Language
   Like `--type-in-type`, this makes Agda inconsistent. However, code
   written using `--omega-in-omega` is still compatible with normal
   universe-polymorphic code and can be used in such files.
+
+* Option `--irrelevant-projections` is now off by default and
+  not considered `--safe` any longer.
+  Reason: There are consistency issues that may be systemic
+  [Issue [#21700](https://github.com/agda/agda/issues/2170)].
 
 Emacs mode
 ----------

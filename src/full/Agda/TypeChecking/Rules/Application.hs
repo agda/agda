@@ -27,6 +27,7 @@ import Data.Void
 import qualified Data.IntSet as IntSet
 
 import Agda.Interaction.Highlighting.Generate (storeDisambiguatedName)
+import Agda.Interaction.Options
 
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Views as A
@@ -65,6 +66,7 @@ import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Maybe
+import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.NonemptyList
 import Agda.Utils.Pretty ( prettyShow )
@@ -296,7 +298,7 @@ inferDef mkTerm x =
     -- instantiateDef relativizes it to the current context
     d  <- instantiateDef =<< getConstInfo x
     -- irrelevant defs are only allowed in irrelevant position
-    checkRelevance x (defRelevance d)
+    checkRelevance x d
     case theDef d of
       GeneralizableVar{} -> do
         -- Generalizable variables corresponds to metas created
@@ -326,16 +328,26 @@ inferDef mkTerm x =
         , nest 2 $ text ":" <+> prettyTCM t
         , nest 2 $ text "-->" <+> prettyTCM v ]
 
--- | The second argument is the relevance of the first.
-checkRelevance :: QName -> Relevance -> TCM ()
-checkRelevance _ Relevant = return () -- relevance functions can be used in any context.
-checkRelevance x drel = do
-  rel <- asks envRelevance
-  reportSDoc "tc.irr" 50 $ vcat
-    [ text "declaration relevance =" <+> text (show drel)
-    , text "context     relevance =" <+> text (show rel)
-    ]
-  unless (drel `moreRelevant` rel) $ typeError $ DefinitionIsIrrelevant x
+-- | The second argument is the definition of the first.
+checkRelevance :: QName -> Definition -> TCM ()
+checkRelevance x def = do
+  case defRelevance def of
+    Relevant -> return () -- relevance functions can be used in any context.
+    drel -> do
+      -- Andreas,, 2018-06-09, issue #2170
+      -- irrelevant projections are only allowed if --irrelevant-projections
+      whenJust (isProjection_ $ theDef def) $ const $ do
+        unlessM (optIrrelevantProjections <$> pragmaOptions) $ do
+          typeError . GenericDocError =<< do
+            sep [ text "Projection " , prettyTCM x, text " is irrelevant."
+                , text " Turn on option --irrelevant-projections to use it (unsafe)."
+                ]
+      rel <- asks envRelevance
+      reportSDoc "tc.irr" 50 $ vcat
+        [ text "declaration relevance =" <+> text (show drel)
+        , text "context     relevance =" <+> text (show rel)
+        ]
+      unless (drel `moreRelevant` rel) $ typeError $ DefinitionIsIrrelevant x
 
 -- | @checkHeadApplication e t hd args@ checks that @e@ has type @t@,
 -- assuming that @e@ has the form @hd args@. The corresponding

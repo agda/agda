@@ -67,6 +67,8 @@ workOnTypes' experimental =
 --   For instance,
 --   in an irrelevant function argument otherwise irrelevant variables
 --   may be used, so they are awoken before type checking the argument.
+--
+--   Also allow the use of irrelevant definitions.
 applyRelevanceToContext :: (MonadTCM tcm) => Relevance -> tcm a -> tcm a
 applyRelevanceToContext rel =
   case rel of
@@ -78,6 +80,18 @@ applyRelevanceToContext rel =
       , envRelevance   = composeRelevance rel (envRelevance e)
                                                   -- enable global irr. defs
       }
+
+-- | Like 'applyRelevanceToContext', but only act on context if
+--   @--irrelevant-projections@.
+--   See issue #2170.
+applyRelevanceToContextFunBody :: (MonadTCM tcm) => Relevance -> tcm a -> tcm a
+applyRelevanceToContextFunBody rel cont
+  | rel == Relevant = cont
+  | otherwise = do
+    ifM (optIrrelevantProjections <$> pragmaOptions) {-then-} (applyRelevanceToContext rel cont) {-else-} $ do
+      flip local cont $ \ e -> e
+        { envRelevance = composeRelevance rel (envRelevance e) -- enable global irr. defs
+        }
 
 -- | Wake up irrelevant variables and make them relevant. This is used
 --   when type checking terms in a hole, in which case you want to be able to

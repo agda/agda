@@ -1,4 +1,7 @@
 -- Andreas, 2012-04-18, bug reported by pumpkingod on 2012-04-16
+
+{-# OPTIONS --irrelevant-projections #-}
+
 module Issue610 where
 
 import Common.Level
@@ -15,7 +18,7 @@ record A : Set₁ where
 .get : A → Set
 get x = helper x
   module R where
-  helper : .A -> Set
+  helper : .A → Set
   helper x = A.a x
 
 ack : A → Set
