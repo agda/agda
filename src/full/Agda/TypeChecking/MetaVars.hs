@@ -136,28 +136,22 @@ newSortMetaBelowInf = do
 
 -- | Create a sort meta that may be instantiated with 'Inf' (Setω).
 newSortMeta :: TCM Sort
-newSortMeta = newSortMeta' $ IsSort ()
-
-newSortMeta' :: (Type -> Judgement ()) -> TCM Sort
-newSortMeta' judge =
+newSortMeta =
   ifM typeInType (return $ mkType 0) $ {- else -}
-  ifM hasUniversePolymorphism (newSortMetaCtx' judge =<< getContextArgs)
+  ifM hasUniversePolymorphism (newSortMetaCtx =<< getContextArgs)
   -- else (no universe polymorphism)
   $ do i   <- createMetaInfo
-       x   <- newMeta i normalMetaPriority (idP 0) $ judge __DUMMY_TYPE__
+       x   <- newMeta i normalMetaPriority (idP 0) $ IsSort () __DUMMY_TYPE__
        return $ MetaS x []
 
 -- | Create a sort meta that may be instantiated with 'Inf' (Setω).
 newSortMetaCtx :: Args -> TCM Sort
-newSortMetaCtx = newSortMetaCtx' $ IsSort ()
-
-newSortMetaCtx' :: (Type -> Judgement ()) -> Args -> TCM Sort
-newSortMetaCtx' judge vs = do
+newSortMetaCtx vs = do
   ifM typeInType (return $ mkType 0) $ {- else -} do
     i   <- createMetaInfo
     tel <- getContextTelescope
     let t = telePi_ tel __DUMMY_TYPE__
-    x   <- newMeta i normalMetaPriority (idP 0) $ judge t
+    x   <- newMeta i normalMetaPriority (idP 0) $ IsSort () t
     reportSDoc "tc.meta.new" 50 $
       text "new sort meta" <+> prettyTCM x <+> text ":" <+> prettyTCM t
     return $ MetaS x $ map Apply vs
