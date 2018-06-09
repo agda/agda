@@ -1,6 +1,8 @@
 ..
   ::
 
+  {-# OPTIONS --irrelevant-projections #-}
+
   module language.irrelevance where
 
   open import Agda.Builtin.Nat
@@ -205,7 +207,7 @@ This axiom is not provable inside Agda, but it is often very useful when working
 Irrelevant record fields
 ========================
 
-Record fields (see :ref:`record-types`) can be marked as irrelevant by prefixing their name with a dot in the definition of the record type.
+Record fields (see :ref:`record-types`) can be marked as irrelevant by prefixing their name with a dot in the definition of the record type.  Projections for irrelevant fields are only created if option ``--irrelevant-projections`` is supplied (since Agda > 2.5.4).
 
 **Example 1.** A record type containing pairs of numbers satisfying certain properties. ::
 
