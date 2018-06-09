@@ -957,6 +957,21 @@ instance Show a => Show (Judgement a) where
     show (HasType a t) = show a ++ " : " ++ show t
     show (IsSort  a t) = show a ++ " :sort " ++ show t
 
+-----------------------------------------------------------------------------
+-- ** Generalizable variables
+-----------------------------------------------------------------------------
+
+data DoGeneralize = YesGeneralize | NoGeneralize
+  deriving (Eq, Ord, Show, Data)
+
+-- | The value of a generalizable variable. This is created to be a
+--   generalizable meta before checking the type to be generalized.
+data GeneralizedValue = GeneralizedValue
+  { genvalCheckpoint :: CheckpointId
+  , genvalTerm       :: Term
+  , genvalType       :: Type
+  } deriving (Show, Data)
+
 ---------------------------------------------------------------------------
 -- ** Meta variables
 ---------------------------------------------------------------------------
@@ -1041,9 +1056,6 @@ data RunMetaOccursCheck
   = RunMetaOccursCheck
   | DontRunMetaOccursCheck
   deriving (Eq , Ord , Show)
-
-data DoGeneralize = YesGeneralize | NoGeneralize
-  deriving (Eq, Ord, Show, Data)
 
 -- | @MetaInfo@ is cloned from one meta to the next during pruning.
 data MetaInfo = MetaInfo
@@ -2259,6 +2271,8 @@ data TCEnv =
                 --   the current context.
           , envGeneralizeMetas :: DoGeneralize
                 -- ^ Should new metas generalized over.
+          , envGeneralizedVars :: Map QName GeneralizedValue
+                -- ^ Values for used generalizable variables.
           }
     deriving Data
 
@@ -2312,6 +2326,7 @@ initEnv = TCEnv { envContext             = []
                 , envCurrentCheckpoint      = 0
                 , envCheckpoints            = Map.singleton 0 IdS
                 , envGeneralizeMetas        = NoGeneralize
+                , envGeneralizedVars        = Map.empty
                 }
 
 disableDestructiveUpdate :: TCM a -> TCM a
@@ -2450,6 +2465,9 @@ eCheckpoints f e = f (envCheckpoints e) <&> \ x -> e { envCheckpoints = x }
 
 eGeneralizeMetas :: Lens' DoGeneralize TCEnv
 eGeneralizeMetas f e = f (envGeneralizeMetas e) <&> \ x -> e { envGeneralizeMetas = x }
+
+eGeneralizedVars :: Lens' (Map QName GeneralizedValue) TCEnv
+eGeneralizedVars f e = f (envGeneralizedVars e) <&> \ x -> e { envGeneralizedVars = x }
 
 ---------------------------------------------------------------------------
 -- ** Context

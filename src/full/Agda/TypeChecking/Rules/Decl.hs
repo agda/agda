@@ -538,20 +538,19 @@ whenAbstractFreezeMetasAfter Info.DefInfo{ defAccess, defAbstract} m = do
 
 checkGeneralize :: Set QName -> Info.DefInfo -> ArgInfo -> QName -> A.Expr -> TCM ()
 checkGeneralize s i info x e = do
+
     -- Check the signature and collect the created metas.
-    (_, ms_) <- metasCreatedBy $ checkAxiom A.NoFunSig i info Nothing x e
-    let ns = last $ C.nameStringParts $ nameConcrete $ qnameName x
-        setName i "" = ns ++ "." ++ show i
-        setName _ x  = ns ++ "." ++ x
-        adjust (i, (mi, mv)) = (,) mi $
-            mv { mvPriority = MetaPriority (-20)
-               , mvInfo = (mvInfo mv) {miNameSuggestion = setName i $ miNameSuggestion (mvInfo mv) }
-               }
-    ms <- Map.fromList . map adjust . zip [1..] . filter (isOpenMeta . mvInstantiation . snd)
-            <$> forM (Set.toList ms_) (\mi -> (,) mi <$> lookupMeta mi)
-    modifyMetaStore (ms `mappend`)
-    stGeneralizableMetas %= Map.insert x ((s, info), ms)
-    modifySignature $ updateDefinition x $ updateTheDef $ \ _ -> GeneralizableVar
+    (n, tGen) <- checkGeneralized s $ locally eGeneralizeMetas (const YesGeneralize) $
+                   workOnTypes $ isType_ e
+
+    reportSDoc "tc.decl.gen" 10 $ sep
+      [ text "checked type signature of generalizable variable" <+> prettyTCM x <+> text ":"
+      , nest 2 $ prettyTCM tGen
+      ]
+
+    addConstant x $ (defaultDefn info x tGen GeneralizableVar)
+                    { defArgGeneralizable = replicate n YesGeneralize }
+
 
 -- | Type check an axiom.
 checkAxiom :: A.Axiom -> Info.DefInfo -> ArgInfo ->
