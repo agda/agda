@@ -15,14 +15,14 @@ import Control.Monad.State (get, put)
 import Control.Monad.Reader
 
 import Data.Maybe
-import Data.Either (partitionEithers)
+import Data.Either (partitionEithers, lefts)
 import Data.Monoid (mappend)
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
 import Agda.Interaction.Options
-import Agda.Interaction.Highlighting.Generate (storeDisambiguatedName)
+import Agda.Interaction.Highlighting.Generate (disambiguateRecordFields)
 
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Views as A
@@ -651,11 +651,24 @@ catchIlltypedPatternBlockedOnMeta m handle = do
 -- * Records
 ---------------------------------------------------------------------------
 
-expandModuleAssigns :: [Either A.Assign A.ModuleName] -> [C.Name] -> TCM A.Assigns
+-- | Picks up record field assignments from modules that export a definition
+--   that has the same name as the missing field.
+--
+--   Only visible fields are picked up.  Issue #3122: Why is that the case?
+
+expandModuleAssigns
+  :: [Either A.Assign A.ModuleName]  -- ^ Modules and field assignments.
+  -> [C.Name]                        -- ^ Names of visible fields of the record type.
+  -> TCM A.Assigns                   -- ^ Completed field assignments from modules.
 expandModuleAssigns mfs exs = do
   let (fs , ms) = partitionEithers mfs
+      -- The visible fields of the record that have not been given by field assignments.
       exs' = exs List.\\ map (view nameFieldA) fs
+
+  -- Getting assignments for the missing visible fields.
   fs' <- forM exs' $ \ f -> do
+
+    -- Get the possible assignments for field f from the modules.
     pms <- forM ms $ \ m -> do
        modScope <- getNamedScope m
        let names :: ThingsInScope AbstractName
@@ -665,6 +678,7 @@ expandModuleAssigns mfs exs = do
           Just [n] -> Just (m, FieldAssignment f (A.nameExpr n))
           _        -> Nothing
 
+    -- If we have several matching assignments, that's an error.
     case catMaybes pms of
       []        -> return Nothing
       [(_, fa)] -> return (Just fa)
@@ -677,7 +691,13 @@ expandModuleAssigns mfs exs = do
 
 -- | @checkRecordExpression fs e t@ checks record construction against type @t@.
 -- Precondition @e = Rec _ fs@.
-checkRecordExpression :: Comparison -> A.RecordAssigns  -> A.Expr -> Type -> TCM Term
+checkRecordExpression
+  :: Comparison       -- ^ How do we related the inferred type of the record expression
+                      --   to the expected type?  Subtype or equal type?
+  -> A.RecordAssigns  -- ^ @mfs@: modules and field assignments.
+  -> A.Expr           -- ^ Must be @A.Rec _ mfs@.
+  -> Type             -- ^ Expected type of record expression.
+  -> TCM Term         -- ^ Record value in internal syntax.
 checkRecordExpression cmp mfs e t = do
   reportSDoc "tc.term.rec" 10 $ sep
     [ text "checking record expression"
@@ -698,11 +718,11 @@ checkRecordExpression cmp mfs e t = do
         text =<< prettyShow <$> getRecordConstructor r
 
       def <- getRecordDef r
-      let -- Field names with ArgInfo.
-          axs  = recordFieldNames def
-          exs  = filter visible axs
+      let -- Field names (C.Name) with ArgInfo from record type definition.
+          cxs  = recordFieldNames def
+          exs  = filter visible cxs
           -- Just field names.
-          xs   = map unArg axs
+          xs   = map unArg cxs
           -- Record constructor.
           con  = killRange $ recConHead def
       reportSDoc "tc.term.rec" 20 $ vcat
@@ -710,6 +730,11 @@ checkRecordExpression cmp mfs e t = do
         , text "  ftel= " <> prettyTCM (recTel def)
         , text "  con = " <> return (P.pretty con)
         ]
+
+      -- Andreas, 2018-09-06, issue #3122.
+      -- Associate the concrete record field names used in the record expression
+      -- to their counterpart in the record type definition.
+      disambiguateRecordFields (map _nameFieldA $ lefts mfs) (map unArg $ recFields def)
 
       -- Compute the list of given fields, decorated with the ArgInfo from the record def.
       fs <- expandModuleAssigns mfs (map unArg exs)
@@ -721,7 +746,7 @@ checkRecordExpression cmp mfs e t = do
       -- In @es@ omitted explicit fields are replaced by underscores.
       -- Omitted implicit or instance fields
       -- are still left out and inserted later by checkArguments_.
-      es <- insertMissingFields r meta fs axs
+      es <- insertMissingFields r meta fs cxs
 
       args <- checkArguments_ ExpandLast re es (recTel def `apply` vs) >>= \case
         (elims, remainingTel) | null remainingTel
@@ -733,6 +758,7 @@ checkRecordExpression cmp mfs e t = do
     _         -> typeError $ ShouldBeRecordType t
 
   where
+    -- Case: We don't know the type of the record.
     guessRecordType t = do
       let fields = [ x | Left (FieldAssignment x _) <- mfs ]
       rs <- findPossibleRecords fields
@@ -773,7 +799,6 @@ checkRecordExpression cmp mfs e t = do
             ]
           postponeTypeCheckingProblem_ $ CheckExpr cmp e t
 
-
 -- | @checkRecordUpdate ei recexpr fs e t@
 -- Precondition @e = RecUpdate ei recexpr fs@.
 checkRecordUpdate :: Comparison -> A.ExprInfo -> A.Expr -> A.Assigns -> A.Expr -> Type -> TCM Term
@@ -784,12 +809,17 @@ checkRecordUpdate cmp ei recexpr fs e t = do
       name <- freshNoName (getRange recexpr)
       addLetBinding defaultArgInfo name v t $ do
         projs <- recFields <$> getRecordDef r
-        axs <- getRecordFieldNames r
-        scope <- getScope
-        let xs = map unArg axs
+
+        -- Andreas, 2018-09-06, issue #3122.
+        -- Associate the concrete record field names used in the record expression
+        -- to their counterpart in the record type definition.
+        disambiguateRecordFields (map _nameFieldA fs) (map unArg projs)
+
+        xs <- map unArg <$> getRecordFieldNames r
         es <- orderFields r Nothing xs $ map (\ (FieldAssignment x e) -> (x, Just e)) fs
         let es' = zipWith (replaceFields name ei) projs es
         checkExpr' cmp (A.Rec ei [ Left (FieldAssignment x e) | (x, Just e) <- zip xs es' ]) t
+
     MetaV _ _ -> do
       inferred <- inferExpr recexpr >>= reduce . snd
       case unEl inferred of

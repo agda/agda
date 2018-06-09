@@ -24,6 +24,25 @@ Language
   written using `--omega-in-omega` is still compatible with normal
   universe-polymorphic code and can be used in such files.
 
+Emacs mode
+----------
+
+* Jump-to-definition now works for record field names in record expressions
+  and patterns. [Issue [#3120](https://github.com/agda/agda/issues/3120)]
+  ```agda
+    record R : Set₂ where
+      field f : Set₁
+
+    exp : R
+    exp = record { f = Set }
+
+    pat : R → R
+    pat r@record { f = X } = record r { f = X }
+  ```
+  Jump-to-definition (`M-.` or middle-click) on any of these `f`s
+  now jumps to the field declaration.
+
+
 Release notes for Agda version 2.5.4
 ====================================
 
