@@ -20,6 +20,8 @@ import Data.Traversable (Traversable, traverse, forM, mapM)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
+import Agda.Interaction.Options
+
 import Agda.Syntax.Common
 import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Concrete (exprFieldA)
@@ -47,7 +49,7 @@ import Agda.TypeChecking.Patterns.Abstract (expandPatternSynonyms)
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Free
-import Agda.TypeChecking.CheckInternal (checkType, inferSort)
+import Agda.TypeChecking.CheckInternal
 import Agda.TypeChecking.With
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Injectivity
@@ -149,7 +151,7 @@ checkAlias t' ai delayed i name e mc = atClause name 0 (A.RHS e mc) $ do
 -}
 
   -- Infer the type of the rhs
-  v <- applyRelevanceToContext (getRelevance ai) $ checkDontExpandLast e t'
+  v <- applyRelevanceToContext (getRelevance ai) $ checkDontExpandLast CmpLeq e t'
   let t = t'
 
   reportSDoc "tc.def.alias" 20 $ text "checkAlias: finished checking"
@@ -650,6 +652,15 @@ checkClause t withSub c@(A.Clause (A.SpineLHS i x aps) strippedPats rhs0 wh catc
         (let ps' = patternsToElims ps
              self = Def x []
          in maybe (return ()) (checkBodyEndPoints delta closed_t self ps') body)
+
+        whenM (optDoubleCheck <$> pragmaOptions) $ case body of
+          Just v  -> do
+            reportSDoc "tc.lhs.top" 30 $ vcat
+              [ text "double checking rhs"
+              , nest 2 (prettyTCM v <+> text " : " <+> prettyTCM (unArg trhs))
+              ]
+            checkInternal v $ unArg trhs
+          Nothing -> return ()
 
         reportSDoc "tc.lhs.top" 10 $ vcat
           [ text "Clause before translation:"

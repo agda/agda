@@ -160,6 +160,7 @@ data PragmaOptions = PragmaOptions
   , optInstanceSearchDepth       :: Int
   , optInversionMaxDepth         :: Int
   , optSafe                      :: Bool
+  , optDoubleCheck               :: Bool
   , optWarningMode               :: WarningMode
   , optCompileNoMain             :: Bool
   , optCaching                   :: Bool
@@ -251,6 +252,7 @@ defaultPragmaOptions = PragmaOptions
   , optInstanceSearchDepth       = 500
   , optInversionMaxDepth         = 50
   , optSafe                      = False
+  , optDoubleCheck               = False
   , optWarningMode               = defaultWarningMode
   , optCompileNoMain             = False
   , optCaching                   = True
@@ -361,6 +363,9 @@ helpFlag (Just str) o = case string2HelpTopic str of
 
 safeFlag :: Flag PragmaOptions
 safeFlag o = return $ o { optSafe = True }
+
+doubleCheckFlag :: Flag PragmaOptions
+doubleCheckFlag o = return $ o { optDoubleCheck = True }
 
 sharingFlag :: Bool -> Flag CommandLineOptions
 sharingFlag _ o = return o
@@ -707,6 +712,8 @@ pragmaOptions =
                     "set maximum depth for pattern match inversion to N (default: 50)"
     , Option []     ["safe"] (NoArg safeFlag)
                     "disable postulates, unsafe OPTION pragmas and primTrustMe"
+    , Option []     ["double-check"] (NoArg doubleCheckFlag)
+                    "enable double-checking of all terms using the internal typechecker"
     , Option ['W']  ["warning"] (ReqArg warningModeFlag "FLAG")
                     ("set warning flags. See --help=warning.")
     , Option []     ["no-main"] (NoArg compileFlagNoMain)

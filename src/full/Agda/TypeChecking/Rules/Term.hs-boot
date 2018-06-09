@@ -9,8 +9,9 @@ import Agda.TypeChecking.Monad.Base
 isType_ :: A.Expr -> TCM Type
 
 checkExpr :: A.Expr -> Type -> TCM Term
+checkExpr' :: Comparison -> A.Expr -> Type -> TCM Term
 inferExpr :: A.Expr -> TCM (Term, Type)
 
-checkPostponedLambda :: Arg ([WithHiding Name], Maybe Type) -> A.Expr -> Type -> TCM Term
+checkPostponedLambda :: Comparison -> Arg ([WithHiding Name], Maybe Type) -> A.Expr -> Type -> TCM Term
 
 unquoteTactic :: Term -> Term -> Type -> TCM Term -> TCM Term

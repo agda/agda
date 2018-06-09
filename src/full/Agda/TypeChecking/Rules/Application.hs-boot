@@ -13,6 +13,6 @@ checkArguments :: ExpandHidden -> Range -> [NamedArg A.Expr] -> Type -> Type ->
 checkArguments_ :: ExpandHidden -> Range -> [NamedArg A.Expr] -> Telescope ->
                    TCM (Elims, Telescope)
 
-checkApplication :: A.Expr -> A.Args -> A.Expr -> Type -> TCM Term
+checkApplication :: Comparison -> A.Expr -> A.Args -> A.Expr -> Type -> TCM Term
 
 inferApplication :: ExpandHidden -> A.Expr -> A.Args -> A.Expr -> TCM (Term, Type)

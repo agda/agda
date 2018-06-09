@@ -10,11 +10,14 @@
 
 module Agda.TypeChecking.CheckInternal
   ( checkType
+  , checkType'
+  , checkSort
   , checkInternal
   , checkInternal'
   , Action(..), defaultAction, eraseUnusedAction
   , infer
   , inferSort
+  , shouldBeSort
   ) where
 
 import Control.Arrow ((&&&), (***), first, second)
