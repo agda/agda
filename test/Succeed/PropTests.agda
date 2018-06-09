@@ -1,4 +1,3 @@
-{-# OPTIONS --enable-prop #-}
 
 open import Agda.Builtin.Nat
 

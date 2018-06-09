@@ -6,7 +6,7 @@
 open import Common.Prelude
 open import Common.Equality
 
-data Dec P : Set where
+data Dec (P : Set) : Set where
   yes : (p : P) → Dec P
   no  : (¬p : P → ⊥) → Dec P
 

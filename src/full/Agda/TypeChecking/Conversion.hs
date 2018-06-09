@@ -1002,8 +1002,6 @@ leqSort s1 s2 = catchConstraint (SortCmp CmpLeq s1 s2) $ do
         , nest 2 $ fsep [ prettyTCM s1 <+> text "=<"
                         , prettyTCM s2 ]
         ]
-  propEnabled <- isPropEnabled
-
   let fvsRHS = IntSet.toList $ allFreeVars s2
   badRigid <- s1 `rigidVarsNotContainedIn` fvsRHS
 
@@ -1029,8 +1027,6 @@ leqSort s1 s2 = catchConstraint (SortCmp CmpLeq s1 s2) $ do
       -- So is @Set0@ if @Prop@ is not enabled.
       (_       , SizeUniv) -> equalSort s1 s2
       (_       , Prop (Max [])) -> equalSort s1 s2
-      (_       , Type (Max []))
-        | not propEnabled  -> equalSort s1 s2
 
       -- SizeUniv is unrelated to any @Set l@ or @Prop l@
       (SizeUniv, Type{}  ) -> no
@@ -1356,8 +1352,6 @@ equalSort s1 s2 = do
                  ]
           ]
 
-        propEnabled <- isPropEnabled
-
         case (s1, s2) of
 
             -- before anything else, try syntactic equality
@@ -1377,17 +1371,6 @@ equalSort s1 s2 = do
             (SizeUniv   , SizeUniv   ) -> yes
             (Prop a     , Prop b     ) -> equalLevel a b
             (Inf        , Inf        ) -> yes
-
-            -- if @PiSort a b == Set0@, then @b == Set0@
-            -- we use this fact to solve metas in @b@,
-            -- hopefully allowing the @PiSort@ to reduce.
-            (Type (Max []) , PiSort a b   )
-              | not propEnabled             -> piSortEqualsBottom set0 a b
-            (PiSort a b    , Type (Max []))
-              | not propEnabled             -> piSortEqualsBottom set0 a b
-
-            (Prop (Max []) , PiSort a b   ) -> piSortEqualsBottom prop0 a b
-            (PiSort a b    , Prop (Max [])) -> piSortEqualsBottom prop0 a b
 
             -- @PiSort a b == SizeUniv@ iff @b == SizeUniv@
             (SizeUniv   , PiSort a b ) ->
@@ -1418,18 +1401,6 @@ equalSort s1 s2 = do
         reportSDoc "tc.meta.sort" 50 $ text "meta" <+> sep [pretty x, prettyList $ map pretty es, pretty s]
         assignE DirEq x es (Sort s) __IMPOSSIBLE__
 
-      set0 = Type $ Max []
-      prop0 = Prop $ Max []
-
-      -- equate @piSort a b@ to @s0@, which is assumed to be a (closed) bottom sort
-      -- i.e. @piSort a b == s0@ implies @b == s0@.
-      piSortEqualsBottom s0 a b = do
-        underAbstraction_ b $ equalSort s0
-        -- we may have instantiated some metas, so @a@ could reduce
-        a <- reduce a
-        case funSort' a s0 of
-          Just s  -> equalSort s s0
-          Nothing -> addConstraint $ SortCmp CmpEq (funSort a s0) s0
 
 ---------------------------------------------------------------------------
 -- * Definitions

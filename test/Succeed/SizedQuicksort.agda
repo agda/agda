@@ -8,7 +8,7 @@ open import Common.Product
 
 -- sized lists
 
-data List A {i} : Set where
+data List (A : Set) {i} : Set where
   []  : List A
   _∷_ : {i' : Size< i} (x : A) (xs : List A {i'}) → List A
 

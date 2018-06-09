@@ -5,7 +5,7 @@ data ℕ : Set where
   zero : ℕ
   suc  : ℕ → ℕ
 
-data Vec A : ℕ → Set where
+data Vec (A : Set) : ℕ → Set where
   []  : Vec A zero
   _∷_ : ∀ {n} → A → Vec A n → Vec A (suc n)
 

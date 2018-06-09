@@ -1,6 +1,6 @@
 -- Andreas, Ulf, 2015-06-03
 -- Issue 473 was not fixed for records without constructor
-record _×_ A B : Set where
+record _×_ (A B : Set) : Set where
   constructor _,_
   field
     fst : A

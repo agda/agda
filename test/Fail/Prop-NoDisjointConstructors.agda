@@ -1,4 +1,3 @@
-{-# OPTIONS --enable-prop #-}
 
 data TestProp : Prop where
   p₁ p₂ : TestProp

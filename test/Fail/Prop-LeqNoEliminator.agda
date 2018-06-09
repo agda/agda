@@ -1,7 +1,5 @@
 -- Trying to define ≤ as a datatype in Prop doesn't work very well:
 
-{-# OPTIONS --enable-prop #-}
-
 open import Agda.Builtin.Nat
 
 data _≤'_ : Nat → Nat → Prop where

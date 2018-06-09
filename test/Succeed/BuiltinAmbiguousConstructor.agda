@@ -12,10 +12,10 @@ data Bool : Set where
 {-# BUILTIN TRUE  true #-}
 {-# BUILTIN FALSE false  #-}  -- This is accepted.
 
-data Brezel A : Set where
+data Brezel (A : Set) : Set where
   _∷_ : (x : A) (xs : Brezel A) → Brezel A
 
-data List₀ A : Set where
+data List₀ (A : Set) : Set where
   []  : List₀ A
   _∷_ : (x : A) (xs : List₀ A) → List₀ A
 
