@@ -977,8 +977,8 @@ checkExpr' cmp e t0 =
             coerce cmp v (sort s) t
 
         A.Generalized s e -> do
-            (t0, t') <- checkGeneralized s $ isType_ e
-            noFunctionsIntoSize t0 t'
+            (_, t') <- checkGeneralized s $ isType_ e
+            noFunctionsIntoSize t' t'
             let s = getSort t'
                 v = unEl t'
             when (s == Inf) $ reportSDoc "tc.term.sort" 20 $
@@ -1179,71 +1179,117 @@ unquoteTactic tac hole goal k = do
 
 type NameOrMeta = Either MetaId QName
 
-checkGeneralized :: Set.Set QName -> TCM Type -> TCM (Type, Type)
+-- | Generalize a type over a set of (used) generalizable variables.
+checkGeneralized :: Set.Set QName -> TCM Type -> TCM (Int, Type)
 checkGeneralized s m = do
-    t <- disableDestructiveUpdate m
-    ((extra, vs), ms) <- collectNames mempty $ Set.toList s
-    let metas = List.nub [ mi | Left mi <- extra ++ concatMap (\(a,b)->[a,b]) vs ]
-    vsm <- fmap concat $ forM metas $ \mi ->
-        (\me -> [(Left mi, Left de) | de <- me, de `elem` metas]) . allMetas <$> (getMetaType mi >>= instantiateFull)
-    reportSDoc "tc.decl.gen" 50 $ text $ "dependencies " ++ show (extra, vs, vsm)
-    case Graph.topSort extra $ vs ++ vsm of
-      Nothing -> typeError GeneralizeCyclicDependency
-      Just sorted -> do
-        reportSDoc "tc.decl.gen" 50 $ text $ "topSort " ++ show sorted
-        t <- reduce =<< instantiateFull t
-        t' <- addVars t $ reverse sorted
-        modifyMetaStore (ms `mappend`)
-        unless (List.null $ allMetas t') $ typeError GeneralizeUnsolvedMeta
-        forM_ [n | Left n <- sorted, Map.notMember n ms] $ \n ->
-            modifyMetaStore $ flip Map.adjust n $ \me ->
-                me {mvInstantiation = InstV [] (error ("meta var " ++ show n ++ " was generalized"))} -- TODO
-        reportSDoc "tc.decl.gen" 40 $ vcat
-          [ text "generalized"
-          , nest 2 $ text "t  =" <+> prettyTCM t
-          , nest 2 $ text "t' =" <+> prettyTCM t' ]
-        pure (t, t')
+    ((t, metaMap), allmetas) <- metasCreatedBy $ do
+      -- Create metas for all used generalizable variables and their dependencies.
+      cp      <- view eCurrentCheckpoint
+      genvals <- locally eGeneralizeMetas (const YesGeneralize) $ forM (Set.toList s) $ \ x -> do
+        def <- getConstInfo x
+                         -- Only prefix of generalizable arguments (for now?)
+        let nGen       = length $ takeWhile (== YesGeneralize) $ defArgGeneralizable def
+            ty         = defType def
+            TelV tel _ = telView' ty
+            argTel     = telFromList $ take nGen $ telToList tel
+
+        args <- newTelMeta argTel
+
+        let metaType = piApply ty args
+            name     = show (nameConcrete $ qnameName x)
+        (m, term) <- newNamedValueMeta DontRunMetaOccursCheck name metaType
+
+        -- Set up names of arg metas
+        forM_ (zip3 [1..] (map unArg args) (telToList argTel)) $ \ case
+          (i, MetaV m _, Dom{unDom = (x, _)}) -> do
+            let suf "_" = show i
+                suf ""  = show i
+                suf x   = x
+            setMetaNameSuggestion m (name ++ "." ++ suf x)
+          _ -> return ()  -- eta expanded
+
+        -- Update the ArgInfos for the named meta. The argument metas are
+        -- created with the correct ArgInfo.
+        setMetaArgInfo m $ defArgInfo def
+
+        reportSDoc "tc.decl.gen" 50 $ vcat
+          [ text "created metas for generalized variable" <+> prettyTCM x
+          , nest 2 $ text "top  =" <+> prettyTCM term
+          , nest 2 $ text "args =" <+> prettyTCM args ]
+
+        case term of
+          MetaV{} -> return ()
+          _       -> genericDocError =<< (text "Cannot generalize over" <+> prettyTCM x <+> text "of eta-expandable type") <?>
+                                          prettyTCM metaType
+        return (x, GeneralizedValue{ genvalCheckpoint = cp
+                                   , genvalTerm       = term
+                                   , genvalType       = metaType })
+
+      -- Check the type
+      let gvMap = Map.fromList genvals
+      t <- locally eGeneralizedVars (const gvMap) m
+
+      -- Remember the named generalized variables. We'll need to check that they
+      -- are not instantiated.
+      let metaMap = Map.fromList $ for genvals $ \ (x, gv) ->
+            let MetaV m _ = genvalTerm gv in  -- If eta expanded we fail above.
+            (m, x)
+      return (t, metaMap)
+
+    -- Collect generalizable metas and sort them in dependency order.
+    -- TODO: currently generalizes over all metas, not just generalizable ones.
+    -- let keep mv = YesGeneralize == unArg (miGeneralizable (mvInfo mv))
+    openMetas <- filterM ((isOpenMeta . mvInstantiation) <.> lookupMeta) (Set.toList allmetas)
+    metaGraph <- fmap concat $ forM openMetas $ \ m -> do
+                    deps <- List.nub . filter (`elem` openMetas) . allMetas <$> (instantiateFull =<< getMetaType m)
+                    return [ (m, m') | m' <- deps ]
+
+    sortedMetas <- caseMaybe (Graph.topSort openMetas metaGraph)
+                             (typeError GeneralizeCyclicDependency)
+                             return
+
+    reportSDoc "tc.decl.gen" 50 $ vcat
+      [ text $ "allMetas    = " ++ show allmetas
+      , text $ "sortedMetas = " ++ show sortedMetas ]
+
+    -- Generalize over metas
+    t  <- instantiateFull t
+    t' <- addVars t $ reverse sortedMetas
+    reportSDoc "tc.decl.gen" 40 $ vcat
+      [ text "generalized"
+      , nest 2 $ text "t  =" <+> prettyTCM t
+      , nest 2 $ text "t' =" <+> prettyTCM t' ]
+
+    -- Nuke the generalized metas
+    forM_ sortedMetas $ \ m ->
+      modifyMetaStore $ flip Map.adjust m $ \ mv ->
+        -- TODO: check that they got generalized and then we can remove them completely
+        mv { mvInstantiation = InstV [] $ Lit (LitString noRange ("meta var " ++ show m ++ " was generalized")) }
+          -- (error ("meta var " ++ show m ++ " was generalized")) }
+
+    return (length sortedMetas, t')
   where
-    -- find dependent open metas
-    findMetas mi Open = pure [mi]
-    findMetas _ (InstV _ t) = fmap concat $ instantiateFull t >>= \t ->
-        forM (allMetas t) (\mi -> findMetas mi =<< (mvInstantiation <$> lookupMeta mi))
-    findMetas _ _ = pure []
-
-    collectNames :: Set.Set QName -> [QName]
-                 -> TCM (([NameOrMeta], [(NameOrMeta, NameOrMeta)]), MetaStore)
-    collectNames _ [] = return mempty
-    collectNames acc (n: ns)
-        | n `Set.member` acc = collectNames acc ns
-        | otherwise = do
-            ((se, _), metas) <- fromMaybe __IMPOSSIBLE__ . Map.lookup n <$> use stGeneralizableMetas
-            mopen <- fmap concat $ forM (Map.keys metas) $ \mi ->
-                findMetas mi =<< (mvInstantiation <$> lookupMeta mi)
-            let more = Set.toList se
-            ((([Right n], ((,) (Right n) <$> ((Left <$> mopen) ++ (Right <$> more)))), metas) `mappend`)
-                <$> collectNames (Set.insert n acc) (more ++ ns)
-
-    addVars t [] = return t
-    addVars t (Left n : ns) = do
-        me <- lookupMeta n
-        ty <- getMetaType n
-        let nas = miNameSuggestion $ mvInfo me
-        addTheVar (defaultArgInfo {argInfoHiding = Hidden, argInfoOrigin = Inserted})
-                  (if List.null nas then "Meta" else nas)
-                  (MetaV n []) ty t ns
-    addVars t (Right n : ns) = do
-        ((_, info), _) <- fromMaybe __IMPOSSIBLE__ . Map.lookup n <$> use stGeneralizableMetas
-        i <- getConstInfo n
-        addTheVar info (last $ C.nameStringParts $ nameConcrete $ qnameName n) (Def n []) (defType i) t ns
+    addVars t []       = return t
+    addVars t (m : ms) = do
+        mv <- lookupMeta m
+        metaCp <- enterClosure (miClosRange $ mvInfo mv) $ \ _ -> view eCurrentCheckpoint
+        cp     <- view eCurrentCheckpoint
+        if | metaCp /= cp -> addVars t ms -- TODO: try to strengthen
+           | otherwise    -> do
+              vs <- getContextArgs
+              ty <- (`piApply` vs) <$> getMetaType m
+              let nas  = miNameSuggestion $ mvInfo mv
+                  info = getArgInfo $ miGeneralizable $ mvInfo mv
+              addTheVar info nas (MetaV m $ map Apply vs) ty t ms
 
     addTheVar info n v ty t ns = do
         ty <- instantiateFull ty
         t' <- mkPi (defaultArgDom info (n, ty)) <$> abstractType ty v t
-        reportSDoc "tc.decl.gen" 20 $ vcat
-            [ text $ "generalize "
-            , text $ prettyShow t
-            , text "  to  "
-            , text $ prettyShow t'
+        reportSDoc "tc.decl.gen" 60 $ vcat
+            [ text "generalize over"
+            , nest 2 $ pretty v <+> text ":" <+> pretty ty
+            , nest 2 $ text "in" <+> pretty t
+            , nest 2 $ text "to" <+> pretty t'
             ]
         addVars t' ns
 

@@ -145,6 +145,7 @@ compactDef bEnv def rewr = do
       Record{}                       -> pure COther -- TODO
       Axiom{}                        -> pure CAxiom
       AbstractDefn{}                 -> pure CAxiom
+      GeneralizableVar{}             -> __IMPOSSIBLE__
       Primitive{ primName = name, primCompiled = cc } ->
         case name of
           -- "primShowInteger" -- integers are not literals

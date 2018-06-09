@@ -377,6 +377,7 @@ instance Occurs Defn where
   metaOccurs m Constructor{}                = return ()
   metaOccurs m Primitive{}                  = return ()
   metaOccurs m AbstractDefn{}               = __IMPOSSIBLE__
+  metaOccurs m GeneralizableVar{}           = __IMPOSSIBLE__
 
 instance Occurs Clause where
   occurs red ctx m xs cl = __IMPOSSIBLE__
@@ -588,6 +589,7 @@ isNeutral b f es = liftTCM $ do
       NotBlocked StuckOn{}   _ -> yes
       NotBlocked AbsurdMatch _ -> yes
       _                        -> no
+    GeneralizableVar{} -> __IMPOSSIBLE__
     _          -> no
 
 -- | Check whether any of the variables (given as de Bruijn indices)

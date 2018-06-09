@@ -186,8 +186,8 @@ instance Subst Term a => Apply (Tele a) where
   apply (ExtendTel _ tel) (t : ts) = lazyAbsApp tel (unArg t) `apply` ts
 
 instance Apply Definition where
-  apply (Defn info x t pol occ df m c inst copy ma nc inj d) args =
-    Defn info x (piApply t args) (apply pol args) (apply occ args) df m c inst copy ma nc inj (apply d args)
+  apply (Defn info x t pol occ gens df m c inst copy ma nc inj d) args =
+    Defn info x (piApply t args) (apply pol args) (apply occ args) (apply gens args) df m c inst copy ma nc inj (apply d args)
 
 instance Apply RewriteRule where
   apply r args =
@@ -208,6 +208,9 @@ instance {-# OVERLAPPING #-} Apply [Occ.Occurrence] where
 
 instance {-# OVERLAPPING #-} Apply [Polarity] where
   apply pol args = List.drop (length args) pol
+
+instance {-# OVERLAPPING #-} Apply [DoGeneralize] where
+  apply gens args = List.drop (length args) gens
 
 -- | Make sure we only drop variable patterns.
 instance {-# OVERLAPPING #-} Apply [NamedArg (Pattern' a)] where
@@ -237,6 +240,7 @@ instance Apply Defn where
   apply d [] = d
   apply d args = case d of
     Axiom{} -> d
+    GeneralizableVar{} -> d
     AbstractDefn d -> AbstractDefn $ apply d args
     Function{ funClauses = cs, funCompiled = cc, funInv = inv
             , funExtLam = extLam
@@ -252,7 +256,7 @@ instance Apply Defn where
             , funProjection = Just p0} ->
       case p0 `apply` args of
         p@Projection{ projIndex = n }
-          | n < 0     -> __IMPOSSIBLE__
+          | n < 0     -> d { funProjection = __IMPOSSIBLE__ } -- TODO (#3123): we actually get here!
           -- case: applied only to parameters
           | n > 0     -> d { funProjection = Just p }
           -- case: applied also to record value (n == 0)
@@ -523,8 +527,8 @@ instance Abstract Telescope where
   ExtendTel arg xtel `abstract` tel = ExtendTel arg $ xtel <&> (`abstract` tel)
 
 instance Abstract Definition where
-  abstract tel (Defn info x t pol occ df m c inst copy ma nc inj d) =
-    Defn info x (abstract tel t) (abstract tel pol) (abstract tel occ) df m c inst copy ma nc inj (abstract tel d)
+  abstract tel (Defn info x t pol occ gens df m c inst copy ma nc inj d) =
+    Defn info x (abstract tel t) (abstract tel pol) (abstract tel occ) (abstract tel gens) df m c inst copy ma nc inj (abstract tel d)
 
 -- | @tel ⊢ (Γ ⊢ lhs ↦ rhs : t)@ becomes @tel, Γ ⊢ lhs ↦ rhs : t)@
 --   we do not need to change lhs, rhs, and t since they live in Γ.
@@ -540,6 +544,10 @@ instance {-# OVERLAPPING #-} Abstract [Occ.Occurrence] where
 instance {-# OVERLAPPING #-} Abstract [Polarity] where
   abstract tel []  = []
   abstract tel pol = replicate (size tel) Invariant ++ pol -- TODO: check polarity
+
+instance {-# OVERLAPPING #-} Abstract [DoGeneralize] where
+  abstract tel []  = []
+  abstract tel gen = replicate (size tel) NoGeneralize ++ gen
 
 instance Abstract Projection where
   abstract tel p = p
@@ -557,6 +565,7 @@ instance Abstract System where
 instance Abstract Defn where
   abstract tel d = case d of
     Axiom{} -> d
+    GeneralizableVar{} -> d
     AbstractDefn d -> AbstractDefn $ abstract tel d
     Function{ funClauses = cs, funCompiled = cc, funInv = inv
             , funExtLam = extLam

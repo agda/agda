@@ -769,7 +769,8 @@ injectiveTypeConStrategy k s = do
                 AbstractDefn{} -> False -- True triggers issue #2250
                 Function{}   -> False
                 Primitive{}  -> False
-                Constructor{}-> __IMPOSSIBLE__  -- Never a type!
+                GeneralizableVar{} -> __IMPOSSIBLE__
+                Constructor{} -> __IMPOSSIBLE__  -- Never a type!
       let us = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
           vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es'
       return $ TypeConInjectivity k d us vs

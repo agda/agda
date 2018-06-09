@@ -184,7 +184,6 @@ data PostScopeState = PostScopeState
     --   Initialized to the current mutual block before the check.
     --   During occurs check, we remove definitions from this set
     --   as soon we have checked them.
-  , stPostGeneralizables      :: !(Map QName ((Set QName, ArgInfo), MetaStore))
   , stPostSignature           :: !Signature
     -- ^ Declared identifiers of the current file.
     --   These will be serialized after successful type checking.
@@ -319,7 +318,6 @@ initPostScopeState = PostScopeState
   , stPostSleepingConstraints  = []
   , stPostDirty                = False
   , stPostOccursCheckDefs      = Set.empty
-  , stPostGeneralizables       = Map.empty
   , stPostSignature            = emptySignature
   , stPostModuleCheckpoints    = Map.empty
   , stPostImportsDisplayForms  = HMap.empty
@@ -467,11 +465,6 @@ stOccursCheckDefs :: Lens' (Set QName) TCState
 stOccursCheckDefs f s =
   f (stPostOccursCheckDefs (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostOccursCheckDefs = x}}
-
-stGeneralizableMetas :: Lens' (Map QName ((Set QName, ArgInfo), MetaStore)) TCState
-stGeneralizableMetas f s =
-  f (stPostGeneralizables (stPostScopeState s)) <&>
-  \x -> s {stPostScopeState = (stPostScopeState s) {stPostGeneralizables = x}}
 
 stSignature :: Lens' Signature TCState
 stSignature f s =
@@ -960,6 +953,21 @@ instance Show a => Show (Judgement a) where
     show (HasType a t) = show a ++ " : " ++ show t
     show (IsSort  a t) = show a ++ " :sort " ++ show t
 
+-----------------------------------------------------------------------------
+-- ** Generalizable variables
+-----------------------------------------------------------------------------
+
+data DoGeneralize = YesGeneralize | NoGeneralize
+  deriving (Eq, Ord, Show, Data)
+
+-- | The value of a generalizable variable. This is created to be a
+--   generalizable meta before checking the type to be generalized.
+data GeneralizedValue = GeneralizedValue
+  { genvalCheckpoint :: CheckpointId
+  , genvalTerm       :: Term
+  , genvalType       :: Type
+  } deriving (Show, Data)
+
 ---------------------------------------------------------------------------
 -- ** Meta variables
 ---------------------------------------------------------------------------
@@ -1053,6 +1061,8 @@ data MetaInfo = MetaInfo
   , miNameSuggestion  :: MetaNameSuggestion
     -- ^ Used for printing.
     --   @Just x@ if meta-variable comes from omitted argument with name @x@.
+  , miGeneralizable   :: Arg DoGeneralize
+    -- ^ Should this meta be generalized if unsolved? If so, at what ArgInfo?
   }
 
 -- | Name suggestion for meta variable.  Empty string means no suggestion.
@@ -1360,6 +1370,8 @@ data Definition = Defn
     --   23,    3
     --   27,    1
 
+  , defArgGeneralizable :: [DoGeneralize]
+    -- ^ Metas created when checking an argument inherit the argument's 'DoGeneralize' flag.
   , defDisplay        :: [LocalDisplayForm]
   , defMutual         :: MutualId
   , defCompiledRep    :: CompiledRepresentation
@@ -1389,6 +1401,7 @@ defaultDefn info x t def = Defn
   , defType           = t
   , defPolarity       = []
   , defArgOccurrences = []
+  , defArgGeneralizable = []
   , defDisplay        = defaultDisplayForm x
   , defMutual         = 0
   , defCompiledRep    = noCompiledRep
@@ -1540,8 +1553,8 @@ data FunctionFlag
   | FunMacro   -- ^ Is this function a macro?
   deriving (Data, Eq, Ord, Enum, Show)
 
-data Defn = Axiom
-            -- ^ Postulate.
+data Defn = Axiom -- ^ Postulate
+          | GeneralizableVar -- ^ Generalizable variable (introduced in `generalize` block)
           | AbstractDefn Defn
             -- ^ Returned by 'getConstInfo' if definition is abstract.
           | Function
@@ -1670,6 +1683,7 @@ instance Pretty Definition where
 
 instance Pretty Defn where
   pretty Axiom = text "Axiom"
+  pretty GeneralizableVar{} = text "GeneralizableVar"
   pretty (AbstractDefn def) = text "AbstractDefn" <?> parens (pretty def)
   pretty Function{..} =
     text "Function {" <?> vcat
@@ -1919,6 +1933,7 @@ defTerminationUnconfirmed _ = False
 defAbstract :: Definition -> IsAbstract
 defAbstract d = case theDef d of
     Axiom{}                   -> ConcreteDef
+    GeneralizableVar{}        -> ConcreteDef
     AbstractDefn{}            -> AbstractDef
     Function{funAbstr = a}    -> a
     Datatype{dataAbstr = a}   -> a
@@ -1930,6 +1945,7 @@ defForced :: Definition -> [IsForced]
 defForced d = case theDef d of
     Constructor{conForced = fs} -> fs
     Axiom{}                     -> []
+    GeneralizableVar{}          -> []
     AbstractDefn{}              -> []
     Function{}                  -> []
     Datatype{}                  -> []
@@ -2276,6 +2292,10 @@ data TCEnv =
           , envCheckpoints :: Map CheckpointId Substitution
                 -- ^ Keeps the substitution from each previous checkpoint to
                 --   the current context.
+          , envGeneralizeMetas :: DoGeneralize
+                -- ^ Should new metas generalized over.
+          , envGeneralizedVars :: Map QName GeneralizedValue
+                -- ^ Values for used generalizable variables.
           }
     deriving Data
 
@@ -2328,6 +2348,8 @@ initEnv = TCEnv { envContext             = []
                 , envCallByNeed             = True
                 , envCurrentCheckpoint      = 0
                 , envCheckpoints            = Map.singleton 0 IdS
+                , envGeneralizeMetas        = NoGeneralize
+                , envGeneralizedVars        = Map.empty
                 }
 
 disableDestructiveUpdate :: TCM a -> TCM a
@@ -2463,6 +2485,12 @@ eCurrentCheckpoint f e = f (envCurrentCheckpoint e) <&> \ x -> e { envCurrentChe
 
 eCheckpoints :: Lens' (Map CheckpointId Substitution) TCEnv
 eCheckpoints f e = f (envCheckpoints e) <&> \ x -> e { envCheckpoints = x }
+
+eGeneralizeMetas :: Lens' DoGeneralize TCEnv
+eGeneralizeMetas f e = f (envGeneralizeMetas e) <&> \ x -> e { envGeneralizeMetas = x }
+
+eGeneralizedVars :: Lens' (Map QName GeneralizedValue) TCEnv
+eGeneralizedVars f e = f (envGeneralizedVars e) <&> \ x -> e { envGeneralizedVars = x }
 
 ---------------------------------------------------------------------------
 -- ** Context
@@ -3406,8 +3434,8 @@ instance KillRange Section where
   killRange (Section tel) = killRange1 Section tel
 
 instance KillRange Definition where
-  killRange (Defn ai name t pols occs displ mut compiled inst copy ma nc inj def) =
-    killRange12 Defn ai name t pols occs displ mut compiled inst copy ma nc inj def
+  killRange (Defn ai name t pols occs gens displ mut compiled inst copy ma nc inj def) =
+    killRange15 Defn ai name t pols occs gens displ mut compiled inst copy ma nc inj def
     -- TODO clarify: Keep the range in the defName field?
 
 instance KillRange NLPat where
@@ -3446,6 +3474,7 @@ instance KillRange Defn where
   killRange def =
     case def of
       Axiom -> Axiom
+      GeneralizableVar -> GeneralizableVar
       AbstractDefn{} -> __IMPOSSIBLE__ -- only returned by 'getConstInfo'!
       Function cls comp tt inv mut isAbs delayed proj flags term extlam with copat ->
         killRange13 Function cls comp tt inv mut isAbs delayed proj flags term extlam with copat
@@ -3484,6 +3513,9 @@ instance KillRange Polarity where
   killRange = id
 
 instance KillRange IsForced where
+  killRange = id
+
+instance KillRange DoGeneralize where
   killRange = id
 
 instance KillRange DisplayTerm where

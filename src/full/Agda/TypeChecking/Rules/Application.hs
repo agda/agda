@@ -62,6 +62,7 @@ import Agda.TypeChecking.Telescope
 import Agda.Utils.Either
 import Agda.Utils.Except
 import Agda.Utils.Functor
+import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Null
@@ -296,14 +297,27 @@ inferDef mkTerm x =
     d  <- instantiateDef =<< getConstInfo x
     -- irrelevant defs are only allowed in irrelevant position
     checkRelevance x (defRelevance d)
-    -- since x is considered living in the top-level, we have to
-    -- apply it to the current context
-    vs <- freeVarsToApply x
-    let t = defType d
-        v = mkTerm vs -- applies x to vs, dropping parameters
-    debug vs t v
-    return (v, t)
+    case theDef d of
+      GeneralizableVar{} -> do
+        -- Generalizable variables corresponds to metas created
+        -- at the point where they should be generalized. Module parameters
+        -- have already been applied to the meta, so we don't have to do that
+        -- here.
+        val <- fromMaybe __IMPOSSIBLE__ <$> view (eGeneralizedVars . key x)
+        sub <- checkpointSubstitution (genvalCheckpoint val)
+        let (v, t) = applySubst sub (genvalTerm val, genvalType val)
+        debug [] t v
+        return (v, t)
+      _ -> do
+        -- since x is considered living in the top-level, we have to
+        -- apply it to the current context
+        vs <- freeVarsToApply x
+        let t = defType d
+            v = mkTerm vs -- applies x to vs, dropping parameters
+        debug vs t v
+        return (v, t)
   where
+    debug :: Args -> Type -> Term -> TCM ()
     debug vs t v = do
       reportSDoc "tc.term.def" 60 $
         text "freeVarsToApply to def " <+> hsep (map (text . show) vs)
@@ -485,6 +499,7 @@ checkArgumentsE' chk exh r args0@(arg@(Arg info e) : args) t0 mt1 =
                     Datatype{}                -> True
                     Record{}                  -> True
                     Constructor{}             -> __IMPOSSIBLE__
+                    GeneralizableVar{}        -> __IMPOSSIBLE__
                     Primitive{}               -> False
                   isRigid _           = return False
               rigid <- isRigid tgt

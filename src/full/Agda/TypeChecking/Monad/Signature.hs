@@ -423,6 +423,7 @@ applySection' new ptel old ts ScopeCopyInfo{ renNames = rd, renModules = rm } = 
             t   = defType d `piApply` ts'
             pol = defPolarity d `apply` ts'
             occ = defArgOccurrences d `apply` ts'
+            gen = defArgGeneralizable d `apply` ts'
             inst = defInstance d
             -- the name is set by the addConstant function
             nd :: QName -> TCM Definition
@@ -432,6 +433,7 @@ applySection' new ptel old ts ScopeCopyInfo{ renNames = rd, renModules = rm } = 
                     , defType           = t
                     , defPolarity       = pol
                     , defArgOccurrences = occ
+                    , defArgGeneralizable = gen
                     , defDisplay        = []
                     , defMutual         = -1   -- TODO: mutual block?
                     , defCompiledRep    = noCompiledRep
@@ -1002,6 +1004,7 @@ makeAbstract d =
                }
   where
     makeAbs Axiom         = Just Axiom
+    makeAbs d@GeneralizableVar{} = Just d
     makeAbs d@Datatype {} = Just $ AbstractDefn d
     makeAbs d@Function {} = Just $ AbstractDefn d
     makeAbs Constructor{} = Nothing
@@ -1085,6 +1088,7 @@ relOfConst q = defRelevance <$> getConstInfo q
 droppedPars :: Definition -> Int
 droppedPars d = case theDef d of
     Axiom{}                  -> 0
+    GeneralizableVar{}       -> 0
     def@Function{}           -> projectionArgs def
     Datatype  {dataPars = _} -> 0  -- not dropped
     Record     {recPars = _} -> 0  -- not dropped

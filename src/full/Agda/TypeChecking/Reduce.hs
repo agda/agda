@@ -1265,9 +1265,9 @@ instance InstantiateFull Char where
     instantiateFull' = return
 
 instance InstantiateFull Definition where
-    instantiateFull' (Defn rel x t pol occ df i c inst copy ma sc inj d) = do
+    instantiateFull' (Defn rel x t pol occ gen df i c inst copy ma sc inj d) = do
       (t, df, d) <- instantiateFull' (t, df, d)
-      return $ Defn rel x t pol occ df i c inst copy ma sc inj d
+      return $ Defn rel x t pol occ gen df i c inst copy ma sc inj d
 
 instance InstantiateFull NLPat where
   instantiateFull' (PVar x y) = return $ PVar x y
@@ -1308,6 +1308,7 @@ instance InstantiateFull DisplayTerm where
 instance InstantiateFull Defn where
     instantiateFull' d = case d of
       Axiom{} -> return d
+      GeneralizableVar{} -> return d
       AbstractDefn d -> AbstractDefn <$> instantiateFull' d
       Function{ funClauses = cs, funCompiled = cc, funInv = inv, funExtLam = extLam } -> do
         (cs, cc, inv) <- instantiateFull' (cs, cc, inv)

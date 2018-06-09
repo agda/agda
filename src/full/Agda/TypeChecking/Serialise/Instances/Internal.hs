@@ -187,7 +187,7 @@ instance EmbPrj MutualId where
   value n         = MutId `fmap` value n
 
 instance EmbPrj Definition where
-  icod_ (Defn a b c d e f g h i j k l m n) = icodeN' Defn a b (P.killRange c) d e f g h i j k l m n
+  icod_ (Defn a b c d e f g h i j k l m n o) = icodeN' Defn a b (P.killRange c) d e f g h i j k l m n o
 
   value = valueN Defn
 
@@ -260,6 +260,14 @@ instance EmbPrj IsForced where
   value 1 = return NotForced
   value _ = malformed
 
+instance EmbPrj DoGeneralize where
+  icod_ YesGeneralize = return 0
+  icod_ NoGeneralize  = return 1
+
+  value 0 = return YesGeneralize
+  value 1 = return NoGeneralize
+  value _ = malformed
+
 instance EmbPrj Occurrence where
   icod_ StrictPos = return 0
   icod_ Mixed     = return 1
@@ -294,6 +302,7 @@ instance EmbPrj Defn where
   icod_ (Constructor a b c d e f g h i)         = icodeN 4 Constructor a b c d e f g h i
   icod_ (Primitive   a b c d e)                 = icodeN 5 Primitive a b c d e
   icod_ AbstractDefn{}                          = __IMPOSSIBLE__
+  icod_ GeneralizableVar                        = icodeN 6 GeneralizableVar
 
   value = vcase valu where
     valu [0]                                     = valuN Axiom
@@ -302,6 +311,7 @@ instance EmbPrj Defn where
     valu [3, a, b, c, d, e, f, g, h, i, j, k]    = valuN Record  a b c d e f g h i j k
     valu [4, a, b, c, d, e, f, g, h, i]          = valuN Constructor a b c d e f g h i
     valu [5, a, b, c, d, e]                      = valuN Primitive   a b c d e
+    valu [6]                                     = valuN GeneralizableVar
     valu _                                       = malformed
 
 instance EmbPrj FunctionFlag where

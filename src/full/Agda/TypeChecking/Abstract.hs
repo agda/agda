@@ -194,7 +194,7 @@ instance AbsTerm PlusLevel where
 
 instance AbsTerm LevelAtom where
   absTerm u l = case l of
-    MetaLevel m vs   -> MetaLevel m    $ absTerm u vs
+    MetaLevel m vs   -> UnreducedLevel $ absTerm u (MetaV m vs)
     NeutralLevel r v -> NeutralLevel r $ absTerm u v
     BlockedLevel _ v -> UnreducedLevel $ absTerm u v -- abstracting might remove the blockage
     UnreducedLevel v -> UnreducedLevel $ absTerm u v

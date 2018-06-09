@@ -465,6 +465,7 @@ nameKinds hlLevel decl = do
 
   defnToKind :: Defn -> NameKind
   defnToKind   M.Axiom{}                           = Postulate
+  defnToKind   M.GeneralizableVar{}                = Bound    -- TODO: separate kind for generalizable vars
   defnToKind d@M.Function{} | isProperProjection d = Field
                             | otherwise            = Function
   defnToKind   M.Datatype{}                        = Datatype
@@ -661,7 +662,6 @@ printUnsolvedInfo = do
 computeUnsolvedMetaWarnings :: TCM File
 computeUnsolvedMetaWarnings = do
   is <- getInteractionMetas
-  gs <- getGeneralizeMetas
 
   -- We don't want to highlight blocked terms, since
   --   * there is always at least one proper meta responsible for the blocking
@@ -669,7 +669,7 @@ computeUnsolvedMetaWarnings = do
   let notBlocked m = not <$> isBlockedTerm m
   ms <- filterM notBlocked =<< getOpenMetas
 
-  rs <- mapM getMetaRange ((ms \\ is) \\ gs)
+  rs <- mapM getMetaRange (ms \\ is)
   return $ metasHighlighting rs
 
 metasHighlighting :: [P.Range] -> File

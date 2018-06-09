@@ -324,6 +324,7 @@ definition env Defn{defName = q, defType = ty, theDef = d} = do
         cds <- mapM (flip condecl ind) cs
         return $ tvaldecl q ind (np + ni) cds cl
       Constructor{} -> return []
+      GeneralizableVar{} -> return []
       Record{ recPars = np, recClause = cl, recConHead = con,
               recInduction = ind } ->
         let -- Non-recursive record types are treated as being
