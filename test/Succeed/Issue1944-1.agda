@@ -6,15 +6,15 @@ module _ (A : Set) (a : A) where
 
 module RecDefs where
 
-  record R B : Set where
+  record R (B : Set) : Set where
     field f : B
   open R public
 
-  record S B : Set where
+  record S (B : Set) : Set where
     field f : B
   open S public
 
-  record T B : Set where
+  record T (B : Set) : Set where
     field f : B → B
   open T public
 

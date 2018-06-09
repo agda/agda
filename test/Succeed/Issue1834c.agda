@@ -5,7 +5,7 @@
 
 open import Common.Prelude
 
-record R A : Set where
+record R (A : Set) : Set where
   field out : A
 
 T : (x y : Bool) → Set

@@ -52,7 +52,7 @@ thm : ∀ a b c → a + (b + c) ≡ (c + b) + a
 thm a b c rewrite com b c with c + b
 ... | cb = com a cb
 
-data List A : Set where
+data List (A : Set) : Set where
   [] : List A
   _∷_ : (x : A)(xs : List A) → List A
 

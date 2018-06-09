@@ -31,7 +31,7 @@ module Works where
 
 module Fails where
   mutual
-    data Delay i A : Set where
+    data Delay i (A : Set) : Set where
       now   : A → Delay i A
       later : ∞Delay i A → Delay i A
 
@@ -55,4 +55,3 @@ module Fails where
 
 -- Polarity refinement calls free variable analysis, which is not in the
 -- monad.  Thus, need to instantiate metas before polarity refinement.
-

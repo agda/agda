@@ -1,4 +1,3 @@
-{-# OPTIONS --enable-prop #-}
 
 data Squash {ℓ} (A : Set ℓ) : Prop ℓ where
   squash : A → Squash A

@@ -9,7 +9,7 @@ _+_ : N → N → N
 zero + n = n
 suc m + n = suc (m + n)
 
-record P A B : Set where
+record P (A B : Set) : Set where
   constructor _,_
   field fst : A
         snd : B

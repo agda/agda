@@ -16,7 +16,7 @@ cong f refl = refl
 
 postulate _≟_ : (n n' : ⊤) → Dec (n ≡ n')
 
-record _×_ A B : Set where
+record _×_ (A B : Set) : Set where
   constructor _,_
   field proj₁ : A
         proj₂ : B

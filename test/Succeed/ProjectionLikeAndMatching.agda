@@ -3,7 +3,7 @@ module ProjectionLikeAndMatching where
 data Unit : Set where
   * : Unit
 
-data Box A : Set where
+data Box (A : Set) : Set where
   [_] : A → Box A
 
 -- Unbox should not be considered projection-like since it's matching on more than
