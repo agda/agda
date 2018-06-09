@@ -184,7 +184,6 @@ data PostScopeState = PostScopeState
     --   Initialized to the current mutual block before the check.
     --   During occurs check, we remove definitions from this set
     --   as soon we have checked them.
-  , stPostGeneralizables      :: !(Map QName ((Set QName, ArgInfo), MetaStore))
   , stPostSignature           :: !Signature
     -- ^ Declared identifiers of the current file.
     --   These will be serialized after successful type checking.
@@ -319,7 +318,6 @@ initPostScopeState = PostScopeState
   , stPostSleepingConstraints  = []
   , stPostDirty                = False
   , stPostOccursCheckDefs      = Set.empty
-  , stPostGeneralizables       = Map.empty
   , stPostSignature            = emptySignature
   , stPostModuleCheckpoints    = Map.empty
   , stPostImportsDisplayForms  = HMap.empty
@@ -467,11 +465,6 @@ stOccursCheckDefs :: Lens' (Set QName) TCState
 stOccursCheckDefs f s =
   f (stPostOccursCheckDefs (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostOccursCheckDefs = x}}
-
-stGeneralizableMetas :: Lens' (Map QName ((Set QName, ArgInfo), MetaStore)) TCState
-stGeneralizableMetas f s =
-  f (stPostGeneralizables (stPostScopeState s)) <&>
-  \x -> s {stPostScopeState = (stPostScopeState s) {stPostGeneralizables = x}}
 
 stSignature :: Lens' Signature TCState
 stSignature f s =

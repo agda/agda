@@ -376,11 +376,6 @@ getMetaVariables p = do
   store <- getMetaStore
   return [ i | (i, mv) <- Map.assocs store, p mv ]
 
--- | Get all metas that correspond to generalizable variables.
-getGeneralizeMetas :: TCM [MetaId]
-getGeneralizeMetas =
-  concatMap (Map.keys . snd) . Map.elems <$> use stGeneralizableMetas
-
 getInstantiatedMetas :: TCM [MetaId]
 getInstantiatedMetas = getMetaVariables (isInst . mvInstantiation)
   where

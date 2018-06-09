@@ -150,14 +150,6 @@ checkDecls ds = do
   -- Andreas, 2011-05-30, unfreezing moved to Interaction/Imports
   -- whenM onTopLevel unfreezeMetas
 
-filterGeneralizables :: TCM ()
-filterGeneralizables = do
-    g <- use stGeneralizableMetas
-    stSignature . sigDefinitions %= HMap.filterWithKey (\k _ -> not $ k `Map.member` g)
-    gms <- getGeneralizeMetas
-    modifyMetaStore $ Map.filterWithKey (\k _ -> not $ k `List.elem` gms)
-
-
 -- | Type check a single declaration.
 
 checkDecl :: A.Declaration -> TCM ()
