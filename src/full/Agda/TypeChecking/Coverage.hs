@@ -873,13 +873,13 @@ split' ind allowPartialCover fixtarget sc@(SClause tel ps _ cps target) (Blockin
     -- Jesper, 2018-05-24: If the datatype is in Prop we can
     -- only do empty splits, unless the target is in Prop too.
     (_ : _) | isProp t && not (isIrrelevant relTarget) ->
-      throwError . IrrelevantDatatype =<< do liftTCM $ buildClosure (unDom t)
+      throwError . IrrelevantDatatype =<< do liftTCM $ inContextOfT $ buildClosure (unDom t)
 
     -- Andreas, 2011-10-03
     -- if more than one constructor matches, we cannot be irrelevant
     -- (this piece of code is unreachable if --experimental-irrelevance is off)
     (_ : _ : _) | unusableRelevance (getRelevance t) ->
-      throwError . IrrelevantDatatype =<< do liftTCM $ buildClosure (unDom t)
+      throwError . IrrelevantDatatype =<< do liftTCM $ inContextOfT $ buildClosure (unDom t)
 
   -- Andreas, 2012-10-10 fail if precomputed constructor set does not cover
   -- all the data type constructors
