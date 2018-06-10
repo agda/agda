@@ -6,7 +6,7 @@ postulate
   Foo : (n : Nat) → Fin n → Set
   Bar : ∀ {n m} → Foo n m → Set
 
-generalize
+variable
   n : Nat
   m : Fin _
   k : Foo _ m

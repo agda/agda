@@ -7,7 +7,7 @@ postulate
 private
  module M where
 
-  generalize
+  variable
     {n} : Nat
     {m} : Fin _
 
@@ -16,7 +16,7 @@ private
 
 open M public using (Bar)
 
-generalize
+variable
   n : Nat
   m : Fin _
   l : Foo n m
