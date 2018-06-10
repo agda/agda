@@ -693,7 +693,7 @@ instance PrettyTCM TypeError where
 
     SplitOnIrrelevant t -> fsep $
       pwords "Cannot pattern match against" ++ [text $ verbalize $ getRelevance t] ++
-      pwords "argument of type" ++ [prettyTCM t]
+      pwords "argument of type" ++ [prettyTCM $ unDom t]
 
     SplitOnNonVariable v t -> fsep $
       pwords "Cannot pattern match because the (refined) argument " ++
