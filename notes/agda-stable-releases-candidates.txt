@@ -3,6 +3,16 @@ the following procedure can be followed:
 
 * Finish the CHANGELOG.
 
+* Run the `closed-issues` program for adding the closed issues to the
+  CHANGELOG excluding issues labelled with:
+
+  not-in-changelog,
+  status: abandoned,
+  status: duplicated,
+  status: invalid,
+  status: wontfix,
+  status: working-as-intended or
+
 * Update the README.md, if necessary.
 
 * Update the list of contributors if necessary.
