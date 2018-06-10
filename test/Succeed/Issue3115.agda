@@ -1,5 +1,5 @@
 
-generalize {A} : Set _
+variable {A} : Set _
 
 id : A → A
 id a = a
