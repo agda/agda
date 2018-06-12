@@ -36,7 +36,6 @@ import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
 import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet
-import Data.List (elemIndex)
 import Data.Monoid
 
 import Agda.Syntax.Common

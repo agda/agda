@@ -492,7 +492,7 @@ transferOrigins ps qs = do
 
       (A.RecP pi fs , ConP c (ConPatternInfo mo mb l) qs) -> do
         let Def d _  = unEl $ unArg $ fromMaybe __IMPOSSIBLE__ mb
-            axs = map (nameConcrete . qnameName) (conFields c) `withArgsFrom` qs
+            axs = map (nameConcrete . qnameName . unArg) (conFields c) `withArgsFrom` qs
             cpi = ConPatternInfo (mo $> PatORec) mb l
         ps <- insertMissingFields d (const $ A.WildP patNoRange) fs axs
         ConP c cpi <$> transfers ps qs

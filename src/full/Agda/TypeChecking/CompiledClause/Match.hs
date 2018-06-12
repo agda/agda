@@ -94,7 +94,7 @@ match' ((c, es, patch) : stack) = do
         case splitAt n es of
           (_, []) -> no (NotBlocked Underapplied) es
           (es0, MaybeRed _ e@(Apply (Arg _ v0)) : es1) ->
-              let projs = [ MaybeRed NotReduced $ Apply $ defaultArg $ v0 `applyE` [Proj ProjSystem f] | f <- fs ]
+              let projs = [ MaybeRed NotReduced $ Apply $ Arg ai $ relToDontCare ai $ v0 `applyE` [Proj ProjSystem f] | Arg ai f <- fs ]
                   catchAllFrame stack = maybe stack (\c -> (c, es, patch) : stack) ca in
               match' $ (content cc, es0 ++ projs ++ es1, patchEta) : catchAllFrame stack
             where

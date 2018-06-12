@@ -149,7 +149,7 @@ checkRecDef i name ind eta con ps contel fields =
           -- We should turn it off until it is proven to be safe.
           haveEta      = maybe (Inferred NoEta) Specified eta
           -- haveEta      = maybe (Inferred $ conInduction == Inductive && etaenabled) Specified eta
-          con = ConHead conName conInduction $ map unArg fs
+          con = ConHead conName conInduction fs
 
           -- A record is irrelevant if all of its fields are.
           -- In this case, the associated module parameter will be irrelevant.

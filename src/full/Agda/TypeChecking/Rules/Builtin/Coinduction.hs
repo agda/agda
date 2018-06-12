@@ -118,7 +118,7 @@ bindBuiltinFlat x =
     Def sharp _ <- primSharp
     kit         <- requireLevels
     Def inf _   <- primInf
-    let sharpCon = ConHead sharp CoInductive [flat]
+    let sharpCon = ConHead sharp CoInductive [defaultArg flat]
         level    = El (mkType 0) $ Def (typeName kit) []
         tel     :: Telescope
         tel      = ExtendTel (domH $ level)                  $ Abs "a" $
