@@ -359,7 +359,7 @@ instance Reduce Term where
   reduceB' = {-# SCC "reduce'<Term>" #-} maybeFastReduceTerm
 
 shouldTryFastReduce :: ReduceM Bool
-shouldTryFastReduce = do
+shouldTryFastReduce = (optFastReduce <$> pragmaOptions) `and2M` do
   allowed <- asks envAllowedReductions
   let optionalReductions = [NonTerminatingReductions, UnconfirmedReductions]
       requiredReductions = allReductions \\ optionalReductions

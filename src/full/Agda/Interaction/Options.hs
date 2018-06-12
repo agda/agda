@@ -171,6 +171,8 @@ data PragmaOptions = PragmaOptions
     -- ^ Automatic compile-time inlining for simple definitions (unless marked
     --   NOINLINE).
   , optPrintPatternSynonyms      :: Bool
+  , optFastReduce                :: Bool
+    -- ^ Use the Agda abstract machine (fastReduce)?
   }
   deriving (Show, Eq)
 
@@ -259,6 +261,7 @@ defaultPragmaOptions = PragmaOptions
   , optCountClusters             = False
   , optAutoInline                = True
   , optPrintPatternSynonyms      = True
+  , optFastReduce                = True
   }
 
 -- | The default termination depth.
@@ -429,6 +432,9 @@ noAutoInlineFlag o = return $ o { optAutoInline = False }
 
 noPrintPatSynFlag :: Flag PragmaOptions
 noPrintPatSynFlag o = return $ o { optPrintPatternSynonyms = False }
+
+noFastReduceFlag :: Flag PragmaOptions
+noFastReduceFlag o = return $ o { optFastReduce = False }
 
 latexDirFlag :: FilePath -> Flag CommandLineOptions
 latexDirFlag d o = return $ o { optLaTeXDir = d }
@@ -742,6 +748,8 @@ pragmaOptions =
                      "(only definitions marked INLINE will be inlined)")
     , Option []     ["no-print-pattern-synonyms"] (NoArg noPrintPatSynFlag)
                     "expand pattern synonyms when printing terms"
+    , Option []     ["no-fast-reduce"] (NoArg noFastReduceFlag)
+                    "disable reduction using the Agda Abstract Machine"
     ]
 
 -- | Used for printing usage info.

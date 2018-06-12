@@ -85,8 +85,10 @@ canProject :: QName -> Term -> Maybe (Arg Term)
 canProject f v =
   case v of
     (Con (ConHead _ _ fs) _ vs) -> do
-      i <- List.elemIndex f fs
-      isApplyElim =<< headMaybe (drop i vs)
+      i <- List.findIndex ((f==) . unArg) fs
+      -- Andreas, 2018-06-12, issue #2170
+      -- The ArgInfo from the ConHead is more accurate (relevance subtyping!).
+      setArgInfo (getArgInfo $ fs !! i) <.> isApplyElim =<< headMaybe (drop i vs)
     _ -> Nothing
 
 -- | Eliminate a constructed term.
@@ -99,9 +101,12 @@ conApp ch@(ConHead c _ fs) ci args (Proj o f : es) =
         "conApp: constructor " ++ show c ++
         " with fields " ++ show fs ++
         " projected by " ++ show f
-      isApply e = fromMaybe __IMPOSSIBLE__ $ isApplyElim e
-      i = maybe failure id            $ List.elemIndex f fs
-      v = maybe failure (argToDontCare . isApply)  $ headMaybe $ drop i args
+      isApply e = fromMaybe failure $ isApplyElim e
+      i = fromMaybe failure $ List.findIndex ((f==) . unArg) fs
+      -- Andreas, 2018-06-12, issue #2170
+      -- We safe-guard the projected value by DontCare using the ArgInfo stored at the record constructor,
+      -- since the ArgInfo in the constructor application might be inaccurate because of subtyping.
+      v = maybe failure (relToDontCare (fs !! i) . argToDontCare . isApply) $ headMaybe $ drop i args
   in  applyE v es
 
   -- -- Andreas, 2016-07-20 futile attempt to magically fix ProjOrigin
@@ -143,9 +148,12 @@ defApp f es0 es = Def f $ es0 ++ es
 
 -- protect irrelevant fields (see issue 610)
 argToDontCare :: Arg Term -> Term
-argToDontCare (Arg ai v)
-  | Irrelevant <- getRelevance ai     = dontCare v
-  | otherwise                         = v
+argToDontCare (Arg ai v) = relToDontCare ai v
+
+relToDontCare :: LensRelevance a => a -> Term -> Term
+relToDontCare ai v
+  | Irrelevant <- getRelevance ai = dontCare v
+  | otherwise                     = v
 
 -- Andreas, 2016-01-19: In connection with debugging issue #1783,
 -- I consider the Apply instance for Type harmful, as piApply is not
@@ -383,7 +391,7 @@ instance Apply Clause where
             ProjP{}             -> __IMPOSSIBLE__
         newTel _ tel _ _ = __IMPOSSIBLE__
 
-        projections c v = [ applyE v [Proj ProjSystem f] | f <- conFields c ]
+        projections c v = [ relToDontCare ai $ applyE v [Proj ProjSystem f] | Arg ai f <- conFields c ]
 
         -- subTel i v (Δ₁ (xᵢ : A) Δ₂) = Δ₁ Δ₂[xᵢ = v]
         subTel i v EmptyTel = __IMPOSSIBLE__

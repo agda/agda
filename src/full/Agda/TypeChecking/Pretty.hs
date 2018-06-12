@@ -396,7 +396,7 @@ instance PrettyTCM a => PrettyTCM (Pattern' a) where
           [ text "record"
           , bracesAndSemicolons <$> zipWithM showField (conFields c) ps
           ]
-        showField x p =
+        showField (Arg ai x) p =
           sep [ prettyTCM (A.qnameName x) <+> text "=" , nest 2 $ prettyTCM $ namedArg p ]
         showCon = parens $ prTy $ prettyTCM c <+> fsep (map (prettyTCM . namedArg) ps)
         prTy d = d -- caseMaybe (conPType i) d $ \ t -> d  <+> text ":" <+> prettyTCM t

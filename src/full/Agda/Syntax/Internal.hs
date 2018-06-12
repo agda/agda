@@ -62,10 +62,10 @@ type NamedArgs  = [NamedArg Term]
 data ConHead = ConHead
   { conName      :: QName     -- ^ The name of the constructor.
   , conInductive :: Induction -- ^ Record constructors can be coinductive.
-  , conFields    :: [QName]   -- ^ The name of the record fields.
-                              --   Empty list for data constructors.
-                              --   'Arg' is not needed here since it
-                              --   is stored in the constructor args.
+  , conFields    :: [Arg QName]   -- ^ The name of the record fields.
+      --   Empty list for data constructors.
+      --   'Arg' is stored since the info in the constructor args
+      --   might not be accurate because of subtyping (issue #2170).
   } deriving (Data, Show)
 
 instance Eq ConHead where
