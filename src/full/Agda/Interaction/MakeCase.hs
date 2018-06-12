@@ -6,6 +6,7 @@ import Prelude hiding (mapM, mapM_, null)
 
 import Control.Applicative hiding (empty)
 import Control.Monad hiding (mapM, mapM_, forM)
+import Control.Monad.Reader (asks)
 
 import qualified Data.Map as Map
 import qualified Data.List as List
@@ -87,12 +88,15 @@ parseVariables f tel ii rng ss = do
     reportSDoc "interaction.case" 20 $ do
       m   <- currentModule
       tel <- lookupSection m
+      cxt <- getContextTelescope
       vcat
        [ text "parseVariables:"
        , text "current module  =" <+> prettyTCM m
        , text "current section =" <+> inTopContext (prettyTCM tel)
        , text $ "function's fvs  = " ++ show fv
        , text $ "number of locals= " ++ show nlocals
+       , text "context         =" <+> do inTopContext $ prettyTCM cxt
+       , text "checkpoints     =" <+> do (text . show) =<< asks envCheckpoints
        ]
 
     -- Resolve each string to a variable.
@@ -144,6 +148,7 @@ parseVariables f tel ii rng ss = do
         UnknownName -> do
           let xs' = filter ((s ==) . fst) xs
           when (null xs') $ failUnbound
+          reportSLn "interaction.case" 20 $ "matching names corresponding to indices " ++ show xs'
           -- Andreas, 2018-05-28, issue #3095
           -- We want to act on an ambiguous name if it corresponds to only one local index.
           let xs'' = mapMaybe (\ (_,i) -> if i < nlocals then Nothing else Just $ i - nlocals) xs'
