@@ -1,4 +1,4 @@
 CoinductiveBuiltinList.agda:9,18-22
-List .A !=< ∞ (List .A) of type Set
+List ;A !=< ∞ (List ;A) of type Set
 when checking that the expression _∷_ has type
-.A → List .A → List .A
+;A → List ;A → List ;A

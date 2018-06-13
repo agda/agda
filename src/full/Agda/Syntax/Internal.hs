@@ -30,6 +30,7 @@ import Data.Data (Data)
 import Agda.Syntax.Position
 import Agda.Syntax.Common
 import Agda.Syntax.Literal
+import Agda.Syntax.Concrete.Name (MarkNotInScope(..))
 import Agda.Syntax.Concrete.Pretty (prettyHiding)
 import Agda.Syntax.Abstract.Name
 
@@ -901,14 +902,12 @@ arity t = case unEl t of
 
 -- | Make a name that is not in scope.
 notInScopeName :: ArgName -> ArgName
-notInScopeName = stringToArgName . ("." ++) . argNameToString
+notInScopeName = markNotInScope
 
 -- | Remove the dot from a notInScopeName. This is used when printing function
 --   types that have abstracted over not-in-scope names.
 unNotInScopeName :: ArgName -> ArgName
-unNotInScopeName = stringToArgName . undot . argNameToString
-  where undot ('.':s) = s
-        undot s       = s
+unNotInScopeName = removeNotInScopePrefix
 
 -- | Pick the better name suggestion, i.e., the one that is not just underscore.
 class Suggest a b where

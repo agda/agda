@@ -1,5 +1,5 @@
 Issue2001.agda:20,10-15
-Cannot eliminate type P .x with pattern {nat n} (did you supply too
-many arguments?)
+Cannot eliminate type P ;x with pattern {nat n} (did you supply
+too many arguments?)
 when checking that the clause .extendedlambda0 {nat n} = g has type
-P .x
+P ;x

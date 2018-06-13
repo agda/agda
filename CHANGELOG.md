@@ -1,6 +1,18 @@
 Release notes for Agda version 2.5.5
 ====================================
 
+Type checking and interaction
+-----------------------------
+
+* Out-of-scope identifiers are now prefixed by a ';' semicolon
+  [Issue [#3127](https://github.com/agda/agda/issues/3127)].
+  They used to be prefixed by a '.' dot which could be confused
+  with dot patterns, postfix projections, and irrelevance.
+
+  The change affects the printing of terms, e.g. in error messages and
+  interaction, and the parsing of out-of-scope variables for
+  case splitting (`C-c C-c` in emacs).
+
 Pragmas and options
 -------------------
 
@@ -27,7 +39,7 @@ Pragmas and options
 * Option `--irrelevant-projections` is now off by default and
   not considered `--safe` any longer.
   Reason: There are consistency issues that may be systemic
-  [Issue [#21700](https://github.com/agda/agda/issues/2170)].
+  [Issue [#2170](https://github.com/agda/agda/issues/2170)].
 
 Emacs mode
 ----------

@@ -35,6 +35,7 @@ import Agda.TypeChecking.Reduce (normalise)
 import Agda.Syntax.Common
 import qualified Agda.Syntax.Scope.Base as Scope
 import Agda.Syntax.Scope.Monad (withCurrentModule)
+import Agda.Syntax.Concrete.Name (MarkNotInScope(..))
 import qualified Agda.Syntax.Abstract.Name as AN
 import qualified Agda.TypeChecking.Monad.Base as TCM
 import Agda.TypeChecking.EtaContract (etaContract)
@@ -414,7 +415,7 @@ auto ii rng argstr = do
            Just (def, _, _) | def == n -> return Nothing
            _ -> do
             cn <- withMetaInfo minfo $ runAbsToCon $ toConcrete n
-            if head (show cn) == '.' then -- not in scope
+            if isJust $ hasNotInScopePrefix cn then -- not in scope
               return Nothing
              else do
               c <- getConstInfo n

@@ -44,7 +44,7 @@ import Agda.Syntax.Internal.Pattern
 import Agda.Syntax.Abstract (IsProjP(..))
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Views (asView, deepUnscope)
-import Agda.Syntax.Concrete (FieldAssignment'(..))
+import Agda.Syntax.Concrete (FieldAssignment'(..),MarkNotInScope(..))
 import Agda.Syntax.Common as Common
 import Agda.Syntax.Info as A
 import Agda.Syntax.Literal
@@ -591,7 +591,7 @@ computeLHSContext = go [] []
 
     dummyName taken s =
       if isUnderscore s then freshNoName_
-      else unshadowedName taken <$> freshName_ ("." ++ argNameToString s)
+      else unshadowedName taken <$> freshName_ (markNotInScope $ argNameToString s)
 
 -- | Bind as patterns
 bindAsPatterns :: [AsBinding] -> TCM a -> TCM a
