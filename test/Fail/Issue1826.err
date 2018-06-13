@@ -6,7 +6,7 @@ R.elim eq
 (λ x {q} {r} →
    trans (cong (λ x₁ → x₁ ≡ r) (subst-refl (λ z → z ≡ z) q))
    (cong₂ _≡_ (trans-reflʳ q) (trans-reflˡ r)))
-(refl ''x)
+(refl ;x)
 !=
 R.elim eq
 (λ {x} {y} p →
@@ -15,11 +15,11 @@ R.elim eq
 (λ x {q} {r} →
    trans (cong (λ x₁ → x₁ ≡ r) (subst-refl (λ z → z ≡ z) q))
    (cong₂ _≡_ (trans-reflʳ q) (trans-reflˡ r)))
-(refl ''x)
+(refl ;x)
 of type
-{q r : ''x ≡ ''x} →
-(subst (λ z → z ≡ z) (refl ''x) q ≡ r) ≡
-(trans q (refl ''x) ≡ trans (refl ''x) r)
+{q r : ;x ≡ ;x} →
+(subst (λ z → z ≡ z) (refl ;x) q ≡ r) ≡
+(trans q (refl ;x) ≡ trans (refl ;x) r)
 (although these terms are looking the same, they contain different
  but identically rendered identifiers somewhere)
 when checking that the expression elim-refl ? ? has type

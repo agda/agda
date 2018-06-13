@@ -1,6 +1,6 @@
 Issue1266.agda:12,34-35
 Ambiguous name A. It could refer to any one of
-  ''A bound at
+  ;A bound at
     Issue1266.agda:12,9-10
   A bound at
     Issue1266.agda:7,5-6

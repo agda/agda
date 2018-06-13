@@ -196,7 +196,7 @@ isNonfix  x = not (isHole (head xs)) && not (isHole (last xs)) where xs = namePa
 --   Should be something unobtrusive which makes an identifier invalid.
 
 notInScopePrefix :: String
-notInScopePrefix = "''"
+notInScopePrefix = ";"
 
 class MarkNotInScope a where
   -- | Prefix the first 'Id' in a name by 'notInScopePrefix' if not already present.
