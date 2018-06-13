@@ -15,7 +15,7 @@ module Explicit where
     c : ∀ p {p'} x → D p' x → D p x
 
   test : ∀ p x → D p x → D p x
-  test .p _ (c p x pp) = {!.p'!}
+  test .p _ (c p x pp) = {!''p'!}
     where
     y = x
 
@@ -27,7 +27,7 @@ module Implicit where
     c : ∀ {p p' x} → D p' x → D p x
 
   test : ∀ p {x} → D p x → D p x
-  test .p (c {p} {x = x} pp) = {!.p'!}
+  test .p (c {p} {x = x} pp) = {!''p'!}
     where
     y = x
 

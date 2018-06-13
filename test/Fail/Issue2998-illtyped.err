@@ -1,5 +1,6 @@
 Issue2998-illtyped.agda:12,1-16
 Ill-typed pattern after with abstraction:  r
 (perhaps you can replace it by '_'?)
-when checking that the clause .Issue2998-illtyped.with-14 x _ = Nat
-has type (w : Nat) (f0 : P w) → Set
+when checking that the clause
+''Issue2998-illtyped.with-14 x _ = Nat has type
+(w : Nat) (f0 : P w) → Set

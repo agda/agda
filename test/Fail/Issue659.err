@@ -1,4 +1,4 @@
 Issue659.agda:32,11-15
-(Set _a_29) != .Agda.Primitive.Setω
+(Set _a_29) != ''Agda.Primitive.Setω
 when checking that the expression M.id has type
 P k₁ ((ℓ : Level) → R ℓ)
