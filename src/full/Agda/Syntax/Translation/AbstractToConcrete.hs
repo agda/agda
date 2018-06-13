@@ -202,7 +202,9 @@ lookupQName ambCon x = do
       if isUnderscore y
         -- -- || any (isUnderscore . A.nameConcrete) (A.mnameToList $ A.qnameModule x)
         then return y
-        else return $ C.Qual (C.Name noRange [Id empty]) y
+        else return $ markNotInScope y
+        -- Andreas, 2018-06-13, issue #3127: prefix for out of scope names
+        -- WAS: else return $ C.Qual (C.Name noRange [Id empty]) y
         -- this is what happens for names that are not in scope (private names)
 
 lookupModule :: A.ModuleName -> AbsToCon C.QName

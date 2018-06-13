@@ -17,8 +17,8 @@ import Control.DeepSeq
 import Data.ByteString.Char8 (ByteString)
 import Data.Function
 import qualified Data.List as List
-
 import Data.Data (Data)
+import Data.Maybe
 
 import GHC.Generics (Generic)
 
@@ -28,6 +28,7 @@ import Agda.Syntax.Common
 import Agda.Syntax.Position
 
 import Agda.Utils.FileName
+import Agda.Utils.List
 import Agda.Utils.Pretty
 import Agda.Utils.Size
 
@@ -185,6 +186,61 @@ isPrefix  x = not (isHole (head xs)) &&      isHole (last xs)  where xs = namePa
 isPostfix x =      isHole (head xs)  && not (isHole (last xs)) where xs = nameParts x
 isInfix   x =      isHole (head xs)  &&      isHole (last xs)  where xs = nameParts x
 isNonfix  x = not (isHole (head xs)) && not (isHole (last xs)) where xs = nameParts x
+
+
+------------------------------------------------------------------------
+-- * Printing names which are not in scope
+------------------------------------------------------------------------
+
+-- | Prefix for things not in scope.  Cannot be the empty string.
+--   Should be something unobtrusive which makes an identifier invalid.
+
+notInScopePrefix :: String
+notInScopePrefix = "''"
+
+class MarkNotInScope a where
+  -- | Prefix the first 'Id' in a name by 'notInScopePrefix' if not already present.
+  markNotInScope :: a -> a
+  -- | Remove the 'notInScopePrefix' if present, otherwise return 'Nothing'.
+  hasNotInScopePrefix :: a -> Maybe a
+  -- | Remove the 'notInScopePrefix' if present.
+  removeNotInScopePrefix :: MarkNotInScope a => a -> a
+  removeNotInScopePrefix x = fromMaybe x $ hasNotInScopePrefix x
+
+instance MarkNotInScope RawName where
+  markNotInScope s
+    | Just{} <- hasNotInScopePrefix s = s
+    | otherwise = notInScopePrefix ++ s
+
+  hasNotInScopePrefix s
+    | IsPrefix x xs <- preOrSuffix notInScopePrefix s = Just $ x:xs
+    | otherwise = Nothing
+
+instance MarkNotInScope [NamePart] where
+  markNotInScope []          = []
+  markNotInScope (Hole : xs) = Hole : markNotInScope xs
+  markNotInScope (Id x : xs) = Id (markNotInScope x) : xs
+
+  hasNotInScopePrefix = \case
+    []        -> Nothing
+    Hole : xs -> (Hole :) <$> hasNotInScopePrefix xs
+    Id x : xs -> (\ x -> Id x : xs) <$> hasNotInScopePrefix x
+
+instance MarkNotInScope Name where
+  markNotInScope (Name r xs) = Name r $ markNotInScope xs
+  markNotInScope x@NoName{}  = x
+
+  hasNotInScopePrefix = \case
+    Name r xs -> Name r <$> hasNotInScopePrefix xs
+    NoName{}  -> Nothing
+
+instance MarkNotInScope QName where
+  markNotInScope (Qual x xs) = Qual (markNotInScope x) xs
+  markNotInScope (QName x)   = QName (markNotInScope x)
+
+  hasNotInScopePrefix = \case
+    Qual x xs -> (`Qual` xs) <$> hasNotInScopePrefix x
+    QName x   -> QName <$> hasNotInScopePrefix x
 
 ------------------------------------------------------------------------
 -- * Operations on qualified names

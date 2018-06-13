@@ -15,6 +15,7 @@ import Data.Traversable
 
 import Agda.Syntax.Common
 import Agda.Syntax.Position
+import Agda.Syntax.Concrete (MarkNotInScope(..))
 import qualified Agda.Syntax.Concrete as C
 import qualified Agda.Syntax.Abstract as A
 import qualified Agda.Syntax.Abstract.Views as A
@@ -272,10 +273,11 @@ makeCase hole rng s = withInteractionId hole $ do
   else do
     -- split on variables
     xs <- parseVariables f tel hole rng vars
+    reportSLn "interaction.case" 30 $ "parsedVariables: " ++ show (zip3 xs vars $ map hasNotInScopePrefix vars)
     -- Variables that are not in scope yet are brought into scope (@toShow@)
     -- The other variables are split on (@toSplit@).
     let (toShow, toSplit) = flip mapEither (zip xs vars) $ \ (x, s) ->
-          if take 1 s == "." then Left x else Right x
+          if (isJust $ hasNotInScopePrefix s) then Left x else Right x
     let sc = makePatternVarsVisible toShow $ clauseToSplitClause clause
     scs <- split f toSplit sc
     -- filter out clauses that are already covered
