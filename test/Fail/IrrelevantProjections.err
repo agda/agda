@@ -1,6 +1,4 @@
-IrrelevantProjections.agda:13,10-17
-Projection 
-inflate
- is irrelevant.
- Turn on option --irrelevant-projections to use it (unsafe).
+IrrelevantProjections.agda:15,10-17
+Identifier inflate is declared irrelevant, so it cannot be used
+here
 when checking that the expression inflate x has type .A

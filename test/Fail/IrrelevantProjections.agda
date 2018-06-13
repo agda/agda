@@ -1,3 +1,5 @@
+{-# OPTIONS --irrelevant-projections #-}
+
 module IrrelevantProjections where
 
 import Common.Irrelevance
