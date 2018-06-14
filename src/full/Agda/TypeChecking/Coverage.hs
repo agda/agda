@@ -49,6 +49,7 @@ import Agda.TypeChecking.Coverage.SplitTree
 
 import Agda.TypeChecking.Conversion (tryConversion, equalType)
 import Agda.TypeChecking.Datatypes (getConForm)
+import {-# SOURCE #-} Agda.TypeChecking.Empty (isEmptyTel)
 import Agda.TypeChecking.Irrelevance (applyRelevanceToContext)
 import Agda.TypeChecking.Patterns.Internal (dotPatternsToPatterns)
 import Agda.TypeChecking.Pretty
@@ -189,6 +190,10 @@ coverageCheck f t cs = do
     [ text "generated split tree for" <+> prettyTCM f
     , text $ prettyShow splitTree
     ]
+
+  -- filter out the missing clauses that are absurd.
+  pss <- flip filterM pss $ \(tel,_) -> not <$> isEmptyTel tel
+
   -- report a warning if there are uncovered cases,
   -- generate a catch-all clause with a metavariable as its body to avoid
   -- internal errors in the reduction machinery.
