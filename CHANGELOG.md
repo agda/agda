@@ -13,6 +13,17 @@ Type checking and interaction
   interaction, and the parsing of out-of-scope variables for
   case splitting (`C-c C-c` in emacs).
 
+* Agda now allows omitting absurd clauses in case one of the pattern
+  variable inhabits an obviously empty type. For example:
+  ```agda
+  f : Fin 1 → Nat
+  f zero = 0
+  -- f (suc ())   -- this clause is no longer required
+  ```
+  Absurd clauses are still required in case deep pattern matching is
+  needed to expose the absurd variable, or if there are no non-absurd
+  clauses.
+
 Pragmas and options
 -------------------
 
