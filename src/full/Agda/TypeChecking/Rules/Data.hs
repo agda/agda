@@ -183,7 +183,7 @@ checkConstructor d tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
         case getRelevance ai of
           Relevant   -> return ()
           Irrelevant -> typeError $ GenericError $ "Irrelevant constructors are not supported"
-          _ -> __IMPOSSIBLE__
+          NonStrict  -> typeError $ GenericError $ "Shape-irrelevant constructors are not supported"
         -- check that the type of the constructor is well-formed
         t <- workOnTypes $ isType_ e
         -- check that the type of the constructor ends in the data type

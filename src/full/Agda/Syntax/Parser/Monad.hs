@@ -27,7 +27,7 @@ module Agda.Syntax.Parser.Monad
     , pushCurrentContext
       -- ** Errors
     , parseWarningName
-    , parseError, parseErrorAt, parseError'
+    , parseError, parseErrorAt, parseError', parseErrorRange
     , lexError
     )
     where
@@ -355,6 +355,10 @@ parseErrorAt p msg =
 -- | Use 'parseErrorAt' or 'parseError' as appropriate.
 parseError' :: Maybe PositionWithoutFile -> String -> Parser a
 parseError' = maybe parseError parseErrorAt
+
+-- | Report a parse error at the beginning of the given 'Range'.
+parseErrorRange :: HasRange r => r -> String -> Parser a
+parseErrorRange = parseError' . rStart' . getRange
 
 
 -- | For lexical errors we want to report the current position as the site of

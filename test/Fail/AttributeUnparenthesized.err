@@ -1,0 +1,7 @@
+AttributeUnparenthesized.agda:4,12-12
+AttributeUnparenthesized.agda:4,12: Parse error
+@<ERROR>
+0 A → A → A
+
+-- Should fail.
+...

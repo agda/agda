@@ -279,6 +279,7 @@ library
                     Agda.Syntax.Abstract.Views
                     Agda.Syntax.Abstract
                     Agda.Syntax.Common
+                    Agda.Syntax.Concrete.Attribute
                     Agda.Syntax.Concrete.Definitions
                     Agda.Syntax.Concrete.Generic
                     Agda.Syntax.Concrete.Name

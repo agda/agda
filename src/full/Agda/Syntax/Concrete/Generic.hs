@@ -125,7 +125,7 @@ instance ExprLike Expr where
      Lam r bs e         -> f $ Lam r       (mapE bs)  $ mapE e
      AbsurdLam{}        -> f $ e0
      ExtendedLam r cs   -> f $ ExtendedLam r          $ mapE cs
-     Fun r a b          -> f $ Fun r       (mapE a)   $ mapE b
+     Fun r a b          -> f $ Fun r     (mapE <$> a) $ mapE b
      Pi tel e           -> f $ Pi          (mapE tel) $ mapE e
      Set{}              -> f $ e0
      Prop{}             -> f $ e0
