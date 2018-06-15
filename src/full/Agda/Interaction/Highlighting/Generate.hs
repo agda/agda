@@ -14,7 +14,7 @@ module Agda.Interaction.Highlighting.Generate
   , warningHighlighting
   , computeUnsolvedMetaWarnings
   , computeUnsolvedConstraints
-  , storeDisambiguatedName
+  , storeDisambiguatedName, disambiguateRecordFields
   ) where
 
 import Prelude hiding (null)
@@ -29,6 +29,7 @@ import Data.Generics.Geniplate
 import qualified Data.Map as Map
 import Data.Maybe
 import Data.List ((\\), isPrefixOf)
+import qualified Data.List as List
 import qualified Data.Foldable as Fold (fold, foldMap, toList)
 import qualified Data.IntMap as IntMap
 import Data.Void
@@ -260,6 +261,7 @@ generateAndPrintSyntaxInfo decl hlLevel updateState = do
     macro n = nameToFileA modMap file n True $ \isOp ->
                   parserBased { aspect = Just $ Name (Just Macro) isOp }
 
+    field :: [C.Name] -> C.Name -> File
     field m n = nameToFile modMap file m n P.noRange
                            (\isOp -> parserBased { aspect =
                                        Just $ Name (Just Field) isOp })
@@ -283,8 +285,11 @@ generateAndPrintSyntaxInfo decl hlLevel updateState = do
 
     getVarAndField :: A.Expr -> File
     getVarAndField (A.Var x)            = bound $ A.BindName x
-    getVarAndField (A.Rec       _ fs)   = mconcat [ field [] x | Left (FieldAssignment x _) <- fs ]
-    getVarAndField (A.RecUpdate _ _ fs) = mconcat [ field [] x |      (FieldAssignment x _) <- fs ]
+    -- Andreas, 2018-06-09, issue #3120
+    -- The highlighting for record field tags is now created by the type checker in
+    -- function disambiguateRecordFields.
+    -- getVarAndField (A.Rec       _ fs)   = mconcat [ field [] x | Left (FieldAssignment x _) <- fs ]
+    -- getVarAndField (A.RecUpdate _ _ fs) = mconcat [ field [] x |      (FieldAssignment x _) <- fs ]
     getVarAndField _                    = mempty
 
     -- Ulf, 2014-04-09: It would be nicer to have it on Named_ a, but
@@ -322,7 +327,10 @@ generateAndPrintSyntaxInfo decl hlLevel updateState = do
           singleton (rToR $ P.getRange pi)
                 (parserBased { otherAspects = [DottedPattern] })
     getPattern' (A.PatternSynP _ q _) = patsyn q
-    getPattern' (A.RecP _ fs) = mconcat [ field [] x | FieldAssignment x _ <- fs ]
+    -- Andreas, 2018-06-09, issue #3120
+    -- The highlighting for record field tags is now created by the type checker in
+    -- function disambiguateRecordFields.
+    -- getPattern' (A.RecP _ fs) = mconcat [ field [] x | FieldAssignment x _ <- fs ]
     getPattern' _             = mempty
 
     getPattern :: A.Pattern -> File
@@ -457,6 +465,7 @@ nameKinds hlLevel decl = do
 
   defnToKind :: Defn -> NameKind
   defnToKind   M.Axiom{}                           = Postulate
+  defnToKind   M.GeneralizableVar{}                = Bound    -- TODO: separate kind for generalizable vars
   defnToKind d@M.Function{} | isProperProjection d = Field
                             | otherwise            = Function
   defnToKind   M.Datatype{}                        = Datatype
@@ -653,7 +662,6 @@ printUnsolvedInfo = do
 computeUnsolvedMetaWarnings :: TCM File
 computeUnsolvedMetaWarnings = do
   is <- getInteractionMetas
-  gs <- getGeneralizeMetas
 
   -- We don't want to highlight blocked terms, since
   --   * there is always at least one proper meta responsible for the blocking
@@ -661,7 +669,7 @@ computeUnsolvedMetaWarnings = do
   let notBlocked m = not <$> isBlockedTerm m
   ms <- filterM notBlocked =<< getOpenMetas
 
-  rs <- mapM getMetaRange ((ms \\ is) \\ gs)
+  rs <- mapM getMetaRange (ms \\ is)
   return $ metasHighlighting rs
 
 metasHighlighting :: [P.Range] -> File
@@ -851,3 +859,12 @@ storeDisambiguatedName q = whenJust (start $ P.getRange q) $ \ i ->
   stDisambiguatedNames %= IntMap.insert i q
   where
   start r = fromIntegral . P.posPos <$> P.rStart' r
+
+-- | Store a disambiguation of record field tags for the purpose of highlighting.
+disambiguateRecordFields
+  :: [C.Name]   -- ^ Record field names in a record expression.
+  -> [A.QName]  -- ^ Record field names in the corresponding record type definition
+  -> TCM ()
+disambiguateRecordFields cxs axs = forM_ cxs $ \ cx -> do
+  caseMaybe (List.find ((cx ==) . A.nameConcrete . A.qnameName) axs) (return ()) $ \ ax -> do
+    storeDisambiguatedName ax { A.qnameName = (A.qnameName ax) { A.nameConcrete = cx } }

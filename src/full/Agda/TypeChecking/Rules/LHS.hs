@@ -35,7 +35,7 @@ import Data.Semigroup ( Semigroup )
 import qualified Data.Semigroup as Semigroup
 import qualified Data.Map as Map
 
-import Agda.Interaction.Highlighting.Generate (storeDisambiguatedName)
+import Agda.Interaction.Highlighting.Generate (storeDisambiguatedName, disambiguateRecordFields)
 import Agda.Interaction.Options
 import Agda.Interaction.Options.Lenses
 
@@ -44,6 +44,7 @@ import Agda.Syntax.Internal.Pattern
 import Agda.Syntax.Abstract (IsProjP(..))
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Views (asView, deepUnscope)
+import Agda.Syntax.Concrete (FieldAssignment'(..),MarkNotInScope(..))
 import Agda.Syntax.Common as Common
 import Agda.Syntax.Info as A
 import Agda.Syntax.Literal
@@ -228,10 +229,18 @@ updateProblemEqs eqs = do
             updates $ zipWith3 ProblemEq (map namedArg ps) (map unArg vs) bs
 
           A.RecP pi fs -> do
-            axs <- recordFieldNames . theDef <$> getConstInfo d
+            axs <- recFields . theDef <$> getConstInfo d
+
+            -- Andreas, 2018-09-06, issue #3122.
+            -- Associate the concrete record field names used in the record pattern
+            -- to their counterpart in the record type definition.
+            disambiguateRecordFields (map _nameFieldA fs) (map unArg axs)
+
+            let cxs = map (fmap (nameConcrete . qnameName)) axs
+
             -- In fs omitted explicit fields are replaced by underscores,
             -- and the fields are put in the correct order.
-            ps <- insertMissingFields d (const $ A.WildP patNoRange) fs axs
+            ps <- insertMissingFields d (const $ A.WildP patNoRange) fs cxs
 
             -- We also need to insert missing implicit or instance fields.
             ps <- insertImplicitPatterns ExpandLast ps ctel
@@ -343,6 +352,7 @@ noShadowingOfConstructors mkCall eqs =
           Function    {} -> return ()
           Record      {} -> return ()
           Constructor {} -> __IMPOSSIBLE__
+          GeneralizableVar{} -> __IMPOSSIBLE__
           -- TODO: in the future some stuck primitives might allow constructors
           Primitive   {} -> return ()
       Var   {} -> return ()
@@ -487,7 +497,7 @@ transferOrigins ps qs = do
 
       (A.RecP pi fs , ConP c (ConPatternInfo mo ft mb l) qs) -> do
         let Def d _  = unEl $ unArg $ fromMaybe __IMPOSSIBLE__ mb
-            axs = map (nameConcrete . qnameName) (conFields c) `withArgsFrom` qs
+            axs = map (nameConcrete . qnameName . unArg) (conFields c) `withArgsFrom` qs
             cpi = ConPatternInfo (mo $> PatORec) ft mb l
         ps <- insertMissingFields d (const $ A.WildP patNoRange) fs axs
         ConP c cpi <$> transfers ps qs
@@ -581,7 +591,7 @@ computeLHSContext = go [] []
 
     dummyName taken s =
       if isUnderscore s then freshNoName_
-      else unshadowedName taken <$> freshName_ ("." ++ argNameToString s)
+      else unshadowedName taken <$> freshName_ (markNotInScope $ argNameToString s)
 
 -- | Bind as patterns
 bindAsPatterns :: [AsBinding] -> TCM a -> TCM a
@@ -1331,6 +1341,7 @@ isDataOrRecordType dom@Dom{domInfo = info, unDom = a} = liftTCM (reduceB a) >>= 
 
       Constructor{} -> __IMPOSSIBLE__
       Primitive{}   -> __IMPOSSIBLE__
+      GeneralizableVar{} -> __IMPOSSIBLE__
 
     -- variable or metavariable: fail softly
     Var{}      -> softTypeError =<< notData

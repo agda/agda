@@ -23,7 +23,7 @@ data Vec (A : Set) : Nat → Set where
   []  : Vec A zero
   _∷_ : ∀ {n} → A → Vec A n → Vec A (suc n)
 
-data List A : Set where
+data List (A : Set) : Set where
   []  : List A
   _∷_ : A → List A → List A
 

@@ -180,6 +180,7 @@ eligibleForProjectionLike d = eligible . theDef <$> getConstInfo d
     Datatype{} -> True
     Record{}   -> True
     Axiom{}    -> True
+    GeneralizableVar{} -> False
     Function{}    -> False
     Primitive{}   -> False
     Constructor{} -> __IMPOSSIBLE__
@@ -302,6 +303,7 @@ makeProjection x = -- if True then return () else do
     Function{funMutual = Nothing} ->
       reportSLn "tc.proj.like" 30 $ "  mutuality check has not run yet"
     Axiom          -> reportSLn "tc.proj.like" 30 $ "  not a function, but Axiom"
+    GeneralizableVar{} -> reportSLn "tc.proj.like" 30 $ "  not a function, but GeneralizableVar"
     AbstractDefn{} -> reportSLn "tc.proj.like" 30 $ "  not a function, but AbstractDefn"
     Constructor{}  -> reportSLn "tc.proj.like" 30 $ "  not a function, but Constructor"
     Datatype{}     -> reportSLn "tc.proj.like" 30 $ "  not a function, but Datatype"

@@ -154,13 +154,13 @@ data PragmaOptions = PragmaOptions
   , optEta                       :: Bool
   , optRewriting                 :: Bool  -- ^ Can rewrite rules be added and used?
   , optCubical                   :: Bool
-  , optGeneralize                :: Bool
   , optPostfixProjections        :: Bool
       -- ^ Should system generated projections 'ProjSystem' be printed
       --   postfix (True) or prefix (False).
   , optInstanceSearchDepth       :: Int
   , optInversionMaxDepth         :: Int
   , optSafe                      :: Bool
+  , optDoubleCheck               :: Bool
   , optWarningMode               :: WarningMode
   , optCompileNoMain             :: Bool
   , optCaching                   :: Bool
@@ -171,6 +171,8 @@ data PragmaOptions = PragmaOptions
     -- ^ Automatic compile-time inlining for simple definitions (unless marked
     --   NOINLINE).
   , optPrintPatternSynonyms      :: Bool
+  , optFastReduce                :: Bool
+    -- ^ Use the Agda abstract machine (fastReduce)?
   }
   deriving (Show, Eq)
 
@@ -227,9 +229,9 @@ defaultPragmaOptions = PragmaOptions
   , optShowIrrelevant            = False
   , optUseUnicode                = True
   , optVerbose                   = defaultVerbosity
-  , optProp                      = False
+  , optProp                      = True
   , optExperimentalIrrelevance   = False
-  , optIrrelevantProjections     = True
+  , optIrrelevantProjections     = False -- off by default in > 2.5.4, see issue #2170
   , optAllowUnsolved             = False
   , optDisablePositivity         = False
   , optTerminationCheck          = True
@@ -248,17 +250,18 @@ defaultPragmaOptions = PragmaOptions
   , optEta                       = True
   , optRewriting                 = False
   , optCubical                   = False
-  , optGeneralize                = False
   , optPostfixProjections        = False
   , optInstanceSearchDepth       = 500
   , optInversionMaxDepth         = 50
   , optSafe                      = False
+  , optDoubleCheck               = False
   , optWarningMode               = defaultWarningMode
   , optCompileNoMain             = False
   , optCaching                   = True
   , optCountClusters             = False
   , optAutoInline                = True
   , optPrintPatternSynonyms      = True
+  , optFastReduce                = True
   }
 
 -- | The default termination depth.
@@ -340,6 +343,7 @@ unsafePragmaOptions opts =
   -- [ "--sized-types"                              | optSizedTypes opts                ] ++
   [ "--injective-type-constructors"              | optInjectiveTypeConstructors opts ] ++
   [ "--guardedness-preserving-type-constructors" | optGuardingTypeConstructors opts  ] ++
+  [ "--irrelevant-projections"                   | optIrrelevantProjections opts     ] ++
   [ "--experimental-irrelevance"                 | optExperimentalIrrelevance opts   ] ++
   [ "--rewriting"                                | optRewriting opts                 ] ++
   [ "--cubical and --with-K"                     | optCubical opts, not $ optWithoutK opts ] ++
@@ -364,17 +368,23 @@ helpFlag (Just str) o = case string2HelpTopic str of
 safeFlag :: Flag PragmaOptions
 safeFlag o = return $ o { optSafe = True }
 
+doubleCheckFlag :: Flag PragmaOptions
+doubleCheckFlag o = return $ o { optDoubleCheck = True }
+
 sharingFlag :: Bool -> Flag CommandLineOptions
 sharingFlag _ o = return o
 
 cachingFlag :: Bool -> Flag PragmaOptions
 cachingFlag b o = return $ o { optCaching = b }
 
-enablePropFlag :: Flag PragmaOptions
-enablePropFlag o = return $ o { optProp = True }
+noPropFlag :: Flag PragmaOptions
+noPropFlag o = return $ o { optProp = False }
 
 experimentalIrrelevanceFlag :: Flag PragmaOptions
 experimentalIrrelevanceFlag o = return $ o { optExperimentalIrrelevance = True }
+
+irrelevantProjectionsFlag :: Flag PragmaOptions
+irrelevantProjectionsFlag o = return $ o { optIrrelevantProjections = True }
 
 noIrrelevantProjectionsFlag :: Flag PragmaOptions
 noIrrelevantProjectionsFlag o = return $ o { optIrrelevantProjections = False }
@@ -422,6 +432,9 @@ noAutoInlineFlag o = return $ o { optAutoInline = False }
 
 noPrintPatSynFlag :: Flag PragmaOptions
 noPrintPatSynFlag o = return $ o { optPrintPatternSynonyms = False }
+
+noFastReduceFlag :: Flag PragmaOptions
+noFastReduceFlag o = return $ o { optFastReduce = False }
 
 latexDirFlag :: FilePath -> Flag CommandLineOptions
 latexDirFlag d o = return $ o { optLaTeXDir = d }
@@ -496,9 +509,6 @@ rewritingFlag o = return $ o { optRewriting = True }
 
 cubicalFlag :: Flag PragmaOptions
 cubicalFlag o = return $ o { optCubical = True, optWithoutK = True }
-
-generalizeFlag :: Flag PragmaOptions
-generalizeFlag o = return $ o { optGeneralize = True }
 
 postfixProjectionsFlag :: Flag PragmaOptions
 postfixProjectionsFlag o = return $ o { optPostfixProjections = True }
@@ -652,8 +662,8 @@ pragmaOptions =
                     "don't use unicode characters when printing terms"
     , Option ['v']  ["verbose"] (ReqArg verboseFlag "N")
                     "set verbosity level to N"
-    , Option []     ["enable-prop"] (NoArg enablePropFlag)
-                    "enable use of the Prop universe"
+    , Option []     ["no-prop"] (NoArg noPropFlag)
+                    "disable the use of the Prop universe"
     , Option []     ["allow-unsolved-metas"] (NoArg allowUnsolvedFlag)
                     "succeed and create interface file regardless of unsolved meta variables"
     , Option []     ["no-positivity-check"] (NoArg noPositivityFlag)
@@ -680,12 +690,14 @@ pragmaOptions =
                     "disable universe polymorphism"
     , Option []     ["universe-polymorphism"] (NoArg universePolymorphismFlag)
                     "enable universe polymorphism (default)"
+    , Option []     ["irrelevant-projections"] (NoArg irrelevantProjectionsFlag)
+                    "enable projection of irrelevant record fields and similar irrelevant definitions (inconsistent)"
     , Option []     ["no-irrelevant-projections"] (NoArg noIrrelevantProjectionsFlag)
-                    "disable projection of irrelevant record fields"
+                    "disable projection of irrelevant record fields and similar irrelevant definitions (default)"
     , Option []     ["experimental-irrelevance"] (NoArg experimentalIrrelevanceFlag)
                     "enable potentially unsound irrelevance features (irrelevant levels, irrelevant data matching)"
     , Option []     ["with-K"] (NoArg withKFlag)
-                    "enable the K rule in pattern matching"
+                    "enable the K rule in pattern matching (default)"
     , Option []     ["without-K"] (NoArg withoutKFlag)
                     "disable the K rule in pattern matching"
     , Option []     ["copatterns"] (NoArg copatternsFlag)
@@ -704,8 +716,6 @@ pragmaOptions =
                     "enable declaration and use of REWRITE rules"
     , Option []     ["cubical"] (NoArg cubicalFlag)
                     "enable cubical features (e.g. overloads lambdas for paths), implies --without-K"
-    , Option []     ["generalize"] (NoArg generalizeFlag)
-                    "enable automatic generalization of predefined variable bindings"
     , Option []     ["postfix-projections"] (NoArg postfixProjectionsFlag)
                     "make postfix projection notation the default"
     , Option []     ["instance-search-depth"] (ReqArg instanceDepthFlag "N")
@@ -714,6 +724,8 @@ pragmaOptions =
                     "set maximum depth for pattern match inversion to N (default: 50)"
     , Option []     ["safe"] (NoArg safeFlag)
                     "disable postulates, unsafe OPTION pragmas and primTrustMe"
+    , Option []     ["double-check"] (NoArg doubleCheckFlag)
+                    "enable double-checking of all terms using the internal typechecker"
     , Option ['W']  ["warning"] (ReqArg warningModeFlag "FLAG")
                     ("set warning flags. See --help=warning.")
     , Option []     ["no-main"] (NoArg compileFlagNoMain)
@@ -736,6 +748,8 @@ pragmaOptions =
                      "(only definitions marked INLINE will be inlined)")
     , Option []     ["no-print-pattern-synonyms"] (NoArg noPrintPatSynFlag)
                     "expand pattern synonyms when printing terms"
+    , Option []     ["no-fast-reduce"] (NoArg noFastReduceFlag)
+                    "disable reduction using the Agda Abstract Machine"
     ]
 
 -- | Used for printing usage info.

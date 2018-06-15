@@ -332,13 +332,13 @@ instance PrettyTCM Constraint where
 
 
 instance PrettyTCM TypeCheckingProblem where
-  prettyTCM (CheckExpr e a) =
+  prettyTCM (CheckExpr cmp e a) =
     sep [ prettyA e <+> text ":?", prettyTCM a ]
   prettyTCM (CheckArgs _ _ es t0 t1 _) =
     sep [ parens $ text "_ :" <+> prettyTCM t0
         , nest 2 $ prettyList $ map prettyA es
         , nest 2 $ text ":?" <+> prettyTCM t1 ]
-  prettyTCM (CheckLambda (Arg ai (xs, mt)) e t) =
+  prettyTCM (CheckLambda cmp (Arg ai (xs, mt)) e t) =
     sep [ return CP.lambda <+>
           (CP.prettyRelevance ai .
            CP.prettyHiding ai (if isNothing mt && length xs == 1 then id
@@ -396,7 +396,7 @@ instance PrettyTCM a => PrettyTCM (Pattern' a) where
           [ text "record"
           , bracesAndSemicolons <$> zipWithM showField (conFields c) ps
           ]
-        showField x p =
+        showField (Arg ai x) p =
           sep [ prettyTCM (A.qnameName x) <+> text "=" , nest 2 $ prettyTCM $ namedArg p ]
         showCon = parens $ prTy $ prettyTCM c <+> fsep (map (prettyTCM . namedArg) ps)
         prTy d = d -- caseMaybe (conPType i) d $ \ t -> d  <+> text ":" <+> prettyTCM t

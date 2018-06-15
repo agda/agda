@@ -372,7 +372,6 @@ errorString err = case err of
   ModuleNameDoesntMatchFileName {}         -> "ModuleNameDoesntMatchFileName"
   NeedOptionCopatterns{}                   -> "NeedOptionCopatterns"
   NeedOptionRewriting{}                    -> "NeedOptionRewriting"
-  NeedOptionGeneralize{}                   -> "NeedOptionGeneralize"
   GeneralizeNotSupportedHere{}             -> "GeneralizeNotSupportedHere"
   GeneralizeCyclicDependency{}             -> "GeneralizeCyclicDependency"
   GeneralizeUnsolvedMeta{}                 -> "GeneralizeUnsolvedMeta"
@@ -698,7 +697,7 @@ instance PrettyTCM TypeError where
 
     SplitOnIrrelevant t -> fsep $
       pwords "Cannot pattern match against" ++ [text $ verbalize $ getRelevance t] ++
-      pwords "argument of type" ++ [prettyTCM t]
+      pwords "argument of type" ++ [prettyTCM $ unDom t]
 
     SplitOnNonVariable v t -> fsep $
       pwords "Cannot pattern match because the (refined) argument " ++
@@ -1264,9 +1263,6 @@ instance PrettyTCM TypeError where
     NeedOptionRewriting  -> fsep $
       pwords "Option --rewriting needed to add and use rewrite rules"
 
-    NeedOptionGeneralize -> fsep $
-      pwords "Option --generalize needed to add and use generalize rules"
-
     GeneralizeNotSupportedHere x -> fsep $
       pwords $ "Generalizable variable " ++ show x ++ " is not supported here"
 
@@ -1434,7 +1430,7 @@ instance PrettyTCM Call where
 
     InferExpr e -> fsep $ pwords "when inferring the type of" ++ [prettyA e]
 
-    CheckExprCall e t -> fsep $
+    CheckExprCall cmp e t -> fsep $
       pwords "when checking that the expression"
       ++ [prettyA e] ++ pwords "has type" ++ [prettyTCM t]
 

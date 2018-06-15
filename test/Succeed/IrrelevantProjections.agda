@@ -1,4 +1,5 @@
--- {-# OPTIONS -v tc.rec.proj:50 #-}
+{-# OPTIONS --irrelevant-projections #-}
+
 module IrrelevantProjections where
 
 import Common.Irrelevance

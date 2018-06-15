@@ -11,7 +11,7 @@ record IOInterface : Set₁ where
          Response  :  (m : Command) → Set
 open IOInterface
 
-data IO I A : Set where
+data IO I (A : Set) : Set where
   act'     :  (c : Command I) (f : Response I c → IO I A)  → IO I A
   return   :  (a : A)                                      → IO I A
 

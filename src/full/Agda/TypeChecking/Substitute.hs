@@ -85,8 +85,10 @@ canProject :: QName -> Term -> Maybe (Arg Term)
 canProject f v =
   case v of
     (Con (ConHead _ _ fs) _ vs) -> do
-      i <- List.elemIndex f fs
-      isApplyElim =<< headMaybe (drop i vs)
+      i <- List.findIndex ((f==) . unArg) fs
+      -- Andreas, 2018-06-12, issue #2170
+      -- The ArgInfo from the ConHead is more accurate (relevance subtyping!).
+      setArgInfo (getArgInfo $ fs !! i) <.> isApplyElim =<< headMaybe (drop i vs)
     _ -> Nothing
 
 -- | Eliminate a constructed term.
@@ -99,9 +101,12 @@ conApp ch@(ConHead c _ fs) ci args (Proj o f : es) =
         "conApp: constructor " ++ show c ++
         " with fields " ++ show fs ++
         " projected by " ++ show f
-      isApply e = fromMaybe __IMPOSSIBLE__ $ isApplyElim e
-      i = maybe failure id            $ List.elemIndex f fs
-      v = maybe failure (argToDontCare . isApply)  $ headMaybe $ drop i args
+      isApply e = fromMaybe failure $ isApplyElim e
+      i = fromMaybe failure $ List.findIndex ((f==) . unArg) fs
+      -- Andreas, 2018-06-12, issue #2170
+      -- We safe-guard the projected value by DontCare using the ArgInfo stored at the record constructor,
+      -- since the ArgInfo in the constructor application might be inaccurate because of subtyping.
+      v = maybe failure (relToDontCare (fs !! i) . argToDontCare . isApply) $ headMaybe $ drop i args
   in  applyE v es
 
   -- -- Andreas, 2016-07-20 futile attempt to magically fix ProjOrigin
@@ -143,9 +148,12 @@ defApp f es0 es = Def f $ es0 ++ es
 
 -- protect irrelevant fields (see issue 610)
 argToDontCare :: Arg Term -> Term
-argToDontCare (Arg ai v)
-  | Irrelevant <- getRelevance ai     = dontCare v
-  | otherwise                         = v
+argToDontCare (Arg ai v) = relToDontCare ai v
+
+relToDontCare :: LensRelevance a => a -> Term -> Term
+relToDontCare ai v
+  | Irrelevant <- getRelevance ai = dontCare v
+  | otherwise                     = v
 
 -- Andreas, 2016-01-19: In connection with debugging issue #1783,
 -- I consider the Apply instance for Type harmful, as piApply is not
@@ -186,8 +194,8 @@ instance Subst Term a => Apply (Tele a) where
   apply (ExtendTel _ tel) (t : ts) = lazyAbsApp tel (unArg t) `apply` ts
 
 instance Apply Definition where
-  apply (Defn info x t pol occ df m c inst copy ma nc inj d) args =
-    Defn info x (piApply t args) (apply pol args) (apply occ args) df m c inst copy ma nc inj (apply d args)
+  apply (Defn info x t pol occ gens df m c inst copy ma nc inj d) args =
+    Defn info x (piApply t args) (apply pol args) (apply occ args) (apply gens args) df m c inst copy ma nc inj (apply d args)
 
 instance Apply RewriteRule where
   apply r args =
@@ -208,6 +216,9 @@ instance {-# OVERLAPPING #-} Apply [Occ.Occurrence] where
 
 instance {-# OVERLAPPING #-} Apply [Polarity] where
   apply pol args = List.drop (length args) pol
+
+instance {-# OVERLAPPING #-} Apply [DoGeneralize] where
+  apply gens args = List.drop (length args) gens
 
 -- | Make sure we only drop variable patterns.
 instance {-# OVERLAPPING #-} Apply [NamedArg (Pattern' a)] where
@@ -237,6 +248,7 @@ instance Apply Defn where
   apply d [] = d
   apply d args = case d of
     Axiom{} -> d
+    GeneralizableVar{} -> d
     AbstractDefn d -> AbstractDefn $ apply d args
     Function{ funClauses = cs, funCompiled = cc, funInv = inv
             , funExtLam = extLam
@@ -252,7 +264,7 @@ instance Apply Defn where
             , funProjection = Just p0} ->
       case p0 `apply` args of
         p@Projection{ projIndex = n }
-          | n < 0     -> __IMPOSSIBLE__
+          | n < 0     -> d { funProjection = __IMPOSSIBLE__ } -- TODO (#3123): we actually get here!
           -- case: applied only to parameters
           | n > 0     -> d { funProjection = Just p }
           -- case: applied also to record value (n == 0)
@@ -379,7 +391,7 @@ instance Apply Clause where
             ProjP{}             -> __IMPOSSIBLE__
         newTel _ tel _ _ = __IMPOSSIBLE__
 
-        projections c v = [ applyE v [Proj ProjSystem f] | f <- conFields c ]
+        projections c v = [ relToDontCare ai $ applyE v [Proj ProjSystem f] | Arg ai f <- conFields c ]
 
         -- subTel i v (Δ₁ (xᵢ : A) Δ₂) = Δ₁ Δ₂[xᵢ = v]
         subTel i v EmptyTel = __IMPOSSIBLE__
@@ -523,8 +535,8 @@ instance Abstract Telescope where
   ExtendTel arg xtel `abstract` tel = ExtendTel arg $ xtel <&> (`abstract` tel)
 
 instance Abstract Definition where
-  abstract tel (Defn info x t pol occ df m c inst copy ma nc inj d) =
-    Defn info x (abstract tel t) (abstract tel pol) (abstract tel occ) df m c inst copy ma nc inj (abstract tel d)
+  abstract tel (Defn info x t pol occ gens df m c inst copy ma nc inj d) =
+    Defn info x (abstract tel t) (abstract tel pol) (abstract tel occ) (abstract tel gens) df m c inst copy ma nc inj (abstract tel d)
 
 -- | @tel ⊢ (Γ ⊢ lhs ↦ rhs : t)@ becomes @tel, Γ ⊢ lhs ↦ rhs : t)@
 --   we do not need to change lhs, rhs, and t since they live in Γ.
@@ -540,6 +552,10 @@ instance {-# OVERLAPPING #-} Abstract [Occ.Occurrence] where
 instance {-# OVERLAPPING #-} Abstract [Polarity] where
   abstract tel []  = []
   abstract tel pol = replicate (size tel) Invariant ++ pol -- TODO: check polarity
+
+instance {-# OVERLAPPING #-} Abstract [DoGeneralize] where
+  abstract tel []  = []
+  abstract tel gen = replicate (size tel) NoGeneralize ++ gen
 
 instance Abstract Projection where
   abstract tel p = p
@@ -557,6 +573,7 @@ instance Abstract System where
 instance Abstract Defn where
   abstract tel d = case d of
     Axiom{} -> d
+    GeneralizableVar{} -> d
     AbstractDefn d -> AbstractDefn $ abstract tel d
     Function{ funClauses = cs, funCompiled = cc, funInv = inv
             , funExtLam = extLam

@@ -1,4 +1,4 @@
-{-# OPTIONS --without-K --rewriting --generalize #-}
+{-# OPTIONS --without-K --rewriting #-}
 
 module Generalize where
 
@@ -18,16 +18,16 @@ postulate   Tm      : (Γ : Con)(A : Ty Γ) → Set
 
 ------------------------------------------------------------------
 
-generalize  {Γ Δ Θ} :              Con
+variable    {Γ Δ Θ} :              Con
 postulate   •       :              Con       -- • is \bub
 postulate   _▹_     : ∀ Γ → Ty Γ → Con       -- ▹ is \tw2
 infixl 5    _▹_
 
-generalize  {A B C} :                  Ty _
+variable    {A B C} :                  Ty _
 postulate   _∘ᵀ_    : Ty Δ → Tms Γ Δ → Ty Γ
 infixl 6    _∘ᵀ_
 
-generalize  {σ δ ν} :                                 Tms _ _
+variable    {σ δ ν} :                                 Tms _ _
 postulate   _∘_     : Tms Θ Δ → Tms Γ Θ →             Tms Γ Δ
 infixr 7    _∘_
 postulate   id      :                                 Tms Γ Γ
@@ -36,7 +36,7 @@ postulate   _,_     : (σ : Tms Γ Δ) → Tm Γ (A ∘ᵀ σ) → Tms Γ (Δ �
 infixl 5    _,_
 postulate   π₁      : Tms Γ (Δ ▹ A) →                 Tms Γ Δ
 
-generalize  {t u v} :                          Tm _ _
+variable    {t u v} :                          Tm _ _
 postulate   π₂      : (σ : Tms Γ (Δ ▹ A)) →    Tm Γ (A ∘ᵀ π₁ σ)
 postulate   _∘ᵗ_    : Tm Δ A → (σ : Tms Γ Δ) → Tm Γ (A ∘ᵀ σ)
 infixl 6    _∘ᵗ_
@@ -83,7 +83,7 @@ _↑_ : ∀ σ A → Tms (Γ ▹ A ∘ᵀ σ) (Δ ▹ A)
 ------------------------------------------------------------------
 
 postulate   U       : Ty Γ
-generalize  {a b c} : Tm _ U
+variable    {a b c} : Tm _ U
 postulate   El      : Tm Γ U → Ty Γ
 postulate   U[]     : U ∘ᵀ σ ≡ U
 {-# REWRITE U[] #-}

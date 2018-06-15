@@ -1,4 +1,5 @@
 {-# OPTIONS --no-irrelevant-projections #-}
+
 module ScopeIrrelevantRecordField where
 
 record Bla : Set1 where
@@ -7,4 +8,7 @@ record Bla : Set1 where
     .bla0 bla1 .{bla2 bla3} {bla4 .bla5} : Set
 
 bla0' : Bla -> Set
-bla0' = Bla.bla0  -- should fail with bla0 not in scope
+bla0' = Bla.bla0
+
+-- WAS: should fail with bla0 not in scope
+-- NOW: should complain about irrelevant projection

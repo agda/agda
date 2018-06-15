@@ -30,6 +30,7 @@ import Data.Data (Data)
 import Agda.Syntax.Position
 import Agda.Syntax.Common
 import Agda.Syntax.Literal
+import Agda.Syntax.Concrete.Name (MarkNotInScope(..))
 import Agda.Syntax.Concrete.Pretty (prettyHiding)
 import Agda.Syntax.Abstract.Name
 
@@ -62,10 +63,10 @@ type NamedArgs  = [NamedArg Term]
 data ConHead = ConHead
   { conName      :: QName     -- ^ The name of the constructor.
   , conInductive :: Induction -- ^ Record constructors can be coinductive.
-  , conFields    :: [QName]   -- ^ The name of the record fields.
-                              --   Empty list for data constructors.
-                              --   'Arg' is not needed here since it
-                              --   is stored in the constructor args.
+  , conFields    :: [Arg QName]   -- ^ The name of the record fields.
+      --   Empty list for data constructors.
+      --   'Arg' is stored since the info in the constructor args
+      --   might not be accurate because of subtyping (issue #2170).
   } deriving (Data, Show)
 
 instance Eq ConHead where
@@ -901,14 +902,12 @@ arity t = case unEl t of
 
 -- | Make a name that is not in scope.
 notInScopeName :: ArgName -> ArgName
-notInScopeName = stringToArgName . ("." ++) . argNameToString
+notInScopeName = markNotInScope
 
 -- | Remove the dot from a notInScopeName. This is used when printing function
 --   types that have abstracted over not-in-scope names.
 unNotInScopeName :: ArgName -> ArgName
-unNotInScopeName = stringToArgName . undot . argNameToString
-  where undot ('.':s) = s
-        undot s       = s
+unNotInScopeName = removeNotInScopePrefix
 
 -- | Pick the better name suggestion, i.e., the one that is not just underscore.
 class Suggest a b where

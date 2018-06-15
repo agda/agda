@@ -28,6 +28,10 @@ best-number = {!!} -- C-c C-c (on result)
 -- but no corresponding projections
 -- when checking that the expression ? has type Five
 
+-- Update, Andreas, 2018-06-09: splitting on irrelevant fields is always ok.
+-- Should succeed!
+
+
 -- Testing similar errors:
 
 not-record : Set

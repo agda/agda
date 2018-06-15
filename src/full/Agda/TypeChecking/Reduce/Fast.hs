@@ -145,6 +145,7 @@ compactDef bEnv def rewr = do
       Record{}                       -> pure COther -- TODO
       Axiom{}                        -> pure CAxiom
       AbstractDefn{}                 -> pure CAxiom
+      GeneralizableVar{}             -> __IMPOSSIBLE__
       Primitive{ primName = name, primCompiled = cc } ->
         case name of
           -- "primShowInteger" -- integers are not literals
@@ -316,7 +317,7 @@ data FastCompiledClauses
     -- (counting from zero) with @bs@ as the case branches.
     -- If the @n@-th argument is a projection, we have only 'conBranches'
     -- with arity 0.
-  | FEta Int [QName] FastCompiledClauses (Maybe FastCompiledClauses)
+  | FEta Int [Arg QName] FastCompiledClauses (Maybe FastCompiledClauses)
     -- ^ Match on record constructor. Can still have a catch-all though. Just
     --   contains the fields, not the actual constructor.
   | FDone [Arg ArgName] Term
@@ -866,9 +867,9 @@ reduceTm rEnv bEnv !constInfo normalisation ReductionFlags{..} =
         -- Case: constructor. Perform beta reduction if projected from, otherwise return a value.
         Con c i [] ->
           case splitAt ar spine of
-            (args, Proj _ p : spine') -> evalPointerAM (unArg arg) spine' ctrl
+            (args, Proj _ p : spine') -> evalPointerAM (unArg arg) spine' ctrl  -- Andreas #2170: fit argToDontCare here?!
               where
-                fields    = conFields c
+                fields    = map unArg $ conFields c
                 Just n    = List.elemIndex p fields
                 Apply arg = args !! n
             _ -> rewriteAM (evalTrueValue (Con c' i []) env spine ctrl)
@@ -1174,7 +1175,7 @@ reduceTm rEnv bEnv !constInfo normalisation ReductionFlags{..} =
             (spine0, Apply e : spine1) -> do                -- rewriting or 'with'.
               -- Replace e by its projections in the spine. And don't forget a
               -- CatchAll frame if there's a catch-all.
-              let projClosure f = Closure Unevaled (Var 0 []) (extendEnv (unArg e) emptyEnv) [Proj ProjSystem f]
+              let projClosure (Arg ai f) = Closure Unevaled (Var 0 []) (extendEnv (unArg e) emptyEnv) [Proj ProjSystem f]
               projs <- mapM (createThunk . projClosure) fs
               let spine' = spine0 <> map (Apply . defaultArg) projs <> spine1
                   stack' = caseMaybe ca stack $ \ cc -> CatchAll cc spine >: stack

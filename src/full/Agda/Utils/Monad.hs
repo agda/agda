@@ -107,6 +107,14 @@ mapM' f = Fold.foldl (\ mb a -> liftM2 mappend mb (f a)) (return mempty)
 forM' :: (Foldable t, Monad m, Monoid b) => t a -> (a -> m b) -> m b
 forM' = flip mapM'
 
+-- Variations of Traversable
+
+mapMM :: (Traversable t, Monad m) => (a -> m b) -> m (t a) -> m (t b)
+mapMM f mxs = Trav.mapM f =<< mxs
+
+forMM :: (Traversable t, Monad m) => m (t a) -> (a -> m b) -> m (t b)
+forMM = flip mapMM
+
 -- Continuation monad -----------------------------------------------------
 
 -- Andreas, 2017-04-11, issue #2543

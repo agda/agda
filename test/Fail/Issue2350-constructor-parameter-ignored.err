@@ -1,5 +1,5 @@
 Issue2350-constructor-parameter-ignored.agda:8,14-23
-ℓ != .ℓ' of type .Agda.Primitive.Level
+ℓ != ;ℓ' of type ;Agda.Primitive.Level
 when checking that the inferred type of an application
   D (_A_13 ℓ A a)
 matches the expected type

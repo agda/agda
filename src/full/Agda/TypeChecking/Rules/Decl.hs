@@ -43,6 +43,7 @@ import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 
+import Agda.TypeChecking.CheckInternal
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Errors
@@ -149,14 +150,6 @@ checkDecls ds = do
   -- Andreas, 2011-05-30, unfreezing moved to Interaction/Imports
   -- whenM onTopLevel unfreezeMetas
 
-filterGeneralizables :: TCM ()
-filterGeneralizables = do
-    g <- use stGeneralizableMetas
-    stSignature . sigDefinitions %= HMap.filterWithKey (\k _ -> not $ k `Map.member` g)
-    gms <- getGeneralizeMetas
-    modifyMetaStore $ Map.filterWithKey (\k _ -> not $ k `List.elem` gms)
-
-
 -- | Type check a single declaration.
 
 checkDecl :: A.Declaration -> TCM ()
@@ -180,7 +173,7 @@ checkDecl d = setCurrentRange d $ do
 
     (finalChecks, metas) <- metasCreatedBy $ case d of
       A.Axiom{}                -> meta $ checkTypeSignature d
-      A.Generalize s i info x e -> meta $ inConcreteMode $ registerGeneralize s info x $ checkAxiom A.NoFunSig i info Nothing x e
+      A.Generalize s i info x e -> meta $ inConcreteMode $ checkGeneralize s i info x e
       A.Field{}                -> typeError FieldOutsideRecord
       A.Primitive i x e        -> meta $ checkPrimitive i x e
       A.Mutual i ds            -> mutual i ds $ checkMutual i ds
@@ -535,23 +528,21 @@ whenAbstractFreezeMetasAfter Info.DefInfo{ defAccess, defAbstract} m = do
       ]
     return a
 
-registerGeneralize :: Set QName -> ArgInfo -> QName -> TCM a -> TCM a
-registerGeneralize s info n m = do
-    ropt <- optGeneralize <$> pragmaOptions
-    unless ropt $ typeError NeedOptionGeneralize
-    (t, ms_) <- metasCreatedBy m
-    let ns = last $ C.nameStringParts $ nameConcrete $ qnameName n
-        setName i "" = ns ++ "." ++ show i
-        setName _ x  = ns ++ "." ++ x
-        adjust (i, (mi, mv)) = (,) mi $
-            mv { mvPriority = MetaPriority (-20)
-               , mvInfo = (mvInfo mv) {miNameSuggestion = setName i $ miNameSuggestion (mvInfo mv) }
-               }
-    ms <- Map.fromList . map adjust . zip [1..] . filter (isOpenMeta . mvInstantiation . snd)
-            <$> forM (Set.toList ms_) (\mi -> (,) mi <$> lookupMeta mi)
-    modifyMetaStore (ms `mappend`)
-    stGeneralizableMetas %= Map.insert n ((s, info), ms)
-    return t
+checkGeneralize :: Set QName -> Info.DefInfo -> ArgInfo -> QName -> A.Expr -> TCM ()
+checkGeneralize s i info x e = do
+
+    -- Check the signature and collect the created metas.
+    (n, tGen) <- checkGeneralized s $ locally eGeneralizeMetas (const YesGeneralize) $
+                   workOnTypes $ isType_ e
+
+    reportSDoc "tc.decl.gen" 10 $ sep
+      [ text "checked type signature of generalizable variable" <+> prettyTCM x <+> text ":"
+      , nest 2 $ prettyTCM tGen
+      ]
+
+    addConstant x $ (defaultDefn info x tGen GeneralizableVar)
+                    { defArgGeneralizable = replicate n YesGeneralize }
+
 
 -- | Type check an axiom.
 checkAxiom :: A.Axiom -> Info.DefInfo -> ArgInfo ->
@@ -572,6 +563,10 @@ checkAxiom funSig i info0 mp x e = whenAbstractFreezeMetasAfter i $ do
     , nest 2 $ prettyTCM rel <> prettyTCM x <+> text ":" <+> prettyTCM t
     , nest 2 $ text "of sort " <+> prettyTCM (getSort t)
     ]
+
+  -- Jesper, 2018-06-05: should be done AFTER generalizing
+  --whenM (optDoubleCheck <$> pragmaOptions) $ workOnTypes $ do
+  --  checkInternal (unEl t) (sort $ getSort t)
 
   -- Andreas, 2015-03-17 Issue 1428: Do not postulate sizes in parametrized
   -- modules!

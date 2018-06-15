@@ -23,6 +23,7 @@ import Data.Traversable hiding (mapM, forM, for)
 import Data.Monoid
 
 import Agda.Interaction.Options
+import Agda.Syntax.Concrete (MarkNotInScope(..))
 import qualified Agda.Syntax.Concrete as C -- ToDo: Remove with instance of ToConcrete
 import Agda.Syntax.Position
 import Agda.Syntax.Abstract as A hiding (Open, Apply, Assign)
@@ -115,7 +116,7 @@ giveExpr force mii mi e = do
       -- Thus, we can safely apply its type to the context variables.
       ctx <- getContextArgs
       t' <- t `piApplyM` permute (takeP (length ctx) $ mvPermutation mv) ctx
-      traceCall (CheckExprCall e t') $ do
+      traceCall (CheckExprCall CmpLeq e t') $ do
         reportSDoc "interaction.give" 20 $
           TP.text "give: instantiated meta type =" TP.<+> prettyTCM t'
         v <- checkExpr e t'
@@ -424,10 +425,10 @@ instance Reify Constraint (OutputConstraint Expr Expr) where
             e  <- reify t
             return $ Assign m' e
           PostponedTypeCheckingProblem cl _ -> enterClosure cl $ \p -> case p of
-            CheckExpr e a -> do
+            CheckExpr cmp e a -> do
                 a  <- reify a
                 return $ TypedAssign m' e a
-            CheckLambda (Arg ai (xs, mt)) body target -> do
+            CheckLambda cmp (Arg ai (xs, mt)) body target -> do
               domType <- maybe (return underscore) reify mt
               target  <- reify target
               let bs = TypedBindings noRange $ Arg ai $
@@ -744,9 +745,9 @@ metaHelperType norm ii rng s = case words s of
     unW "w" = return ".w"
     unW s   = return s
 
-    renameVar ('.':s) = pure s
-    renameVar "w"     = betterName
-    renameVar s       = pure s
+    -- renameVar ('.':s) = pure s
+    renameVar "w" = betterName
+    renameVar s   = pure $ removeNotInScopePrefix s
 
     betterName = do
       arg : args <- get

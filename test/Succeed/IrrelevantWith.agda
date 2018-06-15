@@ -1,5 +1,8 @@
 -- Andreas, 2012-04-18 make sure with functions of irrelevant functions
 -- are also irrelevant
+
+{-# OPTIONS --irrelevant-projections #-}
+
 module IrrelevantWith where
 
 import Common.Level

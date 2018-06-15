@@ -49,6 +49,7 @@ import Agda.TypeChecking.Coverage.SplitTree
 
 import Agda.TypeChecking.Conversion (tryConversion, equalType)
 import Agda.TypeChecking.Datatypes (getConForm)
+import {-# SOURCE #-} Agda.TypeChecking.Empty (isEmptyTel)
 import Agda.TypeChecking.Irrelevance (applyRelevanceToContext)
 import Agda.TypeChecking.Patterns.Internal (dotPatternsToPatterns)
 import Agda.TypeChecking.Pretty
@@ -189,6 +190,10 @@ coverageCheck f t cs = do
     [ text "generated split tree for" <+> prettyTCM f
     , text $ prettyShow splitTree
     ]
+
+  -- filter out the missing clauses that are absurd.
+  pss <- flip filterM pss $ \(tel,_) -> not <$> isEmptyTel tel
+
   -- report a warning if there are uncovered cases,
   -- generate a catch-all clause with a metavariable as its body to avoid
   -- internal errors in the reduction machinery.
@@ -875,13 +880,13 @@ split' ind allowPartialCover fixtarget sc@(SClause tel ps _ cps target) (Blockin
     -- Jesper, 2018-05-24: If the datatype is in Prop we can
     -- only do empty splits, unless the target is in Prop too.
     (_ : _) | isProp t && not (isIrrelevant relTarget) ->
-      throwError . IrrelevantDatatype =<< do liftTCM $ buildClosure (unDom t)
+      throwError . IrrelevantDatatype =<< do liftTCM $ inContextOfT $ buildClosure (unDom t)
 
     -- Andreas, 2011-10-03
     -- if more than one constructor matches, we cannot be irrelevant
     -- (this piece of code is unreachable if --experimental-irrelevance is off)
     (_ : _ : _) | unusableRelevance (getRelevance t) ->
-      throwError . IrrelevantDatatype =<< do liftTCM $ buildClosure (unDom t)
+      throwError . IrrelevantDatatype =<< do liftTCM $ inContextOfT $ buildClosure (unDom t)
 
   -- Andreas, 2012-10-10 fail if precomputed constructor set does not cover
   -- all the data type constructors
@@ -939,15 +944,17 @@ data CosplitError
       -- ^ We do not know the target type of the clause.
   | CosplitNoRecordType Telescope Type
       -- ^ Type living in the given telescope is not a record type.
-  | CosplitIrrelevantProjections
-      -- ^ Record has irrelevant fields, but we do not have irrelevant projections.
+  -- Andreas, 2018-06-09, issue #2170: splitting with irrelevant fields is always fine!
+  -- -- | CosplitIrrelevantProjections
+  -- --     -- ^ Record has irrelevant fields, but we do not have irrelevant projections.
 
 instance PrettyTCM CosplitError where
   prettyTCM = \case
     CosplitNoTarget ->
       text "target type is unknown"
-    CosplitIrrelevantProjections ->
-      text "record has irrelevant fields, but no corresponding projections"
+    -- Andreas, 2018-06-09, issue #2170: splitting with irrelevant fields is always fine!
+    -- CosplitIrrelevantProjections ->
+    --   text "record has irrelevant fields, but no corresponding projections"
     CosplitNoRecordType tel t -> addContext tel $ do
       text "target type " <+> prettyTCM t <+> text " is not a record type"
 
@@ -975,9 +982,11 @@ splitResult f sc@(SClause tel ps _ _ target) = do
           , text   "applied to parameters vs = " <+> (addContext tel $ prettyTCM vs)
           , text $ "and have fields       fs = " ++ prettyShow fs
           ]
-        -- Andreas, 2018-03-19, issue #2971, check that we have a "strong" record type,
-        -- i.e., with all the projections.  Otherwise, we may not split.
-        ifNotM (strongRecord fs) (failure CosplitIrrelevantProjections) $ {-else-} do
+        -- Andreas, 2018-06-09, issue #2170, we always have irrelevant projections
+        -- available on the lhs.
+        -- -- Andreas, 2018-03-19, issue #2971, check that we have a "strong" record type,
+        -- -- i.e., with all the projections.  Otherwise, we may not split.
+        -- ifNotM (strongRecord fs) (failure CosplitIrrelevantProjections) $ {-else-} do
         let es = patternsToElims $ fromSplitPatterns ps
         -- Note: module parameters are part of ps
         let self  = defaultArg $ Def f [] `applyE` es
@@ -1005,13 +1014,14 @@ splitResult f sc@(SClause tel ps _ _ target) = do
                          }
             return (SplitCon (unArg proj), sc')
       _ -> failure $ CosplitNoRecordType tel $ unArg t
-  where
-  -- A record type is strong if it has all the projections.
-  -- This is the case if --irrelevant-projections or no field is irrelevant.
-  -- TODO: what about shape irrelevance?
-  strongRecord :: [Arg QName] -> TCM Bool
-  strongRecord fs = (optIrrelevantProjections <$> pragmaOptions) `or2M`
-    (return $ not $ any isIrrelevant fs)
+  -- Andreas, 2018-06-09, issue #2170: splitting with irrelevant fields is always fine!
+  -- where
+  -- -- A record type is strong if it has all the projections.
+  -- -- This is the case if --irrelevant-projections or no field is irrelevant.
+  -- -- TODO: what about shape irrelevance?
+  -- strongRecord :: [Arg QName] -> TCM Bool
+  -- strongRecord fs = (optIrrelevantProjections <$> pragmaOptions) `or2M`
+  --   (return $ not $ any isIrrelevant fs)
 
 
 -- * Boring instances

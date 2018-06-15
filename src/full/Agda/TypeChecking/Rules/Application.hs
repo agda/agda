@@ -27,6 +27,7 @@ import Data.Void
 import qualified Data.IntSet as IntSet
 
 import Agda.Interaction.Highlighting.Generate (storeDisambiguatedName)
+import Agda.Interaction.Options
 
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Views as A
@@ -62,8 +63,10 @@ import Agda.TypeChecking.Telescope
 import Agda.Utils.Either
 import Agda.Utils.Except
 import Agda.Utils.Functor
+import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Maybe
+import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.NonemptyList
 import Agda.Utils.Pretty ( prettyShow )
@@ -83,8 +86,8 @@ import Agda.Utils.Impossible
 --   @checkApplication@ disambiguates constructors
 --   (and continues to 'checkConstructorApplication')
 --   and resolves pattern synonyms.
-checkApplication :: A.Expr -> A.Args -> A.Expr -> Type -> TCM Term
-checkApplication hd args e t = do
+checkApplication :: Comparison -> A.Expr -> A.Args -> A.Expr -> Type -> TCM Term
+checkApplication cmp hd args e t = do
   reportSDoc "tc.check.app" 20 $ vcat
     [ text "checkApplication"
     , nest 2 $ text "hd   = " <+> prettyA hd
@@ -101,22 +104,22 @@ checkApplication hd args e t = do
     ]
   case unScope hd of
     -- Subcase: unambiguous projection
-    A.Proj _ p | Just _ <- getUnambiguous p -> checkHeadApplication e t hd args
+    A.Proj _ p | Just _ <- getUnambiguous p -> checkHeadApplication cmp e t hd args
 
     -- Subcase: ambiguous projection
-    A.Proj o p -> checkProjApp e o (unAmbQ p) args t
+    A.Proj o p -> checkProjApp cmp e o (unAmbQ p) args t
 
     -- Subcase: unambiguous constructor
     A.Con ambC | Just c <- getUnambiguous ambC -> do
       -- augment c with record fields, but do not revert to original name
       con <- fromRightM (sigError __IMPOSSIBLE_VERBOSE__ (typeError $ AbstractConstructorNotInScope c)) $
         getOrigConHead c
-      checkConstructorApplication e t con args
+      checkConstructorApplication cmp e t con args
 
     -- Subcase: ambiguous constructor
     A.Con (AmbQ cs0) -> disambiguateConstructor cs0 t >>= \ case
-      Left unblock -> postponeTypeCheckingProblem (CheckExpr e t) unblock
-      Right c      -> checkConstructorApplication e t c args
+      Left unblock -> postponeTypeCheckingProblem (CheckExpr cmp e t) unblock
+      Right c      -> checkConstructorApplication cmp e t c args
 
     -- Subcase: pattern synonym
     A.PatternSyn n -> do
@@ -131,7 +134,7 @@ checkApplication hd args e t = do
         Just (s, ns) -> do
           let p' = A.patternToExpr p
               e' = A.lambdaLiftExpr (map unArg ns) (A.substExpr s p')
-          checkExpr e' t
+          checkExpr' cmp e' t
 
     -- Subcase: macro
     A.Macro x -> do
@@ -168,7 +171,7 @@ checkApplication hd args e t = do
 
           desugared = A.app (unq $ unAppView $ Application (A.Def x) $ macroArgs) otherArgs
 
-      checkExpr desugared t
+      checkExpr' cmp desugared t
 
     -- Subcase: unquote
     A.Unquote _
@@ -200,7 +203,7 @@ checkApplication hd args e t = do
 
     -- Subcase: defined symbol or variable.
     _ -> do
-      v <- checkHeadApplication e t hd args
+      v <- checkHeadApplication cmp e t hd args
       reportSDoc "tc.term.app" 30 $ vcat
         [ text "checkApplication: checkHeadApplication returned"
         , nest 2 $ text "v = " <+> prettyTCM v
@@ -211,7 +214,7 @@ checkApplication hd args e t = do
 inferApplication :: ExpandHidden -> A.Expr -> A.Args -> A.Expr -> TCM (Term, Type)
 inferApplication exh hd args e | not (defOrVar hd) = do
   t <- workOnTypes $ newTypeMeta_
-  v <- checkExpr e t
+  v <- checkExpr' CmpEq e t
   return (v, t)
 inferApplication exh hd args e =
   case unScope hd of
@@ -295,15 +298,28 @@ inferDef mkTerm x =
     -- instantiateDef relativizes it to the current context
     d  <- instantiateDef =<< getConstInfo x
     -- irrelevant defs are only allowed in irrelevant position
-    checkRelevance x (defRelevance d)
-    -- since x is considered living in the top-level, we have to
-    -- apply it to the current context
-    vs <- freeVarsToApply x
-    let t = defType d
-        v = mkTerm vs -- applies x to vs, dropping parameters
-    debug vs t v
-    return (v, t)
+    checkRelevance x d
+    case theDef d of
+      GeneralizableVar{} -> do
+        -- Generalizable variables corresponds to metas created
+        -- at the point where they should be generalized. Module parameters
+        -- have already been applied to the meta, so we don't have to do that
+        -- here.
+        val <- fromMaybe __IMPOSSIBLE__ <$> view (eGeneralizedVars . key x)
+        sub <- checkpointSubstitution (genvalCheckpoint val)
+        let (v, t) = applySubst sub (genvalTerm val, genvalType val)
+        debug [] t v
+        return (v, t)
+      _ -> do
+        -- since x is considered living in the top-level, we have to
+        -- apply it to the current context
+        vs <- freeVarsToApply x
+        let t = defType d
+            v = mkTerm vs -- applies x to vs, dropping parameters
+        debug vs t v
+        return (v, t)
   where
+    debug :: Args -> Type -> Term -> TCM ()
     debug vs t v = do
       reportSDoc "tc.term.def" 60 $
         text "freeVarsToApply to def " <+> hsep (map (text . show) vs)
@@ -312,16 +328,33 @@ inferDef mkTerm x =
         , nest 2 $ text ":" <+> prettyTCM t
         , nest 2 $ text "-->" <+> prettyTCM v ]
 
--- | The second argument is the relevance of the first.
-checkRelevance :: QName -> Relevance -> TCM ()
-checkRelevance _ Relevant = return () -- relevance functions can be used in any context.
-checkRelevance x drel = do
-  rel <- asks envRelevance
-  reportSDoc "tc.irr" 50 $ vcat
-    [ text "declaration relevance =" <+> text (show drel)
-    , text "context     relevance =" <+> text (show rel)
-    ]
-  unless (drel `moreRelevant` rel) $ typeError $ DefinitionIsIrrelevant x
+-- | The second argument is the definition of the first.
+checkRelevance :: QName -> Definition -> TCM ()
+checkRelevance x def = maybe (return ()) typeError =<< checkRelevance' x def
+
+-- | The second argument is the definition of the first.
+--   Returns 'Nothing' if ok, otherwise the error message.
+checkRelevance' :: QName -> Definition -> TCM (Maybe TypeError)
+checkRelevance' x def = do
+  case defRelevance def of
+    Relevant -> return Nothing -- relevance functions can be used in any context.
+    drel -> do
+      -- Andreas,, 2018-06-09, issue #2170
+      -- irrelevant projections are only allowed if --irrelevant-projections
+      ifM (return (isJust $ isProjection_ $ theDef def) `and2M`
+           (not .optIrrelevantProjections <$> pragmaOptions)) {-then-} needIrrProj {-else-} $ do
+        rel <- asks envRelevance
+        reportSDoc "tc.irr" 50 $ vcat
+          [ text "declaration relevance =" <+> text (show drel)
+          , text "context     relevance =" <+> text (show rel)
+          ]
+        return $ if (drel `moreRelevant` rel) then Nothing else Just $ DefinitionIsIrrelevant x
+  where
+  needIrrProj = Just . GenericDocError <$> do
+    sep [ text "Projection " , prettyTCM x, text " is irrelevant."
+        , text " Turn on option --irrelevant-projections to use it (unsafe)."
+        ]
+
 
 -- | @checkHeadApplication e t hd args@ checks that @e@ has type @t@,
 -- assuming that @e@ has the form @hd args@. The corresponding
@@ -334,8 +367,8 @@ checkRelevance x drel = do
 --
 -- Precondition: The head @hd@ has to be unambiguous, and there should
 -- not be any need to insert hidden lambdas.
-checkHeadApplication :: A.Expr -> Type -> A.Expr -> [NamedArg A.Expr] -> TCM Term
-checkHeadApplication e t hd args = do
+checkHeadApplication :: Comparison -> A.Expr -> Type -> A.Expr -> [NamedArg A.Expr] -> TCM Term
+checkHeadApplication cmp e t hd args = do
   sharp <- fmap nameOfSharp <$> coinductionKit
   conId <- fmap getPrimName <$> getBuiltin' builtinConId
   pOr   <- fmap primFunName <$> getPrimitive' "primPOr"
@@ -364,7 +397,7 @@ checkHeadApplication e t hd args = do
            as <- allApplyElims vs
            pure $ k as t1
       v <- unfoldInlined (f vs)
-      maybe id (\ ck m -> blockTerm t $ ck >> m) check $ coerce' checkedTarget v t1 t
+      maybe id (\ ck m -> blockTerm t $ ck >> m) check $ coerce' cmp checkedTarget v t1 t
 
 -----------------------------------------------------------------------------
 -- * Spines
@@ -378,10 +411,10 @@ traceCallE call m = do
     Left err -> throwError err
 
 -- | If we've already checked the target type we don't have to call coerce.
-coerce' :: CheckedTarget -> Term -> Type -> Type -> TCM Term
-coerce' NotCheckedTarget           v inferred expected = coerce v inferred expected
-coerce' (CheckedTarget Nothing)    v _        _        = return v
-coerce' (CheckedTarget (Just pid)) v _        expected = blockTermOnProblem expected v pid
+coerce' :: Comparison -> CheckedTarget -> Term -> Type -> Type -> TCM Term
+coerce' cmp NotCheckedTarget           v inferred expected = coerce cmp v inferred expected
+coerce' cmp (CheckedTarget Nothing)    v _        _        = return v
+coerce' cmp (CheckedTarget (Just pid)) v _        expected = blockTermOnProblem expected v pid
 
 -- | Check a list of arguments: @checkArgs args t0 t1@ checks that
 --   @t0 = Delta -> t0'@ and @args : Delta@. Inserts hidden arguments to
@@ -485,6 +518,7 @@ checkArgumentsE' chk exh r args0@(arg@(Arg info e) : args) t0 mt1 =
                     Datatype{}                -> True
                     Record{}                  -> True
                     Constructor{}             -> __IMPOSSIBLE__
+                    GeneralizableVar{}        -> __IMPOSSIBLE__
                     Primitive{}               -> False
                   isRigid _           = return False
               rigid <- isRigid tgt
@@ -608,8 +642,8 @@ postponeArgs (us, es, t0) exph r args t k = do
 -- | Check the type of a constructor application. This is easier than
 --   a general application since the implicit arguments can be inserted
 --   without looking at the arguments to the constructor.
-checkConstructorApplication :: A.Expr -> Type -> ConHead -> [NamedArg A.Expr] -> TCM Term
-checkConstructorApplication org t c args = do
+checkConstructorApplication :: Comparison -> A.Expr -> Type -> ConHead -> [NamedArg A.Expr] -> TCM Term
+checkConstructorApplication cmp org t c args = do
   reportSDoc "tc.term.con" 50 $ vcat
     [ text "entering checkConstructorApplication"
     , nest 2 $ vcat
@@ -664,12 +698,12 @@ checkConstructorApplication org t c args = do
              reportSDoc "tc.term.con" 20 $ nest 2 $ vcat
                [ text "us     =" <+> prettyTCM us
                , text "t'     =" <+> prettyTCM t' ]
-             coerce' targetCheck (Con c ConOCon (map Apply us)) t' t
+             coerce' cmp targetCheck (Con c ConOCon (map Apply us)) t' t
       _ -> do
         reportSDoc "tc.term.con" 50 $ nest 2 $ text "we are not at a datatype, falling back"
         fallback
   where
-    fallback = checkHeadApplication org t (A.Con (unambiguous $ conName c)) args
+    fallback = checkHeadApplication cmp org t (A.Con (unambiguous $ conName c)) args
 
     -- Check if there are explicitly given hidden arguments,
     -- in which case we fall back to default type checking.
@@ -766,10 +800,10 @@ inferProjApp e o ds args0 = do
 -- | Checking the type of an overloaded projection application.
 --   See 'inferOrCheckProjApp'.
 
-checkProjApp  :: A.Expr -> ProjOrigin -> NonemptyList QName -> A.Args -> Type -> TCM Term
-checkProjApp e o ds args0 t = do
-  (v, ti, targetCheck) <- inferOrCheckProjApp e o ds args0 (Just t)
-  coerce' targetCheck v ti t
+checkProjApp  :: Comparison -> A.Expr -> ProjOrigin -> NonemptyList QName -> A.Args -> Type -> TCM Term
+checkProjApp cmp e o ds args0 t = do
+  (v, ti, targetCheck) <- inferOrCheckProjApp e o ds args0 (Just (cmp, t))
+  coerce' cmp targetCheck v ti t
 
 -- | Inferring or Checking an overloaded projection application.
 --
@@ -785,7 +819,7 @@ inferOrCheckProjApp
      -- ^ The projection name (potentially ambiguous).
   -> A.Args
      -- ^ The arguments to the projection.
-  -> Maybe Type
+  -> Maybe (Comparison, Type)
      -- ^ The expected type of the expression (if 'Nothing', infer it).
   -> TCM (Term, Type, CheckedTarget)
      -- ^ The type-checked expression and its type (if successful).
@@ -806,12 +840,14 @@ inferOrCheckProjApp e o ds args mt = do
       refuseNoMatching = refuse "no matching candidate found"
       refuseNotRecordType = refuse "principal argument is not of record type"
 
+      cmp = caseMaybe mt CmpEq fst
+
       -- Postpone the whole type checking problem
       -- if type of principal argument (or the type where we get it from)
       -- is blocked by meta m.
       postpone m = do
-        tc <- caseMaybe mt newTypeMeta_ return
-        v <- postponeTypeCheckingProblem (CheckExpr e tc) $ isInstantiatedMeta m
+        tc <- caseMaybe mt newTypeMeta_ (return . snd)
+        v <- postponeTypeCheckingProblem (CheckExpr cmp e tc) $ isInstantiatedMeta m
         return (v, tc, NotCheckedTarget)
 
   -- The following cases need to be considered:
@@ -826,7 +862,7 @@ inferOrCheckProjApp e o ds args mt = do
 
     -- Case: we have no visible argument to the projection.
     -- In inference mode, we really need the visible argument, postponing does not help
-    [] -> caseMaybe mt refuseNotApplied $ \ t -> do
+    [] -> caseMaybe mt refuseNotApplied $ \ (cmp , t) -> do
       -- If we have the type, we can try to get the type of the principal argument.
       -- It is the first visible argument.
       TelV _ptel core <- telViewUpTo' (-1) (not . visible) t
@@ -842,7 +878,7 @@ inferOrCheckProjApp e o ds args mt = do
               storeDisambiguatedName d
               -- checkHeadApplication will check the target type
               (, t, CheckedTarget Nothing) <$>
-                checkHeadApplication e t (A.Proj o $ unambiguous d) args
+                checkHeadApplication cmp e t (A.Proj o $ unambiguous d) args
             _ -> __IMPOSSIBLE__
         _ -> __IMPOSSIBLE__
 
@@ -867,7 +903,8 @@ inferOrCheckProjApp e o ds args mt = do
                   ]
 
                 -- get the original projection name
-                isP <- isProjection d
+                def <- lift $ getConstInfo d
+                let isP = isProjection_ $ theDef def
                 reportSDoc "tc.proj.amb" 40 $ vcat $
                   [ text $ "  isProjection = " ++ caseMaybe isP "no" (const "yes")
                   ] ++ caseMaybe isP [] (\ Projection{ projProper = proper, projOrig = orig } ->
@@ -902,7 +939,7 @@ inferOrCheckProjApp e o ds args mt = do
                 guard (q == q')
                 -- Get the type of the projection and check
                 -- that the first visible argument is the record value.
-                tfull <- lift $ defType <$> getConstInfo d
+                let tfull = defType def
                 TelV tel _ <- lift $ telViewUpTo' (-1) (not . visible) tfull
                 reportSDoc "tc.proj.amb" 30 $ vcat
                   [ text $ "  size tel  = " ++ show (size tel)
@@ -911,6 +948,8 @@ inferOrCheckProjApp e o ds args mt = do
                 -- See issue 1960 for when the following assertion fails for
                 -- the correct disambiguation.
                 -- guard (size tel == size pars)
+
+                guard =<< do isNothing <$> do lift $ checkRelevance' d def
                 return (orig, (d, (pars, (dom, u, tb))))
 
           cands <- groupOn fst . catMaybes <$> mapM (runMaybeT . try) (toList ds)
@@ -932,16 +971,16 @@ inferOrCheckProjApp e o ds args mt = do
               -- Check remaining arguments
               let r     = getRange e
                   args' = drop (k + 1) args
-              z <- runExceptT $ checkArgumentsE ExpandLast r args' tb mt
+              z <- runExceptT $ checkArgumentsE ExpandLast r args' tb (snd <$> mt)
               case z of
                 Right (us, trest, targetCheck) -> return (u `applyE` us, trest, targetCheck)
                 Left problem -> do
                   -- In the inference case:
                   -- To create a postponed type checking problem,
                   -- we do not use typeDontCare, but create a meta.
-                  tc <- caseMaybe mt newTypeMeta_ return
+                  tc <- caseMaybe mt newTypeMeta_ (return . snd)
                   v  <- postponeArgs problem ExpandLast r args' tc $ \ us trest targetCheck ->
-                          coerce' targetCheck (u `applyE` us) trest tc
+                          coerce' cmp targetCheck (u `applyE` us) trest tc
 
                   return (v, tc, NotCheckedTarget)
 

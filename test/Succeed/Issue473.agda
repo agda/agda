@@ -1,7 +1,7 @@
 
 module Issue473 where
 
-record _×_ A B : Set where
+record _×_ (A B : Set) : Set where
   constructor _,_
   field
     fst : A
@@ -58,7 +58,7 @@ WorksNow : {e : Box I (P i)} → S (Box I (P i)) e (d₂ i P (d₁ (P i))) → S
 WorksNow (s .i .P .(d₁ (P i))) = Set
 
 -- No constructor
-record Pair A B : Set where
+record Pair (A B : Set) : Set where
   field
     first  : A
     second : B

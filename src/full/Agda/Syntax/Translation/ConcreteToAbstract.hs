@@ -861,8 +861,8 @@ instance ToAbstract C.Expr A.Expr where
       C.ExtendedLam r cs -> scopeCheckExtendedLam r cs
 
   -- Relevant and irrelevant non-dependent function type
-      C.Fun r e1 e2 -> do
-        Arg info (e0, dotted) <- traverse (toAbstractDot FunctionSpaceDomainCtx) $ mkArg e1
+      C.Fun r (Arg info1 e1) e2 -> do
+        Arg info (e0, dotted) <- traverse (toAbstractDot FunctionSpaceDomainCtx) $ mkArg' info1 e1
         let e1 = Arg ((if dotted then setRelevance Irrelevant else id) info) e0
         e2 <- toAbstractCtx TopCtx e2
         return $ A.Fun (ExprRange r) e1 e2
@@ -1445,11 +1445,15 @@ instance ToAbstract NiceDeclaration A.Declaration where
           maskIP e                     = e
       t' <- toAbstractCtx TopCtx $ mapExpr maskIP t
       y  <- freshAbstractQName f x
-      irrProj <- optIrrelevantProjections <$> pragmaOptions
-      unless (isIrrelevant t && not irrProj) $
-        -- Andreas, 2010-09-24: irrelevant fields are not in scope
-        -- this ensures that projections out of irrelevant fields cannot occur
-        -- Ulf: unless you turn on --irrelevant-projections
+      -- Andreas, 2018-06-09 issue #2170
+      -- We want dependent irrelevance without irrelevant projections,
+      -- thus, do not disable irrelevant projections via the scope checker.
+      -- irrProj <- optIrrelevantProjections <$> pragmaOptions
+      -- unless (isIrrelevant t && not irrProj) $
+      --   -- Andreas, 2010-09-24: irrelevant fields are not in scope
+      --   -- this ensures that projections out of irrelevant fields cannot occur
+      --   -- Ulf: unless you turn on --irrelevant-projections
+      do
         bindName p FldName x y
       return [ A.Field (mkDefInfoInstance x f p a i NotMacroDef r) y t' ]
 

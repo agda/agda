@@ -1,7 +1,7 @@
 module ForallForParameters
          (F : Set -> Set -> Set) X {Y} (Z : F X Y) where
 
-data List A : Set where
+data List (A : Set) : Set where
   [] : List A
   _::_ : A -> List A -> List A
 

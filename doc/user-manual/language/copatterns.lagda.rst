@@ -25,7 +25,7 @@ Consider the following record:
 
 ::
 
-  record Enumeration A : Set where
+  record Enumeration (A : Set) : Set where
     constructor enumeration
     field
       start    : A

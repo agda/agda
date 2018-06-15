@@ -1095,8 +1095,7 @@ showOpenMetas = do
   -- Show unsolved implicit arguments simplified.
   unsolvedNotOK <- not . optAllowUnsolved <$> pragmaOptions
   hms <- (guard unsolvedNotOK >>) <$> B.typesOfHiddenMetas B.Simplified
-  gs <- getGeneralizeMetas
-  dh <- mapM showA' $ filter (flip List.notElem gs . nmid . metaId) hms
+  dh <- mapM showA' hms
   return $ di ++ dh
   where
     metaId (B.OfType i _) = i

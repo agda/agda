@@ -233,9 +233,9 @@ solveConstraint_ (HasPTSRule a b)             = hasPTSRule a b
 
 checkTypeCheckingProblem :: TypeCheckingProblem -> TCM Term
 checkTypeCheckingProblem p = case p of
-  CheckExpr e t                  -> checkExpr e t
+  CheckExpr cmp e t              -> checkExpr' cmp e t
   CheckArgs eh r args t0 t1 k    -> checkArguments eh r args t0 t1 k
-  CheckLambda args body target   -> checkPostponedLambda args body target
+  CheckLambda cmp args body target -> checkPostponedLambda cmp args body target
   UnquoteTactic tac hole t       -> unquoteTactic tac hole t $ return hole
 
 debugConstraints :: TCM ()

@@ -15,7 +15,7 @@ testFun = {!!}
 -- expected:
 -- testFun a b = {!!}
 
-record FunRec A : Set where
+record FunRec (A : Set) : Set where
   field funField : A → A
 open FunRec
 

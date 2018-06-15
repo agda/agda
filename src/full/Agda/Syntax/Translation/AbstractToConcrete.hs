@@ -202,7 +202,9 @@ lookupQName ambCon x = do
       if isUnderscore y
         -- -- || any (isUnderscore . A.nameConcrete) (A.mnameToList $ A.qnameModule x)
         then return y
-        else return $ C.Qual (C.Name noRange [Id empty]) y
+        else return $ markNotInScope y
+        -- Andreas, 2018-06-13, issue #3127: prefix for out of scope names
+        -- WAS: else return $ C.Qual (C.Name noRange [Id empty]) y
         -- this is what happens for names that are not in scope (private names)
 
 lookupModule :: A.ModuleName -> AbsToCon C.QName
@@ -582,7 +584,9 @@ instance ToConcrete A.Expr C.Expr where
         bracket piBrackets
         $ do a' <- toConcreteCtx (if irr then DotPatternCtx else FunctionSpaceDomainCtx) a
              b' <- toConcreteTop b
-             return $ C.Fun (getRange i) (addRel a' $ mkArg a') b'
+             return $ C.Fun (getRange i) (defaultArg $ addRel a' $ mkArg a') b'
+             -- Andreas, 2018-06-14, issue #2513
+             -- TODO: print attributes
         where
             irr        = getRelevance a `elem` [Irrelevant, NonStrict]
             addRel a e = case getRelevance a of

@@ -1,0 +1,6 @@
+ConflictingRelevance2.agda:4,24-24
+ConflictingRelevance2.agda:4,24: Parse error
+@<ERROR>
+irrelevant A) → A
+
+-- Should f...

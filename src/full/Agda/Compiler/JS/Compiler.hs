@@ -300,6 +300,8 @@ definition' kit q d t ls = do
     Axiom | Just e <- defJSDef d -> plainJS e
     Axiom | otherwise -> ret Undefined
 
+    GeneralizableVar{} -> return Nothing
+
     Function{} | Just e <- defJSDef d -> plainJS e
     Function{} | otherwise -> do
 

@@ -1,4 +1,4 @@
-Issue543.agda:31,10-72
+Issue543.agda:34,10-72
 .(true) != true of type Bool
 when checking that the inferred type of an application
   .(true) ≡ unsquash _y_27

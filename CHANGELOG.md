@@ -1,8 +1,33 @@
 Release notes for Agda version 2.5.5
 ====================================
 
-Language
---------
+Type checking and interaction
+-----------------------------
+
+* Out-of-scope identifiers are now prefixed by a ';' semicolon
+  [Issue [#3127](https://github.com/agda/agda/issues/3127)].
+  They used to be prefixed by a '.' dot which could be confused
+  with dot patterns, postfix projections, and irrelevance.
+
+  The change affects the printing of terms, e.g. in error messages and
+  interaction, and the parsing of out-of-scope variables for
+  case splitting (`C-c C-c` in emacs).
+
+* Agda now allows omitting absurd clauses in case one of the pattern
+  variable inhabits an obviously empty type
+  [Issue [#1086](https://github.com/agda/agda/issues/1086)].
+  For example:
+  ```agda
+  f : Fin 1 → Nat
+  f zero = 0
+  -- f (suc ())   -- this clause is no longer required
+  ```
+  Absurd clauses are still required in case deep pattern matching is
+  needed to expose the absurd variable, or if there are no non-absurd
+  clauses.
+
+Pragmas and options
+-------------------
 
 * New builtin SETOMEGA.
 
@@ -23,6 +48,30 @@ Language
   Like `--type-in-type`, this makes Agda inconsistent. However, code
   written using `--omega-in-omega` is still compatible with normal
   universe-polymorphic code and can be used in such files.
+
+* Option `--irrelevant-projections` is now off by default and
+  not considered `--safe` any longer.
+  Reason: There are consistency issues that may be systemic
+  [Issue [#2170](https://github.com/agda/agda/issues/2170)].
+
+Emacs mode
+----------
+
+* Jump-to-definition now works for record field names in record expressions
+  and patterns. [Issue [#3120](https://github.com/agda/agda/issues/3120)]
+  ```agda
+    record R : Set₂ where
+      field f : Set₁
+
+    exp : R
+    exp = record { f = Set }
+
+    pat : R → R
+    pat r@record { f = X } = record r { f = X }
+  ```
+  Jump-to-definition (`M-.` or middle-click) on any of these `f`s
+  now jumps to the field declaration.
+
 
 Release notes for Agda version 2.5.4
 ====================================

@@ -1,4 +1,6 @@
+{-# OPTIONS --irrelevant-projections #-}
 {-# OPTIONS --allow-unsolved-metas #-}
+
 -- When instantiating metas, we can't ignore variables occurring in
 -- irrelevant terms. If we do the irrelevant terms will become illformed
 -- (and we get __IMPOSSIBLE__s)
@@ -6,11 +8,11 @@
 --   _42 := DontCare (Just (Var 0 []))
 -- is a bad thing to do. In the example below we hit the __IMPOSSIBLE__ in
 -- the rename function in TypeChecking.MetaVars.assign.
+
 module DontIgnoreIrrelevantVars where
 
 import Common.Level
 import Common.Irrelevance
-
 
 record Category : Set₁ where
   field

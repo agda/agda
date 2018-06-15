@@ -373,7 +373,7 @@ mkRecord fs = lift $ do
   -- Use the field name to get the record constructor and the field names.
   I.ConHead c _ind xs <- conSrcCon . theDef <$> (getConstInfo =<< canonicalName . I.conName =<< recConFromProj p1)
   -- Convert the constructor
-  let (args :: [C.TTerm]) = for xs $ \ x -> fromMaybe __IMPOSSIBLE__ $ Map.lookup x fs
+  let (args :: [C.TTerm]) = for xs $ \ (Arg ai x) -> fromMaybe __IMPOSSIBLE__ $ Map.lookup x fs
   return $ C.mkTApp (C.TCon c) args
 
 

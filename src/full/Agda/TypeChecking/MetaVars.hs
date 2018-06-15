@@ -15,6 +15,8 @@ import qualified Data.Map as Map
 import qualified Data.Foldable as Fold
 import qualified Data.Traversable as Trav
 
+import Agda.Interaction.Options
+
 import Agda.Syntax.Abstract.Name as A
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
@@ -116,20 +118,6 @@ assignTerm' x tel v = do
      -- verify (new) invariants
     whenM (not <$> asks envAssignMetas) __IMPOSSIBLE__
 
-{- TODO make double-checking work
--- currently, it does not work since types of sort-metas are inaccurate!
-
-    -- Andreas, 2013-10-25 double check solution before assigning
-    m <- lookupMeta x
-    case mvJudgement m of
-      HasType _ a -> dontAssignMetas $ checkInternal t a
-      IsSort{}    -> return ()  -- skip double check since type of meta is not accurate
--}
-    -- Andreas, 2013-10-25 double check solution before assigning
-    -- Andreas, 2013-11-30 this seems to open a can of worms...
-    -- dontAssignMetas $ do
-    --   checkInternal t . jMetaType . mvJudgement =<< lookupMeta x
-
     verboseS "profile.metas" 10 $ liftTCM $ tickMax "max-open-metas" . (fromIntegral . size) =<< getOpenMetas
     modifyMetaStore $ ins x $ InstV tel $ killRange v
     etaExpandListeners x
@@ -149,28 +137,22 @@ newSortMetaBelowInf = do
 
 -- | Create a sort meta that may be instantiated with 'Inf' (Setω).
 newSortMeta :: TCM Sort
-newSortMeta = newSortMeta' $ IsSort ()
-
-newSortMeta' :: (Type -> Judgement ()) -> TCM Sort
-newSortMeta' judge =
+newSortMeta =
   ifM typeInType (return $ mkType 0) $ {- else -}
-  ifM hasUniversePolymorphism (newSortMetaCtx' judge =<< getContextArgs)
+  ifM hasUniversePolymorphism (newSortMetaCtx =<< getContextArgs)
   -- else (no universe polymorphism)
   $ do i   <- createMetaInfo
-       x   <- newMeta i normalMetaPriority (idP 0) $ judge __DUMMY_TYPE__
+       x   <- newMeta i normalMetaPriority (idP 0) $ IsSort () __DUMMY_TYPE__
        return $ MetaS x []
 
 -- | Create a sort meta that may be instantiated with 'Inf' (Setω).
 newSortMetaCtx :: Args -> TCM Sort
-newSortMetaCtx = newSortMetaCtx' $ IsSort ()
-
-newSortMetaCtx' :: (Type -> Judgement ()) -> Args -> TCM Sort
-newSortMetaCtx' judge vs = do
+newSortMetaCtx vs = do
   ifM typeInType (return $ mkType 0) $ {- else -} do
     i   <- createMetaInfo
     tel <- getContextTelescope
     let t = telePi_ tel __DUMMY_TYPE__
-    x   <- newMeta i normalMetaPriority (idP 0) $ judge t
+    x   <- newMeta i normalMetaPriority (idP 0) $ IsSort () t
     reportSDoc "tc.meta.new" 50 $
       text "new sort meta" <+> prettyTCM x <+> text ":" <+> prettyTCM t
     return $ MetaS x $ map Apply vs
@@ -295,13 +277,14 @@ newArgsMetaCtx' condition (El s tm) tel perm ctx = do
           -- of the context lives in tel. Don't forget the arguments in ctx.
           tel' = telFromList . map (inverseApplyRelevance r) . telToList $ tel
           ctx' = (map . mapRelevance) (r `inverseComposeRelevance`) ctx
-      (_, u) <- applyRelevanceToContext (getRelevance info) $
+      (m, u) <- applyRelevanceToContext (getRelevance info) $
                {-
                  -- Andreas, 2010-09-24 skip irrelevant record fields when eta-expanding a meta var
                  -- Andreas, 2010-10-11 this is WRONG, see Issue 347
                 if r == Irrelevant then return DontCare else
                 -}
                  newValueMetaCtx RunMetaOccursCheck a tel' perm ctx'
+      setMetaArgInfo m (getArgInfo dom)
       args <- newArgsMetaCtx' condition (codom `absApp` u) tel perm ctx
       return $ Arg info u : args
     _  -> return []
@@ -392,9 +375,9 @@ postponeTypeCheckingProblem_ :: TypeCheckingProblem -> TCM Term
 postponeTypeCheckingProblem_ p = do
   postponeTypeCheckingProblem p (unblock p)
   where
-    unblock (CheckExpr _ t)           = unblockedTester t
+    unblock (CheckExpr _ _ t)         = unblockedTester t
     unblock (CheckArgs _ _ _ t _ _)   = unblockedTester t  -- The type of the head of the application.
-    unblock (CheckLambda _ _ t)       = unblockedTester t
+    unblock (CheckLambda _ _ _ t)     = unblockedTester t
     unblock (UnquoteTactic _ _ _)     = __IMPOSSIBLE__     -- unquote problems must be supply their own tester
 
 -- | Create a postponed type checking problem @e : t@ that waits for conditon
@@ -428,9 +411,9 @@ postponeTypeCheckingProblem p unblock = do
 
 -- | Type of the term that is produced by solving the 'TypeCheckingProblem'.
 problemType :: TypeCheckingProblem -> TCM Type
-problemType (CheckExpr _ t           ) = return t
+problemType (CheckExpr _ _ t         ) = return t
 problemType (CheckArgs _ _ _ _ t _ )   = return t  -- The target type of the application.
-problemType (CheckLambda _ _ t       ) = return t
+problemType (CheckLambda _ _ _ t     ) = return t
 problemType (UnquoteTactic tac hole t) = return t
 
 -- | Eta expand metavariables listening on the current meta.
@@ -922,7 +905,7 @@ assignMeta' m x t n ids v = do
     reportSDoc "tc.meta.assign" 15 $ text "type of meta =" <+> prettyTCM t
     reportSDoc "tc.meta.assign" 70 $ text "type of meta =" <+> text (show t)
 
-    (telv@(TelV tel' _),bs) <- telViewUpToPathBoundary n t
+    (telv@(TelV tel' a),bs) <- telViewUpToPathBoundary n t
     reportSDoc "tc.meta.assign" 30 $ text "tel'  =" <+> prettyTCM tel'
     reportSDoc "tc.meta.assign" 30 $ text "#args =" <+> text (show n)
     -- Andreas, 2013-09-17 (AIM XVIII): if t does not provide enough
@@ -934,17 +917,20 @@ assignMeta' m x t n ids v = do
     -- Perform the assignment (and wake constraints).
 
     let vsol = abstract tel' v'
-    -- -- Andreas, 2013-10-25 double check solution before assigning
-    -- -- Andreas, 2017-07-28
-    -- m <- lookupMeta x
-    -- case mvJudgement m of
-    --   IsSort{}    -> return ()  -- skip double check since type of meta is not accurate
-    --   HasType _ a -> do
-    --     reportSDoc "tc.meta.check" 30 $ vcat
-    --       [ text "double checking solution"
-    --       , nest 2 $ prettyTCM vsol <+> text " : " <+> prettyTCM a
-    --       ]
-    --     dontAssignMetas $ checkInternal vsol a  -- This can crash at assignTerm'!
+
+    -- Andreas, 2013-10-25 double check solution before assigning
+    whenM (optDoubleCheck <$> pragmaOptions) $ dontAssignMetas $ do
+      m <- lookupMeta x
+      reportSDoc "tc.meta.check" 30 $ text "double checking solution"
+      addContext tel' $ case mvJudgement m of
+        HasType{} -> do
+          reportSDoc "tc.meta.check" 30 $ nest 2 $
+            prettyTCM v' <+> text " : " <+> prettyTCM a
+          checkInternal v' a
+        IsSort{}  -> void $ do
+          reportSDoc "tc.meta.check" 30 $ nest 2 $
+            prettyTCM v' <+> text " is a sort"
+          checkSort defaultAction =<< shouldBeSort (El __DUMMY_SORT__ v')
 
     reportSDoc "tc.meta.assign" 10 $
       text "solving" <+> prettyTCM x <+> text ":=" <+> prettyTCM vsol

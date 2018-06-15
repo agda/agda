@@ -1,4 +1,5 @@
--- {-# OPTIONS -v tc.meta:30 --show-irrelevant #-}
+{-# OPTIONS --irrelevant-projections #-}
+
 -- Andreas, 2013-10-29 submitted by sanzhiyan
 -- Documents need for different treating of DontCare in
 -- linearity analysis of Miller unification.
@@ -27,6 +28,6 @@ module Fails where
   .⟪_,_⟫ : ∀ (A B C : Set) → (A ⟶ B) → (A ⟶ C) → A → Σ B (\ _ → C)
   ⟪_,_⟫ A B C f₁ f₂ = < app f₁ , app f₂ >
 
-
+-- WAS:
 -- Using darcs Agda, the following code triggers an
 -- internal error at src/full/Agda/TypeChecking/MetaVars.hs:897

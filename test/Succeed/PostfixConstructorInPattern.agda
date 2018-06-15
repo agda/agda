@@ -6,7 +6,7 @@
 
 data Bool : Set where true false : Bool
 
-record Wrap A : Set where
+record Wrap (A : Set) : Set where
   constructor _wrap
   field wrapped : A
 

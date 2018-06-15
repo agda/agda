@@ -1,8 +1,6 @@
-{-# OPTIONS --generalize #-}
-
 open import Agda.Builtin.Nat
 
-generalize {n} : Nat
+variable {n} : Nat
 
 data Vec (A : Set) : Nat → Set where
   []  : Vec A 0

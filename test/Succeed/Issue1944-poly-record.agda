@@ -1,11 +1,11 @@
 -- Parameter arguments of overloaded projection applications
 -- should not be skipped!
 
-record R A : Set where
+record R (A : Set) : Set where
   field f : A → A
 open R
 
-record S A : Set where
+record S (A : Set) : Set where
   field f : A → A
 open S
 

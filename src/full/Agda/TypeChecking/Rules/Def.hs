@@ -20,6 +20,8 @@ import Data.Traversable (Traversable, traverse, forM, mapM)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
+import Agda.Interaction.Options
+
 import Agda.Syntax.Common
 import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Concrete (exprFieldA)
@@ -47,7 +49,7 @@ import Agda.TypeChecking.Patterns.Abstract (expandPatternSynonyms)
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Free
-import Agda.TypeChecking.CheckInternal (checkType, inferSort)
+import Agda.TypeChecking.CheckInternal
 import Agda.TypeChecking.With
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Injectivity
@@ -141,15 +143,10 @@ checkAlias t' ai delayed i name e mc = atClause name 0 (A.RHS e mc) $ do
     , text (prettyShow name) <+> equals <+> prettyTCM e
     ]
 
-{-
-  -- Infer the type of the rhs
-  (v, t) <- applyRelevanceToContext (getRelevance ai) $
-                                    inferOrCheck e (Just t')
-  -- v <- coerce v t t'
--}
-
-  -- Infer the type of the rhs
-  v <- applyRelevanceToContext (getRelevance ai) $ checkDontExpandLast e t'
+  -- Infer the type of the rhs.
+  -- Andreas, 2018-06-09, issue #2170.
+  -- The context will only be resurrected if we have --irrelevant-projections.
+  v <- applyRelevanceToContextFunBody (getRelevance ai) $ checkDontExpandLast CmpLeq e t'
   let t = t'
 
   reportSDoc "tc.def.alias" 20 $ text "checkAlias: finished checking"
@@ -251,7 +248,7 @@ checkFunDefS t ai delayed extlam with i name withSub cs = do
         cs <- traceCall NoHighlighting $ do -- To avoid flicker.
           forM (zip cs [0..]) $ \ (c, clauseNo) -> do
             atClause name clauseNo (A.clauseRHS c) $ do
-              (c,b) <- applyRelevanceToContext (getRelevance ai) $ do
+              (c,b) <- applyRelevanceToContextFunBody (getRelevance ai) $ do
                 checkClause t withSub c
               -- Andreas, 2013-11-23 do not solve size constraints here yet
               -- in case we are checking the body of an extended lambda.
@@ -650,6 +647,15 @@ checkClause t withSub c@(A.Clause (A.SpineLHS i x aps) strippedPats rhs0 wh catc
         (let ps' = patternsToElims ps
              self = Def x []
          in maybe (return ()) (checkBodyEndPoints delta closed_t self ps') body)
+
+        whenM (optDoubleCheck <$> pragmaOptions) $ case body of
+          Just v  -> do
+            reportSDoc "tc.lhs.top" 30 $ vcat
+              [ text "double checking rhs"
+              , nest 2 (prettyTCM v <+> text " : " <+> prettyTCM (unArg trhs))
+              ]
+            checkInternal v $ unArg trhs
+          Nothing -> return ()
 
         reportSDoc "tc.lhs.top" 10 $ vcat
           [ text "Clause before translation:"

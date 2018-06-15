@@ -1,5 +1,5 @@
 
-module Agda.TypeChecking.Empty (isEmptyType) where
+module Agda.TypeChecking.Empty (isEmptyType, isEmptyTel) where
 
 import Control.Monad.Except
 
@@ -44,49 +44,53 @@ isEmptyType
   :: Range   -- ^ Range of the absurd pattern.
   -> Type    -- ^ Type that should be empty (empty data type or iterated product of such).
   -> TCM ()
-isEmptyType r t = caseEitherM (loop t) failure return
+isEmptyType r t = caseEitherM (checkEmptyType r t) failure return
   where
   failure DontKnow          = addConstraint $ IsEmpty r t
   failure (FailBecause err) = throwError err
   failure Fail              = typeError $ ShouldBeEmpty t []
 
-  -- Either the type is possibly non-empty (Left err) or it is really empty
-  -- (Right ()).
-  loop :: Type -> TCM (Either ErrorNonEmpty ())
-  loop t = do
-    mr <- tryRecordType t
-    case mr of
+-- | Check whether some type in a telescope is empty.
+isEmptyTel :: Telescope -> TCM Bool
+isEmptyTel tel = isRight <$> checkEmptyTel noRange tel
 
-      -- If t is blocked or a meta, we cannot decide emptiness now.  Postpone.
-      Left (Blocked m t) -> return $ Left DontKnow
+-- Either the type is possibly non-empty (Left err) or it is really empty
+-- (Right ()).
+checkEmptyType :: Range -> Type -> TCM (Either ErrorNonEmpty ())
+checkEmptyType range t = do
+  mr <- tryRecordType t
+  case mr of
 
-      -- If t is not a record type, try to split
-      Left (NotBlocked nb t) -> do
-        -- from the current context xs:ts, create a pattern list
-        -- xs _ : ts t and try to split on _ (the last variable)
-        tel0 <- getContextTelescope
-        let gamma = telToList tel0 ++ [domFromArg $ defaultArg (underscore, t)]
-            tel   = telFromList gamma
-            ps    = teleNamedArgs tel
+    -- If t is blocked or a meta, we cannot decide emptiness now.  Postpone.
+    Left (Blocked m t) -> return $ Left DontKnow
 
-        dontAssignMetas $ do
-          r <- splitLast Inductive tel ps
-          case r of
-            Left UnificationStuck{} -> return $ Left DontKnow
-            Left _                  -> return $ Left Fail
-            Right cov -> do
-              let ps = map (namedArg . last . fromSplitPatterns . scPats) $ splitClauses cov
-              if (null ps) then return (Right ()) else
-                Left . FailBecause <$> do typeError_ $ ShouldBeEmpty t ps
+    -- If t is not a record type, try to split
+    Left (NotBlocked nb t) -> do
+      -- from the current context xs:ts, create a pattern list
+      -- xs _ : ts t and try to split on _ (the last variable)
+      tel0 <- getContextTelescope
+      let gamma = telToList tel0 ++ [domFromArg $ defaultArg (underscore, t)]
+          tel   = telFromList gamma
+          ps    = teleNamedArgs tel
 
-      -- If t is a record type, see if any of the field types is empty
-      Right (r, pars, def) -> do
-        if recEtaEquality def == NoEta then return $ Left Fail else do
-          checkTel $ recTel def `apply` pars
+      dontAssignMetas $ do
+        r <- splitLast Inductive tel ps
+        case r of
+          Left UnificationStuck{} -> return $ Left DontKnow
+          Left _                  -> return $ Left Fail
+          Right cov -> do
+            let ps = map (namedArg . last . fromSplitPatterns . scPats) $ splitClauses cov
+            if (null ps) then return (Right ()) else
+              Left . FailBecause <$> do typeError_ $ ShouldBeEmpty t ps
 
-  checkTel :: Telescope -> TCM (Either ErrorNonEmpty ())
-  checkTel EmptyTel          = return $ Left Fail
-  checkTel (ExtendTel dom tel) = orEitherM
-    [ loop (unDom dom)
-    , underAbstraction dom tel checkTel
-    ]
+    -- If t is a record type, see if any of the field types is empty
+    Right (r, pars, def) -> do
+      if recEtaEquality def == NoEta then return $ Left Fail else do
+        checkEmptyTel range $ recTel def `apply` pars
+
+checkEmptyTel :: Range -> Telescope -> TCM (Either ErrorNonEmpty ())
+checkEmptyTel r EmptyTel          = return $ Left Fail
+checkEmptyTel r (ExtendTel dom tel) = orEitherM
+  [ checkEmptyType r (unDom dom)
+  , underAbstraction dom tel (checkEmptyTel r)
+  ]

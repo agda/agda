@@ -3,7 +3,7 @@
 -- even in the parts of a record declaration that
 -- make the record constructor type.
 
-record Σ A (B : A → Set) : Set where
+record Σ (A : Set) (B : A → Set) : Set where
   field
     fst : A
     snd : B fst  -- fst should be highlighted as projection here

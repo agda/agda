@@ -1,5 +1,6 @@
 -- Andreas, AIM XIII, 2011-04-07
 -- {-# OPTIONS -v tc.rec.proj:50 #-}
+
 module DependentIrrelevance where
 
 open import Common.Irrelevance
@@ -10,8 +11,9 @@ ElimSq = {A : Set}(P : Squash A -> Set)
 elimSq : ElimSq
 elimSq P ih (squash a) = ih a
 
-elimSq' : ElimSq
-elimSq' P ih a- = ih (Squash.unsquash a-)
+-- Issue #2170 --irrelevant-projections off by default
+-- elimSq' : ElimSq
+-- elimSq' P ih a- = ih (Squash.unsquash a-)
 
 ElimSq' = {A : Set}(P : Squash A -> Set)
           (ih : forall .a -> P (squash a)) ->

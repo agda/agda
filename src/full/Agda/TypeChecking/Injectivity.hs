@@ -72,6 +72,7 @@ headSymbol v = do -- ignoreAbstractMode $ do
             if Set.member f fs then no else yes
         Function{}    -> no
         Primitive{}   -> no
+        GeneralizableVar{} -> __IMPOSSIBLE__
         Constructor{} -> __IMPOSSIBLE__
         AbstractDefn{}-> __IMPOSSIBLE__
     Con c _ _ -> return (Just $ ConsHead $ conName c)
@@ -194,6 +195,7 @@ checkOverapplication es = updateHeads overapplied
         Constructor{conSrcCon = ConHead{ conFields = fs }}
                        -> null fs   -- Record constructors can be eliminated by projections
         Primitive{}    -> False
+        GeneralizableVar{} -> __IMPOSSIBLE__
 
 
     isOverapplied Clause{ namedClausePats = ps } = length es > length ps

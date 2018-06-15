@@ -3,11 +3,11 @@
 
 module _ (A : Set) (a : A) where
 
-record R B : Set where
+record R (B : Set) : Set where
   field f : B
 open R
 
-record S B : Set where
+record S (B : Set) : Set where
   field f : B
 open S
 
