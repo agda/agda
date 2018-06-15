@@ -14,7 +14,9 @@ Type checking and interaction
   case splitting (`C-c C-c` in emacs).
 
 * Agda now allows omitting absurd clauses in case one of the pattern
-  variable inhabits an obviously empty type. For example:
+  variable inhabits an obviously empty type
+  [Issue [#1086](https://github.com/agda/agda/issues/1086)].
+  For example:
   ```agda
   f : Fin 1 → Nat
   f zero = 0
