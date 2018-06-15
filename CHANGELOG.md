@@ -1,3 +1,13 @@
+Release notes for Agda version 2.5.4.1
+======================================
+
+Emacs mode
+----------
+
+* Light highlighting is no longer applied continuously, but only when
+  the file is saved [Issue
+  [#3119](https://github.com/agda/agda/issues/3119)].
+
 Release notes for Agda version 2.5.4
 ====================================
 
