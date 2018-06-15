@@ -770,10 +770,13 @@ compareElims pols0 fors0 a v els01 els02 = catchConstraint (ElimCmp pols0 fors0 
     (IApply{} : _, Apply{}  : _) -> __IMPOSSIBLE__ <$ solveAwakeConstraints' True
     (Apply{}  : _, IApply{} : _) -> __IMPOSSIBLE__ <$ solveAwakeConstraints' True
     (e@(IApply x1 y1 r1) : els1, IApply x2 y2 r2 : els2) -> do
+      reportSDoc "tc.conv.elim" 25 $ text "compareElims IApply"
        -- Andrea: copying stuff from the Apply case..
       let (pol, pols) = nextPolarity pols0
       ifBlockedType a (\ m t -> patternViolation) $ \ _ a -> do
           va <- pathView a
+          reportSDoc "tc.conv.elim.iapply" 60 $ text "compareElims IApply" $$ do
+            nest 2 $ text "va =" <+> text (show (isPathType va))
           case va of
             PathType s path l bA x y -> do
               b <- elInf primInterval
@@ -784,6 +787,9 @@ compareElims pols0 fors0 a v els01 els02 = catchConstraint (ElimCmp pols0 fors0 
               codom <- el' (pure . unArg $ l) ((pure . unArg $ bA) <@> pure r)
               compareElims pols [] codom -- Path non-dependent (codom `lazyAbsApp` unArg arg)
                                 (applyE v [e]) els1 els2
+            -- We allow for functions (i : I) -> ... to also be heads of a IApply,
+            -- because @etaContract@ can produce such terms
+            OType t@(El _ Pi{}) -> compareElims pols0 fors0 t v (Apply (defaultArg r1) : els1) (Apply (defaultArg r2) : els2)
 
             OType{} -> patternViolation
 

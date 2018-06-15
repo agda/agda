@@ -235,7 +235,7 @@ instance {-# OVERLAPPING #-} PrettyTCM ArgName where
 
 -- instance (Reify a e, ToConcrete e c, P.Pretty c, PrettyTCM a) => PrettyTCM (Elim' a) where
 instance PrettyTCM Elim where
-  prettyTCM (IApply x y v) = text "$" <+> prettyTCM v
+  prettyTCM (IApply x y v) = text "I$" <+> prettyTCM v
   prettyTCM (Apply v) = text "$" <+> prettyTCM v
   prettyTCM (Proj _ f)= text "." <> prettyTCM f
 
