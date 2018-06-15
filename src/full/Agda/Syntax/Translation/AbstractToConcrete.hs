@@ -584,7 +584,9 @@ instance ToConcrete A.Expr C.Expr where
         bracket piBrackets
         $ do a' <- toConcreteCtx (if irr then DotPatternCtx else FunctionSpaceDomainCtx) a
              b' <- toConcreteTop b
-             return $ C.Fun (getRange i) (addRel a' $ mkArg a') b'
+             return $ C.Fun (getRange i) (defaultArg $ addRel a' $ mkArg a') b'
+             -- Andreas, 2018-06-14, issue #2513
+             -- TODO: print attributes
         where
             irr        = getRelevance a `elem` [Irrelevant, NonStrict]
             addRel a e = case getRelevance a of

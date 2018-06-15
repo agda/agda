@@ -841,8 +841,8 @@ instance ToAbstract C.Expr A.Expr where
       C.ExtendedLam r cs -> scopeCheckExtendedLam r cs
 
   -- Relevant and irrelevant non-dependent function type
-      C.Fun r e1 e2 -> do
-        Arg info (e0, dotted) <- traverse (toAbstractDot FunctionSpaceDomainCtx) $ mkArg e1
+      C.Fun r (Arg info1 e1) e2 -> do
+        Arg info (e0, dotted) <- traverse (toAbstractDot FunctionSpaceDomainCtx) $ mkArg' info1 e1
         let e1 = Arg ((if dotted then setRelevance Irrelevant else id) info) e0
         e2 <- toAbstractCtx TopCtx e2
         return $ A.Fun (ExprRange r) e1 e2
