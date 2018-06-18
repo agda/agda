@@ -556,6 +556,12 @@ instance ToConcrete A.Expr C.Expr where
               removeApp (C.AppP p np) = do
                 p <- removeApp p
                 return $ C.AppP p np
+
+              -- Andreas, 2018-06-18, issue #3136
+              -- Empty pattern list also allowed in extended lambda,
+              -- thus, we might face the unapplied .extendedlambda identifier.
+              removeApp x@C.IdentP{} = return $ C.RawAppP (getRange x) []
+
               removeApp p = do
                 lift $ reportSLn "extendedlambda" 50 $ "abstractToConcrete removeApp p = " ++ show p
                 return p -- __IMPOSSIBLE__ -- Andreas, this is actually not impossible, my strictification exposed this sleeping bug
