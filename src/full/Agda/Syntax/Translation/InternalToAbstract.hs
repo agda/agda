@@ -660,14 +660,15 @@ reifyTerm expandAnonDefs0 v = do
         , text "def   =" <+> vcat (map pretty cls) ]
       -- As extended lambda clauses live in the top level, we add the whole
       -- section telescope to the number of parameters.
-      let (pars, rest) = splitAt npars es
+      let (pares, rest) = splitAt npars es
+      let pars = fromMaybe __IMPOSSIBLE__ $ allApplyElims pares
 
       -- Since we applying the clauses to the parameters,
       -- we do not need to drop their initial "parameter" patterns
       -- (this is taken care of by @apply@).
       cls <- caseMaybe msys
-               (mapM (reify . NamedClause x False . (`applyE` pars)) cls)
-               (reify . QNamed x . (`applyE` pars))
+               (mapM (reify . NamedClause x False . (`apply` pars)) cls)
+               (reify . QNamed x . (`apply` pars))
       let cx    = nameConcrete $ qnameName x
           dInfo = mkDefInfo cx noFixity' PublicAccess ConcreteDef (getRange x)
       elims (A.ExtendedLam exprNoRange dInfo x cls) =<< reify rest

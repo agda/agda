@@ -972,12 +972,6 @@ hasElims v =
     DontCare{} -> Nothing
     Dummy{}    -> Nothing
 
--- | Drop 'Apply' constructor. (Unsafe!)
-argFromElim :: Elim' a -> Arg a
-argFromElim (Apply u) = u
-argFromElim Proj{}    = __IMPOSSIBLE__
-argFromElim (IApply _ _ r) = defaultArg r -- losing information
-
 -- | Drop 'Apply' constructor. (Safe)
 isApplyElim :: Elim' a -> Maybe (Arg a)
 isApplyElim (Apply u) = Just u
@@ -1004,13 +998,9 @@ instance IsProjElim Elim where
   isProjElim Apply{}    = Nothing
   isProjElim IApply{} = Nothing
 
--- | Discard @Proj f@ entries.
-dropProjElims :: IsProjElim e => [e] -> [e]
-dropProjElims = filter (isNothing . isProjElim)
-
 -- | Discards @Proj f@ entries.
 argsFromElims :: Elims -> Args
-argsFromElims = map argFromElim . dropProjElims
+argsFromElims = mapMaybe isApplyElim
 
 -- | Drop 'Proj' constructors. (Safe)
 allProjElims :: Elims -> Maybe [(ProjOrigin, QName)]
