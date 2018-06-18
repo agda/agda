@@ -524,7 +524,7 @@ evalTCM v = do
              failEval
     _ -> failEval
   where
-    unElim = unArg . argFromElim
+    unElim = unArg . fromMaybe __IMPOSSIBLE__ . isApplyElim
     tcBind m k = do v <- evalTCM m
                     evalTCM (k `apply` [defaultArg v])
 

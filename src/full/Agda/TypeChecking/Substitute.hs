@@ -190,9 +190,13 @@ instance Subst Term a => Apply (Tele a) where
   apply EmptyTel          _        = __IMPOSSIBLE__
   apply (ExtendTel _ tel) (t : ts) = lazyAbsApp tel (unArg t) `apply` ts
 
+  applyE t es = apply t $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+
 instance Apply Definition where
   apply (Defn info x t pol occ gens df m c inst copy ma inj d) args =
     Defn info x (piApply t args) (apply pol args) (apply occ args) (apply gens args) df m c inst copy ma inj (apply d args)
+
+  applyE t es = apply t $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
 
 instance Apply RewriteRule where
   apply r args =
@@ -208,14 +212,19 @@ instance Apply RewriteRule where
        , rewType    = applyNLPatSubst sub (rewType r)
        }
 
+  applyE t es = apply t $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+
 instance {-# OVERLAPPING #-} Apply [Occ.Occurrence] where
   apply occ args = List.drop (length args) occ
+  applyE t es = apply t $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
 
 instance {-# OVERLAPPING #-} Apply [Polarity] where
   apply pol args = List.drop (length args) pol
+  applyE t es = apply t $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
 
 instance {-# OVERLAPPING #-} Apply [DoGeneralize] where
   apply gens args = List.drop (length args) gens
+  applyE t es = apply t $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
 
 -- | Make sure we only drop variable patterns.
 instance {-# OVERLAPPING #-} Apply [NamedArg (Pattern' a)] where
@@ -232,14 +241,18 @@ instance {-# OVERLAPPING #-} Apply [NamedArg (Pattern' a)] where
             ConP{}  -> __IMPOSSIBLE__
             ProjP{} -> __IMPOSSIBLE__
 
+  applyE t es = apply t $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+
 instance Apply Projection where
   apply p args = p
     { projIndex = projIndex p - size args
     , projLams  = projLams p `apply` args
     }
+  applyE t es = apply t $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
 
 instance Apply ProjLams where
   apply (ProjLams lams) args = ProjLams $ List.drop (length args) lams
+  applyE t es = apply t $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
 
 instance Apply Defn where
   apply d [] = d
@@ -301,8 +314,11 @@ instance Apply Defn where
     Primitive{ primClauses = cs } ->
       d { primClauses = apply cs args }
 
+  applyE t es = apply t $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+
 instance Apply PrimFun where
-    apply (PrimFun x ar def) args   = PrimFun x (ar - size args) $ \vs -> def (args ++ vs)
+  apply (PrimFun x ar def) args = PrimFun x (ar - size args) $ \ vs -> def (args ++ vs)
+  applyE t es = apply t $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
 
 instance Apply Clause where
     -- This one is a little bit tricksy after the parameter refinement change.
@@ -391,6 +407,8 @@ instance Apply Clause where
         subTel 0 v (ExtendTel _ tel) = absApp tel v
         subTel i v (ExtendTel a tel) = ExtendTel a $ subTel (i - 1) (raise 1 v) <$> tel
 
+    applyE t es = apply t $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+
 instance Apply CompiledClauses where
   apply cc args = case cc of
     Fail     -> Fail
@@ -405,6 +423,8 @@ instance Apply CompiledClauses where
     where
       len = length args
 
+  applyE t es = apply t $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+
 instance Apply a => Apply (WithArity a) where
   apply  (WithArity n a) args = WithArity n $ apply  a args
   applyE (WithArity n a) es   = WithArity n $ applyE a es
@@ -418,6 +438,8 @@ instance Apply a => Apply (Case a) where
 instance Apply FunctionInverse where
   apply NotInjective  args = NotInjective
   apply (Inverse inv) args = Inverse $ apply inv args
+
+  applyE t es = apply t $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
 
 instance Apply DisplayTerm where
   apply (DTerm v)          args = DTerm $ apply v args
@@ -463,6 +485,7 @@ instance (Apply a, Apply b, Apply c) => Apply (a,b,c) where
 
 instance DoDrop a => Apply (Drop a) where
   apply x args = dropMore (size args) x
+  applyE t es = apply t $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
 
 instance DoDrop a => Abstract (Drop a) where
   abstract tel x = unDrop (size tel) x
@@ -473,6 +496,8 @@ instance Apply Permutation where
   apply (Perm n xs) args = Perm (n - m) $ map (flip (-) m) $ drop m xs
     where
       m = size args
+
+  applyE t es = apply t $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
 
 instance Abstract Permutation where
   abstract tel (Perm n xs) = Perm (n + m) $ [0..m - 1] ++ map (+ m) xs

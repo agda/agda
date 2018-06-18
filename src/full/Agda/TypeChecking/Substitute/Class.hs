@@ -3,6 +3,7 @@
 module Agda.TypeChecking.Substitute.Class where
 
 import Control.Arrow ((***), second)
+import Data.Maybe
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
@@ -26,7 +27,10 @@ class Apply t where
   applyE :: t -> Elims -> t
 
   apply t args = applyE t $ map Apply args
-  applyE t es  = apply  t $ map argFromElim es
+  -- Andreas, 2018-06-18, issue #3136
+  -- This default instance should be removed to get more precise
+  -- crash locations (raise the IMPOSSIBLE in a more specific place).
+  -- applyE t es  = apply  t $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
     -- precondition: all @es@ are @Apply@s
 
 -- | Apply to some default arguments.
