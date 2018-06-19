@@ -23,11 +23,15 @@ import qualified Data.Sequence as Seq
 import Data.Set (Set)
 import qualified Data.Set as Set
 
+import Agda.Utils.NonemptyList (NonemptyList((:!)))
+
 class Singleton el coll | coll -> el where
   singleton :: el -> coll
 
 instance Singleton a   (Maybe a)   where singleton = Just
 instance Singleton a   [a]         where singleton = (:[])
+instance Singleton a   (NonemptyList a)
+                                   where singleton = (:! [])
 instance Singleton a   (Seq a)     where singleton = Seq.singleton
 instance Singleton a   (Set a)     where singleton = Set.singleton
 instance Singleton Int IntSet      where singleton = IntSet.singleton
@@ -67,4 +71,3 @@ instance Hashable k => Singleton (k,a) (HashMap k a) where singleton = uncurry H
 
 -- newtype Wrap a = Wrap a
 --   deriving (Singleton)  -- Fails
-

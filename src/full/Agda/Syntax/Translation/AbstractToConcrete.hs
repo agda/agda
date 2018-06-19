@@ -497,11 +497,11 @@ instance ToConcrete A.Expr C.Expr where
       --  fromString "foo" --> "foo"
       -- Only when the corresponding conversion function is in scope and was
       -- inserted by the system.
-      case (e1, namedArg e2) of
-        (A.Def q, l@A.Lit{})
+      case (getHead e1, namedArg e2) of
+        (Just (HdDef q), l@A.Lit{})
           | any (is q) [builtinFromNat, builtinFromString], visible e2,
             getOrigin i == Inserted -> toConcrete l
-        (A.Def q, A.Lit (LitNat r n))
+        (Just (HdDef q), A.Lit (LitNat r n))
           | q `is` builtinFromNeg, visible e2,
             getOrigin i == Inserted -> toConcrete (A.Lit (LitNat r (-n)))
         _ ->
@@ -1129,6 +1129,12 @@ instance ToConcrete A.Pattern C.Pattern where
       A.LitP l ->
         return $ C.LitP l
 
+      -- Andreas, 2018-06-19, issue #3130
+      -- Print .p as .(p) if p is a projection
+      -- to avoid confusion with projection pattern.
+      A.DotP i e@A.Proj{} -> C.DotP r . C.Paren r <$> toConcreteCtx TopCtx e
+        where r = getRange i
+
       A.DotP i e -> do
         c <- toConcreteCtx DotPatternCtx e
         case c of
@@ -1164,6 +1170,14 @@ instance ToConcrete A.Pattern C.Pattern where
 -- Helpers for recovering C.OpApp ------------------------------------------
 
 data Hd = HdVar A.Name | HdCon A.QName | HdDef A.QName | HdSyn A.QName
+
+getHead :: A.Expr -> Maybe Hd
+getHead (Var x)          = Just (HdVar x)
+getHead (Def f)          = Just (HdDef f)
+getHead (Proj o f)       = Just (HdDef $ headAmbQ f)
+getHead (Con c)          = Just (HdCon $ headAmbQ c)
+getHead (A.PatternSyn n) = Just (HdSyn $ headAmbQ n)
+getHead _                = Nothing
 
 cOpApp :: Range -> C.QName -> A.Name -> [Maybe C.Expr] -> C.Expr
 cOpApp r x n es =
@@ -1229,12 +1243,6 @@ tryToRecoverOpApp e def = caseMaybeM (recoverOpApp bracket (isLambda . defaultNa
 
     view e = (, (map . fmap . fmap) Just args) <$> getHead hd
       where Application hd args = A.appView' e
-
-    getHead (Var x)          = Just (HdVar x)
-    getHead (Def f)          = Just (HdDef f)
-    getHead (Con c)          = Just (HdCon $ headAmbQ c)
-    getHead (A.PatternSyn n) = Just (HdSyn $ headAmbQ n)
-    getHead _                = Nothing
 
 tryToRecoverOpAppP :: A.Pattern -> AbsToCon (Maybe C.Pattern)
 tryToRecoverOpAppP = recoverOpApp bracketP_ (const False) opApp view

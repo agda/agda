@@ -666,7 +666,9 @@ reifyTerm expandAnonDefs0 v = do
              [ "  pad = " ++ show pad
              , "  nes = " ++ show nes
              ]
-           let hd = List.foldl' (A.App defaultAppInfo_) (A.Def x) pad
+           let hd0 | isProperProjection def = A.Proj ProjPrefix $ AmbQ $ singleton x
+                   | otherwise = A.Def x
+           let hd = List.foldl' (A.App defaultAppInfo_) hd0 pad
            nelims hd =<< reify nes
 
     -- Andreas, 2016-07-06 Issue #2047
