@@ -480,7 +480,9 @@ class MaybePostfixProjP a where
   maybePostfixProjP :: a -> Maybe (ProjOrigin, AmbiguousQName)
 
 instance IsProjP e => MaybePostfixProjP (Pattern' e) where
-  maybePostfixProjP (DotP _ e)    = isProjP e <&> \ (_o, d) -> (ProjPostfix, d)
+  -- Andreas, 2018-06-19, issue #3130
+  -- Do not interpret things like .(p) as projection pattern any more.
+  -- maybePostfixProjP (DotP _ e)    = isProjP e <&> \ (_o, d) -> (ProjPostfix, d)
   maybePostfixProjP (ProjP _ o d) = Just (o, d)
   maybePostfixProjP _ = Nothing
 
