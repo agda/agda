@@ -2310,9 +2310,21 @@ instance ToAbstract C.Pattern (A.Pattern' C.Expr) where
         x <- toAbstract (NewName PatternBound x)
         p <- toAbstract p
         return $ A.AsP (PatRange r) (A.BindName x) p
-    -- we have to do dot patterns at the end
-    toAbstract p0@(C.DotP r e)     = return $ A.DotP (PatRange r) e
     toAbstract p0@(C.EqualP r es)  = return $ A.EqualP (PatRange r) es
+
+    -- We have to do dot patterns at the end since they can
+    -- refer to the variables bound by the other patterns.
+    toAbstract p0@(C.DotP r e) = do
+      let fallback = return $ A.DotP (PatRange r) e
+      case e of
+        C.Ident x -> resolveName x >>= \case
+          -- Andreas, 2018-06-19, #3130
+          -- We interpret .x as postfix projection if x is a field name in scope
+          FieldName xs -> return $ A.ProjP (PatRange r) ProjPostfix $ AmbQ $
+            fmap anameName xs
+          _ -> fallback
+        _ -> fallback
+
     toAbstract p0@(C.AbsurdP r)    = return $ A.AbsurdP (PatRange r)
     toAbstract (C.RecP r fs)       = A.RecP (PatRange r) <$> mapM (traverse toAbstract) fs
     toAbstract (C.WithP r p)       = A.WithP (PatRange r) <$> toAbstract p
