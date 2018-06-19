@@ -2,7 +2,7 @@ Issue1375.agda:5,1-17,25
 Termination checking failed for the following functions:
   weakenType
 Problematic calls:
-  weakenType (?1 ty ty') type
+  weakenType (?1 (ty = ty) (ty' = ty')) type
 Unsolved interaction metas at the following locations:
   Issue1375.agda:16,34-38
   Issue1375.agda:16,52-56

@@ -481,7 +481,53 @@ reifyTerm expandAnonDefs0 v = do
     I.MetaV x es -> do
       x' <- reify x
       ifM (asks envPrintMetasBare) {-then-} (return x') {-else-} $
-        elims x' =<< reify es
+        do
+          es' <- reify es
+
+          mv <- lookupMeta x
+          (msub1,meta_tel,msub2) <- do
+            local_chkpt <- view eCurrentCheckpoint
+            (chkpt, tel, msub2) <- enterClosure (getMetaInfo mv) $ \ _ ->
+                               (,,) <$> view eCurrentCheckpoint
+                                    <*> getContextTelescope
+                                    <*> view (eCheckpoints . key local_chkpt)
+            (,,) <$> view (eCheckpoints . key chkpt) <*> pure tel <*> pure msub2
+          let
+              addNames []    es = map (fmap unnamed) es
+              addNames _     [] = []
+              addNames xs     (I.Proj{} : _) = __IMPOSSIBLE__
+              addNames xs     (I.IApply x y r : es) =
+                -- Needs to be I.Apply so it can have an Origin field.
+                addNames xs (I.Apply (defaultArg r) : es)
+              addNames (x:xs) (I.Apply arg : es) =
+                I.Apply (Named (Just x) <$> (setOrigin Substitution arg)) : addNames xs es
+
+              p = mvPermutation mv
+              applyPerm p vs = permute (takeP (size vs) p) vs
+
+              names = map unranged $ p `applyPerm` teleNames meta_tel
+              named_es' = addNames names es'
+
+              dropIdentitySubs sub_local2G sub_tel2G =
+                 let
+                     args_G = applySubst sub_tel2G $ p `applyPerm` (teleArgs meta_tel :: [Arg Term])
+                     es_G = sub_local2G `applySubst` es
+                     sameVar x (I.Apply y) = isJust xv && xv == deBruijnView (unArg y)
+                      where
+                       xv = deBruijnView $ unArg x
+                     sameVar _ _ = False
+                     dropArg = take (size names) $ zipWith sameVar args_G es_G
+                     doDrop (b : xs)  (e : es) = (if b then id else (e :)) $ doDrop xs es
+                     doDrop []        es = es
+                     doDrop _         [] = []
+                 in doDrop dropArg $ named_es'
+
+              simpl_named_es' | Just sub_mtel2local <- msub1 = dropIdentitySubs IdS           sub_mtel2local
+                              | Just sub_local2mtel <- msub2 = dropIdentitySubs sub_local2mtel IdS
+                              | otherwise                    = named_es'
+
+          nelims x' simpl_named_es'
+
     I.DontCare v -> A.DontCare <$> reifyTerm expandAnonDefs v
     I.Dummy s -> return $ A.Lit $ LitString noRange s
   where

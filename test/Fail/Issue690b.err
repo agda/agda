@@ -1,6 +1,6 @@
 Issue690b.agda:31,9-27
-Rec (_A_7 f) !=< D of type Set
+Rec _A_7 !=< D of type Set
 when checking that the inferred type of an application
-  Rec (_A_7 f)
+  Rec _A_7
 matches the expected type
   D

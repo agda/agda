@@ -11,7 +11,9 @@ Problematic calls:
   cut⁻ pfΓ pf (x₁ ∷ LA) refl
   (cut⁺ pfΓ unit (x ∷ []) (V ∷ []) N₁ ∷ LExp) (Sp ∷ LExp')
     (at Issue1075.agda:363,3-7)
-  cut⁻ pfΓ (pf₁ , pf) (A ∷ []) refl (?0 Γ' LA- x x₁ pfΓ pf LT pf₁ Sp)
+  cut⁻ pfΓ (pf₁ , pf) (A ∷ []) refl
+  (?0 (Γ' = Γ') (LA- = LA-) (x = x) (x₁ = x₁) (pfΓ = pfΓ) (pf = pf)
+   (LT = LT) (pf₁ = pf₁) (Sp = Sp))
   (rsubst-v Γ' pfΓ pf LA- LT Sp ∷ [])
     (at Issue1075.agda:382,3-7)
   cut⁺ pfΓ (proj₂ pf) (A ∷ []) (V ∷ []) N
