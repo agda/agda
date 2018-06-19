@@ -1,7 +1,7 @@
 Failed to solve the following constraints:
   _18 := refl [blocked on problem 44]
-  [44, 48] assert (g (_12 false) false ≡ g true false) refl
-           (_12 false)
+  [44, 48] assert (g (_12 (y = false)) false ≡ g true false) refl
+           (_12 (y = false))
              = true
              : Bool
 Unsolved metas at the following locations:

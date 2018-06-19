@@ -588,9 +588,11 @@ instance Pretty Fixity' where
  -- Andreas 2010-09-21: do not print relevance in general, only in function types!
  -- Andreas 2010-09-24: and in record fields
 instance Pretty a => Pretty (Arg a) where
-  prettyPrec p (Arg ai e) = prettyHiding ai id $ prettyPrec p' e
+  prettyPrec p (Arg ai e) = prettyHiding ai localParens $ prettyPrec p' e
       where p' | visible ai = p
                | otherwise  = 0
+            localParens | getOrigin ai == Substitution = parens
+                        | otherwise = id
 
 instance Pretty e => Pretty (Named_ e) where
     prettyPrec p (Named Nothing e) = prettyPrec p e

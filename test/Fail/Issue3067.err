@@ -54,8 +54,10 @@ Failed to solve the following constraints:
                                                           (consA
                                                            (consA
                                                             (consA
-                                                             (_128 any P p eternity a
-                                                              n))))))))))))))))))))))))))))))))))))))))))))))))))))
+                                                             (_128 (any = any) (P = P) (p = p)
+                                                              (eternity = eternity) (a = a)
+                                                              (n =
+                                                               n)))))))))))))))))))))))))))))))))))))))))))))))))))))
           n)
          (eternity
           (consA
@@ -108,10 +110,12 @@ Failed to solve the following constraints:
                                                          (consA
                                                           (consA
                                                            (consA
-                                                            (_128 any P p eternity a
-                                                             n)))))))))))))))))))))))))))))))))))))))))))))))))))
+                                                            (_128 (any = any) (P = P) (p = p)
+                                                             (eternity = eternity) (a = a)
+                                                             (n =
+                                                              n))))))))))))))))))))))))))))))))))))))))))))))))))))
           n)
     [blocked on problem 54]
-  [54, 55, 56, 57] A-false (_128 any P p eternity a n) = a : A
+  [54, 55, 56, 57] A-false _128 = a : A
 Unsolved metas at the following locations:
   Issue3067.agda:25,27-45

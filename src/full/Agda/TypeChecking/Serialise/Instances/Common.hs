@@ -457,11 +457,13 @@ instance EmbPrj Origin where
   icod_ Inserted    = return 1
   icod_ Reflected   = return 2
   icod_ CaseSplit   = return 3
+  icod_ Substitution = return 4
 
   value 0 = return UserWritten
   value 1 = return Inserted
   value 2 = return Reflected
   value 3 = return CaseSplit
+  value 4 = return Substitution
   value _ = malformed
 
 instance EmbPrj FreeVariables where
