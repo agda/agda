@@ -600,8 +600,22 @@ instance PrettyTCM TypeError where
         if isProj then
            pwords "with projection pattern" ++ [prettyA p]
          else
-           pwords "with pattern" ++ prettyA p :
+           text "with" : text (kindOfPattern (namedArg p)) : text "pattern" : prettyA p :
            pwords "(did you supply too many arguments?)"
+      where
+      kindOfPattern = \case
+        A.VarP{}    -> "variable"
+        A.ConP{}    -> "constructor"
+        A.ProjP{}   -> __IMPOSSIBLE__
+        A.DefP{}    -> __IMPOSSIBLE__
+        A.WildP{}   -> "wildcard"
+        A.DotP{}    -> "dot"
+        A.AbsurdP{} -> "absurd"
+        A.LitP{}    -> "literal"
+        A.RecP{}    -> "record"
+        A.WithP{}   -> "with"
+        A.AsP _ _ p -> kindOfPattern p
+        A.PatternSynP{} -> __IMPOSSIBLE__
 
     WrongNumberOfConstructorArguments c expect given -> fsep $
       pwords "The constructor" ++ [prettyTCM c] ++
