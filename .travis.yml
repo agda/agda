@@ -390,7 +390,7 @@ script:
     fi
 
   - if [[ $TEST = "MAIN" ]]; then
-       make testing-emacs-mode;
+       make BUILD_DIR=$BUILD_DIR testing-emacs-mode;
     fi
 
   - if [[ $TEST = "MAIN" ]]; then
