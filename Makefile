@@ -14,8 +14,6 @@ include ./mk/paths.mk
 
 CABAL_CMD=cabal
 
-AGDA_MODE=agda-mode
-
 # Run in interactive and parallel mode by default
 
 # You can use the $(PARALLEL_TESTS_FILE) file for setting the number of

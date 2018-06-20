@@ -34,5 +34,8 @@ HADDOCK_DIR = $(DOC_DIR)/haddock
 AGDA_BIN ?= $(BUILD_DIR)/build/agda/agda
 AGDA_BIN := $(abspath $(AGDA_BIN))
 
+AGDA_MODE ?= $(BUILD_DIR)/build/agda-mode/agda-mode
+AGDA_MODE := $(abspath $(AGDA_MODE))
+
 AGDA_TESTS_BIN ?= $(BUILD_DIR)/build/agda-tests/agda-tests
 AGDA_TESTS_BIN := $(abspath $(AGDA_TESTS_BIN))
