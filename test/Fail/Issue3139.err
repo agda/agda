@@ -1,0 +1,5 @@
+Issue3139.agda:3,9-9
+Issue3139.agda:3,9: in the name [_…_], the part … is not valid because it is used for function clauses
+:<ERROR>
+ Set → Set → Set
+...
