@@ -1,4 +1,4 @@
-When releasing a new version of Agda, the following procedure can be
+When releasing a new major version of Agda, the following procedure can be
 followed:
 
 * First, release a release candidate (see
@@ -36,18 +36,19 @@ followed:
 
     git clone git@github.com:agda/agda agda-release
     cd agda-release
+    git checkout future
 
-* If the current version in master is 2.5.0 the versions used in this
-  notes are:
+* The version of the release is current version in the future branch, so if
+  this is 2.5.0 the versions used in these notes are:
 
-    VERSION=<current-version-plus-0.0.1>
-    VERSION=2.5.1
+    VERSION=<current-version>
+    VERSION=2.5.0
 
-    STABLE_BRANCH_VERSION=<two-first-digits-of-the-current-version>
-    STABLE_BRANCH_VERSION=2.5
+    NEXT_MASTER_VERSION=<current-version-plus-0.0.1>
+    NEXT_MASTER_VERSION=2.5.1
 
-    NEXT_VERSION=<current-version-plus-0.1.0>
-    NEXT_VERSION=2.6.0
+    NEXT_FUTURE_VERSION=<current-version-plus-0.1.0>
+    NEXT_FUTURE_VERSION=2.6.0
 
 * Update the version numbers to $VERSION in $FILES.
 
@@ -126,13 +127,14 @@ followed:
   file. (This would be unnecessary if we had two repositories, one
   stable and one for development.)
 
-* Stable branch
+* Update branches
 
-  ** Create the stable branch
+  ** Merge future into master
 
-       git checkout -b stable-$STABLE_BRANCH_VERSION
+       git checkout master
+       git merge future
 
-  ** Update the version numbers to $VERSION.1 in $FILES.
+  ** Update the version numbers to $NEXT_MASTER_VERSION in $FILES.
 
   ** Add into the Makefile:
 
@@ -142,22 +144,16 @@ followed:
 
       AGDA_MODE=agda-mode-$(VERSION)
 
-  ** Added stable-$STABLE_BRANCH_VERSION to the branches whitelist in
-     .travis.yml.
-
-  ** Update with stable-$STABLE_BRANCH_VERSION the branch used for
-     reporting the build status in README.md.
-
   ** Add a new header to CHANGELOG.
 
   ** Commit the above changes.
 
-  ** Merge the stable-$STABLE_BRANCH_VERSION branch.
+  ** Merge the master back into the future branch.
 
-       git checkout master
-       git merge stable-$STABLE_BRANCH_VERSION
+       git checkout future
+       git merge master
 
-* Update the version numbers to $NEXT_VERSION in $FILES.
+* Update the version numbers to $NEXT_FUTURE_VERSION in $FILES.
 
 * Remove from the Makefile:
 
@@ -167,22 +163,14 @@ followed:
 
     AGDA_MODE=agda-mode-$(VERSION)
 
-* Update with `master` the branch used for reporting the build status
-  in README.md.
-
 * Remove the release notes for the released version from
   doc/release-notes and create a template for the next version.
 
 * Push all changes
 
     git push --follow-tags
-    git checkout stable-$STABLE_BRANCH_VERSION
-    git push -u origin stable-$STABLE_BRANCH_VERSION
-
-* Disable force push on the stable-$STABLE_BRANCH_VERSION branch, see
-
-  https://help.github.com/articles/about-protected-branches/
-  https://github.com/agda/agda-stdlib/settings/branches
+    git checkout master
+    git push
 
 * Update the Agda Wiki:
 
@@ -218,24 +206,3 @@ followed:
 
 * Enable the released version of Agda on Stackage, if necessary.
 
-------------------------------------------------------------------------------
-Outdated (2016-04-16)
-
-* Disable sharing by default. Note that this change induces some
-  changes in the test suite.
-
-  N.B. that succeed/Issue1351.agda fails when sharing is disable.
-
-  ** Disable sharing by default in the Agda.Interaction.Options
-     module.
-
-  ** Change the message "(default: ON)" to "(default: OFF)" in the
-     above module.
-
-* Enable sharing by default. Note that this change induces some
-  changes in the test suite.
-
-  ** Enable sharing by default in the Agda.Interaction.Options module.
-
-  ** Change the message "(default: OFF)" to "(default: ON)" in the
-     above module.

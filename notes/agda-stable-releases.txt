@@ -35,7 +35,7 @@ be followed:
     VERSION=<current-released-version-eg-2.4.0.2>
     git clone git@github.com:agda/agda.git agda-release
     cd agda-release
-    git checkout stable-$MAJORVERSION
+    git checkout master
 
 * Change the release candidate version to $MAJORVERSION in:
 
@@ -145,10 +145,6 @@ be followed:
   ** If a release candidate was released then remove the associated
      documentation.
 
-* Announce on the Agda developers mailing list the creation of the
-  $NEWVERSION branch in the standard library to be used with the stable
-  branch of Agda.
-
 * Update the Agda Wiki:
 
   ** Update the Download page:
@@ -159,8 +155,6 @@ be followed:
      *** Update the last release information.
 
   ** Update the Main page.
-
-  ** Update the standard library page (tested with Agda $MAJORVERSION).
 
 * Announce the release of the new version on the Agda mailing lists
   (users and developers).

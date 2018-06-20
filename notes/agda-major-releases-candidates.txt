@@ -1,4 +1,4 @@
-When releasing a release candidate (RC) for a new version of Agda, the
+When releasing a release candidate (RC) for a major version of Agda, the
 following procedure can be followed:
 
 * Finish the release notes in
@@ -41,8 +41,9 @@ following procedure can be followed:
 
     git clone git@github.com:agda/agda agda.release
     cd agda-release
+    git checkout future
 
-* The version of the RC is the current version in master + current date
+* The version of the RC is the current version in future + current date
 
     $RC_VERSION=<current-master-version-current-date-eg-2.5.0.20160212>
 
@@ -135,18 +136,4 @@ following procedure can be followed:
     https://github.com/agda/agda/releases/tag/$RC_VERSION.tar.gz
 
   but $BASE/dist/Agda-$RC_VERSION.tar.gz.
-
-------------------------------------------------------------------------------
-Outdated (2016-02-12)
-
-* Disable sharing by default. Note that this change induces some
-  changes in the test suite.
-
-  N.B. that succeed/Issue1351.agda fails when sharing is disable.
-
-  ** Disable sharing by default in the Agda.Interaction.Options
-     module.
-
-  ** Change the message "(default: ON)" to "(default: OFF)" in the
-     above module.
 
