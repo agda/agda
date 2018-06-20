@@ -421,6 +421,7 @@ script:
 branches:
   only:
     - master
+    - future
     - maint-2.4
     - stable-2.5
     - release-2.5.1
