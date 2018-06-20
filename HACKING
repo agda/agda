@@ -1,44 +1,45 @@
 Working with Git (from 2013-06-15)
 
-Stable branches
---------------------
-
-  For old releases (starting with 2.5.1) there are stable branches
-  stable-$VERSION, where e.g. VERSION=2.5.
-
-  Bug fixes should be based on the appropriate stable branch whenever
-  possible. See below.
-
 Branches
 ---------
 
-  Branches should be used generously when fixing bugs and adding
-  features. Whenever possible bug fix branches should be based on the
-  latest stable branch rather than the master branch.  For instance,
-  fixing issue 1234 would work as follows:
+  The two main branches of the repository are `master` and `future`. The master
+  branch contains everything slated for the next release, and the future branch
+  should be used for more experimental features that need longer to mature. Any
+  changes on master must be merged into the future branch (NOTE: currently
+  there are no additional features on future, so merging is not required or
+  encouraged).
 
-    git checkout stable-$VERSION
-    git checkout -b issue1234 # create a new branch based on stable-$VERSION
+  Feature branches should be used generously when fixing bugs and adding
+  features. Whenever possible, branches should be based on the master branch.
+  Even when working on features in the future branch, try to do as much of the
+  work as possible on master to reduce the number and severity of merge
+  conflicts.
+
+  For instance, fixing issue 1234 would work as follows:
+
+    git checkout master
+    git checkout -b issue1234 # create a new branch based on master
     ... work on issue 1234 ...
     git commit -p             # record some patches
 
     ... working for a long time on issue 1234 ...
-    git rebase stable-$VERSION # get fresh upstream patches, keep own work on top
+    git rebase master          # get fresh upstream patches, keep own work on top
     git commit -p              # record some more patches
 
     make install-bin test      # ensure compilation and tests
 
     # Done!  If you have commit rights:
 
-    ## Merge into stable
-    git checkout stable-$VERSION
-    git merge issue1234        # merge into stable-$VERSION
-    make install-bin test      # ensure compilation and tests
-    git push
-
     ## Merge into master
     git checkout master
     git merge issue1234        # merge into master
+    make install-bin test      # ensure compilation and tests
+    git push
+
+    ## Merge into future  (SKIP THIS STEP FOR NOW)
+    git checkout future
+    git merge master           # merge master into future
     make install-bin test      # ensure compilation and tests
     git push
     git branch -d issue1234    # delete the branch
@@ -46,38 +47,30 @@ Branches
     # Otherwise, push branch to your GitHub fork of Agda and create a pull
     # request.
     git push -u myfork issue1234
-    Go to https://github.com/agda/agda and click the green button next to the
-    branch dropdown.
-
-  For new features replace stable-$VERSION with master above.
+    Go to https://github.com/agda/agda and click the "New pull request" button
+    next to the branch dropdown.
 
   The above procedure has the drawback that with each checkout, many
   source files are touched and recompilation is slow.  Here is an
   alternative workflow, if you have commit rights and two local
-  repositories, one on master and one on stable-$VERSION (both
-  up-to-date).
+  repositories, one on master and one on future (both up-to-date).
 
-    stable$  git checkout -b issue1234
-    stable$  git commit ...
-    stable$  git checkout stable-$VERSION
-    stable$  git merge issue1234
-    stable$  make install-bin test
-    stable$  git push
-    stable$  git branch -d issue1234
+    master$  git checkout -b issue1234
+    master$  git commit ...
+    master$  git checkout master
+    master$  git merge issue1234
+    master$  make install-bin test
+    master$  git push
+    master$  git branch -d issue1234
 
-    # Now fast-forward stable-$VERSION branch without checking it out.
-    # Merge it into master (assuming stable-$VERSION is a `subset' of master).
+    # Now fast-forward master branch without checking it out.
+    # Merge it into future.
 
-    master$ git fetch origin stable-$VERSION:stable-$VERSION
-    master$ git pull
-    master$ git merge stable-$VERSION
-    master$ make install-bin test
-    master$ git push
-
-    # Fast-forward master
-
-    stable$  git fetch origin master:master
-    stable$  git pull
+    future$ git fetch origin master:master
+    future$ git pull
+    future$ git merge master
+    future$ make install-bin test
+    future$ git push
 
 Finding the commit that introduced a regression
 -----------------------------------------------
@@ -118,33 +111,6 @@ Finding the commit that introduced a regression
   Bash completion can perhaps be enabled more permanently by storing
   the output of the command above in a file in a suitable directory
   (like /etc/bash_completion.d/).
-
-Cherry-picking a commit from master into stable
-------------------------------------------------
-
-For cherry-picking the commit 123 from master into stable, you can use
-the follow instructions:
-
-  * To create two local repositories, one on master and one on
-    stable (both up-to-date).
-
-  * Fetch the local master from the local stable
-
-      agda-stable$ git fetch ~/agda-master
-
-  * Cherry-pick the commit 123 into the local stable
-
-      agda-stable$ git cherry-pick -x 123
-
-  * Merge the local stable into the local master
-
-      agda-master$ git fetch ~/agda-stable
-      agda-master$ git merge FETCH_HEAD
-
-  * Push both local repositories
-
-      agda-stable$ git push
-      agda-master$ git push
 
 Standard library submodule
 --------------------------
