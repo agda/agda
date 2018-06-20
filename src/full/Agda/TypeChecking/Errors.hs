@@ -129,16 +129,7 @@ prettyWarning wng = liftTCM $ case wng of
                     then d
                     else d $$ nest 4 (text "[ at" <+> prettyTCM r <+> text "]")
 
-    TerminationIssue tes -> do
-      dropTopLevel <- topLevelModuleDropper
-      fwords "Termination checking failed for the following functions:"
-        $$ (nest 2 $ fsep $ punctuate comma $
-             map (pretty . dropTopLevel) $
-               concatMap termErrFunctions tes)
-        $$ fwords "Problematic calls:"
-        $$ (nest 2 $ fmap (P.vcat . nub) $
-              mapM prettyTCM $ sortBy (compare `on` callInfoRange) $
-              concatMap termErrCalls tes)
+    TerminationIssue tes -> prettyTCM (TerminationCheckFailed tes)
 
     UnreachableClauses f pss -> fsep $
       pwords "Unreachable" ++ pwords (plural (length pss) "clause")
