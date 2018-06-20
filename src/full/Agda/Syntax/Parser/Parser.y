@@ -1951,7 +1951,7 @@ mkName (i, s) = do
                 SymCloseVirtualBrace -> __IMPOSSIBLE__
                 SymOpenPragma        -> __IMPOSSIBLE__ -- "used for pragmas"
                 SymClosePragma       -> __IMPOSSIBLE__ -- "used for pragmas"
-                SymEllipsis          -> __IMPOSSIBLE__ -- "used for function clauses"
+                SymEllipsis          -> "used for function clauses"
                 SymDotDot            -> __IMPOSSIBLE__ -- "a modality"
                 SymEndComment        -> "the end-of-comment brace"
               TokString{}   -> __IMPOSSIBLE__
