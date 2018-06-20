@@ -91,6 +91,7 @@ install-prof-bin : ensure-hash-is-correct
 
 # --program-suffix is not for the executable name in
 # $(BUILD_DIR)/build/, only for installing it into .cabal/bin
+override CABAL_OPTS+=--program-suffix=-$(VERSION)
 
 # Builds Agda with the debug flag enabled. A separate build directory
 # is used. The suffix "-debug" is used for the binaries.
