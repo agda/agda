@@ -377,6 +377,25 @@ instance Reify Term Expr where
   reifyWhen = reifyWhenE
   reify v = reifyTerm True v
 
+reifyPathPConstAsPath :: QName -> Elims -> TCM (QName, Elims)
+reifyPathPConstAsPath x es@[I.Apply l, I.Apply t, I.Apply lhs, I.Apply rhs] = do
+   reportSLn "reify.def" 100 $ "reifying def path " ++ show (x,es)
+   mpath  <- getBuiltinName' builtinPath
+   mpathp <- getBuiltinName' builtinPathP
+   let fallback = return (x,es)
+   case (,) <$> mpath <*> mpathp of
+     Just (path,pathp) | x == pathp -> do
+       let a = case unArg t of
+                I.Lam _ (NoAbs _ b)    -> Just b
+                I.Lam _ (Abs   _ b)
+                  | not $ 0 `freeIn` b -> Just (strengthen __IMPOSSIBLE__ b)
+                _                      -> Nothing
+       case a of
+         Just a -> return (path, [I.Apply l, I.Apply (setHiding Hidden $ defaultArg a), I.Apply lhs, I.Apply rhs])
+         Nothing -> fallback
+     _ -> fallback
+reifyPathPConstAsPath x es = return (x,es)
+
 reifyTerm :: Bool -> Term -> TCM Expr
 reifyTerm expandAnonDefs0 v = do
   metasBare <- asks envPrintMetasBare
@@ -394,6 +413,7 @@ reifyTerm expandAnonDefs0 v = do
         elims (A.Var x) =<< reify es
     I.Def x es   -> do
       reportSLn "reify.def" 100 $ "reifying def " ++ prettyShow x
+      (x,es) <- reifyPathPConstAsPath x es
       reifyDisplayForm x es $ reifyDef expandAnonDefs x es
     I.Con c ci vs -> do
       let x = conName c

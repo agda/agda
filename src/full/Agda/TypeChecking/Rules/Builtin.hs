@@ -99,11 +99,14 @@ coreBuiltins =
   , (builtinQName              |-> builtinPostulate tset)
   , (builtinAgdaMeta           |-> builtinPostulate tset)
   , (builtinIO                 |-> builtinPostulate (tset --> tset))
-  , (builtinPath               |-> builtinPostulate (hPi "a" (el primLevel) $
+  , (builtinPath               |-> BuiltinUnknown
+                                               (Just
+                                               (hPi "a" (el primLevel) $
                                                 hPi "A" (return $ sort $ varSort 0) $
                                                 (El (varSort 1) <$> varM 0) -->
                                                 (El (varSort 1) <$> varM 0) -->
                                                 return (sort $ varSort 1)))
+                                               verifyPath)
   , (builtinPathP              |-> builtinPostulate (hPi "a" (el primLevel) $
                                                 nPi "A" (tinterval --> (return $ sort $ varSort 0)) $
                                                 (El (varSort 1) <$> varM 0 <@> primIZero) -->
@@ -542,6 +545,12 @@ coreBuiltins =
                 choice = foldr1 (\x y -> x `catchError` \_ -> y)
             xs <- mapM freshName_ xs
             addContext (xs, domFromArg $ defaultArg nat) $ f apply1 zero suc (==) (===) choice
+
+        verifyPath :: Term -> Type -> TCM ()
+        verifyPath path t = do
+          let hlam n t = glam (setHiding Hidden defaultArgInfo) n t
+          noConstraints $ equalTerm t path =<< (runNamesT [] $
+            hlam "l" $ \ l -> hlam "A" $ \ bA -> cl primPathP <#> l <@> (lam "i" $ \ _ -> bA))
 
 -- | Checks that builtin with name @b : String@ of type @t : Term@
 --   is a data type or inductive record with @n : Int@ constructors.
