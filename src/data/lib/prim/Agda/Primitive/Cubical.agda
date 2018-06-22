@@ -1,3 +1,4 @@
+{-# OPTIONS --cubical #-}
 module Agda.Primitive.Cubical where
 {-# BUILTIN INTERVAL I    #-} -- I : Setω
 

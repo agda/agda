@@ -19,6 +19,8 @@ builtins =
   , "FromNat", "FromNeg", "FromString", "IO", "Int", "List"
   , "Nat", "Reflection", "Size", "Strict", "String"
   , "TrustMe", "Unit", "Word" ]
+  ++
+  map ("Cubical" </>) ["Path","Id","Sub"]
 
 checkAgdaPrimitive :: PackageDescription -> LocalBuildInfo -> RegisterFlags -> IO ()
 checkAgdaPrimitive pkg info flags | regGenPkgConf flags /= NoFlag = return ()   -- Gets run twice, only do this the second time

@@ -8,11 +8,7 @@
                                    primIMin to _∧_;
                                    primINeg to ~_)
 
-  postulate Path : ∀ {a} {A : Set a} → A → A → Set a
-  {-# BUILTIN PATH Path #-}
-
-  postulate PathP : ∀ {a} → (A : I → Set a) → A i0 → A i1 → Set a
-  {-# BUILTIN PATHP PathP #-}
+  open import Agda.Builtin.Cubical.Path renaming (_≡_ to Path)
 
 .. _cubical:
 
