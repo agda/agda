@@ -1,6 +1,10 @@
 -- Andreas, 2011-10-03
 -- allow matching on irrelevant data as long as there is at most one
 -- matching constructor
+
+-- Jesper, 2018-06-22
+-- removed this buggy feature
+
 {-# OPTIONS --experimental-irrelevance #-}
 module MatchIrrelevant where
 

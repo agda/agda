@@ -2,6 +2,10 @@
 -- Defining a universe for dependent types
 -- where the El function only depends on the type code but not on its
 -- proof of well-formedness
+
+-- Jesper, 2018-06-22
+-- Removed buggy feature allowing splitting on irrelevant arguments
+
 {-# OPTIONS --experimental-irrelevance --show-implicit --show-irrelevant #-}
 module TerminationOnIrrelevantArgument where
 

@@ -24,3 +24,9 @@ toNat (suc n) (suc .n i) = suc (toNat n i)
 
 -- Cannot split on argument of irrelevant datatype Fin (suc n)
 -- when checking the definition of toNat
+
+-- Jesper, 2018-06-22 new error message:
+
+-- Cannot pattern match against irrelevant argument of type
+-- Fin (suc n)
+-- when checking that the pattern zero .n has type Fin (suc n)

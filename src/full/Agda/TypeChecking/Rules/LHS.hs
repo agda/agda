@@ -1315,11 +1315,9 @@ isDataOrRecordType dom@Dom{domInfo = info, unDom = a} = liftTCM (reduceB a) >>= 
 
       Datatype{dataPars = np} -> do
         -- We cannot split on (shape-)irrelevant non-records.
-        -- Andreas, 2011-10-04 unless allowed by option
         reportSLn "tc.lhs.split" 30 $ "split ConP: relevance is " ++ show (getRelevance info)
         when (unusableRelevance $ getRelevance info) $
-          unlessM (liftTCM $ optExperimentalIrrelevance <$> pragmaOptions) $
-            hardTypeError $ SplitOnIrrelevant dom
+          hardTypeError $ SplitOnIrrelevant dom
 
         let (pars, ixs) = splitAt np $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
         return (d, pars, ixs)

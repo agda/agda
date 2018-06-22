@@ -470,14 +470,10 @@ isDatatype ind at = do
     Def d es -> do
       let ~(Just args) = allApplyElims es
       def <- liftTCM $ theDef <$> getConstInfo d
-      splitOnIrrelevantDataAllowed <- liftTCM $ optExperimentalIrrelevance <$> pragmaOptions
       case def of
         Datatype{dataPars = np, dataCons = cs, dataInduction = i}
           | i == CoInductive && ind /= CoInductive ->
               throw CoinductiveDatatype
-          -- Andreas, 2011-10-03 allow some splitting on irrelevant data (if only one constr. matches)
-          | isIrrelevant at && not splitOnIrrelevantDataAllowed ->
-              throw IrrelevantDatatype
           | otherwise -> do
               let (ps, is) = splitAt np args
               return (d, ps, is, cs)
@@ -880,12 +876,6 @@ split' ind allowPartialCover fixtarget sc@(SClause tel ps _ cps target) (Blockin
     -- Jesper, 2018-05-24: If the datatype is in Prop we can
     -- only do empty splits, unless the target is in Prop too.
     (_ : _) | isProp t && not (isIrrelevant relTarget) ->
-      throwError . IrrelevantDatatype =<< do liftTCM $ inContextOfT $ buildClosure (unDom t)
-
-    -- Andreas, 2011-10-03
-    -- if more than one constructor matches, we cannot be irrelevant
-    -- (this piece of code is unreachable if --experimental-irrelevance is off)
-    (_ : _ : _) | unusableRelevance (getRelevance t) ->
       throwError . IrrelevantDatatype =<< do liftTCM $ inContextOfT $ buildClosure (unDom t)
 
   -- Andreas, 2012-10-10 fail if precomputed constructor set does not cover
