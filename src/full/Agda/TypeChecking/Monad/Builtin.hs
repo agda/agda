@@ -129,6 +129,7 @@ primInteger, primIntegerPos, primIntegerNegSuc,
     primIMin, primIMax, primINeg,
     primIsOne, primItIsOne, primIsOne1, primIsOne2, primIsOneEmpty,
     primSub, primSubIn, primSubOut,
+    primTrans, primHComp,
     primId, primConId, primIdElim,
     primIsEquiv, primPathToEquiv, primGlue, prim_glue, prim_unglue,
     primCompGlue, primFaceForall,
@@ -204,6 +205,8 @@ primPartial      = getPrimitiveTerm "primPartial"
 primPartialP     = getPrimitiveTerm "primPartialP"
 primIsOne        = getBuiltin builtinIsOne
 primItIsOne      = getBuiltin builtinItIsOne
+primTrans        = getPrimitiveTerm builtinTrans
+primHComp        = getPrimitiveTerm builtinHComp
 primIsEquiv      = getBuiltin builtinIsEquiv
 primPathToEquiv  = getBuiltin builtinPathToEquiv
 primGlue         = getPrimitiveTerm builtinGlue
@@ -360,6 +363,7 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinPath, builtinPathP, builtinInterval, builtinPathAbs, builtinIZero, builtinIOne, builtinPartial, builtinPartialP,
   builtinIMin, builtinIMax, builtinINeg,
   builtinIsOne,  builtinItIsOne, builtinIsOne1, builtinIsOne2, builtinIsOneEmpty,
+  builtinTrans, builtinHComp,
   builtinSub, builtinSubIn, builtinSubOut,
   builtinIsEquiv, builtinPathToEquiv, builtinGlue, builtin_glue, builtin_unglue,
   builtinCompGlue, builtinFaceForall,
@@ -459,6 +463,8 @@ builtinFaceForall                    = "primFaceForall"
 builtinIsOne1                        = "ISONE1"
 builtinIsOne2                        = "ISONE2"
 builtinIsOneEmpty                    = "ISONEEMPTY"
+builtinTrans                         = "primTrans"
+builtinHComp                         = "primHComp"
 builtinSub                           = "SUB"
 builtinSubIn                         = "SUBIN"
 builtinSubOut                        = "primSubOut"
