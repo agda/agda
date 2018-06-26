@@ -734,7 +734,7 @@ primComp = do
           IOne -> redReturn (unArg u `apply` [argN io, argN one])
           _    -> do
            sc <- reduceB' c
-           let fallback = return $ NoReduction [notReduced l,reduced sc, reduced sphi, u', notReduced a0]
+           let fallback' sc = return $ NoReduction [notReduced l,reduced sc, reduced sphi, u', notReduced a0]
                  where
                    u' = case vphi of
                           IZero -> reduced $ notBlocked $ argN $ runNames [] $ do
@@ -745,12 +745,15 @@ primComp = do
 
            case unArg $ ignoreBlocking sc of
              Lam _info t -> do
-               t <- reduce' t
+               st <- reduceB' t
+               let fallback = fallback' (sc <* st)
+                   t = ignoreBlocking st
                mGlue <- getPrimitiveName' builtinGlue
                mId   <- getBuiltinName' builtinId
                mPath <- getBuiltinName' builtinPath
                mPO   <- getBuiltinName' builtinPushOut
                case absBody t of
+                 MetaV m _ -> fallback' (Blocked m () *> sc)
                  Pi a b | nelims > 0  -> redReturn =<< compPi t a b (ignoreBlocking sphi) u a0
                         | otherwise -> fallback
 
@@ -782,7 +785,7 @@ primComp = do
 
                  _ -> fallback
 
-             _ -> fallback
+             _ -> fallback' sc
 
       _ -> __IMPOSSIBLE__
 
