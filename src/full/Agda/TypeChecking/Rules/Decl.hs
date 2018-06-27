@@ -47,6 +47,7 @@ import Agda.TypeChecking.CheckInternal
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Errors
+import Agda.TypeChecking.Generalize
 import Agda.TypeChecking.Injectivity
 import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.Positivity
@@ -532,7 +533,7 @@ checkGeneralize :: Set QName -> Info.DefInfo -> ArgInfo -> QName -> A.Expr -> TC
 checkGeneralize s i info x e = do
 
     -- Check the signature and collect the created metas.
-    (n, tGen) <- checkGeneralized s $ locally eGeneralizeMetas (const YesGeneralize) $
+    (n, tGen) <- generalizeType s $ locally eGeneralizeMetas (const YesGeneralize) $
                    workOnTypes $ isType_ e
 
     reportSDoc "tc.decl.gen" 10 $ sep
