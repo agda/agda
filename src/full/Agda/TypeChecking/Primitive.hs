@@ -750,11 +750,10 @@ primComp = do
                    t = ignoreBlocking st
                mGlue <- getPrimitiveName' builtinGlue
                mId   <- getBuiltinName' builtinId
-               mPath <- getBuiltinName' builtinPath
                mPO   <- getBuiltinName' builtinPushOut
                case absBody t of
                  MetaV m _ -> fallback' (Blocked m () *> sc)
-                 Pi a b | nelims > 0  -> redReturn =<< compPi t a b (ignoreBlocking sphi) u a0
+                 Pi a b | nelims > 0  -> redReturn =<< compPi (absName t) a b (ignoreBlocking sphi) u a0
                         | otherwise -> fallback
 
                  Sort (Type l) -> compSort fallback iz io ineg phi u a0 l
@@ -953,59 +952,46 @@ primComp = do
   lam_i = Lam defaultArgInfo . Abs "i"
 
 
-  compPi :: Abs Term -> Dom Type -> Abs Type -> -- Γ , i : I
-               Arg Term -- phi -- Γ
-            -> Arg Term -- u -- function -- Γ
-            -> Arg Term -- λ0 -- fine -- Γ
+  compPi :: ArgName -> Dom Type -> Abs Type -- Γ , i : I
+            -> Arg Term -- Γ
+            -> Arg Term -- Γ
+            -> Arg Term -- Γ
             -> ReduceM Term
-  compPi t a b phi u a0 = do
-   unview <- intervalUnview'
+  compPi t a b phi u u0 = do
    tComp <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveTerm' "primComp"
    tFrom1 <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveTerm' "primPFrom1"
+   tINeg <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveTerm' builtinINeg
+   tIMax <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveTerm' builtinIMax
+   iz    <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinIZero
    let
-    ineg t = (unview . INeg . argN) t
-    imax u t = unview (IMax (argN u) (argN t))
     toLevel (Type l) = l
     toLevel _        = __IMPOSSIBLE__
-    termComp = pure tComp
-    v' = termComp         <#> pure (lam_j sa)
-                          <@> (pure $ lam_j  -- Γ , u1 : A[i1] , i : I , j : I
-                                            at)
-                          <@> varM 0 -- Γ , u1 : A[i1] , i : I
-                          <@> (lam_j <$> (pure tFrom1 <#> (pure $ lam_i sa') <#> (pure $ lam_i $ unEl $ unDom a')
-                                                     <@> pure (raise 2 u1) <@> varM 1 <@> (ineg <$> varM 0)))
-                          <@> (pure $ raise 1 u1)
-    u1 = var 0  -- Γ , u1 : A[i1]
-    a' = applySubst (liftS 1 $ raiseS 3) a -- Γ , u1 : A[i1] , i : I , j : I , i' : I
-    sa' = Level . toLevel $ getSort a'
-    a'' = (applySubst (singletonS 0 iOrNj) a')
-    sa = Level . toLevel $ getSort a''
+    -- Γ , u1 : A[i1] , i : I
+    bB v = (consS v $ liftS 1 $ raiseS 1) `applySubst` (absBody b {- Γ , i : I , x : A[i] -})
+   runNamesT [] $ do
+    [la,bA] <- mapM (\ a -> open . runNames [] $ (lam "i" $ const (pure a)))
+                    [Level . toLevel . getSort $ a, unEl . unDom $ a]
+    [phi, u, u0] <- mapM (open . unArg) [phi,u,u0]
 
-    at = unEl . unDom $ a''
-
-    iOrNj = var 1 `imax` (ineg $ var 0)  -- Γ , u1 : A[i1] , i : I , j : I
-               -- Γ , u1 : A[i1] , i : I
-    i0 = unview IZero
-    lam = Lam defaultArgInfo
-    lam_i m = lam (mkAbs (absName t) m)
-    lam_j m = lam (mkAbs "j" m)
-    lam_o m = lam (mkAbs "o" m)
-   v <- v'
-   let
-    b'  = absBody $ b -- Γ , i : I , x : A[i]
-    b''' = applySubst (consS v $ liftS 1 $ raiseS 1) b' -- Γ , u1 : A[i1] , i : I
-    b'' = unEl b'''
-    sb = Level . toLevel $ getSort b'''
-   (Lam (getArgInfo a) . mkAbs (absName b)) <$>
-
+    glam (getArgInfo a) (absName b) $ \ u1 -> do
+      let v = lam "i" $ \ i -> do
+                let
+                  iOrNot j = pure tIMax <@> i <@> (pure tINeg <@> j)
+                pure tComp <#> (lam "j" $ \ j -> la <@> iOrNot j)
+                          <@> (lam "j" $ \ j -> bA <@> iOrNot j)
+                          <@> i
+                          <@> (lam "j" $ \ j -> pure tFrom1 <#> la <#> bA
+                                                     <@> u1 <@> i <@> (pure tINeg <@> j))
+                          <@> u1
+          mkLam = Lam defaultArgInfo
+      bT <- bind "i" $ \ i -> bB <$> (v <@> i)
      -- Γ , u1 : A[i1]
-      (termComp <#> pure (lam_i sb) <@> pure (lam_i -- Γ , u1 : A[i1] , i : I
-                                      b'')
-                      <@> pure (raise 1 (unArg phi))
-                      <@> (lam_i . lam_o <$> -- Γ , u1 : A[i1] , i : I, o : IsOne φ
-                                  (gApply (getHiding a) (pure (raise 3 (unArg u)) <@> varM 1 <@> varM 0) (pure (raise 1 v)))) -- block until φ = 1?
-                      <@> (gApply (getHiding a) (pure $ raise 1 (unArg a0)) (subst 0 i0 <$> pure v))) -- Γ , u1 : A[i1]
-
+      (pure tComp <#> (pure . mkLam $ Level . toLevel . getSort <$> bT)
+                  <@> (pure . mkLam $ unEl                      <$> bT)
+                      <@> phi
+                      <@> (lam "i" $ \ i -> ilam "o" $ \ o -> -- block until φ = 1?
+                                  gApply (getHiding a) (u <@> i <..> o) (v <@> i))
+                      <@> gApply (getHiding a) u0 (v <@> pure iz))
 
 -- lookupS (listS [(x0,t0)..(xn,tn)]) xi = ti, assuming x0 < .. < xn.
 listS :: [(Int,Term)] -> Substitution
