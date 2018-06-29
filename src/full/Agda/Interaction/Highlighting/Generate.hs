@@ -345,7 +345,7 @@ generateAndPrintSyntaxInfo decl hlLevel updateState = do
     getExpr _                = mempty
 
     getFieldDecl :: A.Declaration -> File
-    getFieldDecl (A.RecDef _ _ _ _ _ _ _ fs) = Fold.foldMap extractField fs
+    getFieldDecl (A.RecDef _ _ _ _ _ _ _ _ fs) = Fold.foldMap extractField fs
       where
       extractField (A.ScopedDecl _ ds) = Fold.foldMap extractField ds
       extractField (A.Field _ x _)     = field (concreteQualifier x)
@@ -496,14 +496,14 @@ nameKinds hlLevel decl = do
   declToKind (A.FunDef  _ q _ _)     = insert q Function
   declToKind (A.UnquoteDecl _ _ qs _) = foldr (\ q f -> insert q Function . f) id qs
   declToKind (A.UnquoteDef _ qs _)    = foldr (\ q f -> insert q Function . f) id qs
-  declToKind (A.DataSig _ q _ _)    = insert q Datatype
-  declToKind (A.DataDef _ q _ cs)   = \m ->
+  declToKind (A.DataSig _ q _ _)      = insert q Datatype
+  declToKind (A.DataDef _ q _ _ cs)   = \m ->
                                       insert q Datatype $
                                       foldr (\d -> insert (A.axiomName d)
                                                           (Constructor Common.Inductive))
                                             m cs
-  declToKind (A.RecSig _ q _ _)     = insert q Record
-  declToKind (A.RecDef _ q _ _ c _ _ _) = insert q Record .
+  declToKind (A.RecSig _ q _ _)       = insert q Record
+  declToKind (A.RecDef _ q _ _ _ c _ _ _) = insert q Record .
                                       case c of
                                         Nothing -> id
                                         Just q  -> insert q (Constructor Common.Inductive)
@@ -606,6 +606,7 @@ warningHighlighting w = case tcWarning w of
   SafeFlagPrimTrustMe        -> mempty
   SafeFlagNoPositivityCheck  -> mempty
   SafeFlagPolarity           -> mempty
+  SafeFlagNoUniverseCheck    -> mempty
   DeprecationWarning{}       -> mempty
   NicifierIssue{}            -> mempty
   UserWarning{}              -> mempty

@@ -101,7 +101,7 @@ deepUnscopeDecl :: A.Declaration -> [A.Declaration]
 deepUnscopeDecl (A.ScopedDecl _ ds)              = deepUnscopeDecls ds
 deepUnscopeDecl (A.Mutual i ds)                  = [A.Mutual i (deepUnscopeDecls ds)]
 deepUnscopeDecl (A.Section i m tel ds)           = [A.Section i m (deepUnscope tel) (deepUnscopeDecls ds)]
-deepUnscopeDecl (A.RecDef i x ind eta c bs e ds) = [A.RecDef i x ind eta c (deepUnscope bs) (deepUnscope e)
+deepUnscopeDecl (A.RecDef i x uc ind eta c bs e ds) = [A.RecDef i x uc ind eta c (deepUnscope bs) (deepUnscope e)
                                                                            (deepUnscopeDecls ds)]
 deepUnscopeDecl d                                = [deepUnscope d]
 
@@ -390,9 +390,9 @@ instance ExprLike Declaration where
       Open{}                    -> pure d
       FunDef i f d cs           -> FunDef i f d <$> rec cs
       DataSig i d tel e         -> DataSig i d <$> rec tel <*> rec e
-      DataDef i d bs cs         -> DataDef i d <$> rec bs <*> rec cs
+      DataDef i d uc bs cs      -> DataDef i d uc <$> rec bs <*> rec cs
       RecSig i r tel e          -> RecSig i r <$> rec tel <*> rec e
-      RecDef i r n co c bs e ds -> RecDef i r n co c <$> rec bs <*> rec e <*> rec ds
+      RecDef i r uc n co c bs e ds -> RecDef i r uc n co c <$> rec bs <*> rec e <*> rec ds
       PatternSynDef f xs p      -> PatternSynDef f xs <$> rec p
       UnquoteDecl i is xs e     -> UnquoteDecl i is xs <$> rec e
       UnquoteDef i xs e         -> UnquoteDef i xs <$> rec e

@@ -2594,6 +2594,7 @@ data Warning
   | SafeFlagPrimTrustMe
   | SafeFlagNoPositivityCheck
   | SafeFlagPolarity
+  | SafeFlagNoUniverseCheck
   | ParseWarning             ParseWarning
   | DeprecationWarning String String String
     -- ^ `DeprecationWarning old new version`:
@@ -2630,6 +2631,7 @@ warningName w = case w of
   SafeFlagPrimTrustMe        -> SafeFlagPrimTrustMe_
   SafeFlagNoPositivityCheck  -> SafeFlagNoPositivityCheck_
   SafeFlagPolarity           -> SafeFlagPolarity_
+  SafeFlagNoUniverseCheck    -> SafeFlagNoUniverseCheck_
   UserWarning{}              -> UserWarning_
 
 data TCWarning

@@ -562,6 +562,7 @@ instance Pretty Pragma where
     pretty (NoPositivityCheckPragma _) = text "NO_POSITIVITY_CHECK"
     pretty (PolarityPragma _ q occs) =
       hsep (text "POLARITY" : pretty q : map pretty occs)
+    pretty (NoUniverseCheckPragma _) = text "NO_UNIVERSE_CHECK"
 
 instance Pretty Fixity where
     pretty (Fixity _ Unrelated   _)   = __IMPOSSIBLE__

@@ -201,6 +201,9 @@ prettyWarning wng = liftTCM $ case wng of
     SafeFlagPolarity -> fsep $
       pwords "Cannot use POLARITY pragma with safe flag."
 
+    SafeFlagNoUniverseCheck -> fsep $
+      pwords "Cannot use NO_UNIVERSE_CHECK pragma with safe flag."
+
     ParseWarning pw -> pretty pw
 
     DeprecationWarning old new version -> fsep $
@@ -272,6 +275,7 @@ applyFlagsToTCWarnings ifs ws = do
           SafeFlagPrimTrustMe          -> True
           SafeFlagNoPositivityCheck    -> True
           SafeFlagPolarity             -> True
+          SafeFlagNoUniverseCheck      -> True
           DeprecationWarning{}         -> True
           NicifierIssue{}              -> True
           UserWarning{}                -> True

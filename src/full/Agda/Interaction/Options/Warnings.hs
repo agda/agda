@@ -112,6 +112,7 @@ data WarningName
   | InvalidTerminationCheckPragma_
   | InvalidNoPositivityCheckPragma_
   | InvalidCatchallPragma_
+  | InvalidNoUniverseCheckPragma_
   -- Scope and Type Checking Warning
   | OldBuiltin_
   | EmptyRewritePragma_
@@ -136,6 +137,7 @@ data WarningName
   | SafeFlagPrimTrustMe_
   | SafeFlagNoPositivityCheck_
   | SafeFlagPolarity_
+  | SafeFlagNoUniverseCheck_
   | UserWarning_
   deriving (Eq, Ord, Show, Read, Enum, Bounded)
 
@@ -205,6 +207,7 @@ warningNameDescription w = case w of
   InvalidTerminationCheckPragma_   -> "Termination checking pragmas before non-function or `mutual' blocks."
   InvalidNoPositivityCheckPragma_  -> "No positivity checking pragmas before non-`data', `record' or `mutual' blocks."
   InvalidCatchallPragma_           -> "`CATCHALL' pragmas before a non-function clause."
+  InvalidNoUniverseCheckPragma_    -> "No universe checking pragmas before non-`data' or `record' declaration."
   -- Scope and Type Checking Warning
   OldBuiltin_                      -> "Deprecated `BUILTIN' pragmas."
   EmptyRewritePragma_              -> "Empty `REWRITE' pragmas."
@@ -229,4 +232,5 @@ warningNameDescription w = case w of
   SafeFlagPrimTrustMe_             -> "`primTrustMe' usages with the safe flag."
   SafeFlagNoPositivityCheck_       -> "`NO_POSITIVITY_CHECK' pragmas with the safe flag."
   SafeFlagPolarity_                -> "`POLARITY' pragmas with the safe flag."
+  SafeFlagNoUniverseCheck_         -> "`NO_UNIVERSE_CHECK' pragmas with the safe flag."
   UserWarning_                     -> "User-defined warning added using the 'WARNING_ON_USAGE' pragma."

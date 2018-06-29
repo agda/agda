@@ -53,6 +53,7 @@ instance EmbPrj Warning where
   icod_ SafeFlagPrimTrustMe          = __IMPOSSIBLE__
   icod_ SafeFlagNoPositivityCheck    = __IMPOSSIBLE__
   icod_ SafeFlagPolarity             = __IMPOSSIBLE__
+  icod_ SafeFlagNoUniverseCheck      = __IMPOSSIBLE__
   icod_ (ParseWarning a)             = __IMPOSSIBLE__
   icod_ (DeprecationWarning a b c)   = icodeN 6 DeprecationWarning a b c
   icod_ (NicifierIssue a)            = icodeN 7 NicifierIssue a
@@ -89,7 +90,8 @@ instance EmbPrj DeclarationWarning where
     InvalidTerminationCheckPragma a   -> icodeN 12 InvalidTerminationCheckPragma a
     InvalidNoPositivityCheckPragma a  -> icodeN 13 InvalidNoPositivityCheckPragma a
     InvalidCatchallPragma a           -> icodeN 14 InvalidCatchallPragma a
-    UnknownFixityInMixfixDecl a       -> icodeN 15 UnknownFixityInMixfixDecl a
+    InvalidNoUniverseCheckPragma a    -> icodeN 15 InvalidNoUniverseCheckPragma a
+    UnknownFixityInMixfixDecl a       -> icodeN 16 UnknownFixityInMixfixDecl a
 
   value = vcase $ \case
     [0, a] -> valueN UnknownNamesInFixityDecl a
@@ -107,6 +109,7 @@ instance EmbPrj DeclarationWarning where
     [12,a] -> valueN InvalidTerminationCheckPragma a
     [13,a] -> valueN InvalidNoPositivityCheckPragma a
     [14,a] -> valueN InvalidCatchallPragma a
+    [15,a] -> valueN InvalidNoUniverseCheckPragma a
     _ -> malformed
 
 instance EmbPrj Doc where

@@ -1456,3 +1456,10 @@ instance NFData a => NFData (TerminationCheck a) where
 
 -- | Positivity check? (Default = True).
 type PositivityCheck = Bool
+
+-----------------------------------------------------------------------------
+-- * Universe checking
+-----------------------------------------------------------------------------
+
+-- | Universe check? (Default = True).
+type UniverseCheck = Bool

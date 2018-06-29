@@ -116,6 +116,7 @@ classifyWarning w = case w of
   SafeFlagPrimTrustMe        -> ErrorWarnings
   SafeFlagNoPositivityCheck  -> ErrorWarnings
   SafeFlagPolarity           -> ErrorWarnings
+  SafeFlagNoUniverseCheck    -> ErrorWarnings
   ParseWarning{}             -> ErrorWarnings
 
 -- | Should we only emit a single warning with this constructor.

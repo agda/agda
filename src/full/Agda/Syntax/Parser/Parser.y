@@ -169,6 +169,7 @@ import Agda.Utils.Impossible
     'MEASURE'                 { TokKeyword KwMEASURE $$ }
     'NO_TERMINATION_CHECK'    { TokKeyword KwNO_TERMINATION_CHECK $$ }
     'NO_POSITIVITY_CHECK'     { TokKeyword KwNO_POSITIVITY_CHECK $$ }
+    'NO_UNIVERSE_CHECK'       { TokKeyword KwNO_UNIVERSE_CHECK $$ }
     'NON_TERMINATING'         { TokKeyword KwNON_TERMINATING $$ }
     'OPTIONS'                 { TokKeyword KwOPTIONS $$ }
     'POLARITY'                { TokKeyword KwPOLARITY $$ }
@@ -306,6 +307,7 @@ Token
     | 'MEASURE'                 { TokKeyword KwMEASURE $1 }
     | 'NO_TERMINATION_CHECK'    { TokKeyword KwNO_TERMINATION_CHECK $1 }
     | 'NO_POSITIVITY_CHECK'     { TokKeyword KwNO_POSITIVITY_CHECK $1 }
+    | 'NO_UNIVERSE_CHECK'       { TokKeyword KwNO_UNIVERSE_CHECK $1 }
     | 'NON_TERMINATING'         { TokKeyword KwNON_TERMINATING $1 }
     | 'OPTIONS'                 { TokKeyword KwOPTIONS $1 }
     | 'POLARITY'                { TokKeyword KwPOLARITY $1 }
@@ -1559,6 +1561,7 @@ DeclarationPragma
   | DisplayPragma            { $1 }
   | EtaPragma                { $1 }
   | NoPositivityCheckPragma  { $1 }
+  | NoUniverseCheckPragma    { $1 }
   | PolarityPragma           { $1 }
   | OptionsPragma            { $1 }
     -- Andreas, 2014-03-06
@@ -1713,6 +1716,11 @@ NoPositivityCheckPragma :: { Pragma }
 NoPositivityCheckPragma
   : '{-#' 'NO_POSITIVITY_CHECK' '#-}'
     { NoPositivityCheckPragma (getRange ($1,$2,$3)) }
+
+NoUniverseCheckPragma :: { Pragma }
+NoUniverseCheckPragma
+  : '{-#' 'NO_UNIVERSE_CHECK' '#-}'
+    { NoUniverseCheckPragma (getRange ($1,$2,$3)) }
 
 PolarityPragma :: { Pragma }
 PolarityPragma

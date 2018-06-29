@@ -881,7 +881,7 @@ instance ToConcrete A.Declaration [C.Declaration] where
       t' <- toConcreteTop t
       return [ C.DataSig (getRange i) Inductive x' (map C.DomainFull $ concat tel') t' ]
 
-  toConcrete (A.DataDef i x bs cs) =
+  toConcrete (A.DataDef i x uc bs cs) =
     withAbstractPrivate i $
     bindToConcrete (map makeDomainFree bs) $ \tel' -> do
       (x',cs') <- (unsafeQNameToName -*- id) <$> toConcrete (x, map Constr cs)
@@ -894,7 +894,7 @@ instance ToConcrete A.Declaration [C.Declaration] where
       t' <- toConcreteTop t
       return [ C.RecordSig (getRange i) x' (map C.DomainFull $ concat tel') t' ]
 
-  toConcrete (A.RecDef  i x ind eta c bs t cs) =
+  toConcrete (A.RecDef  i x uc ind eta c bs t cs) =
     withAbstractPrivate i $
     bindToConcrete (map makeDomainFree bs) $ \tel' -> do
       (x',cs') <- (unsafeQNameToName -*- id) <$> toConcrete (x, map Constr cs)

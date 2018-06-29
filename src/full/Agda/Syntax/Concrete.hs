@@ -428,6 +428,8 @@ data Pragma
   | NoPositivityCheckPragma   Range
     -- ^ Applies to the following data/record type or mutual block.
   | PolarityPragma            Range Name [Occurrence]
+  | NoUniverseCheckPragma     Range
+    -- ^ Applies to the following data/record type.
   deriving Data
 
 ---------------------------------------------------------------------------
@@ -687,6 +689,7 @@ instance HasRange Pragma where
   getRange (DisplayPragma r _ _)             = r
   getRange (NoPositivityCheckPragma r)       = r
   getRange (PolarityPragma r _ _)            = r
+  getRange (NoUniverseCheckPragma r)         = r
 
 instance HasRange AsName where
   getRange a = getRange (asRange a, asName a)
@@ -887,6 +890,7 @@ instance KillRange Pragma where
   killRange (EtaPragma _ q)                   = killRange1 (EtaPragma noRange) q
   killRange (NoPositivityCheckPragma _)       = NoPositivityCheckPragma noRange
   killRange (PolarityPragma _ q occs)         = killRange1 (\q -> PolarityPragma noRange q occs) q
+  killRange (NoUniverseCheckPragma _)         = NoUniverseCheckPragma noRange
 
 instance KillRange RHS where
   killRange AbsurdRHS = AbsurdRHS
@@ -1029,6 +1033,7 @@ instance NFData Pragma where
   rnf (DisplayPragma _ a b)             = rnf a `seq` rnf b
   rnf (NoPositivityCheckPragma _)       = ()
   rnf (PolarityPragma _ a b)            = rnf a `seq` rnf b
+  rnf (NoUniverseCheckPragma _)         = ()
 
 -- | Ranges are not forced.
 

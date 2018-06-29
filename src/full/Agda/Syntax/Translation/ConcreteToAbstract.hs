@@ -1246,7 +1246,7 @@ instance {-# OVERLAPPING #-} ToAbstract [C.Declaration] [A.Declaration] where
     -- positivity checker (Issue 1614) may not be switched off, and
     -- polarities may not be assigned.
     ds <- ifM (Lens.getSafeMode <$> commandLineOptions)
-              (mapM (noNoTermCheck >=> noNoPositivityCheck >=> noPolarity) ds)
+              (mapM (noNoTermCheck >=> noNoPositivityCheck >=> noPolarity >=> noNoUniverseCheck) ds)
               (return ds)
     toAbstract =<< niceDecls ds
    where
@@ -1270,6 +1270,10 @@ instance {-# OVERLAPPING #-} ToAbstract [C.Declaration] [A.Declaration] where
       d <$ (setCurrentRange d $ warning SafeFlagPolarity)
     noPolarity d                               = return d
 
+    noNoUniverseCheck :: C.Declaration -> TCM C.Declaration
+    noNoUniverseCheck d@(C.Pragma (C.NoUniverseCheckPragma _)) =
+      d <$ (setCurrentRange d $ warning SafeFlagNoUniverseCheck)
+    noNoUniverseCheck d = return d
 newtype LetDefs = LetDefs [C.Declaration]
 newtype LetDef = LetDef NiceDeclaration
 
@@ -1470,7 +1474,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
       -- We only termination check blocks that do not have a measure.
       return [ A.Mutual (MutualInfo termCheck pc r) ds' ]
 
-    C.NiceRecSig r f p a _pc x ls t -> do
+    C.NiceRecSig r f p a _pc _uc x ls t -> do
       ensureNoLetStms ls
       withLocalVars $ do
         ls' <- toAbstract (map makeDomainFull ls)
@@ -1479,7 +1483,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
         bindName p DefName x x'
         return [ A.RecSig (mkDefInfo x f p a r) x' ls' t' ]
 
-    C.NiceDataSig r f p a _pc x ls t -> withLocalVars $ do
+    C.NiceDataSig r f p a _pc _uc x ls t -> withLocalVars $ do
         printScope "scope.data.sig" 20 ("checking DataSig for " ++ prettyShow x)
         ensureNoLetStms ls
         ls' <- toAbstract (map makeDomainFull ls)
@@ -1512,7 +1516,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
     C.NiceFunClause{} -> __IMPOSSIBLE__
 
   -- Data definitions
-    C.DataDef r f a _ x pars cons -> withLocalVars $ do
+    C.DataDef r f a _ uc x pars cons -> withLocalVars $ do
         printScope "scope.data.def" 20 ("checking DataDef for " ++ prettyShow x)
         (p, ax) <- resolveName (C.QName x) >>= \case
           DefinedName p ax -> do
@@ -1539,13 +1543,13 @@ instance ToAbstract NiceDeclaration A.Declaration where
         -- Open the module
         -- openModule_ (C.QName x) defaultImportDir{ publicOpen = True }
         printScope "data" 20 $ "Checked data " ++ prettyShow x
-        return [ A.DataDef (mkDefInfo x f PublicAccess a r) x' pars cons ]
+        return [ A.DataDef (mkDefInfo x f PublicAccess a r) x' uc pars cons ]
       where
         conName (C.Axiom _ _ _ _ _ _ _ c _) = return c
         conName d = errorNotConstrDecl d
 
   -- Record definitions (mucho interesting)
-    C.RecDef r f a _ x ind eta cm pars fields -> do
+    C.RecDef r f a _ uc x ind eta cm pars fields -> do
       printScope "scope.rec.def" 20 ("checking RecDef for " ++ prettyShow x)
       (p, ax) <- resolveName (C.QName x) >>= \case
         DefinedName p ax -> do
@@ -1585,7 +1589,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
         cm' <- mapM (\(ThingWithFixity c f, _) -> bindConstructorName m c f a p YesRec) cm
         let inst = caseMaybe cm NotInstanceDef snd
         printScope "rec" 15 "record complete"
-        return [ A.RecDef (mkDefInfoInstance x f PublicAccess a inst NotMacroDef r) x' ind eta cm' pars contel afields ]
+        return [ A.RecDef (mkDefInfoInstance x f PublicAccess a inst NotMacroDef r) x' uc ind eta cm' pars contel afields ]
 
     NiceModule r p a x@(C.QName name) tel ds -> do
       reportSDoc "scope.decl" 70 $ vcat $
@@ -1989,6 +1993,9 @@ instance ToAbstract C.Pragma [A.Pragma] where
 
   -- Polarity pragmas are handled by the niceifier.
   toAbstract C.PolarityPragma{} = __IMPOSSIBLE__
+
+  -- No universe checking pragmas are handled by the niceifier.
+  toAbstract C.NoUniverseCheckPragma{} = __IMPOSSIBLE__
 
 instance ToAbstract C.Clause A.Clause where
   toAbstract (C.Clause top catchall lhs@(C.LHS p eqs with) rhs wh wcs) = withLocalVars $ do

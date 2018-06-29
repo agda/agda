@@ -97,6 +97,7 @@ tokens :-
 <pragma_>   "MEASURE"                  { keyword KwMEASURE }
 <pragma_>   "NO_POSITIVITY_CHECK"      { keyword KwNO_POSITIVITY_CHECK }
 <pragma_>   "NO_TERMINATION_CHECK"     { keyword KwNO_TERMINATION_CHECK }
+<pragma_>   "NO_UNIVERSE_CHECK"        { keyword KwNO_UNIVERSE_CHECK }
 <pragma_>   "NON_TERMINATING"          { keyword KwNON_TERMINATING }
 <pragma_>   "OPTIONS"                  { keyword KwOPTIONS }
 <pragma_>   "POLARITY"                 { keyword KwPOLARITY }

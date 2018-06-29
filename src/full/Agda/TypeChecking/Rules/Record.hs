@@ -67,6 +67,7 @@ import Agda.Utils.Impossible
 checkRecDef
   :: Info.DefInfo              -- ^ Position and other info.
   -> QName                     -- ^ Record type identifier.
+  -> UniverseCheck             -- ^ Check universes?
   -> Maybe (Ranged Induction)  -- ^ Optional: (co)inductive declaration.
   -> Maybe HasEta              -- ^ Optional: user specified eta/no-eta
   -> Maybe QName               -- ^ Optional: constructor name.
@@ -75,7 +76,7 @@ checkRecDef
                                --   Does not include record parameters.
   -> [A.Field]                 -- ^ Field signatures.
   -> TCM ()
-checkRecDef i name ind eta con ps contel fields =
+checkRecDef i name uc ind eta con ps contel fields =
   traceCall (CheckRecDef (getRange name) (qnameName name) ps fields) $ do
     reportSDoc "tc.rec" 10 $ vcat
       [ text "checking record def" <+> prettyTCM name
@@ -224,7 +225,7 @@ checkRecDef i name ind eta con ps contel fields =
         addNamedInstance conName name
 
       -- Check that the fields fit inside the sort
-      _ <- fitsIn [] contype s
+      _ <- fitsIn uc [] contype s
 
       {- Andreas, 2011-04-27 WRONG because field types are checked again
          and then non-stricts should not yet be irrelevant

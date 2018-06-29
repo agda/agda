@@ -34,6 +34,7 @@ data Keyword
         | KwPatternSyn | KwTactic | KwCATCHALL
         | KwGeneralize
         | KwNO_POSITIVITY_CHECK | KwPOLARITY
+        | KwNO_UNIVERSE_CHECK
     deriving (Eq, Show)
 
 layoutKeywords :: [Keyword]

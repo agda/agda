@@ -179,10 +179,10 @@ data Declaration
     -- ^ only retained for highlighting purposes
   | FunDef     DefInfo QName Delayed [Clause] -- ^ sequence of function clauses
   | DataSig    DefInfo QName Telescope Expr -- ^ lone data signature
-  | DataDef    DefInfo QName [LamBinding] [Constructor]
+  | DataDef    DefInfo QName UniverseCheck [LamBinding] [Constructor]
       -- ^ the 'LamBinding's are 'DomainFree' and bind the parameters of the datatype.
   | RecSig     DefInfo QName Telescope Expr -- ^ lone record signature
-  | RecDef     DefInfo QName (Maybe (Ranged Induction)) (Maybe HasEta) (Maybe QName) [LamBinding] Expr [Declaration]
+  | RecDef     DefInfo QName UniverseCheck (Maybe (Ranged Induction)) (Maybe HasEta) (Maybe QName) [LamBinding] Expr [Declaration]
       -- ^ The 'LamBinding's are 'DomainFree' and bind the parameters of the datatype.
       --   The 'Expr' gives the constructor type telescope, @(x1 : A1)..(xn : An) -> Prop@,
       --   and the optional name is the constructor's name.
@@ -204,9 +204,9 @@ instance GetDefInfo Declaration where
   getDefInfo (ScopedDecl _ (d:_))   = getDefInfo d
   getDefInfo (FunDef i _ _ _)       = Just i
   getDefInfo (DataSig i _ _ _)      = Just i
-  getDefInfo (DataDef i _ _ _)      = Just i
+  getDefInfo (DataDef i _ _ _ _)    = Just i
   getDefInfo (RecSig i _ _ _)       = Just i
-  getDefInfo (RecDef i _ _ _ _ _ _ _) = Just i
+  getDefInfo (RecDef i _ _ _ _ _ _ _ _) = Just i
   getDefInfo _ = Nothing
 
 type ImportDirective = ImportDirective' QName ModuleName
@@ -559,9 +559,9 @@ instance Eq Declaration where
   Open a1 b1 c1                  == Open a2 b2 c2                  = (a1, b1, c1) == (a2, b2, c2)
   FunDef a1 b1 c1 d1             == FunDef a2 b2 c2 d2             = (a1, b1, c1, d1) == (a2, b2, c2, d2)
   DataSig a1 b1 c1 d1            == DataSig a2 b2 c2 d2            = (a1, b1, c1, d1) == (a2, b2, c2, d2)
-  DataDef a1 b1 c1 d1            == DataDef a2 b2 c2 d2            = (a1, b1, c1, d1) == (a2, b2, c2, d2)
+  DataDef a1 b1 c1 d1 e1         == DataDef a2 b2 c2 d2 e2         = (a1, b1, c1, d1, e1) == (a2, b2, c2, d2, e2)
   RecSig a1 b1 c1 d1             == RecSig a2 b2 c2 d2             = (a1, b1, c1, d1) == (a2, b2, c2, d2)
-  RecDef a1 b1 c1 d1 e1 f1 g1 h1 == RecDef a2 b2 c2 d2 e2 f2 g2 h2 = (a1, b1, c1, d1, e1, f1, g1, h1) == (a2, b2, c2, d2, e2, f2, g2, h2)
+  RecDef a1 b1 c1 d1 e1 f1 g1 h1 i1 == RecDef a2 b2 c2 d2 e2 f2 g2 h2 i2 = (a1, b1, c1, d1, e1, f1, g1, h1, i1) == (a2, b2, c2, d2, e2, f2, g2, h2, i2)
   PatternSynDef a1 b1 c1         == PatternSynDef a2 b2 c2         = (a1, b1, c1) == (a2, b2, c2)
   UnquoteDecl a1 b1 c1 d1        == UnquoteDecl a2 b2 c2 d2        = (a1, b1, c1, d1) == (a2, b2, c2, d2)
   UnquoteDef a1 b1 c1            == UnquoteDef a2 b2 c2            = (a1, b1, c1) == (a2, b2, c2)
@@ -641,9 +641,9 @@ instance HasRange Declaration where
     getRange (ScopedDecl _ d        ) = getRange d
     getRange (FunDef     i _ _ _    ) = getRange i
     getRange (DataSig    i _ _ _    ) = getRange i
-    getRange (DataDef    i _ _ _    ) = getRange i
+    getRange (DataDef    i _ _ _ _  ) = getRange i
     getRange (RecSig     i _ _ _    ) = getRange i
-    getRange (RecDef   i _ _ _ _ _ _ _) = getRange i
+    getRange (RecDef i _ _ _ _ _ _ _ _) = getRange i
     getRange (PatternSynDef x _ _   ) = getRange x
     getRange (UnquoteDecl _ i _ _)    = getRange i
     getRange (UnquoteDef i _ _)       = getRange i
@@ -768,9 +768,9 @@ instance KillRange Declaration where
   killRange (ScopedDecl a d           ) = killRange1 (ScopedDecl a) d
   killRange (FunDef  i a b c          ) = killRange4 FunDef  i a b c
   killRange (DataSig i a b c          ) = killRange4 DataSig i a b c
-  killRange (DataDef i a b c          ) = killRange4 DataDef i a b c
+  killRange (DataDef i a b c d        ) = killRange5 DataDef i a b c d
   killRange (RecSig  i a b c          ) = killRange4 RecSig  i a b c
-  killRange (RecDef  i a b c d e f g  ) = killRange8 RecDef  i a b c d e f g
+  killRange (RecDef  i a b c d e f g h) = killRange9 RecDef  i a b c d e f g h
   killRange (PatternSynDef x xs p     ) = killRange3 PatternSynDef x xs p
   killRange (UnquoteDecl mi i x e     ) = killRange4 UnquoteDecl mi i x e
   killRange (UnquoteDef i x e         ) = killRange3 UnquoteDef i x e
@@ -884,9 +884,9 @@ instance AllNames Declaration where
   allNames (Primitive _   q _)        = Seq.singleton q
   allNames (Mutual     _ defs)        = allNames defs
   allNames (DataSig _ q _ _)          = Seq.singleton q
-  allNames (DataDef _ q _ decls)      = q <| allNames decls
+  allNames (DataDef _ q _ _ decls)    = q <| allNames decls
   allNames (RecSig _ q _ _)           = Seq.singleton q
-  allNames (RecDef _ q _ _ c _ _ decls) = q <| allNames c >< allNames decls
+  allNames (RecDef _ q _ _ _ c _ _ decls) = q <| allNames c >< allNames decls
   allNames (PatternSynDef q _ _)      = Seq.singleton q
   allNames (UnquoteDecl _ _ qs _)     = Seq.fromList qs
   allNames (UnquoteDef _ qs _)        = Seq.fromList qs
@@ -991,8 +991,8 @@ instance AnyAbstract Declaration where
   anyAbstract (ScopedDecl _ ds)      = anyAbstract ds
   anyAbstract (Section _ _ _ ds)     = anyAbstract ds
   anyAbstract (FunDef i _ _ _)       = defAbstract i == AbstractDef
-  anyAbstract (DataDef i _ _ _)      = defAbstract i == AbstractDef
-  anyAbstract (RecDef i _ _ _ _ _ _ _) = defAbstract i == AbstractDef
+  anyAbstract (DataDef i _ _ _ _)    = defAbstract i == AbstractDef
+  anyAbstract (RecDef i _ _ _ _ _ _ _ _) = defAbstract i == AbstractDef
   anyAbstract (DataSig i _ _ _)      = defAbstract i == AbstractDef
   anyAbstract (RecSig i _ _ _)       = defAbstract i == AbstractDef
   anyAbstract _                      = __IMPOSSIBLE__

@@ -184,9 +184,9 @@ checkDecl d = setCurrentRange d $ do
       A.Pragma i p             -> none $ checkPragma i p
       A.ScopedDecl scope ds    -> none $ setScope scope >> mapM_ checkDeclCached ds
       A.FunDef i x delayed cs  -> impossible $ check x i $ checkFunDef delayed i x cs
-      A.DataDef i x ps cs      -> impossible $ check x i $ checkDataDef i x ps cs
-      A.RecDef i x ind eta c ps tel cs -> mutual empty [d] $ check x i $ do
-                                    checkRecDef i x ind eta c ps tel cs
+      A.DataDef i x uc ps cs   -> impossible $ check x i $ checkDataDef i x uc ps cs
+      A.RecDef i x uc ind eta c ps tel cs -> mutual empty [d] $ check x i $ do
+                                    checkRecDef i x uc ind eta c ps tel cs
                                     blockId <- mutualBlockOf x
 
                                     -- Andreas, 2016-10-01 testing whether
@@ -404,8 +404,8 @@ highlight_ d = do
       -- Each block in the section has already been highlighted,
       -- all that remains is the module declaration.
     A.RecSig{}               -> highlight d
-    A.RecDef i x ind eta c ps tel cs ->
-      highlight (A.RecDef i x ind eta c [] dummy cs)
+    A.RecDef i x uc ind eta c ps tel cs ->
+      highlight (A.RecDef i x uc ind eta c [] dummy cs)
       -- The telescope has already been highlighted.
       where
       -- Andreas, 2016-01-22, issue 1790
@@ -452,7 +452,7 @@ checkPositivity_ mi names = Bench.billTo [Bench.Positivity] $ do
 --   for the old coinduction.)
 checkCoinductiveRecords :: [A.Declaration] -> TCM ()
 checkCoinductiveRecords ds = forM_ ds $ \case
-  A.RecDef _ q (Just (Ranged r CoInductive)) _ _ _ _ _ -> setCurrentRange r $ do
+  A.RecDef _ q _ (Just (Ranged r CoInductive)) _ _ _ _ _ -> setCurrentRange r $ do
     unlessM (isRecursiveRecord q) $ typeError $ GenericError $
       "Only recursive records can be coinductive"
   _ -> return ()

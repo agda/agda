@@ -54,6 +54,19 @@ Pragmas and options
   Reason: There are consistency issues that may be systemic
   [Issue [#2170](https://github.com/agda/agda/issues/2170)].
 
+* New pragma {-# NO_UNIVERSE_CHECK #-}.
+
+  The pragma {-# NO_UNIVERSE_CHECK #-} can be put in front of a data
+  or record type to disable universe consistency checking locally.
+  Example:
+  ```agda
+    {-# NO_UNIVERSE_CHECK #-}
+    data U : Set where
+      el : Set → U
+  ```
+  Like the similar pragmas for disabling termination and positivity
+  checking, {-# NO_UNIVERSE_CHECK #-} cannot be used with --safe.
+
 Emacs mode
 ----------
 

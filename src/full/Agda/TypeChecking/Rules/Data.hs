@@ -54,8 +54,8 @@ import Agda.Utils.Impossible
 
 -- | Type check a datatype definition. Assumes that the type has already been
 --   checked.
-checkDataDef :: Info.DefInfo -> QName -> [A.LamBinding] -> [A.Constructor] -> TCM ()
-checkDataDef i name ps cs =
+checkDataDef :: Info.DefInfo -> QName -> UniverseCheck -> [A.LamBinding] -> [A.Constructor] -> TCM ()
+checkDataDef i name uc ps cs =
     traceCall (CheckDataDef (getRange name) (qnameName name) ps cs) $ do -- TODO!! (qnameName)
 
         -- Add the datatype module
@@ -132,7 +132,7 @@ checkDataDef i name ps cs =
                 -- polarity and argOcc.s determined by the positivity checker
 
             -- Check the types of the constructors
-            mapM_ (checkConstructor name tel' nofIxs s) cs
+            mapM_ (checkConstructor name uc tel' nofIxs s) cs
 
             -- Return the data definition
             return dataDef
@@ -163,15 +163,16 @@ forceSort t = reduce (unEl t) >>= \case
 --   Returns the non-linear parameters.
 checkConstructor
   :: QName         -- ^ Name of data type.
+  -> UniverseCheck -- ^ Check universes?
   -> Telescope     -- ^ Parameter telescope.
   -> Nat           -- ^ Number of indices of the data type.
   -> Sort          -- ^ Sort of the data type.
   -> A.Constructor -- ^ Constructor declaration (type signature).
   -> TCM ()
-checkConstructor d tel nofIxs s (A.ScopedDecl scope [con]) = do
+checkConstructor d uc tel nofIxs s (A.ScopedDecl scope [con]) = do
   setScope scope
-  checkConstructor d tel nofIxs s con
-checkConstructor d tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
+  checkConstructor d uc tel nofIxs s con
+checkConstructor d uc tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
     traceCall (CheckConstructor d tel s con) $ do
 {- WRONG
       -- Andreas, 2011-04-26: the following happens to the right of ':'
@@ -201,7 +202,7 @@ checkConstructor d tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
         let s' = case s of
               Prop l -> Type l
               _      -> s
-        arity <- fitsIn forcedArgs t s'
+        arity <- fitsIn uc forcedArgs t s'
         -- this may have instantiated some metas in s, so we reduce
         s <- reduce s
         debugAdd c t
@@ -278,7 +279,7 @@ checkConstructor d tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
       reportSDoc "tc.data.con" 5 $ vcat
         [ text "adding constructor" <+> prettyTCM c <+> text ":" <+> prettyTCM t
         ]
-checkConstructor _ _ _ _ _ = __IMPOSSIBLE__ -- constructors are axioms
+checkConstructor _ _ _ _ _ _ = __IMPOSSIBLE__ -- constructors are axioms
 
 defineCompData :: QName      -- datatype name
                -> ConHead
@@ -573,12 +574,12 @@ bindParameters' ts0 ps0@(A.DomainFree info x : ps) t ret = do
 
 
 -- | Check that the arguments to a constructor fits inside the sort of the datatype.
---   The first argument is the type of the constructor.
+--   The third argument is the type of the constructor.
 --
 --   As a side effect, return the arity of the constructor.
 
-fitsIn :: [IsForced] -> Type -> Sort -> TCM Int
-fitsIn forceds t s = do
+fitsIn :: UniverseCheck -> [IsForced] -> Type -> Sort -> TCM Int
+fitsIn uc forceds t s = do
   reportSDoc "tc.data.fits" 10 $
     sep [ text "does" <+> prettyTCM t
         , text "of sort" <+> prettyTCM (getSort t)
@@ -595,9 +596,9 @@ fitsIn forceds t s = do
       let (forced,forceds') = nextIsForced forceds
       unless (isForced forced && not withoutK) $ do
         sa <- reduce $ getSort dom
-        unless (sa == SizeUniv) $ sa `leqSort` s
+        unless (not uc || sa == SizeUniv) $ sa `leqSort` s
       addContext (absName b, dom) $ do
-        succ <$> fitsIn forceds' (absBody b) (raise 1 s)
+        succ <$> fitsIn uc forceds' (absBody b) (raise 1 s)
     _ -> do
       getSort t `leqSort` s
       return 0
