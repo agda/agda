@@ -574,19 +574,24 @@ instance ToAbstract PatName APatName where
       (PatternSynResName d, _)                              -> patSyn d
       _ -> genericError $ "Cannot pattern match on non-constructor " ++ prettyShow x
     where
-      bindPatVar x = do
-        reportSLn "scope.pat" 10 $ "it was a var: " ++ prettyShow x
-        y <- (AssocList.lookup x <$> getVarsToBind) >>= \case
-          Just (LocalVar y _ _) -> return $ setRange (getRange x) y
-          Nothing -> freshAbstractName_ x
-        addVarToBind x $ LocalVar y PatternBound []
-        return $ VarPatName y
+      bindPatVar = VarPatName <.> bindPatternVariable
       patCon ds = do
         reportSLn "scope.pat" 10 $ "it was a con: " ++ prettyShow (fmap anameName ds)
         return $ ConPatName ds
       patSyn ds = do
         reportSLn "scope.pat" 10 $ "it was a pat syn: " ++ prettyShow (fmap anameName ds)
         return $ PatternSynPatName ds
+
+-- | Translate and possibly bind a pattern variable
+--   (which could have been bound before due to non-linearity).
+bindPatternVariable :: C.Name -> ScopeM A.Name
+bindPatternVariable x = do
+  reportSLn "scope.pat" 10 $ "it was a var: " ++ prettyShow x
+  y <- (AssocList.lookup x <$> getVarsToBind) >>= \case
+    Just (LocalVar y _ _) -> return $ setRange (getRange x) y
+    Nothing -> freshAbstractName_ x
+  addVarToBind x $ LocalVar y PatternBound []
+  return y
 
 class ToQName a where
   toQName :: a -> C.QName
@@ -2314,7 +2319,9 @@ instance ToAbstract C.Pattern (A.Pattern' C.Expr) where
     toAbstract (C.ParenP _ p)   = toAbstract p
     toAbstract (C.LitP l)       = return $ A.LitP l
     toAbstract p0@(C.AsP r x p) = do
-        x <- toAbstract (NewName PatternBound x)
+        -- Andreas, 2018-06-30, issue #3147: as-variables can be non-linear a priori!
+        -- x <- toAbstract (NewName PatternBound x)
+        x <- bindPatternVariable x
         p <- toAbstract p
         return $ A.AsP (PatRange r) (A.BindName x) p
     toAbstract p0@(C.EqualP r es)  = return $ A.EqualP (PatRange r) es
