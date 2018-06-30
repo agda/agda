@@ -33,6 +33,7 @@ import qualified Data.List as List
 import Data.Monoid ( Monoid, mempty, mappend )
 import Data.Semigroup ( Semigroup )
 import qualified Data.Semigroup as Semigroup
+import Data.Map (Map)
 import qualified Data.Map as Map
 
 import Agda.Interaction.Highlighting.Generate (storeDisambiguatedName, disambiguateRecordFields)
@@ -160,14 +161,14 @@ updateProblemEqs
 updateProblemEqs eqs = do
   reportSDoc "tc.lhs.top" 20 $ vcat
     [ text "updateProblem: equations to update"
-    , nest 2 (vcat $ map prettyTCM eqs)
+    , nest 2 $ if null eqs then text "(none)" else vcat $ map prettyTCM eqs
     ]
 
   eqs' <- updates eqs
 
   reportSDoc "tc.lhs.top" 20 $ vcat
     [ text "updateProblem: new equations"
-    , nest 2 (vcat $ map prettyTCM eqs')
+    , nest 2 $ if null eqs' then text "(none)" else vcat $ map prettyTCM eqs'
     ]
 
   return eqs'
@@ -547,29 +548,43 @@ transferOrigins ps qs = do
 --   Returns the list of patterns with the duplicate user patterns removed.
 checkPatternLinearity :: [ProblemEq] -> TCM [ProblemEq]
 checkPatternLinearity eqs = do
-  reportSDoc "tc.lhs.top" 30 $ text "Checking linearity of pattern variables"
+  reportSDoc "tc.lhs.linear" 30 $ text "Checking linearity of pattern variables"
   check Map.empty eqs
   where
+    check :: Map A.BindName Term -> [ProblemEq] -> TCM [ProblemEq]
     check _ [] = return []
-    check vars (eq@(ProblemEq p u a) : eqs) = case p of
-      A.VarP x | Just v <- Map.lookup x vars -> do
-        noConstraints $ equalTerm (unDom a) u v
-        check vars eqs
-      A.VarP x | otherwise -> (eq:) <$> do
-        check (Map.insert x u vars) eqs
-      A.AsP _ x p ->
-        check vars $ [ProblemEq (A.VarP x) u a, ProblemEq p u a] ++ eqs
-      A.WildP{}       -> continue
-      A.DotP{}        -> continue
-      A.AbsurdP{}     -> continue
-      A.ConP{}        -> __IMPOSSIBLE__
-      A.ProjP{}       -> __IMPOSSIBLE__
-      A.DefP{}        -> __IMPOSSIBLE__
-      A.LitP{}        -> __IMPOSSIBLE__
-      A.PatternSynP{} -> __IMPOSSIBLE__
-      A.RecP{}        -> __IMPOSSIBLE__
-      A.EqualP{}      -> __IMPOSSIBLE__
-      A.WithP{}       -> __IMPOSSIBLE__
+    check vars (eq@(ProblemEq p u a) : eqs) = do
+      reportSDoc "tc.lhs.linear" 40 $ sep
+        [ text "linearity: checking pattern "
+        , prettyA p
+        , text " equal to term "
+        , prettyTCM u
+        ]
+      case p of
+        A.VarP x -> do
+          verboseS "tc.lhs.linear" 60 $ do
+            let y = A.unBind x
+            reportSLn "tc.lhs.linear" 60 $
+              "pattern variable " ++ show (A.nameConcrete y) ++ " with id " ++ show (A.nameId y)
+          case Map.lookup x vars of
+            Just v -> do
+              noConstraints $ equalTerm (unDom a) u v
+              check vars eqs
+            Nothing -> (eq:) <$> do
+              check (Map.insert x u vars) eqs
+        A.AsP _ x p ->
+          check vars $ [ProblemEq (A.VarP x) u a, ProblemEq p u a] ++ eqs
+        A.WildP{}       -> continue
+        A.DotP{}        -> continue
+        A.AbsurdP{}     -> continue
+        A.ConP{}        -> __IMPOSSIBLE__
+        A.ProjP{}       -> __IMPOSSIBLE__
+        A.DefP{}        -> __IMPOSSIBLE__
+        A.LitP{}        -> __IMPOSSIBLE__
+        A.PatternSynP{} -> __IMPOSSIBLE__
+        A.RecP{}        -> __IMPOSSIBLE__
+        A.EqualP{}      -> __IMPOSSIBLE__
+        A.WithP{}       -> __IMPOSSIBLE__
 
       where continue = (eq:) <$> check vars eqs
 
@@ -686,6 +701,11 @@ checkLeftHandSide c f ps a withSub' strippedPats = Bench.billToCPS [Bench.Typing
 
   let finalChecks :: LHSState a -> TCM a
       finalChecks (LHSState delta qs0 (Problem eqs rps _) b psplit) = do
+
+        reportSDoc "tc.lhs.top" 20 $ vcat
+          [ text "lhs: final checks with remaining equations"
+          , nest 2 $ if null eqs then text "(none)" else vcat $ map prettyTCM eqs
+          ]
 
         unless (null rps) __IMPOSSIBLE__
 
