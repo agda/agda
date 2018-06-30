@@ -53,13 +53,14 @@ import Agda.Utils.Pretty
 #include "undefined.h"
 import Agda.Utils.Impossible
 
--- A name in a binding position: we also compare the nameConcrete
+-- | A name in a binding position: we also compare the nameConcrete
 -- when comparing the binders for equality.
-
--- With --caching on we compare abstract syntax to determine if we can
+--
+-- With @--caching@ on we compare abstract syntax to determine if we can
 -- reuse previous typechecking results: during that comparison two
 -- names can have the same nameId but be semantically different,
--- e.g. in "{_ : A} -> .." vs "{r : A} -> ..".
+-- e.g. in @{_ : A} -> ..@ vs. @{r : A} -> ..@.
+
 newtype BindName = BindName { unBind :: Name }
   deriving (Show, Data, HasRange, SetRange, KillRange)
 
