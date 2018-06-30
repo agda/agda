@@ -1,4 +1,5 @@
 {
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE LambdaCase    #-}
 
