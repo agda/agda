@@ -68,6 +68,35 @@ import Agda.Utils.Float
 import Agda.Utils.Impossible
 import Debug.Trace
 
+------------------------------------------------------------------------
+-- * Builtin Sigma
+------------------------------------------------------------------------
+
+data SigmaKit = SigmaKit
+  { sigmaName :: QName
+  , sigmaCon  :: ConHead
+  , sigmaFst  :: QName
+  , sigmaSnd  :: QName
+  }
+  deriving (Eq,Show)
+
+getSigmaKit :: (HasBuiltins m, HasConstInfo m) => m (Maybe SigmaKit)
+getSigmaKit = do
+  ms <- getBuiltinName' builtinSigma
+  case ms of
+    Nothing -> return Nothing
+    Just sigma -> do
+      def <- theDef <$> getConstInfo sigma
+      case def of
+        Record { recFields = [fst,snd], recConHead = con } -> do
+          return . Just $ SigmaKit
+            { sigmaName = sigma
+            , sigmaCon  = con
+            , sigmaFst  = unArg fst
+            , sigmaSnd  = unArg snd
+            }
+        _ -> __IMPOSSIBLE__
+
 ---------------------------------------------------------------------------
 -- * Primitive functions
 ---------------------------------------------------------------------------

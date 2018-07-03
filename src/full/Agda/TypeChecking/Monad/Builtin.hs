@@ -124,6 +124,7 @@ constructorForm' pZero pSuc v =
 
 primInteger, primIntegerPos, primIntegerNegSuc,
     primFloat, primChar, primString, primUnit, primUnitUnit, primBool, primTrue, primFalse,
+    primSigma,
     primList, primNil, primCons, primIO, primNat, primSuc, primZero,
     primPath, primPathP, primInterval, primIZero, primIOne, primPartial, primPartialP,
     primIMin, primIMax, primINeg,
@@ -182,6 +183,7 @@ primFloat        = getBuiltin builtinFloat
 primChar         = getBuiltin builtinChar
 primString       = getBuiltin builtinString
 primBool         = getBuiltin builtinBool
+primSigma        = getBuiltin builtinSigma
 primUnit         = getBuiltin builtinUnit
 primUnitUnit     = getBuiltin builtinUnitUnit
 primTrue         = getBuiltin builtinTrue
@@ -358,6 +360,7 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinNatLess, builtinInteger, builtinIntegerPos, builtinIntegerNegSuc,
   builtinWord64,
   builtinFloat, builtinChar, builtinString, builtinUnit, builtinUnitUnit,
+  builtinSigma,
   builtinBool, builtinTrue, builtinFalse,
   builtinList, builtinNil, builtinCons, builtinIO,
   builtinPath, builtinPathP, builtinInterval, builtinPathAbs, builtinIZero, builtinIOne, builtinPartial, builtinPartialP,
@@ -430,6 +433,7 @@ builtinChar                          = "CHAR"
 builtinString                        = "STRING"
 builtinUnit                          = "UNIT"
 builtinUnitUnit                      = "UNITUNIT"
+builtinSigma                         = "SIGMA"
 builtinBool                          = "BOOL"
 builtinTrue                          = "TRUE"
 builtinFalse                         = "FALSE"

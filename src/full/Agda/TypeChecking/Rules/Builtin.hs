@@ -77,6 +77,14 @@ coreBuiltins =
   , (builtinArgInfo            |-> BuiltinData tset [builtinArgArgInfo])
   , (builtinBool               |-> BuiltinData tset [builtinTrue, builtinFalse])
   , (builtinNat                |-> BuiltinData tset [builtinZero, builtinSuc])
+  , (builtinSigma              |-> BuiltinData (runNamesT [] $
+                                                hPi' "la" (el $ cl primLevel) $ \ a ->
+                                                hPi' "lb" (el $ cl primLevel) $ \ b ->
+                                                nPi' "A" (sort . tmSort <$> a) $ \bA ->
+                                                nPi' "B" (el' a bA --> (sort . tmSort <$> b)) $ \bB ->
+                                                ((sort . tmSort) <$> (cl primLevelMax <@> a <@> b))
+                                                )
+                                               ["SIGMACON"])
   , (builtinUnit               |-> BuiltinData tset [builtinUnitUnit])  -- actually record, but they are treated the same
   , (builtinAgdaLiteral        |-> BuiltinData tset [builtinAgdaLitNat, builtinAgdaLitWord64, builtinAgdaLitFloat,
                                                      builtinAgdaLitChar, builtinAgdaLitString,
@@ -666,6 +674,15 @@ bindBuiltinUnit t = do
       bindBuiltinName builtinUnitUnit (Con con ConOSystem [])
     _ -> genericError "Builtin UNIT must be a singleton record type"
 
+bindBuiltinSigma :: Term -> TCM ()
+bindBuiltinSigma t = do
+  sigma <- fromMaybe __IMPOSSIBLE__ <$> getDef t
+  def <- theDef <$> getConstInfo sigma
+  case def of
+    Record { recFields = [fst,snd], recConHead = con } -> do
+      bindBuiltinName builtinSigma t
+    _ -> genericError "Builtin SIGMA must be a record type with two fields"
+
 -- | Bind BUILTIN EQUALITY and BUILTIN REFL.
 bindBuiltinEquality :: ResolvedName -> TCM ()
 bindBuiltinEquality x = do
@@ -730,6 +747,7 @@ bindBuiltinInfo (BuiltinInfo s d) e = do
            | s == builtinNat      -> bindBuiltinNat      v
            | s == builtinInteger  -> bindBuiltinInt      v
            | s == builtinUnit     -> bindBuiltinUnit     v
+           | s == builtinSigma    -> bindBuiltinSigma    v
            | s == builtinList     -> bindBuiltinData s   v
            | otherwise            -> bindBuiltinName s   v
 
