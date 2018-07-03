@@ -166,24 +166,43 @@ coreBuiltins =
                                                 hPi "y" (El (varSort 2) <$> varM 1) $
                                                 tinterval --> (El (varSort 3) <$> primPath <#> varM 3 <#> varM 2 <@> varM 1 <@> varM 0) -->
                                                 (El (varSort 3) <$> primId <#> varM 3 <#> varM 2 <@> varM 1 <@> varM 0)))
-  , (builtinIsEquiv            |-> BuiltinUnknown (Just $ runNamesT [] (
+  , (builtinEquiv            |-> BuiltinUnknown (Just $ runNamesT [] (
                                                     hPi' "l" (el $ cl primLevel) $ \ a ->
                                                     hPi' "l'" (el $ cl primLevel) $ \ b ->
                                                     nPi' "A" (sort . tmSort <$> a) $ \bA ->
                                                     nPi' "B" (sort . tmSort <$> b) $ \bB ->
-                                                    (el' a bA --> el' b bB) --> ((sort . tmSort) <$> (cl primLevelMax <@> a <@> b))
+                                                    ((sort . tmSort) <$> (cl primLevelMax <@> a <@> b))
+                                                  ))
+                                                   (const $ const $ return ()))
+  , (builtinEquivFun            |-> BuiltinUnknown (Just $ runNamesT [] (
+                                                    hPi' "l" (el $ cl primLevel) $ \ a ->
+                                                    hPi' "l'" (el $ cl primLevel) $ \ b ->
+                                                    hPi' "A" (sort . tmSort <$> a) $ \bA ->
+                                                    hPi' "B" (sort . tmSort <$> b) $ \bB ->
+                                                    el' (cl primLevelMax <@> a <@> b) (cl primEquiv <#> a <#> b <@> bA <@> bB) --> (el' a bA --> el' b bB)
+                                                  ))
+                                                   (const $ const $ return ()))
+  , (builtinEquivProof            |-> BuiltinUnknown (Just $ runNamesT [] (
+                                                    hPi' "l" (el $ cl primLevel) $ \ la ->
+                                                    hPi' "l'" (el $ cl primLevel) $ \ lb ->
+                                                    nPi' "A" (sort . tmSort <$> la) $ \ bA ->
+                                                    nPi' "B" (sort . tmSort <$> lb) $ \ bB ->
+                                                    nPi' "e" (el' (cl primLevelMax <@> la <@> lb) (cl primEquiv <#> la <#> lb <@> bA <@> bB)) $ \ e -> do
+                                                    nPi' "b" (el' lb bB) $ \ b -> do
+                                                     let f = cl primEquivFun <#> la <#> lb <#> bA <#> bB <@> e
+                                                         fiber = el' (cl primLevelMax <@> la <@> lb) (cl primSigma <#> la <#> lb
+                                                                                                       <@> bA
+                                                                                                       <@> (lam "a" $ \ a -> cl primPath <#> lb <#> bB <@> b <@> (f <@> a)))
+                                                     nPi' "φ" (cl tinterval) $ \ phi ->
+                                                       (pPi' "o" phi $ \ o -> fiber) --> fiber
                                                   ))
                                                    (const $ const $ return ()))
   , (builtinPathToEquiv        |-> BuiltinUnknown
                                                 (Just $ runNamesT [] (
                                                    hPi' "l" (cl tinterval --> (el $ cl primLevel)) $ \ a ->
                                                    nPi' "E" (nPi' "i" (cl tinterval) $ \ i -> (sort . tmSort <$> (a <@> i))) $ \bE ->
-                                                   let comp = getPrimitiveTerm "primComp" in
                                                    el' (cl primLevelMax <@> (a <@> cl primIZero) <@> (a <@> cl primIOne))
-                                                    (cl primIsEquiv <#> (a <@> cl primIZero) <#> (a <@> cl primIOne) <@> (bE <@> cl primIZero) <@> (bE <@> cl primIOne)
-                                                          <@> (cl comp <#> a <@> bE <@> cl primIZero
-                                                                <@> (lam "i" $ \ i -> cl primIsOneEmpty <#> (a <@> i) <#> (lam "o" $ \ _ -> bE <@> i))
-                                                              )
+                                                    (cl primEquiv <#> (a <@> cl primIZero) <#> (a <@> cl primIOne) <@> (bE <@> cl primIZero) <@> (bE <@> cl primIOne)
                                                          )))
                                          (const $ const $ return ()))
   , (builtinCompGlue           |-> BuiltinUnknown (Just $ runNamesT [] (
@@ -192,16 +211,14 @@ coreBuiltins =
                                      nPi' "A"  (nPi' "i" (cl tinterval) $ \ i -> sort . tmSort <$> (l <@> i)) $ \ bA ->
                                      nPi' "φ"  (cl tinterval --> cl tinterval) $ \ phi ->
                                      nPi' "T"  (nPi' "i" (cl tinterval) $ \ i -> pPi' "o" (phi <@> i) $ \ o -> sort . tmSort <$> (l' <@> i)) $ \ bT ->
-                                     nPi' "f"  (nPi' "i" (cl tinterval) $ \ i -> pPi' "o" (phi <@> i) $ \ o -> el' (l' <@> i) (bT <@> i <@> o)
-                                                                                                           --> el' (l <@> i) (bA <@> i)) $ \ f ->
-                                     nPi' "pf"  (nPi' "i" (cl tinterval) $ \ i -> pPi' "o" (phi <@> i) $ \ o ->
+                                     nPi' "e"  (nPi' "i" (cl tinterval) $ \ i -> pPi' "o" (phi <@> i) $ \ o ->
                                                     el' (cl primLevelMax <@> (l' <@> i) <@> (l <@> i))
-                                                        (cl primIsEquiv <#> (l' <@> i) <#> (l <@> i)
-                                                                        <@> (bT <@> i <@> o) <@> (bA <@> i) <@> (f <@> i <@> o))) $ \ pf ->
+                                                        (cl primEquiv <#> (l' <@> i) <#> (l <@> i)
+                                                                        <@> (bT <@> i <@> o) <@> (bA <@> i))) $ \ e ->
                                      nPi' "ψ" (cl tinterval) $ \ psi ->
                                      let bB i = el' (l' <@> i) (cl primGlue <#> (l <@> i) <#> (l' <@> i)
                                                                             <@> (bA <@> i) <@> (phi <@> i)
-                                                                            <@> (bT <@> i) <@> (f <@> i) <@> (pf <@> i))
+                                                                            <@> (bT <@> i) <@> (e <@> i))
                                      in nPi' "b" (nPi' "i" (cl tinterval) $ \ i -> pPi' "o" psi $ \ _ -> bB i) $ \ _b ->
                                         bB (cl primIZero) --> bB (cl primIOne)
                                      ))

@@ -132,7 +132,8 @@ primInteger, primIntegerPos, primIntegerNegSuc,
     primSub, primSubIn, primSubOut,
     primTrans, primHComp,
     primId, primConId, primIdElim,
-    primIsEquiv, primPathToEquiv, primGlue, prim_glue, prim_unglue,
+    primEquiv, primEquivFun, primEquivProof, primPathToEquiv,
+    primGlue, prim_glue, prim_unglue,
     primCompGlue, primFaceForall,
     primPushOut, primPOInl, primPOInr, primPOPush, primPOhcomp, primPOforward, primPOElim,
     primNatPlus, primNatMinus, primNatTimes, primNatDivSucAux, primNatModSucAux,
@@ -209,7 +210,9 @@ primIsOne        = getBuiltin builtinIsOne
 primItIsOne      = getBuiltin builtinItIsOne
 primTrans        = getPrimitiveTerm builtinTrans
 primHComp        = getPrimitiveTerm builtinHComp
-primIsEquiv      = getBuiltin builtinIsEquiv
+primEquiv        = getBuiltin builtinEquiv
+primEquivFun     = getBuiltin builtinEquivFun
+primEquivProof   = getBuiltin builtinEquivProof
 primPathToEquiv  = getBuiltin builtinPathToEquiv
 primGlue         = getPrimitiveTerm builtinGlue
 prim_glue        = getPrimitiveTerm builtin_glue
@@ -368,7 +371,8 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinIsOne,  builtinItIsOne, builtinIsOne1, builtinIsOne2, builtinIsOneEmpty,
   builtinTrans, builtinHComp,
   builtinSub, builtinSubIn, builtinSubOut,
-  builtinIsEquiv, builtinPathToEquiv, builtinGlue, builtin_glue, builtin_unglue,
+  builtinEquiv, builtinEquivFun, builtinEquivProof, builtinPathToEquiv,
+  builtinGlue, builtin_glue, builtin_unglue,
   builtinCompGlue, builtinFaceForall,
   builtinId, builtinConId, builtinIdElim,
   builtinPushOut, builtinPOInl, builtinPOInr, builtinPOPush, builtinPOhcomp, builtinPOforward, builtinPOElim,
@@ -457,7 +461,9 @@ builtinPartial                       = "PARTIAL"
 builtinPartialP                      = "PARTIALP"
 builtinIsOne                         = "ISONE"
 builtinItIsOne                       = "ITISONE"
-builtinIsEquiv                       = "ISEQUIV"
+builtinEquiv                         = "EQUIV"
+builtinEquivFun                      = "EQUIVFUN"
+builtinEquivProof                    = "EQUIVPROOF"
 builtinPathToEquiv                   = "PATHTOEQUIV"
 builtinGlue                          = "primGlue"
 builtin_glue                         = "prim^glue"

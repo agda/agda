@@ -1125,11 +1125,12 @@ checkPOr c vs t1 = do
 checkGlue :: QName -> Args -> Type -> TCM ()
 checkGlue c vs _ = do
   case vs of
-   [la, lb, bA, phi, bT, f, pf, t, a] -> do
+   [la, lb, bA, phi, bT, e, t, a] -> do
       let iinfo = setRelevance Irrelevant defaultArgInfo
       v <- runNamesT [] $ do
-            [f, t] <- mapM (open . unArg) [f, t]
-            glam iinfo "o" $ \ o -> f <..> o <@> (t <..> o)
+            [lb, la, bA, phi, bT, e, t] <- mapM (open . unArg) [lb, la, bA, phi, bT, e, t]
+            let f o = cl primEquivFun <#> lb <#> la <#> (bT <..> o) <#> bA <@> (e <..> o)
+            glam iinfo "o" $ \ o -> f o <@> (t <..> o)
       ty <- runNamesT [] $ do
             [lb, phi, bA] <- mapM (open . unArg) [lb, phi, bA]
             elInf $ cl primPartialP <#> lb <@> phi <@> (glam iinfo "o" $ \ _ -> bA)
