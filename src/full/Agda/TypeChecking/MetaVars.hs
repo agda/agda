@@ -919,7 +919,7 @@ assignMeta' m x t n ids v = do
     let vsol = abstract tel' v'
 
     -- Andreas, 2013-10-25 double check solution before assigning
-    whenM (optDoubleCheck <$> pragmaOptions) $ dontAssignMetas $ do
+    whenM (optDoubleCheck <$> pragmaOptions) $ noConstraints $ dontAssignMetas $ do
       m <- lookupMeta x
       reportSDoc "tc.meta.check" 30 $ text "double checking solution"
       addContext tel' $ case mvJudgement m of
