@@ -1120,9 +1120,6 @@ leqSort s1 s2 = catchConstraint (SortCmp CmpLeq s1 s2) $ do
   badRigid <- s1 `rigidVarsNotContainedIn` fvsRHS
 
   case (s1, s2) of
-      -- before anything else, try syntactic equality
-      _ | s1 == s2         -> return ()
-
       -- The most basic rule: @Set l =< Set l'@ iff @l =< l'@
       (Type a  , Type b  ) -> leqLevel a b
 
@@ -1149,6 +1146,9 @@ leqSort s1 s2 = catchConstraint (SortCmp CmpLeq s1 s2) $ do
       -- If the first sort rigidly depends on a variable and the second
       -- sort does not mention this variable, the second sort must be Inf.
       (_       , _       ) | badRigid -> equalSort s2 Inf
+
+      -- This shouldn't be necessary
+      (UnivSort Inf , UnivSort Inf) -> yes
 
       -- PiSort, UnivSort and MetaS might reduce once we instantiate
       -- more metas, so we postpone.
@@ -1468,9 +1468,6 @@ equalSort s1 s2 = do
 
         case (s1, s2) of
 
-            -- before anything else, try syntactic equality
-            _ | s1 == s2              -> return ()
-
             -- one side is a meta sort: try to instantiate
             -- In case both sides are meta sorts, instantiate the
             -- bigger (i.e. more recent) one.
@@ -1498,6 +1495,9 @@ equalSort s1 s2 = do
             (UnivSort s    , Prop (Max [])) -> no
             (SizeUniv      , UnivSort s )   -> no
             (UnivSort s    , SizeUniv   )   -> no
+
+            -- This shouldn't be necessary
+            (UnivSort Inf  , UnivSort Inf ) -> yes
 
             -- PiSort and UnivSort could compute later, so we postpone
             (PiSort{}   , _          ) -> postpone
