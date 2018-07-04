@@ -67,6 +67,13 @@ Pragmas and options
   Like the similar pragmas for disabling termination and positivity
   checking, {-# NO_UNIVERSE_CHECK #-} cannot be used with --safe.
 
+* New option --no-syntactic-equality.
+
+  The option `--no-syntactic-equality` disables the syntactic equality
+  shortcut used by the conversion checker. This will slow down
+  typechecking in most cases, but makes the performance more
+  predictable and stable under minor changes.
+
 Emacs mode
 ----------
 

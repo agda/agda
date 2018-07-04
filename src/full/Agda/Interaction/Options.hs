@@ -161,6 +161,7 @@ data PragmaOptions = PragmaOptions
   , optInversionMaxDepth         :: Int
   , optSafe                      :: Bool
   , optDoubleCheck               :: Bool
+  , optSyntacticEquality         :: Bool  -- ^ Should conversion checker use syntactic equality shortcut?
   , optWarningMode               :: WarningMode
   , optCompileNoMain             :: Bool
   , optCaching                   :: Bool
@@ -255,6 +256,7 @@ defaultPragmaOptions = PragmaOptions
   , optInversionMaxDepth         = 50
   , optSafe                      = False
   , optDoubleCheck               = False
+  , optSyntacticEquality         = True
   , optWarningMode               = defaultWarningMode
   , optCompileNoMain             = False
   , optCaching                   = True
@@ -370,6 +372,9 @@ safeFlag o = return $ o { optSafe = True }
 
 doubleCheckFlag :: Flag PragmaOptions
 doubleCheckFlag o = return $ o { optDoubleCheck = True }
+
+noSyntacticEqualityFlag :: Flag PragmaOptions
+noSyntacticEqualityFlag o = return $ o { optSyntacticEquality = False }
 
 sharingFlag :: Bool -> Flag CommandLineOptions
 sharingFlag _ o = return o
@@ -726,6 +731,8 @@ pragmaOptions =
                     "disable postulates, unsafe OPTION pragmas and primTrustMe"
     , Option []     ["double-check"] (NoArg doubleCheckFlag)
                     "enable double-checking of all terms using the internal typechecker"
+    , Option []     ["no-syntactic-equality"] (NoArg noSyntacticEqualityFlag)
+                    "disable the syntactic equality shortcut in the conversion checker"
     , Option ['W']  ["warning"] (ReqArg warningModeFlag "FLAG")
                     ("set warning flags. See --help=warning.")
     , Option []     ["no-main"] (NoArg compileFlagNoMain)

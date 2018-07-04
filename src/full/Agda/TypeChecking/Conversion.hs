@@ -454,7 +454,8 @@ compareAtom cmp t m n =
 
         postpone = addConstraint $ ValueCmp cmp t m n
 
-        checkSyntacticEquality = do
+        checkSyntacticEquality =
+          ifNotM (optSyntacticEquality <$> pragmaOptions) postpone $ do
           n <- normalise n    -- is this what we want?
           m <- normalise m
           if m == n

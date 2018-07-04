@@ -18,10 +18,12 @@ import Control.Applicative hiding ((<**>))
 import Control.Arrow ((***))
 import Control.Monad.State hiding (mapM)
 
+import Agda.Interaction.Options (optSyntacticEquality)
+
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 
-import Agda.TypeChecking.Monad (ReduceM, MonadReduce(..))
+import Agda.TypeChecking.Monad (ReduceM, MonadReduce(..), pragmaOptions)
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Reduce.Monad
 import Agda.TypeChecking.Substitute
@@ -43,7 +45,10 @@ import Agda.Utils.Impossible
 {-# SPECIALIZE checkSyntacticEquality :: Term -> Term -> ReduceM ((Term, Term), Bool) #-}
 {-# SPECIALIZE checkSyntacticEquality :: Type -> Type -> ReduceM ((Type, Type), Bool) #-}
 checkSyntacticEquality :: (SynEq a, MonadReduce m) => a -> a -> m ((a, a), Bool)
-checkSyntacticEquality v v' = liftReduce $ synEq v v' `runStateT` True
+checkSyntacticEquality v v' = liftReduce $ do
+  ifM (optSyntacticEquality <$> pragmaOptions)
+  {-then-} (synEq v v' `runStateT` True)
+  {-else-} (return ((v,v'), False))
 
 -- | Monad for checking syntactic equality
 type SynEqM = StateT Bool ReduceM
