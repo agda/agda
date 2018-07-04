@@ -1457,6 +1457,10 @@ equalSort s1 s2 = do
         let postpone = addConstraint (SortCmp CmpEq s1 s2)
             yes      = return ()
             no       = unlessM typeInType $ typeError $ UnequalSorts s1 s2
+            synEq    = ifNotM (optSyntacticEquality <$> pragmaOptions) postpone $ do
+              ((s1,s2) , equal) <- SynEq.checkSyntacticEquality s1 s2
+              if | equal     -> yes
+                 | otherwise -> postpone
 
         reportSDoc "tc.conv.sort" 30 $ sep
           [ text "equalSort"
@@ -1473,10 +1477,15 @@ equalSort s1 s2 = do
             -- In case both sides are meta sorts, instantiate the
             -- bigger (i.e. more recent) one.
             (MetaS x es , MetaS y es')
+              | x == y                 -> synEq
               | x < y                  -> meta y es' s1
               | otherwise              -> meta x es s2
             (MetaS x es , _          ) -> meta x es s2
             (_          , MetaS x es ) -> meta x es s1
+
+            -- Other blocked sorts: check syntactic equality
+            (PiSort{}    , PiSort{}   ) -> synEq
+            (UnivSort{}  , UnivSort{} ) -> synEq
 
             -- diagonal cases for rigid sorts
             (Type a     , Type b     ) -> equalLevel a b
@@ -1497,8 +1506,6 @@ equalSort s1 s2 = do
             (SizeUniv      , UnivSort s )   -> no
             (UnivSort s    , SizeUniv   )   -> no
 
-            -- This shouldn't be necessary
-            (UnivSort Inf  , UnivSort Inf ) -> yes
 
             -- PiSort and UnivSort could compute later, so we postpone
             (PiSort{}   , _          ) -> postpone
