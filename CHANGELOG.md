@@ -92,6 +92,9 @@ Emacs mode
   Jump-to-definition (`M-.` or middle-click) on any of these `f`s
   now jumps to the field declaration.
 
+* Commas "ʻ،⸲⸴⹁⹉、︐︑﹐﹑，､" and semi-colons "؛⁏፤꛶；︔﹔⍮⸵;" added
+  to the input mode.
+
 Release notes for Agda version 2.5.4.1
 ======================================
 
