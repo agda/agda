@@ -314,82 +314,82 @@ A group of warnings can be enabled by ``-W {group}``, where
 Individual warnings can be turned on and off by ``-W {Name}`` and ``-W
 {noName}`` respectively. The flags available are:
 
-:samp:`OverlappingTokensWarning`
-      Multi-line comments spanning one or more literate text blocks.
-:samp:`UnknownNamesInFixityDecl`
-      Names not declared in the same scope as their syntax or fixity declaration.
-:samp:`UnknownFixityInMixfixDecl`
-      Mixfix names without an associated fixity declaration.
-:samp:`UnknownNamesInPolarityPragmas`
-      Names not declared in the same scope as their polarity pragmas.
-:samp:`PolarityPragmasButNotPostulates`
-      Polarity pragmas for non-postulates.
-:samp:`UselessPrivate`
-      ``private`` blocks where they have no effect.
-:samp:`UselessAbstract`
-      ``abstract`` blocks where they have no effect.
-:samp:`UselessInstance`
-      ``instance`` blocks where they have no effect.
-:samp:`EmptyMutual`
-      Empty ``mutual`` blocks.
-:samp:`EmptyAbstract`
-      Empty ``abstract`` blocks.
-:samp:`EmptyPrivate`
-      Empty ``private`` blocks.
-:samp:`EmptyInstance`
-      Empty ``instance`` blocks.
-:samp:`EmptyMacro`
-      Empty ``macro`` blocks.
-:samp:`EmptyPostulate`
-      Empty ``postulate`` blocks.
-:samp:`InvalidTerminationCheckPragma`
-      Termination checking pragmas before non-function or ``mutual`` blocks.
-:samp:`InvalidNoPositivityCheckPragma`
-      No positivity checking pragmas before non-`data``, ``record`` or ``mutual`` blocks.
-:samp:`InvalidCatchallPragma`
-      ``CATCHALL`` pragmas before a non-function clause.
-:samp:`OldBuiltin`
-      Deprecated ``BUILTIN`` pragmas.
-:samp:`EmptyRewritePragma`
-      Empty ``REWRITE`` pragmas.
-:samp:`UselessPublic`
-      ``public`` blocks where they have no effect.
-:samp:`UnreachableClauses`
-      Unreachable function clauses.
-:samp:`UselessInline`
-      ``INLINE`` pragmas where they have no effect.
-:samp:`DeprecationWarning`
-      Feature deprecation.
-:samp:`InversionDepthReached`
-      Inversions of pattern-matching failed due to exhausted inversion depth.
-:samp:`TerminationIssue`
-      Failed termination checks.
 :samp:`CoverageIssue`
       Failed coverage checks.
 :samp:`CoverageNoExactSplit`
       Failed exact split checks.
+:samp:`DeprecationWarning`
+      Feature deprecation.
+:samp:`EmptyAbstract`
+      Empty ``abstract`` blocks.
+:samp:`EmptyInstance`
+      Empty ``instance`` blocks.
+:samp:`EmptyMacro`
+      Empty ``macro`` blocks.
+:samp:`EmptyMutual`
+      Empty ``mutual`` blocks.
+:samp:`EmptyPostulate`
+      Empty ``postulate`` blocks.
+:samp:`EmptyPrivate`
+      Empty ``private`` blocks.
+:samp:`EmptyRewritePragma`
+      Empty ``REWRITE`` pragmas.
+:samp:`InvalidCatchallPragma`
+      ``CATCHALL`` pragmas before a non-function clause.
+:samp:`InvalidNoPositivityCheckPragma`
+      No positivity checking pragmas before non-`data``, ``record`` or ``mutual`` blocks.
+:samp:`InvalidTerminationCheckPragma`
+      Termination checking pragmas before non-function or ``mutual`` blocks.
+:samp:`InversionDepthReached`
+      Inversions of pattern-matching failed due to exhausted inversion depth.
 :samp:`NotStrictlyPositive`
       Failed strict positivity checks.
-:samp:`UnsolvedMetaVariables`
-      Unsolved meta variables.
-:samp:`UnsolvedInteractionMetas`
-      Unsolved interaction meta variables.
-:samp:`UnsolvedConstraints`
-      Unsolved constraints.
+:samp:`OldBuiltin`
+      Deprecated ``BUILTIN`` pragmas.
+:samp:`OverlappingTokensWarning`
+      Multi-line comments spanning one or more literate text blocks.
+:samp:`PolarityPragmasButNotPostulates`
+      Polarity pragmas for non-postulates.
+:samp:`SafeFlagNoPositivityCheck`
+      ``NO_POSITIVITY_CHECK`` pragmas with the safe flag.
+:samp:`SafeFlagNonTerminating`
+      ``NON_TERMINATING`` pragmas with the safe flag.
+:samp:`SafeFlagPolarity`
+      ``POLARITY`` pragmas with the safe flag.
 :samp:`SafeFlagPostulate`
       ``postulate`` blocks with the safe flag
 :samp:`SafeFlagPragma`
       Unsafe ``OPTIONS`` pragmas with the safe flag.
-:samp:`SafeFlagNonTerminating`
-      ``NON_TERMINATING`` pragmas with the safe flag.
-:samp:`SafeFlagTerminating`
-      ``TERMINATING`` pragmas with the safe flag.
 :samp:`SafeFlagPrimTrustMe`
       ``primTrustMe`` usages with the safe flag.
-:samp:`SafeFlagNoPositivityCheck`
-      ``NO_POSITIVITY_CHECK`` pragmas with the safe flag.
-:samp:`SafeFlagPolarity`
-      ``POLARITY`` pragmas with the safe flag.
+:samp:`SafeFlagTerminating`
+      ``TERMINATING`` pragmas with the safe flag.
+:samp:`TerminationIssue`
+      Failed termination checks.
+:samp:`UnknownFixityInMixfixDecl`
+      Mixfix names without an associated fixity declaration.
+:samp:`UnknownNamesInFixityDecl`
+      Names not declared in the same scope as their syntax or fixity declaration.
+:samp:`UnknownNamesInPolarityPragmas`
+      Names not declared in the same scope as their polarity pragmas.
+:samp:`UnreachableClauses`
+      Unreachable function clauses.
+:samp:`UnsolvedConstraints`
+      Unsolved constraints.
+:samp:`UnsolvedInteractionMetas`
+      Unsolved interaction meta variables.
+:samp:`UnsolvedMetaVariables`
+      Unsolved meta variables.
+:samp:`UselessAbstract`
+      ``abstract`` blocks where they have no effect.
+:samp:`UselessInline`
+      ``INLINE`` pragmas where they have no effect.
+:samp:`UselessInstance`
+      ``instance`` blocks where they have no effect.
+:samp:`UselessPrivate`
+      ``private`` blocks where they have no effect.
+:samp:`UselessPublic`
+      ``public`` blocks where they have no effect.
 
 For example, the following command runs Agda with all warnings
 enabled, except for warnings about empty ``abstract`` blocks:
