@@ -1,6 +1,13 @@
 Release notes for Agda version 2.5.4.1
 ======================================
 
+Installation and infrastructure
+-------------------------------
+
+* Generated the interface file for the `Sigma.agda` built-in when
+  installing Agda
+  [Issue [#3128](https://github.com/agda/agda/issues/3128)].
+
 Emacs mode
 ----------
 
