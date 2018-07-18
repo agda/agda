@@ -2,7 +2,7 @@ TOP = ../..
 
 include $(TOP)/mk/paths.mk
 
-AGDA = $(AGDA_BIN) -v0
+AGDA = $(AGDA_BIN) -v0 --no-libraries
 
 all : Issue1168.api PrettyInterface.api ScopeFromInterface.api
 

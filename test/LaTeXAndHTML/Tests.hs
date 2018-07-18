@@ -139,6 +139,7 @@ mkLaTeXOrHTMLTest k agdaBin inp =
                    [ "-i" ++ testDir
                    , inp
                    , "--ignore-interfaces"
+                   , "--no-libraries"
                    ] ++ extraFlags
     res@(ret, _, _) <- PT.readProcessWithExitCode agdaBin agdaArgs T.empty
     if ret /= ExitSuccess then
