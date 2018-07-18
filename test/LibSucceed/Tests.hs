@@ -74,7 +74,7 @@ mkLibSucceedTest inp =
           agdaArgs = [ "-v0"
                      , "-i" ++ testDir
                      , "-i" ++ "std-lib/src"
-                     , "--no-default-libraries"
+                     , "--no-libraries"
                      , inp
                      ] ++ rtsOptions
 

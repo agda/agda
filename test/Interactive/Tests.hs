@@ -21,7 +21,7 @@ tests = testGroup "Interactive"
   [ testCase "Naked" $ do
     runAgda [] "Naked"
   , testCase "Issue1430" $ do
-    runAgda ["--no-default-libraries"] "Issue1430"
+    runAgda ["--no-libraries"] "Issue1430"
   ]
   where
     agdaArgs = [ "-I", "-i.", "-i..", "--ignore-interfaces" ]
