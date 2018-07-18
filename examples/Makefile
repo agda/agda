@@ -26,7 +26,7 @@ default : ac \
 
 agda = $(AGDA_BIN)
 
-run_agda = $(agda) -v0 --vim --ignore-interfaces --no-default-libraries
+run_agda = $(agda) -v0 --vim --ignore-interfaces --no-libraries
 
 other_files = AIM5/Hedberg/SET.agda \
               AIM5/yoshiki/SET.agda \
