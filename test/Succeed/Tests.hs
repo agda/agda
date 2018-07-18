@@ -61,7 +61,7 @@ mkSucceedTest extraOpts dir inp =
         doRun = do
           flags <- maybe [] (T.unpack . decodeUtf8) <$> readFileMaybe flagFile
           let agdaArgs = [ "-v0", "-i" ++ dir, "-itest/" , inp
-                         , "--no-default-libraries"
+                         , "--no-libraries"
                          , "-vimpossible:10" -- BEWARE: no spaces allowed here
                          , "-vwarning:1"
                          ] ++

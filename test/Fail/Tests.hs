@@ -44,7 +44,7 @@ mkFailTest inp =
 
         doRun = do
           flags <- maybe [] (T.unpack . decodeUtf8) <$> readFileMaybe flagFile
-          let agdaArgs = ["-v0", "-i" ++ testDir, "-itest/" , inp, "--ignore-interfaces", "--no-default-libraries"] ++ words flags
+          let agdaArgs = ["-v0", "-i" ++ testDir, "-itest/" , inp, "--ignore-interfaces", "--no-libraries"] ++ words flags
           readAgdaProcessWithExitCode agdaArgs T.empty >>= expectFail
 
 issue2649 :: TestTree
@@ -55,14 +55,14 @@ issue2649 = goldenTest1 "Issue2649" (readTextFileMaybe goldenFile)
     goldenFile = dir </> "Issue2649.err"
     doRun = do
       _  <- readAgdaProcessWithExitCode
-              ["--no-default-libraries", "-i" ++ dir, dir </> "Issue2649-1.agda"]
+              ["--no-libraries", "-i" ++ dir, dir </> "Issue2649-1.agda"]
               T.empty
       _  <- readAgdaProcessWithExitCode
-              ["--no-default-libraries", "-i" ++ dir, dir </> "Issue2649-2.agda"]
+              ["--no-libraries", "-i" ++ dir, dir </> "Issue2649-2.agda"]
               T.empty
       fmap printAgdaResult . expectFail =<< do
             readAgdaProcessWithExitCode
-              ["--no-default-libraries", "-i" ++ dir, dir </> "Issue2649.agda"]
+              ["--no-libraries", "-i" ++ dir, dir </> "Issue2649.agda"]
               T.empty
 
 nestedProjectRoots :: TestTree
@@ -73,13 +73,13 @@ nestedProjectRoots = goldenTest1 "NestedProjectRoots" (readTextFileMaybe goldenF
     goldenFile = dir </> "NestedProjectRoots.err"
     doRun = do
       r1 <- readAgdaProcessWithExitCode
-              ["--ignore-interfaces", "--no-default-libraries", "-i" ++ dir, "-i" ++ dir </> "Imports", dir </> "NestedProjectRoots.agda"]
+              ["--ignore-interfaces", "--no-libraries", "-i" ++ dir, "-i" ++ dir </> "Imports", dir </> "NestedProjectRoots.agda"]
               T.empty >>= fmap printAgdaResult . expectFail
       r2 <- readAgdaProcessWithExitCode
-              ["--no-default-libraries", "-i" ++ dir </> "Imports", dir </> "Imports" </> "A.agda"]
+              ["--no-libraries", "-i" ++ dir </> "Imports", dir </> "Imports" </> "A.agda"]
               T.empty >>= expectOk
       r3 <- readAgdaProcessWithExitCode
-              ["--no-default-libraries", "-i" ++ dir, "-i" ++ dir </> "Imports", dir </> "NestedProjectRoots.agda"]
+              ["--no-libraries", "-i" ++ dir, "-i" ++ dir </> "Imports", dir </> "NestedProjectRoots.agda"]
               T.empty >>= fmap printAgdaResult . expectFail
       return $ r1 `T.append` r2 `T.append` r3
 
