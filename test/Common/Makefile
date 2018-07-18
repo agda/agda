@@ -30,6 +30,6 @@ cleanup = $(if $(call does_compile,$1),rm -rf MAlonzo $1,true)
 	@$(call cleanup,$*)
 
 clean :
-	-rm *~
+	@rm -f *~ *.agdai .*.agda.vim
 
 #EOF
