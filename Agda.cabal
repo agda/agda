@@ -105,6 +105,7 @@ custom-setup
   setup-depends:  base >= 4.8.0.0 && < 4.12
                 , Cabal >= 1.22.5.0 && < 2.3
                 , filepath >= 1.4.0.0 && < 1.5
+                , filemanip >= 0.3.6.2 && < 0.4
                 , process >= 1.2.3.0 && < 1.7
 
 library
