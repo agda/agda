@@ -58,8 +58,7 @@ the following procedure can be followed:
     test/interaction/Issue1244a.out
     test/interaction/Issue1244b.out
 
-* Obtain and install the standard library branch related to the Agda
-  bugfix version:
+* Obtain and install the standard library branch related to the Agda:
 
     make up-to-date-std-lib
 
@@ -88,12 +87,12 @@ the following procedure can be followed:
     cabal sdist
 
 * Build documentation for uploading to Hackage. Adapted from
-  https://hackage.haskell.org/upload (2018-05-19):
+  https://hackage.haskell.org/upload (2018-07-19):
 
-    cabal haddock --for-hackage --haddock-option=--hyperlinked-source
+    cabal haddock --for-hackage
 
-* Ensure that the package builds properly (with multiple versions of GHC if
-  possible) in Linux, MacOS X and Windows.
+* Ensure that the package builds properly (with multiple versions of
+  GHC if possible) in Linux, macOS and Windows.
 
     BASE=`pwd`
     cd ${TMPDIR:-/tmp}
@@ -115,8 +114,7 @@ the following procedure can be followed:
     cd $BASE
     git tag -a v$RC_VERSION -m "Agda $MAJORVERSION release candidate n"
 
-* Restore the Cabal tests-suites `agda-tests` and `internal-tests`
-  from Agda.cabal.
+* Restore the Cabal test-suite in Agda.cabal.
 
 * Restore -Werror and -fprof-auto in Agda.cabal.
 
