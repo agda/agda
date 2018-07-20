@@ -1,13 +1,18 @@
+{-# LANGUAGE CPP #-}
 
 import Distribution.Simple
 import Distribution.Simple.LocalBuildInfo
 import Distribution.Simple.Setup
 import Distribution.Simple.BuildPaths (exeExtension)
 import Distribution.PackageDescription
+#if MIN_VERSION_Cabal(2,3,0)
+import Distribution.System ( buildPlatform )
+#endif
 import System.FilePath
 import System.FilePath.Find
 import System.Process
 import System.Exit
+
 
 main = defaultMainWithHooks hooks
 
@@ -16,11 +21,18 @@ hooks = simpleUserHooks { regHook = checkAgdaPrimitiveAndRegister }
 builtins :: FilePath -> IO [FilePath]
 builtins = find always (extension ==? ".agda")
 
+agdaExeExtension :: String
+#if MIN_VERSION_Cabal(2,3,0)
+agdaExeExtension = exeExtension buildPlatform
+#else
+agdaExeExtension = exeExtension
+#endif
+
 checkAgdaPrimitive :: PackageDescription -> LocalBuildInfo -> RegisterFlags -> IO ()
 checkAgdaPrimitive pkg info flags | regGenPkgConf flags /= NoFlag = return ()   -- Gets run twice, only do this the second time
 checkAgdaPrimitive pkg info flags = do
   let dirs   = absoluteInstallDirs pkg info NoCopyDest
-      agda   = buildDir info </> "agda" </> "agda" <.> exeExtension
+      agda   = buildDir info </> "agda" </> "agda" <.> agdaExeExtension
       auxDir = datadir dirs </> "lib" </> "prim" </> "Agda"
       prim   = auxDir </> "Primitive" <.> "agda"
 
