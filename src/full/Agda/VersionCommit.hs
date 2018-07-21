@@ -13,10 +13,12 @@ versionWithCommitInfo = version ++ case commitInfo of
 
 -- | Information about current git commit, generated at compile time
 commitInfo :: Maybe String
-commitInfo = case $(gitHash) of
-  "UNKNOWN" -> Nothing
-  hash      -> Just $ abbrev hash ++ dirty
+commitInfo
+  | hash == "UNKNOWN" = Nothing
+  | otherwise         = Just $ abbrev hash ++ dirty
   where
+    hash = $(gitHash)
+
     -- | Check if any tracked files have uncommitted changes
     dirty | $(gitDirtyTracked) = "-dirty"
           | otherwise          = ""
