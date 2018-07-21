@@ -5,7 +5,9 @@ import Distribution.Simple.LocalBuildInfo
 import Distribution.Simple.Setup
 import Distribution.Simple.BuildPaths (exeExtension)
 import Distribution.PackageDescription
-#if MIN_VERSION_Cabal(2,3,0)
+-- ASR (2018-07-20): GHC 7.10 does not support the macro
+-- MIN_VERSION_Cabal(2,3,0).
+#if __GLASGOW_HASKELL__ > 804
 import Distribution.System ( buildPlatform )
 #endif
 import System.FilePath
@@ -22,7 +24,9 @@ builtins :: FilePath -> IO [FilePath]
 builtins = find always (extension ==? ".agda")
 
 agdaExeExtension :: String
-#if MIN_VERSION_Cabal(2,3,0)
+-- ASR (2018-07-20): GHC 7.10 does not support the macro
+-- MIN_VERSION_Cabal(2,3,0).
+#if __GLASGOW_HASKELL__ > 804
 agdaExeExtension = exeExtension buildPlatform
 #else
 agdaExeExtension = exeExtension
