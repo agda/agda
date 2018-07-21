@@ -102,10 +102,13 @@ specialCharacters =
                                    }
 
 braces' :: Doc -> Doc
-braces' d = case render d of
-  -- Add space to avoid starting a comment
-  '-':_ -> braces (text " " <> d)
-  _     -> braces d
+braces' d = ifNull (render d) (braces d) {-else-} $ \ s ->
+  braces (spaceIfDash (head s) <> d <> spaceIfDash (last s))
+  -- Add space to avoid starting a comment (Ulf, 2010-09-13, #269)
+  -- Andreas, 2018-07-21, #3161: Also avoid ending a comment
+  where
+  spaceIfDash '-' = text " "
+  spaceIfDash _   = empty
 
 -- double braces...
 dbraces :: Doc -> Doc
