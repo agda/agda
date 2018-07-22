@@ -837,7 +837,11 @@ function g es0 = ifM (terGetInlineWithFunctions `and2M` do isJust <$> isWithFunc
          -- otherwise its free variables with be prepended to the call
          -- in the error message.
          doc <- liftTCM $ withCurrentModule (qnameModule g) $ buildClosure $
-           Def g $ filter ((/= Inserted) . getOrigin) es0
+           Def g $ reverse $ dropWhile ((Inserted ==) . getOrigin) $ reverse es0
+           -- Andreas, 2018-07-22, issue #3136
+           -- Dropping only inserted arguments at the end, since
+           -- dropping arguments in the middle might make the printer crash.
+           -- Def g $ filter ((/= Inserted) . getOrigin) es0
            -- Andreas, 2017-01-05, issue #2376
            -- Remove arguments inserted by etaExpandClause.
 
