@@ -1172,32 +1172,7 @@ instance ToConcrete A.Pattern C.Pattern where
     applyTo args c = bracketP_ (appBracketsArgs args) $ do
       foldl C.AppP c <$> toConcreteCtx argumentCtx_ args
 
-
--- Helpers for recovering C.OpApp ------------------------------------------
-
-data Hd = HdVar A.Name | HdCon A.QName | HdDef A.QName | HdSyn A.QName
-
-getHead :: A.Expr -> Maybe Hd
-getHead (Var x)          = Just (HdVar x)
-getHead (Def f)          = Just (HdDef f)
-getHead (Proj o f)       = Just (HdDef $ headAmbQ f)
-getHead (Con c)          = Just (HdCon $ headAmbQ c)
-getHead (A.PatternSyn n) = Just (HdSyn $ headAmbQ n)
-getHead _                = Nothing
-
-cOpApp :: Range -> C.QName -> A.Name -> [Maybe C.Expr] -> C.Expr
-cOpApp r x n es =
-  C.OpApp r x (Set.singleton n)
-          (map (defaultNamedArg . placeholder) eps)
-  where
-    x0 = C.unqualify x
-    positions | isPrefix  x0 =                [ Middle | _ <- drop 1 es ] ++ [End]
-              | isPostfix x0 = [Beginning] ++ [ Middle | _ <- drop 1 es ]
-              | isInfix x0   = [Beginning] ++ [ Middle | _ <- drop 2 es ] ++ [End]
-              | otherwise    =                [ Middle | _ <- es ]
-    eps = zip es positions
-    placeholder (Nothing, pos) = Placeholder pos
-    placeholder (Just e,  _)   = noPlaceholder (Ordinary e)
+-- Helpers for recovering natural number literals
 
 tryToRecoverNatural :: A.Expr -> AbsToCon C.Expr -> AbsToCon C.Expr
 tryToRecoverNatural e def = do
@@ -1214,9 +1189,52 @@ recoverNatural is e = explore (`is` builtinZero) (`is` builtinSuc) 0 e
     explore isZero isSuc k (A.Lit (LitNat _ l)) = Just (k + l)
     explore _ _ _ _                             = Nothing
 
-tryToRecoverOpApp :: A.Expr -> AbsToCon C.Expr -> AbsToCon C.Expr
-tryToRecoverOpApp e def = caseMaybeM (recoverOpApp bracket (isLambda . defaultNamedArg) cOpApp view e) def return
+-- Helpers for recovering C.OpApp ------------------------------------------
+
+data Hd = HdVar A.Name | HdCon A.QName | HdDef A.QName | HdSyn A.QName
+
+data MaybeSection a
+  = YesSection
+  | NoSection a
+  deriving (Eq, Show, Functor, Foldable, Traversable)
+
+fromNoSection :: a -> MaybeSection a -> a
+fromNoSection fallback = \case
+  YesSection  -> fallback
+  NoSection x -> x
+
+instance HasRange a => HasRange (MaybeSection a) where
+  getRange = \case
+    YesSection  -> noRange
+    NoSection a -> getRange a
+
+getHead :: A.Expr -> Maybe Hd
+getHead (Var x)          = Just (HdVar x)
+getHead (Def f)          = Just (HdDef f)
+getHead (Proj o f)       = Just (HdDef $ headAmbQ f)
+getHead (Con c)          = Just (HdCon $ headAmbQ c)
+getHead (A.PatternSyn n) = Just (HdSyn $ headAmbQ n)
+getHead _                = Nothing
+
+cOpApp :: Range -> C.QName -> A.Name -> [MaybeSection C.Expr] -> C.Expr
+cOpApp r x n es =
+  C.OpApp r x (Set.singleton n)
+          (map (defaultNamedArg . placeholder) eps)
   where
+    x0 = C.unqualify x
+    positions | isPrefix  x0 =                [ Middle | _ <- drop 1 es ] ++ [End]
+              | isPostfix x0 = [Beginning] ++ [ Middle | _ <- drop 1 es ]
+              | isInfix x0   = [Beginning] ++ [ Middle | _ <- drop 2 es ] ++ [End]
+              | otherwise    =                [ Middle | _ <- es ]
+    eps = zip es positions
+    placeholder (YesSection , pos ) = Placeholder pos
+    placeholder (NoSection e, _pos) = noPlaceholder (Ordinary e)
+
+tryToRecoverOpApp :: A.Expr -> AbsToCon C.Expr -> AbsToCon C.Expr
+tryToRecoverOpApp e def = fromMaybeM def $
+  recoverOpApp bracket (isLambda . defaultNamedArg) cOpApp view e
+  where
+    view :: A.Expr -> Maybe (Hd, [NamedArg (MaybeSection (AppInfo, A.Expr))])
     view e
         -- Do we have a series of inserted lambdas?
       | Just xs@(_:_) <- traverse insertedName bs =
@@ -1233,7 +1251,7 @@ tryToRecoverOpApp e def = caseMaybeM (recoverOpApp bracket (isLambda . defaultNa
         -- Build section arguments. Need to check that:
         -- lambda bound variables appear in the right order and only as
         -- top-level arguments.
-        sectionArgs :: [A.Name] -> [NamedArg (AppInfo, A.Expr)] -> Maybe [NamedArg (Maybe (AppInfo, A.Expr))]
+        sectionArgs :: [A.Name] -> [NamedArg (AppInfo, A.Expr)] -> Maybe [NamedArg (MaybeSection (AppInfo, A.Expr))]
         sectionArgs xs = go xs
           where
             noXs = getAll . foldExpr (\ case A.Var x -> All (notElem x xs)
@@ -1242,36 +1260,36 @@ tryToRecoverOpApp e def = caseMaybeM (recoverOpApp bracket (isLambda . defaultNa
             go (y : ys) (arg : args)
               | visible arg
               , A.Var y' <- snd $ namedArg arg
-              , y == y' = (fmap (Nothing <$) arg :) <$> go ys args
+              , y == y' = (fmap (YesSection <$) arg :) <$> go ys args
             go ys (arg : args)
-              | visible arg, noXs arg = ((fmap . fmap) Just arg :) <$> go ys args
+              | visible arg, noXs arg = ((fmap . fmap) NoSection arg :) <$> go ys args
             go _ _ = Nothing
 
-    view e = (, (map . fmap . fmap) Just args) <$> getHead hd
+    view e = (, (map . fmap . fmap) NoSection args) <$> getHead hd
       where Application hd args = A.appView' e
 
 tryToRecoverOpAppP :: A.Pattern -> AbsToCon (Maybe C.Pattern)
 tryToRecoverOpAppP = recoverOpApp bracketP_ (const False) opApp view
   where
-    opApp r x n ps =
-      C.OpAppP r x (Set.singleton n) (map (defaultNamedArg . fromjust) ps)
-    fromjust (Just x) = x
-    fromjust Nothing  = __IMPOSSIBLE__  -- `view` does not generate any `Nothing`s
+    opApp r x n ps = C.OpAppP r x (Set.singleton n) $
+      map (defaultNamedArg . fromNoSection __IMPOSSIBLE__) ps
+      -- `view` does not generate any `Nothing`s
 
     appInfo = defaultAppInfo_
 
+    view :: A.Pattern -> Maybe (Hd, [NamedArg (MaybeSection (AppInfo, A.Pattern))])
     view p = case p of
-      ConP _        cs ps -> Just (HdCon (headAmbQ cs), (map . fmap . fmap) (Just . (appInfo,)) ps)
-      DefP _        fs ps -> Just (HdDef (headAmbQ fs), (map . fmap . fmap) (Just . (appInfo,)) ps)
-      PatternSynP _ ns ps -> Just (HdSyn (headAmbQ ns), (map . fmap . fmap) (Just . (appInfo,)) ps)
+      ConP _        cs ps -> Just (HdCon (headAmbQ cs), (map . fmap . fmap) (NoSection . (appInfo,)) ps)
+      DefP _        fs ps -> Just (HdDef (headAmbQ fs), (map . fmap . fmap) (NoSection . (appInfo,)) ps)
+      PatternSynP _ ns ps -> Just (HdSyn (headAmbQ ns), (map . fmap . fmap) (NoSection . (appInfo,)) ps)
       _                   -> Nothing
       -- ProjP _ _ d   -> Just (HdDef (headAmbQ d), [])   -- ? Andreas, 2016-04-21
 
-recoverOpApp :: (ToConcrete a c, HasRange c)
+recoverOpApp :: forall a c . (ToConcrete a c, HasRange c)
   => ((PrecedenceStack -> Bool) -> AbsToCon c -> AbsToCon c)
   -> (a -> Bool)  -- ^ Check for lambdas
-  -> (Range -> C.QName -> A.Name -> [Maybe c] -> c)
-  -> (a -> Maybe (Hd, [NamedArg (Maybe (AppInfo, a))]))  -- ^ `Nothing` for sections
+  -> (Range -> C.QName -> A.Name -> [MaybeSection c] -> c)
+  -> (a -> Maybe (Hd, [NamedArg (MaybeSection (AppInfo, a))]))
   -> a
   -> AbsToCon (Maybe c)
 recoverOpApp bracket isLam opApp view e = case view e of
@@ -1282,21 +1300,26 @@ recoverOpApp bracket isLam opApp view e = case view e of
       case hd of
         HdVar  n
           | isNoName n    -> mDefault
-          | otherwise     -> doQNameHelper id        C.QName  n args'
-        HdDef qn          -> doQNameHelper qnameName id      qn args'
-        HdCon qn          -> doQNameHelper qnameName id      qn args'
-        HdSyn qn          -> doQNameHelper qnameName id      qn args'
+          | otherwise     -> doQNameHelper (Left n) args'
+        HdDef qn          -> doQNameHelper (Right qn) args'
+        HdCon qn          -> doQNameHelper (Right qn) args'
+        HdSyn qn          -> doQNameHelper (Right qn) args'
     | otherwise           -> mDefault
   where
   mDefault = return Nothing
 
-  skipParens = maybe False $ \ (i, e) -> isLam e && preferParenless (appParens i)
+  skipParens :: MaybeSection (AppInfo, a) -> Bool
+  skipParens = \case
+     YesSection       -> False
+     NoSection (i, e) -> isLam e && preferParenless (appParens i)
 
-  doQNameHelper fixityHelper conHelper n as = do
-    x <- conHelper <$> toConcrete n
-    doQName (theFixity $ nameFixity n') x n' as (C.nameParts $ C.unqualify x)
-    where
-      n' = fixityHelper n
+  doQNameHelper :: Either A.Name A.QName -> [MaybeSection (AppInfo, a)] -> AbsToCon (Maybe c)
+  doQNameHelper n args = do
+    x <- either (C.QName <.> toConcrete) toConcrete n
+    let n' = either id A.qnameName n
+    doQName (theFixity $ nameFixity n') x n' args (C.nameParts $ C.unqualify x)
+
+  doQName :: Fixity -> C.QName -> A.Name -> [MaybeSection (AppInfo, a)] -> [NamePart] -> AbsToCon (Maybe c)
 
   -- fall-back (wrong number of arguments or no holes)
   doQName _ x _ es xs
