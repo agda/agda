@@ -3408,6 +3408,10 @@ forkTCM m = do
 extendedLambdaName :: String
 extendedLambdaName = ".extendedlambda"
 
+-- | Check whether we have an definition from an extended lambda.
+isExtendedLambdaName :: A.QName -> Bool
+isExtendedLambdaName = (extendedLambdaName `List.isPrefixOf`) . prettyShow . nameConcrete . qnameName
+
 -- | Name of absurdLambda definitions.
 absurdLambdaName :: String
 absurdLambdaName = ".absurdlambda"

@@ -56,7 +56,7 @@ import Agda.Syntax.Abstract.PatternSynonyms
 import Agda.Syntax.Scope.Base
 
 import Agda.TypeChecking.Monad.State (getScope, getAllPatternSyns)
-import Agda.TypeChecking.Monad.Base  (TCM, NamedMeta(..), stBuiltinThings, BuiltinThings, Builtin(..), pragmaOptions)
+import Agda.TypeChecking.Monad.Base  (TCM, NamedMeta(..), stBuiltinThings, BuiltinThings, Builtin(..), pragmaOptions, isExtendedLambdaName)
 import Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Monad.Options
 import Agda.TypeChecking.Monad.Builtin
@@ -1269,7 +1269,14 @@ tryToRecoverOpApp e def = fromMaybeM def $
       where Application hd args = A.appView' e
 
 tryToRecoverOpAppP :: A.Pattern -> AbsToCon (Maybe C.Pattern)
-tryToRecoverOpAppP = recoverOpApp bracketP_ (const False) opApp view
+tryToRecoverOpAppP p = do
+  res <- recoverOpApp bracketP_ (const False) opApp view p
+  lift $ reportSLn "print.op" 90 $ unlines
+    [ "tryToRecoverOpApp"
+    , "in:  " ++ show p
+    , "out: " ++ show res
+    ]
+  return res
   where
     opApp r x n ps = C.OpAppP r x (Set.singleton n) $
       map (defaultNamedArg . fromNoSection __IMPOSSIBLE__) ps
@@ -1301,7 +1308,11 @@ recoverOpApp bracket isLam opApp view e = case view e of
         HdVar  n
           | isNoName n    -> mDefault
           | otherwise     -> doQNameHelper (Left n) args'
-        HdDef qn          -> doQNameHelper (Right qn) args'
+        HdDef qn
+          | isExtendedLambdaName qn
+                          -> mDefault
+          | otherwise     -> doQNameHelper (Right qn) args'
+        -- HdDef qn          -> doQNameHelper (Right qn) args'
         HdCon qn          -> doQNameHelper (Right qn) args'
         HdSyn qn          -> doQNameHelper (Right qn) args'
     | otherwise           -> mDefault

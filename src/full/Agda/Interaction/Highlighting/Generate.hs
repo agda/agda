@@ -223,12 +223,9 @@ generateAndPrintSyntaxInfo decl hlLevel updateState = do
   names :: [A.AmbiguousQName]
   names =
     (map I.unambiguous $
-     filter (not . extendedLambda) $
+     filter (not . isExtendedLambdaName) $
      universeBi decl) ++
     universeBi decl
-    where
-    extendedLambda :: A.QName -> Bool
-    extendedLambda = (extendedLambdaName `isPrefixOf`) . show . A.nameConcrete . A.qnameName
 
   -- Bound variables, dotted patterns, record fields, module names,
   -- the "as" and "to" symbols.
