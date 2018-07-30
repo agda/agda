@@ -631,8 +631,9 @@ checkClause t withSub c@(A.Clause (A.SpineLHS i x aps) strippedPats rhs0 wh catc
                              DotP{} -> []
                              ConP _ _ ps -> iApplyVars ps
 
-        flip (maybe (return ())) body $ \ body ->
-          forM_ (iApplyVars ps) $ \ (i,tu) -> do
+        flip (maybe (return ())) body $ \ body -> do
+          ps <- normaliseProjP ps
+          forM_ (iApplyVars ps) $ \ (i,_tu) -> do
             unview <- intervalUnview'
             let phi = unview $ IMax (argN $ var $ i) $ argN $ unview (INeg $ argN $ var i)
             locally eRange (const noRange) $
