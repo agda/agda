@@ -186,6 +186,10 @@ instance EmbPrj MutualId where
   icod_ (MutId a) = icode a
   value n         = MutId `fmap` value n
 
+instance EmbPrj CompKit where
+  icod_ (CompKit a b c) = icodeN' CompKit a b c
+  value = valueN CompKit
+
 instance EmbPrj Definition where
   icod_ (Defn a b c d e f g h i j k l m n o) = icodeN' Defn a b (P.killRange c) d e f g h i j k l m n o
 
@@ -415,6 +419,7 @@ instance EmbPrj a => EmbPrj (I.Pattern' a) where
   icod_ (DotP a b  ) = icodeN 3 DotP a b
   icod_ (ProjP a b ) = icodeN 4 ProjP a b
   icod_ (IApplyP a b c d) = icodeN 5 IApplyP a b c d
+  icod_ (DefP a b c) = icodeN 6 DefP a b c
 
   value = vcase valu where
     valu [0, a, b] = valuN VarP a b
@@ -423,6 +428,7 @@ instance EmbPrj a => EmbPrj (I.Pattern' a) where
     valu [3, a, b] = valuN DotP a b
     valu [4, a, b] = valuN ProjP a b
     valu [5, a, b, c, d] = valuN IApplyP a b c d
+    valu [6, a, b, c] = valuN DefP a b c
     valu _         = malformed
 
 instance EmbPrj a => EmbPrj (Builtin a) where

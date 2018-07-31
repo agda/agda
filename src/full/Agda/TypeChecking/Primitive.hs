@@ -1,6 +1,9 @@
 {-# LANGUAGE CPP                        #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE UndecidableInstances       #-}
+{-# LANGUAGE DeriveFunctor              #-}
+{-# LANGUAGE DeriveFoldable             #-}
+{-# LANGUAGE DeriveTraversable          #-}
 
 -- ASR (2017-04-10). TODO: Is this option required by the final
 -- version of GHC 8.2.1 (it was required by the RC 1)?
@@ -735,6 +738,550 @@ primIdPath' = do
           _ -> return $ NoReduction $ map notReduced [l,bA,x,y] ++ [reduced st]
       _ -> __IMPOSSIBLE__
 
+
+primTrans' :: TCM PrimitiveImpl
+primTrans' = do
+  t    <- runNamesT [] $
+          hPi' "a" (elInf (cl primInterval) --> (el $ cl primLevel)) $ \ a ->
+          nPi' "A" (nPi' "i" (elInf (cl primInterval)) $ \ i -> (sort . tmSort <$> (a <@> i))) $ \ bA ->
+          nPi' "φ" (elInf $ cl primInterval) $ \ phi ->
+          (el' (a <@> cl primIZero) (bA <@> cl primIZero) --> el' (a <@> cl primIOne) (bA <@> cl primIOne))
+  return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 4 $ \ ts nelims -> do
+    primTransHComp DoTransp ts nelims
+
+primHComp' :: TCM PrimitiveImpl
+primHComp' = do
+  t    <- runNamesT [] $
+          hPi' "a" (el $ cl primLevel) $ \ a ->
+          nPi' "A" (sort . tmSort <$> a) $ \ bA ->
+          nPi' "φ" (elInf $ cl primInterval) $ \ phi ->
+          (nPi' "i" (elInf $ cl primInterval) $ \ i -> pPi' "o" phi $ \ _ -> el' a bA) -->
+          (el' a bA --> el' a bA)
+  one <- primItIsOne
+  tempty <- primIsOneEmpty
+  return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 5 $ \ ts nelims -> do
+    primTransHComp DoHComp ts nelims
+
+data TranspOrHComp = DoTransp | DoHComp deriving (Eq,Show)
+
+data FamilyOrNot a = IsFam {famThing :: a} | IsNot {famThing :: a} deriving (Eq,Show,Functor,Foldable,Traversable)
+
+instance Reduce a => Reduce (FamilyOrNot a) where
+  reduceB' x = traverse id <$> traverse reduceB' x
+  reduce' x = traverse reduce' x
+
+primTransHComp :: TranspOrHComp -> [Arg Term] -> Int -> ReduceM (Reduced MaybeReducedArgs Term)
+primTransHComp cmd ts nelims = do
+  (l,bA,phi,u,u0) <- case (cmd,ts) of
+        (DoTransp, [l,bA,phi,  u0]) -> do
+          -- u <- runNamesT [] $ do
+          --       u0 <- open $ unArg u0
+          --       defaultArg <$> (ilam "o" $ \ _ -> u0)
+          return $ (IsFam l,IsFam bA,phi,Nothing,u0)
+        (DoHComp, [l,bA,phi,u,u0]) -> do
+          -- [l,bA] <- runNamesT [] $ do
+          --   forM [l,bA] $ \ a -> do
+          --     let info = argInfo a
+          --     a <- open $ unArg a
+          --     Arg info <$> (lam "i" $ \ _ -> a)
+          return $ (IsNot l,IsNot bA,phi,Just u,u0)
+        _                          -> __IMPOSSIBLE__
+  sphi <- reduceB' phi
+  vphi <- intervalView $ unArg $ ignoreBlocking sphi
+  let clP s = fromMaybe __IMPOSSIBLE__ <$> getTerm' s
+  -- WORK
+  case vphi of
+     IOne -> redReturn =<< case u of
+                            -- cmd == DoComp
+                            Just u -> runNamesT [] $ do
+                                       u <- open (unArg u)
+                                       u <@> clP builtinIOne <..> clP builtinItIsOne
+                            -- cmd == DoTransp
+                            Nothing -> return $ unArg u0
+     _    -> do
+       let fallback' sc = do
+             u' <- case u of
+                            -- cmd == DoComp
+                     Just u ->
+                              (:[]) <$> case vphi of
+                                          IZero -> fmap (reduced . notBlocked . argN) . runNamesT [] $ do
+                                            [l,c] <- mapM (open . unArg) [famThing l, ignoreBlocking sc]
+                                            lam "i" $ \ i -> clP builtinIsOneEmpty <#> l
+                                                                   <#> (ilam "o" $ \ _ -> c)
+                                          _     -> return (notReduced u)
+                            -- cmd == DoTransp
+                     Nothing -> return []
+             return $ NoReduction $ [notReduced (famThing l), reduced sc, reduced sphi] ++ u' ++ [notReduced u0]
+       sbA <- reduceB' bA
+       t <- case unArg <$> ignoreBlocking sbA of
+              IsFam (Lam _info t) -> Just . fmap IsFam <$> reduceB' (absBody t)
+              IsFam _             -> return Nothing
+              IsNot t             -> return . Just . fmap IsNot $ (t <$ sbA)
+       case t of
+         Nothing -> fallback' (famThing <$> sbA)
+         Just st  -> do
+               let
+                   fallback = fallback' (fmap famThing $ st *> sbA)
+                   t = ignoreBlocking st
+               mGlue <- getPrimitiveName' builtinGlue
+               mId   <- getBuiltinName' builtinId
+               mPO   <- getBuiltinName' builtinPushOut
+               pathV <- pathView'
+               case famThing t of
+                 MetaV m _ -> fallback' (fmap famThing $ Blocked m () *> sbA)
+                 -- absName t instead of "i"
+                 Pi a b | nelims > 0  -> redReturn =<< compPi cmd "i" ((a,b) <$ t) (ignoreBlocking sphi) u u0
+                        | otherwise -> fallback
+
+                 Sort (Type l) -> compSort cmd fallback phi u u0 (l <$ t)
+
+                 Def q [Apply la, Apply lb, Apply bA, Apply phi', Apply bT, Apply e] | Just q == mGlue -> do
+                   compGlue cmd phi u u0 ((la, lb, bA, phi', bT, e) <$ t)
+
+                 -- Path/PathP
+                 d | PathType _ _ _ bA x y <- pathV (El __DUMMY_SORT__ d) -> do
+                   if nelims > 0 then compPathP cmd sphi u u0 l ((bA, x, y) <$ t) else fallback
+
+                 Def q [Apply _ , Apply bA , Apply x , Apply y] | Just q == mId -> do
+                   maybe fallback return =<< compId cmd sphi u u0 l ((bA, x, y) <$ t)
+
+                 Def q es | Just q == mPO -> do
+                   maybe fallback return =<< compPO cmd ((l,es) <$ t) sphi u u0
+
+                 Def q es -> do
+                   info <- getConstInfo q
+                   let   lam_i = Lam defaultArgInfo . Abs "i"
+
+                   case theDef info of
+                     r@Record{recComp = kit} | Just as <- allApplyElims es, DoTransp <- cmd, Just transpR <- nameOfTransp kit
+                                -> if recPars r == 0
+                                   then redReturn $ unArg u0
+                                   else redReturn $ (Def transpR []) `apply`
+                                               (map (fmap lam_i) as ++ [ignoreBlocking sphi,u0])
+                         | Just as <- allApplyElims es, DoHComp <- cmd, Just hCompR <- nameOfHComp kit
+                                -> redReturn $ (Def hCompR []) `apply`
+                                               (as ++ [ignoreBlocking sphi,fromMaybe __IMPOSSIBLE__ u,u0])
+
+                         | Just as <- allApplyElims es, [] <- recFields r -> compData (recPars r) cmd l (as <$ t) sbA sphi u u0
+                     Datatype{dataPars = pars} | Just as <- allApplyElims es -> compData pars cmd l (as <$ t) sbA sphi u u0
+                     _          -> fallback
+
+                 _ -> fallback
+  where
+    compSort DoTransp fallback phi Nothing u0 (IsFam l) = do
+      -- TODO should check l is constant
+      redReturn $ unArg u0
+    compSort DoHComp fallback phi (Just u) u0 (IsNot l) = do
+      checkPrims <- all isJust <$> sequence [getBuiltin' builtinPathToEquiv, getPrimitiveTerm' builtinGlue]
+      if not checkPrims then fallback else (redReturn =<<) . runNamesT [] $ do
+        p2equiv <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinPathToEquiv
+        tGlue <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveTerm' builtinGlue
+        tHComp <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveTerm' builtinHComp
+        tTrans <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveTerm' builtinTrans
+        tINeg  <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveTerm' builtinINeg
+        tEmpty <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinIsOneEmpty
+        io <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinIOne
+        iz <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinIZero
+        l <- open $ Level l
+        [phi,e,u0] <- mapM (open . unArg) [phi,u,u0]
+        let
+          ineg r = pure tINeg <@> r
+          transp p = pure tTrans <#> l <@> p <@> pure iz
+        pure tGlue <#> l <#> l
+               <@> u0 <@> phi <@> (e <@> pure io)
+               <@> ilam "o" (\ o -> transp (lam "i" $ \ i -> e <@> ineg i <@> o))
+               <@> ilam "o" (\ o -> pure p2equiv <#> l <@> (ilam "i" $ \ i -> e <@> ineg i <@> o))
+    compSort _ fallback phi u u0 _ = __IMPOSSIBLE__
+    compGlue DoHComp psi (Just u) u0 (IsNot (la, lb, bA, phi, bT, e)) = do
+      tPOr <- fromMaybe __IMPOSSIBLE__ <$> getTerm' "primPOr"
+      tIMax <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinIMax
+      tIMin <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinIMin
+      tINeg <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinINeg
+      tHComp <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinHComp
+      tEFun  <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinEquivFun
+      tglue   <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtin_glue
+      tunglue <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtin_unglue
+      io      <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinIOne
+      (redReturn =<<) . runNamesT [] $ do
+        [psi, u, u0] <- mapM (open . unArg) [psi, u, u0]
+        [la, lb, bA, phi, bT, e] <- mapM (open . unArg) [la, lb, bA, phi, bT, e]
+        let
+          hfill la bA phi u u0 i = pure tHComp <#> la <@> bA
+                                               <@> (pure tIMax <@> phi <@> (pure tINeg <@> i))
+                                               <@> (lam "j" $ \ j -> pure tPOr <#> la <@> phi <@> (pure tINeg <@> i) <@> (ilam "o" $ \ a -> bA)
+                                                     <@> (ilam "o" $ \ o -> u <@> (pure tIMin <@> i <@> j) <..> o)
+                                                     <@> (ilam "o" $ \ _ -> u0)
+                                                   )
+                                               <@> u0
+          tf i o = hfill lb (bT <..> o) psi u u0 i
+          unglue g = pure tunglue <#> la <#> lb <#> bA <#> phi <#> bT <#> e <@> g
+          a1 = pure tHComp <#> la <@> bA <@> (pure tIMax <@> psi <@> phi)
+                           <@> (lam "i" $ \ i -> pure tPOr <#> la <@> psi <@> phi <@> (ilam "_" $ \ _ -> bA)
+                                 <@> (ilam "o" $ \ o -> unglue (u <@> i <..> o))
+                                 <@> (ilam "o" $ \ o -> pure tEFun <#> la <#> lb <#> bA <#> phi <#> bT <@> (e <..> o) <@> tf i o)
+                               )
+                           <@> (unglue u0)
+          t1 = tf (pure io)
+        pure tglue <#> la <#> lb <#> bA <#> phi <#> bT <#> e <@> (ilam "o" $ \ o -> t1 o) <@> a1
+    compGlue DoTransp psi Nothing u0 (IsFam (la, lb, bA, phi, bT, e)) = do
+      tPOr <- fromMaybe __IMPOSSIBLE__ <$> getTerm' "primPOr"
+      tIMax <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinIMax
+      tIMin <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinIMin
+      tINeg <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinINeg
+      tHComp <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinHComp
+      tTrans <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinTrans
+      tForall  <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinFaceForall
+      tEFun  <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinEquivFun
+      tEProof <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinEquivProof
+      tglue   <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtin_glue
+      tunglue <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtin_unglue
+      io      <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinIOne
+      iz      <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinIZero
+      tLMax   <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinLevelMax
+      tPath   <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinPath
+      kit <- fromMaybe __IMPOSSIBLE__ <$> getSigmaKit
+      (redReturn =<<) . runNamesT [] $ do
+        comp <- do
+          let
+            ineg j = pure tINeg <@> j
+            imax i j = pure tIMax <@> i <@> j
+          let forward la bA r u = pure tTrans <#> (lam "i" $ \ i -> la <@> (i `imax` r))
+                                              <@> (lam "i" $ \ i -> bA <@> (i `imax` r))
+                                              <@> r
+                                              <@> u
+          return $ \ la bA phi u u0 ->
+            pure tHComp <#> (la <@> pure io) <@> (bA <@> pure io) <@> phi
+                        <@> (lam "i" $ \ i -> ilam "o" $ \ o ->
+                                forward la bA i (u <@> i <..> o))
+                        <@> forward la bA (pure iz) u0
+        let
+          transpFill la bA phi u0 i =
+            pure tTrans <#> (ilam "j" $ \ j -> la <@> (pure tIMin <@> i <@> j))
+                        <@> (ilam "j" $ \ j -> bA <@> (pure tIMin <@> i <@> j))
+                        <@> (pure tIMax <@> phi <@> (pure tINeg <@> i))
+                        <@> u0
+        [psi,u0] <- mapM (open . unArg) [psi,u0]
+        glue1 <- do
+          g <- open $ (tglue `apply`) . map (setHiding Hidden) . map (subst 0 io) $ [la, lb, bA, phi, bT, e]
+          return $ \ t a -> g <@> t <@> a
+        unglue0 <- do
+          ug <- open $ (tunglue `apply`) . map (setHiding Hidden) . map (subst 0 iz) $ [la, lb, bA, phi, bT, e]
+          return $ \ a -> ug <@> a
+        [la, lb, bA, phi, bT, e] <- mapM (\ a -> open . runNames [] $ (lam "i" $ const (pure $ unArg a))) [la, lb, bA, phi, bT, e]
+        let
+          tf i o = transpFill lb (lam "i" $ \ i -> bT <@> i <..> o) psi u0 i
+          t1 o = tf (pure io) o
+          a0 = unglue0 u0
+          a1 = comp la bA
+                 (pure tIMax <@> psi <@> (pure tForall <@> phi))
+                 (lam "i" $ \ i -> pure tPOr <#> (la <@> i) <@> psi <@> (pure tForall <@> phi) <@> (ilam "o" $ \ a -> bA <@> i)
+                                                     <@> (ilam "o" $ \ _ -> a0)
+                                                     <@> (ilam "o" $ \ o -> pure tEFun <#> (lb <@> i)
+                                                                                       <#> (la <@> i)
+                                                                                       <#> (bT <@> i <..> o)
+                                                                                       <#> (bA <@> i)
+                                                                                       <@> (e <@> i <..> o)
+                                                                                       <@> (tf i o))
+                 )
+                 a0
+          max l l' = pure tLMax <@> l <@> l'
+          sigCon x y = pure (Con (sigmaCon kit) ConOSystem []) <@> x <@> y
+          w i o = pure tEFun <#> (lb <@> i)
+                                                                                       <#> (la <@> i)
+                                                                                       <#> (bT <@> i <..> o)
+                                                                                       <#> (bA <@> i)
+                                                                                       <@> (e <@> i <..> o)
+          fiber la lb bA bB f b = (pure (Def (sigmaName kit) []) <#> la <#> lb
+                                                            <@> bA
+                                                            <@> (lam "a" $ \ a -> pure tPath <#> lb <#> bB <@> b <@> (f <@> a)))
+          pe o = -- o : [ φ 1 ]
+            pure tPOr <#> max (la <@> pure io) (lb <@> pure io) <@> psi
+                      <@> (pure tForall <@> phi)
+                      <@> (ilam "o" $ \ _ ->
+                             fiber (lb <@> pure io) (la <@> pure io)
+                                   (bT <@> (pure io) <..> o) (bA <@> pure io)
+                                   (w (pure io) o) a1)
+                      <@> (ilam "o" $ \ o -> sigCon u0 (lam "_" $ \ _ -> a1))
+                      <@> (ilam "o" $ \ o -> sigCon (t1 o) (lam "_" $ \ _ -> a1))
+          t1'alpha o = -- o : [ φ 1 ]
+             pure tEProof <#> (lb <@> pure io)
+                          <#> (la <@> pure io)
+                          <@> (bT <@> pure io <..> o)
+                          <@> (bA <@> pure io)
+                          <@> (e <@> pure io <..> o)
+                          <@> a1
+                          <@> (pure tForall <@> phi)
+                          <@> pe o
+          -- optimize
+          t1' o = t1'alpha o <&> (`applyE` [Proj ProjSystem (sigmaFst kit)])
+          alpha o = t1'alpha o <&> (`applyE` [Proj ProjSystem (sigmaSnd kit)])
+          a1' = pure tHComp
+                  <#> (la <@> pure io)
+                  <@> (bA <@> pure io)
+                  <@> (pure tIMax <@> (phi <@> pure io) <@> psi)
+                  <@> (lam "j" $ \ j ->
+                         pure tPOr <#> (la <@> pure io) <@> (phi <@> pure io) <@> psi <@> (ilam "o" $ \ _ -> bA <@> pure io)
+                                   <@> (ilam "o" $ \ o -> alpha o <@@> (a1,w (pure io) o <@> t1' o,j))
+                                   <@> (ilam "o" $ \ _ -> a1)
+                      )
+                  <@> a1
+        glue1 (ilam "o" t1') a1'
+    compGlue cmd phi u u0 _ = __IMPOSSIBLE__
+    compPi :: TranspOrHComp -> ArgName -> FamilyOrNot (Dom Type, Abs Type) -- Γ , i : I
+            -> Arg Term -- Γ
+            -> Maybe (Arg Term) -- Γ
+            -> Arg Term -- Γ
+            -> ReduceM Term
+    compPi cmd t ab phi u u0 = do
+     tTrans <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveTerm' builtinTrans
+     tHComp <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveTerm' builtinHComp
+     tINeg <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveTerm' builtinINeg
+     tIMax <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveTerm' builtinIMax
+     iz    <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinIZero
+     let
+      toLevel (Type l) = l
+      toLevel _        = __IMPOSSIBLE__
+      -- mkLam DoTransp = Lam defaultArgInfo
+      -- mkLam DoHComp = id
+     runNamesT [] $ do
+      [la,bA] <- do
+        let (x,f) = case ab of
+              IsFam (a,_) -> (a, \ a -> runNames [] $ (lam "i" $ const (pure a)))
+              IsNot (a,_) -> (a, id)
+        mapM (open . f) [Level . toLevel . getSort $ x, unEl . unDom $ x]
+      [phi, u0] <- mapM (open . unArg) [phi, u0]
+      u <- traverse open (unArg <$> u)
+
+      glam (getArgInfo (fst $ famThing ab)) (absName $ snd $ famThing ab) $ \ u1 -> do
+        case (cmd, ab, u) of
+          (DoHComp, IsNot (a , b), Just u) -> do
+            bT <- (b `absApp`) <$> u1
+            let v = u1
+            pure tHComp <#> (pure $ Level . toLevel . getSort $ bT)
+                        <@> (pure $ unEl                      $ bT)
+                        <@> phi
+                        <@> (lam "i" $ \ i -> ilam "o" $ \ o -> gApply (getHiding a) (u <@> i <..> o) v)
+                        <@> (gApply (getHiding a) u0 v)
+          (DoTransp, IsFam (a , b), Nothing) -> do
+            let v i = do
+                       let
+                         iOrNot j = pure tIMax <@> i <@> (pure tINeg <@> j)
+                       pure tTrans <#> (lam "j" $ \ j -> la <@> iOrNot j)
+                                 <@> (lam "j" $ \ j -> bA <@> iOrNot j)
+                                 <@> (pure tIMax <@> phi <@> i)
+                                 <@> u1
+                -- Γ , u1 : A[i1] , i : I
+                bB v = (consS v $ liftS 1 $ raiseS 1) `applySubst` (absBody b {- Γ , i : I , x : A[i] -})
+                tLam = Lam defaultArgInfo
+            bT <- bind "i" $ \ i -> bB <$> v i
+            -- Γ , u1 : A[i1]
+            (pure tTrans <#> (pure . tLam $ Level . toLevel . getSort <$> bT)
+                         <@> (pure . tLam $ unEl                      <$> bT)
+                         <@> phi
+                         <@> gApply (getHiding a) u0 (v (pure iz)))
+          (_,_,_) -> __IMPOSSIBLE__
+    compPathP DoHComp sphi (Just u) u0 (IsNot l) (IsNot (bA,x,y)) = do
+      tHComp <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveTerm' builtinHComp
+      tINeg <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveTerm' builtinINeg
+      tIMax <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveTerm' builtinIMax
+      tOr   <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveTerm' "primPOr"
+      let
+        ineg j = pure tINeg <@> j
+        imax i j = pure tIMax <@> i <@> j
+
+      redReturn . runNames [] $ do
+         [l,u,u0] <- mapM (open . unArg) [l,u,u0]
+         phi      <- open . unArg . ignoreBlocking $ sphi
+         [bA, x, y] <- mapM (open . unArg) [bA, x, y]
+         lam "j" $ \ j ->
+           pure tHComp <#> l <@> (bA <@> j) <@> (phi `imax` (ineg j `imax` j))
+                      <@> (lam "i'" $ \ i ->
+                            let
+                              or f1 f2 = pure tOr <#> l <@> f1 <@> f2 <#> (lam "_" $ \ _ -> bA <@> i) in
+                                       or phi (ineg j `imax` j)
+                                          <@> (ilam "o" $ \ o -> u <@> i <..> o <@@> (x, y, j)) -- a0 <@@> (x <@> i, y <@> i, j)
+                                          <@> (or (ineg j) j <@> (ilam "_" $ const x)
+                                                                  <@> (ilam "_" $ const y)))
+                      <@> (u0 <@@> (x, y, j))
+    compPathP DoTransp sphi Nothing u0 (IsFam l) (IsFam (bA,x,y)) = do
+      -- Γ    ⊢ l
+      -- Γ, i ⊢ bA, x, y
+      tINeg <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveTerm' builtinINeg
+      tIMax <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveTerm' builtinIMax
+      tOr   <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveTerm' "primPOr"
+      iz <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinIZero
+      io <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinIOne
+      let
+        ineg j = pure tINeg <@> j
+        imax i j = pure tIMax <@> i <@> j
+      comp <- do
+        tHComp <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveTerm' builtinHComp
+        tTrans <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveTerm' builtinTrans
+        let forward la bA r u = pure tTrans <#> (lam "i" $ \ i -> la <@> (i `imax` r))
+                                            <@> (lam "i" $ \ i -> bA <@> (i `imax` r))
+                                            <@> r
+                                            <@> u
+        return $ \ la bA phi u u0 ->
+          pure tHComp <#> (la <@> pure io) <@> (bA <@> pure io) <@> phi
+                      <@> (lam "i" $ \ i -> ilam "o" $ \ o ->
+                              forward la bA i (u <@> i <..> o))
+                      <@> forward la bA (pure iz) u0
+      redReturn . runNames [] $ do
+        [l,u0] <- mapM (open . unArg) [l,u0]
+        phi      <- open . unArg . ignoreBlocking $ sphi
+        [bA, x, y] <- mapM (\ a -> open . runNames [] $ (lam "i" $ const (pure $ unArg a))) [bA, x, y]
+        lam "j" $ \ j ->
+          comp l (lam "i" $ \ i -> bA <@> i <@> j) (phi `imax` (ineg j `imax` j))
+                      (lam "i'" $ \ i ->
+                            let or f1 f2 = pure tOr <#> l <@> f1 <@> f2 <#> (lam "_" $ \ _ -> bA <@> i <@> j) in
+                                       or phi (ineg j `imax` j)
+                                          <@> (ilam "o" $ \ o -> u0 <@@> (x <@> pure iz, y <@> pure iz, j))
+                                          <@> (or (ineg j) j <@> (ilam "_" $ const (x <@> i))
+                                                                  <@> (ilam "_" $ const (y <@> i))))
+                      (u0 <@@> (x <@> pure iz, y <@> pure iz, j))
+    compPathP _ sphi u a0 _ _ = __IMPOSSIBLE__
+    compId cmd sphi u a0 l bA_x_y = do
+      unview <- intervalUnview'
+      mConId <- getBuiltinName' builtinConId
+      let isConId (Def q _) = Just q == mConId
+          isConId _         = False
+      sa0 <- reduceB' a0
+      -- wasteful to compute b even when cheaper checks might fail
+      b <- case u of
+             Nothing -> return True
+             Just u  -> allComponents unview (unArg . ignoreBlocking $ sphi) (unArg u) isConId
+      case mConId of
+        Just conid | isConId (unArg . ignoreBlocking $ sa0) , b -> (Just <$>) . (redReturn =<<) $ do
+          tHComp <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveTerm' builtinHComp
+          tTrans <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveTerm' builtinTrans
+          tIMin <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveTerm' "primDepIMin"
+          tFace <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveTerm' "primIdFace"
+          tPath <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveTerm' "primIdPath"
+          tPathType <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinPath
+          runNamesT [] $ do
+            let irrInfo = setRelevance Irrelevant defaultArgInfo
+            let io = pure $ unview IOne
+                iz = pure $ unview IZero
+                conId = pure $ Def conid []
+            l <- case l of
+                   IsFam l -> open . unArg $ l
+                   IsNot l -> do
+                     open (Lam defaultArgInfo $ NoAbs "_" $ unArg l)
+            [p0] <- mapM (open . unArg) [a0]
+            p <- case u of
+                   Just u -> do
+                     u <- open . unArg $ u
+                     return $ \ i o -> u <@> i <..> o
+                   Nothing -> do
+                     return $ \ i o -> p0
+            phi      <- open . unArg . ignoreBlocking $ sphi
+            [bA, x, y] <-
+              case bA_x_y of
+                IsFam (bA,x,y) -> mapM (\ a -> open . runNames [] $ (lam "i" $ const (pure $ unArg a))) [bA, x, y]
+                IsNot (bA,x,y) -> forM [bA,x,y] $ \ a -> open (Lam defaultArgInfo $ NoAbs "_" $ unArg a)
+            let
+              eval DoTransp l bA phi _ u0 = pure tTrans <#> l <@> bA <@> phi <@> u0
+              eval DoHComp l bA phi u u0 = pure tHComp <#> (l <@> io) <@> (bA <@> io) <@> phi
+                                                       <@> u <@> u0
+            conId <#> (l <@> io) <#> (bA <@> io) <#> (x <@> io) <#> (y <@> io)
+                  <@> (pure tIMin <@> phi
+                                  <@> (ilam "o" $ \ o -> pure tFace <#> (l <@> io) <#> (bA <@> io) <#> (x <@> io) <#> (y <@> io)
+                                                                   <@> (p io o)))
+                  <@> (eval cmd l
+                                (lam "i" $ \ i -> pure tPathType <#> (l <@> i) <#> (bA <@> i) <@> (x <@> i) <@> (y <@> i))
+                                phi
+                                (lam "i" $ \ i -> ilam "o" $ \ o -> pure tPath <#> (l <@> i) <#> (bA <@> i)
+                                                                                    <#> (x <@> i) <#> (y <@> i)
+                                                                                    <@> (p i o)
+                                      )
+                                (pure tPath <#> (l <@> iz) <#> (bA <@> iz) <#> (x <@> iz) <#> (y <@> iz)
+                                                  <@> p0)
+                      )
+        _ -> return $ Nothing
+    allComponents unview phi u p = do
+            let
+              boolToI b = if b then unview IOne else unview IZero
+            as <- decomposeInterval phi
+            (and <$>) . forM as $ \ (bs,ts) -> do -- OPTIMIZE: stop at the first False
+                 let u' = listS (Map.toAscList $ Map.map boolToI bs) `applySubst` u
+                 t <- reduce2Lam u'
+                 return $! p t
+      where
+        reduce2Lam t = do
+          t <- reduce' t
+          case lam2Abs t of
+            t -> Reduce.underAbstraction_ t $ \ t -> do
+               t <- reduce' t
+               case lam2Abs t of
+                 t -> Reduce.underAbstraction_ t reduce'
+         where
+           lam2Abs (Lam _ t) = t
+           lam2Abs t         = Abs "y" (raise 1 t `apply` [argN $ var 0])
+
+    compData _ DoHComp (IsNot l) (IsNot ps) fsc sphi (Just u) a0 = do
+      let sc = famThing <$> fsc
+      tEmpty <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinIsOneEmpty
+      constrForm <- do
+        mz <- getBuiltin' builtinZero
+        ms <- getBuiltin' builtinSuc
+        return $ \ t -> fromMaybe t (constructorForm' mz ms t)
+      su  <- reduceB' u
+      sa0 <- reduceB' a0
+      view   <- intervalView'
+      unview <- intervalUnview'
+      let f = unArg . ignoreBlocking
+          phi = f sphi
+          u = f su
+          a0 = f sa0
+          noRed = return $ NoReduction [notReduced l,reduced sc, reduced sphi, reduced su', reduced sa0]
+            where
+              su' = case view phi of
+                     IZero -> notBlocked $ argN $ runNames [] $ do
+                                 [l,c] <- mapM (open . unArg) [l,ignoreBlocking sc]
+                                 lam "i" $ \ i -> pure tEmpty <#> l
+                                                              <#> (ilam "o" $ \ _ -> c)
+                     _     -> su
+          sameConHead h u = allComponents unview phi u $ \ t ->
+            case constrForm t of
+              Con h' _ _ -> h == h'
+              _        -> False
+
+      case constrForm a0 of
+        Con h _ args -> do
+          ifM (not <$> sameConHead h u) noRed $ do
+            Constructor{ conComp = (cm,_) } <- theDef <$> getConstInfo (conName h)
+            case nameOfHComp cm of
+              Just hcompD -> redReturn $ Def hcompD [] `apply` -- TODO pick the right one
+                                          (ps ++ map argN [phi,u,a0])
+              Nothing        -> noRed
+        _ -> noRed
+    compData 0 DoTransp (IsFam l) (IsFam ps) fsc sphi Nothing a0 = redReturn $ unArg a0
+    compData _ DoTransp (IsFam l) (IsFam ps) fsc sphi Nothing a0 = do
+      let sc = famThing <$> fsc
+      tEmpty <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinIsOneEmpty
+      constrForm <- do
+        mz <- getBuiltin' builtinZero
+        ms <- getBuiltin' builtinSuc
+        return $ \ t -> fromMaybe t (constructorForm' mz ms t)
+      sa0 <- reduceB' a0
+      view   <- intervalView'
+      unview <- intervalUnview'
+      let f = unArg . ignoreBlocking
+          phi = f sphi
+          a0 = f sa0
+          noRed = return $ NoReduction [notReduced l,reduced sc, reduced sphi, reduced sa0]
+      let lam_i = Lam defaultArgInfo . Abs "i"
+      case constrForm a0 of
+        Con h _ args -> do
+          Constructor{ conComp = (cm,_) } <- theDef <$> getConstInfo (conName h)
+          case nameOfTransp cm of
+              Just transpD -> redReturn $ Def transpD [] `apply` -- TODO pick the right one
+                                          (map (fmap lam_i) ps ++ map argN [phi,a0])
+              Nothing        -> noRed
+        _ -> noRed
+    compData _ _ _ _ _ _ _ _ = __IMPOSSIBLE__
+    compPO = __IMPOSSIBLE__
+
 primComp :: TCM PrimitiveImpl
 primComp = do
   t    <- runNamesT [] $
@@ -803,10 +1350,10 @@ primComp = do
                  Def q es -> do
                    info <- getConstInfo q
                    case theDef info of
-                     Record{recComp = Just compR} | Just as <- allApplyElims es
+                     Record{recComp = CompKit{nameOfComp = Just compR}} | Just as <- allApplyElims es
                                 -> redReturn $ (Def compR []) `apply`
                                                (map (fmap lam_i) as ++ [ignoreBlocking sphi,u,a0])
-                     Record{recComp = Nothing, recFields = []}
+                     Record{recComp = CompKit{nameOfComp = Nothing}, recFields = []}
                                 | Just as <- allApplyElims es -> compData l as sc sphi u a0
                      Datatype{} | Just as <- allApplyElims es -> compData l as sc sphi u a0
                      _          -> fallback
@@ -890,9 +1437,9 @@ primComp = do
     case constrForm a0 of
       Con h _ args -> do
         ifM (not <$> sameConHead h u) noRed $ do
-          Constructor{ conComp = cm } <- theDef <$> getConstInfo (conName h)
-          case cm of
-            Just (compD,_) -> redReturn $ Def compD [] `apply`
+          Constructor{ conComp = (cm,_) } <- theDef <$> getConstInfo (conName h)
+          case nameOfComp cm of
+            Just compD -> redReturn $ Def compD [] `apply`
                                         (map (fmap lam_i) ps ++ map argN [phi,u,a0])
             Nothing        -> noRed
       _ -> noRed
@@ -919,7 +1466,6 @@ primComp = do
                                                               <#> (ilam "o" $ \ _ -> p <@> i))
     pure tGlue <#> (l <@> iz) <#> (l <@> pure io)
                <@> a0 <@> phi <@> (e <@> pure io)
-               <@> ilam "o" (\ o -> transp (lam "i" $ \ i -> e <@> ineg i <@> o))
                <@> ilam "o" (\ o -> pure p2equiv <#> l <@> (ilam "i" $ \ i -> e <@> ineg i <@> o))
 
   compId sphi u a0 l bA x y = do
@@ -1377,6 +1923,8 @@ decomposeInterval' t = do
      view   <- intervalView'
      unview <- intervalUnview'
      let f :: IntervalView -> [[Either (Int,Bool) Term]]
+         -- TODO handle primIMinDep
+         -- TODO? handle forall
          f IZero = mzero
          f IOne  = return []
          f (IMin x y) = do xs <- (f . view . unArg) x; ys <- (f . view . unArg) y; return (xs ++ ys)
@@ -1881,6 +2429,8 @@ primitiveFunctions = Map.fromList
   , "primINeg"            |-> primINeg'
   , "primPOr"             |-> primPOr
   , "primComp"            |-> primComp
+  , builtinTrans          |-> primTrans'
+  , builtinHComp          |-> primHComp'
   , "primPFrom1"          |-> primPFrom1
   , "primIdJ"             |-> primIdJ
   , "primPartial"         |-> primPartial'

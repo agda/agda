@@ -118,7 +118,7 @@ updateProblemRest st@(LHSState tel0 qs0 p@(Problem oldEqs ps ret) a psplit) = do
       n         = size tel1
       (ps1,ps2) = splitAt n ps
       tel       = telFromList $ telToList tel0 ++ telToList tel1
-      qs1       = teleNamedArgs tel1 `addBoundary` boundary
+      qs1       = telePatterns tel1 boundary
       newEqs    = zipWith3 ProblemEq
                     (map namedArg ps1)
                     (map (patternToTerm . namedArg) qs1)

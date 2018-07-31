@@ -347,28 +347,41 @@ telViewUpToPath n t = do
     absV a x (TelV tel t) = TelV (ExtendTel a (Abs x tel)) t
 
 -- | [[ (i,(x,y)) ]] = [(i=0) -> x, (i=1) -> y]
-type Boundary = [(Term,(Term,Term))]
+type Boundary = Boundary' (Term,Term)
+type Boundary' a = [(Term,a)]
 
 -- | Like @telViewUpToPath@ but also returns the @Boundary@ expected
 -- by the Path types encountered. The boundary terms live in the
 -- telescope given by the @TelView@.
--- In @telViewUpToPathBoundary' app n t@ the app function is used to
--- apply the endpoints of the boundary to the bindings that come later
--- in the telescope.
-telViewUpToPathBoundary' :: ((Term,Term) -> Args -> (Term,Term)) -> Int -> Type -> TCM (TelView,Boundary)
-telViewUpToPathBoundary' app 0 t = return $ (TelV EmptyTel t,[])
-telViewUpToPathBoundary' app n t = do
+-- Each point of the boundary has the type of the codomain of the Path type it got taken from, see @fullBoundary@.
+telViewUpToPathBoundary' :: Int -> Type -> TCM (TelView,Boundary)
+telViewUpToPathBoundary' 0 t = return $ (TelV EmptyTel t,[])
+telViewUpToPathBoundary' n t = do
   vt <- pathViewAsPi' $ t
   case vt of
-    Left ((a,b),xy) -> addEndPoints xy . absV a (absName b) <$> telViewUpToPathBoundary' app (n - 1) (absBody b)
+    Left ((a,b),xy) -> addEndPoints xy . absV a (absName b) <$> telViewUpToPathBoundary' (n - 1) (absBody b)
     Right (El _ t) | Pi a b <- t
-                   -> absV a (absName b) <$> telViewUpToPathBoundary' app (n - 1) (absBody b)
+                   -> absV a (absName b) <$> telViewUpToPathBoundary' (n - 1) (absBody b)
     Right t        -> return $ (TelV EmptyTel t,[])
   where
     absV a x (TelV tel t, cs) = (TelV (ExtendTel a (Abs x tel)) t, cs)
     addEndPoints xy (telv@(TelV tel _),cs) = (telv, (var $ size tel - 1, xyInTel):cs)
       where
-       xyInTel = raise (size tel) xy `app` drop 1 (teleArgs tel)
+       xyInTel = raise (size tel) xy
+
+
+fullBoundary :: Telescope -> Boundary -> Boundary
+fullBoundary tel bs =
+      -- tel = Γ
+      -- ΔΓ ⊢ b
+      -- Δ ⊢ a = PiPath Γ bs b
+      -- Δ.Γ ⊢ T is the codomain of the PathP at variable i
+      -- Δ.Γ ⊢ i : I
+      -- Δ.Γ ⊢ [ (i=0) -> t_i; (i=1) -> u_i ] : T
+      -- Δ.Γ | PiPath Γ bs A ⊢ teleElims tel bs : b
+   let es = teleElims tel bs
+       l  = size tel
+   in map (\ (t@(Var i []), xy) -> (t, xy `applyE` (drop (l - i) es))) bs
 
 -- | @(TelV Γ b, [(i,t_i,u_i)]) <- telViewUpToPathBoundary n a@
 --  Input:  Δ ⊢ a
@@ -376,7 +389,9 @@ telViewUpToPathBoundary' app n t = do
 --          ΔΓ ⊢ i : I
 --          ΔΓ ⊢ [ (i=0) -> t_i; (i=1) -> u_i ] : b
 telViewUpToPathBoundary :: Int -> Type -> TCM (TelView,Boundary)
-telViewUpToPathBoundary = telViewUpToPathBoundary' apply
+telViewUpToPathBoundary i a = do
+   (telv@(TelV tel b), bs) <- telViewUpToPathBoundary' i a
+   return $ (telv, fullBoundary tel bs)
 
 -- | @(TelV Γ b, [(i,t_i,u_i)]) <- telViewUpToPathBoundaryP n a@
 --  Input:  Δ ⊢ a
@@ -386,10 +401,31 @@ telViewUpToPathBoundary = telViewUpToPathBoundary' apply
 --          Δ.Γ ⊢ [ (i=0) -> t_i; (i=1) -> u_i ] : T
 -- Useful to reconstruct IApplyP patterns after teleNamedArgs Γ.
 telViewUpToPathBoundaryP :: Int -> Type -> TCM (TelView,Boundary)
-telViewUpToPathBoundaryP = telViewUpToPathBoundary' const
+telViewUpToPathBoundaryP = telViewUpToPathBoundary'
 
 telViewPathBoundaryP :: Type -> TCM (TelView,Boundary)
 telViewPathBoundaryP = telViewUpToPathBoundaryP (-1)
+
+
+-- | @teleElimsB args bs = es@
+--  Input:  Δ.Γ ⊢ args : Γ
+--          Δ.Γ ⊢ T is the codomain of the PathP at variable i
+--          Δ.Γ ⊢ i : I
+--          Δ.Γ ⊢ bs = [ (i=0) -> t_i; (i=1) -> u_i ] : T
+--  Output: Δ.Γ | PiPath Γ bs A ⊢ es : A
+teleElims :: DeBruijn a => Telescope -> Boundary' (a,a) -> [Elim' a]
+teleElims tel [] = map Apply $ teleArgs tel
+teleElims tel boundary = recurse (teleArgs tel)
+  where
+    recurse = fmap updateArg
+    matchVar x =
+      snd <$> flip find boundary (\case
+        (Var i [],_) -> i == x
+        _            -> __IMPOSSIBLE__)
+    updateArg a@(Arg info p) =
+      case deBruijnView p of
+        Just i | Just (t,u) <- matchVar i -> IApply t u p
+        _                                 -> Apply a
 
 pathViewAsPi :: Type -> TCM (Either (Dom Type, Abs Type) Type)
 pathViewAsPi t = either (Left . fst) Right <$> pathViewAsPi' t
@@ -440,29 +476,22 @@ telView'Path = telView'UpToPath (-1)
 isPath :: Type -> TCM (Maybe (Dom Type, Abs Type))
 isPath t = either Just (const Nothing) <$> pathViewAsPi t
 
-addBoundary :: [NamedArg DeBruijnPattern] -> Boundary -> [NamedArg DeBruijnPattern]
-addBoundary xs [] = xs
-addBoundary xs boundary = recurse xs
+telePatterns :: Telescope -> Boundary -> [NamedArg DeBruijnPattern]
+telePatterns tel [] = teleNamedArgs tel
+telePatterns tel boundary = recurse $ teleNamedArgs tel
   where
-    recurse :: [NamedArg DeBruijnPattern] -> [NamedArg DeBruijnPattern]
-    recurse = (fmap . fmap . fmap) updatePat
+    recurse :: [NamedArg DBPatVar] -> [NamedArg DeBruijnPattern]
+    recurse = (fmap . fmap . fmap) updateVar
     matchVar x =
       snd <$> flip find boundary (\case
         (Var i [],_) -> i == x
         _            -> __IMPOSSIBLE__)
-    updatePat :: DeBruijnPattern -> DeBruijnPattern
-    updatePat p =
-      case p of
-        (VarP o x) | Just (t,u) <- matchVar (dbPatVarIndex x)
-                     -> IApplyP o t u x
-                   | otherwise -> p
-        LitP{} -> p
-        ProjP{} -> p
-        IApplyP o t u x
-          | Just _ <- matchVar (dbPatVarIndex x) -> __IMPOSSIBLE__
-          | otherwise -> p
-        DotP{} -> p
-        ConP c cpi ps -> ConP c cpi (recurse ps)
+    o = PatOSystem
+    updateVar :: DBPatVar -> DeBruijnPattern
+    updateVar x =
+      case matchVar (dbPatVarIndex x) of
+        Just (t,u) -> IApplyP o t u x
+        Nothing    -> VarP o x
 
 -- | Decomposing a function type.
 

@@ -1217,7 +1217,7 @@ checkLHS mf st@(LHSState tel ip problem target psplit) = updateRelevance $ do
                                    , conPLazy   = False }
 
           -- compute final context and substitution
-          let crho    = ConP c cpi $ applySubst rho0 $ (teleNamedArgs gamma `addBoundary` boundary)
+          let crho    = ConP c cpi $ applySubst rho0 $ (telePatterns gamma boundary)
               rho3    = consS crho rho1
               delta2' = applyPatSubst rho3 delta2
               delta'  = delta1' `abstract` delta2'

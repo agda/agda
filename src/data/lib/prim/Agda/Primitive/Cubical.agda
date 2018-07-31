@@ -39,3 +39,8 @@ primitive
   primComp : ∀ {a} (A : (i : I) → Set (a i)) (φ : I) → (∀ i → Partial (A i) φ) → (a : A i0) → A i1
 
 syntax primPOr p q u t = [ p ↦ u , q ↦ t ]
+
+primitive
+  primTrans : ∀ {a} (A : (i : I) → Set (a i)) (φ : I) → (a : A i0) → A i1
+  primHComp : ∀ {a} (A : Set a) (φ : I) → (∀ i → Partial A φ)
+              → A → A

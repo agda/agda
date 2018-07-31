@@ -49,6 +49,9 @@ instance (NamesIn a, NamesIn b) => NamesIn (a, b) where
 instance (NamesIn a, NamesIn b, NamesIn c) => NamesIn (a, b, c) where
   namesIn (x, y, z) = namesIn (x, (y, z))
 
+instance NamesIn CompKit where
+  namesIn (CompKit a b c) = namesIn (a,b,c)
+
 -- Andreas, 2017-07-27
 -- In the following clauses, the choice of fields is not obvious
 -- to the reader.  Please comment on the choices.

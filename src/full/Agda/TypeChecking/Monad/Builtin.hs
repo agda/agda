@@ -369,6 +369,7 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinPath, builtinPathP, builtinInterval, builtinPathAbs, builtinIZero, builtinIOne, builtinPartial, builtinPartialP,
   builtinIMin, builtinIMax, builtinINeg,
   builtinIsOne,  builtinItIsOne, builtinIsOne1, builtinIsOne2, builtinIsOneEmpty,
+  builtinComp, builtinPOr,
   builtinTrans, builtinHComp,
   builtinSub, builtinSubIn, builtinSubOut,
   builtinEquiv, builtinEquivFun, builtinEquivProof, builtinPathToEquiv,
@@ -473,6 +474,8 @@ builtinFaceForall                    = "primFaceForall"
 builtinIsOne1                        = "ISONE1"
 builtinIsOne2                        = "ISONE2"
 builtinIsOneEmpty                    = "ISONEEMPTY"
+builtinComp                          = "primComp"
+builtinPOr                           = "primPOr"
 builtinTrans                         = "primTrans"
 builtinHComp                         = "primHComp"
 builtinSub                           = "SUB"

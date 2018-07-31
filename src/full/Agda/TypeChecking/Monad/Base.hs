@@ -1553,6 +1553,16 @@ data FunctionFlag
   | FunMacro   -- ^ Is this function a macro?
   deriving (Data, Eq, Ord, Enum, Show)
 
+data CompKit = CompKit
+  { nameOfComp :: Maybe QName
+  , nameOfHComp :: Maybe QName
+  , nameOfTransp :: Maybe QName
+  }
+  deriving (Data, Eq, Ord, Show)
+
+emptyCompKit :: CompKit
+emptyCompKit = CompKit Nothing Nothing Nothing
+
 data Defn = Axiom -- ^ Postulate
           | GeneralizableVar -- ^ Generalizable variable (introduced in `generalize` block)
           | AbstractDefn Defn
@@ -1638,7 +1648,7 @@ data Defn = Axiom -- ^ Postulate
               --   'Nothing' means that the user did not specify it, which is an error
               --   for recursive records.
             , recAbstr          :: IsAbstract
-            , recComp           :: Maybe QName
+            , recComp           :: CompKit
             }
           | Constructor
             { conPars   :: Int         -- ^ Number of parameters.
@@ -1647,7 +1657,7 @@ data Defn = Axiom -- ^ Postulate
             , conData   :: QName       -- ^ Name of datatype or record type.
             , conAbstr  :: IsAbstract
             , conInd    :: Induction   -- ^ Inductive or coinductive?
-            , conComp   :: Maybe (QName,[QName]) -- ^ (cubical composition, projections)
+            , conComp   :: (CompKit, Maybe [QName]) -- ^ (cubical composition, projections)
             , conForced :: [IsForced]  -- ^ Which arguments are forced (i.e. determined by the type of the constructor)?
             , conErased :: [Bool]      -- ^ Which arguments are erased at runtime (computed during compilation to treeless)
             }
@@ -3469,6 +3479,9 @@ instance KillRange ExtLamInfo where
   killRange (ExtLamInfo m sys) = killRange2 ExtLamInfo m sys
 
 instance KillRange FunctionFlag where
+  killRange = id
+
+instance KillRange CompKit where
   killRange = id
 
 instance KillRange Defn where

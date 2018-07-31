@@ -373,6 +373,8 @@ checkHeadApplication cmp e t hd args = do
   conId <- fmap getPrimName <$> getBuiltin' builtinConId
   pOr   <- fmap primFunName <$> getPrimitive' "primPOr"
   pComp <- fmap primFunName <$> getPrimitive' "primComp"
+  pHComp <- fmap primFunName <$> getPrimitive' builtinHComp
+  pTrans <- fmap primFunName <$> getPrimitive' builtinTrans
   mglue <- getPrimitiveName' builtin_glue
   case hd of
     -- Type checking #. The # that the user can write will be a Def, but the
@@ -381,6 +383,8 @@ checkHeadApplication cmp e t hd args = do
 
     -- Cubical primitives
     A.Def c | Just c == pComp -> defaultResult' $ Just $ checkPrimComp c
+    A.Def c | Just c == pHComp -> defaultResult' $ Just $ checkPrimHComp c
+    A.Def c | Just c == pTrans -> defaultResult' $ Just $ checkPrimTrans c
     A.Def c | Just c == conId -> defaultResult' $ Just $ checkConId c
     A.Def c | Just c == pOr   -> defaultResult' $ Just $ checkPOr c
     A.Def c | Just c == mglue -> defaultResult' $ Just $ checkGlue c
@@ -1087,6 +1091,30 @@ checkPrimComp c vs _ = do
       equalTerm ty -- (El (getSort t1) (apply (unArg a) [iz]))
           (Lam defaultArgInfo $ NoAbs "_" $ unArg a0)
           (apply (unArg u) [iz])
+    _ -> typeError $ GenericError $ show c ++ " must be fully applied"
+
+checkPrimHComp :: QName -> Args -> Type -> TCM ()
+checkPrimHComp c vs _ = do
+  case vs of
+    [l, a, phi, u, a0] -> do
+      iz <- Arg defaultArgInfo <$> intervalUnview IZero
+      ty <- elInf $ primPartial <#> (pure $ unArg l) <@> (pure $ unArg a) <@> (pure $ unArg phi)
+      equalTerm ty -- (El (getSort t1) (apply (unArg a) [iz]))
+          (Lam defaultArgInfo $ NoAbs "_" $ unArg a0)
+          (apply (unArg u) [iz])
+    _ -> typeError $ GenericError $ show c ++ " must be fully applied"
+
+checkPrimTrans :: QName -> Args -> Type -> TCM ()
+checkPrimTrans c vs _ = do
+  case vs of
+    [l, a, phi, a0] -> do
+      iz <- Arg defaultArgInfo <$> intervalUnview IZero
+      ty <- runNamesT [] $ do
+        l <- open $ unArg l
+        nPi' "i" (elInf $ cl primInterval) $ \ i -> (sort . tmSort <$> (l <@> i))
+      equalTermOnFace (unArg phi) ty
+          (unArg a)
+          (Lam defaultArgInfo $ NoAbs "_" $ apply (unArg a) [iz])
     _ -> typeError $ GenericError $ show c ++ " must be fully applied"
 
 checkConId :: QName -> Args -> Type -> TCM ()
