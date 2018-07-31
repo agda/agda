@@ -134,7 +134,7 @@ checkDataDef i name ps cs =
 
             -- Check the types of the constructors
             pathCons <- forM cs $ \ c -> do
-              isPatChons <- checkConstructor name tel' nofIxs s c
+              isPathCons <- checkConstructor name tel' nofIxs s c
               return $ if isPathCons == PathCons then Just (A.axiomName c) else Nothing
 
             -- Return the data definition
