@@ -41,6 +41,6 @@ primitive
 syntax primPOr p q u t = [ p ↦ u , q ↦ t ]
 
 primitive
-  primTrans : ∀ {a} (A : (i : I) → Set (a i)) (φ : I) → (a : A i0) → A i1
+  primTransp : ∀ {a} (A : (i : I) → Set (a i)) (φ : I) → (a : A i0) → A i1
   primHComp : ∀ {a} (A : Set a) (φ : I) → (∀ i → Partial A φ)
               → A → A
