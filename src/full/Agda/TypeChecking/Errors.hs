@@ -1301,6 +1301,9 @@ instance PrettyTCM TypeError where
     prettyPat n (I.ConP c _ args) =
       mpar n args $
         prettyTCM c <+> fsep (map (prettyArg . fmap namedThing) args)
+    prettyPat n (I.DefP o q args) =
+      mpar n args $
+        prettyTCM q <+> fsep (map (prettyArg . fmap namedThing) args)
     prettyPat _ (I.LitP l) = prettyTCM l
     prettyPat _ (I.ProjP _ p) = text "." <> prettyTCM p
     prettyPat _ (I.IApplyP _ _ _ _) = text "_"

@@ -629,6 +629,7 @@ checkClause t withSub c@(A.Clause (A.SpineLHS i x aps) strippedPats rhs0 wh catc
                              ProjP{}-> []
                              LitP{} -> []
                              DotP{} -> []
+                             DefP _ _ ps -> iApplyVars ps
                              ConP _ _ ps -> iApplyVars ps
 
         flip (maybe (return ())) body $ \ body -> do

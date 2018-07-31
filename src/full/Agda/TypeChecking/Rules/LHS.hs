@@ -143,6 +143,7 @@ instance IsFlexiblePattern (I.Pattern' a) where
       I.LitP{}  -> mzero
       I.ProjP{} -> mzero
       I.IApplyP{} -> mzero
+      I.DefP{} -> mzero -- TODO Andrea check semantics
 
 -- | Lists of flexible patterns are 'RecordFlex'.
 instance IsFlexiblePattern a => IsFlexiblePattern [a] where
@@ -1276,6 +1277,7 @@ noPatternMatchingOnCodata = mapM_ (check . namedArg)
   check (ProjP{})   = return ()
   check (IApplyP{}) = return ()
   check (LitP {})   = return ()  -- Literals are assumed not to be coinductive.
+  check (DefP{})    = return () -- we assume we don't generate this for codata.
   check (ConP con _ ps) = do
     reportSDoc "tc.lhs.top" 40 $
       text "checking whether" <+> prettyTCM con <+> text "is a coinductive constructor"

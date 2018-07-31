@@ -452,6 +452,7 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
         VarP _ x  -> (p :) <$> recurse (var (dbPatVarIndex x))
 
         IApplyP{}  -> typeError $ GenericError $ "with clauses not supported in the presence of Path patterns" -- TODO maybe we can support them now?
+        DefP{}  -> typeError $ GenericError $ "with clauses not supported in the presence of hcomp patterns" -- TODO this should actually be impossible
 
         DotP o v  -> do
           (a, _) <- mustBePi t
@@ -735,3 +736,4 @@ patsToElims = map $ toElim . fmap namedThing
       DotP o t    -> DDot   $ t
       ConP c cpi ps -> DCon c (fromConPatternInfo cpi) $ toTerms ps
       LitP l      -> DTerm  $ Lit l
+      DefP o q ps -> DDef q $ map Apply $ toTerms ps

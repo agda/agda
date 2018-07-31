@@ -130,12 +130,13 @@ match' ((c, es, patch) : stack) = do
                     Just cc -> (cc, es0 ++ es1, patchLit) : stack
                 -- If our argument (or its constructor form) is @Con c ci vs@
                 -- we push @conFrame c vs@ onto the stack.
-                conFrame c ci vs stack =
-                  case Map.lookup (conName c) (conBranches bs) of
+                conFrame c ci vs stack = conFrame' (conName c) (Con c ci) vs stack
+                conFrame' q f vs stack =
+                  case Map.lookup q (conBranches bs) of
                     Nothing -> stack
                     Just cc -> ( content cc
                                , es0 ++ map (MaybeRed NotReduced) vs ++ es1
-                               , patchCon c ci (length vs)
+                               , patchCon f (length vs)
                                ) : stack
                 -- If our argument is @Proj p@, we push @projFrame p@ onto the stack.
                 projFrame p stack =
@@ -148,14 +149,15 @@ match' ((c, es, patch) : stack) = do
                   where (es0, es1) = splitAt n es
                 -- In case we matched constructor @c@ with @m@ arguments,
                 -- contract these @m@ arguments @vs@ to @Con c ci vs@.
-                patchCon c ci m es = patch (es0 ++ [Con c ci vs <$ e] ++ es2)
+--                patchCon c ci m es = patch (es0 ++ [Con c ci vs <$ e] ++ es2)
+                patchCon f m es = patch (es0 ++ [f vs <$ e] ++ es2)
                   where (es0, rest) = splitAt n es
                         (es1, es2)  = splitAt m rest
                         vs          = es1
-            zo <- do
-               mi <- getBuiltinName' builtinIZero
-               mo <- getBuiltinName' builtinIOne
-               return $ Set.fromList $ catMaybes [mi,mo]
+            -- zo <- do
+            --    mi <- getBuiltinName' builtinIZero
+            --    mo <- getBuiltinName' builtinIOne
+            --    return $ Set.fromList $ catMaybes [mi,mo]
 
             fallThrough <- return $ fromMaybe False (fallThrough bs) && isJust (catchAllBranch bs)
 
@@ -164,7 +166,6 @@ match' ((c, es, patch) : stack) = do
                 case ignoreBlocking b of
                  Apply a | c@Con{} <- unArg a -> Just c
                  _                            -> Nothing
-
             -- Now do the matching on the @n@ths argument:
             id $
              case eb of
@@ -175,7 +176,10 @@ match' ((c, es, patch) : stack) = do
                       Con c ci vs -> conFrame c ci vs stack
                       _        -> stack
                 match' $ litFrame l $ cFrame $ catchAllFrame stack
-
+                
+              NotBlocked _ (Apply (Arg info v@(Def q vs))) | Just{} <- Map.lookup q (conBranches bs) -> performedSimplification $ do
+                match' $ conFrame' q (Def q) vs $ catchAllFrame $ stack
+                
               -- In case of a constructor, push the conFrame
               b | Just (Con c ci vs) <- isCon b -> performedSimplification $
                 match' $ conFrame c ci vs $ catchAllFrame $ stack

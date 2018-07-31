@@ -97,6 +97,7 @@ instance NamesIn (Pattern' a) where
     LitP l        -> namesIn l
     DotP _ v      -> namesIn v
     ConP c _ args -> namesIn (c, args)
+    DefP o q args -> namesIn (q, args)
     ProjP _ f     -> namesIn f
     IApplyP _ t u _ -> namesIn (t, u)
 

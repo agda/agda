@@ -446,6 +446,7 @@ data Pattern' x
   | ProjP ProjOrigin QName
     -- ^ Projection copattern.  Can only appear by itself.
   | IApplyP PatOrigin Term Term x
+  | DefP PatOrigin QName [NamedArg (Pattern' x)]
   deriving (Data, Show, Functor, Foldable, Traversable)
 
 type Pattern = Pattern' PatVarName
@@ -537,9 +538,11 @@ instance PatternVars a (Arg (Pattern' a)) where
   patternVars (Arg i (VarP _ x)   ) = [Arg i $ Left x]
   patternVars (Arg i (DotP _ t)   ) = [Arg i $ Right t]
   patternVars (Arg _ (ConP _ _ ps)) = patternVars ps
+  patternVars (Arg _ (DefP _ _ ps)) = patternVars ps
   patternVars (Arg _ (LitP _)     ) = []
   patternVars (Arg _ ProjP{}      ) = []
   patternVars (Arg i (IApplyP _ _ _ x)) = [Arg i $ Left x]
+
 
 instance PatternVars a (NamedArg (Pattern' a)) where
   patternVars = patternVars . fmap namedThing
@@ -556,6 +559,7 @@ patternOrigin LitP{}     = Nothing
 patternOrigin (ConP _ ci _) = conPRecord ci
 patternOrigin ProjP{}    = Nothing
 patternOrigin (IApplyP o _ _ _) = Just o
+patternOrigin (DefP o _ _) = Just o
 
 -- | Does the pattern perform a match that could fail?
 properlyMatching :: DeBruijnPattern -> Bool
@@ -568,6 +572,7 @@ properlyMatching (ConP _ ci ps) = isNothing (conPRecord ci) || -- not a record c
   List.any (properlyMatching . namedArg) ps  -- or one of subpatterns is a proper m
 properlyMatching ProjP{} = True
 properlyMatching IApplyP{} = False
+properlyMatching DefP{}  = True
 
 instance IsProjP (Pattern' a) where
   isProjP (ProjP o d) = Just (o, unambiguous d)
@@ -1193,6 +1198,7 @@ instance KillRange a => KillRange (Pattern' a) where
       LitP l           -> killRange1 LitP l
       ProjP o q        -> killRange1 (ProjP o) q
       IApplyP o u t x  -> killRange3 (IApplyP o) u t x
+      DefP o q ps      -> killRange2 (DefP o) q ps
 
 instance KillRange Clause where
   killRange (Clause rl rf tel ps body t catchall unreachable) =
@@ -1344,6 +1350,9 @@ instance Pretty a => Pretty (Pattern' a) where
   prettyPrec _ (DotP _o t)   = text "." P.<> prettyPrec 10 t
   prettyPrec n (ConP c i nps)= mparens (n > 0 && not (null nps)) $
     pretty (conName c) <+> fsep (map (prettyPrec 10) ps)
+    where ps = map (fmap namedThing) nps
+  prettyPrec n (DefP o q nps)= mparens (n > 0 && not (null nps)) $
+    pretty q <+> fsep (map (prettyPrec 10) ps)
     where ps = map (fmap namedThing) nps
   -- -- Version with printing record type:
   -- prettyPrec _ (ConP c i ps) = (if b then braces else parens) $ prTy $

@@ -113,6 +113,7 @@ instance Subst SplitPattern SplitPattern where
       lookupS rho $ splitPatVarIndex x
     DotP o u     -> DotP o $ applySplitPSubst rho u
     ConP c ci ps -> ConP c ci $ applySubst rho ps
+    DefP o q ps -> DefP o q $ applySubst rho ps
     LitP x       -> p
     ProjP{}      -> p
     IApplyP o _ _ x  ->
@@ -142,6 +143,7 @@ isTrivialPattern p = case p of
   DotP{}      -> return True
   ConP c i ps -> andM $ (isEtaCon $ conName c)
                       : (map (isTrivialPattern . namedArg) ps)
+  DefP{}      -> return False
   LitP{}      -> return False
   ProjP{}     -> return False
   IApplyP{}   -> return True
@@ -351,6 +353,7 @@ matchPat p@(LitP l) q = case q of
   ConP{}   -> No
   DotP{}   -> No
   LitP l'  -> if l == l' then Yes [] else No
+  DefP{}   -> No
   ProjP{}  -> __IMPOSSIBLE__  -- excluded by typing
   IApplyP{} -> __IMPOSSIBLE__
 matchPat (ProjP _ d) (ProjP _ d') = if d == d' then mempty else No
@@ -363,5 +366,16 @@ matchPat p@(ConP c _ ps) q = case q of
     | otherwise -> No
   DotP o t  -> No
   LitP _    -> No
+  DefP{}   -> No
   ProjP{}   -> __IMPOSSIBLE__  -- excluded by typing
   IApplyP _ _ _ x -> blockedOnConstructor (splitPatVarIndex x) c
+matchPat (DefP o c ps) q = case q of
+  VarP _ x -> __IMPOSSIBLE__ -- blockedOnConstructor (splitPatVarIndex x) c
+  ConP c' i qs -> No
+  DotP o t  -> No
+  LitP _    -> No
+  DefP o c' qs
+    | c == c'   -> matchPats ps qs
+    | otherwise -> No
+  ProjP{}   -> __IMPOSSIBLE__  -- excluded by typing
+  IApplyP _ _ _ x -> __IMPOSSIBLE__ --blockedOnConstructor (splitPatVarIndex x) c

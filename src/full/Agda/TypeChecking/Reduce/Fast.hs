@@ -1083,7 +1083,6 @@ reduceTm rEnv bEnv !constInfo normalisation ReductionFlags{..} =
           Con c ci es -> do
             spine' <- elimsToSpine env es
             runAM (evalValue blk (Con c ci []) emptyEnv (spine' <> spine) ctrl0)
-
           -- Case: natural number literals. Literal natural number patterns are translated to
           -- suc-matches, so there is no need to try matchLit.
           Lit (LitNat _ 0) -> matchLitZero  $ matchCatchall $ failedMatch f stack ctrl
@@ -1091,6 +1090,12 @@ reduceTm rEnv bEnv !constInfo normalisation ReductionFlags{..} =
 
           -- Case: literal
           Lit l -> matchLit l $ matchCatchall $ failedMatch f stack ctrl
+
+          -- Case: hcomp
+          Def q [] | isJust $ lookupCon q bs -> matchCon' q (length spine) $ matchCatchall $ failedMatch f stack ctrl
+          Def q es | isJust $ lookupCon q bs -> do
+            spine' <- elimsToSpine env es
+            runAM (evalValue blk (Def q []) emptyEnv (spine' <> spine) ctrl0)
 
           -- Case: not constructor or literal. In this case we are stuck.
           _ -> stuck
@@ -1124,7 +1129,8 @@ reduceTm rEnv bEnv !constInfo normalisation ReductionFlags{..} =
 
         -- Matching constructor: Switch to the Match state, inserting the constructor arguments in
         -- the spine between spine0 and spine1.
-        matchCon c ci ar = lookupCon (conName c) bs `ifJust` \ cc ->
+        matchCon c ci ar = matchCon' (conName c) ar
+        matchCon' q ar = lookupCon q bs `ifJust` \ cc ->
           runAM (Match f cc (spine0 <> spine <> spine1) catchallStack ctrl)
 
         -- Catch-all: Don't add a CatchAll to the match stack since this _is_ the catch-all.

@@ -242,6 +242,7 @@ instance {-# OVERLAPPING #-} Apply [NamedArg (Pattern' a)] where
             DotP{}  -> __IMPOSSIBLE__
             LitP{}  -> __IMPOSSIBLE__
             ConP{}  -> __IMPOSSIBLE__
+            DefP{}  -> __IMPOSSIBLE__
             ProjP{} -> __IMPOSSIBLE__
             IApplyP{} -> recurse
 
@@ -384,6 +385,7 @@ instance Apply Clause where
               where v' = raise (n - 1) v
             DotP{}  -> mkSub tm n ps vs
             ConP c _ ps' -> mkSub tm n (ps' ++ ps) (projections c v ++ vs)
+            DefP o q ps' -> mkSub tm n (ps' ++ ps) vs
             LitP{}  -> __IMPOSSIBLE__
             ProjP{} -> __IMPOSSIBLE__
             IApplyP _ _ _ (DBPatVar _ i) -> mkSub tm (n - 1) (substP i v' ps) vs `composeS` singletonS i (tm v')
@@ -406,6 +408,7 @@ instance Apply Clause where
             VarP _ (DBPatVar _ i) -> newTel (n - 1) (subTel (size tel - 1 - i) v tel) (substP i (raise (n - 1) v) ps) vs
             DotP{}              -> newTel n tel ps vs
             ConP c _ ps'        -> newTel n tel (ps' ++ ps) (projections c v ++ vs)
+            DefP _ q ps'        -> newTel n tel (ps' ++ ps) vs
             LitP{}              -> __IMPOSSIBLE__
             ProjP{}             -> __IMPOSSIBLE__
             IApplyP _ _ _ (DBPatVar _ i) -> newTel (n - 1) (subTel (size tel - 1 - i) v tel) (substP i (raise (n - 1) v) ps) vs
@@ -781,6 +784,7 @@ instance Subst Term ConPatternInfo where
 instance Subst Term Pattern where
   applySubst rho p = case p of
     ConP c mt ps -> ConP c (applySubst rho mt) $ applySubst rho ps
+    DefP o q ps  -> DefP o q $ applySubst rho ps
     DotP o t     -> DotP o $ applySubst rho t
     VarP o s     -> p
     LitP l       -> p
@@ -967,6 +971,7 @@ usePatOrigin o p = case patternOrigin p of
     (DotP _ u) -> DotP o u
     (ConP c (ConPatternInfo (Just _) ft b l) ps)
       -> ConP c (ConPatternInfo (Just o) ft b l) ps
+    DefP _ q ps -> DefP o q ps
     ConP{}  -> __IMPOSSIBLE__
     LitP{}  -> __IMPOSSIBLE__
     ProjP{} -> __IMPOSSIBLE__
@@ -981,6 +986,7 @@ instance Subst DeBruijnPattern DeBruijnPattern where
       lookupS rho $ dbPatVarIndex x
     DotP o u     -> DotP o $ applyPatSubst rho u
     ConP c ci ps -> ConP c ci $ applySubst rho ps
+    DefP o q ps  -> DefP o q $ applySubst rho ps
     LitP x       -> p
     ProjP{}      -> p
     IApplyP o t u x -> case useName (dbPatVarName x) $ lookupS rho $ dbPatVarIndex x of

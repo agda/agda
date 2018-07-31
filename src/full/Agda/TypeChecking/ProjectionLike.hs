@@ -350,6 +350,7 @@ makeProjection x = -- if True then return () else do
         shallowMatch _             = True
         noMatches = all (noMatch . namedArg)
         noMatch ConP{} = False
+        noMatch DefP{} = False
         noMatch LitP{} = False
         noMatch ProjP{}= False
         noMatch VarP{} = True

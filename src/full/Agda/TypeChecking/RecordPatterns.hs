@@ -81,6 +81,7 @@ recordPatternToProjections p =
       concat <$> zipWithM comb (map proj fields) (map namedArg ps)
     ProjP{}      -> __IMPOSSIBLE__ -- copattern cannot appear here
     IApplyP{}    -> typeError $ ShouldBeRecordPattern p
+    DefP{}       -> typeError $ ShouldBeRecordPattern p
   where
     proj p = (`applyE` [Proj ProjSystem $ unArg p])
     comb :: (Term -> Term) -> DeBruijnPattern -> TCM [Term -> Term]
@@ -711,6 +712,9 @@ translatePattern p@(ConP c ci ps)
   | otherwise = do
       (ps, s, cs) <- translatePatterns ps
       return (ConP c ci ps, s, cs)
+translatePattern p@(DefP o q ps) = do
+      (ps, s, cs) <- translatePatterns ps
+      return (DefP o q ps, s, cs)
 translatePattern p@VarP{} = removeTree (Leaf p)
 translatePattern p@DotP{} = removeTree (Leaf p)
 translatePattern p@LitP{} = return (p, [], [])
@@ -762,6 +766,7 @@ recordTree p@(ConP c ci ps) | Just PatOSystem <- conPRecord ci = do
       let proj p = (`applyE` [Proj ProjSystem $ unArg p])
       return $ Right $ RecCon t $ zip (map proj fields) ts
 recordTree p@(ConP _ ci _) = return $ Left $ translatePattern p
+recordTree p@DefP{} = return $ Left $ translatePattern p
 recordTree p@VarP{} = return (Right (Leaf p))
 recordTree p@DotP{} = return (Right (Leaf p))
 recordTree p@LitP{} = return $ Left $ translatePattern p

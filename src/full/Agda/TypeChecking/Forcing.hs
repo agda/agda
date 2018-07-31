@@ -233,6 +233,12 @@ rebindForcedPattern ps toRebind = go $ zip (repeat NotForced) ps
           qps <- go (fqs ++ ps)
           let (qs', ps') = splitAt (length qs) qps
           return $ fmap (ConP c i qs' <$) p : ps'
+        DefP o q qs -> do
+          fs <- defForced <$> getConstInfo q
+          fqs <- return $ zip (fs ++ repeat NotForced) qs
+          qps <- go (fqs ++ ps)
+          let (qs', ps') = splitAt (length qs) qps
+          return $ fmap (DefP o q qs' <$) p : ps'
         LitP{}  -> (p :) <$> go ps
         ProjP{} -> (p :) <$> go ps
         IApplyP{} -> (p :) <$> go ps
@@ -289,6 +295,9 @@ dotForcedPatterns ps = runWriterT $ (traverse . traverse . traverse) (forced Not
         ConP c i ps     -> do
           fs <- defForced <$> getConstInfo (conName c)
           ConP c i <$> zipWithM forcedArg (fs ++ repeat NotForced) ps
+        DefP o q ps     -> do
+          fs <- defForced <$> getConstInfo q
+          DefP o q <$> zipWithM forcedArg (fs ++ repeat NotForced) ps
         IApplyP{}       -> return p
 
     forcedArg f = (traverse . traverse) (forced f)
@@ -302,3 +311,4 @@ dotForcedPatterns ps = runWriterT $ (traverse . traverse . traverse) (forced Not
       ifM (isEtaCon $ conName c)
           (anyM ps (isProperMatch . namedArg))
           (return True)
+    isProperMatch DefP{} = return True -- Andrea, TODO check semantics

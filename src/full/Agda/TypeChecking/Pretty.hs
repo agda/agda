@@ -388,6 +388,8 @@ instance PrettyTCM a => PrettyTCM (Pattern' a) where
   prettyTCM (IApplyP _ _ _ x)    = prettyTCM x
   prettyTCM (VarP _ x)    = prettyTCM x
   prettyTCM (DotP _ t)    = text ".(" <> prettyTCM t <> text ")"
+  prettyTCM (DefP o q ps) = parens $
+        prettyTCM q <+> fsep (map (prettyTCM . namedArg) ps)
   prettyTCM (ConP c i ps) = (if b then braces else parens) $ prTy $
         prettyTCM c <+> fsep (map (prettyTCM . namedArg) ps)
         where

@@ -300,6 +300,10 @@ literalsNotImplemented :: MB.TCM a
 literalsNotImplemented = MB.typeError $ MB.NotImplemented $
   "The Agda synthesizer (Agsy) does not support literals yet"
 
+hitsNotImplemented :: MB.TCM a
+hitsNotImplemented = MB.typeError $ MB.NotImplemented $
+  "The Agda synthesizer (Agsy) does not support HITs yet"
+
 class Conversion m a b where
   convert :: a -> m b
 
@@ -340,6 +344,7 @@ instance Conversion TOM (Cm.Arg I.Pattern) (Pat O) where
     -- UNSUPPORTED CASES
     I.ProjP{}   -> lift copatternsNotImplemented
     I.LitP _    -> lift literalsNotImplemented
+    I.DefP{}    -> lift hitsNotImplemented
 
 instance Conversion TOM I.Type (MExp O) where
   convert (I.El _ t) = convert t -- sort info is thrown away
@@ -589,6 +594,8 @@ constructPats cmap mainm clause = do
         return (ns, HI hid (CSPatExp t2))
        I.ProjP{} -> copatternsNotImplemented
        I.LitP{} -> literalsNotImplemented
+       I.DefP{} -> hitsNotImplemented
+
  (names, pats) <- cnvps [] (IP.unnumberPatVars $ I.namedClausePats clause)
  return (reverse names, pats)
 

@@ -1074,6 +1074,10 @@ reifyPatterns = mapM $ stripNameFromExplicit <.> traverse (traverse reifyPat)
         Just PatOWild   -> return $ A.WildP patNoRange
         Just PatOAbsurd -> return $ A.AbsurdP patNoRange
         _               -> reifyConP c cpi ps
+      I.DefP o f ps  -> case o of
+        PatOWild   -> return $ A.WildP patNoRange
+        PatOAbsurd -> return $ A.AbsurdP patNoRange
+        _ -> A.DefP patNoRange (unambiguous f) <$> reifyPatterns ps
       I.IApplyP PatODot _ _ x -> reifyDotP $ var $ dbPatVarIndex x
       I.IApplyP PatOWild _ _ x -> return $ A.WildP patNoRange
       I.IApplyP PatOAbsurd _ _ x -> return $ A.AbsurdP patNoRange

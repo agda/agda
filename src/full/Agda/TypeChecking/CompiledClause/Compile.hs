@@ -172,6 +172,7 @@ compile cs = case nextSplit cs of
     name (VarP _ x) = x
     name (DotP _ _) = underscore
     name ConP{}  = __IMPOSSIBLE__
+    name DefP{}  = __IMPOSSIBLE__
     name LitP{}  = __IMPOSSIBLE__
     name ProjP{} = __IMPOSSIBLE__
     name (IApplyP _ _ _ x) = x
@@ -200,6 +201,7 @@ nextSplit (Cl ps _ : cs) = findSplit nonLazy ps <|> findSplit allAgree ps
 --   And if yes, is it a record pattern?
 properSplit :: Pattern' a -> Maybe Bool
 properSplit (ConP _ cpi _) = Just (Just PatORec == conPRecord cpi)
+properSplit DefP{} = Just False
 properSplit LitP{}  = Just False
 properSplit ProjP{} = Just False
 properSplit IApplyP{} = Nothing
@@ -213,6 +215,7 @@ isVar :: Pattern' a -> Bool
 isVar VarP{}  = True
 isVar DotP{}  = True
 isVar ConP{}  = False
+isVar DefP{} = False
 isVar LitP{}  = False
 isVar ProjP{} = False
 isVar IApplyP{} = True
@@ -230,6 +233,8 @@ splitC n (Cl ps b) = caseMaybe mp fallback $ \case
   IApplyP{}   -> fallback
   ConP c i qs -> (conCase (conName c) (conPFallThrough i) $ WithArity (length qs) $
                    Cl (ps0 ++ map (fmap namedThing) qs ++ ps1) b) { lazyMatch = conPLazy i }
+  DefP o q qs -> (conCase q False $ WithArity (length qs) $
+                   Cl (ps0 ++ map (fmap namedThing) qs ++ ps1) b) { lazyMatch = False }
   LitP l      -> litCase l $ Cl (ps0 ++ ps1) b
   VarP{}      -> fallback
   DotP{}      -> fallback

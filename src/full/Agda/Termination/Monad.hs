@@ -542,6 +542,7 @@ instance UsableSizeVars DeBruijnPattern where
     DotP{}     -> none
     ProjP{}    -> none
     IApplyP{}  -> none
+    DefP{} -> none
     where none _ = return mempty
 
 instance UsableSizeVars [DeBruijnPattern] where
@@ -560,6 +561,7 @@ instance UsableSizeVars (Masked DeBruijnPattern) where
     DotP{}     -> none
     ProjP{}    -> none
     IApplyP{}  -> none
+    DefP{}     -> none
     where none _ = return mempty
 
 instance UsableSizeVars MaskedDeBruijnPatterns where

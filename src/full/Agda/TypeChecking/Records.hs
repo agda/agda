@@ -817,6 +817,7 @@ instance NormaliseProjP (Pattern' x) where
   normaliseProjP p@VarP{}        = return p
   normaliseProjP p@DotP{}        = return p
   normaliseProjP (ConP c cpi ps) = ConP c cpi <$> normaliseProjP ps
+  normaliseProjP (DefP o q ps) = DefP o q <$> normaliseProjP ps
   normaliseProjP p@LitP{}        = return p
   normaliseProjP (ProjP o d0)    = ProjP o <$> getOriginalProjection d0
   normaliseProjP p@IApplyP{}     = return p

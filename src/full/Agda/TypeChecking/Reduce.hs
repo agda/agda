@@ -1056,6 +1056,7 @@ instance Normalise a => Normalise (Pattern' a) where
     VarP o x     -> VarP o <$> normalise' x
     LitP _       -> return p
     ConP c mt ps -> ConP c <$> normalise' mt <*> normalise' ps
+    DefP o q ps  -> DefP o q <$> normalise' ps
     DotP o v     -> DotP o <$> normalise' v
     ProjP{}      -> return p
     IApplyP o t u x -> IApplyP o <$> normalise' t <*> normalise' u <*> normalise' x
@@ -1178,6 +1179,7 @@ instance InstantiateFull a => InstantiateFull (Pattern' a) where
     instantiateFull' (VarP o x)     = VarP o <$> instantiateFull' x
     instantiateFull' (DotP o t)     = DotP o <$> instantiateFull' t
     instantiateFull' (ConP n mt ps) = ConP n <$> instantiateFull' mt <*> instantiateFull' ps
+    instantiateFull' (DefP o q ps) = DefP o q <$> instantiateFull' ps
     instantiateFull' l@LitP{}       = return l
     instantiateFull' p@ProjP{}      = return p
     instantiateFull' (IApplyP o t u x) = IApplyP o <$> instantiateFull' t <*> instantiateFull' u <*> instantiateFull' x

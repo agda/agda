@@ -37,6 +37,8 @@ import Agda.Syntax.Literal
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
 
+import Agda.TypeChecking.Names
+import Agda.TypeChecking.Primitive hiding (Nat)
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
 
@@ -274,6 +276,7 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
 
     No        ->  do
       reportSLn "tc.cover" 20 $ "pattern is not covered"
+      -- TODO Andrea: add hcomp clause!
       case fmap getHiding target of
         Just h | isInstance h -> do
           -- Ulf, 2016-10-31: For now we only infer instance clauses. It would
@@ -328,6 +331,11 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
         Right (Covering n []) ->
           return $ CoverResult (SplittingDone (size tel)) Set.empty [] Set.empty
         Right (Covering n scs) -> do
+          cs <- do
+            mcomp <- getPrimitiveName' builtinHComp
+            case List.find (\ (x,y) -> case x of SplitCon c -> Just c == mcomp; _ -> False) scs of
+                  Just (_,sc) -> (cs ++) . (:[]) <$> createMissingHCompClause f n sc
+                  Nothing ->  return cs
           results <- mapM (cover f cs) (map snd scs)
           let trees = map coverSplitTree results
               useds = map coverUsedClauses results
@@ -388,6 +396,7 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
            LitP  _      -> gatherEtaSplits (-1) sc ps
            ProjP{}      -> __IMPOSSIBLE__
            IApplyP{}    -> __IMPOSSIBLE__
+           DefP  _ _ qs -> qs ++ gatherEtaSplits (-1) sc ps -- __IMPOSSIBLE__ -- Andrea: maybe?
        | otherwise ->
            updateNamedArg (\ _ -> p') p : gatherEtaSplits (n-1) sc ps
         where p' = lookupS (scSubst sc) $ splitPatVarIndex x
@@ -395,6 +404,7 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
            updateNamedArg (applySubst (scSubst sc)) p : gatherEtaSplits (n-1) sc ps
       DotP  _ _    -> p : gatherEtaSplits (n-1) sc ps -- count dot patterns
       ConP  _ _ qs -> gatherEtaSplits n sc (qs ++ ps)
+      DefP  _ _ qs -> gatherEtaSplits n sc (qs ++ ps)
       LitP  _      -> gatherEtaSplits n sc ps
       ProjP{}      -> gatherEtaSplits n sc ps
 
@@ -406,12 +416,109 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
       ConP c cpi qs -> SplitAt (p $> k) [(SplitCon (conName c) , addEtaSplits k (qs ++ ps) t)]
       LitP  _       -> __IMPOSSIBLE__
       ProjP{}       -> __IMPOSSIBLE__
+      DefP{}        -> __IMPOSSIBLE__ -- Andrea: maybe?
       IApplyP{}     -> addEtaSplits (k+1) ps t
 
     etaRecordSplits :: Int -> [NamedArg SplitPattern] -> (SplitTag,SplitClause)
                     -> SplitTree -> (SplitTag,SplitTree)
     etaRecordSplits n ps (q , sc) t =
       (q , addEtaSplits 0 (gatherEtaSplits n sc ps) t)
+
+-- | Append a instance clause to the clauses of a function.
+createMissingHCompClause
+  :: QName
+       -- ^ Function name.
+  -> Arg Nat -- ^ index of hcomp pattern
+  -> SplitClause
+       -- ^ Clause to add.  Clause hiding (in 'clauseType') must be 'Instance'.
+   -> TCM Clause
+createMissingHCompClause f n (SClause tel ps _ cps (Just t)) = setCurrentRange f $ do
+  reportSDoc "tc.cover.hcomp" 20 $ addContext tel $ text "Trying to infer right-hand side of type" <+> prettyTCM t
+  cl <- do
+        -- addContext tel
+        -- $ locally eCheckpoints (const cps)
+        -- $ checkpoint IdS $ do    -- introduce a fresh checkpoint
+        
+    rhs <- do
+      let (ps0,p:ps1) = splitAt (unArg n) $ fromSplitPatterns ps
+      ty <- defType <$> getConstInfo f
+      case patternToTerm $ namedArg p of
+        Def hc es | Just [lvl,htype,phi,u,u0] <- allApplyElims es -> runNamesT [] $ do
+          tPOr <- fromMaybe __IMPOSSIBLE__ <$> getTerm' "primPOr"
+          tIMax <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinIMax
+          tIMin <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinIMin
+          tINeg <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinINeg
+          tHComp <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinHComp
+          tTrans <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinTrans
+          io      <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinIOne
+          iz      <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinIZero
+
+          comp <- do
+            let
+              ineg j = pure tINeg <@> j
+              imax i j = pure tIMax <@> i <@> j
+            let forward la bA r u = pure tTrans <#> (lam "i" $ \ i -> la <@> (i `imax` r))
+                                              <@> (lam "i" $ \ i -> bA <@> (i `imax` r))
+                                              <@> r
+                                              <@> u
+            return $ \ la bA phi u u0 ->
+              pure tHComp <#> (la <@> pure io) <@> (bA <@> pure io) <@> phi
+                        <@> (lam "i" $ \ i -> ilam "o" $ \ o ->
+                                forward la bA i (u <@> i <..> o))
+                        <@> forward la bA (pure iz) u0
+          let
+            hfill la bA phi u u0 i = pure tHComp <#> la <@> bA
+                                               <@> (pure tIMax <@> phi <@> (pure tINeg <@> i))
+                                               <@> (lam "j" $ \ j -> pure tPOr <#> la <@> phi <@> (pure tINeg <@> i) <@> (ilam "o" $ \ a -> bA)
+                                                     <@> (ilam "o" $ \ o -> u <@> (pure tIMin <@> i <@> j) <..> o)
+                                                     <@> (ilam "o" $ \ _ -> u0)
+                                                   )
+                                               <@> u0
+
+          ps0 <- open $ patternsToElims ps0
+          ps1 <- open $ patternsToElims ps1
+          [lvl,htype,phi,u,u0] <- mapM (open . unArg) [lvl,htype,phi,u,u0]
+          let call v = do
+                ps0 <- ps0
+                v <- v
+                ps1 <- ps1
+                return $ Def f (ps0 ++ [Apply $ argN v] ++ ps1)
+          ty <- do
+                return $ \ i -> do
+                    ps0 <- ps0
+                    v <- hfill lvl htype phi u u0 i
+                    ps1 <- ps1
+                    let Just xs = allApplyElims (ps0 ++ [Apply $ v <$ n] ++ ps1)
+                    return $ ty `piApply` xs
+          let
+            computeSort x = do
+              x <- x
+              getSort <$> lift (reduce x)
+          -- need to use comp and use a fill in the type
+          comp (lam "i" $ \ i -> Level . (\(Type s) -> s) <$> computeSort (ty i))
+               (lam "i" $ \ i -> unEl <$> ty i)
+                           phi
+                           (lam "i" $ \ i -> lam "o" $ \ o -> call (u <@> i <..> o))
+                           (call u0)
+        _ -> __IMPOSSIBLE__
+    cxt <- getContextTelescope
+    reportSDoc "tc.cover.hcomp" 30 $ addContext tel $ text "cxt = " <+> prettyTCM cxt
+    reportSDoc "tc.cover.hcomp" 30 $ addContext tel $ text "ps = " <+> text (show (fromSplitPatterns ps))
+    reportSDoc "tc.cover.hcomp" 20 $ addContext tel $ text "rhs = " <+> prettyTCM rhs
+    return $ Clause { clauseLHSRange  = noRange
+                    , clauseFullRange = noRange
+                    , clauseTel       = tel
+                    , namedClausePats = fromSplitPatterns ps
+                    , clauseBody      = Just rhs
+                    , clauseType      = Just t
+                    , clauseCatchall  = False
+                    , clauseUnreachable = Just False  -- missing, thus, not unreachable
+                    }
+  addClauses f [cl]  -- Important: add at the end.
+  return cl
+createMissingHCompClause _ _ (SClause _ _ _ _ Nothing) = __IMPOSSIBLE__
+
+
 
 -- | Append a instance clause to the clauses of a function.
 inferMissingClause
@@ -463,7 +570,7 @@ splitStrategy bs tel = return $ updateLast setBlockingVarOverlap xs
 -- the data type must be inductive.
 isDatatype :: (MonadTCM tcm, MonadError SplitError tcm) =>
               Induction -> Dom Type ->
-              tcm (QName, [Arg Term], [Arg Term], [QName])
+              tcm (QName, [Arg Term], [Arg Term], [QName], Bool)
 isDatatype ind at = do
   let t       = unDom at
       throw f = throwError . f =<< do liftTCM $ buildClosure t
@@ -480,12 +587,12 @@ isDatatype ind at = do
               throw CoinductiveDatatype
           | otherwise -> do
               let (ps, is) = splitAt np args
-              return (d, ps, is, cs)
+              return (d, ps, is, cs, not $ null (dataPathCons def))
         Record{recPars = np, recConHead = con, recInduction = i}
           | i == Just CoInductive && ind /= CoInductive ->
               throw CoinductiveDatatype
           | otherwise ->
-              return (d, args, [], [conName con])
+              return (d, args, [], [conName con], False)
         _ -> throw NotADatatype
     _ -> throw NotADatatype
 
@@ -558,6 +665,69 @@ hiddenInserted :: ArgInfo -> ArgInfo
 hiddenInserted ai
   | visible ai = setOrigin UserWritten ai
   | otherwise  = setOrigin Inserted ai
+
+computeHCompSplit  :: Telescope   -- ^ Telescope before split point.
+  -> PatVarName                   -- ^ Name of pattern variable at split point.
+  -> Telescope                    -- ^ Telescope after split point.
+  -> QName                        -- ^ Name of datatype to split at.
+  -> Args                         -- ^ Data type parameters.
+  -> Args                         -- ^ Data type indices.
+  -> Nat                          -- ^ Index of split variable.
+  -> Telescope                    -- ^ Telescope for the patterns.
+  -> [NamedArg SplitPattern]      -- ^ Patterns before doing the split.
+  -> Map CheckpointId Substitution -- ^ Current checkpoints
+  -- -> QName                        -- ^ Constructor to fit into hole.
+  -> CoverM (Maybe (SplitTag,SplitClause))   -- ^ New split clause if successful.
+computeHCompSplit delta1 n delta2 d pars ixs hix tel ps cps = do
+    -- Get the type of the datatype
+  -- Δ1 ⊢ dtype
+  dsort <- liftTCM $ (parallelS (reverse $ map unArg pars) `applySubst`) . dataSort . theDef <$> getConstInfo d
+  hCompName <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveName' builtinHComp
+  theHCompT <- defType <$> getConstInfo hCompName
+  let
+    dlvl = Level . (\ (Type s) -> s) $ dsort
+    dterm = Def d [] `apply` (pars ++ ixs)
+  -- Δ1 ⊢ gamma
+  TelV gamma _ <- lift $ telView (theHCompT `piApply` [setHiding Hidden $ defaultArg $ dlvl , defaultArg $ dterm])
+  case (delta1 `abstract` gamma,IdS) of
+    (delta1',rho0) -> do
+--      debugSubst "rho0" rho0
+
+      -- We have Δ₁' ⊢ ρ₀ : Δ₁Γ, so split it into the part for Δ₁ and the part for Γ
+      let (rho1,rho2) = splitS (size gamma) $ toSplitPSubst rho0
+
+      -- Andreas, 2015-05-01  I guess it is fine to use no @conPType@
+      -- as the result of splitting is never used further down the pipeline.
+      -- After splitting, Agda reloads the file.
+      -- Andreas, 2017-09-03, issue #2729: remember that pattern was generated by case split.
+      let
+          -- cpi  = noConPatternInfo{ conPRecord = Just PatOSplit }
+          -- conp = ConP con cpi $ applySubst rho2 $
+          --          map (mapArgInfo hiddenInserted) $ tele2NamedArgs gamma0 gamma
+          -- -- Andreas, 2016-09-08, issue #2166: use gamma0 for correct argument names
+          defp = DefP PatOSystem hCompName $
+                   map (fmap unnamed) [setHiding Hidden $ defaultArg $ applySubst rho1 $ DotP PatOSystem $ dlvl
+                                      ,                   defaultArg $ applySubst rho1 $ DotP PatOSystem $ dterm]
+                   ++ applySubst rho2 (teleNamedArgs gamma) -- rho0?
+      -- Compute final context and substitution
+      let rho3    = consS defp rho1            -- Δ₁' ⊢ ρ₃ : Δ₁(x:D)
+          delta2' = applySplitPSubst rho3 delta2  -- Δ₂' = Δ₂ρ₃
+          delta'  = delta1' `abstract` delta2' -- Δ'  = Δ₁'Δ₂'
+          rho     = liftS (size delta2) rho3   -- Δ' ⊢ ρ : Δ₁(x:D)Δ₂
+
+      -- debugTel "delta'" delta'
+      -- debugSubst "rho" rho
+      -- debugPs tel ps
+
+      -- Apply the substitution
+      let ps' = applySubst rho ps
+      -- debugPlugged delta' ps'
+
+      let cps' = applySplitPSubst rho cps
+
+      return $ Just . (SplitCon hCompName,) $ SClause delta' ps' rho cps' Nothing -- target fixed later
+
+
 
 -- | @computeNeighbourhood delta1 delta2 d pars ixs hix tel ps con@
 --
@@ -826,10 +996,12 @@ split' ind allowPartialCover fixtarget sc@(SClause tel ps _ cps target) (Blockin
         -- Check that t is a datatype or a record
         -- Andreas, 2010-09-21, isDatatype now directly throws an exception if it fails
         -- cons = constructors of this datatype
-        (d, pars, ixs, cons) <- inContextOfT $ isDatatype ind t
+        (d, pars, ixs, cons, isHIT) <- inContextOfT $ isDatatype ind t
         mns <- forM cons $ \ con -> fmap (SplitCon con,) <$>
           computeNeighbourhood delta1 n delta2 d pars ixs x tel ps cps con
-        return $ catMaybes mns
+        hcompsc <- if isHIT then computeHCompSplit delta1 n delta2 d pars ixs x tel ps cps
+                            else return Nothing
+        return $ catMaybes (mns ++ [hcompsc])
 
       computeLitNeighborhoods = do
         typeOk <- liftTCM $ do
