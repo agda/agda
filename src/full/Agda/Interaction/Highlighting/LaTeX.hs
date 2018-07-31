@@ -464,8 +464,8 @@ processCode toks' = do
             -- to its aspect (if any) and other aspects (e.g. error, unsolved meta)
             foldr (\c t -> cmdPrefix <+> T.pack c <+> cmdArg t)
                   (escape tok)
-                  $ concatMap fromAspect (toList $ aspect $ info tok')
-                    ++ map fromOtherAspect (otherAspects $ info tok')
+                  $ map fromOtherAspect (otherAspects $ info tok') ++
+                    concatMap fromAspect (toList $ aspect $ info tok')
 
     -- Non-whitespace tokens at the start of a line trigger an
     -- alignment column.

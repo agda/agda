@@ -95,6 +95,18 @@ Emacs mode
 * Commas "ʻ،⸲⸴⹁⹉、︐︑﹐﹑，､" and semi-colons "؛⁏፤꛶；︔﹔⍮⸵;" added
   to the input mode.
 
+LaTeX backend
+-------------
+
+* Now highlighting commands for things like "this is an unsolved
+  meta-variable" are applied on the outside of highlighting commands
+  for things like "this is a postulate" [Issue
+  [#2474](https://github.com/agda/agda/issues/2474)].
+
+  Example: Instead of generating
+  `\AgdaPostulate{\AgdaUnsolvedMeta{F}}` Agda now generates
+  `\AgdaUnsolvedMeta{\AgdaPostulate{F}}`.
+
 Release notes for Agda version 2.5.4.1
 ======================================
 
