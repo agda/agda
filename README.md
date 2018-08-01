@@ -5,7 +5,7 @@ Agda 2
 [![Stackage version](https://www.stackage.org/package/Agda/badge/lts?label=Stackage)](https://www.stackage.org/package/Agda)
 [![Travis Status](https://travis-ci.org/agda/agda.svg?branch=master)](https://travis-ci.org/agda/agda)
 [![Appveyor Status](https://ci.appveyor.com/api/projects/status/x6liln2dol0bg4qw/branch/master?svg=true)](https://ci.appveyor.com/project/gallais/agda)
-[![Documentation Status](https://readthedocs.org/projects/agda/badge/?version=master)](http://agda.readthedocs.io/en/master/?badge=master)
+[![Documentation Status](https://readthedocs.org/projects/agda/badge/?version=latest)](http://agda.readthedocs.io/en/latest/?badge=latest)
 
 Note that this README is only about Agda, not its standard
 library. See the [Agda Wiki][agdawiki] for information about the
