@@ -70,24 +70,25 @@ etaOnce v = case v of
   -- Andreas, 2012-12-18:  Abstract definitions could contain
   -- abstract records whose constructors are not in scope.
   -- To be able to eta-contract them, we ignore abstract.
-  Con c ci es | Just args <- allApplyElims es -> do
-    etaCon c ci args etaContractRecord
+  Con c ci es -> do
+    etaCon c ci es etaContractRecord
   v -> return v
 
 -- | If record constructor, call eta-contraction function.
 etaCon :: (MonadReader TCEnv m, HasConstInfo m, HasOptions m)
   => ConHead  -- ^ Constructor name @c@.
   -> ConInfo  -- ^ Constructor info @ci@.
-  -> Args     -- ^ Constructor arguments @args@.
+  -> Elims     -- ^ Constructor arguments @args@.
   -> (QName -> ConHead -> ConInfo -> Args -> m Term)
               -- ^ Eta-contraction workhorse, gets also name of record type.
   -> m Term   -- ^ Returns @Con c ci args@ or its eta-contraction.
-etaCon c ci args cont = ignoreAbstractMode $ do
-  let fallback = return $ Con c ci $ map Apply args
+etaCon c ci es cont = ignoreAbstractMode $ do
+  let fallback = return $ Con c ci $ es
   -- reportSDoc "tc.eta" 20 $ text "eta-contracting record" <+> prettyTCM t
   r <- getConstructorData $ conName c -- fails in ConcreteMode if c is abstract
   ifNotM (isEtaRecord r) fallback $ {-else-} do
     -- reportSDoc "tc.eta" 20 $ text "eta-contracting record" <+> prettyTCM t
+    let Just args = allApplyElims es
     cont r c ci args
 
 -- | Try to contract a lambda-abstraction @Lam i (Abs x b)@.
