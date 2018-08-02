@@ -150,13 +150,13 @@ type CoverM = ExceptT SplitError TCM
 coverageCheck :: QName -> Type -> [Clause] -> TCM SplitTree
 coverageCheck f t cs = do
   reportSLn "tc.cover.top" 30 $ "entering coverageCheck for " ++ show f
-  TelV gamma a <- telViewUpToPath (-1) t
+  (TelV gamma a, boundary) <- telViewUpToPathBoundary' (-1) t
   reportSLn "tc.cover.top" 30 $ "coverageCheck: computed telView"
 
   let -- n             = arity
       -- xs            = variable patterns fitting lgamma
       n            = size gamma
-      xs           =  map (setOrigin Inserted) $ teleNamedArgs gamma
+      xs           =  map (setOrigin Inserted) $ telePatterns gamma boundary
 
   reportSLn "tc.cover.top" 30 $ "coverageCheck: getDefFreeVars"
 
@@ -323,18 +323,18 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
       -> (SplitError -> TCM CoverResult)
       -> TCM CoverResult
     continue xs allowPartialCover handle = do
-      r <- altM1 (split Inductive allowPartialCover sc) xs
+      r <- altM1 (\ x -> fmap (,x) <$> split Inductive allowPartialCover sc x) xs
       case r of
         Left err -> handle err
         -- If we get the empty covering, we have reached an impossible case
         -- and are done.
-        Right (Covering n []) ->
+        Right (Covering n [], _) ->
           return $ CoverResult (SplittingDone (size tel)) Set.empty [] Set.empty
-        Right (Covering n scs) -> do
+        Right (Covering n scs, x) -> do
           cs <- do
             mcomp <- getPrimitiveName' builtinHComp
             case List.find (\ (x,y) -> case x of SplitCon c -> Just c == mcomp; _ -> False) scs of
-                  Just (_,sc) -> (cs ++) . (:[]) <$> createMissingHCompClause f n sc
+                  Just (_,new_sc) -> (cs ++) . (:[]) <$> createMissingHCompClause f n x sc new_sc
                   Nothing ->  return cs
           results <- mapM (cover f cs) (map snd scs)
           let trees = map coverSplitTree results
@@ -429,21 +429,26 @@ createMissingHCompClause
   :: QName
        -- ^ Function name.
   -> Arg Nat -- ^ index of hcomp pattern
+  -> BlockingVar
+  -> SplitClause -- ^ Clause before the hcomp split
   -> SplitClause
        -- ^ Clause to add.  Clause hiding (in 'clauseType') must be 'Instance'.
    -> TCM Clause
-createMissingHCompClause f n (SClause tel ps _ cps (Just t)) = setCurrentRange f $ do
-  reportSDoc "tc.cover.hcomp" 20 $ addContext tel $ text "Trying to infer right-hand side of type" <+> prettyTCM t
+createMissingHCompClause f n x old_sc (SClause tel ps sigma' cps (Just t)) = setCurrentRange f $ do
+  reportSDoc "tc.cover.hcomp" 20 $ addContext tel $ text "Trying to create right-hand side of type" <+> prettyTCM t
+  let old_ps = patternsToElims $ fromSplitPatterns $ scPats old_sc
+      old_t  = fromJust $ scTarget old_sc
+      sigma = fromPatternSubstitution . fromSplitPSubst $ sigma'
+      replaceS x v sigma = [lookupS sigma j | j <- [0..i-1]] ++# (v `consS` rho1)
+        where
+          i = blockingVarNo x
+          (rho1,_rho2) = splitS (i+1) sigma
   cl <- do
-        -- addContext tel
-        -- $ locally eCheckpoints (const cps)
-        -- $ checkpoint IdS $ do    -- introduce a fresh checkpoint
-        
     rhs <- do
-      let (ps0,p:ps1) = splitAt (unArg n) $ fromSplitPatterns ps
-      ty <- defType <$> getConstInfo f
-      case patternToTerm $ namedArg p of
+      let p = sigma `applySubst` var (blockingVarNo x)
+      case p of
         Def hc es | Just [lvl,htype,phi,u,u0] <- allApplyElims es -> runNamesT [] $ do
+          cxt <- currentCxt
           tPOr <- fromMaybe __IMPOSSIBLE__ <$> getTerm' "primPOr"
           tIMax <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinIMax
           tIMin <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinIMin
@@ -452,7 +457,7 @@ createMissingHCompClause f n (SClause tel ps _ cps (Just t)) = setCurrentRange f
           tTrans <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinTrans
           io      <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinIOne
           iz      <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinIZero
-
+          extra_ps <- open $ patternsToElims $ fromSplitPatterns $ drop (length old_ps) ps
           comp <- do
             let
               ineg j = pure tINeg <@> j
@@ -469,31 +474,30 @@ createMissingHCompClause f n (SClause tel ps _ cps (Just t)) = setCurrentRange f
           let
             hfill la bA phi u u0 i = pure tHComp <#> la <@> bA
                                                <@> (pure tIMax <@> phi <@> (pure tINeg <@> i))
-                                               <@> (lam "j" $ \ j -> pure tPOr <#> la <@> phi <@> (pure tINeg <@> i) <@> (ilam "o" $ \ a -> bA)
+                                               <@> (lam "j" $ \ j -> pure tPOr <#> la <@> phi <@> (pure tINeg <@> i) <@> (ilam "o" $ \ _ -> bA)
                                                      <@> (ilam "o" $ \ o -> u <@> (pure tIMin <@> i <@> j) <..> o)
                                                      <@> (ilam "o" $ \ _ -> u0)
                                                    )
                                                <@> u0
 
-          ps0 <- open $ patternsToElims ps0
-          ps1 <- open $ patternsToElims ps1
           [lvl,htype,phi,u,u0] <- mapM (open . unArg) [lvl,htype,phi,u,u0]
           let call v = do
-                ps0 <- ps0
                 v <- v
-                ps1 <- ps1
-                return $ Def f (ps0 ++ [Apply $ argN v] ++ ps1)
+                rho <- cxtSubst cxt
+                extra <- extra_ps
+                return $ Def f $ (replaceS x v (rho `composeS` sigma) `applySubst` old_ps) ++ extra
           ty <- do
                 return $ \ i -> do
-                    ps0 <- ps0
                     v <- hfill lvl htype phi u u0 i
-                    ps1 <- ps1
-                    let Just xs = allApplyElims (ps0 ++ [Apply $ v <$ n] ++ ps1)
-                    return $ ty `piApply` xs
+                    rho <- cxtSubst cxt
+                    Just extra <- allApplyElims <$> extra_ps
+                    let ty = (replaceS x v (rho `composeS` sigma) `applySubst` old_t)
+                    TelV _ b <- lift $ telViewUpToPath (length extra) (unArg ty)
+                    return $ parallelS (reverse (map unArg extra)) `applySubst` b
           let
             computeSort x = do
               x <- x
-              getSort <$> lift (reduce x)
+              lift $ reduce $ getSort x
           -- need to use comp and use a fill in the type
           comp (lam "i" $ \ i -> Level . (\(Type s) -> s) <$> computeSort (ty i))
                (lam "i" $ \ i -> unEl <$> ty i)
@@ -502,7 +506,7 @@ createMissingHCompClause f n (SClause tel ps _ cps (Just t)) = setCurrentRange f
                            (call u0)
         _ -> __IMPOSSIBLE__
     cxt <- getContextTelescope
-    reportSDoc "tc.cover.hcomp" 30 $ addContext tel $ text "cxt = " <+> prettyTCM cxt
+    reportSDoc "tc.cover.hcomp" 30 $ text "cxt = " <+> prettyTCM cxt
     reportSDoc "tc.cover.hcomp" 30 $ addContext tel $ text "ps = " <+> text (show (fromSplitPatterns ps))
     reportSDoc "tc.cover.hcomp" 20 $ addContext tel $ text "rhs = " <+> prettyTCM rhs
     return $ Clause { clauseLHSRange  = noRange
@@ -516,7 +520,7 @@ createMissingHCompClause f n (SClause tel ps _ cps (Just t)) = setCurrentRange f
                     }
   addClauses f [cl]  -- Important: add at the end.
   return cl
-createMissingHCompClause _ _ (SClause _ _ _ _ Nothing) = __IMPOSSIBLE__
+createMissingHCompClause _ _ _ _ (SClause _ _ _ _ Nothing) = __IMPOSSIBLE__
 
 
 

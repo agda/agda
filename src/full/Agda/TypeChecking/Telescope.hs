@@ -476,22 +476,20 @@ telView'Path = telView'UpToPath (-1)
 isPath :: Type -> TCM (Maybe (Dom Type, Abs Type))
 isPath t = either Just (const Nothing) <$> pathViewAsPi t
 
-telePatterns :: Telescope -> Boundary -> [NamedArg DeBruijnPattern]
+telePatterns :: (DeBruijn a, DeBruijn (Pattern' a)) => Telescope -> Boundary -> [NamedArg (Pattern' a)]
 telePatterns tel [] = teleNamedArgs tel
 telePatterns tel boundary = recurse $ teleNamedArgs tel
   where
-    recurse :: [NamedArg DBPatVar] -> [NamedArg DeBruijnPattern]
     recurse = (fmap . fmap . fmap) updateVar
     matchVar x =
       snd <$> flip find boundary (\case
         (Var i [],_) -> i == x
         _            -> __IMPOSSIBLE__)
     o = PatOSystem
-    updateVar :: DBPatVar -> DeBruijnPattern
     updateVar x =
-      case matchVar (dbPatVarIndex x) of
-        Just (t,u) -> IApplyP o t u x
-        Nothing    -> VarP o x
+      case deBruijnView x of
+        Just i | Just (t,u) <- matchVar i -> IApplyP o t u x
+        _                           -> VarP o x
 
 -- | Decomposing a function type.
 

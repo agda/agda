@@ -80,6 +80,10 @@ toSplitVar x = SplitPatVar (dbPatVarName x) (dbPatVarIndex x) []
 fromSplitVar :: SplitPatVar -> DBPatVar
 fromSplitVar x = DBPatVar (splitPatVarName x) (splitPatVarIndex x)
 
+instance DeBruijn SplitPatVar where
+  deBruijnView x = deBruijnView (fromSplitVar x)
+  debruijnNamedVar n i = toSplitVar (debruijnNamedVar n i)
+
 toSplitPatterns :: [NamedArg DeBruijnPattern] -> [NamedArg SplitPattern]
 toSplitPatterns = (fmap . fmap . fmap . fmap) toSplitVar
 
