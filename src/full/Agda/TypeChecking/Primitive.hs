@@ -886,11 +886,9 @@ primTransHComp cmd ts nelims = do
         [phi,e,u0] <- mapM (open . unArg) [phi,u,u0]
         let
           ineg r = pure tINeg <@> r
-          transp p = pure tTrans <#> l <@> p <@> pure iz
         pure tGlue <#> l <#> l
                <@> u0 <@> phi <@> (e <@> pure io)
-               <@> ilam "o" (\ o -> transp (lam "i" $ \ i -> e <@> ineg i <@> o))
-               <@> ilam "o" (\ o -> pure p2equiv <#> l <@> (ilam "i" $ \ i -> e <@> ineg i <@> o))
+               <@> ilam "o" (\ o -> pure p2equiv <#> (lam "i" $ \ i -> l) <@> (ilam "i" $ \ i -> e <@> ineg i <@> o))
     compSort _ fallback phi u u0 _ = __IMPOSSIBLE__
     compGlue DoHComp psi (Just u) u0 (IsNot (la, lb, bA, phi, bT, e)) = do
       tPOr <- fromMaybe __IMPOSSIBLE__ <$> getTerm' "primPOr"
