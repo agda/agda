@@ -999,7 +999,7 @@ split' ind allowPartialCover fixtarget sc@(SClause tel ps _ cps target) (Blockin
         (d, pars, ixs, cons, isHIT) <- inContextOfT $ isDatatype ind t
         mns <- forM cons $ \ con -> fmap (SplitCon con,) <$>
           computeNeighbourhood delta1 n delta2 d pars ixs x tel ps cps con
-        hcompsc <- if isHIT then computeHCompSplit delta1 n delta2 d pars ixs x tel ps cps
+        hcompsc <- if isHIT then case fixtarget of YesFixTarget -> computeHCompSplit delta1 n delta2 d pars ixs x tel ps cps; _ -> return Nothing
                             else return Nothing
         return $ catMaybes (mns ++ [hcompsc])
 
