@@ -60,11 +60,11 @@ setBuiltinThings b = stLocalBuiltins .= b
 
 bindBuiltinName :: String -> Term -> TCM ()
 bindBuiltinName b x = do
-        builtin <- getBuiltinThing b
-        case builtin of
-            Just (Builtin y) -> typeError $ DuplicateBuiltinBinding b y x
-            Just (Prim _)    -> typeError $ NoSuchBuiltinName b
-            Nothing          -> stLocalBuiltins %= Map.insert b (Builtin x)
+  builtin <- getBuiltinThing b
+  case builtin of
+    Just (Builtin y) -> typeError $ DuplicateBuiltinBinding b y x
+    Just (Prim _)    -> typeError $ NoSuchBuiltinName b
+    Nothing          -> stLocalBuiltins %= Map.insert b (Builtin x)
 
 bindPrimitive :: String -> PrimFun -> TCM ()
 bindPrimitive b pf = do
@@ -612,6 +612,13 @@ builtinsNoDef =
   , builtinIZero
   , builtinIOne
   , builtinSetOmega
+  , builtinString
+  , builtinChar
+  , builtinFloat
+  , builtinWord64
+  , builtinInf
+  , builtinSharp
+  , builtinFlat
   ]
 
 -- | The coinductive primitives.

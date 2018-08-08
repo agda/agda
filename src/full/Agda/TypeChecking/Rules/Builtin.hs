@@ -96,6 +96,9 @@ coreBuiltins =
   , (builtinFloat              |-> builtinPostulate tset)
   , (builtinChar               |-> builtinPostulate tset)
   , (builtinString             |-> builtinPostulate tset)
+  , (builtinInf                |-> builtinPostulate typeOfInf)
+  , (builtinSharp              |-> builtinPostulate typeOfSharp)
+  , (builtinFlat               |-> builtinPostulate typeOfFlat)
   , (builtinQName              |-> builtinPostulate tset)
   , (builtinAgdaMeta           |-> builtinPostulate tset)
   , (builtinIO                 |-> builtinPostulate (tset --> tset))
@@ -134,12 +137,12 @@ coreBuiltins =
                                                      nPi' "i" (cl tinterval) $ \ i ->
                                                      nPi' "j" (cl tinterval) $ \ j ->
                                                      nPi' "i1" (elInf $ cl primIsOne <@> i) $ \ i1 ->
-                                                     (elInf $ cl primIsOne <@> (cl (getPrimitiveTerm "primIMax") <@> i <@> j))))
+                                                     (elInf $ cl primIsOne <@> (cl primIMax <@> i <@> j))))
   , (builtinIsOne2             |-> builtinPostulate (runNamesT [] $
                                                      nPi' "i" (cl tinterval) $ \ i ->
                                                      nPi' "j" (cl tinterval) $ \ j ->
                                                      nPi' "j1" (elInf $ cl primIsOne <@> j) $ \ j1 ->
-                                                     (elInf $ cl primIsOne <@> (cl (getPrimitiveTerm "primIMax") <@> i <@> j))))
+                                                     (elInf $ cl primIsOne <@> (cl primIMax <@> i <@> j))))
   , (builtinIsOneEmpty         |-> builtinPostulate (runNamesT [] $
                                                      hPi' "l" (el $ cl primLevel) $ \ l ->
                                                      hPi' "A" (pPi' "o" (cl primIZero) $ \ _ ->
@@ -854,6 +857,23 @@ bindUntypedBuiltin b = \case
 -- We simply ignore the parameters.
 bindBuiltinNoDef :: String -> A.QName -> TCM ()
 bindBuiltinNoDef b q = inTopContext $ do
+  let r = DefinedName PublicAccess (AbsName q DefName Defined)
+  if | b == builtinInf   -> do
+         t <- typeOfInf
+         addConstant q $ defaultDefn defaultArgInfo q t Axiom
+         bindBuiltinInf r
+     | b == builtinSharp -> do
+         t <- typeOfSharp
+         addConstant q $ defaultDefn defaultArgInfo q t Axiom
+         bindBuiltinSharp r
+     | b == builtinFlat  -> do
+         t <- typeOfFlat
+         addConstant q $ defaultDefn defaultArgInfo q t Axiom
+         bindBuiltinFlat r
+     | otherwise         -> bindBuiltinNoDef' b q
+
+bindBuiltinNoDef' :: String -> A.QName -> TCM ()
+bindBuiltinNoDef' b q = inTopContext $ do
   case builtinDesc <$> findBuiltinInfo b of
     Just (BuiltinPostulate rel mt) -> do
       t <- mt
