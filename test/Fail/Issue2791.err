@@ -1,0 +1,4 @@
+Issue2791.agda:28,9-13
+Nat != Bool of type Set
+when checking that the expression refl has type
+F Bool true Nat ?Y ≡ F IFb ?X IFb ?X
