@@ -442,7 +442,7 @@ defineCompData d con params names fsT t boundary = do
                     sys_alpha = recurse faces
                   pOr ty
                                                    thePsi    phi
-                                                   sys_alpha u
+                                                   sys_alpha (ilam "o" $ \ _ -> u)
                 hcomp ty (thePsi `imax` phi) sys w1'
                 
       
