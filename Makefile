@@ -78,9 +78,40 @@ ensure-hash-is-correct :
 quick-install-bin : ensure-hash-is-correct
 	$(QUICK_CABAL_INSTALL) $(CABAL_INSTALL_BIN_OPTS)
 
+# Install Agda using Stack
+.PHONY : stack-install-bin
+stack-install-bin :
+	stack build Agda:exe:agda \
+		--flag Agda:enable-cluster-counting \
+		--no-haddock \
+		--no-library-profiling
+
+# The Stack version of `Cabal install --enable-test`
+.PHONY : stack-install-test
+stack-install-test :
+	stack build Agda:test:agda-tests \
+		--no-run-tests \
+		--flag Agda:enable-cluster-counting \
+		--no-haddock \
+		--no-library-profiling
+
+# Copy the artefacts built by Stack as if they were build by Cabal.
+.PHONY : stack-copy-artefacts
+stack-copy-artefacts : stack-install-bin stack-install-test
+	mkdir -p $(BUILD_DIR)/build/
+	cp -r $(shell stack path --dist-dir)/build $(BUILD_DIR)
+
 .PHONY : install-bin
+
 install-bin : ensure-hash-is-correct
+ifneq ("$(wildcard stack.yaml)","") # if `stack.yaml` exists
+	@echo ""===================== Installing using Stack =============================""
+	$(MAKE) stack-install-bin
+	$(MAKE) stack-install-test
+	$(MAKE) stack-copy-artefacts
+else
 	$(CABAL_INSTALL) $(CABAL_INSTALL_BIN_OPTS)
+endif
 
 .PHONY : install-prof-bin
 install-prof-bin : ensure-hash-is-correct
@@ -361,7 +392,13 @@ check-whitespace : build-fix-agda-whitespace
 
 .PHONY : build-fix-agda-whitespace
 build-fix-agda-whitespace :
+ifeq ("$(wildcard $(stack.yaml))","")
+	stack build fix-agda-whitespace
+	mkdir -p $(FAW_PATH)/dist/build/fix-agda-whitespace/
+	cp $(shell stack path --local-install-root)/bin/fix-agda-whitespace $(FAW_BIN)
+else
 	cd $(FAW_PATH) && $(CABAL_CMD) clean && $(CABAL_CMD) build
+endif
 
 ## size-solver standalone program #########################################
 

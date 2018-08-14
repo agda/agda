@@ -373,6 +373,27 @@ Cabal stuff
 
   cabal repl --ghc-options=-Wwarn
 
+
+Developing with Stack
+---------------------
+
+At the time of writing, the whole dev stack of Agda is still centered around
+tools like Cabal and Makefile.
+
+To replace Cabal with Stack, you will only have to make a copy of stack.yaml
+from stack-dev-8.4.3.yaml.
+
+    cp stack-dev-8.4.3.yaml stack.yaml
+
+And that's pretty much all of it!
+You can proceed to build the project and run tests like you would before:
+
+    make install-bin test
+
+To run ghci:
+
+    stack repl
+
 Documentation
 -------------
 

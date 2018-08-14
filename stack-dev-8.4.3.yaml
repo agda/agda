@@ -1,0 +1,9 @@
+resolver: lts-12.0
+
+# Local packages, usually specified by relative directory name
+packages:
+- '.'
+- 'src/fix-agda-whitespace'
+
+extra-deps:
+- temporary-1.2.1.1
