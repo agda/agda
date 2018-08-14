@@ -175,7 +175,7 @@ termMutual names0 = ifNotM (optTerminationCheck <$> pragmaOptions) (return mempt
   -- during type-checking.
   mid <- fromMaybe __IMPOSSIBLE__ <$> asks envMutualBlock
   mutualBlock <- lookupMutualBlock mid
-  let allNames = Set.elems $ mutualNames mutualBlock
+  let allNames = filter (not . isAbsurdLambdaName) $ Set.elems $ mutualNames mutualBlock
       names    = if null names0 then allNames else names0
       i        = mutualInfo mutualBlock
       -- Andreas, 2014-03-26
@@ -435,6 +435,13 @@ termDef name = terSetCurrent name $ inConcreteOrAbstractMode name $ \ def -> do
   let t = defType def
 
   liftTCM $ reportSDoc "term.def.fun" 5 $
+    sep [ text "termination checking type of" <+> prettyTCM name
+        , nest 2 $ text ":" <+> prettyTCM t
+        ]
+
+  termType t `mappend` do
+
+  liftTCM $ reportSDoc "term.def.fun" 5 $
     sep [ text "termination checking body of" <+> prettyTCM name
         , nest 2 $ text ":" <+> prettyTCM t
         ]
@@ -453,6 +460,33 @@ termDef name = terSetCurrent name $ inConcreteOrAbstractMode name $ \ def -> do
           terSetDelayed delayed $ forM' cls $ termClause
 
         _ -> return empty
+
+-- | Collect calls in type signature @f : (x1:A1)...(xn:An) -> B@.
+--   It is treated as if there were the additional function clauses.
+--   @@
+--      f = A1
+--      f x1 = A2
+--      f x1 x2 = A3
+--      ...
+--      f x1 ... xn = B
+--   @@
+
+termType :: Type -> TerM Calls
+termType = loop 0
+  where
+  loop n t = do
+    ps <- mkPats n
+    reportSDoc "term.type" 60 $ vcat
+      [ text $ "termType " ++ show n ++ " with " ++ show (length ps) ++ " patterns"
+      , nest 2 $ text "looking at type " <+> prettyTCM t
+      ]
+    terSetPatterns ps $ do
+      ifNotPiType t {-then-} extract {-else-} $ \ dom absB -> do
+        extract dom `mappend` underAbstractionAbs dom absB (loop $! n + 1)
+
+  -- create n variable patterns
+  mkPats n  = zipWith mkPat (downFrom n) <$> getContextNames
+  mkPat i x = notMasked $ VarP PatOSystem $ DBPatVar (prettyShow x) i
 
 -- | Mask arguments and result for termination checking
 --   according to type of function.
@@ -777,7 +811,6 @@ function g es0 = ifM (terGetInlineWithFunctions `and2M` do isJust <$> isWithFunc
        -- call is to one of the mutally recursive functions
        Just gInd -> do
          delayed <- terGetDelayed
-         pats    <- terGetPatterns
          -- Andreas, 2017-02-14, issue #2458:
          -- If we have inlined with-functions, we could be illtyped,
          -- hence, do not reduce anything.
@@ -853,13 +886,15 @@ function g es0 = ifM (terGetInlineWithFunctions `and2M` do isJust <$> isWithFunc
                       , callInfoRange  = getRange g
                       , callInfoCall   = doc
                       }]
-         liftTCM $ reportSDoc "term.kept.call" 5 $ vcat
-           [ text "kept call from" <+> text (prettyShow f) <+> hsep (map prettyTCM pats)
-           , nest 2 $ text "to" <+> text (prettyShow g) <+>
-                       hsep (map (parens . prettyTCM) args)
-           , nest 2 $ text "call matrix (with guardedness): "
-           , nest 2 $ pretty cm
-           ]
+         verboseS "term.kept.call" 5 $ do
+           pats <- terGetPatterns
+           reportSDoc "term.kept.call" 5 $ vcat
+             [ text "kept call from" <+> text (prettyShow f) <+> hsep (map prettyTCM pats)
+             , nest 2 $ text "to" <+> text (prettyShow g) <+>
+                         hsep (map (parens . prettyTCM) args)
+             , nest 2 $ text "call matrix (with guardedness): "
+             , nest 2 $ pretty cm
+             ]
          return $ CallGraph.insert src tgt cm info calls
 
 -- | Extract recursive calls from a term.
@@ -971,10 +1006,10 @@ maskSizeLt !dom = liftTCM $ do
  -}
 compareArgs :: [Elim] -> TerM (Int, Int, [[Order]])
 compareArgs es = do
-  liftTCM $ reportSDoc "term.compareArgs" 90 $ vcat
-    [ text $ "comparing " ++ show (length es) ++ " args"
-    ]
   pats <- terGetPatterns
+  liftTCM $ reportSDoc "term.compareArgs" 90 $ vcat
+    [ text $ "comparing " ++ show (length es) ++ " args to " ++ show (length pats) ++ " patterns"
+    ]
   -- apats <- annotatePatsWithUseSizeLt pats
   -- reportSDoc "term.compare" 20 $
   --   text "annotated patterns = " <+> sep (map prettyTCM apats)

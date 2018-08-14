@@ -256,6 +256,12 @@ instance HasConstInfo TerM where
   getConstInfo       = liftTCM . getConstInfo
   getRewriteRulesFor = liftTCM . getRewriteRulesFor
 
+instance ReadTCState TerM where
+  getTCState = liftTCM getTCState
+
+instance MonadReduce TerM where
+  liftReduce = liftTCM . liftReduce
+
 instance Semigroup m => Semigroup (TerM m) where
   (<>) = liftA2 (<>)
 

@@ -1,8 +1,10 @@
 {-# OPTIONS --without-K #-}
 {-# OPTIONS --allow-unsolved-metas #-}
+
 -- This issue demonstrates that a failing termination check,
 -- subsequently blocking reductions, makes some `impossible'
 -- cases possible in the conversion checker.
+
 module Issue921 where
 
 infix 3 _==_

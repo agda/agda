@@ -1,0 +1,8 @@
+Issue1556.agda:7,1-13,6
+Termination checking failed for the following functions:
+  A, a
+Problematic calls:
+  A (at Issue1556.agda:8,10-11)
+  D a
+    (at Issue1556.agda:11,5-6)
+  a (at Issue1556.agda:11,7-8)

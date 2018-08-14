@@ -26,6 +26,35 @@ Type checking and interaction
   needed to expose the absurd variable, or if there are no non-absurd
   clauses.
 
+* The termination checker now also looks for recursive calls in the type of definitions.
+  This fixes an issue where Agda allowed very dependent types
+  [Issue [#1556](https://github.com/agda/agda/issues/1556)].
+
+  This change affects induction-induction, e.g.
+  ```agda
+    mutual
+      data Cxt : Set where
+        ε    :  Cxt
+        _,_  :  (Γ : Cxt) (A : Ty Γ) → Cxt
+
+      data Ty : (Γ : Cxt) → Set where
+        u  :  ∀ Γ → Ty Γ
+        Π  :  ∀ Γ (A : Ty Γ) (B : Ty (Γ , A)) → Ty Γ
+
+    mutual
+      f : Cxt → Cxt
+      f ε        =  ε
+      f (Γ , T)  =  (f Γ , g Γ T)
+
+      g : ∀ Γ → Ty Γ → Ty (f Γ)
+      g Γ (u .Γ)      =  u (f Γ)
+      g Γ (Π .Γ A B)  =  Π (f Γ) (g Γ A) (g (Γ , A) B)
+
+  ```
+  The type of `g` contains a call `g Γ _ --> f Γ` which is now taken
+  into account during termination checking.
+
+
 Pragmas and options
 -------------------
 
