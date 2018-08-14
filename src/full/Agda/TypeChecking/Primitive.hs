@@ -17,6 +17,7 @@ module Agda.TypeChecking.Primitive where
 
 import Control.Monad
 import Control.Monad.Reader (asks)
+import Control.Monad.Trans (lift)
 
 import Data.Char
 import Data.Either (partitionEithers)
@@ -1541,9 +1542,10 @@ primComp = do
     toLevel _        = __IMPOSSIBLE__
     -- Γ , u1 : A[i1] , i : I
     bB v = (consS v $ liftS 1 $ raiseS 1) `applySubst` (absBody b {- Γ , i : I , x : A[i] -})
+   sA <- reduce $ getSort $ a
    runNamesT [] $ do
     [la,bA] <- mapM (\ a -> open . runNames [] $ (lam "i" $ const (pure a)))
-                    [Level . toLevel . getSort $ a, unEl . unDom $ a]
+                    [Level . toLevel $ sA , unEl . unDom $ a]
     [phi, u, u0] <- mapM (open . unArg) [phi,u,u0]
 
     glam (getArgInfo a) (absName b) $ \ u1 -> do
@@ -1559,7 +1561,7 @@ primComp = do
           mkLam = Lam defaultArgInfo
       bT <- bind "i" $ \ i -> bB <$> (v <@> i)
      -- Γ , u1 : A[i1]
-      (pure tComp <#> (pure . mkLam $ Level . toLevel . getSort <$> bT)
+      (pure tComp <#> (do mkLam . fmap (Level . toLevel) <$> lift (reduce $ getSort <$> bT))
                   <@> (pure . mkLam $ unEl                      <$> bT)
                       <@> phi
                       <@> (lam "i" $ \ i -> ilam "o" $ \ o -> -- block until φ = 1?
