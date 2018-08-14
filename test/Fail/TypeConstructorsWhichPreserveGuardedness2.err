@@ -1,5 +1,2 @@
-TypeConstructorsWhichPreserveGuardedness2.agda:13,1-14,10
-Termination checking failed for the following functions:
-  ℕ
-Problematic calls:
-  ℕ (at TypeConstructorsWhichPreserveGuardedness2.agda:14,9-10)
+Experimental feature --guardedness-preserving-type-constructors has
+been removed.

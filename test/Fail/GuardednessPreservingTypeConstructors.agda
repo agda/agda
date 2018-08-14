@@ -1,4 +1,5 @@
 -- {-# OPTIONS -v term:30 #-}
+
 {-# OPTIONS --guardedness-preserving-type-constructors #-}
 
 module GuardednessPreservingTypeConstructors where

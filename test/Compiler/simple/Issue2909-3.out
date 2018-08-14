@@ -1,3 +1,6 @@
-EXECUTED_PROGRAM
+COMPILE_FAILED
 
-ret > ExitSuccess
+ret > ExitFailure 1
+out > Experimental feature --guardedness-preserving-type-constructors has
+out > been removed.
+out >

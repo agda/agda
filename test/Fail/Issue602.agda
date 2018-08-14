@@ -1,4 +1,5 @@
 {-# OPTIONS --guardedness-preserving-type-constructors #-}
+
 module Issue602 where
 
 infix 1000 ♯_

@@ -74,6 +74,13 @@ Pragmas and options
   typechecking in most cases, but makes the performance more
   predictable and stable under minor changes.
 
+* Option (and experimental feature)
+  `--guardedness-preserving-type-constructors`
+  has been removed.
+  [Issue [#3180](https://github.com/agda/agda/issues/3180)].
+
+* Deprecated options `--sharing` and `--no-sharing` now raise an error.
+
 Emacs mode
 ----------
 

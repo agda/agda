@@ -1,6 +1,2 @@
-Issue690b.agda:31,9-27
-Rec _A_7 !=< D of type Set
-when checking that the inferred type of an application
-  Rec _A_7
-matches the expected type
-  D
+Experimental feature --guardedness-preserving-type-constructors has
+been removed.
