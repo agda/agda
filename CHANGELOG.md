@@ -29,12 +29,12 @@ Type checking and interaction
 Pragmas and options
 -------------------
 
-* New builtin SETOMEGA.
+* New builtin `SETOMEGA`.
 
-  Agda's top sort Setω is now defined as a builtin in Agda.Primitive
+  Agda's top sort `Setω` is now defined as a builtin in `Agda.Primitive`
   and can be renamed when importing that module.
 
-* New option --omega-in-omega.
+* New option `--omega-in-omega`.
 
   The option `--omega-in-omega` enables the typing rule `Setω : Setω`.
   Example:
@@ -54,9 +54,9 @@ Pragmas and options
   Reason: There are consistency issues that may be systemic
   [Issue [#2170](https://github.com/agda/agda/issues/2170)].
 
-* New pragma {-# NO_UNIVERSE_CHECK #-}.
+* New pragma `{-# NO_UNIVERSE_CHECK #-}`.
 
-  The pragma {-# NO_UNIVERSE_CHECK #-} can be put in front of a data
+  The pragma `{-# NO_UNIVERSE_CHECK #-}` can be put in front of a data
   or record type to disable universe consistency checking locally.
   Example:
   ```agda
@@ -65,9 +65,9 @@ Pragmas and options
       el : Set → U
   ```
   Like the similar pragmas for disabling termination and positivity
-  checking, {-# NO_UNIVERSE_CHECK #-} cannot be used with --safe.
+  checking, `{-# NO_UNIVERSE_CHECK #-}` cannot be used with `--safe`.
 
-* New option --no-syntactic-equality.
+* New option `--no-syntactic-equality`.
 
   The option `--no-syntactic-equality` disables the syntactic equality
   shortcut used by the conversion checker. This will slow down
