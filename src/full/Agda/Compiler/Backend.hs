@@ -152,6 +152,7 @@ backendInteraction backends _ check = do
       err flag = genericError $ "Cannot mix --" ++ flag ++ " and backends (" ++ List.intercalate ", " backendNames ++ ")"
   when (optInteractive     opts) $ err "interactive"
   when (optGHCiInteraction opts) $ err "interaction"
+  when (optJSONInteraction opts) $ err "interaction-json"
   mi     <- check
 
   -- reset warnings

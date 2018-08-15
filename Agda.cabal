@@ -252,6 +252,7 @@ library
                     Agda.Interaction.CommandLine
                     Agda.Interaction.EmacsCommand
                     Agda.Interaction.EmacsTop
+                    Agda.Interaction.JSONTop
                     Agda.Interaction.FindFile
                     Agda.Interaction.Highlighting.Dot
                     Agda.Interaction.Highlighting.Emacs

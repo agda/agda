@@ -27,6 +27,10 @@ General options
       For use with the Emacs mode (no need to invoke
       yourself)
 
+:samp:`--interaction`
+    For use with other editors such as Atom (no need to invoke
+    yourself)
+
 Compilation
 ~~~~~~~~~~~
 
