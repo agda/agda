@@ -392,7 +392,7 @@ check-whitespace : build-fix-agda-whitespace
 
 .PHONY : build-fix-agda-whitespace
 build-fix-agda-whitespace :
-ifeq ("$(wildcard $(stack.yaml))","")
+ifneq ("$(wildcard stack.yaml)","") # if `stack.yaml` exists
 	stack build fix-agda-whitespace
 	mkdir -p $(FAW_PATH)/dist/build/fix-agda-whitespace/
 	cp $(shell stack path --local-install-root)/bin/fix-agda-whitespace $(FAW_BIN)
