@@ -52,8 +52,8 @@ import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.NonemptyList
 import Agda.Utils.Null
-import Agda.Utils.Size
 import Agda.Utils.Permutation
+import Agda.Utils.Size
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -791,10 +791,6 @@ bindBuiltinInfo (BuiltinInfo s d) e = do
             case theDef def of
               Axiom {} -> do
                 builtinSizeHook s q t'
-                when (s == builtinChar)   $ addHaskellPragma q "= type Char"
-                when (s == builtinString) $ addHaskellPragma q "= type Data.Text.Text"
-                when (s == builtinFloat)  $ addHaskellPragma q "= type Double"
-                when (s == builtinWord64) $ addHaskellPragma q "= type MAlonzo.RTE.Word64"
                 bindBuiltinName s v
               _        -> err
           _ -> err
@@ -857,28 +853,37 @@ bindUntypedBuiltin b = \case
 -- We simply ignore the parameters.
 bindBuiltinNoDef :: String -> A.QName -> TCM ()
 bindBuiltinNoDef b q = inTopContext $ do
-  let r = DefinedName PublicAccess (AbsName q DefName Defined)
-  if | b == builtinInf   -> do
-         t <- typeOfInf
-         addConstant q $ defaultDefn defaultArgInfo q t Axiom
-         bindBuiltinInf r
-     | b == builtinSharp -> do
-         t <- typeOfSharp
-         addConstant q $ defaultDefn defaultArgInfo q t Axiom
-         bindBuiltinSharp r
-     | b == builtinFlat  -> do
-         t <- typeOfFlat
-         addConstant q $ defaultDefn defaultArgInfo q t Axiom
-         bindBuiltinFlat r
+  if | b == builtinInf   -> ax typeOfInf   >> bindBuiltinInf r
+     | b == builtinSharp -> ax typeOfSharp >> bindBuiltinSharp r
+     | b == builtinFlat  -> ax typeOfFlat  >> bindBuiltinFlat r
      | otherwise         -> bindBuiltinNoDef' b q
 
+  where
+
+  r :: ResolvedName
+  r = DefinedName PublicAccess (AbsName q DefName Defined)
+
+  ax :: TCM Type -> TCM ()
+  ax mty = do
+    ty <- mty
+    addConstant q $ defaultDefn defaultArgInfo q ty Axiom
+
 bindBuiltinNoDef' :: String -> A.QName -> TCM ()
-bindBuiltinNoDef' b q = inTopContext $ do
-  case builtinDesc <$> findBuiltinInfo b of
+bindBuiltinNoDef' b q = do
+   case builtinDesc <$> findBuiltinInfo b of
     Just (BuiltinPostulate rel mt) -> do
+      -- We start by adding the corresponding postulate
       t <- mt
       addConstant q $ defaultDefn (setRelevance rel defaultArgInfo) q t def
+      -- And we then *modify* the definition based on our needs:
+      -- * add polarity information for SIZE-related definitions
       builtinSizeHook b q t
+      -- * Add compilation pragmas for base types
+      when (b == builtinChar)   $ addHaskellPragma q "= type Char"
+      when (b == builtinString) $ addHaskellPragma q "= type Data.Text.Text"
+      when (b == builtinFloat)  $ addHaskellPragma q "= type Double"
+      when (b == builtinWord64) $ addHaskellPragma q "= type MAlonzo.RTE.Word64"
+      -- Finally, bind the BUILTIN in the environment.
       bindBuiltinName b $ Def q []
       where
         -- Andreas, 2015-02-14
