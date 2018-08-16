@@ -1,5 +1,16 @@
 EXECUTED_PROGRAM
 
 ret > ExitSuccess
+out > /UniversePolymorphicIO.agda:21,1-30
+out > BUILTIN STRING declares an identifier (no longer expects an already defined identifier)
+out > when scope checking the declaration
+out >   {-# BUILTIN STRING String #-}
+out >
+out > ———— All done; warnings encountered ————————————————————————
+out >
+out > /UniversePolymorphicIO.agda:21,1-30
+out > BUILTIN STRING declares an identifier (no longer expects an already defined identifier)
+out > when scope checking the declaration
+out >   {-# BUILTIN STRING String #-}
 out > ok
 out >

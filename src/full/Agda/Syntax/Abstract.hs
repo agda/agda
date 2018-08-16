@@ -33,14 +33,18 @@ import Agda.Syntax.Concrete.Name (NumHoles(..))
 import Agda.Syntax.Concrete (FieldAssignment'(..), exprFieldA, HoleContent'(..))
 import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Concrete.Pretty ()
-import Agda.Syntax.Info
-import Agda.Syntax.Common
-import Agda.Syntax.Position
+
 import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Abstract.Name as A (QNamed)
-import Agda.Syntax.Literal
-import Agda.Syntax.Scope.Base
+
 import qualified Agda.Syntax.Internal as I
+
+import Agda.Syntax.Common
+import Agda.Syntax.Info
+import Agda.Syntax.Fixity ( Fixity' )
+import Agda.Syntax.Literal
+import Agda.Syntax.Position
+import Agda.Syntax.Scope.Base
 
 import Agda.TypeChecking.Positivity.Occurrence
 

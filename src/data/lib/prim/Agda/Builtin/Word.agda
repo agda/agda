@@ -4,7 +4,6 @@ module Agda.Builtin.Word where
 
 open import Agda.Builtin.Nat
 
-postulate Word64 : Set
 {-# BUILTIN WORD64 Word64 #-}
 
 primitive
