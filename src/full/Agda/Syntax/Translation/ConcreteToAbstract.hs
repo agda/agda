@@ -1912,9 +1912,14 @@ instance ToAbstract C.Pragma [A.Pragma] where
     if b `elem` builtinsNoDef then do
       case q of
         C.QName x -> do
-          unlessM ((UnknownName ==) <$> resolveName q) $ genericError $
-            "BUILTIN " ++ b ++ " declares an identifier " ++
-            "(no longer expects an already defined identifier)"
+          -- The name shouldn't exist yet. If it does, we raise a warning
+          -- and drop the existing definition.
+          unlessM ((UnknownName ==) <$> resolveName q) $ do
+            genericWarning $ P.text $
+               "BUILTIN " ++ b ++ " declares an identifier " ++
+               "(no longer expects an already defined identifier)"
+            modifyCurrentScope $ removeNameFromScope PublicNS x
+          -- We then happily bind the name
           y <- freshAbstractQName noFixity' x
           kind <- fromMaybe __IMPOSSIBLE__ <$> builtinKindOfName b
           bindName PublicAccess kind x y
