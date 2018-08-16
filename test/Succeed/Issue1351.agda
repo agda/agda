@@ -1,5 +1,3 @@
--- NB. This test fail if Agda is called with the --no-sharing option.
-
 module Issue1351 where
 
 open import Common.Equality

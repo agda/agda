@@ -1,10 +1,16 @@
-Issue1375-2.agda:17,1-25,25
+Issue1375-2.agda:9,1-15,19
 Termination checking failed for the following functions:
-  weakenType
+  Type
 Problematic calls:
-  weakenType (?0 (ty = ty) (ty' = ty')) type
-    (at Issue1375-2.agda:24,26-36)
-Unsolved interaction metas at the following locations:
-  Issue1375-2.agda:23,13-17
-  Issue1375-2.agda:24,50-54
-  Issue1375-2.agda:25,21-25
+  Type
+    (at Issue1375-2.agda:13,12-16)
+  Term type
+    (at Issue1375-2.agda:15,10-14)
+  type
+    (at Issue1375-2.agda:15,15-19)
+Issue1375-2.agda:24,9-72
+Term type !=< Type of type Set
+when checking that the inferred type of an application
+  Term type
+matches the expected type
+  Type

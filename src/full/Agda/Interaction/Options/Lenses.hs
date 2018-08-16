@@ -20,9 +20,11 @@ import Agda.Utils.FileName
 ---------------------------------------------------------------------------
 
 class LensPragmaOptions a where
-  getPragmaOptions :: a -> PragmaOptions
-  setPragmaOptions :: PragmaOptions -> a -> a
-  mapPragmaOptions :: (PragmaOptions -> PragmaOptions) -> a -> a
+  getPragmaOptions  :: a -> PragmaOptions
+  setPragmaOptions  :: PragmaOptions -> a -> a
+  mapPragmaOptions  :: (PragmaOptions -> PragmaOptions) -> a -> a
+  lensPragmaOptions :: Lens' PragmaOptions a
+  -- lensPragmaOptions :: forall f. Functor f => (PragmaOptions -> f PragmaOptions) -> a -> f a
 
   -- default implementations
   setPragmaOptions     = mapPragmaOptions . const
@@ -31,10 +33,12 @@ class LensPragmaOptions a where
 instance LensPragmaOptions CommandLineOptions where
   getPragmaOptions = optPragmaOptions
   setPragmaOptions opts st = st { optPragmaOptions = opts }
+  lensPragmaOptions f st = f (optPragmaOptions st) <&> \ opts -> st { optPragmaOptions = opts }
 
 instance LensPragmaOptions TCState where
   getPragmaOptions = (^.stPragmaOptions)
   setPragmaOptions = set stPragmaOptions
+  lensPragmaOptions = stPragmaOptions
 
 modifyPragmaOptions :: (PragmaOptions -> PragmaOptions) -> TCM ()
 modifyPragmaOptions = modify . mapPragmaOptions

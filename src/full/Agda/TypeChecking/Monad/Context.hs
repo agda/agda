@@ -232,7 +232,7 @@ instance AddContext Telescope where
     loop (ExtendTel t tel) = underAbstraction' id t tel loop
   contextSize = size
 
--- | Go under an abstraction.
+-- | Go under an abstraction.  Do not extend context in case of 'NoAbs'.
 {-# SPECIALIZE underAbstraction :: Subst t a => Dom Type -> Abs a -> (a -> TCM b) -> TCM b #-}
 underAbstraction :: (Subst t a, MonadTCM tcm, MonadDebug tcm) => Dom Type -> Abs a -> (a -> tcm b) -> tcm b
 underAbstraction = underAbstraction' id
@@ -240,7 +240,16 @@ underAbstraction = underAbstraction' id
 underAbstraction' :: (Subst t a, MonadTCM tcm, MonadDebug tcm, AddContext (name, Dom Type)) =>
                      (String -> name) -> Dom Type -> Abs a -> (a -> tcm b) -> tcm b
 underAbstraction' _ _ (NoAbs _ v) k = k v
-underAbstraction' wrap t a k = addContext (wrap $ realName $ absName a, t) $ k $ absBody a
+underAbstraction' wrap t a k = underAbstractionAbs' wrap t a k
+
+-- | Go under an abstraction, treating 'NoAbs' as 'Abs'.
+underAbstractionAbs :: (Subst t a, MonadTCM tcm, MonadDebug tcm) => Dom Type -> Abs a -> (a -> tcm b) -> tcm b
+underAbstractionAbs = underAbstractionAbs' id
+
+underAbstractionAbs'
+  :: (Subst t a, MonadTCM tcm, MonadDebug tcm, AddContext (name, Dom Type))
+  => (String -> name) -> Dom Type -> Abs a -> (a -> tcm b) -> tcm b
+underAbstractionAbs' wrap t a k = addContext (wrap $ realName $ absName a, t) $ k $ absBody a
   where
     realName s = if isNoName s then "x" else argNameToString s
 

@@ -18,8 +18,9 @@ module Agda.Termination.RecCheck
     )
  where
 
-import Data.Graph
+import Control.Applicative
 
+import Data.Graph
 import Data.List (nub)
 import qualified Data.Map as Map
 
@@ -27,6 +28,8 @@ import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Defs
 
 import Agda.TypeChecking.Monad
+
+import Agda.Utils.Pretty (prettyShow)
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -43,14 +46,26 @@ cyclic g = or [ True | CyclicSCC _ <- stronglyConnComp g' ]
   where g' = map (\ (n, ns) -> ((), n, ns)) g
 
 -- | @recDef names name@ returns all definitions from @names@
---   that are used in the body of @name@.
+--   that are used in the type and body of @name@.
 recDef :: [QName] -> QName -> TCM [QName]
 recDef names name = do
   -- Retrieve definition
   def <- getConstInfo name
-  case theDef def of
+
+  -- Get names in type
+  ns1 <- anyDefs names (defType def)
+
+  -- Get names in body
+  ns2 <- case theDef def of
     Function{ funClauses = cls } -> anyDefs names cls
     _ -> return []
+
+  reportSLn "rec.graph" 20 $ unlines
+    [ "recDef " ++ prettyShow name
+    , "  names in the type: " ++ show ns1
+    , "  names in the def:  " ++ show ns2
+    ]
+  return $ ns1 `mappend` ns2
 
 -- | @anysDef names a@ returns all definitions from @names@
 --   that are used in @a@.

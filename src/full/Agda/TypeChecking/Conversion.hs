@@ -313,6 +313,7 @@ compareTerm' cmp a m n =
       where
         (m',n') = raise 1 (m,n) `apply` [Arg info $ var 0]
     equalFun _ _ _ _ = __IMPOSSIBLE__
+
     equalPath :: PathView -> Type -> Term -> Term -> TCM ()
     equalPath (PathType s _ l a x y) _ m n = do
         name <- freshName_ $ "i"
@@ -320,6 +321,7 @@ compareTerm' cmp a m n =
         let (m',n') = raise 1 (m, n) `applyE` [IApply (raise 1 $ unArg x) (raise 1 $ unArg y) (var 0)]
         addContext (name, defaultDom interval) $ compareTerm cmp (El (raise 1 s) $ (raise 1 $ unArg a) `apply` [argN $ var 0]) m' n'
     equalPath OType{} a' m n = cmpDef a' m n
+
     cmpDef a'@(El s ty) m n = do
        mI     <- getBuiltinName'   builtinInterval
        mIsOne <- getBuiltinName'   builtinIsOne
@@ -473,6 +475,10 @@ compareAtom cmp t m n =
         text "compareAtom" <+> fsep [ prettyTCM mb <+> prettyTCM cmp
                                     , prettyTCM nb
                                     , text ":" <+> prettyTCM t ]
+      reportSDoc "tc.conv.atom" 80 $
+        text "compareAtom" <+> fsep [ (text . show) mb <+> prettyTCM cmp
+                                    , (text . show) nb
+                                    , text ":" <+> (text . show) t ]
       case (mb, nb) of
         -- equate two metas x and y.  if y is the younger meta,
         -- try first y := x and then x := y
@@ -537,16 +543,30 @@ compareAtom cmp t m n =
                 a <- typeOfBV i
                 -- Variables are invariant in their arguments
                 compareElims [] [] a (var i) es es'
-            (Def f [], Def f' []) | f == f' -> return ()
-            (Def f es, Def f' es') | f == f' -> ifM (compareEtaPrims f es es') (return ()) $ do
-                a <- computeElimHeadType f es es'
-                -- The polarity vector of projection-like functions
-                -- does not include the parameters.
-                pol <- getPolarity' cmp f
-                compareElims pol [] a (Def f []) es es'
-            (Def f es, Def f' es') ->
-              unlessM (bothAbsurd f f') $ do
-                trySizeUniv cmp t m n f es f' es'
+
+            -- The case of definition application:
+            (Def f es, Def f' es') -> do
+
+                -- 1. All absurd lambdas are equal.
+                unlessM (bothAbsurd f f') $ do
+
+                -- 2. If the heads are unequal, the only chance is subtyping between SIZE and SIZELT.
+                if f /= f' then trySizeUniv cmp t m n f es f' es' else do
+
+                -- 3. If the heads are equal:
+                -- 3a. If there are no arguments, we are done.
+                unless (null es && null es') $ do
+
+                -- 3b. If some cubical magic kicks in, we are done.
+                unlessM (compareEtaPrims f es es') $ do
+
+                -- 3c. Oh no, we actually have to work and compare the eliminations!
+                 a <- computeElimHeadType f es es'
+                 -- The polarity vector of projection-like functions
+                 -- does not include the parameters.
+                 pol <- getPolarity' cmp f
+                 compareElims pol [] a (Def f []) es es'
+
             -- Due to eta-expansion, these constructors are fully applied.
             (Con x ci xArgs, Con y _ yArgs)
                 | x == y -> do
@@ -1696,6 +1716,7 @@ compareTermOnFace' k cmp phi ty u v = do
                           psi (Map.toList ms) -- TODO Andrea: make a view?
              phi
     addConstraint (ValueCmpOnFace cmp phi ty u v)
+
 ---------------------------------------------------------------------------
 -- * Definitions
 ---------------------------------------------------------------------------
@@ -1703,10 +1724,12 @@ compareTermOnFace' k cmp phi ty u v = do
 bothAbsurd :: QName -> QName -> TCM Bool
 bothAbsurd f f'
   | isAbsurdLambdaName f, isAbsurdLambdaName f' = do
+      -- Double check we are really dealing with absurd lambdas:
+      -- Their functions should not have bodies.
       def  <- getConstInfo f
       def' <- getConstInfo f'
       case (theDef def, theDef def') of
-        (Function{ funCompiled = Just Fail},
-         Function{ funCompiled = Just Fail}) -> return True
+        (Function{ funClauses = [Clause{ clauseBody = Nothing }] },
+         Function{ funClauses = [Clause{ clauseBody = Nothing }] }) -> return True
         _ -> return False
   | otherwise = return False

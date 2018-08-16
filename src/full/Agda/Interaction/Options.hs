@@ -60,8 +60,10 @@ import Agda.Utils.Except
   )
 
 import Agda.Utils.FileName      ( absolute, AbsolutePath, filePath )
-import Agda.Utils.Monad         ( ifM, readM )
+import Agda.Utils.Functor       ( (<&>) )
+import Agda.Utils.Lens          ( Lens' )
 import Agda.Utils.List          ( groupOn, wordsBy )
+import Agda.Utils.Monad         ( ifM, readM )
 import Agda.Utils.String        ( indent )
 import Agda.Utils.Trie          ( Trie )
 import Agda.Syntax.Parser.Literate ( literateExts )
@@ -377,7 +379,8 @@ noSyntacticEqualityFlag :: Flag PragmaOptions
 noSyntacticEqualityFlag o = return $ o { optSyntacticEquality = False }
 
 sharingFlag :: Bool -> Flag CommandLineOptions
-sharingFlag _ o = return o
+sharingFlag _ _ = throwError $
+  "Feature --sharing has been removed (in favor of the Agda abstract machine)."
 
 cachingFlag :: Bool -> Flag PragmaOptions
 cachingFlag b o = return $ o { optCaching = b }
@@ -453,7 +456,7 @@ dontTerminationCheckFlag o = return $ o { optTerminationCheck = False }
 -- The option was removed. See Issue 1918.
 dontCompletenessCheckFlag :: Flag PragmaOptions
 dontCompletenessCheckFlag _ =
-  throwError "the --no-coverage-check option has been removed"
+  throwError "The --no-coverage-check option has been removed."
 
 dontUniverseCheckFlag :: Flag PragmaOptions
 dontUniverseCheckFlag o = return $ o { optUniverseCheck        = False
@@ -477,7 +480,8 @@ injectiveTypeConstructorFlag :: Flag PragmaOptions
 injectiveTypeConstructorFlag o = return $ o { optInjectiveTypeConstructors = True }
 
 guardingTypeConstructorFlag :: Flag PragmaOptions
-guardingTypeConstructorFlag o = return $ o { optGuardingTypeConstructors = True }
+guardingTypeConstructorFlag _ = throwError $
+  "Experimental feature --guardedness-preserving-type-constructors has been removed."
 
 universePolymorphismFlag :: Flag PragmaOptions
 universePolymorphismFlag o = return $ o { optUniversePolymorphism = True }
@@ -644,18 +648,24 @@ standardOptions =
                     "don't use default libraries"
     , Option []     ["no-forcing"] (NoArg noForcingFlag)
                     "disable the forcing optimisation"
-    , Option []     ["sharing"] (NoArg $ sharingFlag True)
+    , Option []     ["only-scope-checking"] (NoArg onlyScopeCheckingFlag)
+                    "only scope-check the top-level module, do not type-check it"
+    ] ++ map (fmap lensPragmaOptions) pragmaOptions
+
+-- | Defined locally here since module ''Agda.Interaction.Options.Lenses''
+--   has cyclic dependency.
+lensPragmaOptions :: Lens' PragmaOptions CommandLineOptions
+lensPragmaOptions f st = f (optPragmaOptions st) <&> \ opts -> st { optPragmaOptions = opts }
+
+-- | Command line options of previous versions of Agda.
+--   Should not be listed in the usage info, put parsed by GetOpt for good error messaging.
+deadStandardOptions :: [OptDescr (Flag CommandLineOptions)]
+deadStandardOptions =
+    [ Option []     ["sharing"] (NoArg $ sharingFlag True)
                     "DEPRECATED: does nothing"
     , Option []     ["no-sharing"] (NoArg $ sharingFlag False)
                     "DEPRECATED: does nothing"
-    , Option []     ["only-scope-checking"] (NoArg onlyScopeCheckingFlag)
-                    "only scope-check the top-level module, do not type-check it"
-    ] ++ map (fmap lift) pragmaOptions
-  where
-  lift :: Flag PragmaOptions -> Flag CommandLineOptions
-  lift f = \opts -> do
-    ps <- f (optPragmaOptions opts)
-    return (opts { optPragmaOptions = ps })
+    ] ++ map (fmap lensPragmaOptions) deadPragmaOptions
 
 pragmaOptions :: [OptDescr (Flag PragmaOptions)]
 pragmaOptions =
@@ -677,8 +687,6 @@ pragmaOptions =
                     "do not warn about possibly nonterminating code"
     , Option []     ["termination-depth"] (ReqArg terminationDepthFlag "N")
                     "allow termination checker to count decrease/increase upto N (default N=1)"
-    , Option []     ["no-coverage-check"] (NoArg dontCompletenessCheckFlag)
-                    "the option has been removed"
     , Option []     ["type-in-type"] (NoArg dontUniverseCheckFlag)
                     "ignore universe levels (this makes Agda inconsistent)"
     , Option []     ["omega-in-omega"] (NoArg omegaInOmegaFlag)
@@ -689,8 +697,6 @@ pragmaOptions =
                     "disable sized types"
     , Option []     ["injective-type-constructors"] (NoArg injectiveTypeConstructorFlag)
                     "enable injective type constructors (makes Agda anti-classical and possibly inconsistent)"
-    , Option []     ["guardedness-preserving-type-constructors"] (NoArg guardingTypeConstructorFlag)
-                    "treat type constructors as inductive constructors when checking productivity"
     , Option []     ["no-universe-polymorphism"] (NoArg noUniversePolymorphismFlag)
                     "disable universe polymorphism"
     , Option []     ["universe-polymorphism"] (NoArg universePolymorphismFlag)
@@ -759,7 +765,18 @@ pragmaOptions =
                     "disable reduction using the Agda Abstract Machine"
     ]
 
+-- | Pragma options of previous versions of Agda.
+--   Should not be listed in the usage info, put parsed by GetOpt for good error messaging.
+deadPragmaOptions :: [OptDescr (Flag PragmaOptions)]
+deadPragmaOptions =
+    [ Option []     ["guardedness-preserving-type-constructors"] (NoArg guardingTypeConstructorFlag)
+                    "treat type constructors as inductive constructors when checking productivity"
+    , Option []     ["no-coverage-check"] (NoArg dontCompletenessCheckFlag)
+                    "the option has been removed"
+    ]
+
 -- | Used for printing usage info.
+--   Does not include the dead options.
 standardOptions_ :: [OptDescr ()]
 standardOptions_ = map (fmap $ const ()) standardOptions
 
@@ -817,7 +834,7 @@ parseStandardOptions argv = parseStandardOptions' argv defaultOptions
 
 parseStandardOptions' :: [String] -> Flag CommandLineOptions
 parseStandardOptions' argv opts = do
-  opts <- getOptSimple (stripRTS argv) standardOptions inputFlag opts
+  opts <- getOptSimple (stripRTS argv) (deadStandardOptions ++ standardOptions) inputFlag opts
   checkOpts opts
 
 -- | Parse options from an options pragma.
@@ -828,7 +845,7 @@ parsePragmaOptions
      -- ^ Command-line options which should be updated.
   -> OptM PragmaOptions
 parsePragmaOptions argv opts = do
-  ps <- getOptSimple argv pragmaOptions
+  ps <- getOptSimple argv (deadPragmaOptions ++ pragmaOptions)
           (\s _ -> throwError $ "Bad option in pragma: " ++ s)
           (optPragmaOptions opts)
   _ <- checkOpts (opts { optPragmaOptions = ps })

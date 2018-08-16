@@ -26,15 +26,44 @@ Type checking and interaction
   needed to expose the absurd variable, or if there are no non-absurd
   clauses.
 
+* The termination checker now also looks for recursive calls in the type of definitions.
+  This fixes an issue where Agda allowed very dependent types
+  [Issue [#1556](https://github.com/agda/agda/issues/1556)].
+
+  This change affects induction-induction, e.g.
+  ```agda
+    mutual
+      data Cxt : Set where
+        ε    :  Cxt
+        _,_  :  (Γ : Cxt) (A : Ty Γ) → Cxt
+
+      data Ty : (Γ : Cxt) → Set where
+        u  :  ∀ Γ → Ty Γ
+        Π  :  ∀ Γ (A : Ty Γ) (B : Ty (Γ , A)) → Ty Γ
+
+    mutual
+      f : Cxt → Cxt
+      f ε        =  ε
+      f (Γ , T)  =  (f Γ , g Γ T)
+
+      g : ∀ Γ → Ty Γ → Ty (f Γ)
+      g Γ (u .Γ)      =  u (f Γ)
+      g Γ (Π .Γ A B)  =  Π (f Γ) (g Γ A) (g (Γ , A) B)
+
+  ```
+  The type of `g` contains a call `g Γ _ --> f Γ` which is now taken
+  into account during termination checking.
+
+
 Pragmas and options
 -------------------
 
-* New builtin SETOMEGA.
+* New builtin `SETOMEGA`.
 
-  Agda's top sort Setω is now defined as a builtin in Agda.Primitive
+  Agda's top sort `Setω` is now defined as a builtin in `Agda.Primitive`
   and can be renamed when importing that module.
 
-* New option --omega-in-omega.
+* New option `--omega-in-omega`.
 
   The option `--omega-in-omega` enables the typing rule `Setω : Setω`.
   Example:
@@ -54,9 +83,9 @@ Pragmas and options
   Reason: There are consistency issues that may be systemic
   [Issue [#2170](https://github.com/agda/agda/issues/2170)].
 
-* New pragma {-# NO_UNIVERSE_CHECK #-}.
+* New pragma `{-# NO_UNIVERSE_CHECK #-}`.
 
-  The pragma {-# NO_UNIVERSE_CHECK #-} can be put in front of a data
+  The pragma `{-# NO_UNIVERSE_CHECK #-}` can be put in front of a data
   or record type to disable universe consistency checking locally.
   Example:
   ```agda
@@ -65,14 +94,21 @@ Pragmas and options
       el : Set → U
   ```
   Like the similar pragmas for disabling termination and positivity
-  checking, {-# NO_UNIVERSE_CHECK #-} cannot be used with --safe.
+  checking, `{-# NO_UNIVERSE_CHECK #-}` cannot be used with `--safe`.
 
-* New option --no-syntactic-equality.
+* New option `--no-syntactic-equality`.
 
   The option `--no-syntactic-equality` disables the syntactic equality
   shortcut used by the conversion checker. This will slow down
   typechecking in most cases, but makes the performance more
   predictable and stable under minor changes.
+
+* Option (and experimental feature)
+  `--guardedness-preserving-type-constructors`
+  has been removed.
+  [Issue [#3180](https://github.com/agda/agda/issues/3180)].
+
+* Deprecated options `--sharing` and `--no-sharing` now raise an error.
 
 Emacs mode
 ----------
