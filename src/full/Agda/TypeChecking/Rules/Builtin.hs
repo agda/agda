@@ -876,9 +876,9 @@ bindBuiltinNoDef' b q = do
       t <- mt
       addConstant q $ defaultDefn (setRelevance rel defaultArgInfo) q t def
       -- And we then *modify* the definition based on our needs:
-      -- * add polarity information for SIZE-related definitions
+      -- We add polarity information for SIZE-related definitions
       builtinSizeHook b q t
-      -- * Add compilation pragmas for base types
+      -- And compilation pragmas for base types
       when (b == builtinChar)   $ addHaskellPragma q "= type Char"
       when (b == builtinString) $ addHaskellPragma q "= type Data.Text.Text"
       when (b == builtinFloat)  $ addHaskellPragma q "= type Double"
