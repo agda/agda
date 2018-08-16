@@ -870,7 +870,7 @@ bindBuiltinNoDef b q = inTopContext $ do
 
 bindBuiltinNoDef' :: String -> A.QName -> TCM ()
 bindBuiltinNoDef' b q = do
-   case builtinDesc <$> findBuiltinInfo b of
+  case builtinDesc <$> findBuiltinInfo b of
     Just (BuiltinPostulate rel mt) -> do
       -- We start by adding the corresponding postulate
       t <- mt

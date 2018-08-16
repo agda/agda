@@ -1902,10 +1902,10 @@ instance ToAbstract C.Pragma [A.Pragma] where
             sINLINE ++ " used on ambiguous name " ++ prettyShow x
           _        -> genericError $ "Target of " ++ sINLINE ++ " pragma should be a function"
       return [ A.InlinePragma b y ]
-  toAbstract (C.BuiltinPragma _ b q) | isUntypedBuiltin b = do
+  toAbstract (C.BuiltinPragma _ b q _) | isUntypedBuiltin b = do
     bindUntypedBuiltin b =<< toAbstract (ResolveQName q)
     return []
-  toAbstract (C.BuiltinPragma _ b q) = do
+  toAbstract (C.BuiltinPragma _ b q f) = do
     -- Andreas, 2015-02-14
     -- Some builtins cannot be given a valid Agda type,
     -- thus, they do not come with accompanying postulate or definition.
@@ -1920,7 +1920,7 @@ instance ToAbstract C.Pragma [A.Pragma] where
                "(no longer expects an already defined identifier)"
             modifyCurrentScope $ removeNameFromScope PublicNS x
           -- We then happily bind the name
-          y <- freshAbstractQName noFixity' x
+          y <- freshAbstractQName f x
           kind <- fromMaybe __IMPOSSIBLE__ <$> builtinKindOfName b
           bindName PublicAccess kind x y
           return [ A.BuiltinNoDefPragma b y ]

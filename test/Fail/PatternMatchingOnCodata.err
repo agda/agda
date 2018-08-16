@@ -1,6 +1,6 @@
 PatternMatchingOnCodata.agda:31,1-11
 Could not parse the left-hand side my-♭ (♯ x)
 Operators used in the grammar:
-  ♯ (prefix operator, level 1000) [♯_ (PatternMatchingOnCodata.agda:23,3-5)]
+  ♯ (prefix operator, level 1000) [♯_ (PatternMatchingOnCodata.agda:27,22-24)]
 when scope checking the left-hand side my-♭ (♯ x) in the definition
 of my-♭
