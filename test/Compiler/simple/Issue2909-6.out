@@ -1,6 +1,35 @@
 COMPILE_FAILED
 
 ret > ExitFailure 1
+out > /Issue2909-6.agda:6,1-28
+out > BUILTIN INFINITY declares an identifier (no longer expects an already defined identifier)
+out > when scope checking the declaration
+out >   {-# BUILTIN INFINITY ∞ #-}
+out > /Issue2909-6.agda:7,1-28
+out > BUILTIN SHARP declares an identifier (no longer expects an already defined identifier)
+out > when scope checking the declaration
+out >   {-# BUILTIN SHARP ♯_ #-}
+out > /Issue2909-6.agda:8,1-28
+out > BUILTIN FLAT declares an identifier (no longer expects an already defined identifier)
+out > when scope checking the declaration
+out >   {-# BUILTIN FLAT ♭ #-}
+out >
+out > ———— All done; warnings encountered ————————————————————————
+out >
+out > /Issue2909-6.agda:6,1-28
+out > BUILTIN INFINITY declares an identifier (no longer expects an already defined identifier)
+out > when scope checking the declaration
+out >   {-# BUILTIN INFINITY ∞ #-}
+out >
+out > /Issue2909-6.agda:7,1-28
+out > BUILTIN SHARP declares an identifier (no longer expects an already defined identifier)
+out > when scope checking the declaration
+out >   {-# BUILTIN SHARP ♯_ #-}
+out >
+out > /Issue2909-6.agda:8,1-28
+out > BUILTIN FLAT declares an identifier (no longer expects an already defined identifier)
+out > when scope checking the declaration
+out >   {-# BUILTIN FLAT ♭ #-}
 out > /Issue2909-6.agda:8,22-23
 out > "COMPILE GHC" pragmas are not allowed for the FLAT builtin.
 out >

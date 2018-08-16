@@ -52,8 +52,8 @@ import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.NonemptyList
 import Agda.Utils.Null
-import Agda.Utils.Size
 import Agda.Utils.Permutation
+import Agda.Utils.Size
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -96,6 +96,9 @@ coreBuiltins =
   , (builtinFloat              |-> builtinPostulate tset)
   , (builtinChar               |-> builtinPostulate tset)
   , (builtinString             |-> builtinPostulate tset)
+  , (builtinInf                |-> builtinPostulate typeOfInf)
+  , (builtinSharp              |-> builtinPostulate typeOfSharp)
+  , (builtinFlat               |-> builtinPostulate typeOfFlat)
   , (builtinQName              |-> builtinPostulate tset)
   , (builtinAgdaMeta           |-> builtinPostulate tset)
   , (builtinIO                 |-> builtinPostulate (tset --> tset))
@@ -134,12 +137,12 @@ coreBuiltins =
                                                      nPi' "i" (cl tinterval) $ \ i ->
                                                      nPi' "j" (cl tinterval) $ \ j ->
                                                      nPi' "i1" (elInf $ cl primIsOne <@> i) $ \ i1 ->
-                                                     (elInf $ cl primIsOne <@> (cl (getPrimitiveTerm "primIMax") <@> i <@> j))))
+                                                     (elInf $ cl primIsOne <@> (cl primIMax <@> i <@> j))))
   , (builtinIsOne2             |-> builtinPostulate (runNamesT [] $
                                                      nPi' "i" (cl tinterval) $ \ i ->
                                                      nPi' "j" (cl tinterval) $ \ j ->
                                                      nPi' "j1" (elInf $ cl primIsOne <@> j) $ \ j1 ->
-                                                     (elInf $ cl primIsOne <@> (cl (getPrimitiveTerm "primIMax") <@> i <@> j))))
+                                                     (elInf $ cl primIsOne <@> (cl primIMax <@> i <@> j))))
   , (builtinIsOneEmpty         |-> builtinPostulate (runNamesT [] $
                                                      hPi' "l" (el $ cl primLevel) $ \ l ->
                                                      hPi' "A" (pPi' "o" (cl primIZero) $ \ _ ->
@@ -788,10 +791,6 @@ bindBuiltinInfo (BuiltinInfo s d) e = do
             case theDef def of
               Axiom {} -> do
                 builtinSizeHook s q t'
-                when (s == builtinChar)   $ addHaskellPragma q "= type Char"
-                when (s == builtinString) $ addHaskellPragma q "= type Data.Text.Text"
-                when (s == builtinFloat)  $ addHaskellPragma q "= type Double"
-                when (s == builtinWord64) $ addHaskellPragma q "= type MAlonzo.RTE.Word64"
                 bindBuiltinName s v
               _        -> err
           _ -> err
@@ -854,11 +853,37 @@ bindUntypedBuiltin b = \case
 -- We simply ignore the parameters.
 bindBuiltinNoDef :: String -> A.QName -> TCM ()
 bindBuiltinNoDef b q = inTopContext $ do
+  if | b == builtinInf   -> ax typeOfInf   >> bindBuiltinInf r
+     | b == builtinSharp -> ax typeOfSharp >> bindBuiltinSharp r
+     | b == builtinFlat  -> ax typeOfFlat  >> bindBuiltinFlat r
+     | otherwise         -> bindBuiltinNoDef' b q
+
+  where
+
+  r :: ResolvedName
+  r = DefinedName PublicAccess (AbsName q DefName Defined)
+
+  ax :: TCM Type -> TCM ()
+  ax mty = do
+    ty <- mty
+    addConstant q $ defaultDefn defaultArgInfo q ty Axiom
+
+bindBuiltinNoDef' :: String -> A.QName -> TCM ()
+bindBuiltinNoDef' b q = do
   case builtinDesc <$> findBuiltinInfo b of
     Just (BuiltinPostulate rel mt) -> do
+      -- We start by adding the corresponding postulate
       t <- mt
       addConstant q $ defaultDefn (setRelevance rel defaultArgInfo) q t def
+      -- And we then *modify* the definition based on our needs:
+      -- We add polarity information for SIZE-related definitions
       builtinSizeHook b q t
+      -- And compilation pragmas for base types
+      when (b == builtinChar)   $ addHaskellPragma q "= type Char"
+      when (b == builtinString) $ addHaskellPragma q "= type Data.Text.Text"
+      when (b == builtinFloat)  $ addHaskellPragma q "= type Double"
+      when (b == builtinWord64) $ addHaskellPragma q "= type MAlonzo.RTE.Word64"
+      -- Finally, bind the BUILTIN in the environment.
       bindBuiltinName b $ Def q []
       where
         -- Andreas, 2015-02-14

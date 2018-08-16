@@ -73,6 +73,7 @@ import Agda.Syntax.Concrete.Pretty ()
 import Agda.Interaction.Options.Warnings
 
 import Agda.TypeChecking.Positivity.Occurrence
+import {-# SOURCE #-} Agda.TypeChecking.Monad.Builtin ( builtinsNoDef )
 
 import Agda.Utils.AffineHole
 import Agda.Utils.Except ( MonadError(throwError,catchError) )
@@ -866,6 +867,10 @@ niceDeclarations ds = do
       Module{}             -> []
       UnquoteDecl _ xs _   -> xs
       UnquoteDef{}         -> []
+      -- BUILTIN pragmas which do not require an accompanying definition declare
+      -- the (unqualified) name they mention.
+      Pragma (BuiltinPragma _ b (QName x) _)
+        | b `elem` builtinsNoDef -> [x]
       Pragma{}             -> []
 
     inferMutualBlocks :: [NiceDeclaration] -> Nice [NiceDeclaration]
@@ -1112,6 +1117,10 @@ niceDeclarations ds = do
         nice1 ds
 
     nicePragma (PolarityPragma{}) ds = return ([], ds)
+
+    nicePragma (BuiltinPragma r str qn@(QName x) _) ds = do
+      fx <- getFixity x
+      return ([NicePragma r (BuiltinPragma r str qn fx)], ds)
 
     nicePragma p ds = return ([NicePragma (getRange p) p], ds)
 
