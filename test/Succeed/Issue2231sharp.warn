@@ -1,0 +1,29 @@
+Issue2231sharp.agda:11,1-28
+BUILTIN INFINITY declares an identifier (no longer expects an already defined identifier)
+when scope checking the declaration
+  {-# BUILTIN INFINITY ∞ #-}
+Issue2231sharp.agda:12,1-28
+BUILTIN SHARP declares an identifier (no longer expects an already defined identifier)
+when scope checking the declaration
+  {-# BUILTIN SHARP ♯_ #-}
+Issue2231sharp.agda:13,1-28
+BUILTIN FLAT declares an identifier (no longer expects an already defined identifier)
+when scope checking the declaration
+  {-# BUILTIN FLAT ♭ #-}
+
+———— All done; warnings encountered ————————————————————————
+
+Issue2231sharp.agda:11,1-28
+BUILTIN INFINITY declares an identifier (no longer expects an already defined identifier)
+when scope checking the declaration
+  {-# BUILTIN INFINITY ∞ #-}
+
+Issue2231sharp.agda:12,1-28
+BUILTIN SHARP declares an identifier (no longer expects an already defined identifier)
+when scope checking the declaration
+  {-# BUILTIN SHARP ♯_ #-}
+
+Issue2231sharp.agda:13,1-28
+BUILTIN FLAT declares an identifier (no longer expects an already defined identifier)
+when scope checking the declaration
+  {-# BUILTIN FLAT ♭ #-}

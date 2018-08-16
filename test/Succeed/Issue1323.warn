@@ -1,3 +1,23 @@
+Issue1323.agda:11,1-30
+BUILTIN STRING declares an identifier (no longer expects an already defined identifier)
+when scope checking the declaration
+  {-# BUILTIN STRING String #-}
+Issue1323.agda:20,1-28
+BUILTIN INFINITY declares an identifier (no longer expects an already defined identifier)
+when scope checking the declaration
+  {-# BUILTIN INFINITY ∞ #-}
+Issue1323.agda:21,1-28
+BUILTIN SHARP declares an identifier (no longer expects an already defined identifier)
+when scope checking the declaration
+  {-# BUILTIN SHARP ♯_ #-}
+Issue1323.agda:22,1-28
+BUILTIN FLAT declares an identifier (no longer expects an already defined identifier)
+when scope checking the declaration
+  {-# BUILTIN FLAT ♭ #-}
+Issue1323.agda:33,1-26
+BUILTIN CHAR declares an identifier (no longer expects an already defined identifier)
+when scope checking the declaration
+  {-# BUILTIN CHAR Char #-}
 Issue1323.agda:49,1-26
 Builtin NIL no longer exists. It is now bound by BUILTIN LIST
 when checking the pragma BUILTIN NIL []
@@ -6,6 +26,31 @@ Builtin CONS no longer exists. It is now bound by BUILTIN LIST
 when checking the pragma BUILTIN CONS _∷_
 
 ———— All done; warnings encountered ————————————————————————
+
+Issue1323.agda:11,1-30
+BUILTIN STRING declares an identifier (no longer expects an already defined identifier)
+when scope checking the declaration
+  {-# BUILTIN STRING String #-}
+
+Issue1323.agda:20,1-28
+BUILTIN INFINITY declares an identifier (no longer expects an already defined identifier)
+when scope checking the declaration
+  {-# BUILTIN INFINITY ∞ #-}
+
+Issue1323.agda:21,1-28
+BUILTIN SHARP declares an identifier (no longer expects an already defined identifier)
+when scope checking the declaration
+  {-# BUILTIN SHARP ♯_ #-}
+
+Issue1323.agda:22,1-28
+BUILTIN FLAT declares an identifier (no longer expects an already defined identifier)
+when scope checking the declaration
+  {-# BUILTIN FLAT ♭ #-}
+
+Issue1323.agda:33,1-26
+BUILTIN CHAR declares an identifier (no longer expects an already defined identifier)
+when scope checking the declaration
+  {-# BUILTIN CHAR Char #-}
 
 Issue1323.agda:49,1-26
 Builtin NIL no longer exists. It is now bound by BUILTIN LIST

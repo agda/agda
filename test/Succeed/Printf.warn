@@ -1,3 +1,15 @@
+Printf.agda:39,3-33
+BUILTIN STRING declares an identifier (no longer expects an already defined identifier)
+when scope checking the declaration
+  {-# BUILTIN STRING String #-}
+Printf.agda:40,3-33
+BUILTIN FLOAT declares an identifier (no longer expects an already defined identifier)
+when scope checking the declaration
+  {-# BUILTIN FLOAT Float #-}
+Printf.agda:41,3-33
+BUILTIN CHAR declares an identifier (no longer expects an already defined identifier)
+when scope checking the declaration
+  {-# BUILTIN CHAR Char #-}
 Printf.agda:14,1-31
 Builtin NIL no longer exists. It is now bound by BUILTIN LIST
 when checking the pragma BUILTIN NIL nil
@@ -6,6 +18,21 @@ Builtin CONS no longer exists. It is now bound by BUILTIN LIST
 when checking the pragma BUILTIN CONS _::_
 
 ———— All done; warnings encountered ————————————————————————
+
+Printf.agda:39,3-33
+BUILTIN STRING declares an identifier (no longer expects an already defined identifier)
+when scope checking the declaration
+  {-# BUILTIN STRING String #-}
+
+Printf.agda:40,3-33
+BUILTIN FLOAT declares an identifier (no longer expects an already defined identifier)
+when scope checking the declaration
+  {-# BUILTIN FLOAT Float #-}
+
+Printf.agda:41,3-33
+BUILTIN CHAR declares an identifier (no longer expects an already defined identifier)
+when scope checking the declaration
+  {-# BUILTIN CHAR Char #-}
 
 Printf.agda:14,1-31
 Builtin NIL no longer exists. It is now bound by BUILTIN LIST

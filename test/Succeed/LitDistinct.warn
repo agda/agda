@@ -1,0 +1,11 @@
+LitDistinct.agda:5,1-30
+BUILTIN STRING declares an identifier (no longer expects an already defined identifier)
+when scope checking the declaration
+  {-# BUILTIN STRING String #-}
+
+———— All done; warnings encountered ————————————————————————
+
+LitDistinct.agda:5,1-30
+BUILTIN STRING declares an identifier (no longer expects an already defined identifier)
+when scope checking the declaration
+  {-# BUILTIN STRING String #-}

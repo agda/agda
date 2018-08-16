@@ -1,3 +1,11 @@
+Issue175.agda:18,1-30
+BUILTIN CHAR declares an identifier (no longer expects an already defined identifier)
+when scope checking the declaration
+  {-# BUILTIN CHAR Char #-}
+Issue175.agda:19,1-30
+BUILTIN STRING declares an identifier (no longer expects an already defined identifier)
+when scope checking the declaration
+  {-# BUILTIN STRING String #-}
 Issue175.agda:8,1-26
 Builtin NIL no longer exists. It is now bound by BUILTIN LIST
 when checking the pragma BUILTIN NIL []
@@ -6,6 +14,16 @@ Builtin CONS no longer exists. It is now bound by BUILTIN LIST
 when checking the pragma BUILTIN CONS _∷_
 
 ———— All done; warnings encountered ————————————————————————
+
+Issue175.agda:18,1-30
+BUILTIN CHAR declares an identifier (no longer expects an already defined identifier)
+when scope checking the declaration
+  {-# BUILTIN CHAR Char #-}
+
+Issue175.agda:19,1-30
+BUILTIN STRING declares an identifier (no longer expects an already defined identifier)
+when scope checking the declaration
+  {-# BUILTIN STRING String #-}
 
 Issue175.agda:8,1-26
 Builtin NIL no longer exists. It is now bound by BUILTIN LIST
