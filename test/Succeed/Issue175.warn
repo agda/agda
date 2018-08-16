@@ -1,0 +1,16 @@
+Issue175.agda:8,1-26
+Builtin NIL no longer exists. It is now bound by BUILTIN LIST
+when checking the pragma BUILTIN NIL []
+Issue175.agda:9,1-26
+Builtin CONS no longer exists. It is now bound by BUILTIN LIST
+when checking the pragma BUILTIN CONS _∷_
+
+———— All done; warnings encountered ————————————————————————
+
+Issue175.agda:8,1-26
+Builtin NIL no longer exists. It is now bound by BUILTIN LIST
+when checking the pragma BUILTIN NIL []
+
+Issue175.agda:9,1-26
+Builtin CONS no longer exists. It is now bound by BUILTIN LIST
+when checking the pragma BUILTIN CONS _∷_

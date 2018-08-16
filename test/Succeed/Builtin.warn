@@ -1,0 +1,16 @@
+Builtin.agda:57,1-28
+Builtin NIL no longer exists. It is now bound by BUILTIN LIST
+when checking the pragma BUILTIN NIL nil
+Builtin.agda:58,1-29
+Builtin CONS no longer exists. It is now bound by BUILTIN LIST
+when checking the pragma BUILTIN CONS _::_
+
+———— All done; warnings encountered ————————————————————————
+
+Builtin.agda:57,1-28
+Builtin NIL no longer exists. It is now bound by BUILTIN LIST
+when checking the pragma BUILTIN NIL nil
+
+Builtin.agda:58,1-29
+Builtin CONS no longer exists. It is now bound by BUILTIN LIST
+when checking the pragma BUILTIN CONS _::_

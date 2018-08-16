@@ -1,0 +1,16 @@
+Lambda.agda:49,3-33
+Builtin NIL no longer exists. It is now bound by BUILTIN LIST
+when checking the pragma BUILTIN NIL nil
+Lambda.agda:50,3-34
+Builtin CONS no longer exists. It is now bound by BUILTIN LIST
+when checking the pragma BUILTIN CONS _::_
+
+———— All done; warnings encountered ————————————————————————
+
+Lambda.agda:49,3-33
+Builtin NIL no longer exists. It is now bound by BUILTIN LIST
+when checking the pragma BUILTIN NIL nil
+
+Lambda.agda:50,3-34
+Builtin CONS no longer exists. It is now bound by BUILTIN LIST
+when checking the pragma BUILTIN CONS _::_
