@@ -15,7 +15,7 @@ record R : Set₁ where
     A B C : Set
 
 postulate
-  A Char : Set
+  A : Set
   B C    : Set
 
 {-# BUILTIN CHAR  Char  #-}

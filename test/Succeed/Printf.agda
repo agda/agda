@@ -11,18 +11,11 @@ data List (A : Set) : Set where
   _::_ : A -> List A -> List A
 
 {-# BUILTIN LIST    List   #-}
-{-# BUILTIN NIL     nil    #-}
-{-# BUILTIN CONS    _::_   #-}
 
 [_] : {A : Set} -> A -> List A
 [ x ] = x :: nil
 
 module Primitive where
-
-  postulate
-    String : Set
-    Float  : Set
-    Char   : Set
 
   data Nat : Set where
     zero : Nat

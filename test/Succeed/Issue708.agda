@@ -1,7 +1,3 @@
-
-postulate
-  String : Set
-
 {-# BUILTIN STRING String #-}
 
 record ⊤ : Set where
