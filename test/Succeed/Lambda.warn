@@ -1,11 +1,3 @@
-Lambda.agda:46,3-33
-BUILTIN STRING declares an identifier (no longer expects an already defined identifier)
-when scope checking the declaration
-  {-# BUILTIN STRING String #-}
-Lambda.agda:47,3-33
-BUILTIN CHAR declares an identifier (no longer expects an already defined identifier)
-when scope checking the declaration
-  {-# BUILTIN CHAR Char #-}
 Lambda.agda:49,3-33
 Builtin NIL no longer exists. It is now bound by BUILTIN LIST
 when checking the pragma BUILTIN NIL nil
@@ -14,16 +6,6 @@ Builtin CONS no longer exists. It is now bound by BUILTIN LIST
 when checking the pragma BUILTIN CONS _::_
 
 ———— All done; warnings encountered ————————————————————————
-
-Lambda.agda:46,3-33
-BUILTIN STRING declares an identifier (no longer expects an already defined identifier)
-when scope checking the declaration
-  {-# BUILTIN STRING String #-}
-
-Lambda.agda:47,3-33
-BUILTIN CHAR declares an identifier (no longer expects an already defined identifier)
-when scope checking the declaration
-  {-# BUILTIN CHAR Char #-}
 
 Lambda.agda:49,3-33
 Builtin NIL no longer exists. It is now bound by BUILTIN LIST
