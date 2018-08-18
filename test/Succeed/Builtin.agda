@@ -49,8 +49,6 @@ data List (A : Set) : Set where
   _::_ : A -> List A -> List A
 
 {-# BUILTIN LIST List   #-}
-{-# BUILTIN NIL  nil    #-}
-{-# BUILTIN CONS  _::_   #-}
 
 primitive
 

@@ -11,7 +11,6 @@ data Bool : Set where
 {-# BUILTIN TRUE true #-}
 {-# BUILTIN FALSE false #-}
 
-postulate ℝ : Set
 {-# BUILTIN FLOAT ℝ #-}
 
 primitive

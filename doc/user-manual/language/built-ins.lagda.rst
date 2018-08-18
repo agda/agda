@@ -9,7 +9,6 @@
     just : A → Maybe A
     nothing : Maybe A
 
-  postulate String : Set
   {-# BUILTIN STRING String #-}
 
   data ⊥ : Set where
@@ -214,7 +213,6 @@ Machine words
 
 Agda supports built-in 64-bit machine words, bound with the ``WORD64`` built-in::
 
-  postulate Word64 : Set
   {-# BUILTIN WORD64 Word64 #-}
 
 Machine words can be converted to and from natural numbers using the following primitives::
@@ -285,7 +283,6 @@ Floats
 
 Floating point numbers are bound with the ``FLOAT`` built-in::
 
-  postulate Float : Set
   {-# BUILTIN FLOAT Float #-}
 
 This lets you use :ref:`floating point literals
@@ -430,7 +427,6 @@ Characters
 
 The character type is bound with the ``CHARACTER`` built-in::
 
-  postulate Char : Set
   {-# BUILTIN CHAR Char #-}
 
 Binding the character type lets you use :ref:`character literals
@@ -474,7 +470,6 @@ The string type is bound with the ``STRING`` built-in:
 
 .. code-block:: agda
 
-  postulate String : Set
   {-# BUILTIN STRING String #-}
 
 Binding the string type lets you use :ref:`string literals
@@ -621,10 +616,6 @@ Coinduction
 
 The following built-ins are used for coinductive definitions::
 
-    postulate
-      ∞  : ∀ {a} (A : Set a) → Set a
-      ♯_ : ∀ {a} {A : Set a} → A → ∞ A
-      ♭  : ∀ {a} {A : Set a} → ∞ A → A
     {-# BUILTIN INFINITY ∞  #-}
     {-# BUILTIN SHARP    ♯_ #-}
     {-# BUILTIN FLAT     ♭  #-}

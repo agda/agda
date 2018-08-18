@@ -10,10 +10,6 @@ foo x _ =  x
 -- allowed in character and string literals and non-pragma comments
 -- (	).
 
-postulate
-  String : Set
-  Char   : Set
-
 {-# BUILTIN STRING  String #-}
 {-# BUILTIN CHAR    Char   #-}
 
