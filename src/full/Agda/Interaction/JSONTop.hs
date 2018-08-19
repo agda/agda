@@ -8,7 +8,6 @@ module Agda.Interaction.JSONTop
 import Control.Monad.State
 
 import Data.Aeson hiding (Result(..))
--- import qualified Data.Aeson as JSON
 import Data.ByteString.Lazy (ByteString)
 import qualified Data.ByteString.Lazy.Char8 as BS
 import Data.Char
@@ -30,7 +29,7 @@ import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 import Agda.Interaction.Response as R
 import Agda.Interaction.InteractionTop
 import Agda.Interaction.EmacsCommand hiding (putResponse)
-import Agda.Interaction.Highlighting.Emacs
+import Agda.Interaction.Highlighting.JSON
 import Agda.Interaction.Highlighting.Precise (TokenBased(..))
 import Agda.Interaction.Options
 
@@ -38,11 +37,10 @@ import Agda.VersionCommit
 
 ----------------------------------
 
--- | 'mimicGHCi' is a fake ghci interpreter for the Emacs frontend
---   and for interaction tests.
+-- | 'jsonREPL' is a interpreter like 'mimicGHCi', but outputs JSON-encoded strings.
 --
---   'mimicGHCi' reads the Emacs frontend commands from stdin,
---   interprets them and print the result into stdout.
+--   'jsonREPL' reads Haskell values (that starts from 'IOTCM' ...) from stdin,
+--   interprets them, and outputs JSON-encoded strings. into stdout.
 
 jsonREPL :: TCM () -> TCM ()
 jsonREPL setup = do
@@ -53,7 +51,7 @@ jsonREPL setup = do
       hSetEncoding  stdin  utf8
 
     setInteractionOutputCallback $
-        mapM_ BS.putStrLn <=< jsonifyResponse
+        BS.putStrLn <=< jsonifyResponse
 
     commands <- liftIO $ initialiseCommandQueue readCommand
 
@@ -102,184 +100,104 @@ jsonREPL setup = do
           Just (_, rem) -> return $ Error $ "not consumed: " ++ rem
           _             -> return $ Error $ "cannot read: " ++ r
 
--- | Given strings of goals, warnings and errors, return a pair of the
---   body and the title for the info buffer
-formatWarningsAndErrors :: String -> String -> String -> (String, String)
-formatWarningsAndErrors g w e = (body, title)
-  where
-    isG = not $ null g
-    isW = not $ null w
-    isE = not $ null e
-    title = List.intercalate "," $ catMaybes
-              [ " Goals"    <$ guard isG
-              , " Warnings" <$ guard isW
-              , " Errors"   <$ guard isE
-              , " Done"     <$ guard (not (isG || isW || isE))
-              ]
 
-    body = List.intercalate "\n" $ catMaybes
-             [ g                    <$ guard isG
-             , delimiter "Warnings" <$ guard (isW && (isG || isE))
-             , w                    <$ guard isW
-             , delimiter "Errors"   <$ guard (isE && (isG || isW))
-             , e                    <$ guard isE
-             ]
+instance ToJSON Status where
+  toJSON status = object
+    [ "showImplicitArguments" .= sShowImplicitArguments status
+    , "checked" .= sChecked status
+    ]
 
-instance ToJSON Response where
-  toJSON (Resp_HighlightingInfo info remove method modFile) = object ["kind" .= ("HighlightingInfo" :: String)]
-  toJSON (Resp_DisplayInfo info) = object ["kind" .= ("Resp_DisplayInfo" :: String)]
-  toJSON (Resp_ClearHighlighting tokenBased) = object ["kind" .= ("Resp_ClearHighlighting" :: String)]
-  toJSON Resp_DoneAborting = object ["kind" .= ("Resp_DoneAborting" :: String)]
-  toJSON Resp_ClearRunningInfo = object ["kind" .= ("Resp_ClearRunningInfo" :: String)]
-  toJSON (Resp_RunningInfo n s) = object ["kind" .= ("Resp_RunningInfo" :: String)]
-  toJSON (Resp_Status s) = object ["kind" .= ("Resp_Status" :: String)]
-  toJSON (Resp_JumpToError f p) = object ["kind" .= ("Resp_JumpToError" :: String)]
-  toJSON (Resp_InteractionPoints is) = object ["kind" .= ("Resp_InteractionPoints" :: String)]
-  toJSON (Resp_GiveAction ii s) = object ["kind" .= ("Resp_GiveAction" :: String)]
-  toJSON (Resp_MakeCase variant pcs) = object ["kind" .= ("Resp_MakeCase" :: String)]
-  toJSON (Resp_SolveAll ps) = object ["kind" .= ("Resp_SolveAll" :: String)]
+instance ToJSON InteractionId where
+  toJSON (InteractionId i) = toJSON i
 
+instance ToJSON GiveResult where
+  toJSON (Give_String s) = toJSON s
+  toJSON Give_Paren = toJSON True
+  toJSON Give_NoParen = toJSON False
+
+instance ToJSON MakeCaseVariant where
+  toJSON R.Function = String "Function"
+  toJSON R.ExtendedLambda = String "ExtendedLambda"
+
+instance ToJSON DisplayInfo where
+  toJSON (Info_CompilationOk warnings errors) = object
+    [ "kind"        .= String "CompilationOk"
+    , "warnings"    .= warnings
+    , "errors"      .= errors
+    ]
+  toJSON (Info_Constraints constraints) = object
+    [ "kind"        .= String "Constraints"
+    , "constraints" .= constraints
+    ]
+  toJSON (Info_AllGoalsWarnings goals warnings errors) = object
+    [ "kind"        .= String "AllGoalsWarnings"
+    , "goals"       .= goals
+    , "warnings"    .= warnings
+    , "errors"      .= errors
+    ]
+  toJSON (Info_Time doc) = object [ "kind" .= String "Time", "payload" .= render doc ]
+  toJSON (Info_Error msg) = object [ "kind" .= String "Error", "payload" .= msg ]
+  toJSON (Info_Intro doc) = object [ "kind" .= String "Intro", "payload" .= render doc ]
+  toJSON (Info_Auto msg) = object [ "kind" .= String "Auto", "payload" .= msg ]
+  toJSON (Info_ModuleContents doc) = object [ "kind" .= String "ModuleContents", "payload" .= render doc ]
+  toJSON (Info_SearchAbout doc) = object [ "kind" .= String "SearchAbout", "payload" .= render doc ]
+  toJSON (Info_WhyInScope doc) = object [ "kind" .= String "WhyInScope", "payload" .= render doc ]
+  toJSON (Info_NormalForm doc) = object [ "kind" .= String "NormalForm", "payload" .= render doc ]
+  toJSON (Info_GoalType doc) = object [ "kind" .= String "GoalType", "payload" .= render doc ]
+  toJSON (Info_CurrentGoal doc) = object [ "kind" .= String "CurrentGoal", "payload" .= render doc ]
+  toJSON (Info_InferredType doc) = object [ "kind" .= String "InferredType", "payload" .= render doc ]
+  toJSON (Info_Context doc) = object [ "kind" .= String "Context", "payload" .= render doc ]
+  toJSON (Info_HelperFunction doc) = object [ "kind" .= String "HelperFunction", "payload" .= render doc ]
+  toJSON Info_Version = object [ "kind" .= String "Version" ]
 
 -- | Convert Response to an JSON value for interactive editor frontends.
-jsonifyResponse :: Response -> IO [ByteString]
-jsonifyResponse response = return [encode response]
-
-
--- jsonifyResponse :: Response -> IO [ByteString]
--- jsonifyResponse (Resp_HighlightingInfo info remove method modFile) = return [BS.pack "Resp_HighlightingInfo"]
--- jsonifyResponse (Resp_DisplayInfo info) = return [BS.pack "Resp_DisplayInfo"]
---
---  -- $ case info of
---  --    Info_CompilationOk w e -> f body "*Compilation result*"
---  --      where (body, _) = formatWarningsAndErrors "The module was successfully compiled.\n" w e -- abusing the goals field since we ignore the title
---  --    Info_Constraints s -> f s "*Constraints*"
---  --    Info_AllGoalsWarnings g w e -> f body ("*All" ++ title ++ "*")
---  --      where (body, title) = formatWarningsAndErrors g w e
---  --    Info_Auto s -> f s "*Auto*"
---  --    Info_Error s -> f s "*Error*"
---  --    -- FNF: if Info_Warning comes back into use, the above should be
---  --    -- clearWarning : f s "*Error*"
---  --    --Info_Warning s -> [ display_warning "*Errors*" s ] -- FNF: currently unused
---  --    Info_Time s -> f (render s) "*Time*"
---  --    Info_NormalForm s -> f (render s) "*Normal Form*"   -- show?
---  --    Info_InferredType s -> f (render s) "*Inferred Type*"
---  --    Info_CurrentGoal s -> f (render s) "*Current Goal*"
---  --    Info_GoalType s -> f (render s) "*Goal type etc.*"
---  --    Info_ModuleContents s -> f (render s) "*Module contents*"
---  --    Info_SearchAbout s -> f (render s) "*Search About*"
---  --    Info_WhyInScope s -> f (render s) "*Scope Info*"
---  --    Info_Context s -> f (render s) "*Context*"
---  --    Info_HelperFunction s -> [ L [ A "agda2-info-action-and-copy"
---  --                                 , A $ quote "*Helper function*"
---  --                                 , A $ quote (render s ++ "\n")
---  --                                 , A "nil"
---  --                                 ]
---  --                             ]
---  --    Info_Intro s -> f (render s) "*Intro*"
---  --    Info_Version -> f ("Agda version " ++ versionWithCommitInfo) "*Agda Version*"
--- jsonifyResponse (Resp_ClearHighlighting tokenBased) = return [BS.pack "Resp_ClearHighlighting"]
--- jsonifyResponse Resp_DoneAborting = return [BS.pack "Resp_DoneAborting"]
--- jsonifyResponse Resp_ClearRunningInfo = return [BS.pack "Resp_ClearRunningInfo"]
--- jsonifyResponse (Resp_RunningInfo n s) = return [BS.pack "Resp_RunningInfo"]
--- jsonifyResponse (Resp_Status s) = return [BS.pack "Resp_Status"]
--- jsonifyResponse (Resp_JumpToError f p) = return [BS.pack "Resp_JumpToError"]
--- jsonifyResponse (Resp_InteractionPoints is) = return [BS.pack "Resp_InteractionPoints"]
--- jsonifyResponse (Resp_GiveAction ii s) = return [BS.pack "Resp_GiveAction"]
--- jsonifyResponse (Resp_MakeCase variant pcs) = return [BS.pack "Resp_MakeCase"]
--- jsonifyResponse (Resp_SolveAll ps) = return [BS.pack "Resp_SolveAll"]
-
-
--- | Convert Response to an elisp value for the interactive emacs frontend.
-
-lispifyResponse :: Response -> IO [Lisp String]
-lispifyResponse (Resp_HighlightingInfo info remove method modFile) =
-  (:[]) <$> lispifyHighlightingInfo info remove method modFile
-lispifyResponse (Resp_DisplayInfo info) = return $ case info of
-    Info_CompilationOk w e -> f body "*Compilation result*"
-      where (body, _) = formatWarningsAndErrors "The module was successfully compiled.\n" w e -- abusing the goals field since we ignore the title
-    Info_Constraints s -> f s "*Constraints*"
-    Info_AllGoalsWarnings g w e -> f body ("*All" ++ title ++ "*")
-      where (body, title) = formatWarningsAndErrors g w e
-    Info_Auto s -> f s "*Auto*"
-    Info_Error s -> f s "*Error*"
-    -- FNF: if Info_Warning comes back into use, the above should be
-    -- clearWarning : f s "*Error*"
-    --Info_Warning s -> [ display_warning "*Errors*" s ] -- FNF: currently unused
-    Info_Time s -> f (render s) "*Time*"
-    Info_NormalForm s -> f (render s) "*Normal Form*"   -- show?
-    Info_InferredType s -> f (render s) "*Inferred Type*"
-    Info_CurrentGoal s -> f (render s) "*Current Goal*"
-    Info_GoalType s -> f (render s) "*Goal type etc.*"
-    Info_ModuleContents s -> f (render s) "*Module contents*"
-    Info_SearchAbout s -> f (render s) "*Search About*"
-    Info_WhyInScope s -> f (render s) "*Scope Info*"
-    Info_Context s -> f (render s) "*Context*"
-    Info_HelperFunction s -> [ L [ A "agda2-info-action-and-copy"
-                                 , A $ quote "*Helper function*"
-                                 , A $ quote (render s ++ "\n")
-                                 , A "nil"
-                                 ]
-                             ]
-    Info_Intro s -> f (render s) "*Intro*"
-    Info_Version -> f ("Agda version " ++ versionWithCommitInfo) "*Agda Version*"
-  where f content bufname = [ display_info' False bufname content ]
-lispifyResponse (Resp_ClearHighlighting tokenBased) =
-  return [ L $ A "agda2-highlight-clear" :
-               case tokenBased of
-                 NotOnlyTokenBased -> []
-                 TokenBased        ->
-                   [ Q (lispifyTokenBased tokenBased) ]
-         ]
-lispifyResponse Resp_DoneAborting = return [ L [ A "agda2-abort-done" ] ]
-lispifyResponse Resp_ClearRunningInfo = return [ clearRunningInfo ]
--- FNF: if Info_Warning comes back into use, the above should be
--- return [ clearRunningInfo, clearWarning ]
-lispifyResponse (Resp_RunningInfo n s)
-  | n <= 1    = return [ displayRunningInfo s ]
-  | otherwise = return [ L [A "agda2-verbose", A (quote s)] ]
-lispifyResponse (Resp_Status s)
-    = return [ L [ A "agda2-status-action"
-                 , A (quote $ List.intercalate "," $ catMaybes [checked, showImpl])
-                 ]
-             ]
-  where
-    checked  = boolToMaybe (sChecked               s) "Checked"
-    showImpl = boolToMaybe (sShowImplicitArguments s) "ShowImplicit"
-
-lispifyResponse (Resp_JumpToError f p) = return
-  [ lastTag 3 $
-      L [ A "agda2-maybe-goto", Q $ L [A (quote f), A ".", A (show p)] ]
+jsonifyResponse :: Response -> IO ByteString
+jsonifyResponse (Resp_HighlightingInfo info remove method modFile) =
+   encode <$> jsonifyHighlightingInfo info remove method modFile
+jsonifyResponse (Resp_DisplayInfo info) = return $ encode $ object
+  [ "kind" .= String "DisplayInfo"
+  , "info" .= info
   ]
-lispifyResponse (Resp_InteractionPoints is) = return
-  [ lastTag 1 $
-      L [A "agda2-goals-action", Q $ L $ map showNumIId is]
+jsonifyResponse (Resp_ClearHighlighting tokenBased) = return $ encode $ object
+  [ "kind"          .= String "ClearHighlighting"
+  , "tokenBased"    .= tokenBased
   ]
-lispifyResponse (Resp_GiveAction ii s)
-    = return [ L [ A "agda2-give-action", showNumIId ii, A s' ] ]
-  where
-    s' = case s of
-        Give_String str -> quote str
-        Give_Paren      -> "'paren"
-        Give_NoParen    -> "'no-paren"
-lispifyResponse (Resp_MakeCase variant pcs) = return
-  [ lastTag 2 $ L [ A cmd, Q $ L $ map (A . quote) pcs ] ]
-  where
-  cmd = case variant of
-    R.Function       -> "agda2-make-case-action"
-    R.ExtendedLambda -> "agda2-make-case-action-extendlam"
-lispifyResponse (Resp_SolveAll ps) = return
-  [ lastTag 2 $
-      L [ A "agda2-solveAll-action", Q . L $ concatMap prn ps ]
+jsonifyResponse Resp_DoneAborting = return $ encode $ object [ "kind" .= String "DoneAborting" ]
+jsonifyResponse Resp_ClearRunningInfo = return $ encode $ object [ "kind" .= String "ClearRunningInfo" ]
+jsonifyResponse (Resp_RunningInfo debugLevel msg) = return $ encode $ object
+  [ "kind"          .= String "RunningInfo"
+  , "debugLevel"    .= debugLevel
+  , "message"       .= msg
+  ]
+jsonifyResponse (Resp_Status status) = return $ encode $ object
+  [ "kind"          .= String "Status"
+  , "status"        .= status
+  ]
+jsonifyResponse (Resp_JumpToError filepath position) = return $ encode $ object
+  [ "kind"          .= String "JumpToError"
+  , "filepath"      .= filepath
+  , "position"      .= position
+  ]
+jsonifyResponse (Resp_InteractionPoints interactionPoints) = return $ encode $ object
+  [ "kind"              .= String "InteractionPoints"
+  , "interactionPoints" .= interactionPoints
+  ]
+jsonifyResponse (Resp_GiveAction i giveResult) = return $ encode $ object
+  [ "kind"              .= String "GiveAction"
+  , "interactionPoint"  .= i
+  , "giveResult"        .= giveResult
+  ]
+jsonifyResponse (Resp_MakeCase variant clauses) = return $ encode $ object
+  [ "kind"          .= String "MakeCase"
+  , "variant"       .= variant
+  , "clauses"       .= clauses
+  ]
+jsonifyResponse (Resp_SolveAll solutions) = return $ encode $ object
+  [ "kind"          .= String "SolveAll"
+  , "solutions"     .= map encodeSolution solutions
   ]
   where
-    prn (ii,e)= [showNumIId ii, A $ quote $ show e]
-
--- | Adds a \"last\" tag to a response.
-
-lastTag :: Integer -> Lisp String -> Lisp String
-lastTag n r = Cons (Cons (A "last") (A $ show n)) r
-
--- | Show an iteraction point identifier as an elisp expression.
-
-showNumIId :: InteractionId -> Lisp String
-showNumIId = A . tail . show
+    encodeSolution (i, expr) = object
+      [ "interactionPoint"  .= i
+      , "expression"        .= show expr
+      ]

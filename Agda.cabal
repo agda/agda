@@ -259,6 +259,7 @@ library
                     Agda.Interaction.Highlighting.Emacs
                     Agda.Interaction.Highlighting.Generate
                     Agda.Interaction.Highlighting.HTML
+                    Agda.Interaction.Highlighting.JSON
                     Agda.Interaction.Highlighting.Precise
                     Agda.Interaction.Highlighting.Range
                     Agda.Interaction.Highlighting.Vim
