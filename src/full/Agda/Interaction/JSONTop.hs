@@ -1,10 +1,16 @@
 -- {-# LANGUAGE CPP #-}
+{-# LANGUAGE OverloadedStrings #-}
+
 
 module Agda.Interaction.JSONTop
     ( jsonREPL
     ) where
 import Control.Monad.State
 
+import Data.Aeson hiding (Result(..))
+-- import qualified Data.Aeson as JSON
+import Data.ByteString.Lazy (ByteString)
+import qualified Data.ByteString.Lazy.Char8 as BS
 import Data.Char
 import qualified Data.List as List
 import Data.Maybe
@@ -47,7 +53,7 @@ jsonREPL setup = do
       hSetEncoding  stdin  utf8
 
     setInteractionOutputCallback $
-        mapM_ print <=< lispifyResponse
+        mapM_ BS.putStrLn <=< jsonifyResponse
 
     commands <- liftIO $ initialiseCommandQueue readCommand
 
@@ -118,6 +124,70 @@ formatWarningsAndErrors g w e = (body, title)
              , delimiter "Errors"   <$ guard (isE && (isG || isW))
              , e                    <$ guard isE
              ]
+
+instance ToJSON Response where
+  toJSON (Resp_HighlightingInfo info remove method modFile) = object ["kind" .= ("HighlightingInfo" :: String)]
+  toJSON (Resp_DisplayInfo info) = object ["kind" .= ("Resp_DisplayInfo" :: String)]
+  toJSON (Resp_ClearHighlighting tokenBased) = object ["kind" .= ("Resp_ClearHighlighting" :: String)]
+  toJSON Resp_DoneAborting = object ["kind" .= ("Resp_DoneAborting" :: String)]
+  toJSON Resp_ClearRunningInfo = object ["kind" .= ("Resp_ClearRunningInfo" :: String)]
+  toJSON (Resp_RunningInfo n s) = object ["kind" .= ("Resp_RunningInfo" :: String)]
+  toJSON (Resp_Status s) = object ["kind" .= ("Resp_Status" :: String)]
+  toJSON (Resp_JumpToError f p) = object ["kind" .= ("Resp_JumpToError" :: String)]
+  toJSON (Resp_InteractionPoints is) = object ["kind" .= ("Resp_InteractionPoints" :: String)]
+  toJSON (Resp_GiveAction ii s) = object ["kind" .= ("Resp_GiveAction" :: String)]
+  toJSON (Resp_MakeCase variant pcs) = object ["kind" .= ("Resp_MakeCase" :: String)]
+  toJSON (Resp_SolveAll ps) = object ["kind" .= ("Resp_SolveAll" :: String)]
+
+
+-- | Convert Response to an JSON value for interactive editor frontends.
+jsonifyResponse :: Response -> IO [ByteString]
+jsonifyResponse response = return [encode response]
+
+
+-- jsonifyResponse :: Response -> IO [ByteString]
+-- jsonifyResponse (Resp_HighlightingInfo info remove method modFile) = return [BS.pack "Resp_HighlightingInfo"]
+-- jsonifyResponse (Resp_DisplayInfo info) = return [BS.pack "Resp_DisplayInfo"]
+--
+--  -- $ case info of
+--  --    Info_CompilationOk w e -> f body "*Compilation result*"
+--  --      where (body, _) = formatWarningsAndErrors "The module was successfully compiled.\n" w e -- abusing the goals field since we ignore the title
+--  --    Info_Constraints s -> f s "*Constraints*"
+--  --    Info_AllGoalsWarnings g w e -> f body ("*All" ++ title ++ "*")
+--  --      where (body, title) = formatWarningsAndErrors g w e
+--  --    Info_Auto s -> f s "*Auto*"
+--  --    Info_Error s -> f s "*Error*"
+--  --    -- FNF: if Info_Warning comes back into use, the above should be
+--  --    -- clearWarning : f s "*Error*"
+--  --    --Info_Warning s -> [ display_warning "*Errors*" s ] -- FNF: currently unused
+--  --    Info_Time s -> f (render s) "*Time*"
+--  --    Info_NormalForm s -> f (render s) "*Normal Form*"   -- show?
+--  --    Info_InferredType s -> f (render s) "*Inferred Type*"
+--  --    Info_CurrentGoal s -> f (render s) "*Current Goal*"
+--  --    Info_GoalType s -> f (render s) "*Goal type etc.*"
+--  --    Info_ModuleContents s -> f (render s) "*Module contents*"
+--  --    Info_SearchAbout s -> f (render s) "*Search About*"
+--  --    Info_WhyInScope s -> f (render s) "*Scope Info*"
+--  --    Info_Context s -> f (render s) "*Context*"
+--  --    Info_HelperFunction s -> [ L [ A "agda2-info-action-and-copy"
+--  --                                 , A $ quote "*Helper function*"
+--  --                                 , A $ quote (render s ++ "\n")
+--  --                                 , A "nil"
+--  --                                 ]
+--  --                             ]
+--  --    Info_Intro s -> f (render s) "*Intro*"
+--  --    Info_Version -> f ("Agda version " ++ versionWithCommitInfo) "*Agda Version*"
+-- jsonifyResponse (Resp_ClearHighlighting tokenBased) = return [BS.pack "Resp_ClearHighlighting"]
+-- jsonifyResponse Resp_DoneAborting = return [BS.pack "Resp_DoneAborting"]
+-- jsonifyResponse Resp_ClearRunningInfo = return [BS.pack "Resp_ClearRunningInfo"]
+-- jsonifyResponse (Resp_RunningInfo n s) = return [BS.pack "Resp_RunningInfo"]
+-- jsonifyResponse (Resp_Status s) = return [BS.pack "Resp_Status"]
+-- jsonifyResponse (Resp_JumpToError f p) = return [BS.pack "Resp_JumpToError"]
+-- jsonifyResponse (Resp_InteractionPoints is) = return [BS.pack "Resp_InteractionPoints"]
+-- jsonifyResponse (Resp_GiveAction ii s) = return [BS.pack "Resp_GiveAction"]
+-- jsonifyResponse (Resp_MakeCase variant pcs) = return [BS.pack "Resp_MakeCase"]
+-- jsonifyResponse (Resp_SolveAll ps) = return [BS.pack "Resp_SolveAll"]
+
 
 -- | Convert Response to an elisp value for the interactive emacs frontend.
 
