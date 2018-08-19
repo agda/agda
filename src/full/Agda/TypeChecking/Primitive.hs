@@ -758,8 +758,6 @@ primHComp' = do
           nPi' "φ" (elInf $ cl primInterval) $ \ phi ->
           (nPi' "i" (elInf $ cl primInterval) $ \ i -> pPi' "o" phi $ \ _ -> el' a bA) -->
           (el' a bA --> el' a bA)
-  one <- primItIsOne
-  tempty <- primIsOneEmpty
   return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 5 $ \ ts nelims -> do
     primTransHComp DoHComp ts nelims
 
@@ -864,7 +862,8 @@ primTransHComp cmd ts nelims = do
                                                (as ++ [ignoreBlocking sphi,fromMaybe __IMPOSSIBLE__ u,u0])
 
                          | Just as <- allApplyElims es, [] <- recFields r -> compData (recPars r) cmd l (as <$ t) sbA sphi u u0
-                     Datatype{dataPars = pars} | Just as <- allApplyElims es -> compData pars cmd l (as <$ t) sbA sphi u u0
+                     Datatype{dataPars = pars, dataPathCons = pcons}
+                       | null pcons, Just as <- allApplyElims es -> compData pars cmd l (as <$ t) sbA sphi u u0
                      _          -> fallback
 
                  _ -> fallback
