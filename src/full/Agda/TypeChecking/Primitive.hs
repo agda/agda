@@ -1053,7 +1053,7 @@ primTransHComp cmd ts nelims = do
       glam (getArgInfo (fst $ famThing ab)) (absName $ snd $ famThing ab) $ \ u1 -> do
         case (cmd, ab, u) of
           (DoHComp, IsNot (a , b), Just u) -> do
-            bT <- (b `absApp`) <$> u1
+            bT <- (raise 1 b `absApp`) <$> u1
             let v = u1
             pure tHComp <#> (pure $ Level . toLevel . getSort $ bT)
                         <@> (pure $ unEl                      $ bT)
