@@ -852,12 +852,12 @@ primTransHComp cmd ts nelims = do
                    let   lam_i = Lam defaultArgInfo . Abs "i"
 
                    case theDef info of
-                     r@Record{recComp = kit} | Just as <- allApplyElims es, DoTransp <- cmd, Just transpR <- nameOfTransp kit
+                     r@Record{recComp = kit} | nelims > 0, Just as <- allApplyElims es, DoTransp <- cmd, Just transpR <- nameOfTransp kit
                                 -> if recPars r == 0
                                    then redReturn $ unArg u0
                                    else redReturn $ (Def transpR []) `apply`
                                                (map (fmap lam_i) as ++ [ignoreBlocking sphi,u0])
-                         | Just as <- allApplyElims es, DoHComp <- cmd, Just hCompR <- nameOfHComp kit
+                         | nelims > 0, Just as <- allApplyElims es, DoHComp <- cmd, Just hCompR <- nameOfHComp kit
                                 -> redReturn $ (Def hCompR []) `apply`
                                                (as ++ [ignoreBlocking sphi,fromMaybe __IMPOSSIBLE__ u,u0])
 
@@ -1348,7 +1348,7 @@ primComp = do
                  Def q es -> do
                    info <- getConstInfo q
                    case theDef info of
-                     Record{recComp = CompKit{nameOfComp = Just compR}} | Just as <- allApplyElims es
+                     Record{recComp = CompKit{nameOfComp = Just compR}} | nelims > 0, Just as <- allApplyElims es
                                 -> redReturn $ (Def compR []) `apply`
                                                (map (fmap lam_i) as ++ [ignoreBlocking sphi,u,a0])
                      Record{recComp = CompKit{nameOfComp = Nothing}, recFields = []}
