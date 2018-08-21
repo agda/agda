@@ -27,7 +27,7 @@ General options
       For use with the Emacs mode (no need to invoke
       yourself)
 
-:samp:`--interaction`
+:samp:`--interaction-json`
     For use with other editors such as Atom (no need to invoke
     yourself)
 
