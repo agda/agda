@@ -120,13 +120,20 @@ instance Subst SplitPattern SplitPattern where
     DefP o q ps -> DefP o q $ applySubst rho ps
     LitP x       -> p
     ProjP{}      -> p
-    IApplyP o _ _ x  ->
+    IApplyP o l r x  ->
+      useEndPoints (applySplitPSubst rho l) (applySplitPSubst rho r) $
       usePatOrigin o $
       useName (splitPatVarName x) $
       useExcludedLits (splitExcludedLits x) $
       lookupS rho $ splitPatVarIndex x
 
     where
+      -- see Subst for DeBruijnPattern
+      useEndPoints :: Term -> Term -> SplitPattern -> SplitPattern
+      useEndPoints l r (VarP o x)        = IApplyP o l r x
+      useEndPoints l r (IApplyP o _ _ x) = IApplyP o l r x
+      useEndPoints l r x                 = __IMPOSSIBLE__
+
       useName :: PatVarName -> SplitPattern -> SplitPattern
       useName n (VarP o x)
         | isUnderscore (splitPatVarName x)

@@ -476,9 +476,14 @@ telView'Path = telView'UpToPath (-1)
 isPath :: Type -> TCM (Maybe (Dom Type, Abs Type))
 isPath t = either Just (const Nothing) <$> pathViewAsPi t
 
-telePatterns :: (DeBruijn a, DeBruijn (Pattern' a)) => Telescope -> Boundary -> [NamedArg (Pattern' a)]
-telePatterns tel [] = teleNamedArgs tel
-telePatterns tel boundary = recurse $ teleNamedArgs tel
+telePatterns :: (DeBruijn a, DeBruijn (Pattern' a)) =>
+                 Telescope -> Boundary -> [NamedArg (Pattern' a)]
+telePatterns = telePatterns' teleNamedArgs
+
+telePatterns' :: (DeBruijn a, DeBruijn (Pattern' a)) =>
+                (forall a. (DeBruijn a) => Telescope -> [NamedArg a]) -> Telescope -> Boundary -> [NamedArg (Pattern' a)]
+telePatterns' f tel [] = f tel
+telePatterns' f tel boundary = recurse $ f tel
   where
     recurse = (fmap . fmap . fmap) updateVar
     matchVar x =
