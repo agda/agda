@@ -27,7 +27,7 @@ import Agda.VersionCommit
 --   interprets them, and outputs JSON-encoded strings. into stdout.
 
 jsonREPL :: TCM () -> TCM ()
-jsonREPL = repl (BS.putStrLn <=< jsonifyResponse) "JSON> "
+jsonREPL = repl (liftIO . BS.putStrLn <=< liftIO . jsonifyResponse) "JSON> "
 
 instance ToJSON Status where
   toJSON status = object
