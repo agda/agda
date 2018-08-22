@@ -1,3 +1,3 @@
-Error: Choose at most one: input file or --interaction.
+Error: Choose at most one: input file, --interactive, or --interaction-json.
 
 Run 'agda --help' for help on command line options.
