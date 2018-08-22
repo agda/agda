@@ -59,6 +59,7 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Telescope
+import Agda.TypeChecking.Telescope.Path
 import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.Warnings
 
@@ -429,25 +430,106 @@ createMissingHCompClause
   :: QName
        -- ^ Function name.
   -> Arg Nat -- ^ index of hcomp pattern
-  -> BlockingVar
+  -> BlockingVar -- ^ Blocking var that lead to hcomp split.
   -> SplitClause -- ^ Clause before the hcomp split
   -> SplitClause
-       -- ^ Clause to add.  Clause hiding (in 'clauseType') must be 'Instance'.
+       -- ^ Clause to add.
    -> TCM Clause
 createMissingHCompClause f n x old_sc (SClause tel ps sigma' cps (Just t)) = setCurrentRange f $ do
   reportSDoc "tc.cover.hcomp" 20 $ addContext tel $ text "Trying to create right-hand side of type" <+> prettyTCM t
+  reportSDoc "tc.cover.hcomp" 30 $ addContext tel $ text "ps = " <+> text (show (fromSplitPatterns ps))
+  reportSDoc "tc.cover.hcomp" 30 $ text "tel = " <+> prettyTCM tel
+
+  io      <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinIOne
+  iz      <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinIZero
+
   let old_ps = patternsToElims $ fromSplitPatterns $ scPats old_sc
       old_t  = fromJust $ scTarget old_sc
-      sigma = fromPatternSubstitution . fromSplitPSubst $ sigma'
-      replaceS x v sigma = [lookupS sigma j | j <- [0..i-1]] ++# (v `consS` rho1)
-        where
-          i = blockingVarNo x
-          (rho1,_rho2) = splitS (i+1) sigma
+      old_tel = scTel old_sc
+      -- old_tel = Γ(x:H)Δ
+      -- Γ(x:H)Δ ⊢ old_t
+      -- vs = iApplyVars old_ps
+      -- [ α ⇒ b ] = [(i,f old_ps (i=0),f old_ps (i=1)) | i <- vs]
+      -- Γ(x:H)(δ : Δ) ⊢ [ α ⇒ b ] = [ α0 ⇒ b0 x δ, α1 ⇒ b1 ]
+      -- Γ(x:H)Δ ⊢ f old_ps : old_t [ α ⇒ b ]
+      -- Γ ⊢ d = λ x δ. f old_ps : (x : H) → {Δ → old_t}[ α1 ⇒ b1 ] -- actual Pi/Path type here.
+      -- Γ, α0 ⊢ b0 : (x : H) → {Δ → old_t}[ α1 → b1 ]
+      -- Γ, α0 ⊢ b0 = d
+      -- Γ,φ,u,u0 ⊢ comp (\ i. {Δ → old_t}[ α1 → b1 ](x = hfill φ u u0 i))
+      --                 (\ i.  [ φ  ↦ d (hfill φ u u0 i)    {- = d (u i) -}
+      --                          α0 ↦ b0 (hfill φ u u0 i)
+      --                        ])
+      --                 (d u0)
+      -- Γ ⊢ λ (x : H) (δ : Δ). f old_ps : (δ : Δ) -> old_t|β
+      -- Γ,φ,u,u0 ⊢ rhs_we_define : ({Δ → old_t}[α1 → b1](x = hcomp φ u u0))[ α0 ⇒ b0 (hcomp φ u u0) ]
+
+      -- Extra assumption:
+      -- tel = Γ,φ,u,u0,Δ(x = hcomp φ u u0),Δ'
+      -- ps = old_ps[x = hcomp φ u u0],ps'
+      -- with Δ' and ps' introduced by fixTarget.
+      -- So final clause will be:
+      -- tel ⊢ ps ↦ rhs_we_define{wkS ..} ps'
+      getLevel t = do
+        s <- reduce $ getSort t
+        case s of
+          Type l -> pure (Level l)
+          s      -> do
+            reportSDoc "tc.cover.hcomp" 20 $ text "getLevel, s = " <+> prettyTCM s
+            reportSDoc "tc.cover.hcomp" 40 $ text "getLevel, s = " <+> text (show s)
+            typeError . GenericError . show =<<
+                    (text "The result type is non-fibrant when generating hcomp clause:" <+> prettyTCM t)
+                    -- Andrea TODO better error message.
+      (gamma,hdelta@(ExtendTel hdom _)) = splitTelescopeAt (size old_tel - (blockingVarNo x + 1)) old_tel
+
+      -- Andrea TODO remove repetition, see other iApplyVars impl.
+      iApplyVars :: [NamedArg SplitPattern] -> [Int]
+      iApplyVars ps = flip concatMap (map namedArg ps) $ \case
+                             IApplyP _ t u x -> [splitPatVarIndex x]
+                             VarP{} -> []
+                             ProjP{}-> []
+                             LitP{} -> []
+                             DotP{} -> []
+                             DefP _ _ ps -> iApplyVars ps
+                             ConP _ _ ps -> iApplyVars ps
+
+      vs = iApplyVars (scPats old_sc)
+  alphab_1 <- forM (filter (< size hdelta) vs) $ \ i -> do
+               let
+                 tm = Def f old_ps
+                 (_,rest) = splitTelescopeAt (size hdelta - i) hdelta
+               -- Γ,(x:H).Δ0,(i:I).rest ⊢ tm
+               -- Γ,(x:H).Δ0.rest ⊢ subst i b tm
+               -- Γ,(x:H).Δ0 ⊢ abstract rest $ subst i b tm
+               -- TODO only reduce IApply _ _ (0/1), as to avoid termination problems
+               (l,r) <- reduce (subst i iz tm, subst i io tm)
+               return $ (var i, (abstract rest l, abstract rest r))
+
+  -- Γ ⊢ [ α0 → b0 ] : (x : H) → {Δ → old_t}[ α1 → b1 ]
+  alphab_0 <- forM (filter (> size hdelta) vs) $ \ i -> do
+               let
+                 tm = Def f old_ps
+                 absd = abstract hdelta
+                 j = i - size hdelta
+               -- Γ,(x:H).Δ ⊢ tm
+               -- Γ ⊢ abstract hdelta tm
+               -- TODO only reduce IApply _ _ (0/1), it's to avoid termination problems anyway
+               -- though right now we are just not termination checking this clause.
+               (l,r) <- reduce $ ( inplaceS i iz `applySubst` tm
+                                 , inplaceS i io `applySubst` tm)
+               return (var j, (absd l, absd r))
+
+  -- Γ,(x:H),Δ ⊢ old_t,  Γ ⊢ [α1 → b1] : ..
+  -- Γ ⊢ (x : H) -> {Δ}[α1 → b1]
+  hdelta_type <- telePiPath id hdelta (unArg old_t) alphab_1
+
   cl <- do
-    rhs <- do
-      let p = sigma `applySubst` var (blockingVarNo x)
-      case p of
-        Def hc es | Just [lvl,htype,phi,u,u0] <- allApplyElims es -> runNamesT [] $ do
+    (ty,rhs) <- do
+      -- Γ,φ,u,u0 ⊢ comp (\ i. {Δ}[ α1 → b1 ](x = hfill φ u u0 i))
+      --                 (\ i.  [ φ  ↦ d (hfill φ u u0 i)     = d (u i)
+      --                          α0 ↦ b0 (hfill φ u u0 i)
+      --                        ])
+      --                 (d u0)
+      runNamesT [] $ do
           cxt <- currentCxt
           tPOr <- fromMaybe __IMPOSSIBLE__ <$> getTerm' "primPOr"
           tIMax <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinIMax
@@ -455,13 +537,13 @@ createMissingHCompClause f n x old_sc (SClause tel ps sigma' cps (Just t)) = set
           tINeg <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinINeg
           tHComp <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinHComp
           tTrans <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinTrans
-          io      <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinIOne
-          iz      <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinIZero
           extra_ps <- open $ patternsToElims $ fromSplitPatterns $ drop (length old_ps) ps
+          let
+            ineg j = pure tINeg <@> j
+            imax i j = pure tIMax <@> i <@> j
+            imin i j = pure tIMin <@> i <@> j
+
           comp <- do
-            let
-              ineg j = pure tINeg <@> j
-              imax i j = pure tIMax <@> i <@> j
             let forward la bA r u = pure tTrans <#> (lam "i" $ \ i -> la <@> (i `imax` r))
                                               <@> (lam "i" $ \ i -> bA <@> (i `imax` r))
                                               <@> r
@@ -474,47 +556,75 @@ createMissingHCompClause f n x old_sc (SClause tel ps sigma' cps (Just t)) = set
           let
             hfill la bA phi u u0 i = pure tHComp <#> la <@> bA
                                                <@> (pure tIMax <@> phi <@> (pure tINeg <@> i))
-                                               <@> (lam "j" $ \ j -> pure tPOr <#> la <@> phi <@> (pure tINeg <@> i) <@> (ilam "o" $ \ _ -> bA)
+                                               <@> (lam "j" $ \ j -> pure tPOr <#> la <@> phi <@> (pure tINeg <@> i) <#> (ilam "o" $ \ _ -> bA)
                                                      <@> (ilam "o" $ \ o -> u <@> (pure tIMin <@> i <@> j) <..> o)
                                                      <@> (ilam "o" $ \ _ -> u0)
                                                    )
                                                <@> u0
-
-          [lvl,htype,phi,u,u0] <- mapM (open . unArg) [lvl,htype,phi,u,u0]
-          let call v = do
-                v <- v
-                rho <- cxtSubst cxt
-                extra <- extra_ps
-                return $ Def f $ (replaceS x v (rho `composeS` sigma) `applySubst` old_ps) ++ extra
+          (hdom,alphab_0) <- pure $ raise 3 (hdom,alphab_0)
+          [hdelta_type] <- mapM (open . raise 3) [hdelta_type]
+          -- Γ,φ,u,u0 ⊢
+          [phi,u,u0] <- mapM (open . var) [2,1,0]
+          htype <- open $ unEl . unDom $ hdom
+          lvl <- open =<< (lift . getLevel $ unDom hdom)
+          -- Γ,x,Δ ⊢ f old_ps
+          -- Γ ⊢ abstract hdelta (f old_ps)
+          d <- open $ raise 3 $ abstract hdelta (Def f old_ps)
+          let call v = d <@> v
           ty <- do
                 return $ \ i -> do
                     v <- hfill lvl htype phi u u0 i
-                    rho <- cxtSubst cxt
-                    Just extra <- allApplyElims <$> extra_ps
-                    let ty = (replaceS x v (rho `composeS` sigma) `applySubst` old_t)
-                    TelV _ b <- lift $ telViewUpToPath (length extra) (unArg ty)
-                    return $ parallelS (reverse (map unArg extra)) `applySubst` b
+                    hd <- hdelta_type
+                    lift $ piApplyM hd [Arg (domInfo hdom) v]
           let
-            computeSort x = do
-              x <- x
-              lift $ reduce $ getSort x
+            pOr la i j u0 u1 = pure tPOr <#> (lift . getLevel =<< la)        <@> i <@> j
+                                         <#> (ilam "o" $ \ _ -> unEl <$> la) <@> u0 <@> u1
+          -- Γ,φ,u,u0 ⊢ α0 : 𝔽
+          alpha0 <- do
+             vars <- mapM (open . fst) alphab_0
+             return $ foldr imax (pure iz) $ map (\ v -> v `imax` ineg v) vars
+
+          -- Γ,φ,u,u0 ⊢ b0 : (i : I) → [α0] -> {Δ → old_t}[ α1 → b1 ](x = hfill φ u u0 i)
+          b0 <- do
+             sides <- forM alphab_0 $ \ (psi,(t,u)) -> do
+                [psi,t,u] <- mapM open [psi,t,u]
+                return $ (ineg psi `imax` psi, \ i -> pOr (ty i) (ineg psi) psi (ilam "o" $ \ _ -> t <@> hfill lvl htype phi u u0 i)
+                                                            (ilam "o" $ \ _ -> u <@> hfill lvl htype phi u u0 i))
+             let recurse []           i = __IMPOSSIBLE__
+                 recurse [(psi,u)]    i = u i
+                 recurse ((psi,u):xs) i = pOr (ty i) psi (foldr imax (pure iz) (map fst xs)) (u i) (recurse xs i)
+             return $ recurse sides
+
           -- need to use comp and use a fill in the type
-          comp (lam "i" $ \ i -> Level . (\(Type s) -> s) <$> computeSort (ty i))
+          -- Γ,φ,u,u0 ⊢ comp (\ i. {Δ}[ α1 → b1 ](x = hfill φ u u0 i))
+          --                 (\ i.  [ φ  ↦ d (hfill φ u u0 i)     = d (u i)
+          --                          α0 ↦ b0 (hfill φ u u0 i)
+          --                        ])
+          --                 (d u0)
+          ((,) <$> ty (pure io) <*>) $ do
+            comp (lam "i" $ \ i -> lift . getLevel =<< ty i)
                (lam "i" $ \ i -> unEl <$> ty i)
-                           phi
-                           (lam "i" $ \ i -> lam "o" $ \ o -> call (u <@> i <..> o))
+                           (phi `imax` alpha0)
+                           (lam "i" $ \ i ->
+                               let rhs = (ilam "o" $ \ o -> call (u <@> i <..> o))
+                               in if null alphab_0 then rhs else
+                                   pOr (ty i) phi alpha0 rhs (b0 i)
+                           )
                            (call u0)
-        _ -> __IMPOSSIBLE__
+    let n = size tel - (size gamma + 3)
+    (TelV deltaEx t,bs) <- telViewUpToPathBoundary' n ty
+    rhs <- pure $ raise n rhs `applyE` teleElims deltaEx bs
+
     cxt <- getContextTelescope
     reportSDoc "tc.cover.hcomp" 30 $ text "cxt = " <+> prettyTCM cxt
-    reportSDoc "tc.cover.hcomp" 30 $ addContext tel $ text "ps = " <+> text (show (fromSplitPatterns ps))
     reportSDoc "tc.cover.hcomp" 20 $ addContext tel $ text "rhs = " <+> prettyTCM rhs
+
     return $ Clause { clauseLHSRange  = noRange
                     , clauseFullRange = noRange
                     , clauseTel       = tel
                     , namedClausePats = fromSplitPatterns ps
-                    , clauseBody      = Just rhs
-                    , clauseType      = Just t
+                    , clauseBody      = Just $ rhs
+                    , clauseType      = Just $ defaultArg t
                     , clauseCatchall  = False
                     , clauseUnreachable = Just False  -- missing, thus, not unreachable
                     }

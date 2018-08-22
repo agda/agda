@@ -450,10 +450,19 @@ termDef name = terSetCurrent name $ inConcreteOrAbstractMode name $ \ def -> do
 
       case theDef def of
         Function{ funClauses = cls, funDelayed = delayed } ->
-          terSetDelayed delayed $ forM' cls $ termClause
+          terSetDelayed delayed $ forM' cls $ \ cl -> do
+            if hasDefP (namedClausePats cl) -- generated hcomp clause, should be safe.
+                                            -- TODO find proper strategy.
+              then return empty
+              else termClause cl
 
         _ -> return empty
-
+  where
+    hasDefP :: [NamedArg DeBruijnPattern] -> Bool
+    hasDefP ps = getAny $ flip foldPattern ps $ \ (x :: DeBruijnPattern) ->
+                  case x of
+                    DefP{} -> Any True
+                    _      -> Any False
 -- | Mask arguments and result for termination checking
 --   according to type of function.
 --   Only arguments of types ending in data/record or Size are counted in.

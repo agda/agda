@@ -444,6 +444,7 @@ library
                     Agda.TypeChecking.Substitute.DeBruijn
                     Agda.TypeChecking.SyntacticEquality
                     Agda.TypeChecking.Telescope
+                    Agda.TypeChecking.Telescope.Path
                     Agda.TypeChecking.Unquote
                     Agda.TypeChecking.Warnings
                     Agda.TypeChecking.With
