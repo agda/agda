@@ -76,7 +76,10 @@ instance ToJSON DisplayInfo where
   toJSON (Info_InferredType doc) = object [ "kind" .= String "InferredType", "payload" .= render doc ]
   toJSON (Info_Context doc) = object [ "kind" .= String "Context", "payload" .= render doc ]
   toJSON (Info_HelperFunction doc) = object [ "kind" .= String "HelperFunction", "payload" .= render doc ]
-  toJSON Info_Version = object [ "kind" .= String "Version" ]
+  toJSON Info_Version = object
+    [ "kind" .= String "Version"
+    , "version" .= (("Agda version " ++ versionWithCommitInfo) :: String)
+    ]
 
 -- | Convert Response to an JSON value for interactive editor frontends.
 jsonifyResponse :: Response -> IO ByteString
