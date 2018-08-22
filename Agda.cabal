@@ -255,6 +255,7 @@ library
                     Agda.Interaction.EmacsTop
                     Agda.Interaction.JSONTop
                     Agda.Interaction.FindFile
+                    Agda.Interaction.Highlighting.Common
                     Agda.Interaction.Highlighting.Dot
                     Agda.Interaction.Highlighting.Emacs
                     Agda.Interaction.Highlighting.Generate

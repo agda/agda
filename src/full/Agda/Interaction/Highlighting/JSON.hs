@@ -5,52 +5,19 @@
 
 module Agda.Interaction.Highlighting.JSON (jsonifyHighlightingInfo) where
 
+import Agda.Interaction.Highlighting.Common
 import Agda.Interaction.Highlighting.Precise hiding (String)
-import Agda.Interaction.Highlighting.Range
-import Agda.Interaction.EmacsCommand
+import Agda.Interaction.Highlighting.Range (Range(..))
 import Agda.Interaction.Response
-import Agda.Syntax.Common
-import Agda.TypeChecking.Monad
-  (TCM, envHighlightingMethod, HighlightingMethod(..), ModuleToSource)
-import Agda.Utils.FileName
-import qualified Agda.Utils.IO.UTF8 as UTF8
-import Agda.Utils.String
+import Agda.TypeChecking.Monad (HighlightingMethod(..), ModuleToSource)
+import Agda.Utils.FileName (filePath)
 
-import qualified Control.Exception as E
-import Control.Monad.Reader
 import Data.Aeson
-import Data.ByteString.Lazy (ByteString)
 import qualified Data.ByteString.Lazy.Char8 as BS
-import Data.Char
 import qualified Data.Map as Map
-import Data.Maybe
-import Data.Monoid
-import qualified System.Directory as D
-import qualified System.IO as IO
 
 #include "undefined.h"
 import Agda.Utils.Impossible
-
-------------------------------------------------------------------------
--- Read/show functions
-
--- | Converts the 'aspect' and 'otherAspects' fields to atoms
-toAtoms :: Aspects -> [String]
-toAtoms m = map toAtom (otherAspects m) ++ toAtoms' (aspect m)
-  where
-  toAtom :: Show a => a -> String
-  toAtom = map toLower . show
-
-  kindToAtom (Constructor Inductive)   = "inductiveconstructor"
-  kindToAtom (Constructor CoInductive) = "coinductiveconstructor"
-  kindToAtom k                         = toAtom k
-
-  toAtoms' Nothing               = []
-  toAtoms' (Just (Name mKind op)) =
-    map kindToAtom (maybeToList mKind) ++ opAtom
-    where opAtom | op        = ["operator"]
-                 | otherwise = []
-  toAtoms' (Just a) = [toAtom a]
 
 -- | Encode meta information into a JSON Value
 showAspects
@@ -82,12 +49,10 @@ jsonifyHighlightingInfo
   -> ModuleToSource
      -- ^ Must contain a mapping for every definition site's module.
   -> IO Value
-jsonifyHighlightingInfo info remove method modFile = do
-  case ranges info of
-    _             | method == Direct                   -> direct
-    ((_, mi) : _) | otherAspects mi == [TypeChecks] ||
-                    mi == mempty                       -> direct
-    _                                                  -> indirect
+jsonifyHighlightingInfo info remove method modFile =
+  case chooseHighlightingMethod info method of
+    Direct   -> direct
+    Indirect -> indirect
   where
     result :: Value
     result = object
@@ -106,10 +71,7 @@ jsonifyHighlightingInfo info remove method modFile = do
 
     indirect :: IO Value
     indirect = do
-      dir      <- D.getTemporaryDirectory
-      filepath <- E.bracket (IO.openTempFile dir "agda2-mode") (IO.hClose . snd) $ \ (filepath, handle) -> do
-        UTF8.hPutStr handle (BS.unpack (encode result))
-        return filepath
+      filepath <- writeToTempFile (BS.unpack (encode result))
       return $ object
         [ "kind"     .= String "HighlightingInfo"
         , "direct"   .= False
