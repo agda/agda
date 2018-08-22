@@ -248,6 +248,7 @@ library
                     Agda.Compiler.Treeless.Uncase
                     Agda.Compiler.Treeless.Unused
                     Agda.ImpossibleTest
+                    Agda.Interaction.AgdaTop
                     Agda.Interaction.BasicOps
                     Agda.Interaction.SearchAbout
                     Agda.Interaction.CommandLine
