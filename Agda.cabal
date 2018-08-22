@@ -482,6 +482,7 @@ library
                     Agda.Utils.IO
                     Agda.Utils.IO.Binary
                     Agda.Utils.IO.Directory
+                    Agda.Utils.IO.TempFile
                     Agda.Utils.IO.UTF8
                     Agda.Utils.IORef
                     Agda.Utils.Lens

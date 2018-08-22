@@ -14,6 +14,7 @@ import Agda.Interaction.EmacsCommand
 import Agda.Interaction.Response
 import Agda.TypeChecking.Monad (HighlightingMethod(..), ModuleToSource)
 import Agda.Utils.FileName (filePath)
+import Agda.Utils.IO.TempFile (writeToTempFile)
 import Agda.Utils.String (quote)
 
 import qualified Data.Map as Map
