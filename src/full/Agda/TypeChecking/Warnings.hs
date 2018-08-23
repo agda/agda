@@ -5,7 +5,7 @@ module Agda.TypeChecking.Warnings where
 import qualified Data.Set as Set
 import qualified Data.List as List
 import Data.Maybe ( catMaybes )
-import Control.Monad (guard, forM_)
+import Control.Monad ( guard, forM, unless )
 
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Caching
@@ -62,11 +62,18 @@ warnings ws = do
         | onlyOnce w && elem tcwarn tcwarns = tcwarns -- Eq on TCWarning only checks head constructor
         | otherwise                         = tcwarn : tcwarns
 
-  forM_ (catMaybes $ applyWarningMode wmode <$> ws) $ \ w' -> do
+  -- We collect *all* of the warnings no matter whether they are in the @warningSet@
+  -- or not. If we find one which should be turned into an error, we keep processing
+  -- the rest of the warnings and *then* report all of the errors at once.
+  merrs <- forM ws $ \ w' -> do
     tcwarn <- warning_ w'
-    if wmode ^. warn2Error
-    then typeError $ NonFatalErrors [tcwarn]
-    else stTCWarnings %= add w' tcwarn
+    if wmode ^. warn2Error && warningName w' `elem` wmode ^. warningSet
+    then pure (Just tcwarn)
+    else Nothing <$ (stTCWarnings %= add w' tcwarn)
+
+  let errs = catMaybes merrs
+  unless (null errs) $ typeError $ NonFatalErrors errs
+
 
 {-# SPECIALIZE warning :: Warning -> TCM () #-}
 warning :: MonadTCM tcm => Warning -> tcm ()
