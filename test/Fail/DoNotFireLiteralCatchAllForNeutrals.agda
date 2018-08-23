@@ -2,7 +2,6 @@
 -- Testcase to ensure we do not fire catch all clause on neutrals in literal matching
 module DoNotFireLiteralCatchAllForNeutrals where
 
-postulate String : Set
 {-# BUILTIN STRING String #-}
 
 data ⊥ : Set where

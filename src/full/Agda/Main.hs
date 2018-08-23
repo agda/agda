@@ -201,7 +201,7 @@ optionError err = do
 runTCMPrettyErrors :: TCM () -> IO ()
 runTCMPrettyErrors tcm = do
     r <- runTCMTop $ tcm `catchError` \err -> do
-      s2s <- prettyTCWarnings' =<< Imp.errorWarningsOfTCErr err
+      s2s <- prettyTCWarnings' =<< Imp.getAllWarningsOfTCErr err
       s1  <- prettyError err
       let ss = filter (not . null) $ s2s ++ [s1]
       unless (null s1) (liftIO $ putStr $ unlines ss)

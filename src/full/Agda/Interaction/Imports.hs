@@ -894,13 +894,13 @@ getAllWarnings ww ifs = do
            then NoWarnings
            else SomeWarnings allWarnings
 
-errorWarningsOfTCErr :: TCErr -> TCM [TCWarning]
-errorWarningsOfTCErr err = case err of
+getAllWarningsOfTCErr :: TCErr -> TCM [TCWarning]
+getAllWarningsOfTCErr err = case err of
   TypeError tcst cls -> case clValue cls of
     NonFatalErrors{} -> return []
     _ -> localState $ do
       put tcst
-      ws <- getAllWarnings' ErrorWarnings RespectFlags
+      ws <- getAllWarnings' AllWarnings RespectFlags
       -- We filter out the unsolved(Metas/Constraints) to stay
       -- true to the previous error messages.
       return $ filter (not . isUnsolvedWarning . tcWarning) ws
