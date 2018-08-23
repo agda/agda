@@ -61,7 +61,7 @@ import Agda.Utils.Except
 
 import Agda.Utils.FileName      ( absolute, AbsolutePath, filePath )
 import Agda.Utils.Functor       ( (<&>) )
-import Agda.Utils.Lens          ( Lens' )
+import Agda.Utils.Lens          ( Lens', over )
 import Agda.Utils.List          ( groupOn, wordsBy )
 import Agda.Utils.Monad         ( ifM, readM )
 import Agda.Utils.String        ( indent )
@@ -401,7 +401,11 @@ ignoreInterfacesFlag :: Flag CommandLineOptions
 ignoreInterfacesFlag o = return $ o { optIgnoreInterfaces = True }
 
 allowUnsolvedFlag :: Flag PragmaOptions
-allowUnsolvedFlag o = return $ o { optAllowUnsolved = True }
+allowUnsolvedFlag o = do
+  let upd = over warningSet (Set.\\ unsolvedWarnings)
+  return $ o { optAllowUnsolved = True
+             , optWarningMode   = upd (optWarningMode o)
+             }
 
 showImplicitFlag :: Flag PragmaOptions
 showImplicitFlag o = return $ o { optShowImplicit = True }
@@ -448,10 +452,18 @@ latexDirFlag :: FilePath -> Flag CommandLineOptions
 latexDirFlag d o = return $ o { optLaTeXDir = d }
 
 noPositivityFlag :: Flag PragmaOptions
-noPositivityFlag o = return $ o { optDisablePositivity = True }
+noPositivityFlag o = do
+  let upd = over warningSet (Set.delete NotStrictlyPositive_)
+  return $ o { optDisablePositivity = True
+             , optWarningMode   = upd (optWarningMode o)
+             }
 
 dontTerminationCheckFlag :: Flag PragmaOptions
-dontTerminationCheckFlag o = return $ o { optTerminationCheck = False }
+dontTerminationCheckFlag o = do
+  let upd = over warningSet (Set.delete TerminationIssue_)
+  return $ o { optTerminationCheck = False
+             , optWarningMode   = upd (optWarningMode o)
+             }
 
 -- The option was removed. See Issue 1918.
 dontCompletenessCheckFlag :: Flag PragmaOptions
@@ -459,8 +471,8 @@ dontCompletenessCheckFlag _ =
   throwError "The --no-coverage-check option has been removed."
 
 dontUniverseCheckFlag :: Flag PragmaOptions
-dontUniverseCheckFlag o = return $ o { optUniverseCheck        = False
-                                     }
+dontUniverseCheckFlag o = return $ o { optUniverseCheck = False }
+
 omegaInOmegaFlag :: Flag PragmaOptions
 omegaInOmegaFlag o = return $ o { optOmegaInOmega = True }
 
@@ -508,10 +520,18 @@ noPatternMatchingFlag :: Flag PragmaOptions
 noPatternMatchingFlag o = return $ o { optPatternMatching = False }
 
 exactSplitFlag :: Flag PragmaOptions
-exactSplitFlag o = return $ o { optExactSplit = True }
+exactSplitFlag o = do
+  let upd = over warningSet (Set.insert CoverageNoExactSplit_)
+  return $ o { optExactSplit = True
+             , optWarningMode   = upd (optWarningMode o)
+             }
 
 noExactSplitFlag :: Flag PragmaOptions
-noExactSplitFlag o = return $ o { optExactSplit = False }
+noExactSplitFlag o = do
+  let upd = over warningSet (Set.delete CoverageNoExactSplit_)
+  return $ o { optExactSplit = False
+             , optWarningMode   = upd (optWarningMode o)
+             }
 
 rewritingFlag :: Flag PragmaOptions
 rewritingFlag o = return $ o { optRewriting = True }
@@ -533,10 +553,11 @@ inversionMaxDepthFlag s o = do
   return $ o { optInversionMaxDepth = d }
 
 interactiveFlag :: Flag CommandLineOptions
-interactiveFlag  o = return $ o { optInteractive    = True
-                                , optPragmaOptions  = (optPragmaOptions o)
-                                                      { optAllowUnsolved = True }
-                                }
+interactiveFlag  o = do
+  prag <- allowUnsolvedFlag (optPragmaOptions o)
+  return $ o { optInteractive    = True
+             , optPragmaOptions = prag
+             }
 
 compileFlagNoMain :: Flag PragmaOptions
 compileFlagNoMain o = return $ o { optCompileNoMain = True }

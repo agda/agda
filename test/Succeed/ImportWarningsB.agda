@@ -1,4 +1,3 @@
-{-# OPTIONS -W ignore #-}
 module ImportWarningsB where
 
 -- all of the following files have warnings, which should be displayed

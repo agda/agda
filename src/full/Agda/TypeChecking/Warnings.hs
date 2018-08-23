@@ -82,42 +82,13 @@ data WhichWarnings =
   deriving (Eq, Ord)
 
 isUnsolvedWarning :: Warning -> Bool
-isUnsolvedWarning w = case w of
-  UnsolvedMetaVariables{}    -> True
-  UnsolvedInteractionMetas{} -> True
-  UnsolvedConstraints{}      -> True
- -- rest
-  _                          -> False
+isUnsolvedWarning w = warningName w `elem` unsolvedWarnings
 
 classifyWarning :: Warning -> WhichWarnings
-classifyWarning w = case w of
-  OldBuiltin{}               -> AllWarnings
-  EmptyRewritePragma         -> AllWarnings
-  UselessPublic              -> AllWarnings
-  UnreachableClauses{}       -> AllWarnings
-  UselessInline{}            -> AllWarnings
-  GenericWarning{}           -> AllWarnings
-  DeprecationWarning{}       -> AllWarnings
-  NicifierIssue{}            -> AllWarnings
-  InversionDepthReached{}    -> AllWarnings
-  UserWarning{}              -> AllWarnings
-  TerminationIssue{}         -> ErrorWarnings
-  CoverageIssue{}            -> ErrorWarnings
-  CoverageNoExactSplit{}     -> ErrorWarnings
-  NotStrictlyPositive{}      -> ErrorWarnings
-  UnsolvedMetaVariables{}    -> ErrorWarnings
-  UnsolvedInteractionMetas{} -> ErrorWarnings
-  UnsolvedConstraints{}      -> ErrorWarnings
-  GenericNonFatalError{}     -> ErrorWarnings
-  SafeFlagPostulate{}        -> ErrorWarnings
-  SafeFlagPragma{}           -> ErrorWarnings
-  SafeFlagNonTerminating     -> ErrorWarnings
-  SafeFlagTerminating        -> ErrorWarnings
-  SafeFlagPrimTrustMe        -> ErrorWarnings
-  SafeFlagNoPositivityCheck  -> ErrorWarnings
-  SafeFlagPolarity           -> ErrorWarnings
-  SafeFlagNoUniverseCheck    -> ErrorWarnings
-  ParseWarning{}             -> ErrorWarnings
+classifyWarning w =
+  if warningName w `elem` errorWarnings
+  then ErrorWarnings
+  else AllWarnings
 
 -- | Should we only emit a single warning with this constructor.
 onlyOnce :: Warning -> Bool
