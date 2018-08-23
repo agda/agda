@@ -131,7 +131,8 @@ library
   if os(windows)
     build-depends:  Win32 >= 2.3.1.0 && < 2.7
 
-  build-depends:  array >= 0.5.1.0 && < 0.6
+  build-depends:  aeson >= 0.11.3.0 && < 1.5
+                , array >= 0.5.1.0 && < 0.6
                 , async >= 2.2 && < 2.3
                 , base >= 4.8.0.0 && < 4.13
                 , binary >= 0.7.3.0 && < 0.9
@@ -247,16 +248,20 @@ library
                     Agda.Compiler.Treeless.Uncase
                     Agda.Compiler.Treeless.Unused
                     Agda.ImpossibleTest
+                    Agda.Interaction.AgdaTop
                     Agda.Interaction.BasicOps
                     Agda.Interaction.SearchAbout
                     Agda.Interaction.CommandLine
                     Agda.Interaction.EmacsCommand
                     Agda.Interaction.EmacsTop
+                    Agda.Interaction.JSONTop
                     Agda.Interaction.FindFile
+                    Agda.Interaction.Highlighting.Common
                     Agda.Interaction.Highlighting.Dot
                     Agda.Interaction.Highlighting.Emacs
                     Agda.Interaction.Highlighting.Generate
                     Agda.Interaction.Highlighting.HTML
+                    Agda.Interaction.Highlighting.JSON
                     Agda.Interaction.Highlighting.Precise
                     Agda.Interaction.Highlighting.Range
                     Agda.Interaction.Highlighting.Vim
@@ -477,6 +482,7 @@ library
                     Agda.Utils.IO
                     Agda.Utils.IO.Binary
                     Agda.Utils.IO.Directory
+                    Agda.Utils.IO.TempFile
                     Agda.Utils.IO.UTF8
                     Agda.Utils.IORef
                     Agda.Utils.Lens
