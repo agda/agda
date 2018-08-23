@@ -1,4 +1,8 @@
-DuplicateBuiltinBinding.agda:6,1-30
+DuplicateBuiltinBinding.agda:4,1-30
+BUILTIN STRING declares an identifier (no longer expects an already defined identifier)
+when scope checking the declaration
+  {-# BUILTIN STRING String #-}
+DuplicateBuiltinBinding.agda:4,1-30
 Duplicate binding for built-in thing STRING, previous binding to
 ;DuplicateBuiltinBinding.String
 when checking the pragma BUILTIN STRING String

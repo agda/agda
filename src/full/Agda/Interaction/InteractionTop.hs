@@ -311,11 +311,15 @@ handleCommand wrap onFail cmd = handleNastyErrors $ wrap $ do
                      -- Errors take precedence over unsolved things.
                      err : if unsolvedNotOK then [meta, constr] else []
         s1 <- lift $ prettyError e
-        s2 <- lift $ prettyTCWarnings' =<< Imp.errorWarningsOfTCErr e
-        let s = List.intercalate "\n" $ filter (not . null) $ s1 : s2
+        s2 <- lift $ prettyTCWarnings' =<< Imp.getAllWarningsOfTCErr e
+        let strErr  = s1
+        let strWarn = List.intercalate "\n" $ delimiter "Warning(s)"
+                                            : filter (not . null) s2
+                                            ++ [delimiter "Error"]
+        let str     = if null s2 then strErr else strWarn ++ "\n" ++ strErr
         x <- lift $ optShowImplicit <$> use stPragmaOptions
         unless (null s1) $ mapM_ putResponse $
-            [ Resp_DisplayInfo $ Info_Error s ] ++
+            [ Resp_DisplayInfo $ Info_Error str ] ++
             tellEmacsToJumpToError (getRange e) ++
             [ Resp_HighlightingInfo info KeepHighlighting
                                     method modFile ] ++
