@@ -96,23 +96,23 @@ data WarningName
   -- Parser Warning
     OverlappingTokensWarning_
   -- Nicifer Warning
-  | UnknownNamesInFixityDecl_
-  | UnknownFixityInMixfixDecl_
-  | UnknownNamesInPolarityPragmas_
-  | PolarityPragmasButNotPostulates_
-  | UselessPrivate_
-  | UselessAbstract_
-  | UselessInstance_
-  | EmptyMutual_
   | EmptyAbstract_
-  | EmptyPrivate_
   | EmptyInstance_
   | EmptyMacro_
+  | EmptyMutual_
   | EmptyPostulate_
-  | InvalidTerminationCheckPragma_
-  | InvalidNoPositivityCheckPragma_
+  | EmptyPrivate_
   | InvalidCatchallPragma_
   | InvalidNoUniverseCheckPragma_
+  | InvalidTerminationCheckPragma_
+  | InvalidNoPositivityCheckPragma_
+  | PolarityPragmasButNotPostulates_
+  | UnknownFixityInMixfixDecl_
+  | UnknownNamesInFixityDecl_
+  | UnknownNamesInPolarityPragmas_
+  | UselessAbstract_
+  | UselessInstance_
+  | UselessPrivate_
   -- Scope and Type Checking Warning
   | OldBuiltin_
   | EmptyRewritePragma_
@@ -191,23 +191,23 @@ warningNameDescription :: WarningName -> String
 warningNameDescription w = case w of
   OverlappingTokensWarning_        -> "Multi-line comments spanning one or more literate text blocks."
   -- Nicifer Warning
-  UnknownNamesInFixityDecl_        -> "Names not declared in the same scope as their syntax or fixity declaration."
-  UnknownFixityInMixfixDecl_       -> "Mixfix names without an associated fixity declaration."
-  UnknownNamesInPolarityPragmas_   -> "Names not declared in the same scope as their polarity pragmas."
-  PolarityPragmasButNotPostulates_ -> "Polarity pragmas for non-postulates."
-  UselessPrivate_                  -> "`private' blocks where they have no effect."
-  UselessAbstract_                 -> "`abstract' blocks where they have no effect."
-  UselessInstance_                 -> "`instance' blocks where they have no effect."
-  EmptyMutual_                     -> "Empty `mutual' blocks."
   EmptyAbstract_                   -> "Empty `abstract' blocks."
-  EmptyPrivate_                    -> "Empty `private' blocks."
   EmptyInstance_                   -> "Empty `instance' blocks."
   EmptyMacro_                      -> "Empty `macro' blocks."
+  EmptyMutual_                     -> "Empty `mutual' blocks."
   EmptyPostulate_                  -> "Empty `postulate' blocks."
-  InvalidTerminationCheckPragma_   -> "Termination checking pragmas before non-function or `mutual' blocks."
-  InvalidNoPositivityCheckPragma_  -> "No positivity checking pragmas before non-`data', `record' or `mutual' blocks."
+  EmptyPrivate_                    -> "Empty `private' blocks."
   InvalidCatchallPragma_           -> "`CATCHALL' pragmas before a non-function clause."
+  InvalidNoPositivityCheckPragma_  -> "No positivity checking pragmas before non-`data', `record' or `mutual' blocks."
   InvalidNoUniverseCheckPragma_    -> "No universe checking pragmas before non-`data' or `record' declaration."
+  InvalidTerminationCheckPragma_   -> "Termination checking pragmas before non-function or `mutual' blocks."
+  PolarityPragmasButNotPostulates_ -> "Polarity pragmas for non-postulates."
+  UnknownFixityInMixfixDecl_       -> "Mixfix names without an associated fixity declaration."
+  UnknownNamesInFixityDecl_        -> "Names not declared in the same scope as their syntax or fixity declaration."
+  UnknownNamesInPolarityPragmas_   -> "Names not declared in the same scope as their polarity pragmas."
+  UselessAbstract_                 -> "`abstract' blocks where they have no effect."
+  UselessInstance_                 -> "`instance' blocks where they have no effect."
+  UselessPrivate_                  -> "`private' blocks where they have no effect."
   -- Scope and Type Checking Warning
   OldBuiltin_                      -> "Deprecated `BUILTIN' pragmas."
   EmptyRewritePragma_              -> "Empty `REWRITE' pragmas."

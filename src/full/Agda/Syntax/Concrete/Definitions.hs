@@ -202,52 +202,52 @@ data DeclarationException
 
 -- | Non-fatal errors encountered in the Nicifier
 data DeclarationWarning
-  = UnknownNamesInFixityDecl [Name]
-  | UnknownFixityInMixfixDecl [Name]
-  | UnknownNamesInPolarityPragmas [Name]
-  | PolarityPragmasButNotPostulates [Name]
-  | UselessPrivate Range
-  | UselessAbstract Range
-  | UselessInstance Range
-  | EmptyMutual Range     -- ^ Empty @mutual@    block.
-  | EmptyAbstract Range   -- ^ Empty @abstract@  block.
-  | EmptyPrivate Range    -- ^ Empty @private@   block.
+  = EmptyAbstract Range   -- ^ Empty @abstract@  block.
   | EmptyInstance Range   -- ^ Empty @instance@  block
   | EmptyMacro Range      -- ^ Empty @macro@     block.
+  | EmptyMutual Range     -- ^ Empty @mutual@    block.
   | EmptyPostulate Range  -- ^ Empty @postulate@ block.
-  | InvalidTerminationCheckPragma Range
-      -- ^ A {-# TERMINATING #-} and {-# NON_TERMINATING #-} pragma
-      --   that does not apply to any function.
-  | InvalidNoPositivityCheckPragma Range
-      -- ^ A {-# NO_POSITIVITY_CHECK #-} pragma
-      --   that does not apply to any data or record type.
+  | EmptyPrivate Range    -- ^ Empty @private@   block.
   | InvalidCatchallPragma Range
       -- ^ A {-# CATCHALL #-} pragma
       --   that does not precede a function clause.
+  | InvalidNoPositivityCheckPragma Range
+      -- ^ A {-# NO_POSITIVITY_CHECK #-} pragma
+      --   that does not apply to any data or record type.
   | InvalidNoUniverseCheckPragma Range
       -- ^ A {-# NO_UNIVERSE_CHECK #-} pragma
       --   that does not apply to a data or record type.
+  | InvalidTerminationCheckPragma Range
+      -- ^ A {-# TERMINATING #-} and {-# NON_TERMINATING #-} pragma
+      --   that does not apply to any function.
+  | PolarityPragmasButNotPostulates [Name]
+  | UnknownFixityInMixfixDecl [Name]
+  | UnknownNamesInFixityDecl [Name]
+  | UnknownNamesInPolarityPragmas [Name]
+  | UselessAbstract Range
+  | UselessInstance Range
+  | UselessPrivate Range
   deriving (Data, Show)
 
 declarationWarningName :: DeclarationWarning -> WarningName
 declarationWarningName dw = case dw of
-  UnknownNamesInFixityDecl{}        -> UnknownNamesInFixityDecl_
-  UnknownFixityInMixfixDecl{}       -> UnknownFixityInMixfixDecl_
-  UnknownNamesInPolarityPragmas{}   -> UnknownNamesInPolarityPragmas_
-  PolarityPragmasButNotPostulates{} -> PolarityPragmasButNotPostulates_
-  UselessPrivate{}                  -> UselessPrivate_
-  UselessAbstract{}                 -> UselessAbstract_
-  UselessInstance{}                 -> UselessInstance_
-  EmptyMutual{}                     -> EmptyMutual_
   EmptyAbstract{}                   -> EmptyAbstract_
-  EmptyPrivate{}                    -> EmptyPrivate_
   EmptyInstance{}                   -> EmptyInstance_
   EmptyMacro{}                      -> EmptyMacro_
+  EmptyMutual{}                     -> EmptyMutual_
+  EmptyPrivate{}                    -> EmptyPrivate_
   EmptyPostulate{}                  -> EmptyPostulate_
-  InvalidTerminationCheckPragma{}   -> InvalidTerminationCheckPragma_
-  InvalidNoPositivityCheckPragma{}  -> InvalidNoPositivityCheckPragma_
   InvalidCatchallPragma{}           -> InvalidCatchallPragma_
+  InvalidNoPositivityCheckPragma{}  -> InvalidNoPositivityCheckPragma_
   InvalidNoUniverseCheckPragma{}    -> InvalidNoUniverseCheckPragma_
+  InvalidTerminationCheckPragma{}   -> InvalidTerminationCheckPragma_
+  PolarityPragmasButNotPostulates{} -> PolarityPragmasButNotPostulates_
+  UnknownFixityInMixfixDecl{}       -> UnknownFixityInMixfixDecl_
+  UnknownNamesInFixityDecl{}        -> UnknownNamesInFixityDecl_
+  UnknownNamesInPolarityPragmas{}   -> UnknownNamesInPolarityPragmas_
+  UselessAbstract{}                 -> UselessAbstract_
+  UselessInstance{}                 -> UselessInstance_
+  UselessPrivate{}                  -> UselessPrivate_
 
 -- | Several declarations expect only type signatures as sub-declarations.  These are:
 data KindOfBlock
