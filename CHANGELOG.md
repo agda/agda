@@ -110,6 +110,10 @@ Pragmas and options
 
 * Deprecated options `--sharing` and `--no-sharing` now raise an error.
 
+* New warning `MissingDefinitions`: whenever a declaration has no accompanying
+  definition, we try as much as possible to generate an Axiom for it and emit
+  a warning rather than exit with an error. This is not compatible with `--safe`.
+
 Emacs mode
 ----------
 

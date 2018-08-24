@@ -3,6 +3,7 @@
 {-# LANGUAGE DeriveFunctor      #-}
 {-# LANGUAGE DeriveFoldable     #-}
 {-# LANGUAGE DeriveTraversable  #-}
+{-# LANGUAGE LambdaCase         #-}
 
 {-| The concrete syntax is a raw representation of the program text
     without any desugaring at all.  This is what the parser produces.
@@ -29,6 +30,8 @@ module Agda.Syntax.Concrete
   , BoundName(..), mkBoundName_, mkBoundName
   , Telescope -- (..)
   , countTelVars
+  , lamBindingsToTelescope
+  , makePi
     -- * Declarations
   , Declaration(..)
   , ModuleApplication(..)
@@ -254,6 +257,23 @@ countTelVars tel =
           TBind _ xs _ -> genericLength xs
           TLet{}       -> 0
       | TypedBindings _ b <- tel ]
+
+-- | We can try to get a @Telescope@ from a @[LamBinding]@.
+--   If we have a type annotation already, we're happy.
+--   Otherwise we manufacture a binder with an underscore for the type.
+lamBindingsToTelescope :: Range -> [LamBinding] -> Telescope
+lamBindingsToTelescope r = map $ \case
+  DomainFull ty      -> ty
+  DomainFree info nm ->
+    TypedBindings r $ Arg info
+    $ TBind r [WithHiding (argInfoHiding info) nm]
+    $ Underscore r Nothing
+
+-- | Smart constructor for @Pi@: check whether the @Telescope@ is empty
+
+makePi :: Telescope -> Expr -> Expr
+makePi [] e = e
+makePi bs e = Pi bs e
 
 {-| Left hand sides can be written in infix style. For example:
 
