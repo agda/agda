@@ -180,7 +180,6 @@ data DeclarationException
         | MultipleEllipses Pattern
         | InvalidName Name
         | DuplicateDefinition Name
-        | MissingDefinition Name
         | MissingWithClauses Name
         | WrongDefinition Name DataRecOrFun DataRecOrFun
         | WrongParameters Name Params Params
@@ -220,6 +219,7 @@ data DeclarationWarning
   | InvalidTerminationCheckPragma Range
       -- ^ A {-# TERMINATING #-} and {-# NON_TERMINATING #-} pragma
       --   that does not apply to any function.
+  | MissingDefinitions [Name]
   | PolarityPragmasButNotPostulates [Name]
   | UnknownFixityInMixfixDecl [Name]
   | UnknownNamesInFixityDecl [Name]
@@ -241,6 +241,7 @@ declarationWarningName dw = case dw of
   InvalidNoPositivityCheckPragma{}  -> InvalidNoPositivityCheckPragma_
   InvalidNoUniverseCheckPragma{}    -> InvalidNoUniverseCheckPragma_
   InvalidTerminationCheckPragma{}   -> InvalidTerminationCheckPragma_
+  MissingDefinitions{}              -> MissingDefinitions_
   PolarityPragmasButNotPostulates{} -> PolarityPragmasButNotPostulates_
   UnknownFixityInMixfixDecl{}       -> UnknownFixityInMixfixDecl_
   UnknownNamesInFixityDecl{}        -> UnknownNamesInFixityDecl_
@@ -265,7 +266,6 @@ instance HasRange DeclarationException where
   getRange (MultipleEllipses d)                 = getRange d
   getRange (InvalidName x)                      = getRange x
   getRange (DuplicateDefinition x)              = getRange x
-  getRange (MissingDefinition x)                = getRange x
   getRange (MissingWithClauses x)               = getRange x
   getRange (WrongDefinition x k k')             = getRange x
   getRange (WrongParameters x _ _)              = getRange x
@@ -284,6 +284,7 @@ instance HasRange DeclarationWarning where
   getRange (UnknownFixityInMixfixDecl xs)       = getRange . head $ xs
   getRange (UnknownNamesInPolarityPragmas xs)   = getRange . head $ xs
   getRange (PolarityPragmasButNotPostulates xs) = getRange . head $ xs
+  getRange (MissingDefinitions xs)              = getRange . head $ xs
   getRange (UselessPrivate r)                   = r
   getRange (UselessAbstract r)                  = r
   getRange (UselessInstance r)                  = r
@@ -337,8 +338,6 @@ instance Pretty DeclarationException where
     pwords "Invalid name:" ++ [pretty x]
   pretty (DuplicateDefinition x) = fsep $
     pwords "Duplicate definition of" ++ [pretty x]
-  pretty (MissingDefinition x) = fsep $
-    pwords "Missing definition for" ++ [pretty x]
   pretty (MissingWithClauses x) = fsep $
     pwords "Missing with-clauses for function" ++ [pretty x]
 
@@ -382,6 +381,8 @@ instance Pretty DeclarationWarning where
     pwords "The following mixfix names do not have an associated fixity declaration:" ++ map pretty xs
   pretty (UnknownNamesInPolarityPragmas xs) = fsep $
     pwords "The following names are not declared in the same scope as their polarity pragmas (they could for instance be out of scope, imported from another module, or declared in a super module):" ++ map pretty xs
+  pretty (MissingDefinitions xs) = fsep $
+   pwords "The following names are declared but not accompanied by a definition:" ++ map pretty xs
   pretty (PolarityPragmasButNotPostulates xs) = fsep $
     pwords "Polarity pragmas have been given for the following identifiers which are not postulates:" ++ map pretty xs
   pretty (UselessPrivate _)      = fsep $
@@ -451,7 +452,7 @@ data DataRecOrFun
     , kindParams :: Params
     }
     -- ^ Name of a record type with parameters.
-  | FunName  TerminationCheck
+  | FunName Range Fixity' Access IsAbstract IsInstance ArgInfo TerminationCheck Expr
     -- ^ Name of a function.
   deriving Data
 
@@ -459,7 +460,7 @@ data DataRecOrFun
 instance Eq DataRecOrFun where
   DataName _ _ p == DataName _ _ q = p == q
   RecName  _ _ p == RecName  _ _ q = p == q
-  FunName  _     == FunName  _     = True
+  FunName{}      == FunName{}      = True
   _              == _              = False
 
 type Params = [Arg BoundName]
@@ -480,8 +481,8 @@ sameKind FunName{} FunName{} = True
 sameKind _ _ = False
 
 terminationCheck :: DataRecOrFun -> TerminationCheck
-terminationCheck (FunName tc) = tc
-terminationCheck _            = TerminationCheck
+terminationCheck (FunName _ _ _ _ _ _ tc _) = tc
+terminationCheck _ = TerminationCheck
 
 positivityCheck :: DataRecOrFun -> PositivityCheck
 positivityCheck (DataName pc _ _) = pc
@@ -665,11 +666,19 @@ noLoneSigs = null <$> use loneSigs
 
 -- | Ensure that all forward declarations have been given a definition.
 
-checkLoneSigs :: [(Name, a)] -> Nice ()
+checkLoneSigs :: [(Name, DataRecOrFun)] -> Nice [NiceDeclaration]
 checkLoneSigs xs =
   case xs of
-    []       -> return ()
-    (x, _):_ -> throwError $ MissingDefinition x
+    []  -> return []
+    _:_ -> do
+      niceWarning $ MissingDefinitions (fst <$> xs)
+      loneSigs .= Map.empty
+      ds <- forM xs $ \ (nm, x) -> do
+        case x of
+          FunName r fx acc abs inst rel _ t ->
+            pure $ Just $ Axiom r fx acc abs inst rel Nothing nm t
+          _ -> pure Nothing
+      pure $ catMaybes ds
 
 -- | Lens for field '_termChk'.
 
@@ -754,13 +763,18 @@ data DeclKind
   deriving (Eq, Show)
 
 declKind :: NiceDeclaration -> DeclKind
-declKind (FunSig _ _ _ _ _ _ _ tc x _)    = LoneSig (FunName tc) x
+declKind (FunSig r fx acc abs inst _ rel tc x ty) =
+   LoneSig (FunName r fx acc abs inst rel tc ty) x
 declKind (NiceRecSig _ _ _ _ pc uc x pars _) = LoneSig (RecName pc uc $ parameters pars) x
 declKind (NiceDataSig _ _ _ _ pc uc x pars _) = LoneSig (DataName pc uc $ parameters pars) x
-declKind (FunDef _ _ _ _ _ tc x _)        = LoneDefs (FunName tc) [x]
+declKind (FunDef r _ fx abs ins tc x _)        =
+  let err = __IMPOSSIBLE__ in
+  LoneDefs (FunName err err err err err err tc err) [x]
 declKind (DataDef _ _ _ pc uc x pars _)      = LoneDefs (DataName pc uc $ parameters pars) [x]
 declKind (RecDef _ _ _ pc uc x _ _ _ pars _) = LoneDefs (RecName pc uc $ parameters pars) [x]
-declKind (NiceUnquoteDef _ _ _ _ tc xs _) = LoneDefs (FunName tc) xs
+declKind (NiceUnquoteDef _ _ _ _ tc xs _) =
+  let err = __IMPOSSIBLE__ in
+  LoneDefs (FunName err err err err err err tc err) xs
 declKind Axiom{}                          = OtherDecl
 declKind NiceField{}                      = OtherDecl
 declKind PrimitiveFunction{}              = OtherDecl
@@ -817,18 +831,23 @@ niceDeclarations ds = do
   -- and polarities.  But keep the warnings.
   st <- get
   put $ initNiceEnv { fixs = fixs, pols = polarities, niceWarn = niceWarn st }
-  ds <- nice ds
+  nds <- nice ds
 
   -- Check that every polarity pragma was used.
   unlessNullM (Map.keys <$> gets pols) $ \ unusedPolarities -> do
     niceWarning $ PolarityPragmasButNotPostulates unusedPolarities
 
   -- Check that every signature got its definition.
-  checkLoneSigs . Map.toList =<< use loneSigs
+  ps <- checkLoneSigs . Map.toList =<< use loneSigs
+  -- We postulate the missing ones and drop the corresponding @FunSig@s.
+  let nms = catMaybes $ for ps $ \case
+        Axiom _ _ _ _ _ _ _ nm _ -> Just nm
+        _ -> Nothing
+  let ds = if null nms then nds else filter (isNotFunSigNamed nms) nds
 
   -- Note that loneSigs is ensured to be empty.
   -- (Important, since inferMutualBlocks also uses loneSigs state).
-  res <- inferMutualBlocks ds
+  res <- inferMutualBlocks $ ps ++ ds
 
   -- Restore the old state, but keep the warnings.
   warns <- gets niceWarn
@@ -836,6 +855,11 @@ niceDeclarations ds = do
   return res
 
   where
+    -- Remove FunSigs for postulated names
+    isNotFunSigNamed :: [Name] -> NiceDeclaration -> Bool
+    isNotFunSigNamed nms (FunSig _ _ _ _ _ _ _ _ nm _) = nm `notElem` nms
+    isNotFunSigNamed _ _ = True
+
     -- Compute the names defined in a declaration.
     -- We stay in the current scope, i.e., do not go into modules.
     declaredNames :: Declaration -> [Name]
@@ -888,11 +912,13 @@ niceDeclarations ds = do
         untilAllDefined :: ([TerminationCheck], [PositivityCheck])
                         -> [NiceDeclaration]
                         -> Nice (([TerminationCheck], [PositivityCheck]), ([NiceDeclaration], [NiceDeclaration]))
-        untilAllDefined (tc, pc) ds = do
+        untilAllDefined tcpc@(tc, pc) ds = do
           done <- noLoneSigs
-          if done then return ((tc, pc), ([], ds)) else
+          if done then return (tcpc, ([], ds)) else
             case ds of
-              []     -> __IMPOSSIBLE__ <$ (checkLoneSigs . Map.toList =<< use loneSigs)
+              []     -> do
+                ps <- checkLoneSigs . Map.toList =<< use loneSigs
+                return (tcpc, (ps, ds))
               d : ds -> case declKind d of
                 LoneSig k x -> do
                   addLoneSig x k
@@ -900,7 +926,7 @@ niceDeclarations ds = do
                 LoneDefs k xs -> do
                   mapM_ removeLoneSig xs
                   cons d (untilAllDefined (terminationCheck k : tc, positivityCheck k : pc) ds)
-                OtherDecl   -> cons d (untilAllDefined (tc, pc) ds)
+                OtherDecl   -> cons d (untilAllDefined tcpc ds)
           where
             -- ASR (26 December 2015): Type annotated version of the @cons@ function.
             -- cons d = fmap $
@@ -928,9 +954,10 @@ niceDeclarations ds = do
         (TypeSig info x t)            -> do
           termCheck <- use terminationCheckPragma
           fx <- getFixity x
+          let r = getRange d
           -- register x as lone type signature, to recognize clauses later
-          addLoneSig x (FunName termCheck)
-          return ([FunSig (getRange d) fx PublicAccess ConcreteDef NotInstanceDef NotMacroDef info termCheck x t] , ds)
+          addLoneSig x $ FunName r fx PublicAccess ConcreteDef NotInstanceDef info termCheck t
+          return ([FunSig r fx PublicAccess ConcreteDef NotInstanceDef NotMacroDef info termCheck x t] , ds)
 
         (Generalize info x t)            -> do
           fx <- getFixity x
@@ -1371,12 +1398,16 @@ niceDeclarations ds = do
 
     -- Make an old style mutual block from a list of mutual declarations
     mkOldMutual :: Range -> [NiceDeclaration] -> Nice NiceDeclaration
-    mkOldMutual r ds = do
-        -- Check that there aren't any missing definitions
-        checkLoneSigs loneNames
+    mkOldMutual r ds' = do
+        -- Postulate the missing definitions
+        ps <- checkLoneSigs loneNames
+        let ds = ps ++ ds'
+
+        -- Pull type signatures to the top
+        let (sigs, other) = List.partition isTypeSig ds
 
         -- Check that there are no declarations that aren't allowed in old style mutual blocks
-        forM_ ds $ \case
+        forM_ ds' $ \case
           -- Andreas, 2013-11-23 allow postulates in mutual blocks
           Axiom{} -> return ()
           -- Andreas, 2017-10-09, issue #2576, raise error about missing type signature
@@ -1399,14 +1430,13 @@ niceDeclarations ds = do
 
         return $ NiceMutual r tc pc $ sigs ++ other
       where
-        -- Pull type signatures to the top
-        (sigs, other) = List.partition isTypeSig ds
+
         isTypeSig Axiom{}                     = True
         isTypeSig d | LoneSig{} <- declKind d = True
         isTypeSig _                           = False
 
-        sigNames  = [ (x, k) | LoneSig k x <- map declKind ds ]
-        defNames  = [ (x, k) | LoneDefs k xs <- map declKind ds, x <- xs ]
+        sigNames  = [ (x, k) | LoneSig k x <- map declKind ds' ]
+        defNames  = [ (x, k) | LoneDefs k xs <- map declKind ds', x <- xs ]
         -- compute the set difference with equality just on names
         loneNames = [ (x, k) | (x, k) <- sigNames, List.all ((x /=) . fst) defNames ]
 

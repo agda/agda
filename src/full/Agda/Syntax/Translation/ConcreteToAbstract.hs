@@ -1239,7 +1239,19 @@ instance ToAbstract (TopLevel [C.Declaration]) TopLevelInfo where
 niceDecls :: [C.Declaration] -> ScopeM [NiceDeclaration]
 niceDecls ds = do
   let (result, warns) = runNice $ niceDeclarations ds
-  unless (null warns) $ setCurrentRange ds $ warnings $ NicifierIssue <$> warns
+  unless (null warns) $ do
+    -- If there are some warnings and the --safe flag is set,
+    -- we check that none of the NiceWarnings are fatal
+    whenM (optSafe <$> pragmaOptions) $ do
+      let warns' = flip mapMaybe warns $ \case
+            MissingDefinitions xs -> Just xs
+            _ -> Nothing
+      -- If some of them are, we fail
+      unless (null warns') $ setCurrentRange ds $ do
+        tcwarn <- warning_ $ NicifierIssue $ MissingDefinitions $ concat warns'
+        setCurrentRange ds $ typeError $ NonFatalErrors [tcwarn]
+    -- Otherwise we simply record the warnings
+    setCurrentRange ds $ warnings $ NicifierIssue <$> warns
   case result of
     Left e   -> throwError $ Exception (getRange e) $ pretty e
     Right ds -> return ds
