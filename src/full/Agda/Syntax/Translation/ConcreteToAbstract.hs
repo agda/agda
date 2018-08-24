@@ -149,8 +149,8 @@ noDotorEqPattern err = dot
       A.ProjP i o d          -> pure $ A.ProjP i o d
       A.WildP i              -> pure $ A.WildP i
       A.AsP i x p            -> A.AsP i x <$> dot p
-      A.DotP{}               -> typeError $ GenericError err
-      A.EqualP{}             -> typeError $ GenericError err   -- Andrea: so we also disallow = patterns, reasonable?
+      A.DotP{}               -> genericError err
+      A.EqualP{}             -> genericError err   -- Andrea: so we also disallow = patterns, reasonable?
       A.AbsurdP i            -> pure $ A.AbsurdP i
       A.LitP l               -> pure $ A.LitP l
       A.DefP i f args        -> A.DefP i f <$> (traverse $ traverse $ traverse dot) args
@@ -160,7 +160,7 @@ noDotorEqPattern err = dot
 
 -- | Make sure that there are no dot patterns (WAS: called on pattern synonyms).
 noDotPattern :: String -> A.Pattern' e -> ScopeM (A.Pattern' Void)
-noDotPattern err = traverse $ const $ typeError $ GenericError err
+noDotPattern err = traverse $ const $ genericError err
 
 -- | Compute the type of the record constructor (with bogus target type)
 recordConstructorType :: [NiceDeclaration] -> ScopeM C.Expr
@@ -380,8 +380,7 @@ checkModuleMacro apply r p x modapp open dir = do
 
 notPublicWithoutOpen :: OpenShortHand -> C.ImportDirective -> ScopeM ()
 notPublicWithoutOpen DoOpen   dir = return ()
-notPublicWithoutOpen DontOpen dir = when (publicOpen dir) $ typeError $
-  GenericError
+notPublicWithoutOpen DontOpen dir = when (publicOpen dir) $ genericError
     "The public keyword must only be used together with the open keyword"
 
 -- | Computes the range of all the \"to\" keywords used in a renaming
@@ -609,7 +608,7 @@ instance (Show a, ToQName a) => ToAbstract (OldName a) A.QName where
       ConstructorName ds   -> return $ anameName (headNe ds)   -- We'll throw out this one, so it doesn't matter which one we pick
       FieldName ds         -> return $ anameName (headNe ds)
       PatternSynResName ds -> return $ anameName (headNe ds)
-      VarName x _          -> typeError $ GenericError $ "Not a defined name: " ++ prettyShow x
+      VarName x _          -> genericError $ "Not a defined name: " ++ prettyShow x
       UnknownName          -> notInScope (toQName x)
 
 newtype NewModuleName      = NewModuleName      C.Name
@@ -1199,7 +1198,7 @@ instance ToAbstract (TopLevel [C.Declaration]) TopLevelInfo where
                          -- That is the range if the parser inserted the anon. module.
                        , r == beginningOfFile (getRange insideDecls) -> do
 
-                         traceCall (SetRange $ getRange ds0) $ typeError $ GenericError $
+                         traceCall (SetRange $ getRange ds0) $ genericError
                            "Illegal declaration(s) before top-level module"
 
                     -- Otherwise, reconstruct the top-level module name
