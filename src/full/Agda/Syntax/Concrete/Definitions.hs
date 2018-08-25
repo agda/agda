@@ -49,6 +49,7 @@ import Control.Arrow ((***), first, second)
 import Control.Applicative hiding (empty)
 import Control.Monad.State
 
+import Data.Either ( partitionEithers )
 import qualified Data.Map as Map
 import Data.Map (Map)
 import Data.Maybe
@@ -180,6 +181,7 @@ data DeclarationException
         | MultipleEllipses Pattern
         | InvalidName Name
         | DuplicateDefinition Name
+        | MissingDataOrRecordDefinitions [Name]
         | MissingWithClauses Name
         | WrongDefinition Name DataRecOrFun DataRecOrFun
         | WrongParameters Name Params Params
@@ -266,6 +268,7 @@ instance HasRange DeclarationException where
   getRange (MultipleEllipses d)                 = getRange d
   getRange (InvalidName x)                      = getRange x
   getRange (DuplicateDefinition x)              = getRange x
+  getRange (MissingDataOrRecordDefinitions x)   = getRange x
   getRange (MissingWithClauses x)               = getRange x
   getRange (WrongDefinition x k k')             = getRange x
   getRange (WrongParameters x _ _)              = getRange x
@@ -338,6 +341,8 @@ instance Pretty DeclarationException where
     pwords "Invalid name:" ++ [pretty x]
   pretty (DuplicateDefinition x) = fsep $
     pwords "Duplicate definition of" ++ [pretty x]
+  pretty (MissingDataOrRecordDefinitions xs) = fsep $
+    pwords "The following datatype or record type names are declared but not accompanied by a definition:" ++ map pretty xs
   pretty (MissingWithClauses x) = fsep $
     pwords "Missing with-clauses for function" ++ [pretty x]
 
@@ -665,20 +670,32 @@ noLoneSigs :: Nice Bool
 noLoneSigs = null <$> use loneSigs
 
 -- | Ensure that all forward declarations have been given a definition.
+--   If they have not, we try to produce an appropriate axiom to replace
+--   the lone signature with.
 
 checkLoneSigs :: [(Name, DataRecOrFun)] -> Nice [NiceDeclaration]
 checkLoneSigs xs =
   case xs of
     []  -> return []
     _:_ -> do
-      niceWarning $ MissingDefinitions (fst <$> xs)
+      -- Start by emptying the set of lone signatures: we are going to deal
+      -- with all of them
       loneSigs .= Map.empty
-      ds <- forM xs $ \ (nm, x) -> do
+      -- For each lone signature either:
+      -- fix it by producing a Right axiom
+      -- fail by returning its name wrapped in Left
+      ys <- forM xs $ \ (nm, x) -> do
         case x of
           FunName r fx acc abs inst rel _ t ->
-            pure $ Just $ Axiom r fx acc abs inst rel Nothing nm t
-          _ -> pure Nothing
-      pure $ catMaybes ds
+            pure $ Right $ Axiom r fx acc abs inst rel Nothing nm t
+          _ -> pure (Left nm)
+      -- If we failed to find a replacement for all of our lone signatures
+      -- then we throw an error. Otherwise we warn the user and return the
+      -- list of axioms to be used in conjunction with @replaceFunSigs@
+      let (nms, ds) = partitionEithers ys
+      if not (null nms)
+      then throwError $ MissingDataOrRecordDefinitions nms
+      else ds <$ niceWarning (MissingDefinitions $ fst <$> xs)
 
 -- | Lens for field '_termChk'.
 
@@ -797,6 +814,18 @@ parameters = List.concatMap $ \case
   DomainFull (TypedBindings _ (Arg i (TBind _ xs _))) -> for xs $ \ (WithHiding h x) ->
     mergeHiding $ WithHiding h $ Arg i x
 
+-- | Replace FunSigs with Axioms for postulated names
+--   The first argument is a list of axioms only.
+replaceFunSigs :: [NiceDeclaration] -> [NiceDeclaration] -> [NiceDeclaration]
+replaceFunSigs [] ds = ds
+replaceFunSigs ps [] = ps
+replaceFunSigs ps@(ax:ps') (d:ds') = case d of
+   FunSig _ _ _ _ _ _ _ _ nm _ | nm == getAxiomName ax -> ax : replaceFunSigs ps' ds'
+   _ -> d : replaceFunSigs ps ds'
+
+   where getAxiomName (Axiom _ _ _ _ _ _ _ nm _) = nm
+         getAxiomName _ = __IMPOSSIBLE__
+
 -- | Main.
 niceDeclarations :: [Declaration] -> Nice [NiceDeclaration]
 niceDeclarations ds = do
@@ -839,15 +868,12 @@ niceDeclarations ds = do
 
   -- Check that every signature got its definition.
   ps <- checkLoneSigs . Map.toList =<< use loneSigs
-  -- We postulate the missing ones and drop the corresponding @FunSig@s.
-  let nms = catMaybes $ for ps $ \case
-        Axiom _ _ _ _ _ _ _ nm _ -> Just nm
-        _ -> Nothing
-  let ds = if null nms then nds else filter (isNotFunSigNamed nms) nds
+  -- We postulate the missing ones and insert them in place of the corresponding @FunSig@
+  let ds = replaceFunSigs ps nds
 
   -- Note that loneSigs is ensured to be empty.
   -- (Important, since inferMutualBlocks also uses loneSigs state).
-  res <- inferMutualBlocks $ ps ++ ds
+  res <- inferMutualBlocks ds
 
   -- Restore the old state, but keep the warnings.
   warns <- gets niceWarn
@@ -855,10 +881,6 @@ niceDeclarations ds = do
   return res
 
   where
-    -- Remove FunSigs for postulated names
-    isNotFunSigNamed :: [Name] -> NiceDeclaration -> Bool
-    isNotFunSigNamed nms (FunSig _ _ _ _ _ _ _ _ nm _) = nm `notElem` nms
-    isNotFunSigNamed _ _ = True
 
     -- Compute the names defined in a declaration.
     -- We stay in the current scope, i.e., do not go into modules.
@@ -905,9 +927,14 @@ niceDeclarations ds = do
         LoneDefs{}   -> (d :) <$> inferMutualBlocks ds  -- Andreas, 2017-10-09, issue #2576: report error in ConcreteToAbstract
         LoneSig k x  -> do
           addLoneSig x k
-          ((tcs, pcs), (ds0, ds1)) <- untilAllDefined ([terminationCheck k], [positivityCheck k]) ds
+          ((tcs, pcs), (nds0, ds1)) <- untilAllDefined ([terminationCheck k], [positivityCheck k]) ds
+          -- If we still have lone signatures without any accompanying definition,
+          -- we postulate the definition and substitute the axiom for the lone signature
+          ps <- checkLoneSigs . Map.toList =<< use loneSigs
+          let ds0 = replaceFunSigs ps (d : nds0) -- NB: don't forget the LoneSig the block started with!
+          -- We then keep processing the rest of the block
           tc <- combineTermChecks (getRange d) tcs
-          (NiceMutual (getRange (d : ds0)) tc (and pcs) (d : ds0) :) <$> inferMutualBlocks ds1
+          (NiceMutual (getRange ds0) tc (and pcs) ds0 :) <$> inferMutualBlocks ds1
       where
         untilAllDefined :: ([TerminationCheck], [PositivityCheck])
                         -> [NiceDeclaration]
@@ -916,9 +943,7 @@ niceDeclarations ds = do
           done <- noLoneSigs
           if done then return (tcpc, ([], ds)) else
             case ds of
-              []     -> do
-                ps <- checkLoneSigs . Map.toList =<< use loneSigs
-                return (tcpc, (ps, ds))
+              []     -> return (tcpc, ([], ds))
               d : ds -> case declKind d of
                 LoneSig k x -> do
                   addLoneSig x k
@@ -1401,7 +1426,7 @@ niceDeclarations ds = do
     mkOldMutual r ds' = do
         -- Postulate the missing definitions
         ps <- checkLoneSigs loneNames
-        let ds = ps ++ ds'
+        let ds = replaceFunSigs ps ds'
 
         -- Pull type signatures to the top
         let (sigs, other) = List.partition isTypeSig ds

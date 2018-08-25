@@ -1,9 +1,27 @@
-MissingDefinition.agda:4,1-2
+MissingDefinition.agda:25,3-5
 The following names are declared but not accompanied by a
-definition: T
+definition: U₂ T₂
+MissingDefinition.agda:5,1-2
+The following names are declared but not accompanied by a
+definition: Q U V W X
+MissingDefinition.agda:20,3-4
+The following names are declared but not accompanied by a
+definition: A B
+when scope checking the declaration
+  module AB where
 
 ———— All done; warnings encountered ————————————————————————
 
-MissingDefinition.agda:4,1-2
+MissingDefinition.agda:25,3-5
 The following names are declared but not accompanied by a
-definition: T
+definition: U₂ T₂
+
+MissingDefinition.agda:5,1-2
+The following names are declared but not accompanied by a
+definition: Q U V W X
+
+MissingDefinition.agda:20,3-4
+The following names are declared but not accompanied by a
+definition: A B
+when scope checking the declaration
+  module AB where
