@@ -50,6 +50,7 @@ import Control.Applicative hiding (empty)
 import Control.Monad.State
 
 import Data.Either ( partitionEithers )
+import Data.Function ( on )
 import qualified Data.Map as Map
 import Data.Map (Map)
 import Data.Maybe
@@ -181,7 +182,6 @@ data DeclarationException
         | MultipleEllipses Pattern
         | InvalidName Name
         | DuplicateDefinition Name
-        | MissingDataOrRecordDefinitions [Name]
         | MissingWithClauses Name
         | WrongDefinition Name DataRecOrFun DataRecOrFun
         | WrongParameters Name Params Params
@@ -268,7 +268,6 @@ instance HasRange DeclarationException where
   getRange (MultipleEllipses d)                 = getRange d
   getRange (InvalidName x)                      = getRange x
   getRange (DuplicateDefinition x)              = getRange x
-  getRange (MissingDataOrRecordDefinitions x)   = getRange x
   getRange (MissingWithClauses x)               = getRange x
   getRange (WrongDefinition x k k')             = getRange x
   getRange (WrongParameters x _ _)              = getRange x
@@ -341,8 +340,6 @@ instance Pretty DeclarationException where
     pwords "Invalid name:" ++ [pretty x]
   pretty (DuplicateDefinition x) = fsep $
     pwords "Duplicate definition of" ++ [pretty x]
-  pretty (MissingDataOrRecordDefinitions xs) = fsep $
-    pwords "The following datatype or record type names are declared but not accompanied by a definition:" ++ map pretty xs
   pretty (MissingWithClauses x) = fsep $
     pwords "Missing with-clauses for function" ++ [pretty x]
 
@@ -444,6 +441,19 @@ data InMutual
 
 -- | The kind of the forward declaration, remembering the parameters.
 
+data DataRecOrFun' = DataRecOrFun'
+  { drfRange      :: Range
+  , drfFixity     :: Fixity'
+  , drfAccess     :: Access
+  , drfIsAbstract :: IsAbstract
+  , drfIsInstance :: IsInstance
+  , drfArgInfo    :: ArgInfo
+  , drfType       :: Expr
+  , drfPayload    :: DataRecOrFun
+  }
+
+type Params = [Arg BoundName]
+
 data DataRecOrFun
   = DataName
     { kindPosCheck :: PositivityCheck
@@ -457,18 +467,22 @@ data DataRecOrFun
     , kindParams :: Params
     }
     -- ^ Name of a record type with parameters.
-  | FunName Range Fixity' Access IsAbstract IsInstance ArgInfo TerminationCheck Expr
+  | FunName TerminationCheck
     -- ^ Name of a function.
   deriving Data
 
 -- Ignore pragmas when checking equality
+instance Eq DataRecOrFun' where
+  (==) = (==) `on` drfPayload
+
 instance Eq DataRecOrFun where
   DataName _ _ p == DataName _ _ q = p == q
   RecName  _ _ p == RecName  _ _ q = p == q
-  FunName{}      == FunName{}      = True
+  FunName _      == FunName _      = True
   _              == _              = False
 
-type Params = [Arg BoundName]
+instance Show DataRecOrFun' where
+  show = show . drfPayload
 
 instance Show DataRecOrFun where
   show (DataName _ _ n) = "data type" --  "with " ++ show n ++ " visible parameters"
@@ -486,7 +500,7 @@ sameKind FunName{} FunName{} = True
 sameKind _ _ = False
 
 terminationCheck :: DataRecOrFun -> TerminationCheck
-terminationCheck (FunName _ _ _ _ _ _ tc _) = tc
+terminationCheck (FunName tc) = tc
 terminationCheck _ = TerminationCheck
 
 positivityCheck :: DataRecOrFun -> PositivityCheck
@@ -618,7 +632,7 @@ data NiceEnv = NiceEnv
     -- ^ Stack of warnings. Head is last warning.
   }
 
-type LoneSigs   = Map Name DataRecOrFun
+type LoneSigs   = Map Name DataRecOrFun'
 type Fixities   = Map Name Fixity'
 type Polarities = Map Name [Occurrence]
 type NiceWarnings = [DeclarationWarning]
@@ -647,7 +661,7 @@ loneSigs f e = f (_loneSigs e) <&> \ s -> e { _loneSigs = s }
 
 -- | Adding a lone signature to the state.
 
-addLoneSig :: Name -> DataRecOrFun -> Nice ()
+addLoneSig :: Name -> DataRecOrFun' -> Nice ()
 addLoneSig x k = loneSigs %== \ s -> do
    let (mr, s') = Map.insertLookupWithKey (\ k new old -> new) x k s
    case mr of
@@ -662,7 +676,7 @@ removeLoneSig x = loneSigs %= Map.delete x
 -- | Search for forward type signature.
 
 getSig :: Name -> Nice (Maybe DataRecOrFun)
-getSig x = Map.lookup x <$> use loneSigs
+getSig x = fmap drfPayload . Map.lookup x <$> use loneSigs
 
 -- | Check that no lone signatures are left in the state.
 
@@ -670,32 +684,17 @@ noLoneSigs :: Nice Bool
 noLoneSigs = null <$> use loneSigs
 
 -- | Ensure that all forward declarations have been given a definition.
---   If they have not, we try to produce an appropriate axiom to replace
---   the lone signature with.
+--   If they have not, we produce a @Map@ associating an axiom of the
+--   right type to each @Name@.
 
-checkLoneSigs :: [(Name, DataRecOrFun)] -> Nice [NiceDeclaration]
-checkLoneSigs xs =
-  case xs of
-    []  -> return []
-    _:_ -> do
-      -- Start by emptying the set of lone signatures: we are going to deal
-      -- with all of them
-      loneSigs .= Map.empty
-      -- For each lone signature either:
-      -- fix it by producing a Right axiom
-      -- fail by returning its name wrapped in Left
-      ys <- forM xs $ \ (nm, x) -> do
-        case x of
-          FunName r fx acc abs inst rel _ t ->
-            pure $ Right $ Axiom r fx acc abs inst rel Nothing nm t
-          _ -> pure (Left nm)
-      -- If we failed to find a replacement for all of our lone signatures
-      -- then we throw an error. Otherwise we warn the user and return the
-      -- list of axioms to be used in conjunction with @replaceFunSigs@
-      let (nms, ds) = partitionEithers ys
-      if not (null nms)
-      then throwError $ MissingDataOrRecordDefinitions nms
-      else ds <$ niceWarning (MissingDefinitions $ fst <$> xs)
+checkLoneSigs :: Map Name DataRecOrFun' -> Nice (Map Name NiceDeclaration)
+checkLoneSigs xs = do
+  loneSigs .= Map.empty
+  let ds = flip Map.mapWithKey xs $ \ nm x ->
+              Axiom (drfRange x) (drfFixity x)
+                    (drfAccess x) (drfIsAbstract x) (drfIsInstance x)
+                    (drfArgInfo x) Nothing nm (drfType x)
+  ds <$ unless (Map.null xs) (niceWarning $ MissingDefinitions $ Map.keys xs)
 
 -- | Lens for field '_termChk'.
 
@@ -774,24 +773,26 @@ getPolarity x = do
   return p
 
 data DeclKind
-    = LoneSig DataRecOrFun Name
+    = LoneSig DataRecOrFun' Name
     | LoneDefs DataRecOrFun [Name]
     | OtherDecl
   deriving (Eq, Show)
 
 declKind :: NiceDeclaration -> DeclKind
 declKind (FunSig r fx acc abs inst _ rel tc x ty) =
-   LoneSig (FunName r fx acc abs inst rel tc ty) x
-declKind (NiceRecSig _ _ _ _ pc uc x pars _) = LoneSig (RecName pc uc $ parameters pars) x
-declKind (NiceDataSig _ _ _ _ pc uc x pars _) = LoneSig (DataName pc uc $ parameters pars) x
-declKind (FunDef r _ fx abs ins tc x _)        =
-  let err = __IMPOSSIBLE__ in
-  LoneDefs (FunName err err err err err err tc err) [x]
-declKind (DataDef _ _ _ pc uc x pars _)      = LoneDefs (DataName pc uc $ parameters pars) [x]
+  LoneSig (DataRecOrFun' r fx acc abs inst rel ty $ FunName tc) x
+declKind (NiceRecSig r fx acc abs pc uc x pars t) =
+  LoneSig (DataRecOrFun' r fx acc abs NotInstanceDef defaultArgInfo
+          (makePi (lamBindingsToTelescope r pars) t)
+          $ RecName pc uc $ parameters pars) x
+declKind (NiceDataSig r fx acc abs pc uc x pars t) =
+  LoneSig (DataRecOrFun' r fx acc abs NotInstanceDef defaultArgInfo
+          (makePi (lamBindingsToTelescope r pars) t)
+          $ DataName pc uc $ parameters pars) x
+declKind (FunDef r _ fx abs ins tc x _) = LoneDefs (FunName tc) [x]
+declKind (DataDef _ _ _ pc uc x pars _) = LoneDefs (DataName pc uc $ parameters pars) [x]
 declKind (RecDef _ _ _ pc uc x _ _ _ pars _) = LoneDefs (RecName pc uc $ parameters pars) [x]
-declKind (NiceUnquoteDef _ _ _ _ tc xs _) =
-  let err = __IMPOSSIBLE__ in
-  LoneDefs (FunName err err err err err err tc err) xs
+declKind (NiceUnquoteDef _ _ _ _ tc xs _) = LoneDefs (FunName tc) xs
 declKind Axiom{}                          = OtherDecl
 declKind NiceField{}                      = OtherDecl
 declKind PrimitiveFunction{}              = OtherDecl
@@ -814,17 +815,24 @@ parameters = List.concatMap $ \case
   DomainFull (TypedBindings _ (Arg i (TBind _ xs _))) -> for xs $ \ (WithHiding h x) ->
     mergeHiding $ WithHiding h $ Arg i x
 
--- | Replace FunSigs with Axioms for postulated names
+-- | Replace (Data/Rec/Fun)Sigs with Axioms for postulated names
 --   The first argument is a list of axioms only.
-replaceFunSigs :: [NiceDeclaration] -> [NiceDeclaration] -> [NiceDeclaration]
-replaceFunSigs [] ds = ds
-replaceFunSigs ps [] = ps
-replaceFunSigs ps@(ax:ps') (d:ds') = case d of
-   FunSig _ _ _ _ _ _ _ _ nm _ | nm == getAxiomName ax -> ax : replaceFunSigs ps' ds'
-   _ -> d : replaceFunSigs ps ds'
+replaceSigs :: Map Name NiceDeclaration -> [NiceDeclaration] -> [NiceDeclaration]
+replaceSigs ps ds = if Map.null ps then ds else case ds of
+  []      -> __IMPOSSIBLE__
+  (d:ds') -> fromMaybe (d : replaceSigs ps ds') $ do
+    nm        <- replacable d
+    (ps', ax) <- sequenceA $ swap $ Map.updateLookupWithKey (\ _ _ -> Nothing) nm ps
+    pure $ ax : replaceSigs ps' ds'
 
-   where getAxiomName (Axiom _ _ _ _ _ _ _ nm _) = nm
-         getAxiomName _ = __IMPOSSIBLE__
+   where
+
+     replacable :: NiceDeclaration -> Maybe Name
+     replacable d = case d of
+       FunSig _ _ _ _ _ _ _ _ nm _    -> pure nm
+       NiceRecSig _ _ _ _ _ _ nm _ _  -> pure nm
+       NiceDataSig _ _ _ _ _ _ nm _ _ -> pure nm
+       _ -> Nothing
 
 -- | Main.
 niceDeclarations :: [Declaration] -> Nice [NiceDeclaration]
@@ -867,9 +875,9 @@ niceDeclarations ds = do
     niceWarning $ PolarityPragmasButNotPostulates unusedPolarities
 
   -- Check that every signature got its definition.
-  ps <- checkLoneSigs . Map.toList =<< use loneSigs
+  ps <- checkLoneSigs =<< use loneSigs
   -- We postulate the missing ones and insert them in place of the corresponding @FunSig@
-  let ds = replaceFunSigs ps nds
+  let ds = replaceSigs ps nds
 
   -- Note that loneSigs is ensured to be empty.
   -- (Important, since inferMutualBlocks also uses loneSigs state).
@@ -927,11 +935,12 @@ niceDeclarations ds = do
         LoneDefs{}   -> (d :) <$> inferMutualBlocks ds  -- Andreas, 2017-10-09, issue #2576: report error in ConcreteToAbstract
         LoneSig k x  -> do
           addLoneSig x k
-          ((tcs, pcs), (nds0, ds1)) <- untilAllDefined ([terminationCheck k], [positivityCheck k]) ds
+          let tcpc = (pure . terminationCheck) &&& (pure . positivityCheck) $ drfPayload k
+          ((tcs, pcs), (nds0, ds1)) <- untilAllDefined tcpc ds
           -- If we still have lone signatures without any accompanying definition,
           -- we postulate the definition and substitute the axiom for the lone signature
-          ps <- checkLoneSigs . Map.toList =<< use loneSigs
-          let ds0 = replaceFunSigs ps (d : nds0) -- NB: don't forget the LoneSig the block started with!
+          ps <- checkLoneSigs =<< use loneSigs
+          let ds0 = replaceSigs ps (d : nds0) -- NB: don't forget the LoneSig the block started with!
           -- We then keep processing the rest of the block
           tc <- combineTermChecks (getRange d) tcs
           (NiceMutual (getRange ds0) tc (and pcs) ds0 :) <$> inferMutualBlocks ds1
@@ -947,10 +956,13 @@ niceDeclarations ds = do
               d : ds -> case declKind d of
                 LoneSig k x -> do
                   addLoneSig x k
-                  cons d (untilAllDefined (terminationCheck k : tc, positivityCheck k : pc) ds)
+                  let k' = drfPayload k
+                  let tcpc' = (terminationCheck k' : tc, positivityCheck k' : pc)
+                  cons d (untilAllDefined tcpc' ds)
                 LoneDefs k xs -> do
                   mapM_ removeLoneSig xs
-                  cons d (untilAllDefined (terminationCheck k : tc, positivityCheck k : pc) ds)
+                  let tcpc' = (terminationCheck k : tc, positivityCheck k : pc)
+                  cons d (untilAllDefined tcpc' ds)
                 OtherDecl   -> cons d (untilAllDefined tcpc ds)
           where
             -- ASR (26 December 2015): Type annotated version of the @cons@ function.
@@ -981,7 +993,9 @@ niceDeclarations ds = do
           fx <- getFixity x
           let r = getRange d
           -- register x as lone type signature, to recognize clauses later
-          addLoneSig x $ FunName r fx PublicAccess ConcreteDef NotInstanceDef info termCheck t
+          let drf = FunName termCheck
+          let sig = DataRecOrFun' r fx PublicAccess ConcreteDef NotInstanceDef info t drf
+          addLoneSig x sig
           return ([FunSig r fx PublicAccess ConcreteDef NotInstanceDef NotMacroDef info termCheck x t] , ds)
 
         (Generalize info x t)            -> do
@@ -991,7 +1005,8 @@ niceDeclarations ds = do
         (FunClause lhs _ _ _)         -> do
           termCheck <- use terminationCheckPragma
           catchall  <- popCatchallPragma
-          xs <- map fst . filter (isFunName . snd) . Map.toList <$> use loneSigs
+          xs <- map fst . filter (isFunName . drfPayload . snd) . Map.toList
+                <$> use loneSigs
           -- for each type signature 'x' waiting for clauses, we try
           -- if we have some clauses for 'x'
           fixs <- gets fixs
@@ -1035,7 +1050,11 @@ niceDeclarations ds = do
         (DataSig r Inductive x tel t) -> do
           pc <- use positivityCheckPragma
           uc <- use universeCheckPragma
-          addLoneSig x (DataName pc uc $ parameters tel)
+          let drf = DataName pc uc $ parameters tel
+          fx <- getFixity x
+          let sig = DataRecOrFun' r fx PublicAccess ConcreteDef NotInstanceDef
+                    defaultArgInfo (makePi (lamBindingsToTelescope r tel) t) drf
+          addLoneSig x sig
           (,) <$> dataOrRec pc uc DataDef NiceDataSig (niceAxioms DataBlock) r x (Just (tel, t)) Nothing
               <*> return ds
 
@@ -1049,7 +1068,11 @@ niceDeclarations ds = do
         (RecordSig r x tel t)         -> do
           pc <- use positivityCheckPragma
           uc <- use universeCheckPragma
-          addLoneSig x (RecName pc uc $ parameters tel)
+          let drf = RecName pc uc $ parameters tel
+          fx <- getFixity x
+          let sig = DataRecOrFun' r fx PublicAccess ConcreteDef NotInstanceDef
+                    defaultArgInfo (makePi (lamBindingsToTelescope r tel) t) drf
+          addLoneSig x sig
           fx <- getFixity x
           return ([NiceRecSig r fx PublicAccess ConcreteDef pc uc x tel t] , ds)
 
@@ -1118,7 +1141,7 @@ niceDeclarations ds = do
 
         UnquoteDef r xs e -> do
           fxs  <- mapM getFixity xs
-          sigs <- map fst . filter (isFunName . snd) . Map.toList <$> use loneSigs
+          sigs <- map fst . filter (isFunName . drfPayload . snd) . Map.toList <$> use loneSigs
           let missing = filter (`notElem` sigs) xs
           if null missing
             then do
@@ -1425,8 +1448,8 @@ niceDeclarations ds = do
     mkOldMutual :: Range -> [NiceDeclaration] -> Nice NiceDeclaration
     mkOldMutual r ds' = do
         -- Postulate the missing definitions
-        ps <- checkLoneSigs loneNames
-        let ds = replaceFunSigs ps ds'
+        ps <- checkLoneSigs $ Map.fromList loneNames
+        let ds = replaceSigs ps ds'
 
         -- Pull type signatures to the top
         let (sigs, other) = List.partition isTypeSig ds

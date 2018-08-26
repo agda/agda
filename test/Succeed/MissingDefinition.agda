@@ -4,8 +4,10 @@ open import Agda.Builtin.Equality
 
 Q : Set
 
-U : Set
-T : U → Set
+data U : Set
+S : Set
+S = U
+T : S → Set
 T _ = U
 
 V : Set
@@ -17,10 +19,12 @@ private
 
 module AB where
 
-  A : Set
+  data A : Set
   B : (a b : A) → a ≡ b
 
 mutual
 
   U₂ : Set
-  T₂ : U₂ → Set
+  data T₂ : U₂ → Set
+  V₂ : (u₂ : U₂) → T₂ u₂ → Set
+  data W₂ (u₂ : U₂) (t₂ : T₂ u₂) : V₂ u₂ t₂ → Set
