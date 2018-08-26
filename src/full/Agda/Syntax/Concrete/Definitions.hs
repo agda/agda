@@ -45,7 +45,7 @@ module Agda.Syntax.Concrete.Definitions
 
 import Prelude hiding (null)
 
-import Control.Arrow ((***), first, second)
+import Control.Arrow ((&&&), (***), first, second)
 import Control.Applicative hiding (empty)
 import Control.Monad.State
 
