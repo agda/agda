@@ -97,6 +97,7 @@ errorWarnings :: Set WarningName
 errorWarnings = Set.fromList
   [ CoverageIssue_
   , GenericNonFatalError_
+  , MissingDefinitions_
   , NotStrictlyPositive_
   , OverlappingTokensWarning_
   , SafeFlagPostulate_
