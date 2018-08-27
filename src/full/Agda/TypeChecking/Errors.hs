@@ -14,6 +14,7 @@ module Agda.TypeChecking.Errors
   , applyFlagsToTCWarnings
   , dropTopLevelModule
   , stringTCErr
+  , errorString
   , sayWhen
   ) where
 

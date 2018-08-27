@@ -269,6 +269,9 @@ library
                     Agda.Interaction.Imports
                     Agda.Interaction.InteractionTop
                     Agda.Interaction.JSON.Encoding
+                    Agda.Interaction.JSON.Syntax
+                    Agda.Interaction.JSON.TypeChecking
+                    Agda.Interaction.JSON.Utils
                     Agda.Interaction.Response
                     Agda.Interaction.MakeCase
                     Agda.Interaction.Monad

@@ -10,16 +10,16 @@ import Data.ByteString.Lazy (ByteString)
 import qualified Data.ByteString.Lazy.Char8 as BS
 
 import Agda.Interaction.AgdaTop
-import Agda.Interaction.Response as R
-import Agda.Interaction.EmacsCommand hiding (putResponse)
 import Agda.Interaction.Highlighting.JSON
-import Agda.Interaction.Highlighting.Precise (TokenBased(..))
-import Agda.Syntax.Common
-import Agda.TypeChecking.Monad
-import Agda.Utils.Pretty
-import Agda.VersionCommit
+import Agda.Interaction.JSON.Encoding
+import Agda.Interaction.JSON.TypeChecking
+import Agda.Interaction.Response as R
 
-----------------------------------
+import Agda.TypeChecking.Monad (TCM)
+import Agda.Utils.Pretty (render)
+import Agda.VersionCommit (versionWithCommitInfo)
+
+--------------------------------------------------------------------------------
 
 -- | 'jsonREPL' is a interpreter like 'mimicGHCi', but outputs JSON-encoded strings.
 --
@@ -27,16 +27,118 @@ import Agda.VersionCommit
 --   interprets them, and outputs JSON-encoded strings. into stdout.
 
 jsonREPL :: TCM () -> TCM ()
-jsonREPL = repl (liftIO . BS.putStrLn <=< liftIO . jsonifyResponse) "JSON> "
+jsonREPL = repl (liftIO . BS.putStrLn <=< return . encode <=< encodeTCM) "JSON> "
+
+--------------------------------------------------------------------------------
+
+instance EncodeTCM Response where
+  encodeTCM (Resp_HighlightingInfo info remove method modFile) =
+    liftIO (encodeHighlightingInfo info remove method modFile)
+  encodeTCM (Resp_DisplayInfo info) = obj
+    [ "kind" @= String "DisplayInfo"
+    , "info" #= encodeTCM info
+    ]
+  encodeTCM (Resp_ClearHighlighting tokenBased) = obj
+    [ "kind"          @= String "ClearHighlighting"
+    , "tokenBased"    @= tokenBased
+    ]
+  encodeTCM Resp_DoneAborting = obj [ "kind" @= String "DoneAborting" ]
+  encodeTCM Resp_ClearRunningInfo = obj [ "kind" @= String "ClearRunningInfo" ]
+  encodeTCM (Resp_RunningInfo debugLevel msg) = obj
+    [ "kind"          @= String "RunningInfo"
+    , "debugLevel"    @= debugLevel
+    , "message"       @= msg
+    ]
+  encodeTCM (Resp_Status status) = obj
+    [ "kind"          @= String "Status"
+    , "status"        @= status
+    ]
+  encodeTCM (Resp_JumpToError filepath position) = obj
+    [ "kind"          @= String "JumpToError"
+    , "filepath"      @= filepath
+    , "position"      @= position
+    ]
+  encodeTCM (Resp_InteractionPoints interactionPoints) = obj
+    [ "kind"              @= String "InteractionPoints"
+    , "interactionPoints" @= interactionPoints
+    ]
+  encodeTCM (Resp_GiveAction i giveResult) = obj
+    [ "kind"              @= String "GiveAction"
+    , "interactionPoint"  @= i
+    , "giveResult"        @= giveResult
+    ]
+  encodeTCM (Resp_MakeCase variant clauses) = obj
+    [ "kind"          @= String "MakeCase"
+    , "variant"       @= variant
+    , "clauses"       @= clauses
+    ]
+  encodeTCM (Resp_SolveAll solutions) = obj
+    [ "kind"          @= String "SolveAll"
+    , "solutions"     @= map encodeSolution solutions
+    ]
+    where
+      encodeSolution (i, expr) = object
+        [ "interactionPoint"  .= i
+        , "expression"        .= show expr
+        ]
+
+--------------------------------------------------------------------------------
+
+instance EncodeTCM DisplayInfo where
+  encodeTCM (Info_CompilationOk warnings errors) = obj
+    [ "kind"        @= String "CompilationOk"
+    , "warnings"    @= warnings
+    , "errors"      @= errors
+    ]
+  encodeTCM (Info_Constraints constraints) = obj
+    [ "kind"        @= String "Constraints"
+    , "constraints" @= constraints
+    ]
+  encodeTCM (Info_AllGoalsWarnings goals warnings errors) = obj
+    [ "kind"        @= String "AllGoalsWarnings"
+    , "goals"       @= goals
+    , "warnings"    @= warnings
+    , "errors"      @= errors
+    ]
+  encodeTCM (Info_Time doc) = obj [ "kind" @= String "Time", "payload" @= render doc ]
+  encodeTCM (Info_Error err msg) = obj
+      [ "kind" @= String "Error"
+      , "error" #= encodeTCM err
+      ]
+  encodeTCM (Info_Intro doc) = obj
+    [ "kind" @= String "Intro", "payload" @= render doc ]
+  encodeTCM (Info_Auto msg) = obj
+    [ "kind" @= String "Auto", "payload" @= msg ]
+  encodeTCM (Info_ModuleContents doc) = obj
+    [ "kind" @= String "ModuleContents", "payload" @= render doc ]
+  encodeTCM (Info_SearchAbout doc) = obj
+    [ "kind" @= String "SearchAbout", "payload" @= render doc ]
+  encodeTCM (Info_WhyInScope doc) = obj
+    [ "kind" @= String "WhyInScope", "payload" @= render doc ]
+  encodeTCM (Info_NormalForm doc) = obj
+    [ "kind" @= String "NormalForm", "payload" @= render doc ]
+  encodeTCM (Info_GoalType doc) = obj
+    [ "kind" @= String "GoalType", "payload" @= render doc ]
+  encodeTCM (Info_CurrentGoal doc) = obj
+    [ "kind" @= String "CurrentGoal", "payload" @= render doc ]
+  encodeTCM (Info_InferredType doc) = obj
+    [ "kind" @= String "InferredType", "payload" @= render doc ]
+  encodeTCM (Info_Context doc) = obj
+    [ "kind" @= String "Context", "payload" @= render doc ]
+  encodeTCM (Info_HelperFunction doc) = obj
+    [ "kind" @= String "HelperFunction", "payload" @= render doc ]
+  encodeTCM Info_Version = obj
+    [ "kind"    @= String "Version"
+    , "version" @= (("Agda version " ++ versionWithCommitInfo) :: String)
+    ]
+
+--------------------------------------------------------------------------------
 
 instance ToJSON Status where
   toJSON status = object
     [ "showImplicitArguments" .= sShowImplicitArguments status
     , "checked" .= sChecked status
     ]
-
-instance ToJSON InteractionId where
-  toJSON (InteractionId i) = toJSON i
 
 instance ToJSON GiveResult where
   toJSON (Give_String s) = toJSON s
@@ -46,89 +148,3 @@ instance ToJSON GiveResult where
 instance ToJSON MakeCaseVariant where
   toJSON R.Function = String "Function"
   toJSON R.ExtendedLambda = String "ExtendedLambda"
-
-instance ToJSON DisplayInfo where
-  toJSON (Info_CompilationOk warnings errors) = object
-    [ "kind"        .= String "CompilationOk"
-    , "warnings"    .= warnings
-    , "errors"      .= errors
-    ]
-  toJSON (Info_Constraints constraints) = object
-    [ "kind"        .= String "Constraints"
-    , "constraints" .= constraints
-    ]
-  toJSON (Info_AllGoalsWarnings goals warnings errors) = object
-    [ "kind"        .= String "AllGoalsWarnings"
-    , "goals"       .= goals
-    , "warnings"    .= warnings
-    , "errors"      .= errors
-    ]
-  toJSON (Info_Time doc) = object [ "kind" .= String "Time", "payload" .= render doc ]
-  toJSON (Info_Error err msg) = object [ "kind" .= String "Error", "payload" .= msg ]
-  toJSON (Info_Intro doc) = object [ "kind" .= String "Intro", "payload" .= render doc ]
-  toJSON (Info_Auto msg) = object [ "kind" .= String "Auto", "payload" .= msg ]
-  toJSON (Info_ModuleContents doc) = object [ "kind" .= String "ModuleContents", "payload" .= render doc ]
-  toJSON (Info_SearchAbout doc) = object [ "kind" .= String "SearchAbout", "payload" .= render doc ]
-  toJSON (Info_WhyInScope doc) = object [ "kind" .= String "WhyInScope", "payload" .= render doc ]
-  toJSON (Info_NormalForm doc) = object [ "kind" .= String "NormalForm", "payload" .= render doc ]
-  toJSON (Info_GoalType doc) = object [ "kind" .= String "GoalType", "payload" .= render doc ]
-  toJSON (Info_CurrentGoal doc) = object [ "kind" .= String "CurrentGoal", "payload" .= render doc ]
-  toJSON (Info_InferredType doc) = object [ "kind" .= String "InferredType", "payload" .= render doc ]
-  toJSON (Info_Context doc) = object [ "kind" .= String "Context", "payload" .= render doc ]
-  toJSON (Info_HelperFunction doc) = object [ "kind" .= String "HelperFunction", "payload" .= render doc ]
-  toJSON Info_Version = object
-    [ "kind" .= String "Version"
-    , "version" .= (("Agda version " ++ versionWithCommitInfo) :: String)
-    ]
-
--- | Convert Response to an JSON value for interactive editor frontends.
-jsonifyResponse :: Response -> IO ByteString
-jsonifyResponse (Resp_HighlightingInfo info remove method modFile) =
-   encode <$> jsonifyHighlightingInfo info remove method modFile
-jsonifyResponse (Resp_DisplayInfo info) = return $ encode $ object
-  [ "kind" .= String "DisplayInfo"
-  , "info" .= info
-  ]
-jsonifyResponse (Resp_ClearHighlighting tokenBased) = return $ encode $ object
-  [ "kind"          .= String "ClearHighlighting"
-  , "tokenBased"    .= tokenBased
-  ]
-jsonifyResponse Resp_DoneAborting = return $ encode $ object [ "kind" .= String "DoneAborting" ]
-jsonifyResponse Resp_ClearRunningInfo = return $ encode $ object [ "kind" .= String "ClearRunningInfo" ]
-jsonifyResponse (Resp_RunningInfo debugLevel msg) = return $ encode $ object
-  [ "kind"          .= String "RunningInfo"
-  , "debugLevel"    .= debugLevel
-  , "message"       .= msg
-  ]
-jsonifyResponse (Resp_Status status) = return $ encode $ object
-  [ "kind"          .= String "Status"
-  , "status"        .= status
-  ]
-jsonifyResponse (Resp_JumpToError filepath position) = return $ encode $ object
-  [ "kind"          .= String "JumpToError"
-  , "filepath"      .= filepath
-  , "position"      .= position
-  ]
-jsonifyResponse (Resp_InteractionPoints interactionPoints) = return $ encode $ object
-  [ "kind"              .= String "InteractionPoints"
-  , "interactionPoints" .= interactionPoints
-  ]
-jsonifyResponse (Resp_GiveAction i giveResult) = return $ encode $ object
-  [ "kind"              .= String "GiveAction"
-  , "interactionPoint"  .= i
-  , "giveResult"        .= giveResult
-  ]
-jsonifyResponse (Resp_MakeCase variant clauses) = return $ encode $ object
-  [ "kind"          .= String "MakeCase"
-  , "variant"       .= variant
-  , "clauses"       .= clauses
-  ]
-jsonifyResponse (Resp_SolveAll solutions) = return $ encode $ object
-  [ "kind"          .= String "SolveAll"
-  , "solutions"     .= map encodeSolution solutions
-  ]
-  where
-    encodeSolution (i, expr) = object
-      [ "interactionPoint"  .= i
-      , "expression"        .= show expr
-      ]
