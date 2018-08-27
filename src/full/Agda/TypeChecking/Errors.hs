@@ -13,9 +13,13 @@ module Agda.TypeChecking.Errors
   , tcWarningsToErrorWithoutThrowing
   , applyFlagsToTCWarnings
   , dropTopLevelModule
+  , topLevelModuleDropper
   , stringTCErr
   , errorString
   , sayWhen
+  , kindOfPattern
+  , Verbalize(..)
+  , Indefinite(..)
   ) where
 
 #if MIN_VERSION_base(4,11,0)
@@ -606,21 +610,6 @@ instance PrettyTCM TypeError where
          else
            text "with" : text (kindOfPattern (namedArg p)) : text "pattern" : prettyA p :
            pwords "(did you supply too many arguments?)"
-      where
-      kindOfPattern = \case
-        A.VarP{}    -> "variable"
-        A.ConP{}    -> "constructor"
-        A.ProjP{}   -> __IMPOSSIBLE__
-        A.DefP{}    -> __IMPOSSIBLE__
-        A.WildP{}   -> "wildcard"
-        A.DotP{}    -> "dot"
-        A.AbsurdP{} -> "absurd"
-        A.LitP{}    -> "literal"
-        A.RecP{}    -> "record"
-        A.WithP{}   -> "with"
-        A.EqualP{}  -> "equality"
-        A.AsP _ _ p -> kindOfPattern p
-        A.PatternSynP{} -> __IMPOSSIBLE__
 
     WrongNumberOfConstructorArguments c expect given -> fsep $
       pwords "The constructor" ++ [prettyTCM c] ++
@@ -1318,6 +1307,22 @@ instance PrettyTCM TypeError where
 
 notCmp :: Comparison -> TCM Doc
 notCmp cmp = text "!" <> prettyTCM cmp
+
+kindOfPattern :: A.Pattern -> String
+kindOfPattern arg = case arg of
+  A.VarP    {} -> "variable"
+  A.ConP    {} -> "constructor"
+  A.ProjP   {} -> __IMPOSSIBLE__
+  A.DefP    {} -> __IMPOSSIBLE__
+  A.WildP   {} -> "wildcard"
+  A.DotP    {} -> "dot"
+  A.AbsurdP {} -> "absurd"
+  A.LitP    {} -> "literal"
+  A.RecP    {} -> "record"
+  A.WithP   {} -> "with"
+  A.EqualP  {} -> "equality"
+  A.AsP _ _ p -> kindOfPattern p
+  A.PatternSynP {} -> __IMPOSSIBLE__
 
 -- | Print two terms that are supposedly unequal.
 --   If they print to the same identifier, add some explanation
