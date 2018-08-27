@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 -- | Instances of EncodeTCM or ToJSON under Agda.TypeChecking
@@ -15,14 +16,21 @@ import Agda.Interaction.JSON.Utils
 
 import qualified Agda.Syntax.Abstract as A
 import qualified Agda.Syntax.Common as C
+import qualified Agda.Syntax.Internal as I
+import qualified Agda.Syntax.Scope.Monad as S
+
 import Agda.Syntax.Position (Range, Range'(..))
 
 import Agda.TypeChecking.Errors
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Pretty (PrettyTCM(..), prettyA)
+import Agda.TypeChecking.Pretty (PrettyTCM(..), prettyA, prettyPattern)
 import Agda.TypeChecking.Telescope (ifPiType)
 
 import Agda.Utils.Pretty (render, pretty)
+
+#include "undefined.h"
+import Agda.Utils.Impossible
+
 --------------------------------------------------------------------------------
 
 instance EncodeTCM TCErr where
@@ -222,67 +230,123 @@ instance EncodeTCM TypeError where
           , "patternKind"   @= kindOfPattern (C.namedArg p)
           ]
 
-    -- WrongNumberOfConstructorArguments name expected actual -> obj
-    --   [ "kind"      @= String "WrongNumberOfConstructorArguments"
-    --   , "name"      #= prettyTCM name
-    --   , "expected"  #= prettyTCM expected
-    --   , "actual"    #= prettyTCM actual
-    --   ]
-    --
-    -- CantResolveOverloadedConstructorsTargetingSameDatatype datatype ctrs -> do
-    --   obj
-    --     [ "kind"          @= String "CantResolveOverloadedConstructorsTargetingSameDatatype"
-    --     , "datatype"      #= prettyTCM (I.qnameToConcrete datatype)
-    --     , "constructors"  #= mapM prettyTCM ctrs
-    --     ]
-    --
-    -- DoesNotConstructAnElementOf c t -> obj
-    --   [ "kind"        @= String "DoesNotConstructAnElementOf"
-    --   , "constructor" #= prettyTCM c
-    --   , "type"        #= prettyTCM t
-    --   ]
-    --
-    -- ConstructorPatternInWrongDatatype c d -> obj
-    --   [ "kind"        @= String "ConstructorPatternInWrongDatatype"
-    --   , "constructor" #= prettyTCM c
-    --   , "datatype"    #= prettyTCM d
-    --   ]
-    --
-    -- ShadowedModule x [] -> __IMPOSSIBLE__
-    -- ShadowedModule x ms@(m0 : _) -> do
-    --   -- Clash! Concrete module name x already points to the abstract names ms.
-    --   (r, m) <- do
-    --     -- Andreas, 2017-07-28, issue #719.
-    --     -- First, we try to find whether one of the abstract names @ms@ points back to @x@
-    --     scope <- getScope
-    --     -- Get all pairs (y,m) such that y points to some m ∈ ms.
-    --     let xms0 = ms >>= \ m -> map (,m) $ S.inverseScopeLookupModule m scope
-    --     reportSLn "scope.clash.error" 30 $ "candidates = " ++ prettyShow xms0
-    --
-    --     -- Try to find x (which will have a different Range, if it has one (#2649)).
-    --     let xms = filter ((\ y -> not (null $ getRange y) && y == C.QName x) . fst) xms0
-    --     reportSLn "scope.class.error" 30 $ "filtered candidates = " ++ prettyShow xms
-    --
-    --     -- If we found a copy of x with non-empty range, great!
-    --     ifJust (headMaybe xms) (\ (x', m) -> return (getRange x', m)) $ {-else-} do
-    --
-    --     -- If that failed, we pick the first m from ms which has a nameBindingSite.
-    --     let rms = ms >>= \ m -> map (,m) $
-    --           filter (noRange /=) $ map A.nameBindingSite $ reverse $ A.mnameToList m
-    --           -- Andreas, 2017-07-25, issue #2649
-    --           -- Take the first nameBindingSite we can get hold of.
-    --     reportSLn "scope.class.error" 30 $ "rangeful clashing modules = " ++ prettyShow rms
-    --
-    --     -- If even this fails, we pick the first m and give no range.
-    --     return $ fromMaybe (noRange, m0) $ headMaybe rms
-    --
-    --   obj
-    --     [ "kind"        @= String "ShadowedModule"
-    --     , "duplicated"  #= prettyTCM x
-    --     , "previous"    #= prettyTCM r
-    --     , "isDatatype"  #= S.isDatatypeModule m
-    --     ]
+    WrongNumberOfConstructorArguments name expected actual -> obj
+      [ "kind"      @= String "WrongNumberOfConstructorArguments"
+      , "name"      #= prettyTCM name
+      , "expected"  #= prettyTCM expected
+      , "actual"    #= prettyTCM actual
+      ]
 
+    CantResolveOverloadedConstructorsTargetingSameDatatype datatype ctrs -> do
+      obj
+        [ "kind"          @= String "CantResolveOverloadedConstructorsTargetingSameDatatype"
+        , "datatype"      #= prettyTCM (I.qnameToConcrete datatype)
+        , "constructors"  #= mapM prettyTCM ctrs
+        ]
+
+    DoesNotConstructAnElementOf c t -> obj
+      [ "kind"        @= String "DoesNotConstructAnElementOf"
+      , "constructor" #= prettyTCM c
+      , "type"        #= prettyTCM t
+      ]
+
+    ConstructorPatternInWrongDatatype c d -> obj
+      [ "kind"        @= String "ConstructorPatternInWrongDatatype"
+      , "constructor" #= prettyTCM c
+      , "datatype"    #= prettyTCM d
+      ]
+
+    ShadowedModule x [] -> __IMPOSSIBLE__
+    ShadowedModule x ms -> do
+      (r, m) <- handleShadowedModule x ms
+      obj
+        [ "kind"        @= String "ShadowedModule"
+        , "duplicated"  #= prettyTCM x
+        , "previous"    #= prettyTCM r
+        , "isDatatype"  #= S.isDatatypeModule m
+        ]
+
+    ModuleArityMismatch m I.EmptyTel args -> obj
+      [ "kind"            @= String "ModuleArityMismatch"
+      , "module"          #= prettyTCM m
+      , "isParameterized" @= False
+      ]
+    ModuleArityMismatch m tel@(I.ExtendTel _ _) args -> obj
+      [ "kind"            @= String "ModuleArityMismatch"
+      , "module"          #= prettyTCM m
+      , "isParameterized" @= True
+      , "telescope"       #= prettyTCM tel
+      ]
+
+    ShouldBeEmpty t ps -> obj
+      [ "kind"            @= String "ShouldBeEmpty"
+      , "type"            #= prettyTCM t
+      , "patterns"        #= mapM (prettyPattern 0) ps
+      ]
+
+    ShouldBeASort t -> obj
+      [ "kind"            @= String "ShouldBeASort"
+      , "type"            #= prettyTCM t
+      ]
+
+    ShouldBePi t -> obj
+      [ "kind"            @= String "ShouldBePi"
+      , "type"            #= prettyTCM t
+      ]
+
+    ShouldBePath t -> obj
+      [ "kind"            @= String "ShouldBePath"
+      , "type"            #= prettyTCM t
+      ]
+
+    NotAProperTerm -> obj
+      [ "kind"            @= String "NotAProperTerm"
+      ]
+
+    InvalidTypeSort s -> obj
+      [ "kind"            @= String "InvalidTypeSort"
+      , "sort"            #= prettyTCM s
+      ]
+
+    InvalidType t -> obj
+      [ "kind"            @= String "InvalidType"
+      , "type"            #= prettyTCM t
+      ]
+
+    FunctionTypeInSizeUniv t -> obj
+      [ "kind"            @= String "FunctionTypeInSizeUniv"
+      , "term"            #= prettyTCM t
+      ]
+
+    SplitOnIrrelevant t ->obj
+      [ "kind"            @= String "SplitOnIrrelevant"
+      , "term"            @= verbalize (C.getRelevance t)
+      , "type"            #= prettyTCM (C.unDom t)
+      ]
+
+    SplitOnNonVariable term typ ->obj
+      [ "kind"            @= String "SplitOnNonVariable"
+      , "term"            #= prettyTCM term
+      , "type"            #= prettyTCM typ
+      ]
+
+
+    DefinitionIsIrrelevant x -> obj
+      [ "kind"            @= String "DefinitionIsIrrelevant"
+      , "name"            #= prettyTCM x
+      ]
+
+    VariableIsIrrelevant x -> obj
+      [ "kind"            @= String "VariableIsIrrelevant"
+      , "name"            #= prettyTCM x
+      ]
+
+    UnequalBecauseOfUniverseConflict cmp s t -> obj
+      [ "kind"            @= String "UnequalBecauseOfUniverseConflict"
+      , "comparison"      #= prettyTCM cmp
+      , "term1"           #= prettyTCM s
+      , "term2"           #= prettyTCM t
+      ]
 
     -- For unhandled errors, passing only its kind
     _ -> obj [ "kind" @= toJSON (errorString err) ]

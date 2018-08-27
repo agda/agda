@@ -18,6 +18,7 @@ module Agda.TypeChecking.Errors
   , errorString
   , sayWhen
   , kindOfPattern
+  , handleShadowedModule
   , Verbalize(..)
   , Indefinite(..)
   ) where
@@ -682,7 +683,7 @@ instance PrettyTCM TypeError where
     ShouldBeEmpty t ps -> fsep (
       [prettyTCM t] ++
       pwords "should be empty, but the following constructor patterns are valid:"
-      ) $$ nest 2 (vcat $ map (prettyPat 0) ps)
+      ) $$ nest 2 (vcat $ map (prettyPattern 0) ps)
 
     ShouldBeASort t -> fsep $
       [prettyTCM t] ++ pwords "should be a sort, but it isn't"
@@ -1285,29 +1286,10 @@ instance PrettyTCM TypeError where
       pwords ("Instance search depth exhausted (max depth: " ++ show d ++ ") for candidate") ++
       [hang (prettyTCM c <+> text ":") 2 (prettyTCM a)]
 
-    where
-    mpar n args
-      | n > 0 && not (null args) = parens
-      | otherwise                = id
-
-    prettyArg :: Arg (I.Pattern' a) -> TCM Doc
-    prettyArg (Arg info x) = case getHiding info of
-      Hidden     -> braces $ prettyPat 0 x
-      Instance{} -> dbraces $ prettyPat 0 x
-      NotHidden  -> prettyPat 1 x
-
-    prettyPat :: Integer -> (I.Pattern' a) -> TCM Doc
-    prettyPat _ (I.VarP _ _) = text "_"
-    prettyPat _ (I.DotP _ _) = text "._"
-    prettyPat n (I.ConP c _ args) =
-      mpar n args $
-        prettyTCM c <+> fsep (map (prettyArg . fmap namedThing) args)
-    prettyPat _ (I.LitP l) = prettyTCM l
-    prettyPat _ (I.ProjP _ p) = text "." <> prettyTCM p
-
 notCmp :: Comparison -> TCM Doc
 notCmp cmp = text "!" <> prettyTCM cmp
 
+-- | For CannotEliminateWithPattern
 kindOfPattern :: A.Pattern -> String
 kindOfPattern arg = case arg of
   A.VarP    {} -> "variable"
@@ -1323,6 +1305,36 @@ kindOfPattern arg = case arg of
   A.EqualP  {} -> "equality"
   A.AsP _ _ p -> kindOfPattern p
   A.PatternSynP {} -> __IMPOSSIBLE__
+
+-- | For ShadowedModule
+handleShadowedModule :: C.Name -> [A.ModuleName] -> TCM (Range, A.ModuleName)
+handleShadowedModule x [] = __IMPOSSIBLE__
+handleShadowedModule x ms@(m0 : _) = do
+    -- Clash! Concrete module name x already points to the abstract names ms.
+
+    -- Andreas, 2017-07-28, issue #719.
+    -- First, we try to find whether one of the abstract names @ms@ points back to @x@
+    scope <- getScope
+    -- Get all pairs (y,m) such that y points to some m ∈ ms.
+    let xms0 = ms >>= \ m -> map (,m) $ inverseScopeLookupModule m scope
+    reportSLn "scope.clash.error" 30 $ "candidates = " ++ prettyShow xms0
+
+    -- Try to find x (which will have a different Range, if it has one (#2649)).
+    let xms = filter ((\ y -> not (null $ getRange y) && y == C.QName x) . fst) xms0
+    reportSLn "scope.class.error" 30 $ "filtered candidates = " ++ prettyShow xms
+
+    -- If we found a copy of x with non-empty range, great!
+    ifJust (headMaybe xms) (\ (x', m) -> return (getRange x', m)) $ {-else-} do
+
+    -- If that failed, we pick the first m from ms which has a nameBindingSite.
+    let rms = ms >>= \ m -> map (,m) $
+          filter (noRange /=) $ map A.nameBindingSite $ reverse $ A.mnameToList m
+          -- Andreas, 2017-07-25, issue #2649
+          -- Take the first nameBindingSite we can get hold of.
+    reportSLn "scope.class.error" 30 $ "rangeful clashing modules = " ++ prettyShow rms
+
+    -- If even this fails, we pick the first m and give no range.
+    return $ fromMaybe (noRange, m0) $ headMaybe rms
 
 -- | Print two terms that are supposedly unequal.
 --   If they print to the same identifier, add some explanation

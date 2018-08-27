@@ -40,6 +40,7 @@ import qualified Agda.Syntax.Translation.ReflectedToAbstract as R
 import qualified Agda.Syntax.Reflected as R
 import qualified Agda.Syntax.Abstract as A
 import qualified Agda.Syntax.Concrete as C
+import qualified Agda.Syntax.Internal as I
 import qualified Agda.Syntax.Reflected as R
 import qualified Agda.Syntax.Abstract.Pretty as AP
 import Agda.Syntax.Concrete.Pretty (bracesAndSemicolons)
@@ -82,6 +83,27 @@ prettyA x = AP.prettyA x
 
 prettyAs :: (P.Pretty c, ToConcrete a [c]) => a -> TCM Doc
 prettyAs x = AP.prettyAs x
+
+prettyPattern :: Integer -> (I.Pattern' a) -> TCM Doc
+prettyPattern _ (I.VarP _ _) = text "_"
+prettyPattern _ (I.DotP _ _) = text "._"
+prettyPattern n (I.ConP c _ args) =
+  mpar n args $
+    prettyTCM c <+> fsep (map (prettyArg . fmap namedThing) args)
+  where
+
+    prettyArg :: Arg (I.Pattern' a) -> TCM Doc
+    prettyArg (Arg info x) = case getHiding info of
+      Hidden     -> braces $ prettyPattern 0 x
+      Instance{} -> dbraces $ prettyPattern 0 x
+      NotHidden  -> prettyPattern 1 x
+
+    mpar n args
+      | n > 0 && not (null args) = parens
+      | otherwise                = id
+
+prettyPattern _ (I.LitP l) = prettyTCM l
+prettyPattern _ (I.ProjP _ p) = text "." <> prettyTCM p
 
 text :: String -> TCM Doc
 text s = return $ P.text s

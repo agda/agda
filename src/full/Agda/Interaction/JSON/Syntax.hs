@@ -88,6 +88,10 @@ instance ToJSON a => ToJSON (Arg a) where
     , "payload" .= unArg
     ]
 
+instance ToJSON DataOrRecord where
+  toJSON IsData   = String "IsData"
+  toJSON IsRecord = String "IsRecord"
+
 --------------------------------------------------------------------------------
 -- Position
 instance ToJSON a => ToJSON (P.Position' a) where
