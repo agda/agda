@@ -23,10 +23,12 @@ import Agda.Syntax.Position (Range, Range'(..))
 
 import Agda.TypeChecking.Errors
 import Agda.TypeChecking.Monad
+import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Pretty (PrettyTCM(..), prettyA, prettyPattern)
 import Agda.TypeChecking.Telescope (ifPiType)
 
 import Agda.Utils.Pretty (render, pretty)
+import Agda.Utils.FileName (filePath)
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -121,7 +123,7 @@ instance EncodeTCM TypeError where
     ShouldBeAppliedToTheDatatypeParameters s t -> obj
       [ "kind"      @= String "ShouldEndInApplicationOfTheDatatype"
       , "expected"  #= prettyTCM s
-      , "actual"    #= prettyTCM t
+      , "given"     #= prettyTCM t
       ]
 
     ShouldBeApplicationOf t q -> obj
@@ -175,13 +177,13 @@ instance EncodeTCM TypeError where
     HidingMismatch h h' -> obj
       [ "kind"      @= String "HidingMismatch"
       , "expected"  @= verbalize (Indefinite h')
-      , "actual"    @= verbalize (Indefinite h)
+      , "given"     @= verbalize (Indefinite h)
       ]
 
     RelevanceMismatch r r' -> obj
       [ "kind"      @= String "RelevanceMismatch"
       , "expected"  @= verbalize (Indefinite r')
-      , "actual"    @= verbalize (Indefinite r)
+      , "given"     @= verbalize (Indefinite r)
       ]
 
     UninstantiatedDotPattern e -> obj
@@ -230,11 +232,11 @@ instance EncodeTCM TypeError where
           , "patternKind"   @= kindOfPattern (C.namedArg p)
           ]
 
-    WrongNumberOfConstructorArguments name expected actual -> obj
+    WrongNumberOfConstructorArguments name expected given -> obj
       [ "kind"      @= String "WrongNumberOfConstructorArguments"
       , "name"      #= prettyTCM name
       , "expected"  #= prettyTCM expected
-      , "actual"    #= prettyTCM actual
+      , "given"     #= prettyTCM given
       ]
 
     CantResolveOverloadedConstructorsTargetingSameDatatype datatype ctrs -> do
@@ -347,6 +349,612 @@ instance EncodeTCM TypeError where
       , "term1"           #= prettyTCM s
       , "term2"           #= prettyTCM t
       ]
+
+
+    UnequalTerms cmp s t a -> case refineUnequalTerms cmp s t of
+      Just err -> encodeTCM err
+      Nothing -> do
+        (_, _, d) <- prettyInEqual s t
+        obj
+          [ "kind"            @= String "UnequalTerms"
+          , "comparison"      #= prettyTCM cmp
+          , "term1"           #= prettyTCM s
+          , "term2"           #= prettyTCM t
+          , "type"            #= prettyTCM a
+          , "reason"          @= d
+          ]
+
+    UnequalTypes cmp a b -> obj
+      [ "kind"            @= String "UnequalTypes"
+      , "comparison"      #= prettyTCM cmp
+      , "type1"           #= prettyTCM a
+      , "type2"           #= prettyTCM b
+      , "message"         #= prettyUnequal a (notCmp cmp) b
+      ]
+
+    UnequalRelevance cmp a b -> obj
+      [ "kind"            @= String "UnequalRelevance"
+      , "comparison"      #= prettyTCM cmp
+      , "term1"           #= prettyTCM a
+      , "term2"           #= prettyTCM b
+      ]
+
+    UnequalHiding a b -> obj
+      [ "kind"            @= String "UnequalHiding"
+      , "term1"           #= prettyTCM a
+      , "term2"           #= prettyTCM b
+      ]
+
+    UnequalSorts a b -> obj
+      [ "kind"            @= String "UnequalSorts"
+      , "sort1"           #= prettyTCM a
+      , "sort2"           #= prettyTCM b
+      ]
+
+    NotLeqSort a b -> obj
+      [ "kind"            @= String "NotLeqSort"
+      , "sort1"           #= prettyTCM a
+      , "sort2"           #= prettyTCM b
+      ]
+
+    TooFewFields record fields -> obj
+      [ "kind"            @= String "TooFewFields"
+      , "record"          #= prettyTCM record
+      , "fields"          @= map pretty fields
+      ]
+
+    TooManyFields record fields -> obj
+      [ "kind"            @= String "TooManyFields"
+      , "record"          #= prettyTCM record
+      , "fields"          @= map pretty fields
+      ]
+
+    DuplicateConstructors xs -> obj
+      [ "kind"            @= String "DuplicateConstructors"
+      , "constructors"    @= map pretty xs
+      ]
+
+    DuplicateFields xs -> obj
+      [ "kind"            @= String "DuplicateFields"
+      , "fields"          @= map pretty xs
+      ]
+
+    WithOnFreeVariable expr term -> do
+      de <- prettyA expr
+      dt <- prettyTCM term
+      if show de == show dt
+        then obj
+          [ "kind"            @= String "WithOnFreeVariable"
+          , "variable"        @= dt
+          ]
+        else obj
+          [ "kind"            @= String "WithOnFreeVariable"
+          , "variable"        @= dt
+          , "expression"      @= de
+          ]
+
+    UnexpectedWithPatterns xs -> obj
+      [ "kind"            @= String "UnexpectedWithPatterns"
+      , "patterns"        #= mapM prettyA xs
+      ]
+
+    -- The arguments are the meta variable, the parameters it can
+    -- depend on and the paratemeter that it wants to depend on.
+    MetaCannotDependOn meta ps i -> obj
+      [ "kind"            @= String "MetaCannotDependOn"
+      , "meta"            #= prettyTCM (I.MetaV meta [])
+      , "wantsToDependOn" #= prettyTCM (I.var i)
+      , "canDepdendOn"    #= mapM prettyTCM (map I.var ps)
+      ]
+
+    MetaOccursInItself meta -> obj
+      [ "kind"            @= String "MetaOccursInItself"
+      , "meta"            #= prettyTCM (I.MetaV meta [])
+      ]
+
+    MetaIrrelevantSolution meta term -> obj
+      [ "kind"            @= String "MetaIrrelevantSolution"
+      , "meta"            #= prettyTCM (I.MetaV meta [])
+      , "term"            #= prettyTCM term
+      ]
+
+    BuiltinMustBeConstructor s expr -> obj
+      [ "kind"            @= String "MetaIrrelevantSolution"
+      , "expr"            #= prettyA expr
+      , "message"         @= s
+      ]
+
+    NoSuchBuiltinName s -> obj
+      [ "kind"            @= String "NoSuchBuiltinName"
+      , "message"         @= s
+      ]
+
+    DuplicateBuiltinBinding s x y -> obj
+      [ "kind"            @= String "DuplicateBuiltinBinding"
+      , "term1"           #= prettyTCM x
+      , "term2"           #= prettyTCM y
+      , "message"         @= s
+      ]
+
+    NoBindingForBuiltin s -> obj
+      [ "kind"            @= String "NoBindingForBuiltin"
+      , "payload"         @= s
+      , "builtins"        @= [builtinZero, builtinSuc, builtinNat]
+      ]
+
+    NoSuchPrimitiveFunction s -> obj
+      [ "kind"            @= String "NoSuchPrimitiveFunction"
+      , "message"         @= s
+      ]
+
+    BuiltinInParameterisedModule s -> obj
+      [ "kind"            @= String "NoSuchPrimitiveFunction"
+      , "message"         @= s
+      ]
+
+    IllegalLetInTelescope typedBinding -> obj
+      [ "kind"            @= String "IllegalLetInTelescope"
+      , "typedBinding"    @= pretty typedBinding
+      ]
+
+    NoRHSRequiresAbsurdPattern ps -> obj
+      [ "kind"            @= String "NoRHSRequiresAbsurdPattern"
+      , "patterns"        #= mapM prettyA ps
+      ]
+
+    AbsurdPatternRequiresNoRHS ps -> obj
+      [ "kind"            @= String "AbsurdPatternRequiresNoRHS"
+      , "patterns"        #= mapM prettyA ps
+      ]
+
+    LocalVsImportedModuleClash m -> obj
+      [ "kind"            @= String "LocalVsImportedModuleClash"
+      , "module"          #= prettyTCM m
+      ]
+
+    SolvedButOpenHoles -> obj
+      [ "kind"            @= String "SolvedButOpenHoles"
+      ]
+
+    CyclicModuleDependency ms -> obj
+      [ "kind"            @= String "CyclicModuleDependency"
+      , "modules"         @= map pretty ms
+      ]
+
+    FileNotFound m files -> obj
+      [ "kind"            @= String "FileNotFound"
+      , "module"          @= pretty m
+      , "filepaths"       @= map filePath files
+      ]
+
+    OverlappingProjects f m1 m2 -> obj
+      [ "kind"            @= String "OverlappingProjects"
+      , "module1"         @= pretty m1
+      , "module2"         @= pretty m2
+      , "filepath"        @= filePath f
+      ]
+
+    AmbiguousTopLevelModuleName m files -> obj
+      [ "kind"            @= String "AmbiguousTopLevelModuleName"
+      , "module"          @= pretty m
+      , "filepaths"       @= map filePath files
+      ]
+
+    ClashingFileNamesFor m files -> obj
+      [ "kind"            @= String "ClashingFileNamesFor"
+      , "module"          @= pretty m
+      , "filepaths"       @= map filePath files
+      ]
+
+    ModuleDefinedInOtherFile m file file' -> obj
+      [ "kind"            @= String "ModuleDefinedInOtherFile"
+      , "module"          @= pretty m
+      , "filepath1"       @= filePath file
+      , "filepath2"       @= filePath file'
+      ]
+
+    ModuleNameUnexpected given expected -> obj
+      [ "kind"            @= String "ModuleNameUnexpected"
+      , "expected"        @= pretty expected
+      , "given"           @= pretty given
+      ]
+
+    ModuleNameDoesntMatchFileName given files -> obj
+      [ "kind"            @= String "ModuleNameDoesntMatchFileName"
+      , "filepaths"       @= map filePath files
+      , "given"           @= pretty given
+      ]
+
+    BothWithAndRHS -> obj
+      [ "kind"            @= String "BothWithAndRHS"
+      ]
+
+    AbstractConstructorNotInScope c -> obj
+      [ "kind"            @= String "AbstractConstructorNotInScope"
+      , "constructor"     #= prettyTCM c
+      ]
+      
+--     NotInScope xs -> do
+--       inscope <- Set.toList . concreteNamesInScope <$> getScope
+--       fsep (pwords "Not in scope:") $$ nest 2 (vcat $ map (name inscope) xs)
+--       where
+--       name inscope x =
+--         fsep [ pretty x
+--              , text "at" <+> prettyTCM (getRange x)
+--              , suggestion inscope x
+--              ]
+--       suggestion inscope x = nest 2 $ par $
+--         [ text "did you forget space around the ':'?"  | elem ':' s ] ++
+--         [ text "did you forget space around the '->'?" | isInfixOf "->" s ] ++
+--         [ sep [ text "did you mean"
+--               , nest 2 $ vcat (punctuate (text " or") $ map (\ y -> text $ "'" ++ y ++ "'") ys) <> text "?" ]
+--           | not $ null ys ]
+--         where
+--           s = P.prettyShow x
+--           par []  = empty
+--           par [d] = parens d
+--           par ds  = parens $ vcat ds
+--
+--           strip x = map toLower $ filter (/= '_') $ P.prettyShow $ C.unqualify x
+--           maxDist n = div n 3
+--           close a b = editDistance a b <= maxDist (length a)
+--           ys = map P.prettyShow $ filter (close (strip x) . strip) inscope
+--
+--     NoSuchModule x -> fsep $ pwords "No such module" ++ [pretty x]
+--
+--     AmbiguousName x ys -> vcat
+--       [ fsep $ pwords "Ambiguous name" ++ [pretty x <> text "."] ++
+--                pwords "It could refer to any one of"
+--       , nest 2 $ vcat $ map nameWithBinding (toList ys)
+--       , fwords "(hint: Use C-c C-w (in Emacs) if you want to know why)"
+--       ]
+--
+--     AmbiguousModule x ys -> vcat
+--       [ fsep $ pwords "Ambiguous module name" ++ [pretty x <> text "."] ++
+--                pwords "It could refer to any one of"
+--       , nest 2 $ vcat $ map help (toList ys)
+--       , fwords "(hint: Use C-c C-w (in Emacs) if you want to know why)"
+--       ]
+--       where
+--         help :: ModuleName -> TCM Doc
+--         help m = do
+--           anno <- caseMaybeM (isDatatypeModule m) (return empty) $ \case
+--             IsData   -> return $ text "(datatype module)"
+--             IsRecord -> return $ text "(record module)"
+--           sep [prettyTCM m, anno ]
+--
+--     UninstantiatedModule x -> fsep (
+--       pwords "Cannot access the contents of the parameterised module"
+--       ++ [pretty x <> text "."] ++
+--       pwords "To do this the module first has to be instantiated. For instance:"
+--         ) $$ nest 2 (hsep [ text "module", pretty x <> text "'", text "=", pretty x, text "e1 .. en" ])
+--
+--     ClashingDefinition x y -> fsep $
+--       pwords "Multiple definitions of" ++ [pretty x <> text "."] ++
+--       pwords "Previous definition at"
+--       ++ [prettyTCM $ nameBindingSite $ qnameName y]
+--
+--     ClashingModule m1 m2 -> fsep $
+--       pwords "The modules" ++ [prettyTCM m1, text "and", prettyTCM m2]
+--       ++ pwords "clash."
+--
+--     ClashingImport x y -> fsep $
+--       pwords "Import clash between" ++ [pretty x, text "and", prettyTCM y]
+--
+--     ClashingModuleImport x y -> fsep $
+--       pwords "Module import clash between" ++ [pretty x, text "and", prettyTCM y]
+--
+--     PatternShadowsConstructor x c -> fsep $
+--       pwords "The pattern variable" ++ [prettyTCM x] ++
+--       pwords "has the same name as the constructor" ++ [prettyTCM c]
+--
+--     DuplicateImports m xs -> fsep $
+--       pwords "Ambiguous imports from module" ++ [pretty m] ++ pwords "for" ++
+--       punctuate comma (map pretty xs)
+--
+--     ModuleDoesntExport m xs -> fsep $
+--       pwords "The module" ++ [pretty m] ++ pwords "doesn't export the following:" ++
+--       punctuate comma (map pretty xs)
+--
+--     NotAModuleExpr e -> fsep $
+--       pwords "The right-hand side of a module definition must have the form 'M e1 .. en'" ++
+--       pwords "where M is a module name. The expression"
+--       ++ [pretty e, text "doesn't."]
+--
+--     FieldOutsideRecord -> fsep $
+--       pwords "Field appearing outside record declaration."
+--
+--     InvalidPattern p -> fsep $
+--       pretty p : pwords "is not a valid pattern"
+--
+--     RepeatedVariablesInPattern xs -> fsep $
+--       pwords "Repeated variables in pattern:" ++ map pretty xs
+--
+--     NotAnExpression e -> fsep $
+--       [pretty e] ++ pwords "is not a valid expression."
+--
+--     NotAValidLetBinding nd -> fwords $
+--       "Not a valid let-declaration"
+--
+--     NotValidBeforeField nd -> fwords $
+--       "This declaration is illegal in a record before the last field"
+--
+--     NothingAppliedToHiddenArg e -> fsep $
+--       [pretty e] ++ pwords "cannot appear by itself. It needs to be the argument to" ++
+--       pwords "a function expecting an implicit argument."
+--
+--     NothingAppliedToInstanceArg e -> fsep $
+--       [pretty e] ++ pwords "cannot appear by itself. It needs to be the argument to" ++
+--       pwords "a function expecting an instance argument."
+--
+--     NoParseForApplication es -> fsep (
+--       pwords "Could not parse the application" ++ [pretty $ C.RawApp noRange es])
+--
+--     AmbiguousParseForApplication es es' -> fsep (
+--       pwords "Don't know how to parse" ++ [pretty_es <> (text ".")] ++
+--       pwords "Could mean any one of:"
+--       ) $$ nest 2 (vcat $ map pretty' es')
+--       where
+--         pretty_es :: TCM Doc
+--         pretty_es = pretty $ C.RawApp noRange es
+--
+--         pretty' :: C.Expr -> TCM Doc
+--         pretty' e = do
+--           p1 <- pretty_es
+--           p2 <- pretty e
+--           if show p1 == show p2 then unambiguous e else pretty e
+--
+--         unambiguous :: C.Expr -> TCM Doc
+--         unambiguous e@(C.OpApp r op _ xs)
+--           | all (isOrdinary . namedArg) xs =
+--             pretty $
+--               foldl (C.App r) (C.Ident op) $
+--                 (map . fmap . fmap) fromOrdinary xs
+--           | any (isPlaceholder . namedArg) xs =
+--               pretty e <+> text "(section)"
+--         unambiguous e = pretty e
+--
+--         isOrdinary :: MaybePlaceholder (C.OpApp e) -> Bool
+--         isOrdinary (NoPlaceholder _ (C.Ordinary _)) = True
+--         isOrdinary _                                = False
+--
+--         fromOrdinary :: MaybePlaceholder (C.OpApp e) -> e
+--         fromOrdinary (NoPlaceholder _ (C.Ordinary e)) = e
+--         fromOrdinary _                                = __IMPOSSIBLE__
+--
+--         isPlaceholder :: MaybePlaceholder a -> Bool
+--         isPlaceholder Placeholder{}   = True
+--         isPlaceholder NoPlaceholder{} = False
+--
+--     BadArgumentsToPatternSynonym x -> fsep $
+--       pwords "Bad arguments to pattern synonym " ++ [prettyTCM $ headAmbQ x]
+--
+--     TooFewArgumentsToPatternSynonym x -> fsep $
+--       pwords "Too few arguments to pattern synonym " ++ [prettyTCM $ headAmbQ x]
+--
+--     CannotResolveAmbiguousPatternSynonym defs -> vcat
+--       [ fsep $ pwords "Cannot resolve overloaded pattern synonym" ++ [prettyTCM x <> comma] ++
+--                pwords "since candidates have different shapes:"
+--       , nest 2 $ vcat $ map prDef (toList defs)
+--       , fsep $ pwords "(hint: overloaded pattern synonyms must be equal up to variable and constructor names)"
+--       ]
+--       where
+--         (x, _) = headNe defs
+--         prDef (x, (xs, p)) = prettyA (A.PatternSynDef x xs p) <?> (text "at" <+> pretty r)
+--           where r = nameBindingSite $ qnameName x
+--
+--     UnusedVariableInPatternSynonym -> fsep $
+--       pwords "Unused variable in pattern synonym."
+--
+--     NoParseForLHS IsLHS p -> fsep (
+--       pwords "Could not parse the left-hand side" ++ [pretty p])
+--
+--     NoParseForLHS IsPatSyn p -> fsep (
+--       pwords "Could not parse the pattern synonym" ++ [pretty p])
+--
+-- {- UNUSED
+--     NoParseForPatternSynonym p -> fsep $
+--       pwords "Could not parse the pattern synonym" ++ [pretty p]
+-- -}
+--
+--     AmbiguousParseForLHS lhsOrPatSyn p ps -> fsep (
+--       pwords "Don't know how to parse" ++ [pretty_p <> text "."] ++
+--       pwords "Could mean any one of:"
+--       ) $$ nest 2 (vcat $ map pretty' ps)
+--       where
+--         pretty_p :: TCM Doc
+--         pretty_p = pretty p
+--
+--         pretty' :: C.Pattern -> TCM Doc
+--         pretty' p' = do
+--           p1 <- pretty_p
+--           p2 <- pretty p'
+--           pretty $ if show p1 == show p2 then unambiguousP p' else p'
+--
+--         -- the entire pattern is shown, not just the ambiguous part,
+--         -- so we need to dig in order to find the OpAppP's.
+--         unambiguousP :: C.Pattern -> C.Pattern
+--         unambiguousP (C.AppP x y)         = C.AppP (unambiguousP x) $ (fmap.fmap) unambiguousP y
+--         unambiguousP (C.HiddenP r x)      = C.HiddenP r $ fmap unambiguousP x
+--         unambiguousP (C.InstanceP r x)    = C.InstanceP r $ fmap unambiguousP x
+--         unambiguousP (C.ParenP r x)       = C.ParenP r $ unambiguousP x
+--         unambiguousP (C.AsP r n x)        = C.AsP r n $ unambiguousP x
+--         unambiguousP (C.OpAppP r op _ xs) = foldl C.AppP (C.IdentP op) xs
+--         unambiguousP e                    = e
+--
+--     OperatorInformation sects err ->
+--       prettyTCM err
+--         $+$
+--       fsep (pwords "Operators used in the grammar:")
+--         $$
+--       nest 2
+--         (if null sects then text "None" else
+--          vcat (map text $
+--                lines $
+--                Boxes.render $
+--                (\(col1, col2, col3) ->
+--                    Boxes.hsep 1 Boxes.top $
+--                    map (Boxes.vcat Boxes.left) [col1, col2, col3]) $
+--                unzip3 $
+--                map prettySect $
+--                sortBy (compare `on` show . notaName . sectNotation) $
+--                filter (not . closedWithoutHoles) sects))
+--       where
+--       trimLeft  = dropWhile isNormalHole
+--       trimRight = reverse . dropWhile isNormalHole . reverse
+--
+--       closedWithoutHoles sect =
+--         sectKind sect == NonfixNotation
+--           &&
+--         null [ () | NormalHole {} <- trimLeft $ trimRight $
+--                                        notation (sectNotation sect) ]
+--
+--       prettyName n = Boxes.text $
+--         P.render (P.pretty n) ++
+--         " (" ++ P.render (P.pretty (nameBindingSite n)) ++ ")"
+--
+--       prettySect sect =
+--         ( Boxes.text (P.render (P.pretty section))
+--             Boxes.//
+--           strut
+--         , Boxes.text
+--             ("(" ++
+--              kind ++ " " ++
+--              (if notaIsOperator nota
+--               then "operator"
+--               else "notation") ++
+--              (if sectIsSection sect
+--               then " section"
+--               else "") ++
+--              (case sectLevel sect of
+--                 Nothing          -> ""
+--                 Just Unrelated   -> ", unrelated"
+--                 Just (Related n) -> ", level " ++ show n) ++
+--              ")")
+--             Boxes.//
+--           strut
+--         , Boxes.text "["
+--             Boxes.<>
+--           Boxes.vcat Boxes.left
+--             (map (\n -> prettyName n Boxes.<> Boxes.text ",") names ++
+--              [prettyName name Boxes.<> Boxes.text "]"])
+--         )
+--         where
+--         nota    = sectNotation sect
+--         section = qualifyFirstIdPart
+--                     (foldr (\x s -> C.nameToRawName x ++ "." ++ s)
+--                            ""
+--                            (init (C.qnameParts (notaName nota))))
+--                     (trim (notation nota))
+--
+--         qualifyFirstIdPart _ []              = []
+--         qualifyFirstIdPart q (IdPart x : ps) = IdPart (q ++ x) : ps
+--         qualifyFirstIdPart q (p : ps)        = p : qualifyFirstIdPart q ps
+--
+--         trim = case sectKind sect of
+--           InfixNotation   -> trimLeft . trimRight
+--           PrefixNotation  -> trimRight
+--           PostfixNotation -> trimLeft
+--           NonfixNotation  -> id
+--           NoNotation      -> __IMPOSSIBLE__
+--
+--         (names, name) = case Set.toList $ notaNames nota of
+--           [] -> __IMPOSSIBLE__
+--           ns -> (init ns, last ns)
+--
+--         strut = Boxes.emptyBox (length names) 0
+--
+--         kind = case sectKind sect of
+--           PrefixNotation  -> "prefix"
+--           PostfixNotation -> "postfix"
+--           NonfixNotation  -> "closed"
+--           NoNotation      -> __IMPOSSIBLE__
+--           InfixNotation   ->
+--             case fixityAssoc $ notaFixity nota of
+--               NonAssoc   -> "infix"
+--               LeftAssoc  -> "infixl"
+--               RightAssoc -> "infixr"
+--
+-- {- UNUSED
+--     AmbiguousParseForPatternSynonym p ps -> fsep (
+--       pwords "Don't know how to parse" ++ [pretty p <> text "."] ++
+--       pwords "Could mean any one of:"
+--       ) $$ nest 2 (vcat $ map pretty ps)
+-- -}
+--
+-- {- UNUSED
+--     IncompletePatternMatching v args -> fsep $
+--       pwords "Incomplete pattern matching for" ++ [prettyTCM v <> text "."] ++
+--       pwords "No match for" ++ map prettyTCM args
+-- -}
+--
+--     SplitError e -> prettyTCM e
+--
+--     ImpossibleConstructor c neg -> fsep $
+--       pwords "The case for the constructor " ++ [prettyTCM c] ++
+--       pwords " is impossible" ++ [prettyTCM neg] ++
+--       pwords "Possible solution: remove the clause, or use an absurd pattern ()."
+--
+--     TooManyPolarities x n -> fsep $
+--       pwords "Too many polarities given in the POLARITY pragma for" ++
+--       [prettyTCM x] ++
+--       pwords "(at most" ++ [text (show n)] ++ pwords "allowed)."
+--
+--     IFSNoCandidateInScope t -> fsep $
+--       pwords "No instance of type" ++ [prettyTCM t] ++ pwords "was found in scope."
+--
+--     UnquoteFailed e -> case e of
+--       BadVisibility msg arg -> fsep $
+--         pwords $ "Unable to unquote the argument. It should be `" ++ msg ++ "'."
+--
+--       ConInsteadOfDef x def con -> fsep $
+--         pwords ("Use " ++ con ++ " instead of " ++ def ++ " for constructor") ++
+--         [prettyTCM x]
+--
+--       DefInsteadOfCon x def con -> fsep $
+--         pwords ("Use " ++ def ++ " instead of " ++ con ++ " for non-constructor")
+--         ++ [prettyTCM x]
+--
+--       NonCanonical kind t ->
+--         fwords ("Cannot unquote non-canonical " ++ kind)
+--         $$ nest 2 (prettyTCM t)
+--
+--       BlockedOnMeta _ m -> fsep $
+--         pwords $ "Unquote failed because of unsolved meta variables."
+--
+--       UnquotePanic err -> __IMPOSSIBLE__
+--
+--     DeBruijnIndexOutOfScope i EmptyTel [] -> fsep $
+--         pwords $ "de Bruijn index " ++ show i ++ " is not in scope in the empty context"
+--     DeBruijnIndexOutOfScope i cxt names ->
+--         sep [ text ("de Bruijn index " ++ show i ++ " is not in scope in the context")
+--             , inTopContext $ addContext "_" $ prettyTCM cxt' ]
+--       where
+--         cxt' = cxt `abstract` raise (size cxt) (nameCxt names)
+--         nameCxt [] = EmptyTel
+--         nameCxt (x : xs) = ExtendTel (defaultDom (El __DUMMY_SORT__ $ I.var 0)) $
+--           NoAbs (P.prettyShow x) $ nameCxt xs
+--
+--     NeedOptionCopatterns -> fsep $
+--       pwords "Option --copatterns needed to enable destructor patterns"
+--
+--     NeedOptionRewriting  -> fsep $
+--       pwords "Option --rewriting needed to add and use rewrite rules"
+--
+--     GeneralizeNotSupportedHere x -> fsep $
+--       pwords $ "Generalizable variable " ++ show x ++ " is not supported here"
+--
+--     GeneralizeCyclicDependency -> fsep $
+--       pwords "Cyclic dependency between generalized variables"
+--
+--     GeneralizeUnsolvedMeta -> fsep $
+--       pwords "Unsolved meta not generalized"
+--
+--     NonFatalErrors ws -> foldr1 ($$) $ fmap prettyTCM ws
+--
+--     InstanceSearchDepthExhausted c a d -> fsep $
+--       pwords ("Instance search depth exhausted (max depth: " ++ show d ++ ") for candidate") ++
+--       [hang (prettyTCM c <+> text ":") 2 (prettyTCM a)]
 
     -- For unhandled errors, passing only its kind
     _ -> obj [ "kind" @= toJSON (errorString err) ]

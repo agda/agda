@@ -17,8 +17,12 @@ module Agda.TypeChecking.Errors
   , stringTCErr
   , errorString
   , sayWhen
+  , notCmp
   , kindOfPattern
   , handleShadowedModule
+  , refineUnequalTerms
+  , prettyInEqual
+  , PrettyUnequal(..)
   , Verbalize(..)
   , Indefinite(..)
   ) where
@@ -718,13 +722,9 @@ instance PrettyTCM TypeError where
     UnequalBecauseOfUniverseConflict cmp s t -> fsep $
       [prettyTCM s, notCmp cmp, prettyTCM t, text "because this would result in an invalid use of Setω" ]
 
-    UnequalTerms cmp s t a -> case (s,t) of
-      (Sort s1      , Sort s2      )
-        | CmpEq  <- cmp              -> prettyTCM $ UnequalSorts s1 s2
-        | CmpLeq <- cmp              -> prettyTCM $ NotLeqSort s1 s2
-      (Sort MetaS{} , t            ) -> prettyTCM $ ShouldBeASort $ El Inf t
-      (s            , Sort MetaS{} ) -> prettyTCM $ ShouldBeASort $ El Inf s
-      (_            , _            ) -> do
+    UnequalTerms cmp s t a -> case refineUnequalTerms cmp s t of
+      Just err -> prettyTCM err
+      Nothing -> do
         (d1, d2, d) <- prettyInEqual s t
         fsep $ [return d1, notCmp cmp, return d2] ++ pwords "of type" ++ [prettyTCM a] ++ [return d]
 
@@ -1335,6 +1335,16 @@ handleShadowedModule x ms@(m0 : _) = do
 
     -- If even this fails, we pick the first m and give no range.
     return $ fromMaybe (noRange, m0) $ headMaybe rms
+
+-- | Refine UnequalTerms into other kind of TypeErrors
+refineUnequalTerms :: Comparison -> Term -> Term -> Maybe TypeError
+refineUnequalTerms cmp s t = case (s,t) of
+  (Sort s1      , Sort s2      )
+    | CmpEq  <- cmp              -> Just $ UnequalSorts s1 s2
+    | CmpLeq <- cmp              -> Just $ NotLeqSort s1 s2
+  (Sort MetaS{} , t            ) -> Just $ ShouldBeASort $ El Inf t
+  (s            , Sort MetaS{} ) -> Just $ ShouldBeASort $ El Inf s
+  (_            , _            ) -> Nothing
 
 -- | Print two terms that are supposedly unequal.
 --   If they print to the same identifier, add some explanation
