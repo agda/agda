@@ -319,7 +319,7 @@ handleCommand wrap onFail cmd = handleNastyErrors $ wrap $ do
         let str     = if null s2 then strErr else strWarn ++ "\n" ++ strErr
         x <- lift $ optShowImplicit <$> use stPragmaOptions
         unless (null s1) $ mapM_ putResponse $
-            [ Resp_DisplayInfo $ Info_Error str ] ++
+            [ Resp_DisplayInfo $ Info_Error e str ] ++
             tellEmacsToJumpToError (getRange e) ++
             [ Resp_HighlightingInfo info KeepHighlighting
                                     method modFile ] ++
@@ -770,8 +770,9 @@ interpret (Cmd_compile b file argv) =
         (pwe, pwa) <- interpretWarnings
         display_info $ Info_CompilationOk pwa pwe
       Imp.SomeWarnings w -> do
+        err <- lift $ tcWarningsToErrorWithoutThrowing w
         pw <- lift $ prettyTCWarnings w
-        display_info $ Info_Error $ unlines
+        display_info $ Info_Error err $ unlines
           [ "You need to fix the following errors before you can compile"
           , "the module:"
           , ""
@@ -893,7 +894,7 @@ interpret (Cmd_highlight ii rng s) = do
     handle m = do
       res <- lift $ runExceptT m
       case res of
-        Left s  -> display_info $ Info_Error s
+        Left s  -> display_info $ Info_Error (stringTCErr s) s
         Right _ -> return ()
     try :: String -> TCM a -> ExceptT String TCM a
     try err m = mkExceptT $ do

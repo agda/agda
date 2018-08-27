@@ -67,7 +67,7 @@ lispifyResponse (Resp_DisplayInfo info) = return $ case info of
     Info_AllGoalsWarnings g w e -> f body ("*All" ++ title ++ "*")
       where (body, title) = formatWarningsAndErrors g w e
     Info_Auto s -> f s "*Auto*"
-    Info_Error s -> f s "*Error*"
+    Info_Error _ s -> f s "*Error*"
     -- FNF: if Info_Warning comes back into use, the above should be
     -- clearWarning : f s "*Error*"
     --Info_Warning s -> [ display_warning "*Errors*" s ] -- FNF: currently unused

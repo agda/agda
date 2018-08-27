@@ -79,7 +79,7 @@ data DisplayInfo
     | Info_AllGoalsWarnings String String String
         -- ^ Strings are the goals, the warnings and the (non-fatal) errors
     | Info_Time Doc
-    | Info_Error String
+    | Info_Error TCErr String
         -- ^ When an error message is displayed this constructor should be
         -- used, if appropriate.
 --    | Info_Warning String --FNF: currently unused

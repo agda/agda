@@ -11,6 +11,8 @@ import Agda.Utils.FileName (AbsolutePath)
 data HighlightingMethod
 data TCEnv
 data TCState
+data TCErr
+instance Show TCErr
 newtype TCMT m a = TCM { unTCM :: IORef TCState -> TCEnv -> m a }
 
 instance MonadIO m => Applicative (TCMT m)

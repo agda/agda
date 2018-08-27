@@ -10,6 +10,7 @@ module Agda.TypeChecking.Errors
   , prettyTCWarnings'
   , prettyTCWarnings
   , tcWarningsToError
+  , tcWarningsToErrorWithoutThrowing
   , applyFlagsToTCWarnings
   , dropTopLevelModule
   , stringTCErr
@@ -223,6 +224,12 @@ prettyTCWarnings' = mapM (fmap show . prettyTCM)
 -- | Turns all warnings into errors.
 tcWarningsToError :: [TCWarning] -> TCM a
 tcWarningsToError ws = typeError $ case ws of
+  [] -> SolvedButOpenHoles
+  _  -> NonFatalErrors ws
+
+-- | Turns all warnings into errors without throwing it
+tcWarningsToErrorWithoutThrowing :: [TCWarning] -> TCM TCErr
+tcWarningsToErrorWithoutThrowing ws = typeError_ $ case ws of
   [] -> SolvedButOpenHoles
   _  -> NonFatalErrors ws
 
