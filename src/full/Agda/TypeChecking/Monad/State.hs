@@ -356,7 +356,7 @@ getInteractionOutputCallback
 
 appInteractionOutputCallback :: Response -> TCM ()
 appInteractionOutputCallback r
-  = getInteractionOutputCallback >>= \ cb -> liftIO $ cb r
+  = getInteractionOutputCallback >>= \ cb -> cb r
 
 setInteractionOutputCallback :: InteractionOutputCallback -> TCM ()
 setInteractionOutputCallback cb
