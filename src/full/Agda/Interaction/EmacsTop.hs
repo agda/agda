@@ -3,30 +3,22 @@
 module Agda.Interaction.EmacsTop
     ( mimicGHCi
     ) where
+
 import Control.Monad.State
-
-import Data.Char
 import qualified Data.List as List
-import Data.Maybe
 
-import System.IO
-
-import Agda.Utils.Monad
 import Agda.Utils.Maybe
 import Agda.Utils.Pretty
 import Agda.Utils.String
 
 import Agda.Syntax.Common
-
 import Agda.TypeChecking.Monad
-import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 
+import Agda.Interaction.AgdaTop
 import Agda.Interaction.Response as R
-import Agda.Interaction.InteractionTop
 import Agda.Interaction.EmacsCommand hiding (putResponse)
 import Agda.Interaction.Highlighting.Emacs
 import Agda.Interaction.Highlighting.Precise (TokenBased(..))
-import Agda.Interaction.Options
 
 import Agda.VersionCommit
 
@@ -37,64 +29,8 @@ import Agda.VersionCommit
 --
 --   'mimicGHCi' reads the Emacs frontend commands from stdin,
 --   interprets them and print the result into stdout.
-
 mimicGHCi :: TCM () -> TCM ()
-mimicGHCi setup = do
-    liftIO $ do
-      hSetBuffering stdout LineBuffering
-      hSetBuffering stdin  LineBuffering
-      hSetEncoding  stdout utf8
-      hSetEncoding  stdin  utf8
-
-    setInteractionOutputCallback $
-        mapM_ print <=< lispifyResponse
-
-    commands <- liftIO $ initialiseCommandQueue readCommand
-
-    handleCommand_ (lift setup) `evalStateT` initCommandState commands
-
-    opts <- commandLineOptions
-    _ <- interact' `runStateT`
-           (initCommandState commands)
-             { optionsOnReload = opts{ optAbsoluteIncludePaths = [] } }
-    return ()
-  where
-  interact' :: CommandM ()
-  interact' = do
-    Bench.reset
-    done <- Bench.billTo [] $ do
-
-      liftIO $ do
-        putStr "Agda2> "
-        hFlush stdout
-      c <- nextCommand
-      case c of
-        Done      -> return True -- Done.
-        Error s   -> liftIO (putStrLn s) >> return False
-        Command c -> do
-          maybeAbort (runInteraction c)
-          return False
-
-    lift Bench.print
-    unless done interact'
-
-  -- Reads the next command from stdin.
-
-  readCommand :: IO Command
-  readCommand = do
-    done <- isEOF
-    if done then
-      return Done
-    else do
-      r <- getLine
-      _ <- return $! length r     -- force to read the full input line
-      case dropWhile isSpace r of
-        ""          -> readCommand
-        ('-':'-':_) -> readCommand
-        _           -> case listToMaybe $ reads r of
-          Just (x, "")  -> return $ Command x
-          Just (_, rem) -> return $ Error $ "not consumed: " ++ rem
-          _             -> return $ Error $ "cannot read: " ++ r
+mimicGHCi = repl (liftIO . mapM_ print <=< liftIO . lispifyResponse) "Agda2> "
 
 -- | Given strings of goals, warnings and errors, return a pair of the
 --   body and the title for the info buffer

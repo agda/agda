@@ -92,6 +92,7 @@ instance EmbPrj DeclarationWarning where
     InvalidCatchallPragma a           -> icodeN 14 InvalidCatchallPragma a
     InvalidNoUniverseCheckPragma a    -> icodeN 15 InvalidNoUniverseCheckPragma a
     UnknownFixityInMixfixDecl a       -> icodeN 16 UnknownFixityInMixfixDecl a
+    MissingDefinitions a              -> icodeN 17 MissingDefinitions a
 
   value = vcase $ \case
     [0, a] -> valueN UnknownNamesInFixityDecl a
@@ -110,6 +111,8 @@ instance EmbPrj DeclarationWarning where
     [13,a] -> valueN InvalidNoPositivityCheckPragma a
     [14,a] -> valueN InvalidCatchallPragma a
     [15,a] -> valueN InvalidNoUniverseCheckPragma a
+    [16,a] -> valueN UnknownFixityInMixfixDecl a
+    [17,a] -> valueN MissingDefinitions a
     _ -> malformed
 
 instance EmbPrj Doc where

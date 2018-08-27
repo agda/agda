@@ -139,7 +139,7 @@ data GiveResult
 --      closure of the 'InteractionOutputCallback' function.
 --      (suitable for intra-process communication).
 
-type InteractionOutputCallback = Response -> IO ()
+type InteractionOutputCallback = Response -> TCM ()
 
 -- | The default 'InteractionOutputCallback' function prints certain
 -- things to stdout (other things generate internal errors).

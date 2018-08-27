@@ -27,6 +27,10 @@ General options
       For use with the Emacs mode (no need to invoke
       yourself)
 
+:samp:`--interaction-json`
+    For use with other editors such as Atom (no need to invoke
+    yourself)
+
 Compilation
 ~~~~~~~~~~~
 
@@ -342,6 +346,8 @@ Individual warnings can be turned on and off by ``-W {Name}`` and ``-W
       Termination checking pragmas before non-function or ``mutual`` blocks.
 :samp:`InversionDepthReached`
       Inversions of pattern-matching failed due to exhausted inversion depth.
+:samp:`MissingDefinitions`
+      Names declared without an accompanying definition.
 :samp:`NotStrictlyPositive`
       Failed strict positivity checks.
 :samp:`OldBuiltin`

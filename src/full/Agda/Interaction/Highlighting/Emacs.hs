@@ -7,51 +7,24 @@ module Agda.Interaction.Highlighting.Emacs
   , lispifyTokenBased
   ) where
 
+import Agda.Interaction.Highlighting.Common
 import Agda.Interaction.Highlighting.Precise
-import Agda.Interaction.Highlighting.Range
+import Agda.Interaction.Highlighting.Range (Range(..))
 import Agda.Interaction.EmacsCommand
 import Agda.Interaction.Response
-import Agda.Syntax.Common
-import Agda.TypeChecking.Monad
-  (TCM, envHighlightingMethod, HighlightingMethod(..), ModuleToSource)
-import Agda.Utils.FileName
-import qualified Agda.Utils.IO.UTF8 as UTF8
-import Agda.Utils.String
+import Agda.TypeChecking.Monad (HighlightingMethod(..), ModuleToSource)
+import Agda.Utils.FileName (filePath)
+import Agda.Utils.IO.TempFile (writeToTempFile)
+import Agda.Utils.String (quote)
 
-import qualified Control.Exception as E
-import Control.Monad.Reader
-import Data.Char
 import qualified Data.Map as Map
 import Data.Maybe
-import Data.Monoid
-import qualified System.Directory as D
-import qualified System.IO as IO
 
 #include "undefined.h"
 import Agda.Utils.Impossible
 
 ------------------------------------------------------------------------
 -- Read/show functions
-
--- | Converts the 'aspect' and 'otherAspects' fields to atoms readable
--- by the Emacs interface.
-
-toAtoms :: Aspects -> [String]
-toAtoms m = map toAtom (otherAspects m) ++ toAtoms' (aspect m)
-  where
-  toAtom :: Show a => a -> String
-  toAtom = map toLower . show
-
-  kindToAtom (Constructor Inductive)   = "inductiveconstructor"
-  kindToAtom (Constructor CoInductive) = "coinductiveconstructor"
-  kindToAtom k                         = toAtom k
-
-  toAtoms' Nothing               = []
-  toAtoms' (Just (Name mKind op)) =
-    map kindToAtom (maybeToList mKind) ++ opAtom
-    where opAtom | op        = ["operator"]
-                 | otherwise = []
-  toAtoms' (Just a) = [toAtom a]
 
 -- | Shows meta information in such a way that it can easily be read
 -- by Emacs.
@@ -103,27 +76,24 @@ lispifyHighlightingInfo
   -> ModuleToSource
      -- ^ Must contain a mapping for every definition site's module.
   -> IO (Lisp String)
-lispifyHighlightingInfo h remove method modFile = do
-  case ranges h of
-    _             | method == Direct                   -> direct
-    ((_, mi) : _) | otherAspects mi == [TypeChecks] ||
-                    mi == mempty                       -> direct
-    _                                                  -> indirect
+lispifyHighlightingInfo h remove method modFile =
+  case chooseHighlightingMethod h method of
+    Direct   -> direct
+    Indirect -> indirect
   where
-  info     = (case remove of
+  info :: [Lisp String]
+  info = (case remove of
                 RemoveHighlighting -> A "remove"
                 KeepHighlighting   -> A "nil") :
              map (showAspects modFile) (ranges h)
 
-  direct   = return $ L (A "agda2-highlight-add-annotations" :
+  direct :: IO (Lisp String)
+  direct = return $ L (A "agda2-highlight-add-annotations" :
                          map Q info)
 
+  indirect :: IO (Lisp String)
   indirect = do
-    dir <- D.getTemporaryDirectory
-    f   <- E.bracket (IO.openTempFile dir "agda2-mode")
-                     (IO.hClose . snd) $ \ (f, h) -> do
-             UTF8.hPutStr h (show $ L info)
-             return f
+    filepath <- writeToTempFile (show $ L info)
     return $ L [ A "agda2-highlight-load-and-delete-action"
-               , A (quote f)
+               , A (quote filepath)
                ]

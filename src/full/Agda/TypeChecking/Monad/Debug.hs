@@ -43,7 +43,7 @@ instance (MonadIO m) => MonadDebug (TCMT m) where
 
   displayDebugMessage n s = liftTCM $ do
     cb <- gets $ stInteractionOutputCallback . stPersistentState
-    liftIO $ cb (Resp_RunningInfo n s)
+    cb (Resp_RunningInfo n s)
 
   formatDebugMessage k n d = liftTCM $
     show <$> d `catchError` \ err ->

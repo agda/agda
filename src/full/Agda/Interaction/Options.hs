@@ -108,6 +108,7 @@ data CommandLineOptions = Options
   , optShowHelp         :: Maybe Help
   , optInteractive      :: Bool
   , optGHCiInteraction  :: Bool
+  , optJSONInteraction  :: Bool
   , optOptimSmashing    :: Bool
   , optCompileDir       :: Maybe FilePath
   -- ^ In the absence of a path the project root is used.
@@ -211,6 +212,7 @@ defaultOptions = Options
   , optShowHelp         = Nothing
   , optInteractive      = False
   , optGHCiInteraction  = False
+  , optJSONInteraction  = False
   , optOptimSmashing    = True
   , optCompileDir       = Nothing
   , optGenerateVimFile  = False
@@ -298,8 +300,8 @@ type Flag opts = opts -> OptM opts
 
 checkOpts :: Flag CommandLineOptions
 checkOpts opts
-  | not (matches [optGHCiInteraction, isJust . optInputFile] <= 1) =
-      throwError "Choose at most one: input file or --interaction.\n"
+  | not (matches [optGHCiInteraction, optJSONInteraction, isJust . optInputFile] <= 1) =
+      throwError "Choose at most one: input file, --interactive, or --interaction-json.\n"
   | or [ p opts && matches ps > 1 | (p, ps) <- exclusive ] =
       throwError exclusiveMessage
   | otherwise = return opts
@@ -324,10 +326,13 @@ checkOpts opts
     , ( optGHCiInteraction
       , optGenerateLaTeX : atMostOne
       )
+    , ( optJSONInteraction
+      , optGenerateLaTeX : atMostOne
+      )
     ]
 
   exclusiveMessage = unlines $
-    [ "The options --interactive, --interaction and"
+    [ "The options --interactive, --interaction, --interaction-json and"
     , "--only-scope-checking cannot be combined with each other or"
     , "with --html or --dependency-graph. Furthermore"
     , "--interactive and --interaction cannot be combined with"
@@ -420,6 +425,9 @@ asciiOnlyFlag o = do
 
 ghciInteractionFlag :: Flag CommandLineOptions
 ghciInteractionFlag o = return $ o { optGHCiInteraction = True }
+
+jsonInteractionFlag :: Flag CommandLineOptions
+jsonInteractionFlag o = return $ o { optJSONInteraction = True }
 
 vimFlag :: Flag CommandLineOptions
 vimFlag o = return $ o { optGenerateVimFile = True }
@@ -635,6 +643,8 @@ standardOptions =
                     "start in interactive mode"
     , Option []     ["interaction"] (NoArg ghciInteractionFlag)
                     "for use with the Emacs mode"
+    , Option []     ["interaction-json"] (NoArg jsonInteractionFlag)
+                    "for use with other editors such as Atom"
 
     , Option []     ["compile-dir"] (ReqArg compileDirFlag "DIR")
                     ("directory for compiler output (default: the project root)")

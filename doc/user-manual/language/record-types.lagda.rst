@@ -390,7 +390,7 @@ coinductive.
 
 Inductive records have ``eta-equality`` on by default, while
 ``no-eta-equality`` is the default for coinductive records. In fact,
-the ``eta-equality`` and ``inductive`` directives are not allowed
+the ``eta-equality`` and ``coinductive`` directives are not allowed
 together, since this can easily make Agda loop. This can be overridden
 at your own risk by using the pragma ``ETA`` instead.
 

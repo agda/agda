@@ -21,6 +21,7 @@ import Agda.Interaction.Options
 import Agda.Interaction.Options.Help (Help (..))
 import Agda.Interaction.Monad
 import Agda.Interaction.EmacsTop (mimicGHCi)
+import Agda.Interaction.JSONTop (jsonREPL)
 import Agda.Interaction.Imports (MaybeWarnings'(..))
 import qualified Agda.Interaction.Imports as Imp
 import qualified Agda.Interaction.Highlighting.Dot as Dot
@@ -78,10 +79,12 @@ defaultInteraction :: CommandLineOptions -> TCM (Maybe Interface) -> TCM ()
 defaultInteraction opts
   | i         = runIM . interactionLoop
   | ghci      = mimicGHCi . (failIfInt =<<)
+  | json      = jsonREPL . (failIfInt =<<)
   | otherwise = (() <$)
   where
     i    = optInteractive     opts
     ghci = optGHCiInteraction opts
+    json = optJSONInteraction opts
 
     failIfInt Nothing  = return ()
     failIfInt (Just _) = __IMPOSSIBLE__
@@ -101,6 +104,7 @@ runAgdaWithOptions backends generateHTML interaction progName opts
       | isNothing (optInputFile opts)
           && not (optInteractive opts)
           && not (optGHCiInteraction opts)
+          && not (optJSONInteraction opts)
                             = Nothing <$ liftIO (printUsage backends GeneralHelp)
       | otherwise           = do
           -- Main function.
