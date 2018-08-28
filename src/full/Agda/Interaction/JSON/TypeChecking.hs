@@ -35,7 +35,7 @@ import Agda.TypeChecking.Telescope (ifPiType)
 import Agda.Utils.Pretty (render, pretty, prettyShow)
 import Agda.Utils.FileName (filePath)
 import Agda.Utils.List
-import Agda.Utils.NonemptyList (toList)
+import Agda.Utils.NonemptyList (NonemptyList(..), toList)
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -726,155 +726,61 @@ instance EncodeTCM TypeError where
             then prettyUnambiguousApplication e
             else return (pretty e)
 
---     BadArgumentsToPatternSynonym x -> fsep $
---       pwords "Bad arguments to pattern synonym " ++ [prettyTCM $ headAmbQ x]
---
---     TooFewArgumentsToPatternSynonym x -> fsep $
---       pwords "Too few arguments to pattern synonym " ++ [prettyTCM $ headAmbQ x]
---
---     CannotResolveAmbiguousPatternSynonym defs -> vcat
---       [ fsep $ pwords "Cannot resolve overloaded pattern synonym" ++ [prettyTCM x <> comma] ++
---                pwords "since candidates have different shapes:"
---       , nest 2 $ vcat $ map prDef (toList defs)
---       , fsep $ pwords "(hint: overloaded pattern synonyms must be equal up to variable and constructor names)"
---       ]
---       where
---         (x, _) = headNe defs
---         prDef (x, (xs, p)) = prettyA (A.PatternSynDef x xs p) <?> (text "at" <+> pretty r)
---           where r = nameBindingSite $ qnameName x
---
---     UnusedVariableInPatternSynonym -> fsep $
---       pwords "Unused variable in pattern synonym."
---
---     NoParseForLHS IsLHS p -> fsep (
---       pwords "Could not parse the left-hand side" ++ [pretty p])
---
---     NoParseForLHS IsPatSyn p -> fsep (
---       pwords "Could not parse the pattern synonym" ++ [pretty p])
---
--- {- UNUSED
---     NoParseForPatternSynonym p -> fsep $
---       pwords "Could not parse the pattern synonym" ++ [pretty p]
--- -}
---
---     AmbiguousParseForLHS lhsOrPatSyn p ps -> fsep (
---       pwords "Don't know how to parse" ++ [pretty_p <> text "."] ++
---       pwords "Could mean any one of:"
---       ) $$ nest 2 (vcat $ map pretty' ps)
---       where
---         pretty_p :: TCM Doc
---         pretty_p = pretty p
---
---         pretty' :: C.Pattern -> TCM Doc
---         pretty' p' = do
---           p1 <- pretty_p
---           p2 <- pretty p'
---           pretty $ if show p1 == show p2 then unambiguousP p' else p'
---
---         -- the entire pattern is shown, not just the ambiguous part,
---         -- so we need to dig in order to find the OpAppP's.
---         unambiguousP :: C.Pattern -> C.Pattern
---         unambiguousP (C.AppP x y)         = C.AppP (unambiguousP x) $ (fmap.fmap) unambiguousP y
---         unambiguousP (C.HiddenP r x)      = C.HiddenP r $ fmap unambiguousP x
---         unambiguousP (C.InstanceP r x)    = C.InstanceP r $ fmap unambiguousP x
---         unambiguousP (C.ParenP r x)       = C.ParenP r $ unambiguousP x
---         unambiguousP (C.AsP r n x)        = C.AsP r n $ unambiguousP x
---         unambiguousP (C.OpAppP r op _ xs) = foldl C.AppP (C.IdentP op) xs
---         unambiguousP e                    = e
---
---     OperatorInformation sects err ->
---       prettyTCM err
---         $+$
---       fsep (pwords "Operators used in the grammar:")
---         $$
---       nest 2
---         (if null sects then text "None" else
---          vcat (map text $
---                lines $
---                Boxes.render $
---                (\(col1, col2, col3) ->
---                    Boxes.hsep 1 Boxes.top $
---                    map (Boxes.vcat Boxes.left) [col1, col2, col3]) $
---                unzip3 $
---                map prettySect $
---                sortBy (compare `on` show . notaName . sectNotation) $
---                filter (not . closedWithoutHoles) sects))
---       where
---       trimLeft  = dropWhile isNormalHole
---       trimRight = reverse . dropWhile isNormalHole . reverse
---
---       closedWithoutHoles sect =
---         sectKind sect == NonfixNotation
---           &&
---         null [ () | NormalHole {} <- trimLeft $ trimRight $
---                                        notation (sectNotation sect) ]
---
---       prettyName n = Boxes.text $
---         P.render (P.pretty n) ++
---         " (" ++ P.render (P.pretty (nameBindingSite n)) ++ ")"
---
---       prettySect sect =
---         ( Boxes.text (P.render (P.pretty section))
---             Boxes.//
---           strut
---         , Boxes.text
---             ("(" ++
---              kind ++ " " ++
---              (if notaIsOperator nota
---               then "operator"
---               else "notation") ++
---              (if sectIsSection sect
---               then " section"
---               else "") ++
---              (case sectLevel sect of
---                 Nothing          -> ""
---                 Just Unrelated   -> ", unrelated"
---                 Just (Related n) -> ", level " ++ show n) ++
---              ")")
---             Boxes.//
---           strut
---         , Boxes.text "["
---             Boxes.<>
---           Boxes.vcat Boxes.left
---             (map (\n -> prettyName n Boxes.<> Boxes.text ",") names ++
---              [prettyName name Boxes.<> Boxes.text "]"])
---         )
---         where
---         nota    = sectNotation sect
---         section = qualifyFirstIdPart
---                     (foldr (\x s -> C.nameToRawName x ++ "." ++ s)
---                            ""
---                            (init (C.qnameParts (notaName nota))))
---                     (trim (notation nota))
---
---         qualifyFirstIdPart _ []              = []
---         qualifyFirstIdPart q (IdPart x : ps) = IdPart (q ++ x) : ps
---         qualifyFirstIdPart q (p : ps)        = p : qualifyFirstIdPart q ps
---
---         trim = case sectKind sect of
---           InfixNotation   -> trimLeft . trimRight
---           PrefixNotation  -> trimRight
---           PostfixNotation -> trimLeft
---           NonfixNotation  -> id
---           NoNotation      -> __IMPOSSIBLE__
---
---         (names, name) = case Set.toList $ notaNames nota of
---           [] -> __IMPOSSIBLE__
---           ns -> (init ns, last ns)
---
---         strut = Boxes.emptyBox (length names) 0
---
---         kind = case sectKind sect of
---           PrefixNotation  -> "prefix"
---           PostfixNotation -> "postfix"
---           NonfixNotation  -> "closed"
---           NoNotation      -> __IMPOSSIBLE__
---           InfixNotation   ->
---             case fixityAssoc $ notaFixity nota of
---               NonAssoc   -> "infix"
---               LeftAssoc  -> "infixl"
---               RightAssoc -> "infixr"
---
+    BadArgumentsToPatternSynonym x -> obj
+      [ "kind"            @= String "BadArgumentsToPatternSynonym"
+      , "patternSynonym"  #= prettyTCM (I.headAmbQ x)
+      ]
+
+    TooFewArgumentsToPatternSynonym x -> obj
+      [ "kind"            @= String "TooFewArgumentsToPatternSynonym"
+      , "patternSynonym"  #= prettyTCM (I.headAmbQ x)
+      ]
+
+    CannotResolveAmbiguousPatternSynonym defs -> obj
+      [ "kind"            @= String "CannotResolveAmbiguousPatternSynonym"
+      , "patternSynonym"  #= prettyTCM x
+      , "shapes"          #= mapM prDef (toList defs)
+      ]
+      where
+        (x, _) = headNe defs
+        prDef (x, (xs, p)) = obj
+          [ "patSyn"      #= prettyA (A.PatternSynDef x xs p)
+          , "bindingSite" @= pretty (I.nameBindingSite (I.qnameName x))
+          ]
+
+    UnusedVariableInPatternSynonym -> obj
+      [ "kind"            @= String "UnusedVariableInPatternSynonym"
+      ]
+
+    NoParseForLHS IsLHS p -> obj
+      [ "kind"            @= String "NoParseForLHS"
+      , "isLHS"           @= True
+      , "LHS"             @= pretty p
+      ]
+
+    NoParseForLHS IsPatSyn p -> obj
+      [ "kind"            @= String "NoParseForLHS"
+      , "isLHS"           @= False
+      , "patSyn"          @= pretty p
+      ]
+
+    AmbiguousParseForLHS lhsOrPatSyn p ps -> obj
+      [ "kind"            @= String "AmbiguousParseForLHS"
+      , "LHSOrPatSyn"     @= show lhsOrPatSyn
+      , "cannotParse"     @= pretty p
+      , "couldMean"       @= map pretty' ps
+      ]
+      where
+        pretty' p' = pretty $ if show (pretty p) == show (pretty p')
+            then unambiguousPattern p'
+            else p'
+
+    OperatorInformation sects err -> obj
+      [ "kind"              @= String "OperatorInformation"
+      , "notationSections"  @= sects
+      , "typeError"         #= encodeTCM err
+      ]
+
 -- {- UNUSED
 --     AmbiguousParseForPatternSynonym p ps -> fsep (
 --       pwords "Don't know how to parse" ++ [pretty p <> text "."] ++

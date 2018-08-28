@@ -23,6 +23,7 @@ module Agda.TypeChecking.Errors
   , handleShadowedModule
   , refineUnequalTerms
   , prettyUnambiguousApplication
+  , unambiguousPattern
   , prettyInEqual
   , PrettyUnequal(..)
   , Verbalize(..)
@@ -1079,18 +1080,7 @@ instance PrettyTCM TypeError where
         pretty' p' = do
           p1 <- pretty_p
           p2 <- pretty p'
-          pretty $ if show p1 == show p2 then unambiguousP p' else p'
-
-        -- the entire pattern is shown, not just the ambiguous part,
-        -- so we need to dig in order to find the OpAppP's.
-        unambiguousP :: C.Pattern -> C.Pattern
-        unambiguousP (C.AppP x y)         = C.AppP (unambiguousP x) $ (fmap.fmap) unambiguousP y
-        unambiguousP (C.HiddenP r x)      = C.HiddenP r $ fmap unambiguousP x
-        unambiguousP (C.InstanceP r x)    = C.InstanceP r $ fmap unambiguousP x
-        unambiguousP (C.ParenP r x)       = C.ParenP r $ unambiguousP x
-        unambiguousP (C.AsP r n x)        = C.AsP r n $ unambiguousP x
-        unambiguousP (C.OpAppP r op _ xs) = foldl C.AppP (C.IdentP op) xs
-        unambiguousP e                    = e
+          pretty $ if show p1 == show p2 then unambiguousPattern p' else p'
 
     OperatorInformation sects err ->
       prettyTCM err
@@ -1348,6 +1338,17 @@ prettyUnambiguousApplication e@(C.OpApp r op _ xs)
     isPlaceholder Placeholder{}   = True
     isPlaceholder NoPlaceholder{} = False
 prettyUnambiguousApplication e = pretty e
+
+-- the entire pattern is shown, not just the ambiguous part,
+-- so we need to dig in order to find the OpAppP's.
+unambiguousPattern :: C.Pattern -> C.Pattern
+unambiguousPattern (C.AppP x y)         = C.AppP (unambiguousPattern x) $ (fmap.fmap) unambiguousPattern y
+unambiguousPattern (C.HiddenP r x)      = C.HiddenP r $ fmap unambiguousPattern x
+unambiguousPattern (C.InstanceP r x)    = C.InstanceP r $ fmap unambiguousPattern x
+unambiguousPattern (C.ParenP r x)       = C.ParenP r $ unambiguousPattern x
+unambiguousPattern (C.AsP r n x)        = C.AsP r n $ unambiguousPattern x
+unambiguousPattern (C.OpAppP r op _ xs) = foldl C.AppP (C.IdentP op) xs
+unambiguousPattern e                    = e
 
 
 -- | Print two terms that are supposedly unequal.
