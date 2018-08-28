@@ -20,6 +20,7 @@ import qualified Agda.Syntax.Abstract as A
 import qualified Agda.Syntax.Common as C
 import qualified Agda.Syntax.Concrete as C
 import qualified Agda.Syntax.Internal as I
+import Agda.Syntax.Internal (dummySort)
 import qualified Agda.Syntax.Position as P
 import qualified Agda.Syntax.Scope.Monad as S
 import qualified Agda.Syntax.Scope.Base as S
@@ -28,12 +29,15 @@ import Agda.Syntax.Position (Range, Range'(..))
 
 import Agda.TypeChecking.Errors
 import Agda.TypeChecking.Monad
+import Agda.TypeChecking.Monad.Context (inTopContext)
+import Agda.TypeChecking.Substitute (Abstract(..), raise)
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Pretty (PrettyTCM(..), prettyA, prettyPattern)
 import Agda.TypeChecking.Telescope (ifPiType)
 
 import Agda.Utils.Pretty (render, pretty, prettyShow)
 import Agda.Utils.FileName (filePath)
+import Agda.Utils.Size (size)
 import Agda.Utils.List
 import Agda.Utils.NonemptyList (NonemptyList(..), toList)
 
@@ -780,87 +784,120 @@ instance EncodeTCM TypeError where
       , "notationSections"  @= sects
       , "typeError"         #= encodeTCM err
       ]
+--
+    SplitError e -> obj
+      [ "kind"            @= String "SplitError"
+      , "error"           #= prettyTCM e
+      ]
 
--- {- UNUSED
---     AmbiguousParseForPatternSynonym p ps -> fsep (
---       pwords "Don't know how to parse" ++ [pretty p <> text "."] ++
---       pwords "Could mean any one of:"
---       ) $$ nest 2 (vcat $ map pretty ps)
--- -}
---
--- {- UNUSED
---     IncompletePatternMatching v args -> fsep $
---       pwords "Incomplete pattern matching for" ++ [prettyTCM v <> text "."] ++
---       pwords "No match for" ++ map prettyTCM args
--- -}
---
---     SplitError e -> prettyTCM e
---
---     ImpossibleConstructor c neg -> fsep $
---       pwords "The case for the constructor " ++ [prettyTCM c] ++
---       pwords " is impossible" ++ [prettyTCM neg] ++
---       pwords "Possible solution: remove the clause, or use an absurd pattern ()."
---
---     TooManyPolarities x n -> fsep $
---       pwords "Too many polarities given in the POLARITY pragma for" ++
---       [prettyTCM x] ++
---       pwords "(at most" ++ [text (show n)] ++ pwords "allowed)."
---
---     IFSNoCandidateInScope t -> fsep $
---       pwords "No instance of type" ++ [prettyTCM t] ++ pwords "was found in scope."
---
---     UnquoteFailed e -> case e of
---       BadVisibility msg arg -> fsep $
---         pwords $ "Unable to unquote the argument. It should be `" ++ msg ++ "'."
---
---       ConInsteadOfDef x def con -> fsep $
---         pwords ("Use " ++ con ++ " instead of " ++ def ++ " for constructor") ++
---         [prettyTCM x]
---
---       DefInsteadOfCon x def con -> fsep $
---         pwords ("Use " ++ def ++ " instead of " ++ con ++ " for non-constructor")
---         ++ [prettyTCM x]
---
---       NonCanonical kind t ->
---         fwords ("Cannot unquote non-canonical " ++ kind)
---         $$ nest 2 (prettyTCM t)
---
---       BlockedOnMeta _ m -> fsep $
---         pwords $ "Unquote failed because of unsolved meta variables."
---
---       UnquotePanic err -> __IMPOSSIBLE__
---
---     DeBruijnIndexOutOfScope i EmptyTel [] -> fsep $
---         pwords $ "de Bruijn index " ++ show i ++ " is not in scope in the empty context"
---     DeBruijnIndexOutOfScope i cxt names ->
---         sep [ text ("de Bruijn index " ++ show i ++ " is not in scope in the context")
---             , inTopContext $ addContext "_" $ prettyTCM cxt' ]
---       where
---         cxt' = cxt `abstract` raise (size cxt) (nameCxt names)
---         nameCxt [] = EmptyTel
---         nameCxt (x : xs) = ExtendTel (defaultDom (El __DUMMY_SORT__ $ I.var 0)) $
---           NoAbs (P.prettyShow x) $ nameCxt xs
---
---     NeedOptionCopatterns -> fsep $
---       pwords "Option --copatterns needed to enable destructor patterns"
---
---     NeedOptionRewriting  -> fsep $
---       pwords "Option --rewriting needed to add and use rewrite rules"
---
---     GeneralizeNotSupportedHere x -> fsep $
---       pwords $ "Generalizable variable " ++ show x ++ " is not supported here"
---
---     GeneralizeCyclicDependency -> fsep $
---       pwords "Cyclic dependency between generalized variables"
---
---     GeneralizeUnsolvedMeta -> fsep $
---       pwords "Unsolved meta not generalized"
---
---     NonFatalErrors ws -> foldr1 ($$) $ fmap prettyTCM ws
---
---     InstanceSearchDepthExhausted c a d -> fsep $
---       pwords ("Instance search depth exhausted (max depth: " ++ show d ++ ") for candidate") ++
---       [hang (prettyTCM c <+> text ":") 2 (prettyTCM a)]
+    ImpossibleConstructor c neg -> obj
+      [ "kind"            @= String "ImpossibleConstructor"
+      , "constructor"     #= prettyTCM c
+      , "negUni"          #= prettyTCM neg
+      ]
+
+    TooManyPolarities x n -> obj
+      [ "kind"            @= String "TooManyPolarities"
+      , "name"            #= prettyTCM x
+      , "atMostAllowed"   @= n
+      ]
+
+    IFSNoCandidateInScope t -> obj
+      [ "kind"            @= String "IFSNoCandidateInScope"
+      , "type"            #= prettyTCM t
+      ]
+
+    UnquoteFailed err -> obj
+      [ "kind"            @= String "UnquoteFailed"
+      , "unquoteError"    #= encodeTCM err
+      ]
+
+    DeBruijnIndexOutOfScope i I.EmptyTel [] -> obj
+      [ "kind"            @= String "DeBruijnIndexOutOfScope"
+      , "empty"           @= True
+      , "index"           @= i
+      ]
+    DeBruijnIndexOutOfScope i cxt names -> obj
+      [ "kind"            @= String "DeBruijnIndexOutOfScope"
+      , "empty"           @= False
+      , "index"           @= i
+      , "context"         #= inTopContext (addContext ("_" :: String) $ prettyTCM cxt')
+      ]
+      where
+        cxt' = cxt `abstract` raise (size cxt) (nameCxt names)
+        nameCxt [] = I.EmptyTel
+        nameCxt (x : xs) = I.ExtendTel (C.defaultDom (I.El __DUMMY_SORT__ $ I.var 0)) $
+          I.NoAbs (prettyShow x) $ nameCxt xs
+
+    NeedOptionCopatterns -> obj
+      [ "kind"            @= String "NeedOptionCopatterns"
+      ]
+
+    NeedOptionRewriting -> obj
+      [ "kind"            @= String "NeedOptionRewriting"
+      ]
+
+    GeneralizeNotSupportedHere x -> obj
+      [ "kind"            @= String "GeneralizeNotSupportedHere"
+      , "variable"        @= show x
+      ]
+
+    GeneralizeCyclicDependency -> obj
+      [ "kind"            @= String "GeneralizeCyclicDependency"
+      ]
+
+    GeneralizeUnsolvedMeta -> obj
+      [ "kind"            @= String "GeneralizeUnsolvedMeta"
+      ]
+
+    NonFatalErrors ws -> obj
+      [ "kind"            @= String "NonFatalErrors"
+      , "warnings"        #= mapM prettyTCM ws
+      ]
+
+    InstanceSearchDepthExhausted term typ depth -> obj
+      [ "kind"            @= String "InstanceSearchDepthExhausted"
+      , "maxDepth"        @= depth
+      , "term"            #= prettyTCM term
+      , "type"            #= prettyTCM typ
+      ]
 
     -- For unhandled errors, passing only its kind
     _ -> obj [ "kind" @= toJSON (errorString err) ]
+
+
+--------------------------------------------------------------------------------
+
+instance EncodeTCM UnquoteError where
+  encodeTCM err = case err of
+    BadVisibility msg arg -> obj
+      [ "kind"        @= String "BadVisibility"
+      , "message"     @= msg
+      ]
+
+    ConInsteadOfDef x def con -> obj
+      [ "kind"        @= String "ConInsteadOfDef"
+      , "constructor" #= prettyTCM x
+      , "use"         @= con
+      , "insteadIf"   @= def
+      ]
+
+    DefInsteadOfCon x def con -> obj
+      [ "kind"        @= String "DefInsteadOfCon"
+      , "non-constructor" #= prettyTCM x
+      , "use"         @= def
+      , "insteadIf"   @= con
+      ]
+
+    NonCanonical category term -> obj
+      [ "kind"        @= String "NonCanonical"
+      , "category"    @= category
+      , "term"        #= prettyTCM term
+      ]
+
+    BlockedOnMeta _ m ->  obj
+      [ "kind"        @= String "BlockedOnMeta"
+      , "meta"        #= prettyTCM m
+      ]
+
+    UnquotePanic err -> __IMPOSSIBLE__
