@@ -17,10 +17,12 @@ module Agda.TypeChecking.Errors
   , stringTCErr
   , errorString
   , sayWhen
+  , nameWithBinding
   , notCmp
   , kindOfPattern
   , handleShadowedModule
   , refineUnequalTerms
+  , prettyUnambiguousApplication
   , prettyInEqual
   , PrettyUnequal(..)
   , Verbalize(..)
@@ -1032,29 +1034,7 @@ instance PrettyTCM TypeError where
         pretty' e = do
           p1 <- pretty_es
           p2 <- pretty e
-          if show p1 == show p2 then unambiguous e else pretty e
-
-        unambiguous :: C.Expr -> TCM Doc
-        unambiguous e@(C.OpApp r op _ xs)
-          | all (isOrdinary . namedArg) xs =
-            pretty $
-              foldl (C.App r) (C.Ident op) $
-                (map . fmap . fmap) fromOrdinary xs
-          | any (isPlaceholder . namedArg) xs =
-              pretty e <+> text "(section)"
-        unambiguous e = pretty e
-
-        isOrdinary :: MaybePlaceholder (C.OpApp e) -> Bool
-        isOrdinary (NoPlaceholder _ (C.Ordinary _)) = True
-        isOrdinary _                                = False
-
-        fromOrdinary :: MaybePlaceholder (C.OpApp e) -> e
-        fromOrdinary (NoPlaceholder _ (C.Ordinary e)) = e
-        fromOrdinary _                                = __IMPOSSIBLE__
-
-        isPlaceholder :: MaybePlaceholder a -> Bool
-        isPlaceholder Placeholder{}   = True
-        isPlaceholder NoPlaceholder{} = False
+          if show p1 == show p2 then prettyUnambiguousApplication e else pretty e
 
     BadArgumentsToPatternSynonym x -> fsep $
       pwords "Bad arguments to pattern synonym " ++ [prettyTCM $ headAmbQ x]
@@ -1345,6 +1325,30 @@ refineUnequalTerms cmp s t = case (s,t) of
   (Sort MetaS{} , t            ) -> Just $ ShouldBeASort $ El Inf t
   (s            , Sort MetaS{} ) -> Just $ ShouldBeASort $ El Inf s
   (_            , _            ) -> Nothing
+
+
+prettyUnambiguousApplication :: C.Expr -> TCM Doc
+prettyUnambiguousApplication e@(C.OpApp r op _ xs)
+  | all (isOrdinary . namedArg) xs =
+    pretty $
+      foldl (C.App r) (C.Ident op) $
+        (map . fmap . fmap) fromOrdinary xs
+  | any (isPlaceholder . namedArg) xs =
+      pretty e <+> text "(section)"
+  where
+    isOrdinary :: MaybePlaceholder (C.OpApp e) -> Bool
+    isOrdinary (NoPlaceholder _ (C.Ordinary _)) = True
+    isOrdinary _                                = False
+
+    fromOrdinary :: MaybePlaceholder (C.OpApp e) -> e
+    fromOrdinary (NoPlaceholder _ (C.Ordinary e)) = e
+    fromOrdinary _                                = __IMPOSSIBLE__
+
+    isPlaceholder :: MaybePlaceholder a -> Bool
+    isPlaceholder Placeholder{}   = True
+    isPlaceholder NoPlaceholder{} = False
+prettyUnambiguousApplication e = pretty e
+
 
 -- | Print two terms that are supposedly unequal.
 --   If they print to the same identifier, add some explanation
