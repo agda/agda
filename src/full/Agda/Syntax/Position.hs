@@ -852,4 +852,3 @@ interleaveRanges as bs = runWriter$ go as bs
           (a:) <$> go as' bs
         else
           (b:) <$> go as bs'
-

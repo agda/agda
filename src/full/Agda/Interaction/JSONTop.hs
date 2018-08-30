@@ -42,16 +42,21 @@ instance EncodeTCM Response where
     [ "kind"          @= String "ClearHighlighting"
     , "tokenBased"    @= tokenBased
     ]
-  encodeTCM Resp_DoneAborting = obj [ "kind" @= String "DoneAborting" ]
-  encodeTCM Resp_ClearRunningInfo = obj [ "kind" @= String "ClearRunningInfo" ]
+  encodeTCM Resp_DoneAborting = obj
+    [ "kind"          @= String "DoneAborting"
+    ]
+  encodeTCM Resp_ClearRunningInfo = obj
+    [ "kind"          @= String "ClearRunningInfo"
+    ]
   encodeTCM (Resp_RunningInfo debugLevel msg) = obj
     [ "kind"          @= String "RunningInfo"
     , "debugLevel"    @= debugLevel
     , "message"       @= msg
     ]
   encodeTCM (Resp_Status status) = obj
-    [ "kind"          @= String "Status"
-    , "status"        @= status
+    [ "kind"                  @= String "Status"
+    , "showImplicitArguments" @= sShowImplicitArguments status
+    , "checked"               @= sChecked status
     ]
   encodeTCM (Resp_JumpToError filepath position) = obj
     [ "kind"          @= String "JumpToError"
@@ -100,11 +105,15 @@ instance EncodeTCM DisplayInfo where
     , "warnings"    @= warnings
     , "errors"      @= errors
     ]
-  encodeTCM (Info_Time doc) = obj [ "kind" @= String "Time", "payload" @= render doc ]
+  encodeTCM (Info_Time doc) = obj
+    [ "kind"        @= String "Time"
+    , "payload"     @= render doc
+    ]
   encodeTCM (Info_Error err msg) = obj
-      [ "kind" @= String "Error"
-      , "error" #= encodeTCM err
-      ]
+    [ "kind"          @= String "Error"
+    , "error"         #= encodeTCM err
+    , "emacsMessage"  @= msg
+    ]
   encodeTCM (Info_Intro doc) = obj
     [ "kind" @= String "Intro", "payload" @= render doc ]
   encodeTCM (Info_Auto msg) = obj
@@ -133,12 +142,6 @@ instance EncodeTCM DisplayInfo where
     ]
 
 --------------------------------------------------------------------------------
-
-instance ToJSON Status where
-  toJSON status = object
-    [ "showImplicitArguments" .= sShowImplicitArguments status
-    , "checked" .= sChecked status
-    ]
 
 instance ToJSON GiveResult where
   toJSON (Give_String s) = toJSON s

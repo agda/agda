@@ -55,12 +55,12 @@ instance EncodeTCM TCErr where
   encodeTCM (Exception range doc) = obj
     [ "kind"        @= String "Exception"
     , "range"       @= range
-    , "description" @= toJSON (render doc)
+    , "message"     @= render doc
     ]
   encodeTCM (IOException _ range exception) = obj
     [ "kind"        @= String "IOException"
     , "range"       @= range
-    , "exception"   @= toJSON (show exception)
+    , "message"     @= show exception
     ]
   encodeTCM PatternErr = obj
     [ "kind"        @= String "PatternErr"
@@ -593,11 +593,10 @@ instance EncodeTCM TypeError where
         ]
       where
         name inscope x = obj
-          [ "name"        @= pretty x
-          , "range"       #= prettyTCM (P.getRange x)
-          , "suggestion"  @= suggestion inscope x
+          [ "name"        @= x
+          , "suggestions" @= suggestion inscope x
           ]
-        suggestion inscope x = map prettyShow $ filter (close (strip x) . strip) inscope
+        suggestion inscope x = filter (close (strip x) . strip) inscope
           where
             strip x = map toLower $ filter (/= '_') $ prettyShow $ C.unqualify x
             maxDist n = div n 3

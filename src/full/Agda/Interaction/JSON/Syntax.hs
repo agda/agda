@@ -122,10 +122,9 @@ instance ToJSON A.ModuleName where
 -- Agda.Syntax.Concrete
 
 instance ToJSON C.NamePart where
-  toJSON C.Hole = Null
+  toJSON C.Hole      = Null
   toJSON (C.Id name) = toJSON name
 
-instance ToJSONKey C.Name
 instance ToJSON C.Name where
   toJSON (C.Name   range parts) = object
     [ "kind"  .= String "Name"
@@ -138,17 +137,11 @@ instance ToJSON C.Name where
     , "name"  .= name
     ]
 
-instance ToJSONKey C.QName
 instance ToJSON C.QName where
-  toJSON (C.QName name) = object
-    [ "kind"  .= String "QName"
-    , "name"  .= name
-    ]
-  toJSON (C.Qual name qname) = object
-    [ "kind"      .= String "Qual"
-    , "name"      .= name
-    , "namespace" .= qname
-    ]
+  toJSON = toJSON . toList
+    where
+      toList (C.QName name)      = name : []
+      toList (C.Qual name qname) = name : toList qname
 
 --------------------------------------------------------------------------------
 -- Agda.Syntax.Fixity
@@ -224,17 +217,20 @@ instance ToJSON N.NotationKind where
 --------------------------------------------------------------------------------
 -- Agda.Syntax.Position
 instance ToJSON a => ToJSON (P.Position' a) where
-  toJSON (P.Pn src pos line col) = toJSON
-    [ toJSON line, toJSON col, toJSON pos, toJSON src ]
+  toJSON (P.Pn _ pos line col) = toJSON
+    [ toJSON line, toJSON col, toJSON pos ]
 
 instance ToJSON a => ToJSON (P.Interval' a) where
-  toJSON (P.Interval start end) = toJSON [toJSON start, toJSON end]
+  toJSON (P.Interval start end) = object
+    [ "start" .= start
+    , "end"   .= end
+    ]
 
 instance ToJSON a => ToJSON (P.Range' a) where
   toJSON (P.Range src is) = object
-    [ "kind" .= String "Range"
+    [ "intervals" .= is
     , "source" .= src
-    , "intervals" .= is
     ]
   toJSON P.NoRange = object
-    [ "kind" .= String "NoRange" ]
+    [ "intervals" .= ([] :: [P.Interval' a])
+    ]
