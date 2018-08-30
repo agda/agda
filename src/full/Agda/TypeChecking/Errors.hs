@@ -154,6 +154,10 @@ prettyWarning wng = liftTCM $ case wng of
       [prettyTCM d] ++ pwords "is not strictly positive, because it occurs"
       ++ [prettyTCM ocs]
 
+    AbsurdPatternRequiresNoRHS ps -> fwords $
+      "The right-hand side must be omitted if there " ++
+      "is an absurd pattern, () or {}, in the left-hand side."
+
     OldBuiltin old new -> fwords $
       "Builtin " ++ old ++ " no longer exists. " ++
       "It is now bound by BUILTIN " ++ new
@@ -279,6 +283,7 @@ applyFlagsToTCWarnings ifs ws = do
           DeprecationWarning{}         -> True
           NicifierIssue{}              -> True
           UserWarning{}                -> True
+          AbsurdPatternRequiresNoRHS{} -> True
 
   return $ sfp ++ filter (cleanUp . tcWarning) ws
 
@@ -375,7 +380,6 @@ errorString err = case err of
   NoParseForLHS{}                          -> "NoParseForLHS"
 --  NoParseForPatternSynonym{}               -> "NoParseForPatternSynonym"
   NoRHSRequiresAbsurdPattern{}             -> "NoRHSRequiresAbsurdPattern"
-  AbsurdPatternRequiresNoRHS{}             -> "AbsurdPatternRequiresNoRHS"
   NoSuchBuiltinName{}                      -> "NoSuchBuiltinName"
   NoSuchModule{}                           -> "NoSuchModule"
   NoSuchPrimitiveFunction{}                -> "NoSuchPrimitiveFunction"
@@ -841,10 +845,6 @@ instance PrettyTCM TypeError where
 
     NoRHSRequiresAbsurdPattern ps -> fwords $
       "The right-hand side can only be omitted if there " ++
-      "is an absurd pattern, () or {}, in the left-hand side."
-
-    AbsurdPatternRequiresNoRHS ps -> fwords $
-      "The right-hand side must be omitted if there " ++
       "is an absurd pattern, () or {}, in the left-hand side."
 
     LocalVsImportedModuleClash m -> fsep $

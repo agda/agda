@@ -345,9 +345,9 @@ If `agda2-highlight-face-groups' is nil."
   "The face used for positivity problems."
   :group 'agda2-highlight-faces)
 
-(defface agda2-highlight-reachability-problem-face
+(defface agda2-highlight-deadcode-face
   '((t (:background "dark gray")))
-  "The face used for reachability problems."
+  "The face used for dead code (unreachable clauses, etc.)."
   :group 'agda2-highlight-faces)
 
 (defface agda2-highlight-coverage-problem-face
@@ -390,7 +390,7 @@ If `agda2-highlight-face-groups' is nil."
     (unsolvedmeta           . agda2-highlight-unsolved-meta-face)
     (unsolvedconstraint     . agda2-highlight-unsolved-constraint-face)
     (terminationproblem     . agda2-highlight-termination-problem-face)
-    (reachabilityproblem    . agda2-highlight-reachability-problem-face)
+    (deadcode               . agda2-highlight-deadcode-face)
     (coverageproblem        . agda2-highlight-coverage-problem-face)
     (positivityproblem      . agda2-highlight-positivity-problem-face)
     (incompletepattern      . agda2-highlight-incomplete-pattern-face)
@@ -422,7 +422,7 @@ The aspects currently recognised are the following:
 `symbol'                 Symbols like forall, =, ->, etc.
 `terminationproblem'     Termination problems.
 `positivityproblem'      Positivity problems.
-`reachabilityproblem'    Reachability problems.
+`deadcode'               Deadcode (like unreachable clauses or RHS)
 `coverageproblem'        Coverage problems.
 `catchallclause'         Clause not holding definitionally.
 `typechecks'             Code which is being type-checked.

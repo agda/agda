@@ -39,6 +39,7 @@ import Agda.Syntax.Info
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
+import Agda.TypeChecking.Warnings ( warning )
 
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Conversion
@@ -713,10 +714,14 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps absurdPat trhs _ _asb _) rhs0
     case rhs of
 
       -- Case: ordinary RHS
-      A.RHS e _ -> Bench.billTo [Bench.Typing, Bench.CheckRHS] $ do
-        when absurdPat $ typeError $ AbsurdPatternRequiresNoRHS aps
-        v <- checkExpr e $ unArg trhs
-        return (Just v, NoWithFunction)
+      A.RHS e _ -> Bench.billTo [Bench.Typing, Bench.CheckRHS] $
+        if absurdPat
+        then do
+          setCurrentRange (getRange rhs) $ warning $ AbsurdPatternRequiresNoRHS ps
+          return (Nothing, NoWithFunction)
+        else do
+          v <- checkExpr e $ unArg trhs
+          return (Just v, NoWithFunction)
 
       -- Case: no RHS
       A.AbsurdRHS -> do

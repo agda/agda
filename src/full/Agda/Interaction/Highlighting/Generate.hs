@@ -581,11 +581,12 @@ warningHighlighting :: TCWarning -> File
 warningHighlighting w = case tcWarning w of
   TerminationIssue terrs     -> terminationErrorHighlighting terrs
   NotStrictlyPositive d ocs  -> positivityErrorHighlighting d ocs
-  UnreachableClauses{}       -> unreachableErrorHighlighting $ P.getRange w
+  UnreachableClauses{}       -> deadcodeHighlighting $ P.getRange w
   CoverageIssue{}            -> coverageErrorHighlighting $ P.getRange w
   CoverageNoExactSplit{}     -> catchallHighlighting $ P.getRange w
   UnsolvedConstraints cs     -> constraintsHighlighting cs
   UnsolvedMetaVariables rs   -> metasHighlighting rs
+  AbsurdPatternRequiresNoRHS{} -> deadcodeHighlighting $ P.getRange w
   -- expanded catch-all case to get a warning for new constructors
   UnsolvedInteractionMetas{} -> mempty
   OldBuiltin{}               -> mempty
@@ -629,9 +630,9 @@ positivityErrorHighlighting q o = several (rToR <$> P.getRange q : rs) m
     rs = case o of Unknown -> []; Known r _ -> [r]
     m  = parserBased { otherAspects = [PositivityProblem] }
 
-unreachableErrorHighlighting :: P.Range -> File
-unreachableErrorHighlighting r = singleton (rToR $ P.continuousPerLine r) m
-  where m = parserBased { otherAspects = [ReachabilityProblem] }
+deadcodeHighlighting :: P.Range -> File
+deadcodeHighlighting r = singleton (rToR $ P.continuousPerLine r) m
+  where m = parserBased { otherAspects = [Deadcode] }
 
 coverageErrorHighlighting :: P.Range -> File
 coverageErrorHighlighting r = singleton (rToR $ P.continuousPerLine r) m

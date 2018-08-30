@@ -2571,6 +2571,7 @@ data Warning
   | UnsolvedInteractionMetas [Range]  -- ^ Do not use directly with 'warning'
   | UnsolvedConstraints      Constraints
     -- ^ Do not use directly with 'warning'
+  | AbsurdPatternRequiresNoRHS [NamedArg DeBruijnPattern]
   | OldBuiltin               String String
     -- ^ In `OldBuiltin old new`, the BUILTIN old has been replaced by new
   | EmptyRewritePragma
@@ -2579,9 +2580,9 @@ data Warning
     -- ^ If the user opens a module public before the module header.
     --   (See issue #2377.)
   | UselessInline            QName
-  -- Generic warnings for one-off things
   | InversionDepthReached    QName
   -- ^ The --inversion-max-depth was reached.
+  -- Generic warnings for one-off things
   | GenericWarning           Doc
     -- ^ Harmless generic warning (not an error)
   | GenericNonFatalError     Doc
@@ -2606,33 +2607,39 @@ data Warning
 
 warningName :: Warning -> WarningName
 warningName w = case w of
-  NicifierIssue dw           -> declarationWarningName dw
-  ParseWarning pw            -> parseWarningName pw
-  OldBuiltin{}               -> OldBuiltin_
-  EmptyRewritePragma         -> EmptyRewritePragma_
-  UselessPublic              -> UselessPublic_
-  UnreachableClauses{}       -> UnreachableClauses_
-  UselessInline{}            -> UselessInline_
-  GenericWarning{}           -> GenericWarning_
-  DeprecationWarning{}       -> DeprecationWarning_
-  InversionDepthReached{}    -> InversionDepthReached_
-  TerminationIssue{}         -> TerminationIssue_
-  CoverageIssue{}            -> CoverageIssue_
-  CoverageNoExactSplit{}     -> CoverageNoExactSplit_
-  NotStrictlyPositive{}      -> NotStrictlyPositive_
-  UnsolvedMetaVariables{}    -> UnsolvedMetaVariables_
-  UnsolvedInteractionMetas{} -> UnsolvedInteractionMetas_
-  UnsolvedConstraints{}      -> UnsolvedConstraints_
-  GenericNonFatalError{}     -> GenericNonFatalError_
-  SafeFlagPostulate{}        -> SafeFlagPostulate_
-  SafeFlagPragma{}           -> SafeFlagPragma_
-  SafeFlagNonTerminating     -> SafeFlagNonTerminating_
-  SafeFlagTerminating        -> SafeFlagTerminating_
-  SafeFlagPrimTrustMe        -> SafeFlagPrimTrustMe_
-  SafeFlagNoPositivityCheck  -> SafeFlagNoPositivityCheck_
-  SafeFlagPolarity           -> SafeFlagPolarity_
-  SafeFlagNoUniverseCheck    -> SafeFlagNoUniverseCheck_
-  UserWarning{}              -> UserWarning_
+  -- special cases
+  NicifierIssue dw             -> declarationWarningName dw
+  ParseWarning pw              -> parseWarningName pw
+  -- typechecking errors
+  AbsurdPatternRequiresNoRHS{} -> AbsurdPatternRequiresNoRHS_
+  CoverageIssue{}              -> CoverageIssue_
+  CoverageNoExactSplit{}       -> CoverageNoExactSplit_
+  DeprecationWarning{}         -> DeprecationWarning_
+  EmptyRewritePragma           -> EmptyRewritePragma_
+  GenericNonFatalError{}       -> GenericNonFatalError_
+  GenericWarning{}             -> GenericWarning_
+  InversionDepthReached{}      -> InversionDepthReached_
+  NotStrictlyPositive{}        -> NotStrictlyPositive_
+  OldBuiltin{}                 -> OldBuiltin_
+  SafeFlagNoPositivityCheck    -> SafeFlagNoPositivityCheck_
+  SafeFlagNonTerminating       -> SafeFlagNonTerminating_
+  SafeFlagNoUniverseCheck      -> SafeFlagNoUniverseCheck_
+  SafeFlagPolarity             -> SafeFlagPolarity_
+  SafeFlagPostulate{}          -> SafeFlagPostulate_
+  SafeFlagPragma{}             -> SafeFlagPragma_
+  SafeFlagPrimTrustMe          -> SafeFlagPrimTrustMe_
+  SafeFlagTerminating          -> SafeFlagTerminating_
+  TerminationIssue{}           -> TerminationIssue_
+  UnreachableClauses{}         -> UnreachableClauses_
+  UnsolvedInteractionMetas{}   -> UnsolvedInteractionMetas_
+  UnsolvedConstraints{}        -> UnsolvedConstraints_
+  UnsolvedMetaVariables{}      -> UnsolvedMetaVariables_
+  UselessInline{}              -> UselessInline_
+  UselessPublic                -> UselessPublic_
+  UserWarning{}                -> UserWarning_
+
+
+
 
 data TCWarning
   = TCWarning
@@ -2856,7 +2863,6 @@ data TypeError
         | BuiltinInParameterisedModule String
         | IllegalLetInTelescope C.TypedBinding
         | NoRHSRequiresAbsurdPattern [NamedArg A.Pattern]
-        | AbsurdPatternRequiresNoRHS [NamedArg A.Pattern]
         | TooFewFields QName [C.Name]
         | TooManyFields QName [C.Name]
         | DuplicateFields [C.Name]

@@ -102,7 +102,9 @@ data OtherAspect
     -- could for instance be an emptyness constraint.
   | TerminationProblem
   | PositivityProblem
-  | ReachabilityProblem
+  | Deadcode
+    -- ^ Used for highlighting unreachable clauses, unreachable RHS
+    -- (because of an absurd pattern), etc.
   | CoverageProblem
   | IncompletePattern
     -- ^ When this constructor is used it is probably a good idea to

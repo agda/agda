@@ -70,7 +70,7 @@ instance EmbPrj HP.OtherAspect where
   icod_ HP.TypeChecks          = icodeN 5 ()
   icod_ HP.UnsolvedConstraint  = icodeN 6 ()
   icod_ HP.PositivityProblem   = icodeN 7 ()
-  icod_ HP.ReachabilityProblem = icodeN 8 ()
+  icod_ HP.Deadcode            = icodeN 8 ()
   icod_ HP.CoverageProblem     = icodeN 9 ()
   icod_ HP.CatchallClause      = icodeN 10 ()
 
@@ -83,7 +83,7 @@ instance EmbPrj HP.OtherAspect where
     valu [5] = valuN HP.TypeChecks
     valu [6] = valuN HP.UnsolvedConstraint
     valu [7] = valuN HP.PositivityProblem
-    valu [8] = valuN HP.ReachabilityProblem
+    valu [8] = valuN HP.Deadcode
     valu [9] = valuN HP.CoverageProblem
     valu [10] = valuN HP.CatchallClause
     valu _   = malformed
