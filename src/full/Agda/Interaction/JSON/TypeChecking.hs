@@ -368,10 +368,10 @@ instance EncodeTCM TypeError where
         (_, _, d) <- prettyInEqual s t
         obj
           [ "kind"            @= String "UnequalTerms"
-          , "comparison"      #= prettyTCM cmp
-          , "term1"           #= prettyTCM s
-          , "term2"           #= prettyTCM t
-          , "type"            #= prettyTCM a
+          , "comparison"      @= cmp
+          , "term1"           @= s
+          , "term2"           @= t
+          , "type"            @= a
           , "reason"          @= d
           ]
 
@@ -900,3 +900,11 @@ instance EncodeTCM UnquoteError where
       ]
 
     UnquotePanic err -> __IMPOSSIBLE__
+
+
+--------------------------------------------------------------------------------
+-- Agda.TypeChecking.Monad.Base
+
+instance ToJSON Comparison where
+  toJSON CmpEq = String "CmpEq"
+  toJSON CmpLeq = String "CmpLeq"

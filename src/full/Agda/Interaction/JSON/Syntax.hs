@@ -13,6 +13,8 @@ import Agda.Syntax.Common
 import qualified Agda.Syntax.Abstract     as A
 import qualified Agda.Syntax.Concrete     as C
 import qualified Agda.Syntax.Fixity       as F
+import qualified Agda.Syntax.Internal     as I
+import qualified Agda.Syntax.Literal      as L
 import qualified Agda.Syntax.Notation     as N
 import qualified Agda.Syntax.Position     as P
 
@@ -87,14 +89,39 @@ instance (ToJSON name, ToJSON a) => ToJSON (Named name a) where
     ]
 
 instance ToJSON a => ToJSON (Arg a) where
-  toJSON (Arg argInfo unArg) = object
+  toJSON (Arg argInfo payload) = object
     [ "argInfo" .= argInfo
-    , "payload" .= unArg
+    , "payload" .= payload
+    ]
+
+instance ToJSON a => ToJSON (Dom a) where
+  toJSON (Dom argInfo finite payload) = object
+    [ "argInfo" .= argInfo
+    , "finite"  .= finite
+    , "payload" .= payload
     ]
 
 instance ToJSON DataOrRecord where
   toJSON IsData   = String "IsData"
   toJSON IsRecord = String "IsRecord"
+
+instance ToJSON ProjOrigin where
+  toJSON ProjPrefix   = String "ProjPrefix"
+  toJSON ProjPostfix  = String "ProjPostfix"
+  toJSON ProjSystem   = String "ProjSystem"
+
+instance ToJSON MetaId where
+  toJSON (MetaId i)   = toJSON i
+
+instance ToJSON Induction where
+  toJSON Inductive   = String "Inductive"
+  toJSON CoInductive = String "CoInductive"
+
+instance ToJSON ConOrigin where
+  toJSON ConOSystem = String "ConOSystem"
+  toJSON ConOCon    = String "ConOCon"
+  toJSON ConORec    = String "ConORec"
+  toJSON ConOSplit  = String "ConOSplit"
 
 --------------------------------------------------------------------------------
 -- Agda.Syntax.Abstract
@@ -185,6 +212,231 @@ instance ToJSON F.Fixity' where
     , "notation"  .= notation
     , "range"     .= range
     ]
+
+--------------------------------------------------------------------------------
+-- Agda.Syntax.Internal
+
+instance ToJSON I.Term where
+  toJSON (I.Var n elims) = object
+    [ "kind"      .= String "Var"
+    , "index"     .= n
+    , "elims"     .= elims
+    ]
+  toJSON (I.Lam argInfo binder) = object
+    [ "kind"      .= String "Lam"
+    , "argInfo"   .= argInfo
+    , "binder"    .= binder
+    ]
+  toJSON (I.Lit lit) = object
+    [ "kind"      .= String "Lit"
+    , "literal"   .= lit
+    ]
+  toJSON (I.Def name elims) = object
+    [ "kind"      .= String "Def"
+    , "name"      .= name
+    , "elims"     .= elims
+    ]
+  toJSON (I.Con conHead conInfo elims) = object
+    [ "kind"      .= String "Con"
+    , "conHead"   .= conHead
+    , "conInfo"   .= conInfo
+    , "elims"     .= elims
+    ]
+  toJSON (I.Pi domain binder) = object
+    [ "kind"      .= String "Pi"
+    , "domain"    .= domain
+    , "binder"    .= binder
+    ]
+  toJSON (I.Sort sort) = object
+    [ "kind"      .= String "Sort"
+    , "sort"      .= sort
+    ]
+  toJSON (I.Level level) = object
+    [ "kind"      .= String "Level"
+    , "level"     .= level
+    ]
+  toJSON (I.MetaV metaId elims) = object
+    [ "kind"      .= String "MetaV"
+    , "metaId"    .= metaId
+    , "elims"     .= elims
+    ]
+  toJSON (I.DontCare term) = object
+    [ "kind"      .= String "DontCare"
+    , "term"      .= term
+    ]
+  toJSON (I.Dummy s) = object
+    [ "kind"        .= String "Dummy"
+    , "description" .= s
+    ]
+
+instance ToJSON a => ToJSON (I.Type' a) where
+  toJSON (I.El sort payload) = object
+    [ "sort"    .= sort
+    , "payload" .= payload
+    ]
+
+instance ToJSON I.Sort where
+  toJSON (I.Type level) = object
+    [ "kind"      .= String "Type"
+    , "level"     .= level
+    ]
+  toJSON (I.Prop level) = object
+    [ "kind"      .= String "Prop"
+    , "level"     .= level
+    ]
+  toJSON I.Inf = object
+    [ "kind"      .= String "Inf"
+    ]
+  toJSON I.SizeUniv = object
+    [ "kind"      .= String "SizeUniv"
+    ]
+  toJSON (I.PiSort sort binder) = object
+    [ "kind"      .= String "PiSort"
+    , "sort"      .= sort
+    , "binder"    .= binder
+    ]
+  toJSON (I.UnivSort sort) = object
+    [ "kind"      .= String "UnivSort"
+    , "sort"      .= sort
+    ]
+  toJSON (I.MetaS metaId elims) = object
+    [ "kind"      .= String "MetaS"
+    , "metaId"    .= metaId
+    , "elims"     .= elims
+    ]
+
+instance ToJSON I.Level where
+  toJSON (I.Max levels) = object
+    [ "levels" .= levels
+    ]
+
+instance ToJSON I.PlusLevel where
+  toJSON (I.ClosedLevel n) = object
+    [ "kind"      .= String "ClosedLevel"
+    , "level"     .= n
+    ]
+  toJSON (I.Plus n levelAtom) = object
+    [ "kind"      .= String "Plus"
+    , "level"     .= n
+    , "levelAtom" .= levelAtom
+    ]
+
+instance ToJSON I.LevelAtom where
+  toJSON (I.MetaLevel metaId elims) = object
+    [ "kind"      .= String "MetaLevel"
+    , "metaId"    .= metaId
+    , "elims"     .= elims
+    ]
+  toJSON (I.BlockedLevel metaId term) = object
+    [ "kind"      .= String "BlockedLevel"
+    , "metaId"    .= metaId
+    , "term"      .= term
+    ]
+  toJSON (I.NeutralLevel notBlocked elims) = object
+    [ "kind"        .= String "NeutralLevel"
+    , "notBlocked"  .= notBlocked
+    , "elims"       .= elims
+    ]
+  toJSON (I.UnreducedLevel term) = object
+    [ "kind"      .= String "UnreducedLevel"
+    , "term"      .= term
+    ]
+
+instance ToJSON I.NotBlocked where
+  toJSON (I.StuckOn elims) = object
+    [ "kind"      .= String "StuckOn"
+    , "elims"     .= elims
+    ]
+  toJSON I.Underapplied = object
+    [ "kind"      .= String "Underapplied"
+    ]
+  toJSON I.AbsurdMatch = object
+    [ "kind"      .= String "AbsurdMatch"
+    ]
+  toJSON I.MissingClauses = object
+    [ "kind"      .= String "MissingClauses"
+    ]
+  toJSON I.ReallyNotBlocked = object
+    [ "kind"      .= String "ReallyNotBlocked"
+    ]
+
+instance ToJSON a => ToJSON (I.Elim' a) where
+  toJSON (I.Apply arg) = object
+    [ "kind"      .= String "Apply"
+    , "arg"       .= arg
+    ]
+  toJSON (I.Proj origin name) = object
+    [ "kind"        .= String "Proj"
+    , "projOrigin"  .= origin
+    , "name"        .= name
+    ]
+  toJSON (I.IApply x y r) = object
+    [ "kind"      .= String "IApply"
+    , "endpoint1" .= x
+    , "endpoint2" .= y
+    , "endpoint3" .= r
+    ]
+
+instance ToJSON a => ToJSON (I.Abs a) where
+  toJSON (I.Abs name payload) = object
+    [ "kind"      .= String "Abs"
+    , "name"      .= name
+    , "payload"   .= payload
+    ]
+  toJSON (I.NoAbs name payload) = object
+    [ "kind"      .= String "NoAbs"
+    , "name"      .= name
+    , "payload"   .= payload
+    ]
+
+instance ToJSON I.ConHead where
+  toJSON (I.ConHead name ind fields) = object
+    [ "name"      .= name
+    , "inductive" .= ind
+    , "fields"    .= fields
+    ]
+
+--------------------------------------------------------------------------------
+-- Agda.Syntax.Literal
+
+instance ToJSON L.Literal where
+  toJSON (L.LitNat range value) = object
+    [ "kind"      .= String "LitNat"
+    , "range"     .= range
+    , "value"     .= value
+    ]
+  toJSON (L.LitWord64 range value) = object
+    [ "kind"      .= String "LitWord64"
+    , "range"     .= range
+    , "value"     .= value
+    ]
+  toJSON (L.LitFloat range value) = object
+    [ "kind"      .= String "LitFloat"
+    , "range"     .= range
+    , "value"     .= value
+    ]
+  toJSON (L.LitString range value) = object
+    [ "kind"      .= String "LitString"
+    , "range"     .= range
+    , "value"     .= value
+    ]
+  toJSON (L.LitChar range value) = object
+    [ "kind"      .= String "LitChar"
+    , "range"     .= range
+    , "value"     .= value
+    ]
+  toJSON (L.LitQName range value) = object
+    [ "kind"      .= String "LitQName"
+    , "range"     .= range
+    , "value"     .= value
+    ]
+  toJSON (L.LitMeta range path metaId) = object
+    [ "kind"      .= String "LitMeta"
+    , "range"     .= range
+    , "path"      .= path
+    , "metaId"    .= metaId
+    ]
+
 
 --------------------------------------------------------------------------------
 -- Agda.Syntax.Notation
