@@ -714,14 +714,14 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps absurdPat trhs _ _asb _) rhs0
     case rhs of
 
       -- Case: ordinary RHS
-      A.RHS e _ -> Bench.billTo [Bench.Typing, Bench.CheckRHS] $
-        if absurdPat
-        then do
-          setCurrentRange (getRange rhs) $ warning $ AbsurdPatternRequiresNoRHS ps
-          return (Nothing, NoWithFunction)
-        else do
-          v <- checkExpr e $ unArg trhs
-          return (Just v, NoWithFunction)
+      A.RHS e _ -> Bench.billTo [Bench.Typing, Bench.CheckRHS] $ do
+        -- If there is an absurd pattern, we do not need a RHS. If we have
+        -- one we complain, ignore it and return the same @(Nothing, NoWithFunction)@
+        -- as the case dealing with @A.AbsurdRHS@.
+        mv <- if absurdPat
+              then Nothing <$ setCurrentRange rhs (warning $ AbsurdPatternRequiresNoRHS ps)
+              else Just <$> checkExpr e (unArg trhs)
+        return (mv, NoWithFunction)
 
       -- Case: no RHS
       A.AbsurdRHS -> do
