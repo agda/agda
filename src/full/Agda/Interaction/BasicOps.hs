@@ -62,7 +62,7 @@ import Agda.TypeChecking.Free
 import Agda.TypeChecking.CheckInternal
 import Agda.TypeChecking.SizedTypes.Solve
 import qualified Agda.TypeChecking.Pretty as TP
-import Agda.TypeChecking.Warnings (runPM)
+import Agda.TypeChecking.Warnings ( runPM, warning )
 
 import Agda.Termination.TermCheck (termMutual)
 
@@ -170,7 +170,7 @@ redoChecks (Just ii) = do
     IPClause f _ _ -> do
       mb <- mutualBlockOf f
       terErrs <- local (\ e -> e { envMutualBlock = Just mb }) $ termMutual []
-      unless (null terErrs) $ typeError $ TerminationCheckFailed terErrs
+      unless (null terErrs) $ warning $ TerminationIssue terErrs
   -- TODO redo positivity check!
 
 -- | Try to fill hole by expression.

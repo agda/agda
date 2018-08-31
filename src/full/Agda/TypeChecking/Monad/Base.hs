@@ -2769,7 +2769,6 @@ data TypeError
         | NotImplemented String
         | NotSupported String
         | CompilationError String
-        | TerminationCheckFailed [TerminationError]
         | PropMustBeSingleton
         | DataMustEndInSort Term
 {- UNUSED
