@@ -129,7 +129,16 @@ prettyWarning wng = liftTCM $ case wng of
                     then d
                     else d $$ nest 4 (text "[ at" <+> prettyTCM r <+> text "]")
 
-    TerminationIssue tes -> prettyTCM (TerminationCheckFailed tes)
+    TerminationIssue because -> do
+      dropTopLevel <- topLevelModuleDropper
+      fwords "Termination checking failed for the following functions:"
+        $$ (nest 2 $ fsep $ punctuate comma $
+             map (pretty . dropTopLevel) $
+               concatMap termErrFunctions because)
+        $$ fwords "Problematic calls:"
+        $$ (nest 2 $ fmap (P.vcat . nub) $
+              mapM prettyTCM $ sortBy (compare `on` callInfoRange) $
+              concatMap termErrCalls because)
 
     UnreachableClauses f pss -> fsep $
       pwords "Unreachable" ++ pwords (plural (length pss) "clause")
@@ -416,7 +425,6 @@ errorString err = case err of
   ShouldEndInApplicationOfTheDatatype{}    -> "ShouldEndInApplicationOfTheDatatype"
   SplitError{}                             -> "SplitError"
   ImpossibleConstructor{}                  -> "ImpossibleConstructor"
-  TerminationCheckFailed{}                 -> "TerminationCheckFailed"
   TooFewFields{}                           -> "TooFewFields"
   TooManyFields{}                          -> "TooManyFields"
   TooManyPolarities{}                      -> "TooManyPolarities"
@@ -506,17 +514,6 @@ instance PrettyTCM TypeError where
     GenericError s -> fwords s
 
     GenericDocError d -> return d
-
-    TerminationCheckFailed because -> do
-      dropTopLevel <- topLevelModuleDropper
-      fwords "Termination checking failed for the following functions:"
-        $$ (nest 2 $ fsep $ punctuate comma $
-             map (pretty . dropTopLevel) $
-               concatMap termErrFunctions because)
-        $$ fwords "Problematic calls:"
-        $$ (nest 2 $ fmap (P.vcat . nub) $
-              mapM prettyTCM $ sortBy (compare `on` callInfoRange) $
-              concatMap termErrCalls because)
 
     PropMustBeSingleton -> fwords
       "Datatypes in Prop must have at most one constructor when proof irrelevance is enabled"

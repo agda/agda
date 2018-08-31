@@ -555,12 +555,6 @@ printErrorInfo e =
 --   Does something special for termination errors.
 
 errorHighlighting :: TCErr -> TCM File
-
-errorHighlighting (TypeError s cl@Closure{ clValue = TerminationCheckFailed termErrs }) =
-  -- For termination errors, we keep the previous highlighting,
-  -- just additionally mark the bad calls.
-  return $ terminationErrorHighlighting termErrs
-
 errorHighlighting e = do
 
   -- Erase previous highlighting.
