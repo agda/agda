@@ -59,6 +59,7 @@ instance EmbPrj Warning where
   icod_ (NicifierIssue a)            = icodeN 7 NicifierIssue a
   icod_ (InversionDepthReached a)    = icodeN 8 InversionDepthReached a
   icod_ (UserWarning a)              = icodeN 9 UserWarning a
+  icod_ (AbsurdPatternRequiresNoRHS a) = icodeN 10 AbsurdPatternRequiresNoRHS a
 
   value = vcase valu where
       valu [0, a, b]    = valuN UnreachableClauses a b
@@ -71,6 +72,7 @@ instance EmbPrj Warning where
       valu [7, a]       = valuN NicifierIssue a
       valu [8, a]       = valuN InversionDepthReached a
       valu [9, a]       = valuN UserWarning a
+      valu [10, a]      = valuN AbsurdPatternRequiresNoRHS a
       valu _ = malformed
 
 instance EmbPrj DeclarationWarning where
