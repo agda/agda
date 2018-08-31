@@ -5,7 +5,7 @@
 module Agda.TypeChecking.Reduce.Monad
   ( constructorForm
   , enterClosure
-  , underAbstraction_
+  , underAbstraction , underAbstraction_
   , getConstInfo
   , isInstantiatedMeta
   , lookupMeta
@@ -63,19 +63,19 @@ enterClosure (Closure sig env scope cps x) f = localR (mapRedEnvSt inEnv inState
       -- TODO: use the signature here? would that fix parts of issue 118?
       set stScope scope $ set stModuleCheckpoints cps s
 
-withFreshR :: HasFresh i => (i -> ReduceM a) -> ReduceM a
+withFreshR :: (ReadTCState m, HasFresh i) => (i -> m a) -> m a
 withFreshR f = do
   s <- getTCState
   let (i, s') = nextFresh s
-  localR (mapRedSt $ const s') (f i)
+  withTCState (const s') (f i)
 
-withFreshName :: Range -> ArgName -> (Name -> ReduceM a) -> ReduceM a
+withFreshName :: (MonadReduce m) => Range -> ArgName -> (Name -> m a) -> m a
 withFreshName r s k = withFreshR $ \i -> k (mkName r i s)
 
-withFreshName_ :: ArgName -> (Name -> ReduceM a) -> ReduceM a
+withFreshName_ :: (MonadReduce m) => ArgName -> (Name -> m a) -> m a
 withFreshName_ = withFreshName noRange
 
-addCtx :: Name -> Dom Type -> ReduceM a -> ReduceM a
+addCtx :: (MonadReduce m) => Name -> Dom Type -> m a -> m a
 addCtx x a ret = do
   ctx <- asks $ map (fst . unDom) . envContext
   let x' = unshadowedName ctx x
@@ -83,14 +83,14 @@ addCtx x a ret = do
   local (\e -> e { envContext = ce : envContext e }) ret
       -- let-bindings keep track of own their context
 
-underAbstraction :: Subst t a => Dom Type -> Abs a -> (a -> ReduceM b) -> ReduceM b
+underAbstraction :: (MonadReduce m, Subst t a) => Dom Type -> Abs a -> (a -> m b) -> m b
 underAbstraction _ (NoAbs _ v) f = f v
 underAbstraction t a f =
   withFreshName_ (realName $ absName a) $ \x -> addCtx x t $ f (absBody a)
   where
     realName s = if isNoName s then "x" else s
 
-underAbstraction_ :: Subst t a => Abs a -> (a -> ReduceM b) -> ReduceM b
+underAbstraction_ :: (MonadReduce m, Subst t a) => Abs a -> (a -> m b) -> m b
 underAbstraction_ = underAbstraction __DUMMY_DOM__
 
 lookupMeta :: MetaId -> ReduceM MetaVariable
