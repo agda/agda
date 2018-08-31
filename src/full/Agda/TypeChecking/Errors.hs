@@ -227,6 +227,11 @@ prettyWarning wng = liftTCM $ case wng of
 
     UserWarning str -> text str
 
+    ModuleDoesntExport m xs -> fsep $
+      pwords "The module" ++ [pretty m] ++ pwords "doesn't export the following:" ++
+      punctuate comma (map pretty xs)
+
+
 prettyTCWarnings :: [TCWarning] -> TCM String
 prettyTCWarnings = fmap (unlines . intersperse "") . prettyTCWarnings'
 
@@ -293,6 +298,7 @@ applyFlagsToTCWarnings ifs ws = do
           NicifierIssue{}              -> True
           UserWarning{}                -> True
           AbsurdPatternRequiresNoRHS{} -> True
+          ModuleDoesntExport{}         -> True
 
   return $ sfp ++ filter (cleanUp . tcWarning) ws
 
@@ -375,7 +381,6 @@ errorString err = case err of
   MetaIrrelevantSolution{}                 -> "MetaIrrelevantSolution"
   ModuleArityMismatch{}                    -> "ModuleArityMismatch"
   ModuleDefinedInOtherFile {}              -> "ModuleDefinedInOtherFile"
-  ModuleDoesntExport{}                     -> "ModuleDoesntExport"
   ModuleNameUnexpected{}                   -> "ModuleNameUnexpected"
   ModuleNameDoesntMatchFileName {}         -> "ModuleNameDoesntMatchFileName"
   NeedOptionCopatterns{}                   -> "NeedOptionCopatterns"
@@ -968,10 +973,6 @@ instance PrettyTCM TypeError where
 
     DuplicateImports m xs -> fsep $
       pwords "Ambiguous imports from module" ++ [pretty m] ++ pwords "for" ++
-      punctuate comma (map pretty xs)
-
-    ModuleDoesntExport m xs -> fsep $
-      pwords "The module" ++ [pretty m] ++ pwords "doesn't export the following:" ++
       punctuate comma (map pretty xs)
 
     NotAModuleExpr e -> fsep $

@@ -581,6 +581,7 @@ warningHighlighting w = case tcWarning w of
   UnsolvedConstraints cs     -> constraintsHighlighting cs
   UnsolvedMetaVariables rs   -> metasHighlighting rs
   AbsurdPatternRequiresNoRHS{} -> deadcodeHighlighting $ P.getRange w
+  ModuleDoesntExport{}         -> deadcodeHighlighting $ P.getRange w
   -- expanded catch-all case to get a warning for new constructors
   UnsolvedInteractionMetas{} -> mempty
   OldBuiltin{}               -> mempty

@@ -12,6 +12,7 @@ import Control.Monad hiding (mapM, forM)
 import Control.Monad.Writer hiding (mapM, forM)
 import Control.Monad.State hiding (mapM, forM)
 
+import Data.Either ( partitionEithers )
 import qualified Data.List as List
 import Data.Map (Map)
 import qualified Data.Map as Map
@@ -32,8 +33,10 @@ import Agda.Syntax.Scope.Base
 
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Debug
-import Agda.TypeChecking.Monad.State
 import Agda.TypeChecking.Monad.Options
+import Agda.TypeChecking.Monad.State
+import Agda.TypeChecking.Monad.Trace ( setCurrentRange )
+import Agda.TypeChecking.Warnings ( warning )
 
 import qualified Agda.Utils.AssocList as AssocList
 import Agda.Utils.Function
@@ -521,19 +524,37 @@ copyScope oldc new0 s = (inScopeBecause (Applied oldc) *** memoToScopeInfo) <$> 
 -- | Apply an import directive and check that all the names mentioned actually
 --   exist.
 applyImportDirectiveM :: C.QName -> C.ImportDirective -> Scope -> ScopeM (A.ImportDirective, Scope)
-applyImportDirectiveM m dir@ImportDirective{ impRenaming = ren, using = u, hiding = h } scope = do
-    -- Translate exported names to abstract syntax.
-    -- Raise error if unsuccessful.
-    caseMaybe mNamesA doesntExport $ \ namesA -> do
+applyImportDirectiveM m (ImportDirective rng usn' hdn' ren' public) scope = do
+
+    -- We start by checking that all of the names talked about in the import
+    -- directive do exist. If some do not then we remove them and raise a warning.
+
+    let (missingExports, namesA) = checkExist $ fromUsing usn' ++ hdn' ++ map renFrom ren'
+    unless (null missingExports) $ setCurrentRange rng $ do
+      reportSLn "scope.import.apply" 20 $ "non existing names: " ++ prettyShow missingExports
+      warning $ ModuleDoesntExport m missingExports
+
+    -- We can now define a cleaned-up version of the input
+    let usn = fromUsing usn' List.\\ missingExports
+    let hdn = hdn' List.\\ missingExports
+    let ren = filter (\ r -> renFrom r `notElem` missingExports) ren'
+    let dir = (\ u -> ImportDirective rng u hdn ren public)
+            $ case usn' of { Using{} -> Using usn; _ -> UseEverything }
+
+    -- As well as convenient shorthands for defined names and names brought into scope
+    let names = map renFrom ren ++ hdn ++ usn
+    let definedNames = map renTo ren
+    let targetNames = usn ++ definedNames
 
     let extraModules =
-          [ x | ImportedName x <- names,
-                let mx = ImportedModule x,
-                 not $ doesntExist mx,
-                 notElem mx names ]
+          [ x | ImportedName x <- names
+              , let mx = ImportedModule x
+              , notElem mx missingExports
+              , notElem mx names
+              ]
         dir' = addExtraModules extraModules dir
 
-    dir' <- sanityCheck dir'
+    dir' <- sanityCheck dir' names
 
     -- Check for duplicate imports in a single import directive.
     -- @dup@ : To be imported names that are mentioned more than once.
@@ -557,25 +578,13 @@ applyImportDirectiveM m dir@ImportDirective{ impRenaming = ren, using = u, hidin
     return (adir, scope') -- TODO Issue 1714: adir
 
   where
-    -- | Names in the @using@ directive.
-    usingNames :: [ImportedName]
-    usingNames = case u of
+    -- | Names in the @using@ directive
+    fromUsing :: Using' a b -> [ImportedName' a b]
+    fromUsing u = case u of
       Using  xs     -> xs
       UseEverything -> []
 
-    -- | All names from the imported module mentioned in the import directive.
-    names :: [ImportedName]
-    names = map renFrom ren ++ h ++ usingNames
-
-    -- | Names defined by the import (targets of renaming).
-    definedNames :: [ImportedName]
-    definedNames = map renTo ren
-
-    -- | Names to be in scope after import.
-    targetNames :: [ImportedName]
-    targetNames = definedNames ++ usingNames
-
-    sanityCheck dir =
+    sanityCheck dir names =
       case (using dir, hiding dir) of
         (Using xs, ys) -> do
           let uselessHiding = [ x | x@ImportedName{} <- ys ] ++
@@ -608,23 +617,19 @@ applyImportDirectiveM m dir@ImportDirective{ impRenaming = ren, using = u, hidin
     namesInScope   = (allNamesInScope scope :: ThingsInScope AbstractName)
     modulesInScope = (allNamesInScope scope :: ThingsInScope AbstractModule)
 
-    -- | AST versions of the concrete names from the imported module.
-    --   @Nothing@ is one of the names is not exported.
-    mNamesA = forM names $ \case
-      ImportedName x   -> ImportedName   . (x,) . setRange (getRange x) . anameName . head <$> Map.lookup x namesInScope
-      ImportedModule x -> ImportedModule . (x,) . setRange (getRange x) . amodName  . head <$> Map.lookup x modulesInScope
+    -- | AST versions of the concrete names passed as an argument.
+    --   We get back a pair consisting of a list of missing exports first,
+    --   and a list of successful imports second.
+    checkExist :: [ImportedName] -> ([ImportedName], [ImportedName' (C.Name, A.QName) (C.Name, A.ModuleName)])
+    checkExist xs = partitionEithers $ for xs $ \ name -> case name of
+      ImportedName x   -> ImportedName   . (x,) . setRange (getRange x) . anameName <$> resolve name x namesInScope
+      ImportedModule x -> ImportedModule . (x,) . setRange (getRange x) . amodName  <$> resolve name x modulesInScope
+
+      where resolve :: Ord a => err -> a -> Map a [b] -> Either err b
+            resolve err x m = maybe (Left err) (Right . head) $ Map.lookup x m
 
     head = headWithDefault __IMPOSSIBLE__
 
-    -- For the sake of the error message, we (re)compute the list of unresolved names.
-    doesntExport = do
-      -- Names @xs@ mentioned in the import directive @dir@ but not in the @scope@.
-      let xs = filter doesntExist names
-      reportSLn "scope.import.apply" 20 $ "non existing names: " ++ prettyShow xs
-      typeError $ ModuleDoesntExport m xs
-
-    doesntExist (ImportedName   x) = isNothing $ Map.lookup x namesInScope
-    doesntExist (ImportedModule x) = isNothing $ Map.lookup x modulesInScope
 
 -- | A finite map for @ImportedName@s.
 lookupImportedName

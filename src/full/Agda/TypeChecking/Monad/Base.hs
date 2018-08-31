@@ -2613,6 +2613,8 @@ data Warning
     --   `old` is deprecated, use `new` instead. This will be an error in Agda `version`.
   | UserWarning String
     -- ^ User-defined warning (e.g. to mention that a name is deprecated)
+  | ModuleDoesntExport C.QName [C.ImportedName]
+    -- ^ Some imported names are not actually exported by the source module
   deriving (Show , Data)
 
 
@@ -2630,6 +2632,7 @@ warningName w = case w of
   GenericNonFatalError{}       -> GenericNonFatalError_
   GenericWarning{}             -> GenericWarning_
   InversionDepthReached{}      -> InversionDepthReached_
+  ModuleDoesntExport{}         -> ModuleDoesntExport_
   NotStrictlyPositive{}        -> NotStrictlyPositive_
   OldBuiltin{}                 -> OldBuiltin_
   SafeFlagNoPositivityCheck    -> SafeFlagNoPositivityCheck_
@@ -2918,7 +2921,6 @@ data TypeError
         | ClashingImport C.Name A.QName
         | ClashingModuleImport C.Name A.ModuleName
         | PatternShadowsConstructor A.Name A.QName
-        | ModuleDoesntExport C.QName [C.ImportedName]
         | DuplicateImports C.QName [C.ImportedName]
         | InvalidPattern C.Pattern
         | RepeatedVariablesInPattern [C.Name]

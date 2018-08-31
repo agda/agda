@@ -126,6 +126,7 @@ data WarningName
   | TerminationIssue_
   | CoverageIssue_
   | CoverageNoExactSplit_
+  | ModuleDoesntExport_
   | NotStrictlyPositive_
   | UnsolvedMetaVariables_
   | UnsolvedInteractionMetas_
@@ -223,6 +224,7 @@ warningNameDescription w = case w of
   TerminationIssue_                -> "Failed termination checks."
   CoverageIssue_                   -> "Failed coverage checks."
   CoverageNoExactSplit_            -> "Failed exact split checks."
+  ModuleDoesntExport_              -> "Imported name is not actually exported."
   NotStrictlyPositive_             -> "Failed strict positivity checks."
   UnsolvedMetaVariables_           -> "Unsolved meta variables."
   UnsolvedInteractionMetas_        -> "Unsolved interaction meta variables."

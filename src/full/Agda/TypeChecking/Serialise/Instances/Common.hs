@@ -287,6 +287,15 @@ instance EmbPrj C.QName where
     valu [a]    = valuN C.QName a
     valu _      = malformed
 
+instance (EmbPrj a, EmbPrj b) => EmbPrj (ImportedName' a b) where
+  icod_ (ImportedModule a) = icodeN 1 ImportedModule a
+  icod_ (ImportedName a)   = icodeN 2 ImportedName a
+
+  value = vcase valu where
+    valu [1, a] = valuN ImportedModule a
+    valu [2, a] = valuN ImportedName a
+    valu _ = malformed
+
 instance EmbPrj Agda.Syntax.Fixity.Associativity where
   icod_ LeftAssoc  = icodeN' LeftAssoc
   icod_ RightAssoc = icodeN 1 RightAssoc
