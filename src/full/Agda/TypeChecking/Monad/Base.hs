@@ -74,6 +74,7 @@ import Agda.Utils.Except
   , ExceptT
   , MonadError(catchError, throwError)
   , runExceptT
+  , mapExceptT
   )
 
 import Agda.Utils.Benchmark (MonadBench(..))
@@ -112,21 +113,31 @@ data TCState = TCSt
 
 class Monad m => ReadTCState m where
   getTCState :: m TCState
+  withTCState :: (TCState -> TCState) -> m a -> m a
 
 instance ReadTCState m => ReadTCState (MaybeT m) where
   getTCState = lift getTCState
+  withTCState = mapMaybeT . withTCState
 
 instance ReadTCState m => ReadTCState (ListT m) where
   getTCState = lift getTCState
+  withTCState f = ListT . withTCState f . runListT
 
 instance ReadTCState m => ReadTCState (ExceptT err m) where
   getTCState = lift getTCState
+  withTCState = mapExceptT . withTCState
+
+instance ReadTCState m => ReadTCState (ReaderT r m) where
+  getTCState = lift getTCState
+  withTCState = mapReaderT . withTCState
 
 instance (Monoid w, ReadTCState m) => ReadTCState (WriterT w m) where
   getTCState = lift getTCState
+  withTCState = mapWriterT . withTCState
 
 instance ReadTCState m => ReadTCState (StateT s m) where
   getTCState = lift getTCState
+  withTCState = mapStateT . withTCState
 
 instance Show TCState where
   show _ = "TCSt{}"
@@ -3094,6 +3105,7 @@ instance Monad ReduceM where
 
 instance ReadTCState ReduceM where
   getTCState = ReduceM redSt
+  withTCState f = onReduceEnv $ mapRedSt f
 
 runReduceM :: ReduceM a -> TCM a
 runReduceM m = do
@@ -3179,6 +3191,7 @@ class ( Applicative tcm, MonadIO tcm
 
 instance MonadIO m => ReadTCState (TCMT m) where
   getTCState = get
+  withTCState f m = __IMPOSSIBLE__ -- should probably not be used
 
 instance MonadError TCErr (TCMT IO) where
   throwError = liftIO . E.throwIO
