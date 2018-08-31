@@ -350,6 +350,8 @@ Individual warnings can be turned on and off by ``-W {Name}`` and ``-W
       Inversions of pattern-matching failed due to exhausted inversion depth.
 :samp:`MissingDefinitions`
       Names declared without an accompanying definition.
+:samp:`ModuleDoesntExport`
+      Names mentioned in an import statement which are not exported by the module in question.
 :samp:`NotStrictlyPositive`
       Failed strict positivity checks.
 :samp:`OldBuiltin`

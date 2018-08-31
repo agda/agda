@@ -102,6 +102,7 @@ classifyWarning w = case w of
   InversionDepthReached{}    -> AllWarnings
   UserWarning{}              -> AllWarnings
   AbsurdPatternRequiresNoRHS{} -> AllWarnings
+  ModuleDoesntExport{}       -> AllWarnings
   TerminationIssue{}         -> ErrorWarnings
   CoverageIssue{}            -> ErrorWarnings
   CoverageNoExactSplit{}     -> ErrorWarnings

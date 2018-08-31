@@ -118,6 +118,10 @@ Pragmas and options
   the RHS is not needed. If it is given nonetheless, we raise a warning and ignore
   it rather than exit with an error.
 
+* New warning `ModuleDoesntExport`: if an import statement for `M` mentions
+  names not exported by `M` (in either `using`, `hiding`, or `renaming) we
+  raise a warning and ignore them instead of exiting with an error.
+
 Emacs mode
 ----------
 
