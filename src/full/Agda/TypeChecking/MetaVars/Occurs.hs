@@ -23,6 +23,8 @@ import Data.Foldable (foldMap)
 import Data.Monoid
 import Data.Set (Set)
 import qualified Data.Set as Set
+import qualified Data.IntSet as IntSet
+import Data.IntSet (IntSet)
 import Data.Traversable (traverse)
 
 import qualified Agda.Benchmarking as Bench
@@ -36,11 +38,11 @@ import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Free hiding (Occurrence(..))
+import Agda.TypeChecking.Free.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Records
 import {-# SOURCE #-} Agda.TypeChecking.MetaVars
--- import Agda.TypeChecking.MetaVars
 
 import Agda.Utils.Either
 
@@ -729,7 +731,7 @@ killArgs kills m = do
       let a = jMetaType $ mvJudgement mv
       TelV tel b <- telView' <$> instantiateFull a
       let args         = zip (telToList tel) (kills ++ repeat False)
-          (kills', a') = killedType args b
+      (kills', a') <- killedType args b
       dbg kills' a a'
       -- If there is any prunable argument, perform the pruning
       if not (any unArg kills') then return PrunedNothing else do
@@ -761,14 +763,79 @@ killArgs kills m = do
 --   Invariant: @k'i == True@ iff @ki == True@ and pruning the @i@th argument from
 --   type @b@ is possible without creating unbound variables.
 --   @t'@ is type @t@ after pruning all @k'i==True@.
-killedType :: [(Dom (ArgName, Type), Bool)] -> Type -> ([Arg Bool], Type)
-killedType [] b = ([], b)
-killedType ((arg@(Dom {domInfo = info}), kill) : kills) b
-  | dontKill  = (Arg info False : args, mkPi arg b')
-  | otherwise = (Arg info True  : args, strengthen __IMPOSSIBLE__ b')
+killedType :: [(Dom (ArgName, Type), Bool)] -> Type -> TCM ([Arg Bool], Type)
+killedType args b = do
+
+  -- Turn list of bools into an IntSet containing the variables we want to kill
+  -- (indices relative to b).
+  let tokill = IntSet.fromList [ i | ((_, True), i) <- zip (reverse args) [0..] ]
+
+  -- First, check the free variables of b to see if they prevent any kills.
+  (tokill, b) <- reallyNotFreeIn tokill b
+
+  -- Then recurse over the telescope (right-to-left), building up the final type.
+  (killed, b) <- go (reverse $ map fst args) tokill b
+
+  -- Turn the IntSet of killed variables into the list of Arg Bool's to return.
+  let kills = [ Arg (getArgInfo dom) (IntSet.member i killed)
+              | (i, (dom, _)) <- reverse $ zip [0..] $ reverse args ]
+  return (kills, b)
   where
-    (args, b') = killedType kills b
-    dontKill = not kill || 0 `freeIn` b'
+    down = IntSet.map pred
+    up   = IntSet.map succ
+
+    -- go Δ xs B
+    -- Invariants:
+    --   - Δ ⊢ B
+    --   - Δ is represented as a list in right-to-left order
+    --   - xs are deBruijn indices into Δ
+    --   - xs ∩ FV(B) = Ø
+    -- Result: (ys, Δ' → B')
+    --    where Δ' ⊆ Δ  (possibly reduced to remove dependencies, see #3177)
+    --          ys ⊆ xs are the variables that were dropped from Δ
+    --          B' = strengthen ys B
+    go :: [Dom (ArgName, Type)] -> IntSet -> Type -> TCM (IntSet, Type)
+    go [] xs b | IntSet.null xs = return (xs, b)
+               | otherwise      = __IMPOSSIBLE__
+    go (arg : args) xs b  -- go (Δ (x : A)) xs B, (x = deBruijn index 0)
+      | IntSet.member 0 xs = do
+          -- Case x ∈ xs. We know x ∉ FV(B), so we can safely drop x from the
+          -- telescope. Drop x from xs (and shift indices) and recurse with
+          -- `strengthen x B`.
+          let ys = down (IntSet.delete 0 xs)
+          (ys, b) <- go args ys $ strengthen __IMPOSSIBLE__ b
+          -- We need to return a set of killed variables relative to Δ (x : A), so
+          -- shift ys and add x back in.
+          return (IntSet.insert 0 $ up ys, b)
+      | otherwise = do
+          -- Case x ∉ xs. We either can't or don't want to get rid of x. In
+          -- this case we have to check A for potential dependencies preventing
+          -- us from killing variables in xs.
+          let xs'       = down xs -- Shift to make relative to Δ ⊢ A
+              (name, a) = unDom arg
+          (ys, a) <- reallyNotFreeIn xs' a
+          -- Recurse on Δ, ys, and (x : A') → B, where A reduces to A' and ys ⊆ xs'
+          -- not free in A'. We already know ys not free in B.
+          (zs, b) <- go args ys (mkPi ((name, a) <$ arg) b)
+          -- Shift back up to make it relative to Δ (x : A) again.
+          return (up zs, b)
+
+reallyNotFreeIn :: IntSet -> Type -> TCM (IntSet, Type)
+reallyNotFreeIn xs a | IntSet.null xs = return (xs, a)  -- Shortcut
+reallyNotFreeIn xs a = do
+  let fvs      = freeVars a
+      anywhere = allVars fvs
+      rigid    = IntSet.unions [stronglyRigidVars fvs, unguardedVars fvs]
+      nonrigid = IntSet.difference anywhere rigid
+      hasNo    = IntSet.null . IntSet.intersection xs
+  if | hasNo nonrigid ->
+        -- No non-rigid occurrences. We can't do anything about the rigid
+        -- occurrences so drop those and leave `a` untouched.
+        return (IntSet.difference xs rigid, a)
+     | otherwise -> do
+        -- If there are non-rigid occurrences we need to reduce a to see if
+        -- we can get rid of them (#3177).
+        forceNotFree (IntSet.difference xs rigid) a
 
 -- | Instantiate a meta variable with a new one that only takes
 --   the arguments which are not pruneable.
