@@ -114,6 +114,10 @@ Pragmas and options
   definition, we try as much as possible to generate an Axiom for it and emit
   a warning rather than exit with an error. This is not compatible with `--safe`.
 
+* New warning `AbsurdPatternRequiresNoRHS`: if a clause's LHS contains an absurd,
+  the RHS is not needed. If it is given nonetheless, we raise a warning and ignore
+  it rather than exit with an error.
+
 Emacs mode
 ----------
 

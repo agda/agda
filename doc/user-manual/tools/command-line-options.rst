@@ -318,6 +318,8 @@ A group of warnings can be enabled by ``-W {group}``, where
 Individual warnings can be turned on and off by ``-W {Name}`` and ``-W
 {noName}`` respectively. The flags available are:
 
+:samp:`AbsurdPatternRequiresNoRHS`
+      RHS given despite an absurd pattern in the LHS.
 :samp:`CoverageIssue`
       Failed coverage checks.
 :samp:`CoverageNoExactSplit`
