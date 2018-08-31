@@ -378,15 +378,20 @@ instance Pretty DeclarationException where
 
 instance Pretty DeclarationWarning where
   pretty (UnknownNamesInFixityDecl xs) = fsep $
-    pwords "The following names are not declared in the same scope as their syntax or fixity declaration (i.e., either not in scope at all, imported from another module, or declared in a super module):" ++ map pretty xs
+    pwords "The following names are not declared in the same scope as their syntax or fixity declaration (i.e., either not in scope at all, imported from another module, or declared in a super module):"
+    ++ punctuate comma (map pretty xs)
   pretty (UnknownFixityInMixfixDecl xs) = fsep $
-    pwords "The following mixfix names do not have an associated fixity declaration:" ++ map pretty xs
+    pwords "The following mixfix names do not have an associated fixity declaration:"
+    ++ punctuate comma (map pretty xs)
   pretty (UnknownNamesInPolarityPragmas xs) = fsep $
-    pwords "The following names are not declared in the same scope as their polarity pragmas (they could for instance be out of scope, imported from another module, or declared in a super module):" ++ map pretty xs
+    pwords "The following names are not declared in the same scope as their polarity pragmas (they could for instance be out of scope, imported from another module, or declared in a super module):"
+    ++ punctuate comma  (map pretty xs)
   pretty (MissingDefinitions xs) = fsep $
-   pwords "The following names are declared but not accompanied by a definition:" ++ map pretty xs
+   pwords "The following names are declared but not accompanied by a definition:"
+   ++ punctuate comma (map pretty xs)
   pretty (PolarityPragmasButNotPostulates xs) = fsep $
-    pwords "Polarity pragmas have been given for the following identifiers which are not postulates:" ++ map pretty xs
+    pwords "Polarity pragmas have been given for the following identifiers which are not postulates:"
+    ++ punctuate comma (map pretty xs)
   pretty (UselessPrivate _)      = fsep $
     pwords "Using private here has no effect. Private applies only to declarations that introduce new identifiers into the module, like type signatures and data, record, and module declarations."
   pretty (UselessAbstract _)      = fsep $
