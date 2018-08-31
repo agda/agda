@@ -2902,7 +2902,6 @@ data TypeError
         | NoSuchModule C.QName
         | AmbiguousName C.QName (NonemptyList A.QName)
         | AmbiguousModule C.QName (NonemptyList A.ModuleName)
-        | UninstantiatedModule C.QName
         | ClashingDefinition C.QName A.QName
         | ClashingModule A.ModuleName A.ModuleName
         | ClashingImport C.Name A.QName

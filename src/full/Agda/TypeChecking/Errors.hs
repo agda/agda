@@ -443,7 +443,6 @@ errorString err = case err of
   UnexpectedWithPatterns{}                 -> "UnexpectedWithPatterns"
   UninstantiatedDotPattern{}               -> "UninstantiatedDotPattern"
   ForcedConstructorNotInstantiated{}       -> "ForcedConstructorNotInstantiated"
-  UninstantiatedModule{}                   -> "UninstantiatedModule"
   SolvedButOpenHoles{}                     -> "SolvedButOpenHoles"
   UnusedVariableInPatternSynonym           -> "UnusedVariableInPatternSynonym"
   UnquoteFailed{}                          -> "UnquoteFailed"
@@ -947,12 +946,6 @@ instance PrettyTCM TypeError where
             IsData   -> return $ text "(datatype module)"
             IsRecord -> return $ text "(record module)"
           sep [prettyTCM m, anno ]
-
-    UninstantiatedModule x -> fsep (
-      pwords "Cannot access the contents of the parameterised module"
-      ++ [pretty x <> text "."] ++
-      pwords "To do this the module first has to be instantiated. For instance:"
-        ) $$ nest 2 (hsep [ text "module", pretty x <> text "'", text "=", pretty x, text "e1 .. en" ])
 
     ClashingDefinition x y -> fsep $
       pwords "Multiple definitions of" ++ [pretty x <> text "."] ++
