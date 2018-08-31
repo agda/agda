@@ -6,6 +6,7 @@ module Agda.TypeChecking.Reduce.Monad
   ( constructorForm
   , enterClosure
   , underAbstraction , underAbstraction_
+  , addCtxTel
   , getConstInfo
   , isInstantiatedMeta
   , lookupMeta
@@ -82,6 +83,10 @@ addCtx x a ret = do
       ce = (x',) <$> a
   local (\e -> e { envContext = ce : envContext e }) ret
       -- let-bindings keep track of own their context
+
+addCtxTel :: (MonadReduce m) => Telescope -> m a -> m a
+addCtxTel EmptyTel          ret = ret
+addCtxTel (ExtendTel t tel) ret = underAbstraction t tel $ \tel -> addCtxTel tel ret
 
 underAbstraction :: (MonadReduce m, Subst t a) => Dom Type -> Abs a -> (a -> m b) -> m b
 underAbstraction _ (NoAbs _ v) f = f v
