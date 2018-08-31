@@ -38,12 +38,11 @@ import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Free hiding (Occurrence(..))
-import Agda.TypeChecking.Free.Precompute
+import Agda.TypeChecking.Free.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Records
 import {-# SOURCE #-} Agda.TypeChecking.MetaVars
--- import Agda.TypeChecking.MetaVars
 
 import Agda.Utils.Either
 
@@ -835,9 +834,8 @@ reallyNotFreeIn xs a = do
         return (IntSet.difference xs rigid, a)
      | otherwise -> do
         -- If there are non-rigid occurrences we need to reduce a to see if
-        -- we can get rid of them (#3177). Normalising for now (TODO).
-        a <- normalise a
-        return (IntSet.difference xs (freeVars a), a)
+        -- we can get rid of them (#3177).
+        forceNotFree (IntSet.difference xs rigid) a
 
 -- | Instantiate a meta variable with a new one that only takes
 --   the arguments which are not pruneable.
