@@ -352,7 +352,6 @@ errorString err = case err of
   DataMustEndInSort{}                      -> "DataMustEndInSort"
 -- UNUSED:    DataTooManyParameters{}                  -> "DataTooManyParameters"
   CantResolveOverloadedConstructorsTargetingSameDatatype{} -> "CantResolveOverloadedConstructorsTargetingSameDatatype"
-  DifferentArities                         -> "DifferentArities"
   DoesNotConstructAnElementOf{}            -> "DoesNotConstructAnElementOf"
   DuplicateBuiltinBinding{}                -> "DuplicateBuiltinBinding"
   DuplicateConstructors{}                  -> "DuplicateConstructors"
@@ -546,9 +545,6 @@ instance PrettyTCM TypeError where
 
     NotAProjectionPattern p -> fsep $
       pwords "Not a valid projection for a copattern: " ++ [ prettyA p ]
-
-    DifferentArities ->
-      fwords "The number of arguments in the defining equations differ"
 
     WrongHidingInLHS -> fwords "Unexpected implicit argument"
 
