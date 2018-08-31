@@ -81,7 +81,13 @@ addCtx x a ret = do
   ctx <- asks $ map (fst . unDom) . envContext
   let x' = unshadowedName ctx x
       ce = (x',) <$> a
-  local (\e -> e { envContext = ce : envContext e }) ret
+  oldChkpt <- view eCurrentCheckpoint
+  withFreshR $ \ chkpt ->
+    local (\e -> e { envContext = ce : envContext e
+                   , envCurrentCheckpoint = chkpt
+                   , envCheckpoints = Map.insert chkpt IdS $
+                                        fmap (raise 1) (envCheckpoints e)
+                   }) ret
       -- let-bindings keep track of own their context
 
 addCtxTel :: (MonadReduce m) => Telescope -> m a -> m a
