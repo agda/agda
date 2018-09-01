@@ -586,7 +586,7 @@ warningHighlighting w = case tcWarning w of
   -- expanded catch-all case to get a warning for new constructors
   UnsolvedInteractionMetas{} -> mempty
   OldBuiltin{}               -> mempty
-  EmptyRewritePragma{}       -> mempty
+  EmptyRewritePragma{}       -> deadcodeHighlighting $ P.getRange w
   UselessPublic{}            -> mempty
   UselessInline{}            -> mempty
   ParseWarning{}             -> mempty
@@ -607,7 +607,16 @@ warningHighlighting w = case tcWarning w of
     -- we intentionally override the binding of `w` here so that our pattern of
     -- using `P.getRange w` still yields the most precise range information we
     -- can get.
-    NotAllowedInMutual r _ -> deadcodeHighlighting $ P.getRange w
+    NotAllowedInMutual{} -> deadcodeHighlighting $ P.getRange w
+    EmptyAbstract{}      -> deadcodeHighlighting $ P.getRange w
+    EmptyInstance{}      -> deadcodeHighlighting $ P.getRange w
+    EmptyMacro{}         -> deadcodeHighlighting $ P.getRange w
+    EmptyMutual{}        -> deadcodeHighlighting $ P.getRange w
+    EmptyPostulate{}     -> deadcodeHighlighting $ P.getRange w
+    EmptyPrivate{}       -> deadcodeHighlighting $ P.getRange w
+    UselessAbstract{}    -> deadcodeHighlighting $ P.getRange w
+    UselessInstance{}    -> deadcodeHighlighting $ P.getRange w
+    UselessPrivate{}     -> deadcodeHighlighting $ P.getRange w
     _ -> mempty -- TODO: explore highlighting opportunities here!
 
 
