@@ -122,6 +122,10 @@ Pragmas and options
   names not exported by `M` (in either `using`, `hiding`, or `renaming) we
   raise a warning and ignore them instead of exiting with an error.
 
+* New warning `NotAllowedInMutual`: if a pragma, primitive, module or import
+  statement is present in a mutual block we drop it and raise a warning instead
+  of exiting with an error.
+
 Emacs mode
 ----------
 

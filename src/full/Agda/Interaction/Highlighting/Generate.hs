@@ -51,6 +51,7 @@ import Agda.TypeChecking.Warnings (runPM)
 import Agda.Syntax.Abstract (IsProjP(..))
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Concrete (FieldAssignment'(..))
+import Agda.Syntax.Concrete.Definitions ( DeclarationWarning(..) )
 import qualified Agda.Syntax.Common as Common
 import qualified Agda.Syntax.Concrete.Name as C
 import qualified Agda.Syntax.Concrete as C
@@ -601,8 +602,15 @@ warningHighlighting w = case tcWarning w of
   SafeFlagPolarity           -> mempty
   SafeFlagNoUniverseCheck    -> mempty
   DeprecationWarning{}       -> mempty
-  NicifierIssue{}            -> mempty
   UserWarning{}              -> mempty
+  NicifierIssue w           -> case w of
+    -- we intentionally override the binding of `w` here so that our pattern of
+    -- using `P.getRange w` still yields the most precise range information we
+    -- can get.
+    NotAllowedInMutual r _ -> deadcodeHighlighting $ P.getRange w
+    _ -> mempty -- TODO: explore highlighting opportunities here!
+
+
 
 -- | Generate syntax highlighting for termination errors.
 
