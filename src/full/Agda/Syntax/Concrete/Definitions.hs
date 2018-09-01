@@ -1457,9 +1457,6 @@ niceDeclarations ds = do
         ps <- checkLoneSigs $ Map.fromList loneNames
         let ds = replaceSigs ps ds'
 
-        -- Pull type signatures to the top
-        let (sigs, other) = List.partition isTypeSig ds'
-
         -- Remove the declarations that aren't allowed in old style mutual blocks
         ds <- fmap catMaybes $ forM ds $ \ d -> let success = pure (Just d) in case d of
           -- Andreas, 2013-11-23 allow postulates in mutual blocks
@@ -1473,6 +1470,9 @@ niceDeclarations ds = do
           -- Data, Record, Fun
           _ -> if (declKind d /= OtherDecl) then success
                else Nothing <$ niceWarning (NotAllowedInMutual (getRange d) $ declName d)
+
+        -- Pull type signatures to the top
+        let (sigs, other) = List.partition isTypeSig ds
 
         -- Compute termination checking flag for mutual block
         tc0 <- use terminationCheckPragma
