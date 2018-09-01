@@ -109,6 +109,7 @@ data WarningName
   | MissingDefinitions_
   | NotAllowedInMutual_
   | PolarityPragmasButNotPostulates_
+  | PragmaNoTerminationCheck_
   | UnknownFixityInMixfixDecl_
   | UnknownNamesInFixityDecl_
   | UnknownNamesInPolarityPragmas_
@@ -208,6 +209,7 @@ warningNameDescription w = case w of
   MissingDefinitions_              -> "Declarations not associated to a definition."
   NotAllowedInMutual_              -> "Declarations not allowed in a mutual block."
   PolarityPragmasButNotPostulates_ -> "Polarity pragmas for non-postulates."
+  PragmaNoTerminationCheck_        -> "`NO_TERMINATION_CHECK' pragmas are deprecated"
   UnknownFixityInMixfixDecl_       -> "Mixfix names without an associated fixity declaration."
   UnknownNamesInFixityDecl_        -> "Names not declared in the same scope as their syntax or fixity declaration."
   UnknownNamesInPolarityPragmas_   -> "Names not declared in the same scope as their polarity pragmas."

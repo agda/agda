@@ -98,6 +98,7 @@ instance EmbPrj DeclarationWarning where
     UnknownFixityInMixfixDecl a       -> icodeN 16 UnknownFixityInMixfixDecl a
     MissingDefinitions a              -> icodeN 17 MissingDefinitions a
     NotAllowedInMutual r a            -> icodeN 18 NotAllowedInMutual r a
+    PragmaNoTerminationCheck r        -> icodeN 19 PragmaNoTerminationCheck r
 
   value = vcase $ \case
     [0, a]   -> valuN UnknownNamesInFixityDecl a
@@ -119,6 +120,7 @@ instance EmbPrj DeclarationWarning where
     [16,a]   -> valuN UnknownFixityInMixfixDecl a
     [17,a]   -> valuN MissingDefinitions a
     [18,r,a] -> valuN NotAllowedInMutual r a
+    [19,r]   -> valuN PragmaNoTerminationCheck r
     _ -> malformed
 
 instance EmbPrj Doc where

@@ -193,9 +193,6 @@ data DeclarationException
         | InvalidMeasureMutual Range
           -- ^ In a mutual block, all or none need a MEASURE pragma.
           --   Range is of mutual block.
-        | PragmaNoTerminationCheck Range
-          -- ^ Pragma @{-# NO_TERMINATION_CHECK #-}@ has been replaced
-          --   by {-# TERMINATING #-} and {-# NON_TERMINATING #-}.
         | UnquoteDefRequiresSignature [Name]
         | BadMacroDef NiceDeclaration
     deriving (Data, Show)
@@ -223,6 +220,9 @@ data DeclarationWarning
   | MissingDefinitions [Name]
   | NotAllowedInMutual Range String
   | PolarityPragmasButNotPostulates [Name]
+  | PragmaNoTerminationCheck Range
+  -- ^ Pragma @{-# NO_TERMINATION_CHECK #-}@ has been replaced
+  --   by @{-# TERMINATING #-}@ and @{-# NON_TERMINATING #-}@.
   | UnknownFixityInMixfixDecl [Name]
   | UnknownNamesInFixityDecl [Name]
   | UnknownNamesInPolarityPragmas [Name]
@@ -246,6 +246,7 @@ declarationWarningName dw = case dw of
   MissingDefinitions{}              -> MissingDefinitions_
   NotAllowedInMutual{}              -> NotAllowedInMutual_
   PolarityPragmasButNotPostulates{} -> PolarityPragmasButNotPostulates_
+  PragmaNoTerminationCheck{}        -> PragmaNoTerminationCheck_
   UnknownFixityInMixfixDecl{}       -> UnknownFixityInMixfixDecl_
   UnknownNamesInFixityDecl{}        -> UnknownNamesInFixityDecl_
   UnknownNamesInPolarityPragmas{}   -> UnknownNamesInPolarityPragmas_
@@ -277,7 +278,6 @@ instance HasRange DeclarationException where
   getRange (DeclarationPanic _)                 = noRange
   getRange (WrongContentBlock _ r)              = r
   getRange (InvalidMeasureMutual r)             = r
-  getRange (PragmaNoTerminationCheck r)         = r
   getRange (UnquoteDefRequiresSignature x)      = getRange x
   getRange (BadMacroDef d)                      = getRange d
 
@@ -301,6 +301,7 @@ instance HasRange DeclarationWarning where
   getRange (InvalidNoPositivityCheckPragma r)   = r
   getRange (InvalidCatchallPragma r)            = r
   getRange (InvalidNoUniverseCheckPragma r)     = r
+  getRange (PragmaNoTerminationCheck r)         = r
 
 instance HasRange NiceDeclaration where
   getRange (Axiom r _ _ _ _ _ _ _ _)         = r
@@ -362,8 +363,6 @@ instance Pretty DeclarationException where
       PostulateBlock -> "A postulate block can only contain type signatures, possibly under keyword instance"
       DataBlock -> "A data definition can only contain type signatures, possibly under keyword instance"
       _ -> "Unexpected declaration"
-  pretty (PragmaNoTerminationCheck _) = fsep $
-    pwords "Pragma {-# NO_TERMINATION_CHECK #-} has been removed.  To skip the termination check, label your definitions either as {-# TERMINATING #-} or {-# NON_TERMINATING #-}."
   pretty (InvalidMeasureMutual _) = fsep $
     pwords "In a mutual block, either all functions must have the same (or no) termination checking pragma."
   pretty (UnquoteDefRequiresSignature xs) = fsep $
@@ -413,6 +412,8 @@ instance Pretty DeclarationWarning where
     pwords "The CATCHALL pragma can only precede a function clause."
   pretty (InvalidNoUniverseCheckPragma _) = fsep $
     pwords "No universe checking pragmas can only precede a data/record definition."
+  pretty (PragmaNoTerminationCheck _) = fsep $
+    pwords "Pragma {-# NO_TERMINATION_CHECK #-} has been removed.  To skip the termination check, label your definitions either as {-# TERMINATING #-} or {-# NON_TERMINATING #-}."
 
 declName :: NiceDeclaration -> String
 declName Axiom{}             = "Postulates"
@@ -1166,8 +1167,11 @@ niceDeclarations ds = do
         niceWarning $ InvalidTerminationCheckPragma r
         nice1 ds
 
-    nicePragma (TerminationCheckPragma r NoTerminationCheck) ds =
-      throwError $ PragmaNoTerminationCheck r
+    nicePragma (TerminationCheckPragma r NoTerminationCheck) ds = do
+      -- This PRAGMA has been deprecated in favour of (NON_)TERMINATING
+      -- We warn the user about it and then assume the function is NON_TERMINATING.
+      niceWarning $ PragmaNoTerminationCheck r
+      nicePragma (TerminationCheckPragma r NonTerminating) ds
 
     nicePragma (TerminationCheckPragma r tc) ds =
       if canHaveTerminationCheckPragma ds then
