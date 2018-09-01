@@ -97,26 +97,28 @@ instance EmbPrj DeclarationWarning where
     InvalidNoUniverseCheckPragma a    -> icodeN 15 InvalidNoUniverseCheckPragma a
     UnknownFixityInMixfixDecl a       -> icodeN 16 UnknownFixityInMixfixDecl a
     MissingDefinitions a              -> icodeN 17 MissingDefinitions a
+    NotAllowedInMutual r a            -> icodeN 18 NotAllowedInMutual r a
 
   value = vcase $ \case
-    [0, a] -> valueN UnknownNamesInFixityDecl a
-    [1, a] -> valueN UnknownNamesInPolarityPragmas a
-    [2, a] -> valueN PolarityPragmasButNotPostulates a
-    [3, a] -> valueN UselessPrivate a
-    [4, a] -> valueN UselessAbstract a
-    [5, a] -> valueN UselessInstance a
-    [6, a] -> valueN EmptyMutual a
-    [7, a] -> valueN EmptyAbstract a
-    [8, a] -> valueN EmptyPrivate a
-    [9, a] -> valueN EmptyInstance a
-    [10,a] -> valueN EmptyMacro a
-    [11,a] -> valueN EmptyPostulate a
-    [12,a] -> valueN InvalidTerminationCheckPragma a
-    [13,a] -> valueN InvalidNoPositivityCheckPragma a
-    [14,a] -> valueN InvalidCatchallPragma a
-    [15,a] -> valueN InvalidNoUniverseCheckPragma a
-    [16,a] -> valueN UnknownFixityInMixfixDecl a
-    [17,a] -> valueN MissingDefinitions a
+    [0, a]   -> valuN UnknownNamesInFixityDecl a
+    [1, a]   -> valuN UnknownNamesInPolarityPragmas a
+    [2, a]   -> valuN PolarityPragmasButNotPostulates a
+    [3, a]   -> valuN UselessPrivate a
+    [4, a]   -> valuN UselessAbstract a
+    [5, a]   -> valuN UselessInstance a
+    [6, a]   -> valuN EmptyMutual a
+    [7, a]   -> valuN EmptyAbstract a
+    [8, a]   -> valuN EmptyPrivate a
+    [9, a]   -> valuN EmptyInstance a
+    [10,a]   -> valuN EmptyMacro a
+    [11,a]   -> valuN EmptyPostulate a
+    [12,a]   -> valuN InvalidTerminationCheckPragma a
+    [13,a]   -> valuN InvalidNoPositivityCheckPragma a
+    [14,a]   -> valuN InvalidCatchallPragma a
+    [15,a]   -> valuN InvalidNoUniverseCheckPragma a
+    [16,a]   -> valuN UnknownFixityInMixfixDecl a
+    [17,a]   -> valuN MissingDefinitions a
+    [18,r,a] -> valuN NotAllowedInMutual r a
     _ -> malformed
 
 instance EmbPrj Doc where

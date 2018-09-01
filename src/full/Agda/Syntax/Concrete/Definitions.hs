@@ -186,7 +186,6 @@ data DeclarationException
         | WrongDefinition Name DataRecOrFun DataRecOrFun
         | WrongParameters Name Params Params
           -- ^ 'Name' of symbol, 'Params' of signature, 'Params' of definition.
-        | NotAllowedInMutual NiceDeclaration
         | Codata Range
         | DeclarationPanic String
         | WrongContentBlock KindOfBlock Range
@@ -222,6 +221,7 @@ data DeclarationWarning
       -- ^ A {-# TERMINATING #-} and {-# NON_TERMINATING #-} pragma
       --   that does not apply to any function.
   | MissingDefinitions [Name]
+  | NotAllowedInMutual Range String
   | PolarityPragmasButNotPostulates [Name]
   | UnknownFixityInMixfixDecl [Name]
   | UnknownNamesInFixityDecl [Name]
@@ -244,6 +244,7 @@ declarationWarningName dw = case dw of
   InvalidNoUniverseCheckPragma{}    -> InvalidNoUniverseCheckPragma_
   InvalidTerminationCheckPragma{}   -> InvalidTerminationCheckPragma_
   MissingDefinitions{}              -> MissingDefinitions_
+  NotAllowedInMutual{}              -> NotAllowedInMutual_
   PolarityPragmasButNotPostulates{} -> PolarityPragmasButNotPostulates_
   UnknownFixityInMixfixDecl{}       -> UnknownFixityInMixfixDecl_
   UnknownNamesInFixityDecl{}        -> UnknownNamesInFixityDecl_
@@ -272,7 +273,6 @@ instance HasRange DeclarationException where
   getRange (WrongDefinition x k k')             = getRange x
   getRange (WrongParameters x _ _)              = getRange x
   getRange (AmbiguousFunClauses lhs xs)         = getRange lhs
-  getRange (NotAllowedInMutual x)               = getRange x
   getRange (Codata r)                           = r
   getRange (DeclarationPanic _)                 = noRange
   getRange (WrongContentBlock _ r)              = r
@@ -288,6 +288,7 @@ instance HasRange DeclarationWarning where
   getRange (PolarityPragmasButNotPostulates xs) = getRange . head $ xs
   getRange (MissingDefinitions xs)              = getRange . head $ xs
   getRange (UselessPrivate r)                   = r
+  getRange (NotAllowedInMutual r x)             = r
   getRange (UselessAbstract r)                  = r
   getRange (UselessInstance r)                  = r
   getRange (EmptyMutual r)                      = r
@@ -369,8 +370,6 @@ instance Pretty DeclarationException where
     pwords "Missing type signatures for unquoteDef" ++ map pretty xs
   pretty (BadMacroDef nd) = fsep $
     [text $ declName nd] ++ pwords "are not allowed in macro blocks"
-  pretty (NotAllowedInMutual nd) = fsep $
-    [text $ declName nd] ++ pwords "are not allowed in mutual blocks"
   pretty (Codata _) = text $
     "The codata construction has been removed. " ++
     "Use the INFINITY builtin instead."
@@ -389,6 +388,8 @@ instance Pretty DeclarationWarning where
   pretty (MissingDefinitions xs) = fsep $
    pwords "The following names are declared but not accompanied by a definition:"
    ++ punctuate comma (map pretty xs)
+  pretty (NotAllowedInMutual r nd) = fsep $
+    [text nd] ++ pwords "are not allowed in mutual blocks"
   pretty (PolarityPragmasButNotPostulates xs) = fsep $
     pwords "Polarity pragmas have been given for the following identifiers which are not postulates:"
     ++ punctuate comma (map pretty xs)
@@ -1457,19 +1458,21 @@ niceDeclarations ds = do
         let ds = replaceSigs ps ds'
 
         -- Pull type signatures to the top
-        let (sigs, other) = List.partition isTypeSig ds
+        let (sigs, other) = List.partition isTypeSig ds'
 
-        -- Check that there are no declarations that aren't allowed in old style mutual blocks
-        forM_ ds' $ \case
+        -- Remove the declarations that aren't allowed in old style mutual blocks
+        ds <- fmap catMaybes $ forM ds $ \ d -> let success = pure (Just d) in case d of
           -- Andreas, 2013-11-23 allow postulates in mutual blocks
-          Axiom{} -> return ()
+          Axiom{}          -> success
           -- Andreas, 2017-10-09, issue #2576, raise error about missing type signature
           -- in ConcreteToAbstract rather than here.
-          NiceFunClause{} -> return ()
+          NiceFunClause{}  -> success
           -- Andreas, 2018-05-11, issue #3052, allow pat.syn.s in mutual blocks
-          NicePatternSyn{} -> return ()
-          -- Otherwise, only categorized signatures and definitions are allowed (data/record/fun)
-          d -> when (declKind d == OtherDecl) $ throwError $ NotAllowedInMutual d
+          NicePatternSyn{} -> success
+          -- Otherwise, only categorized signatures and definitions are allowed:
+          -- Data, Record, Fun
+          _ -> if (declKind d /= OtherDecl) then success
+               else Nothing <$ niceWarning (NotAllowedInMutual (getRange d) $ declName d)
 
         -- Compute termination checking flag for mutual block
         tc0 <- use terminationCheckPragma

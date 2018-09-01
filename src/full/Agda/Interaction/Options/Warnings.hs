@@ -107,6 +107,7 @@ data WarningName
   | InvalidTerminationCheckPragma_
   | InvalidNoPositivityCheckPragma_
   | MissingDefinitions_
+  | NotAllowedInMutual_
   | PolarityPragmasButNotPostulates_
   | UnknownFixityInMixfixDecl_
   | UnknownNamesInFixityDecl_
@@ -205,6 +206,7 @@ warningNameDescription w = case w of
   InvalidNoUniverseCheckPragma_    -> "No universe checking pragmas before non-`data' or `record' declaration."
   InvalidTerminationCheckPragma_   -> "Termination checking pragmas before non-function or `mutual' blocks."
   MissingDefinitions_              -> "Declarations not associated to a definition."
+  NotAllowedInMutual_              -> "Declarations not allowed in a mutual block."
   PolarityPragmasButNotPostulates_ -> "Polarity pragmas for non-postulates."
   UnknownFixityInMixfixDecl_       -> "Mixfix names without an associated fixity declaration."
   UnknownNamesInFixityDecl_        -> "Names not declared in the same scope as their syntax or fixity declaration."

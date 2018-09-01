@@ -1249,7 +1249,7 @@ niceDecls ds = do
       -- If some of them are, we fail
       unless (null warns') $ setCurrentRange ds $ do
         tcwarn <- warning_ $ NicifierIssue $ MissingDefinitions $ concat warns'
-        setCurrentRange ds $ typeError $ NonFatalErrors [tcwarn]
+        typeError $ NonFatalErrors [tcwarn]
     -- Otherwise we simply record the warnings
     setCurrentRange ds $ warnings $ NicifierIssue <$> warns
   case result of
