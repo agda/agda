@@ -872,7 +872,7 @@ inferOrCheckProjApp e o ds args mt = do
       caseMaybeM (isRecordType ta) refuseNotRecordType $ \ (_q, _pars, defn) -> do
       case defn of
         Record { recFields = fs } -> do
-          case catMaybes $ for fs $ \ (Arg _ f) -> List.find (f ==) (toList ds) of
+          case forMaybe fs $ \ (Arg _ f) -> List.find (f ==) (toList ds) of
             [] -> refuseNoMatching
             [d] -> do
               storeDisambiguatedName d

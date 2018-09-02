@@ -356,8 +356,7 @@ generateAndPrintSyntaxInfo decl hlLevel updateState = do
       mconcat $ map (mod isTopLevelModule) xs
       where
       isTopLevelModule =
-        case catMaybes $
-             map (join .
+        case mapMaybe (join .
                   fmap (Strict.toLazy . P.srcFile) .
                   P.rStart .
                   A.nameBindingSite) xs of
@@ -769,7 +768,7 @@ nameToFile modMap file xs x fr m mR =
     mempty
   where
   aspects    = m $ C.isOperator x
-  fileNames  = catMaybes $ map (fmap P.srcFile . P.rStart . P.getRange) (x : xs)
+  fileNames  = mapMaybe (fmap P.srcFile . P.rStart . P.getRange) (x : xs)
   frFile     = singleton (rToR fr) (aspects { definitionSite = notHere <$> mFilePos })
   rs         = map P.getRange (x : xs)
 

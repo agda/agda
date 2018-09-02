@@ -2686,7 +2686,7 @@ equalHeadConstructors = (==) `on` toConstr
 getPartialDefs :: ReadTCState tcm => tcm [QName]
 getPartialDefs = do
   tcst <- getTCState
-  return $ catMaybes . fmap (extractQName . tcWarning)
+  return $ mapMaybe (extractQName . tcWarning)
          $ tcst ^. stTCWarnings where
 
     extractQName :: Warning -> Maybe QName

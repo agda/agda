@@ -1597,7 +1597,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
           return afields
         -- Andreas, 2017-07-13 issue #2642 disallow duplicate fields
         -- Check for duplicate fields. (See "Check for duplicate constructors")
-        do let fs = catMaybes $ for fields $ \case
+        do let fs = forMaybe fields $ \case
                  C.NiceField _ _ _ _ _ f _ -> Just f
                  _ -> Nothing
            let dups = nub $ fs \\ nub fs

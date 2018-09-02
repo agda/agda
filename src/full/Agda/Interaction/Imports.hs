@@ -676,7 +676,7 @@ createInterface file mname isMain = Bench.billTo [Bench.TopModule mname] $
                -- identity for top-level pragmas at the moment
     let getOptions (A.OptionsPragma opts) = Just opts
         getOptions _                      = Nothing
-        options = catMaybes $ map getOptions pragmas
+        options = mapMaybe getOptions pragmas
     mapM_ setOptionsFromPragma options
 
 

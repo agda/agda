@@ -771,9 +771,8 @@ contextOfMeta ii norm = do
           (tm, !dom) <- getOpen lb
           return $ (,) x <$> dom
     letVars <- mapM mkLet . Map.toDescList =<< asks envLetBindings
-    gfilter visible . reverse <$> mapM out (letVars ++ localVars)
-  where gfilter p = catMaybes . map p
-        visible (OfType x y) | not (isNoName x) = Just (OfType' x y)
+    mapMaybe visible . reverse <$> mapM out (letVars ++ localVars)
+  where visible (OfType x y) | not (isNoName x) = Just (OfType' x y)
                              | otherwise        = Nothing
         visible _            = __IMPOSSIBLE__
         out (Dom{unDom = (x, t)}) = do

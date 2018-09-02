@@ -1051,7 +1051,7 @@ unifyStep s EtaExpandVar{ expandVar = fi, expandVarRecordType = d , expandVarPar
     liftFlexible n j = if j == i then Nothing else Just (if j > i then j + (n-1) else j)
 
     liftFlexibles :: Int -> FlexibleVars -> FlexibleVars
-    liftFlexibles n fs = catMaybes $ map (traverse $ liftFlexible n) fs
+    liftFlexibles n fs = mapMaybe (traverse $ liftFlexible n) fs
 
 unifyStep s EtaExpandEquation{ expandAt = k, expandRecordType = d, expandParameters = pars } = do
   delta <- liftTCM $ (`apply` pars) <$> getRecordFieldTypes d

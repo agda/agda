@@ -24,10 +24,11 @@ import Data.Traversable ( for )
 import Text.Read ( readMaybe )
 import Data.Set (Set)
 import qualified Data.Set as Set
-import Data.Maybe ( fromMaybe, catMaybes )
+import Data.Maybe ( fromMaybe )
 import Data.List ( stripPrefix, intercalate )
 
 import Agda.Utils.Lens
+import Agda.Utils.Maybe
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -176,7 +177,7 @@ usageWarning = intercalate "\n"
            , "-W noName respectively. The flags available are:"
            ]
   , ""
-  , untable $ catMaybes $ flip map [minBound..maxBound] $ \ w ->
+  , untable $ forMaybe [minBound..maxBound] $ \ w ->
     let wnd = warningNameDescription w in
     (warningName2String w, wnd) <$ guard (not $ null wnd)
   ]
