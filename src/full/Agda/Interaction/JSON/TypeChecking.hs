@@ -19,11 +19,15 @@ import Agda.Interaction.JSON.Utils
 import qualified Agda.Syntax.Abstract as A
 import qualified Agda.Syntax.Common as C
 import qualified Agda.Syntax.Concrete as C
+import qualified Agda.Syntax.Concrete.Definitions as D
+import qualified Agda.Syntax.Info as I
 import qualified Agda.Syntax.Internal as I
 import Agda.Syntax.Internal (dummySort)
 import qualified Agda.Syntax.Position as P
 import qualified Agda.Syntax.Scope.Monad as S
 import qualified Agda.Syntax.Scope.Base as S
+import qualified Agda.Syntax.Translation.AbstractToConcrete as Trans
+import Agda.Syntax.Translation.InternalToAbstract (Reify(..))
 
 import Agda.Syntax.Position (Range, Range'(..))
 
@@ -50,6 +54,7 @@ instance EncodeTCM TCErr where
   encodeTCM (TypeError _ closure) = obj
     [ "kind"      @= String "TypeError"
     , "range"     @= envRange (clEnv closure)
+    , "call"      #= encodeTCM (envCall (clEnv closure))
     , "typeError" #= encodeTCM (clValue closure)
     ]
   encodeTCM (Exception range doc) = obj
@@ -356,7 +361,7 @@ instance EncodeTCM TypeError where
 
     UnequalBecauseOfUniverseConflict cmp s t -> obj
       [ "kind"            @= String "UnequalBecauseOfUniverseConflict"
-      , "comparison"      #= prettyTCM cmp
+      , "comparison"      @= cmp
       , "term1"           #= prettyTCM s
       , "term2"           #= prettyTCM t
       ]
@@ -370,6 +375,9 @@ instance EncodeTCM TypeError where
           [ "kind"            @= String "UnequalTerms"
           , "comparison"      @= cmp
           , "term1"           @= s
+            -- [ "concrete"      #= (reify s >>= Trans.abstractToConcrete_)
+            -- , "original"      @= s
+            -- ]
           , "term2"           @= t
           , "type"            @= a
           , "reason"          @= d
@@ -377,23 +385,23 @@ instance EncodeTCM TypeError where
 
     UnequalTypes cmp a b -> obj
       [ "kind"            @= String "UnequalTypes"
-      , "comparison"      #= prettyTCM cmp
-      , "type1"           #= prettyTCM a
-      , "type2"           #= prettyTCM b
+      , "comparison"      @= cmp
+      , "type1"           @= a
+      , "type2"           @= b
       , "message"         #= prettyUnequal a (notCmp cmp) b
       ]
 
     UnequalRelevance cmp a b -> obj
       [ "kind"            @= String "UnequalRelevance"
-      , "comparison"      #= prettyTCM cmp
-      , "term1"           #= prettyTCM a
-      , "term2"           #= prettyTCM b
+      , "comparison"      @= cmp
+      , "term1"           @= a
+      , "term2"           @= b
       ]
 
     UnequalHiding a b -> obj
       [ "kind"            @= String "UnequalHiding"
-      , "term1"           #= prettyTCM a
-      , "term2"           #= prettyTCM b
+      , "term1"           @= a
+      , "term2"           @= b
       ]
 
     UnequalSorts a b -> obj
@@ -901,10 +909,173 @@ instance EncodeTCM UnquoteError where
 
     UnquotePanic err -> __IMPOSSIBLE__
 
-
 --------------------------------------------------------------------------------
 -- Agda.TypeChecking.Monad.Base
 
 instance ToJSON Comparison where
   toJSON CmpEq = String "CmpEq"
   toJSON CmpLeq = String "CmpLeq"
+
+instance EncodeTCM a => EncodeTCM (Closure a) where
+  encodeTCM (Closure sig env scope checkPoints value) = obj
+    [ "signature"     @= show sig
+    , "environment"   @= Null
+    , "scope"         @= show scope
+    , "checkPoints"   @= show checkPoints
+    , "value"         #= encodeTCM value
+    ]
+
+instance EncodeTCM Call where
+  encodeTCM call = case call of
+    CheckClause t clause -> obj
+      [ "kind"        @= String "CheckClause"
+      , "clause"      @= show clause
+      , "type"        #= prettyTCM t
+      ]
+    CheckPattern pattern tel t -> obj
+      [ "kind"        @= String "CheckPattern"
+      , "pattern"     #= prettyA pattern
+      , "telescope"   #= prettyTCM tel
+      , "type"        #= prettyTCM t
+      ]
+    CheckLetBinding binding -> obj
+      [ "kind"        @= String "CheckLetBinding"
+      , "binding"     #= prettyA binding
+      ]
+    InferExpr expr -> obj
+      [ "kind"        @= String "InferExpr"
+      , "expr"        #= prettyA expr
+      ]
+    CheckExprCall cmp expr t -> obj
+      [ "kind"        @= String "CheckExprCall"
+      , "comparison"  @= cmp
+      , "expr"        #= prettyA expr
+      , "type"        #= prettyTCM t
+      ]
+    CheckDotPattern expr t -> obj
+      [ "kind"        @= String "CheckDotPattern"
+      , "expr"        #= prettyA expr
+      , "type"        #= prettyTCM t
+      ]
+    CheckPatternShadowing clause -> obj
+      [ "kind"        @= String "CheckPatternShadowing"
+      , "clause"      #= prettyA clause
+      ]
+    CheckProjection range name t -> obj
+      [ "kind"        @= String "CheckProjection"
+      , "range"       @= range
+      , "name"        @= name
+      , "type"        #= prettyTCM t
+      ]
+    IsTypeCall expr sort -> obj
+      [ "kind"        @= String "IsTypeCall"
+      , "expr"        #= prettyA expr
+      , "sort"        #= prettyTCM sort
+      ]
+    IsType_ expr -> obj
+      [ "kind"        @= String "IsType_"
+      , "expr"        #= prettyA expr
+      ]
+    InferVar name -> obj
+      [ "kind"        @= String "InferVar"
+      , "name"        @= name
+      ]
+    InferDef name -> obj
+      [ "kind"        @= String "InferDef"
+      , "name"        @= name
+      ]
+    CheckArguments range args t1 t2 -> obj
+      [ "kind"        @= String "CheckArguments"
+      , "range"       @= range
+      , "arguments"   #= mapM prettyA args
+      , "type1"       #= prettyTCM t1
+      , "type2"       @= pretty t2
+      ]
+    CheckTargetType range t1 t2 -> obj
+      [ "kind"        @= String "CheckTargetType"
+      , "range"       @= range
+      , "type1"       #= prettyTCM t1
+      , "type2"       #= prettyTCM t2
+      ]
+    CheckDataDef range name bindings constructors -> obj
+      [ "kind"          @= String "CheckDataDef"
+      , "range"         @= range
+      , "name"          @= name
+      , "bindings"      @= show bindings
+      , "constructors"  @= show constructors
+      ]
+    CheckRecDef range name bindings constructors -> obj
+      [ "kind"          @= String "CheckDataDef"
+      , "name"          @= name
+      , "range"         @= range
+      , "bindings"      @= show bindings
+      , "constructors"  @= show constructors
+      ]
+    CheckConstructor name tel sort constructor -> obj
+      [ "kind"          @= String "CheckConstructor"
+      , "name"          @= name
+      , "telescope"     #= prettyTCM tel
+      , "sort"          #= prettyTCM sort
+      , "constructor"   @= show constructor
+      ]
+    CheckFunDefCall range name clauses -> obj
+      [ "kind"          @= String "CheckFunDefCall"
+      , "range"         @= range
+      , "name"          @= name
+      , "clauses"       @= show clauses
+      ]
+    CheckPragma range pragma -> obj
+      [ "kind"          @= String "CheckPragma"
+      , "range"         @= range
+      , "pragma"        #= prettyA (Trans.RangeAndPragma P.noRange pragma)
+      ]
+    CheckPrimitive range name expr -> obj
+      [ "kind"          @= String "CheckPrimitive"
+      , "range"         @= range
+      , "name"          @= name
+      , "expr"          #= prettyTCM expr
+      ]
+    CheckIsEmpty range t -> obj
+      [ "kind"          @= String "CheckIsEmpty"
+      , "range"         @= range
+      , "type"          #= prettyTCM t
+      ]
+    CheckWithFunctionType expr -> obj
+      [ "kind"          @= String "CheckWithFunctionType"
+      , "expr"          #= prettyTCM expr
+      ]
+    CheckSectionApplication range m modApp -> obj
+      [ "kind"          @= String "CheckSectionApplication"
+      , "range"         @= range
+      , "module"        @= m
+      , "modApp"        #= prettyA (A.Apply info m modApp A.initCopyInfo C.defaultImportDir)
+      ]
+      where
+        info = I.ModuleInfo P.noRange P.noRange Nothing Nothing Nothing
+    CheckNamedWhere m -> obj
+      [ "kind"          @= String "CheckNamedWhere"
+      , "module"        @= m
+      ]
+    ScopeCheckExpr expr -> obj
+      [ "kind"          @= String "ScopeCheckExpr"
+      , "expr"          @= pretty expr
+      ]
+    ScopeCheckDeclaration decl -> obj
+      [ "kind"            @= String "ScopeCheckDeclaration"
+      , "niceDeclaration" @= map pretty (D.notSoNiceDeclarations decl)
+      ]
+    ScopeCheckLHS name pattern -> obj
+      [ "kind"          @= String "ScopeCheckLHS"
+      , "name"          @= name
+      , "pattern"       @= pretty pattern
+      ]
+    NoHighlighting -> obj
+      [ "kind"          @= String "NoHighlighting"
+      ]
+    ModuleContents -> obj
+      [ "kind"          @= String "ModuleContents"
+      ]
+    SetRange range -> obj
+      [ "kind"          @= String "SetRange"
+      , "range"         @= range
+      ]

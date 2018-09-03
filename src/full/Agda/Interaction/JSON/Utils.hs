@@ -12,6 +12,10 @@ import qualified Agda.Utils.Maybe.Strict as Strict
 import qualified Agda.Utils.FileName as File
 
 
+instance EncodeTCM a => EncodeTCM (Maybe a) where
+  encodeTCM Nothing   = return Null
+  encodeTCM (Just a)  = encodeTCM a
+
 --------------------------------------------------------------------------------
 -- FileName
 

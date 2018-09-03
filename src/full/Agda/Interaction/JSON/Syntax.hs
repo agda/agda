@@ -17,6 +17,7 @@ import qualified Agda.Syntax.Internal     as I
 import qualified Agda.Syntax.Literal      as L
 import qualified Agda.Syntax.Notation     as N
 import qualified Agda.Syntax.Position     as P
+import qualified Agda.Syntax.Scope.Base   as S
 
 --------------------------------------------------------------------------------
 -- Agda.Syntax.Common
@@ -36,7 +37,7 @@ instance ToJSON Modality where
 
 instance ToJSON Quantity where
   toJSON Quantity0  = String "Quantity0"
-  toJSON Quantityω  = String "Quantityω"
+  toJSON Quantityω  = String "QuantityOmega"
 
 instance ToJSON Relevance where
   toJSON Relevant   = String "Relevant"
@@ -77,28 +78,28 @@ instance ToJSON NameId where
     ]
 
 instance ToJSON a => ToJSON (Ranged a) where
-  toJSON (Ranged range payload) = object
+  toJSON (Ranged range value) = object
     [ "range"   .= range
-    , "payload" .= payload
+    , "value"   .= value
     ]
 
 instance (ToJSON name, ToJSON a) => ToJSON (Named name a) where
-  toJSON (Named name payload) = object
+  toJSON (Named name value) = object
     [ "name"    .= name
-    , "payload" .= payload
+    , "value"   .= value
     ]
 
 instance ToJSON a => ToJSON (Arg a) where
-  toJSON (Arg argInfo payload) = object
+  toJSON (Arg argInfo value) = object
     [ "argInfo" .= argInfo
-    , "payload" .= payload
+    , "value"   .= value
     ]
 
 instance ToJSON a => ToJSON (Dom a) where
-  toJSON (Dom argInfo finite payload) = object
+  toJSON (Dom argInfo finite value) = object
     [ "argInfo" .= argInfo
     , "finite"  .= finite
-    , "payload" .= payload
+    , "value"   .= value
     ]
 
 instance ToJSON DataOrRecord where
@@ -270,9 +271,9 @@ instance ToJSON I.Term where
     ]
 
 instance ToJSON a => ToJSON (I.Type' a) where
-  toJSON (I.El sort payload) = object
+  toJSON (I.El sort value) = object
     [ "sort"    .= sort
-    , "payload" .= payload
+    , "value"   .= value
     ]
 
 instance ToJSON I.Sort where
@@ -306,9 +307,7 @@ instance ToJSON I.Sort where
     ]
 
 instance ToJSON I.Level where
-  toJSON (I.Max levels) = object
-    [ "levels" .= levels
-    ]
+  toJSON (I.Max levels) = toJSON levels
 
 instance ToJSON I.PlusLevel where
   toJSON (I.ClosedLevel n) = object
@@ -332,10 +331,10 @@ instance ToJSON I.LevelAtom where
     , "metaId"    .= metaId
     , "term"      .= term
     ]
-  toJSON (I.NeutralLevel notBlocked elims) = object
+  toJSON (I.NeutralLevel notBlocked term) = object
     [ "kind"        .= String "NeutralLevel"
     , "notBlocked"  .= notBlocked
-    , "elims"       .= elims
+    , "term"        .= term
     ]
   toJSON (I.UnreducedLevel term) = object
     [ "kind"      .= String "UnreducedLevel"
@@ -343,9 +342,9 @@ instance ToJSON I.LevelAtom where
     ]
 
 instance ToJSON I.NotBlocked where
-  toJSON (I.StuckOn elims) = object
+  toJSON (I.StuckOn elim) = object
     [ "kind"      .= String "StuckOn"
-    , "elims"     .= elims
+    , "elim"     .= elim
     ]
   toJSON I.Underapplied = object
     [ "kind"      .= String "Underapplied"
@@ -378,15 +377,15 @@ instance ToJSON a => ToJSON (I.Elim' a) where
     ]
 
 instance ToJSON a => ToJSON (I.Abs a) where
-  toJSON (I.Abs name payload) = object
+  toJSON (I.Abs name value) = object
     [ "kind"      .= String "Abs"
     , "name"      .= name
-    , "payload"   .= payload
+    , "value"       .= value
     ]
-  toJSON (I.NoAbs name payload) = object
+  toJSON (I.NoAbs name value) = object
     [ "kind"      .= String "NoAbs"
     , "name"      .= name
-    , "payload"   .= payload
+    , "value"       .= value
     ]
 
 instance ToJSON I.ConHead where
@@ -394,6 +393,16 @@ instance ToJSON I.ConHead where
     [ "name"      .= name
     , "inductive" .= ind
     , "fields"    .= fields
+    ]
+
+instance ToJSON a => ToJSON (I.Tele a) where
+  toJSON I.EmptyTel = object
+    [ "kind"      .= String "EmptyTel"
+    ]
+  toJSON (I.ExtendTel value binder) = object
+    [ "kind"      .= String "ExtendTel"
+    , "value"     .= value
+    , "binder"    .= binder
     ]
 
 --------------------------------------------------------------------------------
