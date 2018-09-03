@@ -890,9 +890,12 @@ checkLHS mf st@(LHSState tel ip problem target psplit) = updateRelevance $ do
     -- If the target type is irrelevant or in Prop,
     -- we need to check the lhs in irr. cxt. (see Issue 939).
     updateRelevance cont = do
-      rel <- liftTCM (reduce $ getSort $ unArg target) >>= \case
-        Prop{} -> return Irrelevant
-        _      -> return $ getRelevance target
+      rel <- do
+        let fallback = return $ getRelevance target
+        ifNotM isPropEnabled fallback {-else-} $ do
+          liftTCM (reduce $ getSort $ unArg target) >>= \case
+            Prop{} -> return Irrelevant
+            _      -> fallback
       applyRelevanceToContext rel cont
 
     trySplit :: ProblemEq

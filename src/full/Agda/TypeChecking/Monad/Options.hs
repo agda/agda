@@ -261,7 +261,7 @@ getInputFile' = mapM (liftIO . absolute) =<< do
 hasInputFile :: TCM Bool
 hasInputFile = isJust <$> optInputFile <$> commandLineOptions
 
-isPropEnabled :: TCM Bool
+isPropEnabled :: HasOptions m => m Bool
 isPropEnabled = optProp <$> pragmaOptions
 
 {-# SPECIALIZE hasUniversePolymorphism :: TCM Bool #-}
@@ -384,4 +384,3 @@ verbosity k = stPragmaOptions . verbOpt . Trie.valueAt (parseVerboseKey k) . def
 
     defaultTo :: Eq a => a -> Lens' a (Maybe a)
     defaultTo x f m = f (fromMaybe x m) <&> \ v -> if v == x then Nothing else Just v
-

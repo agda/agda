@@ -1420,6 +1420,7 @@ checkLetBinding b@(A.LetPatBind i p e) ret =
       , nest 2 $ vcat
         [ text "p (A) =" <+> prettyA p
         , text "t     =" <+> prettyTCM t
+        , text "cxtRel=" <+> do pretty =<< asks envRelevance
         ]
       ]
     fvs <- getContextSize
@@ -1431,6 +1432,10 @@ checkLetBinding b@(A.LetPatBind i p e) ret =
       reportSDoc "tc.term.let.pattern" 20 $ nest 2 $ vcat
         [ text "p (I) =" <+> prettyTCM p
         , text "delta =" <+> prettyTCM delta
+        , text "cxtRel=" <+> do pretty =<< asks envRelevance
+        ]
+      reportSDoc "tc.term.let.pattern" 80 $ nest 2 $ vcat
+        [ text "p (I) =" <+> (text . show) p
         ]
       -- We translate it into a list of projections.
       fs <- recordPatternToProjections p
