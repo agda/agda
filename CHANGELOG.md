@@ -114,6 +114,18 @@ Pragmas and options
   definition, we try as much as possible to generate an Axiom for it and emit
   a warning rather than exit with an error. This is not compatible with `--safe`.
 
+* New warning `AbsurdPatternRequiresNoRHS`: if a clause's LHS contains an absurd,
+  the RHS is not needed. If it is given nonetheless, we raise a warning and ignore
+  it rather than exit with an error.
+
+* New warning `ModuleDoesntExport`: if an import statement for `M` mentions
+  names not exported by `M` (in either `using`, `hiding`, or `renaming) we
+  raise a warning and ignore them instead of exiting with an error.
+
+* New warning `NotAllowedInMutual`: if a pragma, primitive, module or import
+  statement is present in a mutual block we drop it and raise a warning instead
+  of exiting with an error.
+
 Emacs mode
 ----------
 

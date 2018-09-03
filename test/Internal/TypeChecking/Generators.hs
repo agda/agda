@@ -449,17 +449,16 @@ instance ShrinkC a b => ShrinkC (Elim' a) (Elim' b) where
   shrinkC conf Proj{}    = []
   noShrink = fmap noShrink
 
--- Andreas 2010-09-21: simplify? since Sort Prop is no longer abused as DontCare
 instance ShrinkC Sort Sort where
-  shrinkC conf Prop{} = []
   shrinkC conf s = mkProp 0 : case s of
     Type n     -> [] -- No Level instance yet -- Type <$> shrinkC conf n
-    Prop{}     -> __IMPOSSIBLE__
+    Prop{}     -> []
     Inf        -> []
     SizeUniv   -> []
     PiSort s1 s2 -> __IMPOSSIBLE__
     UnivSort s -> __IMPOSSIBLE__
     MetaS x es -> __IMPOSSIBLE__
+    DummyS{} -> __IMPOSSIBLE__
   noShrink = id
 
 instance ShrinkC Telescope Telescope where

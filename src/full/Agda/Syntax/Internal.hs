@@ -223,6 +223,11 @@ data Sort
   | PiSort Sort (Abs Sort) -- ^ Sort of the pi type.
   | UnivSort Sort -- ^ Sort of another sort.
   | MetaS {-# UNPACK #-} !MetaId Elims
+  | DummyS String
+    -- ^ A (part of a) term or type which is only used for internal purposes.
+    --   Replaces the abuse of @Prop@ for a dummy sort.
+    --   The @String@ typically describes the location where we create this dummy,
+    --   but can contain other information as well.
   deriving (Data, Show)
 
 -- | A level is a maximum expression of 0..n 'PlusLevel' expressions
@@ -743,12 +748,12 @@ dummyLevel file line = dummyLevel' ("dummyLevel: " ++ file) line
 -- | A dummy sort created at location.
 --   Note: use macro __DUMMY_SORT__ !
 dummySort :: String -> Int -> Sort
-dummySort file = Prop . (dummyLevel' $ "dummySort: " ++ file)
+dummySort file line = DummyS $ file ++ ":" ++ show line
 
 -- | A dummy type created at location.
 --   Note: use macro __DUMMY_TYPE__ !
 dummyType :: String -> Int -> Type
-dummyType file line = El (Prop $ unreducedLevel $ Dummy "") (dummyTerm' ("dummyType: " ++ file) line)
+dummyType file line = El (DummyS "") $ dummyTerm' ("dummyType: " ++ file) line
 
 -- | Context entries without a type have this dummy type.
 --   Note: use macro __DUMMY_DOM__ !
@@ -1094,6 +1099,7 @@ instance TermSize Sort where
     PiSort s s' -> 1 + tsize s + tsize s'
     UnivSort s -> 1 + tsize s
     MetaS _ es -> 1 + tsize es
+    DummyS{}   -> 1
 
 instance TermSize Level where
   tsize (Max as) = 1 + tsize as
@@ -1162,6 +1168,7 @@ instance KillRange Sort where
     PiSort s1 s2 -> killRange2 PiSort s1 s2
     UnivSort s -> killRange1 UnivSort s
     MetaS x es -> killRange1 (MetaS x) es
+    DummyS{}   -> s
 
 instance KillRange Substitution where
   killRange IdS                  = IdS
@@ -1322,6 +1329,7 @@ instance Pretty Sort where
                                       , nest 2 $ pretty (unAbs b) ])
       UnivSort s -> mparens (p > 9) $ text "univSort" <+> prettyPrec 10 s
       MetaS x es -> prettyPrec p $ MetaV x es
+      DummyS s   -> parens $ text s
 
 instance Pretty Type where
   prettyPrec p (El _ a) = prettyPrec p a
@@ -1381,6 +1389,7 @@ instance NFData Sort where
     PiSort a b -> rnf (a, unAbs b)
     UnivSort a -> rnf a
     MetaS _ es -> rnf es
+    DummyS _   -> ()
 
 instance NFData Level where
   rnf (Max as) = rnf as

@@ -74,6 +74,7 @@ import Agda.Utils.Except
   , ExceptT
   , MonadError(catchError, throwError)
   , runExceptT
+  , mapExceptT
   )
 
 import Agda.Utils.Benchmark (MonadBench(..))
@@ -112,21 +113,31 @@ data TCState = TCSt
 
 class Monad m => ReadTCState m where
   getTCState :: m TCState
+  withTCState :: (TCState -> TCState) -> m a -> m a
 
 instance ReadTCState m => ReadTCState (MaybeT m) where
   getTCState = lift getTCState
+  withTCState = mapMaybeT . withTCState
 
 instance ReadTCState m => ReadTCState (ListT m) where
   getTCState = lift getTCState
+  withTCState f = ListT . withTCState f . runListT
 
 instance ReadTCState m => ReadTCState (ExceptT err m) where
   getTCState = lift getTCState
+  withTCState = mapExceptT . withTCState
+
+instance ReadTCState m => ReadTCState (ReaderT r m) where
+  getTCState = lift getTCState
+  withTCState = mapReaderT . withTCState
 
 instance (Monoid w, ReadTCState m) => ReadTCState (WriterT w m) where
   getTCState = lift getTCState
+  withTCState = mapWriterT . withTCState
 
 instance ReadTCState m => ReadTCState (StateT s m) where
   getTCState = lift getTCState
+  withTCState = mapStateT . withTCState
 
 instance Show TCState where
   show _ = "TCSt{}"
@@ -2571,6 +2582,7 @@ data Warning
   | UnsolvedInteractionMetas [Range]  -- ^ Do not use directly with 'warning'
   | UnsolvedConstraints      Constraints
     -- ^ Do not use directly with 'warning'
+  | AbsurdPatternRequiresNoRHS [NamedArg DeBruijnPattern]
   | OldBuiltin               String String
     -- ^ In `OldBuiltin old new`, the BUILTIN old has been replaced by new
   | EmptyRewritePragma
@@ -2579,9 +2591,9 @@ data Warning
     -- ^ If the user opens a module public before the module header.
     --   (See issue #2377.)
   | UselessInline            QName
-  -- Generic warnings for one-off things
   | InversionDepthReached    QName
   -- ^ The --inversion-max-depth was reached.
+  -- Generic warnings for one-off things
   | GenericWarning           Doc
     -- ^ Harmless generic warning (not an error)
   | GenericNonFatalError     Doc
@@ -2601,38 +2613,47 @@ data Warning
     --   `old` is deprecated, use `new` instead. This will be an error in Agda `version`.
   | UserWarning String
     -- ^ User-defined warning (e.g. to mention that a name is deprecated)
+  | ModuleDoesntExport C.QName [C.ImportedName]
+    -- ^ Some imported names are not actually exported by the source module
   deriving (Show , Data)
 
 
 warningName :: Warning -> WarningName
 warningName w = case w of
-  NicifierIssue dw           -> declarationWarningName dw
-  ParseWarning pw            -> parseWarningName pw
-  OldBuiltin{}               -> OldBuiltin_
-  EmptyRewritePragma         -> EmptyRewritePragma_
-  UselessPublic              -> UselessPublic_
-  UnreachableClauses{}       -> UnreachableClauses_
-  UselessInline{}            -> UselessInline_
-  GenericWarning{}           -> GenericWarning_
-  DeprecationWarning{}       -> DeprecationWarning_
-  InversionDepthReached{}    -> InversionDepthReached_
-  TerminationIssue{}         -> TerminationIssue_
-  CoverageIssue{}            -> CoverageIssue_
-  CoverageNoExactSplit{}     -> CoverageNoExactSplit_
-  NotStrictlyPositive{}      -> NotStrictlyPositive_
-  UnsolvedMetaVariables{}    -> UnsolvedMetaVariables_
-  UnsolvedInteractionMetas{} -> UnsolvedInteractionMetas_
-  UnsolvedConstraints{}      -> UnsolvedConstraints_
-  GenericNonFatalError{}     -> GenericNonFatalError_
-  SafeFlagPostulate{}        -> SafeFlagPostulate_
-  SafeFlagPragma{}           -> SafeFlagPragma_
-  SafeFlagNonTerminating     -> SafeFlagNonTerminating_
-  SafeFlagTerminating        -> SafeFlagTerminating_
-  SafeFlagPrimTrustMe        -> SafeFlagPrimTrustMe_
-  SafeFlagNoPositivityCheck  -> SafeFlagNoPositivityCheck_
-  SafeFlagPolarity           -> SafeFlagPolarity_
-  SafeFlagNoUniverseCheck    -> SafeFlagNoUniverseCheck_
-  UserWarning{}              -> UserWarning_
+  -- special cases
+  NicifierIssue dw             -> declarationWarningName dw
+  ParseWarning pw              -> parseWarningName pw
+  -- typechecking errors
+  AbsurdPatternRequiresNoRHS{} -> AbsurdPatternRequiresNoRHS_
+  CoverageIssue{}              -> CoverageIssue_
+  CoverageNoExactSplit{}       -> CoverageNoExactSplit_
+  DeprecationWarning{}         -> DeprecationWarning_
+  EmptyRewritePragma           -> EmptyRewritePragma_
+  GenericNonFatalError{}       -> GenericNonFatalError_
+  GenericWarning{}             -> GenericWarning_
+  InversionDepthReached{}      -> InversionDepthReached_
+  ModuleDoesntExport{}         -> ModuleDoesntExport_
+  NotStrictlyPositive{}        -> NotStrictlyPositive_
+  OldBuiltin{}                 -> OldBuiltin_
+  SafeFlagNoPositivityCheck    -> SafeFlagNoPositivityCheck_
+  SafeFlagNonTerminating       -> SafeFlagNonTerminating_
+  SafeFlagNoUniverseCheck      -> SafeFlagNoUniverseCheck_
+  SafeFlagPolarity             -> SafeFlagPolarity_
+  SafeFlagPostulate{}          -> SafeFlagPostulate_
+  SafeFlagPragma{}             -> SafeFlagPragma_
+  SafeFlagPrimTrustMe          -> SafeFlagPrimTrustMe_
+  SafeFlagTerminating          -> SafeFlagTerminating_
+  TerminationIssue{}           -> TerminationIssue_
+  UnreachableClauses{}         -> UnreachableClauses_
+  UnsolvedInteractionMetas{}   -> UnsolvedInteractionMetas_
+  UnsolvedConstraints{}        -> UnsolvedConstraints_
+  UnsolvedMetaVariables{}      -> UnsolvedMetaVariables_
+  UselessInline{}              -> UselessInline_
+  UselessPublic                -> UselessPublic_
+  UserWarning{}                -> UserWarning_
+
+
+
 
 data TCWarning
   = TCWarning
@@ -2665,7 +2686,7 @@ equalHeadConstructors = (==) `on` toConstr
 getPartialDefs :: ReadTCState tcm => tcm [QName]
 getPartialDefs = do
   tcst <- getTCState
-  return $ catMaybes . fmap (extractQName . tcWarning)
+  return $ mapMaybe (extractQName . tcWarning)
          $ tcst ^. stTCWarnings where
 
     extractQName :: Warning -> Maybe QName
@@ -2762,7 +2783,6 @@ data TypeError
         | NotImplemented String
         | NotSupported String
         | CompilationError String
-        | TerminationCheckFailed [TerminationError]
         | PropMustBeSingleton
         | DataMustEndInSort Term
 {- UNUSED
@@ -2783,8 +2803,6 @@ data TypeError
         | CantResolveOverloadedConstructorsTargetingSameDatatype QName [QName]
           -- ^ Datatype, constructors.
         | DoesNotConstructAnElementOf QName Type -- ^ constructor, type
-        | DifferentArities
-            -- ^ Varying number of arguments for a function.
         | WrongHidingInLHS
             -- ^ The left hand side of a function definition has a hidden argument
             --   where a non-hidden was expected.
@@ -2856,7 +2874,6 @@ data TypeError
         | BuiltinInParameterisedModule String
         | IllegalLetInTelescope C.TypedBinding
         | NoRHSRequiresAbsurdPattern [NamedArg A.Pattern]
-        | AbsurdPatternRequiresNoRHS [NamedArg A.Pattern]
         | TooFewFields QName [C.Name]
         | TooManyFields QName [C.Name]
         | DuplicateFields [C.Name]
@@ -2899,13 +2916,11 @@ data TypeError
         | NoSuchModule C.QName
         | AmbiguousName C.QName (NonemptyList A.QName)
         | AmbiguousModule C.QName (NonemptyList A.ModuleName)
-        | UninstantiatedModule C.QName
         | ClashingDefinition C.QName A.QName
         | ClashingModule A.ModuleName A.ModuleName
         | ClashingImport C.Name A.QName
         | ClashingModuleImport C.Name A.ModuleName
         | PatternShadowsConstructor A.Name A.QName
-        | ModuleDoesntExport C.QName [C.ImportedName]
         | DuplicateImports C.QName [C.ImportedName]
         | InvalidPattern C.Pattern
         | RepeatedVariablesInPattern [C.Name]
@@ -2943,6 +2958,7 @@ data TypeError
     -- Language option errors
         | NeedOptionCopatterns
         | NeedOptionRewriting
+        | NeedOptionProp
     -- Failure associated to warnings
         | NonFatalErrors [TCWarning]
     -- Instance search errors
@@ -3088,6 +3104,7 @@ instance Monad ReduceM where
 
 instance ReadTCState ReduceM where
   getTCState = ReduceM redSt
+  withTCState f = onReduceEnv $ mapRedSt f
 
 runReduceM :: ReduceM a -> TCM a
 runReduceM m = do
@@ -3173,6 +3190,7 @@ class ( Applicative tcm, MonadIO tcm
 
 instance MonadIO m => ReadTCState (TCMT m) where
   getTCState = get
+  withTCState f m = __IMPOSSIBLE__ -- should probably not be used
 
 instance MonadError TCErr (TCMT IO) where
   throwError = liftIO . E.throwIO

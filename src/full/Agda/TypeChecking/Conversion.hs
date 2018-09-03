@@ -1141,6 +1141,10 @@ leqSort s1 s2 = catchConstraint (SortCmp CmpLeq s1 s2) $ do
   badRigid <- s1 `rigidVarsNotContainedIn` fvsRHS
 
   case (s1, s2) of
+      -- Andreas, 2018-09-03: crash on dummy sort
+      (DummyS s, _) -> impossibleSort s
+      (_, DummyS s) -> impossibleSort s
+
       -- The most basic rule: @Set l =< Set l'@ iff @l =< l'@
       (Type a  , Type b  ) -> leqLevel a b
 
@@ -1179,6 +1183,14 @@ leqSort s1 s2 = catchConstraint (SortCmp CmpLeq s1 s2) $ do
       (_     , UnivSort{}) -> postpone
       (MetaS{} , _       ) -> postpone
       (_       , MetaS{} ) -> postpone
+
+  where
+  impossibleSort s = do
+    reportSLn "impossible" 10 $ unlines
+      [ "leqSort: found dummy sort with description:"
+      , s
+      ]
+    __IMPOSSIBLE__
 
 leqLevel :: Level -> Level -> TCM ()
 leqLevel a b = liftTCM $ do
@@ -1493,6 +1505,10 @@ equalSort s1 s2 = do
 
         case (s1, s2) of
 
+            -- Andreas, 2018-09-03: crash on dummy sort
+            (DummyS s, _) -> impossibleSort s
+            (_, DummyS s) -> impossibleSort s
+
             -- one side is a meta sort: try to instantiate
             -- In case both sides are meta sorts, instantiate the
             -- bigger (i.e. more recent) one.
@@ -1543,6 +1559,12 @@ equalSort s1 s2 = do
         reportSDoc "tc.meta.sort" 50 $ text "meta" <+> sep [pretty x, prettyList $ map pretty es, pretty s]
         assignE DirEq x es (Sort s) __IMPOSSIBLE__
 
+      impossibleSort s = do
+        reportSLn "impossible" 10 $ unlines
+          [ "equalSort: found dummy sort with description:"
+          , s
+          ]
+        __IMPOSSIBLE__
 
 
 -- -- This should probably represent face maps with a more precise type

@@ -29,10 +29,11 @@ import Data.Traversable ( for )
 import Text.Read ( readMaybe )
 import Data.Set (Set)
 import qualified Data.Set as Set
-import Data.Maybe ( fromMaybe, catMaybes )
+import Data.Maybe ( fromMaybe )
 import Data.List ( stripPrefix, intercalate )
 
 import Agda.Utils.Lens
+import Agda.Utils.Maybe
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -98,6 +99,7 @@ errorWarnings = Set.fromList
   [ CoverageIssue_
   , GenericNonFatalError_
   , MissingDefinitions_
+  , NotAllowedInMutual_
   , NotStrictlyPositive_
   , OverlappingTokensWarning_
   , SafeFlagPostulate_
@@ -142,7 +144,9 @@ data WarningName
   | InvalidTerminationCheckPragma_
   | InvalidNoPositivityCheckPragma_
   | MissingDefinitions_
+  | NotAllowedInMutual_
   | PolarityPragmasButNotPostulates_
+  | PragmaNoTerminationCheck_
   | UnknownFixityInMixfixDecl_
   | UnknownNamesInFixityDecl_
   | UnknownNamesInPolarityPragmas_
@@ -161,6 +165,7 @@ data WarningName
   | TerminationIssue_
   | CoverageIssue_
   | CoverageNoExactSplit_
+  | ModuleDoesntExport_
   | NotStrictlyPositive_
   | UnsolvedMetaVariables_
   | UnsolvedInteractionMetas_
@@ -175,6 +180,7 @@ data WarningName
   | SafeFlagPolarity_
   | SafeFlagNoUniverseCheck_
   | UserWarning_
+  | AbsurdPatternRequiresNoRHS_
   deriving (Eq, Ord, Show, Read, Enum, Bounded)
 
 -- | The flag corresponding to a warning is precisely the name of the constructor
@@ -207,7 +213,7 @@ usageWarning = intercalate "\n"
            , "-W noName respectively. The flags available are:"
            ]
   , ""
-  , untable $ catMaybes $ flip map [minBound..maxBound] $ \ w ->
+  , untable $ forMaybe [minBound..maxBound] $ \ w ->
     let wnd = warningNameDescription w in
     (warningName2String w, wnd) <$ guard (not $ null wnd)
   ]
@@ -238,7 +244,9 @@ warningNameDescription w = case w of
   InvalidNoUniverseCheckPragma_    -> "No universe checking pragmas before non-`data' or `record' declaration."
   InvalidTerminationCheckPragma_   -> "Termination checking pragmas before non-function or `mutual' blocks."
   MissingDefinitions_              -> "Declarations not associated to a definition."
+  NotAllowedInMutual_              -> "Declarations not allowed in a mutual block."
   PolarityPragmasButNotPostulates_ -> "Polarity pragmas for non-postulates."
+  PragmaNoTerminationCheck_        -> "`NO_TERMINATION_CHECK' pragmas are deprecated"
   UnknownFixityInMixfixDecl_       -> "Mixfix names without an associated fixity declaration."
   UnknownNamesInFixityDecl_        -> "Names not declared in the same scope as their syntax or fixity declaration."
   UnknownNamesInPolarityPragmas_   -> "Names not declared in the same scope as their polarity pragmas."
@@ -257,6 +265,7 @@ warningNameDescription w = case w of
   TerminationIssue_                -> "Failed termination checks."
   CoverageIssue_                   -> "Failed coverage checks."
   CoverageNoExactSplit_            -> "Failed exact split checks."
+  ModuleDoesntExport_              -> "Imported name is not actually exported."
   NotStrictlyPositive_             -> "Failed strict positivity checks."
   UnsolvedMetaVariables_           -> "Unsolved meta variables."
   UnsolvedInteractionMetas_        -> "Unsolved interaction meta variables."
@@ -271,3 +280,4 @@ warningNameDescription w = case w of
   SafeFlagPolarity_                -> "`POLARITY' pragmas with the safe flag."
   SafeFlagNoUniverseCheck_         -> "`NO_UNIVERSE_CHECK' pragmas with the safe flag."
   UserWarning_                     -> "User-defined warning added using the 'WARNING_ON_USAGE' pragma."
+  AbsurdPatternRequiresNoRHS_      -> "A clause with an absurd pattern does not need a Right Hand Side."

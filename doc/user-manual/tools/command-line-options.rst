@@ -318,6 +318,8 @@ A group of warnings can be enabled by ``-W {group}``, where
 Individual warnings can be turned on and off by ``-W {Name}`` and ``-W
 {noName}`` respectively. The flags available are:
 
+:samp:`AbsurdPatternRequiresNoRHS`
+      RHS given despite an absurd pattern in the LHS.
 :samp:`CoverageIssue`
       Failed coverage checks.
 :samp:`CoverageNoExactSplit`
@@ -348,6 +350,10 @@ Individual warnings can be turned on and off by ``-W {Name}`` and ``-W
       Inversions of pattern-matching failed due to exhausted inversion depth.
 :samp:`MissingDefinitions`
       Names declared without an accompanying definition.
+:samp:`ModuleDoesntExport`
+      Names mentioned in an import statement which are not exported by the module in question.
+:samp:`NotAllowedInMutual`
+      Declarations not allowed in a mutual block.
 :samp:`NotStrictlyPositive`
       Failed strict positivity checks.
 :samp:`OldBuiltin`

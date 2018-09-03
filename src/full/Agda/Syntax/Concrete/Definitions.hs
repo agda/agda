@@ -186,7 +186,6 @@ data DeclarationException
         | WrongDefinition Name DataRecOrFun DataRecOrFun
         | WrongParameters Name Params Params
           -- ^ 'Name' of symbol, 'Params' of signature, 'Params' of definition.
-        | NotAllowedInMutual NiceDeclaration
         | Codata Range
         | DeclarationPanic String
         | WrongContentBlock KindOfBlock Range
@@ -194,9 +193,6 @@ data DeclarationException
         | InvalidMeasureMutual Range
           -- ^ In a mutual block, all or none need a MEASURE pragma.
           --   Range is of mutual block.
-        | PragmaNoTerminationCheck Range
-          -- ^ Pragma @{-# NO_TERMINATION_CHECK #-}@ has been replaced
-          --   by {-# TERMINATING #-} and {-# NON_TERMINATING #-}.
         | UnquoteDefRequiresSignature [Name]
         | BadMacroDef NiceDeclaration
     deriving (Data, Show)
@@ -222,7 +218,11 @@ data DeclarationWarning
       -- ^ A {-# TERMINATING #-} and {-# NON_TERMINATING #-} pragma
       --   that does not apply to any function.
   | MissingDefinitions [Name]
+  | NotAllowedInMutual Range String
   | PolarityPragmasButNotPostulates [Name]
+  | PragmaNoTerminationCheck Range
+  -- ^ Pragma @{-# NO_TERMINATION_CHECK #-}@ has been replaced
+  --   by @{-# TERMINATING #-}@ and @{-# NON_TERMINATING #-}@.
   | UnknownFixityInMixfixDecl [Name]
   | UnknownNamesInFixityDecl [Name]
   | UnknownNamesInPolarityPragmas [Name]
@@ -244,7 +244,9 @@ declarationWarningName dw = case dw of
   InvalidNoUniverseCheckPragma{}    -> InvalidNoUniverseCheckPragma_
   InvalidTerminationCheckPragma{}   -> InvalidTerminationCheckPragma_
   MissingDefinitions{}              -> MissingDefinitions_
+  NotAllowedInMutual{}              -> NotAllowedInMutual_
   PolarityPragmasButNotPostulates{} -> PolarityPragmasButNotPostulates_
+  PragmaNoTerminationCheck{}        -> PragmaNoTerminationCheck_
   UnknownFixityInMixfixDecl{}       -> UnknownFixityInMixfixDecl_
   UnknownNamesInFixityDecl{}        -> UnknownNamesInFixityDecl_
   UnknownNamesInPolarityPragmas{}   -> UnknownNamesInPolarityPragmas_
@@ -272,12 +274,10 @@ instance HasRange DeclarationException where
   getRange (WrongDefinition x k k')             = getRange x
   getRange (WrongParameters x _ _)              = getRange x
   getRange (AmbiguousFunClauses lhs xs)         = getRange lhs
-  getRange (NotAllowedInMutual x)               = getRange x
   getRange (Codata r)                           = r
   getRange (DeclarationPanic _)                 = noRange
   getRange (WrongContentBlock _ r)              = r
   getRange (InvalidMeasureMutual r)             = r
-  getRange (PragmaNoTerminationCheck r)         = r
   getRange (UnquoteDefRequiresSignature x)      = getRange x
   getRange (BadMacroDef d)                      = getRange d
 
@@ -288,6 +288,7 @@ instance HasRange DeclarationWarning where
   getRange (PolarityPragmasButNotPostulates xs) = getRange . head $ xs
   getRange (MissingDefinitions xs)              = getRange . head $ xs
   getRange (UselessPrivate r)                   = r
+  getRange (NotAllowedInMutual r x)             = r
   getRange (UselessAbstract r)                  = r
   getRange (UselessInstance r)                  = r
   getRange (EmptyMutual r)                      = r
@@ -300,6 +301,7 @@ instance HasRange DeclarationWarning where
   getRange (InvalidNoPositivityCheckPragma r)   = r
   getRange (InvalidCatchallPragma r)            = r
   getRange (InvalidNoUniverseCheckPragma r)     = r
+  getRange (PragmaNoTerminationCheck r)         = r
 
 instance HasRange NiceDeclaration where
   getRange (Axiom r _ _ _ _ _ _ _ _)         = r
@@ -361,16 +363,12 @@ instance Pretty DeclarationException where
       PostulateBlock -> "A postulate block can only contain type signatures, possibly under keyword instance"
       DataBlock -> "A data definition can only contain type signatures, possibly under keyword instance"
       _ -> "Unexpected declaration"
-  pretty (PragmaNoTerminationCheck _) = fsep $
-    pwords "Pragma {-# NO_TERMINATION_CHECK #-} has been removed.  To skip the termination check, label your definitions either as {-# TERMINATING #-} or {-# NON_TERMINATING #-}."
   pretty (InvalidMeasureMutual _) = fsep $
     pwords "In a mutual block, either all functions must have the same (or no) termination checking pragma."
   pretty (UnquoteDefRequiresSignature xs) = fsep $
     pwords "Missing type signatures for unquoteDef" ++ map pretty xs
   pretty (BadMacroDef nd) = fsep $
     [text $ declName nd] ++ pwords "are not allowed in macro blocks"
-  pretty (NotAllowedInMutual nd) = fsep $
-    [text $ declName nd] ++ pwords "are not allowed in mutual blocks"
   pretty (Codata _) = text $
     "The codata construction has been removed. " ++
     "Use the INFINITY builtin instead."
@@ -378,15 +376,22 @@ instance Pretty DeclarationException where
 
 instance Pretty DeclarationWarning where
   pretty (UnknownNamesInFixityDecl xs) = fsep $
-    pwords "The following names are not declared in the same scope as their syntax or fixity declaration (i.e., either not in scope at all, imported from another module, or declared in a super module):" ++ map pretty xs
+    pwords "The following names are not declared in the same scope as their syntax or fixity declaration (i.e., either not in scope at all, imported from another module, or declared in a super module):"
+    ++ punctuate comma (map pretty xs)
   pretty (UnknownFixityInMixfixDecl xs) = fsep $
-    pwords "The following mixfix names do not have an associated fixity declaration:" ++ map pretty xs
+    pwords "The following mixfix names do not have an associated fixity declaration:"
+    ++ punctuate comma (map pretty xs)
   pretty (UnknownNamesInPolarityPragmas xs) = fsep $
-    pwords "The following names are not declared in the same scope as their polarity pragmas (they could for instance be out of scope, imported from another module, or declared in a super module):" ++ map pretty xs
+    pwords "The following names are not declared in the same scope as their polarity pragmas (they could for instance be out of scope, imported from another module, or declared in a super module):"
+    ++ punctuate comma  (map pretty xs)
   pretty (MissingDefinitions xs) = fsep $
-   pwords "The following names are declared but not accompanied by a definition:" ++ map pretty xs
+   pwords "The following names are declared but not accompanied by a definition:"
+   ++ punctuate comma (map pretty xs)
+  pretty (NotAllowedInMutual r nd) = fsep $
+    [text nd] ++ pwords "are not allowed in mutual blocks"
   pretty (PolarityPragmasButNotPostulates xs) = fsep $
-    pwords "Polarity pragmas have been given for the following identifiers which are not postulates:" ++ map pretty xs
+    pwords "Polarity pragmas have been given for the following identifiers which are not postulates:"
+    ++ punctuate comma (map pretty xs)
   pretty (UselessPrivate _)      = fsep $
     pwords "Using private here has no effect. Private applies only to declarations that introduce new identifiers into the module, like type signatures and data, record, and module declarations."
   pretty (UselessAbstract _)      = fsep $
@@ -407,6 +412,8 @@ instance Pretty DeclarationWarning where
     pwords "The CATCHALL pragma can only precede a function clause."
   pretty (InvalidNoUniverseCheckPragma _) = fsep $
     pwords "No universe checking pragmas can only precede a data/record definition."
+  pretty (PragmaNoTerminationCheck _) = fsep $
+    pwords "Pragma {-# NO_TERMINATION_CHECK #-} has been removed.  To skip the termination check, label your definitions either as {-# TERMINATING #-} or {-# NON_TERMINATING #-}."
 
 declName :: NiceDeclaration -> String
 declName Axiom{}             = "Postulates"
@@ -1160,8 +1167,11 @@ niceDeclarations ds = do
         niceWarning $ InvalidTerminationCheckPragma r
         nice1 ds
 
-    nicePragma (TerminationCheckPragma r NoTerminationCheck) ds =
-      throwError $ PragmaNoTerminationCheck r
+    nicePragma (TerminationCheckPragma r NoTerminationCheck) ds = do
+      -- This PRAGMA has been deprecated in favour of (NON_)TERMINATING
+      -- We warn the user about it and then assume the function is NON_TERMINATING.
+      niceWarning $ PragmaNoTerminationCheck r
+      nicePragma (TerminationCheckPragma r NonTerminating) ds
 
     nicePragma (TerminationCheckPragma r tc) ds =
       if canHaveTerminationCheckPragma ds then
@@ -1451,20 +1461,22 @@ niceDeclarations ds = do
         ps <- checkLoneSigs $ Map.fromList loneNames
         let ds = replaceSigs ps ds'
 
-        -- Pull type signatures to the top
-        let (sigs, other) = List.partition isTypeSig ds
-
-        -- Check that there are no declarations that aren't allowed in old style mutual blocks
-        forM_ ds' $ \case
+        -- Remove the declarations that aren't allowed in old style mutual blocks
+        ds <- fmap catMaybes $ forM ds $ \ d -> let success = pure (Just d) in case d of
           -- Andreas, 2013-11-23 allow postulates in mutual blocks
-          Axiom{} -> return ()
+          Axiom{}          -> success
           -- Andreas, 2017-10-09, issue #2576, raise error about missing type signature
           -- in ConcreteToAbstract rather than here.
-          NiceFunClause{} -> return ()
+          NiceFunClause{}  -> success
           -- Andreas, 2018-05-11, issue #3052, allow pat.syn.s in mutual blocks
-          NicePatternSyn{} -> return ()
-          -- Otherwise, only categorized signatures and definitions are allowed (data/record/fun)
-          d -> when (declKind d == OtherDecl) $ throwError $ NotAllowedInMutual d
+          NicePatternSyn{} -> success
+          -- Otherwise, only categorized signatures and definitions are allowed:
+          -- Data, Record, Fun
+          _ -> if (declKind d /= OtherDecl) then success
+               else Nothing <$ niceWarning (NotAllowedInMutual (getRange d) $ declName d)
+
+        -- Pull type signatures to the top
+        let (sigs, other) = List.partition isTypeSig ds
 
         -- Compute termination checking flag for mutual block
         tc0 <- use terminationCheckPragma

@@ -401,6 +401,7 @@ checkSort action s =
         Sort s     -> return s
         MetaV x es -> return $ MetaS x es
         _          -> __IMPOSSIBLE__
+    DummyS s -> __IMPOSSIBLE_VERBOSE__ s
 
 -- | Check if level is well-formed.
 checkLevel :: Action -> Level -> TCM Level

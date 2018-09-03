@@ -380,7 +380,7 @@ preprocess ob = case pp Nothing DS.empty ob of
      -> DS.Seq Where
      -> OccurrencesBuilder
      -> Maybe OccurrencesBuilder'
-  pp !m ws (Concat obs)        = case catMaybes $ map (pp m ws) obs of
+  pp !m ws (Concat obs)        = case mapMaybe (pp m ws) obs of
                                    []  -> Nothing
                                    obs -> return (Concat' obs)
   pp  m ws (OccursAs w ob)     = OccursAs' w <$> pp m (ws DS.|> w) ob

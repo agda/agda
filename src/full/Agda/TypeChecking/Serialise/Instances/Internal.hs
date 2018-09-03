@@ -93,7 +93,7 @@ instance EmbPrj I.Term where
   icod_ (MetaV    a b) = __IMPOSSIBLE__
   icod_ (DontCare a  ) = icodeN 8 DontCare a
   icod_ (Level    a  ) = icodeN 9 Level a
-  icod_ Dummy{}        = __IMPOSSIBLE__
+  icod_ (Dummy s)      = __IMPOSSIBLE__
 
   value = vcase valu where
     valu [a]       = valuN var   a
@@ -143,6 +143,7 @@ instance EmbPrj I.Sort where
   icod_ (PiSort a b) = icodeN 4 PiSort a b
   icod_ (UnivSort a) = icodeN 5 UnivSort a
   icod_ (MetaS a b)  = __IMPOSSIBLE__
+  icod_ (DummyS s)   = __IMPOSSIBLE__
 
   value = vcase valu where
     valu [0, a]    = valuN Type  a
