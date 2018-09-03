@@ -385,6 +385,7 @@ errorString err = case err of
   ModuleNameDoesntMatchFileName {}         -> "ModuleNameDoesntMatchFileName"
   NeedOptionCopatterns{}                   -> "NeedOptionCopatterns"
   NeedOptionRewriting{}                    -> "NeedOptionRewriting"
+  NeedOptionProp{}                         -> "NeedOptionProp"
   GeneralizeNotSupportedHere{}             -> "GeneralizeNotSupportedHere"
   GeneralizeCyclicDependency{}             -> "GeneralizeCyclicDependency"
   GeneralizeUnsolvedMeta{}                 -> "GeneralizeUnsolvedMeta"
@@ -1259,6 +1260,9 @@ instance PrettyTCM TypeError where
 
     NeedOptionRewriting  -> fsep $
       pwords "Option --rewriting needed to add and use rewrite rules"
+
+    NeedOptionProp       -> fsep $
+      pwords "Universe Prop is disabled by option --no-prop"
 
     GeneralizeNotSupportedHere x -> fsep $
       pwords $ "Generalizable variable " ++ show x ++ " is not supported here"

@@ -130,8 +130,7 @@ isType_ e = traceCall (IsType_ e) $ do
     A.Set _ n    -> do
       return $ sort (mkType n)
     A.Prop _ n -> do
-      unlessM isPropEnabled $ genericError
-        "Use the --enable-prop flag to use the Prop universe"
+      unlessM isPropEnabled $ typeError NeedOptionProp
       return $ sort (mkProp n)
     A.App i s arg
       | visible arg,
@@ -998,8 +997,7 @@ checkExpr' cmp e t0 =
         A.Set _ n    -> do
           coerce cmp (Sort $ mkType n) (sort $ mkType $ n + 1) t
         A.Prop _ n   -> do
-          unlessM isPropEnabled $ genericError
-            "Use the --enable-prop flag to use the Prop universe"
+          unlessM isPropEnabled $ typeError NeedOptionProp
           coerce cmp (Sort $ mkProp n) (sort $ mkType $ n + 1) t
 
         A.Rec _ fs  -> checkRecordExpression cmp fs e t

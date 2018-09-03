@@ -1,0 +1,3 @@
+Issue3207.agda:7,8-12
+Universe Prop is disabled by option --no-prop
+when checking that the expression Prop has type _1
