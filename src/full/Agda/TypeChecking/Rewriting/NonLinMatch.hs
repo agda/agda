@@ -123,6 +123,12 @@ instance PatternFrom () Sort NLPat where
       PiSort _ _ -> __IMPOSSIBLE__
       UnivSort _ -> __IMPOSSIBLE__
       MetaS{}  -> __IMPOSSIBLE__
+      DummyS s -> do
+        reportSLn "impossible" 10 $ unlines
+          [ "patternFrom: hit dummy sort with content:"
+          , s
+          ]
+        __IMPOSSIBLE__
 
 instance PatternFrom Type Term NLPat where
   patternFrom r k t v = do

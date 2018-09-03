@@ -2,13 +2,6 @@
 --
 -- Record let pattern bindings trigger spurious irrelevance
 -- marker, probably due to confusion of Prop with dummy type.
---
--- Issue is resolved if --no-prop disables Prop-specific
--- handling of irrelevance in LHS checker.
-
--- TODO: make this work for --prop
-
-{-# OPTIONS --no-prop #-}
 
 -- {-# OPTIONS -v tc.term.let.pattern:100 #-}
 -- {-# OPTIONS -v tc.lhs.top:30 #-}

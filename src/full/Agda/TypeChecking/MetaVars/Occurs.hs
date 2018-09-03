@@ -439,6 +439,7 @@ instance Occurs Sort where
       MetaS x es -> do
         MetaV x es <- occurs red ctx m xs (MetaV x es)
         return $ MetaS x es
+      DummyS{}   -> return s
 
   metaOccurs m s = do
     s <- instantiate s
@@ -450,6 +451,7 @@ instance Occurs Sort where
       SizeUniv   -> return ()
       UnivSort s -> metaOccurs m s
       MetaS x es -> metaOccurs m $ MetaV x es
+      DummyS{}   -> return ()
 
 instance Occurs a => Occurs (Elim' a) where
   occurs red ctx m xs e@(Proj _ f) = do
@@ -665,6 +667,7 @@ instance FoldRigid Sort where
       PiSort s1 s2 -> mempty
       UnivSort s -> fold s
       MetaS{}    -> mempty
+      DummyS{}   -> mempty
     where fold = foldRigid f
 
 instance FoldRigid Level where

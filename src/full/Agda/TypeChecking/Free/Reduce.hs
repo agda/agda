@@ -116,4 +116,4 @@ instance ForceNotFree Sort where
     MetaS x es -> MetaS x  <$> forceNotFree' es
     Inf        -> return s
     SizeUniv   -> return s
-
+    DummyS{}   -> return s

@@ -277,6 +277,7 @@ instance Reduce Sort where
             Inf        -> return Inf
             SizeUniv   -> return SizeUniv
             MetaS x es -> return s
+            DummyS{}   -> return s
 
 instance Reduce Elim where
   reduce' (Apply v) = Apply <$> reduce' v
@@ -800,6 +801,7 @@ instance Simplify Sort where
         Inf        -> return s
         SizeUniv   -> return s
         MetaS x es -> MetaS x <$> simplify' es
+        DummyS{}   -> return s
 
 instance Simplify Level where
   simplify' (Max as) = levelMax <$> simplify' as
@@ -934,6 +936,7 @@ instance Normalise Sort where
         Inf        -> return Inf
         SizeUniv   -> return SizeUniv
         MetaS x es -> return s
+        DummyS{}   -> return s
 
 instance Normalise Type where
     normalise' (El s t) = El <$> normalise' s <*> normalise' t
@@ -1106,6 +1109,7 @@ instance InstantiateFull Sort where
             Inf        -> return s
             SizeUniv   -> return s
             MetaS x es -> MetaS x <$> instantiateFull' es
+            DummyS{}   -> return s
 
 instance (InstantiateFull a) => InstantiateFull (Type' a) where
     instantiateFull' (El s t) =

@@ -750,6 +750,7 @@ instance Subst Term Sort where
     PiSort s1 s2 -> piSort (sub s1) (sub s2)
     UnivSort s -> univSort Nothing $ sub s
     MetaS x es -> MetaS x $ sub es
+    DummyS{}   -> s
     where sub x = applySubst rho x
 
 instance Subst Term Level where
