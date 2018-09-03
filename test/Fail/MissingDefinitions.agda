@@ -1,4 +1,4 @@
-module MissingDefinition where
+module MissingDefinitions where
 
 open import Agda.Builtin.Equality
 
