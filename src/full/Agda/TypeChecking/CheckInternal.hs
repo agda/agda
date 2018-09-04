@@ -461,9 +461,8 @@ inferSort t = case t of
 eliminate :: Term -> Type -> Elims -> TCM (Term, Type)
 eliminate self t [] = return (self, t)
 eliminate self t (e : es) = case e of
-    Apply (Arg _ v) -> do
-      (_, b) <- shouldBePi t
-      eliminate (self `apply1` v) (b `absApp` v) es
+    Apply (Arg _ v) -> ifNotPiType t __IMPOSSIBLE__ {-else-} $ \ _ b ->
+      eliminate (self `applyE` [e]) (b `absApp` v) es
     IApply _ _ v -> do
       (_, b) <- shouldBePath t
       eliminate (self `applyE` [e]) (b `absApp` v) es
