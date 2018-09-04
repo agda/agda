@@ -15,6 +15,7 @@ import qualified Data.Set as Set
 import Agda.Interaction.JSON.Encoding
 import Agda.Interaction.JSON.Syntax
 import Agda.Interaction.JSON.Utils
+import Agda.Interaction.JSON.TypeChecking.Positivity
 
 import qualified Agda.Syntax.Abstract as A
 import qualified Agda.Syntax.Common as C
@@ -374,11 +375,14 @@ instance EncodeTCM TypeError where
         obj
           [ "kind"            @= String "UnequalTerms"
           , "comparison"      @= cmp
-          , "term1"           @= s
-            -- [ "concrete"      #= (reify s >>= Trans.abstractToConcrete_)
-            -- , "original"      @= s
-            -- ]
-          , "term2"           @= t
+          , "term1"           #= obj
+            [ "concrete"        #= (reify s >>= Trans.abstractToConcrete_)
+            , "original"        @= s
+            ]
+          , "term2"           #= obj
+            [ "concrete"        #= (reify t >>= Trans.abstractToConcrete_)
+            , "original"        @= t
+            ]
           , "type"            @= a
           , "reason"          @= d
           ]
