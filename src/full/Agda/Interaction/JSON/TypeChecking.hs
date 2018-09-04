@@ -12,8 +12,9 @@ import Data.Maybe (isJust)
 import Data.Char (toLower)
 import qualified Data.Set as Set
 
-import Agda.Interaction.JSON.Encoding
-import Agda.Interaction.JSON.Syntax
+import Agda.Interaction.JSON.Encode
+import Agda.Interaction.JSON.Syntax.Internal
+import Agda.Interaction.JSON.Syntax.Concrete
 import Agda.Interaction.JSON.Utils
 import Agda.Interaction.JSON.TypeChecking.Positivity
 

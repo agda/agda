@@ -6,7 +6,7 @@ module Agda.Interaction.JSON.Utils where
 
 import Data.Aeson
 
-import Agda.Interaction.JSON.Encoding
+import Agda.Interaction.JSON.Encode
 
 import qualified Agda.Utils.Maybe.Strict as Strict
 import qualified Agda.Utils.FileName as File

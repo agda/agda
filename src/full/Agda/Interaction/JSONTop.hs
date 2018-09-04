@@ -11,7 +11,7 @@ import qualified Data.ByteString.Lazy.Char8 as BS
 
 import Agda.Interaction.AgdaTop
 import Agda.Interaction.Highlighting.JSON
-import Agda.Interaction.JSON.Encoding
+import Agda.Interaction.JSON.Encode
 import Agda.Interaction.JSON.TypeChecking
 import Agda.Interaction.Response as R
 

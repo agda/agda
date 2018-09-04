@@ -268,9 +268,18 @@ library
                     Agda.Interaction.Highlighting.LaTeX
                     Agda.Interaction.Imports
                     Agda.Interaction.InteractionTop
-                    Agda.Interaction.JSON.Encoding
-                    Agda.Interaction.JSON.Syntax
+                    Agda.Interaction.JSON.Encode
+                    Agda.Interaction.JSON.Syntax.Abstract
+                    Agda.Interaction.JSON.Syntax.Common
+                    Agda.Interqction.JSON.Syntax.Concrete
+                    Agda.Interaction.JSON.Syntax.Concrete.Name
+                    Agda.Interaction.JSON.Syntax.Fixity
+                    Agda.Interaction.JSON.Syntax.Internal
+                    Agda.Interaction.JSON.Syntax.Literal
+                    Agda.Interaction.JSON.Syntax.Notation
+                    Agda.Interaction.JSON.Syntax.Position
                     Agda.Interaction.JSON.TypeChecking
+                    Agda.Interaction.JSON.TypeChecking.Positivity
                     Agda.Interaction.JSON.Utils
                     Agda.Interaction.Response
                     Agda.Interaction.MakeCase

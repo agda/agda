@@ -2,7 +2,7 @@
 
 -- | Encoding stuff into JSON values in TCM
 
-module Agda.Interaction.JSON.Encoding where
+module Agda.Interaction.JSON.Encode where
 
 import Control.Monad (sequence, liftM2)
 import Data.Aeson
