@@ -59,6 +59,8 @@ instance EmbPrj Warning where
   icod_ (NicifierIssue a)            = icodeN 7 NicifierIssue a
   icod_ (InversionDepthReached a)    = icodeN 8 InversionDepthReached a
   icod_ (UserWarning a)              = icodeN 9 UserWarning a
+  icod_ (AbsurdPatternRequiresNoRHS a) = icodeN 10 AbsurdPatternRequiresNoRHS a
+  icod_ (ModuleDoesntExport a b)       = icodeN 11 ModuleDoesntExport a b
 
   value = vcase valu where
       valu [0, a, b]    = valuN UnreachableClauses a b
@@ -71,6 +73,8 @@ instance EmbPrj Warning where
       valu [7, a]       = valuN NicifierIssue a
       valu [8, a]       = valuN InversionDepthReached a
       valu [9, a]       = valuN UserWarning a
+      valu [10, a]      = valuN AbsurdPatternRequiresNoRHS a
+      valu [11, a, b]   = valuN ModuleDoesntExport a b
       valu _ = malformed
 
 instance EmbPrj DeclarationWarning where
@@ -92,24 +96,31 @@ instance EmbPrj DeclarationWarning where
     InvalidCatchallPragma a           -> icodeN 14 InvalidCatchallPragma a
     InvalidNoUniverseCheckPragma a    -> icodeN 15 InvalidNoUniverseCheckPragma a
     UnknownFixityInMixfixDecl a       -> icodeN 16 UnknownFixityInMixfixDecl a
+    MissingDefinitions a              -> icodeN 17 MissingDefinitions a
+    NotAllowedInMutual r a            -> icodeN 18 NotAllowedInMutual r a
+    PragmaNoTerminationCheck r        -> icodeN 19 PragmaNoTerminationCheck r
 
   value = vcase $ \case
-    [0, a] -> valueN UnknownNamesInFixityDecl a
-    [1, a] -> valueN UnknownNamesInPolarityPragmas a
-    [2, a] -> valueN PolarityPragmasButNotPostulates a
-    [3, a] -> valueN UselessPrivate a
-    [4, a] -> valueN UselessAbstract a
-    [5, a] -> valueN UselessInstance a
-    [6, a] -> valueN EmptyMutual a
-    [7, a] -> valueN EmptyAbstract a
-    [8, a] -> valueN EmptyPrivate a
-    [9, a] -> valueN EmptyInstance a
-    [10,a] -> valueN EmptyMacro a
-    [11,a] -> valueN EmptyPostulate a
-    [12,a] -> valueN InvalidTerminationCheckPragma a
-    [13,a] -> valueN InvalidNoPositivityCheckPragma a
-    [14,a] -> valueN InvalidCatchallPragma a
-    [15,a] -> valueN InvalidNoUniverseCheckPragma a
+    [0, a]   -> valuN UnknownNamesInFixityDecl a
+    [1, a]   -> valuN UnknownNamesInPolarityPragmas a
+    [2, a]   -> valuN PolarityPragmasButNotPostulates a
+    [3, a]   -> valuN UselessPrivate a
+    [4, a]   -> valuN UselessAbstract a
+    [5, a]   -> valuN UselessInstance a
+    [6, a]   -> valuN EmptyMutual a
+    [7, a]   -> valuN EmptyAbstract a
+    [8, a]   -> valuN EmptyPrivate a
+    [9, a]   -> valuN EmptyInstance a
+    [10,a]   -> valuN EmptyMacro a
+    [11,a]   -> valuN EmptyPostulate a
+    [12,a]   -> valuN InvalidTerminationCheckPragma a
+    [13,a]   -> valuN InvalidNoPositivityCheckPragma a
+    [14,a]   -> valuN InvalidCatchallPragma a
+    [15,a]   -> valuN InvalidNoUniverseCheckPragma a
+    [16,a]   -> valuN UnknownFixityInMixfixDecl a
+    [17,a]   -> valuN MissingDefinitions a
+    [18,r,a] -> valuN NotAllowedInMutual r a
+    [19,r]   -> valuN PragmaNoTerminationCheck r
     _ -> malformed
 
 instance EmbPrj Doc where

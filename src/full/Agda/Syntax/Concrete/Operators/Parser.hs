@@ -192,7 +192,7 @@ atLeastTwoParts :: IsExpr e => Parser e Name
 atLeastTwoParts =
   (\p1 ps p2 ->
       let all = p1 : ps ++ [p2] in
-      case catMaybes (map fst all) of
+      case mapMaybe fst all of
         r : _ -> Name r (map snd all)
         []    -> __IMPOSSIBLE__)
   <$> part Beginning

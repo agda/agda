@@ -45,10 +45,12 @@ module Agda.Syntax.Concrete.Definitions
 
 import Prelude hiding (null)
 
-import Control.Arrow ((***), first, second)
+import Control.Arrow ((&&&), (***), first, second)
 import Control.Applicative hiding (empty)
 import Control.Monad.State
 
+import Data.Either ( partitionEithers )
+import Data.Function ( on )
 import qualified Data.Map as Map
 import Data.Map (Map)
 import Data.Maybe
@@ -180,12 +182,10 @@ data DeclarationException
         | MultipleEllipses Pattern
         | InvalidName Name
         | DuplicateDefinition Name
-        | MissingDefinition Name
         | MissingWithClauses Name
         | WrongDefinition Name DataRecOrFun DataRecOrFun
         | WrongParameters Name Params Params
           -- ^ 'Name' of symbol, 'Params' of signature, 'Params' of definition.
-        | NotAllowedInMutual NiceDeclaration
         | Codata Range
         | DeclarationPanic String
         | WrongContentBlock KindOfBlock Range
@@ -193,61 +193,66 @@ data DeclarationException
         | InvalidMeasureMutual Range
           -- ^ In a mutual block, all or none need a MEASURE pragma.
           --   Range is of mutual block.
-        | PragmaNoTerminationCheck Range
-          -- ^ Pragma @{-# NO_TERMINATION_CHECK #-}@ has been replaced
-          --   by {-# TERMINATING #-} and {-# NON_TERMINATING #-}.
         | UnquoteDefRequiresSignature [Name]
         | BadMacroDef NiceDeclaration
     deriving (Data, Show)
 
 -- | Non-fatal errors encountered in the Nicifier
 data DeclarationWarning
-  = UnknownNamesInFixityDecl [Name]
-  | UnknownFixityInMixfixDecl [Name]
-  | UnknownNamesInPolarityPragmas [Name]
-  | PolarityPragmasButNotPostulates [Name]
-  | UselessPrivate Range
-  | UselessAbstract Range
-  | UselessInstance Range
-  | EmptyMutual Range     -- ^ Empty @mutual@    block.
-  | EmptyAbstract Range   -- ^ Empty @abstract@  block.
-  | EmptyPrivate Range    -- ^ Empty @private@   block.
+  = EmptyAbstract Range   -- ^ Empty @abstract@  block.
   | EmptyInstance Range   -- ^ Empty @instance@  block
   | EmptyMacro Range      -- ^ Empty @macro@     block.
+  | EmptyMutual Range     -- ^ Empty @mutual@    block.
   | EmptyPostulate Range  -- ^ Empty @postulate@ block.
-  | InvalidTerminationCheckPragma Range
-      -- ^ A {-# TERMINATING #-} and {-# NON_TERMINATING #-} pragma
-      --   that does not apply to any function.
-  | InvalidNoPositivityCheckPragma Range
-      -- ^ A {-# NO_POSITIVITY_CHECK #-} pragma
-      --   that does not apply to any data or record type.
+  | EmptyPrivate Range    -- ^ Empty @private@   block.
   | InvalidCatchallPragma Range
       -- ^ A {-# CATCHALL #-} pragma
       --   that does not precede a function clause.
+  | InvalidNoPositivityCheckPragma Range
+      -- ^ A {-# NO_POSITIVITY_CHECK #-} pragma
+      --   that does not apply to any data or record type.
   | InvalidNoUniverseCheckPragma Range
       -- ^ A {-# NO_UNIVERSE_CHECK #-} pragma
       --   that does not apply to a data or record type.
+  | InvalidTerminationCheckPragma Range
+      -- ^ A {-# TERMINATING #-} and {-# NON_TERMINATING #-} pragma
+      --   that does not apply to any function.
+  | MissingDefinitions [Name]
+  | NotAllowedInMutual Range String
+  | PolarityPragmasButNotPostulates [Name]
+  | PragmaNoTerminationCheck Range
+  -- ^ Pragma @{-# NO_TERMINATION_CHECK #-}@ has been replaced
+  --   by @{-# TERMINATING #-}@ and @{-# NON_TERMINATING #-}@.
+  | UnknownFixityInMixfixDecl [Name]
+  | UnknownNamesInFixityDecl [Name]
+  | UnknownNamesInPolarityPragmas [Name]
+  | UselessAbstract Range
+  | UselessInstance Range
+  | UselessPrivate Range
   deriving (Data, Show)
 
 declarationWarningName :: DeclarationWarning -> WarningName
 declarationWarningName dw = case dw of
-  UnknownNamesInFixityDecl{}        -> UnknownNamesInFixityDecl_
-  UnknownFixityInMixfixDecl{}       -> UnknownFixityInMixfixDecl_
-  UnknownNamesInPolarityPragmas{}   -> UnknownNamesInPolarityPragmas_
-  PolarityPragmasButNotPostulates{} -> PolarityPragmasButNotPostulates_
-  UselessPrivate{}                  -> UselessPrivate_
-  UselessAbstract{}                 -> UselessAbstract_
-  UselessInstance{}                 -> UselessInstance_
-  EmptyMutual{}                     -> EmptyMutual_
   EmptyAbstract{}                   -> EmptyAbstract_
-  EmptyPrivate{}                    -> EmptyPrivate_
   EmptyInstance{}                   -> EmptyInstance_
   EmptyMacro{}                      -> EmptyMacro_
+  EmptyMutual{}                     -> EmptyMutual_
+  EmptyPrivate{}                    -> EmptyPrivate_
   EmptyPostulate{}                  -> EmptyPostulate_
-  InvalidTerminationCheckPragma{}   -> InvalidTerminationCheckPragma_
-  InvalidNoPositivityCheckPragma{}  -> InvalidNoPositivityCheckPragma_
   InvalidCatchallPragma{}           -> InvalidCatchallPragma_
+  InvalidNoPositivityCheckPragma{}  -> InvalidNoPositivityCheckPragma_
   InvalidNoUniverseCheckPragma{}    -> InvalidNoUniverseCheckPragma_
+  InvalidTerminationCheckPragma{}   -> InvalidTerminationCheckPragma_
+  MissingDefinitions{}              -> MissingDefinitions_
+  NotAllowedInMutual{}              -> NotAllowedInMutual_
+  PolarityPragmasButNotPostulates{} -> PolarityPragmasButNotPostulates_
+  PragmaNoTerminationCheck{}        -> PragmaNoTerminationCheck_
+  UnknownFixityInMixfixDecl{}       -> UnknownFixityInMixfixDecl_
+  UnknownNamesInFixityDecl{}        -> UnknownNamesInFixityDecl_
+  UnknownNamesInPolarityPragmas{}   -> UnknownNamesInPolarityPragmas_
+  UselessAbstract{}                 -> UselessAbstract_
+  UselessInstance{}                 -> UselessInstance_
+  UselessPrivate{}                  -> UselessPrivate_
 
 -- | Several declarations expect only type signatures as sub-declarations.  These are:
 data KindOfBlock
@@ -265,17 +270,14 @@ instance HasRange DeclarationException where
   getRange (MultipleEllipses d)                 = getRange d
   getRange (InvalidName x)                      = getRange x
   getRange (DuplicateDefinition x)              = getRange x
-  getRange (MissingDefinition x)                = getRange x
   getRange (MissingWithClauses x)               = getRange x
   getRange (WrongDefinition x k k')             = getRange x
   getRange (WrongParameters x _ _)              = getRange x
   getRange (AmbiguousFunClauses lhs xs)         = getRange lhs
-  getRange (NotAllowedInMutual x)               = getRange x
   getRange (Codata r)                           = r
   getRange (DeclarationPanic _)                 = noRange
   getRange (WrongContentBlock _ r)              = r
   getRange (InvalidMeasureMutual r)             = r
-  getRange (PragmaNoTerminationCheck r)         = r
   getRange (UnquoteDefRequiresSignature x)      = getRange x
   getRange (BadMacroDef d)                      = getRange d
 
@@ -284,7 +286,9 @@ instance HasRange DeclarationWarning where
   getRange (UnknownFixityInMixfixDecl xs)       = getRange . head $ xs
   getRange (UnknownNamesInPolarityPragmas xs)   = getRange . head $ xs
   getRange (PolarityPragmasButNotPostulates xs) = getRange . head $ xs
+  getRange (MissingDefinitions xs)              = getRange . head $ xs
   getRange (UselessPrivate r)                   = r
+  getRange (NotAllowedInMutual r x)             = r
   getRange (UselessAbstract r)                  = r
   getRange (UselessInstance r)                  = r
   getRange (EmptyMutual r)                      = r
@@ -297,6 +301,7 @@ instance HasRange DeclarationWarning where
   getRange (InvalidNoPositivityCheckPragma r)   = r
   getRange (InvalidCatchallPragma r)            = r
   getRange (InvalidNoUniverseCheckPragma r)     = r
+  getRange (PragmaNoTerminationCheck r)         = r
 
 instance HasRange NiceDeclaration where
   getRange (Axiom r _ _ _ _ _ _ _ _)         = r
@@ -337,8 +342,6 @@ instance Pretty DeclarationException where
     pwords "Invalid name:" ++ [pretty x]
   pretty (DuplicateDefinition x) = fsep $
     pwords "Duplicate definition of" ++ [pretty x]
-  pretty (MissingDefinition x) = fsep $
-    pwords "Missing definition for" ++ [pretty x]
   pretty (MissingWithClauses x) = fsep $
     pwords "Missing with-clauses for function" ++ [pretty x]
 
@@ -360,16 +363,12 @@ instance Pretty DeclarationException where
       PostulateBlock -> "A postulate block can only contain type signatures, possibly under keyword instance"
       DataBlock -> "A data definition can only contain type signatures, possibly under keyword instance"
       _ -> "Unexpected declaration"
-  pretty (PragmaNoTerminationCheck _) = fsep $
-    pwords "Pragma {-# NO_TERMINATION_CHECK #-} has been removed.  To skip the termination check, label your definitions either as {-# TERMINATING #-} or {-# NON_TERMINATING #-}."
   pretty (InvalidMeasureMutual _) = fsep $
     pwords "In a mutual block, either all functions must have the same (or no) termination checking pragma."
   pretty (UnquoteDefRequiresSignature xs) = fsep $
     pwords "Missing type signatures for unquoteDef" ++ map pretty xs
   pretty (BadMacroDef nd) = fsep $
     [text $ declName nd] ++ pwords "are not allowed in macro blocks"
-  pretty (NotAllowedInMutual nd) = fsep $
-    [text $ declName nd] ++ pwords "are not allowed in mutual blocks"
   pretty (Codata _) = text $
     "The codata construction has been removed. " ++
     "Use the INFINITY builtin instead."
@@ -377,13 +376,22 @@ instance Pretty DeclarationException where
 
 instance Pretty DeclarationWarning where
   pretty (UnknownNamesInFixityDecl xs) = fsep $
-    pwords "The following names are not declared in the same scope as their syntax or fixity declaration (i.e., either not in scope at all, imported from another module, or declared in a super module):" ++ map pretty xs
+    pwords "The following names are not declared in the same scope as their syntax or fixity declaration (i.e., either not in scope at all, imported from another module, or declared in a super module):"
+    ++ punctuate comma (map pretty xs)
   pretty (UnknownFixityInMixfixDecl xs) = fsep $
-    pwords "The following mixfix names do not have an associated fixity declaration:" ++ map pretty xs
+    pwords "The following mixfix names do not have an associated fixity declaration:"
+    ++ punctuate comma (map pretty xs)
   pretty (UnknownNamesInPolarityPragmas xs) = fsep $
-    pwords "The following names are not declared in the same scope as their polarity pragmas (they could for instance be out of scope, imported from another module, or declared in a super module):" ++ map pretty xs
+    pwords "The following names are not declared in the same scope as their polarity pragmas (they could for instance be out of scope, imported from another module, or declared in a super module):"
+    ++ punctuate comma  (map pretty xs)
+  pretty (MissingDefinitions xs) = fsep $
+   pwords "The following names are declared but not accompanied by a definition:"
+   ++ punctuate comma (map pretty xs)
+  pretty (NotAllowedInMutual r nd) = fsep $
+    [text nd] ++ pwords "are not allowed in mutual blocks"
   pretty (PolarityPragmasButNotPostulates xs) = fsep $
-    pwords "Polarity pragmas have been given for the following identifiers which are not postulates:" ++ map pretty xs
+    pwords "Polarity pragmas have been given for the following identifiers which are not postulates:"
+    ++ punctuate comma (map pretty xs)
   pretty (UselessPrivate _)      = fsep $
     pwords "Using private here has no effect. Private applies only to declarations that introduce new identifiers into the module, like type signatures and data, record, and module declarations."
   pretty (UselessAbstract _)      = fsep $
@@ -404,6 +412,8 @@ instance Pretty DeclarationWarning where
     pwords "The CATCHALL pragma can only precede a function clause."
   pretty (InvalidNoUniverseCheckPragma _) = fsep $
     pwords "No universe checking pragmas can only precede a data/record definition."
+  pretty (PragmaNoTerminationCheck _) = fsep $
+    pwords "Pragma {-# NO_TERMINATION_CHECK #-} has been removed.  To skip the termination check, label your definitions either as {-# TERMINATING #-} or {-# NON_TERMINATING #-}."
 
 declName :: NiceDeclaration -> String
 declName Axiom{}             = "Postulates"
@@ -438,6 +448,19 @@ data InMutual
 
 -- | The kind of the forward declaration, remembering the parameters.
 
+data DataRecOrFun' = DataRecOrFun'
+  { drfRange      :: Range
+  , drfFixity     :: Fixity'
+  , drfAccess     :: Access
+  , drfIsAbstract :: IsAbstract
+  , drfIsInstance :: IsInstance
+  , drfArgInfo    :: ArgInfo
+  , drfType       :: Expr
+  , drfPayload    :: DataRecOrFun
+  }
+
+type Params = [Arg BoundName]
+
 data DataRecOrFun
   = DataName
     { kindPosCheck :: PositivityCheck
@@ -451,18 +474,22 @@ data DataRecOrFun
     , kindParams :: Params
     }
     -- ^ Name of a record type with parameters.
-  | FunName  TerminationCheck
+  | FunName TerminationCheck
     -- ^ Name of a function.
   deriving Data
 
 -- Ignore pragmas when checking equality
+instance Eq DataRecOrFun' where
+  (==) = (==) `on` drfPayload
+
 instance Eq DataRecOrFun where
   DataName _ _ p == DataName _ _ q = p == q
   RecName  _ _ p == RecName  _ _ q = p == q
-  FunName  _     == FunName  _     = True
+  FunName _      == FunName _      = True
   _              == _              = False
 
-type Params = [Arg BoundName]
+instance Show DataRecOrFun' where
+  show = show . drfPayload
 
 instance Show DataRecOrFun where
   show (DataName _ _ n) = "data type" --  "with " ++ show n ++ " visible parameters"
@@ -481,7 +508,7 @@ sameKind _ _ = False
 
 terminationCheck :: DataRecOrFun -> TerminationCheck
 terminationCheck (FunName tc) = tc
-terminationCheck _            = TerminationCheck
+terminationCheck _ = TerminationCheck
 
 positivityCheck :: DataRecOrFun -> PositivityCheck
 positivityCheck (DataName pc _ _) = pc
@@ -612,7 +639,7 @@ data NiceEnv = NiceEnv
     -- ^ Stack of warnings. Head is last warning.
   }
 
-type LoneSigs   = Map Name DataRecOrFun
+type LoneSigs   = Map Name DataRecOrFun'
 type Fixities   = Map Name Fixity'
 type Polarities = Map Name [Occurrence]
 type NiceWarnings = [DeclarationWarning]
@@ -641,7 +668,7 @@ loneSigs f e = f (_loneSigs e) <&> \ s -> e { _loneSigs = s }
 
 -- | Adding a lone signature to the state.
 
-addLoneSig :: Name -> DataRecOrFun -> Nice ()
+addLoneSig :: Name -> DataRecOrFun' -> Nice ()
 addLoneSig x k = loneSigs %== \ s -> do
    let (mr, s') = Map.insertLookupWithKey (\ k new old -> new) x k s
    case mr of
@@ -656,7 +683,7 @@ removeLoneSig x = loneSigs %= Map.delete x
 -- | Search for forward type signature.
 
 getSig :: Name -> Nice (Maybe DataRecOrFun)
-getSig x = Map.lookup x <$> use loneSigs
+getSig x = fmap drfPayload . Map.lookup x <$> use loneSigs
 
 -- | Check that no lone signatures are left in the state.
 
@@ -664,12 +691,17 @@ noLoneSigs :: Nice Bool
 noLoneSigs = null <$> use loneSigs
 
 -- | Ensure that all forward declarations have been given a definition.
+--   If they have not, we produce a @Map@ associating an axiom of the
+--   right type to each @Name@.
 
-checkLoneSigs :: [(Name, a)] -> Nice ()
-checkLoneSigs xs =
-  case xs of
-    []       -> return ()
-    (x, _):_ -> throwError $ MissingDefinition x
+checkLoneSigs :: Map Name DataRecOrFun' -> Nice (Map Name NiceDeclaration)
+checkLoneSigs xs = do
+  loneSigs .= Map.empty
+  let ds = flip Map.mapWithKey xs $ \ nm x ->
+              Axiom (drfRange x) (drfFixity x)
+                    (drfAccess x) (drfIsAbstract x) (drfIsInstance x)
+                    (drfArgInfo x) Nothing nm (drfType x)
+  ds <$ unless (Map.null xs) (niceWarning $ MissingDefinitions $ Map.keys xs)
 
 -- | Lens for field '_termChk'.
 
@@ -748,17 +780,24 @@ getPolarity x = do
   return p
 
 data DeclKind
-    = LoneSig DataRecOrFun Name
+    = LoneSig DataRecOrFun' Name
     | LoneDefs DataRecOrFun [Name]
     | OtherDecl
   deriving (Eq, Show)
 
 declKind :: NiceDeclaration -> DeclKind
-declKind (FunSig _ _ _ _ _ _ _ tc x _)    = LoneSig (FunName tc) x
-declKind (NiceRecSig _ _ _ _ pc uc x pars _) = LoneSig (RecName pc uc $ parameters pars) x
-declKind (NiceDataSig _ _ _ _ pc uc x pars _) = LoneSig (DataName pc uc $ parameters pars) x
-declKind (FunDef _ _ _ _ _ tc x _)        = LoneDefs (FunName tc) [x]
-declKind (DataDef _ _ _ pc uc x pars _)      = LoneDefs (DataName pc uc $ parameters pars) [x]
+declKind (FunSig r fx acc abs inst _ rel tc x ty) =
+  LoneSig (DataRecOrFun' r fx acc abs inst rel ty $ FunName tc) x
+declKind (NiceRecSig r fx acc abs pc uc x pars t) =
+  LoneSig (DataRecOrFun' r fx acc abs NotInstanceDef defaultArgInfo
+          (makePi (lamBindingsToTelescope r pars) t)
+          $ RecName pc uc $ parameters pars) x
+declKind (NiceDataSig r fx acc abs pc uc x pars t) =
+  LoneSig (DataRecOrFun' r fx acc abs NotInstanceDef defaultArgInfo
+          (makePi (lamBindingsToTelescope r pars) t)
+          $ DataName pc uc $ parameters pars) x
+declKind (FunDef r _ fx abs ins tc x _) = LoneDefs (FunName tc) [x]
+declKind (DataDef _ _ _ pc uc x pars _) = LoneDefs (DataName pc uc $ parameters pars) [x]
 declKind (RecDef _ _ _ pc uc x _ _ _ pars _) = LoneDefs (RecName pc uc $ parameters pars) [x]
 declKind (NiceUnquoteDef _ _ _ _ tc xs _) = LoneDefs (FunName tc) xs
 declKind Axiom{}                          = OtherDecl
@@ -782,6 +821,25 @@ parameters = List.concatMap $ \case
   DomainFull (TypedBindings _ (Arg _ TLet{}))         -> []
   DomainFull (TypedBindings _ (Arg i (TBind _ xs _))) -> for xs $ \ (WithHiding h x) ->
     mergeHiding $ WithHiding h $ Arg i x
+
+-- | Replace (Data/Rec/Fun)Sigs with Axioms for postulated names
+--   The first argument is a list of axioms only.
+replaceSigs :: Map Name NiceDeclaration -> [NiceDeclaration] -> [NiceDeclaration]
+replaceSigs ps ds = if Map.null ps then ds else case ds of
+  []      -> __IMPOSSIBLE__
+  (d:ds') -> fromMaybe (d : replaceSigs ps ds') $ do
+    nm        <- replacable d
+    (ps', ax) <- sequenceA $ swap $ Map.updateLookupWithKey (\ _ _ -> Nothing) nm ps
+    pure $ ax : replaceSigs ps' ds'
+
+   where
+
+     replacable :: NiceDeclaration -> Maybe Name
+     replacable d = case d of
+       FunSig _ _ _ _ _ _ _ _ nm _    -> pure nm
+       NiceRecSig _ _ _ _ _ _ nm _ _  -> pure nm
+       NiceDataSig _ _ _ _ _ _ nm _ _ -> pure nm
+       _ -> Nothing
 
 -- | Main.
 niceDeclarations :: [Declaration] -> Nice [NiceDeclaration]
@@ -817,14 +875,16 @@ niceDeclarations ds = do
   -- and polarities.  But keep the warnings.
   st <- get
   put $ initNiceEnv { fixs = fixs, pols = polarities, niceWarn = niceWarn st }
-  ds <- nice ds
+  nds <- nice ds
 
   -- Check that every polarity pragma was used.
   unlessNullM (Map.keys <$> gets pols) $ \ unusedPolarities -> do
     niceWarning $ PolarityPragmasButNotPostulates unusedPolarities
 
   -- Check that every signature got its definition.
-  checkLoneSigs . Map.toList =<< use loneSigs
+  ps <- checkLoneSigs =<< use loneSigs
+  -- We postulate the missing ones and insert them in place of the corresponding @FunSig@
+  let ds = replaceSigs ps nds
 
   -- Note that loneSigs is ensured to be empty.
   -- (Important, since inferMutualBlocks also uses loneSigs state).
@@ -836,6 +896,7 @@ niceDeclarations ds = do
   return res
 
   where
+
     -- Compute the names defined in a declaration.
     -- We stay in the current scope, i.e., do not go into modules.
     declaredNames :: Declaration -> [Name]
@@ -881,26 +942,35 @@ niceDeclarations ds = do
         LoneDefs{}   -> (d :) <$> inferMutualBlocks ds  -- Andreas, 2017-10-09, issue #2576: report error in ConcreteToAbstract
         LoneSig k x  -> do
           addLoneSig x k
-          ((tcs, pcs), (ds0, ds1)) <- untilAllDefined ([terminationCheck k], [positivityCheck k]) ds
+          let tcpc = (pure . terminationCheck) &&& (pure . positivityCheck) $ drfPayload k
+          ((tcs, pcs), (nds0, ds1)) <- untilAllDefined tcpc ds
+          -- If we still have lone signatures without any accompanying definition,
+          -- we postulate the definition and substitute the axiom for the lone signature
+          ps <- checkLoneSigs =<< use loneSigs
+          let ds0 = replaceSigs ps (d : nds0) -- NB: don't forget the LoneSig the block started with!
+          -- We then keep processing the rest of the block
           tc <- combineTermChecks (getRange d) tcs
-          (NiceMutual (getRange (d : ds0)) tc (and pcs) (d : ds0) :) <$> inferMutualBlocks ds1
+          (NiceMutual (getRange ds0) tc (and pcs) ds0 :) <$> inferMutualBlocks ds1
       where
         untilAllDefined :: ([TerminationCheck], [PositivityCheck])
                         -> [NiceDeclaration]
                         -> Nice (([TerminationCheck], [PositivityCheck]), ([NiceDeclaration], [NiceDeclaration]))
-        untilAllDefined (tc, pc) ds = do
+        untilAllDefined tcpc@(tc, pc) ds = do
           done <- noLoneSigs
-          if done then return ((tc, pc), ([], ds)) else
+          if done then return (tcpc, ([], ds)) else
             case ds of
-              []     -> __IMPOSSIBLE__ <$ (checkLoneSigs . Map.toList =<< use loneSigs)
+              []     -> return (tcpc, ([], ds))
               d : ds -> case declKind d of
                 LoneSig k x -> do
                   addLoneSig x k
-                  cons d (untilAllDefined (terminationCheck k : tc, positivityCheck k : pc) ds)
+                  let k' = drfPayload k
+                  let tcpc' = (terminationCheck k' : tc, positivityCheck k' : pc)
+                  cons d (untilAllDefined tcpc' ds)
                 LoneDefs k xs -> do
                   mapM_ removeLoneSig xs
-                  cons d (untilAllDefined (terminationCheck k : tc, positivityCheck k : pc) ds)
-                OtherDecl   -> cons d (untilAllDefined (tc, pc) ds)
+                  let tcpc' = (terminationCheck k : tc, positivityCheck k : pc)
+                  cons d (untilAllDefined tcpc' ds)
+                OtherDecl   -> cons d (untilAllDefined tcpc ds)
           where
             -- ASR (26 December 2015): Type annotated version of the @cons@ function.
             -- cons d = fmap $
@@ -928,9 +998,12 @@ niceDeclarations ds = do
         (TypeSig info x t)            -> do
           termCheck <- use terminationCheckPragma
           fx <- getFixity x
+          let r = getRange d
           -- register x as lone type signature, to recognize clauses later
-          addLoneSig x (FunName termCheck)
-          return ([FunSig (getRange d) fx PublicAccess ConcreteDef NotInstanceDef NotMacroDef info termCheck x t] , ds)
+          let drf = FunName termCheck
+          let sig = DataRecOrFun' r fx PublicAccess ConcreteDef NotInstanceDef info t drf
+          addLoneSig x sig
+          return ([FunSig r fx PublicAccess ConcreteDef NotInstanceDef NotMacroDef info termCheck x t] , ds)
 
         (Generalize info x t)            -> do
           fx <- getFixity x
@@ -939,7 +1012,8 @@ niceDeclarations ds = do
         (FunClause lhs _ _ _)         -> do
           termCheck <- use terminationCheckPragma
           catchall  <- popCatchallPragma
-          xs <- map fst . filter (isFunName . snd) . Map.toList <$> use loneSigs
+          xs <- map fst . filter (isFunName . drfPayload . snd) . Map.toList
+                <$> use loneSigs
           -- for each type signature 'x' waiting for clauses, we try
           -- if we have some clauses for 'x'
           fixs <- gets fixs
@@ -983,7 +1057,11 @@ niceDeclarations ds = do
         (DataSig r Inductive x tel t) -> do
           pc <- use positivityCheckPragma
           uc <- use universeCheckPragma
-          addLoneSig x (DataName pc uc $ parameters tel)
+          let drf = DataName pc uc $ parameters tel
+          fx <- getFixity x
+          let sig = DataRecOrFun' r fx PublicAccess ConcreteDef NotInstanceDef
+                    defaultArgInfo (makePi (lamBindingsToTelescope r tel) t) drf
+          addLoneSig x sig
           (,) <$> dataOrRec pc uc DataDef NiceDataSig (niceAxioms DataBlock) r x (Just (tel, t)) Nothing
               <*> return ds
 
@@ -997,7 +1075,11 @@ niceDeclarations ds = do
         (RecordSig r x tel t)         -> do
           pc <- use positivityCheckPragma
           uc <- use universeCheckPragma
-          addLoneSig x (RecName pc uc $ parameters tel)
+          let drf = RecName pc uc $ parameters tel
+          fx <- getFixity x
+          let sig = DataRecOrFun' r fx PublicAccess ConcreteDef NotInstanceDef
+                    defaultArgInfo (makePi (lamBindingsToTelescope r tel) t) drf
+          addLoneSig x sig
           fx <- getFixity x
           return ([NiceRecSig r fx PublicAccess ConcreteDef pc uc x tel t] , ds)
 
@@ -1066,7 +1148,7 @@ niceDeclarations ds = do
 
         UnquoteDef r xs e -> do
           fxs  <- mapM getFixity xs
-          sigs <- map fst . filter (isFunName . snd) . Map.toList <$> use loneSigs
+          sigs <- map fst . filter (isFunName . drfPayload . snd) . Map.toList <$> use loneSigs
           let missing = filter (`notElem` sigs) xs
           if null missing
             then do
@@ -1085,8 +1167,11 @@ niceDeclarations ds = do
         niceWarning $ InvalidTerminationCheckPragma r
         nice1 ds
 
-    nicePragma (TerminationCheckPragma r NoTerminationCheck) ds =
-      throwError $ PragmaNoTerminationCheck r
+    nicePragma (TerminationCheckPragma r NoTerminationCheck) ds = do
+      -- This PRAGMA has been deprecated in favour of (NON_)TERMINATING
+      -- We warn the user about it and then assume the function is NON_TERMINATING.
+      niceWarning $ PragmaNoTerminationCheck r
+      nicePragma (TerminationCheckPragma r NonTerminating) ds
 
     nicePragma (TerminationCheckPragma r tc) ds =
       if canHaveTerminationCheckPragma ds then
@@ -1371,21 +1456,27 @@ niceDeclarations ds = do
 
     -- Make an old style mutual block from a list of mutual declarations
     mkOldMutual :: Range -> [NiceDeclaration] -> Nice NiceDeclaration
-    mkOldMutual r ds = do
-        -- Check that there aren't any missing definitions
-        checkLoneSigs loneNames
+    mkOldMutual r ds' = do
+        -- Postulate the missing definitions
+        ps <- checkLoneSigs $ Map.fromList loneNames
+        let ds = replaceSigs ps ds'
 
-        -- Check that there are no declarations that aren't allowed in old style mutual blocks
-        forM_ ds $ \case
+        -- Remove the declarations that aren't allowed in old style mutual blocks
+        ds <- fmap catMaybes $ forM ds $ \ d -> let success = pure (Just d) in case d of
           -- Andreas, 2013-11-23 allow postulates in mutual blocks
-          Axiom{} -> return ()
+          Axiom{}          -> success
           -- Andreas, 2017-10-09, issue #2576, raise error about missing type signature
           -- in ConcreteToAbstract rather than here.
-          NiceFunClause{} -> return ()
+          NiceFunClause{}  -> success
           -- Andreas, 2018-05-11, issue #3052, allow pat.syn.s in mutual blocks
-          NicePatternSyn{} -> return ()
-          -- Otherwise, only categorized signatures and definitions are allowed (data/record/fun)
-          d -> when (declKind d == OtherDecl) $ throwError $ NotAllowedInMutual d
+          NicePatternSyn{} -> success
+          -- Otherwise, only categorized signatures and definitions are allowed:
+          -- Data, Record, Fun
+          _ -> if (declKind d /= OtherDecl) then success
+               else Nothing <$ niceWarning (NotAllowedInMutual (getRange d) $ declName d)
+
+        -- Pull type signatures to the top
+        let (sigs, other) = List.partition isTypeSig ds
 
         -- Compute termination checking flag for mutual block
         tc0 <- use terminationCheckPragma
@@ -1399,14 +1490,13 @@ niceDeclarations ds = do
 
         return $ NiceMutual r tc pc $ sigs ++ other
       where
-        -- Pull type signatures to the top
-        (sigs, other) = List.partition isTypeSig ds
+
         isTypeSig Axiom{}                     = True
         isTypeSig d | LoneSig{} <- declKind d = True
         isTypeSig _                           = False
 
-        sigNames  = [ (x, k) | LoneSig k x <- map declKind ds ]
-        defNames  = [ (x, k) | LoneDefs k xs <- map declKind ds, x <- xs ]
+        sigNames  = [ (x, k) | LoneSig k x <- map declKind ds' ]
+        defNames  = [ (x, k) | LoneDefs k xs <- map declKind ds', x <- xs ]
         -- compute the set difference with equality just on names
         loneNames = [ (x, k) | (x, k) <- sigNames, List.all ((x /=) . fst) defNames ]
 

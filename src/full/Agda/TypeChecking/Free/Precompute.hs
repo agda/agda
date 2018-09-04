@@ -86,6 +86,7 @@ instance PrecomputeFreeVars Sort where
       PiSort s1 s2 -> uncurry PiSort <$> precomputeFreeVars (s1, s2)
       UnivSort s -> UnivSort <$> precomputeFreeVars s
       MetaS x es -> MetaS x <$> precomputeFreeVars es
+      DummyS{}   -> pure s
 
 instance PrecomputeFreeVars Level where
   precomputeFreeVars (Max ls) = Max <$> precomputeFreeVars ls

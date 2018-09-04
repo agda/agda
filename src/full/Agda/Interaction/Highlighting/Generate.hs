@@ -51,6 +51,7 @@ import Agda.TypeChecking.Warnings (runPM)
 import Agda.Syntax.Abstract (IsProjP(..))
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Concrete (FieldAssignment'(..))
+import Agda.Syntax.Concrete.Definitions ( DeclarationWarning(..) )
 import qualified Agda.Syntax.Common as Common
 import qualified Agda.Syntax.Concrete.Name as C
 import qualified Agda.Syntax.Concrete as C
@@ -355,8 +356,7 @@ generateAndPrintSyntaxInfo decl hlLevel updateState = do
       mconcat $ map (mod isTopLevelModule) xs
       where
       isTopLevelModule =
-        case catMaybes $
-             map (join .
+        case mapMaybe (join .
                   fmap (Strict.toLazy . P.srcFile) .
                   P.rStart .
                   A.nameBindingSite) xs of
@@ -555,12 +555,6 @@ printErrorInfo e =
 --   Does something special for termination errors.
 
 errorHighlighting :: TCErr -> TCM File
-
-errorHighlighting (TypeError s cl@Closure{ clValue = TerminationCheckFailed termErrs }) =
-  -- For termination errors, we keep the previous highlighting,
-  -- just additionally mark the bad calls.
-  return $ terminationErrorHighlighting termErrs
-
 errorHighlighting e = do
 
   -- Erase previous highlighting.
@@ -581,15 +575,17 @@ warningHighlighting :: TCWarning -> File
 warningHighlighting w = case tcWarning w of
   TerminationIssue terrs     -> terminationErrorHighlighting terrs
   NotStrictlyPositive d ocs  -> positivityErrorHighlighting d ocs
-  UnreachableClauses{}       -> unreachableErrorHighlighting $ P.getRange w
+  UnreachableClauses{}       -> deadcodeHighlighting $ P.getRange w
   CoverageIssue{}            -> coverageErrorHighlighting $ P.getRange w
   CoverageNoExactSplit{}     -> catchallHighlighting $ P.getRange w
   UnsolvedConstraints cs     -> constraintsHighlighting cs
   UnsolvedMetaVariables rs   -> metasHighlighting rs
+  AbsurdPatternRequiresNoRHS{} -> deadcodeHighlighting $ P.getRange w
+  ModuleDoesntExport{}         -> deadcodeHighlighting $ P.getRange w
   -- expanded catch-all case to get a warning for new constructors
   UnsolvedInteractionMetas{} -> mempty
   OldBuiltin{}               -> mempty
-  EmptyRewritePragma{}       -> mempty
+  EmptyRewritePragma{}       -> deadcodeHighlighting $ P.getRange w
   UselessPublic{}            -> mempty
   UselessInline{}            -> mempty
   ParseWarning{}             -> mempty
@@ -605,8 +601,24 @@ warningHighlighting w = case tcWarning w of
   SafeFlagPolarity           -> mempty
   SafeFlagNoUniverseCheck    -> mempty
   DeprecationWarning{}       -> mempty
-  NicifierIssue{}            -> mempty
   UserWarning{}              -> mempty
+  NicifierIssue w           -> case w of
+    -- we intentionally override the binding of `w` here so that our pattern of
+    -- using `P.getRange w` still yields the most precise range information we
+    -- can get.
+    NotAllowedInMutual{} -> deadcodeHighlighting $ P.getRange w
+    EmptyAbstract{}      -> deadcodeHighlighting $ P.getRange w
+    EmptyInstance{}      -> deadcodeHighlighting $ P.getRange w
+    EmptyMacro{}         -> deadcodeHighlighting $ P.getRange w
+    EmptyMutual{}        -> deadcodeHighlighting $ P.getRange w
+    EmptyPostulate{}     -> deadcodeHighlighting $ P.getRange w
+    EmptyPrivate{}       -> deadcodeHighlighting $ P.getRange w
+    UselessAbstract{}    -> deadcodeHighlighting $ P.getRange w
+    UselessInstance{}    -> deadcodeHighlighting $ P.getRange w
+    UselessPrivate{}     -> deadcodeHighlighting $ P.getRange w
+    _ -> mempty -- TODO: explore highlighting opportunities here!
+
+
 
 -- | Generate syntax highlighting for termination errors.
 
@@ -629,9 +641,9 @@ positivityErrorHighlighting q o = several (rToR <$> P.getRange q : rs) m
     rs = case o of Unknown -> []; Known r _ -> [r]
     m  = parserBased { otherAspects = [PositivityProblem] }
 
-unreachableErrorHighlighting :: P.Range -> File
-unreachableErrorHighlighting r = singleton (rToR $ P.continuousPerLine r) m
-  where m = parserBased { otherAspects = [ReachabilityProblem] }
+deadcodeHighlighting :: P.Range -> File
+deadcodeHighlighting r = singleton (rToR $ P.continuousPerLine r) m
+  where m = parserBased { otherAspects = [Deadcode] }
 
 coverageErrorHighlighting :: P.Range -> File
 coverageErrorHighlighting r = singleton (rToR $ P.continuousPerLine r) m
@@ -756,7 +768,7 @@ nameToFile modMap file xs x fr m mR =
     mempty
   where
   aspects    = m $ C.isOperator x
-  fileNames  = catMaybes $ map (fmap P.srcFile . P.rStart . P.getRange) (x : xs)
+  fileNames  = mapMaybe (fmap P.srcFile . P.rStart . P.getRange) (x : xs)
   frFile     = singleton (rToR fr) (aspects { definitionSite = notHere <$> mFilePos })
   rs         = map P.getRange (x : xs)
 

@@ -378,6 +378,7 @@ library
                     Agda.TypeChecking.Free.Lazy
                     Agda.TypeChecking.Free.Old
                     Agda.TypeChecking.Free.Precompute
+                    Agda.TypeChecking.Free.Reduce
                     Agda.TypeChecking.Forcing
                     Agda.TypeChecking.Functions
                     Agda.TypeChecking.Generalize
@@ -729,7 +730,7 @@ test-suite agda-tests
                 , mtl >= 2.2.1 && < 2.3
                 , process >= 1.2.3.0 && < 1.7
                 , process-extras >= 0.3.0 && < 0.3.4 || >= 0.4.1.3 && < 0.5 || >= 0.7.1 && < 0.8
-                , QuickCheck >= 2.11 && < 2.12
+                , QuickCheck >= 2.11 && < 2.13
                 , regex-tdfa >= 1.2.0 && < 1.3
                 , regex-tdfa-text >= 1.0.0.3 && < 1.1
                 , tasty >= 0.10 && < 1.2

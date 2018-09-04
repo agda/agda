@@ -101,6 +101,8 @@ classifyWarning w = case w of
   NicifierIssue{}            -> AllWarnings
   InversionDepthReached{}    -> AllWarnings
   UserWarning{}              -> AllWarnings
+  AbsurdPatternRequiresNoRHS{} -> AllWarnings
+  ModuleDoesntExport{}       -> AllWarnings
   TerminationIssue{}         -> ErrorWarnings
   CoverageIssue{}            -> ErrorWarnings
   CoverageNoExactSplit{}     -> ErrorWarnings

@@ -130,8 +130,7 @@ isType_ e = traceCall (IsType_ e) $ do
     A.Set _ n    -> do
       return $ sort (mkType n)
     A.Prop _ n -> do
-      unlessM isPropEnabled $ genericError
-        "Use the --enable-prop flag to use the Prop universe"
+      unlessM isPropEnabled $ typeError NeedOptionProp
       return $ sort (mkProp n)
     A.App i s arg
       | visible arg,
@@ -998,8 +997,7 @@ checkExpr' cmp e t0 =
         A.Set _ n    -> do
           coerce cmp (Sort $ mkType n) (sort $ mkType $ n + 1) t
         A.Prop _ n   -> do
-          unlessM isPropEnabled $ genericError
-            "Use the --enable-prop flag to use the Prop universe"
+          unlessM isPropEnabled $ typeError NeedOptionProp
           coerce cmp (Sort $ mkProp n) (sort $ mkType $ n + 1) t
 
         A.Rec _ fs  -> checkRecordExpression cmp fs e t
@@ -1420,6 +1418,7 @@ checkLetBinding b@(A.LetPatBind i p e) ret =
       , nest 2 $ vcat
         [ text "p (A) =" <+> prettyA p
         , text "t     =" <+> prettyTCM t
+        , text "cxtRel=" <+> do pretty =<< asks envRelevance
         ]
       ]
     fvs <- getContextSize
@@ -1431,6 +1430,10 @@ checkLetBinding b@(A.LetPatBind i p e) ret =
       reportSDoc "tc.term.let.pattern" 20 $ nest 2 $ vcat
         [ text "p (I) =" <+> prettyTCM p
         , text "delta =" <+> prettyTCM delta
+        , text "cxtRel=" <+> do pretty =<< asks envRelevance
+        ]
+      reportSDoc "tc.term.let.pattern" 80 $ nest 2 $ vcat
+        [ text "p (I) =" <+> (text . show) p
         ]
       -- We translate it into a list of projections.
       fs <- recordPatternToProjections p

@@ -64,7 +64,7 @@ import Agda.Syntax.Internal as I
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Monad.Env
-import Agda.TypeChecking.EtaContract
+import Agda.TypeChecking.EtaExpand
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Free.Lazy
 import Agda.TypeChecking.MetaVars
@@ -198,7 +198,8 @@ addRewriteRule q = do
           n  = size vs
           (us, [lhs, rhs]) = splitAt (n - 2) vs
       unless (size delta == size us) __IMPOSSIBLE__
-      b <- instantiateFull $ applySubst (parallelS $ reverse us) a
+      rhs <- instantiateFull rhs
+      b   <- instantiateFull $ applySubst (parallelS $ reverse us) a
 
       gamma0 <- getContextTelescope
       gamma1 <- instantiateFull gamma1
@@ -225,17 +226,18 @@ addRewriteRule q = do
 
       rew <- addContext gamma1 $ do
         -- Normalize lhs args: we do not want to match redexes.
-        es <- etaContract =<< normalise es
-        checkNoLhsReduction f (hd es)
+        es <- normalise es
 
-        -- Normalize rhs: might be more efficient.
-        rhs <- etaContract =<< normalise rhs
+        checkNoLhsReduction f es
+
         unless (null $ allMetas (es, rhs, b)) $ do
           reportSDoc "rewriting" 30 $ text "metas in lhs: " <+> text (show $ allMetas es)
           reportSDoc "rewriting" 30 $ text "metas in rhs: " <+> text (show $ allMetas rhs)
           reportSDoc "rewriting" 30 $ text "metas in b  : " <+> text (show $ allMetas b)
           failureMetas
-        ps <- patternFrom Relevant 0 es
+
+        t <- defType <$> getConstInfo f
+        ps <- patternFrom Relevant 0 (t , Def f []) es
         reportSDoc "rewriting" 30 $
           text "Pattern generated from lhs: " <+> prettyTCM (PDef f ps)
 
@@ -252,7 +254,7 @@ addRewriteRule q = do
 
       reportSDoc "rewriting" 10 $
         text "considering rewrite rule " <+> prettyTCM rew
-      reportSDoc "rewriting" 60 $
+      reportSDoc "rewriting" 90 $
         text "considering rewrite rule" <+> text (show rew)
 
       -- NO LONGER WORKS:
@@ -267,15 +269,24 @@ addRewriteRule q = do
 
     _ -> failureWrongTarget
   where
-    checkNoLhsReduction :: QName -> Term -> TCM ()
-    checkNoLhsReduction f v = do
-      v' <- normalise v
-      unless (v == v') $ do
-        reportSDoc "rewriting" 20 $ text "v  = " <+> text (show v)
-        reportSDoc "rewriting" 20 $ text "v' = " <+> text (show v')
-        typeError . GenericDocError =<< fsep
-          [ prettyTCM q <+> text " is not a legal rewrite rule, since the left-hand side "
-          , prettyTCM v <+> text " reduces to " <+> prettyTCM v' ]
+    checkNoLhsReduction :: QName -> Elims -> TCM ()
+    checkNoLhsReduction f es = do
+      let v = Def f es
+      v' <- reduce v
+      let fail = do
+            reportSDoc "rewriting" 20 $ text "v  = " <+> text (show v)
+            reportSDoc "rewriting" 20 $ text "v' = " <+> text (show v')
+            typeError . GenericDocError =<< fsep
+              [ prettyTCM q <+> text " is not a legal rewrite rule, since the left-hand side "
+              , prettyTCM v <+> text " reduces to " <+> prettyTCM v' ]
+      case v' of
+        Def f' es' | f == f' -> do
+          a   <- computeElimHeadType f es es'
+          pol <- getPolarity' CmpEq f
+          ok  <- dontAssignMetas $ tryConversion $
+                   compareElims pol [] a (Def f []) es es'
+          unless ok fail
+        _ -> fail
 
     ifNotAlreadyAdded :: QName -> TCM () -> TCM ()
     ifNotAlreadyAdded f cont = do
@@ -302,26 +313,27 @@ addRewriteRules f rews = do
   reportSDoc "rewriting" 30 $ text "matchable symbols: " <+> prettyTCM matchables
   modifySignature $ addRewriteRulesFor f rews matchables
 
--- | @rewriteWith t f es rew@
---   tries to rewrite @f es : t@ with @rew@, returning the reduct if successful.
-rewriteWith :: Maybe Type
+-- | @rewriteWith t f es rew@ where @f : t@
+--   tries to rewrite @f es@ with @rew@, returning the reduct if successful.
+rewriteWith :: Type
             -> Term
             -> RewriteRule
             -> Elims
             -> ReduceM (Either (Blocked Term) Term)
-rewriteWith mt v rew@(RewriteRule q gamma _ ps rhs b) es = do
-  traceSDoc "rewriting" 75 (sep
-    [ text "attempting to rewrite term " <+> prettyTCM (v `applyE` es)
+rewriteWith t v rew@(RewriteRule q gamma _ ps rhs b) es = do
+  traceSDoc "rewriting.rewrite" 50 (sep
+    [ text "{ attempting to rewrite term " <+> prettyTCM (v `applyE` es)
     , text " with rule " <+> prettyTCM rew
     ]) $ do
-  result <- nonLinMatch gamma ps es
+  result <- nonLinMatch gamma (t,v) ps es
   case result of
-    Left block -> return $ Left $ block $> v `applyE` es -- TODO: remember reductions
+    Left block -> traceSDoc "rewriting.rewrite" 50 (text "}") $
+      return $ Left $ block $> v `applyE` es -- TODO: remember reductions
     Right sub  -> do
       let v' = applySubst sub rhs
-      traceSDoc "rewriting" 70 (sep
+      traceSDoc "rewriting.rewrite" 50 (sep
         [ text "rewrote " <+> prettyTCM (v `applyE` es)
-        , text " to " <+> prettyTCM v'
+        , text " to " <+> prettyTCM v' <+> text "}"
         ]) $ do
       return $ Right v'
 
@@ -330,22 +342,24 @@ rewriteWith mt v rew@(RewriteRule q gamma _ ps rhs b) es = do
 rewrite :: Blocked_ -> Term -> RewriteRules -> Elims -> ReduceM (Reduced (Blocked Term) Term)
 rewrite block v rules es = do
   rewritingAllowed <- optRewriting <$> pragmaOptions
-  if (rewritingAllowed && not (null rules)) then
-    loop block rules =<< instantiateFull' es
+  if (rewritingAllowed && not (null rules)) then do
+    let Def f [] = v
+    t <- defType <$> getConstInfo f
+    loop block t rules =<< instantiateFull' es
   else
     return $ NoReduction (block $> v `applyE` es)
   where
-    loop :: Blocked_ -> RewriteRules -> Elims -> ReduceM (Reduced (Blocked Term) Term)
-    loop block [] es = return $ NoReduction $ block $> v `applyE` es
-    loop block (rew:rews) es
+    loop :: Blocked_ -> Type -> RewriteRules -> Elims -> ReduceM (Reduced (Blocked Term) Term)
+    loop block t [] es = return $ NoReduction $ block $> v `applyE` es
+    loop block t (rew:rews) es
      | let n = rewArity rew, length es >= n = do
           let (es1, es2) = List.genericSplitAt n es
-          result <- rewriteWith Nothing v rew es1
+          result <- rewriteWith t v rew es1
           case result of
-            Left (Blocked m u)    -> loop (block `mappend` Blocked m ()) rews es
-            Left (NotBlocked _ _) -> loop block rews es
+            Left (Blocked m u)    -> loop (block `mappend` Blocked m ()) t rews es
+            Left (NotBlocked _ _) -> loop block t rews es
             Right w               -> return $ YesReduction YesSimplification $ w `applyE` es2
-     | otherwise = loop (block `mappend` NotBlocked Underapplied ()) rews es
+     | otherwise = loop (block `mappend` NotBlocked Underapplied ()) t rews es
 
 
 ------------------------------------------------------------------------

@@ -9,4 +9,3 @@ mutual
   open A
   T : Set -> Set
   T A = A
-

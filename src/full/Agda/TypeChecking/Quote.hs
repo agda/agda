@@ -155,6 +155,7 @@ quotingKit = do
       quoteSort PiSort{} = pure unsupportedSort
       quoteSort UnivSort{} = pure unsupportedSort
       quoteSort (MetaS x es) = quoteTerm $ MetaV x es
+      quoteSort (DummyS s) =__IMPOSSIBLE_VERBOSE__ s
 
       quoteType :: Type -> ReduceM Term
       quoteType (El _ t) = quoteTerm t

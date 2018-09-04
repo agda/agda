@@ -143,7 +143,16 @@ prettyWarning wng = liftTCM $ case wng of
                     then d
                     else d $$ nest 4 (text "[ at" <+> prettyTCM r <+> text "]")
 
-    TerminationIssue tes -> prettyTCM (TerminationCheckFailed tes)
+    TerminationIssue because -> do
+      dropTopLevel <- topLevelModuleDropper
+      fwords "Termination checking failed for the following functions:"
+        $$ (nest 2 $ fsep $ punctuate comma $
+             map (pretty . dropTopLevel) $
+               concatMap termErrFunctions because)
+        $$ fwords "Problematic calls:"
+        $$ (nest 2 $ fmap (P.vcat . nub) $
+              mapM prettyTCM $ sortBy (compare `on` callInfoRange) $
+              concatMap termErrCalls because)
 
     UnreachableClauses f pss -> fsep $
       pwords "Unreachable" ++ pwords (plural (length pss) "clause")
@@ -167,6 +176,10 @@ prettyWarning wng = liftTCM $ case wng of
     NotStrictlyPositive d ocs -> fsep $
       [prettyTCM d] ++ pwords "is not strictly positive, because it occurs"
       ++ [prettyTCM ocs]
+
+    AbsurdPatternRequiresNoRHS ps -> fwords $
+      "The right-hand side must be omitted if there " ++
+      "is an absurd pattern, () or {}, in the left-hand side."
 
     OldBuiltin old new -> fwords $
       "Builtin " ++ old ++ " no longer exists. " ++
@@ -227,6 +240,11 @@ prettyWarning wng = liftTCM $ case wng of
     NicifierIssue w -> sayWhere (getRange w) $ pretty w
 
     UserWarning str -> text str
+
+    ModuleDoesntExport m xs -> fsep $
+      pwords "The module" ++ [pretty m] ++ pwords "doesn't export the following:" ++
+      punctuate comma (map pretty xs)
+
 
 prettyTCWarnings :: [TCWarning] -> TCM String
 prettyTCWarnings = fmap (unlines . intersperse "") . prettyTCWarnings'
@@ -299,6 +317,8 @@ applyFlagsToTCWarnings ifs ws = do
           DeprecationWarning{}         -> True
           NicifierIssue{}              -> True
           UserWarning{}                -> True
+          AbsurdPatternRequiresNoRHS{} -> True
+          ModuleDoesntExport{}         -> True
 
   return $ sfp ++ filter (cleanUp . tcWarning) ws
 
@@ -358,7 +378,6 @@ errorString err = case err of
   DataMustEndInSort{}                      -> "DataMustEndInSort"
 -- UNUSED:    DataTooManyParameters{}                  -> "DataTooManyParameters"
   CantResolveOverloadedConstructorsTargetingSameDatatype{} -> "CantResolveOverloadedConstructorsTargetingSameDatatype"
-  DifferentArities                         -> "DifferentArities"
   DoesNotConstructAnElementOf{}            -> "DoesNotConstructAnElementOf"
   DuplicateBuiltinBinding{}                -> "DuplicateBuiltinBinding"
   DuplicateConstructors{}                  -> "DuplicateConstructors"
@@ -382,11 +401,11 @@ errorString err = case err of
   MetaIrrelevantSolution{}                 -> "MetaIrrelevantSolution"
   ModuleArityMismatch{}                    -> "ModuleArityMismatch"
   ModuleDefinedInOtherFile {}              -> "ModuleDefinedInOtherFile"
-  ModuleDoesntExport{}                     -> "ModuleDoesntExport"
   ModuleNameUnexpected{}                   -> "ModuleNameUnexpected"
   ModuleNameDoesntMatchFileName {}         -> "ModuleNameDoesntMatchFileName"
   NeedOptionCopatterns{}                   -> "NeedOptionCopatterns"
   NeedOptionRewriting{}                    -> "NeedOptionRewriting"
+  NeedOptionProp{}                         -> "NeedOptionProp"
   GeneralizeNotSupportedHere{}             -> "GeneralizeNotSupportedHere"
   GeneralizeCyclicDependency{}             -> "GeneralizeCyclicDependency"
   GeneralizeUnsolvedMeta{}                 -> "GeneralizeUnsolvedMeta"
@@ -395,7 +414,6 @@ errorString err = case err of
   NoParseForLHS{}                          -> "NoParseForLHS"
 --  NoParseForPatternSynonym{}               -> "NoParseForPatternSynonym"
   NoRHSRequiresAbsurdPattern{}             -> "NoRHSRequiresAbsurdPattern"
-  AbsurdPatternRequiresNoRHS{}             -> "AbsurdPatternRequiresNoRHS"
   NoSuchBuiltinName{}                      -> "NoSuchBuiltinName"
   NoSuchModule{}                           -> "NoSuchModule"
   NoSuchPrimitiveFunction{}                -> "NoSuchPrimitiveFunction"
@@ -432,7 +450,6 @@ errorString err = case err of
   ShouldEndInApplicationOfTheDatatype{}    -> "ShouldEndInApplicationOfTheDatatype"
   SplitError{}                             -> "SplitError"
   ImpossibleConstructor{}                  -> "ImpossibleConstructor"
-  TerminationCheckFailed{}                 -> "TerminationCheckFailed"
   TooFewFields{}                           -> "TooFewFields"
   TooManyFields{}                          -> "TooManyFields"
   TooManyPolarities{}                      -> "TooManyPolarities"
@@ -452,7 +469,6 @@ errorString err = case err of
   UnexpectedWithPatterns{}                 -> "UnexpectedWithPatterns"
   UninstantiatedDotPattern{}               -> "UninstantiatedDotPattern"
   ForcedConstructorNotInstantiated{}       -> "ForcedConstructorNotInstantiated"
-  UninstantiatedModule{}                   -> "UninstantiatedModule"
   SolvedButOpenHoles{}                     -> "SolvedButOpenHoles"
   UnusedVariableInPatternSynonym           -> "UnusedVariableInPatternSynonym"
   UnquoteFailed{}                          -> "UnquoteFailed"
@@ -523,17 +539,6 @@ instance PrettyTCM TypeError where
 
     GenericDocError d -> return d
 
-    TerminationCheckFailed because -> do
-      dropTopLevel <- topLevelModuleDropper
-      fwords "Termination checking failed for the following functions:"
-        $$ (nest 2 $ fsep $ punctuate comma $
-             map (pretty . dropTopLevel) $
-               concatMap termErrFunctions because)
-        $$ fwords "Problematic calls:"
-        $$ (nest 2 $ fmap (P.vcat . nub) $
-              mapM prettyTCM $ sortBy (compare `on` callInfoRange) $
-              concatMap termErrCalls because)
-
     PropMustBeSingleton -> fwords
       "Datatypes in Prop must have at most one constructor when proof irrelevance is enabled"
 
@@ -565,9 +570,6 @@ instance PrettyTCM TypeError where
 
     NotAProjectionPattern p -> fsep $
       pwords "Not a valid projection for a copattern: " ++ [ prettyA p ]
-
-    DifferentArities ->
-      fwords "The number of arguments in the defining equations differ"
 
     WrongHidingInLHS -> fwords "Unexpected implicit argument"
 
@@ -844,10 +846,6 @@ instance PrettyTCM TypeError where
       "The right-hand side can only be omitted if there " ++
       "is an absurd pattern, () or {}, in the left-hand side."
 
-    AbsurdPatternRequiresNoRHS ps -> fwords $
-      "The right-hand side must be omitted if there " ++
-      "is an absurd pattern, () or {}, in the left-hand side."
-
     LocalVsImportedModuleClash m -> fsep $
       pwords "The module" ++ [prettyTCM m] ++
       pwords "can refer to either a local module or an imported module"
@@ -956,12 +954,6 @@ instance PrettyTCM TypeError where
             IsRecord -> return $ text "(record module)"
           sep [prettyTCM m, anno ]
 
-    UninstantiatedModule x -> fsep (
-      pwords "Cannot access the contents of the parameterised module"
-      ++ [pretty x <> text "."] ++
-      pwords "To do this the module first has to be instantiated. For instance:"
-        ) $$ nest 2 (hsep [ text "module", pretty x <> text "'", text "=", pretty x, text "e1 .. en" ])
-
     ClashingDefinition x y -> fsep $
       pwords "Multiple definitions of" ++ [pretty x <> text "."] ++
       pwords "Previous definition at"
@@ -983,10 +975,6 @@ instance PrettyTCM TypeError where
 
     DuplicateImports m xs -> fsep $
       pwords "Ambiguous imports from module" ++ [pretty m] ++ pwords "for" ++
-      punctuate comma (map pretty xs)
-
-    ModuleDoesntExport m xs -> fsep $
-      pwords "The module" ++ [pretty m] ++ pwords "doesn't export the following:" ++
       punctuate comma (map pretty xs)
 
     NotAModuleExpr e -> fsep $
@@ -1240,6 +1228,9 @@ instance PrettyTCM TypeError where
 
     NeedOptionRewriting  -> fsep $
       pwords "Option --rewriting needed to add and use rewrite rules"
+
+    NeedOptionProp       -> fsep $
+      pwords "Universe Prop is disabled by option --no-prop"
 
     GeneralizeNotSupportedHere x -> fsep $
       pwords $ "Generalizable variable " ++ show x ++ " is not supported here"

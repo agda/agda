@@ -1,2 +1,3 @@
 MissingDefinition.agda:4,1-2
-Missing definition for T
+The following names are declared but not accompanied by a
+definition: T

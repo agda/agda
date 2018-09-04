@@ -68,7 +68,7 @@ transform kit = tr
       TApp a bs               -> TApp (tr a) (map tr bs)
       TLet e b                -> TLet (tr e) (tr b)
 
-    isCaseOn (CTData dt) xs = dt `elem` catMaybes (map ($ kit) xs)
+    isCaseOn (CTData dt) xs = dt `elem` mapMaybe ($ kit) xs
     isCaseOn _ _ = False
 
     eqFromLit :: Literal -> TPrim

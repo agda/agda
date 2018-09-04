@@ -258,6 +258,7 @@ instance HasConstInfo TerM where
 
 instance ReadTCState TerM where
   getTCState = liftTCM getTCState
+  withTCState f = TerM . withTCState f . terM
 
 instance MonadReduce TerM where
   liftReduce = liftTCM . liftReduce

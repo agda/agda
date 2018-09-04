@@ -27,7 +27,7 @@ simplifyLevelConstraint new old =
   where
     simpl (a :=< b) | any (matchLeq (b :=< a)) leqs = LevelCmp CmpEq  (Max [a]) (Max [b])
                     | otherwise                     = LevelCmp CmpLeq (Max [a]) (Max [b])
-    leqs = concat $ catMaybes $ map inequalities old
+    leqs = concat $ mapMaybe inequalities old
 
 data Leq = PlusLevel :=< PlusLevel
   deriving (Show, Eq)
