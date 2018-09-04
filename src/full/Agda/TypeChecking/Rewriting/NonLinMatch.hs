@@ -173,7 +173,7 @@ instance PatternFrom Type Term NLPat where
       (_ , _ ) | Just (d, pars) <- etaRecord -> do
         def <- theDef <$> getConstInfo d
         (tel, c, ci, vs) <- etaExpandRecord_ d pars def v
-        ~(Just (_ , ct)) <- getFullyAppliedConType c t
+        caseMaybeM (getFullyAppliedConType c t) __IMPOSSIBLE__ $ \ (_ , ct) -> do
         PDef (conName c) <$> patternFrom r k (ct , Con c ci []) (map Apply vs)
       (_ , Lam i t) -> __IMPOSSIBLE__
       (_ , Lit{})   -> done
@@ -188,8 +188,8 @@ instance PatternFrom Type Term NLPat where
             ft <- defType <$> getConstInfo f
             PDef f <$> patternFrom r k (ft , Def f []) es
       (_ , Con c ci vs) | isIrrelevant r -> done
-      (_ , Con c ci vs) -> do
-        ~(Just (_ , ct)) <- getFullyAppliedConType c t
+      (_ , Con c ci vs) ->
+        caseMaybeM (getFullyAppliedConType c t) __IMPOSSIBLE__ $ \ (_ , ct) -> do
         PDef (conName c) <$> patternFrom r k (ct , Con c ci []) vs
       (_ , Pi a b) | isIrrelevant r -> done
       (_ , Pi a b) -> do
