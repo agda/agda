@@ -90,7 +90,7 @@ instance PatternFrom (Type, Term) Elims [Elim' NLPat] where
     (Apply u : es) -> do
       ~(Pi a b) <- reduce $ unEl t
       p   <- patternFrom r k a u
-      t'  <- t `piApply1` unArg u
+      t'  <- t `piApplyM` u
       let hd' = hd `apply1` unArg u
       ps  <- patternFrom r k (t',hd') es
       return $ Apply p : ps
@@ -284,7 +284,7 @@ instance Match (Type, Term) [Elim' NLPat] Elims where
     (Apply p, Apply v) -> do
       ~(Pi a b) <- reduce $ unEl t
       match r gamma k a p v
-      t' <- Red.addCtxTel k $ t `piApply1` unArg v
+      t' <- Red.addCtxTel k $ t `piApplyM` v
       let hd' = hd `apply1` unArg v
       match r gamma k (t',hd') ps vs
 
