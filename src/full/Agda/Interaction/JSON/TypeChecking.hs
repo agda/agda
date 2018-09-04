@@ -108,22 +108,22 @@ instance EncodeTCM TypeError where
       , "message" @= (render d)
       ]
 
-    TerminationCheckFailed because -> do
-      -- topLevelModuleDropper produces a function which drops the filename
-      -- component of the qualified name.
-      dropTopLevel <- topLevelModuleDropper
-      let functionNames = map
-            (pretty . dropTopLevel)
-            (concatMap termErrFunctions because)
-      problematicCalls <- fmap nub
-            $ mapM prettyTCM
-            $ sortBy (compare `on` callInfoRange)
-            $ (concatMap termErrCalls because)
-      obj
-        [ "kind"              @= String "TerminationCheckFailed"
-        , "functions"         @= functionNames
-        , "problematicCalls"  @= problematicCalls
-        ]
+    -- TerminationCheckFailed because -> do
+    --   -- topLevelModuleDropper produces a function which drops the filename
+    --   -- component of the qualified name.
+    --   dropTopLevel <- topLevelModuleDropper
+    --   let functionNames = map
+    --         (pretty . dropTopLevel)
+    --         (concatMap termErrFunctions because)
+    --   problematicCalls <- fmap nub
+    --         $ mapM prettyTCM
+    --         $ sortBy (compare `on` callInfoRange)
+    --         $ (concatMap termErrCalls because)
+    --   obj
+    --     [ "kind"              @= String "TerminationCheckFailed"
+    --     , "functions"         @= functionNames
+    --     , "problematicCalls"  @= problematicCalls
+    --     ]
 
     PropMustBeSingleton -> obj
       [ "kind"  @= String "PropMustBeSingleton" ]
@@ -165,8 +165,8 @@ instance EncodeTCM TypeError where
       , "pattern" #= prettyA p
       ]
 
-    DifferentArities -> obj
-      [ "kind" @= String "DifferentArities" ]
+    -- DifferentArities -> obj
+    --   [ "kind" @= String "DifferentArities" ]
 
     WrongHidingInLHS -> obj
       [ "kind" @= String "WrongHidingInLHS" ]
@@ -526,10 +526,10 @@ instance EncodeTCM TypeError where
       , "patterns"        #= mapM prettyA ps
       ]
 
-    AbsurdPatternRequiresNoRHS ps -> obj
-      [ "kind"            @= String "AbsurdPatternRequiresNoRHS"
-      , "patterns"        #= mapM prettyA ps
-      ]
+    -- AbsurdPatternRequiresNoRHS ps -> obj
+    --   [ "kind"            @= String "AbsurdPatternRequiresNoRHS"
+    --   , "patterns"        #= mapM prettyA ps
+    --   ]
 
     LocalVsImportedModuleClash m -> obj
       [ "kind"            @= String "LocalVsImportedModuleClash"
@@ -638,10 +638,10 @@ instance EncodeTCM TypeError where
           , "name"          #= prettyTCM m
           ]
 
-    UninstantiatedModule x -> obj
-      [ "kind"            @= String "UninstantiatedModule"
-      , "module"          @= pretty x
-      ]
+    -- UninstantiatedModule x -> obj
+    --   [ "kind"            @= String "UninstantiatedModule"
+    --   , "module"          @= pretty x
+    --   ]
 
     ClashingDefinition x y -> obj
       [ "kind"            @= String "ClashingDefinition"
@@ -679,11 +679,11 @@ instance EncodeTCM TypeError where
       , "imports"         @= map pretty xs
       ]
 
-    ModuleDoesntExport m xs -> obj
-      [ "kind"            @= String "ModuleDoesntExport"
-      , "module"          @= pretty m
-      , "doesntExport"    @= map pretty xs
-      ]
+    -- ModuleDoesntExport m xs -> obj
+    --   [ "kind"            @= String "ModuleDoesntExport"
+    --   , "module"          @= pretty m
+    --   , "doesntExport"    @= map pretty xs
+    --   ]
 
     NotAModuleExpr e -> obj
       [ "kind"            @= String "NotAModuleExpr"

@@ -149,6 +149,10 @@ instance ToJSON Sort where
     , "metaId"    .= metaId
     , "elims"     .= elims
     ]
+  toJSON (DummyS description) = object
+    [ "kind"        .= String "DummyS"
+    , "description" .= description
+    ]
 
 instance ToJSON Level where
   toJSON (Max levels) = toJSON levels
