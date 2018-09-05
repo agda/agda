@@ -478,11 +478,11 @@ functions are available on strings (given suitable bindings for
 :ref:`Bool <built-in-bool>`, :ref:`Char <built-in-char>` and
 :ref:`List <built-in-list>`)::
 
-  postulate primStringToList   : String → List Char
-  postulate primStringFromList : List Char → String
-  postulate primStringAppend   : String → String → String
-  postulate primStringEquality : String → String → Bool
-  postulate primShowString     : String → String
+  primitive primStringToList   : String → List Char
+  primitive primStringFromList : List Char → String
+  primitive primStringAppend   : String → String → String
+  primitive primStringEquality : String → String → Bool
+  primitive primShowString     : String → String
 
 String literals can be :ref:`overloaded <overloaded-strings>`.
 
