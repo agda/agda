@@ -61,6 +61,7 @@ import Agda.Interaction.Options
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
 
+import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Monad.Env
@@ -214,12 +215,15 @@ addRewriteRule q = do
       -- original definition.
       lhs <- modifyAllowedReductions (const [InlineReductions]) $ normalise lhs
 
-      -- Find head symbol f of the lhs and its arguments.
-      (f , hd , es) <- case lhs of
-        Def f es -> return (f , Def f , es)
+      -- Find head symbol f of the lhs, its type and its arguments.
+      (f , hd , t , es) <- case lhs of
+        Def f es -> do
+          t <- defType <$> getConstInfo f
+          return (f , Def f , t , es)
         Con c ci vs -> do
           let hd = Con c ci
-          return (conName c , hd  , vs)
+          ~(Just (_ , t)) <- getFullyAppliedConType c $ unDom b
+          return (conName c , hd , t  , vs)
         _        -> failureNotDefOrCon
 
       ifNotAlreadyAdded f $ do
@@ -236,7 +240,6 @@ addRewriteRule q = do
           reportSDoc "rewriting" 30 $ text "metas in b  : " <+> text (show $ allMetas b)
           failureMetas
 
-        t <- defType <$> getConstInfo f
         ps <- patternFrom Relevant 0 (t , Def f []) es
         reportSDoc "rewriting" 30 $
           text "Pattern generated from lhs: " <+> prettyTCM (PDef f ps)
