@@ -346,9 +346,11 @@ rewrite :: Blocked_ -> Term -> RewriteRules -> Elims -> ReduceM (Reduced (Blocke
 rewrite block v rules es = do
   rewritingAllowed <- optRewriting <$> pragmaOptions
   if (rewritingAllowed && not (null rules)) then do
-    let Def f [] = v
-    t <- defType <$> getConstInfo f
-    loop block t rules =<< instantiateFull' es
+    case v of
+      Def f [] -> do
+        t <- defType <$> getConstInfo f
+        loop block t rules =<< instantiateFull' es
+      _ -> __IMPOSSIBLE__
   else
     return $ NoReduction (block $> v `applyE` es)
   where
