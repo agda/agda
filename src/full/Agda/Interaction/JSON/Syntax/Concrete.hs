@@ -95,10 +95,10 @@ instance ToJSON Expr where
       , "range"     .= range
       , "expr"      .= expr
       ]
-    Lam range binding expr -> object
+    Lam range bindings expr -> object
       [ "kind"      .= String "Lam"
       , "range"     .= range
-      , "binding"   .= binding
+      , "bindings"  .= bindings
       , "expr"      .= expr
       ]
     AbsurdLam range hiding -> object
@@ -486,14 +486,14 @@ instance ToJSON Declaration where
       , "bindings"        .= bindings
       , "expr"            .= expr
       ]
-    Data range induction name bindings expr typSigOrInsBlks -> object
+    Data range induction name bindings expr declarations -> object
       [ "kind"            .= String "Data"
       , "range"           .= range
       , "induction"       .= induction
       , "name"            .= name
       , "bindings"        .= bindings
       , "expr"            .= expr
-      , "typSigOrInsBlks" .= typSigOrInsBlks
+      , "declarations"    .= declarations
       ]
     RecordSig range name bindings expr -> object
       [ "kind"            .= String "RecordSig"
@@ -557,15 +557,15 @@ instance ToJSON Declaration where
       , "range"           .= range
       , "declarations"    .= declarations
       ]
-    Postulate range typSigOrInsBlks -> object
+    Postulate range declarations -> object
       [ "kind"            .= String "Postulate"
       , "range"           .= range
-      , "typSigOrInsBlks" .= typSigOrInsBlks
+      , "declarations"    .= declarations
       ]
-    Primitive range typeSigs -> object
+    Primitive range declarations -> object
       [ "kind"            .= String "Primitive"
       , "range"           .= range
-      , "typeSigs"        .= typeSigs
+      , "declarations"    .= declarations
       ]
     Open range name importDirective -> object
       [ "kind"            .= String "Primitive"
@@ -636,7 +636,7 @@ instance ToJSON Pragma where
     OptionsPragma range options -> object
       [ "kind"      .= String "OptionsPragma"
       , "range"     .= range
-      , "options"      .= options
+      , "options"   .= options
       ]
     BuiltinPragma range entity name fixity -> object
       [ "kind"      .= String "BuiltinPragma"
@@ -645,10 +645,10 @@ instance ToJSON Pragma where
       , "name"      .= name
       , "fixity"    .= fixity
       ]
-    RewritePragma range name -> object
+    RewritePragma range names -> object
       [ "kind"      .= String "RewritePragma"
       , "range"     .= range
-      , "name"      .= name
+      , "names"      .= names
       ]
     CompiledDataPragma range name hd hcs -> object
       [ "kind"          .= String "CompiledDataPragma"

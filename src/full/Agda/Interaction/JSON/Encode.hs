@@ -9,6 +9,11 @@ import Data.Aeson
 import Data.Aeson.Types (Pair)
 import Data.Text (Text)
 
+import qualified Agda.Syntax.Translation.AbstractToConcrete as A2C
+import Agda.Syntax.Translation.InternalToAbstract as I2A
+
+import qualified Agda.Syntax.Concrete as C
+import qualified Agda.Syntax.Internal as I
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty (PrettyTCM(..))
 import Agda.Utils.Pretty
@@ -38,3 +43,16 @@ obj pairs = object <$> sequence pairs
 (#=) key boxed = do
   value <- boxed
   return (key .= toJSON value)
+
+data TermRep = TermRep
+  { internal :: I.Term
+  , concrete :: C.Expr
+  }
+
+repTerm :: I.Term -> TCM TermRep
+repTerm term = do
+  concrete <- I2A.reify term >>= A2C.abstractToConcrete_
+  return $ TermRep
+    { concrete = concrete
+    , internal = term
+    }

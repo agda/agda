@@ -5,6 +5,7 @@
 
 module Agda.Interaction.JSON.TypeChecking where
 
+import Control.Monad.State
 import Data.Aeson
 import Data.Function (on)
 import Data.List (nub, sortBy)
@@ -17,7 +18,6 @@ import Agda.Interaction.JSON.Syntax.Internal
 import Agda.Interaction.JSON.Syntax.Concrete
 import Agda.Interaction.JSON.Utils
 import Agda.Interaction.JSON.TypeChecking.Positivity
-
 import qualified Agda.Syntax.Abstract as A
 import qualified Agda.Syntax.Common as C
 import qualified Agda.Syntax.Concrete as C
@@ -29,12 +29,12 @@ import qualified Agda.Syntax.Position as P
 import qualified Agda.Syntax.Scope.Monad as S
 import qualified Agda.Syntax.Scope.Base as S
 import qualified Agda.Syntax.Translation.AbstractToConcrete as Trans
-import Agda.Syntax.Translation.InternalToAbstract (Reify(..))
 
 import Agda.Syntax.Position (Range, Range'(..))
 
 import Agda.TypeChecking.Errors
 import Agda.TypeChecking.Monad
+import Agda.TypeChecking.Monad.Closure (enterClosure)
 import Agda.TypeChecking.Monad.Context (inTopContext)
 import Agda.TypeChecking.Substitute (Abstract(..), raise)
 import Agda.TypeChecking.Monad.Builtin
@@ -46,19 +46,35 @@ import Agda.Utils.FileName (filePath)
 import Agda.Utils.Size (size)
 import Agda.Utils.List
 import Agda.Utils.NonemptyList (NonemptyList(..), toList)
+import Agda.Utils.Monad (localState)
 
 #include "undefined.h"
 import Agda.Utils.Impossible
 
 --------------------------------------------------------------------------------
 
-instance EncodeTCM TCErr where
-  encodeTCM (TypeError _ closure) = obj
-    [ "kind"      @= String "TypeError"
-    , "range"     @= envRange (clEnv closure)
-    , "call"      #= encodeTCM (envCall (clEnv closure))
-    , "typeError" #= encodeTCM (clValue closure)
+instance ToJSON TermRep where
+  toJSON rep = object
+    [ "concrete" .= concrete rep
+    , "internal" .= internal rep
     ]
+
+--------------------------------------------------------------------------------
+
+instance EncodeTCM a => EncodeTCM (Closure a) where
+  encodeTCM closure = enterClosure closure encodeTCM
+
+--------------------------------------------------------------------------------
+
+instance EncodeTCM TCErr where
+  encodeTCM (TypeError state closure) = localState $ do
+    put state
+    obj
+      [ "kind"      @= String "TypeError"
+      , "range"     @= envRange (clEnv closure)
+      , "call"      #= encodeTCM (envCall (clEnv closure))
+      , "typeError" #= encodeTCM closure
+      ]
   encodeTCM (Exception range doc) = obj
     [ "kind"        @= String "Exception"
     , "range"       @= range
@@ -376,14 +392,8 @@ instance EncodeTCM TypeError where
         obj
           [ "kind"            @= String "UnequalTerms"
           , "comparison"      @= cmp
-          , "term1"           #= obj
-            [ "concrete"        #= (reify s >>= Trans.abstractToConcrete_)
-            , "original"        @= s
-            ]
-          , "term2"           #= obj
-            [ "concrete"        #= (reify t >>= Trans.abstractToConcrete_)
-            , "original"        @= t
-            ]
+          , "term1"           #= repTerm s
+          , "term2"           #= repTerm t
           , "type"            @= a
           , "reason"          @= d
           ]
@@ -921,14 +931,14 @@ instance ToJSON Comparison where
   toJSON CmpEq = String "CmpEq"
   toJSON CmpLeq = String "CmpLeq"
 
-instance EncodeTCM a => EncodeTCM (Closure a) where
-  encodeTCM (Closure sig env scope checkPoints value) = obj
-    [ "signature"     @= show sig
-    , "environment"   @= Null
-    , "scope"         @= show scope
-    , "checkPoints"   @= show checkPoints
-    , "value"         #= encodeTCM value
-    ]
+-- instance EncodeTCM a => EncodeTCM (Closure a) where
+--   encodeTCM (Closure sig env scope checkPoints value) = obj
+--     [ "signature"     @= show sig
+--     , "environment"   @= Null
+--     , "scope"         @= show scope
+--     , "checkPoints"   @= show checkPoints
+--     , "value"         #= encodeTCM value
+--     ]
 
 instance EncodeTCM Call where
   encodeTCM call = case call of
