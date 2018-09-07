@@ -332,13 +332,14 @@ checkLambda cmp b@(Arg info (A.TBind _ xs' typ)) body target = do
       cubical <- optCubical <$> pragmaOptions
       reportSLn "tc.term.lambda" 60 $ "trySeeingIfPath for " ++ show xs
       let postpone' = if cubical then postpone else \ _ _ -> dontUseTargetType
-      ifBlockedType target postpone' $ \ _ tgt -> do
-          let t = tgt
+      ifBlockedType target postpone' $ \ _ t -> do
           ifPath t dontUseTargetType $
             if cubical then checkPath b body t
                        else typeError $ GenericError $ "Option --cubical needed to build a path with a lambda abstraction"
 
-    postpone = \ m tgt -> postponeTypeCheckingProblem_ $ CheckExpr cmp (A.Lam A.exprNoRange (A.DomainFull (A.TypedBindings noRange b)) body) tgt
+    postpone m tgt = postponeTypeCheckingProblem_ $
+      CheckExpr cmp (A.Lam A.exprNoRange (A.DomainFull (A.TypedBindings noRange b)) body) tgt
+
     dontUseTargetType = do
       -- Checking λ (xs : argsT) → body : target
       verboseS "tc.term.lambda" 5 $ tick "lambda-no-target-type"
