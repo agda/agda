@@ -20,3 +20,8 @@ postulate
   lift-id≤ : ∀{Γ A} → lift id≤ ≡ id≤ {Γ ∙ A}
 
 {-# REWRITE lift-id≤ #-}
+
+_•_ : ∀{Γ Δ Φ} (τ : Γ ≤ Δ) (σ : Δ ≤ Φ) → Γ ≤ Φ
+id≤ • σ = σ
+lift τ • id≤ = lift τ
+lift τ • lift σ = lift (τ • σ)
