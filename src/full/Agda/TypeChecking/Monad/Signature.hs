@@ -964,7 +964,11 @@ inFreshModuleIfFreeParams k = do
 
 -- | Instantiate a closed definition with the correct part of the current
 --   context.
-instantiateDef :: Definition -> TCM Definition
+{-# SPECIALIZE instantiateDef :: Definition -> TCM Definition #-}
+instantiateDef
+  :: ( Functor m, HasConstInfo m, HasOptions m
+     , ReadTCState m, MonadReader TCEnv m, MonadDebug m )
+  => Definition -> m Definition
 instantiateDef d = do
   vs  <- freeVarsToApply $ defName d
   verboseS "tc.sig.inst" 30 $ do
@@ -1076,7 +1080,11 @@ treatAbstractly' q env = case envAbstractMode env of
     dropAnon (MName ms) = MName $ reverse $ dropWhile isNoName $ reverse ms
 
 -- | Get type of a constant, instantiated to the current context.
-typeOfConst :: QName -> TCM Type
+{-# SPECIALIZE typeOfConst :: QName -> TCM Type #-}
+typeOfConst
+  :: ( Functor m, HasConstInfo m, HasOptions m
+     , ReadTCState m, MonadReader TCEnv m, MonadDebug m )
+  => QName -> m Type
 typeOfConst q = defType <$> (instantiateDef =<< getConstInfo q)
 
 -- | Get relevance of a constant.

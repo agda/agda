@@ -326,7 +326,13 @@ rewriteWith :: Type
 rewriteWith t v rew@(RewriteRule q gamma _ ps rhs b) es = do
   traceSDoc "rewriting.rewrite" 50 (sep
     [ text "{ attempting to rewrite term " <+> prettyTCM (v `applyE` es)
+    , text " having head " <+> prettyTCM v <+> text " of type " <+> prettyTCM t
     , text " with rule " <+> prettyTCM rew
+    ]) $ do
+  traceSDoc "rewriting.rewrite" 90 (sep
+    [ text "raw: attempting to rewrite term " <+> (text . show) (v `applyE` es)
+    , text " having head " <+> (text . show) v <+> text " of type " <+> (text . show) t
+    , text " with rule " <+> (text . show) rew
     ]) $ do
   result <- nonLinMatch gamma (t,v) ps es
   case result of
@@ -346,17 +352,13 @@ rewrite :: Blocked_ -> Term -> RewriteRules -> Elims -> ReduceM (Reduced (Blocke
 rewrite block v rules es = do
   rewritingAllowed <- optRewriting <$> pragmaOptions
   if (rewritingAllowed && not (null rules)) then do
-    f <- case v of
-      Def f []   -> return f
-      Con c _ [] -> return $ conName c
+    t <- case v of
+      Def f []   -> defType <$> getConstInfo f
+      Con c _ [] -> typeOfConst $ conName c
+        -- Andreas, 2018-09-08, issue #3211:
+        -- discount module parameters for constructor heads
       _ -> __IMPOSSIBLE__
-    t <- defType <$> getConstInfo f
     loop block t rules =<< instantiateFull' es
-    -- case v of
-    --   Def f [] -> do
-    --     t <- defType <$> getConstInfo f
-    --     loop block t rules =<< instantiateFull' es
-    --   _ -> __IMPOSSIBLE__
   else
     return $ NoReduction (block $> v `applyE` es)
   where
