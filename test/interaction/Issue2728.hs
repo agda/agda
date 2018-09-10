@@ -9,7 +9,9 @@ correctCode   = "record R : Set where\n"
 incorrectCode = correctCode ++ "  infix 0 _+_\n"
 
 main :: IO ()
-main = runAgda ["--caching"] $ \(AgdaCommands { .. }) -> do
+main = runAgda [ "--no-libraries"
+               , "--caching"
+               ] $ \(AgdaCommands { .. }) -> do
 
   -- Discard the first prompt.
   echoUntilPrompt

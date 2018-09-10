@@ -15,7 +15,9 @@ firstCode  = unlines
 secondCode = firstCode ++ "postulate B : Set\n"
 
 main :: IO ()
-main = runAgda ["--caching"]
+main = runAgda [ "--no-libraries"
+               , "--caching"
+               ]
          $ \(AgdaCommands { .. }) -> do
 
   -- Discard the first prompt.
