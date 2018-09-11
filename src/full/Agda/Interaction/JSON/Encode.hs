@@ -10,7 +10,7 @@ import Data.Aeson.Types (Pair)
 import Data.Text (Text)
 
 import qualified Agda.Syntax.Translation.AbstractToConcrete as A2C
-import Agda.Syntax.Translation.InternalToAbstract as I2A
+import qualified Agda.Syntax.Translation.InternalToAbstract as I2A
 
 import qualified Agda.Syntax.Concrete as C
 import qualified Agda.Syntax.Internal as I
@@ -44,15 +44,34 @@ obj pairs = object <$> sequence pairs
   value <- boxed
   return (key .= toJSON value)
 
-data TermRep = TermRep
-  { internal :: I.Term
-  , concrete :: C.Expr
+---------------------------------------------------------------------------
+-- * The Rep & ToRep class
+
+-- | Translates internal types to concrete types
+class ToRep i c | i -> c where
+  toRep :: i -> TCM c
+
+instance ToRep I.Term C.Expr where
+  toRep internal = I2A.reify internal >>= A2C.abstractToConcrete_
+
+instance ToRep I.Type C.Expr where
+  toRep internal = I2A.reify internal >>= A2C.abstractToConcrete_
+
+data Rep internal concrete = Rep
+  { internalRep :: internal
+  , concreteRep :: concrete
   }
 
-repTerm :: I.Term -> TCM TermRep
-repTerm term = do
-  concrete <- I2A.reify term >>= A2C.abstractToConcrete_
-  return $ TermRep
-    { concrete = concrete
-    , internal = term
+instance (ToJSON i, ToJSON c) => ToJSON (Rep i c) where
+  toJSON (Rep i c) = object
+    [ "internal" .= i
+    , "concrete" .= c
+    ]
+
+rep :: (ToRep i c) => i -> TCM (Rep i c)
+rep internal = do
+  concrete <- toRep internal
+  return $ Rep
+    { internalRep = internal
+    , concreteRep = concrete
     }

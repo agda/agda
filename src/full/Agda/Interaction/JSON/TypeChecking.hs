@@ -53,14 +53,6 @@ import Agda.Utils.Impossible
 
 --------------------------------------------------------------------------------
 
-instance ToJSON TermRep where
-  toJSON rep = object
-    [ "concrete" .= concrete rep
-    , "internal" .= internal rep
-    ]
-
---------------------------------------------------------------------------------
-
 instance EncodeTCM a => EncodeTCM (Closure a) where
   encodeTCM closure = enterClosure closure encodeTCM
 
@@ -146,29 +138,29 @@ instance EncodeTCM TypeError where
 
     DataMustEndInSort term -> obj
       [ "kind"  @= String "DataMustEndInSort"
-      , "term"  #= prettyTCM term
+      , "term"  #= rep term
       ]
 
     ShouldEndInApplicationOfTheDatatype t -> obj
       [ "kind"  @= String "ShouldEndInApplicationOfTheDatatype"
-      , "type"  #= prettyTCM t
+      , "type"  #= rep t
       ]
 
     ShouldBeAppliedToTheDatatypeParameters s t -> obj
       [ "kind"      @= String "ShouldEndInApplicationOfTheDatatype"
-      , "expected"  #= prettyTCM s
-      , "given"     #= prettyTCM t
+      , "expected"  #= rep s
+      , "given"     #= rep t
       ]
 
     ShouldBeApplicationOf t q -> obj
       [ "kind" @= String "ShouldBeApplicationOf"
-      , "type" #= prettyTCM t
+      , "type" #= rep t
       , "name" #= prettyTCM q
       ]
 
     ShouldBeRecordType t -> obj
       [ "kind"  @= String "ShouldBeRecordType"
-      , "type"  #= prettyTCM t
+      , "type"  #= rep t
       ]
 
     ShouldBeRecordPattern p -> obj
@@ -189,7 +181,7 @@ instance EncodeTCM TypeError where
 
     WrongHidingInLambda t -> obj
       [ "kind" @= String "WrongHidingInLambda"
-      , "type" #= prettyTCM t
+      , "type" #= rep t
       ]
 
     WrongIrrelevanceInLambda -> obj
@@ -202,7 +194,7 @@ instance EncodeTCM TypeError where
 
     WrongHidingInApplication t -> obj
       [ "kind" @= String "WrongHidingInApplication"
-      , "type" #= prettyTCM t
+      , "type" #= rep t
       ]
 
     WrongInstanceDeclaration -> obj
@@ -283,7 +275,7 @@ instance EncodeTCM TypeError where
     DoesNotConstructAnElementOf c t -> obj
       [ "kind"        @= String "DoesNotConstructAnElementOf"
       , "constructor" #= prettyTCM c
-      , "type"        #= prettyTCM t
+      , "type"        #= rep t
       ]
 
     ConstructorPatternInWrongDatatype c d -> obj
@@ -316,23 +308,23 @@ instance EncodeTCM TypeError where
 
     ShouldBeEmpty t ps -> obj
       [ "kind"            @= String "ShouldBeEmpty"
-      , "type"            #= prettyTCM t
+      , "type"            #= rep t
       , "patterns"        #= mapM (prettyPattern 0) ps
       ]
 
     ShouldBeASort t -> obj
       [ "kind"            @= String "ShouldBeASort"
-      , "type"            #= prettyTCM t
+      , "type"            #= rep t
       ]
 
     ShouldBePi t -> obj
       [ "kind"            @= String "ShouldBePi"
-      , "type"            #= prettyTCM t
+      , "type"            #= rep t
       ]
 
     ShouldBePath t -> obj
       [ "kind"            @= String "ShouldBePath"
-      , "type"            #= prettyTCM t
+      , "type"            #= rep t
       ]
 
     NotAProperTerm -> obj
@@ -346,24 +338,24 @@ instance EncodeTCM TypeError where
 
     InvalidType t -> obj
       [ "kind"            @= String "InvalidType"
-      , "type"            #= prettyTCM t
+      , "type"            #= rep t
       ]
 
     FunctionTypeInSizeUniv t -> obj
       [ "kind"            @= String "FunctionTypeInSizeUniv"
-      , "term"            #= prettyTCM t
+      , "term"            #= rep t
       ]
 
     SplitOnIrrelevant t ->obj
       [ "kind"            @= String "SplitOnIrrelevant"
       , "term"            @= verbalize (C.getRelevance t)
-      , "type"            #= prettyTCM (C.unDom t)
+      , "type"            #= rep (C.unDom t)
       ]
 
     SplitOnNonVariable term typ ->obj
       [ "kind"            @= String "SplitOnNonVariable"
-      , "term"            #= prettyTCM term
-      , "type"            #= prettyTCM typ
+      , "term"            #= rep term
+      , "type"            #= rep typ
       ]
 
 
@@ -380,8 +372,8 @@ instance EncodeTCM TypeError where
     UnequalBecauseOfUniverseConflict cmp s t -> obj
       [ "kind"            @= String "UnequalBecauseOfUniverseConflict"
       , "comparison"      @= cmp
-      , "term1"           #= prettyTCM s
-      , "term2"           #= prettyTCM t
+      , "term1"           #= rep s
+      , "term2"           #= rep t
       ]
 
 
@@ -392,31 +384,31 @@ instance EncodeTCM TypeError where
         obj
           [ "kind"            @= String "UnequalTerms"
           , "comparison"      @= cmp
-          , "term1"           #= repTerm s
-          , "term2"           #= repTerm t
-          , "type"            @= a
+          , "term1"           #= rep s
+          , "term2"           #= rep t
+          , "type"            #= rep a
           , "reason"          @= d
           ]
 
     UnequalTypes cmp a b -> obj
       [ "kind"            @= String "UnequalTypes"
       , "comparison"      @= cmp
-      , "type1"           @= a
-      , "type2"           @= b
+      , "type1"           #= rep a
+      , "type2"           #= rep b
       , "message"         #= prettyUnequal a (notCmp cmp) b
       ]
 
     UnequalRelevance cmp a b -> obj
       [ "kind"            @= String "UnequalRelevance"
       , "comparison"      @= cmp
-      , "term1"           @= a
-      , "term2"           @= b
+      , "term1"           #= rep a
+      , "term2"           #= rep b
       ]
 
     UnequalHiding a b -> obj
       [ "kind"            @= String "UnequalHiding"
-      , "term1"           @= a
-      , "term2"           @= b
+      , "term1"           #= rep a
+      , "term2"           #= rep b
       ]
 
     UnequalSorts a b -> obj
@@ -489,7 +481,7 @@ instance EncodeTCM TypeError where
     MetaIrrelevantSolution meta term -> obj
       [ "kind"            @= String "MetaIrrelevantSolution"
       , "meta"            #= prettyTCM (I.MetaV meta [])
-      , "term"            #= prettyTCM term
+      , "term"            #= rep term
       ]
 
     BuiltinMustBeConstructor s expr -> obj
@@ -505,8 +497,8 @@ instance EncodeTCM TypeError where
 
     DuplicateBuiltinBinding s x y -> obj
       [ "kind"            @= String "DuplicateBuiltinBinding"
-      , "term1"           #= prettyTCM x
-      , "term2"           #= prettyTCM y
+      , "term1"           #= rep x
+      , "term2"           #= rep y
       , "message"         @= s
       ]
 
@@ -826,7 +818,7 @@ instance EncodeTCM TypeError where
 
     IFSNoCandidateInScope t -> obj
       [ "kind"            @= String "IFSNoCandidateInScope"
-      , "type"            #= prettyTCM t
+      , "type"            #= rep t
       ]
 
     UnquoteFailed err -> obj
@@ -880,8 +872,8 @@ instance EncodeTCM TypeError where
     InstanceSearchDepthExhausted term typ depth -> obj
       [ "kind"            @= String "InstanceSearchDepthExhausted"
       , "maxDepth"        @= depth
-      , "term"            #= prettyTCM term
-      , "type"            #= prettyTCM typ
+      , "term"            #= rep term
+      , "type"            #= rep typ
       ]
 
     -- For unhandled errors, passing only its kind
@@ -914,7 +906,7 @@ instance EncodeTCM UnquoteError where
     NonCanonical category term -> obj
       [ "kind"        @= String "NonCanonical"
       , "category"    @= category
-      , "term"        #= prettyTCM term
+      , "term"        #= rep term
       ]
 
     BlockedOnMeta _ m ->  obj
