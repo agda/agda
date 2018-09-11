@@ -18,17 +18,18 @@ import Agda.Interaction.JSON.Syntax.Internal
 import Agda.Interaction.JSON.Syntax.Concrete
 import Agda.Interaction.JSON.Utils
 import Agda.Interaction.JSON.TypeChecking.Positivity
-import qualified Agda.Syntax.Abstract as A
-import qualified Agda.Syntax.Common as C
-import qualified Agda.Syntax.Concrete as C
+import qualified Agda.Syntax.Abstract             as A
+import qualified Agda.Syntax.Common               as C
+import qualified Agda.Syntax.Concrete             as C
 import qualified Agda.Syntax.Concrete.Definitions as D
-import qualified Agda.Syntax.Info as I
-import qualified Agda.Syntax.Internal as I
+import qualified Agda.Syntax.Fixity               as F
+import qualified Agda.Syntax.Info                 as I
+import qualified Agda.Syntax.Internal             as I
 import Agda.Syntax.Internal (dummySort)
-import qualified Agda.Syntax.Position as P
-import qualified Agda.Syntax.Scope.Monad as S
-import qualified Agda.Syntax.Scope.Base as S
-import qualified Agda.Syntax.Translation.AbstractToConcrete as Trans
+import qualified Agda.Syntax.Position             as P
+import qualified Agda.Syntax.Scope.Monad          as S
+import qualified Agda.Syntax.Scope.Base           as S
+import qualified Agda.Syntax.Translation.AbstractToConcrete as A2C
 
 import Agda.Syntax.Position (Range, Range'(..))
 
@@ -604,7 +605,7 @@ instance EncodeTCM TypeError where
       inscope <- Set.toList . S.concreteNamesInScope <$> getScope
       obj
         [ "kind"            @= String "NotInScope"
-        , "payloads"        #= mapM (name inscope) xs
+        , "names"           #= mapM (name inscope) xs
         ]
       where
         name inscope x = obj
@@ -923,158 +924,148 @@ instance ToJSON Comparison where
   toJSON CmpEq = String "CmpEq"
   toJSON CmpLeq = String "CmpLeq"
 
--- instance EncodeTCM a => EncodeTCM (Closure a) where
---   encodeTCM (Closure sig env scope checkPoints value) = obj
---     [ "signature"     @= show sig
---     , "environment"   @= Null
---     , "scope"         @= show scope
---     , "checkPoints"   @= show checkPoints
---     , "value"         #= encodeTCM value
---     ]
-
 instance EncodeTCM Call where
-  encodeTCM call = case call of
+  encodeTCM call = S.withContextPrecedence F.TopCtx $ case call of
     CheckClause t clause -> obj
       [ "kind"        @= String "CheckClause"
-      , "clause"      @= show clause
-      , "type"        #= prettyTCM t
+      , "type"        #= rep t
+      , "clause"      #= A2C.abstractToConcrete_ clause
       ]
-    CheckPattern pattern tel t -> obj
+    CheckPattern pattern tel t -> addContext tel $ obj
       [ "kind"        @= String "CheckPattern"
-      , "pattern"     #= prettyA pattern
-      , "telescope"   #= prettyTCM tel
-      , "type"        #= prettyTCM t
+      , "pattern"     #= A2C.abstractToConcrete_ pattern
+      , "type"        #= rep t
       ]
     CheckLetBinding binding -> obj
       [ "kind"        @= String "CheckLetBinding"
-      , "binding"     #= prettyA binding
+      , "binding"     #= A2C.abstractToConcrete_ binding
       ]
     InferExpr expr -> obj
       [ "kind"        @= String "InferExpr"
-      , "expr"        #= prettyA expr
+      , "expr"        #= A2C.abstractToConcrete_ expr
       ]
     CheckExprCall cmp expr t -> obj
       [ "kind"        @= String "CheckExprCall"
       , "comparison"  @= cmp
-      , "expr"        #= prettyA expr
-      , "type"        #= prettyTCM t
+      , "expr"        #= A2C.abstractToConcrete_ expr
+      , "type"        #= rep t
       ]
     CheckDotPattern expr t -> obj
       [ "kind"        @= String "CheckDotPattern"
-      , "expr"        #= prettyA expr
-      , "type"        #= prettyTCM t
+      , "expr"        #= A2C.abstractToConcrete_ expr
+      , "type"        #= rep t
       ]
     CheckPatternShadowing clause -> obj
       [ "kind"        @= String "CheckPatternShadowing"
-      , "clause"      #= prettyA clause
+      , "clause"      #= A2C.abstractToConcrete_ clause
       ]
     CheckProjection range name t -> obj
       [ "kind"        @= String "CheckProjection"
       , "range"       @= range
-      , "name"        @= name
-      , "type"        #= prettyTCM t
+      , "name"        #= A2C.abstractToConcrete_ name
+      , "type"        #= rep t
       ]
     IsTypeCall expr sort -> obj
       [ "kind"        @= String "IsTypeCall"
-      , "expr"        #= prettyA expr
-      , "sort"        #= prettyTCM sort
+      , "expr"        #= A2C.abstractToConcrete_ expr
+      , "sort"        @= sort
       ]
     IsType_ expr -> obj
       [ "kind"        @= String "IsType_"
-      , "expr"        #= prettyA expr
+      , "expr"        #= A2C.abstractToConcrete_ expr
       ]
     InferVar name -> obj
       [ "kind"        @= String "InferVar"
-      , "name"        @= name
+      , "name"        #= A2C.abstractToConcrete_ name
       ]
     InferDef name -> obj
       [ "kind"        @= String "InferDef"
-      , "name"        @= name
+      , "name"        #= A2C.abstractToConcrete_ name
       ]
-    CheckArguments range args t1 t2 -> obj
+    CheckArguments range args t1 _ -> obj
       [ "kind"        @= String "CheckArguments"
       , "range"       @= range
-      , "arguments"   #= mapM prettyA args
-      , "type1"       #= prettyTCM t1
-      , "type2"       @= pretty t2
+      , "arguments"   #= mapM (\ a -> S.withContextPrecedence (F.ArgumentCtx F.PreferParen) (A2C.abstractToConcreteHiding a a)) args
+      , "type1"       #= rep t1
       ]
-    CheckTargetType range t1 t2 -> obj
+    CheckTargetType range infTy expTy -> obj
       [ "kind"        @= String "CheckTargetType"
       , "range"       @= range
-      , "type1"       #= prettyTCM t1
-      , "type2"       #= prettyTCM t2
+      , "infType"     #= rep infTy
+      , "expType"     #= rep expTy
       ]
     CheckDataDef range name bindings constructors -> obj
       [ "kind"          @= String "CheckDataDef"
       , "range"         @= range
-      , "name"          @= name
-      , "bindings"      @= show bindings
-      , "constructors"  @= show constructors
+      , "name"          #= A2C.abstractToConcrete_ name
+      -- , "bindings"      @= show bindings
+      -- , "constructors"  @= show constructors
       ]
     CheckRecDef range name bindings constructors -> obj
       [ "kind"          @= String "CheckDataDef"
-      , "name"          @= name
+      , "name"          #= A2C.abstractToConcrete_ name
       , "range"         @= range
-      , "bindings"      @= show bindings
-      , "constructors"  @= show constructors
+      -- , "bindings"      @= show bindings
+      -- , "constructors"  @= show constructors
       ]
-    CheckConstructor name tel sort constructor -> obj
-      [ "kind"          @= String "CheckConstructor"
-      , "name"          @= name
-      , "telescope"     #= prettyTCM tel
-      , "sort"          #= prettyTCM sort
-      , "constructor"   @= show constructor
+    CheckConstructor d _ _ (A.Axiom _ _ _ _ c _) -> obj
+      [ "kind"            @= String "CheckConstructor"
+      , "declarationName" #= A2C.abstractToConcrete_ d
+      , "constructorName" #= A2C.abstractToConcrete_ c
       ]
-    CheckFunDefCall range name clauses -> obj
+
+    CheckConstructor {} -> __IMPOSSIBLE__
+
+    CheckFunDefCall range name _ -> obj
       [ "kind"          @= String "CheckFunDefCall"
       , "range"         @= range
-      , "name"          @= name
-      , "clauses"       @= show clauses
+      , "name"          #= A2C.abstractToConcrete_ name
+      -- , "clauses"       @= show clauses
       ]
     CheckPragma range pragma -> obj
       [ "kind"          @= String "CheckPragma"
       , "range"         @= range
-      , "pragma"        #= prettyA (Trans.RangeAndPragma P.noRange pragma)
+      , "pragma"        #= A2C.abstractToConcrete_ (A2C.RangeAndPragma P.noRange pragma)
       ]
     CheckPrimitive range name expr -> obj
       [ "kind"          @= String "CheckPrimitive"
       , "range"         @= range
-      , "name"          @= name
-      , "expr"          #= prettyTCM expr
+      , "name"          #= A2C.abstractToConcrete_ name
+      , "expr"          #= A2C.abstractToConcrete_ expr
       ]
     CheckIsEmpty range t -> obj
       [ "kind"          @= String "CheckIsEmpty"
       , "range"         @= range
-      , "type"          #= prettyTCM t
+      , "type"          #= rep t
       ]
     CheckWithFunctionType expr -> obj
       [ "kind"          @= String "CheckWithFunctionType"
-      , "expr"          #= prettyTCM expr
+      , "expr"          #= A2C.abstractToConcrete_ expr
       ]
     CheckSectionApplication range m modApp -> obj
       [ "kind"          @= String "CheckSectionApplication"
       , "range"         @= range
-      , "module"        @= m
-      , "modApp"        #= prettyA (A.Apply info m modApp A.initCopyInfo C.defaultImportDir)
+      , "module"        #= A2C.abstractToConcrete_ m
+      , "modApp"        #= A2C.abstractToConcrete_ (A.Apply info m modApp A.initCopyInfo C.defaultImportDir)
       ]
       where
         info = I.ModuleInfo P.noRange P.noRange Nothing Nothing Nothing
     CheckNamedWhere m -> obj
       [ "kind"          @= String "CheckNamedWhere"
-      , "module"        @= m
+      , "module"        #= A2C.abstractToConcrete_ m
       ]
     ScopeCheckExpr expr -> obj
       [ "kind"          @= String "ScopeCheckExpr"
-      , "expr"          @= pretty expr
+      , "expr"          @= expr
       ]
     ScopeCheckDeclaration decl -> obj
-      [ "kind"            @= String "ScopeCheckDeclaration"
-      , "niceDeclaration" @= map pretty (D.notSoNiceDeclarations decl)
+      [ "kind"          @= String "ScopeCheckDeclaration"
+      , "declarations"  @= D.notSoNiceDeclarations decl
       ]
     ScopeCheckLHS name pattern -> obj
       [ "kind"          @= String "ScopeCheckLHS"
       , "name"          @= name
-      , "pattern"       @= pretty pattern
+      , "pattern"       @= pattern
       ]
     NoHighlighting -> obj
       [ "kind"          @= String "NoHighlighting"
