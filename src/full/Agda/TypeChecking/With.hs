@@ -534,7 +534,7 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
             typeError $ GenericError $
               "With-clauses currently not supported under Path abstraction."
 
-          t' <- piApply1 t v
+          t' <- piApplyM t v
           strip (self `apply1` v) t' ps qs
 
         mismatch = addContext delta $ typeError $

@@ -90,8 +90,8 @@ instance PatternFrom (Type, Term) Elims [Elim' NLPat] where
     (Apply u : es) -> do
       ~(Pi a b) <- reduce $ unEl t
       p   <- patternFrom r k a u
-      t'  <- t `piApply1` unArg u
-      let hd' = hd `apply1` unArg u
+      t'  <- t `piApplyM` u
+      let hd' = hd `apply` [ u ]
       ps  <- patternFrom r k (t',hd') es
       return $ Apply p : ps
     (IApply x y u : es) -> __IMPOSSIBLE__ -- TODO
@@ -145,7 +145,7 @@ instance PatternFrom Type Term NLPat where
                  return $ PTerm v
     case (unEl t , v) of
       (Pi a b , _) -> do
-        let body = raise 1 v `apply1` var 0
+        let body = raise 1 v `apply` [ Arg (domInfo a) $ var 0 ]
         p <- addContext a (patternFrom r (k+1) (absBody b) body)
         return $ PLam (domInfo a) $ Abs (absName b) p
       (_ , Var i es)
@@ -173,7 +173,7 @@ instance PatternFrom Type Term NLPat where
       (_ , _ ) | Just (d, pars) <- etaRecord -> do
         def <- theDef <$> getConstInfo d
         (tel, c, ci, vs) <- etaExpandRecord_ d pars def v
-        ~(Just (_ , ct)) <- getFullyAppliedConType c t
+        caseMaybeM (getFullyAppliedConType c t) __IMPOSSIBLE__ $ \ (_ , ct) -> do
         PDef (conName c) <$> patternFrom r k (ct , Con c ci []) (map Apply vs)
       (_ , Lam i t) -> __IMPOSSIBLE__
       (_ , Lit{})   -> done
@@ -188,8 +188,8 @@ instance PatternFrom Type Term NLPat where
             ft <- defType <$> getConstInfo f
             PDef f <$> patternFrom r k (ft , Def f []) es
       (_ , Con c ci vs) | isIrrelevant r -> done
-      (_ , Con c ci vs) -> do
-        ~(Just (_ , ct)) <- getFullyAppliedConType c t
+      (_ , Con c ci vs) ->
+        caseMaybeM (getFullyAppliedConType c t) __IMPOSSIBLE__ $ \ (_ , ct) -> do
         PDef (conName c) <$> patternFrom r k (ct , Con c ci []) vs
       (_ , Pi a b) | isIrrelevant r -> done
       (_ , Pi a b) -> do
@@ -284,8 +284,8 @@ instance Match (Type, Term) [Elim' NLPat] Elims where
     (Apply p, Apply v) -> do
       ~(Pi a b) <- reduce $ unEl t
       match r gamma k a p v
-      t' <- Red.addCtxTel k $ t `piApply1` unArg v
-      let hd' = hd `apply1` unArg v
+      t' <- Red.addCtxTel k $ t `piApplyM` v
+      let hd' = hd `apply` [ v ]
       match r gamma k (t',hd') ps vs
 
     (Proj o f, Proj o' f') | f == f' -> do
@@ -388,8 +388,9 @@ instance Match Type NLPat Term where
                 ~(Just (_ , ct)) <- Red.addCtxTel k $ getFullyAppliedConType c t
                 match r gamma k (ct , Con c ci []) ps vs
           _ | Pi a b <- unEl t -> do
-            let pbody = PDef f (raise 1 ps ++ [Apply $ Arg (domInfo a) $ PTerm (var 0)])
-                body  = raise 1 v `apply1` var 0
+            let ai    = domInfo a
+                pbody = PDef f $ raise 1 ps ++ [ Apply $ Arg ai $ PTerm $ var 0 ]
+                body  = raise 1 v `apply` [ Arg (domInfo a) $ var 0 ]
                 k'    = ExtendTel a (Abs (absName b) k)
             match r gamma k' (absBody b) pbody body
           _ | Just (d, pars) <- etaRecord -> do
@@ -419,8 +420,9 @@ instance Match Type NLPat Term where
           let ti = unDom $ flattenTel k !! i
           match r gamma k (ti , var i) ps es
         _ | Pi a b <- unEl t -> do
-          let pbody = PBoundVar i (raise 1 ps ++ [Apply $ Arg (domInfo a) $ PTerm (var 0)])
-              body  = raise 1 v `apply1` var 0
+          let ai    = domInfo a
+              pbody = PBoundVar i $ raise 1 ps ++ [ Apply $ Arg ai $ PTerm $ var 0 ]
+              body  = raise 1 v `apply` [ Arg ai $ var 0 ]
               k'    = ExtendTel a (Abs (absName b) k)
           match r gamma k' (absBody b) pbody body
         _ | Just (d, pars) <- etaRecord -> do

@@ -648,11 +648,11 @@ lookupImportedName (ImportedModule x) = loop where
 
 -- | Translation of @ImportDirective@.
 mapImportDir
-  :: (Eq a, Eq b)
-  => [ImportedName' (a,c) (b,d)]  -- ^ Translation of imported names.
-  -> [ImportedName' (a,c) (b,d)]  -- ^ Translation of names defined by this import.
-  -> ImportDirective' a b
-  -> ImportDirective' c d
+  :: (Eq n1, Eq m1)
+  => [ImportedName' (n1,n2) (m1,m2)]  -- ^ Translation of imported names.
+  -> [ImportedName' (n1,n2) (m1,m2)]  -- ^ Translation of names defined by this import.
+  -> ImportDirective' n1 m1
+  -> ImportDirective' n2 m2
 mapImportDir src tgt (ImportDirective r u h ren open) =
   ImportDirective r
     (mapUsing src u)
@@ -661,20 +661,20 @@ mapImportDir src tgt (ImportDirective r u h ren open) =
 
 -- | Translation of @Using or Hiding@.
 mapUsing
-  :: (Eq a, Eq b)
-  => [ImportedName' (a,c) (b,d)] -- ^ Translation of names in @using@ or @hiding@ list.
-  -> Using' a b
-  -> Using' c d
+  :: (Eq n1, Eq m1)
+  => [ImportedName' (n1,n2) (m1,m2)] -- ^ Translation of names in @using@ or @hiding@ list.
+  -> Using' n1 m1
+  -> Using' n2 m2
 mapUsing src UseEverything = UseEverything
 mapUsing src (Using  xs) = Using $ map (`lookupImportedName` src) xs
 
 -- | Translation of @Renaming@.
 mapRenaming
-  ::  (Eq a, Eq b)
-  => [ImportedName' (a,c) (b,d)]  -- ^ Translation of 'renFrom' names.
-  -> [ImportedName' (a,c) (b,d)]  -- ^ Translation of 'rento' names.
-  -> Renaming' a b
-  -> Renaming' c d
+  ::  (Eq n1, Eq m1)
+  => [ImportedName' (n1,n2) (m1,m2)]  -- ^ Translation of 'renFrom' names and module names.
+  -> [ImportedName' (n1,n2) (m1,m2)]  -- ^ Translation of 'rento'   names and module names.
+  -> Renaming' n1 m1  -- ^ Renaming before translation (1).
+  -> Renaming' n2 m2  -- ^ Renaming after  translation (2).
 mapRenaming src tgt (Renaming from to r) =
   Renaming (lookupImportedName from src) (lookupImportedName to tgt) r
 

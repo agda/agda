@@ -61,6 +61,7 @@ import Agda.Interaction.Options
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
 
+import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Monad.Env
@@ -214,12 +215,15 @@ addRewriteRule q = do
       -- original definition.
       lhs <- modifyAllowedReductions (const [InlineReductions]) $ normalise lhs
 
-      -- Find head symbol f of the lhs and its arguments.
-      (f , hd , es) <- case lhs of
-        Def f es -> return (f , Def f , es)
+      -- Find head symbol f of the lhs, its type and its arguments.
+      (f , hd , t , es) <- case lhs of
+        Def f es -> do
+          t <- defType <$> getConstInfo f
+          return (f , Def f , t , es)
         Con c ci vs -> do
           let hd = Con c ci
-          return (conName c , hd  , vs)
+          ~(Just (_ , t)) <- getFullyAppliedConType c $ unDom b
+          return (conName c , hd , t  , vs)
         _        -> failureNotDefOrCon
 
       ifNotAlreadyAdded f $ do
@@ -236,7 +240,6 @@ addRewriteRule q = do
           reportSDoc "rewriting" 30 $ text "metas in b  : " <+> text (show $ allMetas b)
           failureMetas
 
-        t <- defType <$> getConstInfo f
         ps <- patternFrom Relevant 0 (t , Def f []) es
         reportSDoc "rewriting" 30 $
           text "Pattern generated from lhs: " <+> prettyTCM (PDef f ps)
@@ -323,7 +326,13 @@ rewriteWith :: Type
 rewriteWith t v rew@(RewriteRule q gamma _ ps rhs b) es = do
   traceSDoc "rewriting.rewrite" 50 (sep
     [ text "{ attempting to rewrite term " <+> prettyTCM (v `applyE` es)
+    , text " having head " <+> prettyTCM v <+> text " of type " <+> prettyTCM t
     , text " with rule " <+> prettyTCM rew
+    ]) $ do
+  traceSDoc "rewriting.rewrite" 90 (sep
+    [ text "raw: attempting to rewrite term " <+> (text . show) (v `applyE` es)
+    , text " having head " <+> (text . show) v <+> text " of type " <+> (text . show) t
+    , text " with rule " <+> (text . show) rew
     ]) $ do
   result <- nonLinMatch gamma (t,v) ps es
   case result of
@@ -343,8 +352,12 @@ rewrite :: Blocked_ -> Term -> RewriteRules -> Elims -> ReduceM (Reduced (Blocke
 rewrite block v rules es = do
   rewritingAllowed <- optRewriting <$> pragmaOptions
   if (rewritingAllowed && not (null rules)) then do
-    let Def f [] = v
-    t <- defType <$> getConstInfo f
+    t <- case v of
+      Def f []   -> defType <$> getConstInfo f
+      Con c _ [] -> typeOfConst $ conName c
+        -- Andreas, 2018-09-08, issue #3211:
+        -- discount module parameters for constructor heads
+      _ -> __IMPOSSIBLE__
     loop block t rules =<< instantiateFull' es
   else
     return $ NoReduction (block $> v `applyE` es)

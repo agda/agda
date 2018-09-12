@@ -1315,53 +1315,53 @@ instance KillRange InteractionId where killRange = id
 
 -- | The things you are allowed to say when you shuffle names between name
 --   spaces (i.e. in @import@, @namespace@, or @open@ declarations).
-data ImportDirective' a b = ImportDirective
+data ImportDirective' n m = ImportDirective
   { importDirRange :: Range
-  , using          :: Using' a b
-  , hiding         :: [ImportedName' a b]
-  , impRenaming    :: [Renaming' a b]
+  , using          :: Using' n m
+  , hiding         :: [ImportedName' n m]
+  , impRenaming    :: [Renaming' n m]
   , publicOpen     :: Bool -- ^ Only for @open@. Exports the opened names from the current module.
   }
   deriving (Data, Eq)
 
-data Using' a b = UseEverything | Using [ImportedName' a b]
+data Using' n m = UseEverything | Using [ImportedName' n m]
   deriving (Data, Eq)
 
-instance Semigroup (Using' a b) where
+instance Semigroup (Using' n m) where
   UseEverything <> u             = u
   u             <> UseEverything = u
   Using xs      <> Using ys      = Using (xs ++ ys)
 
-instance Monoid (Using' a b) where
+instance Monoid (Using' n m) where
   mempty  = UseEverything
   mappend = (<>)
 
 -- | Default is directive is @private@ (use everything, but do not export).
-defaultImportDir :: ImportDirective' a b
+defaultImportDir :: ImportDirective' n m
 defaultImportDir = ImportDirective noRange UseEverything [] [] False
 
-isDefaultImportDir :: ImportDirective' a b -> Bool
+isDefaultImportDir :: ImportDirective' n m -> Bool
 isDefaultImportDir (ImportDirective _ UseEverything [] [] False) = True
 isDefaultImportDir _                                             = False
 
--- | An imported name can be a module or a defined name
-data ImportedName' a b
-  = ImportedModule  b
-  | ImportedName    a
+-- | An imported name can be a module or a defined name.
+data ImportedName' n m
+  = ImportedModule  m  -- ^ Imported module name of type @m@.
+  | ImportedName    n  -- ^ Imported name of type @n@.
   deriving (Data, Eq, Ord)
 
 setImportedName :: ImportedName' a a -> a -> ImportedName' a a
 setImportedName (ImportedName   x) y = ImportedName   y
 setImportedName (ImportedModule x) y = ImportedModule y
 
-instance (Show a, Show b) => Show (ImportedName' a b) where
-  show (ImportedModule b) = "module " ++ show b
-  show (ImportedName   a) = show a
+instance (Show n, Show m) => Show (ImportedName' n m) where
+  show (ImportedModule x) = "module " ++ show x
+  show (ImportedName   x) = show x
 
-data Renaming' a b = Renaming
-  { renFrom    :: ImportedName' a b
+data Renaming' n m = Renaming
+  { renFrom    :: ImportedName' n m
     -- ^ Rename from this name.
-  , renTo      :: ImportedName' a b
+  , renTo      :: ImportedName' n m
     -- ^ To this one.  Must be same kind as 'renFrom'.
   , renToRange :: Range
     -- ^ The range of the \"to\" keyword.  Retained for highlighting purposes.

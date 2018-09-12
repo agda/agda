@@ -969,7 +969,7 @@ instance ToAbstract C.Expr A.Expr where
 
 instance ToAbstract C.ModuleAssignment (A.ModuleName, [A.LetBinding]) where
   toAbstract (C.ModuleAssignment m es i)
-    | null es && isDefaultImportDir i = (\x-> (x, [])) <$> toAbstract (OldModuleName m)
+    | null es && isDefaultImportDir i = (, []) <$> toAbstract (OldModuleName m)
     | otherwise = do
         x <- C.NoName (getRange m) <$> fresh
         r <- checkModuleMacro LetApply (getRange (m, es, i)) PublicAccess x

@@ -9,7 +9,7 @@ file          = "Issue720.agda"
 interfaceFile = file ++ "i"
 
 main :: IO ()
-main = runAgda [] $ \(AgdaCommands { .. }) -> do
+main = runAgda ["--no-libraries"] $ \(AgdaCommands { .. }) -> do
 
   let load = do
         send $ command "load" file

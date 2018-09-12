@@ -15,7 +15,7 @@ incorrectCode = "module " ++ name ++ " where\nFoo : Set\nFoo = Set\n"
 correctCode   = "{-# OPTIONS --type-in-type #-}\n" ++ incorrectCode
 
 main :: IO ()
-main = runAgda [] $ \(AgdaCommands { .. }) -> do
+main = runAgda ["--no-libraries"] $ \(AgdaCommands { .. }) -> do
 
   -- Discard the first prompt.
   echoUntilPrompt

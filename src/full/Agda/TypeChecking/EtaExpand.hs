@@ -21,7 +21,8 @@ import Agda.Utils.Impossible
 etaExpandOnce :: Type -> Term -> TCM Term
 etaExpandOnce a v = reduce a >>= \case
   El _ (Pi a b) -> return $
-    Lam (domInfo a) $ mkAbs (absName b) $ raise 1 v `apply1` var 0
+    Lam ai $ mkAbs (absName b) $ raise 1 v `apply` [ Arg ai $ var 0 ]
+    where ai = domInfo a
 
   a -> isEtaRecordType a >>= \case
     Just (r, pars) -> do

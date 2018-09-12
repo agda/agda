@@ -18,7 +18,7 @@ secondCode = unlines
              firstCode
 
 main :: IO ()
-main = runAgda []
+main = runAgda ["--no-libraries"]
          $ \(AgdaCommands { .. }) -> do
 
   -- Discard the first prompt.
