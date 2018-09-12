@@ -390,6 +390,9 @@ sharingFlag _ _ = throwError $
 cachingFlag :: Bool -> Flag PragmaOptions
 cachingFlag b o = return $ o { optCaching = b }
 
+propFlag :: Flag PragmaOptions
+propFlag o = return $ o { optProp = True }
+
 noPropFlag :: Flag PragmaOptions
 noPropFlag o = return $ o { optProp = False }
 
@@ -687,8 +690,6 @@ pragmaOptions =
                     "don't use unicode characters when printing terms"
     , Option ['v']  ["verbose"] (ReqArg verboseFlag "N")
                     "set verbosity level to N"
-    , Option []     ["no-prop"] (NoArg noPropFlag)
-                    "disable the use of the Prop universe"
     , Option []     ["allow-unsolved-metas"] (NoArg allowUnsolvedFlag)
                     "succeed and create interface file regardless of unsolved meta variables"
     , Option []     ["no-positivity-check"] (NoArg noPositivityFlag)
@@ -701,6 +702,10 @@ pragmaOptions =
                     "ignore universe levels (this makes Agda inconsistent)"
     , Option []     ["omega-in-omega"] (NoArg omegaInOmegaFlag)
                     "enable typing rule Setω : Setω (this makes Agda inconsistent)"
+    , Option []     ["prop"] (NoArg propFlag)
+                    "enable the use of the Prop universe (default)"
+    , Option []     ["no-prop"] (NoArg noPropFlag)
+                    "disable the use of the Prop universe"
     , Option []     ["sized-types"] (NoArg sizedTypes)
                     "use sized types (default, inconsistent with `musical' coinduction)"
     , Option []     ["no-sized-types"] (NoArg noSizedTypes)
