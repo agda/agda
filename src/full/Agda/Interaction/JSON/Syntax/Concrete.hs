@@ -13,6 +13,7 @@ import Agda.Interaction.JSON.Syntax.Position
 import Agda.Interaction.JSON.TypeChecking.Positivity
 
 import Agda.Syntax.Concrete
+import Agda.Syntax.Concrete.Pretty (smashTel)
 
 --------------------------------------------------------------------------------
 
@@ -119,7 +120,7 @@ instance ToJSON Expr where
       ]
     Pi telescope expr -> object
       [ "kind"      .= String "Pi"
-      , "telescope" .= telescope
+      , "telescope" .= smashTel telescope
       , "expr"      .= expr
       ]
     Set range -> object
@@ -381,8 +382,8 @@ instance ToJSON a => ToJSON (TypedBinding' a) where
 
 instance ToJSON LHS where
   toJSON (LHS pattern rewrites withExpr) = object
-    [ "OriginalPattern" .= pattern
-    , "RewriteEqn"      .= rewrites
+    [ "originalPattern" .= pattern
+    , "rewriteEqn"      .= rewrites
     , "withExpr"        .= withExpr
     ]
 
