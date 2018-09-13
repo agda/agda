@@ -640,34 +640,8 @@ instance PrettyTCM TypeError where
       [prettyTCM c] ++ pwords "is not a constructor of the datatype"
       ++ [prettyTCM d]
 
-    ShadowedModule x [] -> __IMPOSSIBLE__
-
-    ShadowedModule x ms@(m0 : _) -> do
-      -- Clash! Concrete module name x already points to the abstract names ms.
-      (r, m) <- do
-        -- Andreas, 2017-07-28, issue #719.
-        -- First, we try to find whether one of the abstract names @ms@ points back to @x@
-        scope <- getScope
-        -- Get all pairs (y,m) such that y points to some m ∈ ms.
-        let xms0 = ms >>= \ m -> map (,m) $ inverseScopeLookupModule m scope
-        reportSLn "scope.clash.error" 30 $ "candidates = " ++ prettyShow xms0
-
-        -- Try to find x (which will have a different Range, if it has one (#2649)).
-        let xms = filter ((\ y -> not (null $ getRange y) && y == C.QName x) . fst) xms0
-        reportSLn "scope.class.error" 30 $ "filtered candidates = " ++ prettyShow xms
-
-        -- If we found a copy of x with non-empty range, great!
-        ifJust (headMaybe xms) (\ (x', m) -> return (getRange x', m)) $ {-else-} do
-
-        -- If that failed, we pick the first m from ms which has a nameBindingSite.
-        let rms = ms >>= \ m -> map (,m) $
-              filter (noRange /=) $ map nameBindingSite $ reverse $ mnameToList m
-              -- Andreas, 2017-07-25, issue #2649
-              -- Take the first nameBindingSite we can get hold of.
-        reportSLn "scope.class.error" 30 $ "rangeful clashing modules = " ++ prettyShow rms
-
-        -- If even this fails, we pick the first m and give no range.
-        return $ fromMaybe (noRange, m0) $ headMaybe rms
+    ShadowedModule x ms -> do
+      (r, m) <- handleShadowedModule x ms
 
       fsep $
         pwords "Duplicate definition of module" ++ [prettyTCM x <> text "."] ++

@@ -289,10 +289,10 @@ instance EncodeTCM TypeError where
     ShadowedModule x ms -> do
       (range, m) <- handleShadowedModule x ms
       obj
-        [ "kind"        @= String "ShadowedModule"
-        , "duplicated"  @= x
-        , "previous"    @= range
-        , "isDatatype"  #= S.isDatatypeModule m
+        [ "kind"          @= String "ShadowedModule"
+        , "duplicated"    @= x
+        , "previous"      #= A2C.abstractToConcrete_ m
+        , "dataOrRecord"  #= S.isDatatypeModule m
         ]
 
     ModuleArityMismatch m I.EmptyTel args -> obj
