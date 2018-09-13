@@ -24,13 +24,11 @@ instance ToJSON Name where
     , "fixity"      .= fixity
     ]
 
-instance ToJSONKey QName
 instance ToJSON QName where
   toJSON (QName moduleName name) = object
     [ "module"  .= moduleName
     , "name"    .= name
     ]
 
-instance ToJSONKey ModuleName where
 instance ToJSON ModuleName where
   toJSON (MName names) = toJSON names
