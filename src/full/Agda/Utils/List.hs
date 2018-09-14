@@ -20,8 +20,12 @@ import Agda.Utils.Tuple
 -- | Case distinction for lists, with list first.
 --   Cf. 'Agda.Utils.Null.ifNull'.
 caseList :: [a] -> b -> (a -> [a] -> b) -> b
-caseList []     n c = n
-caseList (x:xs) n c = c x xs
+caseList xs n c = listCase n c xs
+
+-- | Case distinction for lists, with list first.
+--   Cf. 'Agda.Utils.Null.ifNull'.
+caseListM :: Monad m => m [a] -> m b -> (a -> [a] -> m b) -> m b
+caseListM mxs n c = listCase n c =<< mxs
 
 -- | Case distinction for lists, with list last.
 listCase :: b -> (a -> [a] -> b) -> [a] -> b
@@ -32,12 +36,20 @@ listCase n c (x:xs) = c x xs
 headMaybe :: [a] -> Maybe a
 headMaybe = listToMaybe
 
--- | Head function (safe). Returns a value on empty lists.
+-- | Head function (safe). Returns a default value on empty lists.
 --
 -- > headWithDefault 42 []      = 42
 -- > headWithDefault 42 [1,2,3] = 1
 headWithDefault :: a -> [a] -> a
 headWithDefault def = fromMaybe def . headMaybe
+
+-- | Tail function (safe).
+tailMaybe :: [a] -> Maybe [a]
+tailMaybe = fmap snd . uncons
+
+-- | Tail function (safe).  Returns a default list on empty lists.
+tailWithDefault :: [a] -> [a] -> [a]
+tailWithDefault def = fromMaybe def . tailMaybe
 
 -- | Last element (safe).
 lastMaybe :: [a] -> Maybe a

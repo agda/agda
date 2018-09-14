@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 
 {-| This module contains the building blocks used to construct the lexer.
 -}
@@ -31,6 +32,9 @@ import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Tuple
 
+#include "undefined.h"
+import Agda.Utils.Impossible
+
 {--------------------------------------------------------------------------
     Scan functions
  --------------------------------------------------------------------------}
@@ -54,9 +58,9 @@ used by the parser is the continuation version of this function.
 lexToken :: Parser Token
 lexToken =
     do  inp <- getLexInput
-        lss@(ls:_) <- getLexState
+        lss <- getLexState
         flags <- getParseFlags
-        case alexScanUser (lss, flags) (foolAlex inp) ls of
+        case alexScanUser (lss, flags) (foolAlex inp) (headWithDefault __IMPOSSIBLE__ lss) of
             AlexEOF                     -> returnEOF inp
             AlexSkip inp' len           -> skipTo (newInput inp inp' len)
             AlexToken inp' len action   -> fmap postToken $ action inp (newInput inp inp' len) len

@@ -1,3 +1,5 @@
+{-# LANGUAGE CPP #-}
+
 module Agda.TypeChecking.Monad.Imports where
 
 import Control.Monad.State
@@ -11,7 +13,11 @@ import Agda.Syntax.Abstract.Name
 import qualified Agda.Syntax.Concrete.Name as C
 import Agda.TypeChecking.Monad.Base
 import Agda.Utils.Lens
+import Agda.Utils.List ( caseListM )
 import Agda.Utils.Monad
+
+#include "undefined.h"
+import Agda.Utils.Impossible
 
 addImport :: ModuleName -> TCM ()
 addImport m =
@@ -82,6 +88,6 @@ withImportPath path = local $ \e -> e { envImportPath = path }
 --   worried about.
 checkForImportCycle :: TCM ()
 checkForImportCycle = do
-    m:ms <- getImportPath
+  caseListM getImportPath __IMPOSSIBLE__ $ \ m ms -> do
     when (m `elem` ms) $ typeError $ CyclicModuleDependency
                                    $ dropWhile (/= m) $ reverse (m:ms)

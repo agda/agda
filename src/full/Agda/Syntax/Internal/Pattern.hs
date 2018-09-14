@@ -93,7 +93,7 @@ instance LabelPatVars Pattern DeBruijnPattern Int where
       ConP c mt ps -> ConP c mt <$> labelPatVars ps
       LitP l       -> return $ LitP l
       ProjP o q    -> return $ ProjP o q
-    where next = do (x:xs) <- get; put xs; return x
+    where next = caseListM get __IMPOSSIBLE__ $ \ x xs -> do put xs; return x
   unlabelPatVars = fmap dbPatVarName
 
 -- | Augment pattern variables with their de Bruijn index.
