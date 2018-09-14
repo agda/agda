@@ -10,7 +10,6 @@ You need recent versions of the following programs:
 * cabal-install: https://www.haskell.org/cabal/
 * Alex:          https://www.haskell.org/alex/
 * Happy:         https://www.haskell.org/happy/
-* cpphs:         https://hackage.haskell.org/package/cpphs
 * GNU Emacs:     http://www.gnu.org/software/emacs/
 
 You should also make sure that programs installed by *cabal-install*
