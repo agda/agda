@@ -1,6 +1,12 @@
 Release notes for Agda version 2.6.0
 ====================================
 
+Installation and infrastructure
+-------------------------------
+
+* Removed `cpphs` Cabal flag and use of the `cpphs` program
+  [Issue [#3223](https://github.com/agda/agda/issues/3223)].
+
 Type checking and interaction
 -----------------------------
 
