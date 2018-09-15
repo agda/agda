@@ -171,7 +171,10 @@ data PreScopeState = PreScopeState
     -- ^ @{-# FOREIGN #-}@ code that should be included in the compiled output.
     -- Does not include code for imported modules.
   , stPreFreshInteractionId :: !InteractionId
-  , stPreUserWarnings       :: !(Map A.QName String)
+  , stPreImportedUserWarnings :: !(Map A.QName String)
+    -- ^ Imported @UserWarning@s, not to be stored in the @Interface@
+  , stPreLocalUserWarnings    :: !(Map A.QName String)
+    -- ^ Locally defined @UserWarning@s, to be stored in the @Interface@
   }
 
 type DisambiguatedNames = IntMap A.QName
@@ -316,7 +319,8 @@ initPreScopeState = PreScopeState
   , stPreImportedInstanceDefs = Map.empty
   , stPreForeignCode          = Map.empty
   , stPreFreshInteractionId   = 0
-  , stPreUserWarnings         = Map.empty
+  , stPreImportedUserWarnings = Map.empty
+  , stPreLocalUserWarnings    = Map.empty
   }
 
 initPostScopeState :: PostScopeState
@@ -422,10 +426,21 @@ stFreshInteractionId f s =
   f (stPreFreshInteractionId (stPreScopeState s)) <&>
   \x -> s {stPreScopeState = (stPreScopeState s) {stPreFreshInteractionId = x}}
 
-stUserWarnings :: Lens' (Map A.QName String) TCState
-stUserWarnings f s =
-  f (stPreUserWarnings (stPreScopeState s)) <&>
-  \ x -> s {stPreScopeState = (stPreScopeState s) {stPreUserWarnings = x}}
+stImportedUserWarnings :: Lens' (Map A.QName String) TCState
+stImportedUserWarnings f s =
+  f (stPreImportedUserWarnings (stPreScopeState s)) <&>
+  \ x -> s {stPreScopeState = (stPreScopeState s) {stPreImportedUserWarnings = x}}
+
+stLocalUserWarnings :: Lens' (Map A.QName String) TCState
+stLocalUserWarnings f s =
+  f (stPreLocalUserWarnings (stPreScopeState s)) <&>
+  \ x -> s {stPreScopeState = (stPreScopeState s) {stPreLocalUserWarnings = x}}
+
+getUserWarnings :: MonadState TCState m => m (Map A.QName String)
+getUserWarnings = do
+  iuw <- use stImportedUserWarnings
+  luw <- use stLocalUserWarnings
+  return $ iuw `Map.union` luw
 
 stBackends :: Lens' [Backend] TCState
 stBackends f s =
