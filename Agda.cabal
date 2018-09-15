@@ -96,6 +96,8 @@ flag enable-cluster-counting
     Enable the --count-clusters flag. (If enable-cluster-counting is
     False, then the --count-clusters flag triggers an error message.)
 
+-- ASR (2018-09-14). Every new setup dependency should also be added
+-- as a library dependency. See Issue #3225.
 custom-setup
   setup-depends:  base >= 4.8.0.0 && < 4.13
                 , Cabal >= 1.22.5.0 && < 2.5
@@ -173,8 +175,11 @@ library
   if impl(ghc >= 8.0) && impl(ghc < 8.4)
     build-depends: transformers == 0.5.2.0
 
+  -- ASR (2018-09-14). We add the dependency on the filemanip library
+  -- due to Issue #3225.
   if impl(ghc >= 7.10) && impl(ghc < 8.0)
-    build-depends: transformers == 0.4.2.0
+    build-depends:   transformers == 0.4.2.0
+                   , filemanip >= 0.3.6.2 && < 0.4
 
   -- zlib >= 0.6.1 is broken with GHC < 7.10.3. See Issue 1518.
   if impl(ghc < 7.10.3)
