@@ -147,9 +147,9 @@ addImportedThings ::
 addImportedThings isig ibuiltin patsyns display userwarn warnings = do
   stImports              %= \ imp -> unionSignatures [imp, isig]
   stImportedBuiltins     %= \ imp -> Map.union imp ibuiltin
+  stImportedUserWarnings %= \ imp -> Map.union imp userwarn
   stPatternSynImports    %= \ imp -> Map.union imp patsyns
   stImportedDisplayForms %= \ imp -> HMap.unionWith (++) imp display
-  stUserWarnings         %= \ imp -> Map.union imp userwarn
   stTCWarnings           %= \ imp -> List.union imp warnings
   addImportedInstances isig
 
@@ -503,7 +503,7 @@ typeCheck x file isMain = do
       isig     <- use stImports
       ibuiltin <- use stImportedBuiltins
       display  <- use stImportsDisplayForms
-      userwarn <- use stUserWarnings
+      userwarn <- use stImportedUserWarnings
       ipatsyns <- getPatternSynImports
       ho       <- getInteractionOutputCallback
       -- Every interface is treated in isolation. Note: Some changes to
@@ -946,7 +946,7 @@ buildInterface file topLevel pragmas = do
     display <- HMap.filter (not . null) . HMap.map (filter isClosed) <$> use stImportsDisplayForms
     -- TODO: Kill some ranges?
     (display, sig) <- eliminateDeadCode display =<< getSignature
-    userwarns <- use stUserWarnings
+    userwarns <- use stLocalUserWarnings
     syntaxInfo <- use stSyntaxInfo
     -- Andreas, 2015-02-09 kill ranges in pattern synonyms before
     -- serialization to avoid error locations pointing to external files

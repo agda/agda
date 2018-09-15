@@ -514,7 +514,7 @@ instance ToAbstract OldQName A.Expr where
         -- In case we find a defined name, we start by checking whether there's
         -- a warning attached to it
         reportSDoc "scope.warning" 50 $ text $ "Checking usage of " ++ prettyShow d
-        mstr <- Map.lookup (anameName d) <$> use stUserWarnings
+        mstr <- Map.lookup (anameName d) <$> getUserWarnings
         forM_ mstr (warning . UserWarning)
         -- and then we return the name
         return $ nameExpr d
@@ -1911,7 +1911,7 @@ instance ToAbstract C.Pragma [A.Pragma] where
 
   toAbstract (C.WarningOnUsage _ oqn str) = do
     qn <- toAbstract $ OldName oqn
-    stUserWarnings %= Map.insert qn str
+    stLocalUserWarnings %= Map.insert qn str
     pure []
 
   -- Termination checking pragmes are handled by the nicifier
