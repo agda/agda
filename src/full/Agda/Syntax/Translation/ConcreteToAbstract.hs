@@ -539,9 +539,9 @@ instance ToAbstract OldQName A.Expr where
         forM_ mstr (warning . UserWarning)
         -- then we take note of generalized names used
         when (anameKind d == GeneralizeName) $ do
-            gvs <- use stGeneralizedVars
+            gvs <- useTC stGeneralizedVars
             case gvs of
-                Just s -> stGeneralizedVars .= Just (Set.insert (anameName d) s)
+                Just s -> stGeneralizedVars `setTCLens` Just (Set.insert (anameName d) s)
                 Nothing -> typeError $ GeneralizeNotSupportedHere $ anameName d
         -- and then we return the name
         return $ nameExpr d
@@ -725,7 +725,7 @@ scopeCheckExtendedLam r cs = do
   bindName (PrivateAccess Inserted) DefName cname qname
 
   -- Compose a function definition and scope check it.
-  a <- aModeToDef <$> asks envAbstractMode
+  a <- aModeToDef <$> asksTC envAbstractMode
   let
     insertApp :: C.Pattern -> ScopeM C.Pattern
     insertApp (C.RawAppP r es) = return $ C.RawAppP r $ IdentP (C.QName cname) : es
@@ -956,16 +956,16 @@ instance ToAbstract C.Expr A.Expr where
         collectGeneralizables :: ScopeM a -> ScopeM (Set I.QName, a)
         collectGeneralizables m = bracket_ open close $ do
             a <- m
-            s <- use stGeneralizedVars
+            s <- useTC stGeneralizedVars
             case s of
                 Nothing -> __IMPOSSIBLE__
                 Just s -> return (s, a)
           where
             open = do
-                gvs <- use stGeneralizedVars
-                stGeneralizedVars .= Just mempty
+                gvs <- useTC stGeneralizedVars
+                stGeneralizedVars `setTCLens` Just mempty
                 pure gvs
-            close = (stGeneralizedVars .=)
+            close = (stGeneralizedVars `setTCLens`)
 
 instance ToAbstract C.ModuleAssignment (A.ModuleName, [A.LetBinding]) where
   toAbstract (C.ModuleAssignment m es i)
@@ -1438,7 +1438,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
     -- We record in the environment whether we are scope checking an
     -- abstract definition.  This way, we can propagate this attribute
     -- the extended lambdas.
-    caseMaybe (niceHasAbstract d) id (\ a -> local $ \ e -> e { envAbstractMode = aDefToMode a }) $
+    caseMaybe (niceHasAbstract d) id (\ a -> localTC $ \ e -> e { envAbstractMode = aDefToMode a }) $
     case d of
 
   -- Axiom (actual postulate)
@@ -2005,7 +2005,7 @@ instance ToAbstract C.Pragma [A.Pragma] where
 
   toAbstract (C.WarningOnUsage _ oqn str) = do
     qn <- toAbstract $ OldName oqn
-    stLocalUserWarnings %= Map.insert qn str
+    stLocalUserWarnings `modifyTCLens` Map.insert qn str
     pure []
 
   -- Termination checking pragmes are handled by the nicifier

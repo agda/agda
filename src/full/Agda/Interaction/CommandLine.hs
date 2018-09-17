@@ -52,7 +52,7 @@ interaction prompt cmds eval = loop
     where
         go (Return x)       = return x
         go Continue         = loop
-        go (ContinueIn env) = local (const env) loop
+        go (ContinueIn env) = localTC (const env) loop
 
         loop =
             do  ms <- readline prompt
@@ -101,7 +101,7 @@ interactionLoop doTypeCheck =
             [ "quit"        |>  \_ -> return $ Return ()
             , "?"           |>  \_ -> continueAfter $ liftIO $ help commands
             , "reload"      |>  \_ -> do reload
-                                         ContinueIn <$> ask
+                                         ContinueIn <$> askTC
             , "constraints" |> \args -> continueAfter $ showConstraints args
             , "Context"     |> \args -> continueAfter $ showContext args
             , "give"        |> \args -> continueAfter $ giveMeta args
@@ -125,7 +125,7 @@ continueAfter m = withCurrentFile $ do
 withCurrentFile :: TCM a -> TCM a
 withCurrentFile cont = do
   mpath <- getInputFile'
-  local (\ e -> e { envCurrentPath = mpath }) cont
+  localTC (\ e -> e { envCurrentPath = mpath }) cont
 
 loadFile :: TCM () -> [String] -> TCM ()
 loadFile reload [file] = do

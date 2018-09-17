@@ -23,6 +23,10 @@ import Agda.Utils.Maybe
 newtype ListT m a = ListT { runListT :: m (Maybe (a, ListT m a)) }
   deriving (Functor)
 
+-- | Boilerplate function to lift 'MonadReader' through the 'ListT' transformer.
+mapListT :: (m (Maybe (a, ListT m a)) -> n (Maybe (b, ListT n b))) -> ListT m a -> ListT n b
+mapListT f = ListT . f . runListT
+
 -- * List operations
 
 -- | The empty lazy list.

@@ -92,7 +92,7 @@ data Recompile menv mod = Recompile menv | Skip mod
 
 callBackend :: String -> IsMain -> Interface -> TCM ()
 callBackend name iMain i = do
-  backends <- use stBackends
+  backends <- useTC stBackends
   case [ b | b@(Backend b') <- backends, backendName b' == name ] of
     Backend b : _ -> compilerMain b iMain i
     []            -> genericError $
@@ -156,7 +156,7 @@ backendInteraction backends _ check = do
   mi     <- check
 
   -- reset warnings
-  stTCWarnings .= []
+  stTCWarnings `setTCLens` []
 
   noMain <- optCompileNoMain <$> pragmaOptions
   let isMain | noMain    = NotMain

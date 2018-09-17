@@ -97,7 +97,7 @@ parseVariables f tel ii rng ss = do
        , text $ "function's fvs  = " ++ show fv
        , text $ "number of locals= " ++ show nlocals
        , text "context         =" <+> do inTopContext $ prettyTCM cxt
-       , text "checkpoints     =" <+> do (text . show) =<< asks envCheckpoints
+       , text "checkpoints     =" <+> do (text . show) =<< asksTC envCheckpoints
        ]
 
     -- Resolve each string to a variable.
@@ -318,7 +318,7 @@ makeCase hole rng s = withInteractionId hole $ do
   -- In this case, we refuse to split, as this might lose the refinements.
   checkClauseIsClean :: IPClause -> TCM ()
   checkClauseIsClean ipCl = do
-    sips <- filter ipSolved . Map.elems <$> use stInteractionPoints
+    sips <- filter ipSolved . Map.elems <$> useTC stInteractionPoints
     when (List.any ((== ipCl) . ipClause) sips) $
       typeError $ GenericError $ "Cannot split as clause rhs has been refined.  Please reload"
 

@@ -57,21 +57,21 @@ traceCall mkCall m = do
   -- -- outside the current file
   verboseS "check.ranges" 90 $
     Strict.whenJust (rangeFile callRange) $ \f -> do
-      currentFile <- asks envCurrentPath
+      currentFile <- asksTC envCurrentPath
       when (currentFile /= Just f) $ do
         reportSLn "check.ranges" 90 $
           prettyShow call ++
           " is setting the current range to " ++ show callRange ++
           " which is outside of the current file " ++ show currentFile
   cl <- liftTCM $ buildClosure call
-  let trace = local $ foldr (.) id $
+  let trace = localTC $ foldr (.) id $
         [ \e -> e { envCall = Just cl } | interestingCall cl ] ++
         [ \e -> e { envHighlightingRange = callRange }
           | callRange /= noRange && highlightCall call || isNoHighlighting call ] ++
         [ \e -> e { envRange = callRange } | callRange /= noRange ]
-  wrap <- ifM (do l <- envHighlightingLevel <$> ask
+  wrap <- ifM (do l <- envHighlightingLevel <$> askTC
                   return (l == Interactive && highlightCall call))
-              (do oldRange <- envHighlightingRange <$> ask
+              (do oldRange <- envHighlightingRange <$> askTC
                   return $ highlightAsTypeChecked oldRange callRange)
               (return id)
   wrap $ trace m
@@ -113,7 +113,7 @@ traceCall mkCall m = do
   isNoHighlighting _                = False
 
 getCurrentRange :: (MonadTCM tcm, MonadDebug tcm) => tcm Range
-getCurrentRange = asks envRange
+getCurrentRange = asksTC envRange
 
 -- | Sets the current range (for error messages etc.) to the range
 --   of the given object, if it has a range (i.e., its range is not 'noRange').

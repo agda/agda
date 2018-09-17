@@ -299,7 +299,7 @@ checkPath b@(Arg info (A.TBind _ xs' typ)) body ty = do
         rhs' = subst 0 iOne  v
     let t = Lam info $ Abs (nameToArgName x) v
     let btyp i = El s (unArg typ `apply` [argN i])
-    locally eRange (const noRange) $ blockTerm ty $ traceCall (SetRange $ getRange body) $ do
+    locallyTC eRange (const noRange) $ blockTerm ty $ traceCall (SetRange $ getRange body) $ do
       equalTerm (btyp iZero) lhs' (unArg lhs)
       equalTerm (btyp iOne) rhs' (unArg rhs)
       return t
@@ -508,7 +508,7 @@ checkAbsurdLambda cmp i h e t = do
           aux <- qualify top <$> freshName_ (getRange i, absurdLambdaName)
           -- if we are in irrelevant position, the helper function
           -- is added as irrelevant
-          rel <- asks envRelevance
+          rel <- asksTC envRelevance
           reportSDoc "tc.term.absurd" 10 $ vcat
             [ text "Adding absurd function" <+> prettyTCM rel <> prettyTCM aux
             , nest 2 $ text "of type" <+> prettyTCM t'
@@ -553,7 +553,7 @@ checkExtendedLambda cmp i di qname cs e t = do
    t <- instantiateFull t
    ifBlockedType t (\ m t' -> postponeTypeCheckingProblem_ $ CheckExpr cmp e t') $ \ _ t -> do
      j   <- currentOrFreshMutualBlock
-     rel <- asks envRelevance
+     rel <- asksTC envRelevance
      let info = setRelevance rel defaultArgInfo
 
      reportSDoc "tc.term.exlam" 20 $
@@ -601,14 +601,14 @@ catchIlltypedPatternBlockedOnMeta m handle = do
 
   -- Andreas, 2016-07-13, issue 2028.
   -- Save the state to rollback the changes to the signature.
-  st <- get
+  st <- getTC
 
   m `catchError` \ err -> do
 
     let reraise = throwError err
 
     x <- maybe reraise return =<< case err of
-      TypeError s cl -> localState $ put s >> do
+      TypeError s cl -> localTCState $ putTC s >> do
         enterClosure cl $ \case
           IlltypedPattern p a -> isBlockedType a
           SplitError (UnificationStuck c tel us vs _) -> do
@@ -630,7 +630,7 @@ catchIlltypedPatternBlockedOnMeta m handle = do
     -- 2. We added a constant without definition.
     -- In fact, they are not so harmless, see issue 2028!
     -- Thus, reset the state!
-    put st
+    putTC st
 
     -- The meta might not be known in the reset state, as it could have been created
     -- somewhere on the way to the type error.
@@ -1006,7 +1006,7 @@ checkExpr' cmp e t0 =
         A.RecUpdate ei recexpr fs -> checkRecordUpdate cmp ei recexpr fs e t
 
         A.DontCare e -> -- resurrect vars
-          ifM ((Irrelevant ==) <$> asks envRelevance)
+          ifM ((Irrelevant ==) <$> asksTC envRelevance)
             (dontCare <$> do applyRelevanceToContext Irrelevant $ checkExpr' cmp e t)
             (internalError "DontCare may only appear in irrelevant contexts")
 
@@ -1158,7 +1158,7 @@ unquoteTactic tac hole goal k = do
   ok  <- runUnquoteM $ unquoteTCM tac hole
   case ok of
     Left (BlockedOnMeta oldState x) -> do
-      put oldState
+      putTC oldState
       mi <- Map.lookup x <$> getMetaStore
       (r, unblock) <- case mi of
         Nothing -> do -- fresh meta: need to block on something else!
@@ -1419,7 +1419,7 @@ checkLetBinding b@(A.LetPatBind i p e) ret =
       , nest 2 $ vcat
         [ text "p (A) =" <+> prettyA p
         , text "t     =" <+> prettyTCM t
-        , text "cxtRel=" <+> do pretty =<< asks envRelevance
+        , text "cxtRel=" <+> do pretty =<< asksTC envRelevance
         ]
       ]
     fvs <- getContextSize
@@ -1431,7 +1431,7 @@ checkLetBinding b@(A.LetPatBind i p e) ret =
       reportSDoc "tc.term.let.pattern" 20 $ nest 2 $ vcat
         [ text "p (I) =" <+> prettyTCM p
         , text "delta =" <+> prettyTCM delta
-        , text "cxtRel=" <+> do pretty =<< asks envRelevance
+        , text "cxtRel=" <+> do pretty =<< asksTC envRelevance
         ]
       reportSDoc "tc.term.let.pattern" 80 $ nest 2 $ vcat
         [ text "p (I) =" <+> (text . show) p

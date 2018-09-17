@@ -110,7 +110,7 @@ equalType = compareType CmpEq
 -- convError ::  MonadTCM tcm => TypeError -> tcm a
 -- | Ignore errors in irrelevant context.
 convError :: TypeError -> TCM ()
-convError err = ifM ((==) Irrelevant <$> asks envRelevance) (return ()) $ typeError err
+convError err = ifM ((==) Irrelevant <$> asksTC envRelevance) (return ()) $ typeError err
 
 -- | Type directed equality on values.
 --
@@ -181,14 +181,14 @@ unifyPointers _ _ _ action = action
 -- unifyPointers cmp _ _ action | cmp /= CmpEq = action
 -- unifyPointers _ u v action = do
 --   reportSLn "tc.ptr.unify" 50 $ "Maybe unifying pointers\n  u = " ++ show u ++ "\n  v = " ++ show v
---   old <- use stDirty
---   stDirty .= False
+--   old <- useTC stDirty
+--   stDirty `setTCLens` False
 --   action
 --   reportSLn "tc.ptr.unify" 50 $ "Finished comparison\n  u = " ++ show u ++ "\n  v = " ++ show v
 --   (u, v) <- instantiate (u, v)
 --   reportSLn "tc.ptr.unify" 50 $ "After instantiation\n  u = " ++ show u ++ "\n  v = " ++ show v
---   dirty <- use stDirty
---   stDirty .= old
+--   dirty <- useTC stDirty
+--   stDirty `setTCLens` old
 --   if dirty then verboseS "profile.sharing" 20 (tick "unifyPtr: dirty")
 --            else do
 --             verboseS "profile.sharing" 20 (tick "unifyPtr: clean")
@@ -436,7 +436,7 @@ compareAtom cmp t m n =
                                   , text ":" <+> prettyTCM t ]
     -- Andreas: what happens if I cut out the eta expansion here?
     -- Answer: Triggers issue 245, does not resolve 348
-    (mb',nb') <- ifM (asks envCompareBlocked) ((notBlocked -*- notBlocked) <$> reduce (m,n)) $ do
+    (mb',nb') <- ifM (asksTC envCompareBlocked) ((notBlocked -*- notBlocked) <$> reduce (m,n)) $ do
       mb' <- etaExpandBlocked =<< reduceB m
       nb' <- etaExpandBlocked =<< reduceB n
       return (mb', nb')
@@ -1626,7 +1626,7 @@ forallFaceMaps t kb k = do
   forM as $ \ (ms,ts) -> do
    ifBlockeds ts (kb ms) $ \ _ _ -> do
     let xs = map (id -*- boolToI) $ Map.toAscList ms
-    cxt <- asks envContext
+    cxt <- asksTC envContext
     (cxt',sigma) <- substContextN cxt xs
     resolved <- forM xs (\ (i,t) -> (,) <$> lookupBV i <*> return (applySubst sigma t))
     updateContext sigma (const cxt') $

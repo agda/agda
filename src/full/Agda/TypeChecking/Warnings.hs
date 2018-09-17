@@ -34,8 +34,8 @@ genericNonFatalError = warning . GenericNonFatalError
 {-# SPECIALIZE warning_ :: Warning -> TCM TCWarning #-}
 warning_ :: MonadTCM tcm => Warning -> tcm TCWarning
 warning_ w = do
-  r <- view eRange
-  c <- view eCall
+  r <- viewTC eRange
+  c <- viewTC eCall
   b <- liftTCM areWeCaching
   -- NicifierIssues print their own error locations in their list of
   -- issues (but we might need to keep the overall range `r` for
@@ -66,7 +66,7 @@ warnings ws = do
     tcwarn <- warning_ w'
     if wmode ^. warn2Error
     then typeError $ NonFatalErrors [tcwarn]
-    else stTCWarnings %= add w' tcwarn
+    else stTCWarnings `modifyTCLens` add w' tcwarn
 
 {-# SPECIALIZE warning :: Warning -> TCM () #-}
 warning :: MonadTCM tcm => Warning -> tcm ()

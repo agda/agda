@@ -305,7 +305,7 @@ inferDef mkTerm x =
         -- at the point where they should be generalized. Module parameters
         -- have already been applied to the meta, so we don't have to do that
         -- here.
-        val <- fromMaybe __IMPOSSIBLE__ <$> view (eGeneralizedVars . key x)
+        val <- fromMaybe __IMPOSSIBLE__ <$> viewTC (eGeneralizedVars . key x)
         sub <- checkpointSubstitution (genvalCheckpoint val)
         let (v, t) = applySubst sub (genvalTerm val, genvalType val)
         debug [] t v
@@ -343,7 +343,7 @@ checkRelevance' x def = do
       -- irrelevant projections are only allowed if --irrelevant-projections
       ifM (return (isJust $ isProjection_ $ theDef def) `and2M`
            (not .optIrrelevantProjections <$> pragmaOptions)) {-then-} needIrrProj {-else-} $ do
-        rel <- asks envRelevance
+        rel <- asksTC envRelevance
         reportSDoc "tc.irr" 50 $ vcat
           [ text "declaration relevance =" <+> text (show drel)
           , text "context     relevance =" <+> text (show rel)
@@ -390,7 +390,7 @@ checkHeadApplication cmp e t hd args = do
   defaultResult = defaultResult' Nothing
   defaultResult' mk = do
     (f, t0) <- inferHead hd
-    expandLast <- asks envExpandLast
+    expandLast <- asksTC envExpandLast
     checkArguments expandLast (getRange hd) args t0 t $ \ vs t1 checkedTarget -> do
       let check = do
            k <- mk
@@ -692,7 +692,7 @@ checkConstructorApplication cmp org t c args = do
            -- drop the parameter arguments
                args' = dropArgs pnames args
            -- check the non-parameter arguments
-           expandLast <- asks envExpandLast
+           expandLast <- asksTC envExpandLast
            checkArguments expandLast (getRange c) args' ctype' t $ \ es t' targetCheck -> do
              let us = fromMaybe __IMPOSSIBLE__ (allApplyElims es)
              reportSDoc "tc.term.con" 20 $ nest 2 $ vcat
@@ -1020,8 +1020,8 @@ checkSharpApplication e t c args = do
                            (freshName_ name)
 
     -- Define and type check the fresh function.
-    rel <- asks envRelevance
-    abs <- aModeToDef <$> asks envAbstractMode
+    rel <- asksTC envRelevance
+    abs <- aModeToDef <$> asksTC envAbstractMode
     let info   = A.mkDefInfo (A.nameConcrete $ A.qnameName c') noFixity'
                              PublicAccess abs noRange
         core   = A.LHSProj { A.lhsDestructor = unambiguous flat

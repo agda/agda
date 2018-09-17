@@ -5,13 +5,18 @@ import Control.Monad.Reader
 
 import Agda.Syntax.Abstract.Name (QName)
 import Agda.Syntax.Internal (ModuleName, Telescope)
-import Agda.TypeChecking.Monad.Base (TCM, ReadTCState, HasOptions, TCEnv, Definition, RewriteRules)
+
+import Agda.TypeChecking.Monad.Base
+  ( TCM, ReadTCState, HasOptions, TCEnv, MonadTCEnv
+  , Definition, RewriteRules
+  )
 import Agda.TypeChecking.Monad.Debug (MonadDebug)
+
 import Agda.Utils.Pretty (prettyShow)
 
 data SigError = SigUnknown String | SigAbstract
 
-class (Functor m, Applicative m, Monad m, HasOptions m, MonadDebug m, MonadReader TCEnv m) => HasConstInfo m where
+class (Functor m, Applicative m, Monad m, HasOptions m, MonadDebug m, MonadTCEnv m) => HasConstInfo m where
   getConstInfo :: QName -> m Definition
   getConstInfo q = getConstInfo' q >>= \case
       Right d -> return d

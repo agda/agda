@@ -78,12 +78,12 @@ withFreshName_ = withFreshName noRange
 
 addCtx :: (MonadReduce m) => Name -> Dom Type -> m a -> m a
 addCtx x a ret = do
-  ctx <- asks $ map (fst . unDom) . envContext
+  ctx <- asksTC $ map (fst . unDom) . envContext
   let x' = unshadowedName ctx x
       ce = (x',) <$> a
-  oldChkpt <- view eCurrentCheckpoint
+  oldChkpt <- viewTC eCurrentCheckpoint
   withFreshR $ \ chkpt ->
-    local (\e -> e { envContext = ce : envContext e
+    localTC (\e -> e { envContext = ce : envContext e
                    , envCurrentCheckpoint = chkpt
                    , envCheckpoints = Map.insert chkpt IdS $
                                         fmap (raise 1) (envCheckpoints e)

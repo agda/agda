@@ -165,7 +165,7 @@ coverageCheck f t cs = do
   reportSLn "tc.cover.top" 30 $ "coverageCheck: getting checkpoints"
 
   -- TODO: does this make sense? Why are we weakening by n - fv?
-  checkpoints <- applySubst (raiseS (n - fv)) <$> view eCheckpoints
+  checkpoints <- applySubst (raiseS (n - fv)) <$> viewTC eCheckpoints
 
       -- construct the initial split clause
   let sc = SClause gamma xs idS checkpoints $ Just $ defaultArg a
@@ -419,7 +419,7 @@ inferMissingClause
 inferMissingClause f (SClause tel ps _ cps (Just t)) = setCurrentRange f $ do
   reportSDoc "tc.cover.infer" 20 $ addContext tel $ text "Trying to infer right-hand side of type" <+> prettyTCM t
   cl <- addContext tel
-        $ locally eCheckpoints (const cps)
+        $ locallyTC eCheckpoints (const cps)
         $ checkpoint IdS $ do    -- introduce a fresh checkpoint
     (_x, rhs) <- case getHiding t of
                   Instance{} -> newIFSMeta "" (unArg t)

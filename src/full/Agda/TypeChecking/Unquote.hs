@@ -85,8 +85,8 @@ packUnquoteM f = ReaderT $ \ cxt -> StateT $ \ s -> WriterT $ mkExceptT $ f cxt 
 
 runUnquoteM :: UnquoteM a -> TCM (Either UnquoteError (a, [QName]))
 runUnquoteM m = do
-  cxt <- asks envContext
-  s   <- get
+  cxt <- asksTC envContext
+  s   <- getTC
   z   <- unpackUnquoteM m cxt (Clean, s)
   case z of
     Left err              -> return $ Left err
@@ -97,9 +97,6 @@ runUnquoteM m = do
       case def of
         Function{funClauses = []} -> genericError $ "Missing definition for " ++ prettyShow x
         _       -> return ()
-
-liftU :: TCM a -> UnquoteM a
-liftU = lift . lift . lift . lift
 
 liftU1 :: (TCM (UnquoteRes a) -> TCM (UnquoteRes b)) -> UnquoteM a -> UnquoteM b
 liftU1 f m = packUnquoteM $ \ cxt s -> f (unpackUnquoteM m cxt s)
@@ -113,22 +110,22 @@ inOriginalContext m =
     modifyContext (const cxt) $ unpackUnquoteM m cxt s
 
 isCon :: ConHead -> TCM Term -> UnquoteM Bool
-isCon con tm = do t <- liftU tm
+isCon con tm = do t <- liftTCM tm
                   case t of
                     Con con' _ _ -> return (con == con')
                     _ -> return False
 
 isDef :: QName -> TCM Term -> UnquoteM Bool
 isDef f tm = do
-  t <- liftU (etaContract =<< normalise =<< tm)
+  t <- liftTCM $ etaContract =<< normalise =<< tm
   case t of
     Def g _ -> return (f == g)
     _       -> return False
 
 reduceQuotedTerm :: Term -> UnquoteM Term
 reduceQuotedTerm t = do
-  b <- liftU $ ifBlocked t (\ m _ -> pure $ Left  m)
-                           (\ _ t -> pure $ Right t)
+  b <- ifBlocked t {-then-} (\ m _ -> pure $ Left  m)
+                   {-else-} (\ _ t -> pure $ Right t)
   case b of
     Left m  -> do s <- gets snd; throwError $ BlockedOnMeta s m
     Right t -> return t
@@ -147,22 +144,22 @@ choice ((mb, mx) : mxs) dflt = ifM mb mx $ choice mxs dflt
 
 ensureDef :: QName -> UnquoteM QName
 ensureDef x = do
-  i <- liftU $ either (const Axiom) theDef <$> getConstInfo' x  -- for recursive unquoteDecl
+  i <- either (const Axiom) theDef <$> getConstInfo' x  -- for recursive unquoteDecl
   case i of
     Constructor{} -> do
-      def <- liftU $ prettyTCM =<< primAgdaTermDef
-      con <- liftU $ prettyTCM =<< primAgdaTermCon
+      def <- liftTCM $ prettyTCM =<< primAgdaTermDef
+      con <- liftTCM $ prettyTCM =<< primAgdaTermCon
       throwError $ ConInsteadOfDef x (show def) (show con)
     _ -> return x
 
 ensureCon :: QName -> UnquoteM QName
 ensureCon x = do
-  i <- liftU $ either (const Axiom) theDef <$> getConstInfo' x  -- for recursive unquoteDecl
+  i <- either (const Axiom) theDef <$> getConstInfo' x  -- for recursive unquoteDecl
   case i of
     Constructor{} -> return x
     _ -> do
-      def <- liftU $ prettyTCM =<< primAgdaTermDef
-      con <- liftU $ prettyTCM =<< primAgdaTermCon
+      def <- liftTCM $ prettyTCM =<< primAgdaTermDef
+      con <- liftTCM $ prettyTCM =<< primAgdaTermCon
       throwError $ DefInsteadOfCon x (show def) (show con)
 
 pickName :: R.Type -> String
@@ -336,14 +333,14 @@ instance Unquote a => Unquote (R.Abs a) where
     where hint x | not (null x) = x
                  | otherwise    = "_"
 
-getCurrentPath :: TCM AbsolutePath
-getCurrentPath = fromMaybe __IMPOSSIBLE__ <$> asks envCurrentPath
+getCurrentPath :: MonadTCEnv m => m AbsolutePath
+getCurrentPath = fromMaybe __IMPOSSIBLE__ <$> asksTC envCurrentPath
 
 instance Unquote MetaId where
   unquote t = do
     t <- reduceQuotedTerm t
     case t of
-      Lit (LitMeta r f x) -> liftU $ do
+      Lit (LitMeta r f x) -> liftTCM $ do
         live <- (f ==) <$> getCurrentPath
         unless live $ do
             m <- fromMaybe __IMPOSSIBLE__ <$> lookupModuleFromSource f
@@ -376,7 +373,7 @@ instance Unquote Literal where
   unquote t = do
     t <- reduceQuotedTerm t
     let litMeta r x = do
-          file <- liftU getCurrentPath
+          file <- getCurrentPath
           return $ LitMeta r file x
     case t of
       Con c _ es | Just [x] <- allApplyElims es ->
@@ -474,13 +471,13 @@ instance Unquote R.Clause where
 --   (quoted).
 unquoteTCM :: I.Term -> I.Term -> UnquoteM I.Term
 unquoteTCM m hole = do
-  qhole <- liftU $ quoteTerm hole
+  qhole <- liftTCM $ quoteTerm hole
   evalTCM (m `apply` [defaultArg qhole])
 
 evalTCM :: I.Term -> UnquoteM I.Term
 evalTCM v = do
   v <- reduceQuotedTerm v
-  liftU $ reportSDoc "tc.unquote.eval" 90 $ text "evalTCM" <+> prettyTCM v
+  liftTCM $ reportSDoc "tc.unquote.eval" 90 $ text "evalTCM" <+> prettyTCM v
   let failEval = throwError $ NonCanonical "type checking computation" v
 
   case v of
@@ -530,7 +527,7 @@ evalTCM v = do
 
     process :: (InstantiateFull a, Normalise a) => a -> TCM a
     process v = do
-      norm <- view eUnquoteNormalise
+      norm <- viewTC eUnquoteNormalise
       if norm then normalise v else instantiateFull v
 
     mkT l a = El s a
@@ -544,7 +541,7 @@ evalTCM v = do
     tcWithNormalisation :: Term -> Term -> UnquoteM Term
     tcWithNormalisation b m = do
       v <- unquote b
-      liftU1 (locally eUnquoteNormalise $ const v) (evalTCM m)
+      liftU1 (locallyTC eUnquoteNormalise $ const v) (evalTCM m)
 
     uqFun1 :: Unquote a => (a -> UnquoteM b) -> Elim -> UnquoteM b
     uqFun1 fun a = do
@@ -552,7 +549,7 @@ evalTCM v = do
       fun a
 
     tcFun1 :: Unquote a => (a -> TCM b) -> Elim -> UnquoteM b
-    tcFun1 fun = uqFun1 (liftU . fun)
+    tcFun1 fun = uqFun1 (liftTCM . fun)
 
     uqFun2 :: (Unquote a, Unquote b) => (a -> b -> UnquoteM c) -> Elim -> Elim -> UnquoteM c
     uqFun2 fun a b = do
@@ -568,10 +565,10 @@ evalTCM v = do
       fun a b c
 
     tcFun2 :: (Unquote a, Unquote b) => (a -> b -> TCM c) -> Elim -> Elim -> UnquoteM c
-    tcFun2 fun = uqFun2 (\ x y -> liftU (fun x y))
+    tcFun2 fun = uqFun2 (\ x y -> liftTCM (fun x y))
 
     tcFun3 :: (Unquote a, Unquote b, Unquote c) => (a -> b -> c -> TCM d) -> Elim -> Elim -> Elim -> UnquoteM d
-    tcFun3 fun = uqFun3 (\ x y z -> liftU (fun x y z))
+    tcFun3 fun = uqFun3 (\ x y z -> liftTCM (fun x y z))
 
     tcFreshName :: Str -> TCM Term
     tcFreshName s = do
@@ -594,10 +591,10 @@ evalTCM v = do
     tcCommit = do
       dirty <- gets fst
       when (dirty == Dirty) $
-        liftU $ typeError $ GenericError "Cannot use commitTC after declaring new definitions."
-      s <- liftU get
+        typeError $ GenericError "Cannot use commitTC after declaring new definitions."
+      s <- getTC
       modify (second $ const s)
-      liftU primUnitUnit
+      liftTCM primUnitUnit
 
     tcTypeError :: [ErrorPart] -> TCM a
     tcTypeError err = typeError . GenericDocError =<< fsep (map prettyTCM err)
@@ -620,7 +617,7 @@ evalTCM v = do
       quoteTerm =<< process v
 
     tcQuoteTerm :: Term -> UnquoteM Term
-    tcQuoteTerm v = liftU $ quoteTerm =<< process v
+    tcQuoteTerm v = liftTCM $ quoteTerm =<< process v
 
     tcUnquoteTerm :: Type -> R.Term -> TCM Term
     tcUnquoteTerm a v = do
@@ -639,14 +636,14 @@ evalTCM v = do
       quoteTerm =<< reduce =<< instantiateFull v
 
     tcGetContext :: UnquoteM Term
-    tcGetContext = liftU $ do
+    tcGetContext = liftTCM $ do
       as <- map (fmap snd) <$> getContext
       as <- etaContract =<< process as
       buildList <*> mapM quoteDom as
 
     extendCxt :: Arg R.Type -> UnquoteM a -> UnquoteM a
     extendCxt a m = do
-      a <- liftU $ traverse (isType_ <=< toAbstract_) a
+      a <- liftTCM $ traverse (isType_ <=< toAbstract_) a
       liftU1 (addContext (domFromArg a :: Dom Type)) m
 
     tcExtendContext :: Term -> Term -> UnquoteM Term
@@ -688,10 +685,10 @@ evalTCM v = do
     tcDeclareDef (Arg i x) a = inOriginalContext $ do
       setDirty
       let r = getRelevance i
-      when (hidden i) $ liftU $ typeError . GenericDocError =<<
+      when (hidden i) $ liftTCM $ typeError . GenericDocError =<<
         text "Cannot declare hidden function" <+> prettyTCM x
       tell [x]
-      liftU $ do
+      liftTCM $ do
         reportSDoc "tc.unquote.decl" 10 $ sep
           [ text "declare" <+> prettyTCM x <+> text ":"
           , nest 2 $ prettyTCM a
@@ -706,14 +703,14 @@ evalTCM v = do
     tcDeclarePostulate :: Arg QName -> R.Type -> UnquoteM Term
     tcDeclarePostulate (Arg i x) a = inOriginalContext $ do
       clo <- commandLineOptions
-      when (Lens.getSafeMode clo) $ liftU $ typeError . GenericDocError =<<
+      when (Lens.getSafeMode clo) $ liftTCM $ typeError . GenericDocError =<<
         text "Cannot postulate '" <+> prettyTCM x <+> text ":" <+> prettyTCM a <+> text "' with safe flag"
       setDirty
       let r = getRelevance i
-      when (hidden i) $ liftU $ typeError . GenericDocError =<<
+      when (hidden i) $ liftTCM $ typeError . GenericDocError =<<
         text "Cannot declare hidden function" <+> prettyTCM x
       tell [x]
-      liftU $ do
+      liftTCM $ do
         reportSDoc "tc.unquote.decl" 10 $ sep
           [ text "declare Postulate" <+> prettyTCM x <+> text ":"
           , nest 2 $ prettyTCM a
@@ -726,7 +723,7 @@ evalTCM v = do
         primUnitUnit
 
     tcDefineFun :: QName -> [R.Clause] -> UnquoteM Term
-    tcDefineFun x cs = inOriginalContext $ (setDirty >>) $ liftU $ do
+    tcDefineFun x cs = inOriginalContext $ (setDirty >>) $ liftTCM $ do
       whenM (isLeft <$> getConstInfo' x) $
         genericError $ "Missing declaration for " ++ prettyShow x
       cs <- mapM (toAbstract_ . QNamed x) cs

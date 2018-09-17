@@ -379,7 +379,7 @@ checkFunDefS t ai delayed extlam with i name withSub cs = do
 --   which comes from a possible termination pragma.
 useTerPragma :: Definition -> TCM Definition
 useTerPragma def@Defn{ defName = name, theDef = fun@Function{}} = do
-  tc <- asks envTerminationCheck
+  tc <- asksTC envTerminationCheck
   let terminates = case tc of
         NonTerminating -> Just False
         Terminating    -> Just True
@@ -550,7 +550,7 @@ checkBodyEndPoints delta t self es body = do
   t <- reduce t
   (cs,t) <- accumBoundary [] es t self
   reportSDoc "endpoints" 20 $ text $ show (cs,t)
-  locally eRange (const noRange) $
+  locallyTC eRange (const noRange) $
     checkBoundary cs t body
  where
    checkBoundary [] _ _ = return ()
@@ -677,7 +677,7 @@ checkClause t withSub c@(A.Clause (A.SpineLHS i x aps) strippedPats rhs0 wh catc
           ]
 
         -- compute body modification for irrelevant definitions, see issue 610
-        rel <- asks envRelevance
+        rel <- asksTC envRelevance
         let bodyMod body = case rel of
               Irrelevant -> dontCare <$> body
               _          -> body
@@ -740,16 +740,16 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps absurdPat trhs _ _asb _) rhs0
         -- a futile rewrite with a reflexive equation.
         -- Thus, we restore the state in this case,
         -- unless the rewrite expression contains questionmarks.
-        st <- get
+        st <- getTC
         let recurse = do
-             st' <- get
+             st' <- getTC
              -- Comparing the whole stInteractionPoints maps is a bit
              -- wasteful, but we assume
              -- 1. rewriting with a reflexive equality to happen rarely,
              -- 2. especially with ?-holes in the rewrite expression
              -- 3. and a large overall number of ?s.
              let sameIP = (==) `on` (^.stInteractionPoints)
-             when (sameIP st st') $ put st
+             when (sameIP st st') $ putTC st
              handleRHS $ A.RewriteRHS qes strippedPats rhs wh
 
         -- Get value and type of rewrite-expression.
@@ -972,7 +972,7 @@ checkWithFunction cxtNames (WithFunction f aux t delta delta1 delta2 vs as b qs 
      checkType withFunType)
     `catchError` \err -> case err of
       TypeError s e -> do
-        put s
+        putTC s
         wt <- reify withFunType
         enterClosure e $ traceCall (CheckWithFunctionType wt) . typeError
       err           -> throwError err
@@ -1028,7 +1028,7 @@ checkWhere wh@(A.WhereDecls whmod ds) ret = do
       [] -> ret
       [A.ScopedDecl scope ds] -> withScope_ scope $ loop ds
       [A.Section _ m tel ds]  -> newSection m tel $ do
-          local (\ e -> e { envCheckingWhere = True }) $ do
+          localTC (\ e -> e { envCheckingWhere = True }) $ do
             checkDecls ds
             ret
       _ -> __IMPOSSIBLE__
@@ -1079,4 +1079,4 @@ newSection m tel cont = do
 
 -- | Set the current clause number.
 atClause :: QName -> Int -> A.RHS -> TCM a -> TCM a
-atClause name i rhs = local $ \ e -> e { envClause = IPClause name i rhs }
+atClause name i rhs = localTC $ \ e -> e { envClause = IPClause name i rhs }

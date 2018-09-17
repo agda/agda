@@ -123,8 +123,8 @@ printHighlightingInfo ::
   HighlightingInfo ->
   tcm ()
 printHighlightingInfo remove info = do
-  modToSrc <- use stModuleToSource
-  method   <- view eHighlightingMethod
+  modToSrc <- useTC stModuleToSource
+  method   <- viewTC eHighlightingMethod
   liftTCM $ reportSLn "highlighting" 50 $ unlines
     [ "Printing highlighting info:"
     , show info
@@ -163,7 +163,7 @@ generateAndPrintSyntaxInfo
   -> TCM ()
 generateAndPrintSyntaxInfo decl _ _ | null $ P.getRange decl = return ()
 generateAndPrintSyntaxInfo decl hlLevel updateState = do
-  file <- fromMaybe __IMPOSSIBLE__ <$> asks envCurrentPath
+  file <- fromMaybe __IMPOSSIBLE__ <$> asksTC envCurrentPath
 
   reportSLn "import.iface.create" 15 $
       "Generating syntax info for " ++ filePath file ++ ' ' :
@@ -186,18 +186,18 @@ generateAndPrintSyntaxInfo decl hlLevel updateState = do
       Full{} -> generateConstructorInfo modMap file kinds decl
       _      -> return mempty
 
-    cm <- P.rangeFile <$> view eRange
+    cm <- P.rangeFile <$> viewTC eRange
     reportSLn "highlighting.warning" 60 $ "current path = " ++ show cm
 
     warnInfo <- Fold.foldMap warningHighlighting
-                 . filter ((cm ==) . tcWarningOrigin) <$> use stTCWarnings
+                 . filter ((cm ==) . tcWarningOrigin) <$> useTC stTCWarnings
 
     let (from, to) = case P.rangeToInterval (P.getRange decl) of
           Nothing -> __IMPOSSIBLE__
           Just i  -> ( fromIntegral $ P.posPos $ P.iStart i
                      , fromIntegral $ P.posPos $ P.iEnd i)
     (prevTokens, (curTokens, postTokens)) <-
-      second (splitAtC to) . splitAtC from <$> use stTokens
+      second (splitAtC to) . splitAtC from <$> useTC stTokens
 
     -- theRest needs to be placed before nameInfo here since record
     -- field declarations contain QNames. constructorInfo also needs
@@ -214,8 +214,8 @@ generateAndPrintSyntaxInfo decl hlLevel updateState = do
                      curTokens
 
     when updateState $ do
-      stSyntaxInfo %= mappend syntaxInfo
-      stTokens     .= prevTokens `mappend` postTokens
+      stSyntaxInfo `modifyTCLens` mappend syntaxInfo
+      stTokens     `setTCLens` (prevTokens `mappend` postTokens)
 
     ifTopLevelAndHighlightingLevelIs NonInteractive $
       printHighlightingInfo KeepHighlighting syntaxInfo
@@ -436,9 +436,9 @@ nameKinds :: Level
           -> A.Declaration
           -> TCM NameKinds
 nameKinds hlLevel decl = do
-  imported <- fix <$> use stImports
+  imported <- fix <$> useTC stImports
   local    <- case hlLevel of
-    Full{} -> fix <$> use stSignature
+    Full{} -> fix <$> useTC stSignature
     _      -> return HMap.empty
       -- Traverses the syntax tree and constructs a map from qualified
       -- names to name kinds. TODO: Handle open public.
@@ -529,7 +529,7 @@ generateConstructorInfo modMap file kinds decl = do
         end   = fromIntegral $ P.posPos $ P.iEnd   $ last is
 
     -- Get all disambiguated names that fall within the range of decl.
-    m0 <- use stDisambiguatedNames
+    m0 <- useTC stDisambiguatedNames
     let (_, m1) = IntMap.split (pred start) m0
         (m2, _) = IntMap.split end m1
         constrs = IntMap.elems m2
@@ -540,7 +540,7 @@ generateConstructorInfo modMap file kinds decl = do
 
 printSyntaxInfo :: P.Range -> TCM ()
 printSyntaxInfo r = do
-  syntaxInfo <- use stSyntaxInfo
+  syntaxInfo <- useTC stSyntaxInfo
   ifTopLevelAndHighlightingLevelIs NonInteractive $
       printHighlightingInfo KeepHighlighting (selectC r syntaxInfo)
 
@@ -866,7 +866,7 @@ bindingSite = A.nameBindingSite . A.qnameName
 --   To be used later during syntax highlighting.
 storeDisambiguatedName :: A.QName -> TCM ()
 storeDisambiguatedName q = whenJust (start $ P.getRange q) $ \ i ->
-  stDisambiguatedNames %= IntMap.insert i q
+  stDisambiguatedNames `modifyTCLens` IntMap.insert i q
   where
   start r = fromIntegral . P.posPos <$> P.rStart' r
 

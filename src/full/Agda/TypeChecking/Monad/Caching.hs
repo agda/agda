@@ -38,25 +38,25 @@ import Agda.Utils.Impossible
 -- | To be called before any write or restore calls.
 cachingStarts :: TCM ()
 cachingStarts = do
-    NameId _ m <- use stFreshNameId
-    stFreshNameId .= NameId 1 m
-    stAreWeCaching .= True
+    NameId _ m <- useTC stFreshNameId
+    stFreshNameId `setTCLens` NameId 1 m
+    stAreWeCaching `setTCLens` True
 
 areWeCaching :: TCM Bool
-areWeCaching = use stAreWeCaching
+areWeCaching = useTC stAreWeCaching
 
 -- | Writes a 'TypeCheckAction' to the current log, using the current
 -- 'PostScopeState'
 writeToCurrentLog :: TypeCheckAction -> TCM ()
 writeToCurrentLog !d = do
   reportSLn "cache" 10 $ "cachePostScopeState"
-  !l <- gets stPostScopeState
+  !l <- getsTC stPostScopeState
   modifyCache $ fmap $ \lfc -> lfc{ lfcCurrent = (d, l) : lfcCurrent lfc}
 
 restorePostScopeState :: PostScopeState -> TCM ()
 restorePostScopeState pss = do
   reportSLn "cache" 10 $ "restorePostScopeState"
-  modify $ \s ->
+  modifyTC $ \s ->
     let ipoints = s^.stInteractionPoints
         ws = s^.stTCWarnings
         pss' = pss{stPostInteractionPoints = stPostInteractionPoints pss `mergeIPMap` ipoints
@@ -75,14 +75,14 @@ modifyCache
   :: (Maybe LoadedFileCache -> Maybe LoadedFileCache)
   -> TCM ()
 modifyCache f = do
-  modify $ \s -> let !p = stPersistentState s in s
+  modifyTC $ \s -> let !p = stPersistentState s in s
     { stPersistentState =
                           p { stLoadedFileCache = f (stLoadedFileCache p)}
     }
 
 getCache :: TCM (Maybe LoadedFileCache)
 getCache = do
-  gets (stLoadedFileCache . stPersistentState)
+  getsTC (stLoadedFileCache . stPersistentState)
 
 putCache :: Maybe LoadedFileCache -> TCM ()
 putCache cs = modifyCache $ const cs

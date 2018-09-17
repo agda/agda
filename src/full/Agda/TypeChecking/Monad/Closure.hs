@@ -10,9 +10,9 @@ import Agda.Utils.Lens
 
 enterClosure :: Closure a -> (a -> TCM b) -> TCM b
 enterClosure (Closure sig env scope cps x) k = do
-  isDbg <- view eIsDebugPrinting
+  isDbg <- viewTC eIsDebugPrinting
   withScope_ scope
-    $ locallyState stModuleCheckpoints (const cps)
+    $ locallyTCState stModuleCheckpoints (const cps)
     $ withEnv env{ envIsDebugPrinting = isDbg }
     $ k x
 

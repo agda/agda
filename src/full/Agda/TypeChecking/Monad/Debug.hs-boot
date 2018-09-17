@@ -19,10 +19,10 @@ class (Functor m, Applicative m, Monad m) => MonadDebug m where
 
 instance (MonadIO m) => MonadDebug (TCMT m)
 
-reportS :: (HasOptions m, MonadDebug m, MonadReader TCEnv m)
+reportS :: (HasOptions m, MonadDebug m, MonadTCEnv m)
         => VerboseKey -> Int -> String -> m ()
-reportSLn :: (HasOptions m, MonadDebug m, MonadReader TCEnv m)
+reportSLn :: (HasOptions m, MonadDebug m, MonadTCEnv m)
           => VerboseKey -> Int -> String -> m ()
-reportSDoc :: (HasOptions m, MonadDebug m, MonadReader TCEnv m)
+reportSDoc :: (HasOptions m, MonadDebug m, MonadTCEnv m)
            => VerboseKey -> Int -> TCM Doc -> m ()
 
