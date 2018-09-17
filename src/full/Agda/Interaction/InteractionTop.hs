@@ -786,7 +786,8 @@ interpret Cmd_metas = do -- CL.showMetas []
   unsolvedNotOK <- lift $ not . optAllowUnsolved <$> pragmaOptions
   ms <- lift showOpenMetas
   (pwe, pwa) <- interpretWarnings
-  display_info $ Info_AllGoalsWarnings (unlines ms) pwa pwe
+  allGoalsWarnings <- collectAllGoalsWarnings
+  display_info $ Info_AllGoalsWarnings allGoalsWarnings (unlines ms) pwa pwe
 
 interpret (Cmd_show_module_contents_toplevel norm s) =
   liftCommandMT B.atTopLevel $ showModuleContents norm noRange s
@@ -1056,22 +1057,31 @@ interpret Cmd_show_version = display_info Info_Version
 
 interpret Cmd_abort = return ()
 
--- | Show warnings
-interpretWarnings :: CommandM (String, String)
-interpretWarnings = do
+-- | Collect warnings
+collectWarnings :: CommandM ([TCWarning], [TCWarning])
+collectWarnings = do
   mws <- lift $ Imp.getAllWarnings AllWarnings RespectFlags
   case filter isNotMeta <$> mws of
     Imp.SomeWarnings ws@(_:_) -> do
       let (we, wa) = classifyWarnings ws
-      pwe <- lift $ prettyTCWarnings we
-      pwa <- lift $ prettyTCWarnings wa
-      return (pwe, pwa)
-    _ -> return ("", "")
+      return (we, wa)
+    _ -> return ([], [])
    where isNotMeta w = case tcWarning w of
                          UnsolvedInteractionMetas{} -> False
                          UnsolvedMetaVariables{}    -> False
                          _                          -> True
 
+-- | Show warnings
+interpretWarnings :: CommandM (String, String)
+interpretWarnings = do
+  (we, wa) <- collectWarnings
+  if (length we + length wa > 0)
+    then do
+      pwe <- lift $ prettyTCWarnings we
+      pwa <- lift $ prettyTCWarnings wa
+      return (pwe, pwa)
+    else
+      return ("", "")
 
 -- | Solved goals already instantiated internally
 -- The second argument potentially limits it to one specific goal.
@@ -1089,6 +1099,19 @@ solveInstantiatedGoals norm mii = do
         e <- withMetaInfo mi $ abstractToConcreteCtx TopCtx e
         return (i, e)
 
+
+-- | Collect all goals, warnings, and non-fatal errors
+collectAllGoalsWarnings :: CommandM AllGoalsWarnings
+collectAllGoalsWarnings = do
+  -- interaction metas
+  interactionMetas <- lift $ B.typesOfVisibleMetas B.AsIs >>= abstractToConcrete_
+  -- hidden metas
+  unsolvedNotOK <- lift $ not . optAllowUnsolved <$> pragmaOptions
+  hiddenMetas <- lift $ (guard unsolvedNotOK >>) <$> B.typesOfHiddenMetas B.Simplified
+    >>= abstractToConcrete_
+  -- warnings, and non-fatal errors
+  (warnings, errors) <- collectWarnings
+  return $ AllGoalsWarnings interactionMetas hiddenMetas warnings errors
 
 -- | Print open metas nicely.
 showOpenMetas :: TCM [String]

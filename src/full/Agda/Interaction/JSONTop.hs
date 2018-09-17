@@ -99,7 +99,7 @@ instance EncodeTCM DisplayInfo where
     [ "kind"        @= String "Constraints"
     , "constraints" @= constraints
     ]
-  encodeTCM (Info_AllGoalsWarnings goals warnings errors) = obj
+  encodeTCM (Info_AllGoalsWarnings _ goals warnings errors) = obj
     [ "kind"        @= String "AllGoalsWarnings"
     , "goals"       @= goals
     , "warnings"    @= warnings

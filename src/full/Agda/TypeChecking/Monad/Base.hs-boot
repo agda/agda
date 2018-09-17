@@ -11,6 +11,7 @@ import Agda.Utils.FileName (AbsolutePath)
 data HighlightingMethod
 data TCEnv
 data TCState
+data TCWarning
 data TCErr
 instance Show TCErr
 newtype TCMT m a = TCM { unTCM :: IORef TCState -> TCEnv -> m a }

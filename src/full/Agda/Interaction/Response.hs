@@ -9,16 +9,19 @@ module Agda.Interaction.Response
   , RemoveTokenBasedHighlighting (..)
   , MakeCaseVariant (..)
   , DisplayInfo (..)
+  , AllGoalsWarnings(..)
   , Status (..)
   , GiveResult (..)
   , InteractionOutputCallback
   , defaultInteractionOutputCallback
   ) where
 
+import {-# SOURCE #-} Agda.Interaction.BasicOps (OutputConstraint)
 import Agda.Interaction.Highlighting.Precise
 import {-# SOURCE #-} Agda.TypeChecking.Monad.Base
 import Agda.Syntax.Common   (InteractionId(..))
 import Agda.Syntax.Concrete (Expr)
+
 import Agda.Utils.Pretty
 
 import Control.Monad.Trans
@@ -76,7 +79,7 @@ data DisplayInfo
     = Info_CompilationOk String String
       -- ^ Strings are the warnings and the (non-fatal) errors
     | Info_Constraints String
-    | Info_AllGoalsWarnings String String String
+    | Info_AllGoalsWarnings AllGoalsWarnings String String String
         -- ^ Strings are the goals, the warnings and the (non-fatal) errors
     | Info_Time Doc
     | Info_Error TCErr String
@@ -100,6 +103,18 @@ data DisplayInfo
     | Info_HelperFunction Doc
     | Info_Version
         deriving Show
+
+-- | Goals, warnings and (non-fatal) errors
+
+data AllGoalsWarnings = AllGoalsWarnings
+  { interactionMetas :: [OutputConstraint Expr Expr]
+  , hiddenMetas :: [OutputConstraint Expr Expr]
+  , warnings :: [TCWarning]
+  , errors :: [TCWarning]
+  }
+
+instance Show AllGoalsWarnings where
+  show (AllGoalsWarnings _ _ _ _) = "AllGoalsWarnings"
 
 -- | Status information.
 
