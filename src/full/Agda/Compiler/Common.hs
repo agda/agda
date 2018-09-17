@@ -78,15 +78,15 @@ doCompile isMain i f = do
 
 setInterface :: Interface -> TCM ()
 setInterface i = do
-  opts <- gets (stPersistentOptions . stPersistentState)
+  opts <- getsTC (stPersistentOptions . stPersistentState)
   setCommandLineOptions opts
   mapM_ setOptionsFromPragma (iPragmaOptions i)
-  stImportedModules .= Set.fromList (map fst $ iImportedModules i)
-  stCurrentModule   .= Just (iModuleName i)
+  stImportedModules `setTCLens` Set.fromList (map fst $ iImportedModules i)
+  stCurrentModule   `setTCLens` Just (iModuleName i)
 
 curIF :: TCM Interface
 curIF = do
-  mName <- use stCurrentModule
+  mName <- useTC stCurrentModule
   case mName of
     Nothing   -> __IMPOSSIBLE__
     Just name -> do
@@ -157,7 +157,7 @@ inCompilerEnv mainI cont = do
     -- Compute the output directory. Note: using commandLineOptions would make
     -- the current pragma options persistent when we setCommandLineOptions
     -- below.
-    opts <- gets $ stPersistentOptions . stPersistentState
+    opts <- getsTC $ stPersistentOptions . stPersistentState
     compileDir <- case optCompileDir opts of
       Just dir -> return dir
       Nothing  -> do
@@ -173,14 +173,14 @@ inCompilerEnv mainI cont = do
     -- just a list of strings, thus, the solution is a bit of hack:
     -- We match on whether @["--no-main"]@ is one of the stored options.
     when (["--no-main"] `elem` iPragmaOptions mainI) $
-      stPragmaOptions %= \ o -> o { optCompileNoMain = True }
+      stPragmaOptions `modifyTCLens` \ o -> o { optCompileNoMain = True }
 
     setScope (iInsideScope mainI) -- so that compiler errors don't use overly qualified names
     ignoreAbstractMode $ do
       cont
   -- keep generated warnings
   let newWarnings = stPostTCWarnings $  stPostScopeState $ s
-  stTCWarnings .= newWarnings
+  stTCWarnings `setTCLens` newWarnings
   return a
 
 topLevelModuleName :: ModuleName -> TCM ModuleName

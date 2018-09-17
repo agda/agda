@@ -68,7 +68,7 @@ runAgda' backends = runTCMPrettyErrors $ do
   case opts of
     Left  err        -> liftIO $ optionError err
     Right (bs, opts) -> do
-      stBackends .= bs
+      setTCLens stBackends bs
       let enabled (Backend b) = isEnabled b (options b)
           bs' = filter enabled bs
       () <$ runAgdaWithOptions backends generateHTML (interaction bs') progName opts
@@ -121,7 +121,7 @@ runAgdaWithOptions backends generateHTML interaction progName opts
             Bench.print
 
             -- Print accumulated statistics.
-            printStatistics 1 Nothing =<< use lensAccumStatistics
+            printStatistics 1 Nothing =<< useTC lensAccumStatistics
   where
     checkFile = Just <$> do
       when (optInteractive opts) $ liftIO $ putStr splashScreen

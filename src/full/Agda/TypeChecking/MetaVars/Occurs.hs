@@ -99,7 +99,7 @@ successful).  This way, we do not duplicate work.
 -}
 
 modifyOccursCheckDefs :: (Set QName -> Set QName) -> TCM ()
-modifyOccursCheckDefs f = stOccursCheckDefs %= f
+modifyOccursCheckDefs f = stOccursCheckDefs `modifyTCLens` f
 
 -- | Set the names of definitions to be looked at
 --   to the defs in the current mutual block.
@@ -113,7 +113,7 @@ initOccursCheck mv = modifyOccursCheckDefs . const =<<
    else do
      reportSLn "tc.meta.occurs" 20 $
        "initOccursCheck: we look into the following definitions:"
-     mb <- asks envMutualBlock
+     mb <- asksTC envMutualBlock
      case mb of
        Nothing -> do
          reportSLn "tc.meta.occurs" 20 $ "(none)"
@@ -126,7 +126,7 @@ initOccursCheck mv = modifyOccursCheckDefs . const =<<
 
 -- | Is a def in the list of stuff to be checked?
 defNeedsChecking :: QName -> TCM Bool
-defNeedsChecking d = Set.member d <$> use stOccursCheckDefs
+defNeedsChecking d = Set.member d <$> useTC stOccursCheckDefs
 
 -- | Remove a def from the list of defs to be looked at.
 tallyDef :: QName -> TCM ()
@@ -728,7 +728,7 @@ killArgs kills _
   | not (or kills) = return NothingToPrune  -- nothing to kill
 killArgs kills m = do
   mv <- lookupMeta m
-  allowAssign <- asks envAssignMetas
+  allowAssign <- asksTC envAssignMetas
   if mvFrozen mv == Frozen || not allowAssign then return PrunedNothing else do
       -- Andreas 2011-04-26, we allow pruning in MetaV and MetaS
       let a = jMetaType $ mvJudgement mv

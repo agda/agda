@@ -47,7 +47,7 @@ import Agda.Utils.Impossible
 
 setPragmaOptions :: PragmaOptions -> TCM ()
 setPragmaOptions opts = do
-  stPragmaOptions %= Lens.mapSafeMode (Lens.getSafeMode opts ||)
+  stPragmaOptions `modifyTCLens` Lens.mapSafeMode (Lens.getSafeMode opts ||)
   clo <- commandLineOptions
   let unsafe = unsafePragmaOptions opts
   when (Lens.getSafeMode clo && not (null unsafe)) $ warning $ SafeFlagPragma unsafe
@@ -55,7 +55,7 @@ setPragmaOptions opts = do
   case ok of
     Left err   -> __IMPOSSIBLE__
     Right opts -> do
-      stPragmaOptions .= optPragmaOptions opts
+      stPragmaOptions `setTCLens` optPragmaOptions opts
       updateBenchmarkingStatus
 
 -- | Sets the command line options (both persistent and pragma options
@@ -84,7 +84,7 @@ setCommandLineOptions' relativeTo opts = do
           setIncludeDirs incs relativeTo
           getIncludeDirs
         incs -> return incs
-      modify $ Lens.setCommandLineOptions opts{ optAbsoluteIncludePaths = incs }
+      modifyTC $ Lens.setCommandLineOptions opts{ optAbsoluteIncludePaths = incs }
       setPragmaOptions (optPragmaOptions opts)
       updateBenchmarkingStatus
 
@@ -126,16 +126,16 @@ setOptionsFromPragma ps = do
 -- | Disable display forms.
 enableDisplayForms :: TCM a -> TCM a
 enableDisplayForms =
-  local $ \e -> e { envDisplayFormsEnabled = True }
+  localTC $ \e -> e { envDisplayFormsEnabled = True }
 
 -- | Disable display forms.
 disableDisplayForms :: TCM a -> TCM a
 disableDisplayForms =
-  local $ \e -> e { envDisplayFormsEnabled = False }
+  localTC $ \e -> e { envDisplayFormsEnabled = False }
 
 -- | Check if display forms are enabled.
 displayFormsEnabled :: TCM Bool
-displayFormsEnabled = asks envDisplayFormsEnabled
+displayFormsEnabled = asksTC envDisplayFormsEnabled
 
 -- | Gets the include directories.
 --
@@ -178,7 +178,7 @@ setIncludeDirs :: [FilePath] -- ^ New include directories.
                -> TCM ()
 setIncludeDirs incs relativeTo = do
   -- save the previous include dirs
-  oldIncs <- gets Lens.getAbsoluteIncludePaths
+  oldIncs <- getsTC Lens.getAbsoluteIncludePaths
 
   root <- getProjectRoot relativeTo
 
@@ -372,8 +372,8 @@ whenExactVerbosity k n = whenM $ liftTCM $ hasExactVerbosity k n
 {-# SPECIALIZE verboseS :: VerboseKey -> Int -> TCM () -> TCM () #-}
 -- {-# SPECIALIZE verboseS :: MonadIO m => VerboseKey -> Int -> TCMT m () -> TCMT m () #-} -- RULE left-hand side too complicated to desugar
 {-# SPECIALIZE verboseS :: MonadTCM tcm => VerboseKey -> Int -> tcm () -> tcm () #-}
-verboseS :: (MonadReader TCEnv m, HasOptions m) => VerboseKey -> Int -> m () -> m ()
-verboseS k n action = whenM (hasVerbosity k n) $ locally eIsDebugPrinting (const True) action
+verboseS :: (MonadTCEnv m, HasOptions m) => VerboseKey -> Int -> m () -> m ()
+verboseS k n action = whenM (hasVerbosity k n) $ locallyTC eIsDebugPrinting (const True) action
 
 -- | Verbosity lens.
 verbosity :: VerboseKey -> Lens' Int TCState

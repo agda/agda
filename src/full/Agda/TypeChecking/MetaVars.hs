@@ -116,7 +116,7 @@ assignTerm' :: MetaId -> [Arg ArgName] -> Term -> TCM ()
 assignTerm' x tel v = do
     reportSLn "tc.meta.assign" 70 $ prettyShow x ++ " := " ++ show v ++ "\n  in " ++ show tel
      -- verify (new) invariants
-    whenM (not <$> asks envAssignMetas) __IMPOSSIBLE__
+    whenM (not <$> asksTC envAssignMetas) __IMPOSSIBLE__
 
     verboseS "profile.metas" 10 $ liftTCM $ tickMax "max-open-metas" . (fromIntegral . size) =<< getOpenMetas
     modifyMetaStore $ ins x $ InstV tel $ killRange v
@@ -455,7 +455,7 @@ allMetaKinds = [minBound .. maxBound]
 -- | Eta expand a metavariable, if it is of the specified kind.
 --   Don't do anything if the metavariable is a blocked term.
 etaExpandMeta :: [MetaKind] -> MetaId -> TCM ()
-etaExpandMeta kinds m = whenM (asks envAssignMetas `and2M` isEtaExpandable kinds m) $ do
+etaExpandMeta kinds m = whenM (asksTC envAssignMetas `and2M` isEtaExpandable kinds m) $ do
   verboseBracket "tc.meta.eta" 20 ("etaExpandMeta " ++ prettyShow m) $ do
     let waitFor x = do
           reportSDoc "tc.meta.eta" 20 $ do
@@ -543,7 +543,7 @@ assignV dir x args v = assignWrapper dir x (map Apply args) v $ assign dir x arg
 
 assignWrapper :: CompareDirection -> MetaId -> Elims -> Term -> TCM () -> TCM ()
 assignWrapper dir x es v doAssign = do
-  ifNotM (asks envAssignMetas) patternViolation $ {- else -} do
+  ifNotM (asksTC envAssignMetas) patternViolation $ {- else -} do
     reportSDoc "tc.meta.assign" 10 $ do
       text "term" <+> prettyTCM (MetaV x es) <+> text (":" ++ show dir) <+> prettyTCM v
     liftTCM $ nowSolvingConstraints doAssign `finally` solveAwakeConstraints
@@ -1268,10 +1268,10 @@ inverseSubst args = map (mapFst unArg) <$> loop (zip args terms)
 --
 openMetasToPostulates :: TCM ()
 openMetasToPostulates = do
-  m <- asks envCurrentModule
+  m <- asksTC envCurrentModule
 
   -- Go through all open metas.
-  ms <- Map.assocs <$> use stMetaStore
+  ms <- Map.assocs <$> useTC stMetaStore
   forM_ ms $ \ (x, mv) -> do
     when (isOpenMeta $ mvInstantiation mv) $ do
       let t = jMetaType $ mvJudgement mv
@@ -1298,5 +1298,5 @@ openMetasToPostulates = do
 
       -- Solve the meta.
       let inst = InstV [] $ Def q []
-      stMetaStore %= Map.adjust (\ mv0 -> mv0 { mvInstantiation = inst }) x
+      stMetaStore `modifyTCLens` Map.adjust (\ mv0 -> mv0 { mvInstantiation = inst }) x
       return ()

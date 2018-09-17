@@ -33,8 +33,8 @@ generalizeType :: Set QName -> TCM Type -> TCM (Int, Type)
 generalizeType s m = do
     ((t, metaMap), allmetas) <- metasCreatedBy $ do
       -- Create metas for all used generalizable variables and their dependencies.
-      cp      <- view eCurrentCheckpoint
-      genvals <- locally eGeneralizeMetas (const YesGeneralize) $ forM (Set.toList s) $ \ x -> do
+      cp      <- viewTC eCurrentCheckpoint
+      genvals <- locallyTC eGeneralizeMetas (const YesGeneralize) $ forM (Set.toList s) $ \ x -> do
         def <- getConstInfo x
                          -- Only prefix of generalizable arguments (for now?)
         let nGen       = length $ takeWhile (== YesGeneralize) $ defArgGeneralizable def
@@ -76,7 +76,7 @@ generalizeType s m = do
 
       -- Check the type
       let gvMap = Map.fromList genvals
-      t <- locally eGeneralizedVars (const gvMap) m
+      t <- locallyTC eGeneralizedVars (const gvMap) m
 
       -- Remember the named generalized variables. We'll need to check that they
       -- are not instantiated.
@@ -121,8 +121,8 @@ generalizeType s m = do
     addVars t []       = return t
     addVars t (m : ms) = do
         mv <- lookupMeta m
-        metaCp <- enterClosure (miClosRange $ mvInfo mv) $ \ _ -> view eCurrentCheckpoint
-        cp     <- view eCurrentCheckpoint
+        metaCp <- enterClosure (miClosRange $ mvInfo mv) $ \ _ -> viewTC eCurrentCheckpoint
+        cp     <- viewTC eCurrentCheckpoint
         if | metaCp /= cp -> addVars t ms -- TODO: try to strengthen
            | otherwise    -> do
               vs <- getContextArgs

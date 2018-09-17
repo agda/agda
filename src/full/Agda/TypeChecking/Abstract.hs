@@ -122,9 +122,9 @@ abstractTerm a u@Con{} b v = do
         case isPrefixOf u' v of
           Nothing -> return v
           Just es -> do -- Check that the types match.
-            s <- get
+            s <- getTC
             do  disableDestructiveUpdate (noConstraints $ equalType a' b)
-                put s
+                putTC s
                 return $ Def hole (raise (m - n) args ++ es)
               `catchError` \ _ -> do
                 reportSDoc "tc.abstract.ill-typed" 50 $

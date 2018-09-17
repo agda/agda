@@ -118,7 +118,7 @@ mergeInterface i = do
         prim    = [ x | (_,Prim x) <- builtin ]
         bi      = Map.fromList [ (x,Builtin t) | (x,Builtin t) <- builtin ]
         warns   = iWarnings i
-    bs <- gets stBuiltinThings
+    bs <- getsTC stBuiltinThings
     reportSLn "import.iface.merge" 10 $ "Merging interface"
     reportSLn "import.iface.merge" 20 $
       "  Current builtins " ++ show (Map.keys bs) ++ "\n" ++
@@ -139,18 +139,18 @@ mergeInterface i = do
     where
         rebind (x, q) = do
             PrimImpl _ pf <- lookupPrimitiveFunction x
-            stImportedBuiltins %= Map.insert x (Prim pf{ primFunName = q })
+            stImportedBuiltins `modifyTCLens` Map.insert x (Prim pf{ primFunName = q })
 
 addImportedThings ::
   Signature -> BuiltinThings PrimFun ->
   A.PatternSynDefns -> DisplayForms -> Map A.QName String -> [TCWarning] -> TCM ()
 addImportedThings isig ibuiltin patsyns display userwarn warnings = do
-  stImports              %= \ imp -> unionSignatures [imp, isig]
-  stImportedBuiltins     %= \ imp -> Map.union imp ibuiltin
-  stImportedUserWarnings %= \ imp -> Map.union imp userwarn
-  stPatternSynImports    %= \ imp -> Map.union imp patsyns
-  stImportedDisplayForms %= \ imp -> HMap.unionWith (++) imp display
-  stTCWarnings           %= \ imp -> List.union imp warnings
+  stImports              `modifyTCLens` \ imp -> unionSignatures [imp, isig]
+  stImportedBuiltins     `modifyTCLens` \ imp -> Map.union imp ibuiltin
+  stImportedUserWarnings `modifyTCLens` \ imp -> Map.union imp userwarn
+  stPatternSynImports    `modifyTCLens` \ imp -> Map.union imp patsyns
+  stImportedDisplayForms `modifyTCLens` \ imp -> HMap.unionWith (++) imp display
+  stTCWarnings           `modifyTCLens` \ imp -> List.union imp warnings
   addImportedInstances isig
 
 -- | Scope checks the given module. A proper version of the module
@@ -241,12 +241,12 @@ typeCheckMain f mode = do
   reportSLn "import.main" 20 $ "Library dir = " ++ show libdir
   -- To allow posulating the built-ins, check the primitive module
   -- in unsafe mode
-  _ <- bracket_ (gets $ Lens.getSafeMode) Lens.putSafeMode $ do
+  _ <- bracket_ (getsTC $ Lens.getSafeMode) Lens.putSafeMode $ do
     Lens.putSafeMode False
     -- Turn off import-chasing messages.
     -- We have to modify the persistent verbosity setting, since
     -- getInterface resets the current verbosity settings to the persistent ones.
-    bracket_ (gets $ Lens.getPersistentVerbosity) Lens.putPersistentVerbosity $ do
+    bracket_ (getsTC $ Lens.getPersistentVerbosity) Lens.putPersistentVerbosity $ do
       Lens.modifyPersistentVerbosity (Trie.delete [])  -- set root verbosity to 0
       -- We don't want to generate highlighting information for Agda.Primitive.
       withHighlightingLevel None $
@@ -298,10 +298,10 @@ getInterface' x isMain = do
   withIncreasedModuleNestingLevel $ do
     -- Preserve the pragma options unless we are checking the main
     -- interface.
-    bracket_ (use stPragmaOptions)
-             (unless (includeStateChanges isMain) . (stPragmaOptions .=)) $ do
+    bracket_ (useTC stPragmaOptions)
+             (unless (includeStateChanges isMain) . (stPragmaOptions `setTCLens`)) $ do
      -- Forget the pragma options (locally).
-     setCommandLineOptions . stPersistentOptions . stPersistentState =<< get
+     setCommandLineOptions . stPersistentOptions . stPersistentState =<< getTC
 
      alreadyVisited x isMain $ addImportCycleCheck x $ do
       file <- findFile x  -- requires source to exist
@@ -354,7 +354,7 @@ getInterface' x isMain = do
           ifTopLevelAndHighlightingLevelIs NonInteractive $
             highlightFromInterface i file
 
-      stCurrentModule .= Just (iModuleName i)
+      stCurrentModule `setTCLens` Just (iModuleName i)
 
       -- Interfaces are not stored if we are only scope-checking, or
       -- if any warnings were encountered.
@@ -495,17 +495,17 @@ typeCheck x file isMain = do
 
     NotMainInterface -> do
       ms       <- getImportPath
-      nesting  <- asks envModuleNestingLevel
-      range    <- asks envRange
-      call     <- asks envCall
-      mf       <- use stModuleToSource
+      nesting  <- asksTC envModuleNestingLevel
+      range    <- asksTC envRange
+      call     <- asksTC envCall
+      mf       <- useTC stModuleToSource
       vs       <- getVisitedModules
       ds       <- getDecodedModules
-      opts     <- stPersistentOptions . stPersistentState <$> get
-      isig     <- use stImports
-      ibuiltin <- use stImportedBuiltins
-      display  <- use stImportsDisplayForms
-      userwarn <- use stImportedUserWarnings
+      opts     <- stPersistentOptions . stPersistentState <$> getTC
+      isig     <- useTC stImports
+      ibuiltin <- useTC stImportedBuiltins
+      display  <- useTC stImportsDisplayForms
+      userwarn <- useTC stImportedUserWarnings
       ipatsyns <- getPatternSynImports
       ho       <- getInteractionOutputCallback
       -- Every interface is treated in isolation. Note: Some changes to
@@ -515,7 +515,7 @@ typeCheck x file isMain = do
       r <- noCacheForImportedModule $
            freshTCM $
              withImportPath ms $
-             local (\e -> e { envModuleNestingLevel = nesting
+             localTC (\e -> e { envModuleNestingLevel = nesting
                               -- Andreas, 2014-08-18:
                               -- Preserve the range of import statement
                               -- for reporting termination errors in
@@ -526,15 +526,15 @@ typeCheck x file isMain = do
                setDecodedModules ds
                setCommandLineOptions opts
                setInteractionOutputCallback ho
-               stModuleToSource .= mf
+               stModuleToSource `setTCLens` mf
                setVisitedModules vs
                addImportedThings isig ibuiltin ipatsyns display userwarn []
 
                r  <- withMsgs $ createInterface file x isMain
-               mf <- use stModuleToSource
+               mf <- useTC stModuleToSource
                ds <- getDecodedModules
                return (r, do
-                  stModuleToSource .= mf
+                  stModuleToSource `setTCLens` mf
                   setDecodedModules ds
                   case r of
                     (i, NoWarnings) -> storeDecodedModule i
@@ -565,7 +565,7 @@ chaseMsg
   -> Maybe String         -- ^ Optionally: the file name.
   -> TCM ()
 chaseMsg kind x file = do
-  indentation <- (`replicate` ' ') <$> asks envModuleNestingLevel
+  indentation <- (`replicate` ' ') <$> asksTC envModuleNestingLevel
   let maybeFile = caseMaybe file "." $ \ f -> " (" ++ f ++ ")."
       vLvl | kind == "Checking" = 1
            | otherwise          = 2
@@ -655,11 +655,11 @@ createInterface
   -> MainInterface
   -> TCM (Interface, MaybeWarnings)
 createInterface file mname isMain = Bench.billTo [Bench.TopModule mname] $
-  local (\e -> e { envCurrentPath = Just file }) $ do
-    modFile       <- use stModuleToSource
+  localTC (\e -> e { envCurrentPath = Just file }) $ do
+    modFile       <- useTC stModuleToSource
     fileTokenInfo <- Bench.billTo [Bench.Highlighting] $
                        generateTokenInfo file
-    stTokens .= fileTokenInfo
+    stTokens `setTCLens` fileTokenInfo
 
     reportSLn "import.iface.create" 5 $
       "Creating interface for " ++ prettyShow mname ++ "."
@@ -709,7 +709,7 @@ createInterface file mname isMain = Bench.billTo [Bench.TopModule mname] $
 
     -- invalidate cache if pragmas change, TODO move
     cachingStarts
-    opts <- use stPragmaOptions
+    opts <- useTC stPragmaOptions
     me <- readFromCachedLog
     case me of
       Just (Pragmas opts', _) | opts == opts'
@@ -748,10 +748,10 @@ createInterface file mname isMain = Bench.billTo [Bench.TopModule mname] $
     Bench.billTo [Bench.Highlighting] $ do
 
       -- Move any remaining token highlighting to stSyntaxInfo.
-      toks <- use stTokens
+      toks <- useTC stTokens
       ifTopLevelAndHighlightingLevelIs NonInteractive $
         printHighlightingInfo KeepHighlighting toks
-      stTokens .= mempty
+      stTokens `setTCLens` mempty
 
       -- Grabbing warnings and unsolved metas to highlight them
       warnings <- getAllWarnings' AllWarnings RespectFlags
@@ -762,7 +762,7 @@ createInterface file mname isMain = Bench.billTo [Bench.TopModule mname] $
         P.text "collected unsolved: " P.<> prettyTCM unsolved
       let warningInfo = compress $ foldMap warningHighlighting $ unsolved ++ warnings
 
-      stSyntaxInfo %= \inf -> (inf `mappend` toks) `mappend` warningInfo
+      stSyntaxInfo `modifyTCLens` \inf -> (inf `mappend` toks) `mappend` warningInfo
 
       whenM (optGenerateVimFile <$> commandLineOptions) $
         -- Generate Vim file.
@@ -787,15 +787,15 @@ createInterface file mname isMain = Bench.billTo [Bench.TopModule mname] $
     -- When open metas are allowed,
     -- permanently freeze them now by turning them into postulates.
     -- This will enable serialization.
-    -- savedMetaStore <- use stMetaStore
+    -- savedMetaStore <- useTC stMetaStore
     unless (includeStateChanges isMain) $
       whenM (optAllowUnsolved <$> pragmaOptions) $ do
         withCurrentModule (scopeCurrent scope) $
           openMetasToPostulates
         -- Clear constraints as they might refer to what
         -- they think are open metas.
-        stAwakeConstraints    .= []
-        stSleepingConstraints .= []
+        stAwakeConstraints    `setTCLens` []
+        stSleepingConstraints `setTCLens` []
 
     -- Serialization.
     reportSLn "import.iface.create" 7 $ "Starting serialization."
@@ -832,7 +832,7 @@ createInterface file mname isMain = Bench.billTo [Bench.TopModule mname] $
 
     -- -- Restore the open metas, as we might continue in interaction mode.
     -- Actually, we do not serialize the metas if checking the MainInterface
-    -- stMetaStore .= savedMetaStore
+    -- stMetaStore `setTCLens` savedMetaStore
 
     -- Profiling: Print statistics.
     printStatistics 30 (Just mname) =<< getStatistics
@@ -840,7 +840,7 @@ createInterface file mname isMain = Bench.billTo [Bench.TopModule mname] $
     -- Get the statistics of the current module
     -- and add it to the accumulated statistics.
     localStatistics <- getStatistics
-    lensAccumStatistics %= Map.unionWith (+) localStatistics
+    lensAccumStatistics `modifyTCLens` Map.unionWith (+) localStatistics
     verboseS "profile" 1 $ do
       reportSLn "import.iface" 5 $ "Accumulated statistics."
 
@@ -876,7 +876,7 @@ getAllUnsolved = do
 getAllWarnings' :: WhichWarnings -> IgnoreFlags -> TCM [TCWarning]
 getAllWarnings' ww ifs = do
   unsolved            <- getAllUnsolved
-  collectedTCWarnings <- use stTCWarnings
+  collectedTCWarnings <- useTC stTCWarnings
 
   let showWarn w = classifyWarning w <= ww &&
                     not (null unsolved && onlyShowIfUnsolved w)
@@ -898,8 +898,8 @@ getAllWarningsOfTCErr :: TCErr -> TCM [TCWarning]
 getAllWarningsOfTCErr err = case err of
   TypeError tcst cls -> case clValue cls of
     NonFatalErrors{} -> return []
-    _ -> localState $ do
-      put tcst
+    _ -> localTCState $ do
+      putTC tcst
       ws <- getAllWarnings' AllWarnings RespectFlags
       -- We filter out the unsolved(Metas/Constraints) to stay
       -- true to the previous error messages.
@@ -938,18 +938,18 @@ buildInterface file topLevel pragmas = do
     -- that introduced this change seems to have made Agda a bit
     -- faster and interface file sizes a bit smaller, at least for the
     -- standard library).
-    builtin <- use stLocalBuiltins
+    builtin <- useTC stLocalBuiltins
     ms      <- getImports
     mhs     <- mapM (\ m -> (m,) <$> moduleHash m) $ Set.toList ms
-    foreignCode <- use stForeignCode
+    foreignCode <- useTC stForeignCode
     -- Ulf, 2016-04-12:
     -- Non-closed display forms are not applicable outside the module anyway,
     -- and should be dead-code eliminated (#1928).
-    display <- HMap.filter (not . null) . HMap.map (filter isClosed) <$> use stImportsDisplayForms
+    display <- HMap.filter (not . null) . HMap.map (filter isClosed) <$> useTC stImportsDisplayForms
     -- TODO: Kill some ranges?
     (display, sig) <- eliminateDeadCode display =<< getSignature
-    userwarns <- use stLocalUserWarnings
-    syntaxInfo <- use stSyntaxInfo
+    userwarns <- useTC stLocalUserWarnings
+    syntaxInfo <- useTC stSyntaxInfo
     -- Andreas, 2015-02-09 kill ranges in pattern synonyms before
     -- serialization to avoid error locations pointing to external files
     -- when expanding a pattern synoym.

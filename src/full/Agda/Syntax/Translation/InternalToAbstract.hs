@@ -162,7 +162,7 @@ instance Reify Expr Expr where
 instance Reify MetaId Expr where
     reifyWhen = reifyWhenE
     reify x@(MetaId n) = liftTCM $ do
-      b <- asks envPrintMetasBare
+      b <- asksTC envPrintMetasBare
       mi  <- mvInfo <$> lookupMeta x
       let mi' = Info.MetaInfo
                  { metaRange          = getRange $ miClosRange mi
@@ -398,7 +398,7 @@ reifyPathPConstAsPath x es = return (x,es)
 
 reifyTerm :: Bool -> Term -> TCM Expr
 reifyTerm expandAnonDefs0 v = do
-  metasBare <- asks envPrintMetasBare
+  metasBare <- asksTC envPrintMetasBare
   -- Ulf 2014-07-10: Don't expand anonymous when display forms are disabled
   -- (i.e. when we don't care about nice printing)
   expandAnonDefs <- return expandAnonDefs0 `and2M` displayFormsEnabled
@@ -494,24 +494,24 @@ reifyTerm expandAnonDefs0 v = do
         -- We can omit the domain type if it doesn't have any free variables
         -- and it's mentioned in the target type.
         domainFree a b = do
-          df <- asks envPrintDomainFreePi
+          df <- asksTC envPrintDomainFreePi
           return $ and [df, freeIn 0 b, closed a]
 
     I.Sort s     -> reify s
     I.MetaV x es -> do
       x' <- reify x
-      ifM (asks envPrintMetasBare) {-then-} (return x') {-else-} $
+      ifM (asksTC envPrintMetasBare) {-then-} (return x') {-else-} $
         do
           es' <- reify es
 
           mv <- lookupMeta x
           (msub1,meta_tel,msub2) <- do
-            local_chkpt <- view eCurrentCheckpoint
+            local_chkpt <- viewTC eCurrentCheckpoint
             (chkpt, tel, msub2) <- enterClosure (getMetaInfo mv) $ \ _ ->
-                               (,,) <$> view eCurrentCheckpoint
+                               (,,) <$> viewTC eCurrentCheckpoint
                                     <*> getContextTelescope
-                                    <*> view (eCheckpoints . key local_chkpt)
-            (,,) <$> view (eCheckpoints . key chkpt) <*> pure tel <*> pure msub2
+                                    <*> viewTC (eCheckpoints . key local_chkpt)
+            (,,) <$> viewTC (eCheckpoints . key chkpt) <*> pure tel <*> pure msub2
           let
               addNames []    es = map (fmap unnamed) es
               addNames _     [] = []
@@ -618,7 +618,7 @@ reifyTerm expandAnonDefs0 v = do
         df <- displayFormsEnabled
 
         -- #3004: give up if we have to print a pattern lambda inside its own body!
-        alreadyPrinting <- view ePrintingPatternLambdas
+        alreadyPrinting <- viewTC ePrintingPatternLambdas
 
         extLam <- case def of
           Function{ funExtLam = Just{}, funProjection = Just{} } -> __IMPOSSIBLE__
@@ -626,7 +626,7 @@ reifyTerm expandAnonDefs0 v = do
           _ -> return Nothing
         case extLam of
           Just (pars, sys) | df, notElem x alreadyPrinting ->
-            locally ePrintingPatternLambdas (x :) $
+            locallyTC ePrintingPatternLambdas (x :) $
             reifyExtLam x pars sys (defClauses defn) es
 
         -- Otherwise (ordinary function call):

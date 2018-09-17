@@ -76,9 +76,12 @@ instance HasBuiltins m => HasBuiltins (NamesT m) where
   getBuiltinThing b = lift $ getBuiltinThing b
 
 newtype NamesT m a = NamesT { unName :: ReaderT Names m a }
-  deriving (Functor, Applicative, Monad, MonadTrans, MonadIO, HasOptions, MonadDebug)
+  deriving ( Functor, Applicative, Monad
+           , MonadTrans, MonadState s
+           , MonadIO, HasOptions, MonadDebug
+           , MonadTCEnv, MonadTCState, MonadTCM )
 
-deriving instance MonadState s m => MonadState s (NamesT m)
+-- deriving instance MonadState s m => MonadState s (NamesT m)
 
 type Names = [String]
 
@@ -154,10 +157,3 @@ ilam :: Monad m
     => ArgName -> (NamesT m Term -> NamesT m Term) -> NamesT m Term
 ilam n f = glam (setRelevance Irrelevant defaultArgInfo) n f
 
-
-instance MonadTCM m => MonadTCM (NamesT m) where
-   liftTCM = lift . liftTCM
-
-instance MonadReader r m => MonadReader r (NamesT m) where
-  ask = lift ask
-  local f (NamesT m) = NamesT $ mapReaderT (local f) m

@@ -55,7 +55,7 @@ data QuotingKit = QuotingKit
 
 quotingKit :: TCM QuotingKit
 quotingKit = do
-  currentFile     <- fromMaybe __IMPOSSIBLE__ <$> asks envCurrentPath
+  currentFile     <- fromMaybe __IMPOSSIBLE__ <$> asksTC envCurrentPath
   hidden          <- primHidden
   instanceH       <- primInstance
   visible         <- primVisible

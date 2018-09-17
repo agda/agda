@@ -321,11 +321,11 @@ castConstraintToCurrentContext :: Closure TCM.Constraint -> MaybeT TCM TCM.Const
 castConstraintToCurrentContext cl = do
   -- The checkpoint of the contraint
   let cp = envCurrentCheckpoint $ clEnv cl
-  sigma <- caseMaybeM (view $ eCheckpoints . key cp)
+  sigma <- caseMaybeM (viewTC $ eCheckpoints . key cp)
           (do
             -- We are not in a descendant of the constraint checkpoint.
             -- Here be dragons!!
-            gamma <- asks envContext -- The target context
+            gamma <- asksTC envContext -- The target context
             let findInGamma (Dom {unDom = (x, t)}) =
                   -- match by name (hazardous)
                   -- This is one of the seven deadly sins (not respecting alpha).
@@ -549,7 +549,7 @@ solveCluster flag ccs = do
               reportSDoc "tc.size.solve" 30 $
                 prettyTCM (MetaV m []) <+> text "is frozen, cannot set it to ∞"
               return False
-        ifM (isFrozen m `or2M` do not <$> asks envAssignMetas) no $ {-else-} do
+        ifM (isFrozen m `or2M` do not <$> asksTC envAssignMetas) no $ {-else-} do
           reportSDoc "tc.size.solve" 20 $
             text "solution " <+> prettyTCM (MetaV m []) <+>
             text " := "      <+> prettyTCM inf
