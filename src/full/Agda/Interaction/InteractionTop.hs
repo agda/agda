@@ -1095,7 +1095,7 @@ showOpenMetas :: TCM [String]
 showOpenMetas = do
   ims <- B.typesOfVisibleMetas B.AsIs
   di <- forM ims $ \ i ->
-    B.withInteractionId (B.outputFormId $ B.OutputForm noRange [] i) $
+    B.withInteractionId (B.outputConstraintId i) $
       showATop i
   -- Show unsolved implicit arguments simplified.
   unsolvedNotOK <- not . optAllowUnsolved <$> pragmaOptions
@@ -1103,14 +1103,9 @@ showOpenMetas = do
   dh <- mapM showA' hms
   return $ di ++ dh
   where
-    metaId (B.OfType i _) = i
-    metaId (B.JustType i) = i
-    metaId (B.JustSort i) = i
-    metaId (B.Assign i e) = i
-    metaId _ = __IMPOSSIBLE__
     showA' :: B.OutputConstraint A.Expr NamedMeta -> TCM String
     showA' m = do
-      let i = nmid $ metaId m
+      let i = nmid $ B.outputConstraintId m
       r <- getMetaRange i
       d <- B.withMetaId i (showATop m)
       return $ d ++ "  [ at " ++ show r ++ " ]"
