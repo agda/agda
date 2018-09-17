@@ -4,7 +4,7 @@
 Prerequisites
 *************
 
-You need recent versions of the following programs:
+You need recent versions of the following programs to compile Agda:
 
 * GHC:           https://www.haskell.org/ghc/
 * cabal-install: https://www.haskell.org/cabal/
