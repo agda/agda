@@ -7,8 +7,10 @@ import Distribution.Simple.BuildPaths (exeExtension)
 import Distribution.PackageDescription
 -- ASR (2018-07-20): GHC 7.10 does not support the macro
 -- MIN_VERSION_Cabal(2,3,0).
-#if __GLASGOW_HASKELL__ > 804
+#if __GLASGOW_HASKELL__ > 710
+#if MIN_VERSION_Cabal(2,3,0)
 import Distribution.System ( buildPlatform )
+#endif
 #endif
 import System.FilePath
 import System.FilePath.Find
@@ -26,8 +28,12 @@ builtins = find always (extension ==? ".agda")
 agdaExeExtension :: String
 -- ASR (2018-07-20): GHC 7.10 does not support the macro
 -- MIN_VERSION_Cabal(2,3,0).
-#if __GLASGOW_HASKELL__ > 804
+#if __GLASGOW_HASKELL__ > 710
+#if MIN_VERSION_Cabal(2,3,0)
 agdaExeExtension = exeExtension buildPlatform
+#else
+agdaExeExtension = exeExtension
+#endif
 #else
 agdaExeExtension = exeExtension
 #endif
