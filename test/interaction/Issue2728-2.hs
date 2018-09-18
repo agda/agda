@@ -12,7 +12,9 @@ secondCode    = firstPart "_" ++ secondPart
 thirdCode     = firstPart "A" ++ secondPart
 
 main :: IO ()
-main = runAgda ["--caching"] $ \(AgdaCommands { .. }) -> do
+main = runAgda [ "--no-libraries"
+               , "--caching"
+               ] $ \(AgdaCommands { .. }) -> do
 
   -- Discard the first prompt.
   echoUntilPrompt

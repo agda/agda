@@ -189,7 +189,11 @@ class (Functor m, Monad m) => MonadTer m where
 -- | Termination monad.
 
 newtype TerM a = TerM { terM :: ReaderT TerEnv TCM a }
-  deriving (Functor, Applicative, Monad, MonadBench Phase, HasOptions, MonadDebug)
+  deriving ( Functor, Applicative, Monad, MonadError TCErr
+           , MonadBench Phase, HasOptions, MonadDebug, HasConstInfo
+           , MonadIO, MonadTCEnv, MonadTCState, MonadTCM
+           , ReadTCState, MonadReduce
+           )
 
 instance MonadTer TerM where
   terAsk     = TerM $ ask
@@ -231,37 +235,12 @@ runTerDefault cont = do
 
   runTer tenv cont
 
--- * Termination monad is a 'MonadTCM'.
+-- -- * Termination monad is a 'MonadTCM'.
 
-instance MonadReader TCEnv TerM where
-  ask       = TerM $ lift $ ask
-  local f m = TerM $ ReaderT $ local f . runReaderT (terM m)
-
-instance MonadState TCState TerM where
-  get     = TerM $ lift $ get
-  put     = TerM . lift . put
-
-instance MonadIO TerM where
-  liftIO = TerM . liftIO
-
-instance MonadTCM TerM where
-  liftTCM = TerM . lift
-
-instance MonadError TCErr TerM where
-  throwError = liftTCM . throwError
-  catchError m handler = TerM $ ReaderT $ \ tenv -> do
-    runTer tenv m `catchError` (\ err -> runTer tenv $ handler err)
-
-instance HasConstInfo TerM where
-  getConstInfo       = liftTCM . getConstInfo
-  getRewriteRulesFor = liftTCM . getRewriteRulesFor
-
-instance ReadTCState TerM where
-  getTCState = liftTCM getTCState
-  withTCState f = TerM . withTCState f . terM
-
-instance MonadReduce TerM where
-  liftReduce = liftTCM . liftReduce
+-- instance MonadError TCErr TerM where
+--   throwError = liftTCM . throwError
+--   catchError m handler = TerM $ ReaderT $ \ tenv -> do
+--     runTer tenv m `catchError` (\ err -> runTer tenv $ handler err)
 
 instance Semigroup m => Semigroup (TerM m) where
   (<>) = liftA2 (<>)

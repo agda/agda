@@ -224,8 +224,8 @@ addSection m = do
 -- | Sets the checkpoint for the given module to the current checkpoint.
 setModuleCheckpoint :: ModuleName -> TCM ()
 setModuleCheckpoint m = do
-  chkpt <- view eCurrentCheckpoint
-  stModuleCheckpoints %= Map.insert m chkpt
+  chkpt <- viewTC eCurrentCheckpoint
+  stModuleCheckpoints `modifyTCLens` Map.insert m chkpt
 
 -- | Get a section.
 --
@@ -561,18 +561,18 @@ addDisplayForm x df = do
   let add = updateDefinition x $ \ def -> def{ defDisplay = d : defDisplay def }
   ifM (isLocal x)
     {-then-} (modifySignature add)
-    {-else-} (stImportsDisplayForms %= HMap.insertWith (++) x [d])
+    {-else-} (stImportsDisplayForms `modifyTCLens` HMap.insertWith (++) x [d])
   whenM (hasLoopingDisplayForm x) $
     typeError . GenericDocError $ text "Cannot add recursive display form for" <+> pretty x
 
 isLocal :: QName -> TCM Bool
-isLocal x = HMap.member x <$> use (stSignature . sigDefinitions)
+isLocal x = HMap.member x <$> useTC (stSignature . sigDefinitions)
 
 getDisplayForms :: QName -> TCM [LocalDisplayForm]
 getDisplayForms q = do
   ds  <- either (const []) defDisplay <$> getConstInfo' q
-  ds1 <- HMap.lookupDefault [] q <$> use stImportsDisplayForms
-  ds2 <- HMap.lookupDefault [] q <$> use stImportedDisplayForms
+  ds1 <- HMap.lookupDefault [] q <$> useTC stImportsDisplayForms
+  ds2 <- HMap.lookupDefault [] q <$> useTC stImportedDisplayForms
   ifM (isLocal q) (return $ ds ++ ds1 ++ ds2)
                   (return $ ds1 ++ ds ++ ds2)
 
@@ -653,7 +653,7 @@ sigError f a = \case
   SigUnknown s -> f s
   SigAbstract  -> a
 
-class (Functor m, Applicative m, Monad m, HasOptions m, MonadDebug m, MonadReader TCEnv m) => HasConstInfo m where
+class (Functor m, Applicative m, Monad m, HasOptions m, MonadDebug m, MonadTCEnv m) => HasConstInfo m where
   -- | Lookup the definition of a name. The result is a closed thing, all free
   --   variables have been abstracted over.
   getConstInfo :: QName -> m Definition
@@ -686,10 +686,10 @@ getOriginalProjection :: HasConstInfo m => QName -> m QName
 getOriginalProjection q = projOrig . fromMaybe __IMPOSSIBLE__ <$> isProjection q
 
 instance HasConstInfo (TCMT IO) where
-  getRewriteRulesFor = defaultGetRewriteRulesFor get
+  getRewriteRulesFor = defaultGetRewriteRulesFor getTC
   getConstInfo' q = do
-    st  <- get
-    env <- ask
+    st  <- getTC
+    env <- askTC
     defaultGetConstInfo st env q
   getConstInfo q = getConstInfo' q >>= \case
       Right d -> return d
@@ -697,7 +697,7 @@ instance HasConstInfo (TCMT IO) where
       Left SigAbstract      -> notInScope $ qnameToConcrete q
 
 defaultGetConstInfo
-  :: (HasOptions m, MonadDebug m, MonadReader TCEnv m)
+  :: (HasOptions m, MonadDebug m, MonadTCEnv m)
   => TCState -> TCEnv -> QName -> m (Either SigError Definition)
 defaultGetConstInfo st env q = do
     let defs  = st^.(stSignature . sigDefinitions)
@@ -730,6 +730,10 @@ instance HasConstInfo m => HasConstInfo (MaybeT m) where
   getRewriteRulesFor = lift . getRewriteRulesFor
 
 instance HasConstInfo m => HasConstInfo (ExceptT err m) where
+  getConstInfo' = lift . getConstInfo'
+  getRewriteRulesFor = lift . getRewriteRulesFor
+
+instance HasConstInfo m => HasConstInfo (ReaderT r m) where
   getConstInfo' = lift . getConstInfo'
   getRewriteRulesFor = lift . getRewriteRulesFor
 
@@ -874,11 +878,11 @@ getDefModule f = do
 -- | Compute the number of free variables of a defined name. This is the sum of
 --   number of parameters shared with the current module and the number of
 --   anonymous variables (if the name comes from a let-bound module).
-getDefFreeVars :: (Functor m, Applicative m, ReadTCState m, MonadReader TCEnv m) => QName -> m Nat
+getDefFreeVars :: (Functor m, Applicative m, ReadTCState m, MonadTCEnv m) => QName -> m Nat
 getDefFreeVars = getModuleFreeVars . qnameModule
 
 freeVarsToApply :: (Functor m, HasConstInfo m, HasOptions m,
-                    ReadTCState m, MonadReader TCEnv m, MonadDebug m)
+                    ReadTCState m, MonadTCEnv m, MonadDebug m)
                 => QName -> m Args
 freeVarsToApply q = do
   vs <- moduleParamsToApply $ qnameModule q
@@ -889,7 +893,7 @@ freeVarsToApply q = do
 
 {-# SPECIALIZE getModuleFreeVars :: ModuleName -> TCM Nat #-}
 {-# SPECIALIZE getModuleFreeVars :: ModuleName -> ReduceM Nat #-}
-getModuleFreeVars :: (Functor m, Applicative m, MonadReader TCEnv m, ReadTCState m)
+getModuleFreeVars :: (Functor m, Applicative m, MonadTCEnv m, ReadTCState m)
                   => ModuleName -> m Nat
 getModuleFreeVars m = do
   m0   <- commonParentModule m <$> currentModule
@@ -910,7 +914,7 @@ getModuleFreeVars m = do
 --          ... M₁.M₂.f [insert Γ raised by Θ]
 --   @
 moduleParamsToApply :: (Functor m, Applicative m, HasOptions m,
-                        MonadReader TCEnv m, ReadTCState m, MonadDebug m)
+                        MonadTCEnv m, ReadTCState m, MonadDebug m)
                     => ModuleName -> m Args
 moduleParamsToApply m = do
   -- Get the correct number of free variables (correctly raised) of @m@.
@@ -964,7 +968,11 @@ inFreshModuleIfFreeParams k = do
 
 -- | Instantiate a closed definition with the correct part of the current
 --   context.
-instantiateDef :: Definition -> TCM Definition
+{-# SPECIALIZE instantiateDef :: Definition -> TCM Definition #-}
+instantiateDef
+  :: ( Functor m, HasConstInfo m, HasOptions m
+     , ReadTCState m, MonadTCEnv m, MonadDebug m )
+  => Definition -> m Definition
 instantiateDef d = do
   vs  <- freeVarsToApply $ defName d
   verboseS "tc.sig.inst" 30 $ do
@@ -976,7 +984,7 @@ instantiateDef d = do
   return $ d `apply` vs
 
 instantiateRewriteRule :: (Functor m, HasConstInfo m, HasOptions m,
-                           ReadTCState m, MonadReader TCEnv m, MonadDebug m)
+                           ReadTCState m, MonadTCEnv m, MonadDebug m)
                        => RewriteRule -> m RewriteRule
 instantiateRewriteRule rew = do
   traceSLn "rewriting" 95 ("instantiating rewrite rule " ++ show (rewName rew) ++ " to the local context.") $ do
@@ -987,7 +995,7 @@ instantiateRewriteRule rew = do
   return rew'
 
 instantiateRewriteRules :: (Functor m, HasConstInfo m, HasOptions m,
-                            ReadTCState m, MonadReader TCEnv m, MonadDebug m)
+                            ReadTCState m, MonadTCEnv m, MonadDebug m)
                         => RewriteRules -> m RewriteRules
 instantiateRewriteRules = mapM instantiateRewriteRule
 
@@ -1018,20 +1026,20 @@ makeAbstract d =
 
 -- | Enter abstract mode. Abstract definition in the current module are transparent.
 {-# SPECIALIZE inAbstractMode :: TCM a -> TCM a #-}
-inAbstractMode :: MonadReader TCEnv m => m a -> m a
-inAbstractMode = local $ \e -> e { envAbstractMode = AbstractMode,
+inAbstractMode :: MonadTCEnv m => m a -> m a
+inAbstractMode = localTC $ \e -> e { envAbstractMode = AbstractMode,
                                    envAllowDestructiveUpdate = False }
                                     -- Allowing destructive updates when seeing through
                                     -- abstract may break the abstraction.
 
 -- | Not in abstract mode. All abstract definitions are opaque.
 {-# SPECIALIZE inConcreteMode :: TCM a -> TCM a #-}
-inConcreteMode :: MonadReader TCEnv m => m a -> m a
-inConcreteMode = local $ \e -> e { envAbstractMode = ConcreteMode }
+inConcreteMode :: MonadTCEnv m => m a -> m a
+inConcreteMode = localTC $ \e -> e { envAbstractMode = ConcreteMode }
 
 -- | Ignore abstract mode. All abstract definitions are transparent.
-ignoreAbstractMode :: MonadReader TCEnv m => m a -> m a
-ignoreAbstractMode = local $ \e -> e { envAbstractMode = IgnoreAbstractMode,
+ignoreAbstractMode :: MonadTCEnv m => m a -> m a
+ignoreAbstractMode = localTC $ \e -> e { envAbstractMode = IgnoreAbstractMode,
                                        envAllowDestructiveUpdate = False }
                                        -- Allowing destructive updates when ignoring
                                        -- abstract may break the abstraction.
@@ -1039,7 +1047,7 @@ ignoreAbstractMode = local $ \e -> e { envAbstractMode = IgnoreAbstractMode,
 -- | Enter concrete or abstract mode depending on whether the given identifier
 --   is concrete or abstract.
 {-# SPECIALIZE inConcreteOrAbstractMode :: QName -> (Definition -> TCM a) -> TCM a #-}
-inConcreteOrAbstractMode :: (MonadReader TCEnv m, HasConstInfo m) => QName -> (Definition -> m a) -> m a
+inConcreteOrAbstractMode :: (MonadTCEnv m, HasConstInfo m) => QName -> (Definition -> m a) -> m a
 inConcreteOrAbstractMode q cont = do
   -- Andreas, 2015-07-01: If we do not ignoreAbstractMode here,
   -- we will get ConcreteDef for abstract things, as they are turned into axioms.
@@ -1051,8 +1059,8 @@ inConcreteOrAbstractMode q cont = do
 -- | Check whether a name might have to be treated abstractly (either if we're
 --   'inAbstractMode' or it's not a local name). Returns true for things not
 --   declared abstract as well, but for those 'makeAbstract' will have no effect.
-treatAbstractly :: MonadReader TCEnv m => QName -> m Bool
-treatAbstractly q = asks $ treatAbstractly' q
+treatAbstractly :: MonadTCEnv m => QName -> m Bool
+treatAbstractly q = asksTC $ treatAbstractly' q
 
 -- | Andreas, 2015-07-01:
 --   If the @current@ module is a weak suffix of the identifier module,
@@ -1076,7 +1084,11 @@ treatAbstractly' q env = case envAbstractMode env of
     dropAnon (MName ms) = MName $ reverse $ dropWhile isNoName $ reverse ms
 
 -- | Get type of a constant, instantiated to the current context.
-typeOfConst :: QName -> TCM Type
+{-# SPECIALIZE typeOfConst :: QName -> TCM Type #-}
+typeOfConst
+  :: ( Functor m, HasConstInfo m, HasOptions m
+     , ReadTCState m, MonadTCEnv m, MonadDebug m )
+  => QName -> m Type
 typeOfConst q = defType <$> (instantiateDef =<< getConstInfo q)
 
 -- | Get relevance of a constant.

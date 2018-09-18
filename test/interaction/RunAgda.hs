@@ -18,10 +18,7 @@ import Text.Show
 -- | The first arguments given to the Agda process.
 
 firstArguments :: [String]
-firstArguments =
-  [ "--interaction"
-  , "--no-libraries"
-  ]
+firstArguments = ["--interaction"]
 
 -- | The prompt used by the Agda process. It is assumed that the
 -- process places prompts at the start of a line.

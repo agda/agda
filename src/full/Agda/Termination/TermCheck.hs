@@ -173,7 +173,7 @@ termMutual names0 = ifNotM (optTerminationCheck <$> pragmaOptions) (return mempt
   -- Get set of mutually defined names from the TCM.
   -- This includes local and auxiliary functions introduced
   -- during type-checking.
-  mid <- fromMaybe __IMPOSSIBLE__ <$> asks envMutualBlock
+  mid <- fromMaybe __IMPOSSIBLE__ <$> asksTC envMutualBlock
   mutualBlock <- lookupMutualBlock mid
   let allNames = filter (not . isAbsurdLambdaName) $ Set.elems $ mutualNames mutualBlock
       names    = if null names0 then allNames else names0

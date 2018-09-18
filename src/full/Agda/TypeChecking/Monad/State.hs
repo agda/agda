@@ -55,8 +55,8 @@ import Agda.Utils.Impossible
 
 resetState :: TCM ()
 resetState = do
-    pers <- gets stPersistentState
-    put $ initState { stPersistentState = pers }
+    pers <- getsTC stPersistentState
+    putTC $ initState { stPersistentState = pers }
 
 -- | Resets all of the type checking state.
 --
@@ -65,31 +65,31 @@ resetState = do
 resetAllState :: TCM ()
 resetAllState = do
     b <- getBenchmark
-    backends <- use stBackends
-    put $ updatePersistentState (\ s -> s { stBenchmark = b }) initState
-    stBackends .= backends
--- resetAllState = put initState
+    backends <- useTC stBackends
+    putTC $ updatePersistentState (\ s -> s { stBenchmark = b }) initState
+    stBackends `setTCLens` backends
+-- resetAllState = putTC initState
 
 -- | Restore 'TCState' after performing subcomputation.
 --
 --   In contrast to 'Agda.Utils.Monad.localState', the 'Benchmark'
 --   info from the subcomputation is saved.
 localTCState :: TCM a -> TCM a
-localTCState = disableDestructiveUpdate . bracket_ get (\ s -> do
+localTCState = disableDestructiveUpdate . bracket_ getTC (\ s -> do
    b <- getBenchmark
-   put s
+   putTC s
    modifyBenchmark $ const b)
 
 -- | Same as 'localTCState' but also returns the state in which we were just
 --   before reverting it.
 localTCStateSaving :: TCM a -> TCM (a, TCState)
 localTCStateSaving compute = do
-  oldState <- get
+  oldState <- getTC
   result <- compute
-  newState <- get
+  newState <- getTC
   do
     b <- getBenchmark
-    put oldState
+    putTC oldState
     modifyBenchmark $ const b
   return (result, newState)
 
@@ -103,19 +103,19 @@ localTCStateSaving compute = do
 
 freshTCM :: TCM a -> TCM (Either TCErr a)
 freshTCM m = do
-  ps <- use lensPersistentState
+  ps <- useTC lensPersistentState
   let s = set lensPersistentState ps initState
   r <- liftIO $ (Right <$> runTCM initEnv s m) `E.catch` (return . Left)
   case r of
     Right (a, s) -> do
-      lensPersistentState .= s ^. lensPersistentState
+      setTCLens lensPersistentState $ s ^. lensPersistentState
       return $ Right a
     Left err -> do
       case err of
         TypeError { tcErrState = s } ->
-          lensPersistentState .= s ^. lensPersistentState
+          setTCLens lensPersistentState $ s ^. lensPersistentState
         IOException s _ _ ->
-          lensPersistentState .= s ^. lensPersistentState
+          setTCLens lensPersistentState $ s ^. lensPersistentState
         _ -> return ()
       return $ Left err
 
@@ -132,7 +132,7 @@ updatePersistentState
 updatePersistentState f s = s { stPersistentState = f (stPersistentState s) }
 
 modifyPersistentState :: (PersistentTCState -> PersistentTCState) -> TCM ()
-modifyPersistentState = modify . updatePersistentState
+modifyPersistentState = modifyTC . updatePersistentState
 
 -- | Lens for 'stAccumStatistics'.
 
@@ -149,7 +149,7 @@ lensAccumStatistics =  lensPersistentState . lensAccumStatisticsP
 
 -- | Get the current scope.
 getScope :: TCM ScopeInfo
-getScope = use stScope
+getScope = useTC stScope
 
 -- | Set the current scope.
 setScope :: ScopeInfo -> TCM ()
@@ -157,7 +157,7 @@ setScope scope = modifyScope (const scope)
 
 -- | Modify the current scope without updating the inverse maps.
 modifyScope_ :: (ScopeInfo -> ScopeInfo) -> TCM ()
-modifyScope_ f = stScope %= f
+modifyScope_ f = stScope `modifyTCLens` f
 
 -- | Modify the current scope.
 modifyScope :: (ScopeInfo -> ScopeInfo) -> TCM ()
@@ -204,13 +204,13 @@ printScope tag v s = verboseS ("scope." ++ tag) v $ do
 -- ** Lens for 'stSignature' and 'stImports'
 
 modifySignature :: (Signature -> Signature) -> TCM ()
-modifySignature f = stSignature %= f
+modifySignature f = stSignature `modifyTCLens` f
 
 modifyImportedSignature :: (Signature -> Signature) -> TCM ()
-modifyImportedSignature f = stImports %= f
+modifyImportedSignature f = stImports `modifyTCLens` f
 
 getSignature :: TCM Signature
-getSignature = use stSignature
+getSignature = useTC stSignature
 
 -- | Update a possibly imported definition. Warning: changes made to imported
 --   definitions (during type checking) will not persist outside the current
@@ -297,16 +297,16 @@ updateFunCopatternLHS f _ = __IMPOSSIBLE__
 -- implementation of 'setTopLevelModule' should be changed.
 
 setTopLevelModule :: C.QName -> TCM ()
-setTopLevelModule x = stFreshNameId .= NameId 0 (hashString $ prettyShow x)
+setTopLevelModule x = stFreshNameId `setTCLens` NameId 0 (hashString $ prettyShow x)
 
 -- | Use a different top-level module for a computation. Used when generating
 --   names for imported modules.
 withTopLevelModule :: C.QName -> TCM a -> TCM a
 withTopLevelModule x m = do
-  next <- use stFreshNameId
+  next <- useTC stFreshNameId
   setTopLevelModule x
   y <- m
-  stFreshNameId .= next
+  stFreshNameId `setTCLens` next
   return y
 
 ---------------------------------------------------------------------------
@@ -315,8 +315,8 @@ withTopLevelModule x m = do
 
 addForeignCode :: BackendName -> String -> TCM ()
 addForeignCode backend code = do
-  r <- asks envRange  -- can't use TypeChecking.Monad.Trace.getCurrentRange without cycle
-  stForeignCode . key backend %= Just . (ForeignCode r code :) . fromMaybe []
+  r <- asksTC envRange  -- can't use TypeChecking.Monad.Trace.getCurrentRange without cycle
+  modifyTCLens (stForeignCode . key backend) $ Just . (ForeignCode r code :) . fromMaybe []
 
 ---------------------------------------------------------------------------
 -- * Temporary: Haskell imports
@@ -352,7 +352,7 @@ addInlineHaskell s = addDeprecatedForeignCode "HASKELL" ghcBackendName s
 
 getInteractionOutputCallback :: TCM InteractionOutputCallback
 getInteractionOutputCallback
-  = gets $ stInteractionOutputCallback . stPersistentState
+  = getsTC $ stInteractionOutputCallback . stPersistentState
 
 appInteractionOutputCallback :: Response -> TCM ()
 appInteractionOutputCallback r
@@ -367,17 +367,17 @@ setInteractionOutputCallback cb
 ---------------------------------------------------------------------------
 
 getPatternSyns :: TCM PatternSynDefns
-getPatternSyns = use stPatternSyns
+getPatternSyns = useTC stPatternSyns
 
 setPatternSyns :: PatternSynDefns -> TCM ()
 setPatternSyns m = modifyPatternSyns (const m)
 
 -- | Lens for 'stPatternSyns'.
 modifyPatternSyns :: (PatternSynDefns -> PatternSynDefns) -> TCM ()
-modifyPatternSyns f = stPatternSyns %= f
+modifyPatternSyns f = stPatternSyns `modifyTCLens` f
 
 getPatternSynImports :: TCM PatternSynDefns
-getPatternSynImports = use stPatternSynImports
+getPatternSynImports = useTC stPatternSynImports
 
 -- | Get both local and imported pattern synonyms
 getAllPatternSyns :: TCM PatternSynDefns
@@ -415,11 +415,11 @@ updateBenchmark f = updatePersistentState $ \ s -> s { stBenchmark = f (stBenchm
 
 -- | Lens getter for 'Benchmark' from 'TCM'.
 getBenchmark :: TCM Benchmark
-getBenchmark = gets $ theBenchmark
+getBenchmark = getsTC $ theBenchmark
 
 -- | Lens modify for 'Benchmark'.
 modifyBenchmark :: (Benchmark -> Benchmark) -> TCM ()
-modifyBenchmark = modify' . updateBenchmark
+modifyBenchmark = modifyTC' . updateBenchmark
 
 ---------------------------------------------------------------------------
 -- * Instance definitions
@@ -431,19 +431,19 @@ addImportedInstances sig = do
   let itable = Map.fromListWith Set.union
                [ (c, Set.singleton i)
                | (i, Defn{ defInstance = Just c }) <- HMap.toList $ sig ^. sigDefinitions ]
-  stImportedInstanceDefs %= Map.unionWith Set.union itable
+  stImportedInstanceDefs `modifyTCLens` Map.unionWith Set.union itable
 
 -- | Lens for 'stInstanceDefs'.
 updateInstanceDefs :: (TempInstanceTable -> TempInstanceTable) -> (TCState -> TCState)
 updateInstanceDefs = over stInstanceDefs
 
 modifyInstanceDefs :: (TempInstanceTable -> TempInstanceTable) -> TCM ()
-modifyInstanceDefs = modify . updateInstanceDefs
+modifyInstanceDefs = modifyTC . updateInstanceDefs
 
 getAllInstanceDefs :: TCM TempInstanceTable
 getAllInstanceDefs = do
-  (table,xs) <- use stInstanceDefs
-  itable <- use stImportedInstanceDefs
+  (table,xs) <- useTC stInstanceDefs
+  itable <- useTC stImportedInstanceDefs
   let !table' = Map.unionWith Set.union itable table
   return (table', xs)
 

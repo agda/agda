@@ -135,7 +135,7 @@ checkDeclCached d = do
    -- changes to CS inside a RecDef or Mutual ought not happen,
    -- but they do happen, so we discard them.
    ignoreChanges m = do
-     cs <- gets $ stLoadedFileCache . stPersistentState
+     cs <- getsTC $ stLoadedFileCache . stPersistentState
      cleanCachedLog
      _ <- m
      modifyPersistentState $ \st -> st{stLoadedFileCache = cs}
@@ -193,7 +193,7 @@ checkDecl d = setCurrentRange d $ do
                                     -- envMutualBlock is set correctly.
                                     -- Apparently not.
                                     verboseS "tc.decl.mutual" 70 $ do
-                                      current <- asks envMutualBlock
+                                      current <- asksTC envMutualBlock
                                       unless (Just blockId == current) $ do
                                         reportSLn "" 0 $ unlines
                                           [ "mutual block id discrepancy for " ++ prettyShow x
@@ -219,7 +219,7 @@ checkDecl d = setCurrentRange d $ do
       A.UnquoteDecl mi i x e   -> checkUnquoteDecl mi i x e
       A.UnquoteDef i x e       -> impossible $ checkUnquoteDef i x e
 
-    whenNothingM (asks envMutualBlock) $ do
+    whenNothingM (asksTC envMutualBlock) $ do
 
       -- Syntax highlighting.
       highlight_ d
@@ -228,7 +228,7 @@ checkDecl d = setCurrentRange d $ do
       whenJust finalChecks $ \ theMutualChecks -> do
         reportSLn "tc.decl" 20 $ "Attempting to solve constraints before freezing."
         wakeupConstraints_   -- solve emptiness and instance constraints
-        checkingWhere <- asks envCheckingWhere
+        checkingWhere <- asksTC envCheckingWhere
         solveSizeConstraints $ if checkingWhere then DontDefaultToInfty else DefaultToInfty
         wakeupConstraints_   -- Size solver might have unblocked some constraints
         case d of
@@ -273,7 +273,7 @@ mutualChecks mi d ds mid names = do
     checkPositivity_ mi names
   -- Andreas, 2013-02-27: check termination before injectivity,
   -- to avoid making the injectivity checker loop.
-  local (\ e -> e { envMutualBlock = Just mid }) $ checkTermination_ d
+  localTC (\ e -> e { envMutualBlock = Just mid }) $ checkTermination_ d
   revisitRecordPatternTranslation nameList -- Andreas, 2016-11-19 issue #2308
   -- Andreas, 2015-03-26 Issue 1470:
   -- Restricting coinduction to recursive does not solve the
@@ -486,7 +486,7 @@ checkInjectivity_ names = Bench.billTo [Bench.Injectivity] $ do
           _ -> reportSLn "tc.inj.check" 20 $
              prettyShow q ++ " is not verified as terminating, thus, not considered for injectivity"
       _ -> do
-        abstr <- asks envAbstractMode
+        abstr <- asksTC envAbstractMode
         reportSLn "tc.inj.check" 20 $
           "we are in " ++ show abstr ++ " and " ++
              prettyShow q ++ " is abstract or not a function, thus, not considered for injectivity"
@@ -533,7 +533,7 @@ checkGeneralize :: Set QName -> Info.DefInfo -> ArgInfo -> QName -> A.Expr -> TC
 checkGeneralize s i info x e = do
 
     -- Check the signature and collect the created metas.
-    (n, tGen) <- generalizeType s $ locally eGeneralizeMetas (const YesGeneralize) $
+    (n, tGen) <- generalizeType s $ locallyTC eGeneralizeMetas (const YesGeneralize) $
                    workOnTypes $ isType_ e
 
     reportSDoc "tc.decl.gen" 10 $ sep
@@ -555,9 +555,9 @@ checkAxiom funSig i info0 mp x e = whenAbstractFreezeMetasAfter i $ do
 
   -- Andreas, 2012-04-18  if we are in irrelevant context, axioms is irrelevant
   -- even if not declared as such (Issue 610).
-  rel <- max (getRelevance info0) <$> asks envRelevance
+  rel <- max (getRelevance info0) <$> asksTC envRelevance
   let info = setRelevance rel info0
-  -- rel <- ifM ((Irrelevant ==) <$> asks envRelevance) (return Irrelevant) (return rel0)
+  -- rel <- ifM ((Irrelevant ==) <$> asksTC envRelevance) (return Irrelevant) (return rel0)
   t <- workOnTypes $ isType_ e
   reportSDoc "tc.decl.ax" 10 $ sep
     [ text $ "checked type signature"
@@ -609,7 +609,7 @@ checkAxiom funSig i info0 mp x e = whenAbstractFreezeMetasAfter i $ do
   traceCall (IsType_ e) $ do -- need Range for error message
     -- Andreas, 2016-06-21, issue #2054
     -- Do not default size metas to ∞ in local type signatures
-    checkingWhere <- asks envCheckingWhere
+    checkingWhere <- asksTC envCheckingWhere
     solveSizeConstraints $ if checkingWhere then DontDefaultToInfty else DefaultToInfty
 
   -- Andreas, 2011-05-31, that freezing below is probably wrong:
@@ -751,7 +751,7 @@ checkMutual i ds = inMutualBlock $ \ blockId -> do
       map (nest 2 . prettyA) ds
 
   insertMutualBlockInfo blockId i
-  local (\e -> e { envTerminationCheck = () <$ Info.mutualTermCheck i }) $
+  localTC (\e -> e { envTerminationCheck = () <$ Info.mutualTermCheck i }) $
     mapM_ checkDecl ds
 
   (blockId, ) . mutualNames <$> lookupMutualBlock blockId

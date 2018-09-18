@@ -9,7 +9,9 @@ firstCode  = "import Issue1232.List"
 secondCode = firstCode ++ "\n"
 
 main :: IO ()
-main = runAgda ["--caching"] $ \(AgdaCommands { .. }) -> do
+main = runAgda [ "--no-libraries"
+               , "--caching"
+               ] $ \(AgdaCommands { .. }) -> do
 
   -- Check the library.
   callAgda ["Issue1232/All.agda", "--ignore-interfaces"]

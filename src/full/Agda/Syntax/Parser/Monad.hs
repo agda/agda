@@ -49,6 +49,7 @@ import Agda.Syntax.Position
 
 import Agda.Utils.Except ( MonadError(catchError, throwError) )
 import Agda.Utils.FileName
+import Agda.Utils.List ( tailWithDefault )
 import qualified Agda.Utils.IO.UTF8 as UTF8
 import qualified Agda.Utils.Maybe.Strict as Strict
 
@@ -326,13 +327,14 @@ setLexState ls =
     do  s <- get
         put $ s { parseLexState = ls }
 
+modifyLexState :: ([LexState] -> [LexState]) -> Parser ()
+modifyLexState f = modify $ \ s -> s { parseLexState = f (parseLexState s) }
+
 pushLexState :: LexState -> Parser ()
-pushLexState l = do s <- getLexState
-                    setLexState (l:s)
+pushLexState l = modifyLexState (l:)
 
 popLexState :: Parser ()
-popLexState = do _:ls <- getLexState
-                 setLexState ls
+popLexState = modifyLexState $ tailWithDefault __IMPOSSIBLE__
 
 getParseFlags :: Parser ParseFlags
 getParseFlags = parseFlags <$> get

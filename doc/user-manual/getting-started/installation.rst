@@ -166,6 +166,18 @@ building Agda from source.
 For more information, refer to the `Homebrew documentation
 <https://docs.brew.sh/>`_.
 
+.. NOTE::
+
+   If Emacs cannot find the ``agda-mode`` executable, it might help to
+   install the exec-path-from-shell_ package by doing ``M-x
+   package-install RET exec-path-from-shell RET``, and adding
+
+   .. code-block:: elisp
+
+     (exec-path-from-shell-initialize)
+
+   to your ``.emacs`` file.
+
 .. _installation-development-version:
 
 Installation of the Development Version
@@ -196,10 +208,6 @@ Installation Flags
 
 When installing Agda the following flags can be used:
 
-:samp:`cpphs`
-   Use `cpphs <https://hackage.haskell.org/package/cpphs>`_ instead of
-   cpp. Default: on.
-
 :samp:`debug`
    Enable debugging features that may slow Agda down. Default: off.
 
@@ -208,3 +216,5 @@ When installing Agda the following flags can be used:
    :ref:`grapheme-clusters`). Note that if ``enable-cluster-counting``
    is ``False``, then the ``--count-clusters`` flag triggers an error
    message. Default: off.
+
+.. _exec-path-from-shell: https://github.com/purcell/exec-path-from-shell

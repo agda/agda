@@ -144,7 +144,7 @@ encode a = do
 
 decode :: EmbPrj a => L.ByteString -> TCM (Maybe a)
 decode s = do
-  mf   <- use stModuleToSource
+  mf   <- useTC stModuleToSource
   incs <- getIncludeDirs
 
   -- Note that B.runGetState and G.decompress can raise errors if the
@@ -174,7 +174,7 @@ decode s = do
 
   case mf of
     Nothing -> return ()
-    Just mf -> stModuleToSource .= mf
+    Just mf -> stModuleToSource `setTCLens` mf
 
   case r of
     Right x   -> return (Just x)

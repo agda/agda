@@ -361,7 +361,7 @@ instance Reduce Term where
 
 shouldTryFastReduce :: ReduceM Bool
 shouldTryFastReduce = (optFastReduce <$> pragmaOptions) `and2M` do
-  allowed <- asks envAllowedReductions
+  allowed <- asksTC envAllowedReductions
   let optionalReductions = [NonTerminatingReductions, UnconfirmedReductions]
       requiredReductions = allReductions \\ optionalReductions
   return $ (allowed \\ optionalReductions) == requiredReductions
@@ -400,7 +400,7 @@ slowReduceTerm v = do
           v <- unfoldDefinition False reduceB' (Con c ci []) (conName c) args
           traverse reduceNat v
       Sort s   -> fmap Sort <$> reduceB' s
-      Level l  -> ifM (elem LevelReductions <$> asks envAllowedReductions)
+      Level l  -> ifM (elem LevelReductions <$> asksTC envAllowedReductions)
                     {- then -} (fmap levelTm <$> reduceB' l)
                     {- else -} done
       Pi _ _   -> done
@@ -475,7 +475,7 @@ unfoldDefinitionStep unfoldDelayed v0 f es =
   {-# SCC "reduceDef" #-} do
   info <- getConstInfo f
   rewr <- instantiateRewriteRules =<< getRewriteRulesFor f
-  allowed <- asks envAllowedReductions
+  allowed <- asksTC envAllowedReductions
   let def = theDef info
       v   = v0 `applyE` es
       -- Non-terminating functions
@@ -595,7 +595,7 @@ reduceHead v = do -- ignoreAbstractMode $ do
   case v of
     Def f es -> do
 
-      abstractMode <- envAbstractMode <$> ask
+      abstractMode <- envAbstractMode <$> askTC
       isAbstract <- treatAbstractly f
       traceSLn "tc.inj.reduce" 50 (
         "reduceHead: we are in " ++ show abstractMode++ "; " ++ show f ++
@@ -621,7 +621,7 @@ reduceHead v = do -- ignoreAbstractMode $ do
 -- | Unfold a single inlined function.
 unfoldInlined :: (HasConstInfo m, MonadReduce m) => Term -> m Term
 unfoldInlined v = do
-  inTypes <- view eWorkingOnTypes
+  inTypes <- viewTC eWorkingOnTypes
   case v of
     _ | inTypes -> return v -- Don't inline in types (to avoid unfolding of goals)
     Def f es -> do
@@ -640,7 +640,7 @@ appDef_ f v0 cls mcc rewr args = appDefE_ f v0 cls mcc rewr $ map (fmap Apply) a
 
 appDefE_ :: QName -> Term -> [Clause] -> Maybe CompiledClauses -> RewriteRules -> MaybeReducedElims -> ReduceM (Reduced (Blocked Term) Term)
 appDefE_ f v0 cls mcc rewr args =
-  local (\ e -> e { envAppDef = Just f }) $
+  localTC (\ e -> e { envAppDef = Just f }) $
   maybe (appDefE' v0 cls rewr args)
         (\cc -> appDefE v0 cc rewr args) mcc
 

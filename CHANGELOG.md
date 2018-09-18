@@ -1,6 +1,12 @@
 Release notes for Agda version 2.6.0
 ====================================
 
+Installation and infrastructure
+-------------------------------
+
+* Removed `cpphs` Cabal flag and use of the `cpphs` program
+  [Issue [#3223](https://github.com/agda/agda/issues/3223)].
+
 Type checking and interaction
 -----------------------------
 
@@ -82,6 +88,19 @@ Pragmas and options
   not considered `--safe` any longer.
   Reason: There are consistency issues that may be systemic
   [Issue [#2170](https://github.com/agda/agda/issues/2170)].
+
+* Option `--prop` enables the `Prop` universe and is on by default.
+  Option `--no-prop` disables the `Prop` universe.
+
+  In the absense of `Prop`, the sort `Set` is the lowest sort,
+  thus, sort annotation `: Set` can be ommitted if the sort
+  is constrained to be weakly below `Set`.  For instance:
+  ```agda
+  {-# OPTIONS --no-prop #-}
+
+  data Wrap A : Set where
+    wrap : A → Wrap A
+  ```
 
 * New pragma `{-# NO_UNIVERSE_CHECK #-}`.
 

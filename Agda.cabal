@@ -84,11 +84,6 @@ source-repository head
   type:     git
   location: https://github.com/agda/agda.git
 
-flag cpphs
-  default:     True
-  manual:      True
-  description: Use cpphs instead of cpp.
-
 flag debug
   default: False
   manual: True
@@ -101,9 +96,11 @@ flag enable-cluster-counting
     Enable the --count-clusters flag. (If enable-cluster-counting is
     False, then the --count-clusters flag triggers an error message.)
 
+-- ASR (2018-09-14). Every new setup dependency should also be added
+-- as a library dependency. See Issue #3225.
 custom-setup
   setup-depends:  base >= 4.8.0.0 && < 4.13
-                , Cabal >= 1.22.5.0 && < 2.4
+                , Cabal >= 1.22.5.0 && < 2.5
                 , filepath >= 1.4.0.0 && < 1.5
                 , filemanip >= 0.3.6.2 && < 0.4
                 , process >= 1.2.3.0 && < 1.7
@@ -111,15 +108,6 @@ custom-setup
 library
   hs-source-dirs:   src/full
   include-dirs:     src/full
-
-  if flag(cpphs)
-    -- We don't write an upper bound for cpphs because the
-    -- `build-tools` field can not be modified in Hackage.
-
-    -- If your change the lower bound of cpphs also change it in the
-    -- `.travis.yml` file [Issue #2315].
-    build-tools: cpphs >= 1.20.8
-    ghc-options: -pgmP cpphs -optP --cpp
 
   if flag(debug)
     cpp-options:    -DDEBUG
@@ -187,8 +175,11 @@ library
   if impl(ghc >= 8.0) && impl(ghc < 8.4)
     build-depends: transformers == 0.5.2.0
 
+  -- ASR (2018-09-14). We add the dependency on the filemanip library
+  -- due to Issue #3225.
   if impl(ghc >= 7.10) && impl(ghc < 8.0)
-    build-depends: transformers == 0.4.2.0
+    build-depends:   transformers == 0.4.2.0
+                   , filemanip >= 0.3.6.2 && < 0.4
 
   -- zlib >= 0.6.1 is broken with GHC < 7.10.3. See Issue 1518.
   if impl(ghc < 7.10.3)
@@ -717,7 +708,7 @@ test-suite agda-tests
                 , mtl >= 2.2.1 && < 2.3
                 , process >= 1.2.3.0 && < 1.7
                 , process-extras >= 0.3.0 && < 0.3.4 || >= 0.4.1.3 && < 0.5 || >= 0.7.1 && < 0.8
-                , QuickCheck >= 2.11 && < 2.12
+                , QuickCheck >= 2.11 && < 2.13
                 , regex-tdfa >= 1.2.0 && < 1.3
                 , regex-tdfa-text >= 1.0.0.3 && < 1.1
                 , tasty >= 0.10 && < 1.2

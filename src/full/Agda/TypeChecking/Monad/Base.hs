@@ -171,7 +171,10 @@ data PreScopeState = PreScopeState
     -- ^ @{-# FOREIGN #-}@ code that should be included in the compiled output.
     -- Does not include code for imported modules.
   , stPreFreshInteractionId :: !InteractionId
-  , stPreUserWarnings       :: !(Map A.QName String)
+  , stPreImportedUserWarnings :: !(Map A.QName String)
+    -- ^ Imported @UserWarning@s, not to be stored in the @Interface@
+  , stPreLocalUserWarnings    :: !(Map A.QName String)
+    -- ^ Locally defined @UserWarning@s, to be stored in the @Interface@
   }
 
 type DisambiguatedNames = IntMap A.QName
@@ -316,7 +319,8 @@ initPreScopeState = PreScopeState
   , stPreImportedInstanceDefs = Map.empty
   , stPreForeignCode          = Map.empty
   , stPreFreshInteractionId   = 0
-  , stPreUserWarnings         = Map.empty
+  , stPreImportedUserWarnings = Map.empty
+  , stPreLocalUserWarnings    = Map.empty
   }
 
 initPostScopeState :: PostScopeState
@@ -422,10 +426,21 @@ stFreshInteractionId f s =
   f (stPreFreshInteractionId (stPreScopeState s)) <&>
   \x -> s {stPreScopeState = (stPreScopeState s) {stPreFreshInteractionId = x}}
 
-stUserWarnings :: Lens' (Map A.QName String) TCState
-stUserWarnings f s =
-  f (stPreUserWarnings (stPreScopeState s)) <&>
-  \ x -> s {stPreScopeState = (stPreScopeState s) {stPreUserWarnings = x}}
+stImportedUserWarnings :: Lens' (Map A.QName String) TCState
+stImportedUserWarnings f s =
+  f (stPreImportedUserWarnings (stPreScopeState s)) <&>
+  \ x -> s {stPreScopeState = (stPreScopeState s) {stPreImportedUserWarnings = x}}
+
+stLocalUserWarnings :: Lens' (Map A.QName String) TCState
+stLocalUserWarnings f s =
+  f (stPreLocalUserWarnings (stPreScopeState s)) <&>
+  \ x -> s {stPreScopeState = (stPreScopeState s) {stPreLocalUserWarnings = x}}
+
+getUserWarnings :: MonadTCState m => m (Map A.QName String)
+getUserWarnings = do
+  iuw <- useTC stImportedUserWarnings
+  luw <- useTC stLocalUserWarnings
+  return $ iuw `Map.union` luw
 
 stBackends :: Lens' [Backend] TCState
 stBackends f s =
@@ -579,11 +594,11 @@ nextFresh s =
   let !c = s^.freshLens
   in (c, set freshLens (nextFresh' c) s)
 
-fresh :: (HasFresh i, MonadState TCState m) => m i
+fresh :: (HasFresh i, MonadTCState m) => m i
 fresh =
-    do  !s <- get
+    do  !s <- getTC
         let (!c , !s') = nextFresh s
-        put s'
+        putTC s'
         return c
 
 instance HasFresh MetaId where
@@ -636,22 +651,22 @@ instance Pretty CheckpointId where
 instance HasFresh CheckpointId where
   freshLens = stFreshCheckpointId
 
-freshName :: MonadState TCState m => Range -> String -> m Name
+freshName :: MonadTCState m => Range -> String -> m Name
 freshName r s = do
   i <- fresh
   return $ mkName r i s
 
-freshNoName :: MonadState TCState m => Range -> m Name
+freshNoName :: MonadTCState m => Range -> m Name
 freshNoName r =
     do  i <- fresh
         return $ Name i (C.NoName noRange i) r noFixity'
 
-freshNoName_ :: MonadState TCState m => m Name
+freshNoName_ :: MonadTCState m => m Name
 freshNoName_ = freshNoName noRange
 
 -- | Create a fresh name from @a@.
 class FreshName a where
-  freshName_ :: MonadState TCState m => a -> m Name
+  freshName_ :: MonadTCState m => a -> m Name
 
 instance FreshName (Range, String) where
   freshName_ = uncurry freshName
@@ -691,7 +706,7 @@ sourceToModule =
   Map.fromList
      .  List.map (\(m, f) -> (f, m))
      .  Map.toList
-    <$> use stModuleToSource
+    <$> useTC stModuleToSource
 
 -- | Lookup an 'AbsolutePath' in 'sourceToModule'.
 --
@@ -699,7 +714,7 @@ sourceToModule =
 
 lookupModuleFromSource :: AbsolutePath -> TCM (Maybe TopLevelModuleName)
 lookupModuleFromSource f =
-  fmap fst . List.find ((f ==) . snd) . Map.toList <$> use stModuleToSource
+  fmap fst . List.find ((f ==) . snd) . Map.toList <$> useTC stModuleToSource
 
 ---------------------------------------------------------------------------
 -- ** Interface
@@ -801,10 +816,10 @@ instance HasRange a => HasRange (Closure a) where
 
 buildClosure :: a -> TCM (Closure a)
 buildClosure x = do
-    env   <- ask
-    sig   <- use stSignature
-    scope <- use stScope
-    cps   <- use stModuleCheckpoints
+    env   <- askTC
+    sig   <- useTC stSignature
+    scope <- useTC stScope
+    cps   <- useTC stModuleCheckpoints
     return $ Closure sig env scope cps x
 
 ---------------------------------------------------------------------------
@@ -2177,7 +2192,7 @@ data HighlightingMethod
 ifTopLevelAndHighlightingLevelIsOr ::
   MonadTCM tcm => HighlightingLevel -> Bool -> tcm () -> tcm ()
 ifTopLevelAndHighlightingLevelIsOr l b m = do
-  e <- ask
+  e <- askTC
   when (envModuleNestingLevel e == 0 &&
         (envHighlightingLevel e >= l || b))
        m
@@ -2364,7 +2379,7 @@ initEnv = TCEnv { envContext             = []
                 }
 
 disableDestructiveUpdate :: TCM a -> TCM a
-disableDestructiveUpdate = local $ \e -> e { envAllowDestructiveUpdate = False }
+disableDestructiveUpdate = localTC $ \e -> e { envAllowDestructiveUpdate = False }
 
 data UnquoteFlags = UnquoteFlags
   { _unquoteNormalise :: Bool }
@@ -3014,11 +3029,11 @@ class (Functor m, Applicative m, Monad m) => HasOptions m where
   commandLineOptions :: m CommandLineOptions
 
 instance MonadIO m => HasOptions (TCMT m) where
-  pragmaOptions = use stPragmaOptions
+  pragmaOptions = useTC stPragmaOptions
 
   commandLineOptions = do
-    p  <- use stPragmaOptions
-    cl <- stPersistentOptions . stPersistentState <$> get
+    p  <- useTC stPragmaOptions
+    cl <- stPersistentOptions . stPersistentState <$> getTC
     return $ cl { optPragmaOptions = p }
 
 instance HasOptions m => HasOptions (ExceptT e m) where
@@ -3108,19 +3123,19 @@ instance ReadTCState ReduceM where
 
 runReduceM :: ReduceM a -> TCM a
 runReduceM m = do
-  e <- ask
-  s <- get
+  e <- askTC
+  s <- getTC
   return $! unReduceM m (ReduceEnv e s)
 
 runReduceF :: (a -> ReduceM b) -> TCM (a -> b)
 runReduceF f = do
-  e <- ask
-  s <- get
+  e <- askTC
+  s <- getTC
   return $ \x -> unReduceM (f x) (ReduceEnv e s)
 
-instance MonadReader TCEnv ReduceM where
-  ask   = ReduceM redEnv
-  local = onReduceEnv . mapRedEnv
+instance MonadTCEnv ReduceM where
+  askTC   = ReduceM redEnv
+  localTC = onReduceEnv . mapRedEnv
 
 useR :: (ReadTCState m) => Lens' a TCState -> m a
 useR l = (^.l) <$> getTCState
@@ -3139,7 +3154,7 @@ instance HasOptions ReduceM where
     return $ cl{ optPragmaOptions = p }
 
 class ( Applicative m
-      , MonadReader TCEnv m
+      , MonadTCEnv m
       , ReadTCState m
       , HasOptions m
       ) => MonadReduce m where
@@ -3154,42 +3169,180 @@ instance MonadReduce m => MonadReduce (ListT m) where
 instance MonadReduce m => MonadReduce (ExceptT err m) where
   liftReduce = lift . liftReduce
 
+instance MonadReduce m => MonadReduce (ReaderT r m) where
+  liftReduce = lift . liftReduce
+
 instance (Monoid w, MonadReduce m) => MonadReduce (WriterT w m) where
   liftReduce = lift . liftReduce
 
-instance (MonadReduce m) => MonadReduce (StateT w m) where
+instance MonadReduce m => MonadReduce (StateT w m) where
   liftReduce = lift . liftReduce
 
 instance MonadReduce ReduceM where
   liftReduce = id
 
 ---------------------------------------------------------------------------
+-- * Monad with read-only 'TCEnv'
+---------------------------------------------------------------------------
+
+-- | @MonadTCEnv@ made into its own dedicated service class.
+--   This allows us to use 'MonadReader' for 'ReaderT' extensions of @TCM@.
+class Monad m => MonadTCEnv m where
+  askTC   :: m TCEnv
+  localTC :: (TCEnv -> TCEnv) -> m a -> m a
+
+instance MonadTCEnv m => MonadTCEnv (MaybeT m) where
+  askTC   = lift askTC
+  localTC = mapMaybeT . localTC
+
+instance MonadTCEnv m => MonadTCEnv (ListT m) where
+  askTC   = lift askTC
+  localTC = mapListT . localTC
+
+instance MonadTCEnv m => MonadTCEnv (ExceptT err m) where
+  askTC   = lift askTC
+  localTC = mapExceptT . localTC
+
+instance MonadTCEnv m => MonadTCEnv (ReaderT r m) where
+  askTC   = lift askTC
+  localTC = mapReaderT . localTC
+
+instance (Monoid w, MonadTCEnv m) => MonadTCEnv (WriterT w m) where
+  askTC   = lift askTC
+  localTC = mapWriterT . localTC
+
+instance MonadTCEnv m => MonadTCEnv (StateT s m) where
+  askTC   = lift askTC
+  localTC = mapStateT . localTC
+
+asksTC :: MonadTCEnv m => (TCEnv -> a) -> m a
+asksTC f = f <$> askTC
+
+viewTC :: MonadTCEnv m => Lens' a TCEnv -> m a
+viewTC l = asksTC (^. l)
+
+-- | Modify the lens-indicated part of the @TCEnv@ in a subcomputation.
+locallyTC :: MonadTCEnv m => Lens' a TCEnv -> (a -> a) -> m b -> m b
+locallyTC l = localTC . over l
+
+---------------------------------------------------------------------------
+-- * Monad with mutable 'TCState'
+---------------------------------------------------------------------------
+
+-- | @MonadTCState@ made into its own dedicated service class.
+--   This allows us to use 'MonadState' for 'StateT' extensions of @TCM@.
+class Monad m => MonadTCState m where
+  getTC :: m TCState
+  putTC :: TCState -> m ()
+  modifyTC :: (TCState -> TCState) -> m ()
+
+  {-# MINIMAL getTC, (putTC | modifyTC) #-}
+  putTC      = modifyTC . const
+  modifyTC f = putTC . f =<< getTC
+
+instance MonadTCState m => MonadTCState (MaybeT m) where
+  getTC    = lift getTC
+  putTC    = lift . putTC
+  modifyTC = lift . modifyTC
+
+instance MonadTCState m => MonadTCState (ListT m) where
+  getTC    = lift getTC
+  putTC    = lift . putTC
+  modifyTC = lift . modifyTC
+
+instance MonadTCState m => MonadTCState (ExceptT err m) where
+  getTC    = lift getTC
+  putTC    = lift . putTC
+  modifyTC = lift . modifyTC
+
+instance MonadTCState m => MonadTCState (ReaderT r m) where
+  getTC    = lift getTC
+  putTC    = lift . putTC
+  modifyTC = lift . modifyTC
+
+instance (Monoid w, MonadTCState m) => MonadTCState (WriterT w m) where
+  getTC    = lift getTC
+  putTC    = lift . putTC
+  modifyTC = lift . modifyTC
+
+instance MonadTCState m => MonadTCState (StateT s m) where
+  getTC    = lift getTC
+  putTC    = lift . putTC
+  modifyTC = lift . modifyTC
+
+-- ** @TCState@ accessors (no lenses)
+
+getsTC :: MonadTCState m => (TCState -> a) -> m a
+getsTC f = f <$> getTC
+
+-- | A variant of 'modifyTC' in which the computation is strict in the
+-- new state.
+modifyTC' :: MonadTCState m => (TCState -> TCState) -> m ()
+modifyTC' f = do
+  s' <- getTC
+  putTC $! f s'
+
+-- SEE TC.Monad.State
+-- -- | Restore the 'TCState' after computation.
+-- localTCState :: MonadTCState m => m a -> m a
+-- localTCState = bracket_ getTC putTC
+
+-- ** @TCState@ accessors via lenses
+
+useTC :: MonadTCState m => Lens' a TCState -> m a
+useTC l = do
+  !x <- getsTC (^. l)
+  return x
+
+-- | Overwrite the part of the 'TCState' focused on by the lens.
+setTCLens :: MonadTCState m => Lens' a TCState -> a -> m ()
+setTCLens l = modifyTC . set l
+
+-- | Modify the part of the 'TCState' focused on by the lens.
+modifyTCLens :: MonadTCState m => Lens' a TCState -> (a -> a) -> m ()
+modifyTCLens l = modifyTC . over l
+
+-- | Modify a part of the state monadically.
+modifyTCLensM :: MonadTCState m => Lens' a TCState -> (a -> m a) -> m ()
+modifyTCLensM l f = putTC =<< l f =<< getTC
+
+-- | Modify the lens-indicated part of the 'TCState' locally.
+locallyTCState :: MonadTCState m => Lens' a TCState -> (a -> a) -> m b -> m b
+locallyTCState l f k = do
+  old <- useTC l
+  modifyTCLens l f
+  x <- k
+  setTCLens l old
+  return x
+
+
+---------------------------------------------------------------------------
 -- * Type checking monad transformer
 ---------------------------------------------------------------------------
 
+-- | The type checking monad transformer.
+-- Adds readonly 'TCEnv' and mutable 'TCState'.
 newtype TCMT m a = TCM { unTCM :: IORef TCState -> TCEnv -> m a }
 
--- TODO: make dedicated MonadTCEnv and MonadTCState service classes
+instance MonadIO m => MonadTCEnv (TCMT m) where
+  askTC             = TCM $ \ _ e -> return e
+  localTC f (TCM m) = TCM $ \ s e -> m s (f e)
 
-instance MonadIO m => MonadReader TCEnv (TCMT m) where
-  ask = TCM $ \s e -> return e
-  local f (TCM m) = TCM $ \s e -> m s (f e)
-
-instance MonadIO m => MonadState TCState (TCMT m) where
-  get   = TCM $ \s _ -> liftIO (readIORef s)
-  put s = TCM $ \r _ -> liftIO (writeIORef r s)
+instance MonadIO m => MonadTCState (TCMT m) where
+  getTC   = TCM $ \ r _e -> liftIO (readIORef r)
+  putTC s = TCM $ \ r _e -> liftIO (writeIORef r s)
 
 type TCM = TCMT IO
 
 class ( Applicative tcm, MonadIO tcm
-      , MonadReader TCEnv tcm
-      , MonadState TCState tcm
+      , MonadTCEnv tcm
+      , MonadTCState tcm
       , HasOptions tcm
       ) => MonadTCM tcm where
     liftTCM :: TCM a -> tcm a
 
 instance MonadIO m => ReadTCState (TCMT m) where
-  getTCState = get
+  getTCState = getTC
   withTCState f m = __IMPOSSIBLE__ -- should probably not be used
 
 instance MonadError TCErr (TCMT IO) where
@@ -3262,15 +3415,11 @@ instance MonadTCM tcm => MonadTCM (ExceptT err tcm) where
 instance (Monoid w, MonadTCM tcm) => MonadTCM (WriterT w tcm) where
   liftTCM = lift . liftTCM
 
-{- The following is not possible since MonadTCM needs to be a
--- MonadState TCState and a MonadReader TCEnv
-
 instance (MonadTCM tcm) => MonadTCM (StateT s tcm) where
   liftTCM = lift . liftTCM
 
 instance (MonadTCM tcm) => MonadTCM (ReaderT r tcm) where
   liftTCM = lift . liftTCM
--}
 
 instance MonadTrans TCMT where
     lift m = TCM $ \_ _ -> m
@@ -3369,7 +3518,7 @@ typeError err = liftTCM $ throwError =<< typeError_ err
 
 {-# SPECIALIZE typeError_ :: TypeError -> TCM TCErr #-}
 typeError_ :: MonadTCM tcm => TypeError -> tcm TCErr
-typeError_ err = liftTCM $ TypeError <$> get <*> buildClosure err
+typeError_ err = liftTCM $ TypeError <$> getTC <*> buildClosure err
 
 -- | Running the type checking monad (most general form).
 {-# SPECIALIZE runTCM :: TCEnv -> TCState -> TCM a -> IO (a, TCState) #-}
@@ -3397,9 +3546,9 @@ runSafeTCM m st = runTCM initEnv st m `E.catch` (\ (e :: TCErr) -> __IMPOSSIBLE_
 -- runSafeTCM m st = either__IMPOSSIBLE__ return <$> do
 --     -- Errors must be impossible.
 --     runTCM $ do
---         put st
+--         putTC st
 --         a <- m
---         st <- get
+--         st <- getTC
 --         return (a, st)
 
 -- | Runs the given computation in a separate thread, with /a copy/ of
@@ -3417,8 +3566,8 @@ runSafeTCM m st = runTCM initEnv st m `E.catch` (\ (e :: TCErr) -> __IMPOSSIBLE_
 
 forkTCM :: TCM a -> TCM ()
 forkTCM m = do
-  s <- get
-  e <- ask
+  s <- getTC
+  e <- askTC
   liftIO $ void $ C.forkIO $ void $ runTCM e s m
 
 

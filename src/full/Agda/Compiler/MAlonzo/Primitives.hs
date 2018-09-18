@@ -115,7 +115,7 @@ importsForPrim =
 xForPrim :: [(String, TCM [a])] -> TCM [a]
 xForPrim table = do
   qs <- HMap.keys <$> curDefs
-  bs <- toList <$> gets stBuiltinThings
+  bs <- toList <$> getsTC stBuiltinThings
   let getName (Builtin (Def q _))    = q
       getName (Builtin (Con q _ _))  = conName q
       getName (Builtin (Lam _ b))    = getName (Builtin $ unAbs b)

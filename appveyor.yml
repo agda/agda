@@ -17,7 +17,6 @@ install:
   - cabal --version
   - ghc --version
   - cabal update
-  - cabal install cpphs-1.20.8
   - cabal install alex happy
   - cabal install --only-dependencies
   - cabal install

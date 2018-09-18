@@ -1,9 +1,16 @@
 
 module Agda.TypeChecking.Telescope where
 
+import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Substitute
 
-piApplyM :: MonadReduce m => Type -> Args -> m Type
+class PiApplyM a where
+  piApplyM :: MonadReduce m => Type -> a -> m Type
+
+instance PiApplyM Term where
+instance PiApplyM a => PiApplyM (Arg a) where
+instance PiApplyM a => PiApplyM [a] where
+
 telView :: Type -> TCM TelView

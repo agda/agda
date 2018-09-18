@@ -23,11 +23,11 @@ import Agda.Utils.String
 
 -- | Get the statistics.
 getStatistics :: TCM Statistics
-getStatistics = use stStatistics
+getStatistics = useTC stStatistics
 
 -- | Modify the statistics via given function.
 modifyStatistics :: (Statistics -> Statistics) -> TCM ()
-modifyStatistics f = stStatistics %= f
+modifyStatistics f = stStatistics `modifyTCLens` f
 
 -- | Increase specified counter by @1@.
 tick :: String -> TCM ()

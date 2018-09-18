@@ -403,7 +403,7 @@ fastReduce' norm v = do
   trustme <- fmap primFunName <$> getPrimitive' "primTrustMe"
   let bEnv = BuiltinEnv { bZero = zero, bSuc = suc, bTrue = true, bFalse = false, bRefl = refl,
                           bPrimForce = force, bPrimTrustMe = trustme }
-  allowedReductions <- asks envAllowedReductions
+  allowedReductions <- asksTC envAllowedReductions
   rwr <- optRewriting <$> pragmaOptions
   constInfo <- unKleisli $ \f -> do
     info <- getConstInfo f

@@ -433,20 +433,26 @@ ifNotPiOrPathType t no yes = do
   ifPiType t yes (\ t -> either (uncurry yes . fst) (const $ no t) =<< liftTCM (pathViewAsPi'whnf t))
 
 
--- | A safe variant of piApply.
+-- | A safe variant of 'piApply'.
 
-piApplyM :: MonadReduce m => Type -> Args -> m Type
-piApplyM t []           = return t
-piApplyM t (arg : args) = do
-  (_, b) <- mustBePi t
-  absApp b (unArg arg) `piApplyM` args
+class PiApplyM a where
+  piApplyM :: MonadReduce m => Type -> a -> m Type
 
-piApply1 :: MonadReduce m => Type -> Term -> m Type
-piApply1 t v = do
-  (_, b) <- mustBePi t
-  return $ absApp b v
+instance PiApplyM Term where
+  piApplyM t v = ifNotPiType t __IMPOSSIBLE__ {-else-} $ \ _ b -> return $ absApp b v
+
+instance PiApplyM a => PiApplyM (Arg a) where
+  piApplyM t = piApplyM t . unArg
+
+instance PiApplyM a => PiApplyM (Named n a) where
+  piApplyM t = piApplyM t . namedThing
+
+instance PiApplyM a => PiApplyM [a] where
+  piApplyM t = foldl (\ mt v -> mt >>= (`piApplyM` v)) (return t)
+
 
 -- | Compute type arity
+
 typeArity :: Type -> TCM Nat
 typeArity t = do
   TelV tel _ <- telView t

@@ -454,8 +454,8 @@ instance PrettyTCM TCErr where
     -- Andreas, 2014-03-23
     -- This use of localState seems ok since we do not collect
     -- Benchmark info during printing errors.
-    TypeError s e -> localState $ do
-      put s
+    TypeError s e -> localTCState $ do
+      putTC s
       sayWhen (envRange $ clEnv e) (envCall $ clEnv e) $ prettyTCM e
     Exception r s     -> sayWhere r $ return s
     IOException _ r e -> sayWhere r $ fwords $ show e
@@ -480,7 +480,7 @@ dropTopLevelModule q = ($ q) <$> topLevelModuleDropper
 -- | Produces a function which drops the filename component of the qualified name.
 topLevelModuleDropper :: TCM (QName -> QName)
 topLevelModuleDropper = do
-  caseMaybeM (asks envCurrentPath) (return id) $ \ f -> do
+  caseMaybeM (asksTC envCurrentPath) (return id) $ \ f -> do
   m <- fromMaybe __IMPOSSIBLE__ <$> lookupModuleFromSource f
   return $ dropTopLevelModule' $ size m
 

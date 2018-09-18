@@ -166,7 +166,7 @@ ghcPreModule _ m ifile = ifM uptodate noComp yesComp
       m   <- show . A.mnameToConcrete <$> curMName
       out <- outFile_
       reportSLn "compile.ghc" 1 $ repl [m, ifile, out] "Compiling <<0>> in <<1>> to <<2>>"
-      stImportedModules .= Set.empty  -- we use stImportedModules to accumulate the required Haskell imports
+      stImportedModules `setTCLens` Set.empty  -- we use stImportedModules to accumulate the required Haskell imports
       return (Recompile ())
 
 ghcPostModule :: GHCOptions -> GHCModuleEnv -> IsMain -> ModuleName -> [[HS.Decl]] -> TCM IsMain
@@ -215,7 +215,7 @@ imports = (hsImps ++) <$> imps where
   decl m = HS.ImportDecl m True Nothing
 
   mnames :: TCM [ModuleName]
-  mnames = Set.elems <$> use stImportedModules
+  mnames = Set.elems <$> useTC stImportedModules
 
   uniq :: [HS.ModuleName] -> [HS.ModuleName]
   uniq = List.map head . List.group . List.sort

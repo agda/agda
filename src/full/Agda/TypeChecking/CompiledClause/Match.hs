@@ -66,7 +66,7 @@ type Stack = [Frame]
 match' :: Stack -> ReduceM (Reduced (Blocked Elims) Term)
 match' ((c, es, patch) : stack) = do
   let no blocking es = return $ NoReduction $ blocking $ patch $ map ignoreReduced es
-      yes t          = flip YesReduction t <$> asks envSimplification
+      yes t          = flip YesReduction t <$> asksTC envSimplification
 
   do
 
@@ -191,7 +191,7 @@ match' ((c, es, patch) : stack) = do
 
 -- If we reach the empty stack, then pattern matching was incomplete
 match' [] = {- new line here since __IMPOSSIBLE__ does not like the ' in match' -}
-  caseMaybeM (asks envAppDef) __IMPOSSIBLE__ $ \ f -> do
+  caseMaybeM (asksTC envAppDef) __IMPOSSIBLE__ $ \ f -> do
     pds <- getPartialDefs
     if f `elem` pds
     then return (NoReduction $ NotBlocked MissingClauses [])

@@ -136,8 +136,8 @@ recordFieldNames = map (fmap (nameConcrete . qnameName)) . recFields
 -- | Find all records with at least the given fields.
 findPossibleRecords :: [C.Name] -> TCM [QName]
 findPossibleRecords fields = do
-  defs  <- HMap.elems <$> use (stSignature . sigDefinitions)
-  idefs <- HMap.elems <$> use (stImports   . sigDefinitions)
+  defs  <- HMap.elems <$> useTC (stSignature . sigDefinitions)
+  idefs <- HMap.elems <$> useTC (stImports   . sigDefinitions)
   return $ cands defs ++ cands idefs
   where
     cands defs = [ defName d | d <- defs, possible d ]
@@ -569,11 +569,11 @@ etaExpandRecord' forceEta r pars u = do
   (tel, _, _, args) <- etaExpandRecord'_ forceEta r pars def u
   return (tel, args)
 
-etaExpandRecord_ :: (MonadReader TCEnv m, HasOptions m, MonadDebug m)
+etaExpandRecord_ :: (MonadTCEnv m, HasOptions m, MonadDebug m)
                  => QName -> Args -> Defn -> Term -> m (Telescope, ConHead, ConInfo, Args)
 etaExpandRecord_ = etaExpandRecord'_ False
 
-etaExpandRecord'_ :: (MonadReader TCEnv m, HasOptions m, MonadDebug m)
+etaExpandRecord'_ :: (MonadTCEnv m, HasOptions m, MonadDebug m)
                   => Bool -> QName -> Args -> Defn -> Term -> m (Telescope, ConHead, ConInfo, Args)
 etaExpandRecord'_ forceEta r pars def u = do
   let Record{ recConHead     = con

@@ -906,7 +906,7 @@ instance KillRange Pragma where
   killRange (ForeignPragma _ b s)             = ForeignPragma noRange b s
   killRange (ImpossiblePragma _)              = ImpossiblePragma noRange
   killRange (TerminationCheckPragma _ t)      = TerminationCheckPragma noRange (killRange t)
-  killRange (WarningOnUsage _ nm str)         = WarningOnUsage noRange nm str
+  killRange (WarningOnUsage _ nm str)         = WarningOnUsage noRange (killRange nm) str
   killRange (CatchallPragma _)                = CatchallPragma noRange
   killRange (DisplayPragma _ lhs rhs)         = killRange2 (DisplayPragma noRange) lhs rhs
   killRange (EtaPragma _ q)                   = killRange1 (EtaPragma noRange) q

@@ -58,7 +58,7 @@ workOnTypes cont = do
 workOnTypes' :: Bool -> TCM a -> TCM a
 workOnTypes' experimental =
   modifyContext (map $ mapRelevance f) .
-  local (\ e -> e { envWorkingOnTypes = True })
+  localTC (\ e -> e { envWorkingOnTypes = True })
   where
     f | experimental = irrToNonStrict . nonStrictToRel
       | otherwise    = nonStrictToRel
@@ -73,7 +73,7 @@ applyRelevanceToContext :: (MonadTCM tcm) => Relevance -> tcm a -> tcm a
 applyRelevanceToContext rel =
   case rel of
     Relevant -> id
-    _        -> local $ \ e -> e
+    _        -> localTC $ \ e -> e
       { envContext     = map                       (inverseApplyRelevance rel) (envContext e)
       , envLetBindings = (Map.map . fmap . second) (inverseApplyRelevance rel) (envLetBindings e)
                                                   -- enable local  irr. defs
@@ -89,7 +89,7 @@ applyRelevanceToContextFunBody rel cont
   | rel == Relevant = cont
   | otherwise = do
     ifM (optIrrelevantProjections <$> pragmaOptions) {-then-} (applyRelevanceToContext rel cont) {-else-} $ do
-      flip local cont $ \ e -> e
+      flip localTC cont $ \ e -> e
         { envRelevance = composeRelevance rel (envRelevance e) -- enable global irr. defs
         }
 
@@ -102,7 +102,7 @@ applyRelevanceToContextFunBody rel cont
 --   hole since it also marks all metas created during type checking as
 --   irrelevant (issue #2568).
 wakeIrrelevantVars :: TCM a -> TCM a
-wakeIrrelevantVars = local $ \ e -> e
+wakeIrrelevantVars = localTC $ \ e -> e
   { envContext     = map                       (inverseApplyRelevance Irrelevant) (envContext e)
   , envLetBindings = (Map.map . fmap . second) (inverseApplyRelevance Irrelevant) (envLetBindings e)
   }

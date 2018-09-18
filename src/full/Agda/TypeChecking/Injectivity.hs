@@ -67,7 +67,7 @@ headSymbol v = do -- ignoreAbstractMode $ do
           -- Don't treat axioms in the current mutual block
           -- as constructors (they might have definitions we
           -- don't know about yet).
-          caseMaybeM (asks envMutualBlock) yes $ \ mb -> do
+          caseMaybeM (asksTC envMutualBlock) yes $ \ mb -> do
             fs <- mutualNames <$> lookupMutualBlock mb
             if Set.member f fs then no else yes
         Function{}    -> no
@@ -235,13 +235,13 @@ data MaybeAbort = Abort | KeepGoing
 -- | Precondition: The first argument must be blocked and the second must be
 --                 neutral.
 useInjectivity :: CompareDirection -> Type -> Term -> Term -> TCM ()
-useInjectivity dir ty blk neu = locally eInjectivityDepth succ $ do
+useInjectivity dir ty blk neu = locallyTC eInjectivityDepth succ $ do
   inv <- functionInverse blk
   -- Injectivity might cause non-termination for unsatisfiable constraints
   -- (#431, #3067). Look at the number of active problems and the injectivity
   -- depth to detect this.
-  nProblems <- Set.size <$> view eActiveProblems
-  injDepth  <- view eInjectivityDepth
+  nProblems <- Set.size <$> viewTC eActiveProblems
+  injDepth  <- viewTC eInjectivityDepth
   let depth = max nProblems injDepth
   maxDepth  <- maxInversionDepth
   case inv of
@@ -358,7 +358,7 @@ invertFunction cmp blk (Inv f blkArgs hdMap) hd fallback err success = do
     maybeAbort m = do
       (a, s) <- localTCStateSaving m
       case a of
-        KeepGoing -> put s
+        KeepGoing -> putTC s
         Abort     -> fallback
 
     nextMeta = do

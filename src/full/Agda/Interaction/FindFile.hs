@@ -100,9 +100,9 @@ findFile m = do
 findFile' :: TopLevelModuleName -> TCM (Either FindError AbsolutePath)
 findFile' m = do
     dirs         <- getIncludeDirs
-    modFile      <- use stModuleToSource
+    modFile      <- useTC stModuleToSource
     (r, modFile) <- liftIO $ findFile'' dirs m modFile
-    stModuleToSource .= modFile
+    stModuleToSource `setTCLens` modFile
     return r
 
 -- | A variant of 'findFile'' which does not require 'TCM'.
