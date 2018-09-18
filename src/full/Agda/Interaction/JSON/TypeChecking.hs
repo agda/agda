@@ -16,6 +16,7 @@ import qualified Data.Set as Set
 import Agda.Interaction.JSON.Encode
 import Agda.Interaction.JSON.Syntax.Internal
 import Agda.Interaction.JSON.Syntax.Concrete
+import Agda.Interaction.JSON.Syntax.Parser
 import Agda.Interaction.JSON.Utils
 import Agda.Interaction.JSON.TypeChecking.Positivity
 import qualified Agda.Syntax.Abstract             as A
@@ -30,7 +31,7 @@ import qualified Agda.Syntax.Position             as P
 import qualified Agda.Syntax.Scope.Monad          as S
 import qualified Agda.Syntax.Scope.Base           as S
 import qualified Agda.Syntax.Translation.AbstractToConcrete as A2C
-
+import qualified Agda.Syntax.Translation.InternalToAbstract as I2A
 import Agda.Syntax.Position (Range, Range'(..))
 
 import Agda.TypeChecking.Errors
@@ -48,6 +49,7 @@ import Agda.Utils.Size (size)
 import Agda.Utils.List
 import Agda.Utils.NonemptyList (NonemptyList(..), toList)
 import Agda.Utils.Monad (localState)
+import Agda.Utils.Null
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -56,6 +58,175 @@ import Agda.Utils.Impossible
 
 instance EncodeTCM a => EncodeTCM (Closure a) where
   encodeTCM closure = enterClosure closure encodeTCM
+
+--------------------------------------------------------------------------------
+
+instance EncodeTCM TCWarning where
+  encodeTCM (TCWarning range warning warning' cached) =
+    obj
+      [ "range"     @= range
+      , "warning"   #= encodeTCM warning
+      , "warning'"  @= warning'
+      , "cached"    @= cached
+      ]
+
+--------------------------------------------------------------------------------
+
+instance EncodeTCM Warning where
+  encodeTCM warning = case warning of
+    NicifierIssue w -> obj
+      [ "kind"                @= String "NicifierIssue"
+      , "declarationWarning"  @= w
+      ]
+
+    TerminationIssue es -> obj
+      [ "kind"                @= String "TerminationIssue"
+      , "terminationErrors"   #= mapM encodeTCM es
+      ]
+
+    UnreachableClauses name clauses -> obj
+      [ "kind"                @= String "UnreachableClauses"
+      , "name"                #= A2C.abstractToConcrete_ name
+      -- , "clauses"             @= clauses
+      ]
+
+    CoverageIssue name pairs -> obj
+      [ "kind"                @= String "CoverageIssue"
+      , "name"                #= A2C.abstractToConcrete_ name
+      , "declarations"        #= mapM f pairs
+      ]
+      where f :: (I.Telescope, [C.NamedArg I.DeBruijnPattern]) -> TCM [C.Declaration]
+            f (tel, ps) = do
+              let namedClause = I2A.NamedClause name True $
+                    empty { I.clauseTel = tel, I.namedClausePats = ps }
+              I2A.reify namedClause >>= A2C.abstractToConcrete_
+
+    CoverageNoExactSplit name clauses -> obj
+      [ "kind"                @= String "CoverageNoExactSplit"
+      , "name"                #= A2C.abstractToConcrete_ name
+      , "declarations"        #= mapM f clauses
+      ]
+      where f :: I.Clause -> TCM [C.Declaration]
+            f clause = do
+              let namedClause = I2A.NamedClause name True clause
+              I2A.reify namedClause >>= A2C.abstractToConcrete_
+
+    NotStrictlyPositive name occursWhere -> obj
+      [ "kind"                @= String "NotStrictlyPositive"
+      , "name"                #= A2C.abstractToConcrete_ name
+      , "occursWhere"         #= encodeTCM occursWhere
+      ]
+
+    UnsolvedMetaVariables ranges -> obj
+      [ "kind"                @= String "UnsolvedMetaVariables"
+      , "ranges"              @= ranges
+      ]
+
+    UnsolvedInteractionMetas ranges -> obj
+      [ "kind"                @= String "UnsolvedInteractionMetas"
+      , "ranges"              @= ranges
+      ]
+
+    UnsolvedConstraints constraints -> obj
+      [ "kind"                @= String "UnsolvedConstraints"
+      , "constraints"         #= mapM encodeTCM constraints
+      ]
+
+    AbsurdPatternRequiresNoRHS clauses -> obj
+      [ "kind"                @= String "AbsurdPatternRequiresNoRHS"
+      -- , "clauses"             @= clauses
+      ]
+
+    OldBuiltin old new -> obj
+      [ "kind"                @= String "OldBuiltin"
+      , "old"                 @= old
+      , "new"                 @= new
+      ]
+
+    EmptyRewritePragma -> obj
+      [ "kind"                @= String "EmptyRewritePragma"
+      ]
+
+    UselessPublic -> obj
+      [ "kind"                @= String "UselessPublic"
+      ]
+
+    UselessInline name -> obj
+      [ "kind"                @= String "UselessInline"
+      , "name"                #= A2C.abstractToConcrete_ name
+      ]
+
+    InversionDepthReached name -> obj
+      [ "kind"                @= String "InversionDepthReached"
+      , "name"                #= A2C.abstractToConcrete_ name
+      ]
+
+    GenericWarning warning -> obj
+      [ "kind"                @= String "GenericWarning"
+      , "warning"             @= warning
+      ]
+
+    GenericNonFatalError message -> obj
+      [ "kind"                @= String "GenericNonFatalError"
+      , "message"             @= message
+      ]
+
+    SafeFlagPostulate name -> obj
+      [ "kind"                @= String "SafeFlagPostulate"
+      , "name"                @= name
+      ]
+
+    SafeFlagPragma pragmas -> obj
+      [ "kind"                @= String "SafeFlagPragma"
+      , "pragmas"             @= pragmas
+      ]
+
+    SafeFlagNonTerminating -> obj
+      [ "kind"                @= String "SafeFlagNonTerminating"
+      ]
+
+    SafeFlagTerminating -> obj
+      [ "kind"                @= String "SafeFlagTerminating"
+      ]
+
+    SafeFlagPrimTrustMe -> obj
+      [ "kind"                @= String "SafeFlagPrimTrustMe"
+      ]
+
+    SafeFlagNoPositivityCheck -> obj
+      [ "kind"                @= String "SafeFlagNoPositivityCheck"
+      ]
+
+    SafeFlagPolarity -> obj
+      [ "kind"                @= String "SafeFlagPolarity"
+      ]
+
+    SafeFlagNoUniverseCheck -> obj
+      [ "kind"                @= String "SafeFlagNoUniverseCheck"
+      ]
+
+    ParseWarning warning -> obj
+      [ "kind"                @= String "ParseWarning"
+      , "warning"             @= warning
+      ]
+
+    DeprecationWarning old new version -> obj
+      [ "kind"                @= String "DeprecationWarning"
+      , "old"                 @= old
+      , "new"                 @= new
+      , "version"             @= version
+      ]
+
+    UserWarning warning -> obj
+      [ "kind"                @= String "UserWarning"
+      , "warning"             @= warning
+      ]
+
+    ModuleDoesntExport source names -> obj
+      [ "kind"                @= String "UserWarning"
+      , "sourceModule"        @= source
+      , "names"               @= names
+      ]
 
 --------------------------------------------------------------------------------
 
@@ -1077,3 +1248,137 @@ instance EncodeTCM Call where
       [ "kind"          @= String "SetRange"
       , "range"         @= range
       ]
+
+instance EncodeTCM Constraint where
+  encodeTCM constraint = case constraint of
+    ValueCmp cmp t e e' -> obj
+      [ "kind"        @= String "ValueCmp"
+      , "comparison"  @= cmp
+      , "term1"       #= rep e
+      , "term2"       #= rep e'
+      , "type"        #= rep t
+      ]
+    ValueCmpOnFace cmp face t e e' -> obj
+      [ "kind"        @= String "ValueCmpOnFace"
+      , "comparison"  @= cmp
+      , "face"        #= rep face
+      , "type"        #= rep t
+      , "term1"       #= rep e
+      , "term2"       #= rep e'
+      ]
+    ElimCmp polarities isForced t e elims1 elims2 -> obj
+      [ "kind"        @= String "ElimCmp"
+      , "polarities"  @= polarities
+      , "isForced"    @= isForced
+      , "type"        #= rep t
+      , "term"        #= rep e
+      , "elims1"      @= elims1
+      , "elims2"      @= elims2
+      ]
+    TypeCmp cmp t t' -> obj
+      [ "kind"        @= String "TypeCmp"
+      , "comparison"  @= cmp
+      , "type1"       #= rep t
+      , "type2"       #= rep t'
+      ]
+    TelCmp t t' cmp tel tel' -> obj
+      [ "kind"        @= String "TelCmp"
+      , "comparison"  @= cmp
+      , "type1"       #= rep t
+      , "type2"       #= rep t'
+      , "telescope1"  #= mapM (I2A.reify >=> A2C.abstractToConcrete_) tel
+      , "telescope2"  #= mapM (I2A.reify >=> A2C.abstractToConcrete_) tel'
+      ]
+    SortCmp cmp s s' -> obj
+      [ "kind"        @= String "SortCmp"
+      , "comparison"  @= cmp
+      , "sort1"       @= s
+      , "sort2"       @= s'
+      ]
+    LevelCmp cmp l l' -> obj
+      [ "kind"        @= String "LevelCmp"
+      , "comparison"  @= cmp
+      , "level1"      @= l
+      , "level2"      @= l'
+      ]
+    HasBiggerSort sort -> obj
+      [ "kind"        @= String "HasBiggerSort"
+      , "sort"        @= sort
+      ]
+    HasPTSRule sort binding -> obj
+      [ "kind"        @= String "HasPTSRule"
+      , "sort"        @= sort
+      , "binding"     @= binding
+      ]
+    UnBlock metaId -> obj
+      [ "kind"        @= String "UnBlock"
+      , "metaId"      @= metaId
+      ]
+    Guarded constraint pid -> obj
+      [ "kind"        @= String "Guarded"
+      , "constraint"  #= encodeTCM constraint
+      , "problemId"   @= pid
+      ]
+    IsEmpty range t -> obj
+      [ "kind"        @= String "IsEmpty"
+      , "range"       @= range
+      , "type"        #= rep t
+      ]
+    CheckSizeLtSat term -> obj
+      [ "kind"        @= String "CheckSizeLtSat"
+      , "term"        #= rep term
+      ]
+    FindInScope instanceArg metaId candidates -> obj
+      [ "kind"        @= String "FindInScope"
+      , "instanceArg" @= instanceArg
+      , "metaId"      @= metaId
+      , "candidates"  @= candidates
+      ]
+    CheckFunDef delayed defInfo name clauses -> obj
+      [ "kind"          @= String "CheckFunDef"
+      -- , "delayed"     @= delayed
+      -- , "defInfo"     @= defInfo
+      , "name"          @= name
+      , "declarations"  #= mapM A2C.abstractToConcrete_ clauses
+      ]
+
+instance EncodeTCM ProblemConstraint where
+  encodeTCM (PConstr problems constraint) = obj
+    [ "problems"    @= Set.toList problems
+    , "constraint"  #= encodeTCM constraint
+    ]
+
+instance EncodeTCM TerminationError where
+  encodeTCM (TerminationError funcs calls) = obj
+    [ "functions"     #= mapM A2C.abstractToConcrete_ funcs
+    , "calls"         #= mapM encodeTCM calls
+    ]
+
+instance EncodeTCM CallInfo where
+  encodeTCM callInfo = A2C.abstractToConcrete_ (callInfoTarget callInfo) >>= return .toJSON
+
+instance ToJSON ProblemId where
+  toJSON (ProblemId n) = toJSON n
+
+
+instance ToJSON Polarity where
+  toJSON Covariant      = String "Covariant"
+  toJSON Contravariant  = String "Contravariant"
+  toJSON Invariant      = String "Invariant"
+  toJSON Nonvariant     = String "Nonvariant"
+
+instance ToJSON IsForced where
+  toJSON Forced         = String "Forced"
+  toJSON NotForced      = String "NotForced"
+
+instance ToJSON ExplicitToInstance where
+  toJSON ExplicitToInstance     = String "ExplicitToInstance"
+  toJSON ExplicitStayExplicit   = String "ExplicitStayExplicit"
+
+instance ToJSON Candidate where
+  toJSON (Candidate e t eti overlappable) = object
+    [ "term"          .= e
+    , "type"          .= t
+    , "eti"           .= eti
+    , "overlappable"  .= overlappable
+    ]

@@ -277,6 +277,7 @@ library
                     Agda.Interaction.JSON.Syntax.Internal
                     Agda.Interaction.JSON.Syntax.Literal
                     Agda.Interaction.JSON.Syntax.Notation
+                    Agda.Interaction.JSON.Syntax.Parser
                     Agda.Interaction.JSON.Syntax.Position
                     Agda.Interaction.JSON.TypeChecking
                     Agda.Interaction.JSON.TypeChecking.Positivity

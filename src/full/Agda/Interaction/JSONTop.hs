@@ -10,6 +10,7 @@ import Data.ByteString.Lazy (ByteString)
 import qualified Data.ByteString.Lazy.Char8 as BS
 
 import Agda.Interaction.AgdaTop
+import Agda.Interaction.BasicOps
 import Agda.Interaction.Highlighting.JSON
 import Agda.Interaction.JSON.Encode
 import Agda.Interaction.JSON.TypeChecking
@@ -99,11 +100,12 @@ instance EncodeTCM DisplayInfo where
     [ "kind"        @= String "Constraints"
     , "constraints" @= constraints
     ]
-  encodeTCM (Info_AllGoalsWarnings _ goals warnings errors) = obj
-    [ "kind"        @= String "AllGoalsWarnings"
-    , "goals"       @= goals
-    , "warnings"    @= warnings
-    , "errors"      @= errors
+  encodeTCM (Info_AllGoalsWarnings (AllGoalsWarnings ims hms ws es) _ _ _) = obj
+    [ "kind"              @= String "AllGoalsWarnings"
+    , "interactionMetas"  @= ims
+    , "hiddenMetas"       @= hms
+    , "warnings"          #= mapM encodeTCM ws
+    , "errors"            #= mapM encodeTCM es
     ]
   encodeTCM (Info_Time doc) = obj
     [ "kind"        @= String "Time"
@@ -151,3 +153,100 @@ instance ToJSON GiveResult where
 instance ToJSON MakeCaseVariant where
   toJSON R.Function = String "Function"
   toJSON R.ExtendedLambda = String "ExtendedLambda"
+
+--------------------------------------------------------------------------------
+
+instance (ToJSON a, ToJSON b) => ToJSON (OutputConstraint a b) where
+  toJSON o = case o of
+    OfType e t -> object
+      [ "kind"        .= String "OfType"
+      , "term"        .= e
+      , "type"        .= t
+      ]
+    CmpInType cmp t e e' -> object
+      [ "kind"        .= String "CmpInType"
+      , "comparison"  .= cmp
+      , "term1"       .= e
+      , "term2"       .= e'
+      , "type"        .= t
+      ]
+    CmpElim _ t es es' -> object
+      [ "kind"        .= String "CmpElim"
+      , "terms1"      .= es
+      , "terms2"      .= es'
+      , "type"        .= t
+      ]
+    JustType t -> object
+      [ "kind"        .= String "JustType"
+      , "type"        .= t
+      ]
+    CmpTypes cmp t t' -> object
+      [ "kind"        .= String "CmpTypes"
+      , "comparison"  .= cmp
+      , "type1"       .= t
+      , "type2"       .= t'
+      ]
+    CmpLevels cmp t t' -> object
+      [ "kind"        .= String "CmpLevels"
+      , "comparison"  .= cmp
+      , "type1"       .= t
+      , "type2"       .= t'
+      ]
+    CmpTeles cmp t t' -> object
+      [ "kind"        .= String "CmpTeles"
+      , "comparison"  .= cmp
+      , "tele1"       .= t
+      , "tele2"       .= t'
+      ]
+    JustSort s -> object
+      [ "kind"        .= String "JustSort"
+      , "sort"        .= s
+      ]
+    CmpSorts cmp s s' -> object
+      [ "kind"        .= String "CmpSorts"
+      , "comparison"  .= cmp
+      , "sort1"       .= s
+      , "sort2"       .= s'
+      ]
+    Guard o pid -> object
+      [ "kind"              .= String "Guard"
+      , "outputConstraint"  .= o
+      , "problemId"         .= pid
+      ]
+    Assign lhs rhs -> object
+      [ "kind"        .= String "Assign"
+      , "LHS"         .= lhs
+      , "RHS"         .= rhs
+      ]
+    TypedAssign lhs rhs t -> object
+      [ "kind"        .= String "TypedAssign"
+      , "type"        .= t
+      , "LHS"         .= lhs
+      , "RHS"         .= rhs
+      ]
+    PostponedCheckArgs lhs es t0 t1 -> object
+      [ "kind"        .= String "PostponedCheckArgs"
+      , "type1"       .= t0
+      , "type2"       .= t1
+      , "exprs"       .= es
+      , "LHS"         .= lhs
+      ]
+    IsEmptyType t -> object
+      [ "kind"        .= String "IsEmptyType"
+      , "type"        .= t
+      ]
+    SizeLtSat s -> object
+      [ "kind"        .= String "SizeLtSat"
+      , "size"        .= s
+      ]
+    FindInScopeOF e t cs -> object
+      [ "kind"        .= String "FindInScopeOF"
+      , "term"        .= e
+      , "type"        .= t
+      , "candidates"  .= cs
+      ]
+    PTSInstance a b -> object
+      [ "kind"        .= String "PTSInstance"
+      , "a"           .= a
+      , "b"           .= b
+      ]

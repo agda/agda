@@ -14,6 +14,7 @@ import Agda.Interaction.JSON.TypeChecking.Positivity
 
 import Agda.Syntax.Concrete
 import Agda.Syntax.Concrete.Pretty (smashTel)
+import Agda.Syntax.Concrete.Definitions
 
 --------------------------------------------------------------------------------
 
@@ -782,4 +783,90 @@ instance ToJSON Pragma where
     NoUniverseCheckPragma range -> object
       [ "kind"          .= String "NoUniverseCheckPragma"
       , "range"         .= range
+      ]
+
+--------------------------------------------------------------------------------
+
+instance ToJSON DeclarationWarning where
+  toJSON warning = case warning of
+    EmptyAbstract range -> object
+      [ "kind"      .= String "EmptyAbstract"
+      , "range"     .= range
+      ]
+    EmptyInstance range -> object
+      [ "kind"      .= String "EmptyInstance"
+      , "range"     .= range
+      ]
+    EmptyMacro range -> object
+      [ "kind"      .= String "EmptyMacro"
+      , "range"     .= range
+      ]
+    EmptyMutual range -> object
+      [ "kind"      .= String "EmptyMutual"
+      , "range"     .= range
+      ]
+    EmptyPostulate range -> object
+      [ "kind"      .= String "EmptyPostulate"
+      , "range"     .= range
+      ]
+    EmptyPrivate range -> object
+      [ "kind"      .= String "EmptyPrivate"
+      , "range"     .= range
+      ]
+    InvalidCatchallPragma range -> object
+      [ "kind"      .= String "InvalidCatchallPragma"
+      , "range"     .= range
+      ]
+    InvalidNoPositivityCheckPragma range -> object
+      [ "kind"      .= String "InvalidNoPositivityCheckPragma"
+      , "range"     .= range
+      ]
+    InvalidNoUniverseCheckPragma range -> object
+      [ "kind"      .= String "InvalidNoUniverseCheckPragma"
+      , "range"     .= range
+      ]
+    InvalidTerminationCheckPragma range -> object
+      [ "kind"      .= String "InvalidTerminationCheckPragma"
+      , "range"     .= range
+      ]
+    MissingDefinitions names -> object
+      [ "kind"      .= String "MissingDefinitions"
+      , "names"     .= names
+      ]
+    NotAllowedInMutual range name -> object
+      [ "kind"      .= String "NotAllowedInMutual"
+      , "range"     .= range
+      , "name"      .= name
+      ]
+    PolarityPragmasButNotPostulates names -> object
+      [ "kind"      .= String "PolarityPragmasButNotPostulates"
+      , "names"     .= names
+      ]
+    PragmaNoTerminationCheck range -> object
+      [ "kind"      .= String "PragmaNoTerminationCheck"
+      , "range"     .= range
+      ]
+    UnknownFixityInMixfixDecl names -> object
+      [ "kind"      .= String "UnknownFixityInMixfixDecl"
+      , "names"     .= names
+      ]
+    UnknownNamesInFixityDecl names -> object
+      [ "kind"      .= String "UnknownNamesInFixityDecl"
+      , "names"     .= names
+      ]
+    UnknownNamesInPolarityPragmas names -> object
+      [ "kind"      .= String "UnknownNamesInPolarityPragmas"
+      , "names"     .= names
+      ]
+    UselessAbstract range -> object
+      [ "kind"      .= String "UselessAbstract"
+      , "range"     .= range
+      ]
+    UselessInstance range -> object
+      [ "kind"      .= String "UselessInstance"
+      , "range"     .= range
+      ]
+    UselessPrivate range -> object
+      [ "kind"      .= String "UselessPrivate"
+      , "range"     .= range
       ]
