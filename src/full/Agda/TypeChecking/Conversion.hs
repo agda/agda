@@ -1720,10 +1720,10 @@ leqInterval r q =
    or <$> forM q (\ q_j -> leqConj r_i q_j))  -- TODO shortcut
 
 -- | leqConj r q = r ≤ q in the I lattice, when r and q are conjuctions.
--- (∧ r_i)   ≤ (∧ q_j)               iff
--- (∧ r_i)   ∧ (∧ q_j)   = (∧ r_i)   iff
--- {r_i | i} ∪ {q_j | j} = {r_i | i} iff
--- {q_j | j} ⊆ {r_i | i}
+-- ' (∧ r_i)   ≤ (∧ q_j)               iff
+-- ' (∧ r_i)   ∧ (∧ q_j)   = (∧ r_i)   iff
+-- ' {r_i | i} ∪ {q_j | j} = {r_i | i} iff
+-- ' {q_j | j} ⊆ {r_i | i}
 leqConj :: Conj -> Conj -> TCM Bool
 leqConj (rs,rst) (qs,qst) = do
   case toSet qs `Set.isSubsetOf` toSet rs of
