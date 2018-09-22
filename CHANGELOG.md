@@ -178,6 +178,16 @@ LaTeX backend
   `\AgdaPostulate{\AgdaUnsolvedMeta{F}}` Agda now generates
   `\AgdaUnsolvedMeta{\AgdaPostulate{F}}`.
 
+Release notes for Agda version 2.5.4.2
+======================================
+
+Installation and infrastructure
+-------------------------------
+
+* Fixed installation with some old versions of `cabal-install`
+  [Issue [#3225](https://github.com/agda/agda/issues/3225)].
+
+
 Release notes for Agda version 2.5.4.1
 ======================================
 
