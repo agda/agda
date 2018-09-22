@@ -187,7 +187,6 @@ Installation and infrastructure
 * Fixed installation with some old versions of `cabal-install`
   [Issue [#3225](https://github.com/agda/agda/issues/3225)].
 
-
 Release notes for Agda version 2.5.4.1
 ======================================
 
@@ -1065,7 +1064,6 @@ For 2.5.4, the following issues have been closed
   - [#3090](https://github.com/agda/agda/issues/3090): Internal error in parser when using parentheses in BUILTIN pragma
   - [#3096](https://github.com/agda/agda/issues/3096): Support GHC 8.4.3
 
-
 Release notes for Agda version 2.5.3
 ====================================
 
@@ -1888,7 +1886,6 @@ For 2.5.3, the following issues have been fixed
   - [#2734](https://github.com/agda/agda/issues/2734): Make height of empty lines configurable
   - [#2736](https://github.com/agda/agda/issues/2736): Segfault using Alex 3.2.2 and cpphs
   - [#2740](https://github.com/agda/agda/issues/2740): Indenting every line of code should be a no-op
-
 
 Release notes for Agda version 2.5.2
 ====================================
