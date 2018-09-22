@@ -6,13 +6,18 @@ module Agda.Interaction.JSON.Syntax.Concrete.Name where
 
 import Data.Aeson
 
+import Agda.Interaction.JSON.Encode
 import Agda.Interaction.JSON.Syntax.Common
 import Agda.Interaction.JSON.Syntax.Position
-import Agda.Interaction.JSON.Utils
 import Agda.Syntax.Concrete.Name
 
 --------------------------------------------------------------------------------
 
+instance ToJSON NamePart where
+  toJSON Hole      = Null
+  toJSON (Id name) = toJSON name
+
+instance EncodeTCM Name where
 instance ToJSON Name where
   toJSON (Name   range parts) = object
     [ "kind"  .= String "Name"
@@ -25,12 +30,16 @@ instance ToJSON Name where
     , "name"  .= name
     ]
 
-instance ToJSON NamePart where
-  toJSON Hole      = Null
-  toJSON (Id name) = toJSON name
-
+instance EncodeTCM QName where
 instance ToJSON QName where
   toJSON = toJSON . toList
     where
       toList (QName name)      = name : []
       toList (Qual name qname) = name : toList qname
+
+instance EncodeTCM TopLevelModuleName
+instance ToJSON TopLevelModuleName where
+  toJSON (TopLevelModuleName range parts) = object
+    [ "range" .= range
+    , "parts" .= parts
+    ]

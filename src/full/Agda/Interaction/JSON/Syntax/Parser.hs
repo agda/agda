@@ -6,13 +6,14 @@ module Agda.Interaction.JSON.Syntax.Parser where
 
 import Data.Aeson
 
+import Agda.Interaction.JSON.Encode
 import Agda.Interaction.JSON.Syntax.Position
-import Agda.Interaction.JSON.Utils
 import Agda.Syntax.Parser
 
 
 --------------------------------------------------------------------------------
 
+instance EncodeTCM ParseWarning where
 instance ToJSON ParseWarning where
   toJSON (OverlappingTokensWarning range) = object
     [ "range"  .= range

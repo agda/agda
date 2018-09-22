@@ -15,9 +15,10 @@ import qualified Data.Set as Set
 
 import Agda.Interaction.JSON.Encode
 import Agda.Interaction.JSON.Syntax.Internal
+import Agda.Interaction.JSON.Syntax.Abstract
 import Agda.Interaction.JSON.Syntax.Concrete
 import Agda.Interaction.JSON.Syntax.Parser
-import Agda.Interaction.JSON.Utils
+import Agda.Interaction.JSON.Syntax.Translation
 import Agda.Interaction.JSON.TypeChecking.Positivity
 import qualified Agda.Syntax.Abstract             as A
 import qualified Agda.Syntax.Common               as C
@@ -56,16 +57,11 @@ import Agda.Utils.Impossible
 
 --------------------------------------------------------------------------------
 
-instance EncodeTCM a => EncodeTCM (Closure a) where
-  encodeTCM closure = enterClosure closure encodeTCM
-
---------------------------------------------------------------------------------
-
 instance EncodeTCM TCWarning where
   encodeTCM (TCWarning range warning warning' cached) =
     obj
       [ "range"     @= range
-      , "warning"   #= encodeTCM warning
+      , "warning"   @= warning
       , "warning'"  @= warning'
       , "cached"    @= cached
       ]
@@ -81,40 +77,34 @@ instance EncodeTCM Warning where
 
     TerminationIssue es -> obj
       [ "kind"                @= String "TerminationIssue"
-      , "terminationErrors"   #= mapM encodeTCM es
+      , "terminationErrors"   @= es
       ]
 
     UnreachableClauses name clauses -> obj
       [ "kind"                @= String "UnreachableClauses"
-      , "name"                #= A2C.abstractToConcrete_ name
+      , "name"                @= name
       -- , "clauses"             @= clauses
       ]
 
     CoverageIssue name pairs -> obj
       [ "kind"                @= String "CoverageIssue"
-      , "name"                #= A2C.abstractToConcrete_ name
-      , "declarations"        #= mapM f pairs
+      , "name"                @= name
+      , "declarations"        @= map f pairs
       ]
-      where f :: (I.Telescope, [C.NamedArg I.DeBruijnPattern]) -> TCM [C.Declaration]
-            f (tel, ps) = do
-              let namedClause = I2A.NamedClause name True $
+      where f (tel, ps) = I2A.NamedClause name True $
                     empty { I.clauseTel = tel, I.namedClausePats = ps }
-              I2A.reify namedClause >>= A2C.abstractToConcrete_
 
     CoverageNoExactSplit name clauses -> obj
       [ "kind"                @= String "CoverageNoExactSplit"
-      , "name"                #= A2C.abstractToConcrete_ name
-      , "declarations"        #= mapM f clauses
+      , "name"                @= name
+      , "declarations"        @= map f clauses
       ]
-      where f :: I.Clause -> TCM [C.Declaration]
-            f clause = do
-              let namedClause = I2A.NamedClause name True clause
-              I2A.reify namedClause >>= A2C.abstractToConcrete_
+      where f clause = I2A.NamedClause name True clause
 
     NotStrictlyPositive name occursWhere -> obj
       [ "kind"                @= String "NotStrictlyPositive"
-      , "name"                #= A2C.abstractToConcrete_ name
-      , "occursWhere"         #= encodeTCM occursWhere
+      , "name"                @= name
+      , "occursWhere"         @= occursWhere
       ]
 
     UnsolvedMetaVariables ranges -> obj
@@ -129,7 +119,7 @@ instance EncodeTCM Warning where
 
     UnsolvedConstraints constraints -> obj
       [ "kind"                @= String "UnsolvedConstraints"
-      , "constraints"         #= mapM encodeTCM constraints
+      , "constraints"         @= constraints
       ]
 
     AbsurdPatternRequiresNoRHS clauses -> obj
@@ -153,12 +143,12 @@ instance EncodeTCM Warning where
 
     UselessInline name -> obj
       [ "kind"                @= String "UselessInline"
-      , "name"                #= A2C.abstractToConcrete_ name
+      , "name"                @= name
       ]
 
     InversionDepthReached name -> obj
       [ "kind"                @= String "InversionDepthReached"
-      , "name"                #= A2C.abstractToConcrete_ name
+      , "name"                @= name
       ]
 
     GenericWarning warning -> obj
@@ -236,13 +226,13 @@ instance EncodeTCM TCErr where
     obj
       [ "kind"      @= String "TypeError"
       , "range"     @= envRange (clEnv closure)
-      , "call"      #= encodeTCM (envCall (clEnv closure))
-      , "typeError" #= encodeTCM closure
+      , "call"      @= (envCall (clEnv closure))
+      , "typeError" @= closure
       ]
   encodeTCM (Exception range doc) = obj
     [ "kind"        @= String "Exception"
     , "range"       @= range
-    , "message"     @= render doc
+    , "message"     @= doc
     ]
   encodeTCM (IOException _ range exception) = obj
     [ "kind"        @= String "IOException"
@@ -285,7 +275,7 @@ instance EncodeTCM TypeError where
 
     GenericDocError d -> obj
       [ "kind"    @= String "GenericDocError"
-      , "message" @= (render d)
+      , "message" @= d
       ]
 
     -- TerminationCheckFailed because -> do
@@ -310,39 +300,39 @@ instance EncodeTCM TypeError where
 
     DataMustEndInSort term -> obj
       [ "kind"  @= String "DataMustEndInSort"
-      , "term"  #= rep term
+      , "term"  @= term
       ]
 
     ShouldEndInApplicationOfTheDatatype t -> obj
       [ "kind"  @= String "ShouldEndInApplicationOfTheDatatype"
-      , "type"  #= rep t
+      , "type"  @= t
       ]
 
     ShouldBeAppliedToTheDatatypeParameters s t -> obj
       [ "kind"      @= String "ShouldEndInApplicationOfTheDatatype"
-      , "expected"  #= rep s
-      , "given"     #= rep t
+      , "expected"  @= s
+      , "given"     @= t
       ]
 
     ShouldBeApplicationOf t q -> obj
       [ "kind" @= String "ShouldBeApplicationOf"
-      , "type" #= rep t
-      , "name" #= A2C.abstractToConcrete_ q
+      , "type" @= t
+      , "name" @= q
       ]
 
     ShouldBeRecordType t -> obj
       [ "kind"  @= String "ShouldBeRecordType"
-      , "type"  #= rep t
+      , "type"  @= t
       ]
 
     ShouldBeRecordPattern p -> obj
       [ "kind"    @= String "ShouldBeRecordPattern"
-      -- , "pattern" #= prettyTCM p
+      -- , "pattern" @= p
       ]
 
     NotAProjectionPattern p -> obj
       [ "kind"    @= String "NotAProjectionPattern"
-      , "pattern" #= A2C.abstractToConcrete_ p
+      , "pattern" @= p
       ]
 
     -- DifferentArities -> obj
@@ -353,7 +343,7 @@ instance EncodeTCM TypeError where
 
     WrongHidingInLambda t -> obj
       [ "kind" @= String "WrongHidingInLambda"
-      , "type" #= rep t
+      , "type" @= t
       ]
 
     WrongIrrelevanceInLambda -> obj
@@ -361,12 +351,12 @@ instance EncodeTCM TypeError where
 
     WrongNamedArgument a -> obj
       [ "kind" @= String "WrongNamedArgument"
-      , "args" #= A2C.abstractToConcrete_ a
+      , "args" @= a
       ]
 
     WrongHidingInApplication t -> obj
       [ "kind" @= String "WrongHidingInApplication"
-      , "type" #= rep t
+      , "type" @= t
       ]
 
     WrongInstanceDeclaration -> obj
@@ -386,12 +376,12 @@ instance EncodeTCM TypeError where
 
     UninstantiatedDotPattern e -> obj
         [ "kind" @= String "UninstantiatedDotPattern"
-        , "expr" #= A2C.abstractToConcrete_ e
+        , "expr" @= e
         ]
 
     ForcedConstructorNotInstantiated p -> obj
         [ "kind"    @= String "ForcedConstructorNotInstantiated"
-        , "pattern" #= A2C.abstractToConcrete_ p
+        , "pattern" @= p
         ]
 
     IlltypedPattern p a -> ifPiType a yes no
@@ -399,20 +389,20 @@ instance EncodeTCM TypeError where
         yes dom abs = obj
           [ "kind"      @= String "IlltypedPattern"
           , "isPiType"  @= True
-          , "pattern"   #= A2C.abstractToConcrete_ p
-          , "dom"       #= prettyTCM dom
+          , "pattern"   @= p
+          , "dom"       @= dom
           , "abs"       @= show abs
           ]
         no t = obj
           [ "kind"      @= String "IlltypedPattern"
           , "isPiType"  @= False
-          , "pattern"   #= A2C.abstractToConcrete_ p
-          , "type"      #= rep t
+          , "pattern"   @= p
+          , "type"      @= t
           ]
 
     IllformedProjectionPattern p -> obj
         [ "kind"    @= String "IllformedProjectionPattern"
-        , "pattern" #= A2C.abstractToConcrete_ p
+        , "pattern" @= p
         ]
 
     CannotEliminateWithPattern p a -> do
@@ -420,40 +410,40 @@ instance EncodeTCM TypeError where
         obj
           [ "kind"          @= String "CannotEliminateWithPattern"
           , "isProjection"  @= True
-          , "pattern"       #= A2C.abstractToConcrete_ p
+          , "pattern"       @= p
           ]
       else
         obj
           [ "kind"          @= String "CannotEliminateWithPattern"
           , "isProjection"  @= False
-          , "pattern"       #= A2C.abstractToConcrete_ p
+          , "pattern"       @= p
           , "patternKind"   @= kindOfPattern (C.namedArg p)
           ]
 
     WrongNumberOfConstructorArguments name expected given -> obj
       [ "kind"      @= String "WrongNumberOfConstructorArguments"
-      , "name"      #= A2C.abstractToConcrete_ name
-      , "expected"  #= prettyTCM expected
-      , "given"     #= prettyTCM given
+      , "name"      @= name
+      , "expected"  @= expected
+      , "given"     @= given
       ]
 
     CantResolveOverloadedConstructorsTargetingSameDatatype datatype ctrs -> do
       obj
         [ "kind"          @= String "CantResolveOverloadedConstructorsTargetingSameDatatype"
-        , "datatype"      #= A2C.abstractToConcrete_ datatype
-        , "constructors"  #= mapM A2C.abstractToConcrete_ ctrs
+        , "datatype"      @= datatype
+        , "constructors"  @= ctrs
         ]
 
     DoesNotConstructAnElementOf c t -> obj
       [ "kind"        @= String "DoesNotConstructAnElementOf"
-      , "constructor" #= A2C.abstractToConcrete_ c
-      , "type"        #= rep t
+      , "constructor" @= c
+      , "type"        @= t
       ]
 
     ConstructorPatternInWrongDatatype c d -> obj
       [ "kind"        @= String "ConstructorPatternInWrongDatatype"
-      , "constructor" #= A2C.abstractToConcrete_ c
-      , "datatype"    #= A2C.abstractToConcrete_ d
+      , "constructor" @= c
+      , "datatype"    @= d
       ]
 
     ShadowedModule x [] -> __IMPOSSIBLE__
@@ -462,41 +452,41 @@ instance EncodeTCM TypeError where
       obj
         [ "kind"          @= String "ShadowedModule"
         , "duplicated"    @= x
-        , "previous"      #= A2C.abstractToConcrete_ m
+        , "previous"      @= m
         , "dataOrRecord"  #= S.isDatatypeModule m
         ]
 
     ModuleArityMismatch m I.EmptyTel args -> obj
       [ "kind"            @= String "ModuleArityMismatch"
-      , "module"          #= A2C.abstractToConcrete_ m
+      , "module"          @= m
       , "isParameterized" @= False
       ]
     ModuleArityMismatch m tel@(I.ExtendTel _ _) args -> obj
       [ "kind"            @= String "ModuleArityMismatch"
-      , "module"          #= A2C.abstractToConcrete_ m
+      , "module"          @= m
       , "isParameterized" @= True
-      , "telescope"       #= prettyTCM tel
+      , "telescope"       @= tel
       ]
 
     ShouldBeEmpty t ps -> obj
       [ "kind"            @= String "ShouldBeEmpty"
-      , "type"            #= rep t
+      , "type"            @= t
       , "patterns"        #= mapM (prettyPattern 0) ps
       ]
 
     ShouldBeASort t -> obj
       [ "kind"            @= String "ShouldBeASort"
-      , "type"            #= rep t
+      , "type"            @= t
       ]
 
     ShouldBePi t -> obj
       [ "kind"            @= String "ShouldBePi"
-      , "type"            #= rep t
+      , "type"            @= t
       ]
 
     ShouldBePath t -> obj
       [ "kind"            @= String "ShouldBePath"
-      , "type"            #= rep t
+      , "type"            @= t
       ]
 
     NotAProperTerm -> obj
@@ -505,47 +495,47 @@ instance EncodeTCM TypeError where
 
     InvalidTypeSort s -> obj
       [ "kind"            @= String "InvalidTypeSort"
-      , "sort"            #= prettyTCM s
+      , "sort"            @= s
       ]
 
     InvalidType t -> obj
       [ "kind"            @= String "InvalidType"
-      , "type"            #= rep t
+      , "type"            @= t
       ]
 
     FunctionTypeInSizeUniv t -> obj
       [ "kind"            @= String "FunctionTypeInSizeUniv"
-      , "term"            #= rep t
+      , "term"            @= t
       ]
 
     SplitOnIrrelevant t ->obj
       [ "kind"            @= String "SplitOnIrrelevant"
       , "term"            @= verbalize (C.getRelevance t)
-      , "type"            #= rep (C.unDom t)
+      , "type"            @= (C.unDom t)
       ]
 
     SplitOnNonVariable term typ ->obj
       [ "kind"            @= String "SplitOnNonVariable"
-      , "term"            #= rep term
-      , "type"            #= rep typ
+      , "term"            @= term
+      , "type"            @= typ
       ]
 
 
     DefinitionIsIrrelevant x -> obj
       [ "kind"            @= String "DefinitionIsIrrelevant"
-      , "name"            #= A2C.abstractToConcrete_ x
+      , "name"            @= x
       ]
 
     VariableIsIrrelevant x -> obj
       [ "kind"            @= String "VariableIsIrrelevant"
-      , "name"            #= A2C.abstractToConcrete_ x
+      , "name"            @= x
       ]
 
     UnequalBecauseOfUniverseConflict cmp s t -> obj
       [ "kind"            @= String "UnequalBecauseOfUniverseConflict"
       , "comparison"      @= cmp
-      , "term1"           #= rep s
-      , "term2"           #= rep t
+      , "term1"           @= s
+      , "term2"           @= t
       ]
 
 
@@ -556,54 +546,54 @@ instance EncodeTCM TypeError where
         obj
           [ "kind"            @= String "UnequalTerms"
           , "comparison"      @= cmp
-          , "term1"           #= rep s
-          , "term2"           #= rep t
-          , "type"            #= rep a
+          , "term1"           @= s
+          , "term2"           @= t
+          , "type"            @= a
           , "reason"          @= d
           ]
 
     UnequalTypes cmp a b -> obj
       [ "kind"            @= String "UnequalTypes"
       , "comparison"      @= cmp
-      , "type1"           #= rep a
-      , "type2"           #= rep b
+      , "type1"           @= a
+      , "type2"           @= b
       , "message"         #= prettyUnequal a (notCmp cmp) b
       ]
 
     UnequalRelevance cmp a b -> obj
       [ "kind"            @= String "UnequalRelevance"
       , "comparison"      @= cmp
-      , "term1"           #= rep a
-      , "term2"           #= rep b
+      , "term1"           @= a
+      , "term2"           @= b
       ]
 
     UnequalHiding a b -> obj
       [ "kind"            @= String "UnequalHiding"
-      , "term1"           #= rep a
-      , "term2"           #= rep b
+      , "term1"           @= a
+      , "term2"           @= b
       ]
 
     UnequalSorts a b -> obj
       [ "kind"            @= String "UnequalSorts"
-      , "sort1"           #= prettyTCM a
-      , "sort2"           #= prettyTCM b
+      , "sort1"           @= a
+      , "sort2"           @= b
       ]
 
     NotLeqSort a b -> obj
       [ "kind"            @= String "NotLeqSort"
-      , "sort1"           #= prettyTCM a
-      , "sort2"           #= prettyTCM b
+      , "sort1"           @= a
+      , "sort2"           @= b
       ]
 
     TooFewFields record fields -> obj
       [ "kind"            @= String "TooFewFields"
-      , "record"          #= A2C.abstractToConcrete_ record
+      , "record"          @= record
       , "fields"          @= fields
       ]
 
     TooManyFields record fields -> obj
       [ "kind"            @= String "TooManyFields"
-      , "record"          #= A2C.abstractToConcrete_ record
+      , "record"          @= record
       , "fields"          @= fields
       ]
 
@@ -623,42 +613,42 @@ instance EncodeTCM TypeError where
       if show de == show dt
         then obj
           [ "kind"            @= String "WithOnFreeVariable"
-          , "variable"        #= rep term
+          , "variable"        @= term
           ]
         else obj
           [ "kind"            @= String "WithOnFreeVariable"
-          , "variable"        #= rep term
-          , "expression"      #= A2C.abstractToConcrete_ expr
+          , "variable"        @= term
+          , "expression"      @= expr
           ]
 
     UnexpectedWithPatterns xs -> obj
       [ "kind"            @= String "UnexpectedWithPatterns"
-      , "patterns"        #= mapM A2C.abstractToConcrete_ xs
+      , "patterns"        @= xs
       ]
 
     -- The arguments are the meta variable, the parameters it can
     -- depend on and the paratemeter that it wants to depend on.
     MetaCannotDependOn meta ps i -> obj
       [ "kind"            @= String "MetaCannotDependOn"
-      , "meta"            #= prettyTCM (I.MetaV meta [])
-      , "wantsToDependOn" #= prettyTCM (I.var i)
-      , "canDepdendOn"    #= mapM prettyTCM (map I.var ps)
+      , "meta"            @= (I.MetaV meta [])
+      , "wantsToDependOn" @= (I.var i)
+      , "canDepdendOn"    @= (map I.var ps)
       ]
 
     MetaOccursInItself meta -> obj
       [ "kind"            @= String "MetaOccursInItself"
-      , "meta"            #= prettyTCM (I.MetaV meta [])
+      , "meta"            @= (I.MetaV meta [])
       ]
 
     MetaIrrelevantSolution meta term -> obj
       [ "kind"            @= String "MetaIrrelevantSolution"
-      , "meta"            #= prettyTCM (I.MetaV meta [])
-      , "term"            #= rep term
+      , "meta"            @= (I.MetaV meta [])
+      , "term"            @= term
       ]
 
     BuiltinMustBeConstructor s expr -> obj
       [ "kind"            @= String "MetaIrrelevantSolution"
-      , "expr"            #= A2C.abstractToConcrete_ expr
+      , "expr"            @= expr
       , "message"         @= s
       ]
 
@@ -669,8 +659,8 @@ instance EncodeTCM TypeError where
 
     DuplicateBuiltinBinding s x y -> obj
       [ "kind"            @= String "DuplicateBuiltinBinding"
-      , "term1"           #= rep x
-      , "term2"           #= rep y
+      , "term1"           @= x
+      , "term2"           @= y
       , "message"         @= s
       ]
 
@@ -697,7 +687,7 @@ instance EncodeTCM TypeError where
 
     NoRHSRequiresAbsurdPattern ps -> obj
       [ "kind"            @= String "NoRHSRequiresAbsurdPattern"
-      , "patterns"        #= mapM A2C.abstractToConcrete_ ps
+      , "patterns"        @= ps
       ]
 
     -- AbsurdPatternRequiresNoRHS ps -> obj
@@ -707,7 +697,7 @@ instance EncodeTCM TypeError where
 
     LocalVsImportedModuleClash m -> obj
       [ "kind"            @= String "LocalVsImportedModuleClash"
-      , "module"          #= A2C.abstractToConcrete_ m
+      , "module"          @= m
       ]
 
     SolvedButOpenHoles -> obj
@@ -716,37 +706,37 @@ instance EncodeTCM TypeError where
 
     CyclicModuleDependency ms -> obj
       [ "kind"            @= String "CyclicModuleDependency"
-      , "modules"         @= map pretty ms
+      , "modules"         @= ms
       ]
 
     FileNotFound m files -> obj
       [ "kind"            @= String "FileNotFound"
-      , "module"          @= pretty m
+      , "module"          @= m
       , "filepaths"       @= map filePath files
       ]
 
     OverlappingProjects f m1 m2 -> obj
       [ "kind"            @= String "OverlappingProjects"
-      , "module1"         @= pretty m1
-      , "module2"         @= pretty m2
+      , "module1"         @= m1
+      , "module2"         @= m2
       , "filepath"        @= filePath f
       ]
 
     AmbiguousTopLevelModuleName m files -> obj
       [ "kind"            @= String "AmbiguousTopLevelModuleName"
-      , "module"          @= pretty m
+      , "module"          @= m
       , "filepaths"       @= map filePath files
       ]
 
     ClashingFileNamesFor m files -> obj
       [ "kind"            @= String "ClashingFileNamesFor"
-      , "module"          @= pretty m
+      , "module"          @= m
       , "filepaths"       @= map filePath files
       ]
 
     ModuleDefinedInOtherFile m file file' -> obj
       [ "kind"            @= String "ModuleDefinedInOtherFile"
-      , "module"          @= pretty m
+      , "module"          @= m
       , "filepath1"       @= filePath file
       , "filepath2"       @= filePath file'
       ]
@@ -769,7 +759,7 @@ instance EncodeTCM TypeError where
 
     AbstractConstructorNotInScope c -> obj
       [ "kind"            @= String "AbstractConstructorNotInScope"
-      , "constructor"     #= A2C.abstractToConcrete_ c
+      , "constructor"     @= c
       ]
 
     NotInScope xs -> do
@@ -797,7 +787,7 @@ instance EncodeTCM TypeError where
     AmbiguousName x ys -> obj
       [ "kind"          @= String "AmbiguousName"
       , "ambiguousName" @= x
-      , "couldReferTo"  #= mapM A2C.abstractToConcrete_ (toList ys)
+      , "couldReferTo"  @= (toList ys)
       ]
 
     AmbiguousModule x ys -> obj
@@ -809,7 +799,7 @@ instance EncodeTCM TypeError where
         help :: I.ModuleName -> TCM Value
         help m = obj
           [ "dataOrRecord"  #= S.isDatatypeModule m
-          , "name"          #= A2C.abstractToConcrete_ m
+          , "name"          @= m
           ]
 
     -- UninstantiatedModule x -> obj
@@ -825,26 +815,26 @@ instance EncodeTCM TypeError where
 
     ClashingModule m1 m2 -> obj
       [ "kind"            @= String "ClashingModule"
-      , "module1"         #= A2C.abstractToConcrete_ m1
-      , "module2"         #= A2C.abstractToConcrete_ m2
+      , "module1"         @= m1
+      , "module2"         @= m2
       ]
 
     ClashingImport x y -> obj
       [ "kind"            @= String "ClashingImport"
       , "name1"           @= x
-      , "name2"           #= A2C.abstractToConcrete_ y
+      , "name2"           @= y
       ]
 
     ClashingModuleImport x y -> obj
       [ "kind"            @= String "ClashingModuleImport"
       , "module1"         @= x
-      , "module2"         #= A2C.abstractToConcrete_ y
+      , "module2"         @= y
       ]
 
     PatternShadowsConstructor x c -> obj
       [ "kind"            @= String "PatternShadowsConstructor"
-      , "patternVariable" #= A2C.abstractToConcrete_ x
-      , "constructor"     #= A2C.abstractToConcrete_ c
+      , "patternVariable" @= x
+      , "constructor"     @= c
       ]
 
     DuplicateImports m xs -> obj
@@ -918,23 +908,23 @@ instance EncodeTCM TypeError where
 
     BadArgumentsToPatternSynonym x -> obj
       [ "kind"            @= String "BadArgumentsToPatternSynonym"
-      , "patternSynonym"  #= A2C.abstractToConcrete_ (I.headAmbQ x)
+      , "patternSynonym"  @= (I.headAmbQ x)
       ]
 
     TooFewArgumentsToPatternSynonym x -> obj
       [ "kind"            @= String "TooFewArgumentsToPatternSynonym"
-      , "patternSynonym"  #= A2C.abstractToConcrete_ (I.headAmbQ x)
+      , "patternSynonym"  @= (I.headAmbQ x)
       ]
 
     CannotResolveAmbiguousPatternSynonym defs -> obj
       [ "kind"            @= String "CannotResolveAmbiguousPatternSynonym"
-      , "patternSynonym"  #= A2C.abstractToConcrete_ x
+      , "patternSynonym"  @= x
       , "shapes"          #= mapM prDef (toList defs)
       ]
       where
         (x, _) = headNe defs
         prDef (x, (xs, p)) = obj
-          [ "patSyn"      #= A2C.abstractToConcrete_ (A.PatternSynDef x xs p)
+          [ "patSyn"      @= (A.PatternSynDef x xs p)
           , "bindingSite" @= I.nameBindingSite (I.qnameName x)
           ]
 
@@ -956,7 +946,7 @@ instance EncodeTCM TypeError where
 
     AmbiguousParseForLHS lhsOrPatSyn p ps -> obj
       [ "kind"            @= String "AmbiguousParseForLHS"
-      , "LHSOrPatSyn"     @= show lhsOrPatSyn
+      , "LHSOrPatSyn"     @= lhsOrPatSyn
       , "cannotParse"     @= p
       , "couldMean"       @= map pretty' ps
       ]
@@ -968,18 +958,18 @@ instance EncodeTCM TypeError where
     OperatorInformation sects err -> obj
       [ "kind"              @= String "OperatorInformation"
       , "notationSections"  @= sects
-      , "typeError"         #= encodeTCM err
+      , "typeError"         @= err
       ]
 --
     SplitError e -> obj
       [ "kind"            @= String "SplitError"
-      , "error"           #= prettyTCM e
+      , "error"           @= e
       ]
 
     ImpossibleConstructor c neg -> obj
       [ "kind"            @= String "ImpossibleConstructor"
       , "constructor"     @= c
-      , "negUni"          #= prettyTCM neg
+      , "negUni"          @= neg
       ]
 
     TooManyPolarities x n -> obj
@@ -990,12 +980,12 @@ instance EncodeTCM TypeError where
 
     IFSNoCandidateInScope t -> obj
       [ "kind"            @= String "IFSNoCandidateInScope"
-      , "type"            #= rep t
+      , "type"            @= t
       ]
 
     UnquoteFailed err -> obj
       [ "kind"            @= String "UnquoteFailed"
-      , "unquoteError"    #= encodeTCM err
+      , "unquoteError"    @= err
       ]
 
     DeBruijnIndexOutOfScope i I.EmptyTel [] -> obj
@@ -1044,8 +1034,8 @@ instance EncodeTCM TypeError where
     InstanceSearchDepthExhausted term typ depth -> obj
       [ "kind"            @= String "InstanceSearchDepthExhausted"
       , "maxDepth"        @= depth
-      , "term"            #= rep term
-      , "type"            #= rep typ
+      , "term"            @= term
+      , "type"            @= typ
       ]
 
     -- For unhandled errors, passing only its kind
@@ -1063,14 +1053,14 @@ instance EncodeTCM UnquoteError where
 
     ConInsteadOfDef x def con -> obj
       [ "kind"        @= String "ConInsteadOfDef"
-      , "constructor" #= A2C.abstractToConcrete_ x
+      , "constructor" @= x
       , "use"         @= con
       , "insteadIf"   @= def
       ]
 
     DefInsteadOfCon x def con -> obj
       [ "kind"        @= String "DefInsteadOfCon"
-      , "non-constructor" #= A2C.abstractToConcrete_ x
+      , "non-constructor" @= x
       , "use"         @= def
       , "insteadIf"   @= con
       ]
@@ -1078,12 +1068,12 @@ instance EncodeTCM UnquoteError where
     NonCanonical category term -> obj
       [ "kind"        @= String "NonCanonical"
       , "category"    @= category
-      , "term"        #= rep term
+      , "term"        @= term
       ]
 
     BlockedOnMeta _ m ->  obj
       [ "kind"        @= String "BlockedOnMeta"
-      , "meta"        #= prettyTCM m
+      , "meta"        @= m
       ]
 
     UnquotePanic err -> __IMPOSSIBLE__
@@ -1091,6 +1081,7 @@ instance EncodeTCM UnquoteError where
 --------------------------------------------------------------------------------
 -- Agda.TypeChecking.Monad.Base
 
+instance EncodeTCM Comparison where
 instance ToJSON Comparison where
   toJSON CmpEq = String "CmpEq"
   toJSON CmpLeq = String "CmpLeq"
@@ -1099,90 +1090,90 @@ instance EncodeTCM Call where
   encodeTCM call = S.withContextPrecedence F.TopCtx $ case call of
     CheckClause t clause -> obj
       [ "kind"        @= String "CheckClause"
-      , "type"        #= rep t
-      , "clause"      #= A2C.abstractToConcrete_ clause
+      , "type"        @= t
+      , "clause"      @= clause
       ]
     CheckPattern pattern tel t -> addContext tel $ obj
       [ "kind"        @= String "CheckPattern"
-      , "pattern"     #= A2C.abstractToConcrete_ pattern
-      , "type"        #= rep t
+      , "pattern"     @= pattern
+      , "type"        @= t
       ]
     CheckLetBinding binding -> obj
       [ "kind"        @= String "CheckLetBinding"
-      , "binding"     #= A2C.abstractToConcrete_ binding
+      , "binding"     @= binding
       ]
     InferExpr expr -> obj
       [ "kind"        @= String "InferExpr"
-      , "expr"        #= A2C.abstractToConcrete_ expr
+      , "expr"        @= expr
       ]
     CheckExprCall cmp expr t -> obj
       [ "kind"        @= String "CheckExprCall"
       , "comparison"  @= cmp
-      , "expr"        #= A2C.abstractToConcrete_ expr
-      , "type"        #= rep t
+      , "expr"        @= expr
+      , "type"        @= t
       ]
     CheckDotPattern expr t -> obj
       [ "kind"        @= String "CheckDotPattern"
-      , "expr"        #= A2C.abstractToConcrete_ expr
-      , "type"        #= rep t
+      , "expr"        @= expr
+      , "type"        @= t
       ]
     CheckPatternShadowing clause -> obj
       [ "kind"        @= String "CheckPatternShadowing"
-      , "clause"      #= A2C.abstractToConcrete_ clause
+      , "clause"      @= clause
       ]
     CheckProjection range name t -> obj
       [ "kind"        @= String "CheckProjection"
       , "range"       @= range
-      , "name"        #= A2C.abstractToConcrete_ name
-      , "type"        #= rep t
+      , "name"        @= name
+      , "type"        @= t
       ]
     IsTypeCall expr sort -> obj
       [ "kind"        @= String "IsTypeCall"
-      , "expr"        #= A2C.abstractToConcrete_ expr
+      , "expr"        @= expr
       , "sort"        @= sort
       ]
     IsType_ expr -> obj
       [ "kind"        @= String "IsType_"
-      , "expr"        #= A2C.abstractToConcrete_ expr
+      , "expr"        @= expr
       ]
     InferVar name -> obj
       [ "kind"        @= String "InferVar"
-      , "name"        #= A2C.abstractToConcrete_ name
+      , "name"        @= name
       ]
     InferDef name -> obj
       [ "kind"        @= String "InferDef"
-      , "name"        #= A2C.abstractToConcrete_ name
+      , "name"        @= name
       ]
     CheckArguments range args t1 _ -> obj
       [ "kind"        @= String "CheckArguments"
       , "range"       @= range
       , "arguments"   #= mapM (\ a -> S.withContextPrecedence (F.ArgumentCtx F.PreferParen) (A2C.abstractToConcreteHiding a a)) args
-      , "type1"       #= rep t1
+      , "type1"       @= t1
       ]
     CheckTargetType range infTy expTy -> obj
       [ "kind"        @= String "CheckTargetType"
       , "range"       @= range
-      , "infType"     #= rep infTy
-      , "expType"     #= rep expTy
+      , "infType"     @= infTy
+      , "expType"     @= expTy
       ]
     CheckDataDef range name bindings constructors -> obj
       [ "kind"          @= String "CheckDataDef"
       , "range"         @= range
-      , "name"          #= A2C.abstractToConcrete_ name
+      , "name"          @= name
       -- , "bindings"      @= show bindings
       -- , "constructors"  @= show constructors
       ]
     CheckRecDef range name bindings constructors -> obj
       [ "kind"          @= String "CheckDataDef"
-      , "name"          #= A2C.abstractToConcrete_ name
+      , "name"          @= name
       , "range"         @= range
       -- , "bindings"      @= show bindings
       -- , "constructors"  @= show constructors
       ]
     CheckConstructor d _ _ (A.Axiom _ _ _ _ c _) -> obj
       [ "kind"            @= String "CheckConstructor"
-      , "declarationName" #= A2C.abstractToConcrete_ d
-      , "constructorName" #= A2C.abstractToConcrete_ c
+      , "declarationName" @= d
+      , "constructorName" @= c
       ]
 
     CheckConstructor {} -> __IMPOSSIBLE__
@@ -1190,40 +1181,40 @@ instance EncodeTCM Call where
     CheckFunDefCall range name _ -> obj
       [ "kind"          @= String "CheckFunDefCall"
       , "range"         @= range
-      , "name"          #= A2C.abstractToConcrete_ name
+      , "name"          @= name
       -- , "clauses"       @= show clauses
       ]
     CheckPragma range pragma -> obj
       [ "kind"          @= String "CheckPragma"
       , "range"         @= range
-      , "pragma"        #= A2C.abstractToConcrete_ (A2C.RangeAndPragma P.noRange pragma)
+      , "pragma"        @= (A2C.RangeAndPragma P.noRange pragma)
       ]
     CheckPrimitive range name expr -> obj
       [ "kind"          @= String "CheckPrimitive"
       , "range"         @= range
-      , "name"          #= A2C.abstractToConcrete_ name
-      , "expr"          #= A2C.abstractToConcrete_ expr
+      , "name"          @= name
+      , "expr"          @= expr
       ]
     CheckIsEmpty range t -> obj
       [ "kind"          @= String "CheckIsEmpty"
       , "range"         @= range
-      , "type"          #= rep t
+      , "type"          @= t
       ]
     CheckWithFunctionType expr -> obj
       [ "kind"          @= String "CheckWithFunctionType"
-      , "expr"          #= A2C.abstractToConcrete_ expr
+      , "expr"          @= expr
       ]
     CheckSectionApplication range m modApp -> obj
       [ "kind"          @= String "CheckSectionApplication"
       , "range"         @= range
-      , "module"        #= A2C.abstractToConcrete_ m
-      , "modApp"        #= A2C.abstractToConcrete_ (A.Apply info m modApp A.initCopyInfo C.defaultImportDir)
+      , "module"        @= m
+      , "modApp"        @= (A.Apply info m modApp A.initCopyInfo C.defaultImportDir)
       ]
       where
         info = I.ModuleInfo P.noRange P.noRange Nothing Nothing Nothing
     CheckNamedWhere m -> obj
       [ "kind"          @= String "CheckNamedWhere"
-      , "module"        #= A2C.abstractToConcrete_ m
+      , "module"        @= m
       ]
     ScopeCheckExpr expr -> obj
       [ "kind"          @= String "ScopeCheckExpr"
@@ -1254,40 +1245,40 @@ instance EncodeTCM Constraint where
     ValueCmp cmp t e e' -> obj
       [ "kind"        @= String "ValueCmp"
       , "comparison"  @= cmp
-      , "term1"       #= rep e
-      , "term2"       #= rep e'
-      , "type"        #= rep t
+      , "term1"       @= e
+      , "term2"       @= e'
+      , "type"        @= t
       ]
     ValueCmpOnFace cmp face t e e' -> obj
       [ "kind"        @= String "ValueCmpOnFace"
       , "comparison"  @= cmp
-      , "face"        #= rep face
-      , "type"        #= rep t
-      , "term1"       #= rep e
-      , "term2"       #= rep e'
+      , "face"        @= face
+      , "type"        @= t
+      , "term1"       @= e
+      , "term2"       @= e'
       ]
     ElimCmp polarities isForced t e elims1 elims2 -> obj
       [ "kind"        @= String "ElimCmp"
       , "polarities"  @= polarities
       , "isForced"    @= isForced
-      , "type"        #= rep t
-      , "term"        #= rep e
+      , "type"        @= t
+      , "term"        @= e
       , "elims1"      @= elims1
       , "elims2"      @= elims2
       ]
     TypeCmp cmp t t' -> obj
       [ "kind"        @= String "TypeCmp"
       , "comparison"  @= cmp
-      , "type1"       #= rep t
-      , "type2"       #= rep t'
+      , "type1"       @= t
+      , "type2"       @= t'
       ]
     TelCmp t t' cmp tel tel' -> obj
       [ "kind"        @= String "TelCmp"
       , "comparison"  @= cmp
-      , "type1"       #= rep t
-      , "type2"       #= rep t'
-      , "telescope1"  #= mapM (I2A.reify >=> A2C.abstractToConcrete_) tel
-      , "telescope2"  #= mapM (I2A.reify >=> A2C.abstractToConcrete_) tel'
+      , "type1"       @= t
+      , "type2"       @= t'
+      , "telescope1"  @= tel
+      , "telescope2"  @= tel'
       ]
     SortCmp cmp s s' -> obj
       [ "kind"        @= String "SortCmp"
@@ -1316,17 +1307,17 @@ instance EncodeTCM Constraint where
       ]
     Guarded constraint pid -> obj
       [ "kind"        @= String "Guarded"
-      , "constraint"  #= encodeTCM constraint
+      , "constraint"  @= constraint
       , "problemId"   @= pid
       ]
     IsEmpty range t -> obj
       [ "kind"        @= String "IsEmpty"
       , "range"       @= range
-      , "type"        #= rep t
+      , "type"        @= t
       ]
     CheckSizeLtSat term -> obj
       [ "kind"        @= String "CheckSizeLtSat"
-      , "term"        #= rep term
+      , "term"        @= term
       ]
     FindInScope instanceArg metaId candidates -> obj
       [ "kind"        @= String "FindInScope"
@@ -1339,42 +1330,47 @@ instance EncodeTCM Constraint where
       -- , "delayed"     @= delayed
       -- , "defInfo"     @= defInfo
       , "name"          @= name
-      , "declarations"  #= mapM A2C.abstractToConcrete_ clauses
+      , "declarations"  @= clauses
       ]
 
 instance EncodeTCM ProblemConstraint where
   encodeTCM (PConstr problems constraint) = obj
     [ "problems"    @= Set.toList problems
-    , "constraint"  #= encodeTCM constraint
+    , "constraint"  @= constraint
     ]
 
 instance EncodeTCM TerminationError where
   encodeTCM (TerminationError funcs calls) = obj
-    [ "functions"     #= mapM A2C.abstractToConcrete_ funcs
-    , "calls"         #= mapM encodeTCM calls
+    [ "functions"     @= funcs
+    , "calls"         @= calls
     ]
 
 instance EncodeTCM CallInfo where
-  encodeTCM callInfo = A2C.abstractToConcrete_ (callInfoTarget callInfo) >>= return .toJSON
+  encodeTCM callInfo = A2C.abstractToConcrete_ (callInfoTarget callInfo) >>= encodeTCM
 
+instance EncodeTCM ProblemId where
 instance ToJSON ProblemId where
   toJSON (ProblemId n) = toJSON n
 
 
+instance EncodeTCM Polarity where
 instance ToJSON Polarity where
   toJSON Covariant      = String "Covariant"
   toJSON Contravariant  = String "Contravariant"
   toJSON Invariant      = String "Invariant"
   toJSON Nonvariant     = String "Nonvariant"
 
+instance EncodeTCM IsForced where
 instance ToJSON IsForced where
   toJSON Forced         = String "Forced"
   toJSON NotForced      = String "NotForced"
 
+instance EncodeTCM ExplicitToInstance where
 instance ToJSON ExplicitToInstance where
   toJSON ExplicitToInstance     = String "ExplicitToInstance"
   toJSON ExplicitStayExplicit   = String "ExplicitStayExplicit"
 
+instance EncodeTCM Candidate where
 instance ToJSON Candidate where
   toJSON (Candidate e t eti overlappable) = object
     [ "term"          .= e
@@ -1382,3 +1378,65 @@ instance ToJSON Candidate where
     , "eti"           .= eti
     , "overlappable"  .= overlappable
     ]
+
+instance EncodeTCM LHSOrPatSyn where
+instance ToJSON LHSOrPatSyn where
+  toJSON IsLHS    = "IsLHS"
+  toJSON IsPatSyn = "IsPatSyn"
+
+instance EncodeTCM SplitError where
+  encodeTCM (NotADatatype t) = kind "NotADatatype"
+    [ "type"      @= t
+    ]
+  encodeTCM (IrrelevantDatatype t) = kind "IrrelevantDatatype"
+    [ "type"      @= t
+    ]
+  encodeTCM (CoinductiveDatatype t) = kind "CoinductiveDatatype"
+    [ "type"      @= t
+    ]
+  encodeTCM (UnificationStuck name tele inferred expected failures) =
+    kind "CoinductiveDatatype"
+      [ "name"      @= name
+      , "telescope" @= tele
+      , "inferred"  @= inferred
+      , "expected"  @= expected
+      , "failures"  @= failures
+      ]
+  encodeTCM (GenericSplitError s) = kind "GenericSplitError"
+    [ "message"  @= s
+    ]
+
+instance EncodeTCM NegativeUnification where
+  encodeTCM (UnifyConflict tele e e') = kind "UnifyConflict"
+    [ "telescope" @= tele
+    , "term1"     @= e
+    , "term2"     @= e'
+    ]
+  encodeTCM (UnifyCycle tele n e) = kind "UnifyCycle"
+    [ "telescope" @= tele
+    , "index"     @= n
+    , "term"      @= e
+    ]
+
+instance EncodeTCM UnificationFailure where
+  encodeTCM (UnifyIndicesNotVars tele t e e' args) = kind "UnifyIndicesNotVars"
+    [ "telescope" @= tele
+    , "type"      @= t
+    , "term1"     @= e
+    , "term2"     @= e'
+    , "args"      @= args
+    ]
+  encodeTCM (UnifyRecursiveEq tele t n e) = kind "UnifyRecursiveEq"
+    [ "telescope" @= tele
+    , "type"      @= t
+    , "index"     @= n
+    , "term"      @= e
+    ]
+  encodeTCM (UnifyReflexiveEq tele t e) = kind "UnifyReflexiveEq"
+    [ "telescope" @= tele
+    , "type"      @= t
+    , "term"      @= e
+    ]
+
+instance EncodeTCM a => EncodeTCM (Closure a) where
+  encodeTCM closure = enterClosure closure encodeTCM

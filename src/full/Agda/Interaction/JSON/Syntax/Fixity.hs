@@ -6,11 +6,11 @@ module Agda.Interaction.JSON.Syntax.Fixity where
 
 import Data.Aeson
 
-import Agda.Interaction.JSON.Syntax.Abstract
+import Agda.Interaction.JSON.Encode
+import Agda.Interaction.JSON.Syntax.Abstract.Name
 import Agda.Interaction.JSON.Syntax.Concrete.Name
 import Agda.Interaction.JSON.Syntax.Position
 import Agda.Interaction.JSON.Syntax.Notation
-import Agda.Interaction.JSON.Utils
 
 import Agda.Syntax.Fixity
 
@@ -32,6 +32,8 @@ instance ToJSON NewNotation where
     , "isOperator"  .= isOperator
     ]
 
+
+instance EncodeTCM NotationSection where
 instance ToJSON NotationSection where
   toJSON (NotationSection notation kind level isSection) = object
     [ "notation"  .= notation

@@ -8,7 +8,7 @@ import Data.Aeson
 import Data.Foldable (toList)
 
 import Agda.Interaction.JSON.Encode
-import Agda.Interaction.JSON.Syntax.Abstract
+import Agda.Interaction.JSON.Syntax.Abstract.Name
 -- import Agda.Interaction.JSON.Syntax.Concrete.Name
 import Agda.Interaction.JSON.Syntax.Position
 import Agda.TypeChecking.Positivity.Occurrence

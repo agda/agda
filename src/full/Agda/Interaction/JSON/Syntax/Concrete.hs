@@ -6,6 +6,7 @@ module Agda.Interaction.JSON.Syntax.Concrete where
 
 import Data.Aeson
 
+import Agda.Interaction.JSON.Encode
 import Agda.Interaction.JSON.Syntax.Concrete.Name
 import Agda.Interaction.JSON.Syntax.Fixity
 import Agda.Interaction.JSON.Syntax.Literal
@@ -43,6 +44,7 @@ instance ToJSON ModuleAssignment where
     , "importDirective" .= importDirective
     ]
 
+instance EncodeTCM Expr where
 instance ToJSON Expr where
   toJSON expr = case expr of
     Ident name -> object
@@ -240,6 +242,7 @@ instance ToJSON Expr where
       , "expr"      .= expr
       ]
 
+instance EncodeTCM Pattern where
 instance ToJSON Pattern where
   toJSON pattern = case pattern of
     IdentP name -> object
@@ -355,6 +358,7 @@ instance ToJSON a => ToJSON (LamBinding' a) where
     ]
 
 
+instance EncodeTCM TypedBindings where
 instance ToJSON a => ToJSON (TypedBindings' a) where
   toJSON (TypedBindings range arg) = object
     [ "range"     .= range
@@ -368,6 +372,7 @@ instance ToJSON BoundName where
     , "fixity"    .= fixity
     ]
 
+instance EncodeTCM TypedBinding where
 instance ToJSON a => ToJSON (TypedBinding' a) where
   toJSON (TBind range bindings value) = object
     [ "kind"      .= String "TBind"
@@ -453,6 +458,7 @@ instance ToJSON AsName where
     , "range"           .= range
     ]
 
+instance EncodeTCM Declaration where
 instance ToJSON Declaration where
   toJSON declaration = case declaration of
     TypeSig argInfo name expr -> object
@@ -633,6 +639,7 @@ instance ToJSON OpenShortHand where
   toJSON DoOpen   = String "DoOpen"
   toJSON DontOpen = String "DontOpen"
 
+instance EncodeTCM Pragma where
 instance ToJSON Pragma where
   toJSON pragma = case pragma of
     OptionsPragma range options -> object
@@ -787,6 +794,7 @@ instance ToJSON Pragma where
 
 --------------------------------------------------------------------------------
 
+instance EncodeTCM DeclarationWarning where
 instance ToJSON DeclarationWarning where
   toJSON warning = case warning of
     EmptyAbstract range -> object

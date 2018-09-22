@@ -8,6 +8,7 @@ module Agda.Interaction.Highlighting.JSON (encodeHighlightingInfo) where
 import Agda.Interaction.Highlighting.Common
 import Agda.Interaction.Highlighting.Precise hiding (String)
 import Agda.Interaction.Highlighting.Range (Range(..))
+import Agda.Interaction.JSON.Encode
 import Agda.Interaction.Response
 import Agda.TypeChecking.Monad (HighlightingMethod(..), ModuleToSource)
 import Agda.Utils.FileName (filePath)
@@ -38,6 +39,7 @@ showAspects modFile (range, aspect) = object
       , "position" .= position
       ]
 
+instance EncodeTCM TokenBased where
 instance ToJSON TokenBased where
     toJSON TokenBased = String "TokenBased"
     toJSON NotOnlyTokenBased = String "NotOnlyTokenBased"

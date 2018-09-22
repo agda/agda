@@ -6,8 +6,8 @@ module Agda.Interaction.JSON.Syntax.Common where
 
 import Data.Aeson
 
+import Agda.Interaction.JSON.Encode
 import Agda.Interaction.JSON.Syntax.Position
-import Agda.Interaction.JSON.Utils
 import Agda.Syntax.Common
 
 --------------------------------------------------------------------------------
@@ -64,6 +64,7 @@ instance ToJSON FreeVariables where
   toJSON UnknownFVs       = Null
   toJSON (KnownFVs vars)  = toJSON vars
 
+instance EncodeTCM ArgInfo where
 instance ToJSON ArgInfo where
   toJSON (ArgInfo hiding modality origin freeVars) = object
     [ "hiding"    .= hiding
@@ -72,6 +73,11 @@ instance ToJSON ArgInfo where
     , "freeVars"  .= freeVars
     ]
 
+instance EncodeTCM a => EncodeTCM (Arg a) where
+  encodeTCM (Arg argInfo value) = obj
+    [ "argInfo" @= argInfo
+    , "value"   @= value
+    ]
 instance ToJSON a => ToJSON (Arg a) where
   toJSON (Arg argInfo value) = object
     [ "argInfo" .= argInfo
@@ -79,6 +85,12 @@ instance ToJSON a => ToJSON (Arg a) where
     ]
 
 
+instance EncodeTCM a => EncodeTCM (Dom a) where
+  encodeTCM (Dom argInfo finite value) = obj
+    [ "argInfo" @= argInfo
+    , "finite"  @= finite
+    , "value"   @= value
+    ]
 instance ToJSON a => ToJSON (Dom a) where
   toJSON (Dom argInfo finite value) = object
     [ "argInfo" .= argInfo
@@ -86,12 +98,22 @@ instance ToJSON a => ToJSON (Dom a) where
     , "value"   .= value
     ]
 
+instance (EncodeTCM name, EncodeTCM a) => EncodeTCM (Named name a) where
+  encodeTCM (Named name value) = obj
+    [ "name"    @= name
+    , "value"   @= value
+    ]
 instance (ToJSON name, ToJSON a) => ToJSON (Named name a) where
   toJSON (Named name value) = object
     [ "name"    .= name
     , "value"   .= value
     ]
 
+instance EncodeTCM a => EncodeTCM (Ranged a) where
+  encodeTCM (Ranged range value) = obj
+    [ "range"   @= range
+    , "value"   @= value
+    ]
 instance ToJSON a => ToJSON (Ranged a) where
   toJSON (Ranged range value) = object
     [ "range"   .= range
@@ -104,6 +126,7 @@ instance ToJSON ConOrigin where
   toJSON ConORec    = String "ConORec"
   toJSON ConOSplit  = String "ConOSplit"
 
+instance EncodeTCM ProjOrigin where
 instance ToJSON ProjOrigin where
   toJSON ProjPrefix   = String "ProjPrefix"
   toJSON ProjPostfix  = String "ProjPostfix"
@@ -147,6 +170,7 @@ instance ToJSON NameId where
     , "module"  .= modul
     ]
 
+instance EncodeTCM MetaId where
 instance ToJSON MetaId where
   toJSON (MetaId i)   = toJSON i
 
@@ -166,6 +190,7 @@ instance ToJSON e => ToJSON (MaybePlaceholder e) where
     , "value"     .= value
     ]
 
+instance EncodeTCM InteractionId where
 instance ToJSON InteractionId where
   toJSON (InteractionId i) = toJSON i
 
@@ -182,6 +207,16 @@ instance (ToJSON a, ToJSON b) => ToJSON (Using' a b) where
   toJSON UseEverything = Null
   toJSON (Using importedNames) = object
     [ "importedNames"  .= importedNames
+    ]
+
+instance (EncodeTCM a, EncodeTCM b) => EncodeTCM (ImportedName' a b) where
+  encodeTCM (ImportedModule value) = obj
+    [ "kind"        @= String "ImportedModule"
+    , "value"       @= value
+    ]
+  encodeTCM (ImportedName value) = obj
+    [ "kind"        @= String "ImportedName"
+    , "value"       @= value
     ]
 
 instance (ToJSON a, ToJSON b) => ToJSON (ImportedName' a b) where

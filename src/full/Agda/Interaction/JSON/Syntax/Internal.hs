@@ -6,10 +6,14 @@ module Agda.Interaction.JSON.Syntax.Internal where
 
 import Data.Aeson
 
-import Agda.Interaction.JSON.Syntax.Abstract
+import Agda.Interaction.JSON.Encode
+import Agda.Interaction.JSON.Syntax.Abstract.Name
 import Agda.Interaction.JSON.Syntax.Common
+import Agda.Interaction.JSON.Syntax.Concrete
 import Agda.Interaction.JSON.Syntax.Literal
 import Agda.Syntax.Internal
+import qualified Agda.Syntax.Translation.InternalToAbstract as I2A
+import qualified Agda.Syntax.Translation.AbstractToConcrete as A2C
 
 --------------------------------------------------------------------------------
 -- Agda.Syntax.Internal
@@ -21,6 +25,9 @@ instance ToJSON ConHead where
     , "inductive" .= ind
     , "fields"    .= fields
     ]
+
+instance EncodeTCM Term where
+  encodeTCM = I2A.reify >=> A2C.abstractToConcrete_ >=> encodeTCM
 
 instance ToJSON Term where
   toJSON (Var n elims) = object
@@ -75,6 +82,19 @@ instance ToJSON Term where
     , "description" .= s
     ]
 
+instance EncodeTCM a => EncodeTCM (Elim' a) where
+  encodeTCM (Apply arg) = kind "Apply"
+    [ "arg"         @= arg
+    ]
+  encodeTCM (Proj origin name) = kind "Proj"
+    [ "projOrigin"  @= origin
+    , "name"        @= name
+    ]
+  encodeTCM (IApply x y r) = kind "IApply"
+    [ "endpoint1"   @= x
+    , "endpoint2"   @= y
+    , "endpoint3"   @= r
+    ]
 instance ToJSON a => ToJSON (Elim' a) where
   toJSON (Apply arg) = object
     [ "kind"      .= String "Apply"
@@ -92,6 +112,15 @@ instance ToJSON a => ToJSON (Elim' a) where
     , "endpoint3" .= r
     ]
 
+instance EncodeTCM a => EncodeTCM (Abs a) where
+  encodeTCM (Abs name value) = kind "Abs"
+    [ "name"        @= name
+    , "value"       @= value
+    ]
+  encodeTCM (NoAbs name value) = kind "NoAbs"
+    [ "name"        @= name
+    , "value"       @= value
+    ]
 instance ToJSON a => ToJSON (Abs a) where
   toJSON (Abs name value) = object
     [ "kind"      .= String "Abs"
@@ -104,11 +133,17 @@ instance ToJSON a => ToJSON (Abs a) where
     , "value"       .= value
     ]
 
-instance ToJSON a => ToJSON (Type' a) where
+instance EncodeTCM Type where
+  encodeTCM = I2A.reify >=> A2C.abstractToConcrete_ >=> encodeTCM
+
+instance ToJSON Type where
   toJSON (El sort value) = object
     [ "sort"    .= sort
     , "value"   .= value
     ]
+
+instance EncodeTCM Telescope where
+  encodeTCM = I2A.reify >=> A2C.abstractToConcrete_ >=> encodeTCM
 
 instance ToJSON a => ToJSON (Tele a) where
   toJSON EmptyTel = object
@@ -119,6 +154,9 @@ instance ToJSON a => ToJSON (Tele a) where
     , "value"     .= value
     , "binder"    .= binder
     ]
+
+instance EncodeTCM Sort where
+  encodeTCM = I2A.reify >=> A2C.abstractToConcrete_ >=> encodeTCM
 
 instance ToJSON Sort where
   toJSON (Type level) = object
@@ -154,6 +192,9 @@ instance ToJSON Sort where
     , "description" .= description
     ]
 
+
+instance EncodeTCM Level where
+  encodeTCM = I2A.reify >=> A2C.abstractToConcrete_ >=> encodeTCM
 instance ToJSON Level where
   toJSON (Max levels) = toJSON levels
 

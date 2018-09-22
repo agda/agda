@@ -145,17 +145,20 @@ instance EncodeTCM DisplayInfo where
 
 --------------------------------------------------------------------------------
 
+instance EncodeTCM GiveResult where
 instance ToJSON GiveResult where
-  toJSON (Give_String s) = toJSON s
-  toJSON Give_Paren = toJSON True
-  toJSON Give_NoParen = toJSON False
+  toJSON (Give_String s)  = toJSON s
+  toJSON Give_Paren       = toJSON True
+  toJSON Give_NoParen     = toJSON False
 
+instance EncodeTCM MakeCaseVariant where
 instance ToJSON MakeCaseVariant where
-  toJSON R.Function = String "Function"
+  toJSON R.Function       = String "Function"
   toJSON R.ExtendedLambda = String "ExtendedLambda"
 
 --------------------------------------------------------------------------------
 
+instance (EncodeTCM a, EncodeTCM b, ToJSON a, ToJSON b) => EncodeTCM (OutputConstraint a b) where
 instance (ToJSON a, ToJSON b) => ToJSON (OutputConstraint a b) where
   toJSON o = case o of
     OfType e t -> object

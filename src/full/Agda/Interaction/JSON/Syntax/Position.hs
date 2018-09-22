@@ -6,6 +6,7 @@ module Agda.Interaction.JSON.Syntax.Position where
 
 import Data.Aeson
 
+import Agda.Interaction.JSON.Encode
 import Agda.Syntax.Position
 
 instance ToJSON a => ToJSON (Position' a) where
@@ -18,7 +19,8 @@ instance ToJSON a => ToJSON (Interval' a) where
     , "end"   .= end
     ]
 
-instance ToJSON a => ToJSON (Range' a) where
+instance EncodeTCM Range
+instance ToJSON Range where
   toJSON (Range src is) = object
     [ "kind"      .= String "Range"
     , "intervals" .= is
