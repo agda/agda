@@ -20,9 +20,10 @@ instance ToJSON a => ToJSON (Interval' a) where
 
 instance ToJSON a => ToJSON (Range' a) where
   toJSON (Range src is) = object
-    [ "intervals" .= is
+    [ "kind"      .= String "Range"
+    , "intervals" .= is
     , "source"    .= src
     ]
   toJSON NoRange = object
-    [ "intervals" .= ([] :: [Interval' a])
+    [ "kind"      .= String "NoRange"
     ]

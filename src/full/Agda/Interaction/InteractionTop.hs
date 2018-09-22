@@ -1104,11 +1104,18 @@ solveInstantiatedGoals norm mii = do
 collectAllGoalsWarnings :: CommandM AllGoalsWarnings
 collectAllGoalsWarnings = do
   -- interaction metas
-  interactionMetas <- lift $ B.typesOfVisibleMetas B.AsIs >>= abstractToConcrete_
+  interactionMetas <- lift $ do
+    ids <- B.typesOfVisibleMetas B.AsIs
+    forM ids $ \ i ->
+        B.withInteractionId (B.outputConstraintId i) (abstractToConcreteCtx TopCtx i)
+
   -- hidden metas
-  unsolvedNotOK <- lift $ not . optAllowUnsolved <$> pragmaOptions
-  hiddenMetas <- lift $ (guard unsolvedNotOK >>) <$> B.typesOfHiddenMetas B.Simplified
-    >>= abstractToConcrete_
+  hiddenMetas <- lift $ do
+    unsolvedNotOK <- not . optAllowUnsolved <$> pragmaOptions
+    ids <- (guard unsolvedNotOK >>) <$> B.typesOfHiddenMetas B.Simplified
+    forM ids $ \ m -> do
+      B.withMetaId (nmid (B.outputConstraintId m)) (abstractToConcreteCtx TopCtx m)
+
   -- warnings, and non-fatal errors
   (warnings, errors) <- collectWarnings
   return $ AllGoalsWarnings interactionMetas hiddenMetas warnings errors
