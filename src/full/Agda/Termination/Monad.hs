@@ -14,7 +14,9 @@ import Prelude hiding (null)
 
 import Control.Applicative hiding (empty)
 
+#if __GLASGOW_HASKELL__ >= 800
 import qualified Control.Monad.Fail as Fail
+#endif
 
 import Control.Monad.Reader
 import Control.Monad.State
@@ -192,7 +194,16 @@ class (Functor m, Monad m) => MonadTer m where
 -- | Termination monad.
 
 newtype TerM a = TerM { terM :: ReaderT TerEnv TCM a }
-  deriving (Functor, Applicative, Monad, Fail.MonadFail, MonadBench Phase, HasOptions, MonadDebug)
+  deriving ( Functor
+           , Applicative
+           , Monad
+#if __GLASGOW_HASKELL__ >= 800
+           , Fail.MonadFail
+#endif
+           , MonadBench Phase
+           , HasOptions
+           , MonadDebug
+           )
 
 instance MonadTer TerM where
   terAsk     = TerM $ ask
