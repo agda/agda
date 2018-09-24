@@ -1,6 +1,7 @@
 module TrustMe where
 
 open import Data.String
+open import Data.String.Unsafe
 open import Data.Unit using (⊤)
 open import IO
 import IO.Primitive as Prim

@@ -3,7 +3,7 @@ module DivMod where
 open import IO
 open import Data.Nat
 open import Data.Nat.DivMod
-open import Coinduction
+open import Codata.Musical.Notation
 open import Data.String
 open import Data.Fin
 
