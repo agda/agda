@@ -7,6 +7,9 @@ import Prelude hiding (null)
 
 import Control.Arrow (first, second, (***))
 import Control.Applicative hiding (empty)
+
+import qualified Control.Monad.Fail as Fail
+
 import Control.Monad.State
 import Control.Monad.Reader
 import Control.Monad.Writer
@@ -636,7 +639,7 @@ sigError f a = \case
   SigUnknown s -> f s
   SigAbstract  -> a
 
-class (Functor m, Applicative m, Monad m, HasOptions m, MonadDebug m, MonadReader TCEnv m) => HasConstInfo m where
+class (Functor m, Applicative m, Fail.MonadFail m, HasOptions m, MonadDebug m, MonadReader TCEnv m) => HasConstInfo m where
   -- | Lookup the definition of a name. The result is a closed thing, all free
   --   variables have been abstracted over.
   getConstInfo :: QName -> m Definition

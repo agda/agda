@@ -8,8 +8,12 @@ module Agda.Utils.Monad
     )
     where
 
-import Prelude             hiding (concat)
-import Control.Monad       hiding (mapM, forM)
+import Prelude       hiding (concat)
+import Control.Monad hiding (mapM, forM)
+
+import qualified Control.Monad.Fail as Fail
+
+import Control.Monad.Identity ( Identity )
 import Control.Monad.State
 import Control.Monad.Writer
 import Data.Traversable as Trav hiding (for, sequence)
@@ -26,6 +30,13 @@ import Agda.Utils.List
 
 #include "undefined.h"
 import Agda.Utils.Impossible
+
+---------------------------------------------------------------------------
+
+instance Fail.MonadFail Identity where
+  fail = error
+
+---------------------------------------------------------------------------
 
 -- | Binary bind.
 (==<<) :: Monad m => (a -> b -> m c) -> (m a, m b) -> m c

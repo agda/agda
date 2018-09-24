@@ -2,6 +2,8 @@
 
 module Agda.TypeChecking.Monad.Builtin where
 
+import qualified Control.Monad.Fail as Fail
+
 import Control.Monad.State
 import Control.Monad.Trans.Maybe
 
@@ -24,7 +26,7 @@ import Agda.Utils.Tuple
 #include "undefined.h"
 import Agda.Utils.Impossible
 
-class (Functor m, Applicative m, Monad m) => HasBuiltins m where
+class (Functor m, Applicative m, Fail.MonadFail m) => HasBuiltins m where
   getBuiltinThing :: String -> m (Maybe (Builtin PrimFun))
 
 instance HasBuiltins m => HasBuiltins (MaybeT m) where

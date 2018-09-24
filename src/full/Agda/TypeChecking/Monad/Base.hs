@@ -3010,6 +3010,10 @@ instance Monad ReduceM where
   return = pure
   (>>=) = bindReduce
   (>>) = (*>)
+  fail = Fail.fail
+
+instance Fail.MonadFail ReduceM where
+  fail = error
 
 instance ReadTCState ReduceM where
   getTCState = ReduceM redSt
