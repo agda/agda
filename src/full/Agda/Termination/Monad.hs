@@ -13,6 +13,11 @@ module Agda.Termination.Monad where
 import Prelude hiding (null)
 
 import Control.Applicative hiding (empty)
+
+#if __GLASGOW_HASKELL__ >= 800
+import qualified Control.Monad.Fail as Fail
+#endif
+
 import Control.Monad.Reader
 import Control.Monad.State
 
@@ -189,10 +194,23 @@ class (Functor m, Monad m) => MonadTer m where
 -- | Termination monad.
 
 newtype TerM a = TerM { terM :: ReaderT TerEnv TCM a }
-  deriving ( Functor, Applicative, Monad, MonadError TCErr
-           , MonadBench Phase, HasOptions, MonadDebug, HasConstInfo
-           , MonadIO, MonadTCEnv, MonadTCState, MonadTCM
-           , ReadTCState, MonadReduce
+  deriving ( Functor
+           , Applicative
+           , Monad
+#if __GLASGOW_HASKELL__ >= 800
+           , Fail.MonadFail
+#endif
+           , MonadError TCErr
+           , MonadBench Phase
+           , HasOptions
+           , MonadDebug
+           , HasConstInfo
+           , MonadIO
+           , MonadTCEnv
+           , MonadTCState
+           , MonadTCM
+           , ReadTCState
+           , MonadReduce
            )
 
 instance MonadTer TerM where
