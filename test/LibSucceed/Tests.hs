@@ -20,7 +20,7 @@ testDir = "test" </> "LibSucceed"
 
 disabledTests :: [RegexFilter]
 disabledTests =
-  [
+  [ RFInclude "Issue854"
   ]
 
 notTests :: [String]
