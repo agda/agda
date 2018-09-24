@@ -9,6 +9,9 @@ import Prelude hiding (null)
 
 import qualified Control.Concurrent as C
 import qualified Control.Exception as E
+
+import qualified Control.Monad.Fail as Fail
+
 import Control.Monad.State
 import Control.Monad.Reader
 import Control.Monad.Writer hiding ((<>))
@@ -3429,7 +3432,10 @@ instance MonadIO m => Monad (TCMT m) where
     return = pure
     (>>=)  = bindTCMT
     (>>)   = (*>)
-    fail   = internalError
+    fail   = Fail.fail
+
+instance MonadIO m => Fail.MonadFail (TCMT m) where
+  fail = internalError
 
 -- One goal of the definitions and pragmas below is to inline the
 -- monad operations as much as possible. This doesn't seem to have a
