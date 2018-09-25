@@ -846,6 +846,8 @@ instance EncodeTCM TypeError where
     GeneralizeUnsolvedMeta -> kind "GeneralizeUnsolvedMeta" []
 
     NonFatalErrors ws -> kind "NonFatalErrors"
+      -- we keep the TCWarnings prettified here because we don't have the right
+      -- environment for encoding them (yet)
       [ "warnings"        @= ws
       ]
 
