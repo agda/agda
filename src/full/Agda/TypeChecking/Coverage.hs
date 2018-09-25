@@ -690,8 +690,14 @@ isDatatype ind at = do
       throw f = throwError . f =<< do liftTCM $ buildClosure t
   t' <- liftTCM $ reduce t
   mInterval <- liftTCM $ getBuiltinName' builtinInterval
+  mIsOne <- liftTCM $ getBuiltinName' builtinIsOne
   case unEl t' of
     Def d [] | Just d == mInterval -> throw NotADatatype
+    Def d [Apply phi] | Just d == mIsOne -> do
+                xs <- liftTCM $ decomposeInterval =<< reduce (unArg phi)
+                if null xs
+                   then return $ (d, [phi], [], [], False)
+                   else throw NotADatatype
     Def d es -> do
       let ~(Just args) = allApplyElims es
       def <- liftTCM $ theDef <$> getConstInfo d
