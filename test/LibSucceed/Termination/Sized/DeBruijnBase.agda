@@ -1,7 +1,6 @@
 module Termination.Sized.DeBruijnBase where
 
 open import Data.Maybe
-open import Data.Maybe.Categorical
 open import Function -- composition, identity
 open import Relation.Binary.PropositionalEquality hiding ( subst )
 open ≡-Reasoning

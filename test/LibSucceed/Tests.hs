@@ -20,7 +20,8 @@ testDir = "test" </> "LibSucceed"
 
 disabledTests :: [RegexFilter]
 disabledTests =
-  []
+  [
+  ]
 
 notTests :: [String]
 notTests =

@@ -8,8 +8,7 @@ module Issue846.OldDivMod where
 
 open import Data.Nat as Nat
 open import Data.Nat.Properties
-open import Data.Nat.Solver
-open +-*-Solver
+open SemiringSolver
 open import Data.Fin as Fin using (Fin; zero; suc; toℕ; fromℕ)
 import Data.Fin.Properties as Fin
 open import Induction.Nat
@@ -27,9 +26,9 @@ private
          Nat.suc m ≡ suc (toℕ (Fin.inject+ k (fromℕ m)) + 0)
   lem₁ m k = cong suc $ begin
     m
-      ≡⟨ sym $ Fin.toℕ-fromℕ m ⟩
+      ≡⟨ sym $ Fin.to-from m ⟩
     toℕ (fromℕ m)
-      ≡⟨ Fin.toℕ-inject+ k (fromℕ m) ⟩
+      ≡⟨ Fin.inject+-lemma k (fromℕ m) ⟩
     toℕ (Fin.inject+ k (fromℕ m))
       ≡⟨ solve 1 (λ x → x := x :+ con 0) refl _ ⟩
     toℕ (Fin.inject+ k (fromℕ m)) + 0

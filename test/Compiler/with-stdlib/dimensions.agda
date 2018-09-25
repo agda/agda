@@ -253,7 +253,7 @@ open import Data.String     renaming (_++_ to _+s+_)
 open import Data.Product
 open import IO
 import IO.Primitive
-open import Codata.Musical.Notation
+open import Coinduction
 open import Codata.Musical.Colist
 open import Data.Nat.Show as Nat
 

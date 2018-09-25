@@ -22,8 +22,8 @@ open import Category.Monad
 
 \begin{code}
 iter : ∀ {a b c} {A : Set a} {B : A → Set b} {C : Set c} →
-         (Σ[ x ∈ A ] (B x → C) → C) → W (A ▷ B) → C
-iter g (sup (x , f)) = g (x , λ b → iter g (f b))
+         (Σ[ x ∈ A ] (B x → C) → C) → W A B → C
+iter g (sup x f) = g (x , λ b → iter g (f b))
 
 module T-algebra
   (T : Set → Set)
@@ -60,11 +60,11 @@ module T-algebra
 
 -- Eilenberg-Moore algebras for free monads.
 
-module _ {Σ : Container _ _} where
+module _ {Σ : Container _} where
 
   open T-algebra (_⋆^C_ Σ) rawMonad public
 
-_-Alg : Container _ _ → Set₁
+_-Alg : Container _ → Set₁
 Σ -Alg = T-Alg {Σ}
 
 -- A more general product algebra.
