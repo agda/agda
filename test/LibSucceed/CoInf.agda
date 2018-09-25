@@ -1,6 +1,6 @@
 module CoInf where
 
-open import Codata.Musical.Notation
+open import Coinduction
 
 -- Check that ∞ can be used as an "expression".
 test : Set → Set

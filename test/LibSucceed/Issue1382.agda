@@ -6,9 +6,9 @@
 open import Data.Vec
 open import Data.Fin
 open import Data.Nat renaming (_+_ to _+N_)
-open import Data.Nat.Solver
+open import Data.Nat.Properties
 open import Relation.Binary.PropositionalEquality hiding ([_])
-open +-*-Solver using (prove; solve; _:=_; con; var; _:+_; _:*_; :-_; _:-_)
+open SemiringSolver using (prove; solve; _:=_; con; var; _:+_; _:*_; :-_; _:-_)
 
 data prop : Set where
   F T   : prop
@@ -39,7 +39,7 @@ data _⊢_ : ∀ {n} → Γ n → prop → Set  where
 -- occurs check.  This would extremely slow down Agda.
 
 weakening : ∀ {n m p p'}(C : Γ n)(C' : Γ m) → C ++ C' ⊢ p → C ++ [ p' ] ++ C' ⊢ p
-weakening {n} {m} {p' = p'} C C' (hyp .(C ++ C') v) = subst (λ R → C ++ (_ ∷ C') ⊢ R) {!!}
+weakening {n} {m} {p' = p'} C C' (hyp .(C ++ C') v) = subst (λ R → C ++ (_ ∷ C') ⊢ R) ?
           (hyp (C ++ (_ ∷ C')) (subst (λ x → Fin x) proof (inject₁ v))) where
         proof : suc (n +N m) ≡ n +N suc m
         proof = (solve 2 (λ n₁ m₁ → con 1 :+ (n₁ :+ m₁) := n₁ :+ (con 1 :+ m₁)) refl n m)

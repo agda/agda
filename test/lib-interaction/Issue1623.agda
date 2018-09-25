@@ -6,9 +6,9 @@ open import Data.AVL using (Tree; empty)
 open import Data.Vec using (Vec)
 open import Data.String using (String)
 open import Relation.Binary using (StrictTotalOrder)
-open import Data.Nat.Properties using (<-strictTotalOrder)
+open import Data.Nat.Properties using (strictTotalOrder)
 
-empty' : Tree (StrictTotalOrder.isStrictTotalOrder <-strictTotalOrder) (Vec String)
+empty' : Tree (StrictTotalOrder.isStrictTotalOrder strictTotalOrder) (Vec String)
 empty' = empty {!!}
 
 -- ERROR WAS:
