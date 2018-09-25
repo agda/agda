@@ -182,8 +182,8 @@ instance EncodeTCM Warning where
 --------------------------------------------------------------------------------
 
 instance EncodeTCM TCErr where
-  encodeTCM (TypeError state closure) = localState $ do
-    put state
+  encodeTCM (TypeError state closure) = localTCState $ do
+    putTC state
     kind "TypeError"
       [ "range"     @= envRange (clEnv closure)
       , "call"      @= (envCall (clEnv closure))
