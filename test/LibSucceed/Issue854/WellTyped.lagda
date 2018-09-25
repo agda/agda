@@ -67,7 +67,7 @@ mutual
 
   -- Pointwise version of the computation judgement.
   _⊢^cs_∶_ : Ctx → List CTerm → List CType → Set
-  _⊢^cs_∶_ Γ = Pointwise (_⊢^c_∶_ Γ)
+  _⊢^cs_∶_ Γ = Rel (_⊢^c_∶_ Γ)
 
   data _⊢^c_∶_ (Γ : Ctx) : CTerm → CType → Set where
 

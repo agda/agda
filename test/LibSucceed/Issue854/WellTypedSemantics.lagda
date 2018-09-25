@@ -38,7 +38,7 @@ open import Issue854.RunCompat
 
 ⟦_⟧^con : ∀ {Δ P A} → (P , A) ∈ Δ → ⟦ P ⟧^VType →
          (⟦ A ⟧^VType → ⟦ μ Δ ⟧^VType) → ⟦ μ Δ ⟧^VType
-⟦ m ⟧^con p k = sup (sh m p , k ∘ ar m p)
+⟦ m ⟧^con p k = sup (sh m p) (k ∘ ar m p)
 
 ⟦_⟧^op : ∀ {Σ P A} → (P , A) ∈ Σ → (⟦ P ⟧^VType → Σ ⋆^S ⟦ A ⟧^VType)
 ⟦ m ⟧^op s = inn (sh m s , (M.return ∘ ar m s))
