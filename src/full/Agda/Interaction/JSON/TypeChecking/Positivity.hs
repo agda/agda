@@ -17,51 +17,33 @@ import qualified Agda.Syntax.Translation.AbstractToConcrete as A2C
 --------------------------------------------------------------------------------
 
 instance EncodeTCM OccursWhere where
-  encodeTCM Unknown = obj
-    [ "kind"        @= String "Unknown"
-    ]
-  encodeTCM (Known range wheres) = obj
-    [ "kind"        @= String "Known"
-    , "range"       @= range
-    , "wheres"      #= mapM encodeTCM (toList wheres)
+  encodeTCM Unknown               = kind "Unknown" []
+  encodeTCM (Known range wheres)  = kind "Known"
+    [ "range"       @= range
+    , "wheres"      @= (toList wheres)
     ]
 
 instance EncodeTCM Where where
-  encodeTCM LeftOfArrow = obj
-    [ "kind"        @= String "LeftOfArrow"
-    ]
-  encodeTCM (DefArg name n) = obj
-    [ "kind"        @= String "DefArg"
-    , "name"        #= A2C.abstractToConcrete_ name
+  encodeTCM LeftOfArrow           = kind "LeftOfArrow" []
+  encodeTCM (DefArg name n)       = kind "DefArg"
+    [ "name"        @= name
     , "index"       @= n
     ]
-  encodeTCM UnderInf = obj
-    [ "kind"        @= String "UnderInf"
+  encodeTCM UnderInf              = kind "UnderInf" []
+  encodeTCM VarArg                = kind "VarArg" []
+  encodeTCM MetaArg               = kind "MetaArg" []
+  encodeTCM (ConArgType name)     = kind "ConArgType"
+    [ "name"        @= name
     ]
-  encodeTCM VarArg = obj
-    [ "kind"        @= String "VarArg"
+  encodeTCM (IndArgType name)     = kind "IndArgType"
+    [ "name"        @= name
     ]
-  encodeTCM MetaArg = obj
-    [ "kind"        @= String "MetaArg"
+  encodeTCM (InClause n)          = kind "InClause"
+    [ "index"       @= n
     ]
-  encodeTCM (ConArgType name) = obj
-    [ "kind"        @= String "ConArgType"
-    , "name"        #= A2C.abstractToConcrete_ name
-    ]
-  encodeTCM (IndArgType name) = obj
-    [ "kind"        @= String "IndArgType"
-    , "name"        #= A2C.abstractToConcrete_ name
-    ]
-  encodeTCM (InClause n) = obj
-    [ "kind"        @= String "InClause"
-    , "index"       @= n
-    ]
-  encodeTCM Matched = obj
-    [ "kind"        @= String "Matched"
-    ]
-  encodeTCM (InDefOf name) = obj
-    [ "kind"        @= String "InDefOf"
-    , "name"        #= A2C.abstractToConcrete_ name
+  encodeTCM Matched               = kind "Matched" []
+  encodeTCM (InDefOf name)        = kind "InDefOf"
+    [ "name"        @= name
     ]
 
 

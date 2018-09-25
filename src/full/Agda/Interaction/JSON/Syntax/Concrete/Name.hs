@@ -19,14 +19,12 @@ instance ToJSON NamePart where
 
 instance EncodeTCM Name where
 instance ToJSON Name where
-  toJSON (Name   range parts) = object
-    [ "kind"  .= String "Name"
-    , "range" .= range
+  toJSON (Name   range parts) = kind' "Name"
+    [ "range" .= range
     , "parts" .= parts
     ]
-  toJSON (NoName range name) = object
-    [ "kind"  .= String "NoName"
-    , "range" .= range
+  toJSON (NoName range name) = kind' "NoName"
+    [ "range" .= range
     , "name"  .= name
     ]
 

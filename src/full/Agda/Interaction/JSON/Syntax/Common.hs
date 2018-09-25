@@ -27,9 +27,8 @@ instance ToJSON Overlappable where
 instance ToJSON Hiding where
   toJSON Hidden     = object [ "kind" .= String "Hidden" ]
   toJSON NotHidden  = object [ "kind" .= String "NotHidden" ]
-  toJSON (Instance overlappable) = object
-    [ "kind"          .= String "Instance"
-    , "overlappable"  .= overlappable
+  toJSON (Instance overlappable) = kind' "Instance"
+    [ "overlappable"  .= overlappable
     ]
 
 instance ToJSON a => ToJSON (WithHiding a) where
@@ -141,16 +140,11 @@ instance ToJSON IsInfix where
   toJSON PrefixDef  = String "PrefixDef"
 
 instance ToJSON Access where
-  toJSON (PrivateAccess origin) = object
-    [ "kind"      .= String "PrivateAccess"
-    , "origin"    .= origin
+  toJSON (PrivateAccess origin) = kind' "PrivateAccess"
+    [ "origin"    .= origin
     ]
-  toJSON PublicAccess = object
-    [ "kind"      .= String "PublicAccess"
-    ]
-  toJSON OnlyQualified = object
-    [ "kind"      .= String "OnlyQualified"
-    ]
+  toJSON PublicAccess   = kind' "PublicAccess" []
+  toJSON OnlyQualified  = kind' "OnlyQualified" []
 
 instance ToJSON IsAbstract where
   toJSON AbstractDef  = String "AbstractDef"
@@ -180,13 +174,11 @@ instance ToJSON PositionInName where
   toJSON End        = String "End"
 
 instance ToJSON e => ToJSON (MaybePlaceholder e) where
-  toJSON (Placeholder pos) = object
-    [ "kind"      .= String "Placeholder"
-    , "position"  .= pos
+  toJSON (Placeholder pos) = kind' "Placeholder"
+    [ "position"  .= pos
     ]
-  toJSON (NoPlaceholder pos value) = object
-    [ "kind"      .= String "NoPlaceholder"
-    , "position"  .= pos
+  toJSON (NoPlaceholder pos value) = kind' "NoPlaceholder"
+    [ "position"  .= pos
     , "value"     .= value
     ]
 
@@ -210,23 +202,19 @@ instance (ToJSON a, ToJSON b) => ToJSON (Using' a b) where
     ]
 
 instance (EncodeTCM a, EncodeTCM b) => EncodeTCM (ImportedName' a b) where
-  encodeTCM (ImportedModule value) = obj
-    [ "kind"        @= String "ImportedModule"
-    , "value"       @= value
+  encodeTCM (ImportedModule value) = kind "ImportedModule"
+    [ "value"       @= value
     ]
-  encodeTCM (ImportedName value) = obj
-    [ "kind"        @= String "ImportedName"
-    , "value"       @= value
+  encodeTCM (ImportedName value) = kind "ImportedName"
+    [ "value"       @= value
     ]
 
 instance (ToJSON a, ToJSON b) => ToJSON (ImportedName' a b) where
-  toJSON (ImportedModule value) = object
-    [ "kind"        .= String "ImportedModule"
-    , "value"       .= value
+  toJSON (ImportedModule value) = kind' "ImportedModule"
+    [ "value"       .= value
     ]
-  toJSON (ImportedName value) = object
-    [ "kind"        .= String "ImportedName"
-    , "value"       .= value
+  toJSON (ImportedName value) = kind' "ImportedName"
+    [ "value"       .= value
     ]
 
 instance (ToJSON a, ToJSON b) => ToJSON (Renaming' a b) where
@@ -237,20 +225,11 @@ instance (ToJSON a, ToJSON b) => ToJSON (Renaming' a b) where
     ]
 
 instance ToJSON m => ToJSON (TerminationCheck m) where
-  toJSON TerminationCheck = object
-    [ "kind"      .= String "TerminationCheck"
-    ]
-  toJSON NoTerminationCheck = object
-    [ "kind"      .= String "NoTerminationCheck"
-    ]
-  toJSON NonTerminating = object
-    [ "kind"      .= String "NonTerminating"
-    ]
-  toJSON Terminating = object
-    [ "kind"      .= String "Terminating"
-    ]
-  toJSON (TerminationMeasure range value) = object
-    [ "kind"      .= String "TerminationMeasure"
-    , "range"       .= range
+  toJSON TerminationCheck = kind' "TerminationCheck" []
+  toJSON NoTerminationCheck = kind' "NoTerminationCheck" []
+  toJSON NonTerminating = kind' "NonTerminating" []
+  toJSON Terminating = kind' "Terminating" []
+  toJSON (TerminationMeasure range value) = kind' "TerminationMeasure"
+    [ "range"       .= range
     , "value"       .= value
     ]

@@ -30,56 +30,45 @@ instance EncodeTCM Term where
   encodeTCM = I2A.reify >=> A2C.abstractToConcrete_ >=> encodeTCM
 
 instance ToJSON Term where
-  toJSON (Var n elims) = object
-    [ "kind"      .= String "Var"
-    , "index"     .= n
+  toJSON (Var n elims) = kind' "Var"
+    [ "index"     .= n
     , "elims"     .= elims
     ]
-  toJSON (Lam argInfo binder) = object
-    [ "kind"      .= String "Lam"
-    , "argInfo"   .= argInfo
+  toJSON (Lam argInfo binder) = kind' "Lam"
+    [ "argInfo"   .= argInfo
     , "binder"    .= binder
     ]
-  toJSON (Lit lit) = object
-    [ "kind"      .= String "Lit"
-    , "literal"   .= lit
+  toJSON (Lit lit) = kind' "Lit"
+    [ "literal"   .= lit
     ]
-  toJSON (Def name elims) = object
-    [ "kind"      .= String "Def"
-    , "name"      .= name
+  toJSON (Def name elims) = kind' "Def"
+    [ "name"      .= name
     , "elims"     .= elims
     ]
-  toJSON (Con conHead conInfo elims) = object
-    [ "kind"      .= String "Con"
-    , "conHead"   .= conHead
+  toJSON (Con conHead conInfo elims) = kind' "Con"
+    [ "conHead"   .= conHead
     , "conInfo"   .= conInfo
     , "elims"     .= elims
     ]
-  toJSON (Pi domain binder) = object
-    [ "kind"      .= String "Pi"
-    , "domain"    .= domain
+  toJSON (Pi domain binder) = kind' "Pi"
+    [ "domain"    .= domain
     , "binder"    .= binder
     ]
-  toJSON (Sort sort) = object
-    [ "kind"      .= String "Sort"
-    , "sort"      .= sort
+  toJSON (Sort sort) = kind' "Sort"
+    [ "sort"      .= sort
     ]
-  toJSON (Level level) = object
-    [ "kind"      .= String "Level"
-    , "level"     .= level
+  toJSON (Level level) = kind' "Level"
+    [ "level"     .= level
     ]
-  toJSON (MetaV metaId elims) = object
-    [ "kind"      .= String "MetaV"
-    , "metaId"    .= metaId
+  toJSON (MetaV metaId elims) = kind' "MetaV"
+    [ "metaId"    .= metaId
     , "elims"     .= elims
     ]
-  toJSON (DontCare term) = object
-    [ "kind"      .= String "DontCare"
-    , "term"      .= term
+  toJSON (DontCare term) = kind' "DontCare"
+    [ "term"      .= term
     ]
-  toJSON (Dummy s) = object
-    [ "kind"        .= String "Dummy"
-    , "description" .= s
+  toJSON (Dummy s) = kind' "Dummy"
+    [ "description" .= s
     ]
 
 instance EncodeTCM a => EncodeTCM (Elim' a) where
@@ -96,20 +85,17 @@ instance EncodeTCM a => EncodeTCM (Elim' a) where
     , "endpoint3"   @= r
     ]
 instance ToJSON a => ToJSON (Elim' a) where
-  toJSON (Apply arg) = object
-    [ "kind"      .= String "Apply"
-    , "arg"       .= arg
+  toJSON (Apply arg) = kind' "Apply"
+    [ "arg"         .= arg
     ]
-  toJSON (Proj origin name) = object
-    [ "kind"        .= String "Proj"
-    , "projOrigin"  .= origin
+  toJSON (Proj origin name) = kind' "Proj"
+    [ "projOrigin"  .= origin
     , "name"        .= name
     ]
-  toJSON (IApply x y r) = object
-    [ "kind"      .= String "IApply"
-    , "endpoint1" .= x
-    , "endpoint2" .= y
-    , "endpoint3" .= r
+  toJSON (IApply x y r) = kind' "IApply"
+    [ "endpoint1"   .= x
+    , "endpoint2"   .= y
+    , "endpoint3"   .= r
     ]
 
 instance EncodeTCM a => EncodeTCM (Abs a) where
@@ -122,14 +108,12 @@ instance EncodeTCM a => EncodeTCM (Abs a) where
     , "value"       @= value
     ]
 instance ToJSON a => ToJSON (Abs a) where
-  toJSON (Abs name value) = object
-    [ "kind"      .= String "Abs"
-    , "name"      .= name
+  toJSON (Abs name value) = kind' "Abs"
+    [ "name"        .= name
     , "value"       .= value
     ]
-  toJSON (NoAbs name value) = object
-    [ "kind"      .= String "NoAbs"
-    , "name"      .= name
+  toJSON (NoAbs name value) = kind' "NoAbs"
+    [ "name"        .= name
     , "value"       .= value
     ]
 
@@ -146,12 +130,9 @@ instance EncodeTCM Telescope where
   encodeTCM = I2A.reify >=> A2C.abstractToConcrete_ >=> encodeTCM
 
 instance ToJSON a => ToJSON (Tele a) where
-  toJSON EmptyTel = object
-    [ "kind"      .= String "EmptyTel"
-    ]
-  toJSON (ExtendTel value binder) = object
-    [ "kind"      .= String "ExtendTel"
-    , "value"     .= value
+  toJSON EmptyTel = kind' "EmptyTel" []
+  toJSON (ExtendTel value binder) = kind' "ExtendTel"
+    [ "value"     .= value
     , "binder"    .= binder
     ]
 
@@ -159,37 +140,27 @@ instance EncodeTCM Sort where
   encodeTCM = I2A.reify >=> A2C.abstractToConcrete_ >=> encodeTCM
 
 instance ToJSON Sort where
-  toJSON (Type level) = object
-    [ "kind"      .= String "Type"
-    , "level"     .= level
+  toJSON (Type level) = kind' "Type"
+    [ "level"     .= level
     ]
-  toJSON (Prop level) = object
-    [ "kind"      .= String "Prop"
-    , "level"     .= level
+  toJSON (Prop level) = kind' "Prop"
+    [ "level"     .= level
     ]
-  toJSON Inf = object
-    [ "kind"      .= String "Inf"
-    ]
-  toJSON SizeUniv = object
-    [ "kind"      .= String "SizeUniv"
-    ]
-  toJSON (PiSort sort binder) = object
-    [ "kind"      .= String "PiSort"
-    , "sort"      .= sort
+  toJSON Inf = kind' "Inf" []
+  toJSON SizeUniv = kind' "SizeUniv" []
+  toJSON (PiSort sort binder) = kind' "PiSort"
+    [ "sort"      .= sort
     , "binder"    .= binder
     ]
-  toJSON (UnivSort sort) = object
-    [ "kind"      .= String "UnivSort"
-    , "sort"      .= sort
+  toJSON (UnivSort sort) = kind' "UnivSort"
+    [ "sort"      .= sort
     ]
-  toJSON (MetaS metaId elims) = object
-    [ "kind"      .= String "MetaS"
-    , "metaId"    .= metaId
+  toJSON (MetaS metaId elims) = kind' "MetaS"
+    [ "metaId"    .= metaId
     , "elims"     .= elims
     ]
-  toJSON (DummyS description) = object
-    [ "kind"        .= String "DummyS"
-    , "description" .= description
+  toJSON (DummyS description) = kind' "DummyS"
+    [ "description" .= description
     ]
 
 
@@ -199,51 +170,36 @@ instance ToJSON Level where
   toJSON (Max levels) = toJSON levels
 
 instance ToJSON PlusLevel where
-  toJSON (ClosedLevel n) = object
-    [ "kind"      .= String "ClosedLevel"
-    , "level"     .= n
+  toJSON (ClosedLevel n) = kind' "ClosedLevel"
+    [ "level"     .= n
     ]
-  toJSON (Plus n levelAtom) = object
-    [ "kind"      .= String "Plus"
-    , "level"     .= n
+  toJSON (Plus n levelAtom) = kind' "Plus"
+    [ "level"     .= n
     , "levelAtom" .= levelAtom
     ]
 
 instance ToJSON LevelAtom where
-  toJSON (MetaLevel metaId elims) = object
-    [ "kind"      .= String "MetaLevel"
-    , "metaId"    .= metaId
+  toJSON (MetaLevel metaId elims) = kind' "MetaLevel"
+    [ "metaId"    .= metaId
     , "elims"     .= elims
     ]
-  toJSON (BlockedLevel metaId term) = object
-    [ "kind"      .= String "BlockedLevel"
-    , "metaId"    .= metaId
+  toJSON (BlockedLevel metaId term) = kind' "BlockedLevel"
+    [ "metaId"    .= metaId
     , "term"      .= term
     ]
-  toJSON (NeutralLevel notBlocked term) = object
-    [ "kind"        .= String "NeutralLevel"
-    , "notBlocked"  .= notBlocked
-    , "term"        .= term
-    ]
-  toJSON (UnreducedLevel term) = object
-    [ "kind"      .= String "UnreducedLevel"
+  toJSON (NeutralLevel notBlocked term) = kind' "NeutralLevel"
+    [ "notBlocked".= notBlocked
     , "term"      .= term
+    ]
+  toJSON (UnreducedLevel term) = kind' "UnreducedLevel"
+    [ "term"      .= term
     ]
 
 instance ToJSON NotBlocked where
-  toJSON (StuckOn elim) = object
-    [ "kind"      .= String "StuckOn"
-    , "elim"     .= elim
+  toJSON (StuckOn elim)   = kind' "StuckOn"
+    [ "elim"     .= elim
     ]
-  toJSON Underapplied = object
-    [ "kind"      .= String "Underapplied"
-    ]
-  toJSON AbsurdMatch = object
-    [ "kind"      .= String "AbsurdMatch"
-    ]
-  toJSON MissingClauses = object
-    [ "kind"      .= String "MissingClauses"
-    ]
-  toJSON ReallyNotBlocked = object
-    [ "kind"      .= String "ReallyNotBlocked"
-    ]
+  toJSON Underapplied     = kind' "Underapplied"      []
+  toJSON AbsurdMatch      = kind' "AbsurdMatch"       []
+  toJSON MissingClauses   = kind' "MissingClauses"    []
+  toJSON ReallyNotBlocked = kind' "ReallyNotBlocked"  []

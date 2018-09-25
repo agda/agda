@@ -70,151 +70,112 @@ instance EncodeTCM TCWarning where
 
 instance EncodeTCM Warning where
   encodeTCM warning = case warning of
-    NicifierIssue w -> obj
-      [ "kind"                @= String "NicifierIssue"
-      , "declarationWarning"  @= w
+    NicifierIssue w -> kind "NicifierIssue"
+      [ "declarationWarning"  @= w
       ]
 
-    TerminationIssue es -> obj
-      [ "kind"                @= String "TerminationIssue"
-      , "terminationErrors"   @= es
+    TerminationIssue es -> kind "TerminationIssue"
+      [ "terminationErrors"   @= es
       ]
 
-    UnreachableClauses name clauses -> obj
-      [ "kind"                @= String "UnreachableClauses"
-      , "name"                @= name
+    UnreachableClauses name clauses -> kind "UnreachableClauses"
+      [ "name"                @= name
       -- , "clauses"             @= clauses
       ]
 
-    CoverageIssue name pairs -> obj
-      [ "kind"                @= String "CoverageIssue"
-      , "name"                @= name
+    CoverageIssue name pairs -> kind "CoverageIssue"
+      [ "name"                @= name
       , "declarations"        @= map f pairs
       ]
       where f (tel, ps) = I2A.NamedClause name True $
                     empty { I.clauseTel = tel, I.namedClausePats = ps }
 
-    CoverageNoExactSplit name clauses -> obj
-      [ "kind"                @= String "CoverageNoExactSplit"
-      , "name"                @= name
+    CoverageNoExactSplit name clauses -> kind "CoverageNoExactSplit"
+      [ "name"                @= name
       , "declarations"        @= map f clauses
       ]
       where f clause = I2A.NamedClause name True clause
 
-    NotStrictlyPositive name occursWhere -> obj
-      [ "kind"                @= String "NotStrictlyPositive"
-      , "name"                @= name
+    NotStrictlyPositive name occursWhere -> kind "NotStrictlyPositive"
+      [ "name"                @= name
       , "occursWhere"         @= occursWhere
       ]
 
-    UnsolvedMetaVariables ranges -> obj
-      [ "kind"                @= String "UnsolvedMetaVariables"
-      , "ranges"              @= ranges
+    UnsolvedMetaVariables ranges -> kind "UnsolvedMetaVariables"
+      [ "ranges"              @= ranges
       ]
 
-    UnsolvedInteractionMetas ranges -> obj
-      [ "kind"                @= String "UnsolvedInteractionMetas"
-      , "ranges"              @= ranges
+    UnsolvedInteractionMetas ranges -> kind "UnsolvedInteractionMetas"
+      [ "ranges"              @= ranges
       ]
 
-    UnsolvedConstraints constraints -> obj
-      [ "kind"                @= String "UnsolvedConstraints"
-      , "constraints"         @= constraints
+    UnsolvedConstraints constraints -> kind "UnsolvedConstraints"
+      [ "constraints"         @= constraints
       ]
 
-    AbsurdPatternRequiresNoRHS clauses -> obj
-      [ "kind"                @= String "AbsurdPatternRequiresNoRHS"
-      -- , "clauses"             @= clauses
-      ]
+    AbsurdPatternRequiresNoRHS clauses -> kind "AbsurdPatternRequiresNoRHS" []
 
-    OldBuiltin old new -> obj
-      [ "kind"                @= String "OldBuiltin"
-      , "old"                 @= old
+    OldBuiltin old new -> kind "OldBuiltin"
+      [ "old"                 @= old
       , "new"                 @= new
       ]
 
-    EmptyRewritePragma -> obj
-      [ "kind"                @= String "EmptyRewritePragma"
+    EmptyRewritePragma -> kind "EmptyRewritePragma" []
+
+    UselessPublic -> kind "UselessPublic" []
+
+    UselessInline name -> kind "UselessInline"
+      [ "name"                @= name
       ]
 
-    UselessPublic -> obj
-      [ "kind"                @= String "UselessPublic"
+    InversionDepthReached name -> kind "InversionDepthReached"
+      [ "name"                @= name
       ]
 
-    UselessInline name -> obj
-      [ "kind"                @= String "UselessInline"
-      , "name"                @= name
+    GenericWarning warning -> kind "GenericWarning"
+      [ "warning"             @= warning
       ]
 
-    InversionDepthReached name -> obj
-      [ "kind"                @= String "InversionDepthReached"
-      , "name"                @= name
+    GenericNonFatalError message -> kind "GenericNonFatalError"
+      [ "message"             @= message
       ]
 
-    GenericWarning warning -> obj
-      [ "kind"                @= String "GenericWarning"
-      , "warning"             @= warning
+    SafeFlagPostulate name -> kind "SafeFlagPostulate"
+      [ "name"                @= name
       ]
 
-    GenericNonFatalError message -> obj
-      [ "kind"                @= String "GenericNonFatalError"
-      , "message"             @= message
+    SafeFlagPragma pragmas -> kind "SafeFlagPragma"
+      [ "pragmas"             @= pragmas
       ]
 
-    SafeFlagPostulate name -> obj
-      [ "kind"                @= String "SafeFlagPostulate"
-      , "name"                @= name
+    SafeFlagNonTerminating -> kind "SafeFlagNonTerminating" []
+
+    SafeFlagTerminating -> kind "SafeFlagTerminating" []
+
+    SafeFlagPrimTrustMe -> kind "SafeFlagPrimTrustMe" []
+
+    SafeFlagNoPositivityCheck -> kind "SafeFlagNoPositivityCheck" []
+
+    SafeFlagPolarity -> kind "SafeFlagPolarity" []
+
+    SafeFlagNoUniverseCheck -> kind "SafeFlagNoUniverseCheck" []
+
+    ParseWarning warning -> kind "ParseWarning"
+      [ "warning"             @= warning
       ]
 
-    SafeFlagPragma pragmas -> obj
-      [ "kind"                @= String "SafeFlagPragma"
-      , "pragmas"             @= pragmas
-      ]
-
-    SafeFlagNonTerminating -> obj
-      [ "kind"                @= String "SafeFlagNonTerminating"
-      ]
-
-    SafeFlagTerminating -> obj
-      [ "kind"                @= String "SafeFlagTerminating"
-      ]
-
-    SafeFlagPrimTrustMe -> obj
-      [ "kind"                @= String "SafeFlagPrimTrustMe"
-      ]
-
-    SafeFlagNoPositivityCheck -> obj
-      [ "kind"                @= String "SafeFlagNoPositivityCheck"
-      ]
-
-    SafeFlagPolarity -> obj
-      [ "kind"                @= String "SafeFlagPolarity"
-      ]
-
-    SafeFlagNoUniverseCheck -> obj
-      [ "kind"                @= String "SafeFlagNoUniverseCheck"
-      ]
-
-    ParseWarning warning -> obj
-      [ "kind"                @= String "ParseWarning"
-      , "warning"             @= warning
-      ]
-
-    DeprecationWarning old new version -> obj
-      [ "kind"                @= String "DeprecationWarning"
-      , "old"                 @= old
+    DeprecationWarning old new version -> kind "DeprecationWarning"
+      [ "old"                 @= old
       , "new"                 @= new
       , "version"             @= version
       ]
 
-    UserWarning warning -> obj
-      [ "kind"                @= String "UserWarning"
-      , "warning"             @= warning
+    UserWarning warning -> kind "UserWarning"
+      [ "warning"             @= warning
       ]
 
-    ModuleDoesntExport source names -> obj
-      [ "kind"                @= String "UserWarning"
-      , "sourceModule"        @= source
+    ModuleDoesntExport source names -> kind "UserWarning"
+      [ "sourceModule"        @= source
       , "names"               @= names
       ]
 
@@ -223,59 +184,49 @@ instance EncodeTCM Warning where
 instance EncodeTCM TCErr where
   encodeTCM (TypeError state closure) = localState $ do
     put state
-    obj
-      [ "kind"      @= String "TypeError"
-      , "range"     @= envRange (clEnv closure)
+    kind "TypeError"
+      [ "range"     @= envRange (clEnv closure)
       , "call"      @= (envCall (clEnv closure))
       , "typeError" @= closure
       ]
-  encodeTCM (Exception range doc) = obj
-    [ "kind"        @= String "Exception"
-    , "range"       @= range
+  encodeTCM (Exception range doc) = kind "Exception"
+    [ "range"       @= range
     , "message"     @= doc
     ]
-  encodeTCM (IOException _ range exception) = obj
-    [ "kind"        @= String "IOException"
-    , "range"       @= range
+  encodeTCM (IOException _ range exception) = kind "IOException"
+    [ "range"       @= range
     , "message"     @= show exception
     ]
-  encodeTCM PatternErr = obj
-    [ "kind"        @= String "PatternErr"
-    , "range"       @= (NoRange :: Range)
+  encodeTCM PatternErr = kind "PatternErr"
+    [ "range"       @= (NoRange :: Range)
     ]
 
 --------------------------------------------------------------------------------
 
 instance EncodeTCM TypeError where
   encodeTCM err = case err of
-    InternalError s -> obj
-      [ "kind"    @= String "InternalError"
-      , "message" @= s
+    InternalError s -> kind "InternalError"
+      [ "message" @= s
       ]
 
-    NotImplemented s -> obj
-      [ "kind"    @= String "NotImplemented"
-      , "message" @= s
+    NotImplemented s -> kind "NotImplemented"
+      [ "message" @= s
       ]
 
-    NotSupported s -> obj
-      [ "kind"    @= String "NotSupported"
-      , "message" @= s
+    NotSupported s -> kind "NotSupported"
+      [ "message" @= s
       ]
 
-    CompilationError s -> obj
-      [ "kind"    @= String "CompilationError"
-      , "message" @= s
+    CompilationError s -> kind "CompilationError"
+      [ "message" @= s
       ]
 
-    GenericError s -> obj
-      [ "kind"    @= String "GenericError"
-      , "message" @= s
+    GenericError s -> kind "GenericError"
+      [ "message" @= s
       ]
 
-    GenericDocError d -> obj
-      [ "kind"    @= String "GenericDocError"
-      , "message" @= d
+    GenericDocError d -> kind "GenericDocError"
+      [ "message" @= d
       ]
 
     -- TerminationCheckFailed because -> do
@@ -295,245 +246,199 @@ instance EncodeTCM TypeError where
     --     , "problematicCalls"  @= problematicCalls
     --     ]
 
-    PropMustBeSingleton -> obj
-      [ "kind"  @= String "PropMustBeSingleton" ]
+    PropMustBeSingleton -> kind "PropMustBeSingleton" []
 
-    DataMustEndInSort term -> obj
-      [ "kind"  @= String "DataMustEndInSort"
-      , "term"  @= term
+    DataMustEndInSort term -> kind "DataMustEndInSort"
+      [ "term"  @= term
       ]
 
-    ShouldEndInApplicationOfTheDatatype t -> obj
-      [ "kind"  @= String "ShouldEndInApplicationOfTheDatatype"
-      , "type"  @= t
+    ShouldEndInApplicationOfTheDatatype t -> kind "ShouldEndInApplicationOfTheDatatype"
+      [ "type"  @= t
       ]
 
-    ShouldBeAppliedToTheDatatypeParameters s t -> obj
-      [ "kind"      @= String "ShouldEndInApplicationOfTheDatatype"
-      , "expected"  @= s
+    ShouldBeAppliedToTheDatatypeParameters s t -> kind "ShouldEndInApplicationOfTheDatatype"
+      [ "expected"  @= s
       , "given"     @= t
       ]
 
-    ShouldBeApplicationOf t q -> obj
-      [ "kind" @= String "ShouldBeApplicationOf"
-      , "type" @= t
+    ShouldBeApplicationOf t q -> kind "ShouldBeApplicationOf"
+      [ "type" @= t
       , "name" @= q
       ]
 
-    ShouldBeRecordType t -> obj
-      [ "kind"  @= String "ShouldBeRecordType"
-      , "type"  @= t
+    ShouldBeRecordType t -> kind "ShouldBeRecordType"
+      [ "type"  @= t
       ]
 
-    ShouldBeRecordPattern p -> obj
-      [ "kind"    @= String "ShouldBeRecordPattern"
-      -- , "pattern" @= p
-      ]
+    ShouldBeRecordPattern p -> kind "ShouldBeRecordPattern" []
 
-    NotAProjectionPattern p -> obj
-      [ "kind"    @= String "NotAProjectionPattern"
-      , "pattern" @= p
+    NotAProjectionPattern p -> kind "NotAProjectionPattern"
+      [ "pattern" @= p
       ]
 
     -- DifferentArities -> obj
     --   [ "kind" @= String "DifferentArities" ]
 
-    WrongHidingInLHS -> obj
-      [ "kind" @= String "WrongHidingInLHS" ]
+    WrongHidingInLHS -> kind "WrongHidingInLHS" []
 
-    WrongHidingInLambda t -> obj
-      [ "kind" @= String "WrongHidingInLambda"
-      , "type" @= t
+    WrongHidingInLambda t -> kind "WrongHidingInLambda"
+      [ "type" @= t
       ]
 
-    WrongIrrelevanceInLambda -> obj
-      [ "kind" @= String "WrongIrrelevanceInLambda" ]
+    WrongIrrelevanceInLambda -> kind "WrongIrrelevanceInLambda" []
 
-    WrongNamedArgument a -> obj
-      [ "kind" @= String "WrongNamedArgument"
-      , "args" @= a
+    WrongNamedArgument a -> kind "WrongNamedArgument"
+      [ "args" @= a
       ]
 
-    WrongHidingInApplication t -> obj
-      [ "kind" @= String "WrongHidingInApplication"
-      , "type" @= t
+    WrongHidingInApplication t -> kind "WrongHidingInApplication"
+      [ "type" @= t
       ]
 
-    WrongInstanceDeclaration -> obj
-      [ "kind" @= String "WrongInstanceDeclaration" ]
+    WrongInstanceDeclaration -> kind "WrongInstanceDeclaration" []
 
-    HidingMismatch h h' -> obj
-      [ "kind"      @= String "HidingMismatch"
-      , "expected"  @= verbalize (Indefinite h')
+    HidingMismatch h h' -> kind "HidingMismatch"
+      [ "expected"  @= verbalize (Indefinite h')
       , "given"     @= verbalize (Indefinite h)
       ]
 
-    RelevanceMismatch r r' -> obj
-      [ "kind"      @= String "RelevanceMismatch"
-      , "expected"  @= verbalize (Indefinite r')
+    RelevanceMismatch r r' -> kind "RelevanceMismatch"
+      [ "expected"  @= verbalize (Indefinite r')
       , "given"     @= verbalize (Indefinite r)
       ]
 
-    UninstantiatedDotPattern e -> obj
-        [ "kind" @= String "UninstantiatedDotPattern"
-        , "expr" @= e
+    UninstantiatedDotPattern e -> kind "UninstantiatedDotPattern"
+        [ "expr" @= e
         ]
 
-    ForcedConstructorNotInstantiated p -> obj
-        [ "kind"    @= String "ForcedConstructorNotInstantiated"
-        , "pattern" @= p
+    ForcedConstructorNotInstantiated p -> kind "ForcedConstructorNotInstantiated"
+        [ "pattern" @= p
         ]
 
     IlltypedPattern p a -> ifPiType a yes no
       where
-        yes dom abs = obj
-          [ "kind"      @= String "IlltypedPattern"
-          , "isPiType"  @= True
+        yes dom abs = kind "IlltypedPattern"
+          [ "isPiType"  @= True
           , "pattern"   @= p
           , "dom"       @= dom
           , "abs"       @= show abs
           ]
-        no t = obj
-          [ "kind"      @= String "IlltypedPattern"
-          , "isPiType"  @= False
+        no t = kind "IlltypedPattern"
+          [ "isPiType"  @= False
           , "pattern"   @= p
           , "type"      @= t
           ]
 
-    IllformedProjectionPattern p -> obj
-        [ "kind"    @= String "IllformedProjectionPattern"
-        , "pattern" @= p
+    IllformedProjectionPattern p -> kind "IllformedProjectionPattern"
+        [ "pattern" @= p
         ]
 
     CannotEliminateWithPattern p a -> do
       if isJust (A.isProjP p) then
-        obj
-          [ "kind"          @= String "CannotEliminateWithPattern"
-          , "isProjection"  @= True
+        kind "CannotEliminateWithPattern"
+          [ "isProjection"  @= True
           , "pattern"       @= p
           ]
       else
-        obj
-          [ "kind"          @= String "CannotEliminateWithPattern"
-          , "isProjection"  @= False
+        kind "CannotEliminateWithPattern"
+          [ "isProjection"  @= False
           , "pattern"       @= p
           , "patternKind"   @= kindOfPattern (C.namedArg p)
           ]
 
-    WrongNumberOfConstructorArguments name expected given -> obj
-      [ "kind"      @= String "WrongNumberOfConstructorArguments"
-      , "name"      @= name
+    WrongNumberOfConstructorArguments name expected given -> kind "WrongNumberOfConstructorArguments"
+      [ "name"      @= name
       , "expected"  @= expected
       , "given"     @= given
       ]
 
     CantResolveOverloadedConstructorsTargetingSameDatatype datatype ctrs -> do
-      obj
-        [ "kind"          @= String "CantResolveOverloadedConstructorsTargetingSameDatatype"
-        , "datatype"      @= datatype
+      kind "CantResolveOverloadedConstructorsTargetingSameDatatype"
+        [ "datatype"      @= datatype
         , "constructors"  @= ctrs
         ]
 
-    DoesNotConstructAnElementOf c t -> obj
-      [ "kind"        @= String "DoesNotConstructAnElementOf"
-      , "constructor" @= c
+    DoesNotConstructAnElementOf c t -> kind "DoesNotConstructAnElementOf"
+      [ "constructor" @= c
       , "type"        @= t
       ]
 
-    ConstructorPatternInWrongDatatype c d -> obj
-      [ "kind"        @= String "ConstructorPatternInWrongDatatype"
-      , "constructor" @= c
+    ConstructorPatternInWrongDatatype c d -> kind "ConstructorPatternInWrongDatatype"
+      [ "constructor" @= c
       , "datatype"    @= d
       ]
 
     ShadowedModule x [] -> __IMPOSSIBLE__
     ShadowedModule x ms -> do
       (range, m) <- handleShadowedModule x ms
-      obj
-        [ "kind"          @= String "ShadowedModule"
-        , "duplicated"    @= x
+      kind "ShadowedModule"
+        [ "duplicated"    @= x
         , "previous"      @= m
         , "dataOrRecord"  #= S.isDatatypeModule m
         ]
 
-    ModuleArityMismatch m I.EmptyTel args -> obj
-      [ "kind"            @= String "ModuleArityMismatch"
-      , "module"          @= m
+    ModuleArityMismatch m I.EmptyTel args -> kind "ModuleArityMismatch"
+      [ "module"          @= m
       , "isParameterized" @= False
       ]
-    ModuleArityMismatch m tel@(I.ExtendTel _ _) args -> obj
-      [ "kind"            @= String "ModuleArityMismatch"
-      , "module"          @= m
+    ModuleArityMismatch m tel@(I.ExtendTel _ _) args -> kind "ModuleArityMismatch"
+      [ "module"          @= m
       , "isParameterized" @= True
       , "telescope"       @= tel
       ]
 
-    ShouldBeEmpty t ps -> obj
-      [ "kind"            @= String "ShouldBeEmpty"
-      , "type"            @= t
+    ShouldBeEmpty t ps -> kind "ShouldBeEmpty"
+      [ "type"            @= t
       , "patterns"        #= mapM (prettyPattern 0) ps
       ]
 
-    ShouldBeASort t -> obj
-      [ "kind"            @= String "ShouldBeASort"
-      , "type"            @= t
+    ShouldBeASort t -> kind "ShouldBeASort"
+      [ "type"            @= t
       ]
 
-    ShouldBePi t -> obj
-      [ "kind"            @= String "ShouldBePi"
-      , "type"            @= t
+    ShouldBePi t -> kind "ShouldBePi"
+      [ "type"            @= t
       ]
 
-    ShouldBePath t -> obj
-      [ "kind"            @= String "ShouldBePath"
-      , "type"            @= t
+    ShouldBePath t -> kind "ShouldBePath"
+      [ "type"            @= t
       ]
 
-    NotAProperTerm -> obj
-      [ "kind"            @= String "NotAProperTerm"
+    NotAProperTerm -> kind "NotAProperTerm" []
+
+    InvalidTypeSort s -> kind "InvalidTypeSort"
+      [ "sort"            @= s
       ]
 
-    InvalidTypeSort s -> obj
-      [ "kind"            @= String "InvalidTypeSort"
-      , "sort"            @= s
+    InvalidType t -> kind "InvalidType"
+      [ "type"            @= t
       ]
 
-    InvalidType t -> obj
-      [ "kind"            @= String "InvalidType"
-      , "type"            @= t
+    FunctionTypeInSizeUniv t -> kind "FunctionTypeInSizeUniv"
+      [ "term"            @= t
       ]
 
-    FunctionTypeInSizeUniv t -> obj
-      [ "kind"            @= String "FunctionTypeInSizeUniv"
-      , "term"            @= t
-      ]
-
-    SplitOnIrrelevant t ->obj
-      [ "kind"            @= String "SplitOnIrrelevant"
-      , "term"            @= verbalize (C.getRelevance t)
+    SplitOnIrrelevant t ->kind "SplitOnIrrelevant"
+      [ "term"            @= verbalize (C.getRelevance t)
       , "type"            @= (C.unDom t)
       ]
 
-    SplitOnNonVariable term typ ->obj
-      [ "kind"            @= String "SplitOnNonVariable"
-      , "term"            @= term
+    SplitOnNonVariable term typ ->kind "SplitOnNonVariable"
+      [ "term"            @= term
       , "type"            @= typ
       ]
 
 
-    DefinitionIsIrrelevant x -> obj
-      [ "kind"            @= String "DefinitionIsIrrelevant"
-      , "name"            @= x
+    DefinitionIsIrrelevant x -> kind "DefinitionIsIrrelevant"
+      [ "name"            @= x
       ]
 
-    VariableIsIrrelevant x -> obj
-      [ "kind"            @= String "VariableIsIrrelevant"
-      , "name"            @= x
+    VariableIsIrrelevant x -> kind "VariableIsIrrelevant"
+      [ "name"            @= x
       ]
 
-    UnequalBecauseOfUniverseConflict cmp s t -> obj
-      [ "kind"            @= String "UnequalBecauseOfUniverseConflict"
-      , "comparison"      @= cmp
+    UnequalBecauseOfUniverseConflict cmp s t -> kind "UnequalBecauseOfUniverseConflict"
+      [ "comparison"      @= cmp
       , "term1"           @= s
       , "term2"           @= t
       ]
@@ -543,151 +448,127 @@ instance EncodeTCM TypeError where
       Just err -> encodeTCM err
       Nothing -> do
         (_, _, d) <- prettyInEqual s t
-        obj
-          [ "kind"            @= String "UnequalTerms"
-          , "comparison"      @= cmp
+        kind "UnequalTerms"
+          [ "comparison"      @= cmp
           , "term1"           @= s
           , "term2"           @= t
           , "type"            @= a
           , "reason"          @= d
           ]
 
-    UnequalTypes cmp a b -> obj
-      [ "kind"            @= String "UnequalTypes"
-      , "comparison"      @= cmp
+    UnequalTypes cmp a b -> kind "UnequalTypes"
+      [ "comparison"      @= cmp
       , "type1"           @= a
       , "type2"           @= b
       , "message"         #= prettyUnequal a (notCmp cmp) b
       ]
 
-    UnequalRelevance cmp a b -> obj
-      [ "kind"            @= String "UnequalRelevance"
-      , "comparison"      @= cmp
+    UnequalRelevance cmp a b -> kind "UnequalRelevance"
+      [ "comparison"      @= cmp
       , "term1"           @= a
       , "term2"           @= b
       ]
 
-    UnequalHiding a b -> obj
-      [ "kind"            @= String "UnequalHiding"
-      , "term1"           @= a
+    UnequalHiding a b -> kind "UnequalHiding"
+      [ "term1"           @= a
       , "term2"           @= b
       ]
 
-    UnequalSorts a b -> obj
-      [ "kind"            @= String "UnequalSorts"
-      , "sort1"           @= a
+    UnequalSorts a b -> kind "UnequalSorts"
+      [ "sort1"           @= a
       , "sort2"           @= b
       ]
 
-    NotLeqSort a b -> obj
-      [ "kind"            @= String "NotLeqSort"
-      , "sort1"           @= a
+    NotLeqSort a b -> kind "NotLeqSort"
+      [ "sort1"           @= a
       , "sort2"           @= b
       ]
 
-    TooFewFields record fields -> obj
-      [ "kind"            @= String "TooFewFields"
-      , "record"          @= record
+    TooFewFields record fields -> kind "TooFewFields"
+      [ "record"          @= record
       , "fields"          @= fields
       ]
 
-    TooManyFields record fields -> obj
-      [ "kind"            @= String "TooManyFields"
-      , "record"          @= record
+    TooManyFields record fields -> kind "TooManyFields"
+      [ "record"          @= record
       , "fields"          @= fields
       ]
 
-    DuplicateConstructors xs -> obj
-      [ "kind"            @= String "DuplicateConstructors"
-      , "constructors"    @=  xs
+    DuplicateConstructors xs -> kind "DuplicateConstructors"
+      [ "constructors"    @=  xs
       ]
 
-    DuplicateFields xs -> obj
-      [ "kind"            @= String "DuplicateFields"
-      , "fields"          @= xs
+    DuplicateFields xs -> kind "DuplicateFields"
+      [ "fields"          @= xs
       ]
 
     WithOnFreeVariable expr term -> do
       de <- prettyA expr
       dt <- prettyTCM term
       if show de == show dt
-        then obj
-          [ "kind"            @= String "WithOnFreeVariable"
-          , "variable"        @= term
+        then kind "WithOnFreeVariable"
+          [ "variable"        @= term
           ]
-        else obj
-          [ "kind"            @= String "WithOnFreeVariable"
-          , "variable"        @= term
+        else kind "WithOnFreeVariable"
+          [ "variable"        @= term
           , "expression"      @= expr
           ]
 
-    UnexpectedWithPatterns xs -> obj
-      [ "kind"            @= String "UnexpectedWithPatterns"
-      , "patterns"        @= xs
+    UnexpectedWithPatterns xs -> kind "UnexpectedWithPatterns"
+      [ "patterns"        @= xs
       ]
 
     -- The arguments are the meta variable, the parameters it can
     -- depend on and the paratemeter that it wants to depend on.
-    MetaCannotDependOn meta ps i -> obj
-      [ "kind"            @= String "MetaCannotDependOn"
-      , "meta"            @= (I.MetaV meta [])
+    MetaCannotDependOn meta ps i -> kind "MetaCannotDependOn"
+      [ "meta"            @= (I.MetaV meta [])
       , "wantsToDependOn" @= (I.var i)
       , "canDepdendOn"    @= (map I.var ps)
       ]
 
-    MetaOccursInItself meta -> obj
-      [ "kind"            @= String "MetaOccursInItself"
-      , "meta"            @= (I.MetaV meta [])
+    MetaOccursInItself meta -> kind "MetaOccursInItself"
+      [ "meta"            @= (I.MetaV meta [])
       ]
 
-    MetaIrrelevantSolution meta term -> obj
-      [ "kind"            @= String "MetaIrrelevantSolution"
-      , "meta"            @= (I.MetaV meta [])
+    MetaIrrelevantSolution meta term -> kind "MetaIrrelevantSolution"
+      [ "meta"            @= (I.MetaV meta [])
       , "term"            @= term
       ]
 
-    BuiltinMustBeConstructor s expr -> obj
-      [ "kind"            @= String "MetaIrrelevantSolution"
-      , "expr"            @= expr
+    BuiltinMustBeConstructor s expr -> kind "MetaIrrelevantSolution"
+      [ "expr"            @= expr
       , "message"         @= s
       ]
 
-    NoSuchBuiltinName s -> obj
-      [ "kind"            @= String "NoSuchBuiltinName"
-      , "message"         @= s
+    NoSuchBuiltinName s -> kind "NoSuchBuiltinName"
+      [ "message"         @= s
       ]
 
-    DuplicateBuiltinBinding s x y -> obj
-      [ "kind"            @= String "DuplicateBuiltinBinding"
-      , "term1"           @= x
+    DuplicateBuiltinBinding s x y -> kind "DuplicateBuiltinBinding"
+      [ "term1"           @= x
       , "term2"           @= y
       , "message"         @= s
       ]
 
-    NoBindingForBuiltin s -> obj
-      [ "kind"            @= String "NoBindingForBuiltin"
-      , "payload"         @= s
+    NoBindingForBuiltin s -> kind "NoBindingForBuiltin"
+      [ "payload"         @= s
       , "builtins"        @= [builtinZero, builtinSuc, builtinNat]
       ]
 
-    NoSuchPrimitiveFunction s -> obj
-      [ "kind"            @= String "NoSuchPrimitiveFunction"
-      , "message"         @= s
+    NoSuchPrimitiveFunction s -> kind "NoSuchPrimitiveFunction"
+      [ "message"         @= s
       ]
 
-    BuiltinInParameterisedModule s -> obj
-      [ "kind"            @= String "NoSuchPrimitiveFunction"
-      , "message"         @= s
+    BuiltinInParameterisedModule s -> kind "NoSuchPrimitiveFunction"
+      [ "message"         @= s
       ]
 
-    IllegalLetInTelescope typedBinding -> obj
-      [ "kind"            @= String "IllegalLetInTelescope"
-      , "typedBinding"    @= typedBinding
+    IllegalLetInTelescope typedBinding -> kind "IllegalLetInTelescope"
+      [ "typedBinding"    @= typedBinding
       ]
 
-    NoRHSRequiresAbsurdPattern ps -> obj
-      [ "kind"            @= String "NoRHSRequiresAbsurdPattern"
-      , "patterns"        @= ps
+    NoRHSRequiresAbsurdPattern ps -> kind "NoRHSRequiresAbsurdPattern"
+      [ "patterns"        @= ps
       ]
 
     -- AbsurdPatternRequiresNoRHS ps -> obj
@@ -695,78 +576,63 @@ instance EncodeTCM TypeError where
     --   , "patterns"        #= mapM prettyA ps
     --   ]
 
-    LocalVsImportedModuleClash m -> obj
-      [ "kind"            @= String "LocalVsImportedModuleClash"
-      , "module"          @= m
+    LocalVsImportedModuleClash m -> kind "LocalVsImportedModuleClash"
+      [ "module"          @= m
       ]
 
-    SolvedButOpenHoles -> obj
-      [ "kind"            @= String "SolvedButOpenHoles"
+    SolvedButOpenHoles -> kind "SolvedButOpenHoles" []
+
+    CyclicModuleDependency ms -> kind "CyclicModuleDependency"
+      [ "modules"         @= ms
       ]
 
-    CyclicModuleDependency ms -> obj
-      [ "kind"            @= String "CyclicModuleDependency"
-      , "modules"         @= ms
-      ]
-
-    FileNotFound m files -> obj
-      [ "kind"            @= String "FileNotFound"
-      , "module"          @= m
+    FileNotFound m files -> kind "FileNotFound"
+      [ "module"          @= m
       , "filepaths"       @= map filePath files
       ]
 
-    OverlappingProjects f m1 m2 -> obj
-      [ "kind"            @= String "OverlappingProjects"
-      , "module1"         @= m1
+    OverlappingProjects f m1 m2 -> kind "OverlappingProjects"
+      [ "module1"         @= m1
       , "module2"         @= m2
       , "filepath"        @= filePath f
       ]
 
-    AmbiguousTopLevelModuleName m files -> obj
-      [ "kind"            @= String "AmbiguousTopLevelModuleName"
-      , "module"          @= m
+    AmbiguousTopLevelModuleName m files -> kind "AmbiguousTopLevelModuleName"
+      [ "module"          @= m
       , "filepaths"       @= map filePath files
       ]
 
-    ClashingFileNamesFor m files -> obj
-      [ "kind"            @= String "ClashingFileNamesFor"
-      , "module"          @= m
+    ClashingFileNamesFor m files -> kind "ClashingFileNamesFor"
+      [ "module"          @= m
       , "filepaths"       @= map filePath files
       ]
 
-    ModuleDefinedInOtherFile m file file' -> obj
-      [ "kind"            @= String "ModuleDefinedInOtherFile"
-      , "module"          @= m
+    ModuleDefinedInOtherFile m file file' -> kind "ModuleDefinedInOtherFile"
+      [ "module"          @= m
       , "filepath1"       @= filePath file
       , "filepath2"       @= filePath file'
       ]
 
-    ModuleNameUnexpected given expected -> obj
-      [ "kind"            @= String "ModuleNameUnexpected"
-      , "expected"        @= pretty expected
+    ModuleNameUnexpected given expected -> kind "ModuleNameUnexpected"
+      [ "expected"        @= pretty expected
       , "given"           @= pretty given
       ]
 
-    ModuleNameDoesntMatchFileName given files -> obj
-      [ "kind"            @= String "ModuleNameDoesntMatchFileName"
-      , "filepaths"       @= map filePath files
+    ModuleNameDoesntMatchFileName given files -> kind "ModuleNameDoesntMatchFileName"
+      [ "filepaths"       @= map filePath files
       , "given"           @= pretty given
       ]
 
-    BothWithAndRHS -> obj
-      [ "kind"            @= String "BothWithAndRHS"
-      ]
+    BothWithAndRHS -> kind "BothWithAndRHS" []
 
-    AbstractConstructorNotInScope c -> obj
-      [ "kind"            @= String "AbstractConstructorNotInScope"
-      , "constructor"     @= c
+    AbstractConstructorNotInScope c -> kind "AbstractConstructorNotInScope"
+      [ "constructor"     @= c
       ]
 
     NotInScope xs -> do
       inscope <- Set.toList . S.concreteNamesInScope <$> getScope
-      obj
-        [ "kind"            @= String "NotInScope"
-        , "names"           #= mapM (name inscope) xs
+      kind "NotInScope"
+        [ "names"           #= mapM (name inscope) xs
         ]
       where
         name inscope x = obj
@@ -779,20 +645,17 @@ instance EncodeTCM TypeError where
             maxDist n = div n 3
             close a b = editDistance a b <= maxDist (length a)
 
-    NoSuchModule x -> obj
-      [ "kind"          @= String "NoSuchModule"
-      , "module"        @= x
+    NoSuchModule x -> kind "NoSuchModule"
+      [ "module"        @= x
       ]
 
-    AmbiguousName x ys -> obj
-      [ "kind"          @= String "AmbiguousName"
-      , "ambiguousName" @= x
+    AmbiguousName x ys -> kind "AmbiguousName"
+      [ "ambiguousName" @= x
       , "couldReferTo"  @= (toList ys)
       ]
 
-    AmbiguousModule x ys -> obj
-      [ "kind"            @= String "AmbiguousModule"
-      , "ambiguousModule" @= x
+    AmbiguousModule x ys -> kind "AmbiguousModule"
+      [ "ambiguousModule" @= x
       , "couldReferTo"    #= mapM help (toList ys)
       ]
       where
@@ -807,39 +670,33 @@ instance EncodeTCM TypeError where
     --   , "module"          @= pretty x
     --   ]
 
-    ClashingDefinition x y -> obj
-      [ "kind"            @= String "ClashingDefinition"
-      , "definition"      @= x
+    ClashingDefinition x y -> kind "ClashingDefinition"
+      [ "definition"      @= x
       , "previouslyAt"    @= I.nameBindingSite (I.qnameName y)
       ]
 
-    ClashingModule m1 m2 -> obj
-      [ "kind"            @= String "ClashingModule"
-      , "module1"         @= m1
+    ClashingModule m1 m2 -> kind "ClashingModule"
+      [ "module1"         @= m1
       , "module2"         @= m2
       ]
 
-    ClashingImport x y -> obj
-      [ "kind"            @= String "ClashingImport"
-      , "name1"           @= x
+    ClashingImport x y -> kind "ClashingImport"
+      [ "name1"           @= x
       , "name2"           @= y
       ]
 
-    ClashingModuleImport x y -> obj
-      [ "kind"            @= String "ClashingModuleImport"
-      , "module1"         @= x
+    ClashingModuleImport x y -> kind "ClashingModuleImport"
+      [ "module1"         @= x
       , "module2"         @= y
       ]
 
-    PatternShadowsConstructor x c -> obj
-      [ "kind"            @= String "PatternShadowsConstructor"
-      , "patternVariable" @= x
+    PatternShadowsConstructor x c -> kind "PatternShadowsConstructor"
+      [ "patternVariable" @= x
       , "constructor"     @= c
       ]
 
-    DuplicateImports m xs -> obj
-      [ "kind"            @= String "DuplicateImports"
-      , "module"          @= m
+    DuplicateImports m xs -> kind "DuplicateImports"
+      [ "module"          @= m
       , "imports"         @= xs
       ]
 
@@ -849,53 +706,40 @@ instance EncodeTCM TypeError where
     --   , "doesntExport"    @= map pretty xs
     --   ]
 
-    NotAModuleExpr e -> obj
-      [ "kind"            @= String "NotAModuleExpr"
-      , "expr"            @= e
+    NotAModuleExpr e -> kind "NotAModuleExpr"
+      [ "expr"            @= e
       ]
 
-    FieldOutsideRecord -> obj
-      [ "kind"            @= String "FieldOutsideRecord"
+    FieldOutsideRecord -> kind "FieldOutsideRecord" []
+
+    InvalidPattern p -> kind "InvalidPattern"
+      [ "pattern"         @= p
       ]
 
-    InvalidPattern p -> obj
-      [ "kind"            @= String "InvalidPattern"
-      , "pattern"         @= p
+    RepeatedVariablesInPattern xs -> kind "RepeatedVariablesInPattern"
+      [ "variables"       @= xs
       ]
 
-    RepeatedVariablesInPattern xs -> obj
-      [ "kind"            @= String "RepeatedVariablesInPattern"
-      , "variables"       @= xs
+    NotAnExpression e -> kind "NotAnExpression"
+      [ "expr"            @= e
       ]
 
-    NotAnExpression e -> obj
-      [ "kind"            @= String "NotAnExpression"
-      , "expr"            @= e
+    NotAValidLetBinding nd -> kind "NotAnExpression" []
+
+    NothingAppliedToHiddenArg e -> kind "NothingAppliedToHiddenArg"
+      [ "expr"            @= e
       ]
 
-    NotAValidLetBinding nd -> obj
-      [ "kind"            @= String "NotAnExpression"
-      -- , "niceDeclaration" @= show nd
+    NothingAppliedToInstanceArg e -> kind "NothingAppliedToInstanceArg"
+      [ "expr"            @= e
       ]
 
-    NothingAppliedToHiddenArg e -> obj
-      [ "kind"            @= String "NothingAppliedToHiddenArg"
-      , "expr"            @= e
+    NoParseForApplication es -> kind "NoParseForApplication"
+      [ "exprs"           @= (C.RawApp P.noRange es)
       ]
 
-    NothingAppliedToInstanceArg e -> obj
-      [ "kind"            @= String "NothingAppliedToInstanceArg"
-      , "expr"            @= e
-      ]
-
-    NoParseForApplication es -> obj
-      [ "kind"            @= String "NoParseForApplication"
-      , "exprs"           @= (C.RawApp P.noRange es)
-      ]
-
-    AmbiguousParseForApplication es es' -> obj
-      [ "kind"            @= String "AmbiguousParseForApplication"
-      , "cannotParse"     @= (C.RawApp P.noRange es)
+    AmbiguousParseForApplication es es' -> kind "AmbiguousParseForApplication"
+      [ "cannotParse"     @= (C.RawApp P.noRange es)
       , "couldMean"       #= mapM pretty' es'
       ]
       where
@@ -906,19 +750,16 @@ instance EncodeTCM TypeError where
             then prettyUnambiguousApplication e
             else return (pretty e)
 
-    BadArgumentsToPatternSynonym x -> obj
-      [ "kind"            @= String "BadArgumentsToPatternSynonym"
-      , "patternSynonym"  @= (I.headAmbQ x)
+    BadArgumentsToPatternSynonym x -> kind "BadArgumentsToPatternSynonym"
+      [ "patternSynonym"  @= (I.headAmbQ x)
       ]
 
-    TooFewArgumentsToPatternSynonym x -> obj
-      [ "kind"            @= String "TooFewArgumentsToPatternSynonym"
-      , "patternSynonym"  @= (I.headAmbQ x)
+    TooFewArgumentsToPatternSynonym x -> kind "TooFewArgumentsToPatternSynonym"
+      [ "patternSynonym"  @= (I.headAmbQ x)
       ]
 
-    CannotResolveAmbiguousPatternSynonym defs -> obj
-      [ "kind"            @= String "CannotResolveAmbiguousPatternSynonym"
-      , "patternSynonym"  @= x
+    CannotResolveAmbiguousPatternSynonym defs -> kind "CannotResolveAmbiguousPatternSynonym"
+      [ "patternSynonym"  @= x
       , "shapes"          #= mapM prDef (toList defs)
       ]
       where
@@ -928,25 +769,20 @@ instance EncodeTCM TypeError where
           , "bindingSite" @= I.nameBindingSite (I.qnameName x)
           ]
 
-    UnusedVariableInPatternSynonym -> obj
-      [ "kind"            @= String "UnusedVariableInPatternSynonym"
-      ]
+    UnusedVariableInPatternSynonym -> kind "UnusedVariableInPatternSynonym" []
 
-    NoParseForLHS IsLHS p -> obj
-      [ "kind"            @= String "NoParseForLHS"
-      , "isLHS"           @= True
+    NoParseForLHS IsLHS p -> kind "NoParseForLHS"
+      [ "isLHS"           @= True
       , "LHS"             @= p
       ]
 
-    NoParseForLHS IsPatSyn p -> obj
-      [ "kind"            @= String "NoParseForLHS"
-      , "isLHS"           @= False
+    NoParseForLHS IsPatSyn p -> kind "NoParseForLHS"
+      [ "isLHS"           @= False
       , "patSyn"          @= p
       ]
 
-    AmbiguousParseForLHS lhsOrPatSyn p ps -> obj
-      [ "kind"            @= String "AmbiguousParseForLHS"
-      , "LHSOrPatSyn"     @= lhsOrPatSyn
+    AmbiguousParseForLHS lhsOrPatSyn p ps -> kind "AmbiguousParseForLHS"
+      [ "LHSOrPatSyn"     @= lhsOrPatSyn
       , "cannotParse"     @= p
       , "couldMean"       @= map pretty' ps
       ]
@@ -955,47 +791,39 @@ instance EncodeTCM TypeError where
             then unambiguousPattern p'
             else p'
 
-    OperatorInformation sects err -> obj
-      [ "kind"              @= String "OperatorInformation"
-      , "notationSections"  @= sects
+    OperatorInformation sects err -> kind "OperatorInformation"
+      [ "notationSections"  @= sects
       , "typeError"         @= err
       ]
 --
-    SplitError e -> obj
-      [ "kind"            @= String "SplitError"
-      , "error"           @= e
+    SplitError e -> kind "SplitError"
+      [ "error"           @= e
       ]
 
-    ImpossibleConstructor c neg -> obj
-      [ "kind"            @= String "ImpossibleConstructor"
-      , "constructor"     @= c
+    ImpossibleConstructor c neg -> kind "ImpossibleConstructor"
+      [ "constructor"     @= c
       , "negUni"          @= neg
       ]
 
-    TooManyPolarities x n -> obj
-      [ "kind"            @= String "TooManyPolarities"
-      , "name"            @= x
+    TooManyPolarities x n -> kind "TooManyPolarities"
+      [ "name"            @= x
       , "atMostAllowed"   @= n
       ]
 
-    IFSNoCandidateInScope t -> obj
-      [ "kind"            @= String "IFSNoCandidateInScope"
-      , "type"            @= t
+    IFSNoCandidateInScope t -> kind "IFSNoCandidateInScope"
+      [ "type"            @= t
       ]
 
-    UnquoteFailed err -> obj
-      [ "kind"            @= String "UnquoteFailed"
-      , "unquoteError"    @= err
+    UnquoteFailed err -> kind "UnquoteFailed"
+      [ "unquoteError"    @= err
       ]
 
-    DeBruijnIndexOutOfScope i I.EmptyTel [] -> obj
-      [ "kind"            @= String "DeBruijnIndexOutOfScope"
-      , "empty"           @= True
+    DeBruijnIndexOutOfScope i I.EmptyTel [] -> kind "DeBruijnIndexOutOfScope"
+      [ "empty"           @= True
       , "index"           @= i
       ]
-    DeBruijnIndexOutOfScope i cxt names -> obj
-      [ "kind"            @= String "DeBruijnIndexOutOfScope"
-      , "empty"           @= False
+    DeBruijnIndexOutOfScope i cxt names -> kind "DeBruijnIndexOutOfScope"
+      [ "empty"           @= False
       , "index"           @= i
       , "context"         #= inTopContext (addContext ("_" :: String) $ prettyTCM cxt')
       ]
@@ -1005,35 +833,24 @@ instance EncodeTCM TypeError where
         nameCxt (x : xs) = I.ExtendTel (C.defaultDom (I.El __DUMMY_SORT__ $ I.var 0)) $
           I.NoAbs (prettyShow x) $ nameCxt xs
 
-    NeedOptionCopatterns -> obj
-      [ "kind"            @= String "NeedOptionCopatterns"
+    NeedOptionCopatterns -> kind "NeedOptionCopatterns" []
+
+    NeedOptionRewriting -> kind "NeedOptionRewriting" []
+
+    GeneralizeNotSupportedHere x -> kind "GeneralizeNotSupportedHere"
+      [ "variable"        @= x
       ]
 
-    NeedOptionRewriting -> obj
-      [ "kind"            @= String "NeedOptionRewriting"
+    GeneralizeCyclicDependency -> kind "GeneralizeCyclicDependency" []
+
+    GeneralizeUnsolvedMeta -> kind "GeneralizeUnsolvedMeta" []
+
+    NonFatalErrors ws -> kind "NonFatalErrors"
+      [ "warnings"        @= ws
       ]
 
-    GeneralizeNotSupportedHere x -> obj
-      [ "kind"            @= String "GeneralizeNotSupportedHere"
-      , "variable"        @= show x
-      ]
-
-    GeneralizeCyclicDependency -> obj
-      [ "kind"            @= String "GeneralizeCyclicDependency"
-      ]
-
-    GeneralizeUnsolvedMeta -> obj
-      [ "kind"            @= String "GeneralizeUnsolvedMeta"
-      ]
-
-    NonFatalErrors ws -> obj
-      [ "kind"            @= String "NonFatalErrors"
-      , "warnings"        #= mapM prettyTCM ws
-      ]
-
-    InstanceSearchDepthExhausted term typ depth -> obj
-      [ "kind"            @= String "InstanceSearchDepthExhausted"
-      , "maxDepth"        @= depth
+    InstanceSearchDepthExhausted term typ depth -> kind "InstanceSearchDepthExhausted"
+      [ "maxDepth"        @= depth
       , "term"            @= term
       , "type"            @= typ
       ]
@@ -1046,34 +863,29 @@ instance EncodeTCM TypeError where
 
 instance EncodeTCM UnquoteError where
   encodeTCM err = case err of
-    BadVisibility msg arg -> obj
-      [ "kind"        @= String "BadVisibility"
-      , "message"     @= msg
+    BadVisibility msg arg -> kind "BadVisibility"
+      [ "message"     @= msg
       ]
 
-    ConInsteadOfDef x def con -> obj
-      [ "kind"        @= String "ConInsteadOfDef"
-      , "constructor" @= x
+    ConInsteadOfDef x def con -> kind "ConInsteadOfDef"
+      [ "constructor" @= x
       , "use"         @= con
       , "insteadIf"   @= def
       ]
 
-    DefInsteadOfCon x def con -> obj
-      [ "kind"        @= String "DefInsteadOfCon"
-      , "non-constructor" @= x
+    DefInsteadOfCon x def con -> kind "DefInsteadOfCon"
+      [ "non-constructor" @= x
       , "use"         @= def
       , "insteadIf"   @= con
       ]
 
-    NonCanonical category term -> obj
-      [ "kind"        @= String "NonCanonical"
-      , "category"    @= category
+    NonCanonical category term -> kind "NonCanonical"
+      [ "category"    @= category
       , "term"        @= term
       ]
 
-    BlockedOnMeta _ m ->  obj
-      [ "kind"        @= String "BlockedOnMeta"
-      , "meta"        @= m
+    BlockedOnMeta _ m ->  kind "BlockedOnMeta"
+      [ "meta"        @= m
       ]
 
     UnquotePanic err -> __IMPOSSIBLE__
@@ -1083,253 +895,204 @@ instance EncodeTCM UnquoteError where
 
 instance EncodeTCM Comparison where
 instance ToJSON Comparison where
-  toJSON CmpEq = String "CmpEq"
+  toJSON CmpEq  = String "CmpEq"
   toJSON CmpLeq = String "CmpLeq"
 
 instance EncodeTCM Call where
   encodeTCM call = S.withContextPrecedence F.TopCtx $ case call of
-    CheckClause t clause -> obj
-      [ "kind"        @= String "CheckClause"
-      , "type"        @= t
+    CheckClause t clause -> kind "CheckClause"
+      [ "type"        @= t
       , "clause"      @= clause
       ]
-    CheckPattern pattern tel t -> addContext tel $ obj
-      [ "kind"        @= String "CheckPattern"
-      , "pattern"     @= pattern
+    CheckPattern pattern tel t -> addContext tel $ kind "CheckPattern"
+      [ "pattern"     @= pattern
       , "type"        @= t
       ]
-    CheckLetBinding binding -> obj
-      [ "kind"        @= String "CheckLetBinding"
-      , "binding"     @= binding
+    CheckLetBinding binding -> kind "CheckLetBinding"
+      [ "binding"     @= binding
       ]
-    InferExpr expr -> obj
-      [ "kind"        @= String "InferExpr"
-      , "expr"        @= expr
+    InferExpr expr -> kind "InferExpr"
+      [ "expr"        @= expr
       ]
-    CheckExprCall cmp expr t -> obj
-      [ "kind"        @= String "CheckExprCall"
-      , "comparison"  @= cmp
+    CheckExprCall cmp expr t -> kind "CheckExprCall"
+      [ "comparison"  @= cmp
       , "expr"        @= expr
       , "type"        @= t
       ]
-    CheckDotPattern expr t -> obj
-      [ "kind"        @= String "CheckDotPattern"
-      , "expr"        @= expr
+    CheckDotPattern expr t -> kind "CheckDotPattern"
+      [ "expr"        @= expr
       , "type"        @= t
       ]
-    CheckPatternShadowing clause -> obj
-      [ "kind"        @= String "CheckPatternShadowing"
-      , "clause"      @= clause
+    CheckPatternShadowing clause -> kind "CheckPatternShadowing"
+      [ "clause"      @= clause
       ]
-    CheckProjection range name t -> obj
-      [ "kind"        @= String "CheckProjection"
-      , "range"       @= range
+    CheckProjection range name t -> kind "CheckProjection"
+      [ "range"       @= range
       , "name"        @= name
       , "type"        @= t
       ]
-    IsTypeCall expr sort -> obj
-      [ "kind"        @= String "IsTypeCall"
-      , "expr"        @= expr
+    IsTypeCall expr sort -> kind "IsTypeCall"
+      [ "expr"        @= expr
       , "sort"        @= sort
       ]
-    IsType_ expr -> obj
-      [ "kind"        @= String "IsType_"
-      , "expr"        @= expr
+    IsType_ expr -> kind "IsType_"
+      [ "expr"        @= expr
       ]
-    InferVar name -> obj
-      [ "kind"        @= String "InferVar"
-      , "name"        @= name
+    InferVar name -> kind "InferVar"
+      [ "name"        @= name
       ]
-    InferDef name -> obj
-      [ "kind"        @= String "InferDef"
-      , "name"        @= name
+    InferDef name -> kind "InferDef"
+      [ "name"        @= name
       ]
-    CheckArguments range args t1 _ -> obj
-      [ "kind"        @= String "CheckArguments"
-      , "range"       @= range
+    CheckArguments range args t1 _ -> kind "CheckArguments"
+      [ "range"       @= range
       , "arguments"   #= mapM (\ a -> S.withContextPrecedence (F.ArgumentCtx F.PreferParen) (A2C.abstractToConcreteHiding a a)) args
       , "type1"       @= t1
       ]
-    CheckTargetType range infTy expTy -> obj
-      [ "kind"        @= String "CheckTargetType"
-      , "range"       @= range
+    CheckTargetType range infTy expTy -> kind "CheckTargetType"
+      [ "range"       @= range
       , "infType"     @= infTy
       , "expType"     @= expTy
       ]
-    CheckDataDef range name bindings constructors -> obj
-      [ "kind"          @= String "CheckDataDef"
-      , "range"         @= range
+    CheckDataDef range name bindings constructors -> kind "CheckDataDef"
+      [ "range"         @= range
       , "name"          @= name
       -- , "bindings"      @= show bindings
       -- , "constructors"  @= show constructors
       ]
-    CheckRecDef range name bindings constructors -> obj
-      [ "kind"          @= String "CheckDataDef"
-      , "name"          @= name
+    CheckRecDef range name bindings constructors -> kind "CheckDataDef"
+      [ "name"          @= name
       , "range"         @= range
       -- , "bindings"      @= show bindings
       -- , "constructors"  @= show constructors
       ]
-    CheckConstructor d _ _ (A.Axiom _ _ _ _ c _) -> obj
-      [ "kind"            @= String "CheckConstructor"
-      , "declarationName" @= d
+    CheckConstructor d _ _ (A.Axiom _ _ _ _ c _) -> kind "CheckConstructor"
+      [ "declarationName" @= d
       , "constructorName" @= c
       ]
 
     CheckConstructor {} -> __IMPOSSIBLE__
 
-    CheckFunDefCall range name _ -> obj
-      [ "kind"          @= String "CheckFunDefCall"
-      , "range"         @= range
+    CheckFunDefCall range name _ -> kind "CheckFunDefCall"
+      [ "range"         @= range
       , "name"          @= name
       -- , "clauses"       @= show clauses
       ]
-    CheckPragma range pragma -> obj
-      [ "kind"          @= String "CheckPragma"
-      , "range"         @= range
+    CheckPragma range pragma -> kind "CheckPragma"
+      [ "range"         @= range
       , "pragma"        @= (A2C.RangeAndPragma P.noRange pragma)
       ]
-    CheckPrimitive range name expr -> obj
-      [ "kind"          @= String "CheckPrimitive"
-      , "range"         @= range
+    CheckPrimitive range name expr -> kind "CheckPrimitive"
+      [ "range"         @= range
       , "name"          @= name
       , "expr"          @= expr
       ]
-    CheckIsEmpty range t -> obj
-      [ "kind"          @= String "CheckIsEmpty"
-      , "range"         @= range
+    CheckIsEmpty range t -> kind "CheckIsEmpty"
+      [ "range"         @= range
       , "type"          @= t
       ]
-    CheckWithFunctionType expr -> obj
-      [ "kind"          @= String "CheckWithFunctionType"
-      , "expr"          @= expr
+    CheckWithFunctionType expr -> kind "CheckWithFunctionType"
+      [ "expr"          @= expr
       ]
-    CheckSectionApplication range m modApp -> obj
-      [ "kind"          @= String "CheckSectionApplication"
-      , "range"         @= range
+    CheckSectionApplication range m modApp -> kind "CheckSectionApplication"
+      [ "range"         @= range
       , "module"        @= m
       , "modApp"        @= (A.Apply info m modApp A.initCopyInfo C.defaultImportDir)
       ]
       where
         info = I.ModuleInfo P.noRange P.noRange Nothing Nothing Nothing
-    CheckNamedWhere m -> obj
-      [ "kind"          @= String "CheckNamedWhere"
-      , "module"        @= m
+    CheckNamedWhere m -> kind "CheckNamedWhere"
+      [ "module"        @= m
       ]
-    ScopeCheckExpr expr -> obj
-      [ "kind"          @= String "ScopeCheckExpr"
-      , "expr"          @= expr
+    ScopeCheckExpr expr -> kind "ScopeCheckExpr"
+      [ "expr"          @= expr
       ]
-    ScopeCheckDeclaration decl -> obj
-      [ "kind"          @= String "ScopeCheckDeclaration"
-      , "declarations"  @= D.notSoNiceDeclarations decl
+    ScopeCheckDeclaration decl -> kind "ScopeCheckDeclaration"
+      [ "declarations"  @= D.notSoNiceDeclarations decl
       ]
-    ScopeCheckLHS name pattern -> obj
-      [ "kind"          @= String "ScopeCheckLHS"
-      , "name"          @= name
+    ScopeCheckLHS name pattern -> kind "ScopeCheckLHS"
+      [ "name"          @= name
       , "pattern"       @= pattern
       ]
-    NoHighlighting -> obj
-      [ "kind"          @= String "NoHighlighting"
-      ]
-    ModuleContents -> obj
-      [ "kind"          @= String "ModuleContents"
-      ]
-    SetRange range -> obj
-      [ "kind"          @= String "SetRange"
-      , "range"         @= range
+    NoHighlighting -> kind "NoHighlighting" []
+    ModuleContents -> kind "ModuleContents" []
+    SetRange range -> kind "SetRange"
+      [ "range"         @= range
       ]
 
 instance EncodeTCM Constraint where
   encodeTCM constraint = case constraint of
-    ValueCmp cmp t e e' -> obj
-      [ "kind"        @= String "ValueCmp"
-      , "comparison"  @= cmp
-      , "term1"       @= e
-      , "term2"       @= e'
-      , "type"        @= t
+    ValueCmp cmp t e e' -> kind "ValueCmp"
+      [ "comparison"  @= cmp
+      -- , "term1"       @= e
+      -- , "term2"       @= e'
+      -- , "type"        @= t
       ]
-    ValueCmpOnFace cmp face t e e' -> obj
-      [ "kind"        @= String "ValueCmpOnFace"
-      , "comparison"  @= cmp
+    ValueCmpOnFace cmp face t e e' -> kind "ValueCmpOnFace"
+      [ "comparison"  @= cmp
       , "face"        @= face
       , "type"        @= t
       , "term1"       @= e
       , "term2"       @= e'
       ]
-    ElimCmp polarities isForced t e elims1 elims2 -> obj
-      [ "kind"        @= String "ElimCmp"
-      , "polarities"  @= polarities
+    ElimCmp polarities isForced t e elims1 elims2 -> kind "ElimCmp"
+      [ "polarities"  @= polarities
       , "isForced"    @= isForced
       , "type"        @= t
       , "term"        @= e
       , "elims1"      @= elims1
       , "elims2"      @= elims2
       ]
-    TypeCmp cmp t t' -> obj
-      [ "kind"        @= String "TypeCmp"
-      , "comparison"  @= cmp
+    TypeCmp cmp t t' -> kind "TypeCmp"
+      [ "comparison"  @= cmp
       , "type1"       @= t
       , "type2"       @= t'
       ]
-    TelCmp t t' cmp tel tel' -> obj
-      [ "kind"        @= String "TelCmp"
-      , "comparison"  @= cmp
+    TelCmp t t' cmp tel tel' -> kind "TelCmp"
+      [ "comparison"  @= cmp
       , "type1"       @= t
       , "type2"       @= t'
       , "telescope1"  @= tel
       , "telescope2"  @= tel'
       ]
-    SortCmp cmp s s' -> obj
-      [ "kind"        @= String "SortCmp"
-      , "comparison"  @= cmp
-      , "sort1"       @= s
-      , "sort2"       @= s'
+    SortCmp cmp s s' -> kind "SortCmp"
+      [ "comparison"  @= cmp
+      -- , "sort1"       @= s
+      -- , "sort2"       @= s'
       ]
-    LevelCmp cmp l l' -> obj
-      [ "kind"        @= String "LevelCmp"
-      , "comparison"  @= cmp
+    LevelCmp cmp l l' -> kind "LevelCmp"
+      [ "comparison"  @= cmp
       , "level1"      @= l
       , "level2"      @= l'
       ]
-    HasBiggerSort sort -> obj
-      [ "kind"        @= String "HasBiggerSort"
-      , "sort"        @= sort
+    HasBiggerSort sort -> kind "HasBiggerSort"
+      [ "sort"        @= sort
       ]
-    HasPTSRule sort binding -> obj
-      [ "kind"        @= String "HasPTSRule"
-      , "sort"        @= sort
+    HasPTSRule sort binding -> kind "HasPTSRule"
+      [ "sort"        @= sort
       , "binding"     @= binding
       ]
-    UnBlock metaId -> obj
-      [ "kind"        @= String "UnBlock"
-      , "metaId"      @= metaId
+    UnBlock metaId -> kind "UnBlock"
+      [ "metaId"      @= metaId
       ]
-    Guarded constraint pid -> obj
-      [ "kind"        @= String "Guarded"
-      , "constraint"  @= constraint
+    Guarded constraint pid -> kind "Guarded"
+      [ "constraint"  @= constraint
       , "problemId"   @= pid
       ]
-    IsEmpty range t -> obj
-      [ "kind"        @= String "IsEmpty"
-      , "range"       @= range
+    IsEmpty range t -> kind "IsEmpty"
+      [ "range"       @= range
       , "type"        @= t
       ]
-    CheckSizeLtSat term -> obj
-      [ "kind"        @= String "CheckSizeLtSat"
-      , "term"        @= term
+    CheckSizeLtSat term -> kind "CheckSizeLtSat"
+      [ "term"        @= term
       ]
-    FindInScope instanceArg metaId candidates -> obj
-      [ "kind"        @= String "FindInScope"
-      , "instanceArg" @= instanceArg
+    FindInScope instanceArg metaId candidates -> kind "FindInScope"
+      [ "instanceArg" @= instanceArg
       , "metaId"      @= metaId
       , "candidates"  @= candidates
       ]
-    CheckFunDef delayed defInfo name clauses -> obj
-      [ "kind"          @= String "CheckFunDef"
-      -- , "delayed"     @= delayed
-      -- , "defInfo"     @= defInfo
-      , "name"          @= name
+    CheckFunDef delayed defInfo name clauses -> kind "CheckFunDef"
+      [ "name"          @= name
       , "declarations"  @= clauses
       ]
 

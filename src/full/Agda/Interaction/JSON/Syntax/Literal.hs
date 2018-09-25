@@ -16,39 +16,32 @@ import Agda.Syntax.Literal
 --------------------------------------------------------------------------------
 
 instance ToJSON Literal where
-  toJSON (LitNat range value) = object
-    [ "kind"      .= String "LitNat"
-    , "range"     .= range
+  toJSON (LitNat range value) = kind' "LitNat"
+    [ "range"     .= range
     , "value"     .= value
     ]
-  toJSON (LitWord64 range value) = object
-    [ "kind"      .= String "LitWord64"
-    , "range"     .= range
+  toJSON (LitWord64 range value) = kind' "LitWord64"
+    [ "range"     .= range
     , "value"     .= value
     ]
-  toJSON (LitFloat range value) = object
-    [ "kind"      .= String "LitFloat"
-    , "range"     .= range
+  toJSON (LitFloat range value) = kind' "LitFloat"
+    [ "range"     .= range
     , "value"     .= value
     ]
-  toJSON (LitString range value) = object
-    [ "kind"      .= String "LitString"
-    , "range"     .= range
+  toJSON (LitString range value) = kind' "LitString"
+    [ "range"     .= range
     , "value"     .= value
     ]
-  toJSON (LitChar range value) = object
-    [ "kind"      .= String "LitChar"
-    , "range"     .= range
+  toJSON (LitChar range value) = kind' "LitChar"
+    [ "range"     .= range
     , "value"     .= value
     ]
-  toJSON (LitQName range value) = object
-    [ "kind"      .= String "LitQName"
-    , "range"     .= range
+  toJSON (LitQName range value) = kind' "LitQName"
+    [ "range"     .= range
     , "value"     .= value
     ]
-  toJSON (LitMeta range path metaId) = object
-    [ "kind"      .= String "LitMeta"
-    , "range"     .= range
+  toJSON (LitMeta range path metaId) = kind' "LitMeta"
+    [ "range"     .= range
     , "path"      .= path
     , "metaId"    .= metaId
     ]

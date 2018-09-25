@@ -4,7 +4,7 @@
 
 module Agda.Interaction.JSON.Encode
   ( EncodeTCM(..)
-  , obj, kind
+  , obj, kind, kind'
   , (@=), (#=)
   , (>=>)
   , ToRep(..), rep
@@ -56,6 +56,10 @@ obj pairs = object <$> sequence pairs
 -- | A handy alternative of `obj` with kind specified
 kind :: Text -> [TCM Pair] -> TCM Value
 kind k pairs = obj (("kind" @= String k) : pairs)
+
+-- | A handy alternative of `object` with kind specified
+kind' :: Text -> [Pair] -> Value
+kind' k pairs = object (("kind" .= String k) : pairs)
 
 ---------------------------------------------------------------------------
 -- * The Rep & ToRep class

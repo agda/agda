@@ -21,11 +21,8 @@ instance ToJSON a => ToJSON (Interval' a) where
 
 instance EncodeTCM Range
 instance ToJSON Range where
-  toJSON (Range src is) = object
-    [ "kind"      .= String "Range"
-    , "intervals" .= is
+  toJSON (Range src is) = kind' "Range"
+    [ "intervals" .= is
     , "source"    .= src
     ]
-  toJSON NoRange = object
-    [ "kind"      .= String "NoRange"
-    ]
+  toJSON NoRange = kind' "NoRange" []
