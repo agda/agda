@@ -364,7 +364,6 @@ script:
           travis_wait make AGDA_TESTS_OPTIONS="--hide-successes" BUILD_DIR=$BUILD_DIR compiler-test;
        else
           make AGDA_TESTS_OPTIONS="--hide-successes" BUILD_DIR=$BUILD_DIR compiler-test;
-       fi
     fi
 
   - if [[ $TEST = "MAIN" ]]; then
