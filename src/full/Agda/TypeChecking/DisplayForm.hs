@@ -61,7 +61,7 @@ displayForm q es = do
   else do
     -- Display debug info about the @Open@s.
     verboseS "tc.display.top" 100 $ unlessDebugPrinting $ do
-      cps <- view eCheckpoints
+      cps <- viewTC eCheckpoints
       cxt <- getContextTelescope
       reportSDoc "tc.display.top" 100 $ return $ vcat
         [ text "displayForm for" <+> pretty q

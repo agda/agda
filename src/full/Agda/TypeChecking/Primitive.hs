@@ -146,7 +146,7 @@ instance ToTerm Str     where toTerm = return $ Lit . LitString noRange . unStr
 instance ToTerm QName   where toTerm = return $ Lit . LitQName noRange
 instance ToTerm MetaId  where
   toTerm = do
-    file <- fromMaybe __IMPOSSIBLE__ <$> asks TCM.envCurrentPath
+    file <- fromMaybe __IMPOSSIBLE__ <$> asksTC TCM.envCurrentPath
     return $ Lit . LitMeta noRange file
 
 instance ToTerm Integer where
@@ -1293,7 +1293,7 @@ primPOElim' = do
                             v i = tHcomp <@> psi <@> sys <@> (inc psi u0') -- hfill_{P f g} phi u u0
                               where
                                 psi = phi `imax` (pure ineg <@> i)
-                                      -- \ { j (φ = 1) ->  u (i ∧ j) itIsOne; j (i = 0) -> ouc u0 }
+                                      -- ' \ { j (φ = 1) ->  u (i ∧ j) itIsOne; j (i = 0) -> ouc u0 }
                                 sys = lam "j" $ \ j -> pure tOr <#> l <@> phi <@> (pure ineg <@> i) <@> (ilam "o" $ \ _ -> po)
                                                                 <@> (ilam "o" $ \ o -> u <@> (imin i j) <@> o)
                                                                 <@> (ilam "o" $ \ _ -> u0')

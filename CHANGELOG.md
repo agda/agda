@@ -1,6 +1,12 @@
 Release notes for Agda version 2.6.0
 ====================================
 
+Installation and infrastructure
+-------------------------------
+
+* Removed `cpphs` Cabal flag and use of the `cpphs` program
+  [Issue [#3223](https://github.com/agda/agda/issues/3223)].
+
 Type checking and interaction
 -----------------------------
 
@@ -83,6 +89,19 @@ Pragmas and options
   Reason: There are consistency issues that may be systemic
   [Issue [#2170](https://github.com/agda/agda/issues/2170)].
 
+* Option `--prop` enables the `Prop` universe and is on by default.
+  Option `--no-prop` disables the `Prop` universe.
+
+  In the absense of `Prop`, the sort `Set` is the lowest sort,
+  thus, sort annotation `: Set` can be ommitted if the sort
+  is constrained to be weakly below `Set`.  For instance:
+  ```agda
+  {-# OPTIONS --no-prop #-}
+
+  data Wrap A : Set where
+    wrap : A → Wrap A
+  ```
+
 * New pragma `{-# NO_UNIVERSE_CHECK #-}`.
 
   The pragma `{-# NO_UNIVERSE_CHECK #-}` can be put in front of a data
@@ -158,6 +177,23 @@ LaTeX backend
   Example: Instead of generating
   `\AgdaPostulate{\AgdaUnsolvedMeta{F}}` Agda now generates
   `\AgdaUnsolvedMeta{\AgdaPostulate{F}}`.
+
+Release notes for Agda version 2.5.4.2
+======================================
+
+Installation and infrastructure
+-------------------------------
+
+* Fixed installation with some old versions of `cabal-install`
+  [Issue [#3225](https://github.com/agda/agda/issues/3225)].
+
+Other closed issues
+--------------------
+
+For 2.5.4.2 the following issues have also been closed
+(see [bug tracker](https://github.com/agda/agda/issues)):
+
+  - [#3199](https://github.com/agda/agda/issues/3199): Panics when serialising absolute paths
 
 Release notes for Agda version 2.5.4.1
 ======================================
@@ -1036,7 +1072,6 @@ For 2.5.4, the following issues have been closed
   - [#3090](https://github.com/agda/agda/issues/3090): Internal error in parser when using parentheses in BUILTIN pragma
   - [#3096](https://github.com/agda/agda/issues/3096): Support GHC 8.4.3
 
-
 Release notes for Agda version 2.5.3
 ====================================
 
@@ -1859,7 +1894,6 @@ For 2.5.3, the following issues have been fixed
   - [#2734](https://github.com/agda/agda/issues/2734): Make height of empty lines configurable
   - [#2736](https://github.com/agda/agda/issues/2736): Segfault using Alex 3.2.2 and cpphs
   - [#2740](https://github.com/agda/agda/issues/2740): Indenting every line of code should be a no-op
-
 
 Release notes for Agda version 2.5.2
 ====================================

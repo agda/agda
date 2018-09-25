@@ -871,7 +871,7 @@ checkLHS mf st@(LHSState tel ip problem target psplit) = updateRelevance $ do
   if isSolvedProblem problem then
     liftTCM $ (problem ^. problemCont) st
   else do
-    unlessM (optPatternMatching <$> gets getPragmaOptions) $
+    unlessM (optPatternMatching <$> getsTC getPragmaOptions) $
       unless (problemAllVariables problem) $
         typeError $ GenericError $ "Pattern matching is disabled"
 
@@ -1646,7 +1646,7 @@ checkSortOfSplitVar a = do
   infOk <- optOmegaInOmega <$> pragmaOptions
   liftTCM (reduce $ getSort a) >>= \case
     Type{} -> return ()
-    Prop{} -> asks envRelevance >>= \case
+    Prop{} -> asksTC envRelevance >>= \case
       Irrelevant -> return ()
       _          -> softTypeError $ GenericError
         "Cannot split on datatype in Prop unless target is irrelevant"

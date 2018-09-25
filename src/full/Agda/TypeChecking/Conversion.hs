@@ -110,7 +110,7 @@ equalType = compareType CmpEq
 -- convError ::  MonadTCM tcm => TypeError -> tcm a
 -- | Ignore errors in irrelevant context.
 convError :: TypeError -> TCM ()
-convError err = ifM ((==) Irrelevant <$> asks envRelevance) (return ()) $ typeError err
+convError err = ifM ((==) Irrelevant <$> asksTC envRelevance) (return ()) $ typeError err
 
 -- | Type directed equality on values.
 --
@@ -181,14 +181,14 @@ unifyPointers _ _ _ action = action
 -- unifyPointers cmp _ _ action | cmp /= CmpEq = action
 -- unifyPointers _ u v action = do
 --   reportSLn "tc.ptr.unify" 50 $ "Maybe unifying pointers\n  u = " ++ show u ++ "\n  v = " ++ show v
---   old <- use stDirty
---   stDirty .= False
+--   old <- useTC stDirty
+--   stDirty `setTCLens` False
 --   action
 --   reportSLn "tc.ptr.unify" 50 $ "Finished comparison\n  u = " ++ show u ++ "\n  v = " ++ show v
 --   (u, v) <- instantiate (u, v)
 --   reportSLn "tc.ptr.unify" 50 $ "After instantiation\n  u = " ++ show u ++ "\n  v = " ++ show v
---   dirty <- use stDirty
---   stDirty .= old
+--   dirty <- useTC stDirty
+--   stDirty `setTCLens` old
 --   if dirty then verboseS "profile.sharing" 20 (tick "unifyPtr: dirty")
 --            else do
 --             verboseS "profile.sharing" 20 (tick "unifyPtr: clean")
@@ -436,7 +436,7 @@ compareAtom cmp t m n =
                                   , text ":" <+> prettyTCM t ]
     -- Andreas: what happens if I cut out the eta expansion here?
     -- Answer: Triggers issue 245, does not resolve 348
-    (mb',nb') <- ifM (asks envCompareBlocked) ((notBlocked -*- notBlocked) <$> reduce (m,n)) $ do
+    (mb',nb') <- ifM (asksTC envCompareBlocked) ((notBlocked -*- notBlocked) <$> reduce (m,n)) $ do
       mb' <- etaExpandBlocked =<< reduceB m
       nb' <- etaExpandBlocked =<< reduceB n
       return (mb', nb')
@@ -1137,6 +1137,8 @@ leqSort s1 s2 = catchConstraint (SortCmp CmpLeq s1 s2) $ do
         , nest 2 $ fsep [ prettyTCM s1 <+> text "=<"
                         , prettyTCM s2 ]
         ]
+  propEnabled <- isPropEnabled
+
   let fvsRHS = IntSet.toList $ allFreeVars s2
   badRigid <- s1 `rigidVarsNotContainedIn` fvsRHS
 
@@ -1163,6 +1165,8 @@ leqSort s1 s2 = catchConstraint (SortCmp CmpLeq s1 s2) $ do
       -- So is @Set0@ if @Prop@ is not enabled.
       (_       , SizeUniv) -> equalSort s1 s2
       (_       , Prop (Max [])) -> equalSort s1 s2
+      (_       , Type (Max []))
+        | not propEnabled  -> equalSort s1 s2
 
       -- SizeUniv is unrelated to any @Set l@ or @Prop l@
       (SizeUniv, Type{}  ) -> no
@@ -1503,6 +1507,8 @@ equalSort s1 s2 = do
                  ]
           ]
 
+        propEnabled <- isPropEnabled
+
         case (s1, s2) of
 
             -- Andreas, 2018-09-03: crash on dummy sort
@@ -1528,6 +1534,17 @@ equalSort s1 s2 = do
             (SizeUniv   , SizeUniv   ) -> yes
             (Prop a     , Prop b     ) -> equalLevel a b
             (Inf        , Inf        ) -> yes
+
+            -- if @PiSort a b == Set0@, then @b == Set0@
+            -- we use this fact to solve metas in @b@,
+            -- hopefully allowing the @PiSort@ to reduce.
+            (Type (Max []) , PiSort a b   )
+              | not propEnabled             -> piSortEqualsBottom set0 a b
+            (PiSort a b    , Type (Max []))
+              | not propEnabled             -> piSortEqualsBottom set0 a b
+
+            (Prop (Max []) , PiSort a b   ) -> piSortEqualsBottom prop0 a b
+            (PiSort a b    , Prop (Max [])) -> piSortEqualsBottom prop0 a b
 
             -- @PiSort a b == SizeUniv@ iff @b == SizeUniv@
             (SizeUniv   , PiSort a b ) ->
@@ -1559,6 +1576,18 @@ equalSort s1 s2 = do
         reportSDoc "tc.meta.sort" 50 $ text "meta" <+> sep [pretty x, prettyList $ map pretty es, pretty s]
         assignE DirEq x es (Sort s) __IMPOSSIBLE__
 
+      set0 = Type $ Max []
+      prop0 = Prop $ Max []
+
+      -- equate @piSort a b@ to @s0@, which is assumed to be a (closed) bottom sort
+      -- i.e. @piSort a b == s0@ implies @b == s0@.
+      piSortEqualsBottom s0 a b = do
+        underAbstraction_ b $ equalSort s0
+        -- we may have instantiated some metas, so @a@ could reduce
+        a <- reduce a
+        case funSort' a s0 of
+          Just s  -> equalSort s s0
+          Nothing -> addConstraint $ SortCmp CmpEq (funSort a s0) s0
       impossibleSort s = do
         reportSLn "impossible" 10 $ unlines
           [ "equalSort: found dummy sort with description:"
@@ -1597,7 +1626,7 @@ forallFaceMaps t kb k = do
   forM as $ \ (ms,ts) -> do
    ifBlockeds ts (kb ms) $ \ _ _ -> do
     let xs = map (id -*- boolToI) $ Map.toAscList ms
-    cxt <- asks envContext
+    cxt <- asksTC envContext
     (cxt',sigma) <- substContextN cxt xs
     resolved <- forM xs (\ (i,t) -> (,) <$> lookupBV i <*> return (applySubst sigma t))
     updateContext sigma (const cxt') $
@@ -1691,10 +1720,10 @@ leqInterval r q =
    or <$> forM q (\ q_j -> leqConj r_i q_j))  -- TODO shortcut
 
 -- | leqConj r q = r ≤ q in the I lattice, when r and q are conjuctions.
--- (∧ r_i)   ≤ (∧ q_j)               iff
--- (∧ r_i)   ∧ (∧ q_j)   = (∧ r_i)   iff
--- {r_i | i} ∪ {q_j | j} = {r_i | i} iff
--- {q_j | j} ⊆ {r_i | i}
+-- ' (∧ r_i)   ≤ (∧ q_j)               iff
+-- ' (∧ r_i)   ∧ (∧ q_j)   = (∧ r_i)   iff
+-- ' {r_i | i} ∪ {q_j | j} = {r_i | i} iff
+-- ' {q_j | j} ⊆ {r_i | i}
 leqConj :: Conj -> Conj -> TCM Bool
 leqConj (rs,rst) (qs,qst) = do
   case toSet qs `Set.isSubsetOf` toSet rs of

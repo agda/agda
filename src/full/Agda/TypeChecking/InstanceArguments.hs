@@ -84,7 +84,7 @@ initialIFSCandidates t = do
               ]
 
       -- get let bindings
-      env <- asks envLetBindings
+      env <- asksTC envLetBindings
       env <- mapM (getOpen . snd) $ Map.toList env
       let lets = [ Candidate v t ExplicitStayExplicit False
                  | (v, Dom{domInfo = info, unDom = t}) <- env
@@ -120,7 +120,7 @@ initialIFSCandidates t = do
     getScopeDefs :: QName -> TCM [Candidate]
     getScopeDefs n = do
       instanceDefs <- getInstanceDefs
-      rel          <- asks envRelevance
+      rel          <- asksTC envRelevance
       let qs = maybe [] Set.toList $ Map.lookup n instanceDefs
       catMaybes <$> mapM (candidate rel) qs
 
@@ -273,7 +273,7 @@ insidePi t ret =
 -- search, since the constraint limits the solution space.
 rigidlyConstrainedMetas :: TCM [MetaId]
 rigidlyConstrainedMetas = do
-  cs <- (++) <$> use stSleepingConstraints <*> use stAwakeConstraints
+  cs <- (++) <$> useTC stSleepingConstraints <*> useTC stAwakeConstraints
   catMaybes <$> mapM rigidMetas cs
   where
     isRigid v = do
@@ -406,7 +406,7 @@ filterResetingState m cands f = disableDestructiveUpdate $ do
             -- not have instantiated at all.
   result <- if noMaybes then dropSameCandidates m result' else return result'
   case result of
-    [(c, _, _, s)] -> [c] <$ put s
+    [(c, _, _, s)] -> [c] <$ putTC s
     _              -> return [ c | (c, _, _, _) <- result ]
 
 -- Drop all candidates which are judgmentally equal to the first one.
@@ -483,8 +483,8 @@ checkCandidates m t cands = disableDestructiveUpdate $
         _       -> anyMetaTypes cands
 
     checkDepth :: Term -> Type -> TCM YesNoMaybe -> TCM YesNoMaybe
-    checkDepth c a k = locally eInstanceDepth succ $ do
-      d        <- view eInstanceDepth
+    checkDepth c a k = locallyTC eInstanceDepth succ $ do
+      d        <- viewTC eInstanceDepth
       maxDepth <- maxInstanceSearchDepth
       when (d > maxDepth) $ typeError $ InstanceSearchDepthExhausted c a maxDepth
       k

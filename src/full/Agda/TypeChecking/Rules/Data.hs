@@ -450,7 +450,7 @@ defineCompForFields applyProj name params fsT fns rect = do
         lvl  <- open rect_gamma_lvl
         rect <- open rect_gamma
         -- (δ : Δ^I, φ : I, w : .., w0 : R (δ i0)) ⊢
-        -- fillR Γ = λ i → compR (\ j → δ (i ∧ j)) (φ ∨ ~ i) (\ j → [ φ ↦ w (i ∧ j) , ~ i ↦ w0 ]) w0
+        -- ' fillR Γ = λ i → compR (\ j → δ (i ∧ j)) (φ ∨ ~ i) (\ j → [ φ ↦ w (i ∧ j) , ~ i ↦ w0 ]) w0
         lam "i" $ \ i -> do
           args <- mapM (underArg $ \ bA -> lam "j" $ \ j -> bA <@> (pure imin <@> i <@> j)) params
           psi  <- pure imax <@> phi <@> (pure ineg <@> i)

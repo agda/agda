@@ -13,31 +13,30 @@ import Agda.TypeChecking.Monad.Base
 -- | Get the name of the current module, if any.
 {-# SPECIALIZE currentModule :: TCM ModuleName #-}
 {-# SPECIALIZE currentModule :: ReduceM ModuleName #-}
-currentModule :: MonadReader TCEnv m => m ModuleName
-currentModule = asks envCurrentModule
+currentModule :: MonadTCEnv m => m ModuleName
+currentModule = asksTC envCurrentModule
 
 -- | Set the name of the current module.
 withCurrentModule :: ModuleName -> TCM a -> TCM a
 withCurrentModule m =
-    local $ \e -> e { envCurrentModule = m }
+    localTC $ \ e -> e { envCurrentModule = m }
 
 -- | Get the number of variables bound by anonymous modules.
 {-# SPECIALIZE getAnonymousVariables :: ModuleName -> TCM Nat #-}
 {-# SPECIALIZE getAnonymousVariables :: ModuleName -> ReduceM Nat #-}
-getAnonymousVariables :: MonadReader TCEnv m => ModuleName -> m Nat
+getAnonymousVariables :: MonadTCEnv m => ModuleName -> m Nat
 getAnonymousVariables m = do
-  ms <- asks envAnonymousModules
+  ms <- asksTC envAnonymousModules
   return $ sum [ n | (m', n) <- ms, mnameToList m' `List.isPrefixOf` mnameToList m ]
 
 -- | Add variables bound by an anonymous module.
 withAnonymousModule :: ModuleName -> Nat -> TCM a -> TCM a
 withAnonymousModule m n =
-  local $ \e -> e { envAnonymousModules   = (m, n) : envAnonymousModules e
-                  }
+  localTC $ \ e -> e { envAnonymousModules = (m, n) : envAnonymousModules e }
 
 -- | Set the current environment to the given
 withEnv :: TCEnv -> TCM a -> TCM a
-withEnv env = local $ \ env0 -> env
+withEnv env = localTC $ \ env0 -> env
   -- Keep persistent settings
   { envAllowDestructiveUpdate = envAllowDestructiveUpdate env0
   , envPrintMetasBare         = envPrintMetasBare env0
@@ -45,38 +44,38 @@ withEnv env = local $ \ env0 -> env
 
 -- | Get the current environment
 getEnv :: TCM TCEnv
-getEnv = ask
+getEnv = askTC
 
 -- | Increases the module nesting level by one in the given
 -- computation.
 withIncreasedModuleNestingLevel :: TCM a -> TCM a
 withIncreasedModuleNestingLevel =
-  local (\e -> e { envModuleNestingLevel =
-                     envModuleNestingLevel e + 1 })
+  localTC $ \ e -> e { envModuleNestingLevel =
+                       envModuleNestingLevel e + 1 }
 
 -- | Set highlighting level
 withHighlightingLevel :: HighlightingLevel -> TCM a -> TCM a
-withHighlightingLevel h = local $ \e -> e { envHighlightingLevel = h }
+withHighlightingLevel h = localTC $ \ e -> e { envHighlightingLevel = h }
 
 -- | Restore setting for 'ExpandLast' to default.
 doExpandLast :: TCM a -> TCM a
-doExpandLast = local $ \ e -> e { envExpandLast = ExpandLast }
+doExpandLast = localTC $ \ e -> e { envExpandLast = ExpandLast }
 
 dontExpandLast :: TCM a -> TCM a
-dontExpandLast = local $ \ e -> e { envExpandLast = DontExpandLast }
+dontExpandLast = localTC $ \ e -> e { envExpandLast = DontExpandLast }
 
 -- | If the reduced did a proper match (constructor or literal pattern),
 --   then record this as simplification step.
 {-# SPECIALIZE performedSimplification :: TCM a -> TCM a #-}
-performedSimplification :: MonadReader TCEnv m => m a -> m a
-performedSimplification = local $ \ e -> e { envSimplification = YesSimplification }
+performedSimplification :: MonadTCEnv m => m a -> m a
+performedSimplification = localTC $ \ e -> e { envSimplification = YesSimplification }
 
 {-# SPECIALIZE performedSimplification' :: Simplification -> TCM a -> TCM a #-}
-performedSimplification' :: MonadReader TCEnv m => Simplification -> m a -> m a
-performedSimplification' simpl = local $ \ e -> e { envSimplification = simpl `mappend` envSimplification e }
+performedSimplification' :: MonadTCEnv m => Simplification -> m a -> m a
+performedSimplification' simpl = localTC $ \ e -> e { envSimplification = simpl `mappend` envSimplification e }
 
-getSimplification :: MonadReader TCEnv m => m Simplification
-getSimplification = asks envSimplification
+getSimplification :: MonadTCEnv m => m Simplification
+getSimplification = asksTC envSimplification
 
 -- * Controlling reduction.
 
@@ -85,7 +84,7 @@ updateAllowedReductions :: (AllowedReductions -> AllowedReductions) -> TCEnv -> 
 updateAllowedReductions f e = e { envAllowedReductions = f (envAllowedReductions e) }
 
 modifyAllowedReductions :: (AllowedReductions -> AllowedReductions) -> TCM a -> TCM a
-modifyAllowedReductions = local . updateAllowedReductions
+modifyAllowedReductions = localTC . updateAllowedReductions
 
 putAllowedReductions :: AllowedReductions -> TCM a -> TCM a
 putAllowedReductions = modifyAllowedReductions . const
@@ -105,12 +104,12 @@ allowNonTerminatingReductions = putAllowedReductions $ [NonTerminatingReductions
 -- * Concerning 'envInsideDotPattern'
 
 insideDotPattern :: TCM a -> TCM a
-insideDotPattern = local $ \e -> e { envInsideDotPattern = True }
+insideDotPattern = localTC $ \ e -> e { envInsideDotPattern = True }
 
 isInsideDotPattern :: TCM Bool
-isInsideDotPattern = asks envInsideDotPattern
+isInsideDotPattern = asksTC envInsideDotPattern
 
 -- | Don't use call-by-need evaluation for the given computation.
 callByName :: TCM a -> TCM a
-callByName = local $ \ e -> e { envCallByNeed = False }
+callByName = localTC $ \ e -> e { envCallByNeed = False }
 

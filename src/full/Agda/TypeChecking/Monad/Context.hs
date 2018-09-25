@@ -38,7 +38,7 @@ import Agda.Utils.Impossible
 -- | Modify a 'Context' in a computation.
 {-# SPECIALIZE modifyContext :: (Context -> Context) -> TCM a -> TCM a #-}
 modifyContext :: MonadTCM tcm => (Context -> Context) -> tcm a -> tcm a
-modifyContext f = local $ \e -> e { envContext = f $ envContext e }
+modifyContext f = localTC $ \e -> e { envContext = f $ envContext e }
 
 -- | Change to top (=empty) context. Resets the checkpoints.
 {-# SPECIALIZE inTopContext :: TCM a -> TCM a #-}
@@ -47,8 +47,8 @@ safeInTopContext cont = do
   locals <- liftTCM $ getLocalVars
   liftTCM $ setLocalVars []
   a <- modifyContext (const [])
-        $ locally eCurrentCheckpoint (const 0)
-        $ locally eCheckpoints (const $ Map.singleton 0 IdS) cont
+        $ locallyTC eCurrentCheckpoint (const 0)
+        $ locallyTC eCheckpoints (const $ Map.singleton 0 IdS) cont
   liftTCM $ setLocalVars locals
   return a
 
@@ -77,12 +77,12 @@ escapeContext n = modifyContext $ drop n
 checkpoint :: (MonadDebug tcm, MonadTCM tcm) => Substitution -> tcm a -> tcm a
 checkpoint sub k = do
   unlessDebugPrinting $ reportSLn "tc.cxt.checkpoint" 105 $ "New checkpoint {"
-  old     <- view eCurrentCheckpoint
-  oldMods <- use  stModuleCheckpoints
+  old     <- viewTC eCurrentCheckpoint
+  oldMods <- useTC  stModuleCheckpoints
   chkpt <- fresh
   unlessDebugPrinting $ verboseS "tc.cxt.checkpoint" 105 $ do
     cxt <- getContextTelescope
-    cps <- view eCheckpoints
+    cps <- viewTC eCheckpoints
     let cps' = Map.insert chkpt IdS $ fmap (applySubst sub) cps
         prCps cps = vcat [ pshow c <+> text ": " <+> pretty s | (c, s) <- Map.toList cps ]
     reportSDoc "tc.cxt.checkpoint" 105 $ return $ nest 2 $ vcat
@@ -93,18 +93,18 @@ checkpoint sub k = do
       , text "old substs =" <+> prCps cps
       , text "new substs =" <?> prCps cps'
       ]
-  x <- flip local k $ \ env -> env
+  x <- flip localTC k $ \ env -> env
     { envCurrentCheckpoint = chkpt
     , envCheckpoints       = Map.insert chkpt IdS $
                               fmap (applySubst sub) (envCheckpoints env)
     }
-  newMods <- use stModuleCheckpoints
+  newMods <- useTC stModuleCheckpoints
   -- Set the checkpoint for introduced modules to the old checkpoint when the
   -- new one goes out of scope. #2897: This isn't actually sound for modules
   -- created under refined parent parameters, but as long as those modules
   -- aren't named we shouldn't look at the checkpoint. The right thing to do
   -- would be to not store these modules in the checkpoint map, but todo..
-  stModuleCheckpoints .= Map.union oldMods (old <$ Map.difference newMods oldMods)
+  stModuleCheckpoints `setTCLens` Map.union oldMods (old <$ Map.difference newMods oldMods)
   unlessDebugPrinting $ reportSLn "tc.cxt.checkpoint" 105 "}"
   return x
 
@@ -114,9 +114,9 @@ updateContext :: (MonadDebug tcm, MonadTCM tcm) => Substitution -> (Context -> C
 updateContext sub f = modifyContext f . checkpoint sub
 
 -- | Get the substitution from the context at a given checkpoint to the current context.
-checkpointSubstitution :: MonadReader TCEnv tcm => CheckpointId -> tcm Substitution
+checkpointSubstitution :: MonadTCEnv tcm => CheckpointId -> tcm Substitution
 checkpointSubstitution chkpt =
-  caseMaybeM (view (eCheckpoints . key chkpt)) __IMPOSSIBLE__ return
+  caseMaybeM (viewTC (eCheckpoints . key chkpt)) __IMPOSSIBLE__ return
 
 -- | Get substitution @Γ ⊢ ρ : Γm@ where @Γ@ is the current context
 --   and @Γm@ is the module parameter telescope of module @m@.
@@ -126,7 +126,7 @@ checkpointSubstitution chkpt =
 --   This is ok for instance if we are outside module @m@ (in which case we
 --   have to supply all module parameters to any symbol defined within @m@ we
 --   want to refer).
-getModuleParameterSub :: (MonadReader TCEnv m, ReadTCState m) => ModuleName -> m Substitution
+getModuleParameterSub :: (MonadTCEnv m, ReadTCState m) => ModuleName -> m Substitution
 getModuleParameterSub m = do
   mcp <- (^. stModuleCheckpoints . key m) <$> getTCState
   maybe (return IdS) checkpointSubstitution mcp
@@ -260,7 +260,7 @@ underAbstraction_ = underAbstraction __DUMMY_DOM__
 
 getLetBindings :: MonadTCM tcm => tcm [(Name,(Term,Dom Type))]
 getLetBindings = do
-  bs <- asks envLetBindings
+  bs <- asksTC envLetBindings
   forM (Map.toList bs) $ \ (n,o) -> (,) n <$> getOpen o
 
 -- | Add a let bound variable
@@ -268,7 +268,7 @@ getLetBindings = do
 addLetBinding' :: MonadTCM tcm => Name -> Term -> Dom Type -> tcm a -> tcm a
 addLetBinding' x v t ret = do
     vt <- liftTCM $ makeOpen (v, t)
-    flip local ret $ \e -> e { envLetBindings = Map.insert x vt $ envLetBindings e }
+    flip localTC ret $ \e -> e { envLetBindings = Map.insert x vt $ envLetBindings e }
 
 -- | Add a let bound variable
 {-# SPECIALIZE addLetBinding :: ArgInfo -> Name -> Term -> Type -> TCM a -> TCM a #-}
@@ -280,39 +280,39 @@ addLetBinding info x v t0 ret = addLetBinding' x v (defaultArgDom info t0) ret
 
 -- | Get the current context.
 {-# SPECIALIZE getContext :: TCM [Dom (Name, Type)] #-}
-getContext :: MonadReader TCEnv m => m [Dom (Name, Type)]
-getContext = asks envContext
+getContext :: MonadTCEnv m => m [Dom (Name, Type)]
+getContext = asksTC envContext
 
 -- | Get the size of the current context.
 {-# SPECIALIZE getContextSize :: TCM Nat #-}
-getContextSize :: (Applicative m, MonadReader TCEnv m) => m Nat
-getContextSize = length <$> asks envContext
+getContextSize :: (Applicative m, MonadTCEnv m) => m Nat
+getContextSize = length <$> asksTC envContext
 
 -- | Generate @[var (n - 1), ..., var 0]@ for all declarations in the context.
 {-# SPECIALIZE getContextArgs :: TCM Args #-}
-getContextArgs :: (Applicative m, MonadReader TCEnv m) => m Args
+getContextArgs :: (Applicative m, MonadTCEnv m) => m Args
 getContextArgs = reverse . zipWith mkArg [0..] <$> getContext
   where mkArg i dom = var i <$ argFromDom dom
 
 -- | Generate @[var (n - 1), ..., var 0]@ for all declarations in the context.
 {-# SPECIALIZE getContextTerms :: TCM [Term] #-}
-getContextTerms :: (Applicative m, MonadReader TCEnv m) => m [Term]
+getContextTerms :: (Applicative m, MonadTCEnv m) => m [Term]
 getContextTerms = map var . downFrom <$> getContextSize
 
 -- | Get the current context as a 'Telescope'.
 {-# SPECIALIZE getContextTelescope :: TCM Telescope #-}
-getContextTelescope :: (Applicative m, MonadReader TCEnv m) => m Telescope
+getContextTelescope :: (Applicative m, MonadTCEnv m) => m Telescope
 getContextTelescope = telFromList' nameToArgName . reverse <$> getContext
 
 -- | Get the names of all declarations in the context.
 {-# SPECIALIZE getContextNames :: TCM [Name] #-}
-getContextNames :: (Applicative m, MonadReader TCEnv m) => m [Name]
+getContextNames :: (Applicative m, MonadTCEnv m) => m [Name]
 getContextNames = map (fst . unDom) <$> getContext
 
 -- | get type of bound variable (i.e. deBruijn index)
 --
 {-# SPECIALIZE lookupBV :: Nat -> TCM (Dom (Name, Type)) #-}
-lookupBV :: MonadReader TCEnv m => Nat -> m (Dom (Name, Type))
+lookupBV :: MonadTCEnv m => Nat -> m (Dom (Name, Type))
 lookupBV n = do
   ctx <- getContext
   let failure = fail $ "de Bruijn index out of scope: " ++ show n ++
@@ -320,25 +320,25 @@ lookupBV n = do
   maybe failure (return . fmap (raise $ n + 1)) $ ctx !!! n
 
 {-# SPECIALIZE typeOfBV' :: Nat -> TCM (Dom Type) #-}
-typeOfBV' :: (Applicative m, MonadReader TCEnv m) => Nat -> m (Dom Type)
+typeOfBV' :: (Applicative m, MonadTCEnv m) => Nat -> m (Dom Type)
 typeOfBV' n = fmap snd <$> lookupBV n
 
 {-# SPECIALIZE typeOfBV :: Nat -> TCM Type #-}
-typeOfBV :: (Applicative m, MonadReader TCEnv m) => Nat -> m Type
+typeOfBV :: (Applicative m, MonadTCEnv m) => Nat -> m Type
 typeOfBV i = unDom <$> typeOfBV' i
 
 {-# SPECIALIZE nameOfBV :: Nat -> TCM Name #-}
-nameOfBV :: (Applicative m, MonadReader TCEnv m) => Nat -> m Name
+nameOfBV :: (Applicative m, MonadTCEnv m) => Nat -> m Name
 nameOfBV n = fst . unDom <$> lookupBV n
 
 -- | Get the term corresponding to a named variable. If it is a lambda bound
 --   variable the deBruijn index is returned and if it is a let bound variable
 --   its definition is returned.
 {-# SPECIALIZE getVarInfo :: Name -> TCM (Term, Dom Type) #-}
-getVarInfo :: MonadReader TCEnv m => Name -> m (Term, Dom Type)
+getVarInfo :: MonadTCEnv m => Name -> m (Term, Dom Type)
 getVarInfo x =
     do  ctx <- getContext
-        def <- asks envLetBindings
+        def <- asksTC envLetBindings
         case List.findIndex ((==x) . fst . unDom) ctx of
             Just n -> do
                 t <- typeOfBV' n

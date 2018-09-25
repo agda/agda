@@ -42,7 +42,7 @@ class (Functor m, Applicative m, Monad m) => MonadDebug m where
 instance (MonadIO m) => MonadDebug (TCMT m) where
 
   displayDebugMessage n s = liftTCM $ do
-    cb <- gets $ stInteractionOutputCallback . stPersistentState
+    cb <- getsTC $ stInteractionOutputCallback . stPersistentState
     cb (Resp_RunningInfo n s)
 
   formatDebugMessage k n d = liftTCM $
@@ -79,26 +79,26 @@ instance (MonadDebug m, Monoid w) => MonadDebug (WriterT w m) where
 
 -- | Conditionally print debug string.
 {-# SPECIALIZE reportS :: VerboseKey -> Int -> String -> TCM () #-}
-reportS :: (HasOptions m, MonadDebug m, MonadReader TCEnv m)
+reportS :: (HasOptions m, MonadDebug m, MonadTCEnv m)
         => VerboseKey -> Int -> String -> m ()
 reportS k n s = verboseS k n $ displayDebugMessage n s
 
 -- | Conditionally println debug string.
 {-# SPECIALIZE reportSLn :: VerboseKey -> Int -> String -> TCM () #-}
-reportSLn :: (HasOptions m, MonadDebug m, MonadReader TCEnv m)
+reportSLn :: (HasOptions m, MonadDebug m, MonadTCEnv m)
           => VerboseKey -> Int -> String -> m ()
 reportSLn k n s = verboseS k n $
   displayDebugMessage n (s ++ "\n")
 
 -- | Conditionally render debug 'Doc' and print it.
 {-# SPECIALIZE reportSDoc :: VerboseKey -> Int -> TCM Doc -> TCM () #-}
-reportSDoc :: (HasOptions m, MonadDebug m, MonadReader TCEnv m)
+reportSDoc :: (HasOptions m, MonadDebug m, MonadTCEnv m)
            => VerboseKey -> Int -> TCM Doc -> m ()
 reportSDoc k n d = verboseS k n $ do
-  displayDebugMessage n . (++ "\n") =<< formatDebugMessage k n (locally eIsDebugPrinting (const True) d)
+  displayDebugMessage n . (++ "\n") =<< formatDebugMessage k n (locallyTC eIsDebugPrinting (const True) d)
 
 unlessDebugPrinting :: MonadTCM m => m () -> m ()
-unlessDebugPrinting = unlessM (asks envIsDebugPrinting)
+unlessDebugPrinting = unlessM (asksTC envIsDebugPrinting)
 
 traceSLn :: (HasOptions m, MonadDebug m)
          => VerboseKey -> Int -> String -> m a -> m a
@@ -109,7 +109,7 @@ traceSLn k n s cont = ifNotM (hasVerbosity k n) cont $ {- else -} do
 traceSDoc :: (HasOptions m, MonadDebug m)
           => VerboseKey -> Int -> TCM Doc -> m a -> m a
 traceSDoc k n d cont = ifNotM (hasVerbosity k n) cont $ {- else -} do
-  s <- formatDebugMessage k n $ locally eIsDebugPrinting (const True) d
+  s <- formatDebugMessage k n $ locallyTC eIsDebugPrinting (const True) d
   traceDebugMessage n (s ++ "\n") cont
 
 -- | Print brackets around debug messages issued by a computation.

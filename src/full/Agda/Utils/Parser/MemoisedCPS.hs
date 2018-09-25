@@ -203,7 +203,7 @@ instance ParserClass (Parser k r tok) k r tok where
       Nothing -> do
         insertTable (Value IntMap.empty [k])
         unP p input i $ \j r -> do
-          Just (Value rs ks) <- lookupTable
+          ~(Just (Value rs ks)) <- lookupTable
           insertTable (Value (alter j [] (r :) rs) ks)
           concat <$> mapM (\k -> k j r) ks  -- See note [Reverse ks?].
       Just (Value rs ks) -> do

@@ -55,7 +55,7 @@ catchConstraint c v = liftTCM $
 
 addConstraint :: Constraint -> TCM ()
 addConstraint c = do
-    pids <- asks envActiveProblems
+    pids <- asksTC envActiveProblems
     reportSDoc "tc.constr.add" 20 $ hsep
       [ text "adding constraint"
       , text (show $ Set.toList pids)
@@ -161,7 +161,7 @@ solveAwakeConstraints' force = do
      -- solveSizeConstraints -- Andreas, 2012-09-27 attacks size constrs too early
      -- Ulf, 2016-12-06: Don't inherit problems here! Stored constraints
      -- already contain all their dependencies.
-     locally eActiveProblems (const Set.empty) solve
+     locallyTC eActiveProblems (const Set.empty) solve
   where
     solve = do
       reportSDoc "tc.constr.solve" 10 $ hsep [ text "Solving awake constraints."
@@ -175,7 +175,7 @@ solveConstraint :: Constraint -> TCM ()
 solveConstraint c = do
     verboseS "profile.constraints" 10 $ liftTCM $ tick "attempted-constraints"
     verboseBracket "tc.constr.solve" 20 "solving constraint" $ do
-      pids <- asks envActiveProblems
+      pids <- asksTC envActiveProblems
       reportSDoc "tc.constr.solve" 20 $ text (show $ Set.toList pids) <+> prettyTCM c
       solveConstraint_ c
 
@@ -240,8 +240,8 @@ checkTypeCheckingProblem p = case p of
 
 debugConstraints :: TCM ()
 debugConstraints = verboseS "tc.constr" 50 $ do
-  awake    <- use stAwakeConstraints
-  sleeping <- use stSleepingConstraints
+  awake    <- useTC stAwakeConstraints
+  sleeping <- useTC stSleepingConstraints
   reportSDoc "" 0 $ vcat
     [ text "Current constraints"
     , nest 2 $ vcat [ text "awake " <+> vcat (map prettyTCM awake)

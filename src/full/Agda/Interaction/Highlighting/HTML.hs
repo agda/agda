@@ -52,7 +52,7 @@ import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Common
 import Agda.Syntax.Abstract.Name (ModuleName)
 
-import Agda.TypeChecking.Monad (TCM)
+import Agda.TypeChecking.Monad (TCM, useTC)
 import qualified Agda.TypeChecking.Monad as TCM
 
 import Agda.Utils.FileName (filePath)
@@ -134,7 +134,7 @@ generatePage
   -> C.TopLevelModuleName  -- ^ Module to be highlighted.
   -> TCM ()
 generatePage renderpage dir mod = do
-  f <- fromMaybe __IMPOSSIBLE__ . Map.lookup mod <$> use TCM.stModuleToSource
+  f <- fromMaybe __IMPOSSIBLE__ . Map.lookup mod <$> useTC TCM.stModuleToSource
   contents <- liftIO $ UTF8.readTextFile $ filePath f
   css      <- fromMaybe defaultCSSFile . optCSSFile <$>
                 TCM.commandLineOptions

@@ -162,16 +162,16 @@ type CommandM = StateT CommandState TCM
 localStateCommandM :: CommandM a -> CommandM a
 localStateCommandM m = do
   cSt <- get
-  tcSt <- lift $ get
+  tcSt <- getTC
   x <- m
-  lift $ put tcSt
+  putTC tcSt
   put cSt
   return x
 
 -- | Restore 'TCState', do not touch 'CommandState'.
 
 liftLocalState :: TCM a -> CommandM a
-liftLocalState = lift . localState
+liftLocalState = lift . localTCState
 
 -- | Build an opposite action to 'lift' for state monads.
 
@@ -186,11 +186,22 @@ revLift run lift f = do
     put st
     return a
 
+revLiftTC
+    :: MonadTCState m
+    => (forall c . m c -> TCState -> k (c, TCState))  -- ^ run
+    -> (forall b . k b -> m b)                        -- ^ lift
+    -> (forall x . (m a -> k x) -> k x) -> m a        -- ^ reverse lift in double negative position
+revLiftTC run lift f = do
+    st <- getTC
+    (a, st) <- lift $ f (`run` st)
+    putTC st
+    return a
+
 -- | Opposite of 'liftIO' for 'CommandM'.
 --   Use only if main errors are already catched.
 
 commandMToIO :: (forall x . (CommandM a -> IO x) -> IO x) -> CommandM a
-commandMToIO ci_i = revLift runStateT lift $ \ct -> revLift runSafeTCM liftIO $ ci_i . (. ct)
+commandMToIO ci_i = revLift runStateT lift $ \ct -> revLiftTC runSafeTCM liftIO $ ci_i . (. ct)
 
 -- | Lift a TCM action transformer to a CommandM action transformer.
 
@@ -246,7 +257,7 @@ handleCommand_ = handleCommand id (return ())
 
 handleCommand :: (forall a. CommandM a -> CommandM a) -> CommandM () -> CommandM () -> CommandM ()
 handleCommand wrap onFail cmd = handleNastyErrors $ wrap $ do
-    oldState <- lift get
+    oldState <- getTC
 
     -- -- Andreas, 2016-11-18 OLD CODE:
     -- -- onFail and handleErr are executed in "new" command state (not TCState).
@@ -264,9 +275,9 @@ handleCommand wrap onFail cmd = handleNastyErrors $ wrap $ do
       -- Andreas, 2016-11-18, issue #2174
       -- Reset TCState after error is handled, to get rid of metas created during failed command
       lift $ do
-        newPersistentState <- use lensPersistentState
-        put oldState
-        lensPersistentState .= newPersistentState
+        newPersistentState <- useTC lensPersistentState
+        putTC oldState
+        lensPersistentState `setTCLens` newPersistentState
 
   where
     -- Preserves state so we can do unsolved meta highlighting
@@ -305,8 +316,8 @@ handleCommand wrap onFail cmd = handleNastyErrors $ wrap $ do
         meta    <- lift $ computeUnsolvedMetaWarnings
         constr  <- lift $ computeUnsolvedConstraints
         err     <- lift $ errorHighlighting e
-        modFile <- lift $ use stModuleToSource
-        method  <- lift $ view eHighlightingMethod
+        modFile <- lift $ useTC stModuleToSource
+        method  <- lift $ viewTC eHighlightingMethod
         let info = compress $ mconcat $
                      -- Errors take precedence over unsolved things.
                      err : if unsolvedNotOK then [meta, constr] else []
@@ -317,7 +328,7 @@ handleCommand wrap onFail cmd = handleNastyErrors $ wrap $ do
                                             : filter (not . null) s2
                                             ++ [delimiter "Error"]
         let str     = if null s2 then strErr else strWarn ++ "\n" ++ strErr
-        x <- lift $ optShowImplicit <$> use stPragmaOptions
+        x <- lift $ optShowImplicit <$> useTC stPragmaOptions
         unless (null s1) $ mapM_ putResponse $
             [ Resp_DisplayInfo $ Info_Error e str ] ++
             tellEmacsToJumpToError (getRange e) ++
@@ -396,17 +407,17 @@ nextCommand =
 maybeAbort :: CommandM () -> CommandM ()
 maybeAbort c = do
   commandState <- get
-  tcState      <- lift get
-  tcEnv        <- lift ask
+  tcState      <- getTC
+  tcEnv        <- askTC
   result       <- liftIO $ race
                     (runTCM tcEnv tcState $ runStateT c commandState)
                     (waitForAbort $ commandQueue commandState)
   case result of
     Left (((), commandState), tcState) -> do
-      lift $ put tcState
+      putTC tcState
       put commandState
     Right () -> do
-      lift $ put $ initState
+      putTC $ initState
         { stPersistentState = stPersistentState tcState
         , stPreScopeState   =
             (stPreScopeState initState)
@@ -831,7 +842,7 @@ interpret ToggleImplicitArgs = do
              ps { optShowImplicit = not $ optShowImplicit ps } }
 
 interpret (Cmd_load_highlighting_info source) = do
-  l <- envHighlightingLevel <$> ask
+  l <- asksTC envHighlightingLevel
   when (l /= None) $ do
     -- Make sure that the include directories have
     -- been set.
@@ -853,15 +864,15 @@ interpret (Cmd_load_highlighting_info source) = do
               sourceH <- liftIO $ hashFile absSource
               if sourceH == iSourceHash (miInterface mi)
                then do
-                modFile <- use stModuleToSource
-                method  <- view eHighlightingMethod
+                modFile <- useTC stModuleToSource
+                method  <- viewTC eHighlightingMethod
                 return $ Just (iHighlighting $ miInterface mi, method, modFile)
                else
                 return Nothing
     mapM_ putResponse resp
 
 interpret (Cmd_tokenHighlighting source remove) = do
-  info <- do l <- envHighlightingLevel <$> ask
+  info <- do l <- asksTC envHighlightingLevel
              if l == None
                then return Nothing
                else do
@@ -878,7 +889,7 @@ interpret (Cmd_tokenHighlighting source remove) = do
     Nothing   -> return ()
 
 interpret (Cmd_highlight ii rng s) = do
-  l <- envHighlightingLevel <$> ask
+  l <- asksTC envHighlightingLevel
   when (l /= None) $ do
     scope <- getOldInteractionScope ii
     removeOldInteractionScope ii
@@ -928,7 +939,7 @@ interpret (Cmd_auto ii rng s) = do
   -- Andreas, 2014-07-05 Issue 1226:
   -- Save the state to have access to even those interaction ids
   -- that Auto solves (since Auto gives the solution right away).
-  st <- lift $ get
+  st <- getTC
   (time , res) <- maybeTimed $ lift $ Auto.auto ii rng s
   case autoProgress res of
    Solutions sols -> do
@@ -938,7 +949,7 @@ interpret (Cmd_auto ii rng s) = do
       -- For highlighting, Resp_GiveAction needs to access
       -- the @oldInteractionScope@s of the interaction points solved by Auto.
       -- We dig them out from the state before Auto was invoked.
-      insertOldInteractionScope ii =<< liftLocalState (put st >> getInteractionScope ii)
+      insertOldInteractionScope ii =<< liftLocalState (putTC st >> getInteractionScope ii)
       -- Andreas, 2014-07-07: NOT TRUE:
       -- -- Andreas, 2014-07-05: The following should be obsolete,
       -- -- as Auto has removed the interaction points already:
@@ -1088,7 +1099,7 @@ interpretWarnings = do
 solveInstantiatedGoals :: B.Rewrite -> Maybe InteractionId -> CommandM ()
 solveInstantiatedGoals norm mii = do
   -- Andreas, 2016-10-23 issue #2280: throw away meta elims.
-  out <- lift $ local (\ e -> e { envPrintMetasBare = True }) $ do
+  out <- lift $ localTC (\ e -> e { envPrintMetasBare = True }) $ do
     sip <- B.getSolvedInteractionPoints False norm
            -- only solve metas which have a proper instantiation, i.e., not another meta
     maybe id (\ ii -> filter ((ii ==) . fst)) mii <$> mapM prt sip
@@ -1162,9 +1173,9 @@ cmd_load' file argv unsolvedOK mode cmd = do
                    | otherwise = CurrentDir
 
     -- Forget the previous "current file" and interaction points.
-    modify $ \st -> st { theInteractionPoints = []
-                       , theCurrentFile       = Nothing
-                       }
+    modify $ \ st -> st { theInteractionPoints = []
+                        , theCurrentFile       = Nothing
+                        }
 
     t <- liftIO $ getModificationTime file
 
@@ -1210,7 +1221,7 @@ cmd_load' file argv unsolvedOK mode cmd = do
 withCurrentFile :: CommandM a -> CommandM a
 withCurrentFile m = do
   mfile <- fmap fst <$> gets theCurrentFile
-  local (\ e -> e { envCurrentPath = mfile }) m
+  localTC (\ e -> e { envCurrentPath = mfile }) m
 
 -- | Available backends.
 
@@ -1299,7 +1310,7 @@ give_gen force ii rng s0 giveRefine = do
     -- the highlighting is moved together with the text when the hole goes away.
     -- To make it work for refine we'd have to adjust the ranges.
     when literally $ lift $ do
-      l <- envHighlightingLevel <$> ask
+      l <- asksTC envHighlightingLevel
       when (l /= None) $ do
         printHighlightingInfo KeepHighlighting =<<
           generateTokenInfoFromString rng s
@@ -1320,7 +1331,7 @@ give_gen force ii rng s0 giveRefine = do
 
 highlightExpr :: A.Expr -> TCM ()
 highlightExpr e =
-  local (\e -> e { envModuleNestingLevel = 0
+  localTC (\e -> e { envModuleNestingLevel = 0
                  , envHighlightingLevel  = NonInteractive
                  , envHighlightingMethod = Direct }) $
     generateAndPrintSyntaxInfo decl Full True

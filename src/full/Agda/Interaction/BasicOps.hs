@@ -122,7 +122,7 @@ giveExpr force mii mi e = do
         v <- checkExpr e t'
         case mvInstantiation mv of
 
-          InstV xs v' -> unlessM ((Irrelevant ==) <$> asks envRelevance) $ do
+          InstV xs v' -> unlessM ((Irrelevant ==) <$> asksTC envRelevance) $ do
             reportSDoc "interaction.give" 20 $ TP.sep
               [ TP.text "meta was already set to value v' = " TP.<+> prettyTCM v'
                 TP.<+> TP.text " with free variables " TP.<+> return (fsep $ map pretty xs)
@@ -169,7 +169,7 @@ redoChecks (Just ii) = do
     IPNoClause -> return ()
     IPClause f _ _ -> do
       mb <- mutualBlockOf f
-      terErrs <- local (\ e -> e { envMutualBlock = Just mb }) $ termMutual []
+      terErrs <- localTC (\ e -> e { envMutualBlock = Just mb }) $ termMutual []
       unless (null terErrs) $ warning $ TerminationIssue terErrs
   -- TODO redo positivity check!
 
@@ -655,7 +655,7 @@ metaHelperType norm ii rng s = case words s of
       TelV atel _ <- telView a
       let arity = size atel
           (delta1, delta2, _, a', as', vs') = splitTelForWith tel a (map OtherType as) vs
-      a <- local (\e -> e { envPrintDomainFreePi = True }) $ do
+      a <- localTC (\e -> e { envPrintDomainFreePi = True }) $ do
         reify =<< cleanupType arity args =<< normalForm norm =<< fst <$> withFunctionType delta1 vs' as' delta2 a'
       reportSDoc "interaction.helper" 10 $ TP.vcat
         [ TP.text "generating helper function"
@@ -768,7 +768,7 @@ contextOfMeta ii norm = do
         mkLet (x, lb) = do
           (tm, !dom) <- getOpen lb
           return $ (,) x <$> dom
-    letVars <- mapM mkLet . Map.toDescList =<< asks envLetBindings
+    letVars <- mapM mkLet . Map.toDescList =<< asksTC envLetBindings
     mapMaybe visible . reverse <$> mapM out (letVars ++ localVars)
   where visible (OfType x y) | not (isNoName x) = Just (OfType' x y)
                              | otherwise        = Nothing
@@ -901,7 +901,7 @@ introTactic pmLambda ii = do
 atTopLevel :: TCM a -> TCM a
 atTopLevel m = inConcreteMode $ do
   let err = typeError $ GenericError "The file has not been loaded yet."
-  caseMaybeM (use stCurrentModule) err $ \ current -> do
+  caseMaybeM (useTC stCurrentModule) err $ \ current -> do
     caseMaybeM (getVisitedModule $ toTopLevelModuleName current) __IMPOSSIBLE__ $ \ mi -> do
       let scope = iInsideScope $ miInterface mi
       tel <- lookupSection current
@@ -942,8 +942,8 @@ atTopLevel m = inConcreteMode $ do
           addContext gamma $ do
             -- We're going inside the top-level module, so we have to set the
             -- checkpoint for it and all its submodules to the new checkpoint.
-            cp <- view eCurrentCheckpoint
-            stModuleCheckpoints %= fmap (const cp)
+            cp <- viewTC eCurrentCheckpoint
+            stModuleCheckpoints `modifyTCLens` fmap (const cp)
             m
 
 -- | Parse a name.

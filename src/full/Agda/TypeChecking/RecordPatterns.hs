@@ -578,7 +578,7 @@ translateRecordPatterns clause = do
 newtype RecPatM a = RecPatM (TCMT (ReaderT Nat (StateT Nat IO)) a)
   deriving (Functor, Applicative, Monad,
             MonadIO, MonadTCM, HasOptions, MonadDebug,
-            MonadReader TCEnv, MonadState TCState)
+            MonadTCEnv, MonadTCState)
 
 -- | Runs a computation in the 'RecPatM' monad.
 

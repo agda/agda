@@ -41,7 +41,7 @@ instance LensPragmaOptions TCState where
   lensPragmaOptions = stPragmaOptions
 
 modifyPragmaOptions :: (PragmaOptions -> PragmaOptions) -> TCM ()
-modifyPragmaOptions = modify . mapPragmaOptions
+modifyPragmaOptions = modifyTC . mapPragmaOptions
 
 ---------------------------------------------------------------------------
 -- ** Verbosity in the local pragma options
@@ -65,10 +65,10 @@ instance LensVerbosity TCState where
   mapVerbosity = mapPragmaOptions . mapVerbosity
 
 modifyVerbosity :: (Verbosity -> Verbosity) -> TCM ()
-modifyVerbosity = modify . mapVerbosity
+modifyVerbosity = modifyTC . mapVerbosity
 
 putVerbosity :: Verbosity -> TCM ()
-putVerbosity = modify . setVerbosity
+putVerbosity = modifyTC . setVerbosity
 
 ---------------------------------------------------------------------------
 -- * Command line options
@@ -92,7 +92,7 @@ instance LensCommandLineOptions TCState where
   mapCommandLineOptions = updatePersistentState . mapCommandLineOptions
 
 modifyCommandLineOptions :: (CommandLineOptions -> CommandLineOptions) -> TCM ()
-modifyCommandLineOptions = modify . mapCommandLineOptions
+modifyCommandLineOptions = modifyTC . mapCommandLineOptions
 
 ---------------------------------------------------------------------------
 -- ** Safe mode
@@ -126,10 +126,10 @@ instance LensSafeMode TCState where
   mapSafeMode = mapCommandLineOptions . mapSafeMode
 
 modifySafeMode :: (SafeMode -> SafeMode) -> TCM ()
-modifySafeMode = modify . mapSafeMode
+modifySafeMode = modifyTC . mapSafeMode
 
 putSafeMode :: SafeMode -> TCM ()
-putSafeMode = modify . setSafeMode
+putSafeMode = modifyTC . setSafeMode
 
 
 ---------------------------------------------------------------------------
@@ -170,16 +170,16 @@ instance LensIncludePaths TCState where
   mapAbsoluteIncludePaths = mapCommandLineOptions . mapAbsoluteIncludePaths
 
 modifyIncludePaths :: ([FilePath] -> [FilePath]) -> TCM ()
-modifyIncludePaths = modify . mapIncludePaths
+modifyIncludePaths = modifyTC . mapIncludePaths
 
 putIncludePaths :: [FilePath] -> TCM ()
-putIncludePaths = modify . setIncludePaths
+putIncludePaths = modifyTC . setIncludePaths
 
 modifyAbsoluteIncludePaths :: ([AbsolutePath] -> [AbsolutePath]) -> TCM ()
-modifyAbsoluteIncludePaths = modify . mapAbsoluteIncludePaths
+modifyAbsoluteIncludePaths = modifyTC . mapAbsoluteIncludePaths
 
 putAbsoluteIncludePaths :: [AbsolutePath] -> TCM ()
-putAbsoluteIncludePaths = modify . setAbsoluteIncludePaths
+putAbsoluteIncludePaths = modifyTC . setAbsoluteIncludePaths
 
 ---------------------------------------------------------------------------
 -- ** Include directories
@@ -212,7 +212,7 @@ instance LensPersistentVerbosity TCState where
   mapPersistentVerbosity = mapCommandLineOptions . mapPersistentVerbosity
 
 modifyPersistentVerbosity :: (PersistentVerbosity -> PersistentVerbosity) -> TCM ()
-modifyPersistentVerbosity = modify . mapPersistentVerbosity
+modifyPersistentVerbosity = modifyTC . mapPersistentVerbosity
 
 putPersistentVerbosity :: PersistentVerbosity -> TCM ()
-putPersistentVerbosity = modify . setPersistentVerbosity
+putPersistentVerbosity = modifyTC . setPersistentVerbosity
