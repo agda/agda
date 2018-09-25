@@ -360,10 +360,7 @@ script:
 # with the `compiler-test`.
 
   - if [[ $TEST = "MAIN" ]]; then
-       if [[ $GHC_VER = "8.0.2" ]]; then
-          travis_wait make AGDA_TESTS_OPTIONS="--hide-successes" BUILD_DIR=$BUILD_DIR compiler-test;
-       else
-          make AGDA_TESTS_OPTIONS="--hide-successes" BUILD_DIR=$BUILD_DIR compiler-test;
+       make AGDA_TESTS_OPTIONS="--hide-successes" BUILD_DIR=$BUILD_DIR compiler-test;
     fi
 
   - if [[ $TEST = "MAIN" ]]; then
