@@ -85,12 +85,16 @@ instance EncodeTCM DisplayInfo where
   encodeTCM (Info_Constraints constraints) = kind "Constraints"
     [ "constraints"         @= constraints
     ]
-  encodeTCM (Info_AllGoalsWarnings (AllGoalsWarnings ims hms ws es) _ _ _) =
-    kind "AllGoalsWarnings"
+  encodeTCM (Info_AllGoalsWarnings (AllGoalsWarnings ims hms ws es) g w e) = do
+    metas <- obj
       [ "interactionMetas"  @= ims
       , "hiddenMetas"       @= hms
       , "warnings"          @= ws
       , "errors"            @= es
+      ]
+    kind "AllGoalsWarnings"
+      [ "metas"             @= metas
+      , "emacsMessage"      @= unlines [g, w, e]
       ]
   encodeTCM (Info_Time doc) = kind "Time"
     [ "payload"             @= doc
