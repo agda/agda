@@ -356,11 +356,8 @@ script:
        make BUILD_DIR=$BUILD_DIR benchmark-without-logs;
     fi
 
-# 2016-04-15: The option `AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS}"` doesn't work
-# with the `compiler-test`.
-
   - if [[ $TEST = "MAIN" ]]; then
-       make AGDA_TESTS_OPTIONS="--hide-successes" BUILD_DIR=$BUILD_DIR compiler-test;
+       make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" BUILD_DIR=$BUILD_DIR compiler-test;
     fi
 
   - if [[ $TEST = "MAIN" ]]; then
