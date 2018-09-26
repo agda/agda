@@ -1026,9 +1026,9 @@ instance EncodeTCM Constraint where
   encodeTCM constraint = case constraint of
     ValueCmp cmp t e e' -> kind "ValueCmp"
       [ "comparison"  @= cmp
-      -- , "term1"       @= e
-      -- , "term2"       @= e'
-      -- , "type"        @= t
+      , "term1"       @= e
+      , "term2"       @= e'
+      , "type"        @= t
       ]
     ValueCmpOnFace cmp face t e e' -> kind "ValueCmpOnFace"
       [ "comparison"  @= cmp
@@ -1042,8 +1042,8 @@ instance EncodeTCM Constraint where
       , "isForced"    @= isForced
       , "type"        @= t
       , "term"        @= e
-      , "elims1"      @= elims1
-      , "elims2"      @= elims2
+      , "elims1"      #= encodeTCMTopCtx elims1
+      , "elims2"      #= encodeTCMTopCtx elims2
       ]
     TypeCmp cmp t t' -> kind "TypeCmp"
       [ "comparison"  @= cmp
@@ -1059,8 +1059,8 @@ instance EncodeTCM Constraint where
       ]
     SortCmp cmp s s' -> kind "SortCmp"
       [ "comparison"  @= cmp
-      -- , "sort1"       @= s
-      -- , "sort2"       @= s'
+      , "sort1"       @= s
+      , "sort2"       @= s'
       ]
     LevelCmp cmp l l' -> kind "LevelCmp"
       [ "comparison"  @= cmp
@@ -1070,9 +1070,13 @@ instance EncodeTCM Constraint where
     HasBiggerSort sort -> kind "HasBiggerSort"
       [ "sort"        @= sort
       ]
-    HasPTSRule sort binding -> kind "HasPTSRule"
+    HasPTSRule sort (I.NoAbs _ binding) -> kind "HasPTSRuleNoAbs"
       [ "sort"        @= sort
       , "binding"     @= binding
+      ]
+    HasPTSRule sort (I.Abs context binding) -> kind "HasPTSRuleAbs"
+      [ "sort"        @= sort
+      , "binding"     #= addContext context (encodeTCM binding)
       ]
     UnBlock metaId -> kind "UnBlock"
       [ "metaId"      @= metaId

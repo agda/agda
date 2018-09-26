@@ -71,7 +71,7 @@ instance ToJSON Term where
     [ "description" .= s
     ]
 
-instance EncodeTCM a => EncodeTCM (Elim' a) where
+instance EncodeTCM Elim where
   encodeTCM (Apply arg) = kind "Apply"
     [ "arg"         @= arg
     ]
@@ -84,7 +84,7 @@ instance EncodeTCM a => EncodeTCM (Elim' a) where
     , "endpoint2"   @= y
     , "endpoint3"   @= r
     ]
-instance ToJSON a => ToJSON (Elim' a) where
+instance ToJSON Elim where
   toJSON (Apply arg) = kind' "Apply"
     [ "arg"         .= arg
     ]
@@ -97,6 +97,34 @@ instance ToJSON a => ToJSON (Elim' a) where
     , "endpoint2"   .= y
     , "endpoint3"   .= r
     ]
+
+
+-- instance EncodeTCM a => EncodeTCM (Elim' a) where
+--   encodeTCM (Apply arg) = kind "Apply"
+--     [ "arg"         @= arg
+--     ]
+--   encodeTCM (Proj origin name) = kind "Proj"
+--     [ "projOrigin"  @= origin
+--     , "name"        @= name
+--     ]
+--   encodeTCM (IApply x y r) = kind "IApply"
+--     [ "endpoint1"   @= x
+--     , "endpoint2"   @= y
+--     , "endpoint3"   @= r
+--     ]
+-- instance ToJSON a => ToJSON (Elim' a) where
+--   toJSON (Apply arg) = kind' "Apply"
+--     [ "arg"         .= arg
+--     ]
+--   toJSON (Proj origin name) = kind' "Proj"
+--     [ "projOrigin"  .= origin
+--     , "name"        .= name
+--     ]
+--   toJSON (IApply x y r) = kind' "IApply"
+--     [ "endpoint1"   .= x
+--     , "endpoint2"   .= y
+--     , "endpoint3"   .= r
+--     ]
 
 instance EncodeTCM a => EncodeTCM (Abs a) where
   encodeTCM (Abs name value) = kind "Abs"

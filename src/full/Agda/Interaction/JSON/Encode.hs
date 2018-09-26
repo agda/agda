@@ -7,7 +7,7 @@ module Agda.Interaction.JSON.Encode
   , obj, kind, kind'
   , (@=), (#=)
   , (>=>)
-  , ToRep(..), rep
+  , Precedence(..), encodeTCMCtx, encodeTCMTopCtx
   ) where
 
 import Control.Monad ((>=>), sequence, liftM2)
@@ -22,6 +22,8 @@ import qualified Agda.Syntax.Translation.AbstractToConcrete as A2C
 
 import qualified Agda.Syntax.Concrete as C
 import qualified Agda.Syntax.Internal as I
+import Agda.Syntax.Fixity (Precedence(..))
+import Agda.Syntax.Scope.Monad (withContextPrecedence)
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty (PrettyTCM(..))
 import Agda.Utils.Pretty
@@ -36,6 +38,13 @@ class EncodeTCM a where
   encodeTCM :: a -> TCM Value
   default encodeTCM :: ToJSON a => a -> TCM Value
   encodeTCM = return . toJSON
+
+-- | Encode to JSON with a given context precedence
+encodeTCMCtx :: EncodeTCM a => Precedence -> a -> TCM Value
+encodeTCMCtx prec = withContextPrecedence prec . encodeTCM
+
+encodeTCMTopCtx :: EncodeTCM a => a -> TCM Value
+encodeTCMTopCtx = encodeTCMCtx TopCtx
 
 -- | TCM monadic version of object
 obj :: [TCM Pair] -> TCM Value
@@ -60,38 +69,6 @@ kind k pairs = obj (("kind" @= String k) : pairs)
 -- | A handy alternative of `object` with kind specified
 kind' :: Text -> [Pair] -> Value
 kind' k pairs = object (("kind" .= String k) : pairs)
-
----------------------------------------------------------------------------
--- * The Rep & ToRep class
-
--- | Translates internal types to concrete types
-class ToRep i c | i -> c where
-  toRep :: i -> TCM c
-
-instance ToRep I.Term C.Expr where
-  toRep internal = I2A.reify internal >>= A2C.abstractToConcrete_
-
-instance ToRep I.Type C.Expr where
-  toRep internal = I2A.reify internal >>= A2C.abstractToConcrete_
-
-data Rep internal concrete = Rep
-  { internalRep :: internal
-  , concreteRep :: concrete
-  }
-
-instance (ToJSON i, ToJSON c) => ToJSON (Rep i c) where
-  toJSON (Rep i c) = object
-    [ "internal" .= i
-    , "concrete" .= c
-    ]
-
-rep :: (ToRep i c) => i -> TCM (Rep i c)
-rep internal = do
-  concrete <- toRep internal
-  return $ Rep
-    { internalRep = internal
-    , concreteRep = concrete
-    }
 
 --------------------------------------------------------------------------------
 -- Instances of ToJSON or EncodeTCM
