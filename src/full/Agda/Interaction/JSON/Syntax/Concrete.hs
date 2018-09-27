@@ -482,7 +482,7 @@ instance ToJSON Declaration where
       [ "range"           .= range
       , "declarations"    .= declarations
       ]
-    Open range name importDirective -> kind' "Primitive"
+    Open range name importDirective -> kind' "Open"
       [ "range"           .= range
       , "name"            .= name
       , "importDirective" .= importDirective
