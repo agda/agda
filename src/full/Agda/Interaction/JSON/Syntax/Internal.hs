@@ -155,7 +155,9 @@ instance ToJSON Type where
     ]
 
 instance EncodeTCM Telescope where
-  encodeTCM = I2A.reify >=> A2C.abstractToConcrete_ >=> encodeTCM
+  encodeTCM tel' = do
+      tel <- I2A.reify tel'
+      A2C.runAbsToCon (A2C.bindToConcrete tel (return . concat)) >>= encodeTCM
 
 instance ToJSON a => ToJSON (Tele a) where
   toJSON EmptyTel = kind' "EmptyTel" []
