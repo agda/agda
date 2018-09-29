@@ -158,6 +158,9 @@ install:
   # a `sed` script (from https://github.com/hvr/multi-ghc-travis) for
   # commenting out `jobs: $ncpus` in the Cabal configuration file.
 
+  # The version installed of cpphs should match the lower version
+  # required in Agda.cabal [Issue #2315].
+
   - if [[ $BUILD = "CABAL" ]]; then
        echo "*** Cabal version ***" &&
        cabal --version &&
@@ -173,12 +176,14 @@ install:
        cat $HOME/.cabal/config &&
        export PATH=$HOME/.cabal/bin:$PATH &&
        travis_retry cabal update &&
-       travis_retry cabal fetch alex happy &&
-       cabal install -v0 alex happy &&
+       travis_retry cabal fetch alex happy cpphs-1.20.8 &&
+       cabal install -v0 alex happy cpphs-1.20.8 &&
        echo "*** Alex version ***" &&
        alex --version &&
        echo "*** Happy version ***" &&
-       happy --version ;
+       happy --version &&
+       echo "*** cpphs version ***" &&
+       cpphs --version ;
     fi
 
   - if [[ $BUILD = "STACK" ]]; then
@@ -290,13 +295,17 @@ install:
 ##############################################################################
 # We test on Stackage the default and non-default Agda flags.
 
-# Default flags: `debug` off and `enable-cluster-counting` off.
+# Default flags: `cpphs` instead of `cpp`, `debug` off and
+# `enable-cluster-counting` off.
+
+# Issues related to the flags: `cpp` instead of `cpphs` [Issue #1647]
+# and the `debug` flag [Issue #2070].
 
 # N.B. that these tests are not include in the Makefile tests.
 
   - if [[ $TEST = "STACKAGE" ]]; then
        stack build $ARGS --no-terminal &&
-       stack build $ARGS --no-terminal --flag Agda:debug --flag Agda:enable-cluster-counting;
+       stack build $ARGS --no-terminal --flag Agda:-cpphs --flag Agda:debug --flag Agda:enable-cluster-counting;
     fi
 
 ##############################################################################

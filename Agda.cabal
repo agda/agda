@@ -84,6 +84,11 @@ source-repository head
   type:     git
   location: https://github.com/agda/agda.git
 
+flag cpphs
+  default:     True
+  manual:      True
+  description: Use cpphs instead of cpp.
+
 flag debug
   default: False
   manual: True
@@ -108,6 +113,15 @@ custom-setup
 library
   hs-source-dirs:   src/full
   include-dirs:     src/full
+
+  if flag(cpphs)
+    -- We don't write an upper bound for cpphs because the
+    -- `build-tools` field can not be modified in Hackage.
+
+    -- If your change the lower bound of cpphs also change it in the
+    -- `.travis.yml` file [Issue #2315].
+    build-tools: cpphs >= 1.20.8
+    ghc-options: -pgmP cpphs -optP --cpp
 
   if flag(debug)
     cpp-options:    -DDEBUG
