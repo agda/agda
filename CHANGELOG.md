@@ -7,6 +7,9 @@ Installation and infrastructure
 * Fixed installation with some old versions of `cabal-install`
   [Issue [#3225](https://github.com/agda/agda/issues/3225)].
 
+* Using `cpp` instead of `cpphs` as the default preprocessor
+  [Issue [#3223](https://github.com/agda/agda/issues/3223)].
+
 Other closed issues
 --------------------
 

@@ -197,7 +197,7 @@ When installing Agda the following flags can be used:
 
 :samp:`cpphs`
    Use `cpphs <https://hackage.haskell.org/package/cpphs>`_ instead of
-   cpp. Default: on.
+   cpp. Default: off.
 
 :samp:`debug`
    Enable debugging features that may slow Agda down. Default: off.

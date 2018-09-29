@@ -7,8 +7,6 @@
 :set -Isrc/full
 :set -optP-include
 :set -optPdist-2.5.4.1.20180922/build/autogen/cabal_macros.h
-:set -pgmPcpphs
-:set -optP--cpp
 
 :set -w
 :set -Werror

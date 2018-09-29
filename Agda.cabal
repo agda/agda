@@ -86,7 +86,7 @@ source-repository this
   tag:      v2.5.4.1.20180922
 
 flag cpphs
-  default:     True
+  default:     False
   manual:      True
   description: Use cpphs instead of cpp.
 
