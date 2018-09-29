@@ -14,6 +14,7 @@ For 2.5.4.2 the following issues have also been closed
 (see [bug tracker](https://github.com/agda/agda/issues)):
 
   - [#3199](https://github.com/agda/agda/issues/3199): Panics when serialising absolute paths
+  - [#3177](https://github.com/agda/agda/issues/3177): Slow typechecking with unsolved instance constraint (regression in 2.5.4)
 
 Release notes for Agda version 2.5.4.1
 ======================================
