@@ -85,7 +85,7 @@ source-repository head
   location: https://github.com/agda/agda.git
 
 flag cpphs
-  default:     True
+  default:     False
   manual:      True
   description: Use cpphs instead of cpp.
 
