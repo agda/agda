@@ -1026,46 +1026,46 @@ instance EncodeTCM Constraint where
   encodeTCM constraint = case constraint of
     ValueCmp cmp t e e' -> kind "ValueCmp"
       [ "comparison"  @= cmp
-      , "term1"       @= e
-      , "term2"       @= e'
-      , "type"        @= t
+      , "term1"       #= encodeTCMTopCtx e
+      , "term2"       #= encodeTCMTopCtx e'
+      , "type"        #= encodeTCMTopCtx t
       ]
     ValueCmpOnFace cmp face t e e' -> kind "ValueCmpOnFace"
       [ "comparison"  @= cmp
       , "face"        @= face
-      , "type"        @= t
-      , "term1"       @= e
-      , "term2"       @= e'
+      , "type"        #= encodeTCMTopCtx t
+      , "term1"       #= encodeTCMTopCtx e
+      , "term2"       #= encodeTCMTopCtx e'
       ]
     ElimCmp polarities isForced t e elims1 elims2 -> kind "ElimCmp"
       [ "polarities"  @= polarities
       , "isForced"    @= isForced
-      , "type"        @= t
-      , "term"        @= e
+      , "type"        #= encodeTCMTopCtx t
+      , "term"        #= encodeTCMTopCtx e
       , "elims1"      #= encodeTCMTopCtx elims1
       , "elims2"      #= encodeTCMTopCtx elims2
       ]
     TypeCmp cmp t t' -> kind "TypeCmp"
       [ "comparison"  @= cmp
-      , "type1"       @= t
-      , "type2"       @= t'
+      , "type1"       #= encodeTCMTopCtx t
+      , "type2"       #= encodeTCMTopCtx t'
       ]
     TelCmp t t' cmp tel tel' -> kind "TelCmp"
       [ "comparison"  @= cmp
-      , "type1"       @= t
-      , "type2"       @= t'
-      , "telescope1"  @= tel
-      , "telescope2"  @= tel'
+      , "type1"       #= encodeTCMTopCtx t
+      , "type2"       #= encodeTCMTopCtx t'
+      , "telescope1"  #= encodeTCMTopCtx tel
+      , "telescope2"  #= encodeTCMTopCtx tel'
       ]
     SortCmp cmp s s' -> kind "SortCmp"
       [ "comparison"  @= cmp
-      , "sort1"       @= s
-      , "sort2"       @= s'
+      , "sort1"       #= encodeTCMTopCtx s
+      , "sort2"       #= encodeTCMTopCtx s'
       ]
     LevelCmp cmp l l' -> kind "LevelCmp"
       [ "comparison"  @= cmp
-      , "level1"      @= l
-      , "level2"      @= l'
+      , "level1"      #= encodeTCMTopCtx l
+      , "level2"      #= encodeTCMTopCtx l'
       ]
     HasBiggerSort sort -> kind "HasBiggerSort"
       [ "sort"        @= sort
@@ -1087,16 +1087,19 @@ instance EncodeTCM Constraint where
       ]
     IsEmpty range t -> kind "IsEmpty"
       [ "range"       @= range
-      , "type"        @= t
+      , "type"        #= encodeTCMTopCtx t
       ]
     CheckSizeLtSat term -> kind "CheckSizeLtSat"
-      [ "term"        @= term
+      [ "term"        #= encodeTCMTopCtx term
       ]
     FindInScope instanceArg metaId candidates -> kind "FindInScope"
       [ "instanceArg" @= instanceArg
       , "metaId"      @= metaId
-      , "candidates"  @= candidates
+      , "candidates"  @= maybeToList candidates
       ]
+      where maybeToList :: Maybe [a] -> [a]
+            maybeToList (Just xs) = xs
+            maybeToList Nothing   = []
     CheckFunDef delayed defInfo name clauses -> kind "CheckFunDef"
       [ "name"          @= name
       , "declarations"  @= clauses
@@ -1140,12 +1143,11 @@ instance ToJSON ExplicitToInstance where
   toJSON ExplicitStayExplicit   = String "ExplicitStayExplicit"
 
 instance EncodeTCM Candidate where
-instance ToJSON Candidate where
-  toJSON (Candidate e t eti overlappable) = object
-    [ "term"          .= e
-    , "type"          .= t
-    , "eti"           .= eti
-    , "overlappable"  .= overlappable
+  encodeTCM (Candidate e t eti overlappable) = obj
+    [ "term"          @= e
+    , "type"          @= t
+    , "eti"           @= eti
+    , "overlappable"  @= overlappable
     ]
 
 instance EncodeTCM LHSOrPatSyn where
