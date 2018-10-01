@@ -222,7 +222,8 @@ addRewriteRule q = do
           return (f , Def f , t , es)
         Con c ci vs -> do
           let hd = Con c ci
-          ~(Just (_ , t)) <- getFullyAppliedConType c $ unDom b
+          ~(Just ((_ , _ , pars) , t)) <- getFullyAppliedConType c $ unDom b
+          addContext gamma1 $ checkParametersAreGeneral c (size gamma1) pars
           return (conName c , hd , t  , vs)
         _        -> failureNotDefOrCon
 
@@ -307,6 +308,22 @@ addRewriteRule q = do
         usedIxs = filter (used . fst) allIxs
         used Pos.Unused = False
         used _          = True
+
+    checkParametersAreGeneral :: ConHead -> Int -> Args -> TCM ()
+    checkParametersAreGeneral c k vs = do
+        is <- loop vs
+        unless (fastDistinct is) $ errorNotGeneral
+      where
+        loop []       = return []
+        loop (v : vs) = case unArg v of
+          Var i [] | i < k -> (i :) <$> loop vs
+          _                -> errorNotGeneral
+
+        errorNotGeneral = typeError . GenericDocError =<< vcat
+            [ prettyTCM q <+> text " is not a legal rewrite rule, since the constructor parameters are not fully general:"
+            , nest 2 $ text "Constructor: " <+> prettyTCM c
+            , nest 2 $ text "Parameters: " <+> prettyList (map prettyTCM vs)
+            ]
 
 -- | Append rewrite rules to a definition.
 addRewriteRules :: QName -> RewriteRules -> TCM ()

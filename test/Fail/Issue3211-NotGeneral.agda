@@ -21,4 +21,4 @@ module _ (Form : Set) where
   postulate
     lift-id≤ : ∀{Γ A} → lift id≤ ≡ id≤ {Γ ∙ A}
 
-{-# REWRITE lift-id≤ #-}
+  {-# REWRITE lift-id≤ #-}
