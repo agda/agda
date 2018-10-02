@@ -228,7 +228,7 @@ getInstalledLibraries overrideLibFile = mkLibM [] $ do
     if not (lfExists file) then return [] else do
       ls    <- lift $ stripCommentLines <$> readFile (lfPath file)
       files <- lift $ sequence [ (i, ) <$> expandEnvironmentVariables s | (i, s) <- ls ]
-      parseLibFiles (Just file) files
+      parseLibFiles (Just file) $ List.nubBy ((==) `on` snd) files
   `catchIO` \ e -> do
     tell [ OtherError $ unlines ["Failed to read installed libraries.", show e] ]
     return []
@@ -274,7 +274,8 @@ formatLibError installed = \case
     ] ++
     map (nest 2)
       (if null installed then [text "(none)"]
-      else [ sep [ text $ libName l, nest 2 $ parens $ text $ libFile l ] | l <- installed ])
+      else [ sep [ text $ libName l, nest 2 $ parens $ text $ libFile l ]
+           | l <- List.nubBy ((==) `on` libFile) installed ])
 
   AmbiguousLib lib tgts -> return $ vcat $
     [ sep [ text $ "Ambiguous library '" ++ lib ++ "'.", text "Could refer to any one of" ]
