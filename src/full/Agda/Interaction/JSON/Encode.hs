@@ -16,6 +16,7 @@ import Data.Aeson.Types (Pair)
 import Data.Text (Text)
 import Data.Vector (fromList)
 import GHC.Int (Int32)
+import GHC.Word (Word64)
 
 import qualified Agda.Syntax.Translation.InternalToAbstract as I2A
 import qualified Agda.Syntax.Translation.AbstractToConcrete as A2C
@@ -79,9 +80,13 @@ instance EncodeTCM a => EncodeTCM [a] where
 -- overlaps with the instance declared above
 instance {-# OVERLAPPING #-} EncodeTCM String
 
+instance EncodeTCM Char where
 instance EncodeTCM Bool where
+instance EncodeTCM Double where
 instance EncodeTCM Int where
+instance EncodeTCM Integer where
 instance EncodeTCM Int32 where
+instance EncodeTCM Word64 where
 
 instance EncodeTCM Value where
 
@@ -93,6 +98,7 @@ instance EncodeTCM a => EncodeTCM (Maybe a) where
   encodeTCM Nothing   = return Null
   encodeTCM (Just a)  = encodeTCM a
 
+instance EncodeTCM File.AbsolutePath where
 instance ToJSON File.AbsolutePath where
   toJSON (File.AbsolutePath path) = toJSON path
 

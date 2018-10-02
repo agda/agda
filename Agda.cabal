@@ -262,7 +262,6 @@ library
                     Agda.Interaction.InteractionTop
                     Agda.Interaction.JSON.Encode
                     Agda.Interaction.JSON.Syntax.Abstract
-                    Agda.Interaction.JSON.Syntax.Abstract.Name
                     Agda.Interaction.JSON.Syntax.Common
                     Agda.Interaction.JSON.Syntax.Concrete
                     Agda.Interaction.JSON.Syntax.Concrete.Name

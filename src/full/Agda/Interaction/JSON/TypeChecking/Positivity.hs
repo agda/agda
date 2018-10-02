@@ -8,11 +8,10 @@ import Data.Aeson
 import Data.Foldable (toList)
 
 import Agda.Interaction.JSON.Encode
-import Agda.Interaction.JSON.Syntax.Abstract.Name
--- import Agda.Interaction.JSON.Syntax.Concrete.Name
 import Agda.Interaction.JSON.Syntax.Position
 import Agda.TypeChecking.Positivity.Occurrence
 import qualified Agda.Syntax.Translation.AbstractToConcrete as A2C
+import Agda.Utils.Pretty (prettyShow)
 
 --------------------------------------------------------------------------------
 
@@ -26,24 +25,24 @@ instance EncodeTCM OccursWhere where
 instance EncodeTCM Where where
   encodeTCM LeftOfArrow           = kind "LeftOfArrow" []
   encodeTCM (DefArg name n)       = kind "DefArg"
-    [ "name"        @= name
+    [ "name"        @= prettyShow name
     , "index"       @= n
     ]
   encodeTCM UnderInf              = kind "UnderInf" []
   encodeTCM VarArg                = kind "VarArg" []
   encodeTCM MetaArg               = kind "MetaArg" []
   encodeTCM (ConArgType name)     = kind "ConArgType"
-    [ "name"        @= name
+    [ "name"        @= prettyShow name
     ]
   encodeTCM (IndArgType name)     = kind "IndArgType"
-    [ "name"        @= name
+    [ "name"        @= prettyShow name
     ]
   encodeTCM (InClause n)          = kind "InClause"
     [ "index"       @= n
     ]
   encodeTCM Matched               = kind "Matched" []
   encodeTCM (InDefOf name)        = kind "InDefOf"
-    [ "name"        @= name
+    [ "name"        @= prettyShow name
     ]
 
 

@@ -7,7 +7,6 @@ module Agda.Interaction.JSON.Syntax.Fixity where
 import Data.Aeson
 
 import Agda.Interaction.JSON.Encode
-import Agda.Interaction.JSON.Syntax.Abstract.Name
 import Agda.Interaction.JSON.Syntax.Concrete.Name
 import Agda.Interaction.JSON.Syntax.Position
 import Agda.Interaction.JSON.Syntax.Notation
@@ -26,7 +25,6 @@ instance ToJSON Fixity' where
 instance ToJSON NewNotation where
   toJSON (NewNotation name names fixity notation isOperator) = object
     [ "name"        .= name
-    , "names"       .= names
     , "fixity"      .= fixity
     , "notation"    .= notation
     , "isOperator"  .= isOperator

@@ -71,7 +71,6 @@ instance ToJSON Expr where
     OpApp range name names args -> kind' "OpApp"
       [ "range"     .= range
       , "name"      .= name
-      , "names"     .= names
       , "args"      .= args
       ]
     WithApp range expr exprs -> kind' "WithApp"
@@ -221,7 +220,6 @@ instance ToJSON Pattern where
     OpAppP range name names args -> kind' "OpAppP"
       [ "range"     .= range
       , "name"      .= name
-      , "names"     .= names
       , "args"      .= args
       ]
     HiddenP range pattern -> kind' "HiddenP"

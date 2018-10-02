@@ -8,10 +8,10 @@ import Data.Aeson
 
 import Agda.Interaction.JSON.Encode
 import Agda.Interaction.JSON.Syntax.Common
-import Agda.Interaction.JSON.Syntax.Abstract.Name
 import Agda.Interaction.JSON.Syntax.Position
 
 import Agda.Syntax.Literal
+import Agda.Utils.Pretty (prettyShow)
 
 --------------------------------------------------------------------------------
 
@@ -38,7 +38,7 @@ instance ToJSON Literal where
     ]
   toJSON (LitQName range value) = kind' "LitQName"
     [ "range"     .= range
-    , "value"     .= value
+    , "value"     .= prettyShow value
     ]
   toJSON (LitMeta range path metaId) = kind' "LitMeta"
     [ "range"     .= range
