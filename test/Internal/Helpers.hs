@@ -61,9 +61,11 @@ import Agda.Utils.POMonoid
 ------------------------------------------------------------------------
 -- QuickCheck helpers
 
+#if !MIN_VERSION_QuickCheck(2,12,5)
 isSuccess :: Result -> Bool
 isSuccess Success{} = True
 isSuccess _         = False
+#endif
 
 quickCheck' :: Testable prop => prop -> IO Bool
 quickCheck' p = fmap isSuccess $ quickCheckResult p
