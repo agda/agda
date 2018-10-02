@@ -125,12 +125,15 @@ instance TagName OccName where
 instance TagName Name.Name where
   tagName = tagName . Name.nameOccName
 
-#if MIN_VERSION_ghc(8,0,0)
 #if MIN_VERSION_ghc(8,4,0)
 instance (IdP pass ~ name, TagName name) => TagName (FieldOcc pass) where
-#else
+#elif MIN_VERSION_ghc(8,0,0)
 instance TagName a => TagName (FieldOcc a) where
 #endif
+#if MIN_VERSION_ghc(8,6,1)
+  tagName (FieldOcc _ (L _ rdrName)) = tagName rdrName
+  tagName (XFieldOcc _)              = missingImp "XFieldOcc"
+#elif MIN_VERSION_ghc(8,0,0)
   tagName (FieldOcc (L _ rdrName) _) = tagName rdrName
 #endif
 
@@ -181,11 +184,19 @@ instance (IdP pass ~ name, TagName name) => HasTags (HsDecl pass) where
 instance TagName name => HasTags (HsDecl name) where
 #endif
   tags d = case d of
+#if MIN_VERSION_ghc(8,6,1)
+    TyClD _ d     -> tags d
+    ValD _ d      -> tags d
+    SigD _ d      -> tags d
+    ForD _ d      -> tags d
+    XHsDecl _     -> []
+#else
     TyClD d       -> tags d
     ValD d        -> tags d
     SigD d        -> tags d
     ForD d        -> tags d
-    DocD _        -> []
+#endif
+    DocD{}        -> []
     SpliceD{}     -> []
     RuleD{}       -> []
     DefD{}        -> []
@@ -193,11 +204,14 @@ instance TagName name => HasTags (HsDecl name) where
     DerivD{}      -> []
     WarningD{}    -> []
     AnnD{}        -> []
+    RoleAnnotD{}  -> []
 #if !MIN_VERSION_ghc(8,0,0)
     QuasiQuoteD{} -> []
 #endif
+#if !MIN_VERSION_ghc(8,6,1)
     VectD{}       -> []
-    RoleAnnotD{}  -> []
+#endif
+
 
 #if MIN_VERSION_ghc(8,4,0)
 instance (IdP pass ~ name, TagName name) => HasTags (FamilyDecl pass) where
@@ -214,7 +228,11 @@ instance (IdP pass ~ name, TagName name) => HasTags (TyClDecl pass) where
 #else
 instance TagName name => HasTags (TyClDecl name) where
 #endif
+#if MIN_VERSION_ghc(8,6,1)
+  tags (FamDecl _ d) = tags d
+#else
   tags (FamDecl d) = tags d
+#endif
   tags d = tagsLN (tcdLName d) ++
     case d of
       DataDecl { tcdDataDefn = HsDataDefn { dd_cons = cons } }
@@ -229,7 +247,11 @@ instance (IdP pass ~ name, TagName name) => HasTags (ConDecl pass) where
 #else
 instance TagName name => HasTags (ConDecl name) where
 #endif
-#if MIN_VERSION_ghc(8,0,0)
+#if MIN_VERSION_ghc(8,6,1)
+    tags (ConDeclGADT _ cns _ _ _ _ _ _) = concatMap tagsLN cns
+    tags (ConDeclH98 _ cn _ _ _ cd _)    = tagsLN cn ++ tags cd
+    tags (XConDecl _)                    = missingImp "XConDecl"
+#elif MIN_VERSION_ghc(8,0,0)
   tags (ConDeclGADT cns _ _)    = concatMap tagsLN cns
   tags (ConDeclH98 cn _ _ cd _) = tagsLN cn ++ tags cd
 #else
@@ -241,7 +263,12 @@ instance (IdP pass ~ name, TagName name) => HasTags (ConDeclField pass) where
 #else
 instance TagName name => HasTags (ConDeclField name) where
 #endif
+#if MIN_VERSION_ghc(8,6,1)
+  tags (ConDeclField _ x _ _) = concatMap tagsLN x
+  tags (XConDeclField _)      = missingImp "XConDeclField"
+#else
   tags (ConDeclField x _ _) = concatMap tagsLN x
+#endif
 
 -- Dummy instance.
 instance HasTags (HsType name) where
@@ -260,7 +287,14 @@ instance TagName name => HasTags (HsBind name) where
 #if MIN_VERSION_ghc(8,0,0) && !MIN_VERSION_ghc(8,4,1)
     AbsBindsSig { abs_sig_bind = bs } -> tags bs
 #endif
-    PatSynBind (PSB { psb_id = x })   -> tagsLN x
+#if MIN_VERSION_ghc(8,6,1)
+    PatSynBind _ (PSB { psb_id = x }) -> tagsLN x
+    PatSynBind _ XPatSynBind{}        -> missingImp "XPatSynBindPSB"
+    XHsBindsLR{}                      -> missingImp "XHsBindsLR"
+#else
+    PatSynBind (PSB { psb_id = x }) -> tagsLN x
+#endif
+
 
 #if MIN_VERSION_ghc(8,4,0)
 instance (IdP pass ~ name, TagName name) => HasTags (Pat pass) where
@@ -268,27 +302,42 @@ instance (IdP pass ~ name, TagName name) => HasTags (Pat pass) where
 instance TagName name => HasTags (Pat name) where
 #endif
   tags p = case p of
-#if MIN_VERSION_ghc(8,0,0)
+#if MIN_VERSION_ghc(8,6,1)
+    VarPat _ x                 -> tagsLN x
+#elif MIN_VERSION_ghc(8,0,0)
     VarPat x                   -> tagsLN x
 #else
     VarPat x                   -> tagsN x
 #endif
+#if MIN_VERSION_ghc(8,6,1)
+    LazyPat _ p                -> tags p
+    AsPat _ x p                -> tags (fmap Name x, p)
+    ParPat _ p                 -> tags p
+    BangPat _ p                -> tags p
+    ListPat _ ps               -> tags ps
+    TuplePat _ ps _            -> tags ps
+    SigPat _ p                 -> tags p
+    XPat _                     -> missingImp "XPat"
+#else
     LazyPat p                  -> tags p
     AsPat x p                  -> tags (fmap Name x, p)
     ParPat p                   -> tags p
     BangPat p                  -> tags p
     ListPat ps _ _             -> tags ps
     TuplePat ps _ _            -> tags ps
+    SigPatIn p _               -> tags p
+    SigPatOut p _              -> tags p
     PArrPat ps _               -> tags ps
+#endif
     ConPatIn _ ps              -> tags ps
     ConPatOut{ pat_args = ps } -> tags ps
-#if MIN_VERSION_ghc(8,0,0)
+#if MIN_VERSION_ghc(8,6,1)
+    NPlusKPat _ x _ _ _ _      -> tagsLN x
+#elif MIN_VERSION_ghc(8,0,0)
     NPlusKPat x _ _ _ _ _      -> tagsLN x
 #else
     NPlusKPat x _ _ _          -> tagsLN x
 #endif
-    SigPatIn p _               -> tags p
-    SigPatOut p _              -> tags p
     CoPat{}                    -> []
     NPat{}                     -> []
     LitPat{}                   -> []
@@ -299,7 +348,7 @@ instance TagName name => HasTags (Pat name) where
 #endif
     SplicePat{}                -> []
 #if MIN_VERSION_ghc(8,2,0)
-    SumPat{}                   -> error "hTags error on SumPat"
+    SumPat{}                   -> missingImp "SumPat"
 #endif
 
 instance (HasTags arg, HasTags recc) => HasTags (HsConDetails arg recc) where
@@ -320,19 +369,25 @@ instance (IdP pass ~ name, TagName name) => HasTags (Sig pass) where
 instance TagName name => HasTags (Sig name) where
 #endif
   tags d = case d of
-#if MIN_VERSION_ghc(8,0,0)
+#if MIN_VERSION_ghc(8,6,1)
+    TypeSig _ x _       -> concatMap tagsLN x
+#elif MIN_VERSION_ghc(8,0,0)
     TypeSig x _         -> concatMap tagsLN x
 #else
     TypeSig x _ _       -> concatMap tagsLN x
 #endif
-#if MIN_VERSION_ghc(8,2,0)
+#if MIN_VERSION_ghc(8,6,1)
+    PatSynSig _ x _      -> concatMap tagsLN x
+#elif MIN_VERSION_ghc(8,2,0)
     PatSynSig x _       -> concatMap tagsLN x
 #elif MIN_VERSION_ghc(8,0,0)
     PatSynSig x _       -> tagsLN x
 #else
     PatSynSig x _ _ _ _ -> tagsLN x
 #endif
-#if MIN_VERSION_ghc(8,0,0)
+#if MIN_VERSION_ghc(8,6,1)
+    ClassOpSig _ _ x _   -> concatMap tagsLN x
+#elif MIN_VERSION_ghc(8,0,0)
     ClassOpSig _ x _    -> concatMap tagsLN x
 #else
     GenericSig x _      -> concatMap tagsLN x
@@ -347,6 +402,9 @@ instance TagName name => HasTags (Sig name) where
     SCCFunSig{}         -> []
     CompleteMatchSig{}  -> []
 #endif
+#if MIN_VERSION_ghc(8,6,1)
+    XSig{}              -> missingImp "XSig"
+#endif
 
 #if MIN_VERSION_ghc(8,4,0)
 instance (IdP pass ~ name, TagName name) => HasTags (ForeignDecl pass) where
@@ -354,5 +412,13 @@ instance (IdP pass ~ name, TagName name) => HasTags (ForeignDecl pass) where
 instance TagName name => HasTags (ForeignDecl name) where
 #endif
   tags d = case d of
+#if MIN_VERSION_ghc(8,6,1)
+    ForeignImport _ x _ _ -> tagsLN x
+    XForeignDecl _        -> missingImp "XForeignDecl"
+#else
     ForeignImport x _ _ _ -> tagsLN x
+#endif
     ForeignExport{}       -> []
+
+missingImp :: String -> a
+missingImp x = error $ "Missing implementation: " ++ x
