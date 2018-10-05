@@ -16,6 +16,8 @@ module Agda.Syntax.Parser
     , exprWhereParser
     , holeContentParser
     , tokensParser
+      -- * Reading files.
+    , readFilePM
       -- * Parse errors
     , ParseError(..)
     , ParseWarning(..)
@@ -31,6 +33,8 @@ import Control.Monad.Reader
 import Control.Monad.Writer hiding ((<>))
 
 import qualified Data.List as List
+import Data.Text.Lazy (Text)
+import qualified Data.Text.Lazy as T
 
 import Agda.Syntax.Position
 import Agda.Syntax.Parser.Monad as M hiding (Parser, parseFlags)
@@ -126,11 +130,23 @@ parseLiterateWithComments p layers = do
                        Right (Layer Code _ _) -> []
                    | m <- terms ]
 
-readFilePM :: AbsolutePath -> PM String
-readFilePM path = wrapIOM (ReadFileError path) (readTextFile (filePath path))
+-- | Returns the contents of the given file (both as a piece of 'Text'
+-- and as a 'String').
 
-parseLiterateFile :: Processor -> Parser a -> AbsolutePath -> PM a
-parseLiterateFile po p path = readFilePM path >>= parseLiterate p p . po (startPos (Just path))
+readFilePM :: AbsolutePath -> PM (Text, String)
+readFilePM path = do
+  s <- wrapIOM (ReadFileError path) (readTextFile (filePath path))
+  return (s, T.unpack s)
+
+parseLiterateFile ::
+  Processor ->
+  Parser a ->
+  AbsolutePath ->
+  -- ^ The path to the file.
+  String ->
+  -- ^ The file contents. Note that the file is /not/ read from disk.
+  PM a
+parseLiterateFile po p path = parseLiterate p p . po (startPos (Just path))
 
 parsePosString :: Parser a -> Position -> String -> PM a
 parsePosString p pos = wrapM . return . M.parsePosString pos (parseFlags p) [normal] (parser p)
@@ -139,10 +155,17 @@ parsePosString p pos = wrapM . return . M.parsePosString pos (parseFlags p) [nor
 parseFileExts :: [String]
 parseFileExts = ".agda":literateExts
 
-parseFile' :: (Show a) => Parser a -> AbsolutePath -> PM a
-parseFile' p file =
+parseFile' ::
+  Show a =>
+  Parser a ->
+  AbsolutePath ->
+  -- ^ The path to the file.
+  String ->
+  -- ^ The file contents. Note that the file is /not/ read from disk.
+  PM a
+parseFile' p file input =
   if ".agda" `List.isSuffixOf` filePath file then
-    Agda.Syntax.Parser.parseFile p file
+    Agda.Syntax.Parser.parseStringFromFile (Strict.Just file) p input
   else
     go literateProcessors
   where
@@ -150,7 +173,8 @@ parseFile' p file =
                      errPath = file
                    , errValidExts = parseFileExts
                    }
-    go ((ext, po):pos) | ext `List.isSuffixOf` filePath file = parseLiterateFile po p file
+    go ((ext, po):pos) | ext `List.isSuffixOf` filePath file =
+                         parseLiterateFile po p file input
     go (_:pos) = go pos
 
 ------------------------------------------------------------------------

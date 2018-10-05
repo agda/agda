@@ -34,6 +34,8 @@ import qualified Data.Set as Set -- hiding (singleton, null, empty)
 import Data.Semigroup ( Semigroup, (<>), Any(..) )
 import Data.Data (Data, toConstr)
 import Data.Foldable (Foldable)
+import Data.Text.Lazy (Text)
+import qualified Data.Text.Lazy as T
 import Data.Traversable
 import Data.IORef
 
@@ -745,6 +747,10 @@ data ForeignCode = ForeignCode Range String
 data Interface = Interface
   { iSourceHash      :: Hash
     -- ^ Hash of the source code.
+  , iSource          :: Text
+    -- ^ The source code. The source code is stored so that the HTML
+    -- and LaTeX backends can generate their output without having to
+    -- re-read the (possibly out of date) source code.
   , iImportedModules :: [(ModuleName, Hash)]
     -- ^ Imported modules and their hashes.
   , iModuleName      :: ModuleName
@@ -776,11 +782,13 @@ data Interface = Interface
   deriving Show
 
 instance Pretty Interface where
-  pretty (Interface sourceH importedM moduleN scope insideS signature display
-                    userwarn builtin foreignCode highlighting pragmaO patternS
-                    warnings) =
+  pretty (Interface
+            sourceH source importedM moduleN scope insideS signature
+            display userwarn builtin foreignCode highlighting pragmaO
+            patternS warnings) =
     hang (text "Interface") 2 $ vcat
       [ text "source hash:"         <+> (pretty . show) sourceH
+      , text "source:"              $$  nest 2 (text $ T.unpack source)
       , text "imported modules:"    <+> (pretty . show) importedM
       , text "module name:"         <+> pretty moduleN
       , text "scope:"               <+> (pretty . show) scope

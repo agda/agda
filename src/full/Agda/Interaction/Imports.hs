@@ -24,6 +24,7 @@ import Data.Maybe
 import Data.Monoid (mempty, mappend)
 import Data.Map (Map)
 import Data.Set (Set)
+import Data.Text.Lazy (Text)
 
 import System.Directory (doesFileExist, getModificationTime, removeFile)
 import System.FilePath ((</>))
@@ -656,9 +657,11 @@ createInterface
   -> TCM (Interface, MaybeWarnings)
 createInterface file mname isMain = Bench.billTo [Bench.TopModule mname] $
   localTC (\e -> e { envCurrentPath = Just file }) $ do
+    (sourceT, source) <- runPM $ readFilePM file
+
     modFile       <- useTC stModuleToSource
     fileTokenInfo <- Bench.billTo [Bench.Highlighting] $
-                       generateTokenInfo file
+                       generateTokenInfoFromSource file source
     stTokens `setTCLens` fileTokenInfo
 
     reportSLn "import.iface.create" 5 $
@@ -670,7 +673,7 @@ createInterface file mname isMain = Bench.billTo [Bench.TopModule mname] $
 
     -- Parsing.
     (pragmas, top) <- Bench.billTo [Bench.Parsing] $
-      runPM $ parseFile' moduleParser file
+      runPM $ parseFile' moduleParser file source
 
     pragmas <- concat <$> concreteToAbstract_ pragmas
                -- identity for top-level pragmas at the moment
@@ -800,7 +803,7 @@ createInterface file mname isMain = Bench.billTo [Bench.TopModule mname] $
     -- Serialization.
     reportSLn "import.iface.create" 7 $ "Starting serialization."
     i <- Bench.billTo [Bench.Serialization, Bench.BuildInterface] $ do
-      buildInterface file topLevel options
+      buildInterface sourceT topLevel options
 
     reportSLn "tc.top" 101 $ unlines $
       "Signature:" :
@@ -917,13 +920,14 @@ constructIScope i = billToPure [ Deserialization ] $
 -- have been successfully type checked.
 
 buildInterface
-  :: AbsolutePath
+  :: Text
+     -- ^ Source code.
   -> TopLevelInfo
      -- ^ 'TopLevelInfo' for the current module.
   -> [OptionsPragma]
      -- ^ Options set in @OPTIONS@ pragmas.
   -> TCM Interface
-buildInterface file topLevel pragmas = do
+buildInterface source topLevel pragmas = do
     reportSLn "import.iface" 5 "Building interface..."
     let m = topLevelModuleName topLevel
     scope'  <- getScope
@@ -954,12 +958,12 @@ buildInterface file topLevel pragmas = do
     -- serialization to avoid error locations pointing to external files
     -- when expanding a pattern synoym.
     patsyns <- killRange <$> getPatternSyns
-    h       <- liftIO $ hashFile file
     let builtin' = Map.mapWithKey (\ x b -> (x,) . primFunName <$> b) builtin
     warnings <- getAllWarnings' AllWarnings RespectFlags
     reportSLn "import.iface" 7 "  instantiating all meta variables"
     i <- instantiateFull $ Interface
-      { iSourceHash      = h
+      { iSourceHash      = hashText source
+      , iSource          = source
       , iImportedModules = mhs
       , iModuleName      = m
       , iScope           = empty -- publicModules scope

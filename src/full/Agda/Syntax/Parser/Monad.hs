@@ -40,6 +40,7 @@ import Control.Exception (catch)
 import Data.Int
 
 import Data.Data (Data)
+import qualified Data.Text.Lazy as T
 
 import Control.Monad.State
 
@@ -286,9 +287,10 @@ parseFile :: ParseFlags -> [LexState] -> Parser a -> AbsolutePath
 parseFile flags st p file =
     do  res <- (Right <$> (UTF8.readTextFile (filePath file))) `catch`
           (return . Left . ReadFileError file)
-        case res of
-          Left  error -> return$ ParseFailed error
-          Right input -> return$ parseFromSrc flags st p (Strict.Just file) input
+        return $ case res of
+          Left  error -> ParseFailed error
+          Right input ->
+            parseFromSrc flags st p (Strict.Just file) (T.unpack input)
 
 -- | Parses a string as if it were the contents of the given file
 --   Useful for integrating preprocessors.

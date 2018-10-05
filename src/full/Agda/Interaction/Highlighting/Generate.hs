@@ -5,7 +5,8 @@
 module Agda.Interaction.Highlighting.Generate
   ( Level(..)
   , generateAndPrintSyntaxInfo
-  , generateTokenInfo, generateTokenInfoFromString
+  , generateTokenInfo, generateTokenInfoFromSource
+  , generateTokenInfoFromString
   , printSyntaxInfo
   , printErrorInfo, errorHighlighting
   , printUnsolvedInfo
@@ -374,13 +375,27 @@ generateAndPrintSyntaxInfo decl hlLevel updateState = do
 -- | Generate and return the syntax highlighting information for the
 -- tokens in the given file.
 
-generateTokenInfo
-  :: AbsolutePath          -- ^ The module to highlight.
-  -> TCM CompressedFile
+generateTokenInfo :: AbsolutePath -> TCM CompressedFile
 generateTokenInfo file =
-  runPM $ tokenHighlighting <$> Pa.parseFile' Pa.tokensParser file
+  generateTokenInfoFromSource file . snd =<< runPM (Pa.readFilePM file)
 
--- | Same as 'generateTokenInfo' but takes a string instead of a filename.
+-- | Generate and return the syntax highlighting information for the
+-- tokens in the given file.
+
+generateTokenInfoFromSource
+  :: AbsolutePath
+     -- ^ The module to highlight.
+  -> String
+     -- ^ The file contents. Note that the file is /not/ read from
+     -- disk.
+  -> TCM CompressedFile
+generateTokenInfoFromSource file input =
+  runPM $ tokenHighlighting <$> Pa.parseFile' Pa.tokensParser file input
+
+-- | Generate and return the syntax highlighting information for the
+-- tokens in the given string, which is assumed to correspond to the
+-- given range.
+
 generateTokenInfoFromString :: P.Range -> String -> TCM CompressedFile
 generateTokenInfoFromString r _ | r == P.noRange = return mempty
 generateTokenInfoFromString r s = do

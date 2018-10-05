@@ -185,7 +185,7 @@ checkModuleName name file mexpected = do
 
 moduleName' :: AbsolutePath -> TCM TopLevelModuleName
 moduleName' file = billTo [Bench.ModuleName] $ do
-  q <- runPM (parseFile' moduleParser file)
+  q <- runPM (parseFile' moduleParser file . snd =<< readFilePM file)
   let name = topLevelModuleName q
   if moduleNameParts name == ["_"] then do
       q <- runPM (parse moduleNameParser defaultName)

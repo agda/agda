@@ -16,6 +16,7 @@ module Agda.Interaction.Highlighting.HTML
   ) where
 
 import Prelude hiding ((!!), concatMap)
+import Control.Arrow ((***))
 import Control.Monad
 import Control.Monad.Trans
 
@@ -27,6 +28,7 @@ import qualified Data.IntMap as IntMap
 import qualified Data.Map    as Map
 import qualified Data.List   as List
 import Data.Text.Lazy (Text)
+import qualified Data.Text.Lazy as T
 
 import qualified Network.URI.Encode
 
@@ -79,20 +81,24 @@ defaultCSSFile = "Agda.css"
 generateHTML :: TCM ()
 generateHTML = generateHTMLWithPageGen pageGen
   where
-  pageGen :: FilePath -> C.TopLevelModuleName -> CompressedFile -> TCM ()
-  pageGen dir mod hinfo = generatePage renderer dir mod
+  pageGen ::
+    FilePath -> C.TopLevelModuleName -> Text -> CompressedFile -> TCM ()
+  pageGen dir mod contents hinfo = generatePage renderer dir mod
     where
-    renderer :: FilePath -> FilePath -> String -> Text
-    renderer css _ contents = page css mod $ code $ tokenStream contents hinfo
+    renderer :: FilePath -> FilePath -> Text
+    renderer css _ =
+      page css mod $ code $ tokenStream contents hinfo
 
 -- | Prepare information for HTML page generation.
 --
---   The page generator receives the file path of the module,
---   the top level module name of the module
---   and the highlighting information of the module.
+--   The page generator receives the output directory as well as the
+--   module's top level module name, its source code, and its
+--   highlighting information.
 
 generateHTMLWithPageGen
-  :: (FilePath -> C.TopLevelModuleName -> CompressedFile -> TCM ())  -- ^ Page generator
+  :: (FilePath ->
+      C.TopLevelModuleName -> Text -> CompressedFile -> TCM ())
+     -- ^ Page generator.
   -> TCM ()
 generateHTMLWithPageGen generatePage = do
       options <- TCM.commandLineOptions
@@ -113,11 +119,13 @@ generateHTMLWithPageGen generatePage = do
         , "reached from the given module, including library files."
         ]
 
-      -- Pull highlighting info from the state and generate all the
-      -- web pages.-
-      mapM_ (uncurry $ generatePage dir) =<<
-        map (mapSnd $ TCM.iHighlighting . TCM.miInterface) .
-          Map.toList <$> TCM.getVisitedModules
+      -- Pull source code and highlighting info from the state and
+      -- generate all the web pages.
+      mapM_ (\(n, mi) ->
+              let i = TCM.miInterface mi in
+              generatePage dir n
+                (TCM.iSource i) (TCM.iHighlighting i)) .
+        Map.toList =<< TCM.getVisitedModules
 
 -- | Converts module names to the corresponding HTML file names.
 
@@ -129,16 +137,16 @@ modToFile m =
 -- | Generates a highlighted, hyperlinked version of the given module.
 
 generatePage
-  :: (FilePath -> FilePath -> String -> Text)  -- ^ Page renderer
-  -> FilePath              -- ^ Directory in which to create files.
-  -> C.TopLevelModuleName  -- ^ Module to be highlighted.
+  :: (FilePath -> FilePath -> Text)  -- ^ Page renderer.
+  -> FilePath                        -- ^ Directory in which to create
+                                     --   files.
+  -> C.TopLevelModuleName            -- ^ Module to be highlighted.
   -> TCM ()
 generatePage renderpage dir mod = do
-  f <- fromMaybe __IMPOSSIBLE__ . Map.lookup mod <$> useTC TCM.stModuleToSource
-  contents <- liftIO $ UTF8.readTextFile $ filePath f
-  css      <- fromMaybe defaultCSSFile . optCSSFile <$>
-                TCM.commandLineOptions
-  let html = renderpage css (filePath f) contents
+  f   <- fromMaybe __IMPOSSIBLE__ . Map.lookup mod <$> useTC TCM.stModuleToSource
+  css <- fromMaybe defaultCSSFile . optCSSFile <$>
+           TCM.commandLineOptions
+  let html = renderpage css (filePath f)
   TCM.reportSLn "html" 1 $ "Generating HTML for " ++
                            render (pretty mod) ++
                            " (" ++ target ++ ")."
@@ -174,7 +182,7 @@ page css modName pagecontent = renderHtml $ docTypeHtml $ hdr <> rest
 -- | Constructs token stream ready to print.
 
 tokenStream
-     :: String         -- ^ The contents of the module.
+     :: Text           -- ^ The contents of the module.
      -> CompressedFile -- ^ Highlighting information.
      -> [(Int, String, Aspects)]  -- ^ (position, contents, info)
 tokenStream contents info =
@@ -184,7 +192,7 @@ tokenStream contents info =
           [] -> __IMPOSSIBLE__) $
   List.groupBy ((==) `on` fst) $
   map (\(pos, c) -> (IntMap.lookup pos infoMap, (pos, c))) $
-  zip [1..] contents
+  zip [1..] (T.unpack contents)
   where
   infoMap = toMap (decompress info)
 

@@ -654,10 +654,9 @@ generateLaTeX i = do
   inAbsPath <- liftM filePath (Find.findFile mod)
 
   liftIO $ do
-    source <- UTF8.readTextFile inAbsPath
     latex <- E.encodeUtf8 `fmap`
                toLaTeX (O.optCountClusters $ O.optPragmaOptions options)
-                       (mkAbsolute inAbsPath) source hi
+                       (mkAbsolute inAbsPath) (iSource i) hi
     createDirectoryIfMissing True $ dir </> takeDirectory outPath
     BS.writeFile (dir </> outPath) latex
 
@@ -679,7 +678,7 @@ toLaTeX
   :: Bool
      -- ^ Count extended grapheme clusters?
   -> AbsolutePath
-  -> String
+  -> L.Text
   -> HighlightingInfo
   -> IO L.Text
 toLaTeX cc path source hi
@@ -738,7 +737,7 @@ toLaTeX cc path source hi
   -- Map each character to its role
   . atomizeLayers . literateTeX (startPos (Just path))
 
-  $ source
+  $ L.unpack source
   where
   infoMap = toMap (decompress hi)
 
