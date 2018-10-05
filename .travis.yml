@@ -30,6 +30,16 @@ cache:
 
 matrix:
   include:
+    - env: TEST=MAIN GHC_VER=8.6.1 BUILD=CABAL CABAL_VER=2.4
+      addons:
+        apt:
+          packages:
+            - cabal-install-2.4
+            - ghc-8.6.1
+            - texlive-binaries
+          sources:
+            - hvr-ghc
+
     - env: TEST=MAIN GHC_VER=8.4.3 BUILD=CABAL CABAL_VER=2.2
       addons:
         apt:
