@@ -122,6 +122,16 @@ matrix:
       language: python
       python: "3.4"
 
+    - env: TEST=MAIN GHC_VER=8.6.1 BUILD=CABAL CABAL_VER=2.4
+      addons:
+        apt:
+          packages:
+            - cabal-install-2.4
+            - ghc-8.6.1
+            - texlive-binaries
+          sources:
+            - hvr-ghc
+
   # Builds are loooong, we want to send an email as fast as possible.
   fast_finish: true
   # allow_failures:
