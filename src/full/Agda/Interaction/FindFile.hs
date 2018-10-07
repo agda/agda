@@ -118,8 +118,8 @@ findFile'' dirs m modFile =
   case Map.lookup m modFile of
     Just f  -> return (Right f, modFile)
     Nothing -> do
-      files <- fileList sourceFileExts
-      filesShortList <- fileList sourceFileExtsShortList
+      files <- fileList parseFileExts
+      filesShortList <- fileList parseFileExtsShortList
       existingFiles <-
         liftIO $ filterM (doesFileExistCaseSensitive . filePath) files
       return $ case List.nub existingFiles of
@@ -211,15 +211,12 @@ moduleName file parsedModule = billTo [Bench.ModuleName] $
   name        = topLevelModuleName parsedModule
   defaultName = rootNameModule file
 
-sourceFileExts :: [String]
-sourceFileExts = [".agda"] ++ literateExts
-
-sourceFileExtsShortList :: [String]
-sourceFileExtsShortList = [".agda"] ++ literateExtsShortList
+parseFileExtsShortList :: [String]
+parseFileExtsShortList = [".agda"] ++ literateExtsShortList
 
 dropAgdaExtension :: String -> String
 dropAgdaExtension s = case catMaybes [ stripExtension ext s
-                                     | ext <- sourceFileExts ] of
+                                     | ext <- parseFileExts ] of
     [name] -> name
     _      -> __IMPOSSIBLE__
   where

@@ -9,6 +9,7 @@ module Agda.Syntax.Parser
     , Agda.Syntax.Parser.parse
     , Agda.Syntax.Parser.parsePosString
     , parseFile'
+    , parseFileExts
       -- * Parsers
     , moduleParser
     , moduleNameParser
@@ -151,9 +152,10 @@ parseLiterateFile po p path = parseLiterate p p . po (startPos (Just path))
 parsePosString :: Parser a -> Position -> String -> PM a
 parsePosString p pos = wrapM . return . M.parsePosString pos (parseFlags p) [normal] (parser p)
 
--- | Extensions supported by `parseFile'`
+-- | Extensions supported by `parseFile'`.
+
 parseFileExts :: [String]
-parseFileExts = ".agda":literateExts
+parseFileExts = ".agda" : literateExts
 
 parseFile' ::
   Show a =>
