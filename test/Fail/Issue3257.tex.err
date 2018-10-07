@@ -1,0 +1,3 @@
+The file name
+Issue3257.tex.agda is invalid
+because Issue3257.tex is not an unqualified module name.

@@ -190,10 +190,16 @@ moduleName' file = billTo [Bench.ModuleName] $ do
   if moduleNameParts name == ["_"] then do
       q <- runPM (parse moduleNameParser defaultName)
              `catchError` \_ ->
-           typeError $
-             GenericError $ "File name " ++ show file ++
-               " is invalid as it does not correspond to a valid module name."
-      return $ TopLevelModuleName (getRange q) [defaultName]
+           typeError $ GenericError $
+             "The file name " ++ show file ++
+             " is invalid because it does not correspond to a valid module name."
+      case q of
+        Qual {} ->
+          typeError $ GenericError $
+            "The file name " ++ show file ++ " is invalid because " ++
+            defaultName ++ " is not an unqualified module name."
+        QName {} ->
+          return $ TopLevelModuleName (getRange q) [defaultName]
     else return name
   where
     defaultName = rootNameModule file
