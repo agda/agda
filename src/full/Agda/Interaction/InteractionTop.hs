@@ -851,22 +851,24 @@ interpret (Cmd_load_highlighting_info source) = do
       absSource <- liftIO $ absolute source
       case ex of
         False -> return Nothing
-        True  -> do
-          mmi <- (getVisitedModule =<<
-                    moduleName absSource)
-                   `catchError`
-                 \_ -> return Nothing
+        True  -> (do
+          si <- Imp.sourceInfo absSource
+          let m = Imp.siModuleName si
+          checkModuleName m absSource Nothing
+          mmi <- getVisitedModule m
           case mmi of
             Nothing -> return Nothing
-            Just mi -> do
-              sourceH <- liftIO $ hashFile absSource
-              if sourceH == iSourceHash (miInterface mi)
+            Just mi ->
+              if hashText (Imp.siSourceT si) ==
+                 iSourceHash (miInterface mi)
                then do
                 modFile <- useTC stModuleToSource
                 method  <- viewTC eHighlightingMethod
                 return $ Just (iHighlighting $ miInterface mi, method, modFile)
                else
-                return Nothing
+                return Nothing)
+            `catchError`
+          \_ -> return Nothing
     mapM_ putResponse resp
 
 interpret (Cmd_tokenHighlighting source remove) = do
@@ -1143,8 +1145,8 @@ cmd_load' :: FilePath -> [String]
 cmd_load' file argv unsolvedOK mode cmd = do
     f <- liftIO $ absolute file
     ex <- liftIO $ doesFileExist $ filePath f
-    let relativeTo | ex        = ProjectRoot f
-                   | otherwise = CurrentDir
+    unless ex $ typeError $ GenericError $
+      "The file " ++ file ++ " was not found."
 
     -- Forget the previous "current file" and interaction points.
     modify $ \ st -> st { theInteractionPoints = []
@@ -1152,6 +1154,9 @@ cmd_load' file argv unsolvedOK mode cmd = do
                         }
 
     t <- liftIO $ getModificationTime file
+
+    -- Parse the file.
+    si <- lift (Imp.sourceInfo f)
 
     -- All options are reset when a file is reloaded, including the
     -- choice of whether or not to display implicit arguments.
@@ -1161,7 +1166,8 @@ cmd_load' file argv unsolvedOK mode cmd = do
       Left err   -> lift $ typeError $ GenericError err
       Right opts -> do
         let update o = o { optAllowUnsolved = unsolvedOK && optAllowUnsolved o}
-        lift $ TM.setCommandLineOptions' relativeTo $ mapPragmaOptions update opts
+            root     = projectRoot f (Imp.siModuleName si)
+        lift $ TM.setCommandLineOptions' root $ mapPragmaOptions update opts
         displayStatus
 
     -- Reset the state, preserving options and decoded modules. Note
@@ -1177,7 +1183,7 @@ cmd_load' file argv unsolvedOK mode cmd = do
     putResponse (Resp_ClearHighlighting NotOnlyTokenBased)
 
 
-    ok <- lift $ Imp.typeCheckMain f mode
+    ok <- lift $ Imp.typeCheckMain f mode si
 
     -- The module type checked. If the file was not changed while the
     -- type checker was running then the interaction points and the

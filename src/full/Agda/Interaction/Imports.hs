@@ -84,6 +84,28 @@ import qualified Agda.Utils.Trie as Trie
 #include "undefined.h"
 import Agda.Utils.Impossible
 
+-- | Some information about the source code.
+
+data SourceInfo = SourceInfo
+  { siSourceT    :: Text                  -- ^ Source code.
+  , siSource     :: String                -- ^ Source code.
+  , siModule     :: C.Module              -- ^ The parsed module.
+  , siModuleName :: C.TopLevelModuleName  -- ^ The top-level module name.
+  }
+
+-- | Computes a 'SourceInfo' record for the given file.
+
+sourceInfo :: AbsolutePath -> TCM SourceInfo
+sourceInfo f = Bench.billTo [Bench.Parsing] $ do
+  (sourceT, source) <- runPM (readFilePM f)
+  parsedModule      <- runPM (parseFile' moduleParser f source)
+  moduleName        <- moduleName f parsedModule
+  return $ SourceInfo { siSourceT    = sourceT
+                      , siSource     = source
+                      , siModule     = parsedModule
+                      , siModuleName = moduleName
+                      }
+
 -- | Is the aim to type-check the top-level module, or only to
 -- scope-check it?
 
@@ -233,8 +255,15 @@ alreadyVisited x isMain getIface = do
 --   however, that if the file has already been type-checked, then a
 --   complete interface is returned.
 
-typeCheckMain :: AbsolutePath -> Mode -> TCM (Interface, MaybeWarnings)
-typeCheckMain f mode = do
+typeCheckMain ::
+  AbsolutePath ->
+  -- ^ The path to the file.
+  Mode ->
+  -- ^ Should the file be type-checked, or only scope-checked?
+  SourceInfo ->
+  -- ^ Information about the source code.
+  TCM (Interface, MaybeWarnings)
+typeCheckMain f mode si = do
   -- liftIO $ putStrLn $ "This is typeCheckMain " ++ prettyShow f
   -- liftIO . putStrLn . show =<< getVerbosity
   reportSLn "import.main" 10 $ "Importing the primitive modules."
@@ -253,14 +282,25 @@ typeCheckMain f mode = do
       withHighlightingLevel None $
         forM_ [libdir </> "prim" </> "Agda" </> "Primitive.agda"
               ,libdir </> "prim" </> "Agda" </> "Primitive" </> "Cubical.agda"
-              ] $ \ mname ->
-          getInterface_ =<< do
-            moduleName $ mkAbsolute $ mname
+              ] $ \f -> do
+          let file = mkAbsolute f
+          si <- sourceInfo file
+          checkModuleName' (siModuleName si) file
+          getInterface_ (siModuleName si) (Just si)
   reportSLn "import.main" 10 $ "Done importing the primitive modules."
 
-  -- Now do the type checking via getInterface.
-  m <- moduleName f
-  getInterface' m (MainInterface mode)
+  -- Now do the type checking via getInterface'.
+  checkModuleName' (siModuleName si) f
+  getInterface' (siModuleName si) (MainInterface mode) (Just si)
+  where
+  checkModuleName' m f =
+    -- Andreas, 2016-07-11, issue 2092
+    -- The error range should be set to the file with the wrong module name
+    -- not the importing one (which would be the default).
+    (if null r then id else traceCall (SetRange r)) $
+      checkModuleName m f Nothing
+    where
+    r = getRange m
 
 -- | Tries to return the interface associated to the given (imported) module.
 --   The time stamp of the relevant interface file is also returned.
@@ -271,13 +311,17 @@ typeCheckMain f mode = do
 --   Do not use this for the main file, use 'typeCheckMain' instead.
 
 getInterface :: ModuleName -> TCM Interface
-getInterface = getInterface_ . toTopLevelModuleName
+getInterface m = getInterface_ (toTopLevelModuleName m) Nothing
 
 -- | See 'getInterface'.
 
-getInterface_ :: C.TopLevelModuleName -> TCM Interface
-getInterface_ x = do
-  (i, wt) <- getInterface' x NotMainInterface
+getInterface_ ::
+  C.TopLevelModuleName ->
+  Maybe SourceInfo ->
+  -- ^ Optional information about the source code.
+  TCM Interface
+getInterface_ x msi = do
+  (i, wt) <- getInterface' x NotMainInterface msi
   case wt of
     SomeWarnings w  -> tcWarningsToError (filter (notIM . tcWarning) w)
     NoWarnings      -> return i
@@ -291,11 +335,13 @@ getInterface_ x = do
 -- encountered then they are returned instead of being turned into
 -- errors.
 
-getInterface'
-  :: C.TopLevelModuleName
-  -> MainInterface
-  -> TCM (Interface, MaybeWarnings)
-getInterface' x isMain = do
+getInterface' ::
+  C.TopLevelModuleName ->
+  MainInterface ->
+  Maybe SourceInfo ->
+  -- ^ Optional information about the source code.
+  TCM (Interface, MaybeWarnings)
+getInterface' x isMain msi = do
   withIncreasedModuleNestingLevel $ do
     -- Preserve the pragma options unless we are checking the main
     -- interface.
@@ -315,7 +361,9 @@ getInterface' x isMain = do
         cached <- runMaybeT $ isCached x file
           -- If it's cached ignoreInterfaces has no effect;
           -- to avoid typechecking a file more than once.
-        sourceH <- liftIO $ hashFile file
+        sourceH <- case msi of
+                     Nothing -> liftIO $ hashFile file
+                     Just si -> return $ hashText (siSourceT si)
         ifaceH  <-
           case cached of
             Nothing -> fmap fst <$> getInterfaceFileHashes (filePath $ toIFile file)
@@ -336,8 +384,8 @@ getInterface' x isMain = do
         let maySkip = True
 
         if uptodate && maySkip
-          then getStoredInterface x file isMain
-          else typeCheck          x file isMain
+          then getStoredInterface x file isMain msi
+          else typeCheck          x file isMain msi
 
       -- Ensure that the given module name matches the one in the file.
       let topLevelName = toTopLevelModuleName $ iModuleName i
@@ -401,12 +449,14 @@ getStoredInterface
   -> AbsolutePath
      -- ^ File we process.
   -> MainInterface
+  -> Maybe SourceInfo
+     -- ^ Optional information about the source code.
   -> TCM (Bool, (Interface, MaybeWarnings))
      -- ^ @Bool@ is: do we have to merge the interface?
-getStoredInterface x file isMain = do
+getStoredInterface x file isMain msi = do
   -- If something goes wrong (interface outdated etc.)
   -- we revert to fresh type checking.
-  let fallback = typeCheck x file isMain
+  let fallback = typeCheck x file isMain msi
 
   -- Examine the hash of the interface file. If it is different from the
   -- stored version (in stDecodedModules), or if there is no stored version,
@@ -471,9 +521,11 @@ typeCheck
   -> AbsolutePath
      -- ^ File we process.
   -> MainInterface
+  -> Maybe SourceInfo
+     -- ^ Optional information about the source code.
   -> TCM (Bool, (Interface, MaybeWarnings))
      -- ^ @Bool@ is: do we have to merge the interface?
-typeCheck x file isMain = do
+typeCheck x file isMain msi = do
   unless (includeStateChanges isMain) cleanCachedLog
   let checkMsg = case isMain of
                    MainInterface ScopeCheck -> "Reading "
@@ -491,7 +543,7 @@ typeCheck x file isMain = do
 
   case isMain of
     MainInterface _ -> do
-      r <- withMsgs $ createInterface file x isMain
+      r <- withMsgs $ createInterface file x isMain msi
       return (True, r)
 
     NotMainInterface -> do
@@ -531,7 +583,7 @@ typeCheck x file isMain = do
                setVisitedModules vs
                addImportedThings isig ibuiltin ipatsyns display userwarn []
 
-               r  <- withMsgs $ createInterface file x isMain
+               r  <- withMsgs $ createInterface file x isMain msi
                mf <- useTC stModuleToSource
                ds <- getDecodedModules
                return (r, do
@@ -555,7 +607,7 @@ typeCheck x file isMain = do
                 -- file, only the cached interface. (This comment is not
                 -- correct, see
                 -- test/Fail/customised/NestedProjectRoots.err.)
-                getStoredInterface x file isMain
+                getStoredInterface x file isMain msi
               _ -> return (False, r)
 
 -- | Formats and outputs the "Checking", "Finished" and "Loading " messages.
@@ -654,15 +706,11 @@ createInterface
   :: AbsolutePath          -- ^ The file to type check.
   -> C.TopLevelModuleName  -- ^ The expected module name.
   -> MainInterface
+  -> Maybe SourceInfo      -- ^ Optional information about the source code.
   -> TCM (Interface, MaybeWarnings)
-createInterface file mname isMain = Bench.billTo [Bench.TopModule mname] $
+createInterface file mname isMain msi =
+  Bench.billTo [Bench.TopModule mname] $
   localTC (\e -> e { envCurrentPath = Just file }) $ do
-    (sourceT, source) <- runPM $ readFilePM file
-
-    modFile       <- useTC stModuleToSource
-    fileTokenInfo <- Bench.billTo [Bench.Highlighting] $
-                       generateTokenInfoFromSource file source
-    stTokens `setTCLens` fileTokenInfo
 
     reportSLn "import.iface.create" 5 $
       "Creating interface for " ++ prettyShow mname ++ "."
@@ -671,9 +719,17 @@ createInterface file mname isMain = Bench.billTo [Bench.TopModule mname] $
       reportSLn "import.iface.create" 10 $
         "  visited: " ++ List.intercalate ", " (map prettyShow visited)
 
-    -- Parsing.
-    (pragmas, top) <- Bench.billTo [Bench.Parsing] $
-      runPM $ parseFile' moduleParser file source
+    (sourceT, source, (pragmas, top)) <- do
+      si <- case msi of
+        Nothing -> sourceInfo file
+        Just si -> return si
+      case si of
+        SourceInfo {..} -> return (siSourceT, siSource, siModule)
+
+    modFile       <- useTC stModuleToSource
+    fileTokenInfo <- Bench.billTo [Bench.Highlighting] $
+                       generateTokenInfoFromSource file source
+    stTokens `setTCLens` fileTokenInfo
 
     pragmas <- concat <$> concreteToAbstract_ pragmas
                -- identity for top-level pragmas at the moment
