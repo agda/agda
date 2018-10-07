@@ -8,7 +8,7 @@ module Agda.Syntax.Parser
       -- * Parse functions
     , Agda.Syntax.Parser.parse
     , Agda.Syntax.Parser.parsePosString
-    , parseFile'
+    , Agda.Syntax.Parser.parseFile
     , parseFileExts
       -- * Parsers
     , moduleParser
@@ -104,12 +104,6 @@ type LiterateParser a = Parser a -> [Layer] -> PM a
 parse :: Parser a -> String -> PM a
 parse p = wrapM . return . M.parse (parseFlags p) [normal] (parser p)
 
-parseFile :: Parser a -> AbsolutePath -> PM a
-parseFile p = wrapM . M.parseFile (parseFlags p) [layout, normal] (parser p)
-
-parseString :: Parser a -> String -> PM a
-parseString = parseStringFromFile Strict.Nothing
-
 parseStringFromFile :: SrcFile -> Parser a -> String -> PM a
 parseStringFromFile src p = wrapM . return . M.parseFromSrc (parseFlags p) [layout, normal] (parser p) src
 
@@ -152,12 +146,12 @@ parseLiterateFile po p path = parseLiterate p p . po (startPos (Just path))
 parsePosString :: Parser a -> Position -> String -> PM a
 parsePosString p pos = wrapM . return . M.parsePosString pos (parseFlags p) [normal] (parser p)
 
--- | Extensions supported by `parseFile'`.
+-- | Extensions supported by `parseFile`.
 
 parseFileExts :: [String]
 parseFileExts = ".agda" : literateExts
 
-parseFile' ::
+parseFile ::
   Show a =>
   Parser a ->
   AbsolutePath ->
@@ -165,7 +159,7 @@ parseFile' ::
   String ->
   -- ^ The file contents. Note that the file is /not/ read from disk.
   PM a
-parseFile' p file input =
+parseFile p file input =
   if ".agda" `List.isSuffixOf` filePath file then
     Agda.Syntax.Parser.parseStringFromFile (Strict.Just file) p input
   else

@@ -98,7 +98,7 @@ data SourceInfo = SourceInfo
 sourceInfo :: AbsolutePath -> TCM SourceInfo
 sourceInfo f = Bench.billTo [Bench.Parsing] $ do
   (sourceT, source) <- runPM (readFilePM f)
-  parsedModule      <- runPM (parseFile' moduleParser f source)
+  parsedModule      <- runPM (parseFile moduleParser f source)
   moduleName        <- moduleName f parsedModule
   return $ SourceInfo { siSourceT    = sourceT
                       , siSource     = source
