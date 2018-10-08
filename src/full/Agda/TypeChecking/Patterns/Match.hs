@@ -151,9 +151,9 @@ matchCopatterns :: [NamedArg DeBruijnPattern]
                 -> ReduceM (Match Term, [Elim])
 matchCopatterns ps vs = do
   traceSDoc "tc.match" 50
-    (vcat [ text "matchCopatterns"
-          , nest 2 $ text "ps =" <+> fsep (punctuate comma $ map (prettyTCM . namedArg) ps)
-          , nest 2 $ text "vs =" <+> fsep (punctuate comma $ map prettyTCM vs)
+    (vcat [ "matchCopatterns"
+          , nest 2 $ "ps =" <+> fsep (punctuate comma $ map (prettyTCM . namedArg) ps)
+          , nest 2 $ "vs =" <+> fsep (punctuate comma $ map prettyTCM vs)
           ]) $ do
   -- Buggy, see issue 1124:
   -- mapFst mconcat . unzip <$> zipWithM' (matchCopattern . namedArg) ps vs
@@ -179,9 +179,9 @@ matchPatterns :: [NamedArg DeBruijnPattern]
               -> ReduceM (Match Term, [Arg Term])
 matchPatterns ps vs = do
   traceSDoc "tc.match" 50
-    (vcat [ text "matchPatterns"
-          , nest 2 $ text "ps =" <+> fsep (punctuate comma $ map (text . show) ps)
-          , nest 2 $ text "vs =" <+> fsep (punctuate comma $ map prettyTCM vs)
+    (vcat [ "matchPatterns"
+          , nest 2 $ "ps =" <+> fsep (punctuate comma $ map (text . show) ps)
+          , nest 2 $ "vs =" <+> fsep (punctuate comma $ map prettyTCM vs)
           ]) $ do
   -- Buggy, see issue 1124:
   -- (ms,vs) <- unzip <$> zipWithM' (matchPattern . namedArg) ps vs

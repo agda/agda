@@ -63,7 +63,7 @@ getCompiledClauses q = do
              | otherwise = False
       translate | isProj    = CC.DontRunRecordPatternTranslation
                 | otherwise = CC.RunRecordPatternTranslation
-  reportSDoc "treeless.convert" 40 $ text "-- before clause compiler" $$ (pretty q <+> text "=") <?> vcat (map pretty cs)
+  reportSDoc "treeless.convert" 40 $ "-- before clause compiler" $$ (pretty q <+> "=") <?> vcat (map pretty cs)
   CC.compileClauses' translate cs
 
 -- | Converts compiled clauses to treeless syntax.
@@ -95,16 +95,16 @@ cacheTreeless q = do
 ccToTreeless :: QName -> CC.CompiledClauses -> TCM C.TTerm
 ccToTreeless q cc = do
   let pbody b = pbody' "" b
-      pbody' suf b = sep [ text (prettyShow q ++ suf) <+> text "=", nest 2 $ prettyPure b ]
+      pbody' suf b = sep [ text (prettyShow q ++ suf) <+> "=", nest 2 $ prettyPure b ]
   v <- ifM (alwaysInline q) (return 20) (return 0)
-  reportSDoc "treeless.convert" (30 + v) $ text "-- compiled clauses of" <+> prettyTCM q $$ nest 2 (prettyPure cc)
+  reportSDoc "treeless.convert" (30 + v) $ "-- compiled clauses of" <+> prettyTCM q $$ nest 2 (prettyPure cc)
   body <- casetreeTop cc
-  reportSDoc "treeless.opt.converted" (30 + v) $ text "-- converted" $$ pbody body
+  reportSDoc "treeless.opt.converted" (30 + v) $ "-- converted" $$ pbody body
   body <- runPipeline q (compilerPipeline v q) body
   used <- usedArguments q body
   when (any not used) $
     reportSDoc "treeless.opt.unused" (30 + v) $
-      text "-- used args:" <+> hsep [ if u then text [x] else text "_" | (x, u) <- zip ['a'..] used ] $$
+      "-- used args:" <+> hsep [ if u then text [x] else "_" | (x, u) <- zip ['a'..] used ] $$
       pbody' "[stripped]" (stripUnusedArguments used body)
   reportSDoc "treeless.opt.final" (20 + v) $ pbody body
   setTreeless q body
@@ -149,8 +149,8 @@ runCompilerPass :: QName -> CompilerPass -> TTerm -> TCM TTerm
 runCompilerPass q p t = do
   t' <- passCode p t
   let dbg f   = reportSDoc ("treeless.opt." ++ passTag p) (passVerbosity p) $ f $ text ("-- " ++ passName p)
-      pbody b = sep [ text (prettyShow q) <+> text "=", nest 2 $ prettyPure b ]
-  dbg $ if | t == t'   -> (<+> text "(No effect)")
+      pbody b = sep [ text (prettyShow q) <+> "=", nest 2 $ prettyPure b ]
+  dbg $ if | t == t'   -> (<+> "(No effect)")
            | otherwise -> ($$ pbody t')
   return t'
 
@@ -231,7 +231,7 @@ casetree cc = do
       -- Andreas, 2016-06-03, issue #1986: Ulf: "no catch-all for copatterns!"
       -- lift $ do
       --   typeError . GenericDocError =<< do
-      --     text "Not yet implemented: compilation of copattern matching with catch-all clause"
+      --     "Not yet implemented: compilation of copattern matching with catch-all clause"
     CC.Case (Arg _ n) (CC.Branches True conBrs _ _ Nothing _ _) -> lambdasUpTo n $ do
       mkRecord =<< traverse casetree (CC.content <$> conBrs)
     CC.Case (Arg _ n) (CC.Branches False conBrs etaBr litBrs catchAll _ lazy) -> lambdasUpTo (n + 1) $ do

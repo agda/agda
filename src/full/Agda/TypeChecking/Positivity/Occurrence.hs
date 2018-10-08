@@ -91,21 +91,21 @@ instance Pretty Occurrence where
 
 instance Pretty Where where
   pretty = \case
-    LeftOfArrow  -> text "LeftOfArrow"
-    DefArg q i   -> text "DefArg"     <+> pretty q <+> pretty i
-    UnderInf     -> text "UnderInf"
-    VarArg       -> text "VarArg"
-    MetaArg      -> text "MetaArg"
-    ConArgType q -> text "ConArgType" <+> pretty q
-    IndArgType q -> text "IndArgType" <+> pretty q
-    InClause i   -> text "InClause"   <+> pretty i
-    Matched      -> text "Matched"
-    InDefOf q    -> text "InDefOf"    <+> pretty q
+    LeftOfArrow  -> "LeftOfArrow"
+    DefArg q i   -> "DefArg"     <+> pretty q <+> pretty i
+    UnderInf     -> "UnderInf"
+    VarArg       -> "VarArg"
+    MetaArg      -> "MetaArg"
+    ConArgType q -> "ConArgType" <+> pretty q
+    IndArgType q -> "IndArgType" <+> pretty q
+    InClause i   -> "InClause"   <+> pretty i
+    Matched      -> "Matched"
+    InDefOf q    -> "InDefOf"    <+> pretty q
 
 instance Pretty OccursWhere where
   pretty = \case
-    Unknown     -> text "Unknown"
-    Known _r ws -> text "Known _" <+> pretty (toList ws)
+    Unknown     -> "Unknown"
+    Known _r ws -> "Known _" <+> pretty (toList ws)
 
 -- * Instances for 'Occurrence'
 

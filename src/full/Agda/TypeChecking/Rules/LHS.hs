@@ -119,8 +119,8 @@ class IsFlexiblePattern a where
 
 instance IsFlexiblePattern A.Pattern where
   maybeFlexiblePattern p = do
-    reportSDoc "tc.lhs.flex" 30 $ text "maybeFlexiblePattern" <+> prettyA p
-    reportSDoc "tc.lhs.flex" 60 $ text "maybeFlexiblePattern (raw) " <+> (text . show . deepUnscope) p
+    reportSDoc "tc.lhs.flex" 30 $ "maybeFlexiblePattern" <+> prettyA p
+    reportSDoc "tc.lhs.flex" 60 $ "maybeFlexiblePattern (raw) " <+> (text . show . deepUnscope) p
     case p of
       A.DotP{}  -> return DotFlex
       A.VarP{}  -> return ImplicitFlex
@@ -160,15 +160,15 @@ updateProblemEqs
  :: [ProblemEq] -> TCM [ProblemEq]
 updateProblemEqs eqs = do
   reportSDoc "tc.lhs.top" 20 $ vcat
-    [ text "updateProblem: equations to update"
-    , nest 2 $ if null eqs then text "(none)" else vcat $ map prettyTCM eqs
+    [ "updateProblem: equations to update"
+    , nest 2 $ if null eqs then "(none)" else vcat $ map prettyTCM eqs
     ]
 
   eqs' <- updates eqs
 
   reportSDoc "tc.lhs.top" 20 $ vcat
-    [ text "updateProblem: new equations"
-    , nest 2 $ if null eqs' then text "(none)" else vcat $ map prettyTCM eqs'
+    [ "updateProblem: new equations"
+    , nest 2 $ if null eqs' then "(none)" else vcat $ map prettyTCM eqs'
     ]
 
   return eqs'
@@ -204,7 +204,7 @@ updateProblemEqs eqs = do
             -- Insert implicit patterns
             ps <- insertImplicitPatterns ExpandLast ps ctel
             reportSDoc "tc.lhs.imp" 20 $
-              text "insertImplicitPatternsT returned" <+> fsep (map prettyA ps)
+              "insertImplicitPatternsT returned" <+> fsep (map prettyA ps)
 
             -- Check argument count and hiding (not just count: #3074)
             let checkArgs [] [] = return ()
@@ -218,7 +218,7 @@ updateProblemEqs eqs = do
                         which Hidden     = "implicit"
                         which Instance{} = "instance"
                 checkArgs [] vs = genericDocError =<< do
-                    fsep $ pwords "Too few arguments to constructor" ++ [prettyTCM c <> text ","] ++
+                    fsep $ pwords "Too few arguments to constructor" ++ [prettyTCM c <> ","] ++
                            pwords ("expected " ++ show n ++ " more explicit "  ++ arguments)
                   where n = length (filter visible vs)
                         arguments | n == 1    = "argument"
@@ -329,10 +329,10 @@ noShadowingOfConstructors mkCall eqs =
    A.VarP (A.BindName x) -> when (getOrigin info == UserWritten) $ do
     reportSDoc "tc.lhs.shadow" 30 $ vcat
       [ text $ "checking whether pattern variable " ++ prettyShow x ++ " shadows a constructor"
-      , nest 2 $ text "type of variable =" <+> prettyTCM a
-      , nest 2 $ text "position of variable =" <+> (text . show) (getRange x)
+      , nest 2 $ "type of variable =" <+> prettyTCM a
+      , nest 2 $ "position of variable =" <+> (text . show) (getRange x)
       ]
-    reportSDoc "tc.lhs.shadow" 70 $ nest 2 $ text "a =" <+> pretty a
+    reportSDoc "tc.lhs.shadow" 70 $ nest 2 $ "a =" <+> pretty a
     a <- reduce a
     case a of
       Def t _ -> do
@@ -377,15 +377,15 @@ checkDotPattern :: DotPattern -> TCM ()
 checkDotPattern (Dot e v (Dom{domInfo = info, unDom = a})) =
   traceCall (CheckDotPattern e v) $ do
   reportSDoc "tc.lhs.dot" 15 $
-    sep [ text "checking dot pattern"
+    sep [ "checking dot pattern"
         , nest 2 $ prettyA e
-        , nest 2 $ text "=" <+> prettyTCM v
-        , nest 2 $ text ":" <+> prettyTCM a
+        , nest 2 $ "=" <+> prettyTCM v
+        , nest 2 $ ":" <+> prettyTCM a
         ]
   applyRelevanceToContext (getRelevance info) $ do
     u <- checkExpr e a
     reportSDoc "tc.lhs.dot" 50 $
-      sep [ text "equalTerm"
+      sep [ "equalTerm"
           , nest 2 $ pretty a
           , nest 2 $ pretty u
           , nest 2 $ pretty v
@@ -422,7 +422,7 @@ instance Monoid LeftoverPatterns where
 --   Precondition: there are no more constructor patterns.
 getLeftoverPatterns :: [ProblemEq] -> TCM LeftoverPatterns
 getLeftoverPatterns eqs = do
-  reportSDoc "tc.lhs.top" 30 $ text "classifying leftover patterns"
+  reportSDoc "tc.lhs.top" 30 $ "classifying leftover patterns"
   mconcat <$> mapM getLeftoverPattern eqs
   where
     patternVariable x i  = LeftoverPatterns (singleton (i,[x])) [] [] [] []
@@ -466,10 +466,10 @@ transferOrigins :: [NamedArg A.Pattern]
                 -> TCM [NamedArg DeBruijnPattern]
 transferOrigins ps qs = do
   reportSDoc "tc.lhs.origin" 40 $ vcat
-    [ text "transferOrigins"
+    [ "transferOrigins"
     , nest 2 $ vcat
-      [ text "ps  =   " <+> prettyA ps
-      , text "qs  =   " <+> pretty qs
+      [ "ps  =   " <+> prettyA ps
+      , "qs  =   " <+> pretty qs
       ]
     ]
   transfers ps qs
@@ -548,16 +548,16 @@ transferOrigins ps qs = do
 --   Returns the list of patterns with the duplicate user patterns removed.
 checkPatternLinearity :: [ProblemEq] -> TCM [ProblemEq]
 checkPatternLinearity eqs = do
-  reportSDoc "tc.lhs.linear" 30 $ text "Checking linearity of pattern variables"
+  reportSDoc "tc.lhs.linear" 30 $ "Checking linearity of pattern variables"
   check Map.empty eqs
   where
     check :: Map A.BindName Term -> [ProblemEq] -> TCM [ProblemEq]
     check _ [] = return []
     check vars (eq@(ProblemEq p u a) : eqs) = do
       reportSDoc "tc.lhs.linear" 40 $ sep
-        [ text "linearity: checking pattern "
+        [ "linearity: checking pattern "
         , prettyA p
-        , text " equal to term "
+        , " equal to term "
         , prettyTCM u
         ]
       case p of
@@ -595,7 +595,7 @@ computeLHSContext = go [] []
   where
     go cxt _ []        tel@ExtendTel{} = do
       reportSDoc "impossible" 10 $
-        text "computeLHSContext: no patterns left, but tel =" <+> prettyTCM tel
+        "computeLHSContext: no patterns left, but tel =" <+> prettyTCM tel
       __IMPOSSIBLE__
     go cxt _ (_ : _)   EmptyTel = __IMPOSSIBLE__
     go cxt _ []        EmptyTel = return cxt
@@ -612,9 +612,9 @@ computeLHSContext = go [] []
 bindAsPatterns :: [AsBinding] -> TCM a -> TCM a
 bindAsPatterns []                ret = ret
 bindAsPatterns (AsB x v a : asb) ret = do
-  reportSDoc "tc.lhs.as" 10 $ text "as pattern" <+> prettyTCM x <+>
-    sep [ text ":" <+> prettyTCM a
-        , text "=" <+> prettyTCM v
+  reportSDoc "tc.lhs.as" 10 $ "as pattern" <+> prettyTCM x <+>
+    sep [ ":" <+> prettyTCM a
+        , "=" <+> prettyTCM v
         ]
   addLetBinding defaultArgInfo x v a $ bindAsPatterns asb ret
 
@@ -623,8 +623,8 @@ bindAsPatterns (AsB x v a : asb) ret = do
 recheckStrippedWithPattern :: ProblemEq -> TCM ()
 recheckStrippedWithPattern (ProblemEq p v a) = checkInternal v (unDom a)
   `catchError` \_ -> typeError . GenericDocError =<< vcat
-    [ text "Ill-typed pattern after with abstraction: " <+> prettyA p
-    , text "(perhaps you can replace it by `_`?)"
+    [ "Ill-typed pattern after with abstraction: " <+> prettyA p
+    , "(perhaps you can replace it by `_`?)"
     ]
 
 -- | Result of checking the LHS of a clause.
@@ -703,8 +703,8 @@ checkLeftHandSide c f ps a withSub' strippedPats = Bench.billToCPS [Bench.Typing
       finalChecks (LHSState delta qs0 (Problem eqs rps _) b psplit) = do
 
         reportSDoc "tc.lhs.top" 20 $ vcat
-          [ text "lhs: final checks with remaining equations"
-          , nest 2 $ if null eqs then text "(none)" else vcat $ map prettyTCM eqs
+          [ "lhs: final checks with remaining equations"
+          , nest 2 $ if null eqs then "(none)" else vcat $ map prettyTCM eqs
           ]
 
         unless (null rps) __IMPOSSIBLE__
@@ -785,32 +785,32 @@ checkLeftHandSide c f ps a withSub' strippedPats = Bench.billToCPS [Bench.Typing
 
         -- Debug output
         reportSDoc "tc.lhs.top" 10 $
-          vcat [ text "checked lhs:"
+          vcat [ "checked lhs:"
                , nest 2 $ vcat
-                 [ text "delta   = " <+> prettyTCM delta
-                 , text "dots    = " <+> addContext delta (brackets $ fsep $ punctuate comma $ map prettyTCM dots)
-                 , text "asb     = " <+> addContext delta (brackets $ fsep $ punctuate comma $ map prettyTCM asb)
-                 , text "absurds = " <+> addContext delta (brackets $ fsep $ punctuate comma $ map prettyTCM absurds)
-                 , text "qs      = " <+> addContext delta (prettyList $ map pretty qs)
+                 [ "delta   = " <+> prettyTCM delta
+                 , "dots    = " <+> addContext delta (brackets $ fsep $ punctuate comma $ map prettyTCM dots)
+                 , "asb     = " <+> addContext delta (brackets $ fsep $ punctuate comma $ map prettyTCM asb)
+                 , "absurds = " <+> addContext delta (brackets $ fsep $ punctuate comma $ map prettyTCM absurds)
+                 , "qs      = " <+> addContext delta (prettyList $ map pretty qs)
                  ]
                ]
         reportSDoc "tc.lhs.top" 30 $
           nest 2 $ vcat
-                 [ text "vars   = " <+> text (show vars)
+                 [ "vars   = " <+> text (show vars)
                  ]
-        reportSDoc "tc.lhs.top" 20 $ nest 2 $ text "withSub  = " <+> pretty withSub
-        reportSDoc "tc.lhs.top" 20 $ nest 2 $ text "weakSub  = " <+> pretty weakSub
-        reportSDoc "tc.lhs.top" 20 $ nest 2 $ text "patSub   = " <+> pretty patSub
-        reportSDoc "tc.lhs.top" 20 $ nest 2 $ text "paramSub = " <+> pretty paramSub
+        reportSDoc "tc.lhs.top" 20 $ nest 2 $ "withSub  = " <+> pretty withSub
+        reportSDoc "tc.lhs.top" 20 $ nest 2 $ "weakSub  = " <+> pretty weakSub
+        reportSDoc "tc.lhs.top" 20 $ nest 2 $ "patSub   = " <+> pretty patSub
+        reportSDoc "tc.lhs.top" 20 $ nest 2 $ "paramSub = " <+> pretty paramSub
 
         newCxt <- computeLHSContext vars delta
 
         updateContext paramSub (const newCxt) $ do
 
-          reportSDoc "tc.lhs.top" 10 $ text "bound pattern variables"
-          reportSDoc "tc.lhs.top" 60 $ nest 2 $ text "context = " <+> (pretty =<< getContextTelescope)
-          reportSDoc "tc.lhs.top" 10 $ nest 2 $ text "type  = " <+> prettyTCM b
-          reportSDoc "tc.lhs.top" 60 $ nest 2 $ text "type  = " <+> pretty b
+          reportSDoc "tc.lhs.top" 10 $ "bound pattern variables"
+          reportSDoc "tc.lhs.top" 60 $ nest 2 $ "context = " <+> (pretty =<< getContextTelescope)
+          reportSDoc "tc.lhs.top" 10 $ nest 2 $ "type  = " <+> prettyTCM b
+          reportSDoc "tc.lhs.top" 60 $ nest 2 $ "type  = " <+> pretty b
 
           bindAsPatterns asb $ do
 
@@ -916,8 +916,8 @@ checkLHS mf st@(LHSState tel ip problem target psplit) = updateRelevance $ do
     splitArg (ProblemEq p v Dom{unDom = a}) = traceCall (CheckPattern p tel a) $ do
 
       reportSDoc "tc.lhs.split" 30 $ sep
-        [ text "split looking at pattern"
-        , nest 2 $ text "p =" <+> prettyA p
+        [ "split looking at pattern"
+        , nest 2 $ "p =" <+> prettyA p
         ]
 
       -- in order to split, v must be a variable.
@@ -948,9 +948,9 @@ checkLHS mf st@(LHSState tel ip problem target psplit) = updateRelevance $ do
     splitRest :: NamedArg A.Pattern -> ExceptT TCErr tcm (LHSState a)
     splitRest p = setCurrentRange p $ do
       reportSDoc "tc.lhs.split" 20 $ sep
-        [ text "splitting problem rest"
-        , nest 2 $ text "projection pattern =" <+> prettyA p
-        , nest 2 $ text "eliminates type    =" <+> prettyTCM target
+        [ "splitting problem rest"
+        , nest 2 $ "projection pattern =" <+> prettyA p
+        , nest 2 $ "eliminates type    =" <+> prettyTCM target
         ]
       reportSDoc "tc.lhs.split" 80 $ sep
         [ nest 2 $ text $ "projection pattern (raw) = " ++ show p
@@ -1095,17 +1095,18 @@ checkLHS mf st@(LHSState tel ip problem target psplit) = updateRelevance $ do
       let delta2 = absBody adelta2
 
       reportSDoc "tc.lhs.split" 10 $ vcat
-        [ text "checking lhs"
-        , nest 2 $ text "tel =" <+> prettyTCM tel
-        , nest 2 $ text "rel =" <+> (text $ show $ getRelevance info)
+        [ "checking lhs"
+        , nest 2 $ "tel =" <+> prettyTCM tel
+        , nest 2 $ "rel =" <+> (text $ show $ getRelevance info)
         ]
 
       reportSDoc "tc.lhs.split" 15 $ vcat
-        [ text "split problem"
+        [ "split problem"
         , nest 2 $ vcat
-          [ text "delta1 = " <+> prettyTCM delta1
-          , text "a      = " <+> addContext delta1 (prettyTCM a)
-          , text "delta2 = " <+> addContext delta1 (addContext ("x", dom) (prettyTCM delta2))
+          [ "delta1 = " <+> prettyTCM delta1
+          , "a      = " <+> addContext delta1 (prettyTCM a)
+          , "delta2 = " <+> addContext delta1
+                              (addContext ("x" :: String, dom) (prettyTCM delta2))
           ]
         ]
 
@@ -1150,17 +1151,17 @@ checkLHS mf st@(LHSState tel ip problem target psplit) = updateRelevance $ do
 
       -- Get the type of the datatype.
       da <- (`piApply` pars) . defType <$> getConstInfo d
-      reportSDoc "tc.lhs.split" 30 $ text "  da = " <+> prettyTCM da
+      reportSDoc "tc.lhs.split" 30 $ "  da = " <+> prettyTCM da
 
       reportSDoc "tc.lhs.top" 15 $ addContext delta1 $
-        sep [ text "preparing to unify"
+        sep [ "preparing to unify"
             , nest 2 $ vcat
-              [ text "c      =" <+> prettyTCM c <+> text ":" <+> prettyTCM b
-              , text "d      =" <+> prettyTCM (Def d (map Apply pars)) <+> text ":" <+> prettyTCM da
-              , text "gamma  =" <+> prettyTCM gamma
-              , text "pars   =" <+> brackets (fsep $ punctuate comma $ map prettyTCM pars)
-              , text "ixs    =" <+> brackets (fsep $ punctuate comma $ map prettyTCM ixs)
-              , text "cixs   =" <+> addContext gamma (brackets (fsep $ punctuate comma $ map prettyTCM cixs))
+              [ "c      =" <+> prettyTCM c <+> ":" <+> prettyTCM b
+              , "d      =" <+> prettyTCM (Def d (map Apply pars)) <+> ":" <+> prettyTCM da
+              , "gamma  =" <+> prettyTCM gamma
+              , "pars   =" <+> brackets (fsep $ punctuate comma $ map prettyTCM pars)
+              , "ixs    =" <+> brackets (fsep $ punctuate comma $ map prettyTCM ixs)
+              , "cixs   =" <+> addContext gamma (brackets (fsep $ punctuate comma $ map prettyTCM cixs))
               ]
             ]
 
@@ -1209,19 +1210,19 @@ checkLHS mf st@(LHSState tel ip problem target psplit) = updateRelevance $ do
         -- Success.
         Unifies (delta1',rho0,es) -> do
 
-          reportSDoc "tc.lhs.top" 15 $ text "unification successful"
+          reportSDoc "tc.lhs.top" 15 $ "unification successful"
           reportSDoc "tc.lhs.top" 20 $ nest 2 $ vcat
-            [ text "delta1' =" <+> prettyTCM delta1'
-            , text "rho0    =" <+> addContext delta1' (prettyTCM rho0)
-            , text "es      =" <+> addContext delta1' (prettyTCM $ (fmap . fmap . fmap) patternToTerm es)
+            [ "delta1' =" <+> prettyTCM delta1'
+            , "rho0    =" <+> addContext delta1' (prettyTCM rho0)
+            , "es      =" <+> addContext delta1' (prettyTCM $ (fmap . fmap . fmap) patternToTerm es)
             ]
 
           -- split substitution into part for Δ₁ and part for Γ
           let (rho1,rho2) = splitS (size gamma) rho0
 
           reportSDoc "tc.lhs.top" 20 $ addContext delta1' $ nest 2 $ vcat
-            [ text "rho1    =" <+> prettyTCM rho1
-            , text "rho2    =" <+> prettyTCM rho2
+            [ "rho1    =" <+> prettyTCM rho1
+            , "rho2    =" <+> prettyTCM rho2
             ]
 
           -- Andreas, 2010-09-09, save the type.
@@ -1243,19 +1244,19 @@ checkLHS mf st@(LHSState tel ip problem target psplit) = updateRelevance $ do
               rho     = liftS (size delta2) rho3
 
           reportSDoc "tc.lhs.top" 20 $ addContext delta1' $ nest 2 $ vcat
-            [ text "crho2   =" <+> prettyTCM crho2
-            , text "rho3    =" <+> prettyTCM rho3
-            , text "delta2' =" <+> prettyTCM delta2'
+            [ "crho2   =" <+> prettyTCM crho2
+            , "rho3    =" <+> prettyTCM rho3
+            , "delta2' =" <+> prettyTCM delta2'
             ]
           reportSDoc "tc.lhs.top" 70 $ addContext delta1' $ nest 2 $ vcat
-            [ text "crho2   =" <+> pretty crho2
-            , text "rho3    =" <+> pretty rho3
-            , text "delta2' =" <+> pretty delta2'
+            [ "crho2   =" <+> pretty crho2
+            , "rho3    =" <+> pretty rho3
+            , "delta2' =" <+> pretty delta2'
             ]
 
           reportSDoc "tc.lhs.top" 15 $ nest 2 $ vcat
-            [ text "delta'  =" <+> prettyTCM delta'
-            , text "rho     =" <+> addContext delta' (prettyTCM rho)
+            [ "delta'  =" <+> prettyTCM delta'
+            , "rho     =" <+> addContext delta' (prettyTCM rho)
             ]
 
           -- Compute the new out patterns and target type.
@@ -1273,11 +1274,11 @@ checkLHS mf st@(LHSState tel ip problem target psplit) = updateRelevance $ do
           st' <- liftTCM $ updateProblemRest $ LHSState delta' ip' problem' target' psplit
 
           reportSDoc "tc.lhs.top" 12 $ sep
-            [ text "new problem from rest"
+            [ "new problem from rest"
             , nest 2 $ vcat
-              [ text "delta'  =" <+> prettyTCM (st' ^. lhsTel)
-              , text "eqs'    =" <+> addContext (st' ^. lhsTel) (prettyTCM $ st' ^. lhsProblem ^. problemEqs)
-              , text "ip'     =" <+> addContext (st' ^. lhsTel) (pretty $ st' ^. lhsOutPat)
+              [ "delta'  =" <+> prettyTCM (st' ^. lhsTel)
+              , "eqs'    =" <+> addContext (st' ^. lhsTel) (prettyTCM $ st' ^. lhsProblem ^. problemEqs)
+              , "ip'     =" <+> addContext (st' ^. lhsTel) (pretty $ st' ^. lhsOutPat)
               ]
             ]
           return st'
@@ -1296,7 +1297,7 @@ noPatternMatchingOnCodata = mapM_ (check . namedArg)
   check (LitP {})   = return ()  -- Literals are assumed not to be coinductive.
   check (ConP con _ ps) = do
     reportSDoc "tc.lhs.top" 40 $
-      text "checking whether" <+> prettyTCM con <+> text "is a coinductive constructor"
+      "checking whether" <+> prettyTCM con <+> "is a coinductive constructor"
     TelV _ t <- telView' . defType <$> do getConstInfo $ conName con
     c <- isCoinductive t
     case c of
@@ -1352,7 +1353,7 @@ isDataOrRecordType dom@Dom{domInfo = info, unDom = a} = liftTCM (reduceB a) >>= 
 
       -- Issue #2253: the data type could be abstract.
       AbstractDefn{} -> hardTypeError . GenericDocError =<< do
-        liftTCM $ text "Cannot split on abstract data type" <+> prettyTCM d
+        liftTCM $ "Cannot split on abstract data type" <+> prettyTCM d
 
       -- the type could be an axiom
       Axiom{} -> hardTypeError =<< notData
@@ -1444,8 +1445,8 @@ disambiguateProjection h ambD@(AmbQ ds) b = do
               liftTCM $ storeDisambiguatedName d
               return (d,a)
             (errs , disambs@((d,a):_)) -> typeError . GenericDocError =<< vcat
-              [ text "Ambiguous projection " <> prettyTCM (qnameName d) <> text "."
-              , text "It could refer to any of"
+              [ "Ambiguous projection " <> prettyTCM (qnameName d) <> "."
+              , "It could refer to any of"
               , nest 2 $ vcat $ map showDisamb disambs
               ]
     _ -> __IMPOSSIBLE__
@@ -1453,16 +1454,16 @@ disambiguateProjection h ambD@(AmbQ ds) b = do
   where
     showDisamb (d,_) =
       let r = head $ filter (noRange /=) $ map nameBindingSite $ reverse $ mnameToList $ qnameModule d
-      in  (pretty =<< dropTopLevelModule d) <+> text "(introduced at " <> prettyTCM r <> text ")"
+      in  (pretty =<< dropTopLevelModule d) <+> "(introduced at " <> prettyTCM r <> ")"
 
     notRecord = wrongProj $ headNe ds
 
     wrongProj :: (MonadTCM m, MonadError TCErr m) => QName -> m a
     wrongProj d = softTypeError =<< do
       liftTCM $ GenericDocError <$> sep
-        [ text "Cannot eliminate type "
+        [ "Cannot eliminate type "
         , prettyTCM (unArg b)
-        , text " with projection "
+        , " with projection "
         , if isAmbiguous ambD then
             text . prettyShow =<< dropTopLevelModule d
           else
@@ -1472,7 +1473,7 @@ disambiguateProjection h ambD@(AmbQ ds) b = do
     wrongHiding :: (MonadTCM m, MonadError TCErr m) => QName -> m a
     wrongHiding d = softTypeError =<< do
       liftTCM $ GenericDocError <$> sep
-        [ text "Wrong hiding used for projection " , prettyTCM d ]
+        [ "Wrong hiding used for projection " , prettyTCM d ]
 
     tryProj
       :: Bool                 -- ^ Are we allowed to create new constraints?
@@ -1520,7 +1521,7 @@ disambiguateProjection h ambD@(AmbQ ds) b = do
         -- Get the type of projection d applied to "self"
         dType <- liftTCM $ defType <$> getConstInfo d  -- full type!
         reportSDoc "tc.lhs.split" 20 $ sep
-          [ text "we are being projected by dType = " <+> prettyTCM dType
+          [ "we are being projected by dType = " <+> prettyTCM dType
           ]
         projType <- liftTCM $ dType `piApplyM` vs
         return (d0 , Arg ai projType)
@@ -1557,15 +1558,15 @@ disambiguateConstructor ambC@(AmbQ cs) d pars = do
           return (c,a)
 
         (errs , disambs@((c0,c,a):_)) -> typeError . GenericDocError =<< vcat
-          [ text "Ambiguous constructor " <> prettyTCM (qnameName $ conName c) <> text "."
-          , text "It could refer to any of"
+          [ "Ambiguous constructor " <> prettyTCM (qnameName $ conName c) <> "."
+          , "It could refer to any of"
           , nest 2 $ vcat $ map showDisamb disambs
           ]
 
   where
     showDisamb (c0,_,_) =
       let r = head $ filter (noRange /=) $ map nameBindingSite $ reverse $ mnameToList $ qnameModule c0
-      in  (pretty =<< dropTopLevelModule c0) <+> text "(introduced at " <> prettyTCM r <> text ")"
+      in  (pretty =<< dropTopLevelModule c0) <+> "(introduced at " <> prettyTCM r <> ")"
 
     abstractConstructor c = softTypeError $
       AbstractConstructorNotInScope c
@@ -1632,10 +1633,10 @@ checkParameters dc d pars = liftTCM $ do
     Def d0 es -> do -- compare parameters
       let vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
       reportSDoc "tc.lhs.split" 40 $
-        vcat [ nest 2 $ text "d                   =" <+> (text . prettyShow) d
-             , nest 2 $ text "d0 (should be == d) =" <+> (text . prettyShow) d0
-             , nest 2 $ text "dc                  =" <+> (text . prettyShow) dc
-             , nest 2 $ text "vs                  =" <+> prettyTCM vs
+        vcat [ nest 2 $ "d                   =" <+> (text . prettyShow) d
+             , nest 2 $ "d0 (should be == d) =" <+> (text . prettyShow) d0
+             , nest 2 $ "dc                  =" <+> (text . prettyShow) dc
+             , nest 2 $ "vs                  =" <+> prettyTCM vs
              ]
       -- when (d0 /= d) __IMPOSSIBLE__ -- d could have extra qualification
       t <- typeOfConst d
@@ -1657,4 +1658,4 @@ checkSortOfSplitVar dr a = do
     Inf{} | infOk -> return ()
     _      -> softTypeError =<< do
       liftTCM $ GenericDocError <$> sep
-        [ text "Cannot split on datatype in sort" , prettyTCM (getSort a) ]
+        [ "Cannot split on datatype in sort" , prettyTCM (getSort a) ]

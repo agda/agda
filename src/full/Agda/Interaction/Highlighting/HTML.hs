@@ -1,5 +1,4 @@
 {-# LANGUAGE CPP               #-}
-{-# LANGUAGE OverloadedStrings #-}
 
 -- | Function for generating highlighted, hyperlinked HTML from Agda
 -- sources.

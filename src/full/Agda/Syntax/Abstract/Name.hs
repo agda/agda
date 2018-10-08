@@ -338,16 +338,16 @@ instance Pretty Name where
   pretty = pretty . nameConcrete
 
 instance Pretty ModuleName where
-  pretty = hcat . punctuate (text ".") . map pretty . mnameToList
+  pretty = hcat . punctuate "." . map pretty . mnameToList
 
 instance Pretty QName where
-  pretty = hcat . punctuate (text ".") . map pretty . qnameToList
+  pretty = hcat . punctuate "." . map pretty . qnameToList
 
 instance Pretty AmbiguousQName where
-  pretty (AmbQ qs) = hcat $ punctuate (text " | ") $ map pretty (toList qs)
+  pretty (AmbQ qs) = hcat $ punctuate " | " $ map pretty (toList qs)
 
 instance Pretty a => Pretty (QNamed a) where
-  pretty (QNamed a b) = pretty a <> text "." <> pretty b
+  pretty (QNamed a b) = pretty a <> "." <> pretty b
 
 ------------------------------------------------------------------------
 -- * Range instances

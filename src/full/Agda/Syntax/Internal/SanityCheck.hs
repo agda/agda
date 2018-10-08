@@ -28,8 +28,8 @@ sanityCheckVars tel v =
     [] -> return ()
     xs -> do
       reportSDoc "impossible" 1 . return $
-        sep [ hang (text "Sanity check failed for") 2
-                   (hang (pretty tel <+> text "|-") 2 (pretty v))
+        sep [ hang "Sanity check failed for" 2
+                   (hang (pretty tel <+> "|-") 2 (pretty v))
             , text $ "out of scope: " ++ show xs ]
       __IMPOSSIBLE__
   where
@@ -42,23 +42,23 @@ sanityCheckSubst gamma rho delta = go gamma rho delta
   where
     go gamma rho delta =
       case rho of
-        IdS      -> unless (size gamma == size delta) $ err $ text "idS:" <+> hang (pretty gamma <+> text "/=") 2 (pretty delta)
-        EmptyS _ -> unless (size delta == 0) $ err $ text "emptyS:" <+> pretty delta <+> text "is not empty"
+        IdS      -> unless (size gamma == size delta) $ err $ "idS:" <+> hang (pretty gamma <+> "/=") 2 (pretty delta)
+        EmptyS _ -> unless (size delta == 0) $ err $ "emptyS:" <+> pretty delta <+> "is not empty"
         v :# rho -> do
-          unless (size delta > 0) $ err $ text "consS: empty target"
+          unless (size delta > 0) $ err $ "consS: empty target"
           sanityCheckVars gamma v
           sanityCheckSubst gamma rho (dropLast delta)
         Strengthen _ rho -> do
-          unless (size delta > 0) $ err $ text "strS: empty target"
+          unless (size delta > 0) $ err $ "strS: empty target"
           sanityCheckSubst gamma rho (dropLast delta)
         Wk n rho -> do
-          unless (size gamma >= n) $ err $ text "wkS:" <+> sep [ text "|" <> pretty gamma <> text "|"
+          unless (size gamma >= n) $ err $ "wkS:" <+> sep [ "|" <> pretty gamma <> "|"
                                                                , text $ "< " ++ show n ]
           sanityCheckSubst (dropLastN n gamma) rho delta
         Lift n rho -> do
-          unless (size gamma >= n) $ err $ text "liftS: source" <+> sep [ text "|" <> pretty gamma <> text "|"
+          unless (size gamma >= n) $ err $ "liftS: source" <+> sep [ "|" <> pretty gamma <> "|"
                                                                         , text $ "< " ++ show n ]
-          unless (size delta >= n) $ err $ text "liftS: target" <+> sep [ text "|" <> pretty delta <> text "|"
+          unless (size delta >= n) $ err $ "liftS: target" <+> sep [ "|" <> pretty delta <> "|"
                                                                         , text $ "< " ++ show n ]
           sanityCheckSubst (dropLastN n gamma) rho (dropLastN n delta)
 
@@ -67,10 +67,9 @@ sanityCheckSubst gamma rho delta = go gamma rho delta
 
     err reason = do
       reportSDoc "impossible" 1 . return $
-        sep [ hang (text "Sanity check failed for") 2 $
-              hang (pretty gamma <+> text "|-") 2 $
-              hang (pretty rho <+> text ":") 2 $
+        sep [ hang "Sanity check failed for" 2 $
+              hang (pretty gamma <+> "|-") 2 $
+              hang (pretty rho <+> ":") 2 $
                     pretty delta
             , reason ]
       __IMPOSSIBLE__
-

@@ -121,10 +121,10 @@ newInput inp inp' len =
 foolAlex :: AlexInput -> AlexInput
 foolAlex = over lensLexInput $ map $ \ c ->
   case c of
-    _ | isSpace c && not (c `elem` "\t\n") -> ' '
-    _ | isAscii c                          -> c
-    _ | isPrint c                          -> if isAlpha c then 'z' else '+'
-    _ | otherwise                          -> '\1'
+    _ | isSpace c && c /= '\t' && c /= '\n' -> ' '
+    _ | isAscii c                           -> c
+    _ | isPrint c                           -> if isAlpha c then 'z' else '+'
+    _ | otherwise                           -> '\1'
 
 {--------------------------------------------------------------------------
     Lex actions

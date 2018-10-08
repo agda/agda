@@ -601,6 +601,7 @@ library
                     , MultiParamTypeClasses
                     , MultiWayIf
                     , NamedFieldPuns
+                    , OverloadedStrings
                     , RankNTypes
                     , RecordWildCards
                     , ScopedTypeVariables
@@ -754,6 +755,7 @@ test-suite agda-tests
                      , MultiParamTypeClasses
                      , MultiWayIf
                      , NamedFieldPuns
+                     , OverloadedStrings
                      , RankNTypes
                      , RecordWildCards
                      , ScopedTypeVariables

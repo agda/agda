@@ -239,9 +239,9 @@ getDefType f t = do
   -- if @f@ is not a projection (like) function, @a@ is the correct type
       fallback = return $ Just a
   reportSDoc "tc.deftype" 20 $ vcat
-    [ text "definition f = " <> prettyTCM f <+> text ("  -- raw: " ++ prettyShow f)
-    , text "has type   a = " <> prettyTCM a
-    , text "principal  t = " <> prettyTCM t
+    [ "definition f = " <> prettyTCM f <+> text ("  -- raw: " ++ prettyShow f)
+    , "has type   a = " <> prettyTCM a
+    , "principal  t = " <> prettyTCM t
     ]
   caseMaybe mp fallback $
     \ (Projection{ projIndex = n }) -> if n <= 0 then fallback else do
@@ -262,7 +262,7 @@ getDefType f t = do
             let pars = fromMaybe __IMPOSSIBLE__ $ allApplyElims $ take npars es
             reportSDoc "tc.deftype" 20 $ vcat
               [ text $ "head d     = " ++ prettyShow d
-              , text "parameters =" <+> sep (map prettyTCM pars)
+              , "parameters =" <+> sep (map prettyTCM pars)
               ]
             reportSLn "tc.deftype" 60 $ "parameters = " ++ show pars
             if length pars < npars then failure "does not supply enough parameters"
@@ -273,8 +273,8 @@ getDefType f t = do
     failNotDef  = failure "is not a Def."
     failure reason = do
       reportSDoc "tc.deftype" 25 $ sep
-        [ text "Def. " <+> prettyTCM f <+> text " is projection(like)"
-        , text "but the type "
+        [ "Def. " <+> prettyTCM f <+> " is projection(like)"
+        , "but the type "
         , prettyTCM t
         , text $ "of its argument " ++ reason
         ]
@@ -312,7 +312,7 @@ data ElimType
 instance PrettyTCM ElimType where
   prettyTCM (ArgT a)    = prettyTCM a
   prettyTCM (ProjT a b) =
-    text "." <> parens (prettyTCM a <+> text "->" <+> prettyTCM b)
+    "." <> parens (prettyTCM a <+> "->" <+> prettyTCM b)
 
 -- | Given a head and its type, compute the types of the eliminations.
 
@@ -449,9 +449,9 @@ expandRecordVar i gamma0 = do
   -- This must be a eta-expandable record type.
   let failure = do
         reportSDoc "tc.meta.assign.proj" 25 $
-          text "failed to eta-expand variable " <+> pretty x <+>
-          text " since its type " <+> prettyTCM a <+>
-          text " is not a record type"
+          "failed to eta-expand variable " <+> pretty x <+>
+          " since its type " <+> prettyTCM a <+>
+          " is not a record type"
         return Nothing
   caseMaybeM (isRecordType a) failure $ \ (r, pars, def) -> do
     if recEtaEquality def == NoEta then return Nothing else Just <$> do
@@ -590,7 +590,7 @@ etaExpandRecord'_ forceEta r pars def u = do
       let args = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
       when (con /= con_) $ do
         reportSDoc "impossible" 10 $ vcat
-          [ text "etaExpandRecord_: the following two constructors should be identical"
+          [ "etaExpandRecord_: the following two constructors should be identical"
           , nest 2 $ text $ "con  = " ++ prettyShow con
           , nest 2 $ text $ "con_ = " ++ prettyShow con_
           ]
@@ -603,10 +603,10 @@ etaExpandRecord'_ forceEta r pars def u = do
       -- thus, we can use them in Proj directly.
       let xs' = for xs $ fmap $ \ x -> u `applyE` [Proj ProjSystem x]
       reportSDoc "tc.record.eta" 20 $ vcat
-        [ text "eta expanding" <+> prettyTCM u <+> text ":" <+> prettyTCM r
+        [ "eta expanding" <+> prettyTCM u <+> ":" <+> prettyTCM r
         , nest 2 $ vcat
-          [ text "tel' =" <+> prettyTCM tel'
-          , text "args =" <+> prettyTCM xs'
+          [ "tel' =" <+> prettyTCM tel'
+          , "args =" <+> prettyTCM xs'
           ]
         ]
       return (tel', con, ConOSystem, xs')
@@ -682,7 +682,7 @@ isSingletonRecord' regardIrrelevance r ps = do
   check :: Telescope -> TCM (Either MetaId (Maybe [Arg Term]))
   check tel = do
     reportSDoc "tc.meta.eta" 30 $
-      text "isSingletonRecord' checking telescope " <+> prettyTCM tel
+      "isSingletonRecord' checking telescope " <+> prettyTCM tel
     case tel of
       EmptyTel -> return $ Right $ Just []
       ExtendTel dom tel
@@ -730,11 +730,11 @@ isEtaVar u a = runMaybeT $ isEtaVarG u a Nothing []
     isEtaVarG :: Term -> Type -> Maybe Int -> [Elim' Int] -> MaybeT TCM Int
     isEtaVarG u a mi es = do
       (u, a) <- liftTCM $ reduce (u, a)
-      liftTCM $ reportSDoc "tc.lhs" 80 $ text "isEtaVarG" <+> nest 2 (vcat
-        [ text "u  = " <+> text (show u)
-        , text "a  = " <+> prettyTCM a
-        , text "mi = " <+> text (show mi)
-        , text "es = " <+> prettyList (map (text . show) es)
+      liftTCM $ reportSDoc "tc.lhs" 80 $ "isEtaVarG" <+> nest 2 (vcat
+        [ "u  = " <+> text (show u)
+        , "a  = " <+> prettyTCM a
+        , "mi = " <+> text (show mi)
+        , "es = " <+> prettyList (map (text . show) es)
         ])
       case (u, unEl a) of
         (Var i' es', _) -> do

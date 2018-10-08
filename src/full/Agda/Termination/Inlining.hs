@@ -87,24 +87,24 @@ inlineWithClauses f cl = inTopContext $ do
         let args = fromMaybe __IMPOSSIBLE__ . allApplyElims $ els
 
         reportSDoc "term.with.inline" 70 $ sep
-          [ text "Found with (raw):", nest 2 $ text $ show cl ]
+          [ "Found with (raw):", nest 2 $ text $ show cl ]
         reportSDoc "term.with.inline" 20 $ sep
-          [ text "Found with:", nest 2 $ prettyTCM $ QNamed f cl ]
+          [ "Found with:", nest 2 $ prettyTCM $ QNamed f cl ]
 
         t   <- defType <$> getConstInfo wf
         cs1 <- withExprClauses cl t args
 
         reportSDoc "term.with.inline" 70 $ vcat $
-          text "withExprClauses (raw)" : map (nest 2 . text . show) cs1
+          "withExprClauses (raw)" : map (nest 2 . text . show) cs1
         reportSDoc "term.with.inline" 20 $ vcat $
-          text "withExprClauses" : map (nest 2 . prettyTCM . QNamed f) cs1
+          "withExprClauses" : map (nest 2 . prettyTCM . QNamed f) cs1
 
         cs2 <- inlinedClauses f cl t wf
 
         reportSDoc "term.with.inline" 70 $ vcat $
-          text "inlinedClauses (raw)" : map (nest 2 . text . show) cs2
+          "inlinedClauses (raw)" : map (nest 2 . text . show) cs2
         reportSDoc "term.with.inline" 20 $ vcat $
-          text "inlinedClauses" : map (nest 2 . prettyTCM . QNamed f) cs2
+          "inlinedClauses" : map (nest 2 . prettyTCM . QNamed f) cs2
 
         return $ Just $ cs1 ++ cs2
     _ -> noInline
@@ -155,7 +155,7 @@ inlinedClauses f cl t wf = do
   -- @wf@ might define a with-function itself, so we first construct
   -- the with-inlined clauses @wcs@ of @wf@ recursively.
   wcs <- concat <$> (mapM (inlineWithClauses' wf) =<< defClauses <$> getConstInfo wf)
-  reportSDoc "term.with.inline" 30 $ vcat $ text "With-clauses to inline" :
+  reportSDoc "term.with.inline" 30 $ vcat $ "With-clauses to inline" :
                                        map (nest 2 . prettyTCM . QNamed wf) wcs
   mapM (inline f cl t wf) wcs
 
@@ -169,10 +169,10 @@ inline f pcl t wf wcl = inTopContext $ addContext (clauseTel wcl) $ do
   -- of the arguments to the parent function. Fortunately we have already
   -- figured out how to turn an application of the with-function into an
   -- application of the parent function in the display form.
-  reportSDoc "term.with.inline" 70 $ text "inlining (raw) =" <+> text (show wcl)
+  reportSDoc "term.with.inline" 70 $ "inlining (raw) =" <+> text (show wcl)
   Just disp <- displayForm wf $ clauseElims wcl
-  reportSDoc "term.with.inline" 70 $ text "display form (raw) =" <+> text (show disp)
-  reportSDoc "term.with.inline" 40 $ text "display form =" <+> prettyTCM disp
+  reportSDoc "term.with.inline" 70 $ "display form (raw) =" <+> text (show disp)
+  reportSDoc "term.with.inline" 40 $ "display form =" <+> prettyTCM disp
   (pats, perm) <- dispToPats disp
 
   -- Jesper, 2016-07-28: Since the with-clause and the inlined clause both

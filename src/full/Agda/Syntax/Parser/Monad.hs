@@ -202,18 +202,18 @@ instance Pretty ParseError where
       ]
   pretty OverlappingTokensError{errRange} = vcat
       [ pretty errRange <> colon <+>
-        text "Multi-line comment spans one or more literate text blocks."
+        "Multi-line comment spans one or more literate text blocks."
       ]
   pretty InvalidExtensionError{errPath,errValidExts} = vcat
       [ pretty errPath <> colon <+>
-        text "Unsupported extension."
-      , text "Supported extensions are:" <+> prettyList_ errValidExts
+        "Unsupported extension."
+      , "Supported extensions are:" <+> prettyList_ errValidExts
       ]
   pretty ReadFileError{errPath,errIOError} = vcat
-      [ text "Cannot read file" <+> pretty errPath
+      [ "Cannot read file" <+> pretty errPath
         -- TODO: `show` should be replaced by `displayException` once we
         -- cease to support versions of GHC under 7.10.
-      , text "Error:" <+> text (show errIOError)
+      , "Error:" <+> text (show errIOError)
       ]
 
 instance HasRange ParseError where
@@ -230,7 +230,7 @@ instance Show ParseWarning where
 instance Pretty ParseWarning where
   pretty OverlappingTokensWarning{warnRange} = vcat
       [ pretty warnRange <> colon <+>
-        text "Multi-line comment spans one or more literate text blocks."
+        "Multi-line comment spans one or more literate text blocks."
       ]
 instance HasRange ParseWarning where
   getRange OverlappingTokensWarning{warnRange} = warnRange

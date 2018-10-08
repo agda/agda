@@ -194,9 +194,9 @@ setIncludeDirs incs root = do
   incs <- return $ incs ++ [primdir]
 
   reportSDoc "setIncludeDirs" 10 $ return $ vcat
-    [ text "Old include directories:"
+    [ "Old include directories:"
     , nest 2 $ vcat $ map pretty oldIncs
-    , text "New include directories:"
+    , "New include directories:"
     , nest 2 $ vcat $ map pretty incs
     ]
 
@@ -317,7 +317,7 @@ getVerbosity = optVerbose <$> pragmaOptions
 type VerboseKey = String
 
 parseVerboseKey :: VerboseKey -> [String]
-parseVerboseKey = wordsBy (`elem` ".:")
+parseVerboseKey = wordsBy (`elem` (".:" :: String))
 
 -- | Check whether a certain verbosity level is activated.
 --

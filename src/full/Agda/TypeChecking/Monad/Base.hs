@@ -34,6 +34,7 @@ import qualified Data.Set as Set -- hiding (singleton, null, empty)
 import Data.Semigroup ( Semigroup, (<>), Any(..) )
 import Data.Data (Data, toConstr)
 import Data.Foldable (Foldable)
+import Data.String
 import Data.Text.Lazy (Text)
 import qualified Data.Text.Lazy as T
 import Data.Traversable
@@ -786,22 +787,22 @@ instance Pretty Interface where
             sourceH source importedM moduleN scope insideS signature
             display userwarn builtin foreignCode highlighting pragmaO
             patternS warnings) =
-    hang (text "Interface") 2 $ vcat
-      [ text "source hash:"         <+> (pretty . show) sourceH
-      , text "source:"              $$  nest 2 (text $ T.unpack source)
-      , text "imported modules:"    <+> (pretty . show) importedM
-      , text "module name:"         <+> pretty moduleN
-      , text "scope:"               <+> (pretty . show) scope
-      , text "inside scope:"        <+> (pretty . show) insideS
-      , text "signature:"           <+> (pretty . show) signature
-      , text "display:"             <+> (pretty . show) display
-      , text "user warnings:"       <+> (pretty . show) userwarn
-      , text "builtin:"             <+> (pretty . show) builtin
-      , text "Foreign code:"        <+> (pretty . show) foreignCode
-      , text "highlighting:"        <+> (pretty . show) highlighting
-      , text "pragma options:"      <+> (pretty . show) pragmaO
-      , text "pattern syns:"        <+> (pretty . show) patternS
-      , text "warnings:"            <+> (pretty . show) warnings
+    hang "Interface" 2 $ vcat
+      [ "source hash:"         <+> (pretty . show) sourceH
+      , "source:"              $$  nest 2 (text $ T.unpack source)
+      , "imported modules:"    <+> (pretty . show) importedM
+      , "module name:"         <+> pretty moduleN
+      , "scope:"               <+> (pretty . show) scope
+      , "inside scope:"        <+> (pretty . show) insideS
+      , "signature:"           <+> (pretty . show) signature
+      , "display:"             <+> (pretty . show) display
+      , "user warnings:"       <+> (pretty . show) userwarn
+      , "builtin:"             <+> (pretty . show) builtin
+      , "Foreign code:"        <+> (pretty . show) foreignCode
+      , "highlighting:"        <+> (pretty . show) highlighting
+      , "pragma options:"      <+> (pretty . show) pragmaO
+      , "pattern syns:"        <+> (pretty . show) patternS
+      , "warnings:"            <+> (pretty . show) warnings
       ]
 
 -- | Combines the source hash and the (full) hashes of the imported modules.
@@ -934,8 +935,8 @@ data Comparison = CmpEq | CmpLeq
   deriving (Eq, Data, Show)
 
 instance Pretty Comparison where
-  pretty CmpEq  = text "="
-  pretty CmpLeq = text "=<"
+  pretty CmpEq  = "="
+  pretty CmpLeq = "=<"
 
 -- | An extension of 'Comparison' to @>=@.
 data CompareDirection = DirEq | DirLeq | DirGeq
@@ -1301,13 +1302,13 @@ instance Pretty DisplayTerm where
   prettyPrec p v =
     case v of
       DTerm v          -> prettyPrec p v
-      DDot v           -> text "." P.<> prettyPrec 10 v
+      DDot v           -> "." P.<> prettyPrec 10 v
       DDef f es        -> pretty f `pApp` es
       DCon c _ vs      -> pretty (conName c) `pApp` map Apply vs
       DWithApp h ws es ->
         mparens (p > 0)
           (sep [ pretty h
-              , nest 2 $ fsep [ text "|" <+> pretty w | w <- ws ] ])
+              , nest 2 $ fsep [ "|" <+> pretty w | w <- ws ] ])
         `pApp` es
     where
       pApp d els = mparens (not (null els) && p > 9) $
@@ -1705,76 +1706,76 @@ data Defn = Axiom -- ^ Postulate
 
 instance Pretty Definition where
   pretty Defn{..} =
-    text "Defn {" <?> vcat
-      [ text "defArgInfo        =" <?> pshow defArgInfo
-      , text "defName           =" <?> pretty defName
-      , text "defType           =" <?> pretty defType
-      , text "defPolarity       =" <?> pshow defPolarity
-      , text "defArgOccurrences =" <?> pshow defArgOccurrences
-      , text "defDisplay        =" <?> pshow defDisplay -- TODO: pretty DisplayForm
-      , text "defMutual         =" <?> pshow defMutual
-      , text "defCompiledRep    =" <?> pshow defCompiledRep
-      , text "defInstance       =" <?> pshow defInstance
-      , text "defCopy           =" <?> pshow defCopy
-      , text "defMatchable      =" <?> pshow defMatchable
-      , text "defInjective      =" <?> pshow defInjective
-      , text "theDef            =" <?> pretty theDef ] <+> text "}"
+    "Defn {" <?> vcat
+      [ "defArgInfo        =" <?> pshow defArgInfo
+      , "defName           =" <?> pretty defName
+      , "defType           =" <?> pretty defType
+      , "defPolarity       =" <?> pshow defPolarity
+      , "defArgOccurrences =" <?> pshow defArgOccurrences
+      , "defDisplay        =" <?> pshow defDisplay -- TODO: pretty DisplayForm
+      , "defMutual         =" <?> pshow defMutual
+      , "defCompiledRep    =" <?> pshow defCompiledRep
+      , "defInstance       =" <?> pshow defInstance
+      , "defCopy           =" <?> pshow defCopy
+      , "defMatchable      =" <?> pshow defMatchable
+      , "defInjective      =" <?> pshow defInjective
+      , "theDef            =" <?> pretty theDef ] <+> "}"
 
 instance Pretty Defn where
-  pretty Axiom = text "Axiom"
-  pretty GeneralizableVar{} = text "GeneralizableVar"
-  pretty (AbstractDefn def) = text "AbstractDefn" <?> parens (pretty def)
+  pretty Axiom = "Axiom"
+  pretty GeneralizableVar{} = "GeneralizableVar"
+  pretty (AbstractDefn def) = "AbstractDefn" <?> parens (pretty def)
   pretty Function{..} =
-    text "Function {" <?> vcat
-      [ text "funClauses      =" <?> vcat (map pretty funClauses)
-      , text "funCompiled     =" <?> pshow funCompiled
-      , text "funTreeless     =" <?> pshow funTreeless
-      , text "funInv          =" <?> pshow funInv
-      , text "funMutual       =" <?> pshow funMutual
-      , text "funAbstr        =" <?> pshow funAbstr
-      , text "funDelayed      =" <?> pshow funDelayed
-      , text "funProjection   =" <?> pshow funProjection
-      , text "funFlags        =" <?> pshow funFlags
-      , text "funTerminates   =" <?> pshow funTerminates
-      , text "funWith         =" <?> pshow funWith
-      , text "funCopatternLHS =" <?> pshow funCopatternLHS ] <?> text "}"
+    "Function {" <?> vcat
+      [ "funClauses      =" <?> vcat (map pretty funClauses)
+      , "funCompiled     =" <?> pshow funCompiled
+      , "funTreeless     =" <?> pshow funTreeless
+      , "funInv          =" <?> pshow funInv
+      , "funMutual       =" <?> pshow funMutual
+      , "funAbstr        =" <?> pshow funAbstr
+      , "funDelayed      =" <?> pshow funDelayed
+      , "funProjection   =" <?> pshow funProjection
+      , "funFlags        =" <?> pshow funFlags
+      , "funTerminates   =" <?> pshow funTerminates
+      , "funWith         =" <?> pshow funWith
+      , "funCopatternLHS =" <?> pshow funCopatternLHS ] <?> "}"
   pretty Datatype{..} =
-    text "Datatype {" <?> vcat
-      [ text "dataPars       =" <?> pshow dataPars
-      , text "dataIxs        =" <?> pshow dataIxs
-      , text "dataInduction  =" <?> pshow dataInduction
-      , text "dataClause     =" <?> pretty dataClause
-      , text "dataCons       =" <?> pshow dataCons
-      , text "dataSort       =" <?> pretty dataSort
-      , text "dataMutual     =" <?> pshow dataMutual
-      , text "dataAbstr      =" <?> pshow dataAbstr ] <?> text "}"
+    "Datatype {" <?> vcat
+      [ "dataPars       =" <?> pshow dataPars
+      , "dataIxs        =" <?> pshow dataIxs
+      , "dataInduction  =" <?> pshow dataInduction
+      , "dataClause     =" <?> pretty dataClause
+      , "dataCons       =" <?> pshow dataCons
+      , "dataSort       =" <?> pretty dataSort
+      , "dataMutual     =" <?> pshow dataMutual
+      , "dataAbstr      =" <?> pshow dataAbstr ] <?> "}"
   pretty Record{..} =
-    text "Record {" <?> vcat
-      [ text "recPars         =" <?> pshow recPars
-      , text "recClause       =" <?> pretty recClause
-      , text "recConHead      =" <?> pshow recConHead
-      , text "recNamedCon     =" <?> pshow recNamedCon
-      , text "recFields       =" <?> pshow recFields
-      , text "recTel          =" <?> pretty recTel
-      , text "recMutual       =" <?> pshow recMutual
-      , text "recEtaEquality' =" <?> pshow recEtaEquality'
-      , text "recInduction    =" <?> pshow recInduction
-      , text "recAbstr        =" <?> pshow recAbstr ] <?> text "}"
+    "Record {" <?> vcat
+      [ "recPars         =" <?> pshow recPars
+      , "recClause       =" <?> pretty recClause
+      , "recConHead      =" <?> pshow recConHead
+      , "recNamedCon     =" <?> pshow recNamedCon
+      , "recFields       =" <?> pshow recFields
+      , "recTel          =" <?> pretty recTel
+      , "recMutual       =" <?> pshow recMutual
+      , "recEtaEquality' =" <?> pshow recEtaEquality'
+      , "recInduction    =" <?> pshow recInduction
+      , "recAbstr        =" <?> pshow recAbstr ] <?> "}"
   pretty Constructor{..} =
-    text "Constructor {" <?> vcat
-      [ text "conPars   =" <?> pshow conPars
-      , text "conArity  =" <?> pshow conArity
-      , text "conSrcCon =" <?> pshow conSrcCon
-      , text "conData   =" <?> pshow conData
-      , text "conAbstr  =" <?> pshow conAbstr
-      , text "conInd    =" <?> pshow conInd
-      , text "conErased =" <?> pshow conErased ] <?> text "}"
+    "Constructor {" <?> vcat
+      [ "conPars   =" <?> pshow conPars
+      , "conArity  =" <?> pshow conArity
+      , "conSrcCon =" <?> pshow conSrcCon
+      , "conData   =" <?> pshow conData
+      , "conAbstr  =" <?> pshow conAbstr
+      , "conInd    =" <?> pshow conInd
+      , "conErased =" <?> pshow conErased ] <?> "}"
   pretty Primitive{..} =
-    text "Primitive {" <?> vcat
-      [ text "primAbstr    =" <?> pshow primAbstr
-      , text "primName     =" <?> pshow primName
-      , text "primClauses  =" <?> pshow primClauses
-      , text "primCompiled =" <?> pshow primCompiled ] <?> text "}"
+    "Primitive {" <?> vcat
+      [ "primAbstr    =" <?> pshow primAbstr
+      , "primName     =" <?> pshow primName
+      , "primClauses  =" <?> pshow primClauses
+      , "primCompiled =" <?> pshow primCompiled ] <?> "}"
 
 
 -- | Is the record type recursive?
@@ -2012,11 +2013,11 @@ data TermHead = SortHead
 
 instance Pretty TermHead where
   pretty = \ case
-    SortHead    -> text "SortHead"
-    PiHead      -> text "PiHead"
-    ConsHead q  -> text "ConsHead" <+> pretty q
+    SortHead    -> "SortHead"
+    PiHead      -> "PiHead"
+    ConsHead q  -> "ConsHead" <+> pretty q
     VarHead i   -> text ("VarHead " ++ show i)
-    UnknownHead -> text "UnknownHead"
+    UnknownHead -> "UnknownHead"
 
 ---------------------------------------------------------------------------
 -- ** Mutual blocks
@@ -2068,36 +2069,36 @@ data Call = CheckClause Type A.SpineClause
     deriving Data
 
 instance Pretty Call where
-    pretty CheckClause{}             = text "CheckClause"
-    pretty CheckPattern{}            = text "CheckPattern"
-    pretty InferExpr{}               = text "InferExpr"
-    pretty CheckExprCall{}           = text "CheckExprCall"
-    pretty CheckLetBinding{}         = text "CheckLetBinding"
-    pretty CheckProjection{}         = text "CheckProjection"
-    pretty IsTypeCall{}              = text "IsTypeCall"
-    pretty IsType_{}                 = text "IsType_"
-    pretty InferVar{}                = text "InferVar"
-    pretty InferDef{}                = text "InferDef"
-    pretty CheckArguments{}          = text "CheckArguments"
-    pretty CheckTargetType{}         = text "CheckTargetType"
-    pretty CheckDataDef{}            = text "CheckDataDef"
-    pretty CheckRecDef{}             = text "CheckRecDef"
-    pretty CheckConstructor{}        = text "CheckConstructor"
-    pretty CheckFunDefCall{}         = text "CheckFunDefCall"
-    pretty CheckPragma{}             = text "CheckPragma"
-    pretty CheckPrimitive{}          = text "CheckPrimitive"
-    pretty CheckWithFunctionType{}   = text "CheckWithFunctionType"
-    pretty CheckNamedWhere{}         = text "CheckNamedWhere"
-    pretty ScopeCheckExpr{}          = text "ScopeCheckExpr"
-    pretty ScopeCheckDeclaration{}   = text "ScopeCheckDeclaration"
-    pretty ScopeCheckLHS{}           = text "ScopeCheckLHS"
-    pretty CheckDotPattern{}         = text "CheckDotPattern"
-    pretty CheckPatternShadowing{}   = text "CheckPatternShadowing"
-    pretty SetRange{}                = text "SetRange"
-    pretty CheckSectionApplication{} = text "CheckSectionApplication"
-    pretty CheckIsEmpty{}            = text "CheckIsEmpty"
-    pretty NoHighlighting{}          = text "NoHighlighting"
-    pretty ModuleContents{}          = text "ModuleContents"
+    pretty CheckClause{}             = "CheckClause"
+    pretty CheckPattern{}            = "CheckPattern"
+    pretty InferExpr{}               = "InferExpr"
+    pretty CheckExprCall{}           = "CheckExprCall"
+    pretty CheckLetBinding{}         = "CheckLetBinding"
+    pretty CheckProjection{}         = "CheckProjection"
+    pretty IsTypeCall{}              = "IsTypeCall"
+    pretty IsType_{}                 = "IsType_"
+    pretty InferVar{}                = "InferVar"
+    pretty InferDef{}                = "InferDef"
+    pretty CheckArguments{}          = "CheckArguments"
+    pretty CheckTargetType{}         = "CheckTargetType"
+    pretty CheckDataDef{}            = "CheckDataDef"
+    pretty CheckRecDef{}             = "CheckRecDef"
+    pretty CheckConstructor{}        = "CheckConstructor"
+    pretty CheckFunDefCall{}         = "CheckFunDefCall"
+    pretty CheckPragma{}             = "CheckPragma"
+    pretty CheckPrimitive{}          = "CheckPrimitive"
+    pretty CheckWithFunctionType{}   = "CheckWithFunctionType"
+    pretty CheckNamedWhere{}         = "CheckNamedWhere"
+    pretty ScopeCheckExpr{}          = "ScopeCheckExpr"
+    pretty ScopeCheckDeclaration{}   = "ScopeCheckDeclaration"
+    pretty ScopeCheckLHS{}           = "ScopeCheckLHS"
+    pretty CheckDotPattern{}         = "CheckDotPattern"
+    pretty CheckPatternShadowing{}   = "CheckPatternShadowing"
+    pretty SetRange{}                = "SetRange"
+    pretty CheckSectionApplication{} = "CheckSectionApplication"
+    pretty CheckIsEmpty{}            = "CheckIsEmpty"
+    pretty NoHighlighting{}          = "NoHighlighting"
+    pretty ModuleContents{}          = "ModuleContents"
 
 instance HasRange Call where
     getRange (CheckClause _ c)               = getRange c
@@ -3381,6 +3382,9 @@ instance MonadError TCErr (TCMT IO) where
 
 instance MonadIO m => MonadReduce (TCMT m) where
   liftReduce = liftTCM . runReduceM
+
+instance (IsString a, MonadIO m) => IsString (TCMT m a) where
+  fromString s = return (fromString s)
 
 -- | Interaction monad.
 

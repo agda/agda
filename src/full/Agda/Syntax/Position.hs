@@ -571,15 +571,15 @@ instance Show a => Show (Range' (Maybe a)) where
 ------------------------------------------------------------------------
 
 instance Pretty a => Pretty (Position' (Strict.Maybe a)) where
-  pretty (Pn Strict.Nothing  _ l c) = pretty l <> pretty "," <> pretty c
+  pretty (Pn Strict.Nothing  _ l c) = pretty l <> "," <> pretty c
   pretty (Pn (Strict.Just f) _ l c) =
-    pretty f <> pretty ":" <> pretty l <> pretty "," <> pretty c
+    pretty f <> ":" <> pretty l <> "," <> pretty c
 
 instance Pretty PositionWithoutFile where
   pretty p = pretty (p { srcFile = Strict.Nothing } :: Position)
 
 instance Pretty IntervalWithoutFile where
-  pretty (Interval s e) = start <> pretty "-" <> end
+  pretty (Interval s e) = start <> "-" <> end
     where
       sl = posLine s
       el = posLine e
@@ -607,7 +607,7 @@ instance Pretty a => Pretty (Range' (Strict.Maybe a)) where
     Just i  -> pretty i
 
 instance (Pretty a, HasRange a) => Pretty (PrintRange a) where
-  pretty (PrintRange a) = pretty a <+> parens (text "at" <+> pretty (getRange a))
+  pretty (PrintRange a) = pretty a <+> parens ("at" <+> pretty (getRange a))
 
 {--------------------------------------------------------------------------
     Functions on positions and ranges
@@ -852,4 +852,3 @@ interleaveRanges as bs = runWriter$ go as bs
           (a:) <$> go as' bs
         else
           (b:) <$> go as bs'
-

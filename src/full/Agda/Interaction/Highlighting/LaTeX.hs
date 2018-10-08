@@ -307,10 +307,10 @@ logHelper :: Debug -> Text -> [String] -> LaTeX ()
 logHelper debug text extra =
   when (debug `elem` debugs) $ do
     lift $ T.putStrLn $ T.pack (show debug ++ ": ") <+>
-      T.pack "'" <+> text <+> T.pack "' " <+>
+      "'" <+> text <+> "' " <+>
       if null extra
          then T.empty
-         else T.pack "(" <+> T.pack (unwords extra) <+> T.pack ")"
+         else "(" <+> T.pack (unwords extra) <+> ")"
 
 log :: Debug -> Text -> LaTeX ()
 log MoveColumn text = do
@@ -337,15 +337,15 @@ output item = do
 -- alignment, similar to lhs2TeX's approach.
 
 nl, beginCode, endCode :: Text
-nl        = T.pack "%\n"
-beginCode = T.pack "\\begin{code}"
-endCode   = T.pack "\\end{code}"
+nl        = "%\n"
+beginCode = "\\begin{code}"
+endCode   = "\\end{code}"
 
 -- | A command that is used when two tokens are put next to each other
 -- in the same column.
 
 agdaSpace :: Text
-agdaSpace = cmdPrefix <+> T.pack "Space" <+> cmdArg T.empty <+> nl
+agdaSpace = cmdPrefix <+> "Space" <+> cmdArg T.empty <+> nl
 
 -- | The column's name.
 --
@@ -360,7 +360,7 @@ columnName c = T.pack $ case columnKind c of
 -- | Opens a column with the given name.
 
 ptOpen' :: Text -> Text
-ptOpen' name = T.pack "\\>[" <+> name <+> T.singleton ']'
+ptOpen' name = "\\>[" <+> name <+> "]"
 
 -- | Opens the given column.
 
@@ -371,7 +371,7 @@ ptOpen c = ptOpen' (columnName c)
 -- lines.
 
 ptOpenBeginningOfLine :: Text
-ptOpenBeginningOfLine = ptOpen' (T.pack ".")
+ptOpenBeginningOfLine = ptOpen' "."
 
 -- | Opens the given column, and inserts an indentation instruction
 -- with the given argument at the end of it.
@@ -381,34 +381,34 @@ ptOpenIndent
   -> Int              -- ^ Indentation instruction argument.
   -> Text
 ptOpenIndent c delta =
-  ptOpen c <+> T.pack "[@{}l@{"
+  ptOpen c <+> "[@{}l@{"
            <+> cmdPrefix
-           <+> T.pack "Indent"
+           <+> "Indent"
            <+> cmdArg (T.pack $ show delta)
-           <+> T.pack "}]"
+           <+> "}]"
 
 ptClose :: Text
-ptClose = T.pack "\\<"
+ptClose = "\\<"
 
 ptClose' :: AlignmentColumn -> Text
 ptClose' c =
-  ptClose <+> T.singleton '[' <+> columnName c <+> T.singleton ']'
+  ptClose <+> "[" <+> columnName c <+> "]"
 
 ptNL :: Text
-ptNL = nl <+> T.pack "\\\\\n"
+ptNL = nl <+> "\\\\\n"
 
 ptEmptyLine :: Text
 ptEmptyLine =
-  nl <+> T.pack "\\\\["
+  nl <+> "\\\\["
      <+> cmdPrefix
-     <+> T.pack "EmptyExtraSkip"
-     <+> T.pack "]%\n"
+     <+> "EmptyExtraSkip"
+     <+> "]%\n"
 
 cmdPrefix :: Text
-cmdPrefix = T.pack "\\Agda"
+cmdPrefix = "\\Agda"
 
 cmdArg :: Text -> Text
-cmdArg x = T.singleton '{' <+> x <+> T.singleton '}'
+cmdArg x = "{" <+> x <+> "}"
 
 ------------------------------------------------------------------------
 -- * Output generation from a stream of labelled tokens.
@@ -429,7 +429,7 @@ processMarkup = mapM_ $ \t -> do
 
 -- | Deals with literate text, which is output verbatim
 processComment = mapM_ $ \t -> do
-  unless (T.singleton '%' == T.take 1 (T.stripStart (text t))) $ do
+  unless ("%" == T.take 1 (T.stripStart (text t))) $ do
     moveColumnForToken t
   output (Text (text t))
 
@@ -601,7 +601,7 @@ stringLiteral :: Token -> Tokens
 stringLiteral t | aspect (info t) == Just String =
   reverse $ foldl (\xs x -> t { text = x } : xs) []
           $ concatMap leadingSpaces
-          $ List.intersperse (T.pack "\n")
+          $ List.intersperse "\n"
           $ T.lines (text t)
   where
   leadingSpaces :: Text -> [Text]
@@ -697,14 +697,14 @@ toLaTeX cc path source hi
             withTokenText $ \suf ->
               fromMaybe suf $
                 fmap (T.dropWhileEnd isSpaceNotNewline) $
-                  T.stripSuffix (T.singleton '\n') suf)
+                  T.stripSuffix "\n" suf)
         .
         (withLast $ withTokenText $ T.dropWhileEnd isSpaceNotNewline)
         .
         (withFirst $
           withTokenText $ \pre ->
               fromMaybe pre $
-                  T.stripPrefix (T.singleton '\n') $
+                  T.stripPrefix "\n" $
                     T.dropWhile isSpaceNotNewline pre)
       else
         -- do nothing

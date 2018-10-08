@@ -590,7 +590,7 @@ verboseFlag s o =
     do  (k,n) <- parseVerbose s
         return $ o { optVerbose = Trie.insert k n $ optVerbose o }
   where
-    parseVerbose s = case wordsBy (`elem` ":.") s of
+    parseVerbose s = case wordsBy (`elem` (":." :: String)) s of
       []  -> usage
       ss  -> do
         n <- readM (last ss) `catchError` \_ -> usage

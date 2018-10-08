@@ -552,15 +552,15 @@ unfoldDefinitionStep unfoldDelayed v0 f es =
         case ev of
           NoReduction v -> do
             reportSDoc "tc.reduce" 90 $ vcat
-              [ text "*** tried to reduce " <+> prettyTCM f
-              , text "    es =  " <+> sep (map (prettyTCM . ignoreReduced) es)
-              -- , text "*** tried to reduce " <+> prettyTCM vfull
-              , text "    stuck on" <+> prettyTCM (ignoreBlocking v)
+              [ "*** tried to reduce " <+> prettyTCM f
+              , "    es =  " <+> sep (map (prettyTCM . ignoreReduced) es)
+              -- , "*** tried to reduce " <+> prettyTCM vfull
+              , "    stuck on" <+> prettyTCM (ignoreBlocking v)
               ]
           YesReduction _simpl v -> do
-            reportSDoc "tc.reduce"  90 $ text "*** reduced definition: " <+> prettyTCM f
-            reportSDoc "tc.reduce"  95 $ text "    result" <+> prettyTCM v
-            reportSDoc "tc.reduce" 100 $ text "    raw   " <+> text (show v)
+            reportSDoc "tc.reduce"  90 $ "*** reduced definition: " <+> prettyTCM f
+            reportSDoc "tc.reduce"  95 $ "    result" <+> prettyTCM v
+            reportSDoc "tc.reduce" 100 $ "    raw   " <+> text (show v)
 
 -- | Reduce a non-primitive definition if it is a copy linking to another def.
 reduceDefCopy :: QName -> Elims -> TCM (Reduced () Term)
@@ -591,7 +591,7 @@ reduceHead v = do -- ignoreAbstractMode $ do
 
   -- first, possibly rewrite literal v to constructor form
   v <- constructorForm v
-  traceSDoc "tc.inj.reduce" 30 (text "reduceHead" <+> prettyTCM v) $ do
+  traceSDoc "tc.inj.reduce" 30 ("reduceHead" <+> prettyTCM v) $ do
   case v of
     Def f es -> do
 

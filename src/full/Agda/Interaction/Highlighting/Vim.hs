@@ -27,6 +27,7 @@ vimFile file =
 escape :: String -> String
 escape = concatMap esc
     where
+        escchars :: String
         escchars = "$\\^.*~[]"
         esc c   | c `elem` escchars = ['\\',c]
                 | otherwise         = [c]

@@ -62,13 +62,13 @@ generalizeType s m = do
         setMetaArgInfo m $ defArgInfo def
 
         reportSDoc "tc.decl.gen" 50 $ vcat
-          [ text "created metas for generalized variable" <+> prettyTCM x
-          , nest 2 $ text "top  =" <+> prettyTCM term
-          , nest 2 $ text "args =" <+> prettyTCM args ]
+          [ "created metas for generalized variable" <+> prettyTCM x
+          , nest 2 $ "top  =" <+> prettyTCM term
+          , nest 2 $ "args =" <+> prettyTCM args ]
 
         case term of
           MetaV{} -> return ()
-          _       -> genericDocError =<< (text "Cannot generalize over" <+> prettyTCM x <+> text "of eta-expandable type") <?>
+          _       -> genericDocError =<< ("Cannot generalize over" <+> prettyTCM x <+> "of eta-expandable type") <?>
                                           prettyTCM metaType
         return (x, GeneralizedValue{ genvalCheckpoint = cp
                                    , genvalTerm       = term
@@ -105,9 +105,9 @@ generalizeType s m = do
     t  <- instantiateFull t
     t' <- addVars t $ reverse sortedMetas
     reportSDoc "tc.decl.gen" 40 $ vcat
-      [ text "generalized"
-      , nest 2 $ text "t  =" <+> prettyTCM t
-      , nest 2 $ text "t' =" <+> prettyTCM t' ]
+      [ "generalized"
+      , nest 2 $ "t  =" <+> prettyTCM t
+      , nest 2 $ "t' =" <+> prettyTCM t' ]
 
     -- Nuke the generalized metas
     forM_ sortedMetas $ \ m ->
@@ -135,10 +135,9 @@ generalizeType s m = do
         ty <- instantiateFull ty
         t' <- mkPi (defaultArgDom info (n, ty)) <$> abstractType ty v t
         reportSDoc "tc.decl.gen" 60 $ vcat
-            [ text "generalize over"
-            , nest 2 $ pretty v <+> text ":" <+> pretty ty
-            , nest 2 $ text "in" <+> pretty t
-            , nest 2 $ text "to" <+> pretty t'
+            [ "generalize over"
+            , nest 2 $ pretty v <+> ":" <+> pretty ty
+            , nest 2 $ "in" <+> pretty t
+            , nest 2 $ "to" <+> pretty t'
             ]
         addVars t' ns
-

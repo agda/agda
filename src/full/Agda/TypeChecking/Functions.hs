@@ -60,10 +60,10 @@ etaExpandClause clause = liftTCM $ do
           ps'   = raise n ps ++ teleNamedArgs tel
           body' = raise n body `apply` teleArgs tel
       reportSDoc "term.clause.expand" 30 $ inTopContext $ vcat
-        [ text "etaExpandClause"
-        , text "  body    = " <+> (addContext ctel' $ prettyTCM body)
-        , text "  xs      = " <+> text (prettyShow xs)
-        , text "  new tel = " <+> prettyTCM ctel'
+        [ "etaExpandClause"
+        , "  body    = " <+> (addContext ctel' $ prettyTCM body)
+        , "  xs      = " <+> text (prettyShow xs)
+        , "  new tel = " <+> prettyTCM ctel'
         ]
       return $ Clause rl rf ctel' ps' (Just body') (Just (t $> t')) catchall unreachable
   where

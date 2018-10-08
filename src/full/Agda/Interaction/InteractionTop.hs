@@ -920,13 +920,13 @@ interpret (Cmd_intro pmLambda ii rng _) = do
   ss <- lift $ B.introTactic pmLambda ii
   liftCommandMT (B.withInteractionId ii) $ case ss of
     []    -> do
-      display_info $ Info_Intro $ text "No introduction forms found."
+      display_info $ Info_Intro $ "No introduction forms found."
     [s]   -> give_gen WithoutForce ii rng s Intro
     _:_:_ -> do
       display_info $ Info_Intro $
-        sep [ text "Don't know which constructor to introduce of"
+        sep [ "Don't know which constructor to introduce of"
             , let mkOr []     = []
-                  mkOr [x, y] = [text x <+> text "or" <+> text y]
+                  mkOr [x, y] = [text x <+> "or" <+> text y]
                   mkOr (x:xs) = text x : mkOr xs
               in nest 2 $ fsep $ punctuate comma (mkOr ss)
             ]
@@ -993,7 +993,7 @@ interpret (Cmd_goal_type_context_infer norm ii rng s) = do
   have <- if all Char.isSpace s then return empty else liftLocalState $ do
     typ <- B.withInteractionId ii $
       prettyATop =<< B.typeInMeta ii norm =<< B.parseExprIn ii rng s
-    return $ text "Have:" <+> typ
+    return $ "Have:" <+> typ
   cmd_goal_type_context_and have norm ii rng s
 
 interpret (Cmd_goal_type_context_check norm ii rng s) = do
@@ -1004,7 +1004,7 @@ interpret (Cmd_goal_type_context_check norm ii rng s) = do
       OfType _ ty -> checkExpr expr =<< isType_ ty
       _           -> __IMPOSSIBLE__
     txt <- TCP.prettyTCM =<< normalForm norm term
-    return $ text "Elaborates to:" <+> txt
+    return $ "Elaborates to:" <+> txt
   cmd_goal_type_context_and have norm ii rng s
 
 interpret (Cmd_show_module_contents norm ii rng s) =
@@ -1024,17 +1024,17 @@ interpret (Cmd_make_case ii rng s) = do
     pcs      :: [Doc]      <- lift $ inTopContext $ addContext tel $ mapM prettyA cs
     let pcs' :: [String]    = List.map (extlam_dropName casectxt . render) pcs
     lift $ reportSDoc "interaction.case" 60 $ TCP.vcat
-      [ TCP.text "InteractionTop.Cmd_make_case"
+      [ "InteractionTop.Cmd_make_case"
       , TCP.nest 2 $ TCP.vcat
-        [ TCP.text "cs   = " TCP.<+> TCP.vcat (map prettyA cs)
-        , TCP.text "pcs  = " TCP.<+> TCP.vcat (map return pcs)
-        , TCP.text "pcs' = " TCP.<+> TCP.vcat (map TCP.text pcs')
+        [ "cs   = " TCP.<+> TCP.vcat (map prettyA cs)
+        , "pcs  = " TCP.<+> TCP.vcat (map return pcs)
+        , "pcs' = " TCP.<+> TCP.vcat (map TCP.text pcs')
         ]
       ]
     lift $ reportSDoc "interaction.case" 90 $ TCP.vcat
-      [ TCP.text "InteractionTop.Cmd_make_case"
+      [ "InteractionTop.Cmd_make_case"
       , TCP.nest 2 $ TCP.vcat
-        [ TCP.text "cs   = " TCP.<+> TCP.text (show cs)
+        [ "cs   = " TCP.<+> TCP.text (show cs)
         ]
       ]
     putResponse $ Resp_MakeCase (makeCaseVariant casectxt) pcs'
@@ -1316,7 +1316,7 @@ highlightExpr e =
                  , envHighlightingMethod = Direct }) $
     generateAndPrintSyntaxInfo decl Full True
   where
-    dummy = mkName_ (NameId 0 0) "dummy"
+    dummy = mkName_ (NameId 0 0) ("dummy" :: String)
     info  = mkDefInfo (nameConcrete dummy) noFixity' PublicAccess ConcreteDef (getRange e)
     decl  = A.Axiom NoFunSig info defaultArgInfo Nothing (qnameFromList [dummy]) e
 
@@ -1349,7 +1349,7 @@ prettyContext norm rev ii = B.withInteractionId ii $ do
   es  <- mapM (prettyATop . B.ofExpr) ctx
   ns  <- mapM (showATop   . B.ofName) ctx
   return $ align 10 $ applyWhen rev reverse $
-    filter (not . null . fst) $ zip ns $ map (text ":" <+>) es
+    filter (not . null . fst) $ zip ns $ map (":" <+>) es
 
 -- | Create type of application of new helper function that would solve the goal.
 
@@ -1369,7 +1369,7 @@ cmd_goal_type_context_and doc norm ii _ _ = display_info . Info_GoalType =<< do
     goal <- B.withInteractionId ii $ prettyTypeOfMeta norm ii
     ctx  <- prettyContext norm True ii
     return $ vcat
-      [ text "Goal:" <+> goal
+      [ "Goal:" <+> goal
       , doc
       , text (replicate 60 '\x2014')
       , ctx
@@ -1384,11 +1384,11 @@ showModuleContents norm rng s = display_info . Info_ModuleContents =<< do
     (modules, types) <- B.moduleContents norm rng s
     types' <- forM types $ \ (x, t) -> do
       t <- TCP.prettyTCM t
-      return (prettyShow x, text ":" <+> t)
+      return (prettyShow x, ":" <+> t)
     return $ vcat
-      [ text "Modules"
+      [ "Modules"
       , nest 2 $ vcat $ map (text . show) modules
-      , text "Names"
+      , "Names"
       , nest 2 $ align 10 types'
       ]
 
@@ -1403,9 +1403,9 @@ searchAbout norm rg nm = do
        hits <- findMentions norm rg tnm
        forM hits $ \ (x, t) -> do
          t <- TCP.prettyTCM t
-         return (prettyShow x, text ":" <+> t)
+         return (prettyShow x, ":" <+> t)
     display_info $ Info_SearchAbout $
-      text "Definitions about" <+> text (List.intercalate ", " $ words nm) $$
+      "Definitions about" <+> text (List.intercalate ", " $ words nm) $$
       nest 2 (align 10 fancy)
 
 -- | Explain why something is in scope.
@@ -1440,50 +1440,50 @@ whyInScope s = display_info . Info_WhyInScope =<< do
           where
             asVar :: TCM Doc
             asVar = do
-              TCP.text "* a variable bound at" TCP.<+> TCP.prettyTCM (nameBindingSite $ localVar x)
+              "* a variable bound at" TCP.<+> TCP.prettyTCM (nameBindingSite $ localVar x)
             shadowing :: LocalVar -> TCM Doc
-            shadowing (LocalVar _ _ [])    = TCP.text "shadowing"
-            shadowing _ = TCP.text "in conflict with"
+            shadowing (LocalVar _ _ [])    = "shadowing"
+            shadowing _ = "in conflict with"
         names   xs = TCP.vcat $ map pName xs
         modules ms = TCP.vcat $ map pMod ms
 
-        pKind DefName        = TCP.text "defined name"
-        pKind ConName        = TCP.text "constructor"
-        pKind FldName        = TCP.text "record field"
-        pKind PatternSynName = TCP.text "pattern synonym"
-        pKind GeneralizeName = TCP.text "generalizable variable"
-        pKind MacroName      = TCP.text "macro name"
-        pKind QuotableName   = TCP.text "quotable name"
+        pKind DefName        = "defined name"
+        pKind ConName        = "constructor"
+        pKind FldName        = "record field"
+        pKind PatternSynName = "pattern synonym"
+        pKind GeneralizeName = "generalizable variable"
+        pKind MacroName      = "macro name"
+        pKind QuotableName   = "quotable name"
 
         pName :: AbstractName -> TCM Doc
         pName a = TCP.sep
-          [ TCP.text "* a"
+          [ "* a"
             TCP.<+> pKind (anameKind a)
             TCP.<+> TCP.text (prettyShow $ anameName a)
-          , TCP.nest 2 $ TCP.text "brought into scope by"
+          , TCP.nest 2 $ "brought into scope by"
           ] TCP.$$
           TCP.nest 2 (pWhy (nameBindingSite $ qnameName $ anameName a) (anameLineage a))
         pMod :: AbstractModule -> TCM Doc
         pMod  a = TCP.sep
-          [ TCP.text "* a module" TCP.<+> TCP.text (prettyShow $ amodName a)
-          , TCP.nest 2 $ TCP.text "brought into scope by"
+          [ "* a module" TCP.<+> TCP.text (prettyShow $ amodName a)
+          , TCP.nest 2 $ "brought into scope by"
           ] TCP.$$
           TCP.nest 2 (pWhy (nameBindingSite $ qnameName $ mnameToQName $ amodName a) (amodLineage a))
 
         pWhy :: Range -> WhyInScope -> TCM Doc
-        pWhy r Defined = TCP.text "- its definition at" TCP.<+> TCP.prettyTCM r
+        pWhy r Defined = "- its definition at" TCP.<+> TCP.prettyTCM r
         pWhy r (Opened (C.QName x) w) | isNoName x = pWhy r w
         pWhy r (Opened m w) =
-          TCP.text "- the opening of"
+          "- the opening of"
           TCP.<+> TCP.text (show m)
-          TCP.<+> TCP.text "at"
+          TCP.<+> "at"
           TCP.<+> TCP.prettyTCM (getRange m)
           TCP.$$
           pWhy r w
         pWhy r (Applied m w) =
-          TCP.text "- the application of"
+          "- the application of"
           TCP.<+> TCP.text (show m)
-          TCP.<+> TCP.text "at"
+          TCP.<+> "at"
           TCP.<+> TCP.prettyTCM (getRange m)
           TCP.$$
           pWhy r w
@@ -1575,7 +1575,7 @@ maybeTimed work = do
   doTime <- lift $ hasVerbosity "profile.interactive" 10
   if not doTime then (Nothing,) <$> work else do
     (r, time) <- measureTime work
-    return (Just $ text "Time:" <+> pretty time, r)
+    return (Just $ "Time:" <+> pretty time, r)
 
 -- | Tell to highlight the code using the given highlighting
 -- info (unless it is @Nothing@).

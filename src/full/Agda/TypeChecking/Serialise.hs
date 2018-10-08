@@ -183,7 +183,7 @@ decode s = do
       -- Andreas, 2014-06-11 deactivated debug printing
       -- in order to get rid of dependency of Serialize on TCM.Pretty
       -- reportSDoc "import.iface" 5 $
-      --   text "Error when decoding interface file:"
+      --   "Error when decoding interface file:"
       --   $+$ nest 2 (prettyTCM err)
       return Nothing
 

@@ -31,6 +31,7 @@ quote s = "\"" ++ concatMap escape s ++ "\""
            | c `elem` escapeChars = ['\\', c]
            | otherwise            = [c]
 
+  escapeChars :: String
   escapeChars = "\"\\"
 
 -- | Turns the string into a Haskell string literal, avoiding escape

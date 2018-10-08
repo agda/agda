@@ -46,11 +46,11 @@ reconstructParametersInEqView (OtherType a) = OtherType <$> reconstructParameter
 reconstructParameters :: Type -> Term -> TCM Term
 reconstructParameters a v = do
   reportSDoc "tc.with.reconstruct" 30 $
-    sep [ text "reconstructing parameters in"
-        , nest 2 $ sep [ prettyTCM v <+> text ":", nest 2 $ prettyTCM a ] ]
+    sep [ "reconstructing parameters in"
+        , nest 2 $ sep [ prettyTCM v <+> ":", nest 2 $ prettyTCM a ] ]
   v <- checkInternal' (defaultAction{ postAction = reconstruct }) v a
   reportSDoc "tc.with.reconstruct" 30 $
-    nest 2 $ text "-->" <+> prettyTCM v
+    nest 2 $ "-->" <+> prettyTCM v
   return v
   where
     reconstruct a v = do
@@ -59,8 +59,8 @@ reconstructParameters a v = do
           TelV tel a <- telView a
           let under = size tel  -- under-applied when under > 0
           reportSDoc "tc.with.reconstruct" 50 $
-            sep [ text "reconstructing"
-                , nest 2 $ sep [ prettyTCM v <+> text ":"
+            sep [ "reconstructing"
+                , nest 2 $ sep [ prettyTCM v <+> ":"
                                , nest 2 $ prettyTCM a ] ]
           case (unEl a) of
             Def d es -> do

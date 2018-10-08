@@ -815,10 +815,10 @@ createInterface file mname isMain msi =
       -- Grabbing warnings and unsolved metas to highlight them
       warnings <- getAllWarnings' AllWarnings RespectFlags
       unless (null warnings) $ reportSDoc "import.iface.create" 20 $
-        P.text "collected warnings: " P.<> prettyTCM warnings
+        "collected warnings: " P.<> prettyTCM warnings
       unsolved <- getAllUnsolved
       unless (null unsolved) $ reportSDoc "import.iface.create" 20 $
-        P.text "collected unsolved: " P.<> prettyTCM unsolved
+        "collected unsolved: " P.<> prettyTCM unsolved
       let warningInfo = compress $ foldMap warningHighlighting $ unsolved ++ warnings
 
       stSyntaxInfo `modifyTCLens` \inf -> (inf `mappend` toks) `mappend` warningInfo

@@ -333,7 +333,7 @@ instance Pretty DeclarationException where
         , vcat $ map f xs
         ]
       where
-        f (x, fs) = pretty x Pretty.<> text ": " <+> fsep (map pretty fs)
+        f (x, fs) = pretty x Pretty.<> ": " <+> fsep (map pretty fs)
   pretty (MultiplePolarityPragmas xs) = fsep $
     pwords "Multiple polarity pragmas for" ++ map pretty xs
   pretty (MultipleEllipses p) = fsep $

@@ -182,12 +182,12 @@ coverageCheck f t cs = do
   -- pss  = uncovered cases
   CoverResult splitTree used pss noex <- cover f cs sc
   reportSDoc "tc.cover.top" 10 $ vcat
-    [ text "cover computed!"
+    [ "cover computed!"
     , text $ "used clauses: " ++ show used
     , text $ "non-exact clauses: " ++ show noex
     ]
   reportSDoc "tc.cover.splittree" 10 $ vcat
-    [ text "generated split tree for" <+> prettyTCM f
+    [ "generated split tree for" <+> prettyTCM f
     , text $ prettyShow splitTree
     ]
 
@@ -254,12 +254,12 @@ cover :: QName -> [Clause] -> SplitClause ->
          TCM CoverResult
 cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
   reportSDoc "tc.cover.cover" 10 $ inTopContext $ vcat
-    [ text "checking coverage of pattern:"
-    , nest 2 $ text "tel  =" <+> prettyTCM tel
-    , nest 2 $ text "ps   =" <+> do addContext tel $ prettyTCMPatternList $ fromSplitPatterns ps
+    [ "checking coverage of pattern:"
+    , nest 2 $ "tel  =" <+> prettyTCM tel
+    , nest 2 $ "ps   =" <+> do addContext tel $ prettyTCMPatternList $ fromSplitPatterns ps
     ]
   reportSDoc "tc.cover.cover" 60 $ vcat
-    [ nest 2 $ text "ps   =" <+> pretty ps
+    [ nest 2 $ "ps   =" <+> pretty ps
     ]
   cs' <- normaliseProjP cs
   ps <- (traverse . traverse . traverse) dotPatternsToPatterns ps
@@ -337,11 +337,11 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
           -- eta-expanded by the unifier in order to generate a correct split
           -- tree (see Issue 1872).
           reportSDoc "tc.cover.split.eta" 60 $ vcat
-            [ text "etaRecordSplits"
+            [ "etaRecordSplits"
             , nest 2 $ vcat
-              [ text "n   = " <+> text (show n)
-              , text "scs = " <+> prettyTCM scs
-              , text "ps  = " <+> text (show ps)
+              [ "n   = " <+> text (show n)
+              , "scs = " <+> prettyTCM scs
+              , "ps  = " <+> text (show ps)
               ]
             ]
           let trees' = zipWith (etaRecordSplits (unArg n) ps) scs trees
@@ -417,7 +417,7 @@ inferMissingClause
        -- ^ Clause to add.  Clause hiding (in 'clauseType') must be 'Instance'.
    -> TCM ()
 inferMissingClause f (SClause tel ps _ cps (Just t)) = setCurrentRange f $ do
-  reportSDoc "tc.cover.infer" 20 $ addContext tel $ text "Trying to infer right-hand side of type" <+> prettyTCM t
+  reportSDoc "tc.cover.infer" 20 $ addContext tel $ "Trying to infer right-hand side of type" <+> prettyTCM t
   cl <- addContext tel
         $ locallyTC eCheckpoints (const cps)
         $ checkpoint IdS $ do    -- introduce a fresh checkpoint
@@ -492,22 +492,22 @@ fixTarget :: SplitClause -> TCM (Telescope, SplitClause)
 fixTarget sc@SClause{ scTel = sctel, scPats = ps, scSubst = sigma, scCheckpoints = cps, scTarget = target } =
   caseMaybe target (return (empty, sc)) $ \ a -> do
     reportSDoc "tc.cover.target" 20 $ sep
-      [ text "split clause telescope: " <+> prettyTCM sctel
-      , text "old patterns          : " <+> do
+      [ "split clause telescope: " <+> prettyTCM sctel
+      , "old patterns          : " <+> do
           addContext sctel $ prettyTCMPatternList $ fromSplitPatterns ps
       ]
     reportSDoc "tc.cover.target" 60 $ sep
-      [ text "substitution          : " <+> text (show sigma)
+      [ "substitution          : " <+> text (show sigma)
       ]
     reportSDoc "tc.cover.target" 30 $ sep
-      [ text "target type before substitution (variables may be wrong): " <+> do
+      [ "target type before substitution (variables may be wrong): " <+> do
           addContext sctel $ prettyTCM a
       ]
     TelV tel b <- telViewUpToPath (-1) $ applySplitPSubst sigma $ unArg a
     reportSDoc "tc.cover.target" 15 $ sep
-      [ text "target type telescope (after substitution): " <+> do
+      [ "target type telescope (after substitution): " <+> do
           addContext sctel $ prettyTCM tel
-      , text "target type core      (after substitution): " <+> do
+      , "target type core      (after substitution): " <+> do
           addContext sctel $ addContext tel $ prettyTCM b
       ]
     let n         = size tel
@@ -529,21 +529,21 @@ fixTarget sc@SClause{ scTel = sctel, scPats = ps, scSubst = sigma, scCheckpoints
           }
     -- Separate debug printing to find cause of crash (Issue 1374)
     reportSDoc "tc.cover.target" 30 $ sep
-      [ text "new split clause telescope   : " <+> prettyTCM sctel'
+      [ "new split clause telescope   : " <+> prettyTCM sctel'
       ]
     reportSDoc "tc.cover.target" 30 $ sep
-      [ text "new split clause patterns    : " <+> do
+      [ "new split clause patterns    : " <+> do
           addContext sctel' $ prettyTCMPatternList $ fromSplitPatterns ps'
       ]
     reportSDoc "tc.cover.target" 60 $ sep
-      [ text "new split clause substitution: " <+> text (show $ scSubst sc')
+      [ "new split clause substitution: " <+> text (show $ scSubst sc')
       ]
     reportSDoc "tc.cover.target" 30 $ sep
-      [ text "new split clause target      : " <+> do
+      [ "new split clause target      : " <+> do
           addContext sctel' $ prettyTCM $ fromJust newTarget
       ]
     reportSDoc "tc.cover.target" 20 $ sep
-      [ text "new split clause"
+      [ "new split clause"
       , prettyTCM sc'
       ]
     return $ if n == 0 then (empty, sc { scTarget = newTarget }) else (tel, sc')
@@ -671,20 +671,20 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps cps c = do
   where
     debugInit con ctype d pars ixs cixs delta1 delta2 gamma tel ps hix =
       liftTCM $ reportSDoc "tc.cover.split.con" 20 $ vcat
-        [ text "computeNeighbourhood"
+        [ "computeNeighbourhood"
         , nest 2 $ vcat
-          [ text "context=" <+> (inTopContext . prettyTCM =<< getContextTelescope)
-          , text "con    =" <+> prettyTCM con
-          , text "ctype  =" <+> prettyTCM ctype
-          , text "ps     =" <+> do inTopContext $ addContext tel $ prettyTCMPatternList $ fromSplitPatterns ps
-          , text "d      =" <+> prettyTCM d
-          , text "pars   =" <+> do prettyList $ map prettyTCM pars
-          , text "ixs    =" <+> do addContext delta1 $ prettyList $ map prettyTCM ixs
-          , text "cixs   =" <+> do addContext gamma  $ prettyList $ map prettyTCM cixs
-          , text "delta1 =" <+> do inTopContext $ prettyTCM delta1
-          , text "delta2 =" <+> do inTopContext $ addContext delta1 $ addContext gamma $ prettyTCM delta2
-          , text "gamma  =" <+> do inTopContext $ addContext delta1 $ prettyTCM gamma
-          , text "hix    =" <+> text (show hix)
+          [ "context=" <+> (inTopContext . prettyTCM =<< getContextTelescope)
+          , "con    =" <+> prettyTCM con
+          , "ctype  =" <+> prettyTCM ctype
+          , "ps     =" <+> do inTopContext $ addContext tel $ prettyTCMPatternList $ fromSplitPatterns ps
+          , "d      =" <+> prettyTCM d
+          , "pars   =" <+> do prettyList $ map prettyTCM pars
+          , "ixs    =" <+> do addContext delta1 $ prettyList $ map prettyTCM ixs
+          , "cixs   =" <+> do addContext gamma  $ prettyList $ map prettyTCM cixs
+          , "delta1 =" <+> do inTopContext $ prettyTCM delta1
+          , "delta2 =" <+> do inTopContext $ addContext delta1 $ addContext gamma $ prettyTCM delta2
+          , "gamma  =" <+> do inTopContext $ addContext delta1 $ prettyTCM gamma
+          , "hix    =" <+> text (show hix)
           ]
         ]
 
@@ -707,13 +707,13 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps cps c = do
     debugPs tel ps =
       liftTCM $ reportSDoc "tc.cover.split.con" 20 $
         inTopContext $ addContext tel $ nest 2 $ vcat
-          [ text "ps     =" <+> prettyTCMPatternList (fromSplitPatterns ps)
+          [ "ps     =" <+> prettyTCMPatternList (fromSplitPatterns ps)
           ]
 
     debugPlugged delta' ps' =
       liftTCM $ reportSDoc "tc.cover.split.con" 20 $
         inTopContext $ addContext delta' $ nest 2 $ vcat
-          [ text "ps'    =" <+> do prettyTCMPatternList $ fromSplitPatterns ps'
+          [ "ps'    =" <+> do prettyTCMPatternList $ fromSplitPatterns ps'
           ]
 
 -- | Introduce trailing pattern variables via 'fixTarget'?
@@ -888,8 +888,8 @@ split' ind allowPartialCover fixtarget sc@(SClause tel ps _ cps target) (Blockin
         let diff  = Set.fromList tags Set.\\ Set.fromList ptags,
         not (Set.null diff) -> do
           liftTCM $ reportSDoc "tc.cover.precomputed" 10 $ vcat
-            [ hsep $ text "ptags =" : map prettyTCM ptags
-            , hsep $ text "tags  =" : map prettyTCM tags
+            [ hsep $ "ptags =" : map prettyTCM ptags
+            , hsep $ "tags  =" : map prettyTCM tags
             ]
           throwError (GenericSplitError "precomputed set of constructors does not cover all cases")
 
@@ -910,22 +910,22 @@ split' ind allowPartialCover fixtarget sc@(SClause tel ps _ cps target) (Blockin
     -- Debug printing
     debugInit tel x ps cps = liftTCM $ inTopContext $ do
       reportSDoc "tc.cover.top" 10 $ vcat
-        [ text "TypeChecking.Coverage.split': split"
+        [ "TypeChecking.Coverage.split': split"
         , nest 2 $ vcat
-          [ text "tel     =" <+> prettyTCM tel
-          , text "x       =" <+> prettyTCM x
-          , text "ps      =" <+> do addContext tel $ prettyTCMPatternList $ fromSplitPatterns ps
-          , text "cps     =" <+> prettyTCM cps
+          [ "tel     =" <+> prettyTCM tel
+          , "x       =" <+> prettyTCM x
+          , "ps      =" <+> do addContext tel $ prettyTCMPatternList $ fromSplitPatterns ps
+          , "cps     =" <+> prettyTCM cps
           ]
         ]
 
     debugHoleAndType delta1 delta2 s ps t =
       liftTCM $ reportSDoc "tc.cover.top" 10 $ nest 2 $ vcat $
-        [ text "p      =" <+> text (patVarNameToString s)
-        , text "ps     =" <+> text (show ps)
-        , text "delta1 =" <+> prettyTCM delta1
-        , text "delta2 =" <+> inContextOfDelta2 (prettyTCM delta2)
-        , text "t      =" <+> inContextOfT (prettyTCM t)
+        [ "p      =" <+> text (patVarNameToString s)
+        , "ps     =" <+> text (show ps)
+        , "delta1 =" <+> prettyTCM delta1
+        , "delta2 =" <+> inContextOfDelta2 (prettyTCM delta2)
+        , "t      =" <+> inContextOfT (prettyTCM t)
         ]
 
 -- | What could go wrong if we try to split on the result?
@@ -941,12 +941,12 @@ data CosplitError
 instance PrettyTCM CosplitError where
   prettyTCM = \case
     CosplitNoTarget ->
-      text "target type is unknown"
+      "target type is unknown"
     -- Andreas, 2018-06-09, issue #2170: splitting with irrelevant fields is always fine!
     -- CosplitIrrelevantProjections ->
-    --   text "record has irrelevant fields, but no corresponding projections"
+    --   "record has irrelevant fields, but no corresponding projections"
     CosplitNoRecordType tel t -> addContext tel $ do
-      text "target type " <+> prettyTCM t <+> text " is not a record type"
+      "target type " <+> prettyTCM t <+> " is not a record type"
 
 -- | @splitResult f sc = return res@
 --
@@ -957,9 +957,9 @@ instance PrettyTCM CosplitError where
 splitResult :: QName -> SplitClause -> TCM (Either CosplitError Covering)
 splitResult f sc@(SClause tel ps _ _ target) = do
   reportSDoc "tc.cover.split" 10 $ vcat
-    [ text "splitting result:"
-    , nest 2 $ text "f      =" <+> prettyTCM f
-    , nest 2 $ text "target =" <+> (addContext tel $ maybe empty prettyTCM target)
+    [ "splitting result:"
+    , nest 2 $ "f      =" <+> prettyTCM f
+    , nest 2 $ "target =" <+> (addContext tel $ maybe empty prettyTCM target)
     ]
   -- if we want to split projections, but have no target type, we give up
   let failure = return . Left
@@ -1019,17 +1019,17 @@ splitResult f sc@(SClause tel ps _ _ target) = do
 -- | For debugging only.
 instance PrettyTCM SplitClause where
   prettyTCM (SClause tel pats sigma cps target) = sep
-    [ text "SplitClause"
+    [ "SplitClause"
     , nest 2 $ vcat
-      [ text "tel          =" <+> prettyTCM tel
-      , text "pats         =" <+> sep (map (prettyTCM . namedArg) pats)
-      , text "subst        =" <+> (text . show) sigma
-      , text "checkpoints  =" <+> prettyTCM cps
-      , text "target       =" <+> do
+      [ "tel          =" <+> prettyTCM tel
+      , "pats         =" <+> sep (map (prettyTCM . namedArg) pats)
+      , "subst        =" <+> (text . show) sigma
+      , "checkpoints  =" <+> prettyTCM cps
+      , "target       =" <+> do
           caseMaybe target empty $ \ t -> do
             addContext tel $ prettyTCM t
       -- Triggers crash (see Issue 1374).
-      -- , text "subst target = " <+> do
+      -- , "subst target = " <+> do
       --     caseMaybe target empty $ \ t -> do
       --       addContext tel $ prettyTCM $ applySubst sigma t
       ]
