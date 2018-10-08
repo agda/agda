@@ -255,14 +255,14 @@ alreadyVisited x isMain getIface = do
 --   however, that if the file has already been type-checked, then a
 --   complete interface is returned.
 
-typeCheckMain ::
-  AbsolutePath ->
-  -- ^ The path to the file.
-  Mode ->
-  -- ^ Should the file be type-checked, or only scope-checked?
-  SourceInfo ->
-  -- ^ Information about the source code.
-  TCM (Interface, MaybeWarnings)
+typeCheckMain
+  :: AbsolutePath
+     -- ^ The path to the file.
+  -> Mode
+     -- ^ Should the file be type-checked, or only scope-checked?
+  -> SourceInfo
+     -- ^ Information about the source code.
+  -> TCM (Interface, MaybeWarnings)
 typeCheckMain f mode si = do
   -- liftIO $ putStrLn $ "This is typeCheckMain " ++ prettyShow f
   -- liftIO . putStrLn . show =<< getVerbosity
@@ -315,11 +315,11 @@ getInterface m = getInterface_ (toTopLevelModuleName m) Nothing
 
 -- | See 'getInterface'.
 
-getInterface_ ::
-  C.TopLevelModuleName ->
-  Maybe SourceInfo ->
-  -- ^ Optional information about the source code.
-  TCM Interface
+getInterface_
+  :: C.TopLevelModuleName
+  -> Maybe SourceInfo
+     -- ^ Optional information about the source code.
+  -> TCM Interface
 getInterface_ x msi = do
   (i, wt) <- getInterface' x NotMainInterface msi
   case wt of
@@ -335,12 +335,12 @@ getInterface_ x msi = do
 -- encountered then they are returned instead of being turned into
 -- errors.
 
-getInterface' ::
-  C.TopLevelModuleName ->
-  MainInterface ->
-  Maybe SourceInfo ->
-  -- ^ Optional information about the source code.
-  TCM (Interface, MaybeWarnings)
+getInterface'
+  :: C.TopLevelModuleName
+  -> MainInterface
+  -> Maybe SourceInfo
+     -- ^ Optional information about the source code.
+  -> TCM (Interface, MaybeWarnings)
 getInterface' x isMain msi = do
   withIncreasedModuleNestingLevel $ do
     -- Preserve the pragma options unless we are checking the main

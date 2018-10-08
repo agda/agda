@@ -133,14 +133,15 @@ readFilePM path = do
   s <- wrapIOM (ReadFileError path) (readTextFile (filePath path))
   return (s, T.unpack s)
 
-parseLiterateFile ::
-  Processor ->
-  Parser a ->
-  AbsolutePath ->
-  -- ^ The path to the file.
-  String ->
-  -- ^ The file contents. Note that the file is /not/ read from disk.
-  PM a
+parseLiterateFile
+  :: Processor
+  -> Parser a
+  -> AbsolutePath
+     -- ^ The path to the file.
+  -> String
+     -- ^ The file contents. Note that the file is /not/ read from
+     -- disk.
+  -> PM a
 parseLiterateFile po p path = parseLiterate p p . po (startPos (Just path))
 
 parsePosString :: Parser a -> Position -> String -> PM a
@@ -151,14 +152,15 @@ parsePosString p pos = wrapM . return . M.parsePosString pos (parseFlags p) [nor
 parseFileExts :: [String]
 parseFileExts = ".agda" : literateExts
 
-parseFile ::
-  Show a =>
-  Parser a ->
-  AbsolutePath ->
-  -- ^ The path to the file.
-  String ->
-  -- ^ The file contents. Note that the file is /not/ read from disk.
-  PM a
+parseFile
+  :: Show a
+  => Parser a
+  -> AbsolutePath
+     -- ^ The path to the file.
+  -> String
+     -- ^ The file contents. Note that the file is /not/ read from
+     -- disk.
+  -> PM a
 parseFile p file input =
   if ".agda" `List.isSuffixOf` filePath file then
     Agda.Syntax.Parser.parseStringFromFile (Strict.Just file) p input

@@ -185,12 +185,12 @@ checkModuleName name file mexpected =
 -- TODO: Perhaps it makes sense to move this procedure to some other
 -- module.
 
-moduleName ::
-  AbsolutePath ->
-  -- ^ The path to the file.
-  Module ->
-  -- ^ The parsed module.
-  TCM TopLevelModuleName
+moduleName
+  :: AbsolutePath
+     -- ^ The path to the file.
+  -> Module
+     -- ^ The parsed module.
+  -> TCM TopLevelModuleName
 moduleName file parsedModule = billTo [Bench.ModuleName] $
   case moduleNameParts name of
     ["_"] -> do
