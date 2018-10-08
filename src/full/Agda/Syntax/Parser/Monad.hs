@@ -14,7 +14,6 @@ module Agda.Syntax.Parser.Monad
     , initState
     , defaultParseFlags
     , parse
-    , parseFile
     , parsePosString
     , parseFromSrc
       -- * Manipulating the state
@@ -275,22 +274,6 @@ parse flags st p input = parseFromSrc flags st p Strict.Nothing input
 parsePosString :: Position -> ParseFlags -> [LexState] -> Parser a -> String ->
                   ParseResult a
 parsePosString pos flags st p input = unP p (initStatePos pos flags input st)
-
--- | The most general way of parsing a file. The "Agda.Syntax.Parser" will define
---   more specialised functions that supply the 'ParseFlags' and the
---   'LexState'.
---
---   Note that Agda source files always use the UTF-8 character
---   encoding.
-parseFile :: ParseFlags -> [LexState] -> Parser a -> AbsolutePath
-          -> IO (ParseResult a)
-parseFile flags st p file =
-    do  res <- (Right <$> (UTF8.readTextFile (filePath file))) `catch`
-          (return . Left . ReadFileError file)
-        return $ case res of
-          Left  error -> ParseFailed error
-          Right input ->
-            parseFromSrc flags st p (Strict.Just file) (T.unpack input)
 
 -- | Parses a string as if it were the contents of the given file
 --   Useful for integrating preprocessors.

@@ -8,7 +8,7 @@ module Agda.Syntax.Parser
       -- * Parse functions
     , Agda.Syntax.Parser.parse
     , Agda.Syntax.Parser.parsePosString
-    , Agda.Syntax.Parser.parseFile
+    , parseFile
     , parseFileExts
       -- * Parsers
     , moduleParser

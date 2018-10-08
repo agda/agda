@@ -76,7 +76,6 @@ import Agda.Utils.Null
 import Agda.Utils.Permutation
 import Agda.Utils.Pretty (prettyShow)
 import Agda.Utils.Size
-import Agda.Utils.Suffix (nameVariant)
 import Agda.Utils.Tuple
 import Agda.Utils.Lens
 

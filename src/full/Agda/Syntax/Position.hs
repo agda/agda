@@ -26,8 +26,6 @@ module Agda.Syntax.Position
   , Interval'(..)
   , intervalInvariant
   , posToInterval
-  , takeI
-  , dropI
   , getIntervalFile
   , iLength
   , fuseIntervals
@@ -649,23 +647,6 @@ movePosByString = foldl' movePos
 -- Precondition: The character must not be @'\n'@.
 backupPos :: Position' a -> Position' a
 backupPos (Pn f p l c) = Pn f (p - 1) l (c - 1)
-
--- | Extracts the interval corresponding to the given string, assuming
--- that the string starts at the beginning of the given interval.
---
--- Precondition: The string must not be too long for the interval.
-takeI :: String -> Interval' a -> Interval' a
-takeI s i | genericLength s > iLength i = __IMPOSSIBLE__
-          | otherwise = i { iEnd = movePosByString (iStart i) s }
-
--- | Removes the interval corresponding to the given string from the
--- given interval, assuming that the string starts at the beginning of
--- the interval.
---
--- Precondition: The string must not be too long for the interval.
-dropI :: String -> Interval' a -> Interval' a
-dropI s i | genericLength s > iLength i = __IMPOSSIBLE__
-          | otherwise = i { iStart = movePosByString (iStart i) s }
 
 -- | Converts a file name and two positions to a range.
 posToRange' ::

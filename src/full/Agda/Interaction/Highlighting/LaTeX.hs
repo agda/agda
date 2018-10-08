@@ -185,21 +185,6 @@ size t = do
 (<+>) :: Text -> Text -> Text
 (<+>) = T.append
 
-isInfixOf' :: Text -> Text -> Maybe (Text, Text)
-isInfixOf' needle haystack = go (T.tails haystack) 0
-  where
-  go []                                         !n = Nothing
-  go ((T.stripPrefix needle -> Just suf) : xss)  n = Just (T.take n haystack, suf)
-  go (_                                  : xss)  n = go xss (n + 1)
-
--- Same as above, but starts searching from the back rather than the
--- front.
-isInfixOfRev :: Text -> Text -> Maybe (Text, Text)
-isInfixOfRev needle haystack
-  = case T.reverse needle `isInfixOf'` T.reverse haystack of
-      Nothing         -> Nothing
-      Just (pre, suf) -> Just (T.reverse suf, T.reverse pre)
-
 -- | Does the string consist solely of whitespace?
 
 isSpaces :: Text -> Bool
