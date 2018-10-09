@@ -459,7 +459,7 @@ splitStrategy bs tel = return $ updateLast setBlockingVarOverlap xs
 -- the data type must be inductive.
 isDatatype :: (MonadTCM tcm, MonadError SplitError tcm) =>
               Induction -> Dom Type ->
-              tcm (QName, [Arg Term], [Arg Term], [QName])
+              tcm (DataOrRecord, QName, [Arg Term], [Arg Term], [QName])
 isDatatype ind at = do
   let t       = unDom at
       throw f = throwError . f =<< do liftTCM $ buildClosure t
@@ -476,12 +476,12 @@ isDatatype ind at = do
               throw CoinductiveDatatype
           | otherwise -> do
               let (ps, is) = splitAt np args
-              return (d, ps, is, cs)
+              return (IsData, d, ps, is, cs)
         Record{recPars = np, recConHead = con, recInduction = i}
           | i == Just CoInductive && ind /= CoInductive ->
               throw CoinductiveDatatype
           | otherwise ->
-              return (d, args, [], [conName con])
+              return (IsRecord, d, args, [], [conName con])
         _ -> throw NotADatatype
     _ -> throw NotADatatype
 
@@ -822,10 +822,10 @@ split' ind allowPartialCover fixtarget sc@(SClause tel ps _ cps target) (Blockin
         -- Check that t is a datatype or a record
         -- Andreas, 2010-09-21, isDatatype now directly throws an exception if it fails
         -- cons = constructors of this datatype
-        (d, pars, ixs, cons) <- inContextOfT $ isDatatype ind t
+        (dr, d, pars, ixs, cons) <- inContextOfT $ isDatatype ind t
         mns <- forM cons $ \ con -> fmap (SplitCon con,) <$>
           computeNeighbourhood delta1 n delta2 d pars ixs x tel ps cps con
-        return $ catMaybes mns
+        return (dr , catMaybes mns)
 
       computeLitNeighborhoods = do
         typeOk <- liftTCM $ do
@@ -849,9 +849,9 @@ split' ind allowPartialCover fixtarget sc@(SClause tel ps _ cps target) (Blockin
               rho    = liftS x $ consS varp $ raiseS 1
               ps'    = applySubst rho ps
           return (SplitCatchall , SClause delta' ps' rho cps Nothing)
-        return $ ns ++ [ ca ]
+        return (IsData , ns ++ [ ca ])
 
-  ns <- if null pcons' && not (null plits)
+  (dr, ns) <- if null pcons' && not (null plits)
         then computeLitNeighborhoods
         else computeNeighborhoods
 
@@ -875,7 +875,7 @@ split' ind allowPartialCover fixtarget sc@(SClause tel ps _ cps target) (Blockin
 
     -- Jesper, 2018-05-24: If the datatype is in Prop we can
     -- only do empty splits, unless the target is in Prop too.
-    (_ : _) | isProp t && not (isIrrelevant relTarget) ->
+    (_ : _) | dr == IsData && isProp t && not (isIrrelevant relTarget) ->
       throwError . IrrelevantDatatype =<< do liftTCM $ inContextOfT $ buildClosure (unDom t)
 
   -- Andreas, 2012-10-10 fail if precomputed constructor set does not cover
@@ -894,7 +894,7 @@ split' ind allowPartialCover fixtarget sc@(SClause tel ps _ cps target) (Blockin
           throwError (GenericSplitError "precomputed set of constructors does not cover all cases")
 
     _  -> do
-      liftTCM $ checkSortOfSplitVar $ unDom t
+      liftTCM $ checkSortOfSplitVar dr $ unDom t
       return $ Right $ Covering (lookupPatternVar sc x) ns
 
   where

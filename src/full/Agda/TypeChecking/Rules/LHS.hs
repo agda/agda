@@ -1110,9 +1110,9 @@ checkLHS mf st@(LHSState tel ip problem target psplit) = updateRelevance $ do
         ]
 
       -- We should be at a data/record type
-      (d, pars, ixs) <- addContext delta1 $ isDataOrRecordType dom
+      (dr, d, pars, ixs) <- addContext delta1 $ isDataOrRecordType dom
 
-      checkSortOfSplitVar a
+      checkSortOfSplitVar dr a
 
       -- The constructor should construct an element of this datatype
       (c, b) <- liftTCM $ addContext delta1 $ case ambC of
@@ -1329,7 +1329,8 @@ hardTypeError = liftTCM . typeError
 --   a data/record type by instantiating a variable/metavariable, or fail hard
 --   otherwise.
 isDataOrRecordType :: (MonadTCM m, MonadDebug m)
-                   => Dom Type -> ExceptT TCErr m (QName, Args, Args)
+                   => Dom Type
+                   -> ExceptT TCErr m (DataOrRecord, QName, Args, Args)
 isDataOrRecordType dom@Dom{domInfo = info, unDom = a} = liftTCM (reduceB a) >>= \case
   NotBlocked ReallyNotBlocked a -> case unEl a of
 
@@ -1343,11 +1344,11 @@ isDataOrRecordType dom@Dom{domInfo = info, unDom = a} = liftTCM (reduceB a) >>= 
           hardTypeError $ SplitOnIrrelevant dom
 
         let (pars, ixs) = splitAt np $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
-        return (d, pars, ixs)
+        return (IsData, d, pars, ixs)
 
       Record{} -> do
         let pars = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
-        return (d, pars, [])
+        return (IsRecord, d, pars, [])
 
       -- Issue #2253: the data type could be abstract.
       AbstractDefn{} -> hardTypeError . GenericDocError =<< do
@@ -1641,13 +1642,16 @@ checkParameters dc d pars = liftTCM $ do
       compareArgs [] [] t (Def d []) vs (take (length vs) pars)
     _ -> __IMPOSSIBLE__
 
-checkSortOfSplitVar :: (MonadTCM tcm, MonadError TCErr tcm, LensSort a) => a -> tcm ()
-checkSortOfSplitVar a = do
+checkSortOfSplitVar :: (MonadTCM tcm, MonadError TCErr tcm, LensSort a)
+                    => DataOrRecord -> a -> tcm ()
+checkSortOfSplitVar dr a = do
   infOk <- optOmegaInOmega <$> pragmaOptions
   liftTCM (reduce $ getSort a) >>= \case
     Type{} -> return ()
     Prop{} -> asksTC envRelevance >>= \case
       Irrelevant -> return ()
+      _ | IsRecord <- dr
+                 -> return ()
       _          -> softTypeError $ GenericError
         "Cannot split on datatype in Prop unless target is irrelevant"
     Inf{} | infOk -> return ()
