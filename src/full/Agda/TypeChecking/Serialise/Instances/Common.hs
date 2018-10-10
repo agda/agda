@@ -13,7 +13,6 @@ import Control.Exception
 
 import Data.Array.IArray
 import Data.Word
-import qualified Data.ByteString.Lazy as L
 import qualified Data.Foldable as Fold
 import Data.Hashable
 import qualified Data.HashTable.IO as H
@@ -28,7 +27,6 @@ import qualified Data.Set as Set
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
 import Data.Text.Lazy (Text)
-import qualified Data.Text.Lazy.Encoding as T
 import Data.Traversable ( mapM )
 
 import Data.Void
@@ -68,17 +66,9 @@ instance {-# OVERLAPPING #-} EmbPrj String where
   icod_   = icodeString
   value i = (! i) `fmap` gets stringE
 
-instance EmbPrj L.ByteString where
-  icod_   = icodeX bstringD bstringC
-  value i = (! i) `fmap` gets bstringE
-
 instance EmbPrj Text where
-  icod_   = icod_ . T.encodeUtf8
-  value i = do
-    v <- value i
-    case T.decodeUtf8' v of
-      Right t -> return t
-      Left _  -> malformed
+  icod_   = icodeX textD textC
+  value i = (! i) `fmap` gets textE
 
 instance EmbPrj Integer where
   icod_   = icodeInteger
