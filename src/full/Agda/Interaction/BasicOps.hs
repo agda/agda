@@ -363,10 +363,8 @@ data OutputConstraint' a b = OfType' { ofName :: b
                                      , ofExpr :: a
                                      }
 
-outputFormId :: OutputForm a b -> b
-outputFormId (OutputForm _ _ o) = out o
-  where
-    out o = case o of
+outputConstraintId :: OutputConstraint a b -> b
+outputConstraintId o = case o of
       OfType i _                 -> i
       CmpInType _ _ i _          -> i
       CmpElim _ _ (i:_) _        -> i
@@ -377,7 +375,7 @@ outputFormId (OutputForm _ _ o) = out o
       CmpTeles _ i _             -> i
       JustSort i                 -> i
       CmpSorts _ i _             -> i
-      Guard o _                  -> out o
+      Guard o _                  -> outputConstraintId o
       Assign i _                 -> i
       TypedAssign i _ _          -> i
       PostponedCheckArgs i _ _ _ -> i

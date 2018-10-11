@@ -180,6 +180,7 @@ library
                 , time >= 1.5.0.1 && < 1.9
                 , unordered-containers >= 0.2.5.0 && < 0.3
                 , uri-encode >= 1.5.0.4 && < 1.6
+                , vector >= 0.11.0.0 && < 0.13
 
   -- In hTags the mtl library must be compiled with the version of
   -- transformers shipped with GHC, so we use that version in Agda (see,
@@ -272,6 +273,20 @@ library
                     Agda.Interaction.Highlighting.LaTeX
                     Agda.Interaction.Imports
                     Agda.Interaction.InteractionTop
+                    Agda.Interaction.JSON.Encode
+                    Agda.Interaction.JSON.Syntax.Abstract
+                    Agda.Interaction.JSON.Syntax.Common
+                    Agda.Interaction.JSON.Syntax.Concrete
+                    Agda.Interaction.JSON.Syntax.Concrete.Name
+                    Agda.Interaction.JSON.Syntax.Fixity
+                    Agda.Interaction.JSON.Syntax.Internal
+                    Agda.Interaction.JSON.Syntax.Literal
+                    Agda.Interaction.JSON.Syntax.Notation
+                    Agda.Interaction.JSON.Syntax.Parser
+                    Agda.Interaction.JSON.Syntax.Position
+                    Agda.Interaction.JSON.Syntax.Translation
+                    Agda.Interaction.JSON.TypeChecking
+                    Agda.Interaction.JSON.TypeChecking.Positivity
                     Agda.Interaction.Response
                     Agda.Interaction.MakeCase
                     Agda.Interaction.Monad

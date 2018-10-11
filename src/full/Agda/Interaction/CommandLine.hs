@@ -160,8 +160,8 @@ showMetas [] =
         mapM_ (liftIO . putStrLn) =<< mapM showII interactionMetas
         mapM_ print' hiddenMetas
     where
-        showII o = withInteractionId (outputFormId $ OutputForm noRange [] o) $ showA o
-        showM  o = withMetaId (nmid $ outputFormId $ OutputForm noRange [] o) $ showA o
+        showII o = withInteractionId (outputConstraintId o) $ showA o
+        showM  o = withMetaId (nmid $ outputConstraintId o) $ showA o
 
         metaId (OfType i _) = i
         metaId (JustType i) = i

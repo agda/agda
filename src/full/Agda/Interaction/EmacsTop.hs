@@ -64,10 +64,10 @@ lispifyResponse (Resp_DisplayInfo info) = return $ case info of
     Info_CompilationOk w e -> f body "*Compilation result*"
       where (body, _) = formatWarningsAndErrors "The module was successfully compiled.\n" w e -- abusing the goals field since we ignore the title
     Info_Constraints s -> f s "*Constraints*"
-    Info_AllGoalsWarnings g w e -> f body ("*All" ++ title ++ "*")
+    Info_AllGoalsWarnings _ g w e -> f body ("*All" ++ title ++ "*")
       where (body, title) = formatWarningsAndErrors g w e
     Info_Auto s -> f s "*Auto*"
-    Info_Error s -> f s "*Error*"
+    Info_Error _ s -> f s "*Error*"
     -- FNF: if Info_Warning comes back into use, the above should be
     -- clearWarning : f s "*Error*"
     --Info_Warning s -> [ display_warning "*Errors*" s ] -- FNF: currently unused

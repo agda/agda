@@ -330,7 +330,7 @@ handleCommand wrap onFail cmd = handleNastyErrors $ wrap $ do
         let str     = if null s2 then strErr else strWarn ++ "\n" ++ strErr
         x <- lift $ optShowImplicit <$> useTC stPragmaOptions
         unless (null s1) $ mapM_ putResponse $
-            [ Resp_DisplayInfo $ Info_Error str ] ++
+            [ Resp_DisplayInfo $ Info_Error e str ] ++
             tellEmacsToJumpToError (getRange e) ++
             [ Resp_HighlightingInfo info KeepHighlighting
                                     method modFile ] ++
@@ -781,8 +781,9 @@ interpret (Cmd_compile b file argv) =
         (pwe, pwa) <- interpretWarnings
         display_info $ Info_CompilationOk pwa pwe
       Imp.SomeWarnings w -> do
+        err <- lift $ tcWarningsToErrorWithoutThrowing w
         pw <- lift $ prettyTCWarnings w
-        display_info $ Info_Error $ unlines
+        display_info $ Info_Error err $ unlines
           [ "You need to fix the following errors before you can compile"
           , "the module:"
           , ""
@@ -796,7 +797,8 @@ interpret Cmd_metas = do -- CL.showMetas []
   unsolvedNotOK <- lift $ not . optAllowUnsolved <$> pragmaOptions
   ms <- lift showOpenMetas
   (pwe, pwa) <- interpretWarnings
-  display_info $ Info_AllGoalsWarnings (unlines ms) pwa pwe
+  allGoalsWarnings <- collectAllGoalsWarnings
+  display_info $ Info_AllGoalsWarnings allGoalsWarnings (unlines ms) pwa pwe
 
 interpret (Cmd_show_module_contents_toplevel norm s) =
   liftCommandMT B.atTopLevel $ showModuleContents norm noRange s
@@ -906,7 +908,7 @@ interpret (Cmd_highlight ii rng s) = do
     handle m = do
       res <- lift $ runExceptT m
       case res of
-        Left s  -> display_info $ Info_Error s
+        Left s  -> display_info $ Info_Error (stringTCErr s) s
         Right _ -> return ()
     try :: String -> TCM a -> ExceptT String TCM a
     try err m = mkExceptT $ do
@@ -1068,22 +1070,31 @@ interpret Cmd_show_version = display_info Info_Version
 
 interpret Cmd_abort = return ()
 
--- | Show warnings
-interpretWarnings :: CommandM (String, String)
-interpretWarnings = do
+-- | Collect warnings
+collectWarnings :: CommandM ([TCWarning], [TCWarning])
+collectWarnings = do
   mws <- lift $ Imp.getAllWarnings AllWarnings RespectFlags
   case filter isNotMeta <$> mws of
     Imp.SomeWarnings ws@(_:_) -> do
       let (we, wa) = classifyWarnings ws
-      pwe <- lift $ prettyTCWarnings we
-      pwa <- lift $ prettyTCWarnings wa
-      return (pwe, pwa)
-    _ -> return ("", "")
+      return (we, wa)
+    _ -> return ([], [])
    where isNotMeta w = case tcWarning w of
                          UnsolvedInteractionMetas{} -> False
                          UnsolvedMetaVariables{}    -> False
                          _                          -> True
 
+-- | Show warnings
+interpretWarnings :: CommandM (String, String)
+interpretWarnings = do
+  (we, wa) <- collectWarnings
+  if (length we + length wa > 0)
+    then do
+      pwe <- lift $ prettyTCWarnings we
+      pwa <- lift $ prettyTCWarnings wa
+      return (pwe, pwa)
+    else
+      return ("", "")
 
 -- | Solved goals already instantiated internally
 -- The second argument potentially limits it to one specific goal.
@@ -1102,12 +1113,32 @@ solveInstantiatedGoals norm mii = do
         return (i, e)
 
 
+-- | Collect all goals, warnings, and non-fatal errors
+collectAllGoalsWarnings :: CommandM AllGoalsWarnings
+collectAllGoalsWarnings = do
+  -- interaction metas
+  interactionMetas <- lift $ do
+    ids <- B.typesOfVisibleMetas B.AsIs
+    forM ids $ \ i ->
+        B.withInteractionId (B.outputConstraintId i) (abstractToConcreteCtx TopCtx i)
+
+  -- hidden metas
+  hiddenMetas <- lift $ do
+    unsolvedNotOK <- not . optAllowUnsolved <$> pragmaOptions
+    ids <- (guard unsolvedNotOK >>) <$> B.typesOfHiddenMetas B.Simplified
+    forM ids $ \ m -> do
+      B.withMetaId (nmid (B.outputConstraintId m)) (abstractToConcreteCtx TopCtx m)
+
+  -- warnings, and non-fatal errors
+  (warnings, errors) <- collectWarnings
+  return $ AllGoalsWarnings interactionMetas hiddenMetas warnings errors
+
 -- | Print open metas nicely.
 showOpenMetas :: TCM [String]
 showOpenMetas = do
   ims <- B.typesOfVisibleMetas B.AsIs
   di <- forM ims $ \ i ->
-    B.withInteractionId (B.outputFormId $ B.OutputForm noRange [] i) $
+    B.withInteractionId (B.outputConstraintId i) $
       showATop i
   -- Show unsolved implicit arguments simplified.
   unsolvedNotOK <- not . optAllowUnsolved <$> pragmaOptions
@@ -1115,14 +1146,9 @@ showOpenMetas = do
   dh <- mapM showA' hms
   return $ di ++ dh
   where
-    metaId (B.OfType i _) = i
-    metaId (B.JustType i) = i
-    metaId (B.JustSort i) = i
-    metaId (B.Assign i e) = i
-    metaId _ = __IMPOSSIBLE__
     showA' :: B.OutputConstraint A.Expr NamedMeta -> TCM String
     showA' m = do
-      let i = nmid $ metaId m
+      let i = nmid $ B.outputConstraintId m
       r <- getMetaRange i
       d <- B.withMetaId i (showATop m)
       return $ d ++ "  [ at " ++ show r ++ " ]"

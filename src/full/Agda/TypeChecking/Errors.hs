@@ -10,10 +10,24 @@ module Agda.TypeChecking.Errors
   , prettyTCWarnings'
   , prettyTCWarnings
   , tcWarningsToError
+  , tcWarningsToErrorWithoutThrowing
   , applyFlagsToTCWarnings
   , dropTopLevelModule
+  , topLevelModuleDropper
   , stringTCErr
+  , errorString
   , sayWhen
+  , nameWithBinding
+  , notCmp
+  , kindOfPattern
+  , handleShadowedModule
+  , refineUnequalTerms
+  , prettyUnambiguousApplication
+  , unambiguousPattern
+  , prettyInEqual
+  , PrettyUnequal(..)
+  , Verbalize(..)
+  , Indefinite(..)
   ) where
 
 #if MIN_VERSION_base(4,11,0)
@@ -241,6 +255,12 @@ prettyTCWarnings' = mapM (fmap show . prettyTCM)
 -- | Turns all warnings into errors.
 tcWarningsToError :: [TCWarning] -> TCM a
 tcWarningsToError ws = typeError $ case ws of
+  [] -> SolvedButOpenHoles
+  _  -> NonFatalErrors ws
+
+-- | Turns all warnings into errors without throwing it
+tcWarningsToErrorWithoutThrowing :: [TCWarning] -> TCM TCErr
+tcWarningsToErrorWithoutThrowing ws = typeError_ $ case ws of
   [] -> SolvedButOpenHoles
   _  -> NonFatalErrors ws
 
@@ -600,21 +620,6 @@ instance PrettyTCM TypeError where
          else
            text "with" : text (kindOfPattern (namedArg p)) : text "pattern" : prettyA p :
            pwords "(did you supply too many arguments?)"
-      where
-      kindOfPattern = \case
-        A.VarP{}    -> "variable"
-        A.ConP{}    -> "constructor"
-        A.ProjP{}   -> __IMPOSSIBLE__
-        A.DefP{}    -> __IMPOSSIBLE__
-        A.WildP{}   -> "wildcard"
-        A.DotP{}    -> "dot"
-        A.AbsurdP{} -> "absurd"
-        A.LitP{}    -> "literal"
-        A.RecP{}    -> "record"
-        A.WithP{}   -> "with"
-        A.EqualP{}  -> "equality"
-        A.AsP _ _ p -> kindOfPattern p
-        A.PatternSynP{} -> __IMPOSSIBLE__
 
     WrongNumberOfConstructorArguments c expect given -> fsep $
       pwords "The constructor" ++ [prettyTCM c] ++
@@ -635,34 +640,8 @@ instance PrettyTCM TypeError where
       [prettyTCM c] ++ pwords "is not a constructor of the datatype"
       ++ [prettyTCM d]
 
-    ShadowedModule x [] -> __IMPOSSIBLE__
-
-    ShadowedModule x ms@(m0 : _) -> do
-      -- Clash! Concrete module name x already points to the abstract names ms.
-      (r, m) <- do
-        -- Andreas, 2017-07-28, issue #719.
-        -- First, we try to find whether one of the abstract names @ms@ points back to @x@
-        scope <- getScope
-        -- Get all pairs (y,m) such that y points to some m ∈ ms.
-        let xms0 = ms >>= \ m -> map (,m) $ inverseScopeLookupModule m scope
-        reportSLn "scope.clash.error" 30 $ "candidates = " ++ prettyShow xms0
-
-        -- Try to find x (which will have a different Range, if it has one (#2649)).
-        let xms = filter ((\ y -> not (null $ getRange y) && y == C.QName x) . fst) xms0
-        reportSLn "scope.class.error" 30 $ "filtered candidates = " ++ prettyShow xms
-
-        -- If we found a copy of x with non-empty range, great!
-        ifJust (headMaybe xms) (\ (x', m) -> return (getRange x', m)) $ {-else-} do
-
-        -- If that failed, we pick the first m from ms which has a nameBindingSite.
-        let rms = ms >>= \ m -> map (,m) $
-              filter (noRange /=) $ map nameBindingSite $ reverse $ mnameToList m
-              -- Andreas, 2017-07-25, issue #2649
-              -- Take the first nameBindingSite we can get hold of.
-        reportSLn "scope.class.error" 30 $ "rangeful clashing modules = " ++ prettyShow rms
-
-        -- If even this fails, we pick the first m and give no range.
-        return $ fromMaybe (noRange, m0) $ headMaybe rms
+    ShadowedModule x ms -> do
+      (r, m) <- handleShadowedModule x ms
 
       fsep $
         pwords "Duplicate definition of module" ++ [prettyTCM x <> text "."] ++
@@ -687,7 +666,7 @@ instance PrettyTCM TypeError where
     ShouldBeEmpty t ps -> fsep (
       [prettyTCM t] ++
       pwords "should be empty, but the following constructor patterns are valid:"
-      ) $$ nest 2 (vcat $ map (prettyPat 0) ps)
+      ) $$ nest 2 (vcat $ map (prettyPattern 0) ps)
 
     ShouldBeASort t -> fsep $
       [prettyTCM t] ++ pwords "should be a sort, but it isn't"
@@ -722,13 +701,9 @@ instance PrettyTCM TypeError where
     UnequalBecauseOfUniverseConflict cmp s t -> fsep $
       [prettyTCM s, notCmp cmp, prettyTCM t, text "because this would result in an invalid use of Setω" ]
 
-    UnequalTerms cmp s t a -> case (s,t) of
-      (Sort s1      , Sort s2      )
-        | CmpEq  <- cmp              -> prettyTCM $ UnequalSorts s1 s2
-        | CmpLeq <- cmp              -> prettyTCM $ NotLeqSort s1 s2
-      (Sort MetaS{} , t            ) -> prettyTCM $ ShouldBeASort $ El Inf t
-      (s            , Sort MetaS{} ) -> prettyTCM $ ShouldBeASort $ El Inf s
-      (_            , _            ) -> do
+    UnequalTerms cmp s t a -> case refineUnequalTerms cmp s t of
+      Just err -> prettyTCM err
+      Nothing -> do
         (d1, d2, d) <- prettyInEqual s t
         fsep $ [return d1, notCmp cmp, return d2] ++ pwords "of type" ++ [prettyTCM a] ++ [return d]
 
@@ -1022,29 +997,7 @@ instance PrettyTCM TypeError where
         pretty' e = do
           p1 <- pretty_es
           p2 <- pretty e
-          if show p1 == show p2 then unambiguous e else pretty e
-
-        unambiguous :: C.Expr -> TCM Doc
-        unambiguous e@(C.OpApp r op _ xs)
-          | all (isOrdinary . namedArg) xs =
-            pretty $
-              foldl (C.App r) (C.Ident op) $
-                (map . fmap . fmap) fromOrdinary xs
-          | any (isPlaceholder . namedArg) xs =
-              pretty e <+> text "(section)"
-        unambiguous e = pretty e
-
-        isOrdinary :: MaybePlaceholder (C.OpApp e) -> Bool
-        isOrdinary (NoPlaceholder _ (C.Ordinary _)) = True
-        isOrdinary _                                = False
-
-        fromOrdinary :: MaybePlaceholder (C.OpApp e) -> e
-        fromOrdinary (NoPlaceholder _ (C.Ordinary e)) = e
-        fromOrdinary _                                = __IMPOSSIBLE__
-
-        isPlaceholder :: MaybePlaceholder a -> Bool
-        isPlaceholder Placeholder{}   = True
-        isPlaceholder NoPlaceholder{} = False
+          if show p1 == show p2 then prettyUnambiguousApplication e else pretty e
 
     BadArgumentsToPatternSynonym x -> fsep $
       pwords "Bad arguments to pattern synonym " ++ [prettyTCM $ headAmbQ x]
@@ -1089,18 +1042,7 @@ instance PrettyTCM TypeError where
         pretty' p' = do
           p1 <- pretty_p
           p2 <- pretty p'
-          pretty $ if show p1 == show p2 then unambiguousP p' else p'
-
-        -- the entire pattern is shown, not just the ambiguous part,
-        -- so we need to dig in order to find the OpAppP's.
-        unambiguousP :: C.Pattern -> C.Pattern
-        unambiguousP (C.AppP x y)         = C.AppP (unambiguousP x) $ (fmap.fmap) unambiguousP y
-        unambiguousP (C.HiddenP r x)      = C.HiddenP r $ fmap unambiguousP x
-        unambiguousP (C.InstanceP r x)    = C.InstanceP r $ fmap unambiguousP x
-        unambiguousP (C.ParenP r x)       = C.ParenP r $ unambiguousP x
-        unambiguousP (C.AsP r n x)        = C.AsP r n $ unambiguousP x
-        unambiguousP (C.OpAppP r op _ xs) = foldl C.AppP (C.IdentP op) xs
-        unambiguousP e                    = e
+          pretty $ if show p1 == show p2 then unambiguousPattern p' else p'
 
     OperatorInformation sects err ->
       prettyTCM err
@@ -1279,28 +1221,100 @@ instance PrettyTCM TypeError where
       pwords ("Instance search depth exhausted (max depth: " ++ show d ++ ") for candidate") ++
       [hang (prettyTCM c <+> text ":") 2 (prettyTCM a)]
 
-    where
-    mpar n args
-      | n > 0 && not (null args) = parens
-      | otherwise                = id
-
-    prettyArg :: Arg (I.Pattern' a) -> TCM Doc
-    prettyArg (Arg info x) = case getHiding info of
-      Hidden     -> braces $ prettyPat 0 x
-      Instance{} -> dbraces $ prettyPat 0 x
-      NotHidden  -> prettyPat 1 x
-
-    prettyPat :: Integer -> (I.Pattern' a) -> TCM Doc
-    prettyPat _ (I.VarP _ _) = text "_"
-    prettyPat _ (I.DotP _ _) = text "._"
-    prettyPat n (I.ConP c _ args) =
-      mpar n args $
-        prettyTCM c <+> fsep (map (prettyArg . fmap namedThing) args)
-    prettyPat _ (I.LitP l) = prettyTCM l
-    prettyPat _ (I.ProjP _ p) = text "." <> prettyTCM p
-
 notCmp :: Comparison -> TCM Doc
 notCmp cmp = text "!" <> prettyTCM cmp
+
+-- | For CannotEliminateWithPattern
+kindOfPattern :: A.Pattern -> String
+kindOfPattern arg = case arg of
+  A.VarP    {} -> "variable"
+  A.ConP    {} -> "constructor"
+  A.ProjP   {} -> __IMPOSSIBLE__
+  A.DefP    {} -> __IMPOSSIBLE__
+  A.WildP   {} -> "wildcard"
+  A.DotP    {} -> "dot"
+  A.AbsurdP {} -> "absurd"
+  A.LitP    {} -> "literal"
+  A.RecP    {} -> "record"
+  A.WithP   {} -> "with"
+  A.EqualP  {} -> "equality"
+  A.AsP _ _ p -> kindOfPattern p
+  A.PatternSynP {} -> __IMPOSSIBLE__
+
+-- | For ShadowedModule
+handleShadowedModule :: C.Name -> [A.ModuleName] -> TCM (Range, A.ModuleName)
+handleShadowedModule x [] = __IMPOSSIBLE__
+handleShadowedModule x ms@(m0 : _) = do
+    -- Clash! Concrete module name x already points to the abstract names ms.
+
+    -- Andreas, 2017-07-28, issue #719.
+    -- First, we try to find whether one of the abstract names @ms@ points back to @x@
+    scope <- getScope
+    -- Get all pairs (y,m) such that y points to some m ∈ ms.
+    let xms0 = ms >>= \ m -> map (,m) $ inverseScopeLookupModule m scope
+    reportSLn "scope.clash.error" 30 $ "candidates = " ++ prettyShow xms0
+
+    -- Try to find x (which will have a different Range, if it has one (#2649)).
+    let xms = filter ((\ y -> not (null $ getRange y) && y == C.QName x) . fst) xms0
+    reportSLn "scope.class.error" 30 $ "filtered candidates = " ++ prettyShow xms
+
+    -- If we found a copy of x with non-empty range, great!
+    ifJust (headMaybe xms) (\ (x', m) -> return (getRange x', m)) $ {-else-} do
+
+    -- If that failed, we pick the first m from ms which has a nameBindingSite.
+    let rms = ms >>= \ m -> map (,m) $
+          filter (noRange /=) $ map A.nameBindingSite $ reverse $ A.mnameToList m
+          -- Andreas, 2017-07-25, issue #2649
+          -- Take the first nameBindingSite we can get hold of.
+    reportSLn "scope.class.error" 30 $ "rangeful clashing modules = " ++ prettyShow rms
+
+    -- If even this fails, we pick the first m and give no range.
+    return $ fromMaybe (noRange, m0) $ headMaybe rms
+
+-- | Refine UnequalTerms into other kind of TypeErrors
+refineUnequalTerms :: Comparison -> Term -> Term -> Maybe TypeError
+refineUnequalTerms cmp s t = case (s,t) of
+  (Sort s1      , Sort s2      )
+    | CmpEq  <- cmp              -> Just $ UnequalSorts s1 s2
+    | CmpLeq <- cmp              -> Just $ NotLeqSort s1 s2
+  (Sort MetaS{} , t            ) -> Just $ ShouldBeASort $ El Inf t
+  (s            , Sort MetaS{} ) -> Just $ ShouldBeASort $ El Inf s
+  (_            , _            ) -> Nothing
+
+
+prettyUnambiguousApplication :: C.Expr -> TCM Doc
+prettyUnambiguousApplication e@(C.OpApp r op _ xs)
+  | all (isOrdinary . namedArg) xs =
+    pretty $
+      foldl (C.App r) (C.Ident op) $
+        (map . fmap . fmap) fromOrdinary xs
+  | any (isPlaceholder . namedArg) xs =
+      pretty e <+> text "(section)"
+  where
+    isOrdinary :: MaybePlaceholder (C.OpApp e) -> Bool
+    isOrdinary (NoPlaceholder _ (C.Ordinary _)) = True
+    isOrdinary _                                = False
+
+    fromOrdinary :: MaybePlaceholder (C.OpApp e) -> e
+    fromOrdinary (NoPlaceholder _ (C.Ordinary e)) = e
+    fromOrdinary _                                = __IMPOSSIBLE__
+
+    isPlaceholder :: MaybePlaceholder a -> Bool
+    isPlaceholder Placeholder{}   = True
+    isPlaceholder NoPlaceholder{} = False
+prettyUnambiguousApplication e = pretty e
+
+-- the entire pattern is shown, not just the ambiguous part,
+-- so we need to dig in order to find the OpAppP's.
+unambiguousPattern :: C.Pattern -> C.Pattern
+unambiguousPattern (C.AppP x y)         = C.AppP (unambiguousPattern x) $ (fmap.fmap) unambiguousPattern y
+unambiguousPattern (C.HiddenP r x)      = C.HiddenP r $ fmap unambiguousPattern x
+unambiguousPattern (C.InstanceP r x)    = C.InstanceP r $ fmap unambiguousPattern x
+unambiguousPattern (C.ParenP r x)       = C.ParenP r $ unambiguousPattern x
+unambiguousPattern (C.AsP r n x)        = C.AsP r n $ unambiguousPattern x
+unambiguousPattern (C.OpAppP r op _ xs) = foldl C.AppP (C.IdentP op) xs
+unambiguousPattern e                    = e
+
 
 -- | Print two terms that are supposedly unequal.
 --   If they print to the same identifier, add some explanation

@@ -3,11 +3,12 @@
 
 -- | Functions which give precise syntax highlighting info in JSON format.
 
-module Agda.Interaction.Highlighting.JSON (jsonifyHighlightingInfo) where
+module Agda.Interaction.Highlighting.JSON (encodeHighlightingInfo) where
 
 import Agda.Interaction.Highlighting.Common
 import Agda.Interaction.Highlighting.Precise hiding (String)
 import Agda.Interaction.Highlighting.Range (Range(..))
+import Agda.Interaction.JSON.Encode
 import Agda.Interaction.Response
 import Agda.TypeChecking.Monad (HighlightingMethod(..), ModuleToSource)
 import Agda.Utils.FileName (filePath)
@@ -38,19 +39,20 @@ showAspects modFile (range, aspect) = object
       , "position" .= position
       ]
 
+instance EncodeTCM TokenBased where
 instance ToJSON TokenBased where
     toJSON TokenBased = String "TokenBased"
     toJSON NotOnlyTokenBased = String "NotOnlyTokenBased"
 
 -- | Turns syntax highlighting information into a JSON value
-jsonifyHighlightingInfo
+encodeHighlightingInfo
   :: HighlightingInfo
   -> RemoveTokenBasedHighlighting
   -> HighlightingMethod
   -> ModuleToSource
      -- ^ Must contain a mapping for every definition site's module.
   -> IO Value
-jsonifyHighlightingInfo info remove method modFile =
+encodeHighlightingInfo info remove method modFile =
   case chooseHighlightingMethod info method of
     Direct   -> direct
     Indirect -> indirect
