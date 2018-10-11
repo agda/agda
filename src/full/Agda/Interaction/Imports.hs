@@ -25,6 +25,7 @@ import Data.Monoid (mempty, mappend)
 import Data.Map (Map)
 import Data.Set (Set)
 import Data.Text.Lazy (Text)
+import qualified Data.Text.Lazy as T
 
 import System.Directory (doesFileExist, getModificationTime, removeFile)
 import System.FilePath ((</>))
@@ -87,8 +88,7 @@ import Agda.Utils.Impossible
 -- | Some information about the source code.
 
 data SourceInfo = SourceInfo
-  { siSourceT    :: Text                  -- ^ Source code.
-  , siSource     :: String                -- ^ Source code.
+  { siSource     :: Text                  -- ^ Source code.
   , siModule     :: C.Module              -- ^ The parsed module.
   , siModuleName :: C.TopLevelModuleName  -- ^ The top-level module name.
   }
@@ -97,11 +97,11 @@ data SourceInfo = SourceInfo
 
 sourceInfo :: AbsolutePath -> TCM SourceInfo
 sourceInfo f = Bench.billTo [Bench.Parsing] $ do
-  (sourceT, source) <- runPM (readFilePM f)
-  parsedModule      <- runPM (parseFile moduleParser f source)
+  source            <- runPM (readFilePM f)
+  parsedModule      <- runPM $
+                         parseFile moduleParser f (T.unpack source)
   moduleName        <- moduleName f parsedModule
-  return $ SourceInfo { siSourceT    = sourceT
-                      , siSource     = source
+  return $ SourceInfo { siSource     = source
                       , siModule     = parsedModule
                       , siModuleName = moduleName
                       }
@@ -363,7 +363,7 @@ getInterface' x isMain msi = do
           -- to avoid typechecking a file more than once.
         sourceH <- case msi of
                      Nothing -> liftIO $ hashFile file
-                     Just si -> return $ hashText (siSourceT si)
+                     Just si -> return $ hashText (siSource si)
         ifaceH  <-
           case cached of
             Nothing -> fmap fst <$> getInterfaceFileHashes (filePath $ toIFile file)
@@ -719,16 +719,17 @@ createInterface file mname isMain msi =
       reportSLn "import.iface.create" 10 $
         "  visited: " ++ List.intercalate ", " (map prettyShow visited)
 
-    (sourceT, source, (pragmas, top)) <- do
+    (source, (pragmas, top)) <- do
       si <- case msi of
         Nothing -> sourceInfo file
         Just si -> return si
       case si of
-        SourceInfo {..} -> return (siSourceT, siSource, siModule)
+        SourceInfo {..} -> return (siSource, siModule)
 
     modFile       <- useTC stModuleToSource
     fileTokenInfo <- Bench.billTo [Bench.Highlighting] $
-                       generateTokenInfoFromSource file source
+                       generateTokenInfoFromSource
+                         file (T.unpack source)
     stTokens `setTCLens` fileTokenInfo
 
     pragmas <- concat <$> concreteToAbstract_ pragmas
@@ -859,7 +860,7 @@ createInterface file mname isMain msi =
     -- Serialization.
     reportSLn "import.iface.create" 7 $ "Starting serialization."
     i <- Bench.billTo [Bench.Serialization, Bench.BuildInterface] $ do
-      buildInterface sourceT topLevel options
+      buildInterface source topLevel options
 
     reportSLn "tc.top" 101 $ unlines $
       "Signature:" :

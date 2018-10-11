@@ -859,7 +859,7 @@ interpret (Cmd_load_highlighting_info source) = do
           case mmi of
             Nothing -> return Nothing
             Just mi ->
-              if hashText (Imp.siSourceT si) ==
+              if hashText (Imp.siSource si) ==
                  iSourceHash (miInterface mi)
                then do
                 modFile <- useTC stModuleToSource

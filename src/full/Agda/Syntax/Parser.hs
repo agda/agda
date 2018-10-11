@@ -125,13 +125,12 @@ parseLiterateWithComments p layers = do
                        Right (Layer Code _ _) -> []
                    | m <- terms ]
 
--- | Returns the contents of the given file (both as a piece of 'Text'
--- and as a 'String').
+-- | Returns the contents of the given file.
 
-readFilePM :: AbsolutePath -> PM (Text, String)
+readFilePM :: AbsolutePath -> PM Text
 readFilePM path = do
   s <- wrapIOM (ReadFileError path) (readTextFile (filePath path))
-  return (s, T.unpack s)
+  return s
 
 parseLiterateFile
   :: Processor

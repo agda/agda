@@ -33,6 +33,7 @@ import Data.List ((\\), isPrefixOf)
 import qualified Data.List as List
 import qualified Data.Foldable as Fold (fold, foldMap, toList)
 import qualified Data.IntMap as IntMap
+import qualified Data.Text.Lazy as T
 import Data.Void
 
 import Agda.Interaction.Response (Response(Resp_HighlightingInfo))
@@ -377,7 +378,8 @@ generateAndPrintSyntaxInfo decl hlLevel updateState = do
 
 generateTokenInfo :: AbsolutePath -> TCM CompressedFile
 generateTokenInfo file =
-  generateTokenInfoFromSource file . snd =<< runPM (Pa.readFilePM file)
+  generateTokenInfoFromSource file . T.unpack =<<
+    runPM (Pa.readFilePM file)
 
 -- | Generate and return the syntax highlighting information for the
 -- tokens in the given file.
