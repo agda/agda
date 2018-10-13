@@ -127,27 +127,36 @@ isType_ e = traceCall (IsType_ e) $ do
       checkTelePiSort t'
       noFunctionsIntoSize t0 t'
       return t'
-    A.Set _ n    -> do
+
+    -- Setᵢ
+    A.Set _ n -> do
       return $ sort (mkType n)
+
+    -- Propᵢ
     A.Prop _ n -> do
       unlessM isPropEnabled $ typeError NeedOptionProp
       return $ sort (mkProp n)
+
+    -- Set ℓ
     A.App i s arg
       | visible arg,
-        A.Set _ 0 <- unScope s ->
-      ifNotM hasUniversePolymorphism
-          (typeError $ GenericError "Use --universe-polymorphism to enable level arguments to Set")
+        A.Set _ 0 <- unScope s -> do
+      unlessM hasUniversePolymorphism $ typeError $ GenericError $
+        "Use --universe-polymorphism to enable level arguments to Set"
       -- allow NonStrict variables when checking level
       --   Set : (NonStrict) Level -> Set\omega
-      $ {- else -} applyRelevanceToContext NonStrict $
-          sort . Type <$> checkLevel arg
+      applyRelevanceToContext NonStrict $
+        sort . Type <$> checkLevel arg
+
+    -- Prop ℓ
     A.App i s arg
       | visible arg,
-        A.Prop _ 0 <- unScope s ->
-      ifNotM hasUniversePolymorphism
-          (typeError $ GenericError "Use --universe-polymorphism to enable level arguments to Prop")
-      $ {- else -} applyRelevanceToContext NonStrict $
-          sort . Prop <$> checkLevel arg
+        A.Prop _ 0 <- unScope s -> do
+      unlessM isPropEnabled $ typeError NeedOptionProp
+      unlessM hasUniversePolymorphism $ typeError $ GenericError $
+        "Use --universe-polymorphism to enable level arguments to Prop"
+      applyRelevanceToContext NonStrict $
+        sort . Prop <$> checkLevel arg
 
     -- Issue #707: Check an existing interaction point
     A.QuestionMark minfo ii -> caseMaybeM (lookupInteractionMeta ii) fallback $ \ x -> do

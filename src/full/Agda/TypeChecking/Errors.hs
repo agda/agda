@@ -1262,7 +1262,7 @@ instance PrettyTCM TypeError where
       pwords "Option --rewriting needed to add and use rewrite rules"
 
     NeedOptionProp       -> fsep $
-      pwords "Universe Prop is disabled by option --no-prop"
+      pwords "Universe Prop is disabled (use options --prop and --no-prop to enable/disable Prop)"
 
     GeneralizeNotSupportedHere x -> fsep $
       pwords $ "Generalizable variable " ++ show x ++ " is not supported here"
