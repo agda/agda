@@ -90,7 +90,7 @@ Pragmas and options
   Reason: There are consistency issues that may be systemic
   [Issue [#2170](https://github.com/agda/agda/issues/2170)].
 
-* Option `--prop` enables the `Prop` universe and is on by default.
+* Option `--prop` enables the `Prop` universe but is off by default.
   Option `--no-prop` disables the `Prop` universe.
 
   In the absense of `Prop`, the sort `Set` is the lowest sort,

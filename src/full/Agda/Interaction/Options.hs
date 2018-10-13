@@ -234,7 +234,7 @@ defaultPragmaOptions = PragmaOptions
   , optShowIrrelevant            = False
   , optUseUnicode                = True
   , optVerbose                   = defaultVerbosity
-  , optProp                      = True
+  , optProp                      = False
   , optExperimentalIrrelevance   = False
   , optIrrelevantProjections     = False -- off by default in > 2.5.4, see issue #2170
   , optAllowUnsolved             = False
@@ -703,9 +703,9 @@ pragmaOptions =
     , Option []     ["omega-in-omega"] (NoArg omegaInOmegaFlag)
                     "enable typing rule Setω : Setω (this makes Agda inconsistent)"
     , Option []     ["prop"] (NoArg propFlag)
-                    "enable the use of the Prop universe (default)"
+                    "enable the use of the Prop universe"
     , Option []     ["no-prop"] (NoArg noPropFlag)
-                    "disable the use of the Prop universe"
+                    "disable the use of the Prop universe (default)"
     , Option []     ["sized-types"] (NoArg sizedTypes)
                     "use sized types (default, inconsistent with `musical' coinduction)"
     , Option []     ["no-sized-types"] (NoArg noSizedTypes)
