@@ -176,7 +176,7 @@ data PreScopeState = PreScopeState
     -- ^ Display forms added by someone else to imported identifiers
   , stPreImportedInstanceDefs :: !InstanceTable
   , stPreForeignCode        :: !(Map BackendName [ForeignCode])
-    -- ^ @{-# FOREIGN #-}@ code that should be included in the compiled output.
+    -- ^ @{-\# FOREIGN \#-}@ code that should be included in the compiled output.
     -- Does not include code for imported modules.
   , stPreFreshInteractionId :: !InteractionId
   , stPreImportedUserWarnings :: !(Map A.QName String)
@@ -2615,7 +2615,7 @@ data Warning
   | OldBuiltin               String String
     -- ^ In `OldBuiltin old new`, the BUILTIN old has been replaced by new
   | EmptyRewritePragma
-    -- ^ If the user wrote just @{-# REWRITE #-}@.
+    -- ^ If the user wrote just @{-\# REWRITE \#-}@.
   | UselessPublic
     -- ^ If the user opens a module public before the module header.
     --   (See issue #2377.)

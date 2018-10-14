@@ -7,13 +7,13 @@
 --
 --   The user specifies a relation symbol by the pragma
 --   @
---       {-# BUILTIN REWRITE rel #-}
+--       {-\# BUILTIN REWRITE rel \#-}
 --   @
 --   where @rel@ should be of type @Δ → (lhs rhs : A) → Set i@.
 --
 --   Then the user can add rewrite rules by the pragma
 --   @
---       {-# REWRITE q #-}
+--       {-\# REWRITE q \#-}
 --   @
 --   where @q@ should be a closed term of type @Γ → rel us lhs rhs@.
 --
