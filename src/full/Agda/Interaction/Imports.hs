@@ -362,7 +362,7 @@ getInterface' x isMain msi = do
           -- If it's cached ignoreInterfaces has no effect;
           -- to avoid typechecking a file more than once.
         sourceH <- case msi of
-                     Nothing -> liftIO $ hashFile file
+                     Nothing -> liftIO $ hashTextFile file
                      Just si -> return $ hashText (siSource si)
         ifaceH  <-
           case cached of
