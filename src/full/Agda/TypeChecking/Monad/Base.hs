@@ -2251,10 +2251,17 @@ data TCEnv =
                 --   or the body of a non-abstract definition this is true.
                 --   To prevent information about abstract things leaking
                 --   outside the module.
-          , envRelevance           :: Relevance
-                -- ^ Are we checking an irrelevant argument? (=@Irrelevant@)
+          , envModality            :: Modality
+                -- ^ 'Relevance' component:
+                -- Are we checking an irrelevant argument? (=@Irrelevant@)
                 -- Then top-level irrelevant declarations are enabled.
-                -- Other value: @Relevant@, then only relevant decls. are avail.
+                -- Other value: @Relevant@, then only relevant decls. are available.
+                --
+                -- 'Quantity' component:
+                -- Are we checking a runtime-irrelevant thing? (='Quantity0')
+                -- Then runtime-irrelevant things are usable.
+                -- Other value: @Quantity1@, runtime relevant.
+                -- @Quantityω@ is not allowed here, see Bob Atkey, LiCS 2018.
           , envDisplayFormsEnabled :: Bool
                 -- ^ Sometimes we want to disable display forms.
           , envRange :: Range
@@ -2362,8 +2369,8 @@ initEnv = TCEnv { envContext             = []
   -- The initial mode should be 'ConcreteMode', ensuring you
   -- can only look into abstract things in an abstract
   -- definition (which sets 'AbstractMode').
-                , envRelevance           = Relevant
-                , envDisplayFormsEnabled = True
+                , envModality               = Modality Relevant Quantity1
+                , envDisplayFormsEnabled    = True
                 , envRange                  = noRange
                 , envHighlightingRange      = noRange
                 , envClause                 = IPNoClause
@@ -2391,6 +2398,10 @@ initEnv = TCEnv { envContext             = []
                 , envGeneralizeMetas        = NoGeneralize
                 , envGeneralizedVars        = Map.empty
                 }
+
+-- | Project 'Relevance' component of 'TCEnv'.
+envRelevance :: TCEnv -> Relevance
+envRelevance = modRelevance . envModality
 
 disableDestructiveUpdate :: TCM a -> TCM a
 disableDestructiveUpdate = localTC $ \e -> e { envAllowDestructiveUpdate = False }
@@ -2454,8 +2465,11 @@ eActiveProblems f e = f (envActiveProblems e) <&> \ x -> e { envActiveProblems =
 eAbstractMode :: Lens' AbstractMode TCEnv
 eAbstractMode f e = f (envAbstractMode e) <&> \ x -> e { envAbstractMode = x }
 
+eModality :: Lens' Modality TCEnv
+eModality f e = f (envModality e) <&> \ x -> e { envModality = x }
+
 eRelevance :: Lens' Relevance TCEnv
-eRelevance f e = f (envRelevance e) <&> \ x -> e { envRelevance = x }
+eRelevance = eModality . lModRelevance
 
 eDisplayFormsEnabled :: Lens' Bool TCEnv
 eDisplayFormsEnabled f e = f (envDisplayFormsEnabled e) <&> \ x -> e { envDisplayFormsEnabled = x }

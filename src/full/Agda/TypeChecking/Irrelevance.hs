@@ -19,6 +19,7 @@ import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Substitute.Class
 
+import Agda.Utils.Lens
 import Agda.Utils.Monad
 
 #include "undefined.h"
@@ -73,13 +74,11 @@ applyRelevanceToContext :: (MonadTCM tcm) => Relevance -> tcm a -> tcm a
 applyRelevanceToContext rel =
   case rel of
     Relevant -> id
-    _        -> localTC $ \ e -> e
-      { envContext     = map                       (inverseApplyRelevance rel) (envContext e)
-      , envLetBindings = (Map.map . fmap . second) (inverseApplyRelevance rel) (envLetBindings e)
+    _        -> localTC
+      $ over eContext     (map $ inverseApplyRelevance rel)
+      . over eLetBindings (Map.map . fmap . second $ inverseApplyRelevance rel)
                                                   -- enable local  irr. defs
-      , envRelevance   = composeRelevance rel (envRelevance e)
-                                                  -- enable global irr. defs
-      }
+      . over eRelevance   (composeRelevance rel)  -- enable global irr. defs
 
 -- | Like 'applyRelevanceToContext', but only act on context if
 --   @--irrelevant-projections@.
@@ -88,10 +87,10 @@ applyRelevanceToContextFunBody :: (MonadTCM tcm) => Relevance -> tcm a -> tcm a
 applyRelevanceToContextFunBody rel cont
   | rel == Relevant = cont
   | otherwise = do
-    ifM (optIrrelevantProjections <$> pragmaOptions) {-then-} (applyRelevanceToContext rel cont) {-else-} $ do
-      flip localTC cont $ \ e -> e
-        { envRelevance = composeRelevance rel (envRelevance e) -- enable global irr. defs
-        }
+    ifM (optIrrelevantProjections <$> pragmaOptions)
+      {-then-} (applyRelevanceToContext rel cont)
+      {-else-} (localTC (over eRelevance $ composeRelevance rel) cont)
+               -- just enable global irr. defs
 
 -- | Wake up irrelevant variables and make them relevant. This is used
 --   when type checking terms in a hole, in which case you want to be able to
@@ -102,12 +101,14 @@ applyRelevanceToContextFunBody rel cont
 --   hole since it also marks all metas created during type checking as
 --   irrelevant (issue #2568).
 wakeIrrelevantVars :: TCM a -> TCM a
-wakeIrrelevantVars = localTC $ \ e -> e
-  { envContext     = map                       (inverseApplyRelevance Irrelevant) (envContext e)
-  , envLetBindings = (Map.map . fmap . second) (inverseApplyRelevance Irrelevant) (envLetBindings e)
-  }
+wakeIrrelevantVars = localTC
+  $ over eContext     (map                     $ inverseApplyRelevance Irrelevant)
+  . over eLetBindings (Map.map . fmap . second $ inverseApplyRelevance Irrelevant)
 
 -- | Check whether something can be used in a position of the given relevance.
+--
+--   Used in unifier (@unifyStep Solution{}@).
+--
 class UsableRelevance a where
   usableRel :: Relevance -> a -> TCM Bool
 

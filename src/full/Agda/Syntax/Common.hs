@@ -270,6 +270,14 @@ instance KillRange Modality where
 
 instance NFData Modality where
 
+-- Lens stuff
+
+lModRelevance :: Lens' Relevance Modality
+lModRelevance f m = f (modRelevance m) <&> \ r -> m { modRelevance = r }
+
+lModQuantity :: Lens' Quantity Modality
+lModQuantity f m = f (modQuantity m) <&> \ q -> m { modQuantity = q }
+
 class LensModality a where
 
   getModality :: a -> Modality
