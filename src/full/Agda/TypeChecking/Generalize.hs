@@ -2,12 +2,13 @@
 
 module Agda.TypeChecking.Generalize (generalizeType) where
 
+import Control.Arrow ((***))
 import Control.Monad
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Map (Map)
 import qualified Data.Map as Map
-import Data.List (nub)
+import Data.List (nub, partition)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Position
@@ -86,14 +87,24 @@ generalizeType s m = do
       return (t, metaMap)
 
     -- Collect generalizable metas and sort them in dependency order.
-    -- TODO: currently generalizes over all metas, not just generalizable ones.
-    -- let keep mv = YesGeneralize == unArg (miGeneralizable (mvInfo mv))
-    openMetas <- filterM ((isOpenMeta . mvInstantiation) <.> lookupMeta) (Set.toList allmetas)
-    metaGraph <- fmap concat $ forM openMetas $ \ m -> do
-                    deps <- nub . filter (`elem` openMetas) . allMetas <$> (instantiateFull =<< getMetaType m)
+
+    -- Pair metas with their metaInfo
+    mvs <- mapM (\ x -> (x,) <$> lookupMeta x) (Set.toList allmetas)
+
+    -- Split unsolved metas into generalizable and non-generalizable
+    let isGeneralizable (_, mv) = YesGeneralize == unArg (miGeneralizable (mvInfo mv))
+        openMetas = filter (isOpenMeta . mvInstantiation . snd) mvs
+        (openGeneralizable, openNongeneralizable) = map fst *** map fst $ partition isGeneralizable openMetas
+
+    -- For now, we don't handle unsolved non-generalizable metas.
+    unless (null openNongeneralizable) $
+      typeError $ NotImplemented "Unsolved non-generalizable metas in generalized type"
+
+    metaGraph <- fmap concat $ forM openGeneralizable $ \ m -> do
+                    deps <- nub . filter (`elem` openGeneralizable) . allMetas <$> (instantiateFull =<< getMetaType m)
                     return [ (m, m') | m' <- deps ]
 
-    sortedMetas <- caseMaybe (Graph.topSort openMetas metaGraph)
+    sortedMetas <- caseMaybe (Graph.topSort openGeneralizable metaGraph)
                              (typeError GeneralizeCyclicDependency)
                              return
 
