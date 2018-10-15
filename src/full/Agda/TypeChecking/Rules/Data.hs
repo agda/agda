@@ -317,7 +317,7 @@ defineCompData d con params names fsT t boundary = do
   where
     -- Δ^I, i : I |- sub Δ : Δ
     sub tel = parallelS [ var n `apply` [Arg defaultArgInfo $ var 0] | n <- [1..size tel] ]
-
+    withArgInfo tel = zipWith Arg (map domInfo . telToList $ tel)
     defineTranspOrHCompD cmd d con params names fsT t boundary
       = do
       ((theName, gamma , ty, _cl_types , bodies), theSub) <-
@@ -327,8 +327,8 @@ defineCompData d con params names fsT t boundary = do
       iz <- primIZero
       body <- do
         case cmd of
-          DoHComp -> return $ Con con ConOSystem (map Apply $ map argN bodies)
-          DoTransp | null boundary -> return $ Con con ConOSystem (map Apply $ map argN bodies)
+          DoHComp -> return $ Con con ConOSystem (map Apply $ withArgInfo fsT bodies)
+          DoTransp | null boundary -> return $ Con con ConOSystem (map Apply $ withArgInfo fsT bodies)
                    | otherwise -> do
             io <- primIOne
             tIMax <- primIMax
@@ -496,6 +496,7 @@ defineCompData d con params names fsT t boundary = do
       setTerminates theName True
       return $ Just theName
     defineCompD d con params names fsT t = do
+      reportSDoc "tc.comp.data" 20 $ text "domInfos =" <+> (text $ show (map domInfo . telToList $ fsT))
       (compName, gamma , ty, _ , bodies) <-
         defineCompForFields (\ t p -> apply (Def p []) [argN t]) d params fsT (map argN names) t
       let clause = Clause
@@ -505,7 +506,7 @@ defineCompData d con params names fsT t boundary = do
             , clauseFullRange = noRange
             , clauseLHSRange  = noRange
             , clauseCatchall = False
-            , clauseBody = Just $ Con con ConOSystem (map Apply $ map argN bodies)
+            , clauseBody = Just $ Con con ConOSystem (map Apply $ withArgInfo fsT bodies)
             , clauseUnreachable = Just False
             }
           cs = [clause]
