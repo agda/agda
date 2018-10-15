@@ -1,3 +1,5 @@
+{-# OPTIONS --prop #-}
+
 -- Trying to define ≤ as a datatype in Prop doesn't work very well:
 
 open import Agda.Builtin.Nat

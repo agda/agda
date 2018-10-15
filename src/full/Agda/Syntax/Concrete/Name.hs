@@ -377,16 +377,16 @@ instance Show QName where
 
 instance Pretty Name where
   pretty (Name _ xs)  = hcat $ map pretty xs
-  pretty (NoName _ _) = text $ "_"
+  pretty (NoName _ _) = "_"
 
 instance Pretty NamePart where
-  pretty Hole   = text $ "_"
+  pretty Hole   = "_"
   pretty (Id s) = text $ rawNameToString s
 
 instance Pretty QName where
   pretty (Qual m x)
     | isUnderscore m = pretty x -- don't print anonymous modules
-    | otherwise      = pretty m <> pretty "." <> pretty x
+    | otherwise      = pretty m <> "." <> pretty x
   pretty (QName x)  = pretty x
 
 instance Pretty TopLevelModuleName where

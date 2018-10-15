@@ -1,3 +1,4 @@
+{-# OPTIONS --prop #-}
 
 data _≡P_ {A : Set} (x : A) : A → Prop where
   refl : x ≡P x

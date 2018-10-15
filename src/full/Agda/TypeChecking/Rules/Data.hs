@@ -95,21 +95,21 @@ checkDataDef i name uc ps cs =
               s <- newSortMetaBelowInf
               catchError_ (addContext ixTel $ equalType s0 $ raise nofIxs $ sort s) $ \ err ->
                   if any (`freeIn` s0) [0..nofIxs - 1] then typeError . GenericDocError =<<
-                     fsep [ text "The sort of" <+> prettyTCM name
-                          , text "cannot depend on its indices in the type"
+                     fsep [ "The sort of" <+> prettyTCM name
+                          , "cannot depend on its indices in the type"
                           , prettyTCM t0
                           ]
                   else throwError err
               reduce s
 
             reportSDoc "tc.data.sort" 20 $ vcat
-              [ text "checking datatype" <+> prettyTCM name
+              [ "checking datatype" <+> prettyTCM name
               , nest 2 $ vcat
-                [ text "type (parameters instantiated):   " <+> prettyTCM t0
-                , text "type (full):   " <+> prettyTCM t
-                , text "sort:   " <+> prettyTCM s
-                , text "indices:" <+> text (show nofIxs)
-                , text "params:"  <+> text (show $ deepUnscope ps)
+                [ "type (parameters instantiated):   " <+> prettyTCM t0
+                , "type (full):   " <+> prettyTCM t
+                , "sort:   " <+> prettyTCM s
+                , "indices:" <+> text (show nofIxs)
+                , "params:"  <+> text (show $ deepUnscope ps)
                 ]
               ]
             let npars = size tel
@@ -226,10 +226,10 @@ checkConstructor d uc tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
               dataT <- El s <$> (pure $ Def d $ map Apply $ teleArgs params)
 
               reportSDoc "tc.data.con.comp" 5 $ vcat $
-                [ text "params =" <+> pretty params
-                , text "dataT  =" <+> pretty dataT
-                , text "fields =" <+> pretty fields
-                , text "names  =" <+> pretty names
+                [ "params =" <+> pretty params
+                , "dataT  =" <+> pretty dataT
+                , "fields =" <+> pretty fields
+                , "names  =" <+> pretty names
                 ]
 
               defineProjections d con params names fields dataT
@@ -260,24 +260,24 @@ checkConstructor d uc tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
   where
     debugEnter c e =
       reportSDoc "tc.data.con" 5 $ vcat
-        [ text "checking constructor" <+> prettyTCM c <+> text ":" <+> prettyTCM e
+        [ "checking constructor" <+> prettyTCM c <+> ":" <+> prettyTCM e
         ]
     debugEndsIn t d n =
       reportSDoc "tc.data.con" 15 $ vcat
-        [ sep [ text "checking that"
+        [ sep [ "checking that"
               , nest 2 $ prettyTCM t
-              , text "ends in" <+> prettyTCM d
+              , "ends in" <+> prettyTCM d
               ]
-        , nest 2 $ text "nofPars =" <+> text (show n)
+        , nest 2 $ "nofPars =" <+> text (show n)
         ]
     debugFitsIn s =
       reportSDoc "tc.data.con" 15 $ sep
-        [ text "checking that the type fits in"
+        [ "checking that the type fits in"
         , nest 2 $ prettyTCM s
         ]
     debugAdd c t =
       reportSDoc "tc.data.con" 5 $ vcat
-        [ text "adding constructor" <+> prettyTCM c <+> text ":" <+> prettyTCM t
+        [ "adding constructor" <+> prettyTCM c <+> ":" <+> prettyTCM t
         ]
 checkConstructor _ _ _ _ _ _ = __IMPOSSIBLE__ -- constructors are axioms
 
@@ -345,7 +345,7 @@ defineProjections dataname con params names fsT t = do
       projType = abstract projTel <$> ty
 
     inTopContext $ do
-      reportSDoc "tc.data.proj" 20 $ sep [ text "proj" <+> prettyTCM (i,ty) , nest 2 $ text . show $  projType ]
+      reportSDoc "tc.data.proj" 20 $ sep [ "proj" <+> prettyTCM (i,ty) , nest 2 $ text . show $  projType ]
 
     let
       cpi  = ConPatternInfo Nothing False (Just $ argN $ raise (size fsT) t) False
@@ -374,7 +374,7 @@ defineProjections dataname con params names fsT t = do
         (defaultDefn defaultArgInfo projName (unDom projType) fun)
           { defNoCompilation = True }
       inTopContext $ do
-        reportSDoc "tc.data.proj.fun" 20 $ sep [ text "proj" <+> prettyTCM i, nest 2 $ text . show $ fun ]
+        reportSDoc "tc.data.proj.fun" 20 $ sep [ "proj" <+> prettyTCM i, nest 2 $ text . show $ fun ]
 
 
 freshAbstractQName'_ :: String -> TCM QName
@@ -450,7 +450,7 @@ defineCompForFields applyProj name params fsT fns rect = do
         lvl  <- open rect_gamma_lvl
         rect <- open rect_gamma
         -- (δ : Δ^I, φ : I, w : .., w0 : R (δ i0)) ⊢
-        -- fillR Γ = λ i → compR (\ j → δ (i ∧ j)) (φ ∨ ~ i) (\ j → [ φ ↦ w (i ∧ j) , ~ i ↦ w0 ]) w0
+        -- ' fillR Γ = λ i → compR (\ j → δ (i ∧ j)) (φ ∨ ~ i) (\ j → [ φ ↦ w (i ∧ j) , ~ i ↦ w0 ]) w0
         lam "i" $ \ i -> do
           args <- mapM (underArg $ \ bA -> lam "j" $ \ j -> bA <@> (pure imin <@> i <@> j)) params
           psi  <- pure imax <@> phi <@> (pure ineg <@> i)
@@ -581,9 +581,9 @@ bindParameters' ts0 ps0@(A.DomainFree info x : ps) t ret = do
 fitsIn :: UniverseCheck -> [IsForced] -> Type -> Sort -> TCM Int
 fitsIn uc forceds t s = do
   reportSDoc "tc.data.fits" 10 $
-    sep [ text "does" <+> prettyTCM t
-        , text "of sort" <+> prettyTCM (getSort t)
-        , text "fit in" <+> prettyTCM s <+> text "?"
+    sep [ "does" <+> prettyTCM t
+        , "of sort" <+> prettyTCM (getSort t)
+        , "fit in" <+> prettyTCM s <+> "?"
         ]
   -- The code below would be simpler, but doesn't allow datatypes
   -- to be indexed by the universe level.

@@ -29,6 +29,11 @@ module Agda.TypeChecking.Names where
 
 import Control.Monad
 import Control.Applicative
+
+#if __GLASGOW_HASKELL__ >= 800
+import qualified Control.Monad.Fail as Fail
+#endif
+
 import Control.Monad.Identity
 import Control.Monad.Reader
 import Control.Monad.State
@@ -76,10 +81,21 @@ instance HasBuiltins m => HasBuiltins (NamesT m) where
   getBuiltinThing b = lift $ getBuiltinThing b
 
 newtype NamesT m a = NamesT { unName :: ReaderT Names m a }
-  deriving ( Functor, Applicative, Monad
-           , MonadTrans, MonadState s
-           , MonadIO, HasOptions, MonadDebug
-           , MonadTCEnv, MonadTCState, MonadTCM )
+  deriving ( Functor
+           , Applicative
+           , Monad
+#if __GLASGOW_HASKELL__ >= 800
+           , Fail.MonadFail
+#endif
+           , MonadTrans
+           , MonadState s
+           , MonadIO
+           , HasOptions
+           , MonadDebug
+           , MonadTCEnv
+           , MonadTCState
+           , MonadTCM
+           )
 
 -- deriving instance MonadState s m => MonadState s (NamesT m)
 

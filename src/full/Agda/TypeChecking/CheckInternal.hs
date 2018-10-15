@@ -71,7 +71,7 @@ checkType t = void $ checkType' t
 checkType' :: Type -> TCM Sort
 checkType' t = do
   reportSDoc "tc.check.internal" 20 $ sep
-    [ text "checking internal type "
+    [ "checking internal type "
     , prettyTCM t
     ]
   v <- elimView True $ unEl t -- bring projection-like funs in post-fix form
@@ -150,8 +150,8 @@ checkInternal v t = void $ checkInternal' defaultAction v t
 checkInternal' :: Action -> Term -> Type -> TCM Term
 checkInternal' action v t = do
   reportSDoc "tc.check.internal" 20 $ sep
-    [ text "checking internal "
-    , nest 2 $ sep [ prettyTCM v <+> text ":"
+    [ "checking internal "
+    , nest 2 $ sep [ prettyTCM v <+> ":"
                    , nest 2 $ prettyTCM t ] ]
   -- Bring projection-like funs in post-fix form,
   -- even lone ones (True).
@@ -239,10 +239,10 @@ checkSpine
   -> TCM Term  -- ^ The application after modification by the @Action@.
 checkSpine action a self es t = do
   reportSDoc "tc.check.internal" 20 $ sep
-    [ text "checking spine "
-    , nest 2 $ sep [ parens (sep [ prettyTCM self <+> text ":"
+    [ "checking spine "
+    , nest 2 $ sep [ parens (sep [ prettyTCM self <+> ":"
                                  , nest 2 $ prettyTCM a ])
-                   , nest 4 $ prettyTCM es <+> text ":"
+                   , nest 4 $ prettyTCM es <+> ":"
                    , nest 2 $ prettyTCM t ] ]
   ((v, v'), t') <- inferSpine' action a self self es
   t' <- reduce t'
@@ -324,11 +324,11 @@ inferSpine' :: Action -> Type -> Term -> Term -> Elims -> TCM ((Term, Term), Typ
 inferSpine' action t self self' [] = return ((self, self'), t)
 inferSpine' action t self self' (e : es) = do
   reportSDoc "tc.infer.internal" 30 $ sep
-    [ text "inferSpine': "
-    , text "type t = " <+> prettyTCM t
-    , text "self  = " <+> prettyTCM self
-    , text "self' = " <+> prettyTCM self'
-    , text "eliminated by e = " <+> prettyTCM e
+    [ "inferSpine': "
+    , "type t = " <+> prettyTCM t
+    , "self  = " <+> prettyTCM self
+    , "self' = " <+> prettyTCM self'
+    , "eliminated by e = " <+> prettyTCM e
     ]
   case e of
     IApply x y r -> do

@@ -72,9 +72,9 @@ getConType
        --     @ct@   is the type of the constructor instantiated to the parameters.
 getConType c t = do
   reportSDoc "tc.getConType" 30 $ sep $
-    [ text "getConType: constructor "
+    [ "getConType: constructor "
     , prettyTCM c
-    , text " at type "
+    , " at type "
     , prettyTCM t
     ]
   TelV tel t <- telView t

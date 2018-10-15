@@ -60,10 +60,10 @@ lexToken =
     do  inp <- getLexInput
         lss <- getLexState
         flags <- getParseFlags
-        case alexScanUser (lss, flags) (foolAlex inp) (headWithDefault __IMPOSSIBLE__ lss) of
+        case alexScanUser (lss, flags) inp (headWithDefault __IMPOSSIBLE__ lss) of
             AlexEOF                     -> returnEOF inp
-            AlexSkip inp' len           -> skipTo (newInput inp inp' len)
-            AlexToken inp' len action   -> fmap postToken $ action inp (newInput inp inp' len) len
+            AlexSkip inp' len           -> skipTo inp'
+            AlexToken inp' len action   -> fmap postToken $ action inp inp' len
             AlexError i                 -> parseError $ concat
               [ "Lexical error"
               , case headMaybe $ lexInput i of
@@ -97,34 +97,6 @@ postToken (TokId (r, s))
   where
     (prop, n)     = splitAt 4 s
 postToken t = t
-
--- | Use the input string from the previous input (with the appropriate
---   number of characters dropped) instead of the fake input string that
---   was given to Alex (with unicode characters removed).
-newInput :: PreviousInput -> CurrentInput -> TokenLength -> CurrentInput
-newInput inp inp' len =
-    case drop (len - 1) (lexInput inp) of
-        c:s'    -> inp' { lexInput    = s'
-                        , lexPrevChar = c
-                        }
-        []      -> inp' { lexInput = [] }   -- we do get empty tokens moving between states
-
--- | Alex 2 can't handle unicode characters. To solve this we
---   translate all Unicode (non-ASCII) identifiers to @z@, all Unicode
---   operator characters to @+@, and all whitespace characters (except
---   for @\t@ and @\n@) to ' '.
---   Further, non-printable Unicode characters are translated to an
---   arbitrary, harmless ASCII non-printable character, @'\1'@.
---
---   It is important that there aren't any keywords containing @z@, @+@ or @ @.
-
-foolAlex :: AlexInput -> AlexInput
-foolAlex = over lensLexInput $ map $ \ c ->
-  case c of
-    _ | isSpace c && not (c `elem` "\t\n") -> ' '
-    _ | isAscii c                          -> c
-    _ | isPrint c                          -> if isAlpha c then 'z' else '+'
-    _ | otherwise                          -> '\1'
 
 {--------------------------------------------------------------------------
     Lex actions

@@ -345,8 +345,8 @@ instance Unquote MetaId where
         unless live $ do
             m <- fromMaybe __IMPOSSIBLE__ <$> lookupModuleFromSource f
             typeError . GenericDocError =<<
-              sep [ text "Can't unquote stale metavariable"
-                  , pretty m <> text "." <> pretty x ]
+              sep [ "Can't unquote stale metavariable"
+                  , pretty m <> "." <> pretty x ]
         return x
       _ -> throwError $ NonCanonical "meta variable" t
 
@@ -477,7 +477,7 @@ unquoteTCM m hole = do
 evalTCM :: I.Term -> UnquoteM I.Term
 evalTCM v = do
   v <- reduceQuotedTerm v
-  liftTCM $ reportSDoc "tc.unquote.eval" 90 $ text "evalTCM" <+> prettyTCM v
+  liftTCM $ reportSDoc "tc.unquote.eval" 90 $ "evalTCM" <+> prettyTCM v
   let failEval = throwError $ NonCanonical "type checking computation" v
 
   case v of
@@ -686,11 +686,11 @@ evalTCM v = do
       setDirty
       let r = getRelevance i
       when (hidden i) $ liftTCM $ typeError . GenericDocError =<<
-        text "Cannot declare hidden function" <+> prettyTCM x
+        "Cannot declare hidden function" <+> prettyTCM x
       tell [x]
       liftTCM $ do
         reportSDoc "tc.unquote.decl" 10 $ sep
-          [ text "declare" <+> prettyTCM x <+> text ":"
+          [ "declare" <+> prettyTCM x <+> ":"
           , nest 2 $ prettyTCM a
           ]
         a <- isType_ =<< toAbstract_ a
@@ -704,15 +704,15 @@ evalTCM v = do
     tcDeclarePostulate (Arg i x) a = inOriginalContext $ do
       clo <- commandLineOptions
       when (Lens.getSafeMode clo) $ liftTCM $ typeError . GenericDocError =<<
-        text "Cannot postulate '" <+> prettyTCM x <+> text ":" <+> prettyTCM a <+> text "' with safe flag"
+        "Cannot postulate '" <+> prettyTCM x <+> ":" <+> prettyTCM a <+> "' with safe flag"
       setDirty
       let r = getRelevance i
       when (hidden i) $ liftTCM $ typeError . GenericDocError =<<
-        text "Cannot declare hidden function" <+> prettyTCM x
+        "Cannot declare hidden function" <+> prettyTCM x
       tell [x]
       liftTCM $ do
         reportSDoc "tc.unquote.decl" 10 $ sep
-          [ text "declare Postulate" <+> prettyTCM x <+> text ":"
+          [ "declare Postulate" <+> prettyTCM x <+> ":"
           , nest 2 $ prettyTCM a
           ]
         a <- isType_ =<< toAbstract_ a

@@ -84,14 +84,14 @@ checkpoint sub k = do
     cxt <- getContextTelescope
     cps <- viewTC eCheckpoints
     let cps' = Map.insert chkpt IdS $ fmap (applySubst sub) cps
-        prCps cps = vcat [ pshow c <+> text ": " <+> pretty s | (c, s) <- Map.toList cps ]
+        prCps cps = vcat [ pshow c <+> ": " <+> pretty s | (c, s) <- Map.toList cps ]
     reportSDoc "tc.cxt.checkpoint" 105 $ return $ nest 2 $ vcat
-      [ text "old =" <+> pshow old
-      , text "new =" <+> pshow chkpt
-      , text "sub =" <+> pretty sub
-      , text "cxt =" <+> pretty cxt
-      , text "old substs =" <+> prCps cps
-      , text "new substs =" <?> prCps cps'
+      [ "old =" <+> pshow old
+      , "new =" <+> pshow chkpt
+      , "sub =" <+> pretty sub
+      , "cxt =" <+> pretty cxt
+      , "old substs =" <+> prCps cps
+      , "new substs =" <?> prCps cps'
       ]
   x <- flip localTC k $ \ env -> env
     { envCurrentCheckpoint = chkpt
@@ -209,7 +209,7 @@ instance AddContext (KeepNames String, Dom Type) where
   contextSize _ = 1
 
 instance AddContext (Dom Type) where
-  addContext dom = addContext ("_", dom)
+  addContext dom = addContext ("_" :: String, dom)
   contextSize _ = 1
 
 instance AddContext Name where

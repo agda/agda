@@ -141,7 +141,7 @@ newtype Solution rigid flex = Solution { theSolution :: Map flex (SizeExpr' rigi
 
 instance (Pretty r, Pretty f) => Pretty (Solution r f) where
   pretty (Solution sol) = prettyList $ for (Map.toList sol) $ \ (x, e) ->
-    pretty x <+> text ":=" <+> pretty e
+    pretty x <+> ":=" <+> pretty e
 
 emptySolution :: Solution r f
 emptySolution = Solution Map.empty
@@ -247,22 +247,22 @@ compareOffset n Lt m = n <  m
 
 instance (Pretty r, Pretty f) => Pretty (SizeExpr' r f) where
   pretty (Const n)   = pretty n
-  pretty (Infty)     = text "∞"
+  pretty (Infty)     = "∞"
   pretty (Rigid i 0) = pretty i
   pretty (Rigid i n) = pretty i <> text ("+" ++ show n)
   pretty (Flex  x 0) = pretty x
   pretty (Flex  x n) = pretty x <> text ("+" ++ show n)
 
 instance Pretty Polarity where
-  pretty Least    = text "-"
-  pretty Greatest = text "+"
+  pretty Least    = "-"
+  pretty Greatest = "+"
 
 instance Pretty flex => Pretty (PolarityAssignment flex) where
   pretty (PolarityAssignment pol flex) = pretty pol <> pretty flex
 
 instance Pretty Cmp where
-  pretty Le = text "≤"
-  pretty Lt = text "<"
+  pretty Le = "≤"
+  pretty Lt = "<"
 
 instance (Pretty r, Pretty f) => Pretty (Constraint' r f) where
   pretty (Constraint a cmp b) = pretty a <+> pretty cmp <+> pretty b

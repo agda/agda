@@ -185,21 +185,6 @@ size t = do
 (<+>) :: Text -> Text -> Text
 (<+>) = T.append
 
-isInfixOf' :: Text -> Text -> Maybe (Text, Text)
-isInfixOf' needle haystack = go (T.tails haystack) 0
-  where
-  go []                                         !n = Nothing
-  go ((T.stripPrefix needle -> Just suf) : xss)  n = Just (T.take n haystack, suf)
-  go (_                                  : xss)  n = go xss (n + 1)
-
--- Same as above, but starts searching from the back rather than the
--- front.
-isInfixOfRev :: Text -> Text -> Maybe (Text, Text)
-isInfixOfRev needle haystack
-  = case T.reverse needle `isInfixOf'` T.reverse haystack of
-      Nothing         -> Nothing
-      Just (pre, suf) -> Just (T.reverse suf, T.reverse pre)
-
 -- | Does the string consist solely of whitespace?
 
 isSpaces :: Text -> Bool
@@ -307,10 +292,10 @@ logHelper :: Debug -> Text -> [String] -> LaTeX ()
 logHelper debug text extra =
   when (debug `elem` debugs) $ do
     lift $ T.putStrLn $ T.pack (show debug ++ ": ") <+>
-      T.pack "'" <+> text <+> T.pack "' " <+>
+      "'" <+> text <+> "' " <+>
       if null extra
          then T.empty
-         else T.pack "(" <+> T.pack (unwords extra) <+> T.pack ")"
+         else "(" <+> T.pack (unwords extra) <+> ")"
 
 log :: Debug -> Text -> LaTeX ()
 log MoveColumn text = do
@@ -337,15 +322,15 @@ output item = do
 -- alignment, similar to lhs2TeX's approach.
 
 nl, beginCode, endCode :: Text
-nl        = T.pack "%\n"
-beginCode = T.pack "\\begin{code}"
-endCode   = T.pack "\\end{code}"
+nl        = "%\n"
+beginCode = "\\begin{code}"
+endCode   = "\\end{code}"
 
 -- | A command that is used when two tokens are put next to each other
 -- in the same column.
 
 agdaSpace :: Text
-agdaSpace = cmdPrefix <+> T.pack "Space" <+> cmdArg T.empty <+> nl
+agdaSpace = cmdPrefix <+> "Space" <+> cmdArg T.empty <+> nl
 
 -- | The column's name.
 --
@@ -360,7 +345,7 @@ columnName c = T.pack $ case columnKind c of
 -- | Opens a column with the given name.
 
 ptOpen' :: Text -> Text
-ptOpen' name = T.pack "\\>[" <+> name <+> T.singleton ']'
+ptOpen' name = "\\>[" <+> name <+> "]"
 
 -- | Opens the given column.
 
@@ -371,7 +356,7 @@ ptOpen c = ptOpen' (columnName c)
 -- lines.
 
 ptOpenBeginningOfLine :: Text
-ptOpenBeginningOfLine = ptOpen' (T.pack ".")
+ptOpenBeginningOfLine = ptOpen' "."
 
 -- | Opens the given column, and inserts an indentation instruction
 -- with the given argument at the end of it.
@@ -381,34 +366,34 @@ ptOpenIndent
   -> Int              -- ^ Indentation instruction argument.
   -> Text
 ptOpenIndent c delta =
-  ptOpen c <+> T.pack "[@{}l@{"
+  ptOpen c <+> "[@{}l@{"
            <+> cmdPrefix
-           <+> T.pack "Indent"
+           <+> "Indent"
            <+> cmdArg (T.pack $ show delta)
-           <+> T.pack "}]"
+           <+> "}]"
 
 ptClose :: Text
-ptClose = T.pack "\\<"
+ptClose = "\\<"
 
 ptClose' :: AlignmentColumn -> Text
 ptClose' c =
-  ptClose <+> T.singleton '[' <+> columnName c <+> T.singleton ']'
+  ptClose <+> "[" <+> columnName c <+> "]"
 
 ptNL :: Text
-ptNL = nl <+> T.pack "\\\\\n"
+ptNL = nl <+> "\\\\\n"
 
 ptEmptyLine :: Text
 ptEmptyLine =
-  nl <+> T.pack "\\\\["
+  nl <+> "\\\\["
      <+> cmdPrefix
-     <+> T.pack "EmptyExtraSkip"
-     <+> T.pack "]%\n"
+     <+> "EmptyExtraSkip"
+     <+> "]%\n"
 
 cmdPrefix :: Text
-cmdPrefix = T.pack "\\Agda"
+cmdPrefix = "\\Agda"
 
 cmdArg :: Text -> Text
-cmdArg x = T.singleton '{' <+> x <+> T.singleton '}'
+cmdArg x = "{" <+> x <+> "}"
 
 ------------------------------------------------------------------------
 -- * Output generation from a stream of labelled tokens.
@@ -429,7 +414,7 @@ processMarkup = mapM_ $ \t -> do
 
 -- | Deals with literate text, which is output verbatim
 processComment = mapM_ $ \t -> do
-  unless (T.singleton '%' == T.take 1 (T.stripStart (text t))) $ do
+  unless ("%" == T.take 1 (T.stripStart (text t))) $ do
     moveColumnForToken t
   output (Text (text t))
 
@@ -601,7 +586,7 @@ stringLiteral :: Token -> Tokens
 stringLiteral t | aspect (info t) == Just String =
   reverse $ foldl (\xs x -> t { text = x } : xs) []
           $ concatMap leadingSpaces
-          $ List.intersperse (T.pack "\n")
+          $ List.intersperse "\n"
           $ T.lines (text t)
   where
   leadingSpaces :: Text -> [Text]
@@ -654,10 +639,9 @@ generateLaTeX i = do
   inAbsPath <- liftM filePath (Find.findFile mod)
 
   liftIO $ do
-    source <- UTF8.readTextFile inAbsPath
     latex <- E.encodeUtf8 `fmap`
                toLaTeX (O.optCountClusters $ O.optPragmaOptions options)
-                       (mkAbsolute inAbsPath) source hi
+                       (mkAbsolute inAbsPath) (iSource i) hi
     createDirectoryIfMissing True $ dir </> takeDirectory outPath
     BS.writeFile (dir </> outPath) latex
 
@@ -679,7 +663,7 @@ toLaTeX
   :: Bool
      -- ^ Count extended grapheme clusters?
   -> AbsolutePath
-  -> String
+  -> L.Text
   -> HighlightingInfo
   -> IO L.Text
 toLaTeX cc path source hi
@@ -698,14 +682,14 @@ toLaTeX cc path source hi
             withTokenText $ \suf ->
               fromMaybe suf $
                 fmap (T.dropWhileEnd isSpaceNotNewline) $
-                  T.stripSuffix (T.singleton '\n') suf)
+                  T.stripSuffix "\n" suf)
         .
         (withLast $ withTokenText $ T.dropWhileEnd isSpaceNotNewline)
         .
         (withFirst $
           withTokenText $ \pre ->
               fromMaybe pre $
-                  T.stripPrefix (T.singleton '\n') $
+                  T.stripPrefix "\n" $
                     T.dropWhile isSpaceNotNewline pre)
       else
         -- do nothing
@@ -738,7 +722,7 @@ toLaTeX cc path source hi
   -- Map each character to its role
   . atomizeLayers . literateTeX (startPos (Just path))
 
-  $ source
+  $ L.unpack source
   where
   infoMap = toMap (decompress hi)
 

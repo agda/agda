@@ -1232,10 +1232,10 @@ instance Pretty a => Pretty (Substitution' a) where
   prettyPrec p rho = pr p rho
     where
     pr p rho = case rho of
-      IdS              -> text "idS"
-      EmptyS err       -> text "emptyS"
-      t :# rho         -> mparens (p > 2) $ sep [ pr 2 rho P.<> text ",", prettyPrec 3 t ]
-      Strengthen _ rho -> mparens (p > 9) $ text "strS" <+> pr 10 rho
+      IdS              -> "idS"
+      EmptyS err       -> "emptyS"
+      t :# rho         -> mparens (p > 2) $ sep [ pr 2 rho P.<> ",", prettyPrec 3 t ]
+      Strengthen _ rho -> mparens (p > 9) $ "strS" <+> pr 10 rho
       Wk n rho         -> mparens (p > 9) $ text ("wkS " ++ show n) <+> pr 10 rho
       Lift n rho       -> mparens (p > 9) $ text ("liftS " ++ show n) <+> pr 10 rho
 
@@ -1245,16 +1245,16 @@ instance Pretty Term where
       Var x els -> text ("@" ++ show x) `pApp` els
       Lam ai b   ->
         mparens (p > 0) $
-        sep [ text "λ" <+> prettyHiding ai id (text . absName $ b) <+> text "->"
+        sep [ "λ" <+> prettyHiding ai id (text . absName $ b) <+> "->"
             , nest 2 $ pretty (unAbs b) ]
       Lit l                -> pretty l
       Def q els            -> pretty q `pApp` els
       Con c ci vs          -> pretty (conName c) `pApp` vs
       Pi a (NoAbs _ b)     -> mparens (p > 0) $
-        sep [ prettyPrec 1 (unDom a) <+> text "->"
+        sep [ prettyPrec 1 (unDom a) <+> "->"
             , nest 2 $ pretty b ]
       Pi a b               -> mparens (p > 0) $
-        sep [ pDom (domInfo a) (text (absName b) <+> text ":" <+> pretty (unDom a)) <+> text "->"
+        sep [ pDom (domInfo a) (text (absName b) <+> ":" <+> pretty (unDom a)) <+> "->"
             , nest 2 $ pretty (unAbs b) ]
       Sort s      -> prettyPrec p s
       Level l     -> prettyPrec p l
@@ -1274,16 +1274,16 @@ pDom i =
 
 instance Pretty Clause where
   pretty Clause{clauseTel = tel, namedClausePats = ps, clauseBody = b, clauseType = t} =
-    sep [ pretty tel <+> text "|-"
-        , nest 2 $ sep [ fsep (map (prettyPrec 10) ps) <+> text "="
+    sep [ pretty tel <+> "|-"
+        , nest 2 $ sep [ fsep (map (prettyPrec 10) ps) <+> "="
                        , nest 2 $ pBody b t ] ]
     where
-      pBody Nothing _ = text "(absurd)"
+      pBody Nothing _ = "(absurd)"
       pBody (Just b) Nothing  = pretty b
-      pBody (Just b) (Just t) = sep [ pretty b <+> text ":", nest 2 $ pretty t ]
+      pBody (Just b) (Just t) = sep [ pretty b <+> ":", nest 2 $ pretty t ]
 
 instance Pretty a => Pretty (Tele (Dom a)) where
-  pretty tel = fsep [ pDom a (text x <+> text ":" <+> pretty (unDom a)) | (x, a) <- telToList tel ]
+  pretty tel = fsep [ pDom a (text x <+> ":" <+> pretty (unDom a)) | (x, a) <- telToList tel ]
     where
       telToList EmptyTel = []
       telToList (ExtendTel a tel) = (absName tel, a) : telToList (unAbs tel)
@@ -1293,16 +1293,16 @@ instance Pretty Level where
     case as of
       []  -> prettyPrec p (ClosedLevel 0)
       [a] -> prettyPrec p a
-      _   -> mparens (p > 9) $ List.foldr1 (\a b -> text "lub" <+> a <+> b) $ map (prettyPrec 10) as
+      _   -> mparens (p > 9) $ List.foldr1 (\a b -> "lub" <+> a <+> b) $ map (prettyPrec 10) as
 
 instance Pretty PlusLevel where
   prettyPrec p l =
     case l of
-      ClosedLevel n -> sucs p n $ \_ -> text "lzero"
+      ClosedLevel n -> sucs p n $ \_ -> "lzero"
       Plus n a      -> sucs p n $ \p -> prettyPrec p a
     where
       sucs p 0 d = d p
-      sucs p n d = mparens (p > 9) $ text "lsuc" <+> sucs 10 (n - 1) d
+      sucs p n d = mparens (p > 9) $ "lsuc" <+> sucs 10 (n - 1) d
 
 instance Pretty LevelAtom where
   prettyPrec p a =
@@ -1315,19 +1315,19 @@ instance Pretty LevelAtom where
 instance Pretty Sort where
   prettyPrec p s =
     case s of
-      Type (Max []) -> text "Set"
+      Type (Max []) -> "Set"
       Type (Max [ClosedLevel n]) -> text $ "Set" ++ show n
-      Type l -> mparens (p > 9) $ text "Set" <+> prettyPrec 10 l
-      Prop (Max []) -> text "Prop"
+      Type l -> mparens (p > 9) $ "Set" <+> prettyPrec 10 l
+      Prop (Max []) -> "Prop"
       Prop (Max [ClosedLevel n]) -> text $ "Prop" ++ show n
-      Prop l -> mparens (p > 9) $ text "Prop" <+> prettyPrec 10 l
-      Inf -> text "Setω"
-      SizeUniv -> text "SizeUniv"
+      Prop l -> mparens (p > 9) $ "Prop" <+> prettyPrec 10 l
+      Inf -> "Setω"
+      SizeUniv -> "SizeUniv"
       PiSort s b -> mparens (p > 9) $
-        text "piSort" <+> prettyPrec 10 s
+        "piSort" <+> prettyPrec 10 s
                       <+> parens (sep [ text ("λ " ++ absName b ++ " ->")
                                       , nest 2 $ pretty (unAbs b) ])
-      UnivSort s -> mparens (p > 9) $ text "univSort" <+> prettyPrec 10 s
+      UnivSort s -> mparens (p > 9) $ "univSort" <+> prettyPrec 10 s
       MetaS x es -> prettyPrec p $ MetaV x es
       DummyS s   -> parens $ text s
 
@@ -1344,7 +1344,7 @@ instance Pretty DBPatVar where
 
 instance Pretty a => Pretty (Pattern' a) where
   prettyPrec n (VarP _o x)   = prettyPrec n x
-  prettyPrec _ (DotP _o t)   = text "." P.<> prettyPrec 10 t
+  prettyPrec _ (DotP _o t)   = "." P.<> prettyPrec 10 t
   prettyPrec n (ConP c i nps)= mparens (n > 0 && not (null nps)) $
     pretty (conName c) <+> fsep (map (prettyPrec 10) ps)
     where ps = map (fmap namedThing) nps
@@ -1353,7 +1353,7 @@ instance Pretty a => Pretty (Pattern' a) where
   --   text (show $ conName c) <+> fsep (map (pretty . namedArg) ps)
   --   where
   --     b = maybe False (== ConOSystem) $ conPRecord i
-  --     prTy d = caseMaybe (conPType i) d $ \ t -> d  <+> text ":" <+> pretty t
+  --     prTy d = caseMaybe (conPType i) d $ \ t -> d  <+> ":" <+> pretty t
   prettyPrec _ (LitP l)      = pretty l
   prettyPrec _ (ProjP _o q)  = text ("." ++ prettyShow q)
 

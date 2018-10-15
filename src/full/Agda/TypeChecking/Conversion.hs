@@ -119,9 +119,9 @@ compareTerm :: Comparison -> Type -> Term -> Term -> TCM ()
   -- Andreas, 2012-02-14: This is UNSOUND for subtyping!
 compareTerm cmp a u v = do
   reportSDoc "tc.conv.term" 10 $ sep
-    [ text "compareTerm"
+    [ "compareTerm"
     , nest 2 $ prettyTCM u <+> prettyTCM cmp <+> prettyTCM v
-    , nest 2 $ text ":" <+> prettyTCM a
+    , nest 2 $ ":" <+> prettyTCM a
     ]
   -- Check syntactic equality. This actually saves us quite a bit of work.
   ((u, v), equal) <- SynEq.checkSyntacticEquality u v
@@ -132,9 +132,9 @@ compareTerm cmp a u v = do
   unifyPointers cmp u v $ if equal then verboseS "profile.sharing" 20 $ tick "equal terms" else do
       verboseS "profile.sharing" 20 $ tick "unequal terms"
       reportSDoc "tc.conv.term" 15 $ sep
-        [ text "compareTerm (not syntactically equal)"
+        [ "compareTerm (not syntactically equal)"
         , nest 2 $ prettyTCM u <+> prettyTCM cmp <+> prettyTCM v
-        , nest 2 $ text ":" <+> prettyTCM a
+        , nest 2 $ ":" <+> prettyTCM a
         ]
       -- If we are at type Size, we cannot short-cut comparison
       -- against metas by assignment.
@@ -165,13 +165,13 @@ compareTerm cmp a u v = do
     assign dir x es v = do
       -- Andreas, 2013-10-19 can only solve if no projections
       reportSDoc "tc.conv.term.shortcut" 20 $ sep
-        [ text "attempting shortcut"
-        , nest 2 $ prettyTCM (MetaV x es) <+> text ":=" <+> prettyTCM v
+        [ "attempting shortcut"
+        , nest 2 $ prettyTCM (MetaV x es) <+> ":=" <+> prettyTCM v
         ]
       ifM (isInstantiatedMeta x) patternViolation {-else-} $ do
         assignE dir x es v $ compareTermDir dir a
       reportSDoc "tc.conv.term.shortcut" 50 $
-        text "shortcut successful" $$ nest 2 (text "result:" <+> (pretty =<< instantiate (MetaV x es)))
+        "shortcut successful" $$ nest 2 ("result:" <+> (pretty =<< instantiate (MetaV x es)))
     -- Should be ok with catchError_ but catchError is much safer since we don't
     -- rethrow errors.
     orelse m h = catchError m (\_ -> h)
@@ -204,7 +204,7 @@ assignE dir x es v comp = assignWrapper dir x es v $ do
     Just vs -> assignV dir x vs v
     Nothing -> do
       reportSDoc "tc.conv.assign" 30 $ sep
-        [ text "assigning to projected meta "
+        [ "assigning to projected meta "
         , prettyTCM x <+> sep (map prettyTCM es) <+> text (":" ++ show dir) <+> prettyTCM v
         ]
       etaExpandMeta [Records] x
@@ -212,7 +212,7 @@ assignE dir x es v comp = assignWrapper dir x es v $ do
       case res of
         Just u  -> do
           reportSDoc "tc.conv.assign" 30 $ sep
-            [ text "seems like eta expansion instantiated meta "
+            [ "seems like eta expansion instantiated meta "
             , prettyTCM x <+> text  (":" ++ show dir) <+> prettyTCM u
             ]
           let w = u `applyE` es
@@ -230,14 +230,14 @@ compareTerm' cmp a m n =
   a' <- reduce a
   catchConstraint (ValueCmp cmp a' m n) $ do
     reportSDoc "tc.conv.term" 30 $ fsep
-      [ text "compareTerm", prettyTCM m, prettyTCM cmp, prettyTCM n, text ":", prettyTCM a' ]
+      [ "compareTerm", prettyTCM m, prettyTCM cmp, prettyTCM n, ":", prettyTCM a' ]
     propIrr  <- isPropEnabled
     isSize   <- isJust <$> isSizeType a'
     s        <- reduce $ getSort a'
     mlvl     <- tryMaybe primLevel
     reportSDoc "tc.conv.level" 60 $ nest 2 $ sep
-      [ text "a'   =" <+> pretty a'
-      , text "mlvl =" <+> pretty mlvl
+      [ "a'   =" <+> pretty a'
+      , "mlvl =" <+> pretty mlvl
       , text $ "(Just (unEl a') == mlvl) = " ++ show (Just (unEl a') == mlvl)
       ]
     case s of
@@ -269,7 +269,7 @@ compareTerm' cmp a m n =
                   isMeta (NotBlocked _ MetaV{}) = True
                   isMeta _                      = False
 
-              reportSDoc "tc.conv.term" 30 $ prettyTCM a <+> text "is eta record type"
+              reportSDoc "tc.conv.term" 30 $ prettyTCM a <+> "is eta record type"
               m <- reduceB m
               mNeutral <- isNeutral m
               n <- reduceB n
@@ -308,7 +308,7 @@ compareTerm' cmp a m n =
               | Just q == mp -> compareTermOnFace cmp (unArg phi) (El s (Pi (dom {domFinite = False}) b)) m n
           _                  -> equalFun s (Pi (dom{domFinite = False}) b) m n
     equalFun _ (Pi dom@Dom{domInfo = info} b) m n | not $ domFinite dom = do
-        name <- freshName_ $ suggest (absName b) "x"
+        name <- freshName_ $ suggest (absName b) ("x" :: String)
         addContext (name, dom) $ compareTerm cmp (absBody b) m' n'
       where
         (m',n') = raise 1 (m,n) `apply` [Arg info $ var 0]
@@ -316,7 +316,7 @@ compareTerm' cmp a m n =
 
     equalPath :: PathView -> Type -> Term -> Term -> TCM ()
     equalPath (PathType s _ l a x y) _ m n = do
-        name <- freshName_ $ "i"
+        name <- freshName_ ("i" :: String)
         interval <- el primInterval
         let (m',n') = raise 1 (m, n) `applyE` [IApply (raise 1 $ unArg x) (raise 1 $ unArg y) (var 0)]
         addContext (name, defaultDom interval) $ compareTerm cmp (El (raise 1 s) $ (raise 1 $ unArg a) `apply` [argN $ var 0]) m' n'
@@ -379,9 +379,9 @@ etaInequal cmp t m n = do
   let inequal  = typeError $ UnequalTerms cmp m n t
       dontKnow = do
         reportSDoc "tc.conv.inequal" 20 $ hsep
-          [ text "etaInequal: postponing "
+          [ "etaInequal: postponing "
           , prettyTCM m
-          , text " != "
+          , " != "
           , prettyTCM n
           ]
         patternViolation
@@ -413,10 +413,10 @@ computeElimHeadType f es es' = do
               _ -> __IMPOSSIBLE__
     -- Infer its type.
     reportSDoc "tc.conv.infer" 30 $
-      text "inferring type of internal arg: " <+> prettyTCM arg
+      "inferring type of internal arg: " <+> prettyTCM arg
     targ <- infer $ unArg arg
     reportSDoc "tc.conv.infer" 30 $
-      text "inferred type: " <+> prettyTCM targ
+      "inferred type: " <+> prettyTCM targ
     -- getDefType wants the argument type reduced.
     -- Andreas, 2016-02-09, Issue 1825: The type of arg might be
     -- a meta-variable, e.g. in interactive development.
@@ -431,9 +431,9 @@ compareAtom cmp t m n =
   -- if a PatternErr is thrown, rebuild constraint!
   catchConstraint (ValueCmp cmp t m n) $ do
     reportSDoc "tc.conv.atom" 50 $
-      text "compareAtom" <+> fsep [ prettyTCM m <+> prettyTCM cmp
+      "compareAtom" <+> fsep [ prettyTCM m <+> prettyTCM cmp
                                   , prettyTCM n
-                                  , text ":" <+> prettyTCM t ]
+                                  , ":" <+> prettyTCM t ]
     -- Andreas: what happens if I cut out the eta expansion here?
     -- Answer: Triggers issue 245, does not resolve 348
     (mb',nb') <- ifM (asksTC envCompareBlocked) ((notBlocked -*- notBlocked) <$> reduce (m,n)) $ do
@@ -472,13 +472,13 @@ compareAtom cmp t m n =
     unifyPointers cmp (ignoreBlocking mb') (ignoreBlocking nb') $ do    -- this needs to go after eta expansion to avoid creating infinite terms
 
       reportSDoc "tc.conv.atom" 30 $
-        text "compareAtom" <+> fsep [ prettyTCM mb <+> prettyTCM cmp
+        "compareAtom" <+> fsep [ prettyTCM mb <+> prettyTCM cmp
                                     , prettyTCM nb
-                                    , text ":" <+> prettyTCM t ]
+                                    , ":" <+> prettyTCM t ]
       reportSDoc "tc.conv.atom" 80 $
-        text "compareAtom" <+> fsep [ (text . show) mb <+> prettyTCM cmp
+        "compareAtom" <+> fsep [ (text . show) mb <+> prettyTCM cmp
                                     , (text . show) nb
-                                    , text ":" <+> (text . show) t ]
+                                    , ":" <+> (text . show) t ]
       case (mb, nb) of
         -- equate two metas x and y.  if y is the younger meta,
         -- try first y := x and then x := y
@@ -625,8 +625,8 @@ compareAtom cmp t m n =
         conType c t = ifBlockedType t (\ _ _ -> patternViolation) $ \ _ t -> do
           let impossible = do
                 reportSDoc "impossible" 10 $
-                  text "expected data/record type, found " <+> prettyTCM t
-                reportSDoc "impossible" 70 $ nest 2 $ text "raw =" <+> pretty t
+                  "expected data/record type, found " <+> prettyTCM t
+                reportSDoc "impossible" 70 $ nest 2 $ "raw =" <+> pretty t
                 -- __IMPOSSIBLE__
                 -- Andreas, 2013-10-20:  in case termination checking fails
                 -- we might get some unreduced types here.
@@ -639,8 +639,8 @@ compareAtom cmp t m n =
           (Pi dom1 b1, Pi dom2 b2) -> do
             verboseBracket "tc.conv.fun" 15 "compare function types" $ do
               reportSDoc "tc.conv.fun" 20 $ nest 2 $ vcat
-                [ text "t1 =" <+> prettyTCM t1
-                , text "t2 =" <+> prettyTCM t2 ]
+                [ "t1 =" <+> prettyTCM t1
+                , "t2 =" <+> prettyTCM t2 ]
               compareDom cmp dom2 dom1 b1 b2 errH errR $
                 compareType cmp (absBody b1) (absBody b2)
             where
@@ -767,14 +767,14 @@ compareElims pols0 fors0 a v els01 els02 = catchConstraint (ElimCmp pols0 fors0 
         -- Andreas, 2013-03-15 since one of the spines is empty, @a@
         -- is the correct type here.
   unless (null els01) $ do
-    reportSDoc "tc.conv.elim" 25 $ text "compareElims" $$ do
+    reportSDoc "tc.conv.elim" 25 $ "compareElims" $$ do
      nest 2 $ vcat
-      [ text "a     =" <+> prettyTCM a
-      , text "pols0 (truncated to 10) =" <+> sep (map prettyTCM $ take 10 pols0)
-      , text "fors0 (truncated to 10) =" <+> sep (map prettyTCM $ take 10 fors0)
-      , text "v     =" <+> prettyTCM v
-      , text "els01 =" <+> prettyTCM els01
-      , text "els02 =" <+> prettyTCM els02
+      [ "a     =" <+> prettyTCM a
+      , "pols0 (truncated to 10) =" <+> sep (map prettyTCM $ take 10 pols0)
+      , "fors0 (truncated to 10) =" <+> sep (map prettyTCM $ take 10 fors0)
+      , "v     =" <+> prettyTCM v
+      , "els01 =" <+> prettyTCM els01
+      , "els02 =" <+> prettyTCM els02
       ]
   case (els01, els02) of
     ([]         , []         ) -> return ()
@@ -791,13 +791,13 @@ compareElims pols0 fors0 a v els01 els02 = catchConstraint (ElimCmp pols0 fors0 
     (IApply{} : _, Apply{}  : _) -> __IMPOSSIBLE__ <$ solveAwakeConstraints' True
     (Apply{}  : _, IApply{} : _) -> __IMPOSSIBLE__ <$ solveAwakeConstraints' True
     (e@(IApply x1 y1 r1) : els1, IApply x2 y2 r2 : els2) -> do
-      reportSDoc "tc.conv.elim" 25 $ text "compareElims IApply"
+      reportSDoc "tc.conv.elim" 25 $ "compareElims IApply"
        -- Andrea: copying stuff from the Apply case..
       let (pol, pols) = nextPolarity pols0
       ifBlockedType a (\ m t -> patternViolation) $ \ _ a -> do
           va <- pathView a
-          reportSDoc "tc.conv.elim.iapply" 60 $ text "compareElims IApply" $$ do
-            nest 2 $ text "va =" <+> text (show (isPathType va))
+          reportSDoc "tc.conv.elim.iapply" 60 $ "compareElims IApply" $$ do
+            nest 2 $ "va =" <+> text (show (isPathType va))
           case va of
             PathType s path l bA x y -> do
               b <- elInf primInterval
@@ -817,16 +817,16 @@ compareElims pols0 fors0 a v els01 els02 = catchConstraint (ElimCmp pols0 fors0 
     (Apply arg1 : els1, Apply arg2 : els2) ->
       verboseBracket "tc.conv.elim" 20 "compare Apply" $ do
       reportSDoc "tc.conv.elim" 10 $ nest 2 $ vcat
-        [ text "a    =" <+> prettyTCM a
-        , text "v    =" <+> prettyTCM v
-        , text "arg1 =" <+> prettyTCM arg1
-        , text "arg2 =" <+> prettyTCM arg2
+        [ "a    =" <+> prettyTCM a
+        , "v    =" <+> prettyTCM v
+        , "arg1 =" <+> prettyTCM arg1
+        , "arg2 =" <+> prettyTCM arg2
         ]
       reportSDoc "tc.conv.elim" 50 $ nest 2 $ vcat
-        [ text "v    =" <+> pretty v
-        , text "arg1 =" <+> pretty arg1
-        , text "arg2 =" <+> pretty arg2
-        , text ""
+        [ "v    =" <+> pretty v
+        , "arg1 =" <+> pretty arg1
+        , "arg2 =" <+> pretty arg2
+        , ""
         ]
       let (pol, pols) = nextPolarity pols0
           (for, fors) = nextIsForced fors0
@@ -861,8 +861,8 @@ compareElims pols0 fors0 a v els01 els02 = catchConstraint (ElimCmp pols0 fors0 
             arg <- if dependent && not solved
                    then do
                     arg <- (arg1 $>) <$> antiUnify pid b (unArg arg1) (unArg arg2)
-                    reportSDoc "tc.conv.elims" 30 $ hang (text "Anti-unification:") 2 (prettyTCM arg)
-                    reportSDoc "tc.conv.elims" 70 $ nest 2 $ text "raw:" <+> pretty arg
+                    reportSDoc "tc.conv.elims" 30 $ hang "Anti-unification:" 2 (prettyTCM arg)
+                    reportSDoc "tc.conv.elims" 70 $ nest 2 $ "raw:" <+> pretty arg
                     return arg
                    else return arg1
             -- continue, possibly with blocked instantiation
@@ -878,8 +878,8 @@ compareElims pols0 fors0 a v els01 els02 = catchConstraint (ElimCmp pols0 fors0 
             -}
           a -> do
             reportSDoc "impossible" 10 $
-              text "unexpected type when comparing apply eliminations " <+> prettyTCM a
-            reportSDoc "impossible" 50 $ text "raw type:" <+> pretty a
+              "unexpected type when comparing apply eliminations " <+> prettyTCM a
+            reportSDoc "impossible" 50 $ "raw type:" <+> pretty a
             patternViolation
             -- Andreas, 2013-10-22
             -- in case of disabled reductions (due to failing termination check)
@@ -888,7 +888,7 @@ compareElims pols0 fors0 a v els01 els02 = catchConstraint (ElimCmp pols0 fors0 
 
     -- case: f == f' are projections
     (Proj o f : els1, Proj _ f' : els2)
-      | f /= f'   -> typeError . GenericError . show =<< prettyTCM f <+> text "/=" <+> prettyTCM f'
+      | f /= f'   -> typeError . GenericError . show =<< prettyTCM f <+> "/=" <+> prettyTCM f'
       | otherwise -> ifBlockedType a (\ m t -> patternViolation) $ \ _ a -> do
         res <- projectTyped v a o f -- fails only if f is proj.like but parameters cannot be retrieved
         case res of
@@ -918,13 +918,13 @@ compareIrrelevant t v (DontCare w) = compareIrrelevant t v w
 -}
 compareIrrelevant t v w = do
   reportSDoc "tc.conv.irr" 20 $ vcat
-    [ text "compareIrrelevant"
-    , nest 2 $ text "v =" <+> prettyTCM v
-    , nest 2 $ text "w =" <+> prettyTCM w
+    [ "compareIrrelevant"
+    , nest 2 $ "v =" <+> prettyTCM v
+    , nest 2 $ "w =" <+> prettyTCM w
     ]
   reportSDoc "tc.conv.irr" 50 $ vcat
-    [ nest 2 $ text "v =" <+> pretty v
-    , nest 2 $ text "w =" <+> pretty w
+    [ nest 2 $ "v =" <+> pretty v
+    , nest 2 $ "w =" <+> pretty w
     ]
   try v w $ try w v $ return ()
   where
@@ -936,7 +936,7 @@ compareIrrelevant t v w = do
                    _       -> False
       reportSDoc "tc.conv.irr" 20 $ vcat
         [ nest 2 $ text $ "rel  = " ++ show rel
-        , nest 2 $ text "inst =" <+> pretty inst
+        , nest 2 $ "inst =" <+> pretty inst
         ]
       if not (isIrrelevant rel) || inst
         then fallback
@@ -973,19 +973,19 @@ compareType cmp ty1@(El s1 a1) ty2@(El s2 a2) =
     verboseBracket "tc.conv.type" 20 "compareType" $
     catchConstraint (TypeCmp cmp ty1 ty2) $ do
         reportSDoc "tc.conv.type" 50 $ vcat
-          [ text "compareType" <+> sep [ prettyTCM ty1 <+> prettyTCM cmp
+          [ "compareType" <+> sep [ prettyTCM ty1 <+> prettyTCM cmp
                                        , prettyTCM ty2 ]
-          , hsep [ text "   sorts:", prettyTCM s1, text " and ", prettyTCM s2 ]
+          , hsep [ "   sorts:", prettyTCM s1, " and ", prettyTCM s2 ]
           ]
 -- Andreas, 2011-4-27 should not compare sorts, but currently this is needed
 -- for solving sort and level metas
         compareSort CmpEq s1 s2 `catchError` \err -> case err of
           TypeError _ e -> do
             reportSDoc "tc.conv.type" 30 $ vcat
-              [ text "sort comparison failed"
+              [ "sort comparison failed"
               , nest 2 $ vcat
-                [ text "s1 =" <+> prettyTCM s1
-                , text "s2 =" <+> prettyTCM s2
+                [ "s1 =" <+> prettyTCM s1
+                , "s2 =" <+> prettyTCM s2
                 ]
               ]
             -- This error will probably be more informative
@@ -1024,18 +1024,18 @@ coerce cmp v t1 t2 = blockTerm t2 $ do
     (a1,a2) <- reify (t1,t2)
     let dbglvl = if isSet a1 && isSet a2 then 50 else 10
     reportSDoc "tc.conv.coerce" dbglvl $
-      text "coerce" <+> vcat
-        [ text "term      v  =" <+> prettyTCM v
-        , text "from type t1 =" <+> prettyTCM a1
-        , text "to type   t2 =" <+> prettyTCM a2
-        , text "comparison   =" <+> prettyTCM cmp
+      "coerce" <+> vcat
+        [ "term      v  =" <+> prettyTCM v
+        , "from type t1 =" <+> prettyTCM a1
+        , "to type   t2 =" <+> prettyTCM a2
+        , "comparison   =" <+> prettyTCM cmp
         ]
     reportSDoc "tc.conv.coerce" 70 $
-      text "coerce" <+> vcat
-        [ text "term      v  =" <+> pretty v
-        , text "from type t1 =" <+> pretty t1
-        , text "to type   t2 =" <+> pretty t2
-        , text "comparison   =" <+> pretty cmp
+      "coerce" <+> vcat
+        [ "term      v  =" <+> pretty v
+        , "from type t1 =" <+> pretty t1
+        , "to type   t2 =" <+> pretty t2
+        , "comparison   =" <+> pretty cmp
         ]
   -- v <$ do workOnTypes $ leqType t1 t2
   -- take off hidden/instance domains from t1 and t2
@@ -1068,10 +1068,10 @@ coerce cmp v t1 t2 = blockTerm t2 $ do
 coerceSize :: (Type -> Type -> TCM ()) -> Term -> Type -> Type -> TCM ()
 coerceSize leqType v t1 t2 = workOnTypes $ do
     reportSDoc "tc.conv.coerce" 70 $
-      text "coerceSize" <+> vcat
-        [ text "term      v  =" <+> pretty v
-        , text "from type t1 =" <+> pretty t1
-        , text "to type   t2 =" <+> pretty t2
+      "coerceSize" <+> vcat
+        [ "term      v  =" <+> pretty v
+        , "from type t1 =" <+> pretty t1
+        , "to type   t2 =" <+> pretty t2
         ]
     let fallback = leqType t1 t2
         done = caseMaybeM (isSizeType t1) fallback $ \ _ -> return ()
@@ -1088,7 +1088,7 @@ coerceSize leqType v t1 t2 = workOnTypes $ do
       unlessM (tryConversion $ dontAssignMetas $ leqType t1 t2) $ do
         -- A (most probably weaker) alternative is to just check syn.eq.
         -- ifM (snd <$> checkSyntacticEquality t1 t2) (return v) $ {- else -} do
-        reportSDoc "tc.conv.coerce" 20 $ text "coercing to a size type"
+        reportSDoc "tc.conv.coerce" 20 $ "coercing to a size type"
         case b2 of
           -- @t2 = Size@.  We are done!
           BoundedNo -> done
@@ -1133,8 +1133,8 @@ leqSort s1 s2 = catchConstraint (SortCmp CmpLeq s1 s2) $ do
       no       = typeError $ NotLeqSort s1 s2
       yes      = return ()
   reportSDoc "tc.conv.sort" 30 $
-    sep [ text "leqSort"
-        , nest 2 $ fsep [ prettyTCM s1 <+> text "=<"
+    sep [ "leqSort"
+        , nest 2 $ fsep [ prettyTCM s1 <+> "=<"
                         , prettyTCM s2 ]
         ]
   propEnabled <- isPropEnabled
@@ -1199,8 +1199,8 @@ leqSort s1 s2 = catchConstraint (SortCmp CmpLeq s1 s2) $ do
 leqLevel :: Level -> Level -> TCM ()
 leqLevel a b = liftTCM $ do
   reportSDoc "tc.conv.nat" 30 $
-    text "compareLevel" <+>
-      sep [ prettyTCM a <+> text "=<"
+    "compareLevel" <+>
+      sep [ prettyTCM a <+> "=<"
           , prettyTCM b ]
   -- Andreas, 2015-12-28 Issue 1757
   -- We normalize both sides to make the syntactic equality check (==) stronger.
@@ -1213,8 +1213,8 @@ leqLevel a b = liftTCM $ do
     -- If we have to postpone a constraint, then its simplified form!
     leqView a@(Max as) b@(Max bs) = catchConstraint (LevelCmp CmpLeq a b) $ do
       reportSDoc "tc.conv.nat" 30 $
-        text "compareLevelView" <+>
-          sep [ pretty a <+> text "=<"
+        "compareLevelView" <+>
+          sep [ pretty a <+> "=<"
               , pretty b ]
       wrap $ case (as, bs) of
 
@@ -1329,7 +1329,7 @@ equalLevel a b = do
 -- | Precondition: levels are 'normalise'd.
 equalLevel' :: Level -> Level -> TCM ()
 equalLevel' a b = do
-  reportSDoc "tc.conv.level" 50 $ sep [ text "equalLevel", nest 2 $ parens $ pretty a, nest 2 $ parens $ pretty b ]
+  reportSDoc "tc.conv.level" 50 $ sep [ "equalLevel", nest 2 $ parens $ pretty a, nest 2 $ parens $ pretty b ]
   liftTCM $ catchConstraint (LevelCmp CmpEq a b) $
     check a b
   where
@@ -1349,19 +1349,19 @@ equalLevel' a b = do
       as <- return $ List.sort $ closed0 as
       bs <- return $ List.sort $ closed0 bs
       reportSDoc "tc.conv.level" 40 $
-        sep [ text "equalLevel"
-            , vcat [ nest 2 $ sep [ prettyTCM a <+> text "=="
+        sep [ "equalLevel"
+            , vcat [ nest 2 $ sep [ prettyTCM a <+> "=="
                                   , prettyTCM b
                                   ]
-                   , text "reduced"
-                   , nest 2 $ sep [ prettyTCM (Max as) <+> text "=="
+                   , "reduced"
+                   , nest 2 $ sep [ prettyTCM (Max as) <+> "=="
                                   , prettyTCM (Max bs)
                                   ]
                    ]
             ]
       reportSDoc "tc.conv.level" 50 $
         sep [ text "equalLevel"
-            , vcat [ nest 2 $ sep [ pretty (Max as) <+> text "=="
+            , vcat [ nest 2 $ sep [ pretty (Max as) <+> "=="
                                   , pretty (Max bs)
                                   ]
                    ]
@@ -1427,7 +1427,7 @@ equalLevel' a b = do
         notok    = unlessM typeInType notOk
         notOk    = typeError $ UnequalSorts (Type a) (Type b)
         postpone = do
-          reportSDoc "tc.conv.level" 30 $ hang (text "postponing:") 2 $ hang (pretty a <+> text "==") 0 (pretty b)
+          reportSDoc "tc.conv.level" 30 $ hang "postponing:" 2 $ hang (pretty a <+> "==") 0 (pretty b)
           patternViolation
 
         closed0 [] = [ClosedLevel 0]
@@ -1436,7 +1436,7 @@ equalLevel' a b = do
         -- perform assignment (Plus n (MetaLevel x as)) := bs
         meta n x as bs = do
           reportSLn "tc.meta.level" 30 $ "Assigning meta level"
-          reportSDoc "tc.meta.level" 50 $ text "meta" <+> sep [prettyList $ map pretty as, prettyList $ map pretty bs]
+          reportSDoc "tc.meta.level" 50 $ "meta" <+> sep [prettyList $ map pretty as, prettyList $ map pretty bs]
           bs' <- mapM (subtr n) bs
           assignE DirEq x as (levelTm (Max bs')) (===) -- fallback: check equality as atoms
 
@@ -1499,10 +1499,10 @@ equalSort s1 s2 = do
                  | otherwise -> postpone
 
         reportSDoc "tc.conv.sort" 30 $ sep
-          [ text "equalSort"
-          , vcat [ nest 2 $ fsep [ prettyTCM s1 <+> text "=="
+          [ "equalSort"
+          , vcat [ nest 2 $ fsep [ prettyTCM s1 <+> "=="
                                  , prettyTCM s2 ]
-                 , nest 2 $ fsep [ pretty s1 <+> text "=="
+                 , nest 2 $ fsep [ pretty s1 <+> "=="
                                  , pretty s2 ]
                  ]
           ]
@@ -1573,7 +1573,7 @@ equalSort s1 s2 = do
       -- perform assignment (MetaS x es) := s
       meta x es s = do
         reportSLn "tc.meta.sort" 30 $ "Assigning meta sort"
-        reportSDoc "tc.meta.sort" 50 $ text "meta" <+> sep [pretty x, prettyList $ map pretty es, pretty s]
+        reportSDoc "tc.meta.sort" 50 $ "meta" <+> sep [pretty x, prettyList $ map pretty es, pretty s]
         assignE DirEq x es (Sort s) __IMPOSSIBLE__
 
       set0 = Type $ Max []
@@ -1676,7 +1676,7 @@ forallFaceMaps t kb k = do
 compareInterval :: Comparison -> Type -> Term -> Term -> TCM ()
 compareInterval cmp i t u = do
   reportSDoc "tc.conv.interval" 15 $
-    sep [ text "{ compareInterval" <+> prettyTCM t <+> text "=" <+> prettyTCM u ]
+    sep [ "{ compareInterval" <+> prettyTCM t <+> "=" <+> prettyTCM u ]
   tb <- reduceB t
   ub <- reduceB u
   let t = ignoreBlocking tb
@@ -1696,10 +1696,10 @@ compareInterval cmp i t u = do
       x <- leqInterval it iu
       y <- leqInterval iu it
       let final = isCanonical it && isCanonical iu
-      if x && y then reportSDoc "tc.conv.interval" 15 $ text "Ok! }" else
+      if x && y then reportSDoc "tc.conv.interval" 15 $ "Ok! }" else
         if final then typeError $ UnequalTerms cmp t u i
                  else do
-                   reportSDoc "tc.conv.interval" 15 $ text "Giving up! }"
+                   reportSDoc "tc.conv.interval" 15 $ "Giving up! }"
                    patternViolation
  where
    blockedOrMeta Blocked{} = True
@@ -1720,10 +1720,10 @@ leqInterval r q =
    or <$> forM q (\ q_j -> leqConj r_i q_j))  -- TODO shortcut
 
 -- | leqConj r q = r ≤ q in the I lattice, when r and q are conjuctions.
--- (∧ r_i)   ≤ (∧ q_j)               iff
--- (∧ r_i)   ∧ (∧ q_j)   = (∧ r_i)   iff
--- {r_i | i} ∪ {q_j | j} = {r_i | i} iff
--- {q_j | j} ⊆ {r_i | i}
+-- ' (∧ r_i)   ≤ (∧ q_j)               iff
+-- ' (∧ r_i)   ∧ (∧ q_j)   = (∧ r_i)   iff
+-- ' {r_i | i} ∪ {q_j | j} = {r_i | i} iff
+-- ' {q_j | j} ⊆ {r_i | i}
 leqConj :: Conj -> Conj -> TCM Bool
 leqConj (rs,rst) (qs,qst) = do
   case toSet qs `Set.isSubsetOf` toSet rs of

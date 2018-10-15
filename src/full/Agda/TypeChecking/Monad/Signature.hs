@@ -8,6 +8,11 @@ import Prelude hiding (null)
 
 import Control.Arrow (first, second, (***))
 import Control.Applicative hiding (empty)
+
+#if __GLASGOW_HASKELL__ >= 800
+import qualified Control.Monad.Fail as Fail
+#endif
+
 import Control.Monad.State
 import Control.Monad.Reader
 import Control.Monad.Writer
@@ -81,7 +86,7 @@ addConstant q d = do
                     Just (doms, dom) -> telFromList $ fmap hideOrKeepInstance doms ++ [dom]
               _ -> tel
   let d' = abstract tel' $ d { defName = q }
-  reportSDoc "tc.signature" 60 $ return $ text "lambda-lifted definition =" <?> pretty d'
+  reportSDoc "tc.signature" 60 $ return $ "lambda-lifted definition =" <?> pretty d'
   modifySignature $ updateDefinitions $ HMap.insertWith (+++) q d'
   i <- currentOrFreshMutualBlock
   setMutualBlock i q
@@ -173,8 +178,8 @@ getUniqueCompilerPragma backend q = do
     [p] -> return $ Just p
     _   -> setCurrentRange (ps !! 1) $
             genericDocError $
-                  hang (text ("Conflicting " ++ backend ++ " pragmas for") <+> pretty q <+> text "at") 2 $
-                       vcat [ text "-" <+> pretty (getRange p) | p <- ps ]
+                  hang (text ("Conflicting " ++ backend ++ " pragmas for") <+> pretty q <+> "at") 2 $
+                       vcat [ "-" <+> pretty (getRange p) | p <- ps ]
 
 setFunctionFlag :: FunctionFlag -> Bool -> QName -> TCM ()
 setFunctionFlag flag val q = modifyGlobalDefinition q $ set (theDefLens . funFlag flag) val
@@ -354,11 +359,11 @@ applySection new ptel old ts ScopeCopyInfo{ renModules = rm, renNames = rd } = d
 applySection' :: ModuleName -> Telescope -> ModuleName -> Args -> ScopeCopyInfo -> TCM ()
 applySection' new ptel old ts ScopeCopyInfo{ renNames = rd, renModules = rm } = do
   reportSLn "tc.mod.apply" 10 $ render $ vcat
-    [ text "applySection"
-    , text "new  =" <+> pretty new
-    , text "ptel =" <+> pretty ptel
-    , text "old  =" <+> pretty old
-    , text "ts   =" <+> pretty ts
+    [ "applySection"
+    , "new  =" <+> pretty new
+    , "ptel =" <+> pretty ptel
+    , "old  =" <+> pretty old
+    , "ts   =" <+> pretty ts
     ]
   mapM_ (copyDef ts) rd
   mapM_ (copySec ts) rm
@@ -493,7 +498,7 @@ applySection' new ptel old ts ScopeCopyInfo{ renNames = rd, renModules = rm } = 
                         , funWith           = with
                         , funCopatternLHS   = isCopatternLHS [cl]
                         }
-                  reportSDoc "tc.mod.apply" 80 $ return $ (text "new def for" <+> pretty x) <?> pretty newDef
+                  reportSDoc "tc.mod.apply" 80 $ return $ ("new def for" <+> pretty x) <?> pretty newDef
                   return newDef
 
             cl = Clause { clauseLHSRange  = getRange $ defClauses d
@@ -563,7 +568,7 @@ addDisplayForm x df = do
     {-then-} (modifySignature add)
     {-else-} (stImportsDisplayForms `modifyTCLens` HMap.insertWith (++) x [d])
   whenM (hasLoopingDisplayForm x) $
-    typeError . GenericDocError $ text "Cannot add recursive display form for" <+> pretty x
+    typeError . GenericDocError $ "Cannot add recursive display form for" <+> pretty x
 
 isLocal :: QName -> TCM Bool
 isLocal x = HMap.member x <$> useTC (stSignature . sigDefinitions)
@@ -653,7 +658,17 @@ sigError f a = \case
   SigUnknown s -> f s
   SigAbstract  -> a
 
-class (Functor m, Applicative m, Monad m, HasOptions m, MonadDebug m, MonadTCEnv m) => HasConstInfo m where
+class ( Functor m
+      , Applicative m
+#if __GLASGOW_HASKELL__ == 710
+      , Monad m
+#else
+      , Fail.MonadFail m
+#endif
+      , HasOptions m
+      , MonadDebug m
+      , MonadTCEnv m
+      ) => HasConstInfo m where
   -- | Lookup the definition of a name. The result is a closed thing, all free
   --   variables have been abstracted over.
   getConstInfo :: QName -> m Definition
@@ -962,7 +977,8 @@ inFreshModuleIfFreeParams k = do
   sub <- getModuleParameterSub =<< currentModule
   if sub == IdS then k else do
     m  <- currentModule
-    m' <- qualifyM m . mnameFromList . (:[]) <$> freshName_ "_"
+    m' <- qualifyM m . mnameFromList . (:[]) <$>
+            freshName_ ("_" :: String)
     addSection m'
     withCurrentModule m' k
 

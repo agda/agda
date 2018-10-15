@@ -97,7 +97,7 @@ instance (Ord a, Pretty a) => Pretty (Benchmark a) where
     aggrTimes = do
       (a, (t, aggrT)) <- zip accounts times0
       return $ if t == aggrT || null a
-               then Boxes.text ""
+               then ""
                else Boxes.text $ "(" ++ prettyShow aggrT ++ ")"
 
     -- Generate a table.
@@ -113,7 +113,7 @@ instance (Ord a, Pretty a) => Pretty (Benchmark a) where
            sum times : times
     -- Thid column: Aggregate times.
     col3 = Boxes.vcat Boxes.right $
-           Boxes.text "" : aggrTimes
+           "" : aggrTimes
 
     showAccount [] = "Miscellaneous"
     showAccount ks = List.intercalate "." $ map prettyShow ks

@@ -154,7 +154,7 @@ newSortMetaCtx vs = do
     let t = telePi_ tel __DUMMY_TYPE__
     x   <- newMeta i normalMetaPriority (idP 0) $ IsSort () t
     reportSDoc "tc.meta.new" 50 $
-      text "new sort meta" <+> prettyTCM x <+> text ":" <+> prettyTCM t
+      "new sort meta" <+> prettyTCM x <+> ":" <+> prettyTCM t
     return $ MetaS x $ map Apply vs
 
 newTypeMeta :: Sort -> TCM Type
@@ -178,8 +178,8 @@ newIFSMeta s t = do
 newIFSMetaCtx :: MetaNameSuggestion -> Type -> Args -> TCM (MetaId, Term)
 newIFSMetaCtx s t vs = do
   reportSDoc "tc.meta.new" 50 $ fsep
-    [ text "new ifs meta:"
-    , nest 2 $ prettyTCM vs <+> text "|-"
+    [ "new ifs meta:"
+    , nest 2 $ prettyTCM vs <+> "|-"
     ]
   -- Andreas, 2017-10-04, issue #2753: no metaOccurs check for instance metas
   i0 <- createMetaInfo' DontRunMetaOccursCheck
@@ -188,7 +188,7 @@ newIFSMetaCtx s t vs = do
   let perm = idP (size tel)
   x <- newMeta' OpenIFS i normalMetaPriority perm (HasType () t)
   reportSDoc "tc.meta.new" 50 $ fsep
-    [ nest 2 $ pretty x <+> text ":" <+> prettyTCM t
+    [ nest 2 $ pretty x <+> ":" <+> prettyTCM t
     ]
   let c = FindInScope x Nothing Nothing
   -- If we're not already solving instance constraints we should add this
@@ -237,9 +237,9 @@ newValueMetaCtx' b a tel perm vs = do
   let t     = telePi_ tel a
   x <- newMeta i normalMetaPriority perm (HasType () t)
   reportSDoc "tc.meta.new" 50 $ fsep
-    [ text "new meta:"
-    , nest 2 $ prettyTCM vs <+> text "|-"
-    , nest 2 $ pretty x <+> text ":" <+> prettyTCM t
+    [ "new meta:"
+    , nest 2 $ prettyTCM vs <+> "|-"
+    , nest 2 $ pretty x <+> ":" <+> prettyTCM t
     ]
   etaExpandMetaSafe x
   -- Andreas, 2012-09-24: for Metas X : Size< u add constraint X+1 <= u
@@ -342,8 +342,8 @@ blockTermOnProblem t v pid =
                     -- we don't instantiate blocked terms
     inTopContext $ addConstraint (Guarded (UnBlock x) pid)
     reportSDoc "tc.meta.blocked" 20 $ vcat
-      [ text "blocked" <+> prettyTCM x <+> text ":=" <+> inTopContext (prettyTCM $ abstract tel v)
-      , text "     by" <+> (prettyTCM =<< getConstraintsForProblem pid) ]
+      [ "blocked" <+> prettyTCM x <+> ":=" <+> inTopContext (prettyTCM $ abstract tel v)
+      , "     by" <+> (prettyTCM =<< getConstraintsForProblem pid) ]
     inst <- isInstantiatedMeta x
     case inst of
       True  -> instantiate (MetaV x es)
@@ -428,7 +428,7 @@ wakeupListener :: Listener -> TCM ()
   -- Andreas 2010-10-15: do not expand record mvars, lazyness needed for irrelevance
 wakeupListener (EtaExpand x)         = etaExpandMetaSafe x
 wakeupListener (CheckConstraint _ c) = do
-  reportSDoc "tc.meta.blocked" 20 $ text "waking boxed constraint" <+> prettyTCM c
+  reportSDoc "tc.meta.blocked" 20 $ "waking boxed constraint" <+> prettyTCM c
   addAwakeConstraints [c]
   solveAwakeConstraints
 
@@ -459,13 +459,13 @@ etaExpandMeta kinds m = whenM (asksTC envAssignMetas `and2M` isEtaExpandable kin
   verboseBracket "tc.meta.eta" 20 ("etaExpandMeta " ++ prettyShow m) $ do
     let waitFor x = do
           reportSDoc "tc.meta.eta" 20 $ do
-            text "postponing eta-expansion of meta variable" <+>
+            "postponing eta-expansion of meta variable" <+>
               prettyTCM m <+>
-              text "which is blocked by" <+> prettyTCM x
+              "which is blocked by" <+> prettyTCM x
           listenToMeta (EtaExpand m) x
         dontExpand = do
           reportSDoc "tc.meta.eta" 20 $ do
-            text "we do not expand meta variable" <+> prettyTCM m <+>
+            "we do not expand meta variable" <+> prettyTCM m <+>
               text ("(requested was expansion of " ++ show kinds ++ ")")
     meta <- lookupMeta m
     case mvJudgement meta of
@@ -488,7 +488,7 @@ etaExpandMeta kinds m = whenM (asksTC envAssignMetas `and2M` isEtaExpandable kin
                       verboseS "tc.meta.eta" 15 $ do
                         du <- prettyTCM u
                         reportSDoc "tc.meta.eta" 15 $ sep
-                          [ text "eta expanding: " <+> pretty m <+> text " --> "
+                          [ "eta expanding: " <+> pretty m <+> " --> "
                           , nest 2 $ prettyTCM u
                           ]
                       -- Andreas, 2012-03-29: No need for occurrence check etc.
@@ -545,7 +545,7 @@ assignWrapper :: CompareDirection -> MetaId -> Elims -> Term -> TCM () -> TCM ()
 assignWrapper dir x es v doAssign = do
   ifNotM (asksTC envAssignMetas) patternViolation $ {- else -} do
     reportSDoc "tc.meta.assign" 10 $ do
-      text "term" <+> prettyTCM (MetaV x es) <+> text (":" ++ show dir) <+> prettyTCM v
+      "term" <+> prettyTCM (MetaV x es) <+> text (":" ++ show dir) <+> prettyTCM v
     liftTCM $ nowSolvingConstraints doAssign `finally` solveAwakeConstraints
 
 
@@ -584,7 +584,7 @@ assign dir x args v = do
   -- with full unfolding.
   v <- instantiate v
   reportSDoc "tc.meta.assign" 45 $
-    text "MetaVars.assign: assigning to " <+> prettyTCM v
+    "MetaVars.assign: assigning to " <+> prettyTCM v
 
   reportSLn "tc.meta.assign" 75 $
     "MetaVars.assign: assigning meta  " ++ show x ++ "  with args  " ++ show args ++ "  to  " ++ show v
@@ -606,8 +606,8 @@ assign dir x args v = do
   reportSDoc "tc.meta.assign" 25 $ do
     v0 <- reduceB v
     case v0 of
-      Blocked m0 _ -> text "r.h.s. blocked on:" <+> prettyTCM m0
-      NotBlocked{} -> text "r.h.s. not blocked"
+      Blocked m0 _ -> "r.h.s. blocked on:" <+> prettyTCM m0
+      NotBlocked{} -> "r.h.s. not blocked"
 
   -- Turn the assignment problem @_X args >= SizeLt u@ into
   -- @_X args = SizeLt (_Y args@ and constraint
@@ -624,7 +624,7 @@ assign dir x args v = do
     reportSDoc "tc.meta.assign.proj" 45 $ do
       cxt <- getContextTelescope
       vcat
-        [ text "context before projection expansion"
+        [ "context before projection expansion"
         , nest 2 $ inTopContext $ prettyTCM cxt
         ]
 
@@ -633,7 +633,7 @@ assign dir x args v = do
       reportSDoc "tc.meta.assign.proj" 45 $ do
         cxt <- getContextTelescope
         vcat
-          [ text "context after projection expansion"
+          [ "context after projection expansion"
           , nest 2 $ inTopContext $ prettyTCM cxt
           ]
 
@@ -649,7 +649,7 @@ assign dir x args v = do
         -- Andreas, 2016-11-03 #2211 attempt to do s.th. for unused
         if False -- irrelevant $ getMetaRelevance mvar
           then do
-            reportSDoc "tc.meta.assign" 25 $ text "meta is irrelevant or unused"
+            reportSDoc "tc.meta.assign" 25 $ "meta is irrelevant or unused"
             return (Set.toList $ allFreeVars args, empty, empty)
           else do
             let vars  = allFreeVarsWithOcc args
@@ -671,12 +671,12 @@ assign dir x args v = do
       reportSDoc "tc.meta.assign" 20 $
           let pr (Var n []) = text (show n)
               pr (Def c []) = prettyTCM c
-              pr _          = text ".."
+              pr _          = ".."
           in vcat
-               [ text "mvar args:" <+> sep (map (pr . unArg) args)
-               , text "fvars lhs (rel):" <+> sep (map (text . show) relVL)
-               , text "fvars lhs (nonstrict):" <+> sep (map (text . show) nonstrictVL)
-               , text "fvars lhs (irr):" <+> sep (map (text . show) irrVL)
+               [ "mvar args:" <+> sep (map (pr . unArg) args)
+               , "fvars lhs (rel):" <+> sep (map (text . show) relVL)
+               , "fvars lhs (nonstrict):" <+> sep (map (text . show) nonstrictVL)
+               , "fvars lhs (irr):" <+> sep (map (text . show) irrVL)
                ]
 
       -- Check that the x doesn't occur in the right hand side.
@@ -690,9 +690,9 @@ assign dir x args v = do
       verboseS "tc.meta.assign" 30 $ do
         let n = termSize v
         when (n > 200) $ reportSDoc "tc.meta.assign" 30 $
-          sep [ text "size" <+> text (show n)
---              , nest 2 $ text "type" <+> prettyTCM t
-              , nest 2 $ text "term" <+> prettyTCM v
+          sep [ "size" <+> text (show n)
+--              , nest 2 $ "type" <+> prettyTCM t
+              , nest 2 $ "term" <+> prettyTCM v
               ]
 
       -- Check linearity of @ids@
@@ -702,7 +702,7 @@ assign dir x args v = do
       -- we'll build solutions where the irrelevant terms are not valid
       let fvs = allFreeVars v
       reportSDoc "tc.meta.assign" 20 $
-        text "fvars rhs:" <+> sep (map (text . show) $ Set.toList fvs)
+        "fvars rhs:" <+> sep (map (text . show) $ Set.toList fvs)
 
       -- Check that the arguments are variables
       mids <- do
@@ -711,7 +711,7 @@ assign dir x args v = do
           -- all args are variables
           Right ids -> do
             reportSDoc "tc.meta.assign" 50 $
-              text "inverseSubst returns:" <+> sep (map prettyTCM ids)
+              "inverseSubst returns:" <+> sep (map prettyTCM ids)
             return $ Just ids
           -- we have proper values as arguments which could be cased on
           -- here, we cannot prune, since offending vars could be eliminated
@@ -748,7 +748,7 @@ assign dir x args v = do
       -- non-linear lhs: we cannot solve, but prune
       killResult <- prune x args $ Set.toList fvs
       reportSDoc "tc.meta.assign" 10 $
-        text "pruning" <+> prettyTCM x <+> do
+        "pruning" <+> prettyTCM x <+> do
         text $
           if killResult `elem` [PrunedSomething,PrunedEverything] then "succeeded"
            else "failed"
@@ -761,8 +761,8 @@ assign dir x args v = do
 attemptInertRHSImprovement :: MetaId -> Args -> Term -> TCM ()
 attemptInertRHSImprovement m args v = do
   reportSDoc "tc.meta.inert" 30 $ vcat
-    [ text "attempting inert rhs improvement"
-    , nest 2 $ sep [ prettyTCM (MetaV m $ map Apply args) <+> text "=="
+    [ "attempting inert rhs improvement"
+    , nest 2 $ sep [ prettyTCM (MetaV m $ map Apply args) <+> "=="
                    , prettyTCM v ] ]
   -- Check that the right-hand side has the form D vs, for some inert constant D.
   -- Returns the type of D and a function to build an application of D.
@@ -777,7 +777,7 @@ attemptInertRHSImprovement m args v = do
   -- When attempting shortcut meta solutions, metas aren't necessarily fully
   -- eta expanded. If this is the case we skip inert improvement.
   when (length args < size tel) $ do
-    reportSDoc "tc.meta.inert" 30 $ text "not fully applied"
+    reportSDoc "tc.meta.inert" 30 $ "not fully applied"
     patternViolation
   -- Solve the meta with _M := \ xs -> D (_Y1 xs) .. (_Yn xs), for fresh metas
   -- _Yi.
@@ -786,10 +786,10 @@ attemptInertRHSImprovement m args v = do
       sol     = mkRHS metaArgs
       argTel  = map ("x" <$) args
   reportSDoc "tc.meta.inert" 30 $ nest 2 $ vcat
-    [ text "a       =" <+> prettyTCM a
-    , text "tel     =" <+> prettyTCM tel
-    , text "metas   =" <+> prettyList (map prettyTCM metaArgs)
-    , text "sol     =" <+> prettyTCM sol
+    [ "a       =" <+> prettyTCM a
+    , "tel     =" <+> prettyTCM tel
+    , "metas   =" <+> prettyList (map prettyTCM metaArgs)
+    , "sol     =" <+> prettyTCM sol
     ]
   assignTerm m argTel sol
   patternViolation  -- throwing a pattern violation here lets the constraint
@@ -798,12 +798,12 @@ attemptInertRHSImprovement m args v = do
     ensureInert :: Term -> TCM (Type, Args -> Term)
     ensureInert v = do
       let notInert = do
-            reportSDoc "tc.meta.inert" 30 $ nest 2 $ text "not inert:" <+> prettyTCM v
+            reportSDoc "tc.meta.inert" 30 $ nest 2 $ "not inert:" <+> prettyTCM v
             patternViolation
           toArgs elims =
             case allApplyElims elims of
               Nothing -> do
-                reportSDoc "tc.meta.inert" 30 $ nest 2 $ text "can't do projections from inert"
+                reportSDoc "tc.meta.inert" 30 $ nest 2 $ "can't do projections from inert"
                 patternViolation
               Just args -> return args
       case v of
@@ -832,11 +832,11 @@ attemptInertRHSImprovement m args v = do
     ensureNeutral rhs v = do
       b <- reduceB v
       let notNeutral v = do
-            reportSDoc "tc.meta.inert" 30 $ nest 2 $ text "not neutral:" <+> prettyTCM v
+            reportSDoc "tc.meta.inert" 30 $ nest 2 $ "not neutral:" <+> prettyTCM v
             patternViolation
           checkRHS arg
             | arg == rhs = do
-              reportSDoc "tc.meta.inert" 30 $ nest 2 $ text "argument shares head with RHS:" <+> prettyTCM arg
+              reportSDoc "tc.meta.inert" 30 $ nest 2 $ "argument shares head with RHS:" <+> prettyTCM arg
               patternViolation
             | otherwise  = return ()
       case b of
@@ -871,7 +871,7 @@ assignMeta' :: Int -> MetaId -> Type -> Int -> SubstCand -> Term -> TCM ()
 assignMeta' m x t n ids v = do
   -- we are linear, so we can solve!
   reportSDoc "tc.meta.assign" 25 $
-      text "preparing to instantiate: " <+> prettyTCM v
+      "preparing to instantiate: " <+> prettyTCM v
 
   -- Rename the variables in v to make it suitable for abstraction over ids.
   v' <- do
@@ -902,12 +902,12 @@ assignMeta' m x t n ids v = do
     -- we need to construct tel' from the type of the meta variable
     -- (no longer from ids which may not be the complete variable list
     -- any more)
-    reportSDoc "tc.meta.assign" 15 $ text "type of meta =" <+> prettyTCM t
-    reportSDoc "tc.meta.assign" 70 $ text "type of meta =" <+> text (show t)
+    reportSDoc "tc.meta.assign" 15 $ "type of meta =" <+> prettyTCM t
+    reportSDoc "tc.meta.assign" 70 $ "type of meta =" <+> text (show t)
 
     (telv@(TelV tel' a),bs) <- telViewUpToPathBoundary n t
-    reportSDoc "tc.meta.assign" 30 $ text "tel'  =" <+> prettyTCM tel'
-    reportSDoc "tc.meta.assign" 30 $ text "#args =" <+> text (show n)
+    reportSDoc "tc.meta.assign" 30 $ "tel'  =" <+> prettyTCM tel'
+    reportSDoc "tc.meta.assign" 30 $ "#args =" <+> text (show n)
     -- Andreas, 2013-09-17 (AIM XVIII): if t does not provide enough
     -- types for the arguments, it might be blocked by a meta;
     -- then we give up. (Issue 903)
@@ -921,19 +921,19 @@ assignMeta' m x t n ids v = do
     -- Andreas, 2013-10-25 double check solution before assigning
     whenM (optDoubleCheck <$> pragmaOptions) $ noConstraints $ dontAssignMetas $ do
       m <- lookupMeta x
-      reportSDoc "tc.meta.check" 30 $ text "double checking solution"
+      reportSDoc "tc.meta.check" 30 $ "double checking solution"
       addContext tel' $ case mvJudgement m of
         HasType{} -> do
           reportSDoc "tc.meta.check" 30 $ nest 2 $
-            prettyTCM v' <+> text " : " <+> prettyTCM a
+            prettyTCM v' <+> " : " <+> prettyTCM a
           checkInternal v' a
         IsSort{}  -> void $ do
           reportSDoc "tc.meta.check" 30 $ nest 2 $
-            prettyTCM v' <+> text " is a sort"
+            prettyTCM v' <+> " is a sort"
           checkSort defaultAction =<< shouldBeSort (El __DUMMY_SORT__ v')
 
     reportSDoc "tc.meta.assign" 10 $
-      text "solving" <+> prettyTCM x <+> text ":=" <+> prettyTCM vsol
+      "solving" <+> prettyTCM x <+> ":=" <+> prettyTCM vsol
 
     v' <- blockOnBoundary telv bs v'
 
@@ -1005,16 +1005,16 @@ expandProjectedVars
   -> TCM c
 expandProjectedVars args v ret = loop (args, v) where
   loop (args, v) = do
-    reportSDoc "tc.meta.assign.proj" 45 $ text "meta args: " <+> prettyTCM args
+    reportSDoc "tc.meta.assign.proj" 45 $ "meta args: " <+> prettyTCM args
     args <- callByName $ reduceAndEtaContract args
     -- args <- etaContract =<< normalise args
-    reportSDoc "tc.meta.assign.proj" 45 $ text "norm args: " <+> prettyTCM args
-    reportSDoc "tc.meta.assign.proj" 85 $ text "norm args: " <+> text (show args)
+    reportSDoc "tc.meta.assign.proj" 45 $ "norm args: " <+> prettyTCM args
+    reportSDoc "tc.meta.assign.proj" 85 $ "norm args: " <+> text (show args)
     let done = ret args v
     case noProjectedVar args of
       Right ()              -> do
         reportSDoc "tc.meta.assign.proj" 40 $
-          text "no projected var found in args: " <+> prettyTCM args
+          "no projected var found in args: " <+> prettyTCM args
         done
       Left (ProjVarExc i _) -> etaExpandProjectedVar i (args, v) done loop
 
@@ -1022,11 +1022,11 @@ expandProjectedVars args v ret = loop (args, v) where
 etaExpandProjectedVar :: (PrettyTCM a, Subst Term a) => Int -> a -> TCM c -> (a -> TCM c) -> TCM c
 etaExpandProjectedVar i v fail succeed = do
   reportSDoc "tc.meta.assign.proj" 40 $
-    text "trying to expand projected variable" <+> prettyTCM (var i)
+    "trying to expand projected variable" <+> prettyTCM (var i)
   caseMaybeM (etaExpandBoundVar i) fail $ \ (delta, sigma, tau) -> do
     reportSDoc "tc.meta.assign.proj" 25 $
-      text "eta-expanding var " <+> prettyTCM (var i) <+>
-      text " in terms " <+> prettyTCM v
+      "eta-expanding var " <+> prettyTCM (var i) <+>
+      " in terms " <+> prettyTCM v
     inTopContext $ addContext delta $
       succeed $ applySubst tau v
 
@@ -1176,8 +1176,8 @@ inverseSubst args = map (mapFst unArg) <$> loop (zip args terms)
     terms = map var (downFrom (size args))
     failure = do
       lift $ reportSDoc "tc.meta.assign" 15 $ vcat
-        [ text "not all arguments are variables: " <+> prettyTCM args
-        , text "  aborting assignment" ]
+        [ "not all arguments are variables: " <+> prettyTCM args
+        , "  aborting assignment" ]
       throwError CantInvert
     neutralArg = throwError NeutralArg
 
@@ -1286,10 +1286,10 @@ openMetasToPostulates = do
       -- Debug.
       reportSDoc "meta.postulate" 20 $ vcat
         [ text ("Turning " ++ if isSortMeta_ mv then "sort" else "value" ++ " meta ")
-            <+> prettyTCM x <+> text " into postulate."
+            <+> prettyTCM x <+> " into postulate."
         , nest 2 $ vcat
-          [ text "Name: " <+> prettyTCM q
-          , text "Type: " <+> prettyTCM t
+          [ "Name: " <+> prettyTCM q
+          , "Type: " <+> prettyTCM t
           ]
         ]
 

@@ -39,9 +39,9 @@ data Lisp a
 
 instance Pretty a => Pretty (Lisp a) where
   pretty (A a )     = pretty a
-  pretty (Cons a b) = parens (pretty a <+> text "." <+> pretty b)
+  pretty (Cons a b) = parens (pretty a <+> "." <+> pretty b)
   pretty (L xs)     = parens (hsep (map pretty xs))
-  pretty (Q x)      = text "'" <> pretty x
+  pretty (Q x)      = "'" <> pretty x
 
 instance Show (Lisp String) where
   showsPrec _ (A a)      = showString a

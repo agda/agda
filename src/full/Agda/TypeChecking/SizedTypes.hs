@@ -46,15 +46,15 @@ checkSizeLtSat t = whenM haveSizeLt $ do
   reportSDoc "tc.size" 10 $ do
     tel <- getContextTelescope
     sep
-      [ text "checking that " <+> prettyTCM t <+> text " is not an empty type of sizes"
+      [ "checking that " <+> prettyTCM t <+> " is not an empty type of sizes"
       , if null tel then empty else do
-        text "in context " <+> inTopContext (prettyTCM tel)
+        "in context " <+> inTopContext (prettyTCM tel)
       ]
   reportSLn "tc.size" 60 $ "- raw type = " ++ show t
   let postpone :: Term -> TCM ()
       postpone t = do
         reportSDoc "tc.size.lt" 20 $ sep
-          [ text "- postponing `not empty type of sizes' check for " <+> prettyTCM t ]
+          [ "- postponing `not empty type of sizes' check for " <+> prettyTCM t ]
         addConstraint $ CheckSizeLtSat t
   let ok :: TCM ()
       ok = reportSLn "tc.size.lt" 20 $ "- succeeded: not an empty type of sizes"
@@ -65,13 +65,13 @@ checkSizeLtSat t = whenM haveSizeLt $ do
       case b of
         BoundedNo -> ok
         BoundedLt b -> do
-          reportSDoc "tc.size.lt" 20 $ text " - type is SIZELT" <+> prettyTCM b
+          reportSDoc "tc.size.lt" 20 $ " - type is SIZELT" <+> prettyTCM b
           ifBlocked b (\ _ _ -> postpone t) $ \ _ b -> do
             reportSLn "tc.size.lt" 20 $ " - size bound is not blocked"
             catchConstraint (CheckSizeLtSat t) $ do
               unlessM (checkSizeNeverZero b) $ do
                 typeError . GenericDocError =<< do
-                  text "Possibly empty type of sizes " <+> prettyTCM t
+                  "Possibly empty type of sizes " <+> prettyTCM t
 
 -- | Precondition: Term is reduced and not blocked.
 --   Throws a 'patternViolation' if undecided
@@ -99,8 +99,8 @@ checkSizeNeverZero u = do
 --   -- We raise each type to make sense in the current context.
 --   let ts = zipWith raise [1..] $ map (snd . unDom) doms
 --   reportSDoc "tc.size" 15 $ sep
---     [ text "checking that size " <+> prettyTCM (var i) <+> text " is never 0"
---     , text "in context " <+> do sep $ map prettyTCM ts
+--     [ "checking that size " <+> prettyTCM (var i) <+> " is never 0"
+--     , "in context " <+> do sep $ map prettyTCM ts
 --     ]
 --   foldr f (return False) ts
 --   where
@@ -126,7 +126,7 @@ checkSizeNeverZero u = do
 --   Throws a 'patternViolation' if undecided.
 checkSizeVarNeverZero :: Int -> TCM Bool
 checkSizeVarNeverZero i = do
-  reportSDoc "tc.size" 20 $ text "checkSizeVarNeverZero" <+> prettyTCM (var i)
+  reportSDoc "tc.size" 20 $ "checkSizeVarNeverZero" <+> prettyTCM (var i)
   -- Looking for the minimal value for size variable i,
   -- we can restrict to the last i
   -- entries, as only these can contain i in an upper bound.
@@ -272,7 +272,7 @@ sizeMaxView v = do
 compareSizes :: Comparison -> Term -> Term -> TCM ()
 compareSizes cmp u v = do
   reportSDoc "tc.conv.size" 10 $ vcat
-    [ text "Comparing sizes"
+    [ "Comparing sizes"
     , nest 2 $ sep [ prettyTCM u <+> prettyTCM cmp
                    , prettyTCM v
                    ]
@@ -301,11 +301,11 @@ compareMaxViews cmp us vs = case (cmp, us, vs) of
 compareBelowMax :: DeepSizeView -> SizeMaxView -> TCM ()
 compareBelowMax u vs = do
   reportSDoc "tc.conv.size" 45 $ vcat
-    [ text "compareBelowMax"
+    [ "compareBelowMax"
     ]
   alt (dontAssignMetas $ alts $ map (compareSizeViews CmpLeq u) vs) $ do
     reportSDoc "tc.conv.size" 45 $ vcat
-      [ text "compareBelowMax: giving up"
+      [ "compareBelowMax: giving up"
       ]
     u <- unDeepSizeView u
     v <- unMaxView vs
@@ -319,7 +319,7 @@ compareBelowMax u vs = do
 compareSizeViews :: Comparison -> DeepSizeView -> DeepSizeView -> TCM ()
 compareSizeViews cmp s1' s2' = do
   reportSDoc "tc.conv.size" 45 $ hsep
-    [ text "compareSizeViews"
+    [ "compareSizeViews"
     , text (show s1')
     , text (show cmp)
     , text (show s2')
@@ -364,8 +364,8 @@ trivial u v = do
           -- Andreas, 2012-02-24  filtering out more trivial constraints fixes
           -- test/lib-succeed/SizeInconsistentMeta4.agda
     reportSDoc "tc.conv.size" 60 $
-      nest 2 $ sep [ if triv then text "trivial constraint" else empty
-                   , text (show a) <+> text "<="
+      nest 2 $ sep [ if triv then "trivial constraint" else empty
+                   , text (show a) <+> "<="
                    , text (show b)
                    ]
     return triv
@@ -508,7 +508,7 @@ oldComputeSizeConstraint c =
   case c of
     ValueCmp CmpLeq _ u v -> do
         reportSDoc "tc.size.solve" 50 $ sep
-          [ text "converting size constraint"
+          [ "converting size constraint"
           , prettyTCM c
           ]
         (a, n) <- oldSizeExpr u
@@ -526,7 +526,7 @@ oldSizeExpr :: Term -> TCM (OldSizeExpr, Int)
 oldSizeExpr u = do
   u <- reduce u -- Andreas, 2009-02-09.
                 -- This is necessary to surface the solutions of metavariables.
-  reportSDoc "tc.conv.size" 60 $ text "oldSizeExpr:" <+> prettyTCM u
+  reportSDoc "tc.conv.size" 60 $ "oldSizeExpr:" <+> prettyTCM u
   s <- sizeView u
   case s of
     SizeInf     -> patternViolation
@@ -598,7 +598,7 @@ oldSolveSizeConstraints = whenM haveSizedTypes $ do
 
     let -- Error for giving up
         cannotSolve = typeError . GenericDocError =<<
-          vcat (text "Cannot solve size constraints" : map prettyTCM cs0)
+          vcat ("Cannot solve size constraints" : map prettyTCM cs0)
 
         -- Size metas in constraints.
         metas0 :: [(MetaId, Int)]  -- meta id + arity
@@ -672,7 +672,7 @@ oldSolver metas cs = do
                 v = term e
 
             reportSDoc "tc.size.solve" 20 $ sep
-              [ pretty m <+> text ":="
+              [ pretty m <+> ":="
               , nest 2 $ prettyTCM v
               ]
 

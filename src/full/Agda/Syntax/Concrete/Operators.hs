@@ -390,7 +390,7 @@ buildParsers r flat kind exprNames = do
               }
 
     reportSDoc "scope.grammar" 10 $ return $
-      text "Operator grammar:" $$ nest 2 (grammar (pTop g))
+      "Operator grammar:" $$ nest 2 (grammar (pTop g))
 
     return (parseSections, everything, g)
     where
@@ -606,7 +606,7 @@ parseLHS' lhsOrPatSyn top p = do
                , p' <- foldr seq () result `seq` result
                , res <- validPattern (PatternCheckConfig top cons flds) p' ] of
         [(p,lhs)] -> do reportSDoc "scope.operators" 50 $ return $
-                          text "Parsed lhs:" <+> pretty lhs
+                          "Parsed lhs:" <+> pretty lhs
                         return (lhs, ops)
         []        -> typeError $ OperatorInformation ops
                                $ NoParseForLHS lhsOrPatSyn p
@@ -738,7 +738,7 @@ parseApplication es  = billToParser IsExpr $ do
     case foldr seq () result `seq` result of
         [e] -> do
           reportSDoc "scope.operators" 50 $ return $
-            text "Parsed an operator application:" <+> pretty e
+            "Parsed an operator application:" <+> pretty e
           return e
         []  -> typeError $ OperatorInformation ops
                          $ NoParseForApplication es

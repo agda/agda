@@ -55,8 +55,8 @@ instance Pretty Doc where
   pretty = id
 
 instance Pretty a => Pretty (Maybe a) where
-  prettyPrec p Nothing  = text "Nothing"
-  prettyPrec p (Just x) = mparens (p > 0) $ text "Just" <+> prettyPrec 10 x
+  prettyPrec p Nothing  = "Nothing"
+  prettyPrec p (Just x) = mparens (p > 0) $ "Just" <+> prettyPrec 10 x
 
 instance Pretty a => Pretty [a] where
   pretty = prettyList

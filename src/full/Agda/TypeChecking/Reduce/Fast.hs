@@ -765,7 +765,7 @@ unusedPointer = Pure (Closure (Value $ notBlocked ())
 --   the term with an attached blocking tag.
 reduceTm :: ReduceEnv -> BuiltinEnv -> (QName -> CompactDef) -> Normalisation -> ReductionFlags -> Term -> Blocked Term
 reduceTm rEnv bEnv !constInfo normalisation ReductionFlags{..} =
-    compileAndRun . traceDoc (text "-- fast reduce --")
+    compileAndRun . traceDoc "-- fast reduce --"
   where
     -- Helpers to get information from the ReduceEnv.
     metaStore      = redSt rEnv ^. stMetaStore
@@ -1275,7 +1275,7 @@ reduceTm rEnv bEnv !constInfo normalisation ReductionFlags{..} =
     rewriteAM' :: AM s -> ST s (Blocked Term)
     rewriteAM' s@(Eval (Closure (Value blk) t env spine) ctrl)
       | null rewr = runAM s
-      | otherwise = traceDoc (text "R" <+> pretty s) $ do
+      | otherwise = traceDoc ("R" <+> pretty s) $ do
         v0 <- decodeClosure_ (Closure Unevaled t env [])
         es <- decodeSpine spine
         case runReduce (rewrite blk v0 rewr es) of
@@ -1348,21 +1348,21 @@ instance Pretty a => Pretty (FastCase a) where
     mparens (p > 0) $ vcat (prettyMap cs ++ prettyMap ls ++ prSuc suc ++ prC m)
     where
       prC Nothing = []
-      prC (Just x) = [text "_ ->" <?> pretty x]
+      prC (Just x) = ["_ ->" <?> pretty x]
 
       prSuc Nothing  = []
-      prSuc (Just x) = [text "suc ->" <?> pretty x]
+      prSuc (Just x) = ["suc ->" <?> pretty x]
 
 instance Pretty NameId where
   pretty = text . show
 
 instance Pretty FastCompiledClauses where
-  pretty (FDone xs t) = (text "done" <+> prettyList xs) <?> prettyPrec 10 t
-  pretty FFail        = text "fail"
+  pretty (FDone xs t) = ("done" <+> prettyList xs) <?> prettyPrec 10 t
+  pretty FFail        = "fail"
   pretty (FEta n _ cc ca) =
     text ("eta " ++ show n ++ " of") <?>
-      vcat ([ text "{} ->" <?> pretty cc ] ++
-            [ text "_ ->" <?> pretty cc | Just cc <- [ca] ])
+      vcat ([ "{} ->" <?> pretty cc ] ++
+            [ "_ ->" <?> pretty cc | Just cc <- [ca] ])
   pretty (FCase n bs) | fprojPatterns bs =
     sep [ text $ "project " ++ show n
         , nest 2 $ pretty bs
@@ -1371,7 +1371,7 @@ instance Pretty FastCompiledClauses where
     text ("case " ++ show n ++ " of") <?> pretty bs
 
 instance Pretty a => Pretty (Thunk a) where
-  prettyPrec _ BlackHole  = text "<BLACKHOLE>"
+  prettyPrec _ BlackHole  = "<BLACKHOLE>"
   prettyPrec p (Thunk cl) = prettyPrec p cl
 
 instance Pretty (Pointer s) where
@@ -1379,7 +1379,7 @@ instance Pretty (Pointer s) where
 
 instance Pretty (Closure s) where
   prettyPrec _ (Closure Value{} (Lit (LitString _ unused)) _ _)
-    | unused == unusedPointerString = text "_"
+    | unused == unusedPointerString = "_"
   prettyPrec p (Closure isV t env spine) =
     mparens (p > 9) $ fsep [ text tag
                            , nest 2 $ prettyPrec 10 t
@@ -1391,31 +1391,31 @@ instance Pretty (Closure s) where
 instance Pretty (AM s) where
   prettyPrec p (Eval cl ctrl)  = prettyPrec p cl <?> prettyList ctrl
   prettyPrec p (Match f cc sp stack ctrl) =
-    mparens (p > 9) $ sep [ text "M" <+> pretty f
+    mparens (p > 9) $ sep [ "M" <+> pretty f
                           , nest 2 $ prettyList sp
                           , nest 2 $ prettyPrec 10 cc
                           , nest 2 $ pretty stack
                           , nest 2 $ prettyList ctrl ]
 
 instance Pretty (CatchAllFrame s) where
-  pretty CatchAll{} = text "CatchAll"
+  pretty CatchAll{} = "CatchAll"
 
 instance Pretty (MatchStack s) where
   pretty ([] :> _) = empty
   pretty (ca :> _) = prettyList ca
 
 instance Pretty (ControlFrame s) where
-  prettyPrec p (CaseK f _ _ _ _ mc)     = mparens (p > 9) $ (text "CaseK" <+> pretty (qnameName f)) <?> pretty mc
-  prettyPrec p (ForceK _ spine0 spine1) = mparens (p > 9) $ text "ForceK" <?> prettyList (spine0 <> spine1)
-  prettyPrec p (TrustMeK _ sp0 sp1 sp2) = mparens (p > 9) $ sep [ text "TrustMeK"
+  prettyPrec p (CaseK f _ _ _ _ mc)     = mparens (p > 9) $ ("CaseK" <+> pretty (qnameName f)) <?> pretty mc
+  prettyPrec p (ForceK _ spine0 spine1) = mparens (p > 9) $ "ForceK" <?> prettyList (spine0 <> spine1)
+  prettyPrec p (TrustMeK _ sp0 sp1 sp2) = mparens (p > 9) $ sep [ "TrustMeK"
                                                                 , nest 2 $ prettyList sp0
                                                                 , nest 2 $ prettyList sp1
                                                                 , nest 2 $ prettyList sp2 ]
   prettyPrec _ (NatSucK n)              = text ("+" ++ show n)
-  prettyPrec p (PrimOpK f _ vs cls _)   = mparens (p > 9) $ sep [ text "PrimOpK" <+> pretty f
+  prettyPrec p (PrimOpK f _ vs cls _)   = mparens (p > 9) $ sep [ "PrimOpK" <+> pretty f
                                                                 , nest 2 $ prettyList vs
                                                                 , nest 2 $ prettyList cls ]
-  prettyPrec p (UpdateThunk ps)         = mparens (p > 9) $ text "UpdateThunk" <+> text (show (length ps))
-  prettyPrec p (ApplyK spine)           = mparens (p > 9) $ text "ApplyK" <?> prettyList spine
-  prettyPrec p NormaliseK               = text "NormaliseK"
-  prettyPrec p (ArgK cl _)              = mparens (p > 9) $ sep [ text "ArgK" <+> prettyPrec 10 cl ]
+  prettyPrec p (UpdateThunk ps)         = mparens (p > 9) $ "UpdateThunk" <+> text (show (length ps))
+  prettyPrec p (ApplyK spine)           = mparens (p > 9) $ "ApplyK" <?> prettyList spine
+  prettyPrec p NormaliseK               = "NormaliseK"
+  prettyPrec p (ArgK cl _)              = mparens (p > 9) $ sep [ "ArgK" <+> prettyPrec 10 cl ]

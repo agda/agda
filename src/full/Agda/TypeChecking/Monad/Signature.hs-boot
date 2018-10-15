@@ -1,5 +1,10 @@
+{-# LANGUAGE CPP #-}
 
 module Agda.TypeChecking.Monad.Signature where
+
+#if __GLASGOW_HASKELL__ >= 800
+import qualified Control.Monad.Fail as Fail
+#endif
 
 import Control.Monad.Reader
 
@@ -16,7 +21,17 @@ import Agda.Utils.Pretty (prettyShow)
 
 data SigError = SigUnknown String | SigAbstract
 
-class (Functor m, Applicative m, Monad m, HasOptions m, MonadDebug m, MonadTCEnv m) => HasConstInfo m where
+class ( Functor m
+      , Applicative m
+#if __GLASGOW_HASKELL__ == 710
+      , Monad m
+#else
+      , Fail.MonadFail m
+#endif
+      , HasOptions m
+      , MonadDebug m
+      , MonadTCEnv m
+      ) => HasConstInfo m where
   getConstInfo :: QName -> m Definition
   getConstInfo q = getConstInfo' q >>= \case
       Right d -> return d

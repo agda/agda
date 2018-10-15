@@ -224,13 +224,13 @@ occursCheck m xs v = disableDestructiveUpdate $ Bench.billTo [ Bench.Typing, Ben
           ( typeError . GenericError . show =<<
             fsep [ text ("Cannot instantiate the metavariable " ++ prettyShow m ++ " to")
                  , prettyTCM v
-                 , text "since universe polymorphism is disabled"
+                 , "since universe polymorphism is disabled"
                  ]
           ) {- else -}
           ( typeError . GenericError . show =<<
               fsep [ text ("Cannot instantiate the metavariable " ++ prettyShow m ++ " to solution")
                    , prettyTCM v
-                   , text "since it contains the variable"
+                   , "since it contains the variable"
                    , enterClosure cl $ \_ -> prettyTCM (Var i [])
                    , text $ "which is not in scope of the metavariable or irrelevant in the metavariable but relevant in the solution"
                    ]
@@ -239,7 +239,7 @@ occursCheck m xs v = disableDestructiveUpdate $ Bench.billTo [ Bench.Typing, Ben
           typeError . GenericError . show =<<
             fsep [ text ("Cannot instantiate the metavariable " ++ prettyShow m ++ " to solution")
                  , prettyTCM v
-                 , text "since (part of) the solution was created in an irrelevant context."
+                 , "since (part of) the solution was created in an irrelevant context."
                  ]
         _ -> throwError err
       _ -> throwError err
@@ -264,11 +264,11 @@ instance Occurs Term where
             if (i `allowedVar` xs) then Var i <$> occ (weakly ctx) es else do
               -- if the offending variable is of singleton type,
               -- eta-expand it away
-              reportSDoc "tc.meta.occurs" 35 $ text "offending variable: " <+> prettyTCM (var i)
+              reportSDoc "tc.meta.occurs" 35 $ "offending variable: " <+> prettyTCM (var i)
               t <-  typeOfBV i
-              reportSDoc "tc.meta.occurs" 35 $ nest 2 $ text "of type " <+> prettyTCM t
+              reportSDoc "tc.meta.occurs" 35 $ nest 2 $ "of type " <+> prettyTCM t
               isST <- isSingletonType t
-              reportSDoc "tc.meta.occurs" 35 $ nest 2 $ text "(after singleton test)"
+              reportSDoc "tc.meta.occurs" 35 $ nest 2 $ "(after singleton test)"
               case isST of
                 -- cannot decide, blocked by meta-var
                 Left mid -> patternViolation' 70 $ "Disallowed var " ++ show i ++ " not obviously singleton"
@@ -522,12 +522,12 @@ prune m' vs xs = do
   caseEitherM (runExceptT $ mapM (hasBadRigid xs) $ map unArg vs)
     (const $ return PrunedNothing) $ \ kills -> do
     reportSDoc "tc.meta.kill" 10 $ vcat
-      [ text "attempting kills"
+      [ "attempting kills"
       , nest 2 $ vcat
-        [ text "m'    =" <+> pretty m'
-        , text "xs    =" <+> prettyList (map (prettyTCM . var) xs)
-        , text "vs    =" <+> prettyList (map prettyTCM vs)
-        , text "kills =" <+> text (show kills)
+        [ "m'    =" <+> pretty m'
+        , "xs    =" <+> prettyList (map (prettyTCM . var) xs)
+        , "vs    =" <+> prettyList (map prettyTCM vs)
+        , "kills =" <+> text (show kills)
         ]
       ]
     killArgs kills m'
@@ -751,13 +751,13 @@ killArgs kills m = do
     implies True  x = x
     dbg kills' a a' =
       reportSDoc "tc.meta.kill" 10 $ vcat
-        [ text "after kill analysis"
+        [ "after kill analysis"
         , nest 2 $ vcat
-          [ text "metavar =" <+> prettyTCM m
-          , text "kills   =" <+> text (show kills)
-          , text "kills'  =" <+> text (show kills')
-          , text "oldType =" <+> prettyTCM a
-          , text "newType =" <+> prettyTCM a'
+          [ "metavar =" <+> prettyTCM m
+          , "kills   =" <+> text (show kills)
+          , "kills'  =" <+> text (show kills')
+          , "oldType =" <+> prettyTCM a
+          , "newType =" <+> prettyTCM a'
           ]
         ]
 
@@ -876,10 +876,10 @@ performKill kills m a = do
   assignTerm m tel u  -- m tel := u
   where
     dbg m' u = reportSDoc "tc.meta.kill" 10 $ vcat
-      [ text "actual killing"
+      [ "actual killing"
       , nest 2 $ vcat
-        [ text "new meta:" <+> pretty m'
-        , text "kills   :" <+> text (show kills)
-        , text "inst    :" <+> pretty m <+> text ":=" <+> prettyTCM u
+        [ "new meta:" <+> pretty m'
+        , "kills   :" <+> text (show kills)
+        , "inst    :" <+> pretty m <+> ":=" <+> prettyTCM u
         ]
       ]

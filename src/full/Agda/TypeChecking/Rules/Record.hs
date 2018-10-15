@@ -79,10 +79,10 @@ checkRecDef
 checkRecDef i name uc ind eta con ps contel fields =
   traceCall (CheckRecDef (getRange name) (qnameName name) ps fields) $ do
     reportSDoc "tc.rec" 10 $ vcat
-      [ text "checking record def" <+> prettyTCM name
-      , nest 2 $ text "ps ="     <+> prettyList (map prettyAs ps)
-      , nest 2 $ text "contel =" <+> prettyA contel
-      , nest 2 $ text "fields =" <+> prettyA (map Constr fields)
+      [ "checking record def" <+> prettyTCM name
+      , nest 2 $ "ps ="     <+> prettyList (map prettyAs ps)
+      , nest 2 $ "contel =" <+> prettyA contel
+      , nest 2 $ "fields =" <+> prettyA (map Constr fields)
       ]
     -- get type of record
     t <- instantiateFull =<< typeOfConst name
@@ -92,10 +92,10 @@ checkRecDef i name uc ind eta con ps contel fields =
       -- which is the approximate constructor type (target missing).
 
       -- Check and evaluate field types.
-      reportSDoc "tc.rec" 15 $ text "checking fields"
+      reportSDoc "tc.rec" 15 $ "checking fields"
       contype <- workOnTypes $ instantiateFull =<< isType_ contel
       reportSDoc "tc.rec" 20 $ vcat
-        [ text "contype = " <+> prettyTCM contype ]
+        [ "contype = " <+> prettyTCM contype ]
 
       -- compute the field telescope (does not include record parameters)
       let TelV ftel _ = telView' contype
@@ -115,7 +115,7 @@ checkRecDef i name uc ind eta con ps contel fields =
 
       reportSDoc "tc.rec" 20 $ do
         gamma <- getContextTelescope  -- the record params (incl. module params)
-        text "gamma = " <+> inTopContext (prettyTCM gamma)
+        "gamma = " <+> inTopContext (prettyTCM gamma)
 
       -- record type (name applied to parameters)
       rect <- El s . Def name . map Apply <$> getContextArgs
@@ -135,7 +135,7 @@ checkRecDef i name uc ind eta con ps contel fields =
           return (False, c, i)
 
       -- Add record type to signature.
-      reportSDoc "tc.rec" 15 $ text "adding record type to signature"
+      reportSDoc "tc.rec" 15 $ "adding record type to signature"
 
       etaenabled <- etaEnabled
 
@@ -170,11 +170,11 @@ checkRecDef i name uc ind eta con ps contel fields =
       -- Disallow coinductive records with eta-equality
       when (conInduction == CoInductive && theEtaEquality haveEta == YesEta) $ do
         typeError . GenericDocError =<< do
-          sep [ text "Agda doesn't like coinductive records with eta-equality."
-              , text "If you must, use pragma"
-              , text "{-# ETA" <+> prettyTCM name <+> text "#-}"
+          sep [ "Agda doesn't like coinductive records with eta-equality."
+              , "If you must, use pragma"
+              , "{-# ETA" <+> prettyTCM name <+> "#-}"
               ]
-      reportSDoc "tc.rec" 30 $ text "record constructor is " <+> prettyTCM con
+      reportSDoc "tc.rec" 30 $ "record constructor is " <+> prettyTCM con
 
       -- Add the record definition.
 
@@ -236,19 +236,19 @@ checkRecDef i name uc ind eta con ps contel fields =
 
 {- Andreas, 2013-09-13 DEBUGGING the debug printout
       reportSDoc "tc.rec" 80 $ sep
-        [ text "current module record telescope"
+        [ "current module record telescope"
         , nest 2 $ (prettyTCM =<< getContextTelescope)
         ]
       reportSDoc "tc.rec" 80 $ sep
-        [ text "current module record telescope"
+        [ "current module record telescope"
         , nest 2 $ (text . show =<< getContextTelescope)
         ]
       reportSDoc "tc.rec" 80 $ sep
-        [ text "current module record telescope"
+        [ "current module record telescope"
         , nest 2 $ (inTopContext . prettyTCM =<< getContextTelescope)
         ]
       reportSDoc "tc.rec" 80 $ sep
-        [ text "current module record telescope"
+        [ "current module record telescope"
         , nest 2 $ do
            tel <- getContextTelescope
            text (show tel) $+$ do
@@ -257,12 +257,13 @@ checkRecDef i name uc ind eta con ps contel fields =
                telA <- reify tel
                text (show telA) $+$ do
                ctx <- getContextTelescope
-               text "should be empty:" <+> prettyTCM ctx
+               "should be empty:" <+> prettyTCM ctx
         ]
 -}
 
       let info = setRelevance recordRelevance defaultArgInfo
-          addRecordVar = addContext ("", setArgInfo info $ defaultDom rect)
+          addRecordVar =
+            addContext ("" :: String, setArgInfo info $ defaultDom rect)
           -- the record variable has the empty name by intention, see issue 208
 
       let m = qnameToMName name  -- Name of record module.
@@ -276,14 +277,14 @@ checkRecDef i name uc ind eta con ps contel fields =
         -- Add the record section.
 
         reportSDoc "tc.rec.def" 10 $ sep
-          [ text "record section:"
+          [ "record section:"
           , nest 2 $ sep
             [ prettyTCM m <+> (inTopContext . prettyTCM =<< getContextTelescope)
             , fsep $ punctuate comma $ map (return . P.pretty . getName) fields
             ]
           ]
         reportSDoc "tc.rec.def" 15 $ nest 2 $ vcat
-          [ text "field tel =" <+> escapeContext 1 (prettyTCM ftel)
+          [ "field tel =" <+> escapeContext 1 (prettyTCM ftel)
           ]
         addSection m
 
@@ -473,14 +474,14 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
       -- because then meta variables are created again.
       -- Instead, we take the field type t from the field telescope.
       reportSDoc "tc.rec.proj" 5 $ sep
-        [ text "checking projection" <+> prettyTCM x
+        [ "checking projection" <+> prettyTCM x
         , nest 2 $ vcat
-          [ text "top   =" <+> (inTopContext . prettyTCM =<< getContextTelescope)
-          , text "tel   =" <+> (inTopContext . prettyTCM $ tel)
-          , text "ftel1 =" <+> prettyTCM ftel1
-          , text "t     =" <+> prettyTCM t
-          , text "ftel2 =" <+> addContext ftel1 (underAbstraction_ ftel2 prettyTCM)
-          , text "abstr =" <+> (text . show) (Info.defAbstract info)
+          [ "top   =" <+> (inTopContext . prettyTCM =<< getContextTelescope)
+          , "tel   =" <+> (inTopContext . prettyTCM $ tel)
+          , "ftel1 =" <+> prettyTCM ftel1
+          , "t     =" <+> prettyTCM t
+          , "ftel2 =" <+> addContext ftel1 (underAbstraction_ ftel2 prettyTCM)
+          , "abstr =" <+> (text . show) (Info.defAbstract info)
           ]
         ]
 
@@ -512,7 +513,7 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
                                  $ Abs (nameToArgName $ qnameName projname) EmptyTel)
                                 (ftel2 `absApp` projcall ProjSystem) fs
 
-      reportSDoc "tc.rec.proj" 25 $ nest 2 $ text "finalt=" <+> do
+      reportSDoc "tc.rec.proj" 25 $ nest 2 $ "finalt=" <+> do
         inTopContext $ prettyTCM finalt
 
       -- -- Andreas, 2012-02-20 do not add irrelevant projections if
@@ -523,8 +524,8 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
       -- If --no-irrelevant-projections, then their use should be disallowed by the type checker for expressions.
       do
         reportSDoc "tc.rec.proj" 10 $ sep
-          [ text "adding projection"
-          , nest 2 $ prettyTCM projname <+> text ":" <+> inTopContext (prettyTCM finalt)
+          [ "adding projection"
+          , nest 2 $ prettyTCM projname <+> ":" <+> inTopContext (prettyTCM finalt)
           ]
 
         -- The body should be
@@ -554,7 +555,9 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
                                     , conPType   = Just $ argFromDom $ fmap snd rt
                                     , conPLazy   = True }
             conp   = defaultArg $ ConP con cpi $
-                     [ Arg ai' $ unnamed $ varP "x" | Dom{domInfo = ai'} <- telToList ftel ]
+                     [ Arg ai' $ unnamed $ varP ("x" :: String)
+                     | Dom{domInfo = ai'} <- telToList ftel
+                     ]
             body   = Just $ bodyMod $ var (size ftel2)
             cltel  = ftel
             clause = Clause { clauseLHSRange  = getRange info
@@ -579,16 +582,16 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
               }
 
         reportSDoc "tc.rec.proj" 80 $ sep
-          [ text "adding projection"
+          [ "adding projection"
           , nest 2 $ prettyTCM projname <+> text (show clause)
           ]
         reportSDoc "tc.rec.proj" 70 $ sep
-          [ text "adding projection"
-          , nest 2 $ prettyTCM projname <+> text (show (clausePats clause)) <+> text "=" <+>
-                       inTopContext (addContext ftel (maybe (text "_|_") prettyTCM (clauseBody clause)))
+          [ "adding projection"
+          , nest 2 $ prettyTCM projname <+> text (show (clausePats clause)) <+> "=" <+>
+                       inTopContext (addContext ftel (maybe "_|_" prettyTCM (clauseBody clause)))
           ]
         reportSDoc "tc.rec.proj" 10 $ sep
-          [ text "adding projection"
+          [ "adding projection"
           , nest 2 $ prettyTCM (QNamed projname clause)
           ]
 
@@ -599,7 +602,7 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
         cc <- compileClauses Nothing [clause]
 
         reportSDoc "tc.cc" 60 $ do
-          sep [ text "compiled clauses of " <+> prettyTCM projname
+          sep [ "compiled clauses of " <+> prettyTCM projname
               , nest 2 $ text (show cc)
               ]
 

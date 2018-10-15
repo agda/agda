@@ -1,6 +1,3 @@
--- {-# LANGUAGE CPP #-}
-{-# LANGUAGE OverloadedStrings #-}
-
 module Agda.Interaction.AgdaTop
     ( repl
     ) where

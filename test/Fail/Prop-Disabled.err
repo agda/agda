@@ -1,0 +1,4 @@
+Prop-Disabled.agda:8,18-24
+Universe Prop is disabled (use options --prop and --no-prop to
+enable/disable Prop)
+when checking that the expression Prop ℓ is a type

@@ -166,23 +166,23 @@ instance Pretty a => Pretty (Case a) where
   prettyPrec p (Branches _cop cs eta ls m b lazy) =
     mparens (p > 0) $ prLazy lazy <+> vcat (prettyMap cs ++ prEta eta ++ prettyMap ls ++ prC m)
     where
-      prLazy True  = text "~"
+      prLazy True  = "~"
       prLazy False = empty
       prC Nothing = []
-      prC (Just x) = [text "_ ->" <+> pretty x]
+      prC (Just x) = ["_ ->" <+> pretty x]
       prEta Nothing = []
-      prEta (Just (c, cc)) = [(text "eta" <+> pretty c <+> text "->") <?> pretty cc]
+      prEta (Just (c, cc)) = [("eta" <+> pretty c <+> "->") <?> pretty cc]
 
 prettyMap :: (Pretty k, Pretty v) => Map k v -> [Doc]
-prettyMap m = [ sep [ pretty k <+> text "->"
+prettyMap m = [ sep [ pretty k <+> "->"
                     , nest 2 $ pretty v ]
               | (k, v) <- Map.toList m ]
 
 instance Pretty CompiledClauses where
   pretty (Done hs t) = text ("done" ++ show hs) <?> pretty t
-  pretty Fail        = text "fail"
+  pretty Fail        = "fail"
   pretty (Case n bs) | projPatterns bs =
-    sep [ text "record"
+    sep [ "record"
         , nest 2 $ pretty bs
         ]
   pretty (Case n bs) =

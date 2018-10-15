@@ -209,4 +209,4 @@ instance Pretty cinfo => Pretty (CallMatrixAug cinfo) where
 
 instance Pretty cinfo => Pretty (CMSet cinfo) where
   pretty = vcat . punctuate newLine . map pretty . toList
-    where newLine = text "\n"
+    where newLine = "\n"

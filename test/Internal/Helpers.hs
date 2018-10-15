@@ -1,7 +1,8 @@
+{-# LANGUAGE CPP             #-}
 {-# LANGUAGE TemplateHaskell #-}
 
--- | Some functions and generators suitable for writing QuickCheck
--- properties.
+-- | Some functions, generators and instances suitable for writing
+-- QuickCheck properties.
 
 module Internal.Helpers
   ( -- * QuickCheck helpers
@@ -42,6 +43,11 @@ module Internal.Helpers
   where
 
 import Control.Monad
+
+#if __GLASGOW_HASKELL__ >= 800
+import qualified Control.Monad.Fail as Fail
+#endif
+
 import Data.Functor
 import Data.Monoid ( mappend, mempty, Monoid )
 import Data.Semigroup ( (<>), Semigroup )
@@ -55,9 +61,11 @@ import Agda.Utils.POMonoid
 ------------------------------------------------------------------------
 -- QuickCheck helpers
 
+#if !MIN_VERSION_QuickCheck(2,12,5)
 isSuccess :: Result -> Bool
 isSuccess Success{} = True
 isSuccess _         = False
+#endif
 
 quickCheck' :: Testable prop => prop -> IO Bool
 quickCheck' p = fmap isSuccess $ quickCheckResult p
@@ -225,6 +233,14 @@ two gen = liftM2 (,) gen gen
 
 three :: Gen a -> Gen (a, a, a)
 three gen = liftM3 (,,) gen gen gen
+
+------------------------------------------------------------------------
+-- Instances
+
+#if __GLASGOW_HASKELL__ >= 800
+instance Fail.MonadFail Gen where
+  fail = error
+#endif
 
 ------------------------------------------------------------------------
 -- Test driver

@@ -13,6 +13,11 @@ module Agda.Termination.Monad where
 import Prelude hiding (null)
 
 import Control.Applicative hiding (empty)
+
+#if __GLASGOW_HASKELL__ >= 800
+import qualified Control.Monad.Fail as Fail
+#endif
+
 import Control.Monad.Reader
 import Control.Monad.State
 
@@ -189,10 +194,23 @@ class (Functor m, Monad m) => MonadTer m where
 -- | Termination monad.
 
 newtype TerM a = TerM { terM :: ReaderT TerEnv TCM a }
-  deriving ( Functor, Applicative, Monad, MonadError TCErr
-           , MonadBench Phase, HasOptions, MonadDebug, HasConstInfo
-           , MonadIO, MonadTCEnv, MonadTCState, MonadTCM
-           , ReadTCState, MonadReduce
+  deriving ( Functor
+           , Applicative
+           , Monad
+#if __GLASGOW_HASKELL__ >= 800
+           , Fail.MonadFail
+#endif
+           , MonadError TCErr
+           , MonadBench Phase
+           , HasOptions
+           , MonadDebug
+           , HasConstInfo
+           , MonadIO
+           , MonadTCEnv
+           , MonadTCState
+           , MonadTCM
+           , ReadTCState
+           , MonadReduce
            )
 
 instance MonadTer TerM where
@@ -375,8 +393,8 @@ withUsableVars :: UsableSizeVars a => a -> TerM b -> TerM b
 withUsableVars pats m = do
   vars <- usableSizeVars pats
   reportSLn "term.size" 70 $ "usableSizeVars = " ++ show vars
-  reportSDoc "term.size" 20 $ if null vars then text "no usuable size vars" else
-    text "the size variables amoung these variables are usable: " <+>
+  reportSDoc "term.size" 20 $ if null vars then "no usuable size vars" else
+    "the size variables amoung these variables are usable: " <+>
       sep (map (prettyTCM . var) $ VarSet.toList vars)
   terSetUsableVars vars $ m
 
@@ -405,7 +423,7 @@ isProjectionButNotCoinductive :: MonadTCM tcm => QName -> tcm Bool
 isProjectionButNotCoinductive qn = liftTCM $ do
   b <- isProjectionButNotCoinductive' qn
   reportSDoc "term.proj" 60 $ do
-    text "identifier" <+> prettyTCM qn <+> do
+    "identifier" <+> prettyTCM qn <+> do
       text $
         if b then "is an inductive projection"
           else "is either not a projection or coinductive"
@@ -459,17 +477,17 @@ isCoinductiveProjection mustBeRecursive q = liftTCM $ do
                 -- A (2017-01-13): Yes, since we also normalize during positivity check?
                 -- See issue #1899.
                 reportSDoc "term.guardedness" 40 $ inTopContext $ sep
-                  [ text "looking for recursive occurrences of"
+                  [ "looking for recursive occurrences of"
                   , sep (map prettyTCM mut)
-                  , text "in"
+                  , "in"
                   , addContext pars $ prettyTCM (telFromList tel')
-                  , text "and"
+                  , "and"
                   , addContext tel $ prettyTCM core
                   ]
                 when (null mut) __IMPOSSIBLE__
                 names <- anyDefs mut =<< normalise (map (snd . unDom) tel', core)
                 reportSDoc "term.guardedness" 40 $
-                  text "found" <+> if null names then text "none" else sep (map prettyTCM names)
+                  "found" <+> if null names then "none" else sep (map prettyTCM names)
                 return $ not $ null names
       _ -> do
         reportSLn "term.guardedness" 40 $ prettyShow q ++ " is not a proper projection"
@@ -597,7 +615,7 @@ instance Pretty CallPath where
     P.hsep (map (\ ci -> arrow P.<+> P.pretty ci) cis) P.<+> arrow
     where
       cis   = init cis0
-      arrow = P.text "-->"
+      arrow = "-->"
 
 -- * Size depth estimation
 

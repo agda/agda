@@ -106,7 +106,7 @@ checkFunDef delayed i name cs = do
         when (ismacro || Info.defMacro i == MacroDef) $ checkMacroType t
     `catchIlltypedPatternBlockedOnMeta` \ (err, x) -> do
         reportSDoc "tc.def" 20 $ vcat $
-          [ text "checking function definition got stuck on meta: " <+> text (show x) ]
+          [ "checking function definition got stuck on meta: " <+> text (show x) ]
         addConstraint $ CheckFunDef delayed i name cs
 
 checkMacroType :: Type -> TCM ()
@@ -118,7 +118,7 @@ checkMacroType t = do
       resType = abstract (telFromList (drop (length telList - 1) telList)) tr
   expectedType <- el primAgdaTerm --> el (primAgdaTCM <#> primLevelZero <@> primUnit)
   equalType resType expectedType
-    `catchError` \ _ -> typeError . GenericDocError =<< sep [ text "Result type of a macro must be"
+    `catchError` \ _ -> typeError . GenericDocError =<< sep [ "Result type of a macro must be"
                                                             , nest 2 $ prettyTCM expectedType ]
 
 -- | A single clause without arguments and without type signature is an alias.
@@ -139,7 +139,7 @@ isAlias cs t =
 -- | Check a trivial definition of the form @f = e@
 checkAlias :: Type -> ArgInfo -> Delayed -> Info.DefInfo -> QName -> A.Expr -> Maybe C.Expr -> TCM ()
 checkAlias t' ai delayed i name e mc = atClause name 0 (A.RHS e mc) $ do
-  reportSDoc "tc.def.alias" 10 $ text "checkAlias" <+> vcat
+  reportSDoc "tc.def.alias" 10 $ "checkAlias" <+> vcat
     [ text (prettyShow name) <+> colon  <+> prettyTCM t'
     , text (prettyShow name) <+> equals <+> prettyTCM e
     ]
@@ -150,7 +150,7 @@ checkAlias t' ai delayed i name e mc = atClause name 0 (A.RHS e mc) $ do
   v <- applyRelevanceToContextFunBody (getRelevance ai) $ checkDontExpandLast CmpLeq e t'
   let t = t'
 
-  reportSDoc "tc.def.alias" 20 $ text "checkAlias: finished checking"
+  reportSDoc "tc.def.alias" 20 $ "checkAlias: finished checking"
 
   solveSizeConstraints DontDefaultToInfty
 
@@ -188,7 +188,7 @@ checkAlias t' ai delayed i name e mc = atClause name 0 (A.RHS e mc) $ do
   when (Info.defInstance i == InstanceDef) $ do
     addTypedInstance name t
 
-  reportSDoc "tc.def.alias" 20 $ text "checkAlias: leaving"
+  reportSDoc "tc.def.alias" 20 $ "checkAlias: leaving"
 
 
 -- | Type check a definition by pattern matching.
@@ -221,18 +221,18 @@ checkFunDefS t ai delayed extlam with i name withSub cs = do
 
     traceCall (CheckFunDefCall (getRange i) (qnameName name) cs) $ do   -- TODO!! (qnameName)
         reportSDoc "tc.def.fun" 10 $
-          sep [ text "checking body of" <+> prettyTCM name
-              , nest 2 $ text ":" <+> prettyTCM t
-              , nest 2 $ text "full type:" <+> (prettyTCM . defType =<< getConstInfo name)
+          sep [ "checking body of" <+> prettyTCM name
+              , nest 2 $ ":" <+> prettyTCM t
+              , nest 2 $ "full type:" <+> (prettyTCM . defType =<< getConstInfo name)
               ]
 
         reportSDoc "tc.def.fun" 70 $
-          sep $ [ text "clauses:" ] ++ map (nest 2 . text . show . A.deepUnscope) cs
+          sep $ [ "clauses:" ] ++ map (nest 2 . text . show . A.deepUnscope) cs
 
         cs <- return $ map A.lhsToSpine cs
 
         reportSDoc "tc.def.fun" 70 $
-          sep $ [ text "spine clauses:" ] ++ map (nest 2 . text . show . A.deepUnscope) cs
+          sep $ [ "spine clauses:" ] ++ map (nest 2 . text . show . A.deepUnscope) cs
 
         -- Ensure that all clauses have the same number of trailing hidden patterns
         -- This is necessary since trailing implicits are no longer eagerly inserted.
@@ -270,18 +270,18 @@ checkFunDefS t ai delayed extlam with i name withSub cs = do
 
 
         reportSDoc "tc.def.fun" 70 $ inTopContext $ do
-          sep $ [ text "checked clauses:" ] ++ map (nest 2 . text . show) cs
+          sep $ [ "checked clauses:" ] ++ map (nest 2 . text . show) cs
 
         -- After checking, remove the clauses again.
         -- (Otherwise, @checkInjectivity@ loops for issue 801).
         modifyFunClauses name (const [])
 
         reportSDoc "tc.cc" 25 $ inTopContext $ do
-          sep [ text "clauses before injectivity test"
+          sep [ "clauses before injectivity test"
               , nest 2 $ prettyTCM $ map (QNamed name) cs  -- broken, reify (QNamed n cl) expect cl to live at top level
               ]
         reportSDoc "tc.cc" 60 $ inTopContext $ do
-          sep [ text "raw clauses: "
+          sep [ "raw clauses: "
               , nest 2 $ sep $ map (text . show . QNamed name) cs
               ]
 
@@ -321,12 +321,12 @@ checkFunDefS t ai delayed extlam with i name withSub cs = do
           checkInjectivity name cs
 
         reportSDoc "tc.cc" 15 $ inTopContext $ do
-          sep [ text "clauses before compilation"
+          sep [ "clauses before compilation"
               , nest 2 $ sep $ map (prettyTCM . QNamed name) cs
               ]
 
         reportSDoc "tc.cc.raw" 15 $ do
-          sep [ text "clauses before compilation"
+          sep [ "clauses before compilation"
               , nest 2 $ sep $ map (text . show) cs
               ]
 
@@ -345,7 +345,7 @@ checkFunDefS t ai delayed extlam with i name withSub cs = do
         cs <- defClauses <$> getConstInfo name
 
         reportSDoc "tc.cc" 60 $ inTopContext $ do
-          sep [ text "compiled clauses of" <+> prettyTCM name
+          sep [ "compiled clauses of" <+> prettyTCM name
               , nest 2 $ pretty cc
               ]
 
@@ -371,7 +371,7 @@ checkFunDefS t ai delayed extlam with i name withSub cs = do
           useTerPragma $ defaultDefn ai name fullType defn
 
         reportSDoc "tc.def.fun" 10 $ do
-          sep [ text "added " <+> prettyTCM name <+> text ":"
+          sep [ "added " <+> prettyTCM name <+> ":"
               , nest 2 $ prettyTCM . defType =<< getConstInfo name
               ]
 
@@ -490,7 +490,7 @@ checkSystemCoverage f [n] t cs = do
 
       reportSDoc "tc.sys.cover" 20 $ fsep $ map prettyTCM pats
       interval <- elInf primInterval
-      reportSDoc "tc.sys.cover" 10 $ text "equalTerm " <+> prettyTCM (unArg phi) <+> prettyTCM psi
+      reportSDoc "tc.sys.cover" 10 $ "equalTerm " <+> prettyTCM (unArg phi) <+> prettyTCM psi
       equalTerm interval (unArg phi) psi
 
       forM_ (init $ init $ List.tails pcs) $ \ ((phi1,cl1):pcs') -> do
@@ -601,14 +601,14 @@ checkClause
   -> TCM (Clause,[Int])    -- ^ Type-checked clause and whether we performed a partial split
 
 checkClause t withSub c@(A.Clause (A.SpineLHS i x aps) strippedPats rhs0 wh catchall) = do
-    reportSDoc "tc.lhs.top" 30 $ text "Checking clause" $$ prettyA c
+    reportSDoc "tc.lhs.top" 30 $ "Checking clause" $$ prettyA c
     unlessNull (trailingWithPatterns aps) $ \ withPats -> do
       typeError $ UnexpectedWithPatterns $ map namedArg withPats
     traceCall (CheckClause t c) $ do
       aps <- expandPatternSynonyms aps
       cxtNames <- reverse . map (fst . unDom) <$> getContext
       when (not $ null strippedPats) $ reportSDoc "tc.lhs.top" 50 $
-        text "strippedPats:" <+> vcat [ prettyA p <+> text "=" <+> prettyTCM v <+> text ":" <+> prettyTCM a | A.ProblemEq p v a <- strippedPats ]
+        "strippedPats:" <+> vcat [ prettyA p <+> "=" <+> prettyTCM v <+> ":" <+> prettyTCM a | A.ProblemEq p v a <- strippedPats ]
       closed_t <- flip abstract t <$> getContextTelescope
       checkLeftHandSide (CheckPatternShadowing c) (Just x) aps t withSub strippedPats $ \ lhsResult@(LHSResult npars delta ps absurdPat trhs patSubst asb psplit) -> do
         -- Note that we might now be in irrelevant context,
@@ -652,27 +652,27 @@ checkClause t withSub c@(A.Clause (A.SpineLHS i x aps) strippedPats rhs0 wh catc
         whenM (optDoubleCheck <$> pragmaOptions) $ case body of
           Just v  -> do
             reportSDoc "tc.lhs.top" 30 $ vcat
-              [ text "double checking rhs"
-              , nest 2 (prettyTCM v <+> text " : " <+> prettyTCM (unArg trhs))
+              [ "double checking rhs"
+              , nest 2 (prettyTCM v <+> " : " <+> prettyTCM (unArg trhs))
               ]
             noConstraints $ dontAssignMetas $ checkInternal v $ unArg trhs
           Nothing -> return ()
 
         reportSDoc "tc.lhs.top" 10 $ vcat
-          [ text "Clause before translation:"
+          [ "Clause before translation:"
           , nest 2 $ vcat
-            [ text "delta =" <+> do escapeContext (size delta) $ prettyTCM delta
-            , text "ps    =" <+> do P.fsep <$> prettyTCMPatterns ps
-            , text "body  =" <+> maybe (text "_|_") prettyTCM body
-            , text "type  =" <+> text (show t)
+            [ "delta =" <+> do escapeContext (size delta) $ prettyTCM delta
+            , "ps    =" <+> do P.fsep <$> prettyTCMPatterns ps
+            , "body  =" <+> maybe "_|_" prettyTCM body
+            , "type  =" <+> text (show t)
             ]
           ]
 
         reportSDoc "tc.lhs.top" 60 $ escapeContext (size delta) $ vcat
-          [ text "Clause before translation (raw):"
+          [ "Clause before translation (raw):"
           , nest 2 $ vcat
-            [ text "ps    =" <+> text (show ps)
-            , text "body  =" <+> text (show body)
+            [ "ps    =" <+> text (show ps)
+            , "body  =" <+> text (show body)
             ]
           ]
 
@@ -771,7 +771,7 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps absurdPat trhs _ _asb _) rhs0
             return (eqt, El s dom, unArg a, unArg b)
             -- Note: the sort _s of the equality need not be the sort of the type @dom@!
           OtherType{} -> typeError . GenericDocError =<< do
-            text "Cannot rewrite by equation of type" <+> prettyTCM t'
+            "Cannot rewrite by equation of type" <+> prettyTCM t'
 
         -- Get the name of builtin REFL.
 
@@ -818,21 +818,21 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps absurdPat trhs _ _asb _) rhs0
             cl = A.Clause (A.LHS i $ insertPatternsLHSCore pats $ A.LHSHead x $ killRange aps)
                    strippedPats rhs'' outerWhere False
         reportSDoc "tc.rewrite" 60 $ vcat
-          [ text "rewrite"
-          , text "  rhs' = " <> (text . show) rhs'
+          [ "rewrite"
+          , "  rhs' = " <> (text . show) rhs'
           ]
         checkWithRHS x qname t lhsResult [withExpr] [withType] [cl]
 
       -- Case: @with@
       A.WithRHS aux es cs -> do
         reportSDoc "tc.with.top" 15 $ vcat
-          [ text "TC.Rules.Def.checkclause reached A.WithRHS"
+          [ "TC.Rules.Def.checkclause reached A.WithRHS"
           , sep $ prettyA aux : map (parens . prettyA) es
           ]
         reportSDoc "tc.with.top" 20 $ do
           nfv <- getCurrentModuleFreeVars
           m   <- currentModule
-          sep [ text "with function module:" <+>
+          sep [ "with function module:" <+>
                 prettyList (map prettyTCM $ mnameToList m)
               ,  text $ "free variables: " ++ show nfv
               ]
@@ -865,12 +865,12 @@ checkWithRHS x aux t (LHSResult npars delta ps _absurdPat trhs _ _asb _) vs0 as 
         -- Andreas, 2012-09-17: for printing delta,
         -- we should remove it from the context first
         reportSDoc "tc.with.top" 25 $ escapeContext (size delta) $ vcat
-          [ text "delta  =" <+> prettyTCM delta
+          [ "delta  =" <+> prettyTCM delta
           ]
         reportSDoc "tc.with.top" 25 $ vcat
-          [ text "vs     =" <+> prettyTCM vs
-          , text "as     =" <+> prettyTCM as
-          , text "perm   =" <+> text (show perm)
+          [ "vs     =" <+> prettyTCM vs
+          , "as     =" <+> prettyTCM as
+          , "perm   =" <+> text (show perm)
           ]
 
         -- Split the telescope into the part needed to type the with arguments
@@ -884,12 +884,12 @@ checkWithRHS x aux t (LHSResult npars delta ps _absurdPat trhs _ _asb _) vs0 as 
         -- Andreas, 2012-09-17: for printing delta,
         -- we should remove it from the context first
         reportSDoc "tc.with.top" 25 $ escapeContext (size delta) $ vcat
-          [ text "delta1 =" <+> prettyTCM delta1
-          , text "delta2 =" <+> addContext delta1 (prettyTCM delta2)
+          [ "delta1 =" <+> prettyTCM delta1
+          , "delta2 =" <+> addContext delta1 (prettyTCM delta2)
           ]
         reportSDoc "tc.with.top" 25 $ vcat
-          [ text "perm'  =" <+> text (show perm')
-          , text "fPerm  =" <+> text (show finalPerm)
+          [ "perm'  =" <+> text (show perm')
+          , "fPerm  =" <+> text (show finalPerm)
           ]
 
         -- Create the body of the original function
@@ -910,21 +910,21 @@ checkWithRHS x aux t (LHSResult npars delta ps _absurdPat trhs _ _asb _) vs0 as 
 
         -- Andreas, 2013-02-26 separate msgs to see which goes wrong
         reportSDoc "tc.with.top" 20 $
-          text "    with arguments" <+> do escapeContext (size delta) $ addContext delta1 $ prettyList (map prettyTCM vs)
+          "    with arguments" <+> do escapeContext (size delta) $ addContext delta1 $ prettyList (map prettyTCM vs)
         reportSDoc "tc.with.top" 20 $
-          text "             types" <+> do escapeContext (size delta) $ addContext delta1 $ prettyList (map prettyTCM as)
+          "             types" <+> do escapeContext (size delta) $ addContext delta1 $ prettyList (map prettyTCM as)
         reportSDoc "tc.with.top" 20 $
-          text "with function call" <+> prettyTCM v
+          "with function call" <+> prettyTCM v
         reportSDoc "tc.with.top" 20 $
-          text "           context" <+> (prettyTCM =<< getContextTelescope)
+          "           context" <+> (prettyTCM =<< getContextTelescope)
         reportSDoc "tc.with.top" 20 $
-          text "             delta" <+> do escapeContext (size delta) $ prettyTCM delta
+          "             delta" <+> do escapeContext (size delta) $ prettyTCM delta
         reportSDoc "tc.with.top" 20 $
-          text "            delta1" <+> do escapeContext (size delta) $ prettyTCM delta1
+          "            delta1" <+> do escapeContext (size delta) $ prettyTCM delta1
         reportSDoc "tc.with.top" 20 $
-          text "            delta2" <+> do escapeContext (size delta) $ addContext delta1 $ prettyTCM delta2
+          "            delta2" <+> do escapeContext (size delta) $ addContext delta1 $ prettyTCM delta2
         reportSDoc "tc.with.top" 20 $
-          text "              body" <+> prettyTCM v
+          "              body" <+> prettyTCM v
 
         return (Just v, WithFunction x aux t delta delta1 delta2 vs as t' ps npars perm' perm finalPerm cs)
 
@@ -938,19 +938,19 @@ checkWithFunction cxtNames (WithFunction f aux t delta delta1 delta2 vs as b qs 
       withSub = liftS (size delta2) (wkS (countWithArgs as) idS) `composeS` renaming __IMPOSSIBLE__ (reverseP perm')
 
   reportSDoc "tc.with.top" 10 $ vcat
-    [ text "checkWithFunction"
+    [ "checkWithFunction"
     , nest 2 $ vcat
-      [ text "delta1 =" <+> prettyTCM delta1
-      , text "delta2 =" <+> addContext delta1 (prettyTCM delta2)
-      , text "t      =" <+> prettyTCM t
-      , text "as     =" <+> addContext delta1 (prettyTCM as)
-      , text "vs     =" <+> do addContext delta1 $ prettyTCM vs
-      , text "b      =" <+> do addContext delta1 $ addContext delta2 $ prettyTCM b
-      , text "qs     =" <+> do addContext delta $ prettyTCMPatternList qs
-      , text "perm'  =" <+> text (show perm')
-      , text "perm   =" <+> text (show perm)
-      , text "fperm  =" <+> text (show finalPerm)
-      , text "withSub=" <+> text (show withSub)
+      [ "delta1 =" <+> prettyTCM delta1
+      , "delta2 =" <+> addContext delta1 (prettyTCM delta2)
+      , "t      =" <+> prettyTCM t
+      , "as     =" <+> addContext delta1 (prettyTCM as)
+      , "vs     =" <+> do addContext delta1 $ prettyTCM vs
+      , "b      =" <+> do addContext delta1 $ addContext delta2 $ prettyTCM b
+      , "qs     =" <+> do addContext delta $ prettyTCMPatternList qs
+      , "perm'  =" <+> text (show perm')
+      , "perm   =" <+> text (show perm)
+      , "fperm  =" <+> text (show finalPerm)
+      , "withSub=" <+> text (show withSub)
       ]
     ]
 
@@ -962,8 +962,8 @@ checkWithFunction cxtNames (WithFunction f aux t delta delta1 delta2 vs as b qs 
                              -- We normalise to get rid of Def's coming
                              -- from module applications.
   (withFunType, n) <- withFunctionType delta1 vs as delta2 b
-  reportSDoc "tc.with.type" 10 $ sep [ text "with-function type:", nest 2 $ prettyTCM withFunType ]
-  reportSDoc "tc.with.type" 50 $ sep [ text "with-function type:", nest 2 $ pretty withFunType ]
+  reportSDoc "tc.with.type" 10 $ sep [ "with-function type:", nest 2 $ prettyTCM withFunType ]
+  reportSDoc "tc.with.type" 50 $ sep [ "with-function type:", nest 2 $ pretty withFunType ]
 
   -- Andreas, 2013-10-21
   -- Check generated type directly in internal syntax.
@@ -984,7 +984,7 @@ checkWithFunction cxtNames (WithFunction f aux t delta delta1 delta2 vs as b qs 
 
   case dget df of
     Display n ts dt ->
-      reportSDoc "tc.with.top" 20 $ text "Display" <+> fsep
+      reportSDoc "tc.with.top" 20 $ "Display" <+> fsep
         [ text (show n)
         , prettyList $ map prettyTCM ts
         , prettyTCM dt
@@ -995,9 +995,9 @@ checkWithFunction cxtNames (WithFunction f aux t delta delta1 delta2 vs as b qs 
   -- solveSizeConstraints -- Andreas, 2012-10-16 does not seem necessary
 
   reportSDoc "tc.with.top" 10 $ sep
-    [ text "added with function" <+> (prettyTCM aux) <+> text "of type"
+    [ "added with function" <+> (prettyTCM aux) <+> "of type"
     , nest 2 $ prettyTCM withFunType
-    , nest 2 $ text "-|" <+> (prettyTCM =<< getContextTelescope)
+    , nest 2 $ "-|" <+> (prettyTCM =<< getContextTelescope)
     ]
   reportSDoc "tc.with.top" 70 $ vcat
     [ nest 2 $ text $ "raw with func. type = " ++ show withFunType
@@ -1064,16 +1064,16 @@ checkWhere wh@(A.WhereDecls whmod ds) ret = do
 newSection :: ModuleName -> A.Telescope -> TCM a -> TCM a
 newSection m tel cont = do
   reportSDoc "tc.section" 10 $
-    text "checking section" <+> prettyTCM m <+> fsep (map prettyAs tel)
+    "checking section" <+> prettyTCM m <+> fsep (map prettyAs tel)
 
   checkTelescope tel $ \ tel' -> do
     reportSDoc "tc.section" 10 $
-      text "adding section:" <+> prettyTCM m <+> text (show (size tel'))
+      "adding section:" <+> prettyTCM m <+> text (show (size tel'))
 
     addSection m
 
     reportSDoc "tc.section" 10 $ inTopContext $
-      nest 4 $ text "actual tele:" <+> do prettyTCM =<< lookupSection m
+      nest 4 $ "actual tele:" <+> do prettyTCM =<< lookupSection m
 
     withCurrentModule m cont
 

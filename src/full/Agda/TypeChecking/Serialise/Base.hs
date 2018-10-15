@@ -20,6 +20,7 @@ import Data.Int (Int32)
 import Data.Maybe
 import qualified Data.Binary as B
 import qualified Data.Binary.Get as B
+import Data.Text.Lazy (Text)
 import Data.Typeable ( cast, Typeable, typeOf, TypeRep )
 
 import Agda.Syntax.Common (NameId)
@@ -79,7 +80,7 @@ data Dict = Dict
   -- Dictionaries which are serialized:
   { nodeD        :: !(HashTable Node    Int32)    -- ^ Written to interface file.
   , stringD      :: !(HashTable String  Int32)    -- ^ Written to interface file.
-  , bstringD     :: !(HashTable L.ByteString Int32) -- ^ Written to interface file.
+  , textD        :: !(HashTable Text    Int32)    -- ^ Written to interface file.
   , integerD     :: !(HashTable Integer Int32)    -- ^ Written to interface file.
   , doubleD      :: !(HashTable Double  Int32)    -- ^ Written to interface file.
   -- Dicitionaries which are not serialized, but provide
@@ -92,7 +93,7 @@ data Dict = Dict
   -- Fresh UIDs and reuse statistics:
   , nodeC        :: !(IORef FreshAndReuse)  -- counters for fresh indexes
   , stringC      :: !(IORef FreshAndReuse)
-  , bstringC     :: !(IORef FreshAndReuse)
+  , textC        :: !(IORef FreshAndReuse)
   , integerC     :: !(IORef FreshAndReuse)
   , doubleC      :: !(IORef FreshAndReuse)
   , termC        :: !(IORef FreshAndReuse)
@@ -141,7 +142,7 @@ type Memo = HashTable (Int32, TypeRep) U    -- (node index, type rep)
 data St = St
   { nodeE     :: !(Array Int32 Node)     -- ^ Obtained from interface file.
   , stringE   :: !(Array Int32 String)   -- ^ Obtained from interface file.
-  , bstringE  :: !(Array Int32 L.ByteString) -- ^ Obtained from interface file.
+  , textE     :: !(Array Int32 Text)     -- ^ Obtained from interface file.
   , integerE  :: !(Array Int32 Integer)  -- ^ Obtained from interface file.
   , doubleE   :: !(Array Int32 Double)   -- ^ Obtained from interface file.
   , nodeMemo  :: !Memo

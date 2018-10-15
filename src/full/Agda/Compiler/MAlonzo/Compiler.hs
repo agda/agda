@@ -231,11 +231,11 @@ definition kit (Defn NonStrict _ _  _ _ _ _ _ _) = __IMPOSSIBLE__
 -}
 definition env Defn{defArgInfo = info, defName = q} | isIrrelevant info = do
   reportSDoc "compile.ghc.definition" 10 $
-    text "Not compiling" <+> prettyTCM q <> text "."
+    "Not compiling" <+> prettyTCM q <> "."
   return []
 definition env Defn{defName = q, defType = ty, theDef = d} = do
   reportSDoc "compile.ghc.definition" 10 $ vcat
-    [ text "Compiling" <+> prettyTCM q <> text ":"
+    [ "Compiling" <+> prettyTCM q <> ":"
     , nest 2 $ text (show d)
     ]
   pragma <- getHaskellPragma q
@@ -826,7 +826,7 @@ callGHC opts modIsMain mods = do
 
   -- Warn if no main function and not --no-main
   when (modIsMain /= isMain) $
-    genericWarning =<< fsep (pwords "No main function defined in" ++ [prettyTCM agdaMod <> text "."] ++
+    genericWarning =<< fsep (pwords "No main function defined in" ++ [prettyTCM agdaMod <> "."] ++
                              pwords "Use --no-main to suppress this warning.")
 
   let overridableArgs =

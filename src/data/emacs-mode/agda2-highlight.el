@@ -443,6 +443,7 @@ The aspects currently recognised are the following:
 
 (defun agda2-highlight-setup nil
   "Set up the `annotation' library for use with `agda2-mode'."
+  (agda2-highlight-set-faces 'agda2-highlight-face-groups agda2-highlight-face-groups)
   (setq annotation-bindings agda2-highlight-faces))
 
 (defun agda2-highlight-apply (remove &rest cmds)

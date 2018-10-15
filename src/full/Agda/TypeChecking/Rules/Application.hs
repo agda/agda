@@ -89,14 +89,14 @@ import Agda.Utils.Impossible
 checkApplication :: Comparison -> A.Expr -> A.Args -> A.Expr -> Type -> TCM Term
 checkApplication cmp hd args e t = do
   reportSDoc "tc.check.app" 20 $ vcat
-    [ text "checkApplication"
-    , nest 2 $ text "hd   = " <+> prettyA hd
-    , nest 2 $ text "args = " <+> sep (map prettyA args)
-    , nest 2 $ text "e    = " <+> prettyA e
-    , nest 2 $ text "t    = " <+> prettyTCM t
+    [ "checkApplication"
+    , nest 2 $ "hd   = " <+> prettyA hd
+    , nest 2 $ "args = " <+> sep (map prettyA args)
+    , nest 2 $ "e    = " <+> prettyA e
+    , nest 2 $ "t    = " <+> prettyTCM t
     ]
   reportSDoc "tc.check.app" 70 $ vcat
-    [ text "checkApplication (raw)"
+    [ "checkApplication (raw)"
     , nest 2 $ text $ "hd   = " ++ show hd
     , nest 2 $ text $ "args = " ++ show (deepUnscope args)
     , nest 2 $ text $ "e    = " ++ show (deepUnscope e)
@@ -199,14 +199,15 @@ checkApplication cmp hd args e t = do
         metaTel (arg : args) = do
           a <- newTypeMeta_
           let dom = a <$ domFromArg arg
-          ExtendTel dom . Abs "x" <$> addContext ("x", dom) (metaTel args)
+          ExtendTel dom . Abs "x" <$>
+            addContext ("x" :: String, dom) (metaTel args)
 
     -- Subcase: defined symbol or variable.
     _ -> do
       v <- checkHeadApplication cmp e t hd args
       reportSDoc "tc.term.app" 30 $ vcat
-        [ text "checkApplication: checkHeadApplication returned"
-        , nest 2 $ text "v = " <+> prettyTCM v
+        [ "checkApplication: checkHeadApplication returned"
+        , nest 2 $ "v = " <+> prettyTCM v
         ]
       return v
 
@@ -252,9 +253,9 @@ inferHead e = do
     A.Var x -> do -- traceCall (InferVar x) $ do
       (u, a) <- getVarInfo x
       reportSDoc "tc.term.var" 20 $ hsep
-        [ text "variable" , prettyTCM x
-        , text "(" , text (show u) , text ")"
-        , text "has type:" , prettyTCM a
+        [ "variable" , prettyTCM x
+        , "(" , text (show u) , ")"
+        , "has type:" , prettyTCM a
         ]
       when (unusableRelevance $ getRelevance a) $
         typeError $ VariableIsIrrelevant x
@@ -322,11 +323,11 @@ inferDef mkTerm x =
     debug :: Args -> Type -> Term -> TCM ()
     debug vs t v = do
       reportSDoc "tc.term.def" 60 $
-        text "freeVarsToApply to def " <+> hsep (map (text . show) vs)
+        "freeVarsToApply to def " <+> hsep (map (text . show) vs)
       reportSDoc "tc.term.def" 10 $ vcat
-        [ text "inferred def " <+> prettyTCM x <+> hsep (map prettyTCM vs)
-        , nest 2 $ text ":" <+> prettyTCM t
-        , nest 2 $ text "-->" <+> prettyTCM v ]
+        [ "inferred def " <+> prettyTCM x <+> hsep (map prettyTCM vs)
+        , nest 2 $ ":" <+> prettyTCM t
+        , nest 2 $ "-->" <+> prettyTCM v ]
 
 -- | The second argument is the definition of the first.
 checkRelevance :: QName -> Definition -> TCM ()
@@ -345,14 +346,14 @@ checkRelevance' x def = do
            (not .optIrrelevantProjections <$> pragmaOptions)) {-then-} needIrrProj {-else-} $ do
         rel <- asksTC envRelevance
         reportSDoc "tc.irr" 50 $ vcat
-          [ text "declaration relevance =" <+> text (show drel)
-          , text "context     relevance =" <+> text (show rel)
+          [ "declaration relevance =" <+> text (show drel)
+          , "context     relevance =" <+> text (show rel)
           ]
         return $ if (drel `moreRelevant` rel) then Nothing else Just $ DefinitionIsIrrelevant x
   where
   needIrrProj = Just . GenericDocError <$> do
-    sep [ text "Projection " , prettyTCM x, text " is irrelevant."
-        , text " Turn on option --irrelevant-projections to use it (unsafe)."
+    sep [ "Projection " , prettyTCM x, " is irrelevant."
+        , " Turn on option --irrelevant-projections to use it (unsafe)."
         ]
 
 
@@ -448,12 +449,12 @@ checkArgumentsE' chk ExpandLast r [] t0 mt1 =
 checkArgumentsE' chk exh r args0@(arg@(Arg info e) : args) t0 mt1 =
     traceCallE (CheckArguments r args0 t0 mt1) $ do
       lift $ reportSDoc "tc.term.args" 30 $ sep
-        [ text "checkArgumentsE"
---        , text "  args0 =" <+> prettyA args0
+        [ "checkArgumentsE"
+--        , "  args0 =" <+> prettyA args0
         , nest 2 $ vcat
-          [ text "e     =" <+> prettyA e
-          , text "t0    =" <+> prettyTCM t0
-          , text "t1    =" <+> maybe (text "Nothing") prettyTCM mt1
+          [ "e     =" <+> prettyA e
+          , "t0    =" <+> prettyTCM t0
+          , "t1    =" <+> maybe "Nothing" prettyTCM mt1
           ]
         ]
       -- First, insert implicit arguments, depending on current argument @arg@.
@@ -528,9 +529,9 @@ checkArgumentsE' chk exh r args0@(arg@(Arg info e) : args) t0 mt1 =
                  | otherwise -> do
                   let tgt1 = applySubst (strengthenS __IMPOSSIBLE__ $ size tel) tgt
                   reportSDoc "tc.term.args.target" 30 $ vcat
-                    [ text "Checking target types first"
-                    , nest 2 $ text "inferred =" <+> prettyTCM tgt1
-                    , nest 2 $ text "expected =" <+> prettyTCM t1 ]
+                    [ "Checking target types first"
+                    , nest 2 $ "inferred =" <+> prettyTCM tgt1
+                    , nest 2 $ "expected =" <+> prettyTCM t1 ]
                   traceCall (CheckTargetType (fuseRange r args0) tgt1 t1) $
                     CheckedTarget <$> ifNoConstraints_ (leqType tgt1 t1)
                                         (return Nothing) (return . Just)
@@ -625,14 +626,14 @@ postponeArgs :: (Elims, [NamedArg A.Expr], Type) -> ExpandHidden -> Range -> [Na
                 (Elims -> Type -> CheckedTarget -> TCM Term) -> TCM Term
 postponeArgs (us, es, t0) exph r args t k = do
   reportSDoc "tc.term.expr.args" 80 $
-    sep [ text "postponed checking arguments"
+    sep [ "postponed checking arguments"
         , nest 4 $ prettyList (map (prettyA . namedThing . unArg) args)
-        , nest 2 $ text "against"
+        , nest 2 $ "against"
         , nest 4 $ prettyTCM t0 ] $$
-    sep [ text "progress:"
-        , nest 2 $ text "checked" <+> prettyList (map prettyTCM us)
-        , nest 2 $ text "remaining" <+> sep [ prettyList (map (prettyA . namedThing . unArg) es)
-                                            , nest 2 $ text ":" <+> prettyTCM t0 ] ]
+    sep [ "progress:"
+        , nest 2 $ "checked" <+> prettyList (map prettyTCM us)
+        , nest 2 $ "remaining" <+> sep [ prettyList (map (prettyA . namedThing . unArg) es)
+                                            , nest 2 $ ":" <+> prettyTCM t0 ] ]
   postponeTypeCheckingProblem_ (CheckArgs exph r es t0 t $ \ vs t pid -> k (us ++ vs) t pid)
 
 -----------------------------------------------------------------------------
@@ -645,28 +646,28 @@ postponeArgs (us, es, t0) exph r args t k = do
 checkConstructorApplication :: Comparison -> A.Expr -> Type -> ConHead -> [NamedArg A.Expr] -> TCM Term
 checkConstructorApplication cmp org t c args = do
   reportSDoc "tc.term.con" 50 $ vcat
-    [ text "entering checkConstructorApplication"
+    [ "entering checkConstructorApplication"
     , nest 2 $ vcat
-      [ text "org  =" <+> prettyTCM org
-      , text "t    =" <+> prettyTCM t
-      , text "c    =" <+> prettyTCM c
-      , text "args =" <+> prettyTCM args
+      [ "org  =" <+> prettyTCM org
+      , "t    =" <+> prettyTCM t
+      , "c    =" <+> prettyTCM c
+      , "args =" <+> prettyTCM args
     ] ]
   let paramsGiven = checkForParams args
   if paramsGiven then fallback else do
-    reportSDoc "tc.term.con" 50 $ text "checkConstructorApplication: no parameters explicitly supplied, continuing..."
+    reportSDoc "tc.term.con" 50 $ "checkConstructorApplication: no parameters explicitly supplied, continuing..."
     cdef  <- getConInfo c
     let Constructor{conData = d, conPars = npars} = theDef cdef
-    reportSDoc "tc.term.con" 50 $ nest 2 $ text "d    =" <+> prettyTCM d
+    reportSDoc "tc.term.con" 50 $ nest 2 $ "d    =" <+> prettyTCM d
     -- Issue 661: t maybe an evaluated form of d .., so we evaluate d
     -- as well and then check wether we deal with the same datatype
     t0 <- reduce (Def d [])
     case (t0, unEl t) of -- Only fully applied constructors get special treatment
       (Def d0 _, Def d' es) -> do
         let ~(Just vs) = allApplyElims es
-        reportSDoc "tc.term.con" 50 $ nest 2 $ text "d0   =" <+> prettyTCM d0
-        reportSDoc "tc.term.con" 50 $ nest 2 $ text "d'   =" <+> prettyTCM d'
-        reportSDoc "tc.term.con" 50 $ nest 2 $ text "vs   =" <+> prettyTCM vs
+        reportSDoc "tc.term.con" 50 $ nest 2 $ "d0   =" <+> prettyTCM d0
+        reportSDoc "tc.term.con" 50 $ nest 2 $ "d'   =" <+> prettyTCM d'
+        reportSDoc "tc.term.con" 50 $ nest 2 $ "vs   =" <+> prettyTCM vs
         if d' /= d0 then fallback else do
          -- Issue 661: d' may take more parameters than d, in particular
          -- these additional parameters could be a module parameter telescope.
@@ -681,11 +682,11 @@ checkConstructorApplication cmp org t c args = do
            let ps    = take n $ drop (n' - n) vs
                ctype = defType cdef
            reportSDoc "tc.term.con" 20 $ vcat
-             [ text "special checking of constructor application of" <+> prettyTCM c
-             , nest 2 $ vcat [ text "ps     =" <+> prettyTCM ps
-                             , text "ctype  =" <+> prettyTCM ctype ] ]
+             [ "special checking of constructor application of" <+> prettyTCM c
+             , nest 2 $ vcat [ "ps     =" <+> prettyTCM ps
+                             , "ctype  =" <+> prettyTCM ctype ] ]
            let ctype' = ctype `piApply` ps
-           reportSDoc "tc.term.con" 20 $ nest 2 $ text "ctype' =" <+> prettyTCM ctype'
+           reportSDoc "tc.term.con" 20 $ nest 2 $ "ctype' =" <+> prettyTCM ctype'
            -- get the parameter names
            let TelV ptel _ = telView'UpTo n ctype
            let pnames = map (fmap fst) $ telToList ptel
@@ -696,11 +697,11 @@ checkConstructorApplication cmp org t c args = do
            checkArguments expandLast (getRange c) args' ctype' t $ \ es t' targetCheck -> do
              let us = fromMaybe __IMPOSSIBLE__ (allApplyElims es)
              reportSDoc "tc.term.con" 20 $ nest 2 $ vcat
-               [ text "us     =" <+> prettyTCM us
-               , text "t'     =" <+> prettyTCM t' ]
+               [ "us     =" <+> prettyTCM us
+               , "t'     =" <+> prettyTCM t' ]
              coerce' cmp targetCheck (Con c ConOCon (map Apply us)) t' t
       _ -> do
-        reportSDoc "tc.term.con" 50 $ nest 2 $ text "we are not at a datatype, falling back"
+        reportSDoc "tc.term.con" 50 $ nest 2 $ "we are not at a datatype, falling back"
         fallback
   where
     fallback = checkHeadApplication cmp org t (A.Con (unambiguous $ conName c)) args
@@ -771,7 +772,7 @@ disambiguateConstructor cs0 t = do
             TelV tel t1 <- telView t
             addContext tel $ do
              reportSDoc "tc.check.term.con" 40 $ nest 2 $
-               text "target type: " <+> prettyTCM t1
+               "target type: " <+> prettyTCM t1
              ifBlockedType t1 (\ m t -> return Nothing) $ \ _ t' ->
                caseMaybeM (isDataOrRecord $ unEl t') (badCon t') $ \ d ->
                  case [ c | (d', c) <- dcs, d == d' ] of
@@ -825,10 +826,10 @@ inferOrCheckProjApp
      -- ^ The type-checked expression and its type (if successful).
 inferOrCheckProjApp e o ds args mt = do
   reportSDoc "tc.proj.amb" 20 $ vcat
-    [ text "checking ambiguous projection"
+    [ "checking ambiguous projection"
     , text $ "  ds   = " ++ prettyShow ds
     , text   "  args = " <+> sep (map prettyTCM args)
-    , text   "  t    = " <+> caseMaybe mt (text "Nothing") prettyTCM
+    , text   "  t    = " <+> caseMaybe mt "Nothing" prettyTCM
     ]
 
   let refuse :: String -> TCM a
@@ -886,8 +887,8 @@ inferOrCheckProjApp e o ds args mt = do
     ((k, arg) : _) -> do
       (v0, ta) <- inferExpr $ namedArg arg
       reportSDoc "tc.proj.amb" 25 $ vcat
-        [ text "  principal arg " <+> prettyTCM arg
-        , text "  has type "      <+> prettyTCM ta
+        [ "  principal arg " <+> prettyTCM arg
+        , "  has type "      <+> prettyTCM ta
         ]
       -- ta should be a record type (after introducing the hidden args in v0)
       (vargs, ta) <- implicitArgs (-1) (not . visible) ta
@@ -899,7 +900,7 @@ inferOrCheckProjApp e o ds args mt = do
           let try d = do
                 reportSDoc "tc.proj.amb" 30 $ vcat
                   [ text $ "trying projection " ++ prettyShow d
-                  , text "  td  = " <+> caseMaybeM (getDefType d ta) (text "Nothing") prettyTCM
+                  , "  td  = " <+> caseMaybeM (getDefType d ta) "Nothing" prettyTCM
                   ]
 
                 -- get the original projection name
@@ -927,14 +928,14 @@ inferOrCheckProjApp e o ds args mt = do
                 -- try to eliminate
                 (dom, u, tb) <- MaybeT (projectTyped v ta o d `catchError` \ _ -> return Nothing)
                 reportSDoc "tc.proj.amb" 30 $ vcat
-                  [ text "  dom = " <+> prettyTCM dom
-                  , text "  u   = " <+> prettyTCM u
-                  , text "  tb  = " <+> prettyTCM tb
+                  [ "  dom = " <+> prettyTCM dom
+                  , "  u   = " <+> prettyTCM u
+                  , "  tb  = " <+> prettyTCM tb
                   ]
                 (q', pars, _) <- MaybeT $ isRecordType $ unDom dom
                 reportSDoc "tc.proj.amb" 30 $ vcat
-                  [ text "  q   = " <+> prettyTCM q
-                  , text "  q'  = " <+> prettyTCM q'
+                  [ "  q   = " <+> prettyTCM q
+                  , "  q'  = " <+> prettyTCM q'
                   ]
                 guard (q == q')
                 -- Get the type of the projection and check
@@ -1046,12 +1047,12 @@ checkSharpApplication e t c args = do
     reportSDoc "tc.term.expr.coind" 15 $ do
       def <- theDef <$> getConstInfo c'
       vcat $
-        [ text "The coinductive wrapper"
-        , nest 2 $ prettyTCM rel <> prettyTCM c' <+> text ":"
+        [ "The coinductive wrapper"
+        , nest 2 $ prettyTCM rel <> prettyTCM c' <+> ":"
         , nest 4 $ prettyTCM t
         , nest 2 $ prettyA clause
-        , text "The definition is" <+> text (show $ funDelayed def) <>
-          text "."
+        , "The definition is" <+> text (show $ funDelayed def) <>
+          "."
         ]
     return c'
 
@@ -1060,9 +1061,9 @@ checkSharpApplication e t c args = do
   e' <- Def wrapper . map Apply <$> getContextArgs
 
   reportSDoc "tc.term.expr.coind" 15 $ vcat $
-      [ text "The coinductive constructor application"
+      [ "The coinductive constructor application"
       , nest 2 $ prettyTCM e
-      , text "was translated into the application"
+      , "was translated into the application"
       , nest 2 $ prettyTCM e'
       ]
 
