@@ -232,8 +232,8 @@ reifyDisplayFormP f ps wps = do
         reportSDoc "reify.display" 70 $ do
           doc <- prettyA $ SpineLHS empty f' (ps' ++ wps' ++ wps)
           return $ vcat
-            [ text "rewritten lhs to"
-            , text "  lhs' = " <+> doc
+            [ "rewritten lhs to"
+            , "  lhs' = " <+> doc
             ]
         reifyDisplayFormP f' ps' (wps' ++ wps)
       _ -> do
@@ -723,9 +723,9 @@ reifyTerm expandAnonDefs0 v = do
     reifyExtLam x npars msys cls es = do
       reportSLn "reify.def" 10 $ "reifying extended lambda " ++ prettyShow x
       reportSLn "reify.def" 50 $ render $ nest 2 $ vcat
-        [ text "npars =" <+> pretty npars
-        , text "es    =" <+> fsep (map (prettyPrec 10) es)
-        , text "def   =" <+> vcat (map pretty cls) ]
+        [ "npars =" <+> pretty npars
+        , "es    =" <+> fsep (map (prettyPrec 10) es)
+        , "def   =" <+> vcat (map pretty cls) ]
       -- As extended lambda clauses live in the top level, we add the whole
       -- section telescope to the number of parameters.
       let (pares, rest) = splitAt npars es

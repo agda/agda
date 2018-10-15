@@ -20,6 +20,9 @@ import System.Directory
 import System.Process
 import System.Console.GetOpt
 
+#if MIN_VERSION_ghc(8,6,1)
+import DynFlags ( IncludeSpecs(IncludeSpecs) )
+#endif
 import GHC
 import Parser as P
 
@@ -150,7 +153,12 @@ main = do
                         sOpt_P = concatMap (\i -> [i, "-include"]) (optIncludes opts) ++
                                  opt_P dynFlags
                         }
+#if MIN_VERSION_ghc(8,6,1)
+                    , includePaths = case includePaths dynFlags of
+                                       IncludeSpecs qs gs -> IncludeSpecs qs (optIncludePath opts ++ gs)
+#else
                     , includePaths = optIncludePath opts ++ includePaths dynFlags
+#endif
                     }
               (dynFlags'', _, _) <- parseDynamicFilePragma dynFlags' $ map noLoc $ concatMap cabalConfToOpts (maybeToList pkgDesc)
               setSessionDynFlags dynFlags''

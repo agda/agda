@@ -349,7 +349,7 @@ newMeta' inst mi p perm j = do
                   , mvListeners        = Set.empty
                   , mvFrozen           = Instantiable }
   -- printing not available (import cycle)
-  -- reportSDoc "tc.meta.new" 50 $ text "new meta" <+> prettyTCM j'
+  -- reportSDoc "tc.meta.new" 50 $ "new meta" <+> prettyTCM j'
   stMetaStore `modifyTCLens` Map.insert x mv
   return x
 

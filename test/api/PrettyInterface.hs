@@ -13,8 +13,8 @@ import Data.Foldable
 ------------------------------------------------------------------------------
 -- Agda library imports
 
-import Agda.Interaction.Imports        ( typeCheckMain, Mode(TypeCheck) )
-import Agda.Interaction.Options        ( defaultOptions )
+import Agda.Interaction.Imports ( typeCheckMain, Mode(TypeCheck), sourceInfo )
+import Agda.Interaction.Options ( defaultOptions )
 
 -- import Agda.Syntax.Translation.InternalToAbstract ( reify )
 -- import Agda.Syntax.Translation.AbstractToConcrete ()
@@ -38,7 +38,7 @@ mainTCM :: TCM ()
 mainTCM = do
   setCommandLineOptions defaultOptions
   f <- liftIO $ absolute "PrettyInterface.agda"
-  (i, _mw) <- typeCheckMain f TypeCheck
+  (i, _mw) <- typeCheckMain f TypeCheck =<< sourceInfo f
   compilerMain i
 
 compilerMain :: Interface -> TCM ()

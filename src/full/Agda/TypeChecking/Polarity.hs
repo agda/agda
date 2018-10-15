@@ -142,9 +142,9 @@ computePolarity xs = do
   -- t <- instantiateFull t -- Andreas, 2014-04-11 Issue 1099: needed for
   --                        -- variable occurrence test in  dependentPolarity.
   reportSDoc "tc.polarity.set" 15 $
-    text "Refining polarity with type " <+> prettyTCM t
+    "Refining polarity with type " <+> prettyTCM t
   reportSDoc "tc.polarity.set" 60 $
-    text "Refining polarity with type (raw): " <+> (text .show) t
+    "Refining polarity with type (raw): " <+> (text .show) t
 
   pol <- dependentPolarity t (enablePhantomTypes (theDef def) pol1) pol1
   reportSLn "tc.polarity.set" 10 $ "Polarity of " ++ prettyShow x ++ ": " ++ prettyShow pol
@@ -196,8 +196,8 @@ dependentPolarity t _      []          = return []  -- all remaining are 'Invari
 dependentPolarity t []     (_ : _)     = __IMPOSSIBLE__
 dependentPolarity t (q:qs) pols@(p:ps) = do
   t <- reduce $ unEl t
-  reportSDoc "tc.polarity.dep" 20 $ text "dependentPolarity t = " <+> prettyTCM t
-  reportSDoc "tc.polarity.dep" 70 $ text "dependentPolarity t = " <+> (text . show) t
+  reportSDoc "tc.polarity.dep" 20 $ "dependentPolarity t = " <+> prettyTCM t
+  reportSDoc "tc.polarity.dep" 70 $ "dependentPolarity t = " <+> (text . show) t
   case t of
     Pi dom b -> do
       ps <- underAbstraction dom b $ \ c -> dependentPolarity c qs ps
@@ -275,9 +275,9 @@ sizePolarity d pol0 = do
 
                           ok <- isPos `and2M` isLin
                           reportSDoc "tc.polarity.size" 15 $
-                            text "constructor" <+> prettyTCM c <+>
+                            "constructor" <+> prettyTCM c <+>
                             text (if ok then "passes" else "fails") <+>
-                            text "size polarity check"
+                            "size polarity check"
                           return ok
 
             ifNotM (andM $ map check cons)
@@ -297,9 +297,9 @@ sizePolarity d pol0 = do
 checkSizeIndex :: QName -> Nat -> Nat -> Type -> TCM Bool
 checkSizeIndex d np i a = do
   reportSDoc "tc.polarity.size" 15 $ withShowAllArguments $ vcat
-    [ text "checking that constructor target type " <+> prettyTCM a
-    , text "  is data type " <+> prettyTCM d
-    , text "  and has size index (successor(s) of) " <+> prettyTCM (var i)
+    [ "checking that constructor target type " <+> prettyTCM a
+    , "  is data type " <+> prettyTCM d
+    , "  and has size index (successor(s) of) " <+> prettyTCM (var i)
     ]
   case unEl a of
     Def d0 es -> do

@@ -9,6 +9,9 @@ import Data.Word
 import qualified Data.Hash as H
 import qualified Data.List as L
 import Data.Digest.Murmur64
+import qualified Data.Text.Encoding as T
+import Data.Text.Lazy (Text)
+import qualified Data.Text.Lazy as T
 
 import Agda.Utils.FileName
 
@@ -22,10 +25,14 @@ hashFile file = do
   s <- B.readFile (filePath file)
   return $ hashByteString s
 
+-- | Hashes a piece of 'Text'.
+
+hashText :: Text -> Hash
+hashText = hashByteString . T.encodeUtf8 . T.toStrict
+
 combineHashes :: [Hash] -> Hash
 combineHashes hs = H.asWord64 $ L.foldl' H.combine (H.hashWord8 0) $ L.map H.hash hs
 
 -- | Hashing a module name for unique identifiers.
 hashString :: String -> Word64
 hashString = asWord64 . hash64
-

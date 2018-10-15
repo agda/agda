@@ -161,10 +161,10 @@ checkInjectivity f cs = fromMaybe NotInjective <.> runMaybeT $ do
   reportSLn  "tc.inj.check" 20 $ prettyShow f ++ " is potentially injective."
   reportSDoc "tc.inj.check" 30 $ nest 2 $ vcat $
     for (Map.toList hdMap) $ \ (h, uc) ->
-      text (prettyShow h) <+> text "-->" <+>
+      text (prettyShow h) <+> "-->" <+>
       case uc of
         [c] -> prettyTCM $ map namedArg $ namedClausePats c
-        _   -> text "(multiple clauses)"
+        _   -> "(multiple clauses)"
 
   return $ Inverse hdMap
 
@@ -251,7 +251,7 @@ useInjectivity dir ty blk neu = locallyTC eInjectivityDepth succ $ do
       | otherwise -> do
       reportSDoc "tc.inj.use" 30 $ fsep $
         pwords "useInjectivity on" ++
-        [ prettyTCM blk, prettyTCM cmp, prettyTCM neu, text ":", prettyTCM ty ]
+        [ prettyTCM blk, prettyTCM cmp, prettyTCM neu, ":", prettyTCM ty ]
       let canReduceToSelf = Map.member (ConsHead f) hdMap || Map.member UnknownHead hdMap
           allUnique       = all isUnique hdMap
           isUnique [_] = True
@@ -267,11 +267,11 @@ useInjectivity dir ty blk neu = locallyTC eInjectivityDepth succ $ do
                   pwords "at")
             , nest 2 $ fsep $ punctuate comma $ map prettyTCM blkArgs
             , nest 2 $ fsep $ punctuate comma $ map prettyTCM neuArgs
-            , nest 2 $ text "and type" <+> prettyTCM fTy
+            , nest 2 $ "and type" <+> prettyTCM fTy
             ]
           fs  <- getForcedArgs f
           pol <- getPolarity' cmp f
-          reportSDoc "tc.inj.invert.success" 20 $ hsep [text "Successful spine comparison of", prettyTCM f]
+          reportSDoc "tc.inj.invert.success" 20 $ hsep ["Successful spine comparison of", prettyTCM f]
           app (compareElims pol fs fTy (Def f [])) blkArgs neuArgs
 
         -- f us == c vs
@@ -302,9 +302,9 @@ invertFunction _ _ NoInv _ fallback _ _ = fallback
 invertFunction cmp blk (Inv f blkArgs hdMap) hd fallback err success = do
     fTy <- defType <$> getConstInfo f
     reportSDoc "tc.inj.use" 20 $ vcat
-      [ text "inverting injective function" <?> hsep [prettyTCM f, text ":", prettyTCM fTy]
-      , text "for" <?> pretty hd
-      , nest 2 $ text "args =" <+> prettyList (map prettyTCM blkArgs)
+      [ "inverting injective function" <?> hsep [prettyTCM f, ":", prettyTCM fTy]
+      , "for" <?> pretty hd
+      , nest 2 $ "args =" <+> prettyList (map prettyTCM blkArgs)
       ]                         -- Clauses with unknown heads are also possible candidates
     case fromMaybe [] $ Map.lookup hd hdMap <> Map.lookup UnknownHead hdMap of
       [] -> err
@@ -315,21 +315,21 @@ invertFunction cmp blk (Inv f blkArgs hdMap) hd fallback err success = do
           -- These are what dot patterns should be instantiated at
           ms <- map unArg <$> newTelMeta tel
           reportSDoc "tc.inj.invert" 20 $ vcat
-            [ text "meta patterns" <+> prettyList (map prettyTCM ms)
-            , text "  perm =" <+> text (show perm)
-            , text "  tel  =" <+> prettyTCM tel
-            , text "  ps   =" <+> prettyList (map (text . show) ps)
+            [ "meta patterns" <+> prettyList (map prettyTCM ms)
+            , "  perm =" <+> text (show perm)
+            , "  tel  =" <+> prettyTCM tel
+            , "  ps   =" <+> prettyList (map (text . show) ps)
             ]
           -- and this is the order the variables occur in the patterns
           let msAux = permute (invertP __IMPOSSIBLE__ $ compactP perm) ms
           let sub   = parallelS (reverse ms)
           margs <- runReaderT (evalStateT (mapM metaElim ps) msAux) sub
           reportSDoc "tc.inj.invert" 20 $ vcat
-            [ text "inversion"
+            [ "inversion"
             , nest 2 $ vcat
-              [ text "lhs  =" <+> prettyTCM margs
-              , text "rhs  =" <+> prettyTCM blkArgs
-              , text "type =" <+> prettyTCM fTy
+              [ "lhs  =" <+> prettyTCM margs
+              , "rhs  =" <+> prettyTCM blkArgs
+              , "type =" <+> prettyTCM fTy
               ]
             ]
           -- Since we do not care for the value of non-variant metas here,
@@ -346,12 +346,12 @@ invertFunction cmp blk (Inv f blkArgs hdMap) hd fallback err success = do
           r <- runReduceM $ unfoldDefinitionStep False blk f blkArgs
           case r of
             YesReduction _ blk' -> do
-              reportSDoc "tc.inj.invert.success" 20 $ hsep [text "Successful inversion of", prettyTCM f, text "at", pretty hd]
+              reportSDoc "tc.inj.invert.success" 20 $ hsep ["Successful inversion of", prettyTCM f, "at", pretty hd]
               KeepGoing <$ success blk'
             NoReduction{}       -> do
               reportSDoc "tc.inj.invert" 30 $ vcat
-                [ text "aborting inversion;" <+> prettyTCM blk
-                , text "does not reduce"
+                [ "aborting inversion;" <+> prettyTCM blk
+                , "does not reduce"
                 ]
               return Abort
   where

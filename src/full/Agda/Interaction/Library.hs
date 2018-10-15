@@ -1,5 +1,3 @@
-{-# LANGUAGE GADTs, KindSignatures #-}
-{-# LANGUAGE OverloadedStrings #-}
 -- | Library management.
 --
 --   Sample use:
@@ -316,7 +314,7 @@ formatLibError installed le = prefix <+> body where
       map (nest 2)
          (if null installed then ["(none)"]
           else [ sep [ text $ libName l, nest 2 $ parens $ text $ libFile l ]
-               | l <- List.nubBy ((==) `on` libFile) installed ])
+               | l <- installed ])
 
     AmbiguousLib lib tgts -> vcat $
       [ sep [ text $ "Ambiguous library '" ++ lib ++ "'."

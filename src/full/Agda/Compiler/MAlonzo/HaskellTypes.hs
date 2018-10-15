@@ -73,18 +73,18 @@ notAHaskellType top offender = typeError . GenericDocError =<< do
         pwords "cannot be translated to a corresponding Haskell type, because it contains" ++
         reason offender) $$ possibleFix offender
   where
-    reason (BadLambda        v) = pwords "the lambda term" ++ [prettyTCM v <> text "."]
-    reason (BadMeta          v) = pwords "a meta variable" ++ [prettyTCM v <> text "."]
-    reason (BadDontCare      v) = pwords "an erased term" ++ [prettyTCM v <> text "."]
+    reason (BadLambda        v) = pwords "the lambda term" ++ [prettyTCM v <> "."]
+    reason (BadMeta          v) = pwords "a meta variable" ++ [prettyTCM v <> "."]
+    reason (BadDontCare      v) = pwords "an erased term" ++ [prettyTCM v <> "."]
     reason (NoPragmaFor      x) = [prettyTCM x] ++ pwords "which does not have a COMPILE pragma."
     reason (WrongPragmaFor _ x) = [prettyTCM x] ++ pwords "which has the wrong kind of COMPILE pragma."
 
     possibleFix BadLambda{}     = empty
     possibleFix BadMeta{}       = empty
     possibleFix BadDontCare{}   = empty
-    possibleFix (NoPragmaFor d) = suggestPragma d $ text "add a pragma"
+    possibleFix (NoPragmaFor d) = suggestPragma d $ "add a pragma"
     possibleFix (WrongPragmaFor r d) = suggestPragma d $
-      sep [ text "replace the value-level pragma at", nest 2 $ pretty r, text "by" ]
+      sep [ "replace the value-level pragma at", nest 2 $ pretty r, "by" ]
 
     suggestPragma d action = do
       def    <- theDef <$> getConstInfo d
@@ -95,8 +95,8 @@ notAHaskellType top offender = typeError . GenericDocError =<< do
               Datatype{ dataCons = cs } -> dataPragma (length cs)
               Record{}                  -> dataPragma 1
               _                         -> typePragma
-      vcat [ sep [text "Possible fix:", action]
-           , nest 2 $ hsep [ text "{-# COMPILE GHC", prettyTCM d, text "=", text pragma, text "#-}" ]
+      vcat [ sep ["Possible fix:", action]
+           , nest 2 $ hsep [ "{-# COMPILE GHC", prettyTCM d, "=", text pragma, "#-}" ]
            , text ("for a suitable Haskell " ++ hsThing ++ ".")
            ]
 
@@ -199,7 +199,7 @@ haskellType q = do
           Pi a b  -> underAbstraction a b $ \b -> hsForall <$> getHsVar 0 <*> underPars (n - 1) b
           _       -> __IMPOSSIBLE__
   ty <- underPars np $ defType def
-  reportSDoc "tc.pragma.compile" 10 $ (text "Haskell type for" <+> prettyTCM q <> text ":") <?> pretty ty
+  reportSDoc "tc.pragma.compile" 10 $ ("Haskell type for" <+> prettyTCM q <> ":") <?> pretty ty
   return ty
 
 checkConstructorCount :: QName -> [QName] -> [HaskellCode] -> TCM ()

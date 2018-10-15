@@ -107,20 +107,20 @@ verifyBuiltinRewrite :: Term -> Type -> TCM ()
 verifyBuiltinRewrite v t = do
   requireOptionRewriting
   let failure reason = typeError . GenericDocError =<< sep
-       [ prettyTCM v <+> text " does not have the right type for a rewriting relation"
+       [ prettyTCM v <+> " does not have the right type for a rewriting relation"
        , reason
        ]
   caseMaybeM (relView t)
-    (failure $ text "because it should accept at least two arguments") $
+    (failure $ "because it should accept at least two arguments") $
     \ (RelView tel delta a b core) -> do
-    unless (visible a && visible b) $ failure $ text "because its two final arguments are not both visible."
+    unless (visible a && visible b) $ failure $ "because its two final arguments are not both visible."
     case unEl core of
       Sort{}   -> return ()
       Con{}    -> __IMPOSSIBLE__
       Level{}  -> __IMPOSSIBLE__
       Lam{}    -> __IMPOSSIBLE__
       Pi{}     -> __IMPOSSIBLE__
-      _ -> failure $ text "because its type does not end in a sort, but in "
+      _ -> failure $ "because its type does not end in a sort, but in "
              <+> do inTopContext $ addContext tel $ prettyTCM core
 
 -- | Deconstructing a type into @Δ → t → t' → core@.
@@ -161,34 +161,34 @@ addRewriteRule q = do
   -- for a type signature whose body has not been type-checked yet.
   when (isEmptyFunction $ theDef def) $
     typeError . GenericDocError =<< hsep
-      [ text "Rewrite rule from function "
+      [ "Rewrite rule from function "
       , prettyTCM q
-      , text " cannot be added before the function definition"
+      , " cannot be added before the function definition"
       ]
   -- We know that the type of rel is that of a relation.
   relV <- relView =<< do defType <$> getConstInfo rel
   let RelView _tel delta a _a' _core = -- line break for CPP
         fromMaybe __IMPOSSIBLE__ relV
   reportSDoc "rewriting" 30 $ do
-    text "rewrite relation at type " <+> do
-      inTopContext $ prettyTCM (telFromList delta) <+> text " |- " <+> do
+    "rewrite relation at type " <+> do
+      inTopContext $ prettyTCM (telFromList delta) <+> " |- " <+> do
         addContext delta $ prettyTCM a
   -- Get rewrite rule (type of q).
   TelV gamma1 core <- telView $ defType def
   reportSDoc "rewriting" 30 $ do
-    text "attempting to add rewrite rule of type " <+> do
-      prettyTCM gamma1 <+> text " |- " <+> do
+    "attempting to add rewrite rule of type " <+> do
+      prettyTCM gamma1 <+> " |- " <+> do
         addContext gamma1 $ prettyTCM core
   let failureWrongTarget = typeError . GenericDocError =<< hsep
-        [ prettyTCM q , text " does not target rewrite relation" ]
+        [ prettyTCM q , " does not target rewrite relation" ]
   let failureMetas       = typeError . GenericDocError =<< hsep
-        [ prettyTCM q , text " is not a legal rewrite rule, since it contains unsolved meta variables" ]
+        [ prettyTCM q , " is not a legal rewrite rule, since it contains unsolved meta variables" ]
   let failureNotDefOrCon = typeError . GenericDocError =<< hsep
-        [ prettyTCM q , text " is not a legal rewrite rule, since the left-hand side is neither a defined symbol nor a constructor" ]
+        [ prettyTCM q , " is not a legal rewrite rule, since the left-hand side is neither a defined symbol nor a constructor" ]
   let failureFreeVars xs = typeError . GenericDocError =<< hsep
-        [ prettyTCM q , text " is not a legal rewrite rule, since the following variables are not bound by the left hand side: " , prettyList_ (map (prettyTCM . var) $ IntSet.toList xs) ]
+        [ prettyTCM q , " is not a legal rewrite rule, since the following variables are not bound by the left hand side: " , prettyList_ (map (prettyTCM . var) $ IntSet.toList xs) ]
   let failureIllegalRule = typeError . GenericDocError =<< hsep
-        [ prettyTCM q , text " is not a legal rewrite rule" ]
+        [ prettyTCM q , " is not a legal rewrite rule" ]
 
   -- Check that type of q targets rel.
   case unEl core of
@@ -207,7 +207,7 @@ addRewriteRule q = do
       let gamma = gamma0 `abstract` gamma1
 
       unless (null $ allMetas (telToList gamma1)) $ do
-        reportSDoc "rewriting" 30 $ text "metas in gamma1: " <+> text (show $ allMetas $ telToList gamma1)
+        reportSDoc "rewriting" 30 $ "metas in gamma1: " <+> text (show $ allMetas $ telToList gamma1)
         failureMetas
 
       -- 2017-06-18, Jesper: Unfold inlined definitions on the LHS.
@@ -222,7 +222,8 @@ addRewriteRule q = do
           return (f , Def f , t , es)
         Con c ci vs -> do
           let hd = Con c ci
-          ~(Just (_ , t)) <- getFullyAppliedConType c $ unDom b
+          ~(Just ((_ , _ , pars) , t)) <- getFullyAppliedConType c $ unDom b
+          addContext gamma1 $ checkParametersAreGeneral c (size gamma1) pars
           return (conName c , hd , t  , vs)
         _        -> failureNotDefOrCon
 
@@ -235,30 +236,30 @@ addRewriteRule q = do
         checkNoLhsReduction f es
 
         unless (null $ allMetas (es, rhs, b)) $ do
-          reportSDoc "rewriting" 30 $ text "metas in lhs: " <+> text (show $ allMetas es)
-          reportSDoc "rewriting" 30 $ text "metas in rhs: " <+> text (show $ allMetas rhs)
-          reportSDoc "rewriting" 30 $ text "metas in b  : " <+> text (show $ allMetas b)
+          reportSDoc "rewriting" 30 $ "metas in lhs: " <+> text (show $ allMetas es)
+          reportSDoc "rewriting" 30 $ "metas in rhs: " <+> text (show $ allMetas rhs)
+          reportSDoc "rewriting" 30 $ "metas in b  : " <+> text (show $ allMetas b)
           failureMetas
 
         ps <- patternFrom Relevant 0 (t , Def f []) es
         reportSDoc "rewriting" 30 $
-          text "Pattern generated from lhs: " <+> prettyTCM (PDef f ps)
+          "Pattern generated from lhs: " <+> prettyTCM (PDef f ps)
 
         -- check that FV(rhs) ⊆ nlPatVars(lhs)
         let freeVars  = usedArgs (defArgOccurrences def) `IntSet.union` allFreeVars (ps,rhs)
             boundVars = nlPatVars ps
         reportSDoc "rewriting" 40 $
-          text "variables bound by the pattern: " <+> text (show boundVars)
+          "variables bound by the pattern: " <+> text (show boundVars)
         reportSDoc "rewriting" 40 $
-          text "variables free in the rewrite rule: " <+> text (show freeVars)
+          "variables free in the rewrite rule: " <+> text (show freeVars)
         unlessNull (freeVars IntSet.\\ boundVars) failureFreeVars
 
         return $ RewriteRule q gamma f ps rhs (unDom b)
 
       reportSDoc "rewriting" 10 $
-        text "considering rewrite rule " <+> prettyTCM rew
+        "considering rewrite rule " <+> prettyTCM rew
       reportSDoc "rewriting" 90 $
-        text "considering rewrite rule" <+> text (show rew)
+        "considering rewrite rule" <+> text (show rew)
 
       -- NO LONGER WORKS:
       -- -- Check whether lhs can be rewritten with itself.
@@ -277,11 +278,11 @@ addRewriteRule q = do
       let v = Def f es
       v' <- reduce v
       let fail = do
-            reportSDoc "rewriting" 20 $ text "v  = " <+> text (show v)
-            reportSDoc "rewriting" 20 $ text "v' = " <+> text (show v')
+            reportSDoc "rewriting" 20 $ "v  = " <+> text (show v)
+            reportSDoc "rewriting" 20 $ "v' = " <+> text (show v')
             typeError . GenericDocError =<< fsep
-              [ prettyTCM q <+> text " is not a legal rewrite rule, since the left-hand side "
-              , prettyTCM v <+> text " reduces to " <+> prettyTCM v' ]
+              [ prettyTCM q <+> " is not a legal rewrite rule, since the left-hand side "
+              , prettyTCM v <+> " reduces to " <+> prettyTCM v' ]
       case v' of
         Def f' es' | f == f' -> do
           a   <- computeElimHeadType f es es'
@@ -297,7 +298,7 @@ addRewriteRule q = do
       -- check if q is already an added rewrite rule
       if any ((q ==) . rewName) rews then
         genericWarning =<< do
-          text "Rewrite rule " <+> prettyTCM q <+> text " has already been added"
+          "Rewrite rule " <+> prettyTCM q <+> " has already been added"
       else cont
 
     usedArgs :: [Pos.Occurrence] -> IntSet
@@ -308,12 +309,28 @@ addRewriteRule q = do
         used Pos.Unused = False
         used _          = True
 
+    checkParametersAreGeneral :: ConHead -> Int -> Args -> TCM ()
+    checkParametersAreGeneral c k vs = do
+        is <- loop vs
+        unless (fastDistinct is) $ errorNotGeneral
+      where
+        loop []       = return []
+        loop (v : vs) = case unArg v of
+          Var i [] | i < k -> (i :) <$> loop vs
+          _                -> errorNotGeneral
+
+        errorNotGeneral = typeError . GenericDocError =<< vcat
+            [ prettyTCM q <+> text " is not a legal rewrite rule, since the constructor parameters are not fully general:"
+            , nest 2 $ text "Constructor: " <+> prettyTCM c
+            , nest 2 $ text "Parameters: " <+> prettyList (map prettyTCM vs)
+            ]
+
 -- | Append rewrite rules to a definition.
 addRewriteRules :: QName -> RewriteRules -> TCM ()
 addRewriteRules f rews = do
-  reportSDoc "rewriting" 10 $ text "rewrite rule ok, adding it to the definition of " <+> prettyTCM f
+  reportSDoc "rewriting" 10 $ "rewrite rule ok, adding it to the definition of " <+> prettyTCM f
   let matchables = getMatchables rews
-  reportSDoc "rewriting" 30 $ text "matchable symbols: " <+> prettyTCM matchables
+  reportSDoc "rewriting" 30 $ "matchable symbols: " <+> prettyTCM matchables
   modifySignature $ addRewriteRulesFor f rews matchables
 
 -- | @rewriteWith t f es rew@ where @f : t@
@@ -325,24 +342,24 @@ rewriteWith :: Type
             -> ReduceM (Either (Blocked Term) Term)
 rewriteWith t v rew@(RewriteRule q gamma _ ps rhs b) es = do
   traceSDoc "rewriting.rewrite" 50 (sep
-    [ text "{ attempting to rewrite term " <+> prettyTCM (v `applyE` es)
-    , text " having head " <+> prettyTCM v <+> text " of type " <+> prettyTCM t
-    , text " with rule " <+> prettyTCM rew
+    [ "{ attempting to rewrite term " <+> prettyTCM (v `applyE` es)
+    , " having head " <+> prettyTCM v <+> " of type " <+> prettyTCM t
+    , " with rule " <+> prettyTCM rew
     ]) $ do
   traceSDoc "rewriting.rewrite" 90 (sep
-    [ text "raw: attempting to rewrite term " <+> (text . show) (v `applyE` es)
-    , text " having head " <+> (text . show) v <+> text " of type " <+> (text . show) t
-    , text " with rule " <+> (text . show) rew
+    [ "raw: attempting to rewrite term " <+> (text . show) (v `applyE` es)
+    , " having head " <+> (text . show) v <+> " of type " <+> (text . show) t
+    , " with rule " <+> (text . show) rew
     ]) $ do
   result <- nonLinMatch gamma (t,v) ps es
   case result of
-    Left block -> traceSDoc "rewriting.rewrite" 50 (text "}") $
+    Left block -> traceSDoc "rewriting.rewrite" 50 "}" $
       return $ Left $ block $> v `applyE` es -- TODO: remember reductions
     Right sub  -> do
       let v' = applySubst sub rhs
       traceSDoc "rewriting.rewrite" 50 (sep
-        [ text "rewrote " <+> prettyTCM (v `applyE` es)
-        , text " to " <+> prettyTCM v' <+> text "}"
+        [ "rewrote " <+> prettyTCM (v `applyE` es)
+        , " to " <+> prettyTCM v' <+> "}"
         ]) $ do
       return $ Right v'
 

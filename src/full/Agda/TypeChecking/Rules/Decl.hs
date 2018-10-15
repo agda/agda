@@ -155,7 +155,7 @@ checkDecls ds = do
 
 checkDecl :: A.Declaration -> TCM ()
 checkDecl d = setCurrentRange d $ do
-    reportSDoc "tc.decl" 10 $ text "checking declaration"
+    reportSDoc "tc.decl" 10 $ "checking declaration"
     debugPrintDecl d
     reportSDoc "tc.decl" 90 $ (text . show) (deepUnscopeDecl d)
     reportSDoc "tc.decl" 10 $ prettyA d  -- Might loop, see e.g. Issue 1597
@@ -246,10 +246,10 @@ checkDecl d = setCurrentRange d $ do
               (A.Pi (Info.ExprRange (fuseRange ps t)) ps t)
 
     check x i m = Bench.billTo [Bench.Definition x] $ do
-      reportSDoc "tc.decl" 5 $ text "Checking" <+> prettyTCM x <> text "."
+      reportSDoc "tc.decl" 5 $ "Checking" <+> prettyTCM x <> "."
       reportSLn "tc.decl.abstract" 25 $ show (Info.defAbstract i)
       r <- abstract (Info.defAbstract i) m
-      reportSDoc "tc.decl" 5 $ text "Checked" <+> prettyTCM x <> text "."
+      reportSDoc "tc.decl" 5 $ "Checked" <+> prettyTCM x <> "."
       return r
 
     isAbstract = fmap Info.defAbstract (A.getDefInfo d) == Just AbstractDef
@@ -324,12 +324,12 @@ type FinalChecks = Maybe (TCM ())
 
 checkUnquoteDecl :: Info.MutualInfo -> [Info.DefInfo] -> [QName] -> A.Expr -> TCM FinalChecks
 checkUnquoteDecl mi is xs e = do
-  reportSDoc "tc.unquote.decl" 20 $ text "Checking unquoteDecl" <+> sep (map prettyTCM xs)
+  reportSDoc "tc.unquote.decl" 20 $ "Checking unquoteDecl" <+> sep (map prettyTCM xs)
   Nothing <$ unquoteTop xs e
 
 checkUnquoteDef :: [Info.DefInfo] -> [QName] -> A.Expr -> TCM ()
 checkUnquoteDef _ xs e = do
-  reportSDoc "tc.unquote.decl" 20 $ text "Checking unquoteDef" <+> sep (map prettyTCM xs)
+  reportSDoc "tc.unquote.decl" 20 $ "Checking unquoteDef" <+> sep (map prettyTCM xs)
   () <$ unquoteTop xs e
 
 -- | Run a reflected TCM computatation expected to define a given list of
@@ -359,8 +359,8 @@ instantiateDefinitionType q = do
   t' <- instantiateFull t
   modifySignature $ updateDefinition q $ updateDefType $ const t'
   reportSDoc "tc.decl.inst" 30 $ vcat
-    [ text "  t  = " <+> prettyTCM t
-    , text "  t' = " <+> prettyTCM t'
+    [ "  t  = " <+> prettyTCM t
+    , "  t' = " <+> prettyTCM t'
     ]
 
 -- Andreas, 2014-04-11
@@ -524,8 +524,8 @@ whenAbstractFreezeMetasAfter Info.DefInfo{ defAccess, defAbstract} m = do
     (a, ms) <- metasCreatedBy m
     xs <- freezeMetas' $ (`Set.member` ms)
     reportSDoc "tc.decl.ax" 20 $ vcat
-      [ text "Abstract type signature produced new metas: " <+> sep (map prettyTCM $ Set.toList ms)
-      , text "We froze the following ones of these:       " <+> sep (map prettyTCM xs)
+      [ "Abstract type signature produced new metas: " <+> sep (map prettyTCM $ Set.toList ms)
+      , "We froze the following ones of these:       " <+> sep (map prettyTCM xs)
       ]
     return a
 
@@ -537,7 +537,7 @@ checkGeneralize s i info x e = do
                    workOnTypes $ isType_ e
 
     reportSDoc "tc.decl.gen" 10 $ sep
-      [ text "checked type signature of generalizable variable" <+> prettyTCM x <+> text ":"
+      [ "checked type signature of generalizable variable" <+> prettyTCM x <+> ":"
       , nest 2 $ prettyTCM tGen
       ]
 
@@ -561,8 +561,8 @@ checkAxiom funSig i info0 mp x e = whenAbstractFreezeMetasAfter i $ do
   t <- workOnTypes $ isType_ e
   reportSDoc "tc.decl.ax" 10 $ sep
     [ text $ "checked type signature"
-    , nest 2 $ prettyTCM rel <> prettyTCM x <+> text ":" <+> prettyTCM t
-    , nest 2 $ text "of sort " <+> prettyTCM (getSort t)
+    , nest 2 $ prettyTCM rel <> prettyTCM x <+> ":" <+> prettyTCM t
+    , nest 2 $ "of sort " <+> prettyTCM (getSort t)
     ]
 
   -- Jesper, 2018-06-05: should be done AFTER generalizing
@@ -747,7 +747,7 @@ checkMutual i ds = inMutualBlock $ \ blockId -> do
 
   verboseS "tc.decl.mutual" 20 $ do
     reportSDoc "tc.decl.mutual" 20 $ vcat $
-      (text "Checking mutual block" <+> text (show blockId) <> text ":") :
+      ("Checking mutual block" <+> text (show blockId) <> ":") :
       map (nest 2 . prettyA) ds
 
   insertMutualBlockInfo blockId i
@@ -872,13 +872,13 @@ checkSectionApplication' i m1 (A.SectionApp ptel m2 args) copyInfo = do
     -- Take the module parameters that will be instantiated by @args@.
     let tel'' = telFromList $ take (size tel' - size etaTel) $ telToList tel'
     reportSDoc "tc.mod.apply" 15 $ vcat
-      [ text "applying section" <+> prettyTCM m2
-      , nest 2 $ text "args =" <+> sep (map prettyA args)
-      , nest 2 $ text "ptel =" <+> escapeContext (size ptel) (prettyTCM ptel)
-      , nest 2 $ text "tel  =" <+> prettyTCM tel
-      , nest 2 $ text "tel' =" <+> prettyTCM tel'
-      , nest 2 $ text "tel''=" <+> prettyTCM tel''
-      , nest 2 $ text "eta  =" <+> escapeContext (size ptel) (addContext tel'' $ prettyTCM etaTel)
+      [ "applying section" <+> prettyTCM m2
+      , nest 2 $ "args =" <+> sep (map prettyA args)
+      , nest 2 $ "ptel =" <+> escapeContext (size ptel) (prettyTCM ptel)
+      , nest 2 $ "tel  =" <+> prettyTCM tel
+      , nest 2 $ "tel' =" <+> prettyTCM tel'
+      , nest 2 $ "tel''=" <+> prettyTCM tel''
+      , nest 2 $ "eta  =" <+> escapeContext (size ptel) (addContext tel'' $ prettyTCM etaTel)
       ]
     -- Now, type check arguments.
     ts <- (noConstraints $ checkArguments_ DontExpandLast (getRange i) args tel') >>= \case
@@ -888,17 +888,17 @@ checkSectionApplication' i m1 (A.SectionApp ptel m2 args) copyInfo = do
     -- Perform the application of the module parameters.
     let aTel = tel' `apply` ts
     reportSDoc "tc.mod.apply" 15 $ vcat
-      [ nest 2 $ text "aTel =" <+> prettyTCM aTel
+      [ nest 2 $ "aTel =" <+> prettyTCM aTel
       ]
     -- Andreas, 2014-04-06, Issue 1094:
     -- Add the section with well-formed telescope.
     addContext (KeepNames aTel) $ do
       reportSDoc "tc.mod.apply" 80 $
-        text "addSection" <+> prettyTCM m1 <+> (getContextTelescope >>= \ tel -> inTopContext (prettyTCM tel))
+        "addSection" <+> prettyTCM m1 <+> (getContextTelescope >>= \ tel -> inTopContext (prettyTCM tel))
       addSection m1
 
     reportSDoc "tc.mod.apply" 20 $ vcat
-      [ sep [ text "applySection", prettyTCM m1, text "=", prettyTCM m2, fsep $ map prettyTCM (vs ++ ts) ]
+      [ sep [ "applySection", prettyTCM m1, "=", prettyTCM m2, fsep $ map prettyTCM (vs ++ ts) ]
       , nest 2 $ pretty copyInfo
       ]
     args <- instantiateFull $ vs ++ ts
@@ -932,17 +932,17 @@ checkSectionApplication' i m1 (A.RecordModuleIFS x) copyInfo = do
       instFinal EmptyTel = __IMPOSSIBLE__
 
   reportSDoc "tc.mod.apply" 20 $ vcat
-    [ sep [ text "applySection", prettyTCM name, text "{{...}}" ]
-    , nest 2 $ text "x       =" <+> prettyTCM x
-    , nest 2 $ text "name    =" <+> prettyTCM name
-    , nest 2 $ text "tel     =" <+> prettyTCM tel
-    , nest 2 $ text "telInst =" <+> prettyTCM telInst
-    , nest 2 $ text "vs      =" <+> sep (map prettyTCM vs)
-    -- , nest 2 $ text "args    =" <+> sep (map prettyTCM args)
+    [ sep [ "applySection", prettyTCM name, "{{...}}" ]
+    , nest 2 $ "x       =" <+> prettyTCM x
+    , nest 2 $ "name    =" <+> prettyTCM name
+    , nest 2 $ "tel     =" <+> prettyTCM tel
+    , nest 2 $ "telInst =" <+> prettyTCM telInst
+    , nest 2 $ "vs      =" <+> sep (map prettyTCM vs)
+    -- , nest 2 $ "args    =" <+> sep (map prettyTCM args)
     ]
   reportSDoc "tc.mod.apply" 60 $ vcat
-    [ nest 2 $ text "vs      =" <+> text (show vs)
-    -- , nest 2 $ text "args    =" <+> text (show args)
+    [ nest 2 $ "vs      =" <+> text (show vs)
+    -- , nest 2 $ "args    =" <+> text (show args)
     ]
   when (tel == EmptyTel) $
     typeError $ GenericError $ prettyShow (qnameToConcrete name) ++ " is not a parameterised section"
@@ -950,12 +950,12 @@ checkSectionApplication' i m1 (A.RecordModuleIFS x) copyInfo = do
   addContext telInst $ do
     vs <- moduleParamsToApply x
     reportSDoc "tc.mod.apply" 20 $ vcat
-      [ nest 2 $ text "vs      =" <+> sep (map prettyTCM vs)
-      , nest 2 $ text "args    =" <+> sep (map (parens . prettyTCM) args)
+      [ nest 2 $ "vs      =" <+> sep (map prettyTCM vs)
+      , nest 2 $ "args    =" <+> sep (map (parens . prettyTCM) args)
       ]
     reportSDoc "tc.mod.apply" 60 $ vcat
-      [ nest 2 $ text "vs      =" <+> text (show vs)
-      , nest 2 $ text "args    =" <+> text (show args)
+      [ nest 2 $ "vs      =" <+> text (show vs)
+      , nest 2 $ "args    =" <+> text (show args)
       ]
     addSection m1
     applySection m1 telInst x (vs ++ args) copyInfo

@@ -339,7 +339,7 @@ reportCalls no calls = do
     --   ]
     reportSDoc "term.matrices" 30 $ vcat
       [ text $ "Idempotent call matrices (" ++ no ++ "dot patterns):\n"
-      , nest 2 $ vcat $ punctuate (text "\n") $ map pretty idems
+      , nest 2 $ vcat $ punctuate "\n" $ map pretty idems
       ]
     -- reportSDoc "term.matrices" 30 $ vcat
     --   [ text $ "Other call matrices (" ++ no ++ "dot patterns):"
@@ -435,15 +435,15 @@ termDef name = terSetCurrent name $ inConcreteOrAbstractMode name $ \ def -> do
   let t = defType def
 
   liftTCM $ reportSDoc "term.def.fun" 5 $
-    sep [ text "termination checking type of" <+> prettyTCM name
-        , nest 2 $ text ":" <+> prettyTCM t
+    sep [ "termination checking type of" <+> prettyTCM name
+        , nest 2 $ ":" <+> prettyTCM t
         ]
 
   termType t `mappend` do
 
   liftTCM $ reportSDoc "term.def.fun" 5 $
-    sep [ text "termination checking body of" <+> prettyTCM name
-        , nest 2 $ text ":" <+> prettyTCM t
+    sep [ "termination checking body of" <+> prettyTCM name
+        , nest 2 $ ":" <+> prettyTCM t
         ]
 
   -- If --without-K, we disregard all arguments (and result)
@@ -478,7 +478,7 @@ termType = loop 0
     ps <- mkPats n
     reportSDoc "term.type" 60 $ vcat
       [ text $ "termType " ++ show n ++ " with " ++ show (length ps) ++ " patterns"
-      , nest 2 $ text "looking at type " <+> prettyTCM t
+      , nest 2 $ "looking at type " <+> prettyTCM t
       ]
     terSetPatterns ps $ do
       ifNotPiType t {-then-} extract {-else-} $ \ dom absB -> do
@@ -501,9 +501,9 @@ setMasks t cont = do
       d <- (isNothing <$> isDataOrRecord (unEl t)) `or2M` (isJust <$> isSizeType t)
       when d $
         reportSDoc "term.mask" 20 $ do
-          text "argument type "
+          "argument type "
             <+> prettyTCM t
-            <+> text " is not data or record type, ignoring structural descent for --without-K"
+            <+> " is not data or record type, ignoring structural descent for --without-K"
       return d
     -- Check result types
     d  <- isNothing <.> isDataOrRecord . unEl $ core
@@ -612,9 +612,9 @@ termClause' :: Clause -> TerM Calls
 termClause' clause = do
   Clause{ clauseTel = tel, namedClausePats = ps, clauseBody = body } <- etaExpandClause clause
   liftTCM $ reportSDoc "term.check.clause" 25 $ vcat
-    [ text "termClause"
-    , nest 2 $ text "tel =" <+> prettyTCM tel
-    , nest 2 $ text "ps  =" <+> do addContext tel $ prettyTCMPatternList ps
+    [ "termClause"
+    , nest 2 $ "tel =" <+> prettyTCM tel
+    , nest 2 $ "ps  =" <+> do addContext tel $ prettyTCMPatternList ps
     ]
   forM' body $ \ v -> addContext tel $ do
     -- TODO: combine the following two traversals, avoid full normalisation.
@@ -650,8 +650,8 @@ termClause' clause = do
                     (if delayed == Delayed then "delayed " else "") ++
                     "clause of")
                 <+> prettyTCM f
-            , nest 2 $ text "lhs:" <+> sep (map prettyTCM pats)
-            , nest 2 $ text "rhs:" <+> prettyTCM v
+            , nest 2 $ "lhs:" <+> sep (map prettyTCM pats)
+            , nest 2 $ "rhs:" <+> prettyTCM v
             ]
 
 
@@ -689,7 +689,7 @@ instance ExtractCalls Sort where
   extract s = do
     liftTCM $ do
       reportSDoc "term.sort" 20 $
-        text "extracting calls from sort" <+> prettyTCM s
+        "extracting calls from sort" <+> prettyTCM s
       reportSDoc "term.sort" 50 $
         text ("s = " ++ show s)
     case s of
@@ -756,7 +756,7 @@ withFunction g es = do
   v <- liftTCM $ -- billTo [Benchmark.Termination, Benchmark.With] $  -- 0ms
          expandWithFunctionCall g es
   liftTCM $ reportSDoc "term.with.call" 30 $
-    text "termination checking expanded with-function call:" <+> prettyTCM v
+    "termination checking expanded with-function call:" <+> prettyTCM v
   extract v
 
 -- | Handles function applications @g es@.
@@ -771,7 +771,7 @@ function g es0 = ifM (terGetInlineWithFunctions `and2M` do isJust <$> isWithFunc
 
     -- let gArgs = Def g es0
     liftTCM $ reportSDoc "term.function" 30 $
-      text "termination checking function call " <+> prettyTCM (Def g es0)
+      "termination checking function call " <+> prettyTCM (Def g es0)
 
     -- First, look for calls in the arguments of the call gArgs.
 
@@ -799,8 +799,8 @@ function g es0 = ifM (terGetInlineWithFunctions `and2M` do isJust <$> isWithFunc
     -- Then, consider call gArgs itself.
 
     liftTCM $ reportSDoc "term.found.call" 20 $
-      sep [ text "found call from" <+> prettyTCM f
-          , nest 2 $ text "to" <+> prettyTCM g
+      sep [ "found call from" <+> prettyTCM f
+          , nest 2 $ "to" <+> prettyTCM g
           ]
 
     -- insert this call into the call list
@@ -838,7 +838,7 @@ function g es0 = ifM (terGetInlineWithFunctions `and2M` do isJust <$> isWithFunc
            --  reportSLn "term.reduce" 90 $ "normalizing call arguments"
            --  modifyAllowedReductions (List.\\ [UnconfirmedReductions,RecursiveReductions]) $
            --    forM es0 $ \ e -> do
-           --      reportSDoc "term.reduce" 95 $ text "normalizing " <+> prettyTCM e
+           --      reportSDoc "term.reduce" 95 $ "normalizing " <+> prettyTCM e
            --      etaContract =<< normalise e
 
          -- Compute the call matrix.
@@ -890,10 +890,10 @@ function g es0 = ifM (terGetInlineWithFunctions `and2M` do isJust <$> isWithFunc
          verboseS "term.kept.call" 5 $ do
            pats <- terGetPatterns
            reportSDoc "term.kept.call" 5 $ vcat
-             [ text "kept call from" <+> text (prettyShow f) <+> hsep (map prettyTCM pats)
-             , nest 2 $ text "to" <+> text (prettyShow g) <+>
+             [ "kept call from" <+> text (prettyShow f) <+> hsep (map prettyTCM pats)
+             , nest 2 $ "to" <+> text (prettyShow g) <+>
                          hsep (map (parens . prettyTCM) args)
-             , nest 2 $ text "call matrix (with guardedness): "
+             , nest 2 $ "call matrix (with guardedness): "
              , nest 2 $ pretty cm
              ]
          return $ CallGraph.insert src tgt cm info calls
@@ -903,7 +903,7 @@ function g es0 = ifM (terGetInlineWithFunctions `and2M` do isJust <$> isWithFunc
 instance ExtractCalls Term where
   extract t = do
     liftTCM $ reportSDoc "term.check.term" 50 $ do
-      text "looking for calls in" <+> prettyTCM t
+      "looking for calls in" <+> prettyTCM t
 
     -- Instantiate top-level MetaVar.
     t <- liftTCM $ instantiate t
@@ -1013,7 +1013,7 @@ compareArgs es = do
     ]
   -- apats <- annotatePatsWithUseSizeLt pats
   -- reportSDoc "term.compare" 20 $
-  --   text "annotated patterns = " <+> sep (map prettyTCM apats)
+  --   "annotated patterns = " <+> sep (map prettyTCM apats)
   -- matrix <- forM es $ \ e -> forM apats $ \ (b, p) -> terSetUseSizeLt b $ compareElim e p
   matrix <- withUsableVars pats $ forM es $ \ e -> forM pats $ \ p -> compareElim e p
 
@@ -1027,7 +1027,7 @@ compareArgs es = do
   let ?cutoff = cutoff
   let guardedness = decr True $ projsCaller - projsCallee
   liftTCM $ reportSDoc "term.guardedness" 30 $ sep
-    [ text "compareArgs:"
+    [ "compareArgs:"
     , nest 2 $ text $ "projsCaller = " ++ prettyShow projsCaller
     , nest 2 $ text $ "projsCallee = " ++ prettyShow projsCallee
     , nest 2 $ text $ "guardedness of call: " ++ prettyShow guardedness
@@ -1054,9 +1054,9 @@ compareElim :: Elim -> Masked DeBruijnPattern -> TerM Order
 compareElim e p = do
   liftTCM $ do
     reportSDoc "term.compare" 30 $ sep
-      [ text "compareElim"
-      , nest 2 $ text "e = " <> prettyTCM e
-      , nest 2 $ text "p = " <> prettyTCM p
+      [ "compareElim"
+      , nest 2 $ "e = " <> prettyTCM e
+      , nest 2 $ "p = " <> prettyTCM p
       ]
     reportSDoc "term.compare" 50 $ sep
       [ nest 2 $ text $ "e = " ++ show e
@@ -1156,13 +1156,13 @@ subPatterns = foldPattern $ \case
 compareTerm :: Term -> Masked DeBruijnPattern -> TerM Order
 compareTerm t p = do
 --   reportSDoc "term.compare" 25 $
---     text " comparing term " <+> prettyTCM t <+>
---     text " to pattern " <+> prettyTCM p
+--     " comparing term " <+> prettyTCM t <+>
+--     " to pattern " <+> prettyTCM p
   t <- liftTCM $ stripAllProjections t
   o <- compareTerm' t p
   liftTCM $ reportSDoc "term.compare" 25 $
-    text " comparing term " <+> prettyTCM t <+>
-    text " to pattern " <+> prettyTCM p <+>
+    " comparing term " <+> prettyTCM t <+>
+    " to pattern " <+> prettyTCM p <+>
     text (" results in " ++ prettyShow o)
   return o
 

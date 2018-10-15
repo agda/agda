@@ -1,5 +1,4 @@
 {-# LANGUAGE CPP #-}
-{-# LANGUAGE OverloadedStrings #-}
 
 -- | Functions which give precise syntax highlighting info in JSON format.
 

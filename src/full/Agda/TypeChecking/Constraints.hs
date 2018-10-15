@@ -57,7 +57,7 @@ addConstraint :: Constraint -> TCM ()
 addConstraint c = do
     pids <- asksTC envActiveProblems
     reportSDoc "tc.constr.add" 20 $ hsep
-      [ text "adding constraint"
+      [ "adding constraint"
       , text (show $ Set.toList pids)
       , prettyTCM c ]
     -- Need to reduce to reveal possibly blocking metas
@@ -65,7 +65,7 @@ addConstraint c = do
     cs <- simpl c
     if ([c] /= cs)
       then do
-        reportSDoc "tc.constr.add" 20 $ text "  simplified:" <+> prettyList (map prettyTCM cs)
+        reportSDoc "tc.constr.add" 20 $ "  simplified:" <+> prettyList (map prettyTCM cs)
         mapM_ solveConstraint_ cs
       else mapM_ addConstraint' cs
     -- the added constraint can cause IFS constraints to be solved (but only
@@ -90,8 +90,8 @@ addConstraint c = do
       cs <- map theConstraint <$> getAllConstraints
       lvls <- instantiateFull $ List.filter (isLvl . clValue) cs
       when (not $ null lvls) $ do
-        reportSDoc "tc.constr.lvl" 40 $ text "simplifying level constraint" <+> prettyTCM c
-                                        $$ nest 2 (hang (text "using") 2 (prettyTCM lvls))
+        reportSDoc "tc.constr.lvl" 40 $ "simplifying level constraint" <+> prettyTCM c
+                                        $$ nest 2 (hang "using" 2 (prettyTCM lvls))
       return $ simplifyLevelConstraint c $ map clValue lvls
 
 -- | Don't allow the argument to produce any constraints.
@@ -164,9 +164,9 @@ solveAwakeConstraints' force = do
      locallyTC eActiveProblems (const Set.empty) solve
   where
     solve = do
-      reportSDoc "tc.constr.solve" 10 $ hsep [ text "Solving awake constraints."
+      reportSDoc "tc.constr.solve" 10 $ hsep [ "Solving awake constraints."
                                              , text . show . length =<< getAwakeConstraints
-                                             , text "remaining." ]
+                                             , "remaining." ]
       whenJustM takeAwakeConstraint $ \ c -> do
         withConstraint solveConstraint c
         solve
@@ -243,6 +243,6 @@ debugConstraints = verboseS "tc.constr" 50 $ do
   awake    <- useTC stAwakeConstraints
   sleeping <- useTC stSleepingConstraints
   reportSDoc "" 0 $ vcat
-    [ text "Current constraints"
-    , nest 2 $ vcat [ text "awake " <+> vcat (map prettyTCM awake)
-                    , text "asleep" <+> vcat (map prettyTCM sleeping) ] ]
+    [ "Current constraints"
+    , nest 2 $ vcat [ "awake " <+> vcat (map prettyTCM awake)
+                    , "asleep" <+> vcat (map prettyTCM sleeping) ] ]

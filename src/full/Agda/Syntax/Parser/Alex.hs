@@ -17,6 +17,7 @@ module Agda.Syntax.Parser.Alex
     where
 
 import Control.Monad.State
+import Data.Char
 import Data.Word
 
 import Agda.Syntax.Position
@@ -43,9 +44,10 @@ lensLexInput f r = f (lexInput r) <&> \ s -> r { lexInput = s }
 alexInputPrevChar :: AlexInput -> Char
 alexInputPrevChar = lexPrevChar
 
--- | Lex a character. No surprises.
+-- | Returns the next character, and updates the 'AlexInput' value.
 --
--- This function is used by Alex 2.
+-- This function is not suitable for use by Alex 2, because it can
+-- return non-ASCII characters.
 alexGetChar :: AlexInput -> Maybe (Char, AlexInput)
 alexGetChar     (AlexInput { lexInput = []              }) = Nothing
 alexGetChar inp@(AlexInput { lexInput = c:s, lexPos = p }) =
@@ -57,14 +59,33 @@ alexGetChar inp@(AlexInput { lexInput = c:s, lexPos = p }) =
                  }
          )
 
--- | A variant of 'alexGetChar'.
+-- | Returns the next byte, and updates the 'AlexInput' value.
 --
--- This function is used by Alex 3.
+-- A trick is used to handle the fact that there are more than 256
+-- Unicode code points. The function translates characters to bytes in
+-- the following way:
+--
+-- * Whitespace characters other than \'\\t\' and \'\\n\' are
+--   translated to \' \'.
+-- * Non-ASCII alphabetical characters are translated to \'z\'.
+-- * Other non-ASCII printable characters are translated to \'+\'.
+-- * Everything else is translated to \'\\1\'.
+--
+-- Note that it is important that there are no keywords containing
+-- \'z\', \'+\', \' \' or \'\\1\'.
+--
+-- This function is used by Alex (version 3).
+
 alexGetByte :: AlexInput -> Maybe (Word8, AlexInput)
 alexGetByte ai =
-  -- Note that we ensure that every character presented to Alex fits
-  -- in seven bits.
-  mapFst (fromIntegral . fromEnum) <$> alexGetChar ai
+  mapFst (fromIntegral . fromEnum . toASCII) <$> alexGetChar ai
+  where
+  toASCII c
+    | isSpace c && c /= '\t' && c /= '\n' = ' '
+    | isAscii c                           = c
+    | isPrint c                           = if isAlpha c then 'z'
+                                                         else '+'
+    | otherwise                           = '\1'
 
 {--------------------------------------------------------------------------
     Monad operations

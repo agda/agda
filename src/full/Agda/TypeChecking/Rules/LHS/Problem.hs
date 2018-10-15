@@ -248,31 +248,31 @@ instance Subst Term AbsurdPattern where
 
 instance PrettyTCM ProblemEq where
   prettyTCM (ProblemEq p v a) = sep
-    [ prettyA p <+> text "="
-    , nest 2 $ prettyTCM v <+> text ":"
+    [ prettyA p <+> "="
+    , nest 2 $ prettyTCM v <+> ":"
     , nest 2 $ prettyTCM a
     ]
 
 instance PrettyTCM AsBinding where
   prettyTCM (AsB x v a) =
-    sep [ prettyTCM x P.<> text "@" P.<> parens (prettyTCM v)
-        , nest 2 $ text ":" <+> prettyTCM a
+    sep [ prettyTCM x P.<> "@" P.<> parens (prettyTCM v)
+        , nest 2 $ ":" <+> prettyTCM a
         ]
 
 instance PrettyTCM DotPattern where
   prettyTCM (Dot e v a) = sep
-    [ prettyA e <+> text "="
-    , nest 2 $ prettyTCM v <+> text ":"
+    [ prettyA e <+> "="
+    , nest 2 $ prettyTCM v <+> ":"
     , nest 2 $ prettyTCM a
     ]
 
 instance PrettyTCM AbsurdPattern where
-  prettyTCM (Absurd r a) = text "() :" <+> prettyTCM a
+  prettyTCM (Absurd r a) = "() :" <+> prettyTCM a
 
 instance PP.Pretty AsBinding where
   pretty (AsB x v a) =
-    PP.pretty x PP.<+> PP.text "=" PP.<+>
-      PP.hang (PP.pretty v PP.<+> PP.text ":") 2 (PP.pretty a)
+    PP.pretty x PP.<+> "=" PP.<+>
+      PP.hang (PP.pretty v PP.<+> ":") 2 (PP.pretty a)
 
 instance InstantiateFull AsBinding where
   instantiateFull' (AsB x v a) = AsB x <$> instantiateFull' v <*> instantiateFull' a

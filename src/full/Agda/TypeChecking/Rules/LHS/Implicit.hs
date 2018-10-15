@@ -68,11 +68,11 @@ insertImplicitPatternsT DontExpandLast [] a = insertImplicitSizeLtPatterns a
 insertImplicitPatternsT exh            ps a = do
   TelV tel b <- telViewUpTo' (-1) (not . visible) a
   reportSDoc "tc.lhs.imp" 20 $
-    vcat [ text "insertImplicitPatternsT"
-         , nest 2 $ text "ps  = " <+> do
+    vcat [ "insertImplicitPatternsT"
+         , nest 2 $ "ps  = " <+> do
              brackets $ fsep $ punctuate comma $ map prettyA ps
-         , nest 2 $ text "tel = " <+> prettyTCM tel
-         , nest 2 $ text "b   = " <+> addContext tel (prettyTCM b)
+         , nest 2 $ "tel = " <+> prettyTCM tel
+         , nest 2 $ "b   = " <+> addContext tel (prettyTCM b)
          ]
   case ps of
     [] -> insImp dummy tel

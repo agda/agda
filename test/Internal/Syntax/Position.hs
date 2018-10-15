@@ -55,17 +55,6 @@ prop_startPos = positionInvariant . startPos
 prop_noRange :: Bool
 prop_noRange = rangeInvariant (noRange :: Range)
 
-prop_takeI_dropI :: Interval' Integer -> Property
-prop_takeI_dropI i =
-  forAll (choose (0, toInteger $ iLength i)) $ \n ->
-    let s = genericReplicate n ' '
-        t = takeI s i
-        d = dropI s i
-    in
-    intervalInvariant t &&
-    intervalInvariant d &&
-    fuseIntervals t d == i
-
 prop_posToRange' ::
   Integer -> PositionWithoutFile -> PositionWithoutFile -> Bool
 prop_posToRange' f p1 p2 =

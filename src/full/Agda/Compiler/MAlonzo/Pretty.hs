@@ -26,15 +26,15 @@ prettyPrint = show . pretty
 instance Pretty HS.Module where
   pretty (HS.Module m pragmas imps decls) =
     vcat [ vcat $ map pretty pragmas
-         , text "module" <+> pretty m <+> text "where"
-         , text ""
+         , "module" <+> pretty m <+> "where"
+         , ""
          , vcat $ map pretty imps
-         , text ""
+         , ""
          , vcat $ map pretty decls ]
 
 instance Pretty HS.ModulePragma where
   pretty (HS.LanguagePragma ps) =
-    text "{-#" <+> text "LANGUAGE" <+> fsep (punctuate comma $ map pretty ps) <+> text "#-}"
+    "{-#" <+> "LANGUAGE" <+> fsep (punctuate comma $ map pretty ps) <+> "#-}"
   pretty (HS.OtherPragma p) =
     text p
 
@@ -42,12 +42,12 @@ instance Pretty HS.ImportDecl where
   pretty HS.ImportDecl{ HS.importModule    = m
                       , HS.importQualified = q
                       , HS.importSpecs     = specs } =
-      hsep [ text "import"
-           , if q then text "qualified" else empty
+      hsep [ "import"
+           , if q then "qualified" else empty
            , pretty m
            , maybe empty prSpecs specs ]
     where prSpecs (hide, specs) =
-            hsep [ if hide then text "hiding" else empty
+            hsep [ if hide then "hiding" else empty
                  , parens $ fsep $ punctuate comma $ map pretty specs ]
 
 instance Pretty HS.ImportSpec where
@@ -56,22 +56,22 @@ instance Pretty HS.ImportSpec where
 instance Pretty HS.Decl where
   pretty d = case d of
     HS.TypeDecl f xs t ->
-      sep [ text "type" <+> pretty f <+> fsep (map pretty xs) <+> text "="
+      sep [ "type" <+> pretty f <+> fsep (map pretty xs) <+> "="
           , nest 2 $ pretty t ]
     HS.DataDecl newt d xs cons derv ->
       sep [ pretty newt <+> pretty d <+> fsep (map pretty xs)
           , nest 2 $ if null cons then empty
-                     else text "=" <+> fsep (punctuate (text " |") $ map pretty cons)
+                     else "=" <+> fsep (punctuate " |" $ map pretty cons)
           , nest 2 $ prDeriving derv ]
       where
         prDeriving [] = empty
-        prDeriving ds = text "deriving" <+> parens (fsep $ punctuate comma $ map prDer ds)
+        prDeriving ds = "deriving" <+> parens (fsep $ punctuate comma $ map prDer ds)
         prDer (d, ts) = pretty (foldl HS.TyApp (HS.TyCon d) ts)
     HS.TypeSig fs t ->
-      sep [ hsep (punctuate comma (map pretty fs)) <+> text "::"
+      sep [ hsep (punctuate comma (map pretty fs)) <+> "::"
           , nest 2 $ pretty t ]
     HS.FunBind ms -> vcat $ map pretty ms
-    HS.PatSyn p1 p2 -> sep [ text "pattern" <+> pretty p1 <+> text "=" <+> pretty p2 ]
+    HS.PatSyn p1 p2 -> sep [ "pattern" <+> pretty p1 <+> "=" <+> pretty p2 ]
     HS.FakeDecl s -> text s
 
 instance Pretty HS.ConDecl where
@@ -80,7 +80,7 @@ instance Pretty HS.ConDecl where
     fsep (map (\(s, t) -> maybe empty pretty s <> prettyPrec 10 t) sts)
 
 instance Pretty HS.Strictness where
-  pretty HS.Strict = text "!"
+  pretty HS.Strict = "!"
   pretty HS.Lazy   = empty
 
 instance Pretty HS.Match where
@@ -92,19 +92,19 @@ instance Pretty HS.Match where
 prettyWhere :: Maybe HS.Binds -> Doc -> Doc
 prettyWhere Nothing  doc = doc
 prettyWhere (Just b) doc =
-  vcat [ doc, nest 2 $ sep [ text "where", nest 2 $ pretty b ] ]
+  vcat [ doc, nest 2 $ sep [ "where", nest 2 $ pretty b ] ]
 
 instance Pretty HS.Pat where
   prettyPrec pr pat =
     case pat of
       HS.PVar x         -> pretty x
       HS.PLit l         -> pretty l
-      HS.PAsPat x p     -> mparens (pr > 10) $ pretty x <> text "@" <> prettyPrec 11 p
-      HS.PWildCard      -> text "_"
-      HS.PBangPat p     -> text "!" <> prettyPrec 11 p
+      HS.PAsPat x p     -> mparens (pr > 10) $ pretty x <> "@" <> prettyPrec 11 p
+      HS.PWildCard      -> "_"
+      HS.PBangPat p     -> "!" <> prettyPrec 11 p
       HS.PApp c ps      -> mparens (pr > 9) $ pretty c <+> hsep (map (prettyPrec 10) ps)
-      HS.PatTypeSig p t -> mparens (pr > 0) $ sep [ pretty p <+> text "::", nest 2 $ pretty t ]
-      HS.PIrrPat p      -> mparens (pr > 10) $ text "~" <> prettyPrec 11 p
+      HS.PatTypeSig p t -> mparens (pr > 0) $ sep [ pretty p <+> "::", nest 2 $ pretty t ]
+      HS.PIrrPat p      -> mparens (pr > 10) $ "~" <> prettyPrec 11 p
 
 prettyRhs :: String -> HS.Rhs -> Doc
 prettyRhs eq (HS.UnGuardedRhs e)   = text eq <+> pretty e
@@ -112,15 +112,15 @@ prettyRhs eq (HS.GuardedRhss rhss) = vcat $ map (prettyGuardedRhs eq) rhss
 
 prettyGuardedRhs :: String -> HS.GuardedRhs -> Doc
 prettyGuardedRhs eq (HS.GuardedRhs ss e) =
-    sep [ text "|" <+> sep (punctuate comma $ map pretty ss) <+> text eq
+    sep [ "|" <+> sep (punctuate comma $ map pretty ss) <+> text eq
         , nest 2 $ pretty e ]
 
 instance Pretty HS.Binds where
   pretty (HS.BDecls ds) = vcat $ map pretty ds
 
 instance Pretty HS.DataOrNew where
-  pretty HS.DataType = text "data"
-  pretty HS.NewType  = text "newtype"
+  pretty HS.DataType = "data"
+  pretty HS.NewType  = "newtype"
 
 instance Pretty HS.TyVarBind where
   pretty (HS.UnkindedVar x) = pretty x
@@ -130,11 +130,11 @@ instance Pretty HS.Type where
     case t of
       HS.TyForall xs t ->
         mparens (pr > 0) $
-          sep [ text "forall" <+> fsep (map pretty xs) <> text "."
+          sep [ "forall" <+> fsep (map pretty xs) <> "."
               , nest 2 $ pretty t ]
       HS.TyFun a b ->
         mparens (pr > 4) $
-          sep [ prettyPrec 5 a <+> text "->", prettyPrec 4 b ]
+          sep [ prettyPrec 5 a <+> "->", prettyPrec 4 b ]
       HS.TyCon c -> pretty c
       HS.TyVar x -> pretty x
       HS.TyApp (HS.TyCon (HS.UnQual (HS.Ident "[]"))) t ->
@@ -151,7 +151,7 @@ instance Pretty HS.Type where
 
 instance Pretty HS.Stmt where
   pretty (HS.Qualifier e) = pretty e
-  pretty (HS.Generator p e) = sep [ pretty p <+> text "<-", nest 2 $ pretty e ]
+  pretty (HS.Generator p e) = sep [ pretty p <+> "<-", nest 2 $ pretty e ]
 
 instance Pretty HS.Literal where
   pretty (HS.Int n)    = integer n
@@ -176,22 +176,22 @@ instance Pretty HS.Exp where
           appView (HS.App f e) es = appView f (e : es)
           appView f es = f : es
       HS.Lambda ps e -> mparens (pr > 0) $
-        sep [ text "\\" <+> fsep (map (prettyPrec 10) ps) <+> text "->"
+        sep [ "\\" <+> fsep (map (prettyPrec 10) ps) <+> "->"
             , nest 2 $ pretty e ]
       HS.Let bs e -> mparens (pr > 0) $
-        sep [ text "let" <+> pretty bs <+> text "in"
+        sep [ "let" <+> pretty bs <+> "in"
             , pretty e ]
       HS.If a b c -> mparens (pr > 0) $
-        sep [ text "if" <+> pretty a
-            , nest 2 $ text "then" <+> pretty b
-            , nest 2 $ text "else" <+> prettyPrec 1 c ]
+        sep [ "if" <+> pretty a
+            , nest 2 $ "then" <+> pretty b
+            , nest 2 $ "else" <+> prettyPrec 1 c ]
       HS.Case e bs -> mparens (pr > 0) $
-        vcat [ text "case" <+> pretty e <+> text "of"
+        vcat [ "case" <+> pretty e <+> "of"
              , nest 2 $ vcat $ map pretty bs ]
       HS.ExpTypeSig e t -> mparens (pr > 0) $
-        sep [ pretty e <+> text "::"
+        sep [ pretty e <+> "::"
             , nest 2 $ pretty t ]
-      HS.NegApp exp -> parens $ text "-" <> pretty exp
+      HS.NegApp exp -> parens $ "-" <> pretty exp
       HS.FakeExp s -> text s
 
 instance Pretty HS.Alt where
@@ -213,7 +213,7 @@ instance Pretty HS.Name where
 instance Pretty HS.QOp where
   pretty (HS.QVarOp x)
     | isOperator x = prettyQName x
-    | otherwise    = text "`" <> prettyQName x <> text "`"
+    | otherwise    = "`" <> prettyQName x <> "`"
 
 isOperator :: HS.QName -> Bool
 isOperator q =
@@ -225,5 +225,5 @@ isOperator q =
     isOp HS.Ident{}  = False
 
 prettyQName :: HS.QName -> Doc
-prettyQName (HS.Qual m x)           = pretty m <> text "." <> pretty x
+prettyQName (HS.Qual m x)           = pretty m <> "." <> pretty x
 prettyQName (HS.UnQual x)           = pretty x

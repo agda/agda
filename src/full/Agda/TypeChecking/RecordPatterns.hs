@@ -73,8 +73,8 @@ recordPatternToProjections p =
         typeError $ ShouldBeRecordPattern p
       let t = unArg $ fromMaybe __IMPOSSIBLE__ $ conPType ci
       reportSDoc "tc.rec" 45 $ vcat
-        [ text "recordPatternToProjections: "
-        , nest 2 $ text "constructor pattern " <+> prettyTCM p <+> text " has type " <+> prettyTCM t
+        [ "recordPatternToProjections: "
+        , nest 2 $ "constructor pattern " <+> prettyTCM p <+> " has type " <+> prettyTCM t
         ]
       reportSLn "tc.rec" 70 $ "  type raw: " ++ show t
       fields <- getRecordTypeFields t
@@ -132,17 +132,17 @@ getEtaAndArity SplitCatchall = return (False, 1)
 translateCompiledClauses :: CompiledClauses -> TCM CompiledClauses
 translateCompiledClauses cc = do
   reportSDoc "tc.cc.record" 20 $ vcat
-    [ text "translate record patterns in compiled clauses"
+    [ "translate record patterns in compiled clauses"
     , nest 2 $ return $ pretty cc
     ]
   cc <- loop cc
   reportSDoc "tc.cc.record" 20 $ vcat
-    [ text "translated compiled clauses (no eta record patterns):"
+    [ "translated compiled clauses (no eta record patterns):"
     , nest 2 $ return $ pretty cc
     ]
   cc <- recordExpressionsToCopatterns cc
   reportSDoc "tc.cc.record" 20 $ vcat
-    [ text "translated compiled clauses (record expressions to copatterns):"
+    [ "translated compiled clauses (record expressions to copatterns):"
     , nest 2 $ return $ pretty cc
     ]
   return cc
@@ -530,36 +530,36 @@ translateRecordPatterns clause = do
             }
 
   reportSDoc "tc.lhs.recpat" 20 $ vcat
-      [ text "Original clause:"
+      [ "Original clause:"
       , nest 2 $ inTopContext $ vcat
-        [ text "delta =" <+> prettyTCM (clauseTel clause)
-        , text "pats  =" <+> text (show $ clausePats clause)
+        [ "delta =" <+> prettyTCM (clauseTel clause)
+        , "pats  =" <+> text (show $ clausePats clause)
         ]
-      , text "Intermediate results:"
+      , "Intermediate results:"
       , nest 2 $ vcat
-        [ text "ps        =" <+> text (show ps)
-        , text "s         =" <+> prettyTCM s
-        , text "cs        =" <+> prettyTCM cs
-        , text "flattenedOldTel =" <+> (text . show) flattenedOldTel
-        , text "newTel'   =" <+> (text . show) newTel'
-        , text "newPerm   =" <+> prettyTCM newPerm
+        [ "ps        =" <+> text (show ps)
+        , "s         =" <+> prettyTCM s
+        , "cs        =" <+> prettyTCM cs
+        , "flattenedOldTel =" <+> (text . show) flattenedOldTel
+        , "newTel'   =" <+> (text . show) newTel'
+        , "newPerm   =" <+> prettyTCM newPerm
         ]
       ]
 
   reportSDoc "tc.lhs.recpat" 20 $ vcat
-        [ text "lhsSubst' =" <+> (text . show) lhsSubst'
-        , text "lhsSubst  =" <+> (text . show) lhsSubst
-        , text "newTel  =" <+> prettyTCM newTel
+        [ "lhsSubst' =" <+> (text . show) lhsSubst'
+        , "lhsSubst  =" <+> (text . show) lhsSubst
+        , "newTel  =" <+> prettyTCM newTel
         ]
 
   reportSDoc "tc.lhs.recpat" 10 $
     escapeContext (size $ clauseTel clause) $ vcat
-      [ text "Translated clause:"
+      [ "Translated clause:"
       , nest 2 $ vcat
-        [ text "delta =" <+> prettyTCM (clauseTel c)
-        , text "ps    =" <+> text (show $ clausePats c)
-        , text "body  =" <+> text (show $ clauseBody c)
-        , text "body  =" <+> addContext (clauseTel c) (maybe (text "_|_") prettyTCM (clauseBody c))
+        [ "delta =" <+> prettyTCM (clauseTel c)
+        , "ps    =" <+> text (show $ clausePats c)
+        , "body  =" <+> text (show $ clauseBody c)
+        , "body  =" <+> addContext (clauseTel c) (maybe "_|_" prettyTCM (clauseBody c))
         ]
       ]
 
@@ -619,15 +619,15 @@ type Changes = [Change]
 
 instance Pretty (Kind -> Nat) where
   pretty f =
-    P.text "(VarPat:" P.<+> P.text (show $ f VarPat) P.<+>
-    P.text "DotPat:"  P.<+> P.text (show $ f DotPat) P.<> P.text ")"
+    "(VarPat:" P.<+> P.text (show $ f VarPat) P.<+>
+    "DotPat:"  P.<+> P.text (show $ f DotPat) P.<> ")"
 
 instance PrettyTCM (Kind -> Nat) where
   prettyTCM = return . pretty
 
 instance PrettyTCM Change where
   prettyTCM (Left  p) = prettyTCM p
-  prettyTCM (Right (f, x, t)) = text "Change" <+> prettyTCM f <+> text x <+> prettyTCM t
+  prettyTCM (Right (f, x, t)) = "Change" <+> prettyTCM f <+> text x <+> prettyTCM t
 
 -- | Record pattern trees.
 
@@ -750,8 +750,8 @@ recordTree p@(ConP c ci ps) | Just PatOSystem <- conPRecord ci = do
     Just ts -> liftTCM $ do
       t <- reduce t
       reportSDoc "tc.rec" 45 $ vcat
-        [ text "recordTree: "
-        , nest 2 $ text "constructor pattern " <+> prettyTCM p <+> text " has type " <+> prettyTCM t
+        [ "recordTree: "
+        , nest 2 $ "constructor pattern " <+> prettyTCM p <+> " has type " <+> prettyTCM t
         ]
       -- Andreas, 2018-03-03, see #2989:
       -- The content of an @Arg@ might not be reduced (if @Arg@ is @Irrelevant@).

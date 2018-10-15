@@ -222,11 +222,11 @@ buildWithFunction cxtNames f aux t delta qs npars withSub perm n1 n cs = mapM bu
             where
             fromWithP (A.WithP _ p) = p
             fromWithP _ = __IMPOSSIBLE__
-      reportSDoc "tc.with" 50 $ text "inheritedPats:" <+> vcat [ prettyA p <+> text "=" <+> prettyTCM v <+> text ":" <+> prettyTCM a
+      reportSDoc "tc.with" 50 $ "inheritedPats:" <+> vcat [ prettyA p <+> "=" <+> prettyTCM v <+> ":" <+> prettyTCM a
                                                                | A.ProblemEq p v a <- inheritedPats ]
       (strippedPats, ps') <- stripWithClausePatterns cxtNames f aux t delta qs npars perm ps
-      reportSDoc "tc.with" 50 $ hang (text "strippedPats:") 2 $
-                                  vcat [ prettyA p <+> text "==" <+> prettyTCM v <+> (text ":" <+> prettyTCM t)
+      reportSDoc "tc.with" 50 $ hang "strippedPats:" 2 $
+                                  vcat [ prettyA p <+> "==" <+> prettyTCM v <+> (":" <+> prettyTCM t)
                                        | A.ProblemEq p v t <- strippedPats ]
       rhs <- buildRHS strippedPats rhs
       let (ps1, ps2) = splitAt n1 ps'
@@ -234,7 +234,7 @@ buildWithFunction cxtNames f aux t delta qs npars withSub perm n1 n cs = mapM bu
                      (inheritedPats ++ strippedPats)
                      rhs wh catchall
       reportSDoc "tc.with" 20 $ vcat
-        [ text "buildWithClause returns" <+> prettyA result
+        [ "buildWithClause returns" <+> prettyA result
         ]
       return result
 
@@ -343,23 +343,23 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
       ps' = zipWith (fmap . fmap . paramPat) [0..] (take npars qs) ++ ps
   psi <- insertImplicitPatternsT ExpandLast ps' t
   reportSDoc "tc.with.strip" 10 $ vcat
-    [ text "stripping patterns"
-    , nest 2 $ text "t   = " <+> prettyTCM t
-    , nest 2 $ text "ps  = " <+> fsep (punctuate comma $ map prettyA ps)
-    , nest 2 $ text "ps' = " <+> fsep (punctuate comma $ map prettyA ps')
-    , nest 2 $ text "psi = " <+> fsep (punctuate comma $ map prettyA psi)
-    , nest 2 $ text "qs  = " <+> fsep (punctuate comma $ map (prettyTCM . namedArg) qs)
-    , nest 2 $ text "perm= " <+> text (show perm)
+    [ "stripping patterns"
+    , nest 2 $ "t   = " <+> prettyTCM t
+    , nest 2 $ "ps  = " <+> fsep (punctuate comma $ map prettyA ps)
+    , nest 2 $ "ps' = " <+> fsep (punctuate comma $ map prettyA ps')
+    , nest 2 $ "psi = " <+> fsep (punctuate comma $ map prettyA psi)
+    , nest 2 $ "qs  = " <+> fsep (punctuate comma $ map (prettyTCM . namedArg) qs)
+    , nest 2 $ "perm= " <+> text (show perm)
     ]
 
   -- Andreas, 2015-11-09 Issue 1710: self starts with parent-function, not with-function!
   (ps', strippedPats) <- runWriterT $ strip (Def parent []) t psi qs
   reportSDoc "tc.with.strip" 50 $ nest 2 $
-    text "strippedPats:" <+> vcat [ prettyA p <+> text "=" <+> prettyTCM v <+> text ":" <+> prettyTCM a | A.ProblemEq p v a <- strippedPats ]
+    "strippedPats:" <+> vcat [ prettyA p <+> "=" <+> prettyTCM v <+> ":" <+> prettyTCM a | A.ProblemEq p v a <- strippedPats ]
   let psp = permute perm ps'
   reportSDoc "tc.with.strip" 10 $ vcat
-    [ nest 2 $ text "ps' = " <+> fsep (punctuate comma $ map prettyA ps')
-    , nest 2 $ text "psp = " <+> fsep (punctuate comma $ map prettyA $ psp)
+    [ nest 2 $ "ps' = " <+> fsep (punctuate comma $ map prettyA ps')
+    , nest 2 $ "psp = " <+> fsep (punctuate comma $ map prettyA $ psp)
     ]
   return (strippedPats, psp)
   where
@@ -377,10 +377,10 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
     -- Case: out of with-clause patterns.
     strip self t [] qs@(_ : _) = do
       reportSDoc "tc.with.strip" 15 $ vcat
-        [ text "strip (out of A.Patterns)"
-        , nest 2 $ text "qs  =" <+> fsep (punctuate comma $ map (prettyTCM . namedArg) qs)
-        , nest 2 $ text "self=" <+> prettyTCM self
-        , nest 2 $ text "t   =" <+> prettyTCM t
+        [ "strip (out of A.Patterns)"
+        , nest 2 $ "qs  =" <+> fsep (punctuate comma $ map (prettyTCM . namedArg) qs)
+        , nest 2 $ "self=" <+> prettyTCM self
+        , nest 2 $ "t   =" <+> prettyTCM t
         ]
       -- Andreas, 2015-06-11, issue 1551:
       -- As the type t develops, we need to insert more implicit patterns,
@@ -412,12 +412,12 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
     strip self t ps0@(p0 : ps) qs0@(q : qs) = do
       p <- liftTCM $ (traverse . traverse) expandLitPattern p0
       reportSDoc "tc.with.strip" 15 $ vcat
-        [ text "strip"
-        , nest 2 $ text "ps0 =" <+> fsep (punctuate comma $ map prettyA ps0)
-        , nest 2 $ text "exp =" <+> prettyA p
-        , nest 2 $ text "qs0 =" <+> fsep (punctuate comma $ map (prettyTCM . namedArg) qs0)
-        , nest 2 $ text "self=" <+> prettyTCM self
-        , nest 2 $ text "t   =" <+> prettyTCM t
+        [ "strip"
+        , nest 2 $ "ps0 =" <+> fsep (punctuate comma $ map prettyA ps0)
+        , nest 2 $ "exp =" <+> prettyA p
+        , nest 2 $ "qs0 =" <+> fsep (punctuate comma $ map (prettyTCM . namedArg) qs0)
+        , nest 2 $ "self=" <+> prettyTCM self
+        , nest 2 $ "t   =" <+> prettyTCM t
         ]
       case namedArg q of
         ProjP o d -> case A.maybePostfixProjP p of
@@ -458,7 +458,7 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
 
         q'@(ConP c ci qs') -> do
          reportSDoc "tc.with.strip" 60 $
-           text "parent pattern is constructor " <+> prettyTCM c
+           "parent pattern is constructor " <+> prettyTCM c
          (a, b) <- mustBePi t
          -- The type of the current pattern is a datatype.
          Def d es <- liftTCM $ normalise (unEl $ unDom a)
@@ -510,7 +510,7 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
 
           p@(A.PatternSynP pi' c' ps') -> do
              reportSDoc "impossible" 10 $
-               text "stripWithClausePatterns: encountered pattern synonym " <+> prettyA p
+               "stripWithClausePatterns: encountered pattern synonym " <+> prettyA p
              __IMPOSSIBLE__
 
           p -> do
@@ -524,7 +524,7 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
 
           p@(A.PatternSynP pi' c' [ps']) -> do
              reportSDoc "impossible" 10 $
-               text "stripWithClausePatterns: encountered pattern synonym " <+> prettyA p
+               "stripWithClausePatterns: encountered pattern synonym " <+> prettyA p
              __IMPOSSIBLE__
 
           _ -> mismatch
@@ -540,9 +540,9 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
         mismatch = addContext delta $ typeError $
           WithClausePatternMismatch (namedArg p0) q
         mismatchOrigin o o' = addContext delta . typeError . GenericDocError =<< fsep
-          [ text "With clause pattern"
+          [ "With clause pattern"
           , prettyA p0
-          , text "is not an instance of its parent pattern"
+          , "is not an instance of its parent pattern"
           , P.fsep <$> prettyTCMPatterns [q]
           , text $ "since the parent pattern is " ++ prettyProjOrigin o ++
                    " and the with clause pattern is " ++ prettyProjOrigin o'
@@ -582,11 +582,11 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
           TelV tel' _ <- liftTCM $ telView ct'
 
           reportSDoc "tc.with.strip" 20 $
-            vcat [ text "ct  = " <+> prettyTCM ct
-                 , text "ct' = " <+> prettyTCM ct'
-                 , text "np  = " <+> text (show np)
-                 , text "us  = " <+> prettyList (map prettyTCM us)
-                 , text "us' = " <+> prettyList (map prettyTCM $ take np us)
+            vcat [ "ct  = " <+> prettyTCM ct
+                 , "ct' = " <+> prettyTCM ct'
+                 , "np  = " <+> text (show np)
+                 , "us  = " <+> prettyList (map prettyTCM us)
+                 , "us' = " <+> prettyList (map prettyTCM $ take np us)
                  ]
 
           -- Compute the new type
@@ -595,9 +595,9 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
               self' = tel' `abstract` apply1 (raise (size tel') self) v  -- Issue 1546
 
           reportSDoc "tc.with.strip" 15 $ sep
-            [ text "inserting implicit"
+            [ "inserting implicit"
             , nest 2 $ prettyList $ map prettyA (ps' ++ ps)
-            , nest 2 $ text ":" <+> prettyTCM t'
+            , nest 2 $ ":" <+> prettyTCM t'
             ]
 
           -- Insert implicit patterns (just for the constructor arguments)
@@ -678,25 +678,25 @@ withDisplayForm f aux delta1 delta2 n qs perm@(Perm m _) lhsPerm = do
                  . flip (foldr addContext) (for [1..n] $ \ i -> "w" ++ show i)
                  . addContext delta2
   reportSDoc "tc.with.display" 20 $ vcat
-    [ text "withDisplayForm"
+    [ "withDisplayForm"
     , nest 2 $ vcat
-      [ text "f      =" <+> text (prettyShow f)
-      , text "aux    =" <+> text (prettyShow aux)
-      , text "delta1 =" <+> prettyTCM delta1
-      , text "delta2 =" <+> do addContext delta1 $ prettyTCM delta2
-      , text "n      =" <+> text (show n)
-      , text "perm   =" <+> text (show perm)
-      , text "top    =" <+> do addFullCtx $ prettyTCM topArgs
-      , text "qs     =" <+> prettyList (map pretty qs)
-      , text "qsToTm =" <+> prettyTCM tqs0 -- ctx would be permuted form of delta1 ++ delta2
-      , text "ys     =" <+> text (show ys)
-      , text "rho    =" <+> text (prettyShow rho)
-      , text "qs[rho]=" <+> do addFullCtx $ prettyTCM tqs
-      , text "dt     =" <+> do addFullCtx $ prettyTCM dt
+      [ "f      =" <+> text (prettyShow f)
+      , "aux    =" <+> text (prettyShow aux)
+      , "delta1 =" <+> prettyTCM delta1
+      , "delta2 =" <+> do addContext delta1 $ prettyTCM delta2
+      , "n      =" <+> text (show n)
+      , "perm   =" <+> text (show perm)
+      , "top    =" <+> do addFullCtx $ prettyTCM topArgs
+      , "qs     =" <+> prettyList (map pretty qs)
+      , "qsToTm =" <+> prettyTCM tqs0 -- ctx would be permuted form of delta1 ++ delta2
+      , "ys     =" <+> text (show ys)
+      , "rho    =" <+> text (prettyShow rho)
+      , "qs[rho]=" <+> do addFullCtx $ prettyTCM tqs
+      , "dt     =" <+> do addFullCtx $ prettyTCM dt
       ]
     ]
   reportSDoc "tc.with.display" 70 $ nest 2 $ vcat
-      [ text "raw    =" <+> text (show display)
+      [ "raw    =" <+> text (show display)
       ]
 
   return display

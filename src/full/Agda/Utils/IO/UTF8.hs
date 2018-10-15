@@ -8,35 +8,39 @@ module Agda.Utils.IO.UTF8
   ) where
 
 import Data.Text.Lazy (Text)
+import qualified Data.Text.Lazy as T
 import qualified Data.Text.Lazy.IO as T
 import qualified System.IO as IO
 
 -- | Converts many character sequences which may be interpreted as
 -- line or paragraph separators into '\n'.
+--
+-- Note that '\r\n' is assumed to have already been converted to '\n'.
 
-convertLineEndings :: String -> String
--- ASCII:
-convertLineEndings ('\x000D' : '\x000A' : s) = '\n' : convertLineEndings s  -- CR LF
-convertLineEndings ('\x000A'            : s) = '\n' : convertLineEndings s  -- LF  (Line feed)
-convertLineEndings ('\x000D'            : s) = '\n' : convertLineEndings s  -- CR  (Carriage return)
-convertLineEndings ('\x000C'            : s) = '\n' : convertLineEndings s  -- FF  (Form feed)
--- Unicode:
-convertLineEndings ('\x0085'            : s) = '\n' : convertLineEndings s  -- NEXT LINE
-convertLineEndings ('\x2028'            : s) = '\n' : convertLineEndings s  -- LINE SEPARATOR
-convertLineEndings ('\x2029'            : s) = '\n' : convertLineEndings s  -- PARAGRAPH SEPARATOR
--- Not a line ending:
-convertLineEndings (c                   : s) = c    : convertLineEndings s
-convertLineEndings ""                        = ""
+convertLineEndings :: Text -> Text
+convertLineEndings = T.map convert
+  where
+  -- ASCII:
+  convert '\x000D' = '\n'  -- CR  (Carriage return)
+  convert '\x000C' = '\n'  -- FF  (Form feed)
+  -- Unicode:
+  convert '\x0085' = '\n'  -- NEXT LINE
+  convert '\x2028' = '\n'  -- LINE SEPARATOR
+  convert '\x2029' = '\n'  -- PARAGRAPH SEPARATOR
+  -- Not a line ending (or '\x000A'):
+  convert c        = c
 
--- | Reads a UTF8-encoded text file and converts all Unicode line
--- endings into '\n'.
+-- | Reads a UTF8-encoded text file and converts many character
+-- sequences which may be interpreted as line or paragraph separators
+-- into '\n'.
 
-readTextFile :: FilePath -> IO String
+readTextFile :: FilePath -> IO Text
 readTextFile file = convertLineEndings <$> do
   h <- IO.openFile file IO.ReadMode
-  IO.hSetNewlineMode h IO.noNewlineTranslation
+  IO.hSetNewlineMode h $
+    IO.NewlineMode { IO.inputNL = IO.CRLF, IO.outputNL = IO.LF }
   IO.hSetEncoding h IO.utf8
-  IO.hGetContents h
+  T.hGetContents h
 
 -- | Writes UTF8-encoded text to the handle, which should be opened
 -- for writing and in text mode. The native convention for line

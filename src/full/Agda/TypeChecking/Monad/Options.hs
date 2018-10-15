@@ -70,19 +70,25 @@ setPragmaOptions opts = do
 -- An empty list of relative include directories (@'Left' []@) is
 -- interpreted as @["."]@.
 setCommandLineOptions :: CommandLineOptions -> TCM ()
-setCommandLineOptions = setCommandLineOptions' CurrentDir
+setCommandLineOptions opts = do
+  root <- liftIO (absolute =<< getCurrentDirectory)
+  setCommandLineOptions' root opts
 
-setCommandLineOptions' :: RelativeTo -> CommandLineOptions -> TCM ()
-setCommandLineOptions' relativeTo opts = do
+setCommandLineOptions'
+  :: AbsolutePath
+     -- ^ The base directory of relative paths.
+  -> CommandLineOptions
+  -> TCM ()
+setCommandLineOptions' root opts = do
   z <- liftIO $ runOptM $ checkOpts opts
   case z of
     Left err   -> __IMPOSSIBLE__
     Right opts -> do
       incs <- case optAbsoluteIncludePaths opts of
         [] -> do
-          opts' <- setLibraryPaths relativeTo opts
+          opts' <- setLibraryPaths root opts
           let incs = optIncludePaths opts'
-          setIncludeDirs incs relativeTo
+          setIncludeDirs incs root
           getIncludeDirs
         incs -> return incs
       modifyTC $ Lens.setCommandLineOptions opts{ optAbsoluteIncludePaths = incs }
@@ -97,8 +103,13 @@ libToTCM m = do
     Left s  -> typeError $ GenericDocError s
     Right x -> return x
 
-setLibraryPaths :: RelativeTo -> CommandLineOptions -> TCM CommandLineOptions
-setLibraryPaths rel o = setLibraryIncludes =<< addDefaultLibraries rel o
+setLibraryPaths
+  :: AbsolutePath
+     -- ^ The base directory of relative paths.
+  -> CommandLineOptions
+  -> TCM CommandLineOptions
+setLibraryPaths root o =
+  setLibraryIncludes =<< addDefaultLibraries root o
 
 setLibraryIncludes :: CommandLineOptions -> TCM CommandLineOptions
 setLibraryIncludes o = do
@@ -107,13 +118,16 @@ setLibraryIncludes o = do
     paths     <- libToTCM $ libraryIncludePaths (optOverrideLibrariesFile o) installed libs
     return o{ optIncludePaths = paths ++ optIncludePaths o }
 
-addDefaultLibraries :: RelativeTo -> CommandLineOptions -> TCM CommandLineOptions
-addDefaultLibraries rel o
+addDefaultLibraries
+  :: AbsolutePath
+     -- ^ The base directory of relative paths.
+  -> CommandLineOptions
+  -> TCM CommandLineOptions
+addDefaultLibraries root o
   | or [ not $ null $ optLibraries o
        , not $ optUseLibs o
        , optShowVersion o ] = pure o
   | otherwise = do
-  root <- getProjectRoot rel
   (libs, incs) <- libToTCM $ getDefaultLibraries (filePath root) (optDefaultLibs o)
   return o{ optIncludePaths = incs ++ optIncludePaths o, optLibraries = libs }
 
@@ -151,22 +165,6 @@ getIncludeDirs = do
     [] -> __IMPOSSIBLE__
     _  -> return incs
 
--- | Which directory should form the base of relative include paths?
-
-data RelativeTo
-  = ProjectRoot AbsolutePath
-    -- ^ The root directory of the \"project\" containing the given
-    -- file. The file needs to be syntactically correct, with a module
-    -- name matching the file name.
-  | CurrentDir
-    -- ^ The current working directory.
-
-getProjectRoot :: RelativeTo -> TCM AbsolutePath
-getProjectRoot CurrentDir = liftIO (absolute =<< getCurrentDirectory)
-getProjectRoot (ProjectRoot f) = do
-  m <- moduleName' f
-  return (projectRoot f m)
-
 -- | Makes the given directories absolute and stores them as include
 -- directories.
 --
@@ -175,14 +173,12 @@ getProjectRoot (ProjectRoot f) = do
 --
 -- An empty list is interpreted as @["."]@.
 
-setIncludeDirs :: [FilePath] -- ^ New include directories.
-               -> RelativeTo -- ^ How should relative paths be interpreted?
+setIncludeDirs :: [FilePath]    -- ^ New include directories.
+               -> AbsolutePath  -- ^ The base directory of relative paths.
                -> TCM ()
-setIncludeDirs incs relativeTo = do
+setIncludeDirs incs root = do
   -- save the previous include dirs
   oldIncs <- getsTC Lens.getAbsoluteIncludePaths
-
-  root <- getProjectRoot relativeTo
 
   -- Add the current dir if no include path is given
   incs <- return $ if null incs then ["."] else incs
@@ -200,9 +196,9 @@ setIncludeDirs incs relativeTo = do
   incs <- return $ incs ++ [primdir]
 
   reportSDoc "setIncludeDirs" 10 $ return $ vcat
-    [ text "Old include directories:"
+    [ "Old include directories:"
     , nest 2 $ vcat $ map pretty oldIncs
-    , text "New include directories:"
+    , "New include directories:"
     , nest 2 $ vcat $ map pretty incs
     ]
 
@@ -225,24 +221,6 @@ setIncludeDirs incs relativeTo = do
     setInteractionOutputCallback ho
 
   Lens.putAbsoluteIncludePaths incs
-
-  -- Andreas, 2016-07-11 (reconstructing semantics):
-  --
-  -- Check that the module name of the project root
-  -- is still correct wrt. to the changed include path.
-  --
-  -- E.g. if the include path was "/" and file "/A/B" was named "module A.B",
-  -- and then the include path changes to "/A/", the module name
-  -- becomes invalid; correct would then be "module B".
-
-  case relativeTo of
-    CurrentDir -> return ()
-    ProjectRoot f -> void $ moduleName f
-     -- Andreas, 2016-07-12 WAS:
-     -- do
-     --  m <- moduleName' f
-     --  checkModuleName m f Nothing
-
 
 setInputFile :: FilePath -> TCM ()
 setInputFile file =
@@ -341,7 +319,7 @@ getVerbosity = optVerbose <$> pragmaOptions
 type VerboseKey = String
 
 parseVerboseKey :: VerboseKey -> [String]
-parseVerboseKey = wordsBy (`elem` ".:")
+parseVerboseKey = wordsBy (`elem` (".:" :: String))
 
 -- | Check whether a certain verbosity level is activated.
 --

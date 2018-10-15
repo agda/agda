@@ -162,7 +162,7 @@ instance Pretty ScopeCopyInfo where
                   , prRen "renNames   =" (renNames i) ]
     where
       prRen s r = sep [ text s, nest 2 $ vcat (map pr r) ]
-      pr (x, y) = pretty x <+> text "->" <+> pretty y
+      pr (x, y) = pretty x <+> "->" <+> pretty y
 
 data Declaration
   = Axiom      Axiom DefInfo ArgInfo (Maybe [Occurrence]) QName Expr

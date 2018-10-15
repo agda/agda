@@ -158,11 +158,11 @@ reduceProjectionLike v = do
 --   on (applications of) projection-like functions.
 elimView :: Bool -> Term -> TCM Term
 elimView loneProjToLambda v = do
-  reportSDoc "tc.conv.elim" 30 $ text "elimView of " <+> prettyTCM v
+  reportSDoc "tc.conv.elim" 30 $ "elimView of " <+> prettyTCM v
   reportSLn  "tc.conv.elim" 50 $ "v = " ++ show v
   v <- reduceProjectionLike v
   reportSDoc "tc.conv.elim" 40 $
-    text "elimView (projections reduced) of " <+> prettyTCM v
+    "elimView (projections reduced) of " <+> prettyTCM v
   pv <- projView v
   case pv of
     NoProjection{}        -> return v
@@ -231,8 +231,8 @@ makeProjection x = -- if True then return () else do
   defn <- getConstInfo x
   let t = defType defn
   reportSDoc "tc.proj.like" 20 $ sep
-    [ text "Checking for projection likeness "
-    , prettyTCM x <+> text " : " <+> prettyTCM t
+    [ "Checking for projection likeness "
+    , prettyTCM x <+> " : " <+> prettyTCM t
     ]
   case theDef defn of
     Function{funClauses = cls}
@@ -256,12 +256,12 @@ makeProjection x = -- if True then return () else do
           {- else -}
           case lastMaybe (filter (checkOccurs cls . snd) ps0) of
             Nothing -> reportSDoc "tc.proj.like" 50 $ nest 2 $ vcat
-              [ text "occurs check failed"
-              , nest 2 $ text "clauses =" <?> vcat (map pretty cls) ]
+              [ "occurs check failed"
+              , nest 2 $ "clauses =" <?> vcat (map pretty cls) ]
             Just (d, n) -> do
               -- Yes, we are projection-like!
               reportSDoc "tc.proj.like" 10 $ sep
-                [ prettyTCM x <+> text " : " <+> prettyTCM t
+                [ prettyTCM x <+> " : " <+> prettyTCM t
                 , text $ " is projection like in argument " ++ show n ++ " for type " ++ show d
                 ]
               __CRASH_WHEN__ "tc.proj.like.crash" 1000

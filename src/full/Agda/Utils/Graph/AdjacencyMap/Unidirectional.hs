@@ -171,7 +171,7 @@ data Edge n e = Edge
 
 instance (Pretty n, Pretty e) => Pretty (Edge n e) where
   pretty (Edge s t e) =
-    pretty s <+> text "--(" <> pretty e <> text ")-->" <+> pretty t
+    pretty s <+> "--(" <> pretty e <> ")-->" <+> pretty t
 
 ------------------------------------------------------------------------
 -- Queries
