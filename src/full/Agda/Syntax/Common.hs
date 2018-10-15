@@ -461,12 +461,12 @@ instance Ord Relevance where
 instance PartialOrd Relevance where
   comparable = comparableOrd
 
--- | @unusableRelevance rel == True@ iff we cannot use a variable of @rel@.
-unusableRelevance :: LensRelevance a => a -> Bool
-unusableRelevance a = case getRelevance a of
-  Irrelevant -> True
-  NonStrict  -> True
-  Relevant   -> False
+-- | @usableRelevance rel == False@ iff we cannot use a variable of @rel@.
+usableRelevance :: LensRelevance a => a -> Bool
+usableRelevance a = case getRelevance a of
+  Irrelevant -> False
+  NonStrict  -> False
+  Relevant   -> True
 
 -- | 'Relevance' composition.
 --   'Irrelevant' is dominant, 'Relevant' is neutral.

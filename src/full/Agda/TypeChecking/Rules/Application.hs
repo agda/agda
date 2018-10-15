@@ -257,7 +257,7 @@ inferHead e = do
         , "(" , text (show u) , ")"
         , "has type:" , prettyTCM a
         ]
-      when (unusableRelevance a) $
+      unless (usableRelevance a) $
         typeError $ VariableIsIrrelevant x
       return (applyE u, unDom a)
 
