@@ -10,6 +10,7 @@ module Agda.TypeChecking.Errors
   , prettyTCWarnings'
   , prettyTCWarnings
   , tcWarningsToError
+  , applyFlagsToTCWarnings'
   , applyFlagsToTCWarnings
   , dropTopLevelModule
   , stringTCErr
@@ -33,6 +34,7 @@ import qualified Data.Set as Set
 import qualified Data.Map as Map
 import qualified Text.PrettyPrint.Boxes as Boxes
 
+import {-# SOURCE #-} Agda.Interaction.Imports (MainInterface(..))
 import Agda.Interaction.Options
 import Agda.Interaction.Options.Warnings
 import Agda.Syntax.Common
@@ -251,8 +253,8 @@ tcWarningsToError ws = typeError $ case ws of
 -- | Depending which flags are set, one may happily ignore some
 -- warnings.
 
-applyFlagsToTCWarnings :: IgnoreFlags -> [TCWarning] -> TCM [TCWarning]
-applyFlagsToTCWarnings ifs ws = do
+applyFlagsToTCWarnings' :: MainInterface -> [TCWarning] -> TCM [TCWarning]
+applyFlagsToTCWarnings' isMain ws = do
 
   -- For some reason some SafeFlagPragma seem to be created multiple times.
   -- This is a way to collect all of them and remove duplicates.
@@ -265,7 +267,7 @@ applyFlagsToTCWarnings ifs ws = do
   warnSet <- do
     opts <- pragmaOptions
     let warnSet = optWarningMode opts ^. warningSet
-    pure $ if ifs == IgnoreFlags
+    pure $ if isMain /= NotMainInterface
            then Set.union warnSet unsolvedWarnings
            else warnSet
 
@@ -280,6 +282,9 @@ applyFlagsToTCWarnings ifs ws = do
           _                            -> True
 
   return $ sfp ++ filter (cleanUp . tcWarning) ws
+
+applyFlagsToTCWarnings :: [TCWarning] -> TCM [TCWarning]
+applyFlagsToTCWarnings = applyFlagsToTCWarnings' NotMainInterface
 
 ---------------------------------------------------------------------------
 -- * Helpers
