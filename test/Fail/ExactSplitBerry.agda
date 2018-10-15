@@ -1,4 +1,4 @@
-{-# OPTIONS --exact-split #-}
+{-# OPTIONS --exact-split -Werror #-}
 module ExactSplitBerry where
 
 data Bool : Set where

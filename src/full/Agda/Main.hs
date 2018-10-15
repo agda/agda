@@ -147,7 +147,7 @@ runAgdaWithOptions backends generateHTML interaction progName opts
             (Imp.ScopeCheck, _)  -> return Nothing
             (_, NoWarnings)      -> return $ Just i
             (_, SomeWarnings ws) -> do
-              ws' <- applyFlagsToTCWarnings RespectFlags ws
+              ws' <- applyFlagsToTCWarnings ws
               case ws' of
                 []   -> return Nothing
                 cuws -> tcWarningsToError cuws
@@ -164,7 +164,7 @@ runAgdaWithOptions backends generateHTML interaction progName opts
             LaTeX.generateLaTeX i
 
           -- Print accumulated warnings
-          ws <- (snd . classifyWarnings) <$> Imp.getAllWarnings' AllWarnings RespectFlags
+          ws <- (snd . classifyWarnings) <$> Imp.getAllWarnings AllWarnings
           unless (null ws) $ do
             let banner = text $ "\n" ++ delimiter "All done; warnings encountered"
             reportSDoc "warning" 1 $

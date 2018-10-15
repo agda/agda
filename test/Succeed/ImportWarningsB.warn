@@ -60,6 +60,10 @@ when scope checking the declaration
 Unreachable.agda:21,1-23,19
 Unreachable clauses
 when checking the definition of unreachable
+ImportWarningsB.agda:14,1-16
+Empty REWRITE pragma
+when scope checking the declaration
+  {-# REWRITE #-}
 
 ———— All done; warnings encountered ————————————————————————
 
@@ -137,3 +141,8 @@ when checking the definition of f
 Issue1988.agda:9,1-26
 Builtin REFL no longer exists. It is now bound by BUILTIN EQUALITY
 when checking the pragma BUILTIN REFL refl
+
+ImportWarningsB.agda:14,1-16
+Empty REWRITE pragma
+when scope checking the declaration
+  {-# REWRITE #-}
