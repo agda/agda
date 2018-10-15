@@ -47,8 +47,11 @@ Let's suppose the new version of GHC is X.Y.Z.
 
   `make install-agda-bisect`
 
+* Test the closed-issues-for-milestone program:
+
 * Update the `tested-with` field in Agda.cabal, agda-bisect,
-  fix-agda-whitespace.cabal, hTags.cabal and std-lib/lib.agda.
+  closed-issues-for-milestone, fix-agda-whitespace.cabal, hTags.cabal
+  and std-lib/lib.agda.
 
 * Update the CHANGELOG files (Agda and the standard library):
 
