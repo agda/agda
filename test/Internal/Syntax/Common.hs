@@ -77,10 +77,17 @@ prop_monotone_comp_Relevance = isMonotoneComposition
 prop_Galois_Relevance :: Prop3 Relevance
 prop_Galois_Relevance = isGaloisConnection
 
+prop_left_identity_invcomp_Relevance :: Relevance -> Bool
+prop_left_identity_invcomp_Relevance x = Relevant `inverseComposeRelevance` x == x
+
+prop_right_absorptive_invcomp_Relevance :: Relevance -> Bool
+prop_right_absorptive_invcomp_Relevance x = x `inverseComposeRelevance` Relevant == Relevant
+
+
 -- ASR (2017-01-23): Commented out because 'Hiding' is *partial*
 -- monoid.
 
--- | 'Hiding' is a monoid.
+-- -- | 'Hiding' is a monoid.
 -- prop_monoid_Hiding :: Prop3 Hiding
 -- prop_monoid_Hiding = isMonoid
 

@@ -487,11 +487,11 @@ composeRelevance r r' =
 inverseComposeRelevance :: Relevance -> Relevance -> Relevance
 inverseComposeRelevance r x =
   case (r, x) of
-    (Relevant, x)        -> x          -- going to relevant arg.: nothing changes
-    _ | r == x           -> Relevant   -- because Relevant is comp.-neutral
-    (Irrelevant, x)      -> Relevant   -- going irrelevant: every thing usable
-    (_, Irrelevant)      -> Irrelevant -- otherwise: irrelevant things remain unusable
-    (NonStrict, _)       -> Relevant   -- but @NonStrict@s become usable
+    (Relevant  , x)          -> x          -- going to relevant arg.: nothing changes
+                                           -- because Relevant is comp.-neutral
+    (Irrelevant, x)          -> Relevant   -- going irrelevant: every thing usable
+    (NonStrict , Irrelevant) -> Irrelevant -- otherwise: irrelevant things remain unusable
+    (NonStrict , _)          -> Relevant   -- but @NonStrict@s become usable
 
 -- | 'Relevance' forms a semigroup under composition.
 instance Semigroup Relevance where
