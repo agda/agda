@@ -1071,7 +1071,7 @@ checkLHS mf st@(LHSState tel ip problem target psplit) = updateRelevance $ do
           target'  = applyPatSubst rho target
 
       -- Andreas, 2010-09-07 cannot split on irrelevant args
-      when (unusableRelevance $ getRelevance info) $
+      when (unusableRelevance info) $
         addContext delta1 $ hardTypeError $ SplitOnIrrelevant dom
 
       -- check that a is indeed the type of lit (otherwise fail softly)
@@ -1341,7 +1341,7 @@ isDataOrRecordType dom@Dom{domInfo = info, unDom = a} = liftTCM (reduceB a) >>= 
       Datatype{dataPars = np} -> do
         -- We cannot split on (shape-)irrelevant non-records.
         reportSLn "tc.lhs.split" 30 $ "split ConP: relevance is " ++ show (getRelevance info)
-        when (unusableRelevance $ getRelevance info) $
+        when (unusableRelevance info) $
           hardTypeError $ SplitOnIrrelevant dom
 
         let (pars, ixs) = splitAt np $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
