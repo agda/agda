@@ -92,20 +92,32 @@ generalizeType s m = do
     -- Pair metas with their metaInfo
     mvs <- mapM (\ x -> (x,) <$> lookupMeta x) (Set.toList allmetas)
 
-    -- Split unsolved metas into generalizable and non-generalizable
     let isGeneralizable (_, mv) = YesGeneralize == unArg (miGeneralizable (mvInfo mv))
-        openMetas = filter (isOpenMeta . mvInstantiation . snd) mvs
-        (openGeneralizable, openNongeneralizable) = map fst *** map fst $ partition isGeneralizable openMetas
+        isOpen = isOpenMeta . mvInstantiation . snd
+
+    -- Split the generalizable metas in open and closed
+    let (generalizable, nongeneralizable) = partition isGeneralizable mvs
+        (generalizableOpen, generalizableClosed) = partition isOpen generalizable
+        nongeneralizableOpen = filter isOpen nongeneralizable
+
+    -- Any meta in the solution of a generalizable meta should be generalized over.
+    inherited <- fmap Set.unions $ forM generalizableClosed $ \ (x, mv) ->
+      case mvInstantiation mv of
+        InstV _ v -> Set.fromList . allMetas <$> instantiateFull v
+        _ -> __IMPOSSIBLE__
+
+    let (alsoGeneralize, reallyDontGeneralize) = partition (`Set.member` inherited) $ map fst nongeneralizableOpen
+        generalizeOver = map fst generalizableOpen ++ alsoGeneralize
 
     -- For now, we don't handle unsolved non-generalizable metas.
-    unless (null openNongeneralizable) $
+    unless (null reallyDontGeneralize) $
       typeError $ NotImplemented "Unsolved non-generalizable metas in generalized type"
 
-    metaGraph <- fmap concat $ forM openGeneralizable $ \ m -> do
-                    deps <- nub . filter (`elem` openGeneralizable) . allMetas <$> (instantiateFull =<< getMetaType m)
+    metaGraph <- fmap concat $ forM generalizeOver $ \ m -> do
+                    deps <- nub . filter (`elem` generalizeOver) . allMetas <$> (instantiateFull =<< getMetaType m)
                     return [ (m, m') | m' <- deps ]
 
-    sortedMetas <- caseMaybe (Graph.topSort openGeneralizable metaGraph)
+    sortedMetas <- caseMaybe (Graph.topSort generalizeOver metaGraph)
                              (typeError GeneralizeCyclicDependency)
                              return
 
