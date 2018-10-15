@@ -1,6 +1,7 @@
 {-# LANGUAGE CPP                #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE GADTs              #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 -- | Preprocess 'Agda.Syntax.Concrete.Declaration's, producing 'NiceDeclaration's.
 --
@@ -47,6 +48,7 @@ import Prelude hiding (null)
 
 import Control.Arrow ((&&&), (***), first, second)
 import Control.Applicative hiding (empty)
+import Control.Monad.Except
 import Control.Monad.State
 
 import Data.Either ( partitionEithers )
@@ -578,47 +580,16 @@ matchParameters x sig def = loop (kindParams sig) (kindParams def)
 -- | Nicifier monad.
 --   Preserve the state when throwing an exception.
 
-newtype Nice a = Nice { unNice :: NiceEnv -> (Either DeclarationException a, NiceEnv) }
-
--- We have to hand-roll the instances ourselves, since the automagic does not
--- work for @Nice a = State s (Except e a)@, only for the usual
--- @Nice a = StateT s (Except e) a@.
-
-instance Functor Nice where
-  fmap f m = Nice $ \ s ->
-    let (r, s') = unNice m s in
-    case r of
-      Left  e -> (Left e, s')
-      Right a -> (Right (f a), s')
-
-instance Applicative Nice where
-  pure a = Nice $ \ s -> (Right a, s)
-  (<*>)  = ap
-
-instance Monad Nice where
-  return = pure
-  m >>= k  = Nice $ \ s ->
-    let (r, s') = unNice m s in
-    case r of
-      Left e  -> (Left e, s')
-      Right a -> unNice (k a) s'
-
-instance MonadState NiceEnv Nice where
-  state f  = Nice $ \ s -> first Right $ f s
-  -- get = Nice $ \ s -> (Right s, s)  -- Subsumed by state
-
-instance MonadError DeclarationException Nice where
-  throwError e   = Nice $ \ s -> (Left e, s)
-  catchError m h = Nice $ \ s ->
-    let (r, s') = unNice m s in
-    case r of
-      Left e  -> unNice (h e) s'
-      Right a -> (Right a, s')
+newtype Nice a = Nice { unNice :: ExceptT DeclarationException (State NiceEnv) a }
+  deriving ( Functor, Applicative, Monad
+           , MonadState NiceEnv, MonadError DeclarationException
+           )
 
 -- | Run a Nicifier computation, return result and warnings
 --   (in chronological order).
 runNice :: Nice a -> (Either DeclarationException a, NiceWarnings)
-runNice m = second (reverse . niceWarn) $ unNice m initNiceEnv
+runNice m = second (reverse . niceWarn) $
+  runExceptT (unNice m) `runState` initNiceEnv
 
 -- | Nicifier state.
 
