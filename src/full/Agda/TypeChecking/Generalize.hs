@@ -32,7 +32,7 @@ import qualified Agda.Utils.Graph.TopSort as Graph
 -- | Generalize a type over a set of (used) generalizable variables.
 generalizeType :: Set QName -> TCM Type -> TCM (Int, Type)
 generalizeType s m = do
-    ((t, metaMap), allmetas) <- metasCreatedBy $ do
+    (t, allmetas) <- metasCreatedBy $ do
       -- Create metas for all used generalizable variables and their dependencies.
       cp      <- viewTC eCurrentCheckpoint
       genvals <- locallyTC eGeneralizeMetas (const YesGeneralize) $ forM (Set.toList s) $ \ x -> do
@@ -85,12 +85,7 @@ generalizeType s m = do
       let gvMap = Map.fromList genvals
       t <- locallyTC eGeneralizedVars (const gvMap) m
 
-      -- Remember the named generalized variables. We'll need to check that they
-      -- are not instantiated.
-      let metaMap = Map.fromList $ for genvals $ \ (x, gv) ->
-            let MetaV m _ = genvalTerm gv in  -- If eta expanded we fail above.
-            (m, x)
-      return (t, metaMap)
+      return t
 
     -- Collect generalizable metas and sort them in dependency order.
 
