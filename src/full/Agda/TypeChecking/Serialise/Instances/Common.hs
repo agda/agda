@@ -438,10 +438,12 @@ instance EmbPrj Hiding where
 
 instance EmbPrj Quantity where
   icod_ Quantity0 = return 0
-  icod_ Quantityω = return 1
+  icod_ Quantity1 = return 1
+  icod_ Quantityω = return 2
 
   value 0 = return Quantity0
-  value 1 = return Quantityω
+  value 1 = return Quantity1
+  value 2 = return Quantityω
   value _ = malformed
 
 instance EmbPrj Modality where

@@ -241,6 +241,7 @@ data Modality = Modality
   , modQuantity  :: Quantity
       -- ^ Cardinality / runtime erasure.
       --   See Conor McBride, I got plenty o' nutting, Wadlerfest 2016.
+      --   See Bob Atkey, Syntax and Semantics of Quantitative Type Theory, LiCS 2018.
   } deriving (Data, Eq, Ord, Show, Generic)
 
 defaultModality :: Modality
@@ -321,12 +322,18 @@ mapQuantityMod = mapModality . mapQuantity
 ---------------------------------------------------------------------------
 
 -- | Quantity for linearity.
+--
+--   A quantity is a set of natural numbers, indicating possible semantic
+--   uses of a variable.  A singleton set @{n}@ requires that the
+--   corresponding variable is used exactly @n@ times.
+--
 data Quantity
-  = Quantity0  -- ^ Zero uses, erased at runtime.
-  -- TODO: | Quantity1  -- ^ Linear use (could be updated destructively).
-  -- (needs postponable constraints between quantities to compute uses).
-  | Quantityω  -- ^ Unrestricted use.
-  deriving (Data, Show, Generic, Eq, Enum, Bounded)
+  = Quantity0  -- ^ Zero uses @{0}@, erased at runtime.
+  | Quantity1  -- ^ Linear use @{1}@ (could be updated destructively).
+    -- Mostly TODO (needs postponable constraints between quantities to compute uses).
+  | Quantityω  -- ^ Unrestricted use @ℕ@.
+  deriving (Data, Show, Generic, Eq, Enum, Bounded, Ord)
+    -- @Ord@ instance in case @Quantity@ is used in keys for maps etc.
 
 defaultQuantity :: Quantity
 defaultQuantity = Quantityω
@@ -334,27 +341,31 @@ defaultQuantity = Quantityω
 -- | Composition of quantities (multiplication).
 --
 -- 'Quantity0' is dominant.
+-- 'Quantity1' is neutral.
+--
 instance Semigroup Quantity where
+  Quantity1 <> q = q
+  q <> Quantity1 = q
   Quantity0 <> _ = Quantity0
   _ <> Quantity0 = Quantity0
   Quantityω <> _ = Quantityω
   -- _ <> Quantityω = Quantityω  -- redundant
 
 -- | In the absense of finite quantities besides 0, ω is the unit.
+--   Otherwise, 1 is the unit.
 instance Monoid Quantity where
-  mempty = Quantityω
+  mempty  = Quantity1
   mappend = (<>)
 
--- | Note that the order is @ω ≤ 0@, more relevant is smaller.
-instance Ord Quantity where
-  compare = curry $ \case
-    (Quantityω, Quantityω) -> EQ
-    (Quantityω, Quantity0) -> LT
-    (Quantity0, Quantityω) -> GT
-    (Quantity0, Quantity0) -> EQ
-
+-- | Note that the order is @ω ≤ 0,1@, more options is smaller.
 instance PartialOrd Quantity where
-  comparable = comparableOrd
+  comparable = curry $ \case
+    (q, q') | q == q' -> POEQ
+    -- ω is least
+    (Quantityω, _)    -> POLT
+    (_, Quantityω)    -> POGT
+    -- others are uncomparable
+    _ -> POAny
 
 instance POSemigroup Quantity where
 instance POMonoid Quantity where
@@ -381,6 +392,7 @@ instance KillRange Quantity where
 
 instance NFData Quantity where
   rnf Quantity0 = ()
+  rnf Quantity1 = ()
   rnf Quantityω = ()
 
 ---------------------------------------------------------------------------
@@ -810,6 +822,7 @@ instance Show a => Show (Arg a) where
           Relevant     -> "r" ++ s -- Andreas: I want to see it explicitly
         showQ q s = case q of
           Quantity0   -> "0" ++ s
+          Quantity1   -> "1" ++ s
           Quantityω   -> "ω" ++ s
         showO o s = case o of
           UserWritten -> "u" ++ s
