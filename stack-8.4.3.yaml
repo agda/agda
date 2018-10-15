@@ -1,5 +1,0 @@
-resolver: lts-12.11
-
-# Local packages, usually specified by relative directory name
-packages:
-- '.'
