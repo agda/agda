@@ -49,6 +49,12 @@ generalizeType s m = do
             name     = show (nameConcrete $ qnameName x)
         (m, term) <- newNamedValueMeta DontRunMetaOccursCheck name metaType
 
+        -- Freeze the meta to prevent named generalizable metas to be instantiated.
+        let fromJust' :: Lens' a (Maybe a)
+            fromJust' f (Just x) = Just <$> f x
+            fromJust' f Nothing  = {-'-} __IMPOSSIBLE__
+        stMetaStore . key m . fromJust' . metaFrozen `setTCLens` Frozen
+
         -- Set up names of arg metas
         forM_ (zip3 [1..] (map unArg args) (telToList argTel)) $ \ case
           (i, MetaV m _, Dom{unDom = (x, _)}) -> do

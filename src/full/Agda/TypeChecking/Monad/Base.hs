@@ -1157,6 +1157,11 @@ getMetaSig m = clSignature $ getMetaInfo m
 getMetaRelevance :: MetaVariable -> Relevance
 getMetaRelevance = envRelevance . getMetaEnv
 
+-- Lenses
+
+metaFrozen :: Lens' Frozen MetaVariable
+metaFrozen f mv = f (mvFrozen mv) <&> \ x -> mv { mvFrozen = x }
+
 ---------------------------------------------------------------------------
 -- ** Interaction meta variables
 ---------------------------------------------------------------------------
@@ -3313,6 +3318,8 @@ useTC :: MonadTCState m => Lens' a TCState -> m a
 useTC l = do
   !x <- getsTC (^. l)
   return x
+
+infix 4 `setTCLens`
 
 -- | Overwrite the part of the 'TCState' focused on by the lens.
 setTCLens :: MonadTCState m => Lens' a TCState -> a -> m ()
