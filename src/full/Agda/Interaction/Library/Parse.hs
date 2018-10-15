@@ -21,23 +21,31 @@
 --       }
 --   @
 --
-module Agda.Interaction.Library.Parse ( parseLibFile, splitCommas, trimLineComment, LineNumber ) where
+module Agda.Interaction.Library.Parse ( parseLibFile, splitCommas, trimLineComment, LineNumber, runP, LibWarning'(..) ) where
 
 import Control.Exception
 import Control.Monad
+import Control.Monad.Writer
 import Data.Char
 import qualified Data.List as List
 import System.FilePath
 
 import Agda.Interaction.Library.Base
 
-import Agda.Utils.Except ( MonadError(throwError) )
+import Agda.Utils.Except ( MonadError(throwError), ExceptT, runExceptT )
 import Agda.Utils.IO ( catchIO )
 import Agda.Utils.String ( ltrim )
 
--- | Parser monad: Can throw @String@ error messages.
---
-type P = Either String
+-- | Parser monad: Can throw @String@ error messages, and collects
+-- @String@ warnings.
+type P = ExceptT String (Writer [LibWarning'])
+
+runP :: P a -> (Either String a, [LibWarning'])
+runP = runWriter . runExceptT
+
+data LibWarning'
+  = UnknownField String
+  deriving Show
 
 -- | The config files we parse have the generic structure of a sequence
 --   of @field : content@ entries.
@@ -76,7 +84,7 @@ agdaLibFields =
 parseLibFile :: FilePath -> IO (P AgdaLibFile)
 parseLibFile file =
   (fmap setPath . parseLib <$> readFile file) `catchIO` \e ->
-    return (Left $ "Failed to read library file " ++ file ++ ".\nReason: " ++ show e)
+    return $ throwError $ "Failed to read library file " ++ file ++ ".\nReason: " ++ show e
   where
     setPath lib = unrelativise (takeDirectory file) lib{ libFile = file }
     unrelativise dir lib = lib { libIncludes = map (dir </>) (libIncludes lib) }
@@ -100,9 +108,12 @@ fromGeneric' fields fs = do
   where
     upd :: AgdaLibFile -> GenericEntry -> P AgdaLibFile
     upd l (GenericEntry h cs) = do
-      Field{..} <- findField h fields
-      x         <- fParse cs
-      return $ fSet x l
+      mf <- findField h fields
+      case mf of
+        Just Field{..} -> do
+          x <- fParse cs
+          return $ fSet x l
+        Nothing -> return l
 
 -- | Ensure that there are no duplicate fields and no mandatory fields are missing.
 checkFields :: [Field] -> [String] -> P ()
@@ -119,9 +130,9 @@ checkFields fields fs = do
   when (not $ null dup)     $ throwError $ "Duplicate field" ++ s dup ++ " " ++ list dup
 
 -- | Find 'Field' with given 'fName', throw error if unknown.
-findField :: String -> [Field] -> P Field
-findField s fs = maybe err return $ List.find ((s ==) . fName) fs
-  where err = throwError $ "Unknown field '" ++ s ++ "'"
+findField :: String -> [Field] -> P (Maybe Field)
+findField s fs = maybe err (return . Just) $ List.find ((s ==) . fName) fs
+  where err = tell [UnknownField s] >> return Nothing
 
 -- Generic file parser ----------------------------------------------------
 

@@ -5,6 +5,7 @@ module Agda.TypeChecking.Monad.Options where
 import Prelude hiding (mapM)
 
 import Control.Monad.Reader hiding (mapM)
+import Control.Monad.Writer
 import Control.Monad.State  hiding (mapM)
 
 import Data.Maybe
@@ -90,7 +91,8 @@ setCommandLineOptions' relativeTo opts = do
 
 libToTCM :: LibM a -> TCM a
 libToTCM m = do
-  z <- liftIO $ runExceptT m
+  (z, warns) <- liftIO $ runWriterT $ runExceptT m
+--  unless (null warns) $ warnings warns --TODO
   case z of
     Left s  -> typeError $ GenericDocError s
     Right x -> return x

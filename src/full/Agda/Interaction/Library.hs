@@ -1,3 +1,5 @@
+{-# LANGUAGE GADTs, KindSignatures #-}
+{-# LANGUAGE OverloadedStrings #-}
 -- | Library management.
 --
 --   Sample use:
@@ -27,11 +29,12 @@ module Agda.Interaction.Library
   , findLib'
   ) where
 
-import Control.Arrow (first, second)
+import Control.Arrow ( (***) )
 import Control.Exception
 import Control.Monad.Writer
 import Data.Char
 import Data.Either
+import Data.Bifunctor ( first )
 import Data.Function
 import qualified Data.List as List
 import Data.Maybe
@@ -77,9 +80,26 @@ data VersionView = VersionView
       --   Note: a priori, there is no reason why the version numbers should be @Int@s.
   } deriving (Eq, Show)
 
+
+data LibCtxt (b :: Bool) a where
+  NoCtxt :: a-> LibCtxt 'False a
+  WithCtxt :: { libFileCtxt :: Maybe FilePath
+              , lineNumCtxt :: LineNumber
+              , fileCtxt    :: FilePath
+              , inCtxt_ :: a } -> LibCtxt b a
+
+inCtxt :: LibCtxt b a -> a
+inCtxt (NoCtxt a) = a
+inCtxt (WithCtxt _ _ _ a) = a
+
+deriving instance Functor (LibCtxt b)
+
+type LibWarning = LibCtxt 'True [LibWarning']
+type LibError = LibCtxt 'False LibError'
+
 -- | Collected errors while processing library files.
 --
-data LibError
+data LibError'
   = LibNotFound LibrariesFile LibName
       -- ^ Raised when a library name could no successfully be resolved
       --   to an @.agda-lib@ file.
@@ -92,19 +112,28 @@ data LibError
 
 -- | Collects 'LibError's.
 --
-type LibErrorIO = WriterT [LibError] IO
+type LibErrorIO = WriterT [Either LibError LibWarning] IO
 
 -- | Throws 'Doc' exceptions.
-type LibM = ExceptT Doc IO
+type LibM = ExceptT Doc (WriterT [LibWarning] IO)
+
+raiseWarnings :: MonadWriter [Either LibError LibWarning] m => [LibWarning] -> m ()
+raiseWarnings = tell . map Right
+
+raiseErrors :: MonadWriter [Either LibError LibWarning] m => [LibError] -> m ()
+raiseErrors = tell . map Left
 
 -- | Raise collected 'LibErrors' as exception.
 --
 mkLibM :: [AgdaLibFile] -> LibErrorIO a -> LibM a
 mkLibM libs m = do
-  (x, err) <- lift $ runWriterT m
-  case err of
-    [] -> return x
-    _  -> throwError =<< do lift $ vcat <$> mapM (formatLibError libs) err
+  (x, ews) <- liftIO $ runWriterT m
+  let (errs, warns) = partitionEithers ews
+  tell warns
+  unless (null errs) $ do
+    let doc = vcat $ map (formatLibError libs) errs
+    throwError doc
+  return x
 
 ------------------------------------------------------------------------
 -- Resources
@@ -192,7 +221,7 @@ readDefaultsFile = do
       ls <- lift $ map snd . stripCommentLines <$> readFile file
       return $ concatMap splitCommas ls
   `catchIO` \ e -> do
-    tell [ OtherError $ unlines ["Failed to read defaults file.", show e] ]
+    raiseErrors [ NoCtxt $ OtherError $ unlines ["Failed to read defaults file.", show e] ]
     return []
 
 ------------------------------------------------------------------------
@@ -230,7 +259,7 @@ getInstalledLibraries overrideLibFile = mkLibM [] $ do
       files <- lift $ sequence [ (i, ) <$> expandEnvironmentVariables s | (i, s) <- ls ]
       parseLibFiles (Just file) $ List.nubBy ((==) `on` snd) files
   `catchIO` \ e -> do
-    tell [ OtherError $ unlines ["Failed to read installed libraries.", show e] ]
+    raiseErrors [ NoCtxt $ OtherError $ unlines ["Failed to read installed libraries.", show e] ]
     return []
 
 -- | Parse the given library files.
@@ -240,17 +269,19 @@ parseLibFiles
   -> [(LineNumber, FilePath)]  -- ^ Library files paired with their line number in @libraries@.
   -> LibErrorIO [AgdaLibFile]  -- ^ Content of library files.  (Might have empty @LibName@s.)
 parseLibFiles libFile files = do
-  rs <- lift $ mapM (parseLibFile . snd) files
-  -- Format and raise the errors.
-  let loc line | Just f <- libFile = lfPath f ++ ":" ++ show line ++ ": "
-               | otherwise         = ""
-  tell [ OtherError $ pos ++ err
-       | ((line, path), Left err) <- zip files rs
-       , let pos = if List.isPrefixOf "Failed to read" err
-                   then loc line
-                   else path ++ ":" ++ (if all isDigit (take 1 err) then "" else " ")
-       ]
-  return $ rights rs
+  rs' <- lift $ mapM (parseLibFile . snd) files
+  let ann :: (LineNumber, FilePath) ->
+             (Either e a, [LibWarning']) -> (Either (LibCtxt b e) a, LibWarning)
+      ann p = first (uncurry f p) *** uncurry g p
+        where f = WithCtxt (fmap lfPath libFile)
+              g = WithCtxt (fmap lfPath libFile)
+  let (xs, warns) = unzip $ zipWith ann files (map runP rs')
+      (errs, als) = partitionEithers xs
+
+  unless (null warns) $ raiseWarnings warns
+  unless (null errs)  $ raiseErrors $ map (OtherError <$>) errs
+
+  return $ als
 
 -- | Remove trailing white space and line comments.
 --
@@ -261,27 +292,38 @@ stripCommentLines = concatMap strip . zip [1..] . lines
       where s' = trimLineComment s
 
 -- | Pretty-print 'LibError'.
-formatLibError :: [AgdaLibFile] -> LibError -> IO Doc
-formatLibError installed = \case
+formatLibError :: [AgdaLibFile] -> LibError -> Doc
+formatLibError installed le = prefix <+> body where
+  prefix = text $ case le of
+    NoCtxt{}     -> ""
+    WithCtxt{..} | OtherError err <- inCtxt_ ->
+      let loc | Just lf <- libFileCtxt = lf ++ ":" ++ show lineNumCtxt ++ ": "
+              | otherwise = ""
+      in if List.isPrefixOf "Failed to read" err
+         then loc
+         else fileCtxt ++ ":" ++ (if all isDigit (take 1 err) then "" else " ")
+    _ -> ""
 
-  LibNotFound file lib -> return $ vcat $
-    [ text $ "Library '" ++ lib ++ "' not found."
-    , sep [ text "Add the path to its .agda-lib file to"
-          , nest 2 $ text $ "'" ++ lfPath file ++ "'"
-          , text "to install."
-          ]
-    , text "Installed libraries:"
-    ] ++
-    map (nest 2)
-      (if null installed then [text "(none)"]
-      else [ sep [ text $ libName l, nest 2 $ parens $ text $ libFile l ]
-           | l <- List.nubBy ((==) `on` libFile) installed ])
+  body = case inCtxt le of
+    LibNotFound file lib -> vcat $
+      [ text $ "Library '" ++ lib ++ "' not found."
+      , sep [ "Add the path to its .agda-lib file to"
+            , nest 2 $ text $ "'" ++ lfPath file ++ "'"
+            , "to install."
+            ]
+      , "Installed libraries:"
+      ] ++
+      map (nest 2)
+         (if null installed then ["(none)"]
+          else [ sep [ text $ libName l, nest 2 $ parens $ text $ libFile l ]
+               | l <- List.nubBy ((==) `on` libFile) installed ])
 
-  AmbiguousLib lib tgts -> return $ vcat $
-    [ sep [ text $ "Ambiguous library '" ++ lib ++ "'.", text "Could refer to any one of" ]
-    ] ++ [ nest 2 $ text (libName l) <+> parens (text $ libFile l) | l <- tgts ]
+    AmbiguousLib lib tgts -> vcat $
+      [ sep [ text $ "Ambiguous library '" ++ lib ++ "'."
+            , "Could refer to any one of" ]
+      ] ++ [ nest 2 $ text (libName l) <+> parens (text $ libFile l) | l <- tgts ]
 
-  OtherError err -> return $ text err
+    OtherError err -> text err
 
 ------------------------------------------------------------------------
 -- * Resolving library names to include pathes
@@ -306,15 +348,15 @@ libraryIncludePaths overrideLibFile libs xs0 = mkLibM libs $ WriterT $ do
       :: LibrariesFile  -- ^ Only for error reporting.
       -> [LibName]  -- ^ Already resolved libraries.
       -> [LibName]  -- ^ Work list: libraries left to be resolved.
-      -> Writer [LibError] [AgdaLibFile]
+      -> Writer [Either LibError LibWarning] [AgdaLibFile]
     find _ _ [] = pure []
     find file visited (x : xs)
       | elem x visited = find file visited xs
       | otherwise =
           case findLib x libs of
             [l] -> (l :) <$> find file (x : visited) (libDepends l ++ xs)
-            []  -> tell [LibNotFound file x] >> find file (x : visited) xs
-            ls  -> tell [AmbiguousLib x ls]  >> find file (x : visited) xs
+            []  -> raiseErrors [NoCtxt $ LibNotFound file x] >> find file (x : visited) xs
+            ls  -> raiseErrors [NoCtxt $ AmbiguousLib x ls]  >> find file (x : visited) xs
 
 -- | @findLib x libs@ retrieves the matches for @x@ from list @libs@.
 --
