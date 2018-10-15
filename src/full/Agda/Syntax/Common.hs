@@ -499,6 +499,12 @@ composeRelevance r r' =
     (_, NonStrict)  -> NonStrict
     (Relevant, Relevant) -> Relevant
 
+-- | Compose with relevance flag from the left.
+--   This function is e.g. used to update the relevance information
+--   on pattern variables @a@ after a match against something @rel@.
+applyRelevance :: LensRelevance a => Relevance -> a -> a
+applyRelevance rel = mapRelevance (rel `composeRelevance`)
+
 -- | @inverseComposeRelevance r x@ returns the most irrelevant @y@
 --   such that forall @x@, @y@ we have
 --   @x \`moreRelevant\` (r \`composeRelevance\` y)@
@@ -512,6 +518,11 @@ inverseComposeRelevance r x =
     (Irrelevant, x)          -> Relevant   -- going irrelevant: every thing usable
     (NonStrict , Irrelevant) -> Irrelevant -- otherwise: irrelevant things remain unusable
     (NonStrict , _)          -> Relevant   -- but @NonStrict@s become usable
+
+-- | Left division by a 'Relevance'.
+--   Used e.g. to modify context when going into a @rel@ argument.
+inverseApplyRelevance :: LensRelevance a => Relevance -> a -> a
+inverseApplyRelevance rel = mapRelevance (rel `inverseComposeRelevance`)
 
 -- | 'Relevance' forms a semigroup under composition.
 instance Semigroup Relevance where

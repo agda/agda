@@ -77,11 +77,6 @@ updateMetaVar m f = modifyMetaStore $ Map.adjust f m
 getMetaPriority :: MetaId -> TCM MetaPriority
 getMetaPriority = mvPriority <.> lookupMeta
 
-{- UNUSED
-getMetaRelevance :: MetaId -> TCM Relevance
-getMetaRelevance x = miRelevance . mvInfo <$> lookupMeta x
--}
-
 isSortMeta :: MetaId -> TCM Bool
 isSortMeta m = isSortMeta_ <$> lookupMeta m
 

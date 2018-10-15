@@ -35,16 +35,6 @@ import Agda.Utils.Impossible
 hideAndRelParams :: Dom a -> Dom a
 hideAndRelParams = hideOrKeepInstance . mapRelevance nonStrictToIrr
 
--- | Used to modify context when going into a @rel@ argument.
-inverseApplyRelevance :: Relevance -> Dom a -> Dom a
-inverseApplyRelevance rel = mapRelevance (rel `inverseComposeRelevance`)
-
--- | Compose two relevance flags.
---   This function is used to update the relevance information
---   on pattern variables @a@ after a match against something @rel@.
-applyRelevance :: Relevance -> Dom a -> Dom a
-applyRelevance rel = mapRelevance (rel `composeRelevance`)
-
 -- * Operations on 'Context'.
 
 -- | Modify the context whenever going from the l.h.s. (term side)
