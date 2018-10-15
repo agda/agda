@@ -205,7 +205,7 @@ getDefaultLibraries root optDefaultLibs = mkLibM [] $ do
     then (,[]) <$> if optDefaultLibs then (libNameForCurrentDir :) <$> readDefaultsFile else return []
     else libsAndPaths <$> parseLibFiles Nothing (map (0,) libs)
   where
-    libsAndPaths ls = (concatMap libDepends ls, concatMap libIncludes ls)
+    libsAndPaths ls = (concatMap libDepends ls, List.nub (concatMap libIncludes ls))
 
 -- | Return list of libraries to be used by default.
 --
@@ -266,20 +266,20 @@ parseLibFiles
   :: Maybe LibrariesFile       -- ^ Name of @libraries@ file for error reporting.
   -> [(LineNumber, FilePath)]  -- ^ Library files paired with their line number in @libraries@.
   -> LibErrorIO [AgdaLibFile]  -- ^ Content of library files.  (Might have empty @LibName@s.)
-parseLibFiles libFile files = do
+parseLibFiles mlibFile files = do
   rs' <- lift $ mapM (parseLibFile . snd) files
   let ann :: (LineNumber, FilePath) ->
              (Either e a, [LibWarning']) -> (Either (LibCtxt b e) a, LibWarning)
       ann p = first (uncurry f p) *** uncurry g p
-        where f = WithCtxt (fmap lfPath libFile)
-              g = WithCtxt (fmap lfPath libFile)
+        where f :: (LineNumber, FilePath) -> a -> LibCtxt b a
+              f = WithCtxt (lfPath <$> mlibFile)
   let (xs, warns) = unzip $ zipWith ann files (map runP rs')
       (errs, als) = partitionEithers xs
 
   unless (null warns) $ raiseWarnings warns
   unless (null errs)  $ raiseErrors $ map (OtherError <$>) errs
 
-  return $ als
+  return $ List.nubBy ((==) `on` libFile) $ als
 
 -- | Remove trailing white space and line comments.
 --

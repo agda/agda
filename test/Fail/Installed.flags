@@ -1,0 +1,3 @@
+-itest/Fail
+--library-file=test/Succeed/installed-libs/libraries
+--library=standard-library
