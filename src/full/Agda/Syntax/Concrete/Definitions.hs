@@ -184,7 +184,7 @@ data DeclarationException
         | MultipleEllipses Pattern
         | InvalidName Name
         | DuplicateDefinition Name
-        | MissingWithClauses Name
+        | MissingWithClauses Name LHS
         | WrongDefinition Name DataRecOrFun DataRecOrFun
         | WrongParameters Name Params Params
           -- ^ 'Name' of symbol, 'Params' of signature, 'Params' of definition.
@@ -272,7 +272,7 @@ instance HasRange DeclarationException where
   getRange (MultipleEllipses d)                 = getRange d
   getRange (InvalidName x)                      = getRange x
   getRange (DuplicateDefinition x)              = getRange x
-  getRange (MissingWithClauses x)               = getRange x
+  getRange (MissingWithClauses x lhs)           = getRange lhs
   getRange (WrongDefinition x k k')             = getRange x
   getRange (WrongParameters x _ _)              = getRange x
   getRange (AmbiguousFunClauses lhs xs)         = getRange lhs
@@ -344,7 +344,7 @@ instance Pretty DeclarationException where
     pwords "Invalid name:" ++ [pretty x]
   pretty (DuplicateDefinition x) = fsep $
     pwords "Duplicate definition of" ++ [pretty x]
-  pretty (MissingWithClauses x) = fsep $
+  pretty (MissingWithClauses x lhs) = fsep $
     pwords "Missing with-clauses for function" ++ [pretty x]
 
   pretty (WrongDefinition x k k') = fsep $ pretty x :
@@ -1361,7 +1361,7 @@ niceDeclarations ds = do
       (Clause x (ca || catchall) lhs rhs wh [] :) <$> mkClauses x cs False   -- Will result in an error later.
 
     mkClauses x (FunClause lhs rhs wh ca : cs) catchall = do
-      when (null withClauses) $ throwError $ MissingWithClauses x
+      when (null withClauses) $ throwError $ MissingWithClauses x lhs
       wcs <- mkClauses x withClauses False
       (Clause x (ca || catchall) lhs rhs wh wcs :) <$> mkClauses x cs' False
       where
