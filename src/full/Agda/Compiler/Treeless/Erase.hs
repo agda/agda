@@ -213,9 +213,7 @@ sumTypeInfo is = foldr plus Empty is
     plus NotErasable NotErasable = NotErasable
 
 erasableR :: Relevance -> Bool
-erasableR Relevant   = False
-erasableR NonStrict  = True
-erasableR Irrelevant = True
+erasableR = not . usableRelevance
 
 erasable :: TypeInfo -> Bool
 erasable Erasable    = True
