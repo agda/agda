@@ -161,7 +161,7 @@ sat p = sat' (\t -> if p t then Just t else Nothing)
 -- | Parses a single token.
 
 token :: ParserClass p k r tok => p tok
-token = doc (text "·") (sat' Just)
+token = doc "·" (sat' Just)
 
 -- | Parses a given token.
 
@@ -282,14 +282,14 @@ instance Monad (ParserWithGrammar k r tok) where
   return  = pure
   p >>= f =
     pg (parser p >>= parser . f)
-       ((\(d, p) -> (mparens (p < bindP) d <+> text ">>= ?", bindP))
+       ((\(d, p) -> (mparens (p < bindP) d <+> ">>= ?", bindP))
           <$> docs p)
 
 instance Functor (ParserWithGrammar k r tok) where
   fmap f p = pg (fmap f (parser p)) (docs p)
 
 instance Applicative (ParserWithGrammar k r tok) where
-  pure x    = pg (pure x) (return (text "ε", atomP))
+  pure x    = pg (pure x) (return ("ε", atomP))
   p1 <*> p2 =
     pg (parser p1 <*> parser p2)
        (liftM2 (\(d1, p1) (d2, p2) ->
@@ -305,12 +305,12 @@ starDocs s p =
   (\(d, p) -> (mparens (p < starP) d <+> text s, starP)) <$> docs p
 
 instance Alternative (ParserWithGrammar k r tok) where
-  empty     = pg empty (return (text "∅", atomP))
+  empty     = pg empty (return ("∅", atomP))
   p1 <|> p2 =
     pg (parser p1 <|> parser p2)
        (liftM2 (\(d1, p1) (d2, p2) ->
                    (sep [ mparens (p1 < choiceP) d1
-                        , text "|"
+                        , "|"
                         , mparens (p2 < choiceP) d2
                         ], choiceP))
                (docs p1) (docs p2))
@@ -340,7 +340,7 @@ memoiseDocs key p = do
 
 instance ParserClass (ParserWithGrammar k r tok) k r tok where
   parse p                 = parse (parser p)
-  sat' p                  = pg (sat' p) (return (text "<sat ?>", atomP))
+  sat' p                  = pg (sat' p) (return ("<sat ?>", atomP))
   annotate f p            = pg (parser p) (f <$> docs p)
   memoise key p           = pg (memoise key (parser p))
                                (memoiseDocs key p)
@@ -350,8 +350,8 @@ instance ParserClass (ParserWithGrammar k r tok) k r tok where
     d
       $+$
     nest 2 (foldr1 ($+$) $
-      text "where" :
-      map (\(k, d) -> fst (prettyKey k) <+> text "∷=" <+>
+      "where" :
+      map (\(k, d) -> fst (prettyKey k) <+> "∷=" <+>
                         maybe __IMPOSSIBLE__ fst d)
           (Map.toList ds))
     where

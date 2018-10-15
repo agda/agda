@@ -1,6 +1,7 @@
 {-# LANGUAGE CPP                #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE GADTs              #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 -- | Preprocess 'Agda.Syntax.Concrete.Declaration's, producing 'NiceDeclaration's.
 --
@@ -47,6 +48,7 @@ import Prelude hiding (null)
 
 import Control.Arrow ((&&&), (***), first, second)
 import Control.Applicative hiding (empty)
+import Control.Monad.Except
 import Control.Monad.State
 
 import Data.Either ( partitionEithers )
@@ -182,7 +184,7 @@ data DeclarationException
         | MultipleEllipses Pattern
         | InvalidName Name
         | DuplicateDefinition Name
-        | MissingWithClauses Name
+        | MissingWithClauses Name LHS
         | WrongDefinition Name DataRecOrFun DataRecOrFun
         | WrongParameters Name Params Params
           -- ^ 'Name' of symbol, 'Params' of signature, 'Params' of definition.
@@ -270,7 +272,7 @@ instance HasRange DeclarationException where
   getRange (MultipleEllipses d)                 = getRange d
   getRange (InvalidName x)                      = getRange x
   getRange (DuplicateDefinition x)              = getRange x
-  getRange (MissingWithClauses x)               = getRange x
+  getRange (MissingWithClauses x lhs)           = getRange lhs
   getRange (WrongDefinition x k k')             = getRange x
   getRange (WrongParameters x _ _)              = getRange x
   getRange (AmbiguousFunClauses lhs xs)         = getRange lhs
@@ -333,7 +335,7 @@ instance Pretty DeclarationException where
         , vcat $ map f xs
         ]
       where
-        f (x, fs) = pretty x Pretty.<> text ": " <+> fsep (map pretty fs)
+        f (x, fs) = pretty x Pretty.<> ": " <+> fsep (map pretty fs)
   pretty (MultiplePolarityPragmas xs) = fsep $
     pwords "Multiple polarity pragmas for" ++ map pretty xs
   pretty (MultipleEllipses p) = fsep $
@@ -342,7 +344,7 @@ instance Pretty DeclarationException where
     pwords "Invalid name:" ++ [pretty x]
   pretty (DuplicateDefinition x) = fsep $
     pwords "Duplicate definition of" ++ [pretty x]
-  pretty (MissingWithClauses x) = fsep $
+  pretty (MissingWithClauses x lhs) = fsep $
     pwords "Missing with-clauses for function" ++ [pretty x]
 
   pretty (WrongDefinition x k k') = fsep $ pretty x :
@@ -578,47 +580,16 @@ matchParameters x sig def = loop (kindParams sig) (kindParams def)
 -- | Nicifier monad.
 --   Preserve the state when throwing an exception.
 
-newtype Nice a = Nice { unNice :: NiceEnv -> (Either DeclarationException a, NiceEnv) }
-
--- We have to hand-roll the instances ourselves, since the automagic does not
--- work for @Nice a = State s (Except e a)@, only for the usual
--- @Nice a = StateT s (Except e) a@.
-
-instance Functor Nice where
-  fmap f m = Nice $ \ s ->
-    let (r, s') = unNice m s in
-    case r of
-      Left  e -> (Left e, s')
-      Right a -> (Right (f a), s')
-
-instance Applicative Nice where
-  pure a = Nice $ \ s -> (Right a, s)
-  (<*>)  = ap
-
-instance Monad Nice where
-  return = pure
-  m >>= k  = Nice $ \ s ->
-    let (r, s') = unNice m s in
-    case r of
-      Left e  -> (Left e, s')
-      Right a -> unNice (k a) s'
-
-instance MonadState NiceEnv Nice where
-  state f  = Nice $ \ s -> first Right $ f s
-  -- get = Nice $ \ s -> (Right s, s)  -- Subsumed by state
-
-instance MonadError DeclarationException Nice where
-  throwError e   = Nice $ \ s -> (Left e, s)
-  catchError m h = Nice $ \ s ->
-    let (r, s') = unNice m s in
-    case r of
-      Left e  -> unNice (h e) s'
-      Right a -> (Right a, s')
+newtype Nice a = Nice { unNice :: ExceptT DeclarationException (State NiceEnv) a }
+  deriving ( Functor, Applicative, Monad
+           , MonadState NiceEnv, MonadError DeclarationException
+           )
 
 -- | Run a Nicifier computation, return result and warnings
 --   (in chronological order).
 runNice :: Nice a -> (Either DeclarationException a, NiceWarnings)
-runNice m = second (reverse . niceWarn) $ unNice m initNiceEnv
+runNice m = second (reverse . niceWarn) $
+  runExceptT (unNice m) `runState` initNiceEnv
 
 -- | Nicifier state.
 
@@ -1390,7 +1361,7 @@ niceDeclarations ds = do
       (Clause x (ca || catchall) lhs rhs wh [] :) <$> mkClauses x cs False   -- Will result in an error later.
 
     mkClauses x (FunClause lhs rhs wh ca : cs) catchall = do
-      when (null withClauses) $ throwError $ MissingWithClauses x
+      when (null withClauses) $ throwError $ MissingWithClauses x lhs
       wcs <- mkClauses x withClauses False
       (Clause x (ca || catchall) lhs rhs wh wcs :) <$> mkClauses x cs' False
       where

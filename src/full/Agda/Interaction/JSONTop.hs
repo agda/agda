@@ -1,5 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
-
 module Agda.Interaction.JSONTop
     ( jsonREPL
     ) where

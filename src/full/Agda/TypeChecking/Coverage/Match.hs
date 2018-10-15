@@ -67,7 +67,7 @@ instance Pretty SplitPatVar where
     (text $ patVarNameToString (splitPatVarName x)) P.<>
     (text $ "@" ++ show (splitPatVarIndex x)) P.<>
     (ifNull (splitExcludedLits x) empty $ \lits ->
-      text "\\{" P.<> prettyList_ lits P.<> text "}")
+      "\\{" P.<> prettyList_ lits P.<> "}")
 
 instance PrettyTCM SplitPatVar where
   prettyTCM = prettyTCM . var . splitPatVarIndex
@@ -174,9 +174,9 @@ data BlockingVar = BlockingVar
 instance Pretty BlockingVar where
   pretty (BlockingVar i cs ls o) = cat
     [ text ("variable " ++ show i)
-    , if null cs then empty else text " blocked on constructors" <+> pretty cs
-    , if null ls then empty else text " blocked on literals" <+> pretty ls
-    , if o then text " (overlapping)" else empty
+    , if null cs then empty else " blocked on constructors" <+> pretty cs
+    , if null ls then empty else " blocked on literals" <+> pretty ls
+    , if o then " (overlapping)" else empty
     ]
 
 type BlockingVars = [BlockingVar]

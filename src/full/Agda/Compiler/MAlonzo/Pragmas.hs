@@ -67,8 +67,8 @@ parsePragma (CompilerPragma r s) =
     barP = skipSpaces *> char '|'
 
     -- quite liberal
-    isIdent c = isAlphaNum c || elem c "_.':[]"
-    isOp c    = not $ isSpace c || elem c "()"
+    isIdent c = isAlphaNum c || elem c ("_.':[]" :: String)
+    isOp c    = not $ isSpace c || elem c ("()" :: String)
     hsIdent = fst <$> gather (choice
                 [ string "()"
                 , many1 (satisfy isIdent)
@@ -114,7 +114,7 @@ sanityCheckPragma def (Just HsDefn{}) =
       recOrDataErr which =
         typeError $ GenericDocError $
           sep [ text $ "Bad COMPILE GHC pragma for " ++ which ++ " type. Use"
-              , text "{-# COMPILE GHC <Name> = data <HsData> (<HsCon1> | .. | <HsConN>) #-}" ]
+              , "{-# COMPILE GHC <Name> = data <HsData> (<HsCon1> | .. | <HsConN>) #-}" ]
 sanityCheckPragma def (Just HsData{}) =
   case theDef def of
     Datatype{} -> return ()

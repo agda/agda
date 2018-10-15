@@ -108,7 +108,7 @@ updateProblemRest :: LHSState a -> TCM (LHSState a)
 updateProblemRest st@(LHSState tel0 qs0 p@(Problem oldEqs ps ret) a psplit) = do
   ps <- addContext tel0 $ insertImplicitPatternsT ExpandLast ps $ unArg a
   reportSDoc "tc.lhs.imp" 20 $
-    text "insertImplicitPatternsT returned" <+> fsep (map prettyA ps)
+    "insertImplicitPatternsT returned" <+> fsep (map prettyA ps)
   -- (Issue 734: Do only the necessary telView to preserve clause types as much as possible.)
   let m = length $ takeWhile (isNothing . A.maybePostfixProjP) ps
   TelV gamma b <- telViewUpToPath m $ unArg a
@@ -125,19 +125,19 @@ updateProblemRest st@(LHSState tel0 qs0 p@(Problem oldEqs ps ret) a psplit) = do
                     (flattenTel tel1 `useOriginFrom` ps1)
       tau       = raiseS n
   reportSDoc "tc.lhs.problem" 10 $ addContext tel0 $ vcat
-    [ text "checking lhs -- updated split problem:"
+    [ "checking lhs -- updated split problem:"
     , nest 2 $ vcat
-      [ text "ps    =" <+> fsep (map prettyA ps)
-      , text "a     =" <+> prettyTCM a
-      , text "tel1  =" <+> prettyTCM tel1
-      , text "ps1   =" <+> fsep (map prettyA ps1)
-      , text "ps2   =" <+> fsep (map prettyA ps2)
-      , text "b     =" <+> addContext tel1 (prettyTCM b)
+      [ "ps    =" <+> fsep (map prettyA ps)
+      , "a     =" <+> prettyTCM a
+      , "tel1  =" <+> prettyTCM tel1
+      , "ps1   =" <+> fsep (map prettyA ps1)
+      , "ps2   =" <+> fsep (map prettyA ps2)
+      , "b     =" <+> addContext tel1 (prettyTCM b)
       ]
     ]
   reportSDoc "tc.lhs.problem" 60 $ addContext tel0 $ vcat
     [ nest 2 $ vcat
-      [ text "qs1    =" <+> fsep (map pretty qs1)
+      [ "qs1    =" <+> fsep (map pretty qs1)
       ]
     ]
   return $ LHSState

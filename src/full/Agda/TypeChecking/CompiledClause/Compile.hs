@@ -80,7 +80,7 @@ compileClauses mt cs = do
       splitTree <- coverageCheck q t cs
 
       reportSDoc "tc.cc.tree" 20 $ vcat
-        [ text "split tree from coverage check "
+        [ "split tree from coverage check "
         , return $ P.pretty splitTree
         ]
 
@@ -92,13 +92,13 @@ compileClauses mt cs = do
       let cls = map unBruijn cs
 
       reportSDoc "tc.cc" 30 $ sep $ do
-        (text "clauses patterns  before compilation") : do
+        "clauses patterns  before compilation" : do
           map (prettyTCM . map unArg . clPats) cls
       reportSDoc "tc.cc" 50 $
-        text "clauses before compilation" <?> pretty cs
+        "clauses before compilation" <?> pretty cs
       let cc = compileWithSplitTree splitTree cls
       reportSDoc "tc.cc" 12 $ sep
-        [ text "compiled clauses (still containing record splits)"
+        [ "compiled clauses (still containing record splits)"
         , nest 2 $ return $ P.pretty cc
         ]
       cc <- translateCompiledClauses cc
@@ -113,7 +113,7 @@ data Cl = Cl
   } deriving (Show)
 
 instance P.Pretty Cl where
-  pretty (Cl ps b) = P.prettyList ps P.<+> P.text "->" P.<+> maybe (P.text "_|_") P.pretty b
+  pretty (Cl ps b) = P.prettyList ps P.<+> "->" P.<+> maybe "_|_" P.pretty b
 
 type Cls = [Cl]
 

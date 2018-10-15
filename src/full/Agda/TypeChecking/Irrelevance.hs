@@ -117,7 +117,7 @@ instance UsableRelevance Term where
       irel <- getRelevance <$> typeOfBV' i
       let ok = irel `moreRelevant` rel
       reportSDoc "tc.irr" 50 $
-        text "Variable" <+> prettyTCM (var i) <+>
+        "Variable" <+> prettyTCM (var i) <+>
         text ("has relevance " ++ show irel ++ ", which is " ++
               (if ok then "" else "NOT ") ++ "more relevant than " ++ show rel)
       return ok `and2M` usableRel rel vs

@@ -1,6 +1,13 @@
 Release notes for Agda version 2.6.0
 ====================================
 
+Installation and infrastructure
+-------------------------------
+
+* Added support for GHC 8.6.1 (except for `cpphs`
+  [Issue [#3154](https://github.com/agda/agda/issues/3254)] and
+  `stack` [Issue [#3255](https://github.com/agda/agda/issues/3255)] )
+
 Type checking and interaction
 -----------------------------
 
@@ -83,7 +90,7 @@ Pragmas and options
   Reason: There are consistency issues that may be systemic
   [Issue [#2170](https://github.com/agda/agda/issues/2170)].
 
-* Option `--prop` enables the `Prop` universe and is on by default.
+* Option `--prop` enables the `Prop` universe but is off by default.
   Option `--no-prop` disables the `Prop` universe.
 
   In the absense of `Prop`, the sort `Set` is the lowest sort,

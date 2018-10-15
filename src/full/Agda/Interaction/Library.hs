@@ -266,19 +266,18 @@ formatLibError installed = \case
 
   LibNotFound file lib -> return $ vcat $
     [ text $ "Library '" ++ lib ++ "' not found."
-    , sep [ text "Add the path to its .agda-lib file to"
+    , sep [ "Add the path to its .agda-lib file to"
           , nest 2 $ text $ "'" ++ lfPath file ++ "'"
-          , text "to install."
+          , "to install."
           ]
-    , text "Installed libraries:"
+    , "Installed libraries:"
     ] ++
     map (nest 2)
-      (if null installed then [text "(none)"]
-      else [ sep [ text $ libName l, nest 2 $ parens $ text $ libFile l ]
-           | l <- installed ])
+      (if null installed then ["(none)"]
+      else [ sep [ text $ libName l, nest 2 $ parens $ text $ libFile l ] | l <- installed ])
 
   AmbiguousLib lib tgts -> return $ vcat $
-    [ sep [ text $ "Ambiguous library '" ++ lib ++ "'.", text "Could refer to any one of" ]
+    [ sep [ text $ "Ambiguous library '" ++ lib ++ "'.", "Could refer to any one of" ]
     ] ++ [ nest 2 $ text (libName l) <+> parens (text $ libFile l) | l <- tgts ]
 
   OtherError err -> return $ text err

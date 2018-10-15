@@ -175,12 +175,12 @@ nextIsForced (f:fs) = (f, fs)
 forcingTranslation :: [NamedArg DeBruijnPattern] -> TCM [NamedArg DeBruijnPattern]
 forcingTranslation ps = do
   (qs, rebind) <- dotForcedPatterns ps
-  reportSDoc "tc.force" 50 $ text "forcingTranslation" <?> vcat
-    [ text "patterns:" <?> pretty ps
-    , text "dotted:  " <?> pretty qs
-    , text "rebind:  " <?> pretty rebind ]
+  reportSDoc "tc.force" 50 $ "forcingTranslation" <?> vcat
+    [ "patterns:" <?> pretty ps
+    , "dotted:  " <?> pretty qs
+    , "rebind:  " <?> pretty rebind ]
   rs <- foldM rebindForcedPattern qs rebind
-  when (not $ null rebind) $ reportSDoc "tc.force" 50 $ nest 2 $ text "result:  " <?> pretty rs
+  when (not $ null rebind) $ reportSDoc "tc.force" 50 $ nest 2 $ "result:  " <?> pretty rs
   return rs
 
 -- | Applies the forcing translation in order to update modalities of forced
@@ -202,7 +202,7 @@ forceTranslateTelescope delta qs = do
       let mods    = map (first dbPatVarIndex) new
           ms      = reverse [ lookup i mods | i <- [0..size delta - 1] ]
           delta'  = telFromList $ zipWith (maybe id setModality) ms $ telToList delta
-      reportSDoc "tc.force" 60 $ nest 2 $ text "delta' =" <?> prettyTCM delta'
+      reportSDoc "tc.force" 60 $ nest 2 $ "delta' =" <?> prettyTCM delta'
       return delta'
 
 -- | Rebind a forced pattern in a non-forced position. The forced pattern has
@@ -298,4 +298,3 @@ dotForcedPatterns ps = runWriterT $ (traverse . traverse . traverse) (forced Not
       ifM (isEtaCon $ conName c)
           (anyM ps (isProperMatch . namedArg))
           (return True)
-

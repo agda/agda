@@ -363,7 +363,7 @@ appP p pa = foldl app <$> p <*> pa
 
 atomP :: IsExpr e => (QName -> Bool) -> Parser e e
 atomP p =
-  doc (text "<atom>") $
+  doc "<atom>" $
   satNoPlaceholder $ \e ->
   case exprView e of
     LocalV x | not (p x) -> Nothing

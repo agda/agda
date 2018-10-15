@@ -139,7 +139,7 @@ runAgdaWithOptions backends generateHTML interaction progName opts
                      else Imp.TypeCheck
 
           file    <- getInputFile
-          (i, mw) <- Imp.typeCheckMain file mode
+          (i, mw) <- Imp.typeCheckMain file mode =<< Imp.sourceInfo file
 
           -- An interface is only generated if the mode is
           -- Imp.TypeCheck and there are no warnings.
@@ -168,7 +168,7 @@ runAgdaWithOptions backends generateHTML interaction progName opts
           unless (null ws) $ do
             let banner = text $ "\n" ++ delimiter "All done; warnings encountered"
             reportSDoc "warning" 1 $
-              vcat $ punctuate (text "\n") $ banner : (prettyTCM <$> ws)
+              vcat $ punctuate "\n" $ banner : (prettyTCM <$> ws)
 
           return result
 

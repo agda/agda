@@ -317,7 +317,7 @@ checkModuleMacro apply r p x modapp open dir = do
     notPublicWithoutOpen open dir
 
     m0 <- toAbstract (NewModuleName x)
-    reportSDoc "scope.decl" 90 $ text "NewModuleName: m0 =" <+> prettyA m0
+    reportSDoc "scope.decl" 90 $ "NewModuleName: m0 =" <+> prettyA m0
 
     printScope "mod.inst" 20 "module macro"
 
@@ -335,11 +335,11 @@ checkModuleMacro apply r p x modapp open dir = do
     (modapp', copyInfo, adir') <- withLocalVars $ checkModuleApplication modapp m0 x moduleDir
     printScope "mod.inst.app" 20 "checkModuleMacro, after checkModuleApplication"
 
-    reportSDoc "scope.decl" 90 $ text "after mod app: trying to print m0 ..."
-    reportSDoc "scope.decl" 90 $ text "after mod app: m0 =" <+> prettyA m0
+    reportSDoc "scope.decl" 90 $ "after mod app: trying to print m0 ..."
+    reportSDoc "scope.decl" 90 $ "after mod app: m0 =" <+> prettyA m0
 
     bindModule p x m0
-    reportSDoc "scope.decl" 90 $ text "after bindMod: m0 =" <+> prettyA m0
+    reportSDoc "scope.decl" 90 $ "after bindMod: m0 =" <+> prettyA m0
 
     printScope "mod.inst.copy.after" 20 "after copying"
 
@@ -349,11 +349,11 @@ checkModuleMacro apply r p x modapp open dir = do
       DontOpen -> return adir'
       DoOpen   -> openModule_ (C.QName x) openDir
     printScope "mod.inst" 20 $ show open
-    reportSDoc "scope.decl" 90 $ text "after open   : m0 =" <+> prettyA m0
+    reportSDoc "scope.decl" 90 $ "after open   : m0 =" <+> prettyA m0
 
     stripNoNames
     printScope "mod.inst" 10 $ "after stripping"
-    reportSDoc "scope.decl" 90 $ text "after stripNo: m0 =" <+> prettyA m0
+    reportSDoc "scope.decl" 90 $ "after stripNo: m0 =" <+> prettyA m0
 
     let m      = m0 `withRangesOf` [x]
         adecls = [ apply info m modapp' copyInfo adir ]
@@ -1721,7 +1721,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
          as <- (traverse . mapM) (unVarName <=< resolveName . C.QName) as
          unlessNull (patternVars p \\ map unArg as) $ \ xs -> do
            typeError . GenericDocError =<< do
-             text "Unbound variables in pattern synonym: " <+>
+             "Unbound variables in pattern synonym: " <+>
                sep (map prettyA xs)
          return (as, p)
       y <- freshAbstractQName fx n
@@ -1808,7 +1808,7 @@ instance ToAbstract ConstrDecl A.Declaration where
 
 errorNotConstrDecl :: C.NiceDeclaration -> ScopeM a
 errorNotConstrDecl d = typeError . GenericDocError $
-        P.text "Illegal declaration in data type definition " P.$$
+        "Illegal declaration in data type definition " P.$$
         P.nest 2 (P.vcat $ map pretty (notSoNiceDeclarations d))
 
 instance ToAbstract C.Pragma [A.Pragma] where
@@ -2187,7 +2187,7 @@ instance ToAbstract C.LHSCore (A.LHSCore' C.Expr) where
         A.LHSHead x . mergeEqualPs <$> toAbstract ps
     toAbstract (C.LHSProj d ps1 l ps2) = do
         unless (null ps1) $ typeError $ GenericDocError $
-          P.text "Ill-formed projection pattern" P.<+> P.pretty (foldl C.AppP (C.IdentP d) ps1)
+          "Ill-formed projection pattern" P.<+> P.pretty (foldl C.AppP (C.IdentP d) ps1)
         qx <- resolveName d
         ds <- case qx of
                 FieldName ds -> return $ fmap anameName ds

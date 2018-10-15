@@ -24,6 +24,7 @@ import qualified Data.Text as T
 import Test.Tasty
 import Test.Tasty.Silver
 import Test.Tasty.Silver.Advanced (readFileMaybe)
+import Test.Tasty.Silver.Filter
 
 import Utils
 
@@ -36,6 +37,13 @@ allLaTeXProgs = ["pdflatex", "xelatex", "lualatex"]
 
 testDir :: FilePath
 testDir = "test" </> "LaTeXAndHTML" </> "succeed"
+
+disabledTests :: [RegexFilter]
+disabledTests =
+  [ -- Issue #3170
+    RFInclude "UnicodeDeclare_LaTeX"
+  , RFInclude "UnicodeDeclare_QuickLaTeX"
+  ]
 
 -- | List of test groups with names
 --

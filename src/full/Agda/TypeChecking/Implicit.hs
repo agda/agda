@@ -47,7 +47,7 @@ implicitNamedArgs n expand t0 = do
       Pi (Dom{domInfo = info, unDom = a}) b | let x = absName b, expand (getHiding info) x -> do
           info' <- if hidden info then return info else do
             reportSDoc "tc.term.args.ifs" 15 $
-              text "inserting instance meta for type" <+> prettyTCM a
+              "inserting instance meta for type" <+> prettyTCM a
             return $ makeInstance info
           (_, v) <- newMetaArg info' x a
           let narg = Arg info (Named (Just $ unranged x) v)

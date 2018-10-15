@@ -103,7 +103,7 @@ data Weight
 
 instance Pretty Weight where
   pretty (Offset x) = pretty x
-  pretty Infinity   = text "∞"
+  pretty Infinity   = "∞"
 
 instance Ord Weight where
   x        <= Infinity = True
@@ -200,7 +200,7 @@ instance Ord Label where
 
 instance Pretty Label where
   pretty (Label cmp w) = pretty cmp <> pretty w
-  pretty LInf          = text "∞"
+  pretty LInf          = "∞"
 
 instance MeetSemiLattice Label where
   -- one label is neutral
@@ -242,8 +242,8 @@ data Node rigid flex
   deriving (Show, Eq, Ord)
 
 instance (Pretty rigid, Pretty flex) => Pretty (Node rigid flex) where
-  pretty NodeZero      = text "0"
-  pretty NodeInfty     = text "∞"
+  pretty NodeZero      = "0"
+  pretty NodeInfty     = "∞"
   pretty (NodeRigid x) = pretty x
   pretty (NodeFlex  x) = pretty x
 

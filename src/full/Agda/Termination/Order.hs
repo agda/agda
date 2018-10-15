@@ -208,10 +208,10 @@ isDecr (Mat m) = any isDecr $ diagonal m
 isDecr o = decreasing o
 
 instance Pretty Order where
-  pretty (Decr u 0) = text "="
+  pretty (Decr u 0) = "="
   pretty (Decr u k) = mparens (not u) $ text $ show (0 - k)
-  pretty Unknown    = text "?"
-  pretty (Mat m)    = text "Mat" <+> pretty m
+  pretty Unknown    = "?"
+  pretty (Mat m)    = "Mat" <+> pretty m
 
 
 -- | Multiplication of 'Order's.

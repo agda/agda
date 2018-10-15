@@ -14,7 +14,6 @@ module Agda.Syntax.Parser.Monad
     , initState
     , defaultParseFlags
     , parse
-    , parseFile
     , parsePosString
     , parseFromSrc
       -- * Manipulating the state
@@ -40,6 +39,7 @@ import Control.Exception (catch)
 import Data.Int
 
 import Data.Data (Data)
+import qualified Data.Text.Lazy as T
 
 import Control.Monad.State
 
@@ -201,18 +201,18 @@ instance Pretty ParseError where
       ]
   pretty OverlappingTokensError{errRange} = vcat
       [ pretty errRange <> colon <+>
-        text "Multi-line comment spans one or more literate text blocks."
+        "Multi-line comment spans one or more literate text blocks."
       ]
   pretty InvalidExtensionError{errPath,errValidExts} = vcat
       [ pretty errPath <> colon <+>
-        text "Unsupported extension."
-      , text "Supported extensions are:" <+> prettyList_ errValidExts
+        "Unsupported extension."
+      , "Supported extensions are:" <+> prettyList_ errValidExts
       ]
   pretty ReadFileError{errPath,errIOError} = vcat
-      [ text "Cannot read file" <+> pretty errPath
+      [ "Cannot read file" <+> pretty errPath
         -- TODO: `show` should be replaced by `displayException` once we
         -- cease to support versions of GHC under 7.10.
-      , text "Error:" <+> text (show errIOError)
+      , "Error:" <+> text (show errIOError)
       ]
 
 instance HasRange ParseError where
@@ -229,7 +229,7 @@ instance Show ParseWarning where
 instance Pretty ParseWarning where
   pretty OverlappingTokensWarning{warnRange} = vcat
       [ pretty warnRange <> colon <+>
-        text "Multi-line comment spans one or more literate text blocks."
+        "Multi-line comment spans one or more literate text blocks."
       ]
 instance HasRange ParseWarning where
   getRange OverlappingTokensWarning{warnRange} = warnRange
@@ -274,21 +274,6 @@ parse flags st p input = parseFromSrc flags st p Strict.Nothing input
 parsePosString :: Position -> ParseFlags -> [LexState] -> Parser a -> String ->
                   ParseResult a
 parsePosString pos flags st p input = unP p (initStatePos pos flags input st)
-
--- | The most general way of parsing a file. The "Agda.Syntax.Parser" will define
---   more specialised functions that supply the 'ParseFlags' and the
---   'LexState'.
---
---   Note that Agda source files always use the UTF-8 character
---   encoding.
-parseFile :: ParseFlags -> [LexState] -> Parser a -> AbsolutePath
-          -> IO (ParseResult a)
-parseFile flags st p file =
-    do  res <- (Right <$> (UTF8.readTextFile (filePath file))) `catch`
-          (return . Left . ReadFileError file)
-        case res of
-          Left  error -> return$ ParseFailed error
-          Right input -> return$ parseFromSrc flags st p (Strict.Just file) input
 
 -- | Parses a string as if it were the contents of the given file
 --   Useful for integrating preprocessors.

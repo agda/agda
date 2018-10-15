@@ -132,4 +132,4 @@ isValidJSIdent :: String -> Bool
 isValidJSIdent s = matchTest regex s
   where
     regex :: Regex
-    regex = makeRegex "^[a-zA-Z_$][0-9a-zA-Z_$]*$"
+    regex = makeRegex ("^[a-zA-Z_$][0-9a-zA-Z_$]*$" :: String)

@@ -150,7 +150,7 @@ instance Ord LocalVar where
 -- | We show shadowed variables as prefixed by a ".", as not in scope.
 instance Pretty LocalVar where
   pretty (LocalVar x _ []) = pretty x
-  pretty (LocalVar x _ xs) = text "." <> pretty x
+  pretty (LocalVar x _ xs) = "." <> pretty x
 
 -- | Shadow a local name by a non-empty list of imports.
 shadowLocal :: [AbstractName] -> LocalVar -> LocalVar
@@ -333,12 +333,12 @@ data ResolvedName
 
 instance Pretty ResolvedName where
   pretty = \case
-    VarName x _         -> text "variable"    <+> pretty x
+    VarName x _         -> "variable"    <+> pretty x
     DefinedName a x     -> pretty a           <+> pretty x
-    FieldName xs        -> text "field"       <+> pretty xs
-    ConstructorName xs  -> text "constructor" <+> pretty xs
-    PatternSynResName x -> text "pattern"     <+> pretty x
-    UnknownName         -> text "<unknown name>"
+    FieldName xs        -> "field"       <+> pretty xs
+    ConstructorName xs  -> "constructor" <+> pretty xs
+    PatternSynResName x -> "pattern"     <+> pretty x
+    UnknownName         -> "<unknown name>"
 
 -- * Operations on name and module maps.
 
@@ -1001,19 +1001,19 @@ instance Pretty NameSpace where
 
 prettyNameSpace :: NameSpace -> [Doc]
 prettyNameSpace (NameSpace names mods _) =
-    blockOfLines (text "names")   (map pr $ Map.toList names) ++
-    blockOfLines (text "modules") (map pr $ Map.toList mods)
+    blockOfLines "names"   (map pr $ Map.toList names) ++
+    blockOfLines "modules" (map pr $ Map.toList mods)
   where
     pr :: (Pretty a, Pretty b) => (a,b) -> Doc
-    pr (x, y) = pretty x <+> text "-->" <+> pretty y
+    pr (x, y) = pretty x <+> "-->" <+> pretty y
 
 instance Pretty Scope where
   pretty (scope@Scope{ scopeName = name, scopeParents = parents, scopeImports = imps }) =
     vcat $
-      [ text "scope" <+> pretty name ] ++ ind (
+      [ "scope" <+> pretty name ] ++ ind (
         concat [ blockOfLines (pretty nsid) $ prettyNameSpace $ scopeNameSpace nsid scope
                | nsid <- [minBound..maxBound] ]
-      ++ blockOfLines (text "imports")
+      ++ blockOfLines "imports"
            (case Map.keys imps of [] -> []; ks -> [ prettyList ks ])
       )
     where ind = map $ nest 2
@@ -1025,13 +1025,13 @@ blockOfLines hd ss = hd : map (nest 2) ss
 
 instance Pretty ScopeInfo where
   pretty (ScopeInfo this mods toBind locals ctx _ _ _) = vcat $
-    [ text "ScopeInfo"
-    , text "  current = " <> pretty this
+    [ "ScopeInfo"
+    , "  current = " <> pretty this
     ] ++
-    (if null toBind then [] else [ text "  toBind  = " <> pretty locals ]) ++
-    (if null locals then [] else [ text "  locals  = " <> pretty locals ]) ++
-    [ text "  context = " <> pretty ctx
-    , text "  modules"
+    (if null toBind then [] else [ "  toBind  = " <> pretty locals ]) ++
+    (if null locals then [] else [ "  locals  = " <> pretty locals ]) ++
+    [ "  context = " <> pretty ctx
+    , "  modules"
     ] ++
     map (nest 4) (List.filter (not . null) $ map pretty $ Map.elems mods)
 

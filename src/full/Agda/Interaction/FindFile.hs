@@ -13,7 +13,7 @@ module Agda.Interaction.FindFile
   , findFile, findFile', findFile''
   , findInterfaceFile
   , checkModuleName
-  , moduleName', moduleName
+  , moduleName
   , rootNameModule
   , replaceModuleExtension
   ) where
@@ -118,8 +118,8 @@ findFile'' dirs m modFile =
   case Map.lookup m modFile of
     Just f  -> return (Right f, modFile)
     Nothing -> do
-      files <- fileList sourceFileExts
-      filesShortList <- fileList sourceFileExtsShortList
+      files <- fileList parseFileExts
+      filesShortList <- fileList parseFileExtsShortList
       existingFiles <-
         liftIO $ filterM (doesFileExistCaseSensitive . filePath) files
       return $ case List.nub existingFiles of
@@ -158,7 +158,7 @@ checkModuleName
   -> Maybe TopLevelModuleName
      -- ^ The expected name, coming from an import statement.
   -> TCM ()
-checkModuleName name file mexpected = do
+checkModuleName name file mexpected =
   findFile' name >>= \case
 
     Left (NotFound files)  -> typeError $
@@ -176,37 +176,47 @@ checkModuleName name file mexpected = do
        else
         typeError $ ModuleDefinedInOtherFile name file file'
 
--- | Computes the module name of the top-level module in the given file.
+-- | Computes the module name of the top-level module in the given
+-- file.
 --
---   Warning! Parses the whole file to get the module name out.
---   Use wisely!
---
---   No side effects!  Only in 'TCM' to raise errors.
+-- If no top-level module name is given, then an attempt is made to
+-- use the file name as a module name.
 
-moduleName' :: AbsolutePath -> TCM TopLevelModuleName
-moduleName' file = billTo [Bench.ModuleName] $ do
-  q <- runPM (parseFile' moduleParser file)
-  let name = topLevelModuleName q
-  if moduleNameParts name == ["_"] then do
-      q <- runPM (parse moduleNameParser defaultName)
+-- TODO: Perhaps it makes sense to move this procedure to some other
+-- module.
+
+moduleName
+  :: AbsolutePath
+     -- ^ The path to the file.
+  -> Module
+     -- ^ The parsed module.
+  -> TCM TopLevelModuleName
+moduleName file parsedModule = billTo [Bench.ModuleName] $
+  case moduleNameParts name of
+    ["_"] -> do
+      m <- runPM (parse moduleNameParser defaultName)
              `catchError` \_ ->
-           typeError $
-             GenericError $ "File name " ++ show file ++
-               " is invalid as it does not correspond to a valid module name."
-      return $ TopLevelModuleName (getRange q) [defaultName]
-    else return name
+           typeError $ GenericError $
+             "The file name " ++ show file ++
+             " is invalid because it does not correspond to a valid module name."
+      case m of
+        Qual {} ->
+          typeError $ GenericError $
+            "The file name " ++ show file ++ " is invalid because " ++
+            defaultName ++ " is not an unqualified module name."
+        QName {} ->
+          return $ TopLevelModuleName (getRange m) [defaultName]
+    _ -> return name
   where
-    defaultName = rootNameModule file
+  name        = topLevelModuleName parsedModule
+  defaultName = rootNameModule file
 
-sourceFileExts :: [String]
-sourceFileExts = [".agda"] ++ literateExts
-
-sourceFileExtsShortList :: [String]
-sourceFileExtsShortList = [".agda"] ++ literateExtsShortList
+parseFileExtsShortList :: [String]
+parseFileExtsShortList = [".agda"] ++ literateExtsShortList
 
 dropAgdaExtension :: String -> String
 dropAgdaExtension s = case catMaybes [ stripExtension ext s
-                                     | ext <- sourceFileExts ] of
+                                     | ext <- parseFileExts ] of
     [name] -> name
     _      -> __IMPOSSIBLE__
   where
@@ -215,20 +225,3 @@ dropAgdaExtension s = case catMaybes [ stripExtension ext s
 
 rootNameModule :: AbsolutePath -> String
 rootNameModule = dropAgdaExtension . snd . splitFileName . filePath
-
--- | A variant of 'moduleName'' which raises an error if the file name
--- does not match the module name.
---
--- The file name is interpreted relative to the current working
--- directory (unless it is absolute).
-
-moduleName :: AbsolutePath -> TCM TopLevelModuleName
-moduleName file = do
-  m <- moduleName' file
-  let r = getRange m
-  -- Andreas, 2016-07-11, issue 2092
-  -- The error range should be set to the file with the wrong module name
-  -- not the importing one (which would be the default).
-  (if null r then id else traceCall (SetRange r)) $
-    checkModuleName m file Nothing
-  return m

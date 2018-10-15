@@ -91,13 +91,13 @@ parseVariables f tel ii rng ss = do
       tel <- lookupSection m
       cxt <- getContextTelescope
       vcat
-       [ text "parseVariables:"
-       , text "current module  =" <+> prettyTCM m
-       , text "current section =" <+> inTopContext (prettyTCM tel)
+       [ "parseVariables:"
+       , "current module  =" <+> prettyTCM m
+       , "current section =" <+> inTopContext (prettyTCM tel)
        , text $ "function's fvs  = " ++ show fv
        , text $ "number of locals= " ++ show nlocals
-       , text "context         =" <+> do inTopContext $ prettyTCM cxt
-       , text "checkpoints     =" <+> do (text . show) =<< asksTC envCheckpoints
+       , "context         =" <+> do inTopContext $ prettyTCM cxt
+       , "checkpoints     =" <+> do (text . show) =<< asksTC envCheckpoints
        ]
 
     -- Resolve each string to a variable.
@@ -176,8 +176,8 @@ getClauseForIP f clauseNo = do
       return (extlam, c, cs1)
     d -> do
       reportSDoc "impossible" 10 $ vcat
-        [ text "getClauseForIP" <+> prettyTCM f <+> text (show clauseNo)
-          <+> text "received"
+        [ "getClauseForIP" <+> prettyTCM f <+> text (show clauseNo)
+          <+> "received"
         , text (show d)
         ]
       __IMPOSSIBLE__
@@ -201,13 +201,13 @@ makeCase hole rng s = withInteractionId hole $ do
       tel  = clauseTel  clause
       ps   = namedClausePats clause
   reportSDoc "interaction.case" 10 $ vcat
-    [ text "splitting clause:"
+    [ "splitting clause:"
     , nest 2 $ vcat
-      [ text "f       =" <+> prettyTCM f
-      , text "context =" <+> ((inTopContext . prettyTCM) =<< getContextTelescope)
-      , text "tel     =" <+> (inTopContext . prettyTCM) tel
-      , text "perm    =" <+> text (show perm)
-      , text "ps      =" <+> text (show ps)
+      [ "f       =" <+> prettyTCM f
+      , "context =" <+> ((inTopContext . prettyTCM) =<< getContextTelescope)
+      , "tel     =" <+> (inTopContext . prettyTCM) tel
+      , "perm    =" <+> text (show perm)
+      , "ps      =" <+> text (show ps)
       ]
     ]
 
@@ -258,7 +258,7 @@ makeCase hole rng s = withInteractionId hole $ do
           -- If all are already coming from the user, there is really nothing todo!
           when (all ((UserWritten ==) . getOrigin) trailingPatVars) $ do
             typeError . GenericDocError =<< do
-              text "Cannot split on result here, because" <+> prettyTCM err
+              "Cannot split on result here, because" <+> prettyTCM err
           -- Otherwise, we make these user-written
           let xs = map (dbPatVarIndex . namedArg) trailingPatVars
           return [makePatternVarsVisible xs sc]
@@ -285,7 +285,7 @@ makeCase hole rng s = withInteractionId hole $ do
     cs <- forM scs $ \(sc, isAbsurd) -> do
             if isAbsurd then makeAbsurdClause f sc else makeAbstractClause f rhs sc
     reportSDoc "interaction.case" 65 $ vcat
-      [ text "split result:"
+      [ "split result:"
       , nest 2 $ vcat $ map (text . show . A.deepUnscope) cs
       ]
     checkClauseIsClean ipCl
@@ -344,11 +344,11 @@ makeAbsurdClause :: QName -> SplitClause -> TCM A.Clause
 makeAbsurdClause f (SClause tel sps _ _ t) = do
   let ps = fromSplitPatterns sps
   reportSDoc "interaction.case" 10 $ vcat
-    [ text "Interaction.MakeCase.makeAbsurdClause: split clause:"
+    [ "Interaction.MakeCase.makeAbsurdClause: split clause:"
     , nest 2 $ vcat
-      [ text "context =" <+> do (inTopContext . prettyTCM) =<< getContextTelescope
-      , text "tel     =" <+> do inTopContext $ prettyTCM tel
-      , text "ps      =" <+> do inTopContext $ addContext tel $ prettyTCMPatternList ps -- P.sep <$> prettyTCMPatterns ps
+      [ "context =" <+> do (inTopContext . prettyTCM) =<< getContextTelescope
+      , "tel     =" <+> do inTopContext $ prettyTCM tel
+      , "ps      =" <+> do inTopContext $ addContext tel $ prettyTCMPatternList ps -- P.sep <$> prettyTCMPatterns ps
       ]
     ]
   withCurrentModule (qnameModule f) $ do
@@ -359,7 +359,7 @@ makeAbsurdClause f (SClause tel sps _ _ t) = do
     let c = Clause noRange noRange tel ps Nothing t False Nothing
     -- Normalise the dot patterns
     ps <- addContext tel $ normalise $ namedClausePats c
-    reportSDoc "interaction.case" 60 $ text "normalized patterns: " <+> text (show ps)
+    reportSDoc "interaction.case" 60 $ "normalized patterns: " <+> text (show ps)
     inTopContext $ reify $ QNamed f $ c { namedClausePats = ps }
 
 
@@ -369,7 +369,7 @@ makeAbstractClause :: QName -> A.RHS -> SplitClause -> TCM A.Clause
 makeAbstractClause f rhs cl = do
 
   lhs <- A.clauseLHS <$> makeAbsurdClause f cl
-  reportSDoc "interaction.case" 60 $ text "reified lhs: " <+> text (show lhs)
+  reportSDoc "interaction.case" 60 $ "reified lhs: " <+> text (show lhs)
   return $ A.Clause lhs [] rhs A.noWhereDecls False
   -- let ii = InteractionId (-1)  -- Dummy interaction point since we never type check this.
   --                              -- Can end up in verbose output though (#1842), hence not __IMPOSSIBLE__.

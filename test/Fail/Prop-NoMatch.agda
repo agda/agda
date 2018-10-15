@@ -1,5 +1,7 @@
 -- Pattern matching on a datatype in Prop is disallowed
 
+{-# OPTIONS --prop #-}
+
 open import Agda.Builtin.Bool
 
 data TestProp : Prop where

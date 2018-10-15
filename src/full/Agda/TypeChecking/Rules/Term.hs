@@ -127,33 +127,42 @@ isType_ e = traceCall (IsType_ e) $ do
       checkTelePiSort t'
       noFunctionsIntoSize t0 t'
       return t'
-    A.Set _ n    -> do
+
+    -- Setᵢ
+    A.Set _ n -> do
       return $ sort (mkType n)
+
+    -- Propᵢ
     A.Prop _ n -> do
       unlessM isPropEnabled $ typeError NeedOptionProp
       return $ sort (mkProp n)
+
+    -- Set ℓ
     A.App i s arg
       | visible arg,
-        A.Set _ 0 <- unScope s ->
-      ifNotM hasUniversePolymorphism
-          (typeError $ GenericError "Use --universe-polymorphism to enable level arguments to Set")
+        A.Set _ 0 <- unScope s -> do
+      unlessM hasUniversePolymorphism $ typeError $ GenericError $
+        "Use --universe-polymorphism to enable level arguments to Set"
       -- allow NonStrict variables when checking level
       --   Set : (NonStrict) Level -> Set\omega
-      $ {- else -} applyRelevanceToContext NonStrict $
-          sort . Type <$> checkLevel arg
+      applyRelevanceToContext NonStrict $
+        sort . Type <$> checkLevel arg
+
+    -- Prop ℓ
     A.App i s arg
       | visible arg,
-        A.Prop _ 0 <- unScope s ->
-      ifNotM hasUniversePolymorphism
-          (typeError $ GenericError "Use --universe-polymorphism to enable level arguments to Prop")
-      $ {- else -} applyRelevanceToContext NonStrict $
-          sort . Prop <$> checkLevel arg
+        A.Prop _ 0 <- unScope s -> do
+      unlessM isPropEnabled $ typeError NeedOptionProp
+      unlessM hasUniversePolymorphism $ typeError $ GenericError $
+        "Use --universe-polymorphism to enable level arguments to Prop"
+      applyRelevanceToContext NonStrict $
+        sort . Prop <$> checkLevel arg
 
     -- Issue #707: Check an existing interaction point
     A.QuestionMark minfo ii -> caseMaybeM (lookupInteractionMeta ii) fallback $ \ x -> do
       -- -- | Just x <- A.metaNumber minfo -> do
       reportSDoc "tc.ip" 20 $ fsep
-        [ text "Rechecking meta "
+        [ "Rechecking meta "
         , prettyTCM x
         , text $ " for interaction point " ++ show ii
         ]
@@ -164,9 +173,9 @@ isType_ e = traceCall (IsType_ e) $ do
       let n  = length . envContext . clEnv . miClosRange . mvInfo $ mv
       (vs, rest) <- splitAt n <$> getContextArgs
       reportSDoc "tc.ip" 20 $ vcat
-        [ text "  s0   = " <+> prettyTCM s0
-        , text "  vs   = " <+> prettyTCM vs
-        , text "  rest = " <+> prettyTCM rest
+        [ "  s0   = " <+> prettyTCM s0
+        , "  vs   = " <+> prettyTCM vs
+        , "  rest = " <+> prettyTCM rest
         ]
       -- We assume the meta variable use here is in an extension of the original context.
       -- If not we revert to the old buggy behavior of #707 (see test/Succeed/Issue2257b).
@@ -192,8 +201,8 @@ noFunctionsIntoSize :: Type -> Type -> TCM ()
 noFunctionsIntoSize t tBlame = do
   reportSDoc "tc.fun" 20 $ do
     let El s (Pi dom b) = tBlame
-    sep [ text "created function type " <+> prettyTCM tBlame
-        , text "with pts rule" <+> prettyTCM (getSort dom, getSort b, s)
+    sep [ "created function type " <+> prettyTCM tBlame
+        , "with pts rule" <+> prettyTCM (getSort dom, getSort b, s)
         ]
   s <- reduce $ getSort t
   when (s == SizeUniv) $ do
@@ -487,7 +496,7 @@ insertHiddenLambdas h target postpone ret = do
               addContext (x, dom) $ insertHiddenLambdas h (absBody b) postpone ret
 
       _ -> typeError . GenericDocError =<< do
-        text "Expected " <+> prettyTCM target <+> text " to be a function type"
+        "Expected " <+> prettyTCM target <+> " to be a function type"
 
 -- | @checkAbsurdLambda i h e t@ checks absurd lambda against type @t@.
 --   Precondition: @e = AbsurdLam i h@
@@ -510,8 +519,8 @@ checkAbsurdLambda cmp i h e t = do
           -- is added as irrelevant
           rel <- asksTC envRelevance
           reportSDoc "tc.term.absurd" 10 $ vcat
-            [ text "Adding absurd function" <+> prettyTCM rel <> prettyTCM aux
-            , nest 2 $ text "of type" <+> prettyTCM t'
+            [ "Adding absurd function" <+> prettyTCM rel <> prettyTCM aux
+            , nest 2 $ "of type" <+> prettyTCM t'
             ]
           addConstant aux $
             (\ d -> (defaultDefn (setRelevance rel info') aux t' d)
@@ -558,8 +567,8 @@ checkExtendedLambda cmp i di qname cs e t = do
 
      reportSDoc "tc.term.exlam" 20 $
        text (show $ A.defAbstract di) <+>
-       text "extended lambda's implementation \"" <> prettyTCM qname <>
-       text "\" has type: " $$ prettyTCM t -- <+> text " where clauses: " <+> text (show cs)
+       "extended lambda's implementation \"" <> prettyTCM qname <>
+       "\" has type: " $$ prettyTCM t -- <+> " where clauses: " <+> text (show cs)
      args     <- getContextArgs
 
      -- Andreas, Ulf, 2016-02-02: We want to postpone type checking an extended lambda
@@ -622,7 +631,7 @@ catchIlltypedPatternBlockedOnMeta m handle = do
       _ -> return Nothing
 
     reportSDoc "tc.postpone" 20 $ vcat $
-      [ text "checking definition blocked on meta: " <+> prettyTCM x ]
+      [ "checking definition blocked on meta: " <+> prettyTCM x ]
 
     -- Note that we messed up the state a bit.  We might want to unroll these state changes.
     -- However, they are mostly harmless:
@@ -684,8 +693,8 @@ expandModuleAssigns mfs exs = do
       [(_, fa)] -> return (Just fa)
       mfas      -> typeError . GenericDocError =<< do
         vcat $
-          [ text "Ambiguity: the field" <+> prettyTCM f
-            <+> text "appears in the following modules: " ]
+          [ "Ambiguity: the field" <+> prettyTCM f
+            <+> "appears in the following modules: " ]
           ++ map (prettyTCM . fst) mfas
   return (fs ++ catMaybes fs')
 
@@ -700,7 +709,7 @@ checkRecordExpression
   -> TCM Term         -- ^ Record value in internal syntax.
 checkRecordExpression cmp mfs e t = do
   reportSDoc "tc.term.rec" 10 $ sep
-    [ text "checking record expression"
+    [ "checking record expression"
     , prettyA e
     ]
   ifBlockedType t (\ _ t -> guessRecordType t) {-else-} $ \ _ t -> do
@@ -710,11 +719,11 @@ checkRecordExpression cmp mfs e t = do
       let ~(Just vs) = allApplyElims es
       reportSDoc "tc.term.rec" 20 $ text $ "  r   = " ++ prettyShow r
 
-      reportSDoc "tc.term.rec" 30 $ text "  xs  = " <> do
+      reportSDoc "tc.term.rec" 30 $ "  xs  = " <> do
         text =<< prettyShow . map unArg <$> getRecordFieldNames r
-      reportSDoc "tc.term.rec" 30 $ text "  ftel= " <> do
+      reportSDoc "tc.term.rec" 30 $ "  ftel= " <> do
         prettyTCM =<< getRecordFieldTypes r
-      reportSDoc "tc.term.rec" 30 $ text "  con = " <> do
+      reportSDoc "tc.term.rec" 30 $ "  con = " <> do
         text =<< prettyShow <$> getRecordConstructor r
 
       def <- getRecordDef r
@@ -726,9 +735,9 @@ checkRecordExpression cmp mfs e t = do
           -- Record constructor.
           con  = killRange $ recConHead def
       reportSDoc "tc.term.rec" 20 $ vcat
-        [ text "  xs  = " <> return (P.pretty xs)
-        , text "  ftel= " <> prettyTCM (recTel def)
-        , text "  con = " <> return (P.pretty con)
+        [ "  xs  = " <> return (P.pretty xs)
+        , "  ftel= " <> prettyTCM (recTel def)
+        , "  con = " <> return (P.pretty con)
         ]
 
       -- Andreas, 2018-09-06, issue #3122.
@@ -778,10 +787,10 @@ checkRecordExpression cmp mfs e t = do
                   Sort s  -> return s
                   v       -> do
                     reportSDoc "impossible" 10 $ vcat
-                      [ text "The impossible happened when checking record expression against meta"
-                      , text "Candidate record type r = " <+> prettyTCM r
-                      , text "Type of r               = " <+> prettyTCM rt
-                      , text "Ends in (should be sort)= " <+> prettyTCM v
+                      [ "The impossible happened when checking record expression against meta"
+                      , "Candidate record type r = " <+> prettyTCM r
+                      , "Type of r               = " <+> prettyTCM rt
+                      , "Ends in (should be sort)= " <+> prettyTCM v
                       , text $ "  Raw                   =  " ++ show v
                       ]
                     __IMPOSSIBLE__
@@ -794,8 +803,8 @@ checkRecordExpression cmp mfs e t = do
           -- If there are more than one possible record we postpone
         _:_:_ -> do
           reportSDoc "tc.term.expr.rec" 10 $ sep
-            [ text "Postponing type checking of"
-            , nest 2 $ prettyA e <+> text ":" <+> prettyTCM t
+            [ "Postponing type checking of"
+            , nest 2 $ prettyA e <+> ":" <+> prettyTCM t
             ]
           postponeTypeCheckingProblem_ $ CheckExpr cmp e t
 
@@ -864,15 +873,15 @@ checkExpr' cmp e t0 =
   verboseBracket "tc.term.expr.top" 5 "checkExpr" $
   traceCall (CheckExprCall cmp e t0) $ localScope $ doExpandLast $ unfoldInlined =<< do
     reportSDoc "tc.term.expr.top" 15 $
-        text "Checking" <+> sep
-          [ fsep [ prettyTCM e, text ":", prettyTCM t0 ]
-          , nest 2 $ text "at " <+> (text . prettyShow =<< getCurrentRange)
+        "Checking" <+> sep
+          [ fsep [ prettyTCM e, ":", prettyTCM t0 ]
+          , nest 2 $ "at " <+> (text . prettyShow =<< getCurrentRange)
           ]
     reportSDoc "tc.term.expr.top.detailed" 80 $
-      text "Checking" <+> fsep [ prettyTCM e, text ":", text (show t0) ]
+      "Checking" <+> fsep [ prettyTCM e, ":", text (show t0) ]
     t <- reduce t0
     reportSDoc "tc.term.expr.top" 15 $
-        text "    --> " <+> prettyTCM t
+        "    --> " <+> prettyTCM t
 
     e <- scopedExpr e
 
@@ -901,8 +910,8 @@ checkExpr' cmp e t0 =
             n <- applyRelevanceToContext NonStrict $ checkLevel arg
             -- check that Set (l+1) <= t
             reportSDoc "tc.univ.poly" 10 $
-              text "checking Set " <+> prettyTCM n <+>
-              text "against" <+> prettyTCM t
+              "checking Set " <+> prettyTCM n <+>
+              "against" <+> prettyTCM t
             coerce cmp (Sort $ Type n) (sort $ Type $ levelSuc n) t
 
         -- check |- Prop l : t  (requires universe polymorphism)
@@ -913,8 +922,8 @@ checkExpr' cmp e t0 =
           $ {- else -} do
             n <- applyRelevanceToContext NonStrict $ checkLevel arg
             reportSDoc "tc.univ.poly" 10 $
-              text "checking Prop " <+> prettyTCM n <+>
-              text "against" <+> prettyTCM t
+              "checking Prop " <+> prettyTCM n <+>
+              "against" <+> prettyTCM t
             coerce cmp (Sort $ Prop n) (sort $ Type $ levelSuc n) t
 
         e0@(A.App i q (Arg ai e))
@@ -971,8 +980,8 @@ checkExpr' cmp e t0 =
                 v = unEl t'
             when (s == Inf) $ reportSDoc "tc.term.sort" 20 $
               vcat [ text ("reduced to omega:")
-                   , nest 2 $ text "t   =" <+> prettyTCM t'
-                   , nest 2 $ text "cxt =" <+> (prettyTCM =<< getContextTelescope)
+                   , nest 2 $ "t   =" <+> prettyTCM t'
+                   , nest 2 $ "cxt =" <+> (prettyTCM =<< getContextTelescope)
                    ]
             coerce cmp v (sort s) t
 
@@ -983,8 +992,8 @@ checkExpr' cmp e t0 =
                 v = unEl t'
             when (s == Inf) $ reportSDoc "tc.term.sort" 20 $
               vcat [ text ("reduced to omega:")
-                   , nest 2 $ text "t   =" <+> prettyTCM t'
-                   , nest 2 $ text "cxt =" <+> (prettyTCM =<< getContextTelescope)
+                   , nest 2 $ "t   =" <+> prettyTCM t'
+                   , nest 2 $ "cxt =" <+> (prettyTCM =<< getContextTelescope)
                    ]
             coerce cmp v (sort s) t
 
@@ -1054,7 +1063,7 @@ checkExpr' cmp e t0 =
         -- being sure it will be retried when a meta is solved
         -- (which might be the blocking meta in which case we actually make progress).
         reportSDoc "tc.term" 50 $ vcat $
-          [ text "checking pattern got stuck on meta: " <+> text (show x) ]
+          [ "checking pattern got stuck on meta: " <+> text (show x) ]
         postponeTypeCheckingProblem (CheckExpr cmp e t) $ isInstantiatedMeta x
 
   where
@@ -1180,13 +1189,13 @@ unquoteTactic tac hole goal k = do
 checkQuestionMark :: (Type -> TCM (MetaId, Term)) -> Type -> A.MetaInfo -> InteractionId -> TCM Term
 checkQuestionMark new t0 i ii = do
   reportSDoc "tc.interaction" 20 $ sep
-    [ text "Found interaction point"
+    [ "Found interaction point"
     , text (show ii)
-    , text ":"
+    , ":"
     , prettyTCM t0
     ]
   reportSDoc "tc.interaction" 60 $ sep
-    [ text "Raw:"
+    [ "Raw:"
     , text (show t0)
     ]
   checkMeta (newQuestionMark' new ii) t0 i -- Andreas, 2013-05-22 use unreduced type t0!
@@ -1221,10 +1230,10 @@ checkOrInferMeta newMeta mt i = do
     Just x -> do
       let v = MetaV x []
       reportSDoc "tc.meta.check" 20 $
-        text "checking existing meta " <+> prettyTCM v
+        "checking existing meta " <+> prettyTCM v
       t' <- jMetaType . mvJudgement <$> lookupMeta x
       reportSDoc "tc.meta.check" 20 $
-        nest 2 $ text "of type " <+> prettyTCM t'
+        nest 2 $ "of type " <+> prettyTCM t'
       case mt of
         Nothing -> return (v, t')
         Just t  -> (,t) <$> coerce CmpLeq v t' t
@@ -1268,7 +1277,7 @@ checkKnownArgument
   -> Type               -- ^ Type of the head (must be Pi-type with enough domains).
   -> TCM (Args, Type)   -- ^ Remaining inferred arguments, remaining type.
 checkKnownArgument arg [] _ = genericDocError =<< do
-  text "Invalid projection parameter " <+> prettyA arg
+  "Invalid projection parameter " <+> prettyA arg
 checkKnownArgument arg@(Arg info e) (Arg _infov v : vs) t = do
   (Dom{domInfo = info',unDom = a}, b) <- mustBePi t
   -- Skip the arguments from vs that do not correspond to e
@@ -1290,8 +1299,8 @@ checkNamedArg arg@(Arg info e0) t0 = do
   let x = maybe "" rangedThing $ nameOf e0
   traceCall (CheckExprCall CmpLeq e t0) $ do
     reportSDoc "tc.term.args.named" 15 $ do
-        text "Checking named arg" <+> sep
-          [ fsep [ prettyTCM arg, text ":", prettyTCM t0 ]
+        "Checking named arg" <+> sep
+          [ fsep [ prettyTCM arg, ":", prettyTCM t0 ]
           ]
     reportSLn "tc.term.args.named" 75 $ "  arg = " ++ show (deepUnscope arg)
     -- Ulf, 2017-03-24: (#2172) Always treat explicit _ and ? as implicit
@@ -1325,9 +1334,9 @@ inferExpr' :: ExpandHidden -> A.Expr -> TCM (Term, Type)
 inferExpr' exh e = traceCall (InferExpr e) $ do
   let Application hd args = appView e
   reportSDoc "tc.infer" 30 $ vcat
-    [ text "inferExpr': appView of " <+> prettyA e
-    , text "  hd   = " <+> prettyA hd
-    , text "  args = " <+> prettyAs args
+    [ "inferExpr': appView of " <+> prettyA e
+    , "  hd   = " <+> prettyA hd
+    , "  args = " <+> prettyAs args
     ]
   reportSDoc "tc.infer" 60 $ vcat
     [ text $ "  hd (raw) = " ++ show hd
@@ -1361,7 +1370,7 @@ isModuleFreeVar i = do
 --   arguments.  Otherwise, leave the type polymorphic.
 inferExprForWith :: A.Expr -> TCM (Term, Type)
 inferExprForWith e = do
-  reportSDoc "tc.with.infer" 20 $ text "inferExprforWith " <+> prettyTCM e
+  reportSDoc "tc.with.infer" 20 $ "inferExprforWith " <+> prettyTCM e
   reportSLn  "tc.with.infer" 80 $ "inferExprforWith " ++ show (deepUnscope e)
   traceCall (InferExpr e) $ do
     -- With wants type and term fully instantiated!
@@ -1373,10 +1382,10 @@ inferExprForWith e = do
       Var i [] -> whenM (isModuleFreeVar i) $ do
         reportSDoc "tc.with.infer" 80 $ vcat
           [ text $ "with expression is variable " ++ show i
-          , text "current modules = " <+> do text . show =<< currentModule
-          , text "current module free vars = " <+> do text . show =<< getCurrentModuleFreeVars
-          , text "context size = " <+> do text . show =<< getContextSize
-          , text "current context = " <+> do prettyTCM =<< getContextTelescope
+          , "current modules = " <+> do text . show =<< currentModule
+          , "current module free vars = " <+> do text . show =<< getCurrentModuleFreeVars
+          , "context size = " <+> do text . show =<< getContextSize
+          , "current context = " <+> do prettyTCM =<< getContextTelescope
           ]
         typeError $ WithOnFreeVariable e v0
       _        -> return ()
@@ -1415,11 +1424,11 @@ checkLetBinding b@(A.LetPatBind i p e) ret =
         t0 = El (getSort t) $ Pi (defaultDom t) (NoAbs underscore __DUMMY_TYPE__)
         p0 = Arg defaultArgInfo (Named Nothing p)
     reportSDoc "tc.term.let.pattern" 10 $ vcat
-      [ text "let-binding pattern p at type t"
+      [ "let-binding pattern p at type t"
       , nest 2 $ vcat
-        [ text "p (A) =" <+> prettyA p
-        , text "t     =" <+> prettyTCM t
-        , text "cxtRel=" <+> do pretty =<< asksTC envRelevance
+        [ "p (A) =" <+> prettyA p
+        , "t     =" <+> prettyTCM t
+        , "cxtRel=" <+> do pretty =<< asksTC envRelevance
         ]
       ]
     fvs <- getContextSize
@@ -1429,12 +1438,12 @@ checkLetBinding b@(A.LetPatBind i p e) ret =
           -- Also strip the context variables from the telescope
           delta = telFromList $ drop fvs $ telToList delta0
       reportSDoc "tc.term.let.pattern" 20 $ nest 2 $ vcat
-        [ text "p (I) =" <+> prettyTCM p
-        , text "delta =" <+> prettyTCM delta
-        , text "cxtRel=" <+> do pretty =<< asksTC envRelevance
+        [ "p (I) =" <+> prettyTCM p
+        , "delta =" <+> prettyTCM delta
+        , "cxtRel=" <+> do pretty =<< asksTC envRelevance
         ]
       reportSDoc "tc.term.let.pattern" 80 $ nest 2 $ vcat
-        [ text "p (I) =" <+> (text . show) p
+        [ "p (I) =" <+> (text . show) p
         ]
       -- We translate it into a list of projections.
       fs <- recordPatternToProjections p
@@ -1455,12 +1464,12 @@ checkLetBinding b@(A.LetPatBind i p e) ret =
 
       updateContext sub (drop toDrop) $ do
         reportSDoc "tc.term.let.pattern" 20 $ nest 2 $ vcat
-          [ text "delta =" <+> prettyTCM delta
-          , text "binds =" <+> prettyTCM binds
+          [ "delta =" <+> prettyTCM delta
+          , "binds =" <+> prettyTCM binds
           ]
         let fdelta = flattenTel delta
         reportSDoc "tc.term.let.pattern" 20 $ nest 2 $ vcat
-          [ text "fdelta =" <+> addContext delta (prettyTCM fdelta)
+          [ "fdelta =" <+> addContext delta (prettyTCM fdelta)
           ]
         let tsl  = applySubst sub fdelta
         -- We get a list of types
@@ -1483,9 +1492,9 @@ checkLetBinding (A.LetApply i x modapp copyInfo _adir) ret = do
   let new = n - fv
   reportSLn "tc.term.let.apply" 10 $ "Applying " ++ show modapp ++ " with " ++ show new ++ " free variables"
   reportSDoc "tc.term.let.apply" 20 $ vcat
-    [ text "context =" <+> (prettyTCM =<< getContextTelescope)
-    , text "module  =" <+> (prettyTCM =<< currentModule)
-    , text "fv      =" <+> (text $ show fv)
+    [ "context =" <+> (prettyTCM =<< getContextTelescope)
+    , "module  =" <+> (prettyTCM =<< currentModule)
+    , "fv      =" <+> (text $ show fv)
     ]
   checkSectionApplication i x modapp copyInfo
   withAnonymousModule x new ret

@@ -26,8 +26,6 @@ module Agda.Syntax.Position
   , Interval'(..)
   , intervalInvariant
   , posToInterval
-  , takeI
-  , dropI
   , getIntervalFile
   , iLength
   , fuseIntervals
@@ -571,15 +569,15 @@ instance Show a => Show (Range' (Maybe a)) where
 ------------------------------------------------------------------------
 
 instance Pretty a => Pretty (Position' (Strict.Maybe a)) where
-  pretty (Pn Strict.Nothing  _ l c) = pretty l <> pretty "," <> pretty c
+  pretty (Pn Strict.Nothing  _ l c) = pretty l <> "," <> pretty c
   pretty (Pn (Strict.Just f) _ l c) =
-    pretty f <> pretty ":" <> pretty l <> pretty "," <> pretty c
+    pretty f <> ":" <> pretty l <> "," <> pretty c
 
 instance Pretty PositionWithoutFile where
   pretty p = pretty (p { srcFile = Strict.Nothing } :: Position)
 
 instance Pretty IntervalWithoutFile where
-  pretty (Interval s e) = start <> pretty "-" <> end
+  pretty (Interval s e) = start <> "-" <> end
     where
       sl = posLine s
       el = posLine e
@@ -607,7 +605,7 @@ instance Pretty a => Pretty (Range' (Strict.Maybe a)) where
     Just i  -> pretty i
 
 instance (Pretty a, HasRange a) => Pretty (PrintRange a) where
-  pretty (PrintRange a) = pretty a <+> parens (text "at" <+> pretty (getRange a))
+  pretty (PrintRange a) = pretty a <+> parens ("at" <+> pretty (getRange a))
 
 {--------------------------------------------------------------------------
     Functions on positions and ranges
@@ -649,23 +647,6 @@ movePosByString = foldl' movePos
 -- Precondition: The character must not be @'\n'@.
 backupPos :: Position' a -> Position' a
 backupPos (Pn f p l c) = Pn f (p - 1) l (c - 1)
-
--- | Extracts the interval corresponding to the given string, assuming
--- that the string starts at the beginning of the given interval.
---
--- Precondition: The string must not be too long for the interval.
-takeI :: String -> Interval' a -> Interval' a
-takeI s i | genericLength s > iLength i = __IMPOSSIBLE__
-          | otherwise = i { iEnd = movePosByString (iStart i) s }
-
--- | Removes the interval corresponding to the given string from the
--- given interval, assuming that the string starts at the beginning of
--- the interval.
---
--- Precondition: The string must not be too long for the interval.
-dropI :: String -> Interval' a -> Interval' a
-dropI s i | genericLength s > iLength i = __IMPOSSIBLE__
-          | otherwise = i { iStart = movePosByString (iStart i) s }
 
 -- | Converts a file name and two positions to a range.
 posToRange' ::
@@ -852,4 +833,3 @@ interleaveRanges as bs = runWriter$ go as bs
           (a:) <$> go as' bs
         else
           (b:) <$> go as bs'
-

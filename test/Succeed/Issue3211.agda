@@ -4,24 +4,21 @@
 
 {-# OPTIONS --rewriting #-}
 
+module _ where
+
 module _ (Form : Set) where
 
-open import Agda.Builtin.Equality
-{-# BUILTIN REWRITE _≡_ #-}
+  open import Agda.Builtin.Equality
+  {-# BUILTIN REWRITE _≡_ #-}
 
-data Cxt : Set where
-  _∙_ : (Γ : Cxt) (A : Form) → Cxt
+  data Cxt : Set where
+    _∙_ : (Γ : Cxt) (A : Form) → Cxt
 
-data _≤_ : (Γ Δ : Cxt) → Set where
-  id≤ : ∀{Γ} → Γ ≤ Γ
-  lift : ∀{A Γ Δ} (τ : Γ ≤ Δ) → (Γ ∙ A) ≤ (Δ ∙ A)
+  data _≤_ : (Γ Δ : Cxt) → Set where
+    id≤ : ∀{Γ} → Γ ≤ Γ
+    lift : ∀{A Γ Δ} (τ : Γ ≤ Δ) → (Γ ∙ A) ≤ (Δ ∙ A)
 
-postulate
-  lift-id≤ : ∀{Γ A} → lift id≤ ≡ id≤ {Γ ∙ A}
+  postulate
+    lift-id≤ : ∀{Γ A} → lift id≤ ≡ id≤ {Γ ∙ A}
 
 {-# REWRITE lift-id≤ #-}
-
-_•_ : ∀{Γ Δ Φ} (τ : Γ ≤ Δ) (σ : Δ ≤ Φ) → Γ ≤ Φ
-id≤ • σ = σ
-lift τ • id≤ = lift τ
-lift τ • lift σ = lift (τ • σ)

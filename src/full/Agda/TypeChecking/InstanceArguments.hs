@@ -61,7 +61,7 @@ initialIFSCandidates t = do
     getContextVars :: TCM [Candidate]
     getContextVars = do
       ctx <- getContext
-      reportSDoc "tc.instance.cands" 40 $ hang (text "Getting candidates from context") 2 (inTopContext $ prettyTCM $ PrettyContext ctx)
+      reportSDoc "tc.instance.cands" 40 $ hang "Getting candidates from context" 2 (inTopContext $ prettyTCM $ PrettyContext ctx)
           -- Context variables with their types lifted to live in the full context
       let varsAndRaisedTypes = [ (var i, raise (i + 1) t) | (i, t) <- zip [0..] ctx ]
           vars = [ Candidate x t ExplicitStayExplicit (isOverlappable info)
@@ -74,10 +74,10 @@ initialIFSCandidates t = do
       let cxtAndTypes = [ (x, t) | (x, Dom{unDom = (_, t)}) <- varsAndRaisedTypes ]
       fields <- concat <$> mapM instanceFields (reverse cxtAndTypes)
       reportSDoc "tc.instance.fields" 30 $
-        if null fields then text "no instance field candidates" else
-          text "instance field candidates" $$ do
+        if null fields then "no instance field candidates" else
+          "instance field candidates" $$ do
             nest 2 $ vcat
-              [ sep [ (if overlap then text "overlap" else empty) <+> prettyTCM v <+> text ":"
+              [ sep [ (if overlap then "overlap" else empty) <+> prettyTCM v <+> ":"
                     , nest 2 $ prettyTCM t
                     ]
               | Candidate v t _ overlap <- fields
@@ -202,16 +202,16 @@ findInScope' m cands = ifM (isFrozen m) (do
       reportSLn "tc.instance" 15 $
         "findInScope 2: constraint: " ++ prettyShow m ++ "; candidates left: " ++ show (length cands)
       reportSDoc "tc.instance" 60 $ nest 2 $ vcat
-        [ sep [ (if overlap then text "overlap" else empty) <+> prettyTCM v <+> text ":"
+        [ sep [ (if overlap then "overlap" else empty) <+> prettyTCM v <+> ":"
               , nest 2 $ prettyTCM t ] | Candidate v t _ overlap <- cands ]
-      reportSDoc "tc.instance" 70 $ text "raw" $$ do
+      reportSDoc "tc.instance" 70 $ "raw" $$ do
        nest 2 $ vcat
-        [ sep [ (if overlap then text "overlap" else empty) <+> pretty v <+> text ":"
+        [ sep [ (if overlap then "overlap" else empty) <+> pretty v <+> ":"
               , nest 2 $ pretty t ] | Candidate v t _ overlap <- cands ]
       t <- normalise =<< getMetaTypeInContext m
       reportSLn "tc.instance" 70 $ "findInScope 2: t: " ++ prettyShow t
       insidePi t $ \ t -> do
-      reportSDoc "tc.instance" 15 $ text "findInScope 3: t =" <+> prettyTCM t
+      reportSDoc "tc.instance" 15 $ "findInScope 3: t =" <+> prettyTCM t
       reportSLn "tc.instance" 70 $ "findInScope 3: t: " ++ prettyShow t
 
       -- If one of the arguments of the typeclass is a meta which is not rigidly
@@ -228,15 +228,15 @@ findInScope' m cands = ifM (isFrozen m) (do
 
           Just [] -> do
             reportSDoc "tc.instance" 15 $
-              text "findInScope 5: not a single candidate found..."
+              "findInScope 5: not a single candidate found..."
             typeError $ IFSNoCandidateInScope t
 
           Just [Candidate term t' _ _] -> do
             reportSDoc "tc.instance" 15 $ vcat
-              [ text "findInScope 5: solved by instance search using the only candidate"
+              [ "findInScope 5: solved by instance search using the only candidate"
               , nest 2 $ prettyTCM term
-              , text "of type " <+> prettyTCM t'
-              , text "for type" <+> prettyTCM t
+              , "of type " <+> prettyTCM t'
+              , "for type" <+> prettyTCM t
               ]
 
             -- If we actually solved the constraints we should wake up any held
@@ -335,7 +335,7 @@ areThereNonRigidMetaArguments t = case t of
           rigid Unguarded     = True
           rigid WeaklyRigid   = True
           rigid _             = False
-      reportSDoc "tc.instance.rigid" 70 $ text "class args:" <+> prettyTCM tel $$
+      reportSDoc "tc.instance.rigid" 70 $ "class args:" <+> prettyTCM tel $$
                                           nest 2 (text $ "used: " ++ show (varOccs tel))
       areThereNonRigidMetaArgs [ arg | (o, arg) <- zip (varOccs tel) args, not $ rigid o ]
     Var n args -> return Nothing  -- TODO check what’s the right thing to do, doing the same
@@ -423,9 +423,9 @@ dropSameCandidates m cands0 = verboseBracket "tc.instance" 30 "dropSameCandidate
           _              -> cands0  -- otherwise require equality
 
   reportSDoc "tc.instance" 50 $ vcat
-    [ text "valid candidates:"
-    , nest 2 $ vcat [ if freshMetas (v, a) then text "(redacted)" else
-                      sep [ prettyTCM v <+> text ":", nest 2 $ prettyTCM a ]
+    [ "valid candidates:"
+    , nest 2 $ vcat [ if freshMetas (v, a) then "(redacted)" else
+                      sep [ prettyTCM v <+> ":", nest 2 $ prettyTCM a ]
                     | (_, v, a, _) <- cands ] ]
   rel <- getMetaRelevance <$> lookupMeta m
   case cands of
@@ -442,7 +442,7 @@ dropSameCandidates m cands0 = verboseBracket "tc.instance" 30 "dropSameCandidate
             | freshMetas (v', a') = return False  -- If there are fresh metas we can't compare
             | otherwise           =
           verboseBracket "tc.instance" 30 "comparingCandidates" $ do
-          reportSDoc "tc.instance" 30 $ sep [ prettyTCM v <+> text "==", nest 2 $ prettyTCM v' ]
+          reportSDoc "tc.instance" 30 $ sep [ prettyTCM v <+> "==", nest 2 $ prettyTCM v' ]
           localTCState $ dontAssignMetas $ ifNoConstraints_ (equalType a a' >> equalTerm a v v')
                              {- then -} (return True)
                              {- else -} (\ _ -> return False)
@@ -462,15 +462,15 @@ checkCandidates m t cands = disableDestructiveUpdate $
   verboseBracket "tc.instance.candidates" 20 ("checkCandidates " ++ prettyShow m) $
   ifM (anyMetaTypes cands) (return Nothing) $
   holdConstraints (\ _ -> isIFSConstraint . clValue . theConstraint) $ Just <$> do
-    reportSDoc "tc.instance.candidates" 20 $ nest 2 $ text "target:" <+> prettyTCM t
+    reportSDoc "tc.instance.candidates" 20 $ nest 2 $ "target:" <+> prettyTCM t
     reportSDoc "tc.instance.candidates" 20 $ nest 2 $ vcat
-      [ text "candidates"
-      , vcat [ text "-" <+> (if overlap then text "overlap" else empty) <+> prettyTCM v <+> text ":" <+> prettyTCM t
+      [ "candidates"
+      , vcat [ "-" <+> (if overlap then "overlap" else empty) <+> prettyTCM v <+> ":" <+> prettyTCM t
              | Candidate v t _ overlap <- cands ] ]
     cands' <- filterResetingState m cands (checkCandidateForMeta m t)
     reportSDoc "tc.instance.candidates" 20 $ nest 2 $ vcat
-      [ text "valid candidates"
-      , vcat [ text "-" <+> (if overlap then text "overlap" else empty) <+> prettyTCM v <+> text ":" <+> prettyTCM t
+      [ "valid candidates"
+      , vcat [ "-" <+> (if overlap then "overlap" else empty) <+> prettyTCM v <+> ":" <+> prettyTCM t
              | Candidate v t _ overlap <- cands' ] ]
     return cands'
   where
@@ -500,31 +500,31 @@ checkCandidates m t cands = disableDestructiveUpdate $
           liftTCM $ runCandidateCheck $ do
             reportSLn "tc.instance" 70 $ "  t: " ++ prettyShow t ++ "\n  t':" ++ prettyShow t' ++ "\n  term: " ++ prettyShow term ++ "."
             reportSDoc "tc.instance" 20 $ vcat
-              [ text "checkCandidateForMeta"
-              , text "t    =" <+> prettyTCM t
-              , text "t'   =" <+> prettyTCM t'
-              , text "term =" <+> prettyTCM term
+              [ "checkCandidateForMeta"
+              , "t    =" <+> prettyTCM t
+              , "t'   =" <+> prettyTCM t'
+              , "term =" <+> prettyTCM term
               ]
 
             -- Apply hidden and instance arguments (recursive inst. search!).
             (args, t'') <- implicitArgs (-1) (\h -> notVisible h || eti == ExplicitToInstance) t'
 
             reportSDoc "tc.instance" 20 $
-              text "instance search: checking" <+> prettyTCM t''
-              <+> text "<=" <+> prettyTCM t
+              "instance search: checking" <+> prettyTCM t''
+              <+> "<=" <+> prettyTCM t
             reportSDoc "tc.instance" 70 $ vcat
-              [ text "instance search: checking (raw)"
+              [ "instance search: checking (raw)"
               , nest 4 $ pretty t''
-              , nest 2 $ text "<="
+              , nest 2 $ "<="
               , nest 4 $ pretty t
               ]
             v <- (`applyDroppingParameters` args) =<< reduce term
             reportSDoc "tc.instance" 15 $ vcat
-              [ text "instance search: attempting"
-              , nest 2 $ prettyTCM m <+> text ":=" <+> prettyTCM v
+              [ "instance search: attempting"
+              , nest 2 $ prettyTCM m <+> ":=" <+> prettyTCM v
               ]
             reportSDoc "tc.instance" 70 $ nest 2 $
-              text "candidate v = " <+> pretty v
+              "candidate v = " <+> pretty v
             -- if constraints remain, we abort, but keep the candidate
             -- Jesper, 05-12-2014: When we abort, we should add a constraint to
             -- instantiate the meta at a later time (see issue 1377).
@@ -542,11 +542,11 @@ checkCandidates m t cands = disableDestructiveUpdate $
               case sol of
                 MetaV m' _ | m == m' ->
                   reportSDoc "tc.instance" 15 $
-                    sep [ text "instance search: maybe solution for" <+> prettyTCM m <> text ":"
+                    sep [ "instance search: maybe solution for" <+> prettyTCM m <> ":"
                         , nest 2 $ prettyTCM v ]
                 _ ->
                   reportSDoc "tc.instance" 15 $
-                    sep [ text "instance search: found solution for" <+> prettyTCM m <> text ":"
+                    sep [ "instance search: found solution for" <+> prettyTCM m <> ":"
                         , nest 2 $ prettyTCM sol ]
         where
           runCandidateCheck check =
@@ -567,7 +567,7 @@ checkCandidates m t cands = disableDestructiveUpdate $
             | hardFailure err = return $ HellNo err
             | otherwise       = do
               reportSDoc "tc.instance" 50 $
-                text "assignment failed:" <+> prettyTCM err
+                "assignment failed:" <+> prettyTCM err
               return No
 
 isIFSConstraint :: Constraint -> Bool

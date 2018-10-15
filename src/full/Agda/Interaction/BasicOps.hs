@@ -111,23 +111,23 @@ giveExpr force mii mi e = do
     metaTypeCheck mv IsSort{}      = __IMPOSSIBLE__
     metaTypeCheck mv (HasType _ t) = disableDestructiveUpdate $ do
       reportSDoc "interaction.give" 20 $
-        TP.text "give: meta type =" TP.<+> prettyTCM t
+        "give: meta type =" TP.<+> prettyTCM t
       -- Here, we must be in the same context where the meta was created.
       -- Thus, we can safely apply its type to the context variables.
       ctx <- getContextArgs
       t' <- t `piApplyM` permute (takeP (length ctx) $ mvPermutation mv) ctx
       traceCall (CheckExprCall CmpLeq e t') $ do
         reportSDoc "interaction.give" 20 $
-          TP.text "give: instantiated meta type =" TP.<+> prettyTCM t'
+          "give: instantiated meta type =" TP.<+> prettyTCM t'
         v <- checkExpr e t'
         case mvInstantiation mv of
 
           InstV xs v' -> unlessM ((Irrelevant ==) <$> asksTC envRelevance) $ do
             reportSDoc "interaction.give" 20 $ TP.sep
-              [ TP.text "meta was already set to value v' = " TP.<+> prettyTCM v'
-                TP.<+> TP.text " with free variables " TP.<+> return (fsep $ map pretty xs)
-              , TP.text "now comparing it to given value v = " TP.<+> prettyTCM v
-              , TP.text "in context " TP.<+> inTopContext (prettyTCM ctx)
+              [ "meta was already set to value v' = " TP.<+> prettyTCM v'
+                TP.<+> " with free variables " TP.<+> return (fsep $ map pretty xs)
+              , "now comparing it to given value v = " TP.<+> prettyTCM v
+              , "in context " TP.<+> inTopContext (prettyTCM ctx)
               ]
             -- The number of free variables should be at least the size of the context
             -- (Ideally, if we implemented contextual type theory, it should be the same.)
@@ -137,7 +137,7 @@ giveExpr force mii mi e = do
             let (_xs1, xs2) = splitAt (size ctx) xs
             v' <- return $ foldr mkLam v' xs2
             reportSDoc "interaction.give" 20 $ TP.sep
-              [ TP.text "in meta context, v' = " TP.<+> prettyTCM v'
+              [ "in meta context, v' = " TP.<+> prettyTCM v'
               ]
             equalTerm t' v v'  -- Note: v' now lives in context of meta
 
@@ -146,7 +146,7 @@ giveExpr force mii mi e = do
             args <- getContextArgs
             nowSolvingConstraints $ assign DirEq mi args v
 
-        reportSDoc "interaction.give" 20 $ TP.text "give: meta variable updated!"
+        reportSDoc "interaction.give" 20 $ "give: meta variable updated!"
         unless (force == WithForce) $ redoChecks mii
         wakeupConstraints mi
         solveSizeConstraints DontDefaultToInfty
@@ -154,7 +154,7 @@ giveExpr force mii mi e = do
         -- don't double check with cubical, because it gets in the way too often.
         unless (cubical || force == WithForce) $ do
           -- Double check.
-          reportSDoc "interaction.give" 20 $ TP.text "give: double checking"
+          reportSDoc "interaction.give" 20 $ "give: double checking"
           vfull <- instantiateFull v
           checkInternal vfull t'
 
@@ -187,7 +187,7 @@ give force ii mr e = liftTCM $ do
   -- if Range is given, update the range of the interaction meta
   mi  <- lookupInteractionId ii
   whenJust mr $ updateMetaVarRange mi
-  reportSDoc "interaction.give" 10 $ TP.text "giving expression" TP.<+> prettyTCM e
+  reportSDoc "interaction.give" 10 $ "giving expression" TP.<+> prettyTCM e
   reportSDoc "interaction.give" 50 $ TP.text $ show $ deepUnscope e
   -- Try to give mi := e
   do setMetaOccursCheck mi DontRunMetaOccursCheck -- #589, #2710: Allow giving recursive solutions.
@@ -195,7 +195,7 @@ give force ii mr e = liftTCM $ do
     `catchError` \ case
       -- Turn PatternErr into proper error:
       PatternErr -> typeError . GenericDocError =<< do
-        withInteractionId ii $ TP.text "Failed to give" TP.<+> prettyTCM e
+        withInteractionId ii $ "Failed to give" TP.<+> prettyTCM e
       err -> throwError err
   removeInteractionPoint ii
   return e
@@ -217,7 +217,7 @@ refine force ii mr e = do
   let range = fromMaybe (getRange mv) mr
       scope = M.getMetaScope mv
   reportSDoc "interaction.refine" 10 $
-    TP.text "refining with expression" TP.<+> prettyTCM e
+    "refining with expression" TP.<+> prettyTCM e
   reportSDoc "interaction.refine" 50 $
     TP.text $ show $ deepUnscope e
   -- We try to append up to 10 meta variables
@@ -329,7 +329,7 @@ showComputed :: ComputeMode -> Expr -> TCM Doc
 showComputed UseShowInstance e =
   case e of
     A.Lit (LitString _ s) -> pure (text s)
-    _                     -> (text "Not a string:" $$) <$> prettyATop e
+    _                     -> ("Not a string:" $$) <$> prettyATop e
 showComputed _ e = prettyATop e
 
 -- | Modifier for interactive commands,
@@ -535,7 +535,7 @@ instance (ToConcrete a c, ToConcrete b d) =>
     toConcrete (PTSInstance a b) = PTSInstance <$> toConcrete a <*> toConcrete b
 
 instance (Pretty a, Pretty b) => Pretty (OutputConstraint' a b) where
-  pretty (OfType' e t) = pretty e <+> text ":" <+> pretty t
+  pretty (OfType' e t) = pretty e <+> ":" <+> pretty t
 
 instance (ToConcrete a c, ToConcrete b d) =>
             ToConcrete (OutputConstraint' a b) (OutputConstraint' c d) where
@@ -602,10 +602,10 @@ typeOfMetaMI norm mi =
       reportSDoc "interactive.meta" 10 $ TP.vcat
         [ TP.text $ unwords ["permuting", show i, "with", show $ mvPermutation mv]
         , TP.nest 2 $ TP.vcat
-          [ TP.text "len  =" TP.<+> TP.text (show $ length vs)
-          , TP.text "args =" TP.<+> prettyTCM vs
-          , TP.text "t    =" TP.<+> prettyTCM t
-          , TP.text "x    =" TP.<+> TP.pretty x
+          [ "len  =" TP.<+> TP.text (show $ length vs)
+          , "args =" TP.<+> prettyTCM vs
+          , "t    =" TP.<+> prettyTCM t
+          , "x    =" TP.<+> TP.pretty x
           ]
         ]
       reportSDoc "interactive.meta.scope" 20 $ TP.text $ show $ getMetaScope mv
@@ -660,16 +660,16 @@ metaHelperType norm ii rng s = case words s of
       a <- localTC (\e -> e { envPrintDomainFreePi = True }) $ do
         reify =<< cleanupType arity args =<< normalForm norm =<< fst <$> withFunctionType delta1 vs' as' delta2 a'
       reportSDoc "interaction.helper" 10 $ TP.vcat
-        [ TP.text "generating helper function"
-        , TP.nest 2 $ TP.text "tel    = " TP.<+> inTopContext (prettyTCM tel)
-        , TP.nest 2 $ TP.text "a      = " TP.<+> prettyTCM a
-        , TP.nest 2 $ TP.text "vs     = " TP.<+> prettyTCM vs
-        , TP.nest 2 $ TP.text "as     = " TP.<+> prettyTCM as
-        , TP.nest 2 $ TP.text "delta1 = " TP.<+> inTopContext (prettyTCM delta1)
-        , TP.nest 2 $ TP.text "delta2 = " TP.<+> inTopContext (addContext delta1 $ prettyTCM delta2)
-        , TP.nest 2 $ TP.text "a'     = " TP.<+> inTopContext (addContext delta1 $ addContext delta2 $ prettyTCM a')
-        , TP.nest 2 $ TP.text "as'    = " TP.<+> inTopContext (addContext delta1 $ prettyTCM as')
-        , TP.nest 2 $ TP.text "vs'    = " TP.<+> inTopContext (addContext delta1 $ prettyTCM vs')
+        [ "generating helper function"
+        , TP.nest 2 $ "tel    = " TP.<+> inTopContext (prettyTCM tel)
+        , TP.nest 2 $ "a      = " TP.<+> prettyTCM a
+        , TP.nest 2 $ "vs     = " TP.<+> prettyTCM vs
+        , TP.nest 2 $ "as     = " TP.<+> prettyTCM as
+        , TP.nest 2 $ "delta1 = " TP.<+> inTopContext (prettyTCM delta1)
+        , TP.nest 2 $ "delta2 = " TP.<+> inTopContext (addContext delta1 $ prettyTCM delta2)
+        , TP.nest 2 $ "a'     = " TP.<+> inTopContext (addContext delta1 $ addContext delta2 $ prettyTCM a')
+        , TP.nest 2 $ "as'    = " TP.<+> inTopContext (addContext delta1 $ prettyTCM as')
+        , TP.nest 2 $ "vs'    = " TP.<+> inTopContext (addContext delta1 $ prettyTCM vs')
         ]
       return (OfType' h a)
   where
@@ -828,9 +828,9 @@ introTactic pmLambda ii = do
               cubical <- optCubical <$> pragmaOptions
               TelV tel _ <- (if cubical then telViewPath else telView) t
               reportSDoc "interaction.intro" 20 $ TP.sep
-                [ TP.text "introTactic/fallback"
-                , TP.text "tel' = " TP.<+> prettyTCM tel'
-                , TP.text "tel  = " TP.<+> prettyTCM tel
+                [ "introTactic/fallback"
+                , "tel' = " TP.<+> prettyTCM tel'
+                , "tel  = " TP.<+> prettyTCM tel
                 ]
               case (tel', tel) of
                 (EmptyTel, EmptyTel) -> return []
@@ -855,7 +855,7 @@ introTactic pmLambda ii = do
     showTCM v = show <$> prettyTCM v
 
     introFun tel = addContext tel' $ do
-        reportSDoc "interaction.intro" 10 $ do TP.text "introFun" TP.<+> prettyTCM (telFromList tel)
+        reportSDoc "interaction.intro" 10 $ do "introFun" TP.<+> prettyTCM (telFromList tel)
         imp <- showImplicitArguments
         let okHiding0 h = imp || h == NotHidden
             -- if none of the vars were displayed, we would get a parse error
@@ -935,9 +935,9 @@ atTopLevel m = inConcreteMode $ do
           gamma = fromMaybe __IMPOSSIBLE__ $
                     zipWith' (\ x dom -> (x,) <$> dom) names types
       reportSDoc "interaction.top" 20 $ TP.vcat
-        [ TP.text "BasicOps.atTopLevel"
-        , TP.text "  names = " TP.<+> TP.sep (map prettyA   names)
-        , TP.text "  types = " TP.<+> TP.sep (map prettyTCM types)
+        [ "BasicOps.atTopLevel"
+        , "  names = " TP.<+> TP.sep (map prettyA   names)
+        , "  types = " TP.<+> TP.sep (map prettyTCM types)
         ]
       M.withCurrentModule current $
         withScope_ scope $

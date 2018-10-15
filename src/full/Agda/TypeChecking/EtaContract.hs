@@ -64,7 +64,7 @@ etaOnce :: (MonadTCEnv m, HasConstInfo m, HasOptions m) => Term -> m Term
 etaOnce v = case v of
   -- Andreas, 2012-11-18: this call to reportSDoc seems to cost me 2%
   -- performance on the std-lib
-  -- reportSDoc "tc.eta" 70 $ text "eta-contracting" <+> prettyTCM v
+  -- reportSDoc "tc.eta" 70 $ "eta-contracting" <+> prettyTCM v
   Lam i (Abs x b) -> etaLam i x b  -- NoAbs can't be eta'd
 
   -- Andreas, 2012-12-18:  Abstract definitions could contain
@@ -84,10 +84,10 @@ etaCon :: (MonadTCEnv m, HasConstInfo m, HasOptions m)
   -> m Term   -- ^ Returns @Con c ci args@ or its eta-contraction.
 etaCon c ci args cont = ignoreAbstractMode $ do
   let fallback = return $ Con c ci $ map Apply args
-  -- reportSDoc "tc.eta" 20 $ text "eta-contracting record" <+> prettyTCM t
+  -- reportSDoc "tc.eta" 20 $ "eta-contracting record" <+> prettyTCM t
   r <- getConstructorData $ conName c -- fails in ConcreteMode if c is abstract
   ifNotM (isEtaRecord r) fallback $ {-else-} do
-    -- reportSDoc "tc.eta" 20 $ text "eta-contracting record" <+> prettyTCM t
+    -- reportSDoc "tc.eta" 20 $ "eta-contracting record" <+> prettyTCM t
     cont r c ci args
 
 -- | Try to contract a lambda-abstraction @Lam i (Abs x b)@.

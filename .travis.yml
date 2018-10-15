@@ -30,6 +30,16 @@ cache:
 
 matrix:
   include:
+    - env: TEST=MAIN GHC_VER=8.6.1 BUILD=CABAL CABAL_VER=2.4
+      addons:
+        apt:
+          packages:
+            - cabal-install-2.4
+            - ghc-8.6.1
+            - texlive-binaries
+          sources:
+            - hvr-ghc
+
     - env: TEST=MAIN GHC_VER=8.4.3 BUILD=CABAL CABAL_VER=2.2
       addons:
         apt:
@@ -104,12 +114,12 @@ matrix:
 
     # Since `stack haddock` compiles Agda but `cabal haddock` does
     # not, this test is faster using `BUILD=CABAL` [Issue #2188].
-    - env: TEST=HADDOCK GHC_VER=8.4.3 BUILD=CABAL CABAL_VER=2.2
+    - env: TEST=HADDOCK GHC_VER=8.6.1 BUILD=CABAL CABAL_VER=2.4
       addons:
         apt:
           packages:
-            - cabal-install-2.2
-            - ghc-8.4.3
+            - cabal-install-2.4
+            - ghc-8.6.1
           sources:
             - hvr-ghc
 
@@ -121,6 +131,16 @@ matrix:
     - env: TEST=USER_MANUAL BUILD=NOTHING
       language: python
       python: "3.4"
+
+    - env: TEST=MAIN GHC_VER=8.6.1 BUILD=CABAL CABAL_VER=2.4
+      addons:
+        apt:
+          packages:
+            - cabal-install-2.4
+            - ghc-8.6.1
+            - texlive-binaries
+          sources:
+            - hvr-ghc
 
   # Builds are loooong, we want to send an email as fast as possible.
   fast_finish: true

@@ -77,28 +77,28 @@ checkStrictlyPositive :: Info.MutualInfo -> Set QName -> TCM ()
 checkStrictlyPositive mi qset = disableDestructiveUpdate $ do
   -- compute the occurrence graph for qs
   let qs = Set.toList qset
-  reportSDoc "tc.pos.tick" 100 $ text "positivity of" <+> prettyTCM qs
+  reportSDoc "tc.pos.tick" 100 $ "positivity of" <+> prettyTCM qs
   g <- buildOccurrenceGraph qset
   let (gstar, sccs) =
         Graph.gaussJordanFloydWarshallMcNaughtonYamada $ fmap occ g
-  reportSDoc "tc.pos.tick" 100 $ text "constructed graph"
+  reportSDoc "tc.pos.tick" 100 $ "constructed graph"
   reportSLn "tc.pos.graph" 5 $ "Positivity graph: N=" ++ show (size $ Graph.nodes g) ++
                                " E=" ++ show (length $ Graph.edges g)
   reportSDoc "tc.pos.graph" 10 $ vcat
-    [ text "positivity graph for" <+> (fsep $ map prettyTCM qs)
+    [ "positivity graph for" <+> (fsep $ map prettyTCM qs)
     , nest 2 $ prettyTCM g
     ]
   reportSLn "tc.pos.graph" 5 $
     "Positivity graph (completed): E=" ++ show (length $ Graph.edges gstar)
   reportSDoc "tc.pos.graph" 50 $ vcat
-    [ text "transitive closure of positivity graph for" <+>
+    [ "transitive closure of positivity graph for" <+>
       prettyTCM qs
     , nest 2 $ prettyTCM gstar
     ]
 
   -- remember argument occurrences for qs in the signature
   setArgOccs qset qs gstar
-  reportSDoc "tc.pos.tick" 100 $ text "set args"
+  reportSDoc "tc.pos.tick" 100 $ "set args"
 
   -- check positivity for all strongly connected components of the graph for qs
   reportSDoc "tc.pos.graph.sccs" 10 $ do
@@ -122,7 +122,7 @@ checkStrictlyPositive mi qset = disableDestructiveUpdate $ do
     AcyclicSCC (ArgNode{}) -> return ()
     CyclicSCC scc          -> setMut [ q | DefNode q <- scc ]
   mapM_ (checkPos g gstar) qs
-  reportSDoc "tc.pos.tick" 100 $ text "checked positivity"
+  reportSDoc "tc.pos.tick" 100 $ "checked positivity"
 
   where
     checkPos :: Graph Node Edge ->
@@ -131,7 +131,7 @@ checkStrictlyPositive mi qset = disableDestructiveUpdate $ do
     checkPos g gstar q = inConcreteOrAbstractMode q $ \ _def -> do
       -- we check positivity only for data or record definitions
       whenJustM (isDatatype q) $ \ dr -> do
-        reportSDoc "tc.pos.check" 10 $ text "Checking positivity of" <+> prettyTCM q
+        reportSDoc "tc.pos.check" 10 $ "Checking positivity of" <+> prettyTCM q
 
         let loop :: Maybe Occurrence
             loop = Graph.lookup (DefNode q) (DefNode q) gstar
@@ -181,8 +181,8 @@ checkStrictlyPositive mi qset = disableDestructiveUpdate $ do
             -- unless it is coinductive or a no-eta-equality record.
             Nothing -> do
               reportSDoc "tc.pos.record" 10 $
-                text "record type " <+> prettyTCM q <+>
-                text "is not recursive"
+                "record type " <+> prettyTCM q <+>
+                "is not recursive"
               nonRecursiveRecord q
             _ -> return ()
 
@@ -198,8 +198,8 @@ checkStrictlyPositive mi qset = disableDestructiveUpdate $ do
         unlessM (isJust . recInduction . theDef <$> getConstInfo q) $
           setCurrentRange (nameBindingSite $ qnameName q) $
             typeError . GenericDocError =<<
-              text "Recursive record" <+> prettyTCM q <+>
-              text "needs to be declared as either inductive or coinductive"
+              "Recursive record" <+> prettyTCM q <+>
+              "needs to be declared as either inductive or coinductive"
 
     occ (Edge o _) = o
 
@@ -233,7 +233,7 @@ checkStrictlyPositive mi qset = disableDestructiveUpdate $ do
       -- let maxs = Map.fromListWith max
       --      [ (q, i) | ArgNode q i <- Set.toList $ Graph.nodes g, q `Set.member` qset ]
       forM_ qs $ \ q -> inConcreteOrAbstractMode q $ \ def -> do
-        reportSDoc "tc.pos.args" 10 $ text "checking args of" <+> prettyTCM q
+        reportSDoc "tc.pos.args" 10 $ "checking args of" <+> prettyTCM q
         n <- getDefArity def
         -- If there is no outgoing edge @ArgNode q i@, all @n@ arguments are @Unused@.
         -- Otherwise, we obtain the occurrences from the Graph.
@@ -241,7 +241,7 @@ checkStrictlyPositive mi qset = disableDestructiveUpdate $ do
             args = -- caseMaybe (Map.lookup q maxs) (replicate n Unused) $ \ m ->
               map findOcc [0 .. n-1]  -- [0 .. max m (n - 1)] -- triggers issue #3049
         reportSDoc "tc.pos.args" 10 $ sep
-          [ text "args of" <+> prettyTCM q <+> text "="
+          [ "args of" <+> prettyTCM q <+> "="
           , nest 2 $ prettyList $ map prettyTCM args
           ]
         -- The list args can take a long time to compute, but contains
@@ -280,8 +280,8 @@ instance PrettyTCM OccursWhere where
       uniq = map head . List.group
 
       prettyOs [] = __IMPOSSIBLE__
-      prettyOs [o] = prettyO o <> text "."
-      prettyOs (o:os) = prettyO o <> text ", which occurs" $$ prettyOs os
+      prettyOs [o] = prettyO o <> "."
+      prettyOs (o:os) = prettyO o <> ", which occurs" $$ prettyOs os
 
       prettyO Unknown      = empty
       prettyO (Known _ ws) =
@@ -446,8 +446,8 @@ getOccurrences
   :: (Show a, PrettyTCM a, ComputeOccurrences a)
   => [Maybe Item] -> a -> TCM OccurrencesBuilder
 getOccurrences vars a = do
-  reportSDoc "tc.pos.occ" 70 $ text "computing occurrences in " <+> text (show a)
-  reportSDoc "tc.pos.occ" 20 $ text "computing occurrences in " <+> prettyTCM a
+  reportSDoc "tc.pos.occ" 70 $ "computing occurrences in " <+> text (show a)
+  reportSDoc "tc.pos.occ" 20 $ "computing occurrences in " <+> prettyTCM a
   kit <- coinductionKit
   return $ runReader (occurrences a) $ OccEnv vars $ fmap nameOfInf kit
 
@@ -579,7 +579,7 @@ computeOccurrences' q = inConcreteOrAbstractMode q $ \ def -> do
     let a = defAbstract def
     m <- asksTC envAbstractMode
     cur <- asksTC envCurrentModule
-    text "computeOccurrences" <+> prettyTCM q <+> text (show a) <+> text (show m)
+    "computeOccurrences" <+> prettyTCM q <+> text (show a) <+> text (show m)
       <+> prettyTCM cur
   OccursAs (InDefOf q) <$> case theDef def of
     Function{funClauses = cs} -> do
@@ -694,12 +694,12 @@ buildOccurrenceGraph qs =
       occs <- computeOccurrences' q
 
       reportSDoc "tc.pos.occs" 40 $
-        (text "Occurrences in" <+> prettyTCM q <> text ":")
+        ("Occurrences in" <+> prettyTCM q <> ":")
           $+$
         (nest 2 $ vcat $
            map (\(i, (n, s)) ->
-                   text (show i) <> text ":" <+> text (show n) <+>
-                   text "occurrences, of total size" <+>
+                   text (show i) <> ":" <+> text (show n) <+>
+                   "occurrences, of total size" <+>
                    text (show s)) $
            List.sortBy (compare `on` fst . snd) $
            map (\(i, os) -> (i, (length os, sum $ map size os))) $
@@ -707,7 +707,7 @@ buildOccurrenceGraph qs =
       reportSDoc "tc.pos.occs" 50 $
         (nest 2 $ vcat $
            map (\(i, os) ->
-                   (text (show i) <> text ":")
+                   (text (show i) <> ":")
                      $+$
                    (nest 2 $ vcat $ map (return . P.pretty) os))
                (Map.toList (flatten occs)))
@@ -717,14 +717,14 @@ buildOccurrenceGraph qs =
       es <- computeEdges qs q occs
 
       reportSDoc "tc.pos.occs.edges" 60 $
-        text "Edges:"
+        "Edges:"
           $+$
         (nest 2 $ vcat $
            map (\e ->
                    let Edge o w = Graph.label e in
                    prettyTCM (Graph.source e) <+>
-                   text "-[" <+> return (P.pretty o) <> text "," <+>
-                                 return (P.pretty w) <+> text "]->" <+>
+                   "-[" <+> return (P.pretty o) <> "," <+>
+                                 return (P.pretty w) <+> "]->" <+>
                    prettyTCM (Graph.target e))
                es)
 
