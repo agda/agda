@@ -152,7 +152,7 @@ data NiceDeclaration
   | DataDef Range Fixity' IsAbstract PositivityCheck UniverseCheck Name [LamBinding] [NiceConstructor]
   | RecDef Range Fixity' IsAbstract PositivityCheck UniverseCheck Name (Maybe (Ranged Induction)) (Maybe HasEta) (Maybe (ThingWithFixity Name, IsInstance)) [LamBinding] [NiceDeclaration]
   | NicePatternSyn Range Fixity' Name [Arg Name] Pattern
-  | NiceGeneralize Range Fixity' ArgInfo Name Expr
+  | NiceGeneralize Range Fixity' Access ArgInfo Name Expr
   | NiceUnquoteDecl Range [Fixity'] Access IsAbstract IsInstance TerminationCheck [Name] Expr
   | NiceUnquoteDef Range [Fixity'] Access IsAbstract TerminationCheck [Name] Expr
   deriving (Data, Show)
@@ -320,7 +320,7 @@ instance HasRange NiceDeclaration where
   getRange (NiceRecSig r _ _ _ _ _ _ _ _)    = r
   getRange (NiceDataSig r _ _ _ _ _ _ _ _)   = r
   getRange (NicePatternSyn r _ _ _ _)        = r
-  getRange (NiceGeneralize r _ _ _ _)        = r
+  getRange (NiceGeneralize r _ _ _ _ _)      = r
   getRange (NiceFunClause r _ _ _ _ _)       = r
   getRange (NiceUnquoteDecl r _ _ _ _ _ _ _) = r
   getRange (NiceUnquoteDef r _ _ _ _ _ _)    = r
@@ -1007,7 +1007,7 @@ niceDeclarations ds = do
 
         (Generalize info x t)            -> do
           fx <- getFixity x
-          return ([NiceGeneralize (getRange d) fx info x t] , ds)
+          return ([NiceGeneralize (getRange d) fx PublicAccess info x t] , ds)
 
         (FunClause lhs _ _ _)         -> do
           termCheck <- use terminationCheckPragma
@@ -1709,6 +1709,7 @@ instance MakePrivate NiceDeclaration where
       NiceFunClause r p a termCheck catchall d -> (\ p -> NiceFunClause r p a termCheck catchall d) <$> mkPrivate o p
       NiceUnquoteDecl r f p a i t x e          -> (\ p -> NiceUnquoteDecl r f p a i t x e)          <$> mkPrivate o p
       NiceUnquoteDef r f p a t x e             -> (\ p -> NiceUnquoteDef r f p a t x e)             <$> mkPrivate o p
+      NiceGeneralize r f p i x t               -> (\ p -> NiceGeneralize r f p i x t)               <$> mkPrivate o p
       NicePragma _ _                           -> return $ d
       NiceOpen _ _ _                           -> return $ d
       NiceImport _ _ _ _ _                     -> return $ d
@@ -1718,7 +1719,6 @@ instance MakePrivate NiceDeclaration where
       DataDef{}                                -> return $ d
       RecDef{}                                 -> return $ d
       NicePatternSyn _ _ _ _ _                 -> return $ d
-      NiceGeneralize{}                         -> return d
 
 instance MakePrivate Clause where
   mkPrivate o (Clause x catchall lhs rhs wh with) = do
@@ -1859,7 +1859,7 @@ notSoNiceDeclarations d = fixityDecl d ++
     RecDef r _ _ _ _ x i e c bs ds   -> [Record r x i e (unThing <$> c) bs Nothing $ concatMap notSoNiceDeclarations ds]
       where unThing (ThingWithFixity c _, inst) = (c, inst)
     NicePatternSyn r _ n as p        -> [PatternSyn r n as p]
-    NiceGeneralize r _ i n e         -> [Generalize i n e]
+    NiceGeneralize r _ _ i n e       -> [Generalize i n e]
     NiceUnquoteDecl r _ _ _ i _ x e  -> inst i [UnquoteDecl r x e]
     NiceUnquoteDef r _ _ _ _ x e     -> [UnquoteDef r x e]
   where
@@ -1876,7 +1876,7 @@ notSoNiceDeclarations d = fixityDecl d ++
           NiceDataSig _ f _ _ _ _ x _ _     -> [(x, f)]
           FunSig _ f _ _ _ _ _ _ x _        -> [(x, f)]
           NicePatternSyn _ f x _ _          -> [(x, f)]
-          NiceGeneralize _ f _ x _          -> [(x, f)]
+          NiceGeneralize _ f _ _ x _        -> [(x, f)]
           NiceUnquoteDecl _ fs _ _ _ _ xs _ -> zip xs fs
           NiceUnquoteDef _ fs _ _ _ xs _    -> zip xs fs
           NiceMutual{}      -> []
