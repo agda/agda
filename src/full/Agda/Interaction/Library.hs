@@ -178,7 +178,7 @@ getDefaultLibraries root optDefaultLibs = mkLibM [] $ do
     then (,[]) <$> if optDefaultLibs then (libNameForCurrentDir :) <$> readDefaultsFile else return []
     else libsAndPaths <$> parseLibFiles Nothing (map (0,) libs)
   where
-    libsAndPaths ls = (concatMap libDepends ls, concatMap libIncludes ls)
+    libsAndPaths ls = (concatMap libDepends ls, List.nub (concatMap libIncludes ls))
 
 -- | Return list of libraries to be used by default.
 --
@@ -228,7 +228,7 @@ getInstalledLibraries overrideLibFile = mkLibM [] $ do
     if not (lfExists file) then return [] else do
       ls    <- lift $ stripCommentLines <$> readFile (lfPath file)
       files <- lift $ sequence [ (i, ) <$> expandEnvironmentVariables s | (i, s) <- ls ]
-      parseLibFiles (Just file) $ List.nubBy ((==) `on` snd) files
+      parseLibFiles (Just file) files
   `catchIO` \ e -> do
     tell [ OtherError $ unlines ["Failed to read installed libraries.", show e] ]
     return []
@@ -239,18 +239,18 @@ parseLibFiles
   :: Maybe LibrariesFile       -- ^ Name of @libraries@ file for error reporting.
   -> [(LineNumber, FilePath)]  -- ^ Library files paired with their line number in @libraries@.
   -> LibErrorIO [AgdaLibFile]  -- ^ Content of library files.  (Might have empty @LibName@s.)
-parseLibFiles libFile files = do
+parseLibFiles mlibFile files = do
   rs <- lift $ mapM (parseLibFile . snd) files
   -- Format and raise the errors.
-  let loc line | Just f <- libFile = lfPath f ++ ":" ++ show line ++ ": "
-               | otherwise         = ""
+  let loc line | Just f <- mlibFile = lfPath f ++ ":" ++ show line ++ ": "
+               | otherwise          = ""
   tell [ OtherError $ pos ++ err
        | ((line, path), Left err) <- zip files rs
        , let pos = if List.isPrefixOf "Failed to read" err
                    then loc line
                    else path ++ ":" ++ (if all isDigit (take 1 err) then "" else " ")
        ]
-  return $ rights rs
+  return $ List.nubBy ((==) `on` libFile) $ rights rs
 
 -- | Remove trailing white space and line comments.
 --
@@ -275,7 +275,7 @@ formatLibError installed = \case
     map (nest 2)
       (if null installed then [text "(none)"]
       else [ sep [ text $ libName l, nest 2 $ parens $ text $ libFile l ]
-           | l <- List.nubBy ((==) `on` libFile) installed ])
+           | l <- installed ])
 
   AmbiguousLib lib tgts -> return $ vcat $
     [ sep [ text $ "Ambiguous library '" ++ lib ++ "'.", text "Could refer to any one of" ]
