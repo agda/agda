@@ -543,7 +543,7 @@ checkArgumentsE' chk exh r args0@(arg@(Arg info e) : args) t0 mt1 =
           Pi (Dom{domInfo = info', unDom = a}) b
             | sameHiding info info'
               && (visible info || maybe True ((absName b ==) . rangedThing) (nameOf e)) -> do
-                u <- lift $ applyRelevanceToContext (getRelevance info') $ do
+                u <- lift $ applyRelevanceToContext info' $ do
                  -- Andreas, 2014-05-30 experiment to check non-dependent arguments
                  -- after the spine has been processed.  Allows to propagate type info
                  -- from ascribed type into extended-lambdas.  Would solve issue 1159.

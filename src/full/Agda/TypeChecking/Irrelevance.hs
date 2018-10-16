@@ -1,8 +1,77 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE UndecidableInstances #-}
 
-{-| Irrelevant function types.
+{-| Compile-time irrelevance.
+
+In type theory with compile-time irrelevance à la Pfenning (LiCS 2001),
+variables in the context are annotated with relevance attributes.
+@@
+  Γ = r₁x₁:A₁, ..., rⱼxⱼ:Aⱼ
+@@
+To handle irrelevant projections, we also record the current relevance
+attribute in the judgement.  For instance, this attribute is equal to
+to 'Irrelevant' if we are in an irrelevant position, like an
+irrelevant argument.
+@@
+  Γ ⊢r t : A
+@@
+Only relevant variables can be used:
+@@
+
+  (Relevant x : A) ∈ Γ
+  --------------------
+  Γ  ⊢r  x  :  A
+@@
+Irrelevant global declarations can only be used if @r = Irrelevant@.
+
+When we enter a @r'@-relevant function argument, we compose the @r@ with @r'@
+and (left-)divide the attributes in the context by @r'@.
+@@
+  Γ  ⊢r  t  :  (r' x : A) → B      r' \ Γ  ⊢(r'·r)  u  :  A
+  ---------------------------------------------------------
+  Γ  ⊢r  t u  :  B[u/x]
+@@
+No surprises for abstraction:
+@@
+
+  Γ, (r' x : A)  ⊢r  :  B
+  -----------------------------
+  Γ  ⊢r  λxt  :  (r' x : A) → B
+@@
+
+This is different for runtime irrelevance (erasure) which is ``flat'',
+meaning that once one is in an irrelevant context, all new assumptions will
+be usable, since they are turned relevant once entering the context.
+See Conor McBride (WadlerFest 2016), for a type system in this spirit:
+
+We use such a rule for runtime-irrelevance:
+@@
+  Γ, (q \ q') x : A  ⊢q  t  :  B
+  ------------------------------
+  Γ  ⊢q  λxt  :  (q' x : A) → B
+@@
+
+Conor's system is however set up differently, with a very different
+variable rule:
+
+@@
+
+  (q x : A) ∈ Γ
+  --------------
+  Γ  ⊢q  x  :  A
+
+  Γ, (q·p) x : A  ⊢q  t  :  B
+  -----------------------------
+  Γ  ⊢q  λxt  :  (p x : A) → B
+
+  Γ  ⊢q  t  :  (p x : A) → B       Γ'  ⊢qp  u  :  A
+  -------------------------------------------------
+  Γ + Γ'  ⊢q  t u  :  B[u/x]
+@@
+
+
 -}
+
 module Agda.TypeChecking.Irrelevance where
 
 import Control.Arrow (first, second)
@@ -19,6 +88,7 @@ import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Substitute.Class
 
+import Agda.Utils.Function
 import Agda.Utils.Lens
 import Agda.Utils.Monad
 
@@ -60,27 +130,41 @@ workOnTypes' experimental =
 --   may be used, so they are awoken before type checking the argument.
 --
 --   Also allow the use of irrelevant definitions.
-applyRelevanceToContext :: (MonadTCM tcm) => Relevance -> tcm a -> tcm a
-applyRelevanceToContext rel =
-  case rel of
+applyRelevanceToContext :: (MonadTCEnv tcm, LensRelevance r) => r -> tcm a -> tcm a
+applyRelevanceToContext thing =
+  case getRelevance thing of
     Relevant -> id
-    _        -> localTC
-      $ over eContext     (map $ inverseApplyRelevance rel)
-      . over eLetBindings (Map.map . fmap . second $ inverseApplyRelevance rel)
-                                                  -- enable local  irr. defs
-      . over eRelevance   (composeRelevance rel)  -- enable global irr. defs
+    rel      -> applyRelevanceToContextOnly   rel
+              . applyRelevanceToJudgementOnly rel
+
+-- | (Conditionally) wake up irrelevant variables and make them relevant.
+--   For instance,
+--   in an irrelevant function argument otherwise irrelevant variables
+--   may be used, so they are awoken before type checking the argument.
+--
+--   Precondition: @Relevance /= Relevant@
+applyRelevanceToContextOnly :: (MonadTCEnv tcm) => Relevance -> tcm a -> tcm a
+applyRelevanceToContextOnly rel = localTC
+  $ over eContext     (map $ inverseApplyRelevance rel)
+  . over eLetBindings (Map.map . fmap . second $ inverseApplyRelevance rel)
+
+-- | Apply relevance @rel@ the the relevance annotation of the (typing/equality)
+--   judgement.  This is part of the work done when going into a @rel@-context.
+--
+--   Precondition: @Relevance /= Relevant@
+applyRelevanceToJudgementOnly :: (MonadTCEnv tcm) => Relevance -> tcm a -> tcm a
+applyRelevanceToJudgementOnly = localTC . over eRelevance . composeRelevance
 
 -- | Like 'applyRelevanceToContext', but only act on context if
 --   @--irrelevant-projections@.
 --   See issue #2170.
-applyRelevanceToContextFunBody :: (MonadTCM tcm) => Relevance -> tcm a -> tcm a
-applyRelevanceToContextFunBody rel cont
-  | rel == Relevant = cont
-  | otherwise = do
-    ifM (optIrrelevantProjections <$> pragmaOptions)
-      {-then-} (applyRelevanceToContext rel cont)
-      {-else-} (localTC (over eRelevance $ composeRelevance rel) cont)
-               -- just enable global irr. defs
+applyRelevanceToContextFunBody :: (MonadTCM tcm, LensRelevance r) => r -> tcm a -> tcm a
+applyRelevanceToContextFunBody thing cont =
+  case getRelevance thing of
+    Relevant -> cont
+    rel -> applyWhenM (optIrrelevantProjections <$> pragmaOptions)
+      (applyRelevanceToContextOnly rel) $    -- enable local irr. defs only when option
+      applyRelevanceToJudgementOnly rel cont -- enable global irr. defs alway
 
 -- | Wake up irrelevant variables and make them relevant. This is used
 --   when type checking terms in a hole, in which case you want to be able to
@@ -90,14 +174,22 @@ applyRelevanceToContextFunBody rel cont
 --   This is not the right thing to do when type checking interactively in a
 --   hole since it also marks all metas created during type checking as
 --   irrelevant (issue #2568).
-wakeIrrelevantVars :: TCM a -> TCM a
-wakeIrrelevantVars = localTC
-  $ over eContext     (map                     $ inverseApplyRelevance Irrelevant)
-  . over eLetBindings (Map.map . fmap . second $ inverseApplyRelevance Irrelevant)
+wakeIrrelevantVars :: (MonadTCEnv tcm) => tcm a -> tcm a
+wakeIrrelevantVars = applyRelevanceToContextOnly Irrelevant
 
 -- | Check whether something can be used in a position of the given relevance.
 --
---   Used in unifier (@unifyStep Solution{}@).
+--   This is a substitute for double-checking that only makes sure
+--   relevances are correct.  See issue #2640.
+--
+--   Used in unifier (@ unifyStep Solution{}@).
+--
+--   At the moment, this implements McBride-style irrelevance,
+--   where Pfenning-style would be the most accurate thing.
+--   However, these two notions only differ how they handle
+--   bound variables in a term.  Here, we are only concerned
+--   in the free variables, used meta-variables, and used
+--   (irrelevant) definitions.
 --
 class UsableRelevance a where
   usableRel :: Relevance -> a -> TCM Bool

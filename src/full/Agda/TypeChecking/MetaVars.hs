@@ -277,7 +277,7 @@ newArgsMetaCtx' condition (El s tm) tel perm ctx = do
           -- of the context lives in tel. Don't forget the arguments in ctx.
           tel' = telFromList . map (inverseApplyRelevance r) . telToList $ tel
           ctx' = (map . mapRelevance) (r `inverseComposeRelevance`) ctx
-      (m, u) <- applyRelevanceToContext (getRelevance info) $
+      (m, u) <- applyRelevanceToContext info $
                {-
                  -- Andreas, 2010-09-24 skip irrelevant record fields when eta-expanding a meta var
                  -- Andreas, 2010-10-11 this is WRONG, see Issue 347

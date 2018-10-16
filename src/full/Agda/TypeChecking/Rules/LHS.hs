@@ -382,7 +382,7 @@ checkDotPattern (Dot e v (Dom{domInfo = info, unDom = a})) =
         , nest 2 $ "=" <+> prettyTCM v
         , nest 2 $ ":" <+> prettyTCM a
         ]
-  applyRelevanceToContext (getRelevance info) $ do
+  applyRelevanceToContext info $ do
     u <- checkExpr e a
     reportSDoc "tc.lhs.dot" 50 $
       sep [ "equalTerm"
