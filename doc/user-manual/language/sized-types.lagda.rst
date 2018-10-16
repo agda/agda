@@ -233,4 +233,4 @@ References
 
 .. _`Traytel 2016`:
 
-   `Formal Languages, Formally and Coinductively, Dmitriy Traytel, FSCD (2016) <https://www21.in.tum.de/~traytel/papers/fscd16-coind_lang/paper.pdf>`_.
+   `Formal Languages, Formally and Coinductively, Dmitriy Traytel, FSCD (2016) <https://arxiv.org/abs/1611.09633>`_.
