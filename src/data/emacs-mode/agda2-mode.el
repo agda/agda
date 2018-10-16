@@ -236,6 +236,7 @@ constituents.")
     (agda2-next-goal                         "\C-c\C-f"           (global)       "Next goal") ; Forward.
     (agda2-previous-goal                     "\C-c\C-b"           (global)       "Previous goal") ; Back.
     (agda2-give                              ,(kbd "C-c C-SPC")   (local)        "Give")
+    (agda2-elaborate-give                    ,(kbd "C-c C-m")     (local)        "Elaborate and Give")
     (agda2-refine                            "\C-c\C-r"           (local)        "Refine")
     (agda2-auto                              "\C-c\C-a"           (local)        "Auto")
     (agda2-make-case                         "\C-c\C-c"           (local)        "Case")
@@ -1363,6 +1364,12 @@ top-level scope."
   (call-interactively (if (agda2-goal-at (point))
                           'agda2-why-in-scope
                           'agda2-why-in-scope-toplevel)))
+
+(agda2-maybe-normalised
+ agda2-elaborate-give
+ "Elaborate check the given expression against the hole's type and fill in hole with the elaborated term"
+ "Cmd_elaborate_give"
+ "expression to elaborate and give")
 
 (agda2-maybe-normalised
  agda2-goal-and-context
