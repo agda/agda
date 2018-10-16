@@ -74,7 +74,7 @@ type Graph n e = Graph.Graph n e
 --   Also add information about positivity and recursivity of records
 --   to the signature.
 checkStrictlyPositive :: Info.MutualInfo -> Set QName -> TCM ()
-checkStrictlyPositive mi qset = disableDestructiveUpdate $ do
+checkStrictlyPositive mi qset = do
   -- compute the occurrence graph for qs
   let qs = Set.toList qset
   reportSDoc "tc.pos.tick" 100 $ "positivity of" <+> prettyTCM qs

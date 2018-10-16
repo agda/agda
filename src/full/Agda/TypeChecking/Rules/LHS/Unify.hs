@@ -842,8 +842,7 @@ unifyStep :: UnifyState -> UnifyStep -> UnifyM (UnificationResult' UnifyState)
 unifyStep s Deletion{ deleteAt = k , deleteType = a , deleteLeft = u , deleteRight = v } = do
     -- Check definitional equality of u and v
     isReflexive <- liftTCM $ addContext (varTel s) $ do
-      dontAssignMetas $ disableDestructiveUpdate $ noConstraints $
-        equalTerm a u v
+      dontAssignMetas $ noConstraints $ equalTerm a u v
       return Nothing
       `catchError` \err -> return $ Just err
     withoutK <- liftTCM $ optWithoutK <$> pragmaOptions
@@ -867,8 +866,7 @@ unifyStep s Solution{ solutionAt   = k
   equalTypes <- liftTCM $ addContext (varTel s) $ do
     reportSDoc "tc.lhs.unify" 45 $ "Equation type: " <+> prettyTCM a
     reportSDoc "tc.lhs.unify" 45 $ "Variable type: " <+> prettyTCM a'
-    dontAssignMetas $ disableDestructiveUpdate $ noConstraints $
-      equalType a a'
+    dontAssignMetas $ noConstraints $ equalType a a'
     return Nothing
     `catchError` \err -> return $ Just err
   -- The conditions on the relevances are as follows (see #2640):

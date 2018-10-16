@@ -427,7 +427,7 @@ checkTermination_ d = Bench.billTo [Bench.Termination] $ do
   case d of
       -- Record module definitions should not be termination-checked twice.
       A.RecDef {} -> return ()
-      _ -> disableDestructiveUpdate $ do
+      _ -> do
         termErrs <- termDecl d
         -- If there are some termination errors, we collect them in
         -- the state.

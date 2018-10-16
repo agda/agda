@@ -428,7 +428,6 @@ subtype t1 t2 = do
   ifIsSort t1 (\ s1 -> (s1 `leqSort`) =<< shouldBeSort t2) $ do
     -- Andreas, 2017-03-09, issue #2493
     -- Only check subtyping, do not solve any metas!
-    -- TODO: NEED? disableDestructiveUpdate
     dontAssignMetas $ leqType t1 t2
 
 -- | Compute the sort of a type.

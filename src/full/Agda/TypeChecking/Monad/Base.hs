@@ -2289,12 +2289,6 @@ data TCEnv =
                 --   dependency graph, of the shortest path from the
                 --   top-level module; it depends on in which order
                 --   Agda chooses to chase dependencies.
-          , envAllowDestructiveUpdate :: Bool
-                -- ^ When True, allows destructively shared updating terms
-                --   during evaluation or unification. This is disabled when
-                --   doing speculative checking, like solve instance metas, or
-                --   when updating might break abstraction, as is the case when
-                --   checking abstract definitions.
           , envExpandLast :: ExpandHidden
                 -- ^ When type-checking an alias f=e, we do not want
                 -- to insert hidden arguments in the end, because
@@ -2382,7 +2376,6 @@ initEnv = TCEnv { envContext             = []
                 , envHighlightingLevel      = None
                 , envHighlightingMethod     = Indirect
                 , envModuleNestingLevel     = -1
-                , envAllowDestructiveUpdate = True
                 , envExpandLast             = ExpandLast
                 , envAppDef                 = Nothing
                 , envSimplification         = NoSimplification
@@ -2402,9 +2395,6 @@ initEnv = TCEnv { envContext             = []
                 , envGeneralizeMetas        = NoGeneralize
                 , envGeneralizedVars        = Map.empty
                 }
-
-disableDestructiveUpdate :: TCM a -> TCM a
-disableDestructiveUpdate = localTC $ \e -> e { envAllowDestructiveUpdate = False }
 
 data UnquoteFlags = UnquoteFlags
   { _unquoteNormalise :: Bool }
@@ -2488,9 +2478,6 @@ eHighlightingMethod f e = f (envHighlightingMethod e) <&> \ x -> e { envHighligh
 
 eModuleNestingLevel :: Lens' Int TCEnv
 eModuleNestingLevel f e = f (envModuleNestingLevel e) <&> \ x -> e { envModuleNestingLevel = x }
-
-eAllowDestructiveUpdate :: Lens' Bool TCEnv
-eAllowDestructiveUpdate f e = f (envAllowDestructiveUpdate e) <&> \ x -> e { envAllowDestructiveUpdate = x }
 
 eExpandLast :: Lens' ExpandHidden TCEnv
 eExpandLast f e = f (envExpandLast e) <&> \ x -> e { envExpandLast = x }

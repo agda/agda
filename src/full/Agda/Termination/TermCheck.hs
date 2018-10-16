@@ -168,7 +168,7 @@ termMutual
      --   (For error-reporting only.)
   -> TCM Result
 termMutual names0 = ifNotM (optTerminationCheck <$> pragmaOptions) (return mempty) $ {-else-}
- inTopContext $ disableDestructiveUpdate $ do
+ inTopContext $ do
 
   -- Get set of mutually defined names from the TCM.
   -- This includes local and auxiliary functions introduced

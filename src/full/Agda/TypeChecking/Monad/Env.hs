@@ -38,8 +38,7 @@ withAnonymousModule m n =
 withEnv :: TCEnv -> TCM a -> TCM a
 withEnv env = localTC $ \ env0 -> env
   -- Keep persistent settings
-  { envAllowDestructiveUpdate = envAllowDestructiveUpdate env0
-  , envPrintMetasBare         = envPrintMetasBare env0
+  { envPrintMetasBare         = envPrintMetasBare env0
   }
 
 -- | Get the current environment
@@ -112,4 +111,3 @@ isInsideDotPattern = asksTC envInsideDotPattern
 -- | Don't use call-by-need evaluation for the given computation.
 callByName :: TCM a -> TCM a
 callByName = localTC $ \ e -> e { envCallByNeed = False }
-

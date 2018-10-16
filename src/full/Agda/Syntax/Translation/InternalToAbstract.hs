@@ -171,8 +171,17 @@ instance Reify MetaId Expr where
                  , metaNameSuggestion = if b then "" else miNameSuggestion mi
                  }
           underscore = return $ A.Underscore mi'
-      caseMaybeM (isInteractionMeta x) underscore $ \ ii@InteractionId{} ->
+      -- If we are printing a term that will be pasted into the user
+      -- source, we turn all unsolved (non-interaction) metas into
+      -- interaction points
+      isInteractionMeta x >>= \case
+        Nothing | b -> do
+          ii <- registerInteractionPoint False noRange Nothing
+          connectInteractionPoint ii x
           return $ A.QuestionMark mi' ii
+        Just ii | b -> underscore
+        Nothing     -> underscore
+        Just ii     -> return $ A.QuestionMark mi' ii
 
 -- Does not print with-applications correctly:
 -- instance Reify DisplayTerm Expr where
