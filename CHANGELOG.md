@@ -61,6 +61,8 @@ Type checking and interaction
   The type of `g` contains a call `g Γ _ --> f Γ` which is now taken
   into account during termination checking.
 
+* 'Solve constraints' (C-c C-s) now turns unsolved metavariables into new
+  interaction holes (see Issue [#2273](https://github.com/agda/agda/issues/2273)).
 
 Pragmas and options
 -------------------
