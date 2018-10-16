@@ -1594,6 +1594,16 @@ data FunctionFlag
   | FunMacro   -- ^ Is this function a macro?
   deriving (Data, Eq, Ord, Enum, Show)
 
+data CompKit = CompKit
+  { nameOfComp :: Maybe QName
+  , nameOfHComp :: Maybe QName
+  , nameOfTransp :: Maybe QName
+  }
+  deriving (Data, Eq, Ord, Show)
+
+emptyCompKit :: CompKit
+emptyCompKit = CompKit Nothing Nothing Nothing
+
 data Defn = Axiom -- ^ Postulate
           | GeneralizableVar -- ^ Generalizable variable (introduced in `generalize` block)
           | AbstractDefn Defn
@@ -1647,6 +1657,7 @@ data Defn = Axiom -- ^ Postulate
               --   Empty if not recursive.
               --   @Nothing@ if not yet computed (by positivity checker).
             , dataAbstr          :: IsAbstract
+            , dataPathCons       :: [QName]        -- ^ Path constructor names (subset of dataCons)
             }
           | Record
             { recPars           :: Nat
@@ -1678,7 +1689,7 @@ data Defn = Axiom -- ^ Postulate
               --   'Nothing' means that the user did not specify it, which is an error
               --   for recursive records.
             , recAbstr          :: IsAbstract
-            , recComp           :: Maybe QName
+            , recComp           :: CompKit
             }
           | Constructor
             { conPars   :: Int         -- ^ Number of parameters.
@@ -1687,7 +1698,7 @@ data Defn = Axiom -- ^ Postulate
             , conData   :: QName       -- ^ Name of datatype or record type.
             , conAbstr  :: IsAbstract
             , conInd    :: Induction   -- ^ Inductive or coinductive?
-            , conComp   :: Maybe (QName,[QName]) -- ^ (cubical composition, projections)
+            , conComp   :: (CompKit, Maybe [QName]) -- ^ (cubical composition, projections)
             , conForced :: [IsForced]  -- ^ Which arguments are forced (i.e. determined by the type of the constructor)?
             , conErased :: [Bool]      -- ^ Which arguments are erased at runtime (computed during compilation to treeless)
             }
@@ -2279,12 +2290,6 @@ data TCEnv =
                 --   dependency graph, of the shortest path from the
                 --   top-level module; it depends on in which order
                 --   Agda chooses to chase dependencies.
-          , envAllowDestructiveUpdate :: Bool
-                -- ^ When True, allows destructively shared updating terms
-                --   during evaluation or unification. This is disabled when
-                --   doing speculative checking, like solve instance metas, or
-                --   when updating might break abstraction, as is the case when
-                --   checking abstract definitions.
           , envExpandLast :: ExpandHidden
                 -- ^ When type-checking an alias f=e, we do not want
                 -- to insert hidden arguments in the end, because
@@ -2372,7 +2377,6 @@ initEnv = TCEnv { envContext             = []
                 , envHighlightingLevel      = None
                 , envHighlightingMethod     = Indirect
                 , envModuleNestingLevel     = -1
-                , envAllowDestructiveUpdate = True
                 , envExpandLast             = ExpandLast
                 , envAppDef                 = Nothing
                 , envSimplification         = NoSimplification
@@ -2392,9 +2396,6 @@ initEnv = TCEnv { envContext             = []
                 , envGeneralizeMetas        = NoGeneralize
                 , envGeneralizedVars        = Map.empty
                 }
-
-disableDestructiveUpdate :: TCM a -> TCM a
-disableDestructiveUpdate = localTC $ \e -> e { envAllowDestructiveUpdate = False }
 
 data UnquoteFlags = UnquoteFlags
   { _unquoteNormalise :: Bool }
@@ -2478,9 +2479,6 @@ eHighlightingMethod f e = f (envHighlightingMethod e) <&> \ x -> e { envHighligh
 
 eModuleNestingLevel :: Lens' Int TCEnv
 eModuleNestingLevel f e = f (envModuleNestingLevel e) <&> \ x -> e { envModuleNestingLevel = x }
-
-eAllowDestructiveUpdate :: Lens' Bool TCEnv
-eAllowDestructiveUpdate f e = f (envAllowDestructiveUpdate e) <&> \ x -> e { envAllowDestructiveUpdate = x }
 
 eExpandLast :: Lens' ExpandHidden TCEnv
 eExpandLast f e = f (envExpandLast e) <&> \ x -> e { envExpandLast = x }
@@ -3676,6 +3674,9 @@ instance KillRange ExtLamInfo where
 instance KillRange FunctionFlag where
   killRange = id
 
+instance KillRange CompKit where
+  killRange = id
+
 instance KillRange Defn where
   killRange def =
     case def of
@@ -3684,7 +3685,7 @@ instance KillRange Defn where
       AbstractDefn{} -> __IMPOSSIBLE__ -- only returned by 'getConstInfo'!
       Function cls comp tt inv mut isAbs delayed proj flags term extlam with copat ->
         killRange13 Function cls comp tt inv mut isAbs delayed proj flags term extlam with copat
-      Datatype a b c d e f g h       -> killRange8 Datatype a b c d e f g h
+      Datatype a b c d e f g h i     -> killRange8 Datatype a b c d e f g h i
       Record a b c d e f g h i j k   -> killRange11 Record a b c d e f g h i j k
       Constructor a b c d e f g h i  -> killRange9 Constructor a b c d e f g h i
       Primitive a b c d e            -> killRange5 Primitive a b c d e

@@ -99,6 +99,7 @@ import Agda.Utils.Null
 import Agda.Utils.Pretty
 import Agda.Utils.String
 import Agda.Utils.Time
+import Agda.Utils.Tuple
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -284,7 +285,7 @@ handleCommand wrap onFail cmd = handleNastyErrors $ wrap $ do
     catchErr :: CommandM a -> (TCErr -> CommandM a) -> CommandM a
     catchErr m h = do
       s       <- get
-      (x, s') <- lift $ do disableDestructiveUpdate (runStateT m s)
+      (x, s') <- lift $ do runStateT m s
          `catchError_` \ e ->
            runStateT (h e) s
       put s'
@@ -1093,7 +1094,8 @@ solveInstantiatedGoals norm mii = do
   out <- lift $ localTC (\ e -> e { envPrintMetasBare = True }) $ do
     sip <- B.getSolvedInteractionPoints False norm
            -- only solve metas which have a proper instantiation, i.e., not another meta
-    maybe id (\ ii -> filter ((ii ==) . fst)) mii <$> mapM prt sip
+    let sip' = maybe id (\ ii -> filter ((ii ==) . fst3)) mii sip
+    mapM prt sip'
   putResponse $ Resp_SolveAll out
   where
       prt (i, m, e) = do

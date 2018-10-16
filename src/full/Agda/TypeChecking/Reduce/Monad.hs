@@ -59,7 +59,7 @@ constructorForm v = do
 enterClosure :: Closure a -> (a -> ReduceM b) -> ReduceM b
 enterClosure (Closure sig env scope cps x) f = localR (mapRedEnvSt inEnv inState) (f x)
   where
-    inEnv   e = env { envAllowDestructiveUpdate = envAllowDestructiveUpdate e }
+    inEnv   e = env
     inState s =
       -- TODO: use the signature here? would that fix parts of issue 118?
       set stScope scope $ set stModuleCheckpoints cps s

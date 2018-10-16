@@ -171,8 +171,17 @@ instance Reify MetaId Expr where
                  , metaNameSuggestion = if b then "" else miNameSuggestion mi
                  }
           underscore = return $ A.Underscore mi'
-      caseMaybeM (isInteractionMeta x) underscore $ \ ii@InteractionId{} ->
+      -- If we are printing a term that will be pasted into the user
+      -- source, we turn all unsolved (non-interaction) metas into
+      -- interaction points
+      isInteractionMeta x >>= \case
+        Nothing | b -> do
+          ii <- registerInteractionPoint False noRange Nothing
+          connectInteractionPoint ii x
           return $ A.QuestionMark mi' ii
+        Just ii | b -> underscore
+        Nothing     -> underscore
+        Just ii     -> return $ A.QuestionMark mi' ii
 
 -- Does not print with-applications correctly:
 -- instance Reify DisplayTerm Expr where
@@ -437,7 +446,7 @@ reifyTerm expandAnonDefs0 v = do
           when (n > np) __IMPOSSIBLE__
           let h = A.Con (unambiguous x)
           if null vs then return h else do
-            es <- reify (fromMaybe __IMPOSSIBLE__ $ allApplyElims vs)
+            es <- reify (map (fromMaybe __IMPOSSIBLE__ . isApplyElim) vs)
             -- Andreas, 2012-04-20: do not reify parameter arguments of constructor
             -- if the first regular constructor argument is hidden
             -- we turn it into a named argument, in order to avoid confusion
@@ -1074,6 +1083,14 @@ reifyPatterns = mapM $ stripNameFromExplicit <.> traverse (traverse reifyPat)
         Just PatOWild   -> return $ A.WildP patNoRange
         Just PatOAbsurd -> return $ A.AbsurdP patNoRange
         _               -> reifyConP c cpi ps
+      I.DefP o f ps  -> case o of
+        PatOWild   -> return $ A.WildP patNoRange
+        PatOAbsurd -> return $ A.AbsurdP patNoRange
+        _ -> A.DefP patNoRange (unambiguous f) <$> reifyPatterns ps
+      I.IApplyP PatODot _ _ x -> reifyDotP $ var $ dbPatVarIndex x
+      I.IApplyP PatOWild _ _ x -> return $ A.WildP patNoRange
+      I.IApplyP PatOAbsurd _ _ x -> return $ A.AbsurdP patNoRange
+      I.IApplyP _ _ _ x -> reifyVarP x
 
     reifyVarP :: MonadTCM tcm => DBPatVar -> tcm A.Pattern
     reifyVarP x = do

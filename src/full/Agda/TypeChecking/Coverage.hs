@@ -37,6 +37,8 @@ import Agda.Syntax.Literal
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
 
+import Agda.TypeChecking.Names
+import Agda.TypeChecking.Primitive hiding (Nat)
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
 
@@ -57,6 +59,7 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Telescope
+import Agda.TypeChecking.Telescope.Path
 import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.Warnings
 
@@ -147,13 +150,13 @@ type CoverM = ExceptT SplitError TCM
 coverageCheck :: QName -> Type -> [Clause] -> TCM SplitTree
 coverageCheck f t cs = do
   reportSLn "tc.cover.top" 30 $ "entering coverageCheck for " ++ show f
-  TelV gamma a <- telViewUpToPath (-1) t
+  (TelV gamma a, boundary) <- telViewUpToPathBoundary' (-1) t
   reportSLn "tc.cover.top" 30 $ "coverageCheck: computed telView"
 
   let -- n             = arity
       -- xs            = variable patterns fitting lgamma
       n            = size gamma
-      xs           =  map (setOrigin Inserted) $ teleNamedArgs gamma
+      xs           =  map (setOrigin Inserted) $ telePatterns gamma boundary
 
   reportSLn "tc.cover.top" 30 $ "coverageCheck: getDefFreeVars"
 
@@ -273,6 +276,7 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
 
     No        ->  do
       reportSLn "tc.cover" 20 $ "pattern is not covered"
+      -- TODO Andrea: add hcomp clause!
       case fmap getHiding target of
         Just h | isInstance h -> do
           -- Ulf, 2016-10-31: For now we only infer instance clauses. It would
@@ -319,14 +323,19 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
       -> (SplitError -> TCM CoverResult)
       -> TCM CoverResult
     continue xs allowPartialCover handle = do
-      r <- altM1 (split Inductive allowPartialCover sc) xs
+      r <- altM1 (\ x -> fmap (,x) <$> split Inductive allowPartialCover sc x) xs
       case r of
         Left err -> handle err
         -- If we get the empty covering, we have reached an impossible case
         -- and are done.
-        Right (Covering n []) ->
+        Right (Covering n [], _) ->
           return $ CoverResult (SplittingDone (size tel)) Set.empty [] Set.empty
-        Right (Covering n scs) -> do
+        Right (Covering n scs, x) -> do
+          cs <- do
+            mcomp <- getPrimitiveName' builtinHComp
+            case List.find (\ (x,y) -> case x of SplitCon c -> Just c == mcomp; _ -> False) scs of
+                  Just (_,new_sc) -> (cs ++) . (:[]) <$> createMissingHCompClause f n x sc new_sc
+                  Nothing ->  return cs
           results <- mapM (cover f cs) (map snd scs)
           let trees = map coverSplitTree results
               useds = map coverUsedClauses results
@@ -386,11 +395,16 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
            ConP  _ _ qs -> qs ++ gatherEtaSplits (-1) sc ps
            LitP  _      -> gatherEtaSplits (-1) sc ps
            ProjP{}      -> __IMPOSSIBLE__
+           IApplyP{}    -> __IMPOSSIBLE__
+           DefP  _ _ qs -> qs ++ gatherEtaSplits (-1) sc ps -- __IMPOSSIBLE__ -- Andrea: maybe?
        | otherwise ->
            updateNamedArg (\ _ -> p') p : gatherEtaSplits (n-1) sc ps
         where p' = lookupS (scSubst sc) $ splitPatVarIndex x
+      IApplyP{}   ->
+           updateNamedArg (applySubst (scSubst sc)) p : gatherEtaSplits (n-1) sc ps
       DotP  _ _    -> p : gatherEtaSplits (n-1) sc ps -- count dot patterns
       ConP  _ _ qs -> gatherEtaSplits n sc (qs ++ ps)
+      DefP  _ _ qs -> gatherEtaSplits n sc (qs ++ ps)
       LitP  _      -> gatherEtaSplits n sc ps
       ProjP{}      -> gatherEtaSplits n sc ps
 
@@ -402,11 +416,222 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
       ConP c cpi qs -> SplitAt (p $> k) [(SplitCon (conName c) , addEtaSplits k (qs ++ ps) t)]
       LitP  _       -> __IMPOSSIBLE__
       ProjP{}       -> __IMPOSSIBLE__
+      DefP{}        -> __IMPOSSIBLE__ -- Andrea: maybe?
+      IApplyP{}     -> addEtaSplits (k+1) ps t
 
     etaRecordSplits :: Int -> [NamedArg SplitPattern] -> (SplitTag,SplitClause)
                     -> SplitTree -> (SplitTag,SplitTree)
     etaRecordSplits n ps (q , sc) t =
       (q , addEtaSplits 0 (gatherEtaSplits n sc ps) t)
+
+-- | Append a instance clause to the clauses of a function.
+createMissingHCompClause
+  :: QName
+       -- ^ Function name.
+  -> Arg Nat -- ^ index of hcomp pattern
+  -> BlockingVar -- ^ Blocking var that lead to hcomp split.
+  -> SplitClause -- ^ Clause before the hcomp split
+  -> SplitClause
+       -- ^ Clause to add.
+   -> TCM Clause
+createMissingHCompClause f n x old_sc (SClause tel ps sigma' cps (Just t)) = setCurrentRange f $ do
+  reportSDoc "tc.cover.hcomp" 20 $ addContext tel $ text "Trying to create right-hand side of type" <+> prettyTCM t
+  reportSDoc "tc.cover.hcomp" 30 $ addContext tel $ text "ps = " <+> text (show (fromSplitPatterns ps))
+  reportSDoc "tc.cover.hcomp" 30 $ text "tel = " <+> prettyTCM tel
+
+  io      <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinIOne
+  iz      <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinIZero
+
+  let old_ps = patternsToElims $ fromSplitPatterns $ scPats old_sc
+      old_t  = fromJust $ scTarget old_sc
+      old_tel = scTel old_sc
+      -- old_tel = Γ(x:H)Δ
+      -- Γ(x:H)Δ ⊢ old_t
+      -- vs = iApplyVars old_ps
+      -- [ α ⇒ b ] = [(i,f old_ps (i=0),f old_ps (i=1)) | i <- vs]
+      -- Γ(x:H)(δ : Δ) ⊢ [ α ⇒ b ] = [ α0 ⇒ b0 x δ, α1 ⇒ b1 ]
+      -- Γ(x:H)Δ ⊢ f old_ps : old_t [ α ⇒ b ]
+      -- Γ ⊢ d = λ x δ. f old_ps : (x : H) → {Δ → old_t}[ α1 ⇒ b1 ] -- actual Pi/Path type here.
+      -- Γ, α0 ⊢ b0 : (x : H) → {Δ → old_t}[ α1 → b1 ]
+      -- Γ, α0 ⊢ b0 = d
+      -- Γ,φ,u,u0 ⊢ comp (\ i. {Δ → old_t}[ α1 → b1 ](x = hfill φ u u0 i))
+      --                 (\ i.  [ φ  ↦ d (hfill φ u u0 i)    {- = d (u i) -}
+      --                          α0 ↦ b0 (hfill φ u u0 i)
+      --                        ])
+      --                 (d u0)
+      -- Γ ⊢ λ (x : H) (δ : Δ). f old_ps : (δ : Δ) -> old_t|β
+      -- Γ,φ,u,u0 ⊢ rhs_we_define : ({Δ → old_t}[α1 → b1](x = hcomp φ u u0))[ α0 ⇒ b0 (hcomp φ u u0) ]
+
+      -- Extra assumption:
+      -- tel = Γ,φ,u,u0,Δ(x = hcomp φ u u0),Δ'
+      -- ps = old_ps[x = hcomp φ u u0],ps'
+      -- with Δ' and ps' introduced by fixTarget.
+      -- So final clause will be:
+      -- tel ⊢ ps ↦ rhs_we_define{wkS ..} ps'
+      getLevel t = do
+        s <- reduce $ getSort t
+        case s of
+          Type l -> pure (Level l)
+          s      -> do
+            reportSDoc "tc.cover.hcomp" 20 $ text "getLevel, s = " <+> prettyTCM s
+            reportSDoc "tc.cover.hcomp" 40 $ text "getLevel, s = " <+> text (show s)
+            typeError . GenericError . show =<<
+                    (text "The result type is non-fibrant when generating hcomp clause:" <+> prettyTCM t)
+                    -- Andrea TODO better error message.
+      (gamma,hdelta@(ExtendTel hdom _)) = splitTelescopeAt (size old_tel - (blockingVarNo x + 1)) old_tel
+
+      -- Andrea TODO remove repetition, see other iApplyVars impl.
+      iApplyVars :: [NamedArg SplitPattern] -> [Int]
+      iApplyVars ps = flip concatMap (map namedArg ps) $ \case
+                             IApplyP _ t u x -> [splitPatVarIndex x]
+                             VarP{} -> []
+                             ProjP{}-> []
+                             LitP{} -> []
+                             DotP{} -> []
+                             DefP _ _ ps -> iApplyVars ps
+                             ConP _ _ ps -> iApplyVars ps
+
+      vs = iApplyVars (scPats old_sc)
+  alphab_1 <- forM (filter (< size hdelta) vs) $ \ i -> do
+               let
+                 tm = Def f old_ps
+                 (_,rest) = splitTelescopeAt (size hdelta - i) hdelta
+               -- Γ,(x:H).Δ0,(i:I).rest ⊢ tm
+               -- Γ,(x:H).Δ0.rest ⊢ subst i b tm
+               -- Γ,(x:H).Δ0 ⊢ abstract rest $ subst i b tm
+               -- TODO only reduce IApply _ _ (0/1), as to avoid termination problems
+               (l,r) <- reduce (subst i iz tm, subst i io tm)
+               return $ (var i, (abstract rest l, abstract rest r))
+
+  -- Γ ⊢ [ α0 → b0 ] : (x : H) → {Δ → old_t}[ α1 → b1 ]
+  alphab_0 <- forM (filter (> size hdelta) vs) $ \ i -> do
+               let
+                 tm = Def f old_ps
+                 absd = abstract hdelta
+                 j = i - size hdelta
+               -- Γ,(x:H).Δ ⊢ tm
+               -- Γ ⊢ abstract hdelta tm
+               -- TODO only reduce IApply _ _ (0/1), it's to avoid termination problems anyway
+               -- though right now we are just not termination checking this clause.
+               (l,r) <- reduce $ ( inplaceS i iz `applySubst` tm
+                                 , inplaceS i io `applySubst` tm)
+               return (var j, (absd l, absd r))
+
+  -- Γ,(x:H),Δ ⊢ old_t,  Γ ⊢ [α1 → b1] : ..
+  -- Γ ⊢ (x : H) -> {Δ}[α1 → b1]
+  hdelta_type <- telePiPath id hdelta (unArg old_t) alphab_1
+
+  cl <- do
+    (ty,rhs) <- do
+      -- Γ,φ,u,u0 ⊢ comp (\ i. {Δ}[ α1 → b1 ](x = hfill φ u u0 i))
+      --                 (\ i.  [ φ  ↦ d (hfill φ u u0 i)     = d (u i)
+      --                          α0 ↦ b0 (hfill φ u u0 i)
+      --                        ])
+      --                 (d u0)
+      runNamesT [] $ do
+          cxt <- currentCxt
+          tPOr <- fromMaybe __IMPOSSIBLE__ <$> getTerm' "primPOr"
+          tIMax <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinIMax
+          tIMin <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinIMin
+          tINeg <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinINeg
+          tHComp <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinHComp
+          tTrans <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinTrans
+          extra_ps <- open $ patternsToElims $ fromSplitPatterns $ drop (length old_ps) ps
+          let
+            ineg j = pure tINeg <@> j
+            imax i j = pure tIMax <@> i <@> j
+            imin i j = pure tIMin <@> i <@> j
+
+          comp <- do
+            let forward la bA r u = pure tTrans <#> (lam "i" $ \ i -> la <@> (i `imax` r))
+                                              <@> (lam "i" $ \ i -> bA <@> (i `imax` r))
+                                              <@> r
+                                              <@> u
+            return $ \ la bA phi u u0 ->
+              pure tHComp <#> (la <@> pure io) <@> (bA <@> pure io) <@> phi
+                        <@> (lam "i" $ \ i -> ilam "o" $ \ o ->
+                                forward la bA i (u <@> i <..> o))
+                        <@> forward la bA (pure iz) u0
+          let
+            hfill la bA phi u u0 i = pure tHComp <#> la <@> bA
+                                               <@> (pure tIMax <@> phi <@> (pure tINeg <@> i))
+                                               <@> (lam "j" $ \ j -> pure tPOr <#> la <@> phi <@> (pure tINeg <@> i) <#> (ilam "o" $ \ _ -> bA)
+                                                     <@> (ilam "o" $ \ o -> u <@> (pure tIMin <@> i <@> j) <..> o)
+                                                     <@> (ilam "o" $ \ _ -> u0)
+                                                   )
+                                               <@> u0
+          (hdom,alphab_0) <- pure $ raise 3 (hdom,alphab_0)
+          [hdelta_type] <- mapM (open . raise 3) [hdelta_type]
+          -- Γ,φ,u,u0 ⊢
+          [phi,u,u0] <- mapM (open . var) [2,1,0]
+          htype <- open $ unEl . unDom $ hdom
+          lvl <- open =<< (lift . getLevel $ unDom hdom)
+          -- Γ,x,Δ ⊢ f old_ps
+          -- Γ ⊢ abstract hdelta (f old_ps)
+          d <- open $ raise 3 $ abstract hdelta (Def f old_ps)
+          let call v = d <@> v
+          ty <- do
+                return $ \ i -> do
+                    v <- hfill lvl htype phi u u0 i
+                    hd <- hdelta_type
+                    lift $ piApplyM hd [Arg (domInfo hdom) v]
+          let
+            pOr la i j u0 u1 = pure tPOr <#> (lift . getLevel =<< la)        <@> i <@> j
+                                         <#> (ilam "o" $ \ _ -> unEl <$> la) <@> u0 <@> u1
+          -- Γ,φ,u,u0 ⊢ α0 : 𝔽
+          alpha0 <- do
+             vars <- mapM (open . fst) alphab_0
+             return $ foldr imax (pure iz) $ map (\ v -> v `imax` ineg v) vars
+
+          -- Γ,φ,u,u0 ⊢ b0 : (i : I) → [α0] -> {Δ → old_t}[ α1 → b1 ](x = hfill φ u u0 i)
+          b0 <- do
+             sides <- forM alphab_0 $ \ (psi,(t,u)) -> do
+                [psi,t,u] <- mapM open [psi,t,u]
+                return $ (ineg psi `imax` psi, \ i -> pOr (ty i) (ineg psi) psi (ilam "o" $ \ _ -> t <@> hfill lvl htype phi u u0 i)
+                                                            (ilam "o" $ \ _ -> u <@> hfill lvl htype phi u u0 i))
+             let recurse []           i = __IMPOSSIBLE__
+                 recurse [(psi,u)]    i = u i
+                 recurse ((psi,u):xs) i = pOr (ty i) psi (foldr imax (pure iz) (map fst xs)) (u i) (recurse xs i)
+             return $ recurse sides
+
+          -- need to use comp and use a fill in the type
+          -- Γ,φ,u,u0 ⊢ comp (\ i. {Δ}[ α1 → b1 ](x = hfill φ u u0 i))
+          --                 (\ i.  [ φ  ↦ d (hfill φ u u0 i)     = d (u i)
+          --                          α0 ↦ b0 (hfill φ u u0 i)
+          --                        ])
+          --                 (d u0)
+          ((,) <$> ty (pure io) <*>) $ do
+            comp (lam "i" $ \ i -> lift . getLevel =<< ty i)
+               (lam "i" $ \ i -> unEl <$> ty i)
+                           (phi `imax` alpha0)
+                           (lam "i" $ \ i ->
+                               let rhs = (ilam "o" $ \ o -> call (u <@> i <..> o))
+                               in if null alphab_0 then rhs else
+                                   pOr (ty i) phi alpha0 rhs (b0 i)
+                           )
+                           (call u0)
+    let n = size tel - (size gamma + 3)
+    (TelV deltaEx t,bs) <- telViewUpToPathBoundary' n ty
+    rhs <- pure $ raise n rhs `applyE` teleElims deltaEx bs
+
+    cxt <- getContextTelescope
+    reportSDoc "tc.cover.hcomp" 30 $ text "cxt = " <+> prettyTCM cxt
+    reportSDoc "tc.cover.hcomp" 20 $ addContext tel $ text "rhs = " <+> prettyTCM rhs
+
+    return $ Clause { clauseLHSRange  = noRange
+                    , clauseFullRange = noRange
+                    , clauseTel       = tel
+                    , namedClausePats = fromSplitPatterns ps
+                    , clauseBody      = Just $ rhs
+                    , clauseType      = Just $ defaultArg t
+                    , clauseCatchall  = False
+                    , clauseUnreachable = Just False  -- missing, thus, not unreachable
+                    }
+  addClauses f [cl]  -- Important: add at the end.
+  return cl
+createMissingHCompClause _ _ _ _ (SClause _ _ _ _ Nothing) = __IMPOSSIBLE__
+
+
 
 -- | Append a instance clause to the clauses of a function.
 inferMissingClause
@@ -458,14 +683,20 @@ splitStrategy bs tel = return $ updateLast setBlockingVarOverlap xs
 -- the data type must be inductive.
 isDatatype :: (MonadTCM tcm, MonadError SplitError tcm) =>
               Induction -> Dom Type ->
-              tcm (DataOrRecord, QName, [Arg Term], [Arg Term], [QName])
+              tcm (DataOrRecord, QName, [Arg Term], [Arg Term], [QName], Bool)
 isDatatype ind at = do
   let t       = unDom at
       throw f = throwError . f =<< do liftTCM $ buildClosure t
   t' <- liftTCM $ reduce t
   mInterval <- liftTCM $ getBuiltinName' builtinInterval
+  mIsOne <- liftTCM $ getBuiltinName' builtinIsOne
   case unEl t' of
     Def d [] | Just d == mInterval -> throw NotADatatype
+    Def d [Apply phi] | Just d == mIsOne -> do
+                xs <- liftTCM $ decomposeInterval =<< reduce (unArg phi)
+                if null xs
+                   then return $ (IsData, d, [phi], [], [], False)
+                   else throw NotADatatype
     Def d es -> do
       let ~(Just args) = allApplyElims es
       def <- liftTCM $ theDef <$> getConstInfo d
@@ -475,12 +706,12 @@ isDatatype ind at = do
               throw CoinductiveDatatype
           | otherwise -> do
               let (ps, is) = splitAt np args
-              return (IsData, d, ps, is, cs)
+              return (IsData, d, ps, is, cs, not $ null (dataPathCons def))
         Record{recPars = np, recConHead = con, recInduction = i}
           | i == Just CoInductive && ind /= CoInductive ->
               throw CoinductiveDatatype
           | otherwise ->
-              return (IsRecord, d, args, [], [conName con])
+              return (IsRecord, d, args, [], [conName con], False)
         _ -> throw NotADatatype
     _ -> throw NotADatatype
 
@@ -554,6 +785,69 @@ hiddenInserted ai
   | visible ai = setOrigin UserWritten ai
   | otherwise  = setOrigin Inserted ai
 
+computeHCompSplit  :: Telescope   -- ^ Telescope before split point.
+  -> PatVarName                   -- ^ Name of pattern variable at split point.
+  -> Telescope                    -- ^ Telescope after split point.
+  -> QName                        -- ^ Name of datatype to split at.
+  -> Args                         -- ^ Data type parameters.
+  -> Args                         -- ^ Data type indices.
+  -> Nat                          -- ^ Index of split variable.
+  -> Telescope                    -- ^ Telescope for the patterns.
+  -> [NamedArg SplitPattern]      -- ^ Patterns before doing the split.
+  -> Map CheckpointId Substitution -- ^ Current checkpoints
+  -- -> QName                        -- ^ Constructor to fit into hole.
+  -> CoverM (Maybe (SplitTag,SplitClause))   -- ^ New split clause if successful.
+computeHCompSplit delta1 n delta2 d pars ixs hix tel ps cps = do
+    -- Get the type of the datatype
+  -- Δ1 ⊢ dtype
+  dsort <- liftTCM $ (parallelS (reverse $ map unArg pars) `applySubst`) . dataSort . theDef <$> getConstInfo d
+  hCompName <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveName' builtinHComp
+  theHCompT <- defType <$> getConstInfo hCompName
+  let
+    dlvl = Level . (\ (Type s) -> s) $ dsort
+    dterm = Def d [] `apply` (pars ++ ixs)
+  -- Δ1 ⊢ gamma
+  TelV gamma _ <- lift $ telView (theHCompT `piApply` [setHiding Hidden $ defaultArg $ dlvl , defaultArg $ dterm])
+  case (delta1 `abstract` gamma,IdS) of
+    (delta1',rho0) -> do
+--      debugSubst "rho0" rho0
+
+      -- We have Δ₁' ⊢ ρ₀ : Δ₁Γ, so split it into the part for Δ₁ and the part for Γ
+      let (rho1,rho2) = splitS (size gamma) $ toSplitPSubst rho0
+
+      -- Andreas, 2015-05-01  I guess it is fine to use no @conPType@
+      -- as the result of splitting is never used further down the pipeline.
+      -- After splitting, Agda reloads the file.
+      -- Andreas, 2017-09-03, issue #2729: remember that pattern was generated by case split.
+      let
+          -- cpi  = noConPatternInfo{ conPRecord = Just PatOSplit }
+          -- conp = ConP con cpi $ applySubst rho2 $
+          --          map (mapArgInfo hiddenInserted) $ tele2NamedArgs gamma0 gamma
+          -- -- Andreas, 2016-09-08, issue #2166: use gamma0 for correct argument names
+          defp = DefP PatOSystem hCompName $
+                   map (fmap unnamed) [setHiding Hidden $ defaultArg $ applySubst rho1 $ DotP PatOSystem $ dlvl
+                                      ,                   defaultArg $ applySubst rho1 $ DotP PatOSystem $ dterm]
+                   ++ applySubst rho2 (teleNamedArgs gamma) -- rho0?
+      -- Compute final context and substitution
+      let rho3    = consS defp rho1            -- Δ₁' ⊢ ρ₃ : Δ₁(x:D)
+          delta2' = applySplitPSubst rho3 delta2  -- Δ₂' = Δ₂ρ₃
+          delta'  = delta1' `abstract` delta2' -- Δ'  = Δ₁'Δ₂'
+          rho     = liftS (size delta2) rho3   -- Δ' ⊢ ρ : Δ₁(x:D)Δ₂
+
+      -- debugTel "delta'" delta'
+      -- debugSubst "rho" rho
+      -- debugPs tel ps
+
+      -- Apply the substitution
+      let ps' = applySubst rho ps
+      -- debugPlugged delta' ps'
+
+      let cps' = applySplitPSubst rho cps
+
+      return $ Just . (SplitCon hCompName,) $ SClause delta' ps' rho cps' Nothing -- target fixed later
+
+
+
 -- | @computeNeighbourhood delta1 delta2 d pars ixs hix tel ps con@
 --
 --   @
@@ -597,11 +891,11 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps cps c = do
   ctype <- liftTCM $ defType <$> getConInfo con
 
   -- Lookup the type of the constructor at the given parameters
-  (gamma0, cixs) <- do
-    TelV gamma0 (El _ d) <- liftTCM $ telView (ctype `piApply` pars)
+  (gamma0, cixs, boundary) <- do
+    (TelV gamma0 (El _ d), boundary) <- liftTCM $ telViewPathBoundaryP (ctype `piApply` pars)
     let Def _ es = d
         Just cixs = allApplyElims es
-    return (gamma0, cixs)
+    return (gamma0, cixs, boundary)
 
   -- Andreas, 2012-02-25 preserve name suggestion for recursive arguments
   -- of constructor
@@ -637,16 +931,18 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps cps c = do
     Unifies (delta1',rho0,_) -> do
       debugSubst "rho0" rho0
 
+      let rho0' = toSplitPSubst rho0
+
       -- We have Δ₁' ⊢ ρ₀ : Δ₁Γ, so split it into the part for Δ₁ and the part for Γ
-      let (rho1,rho2) = splitS (size gamma) $ toSplitPSubst rho0
+      let (rho1,rho2) = splitS (size gamma) $ rho0'
 
       -- Andreas, 2015-05-01  I guess it is fine to use no @conPType@
       -- as the result of splitting is never used further down the pipeline.
       -- After splitting, Agda reloads the file.
       -- Andreas, 2017-09-03, issue #2729: remember that pattern was generated by case split.
       let cpi  = noConPatternInfo{ conPRecord = Just PatOSplit }
-          conp = ConP con cpi $ applySubst rho2 $
-                   map (mapArgInfo hiddenInserted) $ tele2NamedArgs gamma0 gamma
+          conp = ConP con cpi $ applySubst rho0' $
+                   map (mapArgInfo hiddenInserted) $ telePatterns' (tele2NamedArgs gamma0) gamma boundary
           -- Andreas, 2016-09-08, issue #2166: use gamma0 for correct argument names
 
       -- Compute final context and substitution
@@ -709,10 +1005,14 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps cps c = do
           [ "ps     =" <+> prettyTCMPatternList (fromSplitPatterns ps)
           ]
 
-    debugPlugged delta' ps' =
+    debugPlugged delta' ps' = do
       liftTCM $ reportSDoc "tc.cover.split.con" 20 $
         inTopContext $ addContext delta' $ nest 2 $ vcat
           [ "ps'    =" <+> do prettyTCMPatternList $ fromSplitPatterns ps'
+          ]
+      liftTCM $ reportSDoc "tc.cover.split.con" 60 $
+        inTopContext $ addContext delta' $ nest 2 $ vcat
+          [ text "ps'    =" <+> text (show $ fromSplitPatterns ps')
           ]
 
 -- | Introduce trailing pattern variables via 'fixTarget'?
@@ -821,10 +1121,12 @@ split' ind allowPartialCover fixtarget sc@(SClause tel ps _ cps target) (Blockin
         -- Check that t is a datatype or a record
         -- Andreas, 2010-09-21, isDatatype now directly throws an exception if it fails
         -- cons = constructors of this datatype
-        (dr, d, pars, ixs, cons) <- inContextOfT $ isDatatype ind t
+        (dr, d, pars, ixs, cons, isHIT) <- inContextOfT $ isDatatype ind t
         mns <- forM cons $ \ con -> fmap (SplitCon con,) <$>
           computeNeighbourhood delta1 n delta2 d pars ixs x tel ps cps con
-        return (dr , catMaybes mns)
+        hcompsc <- if isHIT then case fixtarget of YesFixTarget -> computeHCompSplit delta1 n delta2 d pars ixs x tel ps cps; _ -> return Nothing
+                            else return Nothing
+        return $ (dr, catMaybes (mns ++ [hcompsc]))
 
       computeLitNeighborhoods = do
         typeOk <- liftTCM $ do

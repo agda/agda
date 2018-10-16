@@ -300,6 +300,10 @@ literalsNotImplemented :: MB.TCM a
 literalsNotImplemented = MB.typeError $ MB.NotImplemented $
   "The Agda synthesizer (Agsy) does not support literals yet"
 
+hitsNotImplemented :: MB.TCM a
+hitsNotImplemented = MB.typeError $ MB.NotImplemented $
+  "The Agda synthesizer (Agsy) does not support HITs yet"
+
 class Conversion m a b where
   convert :: a -> m b
 
@@ -324,6 +328,7 @@ instance Conversion TOM I.Clause (Maybe ([Pat O], MExp O)) where
 
 instance Conversion TOM (Cm.Arg I.Pattern) (Pat O) where
   convert p = case Cm.unArg p of
+    I.IApplyP _ _ _ n  -> return $ PatVar (show n)
     I.VarP _ n  -> return $ PatVar (show n)
     I.DotP _ _  -> return $ PatVar "_"
       -- because Agda includes these when referring to variables in the body
@@ -339,6 +344,7 @@ instance Conversion TOM (Cm.Arg I.Pattern) (Pat O) where
     -- UNSUPPORTED CASES
     I.ProjP{}   -> lift copatternsNotImplemented
     I.LitP _    -> lift literalsNotImplemented
+    I.DefP{}    -> lift hitsNotImplemented
 
 instance Conversion TOM I.Type (MExp O) where
   convert (I.El _ t) = convert t -- sort info is thrown away
@@ -575,6 +581,7 @@ constructPats cmap mainm clause = do
       let hid = getHiding $ Cm.argInfo p
       in case Cm.namedArg p of
        I.VarP _ n -> return ((hid, Id n) : ns, HI hid (CSPatVar $ length ns))
+       I.IApplyP _ _ _ n -> return ((hid, Id n) : ns, HI hid (CSPatVar $ length ns))
        I.ConP con _ ps -> do
         let c = I.conName con
         (c2, _) <- runStateT (getConst True c TMAll) (S {sConsts = (cmap, []), sMetas = initMapS, sEqs = initMapS, sCurMeta = Nothing, sMainMeta = mainm})
@@ -587,6 +594,8 @@ constructPats cmap mainm clause = do
         return (ns, HI hid (CSPatExp t2))
        I.ProjP{} -> copatternsNotImplemented
        I.LitP{} -> literalsNotImplemented
+       I.DefP{} -> hitsNotImplemented
+
  (names, pats) <- cnvps [] (IP.unnumberPatVars $ I.namedClausePats clause)
  return (reverse names, pats)
 
