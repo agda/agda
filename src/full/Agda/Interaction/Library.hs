@@ -79,21 +79,14 @@ data VersionView = VersionView
   } deriving (Eq, Show)
 
 
-data LibCtxt (b :: Bool) a where
-  NoCtxt :: a-> LibCtxt 'False a
-  WithCtxt :: { libFileCtxt :: Maybe FilePath
-              , lineNumCtxt :: LineNumber
-              , fileCtxt    :: FilePath
-              , inCtxt_ :: a } -> LibCtxt b a
+data LibCtxt = LibCtxt
+  { libFileCtxt :: Maybe FilePath
+  , lineNumCtxt :: LineNumber
+  , fileCtxt    :: FilePath
+  }
 
-inCtxt :: LibCtxt b a -> a
-inCtxt (NoCtxt a) = a
-inCtxt (WithCtxt _ _ _ a) = a
-
-deriving instance Functor (LibCtxt b)
-
-type LibWarning = LibCtxt 'True [LibWarning']
-type LibError = LibCtxt 'False LibError'
+type LibWarning = (LibCtxt, [LibWarning'])
+type LibError = (Maybe LibCtxt, LibError')
 
 -- | Collected errors while processing library files.
 --
@@ -117,6 +110,9 @@ type LibM = ExceptT Doc (WriterT [LibWarning] IO)
 
 raiseWarnings :: MonadWriter [Either LibError LibWarning] m => [LibWarning] -> m ()
 raiseWarnings = tell . map Right
+
+raiseErrors' :: MonadWriter [Either LibError LibWarning] m => [LibError'] -> m ()
+raiseErrors' = tell . map (Left . (Nothing,))
 
 raiseErrors :: MonadWriter [Either LibError LibWarning] m => [LibError] -> m ()
 raiseErrors = tell . map Left
@@ -219,7 +215,7 @@ readDefaultsFile = do
       ls <- lift $ map snd . stripCommentLines <$> readFile file
       return $ concatMap splitCommas ls
   `catchIO` \ e -> do
-    raiseErrors [ NoCtxt $ OtherError $ unlines ["Failed to read defaults file.", show e] ]
+    raiseErrors' [ OtherError $ unlines ["Failed to read defaults file.", show e] ]
     return []
 
 ------------------------------------------------------------------------
@@ -257,7 +253,7 @@ getInstalledLibraries overrideLibFile = mkLibM [] $ do
       files <- lift $ sequence [ (i, ) <$> expandEnvironmentVariables s | (i, s) <- ls ]
       parseLibFiles (Just file) $ List.nubBy ((==) `on` snd) files
   `catchIO` \ e -> do
-    raiseErrors [ NoCtxt $ OtherError $ unlines ["Failed to read installed libraries.", show e] ]
+    raiseErrors' [ OtherError $ unlines ["Failed to read installed libraries.", show e] ]
     return []
 
 -- | Parse the given library files.
@@ -269,10 +265,9 @@ parseLibFiles
 parseLibFiles mlibFile files = do
   rs' <- lift $ mapM (parseLibFile . snd) files
   let ann :: (LineNumber, FilePath) ->
-             (Either e a, [LibWarning']) -> (Either (LibCtxt b e) a, LibWarning)
-      ann p = first (uncurry f p) *** uncurry g p
-        where f :: (LineNumber, FilePath) -> a -> LibCtxt b a
-              f = WithCtxt (lfPath <$> mlibFile)
+             (Either e a, [LibWarning']) -> (Either (Maybe LibCtxt, e) a, LibWarning)
+      ann p = first (uncurry (f Just) p) *** uncurry (f id) p
+        where f c = \ ln fp -> (c (LibCtxt (lfPath <$> mlibFile) ln fp),)
   let (xs, warns) = unzip $ zipWith ann files (map runP rs')
       (errs, als) = partitionEithers xs
 
@@ -291,10 +286,10 @@ stripCommentLines = concatMap strip . zip [1..] . lines
 
 -- | Pretty-print 'LibError'.
 formatLibError :: [AgdaLibFile] -> LibError -> Doc
-formatLibError installed le = prefix <+> body where
-  prefix = text $ case le of
-    NoCtxt{}     -> ""
-    WithCtxt{..} | OtherError err <- inCtxt_ ->
+formatLibError installed (c, e) = prefix <+> body where
+  prefix = text $ case c of
+    Nothing     -> ""
+    Just (LibCtxt libFileCtxt lineNumCtxt fileCtxt) | OtherError err <- e ->
       let loc | Just lf <- libFileCtxt = lf ++ ":" ++ show lineNumCtxt ++ ": "
               | otherwise = ""
       in if List.isPrefixOf "Failed to read" err
@@ -302,7 +297,7 @@ formatLibError installed le = prefix <+> body where
          else fileCtxt ++ ":" ++ (if all isDigit (take 1 err) then "" else " ")
     _ -> ""
 
-  body = case inCtxt le of
+  body = case e of
     LibNotFound file lib -> vcat $
       [ text $ "Library '" ++ lib ++ "' not found."
       , sep [ "Add the path to its .agda-lib file to"
@@ -353,8 +348,8 @@ libraryIncludePaths overrideLibFile libs xs0 = mkLibM libs $ WriterT $ do
       | otherwise =
           case findLib x libs of
             [l] -> (l :) <$> find file (x : visited) (libDepends l ++ xs)
-            []  -> raiseErrors [NoCtxt $ LibNotFound file x] >> find file (x : visited) xs
-            ls  -> raiseErrors [NoCtxt $ AmbiguousLib x ls]  >> find file (x : visited) xs
+            []  -> raiseErrors' [LibNotFound file x] >> find file (x : visited) xs
+            ls  -> raiseErrors' [AmbiguousLib x ls]  >> find file (x : visited) xs
 
 -- | @findLib x libs@ retrieves the matches for @x@ from list @libs@.
 --
