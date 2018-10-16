@@ -263,6 +263,39 @@ instance PartialOrd Modality where
 instance POSemigroup Modality where
 instance POMonoid Modality where
 
+instance LeftClosedPOMonoid Modality where
+  inverseCompose = inverseComposeModality
+
+-- | @m `moreUsableModality` m'@ means that an @m@ can be used
+--   where ever an @m'@ is required.
+
+moreUsableModality :: Modality -> Modality -> Bool
+moreUsableModality m m' = related m POLE m'
+
+usableModality :: LensModality a => a -> Bool
+usableModality a = usableRelevance m && usableQuantity m
+  where m = getModality a
+
+composeModality :: Modality -> Modality -> Modality
+composeModality = (<>)
+
+-- | Compose with modality flag from the left.
+--   This function is e.g. used to update the modality information
+--   on pattern variables @a@ after a match against something of modality @q@.
+applyModality :: LensModality a => Modality -> a -> a
+applyModality m = mapModality (m `composeModality`)
+
+-- | @inverseComposeModality r x@ returns the least modality @y@
+--   such that forall @x@, @y@ we have
+--   @x \`moreModality\` (r \`composeModality\` y)@
+--   iff
+--   @(r \`inverseComposeModality\` x) \`moreModality\` y@ (Galois connection).
+inverseComposeModality :: Modality -> Modality -> Modality
+inverseComposeModality (Modality r q) (Modality r' q') =
+  Modality (r `inverseComposeRelevance` r')
+           (q `inverseComposeQuantity`  q')
+
+
 -- boilerplate instances
 
 instance KillRange Modality where
@@ -377,6 +410,48 @@ instance PartialOrd Quantity where
 
 instance POSemigroup Quantity where
 instance POMonoid Quantity where
+
+instance LeftClosedPOMonoid Quantity where
+  inverseCompose = inverseComposeQuantity
+
+-- | @m `moreUsableQuantity` m'@ means that an @m@ can be used
+--   where ever an @m'@ is required.
+
+moreQuantity :: Quantity -> Quantity -> Bool
+moreQuantity m m' = related m POLE m'
+
+-- | A thing of quantity 0 is unusable, all others are usable.
+
+usableQuantity :: LensQuantity a => a -> Bool
+usableQuantity a = getQuantity a /= Quantity0
+
+composeQuantity :: Quantity -> Quantity -> Quantity
+composeQuantity = (<>)
+
+-- | Compose with quantity flag from the left.
+--   This function is e.g. used to update the quantity information
+--   on pattern variables @a@ after a match against something of quantity @q@.
+applyQuantity :: LensQuantity a => Quantity -> a -> a
+applyQuantity q = mapQuantity (q `composeQuantity`)
+
+-- | @inverseComposeQuantity r x@ returns the least quantity @y@
+--   such that forall @x@, @y@ we have
+--   @x \`moreQuantity\` (r \`composeQuantity\` y)@
+--   iff
+--   @(r \`inverseComposeQuantity\` x) \`moreQuantity\` y@ (Galois connection).
+inverseComposeQuantity :: Quantity -> Quantity -> Quantity
+inverseComposeQuantity q x =
+  case (q, x) of
+    (Quantity1 , x)          -> x          -- going to linear arg: nothing changes
+    (Quantity0 , x)          -> Quantityω  -- going to erased arg: every thing usable
+    (Quantityω , Quantityω)  -> Quantityω
+    (Quantityω , _)          -> Quantity0  -- linear resources are unusable as arguments to unrestricted functions
+
+-- | Left division by a 'Quantity'.
+--   Used e.g. to modify context when going into a @rel@ argument.
+inverseApplyQuantity :: LensQuantity a => Quantity -> a -> a
+inverseApplyQuantity q = mapQuantity (q `inverseComposeQuantity`)
+
 
 -- boilerplate instances
 

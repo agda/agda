@@ -66,6 +66,16 @@ prop_monoid_Quantity = isMonoid
 prop_monotone_comp_Quantity :: Property4 Quantity
 prop_monotone_comp_Quantity = isMonotoneComposition
 
+-- -- | Quantities ω=ℕ, 1={1}, 0={0}  do not form a Galois connection.
+--
+-- Counterexample 1:  ω \ 1 ≤ 0  is true, but  1 ≤ ω · 0  is false
+--   since {1} and {0} are not related.
+--
+-- Counterexample 2:  0 \ 1 ≤ ω  is true, but  1 ≤ 0 · ω  is false
+--
+-- prop_Galois_Quantity :: Prop3 Quantity
+-- prop_Galois_Quantity = isGaloisConnection
+
 -- Relevance is a LeftClosedPOMonoid
 
 prop_monoid_Relevance :: Property3 Relevance
@@ -83,6 +93,17 @@ prop_left_identity_invcomp_Relevance x = Relevant `inverseComposeRelevance` x ==
 prop_right_absorptive_invcomp_Relevance :: Relevance -> Bool
 prop_right_absorptive_invcomp_Relevance x = x `inverseComposeRelevance` Relevant == Relevant
 
+-- Modality is a POMonoid
+
+prop_monoid_Modality :: Property3 Modality
+prop_monoid_Modality = isMonoid
+
+prop_monotone_comp_Modality :: Property4 Modality
+prop_monotone_comp_Modality = isMonotoneComposition
+
+-- -- | The following does not hold, see prop_Galois_Quanity.
+-- prop_Galois_Modality :: Prop3 Modality
+-- prop_Galois_Modality = isGaloisConnection
 
 -- ASR (2017-01-23): Commented out because 'Hiding' is *partial*
 -- monoid.
