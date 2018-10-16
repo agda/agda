@@ -8,5 +8,5 @@
 (agda2-info-action "*Auto*" "" nil)
 ((last . 1) . (agda2-goals-action '(0 1)))
 (agda2-status-action "")
-(agda2-info-action "*Auto*" "No solution found after timeout (1s)" nil)
+(agda2-info-action "*Auto*" "No solution found after timeout (1000ms)" nil)
 ((last . 1) . (agda2-goals-action '(0 1)))

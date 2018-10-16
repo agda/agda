@@ -105,12 +105,14 @@ stopWithMsg msg = return $ AutoResult (Solutions []) (Just msg)
 --   If the @autoMessage@ part of the result is set to @Just msg@, the
 --   message @msg@ produced by Agsy should be displayed to the user.
 
+{-# SPECIALIZE auto :: InteractionId -> Range -> String -> TCM AutoResult #-}
 auto
-  :: InteractionId
+  :: MonadTCM tcm
+  => InteractionId
   -> Range
   -> String
-  -> TCM AutoResult
-auto ii rng argstr = do
+  -> tcm AutoResult
+auto ii rng argstr = liftTCM $ do
 
   -- Parse hints and other configuration.
   let autoOptions = parseArgs argstr
@@ -176,7 +178,7 @@ auto ii rng argstr = do
         ticks <- liftIO $ newIORef 0
 
         let exsearch initprop recinfo defdfv =
-             liftIO $ System.Timeout.timeout (getTimeOut timeout * 1000000)
+             liftIO $ System.Timeout.timeout (getTimeOut timeout * 1000)
                     $ loop 0
              where
                loop d = do
@@ -275,7 +277,7 @@ auto ii rng argstr = do
                  ) eqcons
           res <- exsearch initprop recinfo defdfv
           riis <- map swap <$> getInteractionIdsAndMetas
-          let timeoutString | isNothing res = " after timeout (" ++ show timeout ++ "s)"
+          let timeoutString | isNothing res = " after timeout (" ++ show timeout ++ "ms)"
                             | otherwise     = ""
           if listmode then do
             rsols <- liftM reverse $ liftIO $ readIORef sols
@@ -364,7 +366,7 @@ auto ii rng argstr = do
           let [rectyp'] = mymrectyp
           defdfv <- getdfv mi def
           myrecdef <- liftIO $ newIORef $ ConstDef {cdname = "", cdorigin = (Nothing, def), cdtype = rectyp', cdcont = Postulate, cddeffreevars = defdfv}
-          sols <- liftIO $ System.Timeout.timeout (getTimeOut timeout * 1000000) (
+          sols <- liftIO $ System.Timeout.timeout (getTimeOut timeout * 1000) (
              let r d = do
                   sols <- liftIO $ caseSplitSearch ticks __IMPOSSIBLE__ myhints meqr __IMPOSSIBLE__ d myrecdef ctx mytype pats
                   case sols of

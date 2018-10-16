@@ -12,7 +12,7 @@ top_command cmd_metas
 goal_command 0 cmd_make_case "n"
 goal_command 0 (cmd_refine_or_intro False) "Just"
 goal_command 7 (cmd_refine_or_intro False) ""
-goal_command 4 cmd_auto ""
+goal_command 4 cmd_autoOne ""
 goal_command 3 (cmd_infer Instantiated) "D"
 goal_command 7 (cmd_context Normalised) ""
 goal_command 7 (cmd_goal_type Normalised) ""
