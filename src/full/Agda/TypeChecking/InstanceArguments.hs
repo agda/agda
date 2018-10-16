@@ -385,7 +385,7 @@ areThereNonRigidMetaArguments t = case t of
 --   same as the one obtained after running the corresponding computation. In
 --   all the other cases, the state is reseted.
 filterResetingState :: MetaId -> [Candidate] -> (Candidate -> TCM YesNoMaybe) -> TCM [Candidate]
-filterResetingState m cands f = disableDestructiveUpdate $ do
+filterResetingState m cands f = do
   ctxArgs  <- getContextArgs
   let ctxElims = map Apply ctxArgs
       tryC c = do
@@ -458,7 +458,7 @@ isNo _  = False
 -- | Given a meta @m@ of type @t@ and a list of candidates @cands@,
 -- @checkCandidates m t cands@ returns a refined list of valid candidates.
 checkCandidates :: MetaId -> Type -> [Candidate] -> TCM (Maybe [Candidate])
-checkCandidates m t cands = disableDestructiveUpdate $
+checkCandidates m t cands =
   verboseBracket "tc.instance.candidates" 20 ("checkCandidates " ++ prettyShow m) $
   ifM (anyMetaTypes cands) (return Nothing) $
   holdConstraints (\ _ -> isIFSConstraint . clValue . theConstraint) $ Just <$> do

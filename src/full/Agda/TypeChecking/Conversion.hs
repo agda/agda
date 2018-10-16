@@ -71,7 +71,7 @@ tryConversion = isJust <.> tryConversion'
 --   Return 'Just' the result upon success.
 --   Return 'Nothing' and restore state upon failure.
 tryConversion' :: TCM a -> TCM (Maybe a)
-tryConversion' m = tryMaybe $ disableDestructiveUpdate $ noConstraints m
+tryConversion' m = tryMaybe $ noConstraints m
 
 -- | Check if to lists of arguments are the same (and all variables).
 --   Precondition: the lists have the same length.

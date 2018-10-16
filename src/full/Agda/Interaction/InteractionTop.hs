@@ -285,7 +285,7 @@ handleCommand wrap onFail cmd = handleNastyErrors $ wrap $ do
     catchErr :: CommandM a -> (TCErr -> CommandM a) -> CommandM a
     catchErr m h = do
       s       <- get
-      (x, s') <- lift $ do disableDestructiveUpdate (runStateT m s)
+      (x, s') <- lift $ do runStateT m s
          `catchError_` \ e ->
            runStateT (h e) s
       put s'
