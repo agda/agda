@@ -4,13 +4,13 @@ Release notes for Agda version 2.5.4.2
 Installation and infrastructure
 -------------------------------
 
-* Added support for GHC 8.4.4.
-
 * Fixed installation with some old versions of `cabal-install`
   [Issue [#3225](https://github.com/agda/agda/issues/3225)].
 
 * Using `cpp` instead of `cpphs` as the default preprocessor
   [Issue [#3223](https://github.com/agda/agda/issues/3223)].
+
+* Added support for GHC 8.4.4.
 
 Other closed issues
 --------------------
