@@ -124,7 +124,7 @@ addClauses q cls = do
 mkPragma :: String -> TCM CompilerPragma
 mkPragma s = CompilerPragma <$> getCurrentRange <*> pure s
 
--- | Add a compiler pragma `{-# COMPILE <backend> <name> <text> #-}`
+-- | Add a compiler pragma `{-\# COMPILE <backend> <name> <text> \#-}`
 addPragma :: BackendName -> QName -> String -> TCM ()
 addPragma b q s = modifySignature . updateDefinition q . addCompilerPragma b =<< mkPragma s
 

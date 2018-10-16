@@ -191,6 +191,8 @@ Installation and infrastructure
 * Using `cpp` instead of `cpphs` as the default preprocessor
   [Issue [#3223](https://github.com/agda/agda/issues/3223)].
 
+* Added support for GHC 8.4.4.
+
 Other closed issues
 --------------------
 

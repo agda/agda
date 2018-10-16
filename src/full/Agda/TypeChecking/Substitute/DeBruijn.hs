@@ -52,3 +52,7 @@ instance DeBruijn Level where
       Max [p] -> deBruijnView p
       _ -> Nothing
 
+instance DeBruijn DBPatVar where
+  debruijnNamedVar = DBPatVar
+  deBruijnView = Just . dbPatVarIndex
+

@@ -601,7 +601,7 @@ computeOccurrences' q = inConcreteOrAbstractMode q $ \ def -> do
       -- Then, we compute the occurrences in the constructor types.
       let conOcc c = do
             a <- defType <$> getConstInfo c
-            TelV tel t <- telView' <$> normalise a -- normalization needed e.g. for test/succeed/Bush.agda
+            TelV tel t <- telView'Path =<< normalise a -- normalization needed e.g. for test/succeed/Bush.agda
             let indices = case unEl t of
                             Def _ vs -> drop np vs
                             _        -> __IMPOSSIBLE__

@@ -187,6 +187,10 @@ instance EmbPrj MutualId where
   icod_ (MutId a) = icode a
   value n         = MutId `fmap` value n
 
+instance EmbPrj CompKit where
+  icod_ (CompKit a b c) = icodeN' CompKit a b c
+  value = valueN CompKit
+
 instance EmbPrj Definition where
   icod_ (Defn a b c d e f g h i j k l m n o) = icodeN' Defn a b (P.killRange c) d e f g h i j k l m n o
 
@@ -298,7 +302,7 @@ instance EmbPrj Defn where
   icod_ Axiom                                   = icodeN 0 Axiom
   icod_ (Function    a b t c d e f g h i j k m) =
     icodeN 1 (\ a b -> Function a b t) a b c d e f g h i j k m
-  icod_ (Datatype    a b c d e f g h)           = icodeN 2 Datatype a b c d e f g h
+  icod_ (Datatype    a b c d e f g h i)         = icodeN 2 Datatype a b c d e f g h i
   icod_ (Record      a b c d e f g h i j k)     = icodeN 3 Record a b c d e f g h i j k
   icod_ (Constructor a b c d e f g h i)         = icodeN 4 Constructor a b c d e f g h i
   icod_ (Primitive   a b c d e)                 = icodeN 5 Primitive a b c d e
@@ -308,7 +312,7 @@ instance EmbPrj Defn where
   value = vcase valu where
     valu [0]                                     = valuN Axiom
     valu [1, a, b, c, d, e, f, g, h, i, j, k, m] = valuN (\ a b -> Function a b Nothing) a b c d e f g h i j k m
-    valu [2, a, b, c, d, e, f, g, h]             = valuN Datatype a b c d e f g h
+    valu [2, a, b, c, d, e, f, g, h, i]          = valuN Datatype a b c d e f g h i
     valu [3, a, b, c, d, e, f, g, h, i, j, k]    = valuN Record  a b c d e f g h i j k
     valu [4, a, b, c, d, e, f, g, h, i]          = valuN Constructor a b c d e f g h i
     valu [5, a, b, c, d, e]                      = valuN Primitive   a b c d e
@@ -415,6 +419,8 @@ instance EmbPrj a => EmbPrj (I.Pattern' a) where
   icod_ (LitP a    ) = icodeN 2 LitP a
   icod_ (DotP a b  ) = icodeN 3 DotP a b
   icod_ (ProjP a b ) = icodeN 4 ProjP a b
+  icod_ (IApplyP a b c d) = icodeN 5 IApplyP a b c d
+  icod_ (DefP a b c) = icodeN 6 DefP a b c
 
   value = vcase valu where
     valu [0, a, b] = valuN VarP a b
@@ -422,6 +428,8 @@ instance EmbPrj a => EmbPrj (I.Pattern' a) where
     valu [2, a]    = valuN LitP a
     valu [3, a, b] = valuN DotP a b
     valu [4, a, b] = valuN ProjP a b
+    valu [5, a, b, c, d] = valuN IApplyP a b c d
+    valu [6, a, b, c] = valuN DefP a b c
     valu _         = malformed
 
 instance EmbPrj a => EmbPrj (Builtin a) where

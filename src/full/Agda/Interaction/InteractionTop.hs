@@ -99,6 +99,7 @@ import Agda.Utils.Null
 import Agda.Utils.Pretty
 import Agda.Utils.String
 import Agda.Utils.Time
+import Agda.Utils.Tuple
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -776,7 +777,7 @@ interpret (Cmd_compile b file argv) =
             (if b == QuickLaTeX
              then Imp.ScopeCheck
              else Imp.TypeCheck) $ \(i, mw) -> do
-    mw <- lift $ Imp.applyFlagsToMaybeWarnings RespectFlags mw
+    mw <- lift $ Imp.applyFlagsToMaybeWarnings mw
     case mw of
       Imp.NoWarnings -> do
         lift $ case b of
@@ -1089,7 +1090,7 @@ interpret Cmd_abort = return ()
 -- | Show warnings
 interpretWarnings :: CommandM (String, String)
 interpretWarnings = do
-  mws <- lift $ Imp.getAllWarnings AllWarnings RespectFlags
+  mws <- lift $ Imp.getMaybeWarnings AllWarnings
   case filter isNotMeta <$> mws of
     Imp.SomeWarnings ws@(_:_) -> do
       let (we, wa) = classifyWarnings ws
@@ -1111,7 +1112,8 @@ solveInstantiatedGoals norm mii = do
   out <- lift $ localTC (\ e -> e { envPrintMetasBare = True }) $ do
     sip <- B.getSolvedInteractionPoints False norm
            -- only solve metas which have a proper instantiation, i.e., not another meta
-    maybe id (\ ii -> filter ((ii ==) . fst)) mii <$> mapM prt sip
+    let sip' = maybe id (\ ii -> filter ((ii ==) . fst3)) mii sip
+    mapM prt sip'
   putResponse $ Resp_SolveAll out
   where
       prt (i, m, e) = do

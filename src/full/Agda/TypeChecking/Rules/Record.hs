@@ -34,7 +34,7 @@ import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.CompiledClause (hasProjectionPatterns)
 import Agda.TypeChecking.CompiledClause.Compile
 
-import Agda.TypeChecking.Rules.Data ( bindParameters, fitsIn, forceSort, defineCompData, defineCompForFields )
+import Agda.TypeChecking.Rules.Data ( bindParameters, fitsIn, forceSort, defineCompData, defineCompForFields, defineTranspForFields, defineHCompForFields )
 import Agda.TypeChecking.Rules.Term ( isType_ )
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Decl (checkDecl)
 
@@ -202,7 +202,7 @@ checkRecDef i name uc ind eta con ps contel fields =
                   -- in case the record turns out to be recursive.
               -- Determined by positivity checker:
               , recMutual         = Nothing
-              , recComp           = Nothing -- filled in later
+              , recComp           = emptyCompKit -- filled in later
               }
 
         -- Add record constructor to signature
@@ -215,7 +215,7 @@ checkRecDef i name uc ind eta con ps contel fields =
               , conData   = name
               , conAbstr  = Info.defAbstract conInfo
               , conInd    = conInduction
-              , conComp   = Nothing -- filled in later
+              , conComp   = (emptyCompKit, Nothing) -- filled in later
               , conForced = []
               , conErased = []
               }
@@ -325,15 +325,16 @@ addCompositionForRecord name con tel fs ftel rect = do
   compWays <- do
     cxt <- getContextTelescope
     escapeContext (size cxt) $
-      if null fs then Left . fmap (,[]) <$> defineCompData name con (abstract cxt tel) [] ftel rect
+      if null fs then Left . (,Just []) <$> defineCompData name con (abstract cxt tel) [] ftel rect []
                  else Right <$>
                       ifM (return (any (== Irrelevant) $ map getRelevance fs) `and2M` do not . optIrrelevantProjections <$> pragmaOptions)
-                          (return Nothing) (defineCompR    name     (abstract cxt tel) ftel fs rect)
+                          (return emptyCompKit)
+                          (defineCompKitR name (abstract cxt tel) ftel fs rect)
   case compWays of
-    Right x -> do
+    Right kit -> do
       modifySignature $ updateDefinition name $ updateTheDef $ \ d ->
         case d of
-          r@Record{} -> r { recComp = x }
+          r@Record{} -> r { recComp = kit }
           _          -> __IMPOSSIBLE__
     Left y -> do
       modifySignature $ updateDefinition (conName con) $ updateTheDef $ \ d ->
@@ -341,65 +342,88 @@ addCompositionForRecord name con tel fs ftel rect = do
           r@Constructor{} -> r { conComp = y }
           _          -> __IMPOSSIBLE__
 
-defineCompR name params fsT fns rect = do
-  i  <- getBuiltin' builtinInterval
-  iz <- getBuiltin' builtinIZero
-  io <- getBuiltin' builtinIOne
-  imin <- getPrimitiveTerm' "primIMin"
-  imax <- getPrimitiveTerm' "primIMax"
-  ineg <- getPrimitiveTerm' "primINeg"
-  comp <- getPrimitiveTerm' "primComp"
-  por <- getPrimitiveTerm' "primPOr"
-  one <- getBuiltin' builtinItIsOne
+defineCompKitR ::
+    QName          -- ^ some name, e.g. record name
+  -> Telescope   -- ^ param types Δ
+  -> Telescope   -- ^ fields' types Δ ⊢ Φ
+  -> [Arg QName] -- ^ fields' names
+  -> Type        -- ^ record type Δ ⊢ T
+  -> TCM CompKit
+defineCompKitR name params fsT fns rect = do
+  required <- mapM getTerm'
+        [ builtinInterval
+        , builtinIZero
+        , builtinIOne
+        , builtinIMin
+        , builtinIMax
+        , builtinINeg
+        , builtinPOr
+        , builtinItIsOne
+        ]
   reportSDoc "tc.rec.cxt" 30 $ prettyTCM params
   reportSDoc "tc.rec.cxt" 30 $ prettyTCM fsT
   reportSDoc "tc.rec.cxt" 30 $ text $ show rect
   sortsOk <- allM (rect : map unDom (flattenTel fsT)) sortOk
-  if sortsOk && all isJust [i,iz,io,imin,imax,ineg,comp,por,one]
-    then defineCompR' name params fsT fns rect
-    else return Nothing
+  if not $ sortsOk && all isJust required then return $ emptyCompKit else do
+    comp   <- whenDefined [builtinComp]               (defineCompR name params fsT fns rect)
+    transp <- whenDefined [builtinTrans]              (defineTranspOrHCompR DoTransp name params fsT fns rect)
+    hcomp  <- whenDefined [builtinTrans,builtinHComp] (defineTranspOrHCompR DoHComp name params fsT fns rect)
+    return $ CompKit
+      { nameOfComp = comp
+      , nameOfTransp = transp
+      , nameOfHComp  = hcomp
+      }
   where
+    whenDefined xs m = do
+      xs <- mapM getTerm' xs
+      if all isJust xs then m else return Nothing
     sortOk :: Type -> TCM Bool
     sortOk a = reduce (getSort a) >>= \case
       Type{} -> return True
       _      -> return False
 
-defineCompR , defineCompR' ::
+
+defineCompR ::
   QName          -- ^ some name, e.g. record name
   -> Telescope   -- ^ param types Δ
   -> Telescope   -- ^ fields' types Δ ⊢ Φ
   -> [Arg QName] -- ^ fields' names
   -> Type        -- ^ record type Δ ⊢ T
   -> TCM (Maybe QName)
-defineCompR' name params fsT fns rect = do
-  io <- primIOne
-  Just ioname <- getBuiltinName' builtinIOne
-  one <- primItIsOne
-  tInterval <- elInf primInterval
+defineCompR name params fsT fns rect = do
   (compName, gamma, rtype, clause_types, bodies) <-
     defineCompForFields (\ t fn -> t `applyE` [Proj ProjSystem fn]) name params fsT fns rect
+  -- phi = 1 clause
   c' <- do
+           io <- primIOne
+           Just io_name <- getBuiltinName' builtinIOne
+           one <- primItIsOne
+           tInterval <- elInf primInterval
            let
               -- CompRArgs = phi : I, u : ..; a0 : ..
               -- Γ = Δ^I , CompRArgs
               -- pats = ... | phi = i1
               -- body = u i1 itIsOne
               ix = 2
-              h = ConHead ioname Inductive []
-              p = ConP h (noConPatternInfo { conPType = Just (Arg defaultArgInfo tInterval)
-                                           , conPFallThrough = True })
+              p = ConP (ConHead io_name Inductive [])
+                       (noConPatternInfo { conPType = Just (Arg defaultArgInfo tInterval)
+                                      , conPFallThrough = True })
                          []
+              rhs = Var 1 [] `apply` [argN io, argN one]
+
+              -- gamma, rtype
+
+              s = singletonS ix p
 
               pats :: [NamedArg DeBruijnPattern]
-              pats = singletonS ix p `applySubst` teleNamedArgs gamma
+              pats = s `applySubst` teleNamedArgs gamma
 
               t :: Type
-              t = singletonS ix io `applySubst` rtype
+              t = s `applyPatSubst` rtype
 
               gamma' :: Telescope
-              gamma' = unflattenTel (ns0 ++ ns1) $ s `applySubst` (g0 ++ g1)
+              gamma' = unflattenTel (ns0 ++ ns1) $ s `applyPatSubst` (g0 ++ g1)
                where
-                s = singletonS ix io
                 (g0,_:g1) = splitAt (size gamma - 1 - ix) $ flattenTel gamma
                 (ns0,_:ns1) = splitAt (size gamma - 1 - ix) $ teleNames gamma
 
@@ -409,7 +433,7 @@ defineCompR' name params fsT fns rect = do
                          , clauseFullRange = noRange
                          , clauseLHSRange  = noRange
                          , clauseCatchall  = False
-                         , clauseBody      = Just $ Var 1 [] `apply` [argN io, argN one]
+                         , clauseBody      = Just $ rhs
                          , clauseUnreachable = Just False
                          }
            reportSDoc "comp.rec.face" 17 $ text $ show c
@@ -423,7 +447,7 @@ defineCompR' name params fsT fns rect = do
                          , clauseFullRange = noRange
                          , clauseLHSRange  = noRange
                          , clauseCatchall  = False
-                         , clauseBody      = Just body -- abstract gamma $ Body $ body
+                         , clauseBody      = Just body
                          , clauseUnreachable = Just False
                          }
           reportSDoc "comp.rec" 17 $ text $ show c
@@ -436,6 +460,94 @@ defineCompR' name params fsT fns rect = do
   setCompiledClauses compName =<< inTopContext (compileClauses Nothing cs)
   reportSDoc "comp.rec" 15 $ text $ "compiled"
   return $ Just compName
+
+defineTranspOrHCompR ::
+  TranspOrHComp
+  -> QName       -- ^ some name, e.g. record name
+  -> Telescope   -- ^ param types Δ
+  -> Telescope   -- ^ fields' types Δ ⊢ Φ
+  -> [Arg QName] -- ^ fields' names
+  -> Type        -- ^ record type Δ ⊢ T
+  -> TCM (Maybe QName)
+defineTranspOrHCompR cmd name params fsT fns rect = do
+  (theName, gamma, rtype, clause_types, bodies) <- fst <$>
+    (case cmd of DoTransp -> defineTranspForFields; DoHComp -> defineHCompForFields)
+       (\ t fn -> t `applyE` [Proj ProjSystem fn]) name params fsT fns rect
+
+  -- phi = 1 clause
+  c' <- do
+           io <- primIOne
+           Just io_name <- getBuiltinName' builtinIOne
+           one <- primItIsOne
+           tInterval <- elInf primInterval
+           let
+              (ix,rhs) =
+                case cmd of
+                  -- TranspRArgs = phi : I, a0 : ..
+                  -- Γ = Δ^I , CompRArgs
+                  -- pats = ... | phi = i1
+                  -- body = a0
+                  DoTransp -> (1,Var 0 [])
+                  -- HCompRArgs = phi : I, u : .., a0 : ..
+                  -- Γ = Δ, CompRArgs
+                  -- pats = ... | phi = i1
+                  -- body = u i1 itIsOne
+                  DoHComp  -> (2,Var 1 [] `apply` [argN io, setRelevance Irrelevant $ argN one])
+
+              p = ConP (ConHead io_name Inductive [])
+                       (noConPatternInfo { conPType = Just (Arg defaultArgInfo tInterval)
+                                         , conPFallThrough = True })
+                         []
+
+              -- gamma, rtype
+
+              s = singletonS ix p
+
+              pats :: [NamedArg DeBruijnPattern]
+              pats = s `applySubst` teleNamedArgs gamma
+
+              t :: Type
+              t = s `applyPatSubst` rtype
+
+              gamma' :: Telescope
+              gamma' = unflattenTel (ns0 ++ ns1) $ s `applyPatSubst` (g0 ++ g1)
+               where
+                (g0,_:g1) = splitAt (size gamma - 1 - ix) $ flattenTel gamma
+                (ns0,_:ns1) = splitAt (size gamma - 1 - ix) $ teleNames gamma
+
+              c = Clause { clauseTel       = gamma'
+                         , clauseType      = Just $ argN t
+                         , namedClausePats = pats
+                         , clauseFullRange = noRange
+                         , clauseLHSRange  = noRange
+                         , clauseCatchall  = False
+                         , clauseBody      = Just $ rhs
+                         , clauseUnreachable = Just False
+                         }
+           reportSDoc "trans.rec.face" 17 $ text $ show c
+           return c
+  cs <- flip mapM (zip3 fns clause_types bodies) $ \ (fname, clause_ty, body) -> do
+          let
+              pats = teleNamedArgs gamma ++ [defaultNamedArg $ ProjP ProjSystem $ unArg fname]
+              c = Clause { clauseTel       = gamma
+                         , clauseType      = Just $ argN (unDom clause_ty)
+                         , namedClausePats = pats
+                         , clauseFullRange = noRange
+                         , clauseLHSRange  = noRange
+                         , clauseCatchall  = False
+                         , clauseBody      = Just body
+                         , clauseUnreachable = Just False
+                         }
+          reportSDoc "trans.rec" 17 $ text $ show c
+          reportSDoc "trans.rec" 16 $ text "type =" <+> text (show (clauseType c))
+          reportSDoc "trans.rec" 15 $ prettyTCM $ abstract gamma (unDom clause_ty)
+          reportSDoc "trans.rec" 10 $ text "body =" <+> prettyTCM (abstract gamma body)
+          return c
+  addClauses theName $ c' : cs
+  reportSDoc "trans.rec" 15 $ text $ "compiling clauses for " ++ show theName
+  setCompiledClauses theName =<< inTopContext (compileClauses Nothing cs)
+  reportSDoc "trans.rec" 15 $ text $ "compiled"
+  return $ Just theName
 
 
 {-| @checkRecordProjections m r q tel ftel fs@.

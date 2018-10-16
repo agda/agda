@@ -201,6 +201,13 @@ the `Agda wiki <http://wiki.portal.chalmers.se/agda/pmwiki.php>`_:
 
       make install
 
+    Note that on a Mac, because ICU is installed in a non-standard location,
+    you need to specify this location on the command line:
+
+    .. code-block:: bash
+
+      make install-bin CABAL_OPTS='--extra-lib-dirs=/usr/local/opt/icu4c/lib --extra-include-dirs=/usr/local/opt/icu4c/include'
+
 .. _installation-flags:
 
 Installation Flags
