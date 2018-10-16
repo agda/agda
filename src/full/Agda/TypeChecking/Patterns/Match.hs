@@ -133,6 +133,16 @@ foldMatch match = loop where
               DontKnow m -> return (DontKnow m                             , vs1)
       _ -> __IMPOSSIBLE__
 
+
+-- TODO refactor matchPattern* to work with Elim instead.
+mergeElim :: Elim -> Arg Term -> Elim
+mergeElim Apply{} arg = Apply arg
+mergeElim (IApply x y _) arg = IApply x y (unArg arg)
+mergeElim Proj{} _ = __IMPOSSIBLE__
+
+mergeElims :: [Elim] -> [Arg Term] -> [Elim]
+mergeElims = zipWith mergeElim
+
 -- | @matchCopatterns ps es@ matches spine @es@ against copattern spine @ps@.
 --
 --   Returns 'Yes' and a substitution for the pattern variables
@@ -172,7 +182,7 @@ matchCopattern pat@ProjP{} elim@(Proj _ q) = do
 matchCopattern ProjP{} elim@Apply{}   = return (No , elim)
 matchCopattern _       elim@Proj{}    = return (No , elim)
 matchCopattern p       (Apply v) = mapSnd Apply <$> matchPattern p v
-matchCopattern p       (IApply x y r) = mapSnd Apply <$> matchPattern p (defaultArg r)
+matchCopattern p       e@(IApply x y r) = mapSnd (mergeElim e) <$> matchPattern p (defaultArg r)
 
 matchPatterns :: [NamedArg DeBruijnPattern]
               -> [Arg Term]
@@ -194,6 +204,8 @@ matchPattern :: DeBruijnPattern
              -> ReduceM (Match Term, Arg Term)
 matchPattern p u = case (p, u) of
   (ProjP{}, _            ) -> __IMPOSSIBLE__
+  (IApplyP _ _ _ x , arg ) -> return (Yes NoSimplification entry, arg)
+    where entry = singleton (dbPatVarIndex x, arg)
   (VarP _ x , arg          ) -> return (Yes NoSimplification entry, arg)
     where entry = singleton (dbPatVarIndex x, arg)
   (DotP _ _ , arg@(Arg _ v)) -> return (Yes NoSimplification empty, arg)
@@ -211,9 +223,9 @@ matchPattern p u = case (p, u) of
 
   -- Case constructor pattern.
   (ConP c cpi ps, Arg info v) -> do
-    if isNothing $ conPRecord cpi then fallback else do
+    if isNothing $ conPRecord cpi then fallback c ps (Arg info v) else do
     isEtaRecordCon (conName c) >>= \case
-      Nothing -> fallback
+      Nothing -> fallback c ps (Arg info v)
       Just fs -> do
         -- Case: Eta record constructor.
         -- This case is necessary if we want to use the clauses before
@@ -230,9 +242,37 @@ matchPattern p u = case (p, u) of
             r@Record{ recFields = fs } | YesEta <- recEtaEquality r -> return $ Just fs
             _ -> return Nothing
         _ -> __IMPOSSIBLE__
+  (DefP o q ps, v) -> do
+    let
+          isDef (NotBlocked _ c@Def{}) = Just c
+          isDef (Blocked _ c@Def{})    = Just c
+          isDef _                      = Nothing
 
+    let f sb | Just (Def q' vs) <- isDef sb = Just $
+                 if q == q'
+                 then
+                   Just (Def q,vs)
+                 else
+                   Nothing
+             | otherwise = Nothing
+    fallback' f ps v
+ where
+  fallback c ps v = do
+    let
+          isCon (NotBlocked _ c@Con{}) = Just c
+          isCon (Blocked _ c@Con{})    = Just c
+          isCon _                      = Nothing
+
+    let f sb | Just (Con c' ci' vs) <- isCon sb = Just $
+                 if c == c'
+                 then
+                   Just (Con c' ci',vs)
+                 else
+                   Nothing
+             | otherwise = Nothing
+    fallback' f ps v
     -- Default: not an eta record constructor.
-    fallback = do
+  fallback' mtc ps (Arg info v) = do
         w <- reduceB' v
         -- Unfold delayed (corecursive) definitions one step. This is
         -- only necessary if c is a coinductive constructor, but
@@ -256,12 +296,19 @@ matchPattern p u = case (p, u) of
                _ -> return w
         let v = ignoreBlocking w
             arg = Arg info v  -- the reduced argument
+
+        -- let
+        --   isCon (NotBlocked _ c@Con{}) = Just c
+        --   isCon (Blocked _ c@Con{})    = Just c
+        --   isCon _                      = Nothing
+
         case w of
-          NotBlocked _ (Con c' ci vs)
-            | c == c'               -> do
-                (m, vs) <- yesSimplification <$> matchPatterns ps (fromMaybe __IMPOSSIBLE__ $ allApplyElims vs)
-                return (m, Arg info $ Con c' ci (map Apply vs))
-            | otherwise             -> return (No                          , arg)
+          b | Just (Just (bld, vs)) <- mtc b
+                          -> do
+                (m, vs1) <- yesSimplification <$> matchPatterns ps (fromMaybe __IMPOSSIBLE__ $ allApplyElims vs)
+                return (m, Arg info $ bld (mergeElims vs vs1))
+            | Just Nothing <- mtc b
+                                    -> return (No                          , arg)
           NotBlocked _ (MetaV x vs) -> return (DontKnow $ Blocked x ()     , arg)
           Blocked x _               -> return (DontKnow $ Blocked x ()     , arg)
           NotBlocked r _            -> return (DontKnow $ NotBlocked r' () , arg)

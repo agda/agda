@@ -143,6 +143,8 @@ instance IsFlexiblePattern (I.Pattern' a) where
       I.VarP{}  -> mzero
       I.LitP{}  -> mzero
       I.ProjP{} -> mzero
+      I.IApplyP{} -> mzero
+      I.DefP{} -> mzero -- TODO Andrea check semantics
 
 -- | Lists of flexible patterns are 'RecordFlex'.
 instance IsFlexiblePattern a => IsFlexiblePattern [a] where
@@ -186,7 +188,7 @@ updateProblemEqs eqs = do
         -- we should only simplify equations between fully applied constructors
         contype <- getFullyAppliedConType c =<< reduce (unDom a)
         caseMaybe contype (return [eq]) $ \((d,_,pars),b) -> do
-        TelV ctel _ <- telView b
+        TelV ctel _ <- telViewPath b
         let bs = instTel ctel (map unArg vs)
 
         p <- expandLitPattern p
@@ -1127,9 +1129,12 @@ checkLHS mf st@(LHSState tel ip problem target psplit) = updateRelevance $ do
         _ -> return ()
 
       -- The type of the constructor will end in an application of the datatype
-      TelV gamma (El _ ctarget) <- liftTCM $ telView b
+      (TelV gamma (El _ ctarget), boundary) <- liftTCM $ telViewPathBoundaryP b
       let Def d' es' = ctarget
           cixs = drop (size pars) $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es'
+
+      -- Δ₁Γ ⊢ boundary
+      reportSDoc "tc.lhs.split.con" 50 $ text "  boundary = " <+> prettyTCM boundary
 
       unless (d == d') {-'-} __IMPOSSIBLE__
 
@@ -1185,15 +1190,15 @@ checkLHS mf st@(LHSState tel ip problem target psplit) = updateRelevance $ do
       --        Δ₁' ⊢ ρ₁ : Δ₁
       --        Δ₁' ⊢ ρ₂ : Γρ₁
       -- Application of the constructor c gives
-      --        Δ₁' ⊢ c ρ₂ : (D pars cixs)(ρ₁;ρ₂)
+      --        Δ₁' ⊢ (c Γ)(ρ₀) : (D pars cixs)(ρ₁;ρ₂)
       -- We have
       --        cixs(ρ₁;ρ₂)
       --         ≡ cixs(ρ₀)   (since ρ₀=ρ₁;ρ₂)
       --         ≡ ixs(ρ₀)    (by unification)
       --         ≡ ixs(ρ₁)    (since ixs doesn't actually depend on Γ)
-      -- so     Δ₁' ⊢ c ρ₂ : (D pars ixs)ρ₁
+      -- so     Δ₁' ⊢ (c Γ)(ρ₀) : (D pars ixs)ρ₁
       -- Putting this together with ρ₁ gives ρ₃ = ρ₁;c ρ₂
-      --        Δ₁' ⊢ ρ₁;c ρ₂ : Δ₁(x : D vs ws)
+      --        Δ₁' ⊢ ρ₁;(c Γ)(ρ₀) : Δ₁(x : D vs ws)
       -- and lifting over Δ₂ gives the final substitution ρ = ρ₃;Δ₂
       -- from Δ' = Δ₁';Δ₂ρ₃
       --        Δ' ⊢ ρ : Δ₁(x : D vs ws)Δ₂
@@ -1237,19 +1242,19 @@ checkLHS mf st@(LHSState tel ip problem target psplit) = updateRelevance $ do
                                    , conPLazy   = False }
 
           -- compute final context and substitution
-          let crho2   = ConP c cpi $ applySubst rho2 $ teleNamedArgs gamma
-              rho3    = consS crho2 rho1
+          let crho    = ConP c cpi $ applySubst rho0 $ (telePatterns gamma boundary)
+              rho3    = consS crho rho1
               delta2' = applyPatSubst rho3 delta2
               delta'  = delta1' `abstract` delta2'
               rho     = liftS (size delta2) rho3
 
           reportSDoc "tc.lhs.top" 20 $ addContext delta1' $ nest 2 $ vcat
-            [ "crho2   =" <+> prettyTCM crho2
+            [ "crho    =" <+> prettyTCM crho
             , "rho3    =" <+> prettyTCM rho3
             , "delta2' =" <+> prettyTCM delta2'
             ]
           reportSDoc "tc.lhs.top" 70 $ addContext delta1' $ nest 2 $ vcat
-            [ "crho2   =" <+> pretty crho2
+            [ "crho    =" <+> pretty crho
             , "rho3    =" <+> pretty rho3
             , "delta2' =" <+> pretty delta2'
             ]
@@ -1294,7 +1299,9 @@ noPatternMatchingOnCodata = mapM_ (check . namedArg)
   check (VarP {})   = return ()
   check (DotP {})   = return ()
   check (ProjP{})   = return ()
+  check (IApplyP{}) = return ()
   check (LitP {})   = return ()  -- Literals are assumed not to be coinductive.
+  check (DefP{})    = return () -- we assume we don't generate this for codata.
   check (ConP con _ ps) = do
     reportSDoc "tc.lhs.top" 40 $
       "checking whether" <+> prettyTCM con <+> "is a coinductive constructor"

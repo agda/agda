@@ -135,13 +135,16 @@ constructorForm' pZero pSuc v =
 
 primInteger, primIntegerPos, primIntegerNegSuc,
     primFloat, primChar, primString, primUnit, primUnitUnit, primBool, primTrue, primFalse,
+    primSigma,
     primList, primNil, primCons, primIO, primNat, primSuc, primZero,
     primPath, primPathP, primInterval, primIZero, primIOne, primPartial, primPartialP,
     primIMin, primIMax, primINeg,
     primIsOne, primItIsOne, primIsOne1, primIsOne2, primIsOneEmpty,
     primSub, primSubIn, primSubOut,
+    primTrans, primHComp,
     primId, primConId, primIdElim,
-    primIsEquiv, primPathToEquiv, primGlue, prim_glue, prim_unglue,
+    primEquiv, primEquivFun, primEquivProof, primPathToEquiv,
+    primGlue, prim_glue, prim_unglue,
     primCompGlue, primFaceForall,
     primPushOut, primPOInl, primPOInr, primPOPush, primPOhcomp, primPOforward, primPOElim,
     primNatPlus, primNatMinus, primNatTimes, primNatDivSucAux, primNatModSucAux,
@@ -192,6 +195,7 @@ primFloat        = getBuiltin builtinFloat
 primChar         = getBuiltin builtinChar
 primString       = getBuiltin builtinString
 primBool         = getBuiltin builtinBool
+primSigma        = getBuiltin builtinSigma
 primUnit         = getBuiltin builtinUnit
 primUnitUnit     = getBuiltin builtinUnitUnit
 primTrue         = getBuiltin builtinTrue
@@ -215,7 +219,11 @@ primPartial      = getPrimitiveTerm "primPartial"
 primPartialP     = getPrimitiveTerm "primPartialP"
 primIsOne        = getBuiltin builtinIsOne
 primItIsOne      = getBuiltin builtinItIsOne
-primIsEquiv      = getBuiltin builtinIsEquiv
+primTrans        = getPrimitiveTerm builtinTrans
+primHComp        = getPrimitiveTerm builtinHComp
+primEquiv        = getBuiltin builtinEquiv
+primEquivFun     = getBuiltin builtinEquivFun
+primEquivProof   = getBuiltin builtinEquivProof
 primPathToEquiv  = getBuiltin builtinPathToEquiv
 primGlue         = getPrimitiveTerm builtinGlue
 prim_glue        = getPrimitiveTerm builtin_glue
@@ -366,13 +374,17 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinNatLess, builtinInteger, builtinIntegerPos, builtinIntegerNegSuc,
   builtinWord64,
   builtinFloat, builtinChar, builtinString, builtinUnit, builtinUnitUnit,
+  builtinSigma,
   builtinBool, builtinTrue, builtinFalse,
   builtinList, builtinNil, builtinCons, builtinIO,
   builtinPath, builtinPathP, builtinInterval, builtinPathAbs, builtinIZero, builtinIOne, builtinPartial, builtinPartialP,
   builtinIMin, builtinIMax, builtinINeg,
   builtinIsOne,  builtinItIsOne, builtinIsOne1, builtinIsOne2, builtinIsOneEmpty,
+  builtinComp, builtinPOr,
+  builtinTrans, builtinHComp,
   builtinSub, builtinSubIn, builtinSubOut,
-  builtinIsEquiv, builtinPathToEquiv, builtinGlue, builtin_glue, builtin_unglue,
+  builtinEquiv, builtinEquivFun, builtinEquivProof, builtinPathToEquiv,
+  builtinGlue, builtin_glue, builtin_unglue,
   builtinCompGlue, builtinFaceForall,
   builtinId, builtinConId, builtinIdElim,
   builtinPushOut, builtinPOInl, builtinPOInr, builtinPOPush, builtinPOhcomp, builtinPOforward, builtinPOElim,
@@ -437,6 +449,7 @@ builtinChar                          = "CHAR"
 builtinString                        = "STRING"
 builtinUnit                          = "UNIT"
 builtinUnitUnit                      = "UNITUNIT"
+builtinSigma                         = "SIGMA"
 builtinBool                          = "BOOL"
 builtinTrue                          = "TRUE"
 builtinFalse                         = "FALSE"
@@ -460,7 +473,9 @@ builtinPartial                       = "PARTIAL"
 builtinPartialP                      = "PARTIALP"
 builtinIsOne                         = "ISONE"
 builtinItIsOne                       = "ITISONE"
-builtinIsEquiv                       = "ISEQUIV"
+builtinEquiv                         = "EQUIV"
+builtinEquivFun                      = "EQUIVFUN"
+builtinEquivProof                    = "EQUIVPROOF"
 builtinPathToEquiv                   = "PATHTOEQUIV"
 builtinGlue                          = "primGlue"
 builtin_glue                         = "prim^glue"
@@ -470,6 +485,10 @@ builtinFaceForall                    = "primFaceForall"
 builtinIsOne1                        = "ISONE1"
 builtinIsOne2                        = "ISONE2"
 builtinIsOneEmpty                    = "ISONEEMPTY"
+builtinComp                          = "primComp"
+builtinPOr                           = "primPOr"
+builtinTrans                         = "primTransp"
+builtinHComp                         = "primHComp"
 builtinSub                           = "SUB"
 builtinSubIn                         = "SUBIN"
 builtinSubOut                        = "primSubOut"
