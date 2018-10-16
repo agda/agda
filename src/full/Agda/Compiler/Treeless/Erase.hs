@@ -88,7 +88,7 @@ eraseTerms q t = usedArguments q t *> runE (eraseTop q t)
         case h of
           Erasable -> pure TErased
           Empty    -> pure TErased
-          _        -> tApp (TDef f) <$> zipWithM eraseRel (rs ++ repeat Relevant) vs
+          _        -> tApp (TDef f) <$> zipWithM eraseRel (rs ++ repeat NotErasable) vs
 
       _ -> case t of
         TVar{}         -> pure t
@@ -145,13 +145,13 @@ eraseTerms q t = usedArguments q t *> runE (eraseTop q t)
 
     isErased t = t == TErased || isUnreachable t
 
-    eraseRel r t | erasableR r = pure TErased
-                 | otherwise   = erase t
+    eraseRel r t | erasable r = pure TErased
+                 | otherwise  = erase t
 
     eraseAlt a = case a of
       TALit l b   -> TALit l   <$> erase b
       TACon c a b -> do
-        rs <- map erasableR . fst <$> getFunInfo c
+        rs <- map erasable . fst <$> getFunInfo c
         let sub = foldr (\ e -> if e then (TErased :#) . wkS 1 else liftS 1) idS $ reverse rs
         TACon c a <$> erase (applySubst sub b)
       TAGuard g b -> TAGuard   <$> erase g <*> erase b
@@ -212,15 +212,12 @@ sumTypeInfo is = foldr plus Empty is
     plus r           Erasable    = r
     plus NotErasable NotErasable = NotErasable
 
-erasableR :: Relevance -> Bool
-erasableR = not . usableRelevance
-
 erasable :: TypeInfo -> Bool
 erasable Erasable    = True
 erasable Empty       = True
 erasable NotErasable = False
 
-type FunInfo = ([Relevance], TypeInfo)
+type FunInfo = ([TypeInfo], TypeInfo)
 
 getFunInfo :: QName -> E FunInfo
 getFunInfo q = memo (funMap . key q) $ getInfo q
@@ -231,20 +228,19 @@ getFunInfo q = memo (funMap . key q) $ getInfo q
         is     <- mapM (getTypeInfo . snd . dget) tel
         used   <- lift $ (++ repeat True) <$> getCompiledArgUse q
         forced <- lift $ (++ repeat NotForced) <$> getForcedArgs q
-        return (zipWith3 (uncurry . mkR . getRelevance) tel (zip forced used) is, t)
+        return (zipWith3 (uncurry . mkR . getModality) tel (zip forced used) is, t)
       h <- if isAbsurdLambdaName q then pure Erasable else getTypeInfo t
       lift $ reportSLn "treeless.opt.erase.info" 50 $ "type info for " ++ prettyShow q ++ ": " ++ show rs ++ " -> " ++ show h
-      lift $ setErasedConArgs q $ map erasableR rs
+      lift $ setErasedConArgs q $ map erasable rs
       return (rs, h)
 
     -- Treat empty, erasable, or unused arguments as NonStrict (and thus erasable)
-    mkR :: Relevance -> IsForced -> Bool -> TypeInfo -> Relevance
-    mkR Irrelevant _ _ _  = Irrelevant
-    mkR _ _ False _       = NonStrict
-    mkR _ Forced _ _      = NonStrict
-    mkR r _ _ NotErasable = r
-    mkR _ _ _ Empty       = NonStrict
-    mkR _ _ _ Erasable    = NonStrict
+    mkR :: Modality -> IsForced -> Bool -> TypeInfo -> TypeInfo
+    mkR m f b i
+      | not (usableModality m) = Erasable
+      | not b                  = Erasable
+      | Forced <- f            = Erasable
+      | otherwise              = i
 
 telListView :: Type -> TCM (ListTel, Type)
 telListView t = do
@@ -294,9 +290,9 @@ getTypeInfo t0 = do
         _ | Just q `elem` msizes -> return Erasable
         Just [c] -> do
           (ts, _) <- lift $ typeWithoutParams c
-          let rs = map getRelevance ts
+          let rs = map getModality ts
           is <- mapM (getTypeInfo . snd . dget) ts
-          let er = and [ erasable i || erasableR r | (i, r) <- zip is rs ]
+          let er = and [ erasable i || not (usableModality r) | (i, r) <- zip is rs ]
           return $ if er then Erasable else NotErasable
         Just []      -> return Empty
         Just (_:_:_) -> return NotErasable
