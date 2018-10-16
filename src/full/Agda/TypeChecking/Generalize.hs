@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE NondecreasingIndentation #-}
 
 module Agda.TypeChecking.Generalize (generalizeType) where
 
@@ -8,7 +9,7 @@ import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Map (Map)
 import qualified Data.Map as Map
-import Data.List (nub, partition)
+import Data.List (nub, partition, init)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Position
@@ -16,15 +17,20 @@ import Agda.Syntax.Internal
 import Agda.Syntax.Literal
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Abstract
+import Agda.TypeChecking.Constraints
+import Agda.TypeChecking.Conversion
+import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
+import Agda.TypeChecking.Telescope
 
 import Agda.Utils.Functor
 import Agda.Utils.Impossible
 import Agda.Utils.Lens
 import Agda.Utils.Maybe
+import Agda.Utils.Size
 import qualified Agda.Utils.Graph.TopSort as Graph
 
 #include "undefined.h"
@@ -32,6 +38,13 @@ import qualified Agda.Utils.Graph.TopSort as Graph
 -- | Generalize a type over a set of (used) generalizable variables.
 generalizeType :: Set QName -> TCM Type -> TCM (Int, Type)
 generalizeType s typecheckAction = do
+
+    -- Create a meta type (in Setω) for the telescope record
+    genRecMeta <- newTypeMeta Inf
+    let gt = "genTel" :: String
+
+    addContext (defaultDom (gt, genRecMeta)) $ do
+
     (t, allmetas) <- metasCreatedBy $ do
       -- Create metas for all used generalizable variables and their dependencies.
       genvals <- fmap Map.fromList $ locallyTC eGeneralizeMetas (const YesGeneralize)
@@ -70,46 +83,75 @@ generalizeType s typecheckAction = do
       [ text $ "allMetas    = " ++ show allmetas
       , text $ "sortedMetas = " ++ show sortedMetas ]
 
-    -- Generalize over metas
-    t  <- instantiateFull t
-    t' <- addVars t $ reverse sortedMetas
+    let dropCxt err = updateContext (strengthenS err 1) (drop 1)
+
+    -- Create the pre-record type (we don't yet know the types of the fields)
+    (genRecName, genRecCon, genRecFields) <- dropCxt __IMPOSSIBLE__ $
+        createGenRecordType genRecMeta sortedMetas
+
+    -- Solve the generalizable metas
+    let solve m field = do
+          HasType _ a <- mvJudgement <$> lookupMeta m
+          TelV tel _  <- telView a
+          assignTerm' m (telToArgs tel) $ Var 0 [Proj ProjSystem field]
+    zipWithM_ solve sortedMetas genRecFields
+
+    -- Build the telescope of generalized metas
+    teleTypes <- forM sortedMetas $ \ m -> do
+                    mv  <- lookupMeta m
+                    mcp <- enterClosure (miClosRange $ mvInfo mv) $ \ _ -> viewTC eCurrentCheckpoint
+                    cp  <- viewTC eCurrentCheckpoint
+                    if | mcp /= cp -> __IMPOSSIBLE__    -- not really: just don't generalise over these
+                       | otherwise -> do
+                          args <- getContextArgs
+                          let info = getArgInfo $ miGeneralizable $ mvInfo mv
+                              HasType{ jMetaType = t } = mvJudgement mv
+                          return (Arg info $ miNameSuggestion $ mvInfo mv, piApply t args)
+    let genTel = buildGeneralizeTel genRecCon teleTypes
+    reportSDoc "tc.decl.gen" 40 $ vcat
+      [ text "genTel =" <+> prettyTCM genTel ]
+
+    -- Fill in the missing details of the telescope record.
+    dropCxt __IMPOSSIBLE__ $ fillInGenRecordDetails genRecName genRecCon genRecFields genRecMeta genTel
+
+    -- Now abstract over the telescope
+    let sub = unpackSub genRecCon (map (argInfo . fst) teleTypes) (length teleTypes)
+    t' <- abstract genTel . applySubst sub <$> instantiateFull t
+
     reportSDoc "tc.decl.gen" 40 $ vcat
       [ "generalized"
-      , nest 2 $ "t  =" <+> prettyTCM t
-      , nest 2 $ "t' =" <+> prettyTCM t' ]
-
-    -- Nuke the generalized metas
-    forM_ sortedMetas $ \ m ->
-      modifyMetaStore $ flip Map.adjust m $ \ mv ->
-        -- TODO: check that they got generalized and then we can remove them completely
-        mv { mvInstantiation = InstV [] $ Lit (LitString noRange ("meta var " ++ show m ++ " was generalized")) }
-          -- (error ("meta var " ++ show m ++ " was generalized")) }
+      , nest 2 $ "t =" <+> escapeContext 1 (prettyTCM t') ]
 
     return (length sortedMetas, t')
-  where
-    addVars t []       = return t
-    addVars t (m : ms) = do
-        mv <- lookupMeta m
-        metaCp <- enterClosure (miClosRange $ mvInfo mv) $ \ _ -> viewTC eCurrentCheckpoint
-        cp     <- viewTC eCurrentCheckpoint
-        if | metaCp /= cp -> addVars t ms -- TODO: try to strengthen
-           | otherwise    -> do
-              vs <- getContextArgs
-              ty <- (`piApply` vs) <$> getMetaType m
-              let nas  = miNameSuggestion $ mvInfo mv
-                  info = getArgInfo $ miGeneralizable $ mvInfo mv
-              addTheVar info nas (MetaV m $ map Apply vs) ty t ms
 
-    addTheVar info n v ty t ns = do
-        ty <- instantiateFull ty
-        t' <- mkPi (defaultArgDom info (n, ty)) <$> abstractType ty v t
-        reportSDoc "tc.decl.gen" 60 $ vcat
-            [ "generalize over"
-            , nest 2 $ pretty v <+> ":" <+> pretty ty
-            , nest 2 $ "in" <+> pretty t
-            , nest 2 $ "to" <+> pretty t'
-            ]
-        addVars t' ns
+metaCheckpoint :: MetaId -> TCM CheckpointId
+metaCheckpoint m = do
+  mv <- lookupMeta m
+  enterClosure (miClosRange $ mvInfo mv) $ \ _ -> viewTC eCurrentCheckpoint
+
+unpackSub :: ConHead -> [ArgInfo] -> Int -> Substitution
+unpackSub con infos i = recSub
+  where
+    ar = length infos
+    appl info v = Apply (Arg info v)
+    -- recVal = con (var (i - 1)) .. (var 0) __IMPOSSIBLE__ .. __IMPOSSIBLE__
+    recVal = Con con ConOSystem $ zipWith appl infos $ [var j | j <- [i - 1, i - 2..0]] ++ replicate (ar - i) __DUMMY_TERM__
+
+    -- want: Γ Δᵢ ⊢ recSub i : Γ (r : R)
+    -- have:
+    -- Γ Δᵢ ⊢ recVal i :# σ : Θ (r : R),  if Γ Δᵢ ⊢ σ : Θ
+    -- Γ Δᵢ ⊢ WkS i IdS : Γ
+    recSub = recVal :# Wk i IdS
+
+buildGeneralizeTel :: ConHead -> [(Arg String, Type)] -> Telescope
+buildGeneralizeTel con xs = go 0 xs
+  where
+    infos = map (argInfo . fst) xs
+    recSub i = unpackSub con infos i
+    go _ [] = EmptyTel
+    go i ((name, ty) : xs) = ExtendTel (dom ty') $ Abs (unArg name) $ go (i + 1) xs
+      where ty' = applySubst (recSub i) ty
+            dom = setArgInfo (argInfo name) . defaultDom
 
 -- | Create a generalisable meta for a generalisable variable.
 createGenValue :: QName -> TCM (QName, GeneralizedValue)
@@ -170,4 +212,95 @@ sortMetas metas = do
   caseMaybe (Graph.topSort metas metaGraph)
             (typeError GeneralizeCyclicDependency)
             return
+
+createGenRecordType :: Type -> [MetaId] -> TCM (QName, ConHead, [QName])
+createGenRecordType genRecMeta@(El genRecSort _) sortedMetas = do
+  current <- currentModule
+  let freshQName s = qualify current <$> freshName_ (s :: String)
+      mkFieldName  = freshQName . ("gen-" ++) <=< getMetaNameSuggestion
+  genRecFields <- mapM (defaultArg <.> mkFieldName) sortedMetas
+  genRecName   <- freshQName "GeneralizeTel"
+  genRecCon    <- freshQName "mkGeneralizeTel" <&> \ con -> ConHead
+                  { conName      = con
+                  , conInductive = Inductive
+                  , conFields    = genRecFields }
+  forM_ genRecFields $ \ fld -> do
+    let field   = unArg fld     -- Filled in later
+        fieldTy = El __DUMMY_SORT__ $ Pi (defaultDom __DUMMY_TYPE__) (Abs "_" __DUMMY_TYPE__)
+    addConstant field $ defaultDefn (argInfo fld) field fieldTy $
+      let proj = Projection { projProper   = Just genRecName
+                            , projOrig     = field
+                            , projFromType = defaultArg genRecName
+                            , projIndex    = 1
+                            , projLams     = ProjLams [defaultArg "gtel"] } in
+      Function { funClauses      = []
+               , funCompiled     = Nothing
+               , funTreeless     = Nothing
+               , funInv          = NotInjective
+               , funMutual       = Nothing
+               , funAbstr        = ConcreteDef
+               , funDelayed      = NotDelayed
+               , funProjection   = Just proj
+               , funFlags        = Set.empty
+               , funTerminates   = Just True
+               , funExtLam       = Nothing
+               , funWith         = Nothing
+               , funCopatternLHS = False
+               }
+  addConstant (conName genRecCon) $ defaultDefn defaultArgInfo (conName genRecCon) __DUMMY_TYPE__ $ -- Filled in later
+    Constructor { conPars   = 0
+                , conArity  = length genRecFields
+                , conSrcCon = genRecCon
+                , conData   = genRecName
+                , conAbstr  = ConcreteDef
+                , conInd    = Inductive
+                , conComp   = Nothing
+                , conForced = []
+                , conErased = []
+                }
+  addConstant genRecName $ defaultDefn defaultArgInfo genRecName (sort genRecSort) $
+    Record { recPars         = 0
+           , recClause       = Nothing
+           , recConHead      = genRecCon
+           , recNamedCon     = False
+           , recFields       = genRecFields
+           , recTel          = EmptyTel     -- Filled in later
+           , recMutual       = Nothing
+           , recEtaEquality' = Inferred YesEta
+           , recInduction    = Nothing
+           , recAbstr        = ConcreteDef
+           , recComp         = Nothing }
+  reportSDoc "tc.decl.gen" 40 $ vcat
+    [ text "created genRec" <+> text (show genRecFields) ]
+  -- Solve the genRecMeta
+  args <- getContextArgs
+  let genRecTy = El genRecSort $ Def genRecName $ map Apply args
+  noConstraints $ equalType genRecTy genRecMeta
+  return (genRecName, genRecCon, map unArg genRecFields)
+
+fillInGenRecordDetails :: QName -> ConHead -> [QName] -> Type -> Telescope -> TCM ()
+fillInGenRecordDetails name con fields recTy fieldTel = do
+  cxtTel <- fmap hideAndRelParams <$> getContextTelescope
+  let fullTel = cxtTel `abstract` fieldTel
+  -- Field types
+  let mkFieldTypes [] EmptyTel = []
+      mkFieldTypes (fld : flds) (ExtendTel ty ftel) =
+          abstract cxtTel (El s $ Pi (defaultDom recTy) (Abs "r" $ unDom ty)) :
+          mkFieldTypes flds (absApp ftel proj)
+        where
+          s = PiSort (getSort recTy) (Abs "r" $ getSort ty)
+          proj = Var 0 [Proj ProjSystem fld]
+      mkFieldTypes _ _ = __IMPOSSIBLE__
+  let fieldTypes = mkFieldTypes fields (raise 1 fieldTel)
+  reportSDoc "tc.decl.gen" 40 $ text "Field types:" <+> inTopContext (nest 2 $ vcat $ map prettyTCM fieldTypes)
+  zipWithM_ setType fields fieldTypes
+  -- Constructor type
+  let conType = fullTel `abstract` raise (size fieldTel) recTy
+  reportSDoc "tc.decl.gen" 40 $ text "Final genRecCon type:" <+> inTopContext (prettyTCM conType)
+  setType (conName con) conType
+  -- Record telescope: Includes both parameters and fields.
+  modifyGlobalDefinition name $ \ r ->
+    r { theDef = (theDef r) { recTel = fullTel } }
+  where
+    setType q ty = modifyGlobalDefinition q $ \ d -> d { defType = ty }
 

@@ -2,4 +2,4 @@ Issue3276.agda:15,7-32
 Not implemented: Unsolved non-generalizable metas in generalized
 type
 when checking that the expression (xs₁ : Vec A n) → IsNil xs₁ has
-type _11
+type _16
