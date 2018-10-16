@@ -44,7 +44,7 @@ The built-in combinators for sizes are described in :ref:`builtin_sized_types`.
 Example for coinduction: finite languages
 -----------------------------------------
 
-See `Abel 2017`_ and `Traytel 2016`_.
+See `Abel 2017`_ and `Traytel 2017`_.
 
 Decidable languages can be represented as infinite trees. Each node has as many
 children as the number of characters in the alphabet ``A``. Each path from the root
@@ -231,7 +231,7 @@ References
    `Equational Reasoning about Formal Languages in Coalgebraic Style,
    Andreas Abel <http://www.cse.chalmers.se/~abela/jlamp17.pdf>`_.
 
-.. _`Traytel 2016`:
+.. _`Traytel 2017`:
 
    `Formal Languages, Formally and Coinductively, Dmitriy Traytel,
    LMCS Vol. 13(3:28)2017, pp. 1–22 (2017) <http://doi.org/10.23638/LMCS-13(3:28)2017>`_.
