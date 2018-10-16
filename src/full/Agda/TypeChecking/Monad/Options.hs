@@ -98,7 +98,8 @@ setCommandLineOptions' root opts = do
 libToTCM :: LibM a -> TCM a
 libToTCM m = do
   (z, warns) <- liftIO $ runWriterT $ runExceptT m
---  unless (null warns) $ warnings warns --TODO
+
+  unless (null warns) $ warnings $ map LibraryWarning warns
   case z of
     Left s  -> typeError $ GenericDocError s
     Right x -> return x
@@ -217,7 +218,9 @@ setIncludeDirs incs root = do
   -- "new-path/M.agda".
   when (oldIncs /= incs) $ do
     ho <- getInteractionOutputCallback
+    tcWarnings <- useTC stTCWarnings -- restore already generated warnings
     resetAllState
+    setTCLens stTCWarnings tcWarnings
     setInteractionOutputCallback ho
 
   Lens.putAbsoluteIncludePaths incs

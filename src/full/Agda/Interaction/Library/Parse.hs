@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveDataTypeable #-}
 -- | Parser for @.agda-lib@ files.
 --
 --   Example file:
@@ -21,12 +22,20 @@
 --       }
 --   @
 --
-module Agda.Interaction.Library.Parse ( parseLibFile, splitCommas, trimLineComment, LineNumber, runP, LibWarning'(..) ) where
+module Agda.Interaction.Library.Parse
+  ( parseLibFile
+  , splitCommas
+  , trimLineComment
+  , LineNumber
+  , runP
+  , LibWarning'(..)
+  ) where
 
 import Control.Exception
 import Control.Monad
 import Control.Monad.Writer
 import Data.Char
+import Data.Data
 import qualified Data.List as List
 import System.FilePath
 
@@ -37,15 +46,19 @@ import Agda.Utils.IO ( catchIO )
 import Agda.Utils.String ( ltrim )
 
 -- | Parser monad: Can throw @String@ error messages, and collects
--- @String@ warnings.
+-- @LibWarning'@s library warnings.
 type P = ExceptT String (Writer [LibWarning'])
 
 runP :: P a -> (Either String a, [LibWarning'])
 runP = runWriter . runExceptT
 
+-- | Library Warnings.
 data LibWarning'
   = UnknownField String
-  deriving Show
+  deriving (Show, Data)
+
+warningP :: LibWarning' -> P ()
+warningP = tell . pure
 
 -- | The config files we parse have the generic structure of a sequence
 --   of @field : content@ entries.
@@ -132,7 +145,7 @@ checkFields fields fs = do
 -- | Find 'Field' with given 'fName', throw error if unknown.
 findField :: String -> [Field] -> P (Maybe Field)
 findField s fs = maybe err (return . Just) $ List.find ((s ==) . fName) fs
-  where err = tell [UnknownField s] >> return Nothing
+  where err = warningP (UnknownField s) >> return Nothing
 
 -- Generic file parser ----------------------------------------------------
 
