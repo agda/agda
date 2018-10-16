@@ -4,8 +4,6 @@ Release notes for Agda version 2.6.0
 Installation and infrastructure
 -------------------------------
 
-* Added support for GHC 8.4.4.
-
 * Added support for GHC 8.6.1 (except for `cpphs`
   [Issue [#3154](https://github.com/agda/agda/issues/3254)] and
   `stack` [Issue [#3255](https://github.com/agda/agda/issues/3255)] )
@@ -192,6 +190,8 @@ Installation and infrastructure
 
 * Using `cpp` instead of `cpphs` as the default preprocessor
   [Issue [#3223](https://github.com/agda/agda/issues/3223)].
+
+* Added support for GHC 8.4.4.
 
 Other closed issues
 --------------------
