@@ -1,5 +1,6 @@
 module Agda.Auto.Options where
 
+import Data.Char
 import Control.Monad.State
 import Agda.Utils.Lens
 
@@ -15,7 +16,7 @@ data AutoHintMode = AHMNone
 
 type Hints = [String]
 
-newtype TimeOut = TimeOut { getTimeOut :: Int }
+newtype TimeOut = TimeOut { getTimeOut :: Int } -- in ms
 
 instance Show TimeOut where
   show = show . getTimeOut
@@ -33,7 +34,7 @@ data AutoOptions = AutoOptions
 initAutoOptions :: AutoOptions
 initAutoOptions = AutoOptions
   { autoHints    = []
-  , autoTimeOut  = TimeOut 1
+  , autoTimeOut  = TimeOut 1000
   , autoPick     = 0
   , autoMode     = MNormal False False
   , autoHintMode = AHMNone
@@ -68,11 +69,11 @@ aoHintMode f s =
 
 data AutoToken =
     M | C | R | D | L
-  | T Int | S Int | H String
+  | T String | S Int | H String
 
 autoTokens :: [String] -> [AutoToken]
 autoTokens []              = []
-autoTokens ("-t" : t : ws) = T (read t) : autoTokens ws
+autoTokens ("-t" : t : ws) = T t        : autoTokens ws
 autoTokens ("-s" : s : ws) = S (read s) : autoTokens ws
 autoTokens ("-l"     : ws) = L          : autoTokens ws
 autoTokens ("-d"     : ws) = D          : autoTokens ws
@@ -80,6 +81,19 @@ autoTokens ("-m"     : ws) = M          : autoTokens ws
 autoTokens ("-c"     : ws) = C          : autoTokens ws
 autoTokens ("-r"     : ws) = R          : autoTokens ws
 autoTokens (h        : ws) = H h        : autoTokens ws
+
+parseTime :: String -> Int
+parseTime [] = 0
+parseTime xs = read ds * modifier + parseTime r where
+  (ds , modr) = span isDigit xs
+  (mod , r)   = span (not . isDigit) modr
+
+  modifier = case mod of
+    "ms" -> 1
+    "cs" -> 10
+    "ds" -> 100
+    "s"  -> 1000
+    _    -> 1000
 
 parseArgs :: String -> AutoOptions
 parseArgs s = mapM_ step (autoTokens $ words s)
@@ -90,7 +104,7 @@ parseArgs s = mapM_ step (autoTokens $ words s)
   step C     = aoMode     .= MCaseSplit
   step R     = aoPick     .= (-1)
             >> aoMode     .= MRefine False
-  step (T t) = aoTimeOut  .= TimeOut t
+  step (T t) = aoTimeOut  .= TimeOut (parseTime t)
   step (S p) = aoPick     .= p
   step (H h) = aoHints    %= (h :)
   step D     = do

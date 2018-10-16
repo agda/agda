@@ -289,7 +289,8 @@ removeInteractionPoint ii = do
   stInteractionPoints `modifyTCLens` Map.update (\ ip -> Just ip{ ipSolved = True }) ii
 
 -- | Get a list of interaction ids.
-getInteractionPoints :: TCM [InteractionId]
+{-# SPECIALIZE getInteractionPoints :: TCM [InteractionId] #-}
+getInteractionPoints :: MonadTCM tcm => tcm [InteractionId]
 getInteractionPoints = Map.keys <$> useTC stInteractionPoints
 
 -- | Get all metas that correspond to unsolved interaction ids.
@@ -310,7 +311,8 @@ isInteractionMeta :: MetaId -> TCM (Maybe InteractionId)
 isInteractionMeta x = lookup x . map swap <$> getInteractionIdsAndMetas
 
 -- | Get the information associated to an interaction point.
-lookupInteractionPoint :: InteractionId -> TCM InteractionPoint
+{-# SPECIALIZE lookupInteractionPoint :: InteractionId -> TCM InteractionPoint #-}
+lookupInteractionPoint :: MonadTCM tcm => InteractionId -> tcm InteractionPoint
 lookupInteractionPoint ii =
   fromMaybeM err $ Map.lookup ii <$> useTC stInteractionPoints
   where
@@ -354,7 +356,8 @@ newMeta' inst mi p perm j = do
   return x
 
 -- | Get the 'Range' for an interaction point.
-getInteractionRange :: InteractionId -> TCM Range
+{-# SPECIALIZE getInteractionRange :: InteractionId -> TCM Range #-}
+getInteractionRange :: MonadTCM tcm => InteractionId -> tcm Range
 getInteractionRange = ipRange <.> lookupInteractionPoint
 
 -- | Get the 'Range' for a meta variable.
