@@ -14,6 +14,8 @@ import Agda.Syntax.Concrete.Definitions (DeclarationWarning(..))
 import Agda.Syntax.Abstract.Name (ModuleName)
 import Agda.TypeChecking.Monad.Base
 import Agda.Interaction.Options
+import Agda.Interaction.Library
+import Agda.Interaction.Library.Parse
 import Agda.Termination.CutOff
 import Agda.TypeChecking.Positivity.Occurrence ()
 import Agda.Syntax.Parser.Monad (ParseWarning( OverlappingTokensWarning ))
@@ -61,6 +63,7 @@ instance EmbPrj Warning where
   icod_ (UserWarning a)              = icodeN 9 UserWarning a
   icod_ (AbsurdPatternRequiresNoRHS a) = icodeN 10 AbsurdPatternRequiresNoRHS a
   icod_ (ModuleDoesntExport a b)       = icodeN 11 ModuleDoesntExport a b
+  icod_ (LibraryWarning a)           = icodeN 12 LibraryWarning a
 
   value = vcase valu where
       valu [0, a, b]    = valuN UnreachableClauses a b
@@ -75,6 +78,7 @@ instance EmbPrj Warning where
       valu [9, a]       = valuN UserWarning a
       valu [10, a]      = valuN AbsurdPatternRequiresNoRHS a
       valu [11, a, b]   = valuN ModuleDoesntExport a b
+      valu [12, a]      = valuN LibraryWarning a
       valu _ = malformed
 
 instance EmbPrj DeclarationWarning where
@@ -122,6 +126,32 @@ instance EmbPrj DeclarationWarning where
     [18,r,a] -> valuN NotAllowedInMutual r a
     [19,r]   -> valuN PragmaNoTerminationCheck r
     _ -> malformed
+
+instance EmbPrj LibWarning where
+  icod_ = \case
+    LibWarning a b -> icodeN 0 LibWarning a b
+
+  value = vcase $ \case
+    [0, a, b]   -> valuN LibWarning a b
+    _ -> malformed
+
+instance EmbPrj LibWarning' where
+  icod_ = \case
+    UnknownField a -> icodeN 0 UnknownField a
+
+  value = vcase $ \case
+    [0, a]   -> valuN UnknownField a
+    _ -> malformed
+
+instance EmbPrj LibPositionInfo where
+  icod_ = \case
+    LibPositionInfo a b c -> icodeN 0 LibPositionInfo a b c
+
+  value = vcase $ \case
+    [0, a, b, c]   -> valuN LibPositionInfo a b c
+    _ -> malformed
+
+
 
 instance EmbPrj Doc where
   icod_ d = icodeN' (undefined :: String -> Doc) (render d)

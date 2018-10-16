@@ -76,6 +76,7 @@ import Agda.Interaction.Response
   (InteractionOutputCallback, defaultInteractionOutputCallback, Response(..))
 import Agda.Interaction.Highlighting.Precise
   (CompressedFile, HighlightingInfo)
+import Agda.Interaction.Library
 
 import Agda.Utils.Except
   ( Error(strMsg)
@@ -2635,6 +2636,7 @@ data Warning
   | SafeFlagPolarity
   | SafeFlagNoUniverseCheck
   | ParseWarning             ParseWarning
+  | LibraryWarning           LibWarning
   | DeprecationWarning String String String
     -- ^ `DeprecationWarning old new version`:
     --   `old` is deprecated, use `new` instead. This will be an error in Agda `version`.
@@ -2650,6 +2652,7 @@ warningName w = case w of
   -- special cases
   NicifierIssue dw             -> declarationWarningName dw
   ParseWarning pw              -> parseWarningName pw
+  LibraryWarning lw            -> libraryWarningName lw
   -- typechecking errors
   AbsurdPatternRequiresNoRHS{} -> AbsurdPatternRequiresNoRHS_
   CoverageIssue{}              -> CoverageIssue_

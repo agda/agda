@@ -236,6 +236,8 @@ prettyWarning wng = liftTCM $ case wng of
       pwords "The module" ++ [pretty m] ++ pwords "doesn't export the following:" ++
       punctuate comma (map pretty xs)
 
+    LibraryWarning lw -> pretty lw
+
 
 prettyTCWarnings :: [TCWarning] -> TCM String
 prettyTCWarnings = fmap (unlines . intersperse "") . prettyTCWarnings'

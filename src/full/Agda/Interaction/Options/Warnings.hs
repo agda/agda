@@ -130,9 +130,11 @@ usualWarnings = allWarnings Set.\\ Set.fromList
 
 data WarningName
   =
-  -- Parser Warning
+  -- Parser Warnings
     OverlappingTokensWarning_
-  -- Nicifer Warning
+  -- Library Warnings
+  | LibUnknownField_
+  -- Nicifer Warnings
   | EmptyAbstract_
   | EmptyInstance_
   | EmptyMacro_
@@ -153,7 +155,7 @@ data WarningName
   | UselessAbstract_
   | UselessInstance_
   | UselessPrivate_
-  -- Scope and Type Checking Warning
+  -- Scope and Type Checking Warnings
   | OldBuiltin_
   | EmptyRewritePragma_
   | UselessPublic_
@@ -232,7 +234,9 @@ usageWarning = intercalate "\n"
 warningNameDescription :: WarningName -> String
 warningNameDescription w = case w of
   OverlappingTokensWarning_        -> "Multi-line comments spanning one or more literate text blocks."
-  -- Nicifer Warning
+  -- Library Warnings
+  LibUnknownField_                 -> "Unknown field in library file"
+  -- Nicifer Warnings
   EmptyAbstract_                   -> "Empty `abstract' blocks."
   EmptyInstance_                   -> "Empty `instance' blocks."
   EmptyMacro_                      -> "Empty `macro' blocks."
@@ -253,7 +257,7 @@ warningNameDescription w = case w of
   UselessAbstract_                 -> "`abstract' blocks where they have no effect."
   UselessInstance_                 -> "`instance' blocks where they have no effect."
   UselessPrivate_                  -> "`private' blocks where they have no effect."
-  -- Scope and Type Checking Warning
+  -- Scope and Type Checking Warnings
   OldBuiltin_                      -> "Deprecated `BUILTIN' pragmas."
   EmptyRewritePragma_              -> "Empty `REWRITE' pragmas."
   UselessPublic_                   -> "`public' blocks where they have no effect."
