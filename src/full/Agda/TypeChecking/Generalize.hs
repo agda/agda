@@ -31,63 +31,13 @@ import qualified Agda.Utils.Graph.TopSort as Graph
 
 -- | Generalize a type over a set of (used) generalizable variables.
 generalizeType :: Set QName -> TCM Type -> TCM (Int, Type)
-generalizeType s m = do
+generalizeType s typecheckAction = do
     (t, allmetas) <- metasCreatedBy $ do
       -- Create metas for all used generalizable variables and their dependencies.
-      cp      <- viewTC eCurrentCheckpoint
-      genvals <- locallyTC eGeneralizeMetas (const YesGeneralize) $ forM (Set.toList s) $ \ x -> do
-        def <- getConstInfo x
-                         -- Only prefix of generalizable arguments (for now?)
-        let nGen       = length $ takeWhile (== YesGeneralize) $ defArgGeneralizable def
-            ty         = defType def
-            TelV tel _ = telView' ty
-            argTel     = telFromList $ take nGen $ telToList tel
-
-        args <- newTelMeta argTel
-
-        let metaType = piApply ty args
-            name     = show (nameConcrete $ qnameName x)
-        (m, term) <- newNamedValueMeta DontRunMetaOccursCheck name metaType
-
-        -- Freeze the meta to prevent named generalizable metas to be instantiated.
-        let fromJust' :: Lens' a (Maybe a)
-            fromJust' f (Just x) = Just <$> f x
-            fromJust' f Nothing  = {-'-} __IMPOSSIBLE__
-        stMetaStore . key m . fromJust' . metaFrozen `setTCLens` Frozen
-
-        -- Set up names of arg metas
-        forM_ (zip3 [1..] (map unArg args) (telToList argTel)) $ \ case
-          (i, MetaV m _, Dom{unDom = (x, _)}) -> do
-            let suf "_" = show i
-                suf ""  = show i
-                suf x   = x
-            setMetaNameSuggestion m (name ++ "." ++ suf x)
-          _ -> return ()  -- eta expanded
-
-        -- Update the ArgInfos for the named meta. The argument metas are
-        -- created with the correct ArgInfo.
-        setMetaArgInfo m $ defArgInfo def
-
-        reportSDoc "tc.decl.gen" 50 $ vcat
-          [ "created metas for generalized variable" <+> prettyTCM x
-          , nest 2 $ "top  =" <+> prettyTCM term
-          , nest 2 $ "args =" <+> prettyTCM args ]
-
-        case term of
-          MetaV{} -> return ()
-          _       -> genericDocError =<< ("Cannot generalize over" <+> prettyTCM x <+> "of eta-expandable type") <?>
-                                          prettyTCM metaType
-        return (x, GeneralizedValue{ genvalCheckpoint = cp
-                                   , genvalTerm       = term
-                                   , genvalType       = metaType })
-
+      genvals <- fmap Map.fromList $ locallyTC eGeneralizeMetas (const YesGeneralize)
+                                   $ forM (Set.toList s) createGenValue
       -- Check the type
-      let gvMap = Map.fromList genvals
-      t <- locallyTC eGeneralizedVars (const gvMap) m
-
-      return t
-
-    -- Collect generalizable metas and sort them in dependency order.
+      locallyTC eGeneralizedVars (const genvals) typecheckAction
 
     -- Pair metas with their metaInfo
     mvs <- mapM (\ x -> (x,) <$> lookupMeta x) (Set.toList allmetas)
@@ -113,13 +63,8 @@ generalizeType s m = do
     unless (null reallyDontGeneralize) $
       typeError $ NotImplemented "Unsolved non-generalizable metas in generalized type"
 
-    metaGraph <- fmap concat $ forM generalizeOver $ \ m -> do
-                    deps <- nub . filter (`elem` generalizeOver) . allMetas <$> (instantiateFull =<< getMetaType m)
-                    return [ (m, m') | m' <- deps ]
-
-    sortedMetas <- caseMaybe (Graph.topSort generalizeOver metaGraph)
-                             (typeError GeneralizeCyclicDependency)
-                             return
+    -- Sort metas in dependency order
+    sortedMetas <- sortMetas generalizeOver
 
     reportSDoc "tc.decl.gen" 50 $ vcat
       [ text $ "allMetas    = " ++ show allmetas
@@ -165,3 +110,64 @@ generalizeType s m = do
             , nest 2 $ "to" <+> pretty t'
             ]
         addVars t' ns
+
+-- | Create a generalisable meta for a generalisable variable.
+createGenValue :: QName -> TCM (QName, GeneralizedValue)
+createGenValue x = do
+  cp  <- viewTC eCurrentCheckpoint
+  def <- getConstInfo x
+                   -- Only prefix of generalizable arguments (for now?)
+  let nGen       = length $ takeWhile (== YesGeneralize) $ defArgGeneralizable def
+      ty         = defType def
+      TelV tel _ = telView' ty
+      argTel     = telFromList $ take nGen $ telToList tel
+
+  args <- newTelMeta argTel
+
+  let metaType = piApply ty args
+      name     = show (nameConcrete $ qnameName x)
+  (m, term) <- newNamedValueMeta DontRunMetaOccursCheck name metaType
+
+  -- Freeze the meta to prevent named generalizable metas to be instantiated.
+  let fromJust' :: Lens' a (Maybe a)
+      fromJust' f (Just x) = Just <$> f x
+      fromJust' f Nothing  = {-'-} __IMPOSSIBLE__
+  stMetaStore . key m . fromJust' . metaFrozen `setTCLens` Frozen
+
+  -- Set up names of arg metas
+  forM_ (zip3 [1..] (map unArg args) (telToList argTel)) $ \ case
+    (i, MetaV m _, Dom{unDom = (x, _)}) -> do
+      let suf "_" = show i
+          suf ""  = show i
+          suf x   = x
+      setMetaNameSuggestion m (name ++ "." ++ suf x)
+    _ -> return ()  -- eta expanded
+
+  -- Update the ArgInfos for the named meta. The argument metas are
+  -- created with the correct ArgInfo.
+  setMetaArgInfo m $ defArgInfo def
+
+  reportSDoc "tc.decl.gen" 50 $ vcat
+    [ "created metas for generalized variable" <+> prettyTCM x
+    , nest 2 $ "top  =" <+> prettyTCM term
+    , nest 2 $ "args =" <+> prettyTCM args ]
+
+  case term of
+    MetaV{} -> return ()
+    _       -> genericDocError =<< ("Cannot generalize over" <+> prettyTCM x <+> "of eta-expandable type") <?>
+                                    prettyTCM metaType
+  return (x, GeneralizedValue{ genvalCheckpoint = cp
+                             , genvalTerm       = term
+                             , genvalType       = metaType })
+
+-- | Sort metas in dependency order.
+sortMetas :: [MetaId] -> TCM [MetaId]
+sortMetas metas = do
+  metaGraph <- fmap concat $ forM metas $ \ m -> do
+                  deps <- nub . filter (`elem` metas) . allMetas <$> (instantiateFull =<< getMetaType m)
+                  return [ (m, m') | m' <- deps ]
+
+  caseMaybe (Graph.topSort metas metaGraph)
+            (typeError GeneralizeCyclicDependency)
+            return
+
