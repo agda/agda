@@ -1,5 +1,0 @@
-Issue3134.agda:20,25-62
-Not implemented: Unsolved non-generalizable metas in generalized
-type
-when checking that the expression
-(e : m ∣ n) → divide-to-nat e * n ≡ m has type _14

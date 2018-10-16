@@ -1,5 +1,4 @@
-Issue3276.agda:15,7-32
-Not implemented: Unsolved non-generalizable metas in generalized
-type
-when checking that the expression (xs₁ : Vec A n) → IsNil xs₁ has
-type _16
+Issue3276.agda:15,30-32
+(;Issue3276.gen-n genTel) != zero of type Nat
+when checking that the expression xs has type
+Vec (;Issue3276.gen-A genTel) 0

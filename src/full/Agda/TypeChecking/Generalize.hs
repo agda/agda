@@ -73,8 +73,8 @@ generalizeType s typecheckAction = do
         generalizeOver = map fst generalizableOpen ++ alsoGeneralize
 
     -- For now, we don't handle unsolved non-generalizable metas.
-    unless (null reallyDontGeneralize) $
-      typeError $ NotImplemented "Unsolved non-generalizable metas in generalized type"
+    -- unless (null reallyDontGeneralize) $
+    --   typeError $ NotImplemented "Unsolved non-generalizable metas in generalized type"
 
     -- Sort metas in dependency order
     sortedMetas <- sortMetas generalizeOver
