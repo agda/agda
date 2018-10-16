@@ -80,6 +80,14 @@ matrix:
           sources:
             - hvr-ghc
 
+    - env: TEST=STACKAGE GHC_VER=8.6.1 BUILD=STACK ARGS="--stack-yaml stack-8.6.1.yaml --system-ghc"
+      addons:
+        apt:
+          packages:
+            - ghc-8.6.1
+          sources:
+            - hvr-ghc
+
     - env: TEST=STACKAGE GHC_VER=8.4.4 BUILD=STACK ARGS="--stack-yaml stack-8.4.4.yaml --system-ghc"
       addons:
         apt:
@@ -318,9 +326,16 @@ install:
 
 # N.B. that these tests are not include in the Makefile tests.
 
+# ASR (2018-10-22). We don't test the `cpphs` flag with GHC 8.6.1 due
+# to Issue #3254.
+
   - if [[ $TEST = "STACKAGE" ]]; then
        stack build $ARGS --no-terminal &&
-       stack build $ARGS --no-terminal --flag Agda:cpphs --flag Agda:debug --flag Agda:enable-cluster-counting;
+       if [[ $GHC_VER != "8.6.1" ]]; then
+          stack build $ARGS --no-terminal --flag Agda:cpphs --flag Agda:debug --flag Agda:enable-cluster-counting;
+       else
+          stack build $ARGS --no-terminal --flag Agda:debug --flag Agda:enable-cluster-counting;
+       fi
     fi
 
 ##############################################################################
