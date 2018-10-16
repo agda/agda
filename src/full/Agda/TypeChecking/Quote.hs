@@ -176,7 +176,7 @@ quotingKit = do
       quotePat (ProjP _ x)       = projP !@ quoteQName x
       quotePat (IApplyP o t u x)  = pure unsupported
       quotePat DefP{}             = pure unsupported
-      
+
       quoteClause :: Clause -> ReduceM Term
       quoteClause cl@Clause{namedClausePats = ps, clauseBody = body} =
         case body of

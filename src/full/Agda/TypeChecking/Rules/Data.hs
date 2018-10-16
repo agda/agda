@@ -357,10 +357,10 @@ defineCompData d con params names fsT t boundary = do
               -- Γ ⊢ u
               the_u = liftS (size fsT) d0 `applySubst` u
                 where
-                  -- δ : Δ^I, φ : F ⊢ [δ 0] : Δ 
+                  -- δ : Δ^I, φ : F ⊢ [δ 0] : Δ
                   d0 :: Substitution
                   d0 = wkS 1 -- Δ^I, φ : F ⊢ Δ
-                             (consS iz IdS `composeS` sub params) -- Δ^I ⊢ Δ 
+                             (consS iz IdS `composeS` sub params) -- Δ^I ⊢ Δ
                                        -- Δ^I , i:I ⊢ sub params : Δ
               the_phi = raise (size fsT) $ var 0
               -- Γ ⊢ sigma : Δ.Φ
@@ -370,7 +370,7 @@ defineCompData d con params names fsT t boundary = do
                 -- δ i1
                 d1 :: Substitution
                 d1 = wkS (size gamma - size params) -- Γ ⊢ Δ
-                       (consS io IdS `composeS` sub params) -- Δ^I ⊢ Δ 
+                       (consS io IdS `composeS` sub params) -- Δ^I ⊢ Δ
                                  -- Δ^I , i:I ⊢ sub params : Δ
 
               -- Δ.Φ ⊢ [ (i=0) -> t_i; (i=1) -> u_i ] : R δ
@@ -445,28 +445,28 @@ defineCompData d con params names fsT t boundary = do
                                                    thePsi    phi
                                                    sys_alpha (ilam "o" $ \ _ -> u)
                 hcomp ty (thePsi `imax` phi) sys w1'
-                
-      
+
+
       let
-        
-        -- δ : Δ^I, φ : F ⊢ [δ 0] : Δ 
+
+        -- δ : Δ^I, φ : F ⊢ [δ 0] : Δ
         d0 :: Substitution
         d0 = wkS 1 -- Δ^I, φ : F ⊢ Δ
-                       (consS iz IdS `composeS` sub params) -- Δ^I ⊢ Δ 
+                       (consS iz IdS `composeS` sub params) -- Δ^I ⊢ Δ
                                  -- Δ^I , i:I ⊢ sub params : Δ
-                       
+
         -- Δ.Φ ⊢ u = Con con ConOSystem $ teleElims fsT boundary : R δ
 --        u = Con con ConOSystem $ teleElims fsT boundary
         up = ConP con (ConPatternInfo Nothing False Nothing False) $
                telePatterns (d0 `applySubst` fsT) (liftS (size fsT) d0 `applySubst` boundary)
 --        gamma' = telFromList $ take (size gamma - 1) $ telToList gamma
 
-        -- (δ , φ , fs : Φ[d0]) ⊢ u[liftS Φ d0] 
+        -- (δ , φ , fs : Φ[d0]) ⊢ u[liftS Φ d0]
         -- (δ , φ, u) : Γ ⊢ body
         -- Δ ⊢ Φ = fsT
         -- (δ , φ , fs : Φ[d0]) ⊢ u[liftS Φ d0] `consS` raiseS Φ : Γ
 --        (tel',theta) = (abstract gamma' (d0 `applySubst` fsT), (liftS (size fsT) d0 `applySubst` u) `consS` raiseS (size fsT))
-      
+
       let
         clause | null boundary
            = Clause
@@ -479,7 +479,7 @@ defineCompData d con params names fsT t boundary = do
             , clauseBody = Just $ body
             , clauseUnreachable = Just False
             }
-                 
+
                | otherwise
            = Clause
             { clauseTel = gamma
@@ -783,11 +783,11 @@ defineTranspForFields' pathCons applyProj name params fsT fns rect = do
   -- Γ ⊢     rtype = R (δ i1)
   TelV gamma rtype <- telView theType
 
-  
+
   let
       -- (γ : Γ) ⊢ compR γ : rtype
       theTerm = Def theName [] `apply` teleArgs gamma
-      
+
       -- (γ : Γ) ⊢ (flatten Φ[δ i1])[n ↦ f_n (compR γ)]
       clause_types = parallelS [theTerm `applyProj` (unArg fn)
                                | fn <- reverse fns] `applySubst`
@@ -811,10 +811,10 @@ defineTranspForFields' pathCons applyProj name params fsT fns rect = do
 
       gamma' = telFromList $ take (size gamma - 1) $ telToList gamma
 
-      -- δ : Δ^I, φ : F ⊢ [δ 0] : Δ 
+      -- δ : Δ^I, φ : F ⊢ [δ 0] : Δ
       d0 :: Substitution
       d0 = wkS 1 -- Δ^I, φ : F ⊢ Δ
-                       (consS iz IdS `composeS` sub params) -- Δ^I ⊢ Δ 
+                       (consS iz IdS `composeS` sub params) -- Δ^I ⊢ Δ
                                  -- Δ^I , i:I ⊢ sub params : Δ
       -- Ξ , Ξ ⊢ θ : Γ, Ξ ⊢ φ, Ξ ⊢ u : R (δ i0), Ξ ⊢ us
       (tel,theta,the_phi,the_u0, the_fields) =

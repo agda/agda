@@ -176,10 +176,10 @@ match' ((c, es, patch) : stack) = do
                       Con c ci vs -> conFrame c ci vs stack
                       _        -> stack
                 match' $ litFrame l $ cFrame $ catchAllFrame stack
-                
+
               NotBlocked _ (Apply (Arg info v@(Def q vs))) | Just{} <- Map.lookup q (conBranches bs) -> performedSimplification $ do
                 match' $ conFrame' q (Def q) vs $ catchAllFrame $ stack
-                
+
               -- In case of a constructor, push the conFrame
               b | Just (Con c ci vs) <- isCon b -> performedSimplification $
                 match' $ conFrame c ci vs $ catchAllFrame $ stack
