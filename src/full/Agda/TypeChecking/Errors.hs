@@ -461,6 +461,7 @@ errorString err = case err of
   WrongHidingInLambda{}                    -> "WrongHidingInLambda"
   WrongInstanceDeclaration{}               -> "WrongInstanceDeclaration"
   WrongIrrelevanceInLambda{}               -> "WrongIrrelevanceInLambda"
+  WrongQuantityInLambda{}                  -> "WrongQuantityInLambda"
   WrongNamedArgument{}                     -> "WrongNamedArgument"
   WrongNumberOfConstructorArguments{}      -> "WrongNumberOfConstructorArguments"
   HidingMismatch{}                         -> "HidingMismatch"
@@ -560,6 +561,9 @@ instance PrettyTCM TypeError where
 
     WrongIrrelevanceInLambda ->
       fwords "Found a non-strict lambda where a irrelevant lambda was expected"
+
+    WrongQuantityInLambda ->
+      fwords "Incorrect quantity annotation in lambda"
 
     WrongNamedArgument a -> fsep $
       pwords "Function does not accept argument "

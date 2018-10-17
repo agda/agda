@@ -393,7 +393,7 @@ checkLambda cmp b@(Arg info (A.TBind _ xs' typ)) body target = do
         info <- return $ mapHiding (mappend h) info
         unless (sameHiding dom info) $ typeError $ WrongHidingInLambda target
         -- Andreas, 2011-10-01 ignore relevance in lambda if not explicitly given
-        info <- lambdaIrrelevanceCheck info dom
+        info <- lambdaModalityCheck dom info
         -- Andreas, 2015-05-28 Issue 1523
         -- Ensure we are not stepping under a possibly non-existing size.
         -- TODO: do we need to block checkExpr?
@@ -410,13 +410,20 @@ checkLambda cmp b@(Arg info (A.TBind _ xs' typ)) body target = do
 
     useTargetType _ _ = __IMPOSSIBLE__
 
+-- | Check that modality info in lambda is compatible with modality
+--   coming from the function type.
+--   If lambda has no user-given modality, copy that of function type.
+lambdaModalityCheck :: LensModality dom => dom -> ArgInfo -> TCM ArgInfo
+lambdaModalityCheck dom = lambdaQuantityCheck m <=< lambdaIrrelevanceCheck m
+  where m = getModality dom
+
 -- | Check that irrelevance info in lambda is compatible with irrelevance
 --   coming from the function type.
 --   If lambda has no user-given relevance, copy that of function type.
-lambdaIrrelevanceCheck :: LensRelevance dom => ArgInfo -> dom -> TCM ArgInfo
-lambdaIrrelevanceCheck info dom
+lambdaIrrelevanceCheck :: LensRelevance dom => dom -> ArgInfo -> TCM ArgInfo
+lambdaIrrelevanceCheck dom info
     -- Case: no specific user annotation: use relevance of function type
-  | isRelevant info = return $ setRelevance (getRelevance dom) info
+  | getRelevance info == defaultRelevance = return $ setRelevance (getRelevance dom) info
     -- Case: explicit user annotation is taken seriously
   | otherwise = do
       let rPi  = getRelevance dom  -- relevance of function type
@@ -433,6 +440,23 @@ lambdaIrrelevanceCheck info dom
         typeError WrongIrrelevanceInLambda
       return info
 
+-- | Check that quantity info in lambda is compatible with quantity
+--   coming from the function type.
+--   If lambda has no user-given quantity, copy that of function type.
+lambdaQuantityCheck :: LensQuantity dom => dom -> ArgInfo -> TCM ArgInfo
+lambdaQuantityCheck dom info
+    -- Case: no specific user annotation: use quantity of function type
+  | getQuantity info == defaultQuantity = return $ setQuantity (getQuantity dom) info
+    -- Case: explicit user annotation is taken seriously
+  | otherwise = do
+      let qPi  = getQuantity dom  -- quantity of function type
+      let qLam = getQuantity info -- quantity of lambda
+      unless (moreQuantity qPi qLam) $ do
+        -- the expected use qPi cannot be unrestricted
+        when (qPi == Quantityω) __IMPOSSIBLE__
+        typeError WrongQuantityInLambda
+      return info
+
 lambdaAddContext :: Name -> ArgName -> Dom Type -> TCM a -> TCM a
 lambdaAddContext x y dom
   | isNoName x = addContext (notInScopeName y, dom)  -- Note: String instance
@@ -447,7 +471,7 @@ checkPostponedLambda cmp args@(Arg info (WithHiding h x : xs, mt)) body target =
       lamHiding = mappend h $ getHiding info
   insertHiddenLambdas lamHiding target postpone $ \ t@(El _ (Pi dom b)) -> do
     -- Andreas, 2011-10-01 ignore relevance in lambda if not explicitly given
-    info' <- setHiding lamHiding <$> lambdaIrrelevanceCheck info dom
+    info' <- setHiding lamHiding <$> lambdaModalityCheck dom info
     -- We only need to block the final term on the argument type
     -- comparison. The body will be blocked if necessary. We still want to
     -- compare the argument types first, so we spawn a new problem for that

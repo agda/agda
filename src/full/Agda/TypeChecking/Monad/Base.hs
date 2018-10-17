@@ -2860,6 +2860,8 @@ data TypeError
             -- ^ A function is applied to a hidden named argument it does not have.
         | WrongIrrelevanceInLambda
             -- ^ Wrong user-given relevance annotation in lambda.
+        | WrongQuantityInLambda
+            -- ^ Wrong user-given quantity annotation in lambda.
         | WrongInstanceDeclaration
             -- ^ A term is declared as an instance but it’s not allowed
         | HidingMismatch Hiding Hiding

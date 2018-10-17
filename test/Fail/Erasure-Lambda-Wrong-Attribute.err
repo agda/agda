@@ -1,0 +1,3 @@
+Erasure-Lambda-Wrong-Attribute.agda:7,34-35
+Variable y is declared erased, so it cannot be used here
+when checking that the expression y has type _B_7
