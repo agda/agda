@@ -19,3 +19,10 @@ foo h = 0
 
 check-foo : {A : Set} {x : A} {n : Nat} {xs : Vec A (suc n)} → IsHead x xs → Nat
 check-foo = foo
+
+-- Should work also if the meta is created in an extended context
+bar : (X : Set) → IsHead x xs → Nat
+bar X h = 0
+
+check-bar : {A : Set} {x : A} {n : Nat} {xs : Vec A (suc n)} → (X : Set) → IsHead x xs → Nat
+check-bar = bar

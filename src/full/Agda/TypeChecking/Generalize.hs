@@ -31,6 +31,7 @@ import Agda.Utils.Impossible
 import Agda.Utils.Lens
 import Agda.Utils.Maybe
 import Agda.Utils.Size
+import Agda.Utils.Permutation
 import qualified Agda.Utils.Graph.TopSort as Graph
 
 #include "undefined.h"
@@ -64,9 +65,32 @@ generalizeType s typecheckAction = do
         nongeneralizableOpen = filter isOpen nongeneralizable
 
     -- Any meta in the solution of a generalizable meta should be generalized over.
+    cp <- viewTC eCurrentCheckpoint
+    let canGeneralize x = do
+            mv  <- lookupMeta x
+            (mcp, sub) <- enterClosure (miClosRange $ mvInfo mv) $ \ _ ->
+              (,) <$> viewTC eCurrentCheckpoint <*> checkpointSubstitution cp
+            -- TODO: might pruned further
+            let sameContext =
+                  -- Do we have a weakening substitution and a corresponding
+                  -- pruning getting rid of the extra variables?
+                  case (sub, mvPermutation mv) of
+                    (Wk n IdS, Perm m xs) -> xs == [0 .. m - n - 1]
+                    _                     -> False
+            when (mcp /= cp && not sameContext) $ do
+              ty <- getMetaType x
+              let Perm m xs = mvPermutation mv
+              reportSDoc "tc.decl.gen" 20 $ vcat
+                [ text "Not clear how to generalize over"
+                , nest 2 $ prettyTCM x <+> text ":" <+> prettyTCM ty
+                , text "in context"
+                , nest 2 $ inTopContext . prettyTCM =<< getContextTelescope
+                , text "permutation:" <+> text (show (m, xs))
+                , text "subst:" <+> pretty sub ]
+            return (mcp == cp || sameContext)
     inherited <- fmap Set.unions $ forM generalizableClosed $ \ (x, mv) ->
       case mvInstantiation mv of
-        InstV _ v -> Set.fromList . allMetas <$> instantiateFull v
+        InstV _ v -> Set.fromList <$> (filterM canGeneralize . allMetas =<< instantiateFull v)
         _ -> __IMPOSSIBLE__
 
     let (alsoGeneralize, reallyDontGeneralize) = partition (`Set.member` inherited) $ map fst nongeneralizableOpen
@@ -97,16 +121,12 @@ generalizeType s typecheckAction = do
     zipWithM_ solve sortedMetas genRecFields
 
     -- Build the telescope of generalized metas
-    teleTypes <- forM sortedMetas $ \ m -> do
-                    mv  <- lookupMeta m
-                    mcp <- enterClosure (miClosRange $ mvInfo mv) $ \ _ -> viewTC eCurrentCheckpoint
-                    cp  <- viewTC eCurrentCheckpoint
-                    if | mcp /= cp -> __IMPOSSIBLE__    -- not really: just don't generalise over these
-                       | otherwise -> do
-                          args <- getContextArgs
-                          let info = getArgInfo $ miGeneralizable $ mvInfo mv
-                              HasType{ jMetaType = t } = mvJudgement mv
-                          return (Arg info $ miNameSuggestion $ mvInfo mv, piApply t args)
+    teleTypes <- fmap concat $ forM sortedMetas $ \ m -> do
+                    mv   <- lookupMeta m
+                    args <- getContextArgs
+                    let info = getArgInfo $ miGeneralizable $ mvInfo mv
+                        HasType{ jMetaType = t } = mvJudgement mv
+                    return [(Arg info $ miNameSuggestion $ mvInfo mv, piApply t args)]
     let genTel = buildGeneralizeTel genRecCon teleTypes
     reportSDoc "tc.decl.gen" 40 $ vcat
       [ text "genTel =" <+> prettyTCM genTel ]
