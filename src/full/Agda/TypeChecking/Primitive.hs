@@ -754,8 +754,8 @@ primHComp' :: TCM PrimitiveImpl
 primHComp' = do
   t    <- runNamesT [] $
           hPi' "a" (el $ cl primLevel) $ \ a ->
-          nPi' "A" (sort . tmSort <$> a) $ \ bA ->
-          nPi' "φ" (elInf $ cl primInterval) $ \ phi ->
+          hPi' "A" (sort . tmSort <$> a) $ \ bA ->
+          hPi' "φ" (elInf $ cl primInterval) $ \ phi ->
           (nPi' "i" (elInf $ cl primInterval) $ \ i -> pPi' "o" phi $ \ _ -> el' a bA) -->
           (el' a bA --> el' a bA)
   return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 5 $ \ ts nelims -> do
@@ -1581,7 +1581,7 @@ primGlue' = do
        (hPi' "la" (el $ cl primLevel) $ \ la ->
        hPi' "lb" (el $ cl primLevel) $ \ lb ->
        nPi' "A" (sort . tmSort <$> la) $ \ a ->
-       nPi' "φ" (elInf $ cl primInterval) $ \ φ ->
+       hPi' "φ" (elInf $ cl primInterval) $ \ φ ->
        nPi' "T" (pPi' "o" φ $ \ o -> el' (cl primLevelSuc <@> lb) (Sort . tmSort <$> lb)) $ \ t ->
        (pPi' "o" φ $ \ o -> el' (cl primLevelMax <@> la <@> lb) $ cl primEquiv <#> lb <#> la <@> (t <@> o) <@> a)
        --> (sort . tmSort <$> lb))
