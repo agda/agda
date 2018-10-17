@@ -755,7 +755,7 @@ interpret (Cmd_compile b file argv) =
             (if b == QuickLaTeX
              then Imp.ScopeCheck
              else Imp.TypeCheck) $ \(i, mw) -> do
-    mw <- lift $ Imp.applyFlagsToMaybeWarnings RespectFlags mw
+    mw <- lift $ Imp.applyFlagsToMaybeWarnings mw
     case mw of
       Imp.NoWarnings -> do
         lift $ case b of
@@ -1054,7 +1054,7 @@ interpret Cmd_abort = return ()
 -- | Show warnings
 interpretWarnings :: CommandM (String, String)
 interpretWarnings = do
-  mws <- lift $ Imp.getAllWarnings AllWarnings RespectFlags
+  mws <- lift $ Imp.getMaybeWarnings AllWarnings
   case filter isNotMeta <$> mws of
     Imp.SomeWarnings ws@(_:_) -> do
       let (we, wa) = classifyWarnings ws

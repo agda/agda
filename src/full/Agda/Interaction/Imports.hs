@@ -175,9 +175,9 @@ data MaybeWarnings' a = NoWarnings | SomeWarnings a
   deriving (Functor, Foldable, Traversable)
 type MaybeWarnings = MaybeWarnings' [TCWarning]
 
-applyFlagsToMaybeWarnings :: IgnoreFlags -> MaybeWarnings -> TCM MaybeWarnings
-applyFlagsToMaybeWarnings r mw = do
-  w' <- traverse (applyFlagsToTCWarnings r) mw
+applyFlagsToMaybeWarnings :: MaybeWarnings -> TCM MaybeWarnings
+applyFlagsToMaybeWarnings mw = do
+  w' <- traverse applyFlagsToTCWarnings mw
   return $ if null w' then NoWarnings else w'
 
 instance Null a => Null (MaybeWarnings' a) where
@@ -477,7 +477,7 @@ typeCheck x file isMain = do
                    _                        -> "Checking"
       withMsgs = bracket_
        (chaseMsg checkMsg x $ Just $ filePath file)
-       (const $ do ws <- getAllWarnings' AllWarnings RespectFlags
+       (const $ do ws <- getAllWarnings AllWarnings
                    let (we, wa) = classifyWarnings ws
                    let wa' = filter ((Strict.Just file ==) . tcWarningOrigin) wa
                    unless (null wa') $
@@ -752,7 +752,7 @@ createInterface file mname isMain = Bench.billTo [Bench.TopModule mname] $
       stTokens .= mempty
 
       -- Grabbing warnings and unsolved metas to highlight them
-      warnings <- getAllWarnings' AllWarnings RespectFlags
+      warnings <- getAllWarnings AllWarnings
       unless (null warnings) $ reportSDoc "import.iface.create" 20 $
         P.text "collected warnings: " P.<> prettyTCM warnings
       unsolved <- getAllUnsolved
@@ -812,10 +812,7 @@ createInterface file mname isMain = Bench.billTo [Bench.TopModule mname] $
       ]
     reportSLn "import.iface.create" 7 $ "Finished serialization."
 
-    mallWarnings <- getAllWarnings ErrorWarnings
-                      $ case isMain of
-                          MainInterface _  -> IgnoreFlags
-                          NotMainInterface -> RespectFlags
+    mallWarnings <- getMaybeWarnings' isMain ErrorWarnings
 
     reportSLn "import.iface.create" 7 $ "Considering writing to interface file."
     case (mallWarnings, isMain) of
@@ -844,11 +841,6 @@ createInterface file mname isMain = Bench.billTo [Bench.TopModule mname] $
 
     return $ first constructIScope (i, mallWarnings)
 
--- | Collect all warnings that have accumulated in the state.
--- Depending on the argument, we either respect the flags passed
--- in by the user, or not (for instance when deciding if we are
--- writing an interface file or not)
-
 getUniqueMetasRanges :: [MetaId] -> TCM [Range]
 getUniqueMetasRanges = fmap List.nub . mapM getMetaRange
 
@@ -871,8 +863,18 @@ getAllUnsolved = do
                 , checkNonEmpty UnsolvedMetaVariables    unsolvedMetas
                 , checkNonEmpty UnsolvedConstraints      unsolvedConstraints ]
 
-getAllWarnings' :: WhichWarnings -> IgnoreFlags -> TCM [TCWarning]
-getAllWarnings' ww ifs = do
+
+-- | Collect all warnings that have accumulated in the state.
+
+getAllWarnings :: WhichWarnings -> TCM [TCWarning]
+getAllWarnings = getAllWarnings' NotMainInterface
+
+-- | Expert version of 'getAllWarnings'; if 'isMain' is a
+-- 'MainInterface', the warnings definitely include also unsolved
+-- warnings.
+
+getAllWarnings' :: MainInterface -> WhichWarnings -> TCM [TCWarning]
+getAllWarnings' isMain ww = do
   unsolved            <- getAllUnsolved
   collectedTCWarnings <- use stTCWarnings
 
@@ -880,12 +882,15 @@ getAllWarnings' ww ifs = do
                     not (null unsolved && onlyShowIfUnsolved w)
 
   fmap (filter (showWarn . tcWarning))
-    $ applyFlagsToTCWarnings ifs $ reverse
+    $ applyFlagsToTCWarnings' isMain $ reverse
     $ unsolved ++ collectedTCWarnings
 
-getAllWarnings :: WhichWarnings -> IgnoreFlags -> TCM MaybeWarnings
-getAllWarnings ww ifs = do
-  allWarnings <- getAllWarnings' ww ifs
+getMaybeWarnings :: WhichWarnings -> TCM MaybeWarnings
+getMaybeWarnings = getMaybeWarnings' NotMainInterface
+
+getMaybeWarnings' :: MainInterface -> WhichWarnings -> TCM MaybeWarnings
+getMaybeWarnings' isMain ww = do
+  allWarnings <- getAllWarnings' isMain ww
   return $ if null allWarnings
     -- Andreas, issue 964: not checking null interactionPoints
     -- anymore; we want to serialize with open interaction points now!
@@ -898,7 +903,7 @@ errorWarningsOfTCErr err = case err of
     NonFatalErrors{} -> return []
     _ -> localState $ do
       put tcst
-      ws <- getAllWarnings' ErrorWarnings RespectFlags
+      ws <- getAllWarnings AllWarnings
       -- We filter out the unsolved(Metas/Constraints) to stay
       -- true to the previous error messages.
       return $ filter (not . isUnsolvedWarning . tcWarning) ws
@@ -954,7 +959,7 @@ buildInterface file topLevel pragmas = do
     patsyns <- killRange <$> getPatternSyns
     h       <- liftIO $ hashFile file
     let builtin' = Map.mapWithKey (\ x b -> (x,) . primFunName <$> b) builtin
-    warnings <- getAllWarnings' AllWarnings RespectFlags
+    warnings <- getAllWarnings AllWarnings
     reportSLn "import.iface" 7 "  instantiating all meta variables"
     i <- instantiateFull $ Interface
       { iSourceHash      = h
