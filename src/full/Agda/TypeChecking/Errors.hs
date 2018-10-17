@@ -10,6 +10,7 @@ module Agda.TypeChecking.Errors
   , prettyTCWarnings'
   , prettyTCWarnings
   , tcWarningsToError
+  , applyFlagsToTCWarnings'
   , applyFlagsToTCWarnings
   , dropTopLevelModule
   , stringTCErr
@@ -33,7 +34,9 @@ import qualified Data.Set as Set
 import qualified Data.Map as Map
 import qualified Text.PrettyPrint.Boxes as Boxes
 
+import {-# SOURCE #-} Agda.Interaction.Imports (MainInterface(..))
 import Agda.Interaction.Options
+import Agda.Interaction.Options.Warnings
 import Agda.Syntax.Common
 import Agda.Syntax.Fixity
 import Agda.Syntax.Notation
@@ -60,11 +63,13 @@ import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope ( ifPiType )
 import Agda.TypeChecking.Reduce (instantiate)
+import Agda.TypeChecking.Warnings
 
 import Agda.Utils.Except ( MonadError(catchError, throwError) )
 import Agda.Utils.FileName
 import Agda.Utils.Function
 import Agda.Utils.Functor
+import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
@@ -236,8 +241,8 @@ tcWarningsToError ws = typeError $ case ws of
 -- | Depending which flags are set, one may happily ignore some
 -- warnings.
 
-applyFlagsToTCWarnings :: IgnoreFlags -> [TCWarning] -> TCM [TCWarning]
-applyFlagsToTCWarnings ifs ws = do
+applyFlagsToTCWarnings' :: MainInterface -> [TCWarning] -> TCM [TCWarning]
+applyFlagsToTCWarnings' isMain ws = do
 
   -- For some reason some SafeFlagPragma seem to be created multiple times.
   -- This is a way to collect all of them and remove duplicates.
@@ -247,45 +252,28 @@ applyFlagsToTCWarnings ifs ws = do
                  [TCWarning r (SafeFlagPragma sfp) p b]
               _                        -> []
 
-
-  unsolvedNotOK <- not . optAllowUnsolved <$> pragmaOptions
-  negativeNotOK <- not . optDisablePositivity <$> pragmaOptions
-  loopingNotOK  <- optTerminationCheck <$> pragmaOptions
-  catchallNotOK <- optExactSplit <$> pragmaOptions
+  warnSet <- do
+    opts <- pragmaOptions
+    let warnSet = optWarningMode opts ^. warningSet
+    pure $ if isMain /= NotMainInterface
+           then Set.union warnSet unsolvedWarnings
+           else warnSet
 
   -- filter out the warnings the flags told us to ignore
-  let cleanUp w =
-        let ignore = ifs == IgnoreFlags
-            keepUnsolved us = not (null us) && (ignore || unsolvedNotOK)
-        in case w of
-          TerminationIssue{}           -> ignore || loopingNotOK
-          CoverageIssue{}              -> ignore || unsolvedNotOK
-          NotStrictlyPositive{}        -> ignore || negativeNotOK
-          UnsolvedMetaVariables ums    -> keepUnsolved ums
-          UnsolvedInteractionMetas uis -> keepUnsolved uis
-          UnsolvedConstraints ucs      -> keepUnsolved ucs
-          OldBuiltin{}                 -> True
-          EmptyRewritePragma           -> True
-          UselessPublic                -> True
-          ParseWarning{}               -> True
-          UnreachableClauses{}         -> True
-          InversionDepthReached{}      -> True
-          CoverageNoExactSplit{}       -> catchallNotOK
-          UselessInline{}              -> True
-          GenericWarning{}             -> True
-          GenericNonFatalError{}       -> True
-          SafeFlagPostulate{}          -> True
-          SafeFlagPragma{}             -> False -- dealt with separately
-          SafeFlagNonTerminating       -> True
-          SafeFlagTerminating          -> True
-          SafeFlagPrimTrustMe          -> True
-          SafeFlagNoPositivityCheck    -> True
-          SafeFlagPolarity             -> True
-          DeprecationWarning{}         -> True
-          NicifierIssue{}              -> True
-          UserWarning{}                -> True
+
+  let cleanUp w = let wName = warningName w in
+        wName /= SafeFlagPragma_
+        && wName `elem` warnSet
+        && case w of
+          UnsolvedMetaVariables ums    -> not $ null ums
+          UnsolvedInteractionMetas uis -> not $ null uis
+          UnsolvedConstraints ucs      -> not $ null ucs
+          _                            -> True
 
   return $ sfp ++ filter (cleanUp . tcWarning) ws
+
+applyFlagsToTCWarnings :: [TCWarning] -> TCM [TCWarning]
+applyFlagsToTCWarnings = applyFlagsToTCWarnings' NotMainInterface
 
 ---------------------------------------------------------------------------
 -- * Helpers
