@@ -426,8 +426,8 @@ defineCompData d con params names fsT t boundary = do
                 let
                   thePsi = foldl1 imax (map fst faces)
                   hcomp ty phi sys a0 = pure tHComp <#> (lvlOfType <$> ty)
-                                                    <@> (unEl <$> ty)
-                                                    <@> phi
+                                                    <#> (unEl <$> ty)
+                                                    <#> phi
                                                     <@> sys
                                                     <@> a0
                 let
@@ -1008,7 +1008,7 @@ defineHCompForFields applyProj name params fsT fns rect = do
                                             <@> r
                                             <@> u
         return $ \ la bA phi u u0 ->
-          pure hcomp <#> (la <@> pure io) <@> (bA <@> pure io) <@> phi
+          pure hcomp <#> (la <@> pure io) <#> (bA <@> pure io) <#> phi
                       <@> (lam "i" $ \ i -> ilam "o" $ \ o ->
                               forward la bA i (u <@> i <..> o))
                       <@> forward la bA (pure iz) u0
