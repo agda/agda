@@ -117,9 +117,10 @@ workOnTypes cont = do
 -- | Internal workhorse, expects value of --experimental-irrelevance flag
 --   as argument.
 workOnTypes' :: Bool -> TCM a -> TCM a
-workOnTypes' experimental =
-  modifyContext (map $ mapRelevance f) .
-  localTC (\ e -> e { envWorkingOnTypes = True })
+workOnTypes' experimental
+  = modifyContext (map $ mapRelevance f)
+  . applyQuantityToContext Quantity0
+  . localTC (\ e -> e { envWorkingOnTypes = True })
   where
     f | experimental = irrToNonStrict . nonStrictToRel
       | otherwise    = nonStrictToRel
@@ -166,6 +167,79 @@ applyRelevanceToContextFunBody thing cont =
       (applyRelevanceToContextOnly rel) $    -- enable local irr. defs only when option
       applyRelevanceToJudgementOnly rel cont -- enable global irr. defs alway
 
+-- | (Conditionally) wake up erased variables and make them unrestricted.
+--   For instance,
+--   in an erased function argument otherwise erased variables
+--   may be used, so they are awoken before type checking the argument.
+--
+--   Also allow the use of erased definitions.
+applyQuantityToContext :: (MonadTCEnv tcm, LensQuantity q) => q -> tcm a -> tcm a
+applyQuantityToContext thing =
+  case getQuantity thing of
+    Quantity1 -> id
+    q         -> applyQuantityToContextOnly   q
+               . applyQuantityToJudgementOnly q
+
+-- | (Conditionally) wake up erased variables and make them unrestricted.
+--   For instance,
+--   in an erased function argument otherwise erased variables
+--   may be used, so they are awoken before type checking the argument.
+--
+--   Precondition: @Quantity /= Quantity1@
+applyQuantityToContextOnly :: (MonadTCEnv tcm) => Quantity -> tcm a -> tcm a
+applyQuantityToContextOnly q = localTC
+  $ over eContext     (map $ inverseApplyQuantity q)
+  . over eLetBindings (Map.map . fmap . second $ inverseApplyQuantity q)
+
+-- | Apply quantity @q@ the the quantity annotation of the (typing/equality)
+--   judgement.  This is part of the work done when going into a @q@-context.
+--
+--   Precondition: @Quantity /= Quantity1@
+applyQuantityToJudgementOnly :: (MonadTCEnv tcm) => Quantity -> tcm a -> tcm a
+applyQuantityToJudgementOnly = localTC . over eQuantity . composeQuantity
+
+-- | (Conditionally) wake up irrelevant variables and make them relevant.
+--   For instance,
+--   in an irrelevant function argument otherwise irrelevant variables
+--   may be used, so they are awoken before type checking the argument.
+--
+--   Also allow the use of irrelevant definitions.
+applyModalityToContext :: (MonadTCEnv tcm, LensModality m) => m -> tcm a -> tcm a
+applyModalityToContext thing =
+  case getModality thing of
+    m | m == mempty -> id
+      | otherwise   -> applyModalityToContextOnly   m
+                     . applyModalityToJudgementOnly m
+
+-- | (Conditionally) wake up irrelevant variables and make them relevant.
+--   For instance,
+--   in an irrelevant function argument otherwise irrelevant variables
+--   may be used, so they are awoken before type checking the argument.
+--
+--   Precondition: @Modality /= Relevant@
+applyModalityToContextOnly :: (MonadTCEnv tcm) => Modality -> tcm a -> tcm a
+applyModalityToContextOnly m = localTC
+  $ over eContext     (map $ inverseApplyModality m)
+  . over eLetBindings (Map.map . fmap . second $ inverseApplyModality m)
+
+-- | Apply modality @m@ the the modality annotation of the (typing/equality)
+--   judgement.  This is part of the work done when going into a @m@-context.
+--
+--   Precondition: @Modality /= Relevant@
+applyModalityToJudgementOnly :: (MonadTCEnv tcm) => Modality -> tcm a -> tcm a
+applyModalityToJudgementOnly = localTC . over eModality . composeModality
+
+-- | Like 'applyModalityToContext', but only act on context if
+--   @--irrelevant-projections@.
+--   See issue #2170.
+applyModalityToContextFunBody :: (MonadTCM tcm, LensModality r) => r -> tcm a -> tcm a
+applyModalityToContextFunBody thing cont = do
+  let m = getModality thing
+  if m == mempty then cont else
+    applyWhenM (optIrrelevantProjections <$> pragmaOptions)
+      (applyRelevanceToContextOnly (getRelevance m)) $    -- enable local irr. defs only when option
+      applyModalityToJudgementOnly m cont  -- enable global irr. defs alway
+
 -- | Wake up irrelevant variables and make them relevant. This is used
 --   when type checking terms in a hole, in which case you want to be able to
 --   (for instance) infer the type of an irrelevant variable. In the course
@@ -175,7 +249,9 @@ applyRelevanceToContextFunBody thing cont =
 --   hole since it also marks all metas created during type checking as
 --   irrelevant (issue #2568).
 wakeIrrelevantVars :: (MonadTCEnv tcm) => tcm a -> tcm a
-wakeIrrelevantVars = applyRelevanceToContextOnly Irrelevant
+wakeIrrelevantVars
+  = applyRelevanceToContextOnly Irrelevant
+  . applyQuantityToContextOnly  Quantity0
 
 -- | Check whether something can be used in a position of the given relevance.
 --

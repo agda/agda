@@ -295,6 +295,11 @@ inverseComposeModality (Modality r q) (Modality r' q') =
   Modality (r `inverseComposeRelevance` r')
            (q `inverseComposeQuantity`  q')
 
+-- | Left division by a 'Modality'.
+--   Used e.g. to modify context when going into a @m@ argument.
+inverseApplyModality :: LensModality a => Modality -> a -> a
+inverseApplyModality m = mapModality (m `inverseComposeModality`)
+
 
 -- boilerplate instances
 
@@ -448,7 +453,7 @@ inverseComposeQuantity q x =
     (Quantityω , _)          -> Quantity0  -- linear resources are unusable as arguments to unrestricted functions
 
 -- | Left division by a 'Quantity'.
---   Used e.g. to modify context when going into a @rel@ argument.
+--   Used e.g. to modify context when going into a @q@ argument.
 inverseApplyQuantity :: LensQuantity a => Quantity -> a -> a
 inverseApplyQuantity q = mapQuantity (q `inverseComposeQuantity`)
 

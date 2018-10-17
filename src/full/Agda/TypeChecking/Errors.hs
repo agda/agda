@@ -434,9 +434,11 @@ errorString err = case err of
   TooManyFields{}                          -> "TooManyFields"
   TooManyPolarities{}                      -> "TooManyPolarities"
   SplitOnIrrelevant{}                      -> "SplitOnIrrelevant"
+  SplitOnErased{}                          -> "SplitOnErased"
   SplitOnNonVariable{}                     -> "SplitOnNonVariable"
   DefinitionIsIrrelevant{}                 -> "DefinitionIsIrrelevant"
   VariableIsIrrelevant{}                   -> "VariableIsIrrelevant"
+  VariableIsErased{}                       -> "VariableIsErased"
   UnequalBecauseOfUniverseConflict{}       -> "UnequalBecauseOfUniverseConflict"
   UnequalRelevance{}                       -> "UnequalRelevance"
   UnequalHiding{}                          -> "UnequalHiding"
@@ -711,14 +713,23 @@ instance PrettyTCM TypeError where
       pwords "Cannot pattern match against" ++ [text $ verbalize $ getRelevance t] ++
       pwords "argument of type" ++ [prettyTCM $ unDom t]
 
+    SplitOnErased t -> fsep $
+      pwords "Cannot pattern match against" ++ [text $ verbalize $ getQuantity t] ++
+      pwords "argument of type" ++ [prettyTCM $ unDom t]
+
     SplitOnNonVariable v t -> fsep $
       pwords "Cannot pattern match because the (refined) argument " ++
       [ prettyTCM v ] ++ pwords " is not a variable."
 
     DefinitionIsIrrelevant x -> fsep $
       "Identifier" : prettyTCM x : pwords "is declared irrelevant, so it cannot be used here"
+
     VariableIsIrrelevant x -> fsep $
       "Variable" : prettyTCM x : pwords "is declared irrelevant, so it cannot be used here"
+
+    VariableIsErased x -> fsep $
+      "Variable" : prettyTCM x : pwords "is declared erased, so it cannot be used here"
+
     UnequalBecauseOfUniverseConflict cmp s t -> fsep $
       [prettyTCM s, notCmp cmp, prettyTCM t, "because this would result in an invalid use of Setω" ]
 
@@ -1559,6 +1570,12 @@ instance Verbalize Relevance where
       Relevant   -> "relevant"
       Irrelevant -> "irrelevant"
       NonStrict  -> "shape-irrelevant"
+
+instance Verbalize Quantity where
+  verbalize = \case
+    Quantity0 -> "erased"
+    Quantity1 -> "linear"
+    Quantityω -> "unrestricted"
 
 -- | Indefinite article.
 data Indefinite a = Indefinite a

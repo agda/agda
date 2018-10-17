@@ -1413,7 +1413,7 @@ checkLetBinding :: A.LetBinding -> TCM a -> TCM a
 checkLetBinding b@(A.LetBind i info x t e) ret =
   traceCall (CheckLetBinding b) $ do
     t <- isType_ t
-    v <- applyRelevanceToContext info $ checkDontExpandLast CmpLeq e t
+    v <- applyModalityToContext info $ checkDontExpandLast CmpLeq e t
     addLetBinding info (A.unBind x) v t ret
 
 checkLetBinding b@(A.LetPatBind i p e) ret =

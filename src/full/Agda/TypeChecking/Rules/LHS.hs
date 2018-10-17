@@ -382,7 +382,7 @@ checkDotPattern (Dot e v (Dom{domInfo = info, unDom = a})) =
         , nest 2 $ "=" <+> prettyTCM v
         , nest 2 $ ":" <+> prettyTCM a
         ]
-  applyRelevanceToContext info $ do
+  applyModalityToContext info $ do
     u <- checkExpr e a
     reportSDoc "tc.lhs.dot" 50 $
       sep [ "equalTerm"
@@ -890,13 +890,12 @@ checkLHS mf st@(LHSState tel ip problem target psplit) = updateRelevance $ do
     -- If the target type is irrelevant or in Prop,
     -- we need to check the lhs in irr. cxt. (see Issue 939).
     updateRelevance cont = do
-      rel <- do
-        let fallback = return $ getRelevance target
-        ifNotM isPropEnabled fallback {-else-} $ do
-          liftTCM (reduce $ getSort $ unArg target) >>= \case
-            Prop{} -> return Irrelevant
-            _      -> fallback
-      applyRelevanceToContext rel cont
+      let m0 = getModality target
+      m <- ifNotM isPropEnabled (return m0) {-else-} $ do
+        liftTCM (reduce $ getSort $ unArg target) >>= \case
+          Prop{} -> return $ setRelevance Irrelevant m0
+          _      -> return m0
+      applyModalityToContext m cont
 
     trySplit :: ProblemEq
              -> tcm (Either [TCErr] (LHSState a))
@@ -1073,6 +1072,8 @@ checkLHS mf st@(LHSState tel ip problem target psplit) = updateRelevance $ do
       -- Andreas, 2010-09-07 cannot split on irrelevant args
       unless (usableRelevance info) $
         addContext delta1 $ hardTypeError $ SplitOnIrrelevant dom
+      unless (usableQuantity info) $
+        addContext delta1 $ hardTypeError $ SplitOnErased dom
 
       -- check that a is indeed the type of lit (otherwise fail softly)
       -- if not, fail softly since it could be instantiated by a later split.
@@ -1343,6 +1344,8 @@ isDataOrRecordType dom@Dom{domInfo = info, unDom = a} = liftTCM (reduceB a) >>= 
         reportSLn "tc.lhs.split" 30 $ "split ConP: relevance is " ++ show (getRelevance info)
         unless (usableRelevance info) $
           hardTypeError $ SplitOnIrrelevant dom
+        unless (usableQuantity info) $
+          hardTypeError $ SplitOnErased dom
 
         let (pars, ixs) = splitAt np $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
         return (IsData, d, pars, ixs)

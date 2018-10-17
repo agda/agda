@@ -272,17 +272,12 @@ newArgsMetaCtx' condition (El s tm) tel perm ctx = do
   tm <- reduce tm
   case tm of
     Pi dom@(Dom{domInfo = info, unDom = a}) codom | condition dom codom -> do
-      let r    = getRelevance info
-          -- Issue #3031: It's not enough to applyRelevanceToContext, since most (all?)
+      let mod  = getModality info
+          -- Issue #3031: It's not enough to applyModalityToContext, since most (all?)
           -- of the context lives in tel. Don't forget the arguments in ctx.
-          tel' = telFromList . map (inverseApplyRelevance r) . telToList $ tel
-          ctx' = (map . mapRelevance) (r `inverseComposeRelevance`) ctx
-      (m, u) <- applyRelevanceToContext info $
-               {-
-                 -- Andreas, 2010-09-24 skip irrelevant record fields when eta-expanding a meta var
-                 -- Andreas, 2010-10-11 this is WRONG, see Issue 347
-                if r == Irrelevant then return DontCare else
-                -}
+          tel' = telFromList . map (mod `inverseApplyModality`) . telToList $ tel
+          ctx' = (map . mapModality) (mod `inverseComposeModality`) ctx
+      (m, u) <- applyModalityToContext info $
                  newValueMetaCtx RunMetaOccursCheck a tel' perm ctx'
       setMetaArgInfo m (getArgInfo dom)
       args <- newArgsMetaCtx' condition (codom `absApp` u) tel perm ctx

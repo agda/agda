@@ -2471,6 +2471,9 @@ eModality f e = f (envModality e) <&> \ x -> e { envModality = x }
 eRelevance :: Lens' Relevance TCEnv
 eRelevance = eModality . lModRelevance
 
+eQuantity :: Lens' Quantity TCEnv
+eQuantity = eModality . lModQuantity
+
 eDisplayFormsEnabled :: Lens' Bool TCEnv
 eDisplayFormsEnabled f e = f (envDisplayFormsEnabled e) <&> \ x -> e { envDisplayFormsEnabled = x }
 
@@ -2887,9 +2890,11 @@ data TypeError
             -- ^ This term, a function type constructor, lives in
             --   @SizeUniv@, which is not allowed.
         | SplitOnIrrelevant (Dom Type)
+        | SplitOnErased (Dom Type)
         | SplitOnNonVariable Term Type
         | DefinitionIsIrrelevant QName
         | VariableIsIrrelevant Name
+        | VariableIsErased Name
 --        | UnequalLevel Comparison Term Term  -- UNUSED
         | UnequalTerms Comparison Term Term Type
         | UnequalTypes Comparison Type Type

@@ -68,6 +68,7 @@ initialIFSCandidates t = do
                  | (x, Dom{domInfo = info, unDom = (_, t)}) <- varsAndRaisedTypes
                  , isInstance info
                  , usableRelevance info
+                 , usableQuantity info
                  ]
 
       -- {{}}-fields of variables are also candidates
@@ -90,6 +91,7 @@ initialIFSCandidates t = do
                  | (v, Dom{domInfo = info, unDom = t}) <- env
                  , isInstance info
                  , usableRelevance info
+                 , usableQuantity info
                  ]
       return $ vars ++ fields ++ lets
 

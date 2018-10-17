@@ -843,15 +843,14 @@ compareElims pols0 fors0 a v els01 els02 = catchConstraint (ElimCmp pols0 fors0 
                      -- creating a blocking and traversing a term for free variables.
                      -- Apparently, it is believed that checking free vars is cheaper.
                      -- Andreas, 2013-05-15
-                r = getRelevance info
 
 -- NEW, Andreas, 2013-05-15
 
             -- compare arg1 and arg2
-            pid <- newProblem_ $ applyRelevanceToContext r $
+            pid <- newProblem_ $ applyModalityToContext info $
                 if isForced for then
                   return ()
-                else if isIrrelevant r then
+                else if isIrrelevant info then
                   compareIrrelevant b (unArg arg1) (unArg arg2)
                 else
                   compareWithPol pol (flip compareTerm b)

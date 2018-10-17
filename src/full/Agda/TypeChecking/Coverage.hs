@@ -50,7 +50,7 @@ import Agda.TypeChecking.Coverage.SplitTree
 import Agda.TypeChecking.Conversion (tryConversion, equalType)
 import Agda.TypeChecking.Datatypes (getConForm)
 import {-# SOURCE #-} Agda.TypeChecking.Empty (isEmptyTel)
-import Agda.TypeChecking.Irrelevance (applyRelevanceToContext)
+import Agda.TypeChecking.Irrelevance (applyModalityToContext)
 import Agda.TypeChecking.Patterns.Internal (dotPatternsToPatterns)
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Substitute
@@ -68,6 +68,7 @@ import Agda.Utils.Except
   , MonadError(catchError, throwError)
   , runExceptT
   )
+import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.List
 import Agda.Utils.Maybe
@@ -306,12 +307,13 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
           typeError $ SplitError err
   where
     updateRelevance :: TCM a -> TCM a
-    updateRelevance cont = do
-      let rel = caseMaybe target Relevant $ \b ->
-                  if isProp (unArg b)
-                  then Irrelevant
-                  else getRelevance b
-      applyRelevanceToContext rel cont
+    updateRelevance cont =
+      -- Don't do anything if there is no target type info.
+      caseMaybe target cont $ \ b -> do
+        -- Otherwise, if the target type is a proposition, wake irrelevant vars.
+        -- TODO (2018-10-16): if proofs get erased in the compiler, also wake erased vars!
+        let m = applyWhen (isProp (unArg b)) (setRelevance Irrelevant) $ getModality b
+        applyModalityToContext m cont
 
     continue
       :: [BlockingVar]
