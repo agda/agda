@@ -217,7 +217,7 @@ createGenRecordType :: Type -> [MetaId] -> TCM (QName, ConHead, [QName])
 createGenRecordType genRecMeta@(El genRecSort _) sortedMetas = do
   current <- currentModule
   let freshQName s = qualify current <$> freshName_ (s :: String)
-      mkFieldName  = freshQName . ("gen-" ++) <=< getMetaNameSuggestion
+      mkFieldName  = freshQName . (generalizedFieldName ++) <=< getMetaNameSuggestion
   genRecFields <- mapM (defaultArg <.> mkFieldName) sortedMetas
   genRecName   <- freshQName "GeneralizeTel"
   genRecCon    <- freshQName "mkGeneralizeTel" <&> \ con -> ConHead

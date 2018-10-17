@@ -3624,6 +3624,17 @@ absurdLambdaName = ".absurdlambda"
 isAbsurdLambdaName :: QName -> Bool
 isAbsurdLambdaName = (absurdLambdaName ==) . prettyShow . qnameName
 
+-- | Base name for generalized variable projections
+generalizedFieldName :: String
+generalizedFieldName = ".generalizedField-"
+
+-- | Check whether we have a generalized variable field
+getGeneralizedFieldName :: A.QName -> Maybe String
+getGeneralizedFieldName q
+  | List.isPrefixOf generalizedFieldName strName = Just (drop (length generalizedFieldName) strName)
+  | otherwise                                    = Nothing
+  where strName = prettyShow $ nameConcrete $ qnameName q
+
 ---------------------------------------------------------------------------
 -- * KillRange instances
 ---------------------------------------------------------------------------

@@ -1,4 +1,3 @@
 Issue3276.agda:15,30-32
-(;Issue3276.gen-n genTel) != zero of type Nat
-when checking that the expression xs has type
-Vec (;Issue3276.gen-A genTel) 0
+n != zero of type Nat
+when checking that the expression xs has type Vec A 0
