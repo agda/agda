@@ -1072,8 +1072,12 @@ checkLHS mf st@(LHSState tel ip problem target psplit) = updateRelevance $ do
       -- Andreas, 2010-09-07 cannot split on irrelevant args
       unless (usableRelevance info) $
         addContext delta1 $ hardTypeError $ SplitOnIrrelevant dom
-      unless (usableQuantity info) $
-        addContext delta1 $ hardTypeError $ SplitOnErased dom
+
+      -- Andreas, 2018-10-17, we can however split on erased things
+      -- if there is a single constructor (checked in Coverage).
+      --
+      -- Thus, no checking of (usableQuantity info) here.
+
 
       -- check that a is indeed the type of lit (otherwise fail softly)
       -- if not, fail softly since it could be instantiated by a later split.
@@ -1147,8 +1151,9 @@ checkLHS mf st@(LHSState tel ip problem target psplit) = updateRelevance $ do
         _ -> __IMPOSSIBLE__
 
       -- Andreas 2010-09-07  propagate relevance info to new vars
-      let updRel = composeRelevance (getRelevance info)
-      gamma <- return $ mapRelevance updRel <$> gamma
+      -- Andreas 2018-10-17  propagate modality
+      let updMod = composeModality (getModality info)
+      gamma <- return $ mapModality updMod <$> gamma
 
       -- Get the type of the datatype.
       da <- (`piApply` pars) . defType <$> getConstInfo d
@@ -1340,12 +1345,16 @@ isDataOrRecordType dom@Dom{domInfo = info, unDom = a} = liftTCM (reduceB a) >>= 
     Def d es -> (liftTCM $ theDef <$> getConstInfo d) >>= \case
 
       Datatype{dataPars = np} -> do
+
         -- We cannot split on (shape-)irrelevant non-records.
         reportSLn "tc.lhs.split" 30 $ "split ConP: relevance is " ++ show (getRelevance info)
         unless (usableRelevance info) $
           hardTypeError $ SplitOnIrrelevant dom
-        unless (usableQuantity info) $
-          hardTypeError $ SplitOnErased dom
+
+        -- Andreas, 2018-10-17, we can however split on erased things
+        -- if there is a single constructor (checked in Coverage).
+        --
+        -- Thus, no checking of (usableQuantity info) here.
 
         let (pars, ixs) = splitAt np $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
         return (IsData, d, pars, ixs)

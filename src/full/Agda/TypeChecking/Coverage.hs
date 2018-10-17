@@ -879,6 +879,11 @@ split' ind allowPartialCover fixtarget sc@(SClause tel ps _ cps target) (Blockin
     (_ : _) | dr == IsData && isProp t && not (isIrrelevant relTarget) ->
       throwError . IrrelevantDatatype =<< do liftTCM $ inContextOfT $ buildClosure (unDom t)
 
+    -- Andreas, 2018-10-17: If more than one constructor matches, we cannot erase.
+    (_ : _ : _) | not (usableQuantity t) ->
+      throwError . ErasedDatatype =<< do liftTCM $ inContextOfT $ buildClosure (unDom t)
+
+
   -- Andreas, 2012-10-10 fail if precomputed constructor set does not cover
   -- all the data type constructors
   -- Andreas, 2017-10-08 ... unless partial covering is explicitly allowed.

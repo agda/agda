@@ -2791,6 +2791,7 @@ data TerminationError = TerminationError
 data SplitError
   = NotADatatype        (Closure Type)  -- ^ Neither data type nor record.
   | IrrelevantDatatype  (Closure Type)  -- ^ Data type, but in irrelevant position.
+  | ErasedDatatype      (Closure Type)  -- ^ Data type, but in erased position.
   | CoinductiveDatatype (Closure Type)  -- ^ Split on codata not allowed.
   -- UNUSED, but keep!
   -- -- | NoRecordConstructor Type  -- ^ record type, but no constructor
@@ -2892,7 +2893,7 @@ data TypeError
             -- ^ This term, a function type constructor, lives in
             --   @SizeUniv@, which is not allowed.
         | SplitOnIrrelevant (Dom Type)
-        | SplitOnErased (Dom Type)
+        -- UNUSED: -- | SplitOnErased (Dom Type)
         | SplitOnNonVariable Term Type
         | DefinitionIsIrrelevant QName
         | VariableIsIrrelevant Name

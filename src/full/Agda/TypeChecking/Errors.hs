@@ -434,7 +434,7 @@ errorString err = case err of
   TooManyFields{}                          -> "TooManyFields"
   TooManyPolarities{}                      -> "TooManyPolarities"
   SplitOnIrrelevant{}                      -> "SplitOnIrrelevant"
-  SplitOnErased{}                          -> "SplitOnErased"
+  -- UNUSED: -- SplitOnErased{}                          -> "SplitOnErased"
   SplitOnNonVariable{}                     -> "SplitOnNonVariable"
   DefinitionIsIrrelevant{}                 -> "DefinitionIsIrrelevant"
   VariableIsIrrelevant{}                   -> "VariableIsIrrelevant"
@@ -717,9 +717,10 @@ instance PrettyTCM TypeError where
       pwords "Cannot pattern match against" ++ [text $ verbalize $ getRelevance t] ++
       pwords "argument of type" ++ [prettyTCM $ unDom t]
 
-    SplitOnErased t -> fsep $
-      pwords "Cannot pattern match against" ++ [text $ verbalize $ getQuantity t] ++
-      pwords "argument of type" ++ [prettyTCM $ unDom t]
+    -- UNUSED:
+    -- SplitOnErased t -> fsep $
+    --   pwords "Cannot pattern match against" ++ [text $ verbalize $ getQuantity t] ++
+    --   pwords "argument of type" ++ [prettyTCM $ unDom t]
 
     SplitOnNonVariable v t -> fsep $
       pwords "Cannot pattern match because the (refined) argument " ++
@@ -1368,6 +1369,9 @@ instance PrettyTCM SplitError where
 
     IrrelevantDatatype t -> enterClosure t $ \ t -> fsep $
       pwords "Cannot split on argument of irrelevant datatype" ++ [prettyTCM t]
+
+    ErasedDatatype t -> enterClosure t $ \ t -> fsep $
+      pwords "Cannot branch on erased argument of datatype" ++ [prettyTCM t]
 
     CoinductiveDatatype t -> enterClosure t $ \ t -> fsep $
       pwords "Cannot pattern match on the coinductive type" ++ [prettyTCM t]
