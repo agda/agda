@@ -451,6 +451,9 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
 
         VarP _ x  -> (p :) <$> recurse (var (dbPatVarIndex x))
 
+        IApplyP{}  -> typeError $ GenericError $ "with clauses not supported in the presence of Path patterns" -- TODO maybe we can support them now?
+        DefP{}  -> typeError $ GenericError $ "with clauses not supported in the presence of hcomp patterns" -- TODO this should actually be impossible
+
         DotP o v  -> do
           (a, _) <- mustBePi t
           tell [ProblemEq (namedArg p) v a]
@@ -579,7 +582,8 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
           Defn {defType = ct, theDef = Constructor{conPars = np}}  <- getConInfo c
           -- Compute the argument telescope for the constructor
           let ct' = ct `piApply` take np us
-          TelV tel' _ <- liftTCM $ telView ct'
+          TelV tel' _ <- liftTCM $ telViewPath ct'
+          -- (TelV tel' _, _boundary) <- liftTCM $ telViewPathBoundaryP ct'
 
           reportSDoc "tc.with.strip" 20 $
             vcat [ "ct  = " <+> prettyTCM ct
@@ -589,6 +593,7 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
                  , "us' = " <+> prettyList (map prettyTCM $ take np us)
                  ]
 
+          -- TODO Andrea: preserve IApplyP patterns in v, see _boundary?
           -- Compute the new type
           let v  = Con c ci [ Apply $ Arg info (var i) | (i, Arg info _) <- zip (downFrom $ size qs') qs' ]
               t' = tel' `abstract` absApp (raise (size tel') b) v
@@ -723,6 +728,7 @@ patsToElims = map $ toElim . fmap namedThing
 
     toTerm :: DeBruijnPattern -> DisplayTerm
     toTerm p = case p of
+      IApplyP o _ _ x -> DTerm $ var $ dbPatVarIndex x -- TODO, should be an Elim' DisplayTerm ?
       ProjP _ d   -> DDef d [] -- WRONG. TODO: convert spine to non-spine ... DDef d . defaultArg
       VarP PatODot x -> DDot  $ var $ dbPatVarIndex x
       VarP o x      -> DTerm  $ var $ dbPatVarIndex x
@@ -730,3 +736,4 @@ patsToElims = map $ toElim . fmap namedThing
       DotP o t    -> DDot   $ t
       ConP c cpi ps -> DCon c (fromConPatternInfo cpi) $ toTerms ps
       LitP l      -> DTerm  $ Lit l
+      DefP o q ps -> DDef q $ map Apply $ toTerms ps

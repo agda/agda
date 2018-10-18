@@ -124,7 +124,7 @@ abstractTerm a u@Con{} b v = do
           Nothing -> return v
           Just es -> do -- Check that the types match.
             s <- getTC
-            do  disableDestructiveUpdate (noConstraints $ equalType a' b)
+            do  noConstraints $ equalType a' b
                 putTC s
                 return $ Def hole (raise (m - n) args ++ es)
               `catchError` \ _ -> do

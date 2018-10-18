@@ -37,7 +37,7 @@ import Agda.TypeChecking.Pretty as P
 import Agda.Interaction.Options
 import Agda.Interaction.FindFile
 import Agda.Interaction.Highlighting.HTML
-import Agda.Interaction.Imports (getAllWarnings')
+import Agda.Interaction.Imports (getAllWarnings)
 import Agda.TypeChecking.Warnings
 
 import Agda.Utils.FileName
@@ -166,7 +166,7 @@ backendInteraction backends _ check = do
     Just i  -> sequence_ [ compilerMain backend isMain i | Backend backend <- backends ]
 
   -- print warnings that might have accumulated during compilation
-  ws <- filter (not . isUnsolvedWarning . tcWarning) <$> getAllWarnings' AllWarnings RespectFlags
+  ws <- filter (not . isUnsolvedWarning . tcWarning) <$> getAllWarnings AllWarnings
   unless (null ws) $ reportSDoc "warning" 1 $ P.vcat $ P.prettyTCM <$> ws
 
 

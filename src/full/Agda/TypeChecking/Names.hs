@@ -107,13 +107,20 @@ runNamesT n m = runReaderT (unName m) n
 runNames :: Names -> NamesT Identity a -> a
 runNames n m = runIdentity (runNamesT n m)
 
-inCxt :: (Monad m, Subst t a) => Names -> a -> NamesT m a
-inCxt ctx a = do
-  ctx' <- NamesT ask
+currentCxt :: Monad m => NamesT m Names
+currentCxt = NamesT ask
+
+cxtSubst :: Monad m => Names -> NamesT m (Substitution' a)
+cxtSubst ctx = do
+  ctx' <- currentCxt
   if (ctx `isSuffixOf` ctx')
-     then return $ raise (genericLength ctx' - genericLength ctx) a
+     then return $ raiseS (genericLength ctx' - genericLength ctx)
      else fail $ "thing out of context (" ++ show ctx ++ " is not a sub context of " ++ show ctx' ++ ")"
 
+inCxt :: (Monad m, Subst t a) => Names -> a -> NamesT m a
+inCxt ctx a = do
+  sigma <- cxtSubst ctx
+  return $ applySubst sigma a
 
 -- closed terms
 cl' :: Applicative m => a -> NamesT m a
@@ -147,7 +154,7 @@ bind :: ( Monad m
         , Free a
         ) =>
         ArgName -> (NamesT m b -> NamesT m a) -> NamesT m (Abs a)
-bind n f = mkAbs n <$> bind' n f
+bind n f = Abs n <$> bind' n f
 
 #if __GLASGOW_HASKELL__ <= 708
 glam :: (Functor m, Monad m)

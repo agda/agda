@@ -5,7 +5,7 @@ module Agda.TypeChecking.Warnings where
 import qualified Data.Set as Set
 import qualified Data.List as List
 import Data.Maybe ( catMaybes )
-import Control.Monad (guard, forM_)
+import Control.Monad ( guard, forM, unless )
 
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Caching
@@ -62,11 +62,17 @@ warnings ws = do
         | onlyOnce w && elem tcwarn tcwarns = tcwarns -- Eq on TCWarning only checks head constructor
         | otherwise                         = tcwarn : tcwarns
 
-  forM_ (catMaybes $ applyWarningMode wmode <$> ws) $ \ w' -> do
+  -- We collect *all* of the warnings no matter whether they are in the @warningSet@
+  -- or not. If we find one which should be turned into an error, we keep processing
+  -- the rest of the warnings and *then* report all of the errors at once.
+  merrs <- forM ws $ \ w' -> do
     tcwarn <- warning_ w'
-    if wmode ^. warn2Error
-    then typeError $ NonFatalErrors [tcwarn]
-    else stTCWarnings `modifyTCLens` add w' tcwarn
+    if wmode ^. warn2Error && warningName w' `elem` wmode ^. warningSet
+    then pure (Just tcwarn)
+    else Nothing <$ (stTCWarnings `modifyTCLens` add w' tcwarn)
+
+  let errs = catMaybes merrs
+  unless (null errs) $ typeError $ NonFatalErrors errs
 
 {-# SPECIALIZE warning :: Warning -> TCM () #-}
 warning :: MonadTCM tcm => Warning -> tcm ()
@@ -82,44 +88,13 @@ data WhichWarnings =
   deriving (Eq, Ord)
 
 isUnsolvedWarning :: Warning -> Bool
-isUnsolvedWarning w = case w of
-  UnsolvedMetaVariables{}    -> True
-  UnsolvedInteractionMetas{} -> True
-  UnsolvedConstraints{}      -> True
- -- rest
-  _                          -> False
+isUnsolvedWarning w = warningName w `elem` unsolvedWarnings
 
 classifyWarning :: Warning -> WhichWarnings
-classifyWarning w = case w of
-  OldBuiltin{}               -> AllWarnings
-  EmptyRewritePragma         -> AllWarnings
-  UselessPublic              -> AllWarnings
-  UnreachableClauses{}       -> AllWarnings
-  UselessInline{}            -> AllWarnings
-  GenericWarning{}           -> AllWarnings
-  DeprecationWarning{}       -> AllWarnings
-  NicifierIssue{}            -> AllWarnings
-  InversionDepthReached{}    -> AllWarnings
-  UserWarning{}              -> AllWarnings
-  AbsurdPatternRequiresNoRHS{} -> AllWarnings
-  ModuleDoesntExport{}       -> AllWarnings
-  TerminationIssue{}         -> ErrorWarnings
-  CoverageIssue{}            -> ErrorWarnings
-  CoverageNoExactSplit{}     -> ErrorWarnings
-  NotStrictlyPositive{}      -> ErrorWarnings
-  UnsolvedMetaVariables{}    -> ErrorWarnings
-  UnsolvedInteractionMetas{} -> ErrorWarnings
-  UnsolvedConstraints{}      -> ErrorWarnings
-  GenericNonFatalError{}     -> ErrorWarnings
-  SafeFlagPostulate{}        -> ErrorWarnings
-  SafeFlagPragma{}           -> ErrorWarnings
-  SafeFlagNonTerminating     -> ErrorWarnings
-  SafeFlagTerminating        -> ErrorWarnings
-  SafeFlagPrimTrustMe        -> ErrorWarnings
-  SafeFlagNoPositivityCheck  -> ErrorWarnings
-  SafeFlagPolarity           -> ErrorWarnings
-  SafeFlagNoUniverseCheck    -> ErrorWarnings
-  ParseWarning{}             -> ErrorWarnings
+classifyWarning w =
+  if warningName w `elem` errorWarnings
+  then ErrorWarnings
+  else AllWarnings
 
 -- | Should we only emit a single warning with this constructor.
 onlyOnce :: Warning -> Bool

@@ -99,6 +99,7 @@ import Agda.Utils.Null
 import Agda.Utils.Pretty
 import Agda.Utils.String
 import Agda.Utils.Time
+import Agda.Utils.Tuple
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -284,7 +285,7 @@ handleCommand wrap onFail cmd = handleNastyErrors $ wrap $ do
     catchErr :: CommandM a -> (TCErr -> CommandM a) -> CommandM a
     catchErr m h = do
       s       <- get
-      (x, s') <- lift $ do disableDestructiveUpdate (runStateT m s)
+      (x, s') <- lift $ do runStateT m s
          `catchError_` \ e ->
            runStateT (h e) s
       put s'
@@ -496,6 +497,10 @@ data Interaction' range
   | Cmd_solveAll B.Rewrite
   | Cmd_solveOne B.Rewrite InteractionId range String
 
+    -- | Solve (all goals / the goal at point) by using Auto.
+  | Cmd_autoOne            InteractionId range String
+  | Cmd_autoAll
+
     -- | Parse the given expression (as if it were defined at the
     -- top-level of the current module) and infer its type.
   | Cmd_infer_toplevel  B.Rewrite  -- Normalise the type?
@@ -525,8 +530,7 @@ data Interaction' range
     -- command tries not to do that. One result of this is that the
     -- command uses the current include directories, whatever they happen
     -- to be.
-  | Cmd_load_highlighting_info
-                        FilePath
+  | Cmd_load_highlighting_info FilePath
 
     -- | Tells Agda to compute token-based highlighting information
     -- for the file.
@@ -569,8 +573,6 @@ data Interaction' range
   | Cmd_intro           Bool InteractionId range String
 
   | Cmd_refine_or_intro Bool InteractionId range String
-
-  | Cmd_auto            InteractionId range String
 
   | Cmd_context         B.Rewrite InteractionId range String
 
@@ -742,7 +744,8 @@ updateInteractionPointsAfter Cmd_give{}                          = True
 updateInteractionPointsAfter Cmd_refine{}                        = True
 updateInteractionPointsAfter Cmd_intro{}                         = True
 updateInteractionPointsAfter Cmd_refine_or_intro{}               = True
-updateInteractionPointsAfter Cmd_auto{}                          = True
+updateInteractionPointsAfter Cmd_autoOne{}                       = True
+updateInteractionPointsAfter Cmd_autoAll{}                       = True
 updateInteractionPointsAfter Cmd_context{}                       = False
 updateInteractionPointsAfter Cmd_helper_function{}               = False
 updateInteractionPointsAfter Cmd_infer{}                         = False
@@ -770,7 +773,7 @@ interpret (Cmd_compile b file argv) =
             (if b == QuickLaTeX
              then Imp.ScopeCheck
              else Imp.TypeCheck) $ \(i, mw) -> do
-    mw <- lift $ Imp.applyFlagsToMaybeWarnings RespectFlags mw
+    mw <- lift $ Imp.applyFlagsToMaybeWarnings mw
     case mw of
       Imp.NoWarnings -> do
         lift $ case b of
@@ -935,12 +938,12 @@ interpret (Cmd_refine_or_intro pmLambda ii r s) = interpret $
   let s' = trim s
   in (if null s' then Cmd_intro pmLambda else Cmd_refine) ii r s'
 
-interpret (Cmd_auto ii rng s) = do
+interpret (Cmd_autoOne ii rng s) = do
   -- Andreas, 2014-07-05 Issue 1226:
   -- Save the state to have access to even those interaction ids
   -- that Auto solves (since Auto gives the solution right away).
   st <- getTC
-  (time , res) <- maybeTimed $ lift $ Auto.auto ii rng s
+  (time , res) <- maybeTimed $ Auto.auto ii rng s
   case autoProgress res of
    Solutions sols -> do
     lift $ reportSLn "auto" 10 $ "Auto produced the following solutions " ++ show sols
@@ -967,6 +970,23 @@ interpret (Cmd_auto ii rng s) = do
     putResponse $ Resp_MakeCase R.Function cs
    Refinement s -> give_gen WithoutForce ii rng s Refine
   maybe (return ()) (display_info . Info_Time) time
+
+interpret Cmd_autoAll = do
+  iis <- getInteractionPoints
+  unless (null iis) $ do
+    let time = 1000 `div` length iis
+    st <- getTC
+    solved <- forM iis $ \ ii -> do
+      rng <- getInteractionRange ii
+      res <- Auto.auto ii rng ("-t " ++ show time ++ "ms")
+      case autoProgress res of
+        Solutions sols -> forM sols $ \ (jj, s) -> do
+            oldInteractionScope <- liftLocalState (putTC st >> getInteractionScope jj)
+            insertOldInteractionScope jj oldInteractionScope
+            putResponse $ Resp_GiveAction ii $ Give_String s
+            return jj
+        _ -> return []
+    modifyTheInteractionPoints (List.\\ concat solved)
 
 interpret (Cmd_context norm ii _ _) =
   display_info . Info_Context =<< liftLocalState (prettyContext norm False ii)
@@ -1071,7 +1091,7 @@ interpret Cmd_abort = return ()
 -- | Show warnings
 interpretWarnings :: CommandM (String, String)
 interpretWarnings = do
-  mws <- lift $ Imp.getAllWarnings AllWarnings RespectFlags
+  mws <- lift $ Imp.getMaybeWarnings AllWarnings
   case filter isNotMeta <$> mws of
     Imp.SomeWarnings ws@(_:_) -> do
       let (we, wa) = classifyWarnings ws
@@ -1093,7 +1113,8 @@ solveInstantiatedGoals norm mii = do
   out <- lift $ localTC (\ e -> e { envPrintMetasBare = True }) $ do
     sip <- B.getSolvedInteractionPoints False norm
            -- only solve metas which have a proper instantiation, i.e., not another meta
-    maybe id (\ ii -> filter ((ii ==) . fst)) mii <$> mapM prt sip
+    let sip' = maybe id (\ ii -> filter ((ii ==) . fst3)) mii sip
+    mapM prt sip'
   putResponse $ Resp_SolveAll out
   where
       prt (i, m, e) = do

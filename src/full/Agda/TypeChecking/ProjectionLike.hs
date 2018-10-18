@@ -350,10 +350,12 @@ makeProjection x = -- if True then return () else do
         shallowMatch _             = True
         noMatches = all (noMatch . namedArg)
         noMatch ConP{} = False
+        noMatch DefP{} = False
         noMatch LitP{} = False
         noMatch ProjP{}= False
         noMatch VarP{} = True
         noMatch DotP{} = True
+        noMatch IApplyP{} = True
 
     -- Make sure non of the parameters occurs in the body of the function.
     checkBody m n b = not . getAny $ runFree badVar IgnoreNot b

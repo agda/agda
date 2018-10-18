@@ -168,7 +168,7 @@ termMutual
      --   (For error-reporting only.)
   -> TCM Result
 termMutual names0 = ifNotM (optTerminationCheck <$> pragmaOptions) (return mempty) $ {-else-}
- inTopContext $ disableDestructiveUpdate $ do
+ inTopContext $ do
 
   -- Get set of mutually defined names from the TCM.
   -- This includes local and auxiliary functions introduced
@@ -457,9 +457,20 @@ termDef name = terSetCurrent name $ inConcreteOrAbstractMode name $ \ def -> do
 
       case theDef def of
         Function{ funClauses = cls, funDelayed = delayed } ->
-          terSetDelayed delayed $ forM' cls $ termClause
+          terSetDelayed delayed $ forM' cls $ \ cl -> do
+            if hasDefP (namedClausePats cl) -- generated hcomp clause, should be safe.
+                                            -- TODO find proper strategy.
+              then return empty
+              else termClause cl
 
         _ -> return empty
+  where
+    hasDefP :: [NamedArg DeBruijnPattern] -> Bool
+    hasDefP ps = getAny $ flip foldPattern ps $ \ (x :: DeBruijnPattern) ->
+                  case x of
+                    DefP{} -> Any True
+                    _      -> Any False
+
 
 -- | Collect calls in type signature @f : (x1:A1)...(xn:An) -> B@.
 --   It is treated as if there were the additional function clauses.
@@ -1147,10 +1158,12 @@ offsetFromConstructor c = maybe 1 (const 0) <$> do
 subPatterns :: DeBruijnPattern -> [DeBruijnPattern]
 subPatterns = foldPattern $ \case
   ConP _ _ ps -> map namedArg ps
+  DefP _ _ ps -> map namedArg ps -- TODO check semantics
   VarP _ _    -> mempty
   LitP _      -> mempty
   DotP _ _    -> mempty
   ProjP _ _   -> mempty
+  IApplyP{}   -> mempty
 
 
 compareTerm :: Term -> Masked DeBruijnPattern -> TerM Order
@@ -1340,6 +1353,7 @@ compareVar i (Masked m p) = do
   let no = return Order.unknown
   case p of
     ProjP{}   -> no
+    IApplyP _ _ _ x  -> compareVarVar i (Masked m x)
     LitP{}    -> no
     DotP{}   -> no
     VarP _ x  -> compareVarVar i (Masked m x)
@@ -1350,6 +1364,10 @@ compareVar i (Masked m p) = do
     ConP c _ ps -> if m then no else setUsability True <$> do
       decrease <$> offsetFromConstructor (conName c)
                <*> (Order.supremum <$> mapM (compareVar i . notMasked . namedArg) ps)
+    DefP _ c ps -> if m then no else setUsability True <$> do
+      decrease <$> offsetFromConstructor c
+               <*> (Order.supremum <$> mapM (compareVar i . notMasked . namedArg) ps)
+      -- This should be fine for c == hcomp
 
 -- | Compare two variables.
 --

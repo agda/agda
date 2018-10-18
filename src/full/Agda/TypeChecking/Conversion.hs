@@ -71,7 +71,7 @@ tryConversion = isJust <.> tryConversion'
 --   Return 'Just' the result upon success.
 --   Return 'Nothing' and restore state upon failure.
 tryConversion' :: TCM a -> TCM (Maybe a)
-tryConversion' m = tryMaybe $ disableDestructiveUpdate $ noConstraints m
+tryConversion' m = tryMaybe $ noConstraints m
 
 -- | Check if to lists of arguments are the same (and all variables).
 --   Precondition: the lists have the same length.
@@ -607,16 +607,16 @@ compareAtom cmp t m n =
         compareUnglueApp q es es' = do
           let (as,bs) = splitAt 8 es; (as',bs') = splitAt 8 es'
           case (allApplyElims as, allApplyElims as') of
-            (Just [la,lb,bA,phi,bT,f,pf,b], Just [la',lb',bA',phi',bT',f',pf',b']) -> do
+            (Just [la,lb,bA,phi,bT,e,b], Just [la',lb',bA',phi',bT',e',b']) -> do
               tGlue <- getPrimitiveTerm builtinGlue
               -- Andrea, 28-07-16:
               -- comparing the types is most probably wasteful,
               -- since b and b' should be neutral terms, but it's a
               -- precondition for the compareAtom call to make
               -- sense.
-              equalType (El (tmSort (unArg lb)) $ apply tGlue $ [la,lb] ++ map (setHiding NotHidden) [bA,phi,bT,f,pf])
-                        (El (tmSort (unArg lb')) $ apply tGlue $ [la',lb'] ++ map (setHiding NotHidden) [bA',phi',bT',f',pf'])
-              compareAtom cmp (El (tmSort (unArg lb)) $ apply tGlue $ [la,lb] ++ map (setHiding NotHidden) [bA,phi,bT,f,pf])
+              -- equalType (El (tmSort (unArg lb)) $ apply tGlue $ [la,lb] ++ map (setHiding NotHidden) [bA,phi,bT,e])
+              --           (El (tmSort (unArg lb')) $ apply tGlue $ [la',lb'] ++ map (setHiding NotHidden) [bA',phi',bT',e'])
+              compareAtom cmp (El (tmSort (unArg lb)) $ apply tGlue $ [la,lb] ++ map (setHiding NotHidden) [bA,phi,bT,e])
                               (unArg b) (unArg b')
               compareElims [] [] (El (tmSort (unArg la)) (unArg bA)) (Def q as) bs bs'
               return True

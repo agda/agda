@@ -6,6 +6,11 @@ module Agda.Interaction.Options.Warnings
        , warningSet
        , warn2Error
        , defaultWarningSet
+       , allWarnings
+       , usualWarnings
+       , noWarnings
+       , unsolvedWarnings
+       , errorWarnings
        , defaultWarningMode
        , warningModeUpdate
        , warningSets
@@ -76,27 +81,60 @@ warningModeUpdate str = case str of
 warningSets :: [(String, (Set WarningName, String))]
 warningSets = [ ("all"   , (allWarnings, "All of the existing warnings"))
               , ("warn"  , (usualWarnings, "Default warning level"))
-              , ("ignore", (noWarnings, "Ignore all warnings"))
+              , ("ignore", (errorWarnings, "Ignore all the benign warnings"))
               ]
 
 noWarnings :: Set WarningName
 noWarnings = Set.empty
+
+unsolvedWarnings :: Set WarningName
+unsolvedWarnings = Set.fromList
+                 [ UnsolvedMetaVariables_
+                 , UnsolvedInteractionMetas_
+                 , UnsolvedConstraints_
+                 ]
+
+errorWarnings :: Set WarningName
+errorWarnings = Set.fromList
+  [ CoverageIssue_
+  , GenericNonFatalError_
+  , MissingDefinitions_
+  , NotAllowedInMutual_
+  , NotStrictlyPositive_
+  , OverlappingTokensWarning_
+  , SafeFlagPostulate_
+  , SafeFlagPragma_
+  , SafeFlagNonTerminating_
+  , SafeFlagTerminating_
+  , SafeFlagPrimTrustMe_
+  , SafeFlagNoPositivityCheck_
+  , SafeFlagPolarity_
+  , SafeFlagNoUniverseCheck_
+  , TerminationIssue_
+  , UnsolvedMetaVariables_
+  , UnsolvedInteractionMetas_
+  , UnsolvedConstraints_
+  ]
 
 allWarnings :: Set WarningName
 allWarnings = Set.fromList [minBound..maxBound]
 
 usualWarnings :: Set WarningName
 usualWarnings = allWarnings Set.\\ Set.fromList
-              [ UnknownFixityInMixfixDecl_ ]
+              [ UnknownFixityInMixfixDecl_
+              , CoverageNoExactSplit_
+              ]
 
 -- | The @WarningName@ data enumeration is meant to have a one-to-one correspondance
 -- to existing warnings in the codebase.
 
 data WarningName
   =
-  -- Parser Warning
+  -- Parser Warnings
     OverlappingTokensWarning_
-  -- Nicifer Warning
+  -- Library Warnings
+  | LibUnknownField_
+  -- Nicifer Warnings
   | EmptyAbstract_
   | EmptyInstance_
   | EmptyMacro_
@@ -117,7 +155,7 @@ data WarningName
   | UselessAbstract_
   | UselessInstance_
   | UselessPrivate_
-  -- Scope and Type Checking Warning
+  -- Scope and Type Checking Warnings
   | OldBuiltin_
   | EmptyRewritePragma_
   | UselessPublic_
@@ -196,7 +234,9 @@ usageWarning = intercalate "\n"
 warningNameDescription :: WarningName -> String
 warningNameDescription w = case w of
   OverlappingTokensWarning_        -> "Multi-line comments spanning one or more literate text blocks."
-  -- Nicifer Warning
+  -- Library Warnings
+  LibUnknownField_                 -> "Unknown field in library file"
+  -- Nicifer Warnings
   EmptyAbstract_                   -> "Empty `abstract' blocks."
   EmptyInstance_                   -> "Empty `instance' blocks."
   EmptyMacro_                      -> "Empty `macro' blocks."
@@ -217,7 +257,7 @@ warningNameDescription w = case w of
   UselessAbstract_                 -> "`abstract' blocks where they have no effect."
   UselessInstance_                 -> "`instance' blocks where they have no effect."
   UselessPrivate_                  -> "`private' blocks where they have no effect."
-  -- Scope and Type Checking Warning
+  -- Scope and Type Checking Warnings
   OldBuiltin_                      -> "Deprecated `BUILTIN' pragmas."
   EmptyRewritePragma_              -> "Empty `REWRITE' pragmas."
   UselessPublic_                   -> "`public' blocks where they have no effect."

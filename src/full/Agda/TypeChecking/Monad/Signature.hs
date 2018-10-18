@@ -124,7 +124,7 @@ addClauses q cls = do
 mkPragma :: String -> TCM CompilerPragma
 mkPragma s = CompilerPragma <$> getCurrentRange <*> pure s
 
--- | Add a compiler pragma `{-# COMPILE <backend> <name> <text> #-}`
+-- | Add a compiler pragma `{-\# COMPILE <backend> <name> <text> \#-}`
 addPragma :: BackendName -> QName -> String -> TCM ()
 addPragma b q s = modifySignature . updateDefinition q . addCompilerPragma b =<< mkPragma s
 
@@ -1043,10 +1043,7 @@ makeAbstract d =
 -- | Enter abstract mode. Abstract definition in the current module are transparent.
 {-# SPECIALIZE inAbstractMode :: TCM a -> TCM a #-}
 inAbstractMode :: MonadTCEnv m => m a -> m a
-inAbstractMode = localTC $ \e -> e { envAbstractMode = AbstractMode,
-                                   envAllowDestructiveUpdate = False }
-                                    -- Allowing destructive updates when seeing through
-                                    -- abstract may break the abstraction.
+inAbstractMode = localTC $ \e -> e { envAbstractMode = AbstractMode }
 
 -- | Not in abstract mode. All abstract definitions are opaque.
 {-# SPECIALIZE inConcreteMode :: TCM a -> TCM a #-}
@@ -1055,10 +1052,7 @@ inConcreteMode = localTC $ \e -> e { envAbstractMode = ConcreteMode }
 
 -- | Ignore abstract mode. All abstract definitions are transparent.
 ignoreAbstractMode :: MonadTCEnv m => m a -> m a
-ignoreAbstractMode = localTC $ \e -> e { envAbstractMode = IgnoreAbstractMode,
-                                       envAllowDestructiveUpdate = False }
-                                       -- Allowing destructive updates when ignoring
-                                       -- abstract may break the abstraction.
+ignoreAbstractMode = localTC $ \e -> e { envAbstractMode = IgnoreAbstractMode }
 
 -- | Enter concrete or abstract mode depending on whether the given identifier
 --   is concrete or abstract.

@@ -866,6 +866,7 @@ reduceTm rEnv bEnv !constInfo normalisation ReductionFlags{..} =
 
         -- Case: constructor. Perform beta reduction if projected from, otherwise return a value.
         Con c i [] ->
+          evalIApplyAM spine ctrl $
           case splitAt ar spine of
             (args, Proj _ p : spine') -> evalPointerAM (unArg arg) spine' ctrl  -- Andreas #2170: fit argToDontCare here?!
               where
@@ -1069,8 +1070,8 @@ reduceTm rEnv bEnv !constInfo normalisation ReductionFlags{..} =
     runAM' (Eval cl@(Closure (Value blk) t env spine) ctrl0@(CaseK f i bs spine0 spine1 stack : ctrl)) =
       {-# SCC "runAM.CaseK" #-}
       case blk of
-        Blocked{}    -> stuck -- we might as well check the blocking tag first
-        NotBlocked{} -> case t of
+        Blocked{} | null [()|Con{} <- [t]] -> stuck -- we might as well check the blocking tag first
+        _ -> case t of
           -- Case: suc constructor
           Con c ci [] | isSuc c -> matchSuc $ matchCatchall $ failedMatch f stack ctrl
 
@@ -1082,7 +1083,6 @@ reduceTm rEnv bEnv !constInfo normalisation ReductionFlags{..} =
           Con c ci es -> do
             spine' <- elimsToSpine env es
             runAM (evalValue blk (Con c ci []) emptyEnv (spine' <> spine) ctrl0)
-
           -- Case: natural number literals. Literal natural number patterns are translated to
           -- suc-matches, so there is no need to try matchLit.
           Lit (LitNat _ 0) -> matchLitZero  $ matchCatchall $ failedMatch f stack ctrl
@@ -1090,6 +1090,12 @@ reduceTm rEnv bEnv !constInfo normalisation ReductionFlags{..} =
 
           -- Case: literal
           Lit l -> matchLit l $ matchCatchall $ failedMatch f stack ctrl
+
+          -- Case: hcomp
+          Def q [] | isJust $ lookupCon q bs -> matchCon' q (length spine) $ matchCatchall $ failedMatch f stack ctrl
+          Def q es | isJust $ lookupCon q bs -> do
+            spine' <- elimsToSpine env es
+            runAM (evalValue blk (Def q []) emptyEnv (spine' <> spine) ctrl0)
 
           -- Case: not constructor or literal. In this case we are stuck.
           _ -> stuck
@@ -1123,7 +1129,8 @@ reduceTm rEnv bEnv !constInfo normalisation ReductionFlags{..} =
 
         -- Matching constructor: Switch to the Match state, inserting the constructor arguments in
         -- the spine between spine0 and spine1.
-        matchCon c ci ar = lookupCon (conName c) bs `ifJust` \ cc ->
+        matchCon c ci ar = matchCon' (conName c) ar
+        matchCon' q ar = lookupCon q bs `ifJust` \ cc ->
           runAM (Match f cc (spine0 <> spine <> spine1) catchallStack ctrl)
 
         -- Catch-all: Don't add a CatchAll to the match stack since this _is_ the catch-all.

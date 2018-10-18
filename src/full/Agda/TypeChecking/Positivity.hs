@@ -74,7 +74,7 @@ type Graph n e = Graph.Graph n e
 --   Also add information about positivity and recursivity of records
 --   to the signature.
 checkStrictlyPositive :: Info.MutualInfo -> Set QName -> TCM ()
-checkStrictlyPositive mi qset = disableDestructiveUpdate $ do
+checkStrictlyPositive mi qset = do
   -- compute the occurrence graph for qs
   let qs = Set.toList qset
   reportSDoc "tc.pos.tick" 100 $ "positivity of" <+> prettyTCM qs
@@ -601,7 +601,7 @@ computeOccurrences' q = inConcreteOrAbstractMode q $ \ def -> do
       -- Then, we compute the occurrences in the constructor types.
       let conOcc c = do
             a <- defType <$> getConstInfo c
-            TelV tel t <- telView' <$> normalise a -- normalization needed e.g. for test/succeed/Bush.agda
+            TelV tel t <- telView'Path =<< normalise a -- normalization needed e.g. for test/succeed/Bush.agda
             let indices = case unEl t of
                             Def _ vs -> drop np vs
                             _        -> __IMPOSSIBLE__

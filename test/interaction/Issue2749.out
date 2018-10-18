@@ -14,5 +14,5 @@
 (agda2-status-action "")
 ((last . 2) . (agda2-make-case-action '("left (mkB b1 b2) = ?")))
 ((last . 1) . (agda2-goals-action '(4 1 2 3)))
-((last . 2) . (agda2-solveAll-action '(3 "forall m n -> m ≡ n")))
+((last . 2) . (agda2-solveAll-action '(3 "forall (m : ?) n -> m ≡ n")))
 ((last . 1) . (agda2-goals-action '(4 1 2 3)))

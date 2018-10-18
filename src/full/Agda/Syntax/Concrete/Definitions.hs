@@ -208,23 +208,23 @@ data DeclarationWarning
   | EmptyPostulate Range  -- ^ Empty @postulate@ block.
   | EmptyPrivate Range    -- ^ Empty @private@   block.
   | InvalidCatchallPragma Range
-      -- ^ A {-# CATCHALL #-} pragma
+      -- ^ A {-\# CATCHALL \#-} pragma
       --   that does not precede a function clause.
   | InvalidNoPositivityCheckPragma Range
-      -- ^ A {-# NO_POSITIVITY_CHECK #-} pragma
+      -- ^ A {-\# NO_POSITIVITY_CHECK \#-} pragma
       --   that does not apply to any data or record type.
   | InvalidNoUniverseCheckPragma Range
-      -- ^ A {-# NO_UNIVERSE_CHECK #-} pragma
+      -- ^ A {-\# NO_UNIVERSE_CHECK \#-} pragma
       --   that does not apply to a data or record type.
   | InvalidTerminationCheckPragma Range
-      -- ^ A {-# TERMINATING #-} and {-# NON_TERMINATING #-} pragma
+      -- ^ A {-\# TERMINATING \#-} and {-\# NON_TERMINATING \#-} pragma
       --   that does not apply to any function.
   | MissingDefinitions [Name]
   | NotAllowedInMutual Range String
   | PolarityPragmasButNotPostulates [Name]
   | PragmaNoTerminationCheck Range
-  -- ^ Pragma @{-# NO_TERMINATION_CHECK #-}@ has been replaced
-  --   by @{-# TERMINATING #-}@ and @{-# NON_TERMINATING #-}@.
+  -- ^ Pragma @{-\# NO_TERMINATION_CHECK \#-}@ has been replaced
+  --   by @{-\# TERMINATING \#-}@ and @{-\# NON_TERMINATING \#-}@.
   | UnknownFixityInMixfixDecl [Name]
   | UnknownNamesInFixityDecl [Name]
   | UnknownNamesInPolarityPragmas [Name]

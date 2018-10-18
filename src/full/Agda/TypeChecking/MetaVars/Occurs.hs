@@ -202,12 +202,12 @@ class Occurs t where
 occursCheck
   :: (Occurs a, InstantiateFull a, PrettyTCM a)
   => MetaId -> Vars -> a -> TCM a
-occursCheck m xs v = disableDestructiveUpdate $ Bench.billTo [ Bench.Typing, Bench.OccursCheck ] $ do
+occursCheck m xs v = Bench.billTo [ Bench.Typing, Bench.OccursCheck ] $ do
   mv <- lookupMeta m
   let ctx = if isIrrelevant (getMetaRelevance mv) then Irrel else StronglyRigid
   initOccursCheck mv
       -- TODO: Can we do this in a better way?
-  let redo m = m -- disableDestructiveUpdate m >> m
+  let redo m = m
   -- First try without normalising the term
   redo (occurs NoUnfold  ctx m xs v) `catchError` \_ -> do
     initOccursCheck mv

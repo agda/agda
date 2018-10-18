@@ -109,7 +109,7 @@ giveExpr force mii mi e = do
       metaTypeCheck mv (mvJudgement mv)
   where
     metaTypeCheck mv IsSort{}      = __IMPOSSIBLE__
-    metaTypeCheck mv (HasType _ t) = disableDestructiveUpdate $ do
+    metaTypeCheck mv (HasType _ t) = do
       reportSDoc "interaction.give" 20 $
         "give: meta type =" TP.<+> prettyTCM t
       -- Here, we must be in the same context where the meta was created.

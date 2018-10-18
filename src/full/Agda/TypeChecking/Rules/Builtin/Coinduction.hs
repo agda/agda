@@ -88,7 +88,7 @@ bindBuiltinSharp x =
                   , recEtaEquality'   = Inferred NoEta
                   , recMutual         = Just []
                   , recAbstr          = ConcreteDef
-                  , recComp           = Nothing
+                  , recComp           = emptyCompKit
                   }
               }
     addConstant sharp $
@@ -99,7 +99,7 @@ bindBuiltinSharp x =
                     , conData   = defName infDefn
                     , conAbstr  = ConcreteDef
                     , conInd    = CoInductive
-                    , conComp   = Nothing
+                    , conComp   = (emptyCompKit, Nothing)
                     , conForced = []
                     , conErased = []
                     }

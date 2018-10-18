@@ -843,8 +843,7 @@ unifyStep :: UnifyState -> UnifyStep -> UnifyM (UnificationResult' UnifyState)
 unifyStep s Deletion{ deleteAt = k , deleteType = a , deleteLeft = u , deleteRight = v } = do
     -- Check definitional equality of u and v
     isReflexive <- liftTCM $ addContext (varTel s) $ do
-      dontAssignMetas $ disableDestructiveUpdate $ noConstraints $
-        equalTerm a u v
+      dontAssignMetas $ noConstraints $ equalTerm a u v
       return Nothing
       `catchError` \err -> return $ Just err
     withoutK <- liftTCM $ optWithoutK <$> pragmaOptions
@@ -868,8 +867,7 @@ unifyStep s Solution{ solutionAt   = k
   equalTypes <- liftTCM $ addContext (varTel s) $ do
     reportSDoc "tc.lhs.unify" 45 $ "Equation type: " <+> prettyTCM a
     reportSDoc "tc.lhs.unify" 45 $ "Variable type: " <+> prettyTCM a'
-    dontAssignMetas $ disableDestructiveUpdate $ noConstraints $
-      equalType a a'
+    dontAssignMetas $ noConstraints $ equalType a a'
     return Nothing
     `catchError` \err -> return $ Just err
 
@@ -923,6 +921,7 @@ unifyStep s Solution{ solutionAt   = k
         return $ solveVar i u s
 
 unifyStep s (Injectivity k a d pars ixs c) = do
+  ifM (liftTCM $ consOfHIT $ conName c) (return $ DontKnow []) $ do
   withoutK <- liftTCM $ optWithoutK <$> pragmaOptions
   let n = eqCount s
 
@@ -1033,12 +1032,21 @@ unifyStep s (Injectivity k a d pars ixs c) = do
 unifyStep s Conflict
   { conflictLeft  = u
   , conflictRight = v
-  } = return $ NoUnify $ UnifyConflict (varTel s) u v
-
+  } =
+  case u of
+    Con h _ _ -> do
+      ifM (liftTCM $ consOfHIT $ conName h) (return $ DontKnow []) $ do
+        return $ NoUnify $ UnifyConflict (varTel s) u v
+    _ -> __IMPOSSIBLE__
 unifyStep s Cycle
   { cycleVar        = i
   , cycleOccursIn   = u
-  } = return $ NoUnify $ UnifyCycle (varTel s) i u
+  } =
+  case u of
+    Con h _ _ -> do
+      ifM (liftTCM $ consOfHIT $ conName h) (return $ DontKnow []) $ do
+        return $ NoUnify $ UnifyCycle (varTel s) i u
+    _ -> __IMPOSSIBLE__
 
 unifyStep s EtaExpandVar{ expandVar = fi, expandVarRecordType = d , expandVarParameters = pars } = do
   delta   <- liftTCM $ (`apply` pars) <$> getRecordFieldTypes d
