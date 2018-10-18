@@ -114,10 +114,11 @@ generalizeType s typecheckAction = do
         createGenRecordType genRecMeta sortedMetas
 
     -- Solve the generalizable metas
+    cxtTel <- getContextTelescope
     let solve m field = do
-          HasType _ a <- mvJudgement <$> lookupMeta m
-          TelV tel _  <- telView a
-          assignTerm' m (telToArgs tel) $ Var 0 [Proj ProjSystem field]
+          mv <- lookupMeta m
+          -- TODO: might have been pruned!
+          assignTerm' m (telToArgs cxtTel) $ Var 0 [Proj ProjSystem field]
     zipWithM_ solve sortedMetas genRecFields
 
     -- Build the telescope of generalized metas
