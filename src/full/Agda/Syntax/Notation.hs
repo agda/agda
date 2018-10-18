@@ -147,6 +147,9 @@ mkNotation holes ids = do
   unless (isAlternating xs)  $ throwError "syntax must alternate holes and non-holes"
   unless (isExprLinear xs)   $ throwError "syntax must use holes exactly once"
   unless (isLambdaLinear xs) $ throwError "syntax must use binding holes exactly once"
+  -- Andreas, 2018-10-18, issue #3285:
+  -- syntax that is just a single hole is ill-formed and crashes the operator parser
+  when   (isSingleHole xs)   $ throwError "syntax cannot be a single hole"
   return $ insertWildHoles xs
     where
       mkPart ident = fromMaybe (IdPart ident) $ lookup ident holeMap
@@ -195,6 +198,12 @@ mkNotation holes ids = do
       isAlternating []       = __IMPOSSIBLE__
       isAlternating [x]      = True
       isAlternating (x:y:xs) = isAHole x /= isAHole y && isAlternating (y:xs)
+
+      isSingleHole :: [GenPart] -> Bool
+      isSingleHole = \case
+        [ IdPart{} ] -> False
+        [ _hole ]    -> True
+        _            -> False
 
 noNotation :: Notation
 noNotation = []

@@ -1,0 +1,4 @@
+Issue3285.agda:12,1-1
+Issue3285.agda:12,1: Malformed syntax declaration: syntax cannot be a single hole
+<EOF><ERROR>
+...
