@@ -961,8 +961,11 @@ checkLHS mf st@(LHSState tel ip problem target psplit) = updateRelevance $ do
       (orig, ambProjName) <- ifJust (A.maybePostfixProjP p) return $
         addContext tel $ softTypeError $ CannotEliminateWithPattern p (unArg target)
 
-      (projName, projType) <- suspendErrors $
-        addContext tel $ disambiguateProjection (getHiding p) ambProjName target
+      (projName, projType) <- suspendErrors $ do
+        -- Andreas, 2018-10-18, issue #3289: postfix projections do not have hiding
+        -- information for their principal argument; we do not parse @{r}.p@ and the like.
+        let h = if orig == ProjPostfix then Nothing else Just $ getHiding p
+        addContext tel $ disambiguateProjection h ambProjName target
 
       -- Compute the new rest type by applying the projection type to 'self'.
       -- Note: we cannot be in a let binding.
@@ -1425,7 +1428,8 @@ getRecordConstructor d pars a = do
 --   projecting from. Returns the unambiguous projection name and its type.
 --   Throws an error if the type is not a record type.
 disambiguateProjection
-  :: Hiding         -- ^ Hiding info of the projection's principal argument.
+  :: Maybe Hiding   -- ^ Hiding info of the projection's principal argument.
+                    --   @Nothing@ if 'Postfix' projection.
   -> AmbiguousQName -- ^ Name of the projection to be disambiguated.
   -> Arg Type       -- ^ Record type we are projecting from.
   -> TCM (QName, Arg Type)
@@ -1531,7 +1535,8 @@ disambiguateProjection h ambD@(AmbQ ds) b = do
 
         -- Andreas, 2016-12-31, issue #2374:
         -- We can also disambiguate by hiding info.
-        unless (sameHiding h ai) $ wrongHiding d
+        -- Andreas, 2018-10-18, issue #3289: postfix projections have no hiding info.
+        unless (caseMaybe h True $ sameHiding ai) $ wrongHiding d
 
         -- Andreas, 2016-12-31, issue #1976: Check parameters.
         suspendErrors $ applyUnless constraintsOk noConstraints $
