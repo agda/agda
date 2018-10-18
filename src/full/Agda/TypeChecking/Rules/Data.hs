@@ -644,7 +644,7 @@ defineCompForFields applyProj name params fsT fns rect = do
       -- (γ : Γ) ⊢ compR γ : rtype
       compTerm = Def compName [] `apply` teleArgs gamma
 
-      -- (δ , φ , u , u0) : Γ ⊢ fillR : (i : I) → rtype[ δ ↦ (\ j → δ (i ∧ j))]
+      -- ' (δ , φ , u , u0) : Γ ⊢ fillR : (i : I) → rtype[ δ ↦ (\ j → δ (i ∧ j))]
       fillTerm = runNames [] $ do
         params <- mapM open $ take (size deltaI) $ teleArgs gamma
         [phi,w,w0] <- mapM (open . var) [2,1,0]
@@ -853,7 +853,7 @@ defineTranspForFields' pathCons applyProj name params fsT fns rect = do
         iMin x y = imin `apply` [argN x, argN y]
         iMax x y = imax `apply` [argN x, argN y]
         iNeg x = ineg `apply` [argN x]
-        -- Ξ , i : I ⊢ τ = [(\ j → δ (i ∧ j), φ ∨ ~ i, u] : Ξ
+        -- ' Ξ , i : I ⊢ τ = [(\ j → δ (i ∧ j), φ ∨ ~ i, u] : Ξ
         tau = parallelS $ us ++ (phi `iMax` iNeg (var 0)) : map (\ d -> Lam defaultArgInfo $ Abs "i" $ raise 1 d `apply` [argN $ (iMin (var 0) (var 1))]) ds
          where
           -- Ξ, i : I
@@ -962,15 +962,15 @@ defineHCompForFields applyProj name params fsT fns rect = do
       -- (δ, φ, u, u0) : Γ ⊢ u0 : R (δ i0)
       the_u0  = var 0
 
-      -- (δ, φ, u, u0) : Γ ⊢ fillR Γ : (i : I) → rtype[ δ ↦ (\ j → δ (i ∧ j))]
+      -- ' (δ, φ, u, u0) : Γ ⊢ fillR Γ : (i : I) → rtype[ δ ↦ (\ j → δ (i ∧ j))]
       fillTerm = runNames [] $ do
         rect <- open                           $ unEl    drect_gamma
         lvl  <- open . (\ (Type l) -> Level l) $ getSort drect_gamma
         params     <- mapM open $ take (size delta) $ teleArgs gamma
         [phi,w,w0] <- mapM open [the_phi,the_u,the_u0]
         -- (δ : Δ, φ : I, w : .., w0 : R δ) ⊢
-        -- fillR Γ = λ i → hcompR δ (φ ∨ ~ i) (\ j → [ φ ↦ w (i ∧ j) , ~ i ↦ w0 ]) w0
-        --         = hfillR δ φ w w0
+        -- ' fillR Γ = λ i → hcompR δ (φ ∨ ~ i) (\ j → [ φ ↦ w (i ∧ j) , ~ i ↦ w0 ]) w0
+        --           = hfillR δ φ w w0
         lam "i" $ \ i -> do
           args <- sequence params
           psi  <- pure imax <@> phi <@> (pure ineg <@> i)
