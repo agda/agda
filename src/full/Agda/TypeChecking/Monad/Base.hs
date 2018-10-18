@@ -1161,6 +1161,11 @@ getMetaRelevance = envRelevance . getMetaEnv
 getMetaModality :: MetaVariable -> Modality
 getMetaModality = envModality . getMetaEnv
 
+-- Lenses
+
+metaFrozen :: Lens' Frozen MetaVariable
+metaFrozen f mv = f (mvFrozen mv) <&> \ x -> mv { mvFrozen = x }
+
 ---------------------------------------------------------------------------
 -- ** Interaction meta variables
 ---------------------------------------------------------------------------
@@ -1414,8 +1419,8 @@ data Definition = Defn
     --   23,    3
     --   27,    1
 
-  , defArgGeneralizable :: [DoGeneralize]
-    -- ^ Metas created when checking an argument inherit the argument's 'DoGeneralize' flag.
+  , defArgGeneralizable :: NumGeneralizableArgs
+    -- ^ How many arguments should be generalised.
   , defDisplay        :: [LocalDisplayForm]
   , defMutual         :: MutualId
   , defCompiledRep    :: CompiledRepresentation
@@ -1434,6 +1439,13 @@ data Definition = Defn
   }
     deriving (Data, Show)
 
+data NumGeneralizableArgs
+  = NoGeneralizableArgs
+  | SomeGeneralizableArgs Int
+    -- ^ When lambda-lifting new args are generalizable if
+    --   'SomeGeneralizableArgs', also when the number is zero.
+  deriving (Data, Show)
+
 theDefLens :: Lens' Defn Definition
 theDefLens f d = f (theDef d) <&> \ df -> d { theDef = df }
 
@@ -1445,7 +1457,7 @@ defaultDefn info x t def = Defn
   , defType           = t
   , defPolarity       = []
   , defArgOccurrences = []
-  , defArgGeneralizable = []
+  , defArgGeneralizable = NoGeneralizableArgs
   , defDisplay        = defaultDisplayForm x
   , defMutual         = 0
   , defCompiledRep    = noCompiledRep
@@ -3343,6 +3355,8 @@ useTC l = do
   !x <- getsTC (^. l)
   return x
 
+infix 4 `setTCLens`
+
 -- | Overwrite the part of the 'TCState' focused on by the lens.
 setTCLens :: MonadTCState m => Lens' a TCState -> a -> m ()
 setTCLens l = modifyTC . set l
@@ -3646,6 +3660,17 @@ absurdLambdaName = ".absurdlambda"
 isAbsurdLambdaName :: QName -> Bool
 isAbsurdLambdaName = (absurdLambdaName ==) . prettyShow . qnameName
 
+-- | Base name for generalized variable projections
+generalizedFieldName :: String
+generalizedFieldName = ".generalizedField-"
+
+-- | Check whether we have a generalized variable field
+getGeneralizedFieldName :: A.QName -> Maybe String
+getGeneralizedFieldName q
+  | List.isPrefixOf generalizedFieldName strName = Just (drop (length generalizedFieldName) strName)
+  | otherwise                                    = Nothing
+  where strName = prettyShow $ nameConcrete $ qnameName q
+
 ---------------------------------------------------------------------------
 -- * KillRange instances
 ---------------------------------------------------------------------------
@@ -3669,6 +3694,9 @@ instance KillRange Definition where
   killRange (Defn ai name t pols occs gens displ mut compiled inst copy ma nc inj def) =
     killRange15 Defn ai name t pols occs gens displ mut compiled inst copy ma nc inj def
     -- TODO clarify: Keep the range in the defName field?
+
+instance KillRange NumGeneralizableArgs where
+  killRange = id
 
 instance KillRange NLPat where
   killRange (PVar x y) = killRange2 PVar x y

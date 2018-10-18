@@ -18,4 +18,4 @@ postulate
   goal-type-error : Bar k
 
 foo : Bar _
-foo = goal-type-error _ _
+foo = goal-type-error {_} {_}
