@@ -904,8 +904,9 @@ primTransHComp cmd ts nelims = do
         [psi, u, u0] <- mapM (open . unArg) [psi, u, u0]
         [la, lb, bA, phi, bT, e] <- mapM (open . unArg) [la, lb, bA, phi, bT, e]
         let
-          hfill la bA phi u u0 i = pure tHComp <#> la <@> bA
-                                               <@> (pure tIMax <@> phi <@> (pure tINeg <@> i))
+          hfill la bA phi u u0 i = pure tHComp <#> la
+                                               <#> bA
+                                               <#> (pure tIMax <@> phi <@> (pure tINeg <@> i))
                                                <@> (lam "j" $ \ j -> pure tPOr <#> la <@> phi <@> (pure tINeg <@> i) <@> (ilam "o" $ \ a -> bA)
                                                      <@> (ilam "o" $ \ o -> u <@> (pure tIMin <@> i <@> j) <..> o)
                                                      <@> (ilam "o" $ \ _ -> u0)
@@ -913,7 +914,7 @@ primTransHComp cmd ts nelims = do
                                                <@> u0
           tf i o = hfill lb (bT <..> o) psi u u0 i
           unglue g = pure tunglue <#> la <#> lb <#> bA <#> phi <#> bT <#> e <@> g
-          a1 = pure tHComp <#> la <@> bA <@> (pure tIMax <@> psi <@> phi)
+          a1 = pure tHComp <#> la <#> bA <#> (pure tIMax <@> psi <@> phi)
                            <@> (lam "i" $ \ i -> pure tPOr <#> la <@> psi <@> phi <@> (ilam "_" $ \ _ -> bA)
                                  <@> (ilam "o" $ \ o -> unglue (u <@> i <..> o))
                                  <@> (ilam "o" $ \ o -> pure tEFun <#> la <#> lb <#> bA <#> phi <#> bT <@> (e <..> o) <@> tf i o)
@@ -948,7 +949,7 @@ primTransHComp cmd ts nelims = do
                                               <@> r
                                               <@> u
           return $ \ la bA phi u u0 ->
-            pure tHComp <#> (la <@> pure io) <@> (bA <@> pure io) <@> phi
+            pure tHComp <#> (la <@> pure io) <#> (bA <@> pure io) <#> phi
                         <@> (lam "i" $ \ i -> ilam "o" $ \ o ->
                                 forward la bA i (u <@> i <..> o))
                         <@> forward la bA (pure iz) u0
@@ -1015,8 +1016,8 @@ primTransHComp cmd ts nelims = do
           alpha o = t1'alpha o <&> (`applyE` [Proj ProjSystem (sigmaSnd kit)])
           a1' = pure tHComp
                   <#> (la <@> pure io)
-                  <@> (bA <@> pure io)
-                  <@> (pure tIMax <@> (phi <@> pure io) <@> psi)
+                  <#> (bA <@> pure io)
+                  <#> (pure tIMax <@> (phi <@> pure io) <@> psi)
                   <@> (lam "j" $ \ j ->
                          pure tPOr <#> (la <@> pure io) <@> (phi <@> pure io) <@> psi <@> (ilam "o" $ \ _ -> bA <@> pure io)
                                    <@> (ilam "o" $ \ o -> alpha o <@@> (a1,w (pure io) o <@> t1' o,j))
@@ -1056,8 +1057,8 @@ primTransHComp cmd ts nelims = do
             bT <- (raise 1 b `absApp`) <$> u1
             let v = u1
             pure tHComp <#> (pure $ Level . toLevel . getSort $ bT)
-                        <@> (pure $ unEl                      $ bT)
-                        <@> phi
+                        <#> (pure $ unEl                      $ bT)
+                        <#> phi
                         <@> (lam "i" $ \ i -> ilam "o" $ \ o -> gApply (getHiding a) (u <@> i <..> o) v)
                         <@> (gApply (getHiding a) u0 v)
           (DoTransp, IsFam (a , b), Nothing) -> do
@@ -1092,15 +1093,16 @@ primTransHComp cmd ts nelims = do
          phi      <- open . unArg . ignoreBlocking $ sphi
          [bA, x, y] <- mapM (open . unArg) [bA, x, y]
          lam "j" $ \ j ->
-           pure tHComp <#> l <@> (bA <@> j) <@> (phi `imax` (ineg j `imax` j))
-                      <@> (lam "i'" $ \ i ->
-                            let
-                              or f1 f2 = pure tOr <#> l <@> f1 <@> f2 <#> (lam "_" $ \ _ -> bA <@> i) in
-                                       or phi (ineg j `imax` j)
+           pure tHComp <#> l
+                       <#> (bA <@> j)
+                       <#> (phi `imax` (ineg j `imax` j))
+                       <@> (lam "i'" $ \ i ->
+                            let or f1 f2 = pure tOr <#> l <@> f1 <@> f2 <#> (lam "_" $ \ _ -> bA <@> i)
+                            in or phi (ineg j `imax` j)
                                           <@> (ilam "o" $ \ o -> u <@> i <..> o <@@> (x, y, j)) -- a0 <@@> (x <@> i, y <@> i, j)
                                           <@> (or (ineg j) j <@> (ilam "_" $ const x)
                                                                   <@> (ilam "_" $ const y)))
-                      <@> (u0 <@@> (x, y, j))
+                       <@> (u0 <@@> (x, y, j))
     compPathP DoTransp sphi Nothing u0 (IsFam l) (IsFam (bA,x,y)) = do
       -- Γ    ⊢ l
       -- Γ, i ⊢ bA, x, y
@@ -1120,7 +1122,9 @@ primTransHComp cmd ts nelims = do
                                             <@> r
                                             <@> u
         return $ \ la bA phi u u0 ->
-          pure tHComp <#> (la <@> pure io) <@> (bA <@> pure io) <@> phi
+          pure tHComp <#> (la <@> pure io)
+                      <#> (bA <@> pure io)
+                      <#> phi
                       <@> (lam "i" $ \ i -> ilam "o" $ \ o ->
                               forward la bA i (u <@> i <..> o))
                       <@> forward la bA (pure iz) u0
@@ -1179,7 +1183,7 @@ primTransHComp cmd ts nelims = do
                 IsNot (bA,x,y) -> forM [bA,x,y] $ \ a -> open (Lam defaultArgInfo $ NoAbs "_" $ unArg a)
             let
               eval DoTransp l bA phi _ u0 = pure tTrans <#> l <@> bA <@> phi <@> u0
-              eval DoHComp l bA phi u u0 = pure tHComp <#> (l <@> io) <@> (bA <@> io) <@> phi
+              eval DoHComp l bA phi u u0 = pure tHComp <#> (l <@> io) <#> (bA <@> io) <#> phi
                                                        <@> u <@> u0
             conId <#> (l <@> io) <#> (bA <@> io) <#> (x <@> io) <#> (y <@> io)
                   <@> (pure tIMin <@> phi
@@ -1380,7 +1384,7 @@ primComp = do
          fwd = foldl (<#>) (pure tPOfwd) as
          po i = pure tPO <#> (l <@> i) <#> (bA <@> i) <#> (bB <@> i) <#> (bC <@> i) <@> (f <@> i) <@> (g <@> i)
          inc phi t = pure tInc <#> (l <@> pure io) <#> (po $ pure io) <#> phi <@> t
-       hcomp (pure io) <@> phi <@> (lam "j" $ \ j -> ilam "o" $ \ o -> fwd <@> j <@> (u <@> j <@> o))
+       hcomp (pure io) <#> phi <@> (lam "j" $ \ j -> ilam "o" $ \ o -> fwd <@> j <@> (u <@> j <@> o))
                                <@> (inc phi (fwd <@> pure iz <@> u0))
 
   compPO l _ sphi u a0 = return Nothing
@@ -1730,7 +1734,7 @@ primPOforward' = do
                                           )
 
                             fwdc = cfwd l bC r c
-                        tHcomp <@> psi <@> sys <@> (inc psi (tPush (pure io) fwdc s))
+                        tHcomp <#> psi <@> sys <@> (inc psi (tPush (pure io) fwdc s))
                    | q == hcomp
                    , [Apply phi, Apply u, Apply u0] <- drop (length ["l","A","B","C","f","g"]) es -> do
                       tPOfwd <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveTerm' builtinPOforward
@@ -1752,7 +1756,7 @@ primPOforward' = do
                             inc phi t = pure tInc <#> (l <@> pure io) <#> (po $ pure io) <#> phi <@> t
                             ouc phi u t = pure tOuc <#> (l <@> pure io) <#> po r <#> phi <#> u <@> t
                             u0' = (ouc phi (u <@> pure iz) u0)
-                        tHcomp     <@> phi
+                        tHcomp     <#> phi
                                    <@> (lam "i" $ \ i -> ilam "o" $ \ o -> fwd (u <@> i <..> o))
                                    <@> inc phi (fwd u0')
 
@@ -1850,7 +1854,7 @@ primPOElim' = do
                             inc phi t = pure tInc <#> l <#> po <#> phi <@> t
                             ouc phi u t = pure tOuc <#> l <#> po <#> phi <#> u <@> t
                             u0' = (ouc phi (u <@> pure iz) u0)
-                            v i = tHcomp <@> psi <@> sys <@> (inc psi u0') -- hfill_{P f g} phi u u0
+                            v i = tHcomp <#> psi <@> sys <@> (inc psi u0') -- hfill_{P f g} phi u u0
                               where
                                 psi = phi `imax` (pure ineg <@> i)
                                       -- ' \ { j (φ = 1) ->  u (i ∧ j) itIsOne; j (i = 0) -> ouc u0 }
