@@ -68,26 +68,27 @@ generalizeType s typecheckAction = do
     cp <- viewTC eCurrentCheckpoint
     let canGeneralize x = do
             mv  <- lookupMeta x
-            (mcp, sub) <- enterClosure (miClosRange $ mvInfo mv) $ \ _ ->
-              (,) <$> viewTC eCurrentCheckpoint <*> checkpointSubstitution cp
-            -- TODO: might pruned further
+            sub <- enterClosure (miClosRange $ mvInfo mv) $ \ _ ->
+                     checkpointSubstitution cp
             let sameContext =
                   -- Do we have a weakening substitution and a corresponding
                   -- pruning getting rid of the extra variables?
+                  -- TODO: handle more pruning
                   case (sub, mvPermutation mv) of
+                    (IdS, Perm m xs)      -> xs == [0 .. m - 1]
                     (Wk n IdS, Perm m xs) -> xs == [0 .. m - n - 1]
                     _                     -> False
-            when (mcp /= cp && not sameContext) $ do
+            when (not sameContext) $ do
               ty <- getMetaType x
               let Perm m xs = mvPermutation mv
               reportSDoc "tc.decl.gen" 20 $ vcat
-                [ text "Not clear how to generalize over"
+                [ text "Don't know how to generalize over"
                 , nest 2 $ prettyTCM x <+> text ":" <+> prettyTCM ty
                 , text "in context"
                 , nest 2 $ inTopContext . prettyTCM =<< getContextTelescope
                 , text "permutation:" <+> text (show (m, xs))
                 , text "subst:" <+> pretty sub ]
-            return (mcp == cp || sameContext)
+            return sameContext
     inherited <- fmap Set.unions $ forM generalizableClosed $ \ (x, mv) ->
       case mvInstantiation mv of
         InstV _ v -> Set.fromList <$> (filterM canGeneralize . allMetas =<< instantiateFull v)
@@ -115,10 +116,7 @@ generalizeType s typecheckAction = do
 
     -- Solve the generalizable metas
     cxtTel <- getContextTelescope
-    let solve m field = do
-          mv <- lookupMeta m
-          -- TODO: might have been pruned!
-          assignTerm' m (telToArgs cxtTel) $ Var 0 [Proj ProjSystem field]
+    let solve m field = assignTerm' m (telToArgs cxtTel) $ Var 0 [Proj ProjSystem field]
     zipWithM_ solve sortedMetas genRecFields
 
     -- Build the telescope of generalized metas
@@ -244,7 +242,9 @@ createGenRecordType :: Type -> [MetaId] -> TCM (QName, ConHead, [QName])
 createGenRecordType genRecMeta@(El genRecSort _) sortedMetas = do
   current <- currentModule
   let freshQName s = qualify current <$> freshName_ (s :: String)
-      mkFieldName  = freshQName . (generalizedFieldName ++) <=< getMetaNameSuggestion
+      name ""      = "x"  -- TODO: better name suggestion for refined metas
+      name s       = s
+      mkFieldName  = freshQName . (generalizedFieldName ++) . name <=< getMetaNameSuggestion
   genRecFields <- mapM (defaultArg <.> mkFieldName) sortedMetas
   genRecName   <- freshQName "GeneralizeTel"
   genRecCon    <- freshQName "mkGeneralizeTel" <&> \ con -> ConHead
