@@ -5,6 +5,7 @@ module Agda.TypeChecking.Monad.Options where
 import Prelude hiding (mapM)
 
 import Control.Monad.Reader hiding (mapM)
+import Control.Monad.Writer
 import Control.Monad.State  hiding (mapM)
 
 import Data.Maybe
@@ -96,7 +97,9 @@ setCommandLineOptions' root opts = do
 
 libToTCM :: LibM a -> TCM a
 libToTCM m = do
-  z <- liftIO $ runExceptT m
+  (z, warns) <- liftIO $ runWriterT $ runExceptT m
+
+  unless (null warns) $ warnings $ map LibraryWarning warns
   case z of
     Left s  -> typeError $ GenericDocError s
     Right x -> return x
@@ -215,7 +218,9 @@ setIncludeDirs incs root = do
   -- "new-path/M.agda".
   when (oldIncs /= incs) $ do
     ho <- getInteractionOutputCallback
+    tcWarnings <- useTC stTCWarnings -- restore already generated warnings
     resetAllState
+    setTCLens stTCWarnings tcWarnings
     setInteractionOutputCallback ho
 
   Lens.putAbsoluteIncludePaths incs
