@@ -301,7 +301,7 @@ createGenRecordType genRecMeta@(El genRecSort _) sortedMetas = do
                 , conData   = genRecName
                 , conAbstr  = ConcreteDef
                 , conInd    = Inductive
-                , conComp   = Nothing
+                , conComp   = (emptyCompKit, Nothing)
                 , conForced = []
                 , conErased = []
                 }
@@ -316,7 +316,7 @@ createGenRecordType genRecMeta@(El genRecSort _) sortedMetas = do
            , recEtaEquality' = Inferred YesEta
            , recInduction    = Nothing
            , recAbstr        = ConcreteDef
-           , recComp         = Nothing }
+           , recComp         = emptyCompKit }
   reportSDoc "tc.decl.gen" 40 $ vcat
     [ text "created genRec" <+> text (show genRecFields) ]
   -- Solve the genRecMeta
