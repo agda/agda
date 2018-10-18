@@ -550,13 +550,13 @@ createMissingHCompClause f n x old_sc (SClause tel ps sigma' cps (Just t)) = set
                                               <@> r
                                               <@> u
             return $ \ la bA phi u u0 ->
-              pure tHComp <#> (la <@> pure io) <@> (bA <@> pure io) <@> phi
+              pure tHComp <#> (la <@> pure io) <#> (bA <@> pure io) <#> phi
                         <@> (lam "i" $ \ i -> ilam "o" $ \ o ->
                                 forward la bA i (u <@> i <..> o))
                         <@> forward la bA (pure iz) u0
           let
-            hfill la bA phi u u0 i = pure tHComp <#> la <@> bA
-                                               <@> (pure tIMax <@> phi <@> (pure tINeg <@> i))
+            hfill la bA phi u u0 i = pure tHComp <#> la <#> bA
+                                               <#> (pure tIMax <@> phi <@> (pure tINeg <@> i))
                                                <@> (lam "j" $ \ j -> pure tPOr <#> la <@> phi <@> (pure tINeg <@> i) <#> (ilam "o" $ \ _ -> bA)
                                                      <@> (ilam "o" $ \ o -> u <@> (pure tIMin <@> i <@> j) <..> o)
                                                      <@> (ilam "o" $ \ _ -> u0)
