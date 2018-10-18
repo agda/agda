@@ -348,3 +348,109 @@ instance UsableRelevance a => UsableRelevance (Dom a) where
 
 instance (Subst t a, UsableRelevance a) => UsableRelevance (Abs a) where
   usableRel rel abs = underAbstraction_ abs $ \u -> usableRel rel u
+
+-- | Check whether something can be used in a position of the given modality.
+--
+--   This is a substitute for double-checking that only makes sure
+--   modalities are correct.  See issue #2640.
+--
+--   Used in unifier (@ unifyStep Solution{}@).
+--
+--   This uses McBride-style modality checking.
+--   It does not differ from Pfenning-style if we
+--   are only interested in the modality of the
+--   free variables, used meta-variables, and used
+--   definitions.
+--
+class UsableModality a where
+  usableMod :: Modality -> a -> TCM Bool
+
+instance UsableModality Term where
+  usableMod mod u = case u of
+    Var i vs -> do
+      imod <- getModality <$> typeOfBV' i
+      let ok = imod `moreUsableModality` mod
+      reportSDoc "tc.irr" 50 $
+        "Variable" <+> prettyTCM (var i) <+>
+        text ("has modality " ++ show imod ++ ", which is a " ++
+              (if ok then "" else "NOT ") ++ "more usable modality than " ++ show mod)
+      return ok `and2M` usableMod mod vs
+    Def f vs -> do
+      fmod <- modalityOfConst f
+      let ok = fmod `moreUsableModality` mod
+      reportSDoc "tc.irr" 50 $
+        "Definition" <+> prettyTCM (Def f []) <+>
+        text ("has modality " ++ show fmod ++ ", which is a " ++
+              (if ok then "" else "NOT ") ++ "more usable modality than " ++ show mod)
+      return ok `and2M` usableMod mod vs
+    Con c _ vs -> usableMod mod vs
+    Lit l    -> return True
+    Lam _ v  -> usableMod mod v
+    Pi a b   -> usableMod mod (a,b)
+    Sort s   -> usableMod mod s
+    Level l  -> return True
+    MetaV m vs -> do
+      mmod <- getMetaModality <$> lookupMeta m
+      let ok = mmod `moreUsableModality` mod
+      reportSDoc "tc.irr" 50 $
+        "Metavariable" <+> prettyTCM (MetaV m []) <+>
+        text ("has modality " ++ show mmod ++ ", which is a " ++
+              (if ok then "" else "NOT ") ++ "more usable modality than " ++ show mod)
+      return ok `and2M` usableMod mod vs
+    DontCare _ -> return $ isIrrelevant mod
+    Dummy{}  -> return True
+
+instance UsableRelevance a => UsableModality (Type' a) where
+  usableMod mod (El _ t) = usableRel (getRelevance mod) t
+
+instance UsableModality Sort where
+  usableMod mod s = usableRel (getRelevance mod) s
+  -- usableMod mod s = case s of
+  --   Type l -> usableMod mod l
+  --   Prop l -> usableMod mod l
+  --   Inf    -> return True
+  --   SizeUniv -> return True
+  --   PiSort s1 s2 -> usableMod mod (s1,s2)
+  --   UnivSort s -> usableMod mod s
+  --   MetaS x es -> usableMod mod es
+  --   DummyS{} -> return True
+
+instance UsableModality Level where
+  usableMod mod (Max ls) = usableRel (getRelevance mod) ls
+
+-- instance UsableModality PlusLevel where
+--   usableMod mod ClosedLevel{} = return True
+--   usableMod mod (Plus _ l)    = usableMod mod l
+
+-- instance UsableModality LevelAtom where
+--   usableMod mod l = case l of
+--     MetaLevel m vs -> do
+--       mmod <- getMetaModality <$> lookupMeta m
+--       return (mmod `moreUsableModality` mod) `and2M` usableMod mod vs
+--     NeutralLevel _ v -> usableMod mod v
+--     BlockedLevel _ v -> usableMod mod v
+--     UnreducedLevel v -> usableMod mod v
+
+instance UsableModality a => UsableModality [a] where
+  usableMod mod = andM . map (usableMod mod)
+
+instance (UsableModality a, UsableModality b) => UsableModality (a,b) where
+  usableMod mod (a,b) = usableMod mod a `and2M` usableMod mod b
+
+instance UsableModality a => UsableModality (Elim' a) where
+  usableMod mod (Apply a) = usableMod mod a
+  usableMod mod (Proj _ p) = do
+    pmod <- modalityOfConst p
+    return $ pmod `moreUsableModality` mod
+  usableMod mod (IApply x y v) = allM [x,y,v] $ usableMod mod
+
+instance UsableModality a => UsableModality (Arg a) where
+  usableMod mod (Arg info u) =
+    let mod' = getModality info
+    in  usableMod (mod `composeModality` mod') u
+
+instance UsableModality a => UsableModality (Dom a) where
+  usableMod mod (Dom _ _ u) = usableMod mod u
+
+instance (Subst t a, UsableModality a) => UsableModality (Abs a) where
+  usableMod mod abs = underAbstraction_ abs $ \u -> usableMod mod u
