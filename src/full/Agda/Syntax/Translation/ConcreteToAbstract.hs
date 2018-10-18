@@ -1449,11 +1449,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
       -- check the postulate
       toAbstractNiceAxiom A.NoFunSig NotMacroDef d
 
-    C.NiceGeneralize r f p i0 x t -> do
-      -- Explicit generalizable variables are not allowed, so if they're given
-      -- as explicit we default to hidden.
-      let i | visible i0 = hide i0
-            | otherwise  = i0
+    C.NiceGeneralize r f p i x t -> do
       reportSLn "scope.decl" 10 $ "found nice generalize: " ++ prettyShow x
       t_ <- toAbstractCtx TopCtx t
       let (s, t) = unGeneralized t_

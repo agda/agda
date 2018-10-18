@@ -1415,8 +1415,8 @@ data Definition = Defn
     --   23,    3
     --   27,    1
 
-  , defArgGeneralizable :: [DoGeneralize]
-    -- ^ Metas created when checking an argument inherit the argument's 'DoGeneralize' flag.
+  , defArgGeneralizable :: NumGeneralizableArgs
+    -- ^ How many arguments should be generalised.
   , defDisplay        :: [LocalDisplayForm]
   , defMutual         :: MutualId
   , defCompiledRep    :: CompiledRepresentation
@@ -1435,6 +1435,13 @@ data Definition = Defn
   }
     deriving (Data, Show)
 
+data NumGeneralizableArgs
+  = NoGeneralizableArgs
+  | SomeGeneralizableArgs Int
+    -- ^ When lambda-lifting new args are generalizable if
+    --   'SomeGeneralizableArgs', also when the number is zero.
+  deriving (Data, Show)
+
 theDefLens :: Lens' Defn Definition
 theDefLens f d = f (theDef d) <&> \ df -> d { theDef = df }
 
@@ -1446,7 +1453,7 @@ defaultDefn info x t def = Defn
   , defType           = t
   , defPolarity       = []
   , defArgOccurrences = []
-  , defArgGeneralizable = []
+  , defArgGeneralizable = NoGeneralizableArgs
   , defDisplay        = defaultDisplayForm x
   , defMutual         = 0
   , defCompiledRep    = noCompiledRep
@@ -3658,6 +3665,9 @@ instance KillRange Definition where
   killRange (Defn ai name t pols occs gens displ mut compiled inst copy ma nc inj def) =
     killRange15 Defn ai name t pols occs gens displ mut compiled inst copy ma nc inj def
     -- TODO clarify: Keep the range in the defName field?
+
+instance KillRange NumGeneralizableArgs where
+  killRange = id
 
 instance KillRange NLPat where
   killRange (PVar x y) = killRange2 PVar x y

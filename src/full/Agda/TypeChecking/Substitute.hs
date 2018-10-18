@@ -225,8 +225,9 @@ instance {-# OVERLAPPING #-} Apply [Polarity] where
   apply pol args = List.drop (length args) pol
   applyE t es = apply t $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
 
-instance {-# OVERLAPPING #-} Apply [DoGeneralize] where
-  apply gens args = List.drop (length args) gens
+instance Apply NumGeneralizableArgs where
+  apply NoGeneralizableArgs       args = NoGeneralizableArgs
+  apply (SomeGeneralizableArgs n) args = SomeGeneralizableArgs (n - length args)
   applyE t es = apply t $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
 
 -- | Make sure we only drop variable patterns.
@@ -580,9 +581,9 @@ instance {-# OVERLAPPING #-} Abstract [Polarity] where
   abstract tel []  = []
   abstract tel pol = replicate (size tel) Invariant ++ pol -- TODO: check polarity
 
-instance {-# OVERLAPPING #-} Abstract [DoGeneralize] where
-  abstract tel []  = []
-  abstract tel gen = replicate (size tel) NoGeneralize ++ gen
+instance Abstract NumGeneralizableArgs where
+  abstract tel NoGeneralizableArgs       = NoGeneralizableArgs
+  abstract tel (SomeGeneralizableArgs n) = SomeGeneralizableArgs (size tel + n)
 
 instance Abstract Projection where
   abstract tel p = p

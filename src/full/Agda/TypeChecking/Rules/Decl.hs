@@ -542,7 +542,7 @@ checkGeneralize s i info x e = do
       ]
 
     addConstant x $ (defaultDefn info x tGen GeneralizableVar)
-                    { defArgGeneralizable = replicate n YesGeneralize }
+                    { defArgGeneralizable = SomeGeneralizableArgs n }
 
 
 -- | Type check an axiom.

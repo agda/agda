@@ -177,12 +177,18 @@ buildGeneralizeTel con xs = go 0 xs
 createGenValue :: QName -> TCM (QName, GeneralizedValue)
 createGenValue x = do
   cp  <- viewTC eCurrentCheckpoint
-  def <- getConstInfo x
+  def <- instantiateDef =<< getConstInfo x
                    -- Only prefix of generalizable arguments (for now?)
-  let nGen       = length $ takeWhile (== YesGeneralize) $ defArgGeneralizable def
+  let nGen       = case defArgGeneralizable def of
+                     NoGeneralizableArgs     -> 0
+                     SomeGeneralizableArgs n -> n
       ty         = defType def
       TelV tel _ = telView' ty
-      argTel     = telFromList $ take nGen $ telToList tel
+      -- Generalizable variables are never explicit, so if they're given as
+      -- explicit we default to hidden.
+      hideExplicit arg | visible arg = hide arg
+                       | otherwise   = arg
+      argTel     = telFromList $ map hideExplicit $ take nGen $ telToList tel
 
   args <- newTelMeta argTel
 
@@ -207,7 +213,7 @@ createGenValue x = do
 
   -- Update the ArgInfos for the named meta. The argument metas are
   -- created with the correct ArgInfo.
-  setMetaArgInfo m $ defArgInfo def
+  setMetaArgInfo m $ hideExplicit (defArgInfo def)
 
   reportSDoc "tc.decl.gen" 50 $ vcat
     [ "created metas for generalized variable" <+> prettyTCM x
