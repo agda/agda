@@ -2411,9 +2411,6 @@ initEnv = TCEnv { envContext             = []
 envRelevance :: TCEnv -> Relevance
 envRelevance = modRelevance . envModality
 
-disableDestructiveUpdate :: TCM a -> TCM a
-disableDestructiveUpdate = localTC $ \e -> e { envAllowDestructiveUpdate = False }
-
 data UnquoteFlags = UnquoteFlags
   { _unquoteNormalise :: Bool }
   deriving Data
