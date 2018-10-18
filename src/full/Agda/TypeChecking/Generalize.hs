@@ -95,7 +95,18 @@ generalizeType s typecheckAction = do
             return sameContext
     inherited <- fmap Set.unions $ forM generalizableClosed $ \ (x, mv) ->
       case mvInstantiation mv of
-        InstV _ v -> Set.fromList <$> (filterM canGeneralize . allMetas =<< instantiateFull v)
+        InstV _ v -> do
+          parentName <- getMetaNameSuggestion x
+          metas <- filterM canGeneralize . allMetas =<< instantiateFull v
+          let suggestNames i [] = return ()
+              suggestNames i (m : ms)  = do
+                name <- getMetaNameSuggestion m
+                case name of
+                  "" -> do
+                    setMetaNameSuggestion m (parentName ++ "." ++ show i)
+                    suggestNames (i + 1) ms
+                  _  -> suggestNames i ms
+          Set.fromList metas <$ suggestNames 1 metas
         _ -> __IMPOSSIBLE__
 
     let (alsoGeneralize, reallyDontGeneralize) = partition (`Set.member` inherited) $ map fst nongeneralizableOpen
@@ -253,9 +264,7 @@ createGenRecordType :: Type -> [MetaId] -> TCM (QName, ConHead, [QName])
 createGenRecordType genRecMeta@(El genRecSort _) sortedMetas = do
   current <- currentModule
   let freshQName s = qualify current <$> freshName_ (s :: String)
-      name ""      = "x"  -- TODO: better name suggestion for refined metas
-      name s       = s
-      mkFieldName  = freshQName . (generalizedFieldName ++) . name <=< getMetaNameSuggestion
+      mkFieldName  = freshQName . (generalizedFieldName ++) <=< getMetaNameSuggestion
   genRecFields <- mapM (defaultArg <.> mkFieldName) sortedMetas
   genRecName   <- freshQName "GeneralizeTel"
   genRecCon    <- freshQName "mkGeneralizeTel" <&> \ con -> ConHead
