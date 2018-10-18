@@ -887,7 +887,7 @@ primTransHComp cmd ts nelims = do
         let
           ineg r = pure tINeg <@> r
         pure tGlue <#> l <#> l
-               <@> u0 <@> phi <@> (e <@> pure io)
+               <@> u0 <#> phi <@> (e <@> pure io)
                <@> ilam "o" (\ o -> pure p2equiv <#> (lam "i" $ \ i -> l) <@> (ilam "i" $ \ i -> e <@> ineg i <@> o))
     compSort _ fallback phi u u0 _ = __IMPOSSIBLE__
     compGlue DoHComp psi (Just u) u0 (IsNot (la, lb, bA, phi, bT, e)) = do
@@ -1452,7 +1452,7 @@ primComp = do
       tCGlue <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinCompGlue
       [phi,u,a0] <- mapM (open . unArg) [phi,u,a0]
       [la,lb,bA,phi',bT,e] <- mapM open xs
-      pure tCGlue <#> la <#> lb <@> bA <@> phi' <@> bT <@> e <@> phi <@> u <@> a0
+      pure tCGlue <#> la <#> lb <@> bA <#> phi' <@> bT <@> e <@> phi <@> u <@> a0
 
   compSort fallback iz io ineg phi u a0 l = do
    checkPrims <- all isJust <$> sequence [getBuiltin' builtinPathToEquiv, getPrimitiveTerm' builtinGlue]
@@ -1467,7 +1467,7 @@ primComp = do
                               <@> lam "i" (\ i -> pure tEmpty <#> (l <@> i)
                                                               <#> (ilam "o" $ \ _ -> p <@> i))
     pure tGlue <#> (l <@> iz) <#> (l <@> pure io)
-               <@> a0 <@> phi <@> (e <@> pure io)
+               <@> a0 <#> phi <@> (e <@> pure io)
                <@> ilam "o" (\ o -> pure p2equiv <#> l <@> (ilam "i" $ \ i -> e <@> ineg i <@> o))
 
   compId sphi u a0 l bA x y = do
@@ -1609,7 +1609,7 @@ prim_glue' = do
        hPi' "φ" (elInf $ cl primInterval) $ \ φ ->
        hPi' "T" (pPi' "o" φ $ \ o ->  el' (cl primLevelSuc <@> lb) (Sort . tmSort <$> lb)) $ \ t ->
        hPi' "e" (pPi' "o" φ $ \ o -> el' (cl primLevelMax <@> la <@> lb) $ cl primEquiv <#> lb <#> la <@> (t <@> o) <@> a) $ \ e ->
-       (pPi' "o" φ $ \ o -> el' lb (t <@> o)) --> (el' la a --> el' lb (cl primGlue <#> la <#> lb <@> a <@> φ <@> t <@> e)))
+       (pPi' "o" φ $ \ o -> el' lb (t <@> o)) --> (el' la a --> el' lb (cl primGlue <#> la <#> lb <@> a <#> φ <@> t <@> e)))
   view <- intervalView'
   one <- primItIsOne
   return $ PrimImpl t $ primFun __IMPOSSIBLE__ 8 $ \ts ->
@@ -1630,7 +1630,7 @@ prim_unglue' = do
        hPi' "φ" (elInf $ cl primInterval) $ \ φ ->
        hPi' "T" (pPi' "o" φ $ \ o ->  el' (cl primLevelSuc <@> lb) (Sort . tmSort <$> lb)) $ \ t ->
        hPi' "e" (pPi' "o" φ $ \ o -> el' (cl primLevelMax <@> la <@> lb) $ cl primEquiv <#> lb <#> la <@> (t <@> o) <@> a) $ \ e ->
-       (el' lb (cl primGlue <#> la <#> lb <@> a <@> φ <@> t <@> e)) --> el' la a)
+       (el' lb (cl primGlue <#> la <#> lb <@> a <#> φ <@> t <@> e)) --> el' la a)
   view <- intervalView'
   one <- primItIsOne
   mglue <- getPrimitiveName' builtin_glue
