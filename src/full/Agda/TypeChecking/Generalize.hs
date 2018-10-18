@@ -64,16 +64,20 @@ generalizeType s typecheckAction = do
         (generalizableOpen, generalizableClosed) = partition isOpen generalizable
         nongeneralizableOpen = filter isOpen nongeneralizable
 
-    -- Any meta in the solution of a generalizable meta should be generalized over.
+    -- Any meta in the solution of a generalizable meta should be generalized over (if possible).
     cp <- viewTC eCurrentCheckpoint
     let canGeneralize x = do
             mv  <- lookupMeta x
             sub <- enterClosure (miClosRange $ mvInfo mv) $ \ _ ->
                      checkpointSubstitution cp
             let sameContext =
-                  -- Do we have a weakening substitution and a corresponding
-                  -- pruning getting rid of the extra variables?
-                  -- TODO: handle more pruning
+                  -- We can only generalize if the metavariable takes the context variables of the
+                  -- current context as arguments. This happens either when the context of the meta
+                  -- is the same as the current context and there is no pruning, or the meta context
+                  -- is a weakening but the extra variables have been prune.
+                  -- It would be possible to generalize also in the case when some context variables
+                  -- (other than genTel) have been pruned, but it's hard to construct an example
+                  -- where this actually happens.
                   case (sub, mvPermutation mv) of
                     (IdS, Perm m xs)      -> xs == [0 .. m - 1]
                     (Wk n IdS, Perm m xs) -> xs == [0 .. m - n - 1]
@@ -97,16 +101,8 @@ generalizeType s typecheckAction = do
     let (alsoGeneralize, reallyDontGeneralize) = partition (`Set.member` inherited) $ map fst nongeneralizableOpen
         generalizeOver = map fst generalizableOpen ++ alsoGeneralize
 
-    -- For now, we don't handle unsolved non-generalizable metas.
-    -- unless (null reallyDontGeneralize) $
-    --   typeError $ NotImplemented "Unsolved non-generalizable metas in generalized type"
-
     -- Sort metas in dependency order
     sortedMetas <- sortMetas generalizeOver
-
-    reportSDoc "tc.decl.gen" 50 $ vcat
-      [ text $ "allMetas    = " ++ show allmetas
-      , text $ "sortedMetas = " ++ show sortedMetas ]
 
     let dropCxt err = updateContext (strengthenS err 1) (drop 1)
 
@@ -114,18 +110,20 @@ generalizeType s typecheckAction = do
     (genRecName, genRecCon, genRecFields) <- dropCxt __IMPOSSIBLE__ $
         createGenRecordType genRecMeta sortedMetas
 
-    -- Solve the generalizable metas
+    -- Solve the generalizable metas. Each generalizable meta is solved by projecting the
+    -- corresponding field from the genTel record.
     cxtTel <- getContextTelescope
     let solve m field = assignTerm' m (telToArgs cxtTel) $ Var 0 [Proj ProjSystem field]
     zipWithM_ solve sortedMetas genRecFields
 
     -- Build the telescope of generalized metas
-    teleTypes <- fmap concat $ forM sortedMetas $ \ m -> do
-                    mv   <- lookupMeta m
-                    args <- getContextArgs
-                    let info = getArgInfo $ miGeneralizable $ mvInfo mv
-                        HasType{ jMetaType = t } = mvJudgement mv
-                    return [(Arg info $ miNameSuggestion $ mvInfo mv, piApply t args)]
+    teleTypes <- do
+      args <- getContextArgs
+      fmap concat $ forM sortedMetas $ \ m -> do
+        mv   <- lookupMeta m
+        let info = getArgInfo $ miGeneralizable $ mvInfo mv
+            HasType{ jMetaType = t } = mvJudgement mv
+        return [(Arg info $ miNameSuggestion $ mvInfo mv, piApply t args)]
     let genTel = buildGeneralizeTel genRecCon teleTypes
     reportSDoc "tc.decl.gen" 40 $ vcat
       [ text "genTel =" <+> prettyTCM genTel ]
@@ -133,7 +131,8 @@ generalizeType s typecheckAction = do
     -- Fill in the missing details of the telescope record.
     dropCxt __IMPOSSIBLE__ $ fillInGenRecordDetails genRecName genRecCon genRecFields genRecMeta genTel
 
-    -- Now abstract over the telescope
+    -- Now abstract over the telescope. We need to apply the substitution that subsitutes a record
+    -- value packing up the generalized variables for the genTel variable.
     let sub = unpackSub genRecCon (map (argInfo . fst) teleTypes) (length teleTypes)
     t' <- abstract genTel . applySubst sub <$> instantiateFull t
 
@@ -143,17 +142,17 @@ generalizeType s typecheckAction = do
 
     return (length sortedMetas, t')
 
-metaCheckpoint :: MetaId -> TCM CheckpointId
-metaCheckpoint m = do
-  mv <- lookupMeta m
-  enterClosure (miClosRange $ mvInfo mv) $ \ _ -> viewTC eCurrentCheckpoint
-
+-- | Create a substition from a context where the i first record fields are variables to a context
+--   where you have a single variable of the record type. Packs up the field variables in a record
+--   constructor and pads with __DUMMY_TERM__s for the missing fields. Important that you apply this
+--   to terms that only projects the defined fields from the record variable.
+--   Used with partial record values when building the telescope of generalized variables in which
+--   case we have done the dependency analysis that guarantees it is safe.
 unpackSub :: ConHead -> [ArgInfo] -> Int -> Substitution
 unpackSub con infos i = recSub
   where
     ar = length infos
     appl info v = Apply (Arg info v)
-    -- recVal = con (var (i - 1)) .. (var 0) __IMPOSSIBLE__ .. __IMPOSSIBLE__
     recVal = Con con ConOSystem $ zipWith appl infos $ [var j | j <- [i - 1, i - 2..0]] ++ replicate (ar - i) __DUMMY_TERM__
 
     -- want: Γ Δᵢ ⊢ recSub i : Γ (r : R)
@@ -162,6 +161,16 @@ unpackSub con infos i = recSub
     -- Γ Δᵢ ⊢ WkS i IdS : Γ
     recSub = recVal :# Wk i IdS
 
+-- | Takes the list of types
+--    A₁ []
+--    A₂ [r.f₁]
+--    A₃ [r.f₂, r.f₃]
+--    ...
+--   And builds the telescope
+--    (x₁ : A₁ [ r := c _       .. _ ])
+--    (x₂ : A₂ [ r := c x₁ _    .. _ ])
+--    (x₃ : A₃ [ r := c x₁ x₂ _ .. _ ])
+--    ...
 buildGeneralizeTel :: ConHead -> [(Arg String, Type)] -> Telescope
 buildGeneralizeTel con xs = go 0 xs
   where
@@ -238,6 +247,8 @@ sortMetas metas = do
             (typeError GeneralizeCyclicDependency)
             return
 
+-- | Create a not-yet correct record type for the generalized telescope. It's not yet correct since
+--   we haven't computed the telescope yet, and we need the record type to do it.
 createGenRecordType :: Type -> [MetaId] -> TCM (QName, ConHead, [QName])
 createGenRecordType genRecMeta@(El genRecSort _) sortedMetas = do
   current <- currentModule
@@ -305,6 +316,7 @@ createGenRecordType genRecMeta@(El genRecSort _) sortedMetas = do
   noConstraints $ equalType genRecTy genRecMeta
   return (genRecName, genRecCon, map unArg genRecFields)
 
+-- | Once we have the generalized telescope we can fill in the missing details of the record type.
 fillInGenRecordDetails :: QName -> ConHead -> [QName] -> Type -> Telescope -> TCM ()
 fillInGenRecordDetails name con fields recTy fieldTel = do
   cxtTel <- fmap hideAndRelParams <$> getContextTelescope
