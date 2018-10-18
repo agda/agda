@@ -1111,6 +1111,10 @@ typeOfConst q = defType <$> (instantiateDef =<< getConstInfo q)
 relOfConst :: QName -> TCM Relevance
 relOfConst q = defRelevance <$> getConstInfo q
 
+-- | Get modality of a constant.
+modalityOfConst :: QName -> TCM Modality
+modalityOfConst q = getModality . defArgInfo <$> getConstInfo q
+
 -- | The number of dropped parameters for a definition.
 --   0 except for projection(-like) functions and constructors.
 droppedPars :: Definition -> Int

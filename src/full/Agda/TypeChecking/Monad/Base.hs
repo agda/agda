@@ -1157,6 +1157,9 @@ getMetaSig m = clSignature $ getMetaInfo m
 getMetaRelevance :: MetaVariable -> Relevance
 getMetaRelevance = envRelevance . getMetaEnv
 
+getMetaModality :: MetaVariable -> Modality
+getMetaModality = envModality . getMetaEnv
+
 ---------------------------------------------------------------------------
 -- ** Interaction meta variables
 ---------------------------------------------------------------------------

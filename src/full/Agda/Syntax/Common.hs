@@ -287,9 +287,9 @@ applyModality m = mapModality (m `composeModality`)
 
 -- | @inverseComposeModality r x@ returns the least modality @y@
 --   such that forall @x@, @y@ we have
---   @x \`moreModality\` (r \`composeModality\` y)@
+--   @x \`moreUsableModality\` (r \`composeModality\` y)@
 --   iff
---   @(r \`inverseComposeModality\` x) \`moreModality\` y@ (Galois connection).
+--   @(r \`inverseComposeModality\` x) \`moreUsableModality\` y@ (Galois connection).
 inverseComposeModality :: Modality -> Modality -> Modality
 inverseComposeModality (Modality r q) (Modality r' q') =
   Modality (r `inverseComposeRelevance` r')
