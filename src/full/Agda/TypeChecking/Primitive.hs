@@ -1384,7 +1384,7 @@ primComp = do
          fwd = foldl (<#>) (pure tPOfwd) as
          po i = pure tPO <#> (l <@> i) <#> (bA <@> i) <#> (bB <@> i) <#> (bC <@> i) <@> (f <@> i) <@> (g <@> i)
          inc phi t = pure tInc <#> (l <@> pure io) <#> (po $ pure io) <#> phi <@> t
-       hcomp (pure io) <@> phi <@> (lam "j" $ \ j -> ilam "o" $ \ o -> fwd <@> j <@> (u <@> j <@> o))
+       hcomp (pure io) <#> phi <@> (lam "j" $ \ j -> ilam "o" $ \ o -> fwd <@> j <@> (u <@> j <@> o))
                                <@> (inc phi (fwd <@> pure iz <@> u0))
 
   compPO l _ sphi u a0 = return Nothing
@@ -1734,7 +1734,7 @@ primPOforward' = do
                                           )
 
                             fwdc = cfwd l bC r c
-                        tHcomp <@> psi <@> sys <@> (inc psi (tPush (pure io) fwdc s))
+                        tHcomp <#> psi <@> sys <@> (inc psi (tPush (pure io) fwdc s))
                    | q == hcomp
                    , [Apply phi, Apply u, Apply u0] <- drop (length ["l","A","B","C","f","g"]) es -> do
                       tPOfwd <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveTerm' builtinPOforward
@@ -1756,7 +1756,7 @@ primPOforward' = do
                             inc phi t = pure tInc <#> (l <@> pure io) <#> (po $ pure io) <#> phi <@> t
                             ouc phi u t = pure tOuc <#> (l <@> pure io) <#> po r <#> phi <#> u <@> t
                             u0' = (ouc phi (u <@> pure iz) u0)
-                        tHcomp     <@> phi
+                        tHcomp     <#> phi
                                    <@> (lam "i" $ \ i -> ilam "o" $ \ o -> fwd (u <@> i <..> o))
                                    <@> inc phi (fwd u0')
 
@@ -1854,7 +1854,7 @@ primPOElim' = do
                             inc phi t = pure tInc <#> l <#> po <#> phi <@> t
                             ouc phi u t = pure tOuc <#> l <#> po <#> phi <#> u <@> t
                             u0' = (ouc phi (u <@> pure iz) u0)
-                            v i = tHcomp <@> psi <@> sys <@> (inc psi u0') -- hfill_{P f g} phi u u0
+                            v i = tHcomp <#> psi <@> sys <@> (inc psi u0') -- hfill_{P f g} phi u u0
                               where
                                 psi = phi `imax` (pure ineg <@> i)
                                       -- ' \ { j (φ = 1) ->  u (i ∧ j) itIsOne; j (i = 0) -> ouc u0 }
