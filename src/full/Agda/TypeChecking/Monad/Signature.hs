@@ -482,6 +482,7 @@ applySection' new ptel old ts ScopeCopyInfo{ renNames = rd, renModules = rm } = 
                          , recClause  = Just cl
                          , recTel     = apply tel ts'
                          }
+                GeneralizableVar -> return GeneralizableVar
                 _ -> do
                   cc <- compileClauses Nothing [cl] -- Andreas, 2012-10-07 non need for record pattern translation
                   let newDef =
