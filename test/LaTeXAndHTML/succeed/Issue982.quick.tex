@@ -1,31 +1,3 @@
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Testing with Ubuntu 14.04.
-
-% For testing this issue it is necessary to install the following
-% packages:
-
-%  sudo apt-get install texlive
-%  sudo apt-get install texlive-latex-extra
-%  sudo apt-get install texlive-xetex
-%  sudo apt-get install texlive-math-extra
-%  sudo apt-get install texlive-fonts-extra
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Testing with Ubuntu 12.04.
-
-% Ubuntu 12.04 uses an outdated TeX Live 2009. For testing this issue
-% it is necessary to install the following packages:
-
-%  sudo add-apt-repository ppa:texlive-backports/ppa -y
-%  sudo apt-get update
-%  sudo apt-get install texlive
-%  sudo apt-get install texlive-latex-extra
-%  sudo apt-get install texlive-xetex
-%  sudo apt-get install texlive-math-extra
-%  sudo apt-get install texlive-fonts-extra
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
 \documentclass{article}
 
 \usepackage{agda}

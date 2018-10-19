@@ -41,7 +41,7 @@ inserting the following code in the preamble of your source file:
 .. code-block:: latex
 
    \usepackage{ucs}
-   \usepackage[utf8x]{inputenc}
+   \usepackage[utf8]{inputenc}
 
 Unicode characters are translated to LaTeX commands, so e.g. the
 following packages might be needed. You may need more packages if you
@@ -76,8 +76,7 @@ found below.
    LaTeX was never written with unicode in mind. Hacks like the ucs
    package makes it possible to use them, but for the best possible
    output consider using :program:`xelatex` or :program:`lualatex`
-   instead. If you do, :file:`agda.sty` is using the more complete
-   XITS_ font by default.
+   instead.
 
 Features
 --------
@@ -565,14 +564,6 @@ The following options can be given when loading ``agda.sty`` by using
 ``conor``
   Colour scheme similar to the colours used in Epigram1.
 
-``nofontsetup``
-  Instructs the package to not select any fonts, and to not change the
-  font encoding.
-
-``noinputencodingsetup``
-  Instructs the package to not change the input encoding, and to not
-  load the `ucs` package.
-
 ``references``
   Enables :ref:`inline typesetting <latex-inline-references>` of
   referenced code.
@@ -681,7 +672,7 @@ but should also work in other distributions. For :program:`xelatex` or
    % This handles the translation of unicode to latex:
 
    \usepackage{ucs}
-   \usepackage[utf8x]{inputenc}
+   \usepackage[utf8]{inputenc}
    \usepackage{autofe}
 
    % Some characters that are not automatically defined
@@ -692,7 +683,7 @@ but should also work in other distributions. For :program:`xelatex` or
    \DeclareUnicodeCharacter{8989}{\ensuremath{\urcorner}}
    \DeclareUnicodeCharacter{8803}{\ensuremath{\overline{\equiv}}}
 
-   % Add more as you need them (shouldn't happen often).
+   % Add more as you need them.
 
    \begin{document}
 

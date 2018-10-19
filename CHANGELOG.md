@@ -12,6 +12,25 @@ Installation and infrastructure
 
 * Added support for GHC 8.4.4.
 
+LaTeX backend
+-------------
+
+* The package `agda.sty` no longer selects any fonts, and no longer
+  changes the input or font encodings [Issue
+  [#3224](https://github.com/agda/agda/issues/3224)].
+
+  The new behaviour is the same as the old behaviour with the options
+  `nofontsetup` and `noinputencodingsetup`. These options have been
+  removed.
+
+  One reason for this change is that several persons have received
+  complaints from reviewers because they have unwittingly used
+  non-standard fonts in submitted papers. Another is that the `utf8x`
+  option to `inputenc` is now deprecated.
+
+  Note that Agda code is now less likely to typeset properly out of
+  the box.
+
 Other closed issues
 --------------------
 
