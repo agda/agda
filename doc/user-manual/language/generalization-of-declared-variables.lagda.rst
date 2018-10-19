@@ -1,3 +1,10 @@
+..
+  ::
+  module language.generalization-of-declared-variables where
+
+  open import Agda.Primitive
+  open import Agda.Builtin.Equality
+
 ************************************
 Generalization of Declared Variables
 ************************************
@@ -7,18 +14,18 @@ For example:
 
 ::
 
-    postulate
+  postulate
         Con : Set
 
-    variable
-        Γ Δ : Con
+  variable
+        Γ Δ Θ : Con
 
 
 Declared variables are automatically generalized in type signatures:
 
 ::
 
-    postulate
+  postulate
         Sub : Con → Con → Set
 
         id  : Sub Γ Γ
@@ -45,14 +52,14 @@ For example:
 
 ::
 
-    postulate
+  postulate
         Ty  : Con → Set
         _▹_ : (Γ : Con) → Ty Γ → Con
 
-    variable
+  variable
         A : Ty _       -- note the underscore here
 
-    postulate
+  postulate
         π₁ : Sub Γ (Δ ▹ A) → Sub Γ Δ
     --  -- equivalent to
     --  π₁ : {Γ Δ : Con}{A : Ty Δ} → Sub Γ (Δ ▹ A) → Sub Γ Δ
@@ -67,10 +74,10 @@ For example:
 
 ::
 
-    variable
+  variable
         σ δ ν : Sub _ _   -- metavariables: σ.1, σ.2, δ.1, δ.2, ν.1, ν.2
 
-    postulate
+  postulate
         ass : (σ ∘ δ) ∘ ν ≡ σ ∘ (δ ∘ ν)
     --  -- equivalent to
     --  ass : {σ.1 σ.2 δ.1 ν.1 : Con}
@@ -90,10 +97,10 @@ Name hints of parameters are used for naming generalizable metavariables too:
 
 ::
 
-    postulate
+  postulate
         Sub' : (Γ Δ : Con) → Set   -- name hints for parameters of Sub'
 
-    variable
+  variable
         θ : Sub' _ _   -- metavariables: θ.Γ, θ.Δ
 
 If a generalizable metavariable M is solved with term T then M is not
@@ -104,14 +111,14 @@ For example:
 
 ::
 
-    variable
+  variable
         ℓ : Level     -- let ℓ denote a level
-        A : Set ℓ     -- let A denote a set at a level ℓ
+        S : Set ℓ     -- let A denote a set at a level ℓ
 
-    postulate
-        f : A → Set ℓ
+  postulate
+        f : S → Set ℓ
     --  -- equivalent to
-    --  f : {ℓ ℓ' : Level}{A : Set ℓ'} → A → Set ℓ
+    --  f : {ℓ ℓ' : Level}{S : Set ℓ'} → S → Set ℓ
 
 Issues related to this feature are marked with `generalize` in the issue tracker:
 https://github.com/agda/agda/labels/generalize
