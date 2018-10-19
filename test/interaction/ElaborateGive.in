@@ -1,3 +1,5 @@
 top_command (cmd_load currentFile [])
-goal_command 0 (cmd_elaborate_give Simplified) "addUnknown"
-goal_command 1 (cmd_elaborate_give Simplified) "2 + 3"
+goal_command 0 (cmd_elaborate_give Simplified) "2 + 3"
+goal_command 1 (cmd_elaborate_give Normalised) "2 + 3"
+goal_command 2 (cmd_elaborate_give AsIs) "2 + 3"
+goal_command 3 (cmd_elaborate_give Simplified) "addUnknown"

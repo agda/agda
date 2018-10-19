@@ -5,6 +5,15 @@ open import Agda.Builtin.Nat
 open import Agda.Builtin.Reflection
 open import Agda.Builtin.Unit
 
+five : Nat
+five = {!!}
+
+five' : Nat
+five' = {!!}
+
+five'' : Nat
+five'' = {!!}
+
 macro
   addUnknown : Term → TC ⊤
   addUnknown goal = unify goal
@@ -13,7 +22,4 @@ macro
                             arg (arg-info visible relevant) unknown ∷ []))
 
 unknownPlus : Nat
-unknownPlus = {!!}
-
-five : Nat
-five = {!!}
+unknownPlus = ? + ?
