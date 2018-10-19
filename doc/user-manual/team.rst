@@ -27,12 +27,14 @@ Contributors (alphabetically sorted):
 * Patrik Jansson
 * Alan Jeffrey
 * Wolfram Kahl
+* John Leo
 * Fredrik Lindblad
 * Francesco Mazzoli
 * Stefan Monnier
 * Darin Morrison
 * Guilhem Moulin
 * Nicolas Pouillard
+* Benjamin Price
 * Andrés Sicard-Ramírez
 * Andrea Vezzosi
 * and many more

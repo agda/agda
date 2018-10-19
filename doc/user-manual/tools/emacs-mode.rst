@@ -148,6 +148,10 @@ will either use the text inside the goal or ask the user for input.
      **R**\ efine. Partial give: makes new holes for missing
      arguments
 
+:kbd:`C-c C-m`
+     Elaborate and Give (fill goal with normalized expression).
+     Takes the same ``C-u`` prefixes as ``C-c C-n``.
+
 :kbd:`C-c C-a`
      :ref:`auto`
 

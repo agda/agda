@@ -64,6 +64,10 @@ Type checking and interaction
 * 'Solve constraints' (C-c C-s) now turns unsolved metavariables into new
   interaction holes (see Issue [#2273](https://github.com/agda/agda/issues/2273)).
 
+* A new command `agda2-elaborate-give` (C-c C-m) normalizes a goal input
+  (it repects the C-u prefixes), type checks, and inserts the normalized
+  term into the goal.
+
 Pragmas and options
 -------------------
 
