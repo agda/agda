@@ -17,6 +17,7 @@ Language Reference
    foreign-function-interface
    function-definitions
    function-types
+   generalization-of-declared-variables
    implicit-arguments
    instance-arguments
    irrelevance
