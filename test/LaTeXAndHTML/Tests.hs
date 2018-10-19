@@ -39,11 +39,7 @@ testDir :: FilePath
 testDir = "test" </> "LaTeXAndHTML" </> "succeed"
 
 disabledTests :: [RegexFilter]
-disabledTests =
-  [ -- Issue #3170
-    RFInclude "UnicodeDeclare_LaTeX"
-  , RFInclude "UnicodeDeclare_QuickLaTeX"
-  ]
+disabledTests = []
 
 -- | List of test groups with names
 --
