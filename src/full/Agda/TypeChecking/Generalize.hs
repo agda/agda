@@ -1,8 +1,8 @@
 {-# LANGUAGE CPP #-}
 
-module Agda.TypeChecking.Generalize (generalizeType) where
+module Agda.TypeChecking.Generalize (generalizeType, generalizeTelescope) where
 
-import Control.Arrow ((***))
+import Control.Arrow ((***), first, second)
 import Control.Monad
 import Data.Set (Set)
 import qualified Data.Set as Set
@@ -35,26 +35,68 @@ import qualified Agda.Utils.Graph.TopSort as Graph
 
 #include "undefined.h"
 
+-- | Generalize a telescope over a set of generalizable variables.
+generalizeTelescope :: Map QName Name -> (forall a. (Telescope -> TCM a) -> TCM a) -> (Telescope -> TCM a) -> TCM a
+generalizeTelescope vars typecheckAction ret | Map.null vars = typecheckAction ret
+generalizeTelescope vars typecheckAction ret = withGenRecVar $ \ genRecMeta -> do
+  let s = Set.fromList (Map.keys vars)
+  ((cxtNames, tel), namedMetas, allmetas) <-
+    createMetasAndTypeCheck s $ typecheckAction $ \ tel -> do
+      cxt <- take (size tel) <$> getContext
+      return (map (fst . unDom) cxt, tel)
+  -- Translate the QName to the corresponding bound variable
+  let boundVars = fmap (\ q -> fromMaybe __IMPOSSIBLE__ $ Map.lookup q vars) namedMetas
+  (genTel, genTelNames, sub) <- computeGeneralization genRecMeta boundVars allmetas
+
+  tel' <- applySubst sub <$> instantiateFull tel
+
+  -- This is not so nice. When changing the context from Γ (r : R) to Γ Δ we need to do this at the
+  -- level of contexts (as a Context -> Context function), so we repeat the name logic here. Take
+  -- care to preserve the name of named generalized variables.
+  let setName name d = first (const name) <$> d
+      cxtEntry (mname, d) = do
+          name <- maybe (unshadowName =<< freshName_ s) return mname
+          return $ setName name d
+        where s  = fst $ unDom d
+      dropCxt err = updateContext (strengthenS err 1) (drop 1)
+  genTelCxt <- dropCxt __IMPOSSIBLE__ $ mapM cxtEntry $ reverse $ zip genTelNames $ telToList genTel
+
+  -- For the explicit module telescope we get the names from the typecheck
+  -- action.
+  let newTelCxt = zipWith setName cxtNames $ reverse $ telToList tel'
+
+  -- We are in context Γ (r : R) and should call the continuation in context Γ Δ Θρ passing it Δ Θρ
+  -- We have
+  -- Γ (r : R) ⊢ Θ            Θ = tel
+  -- Γ ⊢ Δ                    Δ = genTel
+  -- Γ Δ ⊢ ρ : Γ (r : R)      ρ = sub
+  -- Γ ⊢ Δ Θρ                 Θρ = tel'
+  updateContext sub ((genTelCxt ++) . drop 1) $
+    updateContext (raiseS (size tel')) (newTelCxt ++) $ ret (abstract genTel tel')
+
 -- | Generalize a type over a set of (used) generalizable variables.
 generalizeType :: Set QName -> TCM Type -> TCM (Int, Type)
 generalizeType s typecheckAction = withGenRecVar $ \ genRecMeta -> do
 
-  (t, allmetas) <- metasCreatedBy $ do
-    -- Create metas for all used generalizable variables and their dependencies.
-    genvals <- fmap Map.fromList $ locallyTC eGeneralizeMetas (const YesGeneralize)
-                                 $ forM (Set.toList s) createGenValue
-    -- Check the type
-    locallyTC eGeneralizedVars (const genvals) typecheckAction
-
-  (genTel, sub) <- computeGeneralization genRecMeta allmetas
+  (t, _, allmetas) <- createMetasAndTypeCheck s typecheckAction
+  (genTel, _, sub) <- computeGeneralization genRecMeta Map.empty allmetas
 
   t' <- abstract genTel . applySubst sub <$> instantiateFull t
 
-  reportSDoc "tc.decl.gen" 40 $ vcat
+  reportSDoc "tc.generalize" 40 $ vcat
     [ "generalized"
     , nest 2 $ "t =" <+> escapeContext 1 (prettyTCM t') ]
 
   return (size genTel, t')
+
+-- | Create metas for the generalizable variables and run the type check action.
+createMetasAndTypeCheck :: Set QName -> TCM a -> TCM (a, Map MetaId QName, Set MetaId)
+createMetasAndTypeCheck s typecheckAction = do
+  ((namedMetas, x), allmetas) <- metasCreatedBy $ do
+    (metamap, genvals) <- createGenValues s
+    x <- locallyTC eGeneralizedVars (const genvals) typecheckAction
+    return (metamap, x)
+  return (x, namedMetas, allmetas)
 
 -- | Add a placeholder variable that will be substituted with a record value packing up all the
 --   generalized variables.
@@ -68,8 +110,8 @@ withGenRecVar ret = do
 --   generalized. Called in the context extended with the telescope record variable (whose type is
 --   the first argument). Returns the telescope of generalized variables and a substitution from
 --   this telescope to the current context.
-computeGeneralization :: Type -> Set MetaId -> TCM (Telescope, Substitution)
-computeGeneralization genRecMeta allmetas = do
+computeGeneralization :: Type -> Map MetaId Name -> Set MetaId -> TCM (Telescope, [Maybe Name], Substitution)
+computeGeneralization genRecMeta nameMap allmetas = do
   -- Pair metas with their metaInfo
   mvs <- mapM (\ x -> (x,) <$> lookupMeta x) (Set.toList allmetas)
 
@@ -102,7 +144,7 @@ computeGeneralization genRecMeta allmetas = do
           when (not sameContext) $ do
             ty <- getMetaType x
             let Perm m xs = mvPermutation mv
-            reportSDoc "tc.decl.gen" 20 $ vcat
+            reportSDoc "tc.generalize" 20 $ vcat
               [ text "Don't know how to generalize over"
               , nest 2 $ prettyTCM x <+> text ":" <+> prettyTCM ty
               , text "in context"
@@ -144,6 +186,9 @@ computeGeneralization genRecMeta allmetas = do
   let solve m field = assignTerm' m (telToArgs cxtTel) $ Var 0 [Proj ProjSystem field]
   zipWithM_ solve sortedMetas genRecFields
 
+  -- Record the named variables in the telescope
+  let telNames = map (`Map.lookup` nameMap) sortedMetas
+
   -- Build the telescope of generalized metas
   teleTypes <- do
     args <- getContextArgs
@@ -153,7 +198,7 @@ computeGeneralization genRecMeta allmetas = do
           HasType{ jMetaType = t } = mvJudgement mv
       return [(Arg info $ miNameSuggestion $ mvInfo mv, piApply t args)]
   let genTel = buildGeneralizeTel genRecCon teleTypes
-  reportSDoc "tc.decl.gen" 40 $ vcat
+  reportSDoc "tc.generalize" 40 $ vcat
     [ text "genTel =" <+> prettyTCM genTel ]
 
   -- Fill in the missing details of the telescope record.
@@ -162,7 +207,7 @@ computeGeneralization genRecMeta allmetas = do
   -- Now abstract over the telescope. We need to apply the substitution that subsitutes a record
   -- value packing up the generalized variables for the genTel variable.
   let sub = unpackSub genRecCon (map (argInfo . fst) teleTypes) (length teleTypes)
-  return (genTel, sub)
+  return (genTel, telNames, sub)
 
 -- | Create a substition from a context where the i first record fields are variables to a context
 --   where you have a single variable of the record type. Packs up the field variables in a record
@@ -203,8 +248,17 @@ buildGeneralizeTel con xs = go 0 xs
       where ty' = applySubst (recSub i) ty
             dom = setArgInfo (argInfo name) . defaultDom
 
+-- | Create metas for all used generalizable variables and their dependencies.
+createGenValues :: Set QName -> TCM (Map MetaId QName, Map QName GeneralizedValue)
+createGenValues s = do
+  genvals <- locallyTC eGeneralizeMetas (const YesGeneralize) $
+               forM (Set.toList s) createGenValue
+  let metaMap = Map.fromList [ (m, x) | (x, m, _) <- genvals ]
+      nameMap = Map.fromList [ (x, v) | (x, _, v) <- genvals ]
+  return (metaMap, nameMap)
+
 -- | Create a generalisable meta for a generalisable variable.
-createGenValue :: QName -> TCM (QName, GeneralizedValue)
+createGenValue :: QName -> TCM (QName, MetaId, GeneralizedValue)
 createGenValue x = do
   cp  <- viewTC eCurrentCheckpoint
   def <- instantiateDef =<< getConstInfo x
@@ -245,7 +299,7 @@ createGenValue x = do
   -- created with the correct ArgInfo.
   setMetaArgInfo m $ hideExplicit (defArgInfo def)
 
-  reportSDoc "tc.decl.gen" 50 $ vcat
+  reportSDoc "tc.generalize" 50 $ vcat
     [ "created metas for generalized variable" <+> prettyTCM x
     , nest 2 $ "top  =" <+> prettyTCM term
     , nest 2 $ "args =" <+> prettyTCM args ]
@@ -254,9 +308,9 @@ createGenValue x = do
     MetaV{} -> return ()
     _       -> genericDocError =<< ("Cannot generalize over" <+> prettyTCM x <+> "of eta-expandable type") <?>
                                     prettyTCM metaType
-  return (x, GeneralizedValue{ genvalCheckpoint = cp
-                             , genvalTerm       = term
-                             , genvalType       = metaType })
+  return (x, m, GeneralizedValue{ genvalCheckpoint = cp
+                                , genvalTerm       = term
+                                , genvalType       = metaType })
 
 -- | Sort metas in dependency order.
 sortMetas :: [MetaId] -> TCM [MetaId]
@@ -328,7 +382,7 @@ createGenRecordType genRecMeta@(El genRecSort _) sortedMetas = do
            , recInduction    = Nothing
            , recAbstr        = ConcreteDef
            , recComp         = emptyCompKit }
-  reportSDoc "tc.decl.gen" 40 $ vcat
+  reportSDoc "tc.generalize" 40 $ vcat
     [ text "created genRec" <+> text (show genRecFields) ]
   -- Solve the genRecMeta
   args <- getContextArgs
@@ -351,11 +405,11 @@ fillInGenRecordDetails name con fields recTy fieldTel = do
           proj = Var 0 [Proj ProjSystem fld]
       mkFieldTypes _ _ = __IMPOSSIBLE__
   let fieldTypes = mkFieldTypes fields (raise 1 fieldTel)
-  reportSDoc "tc.decl.gen" 40 $ text "Field types:" <+> inTopContext (nest 2 $ vcat $ map prettyTCM fieldTypes)
+  reportSDoc "tc.generalize" 40 $ text "Field types:" <+> inTopContext (nest 2 $ vcat $ map prettyTCM fieldTypes)
   zipWithM_ setType fields fieldTypes
   -- Constructor type
   let conType = fullTel `abstract` raise (size fieldTel) recTy
-  reportSDoc "tc.decl.gen" 40 $ text "Final genRecCon type:" <+> inTopContext (prettyTCM conType)
+  reportSDoc "tc.generalize" 40 $ text "Final genRecCon type:" <+> inTopContext (prettyTCM conType)
   setType (conName con) conType
   -- Record telescope: Includes both parameters and fields.
   modifyGlobalDefinition name $ \ r ->

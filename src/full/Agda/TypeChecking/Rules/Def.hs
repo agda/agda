@@ -64,7 +64,7 @@ import Agda.TypeChecking.CompiledClause (CompiledClauses'(..), hasProjectionPatt
 import Agda.TypeChecking.CompiledClause.Compile
 import Agda.TypeChecking.Primitive hiding (Nat)
 
-import Agda.TypeChecking.Rules.Term                ( checkExpr, inferExpr, inferExprForWith, checkDontExpandLast, checkTelescope, catchIlltypedPatternBlockedOnMeta )
+import Agda.TypeChecking.Rules.Term
 import Agda.TypeChecking.Rules.LHS                 ( checkLeftHandSide, LHSResult(..), bindAsPatterns )
 import Agda.TypeChecking.Rules.LHS.Problem         ( AsBinding(..) )
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Decl ( checkDecls )
@@ -1044,12 +1044,12 @@ checkWhere wh@(A.WhereDecls whmod ds) ret = do
 
 -- | Enter a new section during type-checking.
 
-newSection :: ModuleName -> A.Telescope -> TCM a -> TCM a
-newSection m tel cont = do
+newSection :: ModuleName -> A.GeneralizeTelescope -> TCM a -> TCM a
+newSection m gtel@(A.GeneralizeTel _ tel) cont = do
   reportSDoc "tc.section" 10 $
     "checking section" <+> prettyTCM m <+> fsep (map prettyAs tel)
 
-  checkTelescope tel $ \ tel' -> do
+  checkGeneralizeTelescope gtel $ \ tel' -> do
     reportSDoc "tc.section" 10 $
       "adding section:" <+> prettyTCM m <+> text (show (size tel'))
 

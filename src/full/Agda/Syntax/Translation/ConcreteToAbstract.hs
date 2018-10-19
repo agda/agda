@@ -952,20 +952,6 @@ instance ToAbstract C.Expr A.Expr where
       C.Generalized e -> do
         (s, e) <- collectGeneralizables $ toAbstract e
         pure $ A.generalized s e
-       where
-        collectGeneralizables :: ScopeM a -> ScopeM (Set I.QName, a)
-        collectGeneralizables m = bracket_ open close $ do
-            a <- m
-            s <- useTC stGeneralizedVars
-            case s of
-                Nothing -> __IMPOSSIBLE__
-                Just s -> return (s, a)
-          where
-            open = do
-                gvs <- useTC stGeneralizedVars
-                stGeneralizedVars `setTCLens` Just mempty
-                pure gvs
-            close = (stGeneralizedVars `setTCLens`)
 
 instance ToAbstract C.ModuleAssignment (A.ModuleName, [A.LetBinding]) where
   toAbstract (C.ModuleAssignment m es i)
@@ -1126,7 +1112,7 @@ scopeCheckModule r x qm tel checkDs = do
   -- This is important for Nicolas Pouillard's open parametrized modules
   -- statements inside telescopes.
   res <- withLocalVars $ do
-    tel <- toAbstract tel
+    tel <- toAbstract (GenTel tel)
     withCurrentModule qm $ do
       -- pushScope m
       -- qm <- getCurrentModule
@@ -1749,6 +1735,34 @@ unGeneralized :: A.Expr -> (Set.Set I.QName, A.Expr)
 unGeneralized (A.Generalized s t) = (s, t)
 unGeneralized (A.ScopedExpr si e) = A.ScopedExpr si <$> unGeneralized e
 unGeneralized t = (mempty, t)
+
+collectGeneralizables :: ScopeM a -> ScopeM (Set I.QName, a)
+collectGeneralizables m = bracket_ open close $ do
+    a <- m
+    s <- useTC stGeneralizedVars
+    case s of
+        Nothing -> __IMPOSSIBLE__
+        Just s -> return (s, a)
+  where
+    open = do
+        gvs <- useTC stGeneralizedVars
+        stGeneralizedVars `setTCLens` Just mempty
+        pure gvs
+    close = (stGeneralizedVars `setTCLens`)
+
+newtype GenTel = GenTel C.Telescope
+
+instance ToAbstract GenTel A.GeneralizeTelescope where
+  toAbstract (GenTel tel) = do
+    (s, tel) <- collectGeneralizables (toAbstract tel)
+    -- We should bind the named generalizable variables as fresh variables
+    binds <- forM (Set.toList s) $ \ q -> do
+      let x  = nameConcrete $ qnameName q
+          fx = nameFixity   $ qnameName q
+      y <- freshAbstractName fx x
+      bindVariable LambdaBound x y
+      return (q, y)
+    return (A.GeneralizeTel (Map.fromList binds) tel)
 
 -- | Make sure definition is in same module as signature.
 class LivesInCurrentModule a where

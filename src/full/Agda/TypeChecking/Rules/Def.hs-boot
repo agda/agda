@@ -10,6 +10,6 @@ checkFunDef :: Delayed -> DefInfo -> QName -> [Clause] -> TCM ()
 
 checkFunDef' :: I.Type -> ArgInfo -> Delayed -> Maybe ExtLamInfo -> Maybe QName -> DefInfo -> QName -> [Clause] -> TCM ()
 
-newSection :: ModuleName -> A.Telescope -> TCM a -> TCM a
+newSection :: ModuleName -> A.GeneralizeTelescope -> TCM a -> TCM a
 
 useTerPragma :: Definition -> TCM Definition
