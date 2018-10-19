@@ -28,18 +28,18 @@ postulate
 {-# BUILTIN PARTIALP     PartialP #-}
 
 postulate
-  isOneEmpty : ∀ {a} {A : Partial (Set a) i0} → PartialP i0 A
+  isOneEmpty : ∀ {a} {A : Partial i0 (Set a)} → PartialP i0 A
 {-# BUILTIN ISONEEMPTY isOneEmpty #-}
 
 primitive
-  primPFrom1 : ∀ {a} {A : I → Set a} → A i1 → ∀ i j → Partial (A (primIMax i j)) i
-  primPOr : ∀ {a} (i j : I) {A : Partial (Set a) (primIMax i j)}
+  primPFrom1 : ∀ {a} {A : I → Set a} → A i1 → ∀ i j → Partial i (A (primIMax i j))
+  primPOr : ∀ {a} (i j : I) {A : Partial (primIMax i j) (Set a)}
             → PartialP i (λ z → A (IsOne1 i j z)) → PartialP j (λ z → A (IsOne2 i j z))
             → PartialP (primIMax i j) A
-  primComp : ∀ {a} (A : (i : I) → Set (a i)) (φ : I) → (∀ i → Partial (A i) φ) → (a : A i0) → A i1
+  primComp : ∀ {a} (A : (i : I) → Set (a i)) (φ : I) → (∀ i → Partial φ (A i)) → (a : A i0) → A i1
 
 syntax primPOr p q u t = [ p ↦ u , q ↦ t ]
 
 primitive
   primTransp : ∀ {a} (A : (i : I) → Set (a i)) (φ : I) → (a : A i0) → A i1
-  primHComp : ∀ {a} {A : Set a} {φ : I} → (∀ i → Partial A φ) → A → A
+  primHComp : ∀ {a} {A : Set a} {φ : I} → (∀ i → Partial φ A) → A → A

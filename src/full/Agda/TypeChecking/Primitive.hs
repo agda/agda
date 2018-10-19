@@ -649,12 +649,13 @@ primPartial' :: TCM PrimitiveImpl
 primPartial' = do
   t <- runNamesT [] $
        (hPi' "a" (el $ cl primLevel) $ \ a ->
+        nPi' "φ" (elInf (cl primInterval)) $ \ _ ->
         nPi' "A" (sort . tmSort <$> a) $ \ bA ->
-        elInf (cl primInterval) --> return (sort $ Inf))
+        return (sort $ Inf))
   isOne <- primIsOne
   return $ PrimImpl t $ primFun __IMPOSSIBLE__ 3 $ \ ts -> do
     case ts of
-      [l,a,phi] -> do
+      [l,phi,a] -> do
           (El s (Pi d b)) <- runNamesT [] $ do
                              [l,a,phi] <- mapM (open . unArg) [l,a,phi]
                              (elInf $ pure isOne <@> phi) --> el' l a
@@ -684,7 +685,7 @@ primSubOut' = do
           hPi' "a" (el $ cl primLevel) $ \ a ->
           hPi' "A" (el' (cl primLevelSuc <@> a) (Sort . tmSort <$> a)) $ \ bA ->
           hPi' "φ" (elInf $ cl primInterval) $ \ phi ->
-          hPi' "u" (elInf $ cl primPartial <#> a <@> bA <@> phi) $ \ u ->
+          hPi' "u" (elInf $ cl primPartial <#> a <@> phi <@> bA) $ \ u ->
           elInf (cl primSub <#> a <@> bA <@> phi <@> u) --> el' (Sort . tmSort <$> a) bA
   return $ PrimImpl t $ primFun __IMPOSSIBLE__ 5 $ \ ts -> do
     case ts of

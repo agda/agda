@@ -11,4 +11,4 @@ module Agda.Builtin.Cubical.Sub where
   {-# BUILTIN SUBIN inc #-}
 
   primitive
-    primSubOut : ∀ {ℓ} {A : Set ℓ} {φ : I} {u : Partial A φ} → Sub _ φ u → A
+    primSubOut : ∀ {ℓ} {A : Set ℓ} {φ : I} {u : Partial φ A} → Sub _ φ u → A
