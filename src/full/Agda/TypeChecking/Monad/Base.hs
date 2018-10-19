@@ -1664,7 +1664,8 @@ data Defn = Axiom -- ^ Postulate
             , dataIxs            :: Nat            -- ^ Number of indices.
             , dataInduction      :: Induction      -- ^ @data@ or @codata@ (legacy).
             , dataClause         :: (Maybe Clause) -- ^ This might be in an instantiated module.
-            , dataCons           :: [QName]        -- ^ Constructor names.
+            , dataCons           :: [QName]
+              -- ^ Constructor names , ordered according to the order of their definition.
             , dataSort           :: Sort
             , dataMutual         :: Maybe [QName]
               -- ^ Mutually recursive functions, @data@s and @record@s.
