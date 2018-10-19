@@ -171,6 +171,9 @@ Testing and documentation
 * Run the test-suite, using make test.  Maybe you want to build
   using `make' first as well.
 
+* You can run a single test by going into the directory and typing
+    make <test name>.cmp
+
 * Additional options for the tests using the Haskell/tasty test runner
   can be given using AGDA_TESTS_OPTIONS. By default,
   the interactive mode (-i) is used and the number of parallel tests
