@@ -384,7 +384,7 @@ checkDotPattern (Dot e v (Dom{domInfo = info, unDom = a})) =
         , nest 2 $ "=" <+> prettyTCM v
         , nest 2 $ ":" <+> prettyTCM a
         ]
-  applyRelevanceToContext (getRelevance info) $ do
+  applyModalityToContext info $ do
     u <- checkExpr e a
     reportSDoc "tc.lhs.dot" 50 $
       sep [ "equalTerm"
@@ -892,13 +892,12 @@ checkLHS mf st@(LHSState tel ip problem target psplit) = updateRelevance $ do
     -- If the target type is irrelevant or in Prop,
     -- we need to check the lhs in irr. cxt. (see Issue 939).
     updateRelevance cont = do
-      rel <- do
-        let fallback = return $ getRelevance target
-        ifNotM isPropEnabled fallback {-else-} $ do
-          liftTCM (reduce $ getSort $ unArg target) >>= \case
-            Prop{} -> return Irrelevant
-            _      -> fallback
-      applyRelevanceToContext rel cont
+      let m0 = getModality target
+      m <- ifNotM isPropEnabled (return m0) {-else-} $ do
+        liftTCM (reduce $ getSort $ unArg target) >>= \case
+          Prop{} -> return $ setRelevance Irrelevant m0
+          _      -> return m0
+      applyModalityToContext m cont
 
     trySplit :: ProblemEq
              -> tcm (Either [TCErr] (LHSState a))
@@ -1073,8 +1072,14 @@ checkLHS mf st@(LHSState tel ip problem target psplit) = updateRelevance $ do
           target'  = applyPatSubst rho target
 
       -- Andreas, 2010-09-07 cannot split on irrelevant args
-      when (unusableRelevance $ getRelevance info) $
+      unless (usableRelevance info) $
         addContext delta1 $ hardTypeError $ SplitOnIrrelevant dom
+
+      -- Andreas, 2018-10-17, we can however split on erased things
+      -- if there is a single constructor (checked in Coverage).
+      --
+      -- Thus, no checking of (usableQuantity info) here.
+
 
       -- check that a is indeed the type of lit (otherwise fail softly)
       -- if not, fail softly since it could be instantiated by a later split.
@@ -1151,8 +1156,9 @@ checkLHS mf st@(LHSState tel ip problem target psplit) = updateRelevance $ do
         _ -> __IMPOSSIBLE__
 
       -- Andreas 2010-09-07  propagate relevance info to new vars
-      let updRel = composeRelevance (getRelevance info)
-      gamma <- return $ mapRelevance updRel <$> gamma
+      -- Andreas 2018-10-17  propagate modality
+      let updMod = composeModality (getModality info)
+      gamma <- return $ mapModality updMod <$> gamma
 
       -- Get the type of the datatype.
       da <- (`piApply` pars) . defType <$> getConstInfo d
@@ -1346,10 +1352,16 @@ isDataOrRecordType dom@Dom{domInfo = info, unDom = a} = liftTCM (reduceB a) >>= 
     Def d es -> (liftTCM $ theDef <$> getConstInfo d) >>= \case
 
       Datatype{dataPars = np} -> do
+
         -- We cannot split on (shape-)irrelevant non-records.
         reportSLn "tc.lhs.split" 30 $ "split ConP: relevance is " ++ show (getRelevance info)
-        when (unusableRelevance $ getRelevance info) $
+        unless (usableRelevance info) $
           hardTypeError $ SplitOnIrrelevant dom
+
+        -- Andreas, 2018-10-17, we can however split on erased things
+        -- if there is a single constructor (checked in Coverage).
+        --
+        -- Thus, no checking of (usableQuantity info) here.
 
         let (pars, ixs) = splitAt np $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
         return (IsData, d, pars, ixs)

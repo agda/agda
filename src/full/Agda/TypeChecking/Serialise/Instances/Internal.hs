@@ -265,6 +265,15 @@ instance EmbPrj IsForced where
   value 1 = return NotForced
   value _ = malformed
 
+instance EmbPrj NumGeneralizableArgs where
+  icod_ NoGeneralizableArgs       = icodeN' NoGeneralizableArgs
+  icod_ (SomeGeneralizableArgs a) = icodeN' SomeGeneralizableArgs a
+
+  value = vcase valu where
+    valu []  = valuN NoGeneralizableArgs
+    valu [a] = valuN SomeGeneralizableArgs a
+    valu _   = malformed
+
 instance EmbPrj DoGeneralize where
   icod_ YesGeneralize = return 0
   icod_ NoGeneralize  = return 1

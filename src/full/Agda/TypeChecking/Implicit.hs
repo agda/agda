@@ -62,7 +62,7 @@ newMetaArg
   -> Type      -- ^ Type of meta.
   -> TCM (MetaId, Term)  -- ^ The created meta as id and as term.
 newMetaArg info x a = do
-  applyRelevanceToContext (getRelevance info) $
+  applyModalityToContext info $
     newMeta (getHiding info) (argNameToString x) a
   where
     newMeta :: Hiding -> String -> Type -> TCM (MetaId, Term)
@@ -78,7 +78,7 @@ newInteractionMetaArg
   -> Type      -- ^ Type of meta.
   -> TCM (MetaId, Term)  -- ^ The created meta as id and as term.
 newInteractionMetaArg info x a = do
-  applyRelevanceToContext (getRelevance info) $
+  applyModalityToContext info $
     newMeta (getHiding info) (argNameToString x) a
   where
     newMeta :: Hiding -> String -> Type -> TCM (MetaId, Term)

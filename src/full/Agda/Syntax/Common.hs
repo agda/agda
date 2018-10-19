@@ -241,6 +241,7 @@ data Modality = Modality
   , modQuantity  :: Quantity
       -- ^ Cardinality / runtime erasure.
       --   See Conor McBride, I got plenty o' nutting, Wadlerfest 2016.
+      --   See Bob Atkey, Syntax and Semantics of Quantitative Type Theory, LiCS 2018.
   } deriving (Data, Eq, Ord, Show, Generic)
 
 defaultModality :: Modality
@@ -262,12 +263,58 @@ instance PartialOrd Modality where
 instance POSemigroup Modality where
 instance POMonoid Modality where
 
+instance LeftClosedPOMonoid Modality where
+  inverseCompose = inverseComposeModality
+
+-- | @m `moreUsableModality` m'@ means that an @m@ can be used
+--   where ever an @m'@ is required.
+
+moreUsableModality :: Modality -> Modality -> Bool
+moreUsableModality m m' = related m POLE m'
+
+usableModality :: LensModality a => a -> Bool
+usableModality a = usableRelevance m && usableQuantity m
+  where m = getModality a
+
+composeModality :: Modality -> Modality -> Modality
+composeModality = (<>)
+
+-- | Compose with modality flag from the left.
+--   This function is e.g. used to update the modality information
+--   on pattern variables @a@ after a match against something of modality @q@.
+applyModality :: LensModality a => Modality -> a -> a
+applyModality m = mapModality (m `composeModality`)
+
+-- | @inverseComposeModality r x@ returns the least modality @y@
+--   such that forall @x@, @y@ we have
+--   @x \`moreUsableModality\` (r \`composeModality\` y)@
+--   iff
+--   @(r \`inverseComposeModality\` x) \`moreUsableModality\` y@ (Galois connection).
+inverseComposeModality :: Modality -> Modality -> Modality
+inverseComposeModality (Modality r q) (Modality r' q') =
+  Modality (r `inverseComposeRelevance` r')
+           (q `inverseComposeQuantity`  q')
+
+-- | Left division by a 'Modality'.
+--   Used e.g. to modify context when going into a @m@ argument.
+inverseApplyModality :: LensModality a => Modality -> a -> a
+inverseApplyModality m = mapModality (m `inverseComposeModality`)
+
+
 -- boilerplate instances
 
 instance KillRange Modality where
   killRange = id
 
 instance NFData Modality where
+
+-- Lens stuff
+
+lModRelevance :: Lens' Relevance Modality
+lModRelevance f m = f (modRelevance m) <&> \ r -> m { modRelevance = r }
+
+lModQuantity :: Lens' Quantity Modality
+lModQuantity f m = f (modQuantity m) <&> \ q -> m { modQuantity = q }
 
 class LensModality a where
 
@@ -321,12 +368,18 @@ mapQuantityMod = mapModality . mapQuantity
 ---------------------------------------------------------------------------
 
 -- | Quantity for linearity.
+--
+--   A quantity is a set of natural numbers, indicating possible semantic
+--   uses of a variable.  A singleton set @{n}@ requires that the
+--   corresponding variable is used exactly @n@ times.
+--
 data Quantity
-  = Quantity0  -- ^ Zero uses, erased at runtime.
-  -- TODO: | Quantity1  -- ^ Linear use (could be updated destructively).
-  -- (needs postponable constraints between quantities to compute uses).
-  | Quantityω  -- ^ Unrestricted use.
-  deriving (Data, Show, Generic, Eq, Enum, Bounded)
+  = Quantity0  -- ^ Zero uses @{0}@, erased at runtime.
+  | Quantity1  -- ^ Linear use @{1}@ (could be updated destructively).
+    -- Mostly TODO (needs postponable constraints between quantities to compute uses).
+  | Quantityω  -- ^ Unrestricted use @ℕ@.
+  deriving (Data, Show, Generic, Eq, Enum, Bounded, Ord)
+    -- @Ord@ instance in case @Quantity@ is used in keys for maps etc.
 
 defaultQuantity :: Quantity
 defaultQuantity = Quantityω
@@ -334,30 +387,76 @@ defaultQuantity = Quantityω
 -- | Composition of quantities (multiplication).
 --
 -- 'Quantity0' is dominant.
+-- 'Quantity1' is neutral.
+--
 instance Semigroup Quantity where
+  Quantity1 <> q = q
+  q <> Quantity1 = q
   Quantity0 <> _ = Quantity0
   _ <> Quantity0 = Quantity0
   Quantityω <> _ = Quantityω
   -- _ <> Quantityω = Quantityω  -- redundant
 
 -- | In the absense of finite quantities besides 0, ω is the unit.
+--   Otherwise, 1 is the unit.
 instance Monoid Quantity where
-  mempty = Quantityω
+  mempty  = Quantity1
   mappend = (<>)
 
--- | Note that the order is @ω ≤ 0@, more relevant is smaller.
-instance Ord Quantity where
-  compare = curry $ \case
-    (Quantityω, Quantityω) -> EQ
-    (Quantityω, Quantity0) -> LT
-    (Quantity0, Quantityω) -> GT
-    (Quantity0, Quantity0) -> EQ
-
+-- | Note that the order is @ω ≤ 0,1@, more options is smaller.
 instance PartialOrd Quantity where
-  comparable = comparableOrd
+  comparable = curry $ \case
+    (q, q') | q == q' -> POEQ
+    -- ω is least
+    (Quantityω, _)    -> POLT
+    (_, Quantityω)    -> POGT
+    -- others are uncomparable
+    _ -> POAny
 
 instance POSemigroup Quantity where
 instance POMonoid Quantity where
+
+instance LeftClosedPOMonoid Quantity where
+  inverseCompose = inverseComposeQuantity
+
+-- | @m `moreUsableQuantity` m'@ means that an @m@ can be used
+--   where ever an @m'@ is required.
+
+moreQuantity :: Quantity -> Quantity -> Bool
+moreQuantity m m' = related m POLE m'
+
+-- | A thing of quantity 0 is unusable, all others are usable.
+
+usableQuantity :: LensQuantity a => a -> Bool
+usableQuantity a = getQuantity a /= Quantity0
+
+composeQuantity :: Quantity -> Quantity -> Quantity
+composeQuantity = (<>)
+
+-- | Compose with quantity flag from the left.
+--   This function is e.g. used to update the quantity information
+--   on pattern variables @a@ after a match against something of quantity @q@.
+applyQuantity :: LensQuantity a => Quantity -> a -> a
+applyQuantity q = mapQuantity (q `composeQuantity`)
+
+-- | @inverseComposeQuantity r x@ returns the least quantity @y@
+--   such that forall @x@, @y@ we have
+--   @x \`moreQuantity\` (r \`composeQuantity\` y)@
+--   iff
+--   @(r \`inverseComposeQuantity\` x) \`moreQuantity\` y@ (Galois connection).
+inverseComposeQuantity :: Quantity -> Quantity -> Quantity
+inverseComposeQuantity q x =
+  case (q, x) of
+    (Quantity1 , x)          -> x          -- going to linear arg: nothing changes
+    (Quantity0 , x)          -> Quantityω  -- going to erased arg: every thing usable
+    (Quantityω , Quantityω)  -> Quantityω
+    (Quantityω , _)          -> Quantity0  -- linear resources are unusable as arguments to unrestricted functions
+
+-- | Left division by a 'Quantity'.
+--   Used e.g. to modify context when going into a @q@ argument.
+inverseApplyQuantity :: LensQuantity a => Quantity -> a -> a
+inverseApplyQuantity q = mapQuantity (q `inverseComposeQuantity`)
+
 
 -- boilerplate instances
 
@@ -381,6 +480,7 @@ instance KillRange Quantity where
 
 instance NFData Quantity where
   rnf Quantity0 = ()
+  rnf Quantity1 = ()
   rnf Quantityω = ()
 
 ---------------------------------------------------------------------------
@@ -461,12 +561,12 @@ instance Ord Relevance where
 instance PartialOrd Relevance where
   comparable = comparableOrd
 
--- | @unusableRelevance rel == True@ iff we cannot use a variable of @rel@.
-unusableRelevance :: LensRelevance a => a -> Bool
-unusableRelevance a = case getRelevance a of
-  Irrelevant -> True
-  NonStrict  -> True
-  Relevant   -> False
+-- | @usableRelevance rel == False@ iff we cannot use a variable of @rel@.
+usableRelevance :: LensRelevance a => a -> Bool
+usableRelevance a = case getRelevance a of
+  Irrelevant -> False
+  NonStrict  -> False
+  Relevant   -> True
 
 -- | 'Relevance' composition.
 --   'Irrelevant' is dominant, 'Relevant' is neutral.
@@ -479,6 +579,12 @@ composeRelevance r r' =
     (_, NonStrict)  -> NonStrict
     (Relevant, Relevant) -> Relevant
 
+-- | Compose with relevance flag from the left.
+--   This function is e.g. used to update the relevance information
+--   on pattern variables @a@ after a match against something @rel@.
+applyRelevance :: LensRelevance a => Relevance -> a -> a
+applyRelevance rel = mapRelevance (rel `composeRelevance`)
+
 -- | @inverseComposeRelevance r x@ returns the most irrelevant @y@
 --   such that forall @x@, @y@ we have
 --   @x \`moreRelevant\` (r \`composeRelevance\` y)@
@@ -487,11 +593,16 @@ composeRelevance r r' =
 inverseComposeRelevance :: Relevance -> Relevance -> Relevance
 inverseComposeRelevance r x =
   case (r, x) of
-    (Relevant, x)        -> x          -- going to relevant arg.: nothing changes
-    _ | r == x           -> Relevant   -- because Relevant is comp.-neutral
-    (Irrelevant, x)      -> Relevant   -- going irrelevant: every thing usable
-    (_, Irrelevant)      -> Irrelevant -- otherwise: irrelevant things remain unusable
-    (NonStrict, _)       -> Relevant   -- but @NonStrict@s become usable
+    (Relevant  , x)          -> x          -- going to relevant arg.: nothing changes
+                                           -- because Relevant is comp.-neutral
+    (Irrelevant, x)          -> Relevant   -- going irrelevant: every thing usable
+    (NonStrict , Irrelevant) -> Irrelevant -- otherwise: irrelevant things remain unusable
+    (NonStrict , _)          -> Relevant   -- but @NonStrict@s become usable
+
+-- | Left division by a 'Relevance'.
+--   Used e.g. to modify context when going into a @rel@ argument.
+inverseApplyRelevance :: LensRelevance a => Relevance -> a -> a
+inverseApplyRelevance rel = mapRelevance (rel `inverseComposeRelevance`)
 
 -- | 'Relevance' forms a semigroup under composition.
 instance Semigroup Relevance where
@@ -810,6 +921,7 @@ instance Show a => Show (Arg a) where
           Relevant     -> "r" ++ s -- Andreas: I want to see it explicitly
         showQ q s = case q of
           Quantity0   -> "0" ++ s
+          Quantity1   -> "1" ++ s
           Quantityω   -> "ω" ++ s
         showO o s = case o of
           UserWritten -> "u" ++ s

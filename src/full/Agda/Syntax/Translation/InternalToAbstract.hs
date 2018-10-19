@@ -417,6 +417,12 @@ reifyTerm expandAnonDefs0 v = do
   let pred = if havePfp then (== ProjPrefix) else (/= ProjPostfix)
   v <- instantiate v
   case applyUnless metasBare (unSpine' pred) v of
+    -- Hack to print generalized field projections with nicer names. Should
+    -- only show up in errors. Check the spined form!
+    _ | I.Var n (I.Proj _ p : es) <- v,
+        Just name <- getGeneralizedFieldName p -> do
+      let fakeName = (qnameName p) { nameConcrete = C.Name noRange [C.Id name] } -- TODO: infix names!?
+      elims (A.Var fakeName) =<< reify es
     I.Var n es   -> do
         x  <- liftTCM $ nameOfBV n `catchError` \_ -> freshName_ ("@" ++ show n)
         elims (A.Var x) =<< reify es

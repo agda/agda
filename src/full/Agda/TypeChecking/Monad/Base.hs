@@ -1158,6 +1158,14 @@ getMetaSig m = clSignature $ getMetaInfo m
 getMetaRelevance :: MetaVariable -> Relevance
 getMetaRelevance = envRelevance . getMetaEnv
 
+getMetaModality :: MetaVariable -> Modality
+getMetaModality = envModality . getMetaEnv
+
+-- Lenses
+
+metaFrozen :: Lens' Frozen MetaVariable
+metaFrozen f mv = f (mvFrozen mv) <&> \ x -> mv { mvFrozen = x }
+
 ---------------------------------------------------------------------------
 -- ** Interaction meta variables
 ---------------------------------------------------------------------------
@@ -1411,8 +1419,8 @@ data Definition = Defn
     --   23,    3
     --   27,    1
 
-  , defArgGeneralizable :: [DoGeneralize]
-    -- ^ Metas created when checking an argument inherit the argument's 'DoGeneralize' flag.
+  , defArgGeneralizable :: NumGeneralizableArgs
+    -- ^ How many arguments should be generalised.
   , defDisplay        :: [LocalDisplayForm]
   , defMutual         :: MutualId
   , defCompiledRep    :: CompiledRepresentation
@@ -1431,6 +1439,13 @@ data Definition = Defn
   }
     deriving (Data, Show)
 
+data NumGeneralizableArgs
+  = NoGeneralizableArgs
+  | SomeGeneralizableArgs Int
+    -- ^ When lambda-lifting new args are generalizable if
+    --   'SomeGeneralizableArgs', also when the number is zero.
+  deriving (Data, Show)
+
 theDefLens :: Lens' Defn Definition
 theDefLens f d = f (theDef d) <&> \ df -> d { theDef = df }
 
@@ -1442,7 +1457,7 @@ defaultDefn info x t def = Defn
   , defType           = t
   , defPolarity       = []
   , defArgOccurrences = []
-  , defArgGeneralizable = []
+  , defArgGeneralizable = NoGeneralizableArgs
   , defDisplay        = defaultDisplayForm x
   , defMutual         = 0
   , defCompiledRep    = noCompiledRep
@@ -2263,10 +2278,17 @@ data TCEnv =
                 --   or the body of a non-abstract definition this is true.
                 --   To prevent information about abstract things leaking
                 --   outside the module.
-          , envRelevance           :: Relevance
-                -- ^ Are we checking an irrelevant argument? (=@Irrelevant@)
+          , envModality            :: Modality
+                -- ^ 'Relevance' component:
+                -- Are we checking an irrelevant argument? (=@Irrelevant@)
                 -- Then top-level irrelevant declarations are enabled.
-                -- Other value: @Relevant@, then only relevant decls. are avail.
+                -- Other value: @Relevant@, then only relevant decls. are available.
+                --
+                -- 'Quantity' component:
+                -- Are we checking a runtime-irrelevant thing? (='Quantity0')
+                -- Then runtime-irrelevant things are usable.
+                -- Other value: @Quantity1@, runtime relevant.
+                -- @Quantityω@ is not allowed here, see Bob Atkey, LiCS 2018.
           , envDisplayFormsEnabled :: Bool
                 -- ^ Sometimes we want to disable display forms.
           , envRange :: Range
@@ -2368,8 +2390,8 @@ initEnv = TCEnv { envContext             = []
   -- The initial mode should be 'ConcreteMode', ensuring you
   -- can only look into abstract things in an abstract
   -- definition (which sets 'AbstractMode').
-                , envRelevance           = Relevant
-                , envDisplayFormsEnabled = True
+                , envModality               = Modality Relevant Quantity1
+                , envDisplayFormsEnabled    = True
                 , envRange                  = noRange
                 , envHighlightingRange      = noRange
                 , envClause                 = IPNoClause
@@ -2396,6 +2418,10 @@ initEnv = TCEnv { envContext             = []
                 , envGeneralizeMetas        = NoGeneralize
                 , envGeneralizedVars        = Map.empty
                 }
+
+-- | Project 'Relevance' component of 'TCEnv'.
+envRelevance :: TCEnv -> Relevance
+envRelevance = modRelevance . envModality
 
 data UnquoteFlags = UnquoteFlags
   { _unquoteNormalise :: Bool }
@@ -2456,8 +2482,14 @@ eActiveProblems f e = f (envActiveProblems e) <&> \ x -> e { envActiveProblems =
 eAbstractMode :: Lens' AbstractMode TCEnv
 eAbstractMode f e = f (envAbstractMode e) <&> \ x -> e { envAbstractMode = x }
 
+eModality :: Lens' Modality TCEnv
+eModality f e = f (envModality e) <&> \ x -> e { envModality = x }
+
 eRelevance :: Lens' Relevance TCEnv
-eRelevance f e = f (envRelevance e) <&> \ x -> e { envRelevance = x }
+eRelevance = eModality . lModRelevance
+
+eQuantity :: Lens' Quantity TCEnv
+eQuantity = eModality . lModQuantity
 
 eDisplayFormsEnabled :: Lens' Bool TCEnv
 eDisplayFormsEnabled f e = f (envDisplayFormsEnabled e) <&> \ x -> e { envDisplayFormsEnabled = x }
@@ -2775,6 +2807,7 @@ data TerminationError = TerminationError
 data SplitError
   = NotADatatype        (Closure Type)  -- ^ Neither data type nor record.
   | IrrelevantDatatype  (Closure Type)  -- ^ Data type, but in irrelevant position.
+  | ErasedDatatype      (Closure Type)  -- ^ Data type, but in erased position.
   | CoinductiveDatatype (Closure Type)  -- ^ Split on codata not allowed.
   -- UNUSED, but keep!
   -- -- | NoRecordConstructor Type  -- ^ record type, but no constructor
@@ -2844,6 +2877,8 @@ data TypeError
             -- ^ A function is applied to a hidden named argument it does not have.
         | WrongIrrelevanceInLambda
             -- ^ Wrong user-given relevance annotation in lambda.
+        | WrongQuantityInLambda
+            -- ^ Wrong user-given quantity annotation in lambda.
         | WrongInstanceDeclaration
             -- ^ A term is declared as an instance but it’s not allowed
         | HidingMismatch Hiding Hiding
@@ -2874,9 +2909,11 @@ data TypeError
             -- ^ This term, a function type constructor, lives in
             --   @SizeUniv@, which is not allowed.
         | SplitOnIrrelevant (Dom Type)
+        -- UNUSED: -- | SplitOnErased (Dom Type)
         | SplitOnNonVariable Term Type
         | DefinitionIsIrrelevant QName
         | VariableIsIrrelevant Name
+        | VariableIsErased Name
 --        | UnequalLevel Comparison Term Term  -- UNUSED
         | UnequalTerms Comparison Term Term Type
         | UnequalTypes Comparison Type Type
@@ -3315,6 +3352,8 @@ useTC l = do
   !x <- getsTC (^. l)
   return x
 
+infix 4 `setTCLens`
+
 -- | Overwrite the part of the 'TCState' focused on by the lens.
 setTCLens :: MonadTCState m => Lens' a TCState -> a -> m ()
 setTCLens l = modifyTC . set l
@@ -3618,6 +3657,17 @@ absurdLambdaName = ".absurdlambda"
 isAbsurdLambdaName :: QName -> Bool
 isAbsurdLambdaName = (absurdLambdaName ==) . prettyShow . qnameName
 
+-- | Base name for generalized variable projections
+generalizedFieldName :: String
+generalizedFieldName = ".generalizedField-"
+
+-- | Check whether we have a generalized variable field
+getGeneralizedFieldName :: A.QName -> Maybe String
+getGeneralizedFieldName q
+  | List.isPrefixOf generalizedFieldName strName = Just (drop (length generalizedFieldName) strName)
+  | otherwise                                    = Nothing
+  where strName = prettyShow $ nameConcrete $ qnameName q
+
 ---------------------------------------------------------------------------
 -- * KillRange instances
 ---------------------------------------------------------------------------
@@ -3641,6 +3691,9 @@ instance KillRange Definition where
   killRange (Defn ai name t pols occs gens displ mut compiled inst copy ma nc inj def) =
     killRange15 Defn ai name t pols occs gens displ mut compiled inst copy ma nc inj def
     -- TODO clarify: Keep the range in the defName field?
+
+instance KillRange NumGeneralizableArgs where
+  killRange = id
 
 instance KillRange NLPat where
   killRange (PVar x y) = killRange2 PVar x y

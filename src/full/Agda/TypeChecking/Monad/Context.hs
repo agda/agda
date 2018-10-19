@@ -142,7 +142,8 @@ getModuleParameterSub m = do
 {-# SPECIALIZE addCtx :: Name -> Dom Type -> TCM a -> TCM a #-}
 addCtx :: (MonadDebug tcm, MonadTCM tcm) => Name -> Dom Type -> tcm a -> tcm a
 addCtx x a ret = do
-  let ce = (x,) <$> a
+  q <- viewTC eQuantity
+  let ce = (x,) <$> inverseApplyQuantity q a
   updateContext (raiseS 1) (ce :) ret
       -- let-bindings keep track of own their context
 

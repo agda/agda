@@ -119,7 +119,7 @@ computeForcingAnnotations t =
       -- #2819: We can only mark an argument as forced if it appears in the
       -- type with a relevance below (i.e. more relevant) than the one of the
       -- constructor argument. Otherwise we can't actually get the value from
-      -- the type. Also the argument shouldn't be irrelevant, since it that
+      -- the type. Also the argument shouldn't be irrelevant, since in that
       -- case it isn't really forced.
       isForced m i = getRelevance m /= Irrelevant &&
                      any (\ (m', j) -> i == j && related m' POLE m) xs

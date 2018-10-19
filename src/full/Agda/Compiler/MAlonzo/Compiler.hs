@@ -229,7 +229,7 @@ definition :: GHCModuleEnv -> Definition -> TCM [HS.Decl]
 {- Andreas, 2012-10-02: Invariant no longer holds
 definition kit (Defn NonStrict _ _  _ _ _ _ _ _) = __IMPOSSIBLE__
 -}
-definition env Defn{defArgInfo = info, defName = q} | isIrrelevant info = do
+definition env Defn{defArgInfo = info, defName = q} | not $ usableModality info = do
   reportSDoc "compile.ghc.definition" 10 $
     "Not compiling" <+> prettyTCM q <> "."
   return []

@@ -220,7 +220,7 @@ coreBuiltins =
                                                                         <@> (bT <@> i <@> o) <@> (bA <@> i))) $ \ e ->
                                      nPi' "ψ" (cl tinterval) $ \ psi ->
                                      let bB i = el' (l' <@> i) (cl primGlue <#> (l <@> i) <#> (l' <@> i)
-                                                                            <@> (bA <@> i) <@> (phi <@> i)
+                                                                            <@> (bA <@> i) <#> (phi <@> i)
                                                                             <@> (bT <@> i) <@> (e <@> i))
                                      in nPi' "b" (nPi' "i" (cl tinterval) $ \ i -> pPi' "o" psi $ \ _ -> bB i) $ \ _b ->
                                         bB (cl primIZero) --> bB (cl primIOne)

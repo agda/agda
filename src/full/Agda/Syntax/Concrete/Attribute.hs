@@ -83,29 +83,29 @@ setAttributes attrs arg = foldl' (flip setAttribute) arg attrs
 
 -- | Setting 'Relevance' if unset.
 
-applyRelevance :: (LensRelevance a) => Relevance -> a -> Maybe a
-applyRelevance r a
+setPristineRelevance :: (LensRelevance a) => Relevance -> a -> Maybe a
+setPristineRelevance r a
   | getRelevance a == defaultRelevance = Just $ setRelevance r a
   | otherwise = Nothing
 
 -- | Setting 'Quantity' if unset.
 
-applyQuantity :: (LensQuantity a) => Quantity -> a -> Maybe a
-applyQuantity q a
+setPristineQuantity :: (LensQuantity a) => Quantity -> a -> Maybe a
+setPristineQuantity q a
   | getQuantity a == defaultQuantity = Just $ setQuantity q a
   | otherwise = Nothing
 
--- | Applying an attribute (to e.g. an 'Arg').
+-- | Setting an unset attribute (to e.g. an 'Arg').
 
-applyAttribute :: (LensAttribute a) => Attribute -> a -> Maybe a
-applyAttribute = \case
-  RelevanceAttribute r -> applyRelevance r
-  QuantityAttribute  q -> applyQuantity  q
+setPristineAttribute :: (LensAttribute a) => Attribute -> a -> Maybe a
+setPristineAttribute = \case
+  RelevanceAttribute r -> setPristineRelevance r
+  QuantityAttribute  q -> setPristineQuantity  q
 
--- | Applying a list of attributes.
+-- | Setting a list of unset attributes.
 
-applyAttributes :: (LensAttribute a) => [Attribute] -> a -> Maybe a
-applyAttributes attrs arg = foldM (flip applyAttribute) arg attrs
+setPristineAttributes :: (LensAttribute a) => [Attribute] -> a -> Maybe a
+setPristineAttributes attrs arg = foldM (flip setPristineAttribute) arg attrs
 
 ---------------------------------------------------------------------------
 -- * Filtering attributes

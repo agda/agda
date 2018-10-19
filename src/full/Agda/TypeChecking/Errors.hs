@@ -420,9 +420,11 @@ errorString err = case err of
   TooManyFields{}                          -> "TooManyFields"
   TooManyPolarities{}                      -> "TooManyPolarities"
   SplitOnIrrelevant{}                      -> "SplitOnIrrelevant"
+  -- UNUSED: -- SplitOnErased{}                          -> "SplitOnErased"
   SplitOnNonVariable{}                     -> "SplitOnNonVariable"
   DefinitionIsIrrelevant{}                 -> "DefinitionIsIrrelevant"
   VariableIsIrrelevant{}                   -> "VariableIsIrrelevant"
+  VariableIsErased{}                       -> "VariableIsErased"
   UnequalBecauseOfUniverseConflict{}       -> "UnequalBecauseOfUniverseConflict"
   UnequalRelevance{}                       -> "UnequalRelevance"
   UnequalHiding{}                          -> "UnequalHiding"
@@ -445,6 +447,7 @@ errorString err = case err of
   WrongHidingInLambda{}                    -> "WrongHidingInLambda"
   WrongInstanceDeclaration{}               -> "WrongInstanceDeclaration"
   WrongIrrelevanceInLambda{}               -> "WrongIrrelevanceInLambda"
+  WrongQuantityInLambda{}                  -> "WrongQuantityInLambda"
   WrongNamedArgument{}                     -> "WrongNamedArgument"
   WrongNumberOfConstructorArguments{}      -> "WrongNumberOfConstructorArguments"
   HidingMismatch{}                         -> "HidingMismatch"
@@ -544,6 +547,9 @@ instance PrettyTCM TypeError where
 
     WrongIrrelevanceInLambda ->
       fwords "Found a non-strict lambda where a irrelevant lambda was expected"
+
+    WrongQuantityInLambda ->
+      fwords "Incorrect quantity annotation in lambda"
 
     WrongNamedArgument a -> fsep $
       pwords "Function does not accept argument "
@@ -697,14 +703,24 @@ instance PrettyTCM TypeError where
       pwords "Cannot pattern match against" ++ [text $ verbalize $ getRelevance t] ++
       pwords "argument of type" ++ [prettyTCM $ unDom t]
 
+    -- UNUSED:
+    -- SplitOnErased t -> fsep $
+    --   pwords "Cannot pattern match against" ++ [text $ verbalize $ getQuantity t] ++
+    --   pwords "argument of type" ++ [prettyTCM $ unDom t]
+
     SplitOnNonVariable v t -> fsep $
       pwords "Cannot pattern match because the (refined) argument " ++
       [ prettyTCM v ] ++ pwords " is not a variable."
 
     DefinitionIsIrrelevant x -> fsep $
       "Identifier" : prettyTCM x : pwords "is declared irrelevant, so it cannot be used here"
+
     VariableIsIrrelevant x -> fsep $
       "Variable" : prettyTCM x : pwords "is declared irrelevant, so it cannot be used here"
+
+    VariableIsErased x -> fsep $
+      "Variable" : prettyTCM x : pwords "is declared erased, so it cannot be used here"
+
     UnequalBecauseOfUniverseConflict cmp s t -> fsep $
       [prettyTCM s, notCmp cmp, prettyTCM t, "because this would result in an invalid use of Setω" ]
 
@@ -1344,6 +1360,9 @@ instance PrettyTCM SplitError where
     IrrelevantDatatype t -> enterClosure t $ \ t -> fsep $
       pwords "Cannot split on argument of irrelevant datatype" ++ [prettyTCM t]
 
+    ErasedDatatype t -> enterClosure t $ \ t -> fsep $
+      pwords "Cannot branch on erased argument of datatype" ++ [prettyTCM t]
+
     CoinductiveDatatype t -> enterClosure t $ \ t -> fsep $
       pwords "Cannot pattern match on the coinductive type" ++ [prettyTCM t]
 
@@ -1549,6 +1568,12 @@ instance Verbalize Relevance where
       Relevant   -> "relevant"
       Irrelevant -> "irrelevant"
       NonStrict  -> "shape-irrelevant"
+
+instance Verbalize Quantity where
+  verbalize = \case
+    Quantity0 -> "erased"
+    Quantity1 -> "linear"
+    Quantityω -> "unrestricted"
 
 -- | Indefinite article.
 data Indefinite a = Indefinite a

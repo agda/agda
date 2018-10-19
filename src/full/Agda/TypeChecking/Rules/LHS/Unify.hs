@@ -158,6 +158,7 @@ import Agda.TypeChecking.Rules.LHS.Problem
 
 import Agda.Utils.Except ( MonadError(catchError, throwError) )
 import Agda.Utils.Either
+import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.List
 import Agda.Utils.ListT
@@ -869,20 +870,38 @@ unifyStep s Solution{ solutionAt   = k
     dontAssignMetas $ noConstraints $ equalType a a'
     return Nothing
     `catchError` \err -> return $ Just err
+
   -- The conditions on the relevances are as follows (see #2640):
   -- - If the type of the equation is relevant, then the solution must be
   --   usable in a relevant position.
   -- - If the type of the equation is (shape-)irrelevant, then the solution
   --   must be usable in a μ-relevant position where μ is the relevance
   --   of the variable being solved.
+  --
+  -- Jesper, Andreas, 2018-10-17: the quantity of the equation is morally
+  -- always @Quantity0@, since the indices of the data type are runtime erased.
+  -- This, we need not change the quantity of the solution.
   let eqrel  = getRelevance info
-      varrel = getRelevance info'
-      rel    = if NonStrict `moreRelevant` eqrel then varrel else Relevant
-  reportSDoc "tc.lhs.unify" 65 $ text $ "Equation relevance: " ++ show eqrel
-  reportSDoc "tc.lhs.unify" 65 $ text $ "Variable relevance: " ++ show varrel
-  reportSDoc "tc.lhs.unify" 65 $ text $ "Solution must be usable in a " ++ show rel ++ " position."
-  usable <- liftTCM $ addContext (varTel s) $ usableRel rel u
-  reportSDoc "tc.lhs.unify" 45 $ "Relevance ok: " <+> prettyTCM usable
+      varmod = getModality info'
+      mod    = applyUnless (NonStrict `moreRelevant` eqrel) (setRelevance eqrel)
+             $ varmod
+  reportSDoc "tc.lhs.unify" 65 $ text $ "Equation modality: " ++ show (getModality info)
+  reportSDoc "tc.lhs.unify" 65 $ text $ "Variable modality: " ++ show varmod
+  reportSDoc "tc.lhs.unify" 65 $ text $ "Solution must be usable in a " ++ show mod ++ " position."
+  -- Andreas, 2018-10-18
+  -- Currently, the modality check that would correspond to the
+  -- relevance check has problems with meta-variables created in the type signature,
+  -- and thus, in quantity 0, that get into terms using the unifier,
+  -- and there are checked to be non-erased, i.e., have quantity ω.
+  -- Thus, at the moment wo only check relevances, being aware
+  -- that uses of the 0-quantity might create segfaults in the compiled program
+  -- situations analogous to #2640 (issue with projecting forced constructor fields).
+  --
+  -- usable <- liftTCM $ addContext (varTel s) $ usableMod mod u  -- TODO
+  usable <- liftTCM $ addContext (varTel s) $ usableRel (getRelevance mod) u
+  reportSDoc "tc.lhs.unify" 45 $ "Modality ok: " <+> prettyTCM usable
+  unless usable $ reportSLn "tc.lhs.unify" 65 $ "Rejected solution: " ++ show u
+
   case equalTypes of
     Just err -> return $ DontKnow []
     Nothing | usable -> caseMaybeM (trySolveVar (m-1-i) u s)

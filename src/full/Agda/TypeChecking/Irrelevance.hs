@@ -1,8 +1,77 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE UndecidableInstances #-}
 
-{-| Irrelevant function types.
+{-| Compile-time irrelevance.
+
+In type theory with compile-time irrelevance à la Pfenning (LiCS 2001),
+variables in the context are annotated with relevance attributes.
+@@
+  Γ = r₁x₁:A₁, ..., rⱼxⱼ:Aⱼ
+@@
+To handle irrelevant projections, we also record the current relevance
+attribute in the judgement.  For instance, this attribute is equal to
+to 'Irrelevant' if we are in an irrelevant position, like an
+irrelevant argument.
+@@
+  Γ ⊢r t : A
+@@
+Only relevant variables can be used:
+@@
+
+  (Relevant x : A) ∈ Γ
+  --------------------
+  Γ  ⊢r  x  :  A
+@@
+Irrelevant global declarations can only be used if @r = Irrelevant@.
+
+When we enter a @r'@-relevant function argument, we compose the @r@ with @r'@
+and (left-)divide the attributes in the context by @r'@.
+@@
+  Γ  ⊢r  t  :  (r' x : A) → B      r' \ Γ  ⊢(r'·r)  u  :  A
+  ---------------------------------------------------------
+  Γ  ⊢r  t u  :  B[u/x]
+@@
+No surprises for abstraction:
+@@
+
+  Γ, (r' x : A)  ⊢r  :  B
+  -----------------------------
+  Γ  ⊢r  λxt  :  (r' x : A) → B
+@@
+
+This is different for runtime irrelevance (erasure) which is ``flat'',
+meaning that once one is in an irrelevant context, all new assumptions will
+be usable, since they are turned relevant once entering the context.
+See Conor McBride (WadlerFest 2016), for a type system in this spirit:
+
+We use such a rule for runtime-irrelevance:
+@@
+  Γ, (q \ q') x : A  ⊢q  t  :  B
+  ------------------------------
+  Γ  ⊢q  λxt  :  (q' x : A) → B
+@@
+
+Conor's system is however set up differently, with a very different
+variable rule:
+
+@@
+
+  (q x : A) ∈ Γ
+  --------------
+  Γ  ⊢q  x  :  A
+
+  Γ, (q·p) x : A  ⊢q  t  :  B
+  -----------------------------
+  Γ  ⊢q  λxt  :  (p x : A) → B
+
+  Γ  ⊢q  t  :  (p x : A) → B       Γ'  ⊢qp  u  :  A
+  -------------------------------------------------
+  Γ + Γ'  ⊢q  t u  :  B[u/x]
+@@
+
+
 -}
+
 module Agda.TypeChecking.Irrelevance where
 
 import Control.Arrow (first, second)
@@ -19,6 +88,8 @@ import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Substitute.Class
 
+import Agda.Utils.Function
+import Agda.Utils.Lens
 import Agda.Utils.Monad
 
 #include "undefined.h"
@@ -34,16 +105,6 @@ import Agda.Utils.Impossible
 hideAndRelParams :: Dom a -> Dom a
 hideAndRelParams = hideOrKeepInstance . mapRelevance nonStrictToIrr
 
--- | Used to modify context when going into a @rel@ argument.
-inverseApplyRelevance :: Relevance -> Dom a -> Dom a
-inverseApplyRelevance rel = mapRelevance (rel `inverseComposeRelevance`)
-
--- | Compose two relevance flags.
---   This function is used to update the relevance information
---   on pattern variables @a@ after a match against something @rel@.
-applyRelevance :: Relevance -> Dom a -> Dom a
-applyRelevance rel = mapRelevance (rel `composeRelevance`)
-
 -- * Operations on 'Context'.
 
 -- | Modify the context whenever going from the l.h.s. (term side)
@@ -56,9 +117,10 @@ workOnTypes cont = do
 -- | Internal workhorse, expects value of --experimental-irrelevance flag
 --   as argument.
 workOnTypes' :: Bool -> TCM a -> TCM a
-workOnTypes' experimental =
-  modifyContext (map $ mapRelevance f) .
-  localTC (\ e -> e { envWorkingOnTypes = True })
+workOnTypes' experimental
+  = modifyContext (map $ mapRelevance f)
+  . applyQuantityToContext Quantity0
+  . localTC (\ e -> e { envWorkingOnTypes = True })
   where
     f | experimental = irrToNonStrict . nonStrictToRel
       | otherwise    = nonStrictToRel
@@ -69,29 +131,114 @@ workOnTypes' experimental =
 --   may be used, so they are awoken before type checking the argument.
 --
 --   Also allow the use of irrelevant definitions.
-applyRelevanceToContext :: (MonadTCM tcm) => Relevance -> tcm a -> tcm a
-applyRelevanceToContext rel =
-  case rel of
+applyRelevanceToContext :: (MonadTCEnv tcm, LensRelevance r) => r -> tcm a -> tcm a
+applyRelevanceToContext thing =
+  case getRelevance thing of
     Relevant -> id
-    _        -> localTC $ \ e -> e
-      { envContext     = map                       (inverseApplyRelevance rel) (envContext e)
-      , envLetBindings = (Map.map . fmap . second) (inverseApplyRelevance rel) (envLetBindings e)
-                                                  -- enable local  irr. defs
-      , envRelevance   = composeRelevance rel (envRelevance e)
-                                                  -- enable global irr. defs
-      }
+    rel      -> applyRelevanceToContextOnly   rel
+              . applyRelevanceToJudgementOnly rel
+
+-- | (Conditionally) wake up irrelevant variables and make them relevant.
+--   For instance,
+--   in an irrelevant function argument otherwise irrelevant variables
+--   may be used, so they are awoken before type checking the argument.
+--
+--   Precondition: @Relevance /= Relevant@
+applyRelevanceToContextOnly :: (MonadTCEnv tcm) => Relevance -> tcm a -> tcm a
+applyRelevanceToContextOnly rel = localTC
+  $ over eContext     (map $ inverseApplyRelevance rel)
+  . over eLetBindings (Map.map . fmap . second $ inverseApplyRelevance rel)
+
+-- | Apply relevance @rel@ the the relevance annotation of the (typing/equality)
+--   judgement.  This is part of the work done when going into a @rel@-context.
+--
+--   Precondition: @Relevance /= Relevant@
+applyRelevanceToJudgementOnly :: (MonadTCEnv tcm) => Relevance -> tcm a -> tcm a
+applyRelevanceToJudgementOnly = localTC . over eRelevance . composeRelevance
 
 -- | Like 'applyRelevanceToContext', but only act on context if
 --   @--irrelevant-projections@.
 --   See issue #2170.
-applyRelevanceToContextFunBody :: (MonadTCM tcm) => Relevance -> tcm a -> tcm a
-applyRelevanceToContextFunBody rel cont
-  | rel == Relevant = cont
-  | otherwise = do
-    ifM (optIrrelevantProjections <$> pragmaOptions) {-then-} (applyRelevanceToContext rel cont) {-else-} $ do
-      flip localTC cont $ \ e -> e
-        { envRelevance = composeRelevance rel (envRelevance e) -- enable global irr. defs
-        }
+applyRelevanceToContextFunBody :: (MonadTCM tcm, LensRelevance r) => r -> tcm a -> tcm a
+applyRelevanceToContextFunBody thing cont =
+  case getRelevance thing of
+    Relevant -> cont
+    rel -> applyWhenM (optIrrelevantProjections <$> pragmaOptions)
+      (applyRelevanceToContextOnly rel) $    -- enable local irr. defs only when option
+      applyRelevanceToJudgementOnly rel cont -- enable global irr. defs alway
+
+-- | (Conditionally) wake up erased variables and make them unrestricted.
+--   For instance,
+--   in an erased function argument otherwise erased variables
+--   may be used, so they are awoken before type checking the argument.
+--
+--   Also allow the use of erased definitions.
+applyQuantityToContext :: (MonadTCEnv tcm, LensQuantity q) => q -> tcm a -> tcm a
+applyQuantityToContext thing =
+  case getQuantity thing of
+    Quantity1 -> id
+    q         -> applyQuantityToContextOnly   q
+               . applyQuantityToJudgementOnly q
+
+-- | (Conditionally) wake up erased variables and make them unrestricted.
+--   For instance,
+--   in an erased function argument otherwise erased variables
+--   may be used, so they are awoken before type checking the argument.
+--
+--   Precondition: @Quantity /= Quantity1@
+applyQuantityToContextOnly :: (MonadTCEnv tcm) => Quantity -> tcm a -> tcm a
+applyQuantityToContextOnly q = localTC
+  $ over eContext     (map $ inverseApplyQuantity q)
+  . over eLetBindings (Map.map . fmap . second $ inverseApplyQuantity q)
+
+-- | Apply quantity @q@ the the quantity annotation of the (typing/equality)
+--   judgement.  This is part of the work done when going into a @q@-context.
+--
+--   Precondition: @Quantity /= Quantity1@
+applyQuantityToJudgementOnly :: (MonadTCEnv tcm) => Quantity -> tcm a -> tcm a
+applyQuantityToJudgementOnly = localTC . over eQuantity . composeQuantity
+
+-- | (Conditionally) wake up irrelevant variables and make them relevant.
+--   For instance,
+--   in an irrelevant function argument otherwise irrelevant variables
+--   may be used, so they are awoken before type checking the argument.
+--
+--   Also allow the use of irrelevant definitions.
+applyModalityToContext :: (MonadTCEnv tcm, LensModality m) => m -> tcm a -> tcm a
+applyModalityToContext thing =
+  case getModality thing of
+    m | m == mempty -> id
+      | otherwise   -> applyModalityToContextOnly   m
+                     . applyModalityToJudgementOnly m
+
+-- | (Conditionally) wake up irrelevant variables and make them relevant.
+--   For instance,
+--   in an irrelevant function argument otherwise irrelevant variables
+--   may be used, so they are awoken before type checking the argument.
+--
+--   Precondition: @Modality /= Relevant@
+applyModalityToContextOnly :: (MonadTCEnv tcm) => Modality -> tcm a -> tcm a
+applyModalityToContextOnly m = localTC
+  $ over eContext     (map $ inverseApplyModality m)
+  . over eLetBindings (Map.map . fmap . second $ inverseApplyModality m)
+
+-- | Apply modality @m@ the the modality annotation of the (typing/equality)
+--   judgement.  This is part of the work done when going into a @m@-context.
+--
+--   Precondition: @Modality /= Relevant@
+applyModalityToJudgementOnly :: (MonadTCEnv tcm) => Modality -> tcm a -> tcm a
+applyModalityToJudgementOnly = localTC . over eModality . composeModality
+
+-- | Like 'applyModalityToContext', but only act on context if
+--   @--irrelevant-projections@.
+--   See issue #2170.
+applyModalityToContextFunBody :: (MonadTCM tcm, LensModality r) => r -> tcm a -> tcm a
+applyModalityToContextFunBody thing cont = do
+  let m = getModality thing
+  if m == mempty then cont else
+    applyWhenM (optIrrelevantProjections <$> pragmaOptions)
+      (applyRelevanceToContextOnly (getRelevance m)) $    -- enable local irr. defs only when option
+      applyModalityToJudgementOnly m cont  -- enable global irr. defs alway
 
 -- | Wake up irrelevant variables and make them relevant. This is used
 --   when type checking terms in a hole, in which case you want to be able to
@@ -101,13 +248,25 @@ applyRelevanceToContextFunBody rel cont
 --   This is not the right thing to do when type checking interactively in a
 --   hole since it also marks all metas created during type checking as
 --   irrelevant (issue #2568).
-wakeIrrelevantVars :: TCM a -> TCM a
-wakeIrrelevantVars = localTC $ \ e -> e
-  { envContext     = map                       (inverseApplyRelevance Irrelevant) (envContext e)
-  , envLetBindings = (Map.map . fmap . second) (inverseApplyRelevance Irrelevant) (envLetBindings e)
-  }
+wakeIrrelevantVars :: (MonadTCEnv tcm) => tcm a -> tcm a
+wakeIrrelevantVars
+  = applyRelevanceToContextOnly Irrelevant
+  . applyQuantityToContextOnly  Quantity0
 
 -- | Check whether something can be used in a position of the given relevance.
+--
+--   This is a substitute for double-checking that only makes sure
+--   relevances are correct.  See issue #2640.
+--
+--   Used in unifier (@ unifyStep Solution{}@).
+--
+--   At the moment, this implements McBride-style irrelevance,
+--   where Pfenning-style would be the most accurate thing.
+--   However, these two notions only differ how they handle
+--   bound variables in a term.  Here, we are only concerned
+--   in the free variables, used meta-variables, and used
+--   (irrelevant) definitions.
+--
 class UsableRelevance a where
   usableRel :: Relevance -> a -> TCM Bool
 
@@ -189,3 +348,109 @@ instance UsableRelevance a => UsableRelevance (Dom a) where
 
 instance (Subst t a, UsableRelevance a) => UsableRelevance (Abs a) where
   usableRel rel abs = underAbstraction_ abs $ \u -> usableRel rel u
+
+-- | Check whether something can be used in a position of the given modality.
+--
+--   This is a substitute for double-checking that only makes sure
+--   modalities are correct.  See issue #2640.
+--
+--   Used in unifier (@ unifyStep Solution{}@).
+--
+--   This uses McBride-style modality checking.
+--   It does not differ from Pfenning-style if we
+--   are only interested in the modality of the
+--   free variables, used meta-variables, and used
+--   definitions.
+--
+class UsableModality a where
+  usableMod :: Modality -> a -> TCM Bool
+
+instance UsableModality Term where
+  usableMod mod u = case u of
+    Var i vs -> do
+      imod <- getModality <$> typeOfBV' i
+      let ok = imod `moreUsableModality` mod
+      reportSDoc "tc.irr" 50 $
+        "Variable" <+> prettyTCM (var i) <+>
+        text ("has modality " ++ show imod ++ ", which is a " ++
+              (if ok then "" else "NOT ") ++ "more usable modality than " ++ show mod)
+      return ok `and2M` usableMod mod vs
+    Def f vs -> do
+      fmod <- modalityOfConst f
+      let ok = fmod `moreUsableModality` mod
+      reportSDoc "tc.irr" 50 $
+        "Definition" <+> prettyTCM (Def f []) <+>
+        text ("has modality " ++ show fmod ++ ", which is a " ++
+              (if ok then "" else "NOT ") ++ "more usable modality than " ++ show mod)
+      return ok `and2M` usableMod mod vs
+    Con c _ vs -> usableMod mod vs
+    Lit l    -> return True
+    Lam _ v  -> usableMod mod v
+    Pi a b   -> usableMod mod (a,b)
+    Sort s   -> usableMod mod s
+    Level l  -> return True
+    MetaV m vs -> do
+      mmod <- getMetaModality <$> lookupMeta m
+      let ok = mmod `moreUsableModality` mod
+      reportSDoc "tc.irr" 50 $
+        "Metavariable" <+> prettyTCM (MetaV m []) <+>
+        text ("has modality " ++ show mmod ++ ", which is a " ++
+              (if ok then "" else "NOT ") ++ "more usable modality than " ++ show mod)
+      return ok `and2M` usableMod mod vs
+    DontCare _ -> return $ isIrrelevant mod
+    Dummy{}  -> return True
+
+instance UsableRelevance a => UsableModality (Type' a) where
+  usableMod mod (El _ t) = usableRel (getRelevance mod) t
+
+instance UsableModality Sort where
+  usableMod mod s = usableRel (getRelevance mod) s
+  -- usableMod mod s = case s of
+  --   Type l -> usableMod mod l
+  --   Prop l -> usableMod mod l
+  --   Inf    -> return True
+  --   SizeUniv -> return True
+  --   PiSort s1 s2 -> usableMod mod (s1,s2)
+  --   UnivSort s -> usableMod mod s
+  --   MetaS x es -> usableMod mod es
+  --   DummyS{} -> return True
+
+instance UsableModality Level where
+  usableMod mod (Max ls) = usableRel (getRelevance mod) ls
+
+-- instance UsableModality PlusLevel where
+--   usableMod mod ClosedLevel{} = return True
+--   usableMod mod (Plus _ l)    = usableMod mod l
+
+-- instance UsableModality LevelAtom where
+--   usableMod mod l = case l of
+--     MetaLevel m vs -> do
+--       mmod <- getMetaModality <$> lookupMeta m
+--       return (mmod `moreUsableModality` mod) `and2M` usableMod mod vs
+--     NeutralLevel _ v -> usableMod mod v
+--     BlockedLevel _ v -> usableMod mod v
+--     UnreducedLevel v -> usableMod mod v
+
+instance UsableModality a => UsableModality [a] where
+  usableMod mod = andM . map (usableMod mod)
+
+instance (UsableModality a, UsableModality b) => UsableModality (a,b) where
+  usableMod mod (a,b) = usableMod mod a `and2M` usableMod mod b
+
+instance UsableModality a => UsableModality (Elim' a) where
+  usableMod mod (Apply a) = usableMod mod a
+  usableMod mod (Proj _ p) = do
+    pmod <- modalityOfConst p
+    return $ pmod `moreUsableModality` mod
+  usableMod mod (IApply x y v) = allM [x,y,v] $ usableMod mod
+
+instance UsableModality a => UsableModality (Arg a) where
+  usableMod mod (Arg info u) =
+    let mod' = getModality info
+    in  usableMod (mod `composeModality` mod') u
+
+instance UsableModality a => UsableModality (Dom a) where
+  usableMod mod (Dom _ _ u) = usableMod mod u
+
+instance (Subst t a, UsableModality a) => UsableModality (Abs a) where
+  usableMod mod abs = underAbstraction_ abs $ \u -> usableMod mod u

@@ -138,17 +138,16 @@ isAlias cs t =
 
 -- | Check a trivial definition of the form @f = e@
 checkAlias :: Type -> ArgInfo -> Delayed -> Info.DefInfo -> QName -> A.Expr -> Maybe C.Expr -> TCM ()
-checkAlias t' ai delayed i name e mc = atClause name 0 (A.RHS e mc) $ do
+checkAlias t ai delayed i name e mc = atClause name 0 (A.RHS e mc) $ do
   reportSDoc "tc.def.alias" 10 $ "checkAlias" <+> vcat
-    [ text (prettyShow name) <+> colon  <+> prettyTCM t'
+    [ text (prettyShow name) <+> colon  <+> prettyTCM t
     , text (prettyShow name) <+> equals <+> prettyTCM e
     ]
 
   -- Infer the type of the rhs.
   -- Andreas, 2018-06-09, issue #2170.
   -- The context will only be resurrected if we have --irrelevant-projections.
-  v <- applyRelevanceToContextFunBody (getRelevance ai) $ checkDontExpandLast CmpLeq e t'
-  let t = t'
+  v <- applyModalityToContextFunBody ai $ checkDontExpandLast CmpLeq e t
 
   reportSDoc "tc.def.alias" 20 $ "checkAlias: finished checking"
 
@@ -249,7 +248,7 @@ checkFunDefS t ai delayed extlam with i name withSub cs = do
         cs <- traceCall NoHighlighting $ do -- To avoid flicker.
           forM (zip cs [0..]) $ \ (c, clauseNo) -> do
             atClause name clauseNo (A.clauseRHS c) $ do
-              (c,b) <- applyRelevanceToContextFunBody (getRelevance ai) $ do
+              (c,b) <- applyModalityToContextFunBody ai $ do
                 checkClause t withSub c
               -- Andreas, 2013-11-23 do not solve size constraints here yet
               -- in case we are checking the body of an extended lambda.

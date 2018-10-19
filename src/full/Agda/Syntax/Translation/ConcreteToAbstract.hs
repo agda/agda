@@ -1449,14 +1449,14 @@ instance ToAbstract NiceDeclaration A.Declaration where
       -- check the postulate
       toAbstractNiceAxiom A.NoFunSig NotMacroDef d
 
-    C.NiceGeneralize r f i x t -> do
+    C.NiceGeneralize r f p i x t -> do
       reportSLn "scope.decl" 10 $ "found nice generalize: " ++ prettyShow x
       t_ <- toAbstractCtx TopCtx t
       let (s, t) = unGeneralized t_
       reportSLn "scope.decl" 50 $ "generalizations: " ++ show (Set.toList s, t)
       y <- freshAbstractQName f x
-      bindName PublicAccess GeneralizeName x y
-      return [A.Generalize s (mkDefInfoInstance x f PublicAccess ConcreteDef NotInstanceDef NotMacroDef r) i y t]
+      bindName p GeneralizeName x y
+      return [A.Generalize s (mkDefInfoInstance x f p ConcreteDef NotInstanceDef NotMacroDef r) i y t]
 
   -- Fields
     C.NiceField r f p a i x t -> do

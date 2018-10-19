@@ -2300,7 +2300,7 @@ toAttribute x = maybe failure (return . Attr (getRange x) y) $ stringToAttribute
 --   This will fail if one of the attributes is already set
 --   in the thing to something else than the default value.
 applyAttr :: (LensAttribute a) => Attr -> a -> Parser a
-applyAttr attr@(Attr r x a) = maybe failure return . applyAttribute a
+applyAttr attr@(Attr r x a) = maybe failure return . setPristineAttribute a
   where
   failure = errorConflictingAttribute attr
 
