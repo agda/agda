@@ -5,7 +5,7 @@
 \ProvidesPackage{agda}
 
 \RequirePackage{ifxetex, ifluatex, xifthen, xcolor, polytable, etoolbox,
-                calc, environ}
+                calc, environ, xparse}
 
 % https://tex.stackexchange.com/questions/47576/combining-ifxetex-and-ifluatex-with-the-logical-or-operation
 \newif\ifxetexorluatex
@@ -606,11 +606,37 @@
 %
 % Code can be hidden by writing \begin{code}[hide].
 %
+% Inline code can be emitted by writing \begin{code}[inline]. In this
+% case most of the discussion above does not apply, alignment is not
+% respected, and so on. It is recommended to only use this option for
+% a single line of code, and to not use two consecutive spaces in this
+% piece of code.
+%
+% Note that this environment ignores spaces after its end. If a space
+% (\AgdaSpace{}) should be inserted after the inline code, use inline*
+% instead of inline.
+%
 % The implementation is based on plainhscode in lhs2TeX's
 % polycode.fmt, written by Andres Löh.
 \NewEnviron{code}[1][]{%
   % Conditionally hide the code.
   \ifthenelse{\equal{#1}{hide}}{}{%
+  \ifthenelse{\equal{#1}{inline}}{%
+    % Inline code.
+    %
+    % Make the polytable primitives emitted by the LaTeX backend
+    % do nothing.
+    \DeclareDocumentCommand{\>}{O{}O{}}{}%
+    \DeclareDocumentCommand{\<}{O{}}{}%
+    \AgdaCodeStyle\BODY}{%
+  \ifthenelse{\equal{#1}{inline*}}{%
+    % Inline code with space at the end.
+    %
+    \DeclareDocumentCommand{\>}{O{}O{}}{}%
+    \DeclareDocumentCommand{\<}{O{}}{}%
+    \AgdaCodeStyle\BODY\AgdaSpace{}}{%
+    %
+    % Displayed code.
     %
     % Conditionally emit space before the code block. Unconditionally
     % switch to a new line.
@@ -658,7 +684,7 @@
       \Agda@NewlineWithVerticalSpace{0pt}}%
     %
     % Step the code block counter, but only for non-hidden code.
-    \stepcounter{Agda@Current}}}
+    \stepcounter{Agda@Current}}}}}
 
 % Space inserted after tokens.
 \newcommand{\AgdaSpace}{ }

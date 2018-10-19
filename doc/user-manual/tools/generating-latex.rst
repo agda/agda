@@ -94,6 +94,37 @@ giving the argument ``hide`` to the code block:
    -- the code here will not be part of the final document
    \end{code}
 
+Inline code
+~~~~~~~~~~~
+
+Code can be typeset inline by giving the argument ``inline`` to the
+code block:
+
+.. code-block:: lagda
+
+  Assume that we are given a type
+  %
+  \begin{code}[hide]
+    module _ (
+  \end{code}
+  \begin{code}[inline]
+      A : Set
+  \end{code}
+  \begin{code}[hide]
+      ) where
+  \end{code}
+  %
+  .
+
+There is also a variant of ``inline``, ``inline*``. If ``inline*`` is
+used, then space (``\AgdaSpace{}``) is added at the end of the code,
+and when ``inline`` is used space is not added.
+
+The implementation of these options is a bit of a hack. Only use these
+options for typesetting a single line of code without multiple
+consecutive whitespace characters (except at the beginning of the
+line).
+
 Alignment
 ~~~~~~~~~
 

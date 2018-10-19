@@ -293,6 +293,16 @@ Emacs mode
 LaTeX backend
 -------------
 
+* The code environment has two new options, `inline` and `inline*`.
+
+  These options are for typesetting inline code. The implementation of
+  these options is a bit of a hack. Only use these options for
+  typesetting a single line of code without multiple consecutive
+  whitespace characters (except at the beginning of the line).
+
+  When the option `inline*` is used space (`\AgdaSpace{}`) is added at
+  the end of the code, and when `inline` is used space is not added.
+
 * Now highlighting commands for things like "this is an unsolved
   meta-variable" are applied on the outside of highlighting commands
   for things like "this is a postulate" [Issue
