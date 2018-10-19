@@ -1,5 +1,4 @@
 {-# LANGUAGE CPP #-}
-{-# LANGUAGE NondecreasingIndentation #-}
 
 module Agda.TypeChecking.Generalize (generalizeType) where
 
@@ -38,120 +37,132 @@ import qualified Agda.Utils.Graph.TopSort as Graph
 
 -- | Generalize a type over a set of (used) generalizable variables.
 generalizeType :: Set QName -> TCM Type -> TCM (Int, Type)
-generalizeType s typecheckAction = do
+generalizeType s typecheckAction = withGenRecVar $ \ genRecMeta -> do
 
-    -- Create a meta type (in Setω) for the telescope record
-    genRecMeta <- newTypeMeta Inf
-    let gt = "genTel" :: String
+  (t, allmetas) <- metasCreatedBy $ do
+    -- Create metas for all used generalizable variables and their dependencies.
+    genvals <- fmap Map.fromList $ locallyTC eGeneralizeMetas (const YesGeneralize)
+                                 $ forM (Set.toList s) createGenValue
+    -- Check the type
+    locallyTC eGeneralizedVars (const genvals) typecheckAction
 
-    addContext (defaultDom (gt, genRecMeta)) $ do
+  (genTel, sub) <- computeGeneralization genRecMeta allmetas
 
-    (t, allmetas) <- metasCreatedBy $ do
-      -- Create metas for all used generalizable variables and their dependencies.
-      genvals <- fmap Map.fromList $ locallyTC eGeneralizeMetas (const YesGeneralize)
-                                   $ forM (Set.toList s) createGenValue
-      -- Check the type
-      locallyTC eGeneralizedVars (const genvals) typecheckAction
+  t' <- abstract genTel . applySubst sub <$> instantiateFull t
 
-    -- Pair metas with their metaInfo
-    mvs <- mapM (\ x -> (x,) <$> lookupMeta x) (Set.toList allmetas)
+  reportSDoc "tc.decl.gen" 40 $ vcat
+    [ "generalized"
+    , nest 2 $ "t =" <+> escapeContext 1 (prettyTCM t') ]
 
-    let isGeneralizable (_, mv) = YesGeneralize == unArg (miGeneralizable (mvInfo mv))
-        isOpen = isOpenMeta . mvInstantiation . snd
+  return (size genTel, t')
 
-    -- Split the generalizable metas in open and closed
-    let (generalizable, nongeneralizable) = partition isGeneralizable mvs
-        (generalizableOpen, generalizableClosed) = partition isOpen generalizable
-        nongeneralizableOpen = filter isOpen nongeneralizable
+-- | Add a placeholder variable that will be substituted with a record value packing up all the
+--   generalized variables.
+withGenRecVar :: (Type -> TCM a) -> TCM a
+withGenRecVar ret = do
+  -- Create a meta type (in Setω) for the telescope record
+  genRecMeta <- newTypeMeta Inf
+  addContext (defaultDom ("genTel" :: String, genRecMeta)) $ ret genRecMeta
 
-    -- Any meta in the solution of a generalizable meta should be generalized over (if possible).
-    cp <- viewTC eCurrentCheckpoint
-    let canGeneralize x = do
-            mv  <- lookupMeta x
-            sub <- enterClosure (miClosRange $ mvInfo mv) $ \ _ ->
-                     checkpointSubstitution cp
-            let sameContext =
-                  -- We can only generalize if the metavariable takes the context variables of the
-                  -- current context as arguments. This happens either when the context of the meta
-                  -- is the same as the current context and there is no pruning, or the meta context
-                  -- is a weakening but the extra variables have been prune.
-                  -- It would be possible to generalize also in the case when some context variables
-                  -- (other than genTel) have been pruned, but it's hard to construct an example
-                  -- where this actually happens.
-                  case (sub, mvPermutation mv) of
-                    (IdS, Perm m xs)      -> xs == [0 .. m - 1]
-                    (Wk n IdS, Perm m xs) -> xs == [0 .. m - n - 1]
-                    _                     -> False
-            when (not sameContext) $ do
-              ty <- getMetaType x
-              let Perm m xs = mvPermutation mv
-              reportSDoc "tc.decl.gen" 20 $ vcat
-                [ text "Don't know how to generalize over"
-                , nest 2 $ prettyTCM x <+> text ":" <+> prettyTCM ty
-                , text "in context"
-                , nest 2 $ inTopContext . prettyTCM =<< getContextTelescope
-                , text "permutation:" <+> text (show (m, xs))
-                , text "subst:" <+> pretty sub ]
-            return sameContext
-    inherited <- fmap Set.unions $ forM generalizableClosed $ \ (x, mv) ->
-      case mvInstantiation mv of
-        InstV _ v -> do
-          parentName <- getMetaNameSuggestion x
-          metas <- filterM canGeneralize . allMetas =<< instantiateFull v
-          let suggestNames i [] = return ()
-              suggestNames i (m : ms)  = do
-                name <- getMetaNameSuggestion m
-                case name of
-                  "" -> do
-                    setMetaNameSuggestion m (parentName ++ "." ++ show i)
-                    suggestNames (i + 1) ms
-                  _  -> suggestNames i ms
-          Set.fromList metas <$ suggestNames 1 metas
-        _ -> __IMPOSSIBLE__
+-- | Compute the generalized telescope from metas created when checking the type/telescope to be
+--   generalized. Called in the context extended with the telescope record variable (whose type is
+--   the first argument). Returns the telescope of generalized variables and a substitution from
+--   this telescope to the current context.
+computeGeneralization :: Type -> Set MetaId -> TCM (Telescope, Substitution)
+computeGeneralization genRecMeta allmetas = do
+  -- Pair metas with their metaInfo
+  mvs <- mapM (\ x -> (x,) <$> lookupMeta x) (Set.toList allmetas)
 
-    let (alsoGeneralize, reallyDontGeneralize) = partition (`Set.member` inherited) $ map fst nongeneralizableOpen
-        generalizeOver = map fst generalizableOpen ++ alsoGeneralize
+  let isGeneralizable (_, mv) = YesGeneralize == unArg (miGeneralizable (mvInfo mv))
+      isOpen = isOpenMeta . mvInstantiation . snd
 
-    -- Sort metas in dependency order
-    sortedMetas <- sortMetas generalizeOver
+  -- Split the generalizable metas in open and closed
+  let (generalizable, nongeneralizable) = partition isGeneralizable mvs
+      (generalizableOpen, generalizableClosed) = partition isOpen generalizable
+      nongeneralizableOpen = filter isOpen nongeneralizable
 
-    let dropCxt err = updateContext (strengthenS err 1) (drop 1)
+  -- Any meta in the solution of a generalizable meta should be generalized over (if possible).
+  cp <- viewTC eCurrentCheckpoint
+  let canGeneralize x = do
+          mv  <- lookupMeta x
+          sub <- enterClosure (miClosRange $ mvInfo mv) $ \ _ ->
+                   checkpointSubstitution cp
+          let sameContext =
+                -- We can only generalize if the metavariable takes the context variables of the
+                -- current context as arguments. This happens either when the context of the meta
+                -- is the same as the current context and there is no pruning, or the meta context
+                -- is a weakening but the extra variables have been prune.
+                -- It would be possible to generalize also in the case when some context variables
+                -- (other than genTel) have been pruned, but it's hard to construct an example
+                -- where this actually happens.
+                case (sub, mvPermutation mv) of
+                  (IdS, Perm m xs)      -> xs == [0 .. m - 1]
+                  (Wk n IdS, Perm m xs) -> xs == [0 .. m - n - 1]
+                  _                     -> False
+          when (not sameContext) $ do
+            ty <- getMetaType x
+            let Perm m xs = mvPermutation mv
+            reportSDoc "tc.decl.gen" 20 $ vcat
+              [ text "Don't know how to generalize over"
+              , nest 2 $ prettyTCM x <+> text ":" <+> prettyTCM ty
+              , text "in context"
+              , nest 2 $ inTopContext . prettyTCM =<< getContextTelescope
+              , text "permutation:" <+> text (show (m, xs))
+              , text "subst:" <+> pretty sub ]
+          return sameContext
+  inherited <- fmap Set.unions $ forM generalizableClosed $ \ (x, mv) ->
+    case mvInstantiation mv of
+      InstV _ v -> do
+        parentName <- getMetaNameSuggestion x
+        metas <- filterM canGeneralize . allMetas =<< instantiateFull v
+        let suggestNames i [] = return ()
+            suggestNames i (m : ms)  = do
+              name <- getMetaNameSuggestion m
+              case name of
+                "" -> do
+                  setMetaNameSuggestion m (parentName ++ "." ++ show i)
+                  suggestNames (i + 1) ms
+                _  -> suggestNames i ms
+        Set.fromList metas <$ suggestNames 1 metas
+      _ -> __IMPOSSIBLE__
 
-    -- Create the pre-record type (we don't yet know the types of the fields)
-    (genRecName, genRecCon, genRecFields) <- dropCxt __IMPOSSIBLE__ $
-        createGenRecordType genRecMeta sortedMetas
+  let (alsoGeneralize, reallyDontGeneralize) = partition (`Set.member` inherited) $ map fst nongeneralizableOpen
+      generalizeOver = map fst generalizableOpen ++ alsoGeneralize
 
-    -- Solve the generalizable metas. Each generalizable meta is solved by projecting the
-    -- corresponding field from the genTel record.
-    cxtTel <- getContextTelescope
-    let solve m field = assignTerm' m (telToArgs cxtTel) $ Var 0 [Proj ProjSystem field]
-    zipWithM_ solve sortedMetas genRecFields
+  -- Sort metas in dependency order
+  sortedMetas <- sortMetas generalizeOver
 
-    -- Build the telescope of generalized metas
-    teleTypes <- do
-      args <- getContextArgs
-      fmap concat $ forM sortedMetas $ \ m -> do
-        mv   <- lookupMeta m
-        let info = getArgInfo $ miGeneralizable $ mvInfo mv
-            HasType{ jMetaType = t } = mvJudgement mv
-        return [(Arg info $ miNameSuggestion $ mvInfo mv, piApply t args)]
-    let genTel = buildGeneralizeTel genRecCon teleTypes
-    reportSDoc "tc.decl.gen" 40 $ vcat
-      [ text "genTel =" <+> prettyTCM genTel ]
+  let dropCxt err = updateContext (strengthenS err 1) (drop 1)
 
-    -- Fill in the missing details of the telescope record.
-    dropCxt __IMPOSSIBLE__ $ fillInGenRecordDetails genRecName genRecCon genRecFields genRecMeta genTel
+  -- Create the pre-record type (we don't yet know the types of the fields)
+  (genRecName, genRecCon, genRecFields) <- dropCxt __IMPOSSIBLE__ $
+      createGenRecordType genRecMeta sortedMetas
 
-    -- Now abstract over the telescope. We need to apply the substitution that subsitutes a record
-    -- value packing up the generalized variables for the genTel variable.
-    let sub = unpackSub genRecCon (map (argInfo . fst) teleTypes) (length teleTypes)
-    t' <- abstract genTel . applySubst sub <$> instantiateFull t
+  -- Solve the generalizable metas. Each generalizable meta is solved by projecting the
+  -- corresponding field from the genTel record.
+  cxtTel <- getContextTelescope
+  let solve m field = assignTerm' m (telToArgs cxtTel) $ Var 0 [Proj ProjSystem field]
+  zipWithM_ solve sortedMetas genRecFields
 
-    reportSDoc "tc.decl.gen" 40 $ vcat
-      [ "generalized"
-      , nest 2 $ "t =" <+> escapeContext 1 (prettyTCM t') ]
+  -- Build the telescope of generalized metas
+  teleTypes <- do
+    args <- getContextArgs
+    fmap concat $ forM sortedMetas $ \ m -> do
+      mv   <- lookupMeta m
+      let info = getArgInfo $ miGeneralizable $ mvInfo mv
+          HasType{ jMetaType = t } = mvJudgement mv
+      return [(Arg info $ miNameSuggestion $ mvInfo mv, piApply t args)]
+  let genTel = buildGeneralizeTel genRecCon teleTypes
+  reportSDoc "tc.decl.gen" 40 $ vcat
+    [ text "genTel =" <+> prettyTCM genTel ]
 
-    return (length sortedMetas, t')
+  -- Fill in the missing details of the telescope record.
+  dropCxt __IMPOSSIBLE__ $ fillInGenRecordDetails genRecName genRecCon genRecFields genRecMeta genTel
+
+  -- Now abstract over the telescope. We need to apply the substitution that subsitutes a record
+  -- value packing up the generalized variables for the genTel variable.
+  let sub = unpackSub genRecCon (map (argInfo . fst) teleTypes) (length teleTypes)
+  return (genTel, sub)
 
 -- | Create a substition from a context where the i first record fields are variables to a context
 --   where you have a single variable of the record type. Packs up the field variables in a record
