@@ -554,8 +554,8 @@ instance Semigroup ClausesPostChecks where
   (<>) (CPC xs ys) (CPC xs' ys') = CPC (List.nub $ mappend xs xs') (mappend ys ys')
 
 instance Monoid ClausesPostChecks where
-  mempty = CPC [] []
-
+  mempty  = CPC [] []
+  mappend = (<>)
 
 -- | Type check a function clause.
 
