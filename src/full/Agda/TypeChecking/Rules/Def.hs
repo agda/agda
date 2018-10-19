@@ -19,6 +19,7 @@ import Data.Maybe
 import Data.Traversable (Traversable, traverse, forM, mapM)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
+import Data.Semigroup (Semigroup((<>)))
 
 import Agda.Interaction.Options
 
@@ -47,7 +48,8 @@ import Agda.TypeChecking.Inlining
 import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Patterns.Abstract (expandPatternSynonyms)
-import Agda.TypeChecking.Pretty
+import Agda.TypeChecking.Pretty hiding ((<>))
+import qualified Agda.TypeChecking.Pretty as Pr
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.CheckInternal
@@ -261,7 +263,7 @@ checkFunDefS t ai delayed extlam with i name withSub cs = do
               inTopContext $ addClauses name [c]
               return (c,b)
 
-        (cs,isOneIxs) <- return $ (second (List.nub . concat) . unzip) cs
+        (cs, CPC isOneIxs nat_cs) <- return $ (second mconcat . unzip) cs
 
         let isSystem = not . null $ isOneIxs
         when isSystem $ unless canBeSystem $
@@ -368,6 +370,8 @@ checkFunDefS t ai delayed extlam with i name withSub cs = do
              , funCopatternLHS   = hasProjectionPatterns cc
              }
           useTerPragma $ defaultDefn ai name fullType defn
+
+        forM_ nat_cs $ \ c -> enterClosure c solveConstraint
 
         reportSDoc "tc.def.fun" 10 $ do
           sep [ "added " <+> prettyTCM name <+> ":"
@@ -538,13 +542,28 @@ checkSystemCoverage f [n] t cs = do
 checkSystemCoverage _ _ t cs = __IMPOSSIBLE__
 
 
+-- * Info that is needed after all clauses have been processed.
+data ClausesPostChecks = CPC
+    { cpcPartialSplits :: [Int]
+      -- ^ Which argument indexes have a partial split.
+    , cpcNaturalityConstraints :: [Closure Constraint]
+      -- ^ Naturality constraints from IApply patterns.
+    }
+
+instance Semigroup ClausesPostChecks where
+  (<>) (CPC xs ys) (CPC xs' ys') = CPC (List.nub $ mappend xs xs') (mappend ys ys')
+
+instance Monoid ClausesPostChecks where
+  mempty = CPC [] []
+
+
 -- | Type check a function clause.
 
 checkClause
   :: Type          -- ^ Type of function defined by this clause.
   -> Maybe Substitution  -- ^ Module parameter substitution arising from with-abstraction.
   -> A.SpineClause -- ^ Clause.
-  -> TCM (Clause,[Int])    -- ^ Type-checked clause and whether we performed a partial split
+  -> TCM (Clause,ClausesPostChecks)  -- ^ Type-checked clause
 
 checkClause t withSub c@(A.Clause (A.SpineLHS i x aps) strippedPats rhs0 wh catchall) = do
     reportSDoc "tc.lhs.top" 30 $ "Checking clause" $$ prettyA c
@@ -632,13 +651,13 @@ checkClause t withSub c@(A.Clause (A.SpineLHS i x aps) strippedPats rhs0 wh catc
                              DefP _ _ ps -> iApplyVars ps
                              ConP _ _ ps -> iApplyVars ps
 
-        flip (maybe (return ())) body $ \ body -> do
+        cs <- flip (maybe (return [])) body $ \ body -> do
           ps <- normaliseProjP ps
-          forM_ (iApplyVars ps) $ \ (i,_tu) -> do
+          forM (iApplyVars ps) $ \ (i,_tu) -> do
             unview <- intervalUnview'
             let phi = unview $ IMax (argN $ var $ i) $ argN $ unview (INeg $ argN $ var i)
             locallyTC eRange (const noRange) $
-              equalTermOnFace phi (unArg trhs) (Def x (patternsToElims ps)) body
+              buildClosure $ ValueCmpOnFace CmpEq phi (unArg trhs) (Def x (patternsToElims ps)) body
 
         -- compute body modification for irrelevant definitions, see issue 610
         rel <- asksTC envRelevance
@@ -650,7 +669,7 @@ checkClause t withSub c@(A.Clause (A.SpineLHS i x aps) strippedPats rhs0 wh catc
         -- treat them as catchalls.
         let catchall' = catchall || isNothing body
 
-        return $ (,psplit)
+        return $ (, CPC psplit cs)
           Clause { clauseLHSRange  = getRange i
                  , clauseFullRange = getRange c
                  , clauseTel       = killRange delta
@@ -783,7 +802,7 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps absurdPat trhs _ _asb _) rhs0
                    strippedPats rhs'' outerWhere False
         reportSDoc "tc.rewrite" 60 $ vcat
           [ "rewrite"
-          , "  rhs' = " <> (text . show) rhs'
+          , "  rhs' = " Pr.<> (text . show) rhs'
           ]
         checkWithRHS x qname t lhsResult [withExpr] [withType] [cl]
 
