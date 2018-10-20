@@ -31,52 +31,45 @@ the latex environment can find it.
 
 .. _unicode-latex:
 
-Unicode and LaTeX
------------------
+Unicode and pdfLaTeX
+--------------------
 
-LaTeX does not by default understand the UTF-8 character encoding. You
-can tell LaTeX to treat the input as UTF-8 using the ucs_ package by
-inserting the following code in the preamble of your source file:
+The pdfLaTeX program does not by default understand the UTF-8
+character encoding. You can tell it to treat the input as UTF-8 by
+using the inputenc package:
 
 .. code-block:: latex
 
-   \usepackage{ucs}
    \usepackage[utf8]{inputenc}
 
-Unicode characters are translated to LaTeX commands, so e.g. the
-following packages might be needed. You may need more packages if you
-use more unicode characters:
+If the inputenc package complains that some Unicode character is "not
+set up for use with LaTeX", then you can give your own definition.
+Here is one example:
 
 .. code-block:: latex
 
-   \usepackage{amssymb}
-   \usepackage{bbm}
-   \usepackage[greek,english]{babel}
+  \usepackage{newunicodechar}
+  \newunicodechar{λ}{\ensuremath{\lambda}}
+  \newunicodechar{←}{\ensuremath{\from}}
+  \newunicodechar{→}{\ensuremath{\to}}
+  \newunicodechar{∀}{\ensuremath{\forall}}
 
-The ucs package does not contain definitions for all Unicode
-characters. If LaTeX complains about a missing definition for some
-character U+xxxx, then you can define it yourself:
+Unicode and XeLaTeX or LuaLaTeX
+-------------------------------
+
+It can sometimes be easier to use LuaLaTeX or XeLaTeX. When these
+engines are used it might suffice to choose a suitable font, as long
+as it contains all the right symbols in all the right shapes. If it
+does not, then ``\newunicodechar`` can be used as above. Here is one
+example:
 
 .. code-block:: latex
 
-   \DeclareUnicodeCharacter{"xxxx}{<definition>}
+  \usepackage{unicode-math}
+  \setmathfont{XITS Math}
 
-It may also be necessary to instruct LaTeX to use a specific font
-encoding. The autofe package (from the ucs_ bundle) tries to select
-the font encoding automatically:
-
-.. code-block:: latex
-
-   \usepackage{autofe}
-
-A :ref:`complete LaTeX template <complete-latex-template>` can be
-found below.
-
-.. note::
-   LaTeX was never written with Unicode in mind. Hacks like the ucs
-   package make it possible to use it, but for the best possible
-   output consider using :program:`xelatex` or :program:`lualatex`
-   instead.
+  \usepackage{newunicodechar}
+  \newunicodechar{λ}{\ensuremath{\mathnormal\lambda}}
 
 Features
 --------
@@ -503,6 +496,7 @@ similarly also for other documents. Given two files
    % \usefonttheme[onlymath]{serif}
 
    \usepackage{latex/agda}
+   % Other setup related to Agda...
    \usepackage{catchfilebetweentags}
 
    \begin{document}
@@ -677,57 +671,7 @@ The unicode-math package and older versions of the polytable package
 to download a more up to date version of polytable_ and either put it
 with the generated files, or install it globally.
 
-.. _complete-latex-template:
-
-Complete LaTeX Template for Literate Agda with Unicode
--------------------------------------------------------
-
-This template has been tested under Debian and Ubuntu with TexLive,
-but should also work in other distributions. For :program:`xelatex` or
-:program:`lualatex`, only ``\usepackage{agda}`` should be needed.
-
-.. code-block:: latex
-
-   \documentclass{article}
-
-   \usepackage{agda}
-
-   % The following packages are needed because unicode
-   % is translated (using the next set of packages) to
-   % latex commands. You may need more packages if you
-   % use more unicode characters:
-
-   \usepackage{amssymb}
-   \usepackage{bbm}
-   \usepackage[greek,english]{babel}
-
-   % This handles the translation of unicode to latex:
-
-   \usepackage{ucs}
-   \usepackage[utf8]{inputenc}
-   \usepackage{autofe}
-
-   % Some characters that are not automatically defined
-   % (you figure out by the latex compilation errors you get),
-   % and you need to define:
-
-   \DeclareUnicodeCharacter{8988}{\ensuremath{\ulcorner}}
-   \DeclareUnicodeCharacter{8989}{\ensuremath{\urcorner}}
-   \DeclareUnicodeCharacter{8803}{\ensuremath{\overline{\equiv}}}
-
-   % Add more as you need them.
-
-   \begin{document}
-
-   \begin{code}
-    -- your Agda code goes here
-   \end{code}
-
-   \end{document}
-
-.. _ucs: https://www.ctan.org/pkg/ucs
 .. _polytable: https://www.ctan.org/pkg/polytable
 .. _hyperref: https://www.ctan.org/pkg/hyperref
-.. _XITS: https://www.ctan.org/tex-archive/fonts/xits/
 .. _catchfilebetweentags: https://www.ctan.org/pkg/catchfilebetweentags
 .. _ICU: http://site.icu-project.org/
