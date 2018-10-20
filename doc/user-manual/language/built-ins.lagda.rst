@@ -527,9 +527,9 @@ Binding the built-in equality type also enables the ``primErase`` primitive::
   primitive
     primErase : ∀ {a} {A : Set a} {x y : A} → x ≡ y → x ≡ y
 
-The function takes a proof of an equality between to values ``x`` and ``y`` and stays
+The function takes a proof of an equality between two values ``x`` and ``y`` and stays
 stuck on it until ``x`` and ``y`` actually become definitionally equal. Whenever that
-is the case, ``primErase _`` reduces to ``refl``.
+is the case, ``primErase e`` reduces to ``refl``.
 
 One use of ``primErase`` is to replace an equality proof computed using an expensive
 function (e.g. a proof by reflection) by one which is trivially ``refl`` on the diagonal.
