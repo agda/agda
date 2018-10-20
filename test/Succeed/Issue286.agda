@@ -17,7 +17,7 @@ data _≡_ {ℓ : Level} {A : Set ℓ} : A → A → Set ℓ where
 {-# BUILTIN EQUALITY _≡_  #-}
 
 primitive
-  primTrustMe : ∀ {a} {A : Set a} {x y : A} → x ≡ y
+  primErase : ∀ {a} {A : Set a} {x y : A} → x ≡ y → x ≡ y
 
 {-# BUILTIN STRING String #-}
 
@@ -30,7 +30,8 @@ data Maybe (A : Set) : Set where
 
 _≟_ : (s₁ s₂ : String) → Maybe (s₁ ≡ s₂)
 s₁ ≟ s₂ with primStringEquality s₁ s₂
-... | true  = just primTrustMe
+... | true  = just (primErase trustMe)
+  where postulate trustMe : _ ≡ _
 ... | false = nothing
 
 _≟′_ : (s₁ s₂ : String) → Maybe (s₁ ≡ s₂)

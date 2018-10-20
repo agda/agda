@@ -3,5 +3,8 @@
 module Agda.Builtin.TrustMe where
 
 open import Agda.Builtin.Equality
+open import Agda.Builtin.Erase
 
-primitive primTrustMe : ∀ {a} {A : Set a} {x y : A} → x ≡ y
+primTrustMe : ∀ {a} {A : Set a} {x y : A} → x ≡ y
+primTrustMe {x = x} {y} = primErase unsafePrimTrustMe
+  where postulate unsafePrimTrustMe : x ≡ y

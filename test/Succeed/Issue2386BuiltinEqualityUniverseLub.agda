@@ -9,12 +9,12 @@ data _≡_ {a b} {A : Set (a ⊔ b)} : (x y : A) → Set where
 
 -- Should be accepted
 
--- The type of primTrustMe has to match the flavor of EQUALITY
+-- The type of primErase has to match the flavor of EQUALITY
 
-primitive primTrustMe : ∀ {a b}{A : Set _} {x y : A} → x ≡ y
+primitive primErase : ∀ {a b}{A : Set (a ⊔ b)} {x y : A} → _≡_ x y → _≡_ x y
 
-testTM : ∀{A : Set} {a : A} → primTrustMe {x = a} {y = a} ≡ refl _
-testTM = refl _
+testTM : ∀ {a b} {A : Set (a ⊔ b)} {x : A} (eq : _≡_ {a} {b} x x) → primErase {x = x} {y = x} eq ≡ refl _
+testTM _ = refl _
 
 -- Testing rewrite
 

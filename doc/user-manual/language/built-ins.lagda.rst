@@ -514,7 +514,25 @@ Other variants of the identity type are also accepted as built-in:
   data _≡_ {A : Set} : (x y : A) → Set where
     refl : (x : A) → x ≡ x
 
-The type of ``primTrustMe`` has to match the flavor of identity type.
+The type of ``primErase`` has to match the flavor of identity type.
+
+.. _primErase:
+
+.. code-block:: agda
+
+  module Agda.Builtin.Erase
+
+Binding the built-in equality type also enables the ``primErase`` primitive::
+
+  primitive
+    primErase : ∀ {a} {A : Set a} {x y : A} → x ≡ y → x ≡ y
+
+The function takes a proof of an equality between to values ``x`` and ``y`` and stays
+stuck on it until ``x`` and ``y`` actually become definitionally equal. Whenever that
+is the case, ``primErase _`` reduces to ``refl``.
+
+One use of ``primErase`` is to replace an equality proof computed using an expensive
+function (e.g. a proof by reflection) by one which is trivially ``refl`` on the diagonal.
 
 .. _primtrustme:
 
@@ -525,13 +543,14 @@ primTrustMe
 
   module Agda.Builtin.TrustMe
 
-Binding the built-in equality type also enables the ``primTrustMe`` primitive::
+From the ``primErase`` primitive, we can derive a notion of ``primTrustMe``::
 
-  primitive
-    primTrustMe : ∀ {a} {A : Set a} {x y : A} → x ≡ y
+  primTrustMe : ∀ {a} {A : Set a} {x y : A} → x ≡ y
+  primTrustMe {x = x} {y} = primErase unsafePrimTrustMe
+    where postulate unsafePrimTrustMe : x ≡ y
 
 As can be seen from the type, ``primTrustMe`` must be used with the
-utmost care to avoid inconsistencies.  What makes it different from a
+utmost care to avoid inconsistencies. What makes it different from a
 postulate is that if ``x`` and ``y`` are actually definitionally
 equal, ``primTrustMe`` reduces to ``refl``. One use of ``primTrustMe``
 is to lift the primitive boolean equality on built-in types like
@@ -544,11 +563,6 @@ object::
                  else nothing
 
 With this definition ``eqString "foo" "foo"`` computes to ``just refl``.
-Another use case is to erase computationally expensive equality proofs and
-replace them by ``primTrustMe``::
-
-  eraseEquality : ∀ {a} {A : Set a} {x y : A} → x ≡ y → x ≡ y
-  eraseEquality _ = primTrustMe
 
 Universe levels
 ---------------

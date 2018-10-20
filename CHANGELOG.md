@@ -269,6 +269,10 @@ Pragmas and options
   statement is present in a mutual block we drop it and raise a warning instead
   of exiting with an error.
 
+* New primitive `primErase`. It takes a proof of equality and returns a proof of
+  the same equality. `primErase eq` reduces to `refl` on the diagonal. `trustMe`
+  is not a primitive anymore, it is implemented using `primErase`.
+
 Emacs mode
 ----------
 

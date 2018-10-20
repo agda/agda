@@ -1,3 +1,10 @@
 TrustMe.agda:15,29-33
-sym (sym primTrustMe) != primTrustMe of type x ≡ y
+sym
+(sym
+ (;Agda.Builtin.Erase.primErase
+  ;Agda.Builtin.TrustMe.unsafePrimTrustMe))
+!=
+;Agda.Builtin.Erase.primErase
+;Agda.Builtin.TrustMe.unsafePrimTrustMe
+of type x ≡ y
 when checking that the expression refl has type sym (sym eq) ≡ eq
