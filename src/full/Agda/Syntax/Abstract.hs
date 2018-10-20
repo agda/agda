@@ -1022,6 +1022,7 @@ instance NameToExpr AbstractName where
     where
     mk DefName        x = Def x
     mk GeneralizeName x = Def x
+    mk DisallowedGeneralizeName x = Def x
     mk FldName        x = Proj ProjSystem $ unambiguous x
     mk ConName        x = Con $ unambiguous x
     mk PatternSynName x = PatternSyn $ unambiguous x

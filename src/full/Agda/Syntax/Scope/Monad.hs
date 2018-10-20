@@ -678,9 +678,15 @@ mapRenaming
 mapRenaming src tgt (Renaming from to r) =
   Renaming (lookupImportedName from src) (lookupImportedName to tgt) r
 
+data OpenKind = LetOpenModule | TopOpenModule
+
+noGeneralizedVarsIfLetOpen :: OpenKind -> Scope -> Scope
+noGeneralizedVarsIfLetOpen TopOpenModule = id
+noGeneralizedVarsIfLetOpen LetOpenModule = disallowGeneralizedVars
+
 -- | Open a module.
-openModule_ :: C.QName -> C.ImportDirective -> ScopeM A.ImportDirective
-openModule_ cm dir = do
+openModule_ :: OpenKind -> C.QName -> C.ImportDirective -> ScopeM A.ImportDirective
+openModule_ kind cm dir = do
   current <- getCurrentModule
   m <- amodName <$> resolveModule cm
   let acc | not (publicOpen dir)      = PrivateNS
@@ -688,7 +694,9 @@ openModule_ cm dir = do
           | otherwise                 = ImportedNS
 
   -- Get the scope exported by module to be opened.
-  (adir, s') <- applyImportDirectiveM cm dir . inScopeBecause (Opened cm) . removeOnlyQualified . restrictPrivate =<< getNamedScope m
+  (adir, s') <- applyImportDirectiveM cm dir . inScopeBecause (Opened cm) .
+                noGeneralizedVarsIfLetOpen kind .
+                removeOnlyQualified . restrictPrivate =<< getNamedScope m
   let s  = setScopeAccess acc s'
   let ns = scopeNameSpace acc s
   modifyCurrentScope (`mergeScope` s)

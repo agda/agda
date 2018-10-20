@@ -246,6 +246,7 @@ data KindOfName
   | DefName        -- ^ Ordinary defined name.
   | PatternSynName -- ^ Name of a pattern synonym.
   | GeneralizeName -- ^ Name to be generalized
+  | DisallowedGeneralizeName -- ^ Generalizable variable from a let open
   | MacroName      -- ^ Name of a macro
   | QuotableName   -- ^ A name that can only be quoted.
   deriving (Eq, Show, Data, Enum, Bounded)
@@ -671,6 +672,14 @@ restrictLocalPrivate m = mapScope' PrivateNS (Map.mapMaybe rName) (Map.mapMaybe 
 -- | Remove names that can only be used qualified (when opening a scope)
 removeOnlyQualified :: Scope -> Scope
 removeOnlyQualified s = setNameSpace OnlyQualifiedNS emptyNameSpace s
+
+-- | Disallow using generalized variables from the scope
+disallowGeneralizedVars :: Scope -> Scope
+disallowGeneralizedVars = mapScope_ ((fmap . map) disallow) id id
+  where
+    disallow a = a { anameKind = disallowGen (anameKind a) }
+    disallowGen GeneralizeName = DisallowedGeneralizeName
+    disallowGen k              = k
 
 -- | Add an explanation to why things are in scope.
 inScopeBecause :: (WhyInScope -> WhyInScope) -> Scope -> Scope

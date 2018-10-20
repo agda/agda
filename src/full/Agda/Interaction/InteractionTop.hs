@@ -1492,6 +1492,7 @@ whyInScope s = display_info . Info_WhyInScope =<< do
         pKind FldName        = "record field"
         pKind PatternSynName = "pattern synonym"
         pKind GeneralizeName = "generalizable variable"
+        pKind DisallowedGeneralizeName = "generalizable variable from let open"
         pKind MacroName      = "macro name"
         pKind QuotableName   = "quotable name"
 

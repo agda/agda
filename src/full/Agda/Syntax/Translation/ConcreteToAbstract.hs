@@ -303,6 +303,7 @@ checkModuleMacro
       -> ScopeCopyInfo
       -> A.ImportDirective
       -> a)
+  -> OpenKind
   -> Range
   -> Access
   -> C.Name
@@ -310,7 +311,7 @@ checkModuleMacro
   -> OpenShortHand
   -> C.ImportDirective
   -> ScopeM [a]
-checkModuleMacro apply r p x modapp open dir = do
+checkModuleMacro apply kind r p x modapp open dir = do
     reportSDoc "scope.decl" 70 $ vcat $
       [ text $ "scope checking ModuleMacro " ++ prettyShow x
       ]
@@ -347,7 +348,7 @@ checkModuleMacro apply r p x modapp open dir = do
     -- Andreas, 2014-09-02 openModule_ might shadow some locals!
     adir <- case open of
       DontOpen -> return adir'
-      DoOpen   -> openModule_ (C.QName x) openDir
+      DoOpen   -> openModule_ kind (C.QName x) openDir
     printScope "mod.inst" 20 $ show open
     reportSDoc "scope.decl" 90 $ "after open   : m0 =" <+> prettyA m0
 
@@ -410,7 +411,7 @@ checkOpen r x dir = do
 
   m <- toAbstract (OldModuleName x)
   printScope "open" 20 $ "opening " ++ prettyShow x
-  adir <- openModule_ x dir
+  adir <- openModule_ TopOpenModule x dir
   printScope "open" 20 $ "result:"
   let minfo = ModuleInfo
         { minfoRange     = r
@@ -538,11 +539,16 @@ instance ToAbstract OldQName A.Expr where
         mstr <- Map.lookup (anameName d) <$> getUserWarnings
         forM_ mstr (warning . UserWarning)
         -- then we take note of generalized names used
-        when (anameKind d == GeneralizeName) $ do
+        case anameKind d of
+          GeneralizeName -> do
             gvs <- useTC stGeneralizedVars
             case gvs of
                 Just s -> stGeneralizedVars `setTCLens` Just (Set.insert (anameName d) s)
                 Nothing -> typeError $ GeneralizeNotSupportedHere $ anameName d
+          DisallowedGeneralizeName -> do
+            typeError . GenericDocError =<<
+              text "Cannot use generalized variable from let-opened module:" <+> prettyTCM (anameName d)
+          _ -> return ()
         -- and then we return the name
         return $ nameExpr d
       FieldName     ds     -> return $ A.Proj ProjPrefix $ AmbQ (fmap anameName ds)
@@ -958,7 +964,7 @@ instance ToAbstract C.ModuleAssignment (A.ModuleName, [A.LetBinding]) where
     | null es && isDefaultImportDir i = (, []) <$> toAbstract (OldModuleName m)
     | otherwise = do
         x <- C.NoName (getRange m) <$> fresh
-        r <- checkModuleMacro LetApply (getRange (m, es, i)) PublicAccess x
+        r <- checkModuleMacro LetApply LetOpenModule (getRange (m, es, i)) PublicAccess x
                           (C.SectionApp (getRange (m , es)) [] (RawApp (fuseRange m es) (Ident m : es)))
                           DontOpen i
         case r of
@@ -1034,7 +1040,7 @@ scopeCheckNiceModule r p name tel checkDs
       -- unless it's private, in which case we just open it (#2099)
       when open $
        void $ -- We can discard the returned default A.ImportDirective.
-        openModule_ (C.QName name) $
+        openModule_ TopOpenModule (C.QName name) $
           defaultImportDir { publicOpen = p == PublicAccess }
       return ds
 
@@ -1361,7 +1367,7 @@ instance ToAbstract LetDef [A.LetBinding] where
       NiceOpen r x dirs -> do
         when (publicOpen dirs) $ warning UselessPublic
         m    <- toAbstract (OldModuleName x)
-        adir <- openModule_ x dirs
+        adir <- openModule_ LetOpenModule x dirs
         let minfo = ModuleInfo
               { minfoRange  = r
               , minfoAsName = Nothing
@@ -1375,7 +1381,7 @@ instance ToAbstract LetDef [A.LetBinding] where
         when (publicOpen dir) $ warning UselessPublic
         -- Andreas, 2014-10-09, Issue 1299: module macros in lets need
         -- to be private
-        checkModuleMacro LetApply r (PrivateAccess Inserted) x modapp open dir
+        checkModuleMacro LetApply LetOpenModule r (PrivateAccess Inserted) x modapp open dir
 
       _   -> notAValidLetBinding d
     where
@@ -1546,8 +1552,6 @@ instance ToAbstract NiceDeclaration A.Declaration where
         createModule (Just IsData) m
         bindModule p x m  -- make it a proper module
         cons <- toAbstract (map (ConstrDecl NoRec m a p) cons)
-        -- Open the module
-        -- openModule_ (C.QName x) defaultImportDir{ publicOpen = True }
         printScope "data" 20 $ "Checked data " ++ prettyShow x
         return [ A.DataDef (mkDefInfo x f PublicAccess a r) x' uc pars cons ]
       where
@@ -1618,7 +1622,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
         [ text $ "scope checking NiceModuleMacro " ++ prettyShow x
         ]
 
-      adecls <- checkModuleMacro Apply r p x modapp open dir
+      adecls <- checkModuleMacro Apply TopOpenModule r p x modapp open dir
 
       reportSDoc "scope.decl" 70 $ vcat $
         [ text $ "scope checked NiceModuleMacro " ++ prettyShow x
@@ -2096,7 +2100,7 @@ whereToAbstract r whname whds inner = do
   let anonymousSomeWhere = maybe False (isNoName . fst) whname
   when anonymousSomeWhere $
    void $ -- We can ignore the returned default A.ImportDirective.
-    openModule_ (C.QName m) $
+    openModule_ TopOpenModule (C.QName m) $
       defaultImportDir { publicOpen = True }
   return (x, A.WhereDecls (am <$ whname) ds)
 

@@ -93,6 +93,7 @@ instance EmbPrj KindOfName where
   icod_ QuotableName   = icodeN 4 QuotableName
   icod_ MacroName      = icodeN 5 MacroName
   icod_ GeneralizeName = icodeN 6 GeneralizeName
+  icod_ DisallowedGeneralizeName = icodeN 7 DisallowedGeneralizeName
 
   value = vcase valu where
     valu []  = valuN DefName
@@ -102,6 +103,7 @@ instance EmbPrj KindOfName where
     valu [4] = valuN QuotableName
     valu [5] = valuN MacroName
     valu [6] = valuN GeneralizeName
+    valu [7] = valuN DisallowedGeneralizeName
     valu _   = malformed
 
 instance EmbPrj Binder where

@@ -1,0 +1,3 @@
+Issue3292b.agda:21,9-10
+Cannot use generalized variable from let-opened module: x
+when scope checking x
