@@ -14,16 +14,17 @@ import Data.Text.Lazy (Text)
 import qualified Data.Text.Lazy as T
 
 import Agda.Utils.FileName
+import Agda.Utils.IO.UTF8 (readTextFile)
 
 type Hash = Word64
 
 hashByteString :: ByteString -> Hash
 hashByteString = H.asWord64 . B.foldl' (\h b -> H.combine h (H.hashWord8 b)) (H.hashWord8 0)
 
-hashFile :: AbsolutePath -> IO Hash
-hashFile file = do
-  s <- B.readFile (filePath file)
-  return $ hashByteString s
+hashTextFile :: AbsolutePath -> IO Hash
+hashTextFile file = do
+  s <- readTextFile (filePath file)
+  return $ hashText s
 
 -- | Hashes a piece of 'Text'.
 
