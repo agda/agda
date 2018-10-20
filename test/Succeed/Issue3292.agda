@@ -25,3 +25,7 @@ open Vars Nat
 
 check : Param.ret Nat ≡ Fixed.ret {x = x}
 check = refl
+
+-- Check that you can let open as long as you don't use the variables
+foo : (A : Set) (let open Vars A) (x : A) → x ≡ x
+foo A x = refl
