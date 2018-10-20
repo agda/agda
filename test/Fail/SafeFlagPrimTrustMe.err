@@ -1,4 +1,4 @@
-agda-default-include-path/Agda/Builtin/TrustMe.agda:10,19-44
+agda-default-include-path/Agda/Builtin/TrustMe.agda:10,5-60
 Cannot postulate unsafePrimTrustMe with safe flag
 when scope checking the declaration
-  unsafePrimTrustMe : x ≡ y
+  unsafePrimTrustMe : ∀ {a} {A : Set a} {x y : A} → x ≡ y
