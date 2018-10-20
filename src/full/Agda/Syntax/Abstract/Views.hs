@@ -273,6 +273,11 @@ instance ExprLike LamBinding where
       DomainFree{}  -> pure e
       DomainFull bs -> DomainFull <$> traverseExpr f bs
 
+instance ExprLike GeneralizeTelescope where
+  recurseExpr  f (GeneralizeTel s tel) = GeneralizeTel s <$> recurseExpr f tel
+  foldExpr     f (GeneralizeTel s tel) = foldExpr f tel
+  traverseExpr f (GeneralizeTel s tel) = GeneralizeTel s <$> traverseExpr f tel
+
 instance ExprLike TypedBindings where
   recurseExpr  f (TypedBindings r b) = TypedBindings r <$> recurseExpr f b
   foldExpr     f (TypedBindings r b) = foldExpr f b

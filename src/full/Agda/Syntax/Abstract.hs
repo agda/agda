@@ -166,15 +166,16 @@ instance Pretty ScopeCopyInfo where
 
 data Declaration
   = Axiom      Axiom DefInfo ArgInfo (Maybe [Occurrence]) QName Expr
-  | Generalize (Set.Set QName) DefInfo ArgInfo QName Expr
     -- ^ Type signature (can be irrelevant, but not hidden).
     --
     -- The fourth argument contains an optional assignment of
     -- polarities to arguments.
+  | Generalize (Set.Set QName) DefInfo ArgInfo QName Expr
+    -- ^ First argument is set of generalizable variables used in the type.
   | Field      DefInfo QName (Arg Expr)              -- ^ record field
   | Primitive  DefInfo QName Expr                    -- ^ primitive function
   | Mutual     MutualInfo [Declaration]              -- ^ a bunch of mutually recursive definitions
-  | Section    ModuleInfo ModuleName [TypedBindings] [Declaration]
+  | Section    ModuleInfo ModuleName GeneralizeTelescope [Declaration]
   | Apply      ModuleInfo ModuleName ModuleApplication ScopeCopyInfo ImportDirective
     -- ^ The @ImportDirective@ is for highlighting purposes.
   | Import     ModuleInfo ModuleName ImportDirective
@@ -309,6 +310,13 @@ data TypedBinding
 
 
 type Telescope  = [TypedBindings]
+
+data GeneralizeTelescope = GeneralizeTel
+  { generalizeTelVars :: Map QName Name
+    -- ^ Maps generalize variables to the corresponding bound variable (to be
+    --   introduced by the generalisation).
+  , generalizeTel     :: Telescope }
+  deriving (Data, Show, Eq)
 
 -- | A user pattern together with an internal term that it should be equal to
 --   after splitting is complete.
@@ -718,6 +726,9 @@ instance KillRange LamBinding where
   killRange (DomainFree info x) = killRange1 (DomainFree info) x
   killRange (DomainFull b)      = killRange1 DomainFull b
 
+instance KillRange GeneralizeTelescope where
+  killRange (GeneralizeTel s tel) = GeneralizeTel s (killRange tel)
+
 instance KillRange TypedBindings where
   killRange (TypedBindings r b) = TypedBindings (killRange r) (killRange b)
 
@@ -1055,9 +1066,6 @@ patternToExpr (WithP r p)         = __IMPOSSIBLE__
 
 type PatternSynDefn = ([Arg Name], Pattern' Void)
 type PatternSynDefns = Map QName PatternSynDefn
-
-type GeneralizableDefn = (Set.Set QName, Arg Expr)
-type GeneralizableDefns = Map QName GeneralizableDefn
 
 lambdaLiftExpr :: [Name] -> Expr -> Expr
 lambdaLiftExpr []     e = e

@@ -582,6 +582,11 @@ data Interaction' range
 
   | Cmd_goal_type       B.Rewrite InteractionId range String
 
+  -- | Grabs the current goal's type and checks the expression in the hole
+  -- against it. Returns the elaborated term.
+  | Cmd_elaborate_give
+                        B.Rewrite InteractionId range String
+
     -- | Displays the current goal and context.
   | Cmd_goal_type_context B.Rewrite InteractionId range String
 
@@ -750,6 +755,7 @@ updateInteractionPointsAfter Cmd_context{}                       = False
 updateInteractionPointsAfter Cmd_helper_function{}               = False
 updateInteractionPointsAfter Cmd_infer{}                         = False
 updateInteractionPointsAfter Cmd_goal_type{}                     = False
+updateInteractionPointsAfter Cmd_elaborate_give{}                = True
 updateInteractionPointsAfter Cmd_goal_type_context{}             = False
 updateInteractionPointsAfter Cmd_goal_type_context_infer{}       = False
 updateInteractionPointsAfter Cmd_goal_type_context_check{}       = False
@@ -1003,6 +1009,18 @@ interpret (Cmd_goal_type norm ii _ _) =
   display_info . Info_CurrentGoal
     =<< liftLocalState (B.withInteractionId ii $ prettyTypeOfMeta norm ii)
 
+interpret (Cmd_elaborate_give norm ii rng s) = do
+  have <- liftLocalState $ B.withInteractionId ii $ do
+    expr <- B.parseExprIn ii rng s
+    goal <- B.typeOfMeta AsIs ii
+    term <- case goal of
+      OfType _ ty -> checkExpr expr =<< isType_ ty
+      _           -> __IMPOSSIBLE__
+    nf <- normalForm norm term
+    txt <- localTC (\ e -> e { envPrintMetasBare = True }) (TCP.prettyTCM nf)
+    return $ show txt
+  give_gen WithoutForce ii rng have ElaborateGive
+
 interpret (Cmd_goal_type_context norm ii rng s) =
   cmd_goal_type_context_and empty norm ii rng s
 
@@ -1243,7 +1261,7 @@ instance Read CompilerBackend where
               _            -> OtherBackend t
     return (b, s)
 
-data GiveRefine = Give | Refine | Intro
+data GiveRefine = Give | Refine | Intro | ElaborateGive
   deriving (Eq, Show)
 
 -- | A "give"-like action (give, refine, etc).
@@ -1269,9 +1287,10 @@ give_gen force ii rng s0 giveRefine = do
   unless (null s) $ do
     let give_ref =
           case giveRefine of
-            Give   -> B.give
-            Refine -> B.refine
-            Intro  -> B.refine
+            Give          -> B.give
+            Refine        -> B.refine
+            Intro         -> B.refine
+            ElaborateGive -> B.give
     -- save scope of the interaction point (for printing the given expr. later)
     scope     <- lift $ getInteractionScope ii
     -- parse string and "give", obtaining an abstract expression
@@ -1305,7 +1324,7 @@ give_gen force ii rng s0 giveRefine = do
     -- WRONG: let literally = (giveRefine == Give || null iis) && rng /= noRange
     -- Ulf, 2015-03-30, if we're doing intro we can't do literal give since
     -- there is nothing in the hole (issue 1892).
-    let literally = giveRefine /= Intro && ae == ae0 && rng /= noRange
+    let literally = giveRefine /= Intro && giveRefine /= ElaborateGive && ae == ae0 && rng /= noRange
     -- Ulf, 2014-01-24: This works for give since we're highlighting the string
     -- that's already in the buffer. Doing it before the give action means that
     -- the highlighting is moved together with the text when the hole goes away.

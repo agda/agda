@@ -49,6 +49,7 @@ validDir base =
     map (\d -> filePath /=? base </> d)
         [ "_darcs", ".git", "std-lib", "test/bugs"
         , "test/Succeed/LineEndings"
+        , "examples/uptodate"
         ])
 
 -- Andreas (24 Sep 2014).

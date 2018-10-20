@@ -5,7 +5,7 @@
 \ProvidesPackage{agda}
 
 \RequirePackage{ifxetex, ifluatex, xifthen, xcolor, polytable, etoolbox,
-                calc, environ}
+                calc, environ, xparse}
 
 % https://tex.stackexchange.com/questions/47576/combining-ifxetex-and-ifluatex-with-the-logical-or-operation
 \newif\ifxetexorluatex
@@ -35,84 +35,13 @@
   \@AgdaEnableLinkstrue
 }
 
-% If the "nofontsetup" option is used, then the package does not
-% select any fonts, and it does not change the font encoding.
-\newif\if@AgdaSetupFonts\@AgdaSetupFontstrue
-\DeclareOption{nofontsetup}{
-  \@AgdaSetupFontsfalse
-}
-
-% If the "noinputencodingsetup" option is used, then the package does
-% not change the input encoding, and it does not load the `ucs`
-% package.
-\newif\if@AgdaSetupInputEncoding\@AgdaSetupInputEncodingtrue
-\DeclareOption{noinputencodingsetup}{
-  \@AgdaSetupInputEncodingfalse
-}
-
 \ProcessOptions\relax
-
-% ----------------------------------------------------------------------
-% Input encoding setup
-
-\if@AgdaSetupInputEncoding
-  \ifxetexorluatex
-
-    \providecommand{\DeclareUnicodeCharacter}[2]{\relax}
-
-  \else
-
-    \RequirePackage{ucs}
-    \RequirePackage[utf8x]{inputenc}
-
-  \fi
-\fi
 
 % ----------------------------------------------------------------------
 % Font setup
 
 \tracinglostchars=2 % If the font is missing some symbol, then say
                     % so in the compilation output.
-
-\if@AgdaSetupFonts
-  % XeLaTeX or LuaLaTeX
-  \ifxetexorluatex
-
-    % Hack to get the amsthm package working.
-    % https://tex.stackexchange.com/questions/130491/xelatex-error-paragraph-ended-before-tempa-was-complete
-    \let\AgdaOpenBracket\[\let\AgdaCloseBracket\]
-    \RequirePackage{fontspec}
-    \let\[\AgdaOpenBracket\let\]\AgdaCloseBracket
-    \RequirePackage{unicode-math}
-
-    \setmainfont
-      [ Ligatures      = TeX
-      , BoldItalicFont = xits-bolditalic.otf
-      , BoldFont       = xits-bold.otf
-      , ItalicFont     = xits-italic.otf
-      ]
-      {xits-regular.otf}
-
-    \setmathfont{xits-math.otf}
-    \setmonofont[Mapping=tex-text]{FreeMono.otf}
-
-    % Make mathcal and mathscr appear as different.
-    % https://tex.stackexchange.com/questions/120065/xetex-what-happened-to-mathcal-and-mathscr
-    \setmathfont[range={\mathcal,\mathbfcal},StylisticSet=1]{xits-math.otf}
-    \setmathfont[range=\mathscr]{xits-math.otf}
-
-  % pdfLaTeX
-  \else
-
-    % https://tex.stackexchange.com/questions/1774/how-to-insert-pipe-symbol-in-latex
-    \RequirePackage[T1]{fontenc}
-
-    \RequirePackage{amsfonts, amssymb}
-    \RequirePackage[safe]{tipa} % See page 12 of the tipa manual for what
-                                % safe does.
-
-  \fi
-\fi
 
 % ----------------------------------------------------------------------
 % Colour schemes.
@@ -606,11 +535,37 @@
 %
 % Code can be hidden by writing \begin{code}[hide].
 %
+% Inline code can be emitted by writing \begin{code}[inline]. In this
+% case most of the discussion above does not apply, alignment is not
+% respected, and so on. It is recommended to only use this option for
+% a single line of code, and to not use two consecutive spaces in this
+% piece of code.
+%
+% Note that this environment ignores spaces after its end. If a space
+% (\AgdaSpace{}) should be inserted after the inline code, use inline*
+% instead of inline.
+%
 % The implementation is based on plainhscode in lhs2TeX's
 % polycode.fmt, written by Andres Löh.
 \NewEnviron{code}[1][]{%
   % Conditionally hide the code.
   \ifthenelse{\equal{#1}{hide}}{}{%
+  \ifthenelse{\equal{#1}{inline}}{%
+    % Inline code.
+    %
+    % Make the polytable primitives emitted by the LaTeX backend
+    % do nothing.
+    \DeclareDocumentCommand{\>}{O{}O{}}{}%
+    \DeclareDocumentCommand{\<}{O{}}{}%
+    \AgdaCodeStyle\BODY}{%
+  \ifthenelse{\equal{#1}{inline*}}{%
+    % Inline code with space at the end.
+    %
+    \DeclareDocumentCommand{\>}{O{}O{}}{}%
+    \DeclareDocumentCommand{\<}{O{}}{}%
+    \AgdaCodeStyle\BODY\AgdaSpace{}}{%
+    %
+    % Displayed code.
     %
     % Conditionally emit space before the code block. Unconditionally
     % switch to a new line.
@@ -658,7 +613,7 @@
       \Agda@NewlineWithVerticalSpace{0pt}}%
     %
     % Step the code block counter, but only for non-hidden code.
-    \stepcounter{Agda@Current}}}
+    \stepcounter{Agda@Current}}}}}
 
 % Space inserted after tokens.
 \newcommand{\AgdaSpace}{ }

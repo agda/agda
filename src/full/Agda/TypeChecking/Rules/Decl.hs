@@ -95,8 +95,8 @@ import Agda.Utils.Impossible
 -- | Cached checkDecl
 checkDeclCached :: A.Declaration -> TCM ()
 checkDeclCached d@A.ScopedDecl{} = checkDecl d
-checkDeclCached d@(A.Section minfo mname tbinds _) = do
-  e <- readFromCachedLog
+checkDeclCached d@(A.Section minfo mname (A.GeneralizeTel _ tbinds) _) = do
+  e <- readFromCachedLog  -- Can ignore the set of generalizable vars (they occur in the telescope)
   reportSLn "cache.decl" 10 $ "checkDeclCached: " ++ show (isJust e)
   case e of
     Just (EnterSection minfo' mname' tbinds', _)
@@ -542,7 +542,7 @@ checkGeneralize s i info x e = do
       ]
 
     addConstant x $ (defaultDefn info x tGen GeneralizableVar)
-                    { defArgGeneralizable = replicate n YesGeneralize }
+                    { defArgGeneralizable = SomeGeneralizableArgs n }
 
 
 -- | Type check an axiom.
@@ -777,7 +777,7 @@ checkTypeSignature _ = __IMPOSSIBLE__   -- type signatures are always axioms
 
 -- | Type check a module.
 
-checkSection :: Info.ModuleInfo -> ModuleName -> A.Telescope -> [A.Declaration] -> TCM ()
+checkSection :: Info.ModuleInfo -> ModuleName -> A.GeneralizeTelescope -> [A.Declaration] -> TCM ()
 checkSection _ x tel ds = newSection x tel $ mapM_ checkDeclCached ds
 
 
@@ -1003,7 +1003,7 @@ debugPrintDecl d = do
         A.Section info mname tel ds -> do
           reportSLn "tc.decl" 45 $
             "section " ++ prettyShow mname ++ " has "
-              ++ show (length tel) ++ " parameters and "
+              ++ show (length $ A.generalizeTel tel) ++ " parameters and "
               ++ show (length ds) ++ " declarations"
           reportSDoc "tc.decl" 45 $ prettyA $ A.Section info mname tel []
           forM_ ds $ \ d -> do

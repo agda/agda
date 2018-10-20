@@ -902,7 +902,7 @@ instance ToConcrete A.Declaration [C.Declaration] where
 
   toConcrete (A.Mutual i ds) = declsToConcrete ds
 
-  toConcrete (A.Section i x tel ds) = do
+  toConcrete (A.Section i x (A.GeneralizeTel _ tel) ds) = do
     x <- toConcrete x
     bindToConcrete tel $ \tel -> do
       ds <- declsToConcrete ds

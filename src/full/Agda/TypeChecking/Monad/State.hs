@@ -28,7 +28,7 @@ import Agda.Interaction.Response
 import Agda.Syntax.Common
 import Agda.Syntax.Scope.Base
 import qualified Agda.Syntax.Concrete.Name as C
-import Agda.Syntax.Abstract (PatternSynDefn, PatternSynDefns, GeneralizableDefn, GeneralizableDefns)
+import Agda.Syntax.Abstract (PatternSynDefn, PatternSynDefns)
 import Agda.Syntax.Abstract.PatternSynonyms
 import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Internal

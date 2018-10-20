@@ -4,7 +4,7 @@
 Generating LaTeX
 ****************
 
-An experimental LaTeX-backend was added in Agda 2.3.2. It can be used
+An experimental LaTeX backend was added in Agda 2.3.2. It can be used
 as follows:
 
 .. code-block:: console
@@ -16,16 +16,16 @@ as follows:
 where :samp:`{latex-compiler}` could be :program:`pdflatex`,
 :program:`xelatex` or :program:`lualatex`, and :samp:`{file}.lagda` is a
 :ref:`literate Agda TeX file <literate-agda-tex>`. The source file
-must import the agda latex package by including the line
+is expected to import the LaTeX package ``agda`` by including the line
 ``\usepackage{agda}``.  Only the top-most module is processed, like
 with lhs2tex but unlike with the :ref:`HTML-backend
 <generating-html>`. If you want to process imported modules you have
 to call ``agda --latex`` manually on each of those modules.
 
-The latex-backend checks if :file:`agda.sty` is found by the latex
+The LaTeX backend checks if :file:`agda.sty` is found by the LaTeX
 environment. If it isn't, a default :file:`agda.sty` is copied from
 Agda’s data directory into the working directory (and thus made
-available to the latex environment). Colors, fonts, spacing etc can be
+available to the LaTeX environment). Colors, fonts, spacing etc can be
 modified by editing :file:`agda.sty` and putting it somewhere where
 the latex environment can find it.
 
@@ -41,7 +41,7 @@ inserting the following code in the preamble of your source file:
 .. code-block:: latex
 
    \usepackage{ucs}
-   \usepackage[utf8x]{inputenc}
+   \usepackage[utf8]{inputenc}
 
 Unicode characters are translated to LaTeX commands, so e.g. the
 following packages might be needed. You may need more packages if you
@@ -73,11 +73,10 @@ A :ref:`complete LaTeX template <complete-latex-template>` can be
 found below.
 
 .. note::
-   LaTeX was never written with unicode in mind. Hacks like the ucs
-   package makes it possible to use them, but for the best possible
+   LaTeX was never written with Unicode in mind. Hacks like the ucs
+   package make it possible to use it, but for the best possible
    output consider using :program:`xelatex` or :program:`lualatex`
-   instead. If you do, :file:`agda.sty` is using the more complete
-   XITS_ font by default.
+   instead.
 
 Features
 --------
@@ -93,6 +92,37 @@ giving the argument ``hide`` to the code block:
    \begin{code}[hide]
    -- the code here will not be part of the final document
    \end{code}
+
+Inline code
+~~~~~~~~~~~
+
+Code can be typeset inline by giving the argument ``inline`` to the
+code block:
+
+.. code-block:: lagda
+
+  Assume that we are given a type
+  %
+  \begin{code}[hide]
+    module _ (
+  \end{code}
+  \begin{code}[inline]
+      A : Set
+  \end{code}
+  \begin{code}[hide]
+      ) where
+  \end{code}
+  %
+  .
+
+There is also a variant of ``inline``, ``inline*``. If ``inline*`` is
+used, then space (``\AgdaSpace{}``) is added at the end of the code,
+and when ``inline`` is used space is not added.
+
+The implementation of these options is a bit of a hack. Only use these
+options for typesetting a single line of code without multiple
+consecutive whitespace characters (except at the beginning of the
+line).
 
 Alignment
 ~~~~~~~~~
@@ -298,16 +328,17 @@ The borders around the links can be suppressed using hyperref's
    when using the links option at the moment. This might get fixed in
    the future.
 
-Typesetting inline code
-~~~~~~~~~~~~~~~~~~~~~~~
+Another way to typeset inline code
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The backend only typesets code inside code blocks; inline code has
-to be typeset manually, e.g.:
+An alternative to using ``inline`` and ``inline*`` is to typeset code
+manually. Here is an example:
 
 .. code-block:: lagda
 
-   Below we postulate a set called \AgdaDatatype{apa}.
-
+   Below we postulate the existence of a type called
+   \AgdaPostulate{apa}:
+   %
    \begin{code}
      postulate apa : Set
    \end{code}
@@ -370,7 +401,7 @@ Here is a full example, consisting of a Literate Agda file
    \begin{document}
 
    Here we postulate \AgdaRef{apa}.
-
+   %
    \begin{code}
      postulate apa : Set
    \end{code}
@@ -565,14 +596,6 @@ The following options can be given when loading ``agda.sty`` by using
 ``conor``
   Colour scheme similar to the colours used in Epigram1.
 
-``nofontsetup``
-  Instructs the package to not select any fonts, and to not change the
-  font encoding.
-
-``noinputencodingsetup``
-  Instructs the package to not change the input encoding, and to not
-  load the `ucs` package.
-
 ``references``
   Enables :ref:`inline typesetting <latex-inline-references>` of
   referenced code.
@@ -681,7 +704,7 @@ but should also work in other distributions. For :program:`xelatex` or
    % This handles the translation of unicode to latex:
 
    \usepackage{ucs}
-   \usepackage[utf8x]{inputenc}
+   \usepackage[utf8]{inputenc}
    \usepackage{autofe}
 
    % Some characters that are not automatically defined
@@ -692,7 +715,7 @@ but should also work in other distributions. For :program:`xelatex` or
    \DeclareUnicodeCharacter{8989}{\ensuremath{\urcorner}}
    \DeclareUnicodeCharacter{8803}{\ensuremath{\overline{\equiv}}}
 
-   % Add more as you need them (shouldn't happen often).
+   % Add more as you need them.
 
    \begin{document}
 

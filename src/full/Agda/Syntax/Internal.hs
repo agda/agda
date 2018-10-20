@@ -451,7 +451,9 @@ data Pattern' x
   | ProjP ProjOrigin QName
     -- ^ Projection copattern.  Can only appear by itself.
   | IApplyP PatOrigin Term Term x
+    -- ^ Path elimination pattern, like @VarP@ but keeps track of endpoints.
   | DefP PatOrigin QName [NamedArg (Pattern' x)]
+    -- ^ Used for HITs, the QName should be the one from primHComp.
   deriving (Data, Show, Functor, Foldable, Traversable)
 
 type Pattern = Pattern' PatVarName

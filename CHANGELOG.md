@@ -11,6 +11,123 @@ Installation and infrastructure
 Type checking and interaction
 -----------------------------
 
+* Agda now supports implicit generalization of declared variables
+  [Issue [#1706](https://github.com/agda/agda/issues/1706)].
+
+  Variables to be generalized can declared with the new keyword `variable`.
+  For example:
+  ```agda
+    postulate
+        Con : Set
+
+    variable
+        Γ Δ : Con
+  ```
+
+  Declared variables are automatically generalized in type signatures:
+  ```agda
+    postulate
+        Sub : Con → Con → Set
+
+        id  : Sub Γ Γ
+    --  -- equivalent to
+    --  id  : {Γ : Con} → Sub Γ Γ
+
+        _∘_ : Sub Θ Δ → Sub Γ Θ → Sub Γ Δ
+    --  -- equivalent to
+    --  _∘_ : {Γ Δ Θ : Con} → Sub Θ Δ → Sub Γ Θ → Sub Γ Δ
+  ```
+  Note that each type signature has a separate copy of its declared variables,
+  so `id` and `_∘_` refer to two different `Γ` named variables.
+
+  The following rules are used to place the generalized variables:
+
+    - Generalized variables are placed in the front of the type signatures.
+    - Variables defined sooner are placed before variables defined later.
+      (The dependencies between the variables are obeyed. The current implementation
+      uses "smallest-numbered available vertex first" topological sorting to determine
+      the exact order.)
+
+  `variable` allows metavariables in the type of declared variables.
+  For example:
+  ```agda
+    postulate
+        Con : Set
+        Ty  : Con → Set
+        Sub : Con → Con → Set
+        _▹_ : (Γ : Con) → Ty Γ → Con
+
+    variable
+        Γ Δ : Con
+        A : Ty _       -- note the underscore here
+
+    postulate
+        π₁ : Sub Γ (Δ ▹ A) → Sub Γ Δ
+    --  -- equivalent to
+    --  π₁ : {Γ Δ : Con}{A : Ty Δ} → Sub Γ (Δ ▹ A) → Sub Γ Δ
+    --  -- note that the metavariable was solved with Δ
+  ```
+  Note that each type signature has a separate copy of such metavariables,
+  so the underscore in `Ty _` can be solved differently for each type signature
+  which mentions `A`.
+
+  Unsolved metavariables originated from `variable` are generalized.
+  For example:
+  ```agda
+    postulate
+        Con : Set
+        Sub : Con → Con → Set
+
+    variable
+        σ δ ν : Sub _ _   -- metavariables: σ.1, σ.2, δ.1, δ.2, ν.1, ν.2
+
+    postulate
+        ass : (σ ∘ δ) ∘ ν ≡ σ ∘ (δ ∘ ν)
+    --  -- equivalent to
+    --  ass : {σ.1 σ.2 δ.1 ν.1 : Con}
+    --        {σ : Sub σ.1 σ.2}{δ : Sub δ.1 σ.1}{ν : Sub ν.1 δ.1}
+    --      → (σ ∘ δ) ∘ ν ≡ σ ∘ (δ ∘ ν)
+  ```
+  Note that `δ.2` was solved with `σ.1` and `ν.2` was solved with `δ.1`.
+  If two generalizable metavariables can be solved with each-other then
+  the metavariable defined later will be eliminated.
+
+  Hierarchical names like `δ.2` are used so one can track the origin of
+  the metavariables.
+  Currently it is not allowed to use hierarchical names when giving parameters
+  to functions, see [Issue [#3280](https://github.com/agda/agda/issues/3280)].
+
+  Name hints of parameters are used for naming generalizable metavariables too:
+  ```agda
+    postulate
+        Con : Set
+        Sub : (Γ Δ : Con) → Set   -- name hints for parameters of Sub
+
+    variable
+        σ δ ν : Sub _ _   -- metavariables: σ.Γ, σ.Δ, δ.Γ, δ.Δ, ν.Γ, ν.Δ
+  ```
+
+  If a generalizable metavariable M is solved with term T then M is not
+  generalized, but metavariables in T became candidates for generalization.
+
+  It is allowed to nest declared variables.
+  For example:
+  ```agda
+    variable
+        ℓ : Level     -- let ℓ denote a level
+        A : Set ℓ     -- let A denote a set at a level ℓ
+
+    postulate
+        f : A → Set ℓ
+    --  -- equivalent to
+    --  f : {ℓ ℓ' : Level}{A : Set ℓ'} → A → Set ℓ
+
+  ```
+
+  Issues related to this feature are marked with `generalize` in the issue tracker:
+  https://github.com/agda/agda/labels/generalize
+
+
 * Out-of-scope identifiers are now prefixed by a ';' semicolon
   [Issue [#3127](https://github.com/agda/agda/issues/3127)].
   They used to be prefixed by a '.' dot which could be confused
@@ -63,6 +180,10 @@ Type checking and interaction
 
 * 'Solve constraints' (C-c C-s) now turns unsolved metavariables into new
   interaction holes (see Issue [#2273](https://github.com/agda/agda/issues/2273)).
+
+* A new command `agda2-elaborate-give` (C-c C-m) normalizes a goal input
+  (it repects the C-u prefixes), type checks, and inserts the normalized
+  term into the goal.
 
 Pragmas and options
 -------------------
@@ -172,6 +293,16 @@ Emacs mode
 LaTeX backend
 -------------
 
+* The code environment has two new options, `inline` and `inline*`.
+
+  These options are for typesetting inline code. The implementation of
+  these options is a bit of a hack. Only use these options for
+  typesetting a single line of code without multiple consecutive
+  whitespace characters (except at the beginning of the line).
+
+  When the option `inline*` is used space (`\AgdaSpace{}`) is added at
+  the end of the code, and when `inline` is used space is not added.
+
 * Now highlighting commands for things like "this is an unsolved
   meta-variable" are applied on the outside of highlighting commands
   for things like "this is a postulate" [Issue
@@ -180,6 +311,22 @@ LaTeX backend
   Example: Instead of generating
   `\AgdaPostulate{\AgdaUnsolvedMeta{F}}` Agda now generates
   `\AgdaUnsolvedMeta{\AgdaPostulate{F}}`.
+
+* The package `agda.sty` no longer selects any fonts, and no longer
+  changes the input or font encodings [Issue
+  [#3224](https://github.com/agda/agda/issues/3224)].
+
+  The new behaviour is the same as the old behaviour with the options
+  `nofontsetup` and `noinputencodingsetup`. These options have been
+  removed.
+
+  One reason for this change is that several persons have received
+  complaints from reviewers because they have unwittingly used
+  non-standard fonts in submitted papers. Another is that the `utf8x`
+  option to `inputenc` is now deprecated.
+
+  Note that Agda code is now less likely to typeset properly out of
+  the box.
 
 Release notes for Agda version 2.5.4.2
 ======================================

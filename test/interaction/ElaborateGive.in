@@ -1,0 +1,13 @@
+top_command (cmd_load currentFile [])
+goal_command 0 (cmd_elaborate_give Simplified) "2 + 3"
+goal_command 1 (cmd_elaborate_give Normalised) "2 + 3"
+goal_command 2 (cmd_elaborate_give AsIs) "2 + 3"
+goal_command 3 (cmd_elaborate_give Simplified) "addUnknown"
+goal_command 5 (cmd_elaborate_give Simplified) "literalNat 7"
+goal_command 6 (cmd_elaborate_give AsIs) "literalNat 7"
+goal_command 7 (cmd_elaborate_give Simplified) "primStringFromList ('h' ∷ 'e' ∷ 'l' ∷ 'l' ∷ 'o' ∷ 'λ' ∷ [])"
+goal_command 8 (cmd_elaborate_give AsIs) "primStringFromList ('h' ∷ 'e' ∷ 'l' ∷ 'l' ∷ 'o' ∷ 'λ' ∷ [])"
+goal_command 10 (cmd_elaborate_give Simplified) "2 + 9"
+goal_command 9 (cmd_elaborate_give Simplified) "primStringAppend (primShowChar 'h') (primShowChar 'i')"
+goal_command 11 (cmd_elaborate_give Simplified) "9 + 10"
+
