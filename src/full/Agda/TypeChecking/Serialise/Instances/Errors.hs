@@ -37,7 +37,6 @@ instance EmbPrj Warning where
   icod_ (TerminationIssue a)         = __IMPOSSIBLE__
   icod_ (UnreachableClauses a b)     = icodeN 0 UnreachableClauses a b
   icod_ (CoverageIssue a b)          = __IMPOSSIBLE__
-  icod_ (CoverageNoExactSplit a b)   = __IMPOSSIBLE__
   icod_ (NotStrictlyPositive a b)    = __IMPOSSIBLE__
   icod_ (UnsolvedMetaVariables a)    = __IMPOSSIBLE__
   icod_ (UnsolvedInteractionMetas a) = __IMPOSSIBLE__
@@ -64,6 +63,7 @@ instance EmbPrj Warning where
   icod_ (AbsurdPatternRequiresNoRHS a) = icodeN 10 AbsurdPatternRequiresNoRHS a
   icod_ (ModuleDoesntExport a b)       = icodeN 11 ModuleDoesntExport a b
   icod_ (LibraryWarning a)           = icodeN 12 LibraryWarning a
+  icod_ (CoverageNoExactSplit a b)   = icodeN 13 CoverageNoExactSplit a b
 
   value = vcase valu where
       valu [0, a, b]    = valuN UnreachableClauses a b
@@ -79,6 +79,7 @@ instance EmbPrj Warning where
       valu [10, a]      = valuN AbsurdPatternRequiresNoRHS a
       valu [11, a, b]   = valuN ModuleDoesntExport a b
       valu [12, a]      = valuN LibraryWarning a
+      valu [13, a, b]   = valuN CoverageNoExactSplit a b
       valu _ = malformed
 
 instance EmbPrj DeclarationWarning where
