@@ -71,6 +71,8 @@ disabledTests =
   , RFInclude "Compiler/JS/simple/Issue2914"    -- GHC backend specific
     -- Fix to 2524 is too unsafe
   , RFInclude "Compiler/.*/simple/Issue2524"
+    -- Segfaulting 2640 behaves differently on travis
+  , RFInclude "Compiler/.*/simple/Erasure-Issue2640"
     -- The following test cases are GHC backend specific.
   , RFInclude "Compiler/JS/simple/Issue2879-.*"
   , RFInclude "Compiler/JS/simple/Issue2909-.*"
