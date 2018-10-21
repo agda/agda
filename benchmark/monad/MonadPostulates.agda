@@ -61,7 +61,7 @@ open import Function
 open import Data.Maybe hiding (Eq)
 open import Data.Product.Relation.Lex.Strict
 open import Data.Product.Relation.Pointwise.NonDependent
-import Relation.Binary.On as On
+import Relation.Binary.Construct.On as On
 
 ------------------------------------------------------------------------
 -- Monotone functions
