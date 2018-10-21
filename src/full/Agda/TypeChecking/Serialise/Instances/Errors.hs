@@ -35,7 +35,6 @@ instance EmbPrj Warning where
   icod_ (TerminationIssue a)         = __IMPOSSIBLE__
   icod_ (UnreachableClauses a b)     = icodeN 0 UnreachableClauses a b
   icod_ (CoverageIssue a b)          = __IMPOSSIBLE__
-  icod_ (CoverageNoExactSplit a b)   = __IMPOSSIBLE__
   icod_ (NotStrictlyPositive a b)    = __IMPOSSIBLE__
   icod_ (UnsolvedMetaVariables a)    = __IMPOSSIBLE__
   icod_ (UnsolvedInteractionMetas a) = __IMPOSSIBLE__
@@ -58,6 +57,7 @@ instance EmbPrj Warning where
   icod_ (NicifierIssue a)            = icodeN 7 NicifierIssue a
   icod_ (InversionDepthReached a)    = icodeN 8 InversionDepthReached a
   icod_ (UserWarning a)              = icodeN 9 UserWarning a
+  icod_ (CoverageNoExactSplit a b)   = icodeN 10 CoverageNoExactSplit a b
 
   value = vcase valu where
       valu [0, a, b]    = valuN UnreachableClauses a b
@@ -70,6 +70,7 @@ instance EmbPrj Warning where
       valu [7, a]       = valuN NicifierIssue a
       valu [8, a]       = valuN InversionDepthReached a
       valu [9, a]       = valuN UserWarning a
+      valu [10, a, b]   = valuN CoverageNoExactSplit a b
       valu _ = malformed
 
 instance EmbPrj DeclarationWarning where
