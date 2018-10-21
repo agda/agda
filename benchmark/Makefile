@@ -31,6 +31,7 @@ all : clean $(logDir) $(logFiles)
 # If an error is encountered, then the logs are not removed.
 without-creating-logs : all
 	@runghc Benchmark.hs $(TAG)
+	cat $(logDir)/*
 	rm -r $(logDir)
 
 $(logDir) :
