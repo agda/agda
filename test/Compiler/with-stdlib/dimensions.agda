@@ -253,14 +253,14 @@ open import Data.String     renaming (_++_ to _+s+_)
 open import Data.Product
 open import IO
 import IO.Primitive
-open import Coinduction
-open import Data.Colist
+open import Codata.Musical.Notation
+open import Codata.Musical.Colist
 open import Data.Nat.Show as Nat
 
 printPoint : point → IO ⊤
 printPoint p = putStrLn ((Nat.show (val (x p))) +s+ ";" +s+ Nat.show (val (y p)))
 
 main : IO.Primitive.IO ⊤
-main = run (♯ (mapM printPoint (Data.Colist.fromList trace)) >> (♯ (return tt)))
+main = run (♯ (mapM printPoint (Codata.Musical.Colist.fromList trace)) >> (♯ (return tt)))
   where trace = V.toList $ throw 15 ⟨ 1 ∶ s ⟩ base
 

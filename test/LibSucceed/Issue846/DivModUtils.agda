@@ -6,6 +6,7 @@ open import Data.Bool
 open import Issue846.OldDivMod
 open import Relation.Nullary
 open import Data.Nat.Properties hiding (≤-antisym)
+open import Data.Nat.Solver
 open import Data.Fin using (Fin; toℕ; zero; suc; fromℕ≤)
 open import Data.Fin.Properties using ( bounded; toℕ-fromℕ≤; toℕ-injective )
 open import Relation.Binary.PropositionalEquality
@@ -29,7 +30,7 @@ i+[j∸m]≡i+j∸m i (suc j) (suc m) (s≤s m≤j) = begin
   suc (i + j) ∸ suc m   ≡⟨ cong (λ y → y ∸ suc m) $ solve 2 (λ i' j' → con 1 :+ (i' :+ j') := i' :+ (con 1 :+ j')) refl i j ⟩
   (i + suc j) ∸ suc m ∎
   where
-    open SemiringSolver
+    open +-*-Solver
 
 -- Following code taken from https://github.com/copumpkin/derpa/blob/master/REPA/Index.agda#L210
 
@@ -52,7 +53,7 @@ large {d} {r} x r′ pf = irrefl pf (
     □)
   where
   open ≤-Reasoning
-  open Relation.Binary.StrictTotalOrder Data.Nat.Properties.strictTotalOrder
+  open Relation.Binary.StrictTotalOrder Data.Nat.Properties.<-strictTotalOrder
 
 -- a raw statement of the uniqueness, in the arrangement of terms that's
 -- easiest to work with computationally
@@ -64,7 +65,7 @@ addMul-lemma′ (suc x) zero d r r′ hyp = ⊥-elim (large x r (sym hyp))
 addMul-lemma′ (suc x) (suc x′) d r r′ hyp
                       rewrite +-assoc (suc d) (x * suc d) (toℕ r)
                             | +-assoc (suc d) (x′ * suc d) (toℕ r′)
-                      with addMul-lemma′ x x′ d r r′ (cancel-+-left (suc d) hyp)
+                      with addMul-lemma′ x x′ d r r′ (+-cancelˡ-≡ (suc d) hyp)
 ... | pf₁ , pf₂ = pf₁ , cong suc pf₂
 
 
@@ -78,7 +79,7 @@ addMul-lemma x x′ d r r′ hyp rewrite +-comm (toℕ r) (x * suc d)
 
 DivMod-lemma : ∀ x d (r : Fin (suc d)) → (res : DivMod (toℕ r + x * suc d) (suc d)) → res ≡ result x r refl
 DivMod-lemma x d r (result q r′ eq) with addMul-lemma x q d r r′ eq
-DivMod-lemma x d r (result .x .r eq) | refl , refl = cong (result x r) (proof-irrelevance eq refl) -- holy fuck
+DivMod-lemma x d r (result .x .r eq) | refl , refl = cong (result x r) (≡-irrelevance eq refl) -- holy fuck
 
 
 divMod-lemma : ∀ x d (r : Fin (suc d)) → (toℕ r + x * suc d) divMod suc d ≡ result x r refl
@@ -166,7 +167,7 @@ lem-sub-p .(7 + (q * 7)) (suc (suc p)) _ _ (s≤s (s≤s (≤4))) eq2 | result (
             (6 ∸ p) + q * 7
               ≡⟨ +-comm (6 ∸ p) (q * 7) ⟩
             q * 7 + (6 ∸ p)
-              ≡⟨ i+[j∸m]≡i+j∸m (q * 7) 6 p (≤-steps 2 ≤4) ⟩
+              ≡⟨ i+[j∸m]≡i+j∸m (q * 7) 6 p (≤-stepsˡ 2 ≤4) ⟩
             (q * 7 + 6) ∸ p
               ≡⟨ cong (λ y → y ∸ p) (+-comm (q * 7) 6)⟩
             (6 + q * 7) ∸ p ∎
