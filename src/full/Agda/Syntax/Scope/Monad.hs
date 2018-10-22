@@ -326,12 +326,12 @@ unbindVariable x = bracket_ (getLocalVars <* modifyLocalVars (AssocList.delete x
 -- | Bind a defined name. Must not shadow anything.
 bindName :: Access -> KindOfName -> C.Name -> A.QName -> ScopeM ()
 bindName acc kind x y = do
+  when (isNoName x) $ modifyScopes $ Map.map $ removeNameFromScope PrivateNS x
   r  <- resolveName (C.QName x)
   ys <- case r of
     -- Binding an anonymous declaration always succeeds.
     -- In case it's not the first one, we simply remove the one that came before
-    UnknownName   | isNoName x -> success
-    DefinedName{} | isNoName x -> success <* modifyCurrentScope (removeNameFromScope PrivateNS x)
+    _ | isNoName x      -> success
     DefinedName _ d     -> clash $ anameName d
     VarName z _         -> clash $ A.qualify (mnameFromList []) z
     FieldName       ds  -> ambiguous FldName ds
