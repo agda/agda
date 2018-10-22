@@ -1943,13 +1943,9 @@ decomposeInterval' t = do
             , let bsm     = (Map.fromListWith Set.union . map (id -*- Set.singleton)) bs
             ]
 
-
--- | @trustMe : {a : Level} {A : Set a} {x y : A} -> x ≡ y@
-primTrustMe :: TCM PrimitiveImpl
-primTrustMe = do
-  -- primTrustMe is not --safe
-  whenM (Lens.getSafeMode <$> commandLineOptions) $ warning SafeFlagPrimTrustMe
-
+-- | @erase : {a : Level} {A : Set a} {x y : A} -> x ≡ y -> x ≡ y@
+primErase :: TCM PrimitiveImpl
+primErase = do
   -- Get the name and type of BUILTIN EQUALITY
   eq   <- primEqualityName
   eqTy <- defType <$> getConstInfo eq
@@ -1959,9 +1955,10 @@ primTrustMe = do
         Sort s -> s
         _      -> __IMPOSSIBLE__
 
-  -- Construct the type of primTrustMe.
-  -- E.g., type of @trustMe : {a : Level} {A : Set a} {x y : A} → eq {a} {A} x y@.
-  let t = telePi_ (fmap hide eqTel) $ El eqSort $ Def eq $ map Apply $ teleArgs eqTel
+  -- Construct the type of primErase E.g., type of
+  -- @erase : {a : Level} {A : Set a} {x y : A} → eq {a} {A} x y -> eq {a} {A} x y@.
+  t <- let xeqy = pure $ El eqSort $ Def eq $ map Apply $ teleArgs eqTel in
+       telePi_ (fmap hide eqTel) <$> (xeqy --> xeqy)
 
   -- BUILTIN REFL maybe a constructor with one (the principal) argument or only parameters.
   -- Get the ArgInfo of the principal argument of refl.
@@ -1972,8 +1969,8 @@ primTrustMe = do
         Nothing -> const con
 
   -- The implementation of primTrustMe:
-  return $ PrimImpl t $ primFun __IMPOSSIBLE__ (size eqTel) $ \ ts -> do
-    let (u, v) = fromMaybe __IMPOSSIBLE__ $ last2 ts
+  return $ PrimImpl t $ primFun __IMPOSSIBLE__ (1 + size eqTel) $ \ ts -> do
+    let (u, v) = fromMaybe __IMPOSSIBLE__ $ last2 =<< initMaybe ts
     -- Andreas, 2013-07-22.
     -- Note that we cannot call the conversion checker here,
     -- because 'reduce' might be called in a context where
@@ -2417,7 +2414,7 @@ primitiveFunctions = Map.fromList
   , "primShowString"      |-> mkPrimFun1 (Str . show . pretty . LitString noRange . unStr)
 
   -- Other stuff
-  , "primTrustMe"         |-> primTrustMe
+  , "primErase"           |-> primErase
     -- This needs to be force : A → ((x : A) → B x) → B x rather than seq because of call-by-name.
   , "primForce"           |-> primForce
   , "primForceLemma"      |-> primForceLemma

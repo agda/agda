@@ -80,6 +80,10 @@ initLast (a:as) = Just $ loop a as where
   loop a []      = ([], a)
   loop a (b : bs) = mapFst (a:) $ loop b bs
 
+-- | init, safe.
+initMaybe :: [a] -> Maybe [a]
+initMaybe = fmap fst . initLast
+
 -- | Lookup function (partially safe).
 (!!!) :: [a] -> Int -> Maybe a
 []       !!! _         = Nothing
