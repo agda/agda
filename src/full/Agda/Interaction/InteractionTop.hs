@@ -1059,8 +1059,9 @@ interpret (Cmd_make_case ii rng s) = do
   liftCommandMT (B.withInteractionId ii) $ do
     hidden <- lift $ showImplicitArguments
     tel <- lift $ lookupSection (qnameModule f) -- don't shadow the names in this telescope
+    unicode <- getsTC $ optUseUnicode . getPragmaOptions
     pcs      :: [Doc]      <- lift $ inTopContext $ addContext tel $ mapM prettyA cs
-    let pcs' :: [String]    = List.map (extlam_dropName casectxt . render) pcs
+    let pcs' :: [String]    = List.map (extlam_dropName unicode casectxt . render) pcs
     lift $ reportSDoc "interaction.case" 60 $ TCP.vcat
       [ "InteractionTop.Cmd_make_case"
       , TCP.nest 2 $ TCP.vcat
@@ -1086,12 +1087,14 @@ interpret (Cmd_make_case ii rng s) = do
     -- very dirty hack, string manipulation by dropping the function name
     -- and replacing the last " = " with " -> ". It's important not to replace
     -- the equal sign in named implicit with an arrow!
-    extlam_dropName :: CaseContext -> String -> String
-    extlam_dropName Nothing x = x
-    extlam_dropName Just{}  x
+    extlam_dropName :: Bool -> CaseContext -> String -> String
+    extlam_dropName _ Nothing x = x
+    extlam_dropName unicode Just{}  x
         = unwords $ reverse $ replEquals $ reverse $ drop 1 $ words x
       where
-        replEquals ("=" : ws) = "→" : ws
+        replEquals ("=" : ws)
+           | unicode   = "→" : ws
+           | otherwise = "->" : ws
         replEquals (w   : ws) = w : replEquals ws
         replEquals []         = []
 
