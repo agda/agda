@@ -863,6 +863,10 @@ telToList EmptyTel                    = []
 telToList (ExtendTel arg (Abs x tel)) = fmap (x,) arg : telToList tel
 telToList (ExtendTel _    NoAbs{}   ) = __IMPOSSIBLE__
 
+-- | Lens to edit a 'Telescope' as a list.
+listTel :: Lens' ListTel Telescope
+listTel f = fmap telFromList . f . telToList
+
 -- | Drop the types from a telescope.
 class TelToArgs a where
   telToArgs :: a -> [Arg ArgName]

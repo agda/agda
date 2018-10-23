@@ -869,7 +869,22 @@ checkLHS
   => Maybe QName      -- ^ The name of the definition we are checking.
   -> LHSState a       -- ^ The current state.
   -> tcm a
-checkLHS mf st@(LHSState tel ip problem target psplit) = updateRelevance $ do
+checkLHS mf = updateRelevance checkLHS_ where
+    -- If the target type is irrelevant or in Prop,
+    -- we need to check the lhs in irr. cxt. (see Issue 939).
+ updateRelevance cont st@(LHSState tel ip problem target psplit) = do
+      let m0 = getModality target
+      m <- ifNotM isPropEnabled (return m0) {-else-} $ do
+        liftTCM (reduce $ getSort $ unArg target) >>= \case
+          Prop{} -> return $ setRelevance Irrelevant m0
+          _      -> return m0
+      applyModalityToContext m $ do
+        cont $ over (lhsTel . listTel) (map $ inverseApplyModality m) st
+        -- Andreas, 2018-10-23, issue #3309
+        -- the modalities in the clause telescope also need updating.
+
+ checkLHS_ st@(LHSState tel ip problem target psplit) = do
+
   if isSolvedProblem problem then
     liftTCM $ (problem ^. problemCont) st
   else do
@@ -888,16 +903,6 @@ checkLHS mf st@(LHSState tel ip problem target psplit) = updateRelevance $ do
       Left []      -> __IMPOSSIBLE__
 
   where
-
-    -- If the target type is irrelevant or in Prop,
-    -- we need to check the lhs in irr. cxt. (see Issue 939).
-    updateRelevance cont = do
-      let m0 = getModality target
-      m <- ifNotM isPropEnabled (return m0) {-else-} $ do
-        liftTCM (reduce $ getSort $ unArg target) >>= \case
-          Prop{} -> return $ setRelevance Irrelevant m0
-          _      -> return m0
-      applyModalityToContext m cont
 
     trySplit :: ProblemEq
              -> tcm (Either [TCErr] (LHSState a))
@@ -1533,6 +1538,9 @@ disambiguateProjection h ambD@(AmbQ ds) b = do
 
         let ai = setRelevance (getRelevance argd) $ projArgInfo proj
 
+        reportSDoc "tc.lhs.split" 20 $ sep
+          [ text $ "original proj relevance  = " ++ show (getRelevance argd)
+          ]
         -- Andreas, 2016-12-31, issue #2374:
         -- We can also disambiguate by hiding info.
         -- Andreas, 2018-10-18, issue #3289: postfix projections have no hiding info.
