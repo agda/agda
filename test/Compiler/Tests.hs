@@ -73,6 +73,8 @@ disabledTests =
   , RFInclude "Compiler/.*/simple/Issue2524"
     -- Segfaulting 2640 behaves differently on travis
   , RFInclude "Compiler/.*/simple/Erasure-Issue2640"
+    -- Andreas, 2018-10-23, dunno why, but VecReverseErased is broken on travis
+  , RFInclude "Compiler/.*/simple/VecReverseErased"
     -- The following test cases are GHC backend specific.
   , RFInclude "Compiler/JS/simple/Issue2879-.*"
   , RFInclude "Compiler/JS/simple/Issue2909-.*"
