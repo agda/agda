@@ -25,6 +25,8 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 
+import Agda.Benchmarking
+import Agda.Utils.Benchmark
 import Agda.Utils.Functor
 import Agda.Utils.Impossible
 import Agda.Utils.Lens
@@ -38,7 +40,7 @@ import qualified Agda.Utils.Graph.TopSort as Graph
 -- | Generalize a telescope over a set of generalizable variables.
 generalizeTelescope :: Map QName Name -> (forall a. (Telescope -> TCM a) -> TCM a) -> (Telescope -> TCM a) -> TCM a
 generalizeTelescope vars typecheckAction ret | Map.null vars = typecheckAction ret
-generalizeTelescope vars typecheckAction ret = withGenRecVar $ \ genRecMeta -> do
+generalizeTelescope vars typecheckAction ret = billTo [Typing, Generalize] $ withGenRecVar $ \ genRecMeta -> do
   let s = Set.fromList (Map.keys vars)
   ((cxtNames, tel), namedMetas, allmetas) <-
     createMetasAndTypeCheck s $ typecheckAction $ \ tel -> do
@@ -76,7 +78,7 @@ generalizeTelescope vars typecheckAction ret = withGenRecVar $ \ genRecMeta -> d
 
 -- | Generalize a type over a set of (used) generalizable variables.
 generalizeType :: Set QName -> TCM Type -> TCM (Int, Type)
-generalizeType s typecheckAction = withGenRecVar $ \ genRecMeta -> do
+generalizeType s typecheckAction = billTo [Typing, Generalize] $ withGenRecVar $ \ genRecMeta -> do
 
   (t, _, allmetas) <- createMetasAndTypeCheck s typecheckAction
   (genTel, _, sub) <- computeGeneralization genRecMeta Map.empty allmetas
