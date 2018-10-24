@@ -24,6 +24,7 @@ import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
+import Agda.TypeChecking.Warnings
 
 import Agda.Benchmarking
 import Agda.Utils.Benchmark
@@ -121,12 +122,19 @@ computeGeneralization genRecMeta nameMap allmetas = do
   mvs <- mapM (\ x -> (x,) <$> lookupMeta x) (Set.toList allmetas)
 
   let isGeneralizable (_, mv) = YesGeneralize == unArg (miGeneralizable (mvInfo mv))
+      isSort = isSortMeta_ . snd
       isOpen = isOpenMeta . mvInstantiation . snd
 
   -- Split the generalizable metas in open and closed
   let (generalizable, nongeneralizable) = partition isGeneralizable mvs
-      (generalizableOpen, generalizableClosed) = partition isOpen generalizable
+      (generalizableOpen', generalizableClosed) = partition isOpen generalizable
+      (openSortMetas, generalizableOpen) = partition isSort generalizableOpen'
       nongeneralizableOpen = filter isOpen nongeneralizable
+
+  -- Issue 3301: We can't generalize over sorts
+  case openSortMetas of
+    [] -> return ()
+    ms -> warning $ CantGeneralizeOverSorts (map fst ms)
 
   -- Any meta in the solution of a generalizable meta should be generalized over (if possible).
   cp <- viewTC eCurrentCheckpoint

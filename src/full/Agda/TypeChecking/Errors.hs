@@ -58,6 +58,7 @@ import Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Monad.Options
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Monad.State
+import Agda.TypeChecking.Monad.MetaVars
 import Agda.TypeChecking.Positivity
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Substitute
@@ -167,6 +168,12 @@ prettyWarning wng = liftTCM $ case wng of
     NotStrictlyPositive d ocs -> fsep $
       [prettyTCM d] ++ pwords "is not strictly positive, because it occurs"
       ++ [prettyTCM ocs]
+
+    CantGeneralizeOverSorts ms -> vcat
+            [ text "Cannot generalize over unsolved sort metas:"
+            , nest 2 $ vcat [ prettyTCM x <+> text "at" <+> (pretty =<< getMetaRange x) | x <- ms ]
+            , fsep $ pwords "Suggestion: add a `variable Any : Set _` and replace unsolved metas by Any"
+            ]
 
     AbsurdPatternRequiresNoRHS ps -> fwords $
       "The right-hand side must be omitted if there " ++

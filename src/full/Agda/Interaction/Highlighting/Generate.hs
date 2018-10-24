@@ -600,6 +600,7 @@ warningHighlighting w = case tcWarning w of
   AbsurdPatternRequiresNoRHS{} -> deadcodeHighlighting $ P.getRange w
   ModuleDoesntExport{}         -> deadcodeHighlighting $ P.getRange w
   -- expanded catch-all case to get a warning for new constructors
+  CantGeneralizeOverSorts{}  -> mempty
   UnsolvedInteractionMetas{} -> mempty
   OldBuiltin{}               -> mempty
   EmptyRewritePragma{}       -> deadcodeHighlighting $ P.getRange w

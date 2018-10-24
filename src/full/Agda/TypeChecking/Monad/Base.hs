@@ -2643,6 +2643,7 @@ data Warning
   | UnsolvedInteractionMetas [Range]  -- ^ Do not use directly with 'warning'
   | UnsolvedConstraints      Constraints
     -- ^ Do not use directly with 'warning'
+  | CantGeneralizeOverSorts [MetaId]
   | AbsurdPatternRequiresNoRHS [NamedArg DeBruijnPattern]
   | OldBuiltin               String String
     -- ^ In `OldBuiltin old new`, the BUILTIN old has been replaced by new
@@ -2687,6 +2688,7 @@ warningName w = case w of
   ParseWarning pw              -> parseWarningName pw
   LibraryWarning lw            -> libraryWarningName lw
   -- typechecking errors
+  CantGeneralizeOverSorts{}    -> CantGeneralizeOverSorts_
   AbsurdPatternRequiresNoRHS{} -> AbsurdPatternRequiresNoRHS_
   CoverageIssue{}              -> CoverageIssue_
   CoverageNoExactSplit{}       -> CoverageNoExactSplit_
