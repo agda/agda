@@ -29,8 +29,7 @@ LaTeX backend
   option to `inputenc` is now deprecated.
 
   Note that Agda code is now less likely to typeset properly out of
-  the box. See the documentation for some hints about what to do if
-  this affects you.
+  the box.
 
 Other closed issues
 --------------------
