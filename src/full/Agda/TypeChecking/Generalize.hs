@@ -104,8 +104,11 @@ createMetasAndTypeCheck s typecheckAction = do
 --   generalized variables.
 withGenRecVar :: (Type -> TCM a) -> TCM a
 withGenRecVar ret = do
-  -- Create a meta type (in Setω) for the telescope record
-  genRecMeta <- newTypeMeta Inf
+  -- Create a meta type (in Set₀) for the telescope record. It won't
+  -- necessarily fit in Set₀, but since it's only used locally the sort
+  -- shouldn't matter. Another option would be to put it in Setω, which is a
+  -- bit more honest, but this leads to performance problems (see #3306).
+  genRecMeta <- newTypeMeta (mkType 0)
   addContext (defaultDom ("genTel" :: String, genRecMeta)) $ ret genRecMeta
 
 -- | Compute the generalized telescope from metas created when checking the type/telescope to be
