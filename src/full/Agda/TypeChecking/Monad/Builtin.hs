@@ -377,7 +377,7 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinSigma,
   builtinBool, builtinTrue, builtinFalse,
   builtinList, builtinNil, builtinCons, builtinIO,
-  builtinPath, builtinPathP, builtinInterval, builtinPathAbs, builtinIZero, builtinIOne, builtinPartial, builtinPartialP,
+  builtinPath, builtinPathP, builtinInterval, builtinIZero, builtinIOne, builtinPartial, builtinPartialP,
   builtinIMin, builtinIMax, builtinINeg,
   builtinIsOne,  builtinItIsOne, builtinIsOne1, builtinIsOne2, builtinIsOneEmpty,
   builtinComp, builtinPOr,
@@ -466,7 +466,6 @@ builtinInterval                      = "INTERVAL"
 builtinIMin                          = "primIMin"
 builtinIMax                          = "primIMax"
 builtinINeg                          = "primINeg"
-builtinPathAbs                       = "PATHABS"
 builtinIZero                         = "IZERO"
 builtinIOne                          = "IONE"
 builtinPartial                       = "PARTIAL"
