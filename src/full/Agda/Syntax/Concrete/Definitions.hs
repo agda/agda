@@ -796,21 +796,22 @@ parameters = List.concatMap $ \case
 -- | Replace (Data/Rec/Fun)Sigs with Axioms for postulated names
 --   The first argument is a list of axioms only.
 replaceSigs :: Map Name NiceDeclaration -> [NiceDeclaration] -> [NiceDeclaration]
-replaceSigs ps ds = if Map.null ps then ds else case ds of
-  []      -> __IMPOSSIBLE__
-  (d:ds') -> fromMaybe (d : replaceSigs ps ds') $ do
-    nm        <- replacable d
-    (ps', ax) <- sequenceA $ swap $ Map.updateLookupWithKey (\ _ _ -> Nothing) nm ps
-    pure $ ax : replaceSigs ps' ds'
-
-   where
-
-     replacable :: NiceDeclaration -> Maybe Name
-     replacable d = case d of
-       FunSig _ _ _ _ _ _ _ _ nm _    -> pure nm
-       NiceRecSig _ _ _ _ _ _ nm _ _  -> pure nm
-       NiceDataSig _ _ _ _ _ _ nm _ _ -> pure nm
-       _ -> Nothing
+replaceSigs ps = if Map.null ps then id else \case
+  []     -> __IMPOSSIBLE__
+  (d:ds) ->
+    case replaceable d of
+      -- If declaration d of x is a type signature, then replace it by the
+      -- corresponding axiom from ps and delete this axiom from ps
+      Just x | (Just axiom, ps') <- Map.updateLookupWithKey (\ _ _ -> Nothing) x ps
+        -> axiom : replaceSigs ps' ds
+      _ -> d     : replaceSigs ps  ds
+  where
+    replaceable :: NiceDeclaration -> Maybe Name
+    replaceable = \case
+      FunSig _ _ _ _ _ _ _ _ x _    -> Just x
+      NiceRecSig _ _ _ _ _ _ x _ _  -> Just x
+      NiceDataSig _ _ _ _ _ _ x _ _ -> Just x
+      _ -> Nothing
 
 -- | Main.
 niceDeclarations :: [Declaration] -> Nice [NiceDeclaration]
