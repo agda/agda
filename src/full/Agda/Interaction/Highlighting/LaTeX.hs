@@ -356,7 +356,7 @@ ptOpen c = ptOpen' (columnName c)
 -- lines.
 
 ptOpenBeginningOfLine :: Text
-ptOpenBeginningOfLine = ptOpen' "."
+ptOpenBeginningOfLine = ptOpen' "." <+> "[@{}l@{}]"
 
 -- | Opens the given column, and inserts an indentation instruction
 -- with the given argument at the end of it.

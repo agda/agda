@@ -1,0 +1,145 @@
+\documentclass{article}
+
+\usepackage{agda}
+
+\usepackage{amsmath}
+\usepackage{newunicodechar}
+\newunicodechar{₁}{\ensuremath{{}_{\text{1}}}}
+
+\pagestyle{empty}
+
+\begin{document}
+
+\noindent Control:
+\begin{code}
+  _ : Set₁
+  _ = Set
+\end{code}
+
+\noindent No extra indentation (alignment):
+\begin{code}[hide]
+  _ : Set₁
+  _ =
+\end{code}
+\begin{code}
+    Set
+\end{code}
+
+\noindent No extra indentation (indentation):
+\begin{code}[hide]
+  _ : Set₁
+  _ =
+\end{code}
+\begin{code}
+     Set
+\end{code}
+
+\noindent No extra indentation (alignment):
+\begin{code}[hide]
+  postulate
+    _ :
+\end{code}
+\begin{code}
+      Set
+\end{code}
+
+\noindent No extra indentation (indentation):
+\begin{code}[hide]
+  postulate
+    _ :
+\end{code}
+\begin{code}
+       Set
+\end{code}
+
+\noindent No extra indentation (alignment, \texttt{AgdaMultiCode}):
+\begin{AgdaMultiCode}
+\begin{code}[hide]
+  _ : Set₁
+  _ =
+\end{code}
+\begin{code}
+    Set
+\end{code}
+\begin{code}[hide]
+  _ : Set₁
+  _ =
+\end{code}
+\begin{code}
+    Set
+\end{code}
+\end{AgdaMultiCode}
+
+\noindent Extra indentation (indentation, \texttt{AgdaMultiCode}):
+\begin{AgdaMultiCode}
+\begin{code}[hide]
+  _ : Set₁
+  _ =
+\end{code}
+\begin{code}
+     Set
+\end{code}
+\begin{code}[hide]
+  _ : Set₁
+  _ =
+\end{code}
+\begin{code}
+     Set
+\end{code}
+\end{AgdaMultiCode}
+
+\noindent No extra indentation (alignment, \texttt{AgdaMultiCode}):
+\begin{AgdaMultiCode}
+\begin{code}[hide]
+  postulate
+    _ :
+\end{code}
+\begin{code}
+      Set
+\end{code}
+\begin{code}[hide]
+  postulate
+    _ :
+\end{code}
+\begin{code}
+      Set
+\end{code}
+\end{AgdaMultiCode}
+
+\noindent Extra indentation (indentation, \texttt{AgdaMultiCode}):
+\begin{AgdaMultiCode}
+\begin{code}[hide]
+  postulate
+    _ :
+\end{code}
+\begin{code}
+       Set
+\end{code}
+\begin{code}[hide]
+  postulate
+    _ :
+\end{code}
+\begin{code}
+       Set
+\end{code}
+\end{AgdaMultiCode}
+
+\noindent Extra indentation (indentation, \texttt{AgdaMultiCode}):
+\begin{AgdaMultiCode}
+\begin{code}[hide]
+  postulate
+    Aaa :
+\end{code}
+\begin{code}
+      Set
+\end{code}
+\begin{code}[hide]
+  postulate
+    Bbb :
+\end{code}
+\begin{code}
+      Set
+\end{code}
+\end{AgdaMultiCode}
+
+\end{document}
