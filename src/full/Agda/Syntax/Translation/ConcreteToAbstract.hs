@@ -1425,6 +1425,10 @@ instance ToAbstract (Blind a) (Blind a) where
 instance ToAbstract NiceDeclaration A.Declaration where
 
   toAbstract d = annotateDecls $
+    traceSLn "scope.decl.trace" 50 (unlines
+      [ "scope checking declaration"
+      , "  " ++  prettyShow d
+      ]) $
     traceCall (ScopeCheckDeclaration d) $
     -- Andreas, 2015-10-05, Issue 1677:
     -- We record in the environment whether we are scope checking an

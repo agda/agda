@@ -327,6 +327,29 @@ instance HasRange NiceDeclaration where
   getRange (NiceUnquoteDecl r _ _ _ _ _ _ _) = r
   getRange (NiceUnquoteDef r _ _ _ _ _ _)    = r
 
+instance Pretty NiceDeclaration where
+  pretty = \case
+    Axiom _ _ _ _ _ _ _ x _          -> text "postulate" <+> pretty x <+> colon <+> text "_"
+    NiceField _ _ _ _ _ x _          -> text "field" <+> pretty x
+    PrimitiveFunction _ _ _ _ x _    -> text "primitive" <+> pretty x
+    NiceMutual{}                     -> text "mutual"
+    NiceModule _ _ _ x _ _           -> text "module" <+> pretty x <+> text "where"
+    NiceModuleMacro _ _ x _ _ _      -> text "module" <+> pretty x <+> text "= ..."
+    NiceOpen _ x _                   -> text "open" <+> pretty x
+    NiceImport _ x _ _ _             -> text "import" <+> pretty x
+    NicePragma{}                     -> text "{-# ... #-}"
+    NiceRecSig _ _ _ _ _ _ x _ _     -> text "record" <+> pretty x
+    NiceDataSig _ _ _ _ _ _ x _ _    -> text "data" <+> pretty x
+    NiceFunClause{}                  -> text "<function clause>"
+    FunSig _ _ _ _ _ _ _ _ x _       -> pretty x <+> colon <+> text "_"
+    FunDef _ _ _ _ _ _ x _           -> pretty x <+> text "= _"
+    DataDef _ _ _ _ _ x _ _          -> text "data" <+> pretty x <+> text "where"
+    RecDef _ _ _ _ _ x _ _ _ _ _     -> text "record" <+> pretty x <+> text "where"
+    NicePatternSyn _ _ x _ _         -> text "pattern" <+> pretty x
+    NiceGeneralize _ _ _ _ x _       -> text "variable" <+> pretty x
+    NiceUnquoteDecl _ _ _ _ _ _ xs _ -> text "<unquote declarations>"
+    NiceUnquoteDef _ _ _ _ _ xs _    -> text "<unquote definitions>"
+
 -- These error messages can (should) be terminated by a dot ".",
 -- there is no error context printed after them.
 instance Pretty DeclarationException where
