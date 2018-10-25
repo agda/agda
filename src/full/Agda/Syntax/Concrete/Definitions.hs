@@ -1449,8 +1449,12 @@ niceDeclarations ds = do
         ParenP _ p'    -> removeSingletonRawAppP p'
         _ -> p
 
-    -- Make an old style mutual block from a list of mutual declarations
-    mkOldMutual :: Range -> [NiceDeclaration] -> Nice NiceDeclaration
+    -- | Turn an old-style mutual block into a new style mutual block
+    --   by pushing the definitions to the end.
+    mkOldMutual
+      :: Range                -- ^ Range of the whole @mutual@ block.
+      -> [NiceDeclaration]    -- ^ Declarations inside the block.
+      -> Nice NiceDeclaration -- ^ Returns a 'NiceMutual'.
     mkOldMutual r ds' = do
         -- Postulate the missing definitions
         ps <- checkLoneSigs $ Map.fromList loneNames

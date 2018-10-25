@@ -380,7 +380,7 @@ data Declaration
   | Infix Fixity [Name]
   | Syntax      Name Notation -- ^ notation declaration for a name
   | PatternSyn  Range Name [Arg Name] Pattern
-  | Mutual      Range [Declaration]
+  | Mutual      Range [Declaration]  -- @Range@ of the whole @mutual@ block.
   | Abstract    Range [Declaration]
   | Private     Range Origin [Declaration]
     -- ^ In "Agda.Syntax.Concrete.Definitions" we generate private blocks
