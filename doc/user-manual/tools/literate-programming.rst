@@ -26,9 +26,19 @@ as literate TeX_ files. All code has to appear in code blocks:
    \end{code}
 
 Text outside of code blocks is ignored, as well as text right after
-``\begin{code}``, on the same line. If you provide a suitable
-definition for the code environment, then literate Agda files can
-double as LaTeX document sources. Example definition:
+``\begin{code}``, on the same line.
+
+Agda finds code blocks by looking for the first instance of
+``\begin{code}`` that is not preceded on the same line by ``%`` or
+``\`` (not counting ``\`` followed by any code point), then (starting
+on the next line) the first instance of ``\end{code}`` that is
+preceded by nothing but spaces or tab characters (``\t``), and so on
+(always starting on the next line). Note that Agda does not try to
+figure out if, say, the LaTeX code changes the category code of ``%``.
+
+If you provide a suitable definition for the code environment, then
+literate Agda files can double as LaTeX document sources. Example
+definition:
 
 .. code-block:: latex
 
