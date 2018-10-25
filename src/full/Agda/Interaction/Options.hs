@@ -764,7 +764,7 @@ pragmaOptions =
     , Option []     ["inversion-max-depth"] (ReqArg inversionMaxDepthFlag "N")
                     "set maximum depth for pattern match inversion to N (default: 50)"
     , Option []     ["safe"] (NoArg safeFlag)
-                    "disable postulates, unsafe OPTION pragmas and primTrustMe"
+                    "disable postulates, unsafe OPTION pragmas and primEraseEquality"
     , Option []     ["double-check"] (NoArg doubleCheckFlag)
                     "enable double-checking of all terms using the internal typechecker"
     , Option []     ["no-syntactic-equality"] (NoArg noSyntacticEqualityFlag)

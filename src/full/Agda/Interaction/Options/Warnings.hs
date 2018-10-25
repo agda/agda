@@ -106,7 +106,7 @@ errorWarnings = Set.fromList
   , SafeFlagPragma_
   , SafeFlagNonTerminating_
   , SafeFlagTerminating_
-  , SafeFlagPrimTrustMe_
+  , SafeFlagPrimEraseEquality_
   , SafeFlagNoPositivityCheck_
   , SafeFlagPolarity_
   , SafeFlagNoUniverseCheck_
@@ -177,7 +177,7 @@ data WarningName
   | SafeFlagPragma_
   | SafeFlagNonTerminating_
   | SafeFlagTerminating_
-  | SafeFlagPrimTrustMe_
+  | SafeFlagPrimEraseEquality_
   | SafeFlagNoPositivityCheck_
   | SafeFlagPolarity_
   | SafeFlagNoUniverseCheck_
@@ -280,7 +280,7 @@ warningNameDescription w = case w of
   SafeFlagPragma_                  -> "Unsafe `OPTIONS' pragmas with the safe flag."
   SafeFlagNonTerminating_          -> "`NON_TERMINATING' pragmas with the safe flag."
   SafeFlagTerminating_             -> "`TERMINATING' pragmas with the safe flag."
-  SafeFlagPrimTrustMe_             -> "`primTrustMe' usages with the safe flag."
+  SafeFlagPrimEraseEquality_       -> "`primEraseEquality' usages with the safe flag."
   SafeFlagNoPositivityCheck_       -> "`NO_POSITIVITY_CHECK' pragmas with the safe flag."
   SafeFlagPolarity_                -> "`POLARITY' pragmas with the safe flag."
   SafeFlagNoUniverseCheck_         -> "`NO_UNIVERSE_CHECK' pragmas with the safe flag."

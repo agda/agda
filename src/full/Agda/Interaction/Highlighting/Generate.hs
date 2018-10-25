@@ -614,7 +614,7 @@ warningHighlighting w = case tcWarning w of
   SafeFlagPragma{}           -> mempty
   SafeFlagNonTerminating     -> mempty
   SafeFlagTerminating        -> mempty
-  SafeFlagPrimTrustMe        -> mempty
+  SafeFlagPrimEraseEquality  -> mempty
   SafeFlagNoPositivityCheck  -> mempty
   SafeFlagPolarity           -> mempty
   SafeFlagNoUniverseCheck    -> mempty

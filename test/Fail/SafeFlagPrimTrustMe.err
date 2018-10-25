@@ -1,4 +1,4 @@
-agda-default-include-path/Agda/Builtin/TrustMe.agda:10,5-60
-Cannot postulate unsafePrimTrustMe with safe flag
-when scope checking the declaration
-  unsafePrimTrustMe : ∀ {a} {A : Set a} {x y : A} → x ≡ y
+agda-default-include-path/Agda/Builtin/EraseEquality.agda:7,11-74
+Cannot use primEraseEquality with safe flag.
+when checking that the type of the primitive function
+primEraseEquality is ∀ {a} {A : Set a} {x y : A} → x ≡ y → x ≡ y

@@ -51,7 +51,7 @@ instance EmbPrj Warning where
   icod_ (SafeFlagPragma a)           = __IMPOSSIBLE__
   icod_ SafeFlagNonTerminating       = __IMPOSSIBLE__
   icod_ SafeFlagTerminating          = __IMPOSSIBLE__
-  icod_ SafeFlagPrimTrustMe          = __IMPOSSIBLE__
+  icod_ SafeFlagPrimEraseEquality    = __IMPOSSIBLE__
   icod_ SafeFlagNoPositivityCheck    = __IMPOSSIBLE__
   icod_ SafeFlagPolarity             = __IMPOSSIBLE__
   icod_ SafeFlagNoUniverseCheck      = __IMPOSSIBLE__

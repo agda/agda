@@ -2665,7 +2665,7 @@ data Warning
   | SafeFlagPragma [String]
   | SafeFlagNonTerminating
   | SafeFlagTerminating
-  | SafeFlagPrimTrustMe
+  | SafeFlagPrimEraseEquality
   | SafeFlagNoPositivityCheck
   | SafeFlagPolarity
   | SafeFlagNoUniverseCheck
@@ -2706,7 +2706,7 @@ warningName w = case w of
   SafeFlagPolarity             -> SafeFlagPolarity_
   SafeFlagPostulate{}          -> SafeFlagPostulate_
   SafeFlagPragma{}             -> SafeFlagPragma_
-  SafeFlagPrimTrustMe          -> SafeFlagPrimTrustMe_
+  SafeFlagPrimEraseEquality    -> SafeFlagPrimEraseEquality_
   SafeFlagTerminating          -> SafeFlagTerminating_
   TerminationIssue{}           -> TerminationIssue_
   UnreachableClauses{}         -> UnreachableClauses_
