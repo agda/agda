@@ -288,8 +288,11 @@ generateAndPrintSyntaxInfo decl hlLevel updateState = do
     -- Andreas, 2018-06-09, issue #3120
     -- The highlighting for record field tags is now created by the type checker in
     -- function disambiguateRecordFields.
-    -- getVarAndField (A.Rec       _ fs)   = mconcat [ field [] x | Left (FieldAssignment x _) <- fs ]
-    -- getVarAndField (A.RecUpdate _ _ fs) = mconcat [ field [] x |      (FieldAssignment x _) <- fs ]
+    -- Andreas, Nisse, 2018-10-26, issue #3322
+    -- Still, we extract the highlighting info here for uses such as QuickLatex.
+    -- The aspects from the disambiguation will be merged in.
+    getVarAndField (A.Rec       _ fs)   = mconcat [ field [] x | Left (FieldAssignment x _) <- fs ]
+    getVarAndField (A.RecUpdate _ _ fs) = mconcat [ field [] x |      (FieldAssignment x _) <- fs ]
     getVarAndField _                    = mempty
 
     -- Ulf, 2014-04-09: It would be nicer to have it on Named_ a, but
@@ -330,7 +333,10 @@ generateAndPrintSyntaxInfo decl hlLevel updateState = do
     -- Andreas, 2018-06-09, issue #3120
     -- The highlighting for record field tags is now created by the type checker in
     -- function disambiguateRecordFields.
-    -- getPattern' (A.RecP _ fs) = mconcat [ field [] x | FieldAssignment x _ <- fs ]
+    -- Andreas, Nisse, 2018-10-26, issue #3322
+    -- Still, we extract the highlighting info here for uses such as QuickLatex.
+    -- The aspects from the disambiguation will be merged in.
+    getPattern' (A.RecP _ fs) = mconcat [ field [] x | FieldAssignment x _ <- fs ]
     getPattern' _             = mempty
 
     getPattern :: A.Pattern -> File
