@@ -62,13 +62,6 @@ be followed:
 
     make up-to-date-std-lib
 
-* Add a second source-repository section to Agda.cabal:
-
-    source-repository this
-      type:     git
-      location: https://github.com/agda/agda.git
-      tag:      v$MAJORVERSION
-
 * Remove -Werror and -fprof-auto from Agda.cabal (this is required by
   `cabal --check`).
 
@@ -124,10 +117,6 @@ be followed:
 * Restore the Cabal test-suite in Agda.cabal.
 
 * Restore -Werror and -fprof-auto in Agda.cabal.
-
-* Remove the "this" source-repository section from the Cabal
-  file. (This would be unnecessary if we had two repositories, one
-  stable and one for development.)
 
 * Push all changes (in the release-$MAJORVERSION branch):
 
