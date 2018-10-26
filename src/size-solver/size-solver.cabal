@@ -34,7 +34,7 @@ executable size-solver
   hs-source-dirs: .
   main-is:        Main.hs
   build-depends:
-    Agda == 2.5.4.1.20180922
+    Agda == 2.5.4.1.20181026
     , base >= 4.8.2.0 && < 6
     , containers >= 0.5.6.2 && < 0.6
     , mtl >= 2.2.1 && < 2.3
