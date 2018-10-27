@@ -1087,11 +1087,31 @@ bindParameters' ts (A.DomainFull (A.TypedBindings _ (Arg info (A.TBind _ xs e)))
 bindParameters' _ (A.DomainFull (A.TypedBindings _ (Arg _ A.TLet{})) : _) _ _ =  -- line break!
   __IMPOSSIBLE__
 
-bindParameters' ts0 ps0@(A.DomainFree info x : ps) t ret = do
+bindParameters' ts0 ps0@(par@(A.DomainFree info x) : ps) t ret = do
   case unEl t of
     -- Andreas, 2011-04-07 ignore relevance information in binding?!
+    -- Andreas, 2018-10-27 yes, at least in part (issue #3323)!
+    -- @info@ comes from DataDef and @info'@ from DataSig
     Pi arg@(Dom{domInfo = info', unDom = a}) b -> do
-      if | info == info'                  -> do
+
+      -- We may omit hidden parameters in the repetition.
+      if | visible info, notVisible info' ->
+            continue ts0 ps0 =<< freshName_ (absName b)
+
+      -- Otherwise, the hiding must coincide.
+         | getHiding info /= getHiding info' ->   -- New line because of '
+             -- Andreas, 2016-12-30 Concrete.Definition excludes this case
+             __IMPOSSIBLE__
+
+      -- We may omit repetition of relevance and quantity
+         | r /= defaultRelevance && r /= r' -> typeError . GenericDocError =<< do
+             text "Wrong relevance in parameter" <+> prettyAs par
+
+         | q /= defaultQuantity  && q /= q' -> typeError . GenericDocError =<< do
+             text "Wrong quantity in parameter" <+> prettyAs par
+
+      -- Now, the @ArgInfo@s should match.
+         | otherwise -> do
             -- Andreas, 2016-12-30, issue #1886:
             -- If type for binding is present, check its correctness.
             ts <- caseList ts0 (return []) $ \ t0 ts -> do
@@ -1099,12 +1119,10 @@ bindParameters' ts0 ps0@(A.DomainFree info x : ps) t ret = do
               return ts
             continue ts ps $ A.unBind x
 
-         | visible info, notVisible info' ->
-            continue ts0 ps0 =<< freshName_ (absName b)
-
-         | otherwise                      -> __IMPOSSIBLE__
-             -- Andreas, 2016-12-30 Concrete.Definition excludes this case
       where
+      r  = getRelevance info  ; q  = getQuantity info
+      r' = getRelevance info' ; q' = getQuantity info'
+
       continue ts ps x = do
         addContext (x, arg) $
           bindParameters' (raise 1 ts) ps (absBody b) $ \ tel s ->
