@@ -624,7 +624,7 @@ data NiceEnv = NiceEnv
   , _posChk   :: PositivityCheck
     -- ^ Positivity checking pragma waiting for a definition.
   , _uniChk   :: UniverseCheck
-    -- ^ Universe checking pragma waiting for a definition.
+    -- ^ Universe checking pragma waiting for a data/rec signature or definition.
   , _catchall :: Catchall
     -- ^ Catchall pragma waiting for a function clause.
   , fixs     :: Fixities
@@ -733,8 +733,14 @@ withUniverseCheckPragma uc f = do
   uc_old <- use universeCheckPragma
   universeCheckPragma .= uc
   result <- f
-  positivityCheckPragma .= uc_old
+  universeCheckPragma .= uc_old
   return result
+
+-- | Get universe check pragma from a data/rec signature.
+--   Defaults to 'True'.
+
+getUniverseCheckFromSig :: Name -> Nice UniverseCheck
+getUniverseCheckFromSig x = maybe True universeCheck <$> getSig x
 
 -- | Lens for field '_catchall'.
 
@@ -1062,7 +1068,11 @@ niceDeclarations ds = do
 
         (Data r Inductive x tel mt cs) -> do
           pc <- use positivityCheckPragma
-          uc <- use universeCheckPragma
+          -- Andreas, 2018-10-27, issue #3327
+          -- Propagate {-# NO_UNIVERSE_CHECK #-} pragma from signature to definition.
+          -- Universe check is performed if both the current value of
+          -- 'universeCheckPragma' AND the one from the signature say so.
+          uc <- use universeCheckPragma `and2M` getUniverseCheckFromSig x
           mt <- defaultTypeSig (DataName pc uc $ parameters tel) x mt
           (,) <$> dataOrRec pc uc DataDef NiceDataSig (niceAxioms DataBlock) r x ((tel,) <$> mt) (Just (tel, cs))
               <*> return ds
@@ -1080,7 +1090,11 @@ niceDeclarations ds = do
 
         (Record r x i e c tel mt cs)   -> do
           pc <- use positivityCheckPragma
-          uc <- use universeCheckPragma
+          -- Andreas, 2018-10-27, issue #3327
+          -- Propagate {-# NO_UNIVERSE_CHECK #-} pragma from signature to definition.
+          -- Universe check is performed if both the current value of
+          -- 'universeCheckPragma' AND the one from the signature say so.
+          uc <- use universeCheckPragma `and2M` getUniverseCheckFromSig x
           mt <- defaultTypeSig (RecName pc uc $ parameters tel) x mt
           c <- traverse (\(cname, cinst) -> do fix <- getFixity cname; return (ThingWithFixity cname fix, cinst)) c
           (,) <$> dataOrRec pc uc (\ r f a pc uc x tel cs -> RecDef r f a pc uc x i e c tel cs) NiceRecSig
