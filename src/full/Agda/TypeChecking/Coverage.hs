@@ -52,7 +52,7 @@ import Agda.TypeChecking.Coverage.SplitTree
 import Agda.TypeChecking.Conversion (tryConversion, equalType)
 import Agda.TypeChecking.Datatypes (getConForm)
 import {-# SOURCE #-} Agda.TypeChecking.Empty (isEmptyTel)
-import Agda.TypeChecking.Irrelevance (applyModalityToContext)
+import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.Patterns.Internal (dotPatternsToPatterns)
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Substitute
@@ -260,9 +260,12 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
     [ "checking coverage of pattern:"
     , nest 2 $ "tel  =" <+> prettyTCM tel
     , nest 2 $ "ps   =" <+> do addContext tel $ prettyTCMPatternList $ fromSplitPatterns ps
+    , nest 2 $ "target =" <+> do addContext tel $ maybe (text "<none>") prettyTCM target
+    , nest 2 $ "target sort =" <+> do addContext tel $ maybe (text "<none>") (prettyTCM . getSort . unArg) target
     ]
   reportSDoc "tc.cover.cover" 60 $ vcat
     [ nest 2 $ "ps   =" <+> pretty ps
+    , nest 2 $ "target =" <+> (text . show) target
     ]
   cs' <- normaliseProjP cs
   ps <- (traverse . traverse . traverse) dotPatternsToPatterns ps
@@ -314,9 +317,11 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
     updateRelevance cont =
       -- Don't do anything if there is no target type info.
       caseMaybe target cont $ \ b -> do
+        -- Andreas, 2018-10-27 sort unreduced, e.g. an instantiated 'MetaS'
+        isPrp <- isPropM (unArg b)
         -- Otherwise, if the target type is a proposition, wake irrelevant vars.
         -- TODO (2018-10-16): if proofs get erased in the compiler, also wake erased vars!
-        let m = applyWhen (isProp (unArg b)) (setRelevance Irrelevant) $ getModality b
+        let m = applyWhen isPrp (setRelevance Irrelevant) $ getModality b
         applyModalityToContext m cont
 
     continue
@@ -1163,6 +1168,12 @@ split' ind allowPartialCover fixtarget sc@(SClause tel ps _ cps target) (Blockin
     YesFixTarget -> lift $ forM ns $ \(con,sc) ->
       (con,) . snd <$> fixTarget sc{ scTarget = target }
 
+  -- Andreas, 2018-10-27, issue #3324; use isPropM.
+  -- Need to reduce sort to decide on Prop.
+  -- Cannot split if domain is a Prop but target is relevant.
+  propArrowRel <- isPropM t `and2M`
+    maybe (return True) (not <.> isIrrelevantOrPropM) target
+
   case ns of
     []  -> do
       let absurdp = VarP PatOAbsurd $ SplitPatVar underscore 0 []
@@ -1178,7 +1189,7 @@ split' ind allowPartialCover fixtarget sc@(SClause tel ps _ cps target) (Blockin
 
     -- Jesper, 2018-05-24: If the datatype is in Prop we can
     -- only do empty splits, unless the target is in Prop too.
-    (_ : _) | dr == IsData && isProp t && not (isIrrelevant relTarget) ->
+    (_ : _) | dr == IsData && propArrowRel ->
       throwError . IrrelevantDatatype =<< do liftTCM $ inContextOfT $ buildClosure (unDom t)
 
     -- Andreas, 2018-10-17: If more than one constructor matches, we cannot erase.
@@ -1206,11 +1217,6 @@ split' ind allowPartialCover fixtarget sc@(SClause tel ps _ cps target) (Blockin
       return $ Right $ Covering (lookupPatternVar sc x) ns
 
   where
-    relTarget = caseMaybe target Relevant $ \b ->
-            if isProp (unArg b)
-            then Irrelevant
-            else getRelevance b
-
     inContextOfT, inContextOfDelta2 :: (MonadTCM tcm, MonadDebug tcm) => tcm a -> tcm a
     inContextOfT      = addContext tel . escapeContext (x + 1)
     inContextOfDelta2 = addContext tel . escapeContext x

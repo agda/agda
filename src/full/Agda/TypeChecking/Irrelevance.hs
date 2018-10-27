@@ -86,6 +86,7 @@ import Agda.Syntax.Internal
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
+import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute.Class
 
 import Agda.Utils.Function
@@ -454,3 +455,16 @@ instance UsableModality a => UsableModality (Dom a) where
 
 instance (Subst t a, UsableModality a) => UsableModality (Abs a) where
   usableMod mod abs = underAbstraction_ abs $ \u -> usableMod mod u
+
+
+-- * Propositions
+
+-- | Is a type a proposition?  (Needs reduction.)
+
+isPropM :: (LensSort a, MonadReduce m) => a -> m Bool
+isPropM a = reduce (getSort a) <&> \case
+  Prop{} -> True
+  _      -> False
+
+isIrrelevantOrPropM :: (LensRelevance a, LensSort a, MonadReduce m) => a -> m Bool
+isIrrelevantOrPropM x = return (isIrrelevant x) `or2M` isPropM x

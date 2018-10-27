@@ -80,6 +80,7 @@ import Agda.Utils.Except
   , MonadError(catchError, throwError)
   , runExceptT
   )
+import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List
@@ -913,9 +914,8 @@ checkExpr' cmp e t0 =
 
     e <- scopedExpr e
 
-    let irrelevantIfProp = if isProp t
-                           then applyRelevanceToContext Irrelevant
-                           else id
+    isPrp <- isPropM t
+    let irrelevantIfProp = applyWhen isPrp $ applyRelevanceToContext Irrelevant
 
     irrelevantIfProp $ tryInsertHiddenLambda e t $ case e of
 
