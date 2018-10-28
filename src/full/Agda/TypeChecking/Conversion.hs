@@ -1491,7 +1491,7 @@ equalSort s1 s2 = do
         (s1,s2) <- reduce (s1,s2)
         let postpone = addConstraint (SortCmp CmpEq s1 s2)
             yes      = return ()
-            no       = unlessM typeInType $ typeError $ UnequalSorts s1 s2
+            no       = typeError $ UnequalSorts s1 s2
             synEq    = ifNotM (optSyntacticEquality <$> pragmaOptions) postpone $ do
               ((s1,s2) , equal) <- SynEq.checkSyntacticEquality s1 s2
               if | equal     -> yes
