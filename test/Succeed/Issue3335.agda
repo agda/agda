@@ -15,7 +15,7 @@ postulate
   f : Box A → A
   f= : f (box a) ≡ a
 {-# REWRITE f= #-}
-  
+
 [a] : Box A
 unbox [a] = a
 
