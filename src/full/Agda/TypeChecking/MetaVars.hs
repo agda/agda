@@ -138,7 +138,6 @@ newSortMetaBelowInf = do
 -- | Create a sort meta that may be instantiated with 'Inf' (Setω).
 newSortMeta :: TCM Sort
 newSortMeta =
-  ifM typeInType (return $ mkType 0) $ {- else -}
   ifM hasUniversePolymorphism (newSortMetaCtx =<< getContextArgs)
   -- else (no universe polymorphism)
   $ do i   <- createMetaInfo
@@ -148,7 +147,6 @@ newSortMeta =
 -- | Create a sort meta that may be instantiated with 'Inf' (Setω).
 newSortMetaCtx :: Args -> TCM Sort
 newSortMetaCtx vs = do
-  ifM typeInType (return $ mkType 0) $ {- else -} do
     i   <- createMetaInfo
     tel <- getContextTelescope
     let t = telePi_ tel __DUMMY_TYPE__

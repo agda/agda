@@ -398,8 +398,13 @@ instance Match Type NLPat Term where
             (tel, c, ci, vs) <- Red.addCtxTel k $ etaExpandRecord_ d pars def v
             ~(Just (_ , ct)) <- Red.addCtxTel k $ getFullyAppliedConType c t
             let flds = recFields def
-                ps'  = map (fmap $ \fld -> PDef f (ps ++ [Proj ProjSystem fld])) flds
-            match r gamma k (ct, Con c ci []) (map Apply ps') (map Apply vs)
+                mkField fld = PDef f (ps ++ [Proj ProjSystem fld])
+                -- Issue #3335: when matching against the record constructor,
+                -- don't add projections but take record field directly.
+                ps'
+                  | conName c == f = ps
+                  | otherwise      = map (Apply . fmap mkField) flds
+            match r gamma k (ct, Con c ci []) ps' (map Apply vs)
           MetaV m es -> do
             matchingBlocked $ Blocked m ()
           _  -> no ""
