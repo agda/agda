@@ -91,6 +91,7 @@ import Agda.Utils.Null
 import qualified Agda.Utils.Pretty as Pretty
 import Agda.Utils.Pretty hiding ((<>))
 import Agda.Utils.Singleton
+import Agda.Utils.Three
 import Agda.Utils.Tuple
 import Agda.Utils.Update
 
@@ -413,7 +414,7 @@ instance Pretty DeclarationWarning where
    pwords "The following names are declared but not accompanied by a definition:"
    ++ punctuate comma (map pretty xs)
   pretty (NotAllowedInMutual r nd) = fsep $
-    [text nd] ++ pwords "are not allowed in mutual blocks"
+    [text nd] ++ pwords "in mutual blocks are not supported.  Suggestion: get rid of mutual block by manually ordering declarations"
   pretty (PolarityPragmasButNotPostulates xs) = fsep $
     pwords "Polarity pragmas have been given for the following identifiers which are not postulates:"
     ++ punctuate comma (map pretty xs)
@@ -1474,22 +1475,117 @@ niceDeclarations ds = do
         ps <- checkLoneSigs $ Map.fromList loneNames
         let ds = replaceSigs ps ds'
 
-        -- Remove the declarations that aren't allowed in old style mutual blocks
-        ds <- fmap catMaybes $ forM ds $ \ d -> let success = pure (Just d) in case d of
-          -- Andreas, 2013-11-23 allow postulates in mutual blocks
-          Axiom{}          -> success
-          -- Andreas, 2017-10-09, issue #2576, raise error about missing type signature
-          -- in ConcreteToAbstract rather than here.
-          NiceFunClause{}  -> success
-          -- Andreas, 2018-05-11, issue #3052, allow pat.syn.s in mutual blocks
-          NicePatternSyn{} -> success
-          -- Otherwise, only categorized signatures and definitions are allowed:
-          -- Data, Record, Fun
-          _ -> if (declKind d /= OtherDecl) then success
-               else Nothing <$ niceWarning (NotAllowedInMutual (getRange d) $ declName d)
+        -- -- Remove the declarations that aren't allowed in old style mutual blocks
+        -- ds <- fmap catMaybes $ forM ds $ \ d -> let success = pure (Just d) in case d of
+        --   -- Andreas, 2013-11-23 allow postulates in mutual blocks
+        --   Axiom{}          -> success
+        --   -- Andreas, 2017-10-09, issue #2576, raise error about missing type signature
+        --   -- in ConcreteToAbstract rather than here.
+        --   NiceFunClause{}  -> success
+        --   -- Andreas, 2018-05-11, issue #3052, allow pat.syn.s in mutual blocks
+        --   NicePatternSyn{} -> success
+        --   -- Otherwise, only categorized signatures and definitions are allowed:
+        --   -- Data, Record, Fun
+        --   _ -> if (declKind d /= OtherDecl) then success
+        --        else Nothing <$ niceWarning (NotAllowedInMutual (getRange d) $ declName d)
+        -- Sort the declarations in the mutual block.
+        -- Declarations of names go to the top.  (Includes module definitions.)
+        -- Definitions of names go to the bottom.
+        -- Some declarations are forbidden, as their positioning could confuse
+        -- the user.
+        (top, bottom, invalid) <- forEither3M ds $ \ d -> do
+          let top       = return (In1 d)
+              bottom    = return (In2 d)
+              invalid s = In3 d <$ do niceWarning $ NotAllowedInMutual (getRange d) s
+          case d of
+            -- Andreas, 2013-11-23 allow postulates in mutual blocks
+            Axiom{}             -> top
+            NiceField{}         -> top
+            PrimitiveFunction{} -> top
+            -- Nested mutual blocks should have been flattened by now.
+            NiceMutual{}        -> __IMPOSSIBLE__
+            -- Andreas, 2018-10-29, issue #3246
+            -- We could allow modules (top), but this is potentially confusing.
+            NiceModule{}        -> invalid "Module definitions"
+            NiceModuleMacro{}   -> top
+            NiceOpen{}          -> top
+            NiceImport{}        -> top
+            NiceRecSig{}        -> top
+            NiceDataSig{}       -> top
+            -- Andreas, 2017-10-09, issue #2576, raise error about missing type signature
+            -- in ConcreteToAbstract rather than here.
+            NiceFunClause{}     -> bottom
+            FunSig{}            -> top
+            FunDef{}            -> bottom
+            DataDef{}           -> bottom
+            RecDef{}            -> bottom
+            -- Andreas, 2018-05-11, issue #3052, allow pat.syn.s in mutual blocks
+            -- Andreas, 2018-10-29: We shift pattern synonyms to the bottom
+            -- since they might refer to constructors defined in a data types
+            -- just above them.
+            NicePatternSyn{}    -> bottom
+            NiceGeneralize{}    -> top
+            NiceUnquoteDecl{}   -> top
+            NiceUnquoteDef{}    -> bottom
+            NicePragma r pragma -> case pragma of
 
-        -- Pull type signatures to the top
-        let (sigs, other) = List.partition isTypeSig ds
+              OptionsPragma{}           -> top     -- error thrown in the type checker
+
+              -- Some builtins require a definition, and they affect type checking
+              -- Thus, we do not handle BUILTINs in mutual blocks (at least for now).
+              BuiltinPragma{}           -> invalid "BUILTIN pragmas"
+
+              -- The REWRITE pragma behaves differently before or after the def.
+              -- and affects type checking.  Thus, we refuse it here.
+              RewritePragma{}           -> invalid "REWRITE pragmas"
+
+              -- Compiler pragmas are not needed for type checking, thus,
+              -- can go to the bottom.
+
+              -- Deprecated compiler pragmas:
+              CompiledDataPragma{}      -> bottom
+              CompiledTypePragma{}      -> bottom
+              CompiledPragma{}          -> bottom
+              CompiledExportPragma{}    -> bottom
+              CompiledJSPragma{}        -> bottom
+              CompiledUHCPragma{}       -> bottom
+              CompiledDataUHCPragma{}   -> bottom
+              HaskellCodePragma{}       -> bottom
+
+              -- New compiler pragmas:
+              ForeignPragma{}           -> bottom
+              CompilePragma{}           -> bottom
+              StaticPragma{}            -> bottom
+              InlinePragma{}            -> bottom
+              ImportPragma{}            -> bottom
+              ImportUHCPragma{}         -> bottom
+              -- End compiler pragmas
+
+              ImpossiblePragma{}        -> top     -- error thrown in scope checker
+              EtaPragma{}               -> bottom  -- needs record definition
+              WarningOnUsage{}          -> top
+              InjectivePragma{}         -> top     -- only needs name, not definition
+              DisplayPragma{}           -> top     -- only for printing
+
+              -- The attached pragmas have already been handled at this point.
+              CatchallPragma{}          -> __IMPOSSIBLE__
+              TerminationCheckPragma{}  -> __IMPOSSIBLE__
+              NoPositivityCheckPragma{} -> __IMPOSSIBLE__
+              PolarityPragma{}          -> __IMPOSSIBLE__
+              NoUniverseCheckPragma{}   -> __IMPOSSIBLE__
+
+        -- -- Pull type signatures to the top
+        -- let (sigs, other) = List.partition isTypeSig ds
+
+        -- -- Push definitions to the bottom
+        -- let (other, defs) = flip List.partition ds $ \case
+        --       FunDef{}         -> False
+        --       DataDef{}        -> False
+        --       RecDef{}         -> False
+        --       NiceFunClause{}  -> False
+        --       NicePatternSyn{} -> False
+        --       NiceUnquoteDef{} -> False
+        --       _ -> True
 
         -- Compute termination checking flag for mutual block
         tc0 <- use terminationCheckPragma
@@ -1501,12 +1597,14 @@ niceDeclarations ds = do
         let pc :: PositivityCheck
             pc = pc0 && all positivityCheckOldMutual ds
 
-        return $ NiceMutual r tc pc $ sigs ++ other
+        return $ NiceMutual r tc pc $ top ++ bottom
+        -- return $ NiceMutual r tc pc $ other ++ defs
+        -- return $ NiceMutual r tc pc $ sigs ++ other
       where
 
-        isTypeSig Axiom{}                     = True
-        isTypeSig d | LoneSig{} <- declKind d = True
-        isTypeSig _                           = False
+        -- isTypeSig Axiom{}                     = True
+        -- isTypeSig d | LoneSig{} <- declKind d = True
+        -- isTypeSig _                           = False
 
         sigNames  = [ (x, k) | LoneSig k x <- map declKind ds' ]
         defNames  = [ (x, k) | LoneDefs k xs <- map declKind ds', x <- xs ]
