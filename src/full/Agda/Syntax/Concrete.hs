@@ -417,6 +417,7 @@ data Pragma
     -- ^ BUILTIN pragmas with no associated definition can have a fixity
     --   default value: @noFixity'@.
   | RewritePragma             Range [QName]
+  -- Deprecated compiler pragmas:
   | CompiledDataPragma        Range QName String [String]
   | CompiledTypePragma        Range QName String
   | CompiledPragma            Range QName String
@@ -425,28 +426,37 @@ data Pragma
   | CompiledUHCPragma         Range QName String
   | CompiledDataUHCPragma     Range QName String [String]
   | HaskellCodePragma         Range String
+
+  -- New compiler pragmas:
   | ForeignPragma             Range String String       -- ^ first string is backend name
   | CompilePragma             Range String QName String -- ^ first string is backend name
   | StaticPragma              Range QName
-  | InjectivePragma           Range QName
   | InlinePragma              Range Bool QName  -- ^ INLINE or NOINLINE
   | ImportPragma              Range String
     -- ^ Invariant: The string must be a valid Haskell module name.
   | ImportUHCPragma           Range String
     -- ^ same as above, but for the UHC backend
+
+  -- end compiler pragmas
+
   | ImpossiblePragma          Range
     -- ^ Throws an internal error in the scope checker.
   | EtaPragma                 Range QName
     -- ^ For coinductive records, use pragma instead of regular
     --   @eta-equality@ definition (as it is might make Agda loop).
+  | WarningOnUsage            Range QName String
+    -- ^ Applies to the named function
+  | InjectivePragma           Range QName
+    -- ^ Mark a definition as injective for the pattern matching unifier.
+  | DisplayPragma             Range Pattern Expr
+    -- ^ Display lhs as rhs (modifies the printer).
+
+  -- Attached (more or less) pragmas handled in the nicifier (Concrete.Definitions):
+  | CatchallPragma            Range
+    -- ^ Applies to the following function clause.
   | TerminationCheckPragma    Range (TerminationCheck Name)
     -- ^ Applies to the following function (and all that are mutually recursive with it)
     --   or to the functions in the following mutual block.
-  | WarningOnUsage            Range QName String
-    -- ^ Applies to the named function
-  | CatchallPragma            Range
-    -- ^ Applies to the following function clause.
-  | DisplayPragma             Range Pattern Expr
   | NoPositivityCheckPragma   Range
     -- ^ Applies to the following data/record type or mutual block.
   | PolarityPragma            Range Name [Occurrence]
