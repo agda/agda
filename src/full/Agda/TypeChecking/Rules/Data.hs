@@ -1161,7 +1161,7 @@ fitsIn uc forceds t s = do
       let (forced,forceds') = nextIsForced forceds
       unless (isForced forced && not withoutK) $ do
         sa <- reduce $ getSort dom
-        unless (isPath || not uc || sa == SizeUniv) $ sa `leqSort` s
+        unless (isPath || uc == NoUniverseCheck || sa == SizeUniv) $ sa `leqSort` s
       addContext (absName b, dom) $ do
         succ <$> fitsIn uc forceds' (absBody b) (raise 1 s)
     _ -> do
