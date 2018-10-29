@@ -716,11 +716,8 @@ bindBuiltinEquality x = do
   TelV eqTel eqCore <- telView $ defType def
   let no = genericError "The type of BUILTIN EQUALITY must be a polymorphic relation"
 
-  case isSort (unEl eqCore) of
-    -- The target is a sort since eq is a data type.
-    Nothing -> __IMPOSSIBLE__
-    Just Type{} -> return ()
-    Just s -> genericError "The type of BUILTIN EQUALITY must end in Set _"
+  -- The target is a sort since eq is a data type.
+  unless (isJust $ isSort $ unEl eqCore) __IMPOSSIBLE__
 
   -- The types of the last two arguments must be the third-last argument
   unless (size eqTel >= 3) no

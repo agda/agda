@@ -1,3 +1,0 @@
-Issue3332.agda:5,1-29
-The type of BUILTIN EQUALITY must end in Set _
-when checking the pragma BUILTIN EQUALITY _≡_
