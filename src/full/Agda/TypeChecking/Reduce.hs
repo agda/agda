@@ -163,6 +163,9 @@ instance Instantiate t => Instantiate (Arg t) where
 instance Instantiate t => Instantiate (Dom t) where
     instantiate' = traverse instantiate'
 
+instance Instantiate t => Instantiate (Maybe t) where
+  instantiate' = traverse instantiate'
+
 instance Instantiate t => Instantiate [t] where
     instantiate' = traverse instantiate'
 
