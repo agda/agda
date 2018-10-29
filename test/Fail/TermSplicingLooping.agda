@@ -6,3 +6,10 @@ module TermSplicingLooping where
 mutual
   f : Set -> Set
   f = unquote (give (def (quote f) []))
+
+-- Expected error:
+--
+-- Termination checking failed for the following functions:
+--   f
+-- Problematic calls:
+--   f
