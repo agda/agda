@@ -1,12 +1,12 @@
 :set -hide-package Agda
 :set -isrc/full
-:set -idist-2.5.4.1.20181027/build/autogen
-:set -idist-2.5.4.1.20181027/build
-:set -Idist-2.5.4.1.20181027/build/autogen
-:set -Idist-2.5.4.1.20181027/build
+:set -idist-2.5.4.2/build/autogen
+:set -idist-2.5.4.2/build
+:set -Idist-2.5.4.2/build/autogen
+:set -Idist-2.5.4.2/build
 :set -Isrc/full
 :set -optP-include
-:set -optPdist-2.5.4.1.20181027/build/autogen/cabal_macros.h
+:set -optPdist-2.5.4.2/build/autogen/cabal_macros.h
 
 :set -w
 :set -Werror
