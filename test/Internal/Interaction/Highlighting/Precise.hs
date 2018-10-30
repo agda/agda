@@ -111,6 +111,8 @@ instance CoArbitrary Aspect where
   coarbitrary PrimitiveType = variant 6
   coarbitrary (Name nk b)   =
     variant 7 . maybeCoGen coarbitrary nk . coarbitrary b
+  coarbitrary Background    = variant 8
+  coarbitrary Markup        = variant 9
 
 instance Arbitrary NameKind where
   arbitrary = oneof $ [liftM Constructor arbitrary] ++

@@ -139,12 +139,15 @@ mkLaTeXOrHTMLTest k agdaBin inp =
     extraFlags <- if flagFileExists
                   then lines <$> readFile flagFile
                   else return []
-    let agdaArgs = flags outDir ++
-                   [ "-i" ++ testDir
-                   , inp
-                   , "--ignore-interfaces"
-                   , "--no-libraries"
-                   ] ++ extraFlags
+    let agdaArgs' = flags outDir ++
+                    [ "-i" ++ testDir
+                    , inp
+                    , "--ignore-interfaces"
+                    , "--no-libraries"
+                    ] ++ extraFlags
+    let agdaArgs = if takeFileName inp == "MdPreserveLit.lagda.md"
+                   then "--html-highlight=code" : agdaArgs'
+                   else agdaArgs'
     res@(ret, _, _) <- PT.readProcessWithExitCode agdaBin agdaArgs T.empty
     if ret /= ExitSuccess then
       return $ AgdaFailed res

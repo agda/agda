@@ -1,17 +1,17 @@
 <!DOCTYPE HTML>
-<html><head><meta charset="utf-8"><title>LaTeX-succeed</title><link rel="stylesheet" href="Agda.css"></head><body><pre><a id="1" class="Comment">\documentclass{article}
+<html><head><meta charset="utf-8"><title>LaTeX-succeed</title><link rel="stylesheet" href="Agda.css"></head><body><pre><a id="1" class="Background">\documentclass{article}
 
 \usepackage{agda}
 
 \begin{document}
 
 \AgdaHide{
-</a>\begin{code}
+</a><a id="74" class="Markup">\begin{code}</a>
 <a id="87" class="Keyword">module</a> <a id="94" href="LaTeX-succeed.html" class="Module">LaTeX-succeed</a> <a id="108" class="Keyword">where</a>
-\end{code}<a id="124" class="Comment">
+<a id="114" class="Markup">\end{code}</a><a id="124" class="Background">
 }
 
-</a>\begin{code}
+</a><a id="128" class="Markup">\begin{code}</a>
 <a id="141" class="Keyword">data</a> <a id="Bool"></a><a id="146" href="LaTeX-succeed.html#146" class="Datatype">Bool</a> <a id="151" class="Symbol">:</a> <a id="153" class="PrimitiveType">Set</a> <a id="157" class="Keyword">where</a>
   <a id="Bool.true"></a><a id="165" href="LaTeX-succeed.html#165" class="InductiveConstructor">true</a>   <a id="172" class="Symbol">:</a> <a id="174" href="LaTeX-succeed.html#146" class="Datatype">Bool</a>
   <a id="Bool.false"></a><a id="181" href="LaTeX-succeed.html#181" class="InductiveConstructor">false</a>  <a id="188" class="Symbol">:</a> <a id="190" href="LaTeX-succeed.html#146" class="Datatype">Bool</a>
@@ -35,9 +35,9 @@
 <a id="514" href="LaTeX-succeed.html#450" class="Function">alignment</a>     <a id="528" class="Number">1</a>  <a id="531" class="Number">2</a>  <a id="534" class="Number">3</a>  <a id="537" class="Number">4</a>  <a id="540" class="Symbol">=</a>  <a id="543" class="Number">5</a>
 <a id="545" href="LaTeX-succeed.html#450" class="Function">alignment</a>        <a id="562" class="Number">2</a>  <a id="565" class="Number">3</a>  <a id="568" class="Number">4</a>  <a id="571" class="Number">5</a>     <a id="577" class="Symbol">=</a> <a id="579" class="Number">6</a>
 <a id="581" href="LaTeX-succeed.html#450" class="CatchallClause Function">alignment</a><a id="590" class="CatchallClause">           </a><a id="601" class="CatchallClause Symbol">_</a><a id="602" class="CatchallClause">  </a><a id="604" class="CatchallClause Symbol">_</a><a id="605" class="CatchallClause">  </a><a id="607" class="CatchallClause Symbol">_</a><a id="608" class="CatchallClause">  </a><a id="610" class="CatchallClause Symbol">_</a>  <a id="613" class="Symbol">=</a> <a id="615" class="Number">0</a>
-\end{code}<a id="627" class="Comment">
+<a id="617" class="Markup">\end{code}</a><a id="627" class="Background">
 
-</a>\begin{code}
+</a><a id="629" class="Markup">\begin{code}</a>
 <a id="642" class="Keyword">data</a> <a id="⊥"></a><a id="647" href="LaTeX-succeed.html#647" class="Datatype">⊥</a> <a id="649" class="Symbol">:</a> <a id="651" class="PrimitiveType">Set</a> <a id="655" class="Keyword">where</a>
 
 <a id="662" class="Keyword">record</a> <a id="R"></a><a id="669" href="LaTeX-succeed.html#669" class="Record">R</a> <a id="671" class="Symbol">:</a> <a id="673" class="PrimitiveType">Set₁</a> <a id="678" class="Keyword">where</a>
@@ -50,9 +50,9 @@
     <a id="R′.h"></a><a id="766" href="LaTeX-succeed.html#766" class="Field">h</a>  <a id="769" class="Symbol">:</a> <a id="771" class="PrimitiveType">Set</a>
     <a id="R′.j"></a><a id="779" href="LaTeX-succeed.html#779" class="Field">j</a>  <a id="782" class="Symbol">:</a> <a id="784" class="PrimitiveType">Set</a>
     <a id="R′.r"></a><a id="792" href="LaTeX-succeed.html#792" class="Field">r</a>  <a id="795" class="Symbol">:</a> <a id="797" href="LaTeX-succeed.html#669" class="Record">R</a>
-\end{code}<a id="809" class="Comment">
+<a id="799" class="Markup">\end{code}</a><a id="809" class="Background">
 
-</a>\begin{code}
+</a><a id="811" class="Markup">\begin{code}</a>
 <a id="824" class="Keyword">module</a> <a id="M"></a><a id="831" href="LaTeX-succeed.html#831" class="Module">M</a> <a id="833" class="Keyword">where</a>
   <a id="M.r′"></a><a id="841" href="LaTeX-succeed.html#841" class="Function">r′</a> <a id="844" class="Symbol">:</a> <a id="846" class="Symbol">∀</a> <a id="848" class="Symbol">{</a><a id="849" href="LaTeX-succeed.html#849" class="Bound">A</a> <a id="851" href="LaTeX-succeed.html#851" class="Bound">B</a> <a id="853" class="Symbol">:</a> <a id="855" class="PrimitiveType">Set</a><a id="858" class="Symbol">}</a> <a id="860" class="Symbol">→</a> <a id="862" href="LaTeX-succeed.html#726" class="Record">R′</a> <a id="865" href="LaTeX-succeed.html#849" class="Bound">A</a> <a id="867" href="LaTeX-succeed.html#851" class="Bound">B</a>
   <a id="871" href="LaTeX-succeed.html#841" class="Function">r′</a> <a id="874" class="Symbol">=</a> <a id="876" class="Keyword">record</a>
@@ -63,11 +63,11 @@
         <a id="951" class="Symbol">;</a> <a id="953" href="LaTeX-succeed.html#709" class="Field">g</a>  <a id="956" class="Symbol">=</a> <a id="958" href="LaTeX-succeed.html#647" class="Datatype">⊥</a>
         <a id="968" class="Symbol">}</a>
     <a id="974" class="Symbol">}</a>
-\end{code}<a id="986" class="Comment">
+<a id="976" class="Markup">\end{code}</a><a id="986" class="Background">
 
 Andreas, 2018-04-03: The following two modules test the highlighting of projection patterns.
 
-</a>\begin{code}
+</a><a id="1082" class="Markup">\begin{code}</a>
 <a id="1095" class="Keyword">module</a> <a id="QualifiedProjectionPatterns"></a><a id="1102" href="LaTeX-succeed.html#1102" class="Module">QualifiedProjectionPatterns</a> <a id="1130" class="Keyword">where</a>
 
   <a id="QualifiedProjectionPatterns.r"></a><a id="1139" href="LaTeX-succeed.html#1139" class="Function">r</a> <a id="1141" class="Symbol">:</a> <a id="1143" href="LaTeX-succeed.html#669" class="Record">R</a>
@@ -78,9 +78,9 @@ Andreas, 2018-04-03: The following two modules test the highlighting of projecti
   <a id="1194" href="LaTeX-succeed.html#766" class="Field">R′.h</a> <a id="1199" href="LaTeX-succeed.html#1177" class="Function">r′</a> <a id="1202" class="Symbol">=</a> <a id="1204" href="LaTeX-succeed.html#647" class="Datatype">⊥</a>
   <a id="1208" href="LaTeX-succeed.html#779" class="Field">R′.j</a> <a id="1213" href="LaTeX-succeed.html#1177" class="Function">r′</a> <a id="1216" class="Symbol">=</a> <a id="1218" href="LaTeX-succeed.html#146" class="Datatype">Bool</a> <a id="1223" class="Symbol">→</a> <a id="1225" href="LaTeX-succeed.html#146" class="Datatype">Bool</a>
   <a id="1232" href="LaTeX-succeed.html#792" class="Field">R′.r</a> <a id="1237" href="LaTeX-succeed.html#1177" class="Function">r′</a> <a id="1240" class="Symbol">=</a> <a id="1242" href="LaTeX-succeed.html#1139" class="Function">r</a>
-\end{code}<a id="1254" class="Comment">
+<a id="1244" class="Markup">\end{code}</a><a id="1254" class="Background">
 
-</a>\begin{code}
+</a><a id="1256" class="Markup">\begin{code}</a>
 <a id="1269" class="Keyword">module</a> <a id="UnqualifiedProjectionPatterns"></a><a id="1276" href="LaTeX-succeed.html#1276" class="Module">UnqualifiedProjectionPatterns</a> <a id="1306" class="Keyword">where</a>
   <a id="1314" class="Keyword">open</a> <a id="1319" href="LaTeX-succeed.html#669" class="Module">R</a><a id="1320" class="Symbol">;</a> <a id="1322" class="Keyword">open</a> <a id="1327" href="LaTeX-succeed.html#726" class="Module">R′</a>
 
@@ -92,7 +92,7 @@ Andreas, 2018-04-03: The following two modules test the highlighting of projecti
   <a id="1387" href="LaTeX-succeed.html#766" class="Field">h</a> <a id="1389" href="LaTeX-succeed.html#1370" class="Function">r′</a> <a id="1392" class="Symbol">=</a> <a id="1394" href="LaTeX-succeed.html#647" class="Datatype">⊥</a>
   <a id="1398" href="LaTeX-succeed.html#779" class="Field">j</a> <a id="1400" href="LaTeX-succeed.html#1370" class="Function">r′</a> <a id="1403" class="Symbol">=</a> <a id="1405" href="LaTeX-succeed.html#146" class="Datatype">Bool</a> <a id="1410" class="Symbol">→</a> <a id="1412" href="LaTeX-succeed.html#146" class="Datatype">Bool</a>
   <a id="1419" href="LaTeX-succeed.html#792" class="Field">r</a> <a id="1421" href="LaTeX-succeed.html#1370" class="Function">r′</a> <a id="1424" class="Symbol">=</a> <a id="1426" href="LaTeX-succeed.html#1333" class="Function">r₀</a>
-\end{code}<a id="1439" class="Comment">
+<a id="1429" class="Markup">\end{code}</a><a id="1439" class="Background">
 
 \end{document}
 </a></pre></body></html>

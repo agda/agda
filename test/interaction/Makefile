@@ -26,9 +26,9 @@ clean=/usr/bin/env bash $(shell pwd)/clean.sh $(sed)
 
 # Construct the list of tests to carry out.
 # Andreas, 2017-04-24 ls -t: sort by newest first
-AgdaFiles=$(shell ls -t *agda)
-OutFiles=$(patsubst %.lagda,%.out,$(patsubst %.agda,%.out,$(AgdaFiles)))
-Tests=$(patsubst %.lagda,%.cmp,$(patsubst %.agda,%.cmp,$(AgdaFiles)))
+AgdaFiles=$(shell ls -t *agda *lagda.md)
+OutFiles=$(patsubst %.lagda,%.out,$(patsubst %.agda,%.out,$(patsubst %.lagda.md,%,$(AgdaFiles))))
+Tests=$(patsubst %.lagda,%.cmp,$(patsubst %.agda,%.cmp,$(patsubst %.lagda.md,%,$(AgdaFiles))))
 
 default : $(Tests)
 
@@ -57,7 +57,7 @@ run_test=if test -f $*.in; \
          | $(sed) "s/top_command/IOTCM currentFile None Indirect/g" \
          | $(sed) "s/goal_command \\([0-9]\+\\) (\\([^)]\+\\)) \\(\"[^\"]*\"\\)/IOTCM currentFile None Indirect (\\2 \\1 noRange \\3)/g" \
          | $(sed) "s/goal_command \\([0-9]\+\\) \\([^ ]\+\\) \\(\"[^\"]*\"\\)/IOTCM currentFile None Indirect (\\2 \\1 noRange \\3)/g" \
-         | $(sed) "s/currentFile/\"$(wildcard $*.agda $*.lagda)\"/g" \
+         | $(sed) "s/currentFile/\"$(wildcard $*.agda $*.lagda $*.lagda.md)\"/g" \
          | $(AGDA_BIN) -v0 -i . -i .. --interaction --ignore-interfaces --no-default-libraries $(RTS_$*) \
            2>&1 | $(filter) ; \
     elif test -f $*.hs; \

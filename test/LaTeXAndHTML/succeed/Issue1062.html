@@ -1,11 +1,11 @@
 <!DOCTYPE HTML>
-<html><head><meta charset="utf-8"><title>Issue1062</title><link rel="stylesheet" href="Agda.css"></head><body><pre><a id="1" class="Comment">\nonstopmode
+<html><head><meta charset="utf-8"><title>Issue1062</title><link rel="stylesheet" href="Agda.css"></head><body><pre><a id="1" class="Background">\nonstopmode
 \documentclass{article}
 
 \usepackage{agda}
 
 \begin{document}
-</a>\begin{code}
+</a><a id="75" class="Markup">\begin{code}</a>
 
 <a id="89" class="Symbol">{-#</a> <a id="93" class="Keyword">OPTIONS</a> <a id="101" class="Option">--copatterns</a> <a id="114" class="Option">--sized-types</a> <a id="128" class="Symbol">#-}</a>
 
@@ -67,7 +67,7 @@
 <a id="1333" href="Issue1062.html#563" class="Field">head</a>  <a id="1339" class="Symbol">(</a><a id="1340" href="Issue1062.html#1195" class="Function">unfold⁺</a> <a id="1348" href="Issue1062.html#1348" class="Bound">step</a> <a id="1353" href="Issue1062.html#1353" class="Bound">s</a><a id="1354" class="Symbol">)</a> <a id="1356" class="Symbol">=</a>  <a id="1359" href="Issue1062.html#1016" class="Field">head</a> <a id="1364" class="Symbol">(</a><a id="1365" href="Issue1062.html#410" class="Field">fst</a> <a id="1369" class="Symbol">(</a><a id="1370" href="Issue1062.html#1348" class="Bound">step</a> <a id="1375" href="Issue1062.html#1353" class="Bound">s</a><a id="1376" class="Symbol">))</a>
 <a id="1379" href="Issue1062.html#577" class="Field">tail</a>  <a id="1385" class="Symbol">(</a><a id="1386" href="Issue1062.html#1195" class="Function">unfold⁺</a> <a id="1394" href="Issue1062.html#1394" class="Bound">step</a> <a id="1399" href="Issue1062.html#1399" class="Bound">s</a><a id="1400" class="Symbol">)</a> <a id="1402" class="Symbol">=</a>  <a id="1405" class="Keyword">let</a>  <a id="1410" class="Symbol">((_</a> <a id="1414" href="Issue1062.html#1000" class="InductiveConstructor Operator">∷</a> <a id="1416" href="Issue1062.html#1416" class="Bound">l</a><a id="1417" class="Symbol">)</a> <a id="1419" href="Issue1062.html#394" class="InductiveConstructor Operator">,</a> <a id="1421" href="Issue1062.html#1421" class="Bound">s′</a><a id="1423" class="Symbol">)</a> <a id="1425" class="Symbol">=</a> <a id="1427" href="Issue1062.html#1394" class="Bound">step</a> <a id="1432" href="Issue1062.html#1399" class="Bound">s</a>
                           <a id="1460" class="Keyword">in</a>   <a id="1465" href="Issue1062.html#1416" class="Bound">l</a> <a id="1467" href="Issue1062.html#787" class="Function Operator">++ˢ</a> <a id="1471" href="Issue1062.html#1195" class="Function">unfold⁺</a> <a id="1479" href="Issue1062.html#1394" class="Bound">step</a> <a id="1484" href="Issue1062.html#1421" class="Bound">s′</a>
-\end{code}<a id="1497" class="Comment">
+<a id="1487" class="Markup">\end{code}</a><a id="1497" class="Background">
 Problem: The ∷ in the last let statement is not colored with constructor color.
 \end{document}
 </a></pre></body></html>
