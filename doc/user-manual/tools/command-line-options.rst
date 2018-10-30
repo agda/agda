@@ -77,6 +77,10 @@ Generating highlighted source code
       Set URL of the CSS file used by the HTML files to
       :samp:`{URL}` (can be relative)
 
+:samp:`--html-highlight=[code,all]`
+      Whether to highlight non-Agda code as comments in
+      generated HTML files (see :ref: `generating-html`)
+
 :samp:`--dependency-graph={FILE}`
       Generate a Dot_ file :samp:`{FILE}`
       with a module dependency graph

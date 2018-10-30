@@ -208,6 +208,17 @@ Pragmas and options
   written using `--omega-in-omega` is still compatible with normal
   universe-polymorphic code and can be used in such files.
 
+* New option `--html-highlight=[code,all]`.
+
+  The option `--html-highlight=code` makes the HTML-backend generate
+  files with: no HTML footer/header, Agda codes highlighted and
+  other parts as-is.
+
+  This makes it possible to use an ordinary markdown processor
+  to render the generated HTML.
+
+  The old and default behaviour is still `--html-highlight=all`.
+
 * Option `--irrelevant-projections` is now off by default and
   not considered `--safe` any longer.
   Reason: There are consistency issues that may be systemic
