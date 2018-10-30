@@ -1,5 +1,7 @@
 /* Aspects. */
 .Comment       { color: #B22222 }
+.Background    {}
+.Markup        { color: #000000 }
 .Keyword       { color: #CD6600 }
 .String        { color: #B22222 }
 .Number        { color: #A020F0 }

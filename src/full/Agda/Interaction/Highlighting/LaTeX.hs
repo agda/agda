@@ -473,6 +473,8 @@ processCode toks' = do
       Number            -> s
       Symbol            -> s
       PrimitiveType     -> s
+      Background        -> s
+      Markup            -> s
       Name Nothing isOp -> fromAspect (Name (Just Postulate) isOp)
         -- At the time of writing the case above can be encountered in
         -- --only-scope-checking mode, for instance for the token "Size"

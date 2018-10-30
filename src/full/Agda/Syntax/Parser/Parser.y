@@ -1967,6 +1967,7 @@ mkName (i, s) = do
               TokSetN{}     -> "a type universe"
               TokPropN{}    -> "a prop universe"
               TokTeX{}      -> __IMPOSSIBLE__  -- used by the LaTeX backend only
+              TokMarkup{}   -> __IMPOSSIBLE__  -- ditto
               TokComment{}  -> __IMPOSSIBLE__
               TokDummy{}    -> __IMPOSSIBLE__
               TokEOF{}      -> __IMPOSSIBLE__

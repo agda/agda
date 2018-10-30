@@ -71,6 +71,7 @@ data Token
         | TokSetN (Interval, Integer)
         | TokPropN (Interval, Integer)
         | TokTeX (Interval, String)
+        | TokMarkup (Interval, String)
         | TokComment (Interval, String)
         | TokDummy      -- Dummy token to make Happy not complain
                         -- about overlapping cases.
@@ -87,6 +88,7 @@ instance HasRange Token where
   getRange (TokSetN (i, _))    = getRange i
   getRange (TokPropN (i, _))   = getRange i
   getRange (TokTeX (i, _))     = getRange i
+  getRange (TokMarkup (i, _))  = getRange i
   getRange (TokComment (i, _)) = getRange i
   getRange TokDummy            = noRange
   getRange TokEOF              = noRange

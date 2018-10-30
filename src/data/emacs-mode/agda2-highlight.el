@@ -369,6 +369,8 @@ If `agda2-highlight-face-groups' is nil."
 (defvar agda2-highlight-faces
   '((keyword                . agda2-highlight-keyword-face)
     (comment                . font-lock-comment-face)
+    (background             . font-lock-comment-face)
+    (markup                 . font-lock-comment-face)
     (string                 . agda2-highlight-string-face)
     (number                 . agda2-highlight-number-face)
     (symbol                 . agda2-highlight-symbol-face)
@@ -429,6 +431,9 @@ The aspects currently recognised are the following:
 `unsolvedconstraint'     Unsolved constraints, not connected to meta
                            variables.
 `unsolvedmeta'           Unsolved meta variables.
+`background'             Non-Agda code contents in literate mode.
+`markup'                 Delimiters to separate the Agda code blocks
+                           from other contents
 `comment'                Comments.")
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

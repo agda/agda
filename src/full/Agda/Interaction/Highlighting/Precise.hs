@@ -72,6 +72,10 @@ data Aspect
   | Symbol                     -- ^ Symbols like forall, =, ->, etc.
   | PrimitiveType              -- ^ Things like Set and Prop.
   | Name (Maybe NameKind) Bool -- ^ Is the name an operator part?
+  | Background                 -- ^ Non-code contents in literate Agda
+  | Markup
+    -- ^ Delimiters used to separate the Agda code blocks from the
+    -- other contents in literate Agda
     deriving (Eq, Show)
 
 -- | @NameKind@s are figured out during scope checking.

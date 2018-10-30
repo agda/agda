@@ -49,6 +49,8 @@ instance EmbPrj HP.Aspect where
   icod_ HP.Symbol        = icodeN' HP.Symbol
   icod_ HP.PrimitiveType = icodeN 6 ()
   icod_ (HP.Name mk b)   = icodeN 7 HP.Name mk b
+  icod_ HP.Background    = icodeN 8 ()
+  icod_ HP.Markup        = icodeN 9 ()
 
   value = vcase valu where
     valu [0]        = valuN HP.Comment
@@ -59,6 +61,8 @@ instance EmbPrj HP.Aspect where
     valu []         = valuN HP.Symbol
     valu [6]        = valuN HP.PrimitiveType
     valu [7, mk, b] = valuN HP.Name mk b
+    valu [8]        = valuN HP.Background
+    valu [9]        = valuN HP.Markup
     valu _          = malformed
 
 instance EmbPrj HP.OtherAspect where

@@ -26,6 +26,7 @@ import Data.Maybe
 import qualified Data.IntMap as IntMap
 import qualified Data.Map    as Map
 import qualified Data.List   as List
+import Data.List.Split (splitWhen, chunksOf)
 import Data.Text.Lazy (Text)
 import qualified Data.Text.Lazy as T
 
@@ -84,9 +85,10 @@ generateHTML = generateHTMLWithPageGen pageGen
     FilePath -> C.TopLevelModuleName -> Text -> CompressedFile -> TCM ()
   pageGen dir mod contents hinfo = generatePage renderer dir mod
     where
-    renderer :: FilePath -> FilePath -> Text
-    renderer css _ =
-      page css mod $ code $ tokenStream contents hinfo
+    renderer :: FilePath -> Bool -> FilePath -> Text
+    renderer css htmlHighlight _ =
+      page css htmlHighlight mod $
+      code htmlHighlight $ tokenStream contents hinfo
 
 -- | Prepare information for HTML page generation.
 --
@@ -136,16 +138,17 @@ modToFile m =
 -- | Generates a highlighted, hyperlinked version of the given module.
 
 generatePage
-  :: (FilePath -> FilePath -> Text)  -- ^ Page renderer.
+  :: (FilePath ->
+      Bool -> FilePath -> Text)      -- ^ Page renderer.
   -> FilePath                        -- ^ Directory in which to create
                                      --   files.
   -> C.TopLevelModuleName            -- ^ Module to be highlighted.
   -> TCM ()
-generatePage renderpage dir mod = do
+generatePage renderPage dir mod = do
   f   <- fromMaybe __IMPOSSIBLE__ . Map.lookup mod <$> useTC TCM.stModuleToSource
-  css <- fromMaybe defaultCSSFile . optCSSFile <$>
-           TCM.commandLineOptions
-  let html = renderpage css (filePath f)
+  css <- fromMaybe defaultCSSFile . optCSSFile <$> TCM.commandLineOptions
+  pc  <- optHTMLOnlyCode <$> TCM.commandLineOptions
+  let html = renderPage css pc $ filePath f
   TCM.reportSLn "html" 1 $ "Generating HTML for " ++
                            render (pretty mod) ++
                            " (" ++ target ++ ")."
@@ -161,22 +164,25 @@ h !! as = h ! mconcat as
 -- | Constructs the web page, including headers.
 
 page :: FilePath              -- ^ URL to the CSS file.
+     -> Bool                  -- ^ Whether to reserve literate
      -> C.TopLevelModuleName  -- ^ Module to be highlighted.
      -> Html
      -> Text
-page css modName pagecontent = renderHtml $ docTypeHtml $ hdr <> rest
-
+page css htmlHighlight modName pageContent =
+  renderHtml $ if htmlHighlight
+  then pageContent
+  else docTypeHtml $ hdr <> rest
   where
 
     hdr = Html5.head $ mconcat
       [ meta !! [ charset "utf-8" ]
       , Html5.title (toHtml $ render $ pretty modName)
       , link !! [ rel "stylesheet"
-                , href (stringValue css)
+                , href $ stringValue css
                 ]
       ]
 
-    rest = body (pre pagecontent)
+    rest = body $ pre pageContent
 
 -- | Constructs token stream ready to print.
 
@@ -197,15 +203,31 @@ tokenStream contents info =
 
 -- | Constructs the HTML displaying the code.
 
-code :: [(Int, String, Aspects)]
+code :: Bool          -- ^ Whether to generate non-code contents as-is
+     -> [(Int, String, Aspects)]
      -> Html
-code = mconcat . map mkHtml
+code asIs = mconcat . if asIs
+  then map mkMd . chunksOf 2 . splitWhen ((== Just Markup) . aspect . trd)
+  else map mkHtml
   where
+  trd (_, _, a) = a
+
   mkHtml :: (Int, String, Aspects) -> Html
   mkHtml (pos, s, mi) =
     -- Andreas, 2017-06-16, issue #2605:
     -- Do not create anchors for whitespace.
     applyUnless (mi == mempty) (annotate pos mi) $ toHtml s
+
+  mkMd :: [[(Int, String, Aspects)]] -> Html
+  mkMd = go
+    where
+      work a@(pos, s, mi) = case aspect mi of
+        Just Background -> preEscapedToHtml s
+        Just Markup     -> __IMPOSSIBLE__
+        _               -> mkHtml a
+      go [a, b] = mconcat [mconcat $ work <$> a, pre ! class_ "agda-code" $ mconcat $ work <$> b]
+      go [a]    = mconcat $ work <$> a
+      go _      = __IMPOSSIBLE__
 
   -- | Put anchors that enable referencing that token.
   --   We put a fail safe numeric anchor (file position) for internal references (issue #2756),
@@ -245,6 +267,7 @@ code = mconcat . map mkHtml
 
       opClass = if op then ["Operator"] else []
     aspectClasses a = [show a]
+
 
     otherAspectClasses = map show
 

@@ -437,7 +437,8 @@ tokenHighlighting = merge . map tokenToCFile
   tokenToCFile (T.TokLiteral (L.LitQName  r _)) = aToF String r
   tokenToCFile (T.TokLiteral (L.LitMeta r _ _)) = aToF String r
   tokenToCFile (T.TokComment (i, _))            = aToF Comment (P.getRange i)
-  tokenToCFile (T.TokTeX (i, _))                = aToF Comment (P.getRange i)
+  tokenToCFile (T.TokTeX (i, _))                = aToF Background (P.getRange i)
+  tokenToCFile (T.TokMarkup (i, _))             = aToF Markup (P.getRange i)
   tokenToCFile (T.TokId {})                     = mempty
   tokenToCFile (T.TokQId {})                    = mempty
   tokenToCFile (T.TokString (i,s))
