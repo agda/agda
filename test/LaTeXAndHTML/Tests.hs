@@ -145,7 +145,7 @@ mkLaTeXOrHTMLTest k agdaBin inp =
                     , "--ignore-interfaces"
                     , "--no-libraries"
                     ] ++ extraFlags
-    let agdaArgs = if takeFileName inp == "MdPreserveLit.lagda.md"
+    let agdaArgs = if takeFileName inp == "MdHighlightCode.lagda.md"
                    then "--html-highlight=code" : agdaArgs'
                    else agdaArgs'
     res@(ret, _, _) <- PT.readProcessWithExitCode agdaBin agdaArgs T.empty
