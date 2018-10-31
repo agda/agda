@@ -5,8 +5,7 @@ Installation and infrastructure
 -------------------------------
 
 * Added support for GHC 8.6.1 (except for `cpphs`
-  [Issue [#3154](https://github.com/agda/agda/issues/3254)] and
-  `stack` [Issue [#3255](https://github.com/agda/agda/issues/3255)] )
+  [Issue [#3154](https://github.com/agda/agda/issues/3254)] )
 
 Type checking and interaction
 -----------------------------
