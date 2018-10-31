@@ -33,6 +33,7 @@ import Data.Foldable (Foldable, traverse_)
 import Data.Traversable (mapM, traverse)
 import Data.List ((\\), nub, foldl')
 import Data.Set (Set)
+import Data.Map (Map)
 import qualified Data.List as List
 import qualified Data.Set as Set
 import qualified Data.Map as Map
@@ -1499,8 +1500,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
     C.NiceRecSig r p a _pc _uc x ls t -> do
       ensureNoLetStms ls
       withLocalVars $ do
-        ls' <- toAbstract (map makeDomainFull ls)
-        t'  <- toAbstract t
+        (ls', t') <- toAbstract (GenTelAndType (map makeDomainFull ls) t)
         f   <- getConcreteFixity x
         x'  <- freshAbstractQName f x
         bindName p DefName x x'
@@ -1509,8 +1509,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
     C.NiceDataSig r p a _pc _uc x ls t -> withLocalVars $ do
         printScope "scope.data.sig" 20 ("checking DataSig for " ++ prettyShow x)
         ensureNoLetStms ls
-        ls' <- toAbstract (map makeDomainFull ls)
-        t'  <- toAbstract t
+        (ls', t') <- toAbstract (GenTelAndType (map makeDomainFull ls) t)
         f   <- getConcreteFixity x
         x'  <- freshAbstractQName f x
         {- -- Andreas, 2012-01-16: remember number of parameters
@@ -1784,19 +1783,30 @@ collectGeneralizables m = bracket_ open close $ do
         pure gvs
     close = (stGeneralizedVars `setTCLens`)
 
+collectAndBindGeneralizables :: ScopeM a -> ScopeM (Map I.QName I.Name, a)
+collectAndBindGeneralizables m = do
+  (s, res) <- collectGeneralizables m
+  -- We should bind the named generalizable variables as fresh variables
+  binds <- forM (Set.toList s) $ \ q -> do
+    let x  = nameConcrete $ qnameName q
+        fx = nameFixity   $ qnameName q
+    y <- freshAbstractName fx x
+    bindVariable LambdaBound x y
+    return (q, y)
+  return (Map.fromList binds, res)
+
 newtype GenTel = GenTel C.Telescope
+data GenTelAndType = GenTelAndType C.Telescope C.Expr
 
 instance ToAbstract GenTel A.GeneralizeTelescope where
-  toAbstract (GenTel tel) = do
-    (s, tel) <- collectGeneralizables (toAbstract tel)
-    -- We should bind the named generalizable variables as fresh variables
-    binds <- forM (Set.toList s) $ \ q -> do
-      let x  = nameConcrete $ qnameName q
-          fx = nameFixity   $ qnameName q
-      y <- freshAbstractName fx x
-      bindVariable LambdaBound x y
-      return (q, y)
-    return (A.GeneralizeTel (Map.fromList binds) tel)
+  toAbstract (GenTel tel) =
+    uncurry A.GeneralizeTel <$> collectAndBindGeneralizables (toAbstract tel)
+
+instance ToAbstract GenTelAndType (A.GeneralizeTelescope, A.Expr) where
+  toAbstract (GenTelAndType tel t) = do
+    (binds, (tel, t)) <- collectAndBindGeneralizables $
+                          (,) <$> toAbstract tel <*> toAbstract t
+    return (A.GeneralizeTel binds tel, t)
 
 -- | Make sure definition is in same module as signature.
 class LivesInCurrentModule a where

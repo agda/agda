@@ -241,9 +241,13 @@ checkDecl d = setCurrentRange d $ do
     where
 
     -- check record or data type signature
-    checkSig i x ps t = checkTypeSignature $
-      A.Axiom A.NoFunSig i defaultArgInfo Nothing x
-              (A.Pi (Info.ExprRange (fuseRange ps t)) ps t)
+    checkSig i x gtel t = checkTypeSignature $
+      A.Axiom A.NoFunSig i defaultArgInfo Nothing x $
+              A.Generalized genvars $ A.Pi info ps t
+      where info    = Info.ExprRange (fuseRange ps t)
+            ps      = A.generalizeTel gtel
+            genvars = Set.fromList $ Map.keys $ A.generalizeTelVars gtel
+                      -- TODO: temporary hack
 
     check x i m = Bench.billTo [Bench.Definition x] $ do
       reportSDoc "tc.decl" 5 $ "Checking" <+> prettyTCM x <> "."

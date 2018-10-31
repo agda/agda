@@ -876,7 +876,7 @@ instance ToConcrete A.Declaration [C.Declaration] where
 
   toConcrete (A.DataSig i x bs t) =
     withAbstractPrivate i $
-    bindToConcrete bs $ \tel' -> do
+    bindToConcrete (A.generalizeTel bs) $ \tel' -> do
       x' <- unsafeQNameToName <$> toConcrete x
       t' <- toConcreteTop t
       return [ C.DataSig (getRange i) Inductive x' (map C.DomainFull $ concat tel') t' ]
@@ -889,7 +889,7 @@ instance ToConcrete A.Declaration [C.Declaration] where
 
   toConcrete (A.RecSig i x bs t) =
     withAbstractPrivate i $
-    bindToConcrete bs $ \tel' -> do
+    bindToConcrete (A.generalizeTel bs) $ \tel' -> do
       x' <- unsafeQNameToName <$> toConcrete x
       t' <- toConcreteTop t
       return [ C.RecordSig (getRange i) x' (map C.DomainFull $ concat tel') t' ]
