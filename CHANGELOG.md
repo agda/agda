@@ -1,13 +1,6 @@
 Release notes for Agda version 2.5.4.3
 ======================================
 
-Installation and infrastructure
--------------------------------
-
-* Added support for GHC 8.6.1 (except for `cpphs`
-  [Issue [#3154](https://github.com/agda/agda/issues/3254)] and
-  `stack` [Issue [#3255](https://github.com/agda/agda/issues/3255)] )
-
 Release notes for Agda version 2.5.4.2
 ======================================
 
