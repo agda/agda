@@ -1,11 +1,6 @@
 Release notes for Agda version 2.6.0
 ====================================
 
-Installation and infrastructure
--------------------------------
-
-* Added support for GHC 8.6.1.
-
 Type checking and interaction
 -----------------------------
 
