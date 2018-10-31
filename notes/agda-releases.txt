@@ -1,12 +1,15 @@
-When releasing a stable version of Agda, the following procedure can
-be followed:
+When releasing the following procedure can be followed:
 
 * First, release a release candidate (see
   notes/agda-stable-releases-candidates).
 
 * Use the branch used for releasing the release candidate.
 
-* Finish the CHANGELOG.
+* Finish the release notes in
+  doc/release-notes/<version-written-with-dashes>.md.
+
+  Copy the contents of the release notes to the top of the CHANGELOG
+  file.
 
 * Run the `closed-issues` program for adding the closed issues to the
   CHANGELOG excluding issues labelled with:
@@ -15,8 +18,8 @@ be followed:
   status: abandoned,
   status: duplicated,
   status: invalid,
-  status: wontfix,
-  status: working-as-intended or
+  status: wontfix or
+  status: working-as-intended
 
 * Update the README.md, if necessary.
 
@@ -45,25 +48,26 @@ be followed:
     cd agda-release
     git checkout master
 
-* Change the release candidate version to $MAJORVERSION in:
+* The $CHANGE_VERSION_FILES variable represents the files where it is
+  necessary to change the version number.
 
-    .ghci
-    Agda.cabal
-    default.nix
-    /doc/user-manual/conf.py (twice)
-    mk/versions.mk
-    src/data/emacs-mode/agda2-mode.el
-    src/data/emacs-mode/agda2-mode-pkg.el
-    src/size-solver/size-solver.cabal
-    test/interaction/Issue1244a.out
-    test/interaction/Issue1244b.out
+    $CHANGE_VERSION_FILES=
+      .ghci
+      Agda.cabal
+      default.nix
+      doc/user-manual/conf.py
+      mk/versions.mk
+      src/data/emacs-mode/agda2-mode.el
+      src/data/emacs-mode/agda2-mode-pkg.el
+      src/size-solver/size-solver.cabal
+      test/interaction/Issue1244a.out
+      test/interaction/Issue1244b.out
+
+* Change version to $MAJORVERSION in $CHANGE_VERSION_FILES.
 
 * Obtain and install the standard library branch related to the Agda:
 
     make up-to-date-std-lib
-
-* Remove -Werror and -fprof-auto from Agda.cabal (this is required by
-  `cabal --check`).
 
 * Run the test-suite:
 
@@ -73,6 +77,9 @@ be followed:
   Note that "make install" invokes "agda-mode compile", which should
   ensure that the Emacs mode can be compiled without errors or
   warnings (except for the "cl package required at runtime" warning).
+
+* Remove -Werror and -fprof-auto from Agda.cabal (this is required by
+  `cabal --check`).
 
 * Remove the Cabal test-suite from Agda.cabal.
 
@@ -111,8 +118,8 @@ be followed:
   cabal-install >= 2.0.0.0):
 
     cd $BASE
-    cabal upload dist/Agda-$MAJORVERSION.tar.gz
-    cabal upload -d dist/Agda-$MAJORVERSION-docs.tar.gz
+    cabal upload --publish dist/Agda-$MAJORVERSION.tar.gz
+    cabal upload --publish -d dist/Agda-$MAJORVERSION-docs.tar.gz
 
 * Restore the Cabal test-suite in Agda.cabal.
 
@@ -123,6 +130,9 @@ be followed:
     git push --follow-tags
 
 * Add a new header to CHANGELOG.
+
+* Add a new entry in
+  doc/release-notes/<version-written-with-dashes>.md.
 
 * Close in the bug tracker the milestone $MAJORVERSION.
 
@@ -154,6 +164,9 @@ be followed:
   ** Is the current version of the standard library compatible with
      the new version of Agda? If so, to update the standard library
      page.
+
+* If we are releasing a bux-fix release then deprecate in Hackage the
+  buggy version.
 
 * Announce the release of the new version on the Agda mailing lists
   (users and developers).

@@ -1,7 +1,11 @@
-When releasing a release candidate (RC) for a stable version of Agda,
-the following procedure can be followed:
+When releasing a release candidate (RC) the following procedure can be
+followed:
 
-* Finish the CHANGELOG.
+* Finish the release notes in
+  doc/release-notes/<version-written-with-dashes>.txt.
+
+  Copy the contents of the release notes to the top of the CHANGELOG
+  file.
 
 * Run the `closed-issues` program for adding the closed issues to the
   CHANGELOG excluding issues labelled with:
@@ -45,25 +49,26 @@ the following procedure can be followed:
 
     RC_VERSION=<current-released-version-current-date-eg-2.4.0.2.20150913>
 
-* Change $MAYOR_VERSION to $RC_VERSION in:
+* The $CHANGE_VERSION_FILES variable represents the files where it is
+  necessary to change the version number.
 
-    .ghci
-    Agda.cabal
-    default.nix
-    /doc/user-manual/conf.py
-    mk/versions.mk
-    src/data/emacs-mode/agda2-mode.el
-    src/data/emacs-mode/agda2-mode-pkg.el
-    src/size-solver/size-solver.cabal
-    test/interaction/Issue1244a.out
-    test/interaction/Issue1244b.out
+    $CHANGE_VERSION_FILES=
+      .ghci
+      Agda.cabal
+      default.nix
+      doc/user-manual/conf.py
+      mk/versions.mk
+      src/data/emacs-mode/agda2-mode.el
+      src/data/emacs-mode/agda2-mode-pkg.el
+      src/size-solver/size-solver.cabal
+      test/interaction/Issue1244a.out
+      test/interaction/Issue1244b.out
+
+* Change $MAYOR_VERSION to $RC_VERSION in $CHANGE_VERSION_FILES.
 
 * Obtain and install the standard library branch related to the Agda:
 
     make up-to-date-std-lib
-
-* Remove -Werror and -fprof-auto from Agda.cabal (this is required by
-  `cabal --check`).
 
 * Run the test-suite:
 
@@ -73,6 +78,9 @@ the following procedure can be followed:
   Note that "compile-emacs-mode" invokes "agda-mode compile", which should
   ensure that the Emacs mode can be compiled without errors or
   warnings (except for the "cl package required at runtime" warning).
+
+* Remove -Werror and -fprof-auto from Agda.cabal (this is required by
+  `cabal --check`).
 
 * Remove the Cabal test-suite from Agda.cabal.
 
@@ -102,33 +110,23 @@ the following procedure can be followed:
 
   Do not forget to test the Emacs mode.
 
-* Upload to Hackage the RC (tested with cabal-install >= 2.0.0.0):
-
-    cd $BASE
-    cabal upload dist/Agda-$RC_VERSION.tar.gz
-    cabal upload -d dist/Agda-$RC_VERSION-docs.tar.gz
-
 * Tag the release candidate (do not forget to record the changes above
   first):
 
     cd $BASE
     git tag -a v$RC_VERSION -m "Agda $MAJORVERSION release candidate n"
 
+* Upload to Hackage the RC (tested with cabal-install >= 2.0.0.0):
+
+    cd $BASE
+    cabal upload dist/Agda-$RC_VERSION.tar.gz
+    cabal upload -d dist/Agda-$RC_VERSION-docs.tar.gz
+
 * Restore the Cabal test-suite in Agda.cabal.
 
 * Restore -Werror and -fprof-auto in Agda.cabal.
 
-* Restore the version number $MAJOR_VERSION in:
-
-    .ghci
-    Agda.cabal
-    default.nix
-    /doc/user-manual/conf.py
-    mk/versions.mk
-    src/data/emacs-mode/agda2-mode.el
-    src/size-solver/size-solver.cabal
-    test/interaction/Issue1244a.out
-    test/interaction/Issue1244b.out
+* Restore the version number $MAJOR_VERSION in $CHANGE_VERSION_FILES.
 
 * Push all changes (in the release-$MAJORVERSION branch):
 
