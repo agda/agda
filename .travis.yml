@@ -312,11 +312,7 @@ install:
   - if [[ $TEST = "STACKAGE" ]]; then
        stack build $ARGS --no-terminal &&
        stack clean $ARGS &&
-       if [[ $GHC_VER != "8.6.1" ]]; then
-          stack build $ARGS --no-terminal --flag Agda:cpphs --flag Agda:debug --flag Agda:enable-cluster-counting;
-       else
-          stack build $ARGS --no-terminal --flag Agda:debug --flag Agda:enable-cluster-counting;
-       fi
+       stack build $ARGS --no-terminal --flag Agda:cpphs --flag Agda:debug --flag Agda:enable-cluster-counting;
     fi
 
 ##############################################################################
