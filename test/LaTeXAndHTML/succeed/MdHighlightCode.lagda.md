@@ -8,13 +8,13 @@
 
 > Jojo! This is the last of my hamon! Take it from me!!
 
-**Everything above should be reserved**
+**Everything above should be preserved**
 
 ```haskell
 module Kira where
 data KillerQueue
 
--- this code should be reserved
+-- this code should be preserved
 ```
 
 ```agda
