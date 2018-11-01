@@ -1,11 +1,11 @@
 Issue2831.agda:6,1-28
-No positivity checking pragmas can only precede a data/record
+NO_POSITIVITY_CHECKING pragmas can only precede a data/record
 definition or a mutual block (that contains a data/record
 definition).
 
 ———— All done; warnings encountered ————————————————————————
 
 Issue2831.agda:6,1-28
-No positivity checking pragmas can only precede a data/record
+NO_POSITIVITY_CHECKING pragmas can only precede a data/record
 definition or a mutual block (that contains a data/record
 definition).

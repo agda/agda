@@ -433,11 +433,11 @@ instance Pretty DeclarationWarning where
   pretty (InvalidTerminationCheckPragma _) = fsep $
     pwords "Termination checking pragmas can only precede a function definition or a mutual block (that contains a function definition)."
   pretty (InvalidNoPositivityCheckPragma _) = fsep $
-    pwords "No positivity checking pragmas can only precede a data/record definition or a mutual block (that contains a data/record definition)."
+    pwords "NO_POSITIVITY_CHECKING pragmas can only precede a data/record definition or a mutual block (that contains a data/record definition)."
   pretty (InvalidCatchallPragma _) = fsep $
     pwords "The CATCHALL pragma can only precede a function clause."
   pretty (InvalidNoUniverseCheckPragma _) = fsep $
-    pwords "No universe checking pragmas can only precede a data/record definition."
+    pwords "NO_UNIVERSE_CHECKING pragmas can only precede a data/record definition."
   pretty (PragmaNoTerminationCheck _) = fsep $
     pwords "Pragma {-# NO_TERMINATION_CHECK #-} has been removed.  To skip the termination check, label your definitions either as {-# TERMINATING #-} or {-# NON_TERMINATING #-}."
 
