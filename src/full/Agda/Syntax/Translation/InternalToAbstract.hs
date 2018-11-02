@@ -406,8 +406,12 @@ reifyPathPConstAsPath x es@[I.Apply l, I.Apply t, I.Apply lhs, I.Apply rhs] = do
 reifyPathPConstAsPath x es = return (x,es)
 
 reifyTerm :: Bool -> Term -> TCM Expr
-reifyTerm expandAnonDefs0 v = do
+reifyTerm expandAnonDefs0 v0 = do
+  -- Jesper 2018-11-02: If 'PrintMetasBare', drop all meta eliminations.
   metasBare <- asksTC envPrintMetasBare
+  v <- instantiate v0 >>= \case
+    I.MetaV x _ | metasBare -> return $ I.MetaV x []
+    v -> return v
   -- Ulf 2014-07-10: Don't expand anonymous when display forms are disabled
   -- (i.e. when we don't care about nice printing)
   expandAnonDefs <- return expandAnonDefs0 `and2M` displayFormsEnabled
@@ -415,8 +419,7 @@ reifyTerm expandAnonDefs0 v = do
   -- then we print system-generated projections as postfix, else prefix.
   havePfp <- optPostfixProjections <$> pragmaOptions
   let pred = if havePfp then (== ProjPrefix) else (/= ProjPostfix)
-  v <- instantiate v
-  case applyUnless metasBare (unSpine' pred) v of
+  case unSpine' pred v of
     -- Hack to print generalized field projections with nicer names. Should
     -- only show up in errors. Check the spined form!
     _ | I.Var n (I.Proj _ p : es) <- v,
@@ -514,9 +517,8 @@ reifyTerm expandAnonDefs0 v = do
 
     I.Sort s     -> reify s
     I.MetaV x es -> do
-      x' <- reify x
-      ifM (asksTC envPrintMetasBare) {-then-} (return x') {-else-} $
-        do
+          x' <- reify x
+
           es' <- reify es
 
           mv <- lookupMeta x
