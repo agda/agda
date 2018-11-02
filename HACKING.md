@@ -395,6 +395,16 @@ To run `Ghci`:
 
     stack repl
 
+Closing issues
+===============
+
+Before releasing for example Agda 1.2.3 we add to the `CHANGELOG`
+*all* the closed issues with milestone 1.2.3 (using the
+`clossed-issues` program) except those issues labelled with
+`not-in-changelog`, `status: abandoned`, `status: duplicated`,
+`status: invalid`, `status: wontfix` or `status: working-as-intended`.
+
+
 Documentation
 =============
 
