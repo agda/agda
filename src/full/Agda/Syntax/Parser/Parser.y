@@ -106,7 +106,7 @@ import Agda.Utils.Impossible
     'eta-equality'            { TokKeyword KwEta $$ }
     'field'                   { TokKeyword KwField $$ }
     'forall'                  { TokKeyword KwForall $$ }
-    'generalize'              { TokKeyword KwGeneralize $$ }
+    'variable'                { TokKeyword KwVariable $$ }
     'hiding'                  { TokKeyword KwHiding $$ }
     'import'                  { TokKeyword KwImport $$ }
     'in'                      { TokKeyword KwIn $$ }
@@ -244,7 +244,7 @@ Token
     | 'eta-equality'            { TokKeyword KwEta $1 }
     | 'field'                   { TokKeyword KwField $1 }
     | 'forall'                  { TokKeyword KwForall $1 }
-    | 'generalize'              { TokKeyword KwGeneralize $1 }
+    | 'variable'                { TokKeyword KwVariable $1 }
     | 'hiding'                  { TokKeyword KwHiding $1 }
     | 'import'                  { TokKeyword KwImport $1 }
     | 'in'                      { TokKeyword KwIn $1 }
@@ -1314,7 +1314,7 @@ Fields : 'field' ArgTypeSignatures
 
 -- Variable declarations for automatic generalization
 Generalize :: { [Declaration] }
-Generalize : 'generalize' ArgTypeSignatures
+Generalize : 'variable' ArgTypeSignatures
             { let
                 toGeneralize (Arg info (TypeSig _ x t)) = Generalize info x t
               in map toGeneralize $2 }
