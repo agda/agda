@@ -1314,10 +1314,10 @@ Fields : 'field' ArgTypeSignatures
 
 -- Variable declarations for automatic generalization
 Generalize :: { [Declaration] }
-Generalize : 'variable' ArgTypeSignatures
+Generalize : 'variable' ArgTypeSignaturesOrEmpty
             { let
-                toGeneralize (Arg info (TypeSig _ x t)) = Generalize info x t
-              in map toGeneralize $2 }
+                toGeneralize (Arg info (TypeSig _ x t)) = TypeSig info x t
+              in [ Generalize (fuseRange $1 $2) (map toGeneralize $2) ] }
 
 -- Mutually recursive declarations.
 Mutual :: { Declaration }
@@ -1773,6 +1773,19 @@ ArgTypeSignatures1 :: { [Arg TypeSignature] }
 ArgTypeSignatures1
     : ArgTypeSignatures1 semi ArgTypeSigs { reverse $3 ++ $1 }
     | ArgTypeSigs                         { reverse $1 }
+
+-- A variant of TypeSignatures which uses ArgTypeSigs instead of
+-- TypeSigs.
+ArgTypeSignaturesOrEmpty :: { [Arg TypeSignature] }
+ArgTypeSignaturesOrEmpty
+    : vopen ArgTypeSignatures0 close   { reverse $2 }
+
+-- Inside the layout block.
+ArgTypeSignatures0 :: { [Arg TypeSignature] }
+ArgTypeSignatures0
+    : ArgTypeSignatures0 semi ArgTypeSigs { reverse $3 ++ $1 }
+    | ArgTypeSigs                         { reverse $1 }
+    | {- empty -}                         { [] }
 
 -- -- A variant of TypeSignatures which uses ModalArgTypeSigs instead of
 -- -- TypeSigs.

@@ -369,7 +369,7 @@ type TypeSignatureOrInstanceBlock = Declaration
 data Declaration
   = TypeSig ArgInfo Name Expr
   -- ^ Axioms and functions can be irrelevant. (Hiding should be NotHidden)
-  | Generalize ArgInfo Name Expr -- ^ Variables to be generalized, can be hidden and/or irrelevant.
+  | Generalize Range [TypeSignature] -- ^ Variables to be generalized, can be hidden and/or irrelevant.
   | Field IsInstance Name (Arg Expr) -- ^ Record field, can be hidden and/or irrelevant.
   | FunClause LHS RHS WhereClause Bool
   | DataSig     Range Induction Name [LamBinding] Expr -- ^ lone data signature in mutual block
@@ -649,7 +649,6 @@ instance HasRange ModuleAssignment where
 
 instance HasRange Declaration where
   getRange (TypeSig _ x t)         = fuseRange x t
-  getRange (Generalize _ x t)      = fuseRange x t
   getRange (Field _ x t)           = fuseRange x t
   getRange (FunClause lhs rhs wh _) = fuseRange lhs rhs `fuseRange` wh
   getRange (DataSig r _ _ _ _)     = r
@@ -658,6 +657,7 @@ instance HasRange Declaration where
   getRange (Record r _ _ _ _ _ _ _)  = r
   getRange (Mutual r _)            = r
   getRange (Abstract r _)          = r
+  getRange (Generalize r _)        = r
   getRange (Open r _ _)            = r
   getRange (ModuleMacro r _ _ _ _) = r
   getRange (Import r _ _ _ _)      = r
@@ -787,7 +787,7 @@ instance KillRange BoundName where
 
 instance KillRange Declaration where
   killRange (TypeSig i n e)         = killRange2 (TypeSig i) n e
-  killRange (Generalize i n e)      = killRange2 (Generalize i) n e
+  killRange (Generalize r ds )      = killRange1 (Generalize noRange) ds
   killRange (Field i n a)           = killRange2 (Field i) n a
   killRange (FunClause l r w ca)    = killRange4 FunClause l r w ca
   killRange (DataSig _ i n l e)     = killRange4 (DataSig noRange) i n l e
@@ -1011,7 +1011,7 @@ instance NFData Pattern where
 
 instance NFData Declaration where
   rnf (TypeSig a b c)         = rnf a `seq` rnf b `seq` rnf c
-  rnf (Generalize a b c)      = rnf a `seq` rnf b `seq` rnf c
+  rnf (Generalize _ a)        = rnf a
   rnf (Field a b c)           = rnf a `seq` rnf b `seq` rnf c
   rnf (FunClause a b c d)     = rnf a `seq` rnf b `seq` rnf c `seq` rnf d
   rnf (DataSig _ a b c d)     = rnf a `seq` rnf b `seq` rnf c `seq` rnf d

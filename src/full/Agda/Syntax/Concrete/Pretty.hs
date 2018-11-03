@@ -382,7 +382,6 @@ instance Pretty Declaration where
                 sep [ prettyRelevance i $ pretty x <+> ":"
                     , nest 2 $ pretty e
                     ]
-            Generalize i x e -> "generalize" <+> pretty (TypeSig i x e)
             Field inst x (Arg i e) ->
                 sep [ "field"
                     , nest 2 $ mkInst inst $ mkOverlap i $
@@ -471,6 +470,7 @@ instance Pretty Declaration where
             Macro _ ds      -> namedBlock "macro" ds
             Postulate _ ds  -> namedBlock "postulate" ds
             Primitive _ ds  -> namedBlock "primitive" ds
+            Generalize _ ds -> namedBlock "variable" ds
             Module _ x tel ds ->
                 hsep [ "module"
                      , pretty x

@@ -106,6 +106,7 @@ instance EmbPrj DeclarationWarning where
     MissingDefinitions a              -> icodeN 17 MissingDefinitions a
     NotAllowedInMutual r a            -> icodeN 18 NotAllowedInMutual r a
     PragmaNoTerminationCheck r        -> icodeN 19 PragmaNoTerminationCheck r
+    EmptyGeneralize a                 -> icodeN 20 EmptyGeneralize a
 
   value = vcase $ \case
     [0, a]   -> valuN UnknownNamesInFixityDecl a
@@ -128,6 +129,7 @@ instance EmbPrj DeclarationWarning where
     [17,a]   -> valuN MissingDefinitions a
     [18,r,a] -> valuN NotAllowedInMutual r a
     [19,r]   -> valuN PragmaNoTerminationCheck r
+    [20,a]   -> valuN EmptyGeneralize a
     _ -> malformed
 
 instance EmbPrj LibWarning where

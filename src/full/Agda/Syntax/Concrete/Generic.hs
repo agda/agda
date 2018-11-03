@@ -203,7 +203,6 @@ instance ExprLike ModuleApplication where
 instance ExprLike Declaration where
   mapExpr f e0 = case e0 of
      TypeSig ai x e            -> TypeSig ai x                         $ mapE e
-     Generalize ai x e         -> Generalize ai x                      $ mapE e
      Field i x e               -> Field i x                            $ mapE e
      FunClause lhs rhs wh ca   -> FunClause (mapE lhs) (mapE rhs) (mapE wh) (mapE ca)
      DataSig r ind x bs e      -> DataSig r ind x (mapE bs)            $ mapE e
@@ -220,6 +219,7 @@ instance ExprLike Declaration where
      Macro     r ds            -> Macro     r                          $ mapE ds
      Postulate r ds            -> Postulate r                          $ mapE ds
      Primitive r ds            -> Primitive r                          $ mapE ds
+     Generalize r ds           -> Generalize r                         $ mapE ds
      Open{}                    -> e0
      Import{}                  -> e0
      ModuleMacro r n es op dir -> ModuleMacro r n (mapE es) op dir

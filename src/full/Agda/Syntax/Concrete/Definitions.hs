@@ -208,6 +208,7 @@ data DeclarationWarning
   | EmptyMutual Range     -- ^ Empty @mutual@    block.
   | EmptyPostulate Range  -- ^ Empty @postulate@ block.
   | EmptyPrivate Range    -- ^ Empty @private@   block.
+  | EmptyGeneralize Range -- ^ Empty @variable@  block.
   | InvalidCatchallPragma Range
       -- ^ A {-\# CATCHALL \#-} pragma
       --   that does not precede a function clause.
@@ -242,6 +243,7 @@ declarationWarningName dw = case dw of
   EmptyMutual{}                     -> EmptyMutual_
   EmptyPrivate{}                    -> EmptyPrivate_
   EmptyPostulate{}                  -> EmptyPostulate_
+  EmptyGeneralize{}                 -> EmptyGeneralize_
   InvalidCatchallPragma{}           -> InvalidCatchallPragma_
   InvalidNoPositivityCheckPragma{}  -> InvalidNoPositivityCheckPragma_
   InvalidNoUniverseCheckPragma{}    -> InvalidNoUniverseCheckPragma_
@@ -300,6 +302,7 @@ instance HasRange DeclarationWarning where
   getRange (EmptyInstance r)                    = r
   getRange (EmptyMacro r)                       = r
   getRange (EmptyPostulate r)                   = r
+  getRange (EmptyGeneralize r)                  = r
   getRange (InvalidTerminationCheckPragma r)    = r
   getRange (InvalidNoPositivityCheckPragma r)   = r
   getRange (InvalidCatchallPragma r)            = r
@@ -430,6 +433,7 @@ instance Pretty DeclarationWarning where
   pretty (EmptyInstance  _) = fsep $ pwords "Empty instance block."
   pretty (EmptyMacro     _) = fsep $ pwords "Empty macro block."
   pretty (EmptyPostulate _) = fsep $ pwords "Empty postulate block."
+  pretty (EmptyGeneralize _)= fsep $ pwords "Empty variable block."
   pretty (InvalidTerminationCheckPragma _) = fsep $
     pwords "Termination checking pragmas can only precede a function definition or a mutual block (that contains a function definition)."
   pretty (InvalidNoPositivityCheckPragma _) = fsep $
@@ -887,7 +891,6 @@ niceDeclarations ds = do
     declaredNames :: Declaration -> [Name]
     declaredNames d = case d of
       TypeSig _ x _        -> [x]
-      Generalize _ x _     -> [x]
       Field _ x _          -> [x]
       FunClause (LHS p [] []) _ _ _
         | IdentP (QName x) <- removeSingletonRawAppP p
@@ -907,6 +910,7 @@ niceDeclarations ds = do
       Macro     _ ds       -> concatMap declaredNames ds
       Postulate _ ds       -> concatMap declaredNames ds
       Primitive _ ds       -> concatMap declaredNames ds
+      Generalize _ ds      -> concatMap declaredNames ds
       Open{}               -> []
       Import{}             -> []
       ModuleMacro{}        -> []
@@ -988,9 +992,14 @@ niceDeclarations ds = do
           addLoneSig x $ FunName termCheck
           return ([FunSig r fx PublicAccess ConcreteDef NotInstanceDef NotMacroDef info termCheck x t] , ds)
 
-        (Generalize info x t)            -> do
-          fx <- getFixity x
-          return ([NiceGeneralize (getRange d) fx PublicAccess info x t] , ds)
+        Generalize r [] -> justWarning $ EmptyGeneralize r
+        Generalize r sigs -> do
+          gs <- forM sigs $ \case
+            sig@(TypeSig info x t) -> do
+              fx <- getFixity x
+              return $ NiceGeneralize (getRange sig) fx PublicAccess info x t
+            _ -> __IMPOSSIBLE__
+          return (gs, ds)
 
         (FunClause lhs _ _ _)         -> do
           termCheck <- use terminationCheckPragma
@@ -1946,7 +1955,7 @@ notSoNiceDeclarations d = fixityDecl d ++
     RecDef r _ _ _ _ x i e c bs ds   -> [Record r x i e (unThing <$> c) bs Nothing $ concatMap notSoNiceDeclarations ds]
       where unThing (ThingWithFixity c _, inst) = (c, inst)
     NicePatternSyn r _ n as p        -> [PatternSyn r n as p]
-    NiceGeneralize r _ _ i n e       -> [Generalize i n e]
+    NiceGeneralize r _ _ i n e       -> [Generalize r [TypeSig i n e]]
     NiceUnquoteDecl r _ _ _ i _ x e  -> inst i [UnquoteDecl r x e]
     NiceUnquoteDef r _ _ _ _ x e     -> [UnquoteDef r x e]
   where

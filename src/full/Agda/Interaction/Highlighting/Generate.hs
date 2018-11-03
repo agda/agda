@@ -639,6 +639,7 @@ warningHighlighting w = case tcWarning w of
     EmptyMutual{}        -> deadcodeHighlighting $ P.getRange w
     EmptyPostulate{}     -> deadcodeHighlighting $ P.getRange w
     EmptyPrivate{}       -> deadcodeHighlighting $ P.getRange w
+    EmptyGeneralize{}    -> deadcodeHighlighting $ P.getRange w
     UselessAbstract{}    -> deadcodeHighlighting $ P.getRange w
     UselessInstance{}    -> deadcodeHighlighting $ P.getRange w
     UselessPrivate{}     -> deadcodeHighlighting $ P.getRange w
