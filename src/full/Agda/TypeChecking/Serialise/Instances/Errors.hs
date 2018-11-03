@@ -65,6 +65,7 @@ instance EmbPrj Warning where
   icod_ (LibraryWarning a)           = icodeN 12 LibraryWarning a
   icod_ (CoverageNoExactSplit a b)   = icodeN 13 CoverageNoExactSplit a b
   icod_ (CantGeneralizeOverSorts a)  = icodeN 14 CantGeneralizeOverSorts a
+  icod_ IllformedAsClause            = icodeN 15 IllformedAsClause
 
   value = vcase valu where
       valu [0, a, b]    = valuN UnreachableClauses a b
@@ -82,6 +83,7 @@ instance EmbPrj Warning where
       valu [12, a]      = valuN LibraryWarning a
       valu [13, a, b]   = valuN CoverageNoExactSplit a b
       valu [14, a]      = valuN CantGeneralizeOverSorts a
+      valu [15]         = valuN IllformedAsClause
       valu _ = malformed
 
 instance EmbPrj DeclarationWarning where

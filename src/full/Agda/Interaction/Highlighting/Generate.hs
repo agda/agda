@@ -611,6 +611,7 @@ warningHighlighting w = case tcWarning w of
   UnsolvedInteractionMetas{} -> mempty
   OldBuiltin{}               -> mempty
   EmptyRewritePragma{}       -> deadcodeHighlighting $ P.getRange w
+  IllformedAsClause{}        -> deadcodeHighlighting $ P.getRange w
   UselessPublic{}            -> mempty
   UselessInline{}            -> mempty
   ParseWarning{}             -> mempty

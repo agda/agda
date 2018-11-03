@@ -1,0 +1,11 @@
+Issue3364.agda:5,30-44
+'as' must be followed by an unqualified name
+when scope checking the declaration
+  open import Agda.Builtin.Nat as Builtin.Nat
+
+———— All done; warnings encountered ————————————————————————
+
+Issue3364.agda:5,30-44
+'as' must be followed by an unqualified name
+when scope checking the declaration
+  open import Agda.Builtin.Nat as Builtin.Nat

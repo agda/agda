@@ -39,7 +39,7 @@ module Agda.Syntax.Concrete
   , TypeSignatureOrInstanceBlock
   , ImportDirective, Using, ImportedName
   , Renaming
-  , AsName(..)
+  , AsName'(..), AsName
   , OpenShortHand(..), RewriteEqn, WithExpr
   , LHS(..), Pattern(..), LHSCore(..)
   , LamClause(..)
@@ -344,13 +344,18 @@ type Renaming        = Renaming'        Name Name
 -- | An imported name can be a module or a defined name.
 type ImportedName = ImportedName' Name Name
 
-data AsName = AsName
-  { asName  :: Name
+-- | The content of the @as@-clause of the import statement.
+data AsName' a = AsName
+  { asName  :: a
     -- ^ The \"as\" name.
   , asRange :: Range
     -- ^ The range of the \"as\" keyword.  Retained for highlighting purposes.
   }
-  deriving (Data, Show)
+  deriving (Data, Show, Functor, Foldable, Traversable)
+
+-- | From the parser, we get an expression for the @as@-'Name', which
+--   we have to parse into a 'Name'.
+type AsName = AsName' (Either Expr Name)
 
 {--------------------------------------------------------------------------
     Declarations
