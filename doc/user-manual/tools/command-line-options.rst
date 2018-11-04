@@ -79,7 +79,7 @@ Generating highlighted source code
 
 :samp:`--html-highlight=[code,all]`
       Whether to highlight non-Agda code as comments in
-      generated HTML files (see :ref: `generating-html`)
+      generated HTML files (default: all; see :ref: `generating-html`)
 
 :samp:`--dependency-graph={FILE}`
       Generate a Dot_ file :samp:`{FILE}`

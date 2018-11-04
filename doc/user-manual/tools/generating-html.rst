@@ -41,5 +41,6 @@ Options
 
 :samp:`--html-highlight=[code,all]`
   Highlight Agda code only or everything in the generated HTML files.
+  Default: ``all``.
 
 .. _CSS:  https://www.w3.org/Style/CSS/
