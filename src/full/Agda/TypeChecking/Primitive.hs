@@ -864,7 +864,7 @@ primTransHComp cmd ts nelims = do
 
                          | Just as <- allApplyElims es, [] <- recFields r -> compData (recPars r) cmd l (as <$ t) sbA sphi u u0
                      Datatype{dataPars = pars, dataIxs = ixs, dataPathCons = pcons}
-                       | null pcons, Just as <- allApplyElims es -> compData (pars+ixs) cmd l (as <$ t) sbA sphi u u0
+                       | and [null pcons | DoHComp  <- [cmd]], Just as <- allApplyElims es -> compData (pars+ixs) cmd l (as <$ t) sbA sphi u u0
                      _          -> fallback
 
                  _ -> fallback
