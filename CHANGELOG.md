@@ -1,6 +1,11 @@
 Release notes for Agda version 2.5.4.3
 ======================================
 
+Installation and infrastructure
+--------------------------------
+
+* Added support for GHC 8.6.2.
+
 Release notes for Agda version 2.5.4.2
 ======================================
 
