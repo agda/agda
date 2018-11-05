@@ -130,10 +130,10 @@ generateHTMLWithPageGen generatePage = do
 
 -- | Converts module names to the corresponding HTML file names.
 
-modToFile :: C.TopLevelModuleName -> FilePath
-modToFile m =
+modToFile :: C.TopLevelModuleName -> String -> FilePath
+modToFile m ext =
   Network.URI.Encode.encode $
-    render (pretty m) <.> "html"
+    render (pretty m) <.> ext
 
 -- | Generates a highlighted, hyperlinked version of the given module.
 
@@ -148,12 +148,13 @@ generatePage renderPage dir mod = do
   f   <- fromMaybe __IMPOSSIBLE__ . Map.lookup mod <$> useTC TCM.stModuleToSource
   css <- fromMaybe defaultCSSFile . optCSSFile <$> TCM.commandLineOptions
   pc  <- optHTMLOnlyCode <$> TCM.commandLineOptions
+  ext <- optHTMLOutputExt <$> TCM.commandLineOptions
+  let target = dir </> modToFile mod ext
   let html = renderPage css pc $ filePath f
   TCM.reportSLn "html" 1 $ "Generating HTML for " ++
                            render (pretty mod) ++
                            " (" ++ target ++ ")."
   liftIO $ UTF8.writeTextToFile target html
-  where target = dir </> modToFile mod
 
 
 -- | Attach multiple Attributes
@@ -297,4 +298,4 @@ code asIs = mconcat . if asIs
         (++ "#" ++
          Network.URI.Encode.encode (show pos))
          -- Network.URI.Encode.encode (fromMaybe (show pos) aName)) -- Named links disabled
-        (Network.URI.Encode.encode $ modToFile m)
+        (Network.URI.Encode.encode $ modToFile m "html")

@@ -33,6 +33,7 @@ import Control.Monad.Trans
 
 import Data.IORef
 import Data.Either
+import Data.Function
 import Data.Maybe
 import Data.List                ( isSuffixOf , intercalate )
 import Data.Set                 ( Set )
@@ -110,6 +111,7 @@ data CommandLineOptions = Options
   , optGenerateLaTeX    :: Bool
   , optGenerateHTML     :: Bool
   , optHTMLOnlyCode     :: Bool
+  , optHTMLOutputExt    :: String
   , optDependencyGraph  :: Maybe FilePath
   , optLaTeXDir         :: FilePath
   , optHTMLDir          :: FilePath
@@ -214,6 +216,7 @@ defaultOptions = Options
   , optGenerateLaTeX    = False
   , optGenerateHTML     = False
   , optHTMLOnlyCode     = False
+  , optHTMLOutputExt    = "html"
   , optDependencyGraph  = Nothing
   , optLaTeXDir         = defaultLaTeXDir
   , optHTMLDir          = defaultHTMLDir
@@ -296,6 +299,7 @@ type Flag opts = opts -> OptM opts
 
 checkOpts :: Flag CommandLineOptions
 checkOpts opts
+  | htmlRelated = throwError htmlRelatedMessage
   | not (matches [optGHCiInteraction, optJSONInteraction, isJust . optInputFile] <= 1) =
       throwError "Choose at most one: input file, --interactive, or --interaction-json.\n"
   | or [ p opts && matches ps > 1 | (p, ps) <- exclusive ] =
@@ -303,6 +307,7 @@ checkOpts opts
   | otherwise = return opts
   where
   matches = length . filter ($ opts)
+  optionChanged opt = ((/=) `on` opt) opts defaultOptions
 
   atMostOne =
     [ optGenerateHTML
@@ -334,6 +339,18 @@ checkOpts opts
     , "--interactive and --interaction cannot be combined with"
     , "--latex, and --only-scope-checking cannot be combined with"
     , "--safe or --vim."
+    ]
+
+  htmlRelated = optGenerateHTML opts &&
+    (  optionChanged optHTMLDir
+    || optionChanged optHTMLOnlyCode
+    || optionChanged optHTMLOutputExt
+    || optionChanged optCSSFile
+    )
+
+  htmlRelatedMessage = unlines $
+    [ "The options --html-highlight, --html-output-extention, --css-dir"
+    , "and --html-dir can only be used along with --html flag."
     ]
 
 -- | Check for unsafe pramas. Gives a list of used unsafe flags.
@@ -581,6 +598,10 @@ htmlHighlightFlag "all"  o = return $ o { optHTMLOnlyCode = False }
 htmlHighlightFlag opt    o = throwError $ "Invalid option <" ++ opt
   ++ ">, expected <all> or <code>"
 
+-- TODO maybe validate file extension here?
+htmlOutputExtFlag :: String -> Flag CommandLineOptions
+htmlOutputExtFlag ext o = return $ o { optHTMLOutputExt = ext }
+
 dependencyGraphFlag :: FilePath -> Flag CommandLineOptions
 dependencyGraphFlag f o = return $ o { optDependencyGraph = Just f }
 
@@ -670,6 +691,8 @@ standardOptions =
                     "the CSS file used by the HTML files (can be relative)"
     , Option []     ["html-highlight"] (ReqArg htmlHighlightFlag "[code,all]")
                     "whether to highlight only the code parts (code) or the file as a whole (all)"
+    , Option []     ["html-output-extension"] (ReqArg htmlOutputExtFlag "EXT")
+                    "extension of the outputed html files (default: html)"
     , Option []     ["dependency-graph"] (ReqArg dependencyGraphFlag "FILE")
                     "generate a Dot file with a module dependency graph"
     , Option []     ["ignore-interfaces"] (NoArg ignoreInterfacesFlag)
