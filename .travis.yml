@@ -304,9 +304,6 @@ install:
 
 # N.B. that these tests are not include in the Makefile tests.
 
-# ASR (2018-10-22). We don't test the `cpphs` flag with GHC 8.6.1 due
-# to Issue #3254.
-
   - if [[ $TEST = "STACKAGE" ]]; then
        stack build $ARGS --no-terminal &&
        stack clean $ARGS &&
