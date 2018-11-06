@@ -357,6 +357,14 @@ LaTeX backend
   in other cases (for other options and certain other text in
   pragmas).
 
+* There is no longer any special treatment of the character `-` [Issue
+  [#2452](https://github.com/agda/agda/issues/2452)].
+
+  This might, depending on things like what font your are using, mean
+  that the token `--` is typeset like an en dash (–). However, this is
+  not the case for at least one common monospace font (in at least one
+  setting).
+
 Release notes for Agda version 2.5.4.2
 ======================================
 

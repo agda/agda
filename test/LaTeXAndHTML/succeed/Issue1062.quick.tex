@@ -7,37 +7,37 @@
 \begin{code}%
 \>[0]\<%
 \\
-\>[0]\AgdaSymbol{\{{-}\#}\AgdaSpace{}%
+\>[0]\AgdaSymbol{\{-\#}\AgdaSpace{}%
 \AgdaKeyword{OPTIONS}\AgdaSpace{}%
-\AgdaPragma{{-}{-}copatterns}\AgdaSpace{}%
-\AgdaPragma{{-}{-}sized{-}types}\AgdaSpace{}%
-\AgdaSymbol{\#{-}\}}\<%
+\AgdaPragma{--copatterns}\AgdaSpace{}%
+\AgdaPragma{--sized-types}\AgdaSpace{}%
+\AgdaSymbol{\#-\}}\<%
 \\
 %
 \\[\AgdaEmptyExtraSkip]%
-\>[0]\AgdaSymbol{\{{-}\#}\AgdaSpace{}%
+\>[0]\AgdaSymbol{\{-\#}\AgdaSpace{}%
 \AgdaKeyword{BUILTIN}\AgdaSpace{}%
 \AgdaPragma{SIZE}%
 \>[20]\AgdaPostulate{Size}%
-\>[27]\AgdaSymbol{\#{-}\}}\<%
+\>[27]\AgdaSymbol{\#-\}}\<%
 \\
-\>[0]\AgdaSymbol{\{{-}\#}\AgdaSpace{}%
+\>[0]\AgdaSymbol{\{-\#}\AgdaSpace{}%
 \AgdaKeyword{BUILTIN}\AgdaSpace{}%
 \AgdaPragma{SIZELT}%
-\>[20]\AgdaOperator{\AgdaPostulate{Size\ensuremath{<}\AgdaUnderscore{}}}\AgdaSpace{}%
-\AgdaSymbol{\#{-}\}}\<%
+\>[20]\AgdaOperator{\AgdaPostulate{Size<\AgdaUnderscore{}}}\AgdaSpace{}%
+\AgdaSymbol{\#-\}}\<%
 \\
-\>[0]\AgdaSymbol{\{{-}\#}\AgdaSpace{}%
+\>[0]\AgdaSymbol{\{-\#}\AgdaSpace{}%
 \AgdaKeyword{BUILTIN}\AgdaSpace{}%
 \AgdaPragma{SIZESUC}\AgdaSpace{}%
 \AgdaOperator{\AgdaPostulate{↑\AgdaUnderscore{}}}%
-\>[27]\AgdaSymbol{\#{-}\}}\<%
+\>[27]\AgdaSymbol{\#-\}}\<%
 \\
-\>[0]\AgdaSymbol{\{{-}\#}\AgdaSpace{}%
+\>[0]\AgdaSymbol{\{-\#}\AgdaSpace{}%
 \AgdaKeyword{BUILTIN}\AgdaSpace{}%
 \AgdaPragma{SIZEINF}\AgdaSpace{}%
 \AgdaPostulate{∞}%
-\>[27]\AgdaSymbol{\#{-}\}}\<%
+\>[27]\AgdaSymbol{\#-\}}\<%
 \\
 %
 \\[\AgdaEmptyExtraSkip]%
@@ -66,7 +66,7 @@
 \AgdaSymbol{:}\AgdaSpace{}%
 \AgdaDatatype{List}\AgdaSpace{}%
 \AgdaBound{A}\AgdaSymbol{)}\AgdaSpace{}%
-\AgdaSymbol{{-}\ensuremath{>}}\AgdaSpace{}%
+\AgdaSymbol{->}\AgdaSpace{}%
 \AgdaDatatype{List}\AgdaSpace{}%
 \AgdaBound{A}\<%
 \\
@@ -104,7 +104,7 @@
 \\
 %
 \\[\AgdaEmptyExtraSkip]%
-\>[0]\AgdaComment{{-}{-} Sized streams via head/tail.}\<%
+\>[0]\AgdaComment{-- Sized streams via head/tail.}\<%
 \\
 %
 \\[\AgdaEmptyExtraSkip]%
@@ -139,7 +139,7 @@
 \AgdaSymbol{∀}\AgdaSpace{}%
 \AgdaSymbol{\{}\AgdaBound{j}\AgdaSpace{}%
 \AgdaSymbol{:}\AgdaSpace{}%
-\AgdaOperator{\AgdaPostulate{Size\ensuremath{<}}}\AgdaSpace{}%
+\AgdaOperator{\AgdaPostulate{Size<}}\AgdaSpace{}%
 \AgdaBound{i}\AgdaSymbol{\}}\AgdaSpace{}%
 \AgdaSymbol{→}\AgdaSpace{}%
 \AgdaRecord{Stream}\AgdaSpace{}%
@@ -185,11 +185,11 @@
 \\
 %
 \\[\AgdaEmptyExtraSkip]%
-\>[0]\AgdaComment{{-}{-} Streams and lists.}\<%
+\>[0]\AgdaComment{-- Streams and lists.}\<%
 \\
 %
 \\[\AgdaEmptyExtraSkip]%
-\>[0]\AgdaComment{{-}{-} Prepending a list to a stream.}\<%
+\>[0]\AgdaComment{-- Prepending a list to a stream.}\<%
 \\
 %
 \\[\AgdaEmptyExtraSkip]%
@@ -230,7 +230,7 @@
 \\
 %
 \\[\AgdaEmptyExtraSkip]%
-\>[0]\AgdaComment{{-}{-} Unfold which produces several outputs at one step}\<%
+\>[0]\AgdaComment{-- Unfold which produces several outputs at one step}\<%
 \\
 %
 \\[\AgdaEmptyExtraSkip]%
@@ -284,7 +284,7 @@
 \AgdaInductiveConstructor{[]}\AgdaSymbol{)}\AgdaSpace{}%
 \AgdaKeyword{using}\AgdaSpace{}%
 \AgdaSymbol{(}head\AgdaSymbol{;} tail\AgdaSymbol{)}\AgdaSpace{}%
-\AgdaComment{{-}{-} problem: imports not colored}\<%
+\AgdaComment{-- problem: imports not colored}\<%
 \\
 %
 \\[\AgdaEmptyExtraSkip]%
@@ -317,7 +317,7 @@
 \AgdaSymbol{(∀}\AgdaSpace{}%
 \AgdaSymbol{\{}\AgdaBound{j}\AgdaSpace{}%
 \AgdaSymbol{:}\AgdaSpace{}%
-\AgdaOperator{\AgdaPostulate{Size\ensuremath{<}}}\AgdaSpace{}%
+\AgdaOperator{\AgdaPostulate{Size<}}\AgdaSpace{}%
 \AgdaBound{i}\AgdaSymbol{\}}\AgdaSpace{}%
 \AgdaSymbol{→}\AgdaSpace{}%
 \AgdaBound{S}\AgdaSpace{}%
