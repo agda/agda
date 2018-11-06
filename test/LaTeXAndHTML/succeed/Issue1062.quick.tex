@@ -9,26 +9,34 @@
 \\
 \>[0]\AgdaSymbol{\{{-}\#}\AgdaSpace{}%
 \AgdaKeyword{OPTIONS}\AgdaSpace{}%
-\AgdaOption{{-}{-}copatterns}\AgdaSpace{}%
-\AgdaOption{{-}{-}sized{-}types}\AgdaSpace{}%
+\AgdaPragma{{-}{-}copatterns}\AgdaSpace{}%
+\AgdaPragma{{-}{-}sized{-}types}\AgdaSpace{}%
 \AgdaSymbol{\#{-}\}}\<%
 \\
 %
 \\[\AgdaEmptyExtraSkip]%
 \>[0]\AgdaSymbol{\{{-}\#}\AgdaSpace{}%
-\AgdaKeyword{BUILTIN} SIZE    \AgdaPostulate{Size}%
+\AgdaKeyword{BUILTIN}\AgdaSpace{}%
+\AgdaPragma{SIZE}%
+\>[20]\AgdaPostulate{Size}%
 \>[27]\AgdaSymbol{\#{-}\}}\<%
 \\
 \>[0]\AgdaSymbol{\{{-}\#}\AgdaSpace{}%
-\AgdaKeyword{BUILTIN} SIZELT  \AgdaOperator{\AgdaPostulate{Size\ensuremath{<}\AgdaUnderscore{}}}\AgdaSpace{}%
+\AgdaKeyword{BUILTIN}\AgdaSpace{}%
+\AgdaPragma{SIZELT}%
+\>[20]\AgdaOperator{\AgdaPostulate{Size\ensuremath{<}\AgdaUnderscore{}}}\AgdaSpace{}%
 \AgdaSymbol{\#{-}\}}\<%
 \\
 \>[0]\AgdaSymbol{\{{-}\#}\AgdaSpace{}%
-\AgdaKeyword{BUILTIN} SIZESUC \AgdaOperator{\AgdaPostulate{↑\AgdaUnderscore{}}}%
+\AgdaKeyword{BUILTIN}\AgdaSpace{}%
+\AgdaPragma{SIZESUC}\AgdaSpace{}%
+\AgdaOperator{\AgdaPostulate{↑\AgdaUnderscore{}}}%
 \>[27]\AgdaSymbol{\#{-}\}}\<%
 \\
 \>[0]\AgdaSymbol{\{{-}\#}\AgdaSpace{}%
-\AgdaKeyword{BUILTIN} SIZEINF \AgdaPostulate{∞}%
+\AgdaKeyword{BUILTIN}\AgdaSpace{}%
+\AgdaPragma{SIZEINF}\AgdaSpace{}%
+\AgdaPostulate{∞}%
 \>[27]\AgdaSymbol{\#{-}\}}\<%
 \\
 %

@@ -60,18 +60,18 @@ import Agda.Interaction.Highlighting.Range
 -- Files
 
 -- | Syntactic aspects of the code. (These cannot overlap.)
---   They can be obtained from the lexed tokens already,
---   except for the 'NameKind'.
 
 data Aspect
   = Comment
-  | Option
   | Keyword
   | String
   | Number
   | Symbol                     -- ^ Symbols like forall, =, ->, etc.
   | PrimitiveType              -- ^ Things like Set and Prop.
   | Name (Maybe NameKind) Bool -- ^ Is the name an operator part?
+  | Pragma                     -- ^ Text occurring in pragmas that
+                               --   does not have a more specific
+                               --   aspect.
   | Background                 -- ^ Non-code contents in literate Agda
   | Markup
     -- ^ Delimiters used to separate the Agda code blocks from the

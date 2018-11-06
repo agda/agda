@@ -467,12 +467,12 @@ processCode toks' = do
     fromAspect :: Aspect -> [String]
     fromAspect a = let s = [show a] in case a of
       Comment           -> s
-      Option            -> s
       Keyword           -> s
       String            -> s
       Number            -> s
       Symbol            -> s
       PrimitiveType     -> s
+      Pragma            -> s
       Background        -> s
       Markup            -> s
       Name Nothing isOp -> fromAspect (Name (Just Postulate) isOp)

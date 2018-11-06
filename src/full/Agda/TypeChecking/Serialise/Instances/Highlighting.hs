@@ -41,28 +41,28 @@ instance EmbPrj HP.NameKind where
     valu _       = malformed
 
 instance EmbPrj HP.Aspect where
-  icod_ HP.Comment       = icodeN 0 ()
-  icod_ HP.Option        = icodeN 1 ()
-  icod_ HP.Keyword       = icodeN 2 ()
-  icod_ HP.String        = icodeN 3 ()
-  icod_ HP.Number        = icodeN 4 ()
+  icod_ HP.Comment        = icodeN 0 ()
+  icod_ HP.Keyword       = icodeN 1 ()
+  icod_ HP.String        = icodeN 2 ()
+  icod_ HP.Number        = icodeN 3 ()
   icod_ HP.Symbol        = icodeN' HP.Symbol
-  icod_ HP.PrimitiveType = icodeN 6 ()
-  icod_ (HP.Name mk b)   = icodeN 7 HP.Name mk b
-  icod_ HP.Background    = icodeN 8 ()
-  icod_ HP.Markup        = icodeN 9 ()
+  icod_ HP.PrimitiveType = icodeN 4 ()
+  icod_ (HP.Name mk b)   = icodeN 5 HP.Name mk b
+  icod_ HP.Pragma        = icodeN 6 ()
+  icod_ HP.Background    = icodeN 7 ()
+  icod_ HP.Markup        = icodeN 8 ()
 
   value = vcase valu where
     valu [0]        = valuN HP.Comment
-    valu [1]        = valuN HP.Option
-    valu [2]        = valuN HP.Keyword
-    valu [3]        = valuN HP.String
-    valu [4]        = valuN HP.Number
+    valu [1]        = valuN HP.Keyword
+    valu [2]        = valuN HP.String
+    valu [3]        = valuN HP.Number
     valu []         = valuN HP.Symbol
-    valu [6]        = valuN HP.PrimitiveType
-    valu [7, mk, b] = valuN HP.Name mk b
-    valu [8]        = valuN HP.Background
-    valu [9]        = valuN HP.Markup
+    valu [4]        = valuN HP.PrimitiveType
+    valu [5, mk, b] = valuN HP.Name mk b
+    valu [6]        = valuN HP.Pragma
+    valu [7]        = valuN HP.Background
+    valu [8]        = valuN HP.Markup
     valu _          = malformed
 
 instance EmbPrj HP.OtherAspect where

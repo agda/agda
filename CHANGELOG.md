@@ -303,6 +303,12 @@ Emacs mode
 * Commas "ʻ،⸲⸴⹁⹉、︐︑﹐﹑，､" and semi-colons "؛⁏፤꛶；︔﹔⍮⸵;" added
   to the input mode.
 
+* It is now possible to customise the highlighting of more text in
+  pragmas [Issue [#2452](https://github.com/agda/agda/issues/2452)].
+
+  Some text was already highlighted. Now there is a specific face for
+  the remaining text (`agda2-highlight-pragma-face`).
+
 LaTeX backend
 -------------
 
@@ -341,6 +347,15 @@ LaTeX backend
   Note that Agda code is now less likely to typeset properly out of
   the box. See the documentation for some hints about what to do if
   this affects you.
+
+* Typesetting of pragmas should now work better [Issue
+  [#2452](https://github.com/agda/agda/issues/2452)].
+
+  The `\AgdaOption` command and `AgdaOption` colour have been replaced
+  by `\AgdaPragma` and `AgdaPragma`. The `\AgdaPragma` command is used
+  where `\AgdaOption` used to be used (for certain options), but also
+  in other cases (for other options and certain other text in
+  pragmas).
 
 Release notes for Agda version 2.5.4.2
 ======================================

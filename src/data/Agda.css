@@ -7,6 +7,7 @@
 .Number        { color: #A020F0 }
 .Symbol        { color: #404040 }
 .PrimitiveType { color: #0000CD }
+.Pragma        { color: black   }
 .Operator      {}
 
 /* NameKinds. */

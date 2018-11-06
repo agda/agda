@@ -441,9 +441,7 @@ tokenHighlighting = merge . map tokenToCFile
   tokenToCFile (T.TokMarkup (i, _))             = aToF Markup (P.getRange i)
   tokenToCFile (T.TokId {})                     = mempty
   tokenToCFile (T.TokQId {})                    = mempty
-  tokenToCFile (T.TokString (i,s))
-    | "--" `isPrefixOf` s                       = aToF Option (P.getRange i)
-    | otherwise                                 = mempty
+  tokenToCFile (T.TokString (i,s))              = aToF Pragma (P.getRange i)
   tokenToCFile (T.TokDummy {})                  = mempty
   tokenToCFile (T.TokEOF {})                    = mempty
 
