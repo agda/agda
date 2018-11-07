@@ -16,8 +16,8 @@ import Agda.Syntax.Position
 import Agda.Syntax.Fixity
 import Agda.Syntax.Notation
 import Agda.Syntax.Concrete
+import Agda.Syntax.Builtin (builtinsNoDef)
 import Agda.TypeChecking.Positivity.Occurrence (Occurrence)
-import {-# SOURCE #-} Agda.TypeChecking.Monad.Builtin (builtinsNoDef)
 
 import Agda.Utils.Functor
 import Agda.Utils.Null
