@@ -73,6 +73,7 @@ import Agda.Syntax.Position
 import Agda.Syntax.Fixity
 import Agda.Syntax.Notation
 import Agda.Syntax.Concrete.Pretty ()
+import Agda.Syntax.Concrete.Fixity
 
 import Agda.Interaction.Options.Warnings
 
@@ -234,6 +235,10 @@ data DeclarationWarning
   | UselessInstance Range
   | UselessPrivate Range
   deriving (Data, Show)
+
+instance MonadFixityError Nice where
+  throwMultipleFixityDecls     = throwError . MultipleFixityDecls
+  throwMultiplePolarityPragmas = throwError . MultiplePolarityPragmas
 
 declarationWarningName :: DeclarationWarning -> WarningName
 declarationWarningName dw = case dw of
@@ -622,8 +627,6 @@ data NiceEnv = NiceEnv
   }
 
 type LoneSigs   = Map Name DataRecOrFun
-type Fixities   = Map Name Fixity'
-type Polarities = Map Name [Occurrence]
 type NiceWarnings = [DeclarationWarning]
      -- ^ Stack of warnings. Head is last warning.
 
@@ -1830,101 +1833,6 @@ instance MakePrivate WhereClause where
   -- The contents of this module are not private, unless declared so!
   -- Thus, we do not recurse into the @ds@ (could not anyway).
   mkPrivate o (SomeWhere m a ds) = mkPrivate o a <&> \ a' -> SomeWhere m a' ds
-
--- | Add more fixities. Throw an exception for multiple fixity declarations.
---   OR:  Disjoint union of fixity maps.  Throws exception if not disjoint.
-
-plusFixities :: Fixities -> Fixities -> Nice Fixities
-plusFixities m1 m2
-    -- If maps are not disjoint, report conflicts as exception.
-    | not (null isect) = throwError $ MultipleFixityDecls isect
-    -- Otherwise, do the union.
-    | otherwise        = return $ Map.unionWithKey mergeFixites m1 m2
-  where
-    --  Merge two fixities, assuming there is no conflict
-    mergeFixites name (Fixity' f1 s1 r1) (Fixity' f2 s2 r2) = Fixity' f s $ fuseRange r1 r2
-              where f | f1 == noFixity = f2
-                      | f2 == noFixity = f1
-                      | otherwise = __IMPOSSIBLE__
-                    s | s1 == noNotation = s2
-                      | s2 == noNotation = s1
-                      | otherwise = __IMPOSSIBLE__
-
-    -- Compute a list of conflicts in a format suitable for error reporting.
-    isect = [ (x, map (Map.findWithDefault __IMPOSSIBLE__ x) [m1,m2])
-            | (x, False) <- Map.assocs $ Map.intersectionWith compatible m1 m2 ]
-
-    -- Check for no conflict.
-    compatible (Fixity' f1 s1 _) (Fixity' f2 s2 _) =
-      (f1 == noFixity   || f2 == noFixity  ) &&
-      (s1 == noNotation || s2 == noNotation)
-
--- | While 'Fixities' and Polarities are not semigroups under disjoint
---   union (which might fail), we get a semigroup instance for the
---   monadic @Nice (Fixities, Polarities)@ which propagates the first
---   error.
-instance Semigroup (Nice (Fixities, Polarities)) where
-  c1 <> c2 = do
-    (f1, p1) <- c1
-    (f2, p2) <- c2
-    f <- plusFixities f1 f2
-    p <- mergePolarities p1 p2
-    return (f, p)
-    where
-    mergePolarities p1 p2
-      | Set.null i = return (Map.union p1 p2)
-      | otherwise  = throwError $ MultiplePolarityPragmas (Set.toList i)
-      where
-      i = Set.intersection (Map.keysSet p1) (Map.keysSet p2)
-
-instance Monoid (Nice (Fixities, Polarities)) where
-  mempty  = return (Map.empty, Map.empty)
-  mappend = (<>)
-
--- | Get the fixities and polarity pragmas from the current block.
---   Doesn't go inside modules and where blocks.
---   The reason for this is that these declarations have to appear at the same
---   level (or possibly outside an abstract or mutual block) as their target
---   declaration.
-fixitiesAndPolarities :: [Declaration] -> Nice (Fixities, Polarities)
-fixitiesAndPolarities = foldMap $ \ d -> case d of
-  -- These declarations define polarities:
-  Pragma (PolarityPragma _ x occs) -> return (Map.empty, Map.singleton x occs)
-  -- These declarations define fixities:
-  Syntax x syn    -> return ( Map.singleton x (Fixity' noFixity syn $ getRange x)
-                            , Map.empty
-                            )
-  Infix  f xs     -> return ( Map.fromList $ for xs $ \ x -> (x, Fixity' f noNotation$ getRange x)
-                            , Map.empty
-                            )
-  -- We look into these blocks:
-  Mutual    _ ds' -> fixitiesAndPolarities ds'
-  Abstract  _ ds' -> fixitiesAndPolarities ds'
-  Private _ _ ds' -> fixitiesAndPolarities ds'
-  InstanceB _ ds' -> fixitiesAndPolarities ds'
-  Macro     _ ds' -> fixitiesAndPolarities ds'
-  -- All other declarations are ignored.
-  -- We expand these boring cases to trigger a revisit
-  -- in case the @Declaration@ type is extended in the future.
-  TypeSig     {}  -> mempty
-  Generalize  {}  -> mempty
-  Field       {}  -> mempty
-  FunClause   {}  -> mempty
-  DataSig     {}  -> mempty
-  Data        {}  -> mempty
-  RecordSig   {}  -> mempty
-  Record      {}  -> mempty
-  PatternSyn  {}  -> mempty
-  Postulate   {}  -> mempty
-  Primitive   {}  -> mempty
-  Open        {}  -> mempty
-  Import      {}  -> mempty
-  ModuleMacro {}  -> mempty
-  Module      {}  -> mempty
-  UnquoteDecl {}  -> mempty
-  UnquoteDef  {}  -> mempty
-  Pragma      {}  -> mempty
-
 
 -- The following function is (at the time of writing) only used three
 -- times: for building Lets, and for printing error messages.
