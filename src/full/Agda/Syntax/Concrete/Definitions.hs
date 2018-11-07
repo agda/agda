@@ -78,7 +78,6 @@ import Agda.Syntax.Concrete.Fixity
 import Agda.Interaction.Options.Warnings
 
 import Agda.TypeChecking.Positivity.Occurrence
-import {-# SOURCE #-} Agda.TypeChecking.Monad.Builtin ( builtinsNoDef )
 
 import Agda.Utils.AffineHole
 import Agda.Utils.Except ( MonadError(throwError,catchError) )
@@ -237,8 +236,11 @@ data DeclarationWarning
   deriving (Data, Show)
 
 instance MonadFixityError Nice where
-  throwMultipleFixityDecls     = throwError . MultipleFixityDecls
-  throwMultiplePolarityPragmas = throwError . MultiplePolarityPragmas
+  throwMultipleFixityDecls          = throwError  . MultipleFixityDecls
+  throwMultiplePolarityPragmas      = throwError  . MultiplePolarityPragmas
+  warnUnknownNamesInFixityDecl      = niceWarning . UnknownNamesInFixityDecl
+  warnUnknownNamesInPolarityPragmas = niceWarning . UnknownNamesInPolarityPragmas
+  warnUnknownFixityInMixfixDecl     = niceWarning . UnknownFixityInMixfixDecl
 
 declarationWarningName :: DeclarationWarning -> WarningName
 declarationWarningName dw = case dw of
@@ -838,29 +840,6 @@ niceDeclarations ds = do
 
   -- Get fixity and syntax declarations.
   (fixs, polarities) <- fixitiesAndPolarities ds
-  let declared    = Set.fromList (concatMap declaredNames ds)
-
-  -- If we have names in fixity declarations
-  -- which are not defined in the appropriate scope,
-  -- raise a warning and delete them from fixs.
-  fixs <- ifNull (Map.keysSet fixs Set.\\ declared) (return fixs) $ \ unknownFixs -> do
-    niceWarning $ UnknownNamesInFixityDecl $ Set.toList unknownFixs
-    -- Note: Data.Map.restrictKeys requires containers >= 0.5.8.2
-    -- return $ Map.restrictKeys fixs declared
-    return $ Map.filterWithKey (\ k _ -> Set.member k declared) fixs
-
-  -- Same for undefined names in polarity declarations.
-  polarities <- ifNull (Map.keysSet polarities Set.\\ declared) (return polarities) $
-    \ unknownPols -> do
-      niceWarning $ UnknownNamesInPolarityPragmas $ Set.toList unknownPols
-      -- Note: Data.Map.restrictKeys requires containers >= 0.5.8.2
-      -- return $ Map.restrictKeys polarities declared
-      return $ Map.filterWithKey (\ k _ -> Set.member k declared) polarities
-
-  -- If we have mixfix identifiers without a corresponding fixity
-  -- declaration, we raise a warning
-  ifNull (Set.filter isOpenMixfix declared Set.\\ Map.keysSet fixs) (return ()) $
-    niceWarning . UnknownFixityInMixfixDecl . Set.toList
 
   -- Run the nicifier in an initial environment of fixity decls
   -- and polarities.  But keep the warnings.
@@ -888,43 +867,6 @@ niceDeclarations ds = do
   return res
 
   where
-
-    -- Compute the names defined in a declaration.
-    -- We stay in the current scope, i.e., do not go into modules.
-    declaredNames :: Declaration -> [Name]
-    declaredNames d = case d of
-      TypeSig _ x _        -> [x]
-      Field _ x _          -> [x]
-      FunClause (LHS p [] []) _ _ _
-        | IdentP (QName x) <- removeSingletonRawAppP p
-                           -> [x]
-      FunClause{}          -> []
-      DataSig _ _ x _ _    -> [x]
-      Data _ _ x _ _ cs    -> x : concatMap declaredNames cs
-      RecordSig _ x _ _    -> [x]
-      Record _ x _ _ c _ _ _ -> x : foldMap (:[]) (fst <$> c)
-      Infix _ _            -> []
-      Syntax _ _           -> []
-      PatternSyn _ x _ _   -> [x]
-      Mutual    _ ds       -> concatMap declaredNames ds
-      Abstract  _ ds       -> concatMap declaredNames ds
-      Private _ _ ds       -> concatMap declaredNames ds
-      InstanceB _ ds       -> concatMap declaredNames ds
-      Macro     _ ds       -> concatMap declaredNames ds
-      Postulate _ ds       -> concatMap declaredNames ds
-      Primitive _ ds       -> concatMap declaredNames ds
-      Generalize _ ds      -> concatMap declaredNames ds
-      Open{}               -> []
-      Import{}             -> []
-      ModuleMacro{}        -> []
-      Module{}             -> []
-      UnquoteDecl _ xs _   -> xs
-      UnquoteDef{}         -> []
-      -- BUILTIN pragmas which do not require an accompanying definition declare
-      -- the (unqualified) name they mention.
-      Pragma (BuiltinPragma _ b (QName x) _)
-        | b `elem` builtinsNoDef -> [x]
-      Pragma{}             -> []
 
     inferMutualBlocks :: [NiceDeclaration] -> Nice [NiceDeclaration]
     inferMutualBlocks [] = return []
@@ -1438,18 +1380,6 @@ niceDeclarations ds = do
         -- not a notation, not first id: give up
         _ -> False -- trace ("couldBe not (case default)") $ False
     couldBeFunClauseOf _ _ _ = False -- trace ("couldBe not (fun default)") $ False
-
-    isSingleIdentifierP :: Pattern -> Maybe Name
-    isSingleIdentifierP p = case removeSingletonRawAppP p of
-      IdentP (QName x) -> Just x
-      WildP r          -> Just $ noName r
-      _                -> Nothing
-
-    removeSingletonRawAppP :: Pattern -> Pattern
-    removeSingletonRawAppP p = case p of
-        RawAppP _ [p'] -> removeSingletonRawAppP p'
-        ParenP _ p'    -> removeSingletonRawAppP p'
-        _ -> p
 
     -- | Turn an old-style mutual block into a new style mutual block
     --   by pushing the definitions to the end.

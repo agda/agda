@@ -5,6 +5,7 @@ module Agda.Syntax.Concrete.Fixity
   ( Fixities, Polarities, MonadFixityError(..)
   , fixitiesAndPolarities ) where
 
+import Prelude hiding (null)
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Set (Set)
@@ -15,9 +16,11 @@ import Agda.Syntax.Position
 import Agda.Syntax.Fixity
 import Agda.Syntax.Notation
 import Agda.Syntax.Concrete
-import Agda.TypeChecking.Positivity.Occurrence
+import Agda.TypeChecking.Positivity.Occurrence (Occurrence)
+import {-# SOURCE #-} Agda.TypeChecking.Monad.Builtin (builtinsNoDef)
 
 import Agda.Utils.Functor
+import Agda.Utils.Null
 import Agda.Utils.Impossible
 
 #include "undefined.h"
@@ -26,8 +29,11 @@ type Fixities   = Map Name Fixity'
 type Polarities = Map Name [Occurrence]
 
 class Monad m => MonadFixityError m where
-  throwMultipleFixityDecls :: [(Name, [Fixity'])] -> m a
-  throwMultiplePolarityPragmas :: [Name] -> m a
+  throwMultipleFixityDecls          :: [(Name, [Fixity'])] -> m a
+  throwMultiplePolarityPragmas      :: [Name] -> m a
+  warnUnknownNamesInFixityDecl      :: [Name] -> m ()
+  warnUnknownNamesInPolarityPragmas :: [Name] -> m ()
+  warnUnknownFixityInMixfixDecl     :: [Name] -> m ()
 
 -- | Add more fixities. Throw an exception for multiple fixity declarations.
 --   OR:  Disjoint union of fixity maps.  Throws exception if not disjoint.
@@ -93,7 +99,32 @@ instance MonadFixityError m => Monoid (MonadicFixPol m) where
 --   level (or possibly outside an abstract or mutual block) as their target
 --   declaration.
 fixitiesAndPolarities :: MonadFixityError m => [Declaration] -> m (Fixities, Polarities)
-fixitiesAndPolarities = runMonadicFixPol . fixitiesAndPolarities'
+fixitiesAndPolarities ds = do
+  (fixs, pols) <- runMonadicFixPol $ fixitiesAndPolarities' ds
+  let declared = Set.fromList (concatMap declaredNames ds)
+
+  -- If we have names in fixity declarations which are not defined in the
+  -- appropriate scope, raise a warning and delete them from fixs.
+  fixs <- ifNull (Map.keysSet fixs Set.\\ declared) (return fixs) $ \ unknownFixs -> do
+    warnUnknownNamesInFixityDecl $ Set.toList unknownFixs
+    -- Note: Data.Map.restrictKeys requires containers >= 0.5.8.2
+    -- return $ Map.restrictKeys fixs declared
+    return $ Map.filterWithKey (\ k _ -> Set.member k declared) fixs
+
+  -- Same for undefined names in polarity declarations.
+  pols <- ifNull (Map.keysSet pols Set.\\ declared) (return pols) $
+    \ unknownPols -> do
+      warnUnknownNamesInPolarityPragmas $ Set.toList unknownPols
+      -- Note: Data.Map.restrictKeys requires containers >= 0.5.8.2
+      -- return $ Map.restrictKeys polarities declared
+      return $ Map.filterWithKey (\ k _ -> Set.member k declared) pols
+
+  -- If we have mixfix identifiers without a corresponding fixity
+  -- declaration, we raise a warning
+  ifNull (Set.filter isOpenMixfix declared Set.\\ Map.keysSet fixs) (return ()) $
+    warnUnknownFixityInMixfixDecl . Set.toList
+
+  return (fixs, pols)
 
 fixitiesAndPolarities' :: MonadFixityError m => [Declaration] -> MonadicFixPol m
 fixitiesAndPolarities' = foldMap $ \ d -> case d of
@@ -129,4 +160,41 @@ fixitiesAndPolarities' = foldMap $ \ d -> case d of
   UnquoteDecl {}  -> mempty
   UnquoteDef  {}  -> mempty
   Pragma      {}  -> mempty
+
+-- | Compute the names defined in a declaration. We stay in the current scope,
+--   i.e., do not go into modules.
+declaredNames :: Declaration -> [Name]
+declaredNames d = case d of
+  TypeSig _ x _        -> [x]
+  Field _ x _          -> [x]
+  FunClause (LHS p [] []) _ _ _
+    | IdentP (QName x) <- removeSingletonRawAppP p
+                       -> [x]
+  FunClause{}          -> []
+  DataSig _ _ x _ _    -> [x]
+  Data _ _ x _ _ cs    -> x : concatMap declaredNames cs
+  RecordSig _ x _ _    -> [x]
+  Record _ x _ _ c _ _ _ -> x : foldMap (:[]) (fst <$> c)
+  Infix _ _            -> []
+  Syntax _ _           -> []
+  PatternSyn _ x _ _   -> [x]
+  Mutual    _ ds       -> concatMap declaredNames ds
+  Abstract  _ ds       -> concatMap declaredNames ds
+  Private _ _ ds       -> concatMap declaredNames ds
+  InstanceB _ ds       -> concatMap declaredNames ds
+  Macro     _ ds       -> concatMap declaredNames ds
+  Postulate _ ds       -> concatMap declaredNames ds
+  Primitive _ ds       -> concatMap declaredNames ds
+  Generalize _ ds      -> concatMap declaredNames ds
+  Open{}               -> []
+  Import{}             -> []
+  ModuleMacro{}        -> []
+  Module{}             -> []
+  UnquoteDecl _ xs _   -> xs
+  UnquoteDef{}         -> []
+  -- BUILTIN pragmas which do not require an accompanying definition declare
+  -- the (unqualified) name they mention.
+  Pragma (BuiltinPragma _ b (QName x) _)
+    | b `elem` builtinsNoDef -> [x]
+  Pragma{}             -> []
 

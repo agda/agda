@@ -16,6 +16,7 @@ module Agda.Syntax.Concrete
   , OpApp(..), fromOrdinary
   , module Agda.Syntax.Concrete.Name
   , appView, AppView(..)
+  , isSingleIdentifierP, removeSingletonRawAppP
     -- * Bindings
   , LamBinding
   , LamBinding'(..)
@@ -534,6 +535,18 @@ appView e =
     arg (HiddenArg   _ e) = hide         $ defaultArg e
     arg (InstanceArg _ e) = makeInstance $ defaultArg e
     arg e                 = defaultArg (unnamed e)
+
+isSingleIdentifierP :: Pattern -> Maybe Name
+isSingleIdentifierP p = case removeSingletonRawAppP p of
+  IdentP (QName x) -> Just x
+  WildP r          -> Just $ noName r
+  _                -> Nothing
+
+removeSingletonRawAppP :: Pattern -> Pattern
+removeSingletonRawAppP p = case p of
+    RawAppP _ [p'] -> removeSingletonRawAppP p'
+    ParenP _ p'    -> removeSingletonRawAppP p'
+    _ -> p
 
 {--------------------------------------------------------------------------
     Instances
