@@ -115,28 +115,15 @@
 % ----------------------------------------------------------------------
 % Font styles.
 
-\ifxetexorluatex
-  \newcommand{\AgdaFontStyle}[1]{\ensuremath{\mathsf{#1}}}
-  \ifthenelse{\equal{\AgdaColourScheme}{bw}}{
-      \newcommand{\AgdaKeywordFontStyle}[1]{\underline{#1}}
-  }{
-      \newcommand{\AgdaKeywordFontStyle}[1]{\ensuremath{\mathsf{#1}}}
-  }
-  \newcommand{\AgdaStringFontStyle}[1]{\ensuremath{\texttt{#1}}}
-  \newcommand{\AgdaCommentFontStyle}[1]{\ensuremath{\texttt{#1}}}
-  \newcommand{\AgdaBoundFontStyle}[1]{\ensuremath{\mathit{#1}}}
-
-\else
-  \newcommand{\AgdaFontStyle}[1]{\textsf{#1}}
-  \ifthenelse{\equal{\AgdaColourScheme}{bw}}{
-      \newcommand{\AgdaKeywordFontStyle}[1]{\underline{#1}}
-  }{
-      \newcommand{\AgdaKeywordFontStyle}[1]{\textsf{#1}}
-  }
-  \newcommand{\AgdaStringFontStyle}[1]{\texttt{#1}}
-  \newcommand{\AgdaCommentFontStyle}[1]{\texttt{#1}}
-  \newcommand{\AgdaBoundFontStyle}[1]{\textit{#1}}
-\fi
+\newcommand{\AgdaFontStyle}[1]{\textsf{#1}}
+\ifthenelse{\equal{\AgdaColourScheme}{bw}}{
+    \newcommand{\AgdaKeywordFontStyle}[1]{\underline{#1}}
+}{
+    \newcommand{\AgdaKeywordFontStyle}[1]{\textsf{#1}}
+}
+\newcommand{\AgdaStringFontStyle}[1]{\texttt{#1}}
+\newcommand{\AgdaCommentFontStyle}[1]{\texttt{#1}}
+\newcommand{\AgdaBoundFontStyle}[1]{\textit{#1}}
 
 % ----------------------------------------------------------------------
 % Colours.

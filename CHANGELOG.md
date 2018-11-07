@@ -348,6 +348,10 @@ LaTeX backend
   the box. See the documentation for some hints about what to do if
   this affects you.
 
+* Some text was by default typeset in math mode when LuaLaTeX or
+  XeLaTeX were used, and in text mode when pdfLaTeX was used. Now text
+  mode is the default for all of these engines.
+
 * Typesetting of pragmas should now work better [Issue
   [#2452](https://github.com/agda/agda/issues/2452)].
 
