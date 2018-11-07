@@ -236,11 +236,12 @@ data DeclarationWarning
   deriving (Data, Show)
 
 instance MonadFixityError Nice where
-  throwMultipleFixityDecls          = throwError  . MultipleFixityDecls
-  throwMultiplePolarityPragmas      = throwError  . MultiplePolarityPragmas
-  warnUnknownNamesInFixityDecl      = niceWarning . UnknownNamesInFixityDecl
-  warnUnknownNamesInPolarityPragmas = niceWarning . UnknownNamesInPolarityPragmas
-  warnUnknownFixityInMixfixDecl     = niceWarning . UnknownFixityInMixfixDecl
+  throwMultipleFixityDecls            = throwError  . MultipleFixityDecls
+  throwMultiplePolarityPragmas        = throwError  . MultiplePolarityPragmas
+  warnUnknownNamesInFixityDecl        = niceWarning . UnknownNamesInFixityDecl
+  warnUnknownNamesInPolarityPragmas   = niceWarning . UnknownNamesInPolarityPragmas
+  warnUnknownFixityInMixfixDecl       = niceWarning . UnknownFixityInMixfixDecl
+  warnPolarityPragmasButNotPostulates = niceWarning . PolarityPragmasButNotPostulates
 
 declarationWarningName :: DeclarationWarning -> WarningName
 declarationWarningName dw = case dw of
@@ -846,10 +847,6 @@ niceDeclarations ds = do
   st <- get
   put $ initNiceEnv { fixs = fixs, pols = polarities, niceWarn = niceWarn st }
   nds <- nice ds
-
-  -- Check that every polarity pragma was used.
-  unlessNullM (Map.keys <$> gets pols) $ \ unusedPolarities -> do
-    niceWarning $ PolarityPragmasButNotPostulates unusedPolarities
 
   -- Check that every signature got its definition.
   ps <- use loneSigs

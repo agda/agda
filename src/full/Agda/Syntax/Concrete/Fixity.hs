@@ -29,11 +29,12 @@ type Fixities   = Map Name Fixity'
 type Polarities = Map Name [Occurrence]
 
 class Monad m => MonadFixityError m where
-  throwMultipleFixityDecls          :: [(Name, [Fixity'])] -> m a
-  throwMultiplePolarityPragmas      :: [Name] -> m a
-  warnUnknownNamesInFixityDecl      :: [Name] -> m ()
-  warnUnknownNamesInPolarityPragmas :: [Name] -> m ()
-  warnUnknownFixityInMixfixDecl     :: [Name] -> m ()
+  throwMultipleFixityDecls            :: [(Name, [Fixity'])] -> m a
+  throwMultiplePolarityPragmas        :: [Name] -> m a
+  warnUnknownNamesInFixityDecl        :: [Name] -> m ()
+  warnUnknownNamesInPolarityPragmas   :: [Name] -> m ()
+  warnUnknownFixityInMixfixDecl       :: [Name] -> m ()
+  warnPolarityPragmasButNotPostulates :: [Name] -> m ()
 
 -- | Add more fixities. Throw an exception for multiple fixity declarations.
 --   OR:  Disjoint union of fixity maps.  Throws exception if not disjoint.
@@ -101,7 +102,7 @@ instance MonadFixityError m => Monoid (MonadicFixPol m) where
 fixitiesAndPolarities :: MonadFixityError m => [Declaration] -> m (Fixities, Polarities)
 fixitiesAndPolarities ds = do
   (fixs, pols) <- runMonadicFixPol $ fixitiesAndPolarities' ds
-  let declared = Set.fromList (concatMap declaredNames ds)
+  let DeclaredNames declared postulates = foldMap declaredNames ds
 
   -- If we have names in fixity declarations which are not defined in the
   -- appropriate scope, raise a warning and delete them from fixs.
@@ -123,6 +124,10 @@ fixitiesAndPolarities ds = do
   -- declaration, we raise a warning
   ifNull (Set.filter isOpenMixfix declared Set.\\ Map.keysSet fixs) (return ()) $
     warnUnknownFixityInMixfixDecl . Set.toList
+
+  -- Check that every polarity pragma is used for a postulate.
+  ifNull (Map.keysSet pols Set.\\ postulates) (return ()) $
+    warnPolarityPragmasButNotPostulates . Set.toList
 
   return (fixs, pols)
 
@@ -161,40 +166,58 @@ fixitiesAndPolarities' = foldMap $ \ d -> case d of
   UnquoteDef  {}  -> mempty
   Pragma      {}  -> mempty
 
+data DeclaredNames = DeclaredNames { allNames, postulates :: Set Name }
+
+instance Semigroup DeclaredNames where
+  DeclaredNames xs ps <> DeclaredNames ys qs = DeclaredNames (xs <> ys) (ps <> qs)
+
+instance Monoid DeclaredNames where
+  mempty  = DeclaredNames Set.empty Set.empty
+  mappend = (<>)
+
+allPostulates :: DeclaredNames -> DeclaredNames
+allPostulates (DeclaredNames xs ps) = DeclaredNames xs (xs <> ps)
+
+declaresNames :: [Name] -> DeclaredNames
+declaresNames xs = DeclaredNames (Set.fromList xs) Set.empty
+
+declaresName :: Name -> DeclaredNames
+declaresName x = declaresNames [x]
+
 -- | Compute the names defined in a declaration. We stay in the current scope,
 --   i.e., do not go into modules.
-declaredNames :: Declaration -> [Name]
+declaredNames :: Declaration -> DeclaredNames
 declaredNames d = case d of
-  TypeSig _ x _        -> [x]
-  Field _ x _          -> [x]
+  TypeSig _ x _        -> declaresName x
+  Field _ x _          -> declaresName x
   FunClause (LHS p [] []) _ _ _
     | IdentP (QName x) <- removeSingletonRawAppP p
-                       -> [x]
-  FunClause{}          -> []
-  DataSig _ _ x _ _    -> [x]
-  Data _ _ x _ _ cs    -> x : concatMap declaredNames cs
-  RecordSig _ x _ _    -> [x]
-  Record _ x _ _ c _ _ _ -> x : foldMap (:[]) (fst <$> c)
-  Infix _ _            -> []
-  Syntax _ _           -> []
-  PatternSyn _ x _ _   -> [x]
-  Mutual    _ ds       -> concatMap declaredNames ds
-  Abstract  _ ds       -> concatMap declaredNames ds
-  Private _ _ ds       -> concatMap declaredNames ds
-  InstanceB _ ds       -> concatMap declaredNames ds
-  Macro     _ ds       -> concatMap declaredNames ds
-  Postulate _ ds       -> concatMap declaredNames ds
-  Primitive _ ds       -> concatMap declaredNames ds
-  Generalize _ ds      -> concatMap declaredNames ds
-  Open{}               -> []
-  Import{}             -> []
-  ModuleMacro{}        -> []
-  Module{}             -> []
-  UnquoteDecl _ xs _   -> xs
-  UnquoteDef{}         -> []
+                       -> declaresName x
+  FunClause{}          -> mempty
+  DataSig _ _ x _ _    -> declaresName x
+  Data _ _ x _ _ cs    -> declaresName x <> foldMap declaredNames cs
+  RecordSig _ x _ _    -> declaresName x
+  Record _ x _ _ c _ _ _ -> declaresNames $ x : foldMap (:[]) (fst <$> c)
+  Infix _ _            -> mempty
+  Syntax _ _           -> mempty
+  PatternSyn _ x _ _   -> declaresName x
+  Mutual    _ ds       -> foldMap declaredNames ds
+  Abstract  _ ds       -> foldMap declaredNames ds
+  Private _ _ ds       -> foldMap declaredNames ds
+  InstanceB _ ds       -> foldMap declaredNames ds
+  Macro     _ ds       -> foldMap declaredNames ds
+  Postulate _ ds       -> allPostulates $ foldMap declaredNames ds
+  Primitive _ ds       -> foldMap declaredNames ds
+  Generalize _ ds      -> foldMap declaredNames ds
+  Open{}               -> mempty
+  Import{}             -> mempty
+  ModuleMacro{}        -> mempty
+  Module{}             -> mempty
+  UnquoteDecl _ xs _   -> declaresNames xs
+  UnquoteDef{}         -> mempty
   -- BUILTIN pragmas which do not require an accompanying definition declare
   -- the (unqualified) name they mention.
   Pragma (BuiltinPragma _ b (QName x) _)
-    | b `elem` builtinsNoDef -> [x]
-  Pragma{}             -> []
+    | b `elem` builtinsNoDef -> declaresName x
+  Pragma{}             -> mempty
 
