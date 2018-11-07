@@ -170,7 +170,7 @@ decode s = do
                 <$> liftIO H.new
                 <*> return mf <*> return incs
         (r, st) <- runStateT (runExceptT (value r)) st
-        return (Just (modFile st), r)
+        return (Just $ modFile st, r)
 
   case mf of
     Nothing -> return ()

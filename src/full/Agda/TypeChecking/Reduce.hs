@@ -1379,10 +1379,10 @@ instance InstantiateFull Clause where
        <*> return unreachable
 
 instance InstantiateFull Interface where
-    instantiateFull' (Interface h s ms mod scope inside
+    instantiateFull' (Interface h s ft ms mod scope inside
                                sig display userwarn b foreignCode
                                highlighting pragmas patsyns warnings) =
-        Interface h s ms mod scope inside
+        Interface h s ft ms mod scope inside
             <$> instantiateFull' sig
             <*> instantiateFull' display
             <*> return userwarn

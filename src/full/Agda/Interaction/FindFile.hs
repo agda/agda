@@ -31,7 +31,7 @@ import System.FilePath
 import Agda.Syntax.Common
 import Agda.Syntax.Concrete
 import Agda.Syntax.Parser
-import Agda.Syntax.Parser.Literate (literateExts, literateExtsShortList)
+import Agda.Syntax.Parser.Literate (literateExtsShortList)
 import Agda.Syntax.Position
 
 import Agda.TypeChecking.Monad.Base
@@ -118,7 +118,7 @@ findFile'' dirs m modFile =
   case Map.lookup m modFile of
     Just f  -> return (Right f, modFile)
     Nothing -> do
-      files <- fileList parseFileExts
+      files <- fileList acceptableFileExts
       filesShortList <- fileList parseFileExtsShortList
       existingFiles <-
         liftIO $ filterM (doesFileExistCaseSensitive . filePath) files
@@ -216,7 +216,7 @@ parseFileExtsShortList = [".agda"] ++ literateExtsShortList
 
 dropAgdaExtension :: String -> String
 dropAgdaExtension s = case catMaybes [ stripExtension ext s
-                                     | ext <- parseFileExts ] of
+                                     | ext <- acceptableFileExts ] of
     [name] -> name
     _      -> __IMPOSSIBLE__
   where

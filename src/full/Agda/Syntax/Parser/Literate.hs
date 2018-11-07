@@ -5,7 +5,6 @@
 
 module Agda.Syntax.Parser.Literate
   ( literateProcessors
-  , literateExts
   , literateExtsShortList
   , literateSrcFile
   , literateTeX
@@ -25,6 +24,7 @@ module Agda.Syntax.Parser.Literate
 import Prelude hiding (getLine)
 import Data.Char (isSpace, isControl)
 import Data.List (isPrefixOf)
+import Agda.Syntax.Common
 import Agda.Syntax.Position
 import Text.Regex.TDFA
 
@@ -89,13 +89,13 @@ literateSrcFile (Layer{interval} : _) = getIntervalFile interval
 --   If you add new extensions, remember to update test/Utils.hs so
 --   that test cases ending in the new extensions are found.
 
-literateProcessors :: [(String, Processor)]
+literateProcessors :: [(String, (Processor, FileType))]
 literateProcessors =
-  map ((,) <$> (".lagda" ++) . fst <*> snd)
-    [ (""    , literateTeX)
-    , (".rst", literateRsT)
-    , (".tex", literateTeX)
-    , (".md",  literateMd)
+  ((,) <$> (".lagda" ++) . fst <*> snd) <$>
+    [ (""    , (literateTeX, TexFileType))
+    , (".rst", (literateRsT, RstFileType))
+    , (".tex", (literateTeX, TexFileType))
+    , (".md",  (literateMd,  MdFileType ))
     ]
 
 -- | Returns @True@ if the role corresponds to Agda code.
@@ -133,11 +133,6 @@ bleach s = map go s
 
 isBlank :: Char -> Bool
 isBlank = (&&) <$> isSpace <*> not . (== '\n')
-
--- | Possible extensions for a literate Agda file.
-
-literateExts :: [String]
-literateExts = map fst literateProcessors
 
 -- | Short list of extensions for literate Agda files.
 --   For display purposes.

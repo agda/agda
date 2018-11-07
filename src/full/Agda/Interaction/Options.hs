@@ -18,7 +18,6 @@ module Agda.Interaction.Options
     , defaultPragmaOptions
     , standardOptions_
     , unsafePragmaOptions
-    , isLiterate
     , mapFlag
     , usage
     , defaultLibDir
@@ -66,7 +65,6 @@ import Agda.Utils.List          ( groupOn, wordsBy )
 import Agda.Utils.Monad         ( ifM, readM )
 import Agda.Utils.String        ( indent )
 import Agda.Utils.Trie          ( Trie )
-import Agda.Syntax.Parser.Literate ( literateExts )
 import qualified Agda.Utils.Trie as Trie
 
 import Agda.Version
@@ -74,10 +72,6 @@ import Agda.Version
 import Paths_Agda ( getDataFileName )
 
 import qualified System.IO.Unsafe as UNSAFE (unsafePerformIO)
-
--- | This should probably go somewhere else.
-isLiterate :: FilePath -> Bool
-isLiterate file = any (`isSuffixOf` file) literateExts
 
 -- OptDescr is a Functor --------------------------------------------------
 
