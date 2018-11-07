@@ -671,6 +671,40 @@ The unicode-math package and older versions of the polytable package
 to download a more up to date version of polytable_ and either put it
 with the generated files, or install it globally.
 
+Examples
+--------
+
+Some examples that can be used for inspiration (tested using TeX Live
+2018):
+
+* For the ``article`` class and pdfLaTeX:
+  :download:`article-pdflatex.lagda.tex`.
+
+* For the ``article`` class and XeLaTeX:
+  :download:`article-xelatex.lagda.tex` if you want to use the default
+  fonts (with—at the time of writing—bad coverage of non-ASCII
+  characters), and
+  :download:`article-xelatex-different-fonts.lagda.tex` if you would
+  prefer to use other fonts (with possibly better coverage).
+
+* For the ``beamer`` class and pdfLaTeX:
+  :download:`beamer-pdflatex.lagda.tex`.
+
+* For the ``beamer`` class and XeLaTeX:
+  :download:`beamer-xelatex.lagda.tex`.
+
+* For the ``acmart`` class and pdfLaTeX:
+  :download:`acmart-pdflatex.lagda.tex`.
+
+* For the ``acmart`` class and XeLaTeX:
+  :download:`acmart-xelatex.lagda.tex`.
+
+Note that these examples might not satisfy all your requirements, and
+might not work in all settings. If you have to follow a particular
+house style, then you may want to make sure that the Agda code follows
+this style, and that you do not inadvertently change the style of
+other text when customising the style of the Agda code.
+
 .. _polytable: https://www.ctan.org/pkg/polytable
 .. _hyperref: https://www.ctan.org/pkg/hyperref
 .. _catchfilebetweentags: https://www.ctan.org/pkg/catchfilebetweentags
