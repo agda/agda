@@ -659,17 +659,58 @@ If the module has already been type-checked successfully, then this
 information is reused; in this case QuickLaTeX behaves like the
 regular LaTeX backend.
 
-Known issues
-------------
+Known pitfalls and issues
+-------------------------
 
-.. COMMENT: update this when a new version of Debian comes out
+* If ``<`` and ``>`` are typeset like ``¡`` and ``¿``, then the
+  problem might be that you are using pdfLaTeX and have not selected a
+  suitable font encoding.
 
-The unicode-math package and older versions of the polytable package
-(still in the Debian stable) are incompatible, which can result in
-`errors in generated latex code
-<https://github.com/kosmikus/lhs2tex/issues/29>`_. The workaround is
-to download a more up to date version of polytable_ and either put it
-with the generated files, or install it globally.
+  Possible workaround:
+
+  .. code-block:: latex
+
+    \usepackage[T1]{fontenc}
+
+* If a regular text font is used, then ``--`` might be typeset as an
+  en dash (–).
+
+  Possible workarounds:
+
+  * Use a monospace font.
+
+  * Turn off ligatures. With pdfLaTeX the following code (which also
+    selects a font encoding, and only turns off ligatures for
+    character sequences starting with ``-``) might work:
+
+    .. code-block:: latex
+
+      \usepackage[T1]{fontenc}
+      \usepackage{microtype}
+      \DisableLigatures[-]{encoding=T1}
+
+    With LuaLaTeX or XeLaTeX the following code (which also selects a
+    font) might work:
+
+    .. code-block:: latex
+
+      \usepackage{fontspec}
+      \defaultfontfeatures[\rmfamily]{}
+      \setmainfont{Latin Modern Roman}
+
+    Note that you might not want to turn off all kinds of ligatures in
+    the entire document. See the `examples <Examples>`_ below for
+    information on how to set up special font families without TeX
+    ligatures that are only used for Agda code.
+
+* The unicode-math package and older versions of the polytable package
+  (still in the Debian stable) are incompatible, which can result in
+  `errors in generated latex code
+  <https://github.com/kosmikus/lhs2tex/issues/29>`_. The workaround is
+  to download a more up to date version of polytable_ and either put
+  it with the generated files, or install it globally.
+
+  .. COMMENT: update this when a new version of Debian comes out
 
 Examples
 --------
