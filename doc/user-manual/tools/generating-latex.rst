@@ -715,8 +715,7 @@ Known pitfalls and issues
 Examples
 --------
 
-Some examples that can be used for inspiration (tested using TeX Live
-2018):
+Some examples that can be used for inspiration:
 
 * For the ``article`` class and pdfLaTeX:
   :download:`article-pdflatex.lagda.tex`.
