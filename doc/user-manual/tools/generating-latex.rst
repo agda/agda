@@ -196,7 +196,7 @@ before or after a code block will not necessarily lead to empty lines
 in the generated document. However, empty lines inside the code block
 do (by default) lead to empty lines in the output. The height of such
 empty lines can be controlled by the length ``\AgdaEmptySkip``, which
-by default is ``\baselineskip``.
+by default is ``\abovedisplayskip``.
 
 Breaking up code blocks
 ~~~~~~~~~~~~~~~~~~~~~~~

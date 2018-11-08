@@ -369,6 +369,10 @@ LaTeX backend
   not the case for at least one common monospace font (in at least one
   setting).
 
+* The default value of `\AgdaEmptySkip` has been changed from
+  `\baselineskip` to `\abovedisplayskip`. This could mean that less
+  vertical space is used to render empty lines in code blocks.
+
 Release notes for Agda version 2.5.4.2
 ======================================
 
