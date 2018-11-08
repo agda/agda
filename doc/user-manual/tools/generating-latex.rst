@@ -721,18 +721,18 @@ Some examples that can be used for inspiration (tested using TeX Live
 * For the ``article`` class and pdfLaTeX:
   :download:`article-pdflatex.lagda.tex`.
 
-* For the ``article`` class and XeLaTeX:
-  :download:`article-xelatex.lagda.tex` if you want to use the default
+* For the ``article`` class and LuaLaTeX or XeLaTeX:
+  :download:`article-luaxelatex.lagda.tex` if you want to use the default
   fonts (with—at the time of writing—bad coverage of non-ASCII
   characters), and
-  :download:`article-xelatex-different-fonts.lagda.tex` if you would
+  :download:`article-luaxelatex-different-fonts.lagda.tex` if you would
   prefer to use other fonts (with possibly better coverage).
 
 * For the ``beamer`` class and pdfLaTeX:
   :download:`beamer-pdflatex.lagda.tex`.
 
-* For the ``beamer`` class and XeLaTeX:
-  :download:`beamer-xelatex.lagda.tex`.
+* For the ``beamer`` class and LuaLaTeX or XeLaTeX:
+  :download:`beamer-luaxelatex.lagda.tex`.
 
 * For the ``acmart`` class and pdfLaTeX:
   :download:`acmart-pdflatex.lagda.tex`.
