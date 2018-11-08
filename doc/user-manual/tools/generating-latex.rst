@@ -31,91 +31,170 @@ from :file:`agda.sty`.
 
 .. _unicode-latex:
 
-Unicode and pdfLaTeX
---------------------
+Known pitfalls and issues
+-------------------------
 
-The pdfLaTeX program does not by default understand the UTF-8
-character encoding. You can tell it to treat the input as UTF-8 by
-using the inputenc package:
+* Unicode characters may not be typeset properly out of the box. How
+  to address this problem depends on what LaTeX engine is used.
 
-.. code-block:: latex
+  * pdfLaTeX:
 
-   \usepackage[utf8]{inputenc}
+    The pdfLaTeX program does not by default understand the UTF-8
+    character encoding. You can tell it to treat the input as UTF-8 by
+    using the inputenc package:
 
-If the inputenc package complains that some Unicode character is "not
-set up for use with LaTeX", then you can give your own definition.
-Here is one example:
+    .. code-block:: latex
 
-.. code-block:: latex
+       \usepackage[utf8]{inputenc}
 
-  \usepackage{newunicodechar}
-  \newunicodechar{λ}{\ensuremath{\mathnormal\lambda}}
-  \newunicodechar{←}{\ensuremath{\mathnormal\from}}
-  \newunicodechar{→}{\ensuremath{\mathnormal\to}}
-  \newunicodechar{∀}{\ensuremath{\mathnormal\forall}}
+    If the inputenc package complains that some Unicode character is
+    "not set up for use with LaTeX", then you can give your own
+    definition. Here is one example:
 
-Unicode and XeLaTeX or LuaLaTeX
--------------------------------
+    .. code-block:: latex
 
-It can sometimes be easier to use LuaLaTeX or XeLaTeX. When these
-engines are used it might suffice to choose a suitable font, as long
-as it contains all the right symbols in all the right shapes. If it
-does not, then ``\newunicodechar`` can be used as above. Here is one
-example:
+      \usepackage{newunicodechar}
+      \newunicodechar{λ}{\ensuremath{\mathnormal\lambda}}
+      \newunicodechar{←}{\ensuremath{\mathnormal\from}}
+      \newunicodechar{→}{\ensuremath{\mathnormal\to}}
+      \newunicodechar{∀}{\ensuremath{\mathnormal\forall}}
 
-.. code-block:: latex
+  * XeLaTeX or LuaLaTeX:
 
-  \usepackage{unicode-math}
-  \setmathfont{XITS Math}
+    It can sometimes be easier to use LuaLaTeX or XeLaTeX. When these
+    engines are used it might suffice to choose a suitable font, as
+    long as it contains all the right symbols in all the right shapes.
+    If it does not, then ``\newunicodechar`` can be used as above.
+    Here is one example:
 
-  \usepackage{newunicodechar}
-  \newunicodechar{λ}{\ensuremath{\mathnormal\lambda}}
+    .. code-block:: latex
+
+      \usepackage{unicode-math}
+      \setmathfont{XITS Math}
+
+      \usepackage{newunicodechar}
+      \newunicodechar{λ}{\ensuremath{\mathnormal\lambda}}
+
+* If ``<`` and ``>`` are typeset like ``¡`` and ``¿``, then the
+  problem might be that you are using pdfLaTeX and have not selected a
+  suitable font encoding.
+
+  Possible workaround:
+
+  .. code-block:: latex
+
+    \usepackage[T1]{fontenc}
+
+* If a regular text font is used, then ``--`` might be typeset as an
+  en dash (–).
+
+  Possible workarounds:
+
+  * Use a monospace font.
+
+  * Turn off ligatures. With pdfLaTeX the following code (which also
+    selects a font encoding, and only turns off ligatures for
+    character sequences starting with ``-``) might work:
+
+    .. code-block:: latex
+
+      \usepackage[T1]{fontenc}
+      \usepackage{microtype}
+      \DisableLigatures[-]{encoding=T1}
+
+    With LuaLaTeX or XeLaTeX the following code (which also selects a
+    font) might work:
+
+    .. code-block:: latex
+
+      \usepackage{fontspec}
+      \defaultfontfeatures[\rmfamily]{}
+      \setmainfont{Latin Modern Roman}
+
+    Note that you might not want to turn off all kinds of ligatures in
+    the entire document. See the `examples <Examples>`_ below for
+    information on how to set up special font families without TeX
+    ligatures that are only used for Agda code.
+
+* The unicode-math package and older versions of the polytable package
+  are incompatible, which can result in `errors in generated LaTeX
+  code <https://github.com/kosmikus/lhs2tex/issues/29>`_.
+
+  Possible workaround: Download a more up-to-date version of
+  polytable_ and put it together with the generated files or install
+  it globally.
+
+.. _latex-backend-options:
+
+Options
+-------
+
+The following command-line options change the behaviour of the LaTeX
+backend:
+
+:samp:`--latex-dir={directory}`
+  Changes the output directory where :file:`agda.sty` and the output
+  :file:`.tex` file are placed to :samp:`{directory}`. Default:
+  ``latex``.
+
+``--only-scope-checking``
+  Generates highlighting without typechecking the file. See
+  :ref:`quickLaTeX`.
+
+``--count-clusters``
+  Count extended grapheme clusters when generating LaTeX code. This
+  option can be given in ``OPTIONS`` pragmas.
+  See :ref:`grapheme-clusters`.
+
+The following options can be given when loading ``agda.sty`` by using
+``\usepackage[options]{agda}``:
+
+``bw``
+  Colour scheme which highlights in black and white.
+
+``conor``
+  Colour scheme similar to the colours used in Epigram 1.
+
+``references``
+  Enables :ref:`inline typesetting <latex-inline-references>` of
+  referenced code.
+
+``links``
+  Enables :ref:`hyperlink support <latex-links>`.
+
+.. _quickLaTeX:
+
+Quicker generation without typechecking
+---------------------------------------
+
+A faster variant of the backend is available by invoking
+``QuickLaTeX`` from the Emacs mode, or using ``agda --latex
+--only-scope-checking``. When this variant of the backend is used the
+top-level module is not type-checked, only scope-checked. Note that
+this can affect the generated document. For instance, scope-checking
+does not resolve overloaded constructors.
+
+If the module has already been type-checked successfully, then this
+information is reused; in this case QuickLaTeX behaves like the
+regular LaTeX backend.
 
 Features
 --------
 
-Hiding code
-~~~~~~~~~~~
+Vertical space
+~~~~~~~~~~~~~~
 
-Code that you do not want to show up in the output can be hidden by
-giving the argument ``hide`` to the code block:
+Code blocks are by default surrounded by vertical space. Use
+``\AgdaNoSpaceAroundCode{}`` to avoid this vertical space, and
+``\AgdaSpaceAroundCode{}`` to reenable it.
 
-.. code-block:: lagda
-
-   \begin{code}[hide]
-   -- the code here will not be part of the final document
-   \end{code}
-
-Inline code
-~~~~~~~~~~~
-
-Code can be typeset inline by giving the argument ``inline`` to the
-code block:
-
-.. code-block:: lagda
-
-  Assume that we are given a type
-  %
-  \begin{code}[hide]
-    module _ (
-  \end{code}
-  \begin{code}[inline]
-      A : Set
-  \end{code}
-  \begin{code}[hide]
-      ) where
-  \end{code}
-  %
-  .
-
-There is also a variant of ``inline``, ``inline*``. If ``inline*`` is
-used, then space (``\AgdaSpace{}``) is added at the end of the code,
-and when ``inline`` is used space is not added.
-
-The implementation of these options is a bit of a hack. Only use these
-options for typesetting a single line of code without multiple
-consecutive whitespace characters (except at the beginning of the
-line).
+Note that, if ``\AgdaNoSpaceAroundCode{}`` is used, then empty lines
+before or after a code block will not necessarily lead to empty lines
+in the generated document. However, empty lines inside the code block
+do (by default, with or without ``\AgdaNoSpaceAroundCode{}``) lead to
+empty lines in the output. The height of such empty lines can be
+controlled by the length ``\AgdaEmptySkip``, which by default is
+``\abovedisplayskip``.
 
 Alignment
 ~~~~~~~~~
@@ -186,20 +265,51 @@ These rules are inspired by, but not identical to, the one used by
 lhs2TeX's poly mode (see Section 8.4 of the `manual for lhs2TeX
 version 1.17 <https://www.andres-loeh.de/lhs2tex/Guide2-1.17.pdf>`_).
 
-Vertical space
-~~~~~~~~~~~~~~
+.. _grapheme-clusters:
 
-Code blocks are by default surrounded by vertical space. Use
-``\AgdaNoSpaceAroundCode{}`` to avoid this vertical space, and
-``\AgdaSpaceAroundCode{}`` to reenable it.
+Counting Extended Grapheme Clusters
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Note that, if ``\AgdaNoSpaceAroundCode{}`` is used, then empty lines
-before or after a code block will not necessarily lead to empty lines
-in the generated document. However, empty lines inside the code block
-do (by default, with or without ``\AgdaNoSpaceAroundCode{}``) lead to
-empty lines in the output. The height of such empty lines can be
-controlled by the length ``\AgdaEmptySkip``, which by default is
-``\abovedisplayskip``.
+The alignment feature regards the string ``+̲``, containing ``+`` and a
+combining character, as having length two. However, it seems more
+reasonable to treat it as having length one, as it occupies a single
+column, if displayed "properly" using a monospace font. The flag
+``--count-clusters`` is an attempt at fixing this. When this flag is
+enabled the backend counts `"extended grapheme clusters"
+<http://www.unicode.org/reports/tr29/#Grapheme_Cluster_Boundaries>`_
+rather than code points.
+
+Note that this fix is not perfect: a single extended grapheme cluster
+might be displayed in different ways by different programs, and might,
+in some cases, occupy more than one column. Here are some examples of
+extended grapheme clusters, all of which are treated as a single
+character by the alignment algorithm:
+
+.. code-block:: lagda
+
+   │ │
+   │+̲│
+   │Ö̂│
+   │நி│
+   │ᄀힰᇹ│
+   │ᄀᄀᄀᄀᄀᄀힰᇹᇹᇹᇹᇹᇹ│
+   │ │
+
+Note also that the layout machinery does not count extended grapheme
+clusters, but code points. The following code is syntactically
+correct, but if ``--count-clusters`` is used, then the LaTeX backend
+does not align the two field keywords:
+
+::
+
+  record +̲ : Set₁ where  field A : Set
+                          field B : Set
+
+The ``--count-clusters`` flag is not enabled in all builds of Agda,
+because the implementation depends on the ICU_ library, the
+installation of which could cause extra trouble for some users. The
+presence of this flag is controlled by the Cabal flag
+``enable-cluster-counting``.
 
 .. _breaking-up-code-blocks:
 
@@ -275,28 +385,17 @@ Note that ``AgdaSuppressSpace`` environments should not be nested.  There
 is also a combined environment, ``AgdaMultiCode``, that combines the
 effects of ``AgdaAlign`` and ``AgdaSuppressSpace``.
 
-Controlling the typesetting of individual tokens
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Hiding code
+~~~~~~~~~~~
 
-The typesetting of (certain) individual tokens can be controlled by
-redefining the ``\AgdaFormat`` command. Example:
+Code that you do not want to show up in the output can be hidden by
+giving the argument ``hide`` to the code block:
 
-.. code-block:: latex
+.. code-block:: lagda
 
-   \usepackage{ifthen}
-
-   % Insert extra space before some tokens.
-   \DeclareRobustCommand{\AgdaFormat}[2]{%
-     \ifthenelse{
-       \equal{#1}{≡⟨} \OR
-       \equal{#1}{≡⟨⟩} \OR
-       \equal{#1}{∎}
-     }{\ }{}#2}
-
-Note the use of ``\DeclareRobustCommand``. The first argument to
-``\AgdaFormat`` is the token, and the second argument the thing to be
-typeset.
-
+   \begin{code}[hide]
+   -- the code here will not be part of the final document
+   \end{code}
 
 .. _latex-links:
 
@@ -326,8 +425,39 @@ The borders around the links can be suppressed using hyperref's
    when using the links option at the moment. This might get fixed in
    the future.
 
+Inline code
+~~~~~~~~~~~
+
+Code can be typeset inline by giving the argument ``inline`` to the
+code block:
+
+.. code-block:: lagda
+
+  Assume that we are given a type
+  %
+  \begin{code}[hide]
+    module _ (
+  \end{code}
+  \begin{code}[inline]
+      A : Set
+  \end{code}
+  \begin{code}[hide]
+      ) where
+  \end{code}
+  %
+  .
+
+There is also a variant of ``inline``, ``inline*``. If ``inline*`` is
+used, then space (``\AgdaSpace{}``) is added at the end of the code,
+and when ``inline`` is used space is not added.
+
+The implementation of these options is a bit of a hack. Only use these
+options for typesetting a single line of code without multiple
+consecutive whitespace characters (except at the beginning of the
+line).
+
 Another way to typeset inline code
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 An alternative to using ``inline`` and ``inline*`` is to typeset code
 manually. Here is an example:
@@ -419,6 +549,28 @@ See `Issue #1054 on the bug tracker <https://github.com/agda/agda/issues/1054>`_
    identifiers with the same name exist, then \AgdaRef will typeset
    according to the first one it finds.
 
+Controlling the typesetting of individual tokens
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The typesetting of (certain) individual tokens can be controlled by
+redefining the ``\AgdaFormat`` command. Example:
+
+.. code-block:: latex
+
+   \usepackage{ifthen}
+
+   % Insert extra space before some tokens.
+   \DeclareRobustCommand{\AgdaFormat}[2]{%
+     \ifthenelse{
+       \equal{#1}{≡⟨} \OR
+       \equal{#1}{≡⟨⟩} \OR
+       \equal{#1}{∎}
+     }{\ }{}#2}
+
+Note the use of ``\DeclareRobustCommand``. The first argument to
+``\AgdaFormat`` is the token, and the second argument the thing to be
+typeset.
+
 Emulating %format rules
 ~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -483,158 +635,6 @@ directory (or on the TeX search path).
 Note that this technique can also be used to present code in a
 different order, if the rules imposed by Agda are not compatible with
 the order that you would prefer.
-
-.. _latex-backend-options:
-
-Options
--------
-
-The following command-line options change the behaviour of the LaTeX
-backend:
-
-:samp:`--latex-dir={directory}`
-  Changes the output directory where :file:`agda.sty` and the output
-  :file:`.tex` file are placed to :samp:`{directory}`. Default:
-  ``latex``.
-
-``--only-scope-checking``
-  Generates highlighting without typechecking the file. See
-  :ref:`quickLaTeX`.
-
-``--count-clusters``
-  Count extended grapheme clusters when generating LaTeX code. This
-  option can be given in ``OPTIONS`` pragmas.
-  See :ref:`grapheme-clusters`.
-
-The following options can be given when loading ``agda.sty`` by using
-``\usepackage[options]{agda}``:
-
-``bw``
-  Colour scheme which highlights in black and white.
-
-``conor``
-  Colour scheme similar to the colours used in Epigram 1.
-
-``references``
-  Enables :ref:`inline typesetting <latex-inline-references>` of
-  referenced code.
-
-``links``
-  Enables :ref:`hyperlink support <latex-links>`.
-
-.. _grapheme-clusters:
-
-Counting Extended Grapheme Clusters
------------------------------------
-
-The alignment feature regards the string ``+̲``, containing ``+`` and a
-combining character, as having length two. However, it seems more
-reasonable to treat it as having length one, as it occupies a single
-column, if displayed "properly" using a monospace font. The flag
-``--count-clusters`` is an attempt at fixing this. When this flag is
-enabled the backend counts `"extended grapheme clusters"
-<http://www.unicode.org/reports/tr29/#Grapheme_Cluster_Boundaries>`_
-rather than code points.
-
-Note that this fix is not perfect: a single extended grapheme cluster
-might be displayed in different ways by different programs, and might,
-in some cases, occupy more than one column. Here are some examples of
-extended grapheme clusters, all of which are treated as a single
-character by the alignment algorithm:
-
-.. code-block:: lagda
-
-   │ │
-   │+̲│
-   │Ö̂│
-   │நி│
-   │ᄀힰᇹ│
-   │ᄀᄀᄀᄀᄀᄀힰᇹᇹᇹᇹᇹᇹ│
-   │ │
-
-Note also that the layout machinery does not count extended grapheme
-clusters, but code points. The following code is syntactically
-correct, but if ``--count-clusters`` is used, then the LaTeX backend
-does not align the two field keywords:
-
-::
-
-  record +̲ : Set₁ where  field A : Set
-                          field B : Set
-
-The ``--count-clusters`` flag is not enabled in all builds of Agda,
-because the implementation depends on the ICU_ library, the
-installation of which could cause extra trouble for some users. The
-presence of this flag is controlled by the Cabal flag
-``enable-cluster-counting``.
-
-.. _quickLaTeX:
-
-Quicker generation without typechecking
----------------------------------------
-
-A faster variant of the backend is available by invoking
-``QuickLaTeX`` from the Emacs mode, or using ``agda --latex
---only-scope-checking``. When this variant of the backend is used the
-top-level module is not type-checked, only scope-checked. Note that
-this can affect the generated document. For instance, scope-checking
-does not resolve overloaded constructors.
-
-If the module has already been type-checked successfully, then this
-information is reused; in this case QuickLaTeX behaves like the
-regular LaTeX backend.
-
-Known pitfalls and issues
--------------------------
-
-* If ``<`` and ``>`` are typeset like ``¡`` and ``¿``, then the
-  problem might be that you are using pdfLaTeX and have not selected a
-  suitable font encoding.
-
-  Possible workaround:
-
-  .. code-block:: latex
-
-    \usepackage[T1]{fontenc}
-
-* If a regular text font is used, then ``--`` might be typeset as an
-  en dash (–).
-
-  Possible workarounds:
-
-  * Use a monospace font.
-
-  * Turn off ligatures. With pdfLaTeX the following code (which also
-    selects a font encoding, and only turns off ligatures for
-    character sequences starting with ``-``) might work:
-
-    .. code-block:: latex
-
-      \usepackage[T1]{fontenc}
-      \usepackage{microtype}
-      \DisableLigatures[-]{encoding=T1}
-
-    With LuaLaTeX or XeLaTeX the following code (which also selects a
-    font) might work:
-
-    .. code-block:: latex
-
-      \usepackage{fontspec}
-      \defaultfontfeatures[\rmfamily]{}
-      \setmainfont{Latin Modern Roman}
-
-    Note that you might not want to turn off all kinds of ligatures in
-    the entire document. See the `examples <Examples>`_ below for
-    information on how to set up special font families without TeX
-    ligatures that are only used for Agda code.
-
-* The unicode-math package and older versions of the polytable package
-  are incompatible, which can result in `errors in generated LaTeX
-  code <https://github.com/kosmikus/lhs2tex/issues/29>`_.
-
-  Possible workaround: Download a more up-to-date version of
-  polytable_ and put it together with the generated files or install
-  it globally.
 
 Examples
 --------
