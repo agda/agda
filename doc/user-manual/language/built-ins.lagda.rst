@@ -514,24 +514,24 @@ Other variants of the identity type are also accepted as built-in:
   data _≡_ {A : Set} : (x y : A) → Set where
     refl : (x : A) → x ≡ x
 
-The type of ``primErase`` has to match the flavor of identity type.
+The type of ``primEraseEquality`` has to match the flavor of identity type.
 
-.. _primErase:
+.. _primEraseEquality:
 
 .. code-block:: agda
 
-  module Agda.Builtin.Erase
+  module Agda.Builtin.EraseEquality
 
-Binding the built-in equality type also enables the ``primErase`` primitive::
+Binding the built-in equality type also enables the ``primEraseEquality`` primitive::
 
   primitive
-    primErase : ∀ {a} {A : Set a} {x y : A} → x ≡ y → x ≡ y
+    primEraseEquality : ∀ {a} {A : Set a} {x y : A} → x ≡ y → x ≡ y
 
 The function takes a proof of an equality between two values ``x`` and ``y`` and stays
 stuck on it until ``x`` and ``y`` actually become definitionally equal. Whenever that
-is the case, ``primErase e`` reduces to ``refl``.
+is the case, ``primEraseEquality e`` reduces to ``refl``.
 
-One use of ``primErase`` is to replace an equality proof computed using an expensive
+One use of ``primEraseEquality`` is to replace an equality proof computed using an expensive
 function (e.g. a proof by reflection) by one which is trivially ``refl`` on the diagonal.
 
 .. _primtrustme:
@@ -543,10 +543,10 @@ primTrustMe
 
   module Agda.Builtin.TrustMe
 
-From the ``primErase`` primitive, we can derive a notion of ``primTrustMe``::
+From the ``primEraseEquality`` primitive, we can derive a notion of ``primTrustMe``::
 
   primTrustMe : ∀ {a} {A : Set a} {x y : A} → x ≡ y
-  primTrustMe {x = x} {y} = primErase unsafePrimTrustMe
+  primTrustMe {x = x} {y} = primEraseEquality unsafePrimTrustMe
     where postulate unsafePrimTrustMe : x ≡ y
 
 As can be seen from the type, ``primTrustMe`` must be used with the

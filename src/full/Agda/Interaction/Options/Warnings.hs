@@ -106,7 +106,7 @@ errorWarnings = Set.fromList
   , SafeFlagPragma_
   , SafeFlagNonTerminating_
   , SafeFlagTerminating_
-  , SafeFlagPrimTrustMe_
+  , SafeFlagWithoutKFlagPrimEraseEquality_
   , SafeFlagNoPositivityCheck_
   , SafeFlagPolarity_
   , SafeFlagNoUniverseCheck_
@@ -179,11 +179,12 @@ data WarningName
   | SafeFlagPragma_
   | SafeFlagNonTerminating_
   | SafeFlagTerminating_
-  | SafeFlagPrimTrustMe_
+  | SafeFlagWithoutKFlagPrimEraseEquality_
   | SafeFlagNoPositivityCheck_
   | SafeFlagPolarity_
   | SafeFlagNoUniverseCheck_
   | UserWarning_
+  | WithoutKFlagPrimEraseEquality_
   | CantGeneralizeOverSorts_
   | AbsurdPatternRequiresNoRHS_
   deriving (Eq, Ord, Show, Read, Enum, Bounded)
@@ -284,10 +285,11 @@ warningNameDescription w = case w of
   SafeFlagPragma_                  -> "Unsafe `OPTIONS' pragmas with the safe flag."
   SafeFlagNonTerminating_          -> "`NON_TERMINATING' pragmas with the safe flag."
   SafeFlagTerminating_             -> "`TERMINATING' pragmas with the safe flag."
-  SafeFlagPrimTrustMe_             -> "`primTrustMe' usages with the safe flag."
+  SafeFlagWithoutKFlagPrimEraseEquality_ -> "`primEraseEquality' usages with the safe and without-K flags."
   SafeFlagNoPositivityCheck_       -> "`NO_POSITIVITY_CHECK' pragmas with the safe flag."
   SafeFlagPolarity_                -> "`POLARITY' pragmas with the safe flag."
   SafeFlagNoUniverseCheck_         -> "`NO_UNIVERSE_CHECK' pragmas with the safe flag."
   UserWarning_                     -> "User-defined warning added using the 'WARNING_ON_USAGE' pragma."
   AbsurdPatternRequiresNoRHS_      -> "A clause with an absurd pattern does not need a Right Hand Side."
   CantGeneralizeOverSorts_         -> "Attempt to generalize over sort metas in 'variable' declaration."
+  WithoutKFlagPrimEraseEquality_   -> "`primEraseEquality' usages with the without-K flags."
