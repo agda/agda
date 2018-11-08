@@ -24,11 +24,12 @@ import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Position
 
+import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Reduce.Monad ()
+import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 
 import {-# SOURCE #-} Agda.TypeChecking.ProjectionLike (eligibleForProjectionLike)
@@ -685,11 +686,11 @@ isSingletonRecord' regardIrrelevance r ps = do
       "isSingletonRecord' checking telescope " <+> prettyTCM tel
     case tel of
       EmptyTel -> return $ Right $ Just []
-      ExtendTel dom tel
-        | isIrrelevantOrProp dom && regardIrrelevance -> do
-          underAbstraction dom tel $ \ tel ->
-            emap (Arg (domInfo dom) __DUMMY_TERM__ :) <$> check tel
-        | otherwise -> do
+      ExtendTel dom tel -> ifM (return regardIrrelevance `and2M` isIrrelevantOrPropM dom)
+        {-then-}
+          (underAbstraction dom tel $ \ tel ->
+            emap (Arg (domInfo dom) __DUMMY_TERM__ :) <$> check tel)
+        {-else-} $ do
           isSing <- isSingletonType' regardIrrelevance $ unDom dom
           case isSing of
             Left mid       -> return $ Left mid

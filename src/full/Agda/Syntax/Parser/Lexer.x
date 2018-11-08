@@ -191,7 +191,7 @@ tokens :-
 <0,code> tactic         { keyword KwTactic }
 <0,code> syntax         { keyword KwSyntax }
 <0,code> pattern        { keyword KwPatternSyn }
-<0,code> variable       { keyword KwGeneralize }
+<0,code> variable       { keyword KwVariable }
 
 -- The parser is responsible to put the lexer in the imp_dir_ state when it
 -- expects an import directive keyword. This means that if you run the

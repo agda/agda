@@ -37,7 +37,7 @@ tested-with:        GHC == 7.10.3
                     GHC == 8.0.2
                     GHC == 8.2.2
                     GHC == 8.4.4
-                    GHC == 8.6.1
+                    GHC == 8.6.2
 extra-source-files: CHANGELOG.md
                     README.md
                     doc/user-manual.pdf
@@ -46,7 +46,7 @@ extra-source-files: CHANGELOG.md
                     stack-8.0.2.yaml
                     stack-8.2.2.yaml
                     stack-8.4.4.yaml
-                    stack-8.6.1.yaml
+                    stack-8.6.2.yaml
 
 data-dir:           src/data
 data-files:         Agda.css
@@ -86,6 +86,11 @@ data-files:         Agda.css
 source-repository head
   type:     git
   location: https://github.com/agda/agda.git
+
+source-repository this
+  type:     git
+  location: https://github.com/agda/agda.git
+  tag:      v2.6.0
 
 flag cpphs
   default:     False
@@ -181,6 +186,7 @@ library
                 , time >= 1.5.0.1 && < 1.9
                 , unordered-containers >= 0.2.5.0 && < 0.3
                 , uri-encode >= 1.5.0.4 && < 1.6
+                , split >= 0.2.0.0 && < 0.2.3.4
 
   -- In hTags the mtl library must be compiled with the version of
   -- transformers shipped with GHC, so we use that version in Agda (see,

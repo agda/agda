@@ -39,7 +39,7 @@ module Agda.Syntax.Concrete
   , TypeSignatureOrInstanceBlock
   , ImportDirective, Using, ImportedName
   , Renaming
-  , AsName(..)
+  , AsName'(..), AsName
   , OpenShortHand(..), RewriteEqn, WithExpr
   , LHS(..), Pattern(..), LHSCore(..)
   , LamClause(..)
@@ -344,13 +344,18 @@ type Renaming        = Renaming'        Name Name
 -- | An imported name can be a module or a defined name.
 type ImportedName = ImportedName' Name Name
 
-data AsName = AsName
-  { asName  :: Name
+-- | The content of the @as@-clause of the import statement.
+data AsName' a = AsName
+  { asName  :: a
     -- ^ The \"as\" name.
   , asRange :: Range
     -- ^ The range of the \"as\" keyword.  Retained for highlighting purposes.
   }
-  deriving (Data, Show)
+  deriving (Data, Show, Functor, Foldable, Traversable)
+
+-- | From the parser, we get an expression for the @as@-'Name', which
+--   we have to parse into a 'Name'.
+type AsName = AsName' (Either Expr Name)
 
 {--------------------------------------------------------------------------
     Declarations
@@ -369,7 +374,7 @@ type TypeSignatureOrInstanceBlock = Declaration
 data Declaration
   = TypeSig ArgInfo Name Expr
   -- ^ Axioms and functions can be irrelevant. (Hiding should be NotHidden)
-  | Generalize ArgInfo Name Expr -- ^ Variables to be generalized, can be hidden and/or irrelevant.
+  | Generalize Range [TypeSignature] -- ^ Variables to be generalized, can be hidden and/or irrelevant.
   | Field IsInstance Name (Arg Expr) -- ^ Record field, can be hidden and/or irrelevant.
   | FunClause LHS RHS WhereClause Bool
   | DataSig     Range Induction Name [LamBinding] Expr -- ^ lone data signature in mutual block
@@ -380,7 +385,7 @@ data Declaration
   | Infix Fixity [Name]
   | Syntax      Name Notation -- ^ notation declaration for a name
   | PatternSyn  Range Name [Arg Name] Pattern
-  | Mutual      Range [Declaration]
+  | Mutual      Range [Declaration]  -- @Range@ of the whole @mutual@ block.
   | Abstract    Range [Declaration]
   | Private     Range Origin [Declaration]
     -- ^ In "Agda.Syntax.Concrete.Definitions" we generate private blocks
@@ -417,6 +422,7 @@ data Pragma
     -- ^ BUILTIN pragmas with no associated definition can have a fixity
     --   default value: @noFixity'@.
   | RewritePragma             Range [QName]
+  -- Deprecated compiler pragmas:
   | CompiledDataPragma        Range QName String [String]
   | CompiledTypePragma        Range QName String
   | CompiledPragma            Range QName String
@@ -425,28 +431,37 @@ data Pragma
   | CompiledUHCPragma         Range QName String
   | CompiledDataUHCPragma     Range QName String [String]
   | HaskellCodePragma         Range String
+
+  -- New compiler pragmas:
   | ForeignPragma             Range String String       -- ^ first string is backend name
   | CompilePragma             Range String QName String -- ^ first string is backend name
   | StaticPragma              Range QName
-  | InjectivePragma           Range QName
   | InlinePragma              Range Bool QName  -- ^ INLINE or NOINLINE
   | ImportPragma              Range String
     -- ^ Invariant: The string must be a valid Haskell module name.
   | ImportUHCPragma           Range String
     -- ^ same as above, but for the UHC backend
+
+  -- end compiler pragmas
+
   | ImpossiblePragma          Range
     -- ^ Throws an internal error in the scope checker.
   | EtaPragma                 Range QName
     -- ^ For coinductive records, use pragma instead of regular
     --   @eta-equality@ definition (as it is might make Agda loop).
+  | WarningOnUsage            Range QName String
+    -- ^ Applies to the named function
+  | InjectivePragma           Range QName
+    -- ^ Mark a definition as injective for the pattern matching unifier.
+  | DisplayPragma             Range Pattern Expr
+    -- ^ Display lhs as rhs (modifies the printer).
+
+  -- Attached (more or less) pragmas handled in the nicifier (Concrete.Definitions):
+  | CatchallPragma            Range
+    -- ^ Applies to the following function clause.
   | TerminationCheckPragma    Range (TerminationCheck Name)
     -- ^ Applies to the following function (and all that are mutually recursive with it)
     --   or to the functions in the following mutual block.
-  | WarningOnUsage            Range QName String
-    -- ^ Applies to the named function
-  | CatchallPragma            Range
-    -- ^ Applies to the following function clause.
-  | DisplayPragma             Range Pattern Expr
   | NoPositivityCheckPragma   Range
     -- ^ Applies to the following data/record type or mutual block.
   | PolarityPragma            Range Name [Occurrence]
@@ -639,7 +654,6 @@ instance HasRange ModuleAssignment where
 
 instance HasRange Declaration where
   getRange (TypeSig _ x t)         = fuseRange x t
-  getRange (Generalize _ x t)      = fuseRange x t
   getRange (Field _ x t)           = fuseRange x t
   getRange (FunClause lhs rhs wh _) = fuseRange lhs rhs `fuseRange` wh
   getRange (DataSig r _ _ _ _)     = r
@@ -648,6 +662,7 @@ instance HasRange Declaration where
   getRange (Record r _ _ _ _ _ _ _)  = r
   getRange (Mutual r _)            = r
   getRange (Abstract r _)          = r
+  getRange (Generalize r _)        = r
   getRange (Open r _ _)            = r
   getRange (ModuleMacro r _ _ _ _) = r
   getRange (Import r _ _ _ _)      = r
@@ -777,7 +792,7 @@ instance KillRange BoundName where
 
 instance KillRange Declaration where
   killRange (TypeSig i n e)         = killRange2 (TypeSig i) n e
-  killRange (Generalize i n e)      = killRange2 (Generalize i) n e
+  killRange (Generalize r ds )      = killRange1 (Generalize noRange) ds
   killRange (Field i n a)           = killRange2 (Field i) n a
   killRange (FunClause l r w ca)    = killRange4 FunClause l r w ca
   killRange (DataSig _ i n l e)     = killRange4 (DataSig noRange) i n l e
@@ -1001,7 +1016,7 @@ instance NFData Pattern where
 
 instance NFData Declaration where
   rnf (TypeSig a b c)         = rnf a `seq` rnf b `seq` rnf c
-  rnf (Generalize a b c)      = rnf a `seq` rnf b `seq` rnf c
+  rnf (Generalize _ a)        = rnf a
   rnf (Field a b c)           = rnf a `seq` rnf b `seq` rnf c
   rnf (FunClause a b c d)     = rnf a `seq` rnf b `seq` rnf c `seq` rnf d
   rnf (DataSig _ a b c d)     = rnf a `seq` rnf b `seq` rnf c `seq` rnf d

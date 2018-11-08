@@ -30,6 +30,16 @@ cache:
 
 matrix:
   include:
+    - env: TEST=MAIN GHC_VER=8.6.2 BUILD=CABAL CABAL_VER=2.4
+      addons:
+        apt:
+          packages:
+            - cabal-install-2.4
+            - ghc-8.6.2
+            - texlive-binaries
+          sources:
+            - hvr-ghc
+
     - env: TEST=MAIN GHC_VER=8.4.4 BUILD=CABAL CABAL_VER=2.2
       addons:
         apt:
@@ -70,11 +80,11 @@ matrix:
           sources:
             - hvr-ghc
 
-    - env: TEST=STACKAGE GHC_VER=8.6.1 BUILD=STACK ARGS="--stack-yaml stack-8.6.1.yaml --system-ghc"
+    - env: TEST=STACKAGE GHC_VER=8.6.2 BUILD=STACK ARGS="--stack-yaml stack-8.6.2.yaml --system-ghc"
       addons:
         apt:
           packages:
-            - ghc-8.6.1
+            - ghc-8.6.2
           sources:
             - hvr-ghc
 
@@ -112,12 +122,12 @@ matrix:
 
     # Since `stack haddock` compiles Agda but `cabal haddock` does
     # not, this test is faster using `BUILD=CABAL` [Issue #2188].
-    - env: TEST=HADDOCK GHC_VER=8.6.1 BUILD=CABAL CABAL_VER=2.4
+    - env: TEST=HADDOCK GHC_VER=8.6.2 BUILD=CABAL CABAL_VER=2.4
       addons:
         apt:
           packages:
             - cabal-install-2.4
-            - ghc-8.6.1
+            - ghc-8.6.2
           sources:
             - hvr-ghc
 
@@ -132,8 +142,6 @@ matrix:
 
   # Builds are loooong, we want to send an email as fast as possible.
   fast_finish: true
-  # allow_failures:
-  # - env: TEST=MAIN GHC_VER=8.2.2 BUILD=CABAL CABAL_VER=2.0
 
 ##############################################################################
 before_install:
@@ -306,16 +314,10 @@ install:
 
 # N.B. that these tests are not include in the Makefile tests.
 
-# ASR (2018-10-22). We don't test the `cpphs` flag with GHC 8.6.1 due
-# to Issue #3254.
-
   - if [[ $TEST = "STACKAGE" ]]; then
        stack build $ARGS --no-terminal &&
-       if [[ $GHC_VER != "8.6.1" ]]; then
-          stack build $ARGS --no-terminal --flag Agda:cpphs --flag Agda:debug --flag Agda:enable-cluster-counting;
-       else
-          stack build $ARGS --no-terminal --flag Agda:debug --flag Agda:enable-cluster-counting;
-       fi
+       stack clean $ARGS &&
+       stack build $ARGS --no-terminal --flag Agda:cpphs --flag Agda:debug --flag Agda:enable-cluster-counting;
     fi
 
 ##############################################################################

@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE NondecreasingIndentation #-}
 
 -- Author:  Ulf Norell
 -- Created: 2013-11-09
@@ -77,10 +78,15 @@ inlineWithClauses f cl = inTopContext $ do
   -- Clauses are relative to the empty context, so we operate @inTopContext@.
   let noInline = return Nothing
   -- The de Bruijn indices of @body@ are relative to the @clauseTel cl@.
-  body <- traverse instantiate $ clauseBody cl
+  body <- fmap stripDontCare <$> instantiate (clauseBody cl)
   case body of
-    Just (Def wf els) ->
-      caseMaybeM (isWithFunction wf) noInline $ \ f' ->
+    Just (Def wf els) -> do
+      isWith <- isWithFunction wf
+      reportSDoc "term.with.inline" 20 $ sep
+        [ "inlineWithClauses: isWithFunction ="
+        , maybe "<none>" prettyTCM isWith
+        ]
+      caseMaybe isWith noInline $ \ f' -> do
       if f /= f' then noInline else do
         -- The clause body is a with-function call @wf args@.
         -- @f@ is the function the with-function belongs to.
@@ -107,7 +113,18 @@ inlineWithClauses f cl = inTopContext $ do
           "inlinedClauses" : map (nest 2 . prettyTCM . QNamed f) cs2
 
         return $ Just $ cs1 ++ cs2
-    _ -> noInline
+
+    Just d -> do
+      reportSLn "term.with.inline" 20 $ "inlineWithClauses: clause body is not a Def"
+      reportSDoc "term.with.inline" 70 $ sep
+        [ "inlineWithClauses: clause body is not a Def but "
+        , (text . show) d
+        ]
+      noInline
+
+    Nothing -> do
+      reportSLn "term.with.inline" 20 $ "inlineWithClauses: no clause body"
+      noInline
 
 -- | Returns the original clause if no inlining happened, otherwise,
 --   the new clauses.

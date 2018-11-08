@@ -185,6 +185,8 @@ prettyWarning wng = liftTCM $ case wng of
 
     EmptyRewritePragma -> fsep . pwords $ "Empty REWRITE pragma"
 
+    IllformedAsClause -> fsep . pwords $ "`as' must be followed by an unqualified name"
+
     UselessPublic -> fwords $ "Keyword `public' is ignored here"
 
     UselessInline q -> fsep $

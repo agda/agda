@@ -356,7 +356,7 @@ ptOpen c = ptOpen' (columnName c)
 -- lines.
 
 ptOpenBeginningOfLine :: Text
-ptOpenBeginningOfLine = ptOpen' "."
+ptOpenBeginningOfLine = ptOpen' "." <+> "[@{}l@{}]"
 
 -- | Opens the given column, and inserts an indentation instruction
 -- with the given argument at the end of it.
@@ -467,12 +467,14 @@ processCode toks' = do
     fromAspect :: Aspect -> [String]
     fromAspect a = let s = [show a] in case a of
       Comment           -> s
-      Option            -> s
       Keyword           -> s
       String            -> s
       Number            -> s
       Symbol            -> s
       PrimitiveType     -> s
+      Pragma            -> s
+      Background        -> s
+      Markup            -> s
       Name Nothing isOp -> fromAspect (Name (Just Postulate) isOp)
         -- At the time of writing the case above can be encountered in
         -- --only-scope-checking mode, for instance for the token "Size"
@@ -517,7 +519,6 @@ escape (T.uncons -> Just (c, s)) = T.pack (replace c) <+> escape s
     '~'  -> "\\textasciitilde{}"
     '^'  -> "\\textasciicircum{}"
     '\\' -> "\\textbackslash{}"
-    '-'  -> "{-}"
     _    -> [ c ]
 escape _                         = __IMPOSSIBLE__
 

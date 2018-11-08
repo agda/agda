@@ -854,7 +854,7 @@ instance ToConcrete A.Declaration [C.Declaration] where
     withAbstractPrivate i $
       withInfixDecl i x'  $ do
       t' <- toConcreteTop t
-      return [C.Generalize j x' $ C.Generalized t']
+      return [C.Generalize (getRange i) [C.TypeSig j x' $ C.Generalized t']]
 
   toConcrete (A.Field i x t) = do
     x' <- unsafeQNameToName <$> toConcrete x

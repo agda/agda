@@ -1,0 +1,4 @@
+Issue3327.agda:18,8-12
+The type of the constructor does not fit in the sort of the
+datatype, since Set₁ is not less or equal than Set
+when checking the definition of Type

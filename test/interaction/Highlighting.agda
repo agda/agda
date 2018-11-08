@@ -38,3 +38,15 @@ anR A = record { X = A ; P = λ _ → A }
 
 idR : ∀ A → R A → R A
 idR A r@record { X = X; P = P } = record r { X = X }
+
+record S (A : Set) : Set where
+  field
+    X : A
+
+idR' : ∀ A → R A → R A
+idR' A r@record { X = X; P = P } = record r { X = X }
+
+open S
+
+bla : ∀{A} → A → S A
+bla x .X = x

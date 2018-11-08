@@ -121,7 +121,7 @@ parseLiterateWithComments p layers = do
   return$ concat [ case m of
                        Left t -> [t]
                        Right (Layer Comment interval s) -> [TokTeX (interval, s)]
-                       Right (Layer Markup _ _) -> []
+                       Right (Layer Markup interval s) -> [TokMarkup (interval, s)]
                        Right (Layer Code _ _) -> []
                    | m <- terms ]
 

@@ -109,6 +109,7 @@ data CommandLineOptions = Options
   , optGenerateVimFile  :: Bool
   , optGenerateLaTeX    :: Bool
   , optGenerateHTML     :: Bool
+  , optHTMLOnlyCode     :: Bool
   , optDependencyGraph  :: Maybe FilePath
   , optLaTeXDir         :: FilePath
   , optHTMLDir          :: FilePath
@@ -212,6 +213,7 @@ defaultOptions = Options
   , optGenerateVimFile  = False
   , optGenerateLaTeX    = False
   , optGenerateHTML     = False
+  , optHTMLOnlyCode     = False
   , optDependencyGraph  = Nothing
   , optLaTeXDir         = defaultLaTeXDir
   , optHTMLDir          = defaultHTMLDir
@@ -573,6 +575,12 @@ compileDirFlag f o = return $ o { optCompileDir = Just f }
 htmlFlag :: Flag CommandLineOptions
 htmlFlag o = return $ o { optGenerateHTML = True }
 
+htmlHighlightFlag :: String -> Flag CommandLineOptions
+htmlHighlightFlag "code" o = return $ o { optHTMLOnlyCode = True  }
+htmlHighlightFlag "all"  o = return $ o { optHTMLOnlyCode = False }
+htmlHighlightFlag opt    o = throwError $ "Invalid option <" ++ opt
+  ++ ">, expected <all> or <code>"
+
 dependencyGraphFlag :: FilePath -> Flag CommandLineOptions
 dependencyGraphFlag f o = return $ o { optDependencyGraph = Just f }
 
@@ -660,6 +668,8 @@ standardOptions =
                      defaultHTMLDir ++ ")")
     , Option []     ["css"] (ReqArg cssFlag "URL")
                     "the CSS file used by the HTML files (can be relative)"
+    , Option []     ["html-highlight"] (ReqArg htmlHighlightFlag "[code,all]")
+                    "whether to highlight only the code parts (code) or the file as a whole (all)"
     , Option []     ["dependency-graph"] (ReqArg dependencyGraphFlag "FILE")
                     "generate a Dot file with a module dependency graph"
     , Option []     ["ignore-interfaces"] (NoArg ignoreInterfacesFlag)

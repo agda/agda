@@ -1,3 +1,5 @@
+{-# OPTIONS --without-K #-}
+
 module Agda.Builtin.Sigma where
 
 open import Agda.Primitive

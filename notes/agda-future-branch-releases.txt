@@ -1,0 +1,60 @@
+Some notes when releasing from the future branch (INCOMPLETE).
+
+* Get a clean Agda repository.
+
+    git clone git@github.com:agda/agda agda-release
+    cd agda-release
+    git checkout future
+
+* The version of the release is current version in the future branch, so if
+  this is 2.5.0 the versions used in these notes are:
+
+    VERSION=<current-version>
+    VERSION=2.5.0
+
+    NEXT_MASTER_VERSION=<current-version-plus-0.0.1>
+    NEXT_MASTER_VERSION=2.5.1
+
+    NEXT_FUTURE_VERSION=<current-version-plus-0.1.0>
+    NEXT_FUTURE_VERSION=2.6.0
+
+* Upload the tarball and the documentation to Hackage (tested with
+  cabal-install >= 2.0.0.0):
+
+    cd $BASE
+    cabal upload dist/Agda-$VERSION.tar.gz
+    cabal upload -d dist/Agda-$VERSION-docs.tar.gz
+
+* Update branches
+
+  ** Merge future into master
+
+       git checkout master
+       git merge future
+
+  ** Update the version numbers to $NEXT_MASTER_VERSION in $FILES.
+
+  ** Add into the Makefile:
+
+      # --program-suffix is not for the executable name in
+      # $(BUILD_DIR)/build/, only for installing it into .cabal/bin
+      override CABAL_OPTS+=--program-suffix=-$(VERSION)
+
+      AGDA_MODE=agda-mode-$(VERSION)
+
+  ** Commit the above changes.
+
+  ** Merge the master back into the future branch.
+
+       git checkout future
+       git merge master
+
+* Update the version numbers to $NEXT_FUTURE_VERSION in $FILES.
+
+* Remove from the Makefile:
+
+    # --program-suffix is not for the executable name in
+    # $(BUILD_DIR)/build/, only for installing it into .cabal/bin
+    override CABAL_OPTS+=--program-suffix=-$(VERSION)
+
+    AGDA_MODE=agda-mode-$(VERSION)

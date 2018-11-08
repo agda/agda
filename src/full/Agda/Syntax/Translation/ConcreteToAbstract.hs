@@ -1425,6 +1425,10 @@ instance ToAbstract (Blind a) (Blind a) where
 instance ToAbstract NiceDeclaration A.Declaration where
 
   toAbstract d = annotateDecls $
+    traceSLn "scope.decl.trace" 50 (unlines
+      [ "scope checking declaration"
+      , "  " ++  prettyShow d
+      ]) $
     traceCall (ScopeCheckDeclaration d) $
     -- Andreas, 2015-10-05, Issue 1677:
     -- We record in the environment whether we are scope checking an
@@ -1639,6 +1643,17 @@ instance ToAbstract NiceDeclaration A.Declaration where
 
     NiceImport r x as open dir -> setCurrentRange r $ do
       notPublicWithoutOpen open dir
+
+      -- Andreas, 2018-11-03, issue #3364, parse expression in as-clause as Name.
+      as <- case as of
+        -- Ok if no as-clause or it (already) contains a Name.
+        Nothing -> return Nothing
+        Just (AsName (Right asName) r)                    -> return $ Just $ AsName asName r
+        Just (AsName (Left (C.Ident (C.QName asName))) r) -> return $ Just $ AsName asName r
+        Just (AsName (Left e) r) -> traceCall (SetRange $ getRange as) $ do
+          -- If @as@ is followed by something that is not a simple name,
+          -- throw a warning and discard the as-clause.
+          Nothing <$ warning IllformedAsClause
 
       -- First scope check the imported module and return its name and
       -- interface. This is done with that module as the top-level module.

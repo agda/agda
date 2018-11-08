@@ -40,6 +40,24 @@ For data types and records the following syntax is used to separate the declarat
     field fst : A
           snd : B fst
 
+..
+  ::
+  module Universe where
+
+Such a separation of declaration and definition is for instance needed when defining a set of codes for types and their interpretation as actual types (a so-called *universe*)::
+
+    -- Declarations.
+    data TypeCode : Set
+    Interpretation : TypeCode → Set
+
+    -- Definitions.
+    data TypeCode where
+      nat : TypeCode
+      pi  : (a : TypeCode) (b : Interpretation a → TypeCode) → TypeCode
+
+    Interpretation nat      = Nat
+    Interpretation (pi a b) = (x : Interpretation a) → Interpretation (b x)
+
 When making separated declarations/definitions private or abstract you should attach the ``private`` keyword to the declaration and the ``abstract`` keyword to the definition. For instance, a private, abstract function can be defined as
 
 ..
@@ -53,8 +71,8 @@ When making separated declarations/definitions private or abstract you should at
     abstract
       f = e
 
-Old Syntax
-----------
+Old Syntax: Keyword ``mutual``
+------------------------------
 
 .. note::
    You are advised to avoid using this old syntax if possible, but the old syntax
@@ -70,5 +88,17 @@ Mutual recursive functions can be written by placing the type signatures of all 
 
     g : B[f]
     g = b[f, g]
+
+Using the ``mutual`` keyword,
+the *universe* example from above is expressed as follows::
+
+  mutual
+    data TypeCode : Set where
+      nat : TypeCode
+      pi  : (a : TypeCode) (b : Interpretation a → TypeCode) → TypeCode
+
+    Interpretation : TypeCode → Set
+    Interpretation nat      = Nat
+    Interpretation (pi a b) = (x : Interpretation a) → Interpretation (b x)
 
 This alternative syntax desugars into the new syntax.

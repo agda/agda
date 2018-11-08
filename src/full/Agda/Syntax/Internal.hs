@@ -202,6 +202,9 @@ instance LensSort (Type' a) where
 instance LensSort a => LensSort (Dom a) where
   lensSort = traverseF . lensSort
 
+instance LensSort a => LensSort (Arg a) where
+  lensSort = traverseF . lensSort
+
 instance LensSort a => LensSort (Abs a) where
   lensSort = traverseF . lensSort
 
@@ -803,14 +806,6 @@ isSort :: Term -> Maybe Sort
 isSort v = case v of
   Sort s -> Just s
   _      -> Nothing
-
-isProp :: LensSort a => a -> Bool
-isProp x = case getSort x of
-             Prop{} -> True
-             _      -> False
-
-isIrrelevantOrProp :: (LensRelevance a, LensSort a) => a -> Bool
-isIrrelevantOrProp x = isIrrelevant x || isProp x
 
 impossibleTerm :: String -> Int -> Term
 impossibleTerm file line = Dummy $ unlines

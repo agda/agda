@@ -7,7 +7,7 @@
 \AgdaHide{
 \begin{code}%
 \>[0]\AgdaKeyword{module}\AgdaSpace{}%
-\AgdaModule{LaTeX{-}succeed}\AgdaSpace{}%
+\AgdaModule{LaTeX-succeed}\AgdaSpace{}%
 \AgdaKeyword{where}\<%
 \end{code}
 }
@@ -101,7 +101,7 @@
 \\
 \>[0]\AgdaInductiveConstructor{suc}\AgdaSpace{}%
 \AgdaBound{m}\AgdaSpace{}%
-\AgdaComment{\{{-} ugh {-}\}}%
+\AgdaComment{\{- ugh -\}}%
 \>[17]\AgdaOperator{\AgdaFunction{+}}\AgdaSpace{}%
 \AgdaBound{n}\AgdaSpace{}%
 \AgdaSymbol{=}\AgdaSpace{}%
@@ -112,9 +112,11 @@
 \\
 %
 \\[\AgdaEmptyExtraSkip]%
-\>[0]\AgdaSymbol{\{{-}\#}\AgdaSpace{}%
-\AgdaKeyword{BUILTIN} NATURAL \AgdaDatatype{ℕ}\AgdaSpace{}%
-\AgdaSymbol{\#{-}\}}\<%
+\>[0]\AgdaSymbol{\{-\#}\AgdaSpace{}%
+\AgdaKeyword{BUILTIN}\AgdaSpace{}%
+\AgdaPragma{NATURAL}\AgdaSpace{}%
+\AgdaDatatype{ℕ}\AgdaSpace{}%
+\AgdaSymbol{\#-\}}\<%
 \\
 %
 \\[\AgdaEmptyExtraSkip]%
@@ -245,23 +247,33 @@
 \AgdaKeyword{record}\<%
 \\
 \>[2][@{}l@{\AgdaIndent{0}}]%
-\>[4]\AgdaSymbol{\{} h  \AgdaSymbol{=}\AgdaSpace{}%
+\>[4]\AgdaSymbol{\{}\AgdaSpace{}%
+\AgdaField{h}%
+\>[9]\AgdaSymbol{=}\AgdaSpace{}%
 \AgdaDatatype{⊥}\<%
 \\
 %
-\>[4]\AgdaSymbol{;} j  \AgdaSymbol{=}\AgdaSpace{}%
+\>[4]\AgdaSymbol{;}\AgdaSpace{}%
+\AgdaField{j}%
+\>[9]\AgdaSymbol{=}\AgdaSpace{}%
 \AgdaDatatype{⊥}\<%
 \\
 %
-\>[4]\AgdaSymbol{;} r \AgdaSymbol{=}\AgdaSpace{}%
+\>[4]\AgdaSymbol{;}\AgdaSpace{}%
+\AgdaField{r}%
+\>[112I]\AgdaSymbol{=}\AgdaSpace{}%
 \AgdaKeyword{record}\<%
 \\
-\>[4][@{}l@{\AgdaIndent{0}}]%
-\>[8]\AgdaSymbol{\{} f  \AgdaSymbol{=}\AgdaSpace{}%
+\>[.][@{}l@{}]\<[112I]%
+\>[8]\AgdaSymbol{\{}\AgdaSpace{}%
+\AgdaField{f}%
+\>[13]\AgdaSymbol{=}\AgdaSpace{}%
 \AgdaDatatype{⊥}\<%
 \\
 %
-\>[8]\AgdaSymbol{;} g  \AgdaSymbol{=}\AgdaSpace{}%
+\>[8]\AgdaSymbol{;}\AgdaSpace{}%
+\AgdaField{g}%
+\>[13]\AgdaSymbol{=}\AgdaSpace{}%
 \AgdaDatatype{⊥}\<%
 \\
 %

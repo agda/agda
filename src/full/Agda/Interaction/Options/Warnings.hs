@@ -141,6 +141,7 @@ data WarningName
   | EmptyMutual_
   | EmptyPostulate_
   | EmptyPrivate_
+  | EmptyGeneralize_
   | InvalidCatchallPragma_
   | InvalidNoUniverseCheckPragma_
   | InvalidTerminationCheckPragma_
@@ -158,6 +159,7 @@ data WarningName
   -- Scope and Type Checking Warnings
   | OldBuiltin_
   | EmptyRewritePragma_
+  | IllformedAsClause_
   | UselessPublic_
   | UnreachableClauses_
   | UselessInline_
@@ -244,6 +246,7 @@ warningNameDescription w = case w of
   EmptyMutual_                     -> "Empty `mutual' blocks."
   EmptyPostulate_                  -> "Empty `postulate' blocks."
   EmptyPrivate_                    -> "Empty `private' blocks."
+  EmptyGeneralize_                 -> "Empty `variable' blocks."
   InvalidCatchallPragma_           -> "`CATCHALL' pragmas before a non-function clause."
   InvalidNoPositivityCheckPragma_  -> "No positivity checking pragmas before non-`data', `record' or `mutual' blocks."
   InvalidNoUniverseCheckPragma_    -> "No universe checking pragmas before non-`data' or `record' declaration."
@@ -261,6 +264,7 @@ warningNameDescription w = case w of
   -- Scope and Type Checking Warnings
   OldBuiltin_                      -> "Deprecated `BUILTIN' pragmas."
   EmptyRewritePragma_              -> "Empty `REWRITE' pragmas."
+  IllformedAsClause_               -> "Illformed `as'-clauses in `import' statements."
   UselessPublic_                   -> "`public' blocks where they have no effect."
   UselessInline_                   -> "`INLINE' pragmas where they have no effect."
   UnreachableClauses_              -> "Unreachable function clauses."

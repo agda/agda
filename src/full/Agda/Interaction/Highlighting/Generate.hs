@@ -288,8 +288,11 @@ generateAndPrintSyntaxInfo decl hlLevel updateState = do
     -- Andreas, 2018-06-09, issue #3120
     -- The highlighting for record field tags is now created by the type checker in
     -- function disambiguateRecordFields.
-    -- getVarAndField (A.Rec       _ fs)   = mconcat [ field [] x | Left (FieldAssignment x _) <- fs ]
-    -- getVarAndField (A.RecUpdate _ _ fs) = mconcat [ field [] x |      (FieldAssignment x _) <- fs ]
+    -- Andreas, Nisse, 2018-10-26, issue #3322
+    -- Still, we extract the highlighting info here for uses such as QuickLatex.
+    -- The aspects from the disambiguation will be merged in.
+    getVarAndField (A.Rec       _ fs)   = mconcat [ field [] x | Left (FieldAssignment x _) <- fs ]
+    getVarAndField (A.RecUpdate _ _ fs) = mconcat [ field [] x |      (FieldAssignment x _) <- fs ]
     getVarAndField _                    = mempty
 
     -- Ulf, 2014-04-09: It would be nicer to have it on Named_ a, but
@@ -330,7 +333,10 @@ generateAndPrintSyntaxInfo decl hlLevel updateState = do
     -- Andreas, 2018-06-09, issue #3120
     -- The highlighting for record field tags is now created by the type checker in
     -- function disambiguateRecordFields.
-    -- getPattern' (A.RecP _ fs) = mconcat [ field [] x | FieldAssignment x _ <- fs ]
+    -- Andreas, Nisse, 2018-10-26, issue #3322
+    -- Still, we extract the highlighting info here for uses such as QuickLatex.
+    -- The aspects from the disambiguation will be merged in.
+    getPattern' (A.RecP _ fs) = mconcat [ field [] x | FieldAssignment x _ <- fs ]
     getPattern' _             = mempty
 
     getPattern :: A.Pattern -> File
@@ -431,12 +437,11 @@ tokenHighlighting = merge . map tokenToCFile
   tokenToCFile (T.TokLiteral (L.LitQName  r _)) = aToF String r
   tokenToCFile (T.TokLiteral (L.LitMeta r _ _)) = aToF String r
   tokenToCFile (T.TokComment (i, _))            = aToF Comment (P.getRange i)
-  tokenToCFile (T.TokTeX (i, _))                = aToF Comment (P.getRange i)
+  tokenToCFile (T.TokTeX (i, _))                = aToF Background (P.getRange i)
+  tokenToCFile (T.TokMarkup (i, _))             = aToF Markup (P.getRange i)
   tokenToCFile (T.TokId {})                     = mempty
   tokenToCFile (T.TokQId {})                    = mempty
-  tokenToCFile (T.TokString (i,s))
-    | "--" `isPrefixOf` s                       = aToF Option (P.getRange i)
-    | otherwise                                 = mempty
+  tokenToCFile (T.TokString (i,s))              = aToF Pragma (P.getRange i)
   tokenToCFile (T.TokDummy {})                  = mempty
   tokenToCFile (T.TokEOF {})                    = mempty
 
@@ -604,6 +609,7 @@ warningHighlighting w = case tcWarning w of
   UnsolvedInteractionMetas{} -> mempty
   OldBuiltin{}               -> mempty
   EmptyRewritePragma{}       -> deadcodeHighlighting $ P.getRange w
+  IllformedAsClause{}        -> deadcodeHighlighting $ P.getRange w
   UselessPublic{}            -> mempty
   UselessInline{}            -> mempty
   ParseWarning{}             -> mempty
@@ -632,6 +638,7 @@ warningHighlighting w = case tcWarning w of
     EmptyMutual{}        -> deadcodeHighlighting $ P.getRange w
     EmptyPostulate{}     -> deadcodeHighlighting $ P.getRange w
     EmptyPrivate{}       -> deadcodeHighlighting $ P.getRange w
+    EmptyGeneralize{}    -> deadcodeHighlighting $ P.getRange w
     UselessAbstract{}    -> deadcodeHighlighting $ P.getRange w
     UselessInstance{}    -> deadcodeHighlighting $ P.getRange w
     UselessPrivate{}     -> deadcodeHighlighting $ P.getRange w

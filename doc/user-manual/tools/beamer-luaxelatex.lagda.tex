@@ -1,0 +1,53 @@
+\documentclass{beamer}
+
+% Support for Agda code.
+\usepackage{agda}
+
+% Decrease the indentation of code.
+\setlength{\mathindent}{1em}
+
+% Use special font families without TeX ligatures for Agda code. (This
+% code is inspired by a comment by Enrico Gregorio/egreg:
+% https://tex.stackexchange.com/a/103078.)
+\usepackage{fontspec}
+\newfontfamily{\AgdaSerifFont}{Latin Modern Roman}
+\newfontfamily{\AgdaSansSerifFont}{Latin Modern Sans}
+\newfontfamily{\AgdaTypewriterFont}{Latin Modern Mono}
+\renewcommand{\AgdaFontStyle}[1]{{\AgdaSansSerifFont{}#1}}
+\renewcommand{\AgdaKeywordFontStyle}[1]{{\AgdaSansSerifFont{}#1}}
+\renewcommand{\AgdaStringFontStyle}[1]{{\AgdaTypewriterFont{}#1}}
+\renewcommand{\AgdaCommentFontStyle}[1]{{\AgdaTypewriterFont{}#1}}
+\renewcommand{\AgdaBoundFontStyle}[1]{\textit{\AgdaSansSerifFont{}#1}}
+
+% Workarounds for the fact that the Latin Modern Sans font does not
+% support certain characters.
+\usepackage{newunicodechar}
+\newunicodechar{λ}{\ensuremath{\mathnormal{\lambda}}}
+\newunicodechar{∀}{\ensuremath{\mathnormal{\forall}}}
+\newunicodechar{₁}{\ensuremath{{}_1}}
+
+\begin{document}
+
+\begin{frame}
+  Some code:
+  \begin{code}
+  {-# OPTIONS --without-K --count-clusters #-}
+
+  open import Agda.Builtin.String
+
+  -- A comment with some TeX ligatures:
+  -- --, ---, ?`, !`, `, ``, ', '', <<, >>.
+
+  Θ₁ : Set → Set
+  Θ₁ = λ A → A
+
+  a-name-with--hyphens : ∀ {A : Set} → A → A
+  a-name-with--hyphens ff--fl = ff--fl
+
+  ffi : String
+  ffi = "--"
+  \end{code}
+  Note that the code is indented.
+\end{frame}
+
+\end{document}

@@ -14,114 +14,193 @@ as follows:
   $ {latex-compiler} {file}.tex
 
 where :samp:`{latex-compiler}` could be :program:`pdflatex`,
-:program:`xelatex` or :program:`lualatex`, and :samp:`{file}.lagda` is a
-:ref:`literate Agda TeX file <literate-agda-tex>`. The source file
-is expected to import the LaTeX package ``agda`` by including the line
-``\usepackage{agda}``.  Only the top-most module is processed, like
-with lhs2tex but unlike with the :ref:`HTML-backend
-<generating-html>`. If you want to process imported modules you have
-to call ``agda --latex`` manually on each of those modules.
+:program:`xelatex` or :program:`lualatex`, and :samp:`{file}.lagda` is
+a :ref:`literate Agda TeX file <literate-agda-tex>` (it could also be
+called :samp:`{file}.lagda.tex`). The source file is expected to
+import the LaTeX package ``agda`` by including the code
+``\usepackage{agda}`` (possibly with some options). Unlike the
+:ref:`HTML backend <generating-html>` only the top-most module is
+processed. Imported modules can be processed by invoking
+``agda --latex`` manually on each of them.
 
 The LaTeX backend checks if :file:`agda.sty` is found by the LaTeX
-environment. If it isn't, a default :file:`agda.sty` is copied from
-Agda’s data directory into the working directory (and thus made
-available to the LaTeX environment). Colors, fonts, spacing etc can be
-modified by editing :file:`agda.sty` and putting it somewhere where
-the latex environment can find it.
+environment. If it isn't, a default :file:`agda.sty` is copied into
+the LaTeX output directory (by default :file:`latex`). Note that the
+appearance of typeset code can be modified by overriding definitions
+from :file:`agda.sty`.
 
 .. _unicode-latex:
 
-Unicode and pdfLaTeX
---------------------
+Known pitfalls and issues
+-------------------------
 
-The pdfLaTeX program does not by default understand the UTF-8
-character encoding. You can tell it to treat the input as UTF-8 by
-using the inputenc package:
+* Unicode characters may not be typeset properly out of the box. How
+  to address this problem depends on what LaTeX engine is used.
 
-.. code-block:: latex
+  * pdfLaTeX:
 
-   \usepackage[utf8]{inputenc}
+    The pdfLaTeX program does not by default understand the UTF-8
+    character encoding. You can tell it to treat the input as UTF-8 by
+    using the inputenc package:
 
-If the inputenc package complains that some Unicode character is "not
-set up for use with LaTeX", then you can give your own definition.
-Here is one example:
+    .. code-block:: latex
 
-.. code-block:: latex
+       \usepackage[utf8]{inputenc}
 
-  \usepackage{newunicodechar}
-  \newunicodechar{λ}{\ensuremath{\lambda}}
-  \newunicodechar{←}{\ensuremath{\from}}
-  \newunicodechar{→}{\ensuremath{\to}}
-  \newunicodechar{∀}{\ensuremath{\forall}}
+    If the inputenc package complains that some Unicode character is
+    "not set up for use with LaTeX", then you can give your own
+    definition. Here is one example:
 
-Unicode and XeLaTeX or LuaLaTeX
--------------------------------
+    .. code-block:: latex
 
-It can sometimes be easier to use LuaLaTeX or XeLaTeX. When these
-engines are used it might suffice to choose a suitable font, as long
-as it contains all the right symbols in all the right shapes. If it
-does not, then ``\newunicodechar`` can be used as above. Here is one
-example:
+      \usepackage{newunicodechar}
+      \newunicodechar{λ}{\ensuremath{\mathnormal\lambda}}
+      \newunicodechar{←}{\ensuremath{\mathnormal\from}}
+      \newunicodechar{→}{\ensuremath{\mathnormal\to}}
+      \newunicodechar{∀}{\ensuremath{\mathnormal\forall}}
 
-.. code-block:: latex
+  * XeLaTeX or LuaLaTeX:
 
-  \usepackage{unicode-math}
-  \setmathfont{XITS Math}
+    It can sometimes be easier to use LuaLaTeX or XeLaTeX. When these
+    engines are used it might suffice to choose a suitable font, as
+    long as it contains all the right symbols in all the right shapes.
+    If it does not, then ``\newunicodechar`` can be used as above.
+    Here is one example:
 
-  \usepackage{newunicodechar}
-  \newunicodechar{λ}{\ensuremath{\mathnormal\lambda}}
+    .. code-block:: latex
+
+      \usepackage{unicode-math}
+      \setmathfont{XITS Math}
+
+      \usepackage{newunicodechar}
+      \newunicodechar{λ}{\ensuremath{\mathnormal\lambda}}
+
+* If ``<`` and ``>`` are typeset like ``¡`` and ``¿``, then the
+  problem might be that you are using pdfLaTeX and have not selected a
+  suitable font encoding.
+
+  Possible workaround:
+
+  .. code-block:: latex
+
+    \usepackage[T1]{fontenc}
+
+* If a regular text font is used, then ``--`` might be typeset as an
+  en dash (–).
+
+  Possible workarounds:
+
+  * Use a monospace font.
+
+  * Turn off ligatures. With pdfLaTeX the following code (which also
+    selects a font encoding, and only turns off ligatures for
+    character sequences starting with ``-``) might work:
+
+    .. code-block:: latex
+
+      \usepackage[T1]{fontenc}
+      \usepackage{microtype}
+      \DisableLigatures[-]{encoding=T1}
+
+    With LuaLaTeX or XeLaTeX the following code (which also selects a
+    font) might work:
+
+    .. code-block:: latex
+
+      \usepackage{fontspec}
+      \defaultfontfeatures[\rmfamily]{}
+      \setmainfont{Latin Modern Roman}
+
+    Note that you might not want to turn off all kinds of ligatures in
+    the entire document. See the `examples <Examples>`_ below for
+    information on how to set up special font families without TeX
+    ligatures that are only used for Agda code.
+
+* The unicode-math package and older versions of the polytable package
+  are incompatible, which can result in `errors in generated LaTeX
+  code <https://github.com/kosmikus/lhs2tex/issues/29>`_.
+
+  Possible workaround: Download a more up-to-date version of
+  polytable_ and put it together with the generated files or install
+  it globally.
+
+.. _latex-backend-options:
+
+Options
+-------
+
+The following command-line options change the behaviour of the LaTeX
+backend:
+
+:samp:`--latex-dir={directory}`
+  Changes the output directory where :file:`agda.sty` and the output
+  :file:`.tex` file are placed to :samp:`{directory}`. Default:
+  ``latex``.
+
+``--only-scope-checking``
+  Generates highlighting without typechecking the file. See
+  :ref:`quickLaTeX`.
+
+``--count-clusters``
+  Count extended grapheme clusters when generating LaTeX code. This
+  option can be given in ``OPTIONS`` pragmas.
+  See :ref:`grapheme-clusters`.
+
+The following options can be given when loading ``agda.sty`` by using
+``\usepackage[options]{agda}``:
+
+``bw``
+  Colour scheme which highlights in black and white.
+
+``conor``
+  Colour scheme similar to the colours used in Epigram 1.
+
+``references``
+  Enables :ref:`inline typesetting <latex-inline-references>` of
+  referenced code.
+
+``links``
+  Enables :ref:`hyperlink support <latex-links>`.
+
+.. _quickLaTeX:
+
+Quicker generation without typechecking
+---------------------------------------
+
+A faster variant of the backend is available by invoking
+``QuickLaTeX`` from the Emacs mode, or using ``agda --latex
+--only-scope-checking``. When this variant of the backend is used the
+top-level module is not type-checked, only scope-checked. Note that
+this can affect the generated document. For instance, scope-checking
+does not resolve overloaded constructors.
+
+If the module has already been type-checked successfully, then this
+information is reused; in this case QuickLaTeX behaves like the
+regular LaTeX backend.
 
 Features
 --------
 
-Hiding code
-~~~~~~~~~~~
+Vertical space
+~~~~~~~~~~~~~~
 
-Code that you do not want to show up in the output can be hidden by
-giving the argument ``hide`` to the code block:
+Code blocks are by default surrounded by vertical space. Use
+``\AgdaNoSpaceAroundCode{}`` to avoid this vertical space, and
+``\AgdaSpaceAroundCode{}`` to reenable it.
 
-.. code-block:: lagda
-
-   \begin{code}[hide]
-   -- the code here will not be part of the final document
-   \end{code}
-
-Inline code
-~~~~~~~~~~~
-
-Code can be typeset inline by giving the argument ``inline`` to the
-code block:
-
-.. code-block:: lagda
-
-  Assume that we are given a type
-  %
-  \begin{code}[hide]
-    module _ (
-  \end{code}
-  \begin{code}[inline]
-      A : Set
-  \end{code}
-  \begin{code}[hide]
-      ) where
-  \end{code}
-  %
-  .
-
-There is also a variant of ``inline``, ``inline*``. If ``inline*`` is
-used, then space (``\AgdaSpace{}``) is added at the end of the code,
-and when ``inline`` is used space is not added.
-
-The implementation of these options is a bit of a hack. Only use these
-options for typesetting a single line of code without multiple
-consecutive whitespace characters (except at the beginning of the
-line).
+Note that, if ``\AgdaNoSpaceAroundCode{}`` is used, then empty lines
+before or after a code block will not necessarily lead to empty lines
+in the generated document. However, empty lines inside the code block
+do (by default, with or without ``\AgdaNoSpaceAroundCode{}``) lead to
+empty lines in the output. The height of such empty lines can be
+controlled by the length ``\AgdaEmptySkip``, which by default is
+``\abovedisplayskip``.
 
 Alignment
 ~~~~~~~~~
 
-Two or more spaces can be used to make the backend align code, as in
-the following example:
+Tokens preceded by two or more space characters, as in the following
+example, are aligned in the typeset output:
 
 .. code-block:: lagda
 
@@ -135,8 +214,9 @@ the following example:
    suc m  + n = suc (m + n)
    \end{code}
 
-In more detail, the constraint on the indentation of the first token
-*t* on a line is determined as follows:
+In the case of the first token on a line a single space character
+sometimes suffices to get alignment. A constraint on the indentation
+of the first token *t* on a line is determined as follows:
 
 * Let *T* be the set containing every previous token (in any code
   block) that is either the initial token on its line or preceded by
@@ -155,10 +235,11 @@ In more detail, the constraint on the indentation of the first token
   token in *L*, and aligned with every token in *E*.
 
 Note that if any token in *L* or *E* belongs to a previous code block,
-then the constraint may not be satisfied unless (say) the ``AgdaAlign``
-environment is used in an appropriate way. If custom settings are
-used, for instance if ``\AgdaIndent`` is redefined, then the constraint
-discussed above may not be satisfied.
+then the constraint may not be satisfied unless (say) the
+``AgdaAlign`` :ref:`environment <breaking-up-code-blocks>` is used in
+an appropriate way. If custom settings are used, for instance if
+``\AgdaIndent`` is redefined, then the constraint discussed above may
+not be satisfied.
 
 Examples:
 
@@ -184,19 +265,53 @@ These rules are inspired by, but not identical to, the one used by
 lhs2TeX's poly mode (see Section 8.4 of the `manual for lhs2TeX
 version 1.17 <https://www.andres-loeh.de/lhs2tex/Guide2-1.17.pdf>`_).
 
-Vertical space
-~~~~~~~~~~~~~~
+.. _grapheme-clusters:
 
-Code blocks are by default surrounded by vertical space. Use
-``\AgdaNoSpaceAroundCode{}`` to avoid this vertical space, and
-``\AgdaSpaceAroundCode{}`` to reenable it.
+Counting Extended Grapheme Clusters
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Note that, if ``\AgdaNoSpaceAroundCode{}`` is used, then empty lines
-before or after a code block will not necessarily lead to empty lines
-in the generated document. However, empty lines inside the code block
-do (by default) lead to empty lines in the output. The height of such
-empty lines can be controlled by the length ``\AgdaEmptySkip``, which
-by default is ``\baselineskip``.
+The alignment feature regards the string ``+̲``, containing ``+`` and a
+combining character, as having length two. However, it seems more
+reasonable to treat it as having length one, as it occupies a single
+column, if displayed "properly" using a monospace font. The flag
+``--count-clusters`` is an attempt at fixing this. When this flag is
+enabled the backend counts `"extended grapheme clusters"
+<http://www.unicode.org/reports/tr29/#Grapheme_Cluster_Boundaries>`_
+rather than code points.
+
+Note that this fix is not perfect: a single extended grapheme cluster
+might be displayed in different ways by different programs, and might,
+in some cases, occupy more than one column. Here are some examples of
+extended grapheme clusters, all of which are treated as a single
+character by the alignment algorithm:
+
+.. code-block:: lagda
+
+   │ │
+   │+̲│
+   │Ö̂│
+   │நி│
+   │ᄀힰᇹ│
+   │ᄀᄀᄀᄀᄀᄀힰᇹᇹᇹᇹᇹᇹ│
+   │ │
+
+Note also that the layout machinery does not count extended grapheme
+clusters, but code points. The following code is syntactically
+correct, but if ``--count-clusters`` is used, then the LaTeX backend
+does not align the two field keywords:
+
+::
+
+  record +̲ : Set₁ where  field A : Set
+                          field B : Set
+
+The ``--count-clusters`` flag is not enabled in all builds of Agda,
+because the implementation depends on the ICU_ library, the
+installation of which could cause extra trouble for some users. The
+presence of this flag is controlled by the Cabal flag
+``enable-cluster-counting``.
+
+.. _breaking-up-code-blocks:
 
 Breaking up code blocks
 ~~~~~~~~~~~~~~~~~~~~~~~
@@ -270,28 +385,17 @@ Note that ``AgdaSuppressSpace`` environments should not be nested.  There
 is also a combined environment, ``AgdaMultiCode``, that combines the
 effects of ``AgdaAlign`` and ``AgdaSuppressSpace``.
 
-Controlling the typesetting of individual tokens
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Hiding code
+~~~~~~~~~~~
 
-The typesetting of (certain) individual tokens can be controlled by
-redefining the ``\AgdaFormat`` command. Example:
+Code that you do not want to show up in the output can be hidden by
+giving the argument ``hide`` to the code block:
 
-.. code-block:: latex
+.. code-block:: lagda
 
-   \usepackage{ifthen}
-
-   % Insert extra space before some tokens.
-   \DeclareRobustCommand{\AgdaFormat}[2]{%
-     \ifthenelse{
-       \equal{#1}{≡⟨} \OR
-       \equal{#1}{≡⟨⟩} \OR
-       \equal{#1}{∎}
-     }{\ }{}#2}
-
-Note the use of ``\DeclareRobustCommand``. The first argument to
-``\AgdaFormat`` is the token, and the second argument the thing to be
-typeset.
-
+   \begin{code}[hide]
+   -- the code here will not be part of the final document
+   \end{code}
 
 .. _latex-links:
 
@@ -321,8 +425,39 @@ The borders around the links can be suppressed using hyperref's
    when using the links option at the moment. This might get fixed in
    the future.
 
+Inline code
+~~~~~~~~~~~
+
+Code can be typeset inline by giving the argument ``inline`` to the
+code block:
+
+.. code-block:: lagda
+
+  Assume that we are given a type
+  %
+  \begin{code}[hide]
+    module _ (
+  \end{code}
+  \begin{code}[inline]
+      A : Set
+  \end{code}
+  \begin{code}[hide]
+      ) where
+  \end{code}
+  %
+  .
+
+There is also a variant of ``inline``, ``inline*``. If ``inline*`` is
+used, then space (``\AgdaSpace{}``) is added at the end of the code,
+and when ``inline`` is used space is not added.
+
+The implementation of these options is a bit of a hack. Only use these
+options for typesetting a single line of code without multiple
+consecutive whitespace characters (except at the beginning of the
+line).
+
 Another way to typeset inline code
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 An alternative to using ``inline`` and ``inline*`` is to typeset code
 manually. Here is an example:
@@ -337,16 +472,7 @@ manually. Here is an example:
    \end{code}
 
 You can find all the commands used by the backend (and which you can
-use manually) in the :file:`latex/agda.sty` file. If you are doing a
-lot of manual typesetting, then you might want to introduce shorter
-command names, e.g.:
-
-.. code-block:: latex
-
-   \newcommand{\D}{\AgdaDatatype}
-   \newcommand{\F}{\AgdaFunction}
-
-etc. Long names were chosen by default to avoid name clashes.
+use manually) in the :file:`agda.sty` file.
 
 .. _latex-inline-references:
 
@@ -357,11 +483,10 @@ Since Agda version 2.4.2 there is experimental support for
 semi-automatically typesetting code inside text, using the
 ``references`` option. After loading the agda package with this
 option, inline Agda snippets will be typeset in the same way as code
-blocks --- after post-processing --- if referenced using the
-``\AgdaRef`` command. Only the current module is used; should you
-need to reference identifiers in other modules, then you need to
-specify which other module manually by using
-``\AgdaRef[module]{identifier}``.
+blocks---after post-processing---if referenced using the ``\AgdaRef``
+command. Only the current module is used; should you need to reference
+identifiers in other modules, then you need to specify which other
+module manually by using ``\AgdaRef[module]{identifier}``.
 
 In order for the snippets to be typeset correctly, they need to be
 post-processed by the :program:`postprocess-latex.pl` script from the
@@ -424,254 +549,128 @@ See `Issue #1054 on the bug tracker <https://github.com/agda/agda/issues/1054>`_
    identifiers with the same name exist, then \AgdaRef will typeset
    according to the first one it finds.
 
+Controlling the typesetting of individual tokens
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The typesetting of (certain) individual tokens can be controlled by
+redefining the ``\AgdaFormat`` command. Example:
+
+.. code-block:: latex
+
+   \usepackage{ifthen}
+
+   % Insert extra space before some tokens.
+   \DeclareRobustCommand{\AgdaFormat}[2]{%
+     \ifthenelse{
+       \equal{#1}{≡⟨} \OR
+       \equal{#1}{≡⟨⟩} \OR
+       \equal{#1}{∎}
+     }{\ }{}#2}
+
+Note the use of ``\DeclareRobustCommand``. The first argument to
+``\AgdaFormat`` is the token, and the second argument the thing to be
+typeset.
 
 Emulating %format rules
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-The LaTeX-backend has no feature analogue to :program:`lhs2TeX`'s
-``%format`` rules, however most systems come with :program:`sed` which can
-be used to achieve similar goals. Given a file called, for example,
-:file:`replace.sed`, containing:
+The LaTeX backend has no feature directly comparable to lhs2TeX's
+``%format`` rules. However, one can hack up something similar by using
+a program like :program:`sed`. For instance, let us say that
+:file:`replace.sed` contains the following text:
 
 .. code-block:: none
 
-   # Super- and subscripts.
-   #s/\\textasciicircum\([^\}]*\)‿\([^\}]*\)/\$\^\\AgdaFontStyle\{\\scriptscriptstyle \1\}\_\\AgdaFontStyle\{\\scriptscriptstyle \2\}\$/g
-
-   s/\\textasciicircum\([^\}]*\)/\{\^\\AgdaFontStyle\{\\scriptscriptstyle \1\}\}/g
-
-   #s/‿\([^\}]*\)/\$\_\\AgdaFontStyle\{\\scriptscriptstyle \1\}\$/g
-
-   # Σ[ x ∈ X ] into (x : X) ×
+   # Turn Σ[ x ∈ X ] into (x : X) ×.
    s/\\AgdaRecord{Σ\[} \(.*\) \\AgdaRecord{∈} \(.*\) \\AgdaRecord{]}/\\AgdaSymbol\{(\}\1 \\AgdaSymbol\{:\} \2\\AgdaSymbol\{)\} \\AgdaFunction\{×\}/g
 
-   # Bind, Kleisli extension and fmap.
-   #s/>>=/\$\\mathbin\{>\\!\\!\\!>\\mkern-6.7mu=\}\$/g
-   s/>>=/\\mathbin\{>\\!\\!\\!>\\mkern-6.7mu=\}/g
-   #s/>>/\$\\mathbin\{>\\!\\!\\!>}\$/g
-   #s/=<</\$\\mathbin\{=\\mkern-6.7mu<\\!\\!\\!<\}\$/g
-   #s/<\\$>/\$\\mathop\{<\\!\\!\\!\\$\\!\\!\\!>\}\$/g
-   s/<\\$>/\\mathop\{<\\!\\!\\!\\$\\!\\!\\!>\}/g
-
-   # Append.
-   s/++/+\\!+/g
-
-   # Comments.
-   #s/AgdaComment{\-\-/AgdaComment\{\-\\!\-/g
-
-We can postprocess the tex output as follows:
+The output of the LaTeX backend can then be postprocessed in the
+following way:
 
 .. code-block:: console
 
    $ sed -f replace.sed {file}.tex > {file}.sedded
    $ mv {file}.sedded {file}.tex
 
-Note that the above sed file assumes the use of
-:program:`{xe|lua}latex` where code is in math mode rather than text
-mode (as is the case when using the :program:`pdflatex` compiler). The
-commented out variants of the substitution rules are their pdflatex
-equivalents.
+Including Agda code in a larger LaTeX document
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The substitution rules dealing with super- and subscripts lets us
-write ``apa^bepa`` in the code for things we want superscripted in the
-output (``\undertie`` does the same for subscripts).
-
-
-Including Agda code into a larger LaTeX document
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Sometimes you might want to include a bit of code without necessarily
-making the whole document a literate Agda file. Here is how to do this
-in the context of a beamer presentation, but the method should work
-similarly also for other documents. Given two files
-:file:`Presentation.tex` and :file:`Code.lagda` as follows:
+Sometimes you might want to include a bit of code without making the
+whole document a literate Agda file. Here is one way in which this can
+be accomplished. (Perhaps this technique was invented by Anton
+Setzer.) Put the code in a separate file, and use ``\newcommand`` to
+give a name to each piece of code that should be typeset:
 
 .. code-block:: latex
-   :caption: Presentation.tex
+   :caption: Code.lagda.tex
 
-   \documentclass{beamer}
-
-   % When using XeLaTeX, the following should be used instead:
-   % \documentclass[xetex]{beamer}
-   % \usefonttheme[onlymath]{serif}
-
-   \usepackage{latex/agda}
-   % Other setup related to Agda...
-   \usepackage{catchfilebetweentags}
-
-   \begin{document}
-   \begin{frame}\frametitle{Some Agda code}
-
-     \begin{itemize}
-       \item The natural numbers
-     \end{itemize}
-
-     \ExecuteMetaData[latex/Code.tex]{nat}
-
-     \begin{itemize}
-       \item Addition (\AgdaFunction{\_+\_})
-     \end{itemize}
-
-     \ExecuteMetaData[latex/Code.tex]{plus}
-
-   \end{frame}
-   \end{document}
-
-
-
-.. code-block:: lagda
-   :caption: Code.lagda
-
-   %<*nat>
+   \newcommand{\nat}{%
    \begin{code}
    data ℕ : Set where
      zero  : ℕ
      suc   : (n : ℕ) → ℕ
-   \end{code}
-   %</nat>
+   \end{code}}
 
-   %<*plus>
-   \begin{code}
-   _+_ : ℕ → ℕ → ℕ
-   zero   + n = n
-   suc m  + n = suc (m + n)
-   \end{code}
-   %</plus>
+Preprocess this file using Agda, and then include it in another file
+in the following way:
 
-we can use :command:`pdflatex` to compile a presentation as follows:
+.. code-block:: latex
+   :caption: Main.tex
 
-.. code-block:: console
+   % In the preamble:
+   \usepackage{agda}
+   % Further setup related to Agda code.
 
-   $ agda --latex Code.lagda
-   $ latexmk -pdf -use-make Presentation.tex
+   % The Agda code can be included either in the preamble or in the
+   % document's body.
+   \input{Code}
 
-If you are using a lot of unicode it might be more convenient to use
-:command:`xelatex` instead. See comments about :command:`xelatex` in
-:file:`Presentation.tex` and compile as follows:
+   % Then one can refer to the Agda code in the body of the text:
+   The natural numbers can be defined in the following way in Agda:
+   \nat{}
 
-.. code-block:: console
+Here it is assumed that :file:`agda.sty` is available in the current
+directory (or on the TeX search path).
 
-  $ agda --latex Code.lagda
-  $ latexmk -xelatex -pdf -use-make Presentation.tex
+Note that this technique can also be used to present code in a
+different order, if the rules imposed by Agda are not compatible with
+the order that you would prefer.
 
-The ``\ExecuteMetaData`` command is part of the catchfilebetweentags_
-package. Also see the following `thread on the mailing list
-<http://comments.gmane.org/gmane.comp.lang.agda/6195>`_ for other
-methods of including Agda code into a presentation.
+Examples
+--------
 
+Some examples that can be used for inspiration (in the HTML version of
+the manual the file names below link to the source code, but not in
+the PDF version of the manual):
 
-.. _latex-backend-options:
+* For the ``article`` class and pdfLaTeX:
+  :download:`article-pdflatex.lagda.tex`.
 
-Options
--------
+* For the ``article`` class and LuaLaTeX or XeLaTeX:
+  :download:`article-luaxelatex.lagda.tex` if you want to use the default
+  fonts (with—at the time of writing—bad coverage of non-ASCII
+  characters), and
+  :download:`article-luaxelatex-different-fonts.lagda.tex` if you would
+  prefer to use other fonts (with possibly better coverage).
 
-The following command-line options change the behaviour of the LaTeX
-backend:
+* For the ``beamer`` class and pdfLaTeX:
+  :download:`beamer-pdflatex.lagda.tex`.
 
-:samp:`--latex-dir={directory}`
-  Changes the output directory where :file:`agda.sty` and the output :file:`.tex` are placed to :samp:`{directory}`. Default: ``latex``.
+* For the ``beamer`` class and LuaLaTeX or XeLaTeX:
+  :download:`beamer-luaxelatex.lagda.tex`.
 
-``--only-scope-checking``
-  Generates highlighting without typechecking the file. See
-  :ref:`quickLaTeX`.
+* For the ``acmart`` class and pdfLaTeX:
+  :download:`acmart-pdflatex.lagda.tex`.
 
-``--count-clusters``
-  Count extended grapheme clusters when generating LaTeX code. This
-  option can be given in ``OPTIONS`` pragmas.
-  See :ref:`grapheme-clusters`.
+* For the ``acmart`` class and XeLaTeX:
+  :download:`acmart-xelatex.lagda.tex`.
 
-
-The following options can be given when loading ``agda.sty`` by using
-:samp:`\usepackage[{options}]{agda}`:
-
-``bw``
-  Colour scheme which highlights in black and white.
-
-``conor``
-  Colour scheme similar to the colours used in Epigram1.
-
-``references``
-  Enables :ref:`inline typesetting <latex-inline-references>` of
-  referenced code.
-
-``links``
-  Enables :ref:`hyperlink support <latex-links>`.
-
-.. _grapheme-clusters:
-
-Counting Extended Grapheme Clusters
------------------------------------
-
-The alignment feature regards the string ``+̲``, containing ``+`` and a
-combining character, as having length two. However, it seems more
-reasonable to treat it as having length one, as it occupies a single
-column, if displayed "properly" using a monospace font. The flag
-``--count-clusters`` is an attempt at fixing this. When this flag is
-enabled the backend counts `"extended grapheme clusters"
-<http://www.unicode.org/reports/tr29/#Grapheme_Cluster_Boundaries>`_
-rather than code points.
-
-Note that this fix is not perfect: a single extended grapheme cluster
-might be displayed in different ways by different programs, and might,
-in some cases, occupy more than one column. Here are some examples of
-extended grapheme clusters, all of which are treated as a single
-character by the alignment algorithm:
-
-.. code-block:: lagda
-
-   │ │
-   │+̲│
-   │Ö̂│
-   │நி│
-   │ᄀힰᇹ│
-   │ᄀᄀᄀᄀᄀᄀힰᇹᇹᇹᇹᇹᇹ│
-   │ │
-
-Note also that the layout machinery does not count extended grapheme
-clusters, but code points. The following code is syntactically
-correct, but if ``--count-clusters`` is used, then the LaTeX backend
-does not align the two field keywords:
-
-::
-
-  record +̲ : Set₁ where  field A : Set
-                          field B : Set
-
-The ``--count-clusters`` flag is not enabled in all builds of Agda,
-because the implementation depends on the ICU_ library, the
-installation of which could cause extra trouble for some users. The
-presence of this flag is controlled by the Cabal flag
-``enable-cluster-counting``.
-
-.. _quickLaTeX:
-
-Quicker generation without typechecking
----------------------------------------
-
-A faster variant of the backend is available by invoking
-``QuickLaTeX`` from the Emacs mode, or using ``agda --latex
---only-scope-checking``. When this variant of the backend is used the
-top-level module is not type-checked, only scope-checked. Note that
-this can affect the generated document. For instance, scope-checking
-does not resolve overloaded constructors.
-
-If the module has already been type-checked successfully, then this
-information is reused; in this case QuickLaTeX behaves like the
-regular LaTeX backend.
-
-Known issues
-------------
-
-.. COMMENT: update this when a new version of Debian comes out
-
-The unicode-math package and older versions of the polytable package
-(still in the Debian stable) are incompatible, which can result in
-`errors in generated latex code
-<https://github.com/kosmikus/lhs2tex/issues/29>`_. The workaround is
-to download a more up to date version of polytable_ and either put it
-with the generated files, or install it globally.
+Note that these examples might not satisfy all your requirements, and
+might not work in all settings. If you have to follow a particular
+house style, then you may want to make sure that the Agda code follows
+this style, and that you do not inadvertently change the style of
+other text when customising the style of the Agda code.
 
 .. _polytable: https://www.ctan.org/pkg/polytable
 .. _hyperref: https://www.ctan.org/pkg/hyperref
-.. _catchfilebetweentags: https://www.ctan.org/pkg/catchfilebetweentags
 .. _ICU: http://site.icu-project.org/

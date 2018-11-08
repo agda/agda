@@ -1573,5 +1573,9 @@ type PositivityCheck = Bool
 -- * Universe checking
 -----------------------------------------------------------------------------
 
--- | Universe check? (Default = True).
-type UniverseCheck = Bool
+-- | Universe check? (Default is yes).
+data UniverseCheck = YesUniverseCheck | NoUniverseCheck
+  deriving (Eq, Ord, Show, Bounded, Enum, Data)
+
+instance KillRange UniverseCheck where
+  killRange = id

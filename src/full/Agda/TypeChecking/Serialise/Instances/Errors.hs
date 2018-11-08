@@ -65,6 +65,7 @@ instance EmbPrj Warning where
   icod_ (LibraryWarning a)           = icodeN 12 LibraryWarning a
   icod_ (CoverageNoExactSplit a b)   = icodeN 13 CoverageNoExactSplit a b
   icod_ (CantGeneralizeOverSorts a)  = icodeN 14 CantGeneralizeOverSorts a
+  icod_ IllformedAsClause            = icodeN 15 IllformedAsClause
 
   value = vcase valu where
       valu [0, a, b]    = valuN UnreachableClauses a b
@@ -82,6 +83,7 @@ instance EmbPrj Warning where
       valu [12, a]      = valuN LibraryWarning a
       valu [13, a, b]   = valuN CoverageNoExactSplit a b
       valu [14, a]      = valuN CantGeneralizeOverSorts a
+      valu [15]         = valuN IllformedAsClause
       valu _ = malformed
 
 instance EmbPrj DeclarationWarning where
@@ -106,6 +108,7 @@ instance EmbPrj DeclarationWarning where
     MissingDefinitions a              -> icodeN 17 MissingDefinitions a
     NotAllowedInMutual r a            -> icodeN 18 NotAllowedInMutual r a
     PragmaNoTerminationCheck r        -> icodeN 19 PragmaNoTerminationCheck r
+    EmptyGeneralize a                 -> icodeN 20 EmptyGeneralize a
 
   value = vcase $ \case
     [0, a]   -> valuN UnknownNamesInFixityDecl a
@@ -128,6 +131,7 @@ instance EmbPrj DeclarationWarning where
     [17,a]   -> valuN MissingDefinitions a
     [18,r,a] -> valuN NotAllowedInMutual r a
     [19,r]   -> valuN PragmaNoTerminationCheck r
+    [20,a]   -> valuN EmptyGeneralize a
     _ -> malformed
 
 instance EmbPrj LibWarning where

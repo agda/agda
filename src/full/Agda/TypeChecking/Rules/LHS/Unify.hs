@@ -793,7 +793,7 @@ injectivePragmaStrategy k s = do
 skipIrrelevantStrategy :: Int -> UnifyStrategy
 skipIrrelevantStrategy k s = do
   let Equal a _ _ = getEquality k s
-  guard $ isIrrelevantOrProp a
+  guard =<< isIrrelevantOrPropM a
   return $ SkipIrrelevantEquation k
 
 
