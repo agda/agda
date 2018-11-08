@@ -1946,8 +1946,12 @@ decomposeInterval' t = do
 -- | @primEraseEquality : {a : Level} {A : Set a} {x y : A} -> x ≡ y -> x ≡ y@
 primEraseEquality :: TCM PrimitiveImpl
 primEraseEquality = do
-  -- primEraseEquality is not --safe
-  whenM (Lens.getSafeMode <$> commandLineOptions) $ warning SafeFlagPrimEraseEquality
+  -- primEraseEquality is incompatible with --without-K
+  -- We raise an error warning if --safe is set and a mere warning otherwise
+  whenM (optWithoutK <$> pragmaOptions) $
+    ifM (Lens.getSafeMode <$> commandLineOptions)
+      {- then -} (warning SafeFlagWithoutKFlagPrimEraseEquality)
+      {- else -} (warning WithoutKFlagPrimEraseEquality)
   -- Get the name and type of BUILTIN EQUALITY
   eq   <- primEqualityName
   eqTy <- defType <$> getConstInfo eq
