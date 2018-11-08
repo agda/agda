@@ -12,6 +12,7 @@ sudo: required
 cache:
   directories:
   - $HOME/.stack
+  - $HOME/.cabal
 
 ##############################################################################
 # Required Ubuntu packages
