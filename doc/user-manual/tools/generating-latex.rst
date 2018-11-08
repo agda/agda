@@ -715,7 +715,9 @@ Known pitfalls and issues
 Examples
 --------
 
-Some examples that can be used for inspiration:
+Some examples that can be used for inspiration (in the HTML version of
+the manual the file names below link to the source code, but not in
+the PDF version of the manual):
 
 * For the ``article`` class and pdfLaTeX:
   :download:`article-pdflatex.lagda.tex`.
