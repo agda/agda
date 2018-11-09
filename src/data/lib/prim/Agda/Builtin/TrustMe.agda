@@ -1,7 +1,7 @@
 module Agda.Builtin.TrustMe where
 
 open import Agda.Builtin.Equality
-open import Agda.Builtin.EraseEquality
+open import Agda.Builtin.Equality.Erase
 
 private
   postulate

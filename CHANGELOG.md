@@ -282,6 +282,8 @@ Pragmas and options
   the same equality. `primErase eq` reduces to `refl` on the diagonal. `trustMe`
   is not a primitive anymore, it is implemented using `primErase`.
 
+  The primitive is declared in `Agda.Builtin.Equality.Erase`.
+
 Emacs mode
 ----------
 

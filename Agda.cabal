@@ -61,7 +61,7 @@ data-files:         Agda.css
                     lib/prim/Agda/Builtin/Cubical/Id.agda
                     lib/prim/Agda/Builtin/Cubical/Sub.agda
                     lib/prim/Agda/Builtin/Equality.agda
-                    lib/prim/Agda/Builtin/EraseEquality.agda
+                    lib/prim/Agda/Builtin/Equality/Erase.agda
                     lib/prim/Agda/Builtin/Float.agda
                     lib/prim/Agda/Builtin/FromNat.agda
                     lib/prim/Agda/Builtin/FromNeg.agda

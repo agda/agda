@@ -520,7 +520,7 @@ The type of ``primEraseEquality`` has to match the flavor of identity type.
 
 .. code-block:: agda
 
-  module Agda.Builtin.EraseEquality
+  module Agda.Builtin.Equality.Erase
 
 Binding the built-in equality type also enables the ``primEraseEquality`` primitive::
 

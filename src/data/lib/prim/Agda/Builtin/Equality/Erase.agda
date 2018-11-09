@@ -1,6 +1,6 @@
 {-# OPTIONS --with-K #-}
 
-module Agda.Builtin.EraseEquality where
+module Agda.Builtin.Equality.Erase where
 
 open import Agda.Builtin.Equality
 
