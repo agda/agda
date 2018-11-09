@@ -111,7 +111,7 @@ mkLaTeXOrHTMLTest k copy agdaBin inp =
   extension = case k of
     LaTeX      -> "tex"
     QuickLaTeX -> "quick.tex"
-    HTML       -> "html"
+    HTML       -> if "MdHighlight" `List.isPrefixOf` takeFileName baseName then "md" else "html"
 
   flags :: FilePath -> [String]
   flags dir = case k of
