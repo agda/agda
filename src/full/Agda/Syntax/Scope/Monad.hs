@@ -7,7 +7,7 @@
 module Agda.Syntax.Scope.Monad where
 
 import Prelude hiding (mapM, any, all)
-import Control.Arrow (first, second, (***))
+import Control.Arrow (first, second, (***), (&&&))
 import Control.Monad hiding (mapM, forM)
 import Control.Monad.Writer hiding (mapM, forM)
 import Control.Monad.State hiding (mapM, forM)
@@ -29,6 +29,8 @@ import Agda.Syntax.Abstract.Name as A
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract (ScopeCopyInfo(..), initCopyInfo)
 import Agda.Syntax.Concrete as C
+import Agda.Syntax.Concrete.Fixity
+import Agda.Syntax.Concrete.Definitions (DeclarationWarning(..)) -- TODO: move the relevant warnings out of there
 import Agda.Syntax.Scope.Base
 
 import Agda.TypeChecking.Monad.Base
@@ -36,6 +38,7 @@ import Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Monad.Options
 import Agda.TypeChecking.Monad.State
 import Agda.TypeChecking.Monad.Trace ( setCurrentRange )
+import Agda.TypeChecking.Positivity.Occurrence (Occurrence)
 import Agda.TypeChecking.Warnings ( warning )
 
 import qualified Agda.Utils.AssocList as AssocList
@@ -222,6 +225,11 @@ freshAbstractQName fx x = do
   m <- getCurrentModule
   return $ A.qualify m y
 
+freshAbstractQName' :: C.Name -> ScopeM A.QName
+freshAbstractQName' x = do
+  fx <- getConcreteFixity x
+  freshAbstractQName fx x
+
 -- * Resolving names
 
 -- | Look up the abstract name referred to by a given concrete name.
@@ -286,6 +294,37 @@ resolveModule x = do
   caseListNe ms (typeError $ NoSuchModule x) $ \ case
     AbsModule m why :! [] -> return $ AbsModule (m `withRangeOf` x) why
     ms                    -> typeError $ AmbiguousModule x (fmap amodName ms)
+
+-- | Get the fixity of a not yet bound name.
+getConcreteFixity :: C.Name -> ScopeM Fixity'
+getConcreteFixity x = Map.findWithDefault noFixity' x . scopeFixities <$> getScope
+
+-- | Get the polarities of a not yet bound name.
+getConcretePolarity :: C.Name -> ScopeM (Maybe [Occurrence])
+getConcretePolarity x = Map.lookup x . scopePolarities <$> getScope
+
+instance MonadFixityError ScopeM where
+  throwMultipleFixityDecls xs         = case xs of
+    (x, _) : _ -> setCurrentRange (getRange x) $ typeError $ MultipleFixityDecls xs
+    []         -> __IMPOSSIBLE__
+  throwMultiplePolarityPragmas xs     = case xs of
+    x : _ -> setCurrentRange (getRange x) $ typeError $ MultiplePolarityPragmas xs
+    []    -> __IMPOSSIBLE__
+  warnUnknownNamesInFixityDecl        = warning   . NicifierIssue . UnknownNamesInFixityDecl
+  warnUnknownNamesInPolarityPragmas   = warning   . NicifierIssue . UnknownNamesInPolarityPragmas
+  warnUnknownFixityInMixfixDecl       = warning   . NicifierIssue . UnknownFixityInMixfixDecl
+  warnPolarityPragmasButNotPostulates = warning   . NicifierIssue . PolarityPragmasButNotPostulates
+
+-- | Collect the fixity/syntax declarations and polarity pragmas from the list
+--   of declarations and store them in the scope.
+computeFixitiesAndPolarities :: [C.Declaration] -> ScopeM a -> ScopeM a
+computeFixitiesAndPolarities ds ret = do
+  (fixs0, pols0) <- (scopeFixities &&& scopePolarities) <$> getScope
+  (fixs, pols)   <- fixitiesAndPolarities ds
+  modifyScope $ \ s -> s { scopeFixities = fixs, scopePolarities = pols }
+  x <- ret
+  modifyScope $ \ s -> s { scopeFixities = fixs0, scopePolarities = pols0 }
+  return x
 
 -- | Get the notation of a name. The name is assumed to be in scope.
 getNotation

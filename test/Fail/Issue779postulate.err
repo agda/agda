@@ -2,5 +2,5 @@ Issue779postulate.agda:4,13-22
 This declaration is illegal in a record before the last field
 when scope checking the declaration
   record P where
-    Bla : Set
+    postulate Bla : Set
     field F : Set

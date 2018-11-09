@@ -1,4 +1,4 @@
-AbstractBlockInLet.agda:7,8-10,12
+AbstractBlockInLet.agda:7,12-9,19
 abstract not allowed in let expressions
 when scope checking
 let abstract

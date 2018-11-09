@@ -2,10 +2,9 @@ Issue1720-1.agda:4,3-7,14
 This declaration is illegal in a record before the last field
 when scope checking the declaration
   record Foo A where
-    mutual
-      a : A
-      a = ?
-        where
-          a' : A
-          a' = ?
+    a : A
+    a = ?
+      where
+        a' : A
+        a' = ?
     field f : A

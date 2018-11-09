@@ -217,7 +217,7 @@ declaredNames d = case d of
   UnquoteDef{}         -> mempty
   -- BUILTIN pragmas which do not require an accompanying definition declare
   -- the (unqualified) name they mention.
-  Pragma (BuiltinPragma _ b (QName x) _)
+  Pragma (BuiltinPragma _ b (QName x))
     | b `elem` builtinsNoDef -> declaresName x
   Pragma{}             -> mempty
 
