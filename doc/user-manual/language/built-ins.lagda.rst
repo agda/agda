@@ -683,8 +683,9 @@ to be confused with the :ref:`rewrite construct <with-rewrite>`) has a built-in
   postulate _↦_ : ∀ {a} {A : Set a} → A → A → Set a
   {-# BUILTIN REWRITE _↦_ #-}
 
-There is no ``Agda.Builtin`` module for the rewrite relation since different
-rewriting experiments typically want different relations.
+This builtin is bound to the :ref:`builtin equality type
+<built-in-equality>` from ``Agda.Builtin.Equality`` in
+``Agda.Builtin.Equality.Rewrite``.
 
 Static values
 -------------

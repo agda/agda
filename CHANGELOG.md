@@ -284,6 +284,10 @@ Pragmas and options
 
   The primitive is declared in `Agda.Builtin.Equality.Erase`.
 
+* The `REWRITE` builtin is now bound to the builtin equality type from
+  `Agda.Builtin.Equality` in `Agda.Builtin.Equality.Rewrite` [Issue
+  [#3318](https://github.com/agda/agda/issues/3318)].
+
 Emacs mode
 ----------
 
