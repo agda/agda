@@ -1,7 +1,6 @@
 {-# LANGUAGE CPP #-}
 
-{-| Agda main module.
--}
+{-| Agda main module. -}
 module Agda.Main where
 
 import Control.Monad.State
