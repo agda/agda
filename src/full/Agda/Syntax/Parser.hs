@@ -9,10 +9,10 @@ module Agda.Syntax.Parser
     , Agda.Syntax.Parser.parse
     , Agda.Syntax.Parser.parsePosString
     , parseFile
-    , parseFileExts
       -- * Parsers
     , moduleParser
     , moduleNameParser
+    , acceptableFileExts
     , exprParser
     , exprWhereParser
     , holeContentParser
@@ -37,6 +37,7 @@ import qualified Data.List as List
 import Data.Text.Lazy (Text)
 import qualified Data.Text.Lazy as T
 
+import Agda.Syntax.Common
 import Agda.Syntax.Position
 import Agda.Syntax.Parser.Monad as M hiding (Parser, parseFlags)
 import qualified Agda.Syntax.Parser.Monad as M
@@ -128,9 +129,7 @@ parseLiterateWithComments p layers = do
 -- | Returns the contents of the given file.
 
 readFilePM :: AbsolutePath -> PM Text
-readFilePM path = do
-  s <- wrapIOM (ReadFileError path) (readTextFile (filePath path))
-  return s
+readFilePM path = wrapIOM (ReadFileError path) (readTextFile $ filePath path)
 
 parseLiterateFile
   :: Processor
@@ -148,8 +147,8 @@ parsePosString p pos = wrapM . return . M.parsePosString pos (parseFlags p) [nor
 
 -- | Extensions supported by `parseFile`.
 
-parseFileExts :: [String]
-parseFileExts = ".agda" : literateExts
+acceptableFileExts :: [String]
+acceptableFileExts = ".agda" : (fst <$> literateProcessors)
 
 parseFile
   :: Show a
@@ -159,20 +158,22 @@ parseFile
   -> String
      -- ^ The file contents. Note that the file is /not/ read from
      -- disk.
-  -> PM a
+  -> PM (a, FileType)
 parseFile p file input =
   if ".agda" `List.isSuffixOf` filePath file then
-    Agda.Syntax.Parser.parseStringFromFile (Strict.Just file) p input
+    (, AgdaFileType) <$> Agda.Syntax.Parser.parseStringFromFile
+                         (Strict.Just file) p input
   else
     go literateProcessors
   where
-    go [] = throwError InvalidExtensionError {
-                     errPath = file
-                   , errValidExts = parseFileExts
+    go [] = throwError InvalidExtensionError
+                   { errPath = file
+                   , errValidExts = acceptableFileExts
                    }
-    go ((ext, po):pos) | ext `List.isSuffixOf` filePath file =
-                         parseLiterateFile po p file input
-    go (_:pos) = go pos
+    go ((ext, (po, ft)) : pos)
+      | ext `List.isSuffixOf` filePath file =
+          (, ft) <$> parseLiterateFile po p file input
+      | otherwise = go pos
 
 ------------------------------------------------------------------------
 -- Specific parsers

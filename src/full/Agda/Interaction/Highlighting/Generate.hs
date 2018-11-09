@@ -398,7 +398,7 @@ generateTokenInfoFromSource
      -- disk.
   -> TCM CompressedFile
 generateTokenInfoFromSource file input =
-  runPM $ tokenHighlighting <$> Pa.parseFile Pa.tokensParser file input
+  runPM $ tokenHighlighting <$> fst <$> Pa.parseFile Pa.tokensParser file input
 
 -- | Generate and return the syntax highlighting information for the
 -- tokens in the given string, which is assumed to correspond to the

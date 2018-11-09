@@ -46,6 +46,22 @@ instance KillRange Delayed where
   killRange = id
 
 ---------------------------------------------------------------------------
+-- * File type
+---------------------------------------------------------------------------
+
+data FileType = AgdaFileType | MdFileType | RstFileType | TexFileType
+  deriving (Data, Eq, Ord)
+
+instance Pretty FileType where
+  pretty = text . show
+
+instance Show FileType where
+  show AgdaFileType = "Agda"
+  show MdFileType   = "Markdown"
+  show RstFileType  = "ReStructedText"
+  show TexFileType  = "LaTeX"
+
+---------------------------------------------------------------------------
 -- * Eta-equality
 ---------------------------------------------------------------------------
 

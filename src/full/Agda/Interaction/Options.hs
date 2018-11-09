@@ -6,6 +6,7 @@ module Agda.Interaction.Options
     , OptionsPragma
     , Flag, OptM, runOptM, OptDescr(..), ArgDescr(..)
     , Verbosity
+    , HtmlHighlight(..)
     , WarningMode(..)
     , checkOpts
     , parseStandardOptions, parseStandardOptions'
@@ -18,7 +19,6 @@ module Agda.Interaction.Options
     , defaultPragmaOptions
     , standardOptions_
     , unsafePragmaOptions
-    , isLiterate
     , mapFlag
     , usage
     , defaultLibDir
@@ -33,6 +33,7 @@ import Control.Monad.Trans
 
 import Data.IORef
 import Data.Either
+import Data.Function
 import Data.Maybe
 import Data.List                ( isSuffixOf , intercalate )
 import Data.Set                 ( Set )
@@ -65,7 +66,6 @@ import Agda.Utils.List          ( groupOn, wordsBy )
 import Agda.Utils.Monad         ( ifM, readM )
 import Agda.Utils.String        ( indent )
 import Agda.Utils.Trie          ( Trie )
-import Agda.Syntax.Parser.Literate ( literateExts )
 import qualified Agda.Utils.Trie as Trie
 
 import Agda.Version
@@ -74,13 +74,12 @@ import Paths_Agda ( getDataFileName )
 
 import qualified System.IO.Unsafe as UNSAFE (unsafePerformIO)
 
--- | This should probably go somewhere else.
-isLiterate :: FilePath -> Bool
-isLiterate file = any (`isSuffixOf` file) literateExts
-
 -- OptDescr is a Functor --------------------------------------------------
 
 type Verbosity = Trie String Int
+
+data HtmlHighlight = HighlightAll | HighlightCode | HighlightAuto
+  deriving (Show, Eq)
 
 -- Don't forget to update
 --   doc/user-manual/tools/command-line-options.rst
@@ -109,7 +108,7 @@ data CommandLineOptions = Options
   , optGenerateVimFile  :: Bool
   , optGenerateLaTeX    :: Bool
   , optGenerateHTML     :: Bool
-  , optHTMLOnlyCode     :: Bool
+  , optHTMLHighlight    :: HtmlHighlight
   , optDependencyGraph  :: Maybe FilePath
   , optLaTeXDir         :: FilePath
   , optHTMLDir          :: FilePath
@@ -213,7 +212,7 @@ defaultOptions = Options
   , optGenerateVimFile  = False
   , optGenerateLaTeX    = False
   , optGenerateHTML     = False
-  , optHTMLOnlyCode     = False
+  , optHTMLHighlight    = HighlightAll
   , optDependencyGraph  = Nothing
   , optLaTeXDir         = defaultLaTeXDir
   , optHTMLDir          = defaultHTMLDir
@@ -296,6 +295,7 @@ type Flag opts = opts -> OptM opts
 
 checkOpts :: Flag CommandLineOptions
 checkOpts opts
+  | htmlRelated = throwError htmlRelatedMessage
   | not (matches [optGHCiInteraction, optJSONInteraction, isJust . optInputFile] <= 1) =
       throwError "Choose at most one: input file, --interactive, or --interaction-json.\n"
   | or [ p opts && matches ps > 1 | (p, ps) <- exclusive ] =
@@ -303,6 +303,7 @@ checkOpts opts
   | otherwise = return opts
   where
   matches = length . filter ($ opts)
+  optionChanged opt = ((/=) `on` opt) opts defaultOptions
 
   atMostOne =
     [ optGenerateHTML
@@ -334,6 +335,17 @@ checkOpts opts
     , "--interactive and --interaction cannot be combined with"
     , "--latex, and --only-scope-checking cannot be combined with"
     , "--safe or --vim."
+    ]
+
+  htmlRelated = not (optGenerateHTML opts) &&
+    (  optionChanged optHTMLDir
+    || optionChanged optHTMLHighlight
+    || optionChanged optCSSFile
+    )
+
+  htmlRelatedMessage = unlines $
+    [ "The options --html-highlight, --css-dir and --html-dir"
+    , "only be used along with --html flag."
     ]
 
 -- | Check for unsafe pramas. Gives a list of used unsafe flags.
@@ -576,10 +588,11 @@ htmlFlag :: Flag CommandLineOptions
 htmlFlag o = return $ o { optGenerateHTML = True }
 
 htmlHighlightFlag :: String -> Flag CommandLineOptions
-htmlHighlightFlag "code" o = return $ o { optHTMLOnlyCode = True  }
-htmlHighlightFlag "all"  o = return $ o { optHTMLOnlyCode = False }
+htmlHighlightFlag "code" o = return $ o { optHTMLHighlight = HighlightCode }
+htmlHighlightFlag "all"  o = return $ o { optHTMLHighlight = HighlightAll  }
+htmlHighlightFlag "auto" o = return $ o { optHTMLHighlight = HighlightAuto  }
 htmlHighlightFlag opt    o = throwError $ "Invalid option <" ++ opt
-  ++ ">, expected <all> or <code>"
+  ++ ">, expected <all>, <auto> or <code>"
 
 dependencyGraphFlag :: FilePath -> Flag CommandLineOptions
 dependencyGraphFlag f o = return $ o { optDependencyGraph = Just f }
@@ -668,8 +681,10 @@ standardOptions =
                      defaultHTMLDir ++ ")")
     , Option []     ["css"] (ReqArg cssFlag "URL")
                     "the CSS file used by the HTML files (can be relative)"
-    , Option []     ["html-highlight"] (ReqArg htmlHighlightFlag "[code,all]")
-                    "whether to highlight only the code parts (code) or the file as a whole (all)"
+    , Option []     ["html-highlight"] (ReqArg htmlHighlightFlag "[code,all,auto]")
+                    ("whether to highlight only the code parts (code) or " ++
+                    "the file as a whole (all) or " ++
+                    "decide by source file type (auto)")
     , Option []     ["dependency-graph"] (ReqArg dependencyGraphFlag "FILE")
                     "generate a Dot file with a module dependency graph"
     , Option []     ["ignore-interfaces"] (NoArg ignoreInterfacesFlag)

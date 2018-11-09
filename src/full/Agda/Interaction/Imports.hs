@@ -37,6 +37,7 @@ import Agda.Benchmarking
 import qualified Agda.Syntax.Abstract as A
 import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Abstract.Name
+import Agda.Syntax.Common
 import Agda.Syntax.Parser
 import Agda.Syntax.Position
 import Agda.Syntax.Scope.Base
@@ -89,6 +90,7 @@ import Agda.Utils.Impossible
 
 data SourceInfo = SourceInfo
   { siSource     :: Text                  -- ^ Source code.
+  , siFileType   :: FileType              -- ^ Source file type
   , siModule     :: C.Module              -- ^ The parsed module.
   , siModuleName :: C.TopLevelModuleName  -- ^ The top-level module name.
   }
@@ -97,12 +99,13 @@ data SourceInfo = SourceInfo
 
 sourceInfo :: AbsolutePath -> TCM SourceInfo
 sourceInfo f = Bench.billTo [Bench.Parsing] $ do
-  source            <- runPM (readFilePM f)
-  parsedModule      <- runPM $
-                         parseFile moduleParser f (T.unpack source)
-  moduleName        <- moduleName f parsedModule
+  source                <- runPM $ readFilePM f
+  (parsedMod, fileType) <- runPM $
+                           parseFile moduleParser f $ T.unpack source
+  moduleName            <- moduleName f parsedMod
   return $ SourceInfo { siSource     = source
-                      , siModule     = parsedModule
+                      , siFileType   = fileType
+                      , siModule     = parsedMod
                       , siModuleName = moduleName
                       }
 
@@ -719,12 +722,12 @@ createInterface file mname isMain msi =
       reportSLn "import.iface.create" 10 $
         "  visited: " ++ List.intercalate ", " (map prettyShow visited)
 
-    (source, (pragmas, top)) <- do
+    (source, fileType, (pragmas, top)) <- do
       si <- case msi of
         Nothing -> sourceInfo file
         Just si -> return si
       case si of
-        SourceInfo {..} -> return (siSource, siModule)
+        SourceInfo {..} -> return (siSource, siFileType, siModule)
 
     modFile       <- useTC stModuleToSource
     fileTokenInfo <- Bench.billTo [Bench.Highlighting] $
@@ -860,7 +863,7 @@ createInterface file mname isMain msi =
     -- Serialization.
     reportSLn "import.iface.create" 7 $ "Starting serialization."
     i <- Bench.billTo [Bench.Serialization, Bench.BuildInterface] $ do
-      buildInterface source topLevel options
+      buildInterface source fileType topLevel options
 
     reportSLn "tc.top" 101 $ unlines $
       "Signature:" :
@@ -984,12 +987,14 @@ constructIScope i = billToPure [ Deserialization ] $
 buildInterface
   :: Text
      -- ^ Source code.
+  -> FileType
+     -- ^ Agda file? Literate Agda file?
   -> TopLevelInfo
      -- ^ 'TopLevelInfo' for the current module.
   -> [OptionsPragma]
      -- ^ Options set in @OPTIONS@ pragmas.
   -> TCM Interface
-buildInterface source topLevel pragmas = do
+buildInterface source fileType topLevel pragmas = do
     reportSLn "import.iface" 5 "Building interface..."
     let m = topLevelModuleName topLevel
     scope'  <- getScope
@@ -1026,6 +1031,7 @@ buildInterface source topLevel pragmas = do
     i <- instantiateFull $ Interface
       { iSourceHash      = hashText source
       , iSource          = source
+      , iFileType        = fileType
       , iImportedModules = mhs
       , iModuleName      = m
       , iScope           = empty -- publicModules scope
