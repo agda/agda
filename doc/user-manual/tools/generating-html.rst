@@ -28,6 +28,12 @@ option, which makes the Agda compiler:
 - converting paired ``<a class="Markup">`` tags into
   ``<pre class="agda-code">`` tags that wrap the complete Agda code
   block below
+- Output file extension as-is (i.e. `.lagda.md` becomes `.md`)
+
+This will affect all the files involved in one compilation, making
+pure Agda code files rendered without HTML footer/header as well.
+To use ``code`` with literate Agda files and ``all`` with pure Agda
+files, use ``--html-highlight=auto``, which means auto-detection.
 
 Options
 -------
@@ -39,7 +45,7 @@ Options
 :samp:`--css={URL}`
   The CSS_ file used by the HTML files (:samp:`{URL}` can be relative).
 
-:samp:`--html-highlight=[code,all]`
+:samp:`--html-highlight=[code,all,auto]`
   Highlight Agda code only or everything in the generated HTML files.
   Default: ``all``.
 

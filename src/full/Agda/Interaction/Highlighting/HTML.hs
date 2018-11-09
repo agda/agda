@@ -44,8 +44,9 @@ import Text.Blaze.Html.Renderer.Text
 
 import Paths_Agda
 
-import Agda.Interaction.Highlighting.Precise
 import Agda.Interaction.Options
+import Agda.Interaction.Highlighting.Precise
+import Agda.Interaction.Highlighting.Common
 
 import Agda.Interaction.Highlighting.Generate
   (computeUnsolvedMetaWarnings, computeUnsolvedConstraints)
@@ -78,17 +79,19 @@ defaultCSSFile = "Agda.css"
 --   This function should only be called after type checking has
 --   completed successfully.
 
+type PageGen = FilePath -> Bool -> String -> C.TopLevelModuleName ->
+    Text -> CompressedFile -> TCM ()
+
 generateHTML :: TCM ()
 generateHTML = generateHTMLWithPageGen pageGen
   where
-  pageGen ::
-    FilePath -> C.TopLevelModuleName -> Text -> CompressedFile -> TCM ()
-  pageGen dir mod contents hinfo = generatePage renderer dir mod
+  pageGen :: PageGen
+  pageGen dir pc ext mod contents hinfo =
+    generatePage (renderer pc) ext dir mod
     where
-    renderer :: FilePath -> Bool -> FilePath -> Text
-    renderer css htmlHighlight _ =
-      page css htmlHighlight mod $
-      code htmlHighlight $ tokenStream contents hinfo
+    renderer :: Bool -> FilePath -> FilePath -> Text
+    renderer asIs css _ =
+      page css asIs mod $ code asIs $ tokenStream contents hinfo
 
 -- | Prepare information for HTML page generation.
 --
@@ -97,8 +100,7 @@ generateHTML = generateHTMLWithPageGen pageGen
 --   highlighting information.
 
 generateHTMLWithPageGen
-  :: (FilePath ->
-      C.TopLevelModuleName -> Text -> CompressedFile -> TCM ())
+  :: PageGen
      -- ^ Page generator.
   -> TCM ()
 generateHTMLWithPageGen generatePage = do
@@ -106,6 +108,7 @@ generateHTMLWithPageGen generatePage = do
 
       -- There is a default directory given by 'defaultHTMLDir'
       let dir = optHTMLDir options
+      let htmlHighlight = optHTMLHighlight options
       liftIO $ createDirectoryIfMissing True dir
 
       -- If the default CSS file should be used, then it is copied to
@@ -123,8 +126,11 @@ generateHTMLWithPageGen generatePage = do
       -- Pull source code and highlighting info from the state and
       -- generate all the web pages.
       mapM_ (\(n, mi) ->
-              let i = TCM.miInterface mi in
-              generatePage dir n
+              let i  = TCM.miInterface mi
+                  ft = TCM.iFileType i in
+              generatePage dir
+                (highlightOnlyCode htmlHighlight ft)
+                (highlightedFileExt htmlHighlight ft) n
                 (TCM.iSource i) (TCM.iHighlighting i)) .
         Map.toList =<< TCM.getVisitedModules
 
@@ -138,19 +144,17 @@ modToFile m ext =
 -- | Generates a highlighted, hyperlinked version of the given module.
 
 generatePage
-  :: (FilePath ->
-      Bool -> FilePath -> Text)      -- ^ Page renderer.
+  :: (FilePath -> FilePath -> Text)  -- ^ Page renderer.
+  -> String                          -- ^ Output file extension.
   -> FilePath                        -- ^ Directory in which to create
                                      --   files.
   -> C.TopLevelModuleName            -- ^ Module to be highlighted.
   -> TCM ()
-generatePage renderPage dir mod = do
+generatePage renderPage ext dir mod = do
   f   <- fromMaybe __IMPOSSIBLE__ . Map.lookup mod <$> useTC TCM.stModuleToSource
   css <- fromMaybe defaultCSSFile . optCSSFile <$> TCM.commandLineOptions
-  pc  <- optHTMLOnlyCode <$> TCM.commandLineOptions
-  ext <- optHTMLOutputExt <$> TCM.commandLineOptions
   let target = dir </> modToFile mod ext
-  let html = renderPage css pc $ filePath f
+  let html = renderPage css $ filePath f
   TCM.reportSLn "html" 1 $ "Generating HTML for " ++
                            render (pretty mod) ++
                            " (" ++ target ++ ")."
@@ -171,8 +175,8 @@ page :: FilePath              -- ^ URL to the CSS file.
      -> Text
 page css htmlHighlight modName pageContent =
   renderHtml $ if htmlHighlight
-  then pageContent
-  else docTypeHtml $ hdr <> rest
+               then pageContent
+               else docTypeHtml $ hdr <> rest
   where
 
     hdr = Html5.head $ mconcat
@@ -204,7 +208,7 @@ tokenStream contents info =
 
 -- | Constructs the HTML displaying the code.
 
-code :: Bool          -- ^ Whether to generate non-code contents as-is
+code :: Bool    -- ^ Whether to generate non-code contents as-is
      -> [(Int, String, Aspects)]
      -> Html
 code asIs = mconcat . if asIs

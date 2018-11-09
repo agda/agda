@@ -206,14 +206,23 @@ Pragmas and options
   written using `--omega-in-omega` is still compatible with normal
   universe-polymorphic code and can be used in such files.
 
-* New option `--html-highlight=[code,all]`.
+* New option `--html-highlight=[code,all,auto]`.
 
   The option `--html-highlight=code` makes the HTML-backend generate
-  files with: no HTML footer/header, Agda codes highlighted and
-  other parts as-is.
+  files with:
+
+  0. No HTML footer/header
+  1. Agda codes highlighted
+  2. Other parts as-is
+  3. Output file extension as-is (i.e. `.lagda.md` becomes `.md`)
 
   This makes it possible to use an ordinary markdown processor
   to render the generated HTML.
+
+  This will affect all the files involved in one compilation, making
+  pure Agda code files rendered without HTML footer/header as well.
+  To use `code` with literate Agda files and `all` with pure Agda
+  files, use `--html-highlight=auto`, which means auto-detection.
 
   The old and default behaviour is still `--html-highlight=all`.
 

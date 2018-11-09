@@ -6,6 +6,7 @@ module Agda.Interaction.Options
     , OptionsPragma
     , Flag, OptM, runOptM, OptDescr(..), ArgDescr(..)
     , Verbosity
+    , HtmlHighlight(..)
     , WarningMode(..)
     , checkOpts
     , parseStandardOptions, parseStandardOptions'
@@ -77,6 +78,9 @@ import qualified System.IO.Unsafe as UNSAFE (unsafePerformIO)
 
 type Verbosity = Trie String Int
 
+data HtmlHighlight = HighlightAll | HighlightCode | HighlightAuto
+  deriving (Show, Eq)
+
 -- Don't forget to update
 --   doc/user-manual/tools/command-line-options.rst
 -- if you make changes to the command-line options!
@@ -104,8 +108,7 @@ data CommandLineOptions = Options
   , optGenerateVimFile  :: Bool
   , optGenerateLaTeX    :: Bool
   , optGenerateHTML     :: Bool
-  , optHTMLOnlyCode     :: Bool
-  , optHTMLOutputExt    :: String
+  , optHTMLHighlight    :: HtmlHighlight
   , optDependencyGraph  :: Maybe FilePath
   , optLaTeXDir         :: FilePath
   , optHTMLDir          :: FilePath
@@ -209,8 +212,7 @@ defaultOptions = Options
   , optGenerateVimFile  = False
   , optGenerateLaTeX    = False
   , optGenerateHTML     = False
-  , optHTMLOnlyCode     = False
-  , optHTMLOutputExt    = "html"
+  , optHTMLHighlight    = HighlightAll
   , optDependencyGraph  = Nothing
   , optLaTeXDir         = defaultLaTeXDir
   , optHTMLDir          = defaultHTMLDir
@@ -335,16 +337,15 @@ checkOpts opts
     , "--safe or --vim."
     ]
 
-  htmlRelated = optGenerateHTML opts &&
+  htmlRelated = not (optGenerateHTML opts) &&
     (  optionChanged optHTMLDir
-    || optionChanged optHTMLOnlyCode
-    || optionChanged optHTMLOutputExt
+    || optionChanged optHTMLHighlight
     || optionChanged optCSSFile
     )
 
   htmlRelatedMessage = unlines $
-    [ "The options --html-highlight, --html-output-extention, --css-dir"
-    , "and --html-dir can only be used along with --html flag."
+    [ "The options --html-highlight, --css-dir and --html-dir"
+    , "only be used along with --html flag."
     ]
 
 -- | Check for unsafe pramas. Gives a list of used unsafe flags.
@@ -587,14 +588,11 @@ htmlFlag :: Flag CommandLineOptions
 htmlFlag o = return $ o { optGenerateHTML = True }
 
 htmlHighlightFlag :: String -> Flag CommandLineOptions
-htmlHighlightFlag "code" o = return $ o { optHTMLOnlyCode = True  }
-htmlHighlightFlag "all"  o = return $ o { optHTMLOnlyCode = False }
+htmlHighlightFlag "code" o = return $ o { optHTMLHighlight = HighlightCode }
+htmlHighlightFlag "all"  o = return $ o { optHTMLHighlight = HighlightAll  }
+htmlHighlightFlag "auto" o = return $ o { optHTMLHighlight = HighlightAuto  }
 htmlHighlightFlag opt    o = throwError $ "Invalid option <" ++ opt
-  ++ ">, expected <all> or <code>"
-
--- TODO maybe validate file extension here?
-htmlOutputExtFlag :: String -> Flag CommandLineOptions
-htmlOutputExtFlag ext o = return $ o { optHTMLOutputExt = ext }
+  ++ ">, expected <all>, <auto> or <code>"
 
 dependencyGraphFlag :: FilePath -> Flag CommandLineOptions
 dependencyGraphFlag f o = return $ o { optDependencyGraph = Just f }
@@ -683,10 +681,10 @@ standardOptions =
                      defaultHTMLDir ++ ")")
     , Option []     ["css"] (ReqArg cssFlag "URL")
                     "the CSS file used by the HTML files (can be relative)"
-    , Option []     ["html-highlight"] (ReqArg htmlHighlightFlag "[code,all]")
-                    "whether to highlight only the code parts (code) or the file as a whole (all)"
-    , Option []     ["html-output-extension"] (ReqArg htmlOutputExtFlag "EXT")
-                    "extension of the outputed html files (default: html)"
+    , Option []     ["html-highlight"] (ReqArg htmlHighlightFlag "[code,all,auto]")
+                    ("whether to highlight only the code parts (code) or " ++
+                    "the file as a whole (all) or " ++
+                    "decide by source file type (auto)")
     , Option []     ["dependency-graph"] (ReqArg dependencyGraphFlag "FILE")
                     "generate a Dot file with a module dependency graph"
     , Option []     ["ignore-interfaces"] (NoArg ignoreInterfacesFlag)
