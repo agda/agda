@@ -620,11 +620,21 @@ checkPrimitive :: Info.DefInfo -> QName -> A.Expr -> TCM ()
 checkPrimitive i x e =
     traceCall (CheckPrimitive (getRange i) (qnameName x) e) $ do  -- TODO!! (qnameName)
     (name, PrimImpl t' pf) <- lookupPrimitiveFunctionQ x
-    -- Primitive functions on nats are BUILTIN not 'primitive'
+    -- Certain "primitive" functions are BUILTIN rather than
+    -- primitive.
     let builtinPrimitives =
-          [ "primNatPlus", "primNatMinus" , "primNatTimes"
-          , "primNatDivSucAux", "primNatModSucAux"
-          , "primNatEquality", "primNatLess" ]
+          [ "primNatPlus"
+          , "primNatMinus"
+          , "primNatTimes"
+          , "primNatDivSucAux"
+          , "primNatModSucAux"
+          , "primNatEquality"
+          , "primNatLess"
+          , "primLevelZero"
+          , "primLevelSuc"
+          , "primLevelMax"
+          , "primSetOmega"
+          ]
     when (elem name builtinPrimitives) $ typeError $ NoSuchPrimitiveFunction name
     t <- isType_ e
     noConstraints $ equalType t t'

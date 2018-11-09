@@ -1,0 +1,4 @@
+Issue3318-2.agda:2,3-19
+There is no primitive function called primLevelSuc
+when checking that the type of the primitive function primLevelSuc
+is _
