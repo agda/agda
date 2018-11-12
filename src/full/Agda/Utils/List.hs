@@ -17,6 +17,11 @@ import qualified Agda.Utils.Bag as Bag
 
 import Agda.Utils.Tuple
 
+-- | Append a single element at the end.
+--   Time: O(length); use only on small lists.
+snoc :: [a] -> a -> [a]
+snoc xs x = xs ++ [x]
+
 -- | Case distinction for lists, with list first.
 --   Cf. 'Agda.Utils.Null.ifNull'.
 caseList :: [a] -> b -> (a -> [a] -> b) -> b

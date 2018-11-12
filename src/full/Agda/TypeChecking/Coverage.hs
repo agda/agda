@@ -339,10 +339,13 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
           return $ CoverResult (SplittingDone (size tel)) Set.empty [] Set.empty
         Right (Covering n scs, x) -> do
           cs <- do
-            mcomp <- getPrimitiveName' builtinHComp
-            case List.find (\ (x,y) -> case x of SplitCon c -> Just c == mcomp; _ -> False) scs of
-                  Just (_,new_sc) -> (cs ++) . (:[]) <$> createMissingHCompClause f n x sc new_sc
-                  Nothing ->  return cs
+            let fallback = return cs
+            caseMaybeM (getPrimitiveName' builtinHComp) fallback $ \ comp -> do
+            let isComp = \case
+                  SplitCon c -> comp == c
+                  _ -> False
+            caseMaybe (List.find (isComp . fst) scs) fallback $ \ (_, newSc) -> do
+            snoc cs <$> createMissingHCompClause f n x sc newSc
           results <- mapM (cover f cs) (map snd scs)
           let trees = map coverSplitTree results
               useds = map coverUsedClauses results
