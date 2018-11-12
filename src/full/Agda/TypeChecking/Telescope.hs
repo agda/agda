@@ -150,7 +150,7 @@ varDependencies tel = allDependencies IntSet.empty
     ts = flattenTel tel
 
     directDependencies :: Int -> IntSet
-    directDependencies i = allFreeVars $ ts !! (n-1-i)
+    directDependencies i = allFreeVars $ indexWithDefault __IMPOSSIBLE__ ts (n-1-i)
 
     allDependencies :: IntSet -> IntSet -> IntSet
     allDependencies =
@@ -211,7 +211,8 @@ splitTelescopeExact is tel = guard ok $> SplitTel tel1 tel2 perm
     checkDependencies soFar []     = True
     checkDependencies soFar (j:js) = ok && checkDependencies (IntSet.insert j soFar) js
       where
-        fv' = allFreeVars $ ts0 !! (n-1-j)
+        fv' = allFreeVars $  -- newline because of CPP
+                indexWithDefault __IMPOSSIBLE__ ts0 (n-1-j)
         fv  = fv' `IntSet.intersection` IntSet.fromAscList [ 0 .. n-1 ]
         ok  = fv `IntSet.isSubsetOf` soFar
 

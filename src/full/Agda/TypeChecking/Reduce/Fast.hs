@@ -527,8 +527,9 @@ extendEnv p (Env xs) = Env (p : xs)
 
 -- | Unsafe.
 lookupEnv_ :: Int -> Env s -> Pointer s
-lookupEnv_ i (Env e) = e !! i
+lookupEnv_ i (Env e) = indexWithDefault __IMPOSSIBLE__ e i
 
+-- Andreas, 2018-11-12, which isn't this just Agda.Utils.List.!!! ?
 lookupEnv :: Int -> Env s -> Maybe (Pointer s)
 lookupEnv i e | i < n     = Just (lookupEnv_ i e)
               | otherwise = Nothing

@@ -176,7 +176,8 @@ getUniqueCompilerPragma backend q = do
   case ps of
     []  -> return Nothing
     [p] -> return $ Just p
-    _   -> setCurrentRange (ps !! 1) $
+    (_:p1:_) ->
+      setCurrentRange p1 $
             genericDocError $
                   hang (text ("Conflicting " ++ backend ++ " pragmas for") <+> pretty q <+> "at") 2 $
                        vcat [ "-" <+> pretty (getRange p) | p <- ps ]

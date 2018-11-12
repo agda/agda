@@ -1,7 +1,9 @@
-
+{-# LANGUAGE CPP #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Agda.Compiler.Treeless.Pretty () where
+
+import Prelude hiding ((!!)) -- don't use partial functions!
 
 import Control.Arrow ((&&&), (***), first, second)
 import Control.Monad.Reader
@@ -11,6 +13,10 @@ import qualified Data.Map as Map
 import Agda.Syntax.Treeless
 import Agda.Compiler.Treeless.Subst
 import Agda.Utils.Pretty
+import Agda.Utils.List
+
+#include "undefined.h"
+import Agda.Utils.Impossible
 
 data PEnv = PEnv { pPrec :: Int
                  , pFresh :: [String]
@@ -54,7 +60,10 @@ prec :: Int -> P a -> P a
 prec p = local $ \ e -> e { pPrec = p }
 
 name :: Int -> P String
-name x = asks $ (!! x) . (++ map (("^" ++) . show) [1..]) . pBound
+name x = asks
+  $ (\ xs -> indexWithDefault __IMPOSSIBLE__ xs x)
+  . (++ map (("^" ++) . show) [1..])
+  . pBound
 
 runP :: P a -> a
 runP p = runReader p PEnv{ pPrec = 0, pFresh = names, pBound = [] }

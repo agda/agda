@@ -16,7 +16,7 @@ module Agda.TypeChecking.Coverage
   , normaliseProjP
   ) where
 
-import Prelude hiding (null)
+import Prelude hiding (null, (!!))  -- do not use partial functions like !!
 
 import Control.Monad
 import Control.Monad.Reader
@@ -228,7 +228,7 @@ coverageCheck f t cs = do
   -- report a warning if there are clauses that are not preserved as
   -- definitional equalities and --exact-split is enabled
   unless (null noex) $ do
-      let noexclauses = map (cs1 !!) $ Set.toList noex
+      let noexclauses = map (indexWithDefault __IMPOSSIBLE__ cs1) $ Set.toList noex
       setCurrentRange (map clauseLHSRange noexclauses) $
         warning $ CoverageNoExactSplit f $ noexclauses
   return splitTree
@@ -272,7 +272,7 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
   case match cs' ps of
     Yes (i,mps) -> do
       exact <- allM mps isTrivialPattern
-      let noExactClause = if exact || clauseCatchall (cs !! i)
+      let noExactClause = if exact || clauseCatchall (indexWithDefault __IMPOSSIBLE__ cs i)
                           then Set.empty
                           else Set.singleton i
       reportSLn "tc.cover.cover" 10 $ "pattern covered by clause " ++ show i
@@ -1086,7 +1086,7 @@ lookupPatternVar SClause{ scTel = tel, scPats = pats } x = arg $>
             else fromMaybe __IMPOSSIBLE__ $ permPicks perm !!! k
         perm = fromMaybe __IMPOSSIBLE__ $ dbPatPerm $ fromSplitPatterns pats
         k = size tel - x - 1
-        arg = telVars (size tel) tel !! k
+        arg = indexWithDefault __IMPOSSIBLE__ (telVars (size tel) tel) k
 
 -- | @split' ind splitClause x = return res@
 --   splits @splitClause@ at pattern var @x@ (de Bruijn index).

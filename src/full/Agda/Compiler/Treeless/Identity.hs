@@ -1,6 +1,9 @@
+{-# LANGUAGE CPP #-}
 
 module Agda.Compiler.Treeless.Identity
   ( detectIdentityFunctions ) where
+
+import Prelude hiding ((!!))  -- don't use partial functions
 
 import Control.Applicative ( Alternative((<|>), empty) )
 import Data.Foldable (foldMap)
@@ -11,7 +14,12 @@ import qualified Data.List as List
 import Agda.Syntax.Treeless
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Monad
+
 import Agda.Utils.Lens
+import Agda.Utils.List
+
+#include "undefined.h"
+import Agda.Utils.Impossible
 
 detectIdentityFunctions :: QName -> TTerm -> TCM TTerm
 detectIdentityFunctions q t =
@@ -49,7 +57,7 @@ recursiveIdentity q t =
         identityArgs a args =
           length args == a && and (zipWith match (reverse args) [0..])
 
-        proj x args = reverse args !! x
+        proj x args = indexWithDefault __IMPOSSIBLE__ (reverse args) x
 
         match TErased              _  = True
         match (TVar z)             y = z == y

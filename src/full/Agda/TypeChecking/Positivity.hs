@@ -483,10 +483,8 @@ instance ComputeOccurrences Term where
     Var i args -> do
       vars <- asks vars
       occs <- occurrences args
-      -- Apparently some development version of GHC chokes if the
-      -- following line is replaced by vars ! i.
-      let mi | i < length vars = vars !! i
-             | otherwise       = flip trace __IMPOSSIBLE__ $
+      let mi      = indexWithDefault unbound vars i
+          unbound = flip trace __IMPOSSIBLE__ $
                  "impossible: occurrence of de Bruijn index " ++ show i ++
                  " in vars " ++ show vars ++ " is unbound"
       return $ maybe emptyOB OccursHere mi >+< OccursAs VarArg occs

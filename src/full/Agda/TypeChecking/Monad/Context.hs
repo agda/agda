@@ -65,7 +65,7 @@ inTopContext cont = do
 
 -- | Delete the last @n@ bindings from the context.
 --
---   Doesn't update checkpoints!! Use `updateContext rho (drop n)` instead,
+--   Doesn't update checkpoints! Use `updateContext rho (drop n)` instead,
 --   for an appropriate substitution `rho`.
 {-# SPECIALIZE escapeContext :: Int -> TCM a -> TCM a #-}
 escapeContext :: MonadTCM tcm => Int -> tcm a -> tcm a

@@ -317,10 +317,10 @@ varCount = size . varTel
 
 -- | Get the type of the i'th variable in the given state
 getVarType :: Int -> UnifyState -> Dom Type
-getVarType i s = if i < 0 then __IMPOSSIBLE__ else (flattenTel $ varTel s) !! i
+getVarType i s = indexWithDefault __IMPOSSIBLE__ (flattenTel $ varTel s) i
 
 getVarTypeUnraised :: Int -> UnifyState -> Dom Type
-getVarTypeUnraised i s = if i < 0 then __IMPOSSIBLE__ else snd <$> (telToList $ varTel s) !! i
+getVarTypeUnraised i s = snd <$> indexWithDefault __IMPOSSIBLE__ (telToList $ varTel s) i
 
 eqCount :: UnifyState -> Int
 eqCount = size . eqTel
@@ -330,20 +330,20 @@ eqCount = size . eqTel
 --   lives in the varTel++eqTel telescope
 getEquality :: Int -> UnifyState -> Equality
 getEquality k UState { eqTel = eqs, eqLHS = lhs, eqRHS = rhs } =
-  if k < 0 then __IMPOSSIBLE__ else
-    Equal (flattenTel eqs !! k) (unArg $ lhs !! k) (unArg $ rhs !! k)
+    Equal (indexWithDefault __IMPOSSIBLE__ (flattenTel eqs) k)
+          (unArg $ indexWithDefault __IMPOSSIBLE__ lhs k)
+          (unArg $ indexWithDefault __IMPOSSIBLE__ rhs k)
 
 -- | As getEquality, but with the unraised type
 getEqualityUnraised :: Int -> UnifyState -> Equality
 getEqualityUnraised k UState { eqTel = eqs, eqLHS = lhs, eqRHS = rhs } =
-  if k < 0 then __IMPOSSIBLE__ else
-    Equal (snd <$> (telToList eqs) !! k)
-          (unArg $ lhs !! k)
-          (unArg $ rhs !! k)
+    Equal (snd <$> indexWithDefault __IMPOSSIBLE__ (telToList eqs) k)
+          (unArg $ indexWithDefault __IMPOSSIBLE__ lhs k)
+          (unArg $ indexWithDefault __IMPOSSIBLE__ rhs k)
 
 getEqInfo :: Int -> UnifyState -> ArgInfo
 getEqInfo k UState { eqTel = eqs } =
-  if k < 0 then __IMPOSSIBLE__ else domInfo $ telToList eqs !! k
+  domInfo $ indexWithDefault __IMPOSSIBLE__ (telToList eqs) k
 
 -- | Add a list of equations to the front of the equation telescope
 addEqs :: Telescope -> [Arg Term] -> [Arg Term] -> UnifyState -> UnifyState
@@ -1069,7 +1069,7 @@ unifyStep s EtaExpandVar{ expandVar = fi, expandVarRecordType = d , expandVarPar
 
     projFlexKind :: Int -> FlexibleVarKind
     projFlexKind j = case flexKind fi of
-      RecordFlex ks -> fromMaybe ImplicitFlex $ ks !!! j
+      RecordFlex ks -> indexWithDefault ImplicitFlex ks j
       ImplicitFlex  -> ImplicitFlex
       DotFlex       -> DotFlex
       OtherFlex     -> OtherFlex
@@ -1123,7 +1123,8 @@ unifyStep s (StripSizeSuc k u v) = do
 
 unifyStep s (SkipIrrelevantEquation k) = do
   let lhs = eqLHS s
-      (s', sigma) = solveEq k (DontCare $ unArg $ lhs !! k) s
+      (s', sigma) =  -- newline because of CPP
+        solveEq k (DontCare $ unArg $ indexWithDefault __IMPOSSIBLE__ lhs k) s
   tellUnifyProof sigma
   return $ Unifies s'
 

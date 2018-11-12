@@ -289,7 +289,7 @@ Example:
 
   test : (s : Nat × Stream Nat) (t : Stream Nat) → SEq (delay s) t → SEq t (delay s)
   ~force (test (a     , as) t p) with force t
-  ~force (test (suc n , as) t p) | b , bs = {!!}
+  ~force (test (suc n , as) t p) | b , bs = ?
 @
 
 With function:
@@ -339,7 +339,7 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
   -- instantiations from qs, so we make sure
   -- that t is the top-level type of the parent function and add patterns for
   -- the module parameters to ps before stripping.
-  let paramPat i _ = A.VarP $ A.BindName (cxtNames !! i)
+  let paramPat i _ = A.VarP $ A.BindName $ indexWithDefault __IMPOSSIBLE__ cxtNames i
       ps' = zipWith (fmap . fmap . paramPat) [0..] (take npars qs) ++ ps
   psi <- insertImplicitPatternsT ExpandLast ps' t
   reportSDoc "tc.with.strip" 10 $ vcat

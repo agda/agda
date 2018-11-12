@@ -618,7 +618,7 @@ checkAxiom funSig i info0 mp x e = whenAbstractFreezeMetasAfter i $ do
 -- | Type check a primitive function declaration.
 checkPrimitive :: Info.DefInfo -> QName -> A.Expr -> TCM ()
 checkPrimitive i x e =
-    traceCall (CheckPrimitive (getRange i) (qnameName x) e) $ do  -- TODO!! (qnameName)
+    traceCall (CheckPrimitive (getRange i) (qnameName x) e) $ do  -- TODO! (qnameName)
     (name, PrimImpl t' pf) <- lookupPrimitiveFunctionQ x
     -- Primitive functions on nats are BUILTIN not 'primitive'
     let builtinPrimitives =

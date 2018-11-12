@@ -220,7 +220,7 @@ checkFunDefS :: Type             -- ^ the type we expect the function to have
              -> TCM ()
 checkFunDefS t ai delayed extlam with i name withSub cs = do
 
-    traceCall (CheckFunDefCall (getRange i) (qnameName name) cs) $ do   -- TODO!! (qnameName)
+    traceCall (CheckFunDefCall (getRange i) (qnameName name) cs) $ do   -- TODO! (qnameName)
         reportSDoc "tc.def.fun" 10 $
           sep [ "checking body of" <+> prettyTCM name
               , nest 2 $ ":" <+> prettyTCM t

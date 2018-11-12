@@ -1337,7 +1337,7 @@ equalLevel' a b = do
       -- to the maximum
       as <- return $ [ a | a <- as, not $ a `isStrictlySubsumedBy` bs ]
       bs <- return $ [ b | b <- bs, not $ b `isStrictlySubsumedBy` as ]
-      -- Andreas, 2013-10-31 remove common terms (that don't contain metas!!)
+      -- Andreas, 2013-10-31 remove common terms (that don't contain metas!)
       -- THAT's actually UNSOUND when metas are instantiated, because
       --     max a b == max a c  does not imply  b == c
       -- as <- return $ Set.fromList $ closed0 as

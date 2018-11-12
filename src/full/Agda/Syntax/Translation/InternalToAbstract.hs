@@ -373,7 +373,7 @@ reifyDisplayFormP f ps wps = do
               -- even the pattern variables @n < len@ can be
               -- applied to some args @vs@.
               e <- if n < len
-                   then return $ A.patternToExpr $ namedArg $ ps !! n
+                   then return $ A.patternToExpr $ namedArg $ indexWithDefault __IMPOSSIBLE__ ps n
                    else reify (I.var (n - len))
               apps e =<< argsToExpr vs
             _ -> return underscore

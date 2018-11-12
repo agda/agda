@@ -422,7 +422,7 @@ instance Match Type NLPat Term where
         _ -> no ""
       PBoundVar i ps -> case v of
         Var i' es | i == i' -> do
-          let ti = unDom $ flattenTel k !! i
+          let ti = unDom $ indexWithDefault __IMPOSSIBLE__ (flattenTel k) i
           match r gamma k (ti , var i) ps es
         _ | Pi a b <- unEl t -> do
           let ai    = domInfo a

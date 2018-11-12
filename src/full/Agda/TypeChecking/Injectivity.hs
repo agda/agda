@@ -209,8 +209,7 @@ instantiateVarHeads f es m = runMaybeT $ updateHeads (const . instHead) m
   where
     instHead :: TermHead -> MaybeT TCM TermHead
     instHead h@(VarHead i)
-      | length es > i,
-        Apply arg <- es !! i = MaybeT $ headSymbol' (unArg arg)
+      | Just (Apply arg) <- es !!! i = MaybeT $ headSymbol' (unArg arg)
       | otherwise = empty   -- impossible?
     instHead h = return h
 

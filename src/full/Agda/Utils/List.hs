@@ -90,6 +90,18 @@ initMaybe = fmap fst . initLast
 (x : _)  !!! 0         = Just x
 (_ : xs) !!! n         = xs !!! (n - 1)
 
+-- | Lookup function with default value for index out of range.
+--   The name is chosen akin to 'Data.List.genericIndex'.
+indexWithDefault :: a -> [a] -> Int -> a
+indexWithDefault a []       _ = a
+indexWithDefault a (x : _)  0 = x
+indexWithDefault a (_ : xs) n = indexWithDefault a xs (n - 1)
+
+-- | Find an element satisfying a predicate and return it with its index.
+--   TODO: more efficient implementation!?
+findWithIndex :: (a -> Bool) -> [a] -> Maybe (a, Int)
+findWithIndex p as = headMaybe $ filter (p . fst) $ zip as [0..]
+
 -- | downFrom n = [n-1,..1,0]
 downFrom :: Integral a => a -> [a]
 downFrom n | n <= 0     = []

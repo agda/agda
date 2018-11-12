@@ -12,6 +12,7 @@ import Agda.TypeChecking.Free
 import Agda.TypeChecking.Substitute.DeBruijn
 
 import Agda.Utils.Empty
+import Agda.Utils.List
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -202,9 +203,7 @@ compactS err us = prependS err us idS
 
 -- | Γ ⊢ (strengthenS ⊥ |Δ|) : Γ,Δ
 strengthenS :: Empty -> Int -> Substitution' a
-strengthenS err n
-  | n < 0     = __IMPOSSIBLE__
-  | otherwise = iterate (Strengthen err) idS !! n
+strengthenS err = indexWithDefault __IMPOSSIBLE__ $ iterate (Strengthen err) idS
 
 lookupS :: Subst a a => Substitution' a -> Nat -> a
 lookupS rho i = case rho of

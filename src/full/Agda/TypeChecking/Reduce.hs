@@ -1122,7 +1122,7 @@ instance (InstantiateFull a) => InstantiateFull (Type' a) where
       El <$> instantiateFull' s <*> instantiateFull' t
 
 instance InstantiateFull Term where
-    instantiateFull' v = etaOnce =<< do -- Andreas, 2010-11-12 DONT ETA!! eta-reduction breaks subject reduction
+    instantiateFull' v = etaOnce =<< do -- Andreas, 2010-11-12 DONT ETA!? eta-reduction breaks subject reduction
 -- but removing etaOnce now breaks everything
       v <- instantiate' v
       case v of

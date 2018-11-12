@@ -85,10 +85,10 @@ canProject :: QName -> Term -> Maybe (Arg Term)
 canProject f v =
   case v of
     (Con (ConHead _ _ fs) _ vs) -> do
-      i <- List.findIndex ((f==) . unArg) fs
+      (fld, i) <- findWithIndex ((f==) . unArg) fs
       -- Andreas, 2018-06-12, issue #2170
       -- The ArgInfo from the ConHead is more accurate (relevance subtyping!).
-      setArgInfo (getArgInfo $ fs !! i) <.> isApplyElim =<< headMaybe (drop i vs)
+      setArgInfo (getArgInfo fld) <.> isApplyElim =<< headMaybe (drop i vs)
     _ -> Nothing
 
 -- | Eliminate a constructed term.
@@ -102,11 +102,11 @@ conApp ch@(ConHead c _ fs) ci args (Proj o f : es) =
         " with fields " ++ show fs ++
         " projected by " ++ show f
       isApply e = fromMaybe failure $ isApplyElim e
-      i = fromMaybe failure $ List.findIndex ((f==) . unArg) fs
+      (fld, i) = fromMaybe failure $ findWithIndex ((f==) . unArg) fs
       -- Andreas, 2018-06-12, issue #2170
       -- We safe-guard the projected value by DontCare using the ArgInfo stored at the record constructor,
       -- since the ArgInfo in the constructor application might be inaccurate because of subtyping.
-      v = maybe failure (relToDontCare (fs !! i) . argToDontCare . isApply) $ headMaybe $ drop i args
+      v = maybe failure (relToDontCare fld . argToDontCare . isApply) $ headMaybe $ drop i args
   in  applyE v es
 
   -- -- Andreas, 2016-07-20 futile attempt to magically fix ProjOrigin
