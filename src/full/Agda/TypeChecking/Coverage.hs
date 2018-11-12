@@ -188,6 +188,13 @@ coverageCheck f t cs = do
   -- used = actually used clauses for cover
   -- pss  = uncovered cases
   CoverResult splitTree used pss noex <- cover f cs sc
+
+  -- Andreas, 2018-11-12, issue #378:
+  -- some indices in @used@ and @noex@ point outside of @cs@,
+  -- since missing hcomp clauses have been added during the course of @cover@.
+  -- We simply delete theses indices from @noex@.
+  noex <- return $ List.filter (< length cs) $ Set.toList noex
+
   reportSDoc "tc.cover.top" 10 $ vcat
     [ "cover computed!"
     , text $ "used clauses: " ++ show used
@@ -232,7 +239,7 @@ coverageCheck f t cs = do
   -- report a warning if there are clauses that are not preserved as
   -- definitional equalities and --exact-split is enabled
   unless (null noex) $ do
-      let noexclauses = map (indexWithDefault __IMPOSSIBLE__ cs1) $ Set.toList noex
+      let noexclauses = map (indexWithDefault __IMPOSSIBLE__ cs1) noex
       setCurrentRange (map clauseLHSRange noexclauses) $
         warning $ CoverageNoExactSplit f $ noexclauses
   return splitTree
