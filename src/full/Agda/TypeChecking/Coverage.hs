@@ -148,7 +148,11 @@ type CoverM = ExceptT SplitError TCM
 --
 --   - Adds missing instances clauses to the signature.
 --
-coverageCheck :: QName -> Type -> [Clause] -> TCM SplitTree
+coverageCheck
+  :: QName     -- ^ Name @f@ of definition.
+  -> Type      -- ^ Absolute type (including the full parameter telescope).
+  -> [Clause]  -- ^ Clauses of @f@.  These are the very clauses of @f@ in the signature.
+  -> TCM SplitTree
 coverageCheck f t cs = do
   reportSLn "tc.cover.top" 30 $ "entering coverageCheck for " ++ show f
   (TelV gamma a, boundary) <- telViewUpToPathBoundary' (-1) t
@@ -347,8 +351,8 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
             caseMaybe (List.find (isComp . fst) scs) fallback $ \ (_, newSc) -> do
             snoc cs <$> createMissingHCompClause f n x sc newSc
           results <- mapM (cover f cs) (map snd scs)
-          let trees = map coverSplitTree results
-              useds = map coverUsedClauses results
+          let trees = map coverSplitTree      results
+              useds = map coverUsedClauses    results
               psss  = map coverMissingClauses results
               noex  = map coverNoExactClauses results
           -- Jesper, 2016-03-10  We need to remember which variables were

@@ -201,24 +201,24 @@ nextSplit (Cl ps _ : cs) = findSplit nonLazy ps <|> findSplit allAgree ps
 --   And if yes, is it a record pattern?
 properSplit :: Pattern' a -> Maybe Bool
 properSplit (ConP _ cpi _) = Just (Just PatORec == conPRecord cpi)
-properSplit DefP{} = Just False
-properSplit LitP{}  = Just False
-properSplit ProjP{} = Just False
+properSplit DefP{}    = Just False
+properSplit LitP{}    = Just False
+properSplit ProjP{}   = Just False
 properSplit IApplyP{} = Nothing
-properSplit VarP{}  = Nothing
-properSplit DotP{}  = Nothing
+properSplit VarP{}    = Nothing
+properSplit DotP{}    = Nothing
 
 -- | Is this a variable pattern?
 --
 --   Maintain invariant: @isVar = isNothing . properSplit@!
 isVar :: Pattern' a -> Bool
-isVar VarP{}  = True
-isVar DotP{}  = True
-isVar ConP{}  = False
-isVar DefP{} = False
-isVar LitP{}  = False
-isVar ProjP{} = False
 isVar IApplyP{} = True
+isVar VarP{}    = True
+isVar DotP{}    = True
+isVar ConP{}    = False
+isVar DefP{}    = False
+isVar LitP{}    = False
+isVar ProjP{}   = False
 
 -- | @splitOn single n cs@ will force expansion of catch-alls
 --   if @single@.
