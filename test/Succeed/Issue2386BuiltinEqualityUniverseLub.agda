@@ -11,9 +11,9 @@ data _≡_ {a b} {A : Set (a ⊔ b)} : (x y : A) → Set where
 
 -- The type of primErase has to match the flavor of EQUALITY
 
-primitive primErase : ∀ {a b}{A : Set (a ⊔ b)} {x y : A} → _≡_ x y → _≡_ x y
+primitive primEraseEquality : ∀ {a b}{A : Set (a ⊔ b)} {x y : A} → _≡_ x y → _≡_ x y
 
-testTM : ∀ {a b} {A : Set (a ⊔ b)} {x : A} (eq : _≡_ {a} {b} x x) → primErase {x = x} {y = x} eq ≡ refl _
+testTM : ∀ {a b} {A : Set (a ⊔ b)} {x : A} (eq : _≡_ {a} {b} x x) → primEraseEquality {x = x} {y = x} eq ≡ refl _
 testTM _ = refl _
 
 -- Testing rewrite

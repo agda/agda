@@ -37,7 +37,7 @@ tested-with:        GHC == 7.10.3
                     GHC == 8.0.2
                     GHC == 8.2.2
                     GHC == 8.4.4
-                    GHC == 8.6.1
+                    GHC == 8.6.2
 extra-source-files: CHANGELOG.md
                     README.md
                     doc/user-manual.pdf
@@ -46,7 +46,7 @@ extra-source-files: CHANGELOG.md
                     stack-8.0.2.yaml
                     stack-8.2.2.yaml
                     stack-8.4.4.yaml
-                    stack-8.6.1.yaml
+                    stack-8.6.2.yaml
 
 data-dir:           src/data
 data-files:         Agda.css
@@ -61,7 +61,8 @@ data-files:         Agda.css
                     lib/prim/Agda/Builtin/Cubical/Id.agda
                     lib/prim/Agda/Builtin/Cubical/Sub.agda
                     lib/prim/Agda/Builtin/Equality.agda
-                    lib/prim/Agda/Builtin/Erase.agda
+                    lib/prim/Agda/Builtin/Equality/Erase.agda
+                    lib/prim/Agda/Builtin/Equality/Rewrite.agda
                     lib/prim/Agda/Builtin/Float.agda
                     lib/prim/Agda/Builtin/FromNat.agda
                     lib/prim/Agda/Builtin/FromNeg.agda

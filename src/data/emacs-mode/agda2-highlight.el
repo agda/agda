@@ -295,6 +295,11 @@ If `agda2-highlight-face-groups' is nil."
   "The face used for postulates."
   :group 'agda2-highlight-faces)
 
+(defface agda2-highlight-pragma-face
+  '((t nil))
+  "The face used for (some text in) pragmas."
+  :group 'agda2-highlight-faces)
+
 (defface agda2-highlight-primitive-face
   '((t (:foreground "medium blue")))
   "The face used for primitive functions."
@@ -383,6 +388,7 @@ If `agda2-highlight-face-groups' is nil."
     (function               . agda2-highlight-function-face)
     (module                 . agda2-highlight-module-face)
     (postulate              . agda2-highlight-postulate-face)
+    (pragma                 . agda2-highlight-pragma-face)
     (primitive              . agda2-highlight-primitive-face)
     (macro                  . agda2-highlight-macro-face)
     (record                 . agda2-highlight-record-face)
@@ -416,6 +422,8 @@ The aspects currently recognised are the following:
 `number'                 Numbers.
 `operator'               Operators.
 `postulate'              Postulates.
+`pragma'                 Text occurring in pragmas that does not have
+                           a more specific (syntactic) aspect.
 `primitive'              Primitive functions.
 `primitivetype'          Primitive types (like Set and Prop).
 `macro'                  Macros.

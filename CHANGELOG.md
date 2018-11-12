@@ -1,6 +1,11 @@
 Release notes for Agda version 2.6.0
 ====================================
 
+Installation and infrastructure
+--------------------------------
+
+* Added support for GHC 8.6.2.
+
 Type checking and interaction
 -----------------------------
 
@@ -201,14 +206,23 @@ Pragmas and options
   written using `--omega-in-omega` is still compatible with normal
   universe-polymorphic code and can be used in such files.
 
-* New option `--html-highlight=[code,all]`.
+* New option `--html-highlight=[code,all,auto]`.
 
   The option `--html-highlight=code` makes the HTML-backend generate
-  files with: no HTML footer/header, Agda codes highlighted and
-  other parts as-is.
+  files with:
+
+  0. No HTML footer/header
+  1. Agda codes highlighted
+  2. Other parts as-is
+  3. Output file extension as-is (i.e. `.lagda.md` becomes `.md`)
 
   This makes it possible to use an ordinary markdown processor
   to render the generated HTML.
+
+  This will affect all the files involved in one compilation, making
+  pure Agda code files rendered without HTML footer/header as well.
+  To use `code` with literate Agda files and `all` with pure Agda
+  files, use `--html-highlight=auto`, which means auto-detection.
 
   The old and default behaviour is still `--html-highlight=all`.
 
@@ -277,6 +291,12 @@ Pragmas and options
   the same equality. `primErase eq` reduces to `refl` on the diagonal. `trustMe`
   is not a primitive anymore, it is implemented using `primErase`.
 
+  The primitive is declared in `Agda.Builtin.Equality.Erase`.
+
+* The `REWRITE` builtin is now bound to the builtin equality type from
+  `Agda.Builtin.Equality` in `Agda.Builtin.Equality.Rewrite` [Issue
+  [#3318](https://github.com/agda/agda/issues/3318)].
+
 Emacs mode
 ----------
 
@@ -297,6 +317,12 @@ Emacs mode
 
 * Commas "ʻ،⸲⸴⹁⹉、︐︑﹐﹑，､" and semi-colons "؛⁏፤꛶；︔﹔⍮⸵;" added
   to the input mode.
+
+* It is now possible to customise the highlighting of more text in
+  pragmas [Issue [#2452](https://github.com/agda/agda/issues/2452)].
+
+  Some text was already highlighted. Now there is a specific face for
+  the remaining text (`agda2-highlight-pragma-face`).
 
 LaTeX backend
 -------------
@@ -336,6 +362,31 @@ LaTeX backend
   Note that Agda code is now less likely to typeset properly out of
   the box. See the documentation for some hints about what to do if
   this affects you.
+
+* Some text was by default typeset in math mode when LuaLaTeX or
+  XeLaTeX were used, and in text mode when pdfLaTeX was used. Now text
+  mode is the default for all of these engines.
+
+* Typesetting of pragmas should now work better [Issue
+  [#2452](https://github.com/agda/agda/issues/2452)].
+
+  The `\AgdaOption` command and `AgdaOption` colour have been replaced
+  by `\AgdaPragma` and `AgdaPragma`. The `\AgdaPragma` command is used
+  where `\AgdaOption` used to be used (for certain options), but also
+  in other cases (for other options and certain other text in
+  pragmas).
+
+* There is no longer any special treatment of the character `-` [Issue
+  [#2452](https://github.com/agda/agda/issues/2452)].
+
+  This might, depending on things like what font your are using, mean
+  that the token `--` is typeset like an en dash (–). However, this is
+  not the case for at least one common monospace font (in at least one
+  setting).
+
+* The default value of `\AgdaEmptySkip` has been changed from
+  `\baselineskip` to `\abovedisplayskip`. This could mean that less
+  vertical space is used to render empty lines in code blocks.
 
 Release notes for Agda version 2.5.4.2
 ======================================

@@ -60,7 +60,7 @@ import Agda.Utils.Except
 -- 32-bit machines). Word64 does not have these problems.
 
 currentInterfaceVersion :: Word64
-currentInterfaceVersion = 20181103 * 10 + 1
+currentInterfaceVersion = 20181108 * 10 + 0
 
 -- | Encodes something. To ensure relocatability file paths in
 -- positions are replaced with module names.
@@ -170,7 +170,7 @@ decode s = do
                 <$> liftIO H.new
                 <*> return mf <*> return incs
         (r, st) <- runStateT (runExceptT (value r)) st
-        return (Just (modFile st), r)
+        return (Just $ modFile st, r)
 
   case mf of
     Nothing -> return ()

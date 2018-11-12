@@ -229,7 +229,7 @@ primBody s = maybe unimplemented (fromRight (hsVarUQ . HS.Ident) <$>) $
   , "primForceLemma" |-> return "erased"
 
   -- Erase
-  , ("primErase", Right <$> do
+  , ("primEraseEquality", Right <$> do
        refl <- primRefl
        let erase = hLam "a" $ hLam "A" $ hLam "x" $ hLam "y" $ nLam "eq" refl
        closedTerm =<< closedTermToTreeless erase

@@ -864,7 +864,7 @@ primTransHComp cmd ts nelims = do
 
                          | Just as <- allApplyElims es, [] <- recFields r -> compData (recPars r) cmd l (as <$ t) sbA sphi u u0
                      Datatype{dataPars = pars, dataIxs = ixs, dataPathCons = pcons}
-                       | null pcons, Just as <- allApplyElims es -> compData (pars+ixs) cmd l (as <$ t) sbA sphi u u0
+                       | and [null pcons | DoHComp  <- [cmd]], Just as <- allApplyElims es -> compData (pars+ixs) cmd l (as <$ t) sbA sphi u u0
                      _          -> fallback
 
                  _ -> fallback
@@ -1943,9 +1943,15 @@ decomposeInterval' t = do
             , let bsm     = (Map.fromListWith Set.union . map (id -*- Set.singleton)) bs
             ]
 
--- | @erase : {a : Level} {A : Set a} {x y : A} -> x ≡ y -> x ≡ y@
-primErase :: TCM PrimitiveImpl
-primErase = do
+-- | @primEraseEquality : {a : Level} {A : Set a} {x y : A} -> x ≡ y -> x ≡ y@
+primEraseEquality :: TCM PrimitiveImpl
+primEraseEquality = do
+  -- primEraseEquality is incompatible with --without-K
+  -- We raise an error warning if --safe is set and a mere warning otherwise
+  whenM (optWithoutK <$> pragmaOptions) $
+    ifM (Lens.getSafeMode <$> commandLineOptions)
+      {- then -} (warning SafeFlagWithoutKFlagPrimEraseEquality)
+      {- else -} (warning WithoutKFlagPrimEraseEquality)
   -- Get the name and type of BUILTIN EQUALITY
   eq   <- primEqualityName
   eqTy <- defType <$> getConstInfo eq
@@ -1955,8 +1961,8 @@ primErase = do
         Sort s -> s
         _      -> __IMPOSSIBLE__
 
-  -- Construct the type of primErase E.g., type of
-  -- @erase : {a : Level} {A : Set a} {x y : A} → eq {a} {A} x y -> eq {a} {A} x y@.
+  -- Construct the type of primEraseEquality, e.g.
+  -- @{a : Level} {A : Set a} {x y : A} → eq {a} {A} x y -> eq {a} {A} x y@.
   t <- let xeqy = pure $ El eqSort $ Def eq $ map Apply $ teleArgs eqTel in
        telePi_ (fmap hide eqTel) <$> (xeqy --> xeqy)
 
@@ -1968,7 +1974,7 @@ primErase = do
         Just ai -> Con rf ci . (:[]) . Apply . setArgInfo ai
         Nothing -> const con
 
-  -- The implementation of primTrustMe:
+  -- The implementation of primEraseEquality:
   return $ PrimImpl t $ primFun __IMPOSSIBLE__ (1 + size eqTel) $ \ ts -> do
     let (u, v) = fromMaybe __IMPOSSIBLE__ $ last2 =<< initMaybe ts
     -- Andreas, 2013-07-22.
@@ -2414,7 +2420,7 @@ primitiveFunctions = Map.fromList
   , "primShowString"      |-> mkPrimFun1 (Str . show . pretty . LitString noRange . unStr)
 
   -- Other stuff
-  , "primErase"           |-> primErase
+  , "primEraseEquality"   |-> primEraseEquality
     -- This needs to be force : A → ((x : A) → B x) → B x rather than seq because of call-by-name.
   , "primForce"           |-> primForce
   , "primForceLemma"      |-> primForceLemma

@@ -431,7 +431,7 @@ checkOpen r x dir = do
  --------------------------------------------------------------------------}
 
 concreteToAbstract_ :: ToAbstract c a => c -> ScopeM a
-concreteToAbstract_ x = toAbstract x
+concreteToAbstract_ = toAbstract
 
 concreteToAbstract :: ToAbstract c a => ScopeInfo -> c -> ScopeM a
 concreteToAbstract scope x = withScope_ scope (toAbstract x)
@@ -1152,7 +1152,7 @@ data TopLevelInfo = TopLevelInfo
 -- | The top-level module name.
 
 topLevelModuleName :: TopLevelInfo -> A.ModuleName
-topLevelModuleName topLevel = scopeCurrent (topLevelScope topLevel)
+topLevelModuleName = scopeCurrent . topLevelScope
 
 -- | Top-level declarations are always
 --   @

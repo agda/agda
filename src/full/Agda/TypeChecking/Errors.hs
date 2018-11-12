@@ -220,7 +220,9 @@ prettyWarning wng = liftTCM $ case wng of
     SafeFlagTerminating -> fsep $
       pwords "Cannot use TERMINATING pragma with safe flag."
 
-    SafeFlagPrimTrustMe -> fsep (pwords "Cannot use primTrustMe with safe flag.")
+    SafeFlagWithoutKFlagPrimEraseEquality -> fsep (pwords "Cannot use primEraseEquality with safe and without-K flags.")
+
+    WithoutKFlagPrimEraseEquality -> fsep (pwords "Using primEraseEquality with the without-K flag is inconsistent.")
 
     SafeFlagNoPositivityCheck -> fsep $
       pwords "Cannot use NO_POSITIVITY_CHECK pragma with safe flag."

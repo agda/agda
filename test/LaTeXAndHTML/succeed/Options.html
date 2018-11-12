@@ -6,9 +6,22 @@
 \begin{document}
 
 </a><a id="63" class="Markup">\begin{code}</a>
-<a id="76" class="Symbol">{-#</a> <a id="80" class="Keyword">OPTIONS</a>  <a id="89" class="Option">--no-positivity-check</a>
-             <a id="124" class="Option">--no-termination-check</a> <a id="147" class="Symbol">#-}</a>
-<a id="151" class="Markup">\end{code}</a><a id="161" class="Background">
+<a id="76" class="Symbol">{-#</a> <a id="80" class="Keyword">OPTIONS</a> <a id="88" class="Pragma">--no-positivity-check</a>
+            <a id="122" class="Pragma">--no-termination-check</a>
+            <a id="157" class="Pragma">-v</a> <a id="160" class="Pragma">0</a> <a id="162" class="Symbol">#-}</a>
+
+<a id="167" class="Symbol">{-#</a> <a id="171" class="Keyword">FOREIGN</a> <a id="179" class="Pragma">GHC</a>
+  <a id="185" class="Pragma">f</a> <a id="187" class="Pragma">::</a> <a id="190" class="Pragma">Maybe</a> <a id="196" class="Pragma">Bool</a> <a id="201" class="Pragma">-&gt;</a> <a id="204" class="Pragma">Bool</a>
+  <a id="211" class="Pragma">f</a> <a id="213" class="Pragma">Nothing</a>        <a id="228" class="Pragma">=</a> <a id="230" class="Pragma">False</a>
+  <a id="238" class="Pragma">f</a> <a id="240" class="Pragma">(Just</a>  <a id="247" class="Pragma">True)</a>   <a id="255" class="Pragma">=</a> <a id="257" class="Pragma">True</a>
+  <a id="264" class="Pragma">f</a> <a id="266" class="Pragma">(Just</a>  <a id="273" class="Pragma">False)</a>  <a id="281" class="Pragma">=</a> <a id="283" class="Pragma">False</a>
+  <a id="291" class="Symbol">#-}</a>
+
+<a id="296" class="Keyword">postulate</a>
+  <a id="A"></a><a id="308" href="Options.html#308" class="Postulate">A</a> <a id="B"></a><a id="310" href="Options.html#310" class="Postulate">B</a> <a id="312" class="Symbol">:</a> <a id="314" class="PrimitiveType">Set</a>
+
+<a id="319" class="Symbol">{-#</a> <a id="323" class="Keyword">DISPLAY</a> <a id="331" href="Options.html#308" class="Postulate">A</a> <a id="333" class="Pragma">=</a> <a id="335" href="Options.html#310" class="Postulate">B</a> <a id="337" class="Symbol">#-}</a>
+<a id="341" class="Markup">\end{code}</a><a id="351" class="Background">
 
 \end{document}
 </a></pre></body></html>

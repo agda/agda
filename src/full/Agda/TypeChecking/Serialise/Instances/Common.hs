@@ -153,6 +153,19 @@ instance EmbPrj Bool where
     valu [0] = valuN False
     valu _   = malformed
 
+instance EmbPrj FileType where
+  icod_ AgdaFileType = icodeN' IsData
+  icod_ MdFileType   = icodeN 0 IsRecord
+  icod_ RstFileType  = icodeN 1 IsRecord
+  icod_ TexFileType  = icodeN 2 IsRecord
+
+  value = vcase $ \case
+    []  -> valuN AgdaFileType
+    [0] -> valuN MdFileType
+    [1] -> valuN RstFileType
+    [2] -> valuN TexFileType
+    _   -> malformed
+
 instance EmbPrj DataOrRecord where
   icod_ IsData   = icodeN' IsData
   icod_ IsRecord = icodeN 0 IsRecord

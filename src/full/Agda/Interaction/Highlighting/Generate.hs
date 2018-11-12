@@ -398,7 +398,7 @@ generateTokenInfoFromSource
      -- disk.
   -> TCM CompressedFile
 generateTokenInfoFromSource file input =
-  runPM $ tokenHighlighting <$> Pa.parseFile Pa.tokensParser file input
+  runPM $ tokenHighlighting <$> fst <$> Pa.parseFile Pa.tokensParser file input
 
 -- | Generate and return the syntax highlighting information for the
 -- tokens in the given string, which is assumed to correspond to the
@@ -441,9 +441,7 @@ tokenHighlighting = merge . map tokenToCFile
   tokenToCFile (T.TokMarkup (i, _))             = aToF Markup (P.getRange i)
   tokenToCFile (T.TokId {})                     = mempty
   tokenToCFile (T.TokQId {})                    = mempty
-  tokenToCFile (T.TokString (i,s))
-    | "--" `isPrefixOf` s                       = aToF Option (P.getRange i)
-    | otherwise                                 = mempty
+  tokenToCFile (T.TokString (i,s))              = aToF Pragma (P.getRange i)
   tokenToCFile (T.TokDummy {})                  = mempty
   tokenToCFile (T.TokEOF {})                    = mempty
 
@@ -622,7 +620,8 @@ warningHighlighting w = case tcWarning w of
   SafeFlagPragma{}           -> mempty
   SafeFlagNonTerminating     -> mempty
   SafeFlagTerminating        -> mempty
-  SafeFlagPrimTrustMe        -> mempty
+  SafeFlagWithoutKFlagPrimEraseEquality -> mempty
+  WithoutKFlagPrimEraseEquality -> mempty
   SafeFlagNoPositivityCheck  -> mempty
   SafeFlagPolarity           -> mempty
   SafeFlagNoUniverseCheck    -> mempty

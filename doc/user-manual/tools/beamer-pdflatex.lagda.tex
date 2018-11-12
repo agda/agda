@@ -1,0 +1,51 @@
+\documentclass{beamer}
+
+% Use the input encoding UTF-8 and the font encoding T1.
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+
+% Support for Agda code.
+\usepackage{agda}
+
+% Decrease the indentation of code.
+\setlength{\mathindent}{1em}
+
+% Customised setup for certain characters.
+\usepackage{newunicodechar}
+\newunicodechar{∀}{\ensuremath{\mathnormal{\forall}}}
+\newunicodechar{→}{\ensuremath{\mathnormal{\to}}}
+\newunicodechar{₁}{\ensuremath{{}_1}}
+
+% Support for Greek letters.
+\usepackage{alphabeta}
+
+% Disable ligatures that start with '-'. Note that this affects the
+% entire document!
+\usepackage{microtype}
+\DisableLigatures[-]{encoding=T1}
+
+\begin{document}
+
+\begin{frame}
+  Some code:
+  \begin{code}
+  {-# OPTIONS --without-K --count-clusters #-}
+
+  open import Agda.Builtin.String
+
+  -- A comment with some TeX ligatures:
+  -- --, ---, ?`, !`, `, ``, ', '', <<, >>.
+
+  Θ₁ : Set → Set
+  Θ₁ = λ A → A
+
+  a-name-with--hyphens : ∀ {A : Set} → A → A
+  a-name-with--hyphens ff--fl = ff--fl
+
+  ffi : String
+  ffi = "--"
+  \end{code}
+  Note that the code is indented.
+\end{frame}
+
+\end{document}

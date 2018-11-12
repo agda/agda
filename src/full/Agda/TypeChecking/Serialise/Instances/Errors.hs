@@ -51,7 +51,7 @@ instance EmbPrj Warning where
   icod_ (SafeFlagPragma a)           = __IMPOSSIBLE__
   icod_ SafeFlagNonTerminating       = __IMPOSSIBLE__
   icod_ SafeFlagTerminating          = __IMPOSSIBLE__
-  icod_ SafeFlagPrimTrustMe          = __IMPOSSIBLE__
+  icod_ SafeFlagWithoutKFlagPrimEraseEquality    = __IMPOSSIBLE__
   icod_ SafeFlagNoPositivityCheck    = __IMPOSSIBLE__
   icod_ SafeFlagPolarity             = __IMPOSSIBLE__
   icod_ SafeFlagNoUniverseCheck      = __IMPOSSIBLE__
@@ -66,6 +66,7 @@ instance EmbPrj Warning where
   icod_ (CoverageNoExactSplit a b)   = icodeN 13 CoverageNoExactSplit a b
   icod_ (CantGeneralizeOverSorts a)  = icodeN 14 CantGeneralizeOverSorts a
   icod_ IllformedAsClause            = icodeN 15 IllformedAsClause
+  icod_ WithoutKFlagPrimEraseEquality = icodeN 16 WithoutKFlagPrimEraseEquality
 
   value = vcase valu where
       valu [0, a, b]    = valuN UnreachableClauses a b
@@ -84,6 +85,7 @@ instance EmbPrj Warning where
       valu [13, a, b]   = valuN CoverageNoExactSplit a b
       valu [14, a]      = valuN CantGeneralizeOverSorts a
       valu [15]         = valuN IllformedAsClause
+      valu [16]         = valuN WithoutKFlagPrimEraseEquality
       valu _ = malformed
 
 instance EmbPrj DeclarationWarning where

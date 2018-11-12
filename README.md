@@ -28,6 +28,6 @@ Getting Started
 Hacking on Agda
 ---------------
 
-Head to [`HACKING`](https://github.com/agda/agda/blob/master/HACKING)
+Head to [`HACKING`](https://github.com/agda/agda/blob/master/HACKING.md)
 
 [agdawiki]: http://wiki.portal.chalmers.se/agda/pmwiki.php

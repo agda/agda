@@ -1,0 +1,4 @@
+Issue3318-1.agda:2,3-20
+There is no primitive function called primLevelZero
+when checking that the type of the primitive function primLevelZero
+is _

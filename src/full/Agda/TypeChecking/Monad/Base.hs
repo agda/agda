@@ -753,6 +753,8 @@ data Interface = Interface
     -- ^ The source code. The source code is stored so that the HTML
     -- and LaTeX backends can generate their output without having to
     -- re-read the (possibly out of date) source code.
+  , iFileType        :: FileType
+    -- ^ Source file type, determined from the file extension
   , iImportedModules :: [(ModuleName, Hash)]
     -- ^ Imported modules and their hashes.
   , iModuleName      :: ModuleName
@@ -785,12 +787,13 @@ data Interface = Interface
 
 instance Pretty Interface where
   pretty (Interface
-            sourceH source importedM moduleN scope insideS signature
+            sourceH source fileT importedM moduleN scope insideS signature
             display userwarn builtin foreignCode highlighting pragmaO
             patternS warnings) =
     hang "Interface" 2 $ vcat
       [ "source hash:"         <+> (pretty . show) sourceH
       , "source:"              $$  nest 2 (text $ T.unpack source)
+      , "file type:"           <+> (pretty . show) fileT
       , "imported modules:"    <+> (pretty . show) importedM
       , "module name:"         <+> pretty moduleN
       , "scope:"               <+> (pretty . show) scope
@@ -2668,7 +2671,8 @@ data Warning
   | SafeFlagPragma [String]
   | SafeFlagNonTerminating
   | SafeFlagTerminating
-  | SafeFlagPrimTrustMe
+  | SafeFlagWithoutKFlagPrimEraseEquality
+  | WithoutKFlagPrimEraseEquality
   | SafeFlagNoPositivityCheck
   | SafeFlagPolarity
   | SafeFlagNoUniverseCheck
@@ -2710,7 +2714,8 @@ warningName w = case w of
   SafeFlagPolarity             -> SafeFlagPolarity_
   SafeFlagPostulate{}          -> SafeFlagPostulate_
   SafeFlagPragma{}             -> SafeFlagPragma_
-  SafeFlagPrimTrustMe          -> SafeFlagPrimTrustMe_
+  SafeFlagWithoutKFlagPrimEraseEquality -> SafeFlagWithoutKFlagPrimEraseEquality_
+  WithoutKFlagPrimEraseEquality -> WithoutKFlagPrimEraseEquality_
   SafeFlagTerminating          -> SafeFlagTerminating_
   TerminationIssue{}           -> TerminationIssue_
   UnreachableClauses{}         -> UnreachableClauses_

@@ -1,0 +1,4 @@
+Issue3318-4.agda:2,3-19
+There is no primitive function called primSetOmega
+when checking that the type of the primitive function primSetOmega
+is _
