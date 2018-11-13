@@ -35,7 +35,7 @@ Contributors (alphabetically sorted):
 * Guilhem Moulin
 * Nicolas Pouillard
 * Benjamin Price
-* Andrés Sicard Ramírez
+* Andrés Sicard-Ramírez
 * Andrea Vezzosi
 * Tesla Ice Zhang
 * and many more

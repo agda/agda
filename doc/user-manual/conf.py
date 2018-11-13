@@ -70,7 +70,7 @@ Adam Gundry, Daniel Gustafsson, Kuen-Bang Hou (favonia), Patrik
 Jansson, Alan Jeffrey, Wolfram Kahl, Wen Kokke, John Leo, Fredrik Lindblad,
 Francesco Mazzoli, Stefan Monnier, Darin Morrison, Guilhem Moulin,
 Nicolas Pouillard, Benjamin Price, Nobuo Yamashita, Christian Sattler,
-Makoto Takeyama, Tesla Ice Zhang.  The full list of contributors is
+Makoto Takeyama and Tesla Ice Zhang.  The full list of contributors is
 available at https://github.com/agda/agda/graphs/contributors'''
 author = u'The Agda Team'
 
