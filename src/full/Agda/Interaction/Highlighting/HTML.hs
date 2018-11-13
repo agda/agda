@@ -78,6 +78,27 @@ defaultCSSFile = "Agda.css"
 rstDelimiter :: String
 rstDelimiter = ".. raw:: html\n"
 
+-- | Determine how to highlight the file
+
+highlightOnlyCode :: HtmlHighlight -> FileType -> Bool
+highlightOnlyCode HighlightAll  _ = False
+highlightOnlyCode HighlightCode _ = True
+highlightOnlyCode HighlightAuto AgdaFileType = False
+highlightOnlyCode HighlightAuto MdFileType   = True
+highlightOnlyCode HighlightAuto RstFileType  = True
+highlightOnlyCode HighlightAuto TexFileType  = False
+
+-- | Determine the generated file extension
+
+highlightedFileExt :: HtmlHighlight -> FileType -> String
+highlightedFileExt hh ft
+  | not $ highlightOnlyCode hh ft = "html"
+  | otherwise = case ft of
+      AgdaFileType -> "html"
+      MdFileType   -> "md"
+      RstFileType  -> "rst"
+      TexFileType  -> "tex"
+
 -- | Generates HTML files from all the sources which have been
 --   visited during the type checking phase.
 --
@@ -203,10 +224,13 @@ page css htmlHighlight modName pageContent =
 
     rest = body $ pre pageContent
 
-type TokenInfo = ( Int     -- ^ Position
-                 , String  -- ^ Contents
-                 , Aspects -- ^ Info
-                 )
+-- | Position, Contents, Infomation
+
+type TokenInfo =
+  ( Int
+  , String
+  , Aspects
+  )
 
 -- | Constructs token stream ready to print.
 
