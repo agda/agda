@@ -527,7 +527,7 @@ unfoldDefinitionStep unfoldDelayed v0 f es =
           case r of
             NoReduction args1' -> do
               let es1' = map (fmap Apply) args1'
-              if null cls then do
+              if null cls && null rewr then do
                 noReduction $ applyE (Def f []) <$> do
                   traverse id $
                     map mredToBlocked es1' ++ map notBlocked es2
