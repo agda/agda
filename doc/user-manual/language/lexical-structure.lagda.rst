@@ -245,11 +245,14 @@ the contents of the top-level module need not be indented.
 Literate Agda
 -------------
 
-Agda supports `literate programming <literate_>`_ where everything in a file is
-a comment unless enclosed in ``\begin{code}``, ``\end{code}``. Literate Agda
-files have the extension ``.lagda`` instead of ``.agda``. The main use case for
-literate Agda is to generate LaTeX documents from Agda code. See
-:any:`generating-latex` for more information.
+Agda supports `literate programming <literate_>`_ with multiple typesetting
+tools like LaTeX, Markdown and ReStructuredText. For instance, with LaTeX,
+everything in a file is a comment unless enclosed in ``\begin{code}``,
+``\end{code}``. Literate Agda files have special file extensions, like
+``.lagda`` and ``.lagda.tex`` for LaTeX, ``.lagda.md`` for Markdown,
+``.lagda.rst`` for ReStructuredText instead of ``.agda``. The main use case
+for literate Agda is to generate LaTeX documents from Agda code. See
+:any:`generating-html` and :any:`generating-latex` for more information.
 
 .. code-block:: latex
 
