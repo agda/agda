@@ -15,7 +15,7 @@ You can change the way in which the code is highlighted by providing
 your own CSS file instead of the :download:`default, included one
 <../../../src/data/Agda.css>` (use the ``--css`` option).
 
-If you're using Literate Agda with markdown or reStructedText and you
+If you're using Literate Agda with Markdown or reStructedText and you
 want to highlight your Agda codes with Agda's HTML backend and render
 the rest of the content (let's call it "literate" part for convenience)
 with some another renderer, you can use the ``--html-highlight=code``
@@ -30,7 +30,7 @@ option, which makes the Agda compiler:
   block below
 - generating files with extension as-is (i.e. `.lagda.md` becomes
   `.md`, `.lagda.rst` becomes `.rst`)
-- for ReStructuredText, a ``.. raw:: html\\n`` will be inserted
+- for reStructuredText, a ``.. raw:: html`` will be inserted
   before every code blocks
 
 This will affect all the files involved in one compilation, making
