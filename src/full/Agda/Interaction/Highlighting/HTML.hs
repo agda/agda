@@ -73,25 +73,39 @@ import Agda.Utils.Impossible
 defaultCSSFile :: FilePath
 defaultCSSFile = "Agda.css"
 
+-- | The directive inserted before the rendered code blocks
+
+rstDelimiter :: String
+rstDelimiter = ".. raw:: html\n"
+
 -- | Generates HTML files from all the sources which have been
 --   visited during the type checking phase.
 --
 --   This function should only be called after type checking has
 --   completed successfully.
 
-type PageGen = FilePath -> Bool -> String -> C.TopLevelModuleName ->
-    Text -> CompressedFile -> TCM ()
+type PageGen = FilePath    -- ^ Output directory
+  -> FileType              -- ^ Source file type
+  -> Bool                  -- ^ Return value of `highlightOnlyCode`
+  -> String                -- ^ Output file extension (return
+                           --   value of `highlightedFileExt`)
+  -> C.TopLevelModuleName
+  -> Text
+  -> CompressedFile        -- ^ Highlighting information
+  -> TCM ()
 
 generateHTML :: TCM ()
 generateHTML = generateHTMLWithPageGen pageGen
   where
   pageGen :: PageGen
-  pageGen dir pc ext mod contents hinfo =
-    generatePage (renderer pc) ext dir mod
+  pageGen dir ft pc ext mod contents hinfo =
+    generatePage (renderer pc ft) ext dir mod
     where
-    renderer :: Bool -> FilePath -> FilePath -> Text
-    renderer asIs css _ =
-      page css asIs mod $ code asIs $ tokenStream contents hinfo
+    renderer :: Bool -> FileType -> FilePath -> FilePath -> Text
+    renderer onlyCode fileType css _ =
+      page css onlyCode mod $
+      code onlyCode fileType $
+      tokenStream contents hinfo
 
 -- | Prepare information for HTML page generation.
 --
@@ -128,7 +142,7 @@ generateHTMLWithPageGen generatePage = do
       mapM_ (\(n, mi) ->
               let i  = TCM.miInterface mi
                   ft = TCM.iFileType i in
-              generatePage dir
+              generatePage dir ft
                 (highlightOnlyCode htmlHighlight ft)
                 (highlightedFileExt htmlHighlight ft) n
                 (TCM.iSource i) (TCM.iHighlighting i)) .
@@ -189,12 +203,17 @@ page css htmlHighlight modName pageContent =
 
     rest = body $ pre pageContent
 
+type TokenInfo = ( Int     -- ^ Position
+                 , String  -- ^ Contents
+                 , Aspects -- ^ Info
+                 )
+
 -- | Constructs token stream ready to print.
 
 tokenStream
      :: Text           -- ^ The contents of the module.
      -> CompressedFile -- ^ Highlighting information.
-     -> [(Int, String, Aspects)]  -- ^ (position, contents, info)
+     -> [TokenInfo]
 tokenStream contents info =
   map (\cs -> case cs of
           (mi, (pos, _)) : _ ->
@@ -208,37 +227,63 @@ tokenStream contents info =
 
 -- | Constructs the HTML displaying the code.
 
-code :: Bool    -- ^ Whether to generate non-code contents as-is
-     -> [(Int, String, Aspects)]
+code :: Bool     -- ^ Whether to generate non-code contents as-is
+     -> FileType -- ^ Source file type
+     -> [TokenInfo]
      -> Html
-code asIs = mconcat . if asIs
-  then map mkMd . chunksOf 2 . splitWhen ((== Just Markup) . aspect . trd)
+code onlyCode fileType = mconcat . if onlyCode
+  then case fileType of
+         -- Explicitly written all cases, so people
+         -- get compile error when adding new file types
+         -- when they forget to modify the code here
+         RstFileType  -> map mkRst . splitByMarkup
+         MdFileType   -> map mkMd . chunksOf 2 . splitByMarkup
+         AgdaFileType -> map mkHtml
+         -- Any points for using this option?
+         TexFileType  -> map mkMd . chunksOf 2 . splitByMarkup
   else map mkHtml
   where
   trd (_, _, a) = a
 
-  mkHtml :: (Int, String, Aspects) -> Html
+  splitByMarkup :: [TokenInfo] -> [[TokenInfo]]
+  splitByMarkup = splitWhen $ (== Just Markup) . aspect . trd
+
+  mkHtml :: TokenInfo -> Html
   mkHtml (pos, s, mi) =
     -- Andreas, 2017-06-16, issue #2605:
     -- Do not create anchors for whitespace.
     applyUnless (mi == mempty) (annotate pos mi) $ toHtml s
 
-  mkMd :: [[(Int, String, Aspects)]] -> Html
-  mkMd = go
+  -- | Proposed in #3373, implemented in #3384
+  mkRst :: [TokenInfo] -> Html
+  mkRst = mconcat . (toHtml rstDelimiter :) . map go
     where
-      work a@(pos, s, mi) = case aspect mi of
+      go token@(_, s, mi) = if aspect mi == Just Background
+        then preEscapedToHtml s
+        else mkHtml token
+
+  -- | Proposed in #3137, implemented in #3313
+  --   Improvement proposed in #3366, implemented in #3367
+  mkMd :: [[TokenInfo]] -> Html
+  mkMd = mconcat . go
+    where
+      work token@(_, s, mi) = case aspect mi of
         Just Background -> preEscapedToHtml s
         Just Markup     -> __IMPOSSIBLE__
-        _               -> mkHtml a
-      go [a, b] = mconcat [mconcat $ work <$> a, pre ! class_ "agda-code" $ mconcat $ work <$> b]
-      go [a]    = mconcat $ work <$> a
+        _               -> mkHtml token
+      go [a, b] = [ mconcat $ work <$> a
+                  , pre ! class_ "agda-code" $ mconcat $ work <$> b
+                  ]
+      go [a]    = work <$> a
       go _      = __IMPOSSIBLE__
 
   -- | Put anchors that enable referencing that token.
-  --   We put a fail safe numeric anchor (file position) for internal references (issue #2756),
-  --   as well as a heuristic name anchor for external references (issue #2604).
+  --   We put a fail safe numeric anchor (file position) for internal references
+  --   (issue #2756), as well as a heuristic name anchor for external references
+  --   (issue #2604).
   annotate :: Int -> Aspects -> Html -> Html
-  annotate pos mi = applyWhen hereAnchor (anchorage nameAttributes mempty <>) . anchorage posAttributes
+  annotate pos mi = applyWhen hereAnchor
+      (anchorage nameAttributes mempty <>) . anchorage posAttributes
     where
     -- | Warp an anchor (<A> tag) with the given attributes around some HTML.
     anchorage :: [Attribute] -> Html -> Html

@@ -111,7 +111,11 @@ mkLaTeXOrHTMLTest k copy agdaBin inp =
   extension = case k of
     LaTeX      -> "tex"
     QuickLaTeX -> "quick.tex"
-    HTML       -> if "MdHighlight" `List.isPrefixOf` takeFileName baseName then "md" else "html"
+    HTML       -> if "MdHighlight" `List.isPrefixOf` inFileName
+                  then "md"
+                  else if "RsTHighlight" `List.isPrefixOf` inFileName
+                  then "rst"
+                  else "html"
 
   flags :: FilePath -> [String]
   flags dir = case k of
@@ -121,9 +125,10 @@ mkLaTeXOrHTMLTest k copy agdaBin inp =
     where
     latexFlags = ["--latex", "--latex-dir=" ++ dir]
 
+  inFileName  = takeFileName inp
   testName    = asTestName testDir inp ++ "_" ++ show k
   baseName    = if copy
-                then testDir </> dropAgdaExtension (takeFileName inp)
+                then testDir </> dropAgdaExtension inFileName
                 else dropAgdaExtension inp
   flagFile    = baseName <.> "flags"
   goldenFile  = baseName <.> extension
@@ -149,16 +154,13 @@ mkLaTeXOrHTMLTest k copy agdaBin inp =
     extraFlags <- if flagFileExists
                   then lines <$> readFile flagFile
                   else return []
-    let newFile   = outDir </> takeFileName inp
-        agdaArgs' = flags outDir ++
-                    [ "-i" ++ if copy then outDir else testDir
-                    , if copy then newFile else inp
-                    , "--ignore-interfaces"
-                    , "--no-libraries"
-                    ] ++ extraFlags
-        agdaArgs = if takeFileName inp == "MdHighlightCode.lagda.md"
-                   then "--html-highlight=code" : agdaArgs'
-                   else agdaArgs'
+    let newFile  = outDir </> inFileName
+        agdaArgs = flags outDir ++
+                   [ "-i" ++ if copy then outDir else testDir
+                   , if copy then newFile else inp
+                   , "--ignore-interfaces"
+                   , "--no-libraries"
+                   ] ++ extraFlags
     when copy $ copyFile inp newFile
     res@(ret, _, _) <- PT.readProcessWithExitCode agdaBin agdaArgs T.empty
     if ret /= ExitSuccess then
