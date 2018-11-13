@@ -13,31 +13,31 @@ Authors:
 
 Contributors (alphabetically sorted):
 
-* Wolfram Kahl
-* Tesla Ice Zhang
 * Stevan Andjelkovic
-* Stefan Monnier
-* Philipp Hausmann
-* Peter Divanski
-* Patrik Jansson
-* Olle Fredriksson
-* Nicolas Pouillard
 * Marcin Benke
-* John Leo
-* Jesper Cockx
 * Jean-Philippe Bernardy
 * James Chapman
-* Guilhem Moulin
+* Jesper Cockx
+* Dominique Devriese
+* Peter Divanski
 * Fredrik Nordvall Forsberg
+* Olle Fredriksson
+* Daniel Gustafsson
+* Philipp Hausmann
+* Patrik Jansson
+* Alan Jeffrey
+* Wolfram Kahl
+* John Leo
 * Fredrik Lindblad
 * Francesco Mazzoli
-* Dominique Devriese
+* Stefan Monnier
 * Darin Morrison
-* Daniel Gustafsson
+* Guilhem Moulin
+* Nicolas Pouillard
 * Benjamin Price
-* Andrés Sicard-Ramírez
+* Andrés Sicard Ramírez
 * Andrea Vezzosi
-* Alan Jeffrey
+* Tesla Ice Zhang
 * and many more
 
 The Agda license is `here
