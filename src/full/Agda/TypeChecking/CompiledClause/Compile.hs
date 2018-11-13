@@ -323,7 +323,8 @@ expandCatchAlls single n cs =
     exCatchAllNth ps = any (isVar . unArg) $ take 1 $ drop n ps
 
     classify (LitP l)     = Left l
-    classify (ConP c _ _) = Right c
+    classify (ConP c _ _) = Right (Left c)
+    classify (DefP _ q _) = Right (Right q)
     classify _            = __IMPOSSIBLE__
 
     -- All non-catch-all patterns following this one (at position n).
@@ -349,9 +350,17 @@ expandCatchAlls single n cs =
             ci       = fromConPatternInfo mt
             m        = length qs'
             -- replace all direct subpatterns of q by _
+            -- TODO Andrea: might need these to sometimes be IApply?
             conPArgs = map (fmap ($> varP "_")) qs'
             conArgs  = zipWith (\ q' i -> q' $> var i) qs' $ downFrom m
         LitP l -> Cl (ps0 ++ [q $> LitP l] ++ ps1) (substBody n' 0 (Lit l) b)
+        DefP o d qs' -> Cl (ps0 ++ [q $> DefP o d conPArgs] ++ ps1)
+                            (substBody n' m (Def d (map Apply conArgs)) b)
+          where
+            m        = length qs'
+            -- replace all direct subpatterns of q by _
+            conPArgs = map (fmap ($> varP "_")) qs'
+            conArgs  = zipWith (\ q' i -> q' $> var i) qs' $ downFrom m
         _ -> __IMPOSSIBLE__
       where
         -- Andreas, 2016-09-19 issue #2168
