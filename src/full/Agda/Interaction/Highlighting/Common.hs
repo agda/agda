@@ -20,8 +20,7 @@ highlightOnlyCode HighlightAll  _ = False
 highlightOnlyCode HighlightCode _ = True
 highlightOnlyCode HighlightAuto AgdaFileType = False
 highlightOnlyCode HighlightAuto MdFileType   = True
--- TODO: see #3373
-highlightOnlyCode HighlightAuto RstFileType  = False
+highlightOnlyCode HighlightAuto RstFileType  = True
 highlightOnlyCode HighlightAuto TexFileType  = False
 
 -- | Determine the generated file extension
