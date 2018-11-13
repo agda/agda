@@ -1,7 +1,7 @@
 .. _team:
 
-The Agda Team
-*************
+The Agda Team and License
+*************************
 
 Authors:
 
@@ -39,3 +39,6 @@ Contributors (alphabetically sorted):
 * Andrea Vezzosi
 * Alan Jeffrey
 * and many more
+
+The Agda license is `here
+<https://github.com/agda/agda/blob/master/LICENSE>`_.

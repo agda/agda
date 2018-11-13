@@ -14,7 +14,6 @@ Welcome to Agda's documentation!
    language/index
    tools/index
    contribute/index
-   license
    team
 
 Indices and tables

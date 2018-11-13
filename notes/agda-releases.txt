@@ -29,8 +29,8 @@ When releasing the following procedure can be followed:
 
   - Agda.cabal
   - doc/user-manual/conf.py
-  - doc/user-manual/license.rst
   - doc/user-manual/team.rst
+  - LICENSE
 
 * Update the LICENSE file, if necessary.
 
