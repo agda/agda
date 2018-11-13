@@ -25,10 +25,13 @@ option, which makes the Agda compiler:
 - not wrapping the generated document with a ``<html>`` tag,
   which means you'll have to specify the CSS location somewhere else,
   like ``<link rel="stylesheet" type="text/css" href="Agda.css">``
-- converting paired ``<a class="Markup">`` tags into
+- converting ``<a class="Markup">`` tags into
   ``<pre class="agda-code">`` tags that wrap the complete Agda code
   block below
-- Output file extension as-is (i.e. `.lagda.md` becomes `.md`)
+- generating files with extension as-is (i.e. `.lagda.md` becomes
+  `.md`, `.lagda.rst` becomes `.rst`)
+- for ReStructuredText, a ``.. raw:: html\\n`` will be inserted
+  before every code blocks
 
 This will affect all the files involved in one compilation, making
 pure Agda code files rendered without HTML footer/header as well.

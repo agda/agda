@@ -213,11 +213,13 @@ Pragmas and options
 
   0. No HTML footer/header
   1. Agda codes highlighted
-  2. Other parts as-is
+  2. Non-Agda code parts as-is
   3. Output file extension as-is (i.e. `.lagda.md` becomes `.md`)
+  4. For ReStructuredText, a `.. raw:: html\n` will be inserted
+     before every code blocks
 
-  This makes it possible to use an ordinary markdown processor
-  to render the generated HTML.
+  This makes it possible to use an ordinary Markdown/ReStructuredText
+  processor to render the generated HTML.
 
   This will affect all the files involved in one compilation, making
   pure Agda code files rendered without HTML footer/header as well.
