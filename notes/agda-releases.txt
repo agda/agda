@@ -28,8 +28,9 @@ When releasing the following procedure can be followed:
   Note: This is duplicated in the following locations:
 
   - Agda.cabal
-  - doc/user-manual/license.rst
   - doc/user-manual/conf.py
+  - doc/user-manual/license.rst
+  - doc/user-manual/team.rst
 
 * Update the LICENSE file, if necessary.
 
