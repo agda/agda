@@ -74,7 +74,7 @@ Courses using Agda
 - `Categorical Logic <http://www.cl.cam.ac.uk/teaching/0910/L20/>`_
   , course at the University of Cambridge by Samuel Staton.
    - `More info and feedback <http://permalink.gmane.org/gmane.comp.lang.agda/1579>`_
-- `Dependently typed functional languages <http://www1.eafit.edu.co/asr/courses/dtfl-CB0683/>`_
+- `Dependently typed functional languages <http://www1.eafit.edu.co/asr/courses/dependently-typed-functional-languages/>`_
   , master level course at EAFIT University by Andrés Sicard-Ramírez.
 - `Introduction to Dependently Typed Programming using Agda <http://homepages.inf.ed.ac.uk/s0894694/agda-course/>`_
   , research level course at the University of Edinburgh by Conor McBride.
