@@ -10,3 +10,4 @@ Getting Started
    prerequisites
    installation
    quick-guide
+   tutorial-list

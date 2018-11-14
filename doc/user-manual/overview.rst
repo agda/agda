@@ -18,7 +18,7 @@ You can find a lot of useful resources on `Agda Wiki
 site, like `tutorials, introductions, publications and books
 <http://wiki.portal.chalmers.se/agda/pmwiki.php?n=Main.Documentation>`_.
 If you're new to Agda, you should make use of the resources on Agda Wiki
-instead of the language reference provided here.
+and chapter :ref:`getting-started` instead of chapter :ref:`language-index`.
 
 A description of the Agda language is given in chapter :ref:`language-index`.
 Guidance on how the Agda editing and compilation
