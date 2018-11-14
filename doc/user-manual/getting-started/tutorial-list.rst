@@ -60,9 +60,9 @@ Courses using Agda
 ==================
 
 - `Computer Aided Reasoning <http://www.cs.nott.ac.uk/~txa/g53cfr/>`_
-   Material for a 3rd / 4th year course (g53cfr, g54 cfr) at the university of Nottingham 2010 by Thorsten Altenkirch
+  Material for a 3rd / 4th year course (g53cfr, g54 cfr) at the university of Nottingham 2010 by Thorsten Altenkirch
 - `Type Theory in Rosario <http://www.cs.nott.ac.uk/~txa/rosario/>`_
-   Material for an Agda course in Rosario, Argentina in 2011 by  Thorsten Altenkirch
+  Material for an Agda course in Rosario, Argentina in 2011 by  Thorsten Altenkirch
 - `Software System Design and Implementation <http://www.cse.unsw.edu.au/~cs3141/>`_
   , undergrad(?) course at the University of New South Wales by Manuel Chakravarty.
 - `Seminar on Dependently Typed Programming <http://www.cs.uu.nl/wiki/DTP>`_
@@ -83,15 +83,15 @@ Courses using Agda
 - `Types for Programs and Proofs <http://www.cse.chalmers.se/edu/course/DAT140_Types/>`_
   , course at Chalmers University of Technology.
 - `Advanced Functional Programming <http://www.tcs.ifi.lmu.de/lehre/ss-2012/fun>`_
-   (in German), course at Ludwig-Maximilians-University Munich.
+  (in German), course at Ludwig-Maximilians-University Munich.
 - `Dependently typed metaprogramming (in Agda) <http://www.cl.cam.ac.uk/~ok259/agda-course-13/>`_
   , Summer (2013) course at the University of Cambridge by Conor McBride.
 - `Computer-Checked Programs and Proofs <http://dlicata.web.wesleyan.edu/teaching/ccpp-f13/>`_
-   (COMP 360-1), Dan Licata, Wesleyan, Fall 2013.
+  (COMP 360-1), Dan Licata, Wesleyan, Fall 2013.
 - `Advanced Functional Programming&#65279; <https://github.com/pigworker/CS410-13>`_
-   (CS410), Conor McBride, Strathclyde, Fall 2013.
+  (CS410), Conor McBride, Strathclyde, Fall 2013.
 - `Interactive Theorem proving <http://www.cs.swan.ac.uk/~csetzer/lectures/intertheo/07/>`_
-   (CS_336), Anton Setzer, Swansea University, Lent 2008.
+  (CS_336), Anton Setzer, Swansea University, Lent 2008.
 - `Inductive and inductive-recursive definitions in Intuitionistic Type Theory <https://www.cs.uoregon.edu/research/summerschool/summer15/curriculum.html>`_
   , lectures by Peter Dybjer at the Oregon Programming Languages Summer School 2015.
 
