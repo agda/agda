@@ -39,7 +39,7 @@ Introduction to Agda
      introduction to Agda, Curry-Howard, equality, and verification
      of optimizations like fusion.
 - Jan Malakhovski.
-   - `Brutal [Meta]Introduction to Dependent Types in Agda <http://oxij.org/note/BrutalDepTypes/>`__   
+   - `Brutal [Meta]Introduction to Dependent Types in Agda <http://oxij.org/note/BrutalDepTypes/>`__
 - Thorsten Altenkirch.
    - `Computer Aided Formal Reasoning <http://www.cs.nott.ac.uk/~txa/g53cfr/>`__
      \- online lecture notes
