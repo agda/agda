@@ -82,3 +82,184 @@ Reflection
   ```agda
   quoteωTC : ∀ {A : Setω} → A → TC Term
   ```
+
+JS backend
+----------
+
+- Smaller local variable names in the generated JS code.
+
+  Previously: `x0`, `x1`, `x2`, ...
+
+  Now: `a`, `b`, `c`, ..., `z`, `a0`, `b0`, ..., `z0`, `a1`, `b1`, ...
+
+- Improved indentation of generated JS code.
+
+- More compact rendering of generated JS functions.
+
+  Previously:
+  ```js
+  exports["N"]["suc"] = function (x0) {
+      return function (x1) {
+        return x1["suc"](x0);
+      };
+    };
+  ```
+
+  Now:
+  ```js
+  exports["N"]["suc"] = a => b => b["suc"](a);
+  ```
+
+- Irrelevant arguments are now erased in the generated JS code.
+
+  Example Agda code:
+  ```agda
+  flip : {A B C : Set} -> (B -> A -> C) -> A -> B -> C
+  flip f a b = f b a
+  ```
+
+  Previously generated JS code:
+  ```js
+  exports["flip"] = function (x0) {
+      return function (x1) {
+        return function (x2) {
+          return function (x3) {
+            return function (x4) {
+              return function (x5) {
+                return x3(x5)(x4);
+              };
+            };
+          };
+        };
+      };
+    };
+  ```
+
+  JS code generated now:
+  ```js
+  exports["flip"] = a => b => c => a(c)(b);
+  ```
+
+- Record fields are not stored separately (the fields are stored only in the constructor)
+  in the generated JS code.
+
+  Example Agda code:
+  ```agda
+  record Sigma (A : Set) (B : A -> Set) : Set where
+    field
+      fst : A
+      snd : B fst
+  ```
+
+  Previously generated JS code (look at the `"fst"` and `"snd"` fields in the
+  return value of `exports["Sigma"]["record"]`:
+  ```js
+  exports["Sigma"] = {};
+  exports["Sigma"]["fst"] = function (x0) {
+      return x0["record"]({
+        "record": function (x1, x2) {
+          return x1;
+        }
+      });
+    };
+  exports["Sigma"]["snd"] = function (x0) {
+      return x0["record"]({
+        "record": function (x1, x2) {
+          return x2;
+        }
+      });
+    };
+  exports["Sigma"]["record"] = function (x0) {
+      return function (x1) {
+        return {
+          "fst": x0,
+          "record": function (x2) {
+            return x2["record"](x0, x1);
+          },
+          "snd": x1
+        };
+      };
+    };
+  ```
+
+  JS code generated now:
+  ```js
+  exports["Sigma"] = {};
+  exports["Sigma"]["fst"] = a => a["record"]({"record": (b,c) => b});
+  exports["Sigma"]["snd"] = a => a["record"]({"record": (b,c) => c});
+  exports["Sigma"]["record"] = a => b => ({"record": c => c["record"](a,b)});
+  ```
+
+- `--js-optimize` flag has been added to the `agda` compiler.
+
+  With `--js-optimize`, `agda` does not wrap records in JS objects.
+
+  Example Agda code:
+  ```agda
+  record Sigma (A : Set) (B : A -> Set) : Set where
+    field
+      fst : A
+      snd : B fst
+  ```
+
+  JS code generated without the `--js-optimize` flag:
+  ```js
+  exports["Sigma"] = {};
+  exports["Sigma"]["fst"] = a => a["record"]({"record": (b,c) => b});
+  exports["Sigma"]["snd"] = a => a["record"]({"record": (b,c) => c});
+  exports["Sigma"]["record"] = a => b => ({"record": c => c["record"](a,b)});
+  ```
+
+  JS code generated with the `--js-optimize` flag:
+  ```js
+  exports["Sigma"] = {};
+  exports["Sigma"]["fst"] = a => a((b,c) => b);
+  exports["Sigma"]["snd"] = a => a((b,c) => c);
+  exports["Sigma"]["record"] = a => b => c => c(a,b);
+  ```
+
+  With `--js-optimize`, `agda` uses JS arrays instead of JS objects.
+  This is possible because constructor names are not relevant during the evaluation.
+
+  Example Agda code:
+  ```agda
+  data Bool : Set where
+    false : Bool
+    true  : Bool
+
+  not : Bool -> Bool
+  not false = true
+  not true  = false
+  ```
+
+  JS code generated without the `--js-optimize` flag:
+  ```js
+  exports["Bool"] = {};
+  exports["Bool"]["false"] = a => a["false"]();
+  exports["Bool"]["true"] = a => a["true"]();
+  exports["not"] = a => a({
+      "false": () => exports["Bool"]["true"],
+      "true": () => exports["Bool"]["false"]
+    });
+  ```
+
+  JS code generated with the `--js-optimize` flag:
+  ```js
+  exports["Bool"] = {};
+  exports["Bool"]["false"] = a => a[0/* false */]();
+  exports["Bool"]["true"] = a => a[1/* true */]();
+  exports["not"] = a => a([
+      /* false */() => exports["Bool"]["true"],
+      /* true */() => exports["Bool"]["false"]
+    ]);
+  ```
+
+  Note that comments are added to generated JS code to help human readers.
+
+  Erased branches are replaced by `null` in the generated array.
+  If more than the half of branches are erased, the array is compressed to
+  be a object like `{3: ..., 13: ...}`.
+
+- `--js-minify` flag has been added to the `agda` compiler.
+
+  With `--js-minify`, `agda` discards comments and whitespace in the generated JS code.

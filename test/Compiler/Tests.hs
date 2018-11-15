@@ -35,7 +35,10 @@ data ExecResult
     { result :: ProgramResult }
   deriving (Show, Read, Eq)
 
-data Compiler = MAlonzo | JS
+data CodeOptimization = NonOptimized | Optimized | MinifiedOptimized
+  deriving (Show, Read, Eq)
+
+data Compiler = MAlonzo | JS CodeOptimization
   deriving (Show, Read, Eq)
 
 data CompilerOptions
@@ -51,7 +54,7 @@ data TestOptions
     } deriving (Show, Read)
 
 allCompilers :: [Compiler]
-allCompilers = [MAlonzo, JS]
+allCompilers = [MAlonzo] ++ map JS [NonOptimized, Optimized, MinifiedOptimized]
 
 defaultOptions :: TestOptions
 defaultOptions = TestOptions
@@ -72,36 +75,44 @@ disabledTests =
     -- Issue #2640 (forcing translation for runtime erasure) is still open
   , disable "Compiler/.*/simple/Erasure-Issue2640"
     -----------------------------------------------------------------------------
-    -- The following test case fails (at least at the time of writing)
+    -- The following test cases fail (at least at the time of writing)
     -- for the JS backend.
-  , disable "Compiler/JS/simple/Issue4169-2"
+  , disable "Compiler/JS_.*/simple/Issue4169-2"
+  , disable "Compiler/JS_Optimized/simple/ModuleReexport"
+  , disable "Compiler/JS_MinifiedOptimized/simple/ModuleReexport"
     -----------------------------------------------------------------------------
     -- The following test cases are GHC backend specific and thus disabled on JS.
-  , disable "Compiler/JS/simple/Issue2821"
-  , disable "Compiler/JS/simple/Issue2879-.*"
-  , disable "Compiler/JS/simple/Issue2909-.*"
-  , disable "Compiler/JS/simple/Issue2914"
-  , disable "Compiler/JS/simple/Issue2918"
-  , disable "Compiler/JS/simple/Issue3732"
-  , disable "Compiler/JS/simple/VecReverseIrr"
-  , disable "Compiler/JS/simple/VecReverseErased"  -- RangeError: Maximum call stack size exceeded
+  , disable "Compiler/JS_.*/simple/Issue2821"
+  , disable "Compiler/JS_.*/simple/Issue2879-.*"
+  , disable "Compiler/JS_.*/simple/Issue2909-.*"
+  , disable "Compiler/JS_.*/simple/Issue2914"
+  , disable "Compiler/JS_.*/simple/Issue2918"
+  , disable "Compiler/JS_.*/simple/Issue3732"
+  , disable "Compiler/JS_.*/simple/VecReverseIrr"
+  , disable "Compiler/JS_.*/simple/VecReverseErased"  -- RangeError: Maximum call stack size exceeded
     -----------------------------------------------------------------------------
   ]
   where disable = RFInclude
 
 tests :: IO TestTree
 tests = do
-  hasNode <- doesCommandExist "node"
-  let enabledCompilers = [MAlonzo] ++ [JS | hasNode]
+  nodeBin <- findExecutable "node"
+  let enabledCompilers = [MAlonzo] ++ [JS opt | isJust nodeBin, opt <- [NonOptimized, Optimized, MinifiedOptimized]]
+  _ <- case nodeBin of
+    Nothing -> putStrLn "No JS node binary found, skipping JS tests."
+    Just n -> putStrLn $ "Using JS node binary at " ++ n
 
   ts <- mapM forComp enabledCompilers
   return $ testGroup "Compiler" ts
   where
-    forComp comp = testGroup (show comp) . catMaybes
+    forComp comp = testGroup (map spaceToUnderscore $ show comp) . catMaybes
         <$> sequence
             [ Just <$> simpleTests comp
             , Just <$> stdlibTests comp
             , specialTests comp]
+
+    spaceToUnderscore ' ' = '_'
+    spaceToUnderscore c = c
 
 simpleTests :: Compiler -> IO TestTree
 simpleTests comp = do
@@ -117,7 +128,7 @@ simpleTests comp = do
 
   where compArgs :: Compiler -> AgdaArgs
         compArgs MAlonzo = ghcArgsAsAgdaArgs ["-itest/"]
-        compArgs JS = []
+        compArgs JS{} = []
 
 -- The Compiler tests using the standard library are horribly
 -- slow at the moment (1min or more per test case).
@@ -169,7 +180,7 @@ specialTests MAlonzo = do
                     T.empty
             -- ignore stderr, as there may be some GHC warnings in it
             return $ ExecutedProg (ProgramResult ret (out <> sout) err)
-specialTests JS = return Nothing
+specialTests JS{} = return Nothing
 
 ghcArgsAsAgdaArgs :: GHCArgs -> AgdaArgs
 ghcArgsAsAgdaArgs = map f
@@ -189,7 +200,7 @@ agdaRunProgGoldenTest dir comp extraArgs inp opts =
           -- now run the new program
           let exec = getExecForComp comp compDir inpFile
           case comp of
-            JS -> do
+            JS{} -> do
               setEnv "NODE_PATH" compDir
               (ret, out', err') <- PT.readProcessWithExitCode "node" [exec] inp'
               return $ ExecutedProg $ ProgramResult ret (out <> out') (err <> err')
@@ -239,7 +250,9 @@ agdaRunProgGoldenTest1 dir comp extraArgs inp opts cont
 
         argsForComp :: Compiler -> IO [String]
         argsForComp MAlonzo = return ["--compile"]
-        argsForComp JS = return ["--js"]
+        argsForComp (JS NonOptimized)      = return ["--js"]
+        argsForComp (JS Optimized)         = return ["--js", "--js-optimize"]
+        argsForComp (JS MinifiedOptimized) = return ["--js", "--js-optimize", "--js-minify"]
 
         removePaths ps r = case r of
           CompileFailed    r -> CompileFailed    (removePaths' r)
@@ -267,7 +280,7 @@ cleanUpOptions = filter clean
 
 -- gets the generated executable path
 getExecForComp :: Compiler -> FilePath -> FilePath -> FilePath
-getExecForComp JS compDir inpFile = compDir </> ("jAgda." ++ (takeFileName $ dropAgdaOrOtherExtension inpFile) ++ ".js")
+getExecForComp JS{} compDir inpFile = compDir </> ("jAgda." ++ (takeFileName $ dropAgdaOrOtherExtension inpFile) ++ ".js")
 getExecForComp _ compDir inpFile = compDir </> (takeFileName $ dropAgdaOrOtherExtension inpFile)
 
 printExecResult :: ExecResult -> T.Text
