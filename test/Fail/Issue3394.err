@@ -1,0 +1,8 @@
+Issue3394.agda:11,1-17,33
+Termination checking failed for the following functions:
+  loop
+Problematic calls:
+  loop a b
+    (at Issue3394.agda:13,14-18)
+Unsolved metas at the following locations:
+  Issue3394.agda:15,29-30

@@ -491,7 +491,8 @@ termType = loop 0
       [ text $ "termType " ++ show n ++ " with " ++ show (length ps) ++ " patterns"
       , nest 2 $ "looking at type " <+> prettyTCM t
       ]
-    terSetPatterns ps $ do
+    tel <- getContextTelescope  -- Andreas, 2018-11-15, issue #3394, forgotten initialization of terSizeDepth
+    terSetPatterns ps $ terSetSizeDepth tel $ do
       ifNotPiType t {-then-} extract {-else-} $ \ dom absB -> do
         extract dom `mappend` underAbstractionAbs dom absB (loop $! n + 1)
 
