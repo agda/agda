@@ -708,7 +708,7 @@ removePrivates si = si { scopeModules = restrictPrivate <$> scopeModules si }
 createInterface
   :: AbsolutePath          -- ^ The file to type check.
   -> C.TopLevelModuleName  -- ^ The expected module name.
-  -> MainInterface
+  -> MainInterface         -- ^ Are we dealing with the main module?
   -> Maybe SourceInfo      -- ^ Optional information about the source code.
   -> TCM (Interface, MaybeWarnings)
 createInterface file mname isMain msi =
@@ -851,8 +851,13 @@ createInterface file mname isMain msi =
     -- permanently freeze them now by turning them into postulates.
     -- This will enable serialization.
     -- savedMetaStore <- useTC stMetaStore
+    allowUnsolved <- optAllowUnsolved <$> pragmaOptions
     unless (includeStateChanges isMain) $
-      whenM (optAllowUnsolved <$> pragmaOptions) $ do
+      -- Andreas, 2018-11-15, re issue #3393:
+      -- We do not get here when checking the main module
+      -- (then includeStateChanges is True).
+      when allowUnsolved $ do
+        reportSLn "import.iface.create" 7 $ "Turning unsolved metas (if any) into postulates."
         withCurrentModule (scopeCurrent scope) $
           openMetasToPostulates
         -- Clear constraints as they might refer to what
@@ -881,9 +886,18 @@ createInterface file mname isMain msi =
 
     reportSLn "import.iface.create" 7 $ "Considering writing to interface file."
     case (mallWarnings, isMain) of
-      (SomeWarnings allWarnings, _) -> return ()
-      (_, MainInterface ScopeCheck) -> return ()
+      (SomeWarnings allWarnings, _) -> do
+        -- Andreas, 2018-11-15, re issue #3393
+        -- The following is not sufficient to fix #3393
+        -- since the replacement of metas by postulates did not happen.
+        -- -- | not (allowUnsolved && all (isUnsolvedWarning . tcWarning) allWarnings) -> do
+        reportSLn "import.iface.create" 7 $ "We have warnings, skipping writing interface file."
+        return ()
+      (_, MainInterface ScopeCheck) -> do
+        reportSLn "import.iface.create" 7 $ "We are just scope-checking, skipping writing interface file."
+        return ()
       _ -> Bench.billTo [Bench.Serialization] $ do
+        reportSLn "import.iface.create" 7 $ "Actually calling writeInterface."
         -- The file was successfully type-checked (and no warnings were
         -- encountered), so the interface should be written out.
         let ifile = filePath $ toIFile file

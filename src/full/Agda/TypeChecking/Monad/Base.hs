@@ -2727,8 +2727,6 @@ warningName w = case w of
   UserWarning{}                -> UserWarning_
 
 
-
-
 data TCWarning
   = TCWarning
     { tcWarningRange :: Range
