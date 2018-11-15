@@ -234,7 +234,7 @@ getFunInfo q = memo (funMap . key q) $ getInfo q
       lift $ setErasedConArgs q $ map erasable rs
       return (rs, h)
 
-    -- Treat empty, erasable, or unused arguments as NonStrict (and thus erasable)
+    -- Treat empty, erasable, or unused arguments as Erasable
     mkR :: Modality -> IsForced -> Bool -> TypeInfo -> TypeInfo
     mkR m f b i
       | not (usableModality m) = Erasable

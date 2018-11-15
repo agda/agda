@@ -638,7 +638,6 @@ instance LeftClosedPOMonoid Relevance where
 -- | Irrelevant function arguments may appear non-strictly in the codomain type.
 irrToNonStrict :: Relevance -> Relevance
 irrToNonStrict Irrelevant = NonStrict
--- irrToNonStrict NonStrict  = Relevant -- TODO: this is bad if we apply irrToNonStrict several times!
 irrToNonStrict rel        = rel
 
 -- | Applied when working on types (unless --experimental-irrelevance).

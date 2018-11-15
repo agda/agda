@@ -17,6 +17,8 @@ data D ..(b : Bool) : Set where
 -- Jesper, 2017-09-14: I think the definition of D is fine, but the definition
 -- of cast below should fail since `D a` and `D b` are different types.
 
+-- Jesper, 2018-11-15: I disagree with Jesper!2017, D should be rejected.
+
 fromD : {b : Bool} → D b → True b
 fromD (c p) = p
 
@@ -25,4 +27,3 @@ cast _ _ x = x
 
 bot : ⊥
 bot = fromD (cast true false (c _))
-

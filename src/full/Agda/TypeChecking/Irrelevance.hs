@@ -123,8 +123,8 @@ workOnTypes' experimental
   . applyQuantityToContext Quantity0
   . localTC (\ e -> e { envWorkingOnTypes = True })
   where
-    f | experimental = irrToNonStrict . nonStrictToRel
-      | otherwise    = nonStrictToRel
+    f | experimental = irrToNonStrict
+      | otherwise    = id
 
 -- | (Conditionally) wake up irrelevant variables and make them relevant.
 --   For instance,
