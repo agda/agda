@@ -249,6 +249,7 @@ isTopLevelValue (Export _ e) = case e of
 isEmptyObject :: Export -> Bool
 isEmptyObject (Export _ e) = case e of
   Object m -> Map.null m
+  Array [] -> True
   Lambda{} -> True
   _        -> False
 
