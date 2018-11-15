@@ -282,6 +282,52 @@ and return the solution ``eqList {{eqNat}}``.
    thrown. You can set the maximum depth using the ``--instance-search-depth``
    flag.
 
+Restricting instance search
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+To restrict an instance to the current module, you can mark it as
+`private`. For instance,
+
+..
+  ::
+  module private-instance where
+
+    open import Agda.Builtin.Equality
+
+::
+
+    record Default (A : Set) : Set where
+      field default : A
+
+    open Default {{...}} public
+
+    module M where
+
+      private
+        instance
+          defaultNat : Default Nat
+          defaultNat .default = 6
+
+      test₁ : Nat
+      test₁ = default
+
+      _ : test₁ ≡ 6
+      _ = refl
+
+    open M
+
+    instance
+      defaultNat : Default Nat
+      defaultNat .default = 42
+
+    test₂ : Nat
+    test₂ = default
+
+    _ : test₂ ≡ 42
+    _ = refl
+
+..
+
 Constructor instances
 +++++++++++++++++++++
 
