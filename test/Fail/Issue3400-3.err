@@ -1,0 +1,5 @@
+Issue3400-3.agda:11,1-4
+Could not parse the left-hand side F +
+Operators used in the grammar:
+  None
+when scope checking the left-hand side F + in the definition of F

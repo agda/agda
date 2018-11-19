@@ -14,6 +14,53 @@ Installation and infrastructure
   `Setup.hs` when using Cabal >= 2.0.0.0
   [Issue [#3444](https://github.com/agda/agda/issues/3128)].
 
+Syntax
+------
+
+* The rules for parsing of patterns have changed slightly [Issue
+  [#3400](https://github.com/agda/agda/issues/3400)].
+
+  Now projections are treated similarly to constructors: In a pattern
+  name parts coming from projections can only be used as part of
+  projections, constructors or pattern synonyms. They cannot be used
+  as variables, or as part of the name of the defined value.
+
+  Examples:
+
+  * The following code used to be syntactically ambiguous, but is now
+    parsed, because A can no longer be used as a variable:
+    ```agda
+    record R : Set₂ where
+      field
+        _A : Set₁
+
+    open R
+
+    r : R
+    r A = Set
+    ```
+
+  * On the other hand the following code is no longer parsed:
+    ```agda
+    record R : Set₁ where
+      field
+        ⟨_+_⟩ : Set
+
+    open R
+
+    + : Set → Set
+    + A = A
+    ```
+
+    This is similar to how the following code is not parsed:
+    ```agda
+    data D : Set₁ where
+      ⟨_+_⟩ : D
+
+    + : Set → Set
+    + A = A
+    ```
+
 Type checking and interaction
 -----------------------------
 
