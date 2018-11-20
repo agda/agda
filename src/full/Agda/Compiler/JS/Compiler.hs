@@ -1,11 +1,11 @@
 module Agda.Compiler.JS.Compiler where
 
-import Prelude hiding ( null, writeFile )
+import Prelude hiding ( writeFile )
 import Control.Monad.Trans
 
 import Data.Char ( isSpace )
 import Data.List ( intercalate, partition )
-import Data.Set ( Set, null, insert, difference, delete )
+import Data.Set ( Set, insert, difference, delete )
 import Data.Map ( fromList )
 import qualified Data.Set as Set
 import qualified Data.Map as Map
@@ -39,6 +39,7 @@ import Agda.Utils.Maybe
 import Agda.Utils.Monad ( ifM, when )
 import Agda.Utils.Pretty (prettyShow)
 import qualified Agda.Utils.Pretty as P
+import Agda.Utils.Graph.AdjacencyMap.Unidirectional ( Graph, Edge(..), fromEdges, sccs, reachableFromSet )
 import Agda.Utils.IO.Directory
 import Agda.Utils.IO.UTF8 ( writeFile )
 
@@ -56,7 +57,7 @@ import Agda.Compiler.JS.Syntax
     LocalId(LocalId), GlobalId(GlobalId), MemberId(MemberId,MemberIndex), Export(Export), Module(Module), Comment(Comment),
     modName, expName, uses )
 import Agda.Compiler.JS.Substitution
-  ( curriedLambda, curriedApply, emp, apply )
+  ( curriedLambda, curriedApply, emp, apply, self )
 import qualified Agda.Compiler.JS.Pretty as JSPretty
 
 import Agda.Utils.Impossible (__IMPOSSIBLE__)
@@ -95,6 +96,8 @@ data JSOptions = JSOptions
   { optJSCompile :: Bool
   , optJSOptimize :: Bool
   , optJSMinify :: Bool
+  , optJSOutput :: Maybe String
+  , optJSExternals :: Maybe String
   }
 
 defaultJSOptions :: JSOptions
@@ -102,6 +105,8 @@ defaultJSOptions = JSOptions
   { optJSCompile = False
   , optJSOptimize = False
   , optJSMinify = False
+  , optJSOutput = Nothing
+  , optJSExternals = Nothing
   }
 
 jsCommandLineFlags :: [OptDescr (Flag JSOptions)]
@@ -110,11 +115,15 @@ jsCommandLineFlags =
     , Option [] ["js-optimize"] (NoArg enableOpt) "turn on optimizations during JS code generation"
     -- Minification is described at https://en.wikipedia.org/wiki/Minification_(programming)
     , Option [] ["js-minify"] (NoArg enableMin) "minify generated JS code"
+    , Option [] ["js-output"] (ReqArg outputFileFlag "FILE") "write concatenated JS code to file"
+    , Option [] ["js-externals"] (ReqArg externalsFileFlag "FILE") "text file containing external JS function names"
     ]
   where
     enable o = pure o{ optJSCompile = True }
     enableOpt o = pure o{ optJSOptimize = True }
     enableMin o = pure o{ optJSMinify = True }
+    outputFileFlag f o = pure o{ optJSOutput = Just f }
+    externalsFileFlag f o = pure o{ optJSExternals = Just f }
 
 --- Top-level compilation ---
 
@@ -122,23 +131,98 @@ jsPreCompile :: JSOptions -> TCM JSOptions
 jsPreCompile opts = return opts
 
 jsPostCompile :: JSOptions -> IsMain -> Map.Map ModuleName Module -> TCM ()
-jsPostCompile _opts _ _ms = copyRTEModules
+jsPostCompile opts _ ms = case optJSOutput opts of
+    Nothing -> copyRTEModules
+    Just output -> do
+      exts <- case optJSExternals opts of
+        Just fn -> do
+            s <- liftIO $ readFile fn
 
+            let mkId s | (a, ' ': b) <- span (/=' ') s = (mkId' a, b)
+                mkId s | x <- mkId' s = (x, intercalate "_" x)
+
+                mkId' s = case span (/='.') s of
+                    (s, []) -> [s]
+                    (s1, '.': s2) -> s1: mkId' s2
+                    _ -> __IMPOSSIBLE__
+
+            pure $ map mkId $ filter (not . null) $ map (reverse . dropWhile isSpace . reverse . dropWhile isSpace) $ lines s
+        Nothing -> pure []
+
+      let printModule [] m = JSPretty.prettyShow (optJSMinify opts) m
+          printModule exts m = JSPretty.prettyShow (optJSMinify opts)
+            [(rename $ getName n, self mkId e) | Export n e <- m]
+             where
+                names :: Map.Map [String] String
+                names = Map.fromList exts
+                     `mappend` Map.fromList (zip [getName n | Export n e <- m] $ filter (`notElem` reservedNames) shortNames)
+
+                getName n = [s | MemberId s <- n]
+
+                rename n = fromMaybe (intercalate "_" n) $ Map.lookup n names
+
+                mkId _ xs = PlainJS $ rename xs
+
+                -- reserved JavaScript words containing 2 characters
+                reservedNames = ["do","if","in"]
+
+                shortNames = do
+                    cs <- "": map show [0..]
+                    c1 <- ['a'..'z']
+                    c2 <- ['a'..'z']
+                    pure (c1: c2: cs)
+
+      liftIO $ writeFile output $ printModule exts $ mergeModules (fst <$> exts) ms
+
+-- global identifiers of JavaScript definitions (module path + inner module accessor)
+type JSId = [String]
+
+{-
 mergeModules :: Map.Map ModuleName Module -> [(GlobalId, Export)]
 mergeModules ms
     = [ (jsMod n, e)
       | (n, Module _ _ es _) <- Map.toList ms
       , e <- es
       ]
+-}
+mergeModules :: [JSId] -> Map.Map ModuleName Module -> [Export]
+mergeModules exts ms
+    = [ Export (map MemberId n) $ fromMaybe __IMPOSSIBLE__ $ Map.lookup n allDef
+      | n@("jAgda": _) <- concat $ sccs graph
+      , null exts || Set.member n notDead ]
+  where
+    allDef :: Map.Map JSId Exp
+    allDef = Map.fromList
+      [ (ns ++ [s | MemberId s <- ename], self ((foldl (\e n -> Lookup e $ MemberId n) Self .) . mkId ns) def)
+      | (_, Module (GlobalId ns) _ es _) <- Map.toList ms
+      , Export ename def <- es
+      ]
+
+    mkId :: [String] -> GlobalId -> [String] -> [String]
+    mkId ns (GlobalId []) is = ns ++ is
+    mkId _ (GlobalId gs) is = gs ++ is
+
+    graph :: Graph JSId ()
+    graph = fromEdges
+      [ e
+      | (n, def) <- Map.toList allDef
+      , e <- Edge n n ()
+          : [ Edge n [s | MemberId s <- dep] () | (_, dep) <- Set.toList $ uses True def]
+      ]
+
+    notDead :: Set JSId
+    notDead = reachableFromSet graph $ Set.fromList exts
 
 --- Module compilation ---
 
 type JSModuleEnv = Maybe CoinductionKit
 
 jsPreModule :: JSOptions -> IsMain -> ModuleName -> FilePath -> TCM (Recompile JSModuleEnv Module)
-jsPreModule _opts _ m ifile = ifM uptodate noComp yesComp
+jsPreModule opts _ m ifile = ifM uptodate noComp yesComp
   where
-    uptodate = liftIO =<< isNewerThan <$> outFile_ <*> pure ifile
+    uptodate
+        | isNothing $ optJSOutput opts = liftIO =<< isNewerThan <$> outFile_ <*> pure ifile
+        | otherwise = pure False
 
     noComp = do
       reportSLn "compile.js" 2 . (++ " : no compilation is needed.") . prettyShow =<< curMName
@@ -156,7 +240,7 @@ jsPostModule opts _ isMain _ defs = do
   is            <- map (jsMod . fst) . iImportedModules <$> curIF
   let es = catMaybes defs
       mod = Module m is (reorder es) main
-  writeModule (optJSMinify opts) mod
+  when (isNothing $ optJSOutput opts) $ writeModule (optJSMinify opts) mod
   return mod
   where
     main = case isMain of
@@ -235,10 +319,10 @@ reorder es = datas ++ funs ++ reorder' (Set.fromList $ map expName $ datas ++ fu
 reorder' :: Set [MemberId] -> [Export] -> [Export]
 reorder' defs [] = []
 reorder' defs (e : es) =
-  let us = uses e `difference` defs
-  in  if null us
-        then e : (reorder' (insert (expName e) defs) es)
-        else reorder' defs (insertAfter us e es)
+  let us = Set.fromList (map snd $ filter (isNothing . fst) $ Set.toList $ uses False e) `difference` defs in
+  if Set.null us
+    then e : (reorder' (insert (expName e) defs) es)
+    else reorder' defs (insertAfter us e es)
 
 isTopLevelValue :: Export -> Bool
 isTopLevelValue (Export _ e) = case e of
@@ -254,10 +338,9 @@ isEmptyObject (Export _ e) = case e of
   _        -> False
 
 insertAfter :: Set [MemberId] -> Export -> [Export] -> [Export]
-insertAfter us e []                   = [e]
-insertAfter us e (f : fs) | null us   = e : f : fs
-insertAfter us e (f : fs) | otherwise =
-  f : insertAfter (delete (expName f) us) e fs
+insertAfter us e []                 = [e]
+insertAfter us e (f:fs) | Set.null us = e : f : fs
+insertAfter us e (f:fs) | otherwise = f : insertAfter (delete (expName f) us) e fs
 
 --------------------------------------------------
 -- Main compiling clauses
@@ -350,7 +433,7 @@ definition' kit q d t ls = do
         return $ Just $ Export ls funBody'
 
     Primitive{primName = p} | p `Set.member` primitives ->
-      plainJS $ "agdaRTS." ++ p
+      return . Just . Export ls $ agdaRTS p
     Primitive{} | Just e <- defJSDef d -> plainJS e
     Primitive{} | otherwise -> ret Undefined
 
@@ -379,8 +462,8 @@ definition' kit q d t ls = do
             index | Datatype{} <- dt
                   , optJSOptimize (fst kit)
                   , cs <- defConstructors dt
-                  = headWithDefault __IMPOSSIBLE__
-                      [MemberIndex i (mkComment $ last ls) | (i, x) <- zip [0..] cs, x == q]
+                  , i: _ <- [i | (i, x) <- zip [0..] cs, x == q]
+                  = MemberIndex i $ mkComment $ last ls
                   | otherwise = last ls
             mkComment (MemberId s) = Comment s
             mkComment _ = mempty
@@ -443,7 +526,7 @@ compileTerm kit t = go t
         alts' <- traverse (compileAlt kit) alts
         let cs  = defConstructors $ theDef dt
             obj = Object $ Map.fromList [(snd x, y) | (x, y) <- alts']
-            arr = mkArray [headWithDefault (mempty, Null) [(Comment s, y) | ((c', MemberId s), y) <- alts', c' == c] | c <- cs]
+            arr = mkArray [headWithDefault (mempty, nullExp) [(Comment s, y) | ((c', MemberId s), y) <- alts', c' == c] | c <- cs]
         case (theDef dt, defJSDef dt) of
           (_, Just e) -> do
             return $ apply (PlainJS e) [Local (LocalId sc), obj]
@@ -471,40 +554,41 @@ compileTerm kit t = go t
     getDef (T.TCoerce x) = getDef x
     getDef _ = Nothing
 
-    unit = return Null
+    unit = return nullExp
+    nullExp = Integer 0
 
     mkArray xs
-        | 2 * length (filter ((==Null) . snd) xs) <= length xs = Array xs
-        | otherwise = Object $ Map.fromList [(MemberIndex i c, x) | (i, (c, x)) <- zip [0..] xs, x /= Null]
+        | 2 * length (filter ((==nullExp) . snd) xs) <= length xs = Array xs
+        | otherwise = Object $ Map.fromList [(MemberIndex i c, x) | (i, (c, x)) <- zip [0..] xs, x /= nullExp]
 
 compilePrim :: T.TPrim -> Exp
 compilePrim p =
   case p of
     T.PIf -> curriedLambda 3 $ If (local 2) (local 1) (local 0)
-    T.PEqI -> binOp "agdaRTS.uprimIntegerEqual"
-    T.PEqF -> binOp "agdaRTS.uprimFloatEquality"
-    T.PEqQ -> binOp "agdaRTS.uprimQNameEquality"
+    T.PEqI -> binOp "uprimIntegerEqual"
+    T.PEqF -> binOp "uprimFloatEquality"
+    T.PEqQ -> binOp "uprimQNameEquality"
     T.PEqS -> primEq
     T.PEqC -> primEq
-    T.PGeq -> binOp "agdaRTS.uprimIntegerGreaterOrEqualThan"
-    T.PLt -> binOp "agdaRTS.uprimIntegerLessThan"
-    T.PAdd -> binOp "agdaRTS.uprimIntegerPlus"
-    T.PSub -> binOp "agdaRTS.uprimIntegerMinus"
-    T.PMul -> binOp "agdaRTS.uprimIntegerMultiply"
-    T.PRem -> binOp "agdaRTS.uprimIntegerRem"
-    T.PQuot -> binOp "agdaRTS.uprimIntegerQuot"
-    T.PAdd64 -> binOp "agdaRTS.uprimWord64Plus"
-    T.PSub64 -> binOp "agdaRTS.uprimWord64Minus"
-    T.PMul64 -> binOp "agdaRTS.uprimWord64Multiply"
-    T.PRem64 -> binOp "agdaRTS.uprimIntegerRem"     -- -|
-    T.PQuot64 -> binOp "agdaRTS.uprimIntegerQuot"   --  > These can use the integer functions
-    T.PEq64 -> binOp "agdaRTS.uprimIntegerEqual"    --  |
-    T.PLt64 -> binOp "agdaRTS.uprimIntegerLessThan" -- -|
-    T.PITo64 -> unOp "agdaRTS.primWord64FromNat"
-    T.P64ToI -> unOp "agdaRTS.primWord64ToNat"
-    T.PSeq -> binOp "agdaRTS.primSeq"
-  where binOp js = curriedLambda 2 $ apply (PlainJS js) [local 1, local 0]
-        unOp js  = curriedLambda 1 $ apply (PlainJS js) [local 0]
+    T.PGeq -> binOp "uprimIntegerGreaterOrEqualThan"
+    T.PLt -> binOp "uprimIntegerLessThan"
+    T.PAdd -> binOp "uprimIntegerPlus"
+    T.PSub -> binOp "uprimIntegerMinus"
+    T.PMul -> binOp "uprimIntegerMultiply"
+    T.PRem -> binOp "uprimIntegerRem"
+    T.PQuot -> binOp "uprimIntegerQuot"
+    T.PAdd64 -> binOp "uprimWord64Plus"
+    T.PSub64 -> binOp "uprimWord64Minus"
+    T.PMul64 -> binOp "uprimWord64Multiply"
+    T.PRem64 -> binOp "uprimIntegerRem"     -- -|
+    T.PQuot64 -> binOp "uprimIntegerQuot"   --  > These can use the integer functions
+    T.PEq64 -> binOp "uprimIntegerEqual"    --  |
+    T.PLt64 -> binOp "uprimIntegerLessThan" -- -|
+    T.PITo64 -> unOp "primWord64FromNat"
+    T.P64ToI -> unOp "primWord64ToNat"
+    T.PSeq -> binOp "primSeq"
+  where binOp js = curriedLambda 2 $ apply (agdaRTS js) [local 1, local 0]
+        unOp js  = curriedLambda 1 $ apply (agdaRTS js) [local 0]
         primEq   = curriedLambda 2 $ BinOp (local 1) "===" (local 0)
 
 
@@ -539,8 +623,8 @@ qname q = do
 
 literal :: Literal -> Exp
 literal l = case l of
-  (LitNat    _ x) -> Integer x
-  (LitWord64 _ x) -> Integer (fromIntegral x)
+  (LitNat    _ x) -> mkInteger x
+  (LitWord64 _ x) -> mkInteger (fromIntegral x)
   (LitFloat  _ x) -> Double  x
   (LitString _ x) -> String  x
   (LitChar   _ x) -> Char    x
@@ -550,8 +634,8 @@ literal l = case l of
 litqname :: QName -> Exp
 litqname q =
   Object $ Map.fromList
-    [ (mem "id", Integer $ fromIntegral n)
-    , (mem "moduleId", Integer $ fromIntegral m)
+    [ (mem "id", mkInteger $ fromIntegral n)
+    , (mem "moduleId", mkInteger $ fromIntegral m)
     , (mem "name", String $ prettyShow q)
     , (mem "fixity", litfixity fx)]
   where
@@ -571,6 +655,12 @@ litqname q =
 
     litPrec Unrelated   = String "unrelated"
     litPrec (Related l) = Double l
+
+mkInteger :: Integer -> Exp
+mkInteger i = Apply (agdaRTS "primIntegerFromString") [String $ show i]
+
+agdaRTS :: String -> Exp
+agdaRTS s = Lookup (Global (GlobalId ["agdaRTS"])) (MemberId s)
 
 --------------------------------------------------
 -- Writing out an ECMAScript module

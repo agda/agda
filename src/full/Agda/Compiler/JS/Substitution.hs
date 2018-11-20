@@ -8,8 +8,8 @@ import qualified Data.List as List
 
 import Agda.Syntax.Common ( Nat )
 import Agda.Compiler.JS.Syntax
-  ( Exp(Self,Undefined,Local,Lambda,Object,Array,Apply,Lookup,If,BinOp,PreOp),
-    MemberId, LocalId(LocalId) )
+  ( Exp(Self,Global,Undefined,Local,Lambda,Object,Array,Apply,Lookup,If,BinOp,PreOp),
+    MemberId(MemberId), LocalId(LocalId), GlobalId(GlobalId) )
 import Agda.Utils.Function ( iterate' )
 import Agda.Utils.List ( indexWithDefault )
 
@@ -79,30 +79,28 @@ lookup :: Exp -> MemberId -> Exp
 lookup (Object o) l = findWithDefault Undefined l o
 lookup e          l = Lookup e l
 
--- Replace any top-level occurrences of self
--- (needed because JS is a cbv language, so any top-level
--- recursions would evaluate before the module has been defined,
--- e.g. exports = { x: 1, y: exports.x } results in an exception,
--- as exports is undefined at the point that exports.x is evaluated),
-
-self :: Exp -> Exp -> Exp
-self e (Self)         = e
+-- Replace global variables and Self
+--  note that `self` does not do de Bruijn level lifting on the replaced expressions;
+--  if you need this feature implement it
+self :: (GlobalId -> [String] -> Exp) -> Exp -> Exp
+self e (Global n)     = e n []
+self e Self           = e (GlobalId []) []
+self e (Lambda i f)   = Lambda i $ self e f
 self e (Object o)     = Object (Map.map (self e) o)
 self e (Array es)     = Array (List.map (\(c, x) -> (c, self e x)) es)
 self e (Apply f es)   = case (self e f) of
   (Lambda n g) -> self e (subst' n es g)
   g            -> Apply g (List.map (self e) es)
+self e (Lookup f (MemberId l)) = self' f [l] where
+    self' (Global i)   ls = e i ls
+    self' Self         ls = e (GlobalId []) ls
+    self' (Lookup x (MemberId l)) ls = self' x (l : ls)
+    self' x            ls = foldl lookup (self e x) (MemberId <$> ls)
 self e (Lookup f l)   = lookup (self e f) l
 self e (If f g h)     = If (self e f) (self e g) (self e h)
 self e (BinOp f op g) = BinOp (self e f) op (self e g)
 self e (PreOp op f)   = PreOp op (self e f)
 self e f              = f
-
--- Find the fixed point of an expression, with no top-level occurrences
--- of self.
-
-fix :: Exp -> Exp
-fix f = e where e = self e f
 
 -- Some helper functions
 

@@ -6,7 +6,7 @@ import Data.String ( IsString (fromString) )
 import Data.Semigroup ( Semigroup, (<>) )
 import Data.Set ( Set, toList, singleton, insert, member )
 import qualified Data.Set as Set
-import Data.Map ( Map, toAscList )
+import Data.Map as Map ( Map, toAscList, null )
 
 import Agda.Syntax.Common ( Nat )
 import Agda.Utils.Hash
@@ -39,21 +39,11 @@ data Doc
     | Space
     | Empty
 
-minifiedCodeLinesLength :: Int
-minifiedCodeLinesLength = 500
-
 render :: Bool -> Doc -> String
-render minify = intercalate "\n" . joinLines . map (uncurry mkIndent) . go 0
+render minify = joinLines . map (uncurry mkIndent) . go 0
   where
-    joinLines :: [String] -> [String]
-    joinLines = if minify then chunks 0 [] else id
-      where
-        chunks len acc [] = [concat (reverse acc)]
-        chunks len acc (s: ss)
-            | len + n <= minifiedCodeLinesLength = chunks (len + n) (s: acc) ss
-            | otherwise = concat (reverse acc): chunks n [s] ss
-          where
-            n = length s
+    joinLines :: [String] -> String
+    joinLines xs = if minify then concat xs else intercalate "\n" xs
 
     joinBy f [x] (y: ys) = f x y ++ ys
     joinBy f (x:xs) ys = x: joinBy f xs ys
@@ -218,10 +208,10 @@ instance Pretty Exp where
   pretty n (Null)            = "null"
   pretty n (String s)        = "\"" <> unescapes s <> "\""
   pretty n (Char c)          = "\"" <> unescapes [c] <> "\""
-  pretty n (Integer x)       = "agdaRTS.primIntegerFromString(\"" <> text (show x) <> "\")"
+  pretty n (Integer x)       = text $ show x
   pretty n (Double x)        = text $ show x
   pretty (n, min) (Lambda x e) =
-    mparens (x /= 1) (punctuate "," (pretties (n+x, min) (map LocalId [x-1, x-2 .. 0]))) <>
+    (if x == 0 then "_" else mparens (x > 1) (punctuate "," (pretties (n+x, min) (map LocalId [x-1, x-2 .. 0])))) <>
     space <> "=>" <> space <> block (n+x, min) e
   pretty n (Object o)        = braces $ punctuate "," $ pretties n o
   pretty n (Array es)        = brackets $ punctuate "," [pretty n c <> pretty n e | (c, e) <- es]
@@ -240,20 +230,28 @@ block n e = mparens (doNest e) $ pretty n e
     doNest _ = False
 
 modname :: GlobalId -> Doc
-modname (GlobalId ms) = text $ "\"" ++ intercalate "." ms ++ "\""
+modname (GlobalId ms) = text $ "\"" ++ ff (intercalate "." ms) ++ "\""
+  where
+    ff "agdaRTS" = "agda-rts"
+    ff s = s
 
 exports :: (Nat, Bool) -> Set [MemberId] -> [Export] -> Doc
 exports n lss [] = ""
+exports n lss (Export ls (Object o) : es) | Map.null o && member ls lss = exports n lss es
 exports n lss (Export ls e : es) | member (init ls) lss =
   "exports" <> hcat (map brackets (pretties n ls)) <> space <> "=" <> space <> indent (pretty n e) <> ";" $+$
   exports n (insert ls lss) es
 exports n lss (Export ls e : es) | otherwise =
   exports n lss (Export (init ls) (Object mempty) : Export ls e : es)
 
-instance Pretty [(GlobalId, Export)] where
-  pretty n es
-    = vcat [ pretty n g <> hcat (map brackets (pretties n ls)) <> space <> "=" <> space <> indent (pretty n e) <> ";"
-           | (g, Export ls e) <- es ]
+instance Pretty [Export] where
+  pretty n es = exports n (singleton []) es
+
+instance Pretty [(String, Exp)] where
+  pretty n [] = text ""
+  pretty n (e:es) = ("const " <> f e) $+$ vcat [ "," <> space <> f x | x <- es] $+$ ";"
+    where
+        f (name, es) = text name <> space <> "=" <> space <> pretty n es
 
 instance Pretty Module where
   pretty n (Module m is es ex) =

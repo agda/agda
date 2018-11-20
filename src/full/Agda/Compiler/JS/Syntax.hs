@@ -3,6 +3,7 @@
 
 module Agda.Compiler.JS.Syntax where
 
+import Data.Maybe ( catMaybes )
 import Data.Map (Map)
 import Data.Set (Set)
 import qualified Data.Set as Set
@@ -73,77 +74,45 @@ data Module = Module
 -- Note that modules are allowed to be recursive, via the Self expression,
 -- which is bound to the exported module.
 
--- Top-level uses of the form exports.l1....lN.
-
 class Uses a where
-  uses :: a -> Set [MemberId]
+  uses :: Bool{-go under lambdas-} -> a -> Set (Maybe GlobalId, [MemberId])
 
-  default uses :: (a ~ t b, Foldable t, Uses b) => a -> Set [MemberId]
-  uses = foldMap uses
+  default uses :: (a ~ t b, Foldable t, Uses b) => Bool -> a -> Set (Maybe GlobalId, [MemberId])
+  uses lam = foldMap (uses lam)
 
 instance Uses a => Uses [a]
 instance Uses a => Uses (Map k a)
 
 instance (Uses a, Uses b) => Uses (a, b) where
-  uses (a, b) = uses a `Set.union` uses b
+  uses lam (a, b) = uses lam a `Set.union` uses lam b
 
 instance (Uses a, Uses b, Uses c) => Uses (a, b, c) where
-  uses (a, b, c) = uses a `Set.union` uses b `Set.union` uses c
+  uses lam (a, b, c) = uses lam a `Set.union` uses lam b `Set.union` uses lam c
 
 instance Uses Comment where
-  uses _ = Set.empty
+  uses _ _ = Set.empty
 
 instance Uses Exp where
-  uses (Object o)     = uses o
-  uses (Array es)     = uses es
-  uses (Apply e es)   = uses (e, es)
-  uses (Lookup e l)   = uses' e [l] where
-      uses' Self         ls = Set.singleton ls
+  uses True (Lambda n e)  = uses True e
+  uses lam (Object o)     = uses lam o
+  uses lam (Array es)     = uses lam es
+  uses lam (Apply e es)   = uses lam (e, es)
+  uses lam (Lookup e l)   = uses' e [l] where
+      uses' Self         ls = Set.singleton (Nothing, ls)
+      uses' (Global i)   ls = Set.singleton (Just i, ls)
       uses' (Lookup e l) ls = uses' e (l : ls)
-      uses' e            ls = uses e
-  uses (If e f g)     = uses (e, f, g)
-  uses (BinOp e op f) = uses (e, f)
-  uses (PreOp op e)   = uses e
-  uses e              = Set.empty
+      uses' e            ls = uses lam e
+  uses lam (If e f g)     = uses lam (e, f, g)
+  uses lam (BinOp e op f) = uses lam (e, f)
+  uses lam (PreOp op e)   = uses lam e
+  uses _ e                = Set.empty
 
 instance Uses Export where
-  uses (Export _ e) = uses e
+  uses lam (Export _ e) = uses lam e
 
--- All global ids
+instance Uses Module where
+  uses lam (Module m _ es _) = uses lam es
 
-class Globals a where
-  globals :: a -> Set GlobalId
-
-  default globals :: (a ~ t b, Foldable t, Globals b) => a -> Set GlobalId
-  globals = foldMap globals
-
-instance Globals a => Globals [a]
-instance Globals a => Globals (Maybe a)
-instance Globals a => Globals (Map k a)
-
-instance (Globals a, Globals b) => Globals (a, b) where
-  globals (a, b) = globals a `Set.union` globals b
-
-instance (Globals a, Globals b, Globals c) => Globals (a, b, c) where
-  globals (a, b, c) = globals a `Set.union` globals b `Set.union` globals c
-
-instance Globals Comment where
-  globals _ = Set.empty
-
-instance Globals Exp where
-  globals (Global i) = Set.singleton i
-  globals (Lambda n e) = globals e
-  globals (Object o) = globals o
-  globals (Array es) = globals es
-  globals (Apply e es) = globals (e, es)
-  globals (Lookup e l) = globals e
-  globals (If e f g) = globals (e, f, g)
-  globals (BinOp e op f) = globals (e, f)
-  globals (PreOp op e) = globals e
-  globals _ = Set.empty
-
-instance Globals Export where
-  globals (Export _ e) = globals e
-
-instance Globals Module where
-  globals (Module _ _ es me) = globals (es, me)
+-- Top-level uses of the form exports.l1....lN.
+globals :: Uses a => a -> Set GlobalId
+globals = Set.fromList . catMaybes . map fst . Set.toList . uses True
