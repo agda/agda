@@ -918,7 +918,7 @@ primTransHComp cmd ts nelims = do
           a1 = pure tHComp <#> la <#> bA <#> (pure tIMax <@> psi <@> phi)
                            <@> (lam "i" $ \ i -> pure tPOr <#> la <@> psi <@> phi <@> (ilam "_" $ \ _ -> bA)
                                  <@> (ilam "o" $ \ o -> unglue (u <@> i <..> o))
-                                 <@> (ilam "o" $ \ o -> pure tEFun <#> la <#> lb <#> bA <#> phi <#> bT <@> (e <..> o) <@> tf i o)
+                                 <@> (ilam "o" $ \ o -> pure tEFun <#> lb <#> la <#> (bT <..> o) <#> bA <@> (e <..> o) <@> tf i o)
                                )
                            <@> (unglue u0)
           t1 = tf (pure io)
@@ -1643,7 +1643,7 @@ prim_unglue' = do
          IOne -> do
            let argOne = setRelevance Irrelevant $ argN one
            tEFun <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinEquivFun
-           redReturn $ tEFun `apply` [la,lb,bA,argH $ unArg bT `apply` [argOne], argN $ unArg e `apply` [argOne],b]
+           redReturn $ tEFun `apply` [lb,la,argH $ unArg bT `apply` [argOne],bA, argN $ unArg e `apply` [argOne],b]
          _    -> do
             sb <- reduceB' b
             case unArg $ ignoreBlocking $ sb of

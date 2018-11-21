@@ -605,7 +605,7 @@ compareAtom cmp t m n =
               return True
             _  -> return False
         compareUnglueApp q es es' = do
-          let (as,bs) = splitAt 8 es; (as',bs') = splitAt 8 es'
+          let (as,bs) = splitAt 7 es; (as',bs') = splitAt 7 es'
           case (allApplyElims as, allApplyElims as') of
             (Just [la,lb,bA,phi,bT,e,b], Just [la',lb',bA',phi',bT',e',b']) -> do
               tGlue <- getPrimitiveTerm builtinGlue
