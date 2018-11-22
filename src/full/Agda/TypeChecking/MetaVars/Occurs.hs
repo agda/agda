@@ -23,6 +23,8 @@ import Data.Foldable (foldMap)
 import Data.Monoid
 import Data.Set (Set)
 import qualified Data.Set as Set
+import qualified Data.IntMap as IntMap
+import Data.IntMap (IntMap)
 import qualified Data.IntSet as IntSet
 import Data.IntSet (IntSet)
 import Data.Traversable (traverse)
@@ -838,7 +840,9 @@ reallyNotFreeIn xs a = do
      | otherwise -> do
         -- If there are non-rigid occurrences we need to reduce a to see if
         -- we can get rid of them (#3177).
-        forceNotFree (IntSet.difference xs rigid) a
+        (fvs , a) <- forceNotFree (IntSet.difference xs rigid) a
+        let xs = IntMap.keysSet $ IntMap.filter (== NotFree) fvs
+        return (xs , a)
 
 -- | Instantiate a meta variable with a new one that only takes
 --   the arguments which are not pruneable.
