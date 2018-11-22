@@ -526,8 +526,3 @@ equal u v = do
       , " and " <+> prettyTCM v
       ]) $ do
     return $ Just block
-
--- | Normalise the given term but also preserve blocking tags
---   TODO: implement a more efficient version of this.
-normaliseB :: (MonadReduce m, Reduce t, Normalise t) => t -> m (Blocked t)
-normaliseB = normalise >=> reduceB

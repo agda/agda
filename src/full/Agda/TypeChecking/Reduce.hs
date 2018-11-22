@@ -67,6 +67,11 @@ reduceB = liftReduce . reduceB'
 normalise :: (Normalise a, MonadReduce m) => a -> m a
 normalise = liftReduce . normalise'
 
+-- | Normalise the given term but also preserve blocking tags
+--   TODO: implement a more efficient version of this.
+normaliseB :: (MonadReduce m, Reduce t, Normalise t) => t -> m (Blocked t)
+normaliseB = normalise >=> reduceB
+
 simplify :: (Simplify a, MonadReduce m) => a -> m a
 simplify = liftReduce . simplify'
 
