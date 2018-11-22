@@ -37,6 +37,8 @@ import qualified Data.IntMap as IntMap
 import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet
 import Data.Monoid
+import qualified Data.Set as Set
+import Data.Set (Set)
 
 import Agda.Syntax.Common
 import qualified Agda.Syntax.Common as C
@@ -45,6 +47,7 @@ import Agda.Syntax.Internal
 import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.EtaContract
 import Agda.TypeChecking.Free
+import Agda.TypeChecking.Free.Reduce
 import Agda.TypeChecking.Level
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin (getBuiltin', builtinLevel, primLevelSuc, primLevelMax)
@@ -364,13 +367,13 @@ instance Match Type NLPat Term where
       PVar i bvs -> traceSDoc "rewriting.match" 90 ("matching a PVar" <+> text (show i)) $ do
         let allowedVars :: IntSet
             allowedVars = IntSet.fromList (map unArg bvs)
-            isBadVar :: Int -> Bool
-            isBadVar i = i < n && not (i `IntSet.member` allowedVars)
+            badVars :: IntSet
+            badVars = IntSet.difference (IntSet.fromList (downFrom n)) allowedVars
             perm :: Permutation
             perm = Perm n $ reverse $ map unArg $ bvs
             tel :: Telescope
             tel = permuteTel perm k
-        ok <- Red.addCtxTel k $ reallyFree isBadVar v
+        ok <- Red.addCtxTel k $ reallyFree badVars v
         case ok of
           Left b         -> block b
           Right Nothing  -> no ""
@@ -442,34 +445,33 @@ instance Match Type NLPat Term where
         tellEq gamma k u v
 
 -- Checks if the given term contains any free variables that satisfy the
--- given condition on their DBI, possibly normalizing the term in the process.
+-- given condition on their DBI, possibly reducing the term in the process.
 -- Returns `Right Nothing` if there are such variables, `Right (Just v')`
--- if there are none (where v' is the possibly normalized version of the given
+-- if there are none (where v' is the possibly reduced version of the given
 -- term) or `Left b` if the problem is blocked on a meta.
-reallyFree :: (MonadReduce m, Reduce a, Normalise a, Free a)
-           => (Int -> Bool) -> a -> m (Either Blocked_ (Maybe a))
-reallyFree f v = do
-    let xs = getVars v
-    if null (stronglyRigidVars xs) && null (unguardedVars xs)
-    then do
-      if null (weaklyRigidVars xs) && null (flexibleVars xs)
-         && null (irrelevantVars xs)
-      then return $ Right $ Just v
-      else do
-        bv <- normaliseB v
-        let b  = void bv
-            v  = ignoreBlocking bv
-            xs = getVars v
-            b' = foldMap (foldMap $ \m -> Blocked m ()) $ flexibleVars xs
-        if null (stronglyRigidVars xs) && null (unguardedVars xs)
-           && null (weaklyRigidVars xs) && null (irrelevantVars xs)
-        then if null (flexibleVars xs)
-             then return $ Right $ Just v
-             else return $ Left $ b `mappend` b'
-        else return $ Right Nothing
-    else return $ Right Nothing
+reallyFree :: (MonadReduce m, Reduce a, ForceNotFree a)
+           => IntSet -> a -> m (Either Blocked_ (Maybe a))
+reallyFree xs v = do
+  (mxs , v') <- forceNotFree xs v
+  case IntMap.foldr pickFree NotFree mxs of
+    MaybeFree ms
+      | null ms   -> return $ Right Nothing
+      | otherwise -> return $ Left $
+        Set.foldr (\m -> mappend $ Blocked m ()) (notBlocked ()) ms
+    NotFree -> return $ Right (Just v')
+
   where
-    getVars v = runFree (\ i -> if f i then singleton i else empty) IgnoreNot v
+    -- Check if any of the variables occur freely.
+    -- Prefer occurrences that do not depend on any metas.
+    pickFree :: IsFree -> IsFree -> IsFree
+    pickFree f1@(MaybeFree ms1) f2
+      | null ms1  = f1
+    pickFree f1@(MaybeFree ms1) f2@(MaybeFree ms2)
+      | null ms2  = f2
+      | otherwise = f1
+    pickFree f1@(MaybeFree ms1) NotFree = f1
+    pickFree NotFree f2 = f2
+
 
 makeSubstitution :: Telescope -> Sub -> Substitution
 makeSubstitution gamma sub =
