@@ -148,6 +148,7 @@ import Agda.TypeChecking.SizedTypes (compareSizes)
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Free
+import Agda.TypeChecking.Free.Reduce
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.MetaVars (assignV, newArgsMetaCtx)
 import Agda.TypeChecking.EtaContract
@@ -166,6 +167,7 @@ import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Permutation
+import Agda.Utils.Singleton
 import Agda.Utils.Size
 
 #include "undefined.h"
@@ -653,11 +655,10 @@ dataStrategy k s = do
         _ -> mzero
     _ -> mzero
   where
-    ifOccursStronglyRigid i u ret = case occurrence i u of
-      StronglyRigid -> ret
-      NoOccurrence  -> mzero
-      _ -> do
-        u <- liftTCM $ normalise u
+    ifOccursStronglyRigid i u ret = do
+        -- Call forceNotFree to reduce u as far as possible
+        -- around any occurrences of i
+        (_ , u) <- liftTCM $ forceNotFree (singleton i) u
         case occurrence i u of
           StronglyRigid -> ret
           _ -> mzero
