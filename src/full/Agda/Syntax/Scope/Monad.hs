@@ -317,10 +317,10 @@ instance MonadFixityError ScopeM where
 
 -- | Collect the fixity/syntax declarations and polarity pragmas from the list
 --   of declarations and store them in the scope.
-computeFixitiesAndPolarities :: [C.Declaration] -> ScopeM a -> ScopeM a
-computeFixitiesAndPolarities ds ret = do
+computeFixitiesAndPolarities :: DoWarn -> [C.Declaration] -> ScopeM a -> ScopeM a
+computeFixitiesAndPolarities warn ds ret = do
   (fixs0, pols0) <- (scopeFixities &&& scopePolarities) <$> getScope
-  (fixs, pols)   <- fixitiesAndPolarities ds
+  (fixs, pols)   <- fixitiesAndPolarities warn ds
   modifyScope $ \ s -> s { scopeFixities = fixs, scopePolarities = pols }
   x <- ret
   modifyScope $ \ s -> s { scopeFixities = fixs0, scopePolarities = pols0 }

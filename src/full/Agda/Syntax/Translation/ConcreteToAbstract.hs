@@ -53,6 +53,7 @@ import Agda.Syntax.Common
 import Agda.Syntax.Info
 import Agda.Syntax.Concrete.Definitions as C
 import Agda.Syntax.Fixity
+import Agda.Syntax.Concrete.Fixity (DoWarn(..))
 import Agda.Syntax.Notation
 import Agda.Syntax.Scope.Base
 import Agda.Syntax.Scope.Monad
@@ -170,10 +171,14 @@ instance ToAbstract RecordConstructorType A.Expr where
 
 -- | Compute the type of the record constructor (with bogus target type)
 recordConstructorType :: [C.Declaration] -> ScopeM A.Expr
-recordConstructorType fields = niceDecls fields $ \ fields -> do
-  -- Drop all declarations after the last field declaration
-  buildType $ reverse $ dropWhile notField $ reverse fields
+recordConstructorType decls =
+    -- Nicify all declarations since there might be fixity declarations after
+    -- the the last field. Use NoWarn to silence fixity warnings. We'll get
+    -- them again when scope checking the declarations to build the record
+    -- module.
+    niceDecls NoWarn decls $ buildType . takeFields
   where
+    takeFields = reverse . dropWhile notField . reverse
 
     notField NiceField{} = False
     notField _           = True
@@ -1224,8 +1229,8 @@ instance ToAbstract (TopLevel [C.Declaration]) TopLevelInfo where
         _ -> __IMPOSSIBLE__
 
 -- | runs Syntax.Concrete.Definitions.niceDeclarations on main module
-niceDecls :: [C.Declaration] -> ([NiceDeclaration] -> ScopeM a) -> ScopeM a
-niceDecls ds ret = setCurrentRange ds $ computeFixitiesAndPolarities ds $ do
+niceDecls :: DoWarn -> [C.Declaration] -> ([NiceDeclaration] -> ScopeM a) -> ScopeM a
+niceDecls warn ds ret = setCurrentRange ds $ computeFixitiesAndPolarities warn ds $ do
   fixs <- scopeFixities <$> getScope  -- We need to pass the fixities to the nicifier for clause grouping
   let (result, warns) = runNice $ niceDeclarations fixs ds
   unless (null warns) $ do
@@ -1256,7 +1261,7 @@ instance {-# OVERLAPPING #-} ToAbstract [C.Declaration] [A.Declaration] where
     ds <- ifM (Lens.getSafeMode <$> commandLineOptions)
               (mapM (noNoTermCheck >=> noNoPositivityCheck >=> noPolarity >=> noNoUniverseCheck) ds)
               (return ds)
-    niceDecls ds toAbstract
+    niceDecls DoWarn ds toAbstract
    where
     -- ASR (31 December 2015). We don't pattern-match on
     -- @NoTerminationCheck@ because the @NO_TERMINATION_CHECK@ pragma
@@ -1288,7 +1293,7 @@ newtype LetDef = LetDef NiceDeclaration
 
 instance ToAbstract LetDefs [A.LetBinding] where
   toAbstract (LetDefs ds) =
-    concat <$> (niceDecls ds $ toAbstract . map LetDef)
+    concat <$> (niceDecls DoWarn ds $ toAbstract . map LetDef)
 
 instance ToAbstract LetDef [A.LetBinding] where
   toAbstract (LetDef d) =
