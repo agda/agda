@@ -688,7 +688,12 @@ catchIlltypedPatternBlockedOnMeta m handle = do
       -- Case: we do not know the meta, so we reraise.
       Nothing -> reraise
       -- Case: we know the meta here.
-      Just m | InstV{} <- mvInstantiation m -> __IMPOSSIBLE__  -- It cannot be instantiated yet.
+      -- Andreas, 2018-11-23: I do not understand why @InstV@ is necessarily impossible.
+      -- The reasoning is probably that the state @st@ is more advanced that @s@
+      -- in which @x@ was blocking, thus metas in @st@ should be more instantiated than
+      -- in @s@.  But issue #3403 presents a counterexample, so let's play save and reraise
+      -- Just m | InstV{} <- mvInstantiation m -> __IMPOSSIBLE__  -- It cannot be instantiated yet.
+      Just m | InstV{} <- mvInstantiation m -> reraise
       -- Case: the meta is frozen (and not an interaction meta).
       -- Postponing doesn't make sense, so we reraise.
       Just m | Frozen  <- mvFrozen m -> isInteractionMeta x >>= \case
