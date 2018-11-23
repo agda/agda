@@ -232,7 +232,7 @@ checkStrictlyPositive mi qset = do
       -- -- Compute a map from each name in q to the maximal argument index
       -- let maxs = Map.fromListWith max
       --      [ (q, i) | ArgNode q i <- Set.toList $ Graph.nodes g, q `Set.member` qset ]
-      forM_ qs $ \ q -> inConcreteOrAbstractMode q $ \ def -> do
+      forM_ qs $ \ q -> inConcreteOrAbstractMode q $ \ def -> when (hasDefinition $ theDef def) $ do
         reportSDoc "tc.pos.args" 10 $ "checking args of" <+> prettyTCM q
         n <- getDefArity def
         -- If there is no outgoing edge @ArgNode q i@, all @n@ arguments are @Unused@.
@@ -248,6 +248,21 @@ checkStrictlyPositive mi qset = do
         -- small elements, and is stored in the interface (right?), so
         -- it is computed deep-strictly.
         setArgOccurrences q $!! args
+      where
+      -- Andreas, 2018-11-23, issue #3404
+      -- Only assign argument occurrences to things which have a definition.
+      -- Things without a definition would be judged "constant" in all arguments,
+      -- since no occurrence could possibly be found, naturally.
+      hasDefinition :: Defn -> Bool
+      hasDefinition = \case
+        Axiom{}            -> False
+        GeneralizableVar{} -> False
+        AbstractDefn{}     -> False
+        Primitive{}        -> False
+        Constructor{}      -> False
+        Function{}         -> True
+        Datatype{}         -> True
+        Record{}           -> True
 
 getDefArity :: Definition -> TCM Int
 getDefArity def = do

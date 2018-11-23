@@ -3,6 +3,6 @@ Termination checking failed for the following functions:
   _ctx-⇛_, Tm
 Problematic calls:
   Tm (Γ , _ * A)
-  weaken Γ * A
+  weaken Γ * _159 (P = P) (Γ = Γ) (A = A) (T = T)
   Γ ctx-⇛ Δ
     (at Issue921.agda:58,29-34)
