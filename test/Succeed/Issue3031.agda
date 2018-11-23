@@ -45,17 +45,23 @@ module OriginalTestCase where
   apply2 f refl = refl
 
   private
+    resurrect : .⊥ → ⊥
+    resurrect ()
+
+    refute : ∀ m → (Σ Nat λ x → (suc (x N.+ m) ≡ 0)) → ⊥
+    refute m (_ , ())
+
     lem : ∀ m → .(Σ Nat λ x → (suc (x N.+ m) ≡ 0)) → ⊥
-    lem _ (_ , ())
+    lem m p = resurrect (refute m p)
 
   S : ∀ {n} → Fin n → Fin (suc n)
-  S (mkFin a (k , p)) = mkFin (suc a) (suc k , primTrustMe)
+  S (mkFin a kp) = mkFin (suc a) (suc (fst kp) , primTrustMe)
 
   to : ∀ {n} → Fin n → Fin n
   to record { m = zero ; p = p } = record { m = zero ; p = p }
   to {zero} record { m = (suc m) ; p = p } with lem (suc m) p
   ... | ()
-  to {suc n} record { m = (suc m) ; p = (k , p) } = S (to record { m = m ; p = k , primTrustMe })
+  to {suc n} record { m = (suc m) ; p = p } = S (to record { m = m ; p = fst p , primTrustMe })
 
   from = to
 
@@ -63,10 +69,10 @@ module OriginalTestCase where
   iso {zero} record { m = m ; p = p } with lem m p
   ... | ()
   iso {suc n} record { m = zero ; p = p } = refl
-  iso {suc n} record { m = (suc m) ; p = p@(k , _) } =
+  iso {suc n} record { m = (suc m) ; p = p } =
     let
       w : Fin n
-      w = mkFin m (k , primTrustMe)
+      w = mkFin m (fst p , primTrustMe)
       v : S (from (to w)) ≡ S w
       v = apply2 {b = _} S (iso w)
     in v

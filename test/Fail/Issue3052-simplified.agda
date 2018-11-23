@@ -38,3 +38,7 @@ test (foo (a , b)) = foo (a , thm a b) -- Error at b
     -- thm x y = y -- WAS: Worked only if definition is given (which
 
 -- Should succeed.
+
+-- Jesper, 2018-11-23, This test case fails since the fix of #3056.
+-- I'm not sure if there is a way to salvage this test case, but I leave
+-- it in Fail in case anyone wants to try.

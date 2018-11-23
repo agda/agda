@@ -1,0 +1,3 @@
+Issue3052-simplified.agda:30,12-17
+Cannot pattern match against irrelevant argument of type Σ
+when checking that the pattern a , b has type Σ

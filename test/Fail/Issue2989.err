@@ -1,0 +1,3 @@
+Issue2989.agda:30,16-24
+Cannot pattern match against irrelevant argument of type Σ' N P
+when checking that the pattern pair k p has type Σ' N P

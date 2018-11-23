@@ -12,6 +12,7 @@ record Sigma (A : Set)(B : A → Set) : Set where
   field
     fst : A
     snd : B fst
+open Sigma
 
 syntax Sigma A (λ x → B) = Σ x ∈ A , B
 
@@ -30,7 +31,7 @@ elem (x # p) = x
 elim₂ : ∀ {A C : Set} {P Q : A → Set} →
         Subset A (λ x → Sigma (P x) (λ _ → Q x)) →
         ((a : A) → .(P a) → .(Q a) → C) → C
-elim₂ (a # (p , q)) k = k a p q
+elim₂ (a # pq) k = k a (fst pq) (snd pq)
 
 
 record _⇀_ (A B : Set) : Set1 where
@@ -51,7 +52,7 @@ _∘_ : {A B C : Set} → (B ⇀ C) → (A ⇀ B) → A ⇀ C
   QP : _ → Set
   QP x             = Σ x∈P ∈ P x , Q (f (x # x∈P))
   gf : Subset _ QP → _
-  gf (x # (p , q)) = g (f (x # p) # q)
+  gf (x # pq) = g (f (x # fst pq) # snd pq)
 
 _⊑_ : {A B : Set} → (f f' : A ⇀ B) → Set
 (f ↾ P) ⊑ (f' ↾ P') =

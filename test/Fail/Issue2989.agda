@@ -1,6 +1,10 @@
 -- Andreas, 2018-03-03, issue #2989
 -- Internal error, fixable with additional 'reduce'.
 
+-- Jesper, 2018-11-23: Test case no longer works after fix of #3056.
+-- I'm leaving the test case in Fail for documentation purposes.
+
+
 -- {-# OPTIONS --show-implicit --show-irrelevant #-}
 -- {-# OPTIONS -v tc.rec:70 -v tc:10 #-}
 

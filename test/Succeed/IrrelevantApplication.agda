@@ -32,8 +32,10 @@ record Prod (A B : Set) : Set where
     snd : B
 
 -- matching an irrelevant record is ok as long as fields are use irrelevantly
-irrElim : {A B C : Set} → .(Prod A B) → (.A → .B → C) → C
-irrElim (a , b) f = f a b
+-- Jesper, 2018-11-23: No it isn't!
 
-lemma : {A B C : Set}(a : A)(b : B)(f : .A -> .B -> C) -> irrElim (a , b) f == f a b
-lemma a b f = refl
+--irrElim : {A B C : Set} → .(Prod A B) → (.A → .B → C) → C
+--irrElim (a , b) f = f a b
+
+--lemma : {A B C : Set}(a : A)(b : B)(f : .A -> .B -> C) -> irrElim (a , b) f == f a b
+--lemma a b f = refl

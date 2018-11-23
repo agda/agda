@@ -1125,8 +1125,18 @@ checkLHS mf = updateRelevance checkLHS_ where
           ]
         ]
 
+      -- We cannot split on (shape-)irrelevant arguments.
+      reportSLn "tc.lhs.split" 30 $ "split ConP: relevance is " ++ show (getRelevance info)
+      unless (usableRelevance info) $ addContext delta1 $
+        hardTypeError $ SplitOnIrrelevant dom
+
+      -- Andreas, 2018-10-17, we can however split on erased things
+      -- if there is a single constructor (checked in Coverage).
+      --
+      -- Thus, no checking of (usableQuantity info) here.
+
       -- We should be at a data/record type
-      (dr, d, pars, ixs) <- addContext delta1 $ isDataOrRecordType dom
+      (dr, d, pars, ixs) <- addContext delta1 $ isDataOrRecordType a
 
       checkSortOfSplitVar dr a
 
@@ -1351,25 +1361,15 @@ hardTypeError = liftTCM . typeError
 --   a data/record type by instantiating a variable/metavariable, or fail hard
 --   otherwise.
 isDataOrRecordType :: (MonadTCM m, MonadDebug m)
-                   => Dom Type
+                   => Type
                    -> ExceptT TCErr m (DataOrRecord, QName, Args, Args)
-isDataOrRecordType dom@Dom{domInfo = info, unDom = a} = liftTCM (reduceB a) >>= \case
+isDataOrRecordType a = liftTCM (reduceB a) >>= \case
   NotBlocked ReallyNotBlocked a -> case unEl a of
 
     -- Subcase: split type is a Def.
     Def d es -> (liftTCM $ theDef <$> getConstInfo d) >>= \case
 
       Datatype{dataPars = np} -> do
-
-        -- We cannot split on (shape-)irrelevant non-records.
-        reportSLn "tc.lhs.split" 30 $ "split ConP: relevance is " ++ show (getRelevance info)
-        unless (usableRelevance info) $
-          hardTypeError $ SplitOnIrrelevant dom
-
-        -- Andreas, 2018-10-17, we can however split on erased things
-        -- if there is a single constructor (checked in Coverage).
-        --
-        -- Thus, no checking of (usableQuantity info) here.
 
         let (pars, ixs) = splitAt np $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
         return (IsData, d, pars, ixs)

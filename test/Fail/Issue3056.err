@@ -1,0 +1,4 @@
+Issue3056.agda:18,10-15
+Cannot pattern match against irrelevant argument of type
+Σ Bool type
+when checking that the pattern x , y has type Σ Bool type

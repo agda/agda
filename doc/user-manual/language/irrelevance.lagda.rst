@@ -128,21 +128,6 @@ What can be done to irrelevant arguments
   zero-not-one : .(0 ≡ 1) → ⊥
   zero-not-one ()
 
-**Example 4.** We can match on an irrelevant record (see :ref:`record-types`) as long as we only use the fields irrelevantly. ::
-
-  record _×_ (A B : Set) : Set where
-    constructor _,_
-    field
-      fst : A
-      snd : B
-
-  irrElim : {A B C : Set} → .(A × B) → (.A → .B → C) → C
-  irrElim (a , b) f = f a b
-
-  lemma : {A B C : Set} {a a' : A} {b b' : B}
-        → (f : .A -> .B -> C) -> irrElim (a , b) f ≡ f a' b'
-  lemma f = refl
-
 What can't be done to irrelevant arguments
 ------------------------------------------
 
@@ -182,6 +167,28 @@ What can't be done to irrelevant arguments
 
   Cannot pattern match against irrelevant argument of type Nat
   when checking that the pattern zero has type Nat
+
+**Example 4.** We also can't match on an irrelevant record (see
+  :ref:`record-types`).
+
+.. code-block:: agda
+
+  record Σ (A : Set) (B : A → Set) : Set where
+    constructor _,_
+    field
+      fst : A
+      snd : B fst
+
+  irrElim : {A : Set} {B : A → Set} → .(Σ A B) → _
+  irrElim (a , b) = ?
+
+.. code-block:: text
+
+  Cannot pattern match against irrelevant argument of type Σ A B
+  when checking that the pattern a , b has type Σ A B
+
+If this were allowed, `b` would have type `B a` but this type is not
+even well-formed because `a` is irrelevant!
 
 Irrelevant declarations
 =======================
