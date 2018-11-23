@@ -17,7 +17,7 @@ module Agda.Syntax.Translation.ConcreteToAbstract
     , NewModuleName, OldModuleName
     , NewName, OldQName
     , LeftHandSide, RightHandSide
-    , PatName, APatName, LetDef, LetDefs
+    , PatName, APatName
     ) where
 
 #if MIN_VERSION_base(4,11,0)
@@ -163,47 +163,57 @@ noDotorEqPattern err = dot
 noDotPattern :: String -> A.Pattern' e -> ScopeM (A.Pattern' Void)
 noDotPattern err = traverse $ const $ genericError err
 
+newtype RecordConstructorType = RecordConstructorType [C.Declaration]
+
+instance ToAbstract RecordConstructorType A.Expr where
+  toAbstract (RecordConstructorType ds) = recordConstructorType ds
+
 -- | Compute the type of the record constructor (with bogus target type)
-recordConstructorType :: [C.Declaration] -> ScopeM C.Expr
+recordConstructorType :: [C.Declaration] -> ScopeM A.Expr
 recordConstructorType fields = niceDecls fields $ \ fields -> do
-  -- drop all declarations after the last field declaration
-  let fs = reverse $ dropWhile notField $ reverse fields
-  build =<< mapM validForLet fs
+  -- Drop all declarations after the last field declaration
+  buildType $ reverse $ dropWhile notField $ reverse fields
   where
 
     notField NiceField{} = False
     notField _           = True
 
-    -- | Check that declarations before last field can be handled
-    --   by current translation into let.
-    --
-    --   Sometimes a declaration is valid with minor modifications.
-    validForLet :: NiceDeclaration -> ScopeM NiceDeclaration
-    validForLet d = do
-      let failure = traceCall (SetRange $ getRange d) $
-            typeError $ NotValidBeforeField d
-      case d of
+    buildType :: [C.NiceDeclaration] -> ScopeM A.Expr
+    buildType ds = do
+      tel <- mapM makeBinding ds  -- TODO: Telescope instead of Expr in abstract RecDef
+      return $ A.Pi (ExprRange (getRange ds)) tel (A.Set exprNoRange 0)
 
-        -- Andreas, 2013-11-08
-        -- Turn @open public@ into just @open@, since we cannot have an
-        -- @open public@ in a @let@.  Fixes issue #532.
-        C.NiceOpen r m dir ->
-          return $ C.NiceOpen r m dir{ publicOpen = False }
+    makeBinding :: C.NiceDeclaration -> ScopeM A.TypedBindings
+    makeBinding d = do
+      let failure = typeError $ NotValidBeforeField d
+          r       = getRange d
+          info    = ExprRange r
+          mkLet d = A.TypedBindings r . defaultArg . A.TLet r <$> toAbstract (LetDef d)
+      traceCall (SetRange r) $ case d of
 
-        C.NiceModuleMacro r p x modapp open dir ->
-          return $ C.NiceModuleMacro r p x modapp open dir{ publicOpen = False }
+        C.NiceField r pr ab inst x a -> do
+          fx  <- getConcreteFixity x
+                   -- Ulf 2018-11-23: Is this right? Default hiding instead of
+                   -- getHiding a. We also keep the ArgInfo in the TypedBindings.
+          let bv = pure $ C.mkBoundName x fx
+          tel <- toAbstract $ C.TypedBindings r (C.TBind r [bv] (unArg a) <$ a)
+          return tel
 
-        C.NiceField{} ->
-          return d
+        -- Public open is allowed and will take effect when scope checking as
+        -- proper declarations.
+        C.NiceOpen r m dir -> do
+          mkLet $ C.NiceOpen r m dir{ publicOpen = False }
+        C.NiceModuleMacro r p x modapp open dir -> do
+          mkLet $ C.NiceModuleMacro r p x modapp open dir{ publicOpen = False }
 
+        -- Do some rudimentary matching here to get NotValidBeforeField instead
+        -- of NotAValidLetDecl.
         C.NiceMutual _ _ _
           [ C.FunSig _ _ _ _instanc macro _info _ _ _
           , C.FunDef _ _ abstract _ _ _
              [ C.Clause _top _catchall (C.LHS _p [] []) (C.RHS _rhs) NoWhere [] ]
-          ] | abstract /= AbstractDef && macro /= MacroDef ->
-          -- TODO: this is still too generous, we also need to check that _p
-          -- is only variable patterns.
-          return d
+          ] | abstract /= AbstractDef && macro /= MacroDef -> do
+          mkLet d
 
         C.NiceMutual{}        -> failure
         -- TODO: some of these cases might be __IMPOSSIBLE__
@@ -223,23 +233,6 @@ recordConstructorType fields = niceDecls fields $ \ fields -> do
         C.NiceGeneralize{}    -> failure
         C.NiceUnquoteDecl{}   -> failure
         C.NiceUnquoteDef{}    -> failure
-
-    build fs = do
-      let (ds1, ds2) = span notField fs
-      lets (concatMap notSoNiceDeclarations ds1) <$> fld ds2
-
-    -- Turn a field declaration into a the domain of a Pi-type
-    fld [] = return $ C.SetN noRange 0 -- todo: nicer
-    fld (NiceField r _ _ _ x (Arg info e) : fs) = do
-        f <- getConcreteFixity x
-        C.Pi [C.TypedBindings r $ Arg info (C.TBind r [pure $ mkBoundName x f] e)] <$> build fs
-      where r = getRange x
-    fld _ = __IMPOSSIBLE__
-
-    -- Turn non-field declarations into a let binding.
-    -- Smart constructor for C.Let:
-    lets [] c = c
-    lets ds c = C.Let (getRange ds) ds (Just c)
 
 checkModuleApplication
   :: C.ModuleApplication
@@ -1289,6 +1282,7 @@ instance {-# OVERLAPPING #-} ToAbstract [C.Declaration] [A.Declaration] where
     noNoUniverseCheck d@(C.Pragma (C.NoUniverseCheckPragma _)) =
       d <$ (setCurrentRange d $ warning SafeFlagNoUniverseCheck)
     noNoUniverseCheck d = return d
+
 newtype LetDefs = LetDefs [C.Declaration]
 newtype LetDef = LetDef NiceDeclaration
 
@@ -1590,7 +1584,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
         let x' = anameName ax
         -- We scope check the fields a first time when putting together
         -- the type of the constructor.
-        contel <- toAbstract =<< recordConstructorType fields
+        contel <- localToAbstract (RecordConstructorType fields) return
         m0     <- getCurrentModule
         let m = A.qualifyM m0 $ mnameFromList [ last $ qnameToList x' ]
         printScope "rec" 15 "before record"
