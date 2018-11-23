@@ -741,6 +741,8 @@ instance PrettyTCM TypeError where
         | CmpLeq <- cmp              -> prettyTCM $ NotLeqSort s1 s2
       (Sort MetaS{} , t            ) -> prettyTCM $ ShouldBeASort $ El Inf t
       (s            , Sort MetaS{} ) -> prettyTCM $ ShouldBeASort $ El Inf s
+      (Sort DefS{}  , t            ) -> prettyTCM $ ShouldBeASort $ El Inf t
+      (s            , Sort DefS{}  ) -> prettyTCM $ ShouldBeASort $ El Inf s
       (_            , _            ) -> do
         (d1, d2, d) <- prettyInEqual s t
         fsep $ [return d1, notCmp cmp, return d2] ++ pwords "of type" ++ [prettyTCM a] ++ [return d]

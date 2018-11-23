@@ -712,6 +712,7 @@ instance ExtractCalls Sort where
       PiSort s1 s2 -> extract (s1, s2)
       UnivSort s -> extract s
       MetaS x es -> return empty
+      DefS d es  -> return empty
       DummyS{}   -> return empty
 
 -- | Extract recursive calls from a type.

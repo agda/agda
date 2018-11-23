@@ -1187,6 +1187,11 @@ leqSort s1 s2 = catchConstraint (SortCmp CmpLeq s1 s2) $ do
       (MetaS{} , _       ) -> postpone
       (_       , MetaS{} ) -> postpone
 
+      -- DefS are postulated sorts, so they do not reduce.
+      (DefS d es , DefS d' es') | d == d' -> postpone
+      (DefS{} , _     ) -> no
+      (_      , DefS{}) -> no
+
   where
   impossibleSort s = do
     reportSLn "impossible" 10 $ unlines
@@ -1564,6 +1569,9 @@ equalSort s1 s2 = do
             (_          , PiSort{}   ) -> postpone
             (UnivSort{} , _          ) -> postpone
             (_          , UnivSort{} ) -> postpone
+
+            -- postulated sorts can only be equal if they have the same head
+            (DefS d es  , DefS d' es') | d == d' -> synEq
 
             -- any other combinations of sorts are not equal
             (_          , _          ) -> no
