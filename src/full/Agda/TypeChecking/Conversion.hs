@@ -823,16 +823,19 @@ compareElims pols0 fors0 a v els01 els02 = catchConstraint (ElimCmp pols0 fors0 
         , "arg2 =" <+> prettyTCM arg2
         ]
       reportSDoc "tc.conv.elim" 50 $ nest 2 $ vcat
-        [ "v    =" <+> pretty v
+        [ "raw:"
+        , "a    =" <+> pretty a
+        , "v    =" <+> pretty v
         , "arg1 =" <+> pretty arg1
         , "arg2 =" <+> pretty arg2
-        , ""
         ]
       let (pol, pols) = nextPolarity pols0
           (for, fors) = nextIsForced fors0
       ifBlockedType a (\ m t -> patternViolation) $ \ _ a -> do
+        reportSLn "tc.conv.elim" 90 $ "type is not blocked"
         case unEl a of
           (Pi (Dom{domInfo = info, unDom = b}) codom) -> do
+            reportSLn "tc.conv.elim" 90 $ "type is a function type"
             mlvl <- tryMaybe primLevel
             let freeInCoDom (Abs _ c) = 0 `freeInIgnoringSorts` c
                 freeInCoDom _         = False
@@ -849,14 +852,17 @@ compareElims pols0 fors0 a v els01 els02 = catchConstraint (ElimCmp pols0 fors0 
             -- compare arg1 and arg2
             pid <- newProblem_ $ applyModalityToContext info $
                 if isForced for then
-                  return ()
-                else if isIrrelevant info then
+                  reportSLn "tc.conv.elim" 90 $ "argument is forced"
+                else if isIrrelevant info then do
+                  reportSLn "tc.conv.elim" 90 $ "argument is irrelevant"
                   compareIrrelevant b (unArg arg1) (unArg arg2)
-                else
+                else do
+                  reportSLn "tc.conv.elim" 90 $ "argument has polarity " ++ show pol
                   compareWithPol pol (flip compareTerm b)
                     (unArg arg1) (unArg arg2)
             -- if comparison got stuck and function type is dependent, block arg
             solved <- isProblemSolved pid
+            reportSLn "tc.conv.elim" 90 $ "solved = " ++ show solved
             arg <- if dependent && not solved
                    then do
                     arg <- (arg1 $>) <$> antiUnify pid b (unArg arg1) (unArg arg2)
@@ -866,7 +872,8 @@ compareElims pols0 fors0 a v els01 els02 = catchConstraint (ElimCmp pols0 fors0 
                    else return arg1
             -- continue, possibly with blocked instantiation
             compareElims pols fors (codom `lazyAbsApp` unArg arg) (apply v [arg]) els1 els2
-            -- any left over constraints of arg are associatd to the comparison
+            -- any left over constraints of arg are associated to the comparison
+            reportSLn "tc.conv.elim" 90 $ "stealing constraints from problem " ++ show pid
             stealConstraints pid
             {- Stealing solves this issue:
 
