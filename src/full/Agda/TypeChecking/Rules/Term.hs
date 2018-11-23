@@ -618,22 +618,20 @@ checkExtendedLambda cmp i di qname cs e t = do
 
 -- | Run a computation.
 --
---   * If successful, return Nothing.
+--   * If successful, that's it, we are done.
 --
 --   * If @IlltypedPattern p a@, @NotADatatype a@ or @CannotEliminateWithPattern p a@
 --     is thrown and type @a@ is blocked on some meta @x@,
---     reset any changes to the state and return @Just x@.
+--     reset any changes to the state and pass (the error and) @x@ to the handler.
 --
 --   * If @SplitError (UnificationStuck c tel us vs _)@ is thrown and the unification
---     problem @us =?= vs : tel@ is blocked on some meta @x@ return @Just x@.
+--     problem @us =?= vs : tel@ is blocked on some meta @x@ pass @x@ to the handler.
 --
 --   * If another error was thrown or the type @a@ is not blocked, reraise the error.
 --
 --   Note that the returned meta might only exists in the state where the error was
 --   thrown, thus, be an invalid 'MetaId' in the current state.
 --
---   If --sharing is enabled, we will never catch errors since it's not safe to roll
---   back the state.
 catchIlltypedPatternBlockedOnMeta :: TCM a -> ((TCErr, MetaId) -> TCM a) -> TCM a
 catchIlltypedPatternBlockedOnMeta m handle = do
 
@@ -645,19 +643,33 @@ catchIlltypedPatternBlockedOnMeta m handle = do
 
     let reraise = throwError err
 
-    x <- maybe reraise return =<< case err of
-      TypeError s cl -> localTCState $ putTC s >> do
-        enterClosure cl $ \case
-          IlltypedPattern p a -> isBlockedType a
-          SplitError (UnificationStuck c tel us vs _) -> do
-            problem <- reduce =<< instantiateFull (flattenTel tel, us, vs)
-            -- over-approximating the set of metas actually blocking unification
-            return $ listToMaybe $ allMetas problem
-          SplitError (NotADatatype aClosure) ->
-            enterClosure aClosure $ \ a -> isBlockedType a
-          CannotEliminateWithPattern p a -> isBlockedType a
-          _ -> return Nothing
-      _ -> return Nothing
+    -- Get the blocking meta responsible for the type error.
+    -- If we do not find such a meta or the error should not be handled,
+    -- we reraise the error.
+    x <- maybe reraise return =<< do
+      case err of
+        TypeError s cl -> localTCState $ do
+          putTC s
+          enterClosure cl $ \case
+            IlltypedPattern p a -> isBlockedType a
+
+            SplitError (UnificationStuck c tel us vs _) -> do
+              -- Andreas, 2018-11-23, re issue #3403
+              -- The following computation of meta-variables and picking
+              -- of the first one, seems a bit brittle.
+              -- I do not understand why there is a single @reduce@ here
+              -- (seems to archieve a bit along @normalize@, but how much??).
+              problem <- reduce =<< instantiateFull (flattenTel tel, us, vs)
+              -- over-approximating the set of metas actually blocking unification
+              return $ listToMaybe $ allMetas problem
+
+            SplitError (NotADatatype aClosure) ->
+              enterClosure aClosure $ \ a -> isBlockedType a
+
+            CannotEliminateWithPattern p a -> isBlockedType a
+
+            _ -> return Nothing
+        _ -> return Nothing
 
     reportSDoc "tc.postpone" 20 $ vcat $
       [ "checking definition blocked on meta: " <+> prettyTCM x ]
@@ -673,7 +685,7 @@ catchIlltypedPatternBlockedOnMeta m handle = do
     -- The meta might not be known in the reset state, as it could have been created
     -- somewhere on the way to the type error.
     Map.lookup x <$> getMetaStore >>= \case
-      -- Case: we do not know the meta, so we reraise
+      -- Case: we do not know the meta, so we reraise.
       Nothing -> reraise
       -- Case: we know the meta here.
       Just m | InstV{} <- mvInstantiation m -> __IMPOSSIBLE__  -- It cannot be instantiated yet.
