@@ -1,0 +1,6 @@
+Issue3403.agda:29,3-7
+I'm not sure if there should be a case for the constructor refl,
+because I get stuck when trying to solve the following unification
+problems (inferred index ≟ expected index):
+  k x ≟ k y
+when checking that the pattern refl has type k x ≡ k y
