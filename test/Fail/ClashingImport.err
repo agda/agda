@@ -1,4 +1,4 @@
-ClashingImport.agda:8,6-22
+ClashingImport.agda:8,1-22
 Multiple definitions of A. Previous definition at
 ClashingImport.agda:5,11-12
 when scope checking the declaration

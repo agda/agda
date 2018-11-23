@@ -1425,7 +1425,7 @@ Open : MaybeOpen 'import' ModuleName OpenArgs ImportDirective {%
     ; m   = $3
     ; es  = $4
     ; dir = $5
-    ; r   = getRange (m, es, dir)
+    ; r   = getRange ($1, $2, m, es, dir)
     ; mr  = getRange m
     ; unique = hashString $ show $ (Nothing :: Maybe ()) <$ r
          -- turn range into unique id, but delete file path
@@ -1433,9 +1433,8 @@ Open : MaybeOpen 'import' ModuleName OpenArgs ImportDirective {%
          -- (different hashs on different installations)
          -- TODO: Don't use (insecure) hashes in this way.
     ; fresh = Name mr [ Id $ stringToRawName $ ".#" ++ show m ++ "-" ++ show unique ]
-    ; impStm asR = Import mr m (Just (AsName (Right fresh) asR)) DontOpen defaultImportDir
+    ; impStm asR = Import r m (Just (AsName (Right fresh) asR)) DontOpen defaultImportDir
     ; appStm m' es =
-        let r = getRange (m, es) in
         Private r Inserted
           [ ModuleMacro r m'
              (SectionApp (getRange es) []
@@ -1455,7 +1454,7 @@ Open : MaybeOpen 'import' ModuleName OpenArgs ImportDirective {%
       }
     } in
     case es of
-      { [] -> return [Import mr m Nothing doOpen dir]
+      { [] -> return [Import r m Nothing doOpen dir]
       ; _ | Just (asR, m') <- parseAsClause ->
               if null initArgs then return
                  [ Import (getRange (m, asR, m', dir)) m
@@ -1477,7 +1476,7 @@ Open : MaybeOpen 'import' ModuleName OpenArgs ImportDirective {%
     { m   = $2
     ; es  = $3
     ; dir = $4
-    ; r   = getRange (m, es, dir)
+    ; r   = getRange ($1, m, es, dir)
     } in
     [ case es of
       { []  -> Open r m dir

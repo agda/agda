@@ -1,4 +1,4 @@
-Issue1296.agda:1,13-33
+Issue1296.agda:1,1-33
 Module cannot be imported since it has open interaction points
 (consider adding {-# OPTIONS --allow-unsolved-metas #-} to this
 module)
