@@ -19,12 +19,15 @@ testDir = "doc" </> "user-manual"
 examplesInUserManual :: [FilePath]
 examplesInUserManual = map ((testDir </> "tools") </>)
   [ "acmart-pdflatex.lagda.tex"
-  , "acmart-xelatex.lagda.tex"
   , "article-pdflatex.lagda.tex"
+  , "beamer-pdflatex.lagda.tex"
+-- xelatex can only find system fonts on MacOS making these tests fail
+#ifndef darwin_HOST_OS
+  , "acmart-xelatex.lagda.tex"
   , "article-luaxelatex-different-fonts.lagda.tex"
   , "article-luaxelatex.lagda.tex"
-  , "beamer-pdflatex.lagda.tex"
   , "beamer-luaxelatex.lagda.tex"
+#endif
   ]
 
 tests :: IO TestTree
