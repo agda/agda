@@ -151,6 +151,7 @@ instance Instantiate Sort where
     MetaS x es -> instantiate' (MetaV x es) >>= \case
       Sort s'      -> return s'
       MetaV x' es' -> return $ MetaS x' es'
+      Def d es'     -> return $ DefS d es'
       _            -> __IMPOSSIBLE__
     _ -> return s
 
@@ -285,6 +286,7 @@ instance Reduce Sort where
             Inf        -> return Inf
             SizeUniv   -> return SizeUniv
             MetaS x es -> return s
+            DefS d es  -> return s -- postulated sorts do not reduce
             DummyS{}   -> return s
 
 instance Reduce Elim where
@@ -810,6 +812,7 @@ instance Simplify Sort where
         Inf        -> return s
         SizeUniv   -> return s
         MetaS x es -> MetaS x <$> simplify' es
+        DefS d es  -> DefS d <$> simplify' es
         DummyS{}   -> return s
 
 instance Simplify Level where
@@ -945,6 +948,7 @@ instance Normalise Sort where
         Inf        -> return Inf
         SizeUniv   -> return SizeUniv
         MetaS x es -> return s
+        DefS d es  -> return s
         DummyS{}   -> return s
 
 instance Normalise Type where
@@ -1120,6 +1124,7 @@ instance InstantiateFull Sort where
             Inf        -> return s
             SizeUniv   -> return s
             MetaS x es -> MetaS x <$> instantiateFull' es
+            DefS d es  -> DefS d <$> instantiateFull' es
             DummyS{}   -> return s
 
 instance (InstantiateFull a) => InstantiateFull (Type' a) where

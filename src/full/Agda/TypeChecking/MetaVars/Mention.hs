@@ -50,6 +50,7 @@ instance MentionsMeta Sort where
     PiSort s1 s2 -> mentionsMeta x (s1, s2)
     UnivSort s -> mentionsMeta x s
     MetaS m es -> x == m || mentionsMeta x es
+    DefS d es  -> mentionsMeta x es
     DummyS{}   -> False
 
 instance MentionsMeta t => MentionsMeta (Abs t) where

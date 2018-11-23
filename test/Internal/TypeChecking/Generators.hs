@@ -458,6 +458,7 @@ instance ShrinkC Sort Sort where
     PiSort s1 s2 -> __IMPOSSIBLE__
     UnivSort s -> __IMPOSSIBLE__
     MetaS x es -> __IMPOSSIBLE__
+    DefS d es -> __IMPOSSIBLE__
     DummyS{} -> __IMPOSSIBLE__
   noShrink = id
 

@@ -400,6 +400,16 @@ checkSort action s =
       case v of
         Sort s     -> return s
         MetaV x es -> return $ MetaS x es
+        Def d es   -> return $ DefS d es
+        _          -> __IMPOSSIBLE__
+    DefS d es -> do
+      a <- defType <$> getConstInfo d
+      let self = Sort $ DefS d []
+      ((_,v),_) <- inferSpine' action a self self es
+      case v of
+        Sort s     -> return s
+        MetaV x es -> return $ MetaS x es
+        Def d es   -> return $ DefS d es
         _          -> __IMPOSSIBLE__
     DummyS s -> __IMPOSSIBLE_VERBOSE__ s
 

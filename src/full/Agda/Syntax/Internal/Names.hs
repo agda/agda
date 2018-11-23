@@ -113,6 +113,7 @@ instance NamesIn Sort where
     PiSort a b -> namesIn (a, b)
     UnivSort a -> namesIn a
     MetaS _ es -> namesIn es
+    DefS d es  -> namesIn (d, es)
     DummyS{}   -> Set.empty
 
 instance NamesIn Term where

@@ -143,6 +143,7 @@ instance SynEq Sort where
       (Prop l  , Prop l'   ) -> Prop <$$> synEq l l'
       (Inf     , Inf       ) -> pure2 s
       (MetaS x es , MetaS x' es') | x == x' -> MetaS x <$$> synEq es es'
+      (DefS  d es , DefS  d' es') | d == d' -> DefS d  <$$> synEq es es'
       (DummyS{}, DummyS{}) -> pure (s, s')
       _ -> inequal (s, s')
 

@@ -308,6 +308,7 @@ instance UsableRelevance Sort where
     PiSort s1 s2 -> usableRel rel (s1,s2)
     UnivSort s -> usableRel rel s
     MetaS x es -> usableRel rel es
+    DefS d es  -> usableRel rel $ Def d es
     DummyS{} -> return True
 
 instance UsableRelevance Level where

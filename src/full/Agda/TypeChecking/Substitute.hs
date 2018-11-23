@@ -184,6 +184,7 @@ instance Apply Sort where
   applyE s [] = s
   applyE s es = case s of
     MetaS x es' -> MetaS x $ es' ++ es
+    DefS  d es' -> DefS  d $ es' ++ es
     _ -> __IMPOSSIBLE__
 
 -- @applyE@ does not make sense for telecopes, definitions, clauses etc.
@@ -758,6 +759,7 @@ instance Subst Term Sort where
     PiSort s1 s2 -> piSort (sub s1) (sub s2)
     UnivSort s -> univSort Nothing $ sub s
     MetaS x es -> MetaS x $ sub es
+    DefS d es  -> DefS d $ sub es
     DummyS{}   -> s
     where sub x = applySubst rho x
 

@@ -184,6 +184,7 @@ instance AbsTerm Sort where
     PiSort s1 s2 -> PiSort (absS s1) (absS s2)
     UnivSort s -> UnivSort $ absS s
     MetaS x es -> MetaS x $ absS es
+    DefS d es  -> DefS d $ absS es
     DummyS{}   -> s
     where absS x = absTerm u x
 

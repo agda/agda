@@ -441,6 +441,9 @@ instance Occurs Sort where
       MetaS x es -> do
         MetaV x es <- occurs red ctx m xs (MetaV x es)
         return $ MetaS x es
+      DefS x es -> do
+        Def x es <- occurs red ctx m xs (Def x es)
+        return $ DefS x es
       DummyS{}   -> return s
 
   metaOccurs m s = do
@@ -453,6 +456,7 @@ instance Occurs Sort where
       SizeUniv   -> return ()
       UnivSort s -> metaOccurs m s
       MetaS x es -> metaOccurs m $ MetaV x es
+      DefS d es  -> metaOccurs m $ Def d es
       DummyS{}   -> return ()
 
 instance Occurs a => Occurs (Elim' a) where
@@ -669,6 +673,7 @@ instance FoldRigid Sort where
       PiSort s1 s2 -> mempty
       UnivSort s -> fold s
       MetaS{}    -> mempty
+      DefS{}     -> mempty
       DummyS{}   -> mempty
     where fold = foldRigid f
 

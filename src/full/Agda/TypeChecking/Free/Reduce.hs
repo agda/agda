@@ -156,6 +156,7 @@ instance ForceNotFree Sort where
     PiSort a b -> PiSort   <$> forceNotFree' a <*> forceNotFree' b
     UnivSort s -> UnivSort <$> forceNotFree' s
     MetaS x es -> MetaS x  <$> forceNotFree' es
+    DefS d es  -> DefS d   <$> forceNotFree' es
     Inf        -> return s
     SizeUniv   -> return s
     DummyS{}   -> return s

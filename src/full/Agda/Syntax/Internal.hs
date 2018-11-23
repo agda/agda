@@ -226,6 +226,7 @@ data Sort
   | PiSort Sort (Abs Sort) -- ^ Sort of the pi type.
   | UnivSort Sort -- ^ Sort of another sort.
   | MetaS {-# UNPACK #-} !MetaId Elims
+  | DefS QName Elims -- ^ A postulated sort.
   | DummyS String
     -- ^ A (part of a) term or type which is only used for internal purposes.
     --   Replaces the abuse of @Prop@ for a dummy sort.
@@ -1109,6 +1110,7 @@ instance TermSize Sort where
     PiSort s s' -> 1 + tsize s + tsize s'
     UnivSort s -> 1 + tsize s
     MetaS _ es -> 1 + tsize es
+    DefS _ es  -> 1 + tsize es
     DummyS{}   -> 1
 
 instance TermSize Level where
@@ -1178,6 +1180,7 @@ instance KillRange Sort where
     PiSort s1 s2 -> killRange2 PiSort s1 s2
     UnivSort s -> killRange1 UnivSort s
     MetaS x es -> killRange1 (MetaS x) es
+    DefS d es  -> killRange2 DefS d es
     DummyS{}   -> s
 
 instance KillRange Substitution where
@@ -1341,6 +1344,7 @@ instance Pretty Sort where
                                       , nest 2 $ pretty (unAbs b) ])
       UnivSort s -> mparens (p > 9) $ "univSort" <+> prettyPrec 10 s
       MetaS x es -> prettyPrec p $ MetaV x es
+      DefS d es  -> prettyPrec p $ Def d es
       DummyS s   -> parens $ text s
 
 instance Pretty Type where
@@ -1404,6 +1408,7 @@ instance NFData Sort where
     PiSort a b -> rnf (a, unAbs b)
     UnivSort a -> rnf a
     MetaS _ es -> rnf es
+    DefS _ es  -> rnf es
     DummyS _   -> ()
 
 instance NFData Level where

@@ -1233,6 +1233,7 @@ instance Reify Sort Expr where
           e <- reify s
           return $ A.App defaultAppInfo_ (A.Var univs) $ defaultNamedArg e
         I.MetaS x es -> reify $ I.MetaV x es
+        I.DefS d es -> reify $ I.Def d es
         I.DummyS s -> return $ A.Lit $ LitString noRange s
 
 instance Reify Level Expr where

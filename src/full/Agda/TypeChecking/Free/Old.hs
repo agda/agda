@@ -281,6 +281,7 @@ instance Free Sort where
       PiSort s1 s2 -> weakly <$> freeVars' (s1, s2)
       UnivSort s -> weakly <$> freeVars' s
       MetaS x es -> flexible <$> freeVars' es
+      DefS _ es  -> weakly <$> freeVars' es
       DummyS{}   -> mempty
 
 instance Free Level where
