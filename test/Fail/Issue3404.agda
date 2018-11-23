@@ -9,6 +9,9 @@
 open import Agda.Builtin.Nat
 open import Agda.Builtin.Equality
 
+cong : ∀{A B : Set} (f : A → B) {x y : A} (eq : x ≡ y) → f x ≡ f y
+cong f refl = refl
+
 trans : {A : Set} {a b c : A} → a ≡ b → b ≡ c → a ≡ c
 trans refl refl = refl
 
@@ -24,6 +27,29 @@ module UnsolvedMeta where
   -- Should solve.
 
 -- False golfing:
+
+module Word64 where
+
+  {-# BUILTIN WORD64 Word64 #-}
+
+  primitive        primWord64ToNat   : Word64 → Nat
+  mutual primitive primWord64FromNat : Nat → Word64
+    -- Before fix of #3404, positivity checker judged
+    -- a primitive in a mutual block as constant.
+
+  fromNatConst : ∀ x y → primWord64FromNat x ≡ primWord64FromNat y
+  fromNatConst x y = refl
+
+  -- Should fail with error like:
+  --
+  -- x != y of type Nat
+  -- when checking that the expression refl has type
+  -- primWord64FromNat x ≡ primWord64FromNat y
+
+  0≡1 : 0 ≡ 1
+  0≡1 = cong primWord64ToNat (fromNatConst 0 1)
+
+-- Guillaume Brunerie's original example:
 
 mutual
   postulate

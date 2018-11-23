@@ -1,3 +1,4 @@
-Issue3404.agda:35,17-20
-1 != 0 of type Nat
-when checking that the expression 2^1 has type 2^ 0 ≡ 2
+Issue3404.agda:41,22-26
+x != y of type Nat
+when checking that the expression refl has type
+primWord64FromNat x ≡ primWord64FromNat y
