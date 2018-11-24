@@ -193,7 +193,7 @@ makeCase hole rng s = withInteractionId hole $ do
   InteractionPoint { ipMeta = mm, ipClause = ipCl} <- lookupInteractionPoint hole
   let meta = fromMaybe __IMPOSSIBLE__ mm
   (f, clauseNo, rhs) <- case ipCl of
-    IPClause f clauseNo rhs-> return (f, clauseNo, rhs)
+    IPClause f clauseNo rhs -> return (f, clauseNo, rhs)
     IPNoClause -> typeError $ GenericError $
       "Cannot split here, as we are not in a function definition"
   (casectxt, clause, prevClauses) <- getClauseForIP f clauseNo

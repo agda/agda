@@ -707,6 +707,7 @@ checkLeftHandSide c f ps a withSub' strippedPats = Bench.billToCPS [Bench.Typing
         reportSDoc "tc.lhs.top" 20 $ vcat
           [ "lhs: final checks with remaining equations"
           , nest 2 $ if null eqs then "(none)" else vcat $ map prettyTCM eqs
+          , "qs0 =" <+> addContext delta (prettyTCMPatternList qs0)
           ]
 
         unless (null rps) __IMPOSSIBLE__
