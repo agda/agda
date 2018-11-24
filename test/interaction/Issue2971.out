@@ -6,7 +6,7 @@
 ((last . 1) . (agda2-goals-action '(0 1)))
 ((last . 2) . (agda2-make-case-action '("Five.five best-number = ?" "Five.prf best-number = ?")))
 ((last . 1) . (agda2-goals-action '(0 1)))
-(agda2-info-action "*Error*" "Issue2971.agda:38,14-18 Cannot split on result here, because target type Set is not a record type when checking that the expression ? has type Set" nil)
+(agda2-info-action "*Error*" "Issue2971.agda:38,14-18 Cannot split into projections because the target type Set is not a record type when checking that the expression ? has type Set" nil)
 ((last . 3) . (agda2-maybe-goto '("Issue2971.agda" . 960)))
 (agda2-highlight-load-and-delete-action)
 (agda2-status-action "")

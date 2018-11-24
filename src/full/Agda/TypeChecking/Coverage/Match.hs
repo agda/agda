@@ -164,18 +164,27 @@ isTrivialPattern p = case p of
 type MatchResult = Match [SplitPattern]
 
 -- | If matching is inconclusive (@Block@) we want to know which
---   variables are blocking the match.
+--   variables or projections are blocking the match.
 data Match a
   = Yes a   -- ^ Matches unconditionally.
   | No      -- ^ Definitely does not match.
   | Block
-    { blockedOnResult :: Bool
-      -- ^ True if the clause has a result split
+    { blockedOnResult :: BlockedOnResult
+      -- ^ @BlockedOnProj o@ if the clause has a result split
     , blockedOnVars :: BlockingVars
       -- ^ @BlockingVar i cs ls o@ means variable @i@ is blocked on
       -- constructors @cs@ and literals @ls@.
     }
   deriving (Functor)
+
+data BlockedOnResult
+  = BlockedOnProj      -- ^ Blocked on unsplit projection
+     { blockedOnResultOverlap :: Bool
+       -- ^ True if there are also matching clauses without an unsplit
+       -- copattern.
+     }
+  | BlockedOnApply     -- ^ Blocked on unintroduced argument
+  | NotBlockedOnResult
 
 -- | Variable blocking a match.
 data BlockingVar = BlockingVar
@@ -201,13 +210,16 @@ instance Pretty BlockingVar where
 type BlockingVars = [BlockingVar]
 
 blockedOnConstructor :: Nat -> ConHead -> Match a
-blockedOnConstructor i c = Block False [BlockingVar i [c] [] False]
+blockedOnConstructor i c = Block NotBlockedOnResult [BlockingVar i [c] [] False]
 
 blockedOnLiteral :: Nat -> Literal -> Match a
-blockedOnLiteral i l = Block False [BlockingVar i [] [l] False]
+blockedOnLiteral i l = Block NotBlockedOnResult [BlockingVar i [] [l] False]
 
 blockedOnProjection :: Match a
-blockedOnProjection = Block True []
+blockedOnProjection = Block (BlockedOnProj False) []
+
+blockedOnApplication :: Match a
+blockedOnApplication = Block BlockedOnApply []
 
 -- | Lens for 'blockingVarCons'.
 mapBlockingVarCons :: ([ConHead] -> [ConHead]) -> BlockingVar -> BlockingVar
@@ -231,6 +243,27 @@ zipBlockingVars xs ys = map upd xs
       Just (BlockingVar _ cons' lits' o') -> BlockingVar x (cons ++ cons') (lits ++ lits') (o || o')
       Nothing -> BlockingVar x cons lits True
 
+setBlockedOnResultOverlap :: BlockedOnResult -> BlockedOnResult
+setBlockedOnResultOverlap b = case b of
+  BlockedOnProj{}      -> b { blockedOnResultOverlap = True }
+  BlockedOnApply{}     -> b
+  NotBlockedOnResult{} -> b
+
+anyBlockedOnResult :: BlockedOnResult -> BlockedOnResult -> BlockedOnResult
+anyBlockedOnResult b1 b2 = case (b1,b2) of
+  (NotBlockedOnResult , b2                ) -> b2
+  (b1                 , NotBlockedOnResult) -> b1
+  (_                  , _                 ) -> __IMPOSSIBLE__
+
+-- | Left dominant merge of `BlockedOnResult`.
+choiceBlockedOnResult :: BlockedOnResult -> BlockedOnResult -> BlockedOnResult
+choiceBlockedOnResult b1 b2 = case (b1,b2) of
+  (NotBlockedOnResult  , _                 ) -> NotBlockedOnResult
+  (BlockedOnProj _     , NotBlockedOnResult) -> BlockedOnProj True
+  (BlockedOnProj o1    , BlockedOnProj o2  ) -> BlockedOnProj (o1 || o2)
+  (BlockedOnProj o1    , BlockedOnApply{}  ) -> BlockedOnProj True
+  (BlockedOnApply      , _                 ) -> BlockedOnApply
+
 -- | @choice m m'@ combines the match results @m@ of a function clause
 --   with the (already combined) match results $m'$ of the later clauses.
 --   It is for skipping clauses that definitely do not match ('No').
@@ -238,8 +271,8 @@ zipBlockingVars xs ys = map upd xs
 --   If one clause unconditionally matches ('Yes') we do not look further.
 choice :: Match a -> Match a -> Match a
 choice (Yes a)      _            = Yes a
-choice (Block r xs) (Block s ys) = Block (r && s) $ zipBlockingVars xs ys
-choice (Block r xs) (Yes _)      = Block r $ overlapping xs
+choice (Block r xs) (Block s ys) = Block (choiceBlockedOnResult r s) $ zipBlockingVars xs ys
+choice (Block r xs) (Yes _)      = Block (setBlockedOnResultOverlap r) $ overlapping xs
 choice m@Block{}    No           = m
 choice No           m            = m
 
@@ -295,10 +328,9 @@ matchPats [] qs@(_:_) = case mapMaybe isProjP qs of
 -- Patterns left in candidate clause:
 -- If the current clause has additional copatterns in
 -- comparison to the split clause, we should split on them.
-matchPats ps@(_:_) [] = case mapMaybe isProjP ps of
-  [] -> mempty               -- no proj. patterns left
-  ds -> blockedOnProjection  -- proj. patterns left
-
+matchPats (p:ps) [] = case isProjP p of
+  Just{}  -> blockedOnProjection
+  Nothing -> blockedOnApplication
 
 -- | Combine results of checking whether function clause patterns
 --   covers split clause patterns.
@@ -318,7 +350,7 @@ instance Semigroup a => Semigroup (Match a) where
   Yes _      <> m          = m
   No         <> _          = No
   Block{}    <> No         = No
-  Block r xs <> Block s ys = Block (r || s) (xs ++ ys)
+  Block r xs <> Block s ys = Block (anyBlockedOnResult r s) (xs ++ ys)
   m@Block{}  <> Yes{}      = m
 
 instance (Semigroup a, Monoid a) => Monoid (Match a) where

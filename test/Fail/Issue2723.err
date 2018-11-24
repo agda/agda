@@ -1,4 +1,4 @@
-Issue1986u.agda:21,1-22,13
+Issue2723.agda:14,1-16,16
 Cannot split into projections because not all clauses have a
 projection copattern
-when checking the definition of p
+when checking the definition of foo

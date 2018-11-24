@@ -257,8 +257,7 @@ makeCase hole rng s = withInteractionId hole $ do
               isVarP _ = Nothing
           -- If all are already coming from the user, there is really nothing todo!
           when (all ((UserWritten ==) . getOrigin) trailingPatVars) $ do
-            typeError . GenericDocError =<< do
-              "Cannot split on result here, because" <+> prettyTCM err
+            typeError $ SplitError err
           -- Otherwise, we make these user-written
           let xs = map (dbPatVarIndex . namedArg) trailingPatVars
           return [makePatternVarsVisible xs sc]

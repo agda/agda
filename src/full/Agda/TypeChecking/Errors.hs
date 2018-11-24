@@ -1399,6 +1399,17 @@ instance PrettyTCM SplitError where
                      pwords "why unification failed:" ] ++
             map (nest 2 . prettyTCM) errs
 
+    CosplitCatchall -> fsep $
+      pwords "Cannot split into projections because not all clauses have a projection copattern"
+
+    CosplitNoTarget -> fsep $
+      pwords "Cannot split into projections because target type is unknown"
+
+    CosplitNoRecordType t -> enterClosure t $ \t -> fsep $
+      pwords "Cannot split into projections because the target type "
+      ++ [prettyTCM t] ++ pwords " is not a record type"
+
+
     GenericSplitError s -> fsep $ pwords "Split failed:" ++ pwords s
 
 instance PrettyTCM NegativeUnification where

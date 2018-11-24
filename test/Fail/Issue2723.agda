@@ -17,4 +17,9 @@ foo .two = {!!}
 
 -- WAS: internal error in clause compiler
 
--- NOW: warning about unreachable clause
+-- THEN: warning about unreachable clause
+
+-- NOW: error:
+-- Cannot split into projections because not all clauses have a
+-- projection copattern
+-- when checking the definition of foo

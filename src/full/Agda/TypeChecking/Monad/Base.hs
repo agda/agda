@@ -2828,6 +2828,12 @@ data SplitError
     , cantSplitGivenIdx :: Args         -- ^ Expected indices (from checking pattern).
     , cantSplitFailures :: [UnificationFailure] -- ^ Reason(s) why unification got stuck.
     }
+  | CosplitCatchall
+      -- ^ Copattern split with a catchall
+  | CosplitNoTarget
+      -- ^ We do not know the target type of the clause.
+  | CosplitNoRecordType (Closure Type)
+      -- ^ Target type is not a record type.
   | GenericSplitError String
   deriving (Show)
 

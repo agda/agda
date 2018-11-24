@@ -307,10 +307,9 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
 
     -- We need to split!
     -- If all clauses have an unsplit copattern, we try that first.
-    Block res bs -> tryIf res splitRes $ do
+    Block res bs -> trySplitRes res (null bs) $ do
       let ps' = fromSplitPatterns ps
-          done = return $ CoverResult (SplittingDone (size tel)) Set.empty [(tel, ps')] Set.empty
-      if null bs then done else do
+      when (null bs) __IMPOSSIBLE__
       -- Otherwise, if there are variables to split, we try them
       -- in the order determined by a split strategy.
       reportSLn "tc.cover.strategy" 20 $ "blocking vars = " ++ prettyShow bs
@@ -377,30 +376,51 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
               tree   = SplitAt n trees'
           return $ CoverResult tree (Set.unions useds) (concat psss) (Set.unions noex)
 
-    tryIf :: Monad m => Bool -> m (Either err a) -> m a -> m a
-    tryIf True  me m = fromRightM (const m) me
-    tryIf False me m = m
-
     -- Try to split result
-    splitRes :: TCM (Either CosplitError CoverResult)
-    splitRes = do
+    trySplitRes
+      :: BlockedOnResult -- ^ Are we blocked on the result?
+      -> Bool            -- ^ Is this the last thing we try?
+      -> TCM CoverResult -- ^ Continuation
+      -> TCM CoverResult
+    -- not blocked on result: try regular splits
+    trySplitRes NotBlockedOnResult finalSplit cont
+      | finalSplit = __IMPOSSIBLE__ -- there must be *some* reason we are blocked
+      | otherwise  = cont
+    -- blocked on arguments that are not yet introduced:
+    -- we must split on a variable so that the target type becomes a pi type
+    trySplitRes BlockedOnApply finalSplit cont
+      | finalSplit = __IMPOSSIBLE__ -- already ruled out by lhs checker
+      | otherwise  = cont
+    -- blocked on result but there are catchalls:
+    -- try regular splits if there are any, or else throw an error,
+    -- this is nicer than continuing and reporting unreachable clauses
+    -- (see issue #2833)
+    trySplitRes (BlockedOnProj True) finalSplit cont
+      | finalSplit = typeError $ SplitError CosplitCatchall
+      | otherwise  = cont
+    -- all clauses have an unsplit copattern: try to split
+    trySplitRes (BlockedOnProj False) finalSplit cont = do
       reportSLn "tc.cover" 20 $ "blocked by projection pattern"
       -- forM is a monadic map over a Maybe here
       mcov <- splitResult f sc
-      Trav.forM mcov $ \ (Covering n scs) -> do
-        -- If result splitting was successful, continue coverage checking.
-        (projs, results) <- unzip <$> do
-          mapM (traverseF $ cover f cs <=< (snd <.> fixTarget)) scs
-          -- OR:
-          -- forM scs $ \ (proj, sc') -> (proj,) <$> do
-          --   cover f cs =<< do
-          --     snd <$> fixTarget sc'
-        let trees = map coverSplitTree results
-            useds = map coverUsedClauses results
-            psss  = map coverMissingClauses results
-            noex  = map coverNoExactClauses results
-            tree  = SplitAt n $ zip projs trees
-        return $ CoverResult tree (Set.unions useds) (concat psss) (Set.unions noex)
+      case mcov of
+        Left err
+          | finalSplit -> typeError $ SplitError err
+          | otherwise  -> cont
+        Right (Covering n scs) -> do
+          -- If result splitting was successful, continue coverage checking.
+          (projs, results) <- unzip <$> do
+            mapM (traverseF $ cover f cs <=< (snd <.> fixTarget)) scs
+            -- OR:
+            -- forM scs $ \ (proj, sc') -> (proj,) <$> do
+            --   cover f cs =<< do
+            --     snd <$> fixTarget sc'
+          let trees = map coverSplitTree results
+              useds = map coverUsedClauses results
+              psss  = map coverMissingClauses results
+              noex  = map coverNoExactClauses results
+              tree  = SplitAt n $ zip projs trees
+          return $ CoverResult tree (Set.unions useds) (concat psss) (Set.unions noex)
 
     gatherEtaSplits :: Int -> SplitClause
                     -> [NamedArg SplitPattern] -> [NamedArg SplitPattern]
@@ -1256,33 +1276,13 @@ split' ind allowPartialCover fixtarget sc@(SClause tel ps _ cps target) (Blockin
         , "t      =" <+> inContextOfT (prettyTCM t)
         ]
 
--- | What could go wrong if we try to split on the result?
-data CosplitError
-  = CosplitNoTarget
-      -- ^ We do not know the target type of the clause.
-  | CosplitNoRecordType Telescope Type
-      -- ^ Type living in the given telescope is not a record type.
-  -- Andreas, 2018-06-09, issue #2170: splitting with irrelevant fields is always fine!
-  -- -- | CosplitIrrelevantProjections
-  -- --     -- ^ Record has irrelevant fields, but we do not have irrelevant projections.
-
-instance PrettyTCM CosplitError where
-  prettyTCM = \case
-    CosplitNoTarget ->
-      "target type is unknown"
-    -- Andreas, 2018-06-09, issue #2170: splitting with irrelevant fields is always fine!
-    -- CosplitIrrelevantProjections ->
-    --   "record has irrelevant fields, but no corresponding projections"
-    CosplitNoRecordType tel t -> addContext tel $ do
-      "target type " <+> prettyTCM t <+> " is not a record type"
-
 -- | @splitResult f sc = return res@
 --
 --   If the target type of @sc@ is a record type, a covering set of
 --   split clauses is returned (@sc@ extended by all valid projection patterns),
 --   otherwise @res == Nothing@.
 --   Note that the empty set of split clauses is returned if the record has no fields.
-splitResult :: QName -> SplitClause -> TCM (Either CosplitError Covering)
+splitResult :: QName -> SplitClause -> TCM (Either SplitError Covering)
 splitResult f sc@(SClause tel ps _ _ target) = do
   reportSDoc "tc.cover.split" 10 $ vcat
     [ "splitting result:"
@@ -1331,7 +1331,8 @@ splitResult f sc@(SClause tel ps _ _ target) = do
                          , scTarget = target'
                          }
             return (SplitCon (unArg proj), sc')
-      _ -> failure $ CosplitNoRecordType tel $ unArg t
+      _ -> addContext tel $ do
+        buildClosure (unArg t) >>= failure . CosplitNoRecordType
   -- Andreas, 2018-06-09, issue #2170: splitting with irrelevant fields is always fine!
   -- where
   -- -- A record type is strong if it has all the projections.
