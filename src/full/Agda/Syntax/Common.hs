@@ -2,6 +2,7 @@
 {-# LANGUAGE DeriveDataTypeable         #-}
 {-# LANGUAGE DeriveGeneric              #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE UndecidableInstances       #-} -- for: LensNamed name (Arg a)
 
 {-| Some common syntactic entities are defined in this module.
 -}
@@ -1113,6 +1114,7 @@ defaultDom = defaultArgDom defaultArgInfo
 
 defaultArgDom :: ArgInfo -> a -> Dom a
 defaultArgDom info x = Dom info False x
+
 ---------------------------------------------------------------------------
 -- * Named arguments
 ---------------------------------------------------------------------------
@@ -1132,6 +1134,30 @@ unnamed = Named Nothing
 
 named :: name -> a -> Named name a
 named = Named . Just
+
+-- | Accessor/editor for the 'nameOf' component.
+class LensNamed name a | a -> name where
+  lensNamed :: Lens' (Maybe name) a
+
+instance LensNamed name (Named name a) where
+  lensNamed f (Named mn a) = f mn <&> \ mn' -> Named mn' a
+
+getNameOf :: LensNamed name a => a -> Maybe name
+getNameOf a = a ^. lensNamed
+
+setNameOf :: LensNamed name a => Maybe name -> a -> a
+setNameOf = set lensNamed
+
+mapNameOf :: LensNamed name a => (Maybe name -> Maybe name) -> a -> a
+mapNameOf = over lensNamed
+
+-- Lenses lift through decorations:
+-- instance (Decoration f, LensNamed name a) => LensNamed name (f a) where
+
+instance LensNamed name a => LensNamed name (Arg a) where
+  lensNamed = traverseF . lensNamed
+
+-- Standard instances for 'Named':
 
 instance Decoration (Named name) where
   traverseF f (Named n a) = Named n <$> f a
