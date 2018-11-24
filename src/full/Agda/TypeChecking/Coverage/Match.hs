@@ -279,30 +279,25 @@ matchPats
   -> MatchResult
      -- ^ Result.
      --   If 'Yes' the instantiation @rs@ such that @ps[rs] == qs@.
+matchPats [] [] = mempty
+matchPats (p:ps) (q:qs) =
+  matchPat (namedArg p) (namedArg q) `mappend` matchPats ps qs
 
-matchPats ps qs = mconcat $ [ projPatternsLeftInSplitClause ] ++
-    zipWith matchPat (map namedArg ps) (map namedArg qs) ++
-    [ projPatternsLeftInMatchedClause ]
-  where
-    -- Patterns left in split clause:
-    qsrest = drop (length ps) qs
-    -- Andreas, 2016-06-03, issue #1986:
-    -- catch-all for copatterns is inconsistent as found by Ulf.
-    -- Thus, if the split clause has copatterns left,
-    -- the current (shorter) clause is not considered covering.
-    projPatternsLeftInSplitClause =
-        case mapMaybe isProjP qsrest of
-            [] -> mempty -- no proj. patterns left
-            _  -> No     -- proj. patterns left
+-- Patterns left in split clause:
+-- Andreas, 2016-06-03, issue #1986:
+-- catch-all for copatterns is inconsistent as found by Ulf.
+-- Thus, if the split clause has copatterns left,
+-- the current (shorter) clause is not considered covering.
+matchPats [] qs@(_:_) = case mapMaybe isProjP qs of
+  [] -> mempty -- no proj. patterns left
+  _  -> No     -- proj. patterns left
 
-    -- Patterns left in candidate clause:
-    psrest = drop (length qs) ps
-    -- If the current clause has additional copatterns in
-    -- comparison to the split clause, we should split on them.
-    projPatternsLeftInMatchedClause =
-        case mapMaybe isProjP psrest of
-            [] -> mempty               -- no proj. patterns left
-            ds -> blockedOnProjection  -- proj. patterns left
+-- Patterns left in candidate clause:
+-- If the current clause has additional copatterns in
+-- comparison to the split clause, we should split on them.
+matchPats ps@(_:_) [] = case mapMaybe isProjP ps of
+  [] -> mempty               -- no proj. patterns left
+  ds -> blockedOnProjection  -- proj. patterns left
 
 
 -- | Combine results of checking whether function clause patterns
