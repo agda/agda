@@ -242,7 +242,7 @@ debugConstraints :: TCM ()
 debugConstraints = verboseS "tc.constr" 50 $ do
   awake    <- useTC stAwakeConstraints
   sleeping <- useTC stSleepingConstraints
-  reportSDoc "" 0 $ vcat
+  reportSDoc "tc.constr" 50 $ vcat
     [ "Current constraints"
     , nest 2 $ vcat [ "awake " <+> vcat (map prettyTCM awake)
                     , "asleep" <+> vcat (map prettyTCM sleeping) ] ]
