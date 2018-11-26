@@ -129,7 +129,7 @@ compareTerm cmp a u v = do
   -- are different somewhere.  Leads to infeasibility in issue 854.
   -- (u, v) <- instantiateFull (u, v)
   -- let equal = u == v
-  unifyPointers cmp u v $ if equal then verboseS "profile.sharing" 20 $ tick "equal terms" else do
+  if equal then verboseS "profile.sharing" 20 $ tick "equal terms" else do
       verboseS "profile.sharing" 20 $ tick "unequal terms"
       reportSDoc "tc.conv.term" 15 $ sep
         [ "compareTerm (not syntactically equal)"
@@ -175,26 +175,6 @@ compareTerm cmp a u v = do
     -- Should be ok with catchError_ but catchError is much safer since we don't
     -- rethrow errors.
     orelse m h = catchError m (\_ -> h)
-
-unifyPointers :: Comparison -> Term -> Term -> TCM () -> TCM ()
-unifyPointers _ _ _ action = action
--- unifyPointers cmp _ _ action | cmp /= CmpEq = action
--- unifyPointers _ u v action = do
---   reportSLn "tc.ptr.unify" 50 $ "Maybe unifying pointers\n  u = " ++ show u ++ "\n  v = " ++ show v
---   old <- useTC stDirty
---   stDirty `setTCLens` False
---   action
---   reportSLn "tc.ptr.unify" 50 $ "Finished comparison\n  u = " ++ show u ++ "\n  v = " ++ show v
---   (u, v) <- instantiate (u, v)
---   reportSLn "tc.ptr.unify" 50 $ "After instantiation\n  u = " ++ show u ++ "\n  v = " ++ show v
---   dirty <- useTC stDirty
---   stDirty `setTCLens` old
---   if dirty then verboseS "profile.sharing" 20 (tick "unifyPtr: dirty")
---            else do
---             verboseS "profile.sharing" 20 (tick "unifyPtr: clean")
---             reportSLn "tc.ptr.unify" 80 $ "Unifying\n  u = " ++ show u ++ "\n  v = " ++ show v
---             forceEqualTerms u v
---             reportSLn "tc.ptr.unify" 80 $ "After unification\n  u = " ++ show u ++ "\n  v = " ++ show v
 
 -- | Try to assign meta.  If meta is projected, try to eta-expand
 --   and run conversion check again.
@@ -469,114 +449,112 @@ compareAtom cmp t m n =
 
         assign dir x es v = assignE dir x es v $ compareAtomDir dir t
 
-    unifyPointers cmp (ignoreBlocking mb') (ignoreBlocking nb') $ do    -- this needs to go after eta expansion to avoid creating infinite terms
+    reportSDoc "tc.conv.atom" 30 $
+      "compareAtom" <+> fsep [ prettyTCM mb <+> prettyTCM cmp
+                                  , prettyTCM nb
+                                  , ":" <+> prettyTCM t ]
+    reportSDoc "tc.conv.atom" 80 $
+      "compareAtom" <+> fsep [ (text . show) mb <+> prettyTCM cmp
+                                  , (text . show) nb
+                                  , ":" <+> (text . show) t ]
+    case (mb, nb) of
+      -- equate two metas x and y.  if y is the younger meta,
+      -- try first y := x and then x := y
+      (NotBlocked _ (MetaV x xArgs), NotBlocked _ (MetaV y yArgs))
+          | x == y ->
+            case intersectVars xArgs yArgs of
+              -- all relevant arguments are variables
+              Just kills -> do
+                -- kills is a list with 'True' for each different var
+                killResult <- killArgs kills x
+                case killResult of
+                  NothingToPrune   -> return ()
+                  PrunedEverything -> return ()
+                  PrunedNothing    -> postpone
+                  PrunedSomething  -> postpone
+              -- not all relevant arguments are variables
+              Nothing -> checkSyntacticEquality -- Check syntactic equality on meta-variables
+                              -- (same as for blocked terms)
+          | otherwise -> do
+              [p1, p2] <- mapM getMetaPriority [x,y]
+              -- First try the one with the highest priority. If that doesn't
+              -- work, try the low priority one.
+              let (solve1, solve2)
+                    | (p1, x) > (p2, y) = (l1, r2)
+                    | otherwise         = (r1, l2)
+                    where l1 = assign dir x xArgs n
+                          r1 = assign rid y yArgs m
+                          -- Careful: the first attempt might prune the low
+                          -- priority meta! (Issue #2978)
+                          l2 = ifM (isInstantiatedMeta x) (compareTermDir dir t m n) l1
+                          r2 = ifM (isInstantiatedMeta y) (compareTermDir rid t n m) r1
 
-      reportSDoc "tc.conv.atom" 30 $
-        "compareAtom" <+> fsep [ prettyTCM mb <+> prettyTCM cmp
-                                    , prettyTCM nb
-                                    , ":" <+> prettyTCM t ]
-      reportSDoc "tc.conv.atom" 80 $
-        "compareAtom" <+> fsep [ (text . show) mb <+> prettyTCM cmp
-                                    , (text . show) nb
-                                    , ":" <+> (text . show) t ]
-      case (mb, nb) of
-        -- equate two metas x and y.  if y is the younger meta,
-        -- try first y := x and then x := y
-        (NotBlocked _ (MetaV x xArgs), NotBlocked _ (MetaV y yArgs))
-            | x == y ->
-              case intersectVars xArgs yArgs of
-                -- all relevant arguments are variables
-                Just kills -> do
-                  -- kills is a list with 'True' for each different var
-                  killResult <- killArgs kills x
-                  case killResult of
-                    NothingToPrune   -> return ()
-                    PrunedEverything -> return ()
-                    PrunedNothing    -> postpone
-                    PrunedSomething  -> postpone
-                -- not all relevant arguments are variables
-                Nothing -> checkSyntacticEquality -- Check syntactic equality on meta-variables
-                                -- (same as for blocked terms)
-            | otherwise -> do
-                [p1, p2] <- mapM getMetaPriority [x,y]
-                -- First try the one with the highest priority. If that doesn't
-                -- work, try the low priority one.
-                let (solve1, solve2)
-                      | (p1, x) > (p2, y) = (l1, r2)
-                      | otherwise         = (r1, l2)
-                      where l1 = assign dir x xArgs n
-                            r1 = assign rid y yArgs m
-                            -- Careful: the first attempt might prune the low
-                            -- priority meta! (Issue #2978)
-                            l2 = ifM (isInstantiatedMeta x) (compareTermDir dir t m n) l1
-                            r2 = ifM (isInstantiatedMeta y) (compareTermDir rid t n m) r1
+                  try m h = m `catchError_` \err -> case err of
+                    PatternErr{} -> h
+                    _            -> throwError err
 
-                    try m h = m `catchError_` \err -> case err of
-                      PatternErr{} -> h
-                      _            -> throwError err
+              try solve1 solve2
 
-                try solve1 solve2
+      -- one side a meta, the other an unblocked term
+      (NotBlocked _ (MetaV x es), _) -> assign dir x es n
+      (_, NotBlocked _ (MetaV x es)) -> assign rid x es m
+      (Blocked{}, Blocked{})  -> checkSyntacticEquality
+      (Blocked{}, _)  -> useInjectivity (fromCmp cmp) t m n   -- The blocked term goes first
+      (_, Blocked{})  -> useInjectivity (flipCmp $ fromCmp cmp) t n m
+      _ -> do
+        -- -- Andreas, 2013-10-20 put projection-like function
+        -- -- into the spine, to make compareElims work.
+        -- -- 'False' means: leave (Def f []) unchanged even for
+        -- -- proj-like funs.
+        -- m <- elimView False m
+        -- n <- elimView False n
+        -- Andreas, 2015-07-01, actually, don't put them into the spine.
+        -- Polarity cannot be communicated properly if projection-like
+        -- functions are post-fix.
+        case (m, n) of
+          (Pi{}, Pi{}) -> equalFun m n
 
-        -- one side a meta, the other an unblocked term
-        (NotBlocked _ (MetaV x es), _) -> assign dir x es n
-        (_, NotBlocked _ (MetaV x es)) -> assign rid x es m
-        (Blocked{}, Blocked{})  -> checkSyntacticEquality
-        (Blocked{}, _)  -> useInjectivity (fromCmp cmp) t m n   -- The blocked term goes first
-        (_, Blocked{})  -> useInjectivity (flipCmp $ fromCmp cmp) t n m
-        _ -> do
-          -- -- Andreas, 2013-10-20 put projection-like function
-          -- -- into the spine, to make compareElims work.
-          -- -- 'False' means: leave (Def f []) unchanged even for
-          -- -- proj-like funs.
-          -- m <- elimView False m
-          -- n <- elimView False n
-          -- Andreas, 2015-07-01, actually, don't put them into the spine.
-          -- Polarity cannot be communicated properly if projection-like
-          -- functions are post-fix.
-          case (m, n) of
-            (Pi{}, Pi{}) -> equalFun m n
+          (Sort s1, Sort s2) -> compareSort CmpEq s1 s2
 
-            (Sort s1, Sort s2) -> compareSort CmpEq s1 s2
+          (Lit l1, Lit l2) | l1 == l2 -> return ()
+          (Var i es, Var i' es') | i == i' -> do
+              a <- typeOfBV i
+              -- Variables are invariant in their arguments
+              compareElims [] [] a (var i) es es'
 
-            (Lit l1, Lit l2) | l1 == l2 -> return ()
-            (Var i es, Var i' es') | i == i' -> do
-                a <- typeOfBV i
-                -- Variables are invariant in their arguments
-                compareElims [] [] a (var i) es es'
+          -- The case of definition application:
+          (Def f es, Def f' es') -> do
 
-            -- The case of definition application:
-            (Def f es, Def f' es') -> do
+              -- 1. All absurd lambdas are equal.
+              unlessM (bothAbsurd f f') $ do
 
-                -- 1. All absurd lambdas are equal.
-                unlessM (bothAbsurd f f') $ do
+              -- 2. If the heads are unequal, the only chance is subtyping between SIZE and SIZELT.
+              if f /= f' then trySizeUniv cmp t m n f es f' es' else do
 
-                -- 2. If the heads are unequal, the only chance is subtyping between SIZE and SIZELT.
-                if f /= f' then trySizeUniv cmp t m n f es f' es' else do
+              -- 3. If the heads are equal:
+              -- 3a. If there are no arguments, we are done.
+              unless (null es && null es') $ do
 
-                -- 3. If the heads are equal:
-                -- 3a. If there are no arguments, we are done.
-                unless (null es && null es') $ do
+              -- 3b. If some cubical magic kicks in, we are done.
+              unlessM (compareEtaPrims f es es') $ do
 
-                -- 3b. If some cubical magic kicks in, we are done.
-                unlessM (compareEtaPrims f es es') $ do
+              -- 3c. Oh no, we actually have to work and compare the eliminations!
+               a <- computeElimHeadType f es es'
+               -- The polarity vector of projection-like functions
+               -- does not include the parameters.
+               pol <- getPolarity' cmp f
+               compareElims pol [] a (Def f []) es es'
 
-                -- 3c. Oh no, we actually have to work and compare the eliminations!
-                 a <- computeElimHeadType f es es'
-                 -- The polarity vector of projection-like functions
-                 -- does not include the parameters.
-                 pol <- getPolarity' cmp f
-                 compareElims pol [] a (Def f []) es es'
-
-            -- Due to eta-expansion, these constructors are fully applied.
-            (Con x ci xArgs, Con y _ yArgs)
-                | x == y -> do
-                    -- Get the type of the constructor instantiated to the datatype parameters.
-                    a' <- conType x t
-                    forcedArgs <- getForcedArgs $ conName x
-                    -- Constructors are covariant in their arguments
-                    -- (see test/succeed/CovariantConstructors).
-                    compareElims (repeat $ polFromCmp cmp) forcedArgs a' (Con x ci []) xArgs yArgs
-            _ -> etaInequal cmp t m n -- fixes issue 856 (unsound conversion error)
+          -- Due to eta-expansion, these constructors are fully applied.
+          (Con x ci xArgs, Con y _ yArgs)
+              | x == y -> do
+                  -- Get the type of the constructor instantiated to the datatype parameters.
+                  a' <- conType x t
+                  forcedArgs <- getForcedArgs $ conName x
+                  -- Constructors are covariant in their arguments
+                  -- (see test/succeed/CovariantConstructors).
+                  compareElims (repeat $ polFromCmp cmp) forcedArgs a' (Con x ci []) xArgs yArgs
+          _ -> etaInequal cmp t m n -- fixes issue 856 (unsound conversion error)
     where
         -- returns True in case we handled the comparison already.
         compareEtaPrims :: QName -> Elims -> Elims -> TCM Bool
