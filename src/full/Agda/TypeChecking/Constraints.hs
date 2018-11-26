@@ -131,7 +131,7 @@ ifNoConstraints_ check ifNo ifCs = ifNoConstraints check (const ifNo) (\pid _ ->
 --   to the @blocker@-generated constraints @cs@.
 guardConstraint :: Constraint -> TCM () -> TCM ()
 guardConstraint c blocker =
-  ifNoConstraints_ blocker (solveConstraint_ c) (addConstraint . Guarded c)
+  ifNoConstraints_ blocker (solveConstraint c) (addConstraint . Guarded c)
 
 whenConstraints :: TCM () -> TCM () -> TCM ()
 whenConstraints action handler =
