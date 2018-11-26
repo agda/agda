@@ -77,10 +77,6 @@ addConstraint c = do
     isWakeableIFSConstraint (FindInScope _ b _) = caseMaybe b (return True) (\m -> isInstantiatedMeta m)
     isWakeableIFSConstraint _ = return False
 
-    isIFSConstraint :: Constraint -> Bool
-    isIFSConstraint FindInScope{} = True
-    isIFSConstraint _             = False
-
     isLvl LevelCmp{} = True
     isLvl _          = False
 
