@@ -574,7 +574,6 @@ checkCandidates m t cands =
 
 isIFSConstraint :: Constraint -> Bool
 isIFSConstraint FindInScope{} = True
-isIFSConstraint UnBlock{}     = True -- otherwise test/fail/Issue723 loops
 isIFSConstraint _             = False
 
 -- | To preserve the invariant that a constructor is not applied to its
