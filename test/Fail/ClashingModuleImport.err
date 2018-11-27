@@ -1,4 +1,4 @@
-ClashingModuleImport.agda:7,13-27
+ClashingModuleImport.agda:7,1-34
 The modules ClashingModuleImport.M and Imports.Module.M clash.
 when scope checking the declaration
   open import Imports.Module public

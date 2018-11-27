@@ -2,7 +2,5 @@ Issue779data.agda:4,3-23
 This declaration is illegal in a record before the last field
 when scope checking the declaration
   record R where
-    mutual
-      data Bla : Set
-      data Bla where
+    data Bla : Set where
     field F : Set

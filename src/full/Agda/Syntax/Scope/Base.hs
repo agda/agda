@@ -36,6 +36,7 @@ import Agda.Syntax.Fixity
 import Agda.Syntax.Abstract.Name as A
 import Agda.Syntax.Concrete.Name as C
 import qualified Agda.Syntax.Concrete as C
+import Agda.Syntax.Concrete.Fixity as C
 
 import Agda.Utils.AssocList (AssocList)
 import qualified Agda.Utils.AssocList as AssocList
@@ -109,11 +110,13 @@ data ScopeInfo = ScopeInfo
       , scopeInverseName   :: Map A.QName [C.QName]
       , scopeInverseModule :: Map A.ModuleName [C.QName]
       , scopeInScope       :: InScopeSet
+      , scopeFixities      :: C.Fixities    -- ^ Maps concrete names to fixities
+      , scopePolarities    :: C.Polarities  -- ^ Maps concrete names to polarities
       }
   deriving (Data, Show)
 
 instance Eq ScopeInfo where
-  ScopeInfo c1 m1 v1 l1 p1 _ _ _ == ScopeInfo c2 m2 v2 l2 p2 _ _ _ =
+  ScopeInfo c1 m1 v1 l1 p1 _ _ _ _ _ == ScopeInfo c2 m2 v2 l2 p2 _ _ _ _ _ =
     c1 == c2 && m1 == m2 && v1 == v2 && l1 == l2 && p1 == p2
 
 -- | Local variables.
@@ -412,6 +415,8 @@ emptyScopeInfo = ScopeInfo
   , scopeInverseName   = Map.empty
   , scopeInverseModule = Map.empty
   , scopeInScope       = Set.empty
+  , scopeFixities      = Map.empty
+  , scopePolarities    = Map.empty
   }
 
 -- | Map functions over the names and modules in a scope.
@@ -1033,7 +1038,7 @@ blockOfLines _  [] = []
 blockOfLines hd ss = hd : map (nest 2) ss
 
 instance Pretty ScopeInfo where
-  pretty (ScopeInfo this mods toBind locals ctx _ _ _) = vcat $
+  pretty (ScopeInfo this mods toBind locals ctx _ _ _ _ _) = vcat $
     [ "ScopeInfo"
     , "  current = " <> pretty this
     ] ++

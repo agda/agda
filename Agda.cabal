@@ -306,9 +306,11 @@ library
                     Agda.Syntax.Abstract.Pretty
                     Agda.Syntax.Abstract.Views
                     Agda.Syntax.Abstract
+                    Agda.Syntax.Builtin
                     Agda.Syntax.Common
                     Agda.Syntax.Concrete.Attribute
                     Agda.Syntax.Concrete.Definitions
+                    Agda.Syntax.Concrete.Fixity
                     Agda.Syntax.Concrete.Generic
                     Agda.Syntax.Concrete.Name
                     Agda.Syntax.Concrete.Operators.Parser

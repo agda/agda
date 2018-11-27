@@ -2,3 +2,6 @@ FixityOutOfScopeInRecord.agda:6,13-16
 The following names are not declared in the same scope as their
 syntax or fixity declaration (i.e., either not in scope at all,
 imported from another module, or declared in a super module): _+_
+when scope checking the declaration
+  record R where
+    infixl 30 _+_

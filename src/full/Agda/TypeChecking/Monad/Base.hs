@@ -3008,6 +3008,8 @@ data TypeError
         | InvalidPattern C.Pattern
         | RepeatedVariablesInPattern [C.Name]
         | GeneralizeNotSupportedHere A.QName
+        | MultipleFixityDecls [(C.Name, [Fixity'])]
+        | MultiplePolarityPragmas [C.Name]
     -- Concrete to Abstract errors
         | NotAModuleExpr C.Expr
             -- ^ The expr was used in the right hand side of an implicit module

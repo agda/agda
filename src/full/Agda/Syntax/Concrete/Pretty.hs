@@ -512,8 +512,8 @@ instance Pretty OpenShortHand where
     pretty DontOpen = empty
 
 instance Pretty Pragma where
-    pretty (OptionsPragma _ opts) = fsep $ map text $ "OPTIONS" : opts
-    pretty (BuiltinPragma _ b x _) = hsep [ "BUILTIN", text b, pretty x ]
+    pretty (OptionsPragma _ opts)  = fsep $ map text $ "OPTIONS" : opts
+    pretty (BuiltinPragma _ b x)   = hsep [ "BUILTIN", text b, pretty x ]
     pretty (RewritePragma _ xs)    =
       hsep [ "REWRITE", hsep $ map pretty xs ]
     pretty (CompiledPragma _ x hs) =

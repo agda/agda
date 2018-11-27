@@ -16,6 +16,7 @@ module Agda.Syntax.Concrete
   , OpApp(..), fromOrdinary
   , module Agda.Syntax.Concrete.Name
   , appView, AppView(..)
+  , isSingleIdentifierP, removeSingletonRawAppP
     -- * Bindings
   , LamBinding
   , LamBinding'(..)
@@ -418,9 +419,7 @@ data OpenShortHand = DoOpen | DontOpen
 
 data Pragma
   = OptionsPragma             Range [String]
-  | BuiltinPragma             Range String QName Fixity'
-    -- ^ BUILTIN pragmas with no associated definition can have a fixity
-    --   default value: @noFixity'@.
+  | BuiltinPragma             Range String QName
   | RewritePragma             Range [QName]
   -- Deprecated compiler pragmas:
   | CompiledDataPragma        Range QName String [String]
@@ -534,6 +533,18 @@ appView e =
     arg (HiddenArg   _ e) = hide         $ defaultArg e
     arg (InstanceArg _ e) = makeInstance $ defaultArg e
     arg e                 = defaultArg (unnamed e)
+
+isSingleIdentifierP :: Pattern -> Maybe Name
+isSingleIdentifierP p = case removeSingletonRawAppP p of
+  IdentP (QName x) -> Just x
+  WildP r          -> Just $ noName r
+  _                -> Nothing
+
+removeSingletonRawAppP :: Pattern -> Pattern
+removeSingletonRawAppP p = case p of
+    RawAppP _ [p'] -> removeSingletonRawAppP p'
+    ParenP _ p'    -> removeSingletonRawAppP p'
+    _ -> p
 
 {--------------------------------------------------------------------------
     Instances
@@ -701,7 +712,7 @@ instance HasRange DoStmt where
 
 instance HasRange Pragma where
   getRange (OptionsPragma r _)               = r
-  getRange (BuiltinPragma r _ _ _)           = r
+  getRange (BuiltinPragma r _ _)             = r
   getRange (RewritePragma r _)               = r
   getRange (CompiledDataPragma r _ _ _)      = r
   getRange (CompiledTypePragma r _ _)        = r
@@ -902,7 +913,7 @@ instance KillRange Pattern where
 
 instance KillRange Pragma where
   killRange (OptionsPragma _ s)               = OptionsPragma noRange s
-  killRange (BuiltinPragma _ s e f)           = killRange2 (BuiltinPragma noRange s) e f
+  killRange (BuiltinPragma _ s e)             = killRange1 (BuiltinPragma noRange s) e
   killRange (RewritePragma _ qs)              = killRange1 (RewritePragma noRange) qs
   killRange (CompiledDataPragma _ q s ss)     = killRange1 (\q -> CompiledDataPragma noRange q s ss) q
   killRange (CompiledTypePragma _ q s)        = killRange1 (\q -> CompiledTypePragma noRange q s) q
@@ -1045,7 +1056,7 @@ instance NFData Declaration where
 
 instance NFData Pragma where
   rnf (OptionsPragma _ a)               = rnf a
-  rnf (BuiltinPragma _ a b f)           = rnf a `seq` rnf b `seq` rnf f
+  rnf (BuiltinPragma _ a b)             = rnf a `seq` rnf b
   rnf (RewritePragma _ a)               = rnf a
   rnf (CompiledDataPragma _ a b c)      = rnf a `seq` rnf b `seq` rnf c
   rnf (CompiledTypePragma _ a b)        = rnf a `seq` rnf b

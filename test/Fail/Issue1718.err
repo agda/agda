@@ -1,4 +1,4 @@
-Issue1718.agda:5,1-40
+Issue1718.agda:5,17-33
 Not a valid let-declaration
 when scope checking the declaration
   module Sub (let open import oops) where

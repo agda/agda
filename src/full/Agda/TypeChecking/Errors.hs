@@ -386,6 +386,8 @@ errorString err = case err of
   GeneralizeNotSupportedHere{}             -> "GeneralizeNotSupportedHere"
   GeneralizeCyclicDependency{}             -> "GeneralizeCyclicDependency"
   GeneralizeUnsolvedMeta{}                 -> "GeneralizeUnsolvedMeta"
+  MultipleFixityDecls{}                    -> "MultipleFixityDecls"
+  MultiplePolarityPragmas{}                -> "MultiplePolarityPragmas"
   NoBindingForBuiltin{}                    -> "NoBindingForBuiltin"
   NoParseForApplication{}                  -> "NoParseForApplication"
   NoParseForLHS{}                          -> "NoParseForLHS"
@@ -1287,6 +1289,16 @@ instance PrettyTCM TypeError where
 
     GeneralizeUnsolvedMeta -> fsep $
       pwords "Unsolved meta not generalized"
+
+    MultipleFixityDecls xs ->
+      sep [ fsep $ pwords "Multiple fixity or syntax declarations for"
+          , vcat $ map f xs
+          ]
+      where
+        f (x, fs) = pretty x <> ": " <+> fsep (map pretty fs)
+
+    MultiplePolarityPragmas xs -> fsep $
+      pwords "Multiple polarity pragmas for" ++ map pretty xs
 
     NonFatalErrors ws -> foldr1 ($$) $ fmap prettyTCM ws
 

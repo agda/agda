@@ -2,3 +2,6 @@ UselessAbstractField.agda:6,3-7,18
 Using abstract here has no effect. Abstract applies to only
 definitions like data definitions, record type definitions and
 function clauses.
+when scope checking the declaration
+  record R where
+    abstract field T : Set

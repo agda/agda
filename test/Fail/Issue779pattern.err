@@ -1,7 +1,7 @@
 Issue779pattern.agda:6,3-7,12
 Not a valid let-declaration
-when scope checking
-let mutual
-      bla : D → D
-      bla c = c
-in (F : Set) → Set₀
+when scope checking the declaration
+  record R where
+    bla : D → D
+    bla c = c
+    field F : Set
