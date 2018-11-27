@@ -104,7 +104,7 @@ instance MentionsMeta Constraint where
     UnBlock _           -> True   -- this might be a postponed typechecking
                                   -- problem and we don't have a handle on
                                   -- what metas it depends on
-    FindInScope{}       -> True   -- this needs to be woken up for any meta
+    FindInstance{}      -> True   -- this needs to be woken up for any meta
     IsEmpty r t         -> mm t
     CheckSizeLtSat t    -> mm t
     CheckFunDef{}       -> True   -- not sure what metas this depends on

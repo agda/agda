@@ -364,7 +364,7 @@ errorString err = case err of
   FileNotFound{}                           -> "FileNotFound"
   GenericError{}                           -> "GenericError"
   GenericDocError{}                        -> "GenericDocError"
-  IFSNoCandidateInScope{}                  -> "IFSNoCandidateInScope"
+  InstanceNoCandidate{}                    -> "InstanceNoCandidate"
   IlltypedPattern{}                        -> "IlltypedPattern"
   IllformedProjectionPattern{}             -> "IllformedProjectionPattern"
   CannotEliminateWithPattern{}             -> "CannotEliminateWithPattern"
@@ -1237,7 +1237,7 @@ instance PrettyTCM TypeError where
       [prettyTCM x] ++
       pwords "(at most" ++ [text (show n)] ++ pwords "allowed)."
 
-    IFSNoCandidateInScope t -> fsep $
+    InstanceNoCandidate t -> fsep $
       pwords "No instance of type" ++ [prettyTCM t] ++ pwords "was found in scope."
 
     UnquoteFailed e -> case e of

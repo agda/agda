@@ -888,7 +888,7 @@ instance Subst Term Constraint where
     Guarded c cs             -> Guarded (rf c) cs
     IsEmpty r a              -> IsEmpty r (rf a)
     CheckSizeLtSat t         -> CheckSizeLtSat (rf t)
-    FindInScope m b cands    -> FindInScope m b (rf cands)
+    FindInstance m b cands   -> FindInstance m b (rf cands)
     UnBlock{}                -> c
     CheckFunDef{}            -> c
     HasBiggerSort s          -> HasBiggerSort (rf s)

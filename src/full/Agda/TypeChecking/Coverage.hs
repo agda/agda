@@ -687,7 +687,7 @@ inferMissingClause f (SClause tel ps _ cps (Just t)) = setCurrentRange f $ do
         $ locallyTC eCheckpoints (const cps)
         $ checkpoint IdS $ do    -- introduce a fresh checkpoint
     (_x, rhs) <- case getHiding t of
-                  Instance{} -> newIFSMeta "" (unArg t)
+                  Instance{} -> newInstanceMeta "" (unArg t)
                   Hidden     -> __IMPOSSIBLE__
                   NotHidden  -> __IMPOSSIBLE__
     return $ Clause { clauseLHSRange  = noRange

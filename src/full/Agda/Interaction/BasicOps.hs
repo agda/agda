@@ -353,7 +353,7 @@ data OutputConstraint a b
       | Assign b a | TypedAssign b a a | PostponedCheckArgs b [a] a a
       | IsEmptyType a
       | SizeLtSat a
-      | FindInScopeOF b a [(a,a)]
+      | FindInstanceOF b a [(a,a)]
       | PTSInstance b b
   deriving (Functor)
 
@@ -383,7 +383,7 @@ outputFormId (OutputForm _ _ o) = out o
       PostponedCheckArgs i _ _ _ -> i
       IsEmptyType _              -> __IMPOSSIBLE__   -- Should never be used on IsEmpty constraints
       SizeLtSat{}                -> __IMPOSSIBLE__
-      FindInScopeOF _ _ _        -> __IMPOSSIBLE__
+      FindInstanceOF _ _ _        -> __IMPOSSIBLE__
       PTSInstance i _            -> i
 
 instance Reify ProblemConstraint (Closure (OutputForm Expr Expr)) where
@@ -443,9 +443,9 @@ instance Reify Constraint (OutputConstraint Expr Expr) where
               tac <- A.App defaultAppInfo_ (A.Unquote exprNoRange) . defaultNamedArg <$> reify tac
               OfType tac <$> reify goal
           Open{}  -> __IMPOSSIBLE__
-          OpenIFS{}  -> __IMPOSSIBLE__
+          OpenInstance{}  -> __IMPOSSIBLE__
           InstV{} -> __IMPOSSIBLE__
-    reify (FindInScope m _b mcands) = FindInScopeOF
+    reify (FindInstance m _b mcands) = FindInstanceOF
       <$> (reify $ MetaV m [])
       <*> (reify =<< getMetaType m)
       <*> (forM (fromMaybe [] mcands) $ \ (Candidate tm ty eti _) -> do
@@ -493,7 +493,7 @@ instance (Show a,Show b) => Show (OutputConstraint a b) where
                     | otherwise  = s
     show (IsEmptyType a)        = "Is empty: " ++ show a
     show (SizeLtSat a)          = "Not empty type of sizes: " ++ show a
-    show (FindInScopeOF s t cs) = "Resolve instance argument " ++ showCand (s,t) ++ ".\n  Candidates:\n    [ " ++
+    show (FindInstanceOF s t cs) = "Resolve instance argument " ++ showCand (s,t) ++ ".\n  Candidates:\n    [ " ++
                                     List.intercalate "\n    , " (map showCand cs) ++ " ]"
       where
       showCand (tm,ty) = indent 6 $ show tm ++ " : " ++ show ty
@@ -529,9 +529,9 @@ instance (ToConcrete a c, ToConcrete b d) =>
       PostponedCheckArgs <$> toConcrete m <*> toConcrete args <*> toConcrete t0 <*> toConcrete t1
     toConcrete (IsEmptyType a) = IsEmptyType <$> toConcreteCtx TopCtx a
     toConcrete (SizeLtSat a) = SizeLtSat <$> toConcreteCtx TopCtx a
-    toConcrete (FindInScopeOF s t cs) =
-      FindInScopeOF <$> toConcrete s <*> toConcrete t
-                    <*> mapM (\(tm,ty) -> (,) <$> toConcrete tm <*> toConcrete ty) cs
+    toConcrete (FindInstanceOF s t cs) =
+      FindInstanceOF <$> toConcrete s <*> toConcrete t
+                     <*> mapM (\(tm,ty) -> (,) <$> toConcrete tm <*> toConcrete ty) cs
     toConcrete (PTSInstance a b) = PTSInstance <$> toConcrete a <*> toConcrete b
 
 instance (Pretty a, Pretty b) => Pretty (OutputConstraint' a b) where
@@ -582,7 +582,7 @@ getSolvedInteractionPoints all norm = concat <$> do
         case mvInstantiation mv of
           InstV{}                        -> sol (MetaV m $ map Apply args)
           Open{}                         -> unsol
-          OpenIFS{}                      -> unsol
+          OpenInstance{}                 -> unsol
           BlockedConst{}                 -> unsol
           PostponedTypeCheckingProblem{} -> unsol
 
@@ -636,7 +636,7 @@ typesOfHiddenMetas norm = liftTCM $ do
     case mvInstantiation m of
       M.InstV{} -> False
       M.Open    -> x `notElem` is
-      M.OpenIFS -> x `notElem` is  -- OR: True !?
+      M.OpenInstance -> x `notElem` is  -- OR: True !?
       M.BlockedConst{} -> True
       M.PostponedTypeCheckingProblem{} -> False
 

@@ -378,7 +378,7 @@ getInstantiatedMetas :: TCM [MetaId]
 getInstantiatedMetas = getMetaVariables (isInst . mvInstantiation)
   where
     isInst Open                           = False
-    isInst OpenIFS                        = False
+    isInst OpenInstance                   = False
     isInst BlockedConst{}                 = False
     isInst PostponedTypeCheckingProblem{} = False
     isInst InstV{}                        = True
@@ -388,7 +388,7 @@ getOpenMetas = getMetaVariables (isOpenMeta . mvInstantiation)
 
 isOpenMeta :: MetaInstantiation -> Bool
 isOpenMeta Open                           = True
-isOpenMeta OpenIFS                        = True
+isOpenMeta OpenInstance                   = True
 isOpenMeta BlockedConst{}                 = True
 isOpenMeta PostponedTypeCheckingProblem{} = True
 isOpenMeta InstV{}                        = False

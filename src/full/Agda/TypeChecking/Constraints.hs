@@ -68,14 +68,14 @@ addConstraint c = do
         reportSDoc "tc.constr.add" 20 $ "  simplified:" <+> prettyList (map prettyTCM cs)
         mapM_ solveConstraint_ cs
       else mapM_ addConstraint' cs
-    -- the added constraint can cause IFS constraints to be solved (but only
+    -- the added constraint can cause instance constraints to be solved (but only
     -- the constraints which aren’t blocked on an uninstantiated meta)
-    unless (isIFSConstraint c) $
-       wakeConstraints (isWakeableIFSConstraint . clValue . theConstraint)
+    unless (isInstanceConstraint c) $
+       wakeConstraints (isWakeableInstanceConstraint . clValue . theConstraint)
   where
-    isWakeableIFSConstraint :: Constraint -> TCM Bool
-    isWakeableIFSConstraint (FindInScope _ b _) = caseMaybe b (return True) (\m -> isInstantiatedMeta m)
-    isWakeableIFSConstraint _ = return False
+    isWakeableInstanceConstraint :: Constraint -> TCM Bool
+    isWakeableInstanceConstraint (FindInstance _ b _) = caseMaybe b (return True) (\m -> isInstantiatedMeta m)
+    isWakeableInstanceConstraint _ = return False
 
     isLvl LevelCmp{} = True
     isLvl _          = False
@@ -221,8 +221,8 @@ solveConstraint_ (UnBlock m)                =
       InstV{} -> __IMPOSSIBLE__
       -- Open (whatever that means)
       Open -> __IMPOSSIBLE__
-      OpenIFS -> __IMPOSSIBLE__
-solveConstraint_ (FindInScope m b cands)      = findInScope m cands
+      OpenInstance -> __IMPOSSIBLE__
+solveConstraint_ (FindInstance m b cands)     = findInstance m cands
 solveConstraint_ (CheckFunDef d i q cs)       = checkFunDef d i q cs
 solveConstraint_ (HasBiggerSort a)            = hasBiggerSort a
 solveConstraint_ (HasPTSRule a b)             = hasPTSRule a b

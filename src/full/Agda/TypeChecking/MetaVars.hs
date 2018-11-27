@@ -83,7 +83,7 @@ isBlockedTerm x = do
             PostponedTypeCheckingProblem{} -> True
             InstV{}                        -> False
             Open{}                         -> False
-            OpenIFS{}                      -> False
+            OpenInstance{}                 -> False
     reportSLn "tc.meta.blocked" 12 $
       if r then "  yes, because " ++ show i else "  no"
     return r
@@ -93,7 +93,7 @@ isEtaExpandable kinds x = do
     i <- mvInstantiation <$> lookupMeta x
     return $ case i of
       Open{}                         -> True
-      OpenIFS{}                      -> notElem Records kinds
+      OpenInstance{}                 -> notElem Records kinds
       InstV{}                        -> False
       BlockedConst{}                 -> False
       PostponedTypeCheckingProblem{} -> False
@@ -165,18 +165,18 @@ newTypeMeta_  = newTypeMeta =<< (workOnTypes $ newSortMeta)
 -- that it has a sort.  The sort comes from the solution.
 -- newTypeMeta_  = newTypeMeta Inf
 
--- | @newIFSMeta s t cands@ creates a new "implicit from scope" metavariable
+-- | @newInstanceMeta s t cands@ creates a new instance metavariable
 --   of type the output type of @t@ with name suggestion @s@.
-newIFSMeta :: MetaNameSuggestion -> Type -> TCM (MetaId, Term)
-newIFSMeta s t = do
+newInstanceMeta :: MetaNameSuggestion -> Type -> TCM (MetaId, Term)
+newInstanceMeta s t = do
   vs  <- getContextArgs
   ctx <- getContextTelescope
-  newIFSMetaCtx s (telePi_ ctx t) vs
+  newInstanceMetaCtx s (telePi_ ctx t) vs
 
-newIFSMetaCtx :: MetaNameSuggestion -> Type -> Args -> TCM (MetaId, Term)
-newIFSMetaCtx s t vs = do
+newInstanceMetaCtx :: MetaNameSuggestion -> Type -> Args -> TCM (MetaId, Term)
+newInstanceMetaCtx s t vs = do
   reportSDoc "tc.meta.new" 50 $ fsep
-    [ "new ifs meta:"
+    [ "new instance meta:"
     , nest 2 $ prettyTCM vs <+> "|-"
     ]
   -- Andreas, 2017-10-04, issue #2753: no metaOccurs check for instance metas
@@ -184,11 +184,11 @@ newIFSMetaCtx s t vs = do
   let i = i0 { miNameSuggestion = s }
   TelV tel _ <- telView t
   let perm = idP (size tel)
-  x <- newMeta' OpenIFS i normalMetaPriority perm (HasType () t)
+  x <- newMeta' OpenInstance i normalMetaPriority perm (HasType () t)
   reportSDoc "tc.meta.new" 50 $ fsep
     [ nest 2 $ pretty x <+> ":" <+> prettyTCM t
     ]
-  let c = FindInScope x Nothing Nothing
+  let c = FindInstance x Nothing Nothing
   -- If we're not already solving instance constraints we should add this
   -- to the awake constraints to make sure we don't forget about it. If we
   -- are solving constraints it will get woken up later (see #2690)

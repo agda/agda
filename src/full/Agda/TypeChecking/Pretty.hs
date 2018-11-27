@@ -282,7 +282,7 @@ instance PrettyTCM Constraint where
               PostponedTypeCheckingProblem cl _ -> enterClosure cl $ \p ->
                 prettyCmp ":=" m p
               Open{}  -> __IMPOSSIBLE__
-              OpenIFS{}  -> __IMPOSSIBLE__
+              OpenInstance{} -> __IMPOSSIBLE__
               InstV{} -> empty
               -- Andreas, 2017-01-11, issue #2637:
               -- The size solver instantiates some metas with infinity
@@ -295,7 +295,7 @@ instance PrettyTCM Constraint where
               --     , show m ++ show args ++ " := " ++ show t
               --     ]
               --   __IMPOSSIBLE__
-        FindInScope m mb mcands -> do
+        FindInstance m mb mcands -> do
             t <- getMetaType m
             sep [ "Resolve instance argument" <+> blk
                     <?> prettyCmp ":" m t

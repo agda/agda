@@ -408,7 +408,7 @@ data Declaration
 data ModuleApplication
   = SectionApp Range [TypedBindings] Expr
     -- ^ @tel. M args@
-  | RecordModuleIFS Range QName
+  | RecordModuleInstance Range QName
     -- ^ @M {{...}}@
   deriving Data
 
@@ -655,7 +655,7 @@ instance HasRange WhereClause where
 
 instance HasRange ModuleApplication where
   getRange (SectionApp r _ _) = r
-  getRange (RecordModuleIFS r _) = r
+  getRange (RecordModuleInstance r _) = r
 
 instance HasRange a => HasRange (FieldAssignment' a) where
   getRange (FieldAssignment a b) = fuseRange a b
@@ -886,7 +886,7 @@ instance KillRange DoStmt where
 
 instance KillRange ModuleApplication where
   killRange (SectionApp _ t e)    = killRange2 (SectionApp noRange) t e
-  killRange (RecordModuleIFS _ q) = killRange1 (RecordModuleIFS noRange) q
+  killRange (RecordModuleInstance _ q) = killRange1 (RecordModuleInstance noRange) q
 
 instance KillRange e => KillRange (OpApp e) where
   killRange (SyntaxBindingLambda _ l e) = killRange2 (SyntaxBindingLambda noRange) l e
@@ -1103,7 +1103,7 @@ instance NFData a => NFData (TypedBinding' a) where
 
 instance NFData ModuleApplication where
   rnf (SectionApp _ a b)    = rnf a `seq` rnf b
-  rnf (RecordModuleIFS _ a) = rnf a
+  rnf (RecordModuleInstance _ a) = rnf a
 
 -- | Ranges are not forced.
 

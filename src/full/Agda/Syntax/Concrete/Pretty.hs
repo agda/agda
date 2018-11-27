@@ -363,7 +363,7 @@ instance Pretty LHSCore where
 
 instance Pretty ModuleApplication where
   pretty (SectionApp _ bs e) = fsep (map pretty bs) <+> "=" <+> pretty e
-  pretty (RecordModuleIFS _ rec) = "=" <+> pretty rec <+> "{{...}}"
+  pretty (RecordModuleInstance _ rec) = "=" <+> pretty rec <+> "{{...}}"
 
 instance Pretty DoStmt where
   pretty (DoBind _ p e cs) =
@@ -486,7 +486,7 @@ instance Pretty Declaration where
                 sep [ pretty open <+> "module" <+> pretty x <+> fcat (map pretty tel)
                     , nest 2 $ "=" <+> pretty e <+> pretty i
                     ]
-            ModuleMacro _ x (RecordModuleIFS _ rec) open i ->
+            ModuleMacro _ x (RecordModuleInstance _ rec) open i ->
                 sep [ pretty open <+> "module" <+> pretty x
                     , nest 2 $ "=" <+> pretty rec <+> "{{...}}"
                     ]

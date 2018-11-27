@@ -66,7 +66,7 @@ newMetaArg info x a = do
     newMeta (getHiding info) (argNameToString x) a
   where
     newMeta :: Hiding -> String -> Type -> TCM (MetaId, Term)
-    newMeta Instance{} = newIFSMeta
+    newMeta Instance{} = newInstanceMeta
     newMeta Hidden     = newNamedValueMeta RunMetaOccursCheck
     newMeta NotHidden  = newNamedValueMeta RunMetaOccursCheck
 
@@ -82,7 +82,7 @@ newInteractionMetaArg info x a = do
     newMeta (getHiding info) (argNameToString x) a
   where
     newMeta :: Hiding -> String -> Type -> TCM (MetaId, Term)
-    newMeta Instance{} = newIFSMeta
+    newMeta Instance{} = newInstanceMeta
     newMeta Hidden     = newNamedValueMeta' RunMetaOccursCheck
     newMeta NotHidden  = newNamedValueMeta' RunMetaOccursCheck
 

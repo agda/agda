@@ -347,7 +347,7 @@ instance ExprLike ModuleApplication where
   recurseExpr f a =
     case a of
       SectionApp tel m es -> SectionApp <$> rec tel <*> rec m <*> rec es
-      RecordModuleIFS{}   -> pure a
+      RecordModuleInstance{} -> pure a
     where rec e = recurseExpr f e
 
 instance ExprLike Pragma where

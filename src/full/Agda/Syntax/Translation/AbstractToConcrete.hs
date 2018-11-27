@@ -830,9 +830,9 @@ instance ToConcrete A.ModuleApplication C.ModuleApplication where
       let r = fuseRange y es
       return $ C.SectionApp r (concat tel) (foldl (C.App r) (C.Ident y) es)
 
-  toConcrete (A.RecordModuleIFS recm) = do
+  toConcrete (A.RecordModuleInstance recm) = do
     recm <- toConcrete recm
-    return $ C.RecordModuleIFS (getRange recm) recm
+    return $ C.RecordModuleInstance (getRange recm) recm
 
 instance ToConcrete A.Declaration [C.Declaration] where
   toConcrete (ScopedDecl scope ds) =

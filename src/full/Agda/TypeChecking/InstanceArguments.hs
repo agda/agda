@@ -47,8 +47,8 @@ import Agda.Utils.Impossible
 -- | Compute a list of instance candidates.
 --   'Nothing' if type is a meta, error if type is not eligible
 --   for instance search.
-initialIFSCandidates :: Type -> TCM (Maybe [Candidate])
-initialIFSCandidates t = do
+initialInstanceCandidates :: Type -> TCM (Maybe [Candidate])
+initialInstanceCandidates t = do
   otn <- getOutputTypeName t
   case otn of
     NoOutputTypeName -> typeError $ GenericError $
@@ -155,7 +155,7 @@ initialIFSCandidates t = do
         handle (TypeError _ (Closure {clValue = InternalError _})) = return Nothing
         handle err                                                 = throwError err
 
--- | @findInScope m (v,a)s@ tries to instantiate on of the types @a@s
+-- | @findInstance m (v,a)s@ tries to instantiate on of the types @a@s
 --   of the candidate terms @v@s to the type @t@ of the metavariable @m@.
 --   If successful, meta @m@ is solved with the instantiation of @v@.
 --   If unsuccessful, the constraint is regenerated, with possibly reduced
@@ -163,34 +163,34 @@ initialIFSCandidates t = do
 --   The list of candidates is equal to @Nothing@ when the type of the meta
 --   wasn't known when the constraint was generated. In that case, try to find
 --   its type again.
-findInScope :: MetaId -> Maybe [Candidate] -> TCM ()
-findInScope m Nothing = do
+findInstance :: MetaId -> Maybe [Candidate] -> TCM ()
+findInstance m Nothing = do
   -- Andreas, 2015-02-07: New metas should be created with range of the
   -- current instance meta, thus, we set the range.
   mv <- lookupMeta m
   setCurrentRange mv $ do
-    reportSLn "tc.instance" 20 $ "The type of the FindInScope constraint isn't known, trying to find it again."
+    reportSLn "tc.instance" 20 $ "The type of the FindInstance constraint isn't known, trying to find it again."
     t <- instantiate =<< getMetaTypeInContext m
-    reportSLn "tc.instance" 70 $ "findInScope 1: t: " ++ prettyShow t
+    reportSLn "tc.instance" 70 $ "findInstance 1: t: " ++ prettyShow t
 
     -- Issue #2577: If the target is a function type the arguments are
     -- potential candidates, so we add them to the context to make
-    -- initialIFSCandidates pick them up.
+    -- initialInstanceCandidates pick them up.
     TelV tel t <- telView t
-    cands <- addContext tel $ initialIFSCandidates t
+    cands <- addContext tel $ initialInstanceCandidates t
     case cands of
       Nothing -> do
         reportSLn "tc.instance" 20 "Can't figure out target of instance goal. Postponing constraint."
-        addConstraint $ FindInScope m Nothing Nothing
-      Just {} -> findInScope m cands
+        addConstraint $ FindInstance m Nothing Nothing
+      Just {} -> findInstance m cands
 
-findInScope m (Just cands) =
-  whenJustM (findInScope' m cands) $ (\ (cands, b) -> addConstraint $ FindInScope m b $ Just cands)
+findInstance m (Just cands) =
+  whenJustM (findInstance' m cands) $ (\ (cands, b) -> addConstraint $ FindInstance m b $ Just cands)
 
 -- | Result says whether we need to add constraint, and if so, the set of
 --   remaining candidates and an eventual blocking metavariable.
-findInScope' :: MetaId -> [Candidate] -> TCM (Maybe ([Candidate], Maybe MetaId))
-findInScope' m cands = ifM (isFrozen m) (do
+findInstance' :: MetaId -> [Candidate] -> TCM (Maybe ([Candidate], Maybe MetaId))
+findInstance' m cands = ifM (isFrozen m) (do
     reportSLn "tc.instance" 20 "Refusing to solve frozen instance meta."
     return (Just (cands, Nothing))) $ do
   -- Andreas, 2013-12-28 issue 1003:
@@ -202,7 +202,7 @@ findInScope' m cands = ifM (isFrozen m) (do
     mv <- lookupMeta m
     setCurrentRange mv $ do
       reportSLn "tc.instance" 15 $
-        "findInScope 2: constraint: " ++ prettyShow m ++ "; candidates left: " ++ show (length cands)
+        "findInstance 2: constraint: " ++ prettyShow m ++ "; candidates left: " ++ show (length cands)
       reportSDoc "tc.instance" 60 $ nest 2 $ vcat
         [ sep [ (if overlap then "overlap" else empty) <+> prettyTCM v <+> ":"
               , nest 2 $ prettyTCM t ] | Candidate v t _ overlap <- cands ]
@@ -211,10 +211,10 @@ findInScope' m cands = ifM (isFrozen m) (do
         [ sep [ (if overlap then "overlap" else empty) <+> pretty v <+> ":"
               , nest 2 $ pretty t ] | Candidate v t _ overlap <- cands ]
       t <- normalise =<< getMetaTypeInContext m
-      reportSLn "tc.instance" 70 $ "findInScope 2: t: " ++ prettyShow t
+      reportSLn "tc.instance" 70 $ "findInstance 2: t: " ++ prettyShow t
       insidePi t $ \ t -> do
-      reportSDoc "tc.instance" 15 $ "findInScope 3: t =" <+> prettyTCM t
-      reportSLn "tc.instance" 70 $ "findInScope 3: t: " ++ prettyShow t
+      reportSDoc "tc.instance" 15 $ "findInstance 3: t =" <+> prettyTCM t
+      reportSLn "tc.instance" 70 $ "findInstance 3: t: " ++ prettyShow t
 
       -- If one of the arguments of the typeclass is a meta which is not rigidly
       -- constrained, then don’t do anything because it may loop.
@@ -230,12 +230,12 @@ findInScope' m cands = ifM (isFrozen m) (do
 
           Just [] -> do
             reportSDoc "tc.instance" 15 $
-              "findInScope 5: not a single candidate found..."
-            typeError $ IFSNoCandidateInScope t
+              "findInstance 5: not a single candidate found..."
+            typeError $ InstanceNoCandidate t
 
           Just [Candidate term t' _ _] -> do
             reportSDoc "tc.instance" 15 $ vcat
-              [ "findInScope 5: solved by instance search using the only candidate"
+              [ "findInstance 5: solved by instance search using the only candidate"
               , nest 2 $ prettyTCM term
               , "of type " <+> prettyTCM t'
               , "for type" <+> prettyTCM t
@@ -250,7 +250,7 @@ findInScope' m cands = ifM (isFrozen m) (do
           _ -> do
             let cs = fromMaybe cands mcands -- keep the current candidates if Nothing
             reportSDoc "tc.instance" 15 $
-              text ("findInScope 5: refined candidates: ") <+>
+              text ("findInstance 5: refined candidates: ") <+>
               prettyTCM (List.map candidateTerm cs)
             return (Just (cs, Nothing))
 
@@ -311,7 +311,7 @@ rigidlyConstrainedMetas = do
         Guarded{}     -> return Nothing  -- don't look inside Guarded, since the inner constraint might not fire
         IsEmpty{}     -> return Nothing
         CheckSizeLtSat{} -> return Nothing
-        FindInScope{} -> return Nothing
+        FindInstance{} -> return Nothing
         CheckFunDef{} -> return Nothing
         HasBiggerSort{} -> return Nothing
         HasPTSRule{}  -> return Nothing
@@ -463,7 +463,7 @@ checkCandidates :: MetaId -> Type -> [Candidate] -> TCM (Maybe [Candidate])
 checkCandidates m t cands =
   verboseBracket "tc.instance.candidates" 20 ("checkCandidates " ++ prettyShow m) $
   ifM (anyMetaTypes cands) (return Nothing) $
-  holdConstraints (\ _ -> isIFSConstraint . clValue . theConstraint) $ Just <$> do
+  holdConstraints (\ _ -> isInstanceConstraint . clValue . theConstraint) $ Just <$> do
     reportSDoc "tc.instance.candidates" 20 $ nest 2 $ "target:" <+> prettyTCM t
     reportSDoc "tc.instance.candidates" 20 $ nest 2 $ vcat
       [ "candidates"
@@ -533,7 +533,7 @@ checkCandidates m t cands =
             ctxElims <- map Apply <$> getContextArgs
             guardConstraint (ValueCmp CmpEq t'' (MetaV m ctxElims) v) $ leqType t'' t
             -- make a pass over constraints, to detect cases where some are made
-            -- unsolvable by the assignment, but don't do this for FindInScope's
+            -- unsolvable by the assignment, but don't do this for FindInstance's
             -- to prevent loops. We currently also ignore UnBlock constraints
             -- to be on the safe side.
             debugConstraints
@@ -572,9 +572,9 @@ checkCandidates m t cands =
                 "assignment failed:" <+> prettyTCM err
               return No
 
-isIFSConstraint :: Constraint -> Bool
-isIFSConstraint FindInScope{} = True
-isIFSConstraint _             = False
+isInstanceConstraint :: Constraint -> Bool
+isInstanceConstraint FindInstance{} = True
+isInstanceConstraint _              = False
 
 -- | To preserve the invariant that a constructor is not applied to its
 --   parameter arguments, we explicitly check whether function term

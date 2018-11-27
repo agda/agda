@@ -280,7 +280,7 @@ checkModuleApplication (C.SectionApp _ tel e) m0 x dir' = do
       ]
     return (amodapp, copyInfo, adir)
 
-checkModuleApplication (C.RecordModuleIFS _ recN) m0 x dir' =
+checkModuleApplication (C.RecordModuleInstance _ recN) m0 x dir' =
   withCurrentModule m0 $ do
     m1 <- toAbstract $ OldModuleName recN
     s <- getNamedScope m1
@@ -289,7 +289,7 @@ checkModuleApplication (C.RecordModuleIFS _ recN) m0 x dir' =
     modifyCurrentScope $ const s'
 
     printScope "mod.inst" 20 "copied record module"
-    return (A.RecordModuleIFS m1, copyInfo, adir)
+    return (A.RecordModuleInstance m1, copyInfo, adir)
 
 -- | @checkModuleMacro mkApply range access concreteName modapp open dir@
 --

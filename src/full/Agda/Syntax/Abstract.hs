@@ -222,7 +222,7 @@ type ImportedName    = ImportedName'    QName ModuleName
 data ModuleApplication
     = SectionApp Telescope ModuleName [NamedArg Expr]
       -- ^ @tel. M args@:  applies @M@ to @args@ and abstracts @tel@.
-    | RecordModuleIFS ModuleName
+    | RecordModuleInstance ModuleName
       -- ^ @M {{...}}@
   deriving (Data, Show, Eq)
 
@@ -793,7 +793,7 @@ instance KillRange Declaration where
 
 instance KillRange ModuleApplication where
   killRange (SectionApp a b c  ) = killRange3 SectionApp a b c
-  killRange (RecordModuleIFS a ) = killRange1 RecordModuleIFS a
+  killRange (RecordModuleInstance a) = killRange1 RecordModuleInstance a
 
 instance KillRange ScopeCopyInfo where
   killRange (ScopeCopyInfo a b) = killRange2 ScopeCopyInfo a b
@@ -980,7 +980,7 @@ instance AllNames LetBinding where
 
 instance AllNames ModuleApplication where
   allNames (SectionApp bindss _ es) = allNames bindss >< allNames es
-  allNames RecordModuleIFS{}        = Seq.empty
+  allNames RecordModuleInstance{}   = Seq.empty
 
 -- | The name defined by the given axiom.
 --

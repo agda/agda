@@ -917,7 +917,7 @@ checkSectionApplication' i m1 (A.SectionApp ptel m2 args) copyInfo = do
     addContext (KeepNames aTel) $
       applySection m1 (ptel `abstract` aTel) m2 (raise n args ++ etaArgs) copyInfo
 
-checkSectionApplication' i m1 (A.RecordModuleIFS x) copyInfo = do
+checkSectionApplication' i m1 (A.RecordModuleInstance x) copyInfo = do
   let name = mnameToQName x
   tel' <- lookupSection x
   vs   <- moduleParamsToApply x

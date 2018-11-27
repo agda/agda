@@ -197,7 +197,7 @@ instance ExprLike DoStmt where
 instance ExprLike ModuleApplication where
   mapExpr f e0 = case e0 of
      SectionApp r bs e -> SectionApp r (mapE bs) $ mapE e
-     RecordModuleIFS{} -> e0
+     RecordModuleInstance{} -> e0
    where mapE e = mapExpr f e
 
 instance ExprLike Declaration where

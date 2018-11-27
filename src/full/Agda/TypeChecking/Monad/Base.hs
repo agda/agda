@@ -873,7 +873,7 @@ data Constraint
     -- ^ The range is the one of the absurd pattern.
   | CheckSizeLtSat Term
     -- ^ Check that the 'Term' is either not a SIZELT or a non-empty SIZELT.
-  | FindInScope MetaId (Maybe MetaId) (Maybe [Candidate])
+  | FindInstance MetaId (Maybe MetaId) (Maybe [Candidate])
     -- ^ the first argument is the instance argument, the second one is the meta
     --   on which the constraint may be blocked on and the third one is the list
     --   of candidates (or Nothing if we haven’t determined the list of
@@ -893,7 +893,7 @@ instance HasRange Constraint where
   getRange (LevelCmp cmp l l') = getRange (l,l')
   getRange (UnBlock x) = getRange x
   getRange (Guarded c pid) = getRange c
-  getRange (FindInScope x cands) = getRange x
+  getRange (FindInstance x cands) = getRange x
 -}
 
 instance Free Constraint where
@@ -910,7 +910,7 @@ instance Free Constraint where
       Guarded c _           -> freeVars' c
       IsEmpty _ t           -> freeVars' t
       CheckSizeLtSat u      -> freeVars' u
-      FindInScope _ _ cs    -> freeVars' cs
+      FindInstance _ _ cs   -> freeVars' cs
       CheckFunDef _ _ _ _   -> mempty
       HasBiggerSort s       -> freeVars' s
       HasPTSRule s1 s2      -> freeVars' (s1 , s2)
@@ -928,7 +928,7 @@ instance TermLike Constraint where
       SortCmp _ s1 s2        -> __IMPOSSIBLE__  -- foldTerm f (s1, s2) -- Not yet implemented
       UnBlock _              -> __IMPOSSIBLE__  -- mempty     -- Not yet implemented
       Guarded c _            -> __IMPOSSIBLE__  -- foldTerm c -- Not yet implemented
-      FindInScope _ _ cs     -> __IMPOSSIBLE__  -- Not yet implemented
+      FindInstance _ _ cs    -> __IMPOSSIBLE__  -- Not yet implemented
       CheckFunDef _ _ _ _    -> __IMPOSSIBLE__  -- Not yet implemented
       HasBiggerSort _        -> __IMPOSSIBLE__  -- Not yet implemented
       HasPTSRule _ _         -> __IMPOSSIBLE__  -- Not yet implemented
@@ -1055,7 +1055,7 @@ data Frozen
 data MetaInstantiation
         = InstV [Arg String] Term -- ^ solved by term (abstracted over some free variables)
         | Open               -- ^ unsolved
-        | OpenIFS            -- ^ open, to be instantiated as "implicit from scope"
+        | OpenInstance       -- ^ open, to be instantiated by instance search
         | BlockedConst Term  -- ^ solution blocked by unsolved constraints
         | PostponedTypeCheckingProblem (Closure TypeCheckingProblem) (TCM Bool)
 
@@ -1080,7 +1080,7 @@ data TypeCheckingProblem
 instance Show MetaInstantiation where
   show (InstV tel t) = "InstV " ++ show tel ++ " (" ++ show t ++ ")"
   show Open      = "Open"
-  show OpenIFS   = "OpenIFS"
+  show OpenInstance = "OpenInstance"
   show (BlockedConst t) = "BlockedConst (" ++ show t ++ ")"
   show (PostponedTypeCheckingProblem{}) = "PostponedTypeCheckingProblem (...)"
 
@@ -3035,8 +3035,8 @@ data TypeError
         | AmbiguousParseForPatternSynonym C.Pattern [C.Pattern]
 -}
     -- Usage errors
-    -- Implicit From Scope errors
-        | IFSNoCandidateInScope Type
+    -- Instance search errors
+        | InstanceNoCandidate Type
     -- Reflection errors
         | UnquoteFailed UnquoteError
         | DeBruijnIndexOutOfScope Nat Telescope [Name]

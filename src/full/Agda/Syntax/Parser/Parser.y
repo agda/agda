@@ -1491,7 +1491,7 @@ Open : MaybeOpen 'import' ModuleName OpenArgs ImportDirective {%
   | 'open' ModuleName '{{' '...' DoubleCloseBrace ImportDirective {
     let r = getRange $2 in
     [ Private r Inserted
-      [ ModuleMacro r (noName $ beginningOf $ getRange $2) (RecordModuleIFS r $2) DoOpen $6
+      [ ModuleMacro r (noName $ beginningOf $ getRange $2) (RecordModuleInstance r $2) DoOpen $6
       ]
     ]
   }
@@ -1502,7 +1502,7 @@ OpenArgs : {- empty -}    { [] }
 
 ModuleApplication :: { [TypedBindings] -> Parser ModuleApplication }
 ModuleApplication : ModuleName '{{' '...' DoubleCloseBrace { (\ts ->
-                    if null ts then return $ RecordModuleIFS (getRange ($1,$2,$3,$4)) $1
+                    if null ts then return $ RecordModuleInstance (getRange ($1,$2,$3,$4)) $1
                     else parseError "No bindings allowed for record module with non-canonical implicits" )
                     }
                   | ModuleName OpenArgs {
