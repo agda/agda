@@ -324,11 +324,11 @@ handleCommand wrap onFail cmd = handleNastyErrors $ wrap $ do
                      err : if unsolvedNotOK then [meta, constr] else []
         s1 <- lift $ prettyError e
         s2 <- lift $ prettyTCWarnings' =<< Imp.getAllWarningsOfTCErr e
-        let strErr  = s1
+        let strErr  = if null s2 then s1
+                                 else delimiter "Error" ++ "\n" ++ s1
         let strWarn = List.intercalate "\n" $ delimiter "Warning(s)"
                                             : filter (not . null) s2
-                                            ++ [delimiter "Error"]
-        let str     = if null s2 then strErr else strWarn ++ "\n" ++ strErr
+        let str     = if null s2 then strErr else strErr ++ "\n\n" ++ strWarn
         x <- lift $ optShowImplicit <$> useTC stPragmaOptions
         unless (null s1) $ mapM_ putResponse $
             [ Resp_DisplayInfo $ Info_Error str ] ++

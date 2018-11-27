@@ -42,17 +42,17 @@ formatWarningsAndErrors g w e = (body, title)
     isE = not $ null e
     title = List.intercalate "," $ catMaybes
               [ " Goals"    <$ guard isG
-              , " Warnings" <$ guard isW
               , " Errors"   <$ guard isE
+              , " Warnings" <$ guard isW
               , " Done"     <$ guard (not (isG || isW || isE))
               ]
 
     body = List.intercalate "\n" $ catMaybes
              [ g                    <$ guard isG
-             , delimiter "Warnings" <$ guard (isW && (isG || isE))
-             , w                    <$ guard isW
              , delimiter "Errors"   <$ guard (isE && (isG || isW))
              , e                    <$ guard isE
+             , delimiter "Warnings" <$ guard (isW && (isG || isE))
+             , w                    <$ guard isW
              ]
 
 -- | Convert Response to an elisp value for the interactive emacs frontend.

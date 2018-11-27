@@ -1,0 +1,7 @@
+(agda2-status-action "")
+(agda2-info-action "*Type-checking*" "" nil)
+(agda2-highlight-clear)
+(agda2-info-action "*Error*" "———— Error ————————————————————————————————————————————————— Issue3416.agda:9,5-8 Set₁ != Set when checking that the expression Set has type Set ———— Warning(s) ———————————————————————————————————————————— Issue3416.agda:5,1-6,6 Termination checking failed for the following functions: A Problematic calls: A (at Issue3416.agda:6,5-6)" nil)
+((last . 3) . (agda2-maybe-goto '("Issue3416.agda" . 131)))
+(agda2-highlight-load-and-delete-action)
+(agda2-status-action "")
