@@ -1540,8 +1540,8 @@ instance ToAbstract NiceDeclaration A.Declaration where
     C.NiceFunClause{} -> __IMPOSSIBLE__
 
   -- Data definitions
-    C.DataDef r a _ uc x pars cons -> withLocalVars $ do
-        printScope "scope.data.def" 20 ("checking DataDef for " ++ prettyShow x)
+    C.DataDef r o a _ uc x pars cons -> withLocalVars $ do
+        reportSLn "scope.data.def" 20 ("checking " ++ show o ++ " DataDef for " ++ prettyShow x)
         (p, ax) <- resolveName (C.QName x) >>= \case
           DefinedName p ax -> do
             livesInCurrentModule ax  -- Andreas, 2017-12-04, issue #2862
@@ -1572,8 +1572,8 @@ instance ToAbstract NiceDeclaration A.Declaration where
         conName d = errorNotConstrDecl d
 
   -- Record definitions (mucho interesting)
-    C.RecDef r a _ uc x ind eta cm pars fields -> do
-      printScope "scope.rec.def" 20 ("checking RecDef for " ++ prettyShow x)
+    C.RecDef r o a _ uc x ind eta cm pars fields -> do
+      reportSLn "scope.rec.def" 20 ("checking " ++ show o ++ " RecDef for " ++ prettyShow x)
       (p, ax) <- resolveName (C.QName x) >>= \case
         DefinedName p ax -> do
           livesInCurrentModule ax  -- Andreas, 2017-12-04, issue #2862
