@@ -534,8 +534,7 @@ checkCandidates m t cands =
             guardConstraint (ValueCmp CmpEq t'' (MetaV m ctxElims) v) $ leqType t'' t
             -- make a pass over constraints, to detect cases where some are made
             -- unsolvable by the assignment, but don't do this for FindInstance's
-            -- to prevent loops. We currently also ignore UnBlock constraints
-            -- to be on the safe side.
+            -- to prevent loops.
             debugConstraints
             solveAwakeConstraints' True
 
