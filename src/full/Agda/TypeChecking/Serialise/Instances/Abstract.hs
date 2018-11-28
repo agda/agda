@@ -76,9 +76,18 @@ instance EmbPrj WhyInScope where
     valu _         = malformed
 
 instance EmbPrj AbstractName where
-  icod_ (AbsName a b c) = icodeN' AbsName a b c
+  icod_ (AbsName a b c d) = icodeN' AbsName a b c d
 
   value = valueN AbsName
+
+instance EmbPrj NameMetadata where
+  icod_ NoMetadata                  = icodeN' NoMetadata
+  icod_ (GeneralizedVarsMetadata a) = icodeN' GeneralizedVarsMetadata a
+
+  value = vcase valu where
+    valu []  = valuN NoMetadata
+    valu [a] = valuN GeneralizedVarsMetadata a
+    valu _   = malformed
 
 instance EmbPrj AbstractModule where
   icod_ (AbsModule a b) = icodeN' AbsModule a b

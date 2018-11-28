@@ -904,7 +904,7 @@ bindBuiltinNoDef b q = inTopContext $ do
   where
 
   r :: ResolvedName
-  r = DefinedName PublicAccess (AbsName q DefName Defined)
+  r = DefinedName PublicAccess (AbsName q DefName Defined NoMetadata)
 
   ax :: TCM Type -> TCM ()
   ax mty = do

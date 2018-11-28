@@ -1503,18 +1503,18 @@ instance ToAbstract NiceDeclaration A.Declaration where
         (ls', t') <- toAbstract (GenTelAndType (map makeDomainFull ls) t)
         f   <- getConcreteFixity x
         x'  <- freshAbstractQName f x
-        bindName p DefName x x'
+        bindName' p DefName (GeneralizedVarsMetadata $ generalizeTelVars ls') x x'
         return [ A.RecSig (mkDefInfo x f p a r) x' ls' t' ]
 
     C.NiceDataSig r p a _pc _uc x ls t -> withLocalVars $ do
-        printScope "scope.data.sig" 20 ("checking DataSig for " ++ prettyShow x)
+        reportSLn "scope.data.sig" 20 ("checking DataSig for " ++ prettyShow x)
         ensureNoLetStms ls
         (ls', t') <- toAbstract (GenTelAndType (map makeDomainFull ls) t)
         f   <- getConcreteFixity x
         x'  <- freshAbstractQName f x
         {- -- Andreas, 2012-01-16: remember number of parameters
         bindName p (DataName (length ls)) x x' -}
-        bindName p DefName x x'
+        bindName' p DefName (GeneralizedVarsMetadata $ generalizeTelVars ls') x x'
         return [ A.DataSig (mkDefInfo x f p a r) x' ls' t' ]
 
   -- Type signatures

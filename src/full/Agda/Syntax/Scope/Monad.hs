@@ -364,7 +364,10 @@ unbindVariable x = bracket_ (getLocalVars <* modifyLocalVars (AssocList.delete x
 
 -- | Bind a defined name. Must not shadow anything.
 bindName :: Access -> KindOfName -> C.Name -> A.QName -> ScopeM ()
-bindName acc kind x y = do
+bindName acc kind x y = bindName' acc kind NoMetadata x y
+
+bindName' :: Access -> KindOfName -> NameMetadata -> C.Name -> A.QName -> ScopeM ()
+bindName' acc kind meta x y = do
   when (isNoName x) $ modifyScopes $ Map.map $ removeNameFromScope PrivateNS x
   r  <- resolveName (C.QName x)
   ys <- case r of
@@ -380,7 +383,7 @@ bindName acc kind x y = do
   let ns = if isNoName x then PrivateNS else localNameSpace acc
   modifyCurrentScope $ addNamesToScope ns x ys
   where
-    success = return [ AbsName y kind Defined ]
+    success = return [ AbsName y kind Defined meta ]
     clash   = typeError . ClashingDefinition (C.QName x)
 
     ambiguous k ds =
