@@ -537,8 +537,10 @@ checkGeneralize :: Set QName -> Info.DefInfo -> ArgInfo -> QName -> A.Expr -> TC
 checkGeneralize s i info x e = do
 
     -- Check the signature and collect the created metas.
-    (n, tGen) <- generalizeType s $ locallyTC eGeneralizeMetas (const YesGeneralize) $
-                   workOnTypes $ isType_ e
+    (telNames, tGen) <-
+      generalizeType s $ locallyTC eGeneralizeMetas (const YesGeneralize) $
+        workOnTypes $ isType_ e
+    let n = length telNames
 
     reportSDoc "tc.decl.gen" 10 $ sep
       [ "checked type signature of generalizable variable" <+> prettyTCM x <+> ":"

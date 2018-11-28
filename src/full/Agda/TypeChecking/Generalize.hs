@@ -80,11 +80,11 @@ generalizeTelescope vars typecheckAction ret = billTo [Typing, Generalize] $ wit
     updateContext (raiseS (size tel')) (newTelCxt ++) $ ret (abstract genTel tel')
 
 -- | Generalize a type over a set of (used) generalizable variables.
-generalizeType :: Set QName -> TCM Type -> TCM (Int, Type)
+generalizeType :: Set QName -> TCM Type -> TCM ([Maybe QName], Type)
 generalizeType s typecheckAction = billTo [Typing, Generalize] $ withGenRecVar $ \ genRecMeta -> do
 
-  (t, _, allmetas) <- createMetasAndTypeCheck s typecheckAction
-  (genTel, _, sub) <- computeGeneralization genRecMeta Map.empty allmetas
+  (t, namedMetas, allmetas) <- createMetasAndTypeCheck s typecheckAction
+  (genTel, genTelNames, sub) <- computeGeneralization genRecMeta namedMetas allmetas
 
   t' <- abstract genTel . applySubst sub <$> instantiateFull t
 
@@ -92,7 +92,7 @@ generalizeType s typecheckAction = billTo [Typing, Generalize] $ withGenRecVar $
     [ "generalized"
     , nest 2 $ "t =" <+> escapeContext 1 (prettyTCM t') ]
 
-  return (size genTel, t')
+  return (genTelNames, t')
 
 -- | Create metas for the generalizable variables and run the type check action.
 createMetasAndTypeCheck :: Set QName -> TCM a -> TCM (a, Map MetaId QName, Set MetaId)
