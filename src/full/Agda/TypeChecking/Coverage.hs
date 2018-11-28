@@ -206,7 +206,21 @@ coverageCheck f t cs = do
     ]
 
   -- filter out the missing clauses that are absurd.
-  pss <- flip filterM pss $ \(tel,_) -> not <$> isEmptyTel tel
+  pss <- flip filterM pss $ \(tel,ps) ->
+    ifNotM (isEmptyTel tel) (return True) $ do
+      -- Jesper, 2018-11-28, Issue #3407: if the clause is absurd,
+      -- add the appropriate absurd clause to the definition.
+      let cl = Clause { clauseLHSRange    = noRange
+                      , clauseFullRange   = noRange
+                      , clauseTel         = tel
+                      , namedClausePats   = ps
+                      , clauseBody        = Nothing
+                      , clauseType        = Nothing
+                      , clauseCatchall    = False
+                      , clauseUnreachable = Just False
+                      }
+      addClauses f [cl]
+      return False
 
   -- report a warning if there are uncovered cases,
   -- generate a catch-all clause with a metavariable as its body to avoid
