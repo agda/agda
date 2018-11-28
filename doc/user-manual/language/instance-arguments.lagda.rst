@@ -500,20 +500,6 @@ Verify the goal
   and ``{Γ}`` denotes a telescope of implicit arguments. If this is not the
   case instance resolution fails with an error message\ [#issue1322]_.
 
-  Finally we have to check that there are no *unconstrained*
-  :ref:`metavariables <metavariables>` in ``vs``. A metavariable ``α`` is
-  considered constrained if it appears in an argument that is determined by the
-  type of some later argument, or if there is an existing constraint of the
-  form ``α us = C vs``, where ``C`` inert (i.e. a data or type constructor).
-  For example, ``α`` is constrained in ``T α xs`` if ``T : (n : Nat) → Vec A
-  n → Set``, since the type of the second argument of ``T`` determines the value
-  of the first argument. The reason for this restriction is that instance
-  resolution risks looping in the presence of unconstrained metavariables. For
-  example, suppose the goal is ``Eq α`` for some metavariable ``α``. Instance
-  resolution would decide that the ``eqList`` instance was applicable if
-  setting ``α := List β`` for a fresh metavariable ``β``, and then proceed to
-  search for an instance of ``Eq β``.
-
 Find candidates
   In the second stage we compute a set of *candidates*. :ref:`Let-bound
   <let-and-where>` variables and top-level definitions in scope are candidates if they
