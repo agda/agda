@@ -385,46 +385,6 @@ corresponding projection function is considered a top-level instance.
 Examples
 ~~~~~~~~
 
-Proof search
-++++++++++++
-
-Instance arguments are useful not only for Haskell-style type classes, but they
-can also be used to get some limited form of proof search (which, to be fair,
-is also true for Haskell type classes). Consider the following type, which
-models a proof that a particular element is present in a list as the index at
-which the element appears::
-
-  infix 4 _∈_
-  data _∈_ {A : Set} (x : A) : List A → Set where
-    instance
-      zero : ∀ {xs} → x ∈ x ∷ xs
-      suc  : ∀ {y xs} → x ∈ xs → x ∈ y ∷ xs
-
-Here we have declared the constructors of ``_∈_`` to be instances, which allows
-instance resolution to find proofs for concrete cases. For example,
-
-::
-
-  ex₁ : 1 + 2 ∈ 1 ∷ 2 ∷ 3 ∷ 4 ∷ []
-  ex₁ = it  -- computes to suc (suc zero)
-
-  ex₂ : {A : Set} (x y : A) (xs : List A) → x ∈ y ∷ y ∷ x ∷ xs
-  ex₂ x y xs = it  -- suc (suc zero)
-
-  ex₃ : {A : Set} (x y : A) (xs : List A) {{i : x ∈ xs}} → x ∈ y ∷ y ∷ xs
-  ex₃ x y xs = it  -- suc (suc i)
-
-It will fail, however, if there are more than one solution, since instance
-arguments must be unique. For example,
-
-.. code-block:: agda
-
-  fail₁ : 1 ∈ 1 ∷ 2 ∷ 1 ∷ []
-  fail₁ = it  -- ambiguous: zero or suc (suc zero)
-
-  fail₂ : {A : Set} (x y : A) (xs : List A) {{i : x ∈ xs}} → x ∈ y ∷ x ∷ xs
-  fail₂ x y xs = it -- suc zero or suc (suc i)
-
 .. _dependent-instances:
 
 Dependent instances

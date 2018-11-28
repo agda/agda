@@ -1,3 +1,5 @@
+{-# OPTIONS --overlapping-instances #-}
+
 module Succeed.RecursiveInstanceSearchLevel where
 
 open import Common.Prelude

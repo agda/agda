@@ -1,3 +1,4 @@
+{-# OPTIONS --overlapping-instances #-}
 
 record R₁ (M : Set → Set) : Set₁ where
   field

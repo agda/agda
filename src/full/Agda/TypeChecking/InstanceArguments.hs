@@ -14,6 +14,8 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.List as List
 
+import Agda.Interaction.Options (optOverlappingInstances)
+
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Scope.Base (isNameInScope)
@@ -193,6 +195,9 @@ findInstance' :: MetaId -> [Candidate] -> TCM (Maybe ([Candidate], Maybe MetaId)
 findInstance' m cands = ifM (isFrozen m) (do
     reportSLn "tc.instance" 20 "Refusing to solve frozen instance meta."
     return (Just (cands, Nothing))) $ do
+  ifM (isConsideringInstance `and2M` (not . optOverlappingInstances <$> pragmaOptions)) (do
+    reportSLn "tc.instance" 20 "Postponing possibly recursive instance search."
+    return $ Just (cands, Nothing)) $ do
   -- Andreas, 2013-12-28 issue 1003:
   -- If instance meta is already solved, simply discard the constraint.
   -- Ulf, 2016-12-06 issue 2325: But only if *fully* instantiated.
@@ -344,8 +349,7 @@ isNo _  = False
 checkCandidates :: MetaId -> Type -> [Candidate] -> TCM (Maybe [Candidate])
 checkCandidates m t cands =
   verboseBracket "tc.instance.candidates" 20 ("checkCandidates " ++ prettyShow m) $
-  ifM (anyMetaTypes cands) (return Nothing) $
-  holdConstraints (\ _ -> isInstanceConstraint . clValue . theConstraint) $ Just <$> do
+  ifM (anyMetaTypes cands) (return Nothing) $ Just <$> do
     reportSDoc "tc.instance.candidates" 20 $ nest 2 $ "target:" <+> prettyTCM t
     reportSDoc "tc.instance.candidates" 20 $ nest 2 $ vcat
       [ "candidates"
@@ -434,6 +438,7 @@ checkCandidates m t cands =
         where
           runCandidateCheck check =
             flip catchError handle $
+            nowConsideringInstance $
             ifNoConstraints_ check
               (return Yes)
               (\ _ -> Maybe <$ reportSLn "tc.instance" 50 "assignment inconclusive")
@@ -456,6 +461,13 @@ checkCandidates m t cands =
 isInstanceConstraint :: Constraint -> Bool
 isInstanceConstraint FindInstance{} = True
 isInstanceConstraint _              = False
+
+isConsideringInstance :: (ReadTCState m) => m Bool
+isConsideringInstance = (^. stConsideringInstance) <$> getTCState
+
+nowConsideringInstance :: (MonadTCState m) => m a -> m a
+nowConsideringInstance = locallyTCState stConsideringInstance $ const True
+
 
 -- | To preserve the invariant that a constructor is not applied to its
 --   parameter arguments, we explicitly check whether function term

@@ -155,6 +155,7 @@ data PragmaOptions = PragmaOptions
       -- ^ Should system generated projections 'ProjSystem' be printed
       --   postfix (True) or prefix (False).
   , optInstanceSearchDepth       :: Int
+  , optOverlappingInstances      :: Bool
   , optInversionMaxDepth         :: Int
   , optSafe                      :: Bool
   , optDoubleCheck               :: Bool
@@ -252,6 +253,7 @@ defaultPragmaOptions = PragmaOptions
   , optCubical                   = False
   , optPostfixProjections        = False
   , optInstanceSearchDepth       = 500
+  , optOverlappingInstances      = False
   , optInversionMaxDepth         = 50
   , optSafe                      = False
   , optDoubleCheck               = False
@@ -566,6 +568,12 @@ instanceDepthFlag s o = do
   d <- integerArgument "--instance-search-depth" s
   return $ o { optInstanceSearchDepth = d }
 
+overlappingInstancesFlag :: Flag PragmaOptions
+overlappingInstancesFlag o = return $ o { optOverlappingInstances = True }
+
+noOverlappingInstancesFlag :: Flag PragmaOptions
+noOverlappingInstancesFlag o = return $ o { optOverlappingInstances = False }
+
 inversionMaxDepthFlag :: String -> Flag PragmaOptions
 inversionMaxDepthFlag s o = do
   d <- integerArgument "--inversion-max-depth" s
@@ -786,6 +794,10 @@ pragmaOptions =
                     "make postfix projection notation the default"
     , Option []     ["instance-search-depth"] (ReqArg instanceDepthFlag "N")
                     "set instance search depth to N (default: 500)"
+    , Option []     ["overlapping-instances"] (NoArg overlappingInstancesFlag)
+                    "consider recursive instance arguments during pruning of instance candidates"
+    , Option []     ["no-overlapping-instances"] (NoArg noOverlappingInstancesFlag)
+                    "don't consider recursive instance arguments during pruning of instance candidates (default)"
     , Option []     ["inversion-max-depth"] (ReqArg inversionMaxDepthFlag "N")
                     "set maximum depth for pattern match inversion to N (default: 50)"
     , Option []     ["safe"] (NoArg safeFlag)

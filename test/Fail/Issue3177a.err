@@ -1,0 +1,16 @@
+Failed to solve the following constraints:
+  Resolve instance argument
+    _m_66
+      : (Dummy₁ : Set) (Γ₁ : Cxt) {W : World} (args₁ : All (_∈ W) Γ₁) →
+        Monotone (λ v → All (_∈ v) Γ₁)
+  Candidates
+    Monotone.all-monotone :
+      ((pre₁ : Preorder) {Γ = Γ₁ : Cxt} {C : Ty → Preorder.I pre₁ → Set}
+       ⦃ w : {ty : Ty} → Monotone.Monotone pre₁ (C ty) ⦄ →
+       Monotone.Monotone pre₁ (λ W → All (λ ty → C ty W) Γ₁))
+    all-monotone :
+      ({Γ = Γ₁ : Cxt} {C : Ty → Preorder.I pre → Set}
+       ⦃ w : {ty : Ty} → Monotone (C ty) ⦄ →
+       Monotone (λ W → All (λ ty → C ty W) Γ₁))
+Unsolved metas at the following locations:
+  Issue3177a.agda:70,5-6

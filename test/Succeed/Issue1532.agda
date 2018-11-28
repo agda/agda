@@ -1,3 +1,4 @@
+{-# OPTIONS --overlapping-instances #-}
 
 module _ where
 

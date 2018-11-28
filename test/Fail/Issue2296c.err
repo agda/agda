@@ -1,0 +1,172 @@
+Failed to solve the following constraints:
+  Resolve instance argument
+    _r_195
+      : {A : Set} (x₁ : MaybeT Id A) (f₁ g₁ : A → MaybeT Id A) →
+        Monad (λ v → _M_200 v)
+  Candidates
+    M.transform :
+      (z : R) {M : Set → Set} ⦃ is-raw-monad : M.Monad z M ⦄ →
+      M.Monad z (MaybeT M)
+    transform :
+      {M : Set → Set} ⦃ is-raw-monad : Monad M ⦄ → Monad (MaybeT M)
+  Resolve instance argument
+    _r_191
+      : {A : Set} (x₁ : MaybeT Id A) (f₁ g₁ : A → MaybeT Id A) →
+        Monad (_M_190 (x = x₁) (f = f₁) (g = g₁))
+  Candidates
+    M.transform :
+      (z : R) {M : Set → Set} ⦃ is-raw-monad : M.Monad z M ⦄ →
+      M.Monad z (MaybeT M)
+    transform :
+      {M : Set → Set} ⦃ is-raw-monad : Monad M ⦄ → Monad (MaybeT M)
+  Resolve instance argument
+    _r_127
+      : {A = A₁ : Set} (x₁ : MaybeT Id A₁) (f₁ g₁ : A₁ → MaybeT Id A₁)
+        (x₂ : A₁) →
+        Monad (λ v → _M_133 v)
+  Candidates
+    M.transform :
+      (z : R) {M : Set → Set} ⦃ is-raw-monad : M.Monad z M ⦄ →
+      M.Monad z (MaybeT M)
+    transform :
+      {M : Set → Set} ⦃ is-raw-monad : Monad M ⦄ → Monad (MaybeT M)
+  Resolve instance argument
+    _r_121
+      : {A = A₁ : Set} (x₁ : MaybeT Id A₁) (f₁ g₁ : A₁ → MaybeT Id A₁) →
+        Monad (λ v → _M_130 v)
+  Candidates
+    M.transform :
+      (z : R) {M : Set → Set} ⦃ is-raw-monad : M.Monad z M ⦄ →
+      M.Monad z (MaybeT M)
+    transform :
+      {M : Set → Set} ⦃ is-raw-monad : Monad M ⦄ → Monad (MaybeT M)
+  Resolve instance argument
+    _r_145
+      : {A = A₁ : Set} (x₁ : MaybeT Id A₁) (f₁ g₁ : A₁ → MaybeT Id A₁) →
+        Monad (_M_144 (x = x₁) (f = f₁) (g = g₁))
+  Candidates
+    M.transform :
+      (z : R) {M : Set → Set} ⦃ is-raw-monad : M.Monad z M ⦄ →
+      M.Monad z (MaybeT M)
+    transform :
+      {M : Set → Set} ⦃ is-raw-monad : Monad M ⦄ → Monad (MaybeT M)
+  Resolve instance argument
+    _r_149
+      : {A = A₁ : Set} (x₁ : MaybeT Id A₁) (f₁ g₁ : A₁ → MaybeT Id A₁) →
+        Monad (λ v → _M_154 v)
+  Candidates
+    M.transform :
+      (z : R) {M : Set → Set} ⦃ is-raw-monad : M.Monad z M ⦄ →
+      M.Monad z (MaybeT M)
+    transform :
+      {M : Set → Set} ⦃ is-raw-monad : Monad M ⦄ → Monad (MaybeT M)
+  [265, 268] _f_172 (just ;x)
+               = (id-raw-monad >>= _f_215 (just ;x)) _g_216
+               : Id (Maybe ;A)
+  [269, 272] _f_172 nothing
+               = (id-raw-monad >>= _f_215 nothing) _g_216
+               : Id (Maybe ;A)
+  [279] _M_190 _B_193 =< MaybeT (λ v → _M_211 v) _A_189 : Set
+  [280] _M_211 (Maybe _A_189) =< Id (Maybe ;A) : Set
+  _209 := λ {;A} x f g → run (_208 (x = x) (f = f) (g = g))
+    [blocked on problem 280]
+  _207
+    := λ {;A} x f g →
+         (_r_191 (x = x) (f = f) (g = g) >>= _204 (x = x) (f = f) (g = g))
+         (_206 (x = x) (f = f) (g = g))
+    [blocked on problem 279]
+  _205 := λ {;A} x f g → g [blocked on problem 277]
+  [276] _M_200 _B_197 =< _M_190 ;A : Set
+  [277] MaybeT Id ;A =< _M_190 _B_193 : Set
+  _203
+    := λ {;A} x f g →
+         (_r_195 (x = x) (f = f) (g = g) >>= _199 (x = x) (f = f) (g = g))
+         (_202 (x = x) (f = f) (g = g))
+    [blocked on problem 276]
+  _201 := λ {;A} x f g → f [blocked on problem 274]
+  [274] MaybeT Id ;A =< _M_200 _B_197 : Set
+  [273] MaybeT Id ;A =< _M_200 ;A : Set
+  _198 := λ {;A} x f g → x [blocked on problem 273]
+  _184
+    := λ {;A} x f g → refl (_f_172 (x = x) (f = f) (g = g) nothing)
+    [blocked on problem 269]
+  _180
+    := λ {;A} x f g ;x →
+         refl (_f_172 (x = x) (f = f) (g = g) (just ;x))
+    [blocked on problem 265]
+  [237] _M_130 _B_123 =< MaybeT (λ v → _M_175 v) _A_119 : Set
+  [245] _M_144 _B_147 =< MaybeT (λ v → _M_174 v) _A_143 : Set
+  [238] _M_175 (Maybe _A_119) =< Id (Maybe A) : Set
+  [246] _M_174 (Maybe _A_143) =< Id (Maybe A) : Set
+  _163 := λ {A} x f g → run (_162 (x = x) (f = f) (g = g))
+    [blocked on problem 246]
+  _161
+    := λ {A} x f g →
+         (_r_145 (x = x) (f = f) (g = g) >>= _158 (x = x) (f = f) (g = g))
+         (_160 (x = x) (f = f) (g = g))
+    [blocked on problem 245]
+  _159 := λ {A} x f g → g [blocked on problem 243]
+  [242] _M_154 _B_151 =< _M_144 A : Set
+  [243] MaybeT Id A =< _M_144 _B_147 : Set
+  _157
+    := λ {A} x f g →
+         (_r_149 (x = x) (f = f) (g = g) >>= _153 (x = x) (f = f) (g = g))
+         (_156 (x = x) (f = f) (g = g))
+    [blocked on problem 242]
+  _155 := λ {A} x f g → f [blocked on problem 240]
+  [240] MaybeT Id A =< _M_154 _B_151 : Set
+  [239] MaybeT Id A =< _M_154 A : Set
+  _152 := λ {A} x f g → x [blocked on problem 239]
+  _140 := λ {A} x f g → run (_139 (x = x) (f = f) (g = g))
+    [blocked on problem 238]
+  _138
+    := λ {A} x f g →
+         (_r_121 (x = x) (f = f) (g = g) >>= _125 (x = x) (f = f) (g = g))
+         (λ x₁ → _137 (x = x) (f = f) (g = g) (x = x₁))
+    [blocked on problem 237]
+  _136
+    := λ {A} x f g x₁ →
+         (_r_127 (x = x) (f = f) (g = g) (x = x₁) >>=
+          _132 (x = x) (f = f) (g = g) (x = x₁))
+         (_135 (x = x) (f = f) (g = g) (x = x₁))
+    [blocked on problem 236]
+  [236] _M_133 _B_129 =< _M_130 _B_123 : Set
+  _134 := λ {A} x f g x₁ → g [blocked on problem 234]
+  [234] MaybeT Id A =< _M_133 _B_129 : Set
+  [232] MaybeT Id A =< _M_133 A : Set
+  _131 := λ {A} x f g x₁ → f x₁ [blocked on problem 232]
+  [230] MaybeT Id A =< _M_130 A : Set
+  _124 := λ {A} x f g → x [blocked on problem 230]
+Unsolved metas at the following locations:
+  Issue2296c.agda:63,3-6
+  Issue2296c.agda:63,10-13
+  Issue2296c.agda:63,8-9
+  Issue2296c.agda:63,24-27
+  Issue2296c.agda:63,20-23
+  Issue2296c.agda:63,28-29
+  Issue2296c.agda:63,20-29
+  Issue2296c.agda:63,8-29
+  Issue2296c.agda:63,3-30
+  Issue2296c.agda:63,33-36
+  Issue2296c.agda:63,48-51
+  Issue2296c.agda:63,41-44
+  Issue2296c.agda:63,39-40
+  Issue2296c.agda:63,45-46
+  Issue2296c.agda:63,39-46
+  Issue2296c.agda:63,52-53
+  Issue2296c.agda:63,39-53
+  Issue2296c.agda:63,33-54
+  Issue2296c.agda:65,10-25
+  Issue2296c.agda:65,41-47
+  Issue2296c.agda:65,50-56
+  Issue2296c.agda:66,14-17
+  Issue2296c.agda:66,29-32
+  Issue2296c.agda:66,22-25
+  Issue2296c.agda:66,20-21
+  Issue2296c.agda:66,26-27
+  Issue2296c.agda:66,20-27
+  Issue2296c.agda:66,33-34
+  Issue2296c.agda:66,20-34
+  Issue2296c.agda:66,14-35
+  Issue2296c.agda:67,28-29
+  Issue2296c.agda:67,30-31

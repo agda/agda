@@ -232,6 +232,7 @@ data PostScopeState = PostScopeState
   , stPostFreshInt            :: !Int
   , stPostFreshNameId         :: !NameId
   , stPostAreWeCaching        :: !Bool
+  , stPostConsideringInstance :: !Bool
   }
 
 -- | A mutual block of names in the signature.
@@ -358,6 +359,7 @@ initPostScopeState = PostScopeState
   , stPostFreshInt             = 0
   , stPostFreshNameId           = NameId 0 0
   , stPostAreWeCaching         = False
+  , stPostConsideringInstance  = False
   }
 
 initState :: TCState
@@ -586,6 +588,11 @@ stAreWeCaching :: Lens' Bool TCState
 stAreWeCaching f s =
   f (stPostAreWeCaching (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostAreWeCaching = x}}
+
+stConsideringInstance :: Lens' Bool TCState
+stConsideringInstance f s =
+  f (stPostConsideringInstance (stPostScopeState s)) <&>
+  \x -> s {stPostScopeState = (stPostScopeState s) {stPostConsideringInstance = x}}
 
 stBuiltinThings :: TCState -> BuiltinThings PrimFun
 stBuiltinThings s = (s^.stLocalBuiltins) `Map.union` (s^.stImportedBuiltins)

@@ -1,3 +1,4 @@
+{-# OPTIONS --overlapping-instances #-}
 
 postulate
   Nat : Set
