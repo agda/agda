@@ -48,8 +48,10 @@ generalizeTelescope vars typecheckAction ret = billTo [Typing, Generalize] $ wit
       cxt <- take (size tel) <$> getContext
       return (map (fst . unDom) cxt, tel)
   -- Translate the QName to the corresponding bound variable
-  let boundVars = fmap (\ q -> fromMaybe __IMPOSSIBLE__ $ Map.lookup q vars) namedMetas
-  (genTel, genTelNames, sub) <- computeGeneralization genRecMeta boundVars allmetas
+  (genTel, genTelNames, sub) <- computeGeneralization genRecMeta namedMetas allmetas
+
+  let boundVar q = fromMaybe __IMPOSSIBLE__ $ Map.lookup q vars
+      genTelVars = (map . fmap) boundVar genTelNames
 
   tel' <- applySubst sub <$> instantiateFull tel
 
@@ -62,7 +64,7 @@ generalizeTelescope vars typecheckAction ret = billTo [Typing, Generalize] $ wit
           return $ setName name d
         where s  = fst $ unDom d
       dropCxt err = updateContext (strengthenS err 1) (drop 1)
-  genTelCxt <- dropCxt __IMPOSSIBLE__ $ mapM cxtEntry $ reverse $ zip genTelNames $ telToList genTel
+  genTelCxt <- dropCxt __IMPOSSIBLE__ $ mapM cxtEntry $ reverse $ zip genTelVars $ telToList genTel
 
   -- For the explicit module telescope we get the names from the typecheck
   -- action.
@@ -116,7 +118,7 @@ withGenRecVar ret = do
 --   generalized. Called in the context extended with the telescope record variable (whose type is
 --   the first argument). Returns the telescope of generalized variables and a substitution from
 --   this telescope to the current context.
-computeGeneralization :: Type -> Map MetaId Name -> Set MetaId -> TCM (Telescope, [Maybe Name], Substitution)
+computeGeneralization :: Type -> Map MetaId name -> Set MetaId -> TCM (Telescope, [Maybe name], Substitution)
 computeGeneralization genRecMeta nameMap allmetas = do
   -- Pair metas with their metaInfo
   mvs <- mapM (\ x -> (x,) <$> lookupMeta x) (Set.toList allmetas)
