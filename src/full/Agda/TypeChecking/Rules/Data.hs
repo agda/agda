@@ -54,8 +54,8 @@ import Agda.Utils.Impossible
 
 -- | Type check a datatype definition. Assumes that the type has already been
 --   checked.
-checkDataDef :: Info.DefInfo -> QName -> UniverseCheck -> [A.LamBinding] -> [A.Constructor] -> TCM ()
-checkDataDef i name uc ps cs =
+checkDataDef :: Info.DefInfo -> QName -> UniverseCheck -> A.DataDefParams -> [A.Constructor] -> TCM ()
+checkDataDef i name uc (A.DataDefParams gpars ps) cs =
     traceCall (CheckDataDef (getRange name) (qnameName name) ps cs) $ do -- TODO! (qnameName)
 
         -- Add the datatype module

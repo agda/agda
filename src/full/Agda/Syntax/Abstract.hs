@@ -23,6 +23,7 @@ import Data.Maybe
 import Data.Sequence (Seq, (<|), (><))
 import qualified Data.Sequence as Seq
 import qualified Data.Set as Set
+import Data.Set (Set)
 import Data.Traversable
 import Data.Void
 
@@ -185,10 +186,10 @@ data Declaration
     -- ^ only retained for highlighting purposes
   | FunDef     DefInfo QName Delayed [Clause] -- ^ sequence of function clauses
   | DataSig    DefInfo QName GeneralizeTelescope Expr -- ^ lone data signature
-  | DataDef    DefInfo QName UniverseCheck [LamBinding] [Constructor]
+  | DataDef    DefInfo QName UniverseCheck DataDefParams [Constructor]
       -- ^ the 'LamBinding's are 'DomainFree' and bind the parameters of the datatype.
   | RecSig     DefInfo QName GeneralizeTelescope Expr -- ^ lone record signature
-  | RecDef     DefInfo QName UniverseCheck (Maybe (Ranged Induction)) (Maybe HasEta) (Maybe QName) [LamBinding] Expr [Declaration]
+  | RecDef     DefInfo QName UniverseCheck (Maybe (Ranged Induction)) (Maybe HasEta) (Maybe QName) DataDefParams Expr [Declaration]
       -- ^ The 'LamBinding's are 'DomainFree' and bind the parameters of the datatype.
       --   The 'Expr' gives the constructor type telescope, @(x1 : A1)..(xn : An) -> Prop@,
       --   and the optional name is the constructor's name.
@@ -317,6 +318,17 @@ data GeneralizeTelescope = GeneralizeTel
     --   introduced by the generalisation).
   , generalizeTel     :: Telescope }
   deriving (Data, Show, Eq)
+
+data DataDefParams = DataDefParams
+  { dataDefGeneralizedParams :: Set Name
+    -- ^ We don't yet know the position of generalized parameters from the data
+    --   sig, so we keep these in a set on the side.
+  , dataDefParams :: [LamBinding]
+  }
+  deriving (Data, Show, Eq)
+
+noDataDefParams :: DataDefParams
+noDataDefParams = DataDefParams Set.empty []
 
 -- | A user pattern together with an internal term that it should be equal to
 --   after splitting is complete.
@@ -728,6 +740,9 @@ instance KillRange LamBinding where
 
 instance KillRange GeneralizeTelescope where
   killRange (GeneralizeTel s tel) = GeneralizeTel s (killRange tel)
+
+instance KillRange DataDefParams where
+  killRange (DataDefParams s tel) = DataDefParams s (killRange tel)
 
 instance KillRange TypedBindings where
   killRange (TypedBindings r b) = TypedBindings (killRange r) (killRange b)

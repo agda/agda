@@ -409,7 +409,7 @@ highlight_ d = do
       -- all that remains is the module declaration.
     A.RecSig{}               -> highlight d
     A.RecDef i x uc ind eta c ps tel cs ->
-      highlight (A.RecDef i x uc ind eta c [] dummy cs)
+      highlight (A.RecDef i x uc ind eta c A.noDataDefParams dummy cs)
       -- The telescope has already been highlighted.
       where
       -- Andreas, 2016-01-22, issue 1790

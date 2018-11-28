@@ -1548,25 +1548,27 @@ instance ToAbstract NiceDeclaration A.Declaration where
             return (p, ax)
           _ -> genericError $ "Missing type signature for data definition " ++ prettyShow x
         ensureNoLetStms pars
-        -- Check for duplicate constructors
-        do cs <- mapM conName cons
-           let dups = nub $ cs \\ nub cs
-               bad  = filter (`elem` dups) cs
-           unless (distinct cs) $
-             setCurrentRange bad $
-                typeError $ DuplicateConstructors dups
+        withLocalVars $ do
+          gvars <- bindGeneralizablesIfInserted o ax
+          -- Check for duplicate constructors
+          do cs <- mapM conName cons
+             let dups = nub $ cs \\ nub cs
+                 bad  = filter (`elem` dups) cs
+             unless (distinct cs) $
+               setCurrentRange bad $
+                 typeError $ DuplicateConstructors dups
 
-        pars <- toAbstract pars
-        let x' = anameName ax
-        -- Create the module for the qualified constructors
-        checkForModuleClash x -- disallow shadowing previously defined modules
-        let m = mnameFromList $ qnameToList x'
-        createModule (Just IsData) m
-        bindModule p x m  -- make it a proper module
-        cons <- toAbstract (map (ConstrDecl NoRec m a p) cons)
-        printScope "data" 20 $ "Checked data " ++ prettyShow x
-        f <- getConcreteFixity x
-        return [ A.DataDef (mkDefInfo x f PublicAccess a r) x' uc pars cons ]
+          pars <- toAbstract pars
+          let x' = anameName ax
+          -- Create the module for the qualified constructors
+          checkForModuleClash x -- disallow shadowing previously defined modules
+          let m = mnameFromList $ qnameToList x'
+          createModule (Just IsData) m
+          bindModule p x m  -- make it a proper module
+          cons <- toAbstract (map (ConstrDecl NoRec m a p) cons)
+          printScope "data" 20 $ "Checked data " ++ prettyShow x
+          f <- getConcreteFixity x
+          return [ A.DataDef (mkDefInfo x f PublicAccess a r) x' uc (DataDefParams gvars pars) cons ]
       where
         conName (C.Axiom _ _ _ _ _ c _) = return c
         conName d = errorNotConstrDecl d
@@ -1581,6 +1583,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
         _ -> genericError $ "Missing type signature for record definition " ++ prettyShow x
       ensureNoLetStms pars
       withLocalVars $ do
+        gvars <- bindGeneralizablesIfInserted o ax
         -- Check that the generated module doesn't clash with a previously
         -- defined module
         checkForModuleClash x
@@ -1613,7 +1616,8 @@ instance ToAbstract NiceDeclaration A.Declaration where
         let inst = caseMaybe cm NotInstanceDef snd
         printScope "rec" 15 "record complete"
         f <- getConcreteFixity x
-        return [ A.RecDef (mkDefInfoInstance x f PublicAccess a inst NotMacroDef r) x' uc ind eta cm' pars contel afields ]
+        let params = DataDefParams gvars pars
+        return [ A.RecDef (mkDefInfoInstance x f PublicAccess a inst NotMacroDef r) x' uc ind eta cm' params contel afields ]
 
     NiceModule r p a x@(C.QName name) tel ds -> do
       reportSDoc "scope.decl" 70 $ vcat $
@@ -1786,14 +1790,28 @@ collectGeneralizables m = bracket_ open close $ do
 collectAndBindGeneralizables :: ScopeM a -> ScopeM (Map I.QName I.Name, a)
 collectAndBindGeneralizables m = do
   (s, res) <- collectGeneralizables m
-  -- We should bind the named generalizable variables as fresh variables
-  binds <- forM (Set.toList s) $ \ q -> do
+  binds <- fmap Map.fromList $ forM (Set.toList s) $ \ q -> do
     let x  = nameConcrete $ qnameName q
         fx = nameFixity   $ qnameName q
     y <- freshAbstractName fx x
-    bindVariable LambdaBound x y
     return (q, y)
-  return (Map.fromList binds, res)
+  -- We should bind the named generalizable variables as fresh variables
+  bindGeneralizables binds
+  return (binds, res)
+
+bindGeneralizables :: Map A.QName A.Name -> ScopeM ()
+bindGeneralizables vars =
+  forM_ (Map.toList vars) $ \ (q, y) ->
+    bindVariable LambdaBound (nameConcrete $ qnameName q) y
+
+-- | Bind generalizable variables if data or record decl was split by the system
+--   (origin == Inserted)
+bindGeneralizablesIfInserted :: Origin -> AbstractName -> ScopeM (Set A.Name)
+bindGeneralizablesIfInserted Inserted y = bound <$ bindGeneralizables gvars
+  where GeneralizedVarsMetadata gvars = anameMetadata y
+        bound = Set.fromList (Map.elems gvars)
+bindGeneralizablesIfInserted UserWritten _ = return Set.empty
+bindGeneralizablesIfInserted _ _           = __IMPOSSIBLE__
 
 newtype GenTel = GenTel C.Telescope
 data GenTelAndType = GenTelAndType C.Telescope C.Expr

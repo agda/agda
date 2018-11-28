@@ -71,12 +71,12 @@ checkRecDef
   -> Maybe (Ranged Induction)  -- ^ Optional: (co)inductive declaration.
   -> Maybe HasEta              -- ^ Optional: user specified eta/no-eta
   -> Maybe QName               -- ^ Optional: constructor name.
-  -> [A.LamBinding]            -- ^ Record parameters.
+  -> A.DataDefParams           -- ^ Record parameters.
   -> A.Expr                    -- ^ Approximate type of constructor (@fields@ -> Set).
                                --   Does not include record parameters.
   -> [A.Field]                 -- ^ Field signatures.
   -> TCM ()
-checkRecDef i name uc ind eta con ps contel fields =
+checkRecDef i name uc ind eta con (A.DataDefParams gpars ps) contel fields =
   traceCall (CheckRecDef (getRange name) (qnameName name) ps fields) $ do
     reportSDoc "tc.rec" 10 $ vcat
       [ "checking record def" <+> prettyTCM name
