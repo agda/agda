@@ -119,6 +119,14 @@ getTerm' x = mplus <$> getBuiltin' x <*> getPrimitiveTerm' x
 getName' :: HasBuiltins m => String -> m (Maybe QName)
 getName' x = mplus <$> getBuiltinName' x <*> getPrimitiveName' x
 
+-- | @getTerm use name@ looks up @name@ as a primitive or builtin, and
+-- throws an error otherwise.
+-- The @use@ argument describes how the name is used for the sake of
+-- the error message.
+getTerm :: (HasBuiltins m) => String -> String -> m Term
+getTerm use name = flip fromMaybeM (getTerm' name) $
+  return $! (throwImpossible $ ImpMissingDefinitions [name] use)
+
 
 -- | Rewrite a literal to constructor form if possible.
 constructorForm :: Term -> TCM Term

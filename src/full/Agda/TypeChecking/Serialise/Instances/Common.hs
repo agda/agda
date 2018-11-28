@@ -561,10 +561,12 @@ instance EmbPrj Delayed where
 instance EmbPrj Impossible where
   icod_ (Impossible a b)  = icodeN 0 Impossible a b
   icod_ (Unreachable a b) = icodeN 1 Unreachable a b
+  icod_ (ImpMissingDefinitions a b) = icodeN 2 ImpMissingDefinitions a b
 
   value = vcase valu where
     valu [0, a, b] = valuN Impossible  a b
     valu [1, a, b] = valuN Unreachable a b
+    valu [2, a, b] = valuN ImpMissingDefinitions a b
     valu _         = malformed
 
 instance EmbPrj Empty where

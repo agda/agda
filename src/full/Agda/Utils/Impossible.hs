@@ -21,6 +21,11 @@ data Impossible
     --   Used when we reach a program point which can in principle
     --   be reached, but not for a certain run.
 
+  | ImpMissingDefinitions [String] String
+    -- ^ We reached a program point without all the required
+    -- primitives or BUILTIN to proceed forward.
+    -- @MissingDefinitions needed forthis@
+
 instance Show Impossible where
   show (Impossible file line) = unlines
     [ "An internal error has occurred. Please report this as a bug."
@@ -30,6 +35,9 @@ instance Show Impossible where
     [ "We reached a program point we did not want to reach."
     , "Location of the error: " ++ file ++ ":" ++ show line
     ]
+  show (ImpMissingDefinitions needed forthis) = unlines
+    [ "The following builtins or primitives need to be bound to use " ++ forthis ++ ":"]
+    ++ unwords needed
 
 instance Exception Impossible
 

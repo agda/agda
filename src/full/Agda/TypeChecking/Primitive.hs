@@ -448,7 +448,7 @@ primDepIMin' = do
       [x,y] -> do
         sx <- reduceB' x
         ix <- intervalView (unArg $ ignoreBlocking sx)
-        itisone <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinItIsOne
+        itisone <- getTerm "primDepIMin" builtinItIsOne
         case ix of
           IZero -> redReturn =<< intervalUnview IZero
           IOne  -> redReturn =<< (pure (unArg y) <@> pure itisone)
@@ -528,7 +528,7 @@ primIdJ = do
     let imax x y = do x' <- x; y' <- y; pure $ unview (IMax (argN x') (argN y'))
         imin x y = do x' <- x; y' <- y; pure $ unview (IMin (argN x') (argN y'))
         ineg x = unview . INeg . argN <$> x
-    mcomp <- getPrimitiveTerm' "primComp"
+    mcomp <- getTerm' "primComp"
     case ts of
      [la,lc,a,x,c,d,y,eq] -> do
        seq    <- reduceB' eq
@@ -693,7 +693,7 @@ primSubOut' = do
         view <- intervalView'
         sphi <- reduceB' phi
         case view $ unArg $ ignoreBlocking sphi of
-          IOne -> redReturn =<< (return (unArg u) <..> (fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinItIsOne))
+          IOne -> redReturn =<< (return (unArg u) <..> (getTerm builtinSubOut builtinItIsOne))
           _ -> do
             sx <- reduceB' x
             mSubIn <- getBuiltinName' builtinSubIn
@@ -764,6 +764,10 @@ primHComp' = do
 
 data TranspOrHComp = DoTransp | DoHComp deriving (Eq,Show)
 
+cmdToName :: TranspOrHComp -> String
+cmdToName DoTransp = builtinTrans
+cmdToName DoHComp  = builtinHComp
+
 data FamilyOrNot a = IsFam {famThing :: a} | IsNot {famThing :: a} deriving (Eq,Show,Functor,Foldable,Traversable)
 
 instance Reduce a => Reduce (FamilyOrNot a) where
@@ -788,7 +792,8 @@ primTransHComp cmd ts nelims = do
         _                          -> __IMPOSSIBLE__
   sphi <- reduceB' phi
   vphi <- intervalView $ unArg $ ignoreBlocking sphi
-  let clP s = fromMaybe __IMPOSSIBLE__ <$> getTerm' s
+  let clP s = getTerm (cmdToName cmd) s
+
   -- WORK
   case vphi of
      IOne -> redReturn =<< case u of
@@ -873,16 +878,13 @@ primTransHComp cmd ts nelims = do
       -- TODO should check l is constant
       redReturn $ unArg u0
     compSort DoHComp fallback phi (Just u) u0 (IsNot l) = do
-      checkPrims <- all isJust <$> sequence [getBuiltin' builtinPathToEquiv, getPrimitiveTerm' builtinGlue]
+      let getTermLocal = getTerm (builtinHComp ++ " for Set")
+      checkPrims <- all isJust <$> sequence [getTerm' builtinPathToEquiv, getTerm' builtinGlue]
       if not checkPrims then fallback else (redReturn =<<) . runNamesT [] $ do
-        p2equiv <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinPathToEquiv
-        tGlue <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveTerm' builtinGlue
-        tHComp <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveTerm' builtinHComp
-        tTrans <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveTerm' builtinTrans
-        tINeg  <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveTerm' builtinINeg
-        tEmpty <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinIsOneEmpty
-        io <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinIOne
-        iz <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinIZero
+        p2equiv <- getTermLocal builtinPathToEquiv
+        tGlue   <- getTermLocal builtinGlue
+        tINeg   <- getTermLocal builtinINeg
+        io      <- getTermLocal builtinIOne
         l <- open $ Level l
         [phi,e,u0] <- mapM (open . unArg) [phi,u,u0]
         let
@@ -892,15 +894,16 @@ primTransHComp cmd ts nelims = do
                <@> ilam "o" (\ o -> pure p2equiv <#> (lam "i" $ \ i -> l) <@> (ilam "i" $ \ i -> e <@> ineg i <@> o))
     compSort _ fallback phi u u0 _ = __IMPOSSIBLE__
     compGlue DoHComp psi (Just u) u0 (IsNot (la, lb, bA, phi, bT, e)) = do
-      tPOr <- fromMaybe __IMPOSSIBLE__ <$> getTerm' "primPOr"
-      tIMax <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinIMax
-      tIMin <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinIMin
-      tINeg <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinINeg
-      tHComp <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinHComp
-      tEFun  <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinEquivFun
-      tglue   <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtin_glue
-      tunglue <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtin_unglue
-      io      <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinIOne
+      let getTermLocal = getTerm $ (builtinHComp ++ " for " ++ builtinGlue)
+      tPOr <- getTermLocal "primPOr"
+      tIMax <- getTermLocal builtinIMax
+      tIMin <- getTermLocal builtinIMin
+      tINeg <- getTermLocal builtinINeg
+      tHComp <- getTermLocal builtinHComp
+      tEFun  <- getTermLocal builtinEquivFun
+      tglue   <- getTermLocal builtin_glue
+      tunglue <- getTermLocal builtin_unglue
+      io      <- getTermLocal builtinIOne
       (redReturn =<<) . runNamesT [] $ do
         [psi, u, u0] <- mapM (open . unArg) [psi, u, u0]
         [la, lb, bA, phi, bT, e] <- mapM (open . unArg) [la, lb, bA, phi, bT, e]
@@ -924,21 +927,22 @@ primTransHComp cmd ts nelims = do
           t1 = tf (pure io)
         pure tglue <#> la <#> lb <#> bA <#> phi <#> bT <#> e <@> (ilam "o" $ \ o -> t1 o) <@> a1
     compGlue DoTransp psi Nothing u0 (IsFam (la, lb, bA, phi, bT, e)) = do
-      tPOr <- fromMaybe __IMPOSSIBLE__ <$> getTerm' "primPOr"
-      tIMax <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinIMax
-      tIMin <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinIMin
-      tINeg <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinINeg
-      tHComp <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinHComp
-      tTrans <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinTrans
-      tForall  <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinFaceForall
-      tEFun  <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinEquivFun
-      tEProof <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinEquivProof
-      tglue   <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtin_glue
-      tunglue <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtin_unglue
-      io      <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinIOne
-      iz      <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinIZero
-      tLMax   <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinLevelMax
-      tPath   <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinPath
+      let getTermLocal = getTerm $ (builtinTrans ++ " for " ++ builtinGlue)
+      tPOr <- getTermLocal "primPOr"
+      tIMax <- getTermLocal builtinIMax
+      tIMin <- getTermLocal builtinIMin
+      tINeg <- getTermLocal builtinINeg
+      tHComp <- getTermLocal builtinHComp
+      tTrans <- getTermLocal builtinTrans
+      tForall  <- getTermLocal builtinFaceForall
+      tEFun  <- getTermLocal builtinEquivFun
+      tEProof <- getTermLocal builtinEquivProof
+      tglue   <- getTermLocal builtin_glue
+      tunglue <- getTermLocal builtin_unglue
+      io      <- getTermLocal builtinIOne
+      iz      <- getTermLocal builtinIZero
+      tLMax   <- getTermLocal builtinLevelMax
+      tPath   <- getTermLocal builtinPath
       kit <- fromMaybe __IMPOSSIBLE__ <$> getSigmaKit
       (redReturn =<<) . runNamesT [] $ do
         comp <- do
@@ -1033,11 +1037,13 @@ primTransHComp cmd ts nelims = do
             -> Arg Term -- Γ
             -> ReduceM Term
     compPi cmd t ab phi u u0 = do
-     tTrans <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveTerm' builtinTrans
-     tHComp <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveTerm' builtinHComp
-     tINeg <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveTerm' builtinINeg
-     tIMax <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveTerm' builtinIMax
-     iz    <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinIZero
+     let getTermLocal = getTerm $ cmdToName cmd ++ " for function types"
+
+     tTrans <- getTermLocal builtinTrans
+     tHComp <- getTermLocal builtinHComp
+     tINeg <- getTermLocal builtinINeg
+     tIMax <- getTermLocal builtinIMax
+     iz    <- getTermLocal builtinIZero
      let
       toLevel (Type l) = l
       toLevel _        = __IMPOSSIBLE__
@@ -1080,11 +1086,12 @@ primTransHComp cmd ts nelims = do
                          <@> phi
                          <@> gApply (getHiding a) u0 (v (pure iz)))
           (_,_,_) -> __IMPOSSIBLE__
-    compPathP DoHComp sphi (Just u) u0 (IsNot l) (IsNot (bA,x,y)) = do
-      tHComp <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveTerm' builtinHComp
-      tINeg <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveTerm' builtinINeg
-      tIMax <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveTerm' builtinIMax
-      tOr   <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveTerm' "primPOr"
+    compPathP cmd@DoHComp sphi (Just u) u0 (IsNot l) (IsNot (bA,x,y)) = do
+      let getTermLocal = getTerm $ cmdToName cmd ++ " for path types"
+      tHComp <- getTermLocal builtinHComp
+      tINeg <- getTermLocal builtinINeg
+      tIMax <- getTermLocal builtinIMax
+      tOr   <- getTermLocal "primPOr"
       let
         ineg j = pure tINeg <@> j
         imax i j = pure tIMax <@> i <@> j
@@ -1104,20 +1111,21 @@ primTransHComp cmd ts nelims = do
                                           <@> (or (ineg j) j <@> (ilam "_" $ const x)
                                                                   <@> (ilam "_" $ const y)))
                        <@> (u0 <@@> (x, y, j))
-    compPathP DoTransp sphi Nothing u0 (IsFam l) (IsFam (bA,x,y)) = do
+    compPathP cmd@DoTransp sphi Nothing u0 (IsFam l) (IsFam (bA,x,y)) = do
       -- Γ    ⊢ l
       -- Γ, i ⊢ bA, x, y
-      tINeg <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveTerm' builtinINeg
-      tIMax <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveTerm' builtinIMax
-      tOr   <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveTerm' "primPOr"
-      iz <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinIZero
-      io <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinIOne
+      let getTermLocal = getTerm $ cmdToName cmd ++ " for path types"
+      tINeg <- getTermLocal builtinINeg
+      tIMax <- getTermLocal builtinIMax
+      tOr   <- getTermLocal "primPOr"
+      iz <- getTermLocal builtinIZero
+      io <- getTermLocal builtinIOne
       let
         ineg j = pure tINeg <@> j
         imax i j = pure tIMax <@> i <@> j
       comp <- do
-        tHComp <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveTerm' builtinHComp
-        tTrans <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveTerm' builtinTrans
+        tHComp <- getTermLocal builtinHComp
+        tTrans <- getTermLocal builtinTrans
         let forward la bA r u = pure tTrans <#> (lam "i" $ \ i -> la <@> (i `imax` r))
                                             <@> (lam "i" $ \ i -> bA <@> (i `imax` r))
                                             <@> r
@@ -1144,6 +1152,7 @@ primTransHComp cmd ts nelims = do
                       (u0 <@@> (x <@> pure iz, y <@> pure iz, j))
     compPathP _ sphi u a0 _ _ = __IMPOSSIBLE__
     compId cmd sphi u a0 l bA_x_y = do
+      let getTermLocal = getTerm $ cmdToName cmd ++ " for " ++ builtinId
       unview <- intervalUnview'
       mConId <- getBuiltinName' builtinConId
       let isConId (Def q _) = Just q == mConId
@@ -1155,12 +1164,12 @@ primTransHComp cmd ts nelims = do
              Just u  -> allComponents unview (unArg . ignoreBlocking $ sphi) (unArg u) isConId
       case mConId of
         Just conid | isConId (unArg . ignoreBlocking $ sa0) , b -> (Just <$>) . (redReturn =<<) $ do
-          tHComp <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveTerm' builtinHComp
-          tTrans <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveTerm' builtinTrans
-          tIMin <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveTerm' "primDepIMin"
-          tFace <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveTerm' "primIdFace"
-          tPath <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveTerm' "primIdPath"
-          tPathType <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinPath
+          tHComp <- getTermLocal builtinHComp
+          tTrans <- getTermLocal builtinTrans
+          tIMin <- getTermLocal "primDepIMin"
+          tFace <- getTermLocal "primIdFace"
+          tPath <- getTermLocal "primIdPath"
+          tPathType <- getTermLocal builtinPath
           runNamesT [] $ do
             let irrInfo = setRelevance Irrelevant defaultArgInfo
             let io = pure $ unview IOne
@@ -1221,12 +1230,14 @@ primTransHComp cmd ts nelims = do
            lam2Abs (Lam _ t) = t
            lam2Abs t         = Abs "y" (raise 1 t `apply` [argN $ var 0])
 
-    compData _ DoHComp (IsNot l) (IsNot ps) fsc sphi (Just u) a0 = do
+    compData _ cmd@DoHComp (IsNot l) (IsNot ps) fsc sphi (Just u) a0 = do
+      let getTermLocal = getTerm $ cmdToName cmd ++ " for data types"
+
       let sc = famThing <$> fsc
-      tEmpty <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinIsOneEmpty
+      tEmpty <- getTermLocal builtinIsOneEmpty
       constrForm <- do
-        mz <- getBuiltin' builtinZero
-        ms <- getBuiltin' builtinSuc
+        mz <- getTerm' builtinZero
+        ms <- getTerm' builtinSuc
         return $ \ t -> fromMaybe t (constructorForm' mz ms t)
       su  <- reduceB' u
       sa0 <- reduceB' a0
@@ -1259,12 +1270,14 @@ primTransHComp cmd ts nelims = do
               Nothing        -> noRed
         _ -> noRed
     compData 0 DoTransp (IsFam l) (IsFam ps) fsc sphi Nothing a0 = redReturn $ unArg a0
-    compData _ DoTransp (IsFam l) (IsFam ps) fsc sphi Nothing a0 = do
+    compData _ cmd@DoTransp (IsFam l) (IsFam ps) fsc sphi Nothing a0 = do
+      let getTermLocal = getTerm $ cmdToName cmd ++ " for data types"
+
       let sc = famThing <$> fsc
-      tEmpty <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinIsOneEmpty
+      tEmpty <- getTermLocal builtinIsOneEmpty
       constrForm <- do
-        mz <- getBuiltin' builtinZero
-        ms <- getBuiltin' builtinSuc
+        mz <- getTerm' builtinZero
+        ms <- getTerm' builtinSuc
         return $ \ t -> fromMaybe t (constructorForm' mz ms t)
       sa0 <- reduceB' a0
       view   <- intervalView'
@@ -1308,7 +1321,7 @@ primComp = do
         sphi <- reduceB' phi
         vphi <- intervalView $ unArg $ ignoreBlocking sphi
         io   <- intervalUnview IOne
-        tEmpty <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinIsOneEmpty
+        tEmpty <- getTerm builtinComp builtinIsOneEmpty
         case vphi of
           IOne -> redReturn (unArg u `apply` [argN io, argN one])
           _    -> do
@@ -1369,11 +1382,11 @@ primComp = do
 
  where
   compPO l [Apply _, Apply bA, Apply bB, Apply bC, Apply f, Apply g] sphi u u0 = Just <$> do
-    tComp <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveTerm' "primComp"
-    tHComp <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveTerm' builtinPOhcomp
-    tInc <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSubIn
-    tPOfwd <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveTerm' builtinPOforward
-    [tPO,io,iz] <- mapM ((fromMaybe __IMPOSSIBLE__ <$>) . getBuiltin') [builtinPushOut,builtinIOne,builtinIZero]
+    tComp <- getTerm builtinComp "primComp"
+    tHComp <- getTerm builtinComp builtinPOhcomp
+    tInc <- getTerm builtinComp builtinSubIn
+    tPOfwd <- getTerm builtinComp builtinPOforward
+    [tPO,io,iz] <- mapM (getTerm builtinComp) [builtinPushOut,builtinIOne,builtinIZero]
     redReturn . runNames [] $ do
        [l,u,u0] <- mapM (open . unArg) [l,u,u0]
        phi      <- open . unArg . ignoreBlocking $ sphi
@@ -1411,10 +1424,10 @@ primComp = do
          lam2Abs t         = Abs "y" (raise 1 t `apply` [argN $ var 0])
 
   compData l ps sc sphi u a0 = do
-    tEmpty <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinIsOneEmpty
+    tEmpty <- getTerm builtinComp builtinIsOneEmpty
     constrForm <- do
-      mz <- getBuiltin' builtinZero
-      ms <- getBuiltin' builtinSuc
+      mz <- getTerm' builtinZero
+      ms <- getTerm' builtinSuc
       return $ \ t -> fromMaybe t (constructorForm' mz ms t)
     su  <- reduceB' u
     sa0 <- reduceB' a0
@@ -1450,18 +1463,18 @@ primComp = do
   compGlue phi u a0 la lb bA phi' bT e = do
     let xs = map (\ x -> runNames [] $ lam "i" (\ _ -> pure (unArg x))) [la,lb,bA,phi',bT,e]
     (redReturn =<<) . runNamesT [] $ do
-      tCGlue <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinCompGlue
+      tCGlue <- getTerm builtinComp builtinCompGlue
       [phi,u,a0] <- mapM (open . unArg) [phi,u,a0]
       [la,lb,bA,phi',bT,e] <- mapM open xs
       pure tCGlue <#> la <#> lb <@> bA <#> phi' <@> bT <@> e <@> phi <@> u <@> a0
 
   compSort fallback iz io ineg phi u a0 l = do
-   checkPrims <- all isJust <$> sequence [getBuiltin' builtinPathToEquiv, getPrimitiveTerm' builtinGlue]
+   checkPrims <- all isJust <$> sequence [getTerm' builtinPathToEquiv, getTerm' builtinGlue]
    if not checkPrims then fallback else (redReturn =<<) . runNamesT [] $ do
-    p2equiv <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinPathToEquiv
-    tGlue <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveTerm' builtinGlue
-    tComp <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveTerm' "primComp"
-    tEmpty <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinIsOneEmpty
+    p2equiv <- getTerm builtinComp builtinPathToEquiv
+    tGlue <- getTerm builtinComp builtinGlue
+    tComp <- getTerm builtinComp "primComp"
+    tEmpty <- getTerm builtinComp builtinIsOneEmpty
     l <- open $ runNames [] (lam "i" (\ _ -> pure $ Level l))
     [phi,e,a0] <- mapM (open . unArg) [phi,u,a0]
     let transp p = pure tComp <#> l <@> p <@> iz
@@ -1481,11 +1494,11 @@ primComp = do
     b <- allComponents unview (unArg . ignoreBlocking $ sphi) (unArg u) isConId
     case mConId of
       Just conid | isConId (unArg . ignoreBlocking $ sa0) , b -> (Just <$>) . (redReturn =<<) $ do
-        tComp <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveTerm' "primComp"
-        tIMin <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveTerm' "primDepIMin"
-        tFace <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveTerm' "primIdFace"
-        tPath <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveTerm' "primIdPath"
-        tPathType <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinPath
+        tComp <- getTerm builtinComp "primComp"
+        tIMin <- getTerm builtinComp "primDepIMin"
+        tFace <- getTerm builtinComp "primIdFace"
+        tPath <- getTerm builtinComp "primIdPath"
+        tPathType <- getTerm builtinComp builtinPath
         runNamesT [] $ do
           let irrInfo = setRelevance Irrelevant defaultArgInfo
           let io = pure $ unview IOne
@@ -1511,8 +1524,8 @@ primComp = do
       _ -> return $ Nothing
 
   compPathP iz ineg imax sphi u a0 l bA x y = do
-    tComp <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveTerm' "primComp"
-    tOr   <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveTerm' "primPOr"
+    tComp <- getTerm builtinComp "primComp"
+    tOr   <- getTerm builtinComp "primPOr"
     redReturn . runNames [] $ do
        [l,p,p0] <- mapM (open . unArg) [l,u,a0]
        phi      <- open . unArg . ignoreBlocking $ sphi
@@ -1536,11 +1549,11 @@ primComp = do
             -> Arg Term -- Γ
             -> ReduceM Term
   compPi t a b phi u u0 = do
-   tComp <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveTerm' "primComp"
-   tFrom1 <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveTerm' "primPFrom1"
-   tINeg <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveTerm' builtinINeg
-   tIMax <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveTerm' builtinIMax
-   iz    <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinIZero
+   tComp <- getTerm builtinComp "primComp"
+   tFrom1 <- getTerm builtinComp "primPFrom1"
+   tINeg <- getTerm builtinComp builtinINeg
+   tIMax <- getTerm builtinComp builtinIMax
+   iz    <- getTerm builtinComp builtinIZero
    let
     toLevel (Type l) = l
     toLevel _        = __IMPOSSIBLE__
@@ -1642,7 +1655,7 @@ prim_unglue' = do
        case view $ unArg $ ignoreBlocking $ sphi of
          IOne -> do
            let argOne = setRelevance Irrelevant $ argN one
-           tEFun <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinEquivFun
+           tEFun <- getTerm builtin_unglue builtinEquivFun
            redReturn $ tEFun `apply` [lb,la,argH $ unArg bT `apply` [argOne],bA, argN $ unArg e `apply` [argOne],b]
          _    -> do
             sb <- reduceB' b
@@ -1670,13 +1683,14 @@ primPOforward' = do
   io <- primIOne
   ineg <- primINeg
   return $ PrimImpl t $ primFun __IMPOSSIBLE__ 8 $ \ts -> do
+    let getTermLocal = getTerm $ builtinPOforward
     [bP,inl,inr,push] <- mapM ((fromMaybe __IMPOSSIBLE__ <$>) . getBuiltinName') [builtinPushOut,builtinPOInl,builtinPOInr,builtinPOPush]
     hcomp <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveName' builtinPOhcomp
-    tPOfwd <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveTerm' builtinPOforward
-    tComp <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveTerm' "primComp"
-    tInc <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSubIn
-    tOuc <-  fromMaybe __IMPOSSIBLE__ <$> getPrimitiveTerm' "primSubOut"
-    tOr <-  fromMaybe __IMPOSSIBLE__ <$> getPrimitiveTerm' "primPOr"
+    tPOfwd <- getTermLocal builtinPOforward
+    tComp <- getTermLocal "primComp"
+    tInc <- getTermLocal builtinSubIn
+    tOuc <-  getTermLocal "primSubOut"
+    tOr <-  getTermLocal "primPOr"
     let cfwd l bA r u = pure tComp <#> (lam "i" $ \ i -> l <@> (r `imax` i)) <@> (lam "i" $ \ i -> bA <@> (r `imax` i))
                                                             <@> r <@> (lam "j" $ \ j -> ilam "o" $ \ o -> u) <@> u
         cfwdFill l bA r u j =
@@ -1738,11 +1752,11 @@ primPOforward' = do
                         tHcomp <@> psi <@> sys <@> (inc psi (tPush (pure io) fwdc s))
                    | q == hcomp
                    , [Apply phi, Apply u, Apply u0] <- drop (length ["l","A","B","C","f","g"]) es -> do
-                      tPOfwd <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveTerm' builtinPOforward
-                      tComp <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveTerm' "primComp"
-                      tInc <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSubIn
-                      tOuc <-  fromMaybe __IMPOSSIBLE__ <$> getPrimitiveTerm' "primSubOut"
-                      tOr <-  fromMaybe __IMPOSSIBLE__ <$> getPrimitiveTerm' "primPOr"
+                      tPOfwd <- getTermLocal builtinPOforward
+                      tComp <- getTermLocal "primComp"
+                      tInc <- getTermLocal builtinSubIn
+                      tOuc <-  getTermLocal "primSubOut"
+                      tOr <-  getTermLocal "primPOr"
 
                       (redReturn =<<) . runNamesT [] $ do
                         fwd <- do
@@ -1818,6 +1832,7 @@ primPOElim' = do
   iz <- primIZero
   ineg <- primINeg
   return $ PrimImpl t $ primFun __IMPOSSIBLE__ 12 $ \ts -> do
+    let getTermLocal = getTerm $ builtinPOElim
     [bP,inl,inr,push] <- mapM ((fromMaybe __IMPOSSIBLE__ <$>) . getBuiltinName') [builtinPushOut,builtinPOInl,builtinPOInr,builtinPOPush]
     hcomp <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveName' builtinPOhcomp
     case ts of
@@ -1837,11 +1852,11 @@ primPOElim' = do
                        redReturn $ unArg p `applyE` [Apply c, IApply x' y' r]
                    | q == hcomp
                    , [Apply phi, Apply u, Apply u0] <- drop (length ["l","A","B","C","f","g"]) es -> do
-                      tElim <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveTerm' builtinPOElim
-                      tComp <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveTerm' "primComp"
-                      tInc <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSubIn
-                      tOuc <-  fromMaybe __IMPOSSIBLE__ <$> getPrimitiveTerm' "primSubOut"
-                      tOr <-  fromMaybe __IMPOSSIBLE__ <$> getPrimitiveTerm' "primPOr"
+                      tElim <- getTermLocal builtinPOElim
+                      tComp <- getTermLocal "primComp"
+                      tInc <- getTermLocal builtinSubIn
+                      tOuc <-  getTermLocal "primSubOut"
+                      tOr <-  getTermLocal "primPOr"
 
                       (redReturn =<<) . runNamesT [] $ do
                         elim <- do
@@ -1896,7 +1911,7 @@ primFaceForall' = do
      view   <- intervalView'
      unview <- intervalUnview'
      us'    <- decomposeInterval t
-     fr     <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveTerm' builtinFaceForall
+     fr     <- getTerm builtinFaceForall builtinFaceForall
      let
          v = view t
          us = [ map Left (Map.toList bsm) ++ map Right ts
