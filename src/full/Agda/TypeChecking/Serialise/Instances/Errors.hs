@@ -67,6 +67,7 @@ instance EmbPrj Warning where
   icod_ (CantGeneralizeOverSorts a)  = icodeN 14 CantGeneralizeOverSorts a
   icod_ IllformedAsClause            = icodeN 15 IllformedAsClause
   icod_ WithoutKFlagPrimEraseEquality = icodeN 16 WithoutKFlagPrimEraseEquality
+  icod_ (InstanceWithExplicitArg a)  = icodeN 17 InstanceWithExplicitArg a
 
   value = vcase valu where
       valu [0, a, b]    = valuN UnreachableClauses a b
@@ -86,6 +87,7 @@ instance EmbPrj Warning where
       valu [14, a]      = valuN CantGeneralizeOverSorts a
       valu [15]         = valuN IllformedAsClause
       valu [16]         = valuN WithoutKFlagPrimEraseEquality
+      valu [17, a]      = valuN InstanceWithExplicitArg a
       valu _ = malformed
 
 instance EmbPrj DeclarationWarning where

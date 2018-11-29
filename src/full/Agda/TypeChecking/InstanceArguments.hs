@@ -51,7 +51,7 @@ import Agda.Utils.Impossible
 --   for instance search.
 initialInstanceCandidates :: Type -> TCM (Maybe [Candidate])
 initialInstanceCandidates t = do
-  otn <- getOutputTypeName t
+  (_ , otn) <- getOutputTypeName t
   case otn of
     NoOutputTypeName -> typeError $ GenericError $
       "Instance search can only be used to find elements in a named type"

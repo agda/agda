@@ -193,6 +193,10 @@ prettyWarning wng = liftTCM $ case wng of
       pwords "It is pointless for INLINE'd function" ++ [prettyTCM q] ++
       pwords "to have a separate Haskell definition"
 
+    InstanceWithExplicitArg q -> fsep $
+      pwords "Instance declarations with explicit arguments are never considered by instance search," ++
+      pwords "so making" ++ [prettyTCM q] ++ pwords "into an instance has no effect."
+
     InversionDepthReached f -> do
       maxDepth <- maxInversionDepth
       fsep $ pwords "Refusing to invert pattern matching of" ++ [prettyTCM f] ++

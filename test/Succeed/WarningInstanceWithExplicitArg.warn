@@ -1,0 +1,9 @@
+WarningInstanceWithExplicitArg.agda:6,12-23
+Instance declarations with explicit arguments are never considered
+by instance search, so making _ into an instance has no effect.
+
+———— All done; warnings encountered ————————————————————————
+
+WarningInstanceWithExplicitArg.agda:6,12-23
+Instance declarations with explicit arguments are never considered
+by instance search, so making _ into an instance has no effect.

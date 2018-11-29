@@ -2660,6 +2660,9 @@ data Warning
     -- ^ If the user opens a module public before the module header.
     --   (See issue #2377.)
   | UselessInline            QName
+  | InstanceWithExplicitArg  QName
+  -- ^ An instance was declared with an implicit argument, which means it
+  --   will never actually be considered by instance search.
   | InversionDepthReached    QName
   -- ^ The --inversion-max-depth was reached.
   -- Generic warnings for one-off things
@@ -2703,6 +2706,7 @@ warningName w = case w of
   DeprecationWarning{}         -> DeprecationWarning_
   EmptyRewritePragma           -> EmptyRewritePragma_
   IllformedAsClause            -> IllformedAsClause_
+  InstanceWithExplicitArg{}    -> InstanceWithExplicitArg_
   GenericNonFatalError{}       -> GenericNonFatalError_
   GenericWarning{}             -> GenericWarning_
   InversionDepthReached{}      -> InversionDepthReached_
