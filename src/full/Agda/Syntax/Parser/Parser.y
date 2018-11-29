@@ -77,7 +77,7 @@ import Agda.Utils.Impossible
 %monad { Parser }
 %lexer { lexer } { TokEOF }
 
-%expect 6
+%expect 8
 -- * shift/reduce for \ x y z -> foo = bar
 --   shifting means it'll parse as \ x y z -> (foo = bar) rather than
 --   (\ x y z -> foo) = bar
@@ -89,6 +89,9 @@ import Agda.Utils.Impossible
 --              (reduce using rule 189)
 --   A do-block cannot end in a 'let' so committing to TypedBindings with a
 --   shift is the right thing to do here.
+--
+-- * Named implicits in TypedBindings {x = y}. When encountering the '=' shift
+--   treats this as a named implicit and reducing would fail later.
 
 -- This is a trick to get rid of shift/reduce conflicts arising because we want
 -- to parse things like "m >>= \x -> k x". See the Expr rule for more
@@ -547,33 +550,21 @@ CommaBIds
 -- at point (x y  it is not clear whether x y is an application or
 -- a variable list. We could be parsing (x y z) -> B
 -- with ((x y) z) being a type.
-CommaBIds :: { [Name] }
+CommaBIds :: { [BoundName] }
 CommaBIds : CommaBIdAndAbsurds {
     case $1 of
       Left ns -> ns
       Right _ -> fail $ "expected sequence of bound identifiers, not absurd pattern"
     }
 
-CommaBIdAndAbsurds :: { Either [Name] [Expr] }
-CommaBIdAndAbsurds : Application {%
-    let getName :: Expr -> Maybe Name
-        getName (Ident (QName x)) = Just x
-        getName (Underscore r _)  = Just (Name r [Hole])
-        getName _                 = Nothing
-
-        isAbsurd :: Expr -> Bool
-        isAbsurd (Absurd _)                  = True
-        isAbsurd (HiddenArg _ (Named _ e))   = isAbsurd e
-        isAbsurd (InstanceArg _ (Named _ e)) = isAbsurd e
-        isAbsurd (Paren _ expr)              = isAbsurd expr
-        isAbsurd (RawApp _ exprs)            = any isAbsurd exprs
-        isAbsurd _                           = False
-    in
-    if any isAbsurd $1 then return $ Right $1 else
-    case mapM getName $1 of
-        Just good -> return $ Left good
-        Nothing   -> fail $ "expected sequence of bound identifiers"
-    }
+CommaBIdAndAbsurds :: { Either [BoundName] [Expr] }
+CommaBIdAndAbsurds
+  : Application {% boundNamesOrAbsurd $1 }
+  | QId '=' QId {%
+    case ($1, $3) of
+      (QName x, QName y) -> return $ Left [BName y x noFixity']
+      _                  -> fail "expected unqualified variable names"
+  }
 
 -- Parse a sequence of identifiers, including hiding info.
 -- Does not include instance arguments.
@@ -867,21 +858,14 @@ TypedBindings
 TBind :: { TypedBindings }
 TBind : CommaBIds ':' Expr  {
     let r = getRange ($1,$2,$3) -- the range is approximate only for TypedBindings
-    in TypedBindings r $ defaultArg $ TBind r (map (pure . mkBoundName_) $1) $3
+    in TypedBindings r $ defaultArg $ TBind r (map pure $1) $3
   }
 
 ModalTBind :: { TypedBindings }
 ModalTBind : Attributes1 CommaBIds ':' Expr  {% do
     let r = getRange ($1,$2,$3,$4) -- the range is approximate only for TypedBindings
-    TypedBindings r `fmap` applyAttrs $1 (defaultArg $ TBind r (map (pure . mkBoundName_) $2) $4)
+    TypedBindings r `fmap` applyAttrs $1 (defaultArg $ TBind r (map pure $2) $4)
   }
--- | Colors are not yet allowed in the syntax.
---      | CommaBIds ':{' Colors '}' Expr  { ( $3, TBind (getRange ($1,$2,$3,$4,$5)) (map mkBoundName_ $1) $5 ) }
-{-
-Colors :: { [Color] }
-Colors : QId Colors { Ident $1 : $2 }
-       | QId        { [Ident $1] }
--}
 
 -- x {y z} _ {v} : A
 TBindWithHiding :: { TypedBindings }
@@ -1034,23 +1018,23 @@ DomainFreeBindingAbsurd
     | '.' BId           { Left [DomainFree (setRelevance Irrelevant $ defaultArgInfo) $ mkBoundName_ $2]  }
     | '..' BId          { Left [DomainFree (setRelevance NonStrict $ defaultArgInfo) $ mkBoundName_ $2]  }
     | '(' CommaBIdAndAbsurds ')'
-         { mapLeft (map (DomainFree defaultArgInfo . mkBoundName_)) $2 }
+         { mapLeft (map (DomainFree defaultArgInfo)) $2 }
     | '(' Attributes1 CommaBIdAndAbsurds ')'
          {% applyAttrs $2 defaultArgInfo <&> \ ai ->
-              mapLeft (map (DomainFree ai . mkBoundName_)) $3 }
+              mapLeft (map (DomainFree ai)) $3 }
     | '{' CommaBIdAndAbsurds '}'
-         { mapLeft (map (DomainFree (setHiding Hidden $ defaultArgInfo) . mkBoundName_)) $2 }
+         { mapLeft (map (DomainFree (setHiding Hidden $ defaultArgInfo))) $2 }
     | '{' Attributes1 CommaBIdAndAbsurds '}'
          {% applyAttrs $2 defaultArgInfo <&> \ ai ->
-              mapLeft (map (DomainFree (setHiding Hidden ai) . mkBoundName_)) $3 }
-    | '{{' CommaBIds DoubleCloseBrace { Left $ map (DomainFree (makeInstance $ defaultArgInfo) . mkBoundName_) $2 }
+              mapLeft (map (DomainFree (setHiding Hidden ai))) $3 }
+    | '{{' CommaBIds DoubleCloseBrace { Left $ map (DomainFree (makeInstance $ defaultArgInfo)) $2 }
     | '{{' Attributes1 CommaBIds DoubleCloseBrace
          {% applyAttrs $2 defaultArgInfo <&> \ ai ->
-              Left $ map (DomainFree (makeInstance ai) . mkBoundName_) $3 }
-    | '.' '{' CommaBIds '}' { Left $ map (DomainFree (setHiding Hidden $ setRelevance Irrelevant $ defaultArgInfo) . mkBoundName_) $3 }
-    | '.' '{{' CommaBIds DoubleCloseBrace { Left $ map (DomainFree (makeInstance $ setRelevance Irrelevant $ defaultArgInfo) . mkBoundName_) $3 }
-    | '..' '{' CommaBIds '}' { Left $ map (DomainFree (setHiding Hidden $ setRelevance NonStrict $ defaultArgInfo) . mkBoundName_) $3 }
-    | '..' '{{' CommaBIds DoubleCloseBrace { Left $ map (DomainFree  (makeInstance $ setRelevance NonStrict $ defaultArgInfo) . mkBoundName_) $3 }
+              Left $ map (DomainFree (makeInstance ai)) $3 }
+    | '.' '{' CommaBIds '}' { Left $ map (DomainFree (setHiding Hidden $ setRelevance Irrelevant $ defaultArgInfo)) $3 }
+    | '.' '{{' CommaBIds DoubleCloseBrace { Left $ map (DomainFree (makeInstance $ setRelevance Irrelevant $ defaultArgInfo)) $3 }
+    | '..' '{' CommaBIds '}' { Left $ map (DomainFree (setHiding Hidden $ setRelevance NonStrict $ defaultArgInfo)) $3 }
+    | '..' '{{' CommaBIds DoubleCloseBrace { Left $ map (DomainFree  (makeInstance $ setRelevance NonStrict $ defaultArgInfo)) $3 }
 
 
 {--------------------------------------------------------------------------
@@ -2057,6 +2041,30 @@ addType :: LamBinding -> TypedBindings
 addType (DomainFull b)   = b
 addType (DomainFree info x) = TypedBindings r $ Arg info $ TBind r [pure x] $ Underscore r Nothing
   where r = getRange x
+
+boundNamesOrAbsurd :: [Expr] -> Parser (Either [BoundName] [Expr])
+boundNamesOrAbsurd es
+  | any isAbsurd es = return $ Right es
+  | otherwise       =
+    case mapM getBName es of
+        Just good -> return $ Left good
+        Nothing   -> fail $ "expected sequence of bound identifiers"
+  where
+    getName :: Expr -> Maybe Name
+    getName (Ident (QName x)) = Just x
+    getName (Underscore r _)  = Just $ Name r [Hole]
+    getName _                 = Nothing
+
+    getBName :: Expr -> Maybe BoundName
+    getBName e = fmap mkBoundName_ $ getName e
+
+    isAbsurd :: Expr -> Bool
+    isAbsurd (Absurd _)                  = True
+    isAbsurd (HiddenArg _ (Named _ e))   = isAbsurd e
+    isAbsurd (InstanceArg _ (Named _ e)) = isAbsurd e
+    isAbsurd (Paren _ expr)              = isAbsurd expr
+    isAbsurd (RawApp _ exprs)            = any isAbsurd exprs
+    isAbsurd _                           = False
 
 -- | Build a do-statement
 buildDoStmt :: Expr -> [LamClause] -> Parser DoStmt
