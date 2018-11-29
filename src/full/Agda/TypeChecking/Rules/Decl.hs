@@ -568,12 +568,15 @@ checkAxiom' gentel funSig i info0 mp x e = whenAbstractFreezeMetasAfter i $ do
   -- rel <- ifM ((Irrelevant ==) <$> asksTC envRelevance) (return Irrelevant) (return rel0)
   (genParams, t) <- workOnTypes $ case gentel of
         Nothing   -> ([],) <$> isType_ e
-        Just (A.GeneralizeTel genvars ps) -> do
-            let info = Info.ExprRange (fuseRange ps e)
-                e'   = A.Pi info ps e
+        Just (A.GeneralizeTel genvars ps)
+          | Map.null genvars -> ([],) <$> isType_ e'
+          | otherwise        -> do
             (genNames, t) <- generalizeType (Map.keysSet genvars) $ isType_ e'
             let bound q = fromMaybe __IMPOSSIBLE__ $ Map.lookup q genvars
             return ((map . fmap) bound genNames, t)
+          where
+            info = Info.ExprRange (fuseRange ps e)
+            e'   = A.Pi info ps e
 
   reportSDoc "tc.decl.ax" 10 $ sep
     [ text $ "checked type signature"
