@@ -182,8 +182,6 @@ data DeclarationException
         | DuplicateDefinition Name
         | MissingWithClauses Name LHS
         | WrongDefinition Name DataRecOrFun DataRecOrFun
-        | WrongParameters Name Params Params
-          -- ^ 'Name' of symbol, 'Params' of signature, 'Params' of definition.
         | Codata Range
         | DeclarationPanic String
         | WrongContentBlock KindOfBlock Range
@@ -270,7 +268,6 @@ instance HasRange DeclarationException where
   getRange (DuplicateDefinition x)              = getRange x
   getRange (MissingWithClauses x lhs)           = getRange lhs
   getRange (WrongDefinition x k k')             = getRange x
-  getRange (WrongParameters x _ _)              = getRange x
   getRange (AmbiguousFunClauses lhs xs)         = getRange lhs
   getRange (Codata r)                           = r
   getRange (DeclarationPanic _)                 = noRange
@@ -362,10 +359,6 @@ instance Pretty DeclarationException where
   pretty (WrongDefinition x k k') = fsep $ pretty x :
     pwords ("has been declared as a " ++ show k ++
       ", but is being defined as a " ++ show k')
-  pretty (WrongParameters x sig def) = fsep $
-    pwords "List of parameters " ++ map pretty def ++
-    pwords " does not match parameters " ++ map pretty sig ++
-    pwords " of previous signature for " ++ [pretty x]
   pretty (AmbiguousFunClauses lhs xs) = sep
     [ fsep $
         pwords "More than one matching type signature for left hand side " ++ [pretty lhs] ++
@@ -547,31 +540,6 @@ combineTermChecks r tcs = loop tcs where
       (Terminating           , NonTerminating        ) -> failure r
       (NonTerminating        , NoTerminationCheck    ) -> failure r
       (NonTerminating        , Terminating           ) -> failure r
-
--- | Check that the parameters of the data/record definition
---   match the parameters of the corresponding signature.
---
---   The definition may omit some hidden parameters.
---   The names need to match.
---   The types are not checked here.
---
---   Precondition: the signature and definition have the same kind (data/record/fun).
---
-matchParameters
-  :: Name          -- ^ The data/record name.
-  -> DataRecOrFun  -- ^ The data/record signature.
-  -> DataRecOrFun  -- ^ The parameters as given in the data/record definition.
-  -> Nice ()
-matchParameters _ FunName{} FunName{} = return ()
-matchParameters x sig def = loop (kindParams sig) (kindParams def)
-  where
-  failure = throwError $ WrongParameters x (kindParams sig) (kindParams def)
-  loop hs     []     = unless (all notVisible hs) failure
-  loop []     (_:_)  = failure
-  loop (h:hs) (j:js)
-    | h == j                  = loop hs js
-    | notVisible h, visible j = loop hs (j:js)
-    | otherwise               = failure
 
 -- | Nicifier monad.
 --   Preserve the state when throwing an exception.
@@ -1148,7 +1116,6 @@ niceDeclarations fixs ds = do
     defaultTypeSig k x Nothing  = do
       caseMaybeM (getSig x) (return Nothing) $ \ k' -> do
         unless (sameKind k k') $ throwError $ WrongDefinition x k' k
-        unless (k == k') $ matchParameters x k' k
         Nothing <$ removeLoneSig x
 
     dataOrRec

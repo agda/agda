@@ -1129,9 +1129,8 @@ bindParameters' ts0 ps0@(par@(A.DomainFree info x) : ps) t ret = do
             continue ts0 ps0 =<< freshName_ (absName b)
 
       -- Otherwise, the hiding must coincide.
-         | getHiding info /= getHiding info' ->   -- New line because of '
-             -- Andreas, 2016-12-30 Concrete.Definition excludes this case
-             __IMPOSSIBLE__
+         | getHiding info /= getHiding info' -> typeError . GenericDocError =<< do
+             text "Wrong hiding in parameter" <+> prettyAs par
 
       -- We may omit repetition of relevance and quantity
          | r /= defaultRelevance && r /= r' -> typeError . GenericDocError =<< do
@@ -1157,8 +1156,9 @@ bindParameters' ts0 ps0@(par@(A.DomainFree info x) : ps) t ret = do
         addContext (x, arg) $
           bindParameters' (raise 1 ts) ps (absBody b) $ \ tel s ->
             ret (ExtendTel arg $ Abs (nameToArgName x) tel) s
-    _ -> __IMPOSSIBLE__
 
+    _ -> typeError . GenericDocError =<< do
+           text "Unexpected parameter" <+> prettyAs par
 
 -- | Check that the arguments to a constructor fits inside the sort of the datatype.
 --   The third argument is the type of the constructor.
