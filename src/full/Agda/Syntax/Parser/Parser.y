@@ -1250,15 +1250,15 @@ RHS : '=' Expr      { JustRHS (RHS $2) }
 -- Data declaration. Can be local.
 Data :: { Declaration }
 Data : 'data' Id TypedUntypedBindings ':' Expr 'where'
-            Declarations0       { Data (getRange ($1,$2,$3,$4,$5,$6,$7)) Inductive $2 $3 (Just $5) $7 }
+            Declarations0       { Data (getRange ($1,$2,$3,$4,$5,$6,$7)) Inductive $2 $3 $5 $7 }
      | 'codata' Id TypedUntypedBindings ':' Expr 'where'
-            Declarations0       { Data (getRange ($1,$2,$3,$4,$5,$6,$7)) CoInductive $2 $3 (Just $5) $7 }
+            Declarations0       { Data (getRange ($1,$2,$3,$4,$5,$6,$7)) CoInductive $2 $3 $5 $7 }
 
   -- New cases when we already had a DataSig.  Then one can omit the sort.
      | 'data' Id TypedUntypedBindings 'where'
-            Declarations0       { Data (getRange ($1,$2,$3,$4,$5)) Inductive $2 $3 Nothing $5 }
+            Declarations0       { DataDef (getRange ($1,$2,$3,$4,$5)) Inductive $2 $3 $5 }
      | 'codata' Id TypedUntypedBindings 'where'
-            Declarations0       { Data (getRange ($1,$2,$3,$4,$5)) CoInductive $2 $3 Nothing $5 }
+            Declarations0       { DataDef (getRange ($1,$2,$3,$4,$5)) CoInductive $2 $3 $5 }
 
 -- Data type signature. Found in mutual blocks.
 DataSig :: { Declaration }
@@ -1273,10 +1273,10 @@ DataSig : 'data' Id TypedUntypedBindings ':' Expr
 Record :: { Declaration }
 Record : 'record' Expr3NoCurly TypedUntypedBindings ':' Expr 'where'
             RecordDeclarations
-         {% exprToName $2 >>= \ n -> let ((x,y,z),ds) = $7 in return $ Record (getRange ($1,$2,$3,$4,$5,$6,$7)) n x y z $3 (Just $5) ds }
+         {% exprToName $2 >>= \ n -> let ((x,y,z),ds) = $7 in return $ Record (getRange ($1,$2,$3,$4,$5,$6,$7)) n x y z $3 $5 ds }
        | 'record' Expr3NoCurly TypedUntypedBindings 'where'
             RecordDeclarations
-         {% exprToName $2 >>= \ n -> let ((x,y,z),ds) = $5 in return $ Record (getRange ($1,$2,$3,$4,$5)) n x y z $3 Nothing ds }
+         {% exprToName $2 >>= \ n -> let ((x,y,z),ds) = $5 in return $ RecordDef (getRange ($1,$2,$3,$4,$5)) n x y z $3 ds }
 
 -- Record type signature. In mutual blocks.
 RecordSig :: { Declaration }

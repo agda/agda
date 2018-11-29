@@ -408,7 +408,7 @@ instance Pretty Declaration where
                             , pretty e
                             ]
                     ]
-            Data _ ind x tel (Just e) cs ->
+            Data _ ind x tel e cs ->
                 sep [ hsep  [ pretty ind
                             , pretty x
                             , fcat (map pretty tel)
@@ -419,7 +419,7 @@ instance Pretty Declaration where
                             , "where"
                             ]
                     ] $$ nest 2 (vcat $ map pretty cs)
-            Data _ ind x tel Nothing cs ->
+            DataDef _ ind x tel cs ->
                 sep [ hsep  [ pretty ind
                             , pretty x
                             , fcat (map pretty tel)
@@ -436,28 +436,10 @@ instance Pretty Declaration where
                             , pretty e
                             ]
                     ]
-            Record _ x ind eta con tel me cs ->
-                sep [ hsep  [ "record"
-                            , pretty x
-                            , fcat (map pretty tel)
-                            ]
-                    , nest 2 $ pType me
-                    ] $$ nest 2 (vcat $ pInd ++
-                                        pEta ++
-                                        pCon ++
-                                        map pretty cs)
-              where pType (Just e) = hsep
-                            [ ":"
-                            , pretty e
-                            , "where"
-                            ]
-                    pType Nothing  =
-                              "where"
-                    pInd = maybeToList $ text . show . rangedThing <$> ind
-                    pEta = maybeToList $ eta <&> \case
-                      YesEta -> "eta-equality"
-                      NoEta  -> "no-eta-equality"
-                    pCon = maybeToList $ ("constructor" <+>) . pretty <$> fst <$> con
+            Record _ x ind eta con tel e cs ->
+              pRecord x ind eta con tel (Just e) cs
+            RecordDef _ x ind eta con tel cs ->
+              pRecord x ind eta con tel Nothing cs
             Infix f xs  ->
                 pretty f <+> (fsep $ punctuate comma $ map pretty xs)
             Syntax n xs -> "syntax" <+> pretty n <+> "..."
@@ -506,6 +488,30 @@ instance Pretty Declaration where
                 sep [ text s
                     , nest 2 $ vcat $ map pretty ds
                     ]
+
+pRecord :: Name -> Maybe (Ranged Induction) -> Maybe HasEta -> Maybe (Name, IsInstance) -> [LamBinding] -> Maybe Expr -> [Declaration] -> Doc
+pRecord x ind eta con tel me cs =
+  sep [ hsep  [ "record"
+              , pretty x
+              , fcat (map pretty tel)
+              ]
+      , nest 2 $ pType me
+      ] $$ nest 2 (vcat $ pInd ++
+                          pEta ++
+                          pCon ++
+                          map pretty cs)
+  where pType (Just e) = hsep
+                [ ":"
+                , pretty e
+                , "where"
+                ]
+        pType Nothing  =
+                  "where"
+        pInd = maybeToList $ text . show . rangedThing <$> ind
+        pEta = maybeToList $ eta <&> \case
+          YesEta -> "eta-equality"
+          NoEta  -> "no-eta-equality"
+        pCon = maybeToList $ ("constructor" <+>) . pretty <$> fst <$> con
 
 instance Pretty OpenShortHand where
     pretty DoOpen = "open"

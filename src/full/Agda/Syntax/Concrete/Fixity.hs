@@ -159,8 +159,10 @@ fixitiesAndPolarities' = foldMap $ \ d -> case d of
   Field       {}  -> mempty
   FunClause   {}  -> mempty
   DataSig     {}  -> mempty
+  DataDef     {}  -> mempty
   Data        {}  -> mempty
   RecordSig   {}  -> mempty
+  RecordDef   {}  -> mempty
   Record      {}  -> mempty
   PatternSyn  {}  -> mempty
   Postulate   {}  -> mempty
@@ -202,9 +204,11 @@ declaredNames d = case d of
                        -> declaresName x
   FunClause{}          -> mempty
   DataSig _ _ x _ _    -> declaresName x
+  DataDef _ _ _ _ cs   -> foldMap declaredNames cs
   Data _ _ x _ _ cs    -> declaresName x <> foldMap declaredNames cs
   RecordSig _ x _ _    -> declaresName x
-  Record _ x _ _ c _ _ _ -> declaresNames $ x : foldMap (:[]) (fst <$> c)
+  RecordDef _ x _ _ c _ _ -> declaresNames $     foldMap (:[]) (fst <$> c)
+  Record _ x _ _ c _ _ _  -> declaresNames $ x : foldMap (:[]) (fst <$> c)
   Infix _ _            -> mempty
   Syntax _ _           -> mempty
   PatternSyn _ x _ _   -> declaresName x

@@ -233,8 +233,8 @@ recordConstructorType decls =
         C.NiceFunClause{}     -> failure
         C.FunSig{}            -> failure  -- Note: these are bundled with FunDef in NiceMutual
         C.FunDef{}            -> failure
-        C.DataDef{}           -> failure
-        C.RecDef{}            -> failure
+        C.NiceDataDef{}       -> failure
+        C.NiceRecDef{}        -> failure
         C.NicePatternSyn{}    -> failure
         C.NiceGeneralize{}    -> failure
         C.NiceUnquoteDecl{}   -> failure
@@ -1540,7 +1540,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
     C.NiceFunClause{} -> __IMPOSSIBLE__
 
   -- Data definitions
-    C.DataDef r o a _ uc x pars cons -> withLocalVars $ do
+    C.NiceDataDef r o a _ uc x pars cons -> withLocalVars $ do
         reportSLn "scope.data.def" 20 ("checking " ++ show o ++ " DataDef for " ++ prettyShow x)
         (p, ax) <- resolveName (C.QName x) >>= \case
           DefinedName p ax -> do
@@ -1574,7 +1574,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
         conName d = errorNotConstrDecl d
 
   -- Record definitions (mucho interesting)
-    C.RecDef r o a _ uc x ind eta cm pars fields -> do
+    C.NiceRecDef r o a _ uc x ind eta cm pars fields -> do
       reportSLn "scope.rec.def" 20 ("checking " ++ show o ++ " RecDef for " ++ prettyShow x)
       (p, ax) <- resolveName (C.QName x) >>= \case
         DefinedName p ax -> do
