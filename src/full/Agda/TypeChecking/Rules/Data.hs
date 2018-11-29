@@ -7,6 +7,7 @@ import Control.Monad
 
 import Data.List (genericTake)
 import Data.Maybe (fromMaybe, catMaybes, isJust)
+import Data.Set (Set)
 import qualified Data.Set as Set
 
 import qualified Agda.Syntax.Abstract as A
@@ -69,16 +70,13 @@ checkDataDef i name uc (A.DataDefParams gpars ps) cs =
         let unTelV (TelV tel a) = telePi tel a
         t <- unTelV <$> telView t
 
-        -- Drop the named parameters that shouldn't be in scope (if the user
-        -- wrote a split data type)
-        let inscope x = x <$ guard (Set.member x gpars)
-        parNames <- map (>>= inscope) . defGeneralizedParams <$> (instantiateDef =<< getConstInfo name)
+        parNames <- getGeneralizedParameters gpars name
 
         -- Top level free vars
         freeVars <- getContextSize
 
         -- The parameters are in scope when checking the constructors.
-        dataDef <- bindGenPars parNames t $ \ gtel t0 ->
+        dataDef <- bindGeneralizedParameters parNames t $ \ gtel t0 ->
                    bindParameters ps t0   $ \ ptel t0 -> do
 
             -- Parameters are always hidden in constructors
@@ -1065,12 +1063,20 @@ defineHCompForFields applyProj name params fsT fns rect = do
     --     s = sub tel
     --     ys = map (fmap (abstract t) . applySubst s) xs
 
+getGeneralizedParameters :: Set Name -> QName -> TCM [Maybe Name]
+getGeneralizedParameters gpars name | Set.null gpars = return []
+getGeneralizedParameters gpars name = do
+  -- Drop the named parameters that shouldn't be in scope (if the user
+  -- wrote a split data type)
+  let inscope x = x <$ guard (Set.member x gpars)
+  map (>>= inscope) . defGeneralizedParams <$> (instantiateDef =<< getConstInfo name)
+
 -- | Bind the named generalized parameters.
-bindGenPars :: [Maybe Name] -> Type -> (Telescope -> Type -> TCM a) -> TCM a
-bindGenPars [] t ret = ret EmptyTel t
-bindGenPars (name : names) t ret =
+bindGeneralizedParameters :: [Maybe Name] -> Type -> (Telescope -> Type -> TCM a) -> TCM a
+bindGeneralizedParameters [] t ret = ret EmptyTel t
+bindGeneralizedParameters (name : names) t ret =
   case unEl t of
-    Pi a b -> ext $ bindGenPars names (unAbs b) $ \ tel t -> ret (ExtendTel a (tel <$ b)) t
+    Pi a b -> ext $ bindGeneralizedParameters names (unAbs b) $ \ tel t -> ret (ExtendTel a (tel <$ b)) t
       where
         ext | Just x <- name = addContext (x, a)
             | otherwise      = addContext (absName b, a)

@@ -34,7 +34,8 @@ import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.CompiledClause (hasProjectionPatterns)
 import Agda.TypeChecking.CompiledClause.Compile
 
-import Agda.TypeChecking.Rules.Data ( bindParameters, fitsIn, forceSort, defineCompData, defineCompForFields, defineTranspForFields, defineHCompForFields )
+import Agda.TypeChecking.Rules.Data ( getGeneralizedParameters, bindGeneralizedParameters, bindParameters, fitsIn, forceSort,
+                                      defineCompData, defineCompForFields, defineTranspForFields, defineHCompForFields )
 import Agda.TypeChecking.Rules.Term ( isType_ )
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Decl (checkDecl)
 
@@ -86,7 +87,13 @@ checkRecDef i name uc ind eta con (A.DataDefParams gpars ps) contel fields =
       ]
     -- get type of record
     t <- instantiateFull =<< typeOfConst name
-    bindParameters ps t $ \tel t0 -> do
+
+    parNames <- getGeneralizedParameters gpars name
+
+    bindGeneralizedParameters parNames t $ \ gtel t0 ->
+     bindParameters ps t0 $ \ ptel t0 -> do
+
+      let tel = abstract gtel ptel
 
       -- Generate type of constructor from field telescope @contel@,
       -- which is the approximate constructor type (target missing).
