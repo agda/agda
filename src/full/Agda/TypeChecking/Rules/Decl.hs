@@ -241,13 +241,8 @@ checkDecl d = setCurrentRange d $ do
     where
 
     -- check record or data type signature
-    checkSig i x gtel t = checkTypeSignature $
-      A.Axiom A.NoFunSig i defaultArgInfo Nothing x $
-              A.Generalized genvars $ A.Pi info ps t
-      where info    = Info.ExprRange (fuseRange ps t)
-            ps      = A.generalizeTel gtel
-            genvars = Set.fromList $ Map.keys $ A.generalizeTelVars gtel
-                      -- TODO: temporary hack
+    checkSig i x gtel t = checkTypeSignature' (Just gtel) $
+      A.Axiom A.NoFunSig i defaultArgInfo Nothing x t
 
     check x i m = Bench.billTo [Bench.Definition x] $ do
       reportSDoc "tc.decl" 5 $ "Checking" <+> prettyTCM x <> "."
@@ -554,7 +549,14 @@ checkGeneralize s i info x e = do
 -- | Type check an axiom.
 checkAxiom :: A.Axiom -> Info.DefInfo -> ArgInfo ->
               Maybe [Occurrence] -> QName -> A.Expr -> TCM ()
-checkAxiom funSig i info0 mp x e = whenAbstractFreezeMetasAfter i $ do
+checkAxiom = checkAxiom' Nothing
+
+-- | Data and record type signatures need to remember the generalized
+--   parameters for when checking the corresponding definition, so for these we
+--   pass in the parameter telescope separately.
+checkAxiom' :: Maybe A.GeneralizeTelescope -> A.Axiom -> Info.DefInfo -> ArgInfo ->
+               Maybe [Occurrence] -> QName -> A.Expr -> TCM ()
+checkAxiom' gentel funSig i info0 mp x e = whenAbstractFreezeMetasAfter i $ do
   -- Andreas, 2016-07-19 issues #418 #2102:
   -- We freeze metas in type signatures of abstract definitions, to prevent
   -- leakage of implementation details.
@@ -564,12 +566,23 @@ checkAxiom funSig i info0 mp x e = whenAbstractFreezeMetasAfter i $ do
   rel <- max (getRelevance info0) <$> asksTC envRelevance
   let info = setRelevance rel info0
   -- rel <- ifM ((Irrelevant ==) <$> asksTC envRelevance) (return Irrelevant) (return rel0)
-  t <- workOnTypes $ isType_ e
+  (genParams, t) <- workOnTypes $ case gentel of
+        Nothing   -> ([],) <$> isType_ e
+        Just (A.GeneralizeTel genvars ps) -> do
+            let info = Info.ExprRange (fuseRange ps e)
+                e'   = A.Pi info ps e
+            (genNames, t) <- generalizeType (Map.keysSet genvars) $ isType_ e'
+            let bound q = fromMaybe __IMPOSSIBLE__ $ Map.lookup q genvars
+            return ((map . fmap) bound genNames, t)
+
   reportSDoc "tc.decl.ax" 10 $ sep
     [ text $ "checked type signature"
     , nest 2 $ prettyTCM rel <> prettyTCM x <+> ":" <+> prettyTCM t
     , nest 2 $ "of sort " <+> prettyTCM (getSort t)
     ]
+
+  when (not $ null genParams) $
+    reportSLn "tc.decl.ax" 40 $ "  generalized params: " ++ show genParams
 
   -- Jesper, 2018-06-05: should be done AFTER generalizing
   --whenM (optDoubleCheck <$> pragmaOptions) $ workOnTypes $ do
@@ -604,8 +617,9 @@ checkAxiom funSig i info0 mp x e = whenAbstractFreezeMetasAfter i $ do
          case funSig of
            A.FunSig   -> set funMacro (Info.defMacro i == MacroDef) emptyFunction
            A.NoFunSig -> Axiom)   -- NB: used also for data and record type sigs
-        { defArgOccurrences = occs
-        , defPolarity       = pols
+        { defArgOccurrences    = occs
+        , defPolarity          = pols
+        , defGeneralizedParams = genParams
         }
 
   -- Add the definition to the instance table, if needed
@@ -774,10 +788,13 @@ checkMutual i ds = inMutualBlock $ \ blockId -> do
 
 -- | Type check the type signature of an inductive or recursive definition.
 checkTypeSignature :: A.TypeSignature -> TCM ()
-checkTypeSignature (A.ScopedDecl scope ds) = do
+checkTypeSignature = checkTypeSignature' Nothing
+
+checkTypeSignature' :: Maybe A.GeneralizeTelescope -> A.TypeSignature -> TCM ()
+checkTypeSignature' gtel (A.ScopedDecl scope ds) = do
   setScope scope
-  mapM_ checkTypeSignature ds
-checkTypeSignature (A.Axiom funSig i info mp x e) =
+  mapM_ (checkTypeSignature' gtel) ds
+checkTypeSignature' gtel (A.Axiom funSig i info mp x e) =
   Bench.billTo [Bench.Definition x] $
   Bench.billTo [Bench.Typing, Bench.TypeSig] $
     let abstr = case Info.defAccess i of
@@ -787,8 +804,9 @@ checkTypeSignature (A.Axiom funSig i info mp x e) =
             | otherwise -> inConcreteMode
           PublicAccess  -> inConcreteMode
           OnlyQualified -> __IMPOSSIBLE__
-    in abstr $ checkAxiom funSig i info mp x e
-checkTypeSignature _ = __IMPOSSIBLE__   -- type signatures are always axioms
+    in abstr $ checkAxiom' gtel funSig i info mp x e
+checkTypeSignature' _ _ =
+  __IMPOSSIBLE__   -- type signatures are always axioms
 
 
 -- | Type check a module.

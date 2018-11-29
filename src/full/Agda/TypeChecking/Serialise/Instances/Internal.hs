@@ -194,7 +194,7 @@ instance EmbPrj CompKit where
   value = valueN CompKit
 
 instance EmbPrj Definition where
-  icod_ (Defn a b c d e f g h i j k l m n o) = icodeN' Defn a b (P.killRange c) d e f g h i j k l m n o
+  icod_ (Defn a b c d e f g h i j k l m n o p) = icodeN' Defn a b (P.killRange c) d e f g h i j k l m n o p
 
   value = valueN Defn
 

@@ -1431,6 +1431,11 @@ data Definition = Defn
 
   , defArgGeneralizable :: NumGeneralizableArgs
     -- ^ How many arguments should be generalised.
+  , defGeneralizedParams :: [Maybe Name]
+    -- ^ Gives the name of the (bound variable) parameter for named generalized
+    --   parameters. This is needed to bring it into scope when type checking
+    --   the data/record definition corresponding to a type with generalized
+    --   parameters.
   , defDisplay        :: [LocalDisplayForm]
   , defMutual         :: MutualId
   , defCompiledRep    :: CompiledRepresentation
@@ -1468,6 +1473,7 @@ defaultDefn info x t def = Defn
   , defPolarity       = []
   , defArgOccurrences = []
   , defArgGeneralizable = NoGeneralizableArgs
+  , defGeneralizedParams = []
   , defDisplay        = defaultDisplayForm x
   , defMutual         = 0
   , defCompiledRep    = noCompiledRep
@@ -1750,6 +1756,7 @@ instance Pretty Definition where
       , "defType           =" <?> pretty defType
       , "defPolarity       =" <?> pshow defPolarity
       , "defArgOccurrences =" <?> pshow defArgOccurrences
+      , "defGeneralizedParams =" <?> pshow defGeneralizedParams
       , "defDisplay        =" <?> pshow defDisplay -- TODO: pretty DisplayForm
       , "defMutual         =" <?> pshow defMutual
       , "defCompiledRep    =" <?> pshow defCompiledRep
@@ -3714,8 +3721,8 @@ instance KillRange Section where
   killRange (Section tel) = killRange1 Section tel
 
 instance KillRange Definition where
-  killRange (Defn ai name t pols occs gens displ mut compiled inst copy ma nc inj def) =
-    killRange15 Defn ai name t pols occs gens displ mut compiled inst copy ma nc inj def
+  killRange (Defn ai name t pols occs gens gpars displ mut compiled inst copy ma nc inj def) =
+    killRange16 Defn ai name t pols occs gens gpars displ mut compiled inst copy ma nc inj def
     -- TODO clarify: Keep the range in the defName field?
 
 instance KillRange NumGeneralizableArgs where

@@ -197,8 +197,8 @@ instance Subst Term a => Apply (Tele a) where
   applyE t es = apply t $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
 
 instance Apply Definition where
-  apply (Defn info x t pol occ gens df m c inst copy ma nc inj d) args =
-    Defn info x (piApply t args) (apply pol args) (apply occ args) (apply gens args) df m c inst copy ma nc inj (apply d args)
+  apply (Defn info x t pol occ gens gpars df m c inst copy ma nc inj d) args =
+    Defn info x (piApply t args) (apply pol args) (apply occ args) (apply gens args) (drop (length args) gpars) df m c inst copy ma nc inj (apply d args)
 
   applyE t es = apply t $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
 
@@ -571,8 +571,9 @@ instance Abstract Telescope where
   ExtendTel arg xtel `abstract` tel = ExtendTel arg $ xtel <&> (`abstract` tel)
 
 instance Abstract Definition where
-  abstract tel (Defn info x t pol occ gens df m c inst copy ma nc inj d) =
-    Defn info x (abstract tel t) (abstract tel pol) (abstract tel occ) (abstract tel gens) df m c inst copy ma nc inj (abstract tel d)
+  abstract tel (Defn info x t pol occ gens gpars df m c inst copy ma nc inj d) =
+    Defn info x (abstract tel t) (abstract tel pol) (abstract tel occ) (abstract tel gens)
+                (replicate (size tel) Nothing ++ gpars) df m c inst copy ma nc inj (abstract tel d)
 
 -- | @tel ⊢ (Γ ⊢ lhs ↦ rhs : t)@ becomes @tel, Γ ⊢ lhs ↦ rhs : t)@
 --   we do not need to change lhs, rhs, and t since they live in Γ.
