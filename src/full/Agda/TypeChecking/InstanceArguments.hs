@@ -290,10 +290,7 @@ filterResetingState m cands f = do
     []      -> return ()
 
   let result' = [ (c, v, a, s) | (c, ((r, v, a), s)) <- result, not (isNo r) ]
-      noMaybes = null [ Maybe | (_, ((Maybe, _, _), _)) <- result ]
-            -- It's not safe to compare maybes for equality because they might
-            -- not have instantiated at all.
-  result <- if noMaybes then dropSameCandidates m result' else return result'
+  result <- dropSameCandidates m result'
   case result of
     [(c, _, _, s)] -> [c] <$ putTC s
     _              -> return [ c | (c, _, _, _) <- result ]
