@@ -1,0 +1,40 @@
+Failed to solve the following constraints:
+  Resolve instance argument
+    _AF_165
+      : {n : Nat} {F : Set → Set} {A B : Set} ⦃ AF : Applicative F ⦄ →
+        Applicative (λ v → _F_166 v)
+  Candidates
+    ;AF : Applicative ;F
+    applicativeComp :
+      {F G : Set → Set} →
+      Applicative F → Applicative G → Applicative ((λ {;a} → F) o G)
+  Resolve instance argument
+    _AF_153
+      : {n : Nat} {n = n₁ : Nat} {F : Set → Set} {A B : Set}
+        ⦃ AF = AF₁ : Applicative F ⦄ (f₁ : A → F B) (x₁ : A)
+        (v₁ : Vec A n) →
+        Applicative (λ v₂ → _F_160 v₂)
+  Candidates
+    AF : Applicative ;F
+    applicativeComp :
+      {F G : Set → Set} →
+      Applicative F → Applicative G → Applicative ((λ {;a} → F) o G)
+  _167 := λ {;n} {;F} {;A} {;B} ⦃ ;AF ⦄ → vtr
+    [blocked on problem 241]
+  [241, 242] ;F ;B =< _F_166 _B_164 : Set
+  [241] _F_166 (Vec _B_164 ;n) =< ;F (Vec ;B ;n) : Set
+  [221] ;F ;B =< _F_160 _B_152 : Set
+  [226] _F_160 (Vec _B_152 ;n) =< ;F (Vec ;B ;n) : Set
+  _156
+    := λ {;n} {;n₁} {;F} {;A} {;B} ⦃ AF ⦄ f x v →
+         vtr (_155 (f = f) (x = x) (v = v)) v
+    [blocked on problem 226]
+  _154 := λ {;n} {;n₁} {;F} {;A} {;B} ⦃ AF ⦄ f x v → f
+    [blocked on problem 221]
+Unsolved metas at the following locations:
+  Issue2993.agda:65,80-83
+  Issue2993.agda:65,84-85
+  Issue2993.agda:65,80-87
+  Issue2993.agda:61,40-43
+Unsolved interaction metas at the following locations:
+  Issue2993.agda:50,19-23
