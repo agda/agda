@@ -187,6 +187,33 @@ Type checking and interaction
   (it repects the C-u prefixes), type checks, and inserts the normalized
   term into the goal.
 
+* Instance argument resolution now also applies when there are
+  unconstrained metavariables in the type of the argument. For
+  example, if there is a single instance `eqBool : Eq Bool` in scope,
+  then an instance argument `{{eq : Eq _}}` will be solved to
+  `eqBool`, setting the value of the metavariable `_` to `Bool` in the
+  process.
+
+* By default, Agda no longer allows overlapping instances. Two
+  instances are defined to overlap if they could both solve the
+  instance goal when given appropriate solutions for their recursive
+  (instance) arguments. Agda used to choose between undecidable
+  instances based on the result of recursive instance search, but this
+  lead to an exponential slowdown in instance resolution.
+
+* Explicit arguments are no longer automatically turned into instance
+  arguments for the purpose of recursive instance search. Instead,
+  explicit arguments are left unresolved and will thus never be used.
+
+* Instance arguments that are already solved by conversion checking
+  are no longer ignored by instance search. Thus the constructor of
+  the unit type must now be explicitly be declared as an instance in
+  order to be considered by instance search:
+  ```agda
+    record ⊤ : Set where
+      instance constructor tt
+  ```
+
 Pragmas and options
 -------------------
 
@@ -270,6 +297,12 @@ Pragmas and options
   typechecking in most cases, but makes the performance more
   predictable and stable under minor changes.
 
+* New option `--overlapping-instances` enables overlapping instances
+  by performing recursive instance search during pruning of instance
+  candidates (this used to be the default behaviour). Overlapping
+  instances can be disabled with `--no-overlapping-instances`
+  (default).
+
 * Option (and experimental feature)
   `--guardedness-preserving-type-constructors`
   has been removed.
@@ -292,6 +325,10 @@ Pragmas and options
 * New warning `NotAllowedInMutual`: if a pragma, primitive, module or import
   statement is present in a mutual block we drop it and raise a warning instead
   of exiting with an error.
+
+* New warning `InstanceWithExplicitArg`: if an instance declaration
+  has an explicit argument, it is no longer turned into an instance
+  argument, thus the instance will never actually be used.
 
 * New primitive `primErase`. It takes a proof of equality and returns a proof of
   the same equality. `primErase eq` reduces to `refl` on the diagonal. `trustMe`
