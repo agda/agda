@@ -20,11 +20,11 @@ postulate
   InstanceWrapper : Set
   iwrap : InstanceWrapper
   instance
-    IrrFixerInstance : .InstanceWrapper → Fixer
+    IrrFixerInstance : .{{_ : InstanceWrapper}} → Fixer
 
 instance
   FixerInstance : Fixer
-  FixerInstance = IrrFixerInstance iwrap
+  FixerInstance = IrrFixerInstance {{iwrap}}
 
 instance
   postulate FixidentityInstance : Fixidentity

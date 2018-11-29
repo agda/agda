@@ -6,8 +6,8 @@ Failed to solve the following constraints:
   Candidates
     ;AF : Applicative ;F
     applicativeComp :
-      {F G : Set → Set} →
-      Applicative F → Applicative G → Applicative ((λ {;a} → F) o G)
+      {F G : Set → Set} ⦃ _ : Applicative F ⦄ ⦃ _ : Applicative G ⦄ →
+      Applicative ((λ {;a} → F) o G)
   Resolve instance argument
     _AF_153
       : {n : Nat} {n = n₁ : Nat} {F : Set → Set} {A B : Set}
@@ -17,8 +17,8 @@ Failed to solve the following constraints:
   Candidates
     AF : Applicative ;F
     applicativeComp :
-      {F G : Set → Set} →
-      Applicative F → Applicative G → Applicative ((λ {;a} → F) o G)
+      {F G : Set → Set} ⦃ _ : Applicative F ⦄ ⦃ _ : Applicative G ⦄ →
+      Applicative ((λ {;a} → F) o G)
   _167 := λ {;n} {;F} {;A} {;B} ⦃ ;AF ⦄ → vtr
     [blocked on problem 241]
   [241, 242] ;F ;B =< _F_166 _B_164 : Set
@@ -32,9 +32,9 @@ Failed to solve the following constraints:
   _154 := λ {;n} {;n₁} {;F} {;A} {;B} ⦃ AF ⦄ f x v → f
     [blocked on problem 221]
 Unsolved metas at the following locations:
-  Issue2993.agda:65,80-83
-  Issue2993.agda:65,84-85
-  Issue2993.agda:65,80-87
-  Issue2993.agda:61,40-43
+  Issue2993.agda:66,80-83
+  Issue2993.agda:66,84-85
+  Issue2993.agda:66,80-87
+  Issue2993.agda:62,40-43
 Unsolved interaction metas at the following locations:
-  Issue2993.agda:50,19-23
+  Issue2993.agda:51,19-23

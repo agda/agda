@@ -1,3 +1,4 @@
+
 id : forall {k}{X : Set k} -> X -> X
 id x = x
 
@@ -43,8 +44,8 @@ instance
   applicativeVec = record { pure = vec; _⊛_ = vapp }
 
 instance
-  applicativeComp : forall {F G} → Applicative F → Applicative G → Applicative (F o G)
-  applicativeComp af ag =
+  applicativeComp : forall {F G} {{_ : Applicative F}} {{_ : Applicative G}} → Applicative (F o G)
+  applicativeComp {{af}} {{ag}} =
     record
     { pure = λ z → Applicative.pure af (Applicative.pure ag z)
     ; _⊛_ = λ z → {!!}

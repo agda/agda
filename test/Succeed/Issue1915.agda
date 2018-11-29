@@ -1,4 +1,3 @@
-{-# OPTIONS --overlapping-instances #-}
 
 record Pointed (A : Set) : Set where
   field

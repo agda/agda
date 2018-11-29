@@ -14,7 +14,7 @@ record EqSet : Set₁ where
     set : Set
     instance eq : Eq set
 
-open EqSet
+open EqSet {{...}}
 
-equality : {{A : EqSet}} (x y : set A) → Bool
+equality : {{A : EqSet}} (x y : set) → Bool
 equality x y = x == y

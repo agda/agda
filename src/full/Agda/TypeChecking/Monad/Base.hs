@@ -2616,23 +2616,17 @@ data ExpandHidden
   | DontExpandLast  -- ^ Do not append implicit arguments.
   deriving (Eq, Data)
 
-data ExplicitToInstance
-  = ExplicitToInstance    -- ^ Explicit arguments are considered as instance arguments
-  | ExplicitStayExplicit
-    deriving (Eq, Show, Data)
-
 -- | A candidate solution for an instance meta is a term with its type.
 --   It may be the case that the candidate is not fully applied yet or
 --   of the wrong type, hence the need for the type.
 data Candidate  = Candidate { candidateTerm :: Term
                             , candidateType :: Type
-                            , candidateEti  :: ExplicitToInstance
                             , candidateOverlappable :: Bool
                             }
   deriving (Show, Data)
 
 instance Free Candidate where
-  freeVars' (Candidate t u _ _) = freeVars' (t, u)
+  freeVars' (Candidate t u _) = freeVars' (t, u)
 
 ---------------------------------------------------------------------------
 -- * Type checking warnings (aka non-fatal errors)

@@ -47,8 +47,8 @@ instance
   OrdN : Ord N
   OrdN = record {_<_ = ordN}
 
-  ordToEq : {A : Set} → Ord A → Eq A
-  ordToEq o = Ord.eq o
+  ordToEq : {A : Set} {{_ : Ord A}} → Eq A
+  ordToEq {{o}} = Ord.eq o
 
 postulate
   f2 : (A : Set) {{e : Eq A}} → Set → Set

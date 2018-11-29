@@ -31,7 +31,7 @@ postulate
   StateT : (S : Set) (M : Set → Set) (A : Set) → Set
 
   instance
-    MonadStateT : ∀ {S M} → Monad M → Monad (StateT S M)
+    MonadStateT : ∀ {S M} {{_ : Monad M}} → Monad (StateT S M)
 
 stateT₁ : ∀ {M} {{Mon : Monad M}} → StateT Nat M Nat
 stateT₁ = return zero

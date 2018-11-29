@@ -26,17 +26,17 @@ postulate
   Trunc : Nat → Set → Set
 
 instance
-  =-level : {n : Nat} {A : Set} → has-level (suc n) A → {a b : A} → has-level n (a ≡ b)
-  =-level (c f) = f _ _
+  =-level : {n : Nat} {A : Set} {{_ : has-level (suc n) A}} {a b : A} → has-level n (a ≡ b)
+  =-level {{c f}} = f _ _
 
   postulate
-    =-level-same : {n : Nat} {A : Set} → has-level n A → {a b : A} → has-level n (a ≡ b)
+    =-level-same : {n : Nat} {A : Set} {{_ : has-level n A}} {a b : A} → has-level n (a ≡ b)
 
   postulate
     Nat-level : has-level 2 Nat
-    Π-level : {n : Nat} {A : Set} {B : A → Set} → ((a : A) → has-level n (B a)) → has-level n ((a : A) → B a)
-    Πimp-level : {n : Nat} {A : Set} {B : A → Set} → (a : A) → has-level n (B a) → has-level n ({a : A} → B a)
-    Σ-level : {n : Nat} {A : Set} {B : A → Set} → has-level n A → ((a : A) → has-level n (B a)) → has-level n (Σ A B)
+    Π-level : {n : Nat} {A : Set} {B : A → Set} {{_ : (a : A) → has-level n (B a)}} → has-level n ((a : A) → B a)
+    Πimp-level : {n : Nat} {A : Set} {B : A → Set} {{_ : (a : A) → has-level n (B a)}} → has-level n ({a : A} → B a)
+    Σ-level : {n : Nat} {A : Set} {B : A → Set} {{_ : has-level n A}} {{_ : (a : A) → has-level n (B a)}} → has-level n (Σ A B)
     Trunc-level : {n : Nat} {A : Set} → has-level n (Trunc n A)
 
 -- Used to check, using instance search, if some type has a given level
