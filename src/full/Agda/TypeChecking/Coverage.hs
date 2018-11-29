@@ -49,7 +49,7 @@ import Agda.TypeChecking.Rules.LHS.Unify
 import Agda.TypeChecking.Coverage.Match
 import Agda.TypeChecking.Coverage.SplitTree
 
-import Agda.TypeChecking.Conversion (tryConversion, equalType)
+import Agda.TypeChecking.Conversion (tryConversion, equalType, equalTermOnFace)
 import Agda.TypeChecking.Datatypes (getConForm)
 import {-# SOURCE #-} Agda.TypeChecking.Empty (isEmptyTel)
 import Agda.TypeChecking.Irrelevance
@@ -187,7 +187,7 @@ coverageCheck f t cs = do
 
   -- used = actually used clauses for cover
   -- pss  = uncovered cases
-  CoverResult splitTree used pss noex <- cover f cs sc
+  CoverResult splitTree used pss qss noex <- cover f cs sc
 
   -- Andreas, 2018-11-12, issue #378:
   -- some indices in @used@ and @noex@ point outside of @cs@,
@@ -204,6 +204,13 @@ coverageCheck f t cs = do
     [ "generated split tree for" <+> prettyTCM f
     , text $ prettyShow splitTree
     ]
+  reportSDoc "tc.cover.covering" 10 $ vcat
+    [ text $ "covering patterns for " ++ prettyShow f
+    , nest 2 $ vcat $ map (\(SClause tel ps _ _ _) -> addContext tel $ prettyTCMPatternList $ fromSplitPatterns ps) qss
+    ]
+
+  -- checking confluence of clauses wrt IApply reductions
+  forM_ qss (checkIApplyConfluence f)
 
   -- filter out the missing clauses that are absurd.
   pss <- flip filterM pss $ \(tel,ps) ->
@@ -269,6 +276,8 @@ data CoverResult = CoverResult
   { coverSplitTree       :: SplitTree
   , coverUsedClauses     :: Set Nat
   , coverMissingClauses  :: [(Telescope, [NamedArg DeBruijnPattern])]
+  , coverPatterns        :: [SplitClause]
+  -- ^ The set of patterns used as cover.
   , coverNoExactClauses  :: Set Nat
   }
 
@@ -301,7 +310,7 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
                           then Set.empty
                           else Set.singleton i
       reportSLn "tc.cover.cover" 10 $ "pattern covered by clause " ++ show i
-      return $ CoverResult (SplittingDone (size tel)) (Set.singleton i) [] noExactClause
+      return $ CoverResult (SplittingDone (size tel)) (Set.singleton i) [] [sc] noExactClause
 
     No        ->  do
       reportSLn "tc.cover" 20 $ "pattern is not covered"
@@ -314,10 +323,10 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
           -- late to add it now. If it was inferrable we would have gotten a
           -- type error before getting to this point.
           inferMissingClause f sc
-          return $ CoverResult (SplittingDone (size tel)) Set.empty [] Set.empty
+          return $ CoverResult (SplittingDone (size tel)) Set.empty [] [sc] Set.empty
         _ -> do
           let ps' = fromSplitPatterns ps
-          return $ CoverResult (SplittingDone (size tel)) Set.empty [(tel, ps')] Set.empty
+          return $ CoverResult (SplittingDone (size tel)) Set.empty [(tel, ps')] [] Set.empty
 
     -- We need to split!
     -- If all clauses have an unsplit copattern, we try that first.
@@ -360,7 +369,10 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
         -- If we get the empty covering, we have reached an impossible case
         -- and are done.
         Right (Covering n [], _) ->
-          return $ CoverResult (SplittingDone (size tel)) Set.empty [] Set.empty
+         do
+          -- TODO Andrea: I guess an empty pattern is not part of the cover?
+          let qs = []
+          return $ CoverResult (SplittingDone (size tel)) Set.empty [] qs Set.empty
         Right (Covering n scs, x) -> do
           cs <- do
             let fallback = return cs
@@ -374,6 +386,7 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
           let trees = map coverSplitTree      results
               useds = map coverUsedClauses    results
               psss  = map coverMissingClauses results
+              qsss  = map coverPatterns results
               noex  = map coverNoExactClauses results
           -- Jesper, 2016-03-10  We need to remember which variables were
           -- eta-expanded by the unifier in order to generate a correct split
@@ -386,9 +399,10 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
               , "ps  = " <+> text (show ps)
               ]
             ]
+          -- TODO Andrea: do something with etaRecordSplits and qsss?
           let trees' = zipWith (etaRecordSplits (unArg n) ps) scs trees
               tree   = SplitAt n trees'
-          return $ CoverResult tree (Set.unions useds) (concat psss) (Set.unions noex)
+          return $ CoverResult tree (Set.unions useds) (concat psss) (concat qsss) (Set.unions noex)
 
     -- Try to split result
     trySplitRes
@@ -432,9 +446,10 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
           let trees = map coverSplitTree results
               useds = map coverUsedClauses results
               psss  = map coverMissingClauses results
+              qsss  = map coverPatterns results
               noex  = map coverNoExactClauses results
               tree  = SplitAt n $ zip projs trees
-          return $ CoverResult tree (Set.unions useds) (concat psss) (Set.unions noex)
+          return $ CoverResult tree (Set.unions useds) (concat psss) (concat qsss) (Set.unions noex)
 
     gatherEtaSplits :: Int -> SplitClause
                     -> [NamedArg SplitPattern] -> [NamedArg SplitPattern]
@@ -535,16 +550,6 @@ createMissingHCompClause f n x old_sc (SClause tel ps sigma' cps (Just t)) = set
                     -- Andrea TODO better error message.
       (gamma,hdelta@(ExtendTel hdom _)) = splitTelescopeAt (size old_tel - (blockingVarNo x + 1)) old_tel
 
-      -- Andrea TODO remove repetition, see other iApplyVars impl.
-      iApplyVars :: [NamedArg SplitPattern] -> [Int]
-      iApplyVars ps = flip concatMap (map namedArg ps) $ \case
-                             IApplyP _ t u x -> [splitPatVarIndex x]
-                             VarP{} -> []
-                             ProjP{}-> []
-                             LitP{} -> []
-                             DotP{} -> []
-                             DefP _ _ ps -> iApplyVars ps
-                             ConP _ _ ps -> iApplyVars ps
 
       vs = iApplyVars (scPats old_sc)
   alphab_1 <- forM (filter (< size hdelta) vs) $ \ i -> do
@@ -686,8 +691,6 @@ createMissingHCompClause f n x old_sc (SClause tel ps sigma' cps (Just t)) = set
   return cl
 createMissingHCompClause _ _ _ _ (SClause _ _ _ _ Nothing) = __IMPOSSIBLE__
 
-
-
 -- | Append a instance clause to the clauses of a function.
 inferMissingClause
   :: QName
@@ -732,6 +735,28 @@ splitStrategy bs tel = return $ updateLast setBlockingVarOverlap xs
     allConstructors :: BlockingVar -> Bool
     allConstructors = isJust . snd
 -}
+
+-- | @addClause f (SClause _ ps _ _ _)@ checks that @f ps@
+-- reduces in a way that agrees with @IApply@ reductions.
+checkIApplyConfluence :: QName -> SplitClause -> TCM ()
+checkIApplyConfluence f (SClause tel ps' _ cps (Just t)) = setCurrentRange f $ do
+  addContext tel
+        $ locallyTC eCheckpoints (const cps)
+        $ checkpoint IdS $ do    -- introduce a fresh checkpoint
+          let
+            ps = fromSplitPatterns ps'
+            trhs = unArg t
+          ps <- normaliseProjP ps
+          forM_ (iApplyVars ps) $ \ i -> do
+            unview <- intervalUnview'
+            let phi = unview $ IMax (argN $ var $ i) $ argN $ unview (INeg $ argN $ var i)
+            let es = patternsToElims ps
+            let lhs = Def f es
+            body <- fmap ignoreBlocking $ liftReduce $ unfoldDefinitionE False (return . notBlocked) (Def f []) f es
+            locallyTC eRange (const noRange) $
+              equalTermOnFace phi trhs lhs body
+checkIApplyConfluence f (SClause tel ps _ cps Nothing) = __IMPOSSIBLE__
+
 
 -- | Check that a type is a non-irrelevant datatype or a record with
 -- named constructor. Unless the 'Induction' argument is 'CoInductive'

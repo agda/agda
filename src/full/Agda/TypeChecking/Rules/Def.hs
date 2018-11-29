@@ -263,7 +263,7 @@ checkFunDefS t ai delayed extlam with i name withSub cs = do
               inTopContext $ addClauses name [c]
               return (c,b)
 
-        (cs, CPC isOneIxs nat_cs) <- return $ (second mconcat . unzip) cs
+        (cs, CPC isOneIxs) <- return $ (second mconcat . unzip) cs
 
         let isSystem = not . null $ isOneIxs
         when isSystem $ unless canBeSystem $
@@ -370,8 +370,6 @@ checkFunDefS t ai delayed extlam with i name withSub cs = do
              , funCopatternLHS   = hasProjectionPatterns cc
              }
           useTerPragma $ defaultDefn ai name fullType defn
-
-        forM_ nat_cs $ \ c -> enterClosure c solveConstraint
 
         reportSDoc "tc.def.fun" 10 $ do
           sep [ "added " <+> prettyTCM name <+> ":"
@@ -546,15 +544,13 @@ checkSystemCoverage _ _ t cs = __IMPOSSIBLE__
 data ClausesPostChecks = CPC
     { cpcPartialSplits :: [Int]
       -- ^ Which argument indexes have a partial split.
-    , cpcNaturalityConstraints :: [Closure Constraint]
-      -- ^ Naturality constraints from IApply patterns.
     }
 
 instance Semigroup ClausesPostChecks where
-  (<>) (CPC xs ys) (CPC xs' ys') = CPC (List.nub $ mappend xs xs') (mappend ys ys')
+  (<>) (CPC xs) (CPC xs') = CPC (List.nub $ mappend xs xs')
 
 instance Monoid ClausesPostChecks where
-  mempty  = CPC [] []
+  mempty  = CPC []
   mappend = (<>)
 
 -- | Type check a function clause.
@@ -651,14 +647,6 @@ checkClause t withSub c@(A.Clause (A.SpineLHS i x aps) strippedPats rhs0 wh catc
                              DefP _ _ ps -> iApplyVars ps
                              ConP _ _ ps -> iApplyVars ps
 
-        cs <- flip (maybe (return [])) body $ \ body -> do
-          ps <- normaliseProjP ps
-          forM (iApplyVars ps) $ \ (i,_tu) -> do
-            unview <- intervalUnview'
-            let phi = unview $ IMax (argN $ var $ i) $ argN $ unview (INeg $ argN $ var i)
-            locallyTC eRange (const noRange) $
-              buildClosure $ ValueCmpOnFace CmpEq phi (unArg trhs) (Def x (patternsToElims ps)) body
-
         -- compute body modification for irrelevant definitions, see issue 610
         rel <- asksTC envRelevance
         let bodyMod body = case rel of
@@ -669,7 +657,7 @@ checkClause t withSub c@(A.Clause (A.SpineLHS i x aps) strippedPats rhs0 wh catc
         -- treat them as catchalls.
         let catchall' = catchall || isNothing body
 
-        return $ (, CPC psplit cs)
+        return $ (, CPC psplit)
           Clause { clauseLHSRange  = getRange i
                  , clauseFullRange = getRange c
                  , clauseTel       = killRange delta

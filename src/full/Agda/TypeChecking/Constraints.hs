@@ -172,7 +172,7 @@ solveConstraint c = do
     verboseS "profile.constraints" 10 $ liftTCM $ tick "attempted-constraints"
     verboseBracket "tc.constr.solve" 20 "solving constraint" $ do
       pids <- asksTC envActiveProblems
-      reportSDoc "tc.constr.solve" 20 $ text (show $ Set.toList pids) <+> prettyTCM c
+      reportSDoc "tc.constr.solve.constr" 20 $ text (show $ Set.toList pids) <+> prettyTCM c
       solveConstraint_ c
 
 solveConstraint_ :: Constraint -> TCM ()

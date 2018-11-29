@@ -77,3 +77,15 @@ telePiPath reAbs tel t bs = do
     telePiPath _     EmptyTel = __IMPOSSIBLE__
     telePiPath []    _        = __IMPOSSIBLE__
   telePiPath (downFrom (size tel)) tel
+
+
+iApplyVars :: DeBruijn a => [NamedArg (Pattern' a)] -> [Int]
+iApplyVars ps = flip concatMap (map namedArg ps) $ \case
+                             IApplyP _ t u x ->
+                               [fromMaybe __IMPOSSIBLE__ (deBruijnView x)]
+                             VarP{} -> []
+                             ProjP{}-> []
+                             LitP{} -> []
+                             DotP{} -> []
+                             DefP _ _ ps -> iApplyVars ps
+                             ConP _ _ ps -> iApplyVars ps
