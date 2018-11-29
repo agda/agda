@@ -198,14 +198,10 @@ findInstance' m cands = ifM (isFrozen m) (do
   ifM (isConsideringInstance `and2M` (not . optOverlappingInstances <$> pragmaOptions)) (do
     reportSLn "tc.instance" 20 "Postponing possibly recursive instance search."
     return $ Just (cands, Nothing)) $ do
-  -- Andreas, 2013-12-28 issue 1003:
-  -- If instance meta is already solved, simply discard the constraint.
-  -- Ulf, 2016-12-06 issue 2325: But only if *fully* instantiated.
-  ifM (isFullyInstantiatedMeta m) (Nothing <$ reportSLn "tc.instance" 20 "Instance meta already solved.") $ do
-    -- Andreas, 2015-02-07: New metas should be created with range of the
-    -- current instance meta, thus, we set the range.
-    mv <- lookupMeta m
-    setCurrentRange mv $ do
+  -- Andreas, 2015-02-07: New metas should be created with range of the
+  -- current instance meta, thus, we set the range.
+  mv <- lookupMeta m
+  setCurrentRange mv $ do
       reportSLn "tc.instance" 15 $
         "findInstance 2: constraint: " ++ prettyShow m ++ "; candidates left: " ++ show (length cands)
       reportSDoc "tc.instance" 60 $ nest 2 $ vcat
