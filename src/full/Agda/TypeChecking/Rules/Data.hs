@@ -7,6 +7,7 @@ import Control.Monad
 
 import Data.List (genericTake)
 import Data.Maybe (fromMaybe, catMaybes, isJust)
+import qualified Data.Set as Set
 
 import qualified Agda.Syntax.Abstract as A
 import qualified Agda.Syntax.Concrete.Name as C
@@ -68,14 +69,21 @@ checkDataDef i name uc (A.DataDefParams gpars ps) cs =
         let unTelV (TelV tel a) = telePi tel a
         t <- unTelV <$> telView t
 
+        -- Drop the named parameters that shouldn't be in scope (if the user
+        -- wrote a split data type)
+        let inscope x = x <$ guard (Set.member x gpars)
+        parNames <- map (>>= inscope) . defGeneralizedParams <$> (instantiateDef =<< getConstInfo name)
+
         -- Top level free vars
         freeVars <- getContextSize
 
         -- The parameters are in scope when checking the constructors.
-        dataDef <- bindParameters ps t $ \tel t0 -> do
+        dataDef <- bindGenPars parNames t $ \ gtel t0 ->
+                   bindParameters ps t0   $ \ ptel t0 -> do
 
             -- Parameters are always hidden in constructors
-            let tel' = hideAndRelParams <$> tel
+            let tel  = abstract gtel ptel
+                tel' = hideAndRelParams <$> tel
             -- let tel' = hideTel tel
 
             -- The type we get from bindParameters is Θ -> s where Θ is the type of
@@ -113,7 +121,8 @@ checkDataDef i name uc (A.DataDefParams gpars ps) cs =
                 , "type (full):   " <+> prettyTCM t
                 , "sort:   " <+> prettyTCM s
                 , "indices:" <+> text (show nofIxs)
-                , "params:"  <+> text (show $ deepUnscope ps)
+                , "gparams:" <+> text (show parNames)
+                , "params: " <+> text (show $ deepUnscope ps)
                 ]
               ]
             let npars = size tel
@@ -556,7 +565,7 @@ defineProjections dataname con params names fsT t = do
       projType = abstract projTel <$> ty
 
     inTopContext $ do
-      reportSDoc "tc.data.proj" 20 $ sep [ "proj" <+> prettyTCM (i,ty) , nest 2 $ text . show $  projType ]
+      reportSDoc "tc.data.proj" 20 $ sep [ "proj" <+> prettyTCM (i,ty) , nest 2 $ prettyTCM projType ]
 
     let
       cpi  = ConPatternInfo Nothing False (Just $ argN $ raise (size fsT) t) False
@@ -585,7 +594,7 @@ defineProjections dataname con params names fsT t = do
         (defaultDefn defaultArgInfo projName (unDom projType) fun)
           { defNoCompilation = True }
       inTopContext $ do
-        reportSDoc "tc.data.proj.fun" 20 $ sep [ "proj" <+> prettyTCM i, nest 2 $ text . show $ fun ]
+        reportSDoc "tc.data.proj.fun" 60 $ sep [ "proj" <+> prettyTCM i, nest 2 $ pretty fun ]
 
 
 freshAbstractQName'_ :: String -> TCM QName
@@ -1055,6 +1064,17 @@ defineHCompForFields applyProj name params fsT fns rect = do
     --     t = ExtendTel (defaultDom $ raise (size tel) int) (Abs "i" EmptyTel)
     --     s = sub tel
     --     ys = map (fmap (abstract t) . applySubst s) xs
+
+-- | Bind the named generalized parameters.
+bindGenPars :: [Maybe Name] -> Type -> (Telescope -> Type -> TCM a) -> TCM a
+bindGenPars [] t ret = ret EmptyTel t
+bindGenPars (name : names) t ret =
+  case unEl t of
+    Pi a b -> ext $ bindGenPars names (unAbs b) $ \ tel t -> ret (ExtendTel a (tel <$ b)) t
+      where
+        ext | Just x <- name = addContext (x, a)
+            | otherwise      = addContext (absName b, a)
+    _      -> __IMPOSSIBLE__
 
 -- | Bind the parameters of a datatype.
 --
