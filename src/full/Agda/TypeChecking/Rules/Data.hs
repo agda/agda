@@ -1122,7 +1122,7 @@ bindParameters ps0@(par@(A.DomainFree arg) : ps) t ret = do
     BadImplicits   -> typeError . GenericDocError =<< do
                         text "Unexpected parameter" <+> prettyAs par  -- TODO: better error
     NoSuchName x   -> typeError . GenericDocError =<< do
-                        text ("No parameter of name " ++ x) <+> prettyAs par  -- TODO: better error
+                        text ("No parameter of name " ++ x)
     NoInsertNeeded -> continue ps $ A.unBind x
   where
     Pi dom@(Dom{domInfo = info', unDom = a}) b = unEl t

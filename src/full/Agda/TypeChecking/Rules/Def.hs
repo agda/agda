@@ -1044,7 +1044,7 @@ newSection m gtel@(A.GeneralizeTel _ tel) cont = do
   reportSDoc "tc.section" 10 $
     "checking section" <+> prettyTCM m <+> fsep (map prettyAs tel)
 
-  checkGeneralizeTelescope gtel $ \ tel' -> do
+  checkGeneralizeTelescope gtel $ \ _ tel' -> do
     reportSDoc "tc.section" 10 $
       "adding section:" <+> prettyTCM m <+> text (show (size tel'))
 

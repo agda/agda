@@ -228,7 +228,7 @@ leqType_ t t' = workOnTypes $ leqType t t'
 -- * Telescopes
 ---------------------------------------------------------------------------
 
-checkGeneralizeTelescope :: A.GeneralizeTelescope -> (Telescope -> TCM a) -> TCM a
+checkGeneralizeTelescope :: A.GeneralizeTelescope -> ([Maybe Name] -> Telescope -> TCM a) -> TCM a
 checkGeneralizeTelescope (A.GeneralizeTel vars tel) k =
   generalizeTelescope vars (checkTelescope tel) k
 

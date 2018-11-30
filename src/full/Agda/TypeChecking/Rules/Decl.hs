@@ -566,17 +566,12 @@ checkAxiom' gentel funSig i info0 mp x e = whenAbstractFreezeMetasAfter i $ do
   rel <- max (getRelevance info0) <$> asksTC envRelevance
   let info = setRelevance rel info0
   -- rel <- ifM ((Irrelevant ==) <$> asksTC envRelevance) (return Irrelevant) (return rel0)
-  (genParams, t) <- workOnTypes $ case gentel of
-        Nothing   -> ([],) <$> isType_ e
-        Just (A.GeneralizeTel genvars ps)
-          | Map.null genvars -> ([],) <$> isType_ e'
-          | otherwise        -> do
-            (genNames, t) <- generalizeType (Map.keysSet genvars) $ isType_ e'
-            let bound q = fromMaybe __IMPOSSIBLE__ $ Map.lookup q genvars
-            return ((map . fmap) bound genNames, t)
-          where
-            info = Info.ExprRange (fuseRange ps e)
-            e'   = A.Pi info ps e
+  (genParams, npars, t) <- workOnTypes $ case gentel of
+        Nothing     -> ([], 0,) <$> isType_ e
+        Just gentel ->
+          checkGeneralizeTelescope gentel $ \ genParams ptel -> do
+            t <- workOnTypes $ isType_ e
+            return (genParams, size ptel, abstract ptel t)
 
   reportSDoc "tc.decl.ax" 10 $ sep
     [ text $ "checked type signature"

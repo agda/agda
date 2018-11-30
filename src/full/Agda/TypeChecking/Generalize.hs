@@ -39,8 +39,8 @@ import qualified Agda.Utils.Graph.TopSort as Graph
 #include "undefined.h"
 
 -- | Generalize a telescope over a set of generalizable variables.
-generalizeTelescope :: Map QName Name -> (forall a. (Telescope -> TCM a) -> TCM a) -> (Telescope -> TCM a) -> TCM a
-generalizeTelescope vars typecheckAction ret | Map.null vars = typecheckAction ret
+generalizeTelescope :: Map QName Name -> (forall a. (Telescope -> TCM a) -> TCM a) -> ([Maybe Name] -> Telescope -> TCM a) -> TCM a
+generalizeTelescope vars typecheckAction ret | Map.null vars = typecheckAction (ret [])
 generalizeTelescope vars typecheckAction ret = billTo [Typing, Generalize] $ withGenRecVar $ \ genRecMeta -> do
   let s = Set.fromList (Map.keys vars)
   ((cxtNames, tel), namedMetas, allmetas) <-
@@ -77,7 +77,7 @@ generalizeTelescope vars typecheckAction ret = billTo [Typing, Generalize] $ wit
   -- Γ Δ ⊢ ρ : Γ (r : R)      ρ = sub
   -- Γ ⊢ Δ Θρ                 Θρ = tel'
   updateContext sub ((genTelCxt ++) . drop 1) $
-    updateContext (raiseS (size tel')) (newTelCxt ++) $ ret (abstract genTel tel')
+    updateContext (raiseS (size tel')) (newTelCxt ++) $ ret genTelVars (abstract genTel tel')
 
 -- | Generalize a type over a set of (used) generalizable variables.
 generalizeType :: Set QName -> TCM Type -> TCM ([Maybe QName], Type)

@@ -1510,7 +1510,11 @@ instance ToAbstract NiceDeclaration A.Declaration where
     C.NiceRecSig r p a _pc _uc x ls t -> do
       ensureNoLetStms ls
       withLocalVars $ do
-        (ls', t') <- toAbstract (GenTelAndType (map makeDomainFull ls) t)
+        -- Minor hack: record types don't have indices so we include t when
+        -- computing generalised parameters, but in the type checker any named
+        -- generalizable arguments in the sort should be bound variables.
+        (ls', _) <- toAbstract (GenTelAndType (map makeDomainFull ls) t)
+        t'  <- toAbstract t
         f   <- getConcreteFixity x
         x'  <- freshAbstractQName f x
         bindName' p DefName (GeneralizedVarsMetadata $ generalizeTelVars ls') x x'
@@ -1519,13 +1523,13 @@ instance ToAbstract NiceDeclaration A.Declaration where
     C.NiceDataSig r p a _pc _uc x ls t -> withLocalVars $ do
         reportSLn "scope.data.sig" 20 ("checking DataSig for " ++ prettyShow x)
         ensureNoLetStms ls
-        (ls', t') <- toAbstract (GenTelAndType (map makeDomainFull ls) t)
-        f   <- getConcreteFixity x
-        x'  <- freshAbstractQName f x
-        {- -- Andreas, 2012-01-16: remember number of parameters
-        bindName p (DataName (length ls)) x x' -}
-        bindName' p DefName (GeneralizedVarsMetadata $ generalizeTelVars ls') x x'
-        return [ A.DataSig (mkDefInfo x f p a r) x' ls' t' ]
+        withLocalVars $ do
+          ls' <- toAbstract $ GenTel $ map makeDomainFull ls
+          t'  <- toAbstract $ C.Generalized t
+          f  <- getConcreteFixity x
+          x' <- freshAbstractQName f x
+          bindName' p DefName (GeneralizedVarsMetadata $ generalizeTelVars ls') x x'
+          return [ A.DataSig (mkDefInfo x f p a r) x' ls' t' ]
 
   -- Type signatures
     C.FunSig r p a i m rel tc x t ->
