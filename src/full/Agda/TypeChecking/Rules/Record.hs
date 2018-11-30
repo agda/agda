@@ -86,12 +86,17 @@ checkRecDef i name uc ind eta con (A.DataDefParams gpars ps) contel fields =
       , nest 2 $ "fields =" <+> prettyA (map Constr fields)
       ]
     -- get type of record
-    t <- instantiateFull =<< typeOfConst name
+    def <- instantiateDef =<< getConstInfo name
+    t   <- instantiateFull $ defType def
+    let npars =
+          case theDef def of
+            DataOrRecSig n -> n
+            _              -> __IMPOSSIBLE__
 
     parNames <- getGeneralizedParameters gpars name
 
     bindGeneralizedParameters parNames t $ \ gtel t0 ->
-     bindParameters ps t0 $ \ ptel t0 -> do
+     bindParameters (npars - length parNames) ps t0 $ \ ptel t0 -> do
 
       let tel = abstract gtel ptel
 

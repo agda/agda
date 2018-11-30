@@ -614,6 +614,7 @@ checkAxiom' gentel funSig i info0 mp x e = whenAbstractFreezeMetasAfter i $ do
       (defaultDefn info x t $
          case funSig of
            A.FunSig   -> set funMacro (Info.defMacro i == MacroDef) emptyFunction
+           A.NoFunSig | isJust gentel -> DataOrRecSig npars
            A.NoFunSig -> Axiom)   -- NB: used also for data and record type sigs
         { defArgOccurrences    = occs
         , defPolarity          = pols

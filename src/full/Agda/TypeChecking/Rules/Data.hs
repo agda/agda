@@ -65,7 +65,12 @@ checkDataDef i name uc (A.DataDefParams gpars ps) cs =
         addSection (qnameToMName name)
 
         -- Look up the type of the datatype.
-        t <- instantiateFull =<< typeOfConst name
+        def <- instantiateDef =<< getConstInfo name
+        t   <- instantiateFull $ defType def
+        let npars =
+              case theDef def of
+                DataOrRecSig n -> n
+                _              -> __IMPOSSIBLE__
 
         -- Make sure the shape of the type is visible
         let unTelV (TelV tel a) = telePi tel a
@@ -78,7 +83,7 @@ checkDataDef i name uc (A.DataDefParams gpars ps) cs =
 
         -- The parameters are in scope when checking the constructors.
         dataDef <- bindGeneralizedParameters parNames t $ \ gtel t0 ->
-                   bindParameters ps t0   $ \ ptel t0 -> do
+                   bindParameters (npars - length parNames) ps t0 $ \ ptel t0 -> do
 
             -- Parameters are always hidden in constructors
             let tel  = abstract gtel ptel
@@ -1094,27 +1099,42 @@ bindGeneralizedParameters (name : names) t ret =
 --   @
 
 bindParameters
-  :: [A.LamBinding] -- ^ Bindings from definition site.
+  :: Int            -- ^ Number of parameters
+  -> [A.LamBinding] -- ^ Bindings from definition site.
   -> Type           -- ^ Pi-type of bindings coming from signature site.
   -> (Telescope -> Type -> TCM a)
      -- ^ Continuation, accepting parameter telescope and rest of type.
      --   The parameters are part of the context when the continutation is invoked.
   -> TCM a
 
-bindParameters [] a ret = ret EmptyTel a
+bindParameters 0 [] a ret = ret EmptyTel a
 
-bindParameters (A.DomainFull (A.TypedBindings _ (Arg info (A.TBind _ xs e))) : bs) a ret = do
+bindParameters 0 (par : _) _ _ =
+  typeError . GenericDocError =<< do
+    text "Unexpected parameter" <+> prettyAs par
+
+bindParameters npars [] t ret =
+  case unEl t of
+    Pi a b | not (visible a) -> do
+              x <- freshName_ (absName b)
+              bindParameter npars [] x a b ret
+           | otherwise ->
+              typeError . GenericDocError =<<
+                sep [ "Expected binding for parameter"
+                    , text (absName b) <+> text ":" <+> prettyTCM (unDom a) ]
+    _ -> __IMPOSSIBLE__
+
+bindParameters npars (A.DomainFull (A.TypedBindings _ (Arg info (A.TBind _ xs e))) : bs) a ret = do
   typeError . GenericDocError =<< do
     let s | length xs > 1 = "s"
           | otherwise     = ""
     text ("Unexpected type signature for parameter" ++ s) <+> sep (map prettyA xs)
 
-bindParameters (A.DomainFull (A.TypedBindings _ (Arg _ A.TLet{})) : _) _ _ =  -- line break!
+bindParameters _ (A.DomainFull (A.TypedBindings _ (Arg _ A.TLet{})) : _) _ _ =  -- line break!
   __IMPOSSIBLE__
 
-bindParameters ps0@(par@(A.DomainFree arg) : ps) t ret = do
-  let info = getArgInfo arg
-      x = namedArg arg
+bindParameters npars ps0@(par@(A.DomainFree arg) : ps) t ret = do
+  let x          = namedArg arg
       TelV tel _ = telView' t
       names      = map (fmap fst . argFromDom) $ telToList tel
   case insertImplicit arg names of
@@ -1126,10 +1146,13 @@ bindParameters ps0@(par@(A.DomainFree arg) : ps) t ret = do
     NoInsertNeeded -> continue ps $ A.unBind x
   where
     Pi dom@(Dom{domInfo = info', unDom = a}) b = unEl t
-    continue ps x = do
-      addContext (x, dom) $
-        bindParameters ps (absBody b) $ \ tel s ->
-          ret (ExtendTel dom $ Abs (nameToArgName x) tel) s
+    continue ps x = bindParameter npars ps x dom b ret
+
+bindParameter :: Int -> [A.LamBinding] -> Name -> Dom Type -> Abs Type -> (Telescope -> Type -> TCM a) -> TCM a
+bindParameter npars ps x a b ret =
+  addContext (x, a) $
+    bindParameters (npars - 1) ps (absBody b) $ \ tel s ->
+      ret (ExtendTel a $ Abs (nameToArgName x) tel) s
 
 -- | Check that the arguments to a constructor fits inside the sort of the datatype.
 --   The third argument is the type of the constructor.
