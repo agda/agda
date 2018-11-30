@@ -1109,7 +1109,7 @@ bindParameters
 
 bindParameters 0 [] a ret = ret EmptyTel a
 
-bindParameters 0 (par : _) _ _ =
+bindParameters 0 (par : _) _ _ = setCurrentRange par $
   typeError . GenericDocError =<< do
     text "Unexpected parameter" <+> prettyAs par
 
@@ -1124,7 +1124,8 @@ bindParameters npars [] t ret =
                     , text (absName b) <+> text ":" <+> prettyTCM (unDom a) ]
     _ -> __IMPOSSIBLE__
 
-bindParameters npars (A.DomainFull (A.TypedBindings _ (Arg info (A.TBind _ xs e))) : bs) a ret = do
+bindParameters npars par@(A.DomainFull (A.TypedBindings _ (Arg info (A.TBind _ xs e))) : bs) a ret =
+  setCurrentRange par $
   typeError . GenericDocError =<< do
     let s | length xs > 1 = "s"
           | otherwise     = ""
@@ -1133,16 +1134,23 @@ bindParameters npars (A.DomainFull (A.TypedBindings _ (Arg info (A.TBind _ xs e)
 bindParameters _ (A.DomainFull (A.TypedBindings _ (Arg _ A.TLet{})) : _) _ _ =  -- line break!
   __IMPOSSIBLE__
 
+bindParameters _ (par@(A.DomainFree arg) : ps) _ _
+  | getModality arg /= defaultModality = setCurrentRange par $
+     typeError . GenericDocError =<< do
+       text "Unexpected modality/relevance annotation in" <+> prettyAs par
+
 bindParameters npars ps0@(par@(A.DomainFree arg) : ps) t ret = do
   let x          = namedArg arg
       TelV tel _ = telView' t
       names      = map (fmap fst . argFromDom) $ telToList tel
   case insertImplicit arg names of
     ImpInsert _    -> continue ps0 =<< freshName_ (absName b)
-    BadImplicits   -> typeError . GenericDocError =<< do
-                        text "Unexpected parameter" <+> prettyAs par  -- TODO: better error
-    NoSuchName x   -> typeError . GenericDocError =<< do
-                        text ("No parameter of name " ++ x)
+    BadImplicits   -> setCurrentRange par $
+     typeError . GenericDocError =<< do
+       text "Unexpected parameter" <+> prettyAs par
+    NoSuchName x   -> setCurrentRange par $
+      typeError . GenericDocError =<< do
+        text ("No parameter of name " ++ x)
     NoInsertNeeded -> continue ps $ A.unBind x
   where
     Pi dom@(Dom{domInfo = info', unDom = a}) b = unEl t

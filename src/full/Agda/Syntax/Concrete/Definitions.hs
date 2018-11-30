@@ -1173,17 +1173,17 @@ niceDeclarations fixs ds = do
             | otherwise               = UserWritten
       return $ catMaybes $
         [ mt  <&> \ (tel, t)  -> mkSig (fuseRange x t) PublicAccess ConcreteDef pc uc x tel t
-        , mds <&> \ (tel, ds) -> mkDef r o ConcreteDef pc uc x (caseMaybe mt tel $ const $ concatMap dropType tel) ds
+        , mds <&> \ (tel, ds) -> mkDef r o ConcreteDef pc uc x (caseMaybe mt tel $ const $ concatMap dropTypeAndModality tel) ds
           -- If a type is given (mt /= Nothing), we have to delete the types in @tel@
-          -- for the data definition, lest we duplicate them.
+          -- for the data definition, lest we duplicate them. And also drop modalities (#1886).
         ]
       where
         -- | Drop type annotations and lets from bindings.
-        dropType :: LamBinding -> [LamBinding]
-        dropType (DomainFull (TypedBindings _r (Arg ai (TBind _ xs _)))) =
-          map (mergeHiding . fmap (DomainFree ai)) xs
-        dropType (DomainFull (TypedBindings _r (Arg _ TLet{}))) = []
-        dropType b@DomainFree{} = [b]
+        dropTypeAndModality :: LamBinding -> [LamBinding]
+        dropTypeAndModality (DomainFull (TypedBindings _r (Arg ai (TBind _ xs _)))) =
+          map (mergeHiding . fmap (DomainFree $ setModality defaultModality ai)) xs
+        dropTypeAndModality (DomainFull (TypedBindings _r (Arg _ TLet{}))) = []
+        dropTypeAndModality (DomainFree ai x) = [DomainFree (setModality defaultModality ai) x]
 
     -- Translate axioms
     niceAxioms :: KindOfBlock -> [TypeSignatureOrInstanceBlock] -> Nice [NiceDeclaration]
