@@ -987,6 +987,57 @@ checkLHS mf = updateRelevance checkLHS_ where
           problem' = over problemRestPats tail problem
       liftTCM $ updateProblemRest (LHSState tel ip' problem' target' psplit)
 
+
+    -- | Split a Partial.
+    --
+    -- Example for splitPartial:
+    -- @
+    --   g : ∀ i j → Partial (i ∨ j) A
+    --   g i j (i = 1) = a i j
+    --   g i j (j = 1) = b i j
+    -- @
+    -- leads to, in the first clause:
+    -- @
+    --   dom   = IsOne (i ∨ j)
+    --   ts    = [(i, 1)]
+    --   phi   = i
+    --   sigma = [1/i]
+    -- @
+    -- Final clauses:
+    -- @
+    --   g : ∀ i j → Partial (i ∨ j) A
+    --   g 1? j  .itIsOne = a 1 j
+    --   g i  1? .itIsOne = b i 1
+    -- @
+    -- Herein, ? indicates a 'conPFallThrough' pattern.
+    --
+    -- Example for splitPartial:
+    -- @
+    --   h : ∀ i j → Partial (i & ¬ j) A
+    --   h i j (i = 1) (j = 0)
+    --   -- ALT: h i j (i & ¬ j = 1)
+    -- @
+    -- gives
+    -- @
+    --   dom = IsOne (i & ¬ j)
+    --   ts  = [(i,1), (j,0)]  -- ALT: [(i & ¬ j, 1)]
+    --   phi = i & ¬ j
+    --   sigma = [1/i,0/j]
+    -- @
+    --
+    -- Example for splitPartial:
+    -- @
+    --   g : ∀ i j → Partial (i ∨ j) A
+    --   g i j (i ∨ j = 1) = a i j
+    -- @
+    -- leads to, in the first clause:
+    -- @
+    --   dom   = IsOne (i ∨ j)
+    --   ts    = [(i ∨ j, 1)]
+    --   phi   = i ∨ j
+    --   sigma = fails because several substitutions [[1/i],[1/j]] correspond to phi
+    -- @
+
     splitPartial :: Telescope     -- ^ The types of arguments before the one we split on
                  -> Dom Type      -- ^ The type of the argument we split on
                  -> Abs Telescope -- ^ The types of arguments after the one we split on
@@ -1014,14 +1065,18 @@ checkLHS mf = updateRelevance checkLHS_ where
                    IZero -> primINeg <@> pure t
                    IOne  -> return t
                    _     -> typeError $ GenericError $ "Only 0 or 1 allowed on the rhs of face"
+         -- Example: ts = (i=0) (j=1) will result in phi = ¬ i & j
          phi <- case ts of
                    [] -> do
                      a <- reduce (unEl $ unDom dom)
-                     misone <- getBuiltinName' builtinIsOne
+                     -- builtinIsOne is defined, since this is a precondition for having Partial
+                     isone <- fromMaybe __IMPOSSIBLE__ <$>  -- newline because of CPP
+                       getBuiltinName' builtinIsOne
                      case a of
-                       Def q [Apply phi] | Just q == misone -> return (unArg phi)
-                       _           -> typeError $ GenericError $ show a ++ " is not IsOne."
-                                        -- TODO Andrea type error or something.
+                       Def q [Apply phi] | q == isone -> return (unArg phi)
+                       _           -> typeError . GenericDocError =<< do
+                         prettyTCM a <+> " is not IsOne."
+
                    _  -> foldl (\ x y -> primIMin <@> x <@> y) primIOne (map pure ts)
          phi <- reduce phi
          refined <- forallFaceMaps phi (\ bs m t -> typeError $ GenericError $ "face blocked on meta")
@@ -1032,10 +1087,11 @@ checkLHS mf = updateRelevance checkLHS_ where
            _               -> typeError $ GenericError $ "Cannot have disjunctions in a face constraint."
       itisone <- liftTCM primItIsOne
       -- substitute the literal in p1 and dpi
-      reportSDoc "tc.lhs.faces" 10 $ text $ show sigma
+      reportSDoc "tc.lhs.faces" 60 $ text $ show sigma
 
       let oix = size adelta2 -- de brujin index of IsOne
-          Just o_n = flip findIndex ip (\ x -> case namedThing (unArg x) of
+          o_n = fromMaybe __IMPOSSIBLE__ $
+            flip findIndex ip (\ x -> case namedThing (unArg x) of
                                            VarP _ x -> dbPatVarIndex x == oix
                                            _        -> False)
           delta2' = absApp adelta2 itisone
