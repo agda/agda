@@ -26,6 +26,7 @@ import Agda.TypeChecking.Monad.Builtin -- (primLevel)
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Substitute
+import Agda.TypeChecking.Implicit
 import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.Names
 import Agda.TypeChecking.Reduce
@@ -1092,75 +1093,43 @@ bindGeneralizedParameters (name : names) t ret =
 --       c : A -> D A
 --   @
 
-bindParameters :: [A.LamBinding] -> Type -> (Telescope -> Type -> TCM a) -> TCM a
-bindParameters = bindParameters' []
-
--- | Auxiliary function for 'bindParameters'.
-bindParameters'
-  :: [Type]         -- ^ @n@ replicas of type if @LamBinding@s are @DomainFree@s
-                    --   that came from a @DomainFull@ of @n@ binders.
-                    --   Should be comsumed whenever a @DomainFree@s are consumed.
-  -> [A.LamBinding] -- ^ Bindings from definition site.
+bindParameters
+  :: [A.LamBinding] -- ^ Bindings from definition site.
   -> Type           -- ^ Pi-type of bindings coming from signature site.
   -> (Telescope -> Type -> TCM a)
      -- ^ Continuation, accepting parameter telescope and rest of type.
      --   The parameters are part of the context when the continutation is invoked.
   -> TCM a
 
-bindParameters' _ [] a ret = ret EmptyTel a
+bindParameters [] a ret = ret EmptyTel a
 
-bindParameters' ts (A.DomainFull (A.TypedBindings _ (Arg info (A.TBind _ xs e))) : bs) a ret = do
-  unless (null ts) __IMPOSSIBLE__
-  t <- workOnTypes $ isType_ e
-  bindParameters' (t <$ xs) (map (mergeHiding . fmap (A.DomainFree info)) xs ++ bs) a ret
+bindParameters (A.DomainFull (A.TypedBindings _ (Arg info (A.TBind _ xs e))) : bs) a ret = do
+  typeError . GenericDocError =<< do
+    let s | length xs > 1 = "s"
+          | otherwise     = ""
+    text ("Unexpected type signature for parameter" ++ s) <+> sep (map prettyA xs)
 
-bindParameters' _ (A.DomainFull (A.TypedBindings _ (Arg _ A.TLet{})) : _) _ _ =  -- line break!
+bindParameters (A.DomainFull (A.TypedBindings _ (Arg _ A.TLet{})) : _) _ _ =  -- line break!
   __IMPOSSIBLE__
 
-bindParameters' ts0 ps0@(par@(A.DomainFree xb) : ps) t ret = do
-  let info = getArgInfo xb
-      x = namedArg xb
-  case unEl t of
-    -- Andreas, 2011-04-07 ignore relevance information in binding?!
-    -- Andreas, 2018-10-27 yes, at least in part (issue #3323)!
-    -- @info@ comes from DataDef and @info'@ from DataSig
-    Pi arg@(Dom{domInfo = info', unDom = a}) b -> do
-
-      -- We may omit hidden parameters in the repetition.
-      if | visible info, notVisible info' ->
-            continue ts0 ps0 =<< freshName_ (absName b)
-
-      -- Otherwise, the hiding must coincide.
-         | getHiding info /= getHiding info' -> typeError . GenericDocError =<< do
-             text "Wrong hiding in parameter" <+> prettyAs par
-
-      -- We may omit repetition of relevance and quantity
-         | r /= defaultRelevance && r /= r' -> typeError . GenericDocError =<< do
-             text "Wrong relevance in parameter" <+> prettyAs par
-
-         | q /= defaultQuantity  && q /= q' -> typeError . GenericDocError =<< do
-             text "Wrong quantity in parameter" <+> prettyAs par
-
-      -- Now, the @ArgInfo@s should match.
-         | otherwise -> do
-            -- Andreas, 2016-12-30, issue #1886:
-            -- If type for binding is present, check its correctness.
-            ts <- caseList ts0 (return []) $ \ t0 ts -> do
-              equalType t0 a
-              return ts
-            continue ts ps $ A.unBind x
-
-      where
-      r  = getRelevance info  ; q  = getQuantity info
-      r' = getRelevance info' ; q' = getQuantity info'
-
-      continue ts ps x = do
-        addContext (x, arg) $
-          bindParameters' (raise 1 ts) ps (absBody b) $ \ tel s ->
-            ret (ExtendTel arg $ Abs (nameToArgName x) tel) s
-
-    _ -> typeError . GenericDocError =<< do
-           text "Unexpected parameter" <+> prettyAs par
+bindParameters ps0@(par@(A.DomainFree arg) : ps) t ret = do
+  let info = getArgInfo arg
+      x = namedArg arg
+      TelV tel _ = telView' t
+      names      = map (fmap fst . argFromDom) $ telToList tel
+  case insertImplicit arg names of
+    ImpInsert _    -> continue ps0 =<< freshName_ (absName b)
+    BadImplicits   -> typeError . GenericDocError =<< do
+                        text "Unexpected parameter" <+> prettyAs par  -- TODO: better error
+    NoSuchName x   -> typeError . GenericDocError =<< do
+                        text ("No parameter of name " ++ x) <+> prettyAs par  -- TODO: better error
+    NoInsertNeeded -> continue ps $ A.unBind x
+  where
+    Pi dom@(Dom{domInfo = info', unDom = a}) b = unEl t
+    continue ps x = do
+      addContext (x, dom) $
+        bindParameters ps (absBody b) $ \ tel s ->
+          ret (ExtendTel dom $ Abs (nameToArgName x) tel) s
 
 -- | Check that the arguments to a constructor fits inside the sort of the datatype.
 --   The third argument is the type of the constructor.

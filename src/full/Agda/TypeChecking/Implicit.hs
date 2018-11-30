@@ -93,9 +93,8 @@ impInsert :: [Hiding] -> ImplicitInsertion
 impInsert [] = NoInsertNeeded
 impInsert hs = ImpInsert hs
 
--- | The list should be non-empty.
 insertImplicit :: NamedArg e -> [Arg ArgName] -> ImplicitInsertion
-insertImplicit _ [] = __IMPOSSIBLE__
+insertImplicit _ [] = BadImplicits
 insertImplicit a ts | visible a = impInsert $ nofHidden ts
   where
     nofHidden :: [Arg a] -> [Hiding]
