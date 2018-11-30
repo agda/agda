@@ -319,6 +319,7 @@ instance EmbPrj Defn where
   icod_ (Primitive   a b c d e)                 = icodeN 5 Primitive a b c d e
   icod_ AbstractDefn{}                          = __IMPOSSIBLE__
   icod_ GeneralizableVar                        = icodeN 6 GeneralizableVar
+  icod_ DataOrRecSig{}                          = __IMPOSSIBLE__
 
   value = vcase valu where
     valu [0]                                     = valuN Axiom

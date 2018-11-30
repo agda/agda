@@ -144,6 +144,7 @@ compactDef bEnv def rewr = do
       Datatype{}                     -> pure COther -- TODO
       Record{}                       -> pure COther -- TODO
       Axiom{}                        -> pure CAxiom
+      DataOrRecSig{}                 -> pure CAxiom
       AbstractDefn{}                 -> pure CAxiom
       GeneralizableVar{}             -> __IMPOSSIBLE__
       Primitive{ primName = name, primCompiled = cc } ->

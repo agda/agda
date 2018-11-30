@@ -768,6 +768,7 @@ injectiveTypeConStrategy k s = do
                 Datatype{} -> True
                 Record{}   -> True
                 Axiom{}    -> True
+                DataOrRecSig{} -> True
                 AbstractDefn{} -> False -- True triggers issue #2250
                 Function{}   -> False
                 Primitive{}  -> False

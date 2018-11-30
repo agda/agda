@@ -1269,6 +1269,7 @@ isCoinductive t = do
       def <- getConstInfo q
       case theDef def of
         Axiom       {} -> return (Just False)
+        DataOrRecSig{} -> return Nothing
         Function    {} -> return Nothing
         Datatype    { dataInduction = CoInductive } -> return (Just True)
         Datatype    { dataInduction = Inductive   } -> return (Just False)

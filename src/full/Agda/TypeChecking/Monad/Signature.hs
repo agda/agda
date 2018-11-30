@@ -1031,6 +1031,7 @@ makeAbstract d =
                }
   where
     makeAbs Axiom         = Just Axiom
+    makeAbs d@DataOrRecSig{}     = Just d
     makeAbs d@GeneralizableVar{} = Just d
     makeAbs d@Datatype {} = Just $ AbstractDefn d
     makeAbs d@Function {} = Just $ AbstractDefn d
@@ -1117,6 +1118,7 @@ modalityOfConst q = getModality . defArgInfo <$> getConstInfo q
 droppedPars :: Definition -> Int
 droppedPars d = case theDef d of
     Axiom{}                  -> 0
+    DataOrRecSig{}           -> 0
     GeneralizableVar{}       -> 0
     def@Function{}           -> projectionArgs def
     Datatype  {dataPars = _} -> 0  -- not dropped

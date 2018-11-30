@@ -372,6 +372,7 @@ instance Occurs Defn where
   occurs red ctx m xs def = __IMPOSSIBLE__
 
   metaOccurs m Axiom{}                      = return ()
+  metaOccurs m DataOrRecSig{}               = return ()
   metaOccurs m Function{ funClauses = cls } = metaOccurs m cls
   -- since a datatype is isomorphic to the sum of its constructor types
   -- we check the constructor types

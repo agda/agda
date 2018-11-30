@@ -116,6 +116,7 @@ tomy imi icns typs = do
            return (Def narg clauses' Nothing Nothing, [])
      (cont, projfcns2) <- case defn of
       MB.Axiom {} -> return (Postulate, [])
+      MB.DataOrRecSig{} -> return (Postulate, [])
       MB.GeneralizableVar{} -> __IMPOSSIBLE__
       MB.AbstractDefn{} -> return (Postulate, [])
       MB.Function {MB.funClauses = clauses} -> clausesToDef clauses

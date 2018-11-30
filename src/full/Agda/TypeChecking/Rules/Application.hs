@@ -520,6 +520,7 @@ checkArgumentsE' chk exh r args0@(arg@(Arg info e) : args) t0 mt1 =
                   isRigid (El _ (Pi dom _)) = return $ visible dom
                   isRigid (El _ (Def d _))  = theDef <$> getConstInfo d >>= return . \ case
                     Axiom{}                   -> True
+                    DataOrRecSig{}            -> True
                     AbstractDefn{}            -> True
                     Function{funClauses = cs} -> null cs
                     Datatype{}                -> True

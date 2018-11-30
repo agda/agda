@@ -256,6 +256,7 @@ checkStrictlyPositive mi qset = do
       hasDefinition :: Defn -> Bool
       hasDefinition = \case
         Axiom{}            -> False
+        DataOrRecSig{}     -> False
         GeneralizableVar{} -> False
         AbstractDefn{}     -> False
         Primitive{}        -> False
@@ -630,9 +631,10 @@ computeOccurrences' q = inConcreteOrAbstractMode q $ \ def -> do
       getOccurrences vars =<< normalise tel' -- Andreas, 2017-01-01, issue #1899, treat like data types
 
     -- Arguments to other kinds of definitions are hard-wired.
-    Constructor{} -> return emptyOB
-    Axiom{}       -> return emptyOB
-    Primitive{}   -> return emptyOB
+    Constructor{}      -> return emptyOB
+    Axiom{}            -> return emptyOB
+    DataOrRecSig{}     -> return emptyOB
+    Primitive{}        -> return emptyOB
     GeneralizableVar{} -> return emptyOB
     AbstractDefn{}     -> __IMPOSSIBLE__
 

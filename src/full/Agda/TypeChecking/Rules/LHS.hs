@@ -352,6 +352,7 @@ noShadowingOfConstructors mkCall eqs =
             -- Alternatively, we could do getConstInfo in ignoreAbstractMode,
             -- then Agda would complain if a variable shadowed an abstract constructor.
           Axiom       {} -> return ()
+          DataOrRecSig{} -> return ()
           Function    {} -> return ()
           Record      {} -> return ()
           Constructor {} -> __IMPOSSIBLE__
@@ -1441,6 +1442,10 @@ isDataOrRecordType a = liftTCM (reduceB a) >>= \case
 
       -- the type could be an axiom
       Axiom{} -> hardTypeError =<< notData
+
+      -- Can't match before we have the definition
+      DataOrRecSig{} -> hardTypeError . GenericDocError =<< do
+        liftTCM $ "Cannot split on data type" <+> prettyTCM d <+> "whose definition has not yet been checked"
 
       -- Issue #2997: the type could be a Def that does not reduce for some reason
       -- (abstract, failed termination checking, NON_TERMINATING, ...)

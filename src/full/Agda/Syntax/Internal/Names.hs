@@ -66,6 +66,7 @@ instance NamesIn Definition where
 instance NamesIn Defn where
   namesIn def = case def of
     Axiom -> Set.empty
+    DataOrRecSig{} -> Set.empty
     GeneralizableVar{} -> Set.empty
     -- Andreas 2017-07-27, Q: which names can be in @cc@ which are not already in @cl@?
     Function    { funClauses = cl, funCompiled = cc }              -> namesIn (cl, cc)

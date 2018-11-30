@@ -1636,6 +1636,9 @@ emptyCompKit :: CompKit
 emptyCompKit = CompKit Nothing Nothing Nothing
 
 data Defn = Axiom -- ^ Postulate
+          | DataOrRecSig
+            { datarecPars :: Int }
+            -- ^ Data or record type signature that doesn't yet have a definition
           | GeneralizableVar -- ^ Generalizable variable (introduced in `generalize` block)
           | AbstractDefn Defn
             -- ^ Returned by 'getConstInfo' if definition is abstract.
@@ -1768,6 +1771,7 @@ instance Pretty Definition where
 
 instance Pretty Defn where
   pretty Axiom = "Axiom"
+  pretty (DataOrRecSig n)   = "DataOrRecSig" <+> pretty n
   pretty GeneralizableVar{} = "GeneralizableVar"
   pretty (AbstractDefn def) = "AbstractDefn" <?> parens (pretty def)
   pretty Function{..} =
@@ -2018,6 +2022,7 @@ defTerminationUnconfirmed _ = False
 defAbstract :: Definition -> IsAbstract
 defAbstract d = case theDef d of
     Axiom{}                   -> ConcreteDef
+    DataOrRecSig{}            -> ConcreteDef
     GeneralizableVar{}        -> ConcreteDef
     AbstractDefn{}            -> AbstractDef
     Function{funAbstr = a}    -> a
@@ -2030,6 +2035,7 @@ defForced :: Definition -> [IsForced]
 defForced d = case theDef d of
     Constructor{conForced = fs} -> fs
     Axiom{}                     -> []
+    DataOrRecSig{}              -> []
     GeneralizableVar{}          -> []
     AbstractDefn{}              -> []
     Function{}                  -> []
@@ -3767,6 +3773,7 @@ instance KillRange Defn where
   killRange def =
     case def of
       Axiom -> Axiom
+      DataOrRecSig n -> DataOrRecSig n
       GeneralizableVar -> GeneralizableVar
       AbstractDefn{} -> __IMPOSSIBLE__ -- only returned by 'getConstInfo'!
       Function cls comp tt inv mut isAbs delayed proj flags term extlam with copat ->
