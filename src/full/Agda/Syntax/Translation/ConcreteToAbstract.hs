@@ -503,6 +503,8 @@ data NewName a = NewName
   , newName     :: a
   }
 
+newtype NewBName a = NewBName a
+
 data OldQName     = OldQName C.QName (Maybe (Set A.Name))
   -- ^ If a set is given, then the first name must correspond to one
   -- of the names in the set.
@@ -521,11 +523,19 @@ instance ToAbstract (NewName C.Name) A.Name where
     bindVariable b x y
     return y
 
-instance ToAbstract (NewName C.BoundName) A.Name where
-  toAbstract (NewName b BName{ boundName = x, bnameFixity = fx }) = do
+instance ToAbstract (NewName C.BoundName) (A.Name) where
+  toAbstract (NewName b BName{ boundName = x, boundLabel = lbl, bnameFixity = fx }) = do
     y <- freshAbstractName fx x
     bindVariable b x y
     return y
+
+instance ToAbstract (NewBName C.BoundName) (Named_ A.BindName) where
+  toAbstract (NewBName BName{ boundName = x, boundLabel = lbl, bnameFixity = fx }) = do
+    y <- freshAbstractName fx x
+    bindVariable LambdaBound x y
+    let name | getRange x == getRange lbl = unnamed  -- HACK: change BName to use Named_
+             | otherwise = named (Ranged (getRange lbl) $ nameToRawName lbl)
+    return $ name $ A.BindName y
 
 instance ToAbstract OldQName A.Expr where
   toAbstract (OldQName x ns) = do
@@ -976,8 +986,8 @@ instance ToAbstract c a => ToAbstract (FieldAssignment' c) (FieldAssignment' a) 
   toAbstract = traverse toAbstract
 
 instance ToAbstract C.LamBinding A.LamBinding where
-  toAbstract (C.DomainFree info x) = A.DomainFree info . A.BindName <$> toAbstract (NewName LambdaBound x)
-  toAbstract (C.DomainFull tb)     = A.DomainFull <$> toAbstract tb
+  toAbstract (C.DomainFree i x) = A.DomainFree . Arg i <$> toAbstract (NewBName x)
+  toAbstract (C.DomainFull tb)  = A.DomainFull <$> toAbstract tb
 
 makeDomainFull :: C.LamBinding -> C.TypedBindings
 makeDomainFull (C.DomainFull b)      = b
@@ -1411,11 +1421,11 @@ instance ToAbstract LetDef [A.LetBinding] where
 
         -- Named patterns not allowed in let definitions
         lambda e (Arg info (Named Nothing (A.VarP x))) =
-                return $ A.Lam i (A.DomainFree info x) e
+                return $ A.Lam i (A.DomainFree $ unnamedArg info x) e
             where i = ExprRange (fuseRange x e)
         lambda e (Arg info (Named Nothing (A.WildP i))) =
             do  x <- freshNoName (getRange i)
-                return $ A.Lam i' (A.DomainFree info $ A.BindName x) e
+                return $ A.Lam i' (A.DomainFree $ unnamedArg info $ A.BindName x) e
             where i' = ExprRange (fuseRange i e)
         lambda _ _ = notAValidLetBinding d
 
@@ -2530,7 +2540,7 @@ toAbstractOpApp op ns es = do
         x <- freshName noRange "section"
         let i = setOrigin Inserted $ argInfo a
         (ls, ns) <- replacePlaceholders as
-        return ( A.DomainFree i (A.BindName x) : ls
+        return ( A.DomainFree (unnamedArg i $ A.BindName x) : ls
                , set (Left (Var x)) a : ns
                )
       where

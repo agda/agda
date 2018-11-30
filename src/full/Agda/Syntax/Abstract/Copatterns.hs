@@ -212,7 +212,7 @@ pathToRecord pps =
 
           abstract :: NamedArg Name -> ScopeM Expr -> ScopeM Expr
           abstract (Arg info (Named Nothing x)) me =
-            Lam exprNoRange (DomainFree info $ BindName x) <$> me
+            Lam exprNoRange (DomainFree $ unnamedArg info $ BindName x) <$> me
           abstract (Arg _ (Named Just{} _)) me = typeError $ NotImplemented $
             "named arguments in projection patterns"
 

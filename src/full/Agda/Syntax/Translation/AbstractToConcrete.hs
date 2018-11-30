@@ -531,16 +531,16 @@ instance ToConcrete A.Expr C.Expr where
                     e  <- toConcreteTop e
                     return $ C.Lam (getRange i) (concat bs) e
         where
-            lamView (A.Lam _ b@(A.DomainFree _ _) e) =
+            lamView (A.Lam _ b@(A.DomainFree _) e) =
                 case lamView e of
-                    ([], e)                        -> ([b], e)
-                    (bs@(A.DomainFree _ _ : _), e) -> (b:bs, e)
-                    _                              -> ([b], e)
+                    ([], e)                      -> ([b], e)
+                    (bs@(A.DomainFree _ : _), e) -> (b:bs, e)
+                    _                            -> ([b], e)
             lamView (A.Lam _ b@(A.DomainFull _) e) =
                 case lamView e of
-                    ([], e)                        -> ([b], e)
-                    (bs@(A.DomainFull _ : _), e)   -> (b:bs, e)
-                    _                              -> ([b], e)
+                    ([], e)                      -> ([b], e)
+                    (bs@(A.DomainFull _ : _), e) -> (b:bs, e)
+                    _                            -> ([b], e)
             lamView e = ([], e)
     toConcrete (A.ExtendedLam i di qname cs) =
         bracket lamBrackets $ do
@@ -656,7 +656,8 @@ instance ToConcrete A.Expr C.Expr where
 makeDomainFree :: A.LamBinding -> A.LamBinding
 makeDomainFree b@(A.DomainFull (A.TypedBindings r (Arg info (A.TBind _ [WithHiding h x] t)))) =
   case unScope t of
-    A.Underscore MetaInfo{metaNumber = Nothing} -> A.DomainFree (mapHiding (mappend h) info) x
+    A.Underscore MetaInfo{metaNumber = Nothing} ->
+      A.DomainFree $ mapHiding (mappend h) $ unnamedArg info x
     _ -> b
 makeDomainFree b = b
 
@@ -675,8 +676,14 @@ instance ToConcrete a c => ToConcrete (FieldAssignment' a) (FieldAssignment' c) 
 -- Binder instances -------------------------------------------------------
 
 instance ToConcrete A.LamBinding [C.LamBinding] where
-    bindToConcrete (A.DomainFree info x) ret = bindToConcrete (unBind x) $ ret . (:[]) . C.DomainFree info . mkBoundName_
-    bindToConcrete (A.DomainFull b)      ret = bindToConcrete b $ ret . map C.DomainFull
+    bindToConcrete (A.DomainFree x) ret =
+        bindToConcrete (unBind $ namedArg x) $ ret . (:[]) . C.DomainFree (getArgInfo x) . mkBName
+      where mkBName y = C.BName { C.boundName   = y
+                                , C.boundLabel  = maybe y mkLbl $ nameOf $ unArg x
+                                , C.bnameFixity = noFixity' }
+              where mkLbl :: RString -> C.Name
+                    mkLbl rs = C.Name (getRange rs) $ C.stringNameParts $ rangedThing rs
+    bindToConcrete (A.DomainFull b) ret = bindToConcrete b $ ret . map C.DomainFull
 
 instance ToConcrete A.TypedBindings [C.TypedBindings] where
   bindToConcrete (A.TypedBindings r bs) ret =
@@ -1244,8 +1251,8 @@ tryToRecoverOpApp e def = fromMaybeM def $
         Application hd args = A.appView' body
 
         -- Only inserted domain-free visible lambdas come from sections.
-        insertedName (A.DomainFree i x)
-          | getOrigin i == Inserted && visible i = Just x
+        insertedName (A.DomainFree x)
+          | getOrigin x == Inserted && visible x = Just $ namedArg x
         insertedName _ = Nothing
 
         -- Build section arguments. Need to check that:

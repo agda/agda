@@ -1009,7 +1009,9 @@ checkExpr' cmp e t0 =
 
         A.Lam i (A.DomainFull (A.TypedBindings _ b)) e -> checkLambda cmp b e t
 
-        A.Lam i (A.DomainFree info x) e0 -> checkExpr' cmp (A.Lam i (domainFree info $ A.unBind x) e0) t
+        A.Lam i (A.DomainFree x) e0
+          | isNothing (nameOf $ unArg x) -> checkExpr' cmp (A.Lam i (domainFree (getArgInfo x) $ A.unBind $ namedArg x) e0) t
+          | otherwise -> typeError $ NotImplemented "named arguments in lambdas"
 
         A.Lit lit    -> checkLiteral lit t
         A.Let i ds e -> checkLetBindings ds $ checkExpr' cmp e t

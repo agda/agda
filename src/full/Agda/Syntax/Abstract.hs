@@ -278,7 +278,7 @@ type Field          = TypeSignature
 
 -- | A lambda binding is either domain free or typed.
 data LamBinding
-  = DomainFree ArgInfo BindName   -- ^ . @x@ or @{x}@ or @.x@ or @.{x}@
+  = DomainFree (NamedArg BindName)  -- ^ . @x@ or @{x}@ or @.x@ or @{x = y}@
   | DomainFull TypedBindings  -- ^ . @(xs:e)@ or @{xs:e}@ or @(let Ds)@
   deriving (Data, Show, Eq)
 
@@ -602,14 +602,14 @@ instance LensHiding TypedBindings where
   mapHiding f (TypedBindings r a) = TypedBindings r $ mapHiding f a
 
 instance LensHiding LamBinding where
-  getHiding   (DomainFree ai _) = getHiding ai
-  getHiding   (DomainFull tb)   = getHiding tb
-  mapHiding f (DomainFree ai x) = mapHiding f ai `DomainFree` x
-  mapHiding f (DomainFull tb)   = DomainFull $ mapHiding f tb
+  getHiding   (DomainFree x)  = getHiding x
+  getHiding   (DomainFull tb) = getHiding tb
+  mapHiding f (DomainFree x)  = DomainFree $ mapHiding f x
+  mapHiding f (DomainFull tb) = DomainFull $ mapHiding f tb
 
 instance HasRange LamBinding where
-    getRange (DomainFree _ x) = getRange x
-    getRange (DomainFull b)   = getRange b
+    getRange (DomainFree x) = getRange x
+    getRange (DomainFull b) = getRange b
 
 instance HasRange TypedBindings where
     getRange (TypedBindings r _) = r
@@ -735,8 +735,8 @@ instance SetRange (Pattern' a) where
     setRange r (WithP i p)          = WithP (setRange r i) p
 
 instance KillRange LamBinding where
-  killRange (DomainFree info x) = killRange1 (DomainFree info) x
-  killRange (DomainFull b)      = killRange1 DomainFull b
+  killRange (DomainFree x) = killRange1 DomainFree x
+  killRange (DomainFull b) = killRange1 DomainFull b
 
 instance KillRange GeneralizeTelescope where
   killRange (GeneralizeTel s tel) = GeneralizeTel s (killRange tel)
@@ -1085,7 +1085,7 @@ type PatternSynDefns = Map QName PatternSynDefn
 
 lambdaLiftExpr :: [Name] -> Expr -> Expr
 lambdaLiftExpr []     e = e
-lambdaLiftExpr (n:ns) e = Lam exprNoRange (DomainFree defaultArgInfo $ BindName n) $
+lambdaLiftExpr (n:ns) e = Lam exprNoRange (DomainFree $ defaultNamedArg $ BindName n) $
                             lambdaLiftExpr ns e
 
 

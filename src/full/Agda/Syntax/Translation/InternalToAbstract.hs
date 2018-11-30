@@ -490,7 +490,7 @@ reifyTerm expandAnonDefs0 v0 = do
 --    I.Lam info b | isAbsurdBody b -> return $ A. AbsurdLam noExprInfo $ getHiding info
     I.Lam info b    -> do
       (x,e) <- reify b
-      return $ A.Lam exprNoRange (DomainFree info $ BindName x) e
+      return $ A.Lam exprNoRange (DomainFree $ unnamedArg info $ BindName x) e
       -- Andreas, 2011-04-07 we do not need relevance information at internal Lambda
     I.Lit l        -> reify l
     I.Level l      -> reify l
@@ -621,7 +621,7 @@ reifyTerm expandAnonDefs0 v0 = do
                             vars = map (getArgInfo &&& name . namedArg) $ drop (length es) $ init $ namedClausePats cl
                             lam (i, s) = do
                               x <- freshName_ s
-                              return $ A.Lam exprNoRange (A.DomainFree i $ A.BindName x)
+                              return $ A.Lam exprNoRange (A.DomainFree $ unnamedArg i $ A.BindName x)
                         foldr ($) absLam <$> mapM lam vars
                       | otherwise -> elims absLam =<< reify (drop n es)
 
@@ -1027,8 +1027,8 @@ instance Binder A.Pattern where
     A.WithP _ _         -> empty
 
 instance Binder A.LamBinding where
-  varsBoundIn (A.DomainFree _ x) = singleton $ unBind x
-  varsBoundIn (A.DomainFull b)   = varsBoundIn b
+  varsBoundIn (A.DomainFree x) = singleton $ unBind $ namedArg x
+  varsBoundIn (A.DomainFull b) = varsBoundIn b
 
 instance Binder TypedBindings where
   varsBoundIn (TypedBindings _ b) = varsBoundIn b

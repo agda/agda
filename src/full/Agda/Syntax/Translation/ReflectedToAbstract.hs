@@ -105,7 +105,7 @@ instance ToAbstract Term Expr where
     R.Lam h t  -> do
       (e, name) <- toAbstract t
       let info  = setHiding h $ setOrigin Reflected defaultArgInfo
-      return $ A.Lam exprNoRange (DomainFree info $ BindName name) e
+      return $ A.Lam exprNoRange (DomainFree $ unnamedArg info $ BindName name) e
     R.ExtLam cs es -> do
       name <- freshName_ extendedLambdaName
       m    <- lift $ getCurrentModule

@@ -251,7 +251,7 @@ refine force ii mr e = do
                 where isX (A.Var y) | x == y = Sum 1
                       isX _                  = mempty
 
-              lamView (A.Lam _ (DomainFree _ x) e) = Just (x, e)
+              lamView (A.Lam _ (DomainFree x) e) = Just (namedArg x, e)
               lamView (A.Lam i (DomainFull (TypedBindings r (Arg ai (TBind br (x : xs) a)))) e)
                 | null xs   = Just (dget x, e)
                 | otherwise = Just (dget x, A.Lam i (DomainFull $ TypedBindings r $ Arg ai $ TBind br xs a) e)

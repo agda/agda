@@ -1117,7 +1117,9 @@ bindParameters' ts (A.DomainFull (A.TypedBindings _ (Arg info (A.TBind _ xs e)))
 bindParameters' _ (A.DomainFull (A.TypedBindings _ (Arg _ A.TLet{})) : _) _ _ =  -- line break!
   __IMPOSSIBLE__
 
-bindParameters' ts0 ps0@(par@(A.DomainFree info x) : ps) t ret = do
+bindParameters' ts0 ps0@(par@(A.DomainFree xb) : ps) t ret = do
+  let info = getArgInfo xb
+      x = namedArg xb
   case unEl t of
     -- Andreas, 2011-04-07 ignore relevance information in binding?!
     -- Andreas, 2018-10-27 yes, at least in part (issue #3323)!
