@@ -266,7 +266,7 @@ makeCase hole rng s = withInteractionId hole $ do
           -- Andreas, 2016-05-03: do not introduce function arguments after projection.
           -- This is sometimes annoying and can anyway be done by another C-c C-c.
           -- mapM (snd <.> fixTarget) $ splitClauses cov
-          return $ splitClauses cov
+          return cov
     checkClauseIsClean ipCl
     (f, casectxt,) <$> mapM (makeAbstractClause f rhs) scs
   else do

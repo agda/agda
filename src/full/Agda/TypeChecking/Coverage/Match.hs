@@ -177,6 +177,8 @@ data Match a
     }
   deriving (Functor)
 
+data ApplyOrIApply = IsApply | IsIApply
+
 data BlockedOnResult
   = BlockedOnProj      -- ^ Blocked on unsplit projection
      { blockedOnResultOverlap :: Bool
@@ -184,6 +186,9 @@ data BlockedOnResult
        -- copattern.
      }
   | BlockedOnApply     -- ^ Blocked on unintroduced argument
+     { blockedOnResultIApply :: ApplyOrIApply
+       -- ^ True if the unintroduced argument was an IApply pattern
+     }
   | NotBlockedOnResult
 
 -- | Variable blocking a match.
@@ -218,8 +223,8 @@ blockedOnLiteral i l = Block NotBlockedOnResult [BlockingVar i [] [l] False]
 blockedOnProjection :: Match a
 blockedOnProjection = Block (BlockedOnProj False) []
 
-blockedOnApplication :: Match a
-blockedOnApplication = Block BlockedOnApply []
+blockedOnApplication :: ApplyOrIApply -> Match a
+blockedOnApplication b = Block (BlockedOnApply b) []
 
 -- | Lens for 'blockingVarCons'.
 mapBlockingVarCons :: ([ConHead] -> [ConHead]) -> BlockingVar -> BlockingVar
@@ -262,7 +267,7 @@ choiceBlockedOnResult b1 b2 = case (b1,b2) of
   (BlockedOnProj _     , NotBlockedOnResult) -> BlockedOnProj True
   (BlockedOnProj o1    , BlockedOnProj o2  ) -> BlockedOnProj (o1 || o2)
   (BlockedOnProj o1    , BlockedOnApply{}  ) -> BlockedOnProj True
-  (BlockedOnApply      , _                 ) -> BlockedOnApply
+  (BlockedOnApply b    , _                 ) -> BlockedOnApply b
 
 -- | @choice m m'@ combines the match results @m@ of a function clause
 --   with the (already combined) match results $m'$ of the later clauses.
@@ -330,7 +335,7 @@ matchPats [] qs@(_:_) = case mapMaybe isProjP qs of
 -- comparison to the split clause, we should split on them.
 matchPats (p:ps) [] = case isProjP p of
   Just{}  -> blockedOnProjection
-  Nothing -> blockedOnApplication
+  Nothing -> blockedOnApplication (case namedArg p of IApplyP{} -> IsIApply; _ -> IsApply)
 
 -- | Combine results of checking whether function clause patterns
 --   covers split clause patterns.

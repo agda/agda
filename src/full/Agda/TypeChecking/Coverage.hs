@@ -155,13 +155,13 @@ coverageCheck
   -> TCM SplitTree
 coverageCheck f t cs = do
   reportSLn "tc.cover.top" 30 $ "entering coverageCheck for " ++ show f
-  (TelV gamma a, boundary) <- telViewUpToPathBoundary' (-1) t
+  TelV gamma a <- telViewUpTo (-1) t
   reportSLn "tc.cover.top" 30 $ "coverageCheck: computed telView"
 
   let -- n             = arity
       -- xs            = variable patterns fitting lgamma
       n            = size gamma
-      xs           =  map (setOrigin Inserted) $ telePatterns gamma boundary
+      xs           =  map (setOrigin Inserted) $ teleNamedArgs gamma
 
   reportSLn "tc.cover.top" 30 $ "coverageCheck: getDefFreeVars"
 
@@ -415,10 +415,19 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
       | finalSplit = __IMPOSSIBLE__ -- there must be *some* reason we are blocked
       | otherwise  = cont
     -- blocked on arguments that are not yet introduced:
+
     -- we must split on a variable so that the target type becomes a pi type
-    trySplitRes BlockedOnApply finalSplit cont
+    trySplitRes (BlockedOnApply IsApply) finalSplit cont
       | finalSplit = __IMPOSSIBLE__ -- already ruled out by lhs checker
       | otherwise  = cont
+    -- ...or it was an IApply pattern, so we might just need to introduce the variable now.
+    trySplitRes (BlockedOnApply IsIApply) finalSplit cont
+       = do
+         caseMaybeM (splitResultPath f sc) fallback $ \ sc ->
+               cover f cs . snd =<< fixTarget sc
+      where
+        fallback | finalSplit = __IMPOSSIBLE__ -- already ruled out by lhs checker?
+                 | otherwise  = cont
     -- blocked on result but there are catchalls:
     -- try regular splits if there are any, or else throw an error,
     -- this is nicer than continuing and reporting unreachable clauses
@@ -430,7 +439,7 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
     trySplitRes (BlockedOnProj False) finalSplit cont = do
       reportSLn "tc.cover" 20 $ "blocked by projection pattern"
       -- forM is a monadic map over a Maybe here
-      mcov <- splitResult f sc
+      mcov <- splitResultRecord f sc
       case mcov of
         Left err
           | finalSplit -> typeError $ SplitError err
@@ -813,7 +822,7 @@ fixTarget sc@SClause{ scTel = sctel, scPats = ps, scSubst = sigma, scCheckpoints
       [ "target type before substitution (variables may be wrong): " <+> do
           addContext sctel $ prettyTCM a
       ]
-    TelV tel b <- telViewUpToPath (-1) $ applySplitPSubst sigma $ unArg a
+    (TelV tel b) <- telViewUpTo (-1) $ applySplitPSubst sigma $ unArg a
     reportSDoc "tc.cover.target" 15 $ sep
       [ "target type telescope (after substitution): " <+> do
           addContext sctel $ prettyTCM tel
@@ -1315,14 +1324,36 @@ split' ind allowPartialCover fixtarget sc@(SClause tel ps _ cps target) (Blockin
         , "t      =" <+> inContextOfT (prettyTCM t)
         ]
 
--- | @splitResult f sc = return res@
+
+-- | splitResult for MakeCase, tries to introduce IApply or ProjP copatterns
+splitResult :: QName -> SplitClause -> TCM (Either SplitError [SplitClause])
+splitResult f sc = do
+  caseMaybeM (splitResultPath f sc)
+             ((fmap . fmap) splitClauses $ splitResultRecord f sc)
+             (return . Right . (:[]))
+
+
+-- | Tries to split the result to introduce an IApply pattern.
+splitResultPath :: QName -> SplitClause -> TCM (Maybe SplitClause)
+splitResultPath f sc@(SClause tel ps _ _ target) = do
+  caseMaybe target (return Nothing) $ \ t -> do
+        caseMaybeM (isPath (unArg t)) (return Nothing) $ \ _ -> do
+               (TelV i b, boundary) <- telViewUpToPathBoundary' 1 (unArg t)
+               let tel' = abstract tel i
+                   rho  = raiseS 1
+                   ps' = applySubst rho (scPats sc) ++ telePatterns i boundary
+                   cps' = applySubst rho (scCheckpoints sc)
+                   target' = Just $ b <$ t
+               return . Just $ SClause tel' ps' idS cps' target'
+
+-- | @splitResultRecord f sc = return res@
 --
 --   If the target type of @sc@ is a record type, a covering set of
 --   split clauses is returned (@sc@ extended by all valid projection patterns),
---   otherwise @res == Nothing@.
+--   otherwise @res == Left _@.
 --   Note that the empty set of split clauses is returned if the record has no fields.
-splitResult :: QName -> SplitClause -> TCM (Either SplitError Covering)
-splitResult f sc@(SClause tel ps _ _ target) = do
+splitResultRecord :: QName -> SplitClause -> TCM (Either SplitError Covering)
+splitResultRecord f sc@(SClause tel ps _ _ target) = do
   reportSDoc "tc.cover.split" 10 $ vcat
     [ "splitting result:"
     , nest 2 $ "f      =" <+> prettyTCM f
