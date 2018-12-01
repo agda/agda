@@ -242,10 +242,6 @@ checkFunDefS t ai delayed extlam with i name withSub cs = do
         -- to patch clauses to same arity
         -- cs <- trailingImplicits t cs
 
-        canBeSystem <- do
-          let pss = map (A.spLhsPats . A.clauseLHS) cs
-          return $! null [ () | ps <- pss, A.ConP{} <- map (namedThing . unArg) ps]
-
         -- Check the clauses
         cs <- traceCall NoHighlighting $ do -- To avoid flicker.
           forM (zip cs [0..]) $ \ (c, clauseNo) -> do
@@ -266,8 +262,19 @@ checkFunDefS t ai delayed extlam with i name withSub cs = do
         (cs, CPC isOneIxs) <- return $ (second mconcat . unzip) cs
 
         let isSystem = not . null $ isOneIxs
+
+        canBeSystem <- do
+          -- allow VarP and ConP i0/i1 fallThrough = yes, DotP
+          let pss = map namedClausePats cs
+              allowed p = case p of
+                VarP{} -> True
+                -- pattern inserted by splitPartial
+                ConP _ cpi [] | conPFallThrough cpi -> True
+                DotP{} -> True
+                _      -> False
+          return $! all (allowed . namedArg) (concat pss)
         when isSystem $ unless canBeSystem $
-          typeError $ GenericError "no actual pattern matching in systems!"
+          typeError $ GenericError "no pattern matching or path copatterns in systems!"
 
 
         reportSDoc "tc.def.fun" 70 $ inTopContext $ do
