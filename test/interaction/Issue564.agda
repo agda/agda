@@ -5,7 +5,7 @@ open import Agda.Primitive using (Level) renaming (lzero to zero)
 postulate
   A : Level → Set
 
-module M ℓ where
+module M (ℓ : Level) where
   postulate a : A ℓ
 
 postulate

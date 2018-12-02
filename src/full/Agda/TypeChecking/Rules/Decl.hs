@@ -788,7 +788,13 @@ checkTypeSignature _ = __IMPOSSIBLE__   -- type signatures are always axioms
 -- | Type check a module.
 
 checkSection :: Info.ModuleInfo -> ModuleName -> A.GeneralizeTelescope -> [A.Declaration] -> TCM ()
-checkSection _ x tel ds = newSection x tel $ mapM_ checkDeclCached ds
+checkSection _ x tel ds = newSection x tel $ do
+  -- Jesper, 2018-12-02, Issue #1063: definitions inside a module
+  -- shouldn't influence the types of the module parameters.
+  solveSizeConstraints DefaultToInfty
+  _ <- freezeMetas
+
+  mapM_ checkDeclCached ds
 
 
 -- | Helper for 'checkSectionApplication'.

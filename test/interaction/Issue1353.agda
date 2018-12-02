@@ -54,7 +54,7 @@ P ⊆ Q = ∀ {x} → P x → Q x
 Alg : ∀ {O} → O ▷ O → Pow O → Set
 Alg Σ X = ⟦ Σ ⟧ X ⊆ X
 
-module _ {I₁ I₂ O₁ O₂} where
+module _ {I₁ I₂ O₁ O₂ : Set} where
 
   record ContainerMorphism
          (C₁ : I₁ ▷ O₁) (C₂ : I₂ ▷ O₂)

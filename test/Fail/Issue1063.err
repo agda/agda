@@ -1,0 +1,7 @@
+Failed to solve the following constraints:
+  _2 := λ A → A [blocked on problem 1]
+  [1] _1 =< Set : _0
+  _0 = Set₁
+Unsolved metas at the following locations:
+  Issue1063.agda:7,15-16
+  Issue1063.agda:10,7-8

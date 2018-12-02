@@ -1,5 +1,4 @@
 {-# OPTIONS --without-K #-}
-{-# OPTIONS --allow-unsolved-metas #-}
 
 -- This issue demonstrates that a failing termination check,
 -- subsequently blocking reductions, makes some `impossible'

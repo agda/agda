@@ -23,10 +23,10 @@ meta : Nat
 meta = _
 
 -- `n` gets pruned due to the meta == suc n constraint, so we can't generalize over it
-module _ (X : Set) where
-  tricky : let n = _
-               _ = solve meta == suc n by refl
-           in IsHead {n = n} x xs → Nat
-  tricky h = 0
+tricky : (X : Set)
+       → let n = _
+             _ = solve meta == suc n by refl
+         in IsHead {n = n} x xs → Nat
+tricky X h = 0
 
 mutual-block = Nat

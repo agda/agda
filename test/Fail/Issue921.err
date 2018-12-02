@@ -1,8 +1,321 @@
-Issue921.agda:49,1-117,17
-Termination checking failed for the following functions:
-  _ctx-⇛_, Tm
-Problematic calls:
-  Tm (Γ , _ * A)
-  weaken Γ * _159 (P = P) (Γ = Γ) (A = A) (T = T)
-  Γ ctx-⇛ Δ
-    (at Issue921.agda:58,29-34)
+Failed to solve the following constraints:
+  _445
+    := λ {Γ} Δ A {T} m t ts →
+         transport (λ z → Tm (Γ , z * A))
+         (! (_424 (Δ = Δ) (A = A) (m = m) (t = t) (ts = ts)))
+         (_426 (Δ = Δ) (A = A) (m = m) (t = t) (ts = ts))
+    [blocked on problem 888]
+  [793] ?3 (Γ = (Δ · A ⋯ _T_356)) (Δ = Δ) (A = A)
+          =< Δ · A ⋯ T ctx-⇛ ?2 (Γ = Δ)
+          : Set
+  [821, 823, 825, 827, 829, 831, 835] _160
+                                      (P = (Γ , snd xtc.eq ?15 * (weaken (?2 (Γ = Δ)) * A))) (Γ = x)
+                                      (A = x) (T = x)
+                                        = _160
+                                          (P =
+                                           (Γ ,
+                                            snd xtc.eq ((m , t) , ts) * (weaken (?2 (Γ = Δ)) * A)))
+                                          (Γ = x) (A = x) (T = x)
+                                        : Ty x
+  [821, 823, 825, 827, 836, 838, 843, 844] _443
+                                             := λ {Γ} Δ A {T} m t ts x x₁ x₂ → ?2 (Γ = Δ)
+                                             [blocked on problem 925]
+  [821, 823, 825, 827, 836, 838, 843, 844, 925] _441
+                                                  := λ {Γ} Δ A {T} m t ts x x₁ x₂ → ?2 (Γ = Δ)
+                                                  [blocked on problem 926]
+  [821, 823, 825, 827, 836, 838, 843, 844, 925, 926] ?2 (Γ = Δ) = Δ
+                                                       : Ctx
+  [821, 823, 825, 827, 836, 838, 841] _386 (A = A) (T = T) ?15
+                                        = snd xtc.eq ((m , t) , ts)
+                                        : Γ ctx-⇛ _380 · _382 ⋯ _384
+  [821, 823, 825, 827, 836, 838, 840] _439
+                                        := λ {Γ} Δ A {T} m t ts x x₁ x₂ → ?2 (Γ = Δ)
+                                        [blocked on problem 921]
+  [821, 823, 825, 827, 836, 838, 840, 921] _437
+                                             := λ {Γ} Δ A {T} m t ts x x₁ x₂ → ?2 (Γ = Δ)
+                                             [blocked on problem 922]
+  [821, 823, 825, 827, 836, 838, 840, 921, 922] ?2 (Γ = Δ) = Δ : Ctx
+  [888, 890, 892, 894, 896, 898, 902] _160
+                                      (P = (Γ , (weaken Δ ○ snd xtc.eq (m , t , ts)) * A)) (Γ = x)
+                                      (A = x) (T = x)
+                                        = _160
+                                          (P =
+                                           (Γ ,
+                                            (weaken (?2 (Γ = Δ)) ○ snd xtc.eq ((m , t) , ts)) * A))
+                                          (Γ = x) (A = x) (T = x)
+                                        : Ty x
+  [888, 890, 892, 894, 903, 905] _435
+                                   := λ {Γ} Δ A {T} m t ts x x₁ x₂ → snd xtc.eq (m , t , ts)
+                                   [blocked on problem 908]
+  [888, 890, 892, 894, 903, 905] _433
+                                   := λ {Γ} Δ A {T} m t ts x x₁ x₂ → Δ
+                                   [blocked on problem 908]
+  [888, 890, 892, 894, 903, 905] _431
+                                   := λ {Γ} Δ A {T} m t ts x x₁ x₂ → Δ
+                                   [blocked on problem 908]
+  [888, 890, 892, 894, 903, 905, 908, 919] snd xtc.eq ((m , t) , ts)
+                                             = _386 (A = A) (T = T) (m , t , ts)
+                                             : Γ ctx-⇛ Δ · A ⋯ T
+  [888, 890, 892, 894, 903, 905, 908, 914] _429
+                                             := λ {Γ} Δ A {T} m t ts x x₁ x₂ → ?2 (Γ = Δ)
+                                             [blocked on problem 915]
+  [888, 890, 892, 894, 903, 905, 908, 914, 915] ?2 (Γ = Δ) = Δ : Ctx
+  [888, 890, 892, 894, 903, 905, 908] _427
+                                        := λ {Γ} Δ A {T} m t ts x x₁ x₂ → ?2 (Γ = Δ)
+                                        [blocked on problem 913]
+  [888, 890, 892, 894, 903, 905, 908, 913] ?2 (Γ = Δ) = Δ : Ctx
+  _425 := λ {Γ} Δ A {T} m t ts → t [blocked on problem 887]
+  [887] ?4 (Γ = Γ) (Δ = Δ) (A = A) m
+          =< Σ Ctx
+             (λ Γ₁ →
+                Σ (Ty (?2 (Γ = Γ₁)))
+                (λ A₁ →
+                   Σ (Xtc (Γ₁ · A₁))
+                   (λ T₁ →
+                      (Γ₁ · A₁ ⋯ T₁ ,
+                       weaken Γ₁ * _160 (P = (Γ , m * A)) (Γ = Γ₁) (A = A₁) (T = T₁))
+                      == (Γ , m * A))))
+          : Set
+  _423 := λ {Γ} Δ A {T} m t ts → weaken-○-scope (m , t , ts)
+    [blocked on problem 881]
+  [881] _421 := λ {Γ} Δ A {T} m t ts → Δ [blocked on problem 882]
+  [881, 882, 884] ?2 (Γ = Δ) = Δ : Ctx
+  [863] ?3 (Γ = Γ) (Δ = Δ) (A = A) =< Γ ctx-⇛ Δ : Set
+  [871] ?4 (Γ = Γ) (Δ = Δ) (A = A) m
+          =< Σ Ctx
+             (λ Γ₁ →
+                Σ (Ty (?2 (Γ = Γ₁)))
+                (λ A₁ →
+                   Σ (Xtc (Γ₁ · A₁))
+                   (λ T₁ →
+                      (Γ₁ · A₁ ⋯ T₁ ,
+                       weaken Γ₁ * _160 (P = (Γ , m * A)) (Γ = Γ₁) (A = A₁) (T = T₁))
+                      == (Γ , m * A))))
+          : Set
+  _419 := λ {Γ} Δ A {T} m t ts → t [blocked on problem 871]
+  _410 := λ {Γ} Δ A {T} m t ts → m [blocked on problem 863]
+  _395
+    := λ {Γ} Δ A {T} m t ts →
+         pullback-var (?15 (Δ = Δ) (A = A) (m = m) (t = t) (ts = ts))
+    [blocked on problem 821]
+  [821, 823, 825, 827, 836, 838, 843] _393
+                                        := λ {Γ} Δ A {T} m t ts x x₁ x₂ → T
+                                        [blocked on problem 844]
+  [821, 823, 825, 827, 836, 838, 843] _391
+                                        := λ {Γ} Δ A {T} m t ts x x₁ x₂ → A
+                                        [blocked on problem 844]
+  [821, 823, 825, 827, 836, 838, 843] _389
+                                        := λ {Γ} Δ A {T} m t ts x x₁ x₂ → ?2 (Γ = Δ)
+                                        [blocked on problem 844]
+  [821, 823, 825, 827, 836, 838] _387
+                                   := λ {Γ} Δ A {T} m t ts x x₁ x₂ →
+                                        snd xtc.eq (?15 (Δ = Δ) (A = A) (m = m) (t = t) (ts = ts))
+                                   [blocked on problem 841]
+  [821, 823, 825, 827, 836, 838] _383
+                                   := λ {Γ} Δ A {T} m t ts x x₁ x₂ → T
+                                   [blocked on problem 840]
+  [821, 823, 825, 827, 836, 838] _381
+                                   := λ {Γ} Δ A {T} m t ts x x₁ x₂ → A
+                                   [blocked on problem 840]
+  [821, 823, 825, 827, 836, 838] _379
+                                   := λ {Γ} Δ A {T} m t ts x x₁ x₂ → ?2 (Γ = Δ)
+                                   [blocked on problem 840]
+  _357 := λ {Γ} Δ A {T} m t ts → fst (weaken (Δ · A))
+    [blocked on problem 793]
+  _310
+    := λ {Γ} {Δ} {A} {T} ms →
+         transport (λ z → Tm (Γ , z * A)) (! (_299 (ms = ms)))
+         (_307 (ms = ms))
+    [blocked on problem 666]
+  [666, 668, 670, 672, 674, 676, 680] _160
+                                      (P = (Γ , (weaken Δ ○ snd xtc.eq ms) * A)) (Γ = x) (A = x)
+                                      (T = x)
+                                        = _160 (P = (Γ , (weaken Δ ○ snd xtc.eq ms) * A)) (Γ = x)
+                                          (A = x) (T = x)
+                                        : Ty x
+  [666, 668, 670, 672, 681, 683] _308
+                                   := λ {Γ} {Δ} {A} {T} ms x x₁ x₂ → ?2 (Γ = Δ)
+                                   [blocked on problem 685]
+  [666, 668, 670, 672, 681, 683, 685] ?2 (Γ = Δ) = Δ : Ctx
+  _306 := λ {Γ} {Δ} {A} {T} ms → fst (snd ms)
+    [blocked on problem 644]
+  [236, 253, 254, 256, 257] Σ Ctx
+                            (λ Γ →
+                               Σ (Ty (?2 (Γ = Γ)))
+                               (λ A₁ →
+                                  Σ (Xtc (Γ · A₁))
+                                  (λ T₁ →
+                                     (Γ · A₁ ⋯ T₁ ,
+                                      ;Issue921.weaken Γ *
+                                      _160 (P = (;Γ , x * A)) (Γ = Γ) (A = A₁) (T = T₁))
+                                     == (;Γ , x * A))))
+                              = ?4 (Γ = ;Γ) (Δ = ;Δ) (A = A) x
+                              : Set
+  [236, 237, 242, 243] ?4 (Γ = ;Γ) (Δ = ;Δ) (A = A) x
+                         = Σ Ctx
+                           (λ Γ →
+                              Σ (Ty (?2 (Γ = Γ)))
+                              (λ A₁ →
+                                 Σ (Xtc (Γ · A₁))
+                                 (λ T₁ →
+                                    (Γ · A₁ ⋯ T₁ ,
+                                     ;Issue921.weaken Γ *
+                                     _160 (P = (;Γ , x * A)) (Γ = Γ) (A = A₁) (T = T₁))
+                                    == (;Γ , x * A))))
+                         : Set
+  [175] Σ Ctx
+        (λ Γ₁ →
+           Σ (Ty (?2 (Γ = Γ₁)))
+           (λ A₁ →
+              Σ (Xtc (Γ₁ · A₁))
+              (λ T₁ →
+                 (Γ₁ · A₁ ⋯ T₁ ,
+                  ;Issue921.weaken Γ₁ *
+                  _160 (P = (Γ , m * A)) (Γ = Γ₁) (A = A₁) (T = T₁))
+                 == (Γ , m * A))))
+          =< ?4 (Γ = Γ) (Δ = ;Δ) (A = A) m
+          : Set
+  [644, 646, 648, 650, 652, 654, 658] _160 (P = (Γ , fst ms * A))
+                                      (Γ = x) (A = x) (T = x)
+                                        = _160 (P = (Γ , fst ms * A)) (Γ = x) (A = x) (T = x)
+                                        : Ty x
+  [644, 646, 648, 650, 659, 661] _304
+                                   := λ {Γ} {Δ} {A} {T} ms x x₁ x₂ → Δ
+                                   [blocked on problem 663]
+  [644, 646, 648, 650, 659, 661, 663] Δ = ?2 (Γ = Δ) : Ctx
+  _298 := λ {Γ} {Δ} {A} {T} ms → weaken-○-scope ms
+    [blocked on problem 632]
+  [632] _296 := λ {Γ} {Δ} {A} {T} ms → Δ [blocked on problem 633]
+  [632, 633, 635] ?2 (Γ = Δ) = Δ : Ctx
+  _247 := λ {Γ} {Δ} {A} {T} ms → A [blocked on problem 518]
+  [518, 519] ?2 (Γ = Δ) = Δ : Ctx
+  _204
+    := λ {;Γ} {;Δ} Θ ;x n x m →
+         transport (λ z → Tm (;Γ , z))
+         (! (_197 (Θ = Θ) (;x = ;x) (n = n) (x = x) (m = m) ○= m))
+         (pullback (_203 (Θ = Θ) (;x = ;x) (n = n) (x = x) (m = m)) m)
+    [blocked on problem 411]
+  [411] Σ Ctx
+        (λ Γ →
+           Σ (Ty (?2 (Γ = Γ)))
+           (λ A →
+              Σ (Xtc (Γ · A))
+              (λ T →
+                 (Γ · A ⋯ T ,
+                  weaken Γ *
+                  _160 (P = (;Γ , (_197 ○ m) * _A_198)) (Γ = Γ) (A = A) (T = T))
+                 == (;Γ , (_197 ○ m) * _A_198))))
+          =< ?4 (Γ = ;Γ) (Δ = Θ) (A = ;x) _184
+          : Set
+  [385] ?4 (Γ = ;Δ) (Δ = Θ) (A = ;x) n
+          =< Σ Ctx
+             (λ Γ →
+                Σ (Ty (?2 (Γ = Γ)))
+                (λ A →
+                   Σ (Xtc (Γ · A))
+                   (λ T →
+                      (Γ · A ⋯ T ,
+                       weaken Γ * _160 (P = (;Δ , _197 * _A_198)) (Γ = Γ) (A = A) (T = T))
+                      == (;Δ , _197 * _A_198))))
+          : Set
+  _202 := λ {;Γ} {;Δ} Θ ;x n x m → x [blocked on problem 385]
+  [376] ?3 (Γ = ;Δ) (Δ = Θ) (A = ;x) =< ;Δ ctx-⇛ _Θ_195 : Set
+  _196 := λ {;Γ} {;Δ} Θ ;x n x m → n [blocked on problem 376]
+  _183
+    := λ {;Γ} {;Δ} Θ ;x n x m →
+         _182 (Θ = Θ) (;x = ;x) (n = n) (x = x) (m = m) ○ m
+    [blocked on problem 367]
+  [367] ;Γ ctx-⇛ _Θ_180 =< ?3 (Γ = ;Γ) (Δ = Θ) (A = ;x) : Set
+  [363] ?3 (Γ = ;Δ) (Δ = Θ) (A = ;x) =< ;Δ ctx-⇛ _Θ_180 : Set
+  _181 := λ {;Γ} {;Δ} Θ ;x n x m → n [blocked on problem 363]
+  _176 := λ Γ A {T} → Γ , _175 (Γ = Γ) (A = A)
+    [blocked on problem 352]
+  _174 := λ Γ A {T} → A , _173 (Γ = Γ) (A = A)
+    [blocked on problem 354]
+  _172 := λ Γ A {T} → T , ?12 (Γ = Γ) (A = A)
+    [blocked on problem 356]
+  [356] Σ (Xtc (Γ · A)) _B_170 =< _B_168 A : Set
+  [354] Σ (Ty (?2 (Γ = Γ))) _B_168 =< _B_166 Γ : Set
+  [352] Σ Ctx _B_166 =< ?4 (Γ = (Γ · A ⋯ T)) (Δ = Γ) (A = A) _164
+          : Set
+  _163 := λ Γ A {T} → weaken Γ [blocked on problem 351]
+  [351] Γ ⋯ A · T ctx-⇛ Γ =< ?3 (Γ = (Γ · A ⋯ T)) (Δ = Γ) (A = A)
+          : Set
+  _159 := λ P Γ A T → A [blocked on problem 332]
+  [332, 333] ?2 (Γ = Γ) = Γ : Ctx
+  _126 := λ {;Γ} {;Δ} A T → Σ-assoc ∘e eq [blocked on problem 236]
+  [236, 237, 241] ?3 (Γ = ;Γ) (Δ = ;Δ) (A = A) = ;Γ ctx-⇛ ;Δ : Set
+  [236, 253, 254, 256] _124
+                         := λ {;Γ} {;Δ} A T x x₁ → Tm (;Γ , x₁ * A)
+                         [blocked on problem 257]
+  [236, 253, 254] _122 := λ {;Γ} {;Δ} A T x → ;Γ ctx-⇛ ;Δ
+                    [blocked on problem 255]
+  [236, 253, 254, 255] ;Γ ctx-⇛ ;Δ = ?3 (Γ = ;Γ) (Δ = ;Δ) (A = A)
+                         : Set
+  [236] _120 := λ {;Γ} {;Δ} A T z z₁ → ?4 (Γ = ;Δ) (Δ = A) (A = T) z₁
+          [blocked on problem 237]
+  [236] _118 := λ {;Γ} {;Δ} A T z → ?3 (Γ = ;Δ) (Δ = A) (A = T)
+          [blocked on problem 237]
+  [236, 237, 242] _116
+                    := λ {;Γ} {;Δ} A T _ x → ?4 (Γ = ;Γ) (Δ = ;Δ) (A = A) x
+                    [blocked on problem 243]
+  [236, 237] _114 := λ {;Γ} {;Δ} A T _ → ?3 (Γ = ;Γ) (Δ = ;Δ) (A = A)
+               [blocked on problem 241]
+  [174] Γ ctx-⇛ ;Δ =< ?3 (Γ = Γ) (Δ = ;Δ) (A = A) : Set
+  _90 := λ Γ {;Δ} m A T t → t [blocked on problem 175]
+  _88 := λ Γ {;Δ} m A T t → m [blocked on problem 174]
+  _80 := λ Γ {;Δ} m A T → A [blocked on problem 164]
+  [164, 165] ?2 (Γ = ;Δ) = ;Δ : Ctx
+Unsolved metas at the following locations:
+  Issue921.agda:72,34-35
+  Issue921.agda:72,50-51
+  Issue921.agda:72,54-55
+  Issue921.agda:79,20-33
+  Issue921.agda:91,92-93
+  Issue921.agda:93,23-38
+  Issue921.agda:93,45-46
+  Issue921.agda:93,49-50
+  Issue921.agda:93,53-54
+  Issue921.agda:93,51-59
+  Issue921.agda:93,47-59
+  Issue921.agda:93,43-59
+  Issue921.agda:95,32-33
+  Issue921.agda:95,30-31
+  Issue921.agda:95,30-35
+  Issue921.agda:95,73-75
+  Issue921.agda:95,71-72
+  Issue921.agda:95,71-77
+  Issue921.agda:95,90-91
+  Issue921.agda:95,38-94
+  Issue921.agda:101,60-61
+  Issue921.agda:104,43-60
+  Issue921.agda:105,8-20
+  Issue921.agda:104,6-105,21
+  Issue921.agda:107,99-111
+  Issue921.agda:111,32-45
+  Issue921.agda:111,27-47
+  Issue921.agda:112,24-41
+  Issue921.agda:114,43-44
+  Issue921.agda:114,47-48
+  Issue921.agda:114,27-54
+  Issue921.agda:115,23-24
+  Issue921.agda:113,13-115,24
+Unsolved interaction metas at the following locations:
+  Issue921.agda:33,13-17
+  Issue921.agda:37,14-18
+  Issue921.agda:45,24-28
+  Issue921.agda:52,21-25
+  Issue921.agda:52,26-30
+  Issue921.agda:57,43-47
+  Issue921.agda:57,53-57
+  Issue921.agda:63,17-21
+  Issue921.agda:63,29-33
+  Issue921.agda:89,53-57
+  Issue921.agda:89,67-71
+  Issue921.agda:91,26-30
+  Issue921.agda:93,55-59
+  Issue921.agda:99,36-40
+  Issue921.agda:107,94-98
+  Issue921.agda:112,37-41
+  Issue921.agda:116,13-17
+  Issue921.agda:109,49-53
