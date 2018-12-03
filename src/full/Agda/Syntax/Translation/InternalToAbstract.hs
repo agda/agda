@@ -806,8 +806,8 @@ instance (Ord k, Monoid v) => Monoid (MonoidMap k v) where
 -- | Removes implicit arguments that are not needed, that is, that don't bind
 --   any variables that are actually used and doesn't do pattern matching.
 --   Doesn't strip any arguments that were written explicitly by the user.
-stripImplicits :: A.Patterns -> TCM A.Patterns
-stripImplicits ps = do
+stripImplicits :: A.Patterns -> A.Patterns -> TCM A.Patterns
+stripImplicits params ps = do
   -- if --show-implicit we don't need the names
   ifM showImplicitArguments (return $ map (unnamed . namedThing <$>) ps) $ do
     reportSLn "reify.implicit" 30 $ unlines
@@ -822,7 +822,7 @@ stripImplicits ps = do
     where
       -- Replace variables in dot patterns by an underscore _ if they are hidden
       -- in the pattern. This is slightly nicer than making the implicts explicit.
-      blankDots ps = blank (varsBoundIn ps) ps
+      blankDots ps = blank (varsBoundIn $ params ++ ps) ps
 
       strip ps = stripArgs True ps
         where
@@ -1165,10 +1165,10 @@ instance Reify NamedClause A.Clause where
     -- (e.g. for extended lambdas). We still get here with toDrop = True and
     -- pattern lambdas when doing make-case, so take care to drop the right
     -- number of parameters.
-    lhs <- if not toDrop then return lhs else do
+    (params , lhs) <- if not toDrop then return ([] , lhs) else do
       nfv <- (size <.> lookupSection =<< getDefModule f) `catchError` \_ -> return 0
-      return $ dropParams nfv lhs
-    lhs <- stripImps lhs
+      return $ splitParams nfv lhs
+    lhs <- stripImps params lhs
     reportSLn "reify.clause" 60 $ "reifying NamedClause, lhs = " ++ show lhs
     rhs <- caseMaybe (clauseBody cl) (return AbsurdRHS) $ \ e -> do
        RHS <$> reify e <*> pure Nothing
@@ -1177,9 +1177,11 @@ instance Reify NamedClause A.Clause where
     reportSLn "reify.clause" 60 $ "reified NamedClause, result = " ++ show result
     return result
     where
-      dropParams n (SpineLHS i f ps) = SpineLHS i f $ drop n ps
-      stripImps :: SpineLHS -> TCM SpineLHS
-      stripImps (SpineLHS i f ps) =  SpineLHS i f <$> stripImplicits ps
+      splitParams n (SpineLHS i f ps) =
+        let (params , pats) = splitAt n ps
+        in  (params , SpineLHS i f pats)
+      stripImps :: [NamedArg A.Pattern] -> SpineLHS -> TCM SpineLHS
+      stripImps params (SpineLHS i f ps) =  SpineLHS i f <$> stripImplicits params ps
 
 instance Reify (QNamed System) [A.Clause] where
   reify (QNamed f (System tel sys)) = addContext tel $ do
@@ -1194,7 +1196,7 @@ instance Reify (QNamed System) [A.Clause] where
         reify (phi, d b)
 
       ps <- reifyPatterns $ teleNamedArgs tel
-      ps <- stripImplicits $ ps ++ [defaultNamedArg ep]
+      ps <- stripImplicits [] $ ps ++ [defaultNamedArg ep]
       let
         lhs = SpineLHS (LHSRange noRange) f ps
         result = A.Clause (spineToLhs lhs) [] rhs A.noWhereDecls False
