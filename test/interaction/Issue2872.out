@@ -1,0 +1,8 @@
+(agda2-status-action "")
+(agda2-info-action "*Type-checking*" "" nil)
+(agda2-highlight-clear)
+(agda2-status-action "")
+(agda2-info-action "*All Goals*" "?0 : List Char " nil)
+((last . 1) . (agda2-goals-action '(0)))
+((last . 2) . (agda2-make-case-action '("case-split-test ('-' ∷ ls) | [] = ?" "case-split-test ('-' ∷ ls) | x ∷ foo-ls = ?")))
+((last . 1) . (agda2-goals-action '(0)))
