@@ -95,7 +95,7 @@ insertImplicitPatternsT exh            ps a = do
     dummy = defaultNamedArg (A.VarP __IMPOSSIBLE__)
 
     insImp p EmptyTel = return []
-    insImp p tel = case insertImplicit p $ map (argFromDom . fmap fst) $ telToList tel of
+    insImp p tel = case insertImplicit p $ telToList tel of
       BadImplicits   -> typeError WrongHidingInLHS
       NoSuchName x   -> typeError WrongHidingInLHS
       ImpInsert n    -> return $ map implicitArg n

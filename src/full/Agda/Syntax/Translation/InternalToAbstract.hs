@@ -507,12 +507,11 @@ reifyTerm expandAnonDefs0 v0 = do
             {- then -} (pure $ Arg (domInfo a) underscore)
             {- else -} (reify a)
       where
-        mkPi b (Arg info a) = do
+        mkPi b (Arg info a') = do
           -- #2776: Out-of-scope dots are not helpful at this point.
           let name  = unNotInScopeName $ absName b
-              rname = unranged name
           (x, b) <- reify b{ absName = name }
-          return $ A.Pi noExprInfo [TBind noRange [Arg info $ named rname $ BindName x] a] b
+          return $ A.Pi noExprInfo [TBind noRange [Arg info $ Named (domName a) $ BindName x] a'] b
         -- We can omit the domain type if it doesn't have any free variables
         -- and it's mentioned in the target type.
         domainFree a b = do
@@ -1260,8 +1259,8 @@ instance Reify I.Telescope A.Telescope where
     Arg info e <- reify arg
     (x, bs)  <- reify tel
     let r    = getRange e
-        name = Ranged r $ absName tel
-    return $ TBind r [Arg info $ named name $ BindName x] e : bs
+        name = domName arg
+    return $ TBind r [Arg info $ Named name $ BindName x] e : bs
 
 instance Reify i a => Reify (Dom i) (Arg a) where
     reify (Dom{domInfo = info, unDom = i}) = Arg info <$> reify i

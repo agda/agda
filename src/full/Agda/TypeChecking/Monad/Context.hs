@@ -198,14 +198,14 @@ instance AddContext ([WithHiding Name], Dom Type) where
   contextSize (xs, _) = length xs
 
 instance AddContext ([Arg Name], Type) where
-  addContext ([], _)     = id
-  addContext (x : xs, t) =
-    addContext (unArg x, t <$ domFromArg x) .
-    addContext (xs, raise 1 t)
+  addContext (xs, t) = addContext ((map . fmap) unnamed xs :: [NamedArg Name], t)
   contextSize (xs, _) = length xs
 
 instance AddContext ([NamedArg Name], Type) where
-  addContext (xs, t) = addContext ((map . fmap) namedThing xs, t)
+  addContext ([], _)     = id
+  addContext (x : xs, t) =
+    addContext (namedArg x, t <$ domFromNamedArgName x) .
+    addContext (xs, raise 1 t)
   contextSize (xs, _) = length xs
 
 instance AddContext (String, Dom Type) where

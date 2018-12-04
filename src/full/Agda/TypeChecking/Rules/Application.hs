@@ -160,7 +160,7 @@ checkApplication cmp hd args e t = do
           makeArgs [] args = ([], args)
           makeArgs _  []   = ([], [])
           makeArgs tel@(d : _) (arg : args) =
-            case insertImplicit arg (map (fmap fst . argFromDom) tel) of
+            case insertImplicit arg tel of
               ImpInsert is   -> makeArgs (drop (length is) tel) (arg : args)
               BadImplicits   -> (arg : args, [])  -- fail later in checkHeadApplication
               NoSuchName{}   -> (arg : args, [])  -- ditto
@@ -547,9 +547,10 @@ checkArgumentsE' chk exh r args0@(arg@(Arg info e) : args) t0 mt1 =
 
         -- t0' <- lift $ forcePi (getHiding info) (maybe "_" rangedThing $ nameOf e) t0'
         case unEl t0' of
-          Pi (Dom{domInfo = info', unDom = a}) b
-            | sameHiding info info'
-              && (visible info || maybe True ((absName b ==) . rangedThing) (nameOf e)) -> do
+          Pi (Dom{domInfo = info', domName = dname, unDom = a}) b
+            | let name = maybe "_" rangedThing dname,
+              sameHiding info info'
+              && (visible info || maybe True ((name ==) . rangedThing) (nameOf e)) -> do
                 u <- lift $ applyModalityToContext info' $ do
                  -- Andreas, 2014-05-30 experiment to check non-dependent arguments
                  -- after the spine has been processed.  Allows to propagate type info
@@ -564,7 +565,7 @@ checkArgumentsE' chk exh r args0@(arg@(Arg info e) : args) t0 mt1 =
                  -- Thus, the following naive use violates some invariant.
                  -- if not $ isBinderUsed b
                  -- then postponeTypeCheckingProblem (CheckExpr (namedThing e) a) (return True) else
-                  let e' = e { nameOf = maybe (Just $ unranged $ absName b) Just (nameOf e) }
+                  let e' = e { nameOf = maybe dname Just (nameOf e) }
                   checkNamedArg (Arg info' e') a
                 -- save relevance info' from domain in argument
                 addCheckedArgs us (Apply $ Arg info' u) $

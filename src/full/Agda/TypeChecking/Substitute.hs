@@ -33,6 +33,7 @@ import Language.Haskell.TH.Syntax (thenCmp) -- lexicographic combination of Orde
 import Agda.Interaction.Options
 
 import Agda.Syntax.Common
+import Agda.Syntax.Position
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
 import qualified Agda.Syntax.Abstract as A
@@ -1077,7 +1078,14 @@ bindsToTel = bindsToTel' nameToArgName
 namedBindsToTel :: [NamedArg Name] -> Type -> Telescope
 namedBindsToTel []       t = EmptyTel
 namedBindsToTel (x : xs) t =
-  ExtendTel (t <$ domFromArg x) $ Abs (namedArgName x) $ namedBindsToTel xs (raise 1 t)
+  ExtendTel (t <$ domFromNamedArgName x) $ Abs (namedArgName x) $ namedBindsToTel xs (raise 1 t)
+
+domFromNamedArgName :: NamedArg Name -> Dom ()
+domFromNamedArgName x = () <$ domFromNamedArg (fmap forceName x)
+  where
+    -- If no explicit name is given we use the bound name for the label.
+    forceName (Named Nothing x) = Named (Just $ Ranged (getRange x) $ nameToArgName x) x
+    forceName x = x
 
 -- ** Abstracting in terms and types
 
