@@ -1,4 +1,12 @@
-open import Data.List using (List; []; _∷_; map; foldr; _++_)
+open import Agda.Builtin.List
+
+map : ∀ {a b} {A : Set a} {B : Set b} → (A → B) → List A → List B
+map f []       = []
+map f (x ∷ xs) = f x ∷ map f xs
+
+foldr : ∀ {a b} {A : Set a} {B : Set b} → (A → B → B) → B → List A → B
+foldr c n []       = n
+foldr c n (x ∷ xs) = c x (foldr c n xs)
 
 data Rose (A : Set) : Set where
   leaf : (a : A) → Rose A
