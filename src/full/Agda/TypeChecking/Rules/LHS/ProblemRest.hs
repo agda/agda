@@ -46,19 +46,19 @@ useNamesFromPattern ps tel = telFromList (zipWith ren ps telList ++ telRemaining
   where
     telList = telToList tel
     telRemaining = drop (length ps) telList -- telescope entries beyond patterns
-    ren (Arg ai (Named nm p)) dom@(Dom info finite (y, a)) =
+    ren (Arg ai (Named nm p)) dom@Dom{ unDom = (y, a) } =
       case p of
         -- Andreas, 2017-10-12, issue #2803, also preserve user-written hidden names.
         -- However, not if the argument is named, because then the name in the telescope
         -- is significant for implicit insertion.
         A.VarP (A.BindName x)
           | not (isNoName x)
-          , visible info || (getOrigin ai == UserWritten && nm == Nothing) ->
-          Dom info finite (nameToArgName x, a)
-        A.AbsurdP{} | visible info -> Dom info finite (stringToArgName "()", a)
+          , visible dom || (getOrigin ai == UserWritten && nm == Nothing) ->
+          dom{ unDom = (nameToArgName x, a) }
+        A.AbsurdP{} | visible dom -> dom{ unDom = (stringToArgName "()", a) }
         A.PatternSynP{} -> __IMPOSSIBLE__  -- ensure there are no syns left
         -- Andreas, 2016-05-10, issue 1848: if context variable has no name, call it "x"
-        _ | visible info && isNoName y -> Dom info finite (stringToArgName "x", a)
+        _ | visible dom && isNoName y -> dom{ unDom = (stringToArgName "x", a) }
           | otherwise                  -> dom
 
 useOriginFrom :: (LensOrigin a, LensOrigin b) => [a] -> [b] -> [a]

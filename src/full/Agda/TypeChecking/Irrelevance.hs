@@ -346,7 +346,7 @@ instance UsableRelevance a => UsableRelevance (Arg a) where
     in  usableRel (rel `composeRelevance` rel') u
 
 instance UsableRelevance a => UsableRelevance (Dom a) where
-  usableRel rel (Dom _ _ u) = usableRel rel u
+  usableRel rel Dom{unDom = u} = usableRel rel u
 
 instance (Subst t a, UsableRelevance a) => UsableRelevance (Abs a) where
   usableRel rel abs = underAbstraction_ abs $ \u -> usableRel rel u
@@ -452,7 +452,7 @@ instance UsableModality a => UsableModality (Arg a) where
     in  usableMod (mod `composeModality` mod') u
 
 instance UsableModality a => UsableModality (Dom a) where
-  usableMod mod (Dom _ _ u) = usableMod mod u
+  usableMod mod Dom{unDom = u} = usableMod mod u
 
 instance (Subst t a, UsableModality a) => UsableModality (Abs a) where
   usableMod mod abs = underAbstraction_ abs $ \u -> usableMod mod u
