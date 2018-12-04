@@ -448,7 +448,7 @@ instance Reify Constraint (OutputConstraint Expr Expr) where
     reify (FindInstance m _b mcands) = FindInstanceOF
       <$> (reify $ MetaV m [])
       <*> (reify =<< getMetaType m)
-      <*> (forM (fromMaybe [] mcands) $ \ (Candidate tm ty eti _) -> do
+      <*> (forM (fromMaybe [] mcands) $ \ (Candidate tm ty _) -> do
             (,) <$> reify tm <*> reify ty)
     reify (IsEmpty r a) = IsEmptyType <$> reify a
     reify (CheckSizeLtSat a) = SizeLtSat  <$> reify a

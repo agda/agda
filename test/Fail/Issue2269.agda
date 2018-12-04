@@ -7,7 +7,7 @@ it {{x}} = x
 postulate Eq : Set → Set
 
 instance
-  postulate weaken : Eq ⊥ → Eq _
+  postulate weaken : {{_ : Eq ⊥}} → Eq _
 
 loop : Eq ⊥
 loop = it

@@ -612,6 +612,7 @@ warningHighlighting w = case tcWarning w of
   IllformedAsClause{}        -> deadcodeHighlighting $ P.getRange w
   UselessPublic{}            -> mempty
   UselessInline{}            -> mempty
+  InstanceWithExplicitArg{}  -> deadcodeHighlighting $ P.getRange w
   ParseWarning{}             -> mempty
   InversionDepthReached{}    -> mempty
   GenericWarning{}           -> mempty

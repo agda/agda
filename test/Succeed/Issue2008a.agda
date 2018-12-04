@@ -1,3 +1,5 @@
+{-# OPTIONS --overlapping-instances #-}
+
 module _ where
 
 module M (_ : Set₁) where

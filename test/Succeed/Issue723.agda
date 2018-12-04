@@ -1,7 +1,8 @@
 -- {-# OPTIONS -v tc.constr.findInScope:15 -v tc.meta.new:50 #-}
 -- Andreas, 2012-10-20 issue raised by d.starosud
 -- solved by dropping UnBlock constraints during trial candidate assignment
-module Fail.Issue723 where
+-- Jesper, 2018-11-28: Now fixed more properly
+module Succeed.Issue723 where
 
 import Common.Level
 open import Common.Prelude using (Bool; false; zero) renaming (Nat to ℕ)
@@ -46,6 +47,7 @@ n : ℕ
 n = default 5
 -- now we get unsolved metas
 -- that's kind of ok
+-- Jesper!2018: no more yellow!
 
 n₃ = (default ∶ (_ → _)) 5
 -- this one works again (before: also unsolved metas (worked before switching of the occurs-error (Issue 795)))

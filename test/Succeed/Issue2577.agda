@@ -1,7 +1,7 @@
 
 postulate
   Wrap : Set → Set
-  instance wrap : {A : Set} → A → Wrap A
+  instance wrap : {A : Set} {{_ : A}} → Wrap A
 
 postulate
   I : Set

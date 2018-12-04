@@ -232,6 +232,7 @@ data PostScopeState = PostScopeState
   , stPostFreshInt            :: !Int
   , stPostFreshNameId         :: !NameId
   , stPostAreWeCaching        :: !Bool
+  , stPostConsideringInstance :: !Bool
   }
 
 -- | A mutual block of names in the signature.
@@ -358,6 +359,7 @@ initPostScopeState = PostScopeState
   , stPostFreshInt             = 0
   , stPostFreshNameId           = NameId 0 0
   , stPostAreWeCaching         = False
+  , stPostConsideringInstance  = False
   }
 
 initState :: TCState
@@ -586,6 +588,11 @@ stAreWeCaching :: Lens' Bool TCState
 stAreWeCaching f s =
   f (stPostAreWeCaching (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostAreWeCaching = x}}
+
+stConsideringInstance :: Lens' Bool TCState
+stConsideringInstance f s =
+  f (stPostConsideringInstance (stPostScopeState s)) <&>
+  \x -> s {stPostScopeState = (stPostScopeState s) {stPostConsideringInstance = x}}
 
 stBuiltinThings :: TCState -> BuiltinThings PrimFun
 stBuiltinThings s = (s^.stLocalBuiltins) `Map.union` (s^.stImportedBuiltins)
@@ -2609,23 +2616,17 @@ data ExpandHidden
   | DontExpandLast  -- ^ Do not append implicit arguments.
   deriving (Eq, Data)
 
-data ExplicitToInstance
-  = ExplicitToInstance    -- ^ Explicit arguments are considered as instance arguments
-  | ExplicitStayExplicit
-    deriving (Eq, Show, Data)
-
 -- | A candidate solution for an instance meta is a term with its type.
 --   It may be the case that the candidate is not fully applied yet or
 --   of the wrong type, hence the need for the type.
 data Candidate  = Candidate { candidateTerm :: Term
                             , candidateType :: Type
-                            , candidateEti  :: ExplicitToInstance
                             , candidateOverlappable :: Bool
                             }
   deriving (Show, Data)
 
 instance Free Candidate where
-  freeVars' (Candidate t u _ _) = freeVars' (t, u)
+  freeVars' (Candidate t u _) = freeVars' (t, u)
 
 ---------------------------------------------------------------------------
 -- * Type checking warnings (aka non-fatal errors)
@@ -2659,6 +2660,9 @@ data Warning
     -- ^ If the user opens a module public before the module header.
     --   (See issue #2377.)
   | UselessInline            QName
+  | InstanceWithExplicitArg  QName
+  -- ^ An instance was declared with an implicit argument, which means it
+  --   will never actually be considered by instance search.
   | InversionDepthReached    QName
   -- ^ The --inversion-max-depth was reached.
   -- Generic warnings for one-off things
@@ -2702,6 +2706,7 @@ warningName w = case w of
   DeprecationWarning{}         -> DeprecationWarning_
   EmptyRewritePragma           -> EmptyRewritePragma_
   IllformedAsClause            -> IllformedAsClause_
+  InstanceWithExplicitArg{}    -> InstanceWithExplicitArg_
   GenericNonFatalError{}       -> GenericNonFatalError_
   GenericWarning{}             -> GenericWarning_
   InversionDepthReached{}      -> InversionDepthReached_

@@ -17,8 +17,8 @@ record Wrap {i : Level} (carrier : Set i) : Set i where
     wrap-inhabited : Inhabited carrier
 
 instance
-  wrap-as-inhabited : ∀ {i : Level} {carrier : Set i} → Wrap carrier → Inhabited carrier
-  wrap-as-inhabited cat = Wrap.wrap-inhabited cat
+  wrap-as-inhabited : ∀ {i : Level} {carrier : Set i} {{_ : Wrap carrier}} → Inhabited carrier
+  wrap-as-inhabited {{cat}} = Wrap.wrap-inhabited cat
 
 postulate
   Nat : Set

@@ -9,6 +9,7 @@
 
   data   ⊥ : Set where
   record ⊤ : Set where
+    instance constructor tt
 
   data Fin : Nat → Set where
     zero : ∀ {n} → Fin (suc n)

@@ -5,7 +5,7 @@ module Agda.TypeChecking.Telescope where
 import Prelude hiding (null)
 
 import Control.Applicative hiding (empty)
-import Control.Monad (unless, guard)
+import Control.Monad
 
 import Data.Foldable (forM_, find)
 import Data.IntSet (IntSet)
@@ -23,6 +23,7 @@ import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Free
+import Agda.TypeChecking.Warnings
 
 import Agda.Utils.Functor
 import Agda.Utils.List
@@ -566,16 +567,17 @@ data OutputTypeName
   | OutputTypeNameNotYetKnown
   | NoOutputTypeName
 
--- | Strips all Pi's and return the head definition name, if possible.
-getOutputTypeName :: Type -> TCM OutputTypeName
+-- | Strips all Pi's and return the argument telescope and head
+--   definition name, if possible.
+getOutputTypeName :: Type -> TCM (Telescope, OutputTypeName)
 getOutputTypeName t = do
   TelV tel t' <- telView t
-  ifBlocked (unEl t') (\ _ _ -> return OutputTypeNameNotYetKnown) $ \ _ v ->
+  ifBlocked (unEl t') (\ _ _ -> return (tel , OutputTypeNameNotYetKnown)) $ \ _ v ->
     case v of
       -- Possible base types:
-      Def n _  -> return $ OutputTypeName n
-      Sort{}   -> return NoOutputTypeName
-      Var n _  -> return OutputTypeVar
+      Def n _  -> return (tel , OutputTypeName n)
+      Sort{}   -> return (tel , NoOutputTypeName)
+      Var n _  -> return (tel , OutputTypeVar)
       -- Not base types:
       Con{}    -> __IMPOSSIBLE__
       Lam{}    -> __IMPOSSIBLE__
@@ -586,9 +588,18 @@ getOutputTypeName t = do
       DontCare{} -> __IMPOSSIBLE__
       Dummy s    -> __IMPOSSIBLE_VERBOSE__ s
 
+-- | Register the definition with the given type as an instance
 addTypedInstance :: QName -> Type -> TCM ()
-addTypedInstance x t = do
-  n <- getOutputTypeName t
+addTypedInstance = addTypedInstance' 0
+
+-- | As @addTypedInstance@, but also takes a number of arguments
+--   that should not raise a warning when they are explicit.
+--   (used for adding record fields as instances).
+addTypedInstance' :: Int -> QName -> Type -> TCM ()
+addTypedInstance' npars x t = do
+  (tel , n) <- getOutputTypeName t
+  forM_ (drop npars $ telToList tel) $ \ dom -> do
+    when (visible dom) $ warning $ InstanceWithExplicitArg x
   case n of
     OutputTypeName n -> addNamedInstance x n
     OutputTypeNameNotYetKnown -> addUnknownInstance x

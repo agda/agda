@@ -2,7 +2,7 @@
 module _ where
 
 record ⊤ : Set where
-  constructor tt
+  instance constructor tt
 
 f : {{u : ⊤}} → ⊤
 f = _

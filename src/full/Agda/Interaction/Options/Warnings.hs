@@ -163,6 +163,7 @@ data WarningName
   | UselessPublic_
   | UnreachableClauses_
   | UselessInline_
+  | InstanceWithExplicitArg_
   | GenericWarning_
   | DeprecationWarning_
   | InversionDepthReached_
@@ -268,6 +269,7 @@ warningNameDescription w = case w of
   IllformedAsClause_               -> "Illformed `as'-clauses in `import' statements."
   UselessPublic_                   -> "`public' blocks where they have no effect."
   UselessInline_                   -> "`INLINE' pragmas where they have no effect."
+  InstanceWithExplicitArg_         -> "`instance` declarations with explicit arguments are never considered by instance search."
   UnreachableClauses_              -> "Unreachable function clauses."
   GenericWarning_                  -> ""
   DeprecationWarning_              -> "Feature deprecation."

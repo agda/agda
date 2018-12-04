@@ -385,46 +385,6 @@ corresponding projection function is considered a top-level instance.
 Examples
 ~~~~~~~~
 
-Proof search
-++++++++++++
-
-Instance arguments are useful not only for Haskell-style type classes, but they
-can also be used to get some limited form of proof search (which, to be fair,
-is also true for Haskell type classes). Consider the following type, which
-models a proof that a particular element is present in a list as the index at
-which the element appears::
-
-  infix 4 _∈_
-  data _∈_ {A : Set} (x : A) : List A → Set where
-    instance
-      zero : ∀ {xs} → x ∈ x ∷ xs
-      suc  : ∀ {y xs} → x ∈ xs → x ∈ y ∷ xs
-
-Here we have declared the constructors of ``_∈_`` to be instances, which allows
-instance resolution to find proofs for concrete cases. For example,
-
-::
-
-  ex₁ : 1 + 2 ∈ 1 ∷ 2 ∷ 3 ∷ 4 ∷ []
-  ex₁ = it  -- computes to suc (suc zero)
-
-  ex₂ : {A : Set} (x y : A) (xs : List A) → x ∈ y ∷ y ∷ x ∷ xs
-  ex₂ x y xs = it  -- suc (suc zero)
-
-  ex₃ : {A : Set} (x y : A) (xs : List A) {{i : x ∈ xs}} → x ∈ y ∷ y ∷ xs
-  ex₃ x y xs = it  -- suc (suc i)
-
-It will fail, however, if there are more than one solution, since instance
-arguments must be unique. For example,
-
-.. code-block:: agda
-
-  fail₁ : 1 ∈ 1 ∷ 2 ∷ 1 ∷ []
-  fail₁ = it  -- ambiguous: zero or suc (suc zero)
-
-  fail₂ : {A : Set} (x y : A) (xs : List A) {{i : x ∈ xs}} → x ∈ y ∷ x ∷ xs
-  fail₂ x y xs = it -- suc zero or suc (suc i)
-
 .. _dependent-instances:
 
 Dependent instances
@@ -479,6 +439,36 @@ must be implicit, indicating that it needs to be inferred by
 unification whenever the ``B`` instance is used. See
 :ref:`instance-resolution` below for more details.
 
+.. _overlapping-instances:
+
+Overlapping instances
++++++++++++++++++++++
+
+By default, Agda does not allow overlapping instances. Two instances
+are defined to overlap if they could both solve the instance goal
+when given appropriate solutions for their recursive (instance)
+arguments.
+
+For example, in code below, the instances `zero` and `suc` overlap for
+the goal `ex₁`, because either one of them can be used to solve the
+goal when given appropriate arguments, hence instance search fails.
+
+.. code-block: agda
+  infix 4 _∈_
+  data _∈_ {A : Set} (x : A) : List A → Set where
+    instance
+      zero : ∀ {xs} → x ∈ x ∷ xs
+      suc  : ∀ {y xs} {{_ : x ∈ xs}} → x ∈ y ∷ xs
+
+  ex₁ : 1 ∈ 1 ∷ 2 ∷ 3 ∷ 4 ∷ []
+  ex₁ = it  -- overlapping instances
+
+Overlapping instances can be enabled via the `--overlapping-instances`
+flag.  Be aware that enabling this flag might lead to an exponential
+slowdown in instance resolution and possibly (apparent) looping
+behaviour.
+
+
 .. _instance-resolution:
 
 
@@ -499,20 +489,6 @@ Verify the goal
   ``C`` is a variable from the context or the name of a data or record type,
   and ``{Γ}`` denotes a telescope of implicit arguments. If this is not the
   case instance resolution fails with an error message\ [#issue1322]_.
-
-  Finally we have to check that there are no *unconstrained*
-  :ref:`metavariables <metavariables>` in ``vs``. A metavariable ``α`` is
-  considered constrained if it appears in an argument that is determined by the
-  type of some later argument, or if there is an existing constraint of the
-  form ``α us = C vs``, where ``C`` inert (i.e. a data or type constructor).
-  For example, ``α`` is constrained in ``T α xs`` if ``T : (n : Nat) → Vec A
-  n → Set``, since the type of the second argument of ``T`` determines the value
-  of the first argument. The reason for this restriction is that instance
-  resolution risks looping in the presence of unconstrained metavariables. For
-  example, suppose the goal is ``Eq α`` for some metavariable ``α``. Instance
-  resolution would decide that the ``eqList`` instance was applicable if
-  setting ``α := List β`` for a fresh metavariable ``β``, and then proceed to
-  search for an instance of ``Eq β``.
 
 Find candidates
   In the second stage we compute a set of *candidates*. :ref:`Let-bound

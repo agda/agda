@@ -218,7 +218,7 @@ instance Instantiate e => Instantiate (Map k e) where
     instantiate' = traverse instantiate'
 
 instance Instantiate Candidate where
-  instantiate' (Candidate u t eti ov) = Candidate <$> instantiate' u <*> instantiate' t <*> pure eti <*> pure ov
+  instantiate' (Candidate u t ov) = Candidate <$> instantiate' u <*> instantiate' t <*> pure ov
 
 instance Instantiate EqualityView where
   instantiate' (OtherType t)            = OtherType
@@ -742,7 +742,7 @@ instance Reduce e => Reduce (Map k e) where
     reduce' = traverse reduce'
 
 instance Reduce Candidate where
-  reduce' (Candidate u t eti ov) = Candidate <$> reduce' u <*> reduce' t <*> pure eti <*> pure ov
+  reduce' (Candidate u t ov) = Candidate <$> reduce' u <*> reduce' t <*> pure ov
 
 instance Reduce EqualityView where
   reduce' (OtherType t)            = OtherType
@@ -915,7 +915,7 @@ instance Simplify DisplayForm where
   simplify' (Display n ps v) = Display n <$> simplify' ps <*> return v
 
 instance Simplify Candidate where
-  simplify' (Candidate u t eti ov) = Candidate <$> simplify' u <*> simplify' t <*> pure eti <*> pure ov
+  simplify' (Candidate u t ov) = Candidate <$> simplify' u <*> simplify' t <*> pure ov
 
 instance Simplify EqualityView where
   simplify' (OtherType t)            = OtherType
@@ -1086,7 +1086,7 @@ instance Normalise a => Normalise (Maybe a) where
     normalise' = traverse normalise'
 
 instance Normalise Candidate where
-  normalise' (Candidate u t eti ov) = Candidate <$> normalise' u <*> normalise' t <*> pure eti <*> pure ov
+  normalise' (Candidate u t ov) = Candidate <$> normalise' u <*> normalise' t <*> pure ov
 
 instance Normalise EqualityView where
   normalise' (OtherType t)            = OtherType
@@ -1417,8 +1417,8 @@ instance InstantiateFull a => InstantiateFull (Maybe a) where
   instantiateFull' = mapM instantiateFull'
 
 instance InstantiateFull Candidate where
-  instantiateFull' (Candidate u t eti ov) =
-    Candidate <$> instantiateFull' u <*> instantiateFull' t <*> pure eti <*> pure ov
+  instantiateFull' (Candidate u t ov) =
+    Candidate <$> instantiateFull' u <*> instantiateFull' t <*> pure ov
 
 instance InstantiateFull EqualityView where
   instantiateFull' (OtherType t)            = OtherType

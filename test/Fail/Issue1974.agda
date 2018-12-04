@@ -15,6 +15,8 @@ record R₂ (F : Set → Set) : Set₁ where
     instance
       r₁ : R₁ F
 
+open R₂ {{...}}
+
 record R₃ (_ : Set) : Set where
   constructor mkR₃
 

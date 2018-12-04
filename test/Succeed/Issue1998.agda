@@ -9,7 +9,7 @@ record ParamT (p : Foo) : Set₁ where
   field f : Foo
 
 instance
-  postulate asBaseT : ∀ {p} → ParamT p → BaseT
+  postulate asBaseT : ∀ {p} {{_ : ParamT p}} → BaseT
 --  BaseT.f (asBaseT p) = ParamT.f p
 
 data Bar : Set where
