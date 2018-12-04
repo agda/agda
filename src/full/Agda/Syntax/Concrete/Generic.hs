@@ -175,11 +175,6 @@ instance ExprLike LamBinding where
      DomainFull bs -> DomainFull $ mapE bs
    where mapE e = mapExpr f e
 
-instance ExprLike TypedBindings where
-  mapExpr f e0 = case e0 of
-     TypedBindings r b -> TypedBindings r $ mapE b
-   where mapE e = mapExpr f e
-
 instance ExprLike LHS where
   mapExpr f e0 = case e0 of
      LHS ps res wes -> LHS ps (mapE res) $ mapE wes

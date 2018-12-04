@@ -189,20 +189,18 @@ recordConstructorType decls =
       tel <- mapM makeBinding ds  -- TODO: Telescope instead of Expr in abstract RecDef
       return $ A.Pi (ExprRange (getRange ds)) tel (A.Set exprNoRange 0)
 
-    makeBinding :: C.NiceDeclaration -> ScopeM A.TypedBindings
+    makeBinding :: C.NiceDeclaration -> ScopeM A.TypedBinding
     makeBinding d = do
       let failure = typeError $ NotValidBeforeField d
           r       = getRange d
           info    = ExprRange r
-          mkLet d = A.TypedBindings r . defaultArg . A.TLet r <$> toAbstract (LetDef d)
+          mkLet d = A.TLet r <$> toAbstract (LetDef d)
       traceCall (SetRange r) $ case d of
 
         C.NiceField r pr ab inst x a -> do
           fx  <- getConcreteFixity x
-                   -- Ulf 2018-11-23: Is this right? Default hiding instead of
-                   -- getHiding a. We also keep the ArgInfo in the TypedBindings.
-          let bv = pure $ C.mkBoundName x fx
-          tel <- toAbstract $ C.TypedBindings r (C.TBind r [bv] (unArg a) <$ a)
+          let bv = unnamed (C.mkBoundName x fx) <$ a
+          tel <- toAbstract $ C.TBind r [bv] (unArg a)
           return tel
 
         -- Public open is allowed and will take effect when scope checking as
@@ -503,8 +501,6 @@ data NewName a = NewName
   , newName     :: a
   }
 
-newtype NewBName a = NewBName a
-
 data OldQName     = OldQName C.QName (Maybe (Set A.Name))
   -- ^ If a set is given, then the first name must correspond to one
   -- of the names in the set.
@@ -523,19 +519,11 @@ instance ToAbstract (NewName C.Name) A.Name where
     bindVariable b x y
     return y
 
-instance ToAbstract (NewName C.BoundName) (A.Name) where
-  toAbstract (NewName b BName{ boundName = x, boundLabel = lbl, bnameFixity = fx }) = do
+instance ToAbstract (NewName C.BoundName) A.BindName where
+  toAbstract (NewName b BName{ boundName = x, bnameFixity = fx }) = do
     y <- freshAbstractName fx x
     bindVariable b x y
-    return y
-
-instance ToAbstract (NewBName C.BoundName) (Named_ A.BindName) where
-  toAbstract (NewBName BName{ boundName = x, boundLabel = lbl, bnameFixity = fx }) = do
-    y <- freshAbstractName fx x
-    bindVariable LambdaBound x y
-    let name | getRange x == getRange lbl = unnamed  -- HACK: change BName to use Named_
-             | otherwise = named (Ranged (getRange lbl) $ nameToRawName lbl)
-    return $ name $ A.BindName y
+    return $ A.BindName y
 
 instance ToAbstract OldQName A.Expr where
   toAbstract (OldQName x ns) = do
@@ -986,23 +974,19 @@ instance ToAbstract c a => ToAbstract (FieldAssignment' c) (FieldAssignment' a) 
   toAbstract = traverse toAbstract
 
 instance ToAbstract C.LamBinding A.LamBinding where
-  toAbstract (C.DomainFree i x) = A.DomainFree . Arg i <$> toAbstract (NewBName x)
-  toAbstract (C.DomainFull tb)  = A.DomainFull <$> toAbstract tb
+  toAbstract (C.DomainFree x)  = A.DomainFree <$> toAbstract ((fmap . fmap) (NewName LambdaBound) x)
+  toAbstract (C.DomainFull tb) = A.DomainFull <$> toAbstract tb
 
-makeDomainFull :: C.LamBinding -> C.TypedBindings
-makeDomainFull (C.DomainFull b)      = b
-makeDomainFull (C.DomainFree info x) =
-  C.TypedBindings r $ Arg info $ C.TBind r [pure x] $ C.Underscore r Nothing
+makeDomainFull :: C.LamBinding -> C.TypedBinding
+makeDomainFull (C.DomainFull b) = b
+makeDomainFull (C.DomainFree x) = C.TBind r [x] $ C.Underscore r Nothing
   where r = getRange x
-
-instance ToAbstract C.TypedBindings A.TypedBindings where
-  toAbstract (C.TypedBindings r bs) = A.TypedBindings r <$> toAbstract bs
 
 instance ToAbstract C.TypedBinding A.TypedBinding where
   toAbstract (C.TBind r xs t) = do
     t' <- toAbstractCtx TopCtx t
-    xs' <- toAbstract $ map (fmap (NewName LambdaBound)) xs
-    return $ A.TBind r (map (fmap A.BindName) xs') t'
+    xs' <- toAbstract $ (map . fmap . fmap) (NewName LambdaBound) xs
+    return $ A.TBind r xs' t'
   toAbstract (C.TLet r ds) = A.TLet r <$> toAbstract (LetDefs ds)
 
 -- | Scope check a module (top level function).
@@ -1057,9 +1041,8 @@ scopeCheckNiceModule r p name tel checkDs
 
 -- | Check whether a telescope has open declarations or module macros.
 telHasOpenStmsOrModuleMacros :: C.Telescope -> Bool
-telHasOpenStmsOrModuleMacros = any yesBinds
+telHasOpenStmsOrModuleMacros = any yesBind
   where
-    yesBinds (C.TypedBindings _ tb) = yesBind $ unArg tb
     yesBind C.TBind{}     = False
     yesBind (C.TLet _ ds) = any yes ds
     yes C.ModuleMacro{}   = True
@@ -1075,9 +1058,8 @@ telHasOpenStmsOrModuleMacros = any yesBinds
 
 {- UNUSED
 telHasLetStms :: C.Telescope -> Bool
-telHasLetStms = any isLetBinds
+telHasLetStms = any isLetBind
   where
-    isLetBinds (C.TypedBindings _ tb) = isLetBind $ unArg tb
     isLetBind C.TBind{} = False
     isLetBind C.TLet{}  = True
 -}
@@ -1105,9 +1087,6 @@ instance EnsureNoLetStms C.TypedBinding where
       C.TBind{} -> return ()
 
 instance EnsureNoLetStms a => EnsureNoLetStms (LamBinding' a) where
-  ensureNoLetStms = traverse_ ensureNoLetStms
-
-instance EnsureNoLetStms a => EnsureNoLetStms (TypedBindings' a) where
   ensureNoLetStms = traverse_ ensureNoLetStms
 
 instance EnsureNoLetStms a => EnsureNoLetStms [a] where
@@ -1318,7 +1297,7 @@ instance ToAbstract LetDef [A.LetBinding] where
               -- We bind the name here to make sure it's in scope for the LHS (#917).
               -- It's unbound for the RHS in letToAbstract.
               fx <- getConcreteFixity x
-              x  <- toAbstract (NewName LetBound $ mkBoundName x fx)
+              x  <- A.unBind <$> toAbstract (NewName LetBound $ mkBoundName x fx)
               (x', e) <- letToAbstract cl
               -- If InstanceDef set info to Instance
               let info' | instanc == InstanceDef = makeInstance info

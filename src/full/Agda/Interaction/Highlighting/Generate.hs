@@ -314,7 +314,7 @@ generateAndPrintSyntaxInfo decl hlLevel updateState = do
     getLam (A.DomainFull {}) = mempty
 
     getTyped :: A.TypedBinding -> File
-    getTyped (A.TBind _ xs _) = mconcat $ map (bound . dget) xs
+    getTyped (A.TBind _ xs _) = mconcat $ map (bound . Common.namedArg) xs
     getTyped A.TLet{}         = mempty
 
     getPatSynArgs :: A.Declaration -> File

@@ -1074,14 +1074,10 @@ bindsToTel :: [Name] -> Dom Type -> ListTel
 bindsToTel = bindsToTel' nameToArgName
 
 -- | Turn a typed binding @(x1 .. xn : A)@ into a telescope.
-bindsWithHidingToTel' :: (Name -> a) -> [WithHiding Name] -> Dom Type -> ListTel' a
-bindsWithHidingToTel' f []                    t = []
-bindsWithHidingToTel' f (WithHiding h x : xs) t =
-  fmap (f x,) (mapHiding (mappend h) t) : bindsWithHidingToTel' f xs (raise 1 t)
-
-bindsWithHidingToTel :: [WithHiding Name] -> Dom Type -> ListTel
-bindsWithHidingToTel = bindsWithHidingToTel' nameToArgName
-
+namedBindsToTel :: [NamedArg Name] -> Type -> Telescope
+namedBindsToTel []       t = EmptyTel
+namedBindsToTel (x : xs) t =
+  ExtendTel (t <$ domFromArg x) $ Abs (namedArgName x) $ namedBindsToTel xs (raise 1 t)
 
 -- ** Abstracting in terms and types
 

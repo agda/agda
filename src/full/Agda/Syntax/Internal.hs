@@ -165,6 +165,9 @@ appendArgNames = (++)
 nameToArgName :: Name -> ArgName
 nameToArgName = stringToArgName . prettyShow
 
+namedArgName :: NamedArg Name -> ArgName
+namedArgName x = maybe (nameToArgName $ namedArg x) rangedThing $ nameOf $ unArg x
+
 -- | Binder.
 --   'Abs': The bound variable might appear in the body.
 --   'NoAbs' is pseudo-binder, it does not introduce a fresh variable,

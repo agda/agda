@@ -316,9 +316,6 @@ instance Rename LamBinding where
         DomainFree{} -> e
         DomainFull tb -> DomainFull (rename rho tb)
 
-instance Rename TypedBindings where
-  rename rho (TypedBindings r tb) = TypedBindings r (rename rho tb)
-
 instance Rename TypedBinding where
   rename rho (TBind r ns e) = TBind r ns (rename rho e)
   rename rho (TLet r lbs)   = TLet r (rename rho lbs)

@@ -1165,10 +1165,10 @@ niceDeclarations fixs ds = do
       where
         -- | Drop type annotations and lets from bindings.
         dropTypeAndModality :: LamBinding -> [LamBinding]
-        dropTypeAndModality (DomainFull (TypedBindings _r (Arg ai (TBind _ xs _)))) =
-          map (mergeHiding . fmap (DomainFree $ setModality defaultModality ai)) xs
-        dropTypeAndModality (DomainFull (TypedBindings _r (Arg _ TLet{}))) = []
-        dropTypeAndModality (DomainFree ai x) = [DomainFree (setModality defaultModality ai) x]
+        dropTypeAndModality (DomainFull (TBind _ xs _)) =
+          map (DomainFree . setModality defaultModality) xs
+        dropTypeAndModality (DomainFull TLet{}) = []
+        dropTypeAndModality (DomainFree x) = [DomainFree $ setModality defaultModality x]
 
     -- Translate axioms
     niceAxioms :: KindOfBlock -> [TypeSignatureOrInstanceBlock] -> Nice [NiceDeclaration]

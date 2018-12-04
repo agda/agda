@@ -45,7 +45,6 @@ import qualified System.IO.Unsafe as UNSAFE (unsafePerformIO)
 -- deriving instance Show Declaration
 -- deriving instance Show Pattern
 -- deriving instance Show TypedBinding
--- deriving instance Show TypedBindings
 -- deriving instance Show LamBinding
 -- deriving instance Show ModuleAssignment
 -- deriving instance (Show a, Show b) => Show (ImportDirective' a b)
@@ -62,7 +61,6 @@ instance Show Expr            where show = show . pretty
 instance Show Declaration     where show = show . pretty
 instance Show Pattern         where show = show . pretty
 instance Show TypedBinding    where show = show . pretty
-instance Show TypedBindings   where show = show . pretty
 instance Show LamBinding      where show = show . pretty
 instance (Pretty a, Pretty b) => Show (ImportDirective' a b)
                               where show = show . pretty
@@ -272,24 +270,48 @@ instance Pretty LamClause where
       pretty' AbsurdRHS = empty
 
 instance Pretty BoundName where
-  pretty BName{ boundName = x, boundLabel = l }
-    | x == l    = pretty x
-    | otherwise = pretty l <+> "=" <+> pretty x
+  pretty BName{ boundName = x } = pretty x
+
+data NamedBinding = NamedBinding { withHiding   :: Bool
+                                 , namedBinding :: NamedArg BoundName }
+
+getLabel :: NamedArg a -> Maybe String
+getLabel = fmap rangedThing . nameOf . unArg
+
+isLabeled :: NamedArg BoundName -> Bool
+isLabeled x
+  | visible x            = False  -- Ignore labels on visible arguments
+  | Just l <- getLabel x = l /= nameToRawName (boundName $ namedArg x)
+  | otherwise            = False
+
+instance Pretty NamedBinding where
+  pretty (NamedBinding withH x) =
+    prH $ if | isLabeled x -> text (fromMaybe __IMPOSSIBLE__ $ getLabel x) <+> "=" <+> pretty (namedArg x)
+             | otherwise   -> pretty (namedArg x)
+    where
+      prH | withH     = prettyRelevance x . prettyHiding x id
+          | otherwise = id
 
 instance Pretty LamBinding where
-    -- TODO guilhem: colors are unused (colored syntax disallowed)
-    pretty (DomainFree i x) = prettyRelevance i $ prettyHiding i id $ pretty x
-    pretty (DomainFull b)   = pretty b
+    pretty (DomainFree x) = pretty (NamedBinding True x)
+    pretty (DomainFull b) = pretty b
 
-instance Pretty TypedBindings where
-  pretty (TypedBindings _ a) = prettyRelevance a $ prettyHiding a p $
-    pretty $ unArg a
+instance Pretty TypedBinding where
+    pretty (TLet _ ds) = parens $ "let" <+> vcat (map pretty ds)
+    pretty (TBind _ xs (Underscore _ Nothing)) =
+      fsep (map (pretty . NamedBinding True) xs)
+    pretty (TBind _ xs e) = fsep
+      [ prettyRelevance y $ prettyHiding y parens $
+        sep [ fsep (map (pretty . NamedBinding False) ys)
+            , ":" <+> pretty e ]
+      | ys@(y : _) <- groupBinds xs ]
       where
-        p | isUnderscore (unArg a) = id
-          | otherwise        = parens
-
-        isUnderscore (TBind _ _ (Underscore _ Nothing)) = True
-        isUnderscore _ = False
+        groupBinds [] = []
+        groupBinds (x : xs)
+          | isLabeled x = [x] : groupBinds xs
+          | otherwise   = (x : ys) : groupBinds zs
+          where (ys, zs) = span (same x) xs
+                same x y = getArgInfo x == getArgInfo y && not (isLabeled y)
 
 newtype Tel = Tel Telescope
 
@@ -298,27 +320,13 @@ instance Pretty Tel where
       | any isMeta tel = forallQ <+> fsep (map pretty tel)
       | otherwise      = fsep (map pretty tel)
       where
-        isMeta (TypedBindings _ (Arg _ (TBind _ _ (Underscore _ Nothing)))) = True
+        isMeta (TBind _ _ (Underscore _ Nothing)) = True
         isMeta _ = False
 
-
-instance Pretty TypedBinding where
-    pretty (TBind _ xs (Underscore _ Nothing)) =
-      fsep (map pretty xs)
-    pretty (TBind _ xs e) =
-        sep [ fsep (map pretty xs)
-            , ":" <+> pretty e
-            ]
-    pretty (TLet _ ds) =
-        "let" <+> vcat (map pretty ds)
-
 smashTel :: Telescope -> Telescope
-smashTel (TypedBindings r (Arg i  (TBind r' xs e)) :
-          TypedBindings _ (Arg i' (TBind _  ys e')) : tel)
-  | show i == show i' && show e == show e' && all (isUnnamed . dget) (xs ++ ys) =
-    smashTel (TypedBindings r (Arg i (TBind r' (xs ++ ys) e)) : tel)
-  where
-    isUnnamed x = boundLabel x == boundName x
+smashTel (TBind r xs e  :
+          TBind _ ys e' : tel)
+  | show e == show e' = smashTel (TBind r (xs ++ ys) e : tel)
 smashTel (b : tel) = b : smashTel tel
 smashTel [] = []
 

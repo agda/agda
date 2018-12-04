@@ -81,7 +81,7 @@ checkRecDef i name uc ind eta con (A.DataDefParams gpars ps) contel fields =
   traceCall (CheckRecDef (getRange name) (qnameName name) ps fields) $ do
     reportSDoc "tc.rec" 10 $ vcat
       [ "checking record def" <+> prettyTCM name
-      , nest 2 $ "ps ="     <+> prettyList (map prettyAs ps)
+      , nest 2 $ "ps ="     <+> prettyList (map prettyA ps)
       , nest 2 $ "contel =" <+> prettyA contel
       , nest 2 $ "fields =" <+> prettyA (map Constr fields)
       ]
