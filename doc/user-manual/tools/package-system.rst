@@ -104,8 +104,8 @@ Each line of the libraries file shall be the absolute file system path to
 the root of a library.
 
 Environment variables in the paths (of the form ``$VAR`` or ``${VAR}``) are
-expanded. The location of the libraries file used can be overridden using the
-``--library-file=FILE`` command line option.
+expanded. The location of the ``libraries`` file used can be overridden using
+the ``--library-file=FILE`` command line option.
 
 You can find out the precise location of the ``libraries`` file by
 calling ``agda -l fjdsk Dummy.agda`` at the command line and looking at the
