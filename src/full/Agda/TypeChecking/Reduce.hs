@@ -339,12 +339,24 @@ instance Reduce t => Reduce (Dom t) where
     reduce' = traverse reduce'
     reduceB' t = traverse id <$> traverse reduceB' t
 
--- Tuples are never blocked
 instance (Reduce a, Reduce b) => Reduce (a,b) where
     reduce' (x,y)  = (,) <$> reduce' x <*> reduce' y
+    reduceB' (x,y) = do
+      x <- reduceB' x
+      y <- reduceB' y
+      let blk = void x `mappend` void y
+          xy  = (ignoreBlocking x , ignoreBlocking y)
+      return $ blk $> xy
 
 instance (Reduce a, Reduce b,Reduce c) => Reduce (a,b,c) where
     reduce' (x,y,z) = (,,) <$> reduce' x <*> reduce' y <*> reduce' z
+    reduceB' (x,y,z) = do
+      x <- reduceB' x
+      y <- reduceB' y
+      z <- reduceB' z
+      let blk = void x `mappend` void y `mappend` void z
+          xyz = (ignoreBlocking x , ignoreBlocking y , ignoreBlocking z)
+      return $ blk $> xyz
 
 reduceIApply :: ReduceM (Blocked Term) -> [Elim] -> ReduceM (Blocked Term)
 reduceIApply = reduceIApply' reduceB'

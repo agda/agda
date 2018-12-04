@@ -1,0 +1,11 @@
+Failed to solve the following constraints:
+  _51 := g (Lift 1ℓ ?0) (Lift 1ℓ b) [blocked on problem 112]
+  [112, 113] Lift (lsuc lzero ⊔ lsuc lzero) (prod (Lift 1ℓ ?0) b)
+               = Lift 1ℓ (prod a b)
+               : Set₁
+  _a_48 =< lsuc lzero
+Unsolved metas at the following locations:
+  Issue3431.agda:44,24-28
+  Issue3431.agda:44,21-49
+Unsolved interaction metas at the following locations:
+  Issue3431.agda:44,32-36
