@@ -56,8 +56,8 @@ ends of the interval, ``i0`` and ``i1``::
 Elements of the interval form a `De Morgan algebra <https://en.wikipedia.org/wiki/De_Morgan_algebra>`_,
 with minimum (``∧``), maximum (``∨``) and negation (``~``).
 
-..
-  ::
+.. code-block:: agda
+
   module interval-example₁ (i j : I) where
     data _≡_ (i : I) : I → Set where
       reflI : i ≡ i
@@ -66,14 +66,16 @@ with minimum (``∧``), maximum (``∨``) and negation (``~``).
 
     max min neg : I
 
-::
+.. code-block:: agda
 
     max = i ∨ j
     min = i ∧ j
     neg = ~ i
 
 All the properties of de Morgan algebras hold definitionally. The ends
-of the interval ``i0`` and ``i1`` are the bottom and top elements, respectively::
+of the interval ``i0`` and ``i1`` are the bottom and top elements, respectively
+
+.. code-block:: agda
 
     p₁ : i0 ∨ i    ≡ i
     p₂ : i  ∨ i1   ≡ i1
@@ -84,8 +86,8 @@ of the interval ``i0`` and ``i1`` are the bottom and top elements, respectively:
     p₇ : ~ (i ∨ j) ≡ ~ i ∧ ~ j
     p₈ : ~ (i ∧ j) ≡ ~ i ∨ ~ j
 
-..
-    ::
+.. code-block:: agda
+
     p₁ = reflI
     p₂ = reflI
     p₃ = reflI
@@ -102,4 +104,3 @@ References
 .. _`Cohen et al., Cubical`:
 
    Cyril Cohen, Thierry Coquand, Simon Huber and Anders Mörtberg; `“Cubical Type Theory: a constructive interpretation of the univalence axiom” <http://www.cse.chalmers.se/~simonhu/papers/cubicaltt.pdf>`_.
-

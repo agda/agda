@@ -15,7 +15,7 @@ mutual
 
 -- Type equality.
 
-data _<->_ (X : Set) : Set -> Set where
+data _<->_ (X : Set) : Set -> Set₁ where
   Refl : X <-> X
 
 -- This postulate is compatible with univalence:

@@ -102,6 +102,10 @@ checkDataDef i name uc ps cs =
                   else throwError err
               reduce s
 
+            -- when `--without-K`, all the indices should fit in the
+            -- sort of the datatype (see #3420).
+            whenM (optWithoutK <$> pragmaOptions) $ checkIndexSorts s ixTel
+
             reportSDoc "tc.data.sort" 20 $ vcat
               [ "checking datatype" <+> prettyTCM name
               , nest 2 $ vcat
@@ -1167,6 +1171,15 @@ fitsIn uc forceds t s = do
     _ -> do
       getSort t `leqSort` s
       return 0
+
+-- | When --without-K is enabled, we should check that the sorts of
+--   the index types fit into the sort of the datatype.
+checkIndexSorts :: Sort -> Telescope -> TCM ()
+checkIndexSorts s = \case
+  EmptyTel -> return ()
+  ExtendTel a tel' -> do
+    getSort a `leqSort` s
+    underAbstraction a tel' $ checkIndexSorts (raise 1 s)
 
 -- | Return the parameters that share variables with the indices
 -- nonLinearParameters :: Int -> Type -> TCM [Int]

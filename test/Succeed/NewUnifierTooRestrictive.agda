@@ -7,14 +7,14 @@
 
 {-# OPTIONS --without-K #-}
 
-data _≡_ {A : Set} (x : A) : A → Set where
+data _≡_ {a} {A : Set a} (x : A) : A → Set a where
   refl : x ≡ x
 
 data Bar : Set₁ where
   bar : Bar
   baz : (A : Set) → Bar
 
-data Foo : Bar → Set where
+data Foo : Bar → Set₁ where
   foo : Foo bar
 
 test : foo ≡ foo → Set₁

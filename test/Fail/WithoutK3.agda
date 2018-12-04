@@ -16,7 +16,7 @@ J P p refl = p _
 
 -- Heterogeneous equality.
 
-data _≅_ {A : Set} (x : A) : {B : Set} → B → Set where
+data _≅_ {A : Set} (x : A) : {B : Set} → B → Set₁ where
   refl : x ≅ x
 
 -- Substitutivity.
