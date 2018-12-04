@@ -220,6 +220,14 @@ Type checking and interaction
   would freeze these metavariables after the first declaration in the
   module.
 
+* When `--without-K` is enabled, Agda no longer allows datatypes with
+  large indices. For example, the following definition of equality is
+  now forbidden when `--without-K` is enabled:
+  ```agda
+    data _≡₀_ {ℓ} {A : Set ℓ} (x : A) : A → Set where
+      refl : x ≡₀ x
+  ```
+
 Pragmas and options
 -------------------
 
