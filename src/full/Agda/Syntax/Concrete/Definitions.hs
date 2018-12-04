@@ -454,62 +454,55 @@ data InMutual
   | NotInMutual -- ^ we are nicifying decls not in a mutual block
     deriving (Eq, Show)
 
--- | The kind of the forward declaration, remembering the parameters.
-
-type Params = [Arg BoundName]
+-- | The kind of the forward declaration.
 
 data DataRecOrFun
   = DataName
     { kindPosCheck :: PositivityCheck
     , kindUniCheck :: UniverseCheck
-    , kindParams :: Params
     }
-    -- ^ Name of a data type with parameters.
+    -- ^ Name of a data type
   | RecName
     { kindPosCheck :: PositivityCheck
     , kindUniCheck :: UniverseCheck
-    , kindParams :: Params
     }
-    -- ^ Name of a record type with parameters.
+    -- ^ Name of a record type
   | FunName TerminationCheck
     -- ^ Name of a function.
   deriving Data
 
 -- Ignore pragmas when checking equality
 instance Eq DataRecOrFun where
-  DataName _ _ p == DataName _ _ q = p == q
-  RecName  _ _ p == RecName  _ _ q = p == q
-  FunName _      == FunName _      = True
-  _              == _              = False
+  DataName{} == DataName{} = True
+  RecName{}  == RecName{}  = True
+  FunName{}  == FunName{}  = True
+  _          == _          = False
 
 instance Show DataRecOrFun where
-  show (DataName _ _ n) = "data type" --  "with " ++ show n ++ " visible parameters"
-  show (RecName _ _ n)  = "record type" -- "with " ++ show n ++ " visible parameters"
-  show (FunName{})      = "function"
+  show DataName{} = "data type"
+  show RecName{}  = "record type"
+  show FunName{}  = "function"
 
 isFunName :: DataRecOrFun -> Bool
 isFunName (FunName{}) = True
 isFunName _           = False
 
 sameKind :: DataRecOrFun -> DataRecOrFun -> Bool
-sameKind DataName{} DataName{} = True
-sameKind RecName{} RecName{} = True
-sameKind FunName{} FunName{} = True
-sameKind _ _ = False
+sameKind = (==)
 
 terminationCheck :: DataRecOrFun -> TerminationCheck
 terminationCheck (FunName tc) = tc
 terminationCheck _ = TerminationCheck
 
 positivityCheck :: DataRecOrFun -> PositivityCheck
-positivityCheck (DataName pc _ _) = pc
-positivityCheck (RecName pc _ _)  = pc
-positivityCheck _                 = True
+positivityCheck (DataName pc _) = pc
+positivityCheck (RecName pc _)  = pc
+positivityCheck _               = True
 
 universeCheck :: DataRecOrFun -> UniverseCheck
-universeCheck (DataName _ uc _) = uc
-universeCheck (RecName _ uc _)  = uc
-universeCheck _                 = YesUniverseCheck
+universeCheck (DataName _ uc) = uc
+universeCheck (RecName _ uc)  = uc
+universeCheck _               = YesUniverseCheck
 
 -- | Check that declarations in a mutual block are consistently
 --   equipped with MEASURE pragmas, or whether there is a
@@ -704,11 +697,11 @@ data DeclKind
 
 declKind :: NiceDeclaration -> DeclKind
 declKind (FunSig _ _ _ _ _ _ tc x _)        = LoneSig (FunName tc) x
-declKind (NiceRecSig _ _ _ pc uc x pars _)  = LoneSig (RecName pc uc $ parameters pars) x
-declKind (NiceDataSig _ _ _ pc uc x pars _) = LoneSig (DataName pc uc $ parameters pars) x
+declKind (NiceRecSig _ _ _ pc uc x pars _)  = LoneSig (RecName pc uc) x
+declKind (NiceDataSig _ _ _ pc uc x pars _) = LoneSig (DataName pc uc) x
 declKind (FunDef r _ abs ins tc x _)        = LoneDefs (FunName tc) [x]
-declKind (NiceDataDef _ _ _ pc uc x pars _) = LoneDefs (DataName pc uc $ parameters pars) [x]
-declKind (NiceRecDef _ _ _ pc uc x _ _ _ pars _)= LoneDefs (RecName pc uc $ parameters pars) [x]
+declKind (NiceDataDef _ _ _ pc uc x pars _) = LoneDefs (DataName pc uc) [x]
+declKind (NiceRecDef _ _ _ pc uc x _ _ _ pars _)= LoneDefs (RecName pc uc) [x]
 declKind (NiceUnquoteDef _ _ _ tc xs _)     = LoneDefs (FunName tc) xs
 declKind Axiom{}                            = OtherDecl
 declKind NiceField{}                        = OtherDecl
@@ -723,14 +716,6 @@ declKind NiceFunClause{}                    = OtherDecl
 declKind NicePatternSyn{}                   = OtherDecl
 declKind NiceGeneralize{}                   = OtherDecl
 declKind NiceUnquoteDecl{}                  = OtherDecl
-
--- | Compute parameters of a data or record signature or definition.
-parameters :: [LamBinding] -> Params
-parameters = List.concatMap $ \case
-  DomainFree i x                                      -> [Arg i x]
-  DomainFull (TypedBindings _ (Arg _ TLet{}))         -> []
-  DomainFull (TypedBindings _ (Arg i (TBind _ xs _))) -> for xs $ \ (WithHiding h x) ->
-    mergeHiding $ WithHiding h $ Arg i x
 
 -- | Replace (Data/Rec/Fun)Sigs with Axioms for postulated names
 --   The first argument is a list of axioms only.
@@ -914,7 +899,7 @@ niceDeclarations fixs ds = do
         DataSig r Inductive x tel t -> do
           pc <- use positivityCheckPragma
           uc <- use universeCheckPragma
-          addLoneSig x $ DataName pc uc $ parameters tel
+          addLoneSig x $ DataName pc uc
           (,) <$> dataOrRec pc uc NiceDataDef NiceDataSig (niceAxioms DataBlock) r x (Just (tel, t)) Nothing
               <*> return ds
 
@@ -926,7 +911,7 @@ niceDeclarations fixs ds = do
           -- 'universeCheckPragma' AND the one from the signature say so.
           uc <- use universeCheckPragma
           uc <- if uc == NoUniverseCheck then return uc else getUniverseCheckFromSig x
-          mt <- defaultTypeSig (DataName pc uc $ parameters tel) x (Just t)
+          mt <- defaultTypeSig (DataName pc uc) x (Just t)
           (,) <$> dataOrRec pc uc NiceDataDef NiceDataSig (niceAxioms DataBlock) r x ((tel,) <$> mt) (Just (tel, cs))
               <*> return ds
 
@@ -938,14 +923,14 @@ niceDeclarations fixs ds = do
           -- 'universeCheckPragma' AND the one from the signature say so.
           uc <- use universeCheckPragma
           uc <- if uc == NoUniverseCheck then return uc else getUniverseCheckFromSig x
-          mt <- defaultTypeSig (DataName pc uc $ parameters tel) x Nothing
+          mt <- defaultTypeSig (DataName pc uc) x Nothing
           (,) <$> dataOrRec pc uc NiceDataDef NiceDataSig (niceAxioms DataBlock) r x ((tel,) <$> mt) (Just (tel, cs))
               <*> return ds
 
         RecordSig r x tel t         -> do
           pc <- use positivityCheckPragma
           uc <- use universeCheckPragma
-          addLoneSig x $ RecName pc uc $ parameters tel
+          addLoneSig x $ RecName pc uc
           return ([NiceRecSig r PublicAccess ConcreteDef pc uc x tel t] , ds)
 
         Record r x i e c tel t cs   -> do
@@ -956,7 +941,7 @@ niceDeclarations fixs ds = do
           -- 'universeCheckPragma' AND the one from the signature say so.
           uc <- use universeCheckPragma
           uc <- if uc == NoUniverseCheck then return uc else getUniverseCheckFromSig x
-          mt <- defaultTypeSig (RecName pc uc $ parameters tel) x (Just t)
+          mt <- defaultTypeSig (RecName pc uc) x (Just t)
           (,) <$> dataOrRec pc uc (\ r o a pc uc x tel cs -> NiceRecDef r o a pc uc x i e c tel cs) NiceRecSig
                     return r x ((tel,) <$> mt) (Just (tel, cs))
               <*> return ds
@@ -969,7 +954,7 @@ niceDeclarations fixs ds = do
           -- 'universeCheckPragma' AND the one from the signature say so.
           uc <- use universeCheckPragma
           uc <- if uc == NoUniverseCheck then return uc else getUniverseCheckFromSig x
-          mt <- defaultTypeSig (RecName pc uc $ parameters tel) x Nothing
+          mt <- defaultTypeSig (RecName pc uc) x Nothing
           (,) <$> dataOrRec pc uc (\ r o a pc uc x tel cs -> NiceRecDef r o a pc uc x i e c tel cs) NiceRecSig
                     return r x ((tel,) <$> mt) (Just (tel, cs))
               <*> return ds
