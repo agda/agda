@@ -214,6 +214,12 @@ Type checking and interaction
       instance constructor tt
   ```
 
+* Metavariables created in the (types of) module parameters are only
+  frozen at the end of that module (see Issue
+  [#1063](https://github.com/agda/agda/issues/1063)). Previously, Agda
+  would freeze these metavariables after the first declaration in the
+  module.
+
 Pragmas and options
 -------------------
 
