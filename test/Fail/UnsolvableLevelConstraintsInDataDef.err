@@ -1,4 +1,4 @@
-UnsolvableLevelConstraintsInDataDef.agda:7,3-34
-The type of the constructor does not fit in the sort of the
-datatype, since Set₂ is not less or equal than Set₁
-when checking the constructor abs in the declaration of D
+UnsolvableLevelConstraintsInDataDef.agda:7,3-6
+Set₂ is not less or equal than Set₁
+when checking that the type (E : Set₁) → D ≡ E → (E → D) → D of the
+constructor abs fits in the sort Set₁ of the datatype.

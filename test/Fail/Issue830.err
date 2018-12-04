@@ -1,4 +1,4 @@
-Issue830.agda:8,3-20
-The type of the constructor does not fit in the sort of the
-datatype, since Set₁ is not less or equal than Set
-when checking the constructor [_] in the declaration of ⟨Set⟩
+Issue830.agda:8,3-6
+Set₁ is not less or equal than Set
+when checking that the type Set ⟶ ⟨Set⟩ of the constructor [_] fits
+in the sort Set of the datatype.

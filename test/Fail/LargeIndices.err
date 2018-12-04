@@ -1,4 +1,4 @@
-LargeIndices.agda:5,3-26
-The type of the constructor does not fit in the sort of the
-datatype, since Set a is not less or equal than Set
-when checking the constructor inv in the declaration of Img
+LargeIndices.agda:5,3-6
+Set a is not less or equal than Set
+when checking that the type (x : A) → Img f (f x) of the
+constructor inv fits in the sort Set of the datatype.

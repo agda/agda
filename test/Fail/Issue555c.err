@@ -1,4 +1,3 @@
 Issue555c.agda:7,8-9
-The type of the constructor does not fit in the sort of the
-datatype, since Set a is not less or equal than Set
+Set a is not less or equal than Set
 when checking the definition of R

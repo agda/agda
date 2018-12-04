@@ -1,4 +1,5 @@
-Issue776.agda:7,3-52
-The type of the constructor does not fit in the sort of the
-datatype, since Set (lsuc l) is not less or equal than Set₁
-when checking the constructor proof in the declaration of _:=:_
+Issue776.agda:7,3-8
+Set (lsuc l) is not less or equal than Set₁
+when checking that the type
+{F : Set l → Set l} → F A → F B → A :=: B of the constructor proof
+fits in the sort Set₁ of the datatype.

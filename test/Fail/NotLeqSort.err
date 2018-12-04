@@ -1,4 +1,4 @@
-NotLeqSort.agda:5,3-25
-The type of the constructor does not fit in the sort of the
-datatype, since Set₁ is not less or equal than Set
-when checking the constructor err in the declaration of Err
+NotLeqSort.agda:5,3-6
+Set₁ is not less or equal than Set
+when checking that the type Set → Err of the constructor err fits
+in the sort Set of the datatype.

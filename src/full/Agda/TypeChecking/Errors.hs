@@ -776,8 +776,7 @@ instance PrettyTCM TypeError where
       [prettyTCM s1, "!=", prettyTCM s2]
 
     NotLeqSort s1 s2 -> fsep $
-      pwords "The type of the constructor does not fit in the sort of the datatype, since"
-      ++ [prettyTCM s1] ++ pwords "is not less or equal than" ++ [prettyTCM s2]
+      [prettyTCM s1] ++ pwords "is not less or equal than" ++ [prettyTCM s2]
 
     TooFewFields r xs -> fsep $
       pwords "Missing fields" ++ punctuate comma (map pretty xs) ++
@@ -1521,6 +1520,12 @@ instance PrettyTCM Call where
       pwords "in the declaration of" ++ [prettyTCM d]
 
     CheckConstructor{} -> __IMPOSSIBLE__
+
+    CheckConstructorFitsIn c t s -> fsep $
+      pwords "when checking that the type" ++ [prettyTCM t] ++
+      pwords "of the constructor" ++ [prettyTCM c] ++
+      pwords "fits in the sort" ++ [prettyTCM s] ++
+      pwords "of the datatype."
 
     CheckFunDefCall _ f _ ->
       fsep $ pwords "when checking the definition of" ++ [prettyTCM f]

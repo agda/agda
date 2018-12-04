@@ -205,7 +205,7 @@ checkConstructor d uc tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
         let s' = case s of
               Prop l -> Type l
               _      -> s
-        arity <- fitsIn uc forcedArgs t s'
+        arity <- traceCall (CheckConstructorFitsIn c t s') $ fitsIn uc forcedArgs t s'
         -- this may have instantiated some metas in s, so we reduce
         s <- reduce s
         debugAdd c t

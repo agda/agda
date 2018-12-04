@@ -94,6 +94,7 @@ traceCall mkCall m = do
     CheckDataDef{}            -> True
     CheckRecDef{}             -> True
     CheckConstructor{}        -> True
+    CheckConstructorFitsIn{}  -> False
     CheckFunDefCall{}         -> True
     CheckPragma{}             -> True
     CheckPrimitive{}          -> True
