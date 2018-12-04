@@ -175,10 +175,11 @@ addRewriteRule q = do
         addContext delta $ prettyTCM a
   -- Get rewrite rule (type of q).
   TelV gamma1 core <- telView $ defType def
-  reportSDoc "rewriting" 30 $ do
-    "attempting to add rewrite rule of type " <+> do
-      prettyTCM gamma1 <+> " |- " <+> do
-        addContext gamma1 $ prettyTCM core
+  reportSDoc "rewriting" 30 $ vcat
+    [ "attempting to add rewrite rule of type "
+    , prettyTCM gamma1
+    , " |- " <+> do addContext gamma1 $ prettyTCM core
+    ]
   let failureWrongTarget = typeError . GenericDocError =<< hsep
         [ prettyTCM q , " does not target rewrite relation" ]
   let failureMetas       = typeError . GenericDocError =<< hsep
@@ -248,18 +249,18 @@ addRewriteRule q = do
         -- check that FV(rhs) ⊆ nlPatVars(lhs)
         let freeVars  = usedArgs (defArgOccurrences def) `IntSet.union` allFreeVars (ps,rhs)
             boundVars = nlPatVars ps
-        reportSDoc "rewriting" 40 $
+        reportSDoc "rewriting" 70 $
           "variables bound by the pattern: " <+> text (show boundVars)
-        reportSDoc "rewriting" 40 $
+        reportSDoc "rewriting" 70 $
           "variables free in the rewrite rule: " <+> text (show freeVars)
         unlessNull (freeVars IntSet.\\ boundVars) failureFreeVars
 
         return $ RewriteRule q gamma f ps rhs (unDom b)
 
-      reportSDoc "rewriting" 10 $
-        "considering rewrite rule " <+> prettyTCM rew
-      reportSDoc "rewriting" 90 $
-        "considering rewrite rule" <+> text (show rew)
+      reportSDoc "rewriting" 10 $ vcat
+        [ "considering rewrite rule " , prettyTCM rew ]
+      reportSDoc "rewriting" 90 $ vcat
+        [ "considering rewrite rule" , text (show rew) ]
 
       -- NO LONGER WORKS:
       -- -- Check whether lhs can be rewritten with itself.
@@ -380,7 +381,12 @@ rewrite block v rules es = do
     return $ NoReduction (block $> v `applyE` es)
   where
     loop :: Blocked_ -> Type -> RewriteRules -> Elims -> ReduceM (Reduced (Blocked Term) Term)
-    loop block t [] es = return $ NoReduction $ block $> v `applyE` es
+    loop block t [] es =
+      traceSDoc "rewriting.rewrite" 20 (sep
+        [ "failed to rewrite " <+> prettyTCM (v `applyE` es)
+        , "blocking tag" <+> text (show block)
+        ]) $ do
+      return $ NoReduction $ block $> v `applyE` es
     loop block t (rew:rews) es
      | let n = rewArity rew, length es >= n = do
           let (es1, es2) = List.genericSplitAt n es

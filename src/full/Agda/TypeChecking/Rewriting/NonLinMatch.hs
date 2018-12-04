@@ -139,7 +139,7 @@ instance PatternFrom Type Term NLPat where
     t <- reduce t
     etaRecord <- isEtaRecordType t
     v <- unLevel =<< reduce v
-    reportSDoc "rewriting.build" 70 $ sep
+    reportSDoc "rewriting.build" 60 $ sep
       [ "building a pattern from term v = " <+> prettyTCM v
       , " of type " <+> prettyTCM t
       ]
@@ -247,7 +247,7 @@ tellSub r i v = do
 
 tellEq :: Telescope -> Telescope -> Term -> Term -> NLM ()
 tellEq gamma k u v = do
-  traceSDoc "rewriting.match" 80 (sep
+  traceSDoc "rewriting.match" 30 (sep
                [ "adding equality between" <+> addContext (gamma `abstract` k) (prettyTCM u)
                , " and " <+> addContext k (prettyTCM v) ]) $ do
   nlmEqs %= (PostponedEquation k u v:)
@@ -299,7 +299,7 @@ instance Match (Type, Term) [Elim' NLPat] Elims where
       match r gamma k (t',hd') ps vs
 
     (Proj _ f, Proj _ f') | otherwise -> do
-      traceSDoc "rewriting.match" 70 (sep
+      traceSDoc "rewriting.match" 20 (sep
         [ "mismatch between projections " <+> prettyTCM f
         , " and " <+> prettyTCM f' ]) mzero
 
@@ -339,33 +339,37 @@ instance Match Type NLPat Term where
         prettyPat  = addContext (gamma `abstract` k) (prettyTCM p)
         prettyTerm = addContext k $ prettyTCM v
         prettyType = addContext k $ prettyTCM t
-    traceSDoc "rewriting.match" 80 (sep
+    traceSDoc "rewriting.match" 30 (sep
       [ "matching " <+> prettyPat
       , "  with   " <+> prettyTerm
       , " of type " <+> prettyType ]) $ do
-    traceSDoc "rewriting.match" 100 (vcat
+    traceSDoc "rewriting.match" 80 (vcat
       [ "  raw pattern:  " <+> text (show p)
       , "  raw term:     " <+> text (show v)
       , "  raw type:     " <+> text (show t) ]) $ do
-    traceSDoc "rewriting.match" 90 (vcat
+    traceSDoc "rewriting.match" 70 (vcat
       [ "pattern vars:   " <+> prettyTCM gamma
       , "bound vars:     " <+> prettyTCM k ]) $ do
     let yes = return ()
         no msg = do
-          traceSDoc "rewriting.match" 60 (sep
+          traceSDoc "rewriting.match" 10 (sep
             [ "mismatch between" <+> prettyPat
             , " and " <+> prettyTerm
             , " of type " <+> prettyType
             , msg ]) $ do
+          traceSDoc "rewriting.match" 30 (sep
+            [ "blocking tag from reduction: " <+> text (show b) ]) $ do
           matchingBlocked b
         block b' = do
-          traceSDoc "rewriting.match" 60 (sep
+          traceSDoc "rewriting.match" 10 (sep
             [ "matching blocked on meta"
-            , text (show b) ]) $ do
+            , text (show b') ]) $ do
+          traceSDoc "rewriting.match" 30 (sep
+            [ "blocking tag from reduction: " <+> text (show b') ]) $ do
           matchingBlocked (b `mappend` b')
     case p of
       PWild  -> yes
-      PVar i bvs -> traceSDoc "rewriting.match" 90 ("matching a PVar" <+> text (show i)) $ do
+      PVar i bvs -> traceSDoc "rewriting.match" 60 ("matching a PVar" <+> text (show i)) $ do
         let allowedVars :: IntSet
             allowedVars = IntSet.fromList (map unArg bvs)
             badVars :: IntSet
@@ -380,7 +384,7 @@ instance Match Type NLPat Term where
           Right Nothing  -> no ""
           Right (Just v) -> tellSub r (i-n) $ teleLam tel $ renameP __IMPOSSIBLE__ perm v
       _ | MetaV m es <- v -> matchingBlocked $ Blocked m ()
-      PDef f ps -> traceSDoc "rewriting.match" 90 ("matching a PDef" <+> prettyTCM f) $ do
+      PDef f ps -> traceSDoc "rewriting.match" 60 ("matching a PDef" <+> prettyTCM f) $ do
         v <- Red.addCtxTel k $ constructorForm =<< unLevel v
         case v of
           Def f' es
@@ -442,7 +446,7 @@ instance Match Type NLPat Term where
               ps'  = map (fmap $ \fld -> PBoundVar i (ps ++ [Proj ProjSystem fld])) flds
           match r gamma k (ct, Con c ci []) (map Apply ps') (map Apply vs)
         _ -> no ""
-      PTerm u -> traceSDoc "rewriting.match" 90 ("matching a PTerm" <+> addContext (gamma `abstract` k) (prettyTCM u)) $
+      PTerm u -> traceSDoc "rewriting.match" 60 ("matching a PTerm" <+> addContext (gamma `abstract` k) (prettyTCM u)) $
         tellEq gamma k u v
 
 -- Checks if the given term contains any free variables that satisfy the
@@ -488,7 +492,7 @@ checkPostponedEquations :: (MonadReduce m, HasConstInfo m, MonadDebug m)
 checkPostponedEquations sub eqs = forM' eqs $
   \ (PostponedEquation k lhs rhs) -> do
       let lhs' = applySubst (liftS (size k) sub) lhs
-      traceSDoc "rewriting.match" 80 (sep
+      traceSDoc "rewriting.match" 30 (sep
         [ "checking postponed equality between" , addContext k (prettyTCM lhs')
         , " and " , addContext k (prettyTCM rhs) ]) $ do
       Red.addCtxTel k $ equal lhs' rhs
@@ -497,7 +501,7 @@ checkPostponedEquations sub eqs = forM' eqs $
 nonLinMatch :: (MonadReduce m, HasConstInfo m, MonadDebug m, Match t a b)
             => Telescope -> t -> a -> b -> m (Either Blocked_ Substitution)
 nonLinMatch gamma t p v = do
-  let no msg b = traceSDoc "rewriting.match" 60 (sep
+  let no msg b = traceSDoc "rewriting.match" 10 (sep
                    [ "matching failed during" <+> text msg
                    , "blocking: " <+> text (show b) ]) $ return (Left b)
   caseEitherM (runNLM $ match Relevant gamma EmptyTel t p v) (no "matching") $ \ s -> do
@@ -524,7 +528,7 @@ equal u v = do
                 (NotBlocked ReallyNotBlocked ())
                 (\m -> Blocked m ())
   if ok then return Nothing else do
-    traceSDoc "rewriting.match" 60 (sep
+    traceSDoc "rewriting.match" 10 (sep
       [ "mismatch between " <+> prettyTCM u
       , " and " <+> prettyTCM v
       ]) $ do
