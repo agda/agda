@@ -77,7 +77,7 @@ import Agda.Utils.Impossible
 %monad { Parser }
 %lexer { lexer } { TokEOF }
 
-%expect 8
+%expect 9
 -- * shift/reduce for \ x y z -> foo = bar
 --   shifting means it'll parse as \ x y z -> (foo = bar) rather than
 --   (\ x y z -> foo) = bar
@@ -560,11 +560,10 @@ CommaBIds : CommaBIdAndAbsurds {
 CommaBIdAndAbsurds :: { Either [NamedArg BoundName] [Expr] }
 CommaBIdAndAbsurds
   : Application {% boundNamesOrAbsurd $1 }
-  | QId '=' QId {%
-    case ($1, $3) of
-      (QName x, QName y) -> return $ Left [defaultArg $ named (Ranged (getRange x) (prettyShow x)) $ BName y noFixity']
-      _                  -> fail "expected unqualified variable names"
-  }
+  | QId '=' QId {% fmap (Left . (:[])) $ mkNamedArg (Just $1) (Left $3) }
+  | '_' '=' QId {% fmap (Left . (:[])) $ mkNamedArg Nothing   (Left $3) }
+  | QId '=' '_' {% fmap (Left . (:[])) $ mkNamedArg (Just $1) (Right $ getRange $3) }
+  | '_' '=' '_' {% fmap (Left . (:[])) $ mkNamedArg Nothing   (Right $ getRange $3) }
 
 -- Parse a sequence of identifiers, including hiding info.
 -- Does not include instance arguments.
@@ -1991,6 +1990,18 @@ pragmaQName :: (Interval, String) -> Parser QName
 pragmaQName (r, s) = do
   let ss = chopWhen (== '.') s
   mkQName $ map (r,) ss
+
+mkNamedArg :: Maybe QName -> Either QName Range -> Parser (NamedArg BoundName)
+mkNamedArg x y = do
+  lbl <- case x of
+           Nothing        -> return Nothing
+           Just (QName x) -> return $ Just $ Ranged (getRange x) (prettyShow x)
+           _              -> fail "expected unqualified variable name"
+  var <- case y of
+           Left (QName y) -> return $ BName y noFixity'
+           Right r        -> return $ BName (noName r) noFixity'
+           _              -> fail "expected unqualified variable name"
+  return $ defaultArg $ Named lbl var
 
 -- | Polarity parser.
 
