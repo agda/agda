@@ -2220,10 +2220,11 @@ gpi :: (MonadTCM tcm, MonadDebug tcm)
     => ArgInfo -> String -> tcm Type -> tcm Type -> tcm Type
 gpi info name a b = do
   a <- a
-  b <- addContext (name, defaultArgDom info a) b
+  let dom = defaultNamedArgDom info name a
+  b <- addContext (name, dom) b
   let y = stringToArgName name
   return $ El (piSort (getSort a) (Abs y (getSort b)))
-              (Pi (defaultArgDom info a) (Abs y b))
+              (Pi dom (Abs y b))
 
 hPi, nPi :: (MonadTCM tcm, MonadDebug tcm)
          => String -> tcm Type -> tcm Type -> tcm Type

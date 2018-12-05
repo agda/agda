@@ -261,7 +261,7 @@ buildGeneralizeTel con xs = go 0 xs
     go _ [] = EmptyTel
     go i ((name, ty) : xs) = ExtendTel (dom ty') $ Abs (unArg name) $ go (i + 1) xs
       where ty' = applySubst (recSub i) ty
-            dom = setArgInfo (argInfo name) . defaultDom
+            dom = defaultNamedArgDom (getArgInfo name) (unArg name)
 
 -- | Create metas for all used generalizable variables and their dependencies.
 createGenValues :: Set QName -> TCM (Map MetaId QName, Map QName GeneralizedValue)

@@ -1122,6 +1122,9 @@ defaultDom = defaultArgDom defaultArgInfo
 defaultArgDom :: ArgInfo -> a -> Dom a
 defaultArgDom info x = Dom info False Nothing x
 
+defaultNamedArgDom :: ArgInfo -> String -> a -> Dom a
+defaultNamedArgDom info s = Dom info False (Just $ unranged s)
+
 ---------------------------------------------------------------------------
 -- * Named arguments
 ---------------------------------------------------------------------------
