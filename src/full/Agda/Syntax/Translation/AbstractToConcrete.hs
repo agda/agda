@@ -673,15 +673,24 @@ instance ToConcrete a c => ToConcrete (FieldAssignment' a) (FieldAssignment' c) 
 
 -- Binder instances -------------------------------------------------------
 
+-- If there is no label we set it to the bound name, to make renaming the bound
+-- name safe.
+forceNameIfHidden :: NamedArg A.BindName -> NamedArg A.BindName
+forceNameIfHidden x
+  | isJust $ nameOf $ unArg x = x
+  | visible x                 = x
+  | otherwise                 = x <&> \ y -> y { nameOf = Just name }
+  where
+    name = Ranged (getRange x) $ C.nameToRawName $ nameConcrete $ unBind $ namedArg x
+
 instance ToConcrete A.LamBinding C.LamBinding where
     bindToConcrete (A.DomainFree x) ret =
-        bindToConcrete (namedArg x) $ ret . C.DomainFree . copyNamedArg
-      where copyNamedArg y = fmap (y <$) x
+        bindToConcrete (forceNameIfHidden x) $ ret . C.DomainFree
     bindToConcrete (A.DomainFull b) ret = bindToConcrete b $ ret . C.DomainFull
 
 instance ToConcrete A.TypedBinding C.TypedBinding where
     bindToConcrete (A.TBind r xs e) ret =
-        bindToConcrete xs $ \ xs -> do
+        bindToConcrete (map forceNameIfHidden xs) $ \ xs -> do
         e <- toConcreteTop e
         ret $ C.TBind r xs e
     bindToConcrete (A.TLet r lbs) ret =
