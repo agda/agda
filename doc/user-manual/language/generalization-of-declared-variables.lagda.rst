@@ -4,6 +4,7 @@
 
   open import Agda.Primitive
   open import Agda.Builtin.Equality
+  open import Agda.Builtin.Nat
 
 ************************************
 Generalization of Declared Variables
@@ -21,7 +22,8 @@ For example:
         Γ Δ Θ : Con
 
 
-Declared variables are automatically generalized in type signatures:
+Declared variables are automatically generalized in type signatures, module telescopes
+and data and record type parameters and indices. For example,
 
 ::
 
@@ -38,6 +40,35 @@ Declared variables are automatically generalized in type signatures:
 
 Note that each type signature has a separate copy of its declared variables,
 so ``id`` and ``_∘_`` refer to two different ``Γ`` named variables.
+
+When generalizing data type parameters and indicies a variable is turned into
+an index if it's only mentioned in indices and into a parameter otherwise.
+For instance,
+
+..
+  ::
+
+  module Vectors where
+
+::
+
+    variable
+      n  : Nat
+
+    data Vec (A : Set) : Nat → Set where
+      []  : Vec A 0
+      _∷_ : A → Vec A n → Vec A (suc n)
+
+    variable
+      A  : Set
+      x  : A
+      xs : Vec A n
+
+    -- Here `A` will be a parameter and `n` an index. That is,
+    -- data All {A : Set} (P : A → Set) : {n : Nat} → Vec A n → Set
+    data All (P : A → Set) : Vec A n → Set where
+      []  : All P []
+      _∷_ : P x → All P xs → All P (x ∷ xs)
 
 The following rules are used to place the generalized variables:
 
@@ -122,4 +153,3 @@ For example:
 
 Issues related to this feature are marked with `generalize` in the issue tracker:
 https://github.com/agda/agda/labels/generalize
-

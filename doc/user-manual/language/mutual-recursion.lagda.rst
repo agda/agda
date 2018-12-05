@@ -40,6 +40,10 @@ For data types and records the following syntax is used to separate the declarat
     field fst : A
           snd : B fst
 
+The parameter lists in the second part of a data or record declaration behave like
+variables left-hand sides (although infix syntax is not supported). That is, they
+should have no type signatures, but implicit parameters can be omitted or bound by name.
+
 ..
   ::
   module Universe where
