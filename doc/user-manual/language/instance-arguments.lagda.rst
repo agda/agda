@@ -380,6 +380,36 @@ another example of constructor instances.
 Record fields can also be declared instances, with the effect that the
 corresponding projection function is considered a top-level instance.
 
+.. _overlapping-instances:
+
+Overlapping instances
++++++++++++++++++++++
+
+By default, Agda does not allow overlapping instances. Two instances
+are defined to overlap if they could both solve the instance goal
+when given appropriate solutions for their recursive (instance)
+arguments.
+
+For example, in code below, the instances `zero` and `suc` overlap for
+the goal `ex₁`, because either one of them can be used to solve the
+goal when given appropriate arguments, hence instance search fails.
+
+.. code-block:: agda
+
+  infix 4 _∈_
+  data _∈_ {A : Set} (x : A) : List A → Set where
+    instance
+      zero : ∀ {xs} → x ∈ x ∷ xs
+      suc  : ∀ {y xs} {{_ : x ∈ xs}} → x ∈ y ∷ xs
+
+  ex₁ : 1 ∈ 1 ∷ 2 ∷ 3 ∷ 4 ∷ []
+  ex₁ = it  -- overlapping instances
+
+Overlapping instances can be enabled via the ``--overlapping-instances``
+flag.  Be aware that enabling this flag might lead to an exponential
+slowdown in instance resolution and possibly (apparent) looping
+behaviour.
+
 .. _instance-arguments-examples:
 
 Examples
@@ -439,34 +469,7 @@ must be implicit, indicating that it needs to be inferred by
 unification whenever the ``B`` instance is used. See
 :ref:`instance-resolution` below for more details.
 
-.. _overlapping-instances:
 
-Overlapping instances
-+++++++++++++++++++++
-
-By default, Agda does not allow overlapping instances. Two instances
-are defined to overlap if they could both solve the instance goal
-when given appropriate solutions for their recursive (instance)
-arguments.
-
-For example, in code below, the instances `zero` and `suc` overlap for
-the goal `ex₁`, because either one of them can be used to solve the
-goal when given appropriate arguments, hence instance search fails.
-
-.. code-block: agda
-  infix 4 _∈_
-  data _∈_ {A : Set} (x : A) : List A → Set where
-    instance
-      zero : ∀ {xs} → x ∈ x ∷ xs
-      suc  : ∀ {y xs} {{_ : x ∈ xs}} → x ∈ y ∷ xs
-
-  ex₁ : 1 ∈ 1 ∷ 2 ∷ 3 ∷ 4 ∷ []
-  ex₁ = it  -- overlapping instances
-
-Overlapping instances can be enabled via the `--overlapping-instances`
-flag.  Be aware that enabling this flag might lead to an exponential
-slowdown in instance resolution and possibly (apparent) looping
-behaviour.
 
 
 .. _instance-resolution:
