@@ -214,11 +214,14 @@ Type checking and interaction
       instance constructor tt
   ```
 
-* Metavariables created in the (types of) module parameters are only
-  frozen at the end of that module (see Issue
-  [#1063](https://github.com/agda/agda/issues/1063)). Previously, Agda
-  would freeze these metavariables after the first declaration in the
-  module.
+* Metavariables in module telescopes are now sometimes frozen later
+  [Issue [#1063](https://github.com/agda/agda/issues/1063)].
+
+  Metavariables created in the types of module parameters used to be
+  frozen right after the module's first mutual block had been
+  type-checked (unless, perhaps, if the module itself was contained in
+  a mutual block). Now they are instead frozen at the end of the
+  module (with a similar caveat regarding an outer mutual block).
 
 * When `--without-K` is enabled, Agda no longer allows datatypes with
   large indices. For example, the following definition of equality is
