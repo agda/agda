@@ -1,23 +1,23 @@
 Failed to solve the following constraints:
-  _37 := λ {;a} → mymaybemplus [blocked on problem 42]
+  _37 := λ {a} → mymaybemplus [blocked on problem 42]
   _11 := (_ : _1) [a] :? _10 m mzero
   _8 := (_ : _1) [a] :? _7 m mzero
   _3 := (_ : _1) [a] :? _2 m
-  [42, 43] _9 (m = _32) (mzero = (λ {;a} → _35)) =< Maybe ;a
-             : _7 _32 (λ {;a} → _35)
-  [42, 44] _12 (m = _32) (mzero = (λ {;a} → _35)) =< Maybe ;a
-             : _10 _32 (λ {;a} → _35)
-  _10 _32 (λ {;a} → _35) = Set
-  piSort (_10 _32 (λ {;a} → _35)) (λ _ → Set) = Set
-  _7 _32 (λ {;a} → _35) = Set
-  piSort (_7 _32 (λ {;a} → _35)) (λ _ → Set) = Set
-  _34 := λ {;a} → mymaybemzero [blocked on problem 37]
-  [37, 38] _4 (m = _32) =< Maybe ;a : _2 _32
+  [42, 43] _9 (m = _32) (mzero = (λ {a} → _35)) =< Maybe a
+             : _7 _32 (λ {a} → _35)
+  [42, 44] _12 (m = _32) (mzero = (λ {a} → _35)) =< Maybe a
+             : _10 _32 (λ {a} → _35)
+  _10 _32 (λ {a} → _35) = Set
+  piSort (_10 _32 (λ {a} → _35)) (λ _ → Set) = Set
+  _7 _32 (λ {a} → _35) = Set
+  piSort (_7 _32 (λ {a} → _35)) (λ _ → Set) = Set
+  _34 := λ {a} → mymaybemzero [blocked on problem 37]
+  [37, 38] _4 (m = _32) =< Maybe a : _2 _32
   _2 _32 = Set
   piSort (_2 _32) (λ _ → Set) = Set
   _31 := Maybe [blocked on problem 34]
-  [34] Set _a_30 → Set _a_30 =< _1 : Set (;Agda.Primitive.lsuc _a_30)
-  Set (;Agda.Primitive.lsuc _a_30) = _0
+  [34] Set _a_30 → Set _a_30 =< _1 : Set (Agda.Primitive.lsuc _a_30)
+  Set (Agda.Primitive.lsuc _a_30) = _0
   piSort Set₁
   (λ a →
      piSort (_7 m mzero) (λ _ → piSort (_10 m mzero) (λ _ → Set)))

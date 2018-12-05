@@ -2,4 +2,4 @@ TerminationCheckUnquoteDeclUnnamed.agda:30,1-23
 Termination checking failed for the following functions:
   aux
 Problematic calls:
-  ;TerminationCheckUnquoteDeclUnnamed.aux
+  TerminationCheckUnquoteDeclUnnamed.aux

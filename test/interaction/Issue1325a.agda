@@ -9,6 +9,6 @@ f : {n : ℕ}  → Set₁
 f = Set
   where
   g : {m : ℕ} → Set → Set
-  g _ = {!.m!}
+  g _ = {!m!}
   -- Andreas, 2016-07-10, issue 2088, changed behavior:
-  -- m id made visible
+  -- m is made visible

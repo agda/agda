@@ -1,4 +1,4 @@
 TerminationCheckUnquoteDef.agda:25,1-26,32
 Termination checking failed for the following functions:
 Problematic calls:
-  ;TerminationCheckUnquoteDef.aux
+  TerminationCheckUnquoteDef.aux

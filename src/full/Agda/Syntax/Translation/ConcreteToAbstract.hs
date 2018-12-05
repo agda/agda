@@ -776,7 +776,7 @@ scopeCheckExtendedLam r cs = do
     -- Get a concrete name that is not yet in scope.
     nextlamname :: Range -> Int -> String -> ScopeM C.Name
     nextlamname r i s = do
-      let cname = C.Name r [Id $ stringToRawName $ s ++ show i]
+      let cname = C.Name r C.NotInScope [Id $ stringToRawName $ s ++ show i]
       rn <- resolveName $ C.QName cname
       case rn of
         UnknownName -> return cname
@@ -1185,7 +1185,7 @@ instance ToAbstract (TopLevel [C.Declaration]) TopLevelInfo where
                            "Illegal declaration(s) before top-level module"
 
                     -- Otherwise, reconstruct the top-level module name
-                    _ -> return $ C.QName $ C.Name (getRange m0)
+                    _ -> return $ C.QName $ C.Name (getRange m0) C.InScope
                            [Id $ stringToRawName $ rootNameModule file]
                 -- Andreas, 2017-05-17, issue #2574, keep name as jump target!
                 -- Andreas, 2016-07-12, ALTERNATIVE:

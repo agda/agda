@@ -13,3 +13,7 @@ should-fail f = λ ..a → f a
 
 -- Note: Since A and B are not in scope, they are printed as .A and .B
 -- This makes this error message super confusing.
+
+-- New error after removing dots from out-of-scope variables:
+-- Found a non-strict lambda where a irrelevant lambda was expected
+-- when checking that the expression λ ..a → f a has type .A → B

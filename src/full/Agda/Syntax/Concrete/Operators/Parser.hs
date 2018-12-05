@@ -140,8 +140,8 @@ parse (ParseSections,      p) es = P.parse p (concat $ map splitExpr es)
     noSplit = [noPlaceholder e]
 
     splitName n = case last ns of
-      Name r ps@(_ : _ : _) -> splitParts r (init ns) Beginning ps
-      _                     -> noSplit
+      Name r nis ps@(_ : _ : _) -> splitParts r nis (init ns) Beginning ps
+      _                         -> noSplit
       where
       ns = qnameParts n
 
@@ -152,16 +152,16 @@ parse (ParseSections,      p) es = P.parse p (concat $ map splitExpr es)
       -- Note also that the module qualifier, if any, is only applied
       -- to the first name part.
 
-      splitParts _ _ _ []          = __IMPOSSIBLE__
-      splitParts _ _ _ (Hole : []) = [Placeholder End]
-      splitParts r m _ (Id s : []) = [part r m End s]
-      splitParts r m w (Hole : ps) = Placeholder w : splitParts r m  Middle ps
-      splitParts r m w (Id s : ps) = part r m w s  : splitParts r [] Middle ps
+      splitParts _ _   _ _ []          = __IMPOSSIBLE__
+      splitParts _ _   _ _ (Hole : []) = [Placeholder End]
+      splitParts r nis m _ (Id s : []) = [part r nis m End s]
+      splitParts r nis m w (Hole : ps) = Placeholder w : splitParts r nis m  Middle ps
+      splitParts r nis m w (Id s : ps) = part r nis m w s : splitParts r nis [] Middle ps
 
-      part r m w s =
+      part r nis m w s =
         NoPlaceholder (Strict.Just w)
                       (unExprView $ LocalV $
-                         foldr Qual (QName (Name r [Id s])) m)
+                         foldr Qual (QName (Name r nis [Id s])) m)
 
 ---------------------------------------------------------------------------
 -- * Parser combinators
@@ -176,7 +176,7 @@ partP ms s =
   doc (text (show str)) $
   satNoPlaceholder isLocal
   where
-  str = prettyShow $ foldr Qual (QName $ Name noRange [Id s]) ms
+  str = prettyShow $ foldr Qual (QName $ Name noRange InScope [Id s]) ms
   isLocal e = case exprView e of
       LocalV y | str == prettyShow y -> Just $ getRange y
       _ -> Nothing
@@ -193,8 +193,8 @@ atLeastTwoParts =
   (\p1 ps p2 ->
       let all = p1 : ps ++ [p2] in
       case mapMaybe fst all of
-        r : _ -> Name r (map snd all)
-        []    -> __IMPOSSIBLE__)
+        (r,nis) : _ -> Name r nis (map snd all)
+        []          -> __IMPOSSIBLE__)
   <$> part Beginning
   <*> many (part Middle)
   <*> part End
@@ -205,8 +205,8 @@ atLeastTwoParts =
                                                              )
     NoPlaceholder (Strict.Just pos') e | pos == pos' ->
       case exprView e of
-        LocalV (QName (Name r [Id s])) -> Just (Just r, Id s)
-        _                              -> Nothing
+        LocalV (QName (Name r nis [Id s])) -> Just (Just (r,nis), Id s)
+        _                                  -> Nothing
     _ -> Nothing
 
 -- | Either a wildcard (@_@), or an unqualified name (possibly
@@ -313,13 +313,13 @@ opP parseSections p (NewNotation q names _ syn isOp) kind =
             p
       <*> worker ms xs
   worker ms (WildHole h : xs) =
-    (\(r, es) -> (r, Right (mkBinding h $ Name noRange [Hole]) : es))
+    (\(r, es) -> (r, Right (mkBinding h $ Name noRange InScope [Hole]) : es))
       <$> worker ms xs
   worker ms (BindHole h : xs) = do
     (\e (r, es) ->
         let x = case e of
                   Just name -> name
-                  Nothing   -> Name noRange [Hole]
+                  Nothing   -> Name noRange InScope [Hole]
         in (r, Right (mkBinding h x) : es))
            -- Andreas, 2011-04-07 put just 'Relevant' here, is this
            -- correct?

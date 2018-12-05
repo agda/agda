@@ -274,13 +274,13 @@ instance EmbPrj SerialisedRange where
     valu _      = malformed
 
 instance EmbPrj C.Name where
-  icod_ (C.NoName a b) = icodeN 0 C.NoName a b
-  icod_ (C.Name r xs)  = icodeN' C.Name r xs
+  icod_ (C.NoName a b)    = icodeN 0 C.NoName a b
+  icod_ (C.Name r nis xs) = icodeN 1 C.Name r nis xs
 
   value = vcase valu where
-    valu [0, a, b] = valuN C.NoName a b
-    valu [r, xs]   = valuN C.Name   r xs
-    valu _         = malformed
+    valu [0, a, b]       = valuN C.NoName a b
+    valu [1, r, nis, xs] = valuN C.Name   r nis xs
+    valu _               = malformed
 
 instance EmbPrj NamePart where
   icod_ Hole   = icodeN' Hole
@@ -289,6 +289,15 @@ instance EmbPrj NamePart where
   value = vcase valu where
     valu []  = valuN Hole
     valu [a] = valuN Id a
+    valu _   = malformed
+
+instance EmbPrj NameInScope where
+  icod_ InScope    = icodeN' InScope
+  icod_ NotInScope = icodeN 0 NotInScope
+
+  value = vcase valu where
+    valu []  = valuN InScope
+    valu [0] = valuN NotInScope
     valu _   = malformed
 
 instance EmbPrj C.QName where

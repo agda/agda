@@ -9,7 +9,7 @@ test₁ {A} x = {!x!}
 
 -- Case splitting on an implicit argument should make it visible
 test₂ : {x : ⊤} → ⊤
-test₂ = {!;x!}
+test₂ = {!x!}
 
 -- Implicit variables in dot patterns should be replaced by _
 postulate

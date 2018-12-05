@@ -2,7 +2,7 @@
 (agda2-info-action "*Type-checking*" "" nil)
 (agda2-highlight-clear)
 (agda2-status-action "")
-(agda2-info-action "*All Goals*" "?0 : Vec ;A n ?1 : Vec ;A n ?2 : Vec Nat ;n " nil)
+(agda2-info-action "*All Goals*" "?0 : Vec A n ?1 : Vec A n ?2 : Vec Nat n " nil)
 ((last . 1) . (agda2-goals-action '(0 1 2)))
 ((last . 2) . (agda2-make-case-action '("replicate {n = zero} x = ?" "replicate {n = suc n} x = ?")))
 ((last . 1) . (agda2-goals-action '(0 1 2)))

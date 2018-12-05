@@ -4,7 +4,7 @@
 (agda2-status-action "")
 (agda2-info-action "*All Goals*" "?0 : Set₁ " nil)
 ((last . 1) . (agda2-goals-action '(0)))
-(agda2-info-action "*Error*" "Stuck.agda:12,7-11 I'm not sure if there should be a case for the constructor e, because I get stuck when trying to solve the following unification problems (inferred index ≟ expected index): j ≟ i j ≟ x when checking that the expression ? has type Set₁" nil)
+(agda2-info-action "*Error*" "Stuck.agda:12,7-11 I'm not sure if there should be a case for the constructor e, because I get stuck when trying to solve the following unification problems (inferred index ≟ expected index): j ≟ i j ≟ x₁ when checking that the expression ? has type Set₁" nil)
 ((last . 3) . (agda2-maybe-goto '("Stuck.agda" . 137)))
 (agda2-highlight-load-and-delete-action)
 (agda2-status-action "")

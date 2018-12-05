@@ -15,7 +15,7 @@ import Data.Traversable
 
 import Agda.Syntax.Common
 import Agda.Syntax.Position
-import Agda.Syntax.Concrete (MarkNotInScope(..))
+import Agda.Syntax.Concrete (NameInScope(..), LensInScope(..))
 import qualified Agda.Syntax.Concrete as C
 import qualified Agda.Syntax.Abstract as A
 import qualified Agda.Syntax.Abstract.Views as A
@@ -66,7 +66,8 @@ parseVariables
   -> InteractionId   -- ^ The hole of this function we are working on.
   -> Range           -- ^ The range of this hole.
   -> [String]        -- ^ The words the user entered in this hole (variable names).
-  -> TCM [Int]       -- ^ The computed de Bruijn indices of the variables to split on.
+  -> TCM [(Int,NameInScope)] -- ^ The computed de Bruijn indices of the variables to split on,
+                             --   with information about whether each variable is in scope.
 parseVariables f tel ii rng ss = do
 
   -- Get into the context of the meta.
@@ -117,7 +118,7 @@ parseVariables f tel ii rng ss = do
               ]
 
       -- Note: the range in the concrete name is only approximate.
-      resName <- resolveName $ C.QName $ C.Name r $ C.stringNameParts s
+      resName <- resolveName $ C.QName $ C.Name r C.InScope $ C.stringNameParts s
       case resName of
 
         -- Fail if s is a name, but not of a variable.
@@ -137,7 +138,7 @@ parseVariables f tel ii rng ss = do
             -- around, so the new clauses will still make sense.
             (Var i [] , PatternBound) -> do
               when (i < nlocals) __IMPOSSIBLE__
-              return $ i - nlocals
+              return (i - nlocals , C.InScope)
             (Var i [] , LambdaBound)
               | i < nlocals -> failLocal
               | otherwise   -> failModuleBound
@@ -158,7 +159,7 @@ parseVariables f tel ii rng ss = do
           let xs''' = mapMaybe (\ i -> if i < fv then Nothing else Just i) xs''
           case xs''' of
             []  -> failModuleBound
-            [i] -> return i
+            [i] -> return (i , C.NotInScope)
             -- Issue 1325: Variable names in context can be ambiguous.
             _   -> failAmbiguous
 
@@ -272,11 +273,11 @@ makeCase hole rng s = withInteractionId hole $ do
   else do
     -- split on variables
     xs <- parseVariables f tel hole rng vars
-    reportSLn "interaction.case" 30 $ "parsedVariables: " ++ show (zip3 xs vars $ map hasNotInScopePrefix vars)
+    reportSLn "interaction.case" 30 $ "parsedVariables: " ++ show (zip xs vars)
     -- Variables that are not in scope yet are brought into scope (@toShow@)
     -- The other variables are split on (@toSplit@).
-    let (toShow, toSplit) = flip mapEither (zip xs vars) $ \ (x, s) ->
-          if (isJust $ hasNotInScopePrefix s) then Left x else Right x
+    let (toShow, toSplit) = flip mapEither (zip xs vars) $ \ ((x,nis), s) ->
+          if (nis == C.NotInScope) then Left x else Right x
     let sc = makePatternVarsVisible toShow $ clauseToSplitClause clause
     scs <- split f toSplit sc
     -- filter out clauses that are already covered

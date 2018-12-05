@@ -1,4 +1,4 @@
 IllegalUseOfIrrelevantDeclaration.agda:17,23-33
 Identifier irrelevant is declared irrelevant, so it cannot be used
 here
-when checking that the expression irrelevant p has type ;P a
+when checking that the expression irrelevant p has type P a

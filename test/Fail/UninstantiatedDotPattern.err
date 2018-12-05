@@ -1,4 +1,4 @@
 UninstantiatedDotPattern.agda:5,4-5
-X != ;x of type Set
+X != x of type Set
 when checking that the given dot pattern X matches the inferred
-value ;x
+value x

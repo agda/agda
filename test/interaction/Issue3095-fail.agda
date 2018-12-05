@@ -10,13 +10,13 @@ test : ∀{m} → IsSuc m → Set
 test p = aux p
   where
   aux : ∀{n} → IsSuc n → Set
-  aux isSuc = {!.m!}  -- Split on .m here
+  aux isSuc = {!m!}  -- Split on m here
 
 -- Context:
--- p  : IsSuc .m
--- .m : Nat
--- .n : Nat
+-- p  : IsSuc m
+-- m : Nat  (out of scope)
+-- n : Nat  (out of scope)
 
 -- Expected error:
--- Cannot split on module parameter .m
+-- Cannot split on module parameter m
 -- when checking that the expression ? has type Set

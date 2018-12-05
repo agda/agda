@@ -4,10 +4,10 @@ Failed to solve the following constraints:
       : {n : Nat} {F : Set → Set} {A B : Set} ⦃ AF : Applicative F ⦄ →
         Applicative (λ v → _F_166 v)
   Candidates
-    ;AF : Applicative ;F
+    AF : Applicative F
     applicativeComp :
       {F G : Set → Set} ⦃ _ : Applicative F ⦄ ⦃ _ : Applicative G ⦄ →
-      Applicative ((λ {;a} → F) o G)
+      Applicative ((λ {a} → F) o G)
   Resolve instance argument
     _AF_153
       : {n : Nat} {n = n₁ : Nat} {F : Set → Set} {A B : Set}
@@ -15,21 +15,20 @@ Failed to solve the following constraints:
         (v₁ : Vec A n) →
         Applicative (λ v₂ → _F_160 v₂)
   Candidates
-    AF : Applicative ;F
+    AF : Applicative F
     applicativeComp :
       {F G : Set → Set} ⦃ _ : Applicative F ⦄ ⦃ _ : Applicative G ⦄ →
-      Applicative ((λ {;a} → F) o G)
-  _167 := λ {;n} {;F} {;A} {;B} ⦃ ;AF ⦄ → vtr
-    [blocked on problem 242]
-  [242, 243] ;F ;B =< _F_166 _B_164 : Set
-  [242] _F_166 (Vec _B_164 ;n) =< ;F (Vec ;B ;n) : Set
-  [222] ;F ;B =< _F_160 _B_152 : Set
-  [227] _F_160 (Vec _B_152 ;n) =< ;F (Vec ;B ;n) : Set
+      Applicative ((λ {a} → F) o G)
+  _167 := λ {n} {F} {A} {B} ⦃ AF ⦄ → vtr [blocked on problem 242]
+  [242, 243] F B =< _F_166 _B_164 : Set
+  [242] _F_166 (Vec _B_164 n) =< F (Vec B n) : Set
+  [222] F B =< _F_160 _B_152 : Set
+  [227] _F_160 (Vec _B_152 n) =< F (Vec B n) : Set
   _156
-    := λ {;n} {;n = ;n₁} {;F} {;A} {;B} ⦃ AF ⦄ f x v →
+    := λ {n} {n = n₁} {F} {A} {B} ⦃ AF ⦄ f x v →
          vtr (_155 (f = f) (x = x) (v = v)) v
     [blocked on problem 227]
-  _154 := λ {;n} {;n = ;n₁} {;F} {;A} {;B} ⦃ AF ⦄ f x v → f
+  _154 := λ {n} {n = n₁} {F} {A} {B} ⦃ AF ⦄ f x v → f
     [blocked on problem 222]
 Unsolved metas at the following locations:
   Issue2993.agda:66,80-83

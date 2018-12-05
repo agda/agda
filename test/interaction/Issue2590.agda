@@ -9,7 +9,7 @@ open import Agda.Builtin.Nat
 
 test1 : {x : Nat} → Nat
 test1 with Set
-... | q = {!.x!}  -- C-c C-c
+... | q = {!x!}  -- C-c C-c
 
 -- Expected result:
 -- test1 {x} | q = ?
@@ -22,7 +22,7 @@ postulate
 
 test2 : {x y : Nat} → Any y → Nat
 test2 p with zonk p
-... | q = {!.y!} -- C-c C-c
+... | q = {!y!} -- C-c C-c
 
 -- Expected result:
 -- test2 {y = y} p | q = ?

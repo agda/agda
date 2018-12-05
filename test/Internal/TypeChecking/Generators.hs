@@ -152,7 +152,7 @@ makeConfiguration ds cs ps vs = TermConf
       return $ QName { qnameModule = MName []
                      , qnameName   = Name
                         { nameId          = NameId n 1
-                        , nameConcrete    = C.Name noRange [C.Id s]
+                        , nameConcrete    = C.Name noRange C.InScope [C.Id s]
                         , nameBindingSite = noRange
                         , nameFixity      = noFixity'
                         }

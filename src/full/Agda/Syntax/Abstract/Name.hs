@@ -26,7 +26,7 @@ import Data.Void
 import Agda.Syntax.Position
 import Agda.Syntax.Common
 import {-# SOURCE #-} Agda.Syntax.Fixity
-import Agda.Syntax.Concrete.Name (IsNoName(..), NumHoles(..))
+import Agda.Syntax.Concrete.Name (IsNoName(..), NumHoles(..), NameInScope(..), LensInScope(..))
 import qualified Agda.Syntax.Concrete.Name as C
 
 import Agda.Utils.List
@@ -170,7 +170,7 @@ class MkName a where
   mkName_ = mkName noRange
 
 instance MkName String where
-  mkName r i s = Name i (C.Name noRange (C.stringNameParts s)) r noFixity'
+  mkName r i s = Name i (C.Name noRange InScope (C.stringNameParts s)) r noFixity'
 
 
 qnameToList :: QName -> [Name]
@@ -244,9 +244,9 @@ isInModule q m = mnameToList m `isPrefixOf` qnameToList q
 -- | Get the next version of the concrete name. For instance, @nextName "x" = "x₁"@.
 --   The name must not be a 'NoName'.
 nextName :: Name -> Name
-nextName x = x { nameConcrete = C.Name noRange $ nextSuf ps }
+nextName x = x { nameConcrete = C.Name noRange nis $ nextSuf ps }
     where
-        C.Name _ ps = nameConcrete x
+        C.Name _ nis ps = nameConcrete x
         -- NoName cannot appear here
         nextSuf [C.Id s]         = [C.Id $ nextStr s]
         nextSuf [C.Id s, C.Hole] = [C.Id $ nextStr s, C.Hole]
@@ -298,6 +298,18 @@ instance NumHoles QName where
 -- | We can have an instance for ambiguous names as all share a common concrete name.
 instance NumHoles AmbiguousQName where
   numHoles = numHoles . headAmbQ
+
+------------------------------------------------------------------------
+-- * LensInScope instances
+------------------------------------------------------------------------
+
+instance LensInScope Name where
+  lensInScope f n@Name{ nameConcrete = x } =
+    (\y -> n { nameConcrete = y }) <$> lensInScope f x
+
+instance LensInScope QName where
+  lensInScope f q@QName{ qnameName = n } =
+    (\n' -> q { qnameName = n' }) <$> lensInScope f n
 
 ------------------------------------------------------------------------
 -- * Show instances (only for debug printing!)

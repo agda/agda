@@ -3,7 +3,7 @@ Termination checking failed for the following functions:
   loop
 Problematic calls:
   loop | False | foo
-  ;CoinductionAndUnivalence.♯-0
+  CoinductionAndUnivalence.♯-0
     (at CoinductionAndUnivalence.agda:44,23-24)
   loop
     (at CoinductionAndUnivalence.agda:44,25-29)

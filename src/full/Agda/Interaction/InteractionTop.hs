@@ -96,7 +96,7 @@ import Agda.Utils.Maybe
 import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Monad
 import Agda.Utils.Null
-import Agda.Utils.Pretty
+import Agda.Utils.Pretty as P
 import Agda.Utils.String
 import Agda.Utils.Time
 import Agda.Utils.Tuple
@@ -1391,8 +1391,14 @@ prettyContext norm rev ii = B.withInteractionId ii $ do
   ctx <- B.contextOfMeta ii norm
   es  <- mapM (prettyATop . B.ofExpr) ctx
   ns  <- mapM (showATop   . B.ofName) ctx
+  let ss = map (C.isInScope . B.ofName) ctx
   return $ align 10 $ applyWhen rev reverse $
-    filter (not . null . fst) $ zip ns $ map (":" <+>) es
+    filter (not . null . fst) $ zip ns (zipWith prettyCtxType es ss)
+  where
+    prettyCtxType e nis = ":" <+> (e P.<> notInScopeMarker nis)
+    notInScopeMarker nis = case isInScope nis of
+      C.InScope    -> ""
+      C.NotInScope -> "  (not in scope)"
 
 -- | Create type of application of new helper function that would solve the goal.
 

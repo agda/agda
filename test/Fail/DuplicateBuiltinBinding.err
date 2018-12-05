@@ -4,5 +4,5 @@ when scope checking the declaration
   {-# BUILTIN STRING String #-}
 DuplicateBuiltinBinding.agda:4,1-30
 Duplicate binding for built-in thing STRING, previous binding to
-;DuplicateBuiltinBinding.String
+DuplicateBuiltinBinding.String
 when checking the pragma BUILTIN STRING String

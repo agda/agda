@@ -1,4 +1,4 @@
 TerminationCheckUnquote.agda:36,1-37,12
 Termination checking failed for the following functions:
 Problematic calls:
-  ;TerminationCheckUnquote.cheat
+  TerminationCheckUnquote.cheat

@@ -12,6 +12,7 @@ import Data.Monoid
 
 import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Common
+import Agda.Syntax.Concrete.Name (LensInScope(..))
 import Agda.Syntax.Internal
 import Agda.Syntax.Scope.Monad (getLocalVars, setLocalVars)
 
@@ -210,7 +211,7 @@ instance AddContext ([NamedArg Name], Type) where
 
 instance AddContext (String, Dom Type) where
   addContext (s, dom) ret = do
-    x <- unshadowName =<< freshName_ s
+    x <- setNotInScope <$> (unshadowName =<< freshName_ s)
     addCtx x dom ret
   contextSize _ = 1
 

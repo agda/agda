@@ -1,4 +1,4 @@
 Issue1606.agda:18,24-34
-anything != ;f of type C
+anything != f of type C
 when checking that the given dot pattern c anything matches the
-inferred value c ;f
+inferred value c f
