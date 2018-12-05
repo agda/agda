@@ -1994,7 +1994,7 @@ pragmaQName (r, s) = do
 mkNamedArg :: Maybe QName -> Either QName Range -> Parser (NamedArg BoundName)
 mkNamedArg x y = do
   lbl <- case x of
-           Nothing        -> return Nothing
+           Nothing        -> return $ Just $ unranged "_"
            Just (QName x) -> return $ Just $ Ranged (getRange x) (prettyShow x)
            _              -> fail "expected unqualified variable name"
   var <- case y of
