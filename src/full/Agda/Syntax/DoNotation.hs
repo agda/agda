@@ -40,8 +40,8 @@ import Agda.Utils.Pretty ( prettyShow )
 
 desugarDoNotation :: Range -> [DoStmt] -> ScopeM Expr
 desugarDoNotation r ss = do
-  let qBind = QName $ Name noRange [Hole, Id ">>=", Hole]
-      qThen = QName $ Name noRange [Hole, Id ">>", Hole]
+  let qBind = QName $ Name noRange InScope [Hole, Id ">>=", Hole]
+      qThen = QName $ Name noRange InScope [Hole, Id ">>", Hole]
       isBind DoBind{} = True
       isBind _        = False
       isThen DoThen{} = True

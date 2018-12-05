@@ -1,4 +1,4 @@
 IrrelevantProjections.agda:15,10-17
 Identifier inflate is declared irrelevant, so it cannot be used
 here
-when checking that the expression inflate x has type ;A
+when checking that the expression inflate x has type A

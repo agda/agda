@@ -22,7 +22,7 @@ instance CoArbitrary TopLevelModuleName where
 
 instance Arbitrary Name where
   arbitrary = oneof
-    [ Name   <$> arbitrary <*> parts
+    [ Name   <$> arbitrary <*> pure InScope <*> parts
     , NoName <$> arbitrary <*> arbitrary
     ]
     where
@@ -38,5 +38,5 @@ instance Arbitrary Name where
 instance CoArbitrary NamePart
 
 instance CoArbitrary Name where
-  coarbitrary (Name _ ns)  = variant 0 . coarbitrary ns
-  coarbitrary (NoName _ i) = variant 1 . coarbitrary i
+  coarbitrary (Name _ _ ns) = variant 0 . coarbitrary ns
+  coarbitrary (NoName _ i)  = variant 1 . coarbitrary i

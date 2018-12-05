@@ -602,7 +602,7 @@ defineProjections dataname con params names fsT t = do
 
 
 freshAbstractQName'_ :: String -> TCM QName
-freshAbstractQName'_ s = freshAbstractQName noFixity' (C.Name noRange [C.Id $ s])
+freshAbstractQName'_ s = freshAbstractQName noFixity' (C.Name noRange C.InScope [C.Id $ s])
 
 -- invariant: resulting tel Γ is such that Γ = ... , (φ : I), (u : ...) , (a0 : ...)
 --            where u and a0 have types matching the arguments of primComp.

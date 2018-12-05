@@ -23,7 +23,6 @@ import Data.Traversable hiding (mapM, forM, for)
 import Data.Monoid
 
 import Agda.Interaction.Options
-import Agda.Syntax.Concrete (MarkNotInScope(..))
 import qualified Agda.Syntax.Concrete as C -- ToDo: Remove with instance of ToConcrete
 import Agda.Syntax.Position
 import Agda.Syntax.Abstract as A hiding (Open, Apply, Assign)
@@ -745,9 +744,8 @@ metaHelperType norm ii rng s = case words s of
     unW "w" = return ".w"
     unW s   = return s
 
-    -- renameVar ('.':s) = pure s
     renameVar "w" = betterName
-    renameVar s   = pure $ removeNotInScopePrefix s
+    renameVar s   = pure s
 
     betterName = do
       arg : args <- get

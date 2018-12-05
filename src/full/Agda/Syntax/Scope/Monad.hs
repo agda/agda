@@ -479,7 +479,7 @@ copyScope oldc new0 s = (inScopeBecause (Applied oldc) *** memoToScopeInfo) <$> 
         refresh :: A.Name -> WSM A.Name
         refresh x = do
           i <- lift fresh
-          return $ x { nameId = i }
+          return $ x { A.nameId = i }
 
         -- Change a binding M.x -> old.M'.y to M.x -> new.M'.y
         renName :: A.QName -> WSM A.QName

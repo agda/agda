@@ -1,3 +1,3 @@
 IrrelevantRecordField.agda:10,16-17
 Variable a is declared irrelevant, so it cannot be used here
-when checking that the expression a has type ;A
+when checking that the expression a has type A

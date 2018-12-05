@@ -93,7 +93,7 @@ useDefaultFixity n
 --   @M.for x ∈ xs return e@, or @x ℕ.+ y@.
 notationNames :: NewNotation -> [QName]
 notationNames (NewNotation q _ _ parts _) =
-  zipWith ($) (reQualify : repeat QName) [Name noRange [Id x] | IdPart x <- parts ]
+  zipWith ($) (reQualify : repeat QName) [Name noRange InScope [Id x] | IdPart x <- parts ]
   where
     -- The qualification of @q@.
     modules     = init (qnameParts q)
@@ -105,9 +105,9 @@ notationNames (NewNotation q _ _ parts _) =
 --   'Hole's become 'NormalHole's, 'Id's become 'IdParts'.
 --   If 'Name' has no 'Hole's, it returns 'noNotation'.
 syntaxOf :: Name -> Notation
-syntaxOf (NoName _ _) = noNotation
-syntaxOf (Name _ [_]) = noNotation
-syntaxOf (Name _ xs)  = mkSyn 0 xs
+syntaxOf (NoName _ _)   = noNotation
+syntaxOf (Name _ _ [_]) = noNotation
+syntaxOf (Name _ _ xs)  = mkSyn 0 xs
   where
     -- Turn a concrete name into a Notation,
     -- numbering the holes from left to right.

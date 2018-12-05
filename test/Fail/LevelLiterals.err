@@ -1,3 +1,3 @@
 LevelLiterals.agda:11,19-30
-Set (lsuc lzero ⊔ ;ℓ) != Set
+Set (lsuc lzero ⊔ ℓ) != Set
 when checking that the expression (A → ⊥) → ⊥ has type Set

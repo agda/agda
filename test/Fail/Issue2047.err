@@ -3,4 +3,4 @@ F _P_27 n != (λ { (valSuc _) → anything }) anything of type Set
 when checking that the inferred type of an application
   Any (F _P_27)
 matches the expected type
-  Any (LR ;n)
+  Any (LR n)

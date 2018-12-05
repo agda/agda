@@ -1,3 +1,3 @@
 SetOmega.agda:6,22-31
-;Agda.Primitive.Setω != Set _a_3
+Agda.Primitive.Setω != Set _a_3
 when checking that the expression ∀ a → Set a has type Set _a_3

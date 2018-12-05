@@ -460,7 +460,7 @@ lambdaQuantityCheck dom info
 
 lambdaAddContext :: Name -> ArgName -> Dom Type -> TCM a -> TCM a
 lambdaAddContext x y dom
-  | isNoName x = addContext (notInScopeName y, dom)  -- Note: String instance
+  | isNoName x = addContext (y, dom)                 -- Note: String instance
   | otherwise  = addContext (x, dom)                 -- Name instance of addContext
 
 -- | Checking a lambda whose domain type has already been checked.
@@ -1142,7 +1142,7 @@ checkExpr' cmp e t0 =
     rx = caseMaybe (rStart re) noRange $ \ pos -> posToRange pos pos
 
     doInsert info y = do
-      x <- unshadowName <=< freshName rx $ notInScopeName y
+      x <- C.setNotInScope <$> (unshadowName =<< freshName rx y)
       reportSLn "tc.term.expr.impl" 15 $ "Inserting implicit lambda"
       checkExpr' cmp (A.Lam (A.ExprRange re) (domainFree info x) e) t
 

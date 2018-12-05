@@ -1,7 +1,7 @@
 SizedTypesRigidVarClash.agda:12,9-14
 Cannot solve size constraints
-[;i, ;j, x] ;i ≤ _size_10
-[;i, ;j, x] _size_10 ≤ ;j
+[i, j, x] i ≤ _size_10
+[i, j, x] _size_10 ≤ j
 Reason: size constraint graph constrains size hypotheses
 when checking that the inferred type of an application
   Nat

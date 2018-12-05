@@ -24,6 +24,7 @@ import Agda.TypeChecking.Telescope
 import Agda.Syntax.Common (Hiding(..))
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Pretty (prettyA)
+import qualified Agda.Syntax.Concrete.Name as C
 import qualified Text.PrettyPrint as PP
 import qualified Agda.TypeChecking.Pretty as TCM
 import Agda.Syntax.Position
@@ -35,7 +36,7 @@ import Agda.TypeChecking.Reduce (normalise)
 import Agda.Syntax.Common
 import qualified Agda.Syntax.Scope.Base as Scope
 import Agda.Syntax.Scope.Monad (withCurrentModule)
-import Agda.Syntax.Concrete.Name (MarkNotInScope(..))
+import Agda.Syntax.Concrete.Name (NameInScope(..), LensInScope(..))
 import qualified Agda.Syntax.Abstract.Name as AN
 import qualified Agda.TypeChecking.Monad.Base as TCM
 import Agda.TypeChecking.EtaContract (etaContract)
@@ -417,9 +418,9 @@ auto ii rng argstr = liftTCM $ do
            Just (def, _, _) | def == n -> return Nothing
            _ -> do
             cn <- withMetaInfo minfo $ runAbsToCon $ toConcrete n
-            if isJust $ hasNotInScopePrefix cn then -- not in scope
+            if C.isInScope cn == C.NotInScope then
               return Nothing
-             else do
+            else do
               c <- getConstInfo n
               ctyp <- normalise $ defType c
               cdfv <- withMetaInfo minfo $ getDefFreeVars n

@@ -28,6 +28,7 @@ import Agda.Syntax.Common
 import Agda.Syntax.Position
 
 import Agda.Utils.FileName
+import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Pretty
 import Agda.Utils.Size
@@ -44,8 +45,15 @@ import Agda.Utils.Impossible
     in different locations are equal.
 -}
 data Name
-  = Name Range [NamePart]  -- ^ A (mixfix) identifier.
-  | NoName Range NameId    -- ^ @_@.
+  = Name -- ^ A (mixfix) identifier.
+    { nameRange     :: Range
+    , nameInScope   :: NameInScope
+    , nameNameParts :: [NamePart]
+    }
+  | NoName -- ^ @_@.
+    { nameRange     :: Range
+    , nameId        :: NameId
+    }
   deriving Data
 
 -- | An open mixfix identifier is either prefix, infix, or suffix.
@@ -53,14 +61,14 @@ data Name
 
 isOpenMixfix :: Name -> Bool
 isOpenMixfix n = case n of
-  Name _ (x : xs@(_:_)) -> x == Hole || last xs == Hole
-  _                     -> False
+  Name _ _ (x : xs@(_:_)) -> x == Hole || last xs == Hole
+  _                       -> False
 
 instance Underscore Name where
   underscore = NoName noRange __IMPOSSIBLE__
-  isUnderscore NoName{}        = True
-  isUnderscore (Name _ [Id x]) = isUnderscore x
-  isUnderscore _               = False
+  isUnderscore NoName{} = True
+  isUnderscore (Name {nameNameParts = [Id x]}) = isUnderscore x
+  isUnderscore _ = False
 
 -- | Mixfix identifiers are composed of words and holes,
 --   e.g. @_+_@ or @if_then_else_@ or @[_/_]@.
@@ -79,15 +87,15 @@ data NamePart
 --   right to be able to do a lookup. -Ulf
 
 instance Eq Name where
-    Name _ xs  == Name _ ys  = xs == ys
-    NoName _ i == NoName _ j = i == j
-    _          == _          = False
+    Name _ _ xs == Name _ _ ys = xs == ys
+    NoName _ i  == NoName _ j  = i == j
+    _           == _           = False
 
 instance Ord Name where
-    compare (Name _ xs)  (Name _ ys)  = compare xs ys
-    compare (NoName _ i) (NoName _ j) = compare i j
-    compare (NoName {})  (Name {})    = LT
-    compare (Name {})    (NoName {})  = GT
+    compare (Name _ _ xs) (Name _ _ ys) = compare xs ys
+    compare (NoName _ i)  (NoName _ j)  = compare i j
+    compare (NoName {})   (Name {})     = LT
+    compare (Name {})     (NoName {})   = GT
 
 instance Eq NamePart where
   Hole  == Hole  = True
@@ -139,8 +147,8 @@ nameToRawName :: Name -> RawName
 nameToRawName = prettyShow
 
 nameParts :: Name -> [NamePart]
-nameParts (Name _ ps)  = ps
-nameParts (NoName _ _) = [Id "_"] -- To not return an empty list
+nameParts (Name _ _ ps) = ps
+nameParts (NoName _ _)  = [Id "_"] -- To not return an empty list
 
 nameStringParts :: Name -> [RawName]
 nameStringParts n = [ s | Id s <- nameParts n ]
@@ -164,8 +172,8 @@ instance NumHoles [NamePart] where
   numHoles = length . filter (== Hole)
 
 instance NumHoles Name where
-  numHoles NoName{}       = 0
-  numHoles (Name _ parts) = numHoles parts
+  numHoles NoName{}         = 0
+  numHoles (Name { nameNameParts = parts }) = numHoles parts
 
 instance NumHoles QName where
   numHoles (QName x)  = numHoles x
@@ -174,8 +182,8 @@ instance NumHoles QName where
 -- | Is the name an operator?
 
 isOperator :: Name -> Bool
-isOperator (NoName {}) = False
-isOperator (Name _ ps) = length ps > 1
+isOperator (NoName {})   = False
+isOperator (Name _ _ ps) = length ps > 1
 
 isHole :: NamePart -> Bool
 isHole Hole = True
@@ -189,59 +197,39 @@ isNonfix  x = not (isHole (head xs)) && not (isHole (last xs)) where xs = namePa
 
 
 ------------------------------------------------------------------------
--- * Printing names which are not in scope
+-- * Keeping track of which names are (not) in scope
 ------------------------------------------------------------------------
 
--- | Prefix for things not in scope.  Cannot be the empty string.
---   Should be something unobtrusive which makes an identifier invalid.
+data NameInScope = InScope | NotInScope
+  deriving (Eq, Show, Data)
 
-notInScopePrefix :: String
-notInScopePrefix = ";"
+class LensInScope a where
+  lensInScope :: Lens' NameInScope a
 
-class MarkNotInScope a where
-  -- | Prefix the first 'Id' in a name by 'notInScopePrefix' if not already present.
-  markNotInScope :: a -> a
-  -- | Remove the 'notInScopePrefix' if present, otherwise return 'Nothing'.
-  hasNotInScopePrefix :: a -> Maybe a
-  -- | Remove the 'notInScopePrefix' if present.
-  removeNotInScopePrefix :: MarkNotInScope a => a -> a
-  removeNotInScopePrefix x = fromMaybe x $ hasNotInScopePrefix x
+  isInScope :: a -> NameInScope
+  isInScope x = x ^. lensInScope
 
-instance MarkNotInScope RawName where
-  markNotInScope s
-    | Just{} <- hasNotInScopePrefix s = s
-    | otherwise = notInScopePrefix ++ s
+  mapInScope :: (NameInScope -> NameInScope) -> a -> a
+  mapInScope = over lensInScope
 
-  hasNotInScopePrefix s
-    | IsPrefix x xs <- preOrSuffix notInScopePrefix s = Just $ x:xs
-    | otherwise = Nothing
+  setInScope :: a -> a
+  setInScope = mapInScope $ const InScope
 
-instance MarkNotInScope [NamePart] where
-  markNotInScope []          = []
-  markNotInScope (Hole : xs) = Hole : markNotInScope xs
-  markNotInScope (Id x : xs) = Id (markNotInScope x) : xs
+  setNotInScope :: a -> a
+  setNotInScope = mapInScope $ const NotInScope
 
-  hasNotInScopePrefix = \case
-    []        -> Nothing
-    Hole : xs -> (Hole :) <$> hasNotInScopePrefix xs
-    Id x : xs -> (\ x -> Id x : xs) <$> hasNotInScopePrefix x
+instance LensInScope NameInScope where
+  lensInScope = id
 
-instance MarkNotInScope Name where
-  markNotInScope (Name r xs) = Name r $ markNotInScope xs
-  markNotInScope x@NoName{}  = x
+instance LensInScope Name where
+  lensInScope f = \case
+    n@Name{ nameInScope = nis } -> (\nis' -> n { nameInScope = nis' }) <$> f nis
+    n@NoName{} -> const n <$> f InScope
 
-  hasNotInScopePrefix = \case
-    Name r xs -> Name r <$> hasNotInScopePrefix xs
-    NoName{}  -> Nothing
-
-instance MarkNotInScope QName where
-  markNotInScope (Qual x xs) = Qual (markNotInScope x) xs
-  markNotInScope (QName x)   = QName (markNotInScope x)
-
-  hasNotInScopePrefix = \case
-    Qual x xs -> (`Qual` xs) <$> hasNotInScopePrefix x
-    QName x   -> QName <$> hasNotInScopePrefix x
-
+instance LensInScope QName where
+  lensInScope f = \case
+    Qual x xs -> (`Qual` xs) <$> lensInScope f x
+    QName x   -> QName <$> lensInScope f x
 ------------------------------------------------------------------------
 -- * Operations on qualified names
 ------------------------------------------------------------------------
@@ -338,11 +326,11 @@ instance IsNoName ByteString where
   isNoName = isUnderscore
 
 instance IsNoName Name where
-  isNoName (NoName _ _)    = True
-  isNoName (Name _ [Hole]) = True   -- TODO: Track down where these come from
-  isNoName (Name _ [])     = True
-  isNoName (Name _ [Id x]) = isNoName x
-  isNoName _               = False
+  isNoName (NoName _ _)      = True
+  isNoName (Name _ _ [Hole]) = True   -- TODO: Track down where these come from
+  isNoName (Name _ _ [])     = True
+  isNoName (Name _ _ [Id x]) = isNoName x
+  isNoName _                 = False
 
 instance IsNoName QName where
   isNoName (QName x) = isNoName x
@@ -376,8 +364,8 @@ instance Show QName where
 ------------------------------------------------------------------------
 
 instance Pretty Name where
-  pretty (Name _ xs)  = hcat $ map pretty xs
-  pretty (NoName _ _) = "_"
+  pretty (Name _ _ xs) = hcat $ map pretty xs
+  pretty (NoName _ _)  = "_"
 
 instance Pretty NamePart where
   pretty Hole   = "_"
@@ -397,8 +385,8 @@ instance Pretty TopLevelModuleName where
 ------------------------------------------------------------------------
 
 instance HasRange Name where
-    getRange (Name r ps)  = r
-    getRange (NoName r _) = r
+    getRange (Name r _ ps) = r
+    getRange (NoName r _)  = r
 
 instance HasRange QName where
     getRange (QName  x) = getRange x
@@ -408,8 +396,8 @@ instance HasRange TopLevelModuleName where
   getRange = moduleNameRange
 
 instance SetRange Name where
-  setRange r (Name _ ps)  = Name r ps
-  setRange r (NoName _ i) = NoName r i
+  setRange r (Name _ nis ps) = Name r nis ps
+  setRange r (NoName _ i)  = NoName r i
 
 instance SetRange QName where
   setRange r (QName x)  = QName (setRange r x)
@@ -423,8 +411,8 @@ instance KillRange QName where
   killRange (Qual n x) = killRange n `Qual` killRange x
 
 instance KillRange Name where
-  killRange (Name r ps)  = Name (killRange r) ps
-  killRange (NoName r i) = NoName (killRange r) i
+  killRange (Name r nis ps) = Name (killRange r) nis ps
+  killRange (NoName r i)    = NoName (killRange r) i
 
 instance KillRange TopLevelModuleName where
   killRange (TopLevelModuleName _ x) = TopLevelModuleName noRange x
@@ -435,9 +423,13 @@ instance KillRange TopLevelModuleName where
 
 -- | Ranges are not forced.
 
+instance NFData NameInScope where
+  rnf InScope    = ()
+  rnf NotInScope = ()
+
 instance NFData Name where
-  rnf (Name _ ns)  = rnf ns
-  rnf (NoName _ n) = rnf n
+  rnf (Name _ nis ns) = rnf nis `seq` rnf ns
+  rnf (NoName _ n)  = rnf n
 
 instance NFData NamePart where
   rnf Hole   = ()

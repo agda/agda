@@ -5,4 +5,4 @@
 (agda2-info-action "*All Goals*" "?0 : G ?1 : M.F ⊥ ?2 : With.T t " nil)
 ((last . 1) . (agda2-goals-action '(0 1 2)))
 (agda2-status-action "")
-(agda2-info-action "*Current Goal*" ";Issue1640.With.F t | t" nil)
+(agda2-info-action "*Current Goal*" "Issue1640.With.F t | t" nil)

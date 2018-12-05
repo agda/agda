@@ -426,7 +426,7 @@ reifyTerm expandAnonDefs0 v0 = do
     -- only show up in errors. Check the spined form!
     _ | I.Var n (I.Proj _ p : es) <- v,
         Just name <- getGeneralizedFieldName p -> do
-      let fakeName = (qnameName p) { nameConcrete = C.Name noRange [C.Id name] } -- TODO: infix names!?
+      let fakeName = (qnameName p) { nameConcrete = C.Name noRange C.InScope [C.Id name] } -- TODO: infix names!?
       elims (A.Var fakeName) =<< reify es
     I.Var n es   -> do
         x  <- liftTCM $ nameOfBV n `catchError` \_ -> freshName_ ("@" ++ show n)
@@ -508,9 +508,7 @@ reifyTerm expandAnonDefs0 v0 = do
             {- else -} (reify a)
       where
         mkPi b (Arg info a') = do
-          -- #2776: Out-of-scope dots are not helpful at this point.
-          let name  = unNotInScopeName $ absName b
-          (x, b) <- reify b{ absName = name }
+          (x, b) <- reify b
           return $ A.Pi noExprInfo [TBind noRange [Arg info $ Named (domName a) $ BindName x] a'] b
         -- We can omit the domain type if it doesn't have any free variables
         -- and it's mentioned in the target type.
@@ -1105,7 +1103,7 @@ reifyPatterns = mapM $ stripNameFromExplicit <.> traverse (traverse reifyPat)
         y    -> if prettyShow (nameConcrete n) == "()" then return $ A.VarP (BindName n) else
           -- Andreas, 2017-09-03, issue #2729
           -- Restore original pattern name.  AbstractToConcrete picks unique names.
-          return $ A.VarP $ BindName n { nameConcrete = C.Name noRange [ C.Id y ] }
+          return $ A.VarP $ BindName n { nameConcrete = C.Name noRange C.InScope [ C.Id y ] }
 
     reifyDotP :: MonadTCM tcm => Term -> tcm A.Pattern
     reifyDotP v = do

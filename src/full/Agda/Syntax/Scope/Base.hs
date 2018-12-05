@@ -946,7 +946,7 @@ recomputeInverseScopeMaps scope = billToPure [ Scoping , InverseScopeLookup ] $
     internalName (C.Qual m n) = intern m || internalName n
       where
       -- Recognize fresh names created Parser.y
-      intern (C.Name _ [ C.Id ('.' : '#' : _) ]) = True
+      intern (C.Name _ _ [ C.Id ('.' : '#' : _) ]) = True
       intern _ = False
 
     findName :: Ord a => Map a [(A.ModuleName, C.Name)] -> a -> [C.QName]

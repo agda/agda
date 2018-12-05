@@ -2,7 +2,7 @@
 (agda2-info-action "*Type-checking*" "" nil)
 (agda2-highlight-clear)
 (agda2-status-action "")
-(agda2-info-action "*All Goals*" "?0 : Bool ?1 : ;A ?2 : Bool ?3 : Set ?4 : Set " nil)
+(agda2-info-action "*All Goals*" "?0 : Bool ?1 : A ?2 : Bool ?3 : Set ?4 : Set " nil)
 ((last . 1) . (agda2-goals-action '(0 1 2 3 4)))
 ((last . 2) . (agda2-make-case-action '("true == true = ?" "false == true = ?" "true == false = ?" "false == false = ?")))
 ((last . 1) . (agda2-goals-action '(0 1 2 3 4)))

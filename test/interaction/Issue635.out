@@ -2,7 +2,7 @@
 (agda2-info-action "*Type-checking*" "" nil)
 (agda2-highlight-clear)
 (agda2-status-action "")
-(agda2-info-action "*All Goals*" "?0 : PointedMorphism ;M₁ ;M₂ " nil)
+(agda2-info-action "*All Goals*" "?0 : PointedMorphism M₁ M₂ " nil)
 ((last . 1) . (agda2-goals-action '(0)))
 ((last . 2) . (agda2-make-case-action '("f (morph f₁ identity) = ?")))
 ((last . 1) . (agda2-goals-action '(0)))

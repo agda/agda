@@ -15,8 +15,8 @@ import Agda.Utils.Pretty ( prettyShow )
 
 parseIdiomBrackets :: Range -> Expr -> ScopeM Expr
 parseIdiomBrackets r e = do
-  let qPure = QName $ Name noRange [Id "pure"]
-      qAp   = QName $ Name noRange [Hole, Id "<*>", Hole]
+  let qPure = QName $ Name noRange InScope [Id "pure"]
+      qAp   = QName $ Name noRange InScope [Hole, Id "<*>", Hole]
       ePure = App r (Ident qPure) . defaultNamedArg
       eAp a b = App r (App r (Ident qAp) (defaultNamedArg a)) (defaultNamedArg b)
   mapM_ ensureInScope [qPure, qAp]
