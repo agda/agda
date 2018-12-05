@@ -37,6 +37,17 @@ _ = unnamedUsed {Nat} -- can't give by name
 _ : Set
 _ = unnamedUnused {Nat}
 
+-- In left-hand sides
+
+id : {A = X : Set} → X → X
+id {A = Y} x = x
+
+-- In with-functions
+
+with-fun : ∀ {A} {B = X} → T A X → T A X
+with-fun {A = A} {B = Z} x with T A Z
+with-fun {B = Z} x | Goal = x
+
 -- In datatypes
 
 data List {ℓ = a} (A : Set a) : Set a where

@@ -91,8 +91,8 @@ xs `withNamedArgsFromTel` tel =
 
 teleNamedArgs :: (DeBruijn a) => Telescope -> [NamedArg a]
 teleNamedArgs tel =
-  [ Arg info (Named (Just $ Ranged noRange $ argNameToString name) (deBruijnVar i))
-  | (i, Dom {domInfo = info, unDom = (name,_)}) <- zip (downFrom $ size l) l ]
+  [ fmap (deBruijnVar i <$) $ namedArgFromDom dom
+  | (i, dom) <- zip (downFrom $ size l) l ]
   where l = telToList tel
 
 -- | A variant of `teleNamedArgs` which takes the argument names (and the argument info)

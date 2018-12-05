@@ -1078,7 +1078,7 @@ bindsToTel = bindsToTel' nameToArgName
 namedBindsToTel :: [NamedArg Name] -> Type -> Telescope
 namedBindsToTel []       t = EmptyTel
 namedBindsToTel (x : xs) t =
-  ExtendTel (t <$ domFromNamedArgName x) $ Abs (namedArgName x) $ namedBindsToTel xs (raise 1 t)
+  ExtendTel (t <$ domFromNamedArgName x) $ Abs (nameToArgName $ namedArg x) $ namedBindsToTel xs (raise 1 t)
 
 domFromNamedArgName :: NamedArg Name -> Dom ()
 domFromNamedArgName x = () <$ domFromNamedArg (fmap forceName x)
