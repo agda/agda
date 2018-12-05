@@ -833,22 +833,22 @@ checkModuleArity m tel args = check tel args
 
     check tel []             = return tel
     check EmptyTel (_:_)     = bad
-    check (ExtendTel (Dom{domInfo = info}) btel) args0@(Arg info' (Named rname _) : args) =
+    check (ExtendTel dom@Dom{domInfo = info} btel) args0@(Arg info' (Named rname _) : args) =
       let name = fmap rangedThing rname
-          y    = absName btel
+          my   = fmap rangedThing $ domName dom
           tel  = absBody btel in
       case (argInfoHiding info, argInfoHiding info', name) of
         (Instance{}, NotHidden, _)        -> check tel args0
         (Instance{}, Hidden, _)           -> check tel args0
         (Instance{}, Instance{}, Nothing) -> check tel args
         (Instance{}, Instance{}, Just x)
-          | x == y                        -> check tel args
+          | Just x == my                  -> check tel args
           | otherwise                     -> check tel args0
         (Hidden, NotHidden, _)            -> check tel args0
         (Hidden, Instance{}, _)           -> check tel args0
         (Hidden, Hidden, Nothing)         -> check tel args
         (Hidden, Hidden, Just x)
-          | x == y                        -> check tel args
+          | Just x == my                  -> check tel args
           | otherwise                     -> check tel args0
         (NotHidden, NotHidden, _)         -> check tel args
         (NotHidden, Hidden, _)            -> bad
