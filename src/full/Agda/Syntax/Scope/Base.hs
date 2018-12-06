@@ -727,6 +727,27 @@ everythingInScope scope = allThingsInScope $ mergeScopes $
     look m = fromMaybe __IMPOSSIBLE__ $ Map.lookup m $ scopeModules scope
     s0     = look $ scopeCurrent scope
 
+everythingInScopeQualified :: ScopeInfo -> NameSpace
+everythingInScopeQualified scope =
+  allThingsInScope $ mergeScopes $
+    chase Set.empty scopes
+  where
+    s0      = look $ scopeCurrent scope
+    scopes  = s0 : map look (scopeParents s0)
+    look m  = fromMaybe __IMPOSSIBLE__ $ Map.lookup m $ scopeModules scope
+    lookP   = restrictPrivate . look
+
+    -- We start with the current module and all its parents and look through
+    -- all their imports and submodules.
+    chase seen [] = []
+    chase seen (s : ss)
+      | Set.member name seen = chase seen ss
+      | otherwise = s : chase (Set.insert name seen) (imports ++ submods ++ ss)
+      where
+        name    = scopeName s
+        imports = map lookP $ Map.elems $ scopeImports s
+        submods = map (lookP . amodName) $ concat $ Map.elems $ allNamesInScope s
+
 -- | Compute a flattened scope. Only include unqualified names or names
 -- qualified by modules in the first argument.
 flattenScope :: [[C.Name]] -> ScopeInfo -> Map C.QName [AbstractName]
@@ -925,7 +946,7 @@ recomputeInverseScopeMaps :: ScopeInfo -> ScopeInfo
 recomputeInverseScopeMaps scope = billToPure [ Scoping , InverseScopeLookup ] $
   scope { scopeInverseName   = nameMap
         , scopeInverseModule = Map.fromList [ (x, findModule x) | x <- Map.keys moduleMap ++ Map.keys importMap ]
-        , scopeInScope       = Set.unions $ map (scopeSet . snd) scopes
+        , scopeInScope       = nsInScope $ everythingInScopeQualified scope
         }
   where
     this = scopeCurrent scope
@@ -937,9 +958,6 @@ recomputeInverseScopeMaps scope = billToPure [ Scoping , InverseScopeLookup ] $
 
     restrict m s | m `elem` current = s
                  | otherwise = restrictPrivate s
-
-    scopeSet     s = Set.unions $ map (namespaceSet . snd) $ scopeNameSpaces s
-    namespaceSet s = nsInScope s
 
     internalName :: C.QName -> Bool
     internalName C.QName{} = False

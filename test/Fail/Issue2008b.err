@@ -1,8 +1,0 @@
-Failed to solve the following constraints:
-  Resolve instance argument _8 : R₁ A
-  Candidates
-    λ {_} {A = A₁} → R₂.r₁ :
-      {_ = z : Unit} {A = A₁ : Set} ⦃ r : M.R₂ z A₁ ⦄ → M.R₁ z A₁
-    m : R₁ A
-Unsolved metas at the following locations:
-  Issue2008b.agda:34,5-6

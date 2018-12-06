@@ -1448,7 +1448,9 @@ Open : MaybeOpen 'import' ModuleName OpenArgs ImportDirective {%
           -- Andreas, 2017-05-13, issue #2579
           -- Nisse reports that importing with instantation but without open
           -- could be usefule for bringing instances into scope.
-          -- -- | DontOpen <- doOpen -> parseErrorRange $2 "An import statement with module instantiation does not actually import the module.  This statement achieves nothing.  Either add the `open' keyword or bind the instantiated module with an `as' clause."
+          -- Ulf, 2018-12-6: Not since fixes of #1913 and #2489 which require
+          -- instances to be in scope.
+          | DontOpen <- doOpen -> parseErrorRange $2 "An import statement with module instantiation is useless without either an `open' keyword or an `as` binding giving a name to the instantiated module."
           | otherwise -> return
               [ impStm noRange
               , appStm (noName $ beginningOf $ getRange m) es

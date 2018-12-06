@@ -1,0 +1,3 @@
+Issue1913b.agda:17,13-14
+No instance of type M.D was found in scope.
+when checking that the expression ! has type M.D
