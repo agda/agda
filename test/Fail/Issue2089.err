@@ -1,4 +1,4 @@
 Issue2089.agda:9,21-30
-No such module M.Private
+No module M.Private in scope
 when scope checking the declaration
   module ShouldFail = M.Private

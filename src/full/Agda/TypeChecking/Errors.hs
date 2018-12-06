@@ -950,7 +950,7 @@ instance PrettyTCM TypeError where
           close a b = editDistance a b <= maxDist (length a)
           ys = map P.prettyShow $ filter (close (strip x) . strip) inscope
 
-    NoSuchModule x -> fsep $ pwords "No such module" ++ [pretty x]
+    NoSuchModule x -> fsep $ pwords "No module" ++ [pretty x] ++ pwords "in scope"
 
     AmbiguousName x ys -> vcat
       [ fsep $ pwords "Ambiguous name" ++ [pretty x <> "."] ++

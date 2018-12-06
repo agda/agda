@@ -1,4 +1,4 @@
 NoSuchModule.agda:3,6-7
-No such module X
+No module X in scope
 when scope checking the declaration
   open X

@@ -68,6 +68,6 @@ Creating interface for Issue641.
   visited: Agda.Primitive, Agda.Primitive.Cubical
 Starting scope checking.
 Issue641.agda:9,6-18
-No such module NoSuchModule
+No module NoSuchModule in scope
 when scope checking the declaration
   open NoSuchModule
