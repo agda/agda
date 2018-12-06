@@ -673,6 +673,8 @@ Reflection
 The reflection machinery has built-in types for representing Agda programs. See
 :doc:`reflection` for a detailed description.
 
+.. _builtin-rewrite:
+
 Rewriting
 ---------
 
