@@ -370,7 +370,7 @@ iotastep smartcheck e = case rawValue e of
      Left (Left hnas) -> mbret $ Left $ Left (hna : hnas)
    Left (Right blks) -> mbret $ Left (Right blks)
    Left (Left hna) -> mbret $ Left $ Left (hna : as')
- dopats _ _ = __IMPOSSIBLE__
+ dopats _ _ = mbfailed "bad patterns"
 
  dopat :: Pat o -> PEval o -> EE (MyMB (Either (Either (PEval o) (HNNBlks o)) (PEval o, [ICExp o])) o)
  dopat (PatConApp c pas) a =
