@@ -18,7 +18,7 @@ import Internal.Helpers
 
 -- | Version numbers must be non-negative.
 instance Arbitrary VersionView where
-  arbitrary = liftA2 VersionView arbitrary $ map getNonNegative <$> arbitrary
+  arbitrary = liftA2 VersionView (filter (/= '-') <$> arbitrary) $ map getNonNegative <$> arbitrary
 
 ------------------------------------------------------------------------
 -- * Properties
