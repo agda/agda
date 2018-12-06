@@ -1,4 +1,4 @@
-resolver: ghc-8.6.1
+resolver: ghc-8.6.2
 
 extra-deps:
 - EdisonCore-1.3.2.1
