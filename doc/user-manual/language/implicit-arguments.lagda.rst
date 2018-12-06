@@ -149,6 +149,26 @@ without giving a value for ``x`` we can write
 
       subst C {y = e} eq cx
 
+In rare circumstances it can be useful to separate the name used to give an
+argument by name from the name of the bound variable, for instance if the desired
+name shadows an existing name. To do this you write
+
+::
+
+  id₂ : {A = X : Set} → X → X  -- name of bound variable is X
+  id₂ x = x
+
+  use-id₂ : (Y : Set) → Y → Y
+  use-id₂ Y = id₂ {A = Y}      -- but the label is A
+
+Labeled bindings must appear by themselves when typed, so the type ``Set`` needs to
+be repeated in this example:
+
+::
+
+  const : {A = X : Set} {B = Y : Set} → A → B → A
+  const x y = x
+
 When constructing implicit function spaces the implicit argument can be omitted,
 so both expressions below are valid expressions of type ``{A : Set} → A → A``:
 

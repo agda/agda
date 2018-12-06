@@ -20,8 +20,6 @@ module Agda.Syntax.Concrete
     -- * Bindings
   , LamBinding
   , LamBinding'(..)
-  , TypedBindings
-  , TypedBindings'(..)
   , TypedBinding
   , TypedBinding'(..)
   , RecordAssignment
@@ -207,28 +205,14 @@ data DoStmt
   deriving Data
 
 -- | A lambda binding is either domain free or typed.
-type LamBinding = LamBinding' TypedBindings
+type LamBinding = LamBinding' TypedBinding
 data LamBinding' a
-  = DomainFree ArgInfo BoundName  -- ^ . @x@ or @{x}@ or @.x@ or @.{x}@ or @{.x}@
-  | DomainFull a                  -- ^ . @(xs : e)@ or @{xs : e}@
-  deriving (Data, Functor, Foldable, Traversable)
-
-
--- | A sequence of typed bindings with hiding information. Appears in dependent
---   function spaces, typed lambdas, and telescopes.
---
---   If the individual binding contains hiding information as well, the
---   'Hiding' in @TypedBindings@ must be the unit 'NotHidden'.
-
-type TypedBindings = TypedBindings' TypedBinding
-
-data TypedBindings' a = TypedBindings Range (Arg a)
-     -- ^ . @(xs : e)@ or @{xs : e}@ or something like @(x {y} _ : e)@.
+  = DomainFree (NamedArg BoundName) -- ^ . @x@ or @{x}@ or @.x@ or @.{x}@ or @{.x}@
+  | DomainFull a                    -- ^ . @(xs : e)@ or @{xs : e}@
   deriving (Data, Functor, Foldable, Traversable)
 
 data BoundName = BName
   { boundName   :: Name
-  , boundLabel  :: Name    -- ^ for implicit function types the label matters and can't be alpha-renamed
   , bnameFixity :: Fixity'
   }
   deriving (Data, Eq, Show)
@@ -237,38 +221,35 @@ mkBoundName_ :: Name -> BoundName
 mkBoundName_ x = mkBoundName x noFixity'
 
 mkBoundName :: Name -> Fixity' -> BoundName
-mkBoundName x f = BName x x f
+mkBoundName x f = BName x f
 
 -- | A typed binding.
 
 type TypedBinding = TypedBinding' Expr
 
 data TypedBinding' e
-  = TBind Range [WithHiding BoundName] e  -- ^ Binding @(x1 ... xn : A)@.
-  | TLet  Range [Declaration]  -- ^ Let binding @(let Ds)@ or @(open M args)@.
+  = TBind Range [NamedArg BoundName] e  -- ^ Binding @(x1 ... xn : A)@.
+  | TLet  Range [Declaration]           -- ^ Let binding @(let Ds)@ or @(open M args)@.
   deriving (Data, Functor, Foldable, Traversable)
 
 -- | A telescope is a sequence of typed bindings. Bound variables are in scope
 --   in later types.
-type Telescope = [TypedBindings]
+type Telescope = [TypedBinding]
 
 countTelVars :: Telescope -> Nat
 countTelVars tel =
-  sum [ case unArg b of
+  sum [ case b of
           TBind _ xs _ -> genericLength xs
           TLet{}       -> 0
-      | TypedBindings _ b <- tel ]
+      | b <- tel ]
 
 -- | We can try to get a @Telescope@ from a @[LamBinding]@.
 --   If we have a type annotation already, we're happy.
 --   Otherwise we manufacture a binder with an underscore for the type.
 lamBindingsToTelescope :: Range -> [LamBinding] -> Telescope
 lamBindingsToTelescope r = map $ \case
-  DomainFull ty      -> ty
-  DomainFree info nm ->
-    TypedBindings r $ Arg info
-    $ TBind r [WithHiding (argInfoHiding info) nm]
-    $ Underscore r Nothing
+  DomainFull ty -> ty
+  DomainFree nm -> TBind r [nm] $ Underscore r Nothing
 
 -- | Smart constructor for @Pi@: check whether the @Telescope@ is empty
 
@@ -379,9 +360,11 @@ data Declaration
   | Field IsInstance Name (Arg Expr) -- ^ Record field, can be hidden and/or irrelevant.
   | FunClause LHS RHS WhereClause Bool
   | DataSig     Range Induction Name [LamBinding] Expr -- ^ lone data signature in mutual block
-  | Data        Range Induction Name [LamBinding] (Maybe Expr) [TypeSignatureOrInstanceBlock]
+  | Data        Range Induction Name [LamBinding] Expr [TypeSignatureOrInstanceBlock]
+  | DataDef     Range Induction Name [LamBinding] [TypeSignatureOrInstanceBlock]
   | RecordSig   Range Name [LamBinding] Expr -- ^ lone record signature in mutual block
-  | Record      Range Name (Maybe (Ranged Induction)) (Maybe HasEta) (Maybe (Name, IsInstance)) [LamBinding] (Maybe Expr) [Declaration]
+  | RecordDef   Range Name (Maybe (Ranged Induction)) (Maybe HasEta) (Maybe (Name, IsInstance)) [LamBinding] [Declaration]
+  | Record      Range Name (Maybe (Ranged Induction)) (Maybe HasEta) (Maybe (Name, IsInstance)) [LamBinding] Expr [Declaration]
     -- ^ The optional name is a name for the record constructor.
   | Infix Fixity [Name]
   | Syntax      Name Notation -- ^ notation declaration for a name
@@ -399,14 +382,14 @@ data Declaration
   | Open        Range QName ImportDirective
   | Import      Range QName (Maybe AsName) !OpenShortHand ImportDirective
   | ModuleMacro Range  Name ModuleApplication !OpenShortHand ImportDirective
-  | Module      Range QName [TypedBindings] [Declaration]
+  | Module      Range QName Telescope [Declaration]
   | UnquoteDecl Range [Name] Expr
   | UnquoteDef  Range [Name] Expr
   | Pragma      Pragma
   deriving Data
 
 data ModuleApplication
-  = SectionApp Range [TypedBindings] Expr
+  = SectionApp Range Telescope Expr
     -- ^ @tel. M args@
   | RecordModuleInstance Range QName
     -- ^ @M {{...}}@
@@ -565,19 +548,25 @@ instance Null (WhereClause' a) where
 -- Lenses
 ------------------------------------------------------------------------
 
-instance LensRelevance TypedBindings where
-  getRelevance   (TypedBindings _ b) = getRelevance b
-  mapRelevance f (TypedBindings r b) = TypedBindings r $ mapRelevance f b
-
-instance LensHiding TypedBindings where
-  getHiding   (TypedBindings _ b) = getHiding b
-  mapHiding f (TypedBindings r b) = TypedBindings r $ mapHiding f b
-
 instance LensHiding LamBinding where
-  getHiding   (DomainFree ai _) = getHiding ai
-  getHiding   (DomainFull a)    = getHiding a
-  mapHiding f (DomainFree ai x) = DomainFree (mapHiding f ai) x
-  mapHiding f (DomainFull a)    = DomainFull $ mapHiding f a
+  getHiding   (DomainFree x) = getHiding x
+  getHiding   (DomainFull a) = getHiding a
+  mapHiding f (DomainFree x) = DomainFree $ mapHiding f x
+  mapHiding f (DomainFull a) = DomainFull $ mapHiding f a
+
+instance LensHiding TypedBinding where
+  getHiding (TBind _ (x : _) _) = getHiding x   -- Slightly dubious
+  getHiding (TBind _ [] _)      = __IMPOSSIBLE__
+  getHiding TLet{}              = mempty
+  mapHiding f (TBind r xs e) = TBind r ((map . mapHiding) f xs) e
+  mapHiding f b@TLet{}       = b
+
+instance LensRelevance TypedBinding where
+  getRelevance (TBind _ (x : _) _) = getRelevance x   -- Slightly dubious
+  getRelevance (TBind _ [] _)      = __IMPOSSIBLE__
+  getRelevance TLet{}              = mempty
+  mapRelevance f (TBind r xs e) = TBind r ((map . mapRelevance) f xs) e
+  mapRelevance f b@TLet{}       = b
 
 -- HasRange instances
 ------------------------------------------------------------------------
@@ -634,16 +623,13 @@ instance HasRange Expr where
 --     getRange (TeleBind bs) = getRange bs
 --     getRange (TeleFun x y) = fuseRange x y
 
-instance HasRange TypedBindings where
-  getRange (TypedBindings r _) = r
-
 instance HasRange TypedBinding where
   getRange (TBind r _ _) = r
   getRange (TLet r _)    = r
 
 instance HasRange LamBinding where
-  getRange (DomainFree _ x) = getRange x
-  getRange (DomainFull b)   = getRange b
+  getRange (DomainFree x) = getRange x
+  getRange (DomainFull b) = getRange b
 
 instance HasRange BoundName where
   getRange = getRange . boundName
@@ -669,7 +655,9 @@ instance HasRange Declaration where
   getRange (FunClause lhs rhs wh _) = fuseRange lhs rhs `fuseRange` wh
   getRange (DataSig r _ _ _ _)     = r
   getRange (Data r _ _ _ _ _)      = r
+  getRange (DataDef r _ _ _ _)     = r
   getRange (RecordSig r _ _ _)     = r
+  getRange (RecordDef r _ _ _ _ _ _) = r
   getRange (Record r _ _ _ _ _ _ _)  = r
   getRange (Mutual r _)            = r
   getRange (Abstract r _)          = r
@@ -764,9 +752,6 @@ instance HasRange Pattern where
 -- SetRange instances
 ------------------------------------------------------------------------
 
-instance SetRange TypedBindings where
-  setRange r (TypedBindings _ b) = TypedBindings r b
-
 instance SetRange Pattern where
   setRange r (IdentP x)         = IdentP (setRange r x)
   setRange r (AppP p q)         = AppP (setRange r p) (setRange r q)
@@ -786,6 +771,10 @@ instance SetRange Pattern where
   setRange r (EllipsisP _)      = EllipsisP r
   setRange r (WithP _ p)        = WithP r p
 
+instance SetRange TypedBinding where
+  setRange r (TBind _ xs e) = TBind r xs e
+  setRange r (TLet _ ds)    = TLet r ds
+
 -- KillRange instances
 ------------------------------------------------------------------------
 
@@ -799,7 +788,7 @@ instance KillRange AsName where
   killRange (AsName n _) = killRange1 (flip AsName noRange) n
 
 instance KillRange BoundName where
-  killRange (BName n l f) = killRange3 BName n l f
+  killRange (BName n f) = killRange2 BName n f
 
 instance KillRange Declaration where
   killRange (TypeSig i n e)         = killRange2 (TypeSig i) n e
@@ -808,8 +797,10 @@ instance KillRange Declaration where
   killRange (FunClause l r w ca)    = killRange4 FunClause l r w ca
   killRange (DataSig _ i n l e)     = killRange4 (DataSig noRange) i n l e
   killRange (Data _ i n l e c)      = killRange4 (Data noRange i) n l e c
+  killRange (DataDef _ i n l c)     = killRange3 (DataDef noRange i) n l c
   killRange (RecordSig _ n l e)     = killRange3 (RecordSig noRange) n l e
-  killRange (Record _ n mi mb mn k e d)= killRange7 (Record noRange) n mi mb mn k e d
+  killRange (RecordDef _ n mi mb mn k d) = killRange6 (RecordDef noRange) n mi mb mn k d
+  killRange (Record _ n mi mb mn k e d)  = killRange7 (Record noRange) n mi mb mn k e d
   killRange (Infix f n)             = killRange2 Infix f n
   killRange (Syntax n no)           = killRange1 (\n -> Syntax n no) n
   killRange (PatternSyn _ n ns p)   = killRange3 (PatternSyn noRange) n ns p
@@ -870,8 +861,8 @@ instance KillRange Expr where
   killRange (Generalized e)      = killRange1 Generalized e
 
 instance KillRange LamBinding where
-  killRange (DomainFree i b) = killRange2 DomainFree i b
-  killRange (DomainFull t)   = killRange1 DomainFull t
+  killRange (DomainFree b) = killRange1 DomainFree b
+  killRange (DomainFull t) = killRange1 DomainFull t
 
 instance KillRange LHS where
   killRange (LHS p r w)     = killRange3 LHS p r w
@@ -947,9 +938,6 @@ instance KillRange RHS where
 instance KillRange TypedBinding where
   killRange (TBind _ b e) = killRange2 (TBind noRange) b e
   killRange (TLet r ds)   = killRange2 TLet r ds
-
-instance KillRange TypedBindings where
-  killRange (TypedBindings _ t) = killRange1 (TypedBindings noRange) t
 
 instance KillRange WhereClause where
   killRange NoWhere         = NoWhere
@@ -1032,7 +1020,9 @@ instance NFData Declaration where
   rnf (FunClause a b c d)     = rnf a `seq` rnf b `seq` rnf c `seq` rnf d
   rnf (DataSig _ a b c d)     = rnf a `seq` rnf b `seq` rnf c `seq` rnf d
   rnf (Data _ a b c d e)      = rnf a `seq` rnf b `seq` rnf c `seq` rnf d `seq` rnf e
+  rnf (DataDef _ a b c d)     = rnf a `seq` rnf b `seq` rnf c `seq` rnf d
   rnf (RecordSig _ a b c)     = rnf a `seq` rnf b `seq` rnf c
+  rnf (RecordDef _ a b c d e f) = rnf a `seq` rnf b `seq` rnf c `seq` rnf d `seq` rnf e `seq` rnf f
   rnf (Record _ a b c d e f g)  = rnf a `seq` rnf b `seq` rnf c `seq` rnf d `seq` rnf e `seq` rnf f `seq` rnf g
   rnf (Infix a b)             = rnf a `seq` rnf b
   rnf (Syntax a b)            = rnf a `seq` rnf b
@@ -1085,11 +1075,6 @@ instance NFData Pragma where
 
 -- | Ranges are not forced.
 
-instance NFData a => NFData (TypedBindings' a) where
-  rnf (TypedBindings _ a) = rnf a
-
--- | Ranges are not forced.
-
 instance NFData AsName where
   rnf (AsName a _) = rnf a
 
@@ -1131,11 +1116,11 @@ instance NFData LamClause where
   rnf (LamClause a b c d) = rnf (a, b, c, d)
 
 instance NFData a => NFData (LamBinding' a) where
-  rnf (DomainFree a b) = rnf a `seq` rnf b
-  rnf (DomainFull a)   = rnf a
+  rnf (DomainFree a) = rnf a
+  rnf (DomainFull a) = rnf a
 
 instance NFData BoundName where
-  rnf (BName a b c) = rnf a `seq` rnf b `seq` rnf c
+  rnf (BName a b) = rnf a `seq` rnf b
 
 instance NFData a => NFData (RHS' a) where
   rnf AbsurdRHS = ()

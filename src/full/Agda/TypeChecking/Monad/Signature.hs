@@ -440,6 +440,7 @@ applySection' new ptel old ts ScopeCopyInfo{ renNames = rd, renModules = rm } = 
                     , defPolarity       = pol
                     , defArgOccurrences = occ
                     , defArgGeneralizable = gen
+                    , defGeneralizedParams = [] -- This is only needed for type checking data/record defs so no need to copy it.
                     , defDisplay        = []
                     , defMutual         = -1   -- TODO: mutual block?
                     , defCompiledRep    = noCompiledRep
@@ -906,7 +907,7 @@ freeVarsToApply q = do
   t <- defType <$> getConstInfo q
   let TelV tel _ = telView'UpTo (size vs) t
   unless (size tel == size vs) __IMPOSSIBLE__
-  return $ zipWith (\ (Arg _ v) (Dom ai _ _) -> Arg ai v) vs $ telToList tel
+  return $ zipWith (\ arg dom -> unArg arg <$ argFromDom dom) vs $ telToList tel
 
 {-# SPECIALIZE getModuleFreeVars :: ModuleName -> TCM Nat #-}
 {-# SPECIALIZE getModuleFreeVars :: ModuleName -> ReduceM Nat #-}
@@ -1030,6 +1031,7 @@ makeAbstract d =
                }
   where
     makeAbs Axiom         = Just Axiom
+    makeAbs d@DataOrRecSig{}     = Just d
     makeAbs d@GeneralizableVar{} = Just d
     makeAbs d@Datatype {} = Just $ AbstractDefn d
     makeAbs d@Function {} = Just $ AbstractDefn d
@@ -1116,6 +1118,7 @@ modalityOfConst q = getModality . defArgInfo <$> getConstInfo q
 droppedPars :: Definition -> Int
 droppedPars d = case theDef d of
     Axiom{}                  -> 0
+    DataOrRecSig{}           -> 0
     GeneralizableVar{}       -> 0
     def@Function{}           -> projectionArgs def
     Datatype  {dataPars = _} -> 0  -- not dropped

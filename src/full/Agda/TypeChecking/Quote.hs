@@ -269,6 +269,7 @@ quotingKit = do
               !@! quoteName (conName c)
               @@ quoteList (quoteArg (pure . quoteName)) fs
           Axiom{}       -> pure agdaDefinitionPostulate
+          DataOrRecSig{} -> pure agdaDefinitionPostulate
           GeneralizableVar{} -> pure agdaDefinitionPostulate  -- TODO: reflect generalizable vars
           AbstractDefn{}-> pure agdaDefinitionPostulate
           Primitive{primClauses = cs} | not $ null cs ->

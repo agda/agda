@@ -34,7 +34,8 @@ import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.CompiledClause (hasProjectionPatterns)
 import Agda.TypeChecking.CompiledClause.Compile
 
-import Agda.TypeChecking.Rules.Data ( bindParameters, fitsIn, forceSort, defineCompData, defineCompForFields, defineTranspForFields, defineHCompForFields )
+import Agda.TypeChecking.Rules.Data ( getGeneralizedParameters, bindGeneralizedParameters, bindParameters, fitsIn, forceSort,
+                                      defineCompData, defineCompForFields, defineTranspForFields, defineHCompForFields )
 import Agda.TypeChecking.Rules.Term ( isType_ )
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Decl (checkDecl)
 
@@ -71,22 +72,33 @@ checkRecDef
   -> Maybe (Ranged Induction)  -- ^ Optional: (co)inductive declaration.
   -> Maybe HasEta              -- ^ Optional: user specified eta/no-eta
   -> Maybe QName               -- ^ Optional: constructor name.
-  -> [A.LamBinding]            -- ^ Record parameters.
+  -> A.DataDefParams           -- ^ Record parameters.
   -> A.Expr                    -- ^ Approximate type of constructor (@fields@ -> Set).
                                --   Does not include record parameters.
   -> [A.Field]                 -- ^ Field signatures.
   -> TCM ()
-checkRecDef i name uc ind eta con ps contel fields =
+checkRecDef i name uc ind eta con (A.DataDefParams gpars ps) contel fields =
   traceCall (CheckRecDef (getRange name) (qnameName name) ps fields) $ do
     reportSDoc "tc.rec" 10 $ vcat
       [ "checking record def" <+> prettyTCM name
-      , nest 2 $ "ps ="     <+> prettyList (map prettyAs ps)
+      , nest 2 $ "ps ="     <+> prettyList (map prettyA ps)
       , nest 2 $ "contel =" <+> prettyA contel
       , nest 2 $ "fields =" <+> prettyA (map Constr fields)
       ]
     -- get type of record
-    t <- instantiateFull =<< typeOfConst name
-    bindParameters ps t $ \tel t0 -> do
+    def <- instantiateDef =<< getConstInfo name
+    t   <- instantiateFull $ defType def
+    let npars =
+          case theDef def of
+            DataOrRecSig n -> n
+            _              -> __IMPOSSIBLE__
+
+    parNames <- getGeneralizedParameters gpars name
+
+    bindGeneralizedParameters parNames t $ \ gtel t0 ->
+     bindParameters (npars - length parNames) ps t0 $ \ ptel t0 -> do
+
+      let tel = abstract gtel ptel
 
       -- Generate type of constructor from field telescope @contel@,
       -- which is the approximate constructor type (target missing).

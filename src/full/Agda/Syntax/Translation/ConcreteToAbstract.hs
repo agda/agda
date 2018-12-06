@@ -33,6 +33,7 @@ import Data.Foldable (Foldable, traverse_)
 import Data.Traversable (mapM, traverse)
 import Data.List ((\\), nub, foldl')
 import Data.Set (Set)
+import Data.Map (Map)
 import qualified Data.List as List
 import qualified Data.Set as Set
 import qualified Data.Map as Map
@@ -188,20 +189,18 @@ recordConstructorType decls =
       tel <- mapM makeBinding ds  -- TODO: Telescope instead of Expr in abstract RecDef
       return $ A.Pi (ExprRange (getRange ds)) tel (A.Set exprNoRange 0)
 
-    makeBinding :: C.NiceDeclaration -> ScopeM A.TypedBindings
+    makeBinding :: C.NiceDeclaration -> ScopeM A.TypedBinding
     makeBinding d = do
       let failure = typeError $ NotValidBeforeField d
           r       = getRange d
           info    = ExprRange r
-          mkLet d = A.TypedBindings r . defaultArg . A.TLet r <$> toAbstract (LetDef d)
+          mkLet d = A.TLet r <$> toAbstract (LetDef d)
       traceCall (SetRange r) $ case d of
 
         C.NiceField r pr ab inst x a -> do
           fx  <- getConcreteFixity x
-                   -- Ulf 2018-11-23: Is this right? Default hiding instead of
-                   -- getHiding a. We also keep the ArgInfo in the TypedBindings.
-          let bv = pure $ C.mkBoundName x fx
-          tel <- toAbstract $ C.TypedBindings r (C.TBind r [bv] (unArg a) <$ a)
+          let bv = unnamed (C.mkBoundName x fx) <$ a
+          tel <- toAbstract $ C.TBind r [bv] (unArg a)
           return tel
 
         -- Public open is allowed and will take effect when scope checking as
@@ -232,8 +231,8 @@ recordConstructorType decls =
         C.NiceFunClause{}     -> failure
         C.FunSig{}            -> failure  -- Note: these are bundled with FunDef in NiceMutual
         C.FunDef{}            -> failure
-        C.DataDef{}           -> failure
-        C.RecDef{}            -> failure
+        C.NiceDataDef{}       -> failure
+        C.NiceRecDef{}        -> failure
         C.NicePatternSyn{}    -> failure
         C.NiceGeneralize{}    -> failure
         C.NiceUnquoteDecl{}   -> failure
@@ -520,11 +519,11 @@ instance ToAbstract (NewName C.Name) A.Name where
     bindVariable b x y
     return y
 
-instance ToAbstract (NewName C.BoundName) A.Name where
+instance ToAbstract (NewName C.BoundName) A.BindName where
   toAbstract (NewName b BName{ boundName = x, bnameFixity = fx }) = do
     y <- freshAbstractName fx x
     bindVariable b x y
-    return y
+    return $ A.BindName y
 
 instance ToAbstract OldQName A.Expr where
   toAbstract (OldQName x ns) = do
@@ -975,23 +974,19 @@ instance ToAbstract c a => ToAbstract (FieldAssignment' c) (FieldAssignment' a) 
   toAbstract = traverse toAbstract
 
 instance ToAbstract C.LamBinding A.LamBinding where
-  toAbstract (C.DomainFree info x) = A.DomainFree info . A.BindName <$> toAbstract (NewName LambdaBound x)
-  toAbstract (C.DomainFull tb)     = A.DomainFull <$> toAbstract tb
+  toAbstract (C.DomainFree x)  = A.DomainFree <$> toAbstract ((fmap . fmap) (NewName LambdaBound) x)
+  toAbstract (C.DomainFull tb) = A.DomainFull <$> toAbstract tb
 
-makeDomainFull :: C.LamBinding -> C.TypedBindings
-makeDomainFull (C.DomainFull b)      = b
-makeDomainFull (C.DomainFree info x) =
-  C.TypedBindings r $ Arg info $ C.TBind r [pure x] $ C.Underscore r Nothing
+makeDomainFull :: C.LamBinding -> C.TypedBinding
+makeDomainFull (C.DomainFull b) = b
+makeDomainFull (C.DomainFree x) = C.TBind r [x] $ C.Underscore r Nothing
   where r = getRange x
-
-instance ToAbstract C.TypedBindings A.TypedBindings where
-  toAbstract (C.TypedBindings r bs) = A.TypedBindings r <$> toAbstract bs
 
 instance ToAbstract C.TypedBinding A.TypedBinding where
   toAbstract (C.TBind r xs t) = do
     t' <- toAbstractCtx TopCtx t
-    xs' <- toAbstract $ map (fmap (NewName LambdaBound)) xs
-    return $ A.TBind r (map (fmap A.BindName) xs') t'
+    xs' <- toAbstract $ (map . fmap . fmap) (NewName LambdaBound) xs
+    return $ A.TBind r xs' t'
   toAbstract (C.TLet r ds) = A.TLet r <$> toAbstract (LetDefs ds)
 
 -- | Scope check a module (top level function).
@@ -1046,9 +1041,8 @@ scopeCheckNiceModule r p name tel checkDs
 
 -- | Check whether a telescope has open declarations or module macros.
 telHasOpenStmsOrModuleMacros :: C.Telescope -> Bool
-telHasOpenStmsOrModuleMacros = any yesBinds
+telHasOpenStmsOrModuleMacros = any yesBind
   where
-    yesBinds (C.TypedBindings _ tb) = yesBind $ unArg tb
     yesBind C.TBind{}     = False
     yesBind (C.TLet _ ds) = any yes ds
     yes C.ModuleMacro{}   = True
@@ -1064,9 +1058,8 @@ telHasOpenStmsOrModuleMacros = any yesBinds
 
 {- UNUSED
 telHasLetStms :: C.Telescope -> Bool
-telHasLetStms = any isLetBinds
+telHasLetStms = any isLetBind
   where
-    isLetBinds (C.TypedBindings _ tb) = isLetBind $ unArg tb
     isLetBind C.TBind{} = False
     isLetBind C.TLet{}  = True
 -}
@@ -1094,9 +1087,6 @@ instance EnsureNoLetStms C.TypedBinding where
       C.TBind{} -> return ()
 
 instance EnsureNoLetStms a => EnsureNoLetStms (LamBinding' a) where
-  ensureNoLetStms = traverse_ ensureNoLetStms
-
-instance EnsureNoLetStms a => EnsureNoLetStms (TypedBindings' a) where
   ensureNoLetStms = traverse_ ensureNoLetStms
 
 instance EnsureNoLetStms a => EnsureNoLetStms [a] where
@@ -1307,7 +1297,7 @@ instance ToAbstract LetDef [A.LetBinding] where
               -- We bind the name here to make sure it's in scope for the LHS (#917).
               -- It's unbound for the RHS in letToAbstract.
               fx <- getConcreteFixity x
-              x  <- toAbstract (NewName LetBound $ mkBoundName x fx)
+              x  <- A.unBind <$> toAbstract (NewName LetBound $ mkBoundName x fx)
               (x', e) <- letToAbstract cl
               -- If InstanceDef set info to Instance
               let info' | instanc == InstanceDef = makeInstance info
@@ -1410,11 +1400,11 @@ instance ToAbstract LetDef [A.LetBinding] where
 
         -- Named patterns not allowed in let definitions
         lambda e (Arg info (Named Nothing (A.VarP x))) =
-                return $ A.Lam i (A.DomainFree info x) e
+                return $ A.Lam i (A.DomainFree $ unnamedArg info x) e
             where i = ExprRange (fuseRange x e)
         lambda e (Arg info (Named Nothing (A.WildP i))) =
             do  x <- freshNoName (getRange i)
-                return $ A.Lam i' (A.DomainFree info $ A.BindName x) e
+                return $ A.Lam i' (A.DomainFree $ unnamedArg info $ A.BindName x) e
             where i' = ExprRange (fuseRange i e)
         lambda _ _ = notAValidLetBinding d
 
@@ -1499,24 +1489,26 @@ instance ToAbstract NiceDeclaration A.Declaration where
     C.NiceRecSig r p a _pc _uc x ls t -> do
       ensureNoLetStms ls
       withLocalVars $ do
-        ls' <- toAbstract (map makeDomainFull ls)
+        -- Minor hack: record types don't have indices so we include t when
+        -- computing generalised parameters, but in the type checker any named
+        -- generalizable arguments in the sort should be bound variables.
+        (ls', _) <- toAbstract (GenTelAndType (map makeDomainFull ls) t)
         t'  <- toAbstract t
         f   <- getConcreteFixity x
         x'  <- freshAbstractQName f x
-        bindName p DefName x x'
+        bindName' p DefName (GeneralizedVarsMetadata $ generalizeTelVars ls') x x'
         return [ A.RecSig (mkDefInfo x f p a r) x' ls' t' ]
 
     C.NiceDataSig r p a _pc _uc x ls t -> withLocalVars $ do
-        printScope "scope.data.sig" 20 ("checking DataSig for " ++ prettyShow x)
+        reportSLn "scope.data.sig" 20 ("checking DataSig for " ++ prettyShow x)
         ensureNoLetStms ls
-        ls' <- toAbstract (map makeDomainFull ls)
-        t'  <- toAbstract t
-        f   <- getConcreteFixity x
-        x'  <- freshAbstractQName f x
-        {- -- Andreas, 2012-01-16: remember number of parameters
-        bindName p (DataName (length ls)) x x' -}
-        bindName p DefName x x'
-        return [ A.DataSig (mkDefInfo x f p a r) x' ls' t' ]
+        withLocalVars $ do
+          ls' <- toAbstract $ GenTel $ map makeDomainFull ls
+          t'  <- toAbstract $ C.Generalized t
+          f  <- getConcreteFixity x
+          x' <- freshAbstractQName f x
+          bindName' p DefName (GeneralizedVarsMetadata $ generalizeTelVars ls') x x'
+          return [ A.DataSig (mkDefInfo x f p a r) x' ls' t' ]
 
   -- Type signatures
     C.FunSig r p a i m rel tc x t ->
@@ -1541,40 +1533,42 @@ instance ToAbstract NiceDeclaration A.Declaration where
     C.NiceFunClause{} -> __IMPOSSIBLE__
 
   -- Data definitions
-    C.DataDef r a _ uc x pars cons -> withLocalVars $ do
-        printScope "scope.data.def" 20 ("checking DataDef for " ++ prettyShow x)
+    C.NiceDataDef r o a _ uc x pars cons -> withLocalVars $ do
+        reportSLn "scope.data.def" 20 ("checking " ++ show o ++ " DataDef for " ++ prettyShow x)
         (p, ax) <- resolveName (C.QName x) >>= \case
           DefinedName p ax -> do
             livesInCurrentModule ax  -- Andreas, 2017-12-04, issue #2862
             return (p, ax)
           _ -> genericError $ "Missing type signature for data definition " ++ prettyShow x
         ensureNoLetStms pars
-        -- Check for duplicate constructors
-        do cs <- mapM conName cons
-           let dups = nub $ cs \\ nub cs
-               bad  = filter (`elem` dups) cs
-           unless (distinct cs) $
-             setCurrentRange bad $
-                typeError $ DuplicateConstructors dups
+        withLocalVars $ do
+          gvars <- bindGeneralizablesIfInserted o ax
+          -- Check for duplicate constructors
+          do cs <- mapM conName cons
+             let dups = nub $ cs \\ nub cs
+                 bad  = filter (`elem` dups) cs
+             unless (distinct cs) $
+               setCurrentRange bad $
+                 typeError $ DuplicateConstructors dups
 
-        pars <- toAbstract pars
-        let x' = anameName ax
-        -- Create the module for the qualified constructors
-        checkForModuleClash x -- disallow shadowing previously defined modules
-        let m = mnameFromList $ qnameToList x'
-        createModule (Just IsData) m
-        bindModule p x m  -- make it a proper module
-        cons <- toAbstract (map (ConstrDecl NoRec m a p) cons)
-        printScope "data" 20 $ "Checked data " ++ prettyShow x
-        f <- getConcreteFixity x
-        return [ A.DataDef (mkDefInfo x f PublicAccess a r) x' uc pars cons ]
+          pars <- toAbstract pars
+          let x' = anameName ax
+          -- Create the module for the qualified constructors
+          checkForModuleClash x -- disallow shadowing previously defined modules
+          let m = mnameFromList $ qnameToList x'
+          createModule (Just IsData) m
+          bindModule p x m  -- make it a proper module
+          cons <- toAbstract (map (ConstrDecl NoRec m a p) cons)
+          printScope "data" 20 $ "Checked data " ++ prettyShow x
+          f <- getConcreteFixity x
+          return [ A.DataDef (mkDefInfo x f PublicAccess a r) x' uc (DataDefParams gvars pars) cons ]
       where
         conName (C.Axiom _ _ _ _ _ c _) = return c
         conName d = errorNotConstrDecl d
 
   -- Record definitions (mucho interesting)
-    C.RecDef r a _ uc x ind eta cm pars fields -> do
-      printScope "scope.rec.def" 20 ("checking RecDef for " ++ prettyShow x)
+    C.NiceRecDef r o a _ uc x ind eta cm pars fields -> do
+      reportSLn "scope.rec.def" 20 ("checking " ++ show o ++ " RecDef for " ++ prettyShow x)
       (p, ax) <- resolveName (C.QName x) >>= \case
         DefinedName p ax -> do
           livesInCurrentModule ax  -- Andreas, 2017-12-04, issue #2862
@@ -1582,6 +1576,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
         _ -> genericError $ "Missing type signature for record definition " ++ prettyShow x
       ensureNoLetStms pars
       withLocalVars $ do
+        gvars <- bindGeneralizablesIfInserted o ax
         -- Check that the generated module doesn't clash with a previously
         -- defined module
         checkForModuleClash x
@@ -1614,7 +1609,8 @@ instance ToAbstract NiceDeclaration A.Declaration where
         let inst = caseMaybe cm NotInstanceDef snd
         printScope "rec" 15 "record complete"
         f <- getConcreteFixity x
-        return [ A.RecDef (mkDefInfoInstance x f PublicAccess a inst NotMacroDef r) x' uc ind eta cm' pars contel afields ]
+        let params = DataDefParams gvars pars
+        return [ A.RecDef (mkDefInfoInstance x f PublicAccess a inst NotMacroDef r) x' uc ind eta cm' params contel afields ]
 
     NiceModule r p a x@(C.QName name) tel ds -> do
       reportSDoc "scope.decl" 70 $ vcat $
@@ -1784,19 +1780,44 @@ collectGeneralizables m = bracket_ open close $ do
         pure gvs
     close = (stGeneralizedVars `setTCLens`)
 
+collectAndBindGeneralizables :: ScopeM a -> ScopeM (Map I.QName I.Name, a)
+collectAndBindGeneralizables m = do
+  (s, res) <- collectGeneralizables m
+  binds <- fmap Map.fromList $ forM (Set.toList s) $ \ q -> do
+    let x  = nameConcrete $ qnameName q
+        fx = nameFixity   $ qnameName q
+    y <- freshAbstractName fx x
+    return (q, y)
+  -- We should bind the named generalizable variables as fresh variables
+  bindGeneralizables binds
+  return (binds, res)
+
+bindGeneralizables :: Map A.QName A.Name -> ScopeM ()
+bindGeneralizables vars =
+  forM_ (Map.toList vars) $ \ (q, y) ->
+    bindVariable LambdaBound (nameConcrete $ qnameName q) y
+
+-- | Bind generalizable variables if data or record decl was split by the system
+--   (origin == Inserted)
+bindGeneralizablesIfInserted :: Origin -> AbstractName -> ScopeM (Set A.Name)
+bindGeneralizablesIfInserted Inserted y = bound <$ bindGeneralizables gvars
+  where GeneralizedVarsMetadata gvars = anameMetadata y
+        bound = Set.fromList (Map.elems gvars)
+bindGeneralizablesIfInserted UserWritten _ = return Set.empty
+bindGeneralizablesIfInserted _ _           = __IMPOSSIBLE__
+
 newtype GenTel = GenTel C.Telescope
+data GenTelAndType = GenTelAndType C.Telescope C.Expr
 
 instance ToAbstract GenTel A.GeneralizeTelescope where
-  toAbstract (GenTel tel) = do
-    (s, tel) <- collectGeneralizables (toAbstract tel)
-    -- We should bind the named generalizable variables as fresh variables
-    binds <- forM (Set.toList s) $ \ q -> do
-      let x  = nameConcrete $ qnameName q
-          fx = nameFixity   $ qnameName q
-      y <- freshAbstractName fx x
-      bindVariable LambdaBound x y
-      return (q, y)
-    return (A.GeneralizeTel (Map.fromList binds) tel)
+  toAbstract (GenTel tel) =
+    uncurry A.GeneralizeTel <$> collectAndBindGeneralizables (toAbstract tel)
+
+instance ToAbstract GenTelAndType (A.GeneralizeTelescope, A.Expr) where
+  toAbstract (GenTelAndType tel t) = do
+    (binds, (tel, t)) <- collectAndBindGeneralizables $
+                          (,) <$> toAbstract tel <*> toAbstract t
+    return (A.GeneralizeTel binds tel, t)
 
 -- | Make sure definition is in same module as signature.
 class LivesInCurrentModule a where
@@ -2502,7 +2523,7 @@ toAbstractOpApp op ns es = do
         x <- freshName noRange "section"
         let i = setOrigin Inserted $ argInfo a
         (ls, ns) <- replacePlaceholders as
-        return ( A.DomainFree i (A.BindName x) : ls
+        return ( A.DomainFree (unnamedArg i $ A.BindName x) : ls
                , set (Left (Var x)) a : ns
                )
       where

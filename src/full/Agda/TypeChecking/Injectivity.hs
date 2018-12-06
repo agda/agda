@@ -62,6 +62,7 @@ headSymbol v = do -- ignoreAbstractMode $ do
       case def of
         Datatype{}  -> yes
         Record{}    -> yes
+        DataOrRecSig{} -> yes
         Axiom{}     -> do
           reportSLn "tc.inj.axiom" 50 $ "headSymbol: " ++ prettyShow f ++ " is an Axiom."
           -- Don't treat axioms in the current mutual block
@@ -188,6 +189,7 @@ checkOverapplication es = updateHeads overapplied
       def <- getConstInfo q
       return $ case theDef def of
         Axiom{}        -> True
+        DataOrRecSig{} -> True
         AbstractDefn{} -> True
         Function{}     -> False
         Datatype{}     -> True

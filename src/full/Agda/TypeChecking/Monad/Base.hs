@@ -291,7 +291,7 @@ type CurrentTypeCheckLog = [(TypeCheckAction, PostScopeState)]
 --
 --   * 'LeaveSection', leaving the main module.
 data TypeCheckAction
-  = EnterSection !Info.ModuleInfo !ModuleName ![A.TypedBindings]
+  = EnterSection !Info.ModuleInfo !ModuleName !A.Telescope
   | LeaveSection !ModuleName
   | Decl !A.Declaration
     -- ^ Never a Section or ScopeDecl
@@ -1431,6 +1431,11 @@ data Definition = Defn
 
   , defArgGeneralizable :: NumGeneralizableArgs
     -- ^ How many arguments should be generalised.
+  , defGeneralizedParams :: [Maybe Name]
+    -- ^ Gives the name of the (bound variable) parameter for named generalized
+    --   parameters. This is needed to bring it into scope when type checking
+    --   the data/record definition corresponding to a type with generalized
+    --   parameters.
   , defDisplay        :: [LocalDisplayForm]
   , defMutual         :: MutualId
   , defCompiledRep    :: CompiledRepresentation
@@ -1468,6 +1473,7 @@ defaultDefn info x t def = Defn
   , defPolarity       = []
   , defArgOccurrences = []
   , defArgGeneralizable = NoGeneralizableArgs
+  , defGeneralizedParams = []
   , defDisplay        = defaultDisplayForm x
   , defMutual         = 0
   , defCompiledRep    = noCompiledRep
@@ -1630,6 +1636,9 @@ emptyCompKit :: CompKit
 emptyCompKit = CompKit Nothing Nothing Nothing
 
 data Defn = Axiom -- ^ Postulate
+          | DataOrRecSig
+            { datarecPars :: Int }
+            -- ^ Data or record type signature that doesn't yet have a definition
           | GeneralizableVar -- ^ Generalizable variable (introduced in `generalize` block)
           | AbstractDefn Defn
             -- ^ Returned by 'getConstInfo' if definition is abstract.
@@ -1750,6 +1759,7 @@ instance Pretty Definition where
       , "defType           =" <?> pretty defType
       , "defPolarity       =" <?> pshow defPolarity
       , "defArgOccurrences =" <?> pshow defArgOccurrences
+      , "defGeneralizedParams =" <?> pshow defGeneralizedParams
       , "defDisplay        =" <?> pshow defDisplay -- TODO: pretty DisplayForm
       , "defMutual         =" <?> pshow defMutual
       , "defCompiledRep    =" <?> pshow defCompiledRep
@@ -1761,6 +1771,7 @@ instance Pretty Definition where
 
 instance Pretty Defn where
   pretty Axiom = "Axiom"
+  pretty (DataOrRecSig n)   = "DataOrRecSig" <+> pretty n
   pretty GeneralizableVar{} = "GeneralizableVar"
   pretty (AbstractDefn def) = "AbstractDefn" <?> parens (pretty def)
   pretty Function{..} =
@@ -2011,6 +2022,7 @@ defTerminationUnconfirmed _ = False
 defAbstract :: Definition -> IsAbstract
 defAbstract d = case theDef d of
     Axiom{}                   -> ConcreteDef
+    DataOrRecSig{}            -> ConcreteDef
     GeneralizableVar{}        -> ConcreteDef
     AbstractDefn{}            -> AbstractDef
     Function{funAbstr = a}    -> a
@@ -2023,6 +2035,7 @@ defForced :: Definition -> [IsForced]
 defForced d = case theDef d of
     Constructor{conForced = fs} -> fs
     Axiom{}                     -> []
+    DataOrRecSig{}              -> []
     GeneralizableVar{}          -> []
     AbstractDefn{}              -> []
     Function{}                  -> []
@@ -3714,8 +3727,8 @@ instance KillRange Section where
   killRange (Section tel) = killRange1 Section tel
 
 instance KillRange Definition where
-  killRange (Defn ai name t pols occs gens displ mut compiled inst copy ma nc inj def) =
-    killRange15 Defn ai name t pols occs gens displ mut compiled inst copy ma nc inj def
+  killRange (Defn ai name t pols occs gens gpars displ mut compiled inst copy ma nc inj def) =
+    killRange16 Defn ai name t pols occs gens gpars displ mut compiled inst copy ma nc inj def
     -- TODO clarify: Keep the range in the defName field?
 
 instance KillRange NumGeneralizableArgs where
@@ -3760,6 +3773,7 @@ instance KillRange Defn where
   killRange def =
     case def of
       Axiom -> Axiom
+      DataOrRecSig n -> DataOrRecSig n
       GeneralizableVar -> GeneralizableVar
       AbstractDefn{} -> __IMPOSSIBLE__ -- only returned by 'getConstInfo'!
       Function cls comp tt inv mut isAbs delayed proj flags term extlam with copat ->

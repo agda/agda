@@ -297,6 +297,8 @@ definition' kit q d t ls = do
     Function{} | Just q == (nameOfFlat <$> kit) -> do
       ret $ Lambda 1 $ Apply (Lookup (local 0) flatName) []
 
+    DataOrRecSig{} -> __IMPOSSIBLE__
+
     Axiom | Just e <- defJSDef d -> plainJS e
     Axiom | otherwise -> ret Undefined
 

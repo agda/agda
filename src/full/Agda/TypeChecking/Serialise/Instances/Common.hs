@@ -415,7 +415,7 @@ instance EmbPrj a => EmbPrj (Arg a) where
   value = valueN Arg
 
 instance EmbPrj a => EmbPrj (Dom a) where
-  icod_ (Dom i b e) = icodeN' Dom i b e
+  icod_ (Dom a b c d) = icodeN' Dom a b c d
 
   value = valueN Dom
 

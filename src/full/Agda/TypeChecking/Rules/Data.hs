@@ -7,6 +7,8 @@ import Control.Monad
 
 import Data.List (genericTake)
 import Data.Maybe (fromMaybe, catMaybes, isJust)
+import Data.Set (Set)
+import qualified Data.Set as Set
 
 import qualified Agda.Syntax.Abstract as A
 import qualified Agda.Syntax.Concrete.Name as C
@@ -24,6 +26,7 @@ import Agda.TypeChecking.Monad.Builtin -- (primLevel)
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Substitute
+import Agda.TypeChecking.Implicit
 import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.Names
 import Agda.TypeChecking.Reduce
@@ -54,28 +57,37 @@ import Agda.Utils.Impossible
 
 -- | Type check a datatype definition. Assumes that the type has already been
 --   checked.
-checkDataDef :: Info.DefInfo -> QName -> UniverseCheck -> [A.LamBinding] -> [A.Constructor] -> TCM ()
-checkDataDef i name uc ps cs =
+checkDataDef :: Info.DefInfo -> QName -> UniverseCheck -> A.DataDefParams -> [A.Constructor] -> TCM ()
+checkDataDef i name uc (A.DataDefParams gpars ps) cs =
     traceCall (CheckDataDef (getRange name) (qnameName name) ps cs) $ do -- TODO! (qnameName)
 
         -- Add the datatype module
         addSection (qnameToMName name)
 
         -- Look up the type of the datatype.
-        t <- instantiateFull =<< typeOfConst name
+        def <- instantiateDef =<< getConstInfo name
+        t   <- instantiateFull $ defType def
+        let npars =
+              case theDef def of
+                DataOrRecSig n -> n
+                _              -> __IMPOSSIBLE__
 
         -- Make sure the shape of the type is visible
         let unTelV (TelV tel a) = telePi tel a
         t <- unTelV <$> telView t
 
+        parNames <- getGeneralizedParameters gpars name
+
         -- Top level free vars
         freeVars <- getContextSize
 
         -- The parameters are in scope when checking the constructors.
-        dataDef <- bindParameters ps t $ \tel t0 -> do
+        dataDef <- bindGeneralizedParameters parNames t $ \ gtel t0 ->
+                   bindParameters (npars - length parNames) ps t0 $ \ ptel t0 -> do
 
             -- Parameters are always hidden in constructors
-            let tel' = hideAndRelParams <$> tel
+            let tel  = abstract gtel ptel
+                tel' = hideAndRelParams <$> tel
             -- let tel' = hideTel tel
 
             -- The type we get from bindParameters is Θ -> s where Θ is the type of
@@ -113,7 +125,8 @@ checkDataDef i name uc ps cs =
                 , "type (full):   " <+> prettyTCM t
                 , "sort:   " <+> prettyTCM s
                 , "indices:" <+> text (show nofIxs)
-                , "params:"  <+> text (show $ deepUnscope ps)
+                , "gparams:" <+> text (show parNames)
+                , "params: " <+> text (show $ deepUnscope ps)
                 ]
               ]
             let npars = size tel
@@ -556,7 +569,7 @@ defineProjections dataname con params names fsT t = do
       projType = abstract projTel <$> ty
 
     inTopContext $ do
-      reportSDoc "tc.data.proj" 20 $ sep [ "proj" <+> prettyTCM (i,ty) , nest 2 $ text . show $  projType ]
+      reportSDoc "tc.data.proj" 20 $ sep [ "proj" <+> prettyTCM (i,ty) , nest 2 $ prettyTCM projType ]
 
     let
       cpi  = ConPatternInfo Nothing False (Just $ argN $ raise (size fsT) t) False
@@ -585,7 +598,7 @@ defineProjections dataname con params names fsT t = do
         (defaultDefn defaultArgInfo projName (unDom projType) fun)
           { defNoCompilation = True }
       inTopContext $ do
-        reportSDoc "tc.data.proj.fun" 20 $ sep [ "proj" <+> prettyTCM i, nest 2 $ text . show $ fun ]
+        reportSDoc "tc.data.proj.fun" 60 $ sep [ "proj" <+> prettyTCM i, nest 2 $ pretty fun ]
 
 
 freshAbstractQName'_ :: String -> TCM QName
@@ -1056,6 +1069,25 @@ defineHCompForFields applyProj name params fsT fns rect = do
     --     s = sub tel
     --     ys = map (fmap (abstract t) . applySubst s) xs
 
+getGeneralizedParameters :: Set Name -> QName -> TCM [Maybe Name]
+getGeneralizedParameters gpars name | Set.null gpars = return []
+getGeneralizedParameters gpars name = do
+  -- Drop the named parameters that shouldn't be in scope (if the user
+  -- wrote a split data type)
+  let inscope x = x <$ guard (Set.member x gpars)
+  map (>>= inscope) . defGeneralizedParams <$> (instantiateDef =<< getConstInfo name)
+
+-- | Bind the named generalized parameters.
+bindGeneralizedParameters :: [Maybe Name] -> Type -> (Telescope -> Type -> TCM a) -> TCM a
+bindGeneralizedParameters [] t ret = ret EmptyTel t
+bindGeneralizedParameters (name : names) t ret =
+  case unEl t of
+    Pi a b -> ext $ bindGeneralizedParameters names (unAbs b) $ \ tel t -> ret (ExtendTel a (tel <$ b)) t
+      where
+        ext | Just x <- name = addContext (x, a)
+            | otherwise      = addContext (absName b, a)
+    _      -> __IMPOSSIBLE__
+
 -- | Bind the parameters of a datatype.
 --
 --   We allow omission of hidden parameters at the definition site.
@@ -1066,14 +1098,8 @@ defineHCompForFields applyProj name params fsT fns rect = do
 --       c : A -> D A
 --   @
 
-bindParameters :: [A.LamBinding] -> Type -> (Telescope -> Type -> TCM a) -> TCM a
-bindParameters = bindParameters' []
-
--- | Auxiliary function for 'bindParameters'.
-bindParameters'
-  :: [Type]         -- ^ @n@ replicas of type if @LamBinding@s are @DomainFree@s
-                    --   that came from a @DomainFull@ of @n@ binders.
-                    --   Should be comsumed whenever a @DomainFree@s are consumed.
+bindParameters
+  :: Int            -- ^ Number of parameters
   -> [A.LamBinding] -- ^ Bindings from definition site.
   -> Type           -- ^ Pi-type of bindings coming from signature site.
   -> (Telescope -> Type -> TCM a)
@@ -1081,58 +1107,58 @@ bindParameters'
      --   The parameters are part of the context when the continutation is invoked.
   -> TCM a
 
-bindParameters' _ [] a ret = ret EmptyTel a
+bindParameters 0 [] a ret = ret EmptyTel a
 
-bindParameters' ts (A.DomainFull (A.TypedBindings _ (Arg info (A.TBind _ xs e))) : bs) a ret = do
-  unless (null ts) __IMPOSSIBLE__
-  t <- workOnTypes $ isType_ e
-  bindParameters' (t <$ xs) (map (mergeHiding . fmap (A.DomainFree info)) xs ++ bs) a ret
+bindParameters 0 (par : _) _ _ = setCurrentRange par $
+  typeError . GenericDocError =<< do
+    text "Unexpected parameter" <+> prettyA par
 
-bindParameters' _ (A.DomainFull (A.TypedBindings _ (Arg _ A.TLet{})) : _) _ _ =  -- line break!
-  __IMPOSSIBLE__
-
-bindParameters' ts0 ps0@(par@(A.DomainFree info x) : ps) t ret = do
+bindParameters npars [] t ret =
   case unEl t of
-    -- Andreas, 2011-04-07 ignore relevance information in binding?!
-    -- Andreas, 2018-10-27 yes, at least in part (issue #3323)!
-    -- @info@ comes from DataDef and @info'@ from DataSig
-    Pi arg@(Dom{domInfo = info', unDom = a}) b -> do
-
-      -- We may omit hidden parameters in the repetition.
-      if | visible info, notVisible info' ->
-            continue ts0 ps0 =<< freshName_ (absName b)
-
-      -- Otherwise, the hiding must coincide.
-         | getHiding info /= getHiding info' ->   -- New line because of '
-             -- Andreas, 2016-12-30 Concrete.Definition excludes this case
-             __IMPOSSIBLE__
-
-      -- We may omit repetition of relevance and quantity
-         | r /= defaultRelevance && r /= r' -> typeError . GenericDocError =<< do
-             text "Wrong relevance in parameter" <+> prettyAs par
-
-         | q /= defaultQuantity  && q /= q' -> typeError . GenericDocError =<< do
-             text "Wrong quantity in parameter" <+> prettyAs par
-
-      -- Now, the @ArgInfo@s should match.
-         | otherwise -> do
-            -- Andreas, 2016-12-30, issue #1886:
-            -- If type for binding is present, check its correctness.
-            ts <- caseList ts0 (return []) $ \ t0 ts -> do
-              equalType t0 a
-              return ts
-            continue ts ps $ A.unBind x
-
-      where
-      r  = getRelevance info  ; q  = getQuantity info
-      r' = getRelevance info' ; q' = getQuantity info'
-
-      continue ts ps x = do
-        addContext (x, arg) $
-          bindParameters' (raise 1 ts) ps (absBody b) $ \ tel s ->
-            ret (ExtendTel arg $ Abs (nameToArgName x) tel) s
+    Pi a b | not (visible a) -> do
+              x <- freshName_ (absName b)
+              bindParameter npars [] x a b ret
+           | otherwise ->
+              typeError . GenericDocError =<<
+                sep [ "Expected binding for parameter"
+                    , text (absName b) <+> text ":" <+> prettyTCM (unDom a) ]
     _ -> __IMPOSSIBLE__
 
+bindParameters npars par@(A.DomainFull (A.TBind _ xs e) : bs) a ret =
+  setCurrentRange par $
+  typeError . GenericDocError =<< do
+    let s | length xs > 1 = "s"
+          | otherwise     = ""
+    text ("Unexpected type signature for parameter" ++ s) <+> sep (map prettyA xs)
+
+bindParameters _ (A.DomainFull A.TLet{} : _) _ _ = __IMPOSSIBLE__
+
+bindParameters _ (par@(A.DomainFree arg) : ps) _ _
+  | getModality arg /= defaultModality = setCurrentRange par $
+     typeError . GenericDocError =<< do
+       text "Unexpected modality/relevance annotation in" <+> prettyA par
+
+bindParameters npars ps0@(par@(A.DomainFree arg) : ps) t ret = do
+  let x          = namedArg arg
+      TelV tel _ = telView' t
+  case insertImplicit arg $ telToList tel of
+    ImpInsert _    -> continue ps0 =<< freshName_ (absName b)
+    BadImplicits   -> setCurrentRange par $
+     typeError . GenericDocError =<< do
+       text "Unexpected parameter" <+> prettyA par
+    NoSuchName x   -> setCurrentRange par $
+      typeError . GenericDocError =<< do
+        text ("No parameter of name " ++ x)
+    NoInsertNeeded -> continue ps $ A.unBind x
+  where
+    Pi dom@(Dom{domInfo = info', unDom = a}) b = unEl t
+    continue ps x = bindParameter npars ps x dom b ret
+
+bindParameter :: Int -> [A.LamBinding] -> Name -> Dom Type -> Abs Type -> (Telescope -> Type -> TCM a) -> TCM a
+bindParameter npars ps x a b ret =
+  addContext (x, a) $
+    bindParameters (npars - 1) ps (absBody b) $ \ tel s ->
+      ret (ExtendTel a $ Abs (nameToArgName x) tel) s
 
 -- | Check that the arguments to a constructor fits inside the sort of the datatype.
 --   The third argument is the type of the constructor.
@@ -1272,6 +1298,7 @@ isCoinductive t = do
       def <- getConstInfo q
       case theDef def of
         Axiom       {} -> return (Just False)
+        DataOrRecSig{} -> return Nothing
         Function    {} -> return Nothing
         Datatype    { dataInduction = CoInductive } -> return (Just True)
         Datatype    { dataInduction = Inductive   } -> return (Just False)

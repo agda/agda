@@ -185,7 +185,9 @@ instance SynEq a => SynEq (Arg a) where
   synEq (Arg ai a) (Arg ai' a') = Arg <$$> synEq ai ai' <**> synEq a a'
 
 instance SynEq a => SynEq (Dom a) where
-  synEq (Dom ai b a) (Dom ai' b' a') = Dom <$$> synEq ai ai' <**> synEq b b' <**> synEq a a'
+  synEq d@(Dom ai b x a) d'@(Dom ai' b' x' a')
+    | x == x'   = Dom <$$> synEq ai ai' <**> synEq b b' <**> pure2 x <**> synEq a a'
+    | otherwise = inequal (d, d')
 
 instance SynEq ArgInfo where
   synEq ai@(ArgInfo h r o _) ai'@(ArgInfo h' r' o' _)

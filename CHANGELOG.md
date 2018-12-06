@@ -22,7 +22,8 @@ Type checking and interaction
         Γ Δ : Con
   ```
 
-  Declared variables are automatically generalized in type signatures:
+  Declared variables are automatically generalized in type signatures, module
+  telescopes and data type and record parameters and indices:
   ```agda
     postulate
         Sub : Con → Con → Set
@@ -35,8 +36,32 @@ Type checking and interaction
     --  -- equivalent to
     --  _∘_ : {Γ Δ Θ : Con} → Sub Θ Δ → Sub Γ Θ → Sub Γ Δ
   ```
+
   Note that each type signature has a separate copy of its declared variables,
   so `id` and `_∘_` refer to two different `Γ` named variables.
+
+  When generalizing data type parameters and indicies a variable is turned into
+  an index if it's only mentioned in indices and into a parameter otherwise.
+  For instance,
+  ```agda
+    variable
+      n  : Nat
+
+    data Vec (A : Set) : Nat → Set where
+      []  : Vec A 0
+      _∷_ : A → Vec A n → Vec A (suc n)
+
+    variable
+      A  : Set
+      x  : A
+      xs : Vec A n
+
+    -- Here `A` will be a parameter and `n` an index. That is,
+    -- data All {A : Set} (P : A → Set) : {n : Nat} → Vec A n → Set
+    data All (P : A → Set) : Vec A n → Set where
+      []  : All P []
+      _∷_ : P x → All P xs → All P (x ∷ xs)
+  ```
 
   The following rules are used to place the generalized variables:
 
@@ -125,6 +150,44 @@ Type checking and interaction
   Issues related to this feature are marked with `generalize` in the issue tracker:
   https://github.com/agda/agda/labels/generalize
 
+* Data type and record definitions separated from their type signatures can no
+  longer repeat the types of the parameters, but can bind implicit parameters
+  by name [Issue [#1886](https://github.com/agda/agda/issues/1886)].
+
+  This is now allowed
+  ```agda
+    data D {a b} (A : Set a) (B : Set b) : Set (a ⊔ lsuc b)
+    data D {b = b} A B where
+      mkD : (A → Set b) → D A B
+  ```
+  but this is not
+  ```agda
+    data I (A : Set) : Set
+    data I (A : Set) where
+  ```
+
+* The label used for named implicit arguments can now be different from the
+  name of the bound variable [Issue [#952](https://github.com/agda/agda/issues/952)].
+
+  Example,
+  ```agda
+    id₁ : {A = X : Set} → X → X
+    id₁ x = x
+
+    id₂ : ∀ {B = X} → X → X
+    id₂ {B = X} x = id₁ {A = X} x
+
+    test : Nat
+    test = id₁ {A = Nat} 5 + id₂ {B = Nat} 6
+  ```
+  Only implicit and instance arguments can have a label and either or both of
+  the label and bound variable can be `_`. Labeled bindings with a type
+  signature can only bind a single variable. For instance, the type `Set` has
+  to be repeated here:
+  ```agda
+    const : {A = X : Set} {B = Y : Set} → X → Y → X
+    const x _ = x
+  ```
 
 * Out-of-scope identifiers are now prefixed by a ';' semicolon
   [Issue [#3127](https://github.com/agda/agda/issues/3127)].

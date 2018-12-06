@@ -23,6 +23,7 @@ import Data.Maybe
 import Data.Sequence (Seq, (<|), (><))
 import qualified Data.Sequence as Seq
 import qualified Data.Set as Set
+import Data.Set (Set)
 import Data.Traversable
 import Data.Void
 
@@ -184,11 +185,11 @@ data Declaration
   | Open       ModuleInfo ModuleName ImportDirective
     -- ^ only retained for highlighting purposes
   | FunDef     DefInfo QName Delayed [Clause] -- ^ sequence of function clauses
-  | DataSig    DefInfo QName Telescope Expr -- ^ lone data signature
-  | DataDef    DefInfo QName UniverseCheck [LamBinding] [Constructor]
+  | DataSig    DefInfo QName GeneralizeTelescope Expr -- ^ lone data signature
+  | DataDef    DefInfo QName UniverseCheck DataDefParams [Constructor]
       -- ^ the 'LamBinding's are 'DomainFree' and bind the parameters of the datatype.
-  | RecSig     DefInfo QName Telescope Expr -- ^ lone record signature
-  | RecDef     DefInfo QName UniverseCheck (Maybe (Ranged Induction)) (Maybe HasEta) (Maybe QName) [LamBinding] Expr [Declaration]
+  | RecSig     DefInfo QName GeneralizeTelescope Expr -- ^ lone record signature
+  | RecDef     DefInfo QName UniverseCheck (Maybe (Ranged Induction)) (Maybe HasEta) (Maybe QName) DataDefParams Expr [Declaration]
       -- ^ The 'LamBinding's are 'DomainFree' and bind the parameters of the datatype.
       --   The 'Expr' gives the constructor type telescope, @(x1 : A1)..(xn : An) -> Prop@,
       --   and the optional name is the constructor's name.
@@ -277,15 +278,10 @@ type Field          = TypeSignature
 
 -- | A lambda binding is either domain free or typed.
 data LamBinding
-  = DomainFree ArgInfo BindName   -- ^ . @x@ or @{x}@ or @.x@ or @.{x}@
-  | DomainFull TypedBindings  -- ^ . @(xs:e)@ or @{xs:e}@ or @(let Ds)@
+  = DomainFree (NamedArg BindName)  -- ^ . @x@ or @{x}@ or @.x@ or @{x = y}@
+  | DomainFull TypedBinding         -- ^ . @(xs:e)@ or @{xs:e}@ or @(let Ds)@
   deriving (Data, Show, Eq)
 
-
--- | Typed bindings with hiding information.
-data TypedBindings = TypedBindings Range (Arg TypedBinding)
-            -- ^ . @(xs : e)@ or @{xs : e}@
-  deriving (Data, Show, Eq)
 
 -- | A typed binding.  Appears in dependent function spaces, typed lambdas, and
 --   telescopes.  It might be tempting to simplify this to only bind a single
@@ -302,14 +298,14 @@ data TypedBindings = TypedBindings Range (Arg TypedBinding)
 --   that the metas of the copy are aliases of the metas of the original.
 
 data TypedBinding
-  = TBind Range [WithHiding BindName] Expr
+  = TBind Range [NamedArg BindName] Expr
     -- ^ As in telescope @(x y z : A)@ or type @(x y z : A) -> B@.
   | TLet Range [LetBinding]
     -- ^ E.g. @(let x = e)@ or @(let open M)@.
   deriving (Data, Show, Eq)
 
 
-type Telescope  = [TypedBindings]
+type Telescope  = [TypedBinding]
 
 data GeneralizeTelescope = GeneralizeTel
   { generalizeTelVars :: Map QName Name
@@ -317,6 +313,17 @@ data GeneralizeTelescope = GeneralizeTel
     --   introduced by the generalisation).
   , generalizeTel     :: Telescope }
   deriving (Data, Show, Eq)
+
+data DataDefParams = DataDefParams
+  { dataDefGeneralizedParams :: Set Name
+    -- ^ We don't yet know the position of generalized parameters from the data
+    --   sig, so we keep these in a set on the side.
+  , dataDefParams :: [LamBinding]
+  }
+  deriving (Data, Show, Eq)
+
+noDataDefParams :: DataDefParams
+noDataDefParams = DataDefParams Set.empty []
 
 -- | A user pattern together with an internal term that it should be equal to
 --   after splitting is complete.
@@ -585,22 +592,22 @@ instance Underscore Expr where
   underscore   = Underscore emptyMetaInfo
   isUnderscore = __IMPOSSIBLE__
 
-instance LensHiding TypedBindings where
-  getHiding   (TypedBindings _ a) = getHiding a
-  mapHiding f (TypedBindings r a) = TypedBindings r $ mapHiding f a
-
 instance LensHiding LamBinding where
-  getHiding   (DomainFree ai _) = getHiding ai
-  getHiding   (DomainFull tb)   = getHiding tb
-  mapHiding f (DomainFree ai x) = mapHiding f ai `DomainFree` x
-  mapHiding f (DomainFull tb)   = DomainFull $ mapHiding f tb
+  getHiding   (DomainFree x)  = getHiding x
+  getHiding   (DomainFull tb) = getHiding tb
+  mapHiding f (DomainFree x)  = DomainFree $ mapHiding f x
+  mapHiding f (DomainFull tb) = DomainFull $ mapHiding f tb
+
+instance LensHiding TypedBinding where
+  getHiding (TBind _ (x : _) _) = getHiding x   -- Slightly dubious
+  getHiding (TBind _ [] _)      = __IMPOSSIBLE__
+  getHiding TLet{}              = mempty
+  mapHiding f (TBind r xs e) = TBind r ((map . mapHiding) f xs) e
+  mapHiding f b@TLet{}       = b
 
 instance HasRange LamBinding where
-    getRange (DomainFree _ x) = getRange x
-    getRange (DomainFull b)   = getRange b
-
-instance HasRange TypedBindings where
-    getRange (TypedBindings r _) = r
+    getRange (DomainFree x) = getRange x
+    getRange (DomainFull b) = getRange b
 
 instance HasRange TypedBinding where
     getRange (TBind r _ _) = r
@@ -723,14 +730,14 @@ instance SetRange (Pattern' a) where
     setRange r (WithP i p)          = WithP (setRange r i) p
 
 instance KillRange LamBinding where
-  killRange (DomainFree info x) = killRange1 (DomainFree info) x
-  killRange (DomainFull b)      = killRange1 DomainFull b
+  killRange (DomainFree x) = killRange1 DomainFree x
+  killRange (DomainFull b) = killRange1 DomainFull b
 
 instance KillRange GeneralizeTelescope where
   killRange (GeneralizeTel s tel) = GeneralizeTel s (killRange tel)
 
-instance KillRange TypedBindings where
-  killRange (TypedBindings r b) = TypedBindings (killRange r) (killRange b)
+instance KillRange DataDefParams where
+  killRange (DataDefParams s tel) = DataDefParams s (killRange tel)
 
 instance KillRange TypedBinding where
   killRange (TBind r xs e) = killRange3 TBind r xs e
@@ -964,9 +971,6 @@ instance AllNames LamBinding where
   allNames DomainFree{}       = Seq.empty
   allNames (DomainFull binds) = allNames binds
 
-instance AllNames TypedBindings where
-  allNames (TypedBindings _ bs) = allNames bs
-
 instance AllNames TypedBinding where
   allNames (TBind _ _ e) = allNames e
   allNames (TLet _ lbs)  = allNames lbs
@@ -1070,7 +1074,7 @@ type PatternSynDefns = Map QName PatternSynDefn
 
 lambdaLiftExpr :: [Name] -> Expr -> Expr
 lambdaLiftExpr []     e = e
-lambdaLiftExpr (n:ns) e = Lam exprNoRange (DomainFree defaultArgInfo $ BindName n) $
+lambdaLiftExpr (n:ns) e = Lam exprNoRange (DomainFree $ defaultNamedArg $ BindName n) $
                             lambdaLiftExpr ns e
 
 
@@ -1143,9 +1147,6 @@ instance SubstExpr LetBinding where
     LetBind i r n e e' -> LetBind i r n (substExpr s e) (substExpr s e')
     LetPatBind i p e   -> LetPatBind i p (substExpr s e) -- Andreas, 2012-06-04: what about the pattern p
     _                  -> lb -- Nicolas, 2013-11-11: what about "LetApply" there is experessions in there
-
-instance SubstExpr TypedBindings where
-  substExpr s (TypedBindings r atb) = TypedBindings r (substExpr s atb)
 
 instance SubstExpr TypedBinding where
   substExpr s tb = case tb of

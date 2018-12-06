@@ -194,7 +194,7 @@ instance EmbPrj CompKit where
   value = valueN CompKit
 
 instance EmbPrj Definition where
-  icod_ (Defn a b c d e f g h i j k l m n o) = icodeN' Defn a b (P.killRange c) d e f g h i j k l m n o
+  icod_ (Defn a b c d e f g h i j k l m n o p) = icodeN' Defn a b (P.killRange c) d e f g h i j k l m n o p
 
   value = valueN Defn
 
@@ -319,6 +319,7 @@ instance EmbPrj Defn where
   icod_ (Primitive   a b c d e)                 = icodeN 5 Primitive a b c d e
   icod_ AbstractDefn{}                          = __IMPOSSIBLE__
   icod_ GeneralizableVar                        = icodeN 6 GeneralizableVar
+  icod_ DataOrRecSig{}                          = __IMPOSSIBLE__
 
   value = vcase valu where
     valu [0]                                     = valuN Axiom

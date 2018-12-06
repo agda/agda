@@ -212,7 +212,7 @@ pathToRecord pps =
 
           abstract :: NamedArg Name -> ScopeM Expr -> ScopeM Expr
           abstract (Arg info (Named Nothing x)) me =
-            Lam exprNoRange (DomainFree info $ BindName x) <$> me
+            Lam exprNoRange (DomainFree $ unnamedArg info $ BindName x) <$> me
           abstract (Arg _ (Named Just{} _)) me = typeError $ NotImplemented $
             "named arguments in projection patterns"
 
@@ -315,9 +315,6 @@ instance Rename LamBinding where
       case e of
         DomainFree{} -> e
         DomainFull tb -> DomainFull (rename rho tb)
-
-instance Rename TypedBindings where
-  rename rho (TypedBindings r tb) = TypedBindings r (rename rho tb)
 
 instance Rename TypedBinding where
   rename rho (TBind r ns e) = TBind r ns (rename rho e)

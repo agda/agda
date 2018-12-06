@@ -33,7 +33,8 @@ examplesInUserManual = map ((testDir </> "tools") </>)
 tests :: IO TestTree
 tests = do
   inpFiles <-
-    filter (not . (`elem` examplesInUserManual)) .
+    -- The tex files (examplesInUserManual above) are tested by the LaTeX test suite
+    filter ((/= ".tex") . takeExtension) .
     -- Files under _build should not be tested.
     filter ((/= ["_build"]) . take 1 . drop 2 . splitDirectories) <$>
       getAgdaFilesInDir Rec testDir

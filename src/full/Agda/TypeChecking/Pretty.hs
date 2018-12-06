@@ -373,7 +373,7 @@ instance PrettyTCM ConHead where
 instance PrettyTCM Telescope where
   prettyTCM tel = P.fsep . map P.pretty <$> (do
       tel <- reify tel
-      runAbsToCon $ bindToConcrete tel (return . concat)
+      runAbsToCon $ bindToConcrete tel return
     )
 
 newtype PrettyContext = PrettyContext Context

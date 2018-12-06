@@ -1,4 +1,4 @@
 TelescopingLet4.agda:10,6-36
-let open Star using (★₁) is not allowed in a telescope here.
+(let open Star using (★₁)) is not allowed in a telescope here.
 when scope checking the declaration
   data D5 (let open Star using (★₁)) : ★₁

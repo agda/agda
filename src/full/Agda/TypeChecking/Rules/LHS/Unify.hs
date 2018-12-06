@@ -604,7 +604,7 @@ findFlexible i flex =
 
 basicUnifyStrategy :: Int -> UnifyStrategy
 basicUnifyStrategy k s = do
-  Equal (Dom info fin a) u v <- liftTCM $ eqUnLevel (getEquality k s)
+  Equal dom@Dom{unDom = a} u v <- liftTCM $ eqUnLevel (getEquality k s)
   ha <- fromMaybeMP $ isHom n a
   (mi, mj) <- liftTCM $ addContext (varTel s) $ (,) <$> isEtaVar u ha <*> isEtaVar v ha
   liftTCM $ reportSDoc "tc.lhs.unify" 30 $ "isEtaVar results: " <+> text (show [mi,mj])
@@ -615,10 +615,10 @@ basicUnifyStrategy k s = do
      | Just fi <- findFlexible i flex
      , Just fj <- findFlexible j flex -> do
        let choice = chooseFlex fi fj
-           firstTryLeft  = msum [ return (Solution k (Dom info fin ha) fi v)
-                                , return (Solution k (Dom info fin ha) fj u)]
-           firstTryRight = msum [ return (Solution k (Dom info fin ha) fj u)
-                                , return (Solution k (Dom info fin ha) fi v)]
+           firstTryLeft  = msum [ return (Solution k dom{unDom = ha} fi v)
+                                , return (Solution k dom{unDom = ha} fj u)]
+           firstTryRight = msum [ return (Solution k dom{unDom = ha} fj u)
+                                , return (Solution k dom{unDom = ha} fi v)]
        liftTCM $ reportSDoc "tc.lhs.unify" 40 $ "fi = " <+> text (show fi)
        liftTCM $ reportSDoc "tc.lhs.unify" 40 $ "fj = " <+> text (show fj)
        liftTCM $ reportSDoc "tc.lhs.unify" 40 $ "chooseFlex: " <+> text (show choice)
@@ -628,9 +628,9 @@ basicUnifyStrategy k s = do
          ExpandBoth   -> mzero -- This should be taken care of by etaExpandEquationStrategy
          ChooseEither -> firstTryRight
     (Just i, _)
-     | Just fi <- findFlexible i flex -> return $ Solution k (Dom info fin ha) fi v
+     | Just fi <- findFlexible i flex -> return $ Solution k dom{unDom = ha} fi v
     (_, Just j)
-     | Just fj <- findFlexible j flex -> return $ Solution k (Dom info fin ha) fj u
+     | Just fj <- findFlexible j flex -> return $ Solution k dom{unDom = ha} fj u
     _ -> mzero
   where
     flex = flexVars s
@@ -638,7 +638,7 @@ basicUnifyStrategy k s = do
 
 dataStrategy :: Int -> UnifyStrategy
 dataStrategy k s = do
-  Equal (Dom _ _ a) u v <- liftTCM $ eqConstructorForm =<< eqUnLevel (getEqualityUnraised k s)
+  Equal Dom{unDom = a} u v <- liftTCM $ eqConstructorForm =<< eqUnLevel (getEqualityUnraised k s)
   case unEl a of
     Def d es | Type{} <- getSort a -> do
       npars <- catMaybesMP $ liftTCM $ getNumberOfParameters d
@@ -665,7 +665,7 @@ dataStrategy k s = do
 
 checkEqualityStrategy :: Int -> UnifyStrategy
 checkEqualityStrategy k s = do
-  let Equal (Dom _ _ a) u v = getEquality k s
+  let Equal Dom{unDom = a} u v = getEquality k s
       n = eqCount s
   ha <- fromMaybeMP $ isHom n a
   return $ Deletion k ha u v
@@ -673,7 +673,7 @@ checkEqualityStrategy k s = do
 literalStrategy :: Int -> UnifyStrategy
 literalStrategy k s = do
   let n = eqCount s
-  Equal (Dom _ _ a) u v <- liftTCM $ eqUnLevel $ getEquality k s
+  Equal Dom{unDom = a} u v <- liftTCM $ eqUnLevel $ getEquality k s
   ha <- fromMaybeMP $ isHom n a
   case (u , v) of
     (Lit l1 , Lit l2)
@@ -683,7 +683,7 @@ literalStrategy k s = do
 
 etaExpandVarStrategy :: Int -> UnifyStrategy
 etaExpandVarStrategy k s = do
-  Equal (Dom _ _ a) u v <- liftTCM $ eqUnLevel (getEquality k s)
+  Equal Dom{unDom = a} u v <- liftTCM $ eqUnLevel (getEquality k s)
   shouldEtaExpand u v a s `mplus` shouldEtaExpand v u a s
   where
     -- TODO: use IsEtaVar to check if the term is a variable
@@ -696,7 +696,7 @@ etaExpandVarStrategy k s = do
       -- record or if it's unified against a record constructor term. Basically
       -- we need to avoid EtaExpandEquation if EtaExpandVar is possible, or the
       -- forcing translation is unhappy.
-      let Dom _ _ b = getVarTypeUnraised (varCount s - 1 - i) s
+      let Dom{unDom = b} = getVarTypeUnraised (varCount s - 1 - i) s
       (d, pars) <- catMaybesMP $ liftTCM $ isEtaRecordType b
       ps        <- fromMaybeMP $ allProjElims es
       sing      <- liftTCM $ (Right True ==) <$> isSingletonRecord d pars
@@ -714,7 +714,7 @@ etaExpandVarStrategy k s = do
 
 etaExpandEquationStrategy :: Int -> UnifyStrategy
 etaExpandEquationStrategy k s = do
-  let Equal (Dom _ _ a) u v = getEqualityUnraised k s
+  let Equal Dom{unDom = a} u v = getEqualityUnraised k s
   (d, pars) <- catMaybesMP $ liftTCM $ addContext tel $ isEtaRecordType a
   sing <- liftTCM $ (Right True ==) <$> isSingletonRecord d pars
   projLeft <- liftTCM $ shouldProject u
@@ -742,7 +742,7 @@ etaExpandEquationStrategy k s = do
 simplifySizesStrategy :: Int -> UnifyStrategy
 simplifySizesStrategy k s = do
   isSizeName <- liftTCM isSizeNameTest
-  let Equal (Dom _ _ a) u v = getEquality k s
+  let Equal Dom{unDom = a} u v = getEquality k s
   case unEl a of
     Def d _ -> do
       guard $ isSizeName d
@@ -768,6 +768,7 @@ injectiveTypeConStrategy k s = do
                 Datatype{} -> True
                 Record{}   -> True
                 Axiom{}    -> True
+                DataOrRecSig{} -> True
                 AbstractDefn{} -> False -- True triggers issue #2250
                 Function{}   -> False
                 Primitive{}  -> False
@@ -857,14 +858,14 @@ unifyStep s Deletion{ deleteAt = k , deleteType = a , deleteLeft = u , deleteRig
         Unifies <$> liftTCM (reduceEqTel s')
 
 unifyStep s Solution{ solutionAt   = k
-                    , solutionType = Dom info _ a
+                    , solutionType = dom@Dom{ unDom = a }
                     , solutionVar  = fi@FlexibleVar{ flexVar = i }
                     , solutionTerm = u } = do
   let m = varCount s
 
   -- Check that the type of the variable is equal to the type of the equation
   -- (not just a subtype), otherwise we cannot instantiate (see Issue 2407).
-  let Dom info' _ a' = getVarType (m-1-i) s
+  let dom'@Dom{ unDom = a' } = getVarType (m-1-i) s
   equalTypes <- liftTCM $ addContext (varTel s) $ do
     reportSDoc "tc.lhs.unify" 45 $ "Equation type: " <+> prettyTCM a
     reportSDoc "tc.lhs.unify" 45 $ "Variable type: " <+> prettyTCM a'
@@ -882,11 +883,11 @@ unifyStep s Solution{ solutionAt   = k
   -- Jesper, Andreas, 2018-10-17: the quantity of the equation is morally
   -- always @Quantity0@, since the indices of the data type are runtime erased.
   -- This, we need not change the quantity of the solution.
-  let eqrel  = getRelevance info
-      varmod = getModality info'
+  let eqrel  = getRelevance dom
+      varmod = getModality dom'
       mod    = applyUnless (NonStrict `moreRelevant` eqrel) (setRelevance eqrel)
              $ varmod
-  reportSDoc "tc.lhs.unify" 65 $ text $ "Equation modality: " ++ show (getModality info)
+  reportSDoc "tc.lhs.unify" 65 $ text $ "Equation modality: " ++ show (getModality dom)
   reportSDoc "tc.lhs.unify" 65 $ text $ "Variable modality: " ++ show varmod
   reportSDoc "tc.lhs.unify" 65 $ text $ "Solution must be usable in a " ++ show mod ++ " position."
   -- Andreas, 2018-10-18
@@ -997,7 +998,7 @@ unifyStep s (Injectivity k a d pars ixs c) = do
 
 
     DontKnow _ -> let n           = eqCount s
-                      Equal (Dom _ _ a) u v = getEquality k s
+                      Equal Dom{unDom = a} u v = getEquality k s
                   in return $ DontKnow [UnifyIndicesNotVars
                        (varTel s `abstract` eqTel s) a
                        (raise n u) (raise n v) (raise (n-k) ixs)]

@@ -33,6 +33,7 @@ import Language.Haskell.TH.Syntax (thenCmp) -- lexicographic combination of Orde
 import Agda.Interaction.Options
 
 import Agda.Syntax.Common
+import Agda.Syntax.Position
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
 import qualified Agda.Syntax.Abstract as A
@@ -197,8 +198,8 @@ instance Subst Term a => Apply (Tele a) where
   applyE t es = apply t $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
 
 instance Apply Definition where
-  apply (Defn info x t pol occ gens df m c inst copy ma nc inj d) args =
-    Defn info x (piApply t args) (apply pol args) (apply occ args) (apply gens args) df m c inst copy ma nc inj (apply d args)
+  apply (Defn info x t pol occ gens gpars df m c inst copy ma nc inj d) args =
+    Defn info x (piApply t args) (apply pol args) (apply occ args) (apply gens args) (drop (length args) gpars) df m c inst copy ma nc inj (apply d args)
 
   applyE t es = apply t $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
 
@@ -265,6 +266,7 @@ instance Apply Defn where
   apply d [] = d
   apply d args = case d of
     Axiom{} -> d
+    DataOrRecSig n -> DataOrRecSig (n - length args)
     GeneralizableVar{} -> d
     AbstractDefn d -> AbstractDefn $ apply d args
     Function{ funClauses = cs, funCompiled = cc, funInv = inv
@@ -571,8 +573,9 @@ instance Abstract Telescope where
   ExtendTel arg xtel `abstract` tel = ExtendTel arg $ xtel <&> (`abstract` tel)
 
 instance Abstract Definition where
-  abstract tel (Defn info x t pol occ gens df m c inst copy ma nc inj d) =
-    Defn info x (abstract tel t) (abstract tel pol) (abstract tel occ) (abstract tel gens) df m c inst copy ma nc inj (abstract tel d)
+  abstract tel (Defn info x t pol occ gens gpars df m c inst copy ma nc inj d) =
+    Defn info x (abstract tel t) (abstract tel pol) (abstract tel occ) (abstract tel gens)
+                (replicate (size tel) Nothing ++ gpars) df m c inst copy ma nc inj (abstract tel d)
 
 -- | @tel ⊢ (Γ ⊢ lhs ↦ rhs : t)@ becomes @tel, Γ ⊢ lhs ↦ rhs : t)@
 --   we do not need to change lhs, rhs, and t since they live in Γ.
@@ -609,6 +612,7 @@ instance Abstract System where
 instance Abstract Defn where
   abstract tel d = case d of
     Axiom{} -> d
+    DataOrRecSig n -> DataOrRecSig (size tel + n)
     GeneralizableVar{} -> d
     AbstractDefn d -> AbstractDefn $ abstract tel d
     Function{ funClauses = cs, funCompiled = cc, funInv = inv
@@ -1071,14 +1075,17 @@ bindsToTel :: [Name] -> Dom Type -> ListTel
 bindsToTel = bindsToTel' nameToArgName
 
 -- | Turn a typed binding @(x1 .. xn : A)@ into a telescope.
-bindsWithHidingToTel' :: (Name -> a) -> [WithHiding Name] -> Dom Type -> ListTel' a
-bindsWithHidingToTel' f []                    t = []
-bindsWithHidingToTel' f (WithHiding h x : xs) t =
-  fmap (f x,) (mapHiding (mappend h) t) : bindsWithHidingToTel' f xs (raise 1 t)
+namedBindsToTel :: [NamedArg Name] -> Type -> Telescope
+namedBindsToTel []       t = EmptyTel
+namedBindsToTel (x : xs) t =
+  ExtendTel (t <$ domFromNamedArgName x) $ Abs (nameToArgName $ namedArg x) $ namedBindsToTel xs (raise 1 t)
 
-bindsWithHidingToTel :: [WithHiding Name] -> Dom Type -> ListTel
-bindsWithHidingToTel = bindsWithHidingToTel' nameToArgName
-
+domFromNamedArgName :: NamedArg Name -> Dom ()
+domFromNamedArgName x = () <$ domFromNamedArg (fmap forceName x)
+  where
+    -- If no explicit name is given we use the bound name for the label.
+    forceName (Named Nothing x) = Named (Just $ Ranged (getRange x) $ nameToArgName x) x
+    forceName x = x
 
 -- ** Abstracting in terms and types
 

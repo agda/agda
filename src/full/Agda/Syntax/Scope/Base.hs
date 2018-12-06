@@ -279,7 +279,14 @@ data AbstractName = AbsName
     -- ^ The kind (definition, constructor, record field etc.).
   , anameLineage :: WhyInScope
     -- ^ Explanation where this name came from.
+  , anameMetadata :: NameMetadata
+    -- ^ Additional information needed during scope checking. Currently used
+    --   for generalized data/record params.
   }
+  deriving (Data, Show)
+
+data NameMetadata = NoMetadata
+                  | GeneralizedVarsMetadata (Map A.QName A.Name)
   deriving (Data, Show)
 
 -- | A decoration of abstract syntax module names.

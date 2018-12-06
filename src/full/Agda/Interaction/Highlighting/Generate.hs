@@ -310,11 +310,11 @@ generateAndPrintSyntaxInfo decl hlLevel updateState = do
     getLet (A.LetDeclaredVariable x) = bound x
 
     getLam :: A.LamBinding -> File
-    getLam (A.DomainFree _ x) = bound x
-    getLam (A.DomainFull {})  = mempty
+    getLam (A.DomainFree x)  = bound $ Common.namedArg x
+    getLam (A.DomainFull {}) = mempty
 
     getTyped :: A.TypedBinding -> File
-    getTyped (A.TBind _ xs _) = mconcat $ map (bound . dget) xs
+    getTyped (A.TBind _ xs _) = mconcat $ map (bound . Common.namedArg) xs
     getTyped A.TLet{}         = mempty
 
     getPatSynArgs :: A.Declaration -> File
@@ -484,6 +484,7 @@ nameKinds hlLevel decl = do
 
   defnToKind :: Defn -> NameKind
   defnToKind   M.Axiom{}                           = Postulate
+  defnToKind   M.DataOrRecSig{}                    = Postulate
   defnToKind   M.GeneralizableVar{}                = Bound    -- TODO: separate kind for generalizable vars
   defnToKind d@M.Function{} | isProperProjection d = Field
                             | otherwise            = Function

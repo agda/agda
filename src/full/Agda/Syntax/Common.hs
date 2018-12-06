@@ -1044,22 +1044,23 @@ instance Underscore Doc where
 data Dom e = Dom
   { domInfo   :: ArgInfo
   , domFinite :: !Bool
+  , domName   :: Maybe RString
   , unDom     :: e
   } deriving (Data, Ord, Functor, Foldable, Traversable)
 
 instance Decoration Dom where
-  traverseF f (Dom ai b a) = Dom ai b <$> f a
+  traverseF f (Dom ai b x a) = Dom ai b x <$> f a
 
 instance HasRange a => HasRange (Dom a) where
   getRange = getRange . unDom
 
 instance KillRange a => KillRange (Dom a) where
-  killRange (Dom info b a) = killRange3 Dom info b a
+  killRange (Dom info b x a) = killRange4 Dom info b x a
 
 -- | Ignores 'Origin' and 'FreeVariables'.
 instance Eq a => Eq (Dom a) where
-  Dom (ArgInfo h1 m1 _ _) b1 x1 == Dom (ArgInfo h2 m2 _ _) b2 x2 =
-    (h1, m1, b1, x1) == (h2, m2, b2, x2)
+  Dom (ArgInfo h1 m1 _ _) b1 s1 x1 == Dom (ArgInfo h2 m2 _ _) b2 s2 x2 =
+    (h1, m1, b1, s1, x1) == (h2, m2, b2, s2, x2)
 
 instance Show a => Show (Dom a) where
   show = show . argFromDom
@@ -1104,16 +1105,25 @@ instance LensQuantity (Dom e) where
   mapQuantity = mapQuantityMod
 
 argFromDom :: Dom a -> Arg a
-argFromDom (Dom i _ a) = Arg i a
+argFromDom (Dom i _ _ a) = Arg i a
+
+namedArgFromDom :: Dom a -> NamedArg a
+namedArgFromDom (Dom i _ s a) = Arg i $ Named s a
 
 domFromArg :: Arg a -> Dom a
-domFromArg (Arg i a) = Dom i False a
+domFromArg (Arg i a) = Dom i False Nothing a
+
+domFromNamedArg :: NamedArg a -> Dom a
+domFromNamedArg (Arg i a) = Dom i False (nameOf a) (namedThing a)
 
 defaultDom :: a -> Dom a
 defaultDom = defaultArgDom defaultArgInfo
 
 defaultArgDom :: ArgInfo -> a -> Dom a
-defaultArgDom info x = Dom info False x
+defaultArgDom info x = Dom info False Nothing x
+
+defaultNamedArgDom :: ArgInfo -> String -> a -> Dom a
+defaultNamedArgDom info s = Dom info False (Just $ unranged s)
 
 ---------------------------------------------------------------------------
 -- * Named arguments
@@ -1186,7 +1196,10 @@ namedArg :: NamedArg a -> a
 namedArg = namedThing . unArg
 
 defaultNamedArg :: a -> NamedArg a
-defaultNamedArg = defaultArg . unnamed
+defaultNamedArg = unnamedArg defaultArgInfo
+
+unnamedArg :: ArgInfo -> a -> NamedArg a
+unnamedArg info = Arg info . unnamed
 
 -- | The functor instance for 'NamedArg' would be ambiguous,
 --   so we give it another name here.

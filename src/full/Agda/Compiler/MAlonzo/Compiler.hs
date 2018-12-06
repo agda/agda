@@ -303,6 +303,8 @@ definition env Defn{defName = q, defType = ty, theDef = d} = do
                  , sharpC
                  ]
 
+      DataOrRecSig{} -> __IMPOSSIBLE__
+
       Axiom{} -> do
         ar <- typeArity ty
         return $ [ compiledTypeSynonym q ty ar | Just (HsType r ty) <- [pragma] ] ++

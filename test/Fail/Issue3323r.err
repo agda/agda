@@ -1,3 +1,3 @@
-Issue3323r.agda:10,8-9
-Wrong relevance in parameter .b
+Issue3323r.agda:10,11-12
+Unexpected modality/relevance annotation in .b
 when checking the definition of R

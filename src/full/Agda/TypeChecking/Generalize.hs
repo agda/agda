@@ -39,8 +39,8 @@ import qualified Agda.Utils.Graph.TopSort as Graph
 #include "undefined.h"
 
 -- | Generalize a telescope over a set of generalizable variables.
-generalizeTelescope :: Map QName Name -> (forall a. (Telescope -> TCM a) -> TCM a) -> (Telescope -> TCM a) -> TCM a
-generalizeTelescope vars typecheckAction ret | Map.null vars = typecheckAction ret
+generalizeTelescope :: Map QName Name -> (forall a. (Telescope -> TCM a) -> TCM a) -> ([Maybe Name] -> Telescope -> TCM a) -> TCM a
+generalizeTelescope vars typecheckAction ret | Map.null vars = typecheckAction (ret [])
 generalizeTelescope vars typecheckAction ret = billTo [Typing, Generalize] $ withGenRecVar $ \ genRecMeta -> do
   let s = Set.fromList (Map.keys vars)
   ((cxtNames, tel), namedMetas, allmetas) <-
@@ -48,8 +48,10 @@ generalizeTelescope vars typecheckAction ret = billTo [Typing, Generalize] $ wit
       cxt <- take (size tel) <$> getContext
       return (map (fst . unDom) cxt, tel)
   -- Translate the QName to the corresponding bound variable
-  let boundVars = fmap (\ q -> fromMaybe __IMPOSSIBLE__ $ Map.lookup q vars) namedMetas
-  (genTel, genTelNames, sub) <- computeGeneralization genRecMeta boundVars allmetas
+  (genTel, genTelNames, sub) <- computeGeneralization genRecMeta namedMetas allmetas
+
+  let boundVar q = fromMaybe __IMPOSSIBLE__ $ Map.lookup q vars
+      genTelVars = (map . fmap) boundVar genTelNames
 
   tel' <- applySubst sub <$> instantiateFull tel
 
@@ -62,7 +64,7 @@ generalizeTelescope vars typecheckAction ret = billTo [Typing, Generalize] $ wit
           return $ setName name d
         where s  = fst $ unDom d
       dropCxt err = updateContext (strengthenS err 1) (drop 1)
-  genTelCxt <- dropCxt __IMPOSSIBLE__ $ mapM cxtEntry $ reverse $ zip genTelNames $ telToList genTel
+  genTelCxt <- dropCxt __IMPOSSIBLE__ $ mapM cxtEntry $ reverse $ zip genTelVars $ telToList genTel
 
   -- For the explicit module telescope we get the names from the typecheck
   -- action.
@@ -75,14 +77,14 @@ generalizeTelescope vars typecheckAction ret = billTo [Typing, Generalize] $ wit
   -- Γ Δ ⊢ ρ : Γ (r : R)      ρ = sub
   -- Γ ⊢ Δ Θρ                 Θρ = tel'
   updateContext sub ((genTelCxt ++) . drop 1) $
-    updateContext (raiseS (size tel')) (newTelCxt ++) $ ret (abstract genTel tel')
+    updateContext (raiseS (size tel')) (newTelCxt ++) $ ret genTelVars (abstract genTel tel')
 
 -- | Generalize a type over a set of (used) generalizable variables.
-generalizeType :: Set QName -> TCM Type -> TCM (Int, Type)
+generalizeType :: Set QName -> TCM Type -> TCM ([Maybe QName], Type)
 generalizeType s typecheckAction = billTo [Typing, Generalize] $ withGenRecVar $ \ genRecMeta -> do
 
-  (t, _, allmetas) <- createMetasAndTypeCheck s typecheckAction
-  (genTel, _, sub) <- computeGeneralization genRecMeta Map.empty allmetas
+  (t, namedMetas, allmetas) <- createMetasAndTypeCheck s typecheckAction
+  (genTel, genTelNames, sub) <- computeGeneralization genRecMeta namedMetas allmetas
 
   t' <- abstract genTel . applySubst sub <$> instantiateFull t
 
@@ -90,7 +92,7 @@ generalizeType s typecheckAction = billTo [Typing, Generalize] $ withGenRecVar $
     [ "generalized"
     , nest 2 $ "t =" <+> escapeContext 1 (prettyTCM t') ]
 
-  return (size genTel, t')
+  return (genTelNames, t')
 
 -- | Create metas for the generalizable variables and run the type check action.
 createMetasAndTypeCheck :: Set QName -> TCM a -> TCM (a, Map MetaId QName, Set MetaId)
@@ -116,7 +118,7 @@ withGenRecVar ret = do
 --   generalized. Called in the context extended with the telescope record variable (whose type is
 --   the first argument). Returns the telescope of generalized variables and a substitution from
 --   this telescope to the current context.
-computeGeneralization :: Type -> Map MetaId Name -> Set MetaId -> TCM (Telescope, [Maybe Name], Substitution)
+computeGeneralization :: Type -> Map MetaId name -> Set MetaId -> TCM (Telescope, [Maybe name], Substitution)
 computeGeneralization genRecMeta nameMap allmetas = do
   -- Pair metas with their metaInfo
   mvs <- mapM (\ x -> (x,) <$> lookupMeta x) (Set.toList allmetas)
@@ -259,7 +261,7 @@ buildGeneralizeTel con xs = go 0 xs
     go _ [] = EmptyTel
     go i ((name, ty) : xs) = ExtendTel (dom ty') $ Abs (unArg name) $ go (i + 1) xs
       where ty' = applySubst (recSub i) ty
-            dom = setArgInfo (argInfo name) . defaultDom
+            dom = defaultNamedArgDom (getArgInfo name) (unArg name)
 
 -- | Create metas for all used generalizable variables and their dependencies.
 createGenValues :: Set QName -> TCM (Map MetaId QName, Map QName GeneralizedValue)

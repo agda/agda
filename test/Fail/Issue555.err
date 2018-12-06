@@ -1,3 +1,3 @@
-Issue555.agda:5,6-9
-List of parameters Γ does not match parameters of previous
-signature for Exp
+Issue555.agda:5,10-11
+Unexpected parameter Γ
+when checking the definition of Exp

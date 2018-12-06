@@ -38,7 +38,8 @@ implicitNamedArgs 0 expand t0 = return ([], t0)
 implicitNamedArgs n expand t0 = do
     t0' <- reduce t0
     case unEl t0' of
-      Pi (Dom{domInfo = info, unDom = a}) b | let x = absName b, expand (getHiding info) x -> do
+      Pi Dom{domInfo = info, domName = name, unDom = a} b
+        | let x = maybe "_" rangedThing name, expand (getHiding info) x -> do
           info' <- if hidden info then return info else do
             reportSDoc "tc.term.args.ifs" 15 $
               "inserting instance meta for type" <+> prettyTCM a
@@ -93,14 +94,19 @@ impInsert :: [Hiding] -> ImplicitInsertion
 impInsert [] = NoInsertNeeded
 impInsert hs = ImpInsert hs
 
--- | The list should be non-empty.
-insertImplicit :: NamedArg e -> [Arg ArgName] -> ImplicitInsertion
-insertImplicit _ [] = __IMPOSSIBLE__
-insertImplicit a ts | visible a = impInsert $ nofHidden ts
+insertImplicit :: NamedArg e -> [Dom a] -> ImplicitInsertion
+insertImplicit a doms = insertImplicit' a $ map name doms
+  where
+    name dom = x <$ argFromDom dom
+      where x = maybe "_" rangedThing $ domName dom
+
+insertImplicit' :: NamedArg e -> [Arg ArgName] -> ImplicitInsertion
+insertImplicit' _ [] = BadImplicits
+insertImplicit' a ts | visible a = impInsert $ nofHidden ts
   where
     nofHidden :: [Arg a] -> [Hiding]
     nofHidden = takeWhile notVisible . map getHiding
-insertImplicit a ts =
+insertImplicit' a ts =
   case nameOf (unArg a) of
     Nothing -> maybe BadImplicits impInsert $ upto (getHiding a) $ map getHiding ts
     Just x  -> find [] (rangedThing x) (getHiding a) ts
@@ -117,3 +123,4 @@ insertImplicit a ts =
       | x == y && sameHiding hidingx a = BadImplicits
       | otherwise = find (getHiding a : hs) x hidingx ts
     find i x _ [] = NoSuchName x
+

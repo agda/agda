@@ -278,10 +278,10 @@ instance ExprLike GeneralizeTelescope where
   foldExpr     f (GeneralizeTel s tel) = foldExpr f tel
   traverseExpr f (GeneralizeTel s tel) = GeneralizeTel s <$> traverseExpr f tel
 
-instance ExprLike TypedBindings where
-  recurseExpr  f (TypedBindings r b) = TypedBindings r <$> recurseExpr f b
-  foldExpr     f (TypedBindings r b) = foldExpr f b
-  traverseExpr f (TypedBindings r b) = TypedBindings r <$> traverseExpr f b
+instance ExprLike DataDefParams where
+  recurseExpr  f (DataDefParams s tel) = DataDefParams s <$> recurseExpr f tel
+  foldExpr     f (DataDefParams s tel) = foldExpr f tel
+  traverseExpr f (DataDefParams s tel) = DataDefParams s <$> traverseExpr f tel
 
 instance ExprLike TypedBinding where
   recurseExpr f e =

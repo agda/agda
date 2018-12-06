@@ -490,7 +490,7 @@ reifyTerm expandAnonDefs0 v0 = do
 --    I.Lam info b | isAbsurdBody b -> return $ A. AbsurdLam noExprInfo $ getHiding info
     I.Lam info b    -> do
       (x,e) <- reify b
-      return $ A.Lam exprNoRange (DomainFree info $ BindName x) e
+      return $ A.Lam exprNoRange (DomainFree $ unnamedArg info $ BindName x) e
       -- Andreas, 2011-04-07 we do not need relevance information at internal Lambda
     I.Lit l        -> reify l
     I.Level l      -> reify l
@@ -507,10 +507,11 @@ reifyTerm expandAnonDefs0 v0 = do
             {- then -} (pure $ Arg (domInfo a) underscore)
             {- else -} (reify a)
       where
-        mkPi b (Arg info a) = do
+        mkPi b (Arg info a') = do
           -- #2776: Out-of-scope dots are not helpful at this point.
-          (x, b) <- reify b{ absName = unNotInScopeName $ absName b }
-          return $ A.Pi noExprInfo [TypedBindings noRange $ Arg info (TBind noRange [pure $ BindName x] a)] b
+          let name  = unNotInScopeName $ absName b
+          (x, b) <- reify b{ absName = name }
+          return $ A.Pi noExprInfo [TBind noRange [Arg info $ Named (domName a) $ BindName x] a'] b
         -- We can omit the domain type if it doesn't have any free variables
         -- and it's mentioned in the target type.
         domainFree a b = do
@@ -621,7 +622,7 @@ reifyTerm expandAnonDefs0 v0 = do
                             vars = map (getArgInfo &&& name . namedArg) $ drop (length es) $ init $ namedClausePats cl
                             lam (i, s) = do
                               x <- freshName_ s
-                              return $ A.Lam exprNoRange (A.DomainFree i $ A.BindName x)
+                              return $ A.Lam exprNoRange (A.DomainFree $ unnamedArg i $ A.BindName x)
                         foldr ($) absLam <$> mapM lam vars
                       | otherwise -> elims absLam =<< reify (drop n es)
 
@@ -986,9 +987,6 @@ instance BlankVars A.LamBinding where
   blank bound b@A.DomainFree{} = b
   blank bound (A.DomainFull bs) = A.DomainFull $ blank bound bs
 
-instance BlankVars TypedBindings where
-  blank bound (TypedBindings r bs) = TypedBindings r $ blank bound bs
-
 instance BlankVars TypedBinding where
   blank bound (TBind r n e) = TBind r n $ blank bound e
   blank bound (TLet _ _)    = __IMPOSSIBLE__ -- Since the internal syntax has no let bindings left
@@ -1012,8 +1010,8 @@ instance Binder A.LHSCore where
 
 instance Binder A.Pattern where
   varsBoundIn = foldAPattern $ \case
-    A.VarP x            -> singleton $ unBind x
-    A.AsP _ x _         -> empty
+    A.VarP x            -> varsBoundIn x
+    A.AsP _ x _         -> empty    -- Not x because of #2414 (?)
     A.ConP _ _ _        -> empty
     A.ProjP{}           -> empty
     A.DefP _ _ _        -> empty
@@ -1027,28 +1025,22 @@ instance Binder A.Pattern where
     A.WithP _ _         -> empty
 
 instance Binder A.LamBinding where
-  varsBoundIn (A.DomainFree _ x) = singleton $ unBind x
-  varsBoundIn (A.DomainFull b)   = varsBoundIn b
-
-instance Binder TypedBindings where
-  varsBoundIn (TypedBindings _ b) = varsBoundIn b
+  varsBoundIn (A.DomainFree x) = varsBoundIn x
+  varsBoundIn (A.DomainFull b) = varsBoundIn b
 
 instance Binder TypedBinding where
   varsBoundIn (TBind _ xs _) = varsBoundIn xs
   varsBoundIn (TLet _ bs)    = varsBoundIn bs
 
+instance Binder BindName where
+  varsBoundIn x = singleton (unBind x)
+
 instance Binder LetBinding where
-  varsBoundIn (LetBind _ _ x _ _) = singleton $ unBind x
+  varsBoundIn (LetBind _ _ x _ _) = varsBoundIn x
   varsBoundIn (LetPatBind _ p _)  = varsBoundIn p
   varsBoundIn LetApply{}          = empty
   varsBoundIn LetOpen{}           = empty
   varsBoundIn LetDeclaredVariable{} = empty
-
-instance Binder (WithHiding Name) where
-  varsBoundIn (WithHiding _ x) = singleton x
-
-instance Binder (WithHiding BindName) where
-  varsBoundIn (WithHiding _ x) = singleton $ unBind x
 
 instance Binder a => Binder (FieldAssignment' a) where
 instance Binder a => Binder (Arg a)              where
@@ -1265,9 +1257,10 @@ instance Reify I.Telescope A.Telescope where
   reify EmptyTel = return []
   reify (ExtendTel arg tel) = do
     Arg info e <- reify arg
-    (x,bs)  <- reify tel
-    let r = getRange e
-    return $ TypedBindings r (Arg info (TBind r [pure $ BindName x] e)) : bs
+    (x, bs)  <- reify tel
+    let r    = getRange e
+        name = domName arg
+    return $ TBind r [Arg info $ Named name $ BindName x] e : bs
 
 instance Reify i a => Reify (Dom i) (Arg a) where
     reify (Dom{domInfo = info, unDom = i}) = Arg info <$> reify i

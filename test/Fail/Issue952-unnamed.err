@@ -1,0 +1,4 @@
+Issue952-unnamed.agda:12,11-13
+Function does not accept argument {A = _}
+when checking that {A = X} is a valid argument to a function of
+type {_ = A : Set} → A → A

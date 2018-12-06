@@ -251,10 +251,10 @@ refine force ii mr e = do
                 where isX (A.Var y) | x == y = Sum 1
                       isX _                  = mempty
 
-              lamView (A.Lam _ (DomainFree _ x) e) = Just (x, e)
-              lamView (A.Lam i (DomainFull (TypedBindings r (Arg ai (TBind br (x : xs) a)))) e)
-                | null xs   = Just (dget x, e)
-                | otherwise = Just (dget x, A.Lam i (DomainFull $ TypedBindings r $ Arg ai $ TBind br xs a) e)
+              lamView (A.Lam _ (DomainFree x) e) = Just (namedArg x, e)
+              lamView (A.Lam i (DomainFull (TBind r (x : xs) a)) e)
+                | null xs   = Just (namedArg x, e)
+                | otherwise = Just (namedArg x, A.Lam i (DomainFull $ TBind r xs a) e)
               lamView _ = Nothing
 
               -- reduce beta-redexes where the argument is used at most once
@@ -431,8 +431,8 @@ instance Reify Constraint (OutputConstraint Expr Expr) where
             CheckLambda cmp (Arg ai (xs, mt)) body target -> do
               domType <- maybe (return underscore) reify mt
               target  <- reify target
-              let bs = TypedBindings noRange $ Arg ai $
-                       TBind noRange (map (fmap A.BindName) xs) domType
+              let mkN (WithHiding h x) = setHiding h $ defaultNamedArg $ A.BindName x
+                  bs = TBind noRange (map mkN xs) domType
                   e  = A.Lam Info.exprNoRange (DomainFull bs) body
               return $ TypedAssign m' e target
             CheckArgs _ _ args t0 t1 _ -> do

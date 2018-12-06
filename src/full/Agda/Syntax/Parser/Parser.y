@@ -77,18 +77,21 @@ import Agda.Utils.Impossible
 %monad { Parser }
 %lexer { lexer } { TokEOF }
 
-%expect 6
+%expect 9
 -- * shift/reduce for \ x y z -> foo = bar
 --   shifting means it'll parse as \ x y z -> (foo = bar) rather than
 --   (\ x y z -> foo) = bar
 --
 -- * Telescope let and do-notation let.
 --      Expr2 -> 'let' Declarations . LetBody
---      TypedBindings -> '(' 'let' Declarations . ')'
+--      TypedBinding -> '(' 'let' Declarations . ')'
 --        ')'   shift, and enter state 486
 --              (reduce using rule 189)
---   A do-block cannot end in a 'let' so committing to TypedBindings with a
+--   A do-block cannot end in a 'let' so committing to TypedBinding with a
 --   shift is the right thing to do here.
+--
+-- * Named implicits in TypedBinding {x = y}. When encountering the '=' shift
+--   treats this as a named implicit and reducing would fail later.
 
 -- This is a trick to get rid of shift/reduce conflicts arising because we want
 -- to parse things like "m >>= \x -> k x". See the Expr rule for more
@@ -547,39 +550,26 @@ CommaBIds
 -- at point (x y  it is not clear whether x y is an application or
 -- a variable list. We could be parsing (x y z) -> B
 -- with ((x y) z) being a type.
-CommaBIds :: { [Name] }
+CommaBIds :: { [NamedArg BoundName] }
 CommaBIds : CommaBIdAndAbsurds {
     case $1 of
       Left ns -> ns
       Right _ -> fail $ "expected sequence of bound identifiers, not absurd pattern"
     }
 
-CommaBIdAndAbsurds :: { Either [Name] [Expr] }
-CommaBIdAndAbsurds : Application {%
-    let getName :: Expr -> Maybe Name
-        getName (Ident (QName x)) = Just x
-        getName (Underscore r _)  = Just (Name r [Hole])
-        getName _                 = Nothing
-
-        isAbsurd :: Expr -> Bool
-        isAbsurd (Absurd _)                  = True
-        isAbsurd (HiddenArg _ (Named _ e))   = isAbsurd e
-        isAbsurd (InstanceArg _ (Named _ e)) = isAbsurd e
-        isAbsurd (Paren _ expr)              = isAbsurd expr
-        isAbsurd (RawApp _ exprs)            = any isAbsurd exprs
-        isAbsurd _                           = False
-    in
-    if any isAbsurd $1 then return $ Right $1 else
-    case mapM getName $1 of
-        Just good -> return $ Left good
-        Nothing   -> fail $ "expected sequence of bound identifiers"
-    }
+CommaBIdAndAbsurds :: { Either [NamedArg BoundName] [Expr] }
+CommaBIdAndAbsurds
+  : Application {% boundNamesOrAbsurd $1 }
+  | QId '=' QId {% fmap (Left . (:[])) $ mkNamedArg (Just $1) (Left $3) }
+  | '_' '=' QId {% fmap (Left . (:[])) $ mkNamedArg Nothing   (Left $3) }
+  | QId '=' '_' {% fmap (Left . (:[])) $ mkNamedArg (Just $1) (Right $ getRange $3) }
+  | '_' '=' '_' {% fmap (Left . (:[])) $ mkNamedArg Nothing   (Right $ getRange $3) }
 
 -- Parse a sequence of identifiers, including hiding info.
 -- Does not include instance arguments.
 -- E.g. x {y z} _ {v}
 -- To be used in typed bindings, like (x {y z} _ {v} : Nat).
-BIdsWithHiding :: { [WithHiding Name] }
+BIdsWithHiding :: { [NamedArg BoundName] }
 BIdsWithHiding : Application {%
     let -- interpret an expression as name
         getName :: Expr -> Maybe Name
@@ -592,16 +582,16 @@ BIdsWithHiding : Application {%
         getNames e             = singleton `fmap` getName e
 
         -- interpret an expression as name or list of hidden names
-        getName1 :: Expr -> Maybe [WithHiding Name]
-        getName1 (Ident (QName x)) = Just [WithHiding NotHidden x]
-        getName1 (Underscore r _)  = Just [WithHiding NotHidden $ Name r [Hole]]
+        getName1 :: Expr -> Maybe [Arg Name]
+        getName1 (Ident (QName x)) = Just [defaultArg x]
+        getName1 (Underscore r _)  = Just [defaultArg $ Name r [Hole]]
         getName1 (HiddenArg _ (Named Nothing e))
-                                   = map (WithHiding Hidden) `fmap` getNames e
+                                   = map (setHiding Hidden . defaultArg) `fmap` getNames e
         getName1 _                 = Nothing
 
     in
     case mapM getName1 $1 of
-        Just good -> return $ concat good
+        Just good -> return $ (map . fmap) (unnamed . mkBoundName_) $ concat good
         Nothing   -> fail $ "expected sequence of possibly hidden bound identifiers"
     }
 
@@ -814,20 +804,19 @@ TeleArrow :: { Telescope }
 TeleArrow : Telescope1 '->' { $1 }
 
 Telescope1 :: { Telescope }
-Telescope1
-    : TypedBindingss    { {-TeleBind-} $1 }
+Telescope1 : TypedBindings { $1 }
 
-TypedBindingss :: { [TypedBindings] }
-TypedBindingss
-    : TypedBindings TypedBindingss { $1 : $2 }
-    | TypedBindings                { [$1] }
+TypedBindings :: { [TypedBinding] }
+TypedBindings
+    : TypedBinding TypedBindings { $1 : $2 }
+    | TypedBinding               { [$1] }
 
 
 -- A typed binding is either (x1 .. xn : A) or   {y1 .. ym : B}
 -- Andreas, 2011-04-07: or  .(x1 .. xn : A) or  .{y1 .. ym : B}
 -- Andreas, 2011-04-27: or ..(x1 .. xn : A) or ..{y1 .. ym : B}
-TypedBindings :: { TypedBindings }
-TypedBindings
+TypedBinding :: { TypedBinding }
+TypedBinding
     : '.' '(' TBindWithHiding ')'    { setRange (getRange ($2,$3,$4)) $
                              setRelevance Irrelevant $3 }
     | '.' '{' TBind '}'    { setRange (getRange ($2,$3,$4)) $
@@ -858,42 +847,37 @@ TypedBindings
                              setHiding Hidden $2 }
     | '{' ModalTBind '}'   { setRange (getRange ($1,$2,$3)) $
                              setHiding Hidden $2 }
-    | '(' Open ')'               { tLet (getRange ($1,$3)) $2 }
-    | '(' 'let' Declarations ')' { tLet (getRange ($1,$4)) $3 }
+    | '(' Open ')'               { TLet (getRange ($1,$3)) $2 }
+    | '(' 'let' Declarations ')' { TLet (getRange ($1,$4)) $3 }
 
 
 -- x1 .. xn : A
 -- x1 .. xn :{i1 i2 ..} A
-TBind :: { TypedBindings }
+TBind :: { TypedBinding }
 TBind : CommaBIds ':' Expr  {
     let r = getRange ($1,$2,$3) -- the range is approximate only for TypedBindings
-    in TypedBindings r $ defaultArg $ TBind r (map (pure . mkBoundName_) $1) $3
+    in TBind r $1 $3
   }
 
-ModalTBind :: { TypedBindings }
+ModalTBind :: { TypedBinding }
 ModalTBind : Attributes1 CommaBIds ':' Expr  {% do
     let r = getRange ($1,$2,$3,$4) -- the range is approximate only for TypedBindings
-    TypedBindings r `fmap` applyAttrs $1 (defaultArg $ TBind r (map (pure . mkBoundName_) $2) $4)
+    xs <- mapM (applyAttrs $1) $2
+    return $ TBind r xs $4
   }
--- | Colors are not yet allowed in the syntax.
---      | CommaBIds ':{' Colors '}' Expr  { ( $3, TBind (getRange ($1,$2,$3,$4,$5)) (map mkBoundName_ $1) $5 ) }
-{-
-Colors :: { [Color] }
-Colors : QId Colors { Ident $1 : $2 }
-       | QId        { [Ident $1] }
--}
 
 -- x {y z} _ {v} : A
-TBindWithHiding :: { TypedBindings }
+TBindWithHiding :: { TypedBinding }
 TBindWithHiding : BIdsWithHiding ':' Expr  {
     let r = getRange ($1,$2,$3) -- the range is approximate only for TypedBindings
-    in TypedBindings r $ defaultArg $ TBind r (map (fmap mkBoundName_) $1) $3
+    in TBind r $1 $3
   }
 
-ModalTBindWithHiding :: { TypedBindings }
+ModalTBindWithHiding :: { TypedBinding }
 ModalTBindWithHiding : Attributes1 BIdsWithHiding ':' Expr  {% do
     let r = getRange ($1,$2,$3,$4) -- the range is approximate only for TypedBindings
-    TypedBindings r `fmap` applyAttrs $1 (defaultArg $ TBind r (map (fmap mkBoundName_) $2) $4)
+    xs <- mapM (applyAttrs $1) $2
+    return $ TBind r xs $4
   }
 
 -- A non-empty sequence of lambda bindings.
@@ -921,9 +905,9 @@ AbsurdLamBindings
 LamBinds :: { [Either Hiding LamBinding] }
 LamBinds
   : DomainFreeBinding LamBinds  { map Right $1 ++ $2 }
-  | TypedBindings LamBinds      { Right (DomainFull $1) : $2 }
+  | TypedBinding LamBinds       { Right (DomainFull $1) : $2 }
   | DomainFreeBinding           { map Right $1 }
-  | TypedBindings               { [Right $ DomainFull $1] }
+  | TypedBinding                { [Right $ DomainFull $1] }
   | '(' ')'                     { [Left NotHidden] }
   | '{' '}'                     { [Left Hidden] }
   | '{{' DoubleCloseBrace       { [Left (Instance NoOverlap)] }
@@ -932,11 +916,11 @@ LamBinds
 LamBindsAbsurd :: { Either [Either Hiding LamBinding] [Expr] }
 LamBindsAbsurd
   : DomainFreeBinding LamBinds  { Left $ map Right $1 ++ $2 }
-  | TypedBindings LamBinds      { Left $ Right (DomainFull $1) : $2 }
+  | TypedBinding LamBinds       { Left $ Right (DomainFull $1) : $2 }
   | DomainFreeBindingAbsurd     { case $1 of
                                     Left lb -> Left $ map Right lb
                                     Right es -> Right es }
-  | TypedBindings               { Left [Right $ DomainFull $1] }
+  | TypedBinding                { Left [Right $ DomainFull $1] }
   | '(' ')'                     { Left [Left NotHidden] }
   | '{' '}'                     { Left [Left Hidden] }
   | '{{' DoubleCloseBrace       { Left [Left (Instance NoOverlap)] }
@@ -1007,16 +991,16 @@ ForallBindings
 TypedUntypedBindings1 :: { [LamBinding] }
 TypedUntypedBindings1
   : DomainFreeBinding TypedUntypedBindings1 { $1 ++ $2 }
-  | TypedBindings TypedUntypedBindings1     { DomainFull $1 : $2 }
+  | TypedBinding TypedUntypedBindings1      { DomainFull $1 : $2 }
   | DomainFreeBinding                       { $1 }
-  | TypedBindings                           { [DomainFull $1] }
+  | TypedBinding                            { [DomainFull $1] }
 
 -- A possibly empty sequence of possibly untyped bindings.
 -- This is used as telescope in data and record decls.
 TypedUntypedBindings :: { [LamBinding] }
 TypedUntypedBindings
   : DomainFreeBinding TypedUntypedBindings { $1 ++ $2 }
-  | TypedBindings TypedUntypedBindings     { DomainFull $1 : $2 }
+  | TypedBinding TypedUntypedBindings      { DomainFull $1 : $2 }
   |                                        { [] }
 
 -- A domain free binding is either x or {x1 .. xn}
@@ -1030,27 +1014,27 @@ DomainFreeBinding
 -- A domain free binding is either x or {x1 .. xn}
 DomainFreeBindingAbsurd :: { Either [LamBinding] [Expr]}
 DomainFreeBindingAbsurd
-    : BId               { Left [DomainFree defaultArgInfo $ mkBoundName_ $1]  }
-    | '.' BId           { Left [DomainFree (setRelevance Irrelevant $ defaultArgInfo) $ mkBoundName_ $2]  }
-    | '..' BId          { Left [DomainFree (setRelevance NonStrict $ defaultArgInfo) $ mkBoundName_ $2]  }
+    : BId               { Left [DomainFree $ defaultNamedArg $ mkBoundName_ $1]  }
+    | '.' BId           { Left [DomainFree $ setRelevance Irrelevant $ defaultNamedArg $ mkBoundName_ $2]  }
+    | '..' BId          { Left [DomainFree $ setRelevance NonStrict $ defaultNamedArg $ mkBoundName_ $2]  }
     | '(' CommaBIdAndAbsurds ')'
-         { mapLeft (map (DomainFree defaultArgInfo . mkBoundName_)) $2 }
+         { mapLeft (map DomainFree) $2 }
     | '(' Attributes1 CommaBIdAndAbsurds ')'
          {% applyAttrs $2 defaultArgInfo <&> \ ai ->
-              mapLeft (map (DomainFree ai . mkBoundName_)) $3 }
+              mapLeft (map (DomainFree . setArgInfo ai)) $3 }
     | '{' CommaBIdAndAbsurds '}'
-         { mapLeft (map (DomainFree (setHiding Hidden $ defaultArgInfo) . mkBoundName_)) $2 }
+         { mapLeft (map (DomainFree . setHiding Hidden)) $2 }
     | '{' Attributes1 CommaBIdAndAbsurds '}'
          {% applyAttrs $2 defaultArgInfo <&> \ ai ->
-              mapLeft (map (DomainFree (setHiding Hidden ai) . mkBoundName_)) $3 }
-    | '{{' CommaBIds DoubleCloseBrace { Left $ map (DomainFree (makeInstance $ defaultArgInfo) . mkBoundName_) $2 }
+              mapLeft (map (DomainFree . setHiding Hidden . setArgInfo ai)) $3 }
+    | '{{' CommaBIds DoubleCloseBrace { Left $ map (DomainFree . makeInstance) $2 }
     | '{{' Attributes1 CommaBIds DoubleCloseBrace
          {% applyAttrs $2 defaultArgInfo <&> \ ai ->
-              Left $ map (DomainFree (makeInstance ai) . mkBoundName_) $3 }
-    | '.' '{' CommaBIds '}' { Left $ map (DomainFree (setHiding Hidden $ setRelevance Irrelevant $ defaultArgInfo) . mkBoundName_) $3 }
-    | '.' '{{' CommaBIds DoubleCloseBrace { Left $ map (DomainFree (makeInstance $ setRelevance Irrelevant $ defaultArgInfo) . mkBoundName_) $3 }
-    | '..' '{' CommaBIds '}' { Left $ map (DomainFree (setHiding Hidden $ setRelevance NonStrict $ defaultArgInfo) . mkBoundName_) $3 }
-    | '..' '{{' CommaBIds DoubleCloseBrace { Left $ map (DomainFree  (makeInstance $ setRelevance NonStrict $ defaultArgInfo) . mkBoundName_) $3 }
+              Left $ map (DomainFree . makeInstance . setArgInfo ai) $3 }
+    | '.' '{' CommaBIds '}' { Left $ map (DomainFree . setHiding Hidden . setRelevance Irrelevant) $3 }
+    | '.' '{{' CommaBIds DoubleCloseBrace { Left $ map (DomainFree . makeInstance . setRelevance Irrelevant) $3 }
+    | '..' '{' CommaBIds '}' { Left $ map (DomainFree . setHiding Hidden . setRelevance NonStrict) $3 }
+    | '..' '{{' CommaBIds DoubleCloseBrace { Left $ map (DomainFree . makeInstance . setRelevance NonStrict) $3 }
 
 
 {--------------------------------------------------------------------------
@@ -1250,15 +1234,15 @@ RHS : '=' Expr      { JustRHS (RHS $2) }
 -- Data declaration. Can be local.
 Data :: { Declaration }
 Data : 'data' Id TypedUntypedBindings ':' Expr 'where'
-            Declarations0       { Data (getRange ($1,$2,$3,$4,$5,$6,$7)) Inductive $2 $3 (Just $5) $7 }
+            Declarations0       { Data (getRange ($1,$2,$3,$4,$5,$6,$7)) Inductive $2 $3 $5 $7 }
      | 'codata' Id TypedUntypedBindings ':' Expr 'where'
-            Declarations0       { Data (getRange ($1,$2,$3,$4,$5,$6,$7)) CoInductive $2 $3 (Just $5) $7 }
+            Declarations0       { Data (getRange ($1,$2,$3,$4,$5,$6,$7)) CoInductive $2 $3 $5 $7 }
 
   -- New cases when we already had a DataSig.  Then one can omit the sort.
      | 'data' Id TypedUntypedBindings 'where'
-            Declarations0       { Data (getRange ($1,$2,$3,$4,$5)) Inductive $2 $3 Nothing $5 }
+            Declarations0       { DataDef (getRange ($1,$2,$3,$4,$5)) Inductive $2 $3 $5 }
      | 'codata' Id TypedUntypedBindings 'where'
-            Declarations0       { Data (getRange ($1,$2,$3,$4,$5)) CoInductive $2 $3 Nothing $5 }
+            Declarations0       { DataDef (getRange ($1,$2,$3,$4,$5)) CoInductive $2 $3 $5 }
 
 -- Data type signature. Found in mutual blocks.
 DataSig :: { Declaration }
@@ -1273,10 +1257,10 @@ DataSig : 'data' Id TypedUntypedBindings ':' Expr
 Record :: { Declaration }
 Record : 'record' Expr3NoCurly TypedUntypedBindings ':' Expr 'where'
             RecordDeclarations
-         {% exprToName $2 >>= \ n -> let ((x,y,z),ds) = $7 in return $ Record (getRange ($1,$2,$3,$4,$5,$6,$7)) n x y z $3 (Just $5) ds }
+         {% exprToName $2 >>= \ n -> let ((x,y,z),ds) = $7 in return $ Record (getRange ($1,$2,$3,$4,$5,$6,$7)) n x y z $3 $5 ds }
        | 'record' Expr3NoCurly TypedUntypedBindings 'where'
             RecordDeclarations
-         {% exprToName $2 >>= \ n -> let ((x,y,z),ds) = $5 in return $ Record (getRange ($1,$2,$3,$4,$5)) n x y z $3 Nothing ds }
+         {% exprToName $2 >>= \ n -> let ((x,y,z),ds) = $5 in return $ RecordDef (getRange ($1,$2,$3,$4,$5)) n x y z $3 ds }
 
 -- Record type signature. In mutual blocks.
 RecordSig :: { Declaration }
@@ -1500,7 +1484,7 @@ OpenArgs :: { [Expr] }
 OpenArgs : {- empty -}    { [] }
          | Expr3 OpenArgs { $1 : $2 }
 
-ModuleApplication :: { [TypedBindings] -> Parser ModuleApplication }
+ModuleApplication :: { Telescope -> Parser ModuleApplication }
 ModuleApplication : ModuleName '{{' '...' DoubleCloseBrace { (\ts ->
                     if null ts then return $ RecordModuleInstance (getRange ($1,$2,$3,$4)) $1
                     else parseError "No bindings allowed for record module with non-canonical implicits" )
@@ -2007,6 +1991,18 @@ pragmaQName (r, s) = do
   let ss = chopWhen (== '.') s
   mkQName $ map (r,) ss
 
+mkNamedArg :: Maybe QName -> Either QName Range -> Parser (NamedArg BoundName)
+mkNamedArg x y = do
+  lbl <- case x of
+           Nothing        -> return $ Just $ unranged "_"
+           Just (QName x) -> return $ Just $ Ranged (getRange x) (prettyShow x)
+           _              -> fail "expected unqualified variable name"
+  var <- case y of
+           Left (QName y) -> return $ BName y noFixity'
+           Right r        -> return $ BName (noName r) noFixity'
+           _              -> fail "expected unqualified variable name"
+  return $ defaultArg $ Named lbl var
+
 -- | Polarity parser.
 
 polarity :: (Interval, String) -> Parser (Range, Occurrence)
@@ -2048,15 +2044,35 @@ isName s (_,s')
 forallPi :: [LamBinding] -> Expr -> Expr
 forallPi bs e = Pi (map addType bs) e
 
--- | Build a telescoping let (let Ds)
-tLet :: Range -> [Declaration] -> TypedBindings
-tLet r = TypedBindings r . Arg defaultArgInfo . TLet r
-
 -- | Converts lambda bindings to typed bindings.
-addType :: LamBinding -> TypedBindings
-addType (DomainFull b)   = b
-addType (DomainFree info x) = TypedBindings r $ Arg info $ TBind r [pure x] $ Underscore r Nothing
+addType :: LamBinding -> TypedBinding
+addType (DomainFull b) = b
+addType (DomainFree x) = TBind r [x] $ Underscore r Nothing
   where r = getRange x
+
+boundNamesOrAbsurd :: [Expr] -> Parser (Either [NamedArg BoundName] [Expr])
+boundNamesOrAbsurd es
+  | any isAbsurd es = return $ Right es
+  | otherwise       =
+    case mapM getBName es of
+        Just good -> return $ Left $ map defaultNamedArg good
+        Nothing   -> fail $ "expected sequence of bound identifiers"
+  where
+    getName :: Expr -> Maybe Name
+    getName (Ident (QName x)) = Just x
+    getName (Underscore r _)  = Just $ Name r [Hole]
+    getName _                 = Nothing
+
+    getBName :: Expr -> Maybe BoundName
+    getBName e = fmap mkBoundName_ $ getName e
+
+    isAbsurd :: Expr -> Bool
+    isAbsurd (Absurd _)                  = True
+    isAbsurd (HiddenArg _ (Named _ e))   = isAbsurd e
+    isAbsurd (InstanceArg _ (Named _ e)) = isAbsurd e
+    isAbsurd (Paren _ expr)              = isAbsurd expr
+    isAbsurd (RawApp _ exprs)            = any isAbsurd exprs
+    isAbsurd _                           = False
 
 -- | Build a do-statement
 buildDoStmt :: Expr -> [LamClause] -> Parser DoStmt
@@ -2237,10 +2253,10 @@ patternSynArgs = mapM pSynArg
   where
     pSynArg Left{}                   = parseError "Absurd patterns are not allowed in pattern synonyms"
     pSynArg (Right DomainFull{})     = parseError "Unexpected type signature in pattern synonym argument"
-    pSynArg (Right (DomainFree a x))
-      | getHiding a `notElem` [Hidden, NotHidden] = parseError $ show (getHiding a) ++ " arguments not allowed to pattern synonyms"
-      | getRelevance a /= Relevant                = parseError "Arguments to pattern synonyms must be relevant"
-      | otherwise                                 = return $ Arg a (boundName x)
+    pSynArg (Right (DomainFree x))
+      | getHiding x `notElem` [Hidden, NotHidden] = parseError $ show (getHiding x) ++ " arguments not allowed to pattern synonyms"
+      | getRelevance x /= Relevant                = parseError "Arguments to pattern synonyms must be relevant"
+      | otherwise                                 = return $ fmap (boundName . namedThing) x
 
 parsePanic s = parseError $ "Internal parser error: " ++ s ++ ". Please report this as a bug."
 
