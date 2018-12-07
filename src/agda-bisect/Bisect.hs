@@ -9,10 +9,11 @@ import GHC.IO.Encoding
 import Options.Applicative
 import System.Directory
 import System.Exit
+import System.FilePath
 import System.IO
 import System.Posix.Signals
 import System.Process
-import Text.PrettyPrint.ANSI.Leijen hiding ((<>), (<$>))
+import Text.PrettyPrint.ANSI.Leijen hiding ((<>), (<$>), (</>))
 import qualified Text.PrettyPrint.ANSI.Leijen as PP
 import Text.Printf
 
@@ -37,11 +38,12 @@ defaultFlags =
   , "--no-libraries"
   ]
 
--- | The path to the compiled Agda executable. (If caching is not
--- enabled.)
+-- | An absolute path to the compiled Agda executable. (If caching is
+-- not enabled.)
 
-compiledAgda :: FilePath
-compiledAgda = ".cabal-sandbox/bin/agda"
+compiledAgda :: IO FilePath
+compiledAgda =
+  (</> ".cabal-sandbox/bin/agda") <$> getCurrentDirectory
 
 -- | Options.
 
@@ -221,10 +223,11 @@ options =
       indent 2 (foldr1 newline $ map string defaultFlags)
 
     , paragraph
-        [ "The --script program, if any, is called with the path to the"
-        , "Agda executable as the first argument. Note that usual"
-        , "platform conventions (like the PATH) are used to determine"
-        , "what program PROGRAM refers to."
+        [ "The --script program, if any, is called with a path to the"
+        , "Agda executable as the first argument. (If --dry-run is not"
+        , "used, then this path is absolute.) Note that usual platform"
+        , "conventions (like the PATH) are used to determine what"
+        , "program PROGRAM refers to."
         ]
 
     , paragraph
@@ -516,7 +519,7 @@ installAgda :: Options -> IO (Maybe FilePath)
 installAgda opts
   | cacheBuilds opts = do
       commit <- currentCommit
-      let agda = cachedAgda commit
+      agda   <- cachedAgda commit
       exists <- doesFileExist agda
       if not exists then install else do
         copyDataFiles opts
@@ -556,11 +559,10 @@ cabalInstall opts file = do
       ++ cabalOptions opts ++
     [ file
     ]
-  return $
-    case (ok, cacheBuilds opts) of
-      (True, False) -> Just compiledAgda
-      (True, True)  -> Just (cachedAgda commit)
-      (False, _)    -> Nothing
+  case (ok, cacheBuilds opts) of
+    (True, False) -> Just <$> compiledAgda
+    (True, True)  -> Just <$> cachedAgda commit
+    (False, _)    -> return Nothing
 
 -- | Tries to copy data files to the correct location.
 --
@@ -574,10 +576,12 @@ copyDataFiles opts = do
   callProcessWithResult "cabal" ["copy", "-v"]
   return ()
 
--- | The path to the cached Agda binary (if any) for a certain commit.
+-- | An absolute path to the cached Agda binary (if any) for a certain
+-- commit.
 
-cachedAgda :: String -> FilePath
-cachedAgda commit = compiledAgda ++ "-" ++ commit
+cachedAgda :: String -> IO FilePath
+cachedAgda commit =
+   (\agda -> agda ++ "-" ++ commit) <$> compiledAgda
 
 -- | Generates a @--with-compiler=…@ flag if the user has specified
 -- that a specific compiler should be used.
