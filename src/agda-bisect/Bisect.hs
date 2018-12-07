@@ -227,7 +227,8 @@ options =
         , "Agda executable as the first argument. (If --dry-run is not"
         , "used, then this path is absolute.) Note that usual platform"
         , "conventions (like the PATH) are used to determine what"
-        , "program PROGRAM refers to."
+        , "program PROGRAM refers to. If the script's exit code is 127,"
+        , "then this is treated as an install failure."
         ]
 
     , paragraph
@@ -493,10 +494,13 @@ runAgda agda opts = do
                            all occurs (mustOutput opts)
                               &&
                            not (any occurs (mustNotOutput opts))
-          result         = case (mustFinishWithin opts, testsOK) of
-                             (Just _,  False) -> Skip
-                             (Nothing, False) -> Bad
-                             (_,       True)  -> Good
+          result         = case (scriptOrArguments opts, code) of
+                             (Left _, ExitFailure 127) -> Skip
+                             _                         ->
+                               case (mustFinishWithin opts, testsOK) of
+                                 (Just _,  False) -> Skip
+                                 (Nothing, False) -> Bad
+                                 (_,       True)  -> Good
 
       putStrLn $
         "Result: " ++
