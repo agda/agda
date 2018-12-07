@@ -1,7 +1,7 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE NondecreasingIndentation #-}
 
-module Agda.TypeChecking.InstanceArguments where
+module Agda.TypeChecking.InstanceArguments (findInstance, isInstanceConstraint) where
 
 #if MIN_VERSION_base(4,11,0)
 import Prelude hiding ((<>))
