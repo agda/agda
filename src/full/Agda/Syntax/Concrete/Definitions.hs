@@ -742,10 +742,10 @@ replaceSigs ps = if Map.null ps then id else \case
       FunSig r acc abst inst _ argi _ x e ->
         Just (x, Axiom r acc abst inst argi x e)
       NiceRecSig r acc abst _ _ x pars t ->
-        let e = makePi (lamBindingsToTelescope r pars) t in
+        let e = Generalized $ makePi (lamBindingsToTelescope r pars) t in
         Just (x, Axiom r acc abst NotInstanceDef defaultArgInfo x e)
       NiceDataSig r acc abst _ _ x pars t ->
-        let e = makePi (lamBindingsToTelescope r pars) t in
+        let e = Generalized $ makePi (lamBindingsToTelescope r pars) t in
         Just (x, Axiom r acc abst NotInstanceDef defaultArgInfo x e)
       _ -> Nothing
 
