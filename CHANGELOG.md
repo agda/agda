@@ -277,6 +277,16 @@ Type checking and interaction
       instance constructor tt
   ```
 
+* Instances are now (correctly) required to be in scope to be eligible
+  (see Issue [#1913](https://github.com/agda/agda/issues/1913)
+   and Issue [#2489](https://github.com/agda/agda/issues/2489)
+  ).
+  This means that you can no longer import instances from parameterised modules by
+  ```agda
+    import Some.Module Arg₁ Arg2
+  ```
+  without opening or naming the module.
+
 * Metavariables in module telescopes are now sometimes frozen later
   [Issue [#1063](https://github.com/agda/agda/issues/1063)].
 
