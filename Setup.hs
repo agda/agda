@@ -54,7 +54,7 @@ checkAgdaPrimitive pkg info flags = do
 
   putStrLn "Generating Agda library interface files..."
   checkPrim prim
-  auxBuiltins <- builtins (auxDir </> "Builtins")
+  auxBuiltins <- builtins (auxDir </> "Builtin")
   mapM_ checkPrim auxBuiltins
 
 checkAgdaPrimitiveAndRegister :: PackageDescription -> LocalBuildInfo -> UserHooks -> RegisterFlags -> IO ()
