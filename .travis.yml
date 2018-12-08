@@ -30,12 +30,12 @@ cache:
 
 matrix:
   include:
-    - env: TEST=MAIN GHC_VER=8.6.2 BUILD=CABAL CABAL_VER=2.4
+    - env: TEST=MAIN GHC_VER=8.6.3 BUILD=CABAL CABAL_VER=2.4
       addons:
         apt:
           packages:
             - cabal-install-2.4
-            - ghc-8.6.2
+            - ghc-8.6.3
             - texlive-binaries
           sources:
             - hvr-ghc
@@ -80,11 +80,11 @@ matrix:
           sources:
             - hvr-ghc
 
-    - env: TEST=STACKAGE GHC_VER=8.6.2 BUILD=STACK ARGS="--stack-yaml stack-8.6.2.yaml --system-ghc"
+    - env: TEST=STACKAGE GHC_VER=8.6.3 BUILD=STACK ARGS="--stack-yaml stack-8.6.3.yaml --system-ghc"
       addons:
         apt:
           packages:
-            - ghc-8.6.2
+            - ghc-8.6.3
           sources:
             - hvr-ghc
 
@@ -122,12 +122,12 @@ matrix:
 
     # Since `stack haddock` compiles Agda but `cabal haddock` does
     # not, this test is faster using `BUILD=CABAL` [Issue #2188].
-    - env: TEST=HADDOCK GHC_VER=8.6.2 BUILD=CABAL CABAL_VER=2.4
+    - env: TEST=HADDOCK GHC_VER=8.6.3 BUILD=CABAL CABAL_VER=2.4
       addons:
         apt:
           packages:
             - cabal-install-2.4
-            - ghc-8.6.2
+            - ghc-8.6.3
           sources:
             - hvr-ghc
 
