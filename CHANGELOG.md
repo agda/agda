@@ -6,6 +6,10 @@ Installation and infrastructure
 
 * Added support for GHC 8.6.3.
 
+* Generated the interface file for the `Sigma.agda` built-in when
+  installing Agda
+  [Issue [#3128](https://github.com/agda/agda/issues/3128)].
+
 Release notes for Agda version 2.5.4.2
 ======================================
 
