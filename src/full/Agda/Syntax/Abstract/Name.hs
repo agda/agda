@@ -244,16 +244,7 @@ isInModule q m = mnameToList m `isPrefixOf` qnameToList q
 -- | Get the next version of the concrete name. For instance, @nextName "x" = "x₁"@.
 --   The name must not be a 'NoName'.
 nextName :: Name -> Name
-nextName x = x { nameConcrete = C.Name noRange nis $ nextSuf ps }
-    where
-        C.Name _ nis ps = nameConcrete x
-        -- NoName cannot appear here
-        nextSuf [C.Id s]         = [C.Id $ nextStr s]
-        nextSuf [C.Id s, C.Hole] = [C.Id $ nextStr s, C.Hole]
-        nextSuf (p : ps)         = p : nextSuf ps
-        nextSuf []               = __IMPOSSIBLE__
-        nextStr s = case suffixView s of
-            (s0, suf) -> addSuffix s0 (nextSuffix suf)
+nextName x = x { nameConcrete = C.nextName (nameConcrete x) }
 
 ------------------------------------------------------------------------
 -- * Important instances: Eq, Ord, Hashable

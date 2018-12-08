@@ -32,6 +32,7 @@ import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Pretty
 import Agda.Utils.Size
+import Agda.Utils.Suffix
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -230,6 +231,23 @@ instance LensInScope QName where
   lensInScope f = \case
     Qual x xs -> (`Qual` xs) <$> lensInScope f x
     QName x   -> QName <$> lensInScope f x
+
+------------------------------------------------------------------------
+-- * Generating fresh names
+------------------------------------------------------------------------
+
+-- | Get the next version of the concrete name. For instance,
+--   @nextName "x" = "x₁"@.  The name must not be a 'NoName'.
+nextName :: Name -> Name
+nextName NoName{} = __IMPOSSIBLE__
+nextName x@Name{ nameNameParts = ps } = x { nameNameParts = nextSuf ps }
+  where
+    nextSuf [Id s]       = [Id $ nextStr s]
+    nextSuf [Id s, Hole] = [Id $ nextStr s, Hole]
+    nextSuf (p : ps)     = p : nextSuf ps
+    nextSuf []           = __IMPOSSIBLE__
+    nextStr s = case suffixView s of
+        (s0, suf) -> addSuffix s0 (nextSuffix suf)
 ------------------------------------------------------------------------
 -- * Operations on qualified names
 ------------------------------------------------------------------------
