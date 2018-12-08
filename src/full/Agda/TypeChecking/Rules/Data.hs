@@ -59,7 +59,7 @@ import Agda.Utils.Impossible
 --   checked.
 checkDataDef :: Info.DefInfo -> QName -> UniverseCheck -> A.DataDefParams -> [A.Constructor] -> TCM ()
 checkDataDef i name uc (A.DataDefParams gpars ps) cs =
-    traceCall (CheckDataDef (getRange name) (qnameName name) ps cs) $ do -- TODO! (qnameName)
+    traceCall (CheckDataDef (getRange name) name ps cs) $ do
 
         -- Add the datatype module
         addSection (qnameToMName name)
