@@ -1535,7 +1535,7 @@ disambiguateProjection h ambD@(AmbQ ds) b = do
               liftTCM $ storeDisambiguatedName d
               return (d,a)
             (errs , disambs@((d,a):_)) -> typeError . GenericDocError =<< vcat
-              [ "Ambiguous projection " <> prettyTCM (qnameName d) <> "."
+              [ "Ambiguous projection " <> prettyTCM d <> "."
               , "It could refer to any of"
               , nest 2 $ vcat $ map showDisamb disambs
               ]

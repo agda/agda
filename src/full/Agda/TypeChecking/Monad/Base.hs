@@ -2101,13 +2101,13 @@ data Call = CheckClause Type A.SpineClause
           | InferDef QName
           | CheckArguments Range [NamedArg A.Expr] Type (Maybe Type)
           | CheckTargetType Range Type Type
-          | CheckDataDef Range Name [A.LamBinding] [A.Constructor]
-          | CheckRecDef Range Name [A.LamBinding] [A.Constructor]
+          | CheckDataDef Range QName [A.LamBinding] [A.Constructor]
+          | CheckRecDef Range QName [A.LamBinding] [A.Constructor]
           | CheckConstructor QName Telescope Sort A.Constructor
           | CheckConstructorFitsIn QName Type Sort
-          | CheckFunDefCall Range Name [A.Clause]
+          | CheckFunDefCall Range QName [A.Clause]
           | CheckPragma Range A.Pragma
-          | CheckPrimitive Range Name A.Expr
+          | CheckPrimitive Range QName A.Expr
           | CheckIsEmpty Range Type
           | CheckWithFunctionType A.Expr
           | CheckSectionApplication Range ModuleName A.ModuleApplication
