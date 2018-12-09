@@ -2109,7 +2109,7 @@ data Call = CheckClause Type A.SpineClause
           | CheckPragma Range A.Pragma
           | CheckPrimitive Range QName A.Expr
           | CheckIsEmpty Range Type
-          | CheckWithFunctionType A.Expr
+          | CheckWithFunctionType Type
           | CheckSectionApplication Range ModuleName A.ModuleApplication
           | CheckNamedWhere ModuleName
           | ScopeCheckExpr C.Expr
