@@ -22,7 +22,6 @@ module Agda.Syntax.Translation.AbstractToConcrete
     , preserveInteractionIds
     , AbsToCon, Env
     , noTakenNames
-    , forgetConcreteName
     ) where
 
 import Prelude hiding (null)
@@ -83,7 +82,11 @@ import Agda.Utils.Impossible
 -- Environment ------------------------------------------------------------
 
 data Env = Env { takenVarNames :: Set A.Name
+                  -- ^ Abstract names currently in scope. Unlike the
+                  --   ScopeInfo, this includes names for hidden
+                  --   arguments inserted by the system.
                , takenDefNames :: Set C.Name
+                  -- ^ Concrete names of all definitions in scope
                , currentScope :: ScopeInfo
                , builtins     :: Map String A.QName
                   -- ^ Certain builtins (like `fromNat`) have special printing
@@ -105,10 +108,8 @@ makeEnv scope = do
         _                                                -> return []
   vars <- map (fst . unDom) <$> asksTC envContext
 
-  let locals = Set.fromList $ map fst $ scopeLocals scope
-  forM_ vars $ \x -> do
-    whenJustM (hasConcreteName x) $ \y ->
-      when (y `Set.member` locals) $ forgetConcreteName x
+  -- pick concrete names for in-scope names now so we don't
+  -- accidentally shadow them
   forM_ (scopeLocals scope) $ \(y , x) -> do
     pickConcreteName (localVar x) y
 
@@ -228,22 +229,19 @@ lookupModule x =
                 -- this is what happens for names that are not in scope (private names)
 
 -- | Have we already committed to a specific concrete name for this
---   abstract name? If yes, return the concrete name.
-hasConcreteName :: (MonadTCState m) => A.Name -> m (Maybe C.Name)
-hasConcreteName x = Map.lookup x <$> useTC stConcreteNames
+--   abstract name? If yes, return the concrete name(s).
+hasConcreteNames :: (MonadTCState m) => A.Name -> m [C.Name]
+hasConcreteNames x = Map.findWithDefault [] x <$> useTC stConcreteNames
 
--- | Commit to always using a specific concrete name when printing the
---   given abstract name.  Precondition: the abstract name should be
---   in scope.
+-- | Commit to a specific concrete name for printing the given
+--   abstract name. If the abstract name already has associated
+---  concrete name(s), the new name is only used when all previous
+---  names are shadowed. Precondition: the abstract name should be in
+--   scope.
 pickConcreteName :: (MonadTCState m) => A.Name -> C.Name -> m ()
-pickConcreteName x y = modifyTCLens stConcreteNames $ Map.insert x y
-
-forgetConcreteName :: (MonadTCState m, MonadTCEnv m, MonadDebug m, HasOptions m) => A.Name -> m ()
-forgetConcreteName x = hasConcreteName x >>= \case
-  Nothing -> return ()
-  Just y  -> do
-    reportSLn "toConcrete" 50 $ "forgetting concrete name " ++ C.nameToRawName y ++ " for variable " ++ C.nameToRawName (nameConcrete x)
-    modifyTCLens stConcreteNames $ Map.delete x
+pickConcreteName x y = modifyTCLens stConcreteNames $ flip Map.alter x $ \case
+    Nothing   -> Just $ [y]
+    (Just ys) -> Just $ ys ++ [y]
 
 -- | For the given abstract name, return the names that could shadow it:
 --   1. first set: names for which we have already picked a
@@ -253,47 +251,68 @@ forgetConcreteName x = hasConcreteName x >>= \case
 shadowingNames :: (MonadTCState m) => A.Name -> m (Set C.Name, Set C.Name)
 shadowingNames x = do
   shadows <- Map.findWithDefault [] x <$> useTC stShadowingNames
-  (ys , zs) <- partitionEithers <$> do
-    forM shadows $ \x -> hasConcreteName x >>= \case
-      Just y  -> return $ Left y
-      Nothing -> return $ Right $ nameConcrete x
+  ys <- concat <$> forM shadows hasConcreteNames
+  let zs = map nameConcrete shadows
   return (Set.fromList ys , Set.fromList zs)
 
 toConcreteName :: A.Name -> AbsToCon C.Name
 toConcreteName x | y <- nameConcrete x , isNoName y = return y
-toConcreteName x = (Map.lookup x <$> useTC stConcreteNames) >>= \case
-  -- case: we have already committed to a concrete name
-  Just y  -> return y
-  -- case: we haven't picked a concrete name yet, so pick one now
-  Nothing -> do
-    taken   <- takenConcreteNames
-    toAvoid <- do
-      (mustAvoid , tryToAvoid) <- shadowingNames x
-      case isInScope x of
-        -- If in scope, we only rename when the name is already taken
-        -- in the future
-        InScope    -> return mustAvoid
-        -- If not in scope, we also rename to avoid renaming in-scope
-        -- variables in the future.
-        NotInScope -> return $ mustAvoid `Set.union` (Set.filter ((== InScope) . isInScope) tryToAvoid)
-    let shouldAvoid = (`Set.member` (taken `Set.union` toAvoid))
-        y = firstNonTakenName shouldAvoid $ nameConcrete x
-    reportSLn "toConcrete.bindName" 80 $ show $ vcat
-      [ "picking concrete name for:" <+> text (C.nameToRawName $ nameConcrete x)
-      , "names already taken:      " <+> prettyList_ (map C.nameToRawName $ Set.toList taken)
-      , "names to avoid:           " <+> prettyList_ (map C.nameToRawName $ Set.toList toAvoid)
-      , "concrete name chosen:     " <+> text (C.nameToRawName y)
-      ]
-    pickConcreteName x y
-    return y
-
+toConcreteName x = (Map.findWithDefault [] x <$> useTC stConcreteNames) >>= loop
   where
+    -- case: we already have picked some name(s) for x
+    loop (y:ys) = lookupNameInScope y >>= \case
+      -- name is shadowed, try next one
+      Just x' | x' /= x -> loop ys
+      -- not shadowed
+      _ -> return y
+
+    -- case: we haven't picked a concrete name yet, or all previously
+    -- picked names are shadowed, so we pick a new name now
+    loop [] = do
+      y <- chooseName x
+      pickConcreteName x y
+      return y
+
+    lookupNameInScope :: C.Name -> AbsToCon (Maybe A.Name)
+    lookupNameInScope y =
+      fmap localVar . lookup y . scopeLocals <$> asks currentScope
+
+    chooseName :: A.Name -> AbsToCon C.Name
+    chooseName x = lookupNameInScope (nameConcrete x) >>= \case
+      -- If the name is currently in scope, we do not rename it
+      Just x' | x == x' -> do
+        reportSLn "toConcrete.bindName" 80 $
+          "name " ++ C.nameToRawName (nameConcrete x) ++ " already in scope, so not renaming"
+        return $ nameConcrete x
+      -- Otherwise we pick a name that does not shadow other names
+      _ -> do
+        taken   <- takenConcreteNames
+        toAvoid <- do
+          (mustAvoid , tryToAvoid) <- shadowingNames x
+          let tryToAvoid' = Set.filter ((== InScope) . isInScope) tryToAvoid
+          return $ case isInScope x of
+            -- If in scope, we only rename when the name is already taken
+            -- in the future
+            InScope    -> mustAvoid
+            -- If not in scope, we also rename to avoid renaming in-scope
+            -- variables in the future.
+            NotInScope -> mustAvoid `Set.union` tryToAvoid'
+        let shouldAvoid = (`Set.member` (taken `Set.union` toAvoid))
+            y = firstNonTakenName shouldAvoid $ nameConcrete x
+        reportSLn "toConcrete.bindName" 80 $ show $ vcat
+          [ "picking concrete name for:" <+> text (C.nameToRawName $ nameConcrete x)
+          , "names already taken:      " <+> prettyList_ (map C.nameToRawName $ Set.toList taken)
+          , "names to avoid:           " <+> prettyList_ (map C.nameToRawName $ Set.toList toAvoid)
+          , "concrete name chosen:     " <+> text (C.nameToRawName y)
+          ]
+        return y
+
     takenConcreteNames :: AbsToCon (Set C.Name)
     takenConcreteNames = do
       xs <- asks takenDefNames
       ys0 <- asks takenVarNames
       reportSLn "toConcrete.bindName" 90 $ show $ "abstract names of local vars: " <+> prettyList_ (map (C.nameToRawName . nameConcrete) $ Set.toList ys0)
-      ys <- Set.fromList <$> mapMaybeM hasConcreteName (Set.toList ys0)
+      ys <- Set.fromList . concat <$> mapM hasConcreteNames (Set.toList ys0)
       return $ xs `Set.union` ys
 
 
@@ -301,10 +320,16 @@ toConcreteName x = (Map.lookup x <$> useTC stConcreteNames) >>= \case
 bindName :: A.Name -> (C.Name -> AbsToCon a) -> AbsToCon a
 bindName x ret = do
   y <- toConcreteName x
-  result <- local (addBinding y x) $ ret y
-  forgetConcreteName x
-  return result
+  reportSLn "toConcrete.bindName" 30 $ "adding " ++ (C.nameToRawName $ nameConcrete x) ++ " to the scope under concrete name " ++ C.nameToRawName y
+  local (addBinding y x) $ ret y
 
+-- | Like 'bindName', but do not care whether name is already taken.
+bindName' :: A.Name -> AbsToCon a -> AbsToCon a
+bindName' x ret = do
+  reportSLn "toConcrete.bindName" 30 $ "adding " ++ (C.nameToRawName $ nameConcrete x) ++ " to the scope with forced name"
+  pickConcreteName x y
+  applyUnless (isNoName y) (local $ addBinding y x) ret
+  where y = nameConcrete x
 
 -- Dealing with precedences -----------------------------------------------
 
@@ -1063,9 +1088,15 @@ instance ToConcrete FreshName A.Name where
 -- Takes care of binding the originally user-written pattern variables, but doesn't actually
 -- translate anything to Concrete.
 instance ToConcrete (UserPattern A.Pattern) A.Pattern where
-  bindToConcrete (UserPattern p) ret =
+  bindToConcrete (UserPattern p) ret = do
+    reportSLn "toConcrete.pat" 100 $ "binding pattern (pass 1)" ++ show p
     case p of
-      A.VarP (BindName x)    -> bindName x $ \y -> ret $ A.VarP $ BindName $ x { nameConcrete = y }
+      A.VarP bx -> do
+        let x = unBind bx
+        case isInScope x of
+          InScope            -> bindName' x $ ret $ A.VarP bx
+          NotInScope         -> bindName x $ \y ->
+                                ret $ A.VarP $ BindName $ x { nameConcrete = y }
       A.WildP{}              -> ret p
       A.ProjP{}              -> ret p
       A.AbsurdP{}            -> ret p
@@ -1081,9 +1112,9 @@ instance ToConcrete (UserPattern A.Pattern) A.Pattern where
       A.DefP i f args        -> bindToConcrete (map UserPattern args) $ ret . A.DefP i f
       A.PatternSynP i f args -> bindToConcrete (map UserPattern args) $ ret . A.PatternSynP i f
       A.RecP i args          -> bindToConcrete ((map . fmap) UserPattern args) $ ret . A.RecP i
-      A.AsP i (BindName x) p -> bindName x $ \y ->
+      A.AsP i x p            -> bindName' (unBind x) $
                                 bindToConcrete (UserPattern p) $ \ p ->
-                                ret (A.AsP i (BindName $ x { nameConcrete = y }) p)
+                                ret (A.AsP i x p)
       A.WithP i p            -> bindToConcrete (UserPattern p) $ ret . A.WithP i
 
 instance ToConcrete (UserPattern (NamedArg A.Pattern)) (NamedArg A.Pattern) where
@@ -1094,7 +1125,8 @@ instance ToConcrete (UserPattern (NamedArg A.Pattern)) (NamedArg A.Pattern) wher
 
 -- Pass 2a: locate case-split pattern.  Don't bind anything!
 instance ToConcrete (SplitPattern A.Pattern) A.Pattern where
-  bindToConcrete (SplitPattern p) ret =
+  bindToConcrete (SplitPattern p) ret = do
+    reportSLn "toConcrete.pat" 100 $ "binding pattern (pass 2a)" ++ show p
     case p of
       A.VarP x               -> ret p
       A.WildP{}              -> ret p
@@ -1127,7 +1159,8 @@ instance ToConcrete (SplitPattern (NamedArg A.Pattern)) (NamedArg A.Pattern) whe
 -- Takes care of freshening and binding pattern variables introduced by case split.
 -- Still does not translate anything to Concrete.
 instance ToConcrete BindingPattern A.Pattern where
-  bindToConcrete (BindingPat p) ret =
+  bindToConcrete (BindingPat p) ret = do
+    reportSLn "toConcrete.pat" 100 $ "binding pattern (pass 2b)" ++ show p
     case p of
       A.VarP x               -> bindToConcrete (FreshenName x) $ ret . A.VarP . BindName
       A.WildP{}              -> ret p
