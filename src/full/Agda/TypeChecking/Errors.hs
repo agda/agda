@@ -1538,9 +1538,9 @@ instance PrettyTCM Call where
       pwords "when checking that the type of the primitive function" ++
       [prettyTCM x] ++ pwords "is" ++ [prettyA e]
 
-    CheckWithFunctionType e -> fsep $
+    CheckWithFunctionType a -> fsep $
       pwords "when checking that the type" ++
-      [prettyA e] ++ pwords "of the generated with function is well-formed"
+      [prettyTCM a] ++ pwords "of the generated with function is well-formed"
 
     CheckDotPattern e v -> fsep $
       pwords "when checking that the given dot pattern" ++ [prettyA e] ++
