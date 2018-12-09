@@ -1,4 +1,3 @@
 Issue1005.agda:8,19-20
-x != x of type X
-(because one has de Bruijn index 2 and the other 0)
+x₁ != x of type X
 when checking that the expression t has type T x

@@ -1390,11 +1390,18 @@ prettyContext
 prettyContext norm rev ii = B.withInteractionId ii $ do
   ctx <- B.contextOfMeta ii norm
   es  <- mapM (prettyATop . B.ofExpr) ctx
-  ns  <- mapM (showATop   . B.ofName) ctx
-  let ss = map (C.isInScope . B.ofName) ctx
+  xs  <- mapM (abstractToConcrete_ . B.ofName) ctx
+  let ns = map (nameConcrete . B.ofName) ctx
+      ss = map C.isInScope xs
   return $ align 10 $ applyWhen rev reverse $
-    filter (not . null . fst) $ zip ns (zipWith prettyCtxType es ss)
+    filter (not . null . fst) $
+      zip (zipWith prettyCtxName ns xs)
+          (zipWith prettyCtxType es ss)
   where
+    prettyCtxName n x
+      | n == x                 = show x
+      | isInScope x == InScope = show n ++ " = " ++ show x
+      | otherwise              = show x
     prettyCtxType e nis = ":" <+> (e P.<> notInScopeMarker nis)
     notInScopeMarker nis = case isInScope nis of
       C.InScope    -> ""

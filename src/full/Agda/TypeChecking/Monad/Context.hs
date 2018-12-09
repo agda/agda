@@ -15,7 +15,6 @@ import Agda.Syntax.Common
 import Agda.Syntax.Concrete.Name (LensInScope(..))
 import Agda.Syntax.Internal
 import Agda.Syntax.Scope.Monad (getLocalVars, setLocalVars)
-import Agda.Syntax.Translation.AbstractToConcrete (forgetConcreteName)
 
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Debug
@@ -151,9 +150,7 @@ addCtx x a ret = do
     ys <- getContextNames
     forM_ ys $ \y ->
       when (not (isNoName y) && sameRoot x y) $ tellShadowing x y
-  result <- updateContext (raiseS 1) (ce :) ret
-  forgetConcreteName x
-  return result
+  updateContext (raiseS 1) (ce :) ret
       -- let-bindings keep track of own their context
 
   where

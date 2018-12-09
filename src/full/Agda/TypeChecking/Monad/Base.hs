@@ -219,8 +219,9 @@ data PostScopeState = PostScopeState
     -- ^ The current module is available after it has been type
     -- checked.
   , stPostInstanceDefs        :: !TempInstanceTable
-  , stPostConcreteNames       :: !(Map Name C.Name)
+  , stPostConcreteNames       :: !(Map Name [C.Name])
     -- ^ Map keeping track of concrete names assigned to each abstract name
+    --   (can be more than one name in case the first one is shadowed)
   , stPostShadowingNames      :: !(Map Name [Name])
     -- ^ Map keeping track of which names could maybe be shadowed by
     -- another name
@@ -545,7 +546,7 @@ stInstanceDefs f s =
   f (stPostInstanceDefs (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostInstanceDefs = x}}
 
-stConcreteNames :: Lens' (Map Name C.Name) TCState
+stConcreteNames :: Lens' (Map Name [C.Name]) TCState
 stConcreteNames f s =
   f (stPostConcreteNames (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostConcreteNames = x}}

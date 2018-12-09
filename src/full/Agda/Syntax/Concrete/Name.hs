@@ -240,7 +240,7 @@ instance LensInScope QName where
 --   @nextName "x" = "x₁"@.  The name must not be a 'NoName'.
 nextName :: Name -> Name
 nextName NoName{} = __IMPOSSIBLE__
-nextName x@Name{ nameNameParts = ps } = x { nameNameParts = nextSuf ps }
+nextName x@Name{ nameNameParts = ps } = x { nameInScope = NotInScope, nameNameParts = nextSuf ps }
   where
     nextSuf [Id s]       = [Id $ nextStr s]
     nextSuf [Id s, Hole] = [Id $ nextStr s, Hole]
