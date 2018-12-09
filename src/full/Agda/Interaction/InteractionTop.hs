@@ -1400,7 +1400,7 @@ prettyContext norm rev ii = B.withInteractionId ii $ do
   where
     prettyCtxName n x
       | n == x                 = show x
-      | isInScope x == InScope = show n ++ " = " ++ show x
+      | isInScope n == InScope = show n ++ " = " ++ show x
       | otherwise              = show x
     prettyCtxType e nis = ":" <+> (e P.<> notInScopeMarker nis)
     notInScopeMarker nis = case isInScope nis of
