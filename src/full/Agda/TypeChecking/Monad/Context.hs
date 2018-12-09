@@ -15,6 +15,7 @@ import Agda.Syntax.Common
 import Agda.Syntax.Concrete.Name (LensInScope(..))
 import Agda.Syntax.Internal
 import Agda.Syntax.Scope.Monad (getLocalVars, setLocalVars)
+import Agda.Syntax.Translation.AbstractToConcrete (forgetConcreteName)
 
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Debug
@@ -145,21 +146,22 @@ addCtx :: (MonadDebug tcm, MonadTCM tcm) => Name -> Dom Type -> tcm a -> tcm a
 addCtx x a ret = do
   q <- viewTC eQuantity
   let ce = (x,) <$> inverseApplyQuantity q a
-  updateContext (raiseS 1) (ce :) ret
+  when (not $ isNoName x) $ do
+    registerForShadowing x
+    ys <- getContextNames
+    forM_ ys $ \y ->
+      when (not (isNoName y) && sameRoot x y) $ tellShadowing x y
+  result <- updateContext (raiseS 1) (ce :) ret
+  forgetConcreteName x
+  return result
       -- let-bindings keep track of own their context
 
--- | Pick a concrete name that doesn't shadow anything in the given list.
-unshadowedName :: [Name] -> Name -> Name
-unshadowedName xs x = head $ filter (notTaken $ map nameConcrete xs)
-                           $ iterate nextName x
   where
-    notTaken xs x = isNoName x || nameConcrete x `notElem` xs
+    -- add x to the map of possibly shadowed names
+    registerForShadowing x = modifyTCLens stShadowingNames $ Map.insert x []
 
--- | Pick a concrete name that doesn't shadow anything in the context.
-unshadowName :: MonadTCM tcm => Name -> tcm Name
-unshadowName x = do
-  ctx <- map (fst . unDom) <$> getContext
-  return $ unshadowedName ctx x
+    -- register the fact that x possibly shadows the name y
+    tellShadowing x y = modifyTCLens stShadowingNames $ Map.adjust (x:) y
 
 -- | Various specializations of @addCtx@.
 {-# SPECIALIZE addContext :: b -> TCM a -> TCM a #-}
@@ -167,8 +169,9 @@ class AddContext b where
   addContext :: (MonadTCM tcm, MonadDebug tcm) => b -> tcm a -> tcm a
   contextSize :: b -> Nat
 
--- | Wrapper to tell 'addContext not to 'unshadowName's. Used when adding a
---   user-provided, but already type checked, telescope to the context.
+-- | Wrapper to tell 'addContext' not to mark names as
+--   'NotInScope'. Used when adding a user-provided, but already type
+--   checked, telescope to the context.
 newtype KeepNames a = KeepNames a
 
 instance {-# OVERLAPPABLE #-} AddContext a => AddContext [a] where
@@ -211,7 +214,7 @@ instance AddContext ([NamedArg Name], Type) where
 
 instance AddContext (String, Dom Type) where
   addContext (s, dom) ret = do
-    x <- setNotInScope <$> (unshadowName =<< freshName_ s)
+    x <- setNotInScope <$> freshName_ s
     addCtx x dom ret
   contextSize _ = 1
 

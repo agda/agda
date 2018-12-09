@@ -248,6 +248,32 @@ nextName x@Name{ nameNameParts = ps } = x { nameNameParts = nextSuf ps }
     nextSuf []           = __IMPOSSIBLE__
     nextStr s = case suffixView s of
         (s0, suf) -> addSuffix s0 (nextSuffix suf)
+
+-- | Get the first version of the concrete name that does not satisfy
+--   the given predicate.
+firstNonTakenName :: (Name -> Bool) -> Name -> Name
+firstNonTakenName taken x =
+  if taken x
+  then firstNonTakenName taken (nextName x)
+  else x
+
+-- | Get a raw version of the name with all suffixes removed. For
+--   instance, @nameRoot "x₁₂₃" = "x"@. The name must not be a
+--   'NoName'.
+nameRoot :: Name -> RawName
+nameRoot NoName{} = __IMPOSSIBLE__
+nameRoot x@Name{ nameNameParts = ps } =
+    nameToRawName $ x{ nameNameParts = root ps }
+  where
+    root [Id s] = [Id $ strRoot s]
+    root [Id s, Hole] = [Id $ strRoot s , Hole]
+    root (p : ps) = p : root ps
+    root [] = __IMPOSSIBLE__
+    strRoot = fst . suffixView
+
+sameRoot :: Name -> Name -> Bool
+sameRoot = (==) `on` nameRoot
+
 ------------------------------------------------------------------------
 -- * Operations on qualified names
 ------------------------------------------------------------------------

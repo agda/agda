@@ -219,6 +219,11 @@ data PostScopeState = PostScopeState
     -- ^ The current module is available after it has been type
     -- checked.
   , stPostInstanceDefs        :: !TempInstanceTable
+  , stPostConcreteNames       :: !(Map Name C.Name)
+    -- ^ Map keeping track of concrete names assigned to each abstract name
+  , stPostShadowingNames      :: !(Map Name [Name])
+    -- ^ Map keeping track of which names could maybe be shadowed by
+    -- another name
   , stPostStatistics          :: !Statistics
     -- ^ Counters to collect various statistics about meta variables etc.
     --   Only for current file.
@@ -348,6 +353,8 @@ initPostScopeState = PostScopeState
   , stPostImportsDisplayForms  = HMap.empty
   , stPostCurrentModule        = Nothing
   , stPostInstanceDefs         = (Map.empty , Set.empty)
+  , stPostConcreteNames        = Map.empty
+  , stPostShadowingNames       = Map.empty
   , stPostStatistics           = Map.empty
   , stPostTCWarnings           = []
   , stPostMutualBlocks         = Map.empty
@@ -537,6 +544,16 @@ stInstanceDefs :: Lens' TempInstanceTable TCState
 stInstanceDefs f s =
   f (stPostInstanceDefs (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostInstanceDefs = x}}
+
+stConcreteNames :: Lens' (Map Name C.Name) TCState
+stConcreteNames f s =
+  f (stPostConcreteNames (stPostScopeState s)) <&>
+  \x -> s {stPostScopeState = (stPostScopeState s) {stPostConcreteNames = x}}
+
+stShadowingNames :: Lens' (Map Name [Name]) TCState
+stShadowingNames f s =
+  f (stPostShadowingNames (stPostScopeState s)) <&>
+  \x -> s {stPostScopeState = (stPostScopeState s) {stPostShadowingNames = x}}
 
 stStatistics :: Lens' Statistics TCState
 stStatistics f s =
@@ -3024,7 +3041,7 @@ data TypeError
         | ClashingModule A.ModuleName A.ModuleName
         | ClashingImport C.Name A.QName
         | ClashingModuleImport C.Name A.ModuleName
-        | PatternShadowsConstructor A.Name A.QName
+        | PatternShadowsConstructor C.Name A.QName
         | DuplicateImports C.QName [C.ImportedName]
         | InvalidPattern C.Pattern
         | RepeatedVariablesInPattern [C.Name]

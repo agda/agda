@@ -344,7 +344,7 @@ noShadowingOfConstructors mkCall eqs =
             case filter ((A.nameConcrete x ==) . A.nameConcrete . A.qnameName) cs of
               []      -> return ()
               (c : _) -> setCurrentRange x $
-                typeError $ PatternShadowsConstructor x c
+                typeError $ PatternShadowsConstructor (nameConcrete x) c
           AbstractDefn{} -> return ()
             -- Abstract constructors cannot be brought into scope,
             -- even by a bigger import list.
@@ -609,7 +609,7 @@ computeLHSContext = go [] []
 
     dummyName taken s =
       if isUnderscore s then freshNoName_
-      else setNotInScope . unshadowedName taken <$> freshName_ (argNameToString s)
+      else setNotInScope <$> freshName_ (argNameToString s)
 
 -- | Bind as patterns
 bindAsPatterns :: [AsBinding] -> TCM a -> TCM a

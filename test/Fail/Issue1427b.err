@@ -2,7 +2,7 @@ Issue1427b.agda:29,32-36
 I'm not sure if there should be a case for the constructor refl,
 because I get stuck when trying to solve the following unification
 problems (inferred index ≟ expected index):
-  Fin (suc n₁) ≟ Fin (suc n)
+  Fin (suc n) ≟ Fin (suc n₁)
   zero ≟ zero
 when checking that the pattern refl has type
-HEq (Fin (suc n₁)) zero (Fin (suc n)) zero
+HEq (Fin (suc n)) zero (Fin (suc n₁)) zero

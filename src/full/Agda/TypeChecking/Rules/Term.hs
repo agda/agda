@@ -1142,7 +1142,7 @@ checkExpr' cmp e t0 =
     rx = caseMaybe (rStart re) noRange $ \ pos -> posToRange pos pos
 
     doInsert info y = do
-      x <- C.setNotInScope <$> (unshadowName =<< freshName rx y)
+      x <- C.setNotInScope <$> freshName rx y
       reportSLn "tc.term.expr.impl" 15 $ "Inserting implicit lambda"
       checkExpr' cmp (A.Lam (A.ExprRange re) (domainFree info x) e) t
 

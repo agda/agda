@@ -3,9 +3,9 @@ Failed to solve the following constraints:
   _11 := (_ : _1) [a] :? _10 m mzero
   _8 := (_ : _1) [a] :? _7 m mzero
   _3 := (_ : _1) [a] :? _2 m
-  [42, 43] _9 (m = _32) (mzero = (λ {a} → _35)) =< Maybe a
+  [42, 43] _9 (m = _32) (mzero = (λ {a} → _35)) =< Maybe a₁
              : _7 _32 (λ {a} → _35)
-  [42, 44] _12 (m = _32) (mzero = (λ {a} → _35)) =< Maybe a
+  [42, 44] _12 (m = _32) (mzero = (λ {a} → _35)) =< Maybe a₁
              : _10 _32 (λ {a} → _35)
   _10 _32 (λ {a} → _35) = Set
   piSort (_10 _32 (λ {a} → _35)) (λ _ → Set) = Set

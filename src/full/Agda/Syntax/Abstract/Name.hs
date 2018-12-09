@@ -21,6 +21,8 @@ import Data.Data (Data)
 import Data.List
 import Data.Function
 import Data.Hashable (Hashable(..))
+import Data.Set (Set)
+import qualified Data.Set as Set
 import Data.Void
 
 import Agda.Syntax.Position
@@ -35,7 +37,6 @@ import Agda.Utils.Monad
 import Agda.Utils.NonemptyList
 import Agda.Utils.Pretty
 import Agda.Utils.Size
-import Agda.Utils.Suffix
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -245,6 +246,9 @@ isInModule q m = mnameToList m `isPrefixOf` qnameToList q
 --   The name must not be a 'NoName'.
 nextName :: Name -> Name
 nextName x = x { nameConcrete = C.nextName (nameConcrete x) }
+
+sameRoot :: Name -> Name -> Bool
+sameRoot = C.sameRoot `on` nameConcrete
 
 ------------------------------------------------------------------------
 -- * Important instances: Eq, Ord, Hashable

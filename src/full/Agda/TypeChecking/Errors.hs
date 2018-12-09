@@ -733,10 +733,10 @@ instance PrettyTCM TypeError where
       "Identifier" : prettyTCM x : pwords "is declared irrelevant, so it cannot be used here"
 
     VariableIsIrrelevant x -> fsep $
-      "Variable" : prettyTCM x : pwords "is declared irrelevant, so it cannot be used here"
+      "Variable" : prettyTCM (nameConcrete x) : pwords "is declared irrelevant, so it cannot be used here"
 
     VariableIsErased x -> fsep $
-      "Variable" : prettyTCM x : pwords "is declared erased, so it cannot be used here"
+      "Variable" : prettyTCM (nameConcrete x) : pwords "is declared erased, so it cannot be used here"
 
     UnequalBecauseOfUniverseConflict cmp s t -> fsep $
       [prettyTCM s, notCmp cmp, prettyTCM t, "because this would result in an invalid use of Setω" ]
