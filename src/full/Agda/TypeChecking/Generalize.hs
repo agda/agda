@@ -11,6 +11,7 @@ import qualified Data.Map as Map
 import Data.List (nub, partition, init)
 
 import Agda.Syntax.Common
+import Agda.Syntax.Concrete.Name (LensInScope(..))
 import Agda.Syntax.Position
 import Agda.Syntax.Internal
 import Agda.Syntax.Literal
@@ -60,7 +61,7 @@ generalizeTelescope vars typecheckAction ret = billTo [Typing, Generalize] $ wit
   -- care to preserve the name of named generalized variables.
   let setName name d = first (const name) <$> d
       cxtEntry (mname, d) = do
-          name <- maybe (unshadowName =<< freshName_ s) return mname
+          name <- maybe (setNotInScope <$> freshName_ s) return mname
           return $ setName name d
         where s  = fst $ unDom d
       dropCxt err = updateContext (strengthenS err 1) (drop 1)
@@ -431,4 +432,3 @@ fillInGenRecordDetails name con fields recTy fieldTel = do
     r { theDef = (theDef r) { recTel = fullTel } }
   where
     setType q ty = modifyGlobalDefinition q $ \ d -> d { defType = ty }
-

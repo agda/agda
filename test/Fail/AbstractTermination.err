@@ -4,5 +4,5 @@ Termination checking failed for the following functions:
 Problematic calls:
   g n
     (at AbstractTermination.agda:10,9-10)
-  f n₁
+  f n
     (at AbstractTermination.agda:14,15-16)

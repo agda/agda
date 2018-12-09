@@ -2,8 +2,8 @@ WithoutK-PatternMatchingLambdas2.agda:11,20-26
 I'm not sure if there should be a case for the constructor refl,
 because I get stuck when trying to solve the following unification
 problems (inferred index ≟ expected index):
-  x₁ ≟ x
-  x₁ ≟ x
+  x ≟ x₁
+  x ≟ x₁
 Possible reason why unification failed:
   Cannot eliminate reflexive equation x = x of type A because K has
   been disabled.

@@ -3,5 +3,5 @@ I'm not sure if there should be a case for the constructor refl,
 because I get stuck when trying to solve the following unification
 problems (inferred index ≟ expected index):
   {_} ≟ {_}
-  sing F₁ ≟ sing F
-when checking that the pattern refl has type HEq (sing F₁) (sing F)
+  sing F ≟ sing F₁
+when checking that the pattern refl has type HEq (sing F) (sing F₁)

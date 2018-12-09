@@ -1,4 +1,4 @@
-checking section Issue2018debug {A = A₁ : Set}
+checking section Issue2018debug {A : Set}
 adding section: Issue2018debug 1
     actual tele: {A : Set}
 checking section M {A = A₁ : Set}

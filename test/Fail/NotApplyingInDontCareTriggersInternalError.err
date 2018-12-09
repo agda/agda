@@ -1,3 +1,3 @@
 NotApplyingInDontCareTriggersInternalError.agda:52,60-73
 Variable leftRefl is declared irrelevant, so it cannot be used here
-when inferring the type of leftRefl a≼a'
+when inferring the type of leftRefl₁ a≼a'

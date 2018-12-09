@@ -10,5 +10,5 @@ Termination checking failed for the following functions:
 Problematic calls:
   append1' (isCons l') (head l') (tail l') l
     (at TerminationRecordPatternListAppend.agda:38,20-28)
-  append1 (t unit) l₁
+  append1 (t unit) l
     (at TerminationRecordPatternListAppend.agda:44,47-54)

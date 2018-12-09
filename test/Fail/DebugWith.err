@@ -13,8 +13,8 @@ fPerm  = x0,x1,x2,x3,x4 -> x1,x3,x0,x2,x4
     with arguments [f b]
              types [P b]
 with function call DebugWith.with-34 b f (f b) trash1 trash2 trash3
-           context (trash1 : Trash) (b : A) (trash2 : Trash)
-                   (f : (x : A) → P x) (trash3 : Trash)
+           context (trash4 : Trash) (b₁ : A) (trash5 : Trash)
+                   (f₁ : (x : A) → P x) (trash6 : Trash)
              delta (trash1 : Trash) (b : A) (trash2 : Trash)
                    (f : (x : A) → P x) (trash3 : Trash)
             delta1 (b : A) (f : (x : A) → P x)
