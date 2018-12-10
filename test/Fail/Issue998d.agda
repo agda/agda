@@ -10,3 +10,7 @@ f ℓ A = A
 -- ℓ != ℓ of type Level
 -- (because one is a variable and one a defined identifier)
 -- when checking that the expression A has type Set ℓ
+
+-- Jesper, 2018-12-10, New error:
+-- A != Issue998a.A of type Set
+-- when checking that the expression d A has type D Issue998a.A
