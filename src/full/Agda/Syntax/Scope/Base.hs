@@ -160,6 +160,12 @@ shadowLocal :: [AbstractName] -> LocalVar -> LocalVar
 shadowLocal [] _ = __IMPOSSIBLE__
 shadowLocal ys (LocalVar x b zs) = LocalVar x b (ys ++ zs)
 
+-- | Treat patternBound variable as a module parameter
+patternToModuleBound :: LocalVar -> LocalVar
+patternToModuleBound x
+ | localBinder x == PatternBound = x { localBinder = LambdaBound }
+ | otherwise                     = x
+
 -- | Project name of unshadowed local variable.
 notShadowedLocal :: LocalVar -> Maybe A.Name
 notShadowedLocal (LocalVar x _ []) = Just x
