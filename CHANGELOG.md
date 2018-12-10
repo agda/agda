@@ -193,14 +193,51 @@ Type checking and interaction
     const x _ = x
   ```
 
-* Out-of-scope identifiers are now prefixed by a ';' semicolon
-  [Issue [#3127](https://github.com/agda/agda/issues/3127)].
-  They used to be prefixed by a '.' dot which could be confused
-  with dot patterns, postfix projections, and irrelevance.
+* Out-of-scope identifiers are no longer prefixed by a '.' dot [Issue
+  [#3127](https://github.com/agda/agda/issues/3127)].  This notation
+  could be confused with dot patterns, postfix projections, and
+  irrelevance. Now Agda will do its best to make up fresh names for
+  out-of-scope identifiers that do not conflict with any existing
+  names. In addition, these names are marked as "(out of scope)" when
+  printing the context.
 
   The change affects the printing of terms, e.g. in error messages and
   interaction, and the parsing of out-of-scope variables for
   case splitting (`C-c C-c` in emacs).
+
+* Shadowed local variables are now assigned fresh names in error
+  messages and interactive goals [Issue
+  [#572](https://github.com/agda/agda/issues/572)]. For example,
+  consider the following piece of code:
+  ```agda
+    postulate P : Set -> Set
+
+    test : (B : Set) -> P B -> P B
+    test = λ p p -> {!!}
+  ```
+  When asking for the goal type, Agda will now print the following:
+  ```
+    Goal: P p₁
+    ————————————————————————————————————————————————————————————
+    p      : P p₁
+    p = p₁ : Set  (not in scope)
+  ```
+  Shadowed top-level identifiers are printed using the qualified name,
+  for example in
+  ```agda
+    module M where
+
+      postulate A : Set
+
+      test : Set → A
+      test A = {!!}
+  ```
+  Agda will now show the goal type as
+  ```
+    Goal: M.A
+    ————————————————————————————————————————————————————————————
+    A : Set
+  ```
 
 * Agda now allows omitting absurd clauses in case one of the pattern
   variable inhabits an obviously empty type
