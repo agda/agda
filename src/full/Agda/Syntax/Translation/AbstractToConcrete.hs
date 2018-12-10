@@ -202,17 +202,18 @@ lookupQName ambCon x = do
   ys <- inverseScopeLookupName' ambCon x <$> asks currentScope
   lift $ reportSLn "scope.inverse" 100 $
     "inverse looking up abstract name " ++ prettyShow x ++ " yields " ++ prettyShow ys
-  case ys of
-    (y : _) -> return y
-    [] -> do
-      let y = qnameToConcrete x
-      if isUnderscore y
-        -- -- || any (isUnderscore . A.nameConcrete) (A.mnameToList $ A.qnameModule x)
-        then return y
-        else return $ setNotInScope y
-        -- Andreas, 2018-06-13, issue #3127: prefix for out of scope names
-        -- WAS: else return $ C.Qual (C.Name noRange [Id empty]) y
-        -- this is what happens for names that are not in scope (private names)
+  loop ys
+
+  where
+    -- Found concrete name: check that it is not shadowed by a local
+    loop (qy@Qual{}      : _ ) = return qy -- local names cannot be qualified
+    loop (qy@(C.QName y) : ys) = lookupNameInScope y >>= \case
+      Just x' | x' /= qnameName x -> loop ys
+      _ -> return qy
+    -- Found no concrete name: make up a new one
+    loop [] = case qnameToConcrete x of
+      qy@Qual{}    -> return $ setNotInScope qy
+      qy@C.QName{} -> C.QName <$> chooseName (qnameName x)
 
 lookupModule :: A.ModuleName -> AbsToCon C.QName
 lookupModule (A.MName []) = return $ C.QName $ C.Name noRange InScope [Id "-1"]
@@ -227,6 +228,12 @@ lookupModule x =
             (y : _) -> return y
             []      -> return $ mnameToConcrete x
                 -- this is what happens for names that are not in scope (private names)
+
+-- | Is this concrete name currently in use by a particular abstract
+--   name in the current scope?
+lookupNameInScope :: C.Name -> AbsToCon (Maybe A.Name)
+lookupNameInScope y =
+  fmap localVar . lookup y . scopeLocals <$> asks currentScope
 
 -- | Have we already committed to a specific concrete name for this
 --   abstract name? If yes, return the concrete name(s).
@@ -273,40 +280,38 @@ toConcreteName x = (Map.findWithDefault [] x <$> useTC stConcreteNames) >>= loop
       pickConcreteName x y
       return y
 
-    lookupNameInScope :: C.Name -> AbsToCon (Maybe A.Name)
-    lookupNameInScope y =
-      fmap localVar . lookup y . scopeLocals <$> asks currentScope
+-- | Choose a new unshadowed name for the given abstract name
+chooseName :: A.Name -> AbsToCon C.Name
+chooseName x = lookupNameInScope (nameConcrete x) >>= \case
+  -- If the name is currently in scope, we do not rename it
+  Just x' | x == x' -> do
+    reportSLn "toConcrete.bindName" 80 $
+      "name " ++ C.nameToRawName (nameConcrete x) ++ " already in scope, so not renaming"
+    return $ nameConcrete x
+  -- Otherwise we pick a name that does not shadow other names
+  _ -> do
+    taken   <- takenConcreteNames
+    toAvoid <- do
+      (mustAvoid , tryToAvoid) <- shadowingNames x
+      let tryToAvoid' = Set.filter ((== InScope) . isInScope) tryToAvoid
+      return $ case isInScope x of
+        -- If in scope, we only rename when the name is already taken
+        -- in the future
+        InScope    -> mustAvoid
+        -- If not in scope, we also rename to avoid renaming in-scope
+        -- variables in the future.
+        NotInScope -> mustAvoid `Set.union` tryToAvoid'
+    let shouldAvoid = (`Set.member` (taken `Set.union` toAvoid))
+        y = firstNonTakenName shouldAvoid $ nameConcrete x
+    reportSLn "toConcrete.bindName" 80 $ show $ vcat
+      [ "picking concrete name for:" <+> text (C.nameToRawName $ nameConcrete x)
+      , "names already taken:      " <+> prettyList_ (map C.nameToRawName $ Set.toList taken)
+      , "names to avoid:           " <+> prettyList_ (map C.nameToRawName $ Set.toList toAvoid)
+      , "concrete name chosen:     " <+> text (C.nameToRawName y)
+      ]
+    return y
 
-    chooseName :: A.Name -> AbsToCon C.Name
-    chooseName x = lookupNameInScope (nameConcrete x) >>= \case
-      -- If the name is currently in scope, we do not rename it
-      Just x' | x == x' -> do
-        reportSLn "toConcrete.bindName" 80 $
-          "name " ++ C.nameToRawName (nameConcrete x) ++ " already in scope, so not renaming"
-        return $ nameConcrete x
-      -- Otherwise we pick a name that does not shadow other names
-      _ -> do
-        taken   <- takenConcreteNames
-        toAvoid <- do
-          (mustAvoid , tryToAvoid) <- shadowingNames x
-          let tryToAvoid' = Set.filter ((== InScope) . isInScope) tryToAvoid
-          return $ case isInScope x of
-            -- If in scope, we only rename when the name is already taken
-            -- in the future
-            InScope    -> mustAvoid
-            -- If not in scope, we also rename to avoid renaming in-scope
-            -- variables in the future.
-            NotInScope -> mustAvoid `Set.union` tryToAvoid'
-        let shouldAvoid = (`Set.member` (taken `Set.union` toAvoid))
-            y = firstNonTakenName shouldAvoid $ nameConcrete x
-        reportSLn "toConcrete.bindName" 80 $ show $ vcat
-          [ "picking concrete name for:" <+> text (C.nameToRawName $ nameConcrete x)
-          , "names already taken:      " <+> prettyList_ (map C.nameToRawName $ Set.toList taken)
-          , "names to avoid:           " <+> prettyList_ (map C.nameToRawName $ Set.toList toAvoid)
-          , "concrete name chosen:     " <+> text (C.nameToRawName y)
-          ]
-        return y
-
+  where
     takenConcreteNames :: AbsToCon (Set C.Name)
     takenConcreteNames = do
       xs <- asks takenDefNames

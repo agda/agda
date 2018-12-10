@@ -15,8 +15,8 @@ test p = aux p
 -- Context:
 -- p  : IsSuc n
 -- n : Nat  (not in scope)
--- n : Nat  (not in scope)
+-- n₁ : Nat  (not in scope)
 
--- ERROR
+-- WAS: ERROR
 -- Ambiguous variable n
 -- when checking that the expression ? has type Set

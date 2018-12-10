@@ -1,4 +1,3 @@
 Issue998c.agda:5,9-10
-A !=< A of type Set
-(because one is a variable and one a defined identifier)
+A !=< Issue998c.A of type Set
 when checking that the expression a has type A
