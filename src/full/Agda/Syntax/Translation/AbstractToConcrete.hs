@@ -124,7 +124,14 @@ makeEnv scope = do
         , foldPatternSynonyms = foldPatSyns
         }
   where
-    defs  = Map.keysSet $ nsNames $ everythingInScope scope
+    -- Jesper, 2018-12-10: It's fine to shadow generalizable names as
+    -- they will never show up directly in printed terms.
+    notGeneralizeName AbsName{ anameKind = k }  =
+      not (k == GeneralizeName || k == DisallowedGeneralizeName)
+
+    defs = Map.keysSet $
+           Map.filter (all notGeneralizeName) $
+           nsNames $ everythingInScope scope
 
 currentPrecedence :: AbsToCon PrecedenceStack
 currentPrecedence = asks $ scopePrecedence . currentScope
