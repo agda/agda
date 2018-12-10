@@ -116,7 +116,10 @@ checkDataDef i name uc (A.DataDefParams gpars ps) cs =
 
             -- when `--without-K`, all the indices should fit in the
             -- sort of the datatype (see #3420).
-            whenM (optWithoutK <$> pragmaOptions) $ checkIndexSorts s ixTel
+            let s' = case s of
+                  Prop l -> Type l
+                  _      -> s
+            whenM (optWithoutK <$> pragmaOptions) $ checkIndexSorts s' ixTel
 
             reportSDoc "tc.data.sort" 20 $ vcat
               [ "checking datatype" <+> prettyTCM name
