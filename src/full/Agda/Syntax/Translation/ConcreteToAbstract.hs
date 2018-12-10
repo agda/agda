@@ -27,6 +27,7 @@ import Prelude hiding ( mapM, null )
 #endif
 
 import Control.Applicative
+import Control.Arrow (second)
 import Control.Monad.Reader hiding (mapM)
 
 import Data.Foldable (Foldable, traverse_)
@@ -2094,6 +2095,9 @@ instance ToAbstract C.Pragma [A.Pragma] where
 
 instance ToAbstract C.Clause A.Clause where
   toAbstract (C.Clause top catchall lhs@(C.LHS p eqs with) rhs wh wcs) = withLocalVars $ do
+    -- Jesper, 2018-12-10, #3095: pattern variables bound outside the
+    -- module are locally treated as module parameters
+    modifyScope_ $ updateScopeLocals $ map $ second patternToModuleBound
     -- Andreas, 2012-02-14: need to reset local vars before checking subclauses
     vars <- getLocalVars
     let wcs' = for wcs $ \ c -> setLocalVars vars $> c
