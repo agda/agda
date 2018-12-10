@@ -23,7 +23,7 @@ Type checking and interaction
         Con : Set
 
     variable
-        Γ Δ : Con
+        Γ Δ θ : Con
   ```
 
   Declared variables are automatically generalized in type signatures, module
