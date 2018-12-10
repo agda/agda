@@ -32,6 +32,7 @@ Language Reference
    positivity-checking
    postulates
    pragmas
+   prop
    record-types
    reflection
    rewriting

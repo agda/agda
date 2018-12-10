@@ -154,6 +154,9 @@ Type checking and interaction
   Issues related to this feature are marked with `generalize` in the issue tracker:
   https://github.com/agda/agda/labels/generalize
 
+* Agda now supports the new sort ``Prop`` of definitionally
+  proof-irrelevant definitions. See the user manual for more details.
+
 * Data type and record definitions separated from their type signatures can no
   longer repeat the types of the parameters, but can bind implicit parameters
   by name [Issue [#1886](https://github.com/agda/agda/issues/1886)].
