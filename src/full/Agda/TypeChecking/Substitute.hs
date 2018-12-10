@@ -40,6 +40,7 @@ import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Position (Range)
 
 import Agda.TypeChecking.Monad.Base
+import Agda.TypeChecking.Monad.Options (typeInType)
 import Agda.TypeChecking.Free as Free
 import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Positivity.Occurrence as Occ
@@ -1312,7 +1313,7 @@ univSort univInf s = fromMaybe (UnivSort s) $ univSort' univInf s
 
 univInf :: (HasOptions m) => m (Maybe Sort)
 univInf =
-  ifM (optOmegaInOmega <$> pragmaOptions)
+  ifM ((optOmegaInOmega <$> pragmaOptions) `or2M` typeInType)
   {-then-} (return $ Just Inf)
   {-else-} (return Nothing)
 

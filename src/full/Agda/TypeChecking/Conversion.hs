@@ -1497,6 +1497,7 @@ equalSort s1 s2 = do
           ]
 
         propEnabled <- isPropEnabled
+        typeInTypeEnabled <- typeInType
 
         case (s1, s2) of
 
@@ -1523,6 +1524,12 @@ equalSort s1 s2 = do
             (SizeUniv   , SizeUniv   ) -> yes
             (Prop a     , Prop b     ) -> equalLevel a b
             (Inf        , Inf        ) -> yes
+
+            -- if --type-in-type is enabled, Setω is equal to any Set ℓ (see #3439)
+            (Type{}     , Inf        )
+              | typeInTypeEnabled      -> yes
+            (Inf        , Type{}     )
+              | typeInTypeEnabled      -> yes
 
             -- if @PiSort a b == Set0@, then @b == Set0@
             -- we use this fact to solve metas in @b@,
