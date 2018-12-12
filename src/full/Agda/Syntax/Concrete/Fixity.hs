@@ -109,7 +109,8 @@ data DoWarn = NoWarn | DoWarn
 fixitiesAndPolarities :: MonadFixityError m => DoWarn -> [Declaration] -> m (Fixities, Polarities)
 fixitiesAndPolarities doWarn ds = do
   (fixs, pols) <- runMonadicFixPol $ fixitiesAndPolarities' ds
-  let DeclaredNames declared postulates = foldMap declaredNames ds
+  let DeclaredNames declared postulates privates = foldMap declaredNames ds
+  let publics = declared Set.\\ privates
 
   -- If we have names in fixity declarations which are not defined in the
   -- appropriate scope, raise a warning and delete them from fixs.
@@ -127,9 +128,9 @@ fixitiesAndPolarities doWarn ds = do
       -- return $ Map.restrictKeys polarities declared
       return $ Map.filterWithKey (\ k _ -> Set.member k declared) pols
 
-  -- If we have mixfix identifiers without a corresponding fixity
+  -- If we have public mixfix identifiers without a corresponding fixity
   -- declaration, we raise a warning
-  ifNull (Set.filter isOpenMixfix declared Set.\\ Map.keysSet fixs) (return ()) $
+  ifNull (Set.filter isOpenMixfix publics Set.\\ Map.keysSet fixs) (return ()) $
     when (doWarn == DoWarn) . warnUnknownFixityInMixfixDecl . Set.toList
 
   -- Check that every polarity pragma is used for a postulate.
@@ -175,20 +176,24 @@ fixitiesAndPolarities' = foldMap $ \ d -> case d of
   UnquoteDef  {}  -> mempty
   Pragma      {}  -> mempty
 
-data DeclaredNames = DeclaredNames { allNames, postulates :: Set Name }
+data DeclaredNames = DeclaredNames { allNames, postulates, privates :: Set Name }
 
 instance Semigroup DeclaredNames where
-  DeclaredNames xs ps <> DeclaredNames ys qs = DeclaredNames (xs <> ys) (ps <> qs)
+  DeclaredNames xs ps as <> DeclaredNames ys qs bs =
+    DeclaredNames (xs <> ys) (ps <> qs) (as <> bs)
 
 instance Monoid DeclaredNames where
-  mempty  = DeclaredNames Set.empty Set.empty
+  mempty  = DeclaredNames Set.empty Set.empty Set.empty
   mappend = (<>)
 
 allPostulates :: DeclaredNames -> DeclaredNames
-allPostulates (DeclaredNames xs ps) = DeclaredNames xs (xs <> ps)
+allPostulates (DeclaredNames xs ps as) = DeclaredNames xs (xs <> ps) as
+
+allPrivates :: DeclaredNames -> DeclaredNames
+allPrivates (DeclaredNames xs ps as) = DeclaredNames xs ps (xs <> as)
 
 declaresNames :: [Name] -> DeclaredNames
-declaresNames xs = DeclaredNames (Set.fromList xs) Set.empty
+declaresNames xs = DeclaredNames (Set.fromList xs) Set.empty Set.empty
 
 declaresName :: Name -> DeclaredNames
 declaresName x = declaresNames [x]
@@ -214,7 +219,7 @@ declaredNames d = case d of
   PatternSyn _ x _ _   -> declaresName x
   Mutual    _ ds       -> foldMap declaredNames ds
   Abstract  _ ds       -> foldMap declaredNames ds
-  Private _ _ ds       -> foldMap declaredNames ds
+  Private _ _ ds       -> allPrivates $ foldMap declaredNames ds
   InstanceB _ ds       -> foldMap declaredNames ds
   Macro     _ ds       -> foldMap declaredNames ds
   Postulate _ ds       -> allPostulates $ foldMap declaredNames ds
