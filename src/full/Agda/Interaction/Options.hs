@@ -140,7 +140,6 @@ data PragmaOptions = PragmaOptions
   , optOmegaInOmega              :: Bool
   , optSizedTypes                :: Bool
   , optInjectiveTypeConstructors :: Bool
-  , optGuardingTypeConstructors  :: Bool
   , optUniversePolymorphism      :: Bool
   , optIrrelevantProjections     :: Bool
   , optExperimentalIrrelevance   :: Bool  -- ^ irrelevant levels, irrelevant data matching
@@ -242,7 +241,6 @@ defaultPragmaOptions = PragmaOptions
   , optOmegaInOmega              = False
   , optSizedTypes                = True
   , optInjectiveTypeConstructors = False
-  , optGuardingTypeConstructors  = False
   , optUniversePolymorphism      = True
   , optWithoutK                  = False
   , optCopatterns                = True
@@ -361,7 +359,6 @@ unsafePragmaOptions opts =
   [ "--omega-in-omega"                           | optOmegaInOmega opts              ] ++
   -- [ "--sized-types"                              | optSizedTypes opts                ] ++
   [ "--injective-type-constructors"              | optInjectiveTypeConstructors opts ] ++
-  [ "--guardedness-preserving-type-constructors" | optGuardingTypeConstructors opts  ] ++
   [ "--irrelevant-projections"                   | optIrrelevantProjections opts     ] ++
   [ "--experimental-irrelevance"                 | optExperimentalIrrelevance opts   ] ++
   [ "--rewriting"                                | optRewriting opts                 ] ++

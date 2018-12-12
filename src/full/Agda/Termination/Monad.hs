@@ -86,9 +86,6 @@ data TerEnv = TerEnv
 
   { terUseDotPatterns :: Bool
     -- ^ Are we mining dot patterns to find evindence of structal descent?
-  , terGuardingTypeConstructors :: Bool
-    -- ^ Do we assume that record and data type constructors
-    --   preserve guardedness?
   , terInlineWithFunctions :: Bool
     -- ^ Do we inline with functions to enhance termination checking of with?
   , terSizeSuc :: Maybe QName
@@ -161,7 +158,6 @@ data TerEnv = TerEnv
 defaultTerEnv :: TerEnv
 defaultTerEnv = TerEnv
   { terUseDotPatterns           = False -- must be False initially!
-  , terGuardingTypeConstructors = False
   , terInlineWithFunctions      = True
   , terSizeSuc                  = Nothing
   , terSharp                    = Nothing
@@ -236,16 +232,12 @@ runTerDefault cont = do
   -- The name of sharp (if available).
   sharp <- fmap nameOfSharp <$> coinductionKit
 
-  guardingTypeConstructors <-
-    optGuardingTypeConstructors <$> pragmaOptions
-
   -- Andreas, 2014-08-28
   -- We do not inline with functions if --without-K.
   inlineWithFunctions <- not . optWithoutK <$> pragmaOptions
 
   let tenv = defaultTerEnv
-        { terGuardingTypeConstructors = guardingTypeConstructors
-        , terInlineWithFunctions      = inlineWithFunctions
+        { terInlineWithFunctions      = inlineWithFunctions
         , terSizeSuc                  = suc
         , terSharp                    = sharp
         , terCutOff                   = cutoff
@@ -269,9 +261,6 @@ instance (Semigroup m, Monoid m) => Monoid (TerM m) where
   mconcat = mconcat <.> sequence
 
 -- * Modifiers and accessors for the termination environment in the monad.
-
-terGetGuardingTypeConstructors :: TerM Bool
-terGetGuardingTypeConstructors = terAsks terGuardingTypeConstructors
 
 terGetInlineWithFunctions :: TerM Bool
 terGetInlineWithFunctions = terAsks terInlineWithFunctions
@@ -356,10 +345,6 @@ terSetGuarded = terModifyGuarded . const
 
 terUnguarded :: TerM a -> TerM a
 terUnguarded = terSetGuarded unknown
-
--- | Should the codomain part of a function type preserve guardedness?
-terPiGuarded :: TerM a -> TerM a
-terPiGuarded m = ifM terGetGuardingTypeConstructors m $ terUnguarded m
 
 -- | Lens for '_terSizeDepth'.
 
