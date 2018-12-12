@@ -1,6 +1,8 @@
 -- Based on an example due to Thorsten Altenkirch. See "Recursion with
 -- boxes", http://sneezy.cs.nott.ac.uk/fplunch/weblog/?p=104.
 
+{-# OPTIONS --guardedness #-}
+
 module SubjectReduction where
 
 open import Common.Coinduction

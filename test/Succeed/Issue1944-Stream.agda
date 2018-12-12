@@ -3,6 +3,7 @@
 
 -- {-# OPTIONS -v tc.proj.amb:30 #-}
 -- {-# OPTIONS -v tc.lhs.split:20 #-}
+{-# OPTIONS --guardedness #-}
 
 module _ where
 

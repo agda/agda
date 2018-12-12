@@ -3,7 +3,7 @@
 
 -- The following is accepted.
 
-{-# OPTIONS --copatterns #-}
+{-# OPTIONS --guardedness #-}
 {-# OPTIONS --without-K  #-}
 
 -- {-# OPTIONS -v term:30 #-}

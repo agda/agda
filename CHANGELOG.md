@@ -351,6 +351,21 @@ Type checking and interaction
 Pragmas and options
 -------------------
 
+* New options `--guardedness` and `--no-guardedness` [Issue
+  [#1209](https://github.com/agda/agda/issues/1209)].
+
+  Constructor-based guarded corecursion is now only (meant to be)
+  allowed if the `--guardedness` option is active. By default this
+  option is not active. If `--guardedness` is used, then sized types
+  are disabled (because this combination is known to be inconsistent).
+  If you still want to use both constructor-based guarded corecursion
+  and sized types, then you can use `--guardedness --sized-types` (in
+  this order). The combination of constructor-based guarded
+  corecursion and sized types is not allowed if `--safe` is used.
+
+  The option `--no-guardedness` turns off constructor-based guarded
+  corecursion.
+
 * New builtin `SETOMEGA`.
 
   Agda's top sort `Setω` is now defined as a builtin in `Agda.Primitive`

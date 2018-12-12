@@ -1,6 +1,6 @@
 -- Andreas, 2015-05-02 Integrate copatterns with with.
 
-{-# OPTIONS --copatterns #-}
+{-# OPTIONS --guardedness #-}
 
 open import Common.Prelude hiding (map)
 open import Common.Product

@@ -1,3 +1,5 @@
+{-# OPTIONS --guardedness #-}
+
 module Productivity (char : Set) where
 
   open import Common.Coinduction

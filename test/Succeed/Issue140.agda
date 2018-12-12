@@ -1,3 +1,4 @@
+{-# OPTIONS --guardedness #-}
 
 open import Agda.Builtin.Coinduction
 open import Agda.Builtin.Nat

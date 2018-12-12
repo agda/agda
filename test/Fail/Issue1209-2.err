@@ -1,0 +1,6 @@
+Issue1209-2.agda:22,1-23,26
+Termination checking failed for the following functions:
+  iter
+Problematic calls:
+  iter (♭ t)
+    (at Issue1209-2.agda:23,16-20)

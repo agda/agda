@@ -1,3 +1,5 @@
+{-# OPTIONS --guardedness #-}
+
 module CoinductiveAfterEvaluation where
 
 open import Common.Coinduction

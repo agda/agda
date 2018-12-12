@@ -1020,14 +1020,18 @@ compareArgs es = do
     filterM (isCoinductiveProjection True) $ mapMaybe (fmap snd . isProjElim) es
   cutoff <- terGetCutOff
   let ?cutoff = cutoff
-  let guardedness = decr True $ projsCaller - projsCallee
+  useGuardedness <- optGuardedness <$> liftTCM pragmaOptions
+  let guardedness =
+        if useGuardedness
+        then decr True $ projsCaller - projsCallee
+        else Order.Unknown
   liftTCM $ reportSDoc "term.guardedness" 30 $ sep
     [ "compareArgs:"
     , nest 2 $ text $ "projsCaller = " ++ prettyShow projsCaller
     , nest 2 $ text $ "projsCallee = " ++ prettyShow projsCallee
     , nest 2 $ text $ "guardedness of call: " ++ prettyShow guardedness
     ]
-  return $ addGuardedness guardedness (size es) (size pats) matrix
+  return $ addGuardedness guardedness (size es, size pats, matrix)
 
 -- | Traverse patterns from left to right.
 --   When we come to a projection pattern,
@@ -1114,15 +1118,10 @@ makeCM :: Int -> Int -> [[Order]] -> CallMatrix
 makeCM ncols nrows matrix = CallMatrix $
   Matrix.fromLists (Matrix.Size nrows ncols) matrix
 
-{- To turn off guardedness, restore this code.
--- | 'addGuardedness' does nothing.
-addGuardedness :: Integral n => Order -> n -> n -> [[Order]] -> (n, n, [[Order]])
-addGuardedness g nrows ncols m = (nrows, ncols, m)
--}
-
--- | 'addGuardedness' adds guardedness flag in the upper left corner (0,0).
-addGuardedness :: Order -> Int -> Int -> [[Order]] -> (Int, Int, [[Order]])
-addGuardedness o nrows ncols m =
+-- | 'addGuardedness' adds guardedness flag in the upper left corner
+-- (0,0).
+addGuardedness :: Order -> (Int, Int, [[Order]]) -> (Int, Int, [[Order]])
+addGuardedness o (nrows, ncols, m) =
   (nrows + 1, ncols + 1,
    (o : replicate ncols Order.unknown) : map (Order.unknown :) m)
 

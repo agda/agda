@@ -6,8 +6,6 @@ Problematic calls:
     (at Issue1375-2.agda:13,12-16)
   Term type
     (at Issue1375-2.agda:15,10-14)
-  type
-    (at Issue1375-2.agda:15,15-19)
 Issue1375-2.agda:24,9-72
 Term type !=< Type of type Set
 when checking that the inferred type of an application
