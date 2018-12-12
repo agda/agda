@@ -371,28 +371,6 @@ Pragmas and options
   written using `--omega-in-omega` is still compatible with normal
   universe-polymorphic code and can be used in such files.
 
-* New option `--html-highlight=[code,all,auto]`.
-
-  The option `--html-highlight=code` makes the HTML-backend generate
-  files with:
-
-  0. No HTML footer/header
-  1. Agda codes highlighted
-  2. Non-Agda code parts as-is
-  3. Output file extension as-is (i.e. `.lagda.md` becomes `.md`)
-  4. For ReStructuredText, a `.. raw:: html\n` will be inserted
-     before every code blocks
-
-  This makes it possible to use an ordinary Markdown/ReStructuredText
-  processor to render the generated HTML.
-
-  This will affect all the files involved in one compilation, making
-  pure Agda code files rendered without HTML footer/header as well.
-  To use `code` with literate Agda files and `all` with pure Agda
-  files, use `--html-highlight=auto`, which means auto-detection.
-
-  The old and default behaviour is still `--html-highlight=all`.
-
 * Option `--irrelevant-projections` is now off by default and
   not considered `--safe` any longer.
   Reason: There are consistency issues that may be systemic
@@ -564,6 +542,31 @@ LaTeX backend
 * The default value of `\AgdaEmptySkip` has been changed from
   `\baselineskip` to `\abovedisplayskip`. This could mean that less
   vertical space is used to render empty lines in code blocks.
+
+HTML backend
+------------
+
+* New option `--html-highlight=[code,all,auto]`.
+
+  The option `--html-highlight=code` makes the HTML-backend generate
+  files with:
+
+  0. No HTML footer/header
+  1. Agda codes highlighted
+  2. Non-Agda code parts as-is
+  3. Output file extension as-is (i.e. `.lagda.md` becomes `.md`)
+  4. For ReStructuredText, a `.. raw:: html\n` will be inserted
+     before every code blocks
+
+  This makes it possible to use an ordinary Markdown/ReStructuredText
+  processor to render the generated HTML.
+
+  This will affect all the files involved in one compilation, making
+  pure Agda code files rendered without HTML footer/header as well.
+  To use `code` with literate Agda files and `all` with pure Agda
+  files, use `--html-highlight=auto`, which means auto-detection.
+
+  The old and default behaviour is still `--html-highlight=all`.
 
 Release notes for Agda version 2.5.4.2
 ======================================
