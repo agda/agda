@@ -109,8 +109,8 @@ data DoWarn = NoWarn | DoWarn
 fixitiesAndPolarities :: MonadFixityError m => DoWarn -> [Declaration] -> m (Fixities, Polarities)
 fixitiesAndPolarities doWarn ds = do
   (fixs, pols) <- runMonadicFixPol $ fixitiesAndPolarities' ds
-  let DeclaredNames declared postulates privates = foldMap declaredNames ds
-  let publics = declared Set.\\ privates
+  let DeclaredNames declared postulates privateNames = foldMap declaredNames ds
+  let publicNames = declared Set.\\ privateNames
 
   -- If we have names in fixity declarations which are not defined in the
   -- appropriate scope, raise a warning and delete them from fixs.
@@ -130,7 +130,7 @@ fixitiesAndPolarities doWarn ds = do
 
   -- If we have public mixfix identifiers without a corresponding fixity
   -- declaration, we raise a warning
-  ifNull (Set.filter isOpenMixfix publics Set.\\ Map.keysSet fixs) (return ()) $
+  ifNull (Set.filter isOpenMixfix publicNames Set.\\ Map.keysSet fixs) (return ()) $
     when (doWarn == DoWarn) . warnUnknownFixityInMixfixDecl . Set.toList
 
   -- Check that every polarity pragma is used for a postulate.
@@ -176,7 +176,7 @@ fixitiesAndPolarities' = foldMap $ \ d -> case d of
   UnquoteDef  {}  -> mempty
   Pragma      {}  -> mempty
 
-data DeclaredNames = DeclaredNames { allNames, postulates, privates :: Set Name }
+data DeclaredNames = DeclaredNames { allNames, postulates, privateNames :: Set Name }
 
 instance Semigroup DeclaredNames where
   DeclaredNames xs ps as <> DeclaredNames ys qs bs =
@@ -189,8 +189,8 @@ instance Monoid DeclaredNames where
 allPostulates :: DeclaredNames -> DeclaredNames
 allPostulates (DeclaredNames xs ps as) = DeclaredNames xs (xs <> ps) as
 
-allPrivates :: DeclaredNames -> DeclaredNames
-allPrivates (DeclaredNames xs ps as) = DeclaredNames xs ps (xs <> as)
+allPrivateNames :: DeclaredNames -> DeclaredNames
+allPrivateNames (DeclaredNames xs ps as) = DeclaredNames xs ps (xs <> as)
 
 declaresNames :: [Name] -> DeclaredNames
 declaresNames xs = DeclaredNames (Set.fromList xs) Set.empty Set.empty
@@ -219,7 +219,7 @@ declaredNames d = case d of
   PatternSyn _ x _ _   -> declaresName x
   Mutual    _ ds       -> foldMap declaredNames ds
   Abstract  _ ds       -> foldMap declaredNames ds
-  Private _ _ ds       -> allPrivates $ foldMap declaredNames ds
+  Private _ _ ds       -> allPrivateNames $ foldMap declaredNames ds
   InstanceB _ ds       -> foldMap declaredNames ds
   Macro     _ ds       -> foldMap declaredNames ds
   Postulate _ ds       -> allPostulates $ foldMap declaredNames ds
