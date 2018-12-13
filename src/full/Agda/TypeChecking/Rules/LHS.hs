@@ -1139,7 +1139,7 @@ checkLHS mf = updateRelevance checkLHS_ where
 
       -- Andreas, 2010-09-07 cannot split on irrelevant args
       unless (usableRelevance info) $
-        addContext delta1 $ hardTypeError $ SplitOnIrrelevant dom
+        addContext delta1 $ softTypeError $ SplitOnIrrelevant dom
 
       -- Andreas, 2018-10-17, we can however split on erased things
       -- if there is a single constructor (checked in Coverage).
@@ -1186,7 +1186,7 @@ checkLHS mf = updateRelevance checkLHS_ where
       -- We cannot split on (shape-)irrelevant arguments.
       reportSLn "tc.lhs.split" 30 $ "split ConP: relevance is " ++ show (getRelevance info)
       unless (usableRelevance info) $ addContext delta1 $
-        hardTypeError $ SplitOnIrrelevant dom
+        softTypeError $ SplitOnIrrelevant dom
 
       -- Andreas, 2018-10-17, we can however split on erased things
       -- if there is a single constructor (checked in Coverage).
