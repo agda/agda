@@ -496,21 +496,24 @@ instance IsProjP Expr where
   isProjP (ScopedExpr _ e) = isProjP e
   isProjP _ = Nothing
 
-class MaybePostfixProjP a where
-  maybePostfixProjP :: a -> Maybe (ProjOrigin, AmbiguousQName)
+class MaybeProjP a where
+  maybeProjP :: a -> Maybe (ProjOrigin, AmbiguousQName)
 
-instance IsProjP e => MaybePostfixProjP (Pattern' e) where
+instance IsProjP e => MaybeProjP (Pattern' e) where
   -- Andreas, 2018-06-19, issue #3130
   -- Do not interpret things like .(p) as projection pattern any more.
   -- maybePostfixProjP (DotP _ e)    = isProjP e <&> \ (_o, d) -> (ProjPostfix, d)
-  maybePostfixProjP (ProjP _ o d) = Just (o, d)
-  maybePostfixProjP _ = Nothing
+  maybeProjP (ProjP _ o d) = Just (o, d)
+  maybeProjP _ = Nothing
 
-instance MaybePostfixProjP a => MaybePostfixProjP (Arg a) where
-  maybePostfixProjP = maybePostfixProjP . unArg
+instance MaybeProjP a => MaybeProjP (Arg a) where
+  maybeProjP p = case maybeProjP $ unArg p of
+    Just (ProjPostfix , f)
+     | getHiding p /= NotHidden -> Nothing
+    x -> x
 
-instance MaybePostfixProjP a => MaybePostfixProjP (Named n a) where
-  maybePostfixProjP = maybePostfixProjP . namedThing
+instance MaybeProjP a => MaybeProjP (Named n a) where
+  maybeProjP = maybeProjP . namedThing
 
 {--------------------------------------------------------------------------
     Things we parse but are not part of the Agda file syntax

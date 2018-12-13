@@ -41,6 +41,7 @@ appView' e =
     App i e1 e2
       | Dot _ e2' <- unScope $ namedArg e2
       , Just f <- maybeProjTurnPostfix e2'
+      , getHiding e2 == NotHidden -- Jesper, 2018-12-13: postfix projections shouldn't be hidden
                    -> Application f [defaultNamedArg (i, e1)]
     App i e1 arg
       | Application hd es <- appView' e1

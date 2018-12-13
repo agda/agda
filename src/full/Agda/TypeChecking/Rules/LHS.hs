@@ -535,7 +535,7 @@ transferOrigins ps qs = do
     matchingArgs p q
       -- The arguments match if
       -- 1. they are both projections,
-      | isJust (A.maybePostfixProjP p) = isJust (isProjP q)
+      | isJust (A.maybeProjP p) = isJust (isProjP q)
       -- 2. or they are both visible,
       | visible p && visible q = True
       -- 3. or they have the same hiding and the argument is not named,
@@ -965,7 +965,7 @@ checkLHS mf = updateRelevance checkLHS_ where
         ]
 
       -- @p@ should be a projection pattern projection from @target@
-      (orig, ambProjName) <- ifJust (A.maybePostfixProjP p) return $
+      (orig, ambProjName) <- ifJust (A.maybeProjP p) return $
         addContext tel $ softTypeError $ CannotEliminateWithPattern p (unArg target)
 
       (projName, projType) <- suspendErrors $ do
