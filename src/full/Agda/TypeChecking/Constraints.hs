@@ -151,7 +151,10 @@ solveAwakeConstraints :: TCM ()
 solveAwakeConstraints = solveAwakeConstraints' False
 
 solveAwakeConstraints' :: Bool -> TCM ()
-solveAwakeConstraints' force = do
+solveAwakeConstraints' = solveSomeAwakeConstraints (const True)
+
+solveSomeAwakeConstraints :: (ProblemConstraint -> Bool) -> Bool -> TCM ()
+solveSomeAwakeConstraints solveThis force = do
     verboseS "profile.constraints" 10 $ liftTCM $ tickMax "max-open-constraints" . List.genericLength =<< getAllConstraints
     whenM ((force ||) . not <$> isSolvingConstraints) $ nowSolvingConstraints $ do
      -- solveSizeConstraints -- Andreas, 2012-09-27 attacks size constrs too early
@@ -163,7 +166,7 @@ solveAwakeConstraints' force = do
       reportSDoc "tc.constr.solve" 10 $ hsep [ "Solving awake constraints."
                                              , text . show . length =<< getAwakeConstraints
                                              , "remaining." ]
-      whenJustM takeAwakeConstraint $ \ c -> do
+      whenJustM (takeAwakeConstraint' solveThis) $ \ c -> do
         withConstraint solveConstraint c
         solve
 

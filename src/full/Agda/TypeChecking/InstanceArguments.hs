@@ -1,7 +1,11 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE NondecreasingIndentation #-}
 
-module Agda.TypeChecking.InstanceArguments (findInstance, isInstanceConstraint) where
+module Agda.TypeChecking.InstanceArguments
+  ( findInstance
+  , isInstanceConstraint
+  , postponeInstanceConstraints
+  ) where
 
 #if MIN_VERSION_base(4,11,0)
 import Prelude hiding ((<>))
@@ -461,6 +465,13 @@ isConsideringInstance = (^. stConsideringInstance) <$> getTCState
 nowConsideringInstance :: (MonadTCState m) => m a -> m a
 nowConsideringInstance = locallyTCState stConsideringInstance $ const True
 
+postponeInstanceConstraints :: TCM a -> TCM a
+postponeInstanceConstraints m =
+  nowConsideringInstance m <* do
+    wakeConstraints (return . isInstance)
+    solveSomeAwakeConstraints isInstance False
+  where
+    isInstance = isInstanceConstraint . clValue . theConstraint
 
 -- | To preserve the invariant that a constructor is not applied to its
 --   parameter arguments, we explicitly check whether function term

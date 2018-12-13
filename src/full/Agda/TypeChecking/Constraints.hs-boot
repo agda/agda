@@ -6,6 +6,7 @@ addConstraint          :: Constraint -> TCM ()
 catchConstraint        :: Constraint -> TCM () -> TCM ()
 solveConstraint        :: Constraint -> TCM ()
 solveAwakeConstraints' :: Bool -> TCM ()
+solveSomeAwakeConstraints :: (ProblemConstraint -> Bool) -> Bool -> TCM ()
 noConstraints          :: TCM a -> TCM a
 ifNoConstraints_       :: TCM () -> TCM a -> (ProblemId -> TCM a) -> TCM a
 guardConstraint        :: Constraint -> TCM () -> TCM ()
