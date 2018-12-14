@@ -3075,7 +3075,8 @@ data TypeError
 -}
     -- Usage errors
     -- Instance search errors
-        | InstanceNoCandidate Type
+        | InstanceNoCandidate Type [(Term, TCErr)]
+        | InstanceCandidateFailed TCErr -- Used internally by instance search
     -- Reflection errors
         | UnquoteFailed UnquoteError
         | DeBruijnIndexOutOfScope Nat Telescope [Name]

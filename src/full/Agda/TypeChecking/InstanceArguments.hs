@@ -225,12 +225,16 @@ findInstance' m cands = ifM (isFrozen m) (do
       debugConstraints
       case mcands of
 
-        Just [] -> do
+        Just ([(_, err)], []) -> do
           reportSDoc "tc.instance" 15 $
-            "findInstance 5: not a single candidate found..."
-          typeError $ InstanceNoCandidate t
+            "findInstance 5: the only viable candidate failed..."
+          throwError err
+        Just (errs, []) -> do
+          if null errs then reportSDoc "tc.instance" 15 $ "findInstance 5: no viable candidate found..."
+                       else reportSDoc "tc.instance" 15 $ "findInstance 5: all viable candidates failed..."
+          typeError $ InstanceNoCandidate t [ (candidateTerm c, err) | (c, err) <- errs ]
 
-        Just [Candidate term t' _] -> do
+        Just (_, [Candidate term t' _]) -> do
           reportSDoc "tc.instance" 15 $ vcat
             [ "findInstance 5: solved by instance search using the only candidate"
             , nest 2 $ prettyTCM term
@@ -245,7 +249,7 @@ findInstance' m cands = ifM (isFrozen m) (do
           return Nothing  -- We’re done
 
         _ -> do
-          let cs = fromMaybe cands mcands -- keep the current candidates if Nothing
+          let cs = maybe cands snd mcands -- keep the current candidates if Nothing
           reportSDoc "tc.instance" 15 $
             text ("findInstance 5: refined candidates: ") <+>
             prettyTCM (List.map candidateTerm cs)
@@ -272,8 +276,12 @@ insidePi t ret =
 --
 --   If the resulting list contains exactly one element, then the state is the
 --   same as the one obtained after running the corresponding computation. In
---   all the other cases, the state is reseted.
-filterResetingState :: MetaId -> [Candidate] -> (Candidate -> TCM YesNoMaybe) -> TCM [Candidate]
+--   all the other cases, the state is reset.
+--
+--   Also returns the candidates that pass type checking but fails constraints,
+--   so that the error messages can be reported if there are no successful
+--   candidates.
+filterResetingState :: MetaId -> [Candidate] -> (Candidate -> TCM YesNoMaybe) -> TCM ([(Candidate, TCErr)], [Candidate])
 filterResetingState m cands f = do
   ctxArgs  <- getContextArgs
   let ctxElims = map Apply ctxArgs
@@ -290,10 +298,13 @@ filterResetingState m cands f = do
     []      -> return ()
 
   let result' = [ (c, v, a, s) | (c, ((r, v, a), s)) <- result, not (isNo r) ]
-  result <- dropSameCandidates m result'
-  case result of
-    [(c, _, _, s)] -> [c] <$ putTC s
-    _              -> return [ c | (c, _, _, _) <- result ]
+  result'' <- dropSameCandidates m result'
+  case result'' of
+    [(c, _, _, s)] -> ([], [c]) <$ putTC s
+    _              -> do
+      let bad  = [ (c, err) | (c, ((NoBecause err, _, _), _)) <- result ]
+          good = [ c | (c, _, _, _) <- result'' ]
+      return (bad, good)
 
 -- Drop all candidates which are judgmentally equal to the first one.
 -- This is sufficient to reduce the list to a singleton should all be equal.
@@ -319,6 +330,8 @@ dropSameCandidates m cands0 = verboseBracket "tc.instance" 30 "dropSameCandidate
     cvd : _ | isIrrelevant rel -> do
       reportSLn "tc.instance" 30 "Meta is irrelevant so any candidate will do."
       return [cvd]
+    (_, MetaV m' _, _, _) : _ | m == m' ->  -- We didn't instantiate, so can't compare
+      return cands
     cvd@(_, v, a, _) : vas -> do
         if freshMetas (v, a)
           then return (cvd : vas)
@@ -334,16 +347,19 @@ dropSameCandidates m cands0 = verboseBracket "tc.instance" 30 "dropSameCandidate
                              {- else -} (\ _ -> return False)
                              `catchError` (\ _ -> return False)
 
-data YesNoMaybe = Yes | No | Maybe | HellNo TCErr
+data YesNoMaybe = Yes | No | NoBecause TCErr | Maybe | HellNo TCErr
   deriving (Show)
 
 isNo :: YesNoMaybe -> Bool
-isNo No = True
-isNo _  = False
+isNo No          = True
+isNo NoBecause{} = True
+isNo HellNo{}    = True
+isNo _           = False
 
 -- | Given a meta @m@ of type @t@ and a list of candidates @cands@,
--- @checkCandidates m t cands@ returns a refined list of valid candidates.
-checkCandidates :: MetaId -> Type -> [Candidate] -> TCM (Maybe [Candidate])
+-- @checkCandidates m t cands@ returns a refined list of valid candidates and
+-- candidates that failed some constraints.
+checkCandidates :: MetaId -> Type -> [Candidate] -> TCM (Maybe ([(Candidate, TCErr)], [Candidate]))
 checkCandidates m t cands =
   verboseBracket "tc.instance.candidates" 20 ("checkCandidates " ++ prettyShow m) $
   ifM (anyMetaTypes cands) (return Nothing) $ Just <$> do
@@ -356,7 +372,7 @@ checkCandidates m t cands =
     reportSDoc "tc.instance.candidates" 20 $ nest 2 $ vcat
       [ "valid candidates"
       , vcat [ "-" <+> (if overlap then "overlap" else empty) <+> prettyTCM v <+> ":" <+> prettyTCM t
-             | Candidate v t overlap <- cands' ] ]
+             | Candidate v t overlap <- snd cands' ] ]
     return cands'
   where
     anyMetaTypes :: [Candidate] -> TCM Bool
@@ -419,7 +435,7 @@ checkCandidates m t cands =
             -- unsolvable by the assignment, but don't do this for FindInstance's
             -- to prevent loops.
             debugConstraints
-            solveAwakeConstraints' True
+            solveAwakeConstraints' True `catchError` (typeError . InstanceCandidateFailed)
 
             verboseS "tc.instance" 15 $ do
               sol <- instantiateFull (MetaV m ctxElims)
@@ -450,9 +466,14 @@ checkCandidates m t cands =
           handle :: TCErr -> TCM YesNoMaybe
           handle err
             | hardFailure err = return $ HellNo err
+            | TypeError _ e <- err,
+              InstanceCandidateFailed why <- clValue e = do
+              reportSDoc "tc.instance" 50 $
+                "candidate failed constraints:" <+> prettyTCM why
+              return $ NoBecause why
             | otherwise       = do
               reportSDoc "tc.instance" 50 $
-                "assignment failed:" <+> prettyTCM err
+                "candidate failed type check:" <+> prettyTCM err
               return No
 
 isInstanceConstraint :: Constraint -> Bool
