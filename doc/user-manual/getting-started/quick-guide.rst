@@ -125,6 +125,8 @@ colour-blind, for instance), then you can tweak the settings by typing
 ``M-x customize-group RET agda2-highlight RET`` in Emacs (after
 loading an Agda file) and following the instructions.
 
+.. _compiling-agda-programs:
+
 Compiling Agda programs
 =======================
 
