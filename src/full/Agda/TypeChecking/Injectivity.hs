@@ -76,7 +76,7 @@ headSymbol v = do -- ignoreAbstractMode $ do
         GeneralizableVar{} -> __IMPOSSIBLE__
         Constructor{} -> __IMPOSSIBLE__
         AbstractDefn{}-> __IMPOSSIBLE__
-    Con c _ _ -> return (Just $ ConsHead $ conName c)
+    Con c _ _ -> Just . ConsHead <$> canonicalName (conName c)
     Sort _  -> return (Just SortHead)
     Pi _ _  -> return (Just PiHead)
     Var i [] -> return (Just $ VarHead i) -- Only naked variables. Otherwise substituting a neutral term is not guaranteed to stay neutral.
@@ -280,8 +280,14 @@ useInjectivity dir ty blk neu = locallyTC eInjectivityDepth succ $ do
         --    us == ps  with fresh metas for the pattern variables of ps.
         --    If there's no such clause we can safely throw an error.
         _ -> headSymbol' neu >>= \ case
-          Nothing -> fallback
-          Just (ConsHead f') | f == f', canReduceToSelf -> fallback
+          Nothing -> do
+            reportSDoc "tc.inj.use" 20 $ fsep $
+              pwords "no head symbol found for" ++ [prettyTCM neu] ++ pwords ", so not inverting"
+            fallback
+          Just (ConsHead f') | f == f', canReduceToSelf -> do
+            reportSDoc "tc.inj.use" 20 $ fsep $
+              pwords "head symbol" ++ [prettyTCM f'] ++ pwords "can reduce to self, so not inverting"
+            fallback
                                     -- We can't invert in this case, since we can't
                                     -- tell the difference between a solution that makes
                                     -- the blocked term neutral and one that makes progress.
