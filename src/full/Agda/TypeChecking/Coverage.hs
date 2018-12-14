@@ -226,6 +226,14 @@ coverageCheck f t cs = do
                       , clauseCatchall    = False
                       , clauseUnreachable = Just False
                       }
+      reportSDoc "tc.cover.missing" 20 $ inTopContext $ do
+        sep [ "adding missing absurd clause"
+            , nest 2 $ prettyTCM $ QNamed f cl
+            ]
+      reportSDoc "tc.cover.missing" 80 $ inTopContext $ do
+        sep [ "adding missing absurd clause"
+            , nest 2 $ text $ show cl
+            ]
       addClauses f [cl]
       return False
 
@@ -302,8 +310,8 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
     , nest 2 $ "target =" <+> (text . show) target
     ]
   cs' <- normaliseProjP cs
-  ps <- (traverse . traverse . traverse) dotPatternsToPatterns ps
-  case match cs' ps of
+  ps' <- (traverse . traverse . traverse) dotPatternsToPatterns ps
+  case match cs' ps' of
     Yes (i,mps) -> do
       exact <- allM mps isTrivialPattern
       let noExactClause = if exact || clauseCatchall (indexWithDefault __IMPOSSIBLE__ cs i)
@@ -331,7 +339,6 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
     -- We need to split!
     -- If all clauses have an unsplit copattern, we try that first.
     Block res bs -> trySplitRes res (null bs) $ do
-      let ps' = fromSplitPatterns ps
       when (null bs) __IMPOSSIBLE__
       -- Otherwise, if there are variables to split, we try them
       -- in the order determined by a split strategy.
