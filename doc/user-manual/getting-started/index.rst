@@ -7,7 +7,7 @@ Getting Started
 .. toctree::
    :maxdepth: 2
 
-   what-is-agda	      
+   what-is-agda
    prerequisites
    installation
    hello-world
