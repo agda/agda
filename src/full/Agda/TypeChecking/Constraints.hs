@@ -71,7 +71,7 @@ addConstraint c = do
     -- the added constraint can cause instance constraints to be solved (but only
     -- the constraints which aren’t blocked on an uninstantiated meta)
     unless (isInstanceConstraint c) $
-       wakeConstraints (isWakeableInstanceConstraint . clValue . theConstraint)
+       wakeConstraints' (isWakeableInstanceConstraint . clValue . theConstraint)
   where
     isWakeableInstanceConstraint :: Constraint -> TCM Bool
     isWakeableInstanceConstraint (FindInstance _ b _) = caseMaybe b (return True) (\m -> isInstantiatedMeta m)
@@ -135,16 +135,21 @@ whenConstraints action handler =
     stealConstraints pid
     handler
 
+wakeConstraints' :: (ProblemConstraint -> TCM Bool) -> TCM ()
+wakeConstraints' p = do
+  skipInstance <- isConsideringInstance
+  wakeConstraints (\ c -> (&&) (not $ skipInstance && isInstanceConstraint (clValue $ theConstraint c)) <$> p c)
+
 -- | Wake up the constraints depending on the given meta.
 wakeupConstraints :: MetaId -> TCM ()
 wakeupConstraints x = do
-  wakeConstraints (return . mentionsMeta x)
+  wakeConstraints' (return . mentionsMeta x)
   solveAwakeConstraints
 
 -- | Wake up all constraints.
 wakeupConstraints_ :: TCM ()
 wakeupConstraints_ = do
-  wakeConstraints (return . const True)
+  wakeConstraints' (return . const True)
   solveAwakeConstraints
 
 solveAwakeConstraints :: TCM ()

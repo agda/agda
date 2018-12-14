@@ -4,6 +4,7 @@
 module Agda.TypeChecking.InstanceArguments
   ( findInstance
   , isInstanceConstraint
+  , isConsideringInstance
   , postponeInstanceConstraints
   ) where
 
@@ -199,7 +200,7 @@ findInstance' :: MetaId -> [Candidate] -> TCM (Maybe ([Candidate], Maybe MetaId)
 findInstance' m cands = ifM (isFrozen m) (do
     reportSLn "tc.instance" 20 "Refusing to solve frozen instance meta."
     return (Just (cands, Nothing))) $ do
-  ifM (isConsideringInstance `and2M` (not . optOverlappingInstances <$> pragmaOptions)) (do
+  ifM isConsideringInstance (do
     reportSLn "tc.instance" 20 "Postponing possibly recursive instance search."
     return $ Just (cands, Nothing)) $ do
   -- Andreas, 2015-02-07: New metas should be created with range of the
@@ -244,8 +245,7 @@ findInstance' m cands = ifM (isFrozen m) (do
 
           -- If we actually solved the constraints we should wake up any held
           -- instance constraints, to make sure we don't forget about them.
-          wakeConstraints (return . const True)
-          solveAwakeConstraints' False
+          wakeupInstanceConstraints
           return Nothing  -- We’re done
 
         _ -> do
@@ -480,19 +480,25 @@ isInstanceConstraint :: Constraint -> Bool
 isInstanceConstraint FindInstance{} = True
 isInstanceConstraint _              = False
 
-isConsideringInstance :: (ReadTCState m) => m Bool
-isConsideringInstance = (^. stConsideringInstance) <$> getTCState
+isConsideringInstance :: (ReadTCState m, HasOptions m) => m Bool
+isConsideringInstance =
+  and2M ((^. stConsideringInstance) <$> getTCState)
+        (not . optOverlappingInstances <$> pragmaOptions)
 
 nowConsideringInstance :: (MonadTCState m) => m a -> m a
 nowConsideringInstance = locallyTCState stConsideringInstance $ const True
 
-postponeInstanceConstraints :: TCM a -> TCM a
-postponeInstanceConstraints m =
-  nowConsideringInstance m <* do
+wakeupInstanceConstraints :: TCM ()
+wakeupInstanceConstraints =
+  unlessM isConsideringInstance $ do
     wakeConstraints (return . isInstance)
     solveSomeAwakeConstraints isInstance False
   where
     isInstance = isInstanceConstraint . clValue . theConstraint
+
+postponeInstanceConstraints :: TCM a -> TCM a
+postponeInstanceConstraints m =
+  nowConsideringInstance m <* wakeupInstanceConstraints
 
 -- | To preserve the invariant that a constructor is not applied to its
 --   parameter arguments, we explicitly check whether function term
