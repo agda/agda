@@ -3056,6 +3056,7 @@ data TypeError
         | NonFatalErrors [TCWarning]
     -- Instance search errors
         | InstanceSearchDepthExhausted Term Type Int
+        | TriedToCopyConstrainedPrim QName
           deriving Show
 
 -- | Distinguish error message when parsing lhs or pattern synonym, resp.

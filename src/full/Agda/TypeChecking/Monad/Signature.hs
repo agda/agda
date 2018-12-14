@@ -53,6 +53,7 @@ import Agda.TypeChecking.CompiledClause
 import {-# SOURCE #-} Agda.TypeChecking.CompiledClause.Compile
 import {-# SOURCE #-} Agda.TypeChecking.Polarity
 import {-# SOURCE #-} Agda.TypeChecking.ProjectionLike
+import Agda.TypeChecking.Monad.Builtin
 
 import Agda.Utils.Except ( ExceptT )
 import Agda.Utils.Functor
@@ -359,6 +360,11 @@ applySection new ptel old ts ScopeCopyInfo{ renModules = rm, renNames = rd } = d
 
 applySection' :: ModuleName -> Telescope -> ModuleName -> Args -> ScopeCopyInfo -> TCM ()
 applySection' new ptel old ts ScopeCopyInfo{ renNames = rd, renModules = rm } = do
+  do
+    noCopyList <- catMaybes <$> mapM getName' constrainedPrims
+    forM_ (map fst rd) $ \ q -> do
+      when (q `elem` noCopyList) $ typeError (TriedToCopyConstrainedPrim q)
+
   reportSLn "tc.mod.apply" 10 $ render $ vcat
     [ "applySection"
     , "new  =" <+> pretty new

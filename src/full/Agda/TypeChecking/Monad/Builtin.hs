@@ -574,3 +574,19 @@ equalityUnview :: EqualityView -> Type
 equalityUnview (OtherType t) = t
 equalityUnview (EqualityType s equality l t lhs rhs) =
   El s $ Def equality $ map Apply (l ++ [t, lhs, rhs])
+
+-- | Primitives with typechecking constrants.
+constrainedPrims :: [String]
+constrainedPrims =
+  [ builtinConId
+  , builtinPOr
+  , builtinComp
+  , builtinHComp
+  , builtinTrans
+  , builtin_glue
+  ]
+
+getNameOfConstrained :: HasBuiltins m => String -> m (Maybe QName)
+getNameOfConstrained s = do
+  unless (s `elem` constrainedPrims) __IMPOSSIBLE__
+  getName' s
