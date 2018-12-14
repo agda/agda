@@ -1802,7 +1802,9 @@ bindGeneralizables vars =
 --   (origin == Inserted)
 bindGeneralizablesIfInserted :: Origin -> AbstractName -> ScopeM (Set A.Name)
 bindGeneralizablesIfInserted Inserted y = bound <$ bindGeneralizables gvars
-  where GeneralizedVarsMetadata gvars = anameMetadata y
+  where gvars = case anameMetadata y of
+          GeneralizedVarsMetadata gvars -> gvars
+          NoMetadata                    -> Map.empty
         bound = Set.fromList (Map.elems gvars)
 bindGeneralizablesIfInserted UserWritten _ = return Set.empty
 bindGeneralizablesIfInserted _ _           = __IMPOSSIBLE__
