@@ -2,14 +2,82 @@
   ::
   module language.termination-checking where
 
+      open import Agda.Builtin.Bool
+      open import Agda.Builtin.Nat
+
 .. _termination-checking:
 
 ********************
 Termination Checking
 ********************
 
-.. note::
-   This is a stub.
+Not all recursive functions are permitted - Agda accepts only these recursive
+schemas that it can mechanically prove terminating.
+
+.. _termination-checking-primitive-recursion:
+
+Primitive recursion
+-------------------
+
+In the simplest case, a given argument must be exactly one constructor
+smaller in each recursive call.  We call this scheme primitive
+recursion.  A few correct examples:
+
+::
+
+      plus : Nat → Nat → Nat
+      plus zero    m = m
+      plus (suc n) m = suc (plus n m)
+
+      natEq : Nat → Nat → Bool
+      natEq zero    zero    = true
+      natEq zero    (suc m) = false
+      natEq (suc n) zero    = false
+      natEq (suc n) (suc m) = natEq n m
+
+Both ``plus`` and ``natEq`` are defined by primitive recursion.
+
+The recursive call in ``plus`` is OK because ``n`` is a subexpression
+of ``suc n`` (so ``n`` is structurally smaller than ``suc n``).  So
+every time plus is recursively called the first argument is getting
+smaller and smaller.  Since a natural number can only have a finite
+number of suc constructors we know that plus will always terminate.
+
+``natEq`` terminates for the same reason, but in this case we can say
+that both the first and second arguments of natEq are decreasing.
+
+.. _termination-checking-structural-recursion:
+
+Structural recursion
+--------------------
+
+Agda's termination checker allows more definitions than just primitive
+recursive ones -- it allows structural recursion.
+
+This means that we require recursive calls to be on a (strict)
+subexpression of the argument (see ``fib`` below) - this is more
+general that just taking away one constructor at a time.
+
+::
+
+      fib : Nat → Nat
+      fib zero          = zero
+      fib (suc zero)    = suc zero
+      fib (suc (suc n)) = plus (fib n) (fib (suc n))
+
+It also means that arguments may decrease in an lexicographic order -
+this can be thought of as nested primitive recursion (see ``ack``
+below).
+
+::
+
+      ack : Nat → Nat → Nat
+      ack zero    m       = suc m
+      ack (suc n) zero    = ack n (suc zero)
+      ack (suc n) (suc m) = ack n (ack (suc n) m)
+
+In ``ack`` either the first argument decreases or it stays the same and the second one decreases.
+This is the same as a lexicographic ordering.
 
 .. _termination-checking-with:
 
@@ -91,3 +159,11 @@ Pragmas and Options
         g = h
         {-# TERMINATING #-}
         h = g
+
+.. _termination-checking-references:
+
+References
+----------
+
+`Andreas Abel, Foetus -- termination checker for simple functional programs
+<http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.44.3494&rank=1>`_
