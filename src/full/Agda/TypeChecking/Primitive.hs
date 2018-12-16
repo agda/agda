@@ -1958,6 +1958,58 @@ decomposeInterval' t = do
             , let bsm     = (Map.fromListWith Set.union . map (id -*- Set.singleton)) bs
             ]
 
+-- | @mkPrimInjective@ takes two Set0 @a@ and @b@ and a function @f@ of type
+--   @a -> b@ and outputs a primitive internalizing the fact that @f@ is injective.
+mkPrimInjective :: Type -> Type -> QName -> TCM PrimitiveImpl
+mkPrimInjective a b qn = do
+  -- Define the type
+  eqName <- primEqualityName
+  let lvl0     = Max []
+  let eq a t u = El (Type lvl0) <$> pure (Def eqName []) <#> pure (Level lvl0)
+                                <#> pure (unEl a) <@> t <@> u
+  let f    = pure (Def qn [])
+  ty <- nPi "t" (pure a) $ nPi "u" (pure a) $
+              (eq b (f <@> varM 1) (f <@> varM 0))
+          --> (eq a (      varM 1) (      varM 0))
+
+    -- Get the constructor corresponding to BUILTIN REFL
+  refl <- getRefl
+
+  -- Implementation: when the equality argument reduces to refl so does the primitive.
+  -- If the user want the primitive to reduce whenever the two values are equal (no
+  -- matter whether the equality is refl), they can combine it with @eraseEquality@.
+  return $ PrimImpl ty $ primFun __IMPOSSIBLE__ 3 $ \ ts -> do
+    let t  = fromMaybe __IMPOSSIBLE__ $ headMaybe ts
+    let eq = unArg $ fromMaybe __IMPOSSIBLE__ $ lastMaybe ts
+    eq' <- normalise' eq
+    case eq' of
+      Con{} -> redReturn $ refl t
+      _     -> return $ NoReduction $ map notReduced ts
+
+primCharToNatInjective :: TCM PrimitiveImpl
+primCharToNatInjective = do
+  char  <- primType (undefined :: Char)
+  nat   <- primType (undefined :: Nat)
+  toNat <- primFunName <$> getPrimitive "primCharToNat"
+  mkPrimInjective char nat toNat
+
+primStringToListInjective :: TCM PrimitiveImpl
+primStringToListInjective = do
+  string <- primType (undefined :: Str)
+  chars  <- primType (undefined :: String)
+  toList <- primFunName <$> getPrimitive "primStringToList"
+  mkPrimInjective string chars toList
+
+getRefl :: TCM (Arg Term -> Term)
+getRefl = do
+  -- BUILTIN REFL maybe a constructor with one (the principal) argument or only parameters.
+  -- Get the ArgInfo of the principal argument of refl.
+  con@(Con rf ci []) <- primRefl
+  minfo <- fmap (setOrigin Inserted) <$> getReflArgInfo rf
+  pure $ case minfo of
+    Just ai -> Con rf ci . (:[]) . Apply . setArgInfo ai
+    Nothing -> const con
+
 -- | @primEraseEquality : {a : Level} {A : Set a} {x y : A} -> x ≡ y -> x ≡ y@
 primEraseEquality :: TCM PrimitiveImpl
 primEraseEquality = do
@@ -1981,13 +2033,8 @@ primEraseEquality = do
   t <- let xeqy = pure $ El eqSort $ Def eq $ map Apply $ teleArgs eqTel in
        telePi_ (fmap hide eqTel) <$> (xeqy --> xeqy)
 
-  -- BUILTIN REFL maybe a constructor with one (the principal) argument or only parameters.
-  -- Get the ArgInfo of the principal argument of refl.
-  con@(Con rf ci []) <- primRefl
-  minfo <- fmap (setOrigin Inserted) <$> getReflArgInfo rf
-  let (refl :: Arg Term -> Term) = case minfo of
-        Just ai -> Con rf ci . (:[]) . Apply . setArgInfo ai
-        Nothing -> const con
+  -- Get the constructor corresponding to BUILTIN REFL
+  refl <- getRefl
 
   -- The implementation of primEraseEquality:
   return $ PrimImpl t $ primFun __IMPOSSIBLE__ (1 + size eqTel) $ \ ts -> do
@@ -2413,27 +2460,29 @@ primitiveFunctions = Map.fromList
   , "primShowFloat"       |-> mkPrimFun1 (Str . show      :: Double -> Str)
 
   -- Character functions
-  , "primCharEquality"    |-> mkPrimFun2 ((==) :: Rel Char)
-  , "primIsLower"         |-> mkPrimFun1 isLower
-  , "primIsDigit"         |-> mkPrimFun1 isDigit
-  , "primIsAlpha"         |-> mkPrimFun1 isAlpha
-  , "primIsSpace"         |-> mkPrimFun1 isSpace
-  , "primIsAscii"         |-> mkPrimFun1 isAscii
-  , "primIsLatin1"        |-> mkPrimFun1 isLatin1
-  , "primIsPrint"         |-> mkPrimFun1 isPrint
-  , "primIsHexDigit"      |-> mkPrimFun1 isHexDigit
-  , "primToUpper"         |-> mkPrimFun1 toUpper
-  , "primToLower"         |-> mkPrimFun1 toLower
-  , "primCharToNat"       |-> mkPrimFun1 (fromIntegral . fromEnum :: Char -> Nat)
-  , "primNatToChar"       |-> mkPrimFun1 (toEnum . fromIntegral . (`mod` 0x110000)  :: Nat -> Char)
-  , "primShowChar"        |-> mkPrimFun1 (Str . show . pretty . LitChar noRange)
+  , "primCharEquality"       |-> mkPrimFun2 ((==) :: Rel Char)
+  , "primIsLower"            |-> mkPrimFun1 isLower
+  , "primIsDigit"            |-> mkPrimFun1 isDigit
+  , "primIsAlpha"            |-> mkPrimFun1 isAlpha
+  , "primIsSpace"            |-> mkPrimFun1 isSpace
+  , "primIsAscii"            |-> mkPrimFun1 isAscii
+  , "primIsLatin1"           |-> mkPrimFun1 isLatin1
+  , "primIsPrint"            |-> mkPrimFun1 isPrint
+  , "primIsHexDigit"         |-> mkPrimFun1 isHexDigit
+  , "primToUpper"            |-> mkPrimFun1 toUpper
+  , "primToLower"            |-> mkPrimFun1 toLower
+  , "primCharToNat"          |-> mkPrimFun1 (fromIntegral . fromEnum :: Char -> Nat)
+  , "primCharToNatInjective" |-> primCharToNatInjective
+  , "primNatToChar"          |-> mkPrimFun1 (toEnum . fromIntegral . (`mod` 0x110000)  :: Nat -> Char)
+  , "primShowChar"           |-> mkPrimFun1 (Str . show . pretty . LitChar noRange)
 
   -- String functions
-  , "primStringToList"    |-> mkPrimFun1 unStr
-  , "primStringFromList"  |-> mkPrimFun1 Str
-  , "primStringAppend"    |-> mkPrimFun2 (\s1 s2 -> Str $ unStr s1 ++ unStr s2)
-  , "primStringEquality"  |-> mkPrimFun2 ((==) :: Rel Str)
-  , "primShowString"      |-> mkPrimFun1 (Str . show . pretty . LitString noRange . unStr)
+  , "primStringToList"          |-> mkPrimFun1 unStr
+  , "primStringToListInjective" |-> primStringToListInjective
+  , "primStringFromList"        |-> mkPrimFun1 Str
+  , "primStringAppend"          |-> mkPrimFun2 (\s1 s2 -> Str $ unStr s1 ++ unStr s2)
+  , "primStringEquality"        |-> mkPrimFun2 ((==) :: Rel Str)
+  , "primShowString"            |-> mkPrimFun1 (Str . show . pretty . LitString noRange . unStr)
 
   -- Other stuff
   , "primEraseEquality"   |-> primEraseEquality

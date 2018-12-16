@@ -4,6 +4,7 @@ module Agda.Builtin.Char where
 
 open import Agda.Builtin.Nat
 open import Agda.Builtin.Bool
+open import Agda.Builtin.Equality
 
 {-# BUILTIN CHAR Char #-}
 
@@ -14,3 +15,4 @@ primitive
   primCharToNat : Char → Nat
   primNatToChar : Nat → Char
   primCharEquality : Char → Char → Bool
+  primCharToNatInjective : ∀ a b → primCharToNat a ≡ primCharToNat b → a ≡ b

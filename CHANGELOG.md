@@ -474,6 +474,10 @@ Pragmas and options
   `Agda.Builtin.Equality` in `Agda.Builtin.Equality.Rewrite` [Issue
   [#3318](https://github.com/agda/agda/issues/3318)].
 
+* New primitives `primCharToNatInjective` and `primStringToListInjective`
+  internalising the fact that `primCharToNat` and `primStringtoList` are
+  injective functions.
+
 Emacs mode
 ----------
 
