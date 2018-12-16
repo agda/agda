@@ -207,6 +207,7 @@ primBody s = maybe unimplemented (fromRight (hsVarUQ . HS.Ident) <$>) $
   , "primCharToNat" |-> return "(fromIntegral . fromEnum :: Char -> Integer)"
   , "primNatToChar" |-> return "(toEnum . fromIntegral :: Integer -> Char)"
   , "primShowChar"  |-> return "(Data.Text.pack . show :: Char -> Data.Text.Text)"
+  , "primCharToNatInjective" |-> return "erased"
 
   -- String functions
   , "primStringToList"   |-> return "Data.Text.unpack"
@@ -214,6 +215,7 @@ primBody s = maybe unimplemented (fromRight (hsVarUQ . HS.Ident) <$>) $
   , "primStringAppend"   |-> binAsis "Data.Text.append" "Data.Text.Text"
   , "primStringEquality" |-> rel "(==)" "Data.Text.Text"
   , "primShowString"     |-> return "(Data.Text.pack . show :: Data.Text.Text -> Data.Text.Text)"
+  , "primStringToListInjective" |-> return "erased"
 
   -- Reflection
   , "primQNameEquality"   |-> rel "(==)" "MAlonzo.RTE.QName"
