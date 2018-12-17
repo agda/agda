@@ -181,7 +181,13 @@ isType_ e = traceCall (IsType_ e) $ do
       -- We assume the meta variable use here is in an extension of the original context.
       -- If not we revert to the old buggy behavior of #707 (see test/Succeed/Issue2257b).
       if (length vs /= n) then fallback else do
-      s1  <- piApplyM s0 vs
+      s1  <- reduce =<< piApplyM s0 vs
+      reportSDoc "tc.ip" 20 $ vcat
+        [ "  s1   = " <+> prettyTCM s1
+        ]
+      reportSDoc "tc.ip" 70 $ vcat
+        [ "  s1   = " <+> text (show s1)
+        ]
       case unEl s1 of
         Sort s -> return $ El s $ MetaV x $ map Apply vs
         _ -> __IMPOSSIBLE__
