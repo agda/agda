@@ -43,7 +43,8 @@ import {-# SOURCE #-} Agda.TypeChecking.Conversion
 import qualified Agda.Benchmarking as Benchmark
 import Agda.TypeChecking.Monad.Benchmark (billTo)
 
-import Agda.Utils.Except ( MonadError(catchError, throwError) )
+import Agda.Utils.Either
+import Agda.Utils.Except
 import Agda.Utils.Lens
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
@@ -55,20 +56,28 @@ import Agda.Utils.Null (empty)
 import Agda.Utils.Impossible
 
 -- | Compute a list of instance candidates.
---   'Nothing' if type is a meta, error if type is not eligible
---   for instance search.
+--   'Nothing' if target type or any context type is a meta, error if
+--   type is not eligible for instance search.
 initialInstanceCandidates :: Type -> TCM (Maybe [Candidate])
 initialInstanceCandidates t = do
   (_ , otn) <- getOutputTypeName t
   case otn of
     NoOutputTypeName -> typeError $ GenericError $
       "Instance search can only be used to find elements in a named type"
-    OutputTypeNameNotYetKnown -> return Nothing
-    OutputTypeVar    -> Just <$> getContextVars
-    OutputTypeName n -> Just <$> do (++) <$> getContextVars <*> getScopeDefs n
+    OutputTypeNameNotYetKnown -> do
+      reportSDoc "tc.instance.cands" 30 $ "Instance type is not yet known. "
+      return Nothing
+    OutputTypeVar    -> do
+      reportSDoc "tc.instance.cands" 30 $ "Instance type is a variable. "
+      maybeRight <$> runExceptT getContextVars
+    OutputTypeName n -> do
+      reportSDoc "tc.instance.cands" 30 $ "Found instance type head: " <+> prettyTCM n
+      runExceptT getContextVars >>= \case
+        Left b -> return Nothing
+        Right ctxVars -> Just . (ctxVars ++) <$> getScopeDefs n
   where
     -- get a list of variables with their type, relative to current context
-    getContextVars :: TCM [Candidate]
+    getContextVars :: ExceptT Blocked_ TCM [Candidate]
     getContextVars = do
       ctx <- getContext
       reportSDoc "tc.instance.cands" 40 $ hang "Getting candidates from context" 2 (inTopContext $ prettyTCM $ PrettyContext ctx)
@@ -105,6 +114,8 @@ initialInstanceCandidates t = do
                  ]
       return $ vars ++ fields ++ lets
 
+    etaExpand :: (MonadTCM m, MonadReduce m, HasConstInfo m)
+              => Bool -> Type -> m (Maybe (QName, Args))
     etaExpand etaOnce t =
       isEtaRecordType t >>= \case
         Nothing | etaOnce -> do
@@ -119,9 +130,13 @@ initialInstanceCandidates t = do
                 else return Nothing
         r -> return r
 
+    instanceFields :: (Term,Type) -> ExceptT Blocked_ TCM [Candidate]
     instanceFields = instanceFields' True
+
+    instanceFields' :: Bool -> (Term,Type) -> ExceptT Blocked_ TCM [Candidate]
     instanceFields' etaOnce (v, t) =
-      caseMaybeM (etaExpand etaOnce =<< reduce t) (return []) $ \ (r, pars) -> do
+      ifBlockedType t (\m _ -> throwError $ Blocked m ()) $ \ _ t -> do
+      caseMaybeM (etaExpand etaOnce t) (return []) $ \ (r, pars) -> do
         (tel, args) <- forceEtaExpandRecord r pars v
         let types = map unDom $ applySubst (parallelS $ reverse $ map unArg args) (flattenTel tel)
         fmap concat $ forM (zip args types) $ \ (arg, t) ->

@@ -30,4 +30,4 @@ record Map {{C : Structure}} {{D : Structure}} : Set1 where
 
     ×-inv : ∀ {X A} → Ty⟦ X ⟧ × Ty⟦ A ⟧ ⟶ Ty⟦ X × A ⟧
 
-    ⟦Op3⟧ : ∀ {X} → Tm⟦ Op3 {X = X} ⟧ ∘ ×-inv ∘ (×-inv ∘ (π₁ ∘ π₁ , π₂ ∘ π₁) , π₂) ~ Op3
+    ⟦Op3⟧ : ∀ {X : Structure.Type C} → Tm⟦ Op3 {X = X} ⟧ ∘ ×-inv ∘ (×-inv ∘ (π₁ ∘ π₁ , π₂ ∘ π₁) , π₂) ~ Op3
