@@ -117,7 +117,7 @@ recordModule = mnameFromList . qnameToList
 
 -- | Get the definition for a record. Throws an exception if the name
 --   does not refer to a record or the record is abstract.
-getRecordDef :: QName -> TCM Defn
+getRecordDef :: (MonadTCM m, HasConstInfo m) => QName -> m Defn
 getRecordDef r = maybe err return =<< isRecord r
   where err = typeError $ ShouldBeRecordType (El __DUMMY_SORT__ $ Def r [])
 
@@ -188,14 +188,16 @@ isRecord r = do
 -- | Reduce a type and check whether it is a record type.
 --   Succeeds only if type is not blocked by a meta var.
 --   If yes, return its name, parameters, and definition.
-isRecordType :: Type -> TCM (Maybe (QName, Args, Defn))
+isRecordType :: (MonadReduce m, HasConstInfo m)
+             => Type -> m (Maybe (QName, Args, Defn))
 isRecordType t = either (const Nothing) Just <$> tryRecordType t
 
 -- | Reduce a type and check whether it is a record type.
 --   Succeeds only if type is not blocked by a meta var.
 --   If yes, return its name, parameters, and definition.
 --   If no, return the reduced type (unless it is blocked).
-tryRecordType :: Type -> TCM (Either (Blocked Type) (QName, Args, Defn))
+tryRecordType :: (MonadReduce m, HasConstInfo m)
+              => Type -> m (Either (Blocked Type) (QName, Args, Defn))
 tryRecordType t = ifBlockedType t (\ m a -> return $ Left $ Blocked m a) $ \ nb t -> do
   let no = return $ Left $ NotBlocked nb t
   case unEl t of
@@ -557,14 +559,17 @@ curryAt t n = do
 
     where @tel@ is the record telescope instantiated at the parameters @pars@.
 -}
-etaExpandRecord :: QName -> Args -> Term -> TCM (Telescope, Args)
+etaExpandRecord :: (MonadTCM m, HasConstInfo m, MonadDebug m)
+                => QName -> Args -> Term -> m (Telescope, Args)
 etaExpandRecord = etaExpandRecord' False
 
 -- | Eta expand a record regardless of whether it's an eta-record or not.
-forceEtaExpandRecord :: QName -> Args -> Term -> TCM (Telescope, Args)
+forceEtaExpandRecord :: (MonadTCM m, HasConstInfo m, MonadDebug m)
+                     => QName -> Args -> Term -> m (Telescope, Args)
 forceEtaExpandRecord = etaExpandRecord' True
 
-etaExpandRecord' :: Bool -> QName -> Args -> Term -> TCM (Telescope, Args)
+etaExpandRecord' :: (MonadTCM m, HasConstInfo m, MonadDebug m)
+                 => Bool -> QName -> Args -> Term -> m (Telescope, Args)
 etaExpandRecord' forceEta r pars u = do
   def <- getRecordDef r
   (tel, _, _, args) <- etaExpandRecord'_ forceEta r pars def u
