@@ -415,6 +415,9 @@ getInterface' x isMain msi = do
         (_, SomeWarnings w)           -> return ()
         _                             -> storeDecodedModule i
 
+      -- If that interface was supposed to raise a warning on import, do so.
+      whenJust (iImportWarning i) $ warning . UserWarning
+
       return (i, wt)
 
 -- | Check whether interface file exists and is in cache
@@ -1033,7 +1036,8 @@ buildInterface source fileType topLevel pragmas = do
     display <- HMap.filter (not . null) . HMap.map (filter isClosed) <$> useTC stImportsDisplayForms
     -- TODO: Kill some ranges?
     (display, sig) <- eliminateDeadCode display =<< getSignature
-    userwarns <- useTC stLocalUserWarnings
+    userwarns  <- useTC stLocalUserWarnings
+    importwarn <- useTC stWarningOnImport
     syntaxInfo <- useTC stSyntaxInfo
     -- Andreas, 2015-02-09 kill ranges in pattern synonyms before
     -- serialization to avoid error locations pointing to external files
@@ -1053,6 +1057,7 @@ buildInterface source fileType topLevel pragmas = do
       , iSignature       = sig
       , iDisplayForms    = display
       , iUserWarnings    = userwarns
+      , iImportWarning   = importwarn
       , iBuiltin         = builtin'
       , iForeignCode     = foreignCode
       , iHighlighting    = syntaxInfo
