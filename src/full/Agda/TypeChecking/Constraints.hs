@@ -135,6 +135,8 @@ whenConstraints action handler =
     stealConstraints pid
     handler
 
+-- | Wake constraints matching the given predicate (and aren't instance
+--   constraints if 'isConsideringInstance').
 wakeConstraints' :: (ProblemConstraint -> TCM Bool) -> TCM ()
 wakeConstraints' p = do
   skipInstance <- isConsideringInstance
@@ -158,6 +160,8 @@ solveAwakeConstraints = solveAwakeConstraints' False
 solveAwakeConstraints' :: Bool -> TCM ()
 solveAwakeConstraints' = solveSomeAwakeConstraints (const True)
 
+-- | Solve awake constraints matching the predicate. If the second argument is
+--   True solve constraints even if already 'isSolvingConstraints'.
 solveSomeAwakeConstraints :: (ProblemConstraint -> Bool) -> Bool -> TCM ()
 solveSomeAwakeConstraints solveThis force = do
     verboseS "profile.constraints" 10 $ liftTCM $ tickMax "max-open-constraints" . List.genericLength =<< getAllConstraints
