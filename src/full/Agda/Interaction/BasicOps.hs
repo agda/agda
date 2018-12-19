@@ -441,6 +441,9 @@ instance Reify Constraint (OutputConstraint Expr Expr) where
             UnquoteTactic tac _ goal -> do
               tac <- A.App defaultAppInfo_ (A.Unquote exprNoRange) . defaultNamedArg <$> reify tac
               OfType tac <$> reify goal
+            DoQuoteTerm cmp v t -> do
+              tm <- A.App defaultAppInfo_ (A.QuoteTerm exprNoRange) . defaultNamedArg <$> reify v
+              OfType tm <$> reify t
           Open{}  -> __IMPOSSIBLE__
           OpenInstance{}  -> __IMPOSSIBLE__
           InstV{} -> __IMPOSSIBLE__

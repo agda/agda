@@ -1101,6 +1101,7 @@ data TypeCheckingProblem
     --   we want to postpone @(λ (y : Fin n) → e) : ?@ where @Fin n@
     --   is a 'Type' rather than an 'A.Expr'.
   | UnquoteTactic Term Term Type   -- ^ First argument is computation and the others are hole and goal type
+  | DoQuoteTerm Comparison Term Type -- ^ Quote the given term and check type against `Term`
 
 instance Show MetaInstantiation where
   show (InstV tel t) = "InstV " ++ show tel ++ " (" ++ show t ++ ")"

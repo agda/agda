@@ -245,6 +245,7 @@ checkTypeCheckingProblem p = case p of
   CheckArgs eh r args t0 t1 k    -> checkArguments eh r args t0 t1 k
   CheckLambda cmp args body target -> checkPostponedLambda cmp args body target
   UnquoteTactic tac hole t       -> unquoteTactic tac hole t $ return hole
+  DoQuoteTerm cmp et t           -> doQuoteTerm cmp et t
 
 debugConstraints :: TCM ()
 debugConstraints = verboseS "tc.constr" 50 $ do
