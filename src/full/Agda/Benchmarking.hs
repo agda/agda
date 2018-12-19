@@ -88,6 +88,8 @@ data Phase
     -- ^ Subphase for 'Typing': checking a type signature
   | Generalize
     -- ^ Subphase for 'Typing': generalizing over `variable`s
+  | InstanceSearch
+    -- ^ Subphase for 'Typing': solving instance goals
   | UnifyIndices
     -- ^ Subphase for 'CheckLHS': unification of the indices
   | InverseScopeLookup

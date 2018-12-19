@@ -40,6 +40,9 @@ import {-# SOURCE #-} Agda.TypeChecking.Constraints
 import {-# SOURCE #-} Agda.TypeChecking.MetaVars
 import {-# SOURCE #-} Agda.TypeChecking.Conversion
 
+import qualified Agda.Benchmarking as Benchmark
+import Agda.TypeChecking.Monad.Benchmark (billTo)
+
 import Agda.Utils.Except ( MonadError(catchError, throwError) )
 import Agda.Utils.Lens
 import Agda.Utils.Maybe
@@ -202,7 +205,7 @@ findInstance' m cands = ifM (isFrozen m) (do
     return (Just (cands, Nothing))) $ do
   ifM isConsideringInstance (do
     reportSLn "tc.instance" 20 "Postponing possibly recursive instance search."
-    return $ Just (cands, Nothing)) $ do
+    return $ Just (cands, Nothing)) $ billTo [Benchmark.Typing, Benchmark.InstanceSearch] $ do
   -- Andreas, 2015-02-07: New metas should be created with range of the
   -- current instance meta, thus, we set the range.
   mv <- lookupMeta m
