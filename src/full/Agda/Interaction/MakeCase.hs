@@ -23,8 +23,8 @@ import qualified Agda.Syntax.Abstract.Views as A
 import qualified Agda.Syntax.Info as A
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
-import Agda.Syntax.Scope.Base  ( ResolvedName(..), Binder(..) )
-import Agda.Syntax.Scope.Monad ( resolveName )
+import Agda.Syntax.Scope.Base  ( ResolvedName(..), Binder(..), KindOfName(..), allKindsOfNames )
+import Agda.Syntax.Scope.Monad ( resolveName, resolveName' )
 import Agda.Syntax.Translation.ConcreteToAbstract
 import Agda.Syntax.Translation.InternalToAbstract
 
@@ -118,8 +118,12 @@ parseVariables f tel ii rng ss = do
               , prettyTCM v
               ]
 
+      -- Jesper, 2018-12-19: Don't consider generalizable names since
+      -- they can be shadowed by hidden variables.
+      let kinds = List.delete GeneralizeName allKindsOfNames
+          cname = C.QName $ C.Name r C.InScope $ C.stringNameParts s
       -- Note: the range in the concrete name is only approximate.
-      resName <- resolveName $ C.QName $ C.Name r C.InScope $ C.stringNameParts s
+      resName <- resolveName' kinds Nothing cname
       case resName of
 
         -- Fail if s is a name, but not of a variable.
