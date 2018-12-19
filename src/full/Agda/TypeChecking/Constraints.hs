@@ -71,7 +71,7 @@ addConstraint c = do
     -- the added constraint can cause instance constraints to be solved (but only
     -- the constraints which aren’t blocked on an uninstantiated meta)
     unless (isInstanceConstraint c) $
-       wakeConstraints (isWakeableInstanceConstraint . clValue . theConstraint)
+       wakeConstraints' (isWakeableInstanceConstraint . clValue . theConstraint)
   where
     isWakeableInstanceConstraint :: Constraint -> TCM Bool
     isWakeableInstanceConstraint (FindInstance _ b _) = caseMaybe b (return True) (\m -> isInstantiatedMeta m)
@@ -135,23 +135,35 @@ whenConstraints action handler =
     stealConstraints pid
     handler
 
+-- | Wake constraints matching the given predicate (and aren't instance
+--   constraints if 'isConsideringInstance').
+wakeConstraints' :: (ProblemConstraint -> TCM Bool) -> TCM ()
+wakeConstraints' p = do
+  skipInstance <- isConsideringInstance
+  wakeConstraints (\ c -> (&&) (not $ skipInstance && isInstanceConstraint (clValue $ theConstraint c)) <$> p c)
+
 -- | Wake up the constraints depending on the given meta.
 wakeupConstraints :: MetaId -> TCM ()
 wakeupConstraints x = do
-  wakeConstraints (return . mentionsMeta x)
+  wakeConstraints' (return . mentionsMeta x)
   solveAwakeConstraints
 
 -- | Wake up all constraints.
 wakeupConstraints_ :: TCM ()
 wakeupConstraints_ = do
-  wakeConstraints (return . const True)
+  wakeConstraints' (return . const True)
   solveAwakeConstraints
 
 solveAwakeConstraints :: TCM ()
 solveAwakeConstraints = solveAwakeConstraints' False
 
 solveAwakeConstraints' :: Bool -> TCM ()
-solveAwakeConstraints' force = do
+solveAwakeConstraints' = solveSomeAwakeConstraints (const True)
+
+-- | Solve awake constraints matching the predicate. If the second argument is
+--   True solve constraints even if already 'isSolvingConstraints'.
+solveSomeAwakeConstraints :: (ProblemConstraint -> Bool) -> Bool -> TCM ()
+solveSomeAwakeConstraints solveThis force = do
     verboseS "profile.constraints" 10 $ liftTCM $ tickMax "max-open-constraints" . List.genericLength =<< getAllConstraints
     whenM ((force ||) . not <$> isSolvingConstraints) $ nowSolvingConstraints $ do
      -- solveSizeConstraints -- Andreas, 2012-09-27 attacks size constrs too early
@@ -163,7 +175,7 @@ solveAwakeConstraints' force = do
       reportSDoc "tc.constr.solve" 10 $ hsep [ "Solving awake constraints."
                                              , text . show . length =<< getAwakeConstraints
                                              , "remaining." ]
-      whenJustM takeAwakeConstraint $ \ c -> do
+      whenJustM (takeAwakeConstraint' solveThis) $ \ c -> do
         withConstraint solveConstraint c
         solve
 

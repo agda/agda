@@ -45,6 +45,7 @@ import Agda.TypeChecking.Free
 import Agda.TypeChecking.Implicit
 import Agda.TypeChecking.Injectivity
 import Agda.TypeChecking.Irrelevance
+import Agda.TypeChecking.InstanceArguments (postponeInstanceConstraints)
 import Agda.TypeChecking.Level
 import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.Names
@@ -87,7 +88,7 @@ import Agda.Utils.Impossible
 --   (and continues to 'checkConstructorApplication')
 --   and resolves pattern synonyms.
 checkApplication :: Comparison -> A.Expr -> A.Args -> A.Expr -> Type -> TCM Term
-checkApplication cmp hd args e t = do
+checkApplication cmp hd args e t = postponeInstanceConstraints $ do
   reportSDoc "tc.check.app" 20 $ vcat
     [ "checkApplication"
     , nest 2 $ "hd   = " <+> prettyA hd
@@ -217,7 +218,7 @@ inferApplication exh hd args e | not (defOrVar hd) = do
   t <- workOnTypes $ newTypeMeta_
   v <- checkExpr' CmpEq e t
   return (v, t)
-inferApplication exh hd args e =
+inferApplication exh hd args e = postponeInstanceConstraints $
   case unScope hd of
     A.Proj o p | isAmbiguous p -> inferProjApp e o (unAmbQ p) args
     _ -> do
@@ -603,7 +604,7 @@ checkArguments_
   -> Telescope            -- ^ Telescope to check arguments against.
   -> TCM (Elims, Telescope)
      -- ^ Checked arguments and remaining telescope if successful.
-checkArguments_ exh r args tel = do
+checkArguments_ exh r args tel = postponeInstanceConstraints $ do
     z <- runExceptT $
       checkArgumentsE exh r args (telePi tel __DUMMY_TYPE__) Nothing
     case z of
@@ -621,7 +622,7 @@ checkArguments_ exh r args tel = do
 checkArguments ::
   ExpandHidden -> Range -> [NamedArg A.Expr] -> Type -> Type ->
   (Elims -> Type -> CheckedTarget -> TCM Term) -> TCM Term
-checkArguments exph r args t0 t k = do
+checkArguments exph r args t0 t k = postponeInstanceConstraints $ do
   z <- runExceptT $ checkArgumentsE exph r args t0 (Just t)
   case z of
     Right (vs, t1, pid) -> k vs t1 pid

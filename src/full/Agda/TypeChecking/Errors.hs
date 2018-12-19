@@ -1240,8 +1240,14 @@ instance PrettyTCM TypeError where
       [prettyTCM x] ++
       pwords "(at most" ++ [text (show n)] ++ pwords "allowed)."
 
-    InstanceNoCandidate t -> fsep $
-      pwords "No instance of type" ++ [prettyTCM t] ++ pwords "was found in scope."
+    InstanceNoCandidate t errs -> vcat $
+      [ fsep $ pwords "No instance of type" ++ [prettyTCM t] ++ pwords "was found in scope."
+      , vcat $ map prCand errs ]
+      where
+        prCand (term, err) =
+          text "-" <+>
+            vcat [ prettyTCM term <?> text "was ruled out because"
+                 , prettyTCM err ]
 
     UnquoteFailed e -> case e of
       BadVisibility msg arg -> fsep $

@@ -1,0 +1,5 @@
+InstanceErrorMessage.agda:24,22-26
+a != c of type Nat
+when checking that the expression refl has type
+(InstanceErrorMessage._ Semiring.+ a) c ≡
+(InstanceErrorMessage._ Semiring.+ c) a
