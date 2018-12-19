@@ -435,26 +435,43 @@ checkCandidates m t cands =
             -- unsolvable by the assignment, but don't do this for FindInstance's
             -- to prevent loops.
             debugConstraints
-            solveAwakeConstraints' True `catchError` (typeError . InstanceCandidateFailed)
 
-            verboseS "tc.instance" 15 $ do
-              sol <- instantiateFull (MetaV m ctxElims)
-              case sol of
-                MetaV m' _ | m == m' ->
-                  reportSDoc "tc.instance" 15 $
-                    sep [ "instance search: maybe solution for" <+> prettyTCM m <> ":"
-                        , nest 2 $ prettyTCM v ]
-                _ ->
-                  reportSDoc "tc.instance" 15 $
-                    sep [ "instance search: found solution for" <+> prettyTCM m <> ":"
-                        , nest 2 $ prettyTCM sol ]
+            let debugSolution = verboseS "tc.instance" 15 $ do
+                  sol <- instantiateFull (MetaV m ctxElims)
+                  case sol of
+                    MetaV m' _ | m == m' ->
+                      reportSDoc "tc.instance" 15 $
+                        sep [ "instance search: maybe solution for" <+> prettyTCM m <> ":"
+                            , nest 2 $ prettyTCM v ]
+                    _ ->
+                      reportSDoc "tc.instance" 15 $
+                        sep [ "instance search: found solution for" <+> prettyTCM m <> ":"
+                            , nest 2 $ prettyTCM sol ]
+
+            do solveAwakeConstraints' True
+               Yes <$ debugSolution
+              `catchError` (return . NoBecause)
+
         where
           runCandidateCheck check =
             flip catchError handle $
             nowConsideringInstance $
-            ifNoConstraints_ check
-              (return Yes)
-              (\ _ -> Maybe <$ reportSLn "tc.instance" 50 "assignment inconclusive")
+            ifNoConstraints check
+              (\ r -> case r of
+                  Yes           -> r <$ debugSuccess
+                  NoBecause why -> r <$ debugConstraintFail why
+                  _             -> __IMPOSSIBLE__
+              )
+              (\ _ r -> case r of
+                  Yes           -> Maybe <$ debugInconclusive
+                  NoBecause why -> r <$ debugConstraintFail why
+                  _             -> __IMPOSSIBLE__
+              )
+
+          debugSuccess            = reportSLn "tc.instance" 50 "assignment successful" :: TCM ()
+          debugInconclusive       = reportSLn "tc.instance" 50 "assignment inconclusive" :: TCM ()
+          debugConstraintFail why = reportSDoc "tc.instance" 50 $ "candidate failed constraints:" <+> prettyTCM why
+          debugTypeFail err       = reportSDoc "tc.instance" 50 $ "candidate failed type check:" <+> prettyTCM err
 
           hardFailure :: TCErr -> Bool
           hardFailure (TypeError _ err) =
@@ -466,15 +483,7 @@ checkCandidates m t cands =
           handle :: TCErr -> TCM YesNoMaybe
           handle err
             | hardFailure err = return $ HellNo err
-            | TypeError _ e <- err,
-              InstanceCandidateFailed why <- clValue e = do
-              reportSDoc "tc.instance" 50 $
-                "candidate failed constraints:" <+> prettyTCM why
-              return $ NoBecause why
-            | otherwise       = do
-              reportSDoc "tc.instance" 50 $
-                "candidate failed type check:" <+> prettyTCM err
-              return No
+            | otherwise       = No <$ debugTypeFail err
 
 isInstanceConstraint :: Constraint -> Bool
 isInstanceConstraint FindInstance{} = True

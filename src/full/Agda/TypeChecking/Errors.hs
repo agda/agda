@@ -369,7 +369,6 @@ errorString err = case err of
   GenericError{}                           -> "GenericError"
   GenericDocError{}                        -> "GenericDocError"
   InstanceNoCandidate{}                    -> "InstanceNoCandidate"
-  InstanceCandidateFailed{}                -> "InstanceCandidateFailed"
   IlltypedPattern{}                        -> "IlltypedPattern"
   IllformedProjectionPattern{}             -> "IllformedProjectionPattern"
   CannotEliminateWithPattern{}             -> "CannotEliminateWithPattern"
@@ -1249,8 +1248,6 @@ instance PrettyTCM TypeError where
           text "-" <+>
             vcat [ prettyTCM term <?> text "was ruled out because"
                  , prettyTCM err ]
-
-    InstanceCandidateFailed{} -> __IMPOSSIBLE__   -- Only used internally by instance search
 
     UnquoteFailed e -> case e of
       BadVisibility msg arg -> fsep $
