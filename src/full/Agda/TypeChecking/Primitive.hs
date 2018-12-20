@@ -412,9 +412,15 @@ fromLiteral f = fromReducedTerm $ \t -> case t of
     Lit lit -> f lit
     _       -> Nothing
 
+requireCubical :: TCM ()
+requireCubical = do
+  cubical <- optCubical <$> pragmaOptions
+  unless cubical $
+    typeError $ GenericError "Missing option --cubical"
 
 primINeg' :: TCM PrimitiveImpl
 primINeg' = do
+  requireCubical
   t <- elInf primInterval --> elInf primInterval
   return $ PrimImpl t $ primFun __IMPOSSIBLE__ 1 $ \ ts -> do
     case ts of
@@ -440,6 +446,7 @@ primINeg' = do
 
 primDepIMin' :: TCM PrimitiveImpl
 primDepIMin' = do
+  requireCubical
   t <- runNamesT [] $
        nPi' "φ" (elInf $ cl primInterval) $ \ φ ->
        (pPi' "o" φ $ \ o -> elInf $ cl primInterval) --> elInf (cl primInterval)
@@ -463,6 +470,7 @@ primDepIMin' = do
 
 primIBin :: IntervalView -> IntervalView -> TCM PrimitiveImpl
 primIBin unit absorber = do
+  requireCubical
   t <- elInf primInterval --> elInf primInterval --> elInf primInterval
   return $ PrimImpl t $ primFun __IMPOSSIBLE__ 2 $ \ ts -> do
     case ts of
@@ -507,6 +515,7 @@ imin x y = do
 -- ∀ {a}{c}{A : Set a}{x : A}(C : ∀ y → Id x y → Set c) → C x (conid i1 (\ i → x)) → ∀ {y} (p : Id x y) → C y p
 primIdJ :: TCM PrimitiveImpl
 primIdJ = do
+  requireCubical
   t <- runNamesT [] $
        hPi' "a" (el $ cl primLevel) $ \ a ->
        hPi' "c" (el $ cl primLevel) $ \ c ->
@@ -554,6 +563,7 @@ primIdJ = do
 
 primIdElim' :: TCM PrimitiveImpl
 primIdElim' = do
+  requireCubical
   t <- runNamesT [] $
        hPi' "a" (el $ cl primLevel) $ \ a ->
        hPi' "c" (el $ cl primLevel) $ \ c ->
@@ -592,6 +602,7 @@ primIdElim' = do
 
 primPOr :: TCM PrimitiveImpl
 primPOr = do
+  requireCubical
   t    <- runNamesT [] $
           hPi' "a" (el $ cl primLevel)    $ \ a  ->
           nPi' "i" (elInf $ cl primInterval) $ \ i  ->
@@ -621,6 +632,7 @@ primPOr = do
 
 primPartial' :: TCM PrimitiveImpl
 primPartial' = do
+  requireCubical
   t <- runNamesT [] $
        (hPi' "a" (el $ cl primLevel) $ \ a ->
         nPi' "φ" (elInf (cl primInterval)) $ \ _ ->
@@ -638,6 +650,7 @@ primPartial' = do
 
 primPartialP' :: TCM PrimitiveImpl
 primPartialP' = do
+  requireCubical
   t <- runNamesT [] $
        (hPi' "a" (el $ cl primLevel) $ \ a ->
         nPi' "φ" (elInf (cl primInterval)) $ \ phi ->
@@ -655,6 +668,7 @@ primPartialP' = do
 
 primSubOut' :: TCM PrimitiveImpl
 primSubOut' = do
+  requireCubical
   t    <- runNamesT [] $
           hPi' "a" (el $ cl primLevel) $ \ a ->
           hPi' "A" (el' (cl primLevelSuc <@> a) (Sort . tmSort <$> a)) $ \ bA ->
@@ -678,6 +692,7 @@ primSubOut' = do
 
 primIdFace' :: TCM PrimitiveImpl
 primIdFace' = do
+  requireCubical
   t <- runNamesT [] $
        hPi' "a" (el $ cl primLevel) $ \ a ->
        hPi' "A" (sort . tmSort <$> a) $ \ bA ->
@@ -697,6 +712,7 @@ primIdFace' = do
 
 primIdPath' :: TCM PrimitiveImpl
 primIdPath' = do
+  requireCubical
   t <- runNamesT [] $
        hPi' "a" (el $ cl primLevel) $ \ a ->
        hPi' "A" (sort . tmSort <$> a) $ \ bA ->
@@ -717,6 +733,7 @@ primIdPath' = do
 
 primTrans' :: TCM PrimitiveImpl
 primTrans' = do
+  requireCubical
   t    <- runNamesT [] $
           hPi' "a" (elInf (cl primInterval) --> (el $ cl primLevel)) $ \ a ->
           nPi' "A" (nPi' "i" (elInf (cl primInterval)) $ \ i -> (sort . tmSort <$> (a <@> i))) $ \ bA ->
@@ -727,6 +744,7 @@ primTrans' = do
 
 primHComp' :: TCM PrimitiveImpl
 primHComp' = do
+  requireCubical
   t    <- runNamesT [] $
           hPi' "a" (el $ cl primLevel) $ \ a ->
           hPi' "A" (sort . tmSort <$> a) $ \ bA ->
@@ -1275,6 +1293,7 @@ primTransHComp cmd ts nelims = do
 
 primComp :: TCM PrimitiveImpl
 primComp = do
+  requireCubical
   t    <- runNamesT [] $
           hPi' "a" (elInf (cl primInterval) --> (el $ cl primLevel)) $ \ a ->
           nPi' "A" (nPi' "i" (elInf (cl primInterval)) $ \ i -> (sort . tmSort <$> (a <@> i))) $ \ bA ->
@@ -1325,6 +1344,7 @@ listS []         = IdS
 
 primGlue' :: TCM PrimitiveImpl
 primGlue' = do
+  requireCubical
   -- Glue' : ∀ {l} (A : Set l) → ∀ φ → (T : Partial (Set a) φ) (f : (PartialP φ \ o → (T o) -> A))
   --            ([f] : PartialP φ \ o → isEquiv (T o) A (f o)) → Set l
   t <- runNamesT [] $
@@ -1348,6 +1368,7 @@ primGlue' = do
 
 prim_glue' :: TCM PrimitiveImpl
 prim_glue' = do
+  requireCubical
   t <- runNamesT [] $
        (hPi' "la" (el $ cl primLevel) $ \ la ->
        hPi' "lb" (el $ cl primLevel) $ \ lb ->
@@ -1369,6 +1390,7 @@ prim_glue' = do
 
 prim_unglue' :: TCM PrimitiveImpl
 prim_unglue' = do
+  requireCubical
   t <- runNamesT [] $
        (hPi' "la" (el $ cl primLevel) $ \ la ->
        hPi' "lb" (el $ cl primLevel) $ \ lb ->
@@ -1401,6 +1423,7 @@ prim_unglue' = do
 -- TODO Andrea: keep reductions that happen under foralls?
 primFaceForall' :: TCM PrimitiveImpl
 primFaceForall' = do
+  requireCubical
   t <- (elInf primInterval --> elInf primInterval) --> elInf primInterval
   return $ PrimImpl t $ primFun __IMPOSSIBLE__ 1 $ \ts ->
     case ts of

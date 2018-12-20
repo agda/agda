@@ -66,6 +66,9 @@ import Agda.Utils.Impossible
 builtinPostulate :: TCM Type -> BuiltinDescriptor
 builtinPostulate = BuiltinPostulate Relevant
 
+builtinPostulateC :: TCM Type -> BuiltinDescriptor
+builtinPostulateC m = BuiltinPostulate Relevant $ requireCubical >> m
+
 findBuiltinInfo :: String -> Maybe BuiltinInfo
 findBuiltinInfo b = find ((b ==) . builtinName) coreBuiltins
 
@@ -112,25 +115,25 @@ coreBuiltins =
   , (builtinAgdaMeta           |-> builtinPostulate tset)
   , (builtinIO                 |-> builtinPostulate (tset --> tset))
   , (builtinPath               |-> BuiltinUnknown
-                                               (Just
+                                               (Just $ requireCubical >>
                                                (hPi "a" (el primLevel) $
                                                 hPi "A" (return $ sort $ varSort 0) $
                                                 (El (varSort 1) <$> varM 0) -->
                                                 (El (varSort 1) <$> varM 0) -->
                                                 return (sort $ varSort 1)))
                                                verifyPath)
-  , (builtinPathP              |-> builtinPostulate (hPi "a" (el primLevel) $
+  , (builtinPathP              |-> builtinPostulateC (hPi "a" (el primLevel) $
                                                 nPi "A" (tinterval --> (return $ sort $ varSort 0)) $
                                                 (El (varSort 1) <$> varM 0 <@> primIZero) -->
                                                 (El (varSort 1) <$> varM 0 <@> primIOne) -->
                                                 return (sort $ varSort 1)))
-  , (builtinInterval           |-> BuiltinData (return $ sort Inf) [builtinIZero,builtinIOne])
-  , (builtinSub                |-> builtinPostulate (runNamesT [] $ hPi' "a" (el $ cl primLevel) $ \ a ->
+  , (builtinInterval           |-> BuiltinData (requireCubical >> return (sort Inf)) [builtinIZero,builtinIOne])
+  , (builtinSub                |-> builtinPostulateC (runNamesT [] $ hPi' "a" (el $ cl primLevel) $ \ a ->
                                                      nPi' "A" (el' (cl primLevelSuc <@> a) (Sort . tmSort <$> a)) $ \ bA ->
                                                      nPi' "φ" (elInf $ cl primInterval) $ \ phi ->
                                                      elInf (cl primPartial <#> a <@> phi <@> bA) --> (return $ sort Inf)
                                                     ))
-  , (builtinSubIn              |-> builtinPostulate (runNamesT [] $
+  , (builtinSubIn              |-> builtinPostulateC (runNamesT [] $
                                                      hPi' "a" (el $ cl primLevel) $ \ a ->
                                                      hPi' "A" (el' (cl primLevelSuc <@> a) (Sort . tmSort <$> a)) $ \ bA ->
                                                      hPi' "φ" (elInf $ cl primInterval) $ \ phi ->
@@ -140,36 +143,36 @@ coreBuiltins =
   , (builtinIOne               |-> BuiltinDataCons (elInf primInterval))
   , (builtinPartial            |-> BuiltinPrim "primPartial" (const $ return ()))
   , (builtinPartialP           |-> BuiltinPrim "primPartialP" (const $ return ()))
-  , (builtinIsOne              |-> builtinPostulate (tinterval --> return (sort $ Inf)))
-  , (builtinItIsOne            |-> builtinPostulate (elInf $ primIsOne <@> primIOne))
-  , (builtinIsOne1             |-> builtinPostulate (runNamesT [] $
+  , (builtinIsOne              |-> builtinPostulateC (tinterval --> return (sort $ Inf)))
+  , (builtinItIsOne            |-> builtinPostulateC (elInf $ primIsOne <@> primIOne))
+  , (builtinIsOne1             |-> builtinPostulateC (runNamesT [] $
                                                      nPi' "i" (cl tinterval) $ \ i ->
                                                      nPi' "j" (cl tinterval) $ \ j ->
                                                      nPi' "i1" (elInf $ cl primIsOne <@> i) $ \ i1 ->
                                                      (elInf $ cl primIsOne <@> (cl primIMax <@> i <@> j))))
-  , (builtinIsOne2             |-> builtinPostulate (runNamesT [] $
+  , (builtinIsOne2             |-> builtinPostulateC (runNamesT [] $
                                                      nPi' "i" (cl tinterval) $ \ i ->
                                                      nPi' "j" (cl tinterval) $ \ j ->
                                                      nPi' "j1" (elInf $ cl primIsOne <@> j) $ \ j1 ->
                                                      (elInf $ cl primIsOne <@> (cl primIMax <@> i <@> j))))
-  , (builtinIsOneEmpty         |-> builtinPostulate (runNamesT [] $
+  , (builtinIsOneEmpty         |-> builtinPostulateC (runNamesT [] $
                                                      hPi' "l" (el $ cl primLevel) $ \ l ->
                                                      hPi' "A" (pPi' "o" (cl primIZero) $ \ _ ->
                                                                     el' (cl primLevelSuc <@> l) (Sort . tmSort <$> l)) $ \ bA ->
                                                      pPi' "o" (cl primIZero) (\ o -> el' l $ gApply' (setRelevance Irrelevant defaultArgInfo) bA o)))
 
-  , (builtinId                 |-> builtinPostulate (hPi "a" (el primLevel) $
+  , (builtinId                 |-> builtinPostulateC (hPi "a" (el primLevel) $
                                                 hPi "A" (return $ sort $ varSort 0) $
                                                 (El (varSort 1) <$> varM 0) -->
                                                 (El (varSort 1) <$> varM 0) -->
                                                 return (sort $ varSort 1)))
-  , (builtinConId                 |-> builtinPostulate (hPi "a" (el primLevel) $
+  , (builtinConId                 |-> builtinPostulateC (hPi "a" (el primLevel) $
                                                 hPi "A" (return $ sort $ varSort 0) $
                                                 hPi "x" (El (varSort 1) <$> varM 0) $
                                                 hPi "y" (El (varSort 2) <$> varM 1) $
                                                 tinterval --> (El (varSort 3) <$> primPath <#> varM 3 <#> varM 2 <@> varM 1 <@> varM 0) -->
                                                 (El (varSort 3) <$> primId <#> varM 3 <#> varM 2 <@> varM 1 <@> varM 0)))
-  , (builtinEquiv            |-> BuiltinUnknown (Just $ runNamesT [] (
+  , (builtinEquiv            |-> BuiltinUnknown (Just $ requireCubical >> runNamesT [] (
                                                     hPi' "l" (el $ cl primLevel) $ \ a ->
                                                     hPi' "l'" (el $ cl primLevel) $ \ b ->
                                                     nPi' "A" (sort . tmSort <$> a) $ \bA ->
@@ -177,7 +180,7 @@ coreBuiltins =
                                                     ((sort . tmSort) <$> (cl primLevelMax <@> a <@> b))
                                                   ))
                                                    (const $ const $ return ()))
-  , (builtinEquivFun            |-> BuiltinUnknown (Just $ runNamesT [] (
+  , (builtinEquivFun            |-> BuiltinUnknown (Just $ requireCubical >> runNamesT [] (
                                                     hPi' "l" (el $ cl primLevel) $ \ a ->
                                                     hPi' "l'" (el $ cl primLevel) $ \ b ->
                                                     hPi' "A" (sort . tmSort <$> a) $ \bA ->
@@ -185,7 +188,7 @@ coreBuiltins =
                                                     el' (cl primLevelMax <@> a <@> b) (cl primEquiv <#> a <#> b <@> bA <@> bB) --> (el' a bA --> el' b bB)
                                                   ))
                                                    (const $ const $ return ()))
-  , (builtinEquivProof            |-> BuiltinUnknown (Just $ runNamesT [] (
+  , (builtinEquivProof            |-> BuiltinUnknown (Just $ requireCubical >> runNamesT [] (
                                                     hPi' "l" (el $ cl primLevel) $ \ la ->
                                                     hPi' "l'" (el $ cl primLevel) $ \ lb ->
                                                     nPi' "A" (sort . tmSort <$> la) $ \ bA ->
@@ -201,7 +204,7 @@ coreBuiltins =
                                                   ))
                                                    (const $ const $ return ()))
   , (builtinPathToEquiv        |-> BuiltinUnknown
-                                                (Just $ runNamesT [] (
+                                                (Just $ requireCubical >> runNamesT [] (
                                                    hPi' "l" (cl tinterval --> (el $ cl primLevel)) $ \ a ->
                                                    nPi' "E" (nPi' "i" (cl tinterval) $ \ i -> (sort . tmSort <$> (a <@> i))) $ \bE ->
                                                    el' (cl primLevelMax <@> (a <@> cl primIZero) <@> (a <@> cl primIOne))

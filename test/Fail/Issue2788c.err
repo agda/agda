@@ -1,0 +1,3 @@
+Issue2788c.agda:8,1-39
+Missing option --cubical
+when checking the pragma BUILTIN PATHP PathP
