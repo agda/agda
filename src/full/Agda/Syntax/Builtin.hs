@@ -17,9 +17,8 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinSub, builtinSubIn, builtinSubOut,
   builtinEquiv, builtinEquivFun, builtinEquivProof, builtinPathToEquiv,
   builtinGlue, builtin_glue, builtin_unglue,
-  builtinCompGlue, builtinFaceForall,
+  builtinFaceForall,
   builtinId, builtinConId, builtinIdElim,
-  builtinPushOut, builtinPOInl, builtinPOInr, builtinPOPush, builtinPOhcomp, builtinPOforward, builtinPOElim,
   builtinSizeUniv, builtinSize, builtinSizeLt,
   builtinSizeSuc, builtinSizeInf, builtinSizeMax,
   builtinInf, builtinSharp, builtinFlat,
@@ -111,7 +110,6 @@ builtinPathToEquiv                   = "PATHTOEQUIV"
 builtinGlue                          = "primGlue"
 builtin_glue                         = "prim^glue"
 builtin_unglue                       = "prim^unglue"
-builtinCompGlue                      = "COMPGLUE"
 builtinFaceForall                    = "primFaceForall"
 builtinIsOne1                        = "ISONE1"
 builtinIsOne2                        = "ISONE2"
@@ -123,13 +121,6 @@ builtinHComp                         = "primHComp"
 builtinSub                           = "SUB"
 builtinSubIn                         = "SUBIN"
 builtinSubOut                        = "primSubOut"
-builtinPushOut                       = "PUSHOUT"
-builtinPOInl                         = "PUSHOUTINL"
-builtinPOInr                         = "PUSHOUTINR"
-builtinPOPush                        = "PUSHOUTPUSH"
-builtinPOhcomp                       = "primPushOutHComp"
-builtinPOforward                     = "primPushOutForward"
-builtinPOElim                        = "primPushOutElim"
 builtinSizeUniv                      = "SIZEUNIV"
 builtinSize                          = "SIZE"
 builtinSizeLt                        = "SIZELT"

@@ -32,10 +32,11 @@ postulate
 {-# BUILTIN ISONEEMPTY isOneEmpty #-}
 
 primitive
-  primPFrom1 : ∀ {a} {A : I → Set a} → A i1 → ∀ i j → Partial i (A (primIMax i j))
   primPOr : ∀ {a} (i j : I) {A : Partial (primIMax i j) (Set a)}
             → PartialP i (λ z → A (IsOne1 i j z)) → PartialP j (λ z → A (IsOne2 i j z))
             → PartialP (primIMax i j) A
+
+  -- Computes in terms of primHComp and primTransp
   primComp : ∀ {a} (A : (i : I) → Set (a i)) (φ : I) → (∀ i → Partial φ (A i)) → (a : A i0) → A i1
 
 syntax primPOr p q u t = [ p ↦ u , q ↦ t ]

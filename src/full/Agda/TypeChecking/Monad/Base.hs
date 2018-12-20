@@ -1645,14 +1645,13 @@ data FunctionFlag
   deriving (Data, Eq, Ord, Enum, Show)
 
 data CompKit = CompKit
-  { nameOfComp :: Maybe QName
-  , nameOfHComp :: Maybe QName
+  { nameOfHComp :: Maybe QName
   , nameOfTransp :: Maybe QName
   }
   deriving (Data, Eq, Ord, Show)
 
 emptyCompKit :: CompKit
-emptyCompKit = CompKit Nothing Nothing Nothing
+emptyCompKit = CompKit Nothing Nothing
 
 data Defn = Axiom -- ^ Postulate
           | DataOrRecSig
@@ -3088,6 +3087,7 @@ data TypeError
         | NonFatalErrors [TCWarning]
     -- Instance search errors
         | InstanceSearchDepthExhausted Term Type Int
+        | TriedToCopyConstrainedPrim QName
           deriving Show
 
 -- | Distinguish error message when parsing lhs or pattern synonym, resp.

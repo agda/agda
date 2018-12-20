@@ -342,12 +342,10 @@ defineCompData d con params names fsT t boundary = do
     ]
   sortsOk <- sortOk t `and2M` allM (map unDom (flattenTel fsT)) sortOkField
   if not sortsOk || not (all isJust required) then return $ emptyCompKit else do
-    comp   <- whenDefined (null boundary) [builtinComp]               (defineCompD                   d con params names fsT t)
     hcomp  <- whenDefined (null boundary) [builtinHComp,builtinTrans] (defineTranspOrHCompD DoHComp  d con params names fsT t boundary)
     transp <- whenDefined True [builtinTrans]              (defineTranspOrHCompD DoTransp d con params names fsT t boundary)
     return $ CompKit
-      { nameOfComp = comp
-      , nameOfTransp = transp
+      { nameOfTransp = transp
       , nameOfHComp  = hcomp
       }
   where
@@ -531,25 +529,7 @@ defineCompData d con params names fsT t boundary = do
       setCompiledClauses theName =<< inTopContext (compileClauses Nothing cs)
       setTerminates theName True
       return $ Just theName
-    defineCompD d con params names fsT t = do
-      reportSDoc "tc.comp.data" 20 $ text "domInfos =" <+> (text $ show (map domInfo . telToList $ fsT))
-      (compName, gamma , ty, _ , bodies) <-
-        defineCompForFields (\ t p -> apply (Def p []) [argN t]) d params fsT (map argN names) t
-      let clause = Clause
-            { clauseTel = gamma
-            , clauseType = Just . argN $ ty
-            , namedClausePats = teleNamedArgs gamma
-            , clauseFullRange = noRange
-            , clauseLHSRange  = noRange
-            , clauseCatchall = False
-            , clauseBody = Just $ Con con ConOSystem (map Apply $ withArgInfo fsT bodies)
-            , clauseUnreachable = Just False
-            }
-          cs = [clause]
-      addClauses compName cs
-      setCompiledClauses compName =<< inTopContext (compileClauses Nothing cs)
-      setTerminates compName True
-      return $ Just compName
+
     whenDefined False _ _ = return Nothing
     whenDefined True xs m = do
       xs <- mapM getTerm' xs
@@ -622,143 +602,6 @@ defineProjections dataname con params names fsT t = do
 freshAbstractQName'_ :: String -> TCM QName
 freshAbstractQName'_ s = freshAbstractQName noFixity' (C.Name noRange C.InScope [C.Id $ s])
 
--- invariant: resulting tel Γ is such that Γ = ... , (φ : I), (u : ...) , (a0 : ...)
---            where u and a0 have types matching the arguments of primComp.
-defineCompForFields
-  :: (Term -> QName -> Term) -- ^ how to apply a "projection" to a term
-  -> QName       -- ^ some name, e.g. record name
-  -> Telescope   -- ^ param types Δ
-  -> Telescope   -- ^ fields' types Δ ⊢ Φ
-  -> [Arg QName] -- ^ fields' names
-  -> Type        -- ^ record type Δ ⊢ T
-  -> TCM (QName, Telescope, Type, [Dom Type], [Term])
-defineCompForFields applyProj name params fsT fns rect = do
-  interval <- elInf primInterval
-  let deltaI = expTelescope interval params
-  iz <- primIZero
-  io <- primIOne
-  imin <- getPrimitiveTerm "primIMin"
-  imax <- getPrimitiveTerm "primIMax"
-  ineg <- getPrimitiveTerm "primINeg"
-  comp <- getPrimitiveTerm "primComp"
-  por <- getPrimitiveTerm "primPOr"
-  one <- primItIsOne
-  reportSDoc "comp.rec" 20 $ text $ show params
-  reportSDoc "comp.rec" 20 $ text $ show deltaI
-  reportSDoc "comp.rec" 10 $ text $ show fsT
-
-  compName <- freshAbstractQName'_ $ "comp-" ++ P.prettyShow (A.qnameName name)
-
-  reportSLn "comp.rec" 5 $ ("Generated name: " ++ show compName ++ " " ++ showQNameId compName)
-
-  compType <- (abstract deltaI <$>) $ runNamesT [] $ do
-              rect' <- open (runNames [] $ bind "i" $ \ x -> let _ = x `asTypeOf` pure (undefined :: Term) in
-                                                             pure rect')
-              nPi' "phi" (elInf $ cl primInterval) $ \ phi ->
-               (nPi' "i" (elInf $ cl primInterval) $ \ i ->
-                pPi' "o" phi $ \ _ -> absApp <$> rect' <*> i) -->
-               (absApp <$> rect' <*> pure iz) --> (absApp <$> rect' <*> pure io)
-
-  reportSDoc "comp.rec" 20 $ prettyTCM compType
-  reportSDoc "comp.rec" 60 $ text $ "sort = " ++ show (getSort rect')
-
-  noMutualBlock $ addConstant compName $ (defaultDefn defaultArgInfo compName compType
-    (emptyFunction { funTerminates = Just True }))
-    { defNoCompilation = True }
-  --   ⊢ Γ = gamma = (δ : Δ^I) (φ : I) (_ : (i : I) -> Partial φ (R (δ i))) (_ : R (δ i0))
-  -- Γ ⊢     rtype = R (δ i1)
-  TelV gamma rtype <- telView compType
-
-  let -- Γ, i : I ⊢ R (δ i)
-      drect_gamma = liftS 1 (raiseS (size gamma - size deltaI)) `applySubst` rect'
-
-  reportSDoc "comp.rec" 60 $ text $ "sort = " ++ show (getSort drect_gamma)
-
-  let
-
-      -- (γ : Γ) ⊢ compR γ : rtype
-      compTerm = Def compName [] `apply` teleArgs gamma
-
-      -- ' (δ , φ , u , u0) : Γ ⊢ fillR : (i : I) → rtype[ δ ↦ (\ j → δ (i ∧ j))]
-      fillTerm = runNames [] $ do
-        params <- mapM open $ take (size deltaI) $ teleArgs gamma
-        [phi,w,w0] <- mapM (open . var) [2,1,0]
-        lvl  <- open rect_gamma_lvl
-        rect <- open rect_gamma
-        -- (δ : Δ^I, φ : I, w : .., w0 : R (δ i0)) ⊢
-        -- ' fillR Γ = λ i → compR (\ j → δ (i ∧ j)) (φ ∨ ~ i) (\ j → [ φ ↦ w (i ∧ j) , ~ i ↦ w0 ]) w0
-        lam "i" $ \ i -> do
-          args <- mapM (underArg $ \ bA -> lam "j" $ \ j -> bA <@> (pure imin <@> i <@> j)) params
-          psi  <- pure imax <@> phi <@> (pure ineg <@> i)
-          u <- lam "j" (\ j -> pure por <#> (lvl <@> (pure imin <@> i <@> j))
-                                        <@> phi
-                                        <@> (pure ineg <@> i)
-                                        <#> (lam "_" $ \ o -> rect <@> (pure imin <@> i <@> j))
-                                        <@> (w <@> (pure imin <@> i <@> j))
-                                        <@> (lam "_" $ \ o -> w0) -- TODO wait for i = 0
-                       )
-          u0 <- w0
-          pure $ Def compName [] `apply` (args ++ [argN psi, argN u, argN u0])
-        where
-          underArg k m = Arg <$> (argInfo <$> m) <*> (k (unArg <$> m))
-
-      -- Γ, i : I ⊢ Φ
-      fsT' = liftS 1 (raiseS (size gamma - size deltaI)) `applySubst`
-              (sub params `applySubst` fsT) -- Δ^I, i : I ⊢ Φ
-
-      -- Γ ⊢ rect_gamma_lvl : I -> Level
-      -- Γ ⊢ rect_gamma     : (i : I) -> Set (rect_gamma_lvl i)  -- record type
-      (rect_gamma_lvl, rect_gamma) = (lam_i (Level l) , lam_i (unEl drect_gamma))
-        where
-          lam_i = Lam defaultArgInfo . Abs "i"
-          Type l = getSort drect_gamma
-
-      -- (γ : Γ) ⊢ Φ[n ↦ f_n (compR γ)]
-      clause_types = parallelS [compTerm `applyProj` (unArg fn)
-                               | fn <- reverse fns] `applySubst`
-                       flattenTel (singletonS 0 io `applySubst` fsT') -- Γ, Φ ⊢ Φ
-
-      -- Γ, i : I ⊢ Φ[n ↦ f_n (fillR Γ i)]
-      filled_types = parallelS [raise 1 fillTerm `apply` [argN $ var 0] `applyProj` (unArg fn)
-                               | fn <- reverse fns] `applySubst`
-                       flattenTel fsT' -- Γ, i : I, Φ ⊢ Φ
-
-      mkBody (fname, filled_ty') = do
-        let
-          proj t = (`applyProj` unArg fname) <$> t
-          filled_ty = Lam defaultArgInfo (Abs "i" $ (unEl . unDom) filled_ty')
-          -- Γ ⊢ l : I -> Level of filled_ty
-        Type l <- reduce $ getSort $ unDom filled_ty'
-        let lvl = Lam defaultArgInfo (Abs "i" $ Level l)
-        return $ runNames [] $ do
-             lvl <- open lvl
-             [phi,w,w0] <- mapM (open . var) [2,1,0]
-             pure comp <#> lvl <@> pure filled_ty
-                               <@> phi
-                               <@> (lam "i" $ \ i -> lam "o" $ \ o -> proj $ w <@> i <@> o) -- TODO wait for phi = 1
-                               <@> proj w0
-
-
-  reportSDoc "comp.rec" 60 $ text $ "filled_types sorts:" ++ show (map (getSort . unDom) filled_types)
-
-  bodys <- mapM mkBody (zip fns filled_types)
-  return $ (compName, gamma, rtype, clause_types, bodys)
-  where
-    -- record type in 'exponentiated' context
-    -- (params : Δ^I), i : I |- T[params i]
-    rect' = sub params `applySubst` rect
-    -- Δ^I, i : I |- sub Δ : Δ
-    sub tel = parallelS [ var n `apply` [Arg defaultArgInfo $ var 0] | n <- [1..size tel] ]
-    -- given I type, and Δ telescope, build Δ^I such that
-    -- (x : A, y : B x, ...)^I = (x : I → A, y : (i : I) → B (x i), ...)
-    expTelescope :: Type -> Telescope -> Telescope
-    expTelescope int tel = unflattenTel names ys
-      where
-        xs = flattenTel tel
-        names = teleNames tel
-        t = ExtendTel (defaultDom $ raise (size tel) int) (Abs "i" EmptyTel)
-        s = sub tel
-        ys = map (fmap (abstract t) . applySubst s) xs
 
 defineTranspForFields
   :: (Term -> QName -> Term) -- ^ how to apply a "projection" to a term
@@ -1070,22 +913,7 @@ defineHCompForFields applyProj name params fsT fns rect = do
 
   bodys <- mapM mkBody (zip fns filled_types)
   return $ ((theName, gamma, rtype, clause_types, bodys),IdS)
-  where
-    -- -- record type in 'exponentiated' context
-    -- -- (params : Δ^I), i : I |- T[params i]
-    -- rect' = sub params `applySubst` rect
-    -- -- Δ^I, i : I |- sub Δ : Δ
-    -- sub tel = parallelS [ var n `apply` [Arg defaultArgInfo $ var 0] | n <- [1..size tel] ]
-    -- -- given I type, and Δ telescope, build Δ^I such that
-    -- -- (x : A, y : B x, ...)^I = (x : I → A, y : (i : I) → B (x i), ...)
-    -- expTelescope :: Type -> Telescope -> Telescope
-    -- expTelescope int tel = unflattenTel names ys
-    --   where
-    --     xs = flattenTel tel
-    --     names = teleNames tel
-    --     t = ExtendTel (defaultDom $ raise (size tel) int) (Abs "i" EmptyTel)
-    --     s = sub tel
-    --     ys = map (fmap (abstract t) . applySubst s) xs
+
 
 getGeneralizedParameters :: Set Name -> QName -> TCM [Maybe Name]
 getGeneralizedParameters gpars name | Set.null gpars = return []

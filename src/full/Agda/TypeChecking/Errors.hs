@@ -471,6 +471,7 @@ errorString err = case err of
   RelevanceMismatch{}                      -> "RelevanceMismatch"
   NonFatalErrors{}                         -> "NonFatalErrors"
   InstanceSearchDepthExhausted{}           -> "InstanceSearchDepthExhausted"
+  TriedToCopyConstrainedPrim{}             -> "TriedToCopyConstrainedPrim"
 
 instance PrettyTCM TCErr where
   prettyTCM err = case err of
@@ -1314,6 +1315,9 @@ instance PrettyTCM TypeError where
     InstanceSearchDepthExhausted c a d -> fsep $
       pwords ("Instance search depth exhausted (max depth: " ++ show d ++ ") for candidate") ++
       [hang (prettyTCM c <+> ":") 2 (prettyTCM a)]
+
+    TriedToCopyConstrainedPrim q -> fsep $
+      pwords "Cannot create a module containing a copy of" ++ [prettyTCM q]
 
     where
     mpar n args

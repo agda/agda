@@ -157,8 +157,7 @@ primInteger, primIntegerPos, primIntegerNegSuc,
     primId, primConId, primIdElim,
     primEquiv, primEquivFun, primEquivProof, primPathToEquiv,
     primGlue, prim_glue, prim_unglue,
-    primCompGlue, primFaceForall,
-    primPushOut, primPOInl, primPOInr, primPOPush, primPOhcomp, primPOforward, primPOElim,
+    primFaceForall,
     primNatPlus, primNatMinus, primNatTimes, primNatDivSucAux, primNatModSucAux,
     primNatEquality, primNatLess,
     -- Machine words
@@ -240,7 +239,6 @@ primPathToEquiv  = getBuiltin builtinPathToEquiv
 primGlue         = getPrimitiveTerm builtinGlue
 prim_glue        = getPrimitiveTerm builtin_glue
 prim_unglue      = getPrimitiveTerm builtin_unglue
-primCompGlue     = getPrimitiveTerm builtinCompGlue
 primFaceForall   = getPrimitiveTerm builtinFaceForall
 primIsOne1       = getBuiltin builtinIsOne1
 primIsOne2       = getBuiltin builtinIsOne2
@@ -248,13 +246,6 @@ primIsOneEmpty   = getBuiltin builtinIsOneEmpty
 primSub          = getBuiltin builtinSub
 primSubIn        = getBuiltin builtinSubIn
 primSubOut       = getPrimitiveTerm builtinSubOut
-primPushOut      = getBuiltin builtinPushOut
-primPOInl        = getBuiltin builtinPOInl
-primPOInr        = getBuiltin builtinPOInr
-primPOPush       = getBuiltin builtinPOPush
-primPOhcomp      = getPrimitiveTerm builtinPOhcomp
-primPOforward    = getPrimitiveTerm builtinPOforward
-primPOElim       = getPrimitiveTerm builtinPOElim
 primNat          = getBuiltin builtinNat
 primSuc          = getBuiltin builtinSuc
 primZero         = getBuiltin builtinZero
@@ -574,3 +565,19 @@ equalityUnview :: EqualityView -> Type
 equalityUnview (OtherType t) = t
 equalityUnview (EqualityType s equality l t lhs rhs) =
   El s $ Def equality $ map Apply (l ++ [t, lhs, rhs])
+
+-- | Primitives with typechecking constrants.
+constrainedPrims :: [String]
+constrainedPrims =
+  [ builtinConId
+  , builtinPOr
+  , builtinComp
+  , builtinHComp
+  , builtinTrans
+  , builtin_glue
+  ]
+
+getNameOfConstrained :: HasBuiltins m => String -> m (Maybe QName)
+getNameOfConstrained s = do
+  unless (s `elem` constrainedPrims) __IMPOSSIBLE__
+  getName' s

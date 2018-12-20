@@ -374,12 +374,12 @@ checkRelevance' x def = do
 checkHeadApplication :: Comparison -> A.Expr -> Type -> A.Expr -> [NamedArg A.Expr] -> TCM Term
 checkHeadApplication cmp e t hd args = do
   sharp <- fmap nameOfSharp <$> coinductionKit
-  conId <- fmap getPrimName <$> getBuiltin' builtinConId
-  pOr   <- fmap primFunName <$> getPrimitive' "primPOr"
-  pComp <- fmap primFunName <$> getPrimitive' "primComp"
-  pHComp <- fmap primFunName <$> getPrimitive' builtinHComp
-  pTrans <- fmap primFunName <$> getPrimitive' builtinTrans
-  mglue <- getPrimitiveName' builtin_glue
+  conId  <- getNameOfConstrained builtinConId
+  pOr    <- getNameOfConstrained builtinPOr
+  pComp  <- getNameOfConstrained builtinComp
+  pHComp <- getNameOfConstrained builtinHComp
+  pTrans <- getNameOfConstrained builtinTrans
+  mglue  <- getNameOfConstrained builtin_glue
   case hd of
     -- Type checking #. The # that the user can write will be a Def, but the
     -- sharp we generate in the body of the wrapper is a Con.
