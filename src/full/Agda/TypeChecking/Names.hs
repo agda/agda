@@ -95,6 +95,8 @@ newtype NamesT m a = NamesT { unName :: ReaderT Names m a }
            , MonadTCEnv
            , MonadTCState
            , MonadTCM
+           , ReadTCState
+           , MonadReduce
            )
 
 -- deriving instance MonadState s m => MonadState s (NamesT m)

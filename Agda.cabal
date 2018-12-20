@@ -60,6 +60,7 @@ data-files:         Agda.css
                     lib/prim/Agda/Builtin/Cubical/Path.agda
                     lib/prim/Agda/Builtin/Cubical/Id.agda
                     lib/prim/Agda/Builtin/Cubical/Sub.agda
+                    lib/prim/Agda/Builtin/Cubical/Glue.agda
                     lib/prim/Agda/Builtin/Equality.agda
                     lib/prim/Agda/Builtin/Equality/Erase.agda
                     lib/prim/Agda/Builtin/Equality/Rewrite.agda
