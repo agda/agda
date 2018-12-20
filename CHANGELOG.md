@@ -70,7 +70,7 @@ Type checking and interaction
   The following rules are used to place the generalized variables:
 
     - Generalized variables are placed in the front of the type signatures.
-    - Variables defined sooner are placed before variables defined later.
+    - Variables mentioned earlier are placed before variables mentioned later.
       (The dependencies between the variables are obeyed. The current implementation
       uses "smallest-numbered available vertex first" topological sorting to determine
       the exact order.)
@@ -82,7 +82,7 @@ Type checking and interaction
         Con : Set
         Ty  : Con → Set
         Sub : Con → Con → Set
-        _▹_ : (Γ : Con) → Ty Γ → Con
+        _,_ : (Γ : Con) → Ty Γ → Con
 
     variable
         Γ Δ : Con
@@ -91,7 +91,7 @@ Type checking and interaction
     postulate
         π₁ : Sub Γ (Δ ▹ A) → Sub Γ Δ
     --  -- equivalent to
-    --  π₁ : {Γ Δ : Con}{A : Ty Δ} → Sub Γ (Δ ▹ A) → Sub Γ Δ
+    --  π₁ : {Γ Δ : Con}{A : Ty Δ} → Sub Γ (Δ , A) → Sub Γ Δ
     --  -- note that the metavariable was solved with Δ
   ```
   Note that each type signature has a separate copy of such metavariables,

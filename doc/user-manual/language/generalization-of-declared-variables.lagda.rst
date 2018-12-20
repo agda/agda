@@ -73,7 +73,7 @@ For instance,
 The following rules are used to place the generalized variables:
 
     - Generalized variables are placed in the front of the type signatures.
-    - Variables defined sooner are placed before variables defined later.
+    - Variables mentioned eariler are placed before variables mentioned later.
       (The dependencies between the variables are obeyed. The current implementation
       uses "smallest-numbered available vertex first" topological sorting to determine
       the exact order.)
@@ -85,15 +85,15 @@ For example:
 
   postulate
         Ty  : Con → Set
-        _▹_ : (Γ : Con) → Ty Γ → Con
+        _,_ : (Γ : Con) → Ty Γ → Con
 
   variable
         A : Ty _       -- note the underscore here
 
   postulate
-        π₁ : Sub Γ (Δ ▹ A) → Sub Γ Δ
+        π₁ : Sub Γ (Δ , A) → Sub Γ Δ
     --  -- equivalent to
-    --  π₁ : {Γ Δ : Con}{A : Ty Δ} → Sub Γ (Δ ▹ A) → Sub Γ Δ
+    --  π₁ : {Γ Δ : Con}{A : Ty Δ} → Sub Γ (Δ , A) → Sub Γ Δ
     --  -- note that the metavariable was solved with Δ
 
 Note that each type signature has a separate copy of such metavariables,

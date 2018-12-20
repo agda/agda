@@ -11,7 +11,8 @@ import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Map (Map)
 import qualified Data.Map as Map
-import Data.List (nub, partition, init)
+import Data.List (nub, partition, init, sortBy)
+import Data.Function (on)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Concrete.Name (LensInScope(..))
@@ -277,7 +278,7 @@ buildGeneralizeTel con xs = go 0 xs
 createGenValues :: Set QName -> TCM (Map MetaId QName, Map QName GeneralizedValue)
 createGenValues s = do
   genvals <- locallyTC eGeneralizeMetas (const YesGeneralize) $
-               forM (Set.toList s) createGenValue
+               forM (sortBy (compare `on` getRange) $ Set.toList s) createGenValue
   let metaMap = Map.fromList [ (m, x) | (x, m, _) <- genvals ]
       nameMap = Map.fromList [ (x, v) | (x, _, v) <- genvals ]
   return (metaMap, nameMap)
