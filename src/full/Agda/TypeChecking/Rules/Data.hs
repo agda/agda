@@ -26,6 +26,7 @@ import Agda.TypeChecking.Monad.Builtin -- (primLevel)
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Substitute
+import Agda.TypeChecking.Generalize
 import Agda.TypeChecking.Implicit
 import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.Names
@@ -209,11 +210,7 @@ checkConstructor d uc tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
           Irrelevant -> typeError $ GenericError $ "Irrelevant constructors are not supported"
           NonStrict  -> typeError $ GenericError $ "Shape-irrelevant constructors are not supported"
         -- check that the type of the constructor is well-formed
-        t <- workOnTypes $ isType_ e
-        -- check that the type of the constructor ends in the data type
-        n <- getContextSize
-        debugEndsIn t d n
-        isPathCons <- constructs n t d
+        (t, isPathCons) <- checkConstructorType e d
         -- compute which constructor arguments are forced
         forcedArgs <- computeForcingAnnotations t
         -- check that the sort (universe level) of the constructor type
@@ -283,6 +280,24 @@ checkConstructor d uc tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
         return isPathCons
 
   where
+    -- Issue 3362: we need to do the `constructs` call inside the
+    -- generalization, so unpack the A.Generalize
+    checkConstructorType (A.ScopedExpr s e) d = withScope_ s $ checkConstructorType e d
+    checkConstructorType e d = do
+      let check k e = do
+            t <- workOnTypes $ isType_ e
+            -- check that the type of the constructor ends in the data type
+            n <- getContextSize
+            debugEndsIn t d (n - k)
+            isPathCons <- constructs (n - k) k t d
+            return (t, isPathCons)
+
+      case e of
+        A.Generalized s e -> do
+          (_, t, isPathCons) <- generalizeType' s (check 1 e)
+          return (t, isPathCons)
+        _ -> check 0 e
+
     debugEnter c e =
       reportSDoc "tc.data.con" 5 $ vcat
         [ "checking constructor" <+> prettyTCM c <+> ":" <+> prettyTCM e
@@ -1218,10 +1233,12 @@ data IsPathCons = PathCons | PointCons
   deriving (Eq,Show)
 
 -- | Check that a type constructs something of the given datatype. The first
---   argument is the number of parameters to the datatype.
+--   argument is the number of parameters to the datatype and the second the
+--   number of additional non-parameters in the context (1 when generalizing, 0
+--   otherwise).
 --
-constructs :: Int -> Type -> QName -> TCM IsPathCons
-constructs nofPars t q = constrT 0 t
+constructs :: Int -> Int -> Type -> QName -> TCM IsPathCons
+constructs nofPars nofExtraVars t q = constrT nofExtraVars t
     where
         -- The number n counts the proper (non-parameter) constructor arguments.
         constrT :: Nat -> Type -> TCM IsPathCons
@@ -1261,8 +1278,8 @@ constructs nofPars t q = constrT 0 t
 
         checkParams n vs = zipWithM_ sameVar vs ps
             where
-                nvs = size vs
-                ps = genericTake nvs $ downFrom (n + nvs)
+                nvs = length vs
+                ps  = reverse $ take nvs [n..]
 
                 sameVar arg i
                   -- skip irrelevant parameters
