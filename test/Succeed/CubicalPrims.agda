@@ -7,7 +7,7 @@ open import Agda.Builtin.Bool
 open import Agda.Builtin.Cubical.Sub renaming (Sub to _[_↦_]; primSubOut to ouc)
 open import Agda.Builtin.Cubical.Path
 open import Agda.Builtin.Cubical.Id renaming (primIdJ to J)
-open import Agda.Builtin.Cubical.Glue renaming (primGlue to Glue; prim^glue to glue; prim^unglue to unglue; lineToEquiv to pathToEquiv)
+open import Agda.Builtin.Cubical.Glue renaming (primGlue to Glue; prim^glue to glue; prim^unglue to unglue)
 open import Agda.Builtin.Sigma
 open import Agda.Builtin.List
 open Helpers
