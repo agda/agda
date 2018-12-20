@@ -395,13 +395,15 @@ createGenRecordType genRecMeta@(El genRecSort _) sortedMetas = do
                 , conForced = []
                 , conErased = []
                 }
+  let dummyTel 0 = EmptyTel
+      dummyTel n = ExtendTel (defaultDom __DUMMY_TYPE__) $ Abs "_" $ dummyTel (n - 1)
   addConstant genRecName $ defaultDefn defaultArgInfo genRecName (sort genRecSort) $
     Record { recPars         = 0
            , recClause       = Nothing
            , recConHead      = genRecCon
            , recNamedCon     = False
            , recFields       = genRecFields
-           , recTel          = EmptyTel     -- Filled in later
+           , recTel          = dummyTel (length genRecFields) -- Filled in later
            , recMutual       = Just []
            , recEtaEquality' = Inferred YesEta
            , recInduction    = Nothing
