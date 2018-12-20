@@ -1,6 +1,9 @@
 {-# LANGUAGE CPP #-}
 
-module Agda.TypeChecking.Generalize (generalizeType, generalizeTelescope) where
+module Agda.TypeChecking.Generalize
+  ( generalizeType
+  , generalizeType'
+  , generalizeTelescope ) where
 
 import Control.Arrow ((***), first, second)
 import Control.Monad
@@ -82,9 +85,15 @@ generalizeTelescope vars typecheckAction ret = billTo [Typing, Generalize] $ wit
 
 -- | Generalize a type over a set of (used) generalizable variables.
 generalizeType :: Set QName -> TCM Type -> TCM ([Maybe QName], Type)
-generalizeType s typecheckAction = billTo [Typing, Generalize] $ withGenRecVar $ \ genRecMeta -> do
+generalizeType s typecheckAction = do
+  (ns, t, _) <- generalizeType' s $ (,()) <$> typecheckAction
+  return (ns, t)
 
-  (t, namedMetas, allmetas) <- createMetasAndTypeCheck s typecheckAction
+-- | Allow returning additional information from the type checking action.
+generalizeType' :: Set QName -> TCM (Type, a) -> TCM ([Maybe QName], Type, a)
+generalizeType' s typecheckAction = billTo [Typing, Generalize] $ withGenRecVar $ \ genRecMeta -> do
+
+  ((t, userdata), namedMetas, allmetas) <- createMetasAndTypeCheck s typecheckAction
   (genTel, genTelNames, sub) <- computeGeneralization genRecMeta namedMetas allmetas
 
   t' <- abstract genTel . applySubst sub <$> instantiateFull t
@@ -93,7 +102,7 @@ generalizeType s typecheckAction = billTo [Typing, Generalize] $ withGenRecVar $
     [ "generalized"
     , nest 2 $ "t =" <+> escapeContext 1 (prettyTCM t') ]
 
-  return (genTelNames, t')
+  return (genTelNames, t', userdata)
 
 -- | Create metas for the generalizable variables and run the type check action.
 createMetasAndTypeCheck :: Set QName -> TCM a -> TCM (a, Map MetaId QName, Set MetaId)
