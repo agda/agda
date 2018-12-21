@@ -24,6 +24,7 @@ import Agda.TypeChecking.Abstract
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Irrelevance
+import Agda.TypeChecking.InstanceArguments (postponeInstanceConstraints)
 import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
@@ -130,7 +131,7 @@ withGenRecVar ret = do
 --   the first argument). Returns the telescope of generalized variables and a substitution from
 --   this telescope to the current context.
 computeGeneralization :: Type -> Map MetaId name -> Set MetaId -> TCM (Telescope, [Maybe name], Substitution)
-computeGeneralization genRecMeta nameMap allmetas = do
+computeGeneralization genRecMeta nameMap allmetas = postponeInstanceConstraints $ do
   -- Pair metas with their metaInfo
   mvs <- mapM (\ x -> (x,) <$> lookupMeta x) (Set.toList allmetas)
 
