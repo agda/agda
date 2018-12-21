@@ -51,22 +51,7 @@ module Helpers where
 open Helpers
 
 
-
-private
-  internalFiber : ∀ {ℓ ℓ'} {A : Set ℓ} {B : Set ℓ'} (f : A → B) (y : B) → Set (ℓ ⊔ ℓ')
-  internalFiber {A = A} f y = Σ A \ x → y ≡ f x
-
-  toInternalFiber : ∀ {ℓ ℓ'} {A : Set ℓ} {B : Set ℓ'} (f : A → B) (y : B) → fiber f y → internalFiber f y
-  toInternalFiber f y (x , p) = (x , sym p)
-
-  fromInternalFiber : ∀ {ℓ ℓ'} {A : Set ℓ} {B : Set ℓ'} {f : A → B} {y : B} → internalFiber f y → fiber f y
-  fromInternalFiber (x , p) = (x , sym p)
-
-  toInternalFiberContr : ∀ {ℓ ℓ'} {A : Set ℓ} {B : Set ℓ'} (f : A → B) (y : B) → isContr (fiber f y) → isContr (internalFiber f y)
-  toInternalFiberContr f y (c , p) = toInternalFiber f y c , \ fb → cong (toInternalFiber f y) (p (fb .fst , sym (fb .snd)))
-
-
--- Make this a record so that isEquiv can be proved using
+-- We make this a record so that isEquiv can be proved using
 -- copatterns. This is good because copatterns don't get unfolded
 -- unless a projection is applied so it should be more efficient.
 record isEquiv {ℓ ℓ'} {A : Set ℓ} {B : Set ℓ'} (f : A → B) : Set (ℓ ⊔ ℓ') where
@@ -77,6 +62,7 @@ open isEquiv public
 
 infix 4 _≃_
 
+
 _≃_ : ∀ {ℓ ℓ'} (A : Set ℓ) (B : Set ℓ') → Set (ℓ ⊔ ℓ')
 A ≃ B = Σ (A → B) \ f → (isEquiv f)
 
@@ -84,8 +70,8 @@ equivFun : ∀ {ℓ ℓ'} {A : Set ℓ} {B : Set ℓ'} → A ≃ B → A → B
 equivFun e = fst e
 
 equivProof : ∀ {la lt} (T : Set la) (A : Set lt) → (w : T ≃ A) → (a : A)
-            → ∀ ψ → (Partial ψ (internalFiber (w .fst) a)) → internalFiber (w .fst) a
-equivProof A B w a ψ fb = contr' {A = internalFiber (w .fst) a} (toInternalFiberContr (w .fst) a (w .snd .equiv-proof a)) ψ fb
+            → ∀ ψ → (Partial ψ (fiber (w .fst) a)) → fiber (w .fst) a
+equivProof A B w a ψ fb = contr' {A = fiber (w .fst) a} (w .snd .equiv-proof a) ψ fb
   where
     contr' : ∀ {ℓ} {A : Set ℓ} → isContr A → (φ : I) → (u : Partial φ A) → A
     contr' {A = A} (c , p) φ u = hcomp (λ i o → p (u o) i) c

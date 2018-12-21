@@ -198,7 +198,7 @@ coreBuiltins =
                                                      let f = cl primEquivFun <#> la <#> lb <#> bA <#> bB <@> e
                                                          fiber = el' (cl primLevelMax <@> la <@> lb) (cl primSigma <#> la <#> lb
                                                                                                        <@> bA
-                                                                                                       <@> (lam "a" $ \ a -> cl primPath <#> lb <#> bB <@> b <@> (f <@> a)))
+                                                                                                       <@> (lam "a" $ \ a -> cl primPath <#> lb <#> bB <@> (f <@> a) <@> b))
                                                      nPi' "φ" (cl tinterval) $ \ phi ->
                                                        (pPi' "o" phi $ \ o -> fiber) --> fiber
                                                   ))

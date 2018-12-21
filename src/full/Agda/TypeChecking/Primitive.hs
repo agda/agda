@@ -985,7 +985,7 @@ primTransHComp cmd ts nelims = do
                                                                                        <@> (e <@> i <..> o)
           fiber la lb bA bB f b = (pure (Def (sigmaName kit) []) <#> la <#> lb
                                                             <@> bA
-                                                            <@> (lam "a" $ \ a -> pure tPath <#> lb <#> bB <@> b <@> (f <@> a)))
+                                                            <@> (lam "a" $ \ a -> pure tPath <#> lb <#> bB <@> (f <@> a) <@> b))
           pe o = -- o : [ φ 1 ]
             pure tPOr <#> max (la <@> pure io) (lb <@> pure io) <@> psi
                       <@> (pure tForall <@> phi)
@@ -1013,8 +1013,7 @@ primTransHComp cmd ts nelims = do
                   <#> (pure tIMax <@> (phi <@> pure io) <@> psi)
                   <@> (lam "j" $ \ j ->
                          pure tPOr <#> (la <@> pure io) <@> (phi <@> pure io) <@> psi <@> (ilam "o" $ \ _ -> bA <@> pure io)
-                                   <@> (ilam "o" $ \ o -> alpha o <@@> (a1,w (pure io) o <@> t1' o,j))
-                                       -- TODO when switching fiber: alpha o <@@> (w (pure io) o <@> t1' o,a1,(~ j))
+                                   <@> (ilam "o" $ \ o -> alpha o <@@> (w (pure io) o <@> t1' o,a1,j))
                                    <@> (ilam "o" $ \ _ -> a1)
                       )
                   <@> a1
