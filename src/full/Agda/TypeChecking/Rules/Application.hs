@@ -472,6 +472,12 @@ checkArgumentsE' chk exh r args0@(arg@(Arg info e) : args) t0 mt1 =
           -- insert a hidden argument if arg is not hidden or has different name
           -- insert an instance argument if arg is not instance  or has different name
           expand hy        y = not (sameHiding hy hx) || maybe False (y /=) mx
+      reportSDoc "tc.term.args" 30 $ vcat
+        [ "calling implicitNamedArgs"
+        , nest 2 $ "t0 = " <+> prettyTCM t0
+        , nest 2 $ "hx = " <+> text (show hx)
+        , nest 2 $ "mx = " <+> maybe "nothing" prettyTCM mx
+        ]
       (nargs, t) <- lift $ implicitNamedArgs (-1) expand t0
       -- Separate names from args.
       let (mxs, us) = unzip $ map (\ (Arg ai (Named mx u)) -> (mx, Apply $ Arg ai u)) nargs
