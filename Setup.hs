@@ -39,7 +39,15 @@ agdaExeExtension = exeExtension
 #endif
 
 checkAgdaPrimitive :: PackageDescription -> LocalBuildInfo -> RegisterFlags -> IO ()
+-- ASR (2018-12-23): This fun run twice using Cabal < 2.0.0.0. Because
+-- GHC 7.10 does not support the macro @MIN_VERSION_Cabal@, I only
+-- could avoid the second run of this function on GHC > 7.10. See
+-- Issue #3444.
+#if __GLASGOW_HASKELL__ > 710
+#if !MIN_VERSION_Cabal(2,0,0)
 checkAgdaPrimitive pkg info flags | regGenPkgConf flags /= NoFlag = return ()   -- Gets run twice, only do this the second time
+#endif
+#endif
 checkAgdaPrimitive pkg info flags = do
   let dirs   = absoluteInstallDirs pkg info NoCopyDest
       agda   = buildDir info </> "agda" </> "agda" <.> agdaExeExtension
