@@ -508,6 +508,7 @@ evalTCM v = do
              , (f `isDef` primAgdaTCMBlockOnMeta, uqFun1 tcBlockOnMeta u)
              , (f `isDef` primAgdaTCMDebugPrint,  tcFun3 tcDebugPrint l a u)
              , (f `isDef` primAgdaTCMNoConstraints, tcNoConstraints (unElim u))
+             , (f `isDef` primAgdaTCMRunSpeculative, tcRunSpeculative (unElim u))
              ]
              failEval
     I.Def f [_, _, u, v] ->
@@ -734,3 +735,19 @@ evalTCM v = do
       let i = mkDefInfo (nameConcrete $ qnameName x) noFixity' PublicAccess ConcreteDef noRange
       checkFunDef NotDelayed i x cs
       primUnitUnit
+
+    tcRunSpeculative :: Term -> UnquoteM Term
+    tcRunSpeculative mu = do
+      oldState <- getTC
+      u <- reduce =<< evalTCM mu
+      true  <- liftTCM primTrue
+      false <- liftTCM primFalse
+      case u of
+        Con _ _ [Apply (Arg { unArg = x }), Apply (Arg { unArg = b0 })] -> do
+          b <- reduce b0
+          if | b == true  -> return x
+             | b == false -> putTC oldState >> return x
+             | otherwise  -> liftTCM $ typeError . GenericDocError =<<
+                 "Should be 'true' or 'false': " <+> prettyTCM b
+        _ -> liftTCM $ typeError . GenericDocError =<<
+          "Should be a pair: " <+> prettyTCM u

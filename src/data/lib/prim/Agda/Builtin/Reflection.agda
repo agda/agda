@@ -11,6 +11,7 @@ open import Agda.Builtin.String
 open import Agda.Builtin.Char
 open import Agda.Builtin.Float
 open import Agda.Builtin.Int
+open import Agda.Builtin.Sigma
 
 -- Names --
 
@@ -275,6 +276,11 @@ postulate
   -- "blocking" constraints.
   noConstraints : ∀ {a} {A : Set a} → TC A → TC A
 
+  -- Run the given TC action and return the first component. Resets to
+  -- the old TC state if the second component is 'false', or keep the
+  -- new TC state if it is 'true'.
+  runSpeculative : ∀ {a} {A : Set a} → TC (Σ A λ _ → Bool) → TC A
+
 {-# BUILTIN AGDATCM              TC            #-}
 {-# BUILTIN AGDATCMRETURN        returnTC      #-}
 {-# BUILTIN AGDATCMBIND          bindTC        #-}
@@ -302,3 +308,4 @@ postulate
 {-# BUILTIN AGDATCMWITHNORMALISATION withNormalisation #-}
 {-# BUILTIN AGDATCMDEBUGPRINT    debugPrint    #-}
 {-# BUILTIN AGDATCMNOCONSTRAINTS noConstraints #-}
+{-# BUILTIN AGDATCMRUNSPECULATIVE runSpeculative #-}

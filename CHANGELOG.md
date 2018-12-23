@@ -1062,6 +1062,17 @@ Language
   ["blocking"](https://github.com/agda/agda/blob/4900ef5fc61776381f3a5e9c94ef776375e9e1f1/src/full/Agda/TypeChecking/Monad/Constraints.hs#L160-L174)
   constraints.
 
+* New TC primitive: `runSpeculative` [Issue
+  [#3346](https://github.com/agda/agda/issues/3346)]
+
+  ```
+    runSpeculative : ∀ {a} {A : Set a} → TC (Σ A λ _ → Bool) → TC A
+  ```
+
+  The computation `runSpeculative m` runs `m` and either keeps the new
+  TC state (if the second component is `true`) or resets to the old TC
+  state (if it is `false`).
+
 Pragmas and options
 -------------------
 
