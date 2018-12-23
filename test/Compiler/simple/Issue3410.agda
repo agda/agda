@@ -39,6 +39,7 @@ BUILTIN σ (_ , V-con (integer s)) | _ = notErased s
 postulate putStrLn : String → IO ⊤
 {-# FOREIGN GHC import qualified Data.Text.IO as Text #-}
 {-# COMPILE GHC putStrLn = Text.putStrLn #-}
+{-# COMPILE JS putStrLn = function (x) { return function(cb) { process.stdout.write(`${x}\n`); cb(0); }; } #-}
 
 con2 : ⊢ size⋆ 8
 con2 = con (integer 8)
