@@ -139,8 +139,8 @@ data PragmaOptions = PragmaOptions
   , optUniverseCheck             :: Bool
   , optOmegaInOmega              :: Bool
   , optSizedTypes                :: Bool
+  , optGuardedness               :: Bool
   , optInjectiveTypeConstructors :: Bool
-  , optGuardingTypeConstructors  :: Bool
   , optUniversePolymorphism      :: Bool
   , optIrrelevantProjections     :: Bool
   , optExperimentalIrrelevance   :: Bool  -- ^ irrelevant levels, irrelevant data matching
@@ -241,8 +241,8 @@ defaultPragmaOptions = PragmaOptions
   , optUniverseCheck             = True
   , optOmegaInOmega              = False
   , optSizedTypes                = True
+  , optGuardedness               = False
   , optInjectiveTypeConstructors = False
-  , optGuardingTypeConstructors  = False
   , optUniversePolymorphism      = True
   , optWithoutK                  = False
   , optCopatterns                = True
@@ -360,8 +360,8 @@ unsafePragmaOptions opts =
   [ "--type-in-type"                             | not (optUniverseCheck opts)       ] ++
   [ "--omega-in-omega"                           | optOmegaInOmega opts              ] ++
   -- [ "--sized-types"                              | optSizedTypes opts                ] ++
+  [ "--sized-types and --guardedness"            | optSizedTypes opts, optGuardedness opts ] ++
   [ "--injective-type-constructors"              | optInjectiveTypeConstructors opts ] ++
-  [ "--guardedness-preserving-type-constructors" | optGuardingTypeConstructors opts  ] ++
   [ "--irrelevant-projections"                   | optIrrelevantProjections opts     ] ++
   [ "--experimental-irrelevance"                 | optExperimentalIrrelevance opts   ] ++
   [ "--rewriting"                                | optRewriting opts                 ] ++
@@ -508,6 +508,14 @@ sizedTypes o = return $ o { optSizedTypes = True }
 
 noSizedTypes :: Flag PragmaOptions
 noSizedTypes o = return $ o { optSizedTypes = False }
+
+guardedness :: Flag PragmaOptions
+guardedness o = return $ o { optGuardedness = True
+                           , optSizedTypes  = False
+                           }
+
+noGuardedness :: Flag PragmaOptions
+noGuardedness o = return $ o { optGuardedness = False }
 
 injectiveTypeConstructorFlag :: Flag PragmaOptions
 injectiveTypeConstructorFlag o = return $ o { optInjectiveTypeConstructors = True }
@@ -755,9 +763,13 @@ pragmaOptions =
     , Option []     ["no-prop"] (NoArg noPropFlag)
                     "disable the use of the Prop universe (default)"
     , Option []     ["sized-types"] (NoArg sizedTypes)
-                    "use sized types (default, inconsistent with `musical' coinduction)"
+                    "enable sized types (default, inconsistent with --guardedness)"
     , Option []     ["no-sized-types"] (NoArg noSizedTypes)
                     "disable sized types"
+    , Option []     ["guardedness"] (NoArg guardedness)
+                    "enable constructor-based guarded corecursion (inconsistent with --sized-types)"
+    , Option []     ["no-guardedness"] (NoArg noGuardedness)
+                    "disable constructor-based guarded corecursion (default)"
     , Option []     ["injective-type-constructors"] (NoArg injectiveTypeConstructorFlag)
                     "enable injective type constructors (makes Agda anti-classical and possibly inconsistent)"
     , Option []     ["no-universe-polymorphism"] (NoArg noUniversePolymorphismFlag)

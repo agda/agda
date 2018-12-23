@@ -354,6 +354,9 @@ instance PrettyTCM TypeCheckingProblem where
   prettyTCM (UnquoteTactic v _ _) = do
     e <- reify v
     prettyTCM (A.App A.defaultAppInfo_ (A.Unquote A.exprNoRange) (defaultNamedArg e))
+  prettyTCM (DoQuoteTerm _ v _) = do
+    e <- reify v
+    prettyTCM (A.App A.defaultAppInfo_ (A.QuoteTerm A.exprNoRange) (defaultNamedArg e))
 
 instance PrettyTCM a => PrettyTCM (WithHiding a) where
   prettyTCM (WithHiding h a) = CP.prettyHiding h id <$> prettyTCM a

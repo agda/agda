@@ -1,3 +1,4 @@
+{-# OPTIONS --guardedness #-}
 -- {-# OPTIONS -v tc.polarity:10 -v tc.with:0 -v tc.with.top:15 -v tc.with.strip:0 #-}
 
 module InductiveAndCoinductiveConstructors where

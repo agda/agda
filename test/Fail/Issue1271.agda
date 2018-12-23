@@ -12,7 +12,7 @@
 -- pattern matching makes it inconsistent to assume that bisimilarity
 -- implies equality for νId, which *might* upset some. :-)
 
-{-# OPTIONS --copatterns #-}
+{-# OPTIONS --guardedness #-}
 
 -- False and equality.
 

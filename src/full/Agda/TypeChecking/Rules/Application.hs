@@ -45,6 +45,7 @@ import Agda.TypeChecking.Free
 import Agda.TypeChecking.Implicit
 import Agda.TypeChecking.Injectivity
 import Agda.TypeChecking.Irrelevance
+import Agda.TypeChecking.InstanceArguments (postponeInstanceConstraints)
 import Agda.TypeChecking.Level
 import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.Names
@@ -87,7 +88,7 @@ import Agda.Utils.Impossible
 --   (and continues to 'checkConstructorApplication')
 --   and resolves pattern synonyms.
 checkApplication :: Comparison -> A.Expr -> A.Args -> A.Expr -> Type -> TCM Term
-checkApplication cmp hd args e t = do
+checkApplication cmp hd args e t = postponeInstanceConstraints $ do
   reportSDoc "tc.check.app" 20 $ vcat
     [ "checkApplication"
     , nest 2 $ "hd   = " <+> prettyA hd
@@ -217,7 +218,7 @@ inferApplication exh hd args e | not (defOrVar hd) = do
   t <- workOnTypes $ newTypeMeta_
   v <- checkExpr' CmpEq e t
   return (v, t)
-inferApplication exh hd args e =
+inferApplication exh hd args e = postponeInstanceConstraints $
   case unScope hd of
     A.Proj o p | isAmbiguous p -> inferProjApp e o (unAmbQ p) args
     _ -> do
@@ -373,12 +374,12 @@ checkRelevance' x def = do
 checkHeadApplication :: Comparison -> A.Expr -> Type -> A.Expr -> [NamedArg A.Expr] -> TCM Term
 checkHeadApplication cmp e t hd args = do
   sharp <- fmap nameOfSharp <$> coinductionKit
-  conId <- fmap getPrimName <$> getBuiltin' builtinConId
-  pOr   <- fmap primFunName <$> getPrimitive' "primPOr"
-  pComp <- fmap primFunName <$> getPrimitive' "primComp"
-  pHComp <- fmap primFunName <$> getPrimitive' builtinHComp
-  pTrans <- fmap primFunName <$> getPrimitive' builtinTrans
-  mglue <- getPrimitiveName' builtin_glue
+  conId  <- getNameOfConstrained builtinConId
+  pOr    <- getNameOfConstrained builtinPOr
+  pComp  <- getNameOfConstrained builtinComp
+  pHComp <- getNameOfConstrained builtinHComp
+  pTrans <- getNameOfConstrained builtinTrans
+  mglue  <- getNameOfConstrained builtin_glue
   case hd of
     -- Type checking #. The # that the user can write will be a Def, but the
     -- sharp we generate in the body of the wrapper is a Con.
@@ -471,6 +472,12 @@ checkArgumentsE' chk exh r args0@(arg@(Arg info e) : args) t0 mt1 =
           -- insert a hidden argument if arg is not hidden or has different name
           -- insert an instance argument if arg is not instance  or has different name
           expand hy        y = not (sameHiding hy hx) || maybe False (y /=) mx
+      reportSDoc "tc.term.args" 30 $ vcat
+        [ "calling implicitNamedArgs"
+        , nest 2 $ "t0 = " <+> prettyTCM t0
+        , nest 2 $ "hx = " <+> text (show hx)
+        , nest 2 $ "mx = " <+> maybe "nothing" prettyTCM mx
+        ]
       (nargs, t) <- lift $ implicitNamedArgs (-1) expand t0
       -- Separate names from args.
       let (mxs, us) = unzip $ map (\ (Arg ai (Named mx u)) -> (mx, Apply $ Arg ai u)) nargs
@@ -603,7 +610,7 @@ checkArguments_
   -> Telescope            -- ^ Telescope to check arguments against.
   -> TCM (Elims, Telescope)
      -- ^ Checked arguments and remaining telescope if successful.
-checkArguments_ exh r args tel = do
+checkArguments_ exh r args tel = postponeInstanceConstraints $ do
     z <- runExceptT $
       checkArgumentsE exh r args (telePi tel __DUMMY_TYPE__) Nothing
     case z of
@@ -621,7 +628,7 @@ checkArguments_ exh r args tel = do
 checkArguments ::
   ExpandHidden -> Range -> [NamedArg A.Expr] -> Type -> Type ->
   (Elims -> Type -> CheckedTarget -> TCM Term) -> TCM Term
-checkArguments exph r args t0 t k = do
+checkArguments exph r args t0 t k = postponeInstanceConstraints $ do
   z <- runExceptT $ checkArgumentsE exph r args t0 (Just t)
   case z of
     Right (vs, t1, pid) -> k vs t1 pid

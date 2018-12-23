@@ -1,0 +1,8 @@
+Issue1946-5.agda:22,1-23,29
+Termination checking failed for the following functions:
+  inh
+Problematic calls:
+  λ { .force → ∞ , inh }
+    (at Issue1946-5.agda:23,7-29)
+  inh
+    (at Issue1946-5.agda:23,24-27)

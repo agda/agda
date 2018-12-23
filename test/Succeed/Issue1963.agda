@@ -1,5 +1,7 @@
 -- Andreas, May - July 2016, implementing postfix projections
 
+{-# OPTIONS --guardedness #-}
+
 module Issue1963 where
 
 module Prod where

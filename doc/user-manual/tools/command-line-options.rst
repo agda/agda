@@ -272,11 +272,19 @@ Other features
       Agda inconsistent).
 
 :samp:`--sized-types`
-      Use sized types (default, inconsistent with
-      "musical" coinduction; see :ref:`sized-types`)
+      Enable sized types (default, inconsistent with constructor-based
+      guarded corecursion; see :ref:`sized-types`)
 
 :samp:`--no-sized-types`
       Disable sized types (see :ref:`sized-types`)
+
+:samp:`--guardedness`
+      Enable constructor-based guarded corecursion, disable sized
+      types (see :ref:`coinduction`)
+
+:samp:`--no-guardedness`
+      Disable constructor-based guarded corecursion (default; see
+      :ref:`coinduction`)
 
 :samp:`--universe-polymorphism`
       Enable universe polymorphism (default;

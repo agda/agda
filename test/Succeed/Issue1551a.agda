@@ -1,6 +1,6 @@
 -- Andreas, 2015-06-24
 
-{-# OPTIONS --copatterns #-}
+{-# OPTIONS --guardedness #-}
 
 -- {-# OPTIONS -v tc.with.strip:20 #-}
 

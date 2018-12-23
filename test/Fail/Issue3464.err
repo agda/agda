@@ -1,0 +1,4 @@
+Issue3464.agda:22,11-15
+No instance of type Le le.1 G.1 was found in scope.
+when checking that X G are valid arguments to a function of type
+{m n : Nat} ⦃ _ : Le m n ⦄ → Fin m → Fin n → Set

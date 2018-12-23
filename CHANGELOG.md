@@ -10,6 +10,10 @@ Installation and infrastructure
   installing Agda
   [Issue [#3128](https://github.com/agda/agda/issues/3128)].
 
+* Fixed a regression in the generation of the interface files by
+  `Setup.hs` when using Cabal >= 2.0.0.0
+  [Issue [#3444](https://github.com/agda/agda/issues/3128)].
+
 Type checking and interaction
 -----------------------------
 
@@ -70,7 +74,7 @@ Type checking and interaction
   The following rules are used to place the generalized variables:
 
     - Generalized variables are placed in the front of the type signatures.
-    - Variables defined sooner are placed before variables defined later.
+    - Variables mentioned earlier are placed before variables mentioned later.
       (The dependencies between the variables are obeyed. The current implementation
       uses "smallest-numbered available vertex first" topological sorting to determine
       the exact order.)
@@ -82,7 +86,7 @@ Type checking and interaction
         Con : Set
         Ty  : Con → Set
         Sub : Con → Con → Set
-        _▹_ : (Γ : Con) → Ty Γ → Con
+        _,_ : (Γ : Con) → Ty Γ → Con
 
     variable
         Γ Δ : Con
@@ -91,7 +95,7 @@ Type checking and interaction
     postulate
         π₁ : Sub Γ (Δ ▹ A) → Sub Γ Δ
     --  -- equivalent to
-    --  π₁ : {Γ Δ : Con}{A : Ty Δ} → Sub Γ (Δ ▹ A) → Sub Γ Δ
+    --  π₁ : {Γ Δ : Con}{A : Ty Δ} → Sub Γ (Δ , A) → Sub Γ Δ
     --  -- note that the metavariable was solved with Δ
   ```
   Note that each type signature has a separate copy of such metavariables,
@@ -351,6 +355,21 @@ Type checking and interaction
 Pragmas and options
 -------------------
 
+* New options `--guardedness` and `--no-guardedness` [Issue
+  [#1209](https://github.com/agda/agda/issues/1209)].
+
+  Constructor-based guarded corecursion is now only (meant to be)
+  allowed if the `--guardedness` option is active. By default this
+  option is not active. If `--guardedness` is used, then sized types
+  are disabled (because this combination is known to be inconsistent).
+  If you still want to use both constructor-based guarded corecursion
+  and sized types, then you can use `--guardedness --sized-types` (in
+  this order). The combination of constructor-based guarded
+  corecursion and sized types is not allowed if `--safe` is used.
+
+  The option `--no-guardedness` turns off constructor-based guarded
+  corecursion.
+
 * New builtin `SETOMEGA`.
 
   Agda's top sort `Setω` is now defined as a builtin in `Agda.Primitive`
@@ -370,28 +389,6 @@ Pragmas and options
   Like `--type-in-type`, this makes Agda inconsistent. However, code
   written using `--omega-in-omega` is still compatible with normal
   universe-polymorphic code and can be used in such files.
-
-* New option `--html-highlight=[code,all,auto]`.
-
-  The option `--html-highlight=code` makes the HTML-backend generate
-  files with:
-
-  0. No HTML footer/header
-  1. Agda codes highlighted
-  2. Non-Agda code parts as-is
-  3. Output file extension as-is (i.e. `.lagda.md` becomes `.md`)
-  4. For ReStructuredText, a `.. raw:: html\n` will be inserted
-     before every code blocks
-
-  This makes it possible to use an ordinary Markdown/ReStructuredText
-  processor to render the generated HTML.
-
-  This will affect all the files involved in one compilation, making
-  pure Agda code files rendered without HTML footer/header as well.
-  To use `code` with literate Agda files and `all` with pure Agda
-  files, use `--html-highlight=auto`, which means auto-detection.
-
-  The old and default behaviour is still `--html-highlight=all`.
 
 * Option `--irrelevant-projections` is now off by default and
   not considered `--safe` any longer.
@@ -564,6 +561,31 @@ LaTeX backend
 * The default value of `\AgdaEmptySkip` has been changed from
   `\baselineskip` to `\abovedisplayskip`. This could mean that less
   vertical space is used to render empty lines in code blocks.
+
+HTML backend
+------------
+
+* New option `--html-highlight=[code,all,auto]`.
+
+  The option `--html-highlight=code` makes the HTML-backend generate
+  files with:
+
+  0. No HTML footer/header
+  1. Agda codes highlighted
+  2. Non-Agda code parts as-is
+  3. Output file extension as-is (i.e. `.lagda.md` becomes `.md`)
+  4. For ReStructuredText, a `.. raw:: html\n` will be inserted
+     before every code blocks
+
+  This makes it possible to use an ordinary Markdown/ReStructuredText
+  processor to render the generated HTML.
+
+  This will affect all the files involved in one compilation, making
+  pure Agda code files rendered without HTML footer/header as well.
+  To use `code` with literate Agda files and `all` with pure Agda
+  files, use `--html-highlight=auto`, which means auto-detection.
+
+  The old and default behaviour is still `--html-highlight=all`.
 
 Release notes for Agda version 2.5.4.2
 ======================================

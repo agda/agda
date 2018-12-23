@@ -1,4 +1,4 @@
-{-# OPTIONS --copatterns #-}
+{-# OPTIONS --guardedness #-}
 module CoinductiveUnitRecord where
 
 import Common.Level
@@ -23,4 +23,3 @@ bad' = delay bad'
 -- ... because this loops:
 -- loop : bad ≡ bad'
 -- loop = refl
-

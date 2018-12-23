@@ -53,6 +53,7 @@ import Agda.Utils.Functor
 import Agda.Utils.List
 import Agda.Utils.Monad
 import Agda.Utils.Permutation
+import Agda.Utils.Pretty
 import Agda.Utils.Size
 import Agda.Utils.Tuple
 import Agda.Utils.HashMap (HashMap)
@@ -99,16 +100,17 @@ conApp ch                  ci args []             = Con ch ci args
 conApp ch                  ci args (a@Apply{} : es) = conApp ch ci (args ++ [a]) es
 conApp ch                  ci args (a@IApply{} : es) = conApp ch ci (args ++ [a]) es
 conApp ch@(ConHead c _ fs) ci args (Proj o f : es) =
-  let failure = flip trace __IMPOSSIBLE__ $
+  let failure err = flip trace err $
         "conApp: constructor " ++ show c ++
-        " with fields " ++ show fs ++
+        " with fields\n" ++ unlines (map (("  " ++) . show) fs) ++
+        " and args\n" ++ unlines (map (("  " ++) . prettyShow) args) ++
         " projected by " ++ show f
-      isApply e = fromMaybe failure $ isApplyElim e
-      (fld, i) = fromMaybe failure $ findWithIndex ((f==) . unArg) fs
+      isApply e = fromMaybe (failure __IMPOSSIBLE__) $ isApplyElim e
+      (fld, i) = fromMaybe (failure __IMPOSSIBLE__) $ findWithIndex ((f==) . unArg) fs
       -- Andreas, 2018-06-12, issue #2170
       -- We safe-guard the projected value by DontCare using the ArgInfo stored at the record constructor,
       -- since the ArgInfo in the constructor application might be inaccurate because of subtyping.
-      v = maybe failure (relToDontCare fld . argToDontCare . isApply) $ headMaybe $ drop i args
+      v = maybe (failure __IMPOSSIBLE__) (relToDontCare fld . argToDontCare . isApply) $ headMaybe $ drop i args
   in  applyE v es
 
   -- -- Andreas, 2016-07-20 futile attempt to magically fix ProjOrigin

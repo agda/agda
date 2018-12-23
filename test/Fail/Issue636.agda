@@ -1,5 +1,6 @@
 -- Andreas, 2012-05-14, issue reported by Nisse
 -- {-# OPTIONS -v term:20 #-}
+{-# OPTIONS --guardedness #-}
 module Issue636 where
 
 open import Common.Coinduction

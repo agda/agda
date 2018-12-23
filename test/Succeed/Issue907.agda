@@ -1,7 +1,7 @@
 -- Reported by guillaume.brunerie, Sep 18, 2013
 -- Andreas, 2013-10-27  issue submitted by Guilliaume Brunerie
 
-{-# OPTIONS --copatterns #-}
+{-# OPTIONS --guardedness #-}
 
 module Issue907 where
 

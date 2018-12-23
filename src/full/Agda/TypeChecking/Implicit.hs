@@ -37,12 +37,19 @@ implicitNamedArgs :: Int -> (Hiding -> ArgName -> Bool) -> Type -> TCM (NamedArg
 implicitNamedArgs 0 expand t0 = return ([], t0)
 implicitNamedArgs n expand t0 = do
     t0' <- reduce t0
+    reportSDoc "tc.term.args" 30 $ "implicitNamedArgs" <+> prettyTCM t0'
+    reportSDoc "tc.term.args" 80 $ "implicitNamedArgs" <+> text (show t0')
     case unEl t0' of
       Pi Dom{domInfo = info, domName = name, unDom = a} b
         | let x = maybe "_" rangedThing name, expand (getHiding info) x -> do
           info' <- if hidden info then return info else do
             reportSDoc "tc.term.args.ifs" 15 $
               "inserting instance meta for type" <+> prettyTCM a
+            reportSDoc "tc.term.args.ifs" 40 $ nest 2 $ vcat
+              [ "x      = " <+> text (show x)
+              , "hiding = " <+> text (show $ getHiding info)
+              ]
+
             return $ makeInstance info
           (_, v) <- newMetaArg info' x a
           let narg = Arg info (Named (Just $ unranged x) v)
@@ -123,4 +130,3 @@ insertImplicit' a ts =
       | x == y && sameHiding hidingx a = BadImplicits
       | otherwise = find (getHiding a : hs) x hidingx ts
     find i x _ [] = NoSuchName x
-

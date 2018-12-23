@@ -1,4 +1,6 @@
 -- {-# OPTIONS -v tc.conv:50 -v tc.reduce:100 -v tc:50 -v tc.term.expr.coind:15 -v tc.meta:20 #-}
+{-# OPTIONS --guardedness #-}
+
 -- 2012-03-15, reported by Nisse
 module Issue585 where
 

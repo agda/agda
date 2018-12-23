@@ -542,8 +542,10 @@ instance ToAbstract OldQName A.Expr where
         case anameKind d of
           GeneralizeName -> do
             gvs <- useTC stGeneralizedVars
-            case gvs of
-                Just s -> stGeneralizedVars `setTCLens` Just (Set.insert (anameName d) s)
+            case gvs of   -- Subtle: Use (left-biased) union instead of insert to keep the old name if
+                          -- already present. This way we can sort by source location when generalizing
+                          -- (Issue 3354).
+                Just s -> stGeneralizedVars `setTCLens` Just (s `Set.union` Set.singleton (anameName d))
                 Nothing -> typeError $ GeneralizeNotSupportedHere $ anameName d
           DisallowedGeneralizeName -> do
             typeError . GenericDocError =<<

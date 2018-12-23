@@ -176,13 +176,17 @@ nextIsForced (f:fs) = (f, fs)
 forcingTranslation :: [NamedArg DeBruijnPattern] -> TCM [NamedArg DeBruijnPattern]
 forcingTranslation ps = do
   (qs, rebind) <- dotForcedPatterns ps
-  reportSDoc "tc.force" 50 $ "forcingTranslation" <?> vcat
-    [ "patterns:" <?> pretty ps
-    , "dotted:  " <?> pretty qs
-    , "rebind:  " <?> pretty rebind ]
-  rs <- foldM rebindForcedPattern qs rebind
-  when (not $ null rebind) $ reportSDoc "tc.force" 50 $ nest 2 $ "result:  " <?> pretty rs
-  return rs
+  case rebind of
+    Nothing -> return ps
+    Just rebind -> do
+      reportSDoc "tc.force" 50 $ "forcingTranslation" <?> vcat
+        [ "patterns:" <?> pretty ps
+        , "dotted:  " <?> pretty qs
+        , "rebind:  " <?> pretty rebind ]
+      rs <- foldM rebindForcedPattern qs rebind
+      when (not $ null rebind) $ reportSDoc "tc.force" 50 $ nest 2 $ "result:  " <?> pretty rs
+      -- Repeat translation as long as we're making progress (Issue 3410)
+      forcingTranslation rs
 
 -- | Applies the forcing translation in order to update modalities of forced
 --   arguments in the telescope. This is used before checking a right-hand side
@@ -279,17 +283,17 @@ rebindForcedPattern ps toRebind = go $ zip (repeat NotForced) ps
 -- | Dot all forced patterns and return a list of patterns that need to be
 --   undotted elsewhere. Patterns that need to be undotted are those that bind
 --   variables or does some actual (non-eta) matching.
-dotForcedPatterns :: [NamedArg DeBruijnPattern] -> TCM ([NamedArg DeBruijnPattern], [DeBruijnPattern])
+dotForcedPatterns :: [NamedArg DeBruijnPattern] -> TCM ([NamedArg DeBruijnPattern], Maybe [DeBruijnPattern])
 dotForcedPatterns ps = runWriterT $ (traverse . traverse . traverse) (forced NotForced) ps
   where
-    forced :: IsForced -> DeBruijnPattern -> WriterT [DeBruijnPattern] TCM DeBruijnPattern
+    forced :: IsForced -> DeBruijnPattern -> WriterT (Maybe [DeBruijnPattern]) TCM DeBruijnPattern
     forced f p =
       case p of
         DotP{}          -> return p
         ProjP{}         -> return p
         _ | f == Forced -> do
           properMatch <- isProperMatch p
-          dotP (patternToTerm p) <$ tell [p | properMatch || length p > 0]
+          dotP (patternToTerm p) <$ tell (Just [p | properMatch || length p > 0])
         VarP{}          -> return p
         LitP{}          -> return p
         ConP c i ps     -> do

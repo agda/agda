@@ -1,6 +1,9 @@
 {-# LANGUAGE CPP #-}
 
-module Agda.TypeChecking.Generalize (generalizeType, generalizeTelescope) where
+module Agda.TypeChecking.Generalize
+  ( generalizeType
+  , generalizeType'
+  , generalizeTelescope ) where
 
 import Control.Arrow ((***), first, second)
 import Control.Monad
@@ -8,7 +11,8 @@ import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Map (Map)
 import qualified Data.Map as Map
-import Data.List (nub, partition, init)
+import Data.List (nub, partition, init, sortBy)
+import Data.Function (on)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Concrete.Name (LensInScope(..))
@@ -20,6 +24,7 @@ import Agda.TypeChecking.Abstract
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Irrelevance
+import Agda.TypeChecking.InstanceArguments (postponeInstanceConstraints)
 import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
@@ -82,9 +87,15 @@ generalizeTelescope vars typecheckAction ret = billTo [Typing, Generalize] $ wit
 
 -- | Generalize a type over a set of (used) generalizable variables.
 generalizeType :: Set QName -> TCM Type -> TCM ([Maybe QName], Type)
-generalizeType s typecheckAction = billTo [Typing, Generalize] $ withGenRecVar $ \ genRecMeta -> do
+generalizeType s typecheckAction = do
+  (ns, t, _) <- generalizeType' s $ (,()) <$> typecheckAction
+  return (ns, t)
 
-  (t, namedMetas, allmetas) <- createMetasAndTypeCheck s typecheckAction
+-- | Allow returning additional information from the type checking action.
+generalizeType' :: Set QName -> TCM (Type, a) -> TCM ([Maybe QName], Type, a)
+generalizeType' s typecheckAction = billTo [Typing, Generalize] $ withGenRecVar $ \ genRecMeta -> do
+
+  ((t, userdata), namedMetas, allmetas) <- createMetasAndTypeCheck s typecheckAction
   (genTel, genTelNames, sub) <- computeGeneralization genRecMeta namedMetas allmetas
 
   t' <- abstract genTel . applySubst sub <$> instantiateFull t
@@ -93,7 +104,7 @@ generalizeType s typecheckAction = billTo [Typing, Generalize] $ withGenRecVar $
     [ "generalized"
     , nest 2 $ "t =" <+> escapeContext 1 (prettyTCM t') ]
 
-  return (genTelNames, t')
+  return (genTelNames, t', userdata)
 
 -- | Create metas for the generalizable variables and run the type check action.
 createMetasAndTypeCheck :: Set QName -> TCM a -> TCM (a, Map MetaId QName, Set MetaId)
@@ -120,7 +131,7 @@ withGenRecVar ret = do
 --   the first argument). Returns the telescope of generalized variables and a substitution from
 --   this telescope to the current context.
 computeGeneralization :: Type -> Map MetaId name -> Set MetaId -> TCM (Telescope, [Maybe name], Substitution)
-computeGeneralization genRecMeta nameMap allmetas = do
+computeGeneralization genRecMeta nameMap allmetas = postponeInstanceConstraints $ do
   -- Pair metas with their metaInfo
   mvs <- mapM (\ x -> (x,) <$> lookupMeta x) (Set.toList allmetas)
 
@@ -268,7 +279,7 @@ buildGeneralizeTel con xs = go 0 xs
 createGenValues :: Set QName -> TCM (Map MetaId QName, Map QName GeneralizedValue)
 createGenValues s = do
   genvals <- locallyTC eGeneralizeMetas (const YesGeneralize) $
-               forM (Set.toList s) createGenValue
+               forM (sortBy (compare `on` getRange) $ Set.toList s) createGenValue
   let metaMap = Map.fromList [ (m, x) | (x, m, _) <- genvals ]
       nameMap = Map.fromList [ (x, v) | (x, _, v) <- genvals ]
   return (metaMap, nameMap)
@@ -386,13 +397,15 @@ createGenRecordType genRecMeta@(El genRecSort _) sortedMetas = do
                 , conForced = []
                 , conErased = []
                 }
+  let dummyTel 0 = EmptyTel
+      dummyTel n = ExtendTel (defaultDom __DUMMY_TYPE__) $ Abs "_" $ dummyTel (n - 1)
   addConstant genRecName $ defaultDefn defaultArgInfo genRecName (sort genRecSort) $
     Record { recPars         = 0
            , recClause       = Nothing
            , recConHead      = genRecCon
            , recNamedCon     = False
            , recFields       = genRecFields
-           , recTel          = EmptyTel     -- Filled in later
+           , recTel          = dummyTel (length genRecFields) -- Filled in later
            , recMutual       = Just []
            , recEtaEquality' = Inferred YesEta
            , recInduction    = Nothing

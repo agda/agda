@@ -1,6 +1,8 @@
 -- Andreas, 2016-10-03, re issue #2231
 -- Termination checking a corecursive definition in abstract mode.
 
+{-# OPTIONS --guardedness #-}
+
 infix 1000 ♯_
 
 {-# BUILTIN INFINITY ∞  #-}

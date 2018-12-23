@@ -742,26 +742,6 @@ constructor c ind args = do
              (False, _)           -> const Order.unknown
     terModifyGuarded g' $ extract arg
 
--- | Handle guardedness preserving type constructor.
-
-guardPresTyCon :: QName -> Elims -> (QName -> Elims -> TerM Calls) -> TerM Calls
-guardPresTyCon g es cont = do
-  ifNotM (terGetGuardingTypeConstructors) (cont g es) $ {- else -} do
-
-    def <- liftTCM $ getConstInfo g
-    let occs = defArgOccurrences def
-        preserves = (StrictPos <=)
-        -- Data or record type constructor.
-        con = constructor g Inductive $   -- guardedness preserving
-                zip (argsFromElims es)
-                    (map preserves occs ++ repeat False)
-
-    case theDef def of
-      Datatype{} -> con
-      Record{}   -> con
-      _          -> cont g es
-
-
 -- | Extract calls from with function application.
 
 withFunction :: QName -> Elims -> TerM Calls
@@ -941,7 +921,7 @@ instance ExtractCalls Term where
         constructor c ind argsg
 
       -- Function, data, or record type.
-      Def g es -> guardPresTyCon g es function
+      Def g es -> function g es
 
       -- Abstraction. Preserves guardedness.
       Lam h b -> extract b
@@ -949,15 +929,17 @@ instance ExtractCalls Term where
       -- Neutral term. Destroys guardedness.
       Var i es -> terUnguarded $ extract es
 
-      -- Dependent function space.
-      Pi a (Abs x b) -> CallGraph.union <$> (terUnguarded $ extract a) <*> do
-         a <- maskSizeLt a  -- OR: just do not add a to the context!
-         terPiGuarded $ addContext (x, a) $ terRaise $ extract b
+      -- Dependent function space. Destroys guardedness.
+      Pi a (Abs x b) ->
+        terUnguarded $
+        CallGraph.union <$>
+        extract a <*> do
+          a <- maskSizeLt a  -- OR: just do not add a to the context!
+          addContext (x, a) $ terRaise $ extract b
 
-      -- Non-dependent function space.
-      Pi a (NoAbs _ b) -> CallGraph.union
-         <$> terUnguarded (extract a)
-         <*> terPiGuarded (extract b)
+      -- Non-dependent function space. Destroys guardedness.
+      Pi a (NoAbs _ b) ->
+        terUnguarded $ CallGraph.union <$> extract a <*> extract b
 
       -- Literal.
       Lit l -> return empty
@@ -1038,14 +1020,18 @@ compareArgs es = do
     filterM (isCoinductiveProjection True) $ mapMaybe (fmap snd . isProjElim) es
   cutoff <- terGetCutOff
   let ?cutoff = cutoff
-  let guardedness = decr True $ projsCaller - projsCallee
+  useGuardedness <- optGuardedness <$> liftTCM pragmaOptions
+  let guardedness =
+        if useGuardedness
+        then decr True $ projsCaller - projsCallee
+        else Order.Unknown
   liftTCM $ reportSDoc "term.guardedness" 30 $ sep
     [ "compareArgs:"
     , nest 2 $ text $ "projsCaller = " ++ prettyShow projsCaller
     , nest 2 $ text $ "projsCallee = " ++ prettyShow projsCallee
     , nest 2 $ text $ "guardedness of call: " ++ prettyShow guardedness
     ]
-  return $ addGuardedness guardedness (size es) (size pats) matrix
+  return $ addGuardedness guardedness (size es, size pats, matrix)
 
 -- | Traverse patterns from left to right.
 --   When we come to a projection pattern,
@@ -1132,15 +1118,10 @@ makeCM :: Int -> Int -> [[Order]] -> CallMatrix
 makeCM ncols nrows matrix = CallMatrix $
   Matrix.fromLists (Matrix.Size nrows ncols) matrix
 
-{- To turn off guardedness, restore this code.
--- | 'addGuardedness' does nothing.
-addGuardedness :: Integral n => Order -> n -> n -> [[Order]] -> (n, n, [[Order]])
-addGuardedness g nrows ncols m = (nrows, ncols, m)
--}
-
--- | 'addGuardedness' adds guardedness flag in the upper left corner (0,0).
-addGuardedness :: Order -> Int -> Int -> [[Order]] -> (Int, Int, [[Order]])
-addGuardedness o nrows ncols m =
+-- | 'addGuardedness' adds guardedness flag in the upper left corner
+-- (0,0).
+addGuardedness :: Order -> (Int, Int, [[Order]]) -> (Int, Int, [[Order]])
+addGuardedness o (nrows, ncols, m) =
   (nrows + 1, ncols + 1,
    (o : replicate ncols Order.unknown) : map (Order.unknown :) m)
 

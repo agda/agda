@@ -1,6 +1,6 @@
 -- Andreas, 2014-01-07 Issue reported by Dmitriy Traytel
 
-{-# OPTIONS --copatterns #-}
+{-# OPTIONS --guardedness --sized-types #-}
 
 module _ where
 
@@ -32,4 +32,3 @@ loop .(↑ i) (cons i s) = head (map (loop i) s)
 
 absurd : ⊥
 absurd = loop ∞ (cons ∞ inh)
-

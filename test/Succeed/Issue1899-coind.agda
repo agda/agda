@@ -2,6 +2,7 @@
 -- test case and report by Nisse
 
 -- {-# OPTIONS -v term:40 #-}
+{-# OPTIONS --guardedness --sized-types #-}
 
 open import Agda.Builtin.Size
 

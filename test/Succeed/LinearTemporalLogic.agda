@@ -1,4 +1,4 @@
-{-# OPTIONS --copatterns #-}
+{-# OPTIONS --guardedness #-}
 -- {-# OPTIONS -v tc.pos:20 -v tc.meta.eta:100 #-}
 -- {-# OPTIONS -v tc.lhs:100 #-}
 

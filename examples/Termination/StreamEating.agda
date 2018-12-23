@@ -15,6 +15,8 @@ Here we model them by mutual data/codata and mixed recursion/corecursion.
 Cf. examples/Termination/StreamProc.agda
  -}
 
+{-# OPTIONS --guardedness #-}
+
 module StreamEating where
 
 open import Common.Coinduction

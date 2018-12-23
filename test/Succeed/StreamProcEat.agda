@@ -18,6 +18,8 @@ They have been modelled by mixed equi-(co)inductive sized types in
 Here we model them by mutual data/codata and mutual recursion/corecursion.
  -}
 
+{-# OPTIONS --guardedness #-}
+
 module StreamProcEat where
 
 open import Common.Coinduction

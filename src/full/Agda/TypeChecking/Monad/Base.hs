@@ -1112,6 +1112,7 @@ data TypeCheckingProblem
     --   we want to postpone @(λ (y : Fin n) → e) : ?@ where @Fin n@
     --   is a 'Type' rather than an 'A.Expr'.
   | UnquoteTactic Term Term Type   -- ^ First argument is computation and the others are hole and goal type
+  | DoQuoteTerm Comparison Term Type -- ^ Quote the given term and check type against `Term`
 
 instance Show MetaInstantiation where
   show (InstV tel t) = "InstV " ++ show tel ++ " (" ++ show t ++ ")"
@@ -1655,14 +1656,13 @@ data FunctionFlag
   deriving (Data, Eq, Ord, Enum, Show)
 
 data CompKit = CompKit
-  { nameOfComp :: Maybe QName
-  , nameOfHComp :: Maybe QName
+  { nameOfHComp :: Maybe QName
   , nameOfTransp :: Maybe QName
   }
   deriving (Data, Eq, Ord, Show)
 
 emptyCompKit :: CompKit
-emptyCompKit = CompKit Nothing Nothing Nothing
+emptyCompKit = CompKit Nothing Nothing
 
 data Defn = Axiom -- ^ Postulate
           | DataOrRecSig
@@ -3086,7 +3086,7 @@ data TypeError
 -}
     -- Usage errors
     -- Instance search errors
-        | InstanceNoCandidate Type
+        | InstanceNoCandidate Type [(Term, TCErr)]
     -- Reflection errors
         | UnquoteFailed UnquoteError
         | DeBruijnIndexOutOfScope Nat Telescope [Name]
@@ -3098,6 +3098,7 @@ data TypeError
         | NonFatalErrors [TCWarning]
     -- Instance search errors
         | InstanceSearchDepthExhausted Term Type Int
+        | TriedToCopyConstrainedPrim QName
           deriving Show
 
 -- | Distinguish error message when parsing lhs or pattern synonym, resp.

@@ -951,13 +951,14 @@ checkSectionApplication' i m1 (A.RecordModuleInstance x) copyInfo = do
       telInst = instFinal tel
 
       -- Locate last (rightmost) parameter and make it @Instance@.
+      -- Issue #3463: also name it so it can be given by name.
       instFinal :: Telescope -> Telescope
       -- Telescopes do not have @NoAbs@.
       instFinal (ExtendTel _ NoAbs{}) = __IMPOSSIBLE__
       -- Found last parameter: switch it to @Instance@.
       instFinal (ExtendTel dom (Abs n EmptyTel)) =
                  ExtendTel do' (Abs n EmptyTel)
-        where do' = makeInstance dom
+        where do' = makeInstance dom { domName = Just $ unranged "r" }
       -- Otherwise, keep searchinf for last parameter:
       instFinal (ExtendTel arg (Abs n tel)) =
                  ExtendTel arg (Abs n (instFinal tel))

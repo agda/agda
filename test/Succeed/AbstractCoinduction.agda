@@ -1,6 +1,8 @@
 -- Andreas, 2016-10-03, re issue #2231
 -- Testing whether the musical coinduction works fine in abstract blocks
 
+{-# OPTIONS --guardedness #-}
+
 module AbstractCoinduction where
 
 {-# BUILTIN INFINITY ∞_  #-}
