@@ -1,5 +1,5 @@
 
-open import Agda.Builtin.IO
+open import Common.IO
 open import Agda.Builtin.String
 open import Agda.Builtin.Unit
 open import Agda.Builtin.Nat
@@ -35,10 +35,6 @@ BUILTIN σ (_ , V-con (integer s)) | _ = notErased s
 -- Either of these work:
 -- BUILTIN σ (_ , V-con (integer s)) | size⋆ s = notErased s
 -- BUILTIN σ (con (integer s) , V-con (integer s)) | _ = notErased s
-
-postulate putStrLn : String → IO ⊤
-{-# FOREIGN GHC import qualified Data.Text.IO as Text #-}
-{-# COMPILE GHC putStrLn = Text.putStrLn #-}
 
 con2 : ⊢ size⋆ 8
 con2 = con (integer 8)
