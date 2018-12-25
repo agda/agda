@@ -1,5 +1,0 @@
-WhyWeNeedUntypedLambda.agda:14,22-26
-((x : _13 k) → _13 k) != ({A : Set} → A → A) because one is an
-implicit function type and the other is an explicit function type
-when checking that the expression refl has type
-((x : _13 k) → _13 k) == ({A : Set} → A → A)
