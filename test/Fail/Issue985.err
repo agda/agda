@@ -1,9 +1,0 @@
-Issue985.agda:80,5-44
-I'm not sure if there should be a case for the constructor
-lookupZero, because I get stuck when trying to solve the following
-unification problems (inferred index ≟ expected index):
-  len Γ₁ ≟ x
-  Γ₁ , a₁ ≟ Γ , a
-  a₁ ≟ type
-  zero ≟ index
-when checking the definition of contra
