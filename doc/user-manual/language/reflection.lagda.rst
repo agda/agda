@@ -548,3 +548,40 @@ In ``m`` the ``xᵢ`` stand for the names of the functions being defined (i.e.
 One advantage of ``unquoteDef`` over ``unquoteDecl`` is that
 ``unquoteDef`` is allowed in mutual blocks, allowing mutually
 recursion between generated definitions and hand-written definitions.
+
+Example usage:
+
+..
+  ::
+
+  module unquote-id where
+
+    _>>=_ = bindTC
+    _>>_ : ∀ {ℓ} {A : Set ℓ} → TC ⊤ → TC A → TC A
+    a >> b = a >>= (λ { tt → b })
+
+::
+
+    defId : (id-name : Name) → TC ⊤
+    defId id-name = do
+      defineFun id-name
+        [ clause
+          ( arg (arg-info hidden relevant) (var "A")
+          ∷ arg (arg-info visible relevant) (var "x")
+          ∷ [] )
+          (var 0 [])
+        ]
+
+    id : {A : Set} (x : A) → A
+    unquoteDef id = defId id
+
+    mkId : (id-name : Name) → TC ⊤
+    mkId id-name = do
+      declareDef
+        (arg (arg-info visible relevant) id-name)
+        (pi (arg (arg-info hidden relevant) (agda-sort (lit 0))) (abs "A"
+          (pi (arg (arg-info visible relevant) (var 0 [])) (abs "x"
+            (var 1 [])))))
+      defId id-name
+
+    unquoteDecl id′ = mkId id′
