@@ -1,5 +1,6 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE DeriveDataTypeable    #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module Agda.Syntax.Parser.Monad
     ( -- * The parser monad
@@ -42,6 +43,7 @@ import Data.Data (Data)
 import qualified Data.Text.Lazy as T
 
 import Control.Monad.State
+import Control.Monad.Except
 
 import Agda.Interaction.Options.Warnings
 
@@ -62,8 +64,9 @@ import Agda.Utils.Impossible
     The parse monad
  --------------------------------------------------------------------------}
 
--- | The parse monad. Equivalent to @StateT 'ParseState' (Either 'ParseError')@.
-newtype Parser a = P { unP :: ParseState -> ParseResult a }
+-- | The parse monad.
+newtype Parser a = P { runP :: StateT ParseState (Either ParseError) a }
+  deriving (Functor, Applicative, Monad, MonadState ParseState, MonadError ParseError)
 
 -- | The parser state. Contains everything the parser and the lexer could ever
 --   need.
@@ -154,45 +157,27 @@ data ParseResult a
   | ParseFailed ParseError
   deriving Show
 
+-- | Old interface to parser.
+unP :: Parser a -> ParseState -> ParseResult a
+unP (P m) s = case runStateT m s of
+  Left err     -> ParseFailed err
+  Right (a, s) -> ParseOk s a
+
+-- | Throw a parse error at the current position.
+parseError :: String -> Parser a
+parseError msg = do
+  s <- get
+  throwError $ ParseError
+    { errSrcFile   = parseSrcFile s
+    , errPos       = parseLastPos s
+    , errInput     = parseInp s
+    , errPrevToken = parsePrevToken s
+    , errMsg       = msg
+    }
+
 {--------------------------------------------------------------------------
     Instances
  --------------------------------------------------------------------------}
-
-instance Monad Parser where
-  return = pure
-
-  P m >>= f = P $ \s -> case m s of
-                          ParseFailed e -> ParseFailed e
-                          ParseOk s' x  -> unP (f x) s'
-
--- | Throw a parse error at the current position.
-
-parseError :: String -> Parser a
-parseError msg = P $ \s -> ParseFailed $
-                         ParseError  { errSrcFile   = parseSrcFile s
-                                     , errPos       = parseLastPos s
-                                     , errInput     = parseInp s
-                                     , errPrevToken = parsePrevToken s
-                                     , errMsg       = msg
-                                     }
-
-instance Functor Parser where
-  fmap = liftM
-
-instance Applicative Parser where
-  pure x = P $ \s -> ParseOk s x
-  (<*>)  = ap
-
-instance MonadError ParseError Parser where
-  throwError e = P $ \_ -> ParseFailed e
-
-  P m `catchError` h = P $ \s -> case m s of
-                                   ParseFailed err -> unP (h err) s
-                                   m'              -> m'
-
-instance MonadState ParseState Parser where
-  get   = P $ \s -> ParseOk s s
-  put s = P $ \_ -> ParseOk s ()
 
 instance Show ParseError where
   show = prettyShow
