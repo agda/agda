@@ -79,12 +79,12 @@ data ParseState = PState
     , parseLayout   :: [LayoutContext]       -- ^ the stack of layout contexts
     , parseLexState :: [LexState]            -- ^ the state of the lexer
                                              --   (states can be nested so we need a stack)
-    , parseFlags    :: ParseFlags            -- ^ currently there are no flags
+    , parseFlags    :: ParseFlags            -- ^ parametrization of the parser
     }
     deriving Show
 
-{-| To do context sensitive lexing alex provides what is called /start codes/
-    in the Alex documentation. It is really an integer representing the state
+{-| For context sensitive lexing alex provides what is called /start codes/
+    in the Alex documentation.  It is really an integer representing the state
     of the lexer, so we call it @LexState@ instead.
 -}
 type LexState = Int
