@@ -94,54 +94,58 @@ data LayoutContext  = NoLayout        -- ^ no layout
                     | Layout Int32    -- ^ layout at specified column
     deriving Show
 
--- | There aren't any parser flags at the moment.
+-- | Parser flags.
 data ParseFlags = ParseFlags
   { parseKeepComments :: Bool
     -- ^ Should comment tokens be returned by the lexer?
   }
   deriving Show
 
--- | What you get if parsing fails.
-data ParseError =
-  -- | Errors that arise at a specific position in the file
-  ParseError
-  { errSrcFile   :: !SrcFile
-                    -- ^ The file in which the error occurred.
-  , errPos       :: !PositionWithoutFile
-                    -- ^ Where the error occurred.
-  , errInput     :: String
-                    -- ^ The remaining input.
-  , errPrevToken :: String
-                    -- ^ The previous token.
-  , errMsg       :: String
-                    -- ^ Hopefully an explanation of what happened.
-  } |
-  -- | Parse errors that concern a range in a file.
-  OverlappingTokensError
-  { errRange     :: !(Range' SrcFile)
-                    -- ^ The range of the bigger overlapping token
-  } |
-  -- | Parse errors that concern a whole file.
-  InvalidExtensionError
-  { errPath      :: !AbsolutePath
-                    -- ^ The file which the error concerns.
-  , errValidExts :: [String]
-  } |
-  ReadFileError
-  { errPath      :: !AbsolutePath
-  , errIOError   :: IOError
-  }
+-- | Parse errors: what you get if parsing fails.
+data ParseError
 
--- | Warnings for parsing
-data ParseWarning =
+  -- | Errors that arise at a specific position in the file
+  = ParseError
+    { errSrcFile   :: !SrcFile
+                      -- ^ The file in which the error occurred.
+    , errPos       :: !PositionWithoutFile
+                      -- ^ Where the error occurred.
+    , errInput     :: String
+                      -- ^ The remaining input.
+    , errPrevToken :: String
+                      -- ^ The previous token.
+    , errMsg       :: String
+                      -- ^ Hopefully an explanation of what happened.
+    }
+
   -- | Parse errors that concern a range in a file.
-  OverlappingTokensWarning
-  { warnRange    :: !(Range' SrcFile)
-                    -- ^ The range of the bigger overlapping token
-  } deriving Data
+  | OverlappingTokensError
+    { errRange     :: !(Range' SrcFile)
+                      -- ^ The range of the bigger overlapping token
+    }
+
+  -- | Parse errors that concern a whole file.
+  | InvalidExtensionError
+    { errPath      :: !AbsolutePath
+                      -- ^ The file which the error concerns.
+    , errValidExts :: [String]
+    }
+  | ReadFileError
+    { errPath      :: !AbsolutePath
+    , errIOError   :: IOError
+    }
+
+-- | Warnings for parsing.
+data ParseWarning
+  -- | Parse errors that concern a range in a file.
+  = OverlappingTokensWarning
+    { warnRange    :: !(Range' SrcFile)
+                      -- ^ The range of the bigger overlapping token
+    }
+  deriving Data
 
 parseWarningName :: ParseWarning -> WarningName
-parseWarningName pw = case pw of
+parseWarningName = \case
   OverlappingTokensWarning{} -> OverlappingTokensWarning_
 
 -- | The result of parsing something.
@@ -217,12 +221,14 @@ instance Pretty ParseError where
       ]
 
 instance HasRange ParseError where
-  getRange ParseError{errSrcFile,errPos=p} = posToRange' errSrcFile p p
-  getRange OverlappingTokensError{errRange} = errRange
-  getRange InvalidExtensionError{errPath} = posToRange p p
-    where p = startPos (Just errPath)
-  getRange ReadFileError{errPath} = posToRange p p
-    where p = startPos (Just errPath)
+  getRange err = case err of
+      ParseError{ errSrcFile, errPos = p } -> posToRange' errSrcFile p p
+      OverlappingTokensError{ errRange }   -> errRange
+      InvalidExtensionError{}              -> errPathRange
+      ReadFileError{}                      -> errPathRange
+    where
+    errPathRange = posToRange p p
+      where p = startPos $ Just $ errPath err
 
 instance Show ParseWarning where
   show = prettyShow
@@ -297,7 +303,7 @@ setPrevToken :: String -> Parser ()
 setPrevToken t = modify $ \s -> s { parsePrevToken = t }
 
 getLastPos :: Parser PositionWithoutFile
-getLastPos = get >>= return . parseLastPos
+getLastPos = gets parseLastPos
 
 -- | The parse interval is between the last position and the current position.
 getParseInterval :: Parser Interval
@@ -309,9 +315,7 @@ getLexState :: Parser [LexState]
 getLexState = parseLexState <$> get
 
 setLexState :: [LexState] -> Parser ()
-setLexState ls =
-    do  s <- get
-        put $ s { parseLexState = ls }
+setLexState ls = modify $ \ s -> s { parseLexState = ls }
 
 modifyLexState :: ([LexState] -> [LexState]) -> Parser ()
 modifyLexState f = modify $ \ s -> s { parseLexState = f (parseLexState s) }
@@ -323,7 +327,7 @@ popLexState :: Parser ()
 popLexState = modifyLexState $ tailWithDefault __IMPOSSIBLE__
 
 getParseFlags :: Parser ParseFlags
-getParseFlags = parseFlags <$> get
+getParseFlags = gets parseFlags
 
 
 -- | Fake a parse error at the specified position. Used, for instance, when
@@ -350,7 +354,7 @@ parseErrorRange = parseError' . rStart' . getRange
 --   lexed). This function does 'parseErrorAt' the current position.
 lexError :: String -> Parser a
 lexError msg =
-    do  p <- parsePos <$> get
+    do  p <- gets parsePos
         parseErrorAt p msg
 
 {--------------------------------------------------------------------------
@@ -358,12 +362,10 @@ lexError msg =
  --------------------------------------------------------------------------}
 
 getContext :: Parser [LayoutContext]
-getContext = parseLayout <$> get
+getContext = gets parseLayout
 
 setContext :: [LayoutContext] -> Parser ()
-setContext ctx =
-    do  s <- get
-        put $ s { parseLayout = ctx }
+setContext ctx = modify $ \ s -> s { parseLayout = ctx }
 
 -- | Return the current layout context.
 topContext :: Parser LayoutContext
