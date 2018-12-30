@@ -1,4 +1,4 @@
-Issue1609b.agda:4,1-1
-Issue1609b.agda:4,1: The ellipsis ... cannot have a type signature
+Issue1609b.agda:3,7-7
+Issue1609b.agda:3,7: The ellipsis ... cannot have a type signature
 <EOF><ERROR>
 ...

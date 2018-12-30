@@ -41,14 +41,23 @@ import Agda.Utils.Impossible
 
 -- | Called at the end of a file. Returns 'TokEOF'.
 returnEOF :: AlexInput -> Parser Token
-returnEOF inp =
-    do  setLastPos $ lexPos inp
-        setPrevToken "<EOF>"
-        return TokEOF
+returnEOF AlexInput{ lexSrcFile, lexPos } = do
+  -- Andreas, 2018-12-30, issue #3480
+  -- The following setLastPos leads to parse error reporting
+  -- far away from the interesting position, in particular
+  -- if there is a long comment before the EOF.
+  -- (Such a long comment is frequent in interactive programming, as
+  -- commenting out until the end of the file is a common habit.)
+  -- -- setLastPos lexPos
+  -- Without it, we get much more useful error locations.
+  setPrevToken "<EOF>"
+  return TokEOF
 
 -- | Set the current input and lex a new token (calls 'lexToken').
 skipTo :: AlexInput -> Parser Token
-skipTo inp = setLexInput inp >> lexToken
+skipTo inp = do
+  setLexInput inp
+  lexToken
 
 {-| Scan the input to find the next token. Calls
 'Agda.Syntax.Parser.Lexer.alexScanUser'. This is the main lexing function
