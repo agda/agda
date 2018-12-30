@@ -1,4 +1,7 @@
-Issue1484.agda:44,1-1
-Issue1484.agda:44,1: Unsupported variant of lambda
-<EOF><ERROR>
-...
+Issue1484.agda:40,14-14
+Issue1484.agda:40,14: expected sequence of bound identifiers, not absurd pattern
+}<ERROR>
+}
+
+-- Error WAS:
+-- Internal p...

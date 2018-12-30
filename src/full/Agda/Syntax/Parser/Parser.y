@@ -551,10 +551,10 @@ CommaBIds
 -- a variable list. We could be parsing (x y z) -> B
 -- with ((x y) z) being a type.
 CommaBIds :: { [NamedArg BoundName] }
-CommaBIds : CommaBIdAndAbsurds {
+CommaBIds : CommaBIdAndAbsurds {%
     case $1 of
-      Left ns -> ns
-      Right _ -> fail $ "expected sequence of bound identifiers, not absurd pattern"
+      Left ns -> return ns
+      Right _ -> parseError $ "expected sequence of bound identifiers, not absurd pattern"
     }
 
 CommaBIdAndAbsurds :: { Either [NamedArg BoundName] [Expr] }
@@ -1006,9 +1006,9 @@ TypedUntypedBindings
 -- A domain free binding is either x or {x1 .. xn}
 DomainFreeBinding :: { [LamBinding] }
 DomainFreeBinding
-  : DomainFreeBindingAbsurd { case $1 of
-                             Left lbs -> lbs
-                             Right _ -> fail "expected sequence of bound identifiers, not absurd pattern"
+  : DomainFreeBindingAbsurd {% case $1 of
+                             Left lbs -> return lbs
+                             Right _ -> parseError "expected sequence of bound identifiers, not absurd pattern"
                           }
 
 -- A domain free binding is either x or {x1 .. xn}
