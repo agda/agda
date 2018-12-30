@@ -409,7 +409,7 @@ beginImpDir : {- empty -}   {% pushLexState imp_dir }
 Int :: { Integer }
 Int : literal   {% case $1 of {
                      LitNat _ i -> return i;
-                     _          -> fail $ "Expected integer"
+                     _          -> parseError $ "Expected integer"
                    }
                 }
 
@@ -592,7 +592,7 @@ BIdsWithHiding : Application {%
     in
     case mapM getName1 $1 of
         Just good -> return $ (map . fmap) (unnamed . mkBoundName_) $ concat good
-        Nothing   -> fail $ "expected sequence of possibly hidden bound identifiers"
+        Nothing   -> parseError $ "expected sequence of possibly hidden bound identifiers"
     }
 
 
@@ -663,7 +663,7 @@ Expr1 :: { Expr }
 Expr1  : WithExprs {% case $1 of
                       { [e]    -> return e
                       ; e : es -> return $ WithApp (fuseRange e es) e es
-                      ; []     -> fail "impossible: empty with expressions"
+                      ; []     -> parseError "impossible: empty with expressions"
                       }
                    }
 
@@ -1921,7 +1921,7 @@ mkName :: (Interval, String) -> Parser Name
 mkName (i, s) = do
     let xs = C.stringNameParts s
     mapM_ isValidId xs
-    unless (alternating xs) $ fail $ "a name cannot contain two consecutive underscores"
+    unless (alternating xs) $ parseError $ "a name cannot contain two consecutive underscores"
     return $ Name (getRange i) InScope xs
     where
         isValidId Hole   = return ()
@@ -1930,9 +1930,9 @@ mkName (i, s) = do
               err = "in the name " ++ s ++ ", the part " ++ x ++ " is not valid"
           case parse defaultParseFlags [0] (lexer return) x of
             ParseOk _ TokId{}  -> return ()
-            ParseFailed{}      -> fail err
-            ParseOk _ TokEOF{} -> fail err
-            ParseOk _ t   -> fail . ((err ++ " because it is ") ++) $ case t of
+            ParseFailed{}      -> parseError err
+            ParseOk _ TokEOF{} -> parseError err
+            ParseOk _ t   -> parseError . ((err ++ " because it is ") ++) $ case t of
               TokId{}       -> __IMPOSSIBLE__
               TokQId{}      -> __IMPOSSIBLE__ -- "qualified"
               TokKeyword{}  -> "a keyword"
@@ -1998,11 +1998,11 @@ mkNamedArg x y = do
   lbl <- case x of
            Nothing        -> return $ Just $ unranged "_"
            Just (QName x) -> return $ Just $ Ranged (getRange x) (prettyShow x)
-           _              -> fail "expected unqualified variable name"
+           _              -> parseError "expected unqualified variable name"
   var <- case y of
            Left (QName y) -> return $ BName y noFixity'
            Right r        -> return $ BName (noName r) noFixity'
-           _              -> fail "expected unqualified variable name"
+           _              -> parseError "expected unqualified variable name"
   return $ defaultArg $ Named lbl var
 
 -- | Polarity parser.
@@ -2015,7 +2015,7 @@ polarity (i, s) =
     "+"  -> ret JustPos
     "-"  -> ret JustNeg
     "*"  -> ret Mixed
-    _    -> fail $ "Not a valid polarity: " ++ s
+    _    -> parseError $ "Not a valid polarity: " ++ s
   where
   ret x = return (getRange i, x)
 
@@ -2040,7 +2040,7 @@ ensureUnqual q@Qual{}  = parseError' (rStart' $ getRange q) "Qualified name not 
 isName :: String -> (Interval, String) -> Parser ()
 isName s (_,s')
     | s == s'   = return ()
-    | otherwise = fail $ "expected " ++ s ++ ", found " ++ s'
+    | otherwise = parseError $ "expected " ++ s ++ ", found " ++ s'
 
 -- | Build a forall pi (forall x y z -> ...)
 forallPi :: [LamBinding] -> Expr -> Expr
@@ -2058,7 +2058,7 @@ boundNamesOrAbsurd es
   | otherwise       =
     case mapM getBName es of
         Just good -> return $ Left $ map defaultNamedArg good
-        Nothing   -> fail $ "expected sequence of bound identifiers"
+        Nothing   -> parseError $ "expected sequence of bound identifiers"
   where
     getName :: Expr -> Maybe Name
     getName (Ident (QName x)) = Just x

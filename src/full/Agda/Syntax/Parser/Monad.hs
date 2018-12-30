@@ -62,9 +62,7 @@ import Agda.Utils.Impossible
     The parse monad
  --------------------------------------------------------------------------}
 
--- | The parse monad. Equivalent to @StateT 'ParseState' (Either 'ParseError')@
---   except for the definition of @fail@, which builds a suitable 'ParseError'
---   object.
+-- | The parse monad. Equivalent to @StateT 'ParseState' (Either 'ParseError')@.
 newtype Parser a = P { unP :: ParseState -> ParseResult a }
 
 -- | The parser state. Contains everything the parser and the lexer could ever
@@ -163,7 +161,10 @@ instance Monad Parser where
                           ParseFailed e -> ParseFailed e
                           ParseOk s' x  -> unP (f x) s'
 
-  fail msg = P $ \s -> ParseFailed $
+-- | Throw a parse error at the current position.
+
+parseError :: String -> Parser a
+parseError msg = P $ \s -> ParseFailed $
                          ParseError  { errSrcFile   = parseSrcFile s
                                      , errPos       = parseLastPos s
                                      , errInput     = parseInp s
@@ -323,11 +324,6 @@ popLexState = modifyLexState $ tailWithDefault __IMPOSSIBLE__
 
 getParseFlags :: Parser ParseFlags
 getParseFlags = parseFlags <$> get
-
-
--- | @parseError = fail@
-parseError :: String -> Parser a
-parseError = fail
 
 
 -- | Fake a parse error at the specified position. Used, for instance, when
