@@ -144,7 +144,13 @@ mkNotation _ [] = throwError "empty notation is disallowed"
 mkNotation holes ids = do
   unless uniqueHoleNames     $ throwError "syntax must use unique argument names"
   let xs :: Notation = map mkPart ids
-  unless (isAlternating xs)  $ throwError "syntax must alternate holes and non-holes"
+  unless (isAlternating xs)  $ throwError $ concat
+     [ "syntax must alternate holes ("
+     , prettyHoles
+     , ") and non-holes ("
+     , prettyNonHoles xs
+     , ")"
+     ]
   unless (isExprLinear xs)   $ throwError "syntax must use holes exactly once"
   unless (isLambdaLinear xs) $ throwError "syntax must use binding holes exactly once"
   -- Andreas, 2018-10-18, issue #3285:
@@ -152,6 +158,24 @@ mkNotation holes ids = do
   when   (isSingleHole xs)   $ throwError "syntax cannot be a single hole"
   return $ insertWildHoles xs
     where
+      holeNames :: [RawName]
+      holeNames = map namedArg holes >>= \case
+        LambdaHole x y -> [x,y]
+        ExprHole y     -> [y]
+
+      prettyHoles :: String
+      prettyHoles = List.unwords holeNames
+
+      nonHoleNames :: Notation -> [RawName]
+      nonHoleNames xs = flip mapMaybe xs $ \case
+        WildHole{}   -> Just "_"
+        IdPart x     -> Just x
+        BindHole{}   -> Nothing
+        NormalHole{} -> Nothing
+
+      prettyNonHoles :: Notation -> String
+      prettyNonHoles = List.unwords . nonHoleNames
+
       mkPart ident = fromMaybe (IdPart ident) $ lookup ident holeMap
 
       holeNumbers   = [0 .. length holes - 1]
