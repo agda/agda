@@ -75,7 +75,7 @@ import Agda.Utils.Impossible
 
 %tokentype { Token }
 %monad { Parser }
-%lexer { lexer } { TokEOF }
+%lexer { lexer } { TokEOF{} }
 
 %expect 9
 -- * shift/reduce for \ x y z -> foo = bar

@@ -51,7 +51,7 @@ returnEOF AlexInput{ lexSrcFile, lexPos } = do
   -- -- setLastPos lexPos
   -- Without it, we get much more useful error locations.
   setPrevToken "<EOF>"
-  return TokEOF
+  return $ TokEOF $ posToInterval lexSrcFile lexPos lexPos
 
 -- | Set the current input and lex a new token (calls 'lexToken').
 skipTo :: AlexInput -> Parser Token

@@ -75,7 +75,7 @@ data Token
         | TokComment (Interval, String)
         | TokDummy      -- Dummy token to make Happy not complain
                         -- about overlapping cases.
-        | TokEOF
+        | TokEOF Interval
     deriving (Eq, Show)
 
 instance HasRange Token where
@@ -91,4 +91,4 @@ instance HasRange Token where
   getRange (TokMarkup (i, _))  = getRange i
   getRange (TokComment (i, _)) = getRange i
   getRange TokDummy            = noRange
-  getRange TokEOF              = noRange
+  getRange (TokEOF i)          = getRange i
