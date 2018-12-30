@@ -2352,7 +2352,7 @@ instance ToAbstract C.Pattern (A.Pattern' C.Expr) where
         (p', q') <- toAbstract (p, q)
         case p' of
             ConP i x as        -> return $ ConP (i {patInfo = info}) x (as ++ [q'])
-            ProjP i o x        -> fail
+            ProjP i o x        -> failure
             DefP _ x as        -> return $ DefP info x (as ++ [q'])
             PatternSynP _ x as -> return $ PatternSynP info x (as ++ [q'])
             A.DotP i e         -> case e of
@@ -2361,13 +2361,13 @@ instance ToAbstract C.Pattern (A.Pattern' C.Expr) where
                   let cpi = ConPatInfo ConOCon i True
                       c   = AmbQ (fmap anameName ds)
                   return $ ConP cpi c [q']
-                _ -> fail
-              _ -> fail
-            _                  -> fail
+                _ -> failure
+              _ -> failure
+            _ -> failure
         where
             r = getRange p0
             info = PatRange r
-            fail = typeError $ InvalidPattern p0
+            failure = typeError $ InvalidPattern p0
 
             distributeDots :: C.Pattern -> ScopeM C.Pattern
             distributeDots p@(C.DotP r e) = distributeDotsExpr r e
