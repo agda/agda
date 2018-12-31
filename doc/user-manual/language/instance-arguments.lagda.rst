@@ -335,10 +335,9 @@ Although instance arguments are most commonly used for record types,
 mimicking Haskell-style type classes, they can also be used with data
 types. In this case you often want the constructors to be instances,
 which is achieved by declaring them inside an ``instance``
-block. Typically arguments to constructors are not instance arguments,
-so during instance resolution explicit arguments are treated as
-instance arguments. See :ref:`instance-resolution` below for the
-details.
+block. Constructors can only be declared as instances if all their
+arguments are implicit or instance arguments. See 
+:ref:`instance-resolution` below for the details.
 
 A simple example of a constructor that can be made an instance is the
 reflexivity constructor of the equality type::
@@ -482,12 +481,7 @@ Given a goal that should be solved using instance resolution we proceed in the
 following four stages:
 
 Verify the goal
-  First we check that the goal is not already solved. This can happen if there
-  are :ref:`unification constraints <implicit-arguments>` determining the
-  value, or if it is of singleton record type and thus solved by
-  :ref:`eta-expansion <eta-expansion>`.
-
-  Next we check that the goal type has the right shape to be solved by instance
+  First we check that the goal type has the right shape to be solved by instance
   resolution. It should be of the form ``{Γ} → C vs``, where the target type
   ``C`` is a variable from the context or the name of a data or record type,
   and ``{Γ}`` denotes a telescope of implicit arguments. If this is not the
@@ -508,7 +502,7 @@ Check the candidates
   given a candidate ``c : Δ → A`` we generate fresh metavariables ``αs : Δ``
   for the arguments of ``c``, with ordinary metavariables for implicit
   arguments, and instance metavariables, solved by a recursive call to instance
-  resolution, for explicit arguments and instance arguments.
+  resolution, for instance arguments.
 
   Next we :ref:`unify <unification>` ``A[Δ := αs]`` with ``C vs`` and apply
   instance resolution to the instance metavariables in ``αs``. Both unification
