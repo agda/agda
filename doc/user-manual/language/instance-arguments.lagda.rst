@@ -336,7 +336,7 @@ mimicking Haskell-style type classes, they can also be used with data
 types. In this case you often want the constructors to be instances,
 which is achieved by declaring them inside an ``instance``
 block. Constructors can only be declared as instances if all their
-arguments are implicit or instance arguments. See 
+arguments are implicit or instance arguments. See
 :ref:`instance-resolution` below for the details.
 
 A simple example of a constructor that can be made an instance is the
