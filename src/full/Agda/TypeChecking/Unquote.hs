@@ -26,6 +26,7 @@ import Agda.Syntax.Fixity
 import Agda.Syntax.Info
 import Agda.Syntax.Translation.ReflectedToAbstract
 
+import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Pretty
@@ -508,6 +509,7 @@ evalTCM v = do
              , (f `isDef` primAgdaTCMUnquoteTerm, tcFun1 (tcUnquoteTerm (mkT (unElim l) (unElim a))) u)
              , (f `isDef` primAgdaTCMBlockOnMeta, uqFun1 tcBlockOnMeta u)
              , (f `isDef` primAgdaTCMDebugPrint,  tcFun3 tcDebugPrint l a u)
+             , (f `isDef` primAgdaTCMNoConstraints, tcNoConstraints (unElim u))
              ]
              failEval
     I.Def f [_, _, u, v] ->
@@ -603,6 +605,9 @@ evalTCM v = do
     tcDebugPrint (Str s) n msg = do
       reportSDoc s (fromIntegral n) $ fsep (map prettyTCM msg)
       primUnitUnit
+
+    tcNoConstraints :: Term -> UnquoteM Term
+    tcNoConstraints m = liftU1 noConstraints (evalTCM m)
 
     tcInferType :: R.Term -> TCM Term
     tcInferType v = do
