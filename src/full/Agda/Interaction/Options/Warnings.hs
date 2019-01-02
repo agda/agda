@@ -142,6 +142,7 @@ data WarningName
   | EmptyPostulate_
   | EmptyPrivate_
   | EmptyGeneralize_
+  | EmptyPrimitive_
   | InvalidCatchallPragma_
   | InvalidNoUniverseCheckPragma_
   | InvalidTerminationCheckPragma_
@@ -249,6 +250,7 @@ warningNameDescription w = case w of
   EmptyPostulate_                  -> "Empty `postulate' blocks."
   EmptyPrivate_                    -> "Empty `private' blocks."
   EmptyGeneralize_                 -> "Empty `variable' blocks."
+  EmptyPrimitive_                  -> "Empty `primitive' blocks."
   InvalidCatchallPragma_           -> "`CATCHALL' pragmas before a non-function clause."
   InvalidNoPositivityCheckPragma_  -> "No positivity checking pragmas before non-`data', `record' or `mutual' blocks."
   InvalidNoUniverseCheckPragma_    -> "No universe checking pragmas before non-`data' or `record' declaration."
