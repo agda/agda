@@ -2992,6 +2992,7 @@ data TypeError
         | DuplicateBuiltinBinding String Term Term
         | NoBindingForBuiltin String
         | NoSuchPrimitiveFunction String
+        | DuplicatePrimitiveBinding String QName QName
         | ShadowedModule C.Name [A.ModuleName]
         | BuiltinInParameterisedModule String
         | IllegalLetInTelescope C.TypedBinding

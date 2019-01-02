@@ -13,6 +13,7 @@ import Control.Monad.State
 import Control.Monad.Trans.Maybe
 
 import qualified Data.Map as Map
+import Data.Function ( on )
 
 import Agda.Syntax.Common
 import Agda.Syntax.Position
@@ -83,8 +84,11 @@ bindBuiltinName b x = do
 
 bindPrimitive :: String -> PrimFun -> TCM ()
 bindPrimitive b pf = do
-  builtin <- useTC stLocalBuiltins
-  setBuiltinThings $ Map.insert b (Prim pf) builtin
+  builtin <- getBuiltinThing b
+  case builtin of
+    Just (Builtin _) -> typeError $ NoSuchPrimitiveFunction b
+    Just (Prim x)    -> typeError $ (DuplicatePrimitiveBinding b `on` primFunName) x pf
+    Nothing          -> stLocalBuiltins `modifyTCLens` Map.insert b (Prim pf)
 
 getBuiltin :: String -> TCM Term
 getBuiltin x =
