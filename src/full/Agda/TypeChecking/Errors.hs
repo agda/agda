@@ -399,6 +399,7 @@ errorString err = case err of
   NoRHSRequiresAbsurdPattern{}             -> "NoRHSRequiresAbsurdPattern"
   NoSuchBuiltinName{}                      -> "NoSuchBuiltinName"
   NoSuchModule{}                           -> "NoSuchModule"
+  DuplicatePrimitiveBinding{}              -> "DuplicatePrimitiveBinding"
   NoSuchPrimitiveFunction{}                -> "NoSuchPrimitiveFunction"
   NotAModuleExpr{}                         -> "NotAModuleExpr"
   NotAProperTerm                           -> "NotAProperTerm"
@@ -849,6 +850,10 @@ instance PrettyTCM TypeError where
       | otherwise -> fsep $
         pwords "No binding for builtin thing" ++ [text x <> comma] ++
         pwords ("use {-# BUILTIN " ++ x ++ " name #-} to bind it to 'name'")
+
+    DuplicatePrimitiveBinding b x y -> fsep $
+      pwords "Duplicate binding for primitive thing" ++ [text b <> comma] ++
+      pwords "previous binding to" ++ [prettyTCM x]
 
     NoSuchPrimitiveFunction x -> fsep $
       pwords "There is no primitive function called" ++ [text x]
