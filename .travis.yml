@@ -254,7 +254,7 @@ install:
 # `$HOME/.local/bin`.
 
   - if [[ $TEST = "USER_MANUAL" ]]; then
-       pip install -r doc/user-manual/requirements.txt &&
+       pip3 install -r doc/user-manual/requirements.txt &&
        export PATH=$HOME/.local/bin:$PATH &&
        echo "*** sphinx-build version ***" &&
        sphinx-build --version ;
