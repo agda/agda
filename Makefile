@@ -135,7 +135,7 @@ user-manual-pdf :
 	@echo "======================================================================"
 	@echo "====================== User Manual (pdf) ============================="
 	@echo "======================================================================"
-	$(MAKE) -C doc/user-manual PDFLATEX='latexmk -xelatex -latexoption=-interaction=nonstopmode -latexoption=-halt-on-error' latexpdf
+	$(MAKE) -C doc/user-manual latexpdf
 	cp doc/user-manual/_build/latex/Agda.pdf doc/user-manual.pdf
 
 .PHONY : user-manual-linkcheck

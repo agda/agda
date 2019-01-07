@@ -136,9 +136,9 @@ matrix:
       python: "3.4"
 
   allow_failures:
-    - env: TEST=USER_MANUAL BUILD=NOTHING
-      language: python
-      python: "3.4"
+    # - env: TEST=USER_MANUAL BUILD=NOTHING
+    #   language: python
+    #   python: "3.4"
 
   # Builds are loooong, we want to send an email as fast as possible.
   fast_finish: true
@@ -272,13 +272,11 @@ install:
        tar xzf /tmp/texlive.tar.gz -C ~ &&
        export PATH=$HOME/texlive/bin/x86_64-linux:$PATH &&
        tlmgr update --self &&
-       tlmgr install anyfontsize capt-of cmap dejavu dvipng fncychap latexmk needspace &&
+       tlmgr install anyfontsize bbm capt-of cmap dvipng fncychap keystroke latexmk needspace &&
        echo "*** pdfLaTeX version ***" &&
        pdflatex --version &&
        echo "*** Latexmk version ***" &&
-       latexmk --version &&
-       echo "*** XeLaTeX version ***" &&
-       xelatex --version ;
+       latexmk --version ;
     fi
 
 ##############################################################################
@@ -424,10 +422,11 @@ script:
 ##############################################################################
 # Making the user manual
 
+# Not running `make user-manual-linkcheck`.
+
   - if [[ $TEST = "USER_MANUAL" ]]; then
        make user-manual-html &&
-       make user-manual-pdf &&
-       make user-manual-linkcheck ;
+       make user-manual-pdf ;
     fi
 
 ##############################################################################
