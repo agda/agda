@@ -134,8 +134,7 @@ htmlhelp_basename = 'Agdadoc'
 
 # -- Options for LaTeX output ------------------------------------------------
 
-# See Issue #1996.
-# latex_engine = 'xelatex'
+latex_additional_files = ["mystyle.sty"]
 
 latex_elements = {
     # The paper size ('letterpaper' or 'a4paper').
@@ -149,19 +148,314 @@ latex_elements = {
     # Additional stuff for the LaTeX preamble.
     #
     'preamble': r'''
-    \ifxetex
-      \usepackage{fontspec}
+% Customised setup for certain characters.
+\usepackage{amsmath}
+\usepackage{bbm}
+\usepackage{mathtools}
+\usepackage{stmaryrd}
+\usepackage{pifont}
+\usepackage{keystroke}
 
-      \setmonofont
-        [ BoldFont       = DejaVuSansMono-Bold.ttf,
-          ItalicFont     = DejaVuSansMono-Oblique.ttf,
-          BoldItalicFont = DejaVuSansMono-BoldOblique.ttf,
-          Scale          = MatchLowercase,
-        ]
-        {DejaVuSansMono.ttf}
-    \fi
+% ASR TODO (2019-01-08). From Sphinx documentation it is possible to
+% have the below LaTeX code in a separate file which it would more
+% convenient. However it did not work.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Unicode symbols to be used with pdflatex and Sphinx.
+
+% In Emacs `C-u C-x =` gives the symbol information. We use of
+% hexadecimal code point.
+
+% Requires `\usepackage[utf8]{inputenc}` with some versions of
+% `pdflatex`.
+
+% We use the `textcomp` package because the `sphinx.sty` also uses it.
+
+% You can find the LaTeX command for a Unicode code point in
+% http://unicode.scarfboy.com/ or
+% https://www.johndcook.com/unicode_latex.html .
+
+% Making upper and lower case script characters in math mode. From
+% http://www.peteryu.ca/tutorials/publishing/latex_math_script_styles
+% and
+% https://tex.stackexchange.com/questions/58098/what-are-all-the-font-styles-i-can-use-in-math-mode.
+\DeclareMathAlphabet{\mathpzc}{OT1}{pzc}{m}{it}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Please keep the below list ordered by code points!
+
+\DeclareUnicodeCharacter{00AC}{\ensuremath{\neg}}                     % Symbol ¬
+\DeclareUnicodeCharacter{00B1}{\ensuremath{\pm}}                      % Symbol ±
+\DeclareUnicodeCharacter{00B2}{\ensuremath{^2}}                       % Symbol ²
+\DeclareUnicodeCharacter{00B3}{\ensuremath{^3}}                       % Symbol ³
+\DeclareUnicodeCharacter{00B7}{\ensuremath{\cdot}}                    % Symbol ·
+\DeclareUnicodeCharacter{00B9}{\ensuremath{^1}}                       % Symbol ¹
+\DeclareUnicodeCharacter{00D7}{\ensuremath{\times}}                   % Symbol ×
+\DeclareUnicodeCharacter{02B0}{\ensuremath{^h}}                       % Symbol ʰ
+\DeclareUnicodeCharacter{02B3}{\ensuremath{^r}}                       % Symbol ʳ
+\DeclareUnicodeCharacter{02E2}{\ensuremath{^s}}                       % Symbol ˢ
+\DeclareUnicodeCharacter{0302}{\ensuremath{\hat{\phantom{x}}}}        % Symbol ̂
+\DeclareUnicodeCharacter{0332}{\ensuremath{\underline{\phantom{x}}}}  % Symbol ̲
+\DeclareUnicodeCharacter{0308}{\ensuremath{\ddot{\phantom{x}}}}       % Symbol ̈
+\DeclareUnicodeCharacter{0393}{\ensuremath{\Gamma}}                   % Symbol Γ
+\DeclareUnicodeCharacter{0394}{\ensuremath{\Delta}}                   % Symbol Δ
+\DeclareUnicodeCharacter{0398}{\ensuremath{\Theta}}                   % Symbol Θ
+\DeclareUnicodeCharacter{039B}{\ensuremath{\Lambda}}                  % Symbol Λ
+\DeclareUnicodeCharacter{039E}{\ensuremath{\Xi}}                      % Symbol Ξ
+\DeclareUnicodeCharacter{03A0}{\ensuremath{\Pi}}                      % Symbol Π
+\DeclareUnicodeCharacter{03A3}{\ensuremath{\Sigma}}                   % Symbol Σ
+
+% There is not `\Tau` command in LaTeX, so we use `\mathrm{T}`. See
+% http://tex.stackexchange.com/questions/1368/why-can-i-only-use-some-capital-greek-letters-inside-my-equations.
+\DeclareUnicodeCharacter{03A4}{\ensuremath{\mathrm{T}}}  % Symbol Τ
+
+\DeclareUnicodeCharacter{03A5}{\ensuremath{\Upsilon}}   % Symbol Υ
+\DeclareUnicodeCharacter{03A6}{\ensuremath{\Phi}}       % Symbol Φ
+\DeclareUnicodeCharacter{03A8}{\ensuremath{\Psi}}       % Symbol Ψ
+\DeclareUnicodeCharacter{03A9}{\ensuremath{\Omega}}     % Symbol Ω
+\DeclareUnicodeCharacter{03B1}{\ensuremath{\alpha}}     % Symbol α
+\DeclareUnicodeCharacter{03B2}{\ensuremath{\beta}}      % Symbol β
+\DeclareUnicodeCharacter{03B3}{\ensuremath{\gamma}}     % Symbol γ
+\DeclareUnicodeCharacter{03B4}{\ensuremath{\delta}}     % Symbol δ
+\DeclareUnicodeCharacter{03B5}{\ensuremath{\epsilon}}   % Symbol ε
+\DeclareUnicodeCharacter{03B6}{\ensuremath{\zeta}}      % Symbol ζ
+\DeclareUnicodeCharacter{03B7}{\ensuremath{\eta}}       % Symbol η
+\DeclareUnicodeCharacter{03B8}{\ensuremath{\theta}}     % Symbol θ
+\DeclareUnicodeCharacter{03B9}{\ensuremath{\iota}}      % Symbol ι
+\DeclareUnicodeCharacter{03BA}{\ensuremath{\kappa}}     % Symbol κ
+\DeclareUnicodeCharacter{03BB}{\ensuremath{\lambda}}    % Symbol λ
+\DeclareUnicodeCharacter{03BC}{\ensuremath{\mu}}        % Symbol μ
+\DeclareUnicodeCharacter{03BD}{\ensuremath{\nu}}        % Symbol ν
+\DeclareUnicodeCharacter{03BE}{\ensuremath{\xi}}        % Symbol ξ
+\DeclareUnicodeCharacter{03C0}{\ensuremath{\pi}}        % Symbol π
+\DeclareUnicodeCharacter{03C1}{\ensuremath{\rho}}       % Symbol ρ
+\DeclareUnicodeCharacter{03C2}{\ensuremath{\varsigma}}  % Symbol ς
+\DeclareUnicodeCharacter{03C3}{\ensuremath{\sigma}}     % Symbol σ
+\DeclareUnicodeCharacter{03C4}{\ensuremath{\tau}}       % Symbol τ
+\DeclareUnicodeCharacter{03C5}{\ensuremath{\upsilon}}   % Symbol υ
+\DeclareUnicodeCharacter{03C6}{\ensuremath{\varphi}}    % Symbol φ
+\DeclareUnicodeCharacter{03C7}{\ensuremath{\chi}}       % Symbol χ
+\DeclareUnicodeCharacter{03C8}{\ensuremath{\psi}}       % Symbol ψ
+\DeclareUnicodeCharacter{03C9}{\ensuremath{\omega}}     % Symbol ω
+\DeclareUnicodeCharacter{03D1}{\ensuremath{\vartheta}}  % Symbol ϑ
+
+\DeclareUnicodeCharacter{0432}{\ensuremath{\mathrm{PDF\;TODO}}}  % Symbol в
+\DeclareUnicodeCharacter{0435}{\ensuremath{\mathrm{PDF\;TODO}}}  % Symbol е
+\DeclareUnicodeCharacter{0438}{\ensuremath{\mathrm{PDF\;TODO}}}  % Symbol и
+\DeclareUnicodeCharacter{043C}{\ensuremath{\mathrm{PDF\;TODO}}}  % Symbol м
+\DeclareUnicodeCharacter{0440}{\ensuremath{\mathrm{PDF\;TODO}}}  % Symbol р
+\DeclareUnicodeCharacter{0442}{\ensuremath{\mathrm{PDF\;TODO}}}  % Symbol т
+\DeclareUnicodeCharacter{041F}{\ensuremath{\mathrm{PDF\;TODO}}}  % Symbol П
+\DeclareUnicodeCharacter{0BA8}{\ensuremath{\mathrm{PDF\;TODO}}}  % Symbol ந
+\DeclareUnicodeCharacter{0BBF}{\ensuremath{\mathrm{PDF\;TODO}}}  % Symbol  ி
+\DeclareUnicodeCharacter{1100}{\ensuremath{\mathrm{PDF\;TODO}}}  % Symbol ᄀ
+\DeclareUnicodeCharacter{11F9}{\ensuremath{\mathrm{PDF\;TODO}}}  % Symbol ᇹ
+
+\DeclareUnicodeCharacter{1D48}{\ensuremath{^d}}  % Symbol ᵈ
+\DeclareUnicodeCharacter{1D50}{\ensuremath{^m}}  % Symbol ᵐ
+\DeclareUnicodeCharacter{1D56}{\ensuremath{^p}}  % Symbol ᵖ
+\DeclareUnicodeCharacter{1D62}{\ensuremath{_i}}  % Symbol ᵢ
+\DeclareUnicodeCharacter{1D63}{\ensuremath{_r}}  % Symbol ᵣ
+\DeclareUnicodeCharacter{1D64}{\ensuremath{_u}}  % Symbol ᵤ
+\DeclareUnicodeCharacter{1D9C}{\ensuremath{^c}}  % Symbol ᶜ
+
+% The command `\text` requires `\usepackage{amsmath}` and the command
+% `\textasciiacute` requires `\usepackage{textcomp}`.
+
+\DeclareUnicodeCharacter{2032}{\ensuremath{\text{\textasciiacute}}}  % Symbol ′
+
+\DeclareUnicodeCharacter{2070}{\ensuremath{^0}}  % Symbol ⁰
+\DeclareUnicodeCharacter{2074}{\ensuremath{^4}}  % Symbol ⁴
+\DeclareUnicodeCharacter{2075}{\ensuremath{^5}}  % Symbol ⁵
+\DeclareUnicodeCharacter{2076}{\ensuremath{^6}}  % Symbol ⁶
+\DeclareUnicodeCharacter{2077}{\ensuremath{^7}}  % Symbol ⁷
+\DeclareUnicodeCharacter{2078}{\ensuremath{^8}}  % Symbol ⁸
+\DeclareUnicodeCharacter{2079}{\ensuremath{^9}}  % Symbol ⁹
+\DeclareUnicodeCharacter{207A}{\ensuremath{^+}}  % Symbol ⁺
+\DeclareUnicodeCharacter{207B}{\ensuremath{^-}}  % Symbol ⁻
+\DeclareUnicodeCharacter{207F}{\ensuremath{^n}}  % Symbol ⁿ
+\DeclareUnicodeCharacter{2080}{\ensuremath{_0}}  % Symbol ₀
+\DeclareUnicodeCharacter{2081}{\ensuremath{_1}}  % Symbol ₁
+\DeclareUnicodeCharacter{2082}{\ensuremath{_2}}  % Symbol ₂
+\DeclareUnicodeCharacter{2083}{\ensuremath{_3}}  % Symbol ₃
+\DeclareUnicodeCharacter{2084}{\ensuremath{_4}}  % Symbol ₄
+\DeclareUnicodeCharacter{2085}{\ensuremath{_5}}  % Symbol ₅
+\DeclareUnicodeCharacter{2086}{\ensuremath{_6}}  % Symbol ₆
+\DeclareUnicodeCharacter{2087}{\ensuremath{_7}}  % Symbol ₇
+\DeclareUnicodeCharacter{2088}{\ensuremath{_8}}  % Symbol ₈
+\DeclareUnicodeCharacter{2089}{\ensuremath{_9}}  % Symbol ₉
+\DeclareUnicodeCharacter{208A}{\ensuremath{_+}}  % Symbol ₊
+\DeclareUnicodeCharacter{208B}{\ensuremath{_-}}  % Symbol ₋
+\DeclareUnicodeCharacter{2091}{\ensuremath{_e}}  % Symbol ₑ
+\DeclareUnicodeCharacter{2095}{\ensuremath{_h}}  % Symbol ₕ
+\DeclareUnicodeCharacter{2096}{\ensuremath{_k}}  % Symbol ₖ
+\DeclareUnicodeCharacter{2097}{\ensuremath{_l}}  % Symbol ₗ
+\DeclareUnicodeCharacter{2098}{\ensuremath{_m}}  % Symbol ₘ
+\DeclareUnicodeCharacter{2099}{\ensuremath{_n}}  % Symbol ₙ
+\DeclareUnicodeCharacter{209A}{\ensuremath{_p}}  % Symbol ₚ
+\DeclareUnicodeCharacter{209B}{\ensuremath{_s}}  % Symbol ₛ
+\DeclareUnicodeCharacter{209C}{\ensuremath{_t}}  % Symbol ₜ
+
+\DeclareUnicodeCharacter{2113}{\ensuremath{\mathpzc{l}}} % Symbol ℓ
+
+% The command `\mathbbm` requires `\usepackage{bbm}`.
+\DeclareUnicodeCharacter{2115}{\ensuremath{\mathbbm{N}}}  % Symbol ℕ
+\DeclareUnicodeCharacter{211A}{\ensuremath{\mathbbm{Q}}}  % Symbol ℚ
+\DeclareUnicodeCharacter{211D}{\ensuremath{\mathbbm{R}}}  % Symbol ℝ
+\DeclareUnicodeCharacter{2124}{\ensuremath{\mathbbm{Z}}}  % Symbol ℤ
+
+\DeclareUnicodeCharacter{2135}{\ensuremath{\aleph}}           % Symbol ℵ
+\DeclareUnicodeCharacter{2190}{\ensuremath{\leftarrow}}       % Symbol ←
+\DeclareUnicodeCharacter{2192}{\ensuremath{\rightarrow}}      % Symbol →
+\DeclareUnicodeCharacter{2194}{\ensuremath{\leftrightarrow}}  % Symbol ↔
+
+% The command `\twoheadrightarrow` requires `\usepackage{amssymb}`.
+\DeclareUnicodeCharacter{21A0}{\ensuremath{\twoheadrightarrow}}  % Symbol ↠
+
+\DeclareUnicodeCharacter{21A6}{\ensuremath{\mapsto}}  % Symbol ↦
+\DeclareUnicodeCharacter{21A6}{\ensuremath{\mapsto}}  % Symbol ↦
+
+% The command `\restriction` requires `\usepackage{amssymb}`.
+\DeclareUnicodeCharacter{21BE}{\ensuremath{\restriction}}  % Symbol ↾
+
+\DeclareUnicodeCharacter{21D0}{\ensuremath{\Leftarrow}}       % Symbol ⇐
+\DeclareUnicodeCharacter{21D2}{\ensuremath{\Rightarrow}}      % Symbol ⇒
+\DeclareUnicodeCharacter{21D4}{\ensuremath{\Leftrightarrow}}  % Symbol ⇔
+
+\DeclareUnicodeCharacter{2200}{\ensuremath{\forall}}      % Symbol ∀
+\DeclareUnicodeCharacter{2203}{\ensuremath{\exists}}      % Symbol ∃
+\DeclareUnicodeCharacter{2204}{\ensuremath{\not\exists}}  % Symbol ∃
+\DeclareUnicodeCharacter{2205}{\ensuremath{\emptyset}}    % Symbol ∅
+\DeclareUnicodeCharacter{2208}{\ensuremath{\in}}          % Symbol ∈
+\DeclareUnicodeCharacter{2209}{\ensuremath{\not\in}}      % Symbol ∉
+\DeclareUnicodeCharacter{220B}{\ensuremath{\ni}}          % Symbol ∋
+\DeclareUnicodeCharacter{220C}{\ensuremath{\not\ni}}      % Symbol ∌
+
+% The command `\blacksquare` requires `\usepackage{amssymb}`.
+\DeclareUnicodeCharacter{220E}{{\tiny \ensuremath{\blacksquare}}} % Symbol ∎
+
+\DeclareUnicodeCharacter{220F}{{\tiny \ensuremath{\prod}}}  % Symbol ∏
+\DeclareUnicodeCharacter{2211}{\ensuremath{\sum}}           % Symbol ∑
+\DeclareUnicodeCharacter{2218}{\ensuremath{\circ}}          % Symbol ∘
+\DeclareUnicodeCharacter{221E}{\ensuremath{\infty}}         % Symbol ∞
+\DeclareUnicodeCharacter{2223}{\ensuremath{\mid}}           % Symbol ∣
+\DeclareUnicodeCharacter{2225}{\ensuremath{\parallel}}      % Symbol ∥
+\DeclareUnicodeCharacter{2227}{\ensuremath{\wedge}}         % Symbol ∧
+\DeclareUnicodeCharacter{2228}{\ensuremath{\vee}}           % Symbol ∨
+\DeclareUnicodeCharacter{2229}{\ensuremath{\cap}}           % Symbol ∩
+\DeclareUnicodeCharacter{222A}{\ensuremath{\cup}}           % Symbol ∪
+\DeclareUnicodeCharacter{222B}{\ensuremath{\int}}           % Symbol ∫
+\DeclareUnicodeCharacter{2234}{\ensuremath{\therefore}}     % Symbol ∴
+
+% The command `\dblcolon` requires `\usepackage{mathtools}`.
+\DeclareUnicodeCharacter{2237}{\ensuremath{\dblcolon}} % Symbol ∷
+
+\newcommand{\dotminus}{\mathop{\mbox{$-^{\hspace{-.5em}\cdot}\,$}}}
+\DeclareUnicodeCharacter{2238}{\ensuremath{\dotminus}}  % Symbol ∸
+
+\DeclareUnicodeCharacter{223C}{\ensuremath{\sim}}       % Symbol ∼
+\DeclareUnicodeCharacter{2243}{\ensuremath{\simeq}}     % Symbol ≃
+\DeclareUnicodeCharacter{2245}{\ensuremath{\cong}}      % Symbol ≅
+\DeclareUnicodeCharacter{2248}{\ensuremath{\approx}}    % Symbol ≈
+\DeclareUnicodeCharacter{2250}{\ensuremath{\doteq}}     % Symbol ≐
+
+% The command `\coloneqq` requires `\usepackage{mathtools}`.
+\DeclareUnicodeCharacter{2254}{\ensuremath{\coloneqq}}  % Symbol ≔
+
+\newcommand{\eqq}{\stackrel{\text{\tiny ?}}{=}}
+\DeclareUnicodeCharacter{225F}{\ensuremath{\eqq}}  % Symbol ≟
+
+\DeclareUnicodeCharacter{2260}{\ensuremath{\neq}}         % Symbol ≠
+\DeclareUnicodeCharacter{2261}{\ensuremath{\equiv}}       % Symbol ≡
+\DeclareUnicodeCharacter{2262}{\ensuremath{\not\equiv}}   % Symbol ≢
+\DeclareUnicodeCharacter{2264}{\ensuremath{\le}}          % Symbol ≤
+\DeclareUnicodeCharacter{2265}{\ensuremath{\ge}}          % Symbol ≥
+\DeclareUnicodeCharacter{226E}{\ensuremath{\nless}}       % Symbol ≮
+\DeclareUnicodeCharacter{226F}{\ensuremath{\ngtr}}        % Symbol ≯
+\DeclareUnicodeCharacter{2270}{\ensuremath{\nleq}}        % Symbol ≰
+\DeclareUnicodeCharacter{2271}{\ensuremath{\ngeq}}        % Symbol ≱
+\DeclareUnicodeCharacter{227A}{\ensuremath{\prec}}        % Symbol ≺
+\DeclareUnicodeCharacter{227C}{\ensuremath{\preceq}}      % Symbol ≼
+\DeclareUnicodeCharacter{2282}{\ensuremath{\subset}}      % Symbol ⊂
+\DeclareUnicodeCharacter{2284}{\ensuremath{\not\subset}} % Symbol ⊄
+\DeclareUnicodeCharacter{2283}{\ensuremath{\supset}}      % Symbol ⊃
+\DeclareUnicodeCharacter{2286}{\ensuremath{\subseteq}}    % Symbol ⊆
+\DeclareUnicodeCharacter{228E}{\ensuremath{\uplus}}       % Symbol ⊎
+\DeclareUnicodeCharacter{2291}{\ensuremath{\sqsubseteq}}  % Symbol ⊑
+\DeclareUnicodeCharacter{2293}{\ensuremath{\sqcap}}       % Symbol ⊓
+\DeclareUnicodeCharacter{2294}{\ensuremath{\sqcup}}       % Symbol ⊔
+\DeclareUnicodeCharacter{2295}{\ensuremath{\oplus}}       % Symbol ⊕
+\DeclareUnicodeCharacter{22A2}{\ensuremath{\vdash}}       % Symbol ⊢
+\DeclareUnicodeCharacter{22A4}{\ensuremath{\top}}         % Symbol ⊤
+\DeclareUnicodeCharacter{22A5}{\ensuremath{\bot}}         % Symbol ⊥
+\DeclareUnicodeCharacter{22C0}{\ensuremath{\bigwedge}}    % Symbol ⋀
+\DeclareUnicodeCharacter{22C2}{\ensuremath{\bigcap}}      % Symbol ⋂
+\DeclareUnicodeCharacter{22C3}{\ensuremath{\bigcup}}      % Symbol ⋃
+\DeclareUnicodeCharacter{22EE}{\ensuremath{\vdots}}       % Symbol ⋮
+\DeclareUnicodeCharacter{22EF}{\ensuremath{\cdots}}       % Symbol ⋯
+
+% The command `\iddots` requires `\usepackage{mathdots}`.
+\DeclareUnicodeCharacter{22F0}{\ensuremath{\iddots}} % Symbol ⋰
+
+\DeclareUnicodeCharacter{230A}{\ensuremath{\lfloor}}  % Symbol ⌊
+\DeclareUnicodeCharacter{230B}{\ensuremath{\rfloor}}  % Symbol ⌋
+\DeclareUnicodeCharacter{2308}{\ensuremath{\lceil}}   % Symbol ⌈
+\DeclareUnicodeCharacter{2309}{\ensuremath{\rceil}}   % Symbol ⌉
+\DeclareUnicodeCharacter{2329}{\ensuremath{\langle}}  % Symbol 〈
+\DeclareUnicodeCharacter{232A}{\ensuremath{\rangle}}  % Symbol 〉
+
+% The command `\Return` requires `\usepackage{keystroke}`.
+\DeclareUnicodeCharacter{23CE}{\ensuremath{\Return}}  % Symbol ⏎
+
+% The command `\text` requires `\usepackage{amsmath}` and the command
+% `\ding` requires `\usepackage{pifont}`.
+\DeclareUnicodeCharacter{2460}{\ensuremath{\text{\ding{172}}}} % Symbol ①
+\DeclareUnicodeCharacter{2461}{\ensuremath{\text{\ding{173}}}} % Symbol ②
+\DeclareUnicodeCharacter{2462}{\ensuremath{\text{\ding{174}}}} % Symbol ③
+\DeclareUnicodeCharacter{2463}{\ensuremath{\text{\ding{175}}}} % Symbol ④
+\DeclareUnicodeCharacter{2464}{\ensuremath{\text{\ding{176}}}} % Symbol ⑤
+\DeclareUnicodeCharacter{2465}{\ensuremath{\text{\ding{177}}}} % Symbol ⑥
+\DeclareUnicodeCharacter{2466}{\ensuremath{\text{\ding{178}}}} % Symbol ⑦
+\DeclareUnicodeCharacter{2467}{\ensuremath{\text{\ding{179}}}} % Symbol ⑧
+\DeclareUnicodeCharacter{2468}{\ensuremath{\text{\ding{180}}}} % Symbol ⑨
+
+\DeclareUnicodeCharacter{25C5}{\ensuremath{\triangleleft}}  % Symbol ◅
+
+\DeclareUnicodeCharacter{2660}{\ensuremath{\spadesuit}} % Symbol ♠
+\DeclareUnicodeCharacter{266D}{\ensuremath{\flat}}      % Symbol ♭
+\DeclareUnicodeCharacter{266F}{\ensuremath{\sharp}}     % Symbol ♯
+
+\DeclareUnicodeCharacter{2713}{\ensuremath{\checkmark}}  % Symbol ✓
+
+% The commands `\llbracket` and `\rrbracket` require
+% `\usepackage{stmaryrd}`.
+\DeclareUnicodeCharacter{27E6}{\ensuremath{\llbracket}}  % Symbol ⟦
+\DeclareUnicodeCharacter{27E7}{\ensuremath{\rrbracket}}  % Symbol ⟧
+
+\DeclareUnicodeCharacter{27E8}{\ensuremath{\langle}}          % Symbol ⟨
+\DeclareUnicodeCharacter{27E9}{\ensuremath{\rangle}}          % Symbol 〉
+\DeclareUnicodeCharacter{27F6}{\ensuremath{\longrightarrow}}  % Symbol % ⟶
+
+\DeclareUnicodeCharacter{2983}{\ensuremath{\mathrm{PDF\;TODO}}}  % Symbol ⦃
+\DeclareUnicodeCharacter{2984}{\ensuremath{\mathrm{PDF\;TODO}}}  % Symbol ⦄
+\DeclareUnicodeCharacter{2985}{\ensuremath{\mathrm{PDF\;TODO}}}  % Symbol ⦅
+\DeclareUnicodeCharacter{2986}{\ensuremath{\mathrm{PDF\;TODO}}}  % Symbol ⦆
+
+% The commands `\llparenthesis` and `\rrparenthesis` require
+% `\usepackage{stmaryrd}`.
+\DeclareUnicodeCharacter{2987}{\ensuremath{\llparenthesis}}  % Symbol ⦇
+\DeclareUnicodeCharacter{2988}{\ensuremath{\rrparenthesis}}  % Symbol ⦈
+
+\DeclareUnicodeCharacter{29F5}{\ensuremath{\setminus}}   % Symbol ⧵
+
+\DeclareUnicodeCharacter{2A06}{\ensuremath{\bigcup}}  % Symbol ⋃
+\DeclareUnicodeCharacter{2C7C}{\ensuremath{_j}}       % Symbol ⱼ
+
+\DeclareUnicodeCharacter{D7B0}{\ensuremath{\mathrm{PDF\;TODO}}} % Symbol ힰ
+
+% The command `\mathbbm{1}` requires `\usepackage{bbm}`.
+\DeclareUnicodeCharacter{1D7D9}{\ensuremath{\mathbbm{1}}}  % Symbol 𝟙
     '''
-
     # Latex figure (float) alignment
     #
     # 'figure_align': 'htbp',
