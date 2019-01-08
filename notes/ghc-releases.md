@@ -47,7 +47,7 @@ Let's suppose the new version of GHC is X.Y.Z.
 
   `make install-agda-bisect`
 
-* Test the closed-issues-for-milestone program.
+* Test the `closed-issues-for-milestone` program.
 
 * Update the `tested-with` field in Agda.cabal, agda-bisect,
   closed-issues-for-milestone, fix-agda-whitespace.cabal, hTags.cabal
@@ -79,6 +79,9 @@ Let's suppose the new version of GHC is X.Y.Z.
     Agda.cabal.
 
   - Add an instance using `stack-X.Y.Z.yaml` to Travis.
+
+* User manual: Update the tested versions of GHC in
+  `/doc/user-manual/getting-started/prerequisites.rst`.
 
 * Record your changes in the stable branch.
 
