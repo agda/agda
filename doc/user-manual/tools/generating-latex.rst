@@ -640,30 +640,73 @@ Examples
 --------
 
 Some examples that can be used for inspiration (in the HTML version of
-the manual the file names below link to the source code, but not in
-the PDF version of the manual):
+the manual you see links to the source code and in the PDF version of
+the manual you see inline source code).
 
-* For the ``article`` class and pdfLaTeX:
-  :download:`article-pdflatex.lagda.tex`.
+.. only:: builder_html
 
-* For the ``article`` class and LuaLaTeX or XeLaTeX:
-  :download:`article-luaxelatex.lagda.tex` if you want to use the default
-  fonts (with—at the time of writing—bad coverage of non-ASCII
-  characters), and
-  :download:`article-luaxelatex-different-fonts.lagda.tex` if you would
-  prefer to use other fonts (with possibly better coverage).
+   * For the ``article`` class and pdfLaTeX:
+     :download:`article-pdflatex.lagda.tex`.
 
-* For the ``beamer`` class and pdfLaTeX:
-  :download:`beamer-pdflatex.lagda.tex`.
+   * For the ``article`` class and LuaLaTeX or XeLaTeX:
+     :download:`article-luaxelatex.lagda.tex` if you want to use the default
+     fonts (with—at the time of writing—bad coverage of non-ASCII
+     characters), and
+     :download:`article-luaxelatex-different-fonts.lagda.tex` if you would
+     prefer to use other fonts (with possibly better coverage).
 
-* For the ``beamer`` class and LuaLaTeX or XeLaTeX:
-  :download:`beamer-luaxelatex.lagda.tex`.
+   * For the ``beamer`` class and pdfLaTeX:
+     :download:`beamer-pdflatex.lagda.tex`.
 
-* For the ``acmart`` class and pdfLaTeX:
-  :download:`acmart-pdflatex.lagda.tex`.
+   * For the ``beamer`` class and LuaLaTeX or XeLaTeX:
+     :download:`beamer-luaxelatex.lagda.tex`.
 
-* For the ``acmart`` class and XeLaTeX:
-  :download:`acmart-xelatex.lagda.tex`.
+   * For the ``acmart`` class and pdfLaTeX:
+     :download:`acmart-pdflatex.lagda.tex`.
+
+   * For the ``acmart`` class and XeLaTeX:
+     :download:`acmart-xelatex.lagda.tex`.
+
+.. only:: builder_latex
+
+   * For the ``article`` class and pdfLaTeX:
+
+     .. literalinclude:: article-pdflatex.lagda.tex
+        :language: latex
+
+   * For the ``article`` class and LuaLaTeX or XeLaTeX:
+
+     + If you want to use the default fonts (with—at the time of
+       writing—bad coverage of non-ASCII characters):
+
+       .. literalinclude:: article-luaxelatex.lagda.tex
+          :language: latex
+
+     + If you would prefer to use other fonts (with possibly better
+       coverage):
+
+       .. literalinclude:: article-luaxelatex-different-fonts.lagda.tex
+          :language: latex
+
+   * For the ``beamer`` class and pdfLaTeX:
+
+     .. literalinclude:: beamer-pdflatex.lagda.tex
+        :language: latex
+
+   * For the ``beamer`` class and LuaLaTeX or XeLaTeX:
+
+     .. literalinclude:: beamer-luaxelatex.lagda.tex
+        :language: latex
+
+   * For the ``acmart`` class and pdfLaTeX:
+
+     .. literalinclude:: acmart-pdflatex.lagda.tex
+        :language: latex
+
+   * For the ``acmart`` class and XeLaTeX:
+
+     .. literalinclude:: acmart-xelatex.lagda.tex
+        :language: latex
 
 Note that these examples might not satisfy all your requirements, and
 might not work in all settings. If you have to follow a particular
