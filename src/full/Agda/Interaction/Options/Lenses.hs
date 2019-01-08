@@ -111,7 +111,7 @@ class LensSafeMode a where
 
 instance LensSafeMode PragmaOptions where
   getSafeMode = optSafe
-  setSafeMode is opts = opts { optSafe = is }
+  setSafeMode is opts = opts { optSafe = is } -- setSafeOption
 
 instance LensSafeMode CommandLineOptions where
   getSafeMode = getSafeMode . getPragmaOptions

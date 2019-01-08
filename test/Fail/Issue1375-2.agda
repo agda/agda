@@ -1,4 +1,5 @@
 -- Andreas, 2014-12-02, issue reported by Jesper Cockx
+{-# OPTIONS --no-guardedness #-}
 
 data _≡_ {A : Set} (x : A) : A → Set where
   refl : x ≡ x

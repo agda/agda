@@ -3,6 +3,7 @@ module Agda.TypeChecking.Monad.Env where
 
 import Control.Monad.Reader
 import qualified Data.List as List
+import qualified Data.Map as Map
 import Data.Monoid
 
 import Agda.Syntax.Common
@@ -55,6 +56,9 @@ withIncreasedModuleNestingLevel =
 -- | Set highlighting level
 withHighlightingLevel :: HighlightingLevel -> TCM a -> TCM a
 withHighlightingLevel h = localTC $ \ e -> e { envHighlightingLevel = h }
+
+withoutOptionsChecking :: TCM a -> TCM a
+withoutOptionsChecking = localTC $ \ e -> e { envCheckOptionConsistency = False }
 
 -- | Restore setting for 'ExpandLast' to default.
 doExpandLast :: TCM a -> TCM a

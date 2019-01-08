@@ -19,6 +19,7 @@ module Agda.Interaction.Options
     , defaultPragmaOptions
     , standardOptions_
     , unsafePragmaOptions
+    , safeFlag
     , mapFlag
     , usage
     , defaultLibDir
@@ -241,7 +242,7 @@ defaultPragmaOptions = PragmaOptions
   , optUniverseCheck             = True
   , optOmegaInOmega              = False
   , optSizedTypes                = True
-  , optGuardedness               = False
+  , optGuardedness               = True
   , optInjectiveTypeConstructors = False
   , optUniversePolymorphism      = True
   , optWithoutK                  = False
@@ -315,8 +316,7 @@ checkOpts opts
 
   exclusive =
     [ ( optOnlyScopeChecking
-      , optSafe . optPragmaOptions :
-        optGenerateVimFile :
+      , optGenerateVimFile :
         atMostOne
       )
     , ( optInteractive
@@ -336,7 +336,7 @@ checkOpts opts
     , "with --html or --dependency-graph. Furthermore"
     , "--interactive and --interaction cannot be combined with"
     , "--latex, and --only-scope-checking cannot be combined with"
-    , "--safe or --vim."
+    , "--vim."
     ]
 
   htmlRelated = not (optGenerateHTML opts) &&
@@ -350,7 +350,7 @@ checkOpts opts
     , "only be used along with --html flag."
     ]
 
--- | Check for unsafe pramas. Gives a list of used unsafe flags.
+-- | Check for unsafe pragmas. Gives a list of used unsafe flags.
 
 unsafePragmaOptions :: PragmaOptions -> [String]
 unsafePragmaOptions opts =
@@ -385,7 +385,10 @@ helpFlag (Just str) o = case string2HelpTopic str of
                            intercalate ", " (map fst allHelpTopics) ++ ")"
 
 safeFlag :: Flag PragmaOptions
-safeFlag o = return $ o { optSafe = True }
+safeFlag o = return $ o { optSafe        = True
+                        , optGuardedness = False
+                        , optSizedTypes  = False
+                        }
 
 doubleCheckFlag :: Flag PragmaOptions
 doubleCheckFlag o = return $ o { optDoubleCheck = True }
@@ -511,7 +514,7 @@ noSizedTypes o = return $ o { optSizedTypes = False }
 
 guardedness :: Flag PragmaOptions
 guardedness o = return $ o { optGuardedness = True
-                           , optSizedTypes  = False
+                        -- , optSizedTypes  = False
                            }
 
 noGuardedness :: Flag PragmaOptions
@@ -767,9 +770,9 @@ pragmaOptions =
     , Option []     ["no-sized-types"] (NoArg noSizedTypes)
                     "disable sized types"
     , Option []     ["guardedness"] (NoArg guardedness)
-                    "enable constructor-based guarded corecursion (inconsistent with --sized-types)"
+                    "enable constructor-based guarded corecursion (default, inconsistent with --sized-types)"
     , Option []     ["no-guardedness"] (NoArg noGuardedness)
-                    "disable constructor-based guarded corecursion (default)"
+                    "disable constructor-based guarded corecursion"
     , Option []     ["injective-type-constructors"] (NoArg injectiveTypeConstructorFlag)
                     "enable injective type constructors (makes Agda anti-classical and possibly inconsistent)"
     , Option []     ["no-universe-polymorphism"] (NoArg noUniversePolymorphismFlag)
@@ -813,7 +816,7 @@ pragmaOptions =
     , Option []     ["inversion-max-depth"] (ReqArg inversionMaxDepthFlag "N")
                     "set maximum depth for pattern match inversion to N (default: 50)"
     , Option []     ["safe"] (NoArg safeFlag)
-                    "disable postulates, unsafe OPTION pragmas and primEraseEquality"
+                    "disable postulates, unsafe OPTION pragmas and primEraseEquality, implies --no-sized-types and --no-guardedness "
     , Option []     ["double-check"] (NoArg doubleCheckFlag)
                     "enable double-checking of all terms using the internal typechecker"
     , Option []     ["no-syntactic-equality"] (NoArg noSyntacticEqualityFlag)

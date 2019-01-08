@@ -3,6 +3,7 @@ module Issue882a where
 
 open import Common.Level
 open import Common.Equality
+open import Agda.Builtin.TrustMe
 
 trustMe : ∀ {a} {A : Set a} {x y : A} → x ≡ y
 trustMe = primTrustMe

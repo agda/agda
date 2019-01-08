@@ -18,12 +18,17 @@ prop_defaultPragmaOptionsSafe :: Property
 prop_defaultPragmaOptionsSafe = ioProperty helper
   where
     helper :: IO Bool
-    helper
-      | null unsafe = return True
-      | otherwise   = do putStrLn $ "Following pragmas are default but not safe: "
+    helper = do
+      defaultSafe <- runOptM $ safeFlag defaultPragmaOptions
+      case defaultSafe of
+        Left errs -> do
+          putStrLn $ "Unexpected error: " ++ errs
+          return False
+        Right opts -> let unsafe = unsafePragmaOptions opts in
+          if null unsafe then return True else do
+            putStrLn $ "Following pragmas are default but not safe: "
                                           ++ intercalate ", " unsafe
-                         return False
-        where unsafe = unsafePragmaOptions defaultPragmaOptions
+            return False
 
 ------------------------------------------------------------------------
 -- * All tests

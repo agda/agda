@@ -253,6 +253,13 @@ prettyWarning wng = liftTCM $ case wng of
 
     LibraryWarning lw -> pretty lw
 
+    InfectiveImport o m -> fsep $
+      pwords "Importing module" ++ [pretty m] ++ pwords "using the" ++
+      [pretty o] ++ pwords "flag from a module which does not."
+
+    CoInfectiveImport o m -> fsep $
+      pwords "Importing module" ++ [pretty m] ++ pwords "not using the" ++
+      [pretty o] ++ pwords "flag from a module which does."
 
 prettyTCWarnings :: [TCWarning] -> TCM String
 prettyTCWarnings = fmap (unlines . intersperse "") . prettyTCWarnings'

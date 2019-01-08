@@ -7,7 +7,13 @@ Command-line options
 Command-line options
 --------------------
 
-Agda accepts the following options.
+Agda accepts the following options. Agda checks that options used in
+imported modules are consistent with each other, e.g. a module using
+`--safe`, `--without-K`, `--no-universe-polymorphism`,
+`--no-sized-types` or `--no-guardedness` may only import modules with
+the same option, and modules using `--cubical` or `--prop` must in
+turn use the same option.
+
 
 General options
 ~~~~~~~~~~~~~~~
@@ -279,12 +285,11 @@ Other features
       Disable sized types (see :ref:`sized-types`)
 
 :samp:`--guardedness`
-      Enable constructor-based guarded corecursion, disable sized
-      types (see :ref:`coinduction`)
+      Enable constructor-based guarded corecursion (default; see
+      :ref:`coinduction`)
 
 :samp:`--no-guardedness`
-      Disable constructor-based guarded corecursion (default; see
-      :ref:`coinduction`)
+      Disable constructor-based guarded corecursion (see :ref:`coinduction`)
 
 :samp:`--universe-polymorphism`
       Enable universe polymorphism (default;

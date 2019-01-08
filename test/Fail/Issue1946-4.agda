@@ -6,7 +6,7 @@
 --
 -- Sized types are needed to formulate initial algebras in general:
 --
-{-# OPTIONS --sized-types #-}
+{-# OPTIONS --sized-types --no-guardedness #-}
 --
 -- We need to skip the positivity check since we cannot communicate
 -- to Agda that we only want strictly positive F's in the definition of Mu

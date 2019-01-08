@@ -4,6 +4,7 @@ module Reflection where
 open import Common.Prelude hiding (Unit; module Unit) renaming (Nat to ℕ; module Nat to ℕ)
 open import Common.Reflection
 open import Common.Equality
+open import Agda.Builtin.TrustMe
 
 data Id {A : Set}(x : A) : (B : Set) → B → Set where
   course : Id x A x

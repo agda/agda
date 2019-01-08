@@ -3,6 +3,7 @@
 module TrustMe where
 
 open import Common.Equality
+open import Agda.Builtin.TrustMe
 
 postulate
   A : Set

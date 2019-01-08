@@ -68,6 +68,8 @@ instance EmbPrj Warning where
   icod_ IllformedAsClause            = icodeN 15 IllformedAsClause
   icod_ WithoutKFlagPrimEraseEquality = icodeN 16 WithoutKFlagPrimEraseEquality
   icod_ (InstanceWithExplicitArg a)  = icodeN 17 InstanceWithExplicitArg a
+  icod_ (InfectiveImport a b)          = icodeN 18 InfectiveImport a b
+  icod_ (CoInfectiveImport a b)        = icodeN 19 CoInfectiveImport a b
 
   value = vcase valu where
       valu [0, a, b]    = valuN UnreachableClauses a b
@@ -88,6 +90,8 @@ instance EmbPrj Warning where
       valu [15]         = valuN IllformedAsClause
       valu [16]         = valuN WithoutKFlagPrimEraseEquality
       valu [17, a]      = valuN InstanceWithExplicitArg a
+      valu [18, a, b]   = valuN InfectiveImport a b
+      valu [19, a, b]   = valuN InfectiveImport a b
       valu _ = malformed
 
 instance EmbPrj DeclarationWarning where
@@ -162,9 +166,29 @@ instance EmbPrj LibPositionInfo where
     [0, a, b, c]   -> valuN LibPositionInfo a b c
     _ -> malformed
 
-
-
 instance EmbPrj Doc where
   icod_ d = icodeN' (undefined :: String -> Doc) (render d)
 
   value = valueN text
+
+
+instance EmbPrj OptionKeys where
+  icod_ = \case
+    SafeOption -> icodeN' SafeOption
+    WithoutKOption -> icodeN 1 WithoutKOption
+    CubicalOption -> icodeN 2 CubicalOption
+    NoUniversePolymorphismOption -> icodeN 3 NoUniversePolymorphismOption
+    PropOption -> icodeN 4 PropOption
+    NoSizedTypesOption -> icodeN 5 NoSizedTypesOption
+    NoGuardednessOption -> icodeN 6 NoGuardednessOption
+
+
+  value = vcase valu where
+    valu [] = valuN SafeOption
+    valu [1] = valuN WithoutKOption
+    valu [2] = valuN CubicalOption
+    valu [3] = valuN NoUniversePolymorphismOption
+    valu [4] = valuN PropOption
+    valu [5] = valuN NoSizedTypesOption
+    valu [6] = valuN NoGuardednessOption
+    valu _ = malformed

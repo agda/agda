@@ -1,0 +1,3 @@
+Checking Issue2487 (Issue2487.agda).
+Importing module Issue2487 not using the --safe flag from a module
+which does.

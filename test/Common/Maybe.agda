@@ -1,3 +1,4 @@
+{-# OPTIONS --without-K #-}
 module Common.Maybe where
 
 data Maybe {a} (A : Set a) : Set a where
