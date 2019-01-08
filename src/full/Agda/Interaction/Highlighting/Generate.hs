@@ -630,6 +630,8 @@ warningHighlighting w = case tcWarning w of
   DeprecationWarning{}       -> mempty
   UserWarning{}              -> mempty
   LibraryWarning{}           -> mempty
+  InfectiveImport{}          -> mempty
+  CoInfectiveImport{}        -> mempty
   NicifierIssue w           -> case w of
     -- we intentionally override the binding of `w` here so that our pattern of
     -- using `P.getRange w` still yields the most precise range information we

@@ -1,4 +1,4 @@
-{-# OPTIONS --without-K #-}
+{-# OPTIONS --without-K --no-sized-types --no-guardedness #-}
 
 module Agda.Builtin.Reflection where
 

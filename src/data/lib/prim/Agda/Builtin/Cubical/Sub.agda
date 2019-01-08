@@ -1,4 +1,4 @@
-{-# OPTIONS --cubical #-}
+{-# OPTIONS --cubical --no-sized-types --no-guardedness #-}
 module Agda.Builtin.Cubical.Sub where
 
   open import Agda.Primitive.Cubical

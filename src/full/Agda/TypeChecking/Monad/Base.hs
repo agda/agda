@@ -615,6 +615,7 @@ stConsideringInstance f s =
 stBuiltinThings :: TCState -> BuiltinThings PrimFun
 stBuiltinThings s = (s^.stLocalBuiltins) `Map.union` (s^.stImportedBuiltins)
 
+
 -- * Fresh things
 ------------------------------------------------------------------------
 
@@ -771,6 +772,57 @@ type DecodedModules = Map C.TopLevelModuleName Interface
 data ForeignCode = ForeignCode Range String
   deriving Show
 
+data OptionKeys = SafeOption
+                | WithoutKOption
+                | CubicalOption
+                | NoUniversePolymorphismOption
+                | PropOption  -- if the default changes from --no-prop to --prop, this should change to track --no-prop co-infectively instead
+                | NoSizedTypesOption
+                | NoGuardednessOption
+  deriving (Show, Eq, Ord, Enum, Data)
+
+instance Pretty OptionKeys where
+  pretty o = case o of
+    SafeOption                   -> "--safe"
+    WithoutKOption               -> "--without-K"
+    CubicalOption                -> "--cubical"
+    NoUniversePolymorphismOption -> "--no-universe-polymorphism"
+    PropOption                   -> "--prop"
+    NoSizedTypesOption           -> "--no-sized-types"
+    NoGuardednessOption          -> "--no-guardedness"
+
+-- | An infective option is an option that if used in one module, must
+--   be used in all modules that depend on this module
+infectiveOptions :: [OptionKeys]
+infectiveOptions =
+  [ CubicalOption
+  , PropOption
+  ]
+
+-- | A coinfective option is an option that if used in one module, must
+--   be used in all modules that this module depends on
+coInfectiveOptions :: [OptionKeys]
+coInfectiveOptions =
+  [ SafeOption
+  , WithoutKOption
+  , NoUniversePolymorphismOption
+  , NoSizedTypesOption
+  , NoGuardednessOption
+  ]
+
+type OptionsUsed = Map.Map OptionKeys Bool
+
+pragmaOptionsToOptionsUsed :: PragmaOptions -> OptionsUsed
+pragmaOptionsToOptionsUsed p = Map.fromList opts
+  where opts = [ (SafeOption, optSafe p)
+               , (WithoutKOption, optWithoutK p)
+               , (CubicalOption, optCubical p)
+               , (NoUniversePolymorphismOption, not $ optUniversePolymorphism p)
+               , (PropOption, optProp p)
+               , (NoSizedTypesOption, not $ optSizedTypes p)
+               , (NoGuardednessOption, not $ optGuardedness p)
+               ]
+
 data Interface = Interface
   { iSourceHash      :: Hash
     -- ^ Hash of the source code.
@@ -804,7 +856,10 @@ data Interface = Interface
   , iForeignCode     :: Map BackendName [ForeignCode]
   , iHighlighting    :: HighlightingInfo
   , iPragmaOptions   :: [OptionsPragma]
-                        -- ^ Pragma options set in the file.
+    -- ^ Pragma options set in the file.
+  , iOptionsUsed     :: OptionsUsed
+    -- ^ Options/features used when checking the file (can be different
+    --   from options set directly in the file).
   , iPatternSyns     :: A.PatternSynDefns
   , iWarnings        :: [TCWarning]
   }
@@ -814,7 +869,7 @@ instance Pretty Interface where
   pretty (Interface
             sourceH source fileT importedM moduleN scope insideS signature
             display userwarn builtin foreignCode highlighting pragmaO
-            patternS warnings) =
+            oUsed patternS warnings) =
     hang "Interface" 2 $ vcat
       [ "source hash:"         <+> (pretty . show) sourceH
       , "source:"              $$  nest 2 (text $ T.unpack source)
@@ -830,6 +885,7 @@ instance Pretty Interface where
       , "Foreign code:"        <+> (pretty . show) foreignCode
       , "highlighting:"        <+> (pretty . show) highlighting
       , "pragma options:"      <+> (pretty . show) pragmaO
+      , "options used:"        <+> (pretty . show) oUsed
       , "pattern syns:"        <+> (pretty . show) patternS
       , "warnings:"            <+> (pretty . show) warnings
       ]
@@ -2409,6 +2465,9 @@ data TCEnv =
                 -- ^ Should new metas generalized over.
           , envGeneralizedVars :: Map QName GeneralizedValue
                 -- ^ Values for used generalizable variables.
+          , envCheckOptionConsistency :: Bool
+                -- ^ Do we check that options in imported files are
+                --   consistent with each other?
           }
     deriving Data
 
@@ -2462,6 +2521,7 @@ initEnv = TCEnv { envContext             = []
                 , envCheckpoints            = Map.singleton 0 IdS
                 , envGeneralizeMetas        = NoGeneralize
                 , envGeneralizedVars        = Map.empty
+                , envCheckOptionConsistency = True
                 }
 
 -- | Project 'Relevance' component of 'TCEnv'.
@@ -2723,6 +2783,10 @@ data Warning
     -- ^ User-defined warning (e.g. to mention that a name is deprecated)
   | ModuleDoesntExport C.QName [C.ImportedName]
     -- ^ Some imported names are not actually exported by the source module
+  | InfectiveImport OptionKeys ModuleName
+    -- ^ Importing a file using an infective option into one which doesn't
+  | CoInfectiveImport OptionKeys ModuleName
+    -- ^ Importing a file not using a coinfective option from one which does
   deriving (Show , Data)
 
 
@@ -2764,6 +2828,8 @@ warningName w = case w of
   UselessInline{}              -> UselessInline_
   UselessPublic                -> UselessPublic_
   UserWarning{}                -> UserWarning_
+  InfectiveImport{}            -> InfectiveImport_
+  CoInfectiveImport{}          -> CoInfectiveImport_
 
 
 data TCWarning

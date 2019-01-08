@@ -7,6 +7,8 @@
 (agda2-verbose "Accumulated statistics. ")
 (agda2-verbose "Finished Debug. ")
 (agda2-verbose " New module. Let's check it out. ")
+(agda2-verbose " current options = fromList [(SafeOption,False),(WithoutKOption,False),(CubicalOption,False),(NoUniversePolymorphismOption,False),(PropOption,False),(NoSizedTypesOption,False),(NoGuardednessOption,False)] ")
+(agda2-verbose " imported options = fromList [(SafeOption,False),(WithoutKOption,False),(CubicalOption,False),(NoUniversePolymorphismOption,False),(PropOption,False),(NoSizedTypesOption,False),(NoGuardednessOption,False)] ")
 (agda2-verbose " Now we've looked at Debug ")
 (agda2-status-action "Checked")
 (agda2-info-action "*All Done*" "" nil)

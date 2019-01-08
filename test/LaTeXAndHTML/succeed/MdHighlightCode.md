@@ -23,7 +23,7 @@ data KillerQueue
 </pre>
 This is an Agda code block ↑
 
-<pre class="agda-code"><a id="number"></a><a id="351" href="MdHighlightCode.html#351" class="Function">number</a> <a id="358" class="Symbol">:</a> <a id="360" href="Agda.Builtin.Nat.html#97" class="Datatype">Nat</a>
-<a id="364" href="MdHighlightCode.html#351" class="Function">number</a> <a id="371" class="Symbol">=</a> <a id="373" href="Agda.Builtin.Nat.html#128" class="InductiveConstructor">suc</a> <a id="377" class="Symbol">(</a><a id="378" href="Agda.Builtin.Nat.html#128" class="InductiveConstructor">suc</a> <a id="382" href="Agda.Builtin.Nat.html#115" class="InductiveConstructor">zero</a><a id="386" class="Symbol">)</a>
+<pre class="agda-code"><a id="number"></a><a id="351" href="MdHighlightCode.html#351" class="Function">number</a> <a id="358" class="Symbol">:</a> <a id="360" href="Agda.Builtin.Nat.html#165" class="Datatype">Nat</a>
+<a id="364" href="MdHighlightCode.html#351" class="Function">number</a> <a id="371" class="Symbol">=</a> <a id="373" href="Agda.Builtin.Nat.html#196" class="InductiveConstructor">suc</a> <a id="377" class="Symbol">(</a><a id="378" href="Agda.Builtin.Nat.html#196" class="InductiveConstructor">suc</a> <a id="382" href="Agda.Builtin.Nat.html#183" class="InductiveConstructor">zero</a><a id="386" class="Symbol">)</a>
 </pre>
 This is an Agda code block as well ↑

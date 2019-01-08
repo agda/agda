@@ -19,6 +19,13 @@ instance Arbitrary Simplification where
 prop_monoid_Simplification :: Property3 Simplification
 prop_monoid_Simplification = isMonoid
 
+prop_allOptionsListed :: Bool
+prop_allOptionsListed = sameElements allOptions splitupOptions
+  where
+    allOptions = [toEnum 0..]
+    splitupOptions = coInfectiveOptions ++ infectiveOptions
+    sameElements xs ys = all (`elem` ys) xs && all (`elem` xs) ys
+
 ------------------------------------------------------------------------
 -- * All tests
 ------------------------------------------------------------------------

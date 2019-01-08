@@ -1,0 +1,10 @@
+Issue2487/b.agda:5,1-24
+Importing module Issue2487.c not using the --safe flag from a
+module which does.
+when scope checking the declaration
+  open import Issue2487.c
+Issue2487/b.agda:5,1-24
+Importing module Issue2487.c using the --cubical flag from a module
+which does not.
+when scope checking the declaration
+  open import Issue2487.c
