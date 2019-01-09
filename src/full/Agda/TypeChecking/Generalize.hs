@@ -49,10 +49,11 @@ generalizeTelescope :: Map QName Name -> (forall a. (Telescope -> TCM a) -> TCM 
 generalizeTelescope vars typecheckAction ret | Map.null vars = typecheckAction (ret [])
 generalizeTelescope vars typecheckAction ret = billTo [Typing, Generalize] $ withGenRecVar $ \ genRecMeta -> do
   let s = Set.fromList (Map.keys vars)
-  ((cxtNames, tel), namedMetas, allmetas) <-
+  ((cxtNames, tel, letbinds), namedMetas, allmetas) <-
     createMetasAndTypeCheck s $ typecheckAction $ \ tel -> do
       cxt <- take (size tel) <$> getContext
-      return (map (fst . unDom) cxt, tel)
+      lbs <- getLetBindings -- This gives let-bindings valid in the current context
+      return (map (fst . unDom) cxt, tel, lbs)
   -- Translate the QName to the corresponding bound variable
   (genTel, genTelNames, sub) <- computeGeneralization genRecMeta namedMetas allmetas
 
@@ -78,12 +79,20 @@ generalizeTelescope vars typecheckAction ret = billTo [Typing, Generalize] $ wit
 
   -- We are in context Γ (r : R) and should call the continuation in context Γ Δ Θρ passing it Δ Θρ
   -- We have
-  -- Γ (r : R) ⊢ Θ            Θ = tel
-  -- Γ ⊢ Δ                    Δ = genTel
-  -- Γ Δ ⊢ ρ : Γ (r : R)      ρ = sub
-  -- Γ ⊢ Δ Θρ                 Θρ = tel'
+  --   Γ (r : R) ⊢ Θ            Θ = tel
+  --   Γ ⊢ Δ                    Δ = genTel
+  --   Γ Δ ⊢ ρ : Γ (r : R)      ρ = sub
+  --   Γ ⊢ Δ Θρ                 Θρ = tel'
+  -- And we shouldn't forget about the let-bindings (#3470)
+  --   Γ (r : R) Θ ⊢ letbinds
+  --   Γ Δ Θσ      ⊢ letbinds' = letbinds(lift |Θ| σ)
+  letbinds' <- applySubst (liftS (size tel) sub) <$> instantiateFull letbinds
+  let addLet (x, (v, dom)) = addLetBinding' x v dom
+
   updateContext sub ((genTelCxt ++) . drop 1) $
-    updateContext (raiseS (size tel')) (newTelCxt ++) $ ret genTelVars (abstract genTel tel')
+    updateContext (raiseS (size tel')) (newTelCxt ++) $
+      foldr addLet (ret genTelVars $ abstract genTel tel') letbinds'
+
 
 -- | Generalize a type over a set of (used) generalizable variables.
 generalizeType :: Set QName -> TCM Type -> TCM ([Maybe QName], Type)
