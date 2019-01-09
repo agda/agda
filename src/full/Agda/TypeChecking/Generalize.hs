@@ -162,21 +162,21 @@ computeGeneralization genRecMeta nameMap allmetas = postponeInstanceConstraints 
   -- Any meta in the solution of a generalizable meta should be generalized over (if possible).
   cp <- viewTC eCurrentCheckpoint
   let canGeneralize x = do
-          mv  <- lookupMeta x
-          sub <- enterClosure (miClosRange $ mvInfo mv) $ \ _ ->
-                   checkpointSubstitution cp
+          mv   <- lookupMeta x
+          msub <- enterClosure (miClosRange $ mvInfo mv) $ \ _ ->
+                    checkpointSubstitution' cp
           let sameContext =
                 -- We can only generalize if the metavariable takes the context variables of the
                 -- current context as arguments. This happens either when the context of the meta
                 -- is the same as the current context and there is no pruning, or the meta context
-                -- is a weakening but the extra variables have been prune.
+                -- is a weakening but the extra variables have been pruned.
                 -- It would be possible to generalize also in the case when some context variables
                 -- (other than genTel) have been pruned, but it's hard to construct an example
                 -- where this actually happens.
-                case (sub, mvPermutation mv) of
-                  (IdS, Perm m xs)      -> xs == [0 .. m - 1]
-                  (Wk n IdS, Perm m xs) -> xs == [0 .. m - n - 1]
-                  _                     -> False
+                case (msub, mvPermutation mv) of
+                  (Just IdS, Perm m xs)        -> xs == [0 .. m - 1]
+                  (Just (Wk n IdS), Perm m xs) -> xs == [0 .. m - n - 1]
+                  _                            -> False
           when (not sameContext) $ do
             ty <- getMetaType x
             let Perm m xs = mvPermutation mv
@@ -186,7 +186,7 @@ computeGeneralization genRecMeta nameMap allmetas = postponeInstanceConstraints 
               , text "in context"
               , nest 2 $ inTopContext . prettyTCM =<< getContextTelescope
               , text "permutation:" <+> text (show (m, xs))
-              , text "subst:" <+> pretty sub ]
+              , text "subst:" <+> pretty msub ]
           return sameContext
   inherited <- fmap Set.unions $ forM generalizableClosed $ \ (x, mv) ->
     case mvInstantiation mv of
