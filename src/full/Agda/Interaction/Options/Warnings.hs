@@ -102,6 +102,7 @@ errorWarnings = Set.fromList
   , NotAllowedInMutual_
   , NotStrictlyPositive_
   , OverlappingTokensWarning_
+  , PragmaCompiled_
   , SafeFlagPostulate_
   , SafeFlagPragma_
   , SafeFlagNonTerminating_
@@ -150,6 +151,7 @@ data WarningName
   | NotAllowedInMutual_
   | PolarityPragmasButNotPostulates_
   | PragmaNoTerminationCheck_
+  | PragmaCompiled_
   | UnknownFixityInMixfixDecl_
   | UnknownNamesInFixityDecl_
   | UnknownNamesInPolarityPragmas_
@@ -257,6 +259,7 @@ warningNameDescription w = case w of
   NotAllowedInMutual_              -> "Declarations not allowed in a mutual block."
   PolarityPragmasButNotPostulates_ -> "Polarity pragmas for non-postulates."
   PragmaNoTerminationCheck_        -> "`NO_TERMINATION_CHECK' pragmas are deprecated"
+  PragmaCompiled_                  -> "'COMPILE' pragmas not allowed in safe mode."
   UnknownFixityInMixfixDecl_       -> "Mixfix names without an associated fixity declaration."
   UnknownNamesInFixityDecl_        -> "Names not declared in the same scope as their syntax or fixity declaration."
   UnknownNamesInPolarityPragmas_   -> "Names not declared in the same scope as their polarity pragmas."
