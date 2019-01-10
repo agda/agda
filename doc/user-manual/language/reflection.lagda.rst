@@ -26,8 +26,7 @@ equality, ordering and a show function.
 
 ::
 
-  postulate Name : Set
-  {-# BUILTIN QNAME Name #-}
+  {-# BUILTIN QNAME Name #-} -- Name : Set
 
   primitive
     primQNameEquality : Name → Name → Bool
@@ -54,8 +53,7 @@ Metavariables
 Metavariables are represented by the built-in ``AGDAMETA`` type. They have
 primitive equality, ordering and show::
 
-  postulate Meta : Set
-  {-# BUILTIN AGDAMETA Meta #-}
+  {-# BUILTIN AGDAMETA Meta #-} -- Meta : Set
 
   primitive
     primMetaEquality : Meta → Meta → Bool
@@ -274,12 +272,15 @@ Type checking computations
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Metaprograms, i.e. programs that create other programs, run in a built-in type
-checking monad ``TC``::
+checking monad ``TC``, with structure of the following type:
 
-  postulate
+.. code-block:: agda
+
     TC       : ∀ {a} → Set a → Set a
     returnTC : ∀ {a} {A : Set a} → A → TC A
     bindTC   : ∀ {a b} {A : Set a} {B : Set b} → TC A → (A → TC B) → TC B
+
+The following builtins give access to the identifiers::
 
   {-# BUILTIN AGDATCM       TC       #-}
   {-# BUILTIN AGDATCMRETURN returnTC #-}
@@ -287,9 +288,10 @@ checking monad ``TC``::
 
 
 The ``TC`` monad provides an interface to the Agda type checker using the
-following primitive operations::
+following primitive operations
 
-  postulate
+.. code-block:: agda
+
     -- Unify two terms, potentially solving metavariables in the process.
     unify : Term → Term → TC ⊤
 
@@ -381,6 +383,8 @@ following primitive operations::
     -- Fail if the given computation gives rise to new, unsolved
     -- "blocking" constraints.
     noConstraints : ∀ {a} {A : Set a} → TC A → TC A
+
+They are declared using the following builtins::
 
   {-# BUILTIN AGDATCMUNIFY              unify              #-}
   {-# BUILTIN AGDATCMTYPEERROR          typeError          #-}
