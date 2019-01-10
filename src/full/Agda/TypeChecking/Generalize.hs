@@ -13,6 +13,7 @@ import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.List (nub, partition, init, sortBy)
 import Data.Function (on)
+import Data.Traversable
 
 import Agda.Syntax.Common
 import Agda.Syntax.Concrete.Name (LensInScope(..))
@@ -32,8 +33,9 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Warnings
 
-import Agda.Benchmarking
+import Agda.Benchmarking (Phase(Typing, Generalize))
 import Agda.Utils.Benchmark
+import Agda.Utils.Except
 import Agda.Utils.Functor
 import Agda.Utils.Impossible
 import Agda.Utils.Lens
@@ -85,7 +87,7 @@ generalizeTelescope vars typecheckAction ret = billTo [Typing, Generalize] $ wit
   --   Γ ⊢ Δ Θρ                 Θρ = tel'
   -- And we shouldn't forget about the let-bindings (#3470)
   --   Γ (r : R) Θ ⊢ letbinds
-  --   Γ Δ Θσ      ⊢ letbinds' = letbinds(lift |Θ| σ)
+  --   Γ Δ Θρ      ⊢ letbinds' = letbinds(lift |Θ| ρ)
   letbinds' <- applySubst (liftS (size tel) sub) <$> instantiateFull letbinds
   let addLet (x, (v, dom)) = addLetBinding' x v dom
 
@@ -243,6 +245,112 @@ computeGeneralization genRecMeta nameMap allmetas = postponeInstanceConstraints 
   -- Now abstract over the telescope. We need to apply the substitution that subsitutes a record
   -- value packing up the generalized variables for the genTel variable.
   let sub = unpackSub genRecCon (map (argInfo . fst) teleTypes) (length teleTypes)
+
+  -- Finally eta-expand the GenTel record in non-generalized open metas. When
+  -- we do also update interaction points to refer to the eta-expanded meta
+  -- (#3340).
+
+  let inscope (ii, InteractionPoint{ipMeta = Just x})
+        | Set.member x allmetas = [(x, ii)]
+      inscope _ = []
+  ips <- Map.fromList . concatMap inscope . Map.toList <$> useTC stInteractionPoints
+
+  cp  <- viewTC eCurrentCheckpoint
+  forM_ reallyDontGeneralize $ \ x -> do
+    mv <- lookupMeta x
+    when (isOpenMeta $ mvInstantiation mv) $ enterClosure (miClosRange $ mvInfo mv) $ \ _ -> do
+      cxt <- instantiateFull =<< getContext
+      let notPruned = [ i | i <- permute (takeP (length cxt) $ mvPermutation mv) $
+                                 reverse $ zipWith const [0..] cxt ]
+      case [ i | (i, Dom{unDom = (_, El _ (Def q _))}) <- zip [(0::Int)..] cxt,
+                 q == genRecName, elem i notPruned ] of
+        []    -> return ()
+        _:_:_ -> __IMPOSSIBLE__
+        [i] -> do
+          -- Get the substitution from the point of generalization to the current
+          -- context. This always succeeds since if the meta depends on GenTel
+          -- it must have been created inside the generalization.
+          δ <- checkpointSubstitution cp
+
+          reportSDoc "tc.generalize.eta" 30 $ vcat
+            [ "eta expanding GenRec in"
+            , nest 2 $ prettyTCM (mvJudgement mv)
+            , nest 2 $ "GenRecTel is var" <+> pretty i ]
+
+          -- So we have
+          --   Γ (r : GenTel) Δ ⊢ x : A  and
+          --   Γ (r : GenTel) Δ ⊢ δ : Γ₀ (r : GenTel)
+          -- where |Δ| = i and r has not been pruned.
+          a <- case mvJudgement mv of
+                 IsSort{}  -> return Nothing
+                 HasType{} -> Just <$> getMetaTypeInContext x
+
+          -- v is x applied to the context variables
+          let prune = map Apply . permute (mvPermutation mv)
+          v <- MetaV x . prune <$> getContextArgs
+
+          -- Now we want to compute a substitution
+          --   Γ Θ ⊢ σ : Γ (r : GenTel)
+          -- eta expanding the GenTel (actually this is just 'sub', since 'sub'
+          -- is polymorphic in Γ)
+          let σ = sub
+
+          -- We also need Θ, which is genTel but in Γ instead of Γ₀. We don't
+          -- have a substitution from Γ to Γ₀ so we have rebuild the telescope.
+          let name = traverse $ \ (s, ty) -> (,ty) <$> freshName_ s
+          theta <- mapM name $ telToList $ buildGeneralizeTel genRecCon $ applySubst δ teleTypes
+
+          -- We can get into the unpacked context by lifting with i:
+          --   Γ Θ Δσ ⊢ ρ : Γ (r : GenTel) Δ
+          let ρ = liftS i σ
+              -- we need to perform the same operation on the 'Context'
+              expand cxt = applySubst σ deltaR ++ thetaR ++ gammaR
+                where
+                  (deltaR, _ : gammaR) = splitAt i cxt
+                  thetaR = reverse theta
+
+          -- We don't need it, but for documentation purposes here is the
+          -- inverse of ρ:
+          -- Γ (r : GenTel) Δ ⊢ ρ⁻¹ : Γ Θ Δρ
+          let ρinv = liftS i $ [ Var 0 [Proj ProjSystem fld] | fld <- reverse $ genRecFields ] ++# raiseS 1
+
+          reportSDoc "tc.generalize.eta" 50 $ nest 2 $ vcat
+            [ "ρ ∘ ρ⁻¹ =" <+> pretty (composeS ρ ρinv)
+            , "ρ⁻¹ ∘ ρ =" <+> pretty (composeS ρinv ρ) ]
+
+          updateContext ρ expand $ do
+            reportSDoc "tc.generalize.eta" 30 $ nest 2 $
+              "new context:" <+> (inTopContext . prettyTCM =<< getContextTelescope)
+            -- In this context we create a fresh meta Γ Θ Δσ ⊢ y : Aρ
+            (y, u) <- case a of
+              Nothing -> do
+                s@(MetaS y _) <- newSortMeta
+                return (y, Sort s)
+              Just a  -> newNamedValueMeta DontRunMetaOccursCheck
+                                           (miNameSuggestion $ mvInfo mv)
+                                           (applySubst ρ a)
+
+            -- Finally we solve xρ := y. Meta assignment is smart enough to
+            -- treat the GenRec constructor application produced by ρ as a
+            -- Miller pattern.
+            let MetaV _ es = applySubst ρ v
+                Just vs    = allApplyElims es
+
+            reportSDoc "tc.generalize.eta" 30 $ nest 2 $
+              hsep ["assigning", prettyTCM (MetaV x es), ":=", prettyTCM u]
+
+            -- This fails if x is a blocked term. We leave those alone.
+            assign DirEq x vs u `catchError_` \ err ->
+              case err of
+                PatternErr{} ->
+                  reportSDoc "tc.generalize.eta" 20 $ nest 2 $
+                    "Skipping eta expansion of blocked term meta" <+> pretty (MetaV x es)
+                _ -> throwError err
+
+            -- If x is a hole, update the hole to point to y instead. Note that
+            -- holes never point to blocked metas.
+            whenJust (Map.lookup x ips) (`connectInteractionPoint` y)
+
   return (genTel, telNames, sub)
 
 -- | Create a substition from a context where the i first record fields are variables to a context

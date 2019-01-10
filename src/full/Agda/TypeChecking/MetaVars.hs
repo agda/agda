@@ -601,7 +601,9 @@ assign dir x args v = do
     patternViolation
 
   -- We never get blocked terms here anymore. TODO: we actually do. why?
-  whenM (isBlockedTerm x) patternViolation
+  whenM (isBlockedTerm x) $ do
+    reportSLn "tc.meta.assign" 25 $ "aborting: meta is a blocked term!"
+    patternViolation
 
   -- Andreas, 2010-10-15 I want to see whether rhs is blocked
   reportSLn "tc.meta.assign" 50 $ "MetaVars.assign: I want to see whether rhs is blocked"
