@@ -405,7 +405,7 @@ following primitive operations::
   {-# BUILTIN AGDATCMISMACRO            isMacro            #-}
   {-# BUILTIN AGDATCMWITHNORMALISATION  withNormalisation  #-}
   {-# BUILTIN AGDATCMDEBUGPRINT         debugPrint         #-}
-  {-# BUILTIN AGDATCMNOCONSTRAINTS      noConstraints #-}
+  {-# BUILTIN AGDATCMNOCONSTRAINTS      noConstraints      #-}
 
 Metaprogramming
 ---------------
