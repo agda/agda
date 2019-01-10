@@ -606,10 +606,9 @@ Sized types
 
   module Agda.Builtin.Size
 
-The built-ins for :ref:`sized types <sized-types>` uses the
-``BUILTIN`` pragma to declare the names, instead of referring to an
-already defined identifier. Hence, to bind the size primitives it is
-enough to write::
+The built-ins for :ref:`sized types <sized-types>` are different from other
+built-ins in that the names are defined by the ``BUILTIN`` pragma. Hence, to
+bind the size primitives it is enough to write::
 
     {-# BUILTIN SIZEUNIV SizeUniv #-}  --  SizeUniv : SizeUniv
     {-# BUILTIN SIZE     Size     #-}  --  Size     : SizeUniv
@@ -649,7 +648,8 @@ the ``main`` function has the right type (see :ref:`compilers`).
 
 ::
 
-  {-# BUILTIN IO IO #-} -- IO : ∀ {a} → Set a → Set a
+  postulate IO : Set → Set
+  {-# BUILTIN IO IO #-}
 
 Literal overloading
 -------------------
