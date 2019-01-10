@@ -150,7 +150,7 @@ newSortMetaCtx vs = do
     i   <- createMetaInfo
     tel <- getContextTelescope
     let t = telePi_ tel __DUMMY_TYPE__
-    x   <- newMeta i normalMetaPriority (idP 0) $ IsSort () t
+    x   <- newMeta i normalMetaPriority (idP $ size tel) $ IsSort () t
     reportSDoc "tc.meta.new" 50 $
       "new sort meta" <+> prettyTCM x <+> ":" <+> prettyTCM t
     return $ MetaS x $ map Apply vs
