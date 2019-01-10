@@ -248,9 +248,6 @@ builtinAgdaTCMNoConstraints = "AGDATCMNOCONSTRAINTS"
 --
 --   The type of @Type@ would be @Type : Level → Setω@
 --   which is not valid Agda.
---
---   Also used for builtin concepts that used to be postulated,
---   such as String or IO.
 
 builtinsNoDef :: [String]
 builtinsNoDef =
@@ -276,35 +273,4 @@ builtinsNoDef =
   , builtinInf
   , builtinSharp
   , builtinFlat
-  , builtinIO
-  -- reflection
-  , builtinQName
-  , builtinAgdaMeta
-  , builtinAgdaTCM
-  , builtinAgdaTCMReturn
-  , builtinAgdaTCMBind
-  , builtinAgdaTCMUnify
-  , builtinAgdaTCMTypeError
-  , builtinAgdaTCMInferType
-  , builtinAgdaTCMCheckType
-  , builtinAgdaTCMNormalise
-  , builtinAgdaTCMReduce
-  , builtinAgdaTCMCatchError
-  , builtinAgdaTCMGetContext
-  , builtinAgdaTCMExtendContext
-  , builtinAgdaTCMInContext
-  , builtinAgdaTCMFreshName
-  , builtinAgdaTCMDeclareDef
-  , builtinAgdaTCMDeclarePostulate
-  , builtinAgdaTCMDefineFun
-  , builtinAgdaTCMGetType
-  , builtinAgdaTCMGetDefinition
-  , builtinAgdaTCMBlockOnMeta
-  , builtinAgdaTCMCommit
-  , builtinAgdaTCMQuoteTerm
-  , builtinAgdaTCMUnquoteTerm
-  , builtinAgdaTCMIsMacro
-  , builtinAgdaTCMWithNormalisation
-  , builtinAgdaTCMDebugPrint
-  , builtinAgdaTCMNoConstraints
   ]
