@@ -58,7 +58,7 @@ checkAgdaPrimitive pkg info flags = do
         ok <- rawSystem agda [file, "-v0"]
         case ok of
           ExitSuccess   -> return ()
-          ExitFailure _ -> putStrLn $ "WARNING: Failed to typecheck " ++ file ++ "!"
+          ExitFailure _ -> die $ "Error: Failed to typecheck " ++ file ++ "!"
 
   putStrLn "Generating Agda library interface files..."
   checkPrim prim
