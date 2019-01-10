@@ -1,8 +1,7 @@
-{-# OPTIONS --without-K #-}
+{-# OPTIONS --without-K --safe #-}
 
 module Agda.Builtin.IO where
 
-postulate IO : ∀ {a} → Set a → Set a
 {-# BUILTIN IO IO #-}
 
 {-# FOREIGN GHC type AgdaIO a b = IO b #-}

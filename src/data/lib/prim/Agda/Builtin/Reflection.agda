@@ -1,4 +1,4 @@
-{-# OPTIONS --without-K #-}
+{-# OPTIONS --without-K --safe #-}
 
 module Agda.Builtin.Reflection where
 
@@ -14,7 +14,6 @@ open import Agda.Builtin.Int
 
 -- Names --
 
-postulate Name : Set
 {-# BUILTIN QNAME Name #-}
 
 primitive
@@ -71,7 +70,6 @@ primitive
 
 -- Metavariables --
 
-postulate Meta : Set
 {-# BUILTIN AGDAMETA Meta #-}
 
 primitive
@@ -237,7 +235,7 @@ data ErrorPart : Set where
 
 -- TC monad --
 
-postulate
+{-
   TC            : ∀ {a} → Set a → Set a
   returnTC      : ∀ {a} {A : Set a} → A → TC A
   bindTC        : ∀ {a b} {A : Set a} {B : Set b} → TC A → (A → TC B) → TC B
@@ -274,6 +272,7 @@ postulate
   -- Fail if the given computation gives rise to new, unsolved
   -- "blocking" constraints.
   noConstraints : ∀ {a} {A : Set a} → TC A → TC A
+-}
 
 {-# BUILTIN AGDATCM              TC            #-}
 {-# BUILTIN AGDATCMRETURN        returnTC      #-}

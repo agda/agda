@@ -113,7 +113,7 @@ coreBuiltins =
   , (builtinFlat               |-> builtinPostulate typeOfFlat)
   , (builtinQName              |-> builtinPostulate tset)
   , (builtinAgdaMeta           |-> builtinPostulate tset)
-  , (builtinIO                 |-> builtinPostulate (tset --> tset))
+  , (builtinIO                 |-> builtinPostulate (hPi "a" tlevel $ tsetL 0 --> tsetL 0))
   , (builtinPath               |-> BuiltinUnknown
                                                (Just $ requireCubical >>
                                                (hPi "a" (el primLevel) $
