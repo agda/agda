@@ -90,7 +90,7 @@ addConstraint c = do
                                         $$ nest 2 (hang "using" 2 (prettyTCM lvls))
       return $ simplifyLevelConstraint c $ map clValue lvls
 
--- | Don't allow the argument to produce any constraints.
+-- | Don't allow the argument to produce any blocking constraints.
 noConstraints :: TCM a -> TCM a
 noConstraints problem = liftTCM $ do
   (pid, x) <- newProblem problem
