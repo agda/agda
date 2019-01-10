@@ -5,6 +5,8 @@
 -- @mutual@ just pushes the definition parts to the bottom.
 -- Definitions exist for data, record, functions, and pattern synonyms.
 
+postulate Float : Set
+
 {-# BUILTIN FLOAT Float #-}  -- not (yet) allowed in mutual block
 
 mutual

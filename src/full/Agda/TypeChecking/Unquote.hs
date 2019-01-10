@@ -29,6 +29,7 @@ import Agda.Syntax.Translation.ReflectedToAbstract
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
+import Agda.TypeChecking.Monad.Env
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
@@ -333,9 +334,6 @@ instance Unquote a => Unquote (R.Abs a) where
 
     where hint x | not (null x) = x
                  | otherwise    = "_"
-
-getCurrentPath :: MonadTCEnv m => m AbsolutePath
-getCurrentPath = fromMaybe __IMPOSSIBLE__ <$> asksTC envCurrentPath
 
 instance Unquote MetaId where
   unquote t = do

@@ -1,6 +1,7 @@
 
 module LitDistinct where
 
+postulate String : Set
 {-# BUILTIN STRING String #-}
 
 data _==_ {A : Set}(x : A) : A -> Set where

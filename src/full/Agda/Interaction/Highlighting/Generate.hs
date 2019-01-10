@@ -165,7 +165,7 @@ generateAndPrintSyntaxInfo
   -> TCM ()
 generateAndPrintSyntaxInfo decl _ _ | null $ P.getRange decl = return ()
 generateAndPrintSyntaxInfo decl hlLevel updateState = do
-  file <- fromMaybe __IMPOSSIBLE__ <$> asksTC envCurrentPath
+  file <- getCurrentPath
 
   reportSLn "import.iface.create" 15 $
       "Generating syntax info for " ++ filePath file ++ ' ' :
