@@ -5,6 +5,7 @@ module Agda.Builtin.Char where
 open import Agda.Builtin.Nat
 open import Agda.Builtin.Bool
 
+postulate Char : Set
 {-# BUILTIN CHAR Char #-}
 
 primitive

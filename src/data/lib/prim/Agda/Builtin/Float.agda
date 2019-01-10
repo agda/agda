@@ -7,6 +7,7 @@ open import Agda.Builtin.Nat
 open import Agda.Builtin.Int
 open import Agda.Builtin.String
 
+postulate Float : Set
 {-# BUILTIN FLOAT Float #-}
 
 primitive

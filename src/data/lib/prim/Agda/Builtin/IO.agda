@@ -1,4 +1,4 @@
-{-# OPTIONS --without-K --no-sized-types --no-guardedness #-}
+{-# OPTIONS --without-K --safe --no-sized-types --no-guardedness #-}
 
 module Agda.Builtin.IO where
 

@@ -5,9 +5,17 @@ data Maybe (A : Set) : Set where
   nothing : Maybe A
   just : A → Maybe A
 
+postulate
+  String : Set
+
 {-# BUILTIN STRING String #-}
 
 infix 1000 ♯_
+
+postulate
+  ∞  : ∀ {a} (A : Set a) → Set a
+  ♯_ : ∀ {a} {A : Set a} → A → ∞ A
+  ♭  : ∀ {a} {A : Set a} → ∞ A → A
 
 {-# BUILTIN INFINITY ∞  #-}
 {-# BUILTIN SHARP    ♯_ #-}
@@ -18,6 +26,9 @@ infixr 5 _∷_
 data Colist (A : Set) : Set where
   []  : Colist A
   _∷_ : (x : A) (xs : ∞ (Colist A)) → Colist A
+
+postulate
+  Char : Set
 
 {-# BUILTIN CHAR Char #-}
 

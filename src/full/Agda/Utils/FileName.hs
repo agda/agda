@@ -11,6 +11,7 @@ module Agda.Utils.FileName
   , (===)
   , doesFileExistCaseSensitive
   , rootPath
+  , prefixPath
   ) where
 
 import System.Directory
@@ -26,6 +27,7 @@ import qualified Data.Text as Text
 import Data.Function
 import Data.Hashable (Hashable)
 import Data.Data (Data)
+import Data.List (isPrefixOf)
 
 import Agda.Utils.Monad
 import Agda.Utils.Pretty
@@ -120,3 +122,6 @@ doesFileExistCaseSensitive f = do
 #else
 doesFileExistCaseSensitive f = doesFileExist f
 #endif
+
+prefixPath :: FilePath -> FilePath -> Bool
+prefixPath f f' = (splitDirectories f) `isPrefixOf` (splitDirectories f')

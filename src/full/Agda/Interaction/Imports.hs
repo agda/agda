@@ -272,26 +272,21 @@ typeCheckMain f mode si = do
   reportSLn "import.main" 10 $ "Importing the primitive modules."
   libdir <- liftIO defaultLibDir
   reportSLn "import.main" 20 $ "Library dir = " ++ show libdir
-  -- To allow posulating the built-ins, check the primitive module
-  -- in unsafe mode
-  _ <- bracket_ (getsTC $ Lens.getSafeMode) Lens.putSafeMode $ do
-    Lens.putSafeMode False
-    -- Turn off import-chasing messages.
-    -- We have to modify the persistent verbosity setting, since
-    -- getInterface resets the current verbosity settings to the persistent ones.
-    bracket_ (getsTC $ Lens.getPersistentVerbosity) Lens.putPersistentVerbosity $ do
-      Lens.modifyPersistentVerbosity (Trie.delete [])  -- set root verbosity to 0
+  -- Turn off import-chasing messages.
+  -- We have to modify the persistent verbosity setting, since
+  -- getInterface resets the current verbosity settings to the persistent ones.
+  bracket_ (getsTC $ Lens.getPersistentVerbosity) Lens.putPersistentVerbosity $ do
+    Lens.modifyPersistentVerbosity (Trie.delete [])  -- set root verbosity to 0
 
-      -- We don't want to generate highlighting information for Agda.Primitive.
-      withHighlightingLevel None $ withoutOptionsChecking $
-        forM_ [libdir </> "prim" </> "Agda" </> "Primitive.agda"
-              ,libdir </> "prim" </> "Agda" </> "Primitive" </> "Cubical.agda"
-              ] $ \f -> do
-          let file = mkAbsolute f
-          si <- sourceInfo file
-          checkModuleName' (siModuleName si) file
-          getInterface_ (siModuleName si) (Just si)
-
+    -- We don't want to generate highlighting information for Agda.Primitive.
+    withHighlightingLevel None $ withoutOptionsChecking $
+      forM_ [libdir </> "prim" </> "Agda" </> "Primitive.agda"
+            ,libdir </> "prim" </> "Agda" </> "Primitive" </> "Cubical.agda"
+            ] $ \f -> do
+        let file = mkAbsolute f
+        si <- sourceInfo file
+        checkModuleName' (siModuleName si) file
+        getInterface_ (siModuleName si) (Just si)
   reportSLn "import.main" 10 $ "Done importing the primitive modules."
 
   -- Now do the type checking via getInterface'.

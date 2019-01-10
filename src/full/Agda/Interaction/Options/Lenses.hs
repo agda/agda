@@ -8,6 +8,8 @@ module Agda.Interaction.Options.Lenses where
 
 import Control.Monad.State
 
+import System.FilePath ((</>))
+
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.State
 import Agda.Interaction.Options
@@ -131,6 +133,14 @@ modifySafeMode = modifyTC . mapSafeMode
 putSafeMode :: SafeMode -> TCM ()
 putSafeMode = modifyTC . setSafeMode
 
+isBuiltinWithSafePostulates :: FilePath -> TCM Bool
+isBuiltinWithSafePostulates file = do
+  libdir <- liftIO defaultLibDir
+  let unsafeBuiltins =
+        [ libdir </> "prim" </> "Agda" </> "Builtin" </> "TrustMe.agda"
+        , libdir </> "prim" </> "Agda" </> "Builtin" </> "Equality" </> "Rewrite.agda"
+        ]
+  return $ (prefixPath libdir file) && not (elem file unsafeBuiltins)
 
 ---------------------------------------------------------------------------
 -- ** Include directories
