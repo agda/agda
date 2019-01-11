@@ -49,22 +49,9 @@ When releasing the following procedure can be followed:
     cd agda-release
     git checkout master
 
-* The $CHANGE_VERSION_FILES variable represents the files where it is
-  necessary to change the version number.
+* Update the Agda version
 
-    $CHANGE_VERSION_FILES=
-      .ghci
-      Agda.cabal
-      default.nix
-      doc/user-manual/conf.py
-      mk/versions.mk
-      src/data/emacs-mode/agda2-mode.el
-      src/data/emacs-mode/agda2-mode-pkg.el
-      src/size-solver/size-solver.cabal
-      test/interaction/Issue1244a.out
-      test/interaction/Issue1244b.out
-
-* Change version to $MAJORVERSION in $CHANGE_VERSION_FILES.
+    ./src/release-tools/change-version.bash VERSION MAJORVERSION
 
 * Obtain and install the standard library branch related to the Agda:
 
