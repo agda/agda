@@ -46,6 +46,8 @@ followed:
 
     git checkout -b release-$MAJORVERSION
 
+* Added the branch release-$MAJORVERSION to Travis.
+
 * The version of the RC is $VERSION + current date
 
     RC_VERSION=<current-released-version-current-date-eg-2.4.0.2.20150913>
