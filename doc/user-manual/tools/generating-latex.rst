@@ -709,10 +709,12 @@ the manual you see inline source code).
         :language: latex
 
 Note that these examples might not satisfy all your requirements, and
-might not work in all settings. If you have to follow a particular
-house style, then you may want to make sure that the Agda code follows
-this style, and that you do not inadvertently change the style of
-other text when customising the style of the Agda code.
+might not work in all settings (in particular, for LuaLaTeX or XeLaTeX
+it might be necessary to install one or more fonts). If you have to
+follow a particular house style, then you may want to make sure that
+the Agda code follows this style, and that you do not inadvertently
+change the style of other text when customising the style of the Agda
+code.
 
 .. _polytable: https://www.ctan.org/pkg/polytable
 .. _hyperref: https://www.ctan.org/pkg/hyperref
