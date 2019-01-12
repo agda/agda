@@ -4,10 +4,6 @@ Release notes for Agda version 2.6.0
 Installation and infrastructure
 --------------------------------
 
-* Generated the interface file for the `Sigma.agda` built-in when
-  installing Agda
-  [Issue [#3128](https://github.com/agda/agda/issues/3128)].
-
 * Fixed a regression in the generation of the interface files by
   `Setup.hs` when using Cabal >= 2.0.0.0
   [Issue [#3444](https://github.com/agda/agda/issues/3128)].
