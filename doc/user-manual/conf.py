@@ -263,6 +263,7 @@ latex_elements = {
 % `\textasciiacute` requires `\usepackage{textcomp}`.
 
 \DeclareUnicodeCharacter{2032}{\ensuremath{\text{\textasciiacute}}}  % Symbol ′
+\DeclareUnicodeCharacter{203F}{\ensuremath{\mathrm{PDF\;TODO}}}      % Symbol ‿
 
 \DeclareUnicodeCharacter{2070}{\ensuremath{^0}}  % Symbol ⁰
 \DeclareUnicodeCharacter{2074}{\ensuremath{^4}}  % Symbol ⁴
