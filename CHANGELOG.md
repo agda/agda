@@ -14,6 +14,26 @@ Installation and infrastructure
   `Setup.hs` when using Cabal >= 2.0.0.0
   [Issue [#3444](https://github.com/agda/agda/issues/3128)].
 
+List of all closed issues
+-------------------------
+
+For 2.5.4.3, the following issues have been closed
+(see [bug tracker](https://github.com/agda/agda/issues)):
+
+  - [#2153](https://github.com/agda/agda/issues/2153): PDF version of Language Documentation on readthedocs lacks most Unicode characters
+  - [#2939](https://github.com/agda/agda/issues/2939): make install-bin on a Mac can fail to install text-icu
+  - [#3128](https://github.com/agda/agda/issues/3128): Sigma builtin not added to setup, agdai file missing.
+  - [#3254](https://github.com/agda/agda/issues/3254): `cpphs` doesn't build with GHC 8.6.*
+  - [#3342](https://github.com/agda/agda/issues/3342): GHC panic on stack and GHC 7.10.3
+  - [#3344](https://github.com/agda/agda/issues/3344): Disable compilation with GHC 8.6.1
+  - [#3368](https://github.com/agda/agda/issues/3368): Support GHC 8.6.2
+  - [#3403](https://github.com/agda/agda/issues/3403): Internal error in Agda.TypeChecking.Rules.Term
+  - [#3404](https://github.com/agda/agda/issues/3404): Positivity checker marks postulates as constant in mutual block
+  - [#3442](https://github.com/agda/agda/issues/3442): Support GHC 8.6.3
+  - [#3444](https://github.com/agda/agda/issues/3444): `Setup.hs` is not generating the interface files
+  - [#3471](https://github.com/agda/agda/issues/3471): Can't install via cabal-install on current Haskell Platform
+  - [#3480](https://github.com/agda/agda/issues/3480): Parse error at EOF should be reported before EOF (especially if there is a long comment before EOF)
+
 Release notes for Agda version 2.5.4.2
 ======================================
 
