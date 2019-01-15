@@ -677,6 +677,7 @@ test-suite agda-tests
   other-modules:      Compiler.Tests
                     , Fail.Tests
                     , Interactive.Tests
+                    , Internal.Compiler.MAlonzo.Encode
                     , Internal.Helpers
                     , Internal.Interaction.Highlighting.Precise
                     , Internal.Interaction.Highlighting.Range
