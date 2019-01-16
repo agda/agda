@@ -6,7 +6,7 @@ module Agda.TypeChecking.Constraints where
 import Prelude hiding (null)
 
 import Control.Monad
-import Control.Monad.Reader
+import Control.Monad.Reader ()
 
 import qualified Data.List as List
 import qualified Data.Set as Set
@@ -14,7 +14,7 @@ import qualified Data.Set as Set
 import Agda.Syntax.Internal
 
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Monad.Caching
+import Agda.TypeChecking.Monad.Caching ()
 import Agda.TypeChecking.InstanceArguments
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
@@ -36,7 +36,7 @@ import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Pretty (prettyShow)
-import Agda.Utils.Lens
+import Agda.Utils.Lens ()
 
 #include "undefined.h"
 import Agda.Utils.Impossible

@@ -24,9 +24,9 @@ import Prelude hiding ( (<>), null )
 import Prelude hiding ( null )
 #endif
 
-import Control.Applicative hiding (empty)
+import Control.Applicative ()
 import Control.Monad.Reader
-import Control.Monad.State
+import Control.Monad.State ()
 
 import Data.Foldable (toList)
 import qualified Data.List as List
@@ -42,7 +42,6 @@ import Agda.Syntax.Internal.Generic
 import qualified Agda.Syntax.Info as Info
 import Agda.Syntax.Position
 import Agda.Syntax.Common
-import Agda.Syntax.Translation.InternalToAbstract ( reifyPatterns )
 
 import Agda.Termination.CutOff
 import Agda.Termination.Monad
@@ -57,11 +56,9 @@ import Agda.Termination.RecCheck
 import Agda.Termination.Inlining
 
 import Agda.TypeChecking.Datatypes
-import Agda.TypeChecking.EtaContract
 import Agda.TypeChecking.Functions
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
-import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Records -- (isRecordConstructor, isInductiveRecord)
 import Agda.TypeChecking.Reduce (reduce, normalise, instantiate, instantiateFull)
@@ -76,13 +73,12 @@ import Agda.Interaction.Options
 
 import Agda.Utils.Either
 import Agda.Utils.Function
-import Agda.Utils.Functor (($>), (<.>))
+import Agda.Utils.Functor ((<.>))
 import Agda.Utils.List
 import Agda.Utils.Size
 import Agda.Utils.Maybe
 import Agda.Utils.Monad -- (mapM', forM', ifM, or2M, and2M)
 import Agda.Utils.Null
-import Agda.Utils.Permutation
 import Agda.Utils.Pretty (prettyShow)
 import Agda.Utils.Singleton
 import qualified Agda.Utils.VarSet as VarSet

@@ -14,7 +14,7 @@ module Agda.TypeChecking.SyntacticEquality (SynEq, checkSyntacticEquality) where
 
 import Prelude hiding (mapM)
 
-import Control.Applicative hiding ((<**>))
+import Control.Applicative ()
 import Control.Arrow ((***))
 import Control.Monad.State hiding (mapM)
 
@@ -31,7 +31,6 @@ import Agda.TypeChecking.Substitute
 import Agda.Utils.Monad (ifM)
 
 #include "undefined.h"
-import Agda.Utils.Impossible
 
 -- | Syntactic equality check for terms.
 --   @

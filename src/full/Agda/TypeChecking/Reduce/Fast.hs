@@ -39,9 +39,9 @@ Some other tricks that improves performance:
 module Agda.TypeChecking.Reduce.Fast
   ( fastReduce, fastNormalise ) where
 
-import Control.Arrow (first, second)
+import Control.Arrow ()
 import Control.Applicative hiding (empty)
-import Control.Monad.Reader
+import Control.Monad.Reader ()
 import Control.Monad.ST
 import Control.Monad.ST.Unsafe (unsafeSTToIO, unsafeInterleaveST)
 
@@ -50,7 +50,7 @@ import qualified Data.Map as Map
 import qualified Data.IntSet as IntSet
 import qualified Data.List as List
 import Data.Traversable (traverse)
-import Data.Coerce
+import Data.Coerce ()
 import Data.Semigroup ((<>))
 
 import System.IO.Unsafe (unsafePerformIO)
@@ -69,11 +69,9 @@ import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Monad hiding (Closure(..))
 import Agda.TypeChecking.Reduce as R
 import Agda.TypeChecking.Rewriting (rewrite)
-import Agda.TypeChecking.Reduce.Monad as RedM
+import Agda.TypeChecking.Reduce.Monad ()
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Monad.Builtin hiding (constructorForm)
-import Agda.TypeChecking.CompiledClause.Match ()
-import Agda.TypeChecking.Free.Precompute
 
 import Agda.Interaction.Options
 
@@ -81,9 +79,7 @@ import Agda.Utils.Float
 import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Maybe
-import Agda.Utils.Memo
 import Agda.Utils.Null (empty)
-import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.Pretty hiding ((<>))
 import Agda.Utils.Size
@@ -91,8 +87,6 @@ import Agda.Utils.Zipper
 
 #include "undefined.h"
 import Agda.Utils.Impossible
-
-import Debug.Trace
 
 -- * Compact definitions
 

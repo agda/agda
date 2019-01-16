@@ -2,8 +2,8 @@
 
 module Agda.Utils.Tuple where
 
-import Data.Foldable
-import Data.Traversable
+import Data.Foldable ()
+import Data.Traversable ()
 
 infix 2 -*-
 infix 3 /\ -- backslashes at EOL interact badly with CPP...

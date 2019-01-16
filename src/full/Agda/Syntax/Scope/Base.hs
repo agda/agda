@@ -12,9 +12,9 @@ import Prelude hiding ( (<>), null )
 import Prelude hiding ( null )
 #endif
 
-import Control.Arrow (first, second, (***))
-import Control.Applicative hiding (empty)
-import Control.DeepSeq
+import Control.Arrow (first, second)
+import Control.Applicative ()
+import Control.DeepSeq ()
 import Control.Monad
 
 import Data.Either (partitionEithers)

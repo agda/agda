@@ -19,13 +19,13 @@ module Agda.TypeChecking.Substitute
   , Substitution'(..), Substitution
   ) where
 
-import Control.Arrow (first, second)
+import Control.Arrow (second)
 import Data.Function
 import Data.Functor
 import qualified Data.List as List
 import Data.Map (Map)
 import Data.Maybe
-import Data.Monoid
+import Data.Monoid ()
 
 import Debug.Trace (trace)
 import Language.Haskell.TH.Syntax (thenCmp) -- lexicographic combination of Ordering

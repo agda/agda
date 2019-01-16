@@ -6,7 +6,7 @@ module Agda.Syntax.Translation.ReflectedToAbstract where
 
 import Control.Monad.Reader
 
-import Data.Traversable as Trav hiding (mapM)
+import Data.Traversable ()
 
 import Agda.Syntax.Fixity
 import Agda.Syntax.Literal
@@ -20,7 +20,7 @@ import Agda.Syntax.Reflected as R
 import Agda.TypeChecking.Monad as M hiding (MetaInfo)
 import Agda.Syntax.Scope.Monad (getCurrentModule)
 
-import Agda.Utils.Maybe
+import Agda.Utils.Maybe ()
 import Agda.Utils.Monad
 import Agda.Utils.List
 import Agda.Utils.Functor

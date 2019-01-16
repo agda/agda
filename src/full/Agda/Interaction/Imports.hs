@@ -8,29 +8,28 @@ module Agda.Interaction.Imports where
 import Prelude hiding (null)
 
 import Control.Arrow
-import Control.DeepSeq
+import Control.DeepSeq ()
 import Control.Monad.Reader
-import Control.Monad.State
+import Control.Monad.State (execStateT, put)
 import Control.Monad.Trans.Maybe
 import qualified Control.Exception as E
 
-import Data.Function (on)
+import Data.Function ()
 import qualified Data.Map as Map
 import qualified Data.List as List
 import qualified Data.Set as Set
-import qualified Data.Foldable as Fold (toList)
-import qualified Data.List as List
+import Data.Foldable ()
 import Data.Maybe
 import Data.Monoid (mempty, mappend)
 import Data.Map (Map)
-import Data.Set (Set)
+import Data.Set ()
 import Data.Text.Lazy (Text)
 import qualified Data.Text.Lazy as T
 
 import System.Directory (doesFileExist, getModificationTime, removeFile)
 import System.FilePath ((</>))
 
-import qualified Text.PrettyPrint.Boxes as Boxes
+import Text.PrettyPrint.Boxes ()
 
 import Agda.Benchmarking
 
@@ -42,7 +41,7 @@ import Agda.Syntax.Parser
 import Agda.Syntax.Position
 import Agda.Syntax.Scope.Base
 import Agda.Syntax.Translation.ConcreteToAbstract
-import Agda.Syntax.Internal
+import Agda.Syntax.Internal ()
 
 import Agda.TypeChecking.Errors
 import Agda.TypeChecking.Warnings
@@ -50,7 +49,6 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.MetaVars ( openMetasToPostulates )
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Serialise
-import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Primitive
 import Agda.TypeChecking.Pretty as P
 import Agda.TypeChecking.DeadCode
@@ -63,7 +61,7 @@ import {-# SOURCE #-} Agda.Interaction.InteractionTop (showOpenMetas)
 import Agda.Interaction.Options
 import qualified Agda.Interaction.Options.Lenses as Lens
 import Agda.Interaction.Highlighting.Precise
-  (HighlightingInfo, compress)
+  (compress)
 import Agda.Interaction.Highlighting.Generate
 import Agda.Interaction.Highlighting.Vim
 import Agda.Interaction.Response
@@ -78,7 +76,6 @@ import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.IO.Binary
 import Agda.Utils.Pretty hiding (Mode)
-import Agda.Utils.Time
 import Agda.Utils.Hash
 import qualified Agda.Utils.HashMap as HMap
 import qualified Agda.Utils.Trie as Trie

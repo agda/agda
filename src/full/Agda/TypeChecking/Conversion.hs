@@ -4,8 +4,8 @@
 module Agda.TypeChecking.Conversion where
 
 import Control.Monad
-import Control.Monad.Reader
-import Control.Monad.State
+import Control.Monad.Reader ()
+import Control.Monad.State ()
 
 import qualified Data.List as List
 import qualified Data.Map as Map
@@ -23,7 +23,6 @@ import Agda.Syntax.Translation.InternalToAbstract (reify)
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
-import Agda.TypeChecking.CompiledClause (CompiledClauses'(Fail))
 import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.MetaVars.Occurs (killArgs,PruneResult(..),rigidVarsNotContainedIn)
 import Agda.TypeChecking.Names
@@ -33,7 +32,7 @@ import qualified Agda.TypeChecking.SyntacticEquality as SynEq
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Constraints
 import {-# SOURCE #-} Agda.TypeChecking.CheckInternal (infer)
-import Agda.TypeChecking.Errors
+import Agda.TypeChecking.Errors ()
 import Agda.TypeChecking.Forcing (isForced, nextIsForced)
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Datatypes (getConType, getFullyAppliedConType)
@@ -45,7 +44,6 @@ import Agda.TypeChecking.SizedTypes
 import Agda.TypeChecking.Level
 import Agda.TypeChecking.Implicit (implicitArgs)
 import Agda.TypeChecking.Irrelevance
-import Agda.TypeChecking.ProjectionLike (elimView)
 import Agda.TypeChecking.Primitive
 import Agda.Interaction.Options
 
@@ -55,7 +53,7 @@ import Agda.Utils.Monad
 import Agda.Utils.Maybe
 import Agda.Utils.Size
 import Agda.Utils.Tuple
-import Agda.Utils.Lens
+import Agda.Utils.Lens ()
 
 #include "undefined.h"
 import Agda.Utils.Impossible

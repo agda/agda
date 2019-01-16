@@ -12,7 +12,7 @@ import qualified Data.Map.Strict as Map
 import Internal.Helpers
 import Internal.Syntax.Abstract.Name ()
 
-import Test.QuickCheck
+import Test.QuickCheck ()
 
 ------------------------------------------------------------------------------
 -- QuickCheck instances

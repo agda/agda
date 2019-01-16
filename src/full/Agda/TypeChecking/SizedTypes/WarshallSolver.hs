@@ -9,7 +9,7 @@ import Prelude hiding ( (<>), null, truncate )
 import Prelude hiding ( null, truncate )
 #endif
 
-import Control.Applicative hiding (Const, empty)
+import Control.Applicative ()
 import Control.Monad
 
 import Data.Function (on)

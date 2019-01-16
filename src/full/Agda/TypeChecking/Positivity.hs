@@ -11,15 +11,15 @@ import Prelude hiding ( (<>), null )
 import Prelude hiding ( null )
 #endif
 
-import Control.Applicative hiding (empty)
+import Control.Applicative ()
 import Control.DeepSeq
 import Control.Monad.Reader
-import Control.Monad.State (get)
+import Control.Monad.State ()
 
 import Data.Either
 import qualified Data.Foldable as Fold
 import Data.Function
-import Data.Graph (SCC(..), flattenSCC)
+import Data.Graph (SCC(..))
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
 import qualified Data.List as List
@@ -35,8 +35,7 @@ import Debug.Trace
 import Agda.Syntax.Common
 import qualified Agda.Syntax.Info as Info
 import Agda.Syntax.Internal
-import Agda.Syntax.Internal.Pattern
-import Agda.Syntax.Position (fuseRange, Range, HasRange(..), noRange)
+import Agda.Syntax.Position (fuseRange, HasRange(..), noRange)
 import Agda.TypeChecking.Datatypes ( isDataOrRecordType )
 import Agda.TypeChecking.Functions
 import Agda.TypeChecking.Monad
@@ -56,7 +55,6 @@ import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
-import qualified Agda.Utils.Permutation as Perm
 import qualified Agda.Utils.Pretty as P
 import Agda.Utils.Pretty (Pretty, prettyShow)
 import Agda.Utils.SemiRing

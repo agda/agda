@@ -53,19 +53,18 @@ import Prelude hiding (null)
 
 import Control.Monad hiding (forM, forM_)
 import Control.Monad.Trans.Maybe
-import Control.Monad.Reader (asks)
+import Control.Monad.Reader ()
 
-import Data.Foldable (Foldable, foldMap, forM_)
+import Data.Foldable (foldMap, forM_)
 import Data.Function
 import qualified Data.List as List
 import Data.Monoid
 import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
-import qualified Data.Traversable as Trav
-import Data.Traversable (Traversable, forM)
+import Data.Traversable (forM)
 
-import Agda.Interaction.Options
+import Agda.Interaction.Options ()
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
@@ -78,7 +77,6 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
-import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Constraints as C
 
 import qualified Agda.TypeChecking.SizedTypes as S
@@ -101,7 +99,6 @@ import Agda.Utils.Null
 import Agda.Utils.Pretty (Pretty, prettyShow)
 import qualified Agda.Utils.Pretty as P
 import Agda.Utils.Size
-import Agda.Utils.Tuple
 import qualified Agda.Utils.VarSet as VarSet
 
 #include "undefined.h"

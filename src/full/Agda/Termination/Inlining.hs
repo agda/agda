@@ -60,7 +60,6 @@ import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.DisplayForm
-import Agda.TypeChecking.Telescope
 
 import Agda.Utils.List (downFrom)
 import Agda.Utils.Maybe

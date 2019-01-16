@@ -4,7 +4,7 @@ module Agda.TypeChecking.Level where
 
 import Data.Maybe
 import qualified Data.List as List
-import Data.Traversable (Traversable,traverse)
+import Data.Traversable (traverse)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
@@ -14,7 +14,7 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Reduce.Monad ()
 import Agda.TypeChecking.Monad.Builtin
 
-import Agda.Utils.Except ( MonadError(catchError) )
+import Agda.Utils.Except ()
 import Agda.Utils.Maybe ( caseMaybeM, allJustM )
 import Agda.Utils.Monad ( tryMaybe )
 

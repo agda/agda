@@ -17,9 +17,6 @@ import Agda.Utils.Graph.AdjacencyMap.Unidirectional as Graph
 import Agda.Utils.List (distinct)
 import Agda.Utils.Null as Null
 import Agda.Utils.SemiRing
-import Agda.Utils.Singleton (Singleton)
-import qualified Agda.Utils.Singleton as Singleton
-import Agda.Utils.Impossible
 
 import Control.Monad
 

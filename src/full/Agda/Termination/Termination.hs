@@ -21,11 +21,10 @@ import qualified Agda.Termination.CallMatrix as CMSet
 import Agda.Termination.Order
 import Agda.Termination.SparseMatrix
 
-import Agda.Utils.Either
 import Agda.Utils.List
 import Agda.Utils.Maybe
 
-import Data.Monoid
+import Data.Monoid ()
 
 -- | TODO: This comment seems to be partly out of date.
 --

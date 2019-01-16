@@ -22,7 +22,6 @@ import qualified Agda.TypeChecking.Free.Lazy as Free
 import qualified Agda.TypeChecking.Free.Old as Old
 
 import qualified Data.IntMap as Map
-import Data.Monoid
 
 import Internal.Helpers
 import Internal.TypeChecking.Free.Lazy ()

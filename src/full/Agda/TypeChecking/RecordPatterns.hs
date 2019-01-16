@@ -19,16 +19,14 @@ import Control.Monad.State
 import qualified Data.List as List
 import Data.Maybe
 import qualified Data.Map as Map
-import qualified Data.Traversable
+import Data.Traversable ()
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Internal.Pattern as I
-import Agda.Syntax.Literal
 
 import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Coverage.SplitTree
-import Agda.TypeChecking.EtaContract
 import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty hiding (pretty)
@@ -41,8 +39,6 @@ import Agda.Interaction.Options
 
 import Agda.Utils.Either
 import Agda.Utils.Functor
-import Agda.Utils.List
-import qualified Agda.Utils.Map as Map
 import Agda.Utils.Maybe
 import Agda.Utils.Permutation hiding (dropFrom)
 import Agda.Utils.Pretty (Pretty(..))

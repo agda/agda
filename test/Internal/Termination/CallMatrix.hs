@@ -7,7 +7,6 @@ module Internal.Termination.CallMatrix
   ) where
 
 import Agda.Termination.CallMatrix
-import Agda.Termination.CutOff
 import Agda.Termination.SparseMatrix ( Size )
 
 import Internal.Helpers

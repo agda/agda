@@ -2,7 +2,7 @@
 
 module Agda.Auto.Convert where
 
-import Control.Applicative hiding (getConst, Const(..))
+import Control.Applicative ()
 import Data.IORef
 import Data.Maybe (catMaybes)
 import Data.Map (Map)
@@ -34,7 +34,7 @@ import Agda.TypeChecking.Reduce (normalise, instantiate)
 import Agda.TypeChecking.EtaContract (etaContract)
 import Agda.TypeChecking.Monad.Builtin (constructorForm)
 import Agda.TypeChecking.Free as Free (freeIn)
-import Agda.TypeChecking.Errors ( stringTCErr )
+import Agda.TypeChecking.Errors ()
 
 import Agda.Interaction.MakeCase (getClauseForIP)
 

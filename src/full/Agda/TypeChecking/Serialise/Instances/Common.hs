@@ -9,7 +9,7 @@ import Prelude hiding (mapM)
 
 import Control.Monad.Reader hiding (mapM)
 import Control.Monad.State.Strict (gets, modify)
-import Control.Exception
+import Control.Exception ()
 
 import Data.Array.IArray
 import Data.Word
@@ -17,7 +17,7 @@ import qualified Data.Foldable as Fold
 import Data.Hashable
 import qualified Data.HashTable.IO as H
 import Data.Int (Int32)
-import Data.Maybe
+import Data.Maybe ()
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Set (Set)
@@ -52,7 +52,6 @@ import Agda.Utils.Maybe
 import Agda.Utils.NonemptyList
 import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Trie (Trie(..))
-import qualified Agda.Utils.Trie as Trie
 
 import Agda.Utils.Except
 

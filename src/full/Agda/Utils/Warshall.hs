@@ -20,7 +20,6 @@ import qualified Data.List as List
 import Data.Map (Map)
 import qualified Data.Map as Map
 
-import Agda.Syntax.Common (Nat)
 import Agda.Utils.SemiRing
 
 type Matrix a = Array (Int,Int) a

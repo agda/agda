@@ -5,7 +5,7 @@
 -}
 module Agda.TypeChecking.Implicit where
 
-import Control.Monad
+import Control.Monad ()
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
@@ -20,7 +20,6 @@ import Agda.TypeChecking.Pretty
 import Agda.Utils.Tuple
 
 #include "undefined.h"
-import Agda.Utils.Impossible
 
 -- | @implicitArgs n expand t@ generates up to @n@ implicit arguments
 --   metas (unbounded if @n<0@), as long as @t@ is a function type

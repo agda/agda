@@ -5,18 +5,18 @@ module Agda.TypeChecking.CompiledClause.Compile where
 import Prelude hiding (null)
 
 import Control.Applicative
-import Control.Arrow (first, second)
+import Control.Arrow ()
 import Control.Monad
 
 import Data.Maybe
-import Data.Monoid
+import Data.Monoid ()
 import qualified Data.Map as Map
-import Data.List (nubBy, findIndex)
+import Data.List (nubBy)
 import Data.Function
-import qualified Data.IntSet as IntSet
-import Data.Traversable (traverse)
+import Data.IntSet ()
+import Data.Traversable ()
 
-import Debug.Trace
+import Debug.Trace ()
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
@@ -29,13 +29,12 @@ import Agda.TypeChecking.Monad
 import Agda.TypeChecking.RecordPatterns
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Pretty
-import Agda.TypeChecking.Free
+import Agda.TypeChecking.Free ()
 import Agda.TypeChecking.Free.Precompute
 import Agda.TypeChecking.Reduce
 
 import Agda.Utils.Functor
 import Agda.Utils.Maybe
-import Agda.Utils.Null
 import Agda.Utils.List
 import qualified Agda.Utils.Pretty as P
 

@@ -8,7 +8,7 @@ module Agda.Auto.Auto
 
 import Prelude hiding (null)
 
-import Data.Functor
+import Data.Functor ()
 import Control.Monad.State
 import qualified Data.List as List
 import qualified Data.Map as Map
@@ -36,7 +36,7 @@ import Agda.TypeChecking.Reduce (normalise)
 import Agda.Syntax.Common
 import qualified Agda.Syntax.Scope.Base as Scope
 import Agda.Syntax.Scope.Monad (withCurrentModule)
-import Agda.Syntax.Concrete.Name (NameInScope(..), LensInScope(..))
+import Agda.Syntax.Concrete.Name ()
 import qualified Agda.Syntax.Abstract.Name as AN
 import qualified Agda.TypeChecking.Monad.Base as TCM
 import Agda.TypeChecking.EtaContract (etaContract)

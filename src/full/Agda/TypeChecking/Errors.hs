@@ -23,15 +23,15 @@ import Prelude hiding ( (<>), null )
 import Prelude hiding ( null )
 #endif
 
-import Control.Monad.Reader
-import Control.Monad.State
+import Control.Monad.Reader ()
+import Control.Monad.State ()
 
 import Data.Function
 import Data.List (nub, sortBy, intersperse, isInfixOf, dropWhileEnd)
 import Data.Maybe
 import Data.Char (toLower)
 import qualified Data.Set as Set
-import qualified Data.Map as Map
+import Data.Map ()
 import qualified Text.PrettyPrint.Boxes as Boxes
 
 import {-# SOURCE #-} Agda.Interaction.Imports (MainInterface(..))
@@ -59,21 +59,20 @@ import Agda.TypeChecking.Monad.Options
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Monad.State
 import Agda.TypeChecking.Monad.MetaVars
-import Agda.TypeChecking.Positivity
+import Agda.TypeChecking.Positivity ()
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope ( ifPiType )
 import Agda.TypeChecking.Reduce (instantiate)
-import Agda.TypeChecking.Warnings
 
-import Agda.Utils.Except ( MonadError(catchError, throwError) )
+import Agda.Utils.Except ( MonadError(catchError) )
 import Agda.Utils.FileName
 import Agda.Utils.Function
-import Agda.Utils.Functor
+import Agda.Utils.Functor ()
 import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Maybe
-import Agda.Utils.Monad
+import Agda.Utils.Monad ()
 import Agda.Utils.Null
 import Agda.Utils.NonemptyList
 import Agda.Utils.Pretty ( prettyShow )

@@ -31,7 +31,6 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Free
-import Agda.TypeChecking.Level
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Irrelevance
@@ -51,7 +50,7 @@ import Agda.Utils.Except
   )
 
 import Agda.Utils.Function
-import Agda.Utils.Lens
+import Agda.Utils.Lens ()
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
@@ -59,7 +58,7 @@ import Agda.Utils.Null
 import Agda.Utils.Size
 import Agda.Utils.Tuple
 import Agda.Utils.Permutation
-import Agda.Utils.Pretty ( prettyShow, render )
+import Agda.Utils.Pretty ( prettyShow )
 import qualified Agda.Utils.VarSet as Set
 
 #include "undefined.h"

@@ -5,7 +5,7 @@ module Internal.Termination.SparseMatrix
   , tests
   ) where
 
-import Agda.Termination.Semiring (HasZero(..), Semiring)
+import Agda.Termination.Semiring (HasZero(..))
 import qualified Agda.Termination.Semiring as Semiring
 import Agda.Termination.SparseMatrix
 import Agda.Utils.Functor

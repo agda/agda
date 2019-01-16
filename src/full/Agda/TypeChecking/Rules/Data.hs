@@ -5,7 +5,7 @@ module Agda.TypeChecking.Rules.Data where
 
 import Control.Monad
 
-import Data.List (genericTake)
+import Data.List ()
 import Data.Maybe (fromMaybe, catMaybes, isJust)
 import Data.Set (Set)
 import qualified Data.Set as Set

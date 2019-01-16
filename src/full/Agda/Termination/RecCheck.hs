@@ -18,7 +18,7 @@ module Agda.Termination.RecCheck
     )
  where
 
-import Control.Applicative
+import Control.Applicative ()
 
 import Data.Graph
 import Data.List (nub)
@@ -32,7 +32,6 @@ import Agda.TypeChecking.Monad
 import Agda.Utils.Pretty (prettyShow)
 
 #include "undefined.h"
-import Agda.Utils.Impossible
 
 recursive :: [QName] -> TCM Bool
 recursive names = do

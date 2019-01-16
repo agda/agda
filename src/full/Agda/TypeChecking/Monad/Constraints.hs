@@ -3,8 +3,8 @@
 module Agda.TypeChecking.Monad.Constraints where
 
 import Control.Arrow ((&&&))
-import Control.Monad.State
-import Control.Monad.Reader
+import Control.Monad.State ()
+import Control.Monad.Reader ()
 
 import qualified Data.Foldable as Fold
 import qualified Data.List as List
@@ -14,10 +14,8 @@ import qualified Data.Set as Set
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Closure
 import Agda.TypeChecking.Monad.Debug
-import Agda.TypeChecking.Monad.Options
 
 import Agda.Utils.Lens
-import Agda.Utils.List
 import Agda.Utils.Monad
 import Agda.Utils.Except
 

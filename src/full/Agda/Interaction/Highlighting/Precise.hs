@@ -43,8 +43,8 @@ import Agda.Utils.List
 import Data.Maybe
 import qualified Data.List as List
 import Data.Function
-import Data.Semigroup
-import Control.Applicative ((<$>), (<*>))
+import Data.Semigroup ()
+import Control.Applicative ()
 import Control.Arrow (second)
 import Control.Monad
 import Data.IntMap (IntMap)

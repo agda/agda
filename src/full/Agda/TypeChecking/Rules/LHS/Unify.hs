@@ -107,30 +107,24 @@ module Agda.TypeChecking.Rules.LHS.Unify
 
 import Prelude hiding (null)
 
-import Control.Arrow ((***))
-import Control.Applicative hiding (empty)
+import Control.Arrow ()
+import Control.Applicative ()
 import Control.Monad
 import Control.Monad.State
-import Control.Monad.Trans.Maybe
-import Control.Monad.Reader
+import Control.Monad.Trans.Maybe ()
+import Control.Monad.Reader ()
 import Control.Monad.Writer (WriterT(..), MonadWriter(..), Monoid(..))
 
-import Data.Map (Map)
-import qualified Data.Map as Map
+import Data.Map ()
 import Data.Semigroup hiding (Arg)
 import qualified Data.List as List
 
 import Data.Foldable (Foldable)
 import Data.Traversable (Traversable,traverse)
-import qualified Data.Traversable as Trav
-
-import Agda.Interaction.Options (optInjectiveTypeConstructors)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
-import Agda.Syntax.Internal.Pattern
 import Agda.Syntax.Literal
-import Agda.Syntax.Position
 
 import Agda.TypeChecking.Monad
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
@@ -138,27 +132,22 @@ import Agda.TypeChecking.Monad.Builtin (constructorForm)
 import Agda.TypeChecking.Conversion -- equalTerm
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Datatypes
-import Agda.TypeChecking.DropArgs
 import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.Level (reallyUnLevelView)
 import Agda.TypeChecking.Reduce
 import qualified Agda.TypeChecking.Patterns.Match as Match
 import Agda.TypeChecking.Pretty hiding ((<>))
-import Agda.TypeChecking.SizedTypes (compareSizes)
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Free.Reduce
 import Agda.TypeChecking.Records
-import Agda.TypeChecking.MetaVars (assignV, newArgsMetaCtx)
-import Agda.TypeChecking.EtaContract
 import Agda.Interaction.Options (optInjectiveTypeConstructors, optWithoutK)
 
 import Agda.TypeChecking.Rules.LHS.Problem
 -- import Agda.TypeChecking.SyntacticEquality
 
-import Agda.Utils.Except ( MonadError(catchError, throwError) )
-import Agda.Utils.Either
+import Agda.Utils.Except ( MonadError(catchError) )
 import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.List

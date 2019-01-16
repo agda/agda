@@ -58,13 +58,13 @@ conversion checking as it is forced by equality (II).
 
 module Agda.TypeChecking.Forcing where
 
-import Control.Arrow (first, second)
+import Control.Arrow (first)
 import Control.Monad
 import Control.Monad.Trans.Maybe
 import Control.Monad.Writer (WriterT(..), tell)
-import Data.Foldable hiding (any)
-import Data.Traversable
-import Data.Semigroup hiding (Arg)
+import Data.Foldable ()
+import Data.Traversable ()
+import Data.Semigroup ()
 import Data.Maybe
 import Data.List ((\\))
 
@@ -75,17 +75,15 @@ import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
 
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Pretty hiding ((<>))
-import Agda.TypeChecking.Telescope
+import Agda.TypeChecking.Telescope ()
 
-import Agda.Utils.Function
 import Agda.Utils.PartialOrd
-import Agda.Utils.Pretty (prettyShow)
+import Agda.Utils.Pretty ()
 import Agda.Utils.List
 import Agda.Utils.Monad
 import Agda.Utils.Size

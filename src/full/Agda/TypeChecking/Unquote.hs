@@ -10,7 +10,7 @@ import Control.Arrow (first, second)
 import Control.Monad.State
 import Control.Monad.Reader
 import Control.Monad.Writer hiding ((<>))
-import Control.Monad.Trans (lift)
+import Control.Monad.Trans ()
 
 import Data.Char
 import Data.Maybe (fromMaybe)
@@ -29,7 +29,6 @@ import Agda.Syntax.Translation.ReflectedToAbstract
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
-import Agda.TypeChecking.Monad.Env
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
@@ -49,8 +48,7 @@ import Agda.Utils.Except
   , runExceptT
   )
 import Agda.Utils.Either
-import Agda.Utils.FileName
-import Agda.Utils.Lens
+import Agda.Utils.Lens ()
 import Agda.Utils.Monad
 import Agda.Utils.Pretty (prettyShow)
 import Agda.Utils.String ( Str(Str), unStr )

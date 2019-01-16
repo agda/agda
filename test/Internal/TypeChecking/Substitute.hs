@@ -2,12 +2,9 @@
 
 module Internal.TypeChecking.Substitute ( tests ) where
 
-import Control.Arrow ((***), first, second)
+import Control.Arrow (second)
 import Control.Applicative
 import Control.Monad
-import Data.Maybe
-import Data.Monoid hiding ((<>))
-import Data.Semigroup
 import Data.Traversable (traverse)
 
 import Agda.Syntax.Internal

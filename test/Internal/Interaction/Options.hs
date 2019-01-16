@@ -5,12 +5,12 @@ module Internal.Interaction.Options ( tests ) where
 import Agda.Interaction.Options
 import Agda.Interaction.Options.Lenses
 
-import Agda.Utils.Monad
-import Agda.Syntax.Parser
+import Agda.Utils.Monad ()
+import Agda.Syntax.Parser ()
 
 import Data.List
 
-import System.FilePath ((</>), takeExtension)
+import System.FilePath ((</>))
 
 import Utils (getAgdaFilesInDir, SearchMode(Rec))
 

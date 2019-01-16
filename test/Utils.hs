@@ -12,13 +12,10 @@ import Control.Applicative
 import System.Environment
 import Data.Maybe
 import Data.Char
-import qualified Data.Set as S
-import Test.Tasty.Silver
 import Test.Tasty.Silver.Advanced (readFileMaybe)
 import Data.List
 import System.FilePath
 import qualified System.FilePath.Find as Find
-import System.FilePath.GlobPattern
 import System.Directory
 import System.PosixCompat.Time (epochTime)
 import System.PosixCompat.Files (modificationTime)

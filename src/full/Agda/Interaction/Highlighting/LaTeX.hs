@@ -49,8 +49,6 @@ import Agda.Interaction.Highlighting.Precise
 import Agda.TypeChecking.Monad (TCM, Interface(..))
 import qualified Agda.TypeChecking.Monad as TCM
 import qualified Agda.Interaction.Options as O
-import Agda.Compiler.CallCompiler
-import qualified Agda.Utils.IO.UTF8 as UTF8
 import Agda.Utils.FileName (filePath, AbsolutePath, mkAbsolute)
 
 #include "undefined.h"

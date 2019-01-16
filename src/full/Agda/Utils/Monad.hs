@@ -17,7 +17,7 @@ import qualified Control.Monad.Fail as Fail
 
 import Control.Monad.Identity ( Identity )
 import Control.Monad.State
-import Control.Monad.Writer
+import Control.Monad.Writer ()
 import Data.Traversable as Trav hiding (for, sequence)
 import Data.Foldable as Fold
 import Data.Maybe
@@ -28,7 +28,6 @@ import Agda.Utils.Except
   , MonadError(catchError, throwError)
   )
 
-import Agda.Utils.List
 import Agda.Utils.Null (ifNotNullM)
 
 #include "undefined.h"

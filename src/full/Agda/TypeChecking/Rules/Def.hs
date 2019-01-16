@@ -9,23 +9,23 @@ import Prelude hiding ( (<>), mapM, null )
 import Prelude hiding ( mapM, null )
 #endif
 
-import Control.Arrow ((***),first,second)
+import Control.Arrow (first,second)
 import Control.Monad.State hiding (forM, mapM)
-import Control.Monad.Reader hiding (forM, mapM)
+import Control.Monad.Reader ()
 
-import Data.Function
+import Data.Function ()
 import qualified Data.List as List
 import Data.Maybe
-import Data.Traversable (Traversable, traverse, forM, mapM)
-import qualified Data.Map as Map
-import qualified Data.Set as Set
+import Data.Traversable (forM, mapM)
+import Data.Map ()
+import Data.Set ()
 import Data.Semigroup (Semigroup((<>)))
 
 import Agda.Interaction.Options
 
 import Agda.Syntax.Common
 import qualified Agda.Syntax.Concrete as C
-import Agda.Syntax.Concrete (exprFieldA)
+import Agda.Syntax.Concrete ()
 import Agda.Syntax.Position
 import Agda.Syntax.Abstract.Pattern as A
 import qualified Agda.Syntax.Abstract as A
@@ -34,7 +34,6 @@ import Agda.Syntax.Internal as I
 import Agda.Syntax.Internal.Pattern as I
 import qualified Agda.Syntax.Info as Info
 import Agda.Syntax.Fixity
-import Agda.Syntax.Translation.InternalToAbstract
 import Agda.Syntax.Info
 
 import Agda.TypeChecking.Monad
@@ -45,31 +44,28 @@ import Agda.TypeChecking.Warnings ( warning )
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Inlining
-import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Patterns.Abstract (expandPatternSynonyms)
 import Agda.TypeChecking.Pretty hiding ((<>))
 import qualified Agda.TypeChecking.Pretty as Pr
 import Agda.TypeChecking.Substitute
-import Agda.TypeChecking.Free
+import Agda.TypeChecking.Free ()
 import Agda.TypeChecking.CheckInternal
 import Agda.TypeChecking.With
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Injectivity
 import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.SizedTypes.Solve
-import Agda.TypeChecking.RecordPatterns
-import Agda.TypeChecking.Records
 import Agda.TypeChecking.CompiledClause (CompiledClauses'(..), hasProjectionPatterns)
 import Agda.TypeChecking.CompiledClause.Compile
 import Agda.TypeChecking.Primitive hiding (Nat)
 
 import Agda.TypeChecking.Rules.Term
 import Agda.TypeChecking.Rules.LHS                 ( checkLeftHandSide, LHSResult(..), bindAsPatterns )
-import Agda.TypeChecking.Rules.LHS.Problem         ( AsBinding(..) )
+import Agda.TypeChecking.Rules.LHS.Problem ()
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Decl ( checkDecls )
 
-import Agda.Utils.Except ( MonadError(catchError, throwError) )
+import Agda.Utils.Except ( MonadError(catchError) )
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List

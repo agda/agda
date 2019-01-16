@@ -5,12 +5,12 @@ module Agda.TypeChecking.Injectivity where
 import Prelude hiding (mapM)
 
 import Control.Applicative
-import Control.Arrow (first, second)
+import Control.Arrow ()
 import Control.Monad.State hiding (mapM, forM)
 import Control.Monad.Reader hiding (mapM, forM)
 import Control.Monad.Trans.Maybe
 
-import Data.Map (Map)
+import Data.Map ()
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Data.Maybe
@@ -26,7 +26,6 @@ import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Reduce
-import Agda.TypeChecking.Primitive
 import {-# SOURCE #-} Agda.TypeChecking.MetaVars
 import {-# SOURCE #-} Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Pretty hiding ((<>))
@@ -34,9 +33,9 @@ import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Polarity
 import Agda.TypeChecking.Warnings
 
-import Agda.Utils.Except ( MonadError(catchError, throwError) )
+import Agda.Utils.Except ()
 import Agda.Utils.Functor
-import Agda.Utils.Lens
+import Agda.Utils.Lens ()
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad

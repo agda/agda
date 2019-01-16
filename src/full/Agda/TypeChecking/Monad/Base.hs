@@ -18,7 +18,7 @@ import Control.Monad.State
 import Control.Monad.Reader
 import Control.Monad.Writer hiding ((<>))
 import Control.Monad.Trans.Maybe
-import Control.Applicative hiding (empty)
+import Control.Applicative ()
 
 import Data.Function
 import Data.Int
@@ -37,7 +37,7 @@ import Data.Foldable (Foldable)
 import Data.String
 import Data.Text.Lazy (Text)
 import qualified Data.Text.Lazy as T
-import Data.Traversable
+import Data.Traversable ()
 import Data.IORef
 
 import qualified System.Console.Haskeline as Haskeline
@@ -52,10 +52,8 @@ import Agda.Syntax.Concrete.Definitions
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract (AllNames)
 import Agda.Syntax.Internal as I
-import Agda.Syntax.Internal.Pattern ()
 import Agda.Syntax.Internal.Generic (TermLike(..))
-import Agda.Syntax.Literal
-import Agda.Syntax.Parser (PM(..), ParseWarning, runPMIO)
+import Agda.Syntax.Parser (ParseWarning)
 import Agda.Syntax.Parser.Monad (parseWarningName)
 import Agda.Syntax.Treeless (Compiled)
 import Agda.Syntax.Fixity
@@ -67,7 +65,7 @@ import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.Free.Lazy (Free(freeVars'), bind', bind)
 
-import Agda.Termination.CutOff
+import Agda.Termination.CutOff ()
 
 import {-# SOURCE #-} Agda.Compiler.Backend
 
@@ -75,7 +73,7 @@ import {-# SOURCE #-} Agda.Compiler.Backend
 import Agda.Interaction.Options
 import Agda.Interaction.Options.Warnings
 import Agda.Interaction.Response
-  (InteractionOutputCallback, defaultInteractionOutputCallback, Response(..))
+  (InteractionOutputCallback, defaultInteractionOutputCallback)
 import Agda.Interaction.Highlighting.Precise
   (CompressedFile, HighlightingInfo)
 import Agda.Interaction.Library
@@ -84,7 +82,6 @@ import Agda.Utils.Except
   ( Error(strMsg)
   , ExceptT
   , MonadError(catchError, throwError)
-  , runExceptT
   , mapExceptT
   )
 
@@ -104,7 +101,6 @@ import Agda.Utils.Pretty hiding ((<>))
 import qualified Agda.Utils.Pretty as P
 import Agda.Utils.Singleton
 import Agda.Utils.Functor
-import Agda.Utils.Function
 
 #include "undefined.h"
 import Agda.Utils.Impossible

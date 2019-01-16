@@ -1,10 +1,9 @@
 {-# LANGUAGE CPP #-}
 module Agda.Compiler.Treeless.Uncase (caseToSeq) where
 
-import Data.Monoid
+import Data.Monoid ()
 
 import Agda.Syntax.Treeless
-import Agda.Syntax.Literal
 import Agda.TypeChecking.Substitute
 import Agda.Compiler.Treeless.Subst
 import Agda.Compiler.Treeless.Compare

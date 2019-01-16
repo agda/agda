@@ -27,10 +27,10 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
 
-import Agda.Compiler.Treeless.Subst
+import Agda.Compiler.Treeless.Subst ()
 
-import Agda.Utils.Except ( MonadError(catchError) )
-import Agda.Utils.Maybe
+import Agda.Utils.Except ()
+import Agda.Utils.Maybe ()
 import Agda.Utils.Impossible
 
 #include "undefined.h"

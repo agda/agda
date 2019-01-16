@@ -7,16 +7,16 @@ module Agda.TypeChecking.Rules.LHS.ProblemRest where
 import Data.Functor ( (<$), (<$>) )
 #endif
 
-import Control.Arrow (first, second)
+import Control.Arrow ()
 import Control.Monad
 
-import Data.Functor ((<$))
+import Data.Functor ()
 import Data.Maybe
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
-import Agda.Syntax.Abstract.Pattern
+import Agda.Syntax.Abstract.Pattern ()
 import qualified Agda.Syntax.Abstract as A
 
 import Agda.TypeChecking.Monad
@@ -28,9 +28,7 @@ import Agda.TypeChecking.Rules.LHS.Problem
 import Agda.TypeChecking.Rules.LHS.Implicit
 
 import Agda.Utils.Functor
-import Agda.Utils.List
 import Agda.Utils.Size
-import Agda.Utils.Permutation
 
 #include "undefined.h"
 import Agda.Utils.Impossible

@@ -5,8 +5,8 @@
 
 module Agda.Syntax.Internal.Names where
 
-import Data.Foldable
-import Data.Map (Map)
+import Data.Foldable ()
+import Data.Map ()
 import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
@@ -20,7 +20,6 @@ import qualified Agda.Syntax.Abstract as A
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.CompiledClause
 
-import Agda.Utils.Functor
 import Agda.Utils.NonemptyList
 
 import Agda.Utils.Impossible

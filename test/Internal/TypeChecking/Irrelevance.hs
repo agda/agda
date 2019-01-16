@@ -3,7 +3,6 @@
 module Internal.TypeChecking.Irrelevance ( tests ) where
 
 import Agda.Syntax.Common
-import Agda.TypeChecking.Irrelevance
 
 import Internal.Helpers
 import Internal.Syntax.Common ()

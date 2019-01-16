@@ -6,7 +6,7 @@ import Data.Maybe
 import Data.Char
 import qualified Data.List as List
 import Data.Traversable (traverse)
-import Data.Map (Map)
+import Data.Map ()
 import qualified Data.Map as Map
 
 import Agda.Syntax.Position
@@ -15,7 +15,7 @@ import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Primitive
 
-import Agda.Utils.Lens
+import Agda.Utils.Lens ()
 import Agda.Utils.Parser.ReadP
 import Agda.Utils.Pretty hiding (char)
 import Agda.Utils.String ( ltrim )

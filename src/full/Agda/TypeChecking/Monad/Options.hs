@@ -6,30 +6,24 @@ import Prelude hiding (mapM)
 
 import Control.Monad.Reader hiding (mapM)
 import Control.Monad.Writer
-import Control.Monad.State  hiding (mapM)
+import Control.Monad.State ()
 
 import Data.Maybe
-import Data.Traversable
+import Data.Traversable ()
 
 import System.Directory
 import System.FilePath
 
-import Agda.Syntax.Internal
-import Agda.Syntax.Common
-import Agda.Syntax.Concrete
 import {-# SOURCE #-} Agda.TypeChecking.Monad.Debug
-import {-# SOURCE #-} Agda.TypeChecking.Errors
 import Agda.TypeChecking.Warnings
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.State
 import Agda.TypeChecking.Monad.Benchmark
-import {-# SOURCE #-} Agda.Interaction.FindFile
 import Agda.Interaction.Options
 import qualified Agda.Interaction.Options.Lenses as Lens
-import Agda.Interaction.Response
 import Agda.Interaction.Library
 
-import Agda.Utils.Except ( MonadError(catchError) )
+import Agda.Utils.Except ()
 import Agda.Utils.FileName
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
@@ -39,7 +33,6 @@ import Agda.Utils.Pretty
 import Agda.Utils.Trie (Trie)
 import qualified Agda.Utils.Trie as Trie
 import Agda.Utils.Except
-import Agda.Utils.Either
 
 #include "undefined.h"
 import Agda.Utils.Impossible

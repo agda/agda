@@ -10,13 +10,12 @@ module Agda.Compiler.MAlonzo.Pretty where
 import Prelude hiding ((<>))
 #endif
 
-import Data.Generics.Geniplate
+import Data.Generics.Geniplate ()
 import qualified Agda.Utils.Haskell.Syntax as HS
 import Text.PrettyPrint (empty)
 
 import Agda.Compiler.MAlonzo.Encode
 import Agda.Utils.Pretty
-import Agda.Utils.Impossible
 
 #include "undefined.h"
 

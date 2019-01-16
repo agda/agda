@@ -10,43 +10,36 @@ import Prelude hiding ( null )
 #endif
 
 import Control.Monad
-import Control.Monad.Reader
-import Control.Monad.State (modify, gets, get)
+import Control.Monad.Reader ()
+import Control.Monad.State ()
 import Control.Monad.Writer (tell)
 
 import Data.Either (partitionEithers)
 import qualified Data.Foldable as Fold
 import qualified Data.List as List
 import Data.Maybe
-import Data.Map (Map)
-import qualified Data.Sequence as Seq
+import Data.Map ()
 import qualified Data.Set as Set
-import qualified Data.Map as Map
 import Data.Set (Set)
 
-import Agda.Interaction.Options
+import Agda.Interaction.Options ()
 import Agda.Interaction.Highlighting.Generate
 
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Views (deepUnscopeDecl, deepUnscopeDecls)
-import qualified Agda.Syntax.Concrete.Name as C
 import Agda.Syntax.Internal
-import qualified Agda.Syntax.Reflected as R
 import qualified Agda.Syntax.Info as Info
 import Agda.Syntax.Position
 import Agda.Syntax.Common
 import Agda.Syntax.Literal
-import Agda.Syntax.Translation.InternalToAbstract
-import Agda.Syntax.Translation.ReflectedToAbstract
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 
-import Agda.TypeChecking.CheckInternal
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Conversion
-import Agda.TypeChecking.Errors
+import Agda.TypeChecking.Errors ()
 import Agda.TypeChecking.Generalize
 import Agda.TypeChecking.Injectivity
 import Agda.TypeChecking.Irrelevance
@@ -56,7 +49,6 @@ import Agda.TypeChecking.Polarity
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Primitive
 import Agda.TypeChecking.ProjectionLike
-import Agda.TypeChecking.Quote
 import Agda.TypeChecking.Unquote
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.RecordPatterns
@@ -65,7 +57,7 @@ import Agda.TypeChecking.Rewriting
 import Agda.TypeChecking.SizedTypes.Solve
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
-import Agda.TypeChecking.Unquote
+import Agda.TypeChecking.Unquote ()
 import Agda.TypeChecking.Warnings
 
 import Agda.TypeChecking.Rules.Application
@@ -78,10 +70,9 @@ import Agda.TypeChecking.Rules.Display ( checkDisplayPragma )
 
 import Agda.Termination.TermCheck
 
-import Agda.Utils.Except
+import Agda.Utils.Except ()
 import Agda.Utils.Functor
-import Agda.Utils.Function
-import qualified Agda.Utils.HashMap as HMap
+import Agda.Utils.HashMap ()
 import Agda.Utils.Lens
 import Agda.Utils.Maybe
 import Agda.Utils.Monad

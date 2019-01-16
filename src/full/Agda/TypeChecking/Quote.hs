@@ -4,41 +4,32 @@ module Agda.TypeChecking.Quote where
 
 import Control.Arrow ((&&&))
 import Control.Monad
-import Control.Monad.State (runState, get, put)
-import Control.Monad.Reader (asks)
-import Control.Monad.Writer (execWriterT, tell)
-import Control.Monad.Trans (lift)
+import Control.Monad.State ()
+import Control.Monad.Reader ()
+import Control.Monad.Writer ()
+import Control.Monad.Trans ()
 
-import Data.Char
+import Data.Char ()
 import Data.Maybe (fromMaybe)
-import Data.Traversable (traverse)
+import Data.Traversable ()
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Internal.Pattern ( dbPatPerm' )
 import Agda.Syntax.Literal
 import Agda.Syntax.Position
-import Agda.Syntax.Translation.InternalToAbstract
 
 import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.DropArgs
-import Agda.TypeChecking.Free
+import Agda.TypeChecking.Free ()
 import Agda.TypeChecking.Level
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
-import Agda.TypeChecking.Pretty
-import Agda.TypeChecking.Reduce
-import Agda.TypeChecking.Reduce.Monad
 import Agda.TypeChecking.Substitute
-import Agda.TypeChecking.Telescope
 
-import Agda.Utils.Except
+import Agda.Utils.Except ()
 import Agda.Utils.Impossible
-import Agda.Utils.Monad ( ifM )
-import Agda.Utils.Permutation ( Permutation(Perm), compactP, reverseP )
-import Agda.Utils.String ( Str(Str), unStr )
-import Agda.Utils.VarSet (VarSet)
-import qualified Agda.Utils.VarSet as Set
+import Agda.Utils.Monad ()
 import Agda.Utils.FileName
 import Agda.Utils.Size
 

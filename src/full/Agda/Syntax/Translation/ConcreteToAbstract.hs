@@ -30,7 +30,7 @@ import Control.Applicative
 import Control.Arrow (second)
 import Control.Monad.Reader hiding (mapM)
 
-import Data.Foldable (Foldable, traverse_)
+import Data.Foldable (traverse_)
 import Data.Traversable (mapM, traverse)
 import Data.List ((\\), nub, foldl')
 import Data.Set (Set)
@@ -64,7 +64,6 @@ import Agda.Syntax.DoNotation
 import Agda.Syntax.IdiomBrackets
 
 import Agda.TypeChecking.Monad.Base hiding (ModuleInfo, MetaInfo)
-import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Monad.Trace (traceCall, setCurrentRange)
 import Agda.TypeChecking.Monad.State
@@ -85,13 +84,13 @@ import Agda.Interaction.Options
 import qualified Agda.Interaction.Options.Lenses as Lens
 import Agda.Interaction.Options.Warnings
 
-import Agda.Utils.AssocList (AssocList)
+import Agda.Utils.AssocList ()
 import qualified Agda.Utils.AssocList as AssocList
 import Agda.Utils.Either
 import Agda.Utils.Except ( MonadError(catchError, throwError) )
 import Agda.Utils.FileName
 import Agda.Utils.Functor
-import Agda.Utils.Lens
+import Agda.Utils.Lens ()
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad

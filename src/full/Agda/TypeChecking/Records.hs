@@ -8,10 +8,10 @@ import Prelude hiding ((<>))
 #endif
 
 import Control.Monad
-import Control.Monad.Reader
+import Control.Monad.Reader ()
 import Control.Monad.Trans.Maybe
 
-import Data.Function
+import Data.Function ()
 import qualified Data.List as List
 import Data.Maybe
 import qualified Data.Set as Set

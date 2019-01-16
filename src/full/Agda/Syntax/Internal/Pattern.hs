@@ -4,26 +4,23 @@
 
 module Agda.Syntax.Internal.Pattern where
 
-import Control.Arrow (first, second)
+import Control.Arrow (second)
 import Control.Monad.State
 
 import Data.Maybe
 import Data.Monoid
 import qualified Data.List as List
-import Data.Foldable
-import Data.Traversable
+import Data.Foldable ()
+import Data.Traversable ()
 
 import Agda.Syntax.Common
 import Agda.Syntax.Abstract (IsProjP(..))
 import Agda.Syntax.Internal
-import qualified Agda.Syntax.Internal as I
 
-import Agda.Utils.Empty
-import Agda.Utils.Functor
+import Agda.Utils.Functor ()
 import Agda.Utils.List
 import Agda.Utils.Permutation
 import Agda.Utils.Size (size)
-import Agda.Utils.Tuple
 
 #include "undefined.h"
 import Agda.Utils.Impossible

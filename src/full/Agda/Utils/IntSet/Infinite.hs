@@ -8,9 +8,9 @@ module Agda.Utils.IntSet.Infinite
   , invariant )
   where
 
-import Control.Arrow (first, second)
-import Data.Semigroup hiding (All(..))
-import Data.List
+import Control.Arrow ()
+import Data.Semigroup ()
+import Data.List ()
 import Data.Set (Set)
 import qualified Data.Set as Set
 

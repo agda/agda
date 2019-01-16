@@ -46,15 +46,15 @@ module Agda.TypeChecking.Rewriting where
 
 import Prelude hiding (null)
 
-import Control.Applicative hiding (empty)
+import Control.Applicative ()
 import Control.Monad
-import Control.Monad.Reader (local, asks)
+import Control.Monad.Reader (asks)
 
 import Data.Foldable ( Foldable, foldMap )
 import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet
 import qualified Data.List as List
-import Data.Monoid
+import Data.Monoid ()
 
 import Agda.Interaction.Options
 
@@ -64,11 +64,9 @@ import Agda.Syntax.Internal as I
 import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
-import Agda.TypeChecking.Monad.Env
-import Agda.TypeChecking.EtaExpand
+import Agda.TypeChecking.Monad.Env ()
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Free.Lazy
-import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.Conversion
 import qualified Agda.TypeChecking.Positivity.Occurrence as Pos
 import Agda.TypeChecking.Pretty
@@ -77,20 +75,18 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Rewriting.NonLinMatch
-import qualified Agda.TypeChecking.Reduce.Monad as Red
+import Agda.TypeChecking.Reduce.Monad ()
 import Agda.TypeChecking.Warnings
 
 import Agda.Utils.Functor
-import qualified Agda.Utils.HashMap as HMap
-import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Singleton
 import Agda.Utils.Size
-import Agda.Utils.Lens
-import qualified Agda.Utils.HashMap as HMap
+import Agda.Utils.Lens ()
+import Agda.Utils.HashMap ()
 
 #include "undefined.h"
 import Agda.Utils.Impossible

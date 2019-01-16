@@ -9,12 +9,11 @@ import Control.Applicative ( Const(Const), getConst )
 import Control.Arrow (first)
 import Control.Monad.Identity
 
-import Data.Foldable (foldMap)
-import Data.Monoid
-import Data.Traversable
+import Data.Foldable ()
+import Data.Monoid ()
+import Data.Traversable ()
 import Data.Void
 
-import Agda.Syntax.Position
 import Agda.Syntax.Common
 import Agda.Syntax.Abstract as A
 import Agda.Syntax.Concrete (FieldAssignment', exprFieldA)
@@ -22,7 +21,7 @@ import Agda.Syntax.Info
 import Agda.Syntax.Scope.Base (emptyScopeInfo)
 
 import Agda.Utils.Either
-import Agda.Utils.Lens
+import Agda.Utils.Lens ()
 
 data AppView' arg = Application Expr [NamedArg arg]
   deriving (Functor)

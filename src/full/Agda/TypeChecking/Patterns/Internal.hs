@@ -17,10 +17,10 @@ import Agda.Syntax.Internal.Pattern
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
-import Agda.TypeChecking.Reduce (reduce, normalise, instantiate, instantiateFull)
+import Agda.TypeChecking.Reduce (reduce)
 import Agda.TypeChecking.Substitute.DeBruijn
 
-import Agda.Utils.Pretty
+import Agda.Utils.Pretty ()
 
 #include "undefined.h"
 import Agda.Utils.Impossible

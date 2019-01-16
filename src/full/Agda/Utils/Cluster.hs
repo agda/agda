@@ -12,8 +12,8 @@ import Control.Monad
 -- An imperative union-find library:
 import Data.Equivalence.Monad
 
-import Data.Char
-import Data.Functor
+import Data.Char ()
+import Data.Functor ()
 import qualified Data.IntMap as IntMap
 
 -- | Characteristic identifiers.

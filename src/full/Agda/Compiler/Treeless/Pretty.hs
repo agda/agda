@@ -5,7 +5,7 @@ module Agda.Compiler.Treeless.Pretty () where
 
 import Prelude hiding ((!!)) -- don't use partial functions!
 
-import Control.Arrow ((&&&), (***), first, second)
+import Control.Arrow (first)
 import Control.Monad.Reader
 import Data.Maybe
 import qualified Data.Map as Map

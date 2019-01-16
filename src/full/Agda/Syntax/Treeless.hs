@@ -12,9 +12,9 @@ module Agda.Syntax.Treeless
     , module Agda.Syntax.Treeless
     ) where
 
-import Control.Arrow (first, second)
+import Control.Arrow (first)
 
-import Data.Map (Map)
+import Data.Map ()
 import Data.Data (Data)
 import Data.Word
 

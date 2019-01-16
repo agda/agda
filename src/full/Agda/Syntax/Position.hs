@@ -72,9 +72,9 @@ import Prelude hiding ( (<>), null )
 import Prelude hiding ( null )
 #endif
 
-import Control.Applicative hiding (empty)
-import Control.Monad
-import Control.Monad.Writer (runWriter, Writer, tell)
+import Control.Applicative ()
+import Control.Monad ()
+import Control.Monad.Writer (runWriter, tell)
 
 import Data.Foldable (Foldable)
 import qualified Data.Foldable as Fold

@@ -3,12 +3,12 @@
 module Agda.TypeChecking.Monad.Context where
 
 import Control.Monad.Reader
-import Control.Monad.State
+import Control.Monad.State ()
 
 import qualified Data.List as List
-import Data.Map (Map)
+import Data.Map ()
 import qualified Data.Map as Map
-import Data.Monoid
+import Data.Monoid ()
 
 import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Common
@@ -22,12 +22,12 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Monad.Open
 import Agda.TypeChecking.Monad.Options
 
-import Agda.Utils.Except ( MonadError(catchError) )
+import Agda.Utils.Except ()
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List ((!!!), downFrom)
-import Agda.Utils.Maybe
-import Agda.Utils.Monad
+import Agda.Utils.Maybe ()
+import Agda.Utils.Monad ()
 import Agda.Utils.Pretty
 import Agda.Utils.Size
 

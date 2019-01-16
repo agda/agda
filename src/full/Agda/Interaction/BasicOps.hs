@@ -9,17 +9,17 @@ module Agda.Interaction.BasicOps where
 
 import Prelude hiding (null)
 
-import Control.Arrow ((***), first, second)
-import Control.Applicative hiding (empty)
+import Control.Arrow (first)
+import Control.Applicative ()
 import Control.Monad.Reader
 import Control.Monad.State
 import Control.Monad.Identity
 
 import qualified Data.Map as Map
 import qualified Data.Set as Set
-import qualified Data.List as List
+import Data.List ()
 import Data.Maybe
-import Data.Traversable hiding (mapM, forM, for)
+import Data.Traversable ()
 import Data.Monoid
 
 import Agda.Interaction.Options
@@ -29,7 +29,7 @@ import Agda.Syntax.Abstract as A hiding (Open, Apply, Assign)
 import Agda.Syntax.Abstract.Views as A
 import Agda.Syntax.Abstract.Pretty
 import Agda.Syntax.Common
-import Agda.Syntax.Info (ExprInfo(..),MetaInfo(..),emptyMetaInfo,exprNoRange,defaultAppInfo_,defaultAppInfo)
+import Agda.Syntax.Info (MetaInfo(..),emptyMetaInfo,exprNoRange,defaultAppInfo_,defaultAppInfo)
 import qualified Agda.Syntax.Info as Info
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Literal
@@ -67,7 +67,7 @@ import Agda.Termination.TermCheck (termMutual)
 
 import Agda.Utils.Except ( MonadError(catchError, throwError) )
 import Agda.Utils.Functor
-import Agda.Utils.Lens
+import Agda.Utils.Lens ()
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad

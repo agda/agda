@@ -10,11 +10,9 @@ import Control.Monad ( guard, forM, unless )
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Caching
 import {-# SOURCE #-} Agda.TypeChecking.Errors
-import {-# SOURCE #-} Agda.TypeChecking.Pretty
 
 import Agda.Syntax.Position
 import Agda.Syntax.Parser
-import Agda.Syntax.Concrete.Definitions (DeclarationWarning(..))
 
 import Agda.Interaction.Options
 import Agda.Interaction.Options.Warnings

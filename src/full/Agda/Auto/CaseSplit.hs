@@ -5,7 +5,7 @@ module Agda.Auto.CaseSplit where
 
 import Data.IORef
 import Data.Tuple (swap)
-import Data.List (findIndex, union)
+import Data.List (findIndex)
 import Data.Monoid ((<>), Sum(..))
 import Data.Foldable (foldMap)
 import qualified Data.Set    as Set

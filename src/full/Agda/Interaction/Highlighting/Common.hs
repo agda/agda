@@ -5,7 +5,7 @@ module Agda.Interaction.Highlighting.Common
   , chooseHighlightingMethod
   ) where
 
-import Agda.Interaction.Options
+import Agda.Interaction.Options ()
 import Agda.Interaction.Highlighting.Precise
 import Agda.Syntax.Common
 import Agda.TypeChecking.Monad (HighlightingMethod(..))

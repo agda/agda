@@ -20,15 +20,15 @@ import Data.Maybe
 
 import Control.Arrow (left)
 import Control.Monad
-import Control.Monad.Reader
-import Control.Monad.State
+import Control.Monad.Reader ()
+import Control.Monad.State ()
 import Control.Monad.Writer hiding ((<>))
 import Control.Monad.Trans.Maybe
 
 import Data.Either (partitionEithers)
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
-import Data.List (delete, sortBy, stripPrefix, (\\), findIndex)
+import Data.List (findIndex)
 import qualified Data.List as List
 import Data.Monoid ( Monoid, mempty, mappend )
 import Data.Semigroup ( Semigroup )
@@ -45,7 +45,7 @@ import Agda.Syntax.Internal.Pattern
 import Agda.Syntax.Abstract (IsProjP(..))
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Views (asView, deepUnscope)
-import Agda.Syntax.Concrete (FieldAssignment'(..),NameInScope(..),LensInScope(..))
+import Agda.Syntax.Concrete (FieldAssignment'(..),LensInScope(..))
 import Agda.Syntax.Common as Common
 import Agda.Syntax.Info as A
 import Agda.Syntax.Literal

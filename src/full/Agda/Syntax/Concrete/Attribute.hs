@@ -15,7 +15,6 @@ import qualified Data.Map as Map
 import Data.Maybe
 
 import Agda.Syntax.Common
-import Agda.Syntax.Concrete.Name
 
 -- import Agda.Utils.Functor
 

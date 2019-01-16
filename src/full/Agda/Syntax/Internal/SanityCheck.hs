@@ -9,12 +9,12 @@ import Prelude hiding ((<>))
 import Control.Monad
 import qualified Data.IntSet as Set
 
-import Text.PrettyPrint (empty)
+import Text.PrettyPrint ()
 
 import Agda.Syntax.Internal
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Substitute
+import Agda.TypeChecking.Substitute ()
 
 import Agda.Utils.List ( dropEnd )
 import Agda.Utils.Pretty

@@ -5,25 +5,23 @@ module Agda.TypeChecking.Generalize
   , generalizeType'
   , generalizeTelescope ) where
 
-import Control.Arrow ((***), first, second)
+import Control.Arrow (first)
 import Control.Monad
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Map (Map)
 import qualified Data.Map as Map
-import Data.List (nub, partition, init, sortBy)
+import Data.List (nub, partition, sortBy)
 import Data.Function (on)
-import Data.Traversable
+import Data.Traversable ()
 
 import Agda.Syntax.Common
 import Agda.Syntax.Concrete.Name (LensInScope(..))
 import Agda.Syntax.Position
 import Agda.Syntax.Internal
-import Agda.Syntax.Literal
 import Agda.Syntax.Scope.Monad (bindVariable)
 import Agda.Syntax.Scope.Base (Binder(..))
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Abstract
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Irrelevance
@@ -32,7 +30,6 @@ import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
-import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Warnings
 
 import Agda.Benchmarking (Phase(Typing, Generalize))

@@ -25,8 +25,8 @@ import Data.Functor
 import Data.Map (Map)
 import qualified Data.Map as Map
 
-import System.Environment
-import System.Exit
+import System.Environment ()
+import System.Exit ()
 import System.Console.GetOpt
 
 import Agda.Syntax.Treeless
@@ -36,16 +36,15 @@ import Agda.TypeChecking.Pretty as P
 
 import Agda.Interaction.Options
 import Agda.Interaction.FindFile
-import Agda.Interaction.Highlighting.HTML
 import Agda.Interaction.Imports (getAllWarnings)
 import Agda.TypeChecking.Warnings
 
 import Agda.Utils.FileName
-import Agda.Utils.Functor
+import Agda.Utils.Functor ()
 import Agda.Utils.IndexedList
 import Agda.Utils.Lens
 import Agda.Utils.Monad
-import Agda.Utils.Pretty
+import Agda.Utils.Pretty ()
 
 import Agda.Compiler.ToTreeless
 import Agda.Compiler.Common

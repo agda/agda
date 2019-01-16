@@ -6,11 +6,9 @@
 
 module Internal.Utils.ListT ( tests ) where
 
-import Control.Applicative
-
 import Data.Functor.Identity
 
-import Text.Show.Functions
+import Text.Show.Functions ()
 
 import Agda.Utils.ListT
 

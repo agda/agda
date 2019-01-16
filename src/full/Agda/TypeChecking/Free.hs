@@ -38,17 +38,17 @@ module Agda.TypeChecking.Free
 
 import Prelude hiding (null)
 
-import Control.Monad.Reader
+import Control.Monad.Reader ()
 
-import Data.Maybe
+import Data.Maybe ()
 import Data.Monoid ( Monoid, mempty, mappend, mconcat )
 import Data.Semigroup ( Semigroup, (<>), Any(..), All(..) )
 import Data.IntSet (IntSet)
 import qualified Data.IntSet as Set
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as Map
-import Data.Set (Set)
-import Data.Proxy
+import Data.Set ()
+import Data.Proxy ()
 
 import qualified Agda.Benchmarking as Bench
 
@@ -56,7 +56,7 @@ import Agda.Syntax.Common hiding (Arg, Dom, NamedArg)
 import Agda.Syntax.Internal
 
 import Agda.TypeChecking.Free.Lazy
-  ( Free(..) , FreeEnv(..), initFreeEnv
+  ( Free(..)
   , VarOcc(..), topVarOcc, TheVarMap, theVarMap, IgnoreSorts(..), Variable, SingleVar
   , MetaSet, IsVarSet(..), runFreeM
   )

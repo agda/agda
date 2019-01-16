@@ -19,21 +19,20 @@ module Agda.TypeChecking.Coverage
 import Prelude hiding (null, (!!))  -- do not use partial functions like !!
 
 import Control.Monad
-import Control.Monad.Reader
+import Control.Monad.Reader ()
 import Control.Monad.Trans ( lift )
 
-import Data.Either (lefts)
+import Data.Either ()
 import qualified Data.List as List
-import Data.Monoid (Any(..))
+import Data.Monoid ()
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
-import qualified Data.Traversable as Trav
+import Data.Traversable ()
 
 import Agda.Syntax.Common
 import Agda.Syntax.Position
-import Agda.Syntax.Literal
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
 
@@ -68,7 +67,7 @@ import Agda.Interaction.Options
 import Agda.Utils.Either
 import Agda.Utils.Except
   ( ExceptT
-  , MonadError(catchError, throwError)
+  , MonadError(throwError)
   , runExceptT
   )
 import Agda.Utils.Function
@@ -80,8 +79,7 @@ import Agda.Utils.Null
 import Agda.Utils.Permutation
 import Agda.Utils.Pretty (prettyShow)
 import Agda.Utils.Size
-import Agda.Utils.Tuple
-import Agda.Utils.Lens
+import Agda.Utils.Lens ()
 
 #include "undefined.h"
 import Agda.Utils.Impossible

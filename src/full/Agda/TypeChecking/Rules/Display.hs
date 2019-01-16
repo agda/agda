@@ -2,7 +2,7 @@
 module Agda.TypeChecking.Rules.Display (checkDisplayPragma) where
 
 import Data.Maybe
-import qualified Data.List as List
+import Data.List ()
 
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Views

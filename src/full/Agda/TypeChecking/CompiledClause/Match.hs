@@ -2,19 +2,17 @@
 
 module Agda.TypeChecking.CompiledClause.Match where
 
-import Control.Monad.Reader (asks)
+import Control.Monad.Reader ()
 
-import qualified Data.List as List
+import Data.List ()
 import qualified Data.Map as Map
-import qualified Data.Set as Set
+import Data.Set ()
 
 import Agda.Syntax.Internal
 import Agda.Syntax.Common
 
 import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Monad.Builtin (getBuiltinName', builtinIZero, builtinIOne)
-import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Reduce.Monad as RedM
 import Agda.TypeChecking.Substitute

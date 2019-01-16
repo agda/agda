@@ -5,9 +5,9 @@
 
 module Agda.Syntax.Internal.Generic where
 
-import Data.Traversable
-import Data.Monoid
-import Data.Foldable
+import Data.Traversable ()
+import Data.Monoid ()
+import Data.Foldable ()
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 

@@ -18,7 +18,7 @@ import Data.ByteString.Char8 (ByteString)
 import Data.Function
 import qualified Data.List as List
 import Data.Data (Data)
-import Data.Maybe
+import Data.Maybe ()
 
 import GHC.Generics (Generic)
 
@@ -29,7 +29,6 @@ import Agda.Syntax.Position
 
 import Agda.Utils.FileName
 import Agda.Utils.Lens
-import Agda.Utils.List
 import Agda.Utils.Pretty
 import Agda.Utils.Size
 import Agda.Utils.Suffix

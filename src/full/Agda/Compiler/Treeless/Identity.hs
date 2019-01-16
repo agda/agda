@@ -6,16 +6,16 @@ module Agda.Compiler.Treeless.Identity
 import Prelude hiding ((!!))  -- don't use partial functions
 
 import Control.Applicative ( Alternative((<|>), empty) )
-import Data.Foldable (foldMap)
+import Data.Foldable ()
 import Data.Semigroup
 import Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.List as List
 
 import Agda.Syntax.Treeless
-import Agda.TypeChecking.Substitute
+import Agda.TypeChecking.Substitute ()
 import Agda.TypeChecking.Monad
 
-import Agda.Utils.Lens
+import Agda.Utils.Lens ()
 import Agda.Utils.List
 
 #include "undefined.h"

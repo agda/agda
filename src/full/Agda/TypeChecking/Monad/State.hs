@@ -5,16 +5,16 @@
 
 module Agda.TypeChecking.Monad.State where
 
-import Control.Arrow (first)
+import Control.Arrow ()
 import qualified Control.Exception as E
-import Control.Monad.Reader (asks)
-import Control.Monad.State (put, get, gets, modify, modify', void)
+import Control.Monad.Reader ()
+import Control.Monad.State (void)
 import Control.Monad.Trans (liftIO)
 
 import Data.Maybe
-import Data.Map (Map)
+import Data.Map ()
 import qualified Data.Map as Map
-import Data.Monoid
+import Data.Monoid ()
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Traversable (traverse)

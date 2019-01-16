@@ -16,12 +16,12 @@
 module Agda.TypeChecking.Primitive where
 
 import Control.Monad
-import Control.Monad.Reader (asks)
-import Control.Monad.Trans (lift)
+import Control.Monad.Reader ()
+import Control.Monad.Trans ()
 
 import Data.Char
 import Data.Either (partitionEithers)
-import Data.List (nub)
+import Data.List ()
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Set (Set)
@@ -43,18 +43,14 @@ import Agda.Syntax.Concrete.Pretty ()
 import Agda.Syntax.Fixity
 
 import Agda.TypeChecking.Monad hiding (getConstInfo, typeOfConst)
-import qualified Agda.TypeChecking.Monad as TCM
 import Agda.TypeChecking.Monad.Builtin
-import Agda.TypeChecking.Records
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Reduce.Monad as Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
-import Agda.TypeChecking.Errors
-import Agda.TypeChecking.Functions
+import Agda.TypeChecking.Errors ()
 import Agda.TypeChecking.Level
-import Agda.TypeChecking.Quote (QuotingKit, quoteTermWithKit, quoteTypeWithKit, quoteClauseWithKit, quotingKit)
-import Agda.TypeChecking.Pretty ()  -- instances only
+import Agda.TypeChecking.Quote (quoteTermWithKit, quoteTypeWithKit, quotingKit)
 import Agda.TypeChecking.Names
 import Agda.TypeChecking.Warnings
 
@@ -70,7 +66,7 @@ import Agda.Utils.Float
 
 #include "undefined.h"
 import Agda.Utils.Impossible
-import Debug.Trace
+import Debug.Trace ()
 
 ------------------------------------------------------------------------
 -- * Builtin Sigma

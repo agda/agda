@@ -5,12 +5,12 @@ module Agda.TypeChecking.Monad.MetaVars where
 
 import Prelude hiding (null)
 
-import Control.Applicative hiding (empty)
+import Control.Applicative ()
 import Control.Monad.State
-import Control.Monad.Reader
+import Control.Monad.Reader ()
 import Control.Monad.Writer
 
-import Data.Map (Map)
+import Data.Map ()
 import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
@@ -31,7 +31,7 @@ import Agda.TypeChecking.Substitute
 import {-# SOURCE #-} Agda.TypeChecking.Telescope
 
 import Agda.Utils.Functor ((<.>))
-import Agda.Utils.Lens
+import Agda.Utils.Lens ()
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
@@ -39,7 +39,6 @@ import Agda.Utils.Null
 import Agda.Utils.Permutation
 import Agda.Utils.Pretty (prettyShow)
 import Agda.Utils.Tuple
-import Agda.Utils.Size
 import qualified Agda.Utils.Maybe.Strict as Strict
 
 #include "undefined.h"

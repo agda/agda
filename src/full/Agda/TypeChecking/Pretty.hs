@@ -19,12 +19,12 @@ import Prelude hiding ( (<>), null )
 import Prelude hiding ( null )
 #endif
 
-import Control.Applicative hiding (empty)
+import Control.Applicative ()
 import Control.Monad
 
 import Data.Map (Map)
 import qualified Data.Map as Map
-import Data.Set (Set)
+import Data.Set ()
 import qualified Data.Set as Set
 import Data.Maybe
 
@@ -34,10 +34,8 @@ import Agda.Syntax.Fixity
 import Agda.Syntax.Internal
 import Agda.Syntax.Literal
 import Agda.Syntax.Translation.InternalToAbstract
-import Agda.Syntax.Translation.ReflectedToAbstract
 import Agda.Syntax.Translation.AbstractToConcrete
-import qualified Agda.Syntax.Translation.ReflectedToAbstract as R
-import qualified Agda.Syntax.Reflected as R
+import Agda.Syntax.Translation.ReflectedToAbstract
 import qualified Agda.Syntax.Abstract as A
 import qualified Agda.Syntax.Concrete as C
 import qualified Agda.Syntax.Reflected as R

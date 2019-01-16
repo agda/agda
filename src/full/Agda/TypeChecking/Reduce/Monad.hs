@@ -15,15 +15,15 @@ module Agda.TypeChecking.Reduce.Monad
 
 import Prelude hiding (null)
 
-import Control.Arrow ((***), first, second)
-import Control.Applicative hiding (empty)
+import Control.Arrow ()
+import Control.Applicative ()
 import Control.Monad.Reader
 
 import qualified Data.Map as Map
 import Data.Maybe
-import Data.Monoid
+import Data.Monoid ()
 
-import Debug.Trace
+import Debug.Trace ()
 import System.IO.Unsafe
 
 import Agda.Syntax.Common
@@ -34,13 +34,12 @@ import Agda.TypeChecking.Monad hiding
     isInstantiatedMeta, verboseS, typeOfConst, lookupMeta )
 import Agda.TypeChecking.Monad.Builtin hiding ( constructorForm )
 import Agda.TypeChecking.Substitute
-import Agda.Interaction.Options
+import Agda.Interaction.Options ()
 
-import qualified Agda.Utils.HashMap as HMap
+import Agda.Utils.HashMap ()
 import Agda.Utils.Lens
 import Agda.Utils.Monad
-import Agda.Utils.Null
-import Agda.Utils.Pretty
+import Agda.Utils.Pretty ()
 
 #include "undefined.h"
 import Agda.Utils.Impossible

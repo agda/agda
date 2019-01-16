@@ -6,8 +6,8 @@
 
 module Agda.TypeChecking.Rules.Builtin.Coinduction where
 
-import qualified Data.Map as Map
-import qualified Data.Set as Set
+import Data.Map ()
+import Data.Set ()
 
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Common
@@ -27,7 +27,6 @@ import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Rules.Builtin
 import Agda.TypeChecking.Rules.Term
 
-import Agda.Utils.Permutation
 
 -- | The type of @∞@.
 

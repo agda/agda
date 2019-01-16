@@ -28,7 +28,6 @@ import Agda.Syntax.Parser.Tokens
 import Agda.Syntax.Position
 import Agda.Syntax.Literal
 
-import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Tuple
 
