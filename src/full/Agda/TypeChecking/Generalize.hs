@@ -298,7 +298,13 @@ computeGeneralization genRecMeta nameMap allmetas = postponeInstanceConstraints 
           -- We also need Θ, which is genTel but in Γ instead of Γ₀. We don't
           -- have a substitution from Γ to Γ₀ so we have rebuild the telescope.
           let name = traverse $ \ (s, ty) -> (,ty) <$> freshName_ s
-          theta <- mapM name $ telToList $ buildGeneralizeTel genRecCon $ applySubst δ teleTypes
+              -- Γ₀ (r : GenTel) ⊢ teleTypes
+              -- and we need something in Γ (r : GenTel)
+              -- The teleTypes should not depend on Δ, so we can apply δ and
+              -- strenghten:
+              -- Γ (r : GenTel) ⊢ γ : Γ₀ (r : GenTel)
+              γ = composeS (strengthenS __IMPOSSIBLE__ i) δ
+          theta <- mapM name $ telToList $ buildGeneralizeTel genRecCon $ applySubst γ teleTypes
 
           -- We can get into the unpacked context by lifting with i:
           --   Γ Θ Δσ ⊢ ρ : Γ (r : GenTel) Δ
