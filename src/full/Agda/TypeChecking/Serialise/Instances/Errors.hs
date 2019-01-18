@@ -4,6 +4,10 @@
 
 module Agda.TypeChecking.Serialise.Instances.Errors where
 
+import Data.Maybe
+
+import Control.Monad
+
 import Agda.TypeChecking.Serialise.Base
 import Agda.TypeChecking.Serialise.Instances.Common
 import Agda.TypeChecking.Serialise.Instances.Internal ()
@@ -14,6 +18,7 @@ import Agda.Syntax.Concrete.Definitions (DeclarationWarning(..))
 import Agda.Syntax.Abstract.Name (ModuleName)
 import Agda.TypeChecking.Monad.Base
 import Agda.Interaction.Options
+import Agda.Interaction.Options.Warnings
 import Agda.Interaction.Library
 import Agda.Interaction.Library.Parse
 import Agda.Termination.CutOff
@@ -171,24 +176,34 @@ instance EmbPrj Doc where
 
   value = valueN text
 
-
-instance EmbPrj OptionKeys where
+instance EmbPrj PragmaOptions where
   icod_ = \case
-    SafeOption -> icodeN' SafeOption
-    WithoutKOption -> icodeN 1 WithoutKOption
-    CubicalOption -> icodeN 2 CubicalOption
-    NoUniversePolymorphismOption -> icodeN 3 NoUniversePolymorphismOption
-    PropOption -> icodeN 4 PropOption
-    NoSizedTypesOption -> icodeN 5 NoSizedTypesOption
-    NoGuardednessOption -> icodeN 6 NoGuardednessOption
+    PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y z aa bb cc dd ee ff gg hh ii jj kk ll mm -> icodeN' PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y z aa bb cc dd ee ff gg hh ii jj kk ll mm
 
+  value = vcase $ \case
+    [a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u, v, w, x, y, z, aa, bb, cc, dd, ee, ff, gg, hh, ii, jj, kk, ll, mm]   -> valuN PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y z aa bb cc dd ee ff gg hh ii jj kk ll mm
+    _ -> malformed
+
+instance EmbPrj WarningMode where
+  icod_ = \case
+    WarningMode a b -> icodeN' WarningMode a b
+
+  value = vcase $ \case
+    [a, b]   -> valuN WarningMode a b
+    _ -> malformed
+
+instance EmbPrj WarningName where
+  icod_ x = icod_ (warningName2String x)
+
+  value = (maybe malformed return . string2WarningName) <=< value
+
+
+instance EmbPrj CutOff where
+  icod_ = \case
+    DontCutOff -> icodeN' DontCutOff
+    CutOff a -> icodeN 0 CutOff a
 
   value = vcase valu where
-    valu [] = valuN SafeOption
-    valu [1] = valuN WithoutKOption
-    valu [2] = valuN CubicalOption
-    valu [3] = valuN NoUniversePolymorphismOption
-    valu [4] = valuN PropOption
-    valu [5] = valuN NoSizedTypesOption
-    valu [6] = valuN NoGuardednessOption
+    valu [] = valuN DontCutOff
+    valu [0,a] = valuN CutOff a
     valu _ = malformed

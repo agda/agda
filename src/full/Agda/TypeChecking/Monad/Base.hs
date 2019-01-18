@@ -67,6 +67,8 @@ import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.Free.Lazy (Free(freeVars'), bind', bind)
 
+import Agda.Termination.CutOff
+
 import {-# SOURCE #-} Agda.Compiler.Backend
 
 -- import {-# SOURCE #-} Agda.Interaction.FindFile
@@ -772,57 +774,6 @@ type DecodedModules = Map C.TopLevelModuleName Interface
 data ForeignCode = ForeignCode Range String
   deriving Show
 
-data OptionKeys = SafeOption
-                | WithoutKOption
-                | CubicalOption
-                | NoUniversePolymorphismOption
-                | PropOption  -- if the default changes from --no-prop to --prop, this should change to track --no-prop co-infectively instead
-                | NoSizedTypesOption
-                | NoGuardednessOption
-  deriving (Show, Eq, Ord, Enum, Data)
-
-instance Pretty OptionKeys where
-  pretty o = case o of
-    SafeOption                   -> "--safe"
-    WithoutKOption               -> "--without-K"
-    CubicalOption                -> "--cubical"
-    NoUniversePolymorphismOption -> "--no-universe-polymorphism"
-    PropOption                   -> "--prop"
-    NoSizedTypesOption           -> "--no-sized-types"
-    NoGuardednessOption          -> "--no-guardedness"
-
--- | An infective option is an option that if used in one module, must
---   be used in all modules that depend on this module
-infectiveOptions :: [OptionKeys]
-infectiveOptions =
-  [ CubicalOption
-  , PropOption
-  ]
-
--- | A coinfective option is an option that if used in one module, must
---   be used in all modules that this module depends on
-coInfectiveOptions :: [OptionKeys]
-coInfectiveOptions =
-  [ SafeOption
-  , WithoutKOption
-  , NoUniversePolymorphismOption
-  , NoSizedTypesOption
-  , NoGuardednessOption
-  ]
-
-type OptionsUsed = Map.Map OptionKeys Bool
-
-pragmaOptionsToOptionsUsed :: PragmaOptions -> OptionsUsed
-pragmaOptionsToOptionsUsed p = Map.fromList opts
-  where opts = [ (SafeOption, optSafe p)
-               , (WithoutKOption, optWithoutK p)
-               , (CubicalOption, optCubical p)
-               , (NoUniversePolymorphismOption, not $ optUniversePolymorphism p)
-               , (PropOption, optProp p)
-               , (NoSizedTypesOption, not $ optSizedTypes p)
-               , (NoGuardednessOption, not $ optGuardedness p)
-               ]
-
 data Interface = Interface
   { iSourceHash      :: Hash
     -- ^ Hash of the source code.
@@ -857,7 +808,7 @@ data Interface = Interface
   , iHighlighting    :: HighlightingInfo
   , iPragmaOptions   :: [OptionsPragma]
     -- ^ Pragma options set in the file.
-  , iOptionsUsed     :: OptionsUsed
+  , iOptionsUsed     :: PragmaOptions
     -- ^ Options/features used when checking the file (can be different
     --   from options set directly in the file).
   , iPatternSyns     :: A.PatternSynDefns
@@ -2783,9 +2734,9 @@ data Warning
     -- ^ User-defined warning (e.g. to mention that a name is deprecated)
   | ModuleDoesntExport C.QName [C.ImportedName]
     -- ^ Some imported names are not actually exported by the source module
-  | InfectiveImport OptionKeys ModuleName
+  | InfectiveImport String ModuleName
     -- ^ Importing a file using an infective option into one which doesn't
-  | CoInfectiveImport OptionKeys ModuleName
+  | CoInfectiveImport String ModuleName
     -- ^ Importing a file not using a coinfective option from one which does
   deriving (Show , Data)
 

@@ -7,13 +7,7 @@ Command-line options
 Command-line options
 --------------------
 
-Agda accepts the following options. Agda checks that options used in
-imported modules are consistent with each other, e.g. a module using
-`--safe`, `--without-K`, `--no-universe-polymorphism`,
-`--no-sized-types` or `--no-guardedness` may only import modules with
-the same option, and modules using `--cubical` or `--prop` must in
-turn use the same option.
-
+Agda accepts the following options.
 
 General options
 ~~~~~~~~~~~~~~~
@@ -36,6 +30,10 @@ General options
 :samp:`--interaction-json`
     For use with other editors such as Atom (no need to invoke
     yourself)
+
+:samp:`--only-scope-checking`
+      Only scope-check the top-level module,
+      do not type-check it
 
 Compilation
 ~~~~~~~~~~~
@@ -118,27 +116,6 @@ Imports and libraries
 :samp:`--no-default-libraries`
       Don't use default library files
 
-Sharing and caching
-~~~~~~~~~~~~~~~~~~~
-
-:samp:`--sharing`
-      Enable sharing and call-by-need evaluation
-      (experimental) (default: OFF)
-
-:samp:`--no-sharing`
-      Disable sharing and call-by-need evaluation
-
-:samp:`--caching`
-      Enable caching of typechecking (experimental)
-      (default: OFF)
-
-:samp:`--no-caching`
-      Disable caching of typechecking
-
-:samp:`--only-scope-checking`
-      Only scope-check the top-level module,
-      do not type-check it
-
 .. _command-line-pragmas:
 
 Command-line and pragma options
@@ -146,6 +123,15 @@ Command-line and pragma options
 
 The following options can also be given in .agda files in the
 ``{-# OPTIONS --{opt₁} --{opt₂} ... #-}`` form at the top of the file.
+
+Caching
+~~~~~~~
+
+:samp:`--caching`
+      Enable caching of typechecking (default)
+
+:samp:`--no-caching`
+      Disable caching of typechecking
 
 Printing and debugging
 ~~~~~~~~~~~~~~~~~~~~~~
@@ -183,11 +169,6 @@ Experimental features
       Enable injective type
       constructors (makes Agda anti-classical and possibly
       inconsistent)
-
-:samp:`--guardedness-preserving-type-constructors`
-      Treat type
-      constructors as inductive constructors when checking
-      productivity
 
 :samp:`--experimental-irrelevance`
       Enable potentially unsound
@@ -246,8 +227,8 @@ Pattern matching and equality
       Default records to no-eta-equality (see
       :ref:`eta-expansion`)
 
-Search depth
-~~~~~~~~~~~~
+Search depth and instances
+~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 :samp:`--termination-depth={N}`
       Allow termination checker to count
@@ -261,6 +242,15 @@ Search depth
 :samp:`--inversion-max-depth={N}`
       Set maximum depth for pattern match inversion to :samp:`{N}` (default:
       50). Should only be needed in pathological cases.
+
+:samp:`--no-overlapping-instances`
+      Don't consider recursive instance arguments during pruning of
+      instance candidates (default)
+
+:samp:`--overlapping-instances`
+      Consider recursive instance arguments during pruning of instance
+      candidates
+
 
 Other features
 ~~~~~~~~~~~~~~
@@ -279,14 +269,16 @@ Other features
 
 :samp:`--sized-types`
       Enable sized types (default, inconsistent with constructor-based
-      guarded corecursion; see :ref:`sized-types`)
+      guarded corecursion; see :ref:`sized-types`). Turned off (but
+      can be turned on again) by ``--safe``.
 
 :samp:`--no-sized-types`
       Disable sized types (see :ref:`sized-types`)
 
 :samp:`--guardedness`
       Enable constructor-based guarded corecursion (default; see
-      :ref:`coinduction`)
+      :ref:`coinduction`). Turned off (but can be turned
+      on again) by ``--safe``.
 
 :samp:`--no-guardedness`
       Disable constructor-based guarded corecursion (see :ref:`coinduction`)
@@ -312,6 +304,16 @@ Other features
       enabled you can use pattern synonyms freely, but Agda will not use any
       pattern synonyms when printing goal types or error messages, or when generating
       patterns for case splits.
+
+:samp:`--double-check`
+      Enable double-checking of all terms using the internal typechecker
+
+:samp:`--no-syntactic-equality`
+      Disable the syntactic equality shortcut in the conversion checker
+
+:samp:`--no-fast-reduce`
+      Disable reduction using the Agda Abstract Machine
+
 
 .. _warnings:
 
@@ -427,6 +429,65 @@ enabled, except for warnings about empty ``abstract`` blocks:
 .. code-block:: console
 
    agda -W all --warning noEmptyAbstract file.agda
+
+
+.. _consistency-checking-options:
+
+Consistency checking of options used
+------------------------------------
+
+Agda checks that options used in imported modules are consistent with
+each other.
+
+An *infective* option is an option that if used in one module, must be
+used in all modules that depend on this module. The following options
+are infective:
+
+* ``--cubical``
+* ``--prop``
+
+A *coinfective* option is an option that if used in one module, must
+be used in all modules that this module depends on. The following
+options are coinfective:
+
+* ``--safe``
+* ``--without-K``
+* ``--no-universe-polymorphism``
+* ``--no-sized-types``
+* ``--no-guardedness``
+
+Agda records the options used when generating an interface file. If
+any of the following options differ when trying to load the interface
+again, the source file is re-typechecked instead:
+
+* ``--termination-depth``
+* ``--no-unicode``
+* ``--allow-unsolved-metas``
+* ``--no-positivity-check``
+* ``--no-termination-check``
+* ``--type-in-type``
+* ``--omega-in-omega``
+* ``--no-sized-types``
+* ``--no-guardedness``
+* ``--injective-type-constructors``
+* ``--prop``
+* ``--no-universe-polymorphism``
+* ``--irrelevant-projections``
+* ``--experimental-irrelevance``
+* ``--without-K``
+* ``--exact-split``
+* ``--no-eta-equality``
+* ``--rewriting``
+* ``--cubical``
+* ``--overlapping-instances``
+* ``--safe``
+* ``--double-check``
+* ``--no-syntactic-equality``
+* ``--no-auto-inline``
+* ``--no-fast-reduce``
+* ``--instance-search-depth``
+* ``--inversion-max-depth``
+* ``--warning``
 
 
 .. _Vim: http://www.vim.org/

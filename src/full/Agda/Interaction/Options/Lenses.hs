@@ -133,14 +133,54 @@ modifySafeMode = modifyTC . mapSafeMode
 putSafeMode :: SafeMode -> TCM ()
 putSafeMode = modifyTC . setSafeMode
 
+-- | These builtins may use postulates, and are still considered --safe
+
+builtinWithSafePostulates :: [FilePath]
+builtinWithSafePostulates =
+  [ "Agda" </> "Primitive.agda"
+  , "Agda" </> "Primitive" </> "Cubical.agda"
+  , "Agda" </> "Builtin" </> "Bool.agda"
+  , "Agda" </> "Builtin" </> "Char.agda"
+  , "Agda" </> "Builtin" </> "Coinduction.agda"
+  , "Agda" </> "Builtin" </> "Cubical" </> "Glue.agda"
+  , "Agda" </> "Builtin" </> "Cubical" </> "Id.agda"
+  , "Agda" </> "Builtin" </> "Cubical" </> "Path.agda"
+  , "Agda" </> "Builtin" </> "Cubical" </> "Sub.agda"
+  , "Agda" </> "Builtin" </> "Equality" </> "Erase.agda"
+  , "Agda" </> "Builtin" </> "Equality.agda"
+  , "Agda" </> "Builtin" </> "Float.agda"
+  , "Agda" </> "Builtin" </> "FromNat.agda"
+  , "Agda" </> "Builtin" </> "FromNeg.agda"
+  , "Agda" </> "Builtin" </> "FromString.agda"
+  , "Agda" </> "Builtin" </> "Int.agda"
+  , "Agda" </> "Builtin" </> "IO.agda"
+  , "Agda" </> "Builtin" </> "List.agda"
+  , "Agda" </> "Builtin" </> "Nat.agda"
+  , "Agda" </> "Builtin" </> "Reflection.agda"
+  , "Agda" </> "Builtin" </> "Sigma.agda"
+  , "Agda" </> "Builtin" </> "Size.agda"
+  , "Agda" </> "Builtin" </> "Strict.agda"
+  , "Agda" </> "Builtin" </> "String.agda"
+  , "Agda" </> "Builtin" </> "Unit.agda"
+  , "Agda" </> "Builtin" </> "Word.agda"
+  ]
+
+-- | These builtins may not use postulates under --safe. They are not
+--   automatically unsafe, but will be if they use an unsafe feature.
+
+builtinWithUnsafePostulates :: [FilePath]
+builtinWithUnsafePostulates =
+  [ "Agda" </> "Builtin" </> "TrustMe.agda"
+  , "Agda" </> "Builtin" </> "Equality" </> "Rewrite.agda"
+  ]
+
+
 isBuiltinWithSafePostulates :: FilePath -> TCM Bool
 isBuiltinWithSafePostulates file = do
-  libdir <- liftIO defaultLibDir
-  let unsafeBuiltins =
-        [ libdir </> "prim" </> "Agda" </> "Builtin" </> "TrustMe.agda"
-        , libdir </> "prim" </> "Agda" </> "Builtin" </> "Equality" </> "Rewrite.agda"
-        ]
-  return $ (prefixPath libdir file) && not (elem file unsafeBuiltins)
+  libdirPrim <- (</> "prim") <$> liftIO defaultLibDir
+  let safeBuiltins   = map (libdirPrim </>) builtinWithSafePostulates
+      unsafeBuiltins = map (libdirPrim </>) builtinWithUnsafePostulates
+  return $ (file `elem` safeBuiltins) && not (file `elem` unsafeBuiltins)
 
 ---------------------------------------------------------------------------
 -- ** Include directories

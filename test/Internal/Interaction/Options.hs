@@ -3,8 +3,15 @@
 module Internal.Interaction.Options ( tests ) where
 
 import Agda.Interaction.Options
+import Agda.Interaction.Options.Lenses
+
+import Agda.Utils.Monad
+import Agda.Syntax.Parser
 
 import Data.List
+
+import System.FilePath ((</>), takeExtension)
+import System.Directory
 
 import Internal.Helpers
 
@@ -29,6 +36,32 @@ prop_defaultPragmaOptionsSafe = ioProperty helper
             putStrLn $ "Following pragmas are default but not safe: "
                                           ++ intercalate ", " unsafe
             return False
+
+prop_allBuiltinsSafePostulatesOrNot :: Property
+prop_allBuiltinsSafePostulatesOrNot = ioProperty helper
+  where
+    findAgdaFiles :: FilePath -> [FilePath] -> IO [FilePath]
+    findAgdaFiles base files = do
+      let findRecursively :: FilePath -> FilePath -> IO [FilePath]
+          findRecursively base f = ifM (doesFileExist (base </> f))
+            (return [ base </> f | takeExtension f `elem` acceptableFileExts])
+            (do
+                dir <- listDirectory (base </> f)
+                findAgdaFiles (base </> f) dir)
+      concat <$> mapM (findRecursively base) files
+
+    difference xs ys = (xs \\ ys) `union` (ys \\ xs)
+
+    helper :: IO Bool
+    helper = do
+      libdirPrim <- (</> "prim") <$> defaultLibDir
+      content <- listDirectory libdirPrim
+      allFiles <- findAgdaFiles libdirPrim content
+      let builtinFiles = map (libdirPrim </>) (builtinWithSafePostulates ++ builtinWithUnsafePostulates)
+      let diff = difference allFiles builtinFiles
+      if null diff then return True else do
+        putStrLn $ "Missing/spurious builtins: " ++ show diff
+        return False
 
 ------------------------------------------------------------------------
 -- * All tests
