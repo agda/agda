@@ -20,6 +20,8 @@ import Agda.Syntax.Concrete.Name (LensInScope(..))
 import Agda.Syntax.Position
 import Agda.Syntax.Internal
 import Agda.Syntax.Literal
+import Agda.Syntax.Scope.Monad (bindVariable)
+import Agda.Syntax.Scope.Base (Binder(..))
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Abstract
 import Agda.TypeChecking.Constraints
@@ -328,13 +330,24 @@ computeGeneralization genRecMeta nameMap allmetas = postponeInstanceConstraints 
             reportSDoc "tc.generalize.eta" 30 $ nest 2 $
               "new context:" <+> (inTopContext . prettyTCM =<< getContextTelescope)
             -- In this context we create a fresh meta Γ Θ Δσ ⊢ y : Aρ
-            (y, u) <- case a of
-              Nothing -> do
-                s@(MetaS y _) <- newSortMeta
-                return (y, Sort s)
-              Just a  -> newNamedValueMeta DontRunMetaOccursCheck
-                                           (miNameSuggestion $ mvInfo mv)
-                                           (applySubst ρ a)
+            (y, u) <- localScope $ do
+
+              -- First, we add the named variables to the scope, to allow
+              -- them to be used in holes (#3341).
+              forM_ theta $ \ Dom{ unDom = (x, _) } -> do
+                -- Recognize named variables by lack of '.' (TODO: hacky!)
+                reportSLn "tc.generalize.eta.scope" 40 $ "Adding (or not) " ++ show (nameConcrete x) ++ " to the scope"
+                when ('.' `notElem` show (nameConcrete x)) $ do
+                  reportSLn "tc.generalize.eta.scope" 40 "  (added)"
+                  bindVariable LambdaBound (nameConcrete x) x
+
+              case a of
+                Nothing -> do
+                  s@(MetaS y _) <- newSortMeta
+                  return (y, Sort s)
+                Just a  -> newNamedValueMeta DontRunMetaOccursCheck
+                                             (miNameSuggestion $ mvInfo mv)
+                                             (applySubst ρ a)
 
             -- Finally we solve xρ := y. Meta assignment is smart enough to
             -- treat the GenRec constructor application produced by ρ as a
