@@ -11,4 +11,4 @@
 (agda2-status-action "")
 (agda2-info-action "*Goal type etc.*" "Goal: _36 (a′ = a′) (b = b) (b′ = b′) ———————————————————————————————————————————————————————————— b′ : B a′ b : B a a : A a′ : A" nil)
 (agda2-status-action "")
-(agda2-info-action "*Goal type etc.*" "Goal: _50 (a′ = a′) (b′ = b′) (c = c) (c′ = c′) ———————————————————————————————————————————————————————————— c′ : C b.a c : C b b′ : B a b : B b.a b.a : A a : A a′ : A" nil)
+(agda2-info-action "*Goal type etc.*" "Goal: _50 (a′ = a′) (b′ = b′) (c = c) (c′ = c′) ———————————————————————————————————————————————————————————— c′ : C b′ c : C b b′ : B a b : B b.a b.a : A a : A a′ : A" nil)

@@ -312,10 +312,18 @@ computeGeneralization genRecMeta nameMap allmetas = postponeInstanceConstraints 
           --   Γ Θ Δσ ⊢ ρ : Γ (r : GenTel) Δ
           let ρ = liftS i σ
               -- we need to perform the same operation on the 'Context'
-              expand cxt = applySubst σ deltaR ++ thetaR ++ gammaR
+              expand cxt = deltaRσ ++ thetaR ++ gammaR
                 where
                   (deltaR, _ : gammaR) = splitAt i cxt
                   thetaR = reverse theta
+                  -- Remember that deltaR is a list and not a telescope. We
+                  -- need to manage lifting manually.
+                  deltaRσ = go (length deltaR - 1) deltaR
+                    where
+                      -- Γ (r : GenTel) Δ₁ ⊢ x, where |Δ₁| = i
+                      -- Γ Θ Δ₁σ ⊢ liftS i σ : Γ (r : GenTel) Δ₁
+                      go i (x : xs) = applySubst (liftS i σ) x : go (i - 1) xs
+                      go _ []       = []
 
           -- We don't need it, but for documentation purposes here is the
           -- inverse of ρ:
