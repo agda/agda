@@ -1783,15 +1783,18 @@ collectGeneralizables m = bracket_ open close $ do
         pure gvs
     close = (stGeneralizedVars `setTCLens`)
 
+createBoundNamesForGeneralizables :: Set I.QName -> ScopeM (Map I.QName I.Name)
+createBoundNamesForGeneralizables vs =
+  flip Map.traverseWithKey (Map.fromSet (const ()) vs) $ \ q _ -> do
+    let x  = nameConcrete $ qnameName q
+        fx = nameFixity   $ qnameName q
+    freshAbstractName fx x
+
 collectAndBindGeneralizables :: ScopeM a -> ScopeM (Map I.QName I.Name, a)
 collectAndBindGeneralizables m = do
   (s, res) <- collectGeneralizables m
-  binds <- fmap Map.fromList $ forM (Set.toList s) $ \ q -> do
-    let x  = nameConcrete $ qnameName q
-        fx = nameFixity   $ qnameName q
-    y <- freshAbstractName fx x
-    return (q, y)
   -- We should bind the named generalizable variables as fresh variables
+  binds <- createBoundNamesForGeneralizables s
   bindGeneralizables binds
   return (binds, res)
 
