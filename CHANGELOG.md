@@ -486,7 +486,9 @@ Pragmas and options
   with each other, e.g. a module using `--safe`, `--without-K`,
   `--no-universe-polymorphism` or `--no-sized-types` may only import
   modules with the same option, and modules using `--cubical` or
-  `--prop` must in turn use the same option.
+  `--prop` must in turn use the same option. If an interface file has
+  been generated using different options compared to the current ones,
+  Agda will now re-typecheck the file.
   [Issue [#2487](https://github.com/agda/agda/issues/2487)].
 
 * The option `--only-scope-checking` is now allowed together with `--safe`.

@@ -19,6 +19,9 @@ module Agda.Interaction.Options
     , defaultPragmaOptions
     , standardOptions_
     , unsafePragmaOptions
+    , restartOptions
+    , infectiveOptions
+    , coinfectiveOptions
     , safeFlag
     , mapFlag
     , usage
@@ -367,6 +370,67 @@ unsafePragmaOptions opts =
   [ "--rewriting"                                | optRewriting opts                 ] ++
   [ "--cubical and --with-K"                     | optCubical opts, not $ optWithoutK opts ] ++
   []
+
+-- | If any these options have changed, then the file will be
+--   rechecked. Boolean options are negated to mention non-default
+--   options, where possible.
+
+restartOptions :: [(PragmaOptions -> RestartCodomain, String)]
+restartOptions =
+  [ (C . optTerminationDepth, "--termination-depth")
+  , (B . not . optUseUnicode, "--no-unicode")
+  , (B . optAllowUnsolved, "--allow-unsolved-metas")
+  , (B . optDisablePositivity, "--no-positivity-check")
+  , (B . optTerminationCheck,  "--no-termination-check")
+  , (B . not . optUniverseCheck, "--type-in-type")
+  , (B . optOmegaInOmega, "--omega-in-omega")
+  , (B . not . optSizedTypes, "--no-sized-types")
+  , (B . not . optGuardedness, "--no-guardedness")
+  , (B . optInjectiveTypeConstructors, "--injective-type-constructors")
+  , (B . optProp, "--prop")
+  , (B . not . optUniversePolymorphism, "--no-universe-polymorphism")
+  , (B . optIrrelevantProjections, "--irrelevant-projections")
+  , (B . optExperimentalIrrelevance, "--experimental-irrelevance")
+  , (B . optWithoutK, "--without-K")
+  , (B . optExactSplit, "--exact-split")
+  , (B . not . optEta, "--no-eta-equality")
+  , (B . optRewriting, "--rewriting")
+  , (B . optCubical, "--cubical")
+  , (B . optOverlappingInstances, "--overlapping-instances")
+  , (B . optSafe, "--safe")
+  , (B . optDoubleCheck, "--double-check")
+  , (B . not . optSyntacticEquality, "--no-syntactic-equality")
+  , (B . not . optAutoInline, "--no-auto-inline")
+  , (B . not . optFastReduce, "--no-fast-reduce")
+  , (I . optInstanceSearchDepth, "--instance-search-depth")
+  , (I . optInversionMaxDepth, "--inversion-max-depth")
+  , (W . optWarningMode, "--warning")
+  ]
+
+-- to make all restart options have the same type
+data RestartCodomain = C CutOff | B Bool | I Int | W WarningMode
+  deriving Eq
+
+-- | An infective option is an option that if used in one module, must
+--   be used in all modules that depend on this module.
+
+infectiveOptions :: [(PragmaOptions -> Bool, String)]
+infectiveOptions =
+  [ (optCubical, "--cubical")
+  , (optProp, "--prop")
+  ]
+
+-- | A coinfective option is an option that if used in one module, must
+--   be used in all modules that this module depends on.
+
+coinfectiveOptions :: [(PragmaOptions -> Bool, String)]
+coinfectiveOptions =
+  [ (optSafe, "--safe")
+  , (optWithoutK, "--without-K")
+  , (not . optUniversePolymorphism, "--no-universe-polymorphism")
+  , (not . optSizedTypes, "--no-sized-types")
+  , (not  . optGuardedness, "--no-guardedness")
+  ]
 
 inputFlag :: FilePath -> Flag CommandLineOptions
 inputFlag f o =
