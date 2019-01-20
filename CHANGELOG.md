@@ -48,9 +48,6 @@ Syntax
     + A = A
     ```
 
-Type checking and interaction
------------------------------
-
 * Agda now supports implicit generalization of declared variables
   [Issue [#1706](https://github.com/agda/agda/issues/1706)].
 
@@ -234,6 +231,9 @@ Type checking and interaction
     const x _ = x
   ```
 
+Type checking
+-------------
+
 * Since Agda 2.5.3, the hiding is considered part of the name in the
   insertion of implicit arguments.  Until Agda 2.5.2, the following
   code was rejected:
@@ -246,6 +246,118 @@ Type checking and interaction
   distinguishing `{{X}}` from `{X}`.
   This language change was accidential and has not been documented in
   the 2.5.3 release notes.
+
+* Agda now allows omitting absurd clauses in case one of the pattern
+  variable inhabits an obviously empty type
+  [Issue [#1086](https://github.com/agda/agda/issues/1086)].
+  For example:
+  ```agda
+  f : Fin 1 → Nat
+  f zero = 0
+  -- f (suc ())   -- this clause is no longer required
+  ```
+  Absurd clauses are still required in case deep pattern matching is
+  needed to expose the absurd variable, or if there are no non-absurd
+  clauses.
+
+* Agda no longer allows case splitting on irrelevant arguments of
+  record types (see Issue
+  [#3056](https://github.com/agda/agda/issues/3056)).
+
+* Metavariables in module telescopes are now sometimes frozen later
+  [Issue [#1063](https://github.com/agda/agda/issues/1063)].
+
+  Metavariables created in the types of module parameters used to be
+  frozen right after the module's first mutual block had been
+  type-checked (unless, perhaps, if the module itself was contained in
+  a mutual block). Now they are instead frozen at the end of the
+  module (with a similar caveat regarding an outer mutual block).
+
+* When `--without-K` is enabled, Agda no longer allows datatypes with
+  large indices. For example, the following definition of equality is
+  now forbidden when `--without-K` is enabled:
+  ```agda
+    data _≡₀_ {ℓ} {A : Set ℓ} (x : A) : A → Set where
+      refl : x ≡₀ x
+  ```
+
+* The termination checker now also looks for recursive calls in the type of definitions.
+  This fixes an issue where Agda allowed very dependent types
+  [Issue [#1556](https://github.com/agda/agda/issues/1556)].
+
+  This change affects induction-induction, e.g.
+  ```agda
+    mutual
+      data Cxt : Set where
+        ε    :  Cxt
+        _,_  :  (Γ : Cxt) (A : Ty Γ) → Cxt
+
+      data Ty : (Γ : Cxt) → Set where
+        u  :  ∀ Γ → Ty Γ
+        Π  :  ∀ Γ (A : Ty Γ) (B : Ty (Γ , A)) → Ty Γ
+
+    mutual
+      f : Cxt → Cxt
+      f ε        =  ε
+      f (Γ , T)  =  (f Γ , g Γ T)
+
+      g : ∀ Γ → Ty Γ → Ty (f Γ)
+      g Γ (u .Γ)      =  u (f Γ)
+      g Γ (Π .Γ A B)  =  Π (f Γ) (g Γ A) (g (Γ , A) B)
+
+  ```
+  The type of `g` contains a call `g Γ _ --> f Γ` which is now taken
+  into account during termination checking.
+
+Instance search
+---------------
+
+* Instance argument resolution now also applies when there are
+  unconstrained metavariables in the type of the argument. For
+  example, if there is a single instance `eqBool : Eq Bool` in scope,
+  then an instance argument `{{eq : Eq _}}` will be solved to
+  `eqBool`, setting the value of the metavariable `_` to `Bool` in the
+  process.
+
+* By default, Agda no longer allows overlapping instances. Two
+  instances are defined to overlap if they could both solve the
+  instance goal when given appropriate solutions for their recursive
+  (instance) arguments. Agda used to choose between undecidable
+  instances based on the result of recursive instance search, but this
+  lead to an exponential slowdown in instance resolution.
+
+* Explicit arguments are no longer automatically turned into instance
+  arguments for the purpose of recursive instance search. Instead,
+  explicit arguments are left unresolved and will thus never be used.
+
+* Instance arguments that are already solved by conversion checking
+  are no longer ignored by instance search. Thus the constructor of
+  the unit type must now be explicitly be declared as an instance in
+  order to be considered by instance search:
+  ```agda
+    record ⊤ : Set where
+      instance constructor tt
+  ```
+
+* Instances are now (correctly) required to be in scope to be eligible
+  (see Issue [#1913](https://github.com/agda/agda/issues/1913)
+   and Issue [#2489](https://github.com/agda/agda/issues/2489)
+  ).
+  This means that you can no longer import instances from parameterised modules by
+  ```agda
+    import Some.Module Arg₁ Arg2
+  ```
+  without opening or naming the module.
+
+Interaction and error reporting
+-------------------------------
+
+* A new command `agda2-elaborate-give` (C-c C-m) normalizes a goal input
+  (it repects the C-u prefixes), type checks, and inserts the normalized
+  term into the goal.
+
+* 'Solve constraints' (C-c C-s) now turns unsolved metavariables into new
+  interaction holes (see Issue [#2273](https://github.com/agda/agda/issues/2273)).
 
 * Out-of-scope identifiers are no longer prefixed by a '.' dot [Issue
   [#3127](https://github.com/agda/agda/issues/3127)].  This notation
@@ -293,112 +405,6 @@ Type checking and interaction
     A : Set
   ```
 
-* Agda now allows omitting absurd clauses in case one of the pattern
-  variable inhabits an obviously empty type
-  [Issue [#1086](https://github.com/agda/agda/issues/1086)].
-  For example:
-  ```agda
-  f : Fin 1 → Nat
-  f zero = 0
-  -- f (suc ())   -- this clause is no longer required
-  ```
-  Absurd clauses are still required in case deep pattern matching is
-  needed to expose the absurd variable, or if there are no non-absurd
-  clauses.
-
-* The termination checker now also looks for recursive calls in the type of definitions.
-  This fixes an issue where Agda allowed very dependent types
-  [Issue [#1556](https://github.com/agda/agda/issues/1556)].
-
-  This change affects induction-induction, e.g.
-  ```agda
-    mutual
-      data Cxt : Set where
-        ε    :  Cxt
-        _,_  :  (Γ : Cxt) (A : Ty Γ) → Cxt
-
-      data Ty : (Γ : Cxt) → Set where
-        u  :  ∀ Γ → Ty Γ
-        Π  :  ∀ Γ (A : Ty Γ) (B : Ty (Γ , A)) → Ty Γ
-
-    mutual
-      f : Cxt → Cxt
-      f ε        =  ε
-      f (Γ , T)  =  (f Γ , g Γ T)
-
-      g : ∀ Γ → Ty Γ → Ty (f Γ)
-      g Γ (u .Γ)      =  u (f Γ)
-      g Γ (Π .Γ A B)  =  Π (f Γ) (g Γ A) (g (Γ , A) B)
-
-  ```
-  The type of `g` contains a call `g Γ _ --> f Γ` which is now taken
-  into account during termination checking.
-
-* Agda no longer allows case splitting on irrelevant arguments of
-  record types (see Issue
-  [#3056](https://github.com/agda/agda/issues/3056)).
-
-* 'Solve constraints' (C-c C-s) now turns unsolved metavariables into new
-  interaction holes (see Issue [#2273](https://github.com/agda/agda/issues/2273)).
-
-* A new command `agda2-elaborate-give` (C-c C-m) normalizes a goal input
-  (it repects the C-u prefixes), type checks, and inserts the normalized
-  term into the goal.
-
-* Instance argument resolution now also applies when there are
-  unconstrained metavariables in the type of the argument. For
-  example, if there is a single instance `eqBool : Eq Bool` in scope,
-  then an instance argument `{{eq : Eq _}}` will be solved to
-  `eqBool`, setting the value of the metavariable `_` to `Bool` in the
-  process.
-
-* By default, Agda no longer allows overlapping instances. Two
-  instances are defined to overlap if they could both solve the
-  instance goal when given appropriate solutions for their recursive
-  (instance) arguments. Agda used to choose between undecidable
-  instances based on the result of recursive instance search, but this
-  lead to an exponential slowdown in instance resolution.
-
-* Explicit arguments are no longer automatically turned into instance
-  arguments for the purpose of recursive instance search. Instead,
-  explicit arguments are left unresolved and will thus never be used.
-
-* Instance arguments that are already solved by conversion checking
-  are no longer ignored by instance search. Thus the constructor of
-  the unit type must now be explicitly be declared as an instance in
-  order to be considered by instance search:
-  ```agda
-    record ⊤ : Set where
-      instance constructor tt
-  ```
-
-* Instances are now (correctly) required to be in scope to be eligible
-  (see Issue [#1913](https://github.com/agda/agda/issues/1913)
-   and Issue [#2489](https://github.com/agda/agda/issues/2489)
-  ).
-  This means that you can no longer import instances from parameterised modules by
-  ```agda
-    import Some.Module Arg₁ Arg2
-  ```
-  without opening or naming the module.
-
-* Metavariables in module telescopes are now sometimes frozen later
-  [Issue [#1063](https://github.com/agda/agda/issues/1063)].
-
-  Metavariables created in the types of module parameters used to be
-  frozen right after the module's first mutual block had been
-  type-checked (unless, perhaps, if the module itself was contained in
-  a mutual block). Now they are instead frozen at the end of the
-  module (with a similar caveat regarding an outer mutual block).
-
-* When `--without-K` is enabled, Agda no longer allows datatypes with
-  large indices. For example, the following definition of equality is
-  now forbidden when `--without-K` is enabled:
-  ```agda
-    data _≡₀_ {ℓ} {A : Set ℓ} (x : A) : A → Set where
-      refl : x ≡₀ x
-  ```
-
 Pragmas and options
 -------------------
 
@@ -417,56 +423,10 @@ Pragmas and options
   The option `--no-guardedness` turns off constructor-based guarded
   corecursion.
 
-* New builtin `SETOMEGA`.
-
-  Agda's top sort `Setω` is now defined as a builtin in `Agda.Primitive`
-  and can be renamed when importing that module.
-
-* New option `--omega-in-omega`.
-
-  The option `--omega-in-omega` enables the typing rule `Setω : Setω`.
-  Example:
-  ```agda
-  {-# OPTIONS --omega-in-omega #-}
-  open import Agda.Primitive
-
-  data Type : Setω where
-    el : ∀ {ℓ} → Set ℓ → Type
-  ```
-  Like `--type-in-type`, this makes Agda inconsistent. However, code
-  written using `--omega-in-omega` is still compatible with normal
-  universe-polymorphic code and can be used in such files.
-
 * Option `--irrelevant-projections` is now off by default and
   not considered `--safe` any longer.
   Reason: There are consistency issues that may be systemic
   [Issue [#2170](https://github.com/agda/agda/issues/2170)].
-
-* Option `--prop` enables the `Prop` universe but is off by default.
-  Option `--no-prop` disables the `Prop` universe.
-
-  In the absense of `Prop`, the sort `Set` is the lowest sort,
-  thus, sort annotation `: Set` can be ommitted if the sort
-  is constrained to be weakly below `Set`.  For instance:
-  ```agda
-  {-# OPTIONS --no-prop #-}
-
-  data Wrap A : Set where
-    wrap : A → Wrap A
-  ```
-
-* New pragma `{-# NO_UNIVERSE_CHECK #-}`.
-
-  The pragma `{-# NO_UNIVERSE_CHECK #-}` can be put in front of a data
-  or record type to disable universe consistency checking locally.
-  Example:
-  ```agda
-    {-# NO_UNIVERSE_CHECK #-}
-    data U : Set where
-      el : Set → U
-  ```
-  Like the similar pragmas for disabling termination and positivity
-  checking, `{-# NO_UNIVERSE_CHECK #-}` cannot be used with `--safe`.
 
 * New option `--no-syntactic-equality`.
 
@@ -517,6 +477,55 @@ Pragmas and options
 * The `REWRITE` builtin is now bound to the builtin equality type from
   `Agda.Builtin.Equality` in `Agda.Builtin.Equality.Rewrite` [Issue
   [#3318](https://github.com/agda/agda/issues/3318)].
+
+Pragmas and options concerning universes
+----------------------------------------
+
+* New pragma `{-# NO_UNIVERSE_CHECK #-}`.
+
+  The pragma `{-# NO_UNIVERSE_CHECK #-}` can be put in front of a data
+  or record type to disable universe consistency checking locally.
+  Example:
+  ```agda
+    {-# NO_UNIVERSE_CHECK #-}
+    data U : Set where
+      el : Set → U
+  ```
+  Like the similar pragmas for disabling termination and positivity
+  checking, `{-# NO_UNIVERSE_CHECK #-}` cannot be used with `--safe`.
+
+* New builtin `SETOMEGA`.
+
+  Agda's top sort `Setω` is now defined as a builtin in `Agda.Primitive`
+  and can be renamed when importing that module.
+
+* New option `--omega-in-omega`.
+
+  The option `--omega-in-omega` enables the typing rule `Setω : Setω`.
+  Example:
+  ```agda
+  {-# OPTIONS --omega-in-omega #-}
+  open import Agda.Primitive
+
+  data Type : Setω where
+    el : ∀ {ℓ} → Set ℓ → Type
+  ```
+  Like `--type-in-type`, this makes Agda inconsistent. However, code
+  written using `--omega-in-omega` is still compatible with normal
+  universe-polymorphic code and can be used in such files.
+
+* Option `--prop` enables the `Prop` universe but is off by default.
+  Option `--no-prop` disables the `Prop` universe.
+
+  In the absense of `Prop`, the sort `Set` is the lowest sort,
+  thus, sort annotation `: Set` can be ommitted if the sort
+  is constrained to be weakly below `Set`.  For instance:
+  ```agda
+  {-# OPTIONS --no-prop #-}
+
+  data Wrap A : Set where
+    wrap : A → Wrap A
+  ```
 
 Emacs mode
 ----------
