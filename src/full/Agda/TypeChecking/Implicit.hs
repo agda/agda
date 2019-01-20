@@ -127,6 +127,5 @@ insertImplicit' a ts =
     find _ x _ (a@(Arg{}) : _) | visible a = NoSuchName x
     find hs x hidingx (a@(Arg _ y) : ts)
       | x == y && sameHiding hidingx a = impInsert $ reverse hs
-      | x == y && sameHiding hidingx a = BadImplicits
       | otherwise = find (getHiding a : hs) x hidingx ts
     find i x _ [] = NoSuchName x

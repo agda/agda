@@ -234,6 +234,19 @@ Type checking and interaction
     const x _ = x
   ```
 
+* Since Agda 2.5.3, the hiding is considered part of the name in the
+  insertion of implicit arguments.  Until Agda 2.5.2, the following
+  code was rejected:
+  ```agda
+    test : {{X : Set}} {X : Set} → Set
+    test {X = X} = X
+  ```
+  The rationale was that named argument `X` is given with the wrong hiding.
+  The new rationale is that the hiding is considered part of the name,
+  distinguishing `{{X}}` from `{X}`.
+  This language change was accidential and has not been documented in
+  the 2.5.3 release notes.
+
 * Out-of-scope identifiers are no longer prefixed by a '.' dot [Issue
   [#3127](https://github.com/agda/agda/issues/3127)].  This notation
   could be confused with dot patterns, postfix projections, and
