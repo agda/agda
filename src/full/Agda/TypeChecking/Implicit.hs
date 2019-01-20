@@ -25,7 +25,11 @@ import Agda.Utils.Impossible
 --   metas (unbounded if @n<0@), as long as @t@ is a function type
 --   and @expand@ holds on the hiding info of its domain.
 
-implicitArgs :: Int -> (Hiding -> Bool) -> Type -> TCM (Args, Type)
+implicitArgs
+  :: Int               -- ^ @n@, the maximum number of implicts to be inserted.
+  -> (Hiding -> Bool)  -- ^ @expand@, the predicate to test whether we should keep inserting.
+  -> Type              -- ^ The (function) type @t@ we are eliminating.
+  -> TCM (Args, Type)  -- ^ The eliminating arguments and the remaining type.
 implicitArgs n expand t = mapFst (map (fmap namedThing)) <$> do
   implicitNamedArgs n (\ h x -> expand h) t
 
@@ -33,7 +37,11 @@ implicitArgs n expand t = mapFst (map (fmap namedThing)) <$> do
 --   metas (unbounded if @n<0@), as long as @t@ is a function type
 --   and @expand@ holds on the hiding and name info of its domain.
 
-implicitNamedArgs :: Int -> (Hiding -> ArgName -> Bool) -> Type -> TCM (NamedArgs, Type)
+implicitNamedArgs
+  :: Int                          -- ^ @n@, the maximum number of implicts to be inserted.
+  -> (Hiding -> ArgName -> Bool)  -- ^ @expand@, the predicate to test whether we should keep inserting.
+  -> Type                         -- ^ The (function) type @t@ we are eliminating.
+  -> TCM (NamedArgs, Type)        -- ^ The eliminating arguments and the remaining type.
 implicitNamedArgs 0 expand t0 = return ([], t0)
 implicitNamedArgs n expand t0 = do
     t0' <- reduce t0
@@ -90,42 +98,74 @@ newInteractionMetaArg info x a = do
 
 ---------------------------------------------------------------------------
 
+-- | Possible results of 'insertImplicit'.
 data ImplicitInsertion
-      = ImpInsert [Hiding]        -- ^ this many implicits have to be inserted
-      | BadImplicits      -- ^ hidden argument where there should have been a non-hidden arg
-      | NoSuchName ArgName -- ^ bad named argument
-      | NoInsertNeeded
+      = ImpInsert [Hiding] -- ^ Success: this many implicits have to be inserted.
+      | BadImplicits       -- ^ Error: hidden argument where there should have been a non-hidden argument.
+      | NoSuchName ArgName -- ^ Error: bad named argument.
+      | NoInsertNeeded     -- ^ Success: nothing to do.
   deriving (Show)
 
 impInsert :: [Hiding] -> ImplicitInsertion
 impInsert [] = NoInsertNeeded
 impInsert hs = ImpInsert hs
 
-insertImplicit :: NamedArg e -> [Dom a] -> ImplicitInsertion
+-- | If the next given argument is @a@ and the expected arguments are @ts@
+--   @insertImplicit' a ts@ returns the prefix of @ts@ that precedes @a@.
+--
+--   If @a@ is named but this name does not appear in @ts@, the 'NoSuchName' exception is thrown.
+--
+insertImplicit
+  :: NamedArg e  -- ^ Next given argument @a@.
+  -> [Dom a]     -- ^ Expected arguments @ts@.
+  -> ImplicitInsertion
 insertImplicit a doms = insertImplicit' a $ map name doms
   where
     name dom = x <$ argFromDom dom
       where x = maybe "_" rangedThing $ domName dom
 
-insertImplicit' :: NamedArg e -> [Arg ArgName] -> ImplicitInsertion
+-- | If the next given argument is @a@ and the expected arguments are @ts@
+--   @insertImplicit' a ts@ returns the prefix of @ts@ that precedes @a@.
+--
+--   If @a@ is named but this name does not appear in @ts@, the 'NoSuchName' exception is thrown.
+--
+insertImplicit'
+  :: NamedArg e     -- ^ Next given argument @a@.
+  -> [Arg ArgName]  -- ^ Expected arguments @ts@.
+  -> ImplicitInsertion
 insertImplicit' _ [] = BadImplicits
-insertImplicit' a ts | visible a = impInsert $ nofHidden ts
-  where
-    nofHidden :: [Arg a] -> [Hiding]
-    nofHidden = takeWhile notVisible . map getHiding
-insertImplicit' a ts =
-  case nameOf (unArg a) of
-    Nothing -> maybe BadImplicits impInsert $ upto (getHiding a) $ map getHiding ts
-    Just x  -> find [] (rangedThing x) (getHiding a) ts
-  where
-    upto h [] = Nothing
-    upto h (NotHidden : _) = Nothing
-    upto h (h' : _) | sameHiding h h' = Just []
-    upto h (h' : hs) = (h' :) <$> upto h hs
+insertImplicit' a ts
 
-    find :: [Hiding] -> ArgName -> Hiding -> [Arg ArgName] -> ImplicitInsertion
-    find _ x _ (a@(Arg{}) : _) | visible a = NoSuchName x
-    find hs x hidingx (a@(Arg _ y) : ts)
-      | x == y && sameHiding hidingx a = impInsert $ reverse hs
-      | otherwise = find (getHiding a : hs) x hidingx ts
-    find i x _ [] = NoSuchName x
+  -- If @a@ is visible, then take the non-visible prefix of @ts@.
+  | visible a = impInsert $ takeWhile notVisible $ map getHiding ts
+
+  -- If @a@ is named, take prefix of @ts@ until the name of @a@ (with correct hiding).
+  -- If the name is not found, throw exception 'NoSuchName'.
+  | Just x <- nameOf (unArg a) = find [] (rangedThing x) (getHiding a) ts
+
+  -- If @a@ is neither visible nor named, take prefix of @ts@ with different hiding than @a@.
+  | otherwise = maybe BadImplicits impInsert $ upto (getHiding a) $ map getHiding ts
+
+    where
+    -- | @upto h hs = Just hs1@
+    --   iff @hs = hs1 ++ [h] ++ hs2@
+    --   and @all notVisible (hs1 ++ [h])@
+    upto :: Hiding -> [Hiding] -> Maybe [Hiding]
+    upto h []              = Nothing
+    upto h (NotHidden : _) = Nothing
+    upto h (h' : hs)
+      | sameHiding h h'    = Just []
+      | otherwise          = (h' :) <$> upto h hs
+
+    find
+      :: [Hiding]           -- ^ Accumulator for the result (reversed).
+      -> ArgName            -- ^ The name @x@ of @a@, expected in the arguments @ts@.
+      -> Hiding             -- ^ The hiding @hx@ of @a@.
+      -> [Arg ArgName]      -- ^ @ts@, the expected arguments.
+      -> ImplicitInsertion
+    -- If @ts@ is processed or we hit a visible argument, we have not found @x@.
+    find _  x _  []                  = NoSuchName x
+    find _  x _  (t : _) | visible t = NoSuchName x
+    find hs x hx (t@(Arg _ y) : ts)
+      | x == y && sameHiding hx t = impInsert $ reverse hs
+      | otherwise = find (getHiding t : hs) x hx ts
