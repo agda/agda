@@ -1,3 +1,5 @@
+{-# LANGUAGE ScopedTypeVariables #-}
+
 -- | Utility functions for lists.
 
 module Agda.Utils.List where
@@ -68,6 +70,17 @@ last2 (x : y : xs) = Just $ loop x y xs
   loop x y []     = (x, y)
   loop x y (z:xs) = loop y z xs
 last2 _ = Nothing
+
+-- | Drop from the end of a list.
+--   @dropEnd n = reverse . drop n . reverse@
+--   (Forces the whole list even for @n==0@.)
+dropEnd :: forall a. Int -> [a] -> [a]
+dropEnd n = snd . foldr f (n, [])
+  where
+  f :: a -> (Int, [a]) -> (Int, [a])
+  f x (n, xs)
+    | n <= 0    = (0, x:xs)
+    | otherwise = (n-1, xs)
 
 -- | Opposite of cons @(:)@, safe.
 uncons :: [a] -> Maybe (a, [a])

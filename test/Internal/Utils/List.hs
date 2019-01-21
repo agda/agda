@@ -18,6 +18,8 @@ prop_last2 a b as = last2 (a:b:as) == toPair (drop (length as) $ a:b:as)
   toPair [x,y] = Just (x,y)
   toPair _     = Nothing
 
+prop_dropEnd n as = dropEnd n as == reverse (drop n (reverse as))
+
 -- Trivial:
 -- prop_initLast_nil       = initLast [] == Nothing
 
