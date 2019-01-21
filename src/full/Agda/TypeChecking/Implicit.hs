@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE PatternSynonyms #-}
 
 {-| Functions for inserting implicit arguments at the right places.
 -}
@@ -100,15 +101,13 @@ newInteractionMetaArg info x a = do
 
 -- | Possible results of 'insertImplicit'.
 data ImplicitInsertion
-      = ImpInsert [Hiding] -- ^ Success: this many implicits have to be inserted.
+      = ImpInsert [Hiding] -- ^ Success: this many implicits have to be inserted (list can be empty).
       | BadImplicits       -- ^ Error: hidden argument where there should have been a non-hidden argument.
       | NoSuchName ArgName -- ^ Error: bad named argument.
-      | NoInsertNeeded     -- ^ Success: nothing to do.
   deriving (Show)
 
-impInsert :: [Hiding] -> ImplicitInsertion
-impInsert [] = NoInsertNeeded
-impInsert hs = ImpInsert hs
+pattern NoInsertNeeded :: ImplicitInsertion
+pattern NoInsertNeeded = ImpInsert []
 
 -- | If the next given argument is @a@ and the expected arguments are @ts@
 --   @insertImplicit' a ts@ returns the prefix of @ts@ that precedes @a@.
@@ -137,15 +136,15 @@ insertImplicit' _ [] = BadImplicits
 insertImplicit' a ts
 
   -- If @a@ is visible, then take the non-visible prefix of @ts@.
-  | visible a = impInsert $ takeWhile notVisible $ map getHiding ts
+  | visible a = ImpInsert $ takeWhile notVisible $ map getHiding ts
 
   -- If @a@ is named, take prefix of @ts@ until the name of @a@ (with correct hiding).
   -- If the name is not found, throw exception 'NoSuchName'.
-  | Just x <- rangedThing <$> nameOf (unArg a) = maybe (NoSuchName x) impInsert $
+  | Just x <- rangedThing <$> nameOf (unArg a) = maybe (NoSuchName x) ImpInsert $
       takeHiddenUntil (\ t -> x == unArg t && sameHiding a t) ts
 
   -- If @a@ is neither visible nor named, take prefix of @ts@ with different hiding than @a@.
-  | otherwise = maybe BadImplicits impInsert $
+  | otherwise = maybe BadImplicits ImpInsert $
       takeHiddenUntil (sameHiding a) ts
 
     where

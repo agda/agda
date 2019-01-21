@@ -105,6 +105,5 @@ insertImplicitPatternsT exh            ps a = do
       BadImplicits   -> typeError WrongHidingInLHS
       NoSuchName x   -> typeError WrongHidingInLHS
       ImpInsert n    -> return $ map implicitArg n
-      NoInsertNeeded -> return []
 
     implicitArg h = implicitP $ setHiding h $ defaultArgInfo

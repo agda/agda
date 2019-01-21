@@ -162,10 +162,10 @@ checkApplication cmp hd args e t = postponeInstanceConstraints $ do
           makeArgs _  []   = ([], [])
           makeArgs tel@(d : _) (arg : args) =
             case insertImplicit arg tel of
+              NoInsertNeeded -> first (mkArg (snd $ unDom d) arg :) $ makeArgs (tail tel) args
               ImpInsert is   -> makeArgs (drop (length is) tel) (arg : args)
               BadImplicits   -> (arg : args, [])  -- fail later in checkHeadApplication
               NoSuchName{}   -> (arg : args, [])  -- ditto
-              NoInsertNeeded -> first (mkArg (snd $ unDom d) arg :) $ makeArgs (tail tel) args
 
           (macroArgs, otherArgs) = makeArgs argTel args
           unq = A.App (A.defaultAppInfo $ fuseRange x args) (A.Unquote A.exprNoRange) . defaultNamedArg
