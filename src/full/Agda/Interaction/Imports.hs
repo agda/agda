@@ -568,7 +568,9 @@ typeCheck x file isMain msi = do
       -- the persistent state may not be preserved if an error other
       -- than a type error or an IO exception is encountered in an
       -- imported module.
-      r <- noCacheForImportedModule $
+      r <- withoutCache $
+           -- The cache should not be used for an imported module, and it
+           -- should be restored after the module has been type-checked
            freshTCM $
              withImportPath ms $
              localTC (\e -> e { envModuleNestingLevel = nesting

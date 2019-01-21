@@ -14,6 +14,7 @@ import qualified Data.Set as Set
 import Agda.Syntax.Internal
 
 import Agda.TypeChecking.Monad
+import Agda.TypeChecking.Monad.Caching
 import Agda.TypeChecking.InstanceArguments
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
@@ -235,7 +236,10 @@ solveConstraint_ (UnBlock m)                =
       Open -> __IMPOSSIBLE__
       OpenInstance -> __IMPOSSIBLE__
 solveConstraint_ (FindInstance m b cands)     = findInstance m cands
-solveConstraint_ (CheckFunDef d i q cs)       = checkFunDef d i q cs
+solveConstraint_ (CheckFunDef d i q cs)       = withoutCache $
+  -- re #3498: checking a fundef would normally be cached, but here it's
+  -- happening out of order so it would only corrupt the caching log.
+  checkFunDef d i q cs
 solveConstraint_ (HasBiggerSort a)            = hasBiggerSort a
 solveConstraint_ (HasPTSRule a b)             = hasPTSRule a b
 
