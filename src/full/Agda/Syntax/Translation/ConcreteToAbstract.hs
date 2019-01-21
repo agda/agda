@@ -180,7 +180,7 @@ recordConstructorType decls =
     -- module.
     niceDecls NoWarn decls $ buildType . takeFields
   where
-    takeFields = reverse . dropWhile notField . reverse
+    takeFields = List.dropWhileEnd notField
 
     notField NiceField{} = False
     notField _           = True

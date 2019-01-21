@@ -27,7 +27,7 @@ import Control.Monad.Reader
 import Control.Monad.State
 
 import Data.Function
-import Data.List (nub, sortBy, intersperse, isInfixOf)
+import Data.List (nub, sortBy, intersperse, isInfixOf, dropWhileEnd)
 import Data.Maybe
 import Data.Char (toLower)
 import qualified Data.Set as Set
@@ -1147,7 +1147,7 @@ instance PrettyTCM TypeError where
                filter (not . closedWithoutHoles) sects))
       where
       trimLeft  = dropWhile isNormalHole
-      trimRight = reverse . dropWhile isNormalHole . reverse
+      trimRight = dropWhileEnd isNormalHole
 
       closedWithoutHoles sect =
         sectKind sect == NonfixNotation
