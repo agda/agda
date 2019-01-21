@@ -55,10 +55,10 @@ insertImplicitSizeLtPatterns t = do
 
   -- Search for the last SizeLt type among the hidden arguments.
   TelV tel _ <- telView t
-  let ts = reverse $ takeWhile (not . visible) $ telToList tel
-  keep <- reverse <$> dropWhileM (not <.> isSizeLt . snd . unDom) ts
+  let ts = takeWhile (not . visible) $ telToList tel
+  keep <- dropWhileEndM (not <.> isSizeLt . snd . unDom) ts
   -- Insert implicit patterns upto (including) the last SizeLt type.
-  return [ implicitP ai | Dom {domInfo = ai} <- keep ]
+  return $ map (implicitP . domInfo) keep
 
 -- | Insert implicit patterns in a list of patterns.
 --   Even if 'DontExpandLast', trailing SIZELT patterns are inserted.
