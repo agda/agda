@@ -149,7 +149,7 @@ checkInjectivity f cs = fromMaybe NotInjective <.> runMaybeT $ do
 
   -- We don't need to consider absurd clauses
   let computeHead c@Clause{ clauseBody = Just body } = do
-        h <- varToArg c =<< lift (fromMaybe UnknownHead <$> headSymbol body)
+        h <- varToArg c =<< lift (fromMaybe UnknownHead <$> addContext (clauseTel c) (headSymbol body))
         return [Map.singleton h [c]]
       computeHead _ = return []
 
