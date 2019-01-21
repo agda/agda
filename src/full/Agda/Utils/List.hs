@@ -154,6 +154,19 @@ deal f a ~(bs,cs) = case f a of
   Left  b -> (b:bs, cs)
   Right c -> (bs, c:cs)
 
+-- | Split off the largest suffix whose elements satisfy a predicate.
+--
+--   @spanEnd p xs = (ys, zs)@
+--   where @xs = ys ++ zs@
+--   and @all p zs@
+--   and @maybe True (not . p) (lastMaybe yz)@.
+spanEnd :: forall a. (a -> Bool) -> [a] -> ([a], [a])
+spanEnd p = snd . foldr f (True, ([], []))
+  where
+  f :: a -> (Bool, ([a], [a])) -> (Bool, ([a], [a]))
+  f x (b', (xs, ys)) = (b, if b then (xs, x:ys) else (x:xs, ys))
+    where b = b' && p x
+
 -- | A generalized version of @takeWhile@.
 --   (Cf. @mapMaybe@ vs. @filter@).
 takeWhileJust :: (a -> Maybe b) -> [a] -> [b]
