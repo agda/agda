@@ -82,21 +82,20 @@ insertImplicitPatternsT exh            ps a = do
          ]
   case ps of
     [] -> insImp dummy tel
-    p : ps -> do
+    p : _ -> do
       -- Andreas, 2015-05-11.
       -- If p is a projection pattern, make it visible for the purpose of
       -- calling insImp / insertImplicit, to get correct behavior.
       let p' = applyWhen (isJust $ A.maybeProjP p) (setHiding NotHidden) p
       hs <- insImp p' tel
-      case hs of
-        [] -> do
-          a <- reduce a
-          a <- piOrPath a
-          case a of
-            Left (arg, b) -> do
-              (p :) <$> insertImplicitPatternsT exh ps (absBody b)
-            _ -> return (p : ps)
-        hs -> insertImplicitPatternsT exh (hs ++ p : ps) (telePi tel b)
+      -- Continue with implicit patterns inserted before @p@.
+      -- The list @hs ++ ps@ cannot be empty.
+      let ps0@(~(p1 : ps1)) = hs ++ ps
+      reduce a >>= piOrPath >>= \case
+        -- If @a@ is a function (or path) type, continue inserting after @p1@.
+        Left (_, b) -> (p1 :) <$> insertImplicitPatternsT exh ps1 (absBody b)
+        -- Otherwise, we are done.
+        Right{}     -> return ps0
   where
     dummy = defaultNamedArg (A.VarP __IMPOSSIBLE__)
 
