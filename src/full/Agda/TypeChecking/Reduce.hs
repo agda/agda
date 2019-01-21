@@ -361,16 +361,21 @@ instance (Reduce a, Reduce b,Reduce c) => Reduce (a,b,c) where
 reduceIApply :: ReduceM (Blocked Term) -> [Elim] -> ReduceM (Blocked Term)
 reduceIApply = reduceIApply' reduceB'
 
+blockedOrMeta :: Blocked Term -> Blocked ()
+blockedOrMeta r =
+  case r of
+    Blocked m _              -> Blocked m ()
+    NotBlocked _ (MetaV m _) -> Blocked m ()
+    NotBlocked i _           -> NotBlocked i ()
+
 reduceIApply' :: (Term -> ReduceM (Blocked Term)) -> ReduceM (Blocked Term) -> [Elim] -> ReduceM (Blocked Term)
 reduceIApply' reduceB' d (IApply x y r : es) = do
   view <- intervalView'
   r <- reduceB' r
   -- We need to propagate the blocking information so that e.g.
   -- we postpone "someNeutralPath ?0 = a" rather than fail.
-  let blockedInfo = case r of
-        Blocked m _              -> Blocked m ()
-        NotBlocked _ (MetaV m _) -> Blocked m ()
-        NotBlocked i _           -> NotBlocked i ()
+  let blockedInfo = blockedOrMeta r
+
   case view (ignoreBlocking r) of
    IZero -> reduceB' (applyE x es)
    IOne  -> reduceB' (applyE y es)
