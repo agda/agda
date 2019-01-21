@@ -141,31 +141,23 @@ insertImplicit' a ts
 
   -- If @a@ is named, take prefix of @ts@ until the name of @a@ (with correct hiding).
   -- If the name is not found, throw exception 'NoSuchName'.
-  | Just x <- nameOf (unArg a) = find [] (rangedThing x) (getHiding a) ts
+  | Just x <- rangedThing <$> nameOf (unArg a) = maybe (NoSuchName x) impInsert $
+      takeHiddenUntil (\ t -> x == unArg t && sameHiding a t) ts
 
   -- If @a@ is neither visible nor named, take prefix of @ts@ with different hiding than @a@.
-  | otherwise = maybe BadImplicits impInsert $ upto (getHiding a) $ map getHiding ts
+  | otherwise = maybe BadImplicits impInsert $
+      takeHiddenUntil (sameHiding a) ts
 
     where
-    -- | @upto h hs = Just hs1@
-    --   iff @hs = hs1 ++ [h] ++ hs2@
-    --   and @all notVisible (hs1 ++ [h])@
-    upto :: Hiding -> [Hiding] -> Maybe [Hiding]
-    upto h []              = Nothing
-    upto h (NotHidden : _) = Nothing
-    upto h (h' : hs)
-      | sameHiding h h'    = Just []
-      | otherwise          = (h' :) <$> upto h hs
-
-    find
-      :: [Hiding]           -- ^ Accumulator for the result (reversed).
-      -> ArgName            -- ^ The name @x@ of @a@, expected in the arguments @ts@.
-      -> Hiding             -- ^ The hiding @hx@ of @a@.
-      -> [Arg ArgName]      -- ^ @ts@, the expected arguments.
-      -> ImplicitInsertion
-    -- If @ts@ is processed or we hit a visible argument, we have not found @x@.
-    find _  x _  []                  = NoSuchName x
-    find _  x _  (t : _) | visible t = NoSuchName x
-    find hs x hx (t@(Arg _ y) : ts)
-      | x == y && sameHiding hx t = impInsert $ reverse hs
-      | otherwise = find (getHiding t : hs) x hx ts
+    -- | @takeHiddenUntil p ts@ returns the 'getHiding' of the prefix of @ts@
+    --   until @p@ holds or a visible argument is encountered.
+    --   If @p@ never holds, 'Nothing' is returned.
+    --
+    --   Precondition: @p@ should imply @not . visible@.
+    takeHiddenUntil :: (Arg ArgName -> Bool) -> [Arg ArgName] -> Maybe [Hiding]
+    takeHiddenUntil p ts =
+      case ts2 of
+        []      -> Nothing  -- Predicate was never true
+        (t : _) -> if visible t then Nothing else Just $ map getHiding ts1
+      where
+      (ts1, ts2) = break (\ t -> p t || visible t) ts
