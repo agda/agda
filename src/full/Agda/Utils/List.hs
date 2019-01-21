@@ -233,22 +233,6 @@ stripPrefixBy eq = loop
     | eq p r    = loop pat rest
     | otherwise = Nothing
 
--- | Result of 'preOrSuffix'.
-data PreOrSuffix a
-  = IsPrefix a [a] -- ^ First list is prefix of second.
-  | IsSuffix a [a] -- ^ First list is suffix of second.
-  | IsBothfix      -- ^ The lists are equal.
-  | IsNofix        -- ^ The lists are incomparable.
-
--- | Compare lists with respect to prefix partial order.
-preOrSuffix :: Eq a => [a] -> [a] -> PreOrSuffix a
-preOrSuffix []     []     = IsBothfix
-preOrSuffix []     (b:bs) = IsPrefix b bs
-preOrSuffix (a:as) []     = IsSuffix a as
-preOrSuffix (a:as) (b:bs)
-  | a == b    = preOrSuffix as bs
-  | otherwise = IsNofix
-
 -- | Split a list into sublists. Generalisation of the prelude function
 --   @words@.
 --
