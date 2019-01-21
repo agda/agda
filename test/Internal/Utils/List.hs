@@ -42,6 +42,12 @@ prop_spanEnd_maximal p xs = let (ys, zs) = spanEnd p xs in maybe True (not . p) 
 prop_mapMaybeAndRest_Nothing as = mapMaybeAndRest (const Nothing) as == ([] :: [Int],as)
 prop_mapMaybeAndRest_Just    as = mapMaybeAndRest Just            as == (as,[])
 
+prop_stripSuffix_sound    suf xs  = maybe True (\ pre -> xs == pre ++ suf) $ stripSuffix suf xs
+prop_stripSuffix_complete pre suf = stripSuffix suf (pre ++ suf) == Just pre
+
+prop_stripReversedSuffix_sound    rsuf xs  = maybe True (\ pre -> xs == pre ++ reverse rsuf) $ stripReversedSuffix rsuf xs
+prop_stripReversedSuffix_complete pre rsuf = stripReversedSuffix rsuf (pre ++ reverse rsuf) == Just pre
+
 prop_chop_intercalate :: Property
 prop_chop_intercalate =
   forAllShrink (choose (0, 4 :: Int))          shrink $ \ d ->

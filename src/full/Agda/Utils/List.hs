@@ -233,6 +233,40 @@ stripPrefixBy eq = loop
     | eq p r    = loop pat rest
     | otherwise = Nothing
 
+-- | @stripSuffix suf xs = Just pre@ iff @xs = pre ++ suf@.
+stripSuffix :: Eq a => Suffix a -> [a] -> Maybe (Prefix a)
+stripSuffix [] = Just
+stripSuffix s  = stripReversedSuffix (reverse s)
+
+type ReversedSuffix a = [a]
+
+-- | @stripReversedSuffix rsuf xs = Just pre@ iff @xs = pre ++ reverse suf@.
+stripReversedSuffix :: forall a. Eq a => ReversedSuffix a -> [a] -> Maybe (Prefix a)
+stripReversedSuffix rs = final . foldr step (SSSStrip rs)
+  where
+  -- Step of the automaton (reading input from right to left).
+  step :: a -> StrSufSt a -> StrSufSt a
+  step x = \case
+    SSSMismatch   -> SSSMismatch
+    SSSResult xs  -> SSSResult (x:xs)
+    SSSStrip []   -> SSSResult [x]
+    SSSStrip (y:ys)
+      | x == y    -> SSSStrip ys
+      | otherwise -> SSSMismatch
+
+  -- Output of the automaton.
+  final :: StrSufSt a -> Maybe (Prefix a)
+  final = \case
+    SSSResult xs -> Just xs
+    SSSStrip []  -> Just []
+    _            -> Nothing  -- We have not stripped the whole suffix or encountered a mismatch.
+
+-- | Internal state for stripping suffix.
+data StrSufSt a
+  = SSSMismatch                 -- ^ Error.
+  | SSSStrip (ReversedSuffix a) -- ^ "Negative string" to remove from end. List may be empty.
+  | SSSResult [a]               -- ^ "Positive string" (result). Non-empty list.
+
 -- | Split a list into sublists. Generalisation of the prelude function
 --   @words@.
 --
