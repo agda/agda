@@ -198,7 +198,7 @@ scopeCheckImport x = do
     return (iModuleName i `withRangesOfQ` mnameToConcrete x, s)
 
 data MaybeWarnings' a = NoWarnings | SomeWarnings a
-  deriving (Functor, Foldable, Traversable)
+  deriving (Show, Functor, Foldable, Traversable)
 type MaybeWarnings = MaybeWarnings' [TCWarning]
 
 applyFlagsToMaybeWarnings :: MaybeWarnings -> TCM MaybeWarnings
@@ -272,24 +272,21 @@ typeCheckMain f mode si = do
   reportSLn "import.main" 10 $ "Importing the primitive modules."
   libdir <- liftIO defaultLibDir
   reportSLn "import.main" 20 $ "Library dir = " ++ show libdir
-  -- To allow posulating the built-ins, check the primitive module
-  -- in unsafe mode
-  _ <- bracket_ (getsTC $ Lens.getSafeMode) Lens.putSafeMode $ do
-    Lens.putSafeMode False
-    -- Turn off import-chasing messages.
-    -- We have to modify the persistent verbosity setting, since
-    -- getInterface resets the current verbosity settings to the persistent ones.
-    bracket_ (getsTC $ Lens.getPersistentVerbosity) Lens.putPersistentVerbosity $ do
-      Lens.modifyPersistentVerbosity (Trie.delete [])  -- set root verbosity to 0
-      -- We don't want to generate highlighting information for Agda.Primitive.
-      withHighlightingLevel None $
-        forM_ [libdir </> "prim" </> "Agda" </> "Primitive.agda"
-              ,libdir </> "prim" </> "Agda" </> "Primitive" </> "Cubical.agda"
-              ] $ \f -> do
-          let file = mkAbsolute f
-          si <- sourceInfo file
-          checkModuleName' (siModuleName si) file
-          getInterface_ (siModuleName si) (Just si)
+  -- Turn off import-chasing messages.
+  -- We have to modify the persistent verbosity setting, since
+  -- getInterface resets the current verbosity settings to the persistent ones.
+  bracket_ (getsTC $ Lens.getPersistentVerbosity) Lens.putPersistentVerbosity $ do
+    Lens.modifyPersistentVerbosity (Trie.delete [])  -- set root verbosity to 0
+
+    -- We don't want to generate highlighting information for Agda.Primitive.
+    withHighlightingLevel None $ withoutOptionsChecking $
+      forM_ [libdir </> "prim" </> "Agda" </> "Primitive.agda"
+            ,libdir </> "prim" </> "Agda" </> "Primitive" </> "Cubical.agda"
+            ] $ \f -> do
+        let file = mkAbsolute f
+        si <- sourceInfo file
+        checkModuleName' (siModuleName si) file
+        getInterface_ (siModuleName si) (Just si)
   reportSLn "import.main" 10 $ "Done importing the primitive modules."
 
   -- Now do the type checking via getInterface'.
@@ -350,7 +347,14 @@ getInterface' x isMain msi = do
     -- interface.
     bracket_ (useTC stPragmaOptions)
              (unless (includeStateChanges isMain) . (stPragmaOptions `setTCLens`)) $ do
-     -- Forget the pragma options (locally).
+     -- We remember but reset the pragma options locally
+     -- For the main interface, we also remember the pragmas from the file
+     when (includeStateChanges isMain) $ do
+       pragmas <- concreteOptionsToOptionPragmas
+                    (fst $ maybe __IMPOSSIBLE__ siModule msi)
+       mapM_ setOptionsFromPragma pragmas
+     currentOptions <- useTC stPragmaOptions
+     -- Now reset the options
      setCommandLineOptions . stPersistentOptions . stPersistentState =<< getTC
 
      alreadyVisited x isMain $ addImportCycleCheck x $ do
@@ -400,6 +404,16 @@ getInterface' x isMain msi = do
       visited <- isVisited x
       reportSLn "import.iface" 5 $ if visited then "  We've been here. Don't merge."
                                    else "  New module. Let's check it out."
+
+      -- Check that imported module options are consistent with
+      -- current options (issue #2487)
+      -- compute updated warnings if needed
+      wt' <- ifM (not <$> asksTC envCheckOptionConsistency)
+                 {- then -} (return wt) {- else -} $ do
+        optComp <- checkOptionsCompatible currentOptions (iOptionsUsed i) (iModuleName i)
+        -- we might have aquired some more warnings when consistency checking
+        if optComp then return wt else getMaybeWarnings' isMain ErrorWarnings
+
       unless (visited || stateChangesIncluded) $ do
         mergeInterface i
         Bench.billTo [Bench.Highlighting] $
@@ -410,12 +424,34 @@ getInterface' x isMain msi = do
 
       -- Interfaces are not stored if we are only scope-checking, or
       -- if any warnings were encountered.
-      case (isMain, wt) of
+      case (isMain, wt') of
         (MainInterface ScopeCheck, _) -> return ()
         (_, SomeWarnings w)           -> return ()
         _                             -> storeDecodedModule i
 
-      return (i, wt)
+      return (i, wt')
+
+-- | Check if the options used for checking an imported module are
+--   compatible with the current options. Raises Non-fatal errors if
+--   not.
+checkOptionsCompatible :: PragmaOptions -> PragmaOptions -> ModuleName -> TCM Bool
+checkOptionsCompatible current imported importedModule = flip execStateT True $ do
+  reportSDoc "import.iface.options" 5 $ P.nest 2 $ "current options  =" P.<+> showOptions current
+  reportSDoc "import.iface.options" 5 $ P.nest 2 $ "imported options =" P.<+> showOptions imported
+  forM_ coinfectiveOptions $ \ (opt, optName) -> do
+    unless ((opt current) `implies` (opt imported)) $ do
+      put False
+      warning (CoInfectiveImport optName importedModule)
+  forM_ infectiveOptions $ \ (opt, optName) -> do
+    unless ((opt imported) `implies` (opt current)) $ do
+      put False
+      warning (InfectiveImport optName importedModule)
+  where
+    implies :: Bool -> Bool -> Bool
+    p `implies` q = p <= q
+
+    showOptions opts = P.prettyList (map (\ (o, n) -> P.text n P.<> ": " P.<+> (P.pretty $ o opts))
+                                 (coinfectiveOptions ++ infectiveOptions))
 
 -- | Check whether interface file exists and is in cache
 --   in the correct version (as testified by the interface file hash).
@@ -491,25 +527,41 @@ getStoredInterface x file isMain msi = do
     Just i        -> do
       reportSLn "import.iface" 5 $ "  imports: " ++ show (iImportedModules i)
 
-      hs <- map iFullHash <$> mapM getInterface (map fst $ iImportedModules i)
+      -- We set the pragma options of the skipped file here, so that
+      -- we can check that they are compatible with those of the
+      -- imported modules. Also, if the top-level file is skipped we
+      -- want the pragmas to apply to interactive commands in the UI.
+      mapM_ setOptionsFromPragma (iPragmaOptions i)
 
-      -- If any of the imports are newer we need to retype check
-      if hs /= map snd (iImportedModules i)
-        then do
-          -- liftIO close -- Close the interface file. See above.
-          fallback
-        else do
-          unless cached $ do
-            chaseMsg "Loading " x $ Just ifile
-            -- print imported warnings
-            let ws = filter ((Strict.Just file ==) . tcWarningOrigin) (iWarnings i)
-            unless (null ws) $ reportSDoc "warning" 1 $ P.vcat $ P.prettyTCM <$> ws
+      -- Check that options that matter haven't changed compared to
+      -- current options (issue #2487)
+      optionsChanged <- ifM (not <$> asksTC envCheckOptionConsistency)
+                        {-then-} (return False) {-else-} $ do
+        currentOptions <- useTC stPragmaOptions
+        let disagreements =
+              [ optName | (opt, optName) <- restartOptions,
+                          (opt currentOptions) /= (opt (iOptionsUsed i))]
+        if null disagreements then return False else do
+          reportSLn "import.iface.options" 4 $ "  Changes in the following options, re-typechecking: "  ++ prettyShow disagreements
+          return True
 
-          -- We set the pragma options of the skipped file here,
-          -- because if the top-level file is skipped we want the
-          -- pragmas to apply to interactive commands in the UI.
-          mapM_ setOptionsFromPragma (iPragmaOptions i)
-          return (False, (i, NoWarnings))
+      if optionsChanged then fallback else do
+
+        hs <- map iFullHash <$> mapM getInterface (map fst $ iImportedModules i)
+
+        -- If any of the imports are newer we need to retype check
+        if hs /= map snd (iImportedModules i)
+          then do
+            -- liftIO close -- Close the interface file. See above.
+            fallback
+          else do
+            unless cached $ do
+              chaseMsg "Loading " x $ Just ifile
+              -- print imported warnings
+              let ws = filter ((Strict.Just file ==) . tcWarningOrigin) (iWarnings i)
+              unless (null ws) $ reportSDoc "warning" 1 $ P.vcat $ P.prettyTCM <$> ws
+
+            return (False, (i, NoWarnings))
 
 -- | Run the type checker on a file and create an interface.
 --
@@ -700,6 +752,14 @@ writeInterface file i = do
 removePrivates :: ScopeInfo -> ScopeInfo
 removePrivates si = si { scopeModules = restrictPrivate <$> scopeModules si }
 
+concreteOptionsToOptionPragmas :: [C.Pragma] -> TCM [OptionsPragma]
+concreteOptionsToOptionPragmas p = do
+  pragmas <- concat <$> concreteToAbstract_ p
+  -- identity for top-level pragmas at the moment
+  let getOptions (A.OptionsPragma opts) = Just opts
+      getOptions _                      = Nothing
+  return $ mapMaybe getOptions pragmas
+
 -- | Tries to type check a module and write out its interface. The
 -- function only writes out an interface file if it does not encounter
 -- any warnings.
@@ -737,11 +797,7 @@ createInterface file mname isMain msi =
                          file (T.unpack source)
     stTokens `setTCLens` fileTokenInfo
 
-    pragmas <- concat <$> concreteToAbstract_ pragmas
-               -- identity for top-level pragmas at the moment
-    let getOptions (A.OptionsPragma opts) = Just opts
-        getOptions _                      = Nothing
-        options = mapMaybe getOptions pragmas
+    options <- concreteOptionsToOptionPragmas pragmas
     mapM_ setOptionsFromPragma options
 
 
@@ -1037,9 +1093,11 @@ buildInterface source fileType topLevel pragmas = do
     (display, sig) <- eliminateDeadCode display =<< getSignature
     userwarns <- useTC stLocalUserWarnings
     syntaxInfo <- useTC stSyntaxInfo
+    optionsUsed <- useTC stPragmaOptions
+
     -- Andreas, 2015-02-09 kill ranges in pattern synonyms before
     -- serialization to avoid error locations pointing to external files
-    -- when expanding a pattern synoym.
+    -- when expanding a pattern synonym.
     patsyns <- killRange <$> getPatternSyns
     let builtin' = Map.mapWithKey (\ x b -> (x,) . primFunName <$> b) builtin
     warnings <- getAllWarnings AllWarnings
@@ -1059,6 +1117,7 @@ buildInterface source fileType topLevel pragmas = do
       , iForeignCode     = foreignCode
       , iHighlighting    = syntaxInfo
       , iPragmaOptions   = pragmas
+      , iOptionsUsed     = optionsUsed
       , iPatternSyns     = patsyns
       , iWarnings        = warnings
       }

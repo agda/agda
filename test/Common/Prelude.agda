@@ -1,4 +1,4 @@
-
+{-# OPTIONS --without-K #-}
 module Common.Prelude where
 
 

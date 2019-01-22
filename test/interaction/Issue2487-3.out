@@ -1,0 +1,7 @@
+(agda2-status-action "")
+(agda2-info-action "*Type-checking*" "" nil)
+(agda2-highlight-clear)
+(agda2-info-action "*Error*" "Issue2487/B.agda:4,1-19 Importing module Issue2487.A not using the --safe flag from a module which does. when scope checking the declaration import Issue2487.A Issue2487/B.agda:4,1-19 Importing module Issue2487.A not using the --no-sized-types flag from a module which does. when scope checking the declaration import Issue2487.A Issue2487/B.agda:4,1-19 Importing module Issue2487.A not using the --no-guardedness flag from a module which does. when scope checking the declaration import Issue2487.A" nil)
+((last . 3) . (agda2-maybe-goto '("Issue2487/B.agda" . 50)))
+(agda2-highlight-load-and-delete-action)
+(agda2-status-action "")

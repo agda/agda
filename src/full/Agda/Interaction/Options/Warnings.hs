@@ -114,6 +114,8 @@ errorWarnings = Set.fromList
   , UnsolvedMetaVariables_
   , UnsolvedInteractionMetas_
   , UnsolvedConstraints_
+  , InfectiveImport_
+  , CoInfectiveImport_
   ]
 
 allWarnings :: Set WarningName
@@ -188,6 +190,9 @@ data WarningName
   | WithoutKFlagPrimEraseEquality_
   | CantGeneralizeOverSorts_
   | AbsurdPatternRequiresNoRHS_
+  -- Checking consistency of options
+  | InfectiveImport_
+  | CoInfectiveImport_
   deriving (Eq, Ord, Show, Read, Enum, Bounded)
 
 -- | The flag corresponding to a warning is precisely the name of the constructor
@@ -295,3 +300,5 @@ warningNameDescription w = case w of
   AbsurdPatternRequiresNoRHS_      -> "A clause with an absurd pattern does not need a Right Hand Side."
   CantGeneralizeOverSorts_         -> "Attempt to generalize over sort metas in 'variable' declaration."
   WithoutKFlagPrimEraseEquality_   -> "`primEraseEquality' usages with the without-K flags."
+  InfectiveImport_                 -> "Importing a file using e.g. `--cubical' into one which doesn't"
+  CoInfectiveImport_               -> "Importing a file not using e.g. `--safe'  from one which does"

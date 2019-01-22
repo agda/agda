@@ -266,11 +266,4 @@ builtinsNoDef =
   , builtinIZero
   , builtinIOne
   , builtinSetOmega
-  , builtinString
-  , builtinChar
-  , builtinFloat
-  , builtinWord64
-  , builtinInf
-  , builtinSharp
-  , builtinFlat
   ]

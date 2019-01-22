@@ -71,7 +71,7 @@ import Agda.TypeChecking.Monad.State
 import Agda.TypeChecking.Monad.MetaVars (registerInteractionPoint)
 import Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Monad.Options
-import Agda.TypeChecking.Monad.Env (insideDotPattern, isInsideDotPattern)
+import Agda.TypeChecking.Monad.Env (insideDotPattern, isInsideDotPattern, getCurrentPath)
 import Agda.TypeChecking.Rules.Builtin (isUntypedBuiltin, bindUntypedBuiltin, builtinKindOfName)
 
 import Agda.TypeChecking.Patterns.Abstract (expandPatternSynonyms)
@@ -1435,9 +1435,11 @@ instance ToAbstract NiceDeclaration A.Declaration where
 
   -- Axiom (actual postulate)
     C.Axiom r p a i rel x t -> do
-      -- check that we do not postulate in --safe mode
-      clo <- commandLineOptions
-      when (Lens.getSafeMode clo) (warning $ SafeFlagPostulate x)
+      -- check that we do not postulate in --safe mode, unless it is a
+      -- builtin module with safe postulates
+      whenM ((return . Lens.getSafeMode =<< commandLineOptions) `and2M`
+             (not <$> (Lens.isBuiltinWithSafePostulates . filePath =<< getCurrentPath)))
+            (warning $ SafeFlagPostulate x)
       -- check the postulate
       toAbstractNiceAxiom A.NoFunSig NotMacroDef d
 

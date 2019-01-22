@@ -1,8 +1,0 @@
-Error: The options --interactive, --interaction, --interaction-json and
---only-scope-checking cannot be combined with each other or
-with --html or --dependency-graph. Furthermore
---interactive and --interaction cannot be combined with
---latex, and --only-scope-checking cannot be combined with
---safe or --vim.
-
-Run 'agda --help' for help on command line options.

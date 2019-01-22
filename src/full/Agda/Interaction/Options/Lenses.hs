@@ -8,6 +8,8 @@ module Agda.Interaction.Options.Lenses where
 
 import Control.Monad.State
 
+import System.FilePath ((</>))
+
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.State
 import Agda.Interaction.Options
@@ -111,7 +113,7 @@ class LensSafeMode a where
 
 instance LensSafeMode PragmaOptions where
   getSafeMode = optSafe
-  setSafeMode is opts = opts { optSafe = is }
+  setSafeMode is opts = opts { optSafe = is } -- setSafeOption
 
 instance LensSafeMode CommandLineOptions where
   getSafeMode = getSafeMode . getPragmaOptions
@@ -131,6 +133,54 @@ modifySafeMode = modifyTC . mapSafeMode
 putSafeMode :: SafeMode -> TCM ()
 putSafeMode = modifyTC . setSafeMode
 
+-- | These builtins may use postulates, and are still considered --safe
+
+builtinWithSafePostulates :: [FilePath]
+builtinWithSafePostulates =
+  [ "Agda" </> "Primitive.agda"
+  , "Agda" </> "Primitive" </> "Cubical.agda"
+  , "Agda" </> "Builtin" </> "Bool.agda"
+  , "Agda" </> "Builtin" </> "Char.agda"
+  , "Agda" </> "Builtin" </> "Coinduction.agda"
+  , "Agda" </> "Builtin" </> "Cubical" </> "Glue.agda"
+  , "Agda" </> "Builtin" </> "Cubical" </> "Id.agda"
+  , "Agda" </> "Builtin" </> "Cubical" </> "Path.agda"
+  , "Agda" </> "Builtin" </> "Cubical" </> "Sub.agda"
+  , "Agda" </> "Builtin" </> "Equality" </> "Erase.agda"
+  , "Agda" </> "Builtin" </> "Equality.agda"
+  , "Agda" </> "Builtin" </> "Float.agda"
+  , "Agda" </> "Builtin" </> "FromNat.agda"
+  , "Agda" </> "Builtin" </> "FromNeg.agda"
+  , "Agda" </> "Builtin" </> "FromString.agda"
+  , "Agda" </> "Builtin" </> "Int.agda"
+  , "Agda" </> "Builtin" </> "IO.agda"
+  , "Agda" </> "Builtin" </> "List.agda"
+  , "Agda" </> "Builtin" </> "Nat.agda"
+  , "Agda" </> "Builtin" </> "Reflection.agda"
+  , "Agda" </> "Builtin" </> "Sigma.agda"
+  , "Agda" </> "Builtin" </> "Size.agda"
+  , "Agda" </> "Builtin" </> "Strict.agda"
+  , "Agda" </> "Builtin" </> "String.agda"
+  , "Agda" </> "Builtin" </> "Unit.agda"
+  , "Agda" </> "Builtin" </> "Word.agda"
+  ]
+
+-- | These builtins may not use postulates under --safe. They are not
+--   automatically unsafe, but will be if they use an unsafe feature.
+
+builtinWithUnsafePostulates :: [FilePath]
+builtinWithUnsafePostulates =
+  [ "Agda" </> "Builtin" </> "TrustMe.agda"
+  , "Agda" </> "Builtin" </> "Equality" </> "Rewrite.agda"
+  ]
+
+
+isBuiltinWithSafePostulates :: FilePath -> TCM Bool
+isBuiltinWithSafePostulates file = do
+  libdirPrim <- (</> "prim") <$> liftIO defaultLibDir
+  let safeBuiltins   = map (libdirPrim </>) builtinWithSafePostulates
+      unsafeBuiltins = map (libdirPrim </>) builtinWithUnsafePostulates
+  return $ (file `elem` safeBuiltins) && not (file `elem` unsafeBuiltins)
 
 ---------------------------------------------------------------------------
 -- ** Include directories

@@ -1,5 +1,7 @@
 module Issue561.Core where
 
+postulate Char : Set
+
 {-# BUILTIN CHAR Char #-}
 
 open import Agda.Builtin.IO public

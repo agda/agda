@@ -179,7 +179,7 @@ instance ToTerm Str     where toTerm = return $ Lit . LitString noRange . unStr
 instance ToTerm QName   where toTerm = return $ Lit . LitQName noRange
 instance ToTerm MetaId  where
   toTerm = do
-    file <- fromMaybe __IMPOSSIBLE__ <$> asksTC TCM.envCurrentPath
+    file <- getCurrentPath
     return $ Lit . LitMeta noRange file
 
 instance ToTerm Integer where

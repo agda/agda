@@ -30,6 +30,7 @@ module UnsolvedMeta where
 
 module Word64 where
 
+  postulate Word64 : Set
   {-# BUILTIN WORD64 Word64 #-}
 
   primitive        primWord64ToNat   : Word64 → Nat

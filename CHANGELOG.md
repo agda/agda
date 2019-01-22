@@ -412,13 +412,15 @@ Pragmas and options
   [#1209](https://github.com/agda/agda/issues/1209)].
 
   Constructor-based guarded corecursion is now only (meant to be)
-  allowed if the `--guardedness` option is active. By default this
-  option is not active. If `--guardedness` is used, then sized types
-  are disabled (because this combination is known to be inconsistent).
-  If you still want to use both constructor-based guarded corecursion
-  and sized types, then you can use `--guardedness --sized-types` (in
-  this order). The combination of constructor-based guarded
-  corecursion and sized types is not allowed if `--safe` is used.
+  allowed if the `--guardedness` option is active. This option is
+  active by default. The combination of constructor-based guarded
+  corecursion and sized types is not allowed if `--safe` is used,
+  and activating `--safe` turns off both `--guardedness` and
+  `--sized-types` (because this combination is known to be
+  inconsistent in the current implementation). If you want to use
+  either constructor-based guarded corecursion or sized types in
+  safe mode, then you can use `--safe --guardedness` or `--safe
+  --sized-types` respectively (in this order).
 
   The option `--no-guardedness` turns off constructor-based guarded
   corecursion.
@@ -477,6 +479,19 @@ Pragmas and options
 * The `REWRITE` builtin is now bound to the builtin equality type from
   `Agda.Builtin.Equality` in `Agda.Builtin.Equality.Rewrite` [Issue
   [#3318](https://github.com/agda/agda/issues/3318)].
+
+* Consistency checking of options used.
+
+  Agda now checks that options used in imported modules are consistent
+  with each other, e.g. a module using `--safe`, `--without-K`,
+  `--no-universe-polymorphism` or `--no-sized-types` may only import
+  modules with the same option, and modules using `--cubical` or
+  `--prop` must in turn use the same option. If an interface file has
+  been generated using different options compared to the current ones,
+  Agda will now re-typecheck the file.
+  [Issue [#2487](https://github.com/agda/agda/issues/2487)].
+
+* The option `--only-scope-checking` is now allowed together with `--safe`.
 
 Pragmas and options concerning universes
 ----------------------------------------
