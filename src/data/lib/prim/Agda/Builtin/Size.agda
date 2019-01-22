@@ -1,4 +1,4 @@
-{-# OPTIONS --without-K --safe --no-universe-polymorphism --no-sized-types --no-guardedness #-}
+{-# OPTIONS --without-K --safe --no-universe-polymorphism --sized-types --no-guardedness #-}
 
 module Agda.Builtin.Size where
 

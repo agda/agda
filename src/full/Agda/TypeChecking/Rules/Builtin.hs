@@ -17,6 +17,8 @@ import Control.Monad.State (get)
 import Data.List (find, sortBy)
 import Data.Function (on)
 
+import Agda.Interaction.Options (optSizedTypes)
+
 import qualified Agda.Syntax.Abstract as A
 import qualified Agda.Syntax.Abstract.Views as A
 import Agda.Syntax.Common
@@ -847,6 +849,8 @@ bindUntypedBuiltin b = \case
 -- We simply ignore the parameters.
 bindBuiltinNoDef :: String -> A.QName -> TCM ()
 bindBuiltinNoDef b q = inTopContext $ do
+  when (b `elem` sizeBuiltins) $ unlessM (optSizedTypes <$> pragmaOptions) $
+    genericError $ "Cannot declare size BUILTIN " ++ b ++ " with option --no-sized-types"
   case builtinDesc <$> findBuiltinInfo b of
     Just (BuiltinPostulate rel mt) -> do
       -- We start by adding the corresponding postulate

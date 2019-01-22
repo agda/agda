@@ -251,13 +251,8 @@ builtinAgdaTCMNoConstraints = "AGDATCMNOCONSTRAINTS"
 
 builtinsNoDef :: [String]
 builtinsNoDef =
-  [ builtinSizeUniv
-  , builtinSize
-  , builtinSizeLt
-  , builtinSizeSuc
-  , builtinSizeInf
-  , builtinSizeMax
-  , builtinConId
+  sizeBuiltins ++
+  [ builtinConId
   , builtinInterval
   , builtinPartial
   , builtinPartialP
@@ -267,3 +262,14 @@ builtinsNoDef =
   , builtinIOne
   , builtinSetOmega
   ]
+
+sizeBuiltins :: [String]
+sizeBuiltins =
+  [ builtinSizeUniv
+  , builtinSize
+  , builtinSizeLt
+  , builtinSizeSuc
+  , builtinSizeInf
+  , builtinSizeMax
+  ]
+
