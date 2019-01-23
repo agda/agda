@@ -11,18 +11,6 @@ import qualified Data.List as List
 import Internal.Helpers
 import Internal.Termination.CallMatrix ( callMatrix )
 
-------------------------------------------------------------------------------
-
--- prop_complete :: (?cutoff :: CutOff) => Property
--- prop_complete =
---   forAll (callGraph :: Gen (CallGraph [Integer])) $ \cs ->
---     isComplete (complete cs)
-
--- -- | Returns 'True' iff the call graph is complete.
-
--- isComplete :: (Ord cinfo, Monoid cinfo, ?cutoff :: CutOff) => CallGraph cinfo -> Bool
--- isComplete s = (s `union` (s `combine` s)) `notWorse` s
-
 ------------------------------------------------------------------------
 -- * Generators and properties
 ------------------------------------------------------------------------
