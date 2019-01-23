@@ -933,7 +933,7 @@ checkLHS mf = updateRelevance checkLHS_ where
              softTypeError $ SplitOnNonVariable v a
 
       let pos = size tel - (i+1)
-          (delta1, tel'@(ExtendTel dom adelta2)) = splitTelescopeAt pos tel
+          (delta1, (ExtendTel dom adelta2)) = splitTelescopeAt pos tel
 
       p <- liftTCM $ expandLitPattern p
       case snd $ asView p of

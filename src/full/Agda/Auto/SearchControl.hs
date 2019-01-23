@@ -211,10 +211,8 @@ instance Refinable (Exp o) (RefInfo o) where
    ExpRefInfo { eriMain  = Just (RIMainInfo n tt iotastepdone)
               , eriUnifs = unis
               , eriInfTypeUnknown = inftypeunknown
-              , eriIsEliminand = iseliminand
               , eriUsedVars = Just (uids, usedvars)
               , eriIotaStep = iotastep
-              , eriPickSubsVar = picksubsvar
               , eriEqRState = meqrstate
               } = getinfo infos
 

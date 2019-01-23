@@ -997,7 +997,7 @@ bindParameters npars ps0@(par@(A.DomainFree arg) : ps) t ret = do
       typeError . GenericDocError =<< do
         text ("No parameter of name " ++ x)
   where
-    Pi dom@(Dom{domInfo = info', unDom = a}) b = unEl t
+    Pi dom b = unEl t
     continue ps x = bindParameter npars ps x dom b ret
 
 bindParameter :: Int -> [A.LamBinding] -> Name -> Dom Type -> Abs Type -> (Telescope -> Type -> TCM a) -> TCM a
