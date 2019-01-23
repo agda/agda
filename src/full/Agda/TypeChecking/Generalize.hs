@@ -288,8 +288,7 @@ computeGeneralization genRecMeta nameMap allmetas = postponeInstanceConstraints 
                  HasType{} -> Just <$> getMetaTypeInContext x
 
           -- v is x applied to the context variables
-          let prune = map Apply . permute (mvPermutation mv)
-          v <- MetaV x . prune <$> getContextArgs
+          v <- MetaV x . map Apply <$> getMetaContextArgs mv
 
           -- Now we want to compute a substitution
           --   Γ Θ ⊢ σ : Γ (r : GenTel)
