@@ -32,5 +32,5 @@
 .Agda .TypeChecks         { color: black; background: #ADD8E6        }
 
 /* Standard attributes. */
-a { text-decoration: none }
-a[href]:hover { background-color: #B4EEB4 }
+.Agda a { text-decoration: none }
+.Agda a[href]:hover { background-color: #B4EEB4 }
