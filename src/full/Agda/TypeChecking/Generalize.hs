@@ -333,7 +333,8 @@ computeGeneralization genRecMeta nameMap allmetas = postponeInstanceConstraints 
             [ "ρ ∘ ρ⁻¹ =" <+> pretty (composeS ρ ρinv)
             , "ρ⁻¹ ∘ ρ =" <+> pretty (composeS ρinv ρ) ]
 
-          updateContext ρ expand $ do
+          -- #3519: don't leak the fresh meta if we didn't expand
+          speculateTCState_ $ updateContext ρ expand $ do
             reportSDoc "tc.generalize.eta" 30 $ nest 2 $
               "new context:" <+> (inTopContext . prettyTCM =<< getContextTelescope)
             -- In this context we create a fresh meta Γ Θ Δσ ⊢ y : Aρ
@@ -366,16 +367,19 @@ computeGeneralization genRecMeta nameMap allmetas = postponeInstanceConstraints 
               hsep ["assigning", prettyTCM (MetaV x es), ":=", prettyTCM u]
 
             -- This fails if x is a blocked term. We leave those alone.
-            assign DirEq x vs u `catchError_` \ err ->
-              case err of
-                PatternErr{} ->
+            do  assign DirEq x vs u
+                -- If x is a hole, update the hole to point to y instead. Note that
+                -- holes never point to blocked metas.
+                whenJust (Map.lookup x ips) (`connectInteractionPoint` y)
+                return SpeculateCommit
+
+              `catchError_` \ case
+                PatternErr{} -> do
                   reportSDoc "tc.generalize.eta" 20 $ nest 2 $
                     "Skipping eta expansion of blocked term meta" <+> pretty (MetaV x es)
-                _ -> throwError err
+                  return SpeculateAbort  -- roll back state changes
+                err -> throwError err
 
-            -- If x is a hole, update the hole to point to y instead. Note that
-            -- holes never point to blocked metas.
-            whenJust (Map.lookup x ips) (`connectInteractionPoint` y)
 
   return (genTel, telNames, sub)
 
