@@ -1,0 +1,12 @@
+Compilation error:
+
+MAlonzo/Code/Issue3409.hs:16:12: error: [-Wincomplete-patterns, -Werror=incomplete-patterns]
+    Pattern match(es) are non-exhaustive
+    In a case alternative:
+        Patterns not matched:
+            False
+            True
+   |
+16 | cover2 x = case x of
+   |            ^^^^^^^^^
+
