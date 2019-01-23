@@ -142,15 +142,15 @@ translateCopatternClauses cs = if all noCopats cs then return (NotDelayed, cs) e
 -- | A sequence of decisions @b@ leading to a head @a@.
 data Path a b = Path
   { thePath    :: [a] -- ^ the list of choices
-  , theContent :: b
+  , _theContent :: b
   } deriving (Functor)  -- NB: this means @Path a@ is a functor for any @a@
 
 mapContent :: (b -> c) -> Path a b -> Path a c
 mapContent f (Path p c) = Path p (f c)
 
 data ProjEntry = ProjEntry
-  { projPE :: AmbiguousQName
-  , patsPE :: [NamedArg Name] -- ^ currently we only support variable patterns
+  { _projPE :: AmbiguousQName
+  , _patsPE :: [NamedArg Name] -- ^ currently we only support variable patterns
   } deriving (Eq, Ord)
 
 type ProjPath = Path ProjEntry

@@ -65,7 +65,7 @@ import Agda.Utils.Impossible
  --------------------------------------------------------------------------}
 
 -- | The parse monad.
-newtype Parser a = P { runP :: StateT ParseState (Either ParseError) a }
+newtype Parser a = P { _runP :: StateT ParseState (Either ParseError) a }
   deriving (Functor, Applicative, Monad, MonadState ParseState, MonadError ParseError)
 
 -- | The parser state. Contains everything the parser and the lexer could ever

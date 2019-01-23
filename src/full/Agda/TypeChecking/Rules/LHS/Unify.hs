@@ -226,9 +226,9 @@ unifyIndices tel flex a us vs = liftTCM $ Bench.billTo [Bench.Typing, Bench.Chec
 ----------------------------------------------------
 
 data Equality = Equal
-  { eqType  :: Dom Type
-  , eqLeft  :: Term
-  , eqRight :: Term
+  { _eqType  :: Dom Type
+  , _eqLeft  :: Term
+  , _eqRight :: Term
   }
 
 instance Reduce Equality where

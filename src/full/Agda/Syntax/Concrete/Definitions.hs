@@ -464,13 +464,13 @@ data InMutual
 
 data DataRecOrFun
   = DataName
-    { kindPosCheck :: PositivityCheck
-    , kindUniCheck :: UniverseCheck
+    { _kindPosCheck :: PositivityCheck
+    , _kindUniCheck :: UniverseCheck
     }
     -- ^ Name of a data type
   | RecName
-    { kindPosCheck :: PositivityCheck
-    , kindUniCheck :: UniverseCheck
+    { _kindPosCheck :: PositivityCheck
+    , _kindUniCheck :: UniverseCheck
     }
     -- ^ Name of a record type
   | FunName TerminationCheck

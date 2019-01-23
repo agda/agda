@@ -499,8 +499,8 @@ instance ToAbstract c a => ToAbstract (Maybe c) (Maybe a) where
 -- Names ------------------------------------------------------------------
 
 data NewName a = NewName
-  { newBinder   :: Binder -- what kind of binder?
-  , newName     :: a
+  { _newBinder   :: Binder -- what kind of binder?
+  , _newName     :: a
   }
 
 data OldQName     = OldQName C.QName (Maybe (Set A.Name))
@@ -2182,11 +2182,11 @@ whereToAbstract r whname whds inner = do
   return (x, A.WhereDecls (am <$ whname) ds)
 
 data RightHandSide = RightHandSide
-  { rhsRewriteEqn :: [C.RewriteEqn]    -- ^ @rewrite e@ (many)
-  , rhsWithExpr   :: [C.WithExpr]      -- ^ @with e@ (many)
-  , rhsSubclauses :: [ScopeM C.Clause] -- ^ the subclauses spawned by a with (monadic because we need to reset the local vars before checking these clauses)
-  , rhs           :: C.RHS
-  , rhsWhereDecls :: [C.Declaration]
+  { _rhsRewriteEqn :: [C.RewriteEqn]    -- ^ @rewrite e@ (many)
+  , _rhsWithExpr   :: [C.WithExpr]      -- ^ @with e@ (many)
+  , _rhsSubclauses :: [ScopeM C.Clause] -- ^ the subclauses spawned by a with (monadic because we need to reset the local vars before checking these clauses)
+  , _rhs           :: C.RHS
+  , _rhsWhereDecls :: [C.Declaration]
   }
 
 data AbstractRHS

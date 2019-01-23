@@ -33,8 +33,8 @@ import Agda.Syntax.Parser.Monad
     'AlexInput', wrapped around the 'Parser' monad.
 -}
 newtype LookAhead a =
-    LookAhead { unLookAhead :: ReaderT ErrorFunction
-                                       (StateT AlexInput Parser) a
+    LookAhead { _unLookAhead :: ReaderT ErrorFunction
+                                        (StateT AlexInput Parser) a
               }
     deriving (Functor, Applicative, Monad)
 
