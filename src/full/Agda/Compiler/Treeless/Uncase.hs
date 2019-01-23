@@ -44,7 +44,7 @@ uncase t = case t of
         maybeSeq u | caseLazy t = u
                    | otherwise  = tApp (TPrim PSeq) [TVar x, u]
         fallback = TCase x t d bs
-        (fv, mu)
+        (_fv, mu)
           | isUnreachable d =
             case last bs of
               TACon _ a b -> (a, tryStrengthen a b)

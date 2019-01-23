@@ -1030,7 +1030,7 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps cps c = do
       let rho0' = toSplitPSubst rho0
 
       -- We have Δ₁' ⊢ ρ₀ : Δ₁Γ, so split it into the part for Δ₁ and the part for Γ
-      let (rho1,rho2) = splitS (size gamma) $ rho0'
+      let (rho1, _rho2) = splitS (size gamma) $ rho0'
 
       -- Andreas, 2015-05-01  I guess it is fine to use no @conPType@
       -- as the result of splitting is never used further down the pipeline.

@@ -102,7 +102,7 @@ tomy imi icns typs = do
    case nxt of
     Just cn -> do
      cmap <- fst `liftM` gets sConsts
-     let (mode, c) = cmap Map.! cn
+     let (_mode, c) = cmap Map.! cn
      def <- lift $ getConstInfo cn
      let typ = MB.defType def
          defn = MB.theDef def

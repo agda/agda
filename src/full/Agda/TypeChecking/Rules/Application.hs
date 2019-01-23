@@ -727,7 +727,7 @@ checkConstructorApplication cmp org t c args = do
     --
     -- Andreas, 2012-04-18: if all inital args are underscores, ignore them
     checkForParams args =
-      let (hargs, rest) = span (not . visible) args
+      let (hargs, _rest) = span (not . visible) args
           notUnderscore A.Underscore{} = False
           notUnderscore _              = True
       in  any notUnderscore $ map (unScope . namedArg) hargs

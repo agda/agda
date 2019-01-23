@@ -1504,8 +1504,8 @@ checkLetBinding b@(A.LetPatBind i p e) ret =
       fs <- recordPatternToProjections p
       -- We remove the bindings for the pattern variables from the context.
       cxt0 <- getContext
-      let (binds, cxt) = splitAt (size delta) cxt0
-          toDrop       = length binds
+      let (binds, _cxt) = splitAt (size delta) cxt0
+          toDrop        = length binds
 
           -- We create a substitution for the let-bound variables
           -- (unfortunately, we cannot refer to x in internal syntax

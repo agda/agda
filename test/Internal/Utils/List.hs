@@ -36,8 +36,8 @@ spec_updateAt n f as = let (bs, cs) = splitAt n as in bs ++ updateHead f cs
 prop_updateAt (NonNegative n) f as = updateAt n f as == spec_updateAt n f as
 
 prop_spanEnd_split   p xs = let (ys, zs) = spanEnd p xs in xs == ys ++ zs
-prop_spanEnd_holds   p xs = let (ys, zs) = spanEnd p xs in all p zs
-prop_spanEnd_maximal p xs = let (ys, zs) = spanEnd p xs in maybe True (not . p) (lastMaybe ys)
+prop_spanEnd_holds   p xs = let (_ys, zs) = spanEnd p xs in all p zs
+prop_spanEnd_maximal p xs = let (ys, _zs) = spanEnd p xs in maybe True (not . p) (lastMaybe ys)
 
 prop_mapMaybeAndRest_Nothing as = mapMaybeAndRest (const Nothing) as == ([] :: [Int],as)
 prop_mapMaybeAndRest_Just    as = mapMaybeAndRest Just            as == (as,[])

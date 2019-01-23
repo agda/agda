@@ -203,7 +203,7 @@ auto ii rng argstr = liftTCM $ do
 
              let loop :: I.MetaId -> StateT [I.MetaId] TCM [(I.MetaId, A.Expr)]
                  loop midx = do
-                   let (m, _, _, deps) = tccons Map.! midx
+                   let (_, _, _, deps) = tccons Map.! midx
                    asolss <- mapM loop deps
                    dones  <- get
                    asols  <- if midx `elem` dones then return [] else do

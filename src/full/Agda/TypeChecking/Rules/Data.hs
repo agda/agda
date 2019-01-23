@@ -695,7 +695,7 @@ defineTranspForFields' pathCons applyProj name params fsT fns rect = do
                        (consS iz IdS `composeS` sub params) -- Δ^I ⊢ Δ
                                  -- Δ^I , i:I ⊢ sub params : Δ
       -- Ξ , Ξ ⊢ θ : Γ, Ξ ⊢ φ, Ξ ⊢ u : R (δ i0), Ξ ⊢ us
-      (tel,theta,the_phi,the_u0, the_fields) =
+      (tel,theta,the_phi,_the_u0, the_fields) =
         case pathCons of
           Just u -> (abstract gamma' (d0 `applySubst` fsT)
                     , (liftS (size fsT) d0 `applySubst` u) `consS` raiseS (size fsT)

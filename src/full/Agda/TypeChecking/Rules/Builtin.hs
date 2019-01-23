@@ -731,7 +731,7 @@ bindBuiltinInfo (BuiltinInfo s d) e = do
           A.Con{} -> return ()
           _       -> typeError $ BuiltinMustBeConstructor s e
 
-        let v@(Con h _ []) = name v0
+        let v@(Con _ _ []) = name v0
             c = conName h
 
         bindBuiltinName s v
