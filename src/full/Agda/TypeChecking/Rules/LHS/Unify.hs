@@ -804,8 +804,7 @@ skipIrrelevantStrategy k s = do
 ----------------------------------------------------
 
 data UnifyLogEntry
-  = UnificationDone  UnifyState
-  | UnificationStep  UnifyState UnifyStep
+  = UnificationStep  UnifyState UnifyStep
 
 type UnifyLog = [UnifyLogEntry]
 
