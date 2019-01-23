@@ -216,7 +216,6 @@ quotingKit = do
           Lam info t -> lam !@ quoteHiding (getHiding info) @@ quoteAbs quoteTerm t
           Def x es   -> do
             defn <- getConstInfo x
-            n <- getDefFreeVars x
             -- #2220: remember to restore dropped parameters
             let
               conOrProjPars = defParameters defn
@@ -225,11 +224,19 @@ quotingKit = do
                     -- An extended lambda should not have any extra parameters!
                     unless (null conOrProjPars) __IMPOSSIBLE__
                     n <- size <$> lookupSection m
-                    extlam !@ list (map (quoteClause . (`apply` (take n ts))) cs)
-              qx Function{ funCompiled = Just Fail, funClauses = [cl] } =
-                    extlam !@ list [quoteClause $ dropArgs (length (namedClausePats cl) - 1) cl]
-              qx _ = def !@! quoteName x
-            qx (theDef defn) @@ list (drop n $ conOrProjPars ++ map (quoteArg quoteTerm) ts)
+                    let (pars, args) = splitAt n ts
+                    extlam !@ list (map (quoteClause . (`apply` pars)) cs)
+                           @@ list (map (quoteArg quoteTerm) args)
+              qx df@Function{ funCompiled = Just Fail, funClauses = [cl] } = do
+                    -- See also corresponding code in InternalToAbstract
+                    let n = length (namedClausePats cl) - 1
+                    extlam !@ list [quoteClause $ dropArgs n cl]
+                           @@ list (drop n $ map (quoteArg quoteTerm) ts)
+              qx _ = do
+                n <- getDefFreeVars x
+                def !@! quoteName x
+                     @@ list (drop n $ conOrProjPars ++ map (quoteArg quoteTerm) ts)
+            qx (theDef defn)
           Con x ci es | Just ts <- allApplyElims es -> do
             cDef <- getConstInfo (conName x)
             n    <- getDefFreeVars (conName x)
