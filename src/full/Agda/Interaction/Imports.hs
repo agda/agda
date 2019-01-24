@@ -223,16 +223,27 @@ hasWarnings = not . null
 
 alreadyVisited :: C.TopLevelModuleName ->
                   MainInterface ->
+                  PragmaOptions ->
                   TCM (Interface, MaybeWarnings) ->
                   TCM (Interface, MaybeWarnings)
-alreadyVisited x isMain getIface = do
+alreadyVisited x isMain currentOptions getIface = do
     mm <- getVisitedModule x
     case mm of
         -- A module with warnings should never be allowed to be
         -- imported from another module.
         Just mi | not (miWarnings mi) -> do
           reportSLn "import.visit" 10 $ "  Already visited " ++ prettyShow x
-          return (miInterface mi, NoWarnings)
+          let i = miInterface mi
+          -- Check that imported options are compatible with current ones,
+          -- but give primitive modules a pass
+          optsCompat <- if miPrimitive mi then return True else do
+            ifM (asksTC envCheckOptionConsistency)
+            {-then-} (checkOptionsCompatible currentOptions (iOptionsUsed i)
+                                             (iModuleName i))
+            {-else-} (return True)
+          if optsCompat then return (i , NoWarnings) else do
+            wt <- getMaybeWarnings' isMain ErrorWarnings
+            return (i, wt)
         _ -> do
           reportSLn "import.visit" 5 $ "  Getting interface for " ++ prettyShow x
           r@(i, wt) <- getIface
@@ -241,6 +252,7 @@ alreadyVisited x isMain getIface = do
             visitModule $ ModuleInfo
               { miInterface  = i
               , miWarnings   = hasWarnings wt
+              , miPrimitive  = False -- will be updated later for primitive modules
               }
           return r
 
@@ -286,7 +298,10 @@ typeCheckMain f mode si = do
         let file = mkAbsolute f
         si <- sourceInfo file
         checkModuleName' (siModuleName si) file
-        getInterface_ (siModuleName si) (Just si)
+        _ <- getInterface_ (siModuleName si) (Just si)
+        -- record that the just visited module is primitive
+        mapVisitedModule (siModuleName si) (\ m -> m { miPrimitive = True })
+
   reportSLn "import.main" 10 $ "Done importing the primitive modules."
 
   -- Now do the type checking via getInterface'.
@@ -357,7 +372,7 @@ getInterface' x isMain msi = do
      -- Now reset the options
      setCommandLineOptions . stPersistentOptions . stPersistentState =<< getTC
 
-     alreadyVisited x isMain $ addImportCycleCheck x $ do
+     alreadyVisited x isMain currentOptions $ addImportCycleCheck x $ do
       file <- findFile x  -- requires source to exist
 
       reportSLn "import.iface" 10 $ "  Check for cycle"

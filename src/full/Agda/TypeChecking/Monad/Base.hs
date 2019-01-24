@@ -762,6 +762,9 @@ data ModuleInfo = ModuleInfo
   , miWarnings   :: Bool
     -- ^ 'True' if warnings were encountered when the module was type
     -- checked.
+  , miPrimitive  :: Bool
+    -- ^ 'True' if the module is a primitive module, which should always
+    -- be importable.
   }
 
 -- Note that the use of 'C.TopLevelModuleName' here is a potential
