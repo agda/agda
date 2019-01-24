@@ -846,16 +846,7 @@ inferOrCheckProjApp e o ds args mt = do
     , text   "  t    = " <+> caseMaybe mt "Nothing" prettyTCM
     ]
 
-  let refuse :: String -> TCM a
-      refuse reason = typeError $ GenericError $
-        "Cannot resolve overloaded projection "
-        ++ prettyShow (A.nameConcrete $ A.qnameName $ headNe ds)
-        ++ " because " ++ reason
-      refuseNotApplied = refuse "it is not applied to a visible argument"
-      refuseNoMatching = refuse "no matching candidate found"
-      refuseNotRecordType = refuse "principal argument is not of record type"
-
-      cmp = caseMaybe mt CmpEq fst
+  let cmp = caseMaybe mt CmpEq fst
 
       -- Postpone the whole type checking problem
       -- if type of principal argument (or the type where we get it from)
@@ -877,18 +868,18 @@ inferOrCheckProjApp e o ds args mt = do
 
     -- Case: we have no visible argument to the projection.
     -- In inference mode, we really need the visible argument, postponing does not help
-    [] -> caseMaybe mt refuseNotApplied $ \ (cmp , t) -> do
+    [] -> caseMaybe mt (refuseProjNotApplied ds) $ \ (cmp , t) -> do
       -- If we have the type, we can try to get the type of the principal argument.
       -- It is the first visible argument.
       TelV _ptel core <- telViewUpTo' (-1) (not . visible) t
       ifBlockedType core (\ m _ -> postpone m) $ {-else-} \ _ core -> do
-      ifNotPiType core (\ _ -> refuseNotApplied) $ {-else-} \ dom _b -> do
+      ifNotPiType core (\ _ -> refuseProjNotApplied ds) $ {-else-} \ dom _b -> do
       ifBlockedType (unDom dom) (\ m _ -> postpone m) $ {-else-} \ _ ta -> do
-      caseMaybeM (isRecordType ta) refuseNotRecordType $ \ (_q, _pars, defn) -> do
+      caseMaybeM (isRecordType ta) (refuseProjNotRecordType ds) $ \ (_q, _pars, defn) -> do
       case defn of
         Record { recFields = fs } -> do
           case forMaybe fs $ \ (Arg _ f) -> List.find (f ==) (toList ds) of
-            [] -> refuseNoMatching
+            [] -> refuseProjNoMatching ds
             [d] -> do
               storeDisambiguatedName d
               -- checkHeadApplication will check the target type
@@ -904,11 +895,23 @@ inferOrCheckProjApp e o ds args mt = do
         [ "  principal arg " <+> prettyTCM arg
         , "  has type "      <+> prettyTCM ta
         ]
+      checkProjAppToKnownPrincipalArg e o ds args mt k v0 ta
+
+-- | Same arguments 'inferOrCheckProjApp' above but also gets the value and
+--   type of the principal argument.
+checkProjAppToKnownPrincipalArg :: A.Expr -> ProjOrigin -> NonemptyList QName -> A.Args -> Maybe (Comparison, Type) ->
+                                   Int -> Term -> Type -> TCM (Term, Type, CheckedTarget)
+checkProjAppToKnownPrincipalArg e o ds args mt k v0 ta = do
+      let cmp = caseMaybe mt CmpEq fst
+          postpone m = do -- TODO: #3518 wrong thing to postpone! Need to not forget progress checking principal arg.
+            tc <- caseMaybe mt newTypeMeta_ (return . snd)
+            v <- postponeTypeCheckingProblem (CheckExpr cmp e tc) $ isInstantiatedMeta m
+            return (v, tc, NotCheckedTarget)
       -- ta should be a record type (after introducing the hidden args in v0)
       (vargs, ta) <- implicitArgs (-1) (not . visible) ta
       let v = v0 `apply` vargs
       ifBlockedType ta (\ m _ -> postpone m) {-else-} $ \ _ ta -> do
-      caseMaybeM (isRecordType ta) refuseNotRecordType $ \ (q, _pars0, _) -> do
+      caseMaybeM (isRecordType ta) (refuseProjNotRecordType ds) $ \ (q, _pars0, _) -> do
 
           -- try to project it with all of the possible projections
           let try d = do
@@ -969,9 +972,9 @@ inferOrCheckProjApp e o ds args mt = do
 
           cands <- groupOn fst . catMaybes <$> mapM (runMaybeT . try) (toList ds)
           case cands of
-            [] -> refuseNoMatching
-            [[]] -> refuseNoMatching
-            (_:_:_) -> refuse $ "several matching candidates found: "
+            [] -> refuseProjNoMatching ds
+            [[]] -> refuseProjNoMatching ds
+            (_:_:_) -> refuseProj ds $ "several matching candidates found: "
                  ++ prettyShow (map (fst . snd) $ concat cands)
             -- case: just one matching projection d
             -- the term u = d v
@@ -998,6 +1001,17 @@ inferOrCheckProjApp e o ds args mt = do
                           coerce' cmp targetCheck (u `applyE` us) trest tc
 
                   return (v, tc, NotCheckedTarget)
+
+refuseProj :: NonemptyList QName -> String -> TCM a
+refuseProj ds reason = typeError $ GenericError $
+        "Cannot resolve overloaded projection "
+        ++ prettyShow (A.nameConcrete $ A.qnameName $ headNe ds)
+        ++ " because " ++ reason
+
+refuseProjNotApplied, refuseProjNoMatching, refuseProjNotRecordType :: NonemptyList QName -> TCM a
+refuseProjNotApplied    ds = refuseProj ds "it is not applied to a visible argument"
+refuseProjNoMatching    ds = refuseProj ds "no matching candidate found"
+refuseProjNotRecordType ds = refuseProj ds "principal argument is not of record type"
 
 -----------------------------------------------------------------------------
 -- * Coinduction
