@@ -73,9 +73,6 @@ splitCx _ Nil      = error "IMPOSSIBLE"
 cxFromList :: [Ty] -> Cx
 cxFromList = foldl (:>) Nil
 
-cxToList :: Cx -> [Ty]
-cxToList = reverse . map snd . contextVars
-
 instance Semigroup Cx where
   gamma <> Nil = gamma
   gamma <> (delta :> t) = (gamma <> delta) :> t

@@ -251,8 +251,6 @@ checkDecl d = setCurrentRange d $ do
       reportSDoc "tc.decl" 5 $ "Checked" <+> prettyTCM x <> "."
       return r
 
-    isAbstract = fmap Info.defAbstract (A.getDefInfo d) == Just AbstractDef
-
     -- Concrete definitions cannot use information about abstract things.
     abstract ConcreteDef = inConcreteMode
     abstract AbstractDef = inAbstractMode

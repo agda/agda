@@ -400,23 +400,6 @@ manyTill p end = scan
   where scan = (end >> return []) <++ (liftM2 (:) p scan)
 
 -- ---------------------------------------------------------------------------
--- Converting between ReadP and Read
-
-readP_to_S :: ReadP Char a -> ReadS a
--- ^ Converts a parser into a Haskell ReadS-style function.
---   This is the main way in which you can \"run\" a 'ReadP' parser:
---   the expanded type is
--- @ readP_to_S :: ReadP a -> String -> [(a,String)] @
-readP_to_S (R f) = run (f return)
-
-readS_to_P :: ReadS a -> ReadP Char a
--- ^ Converts a Haskell ReadS-style function into a parser.
---   Warning: This introduces local backtracking in the resulting
---   parser, and therefore a possible inefficiency.
-readS_to_P r =
-  R (\k -> Look (\s -> final [bs'' | (a,s') <- r s, bs'' <- run (k a) s']))
-
--- ---------------------------------------------------------------------------
 -- A variant on parse which returns either a result, or the unparseable text.
 
 run' :: P t a -> [t] -> Either a [t]
@@ -452,6 +435,23 @@ when testing the properties.
 
 >  (=~.) :: Bag (Int,String) -> Bag (Int,String) -> Bool
 >  (=~.) = (=~)
+
+Converting between ReadP and Read
+
+> readP_to_S :: ReadP Char a -> ReadS a
+> readP_to_S (R f) = run (f return)
+
+Converts a parser into a Haskell ReadS-style function.
+This is the main way in which you can \"run\" a 'ReadP' parser:
+the expanded type is @ readP_to_S :: ReadP a -> String -> [(a,String)] @
+
+> readS_to_P :: ReadS a -> ReadP Char a
+> readS_to_P r =
+>   R (\k -> Look (\s -> final [bs'' | (a,s') <- r s, bs'' <- run (k a) s']))
+
+Converts a Haskell ReadS-style function into a parser.
+Warning: This introduces local backtracking in the resulting
+parser, and therefore a possible inefficiency.
 
 Here follow the properties:
 

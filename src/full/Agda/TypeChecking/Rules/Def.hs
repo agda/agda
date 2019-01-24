@@ -493,8 +493,6 @@ checkSystemCoverage f [n] t cs = do
         phis = map andI $ map (map dir) alphas
         psi = orI $ phis
         pcs = zip phis cs
-        boolToI True = i1
-        boolToI False = i0
 
       reportSDoc "tc.sys.cover" 20 $ fsep $ map prettyTCM pats
       interval <- elInf primInterval
@@ -642,18 +640,6 @@ checkClause t withSub c@(A.Clause (A.SpineLHS i x aps) strippedPats rhs0 wh catc
             ]
           ]
 
-        -- check naturality wrt the interval.
-        let
-          iApplyVars :: [NamedArg DeBruijnPattern] -> [(Int, (Term,Term))]
-          iApplyVars ps = flip concatMap (map namedArg ps) $ \case
-                             IApplyP _ t u x -> [(dbPatVarIndex x,(t,u))]
-                             VarP{} -> []
-                             ProjP{}-> []
-                             LitP{} -> []
-                             DotP{} -> []
-                             DefP _ _ ps -> iApplyVars ps
-                             ConP _ _ ps -> iApplyVars ps
-
         -- compute body modification for irrelevant definitions, see issue 610
         rel <- asksTC envRelevance
         let bodyMod body = case rel of
@@ -719,19 +705,8 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps absurdPat trhs _ _asb _) rhs0
         -- Thus, we restore the state in this case,
         -- unless the rewrite expression contains questionmarks.
         st <- getTC
-        let recurse = do
-             st' <- getTC
-             -- Comparing the whole stInteractionPoints maps is a bit
-             -- wasteful, but we assume
-             -- 1. rewriting with a reflexive equality to happen rarely,
-             -- 2. especially with ?-holes in the rewrite expression
-             -- 3. and a large overall number of ?s.
-             let sameIP = (==) `on` (^.stInteractionPoints)
-             when (sameIP st st') $ putTC st
-             handleRHS $ A.RewriteRHS qes strippedPats rhs wh
 
         -- Get value and type of rewrite-expression.
-
         (proof, eqt) <- inferExpr eq
 
         -- Andreas, 2016-04-14, see also Issue #1796
@@ -755,20 +730,6 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps absurdPat trhs _ _asb _) rhs0
 
         Con reflCon _ [] <- primRefl
         reflInfo <- fmap (setOrigin Inserted) <$> getReflArgInfo reflCon
-
-        -- Andreas, 2017-01-11:
-        -- The test for refl is obsolete after fixes of #520 and #1740.
-        -- -- Andreas, 2014-05-17  Issue 1110:
-        -- -- Rewriting with @refl@ has no effect, but gives an
-        -- -- incomprehensible error message about the generated
-        -- -- with clause. Thus, we rather do simply nothing if
-        -- -- rewriting with @refl@ is attempted.
-        -- let isReflProof = do
-        --      v <- reduce proof
-        --      case v of
-        --        Con c _ [] | c == reflCon -> return True
-        --        _ -> return False
-        -- ifM isReflProof recurse $ {- else -} do
 
         -- Process 'rewrite' clause like a suitable 'with' clause.
 

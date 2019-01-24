@@ -263,11 +263,6 @@ instance Reduce UnifyState where
            <*> reduce' lhs
            <*> reduce' rhs
 
-reduceVarTel :: UnifyState -> TCM UnifyState
-reduceVarTel s@UState{ varTel = tel } = do
-  tel <- reduce tel
-  return $ s { varTel = tel }
-
 reduceEqTel :: UnifyState -> TCM UnifyState
 reduceEqTel s@UState{ eqTel = tel } = do
   tel <- reduce tel
@@ -285,11 +280,6 @@ normaliseVarTel :: UnifyState -> TCM UnifyState
 normaliseVarTel s@UState{ varTel = tel } = do
   tel <- normalise tel
   return $ s { varTel = tel }
-
-normaliseEqTel :: UnifyState -> TCM UnifyState
-normaliseEqTel s@UState{ eqTel = tel } = do
-  tel <- normalise tel
-  return $ s { eqTel = tel }
 
 instance PrettyTCM UnifyState where
   prettyTCM state = "UnifyState" $$ nest 2 (vcat $
@@ -343,24 +333,6 @@ getEqualityUnraised k UState { eqTel = eqs, eqLHS = lhs, eqRHS = rhs } =
           (unArg $ indexWithDefault __IMPOSSIBLE__ lhs k)
           (unArg $ indexWithDefault __IMPOSSIBLE__ rhs k)
 
-getEqInfo :: Int -> UnifyState -> ArgInfo
-getEqInfo k UState { eqTel = eqs } =
-  domInfo $ indexWithDefault __IMPOSSIBLE__ (telToList eqs) k
-
--- | Add a list of equations to the front of the equation telescope
-addEqs :: Telescope -> [Arg Term] -> [Arg Term] -> UnifyState -> UnifyState
-addEqs tel us vs s =
-  s { eqTel = tel `abstract` eqTel s
-    , eqLHS = us ++ eqLHS s
-    , eqRHS = vs ++ eqRHS s
-    }
-  where k = size tel
-
-addEq :: Type -> Arg Term -> Arg Term -> UnifyState -> UnifyState
-addEq a u v = addEqs (ExtendTel (defaultDom a) (Abs underscore EmptyTel)) [u] [v]
-
-
-
 -- | Instantiate the k'th variable with the given value.
 --   Returns Nothing if there is a cycle.
 solveVar :: Int    -- ^ Index @k@
@@ -409,19 +381,6 @@ solveEq k u s = (,sigma) $ s
     u'    = raise k u
     n     = eqCount s
     sigma = liftS (n-k-1) $ consS (dotP u') idS
-
--- | Simplify the k'th equation with the given value (which can depend on other
---   equation variables). Returns Nothing if there is a cycle.
-simplifyEq :: Int -> Term -> UnifyState -> Maybe (UnifyState, PatternSubstitution)
-simplifyEq k u s = case instantiateTelescope (eqTel s) k u of
-  Nothing -> Nothing
-  Just (tel' , sigma , rho) -> Just $ (,sigma) $ UState
-    { varTel   = varTel s
-    , flexVars = flexVars s
-    , eqTel    = tel'
-    , eqLHS    = permute rho $ eqLHS s
-    , eqRHS    = permute rho $ eqRHS s
-    }
 
 ----------------------------------------------------
 -- Unification strategies
@@ -566,11 +525,6 @@ instance PrettyTCM UnifyStep where
 
 type UnifyStrategy = UnifyState -> ListT TCM UnifyStep
 
-leftToRightStrategy :: UnifyStrategy
-leftToRightStrategy s =
-    msum (for [0..n-1] $ \k -> completeStrategyAt k s)
-  where n = size $ eqTel s
-
 rightToLeftStrategy :: UnifyStrategy
 rightToLeftStrategy s =
     msum (for (downFrom n) $ \k -> completeStrategyAt k s)
@@ -598,9 +552,7 @@ isHom n x = do
 
 findFlexible :: Int -> FlexibleVars -> Maybe (FlexibleVar Nat)
 findFlexible i flex =
-  let flex'      = map flexVar flex
-      flexible i = i `elem` flex'
-  in List.find ((i ==) . flexVar) flex
+  List.find ((i ==) . flexVar) flex
 
 basicUnifyStrategy :: Int -> UnifyStrategy
 basicUnifyStrategy k s = do
@@ -924,7 +876,6 @@ unifyStep s Solution{ solutionAt   = k
 unifyStep s (Injectivity k a d pars ixs c) = do
   ifM (liftTCM $ consOfHIT $ conName c) (return $ DontKnow []) $ do
   withoutK <- liftTCM $ optWithoutK <$> pragmaOptions
-  let n = eqCount s
 
   -- Get constructor telescope and target indices
   ctype <- (`piApply` pars) . defType <$> liftTCM (getConInfo c)
@@ -1066,7 +1017,6 @@ unifyStep s EtaExpandVar{ expandVar = fi, expandVarRecordType = d , expandVarPar
   where
     i = flexVar fi
     m = varCount s
-    n = eqCount s
 
     projFlexKind :: Int -> FlexibleVarKind
     projFlexKind j = case flexKind fi of
@@ -1132,9 +1082,7 @@ unifyStep s (SkipIrrelevantEquation k) = do
 unifyStep s (TypeConInjectivity k d us vs) = do
   dtype <- defType <$> liftTCM (getConstInfo d)
   TelV dtel _ <- liftTCM $ telView dtype
-  let n   = eqCount s
-      m   = size dtel
-      deq = Def d $ map Apply $ teleArgs dtel
+  let deq = Def d $ map Apply $ teleArgs dtel
   -- TODO: tellUnifyProof ???
   -- but d is not a constructor...
   Unifies <$> liftTCM (reduceEqTel $ s

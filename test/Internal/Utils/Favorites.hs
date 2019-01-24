@@ -24,11 +24,11 @@ instance (PartialOrd a, Arbitrary a) => Arbitrary (Favorites a) where
 -- * Properties
 ------------------------------------------------------------------------
 
-property_null_empty :: Bool
-property_null_empty = null (empty :: Favorites ())
+prop_null_empty :: Bool
+prop_null_empty = null (empty :: Favorites ())
 
-property_not_null_singleton :: forall a. a -> Bool
-property_not_null_singleton x = not $ null (singleton x :: Favorites a)
+prop_not_null_singleton :: forall a. a -> Bool
+prop_not_null_singleton x = not $ null (singleton x :: Favorites a)
 
 -- Remember: less is better!
 

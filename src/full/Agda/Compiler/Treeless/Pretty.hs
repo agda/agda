@@ -24,9 +24,6 @@ data PEnv = PEnv { pPrec :: Int
 
 type P = Reader PEnv
 
-withName :: (String -> P a) -> P a
-withName k = withNames 1 $ \[x] -> k x
-
 withNames :: Int -> ([String] -> P a) -> P a
 withNames n k = do
   (xs, ys) <- asks $ splitAt n . pFresh
@@ -115,7 +112,6 @@ isInfix op =
     _    -> Nothing
   where
     l n   = Just (n, n, n + 1)
-    r n   = Just (n, n + 1, n)
     non n = Just (n, n + 1, n + 1)
 
 pTerm' :: Int -> TTerm -> P Doc

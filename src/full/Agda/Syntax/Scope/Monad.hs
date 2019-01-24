@@ -473,7 +473,6 @@ copyScope oldc new0 s = (inScopeBecause (Applied oldc) *** memoToScopeInfo) <$> 
         addMod  x y rec = modify $ \ i -> i { memoModules = (x, (y, rec)) : filter ((/= x) . fst) (memoModules i) }
 
         -- Querying the memo structure.
-        findName x = lookup x <$> gets memoNames
         findMod  x = lookup x <$> gets memoModules
 
         refresh :: A.Name -> WSM A.Name

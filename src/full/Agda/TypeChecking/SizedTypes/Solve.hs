@@ -128,9 +128,6 @@ solveSizeConstraints flag =  do
     reportSDoc "tc.size.solve" 40 $ vcat $
       [ text $ "Solving constraints (" ++ show flag ++ ")"
       ] ++ map prettyTCM cs0
-  let -- Error for giving up
-      cannotSolve = typeError . GenericDocError =<<
-        vcat ("Cannot solve size constraints" : map prettyTCM cs0)
 
   -- 2. Cluster the constraints by common size metas.
 

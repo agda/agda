@@ -1291,9 +1291,6 @@ leqLevel a b = liftTCM $ do
         neutral (Plus _ NeutralLevel{}) = True
         neutral _                       = False
 
-        meta (Plus _ MetaLevel{}) = True
-        meta _                    = False
-
         unneutral (Plus _ (NeutralLevel _ v)) = v
         unneutral _ = __IMPOSSIBLE__
 
@@ -1428,12 +1425,6 @@ equalLevel' a b = do
           reportSDoc "tc.meta.level" 50 $ "meta" <+> sep [prettyList $ map pretty as, prettyList $ map pretty bs]
           bs' <- mapM (subtr n) bs
           assignE DirEq x as (levelTm (Max bs')) (===) -- fallback: check equality as atoms
-
-        -- Make sure to give a sensible error message
-        wrap m = m `catchError` \err ->
-          case err of
-            TypeError{} -> notok
-            _           -> throwError err
 
         subtr n (ClosedLevel m)
           | m >= n    = return $ ClosedLevel (m - n)

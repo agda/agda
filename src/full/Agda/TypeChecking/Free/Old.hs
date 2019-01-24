@@ -171,14 +171,6 @@ instance Monoid FreeVars where
   mappend = (<>)
   mconcat = unions
 
--- | @delete x fv@ deletes variable @x@ from variable set @fv@.
-delete :: Nat -> FreeVars -> FreeVars
-delete n (FV sv gv rv fv iv) = FV (Set.delete n sv) (Set.delete n gv) (Set.delete n rv) (Set.delete n fv) (Set.delete n iv)
-
--- | @subtractFV n fv@ subtracts $n$ from each free variable in @fv@.
-subtractFV :: Nat -> FreeVars -> FreeVars
-subtractFV n (FV sv gv rv fv iv) = FV (Set.subtract n sv) (Set.subtract n gv) (Set.subtract n rv) (Set.subtract n fv) (Set.subtract n iv)
-
 -- | A single unguarded variable.
 singleton :: Nat -> FreeVars
 singleton x = empty { unguardedVars = Set.singleton x }

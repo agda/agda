@@ -73,10 +73,10 @@ prop_zero_orPO = isZero POAny orPO
 -- | Soundness of 'seqPO'.
 --
 --   As QuickCheck test, this property is inefficient, see 'prop_seqPO'.
-property_seqPO :: ISet -> PartialOrdering -> ISet -> PartialOrdering ->
-                  ISet -> Property
-property_seqPO (ISet a) o (ISet b) p (ISet c) =
-  related a o b && related b p c ==> related a (seqPO o p) c
+-- property_seqPO :: ISet -> PartialOrdering -> ISet -> PartialOrdering ->
+--                   ISet -> Property
+-- property_seqPO (ISet a) o (ISet b) p (ISet c) =
+--   related a o b && related b p c ==> related a (seqPO o p) c
 
 -- | A more efficient way of stating soundness of 'seqPO'.
 prop_seqPO :: ISet -> ISet -> ISet -> Bool

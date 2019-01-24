@@ -87,10 +87,6 @@ import Agda.Utils.Impossible
 -- Composition of reified applications ------------------------------------
 
 -- | Drops hidden arguments unless --show-implicit.
-napps :: Expr -> [NamedArg Expr] -> TCM Expr
-napps e = nelims e . map I.Apply
-
--- | Drops hidden arguments unless --show-implicit.
 apps :: Expr -> [Arg Expr] -> TCM Expr
 apps e = elims e . map I.Apply
 

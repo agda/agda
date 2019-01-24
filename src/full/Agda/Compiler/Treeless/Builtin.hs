@@ -135,8 +135,6 @@ transform BuiltinKit{..} = tr
                 nPlusKAlt k b = TAGuard (tOp PGeq (TVar e) (tInt k)) $
                                 TLet (tOp PSub (TVar e) (tInt k)) b
 
-                str err = compactS err [Nothing]
-
             TACon c 1 b | isPos c ->
               case tr b of
                 -- collapse nested nat patterns

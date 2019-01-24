@@ -139,9 +139,6 @@ type LibM = ExceptT Doc (WriterT [LibWarning] IO)
 warnings :: MonadWriter [Either LibError LibWarning] m => [LibWarning] -> m ()
 warnings = tell . map Right
 
-warning :: MonadWriter [Either LibError LibWarning] m => LibWarning -> m ()
-warning = warnings . pure
-
 raiseErrors' :: MonadWriter [Either LibError LibWarning] m => [LibError'] -> m ()
 raiseErrors' = tell . map (Left . (LibError Nothing))
 

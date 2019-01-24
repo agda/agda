@@ -297,9 +297,6 @@ getParseInterval = do
 getLexState :: Parser [LexState]
 getLexState = parseLexState <$> get
 
-setLexState :: [LexState] -> Parser ()
-setLexState ls = modify $ \ s -> s { parseLexState = ls }
-
 modifyLexState :: ([LexState] -> [LexState]) -> Parser ()
 modifyLexState f = modify $ \ s -> s { parseLexState = f (parseLexState s) }
 

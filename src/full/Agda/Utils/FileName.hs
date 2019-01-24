@@ -72,10 +72,6 @@ rootPath = joinDrive "C:" [pathSeparator]
 rootPath = [pathSeparator]
 #endif
 
--- | maps @/bla/bla/bla/foo.bar.xxx@ to @foo.bar@.
-rootName :: AbsolutePath -> String
-rootName = dropExtension . snd . splitFileName . filePath
-
 -- | Makes the path absolute.
 --
 -- This function may raise an @\_\_IMPOSSIBLE\_\_@ error if

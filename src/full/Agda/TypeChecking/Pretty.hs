@@ -42,7 +42,6 @@ import qualified Agda.Syntax.Abstract as A
 import qualified Agda.Syntax.Concrete as C
 import qualified Agda.Syntax.Reflected as R
 import qualified Agda.Syntax.Abstract.Pretty as AP
-import Agda.Syntax.Concrete.Pretty (bracesAndSemicolons)
 import qualified Agda.Syntax.Concrete.Pretty as CP
 import qualified Agda.Syntax.Info as A
 import Agda.Syntax.Scope.Monad (withContextPrecedence)
@@ -398,14 +397,6 @@ instance PrettyTCM a => PrettyTCM (Pattern' a) where
         prettyTCM c <+> fsep (map (prettyTCM . namedArg) ps)
         where
         b = maybe False (/= PatOCon) $ conPRecord i
-        showRec :: TCM Doc
-        showRec = sep
-          [ "record"
-          , bracesAndSemicolons <$> zipWithM showField (conFields c) ps
-          ]
-        showField (Arg ai x) p =
-          sep [ prettyTCM (A.qnameName x) <+> "=" , nest 2 $ prettyTCM $ namedArg p ]
-        showCon = parens $ prTy $ prettyTCM c <+> fsep (map (prettyTCM . namedArg) ps)
         prTy d = d -- caseMaybe (conPType i) d $ \ t -> d  <+> ":" <+> prettyTCM t
   prettyTCM (LitP l)      = text (P.prettyShow l)
   prettyTCM (ProjP _ q)   = text ("." ++ P.prettyShow q)

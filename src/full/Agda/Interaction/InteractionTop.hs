@@ -1480,11 +1480,6 @@ whyInScope s = display_info . Info_WhyInScope =<< do
       , TCP.nest 2 $ TCP.vcat [variable v xs, modules ms]
       ]
       where
-        prettyRange :: Range -> TCM Doc
-        prettyRange r = text . show . (fmap . fmap) mkRel <$> do
-          return r
-        mkRel = Str . makeRelative cwd . filePath
-
         -- variable :: Maybe _ -> [_] -> TCM Doc
         variable Nothing xs = names xs
         variable (Just x) xs

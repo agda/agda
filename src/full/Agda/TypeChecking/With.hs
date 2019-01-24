@@ -118,7 +118,8 @@ splitTelForWith delta t as vs = let
     -- Otherwise, we cannot rewrite twice after another with the same equation
     -- as it turns into a reflexive equation in the first rewrite.
     -- Thus we include the fvs of the rewrite terms in Δ₁.
-    rewriteTerms = map snd $ filter (isEqualityType . fst) $ zip as vs
+    --
+    -- rewriteTerms = map snd $ filter (isEqualityType . fst) $ zip as vs
 
     -- Split the telescope into the part needed to type the with arguments
     -- and all the other stuff.

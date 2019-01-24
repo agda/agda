@@ -182,8 +182,7 @@ checkInternal' action v t = do
     Pi a b     -> do
       s <- shouldBeSort t
       when (s == SizeUniv) $ typeError $ FunctionTypeInSizeUniv v
-      let st  = sort s
-          sa  = getSort a
+      let sa  = getSort a
           sb  = getSort (unAbs b)
           mkDom v = El sa v <$ a
           mkRng v = fmap (v <$) b
@@ -247,15 +246,6 @@ checkSpine action a self es t = do
   ((v, v'), t') <- inferSpine' action a self self es
   t' <- reduce t'
   v' <$ coerceSize subtype v t' t
-
-checkArgs
-  :: Action
-  -> Type      -- ^ Type of the head.
-  -> Term      -- ^ The head.
-  -> Args      -- ^ The arguments.
-  -> Type      -- ^ Expected type of the application.
-  -> TCM Term  -- ^ The application after modification by the @Action@.
-checkArgs action a self vs t = checkSpine action a self (map Apply vs) t
 
 -- | @checkArgInfo actual expected@.
 --

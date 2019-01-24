@@ -8,13 +8,7 @@ module Agda.Interaction.Options.Help
        , allHelpTopics
        ) where
 
-import Data.Tuple ( swap )
-import Data.Maybe ( fromMaybe )
-
 import Agda.Interaction.Options.Warnings
-
-#include "undefined.h"
-import Agda.Utils.Impossible
 
 -- | Interface to the @help@ function
 data Help
@@ -45,6 +39,3 @@ helpTopicUsage tp = case tp of
 
 string2HelpTopic :: String -> Maybe HelpTopic
 string2HelpTopic str = lookup str allHelpTopics
-
-helpTopic2String :: HelpTopic -> String
-helpTopic2String w = fromMaybe __IMPOSSIBLE__ $ lookup w (map swap allHelpTopics)

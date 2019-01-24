@@ -95,13 +95,6 @@ import Agda.Utils.Size
 #include "undefined.h"
 import Agda.Utils.Impossible
 
--- | Compute the set of flexible patterns in a list of patterns. The result is
---   the deBruijn indices of the flexible patterns.
-flexiblePatterns :: [NamedArg A.Pattern] -> TCM FlexibleVars
-flexiblePatterns nps = do
-  forMaybeM (zip (downFrom $ length nps) nps) $ \ (i, Arg ai p) -> do
-    runMaybeT $ (\ f -> FlexibleVar (getHiding ai) (getOrigin ai) f (Just i) i) <$> maybeFlexiblePattern p
-
 -- | A pattern is flexible if it is dotted or implicit, or a record pattern
 --   with only flexible subpatterns.
 class IsFlexiblePattern a where

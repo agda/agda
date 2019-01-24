@@ -827,9 +827,6 @@ niceDeclarations fixs ds = do
             --            *** (id :: [NiceDeclaration] -> [NiceDeclaration])
             cons d = fmap (id *** (d :) *** id)
 
-    notMeasure TerminationMeasure{} = False
-    notMeasure _ = True
-
     nice :: [Declaration] -> Nice [NiceDeclaration]
     nice [] = return []
     nice ds = do

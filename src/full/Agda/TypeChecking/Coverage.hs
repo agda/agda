@@ -616,7 +616,6 @@ createMissingHCompClause f n x old_sc (SClause tel ps sigma' cps (Just t)) = set
           let
             ineg j = pure tINeg <@> j
             imax i j = pure tIMax <@> i <@> j
-            imin i j = pure tIMin <@> i <@> j
 
           comp <- do
             let forward la bA r u = pure tTrans <#> (lam "i" $ \ i -> la <@> (i `imax` r))
@@ -1306,9 +1305,8 @@ split' ind allowPartialCover fixtarget sc@(SClause tel ps _ cps target) (Blockin
       return $ Right $ Covering (lookupPatternVar sc x) ns
 
   where
-    inContextOfT, inContextOfDelta2 :: (MonadTCM tcm, MonadDebug tcm) => tcm a -> tcm a
+    inContextOfT :: (MonadTCM tcm, MonadDebug tcm) => tcm a -> tcm a
     inContextOfT      = addContext tel . escapeContext (x + 1)
-    inContextOfDelta2 = addContext tel . escapeContext x
 
     -- Debug printing
     debugInit tel x ps cps = liftTCM $ inTopContext $ do
@@ -1321,16 +1319,6 @@ split' ind allowPartialCover fixtarget sc@(SClause tel ps _ cps target) (Blockin
           , "cps     =" <+> prettyTCM cps
           ]
         ]
-
-    debugHoleAndType delta1 delta2 s ps t =
-      liftTCM $ reportSDoc "tc.cover.top" 10 $ nest 2 $ vcat $
-        [ "p      =" <+> text (patVarNameToString s)
-        , "ps     =" <+> text (show ps)
-        , "delta1 =" <+> prettyTCM delta1
-        , "delta2 =" <+> inContextOfDelta2 (prettyTCM delta2)
-        , "t      =" <+> inContextOfT (prettyTCM t)
-        ]
-
 
 -- | splitResult for MakeCase, tries to introduce IApply or ProjP copatterns
 splitResult :: QName -> SplitClause -> TCM (Either SplitError [SplitClause])

@@ -54,7 +54,7 @@ prop_splitTelescopeScope :: TermConfiguration -> Property
 prop_splitTelescopeScope conf =
   forAll (genC conf)                        $ \tel ->
   forAll (listOfElements [0..size tel - 1]) $ \vs ->
-  let SplitTel tel1 tel2 perm = splitTelescope (Set.fromList vs) tel
+  let SplitTel tel1 tel2 _ = splitTelescope (Set.fromList vs) tel
       tel' = telFromList (telToList tel1 ++ telToList tel2)
   in  isWellScoped conf tel'
 

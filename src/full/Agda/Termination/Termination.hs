@@ -70,9 +70,6 @@ checkIdems calls = caseMaybe (headMaybe offending) (Right ()) $ Left . augCallIn
     -- Every idempotent call must have decrease, otherwise it offends us.
     offending = filter (not . hasDecrease) $ filter idempotent calls
 
-checkIdem :: (?cutoff :: CutOff) => CallMatrixAug cinfo -> Bool
-checkIdem c = if idempotent c then hasDecrease c else True
-
 -- | A call @c@ is idempotent if it is an endo (@'source' == 'target'@)
 --   of order 1.
 --   (Endo-calls of higher orders are e.g. argument permutations).

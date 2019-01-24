@@ -313,11 +313,6 @@ solve cs = -- trace (show cs) $
          m0  = mkMatrix n (graph gr)
          m   = warshall m0
 
-         -- tracing only: build output version of transitive graph
-         legend i = fromJust $ Map.lookup i (intMap gr) -- trace only
-         lm0 = LegendMatrix m0 legend legend            -- trace only
-         lm  = LegendMatrix m legend legend             -- trace only
-
          -- compute the sets of flexible and rigid node numbers
          ns  = Map.keys (nodeMap gr)
          -- a set of flexible variables

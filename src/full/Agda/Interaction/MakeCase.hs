@@ -204,7 +204,6 @@ makeCase hole rng s = withInteractionId hole $ do
   -- Get function clause which contains the interaction point.
 
   InteractionPoint { ipMeta = mm, ipClause = ipCl} <- lookupInteractionPoint hole
-  let meta = fromMaybe __IMPOSSIBLE__ mm
   (f, clauseNo, rhs) <- case ipCl of
     IPClause f clauseNo rhs -> return (f, clauseNo, rhs)
     IPNoClause -> typeError $ GenericError $

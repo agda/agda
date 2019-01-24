@@ -935,7 +935,6 @@ primTransHComp cmd ts nelims = do
       (redReturn =<<) . runNamesT [] $ do
         comp <- do
           let
-            ineg j = pure tINeg <@> j
             imax i j = pure tIMax <@> i <@> j
           let forward la bA r u = pure tTrans <#> (lam "i" $ \ i -> la <@> (i `imax` r))
                                               <@> (lam "i" $ \ i -> bA <@> (i `imax` r))
@@ -1163,7 +1162,6 @@ primTransHComp cmd ts nelims = do
           tPath <- getTermLocal "primIdPath"
           tPathType <- getTermLocal builtinPath
           runNamesT [] $ do
-            let irrInfo = setRelevance Irrelevant defaultArgInfo
             let io = pure $ unview IOne
                 iz = pure $ unview IZero
                 conId = pure $ Def conid []
@@ -1288,7 +1286,6 @@ primTransHComp cmd ts nelims = do
               Nothing        -> noRed
         _ -> noRed
     compData _ _ _ _ _ _ _ _ = __IMPOSSIBLE__
-    compPO = __IMPOSSIBLE__
 
 primComp :: TCM PrimitiveImpl
 primComp = do
@@ -1318,7 +1315,6 @@ primComp = do
             (redReturn =<<) . runNamesT [] $ do
               comp <- do
                 let
-                  ineg j = pure tINeg <@> j
                   imax i j = pure tIMax <@> i <@> j
                 let forward la bA r u = pure tTrans <#> (lam "i" $ \ i -> la <@> (i `imax` r))
                                                     <@> (lam "i" $ \ i -> bA <@> (i `imax` r))
@@ -1443,7 +1439,6 @@ primFaceForall' = do
      us'    <- decomposeInterval t
      fr     <- getTerm builtinFaceForall builtinFaceForall
      let
-         v = view t
          us = [ map Left (Map.toList bsm) ++ map Right ts
               | (bsm,ts) <- us'
               , 0 `Map.notMember` bsm
@@ -1596,7 +1591,6 @@ primForce :: TCM PrimitiveImpl
 primForce = do
   let varEl s a = El (varSort s) <$> a
       varT s a  = varEl s (varM a)
-      varS s    = pure $ sort $ varSort s
   genPrimForce (nPi "x" (varT 3 1) $
                 (nPi "y" (varT 4 2) $ varEl 4 $ varM 2 <@> varM 0) -->
                 varEl 3 (varM 1 <@> varM 0)) $
@@ -1606,7 +1600,6 @@ primForceLemma :: TCM PrimitiveImpl
 primForceLemma = do
   let varEl s a = El (varSort s) <$> a
       varT s a  = varEl s (varM a)
-      varS s    = pure $ sort $ varSort s
   refl  <- primRefl
   force <- primFunName <$> getPrimitive "primForce"
   genPrimForce (nPi "x" (varT 3 1) $

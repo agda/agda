@@ -765,8 +765,7 @@ contextOfMeta ii norm = do
   info <- getMetaInfo <$> (lookupMeta =<< lookupInteractionId ii)
   withMetaInfo info $ do
     cxt <- getContext
-    let n         = length cxt
-        localVars = zipWith raise [1..] cxt
+    let localVars = zipWith raise [1..] cxt
         mkLet (x, lb) = do
           (tm, !dom) <- getOpen lb
           return $ (,) x <$> dom

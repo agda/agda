@@ -302,14 +302,6 @@ data FastCase c = FBranches
     -- ^ (if True) In case of non-canonical argument use catchAllBranch.
   }
 
-noBranches :: FastCase a
-noBranches = FBranches{ fprojPatterns   = False
-                      , fconBranches    = Map.empty
-                      , fsucBranch      = Nothing
-                      , flitBranches    = Map.empty
-                      , fcatchAllBranch = Nothing
-                      , ffallThrough    = False }
-
 -- | Case tree with bodies.
 
 data FastCompiledClauses
@@ -513,9 +505,6 @@ newtype Env s = Env [Pointer s]
 
 emptyEnv :: Env s
 emptyEnv = Env []
-
-isEmptyEnv :: Env s -> Bool
-isEmptyEnv (Env xs) = null xs
 
 envSize :: Env s -> Int
 envSize (Env xs) = length xs
@@ -730,12 +719,6 @@ trimEnvironment (KnownFVs fvs) env
     -- some cases run in constant instead of linear space you need quite contrived examples to
     -- notice the effect.
   | otherwise       = env -- Env $ trim 0 $ envToList env
-  where
-    -- Important: strict enough that the trimming actually happens
-    trim _ [] = []
-    trim i (p : ps)
-      | IntSet.member i fvs = (p :)             $! trim (i + 1) ps
-      | otherwise           = (unusedPointer :) $! trim (i + 1) ps
 
 -- | Build an environment for a body with some given free variables from a spine of arguments.
 --   Returns a triple containing
@@ -755,10 +738,6 @@ buildEnv xs spine = go xs spine emptyEnv
 
 unusedPointerString :: String
 unusedPointerString = show (Impossible __FILE__ __LINE__)
-
-unusedPointer :: Pointer s
-unusedPointer = Pure (Closure (Value $ notBlocked ())
-                     (Lit (LitString noRange unusedPointerString)) emptyEnv [])
 
 -- * Running the abstract machine
 

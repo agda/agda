@@ -564,9 +564,6 @@ dontUniverseCheckFlag o = return $ o { optUniverseCheck = False }
 omegaInOmegaFlag :: Flag PragmaOptions
 omegaInOmegaFlag o = return $ o { optOmegaInOmega = True }
 
-etaFlag :: Flag PragmaOptions
-etaFlag o = return $ o { optEta = True }
-
 noEtaFlag :: Flag PragmaOptions
 noEtaFlag o = return $ o { optEta = False }
 
