@@ -283,18 +283,17 @@ typeCheckMain f mode si = do
   -- liftIO . putStrLn . show =<< getVerbosity
   reportSLn "import.main" 10 $ "Importing the primitive modules."
   libdir <- liftIO defaultLibDir
+  let libdirPrim = libdir </> "prim"
   reportSLn "import.main" 20 $ "Library dir = " ++ show libdir
   -- Turn off import-chasing messages.
   -- We have to modify the persistent verbosity setting, since
   -- getInterface resets the current verbosity settings to the persistent ones.
-  bracket_ (getsTC $ Lens.getPersistentVerbosity) Lens.putPersistentVerbosity $ do
+  bracket_ (getsTC Lens.getPersistentVerbosity) Lens.putPersistentVerbosity $ do
     Lens.modifyPersistentVerbosity (Trie.delete [])  -- set root verbosity to 0
 
     -- We don't want to generate highlighting information for Agda.Primitive.
     withHighlightingLevel None $ withoutOptionsChecking $
-      forM_ [libdir </> "prim" </> "Agda" </> "Primitive.agda"
-            ,libdir </> "prim" </> "Agda" </> "Primitive" </> "Cubical.agda"
-            ] $ \f -> do
+      forM_ (map (libdirPrim </>) Lens.primitiveModules) $ \f -> do
         let file = mkAbsolute f
         si <- sourceInfo file
         checkModuleName' (siModuleName si) file
@@ -550,14 +549,15 @@ getStoredInterface x file isMain msi = do
 
       -- Check that options that matter haven't changed compared to
       -- current options (issue #2487)
-      optionsChanged <- ifM (not <$> asksTC envCheckOptionConsistency)
-                        {-then-} (return False) {-else-} $ do
+      optionsChanged <-ifM ((not <$> asksTC envCheckOptionConsistency) `or2M`
+                            Lens.isBuiltinModule (filePath file))
+                       {-then-} (return False) {-else-} $ do
         currentOptions <- useTC stPragmaOptions
         let disagreements =
               [ optName | (opt, optName) <- restartOptions,
                           (opt currentOptions) /= (opt (iOptionsUsed i))]
         if null disagreements then return False else do
-          reportSLn "import.iface.options" 4 $ "  Changes in the following options, re-typechecking: "  ++ prettyShow disagreements
+          reportSLn "import.iface.options" 4 $ "  Changes in the following options in " ++ prettyShow (filePath file) ++ ", re-typechecking: "  ++ prettyShow disagreements
           return True
 
       if optionsChanged then fallback else do

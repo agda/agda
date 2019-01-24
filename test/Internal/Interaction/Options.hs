@@ -45,7 +45,7 @@ prop_allBuiltinsSafePostulatesOrNot = ioProperty helper
     helper = do
       libdirPrim <- (</> "prim") <$> defaultLibDir
       allFiles <- getAgdaFilesInDir Rec libdirPrim
-      let builtinFiles = map (libdirPrim </>) (builtinWithSafePostulates ++ builtinWithUnsafePostulates)
+      let builtinFiles = map (libdirPrim </>) builtinModules
       let diff = difference allFiles builtinFiles
       if null diff then return True else do
         putStrLn $ "Missing/spurious builtins: " ++ show diff

@@ -135,11 +135,10 @@ putSafeMode = modifyTC . setSafeMode
 
 -- | These builtins may use postulates, and are still considered --safe
 
-builtinWithSafePostulates :: [FilePath]
-builtinWithSafePostulates =
-  [ "Agda" </> "Primitive.agda"
-  , "Agda" </> "Primitive" </> "Cubical.agda"
-  , "Agda" </> "Builtin" </> "Bool.agda"
+builtinModulesWithSafePostulates :: [FilePath]
+builtinModulesWithSafePostulates =
+  primitiveModules ++
+  [ "Agda" </> "Builtin" </> "Bool.agda"
   , "Agda" </> "Builtin" </> "Char.agda"
   , "Agda" </> "Builtin" </> "Coinduction.agda"
   , "Agda" </> "Builtin" </> "Cubical" </> "Glue.agda"
@@ -168,18 +167,32 @@ builtinWithSafePostulates =
 -- | These builtins may not use postulates under --safe. They are not
 --   automatically unsafe, but will be if they use an unsafe feature.
 
-builtinWithUnsafePostulates :: [FilePath]
-builtinWithUnsafePostulates =
+builtinModulesWithUnsafePostulates :: [FilePath]
+builtinModulesWithUnsafePostulates =
   [ "Agda" </> "Builtin" </> "TrustMe.agda"
   , "Agda" </> "Builtin" </> "Equality" </> "Rewrite.agda"
   ]
 
+primitiveModules :: [FilePath]
+primitiveModules =
+  [ "Agda" </> "Primitive.agda"
+  , "Agda" </> "Primitive" </> "Cubical.agda"
+  ]
 
-isBuiltinWithSafePostulates :: FilePath -> TCM Bool
-isBuiltinWithSafePostulates file = do
+builtinModules :: [FilePath]
+builtinModules = builtinModulesWithSafePostulates ++
+                 builtinModulesWithUnsafePostulates
+
+isBuiltinModule :: FilePath -> TCM Bool
+isBuiltinModule file = do
   libdirPrim <- (</> "prim") <$> liftIO defaultLibDir
-  let safeBuiltins   = map (libdirPrim </>) builtinWithSafePostulates
-      unsafeBuiltins = map (libdirPrim </>) builtinWithUnsafePostulates
+  return (file `elem` map (libdirPrim </>) builtinModules)
+
+isBuiltinModuleWithSafePostulates :: FilePath -> TCM Bool
+isBuiltinModuleWithSafePostulates file = do
+  libdirPrim <- (</> "prim") <$> liftIO defaultLibDir
+  let safeBuiltins   = map (libdirPrim </>) builtinModulesWithSafePostulates
+      unsafeBuiltins = map (libdirPrim </>) builtinModulesWithUnsafePostulates
   return $ (file `elem` safeBuiltins) && not (file `elem` unsafeBuiltins)
 
 ---------------------------------------------------------------------------

@@ -1438,7 +1438,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
       -- check that we do not postulate in --safe mode, unless it is a
       -- builtin module with safe postulates
       whenM ((return . Lens.getSafeMode =<< commandLineOptions) `and2M`
-             (not <$> (Lens.isBuiltinWithSafePostulates . filePath =<< getCurrentPath)))
+             (not <$> (Lens.isBuiltinModuleWithSafePostulates . filePath =<< getCurrentPath)))
             (warning $ SafeFlagPostulate x)
       -- check the postulate
       toAbstractNiceAxiom A.NoFunSig NotMacroDef d
