@@ -33,7 +33,7 @@ Consider the following record:
       backward : A → A
 
 
-This gives an interfaces that allows us to move along the elements of a
+This gives an interface that allows us to move along the elements of a
 data type ``A``.
 
 For example, we can get the “third” element of a type ``A``:
