@@ -578,6 +578,7 @@ library
                  -fwarn-unrecognised-pragmas
                  -fwarn-unticked-promoted-constructors
                  -fwarn-unused-do-bind
+                 -fwarn-unused-imports
                  -fwarn-warnings-deprecations
                  -fwarn-wrong-do-bind
 
@@ -821,6 +822,7 @@ test-suite agda-tests
                  -fwarn-unrecognised-pragmas
                  -fwarn-unticked-promoted-constructors
                  -fwarn-unused-do-bind
+                 -fwarn-unused-imports
                  -fwarn-warnings-deprecations
                  -fwarn-wrong-do-bind
 
