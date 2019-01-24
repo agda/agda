@@ -6,6 +6,7 @@ module Agda.TypeChecking.Rules.Application
   , checkArguments_
   , checkApplication
   , inferApplication
+  , checkProjAppToKnownPrincipalArg
   ) where
 
 #if MIN_VERSION_base(4,11,0)
@@ -820,6 +821,14 @@ checkProjApp cmp e o ds args0 t = do
   (v, ti, targetCheck) <- inferOrCheckProjApp e o ds args0 (Just (cmp, t))
   coerce' cmp targetCheck v ti t
 
+-- | Checking the type of an overloaded projection application.
+--   See 'inferOrCheckProjAppToKnownPrincipalArg'.
+
+checkProjAppToKnownPrincipalArg  :: Comparison -> A.Expr -> ProjOrigin -> NonemptyList QName -> A.Args -> Type -> Int -> Term -> Type -> TCM Term
+checkProjAppToKnownPrincipalArg cmp e o ds args0 t k v0 pt = do
+  (v, ti, targetCheck) <- inferOrCheckProjAppToKnownPrincipalArg e o ds args0 (Just (cmp, t)) k v0 pt
+  coerce' cmp targetCheck v ti t
+
 -- | Inferring or Checking an overloaded projection application.
 --
 --   The overloaded projection is disambiguated by inferring the type of its
@@ -895,17 +904,18 @@ inferOrCheckProjApp e o ds args mt = do
         [ "  principal arg " <+> prettyTCM arg
         , "  has type "      <+> prettyTCM ta
         ]
-      checkProjAppToKnownPrincipalArg e o ds args mt k v0 ta
+      inferOrCheckProjAppToKnownPrincipalArg e o ds args mt k v0 ta
 
--- | Same arguments 'inferOrCheckProjApp' above but also gets the value and
---   type of the principal argument.
-checkProjAppToKnownPrincipalArg :: A.Expr -> ProjOrigin -> NonemptyList QName -> A.Args -> Maybe (Comparison, Type) ->
-                                   Int -> Term -> Type -> TCM (Term, Type, CheckedTarget)
-checkProjAppToKnownPrincipalArg e o ds args mt k v0 ta = do
+-- | Same arguments 'inferOrCheckProjApp' above but also gets the position,
+--   value and type of the principal argument.
+inferOrCheckProjAppToKnownPrincipalArg ::
+  A.Expr -> ProjOrigin -> NonemptyList QName -> A.Args -> Maybe (Comparison, Type) ->
+  Int -> Term -> Type -> TCM (Term, Type, CheckedTarget)
+inferOrCheckProjAppToKnownPrincipalArg e o ds args mt k v0 ta = do
   let cmp = caseMaybe mt CmpEq fst
-      postpone m = do -- TODO: #3518 wrong thing to postpone! Need to not forget progress checking principal arg.
+      postpone m = do
         tc <- caseMaybe mt newTypeMeta_ (return . snd)
-        v <- postponeTypeCheckingProblem (CheckExpr cmp e tc) $ isInstantiatedMeta m
+        v <- postponeTypeCheckingProblem (CheckProjAppToKnownPrincipalArg cmp e o ds args tc k v0 ta) $ isInstantiatedMeta m
         return (v, tc, NotCheckedTarget)
   -- ta should be a record type (after introducing the hidden args in v0)
   (vargs, ta) <- implicitArgs (-1) (not . visible) ta

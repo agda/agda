@@ -247,6 +247,8 @@ checkTypeCheckingProblem :: TypeCheckingProblem -> TCM Term
 checkTypeCheckingProblem p = case p of
   CheckExpr cmp e t              -> checkExpr' cmp e t
   CheckArgs eh r args t0 t1 k    -> checkArguments eh r args t0 t1 k
+  CheckProjAppToKnownPrincipalArg cmp e o ds args t k v0 pt ->
+    checkProjAppToKnownPrincipalArg cmp e o ds args t k v0 pt
   CheckLambda cmp args body target -> checkPostponedLambda cmp args body target
   UnquoteTactic tac hole t       -> unquoteTactic tac hole t $ return hole
   DoQuoteTerm cmp et t           -> doQuoteTerm cmp et t
