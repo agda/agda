@@ -71,7 +71,7 @@ import Agda.TypeChecking.Monad.State
 import Agda.TypeChecking.Monad.MetaVars (registerInteractionPoint)
 import Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Monad.Options
-import Agda.TypeChecking.Monad.Env (insideDotPattern, isInsideDotPattern)
+import Agda.TypeChecking.Monad.Env (insideDotPattern, isInsideDotPattern, getCurrentPath)
 import Agda.TypeChecking.Rules.Builtin (isUntypedBuiltin, bindUntypedBuiltin, builtinKindOfName)
 
 import Agda.TypeChecking.Patterns.Abstract (expandPatternSynonyms)
@@ -181,7 +181,7 @@ recordConstructorType decls =
     -- module.
     niceDecls NoWarn decls $ buildType . takeFields
   where
-    takeFields = reverse . dropWhile notField . reverse
+    takeFields = List.dropWhileEnd notField
 
     notField NiceField{} = False
     notField _           = True
@@ -1441,9 +1441,11 @@ instance ToAbstract NiceDeclaration A.Declaration where
 
   -- Axiom (actual postulate)
     C.Axiom r p a i rel x t -> do
-      -- check that we do not postulate in --safe mode
-      clo <- commandLineOptions
-      when (Lens.getSafeMode clo) (warning $ SafeFlagPostulate x)
+      -- check that we do not postulate in --safe mode, unless it is a
+      -- builtin module with safe postulates
+      whenM ((return . Lens.getSafeMode =<< commandLineOptions) `and2M`
+             (not <$> (Lens.isBuiltinModuleWithSafePostulates . filePath =<< getCurrentPath)))
+            (warning $ SafeFlagPostulate x)
       -- check the postulate
       toAbstractNiceAxiom A.NoFunSig NotMacroDef d
 
@@ -1789,15 +1791,18 @@ collectGeneralizables m = bracket_ open close $ do
         pure gvs
     close = (stGeneralizedVars `setTCLens`)
 
+createBoundNamesForGeneralizables :: Set I.QName -> ScopeM (Map I.QName I.Name)
+createBoundNamesForGeneralizables vs =
+  flip Map.traverseWithKey (Map.fromSet (const ()) vs) $ \ q _ -> do
+    let x  = nameConcrete $ qnameName q
+        fx = nameFixity   $ qnameName q
+    freshAbstractName fx x
+
 collectAndBindGeneralizables :: ScopeM a -> ScopeM (Map I.QName I.Name, a)
 collectAndBindGeneralizables m = do
   (s, res) <- collectGeneralizables m
-  binds <- fmap Map.fromList $ forM (Set.toList s) $ \ q -> do
-    let x  = nameConcrete $ qnameName q
-        fx = nameFixity   $ qnameName q
-    y <- freshAbstractName fx x
-    return (q, y)
   -- We should bind the named generalizable variables as fresh variables
+  binds <- createBoundNamesForGeneralizables s
   bindGeneralizables binds
   return (binds, res)
 

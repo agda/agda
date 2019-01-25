@@ -1246,7 +1246,7 @@ reduceTm rEnv bEnv !constInfo normalisation ReductionFlags{..} =
           case iview $ ignoreBlocking br of
             IZero -> evalPointerAM x es ctrl
             IOne  -> evalPointerAM y es ctrl
-            _     -> go es
+            _     -> (<* blockedOrMeta br) <$> go es
         go (e : es) = go es
 
     -- Normalise the spine and apply the closure to the result. The closure must be a value closure.

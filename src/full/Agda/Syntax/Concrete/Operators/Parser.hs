@@ -22,6 +22,7 @@ import Agda.Syntax.Concrete.Operators.Parser.Monad hiding (parse)
 import qualified Agda.Syntax.Concrete.Operators.Parser.Monad as P
 
 import Agda.Utils.Pretty
+import Agda.Utils.List ( spanEnd )
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -283,9 +284,8 @@ opP parseSections p (NewNotation q names _ syn isOp) kind =
 
   where
 
-  (leadingHoles,  syn1) = span isNormalHole syn
-  (trailingHoles, syn2) = span isNormalHole (reverse syn1)
-  withoutExternalHoles  = reverse syn2
+  (leadingHoles, syn1)                  = span    isNormalHole syn
+  (withoutExternalHoles, trailingHoles) = spanEnd isNormalHole syn1
 
   leadingHole = case leadingHoles of
     [NormalHole h] -> h

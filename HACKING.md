@@ -229,11 +229,11 @@ Testing and documentation
 * To build the user manual locally, you need to install
   the following dependencies:
 
-    + Python >=3.3
+    + Python >=3.4.6 from the Travis test.
 
     + Sphinx and sphinx-rtd-theme
 
-          pip install --user -r doc/user-manual/requirements.txt
+          pip3 install --user -r doc/user-manual/requirements.txt
 
       Note that the `--user` option puts the Sphinx binaries in
       `$HOME/.local/bin`.

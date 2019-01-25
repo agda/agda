@@ -4,6 +4,10 @@
 
 module Agda.TypeChecking.Serialise.Instances.Errors where
 
+import Data.Maybe
+
+import Control.Monad
+
 import Agda.TypeChecking.Serialise.Base
 import Agda.TypeChecking.Serialise.Instances.Common
 import Agda.TypeChecking.Serialise.Instances.Internal ()
@@ -14,6 +18,7 @@ import Agda.Syntax.Concrete.Definitions (DeclarationWarning(..))
 import Agda.Syntax.Abstract.Name (ModuleName)
 import Agda.TypeChecking.Monad.Base
 import Agda.Interaction.Options
+import Agda.Interaction.Options.Warnings
 import Agda.Interaction.Library
 import Agda.Interaction.Library.Parse
 import Agda.Termination.CutOff
@@ -68,6 +73,8 @@ instance EmbPrj Warning where
   icod_ IllformedAsClause            = icodeN 15 IllformedAsClause
   icod_ WithoutKFlagPrimEraseEquality = icodeN 16 WithoutKFlagPrimEraseEquality
   icod_ (InstanceWithExplicitArg a)  = icodeN 17 InstanceWithExplicitArg a
+  icod_ (InfectiveImport a b)          = icodeN 18 InfectiveImport a b
+  icod_ (CoInfectiveImport a b)        = icodeN 19 CoInfectiveImport a b
 
   value = vcase valu where
       valu [0, a, b]    = valuN UnreachableClauses a b
@@ -88,6 +95,8 @@ instance EmbPrj Warning where
       valu [15]         = valuN IllformedAsClause
       valu [16]         = valuN WithoutKFlagPrimEraseEquality
       valu [17, a]      = valuN InstanceWithExplicitArg a
+      valu [18, a, b]   = valuN InfectiveImport a b
+      valu [19, a, b]   = valuN InfectiveImport a b
       valu _ = malformed
 
 instance EmbPrj DeclarationWarning where
@@ -164,9 +173,39 @@ instance EmbPrj LibPositionInfo where
     [0, a, b, c]   -> valuN LibPositionInfo a b c
     _ -> malformed
 
-
-
 instance EmbPrj Doc where
   icod_ d = icodeN' (undefined :: String -> Doc) (render d)
 
   value = valueN text
+
+instance EmbPrj PragmaOptions where
+  icod_ = \case
+    PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y z aa bb cc dd ee ff gg hh ii jj kk ll mm -> icodeN' PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y z aa bb cc dd ee ff gg hh ii jj kk ll mm
+
+  value = vcase $ \case
+    [a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u, v, w, x, y, z, aa, bb, cc, dd, ee, ff, gg, hh, ii, jj, kk, ll, mm]   -> valuN PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y z aa bb cc dd ee ff gg hh ii jj kk ll mm
+    _ -> malformed
+
+instance EmbPrj WarningMode where
+  icod_ = \case
+    WarningMode a b -> icodeN' WarningMode a b
+
+  value = vcase $ \case
+    [a, b]   -> valuN WarningMode a b
+    _ -> malformed
+
+instance EmbPrj WarningName where
+  icod_ x = icod_ (warningName2String x)
+
+  value = (maybe malformed return . string2WarningName) <=< value
+
+
+instance EmbPrj CutOff where
+  icod_ = \case
+    DontCutOff -> icodeN' DontCutOff
+    CutOff a -> icodeN 0 CutOff a
+
+  value = vcase valu where
+    valu [] = valuN DontCutOff
+    valu [0,a] = valuN CutOff a
+    valu _ = malformed

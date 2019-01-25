@@ -1,3 +1,5 @@
+{-# LANGUAGE ScopedTypeVariables #-}
+
 -- | Utility functions for lists.
 
 module Agda.Utils.List where
@@ -68,6 +70,17 @@ last2 (x : y : xs) = Just $ loop x y xs
   loop x y []     = (x, y)
   loop x y (z:xs) = loop y z xs
 last2 _ = Nothing
+
+-- | Drop from the end of a list.
+--   @dropEnd n = reverse . drop n . reverse@
+--   (Forces the whole list even for @n==0@.)
+dropEnd :: forall a. Int -> [a] -> [a]
+dropEnd n = snd . foldr f (n, [])
+  where
+  f :: a -> (Int, [a]) -> (Int, [a])
+  f x (n, xs)
+    | n <= 0    = (0, x:xs)
+    | otherwise = (n-1, xs)
 
 -- | Opposite of cons @(:)@, safe.
 uncons :: [a] -> Maybe (a, [a])
@@ -141,6 +154,19 @@ deal f a ~(bs,cs) = case f a of
   Left  b -> (b:bs, cs)
   Right c -> (bs, c:cs)
 
+-- | Split off the largest suffix whose elements satisfy a predicate.
+--
+--   @spanEnd p xs = (ys, zs)@
+--   where @xs = ys ++ zs@
+--   and @all p zs@
+--   and @maybe True (not . p) (lastMaybe yz)@.
+spanEnd :: forall a. (a -> Bool) -> [a] -> ([a], [a])
+spanEnd p = snd . foldr f (True, ([], []))
+  where
+  f :: a -> (Bool, ([a], [a])) -> (Bool, ([a], [a]))
+  f x (b', (xs, ys)) = (b, if b then (xs, x:ys) else (x:xs, ys))
+    where b = b' && p x
+
 -- | A generalized version of @takeWhile@.
 --   (Cf. @mapMaybe@ vs. @filter@).
 takeWhileJust :: (a -> Maybe b) -> [a] -> [b]
@@ -207,21 +233,39 @@ stripPrefixBy eq = loop
     | eq p r    = loop pat rest
     | otherwise = Nothing
 
--- | Result of 'preOrSuffix'.
-data PreOrSuffix a
-  = IsPrefix a [a] -- ^ First list is prefix of second.
-  | IsSuffix a [a] -- ^ First list is suffix of second.
-  | IsBothfix      -- ^ The lists are equal.
-  | IsNofix        -- ^ The lists are incomparable.
+-- | @stripSuffix suf xs = Just pre@ iff @xs = pre ++ suf@.
+stripSuffix :: Eq a => Suffix a -> [a] -> Maybe (Prefix a)
+stripSuffix [] = Just
+stripSuffix s  = stripReversedSuffix (reverse s)
 
--- | Compare lists with respect to prefix partial order.
-preOrSuffix :: Eq a => [a] -> [a] -> PreOrSuffix a
-preOrSuffix []     []     = IsBothfix
-preOrSuffix []     (b:bs) = IsPrefix b bs
-preOrSuffix (a:as) []     = IsSuffix a as
-preOrSuffix (a:as) (b:bs)
-  | a == b    = preOrSuffix as bs
-  | otherwise = IsNofix
+type ReversedSuffix a = [a]
+
+-- | @stripReversedSuffix rsuf xs = Just pre@ iff @xs = pre ++ reverse suf@.
+stripReversedSuffix :: forall a. Eq a => ReversedSuffix a -> [a] -> Maybe (Prefix a)
+stripReversedSuffix rs = final . foldr step (SSSStrip rs)
+  where
+  -- Step of the automaton (reading input from right to left).
+  step :: a -> StrSufSt a -> StrSufSt a
+  step x = \case
+    SSSMismatch   -> SSSMismatch
+    SSSResult xs  -> SSSResult (x:xs)
+    SSSStrip []   -> SSSResult [x]
+    SSSStrip (y:ys)
+      | x == y    -> SSSStrip ys
+      | otherwise -> SSSMismatch
+
+  -- Output of the automaton.
+  final :: StrSufSt a -> Maybe (Prefix a)
+  final = \case
+    SSSResult xs -> Just xs
+    SSSStrip []  -> Just []
+    _            -> Nothing  -- We have not stripped the whole suffix or encountered a mismatch.
+
+-- | Internal state for stripping suffix.
+data StrSufSt a
+  = SSSMismatch                 -- ^ Error.
+  | SSSStrip (ReversedSuffix a) -- ^ "Negative string" to remove from end. List may be empty.
+  | SSSResult [a]               -- ^ "Positive string" (result). Non-empty list.
 
 -- | Split a list into sublists. Generalisation of the prelude function
 --   @words@.

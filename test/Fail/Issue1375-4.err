@@ -1,11 +1,13 @@
 Issue1375-4.agda:5,1-12,13
 Termination checking failed for the following functions:
-  Type
+  Type, type
 Problematic calls:
   Type
     (at Issue1375-4.agda:9,15-19)
   Term type
     (at Issue1375-4.agda:11,10-14)
+  type
+    (at Issue1375-4.agda:11,15-19)
 Issue1375-4.agda:18,23-59
 Term _y_14 !=< Type of type Set
 when checking that the inferred type of an application

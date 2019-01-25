@@ -17,6 +17,8 @@ import Control.Monad.State (get)
 import Data.List (find, sortBy)
 import Data.Function (on)
 
+import Agda.Interaction.Options (optSizedTypes)
+
 import qualified Agda.Syntax.Abstract as A
 import qualified Agda.Syntax.Abstract.Views as A
 import Agda.Syntax.Common
@@ -108,9 +110,6 @@ coreBuiltins =
   , (builtinFloat              |-> builtinPostulate tset)
   , (builtinChar               |-> builtinPostulate tset)
   , (builtinString             |-> builtinPostulate tset)
-  , (builtinInf                |-> builtinPostulate typeOfInf)
-  , (builtinSharp              |-> builtinPostulate typeOfSharp)
-  , (builtinFlat               |-> builtinPostulate typeOfFlat)
   , (builtinQName              |-> builtinPostulate tset)
   , (builtinAgdaMeta           |-> builtinPostulate tset)
   , (builtinIO                 |-> builtinPostulate (tset --> tset))
@@ -350,6 +349,7 @@ coreBuiltins =
   , builtinAgdaTCMIsMacro            |-> builtinPostulate (tqname --> tTCM_ primBool)
   , builtinAgdaTCMWithNormalisation  |-> builtinPostulate (hPi "a" tlevel $ hPi "A" (tsetL 0) $ tbool --> tTCM 1 (varM 0) --> tTCM 1 (varM 0))
   , builtinAgdaTCMDebugPrint         |-> builtinPostulate (tstring --> tnat --> tlist terrorpart --> tTCM_ primUnit)
+  , builtinAgdaTCMNoConstraints      |-> builtinPostulate (hPi "a" tlevel $ hPi "A" (tsetL 0) $ tTCM 1 (varM 0) --> tTCM 1 (varM 0))
   ]
   where
         (|->) = BuiltinInfo
@@ -775,6 +775,11 @@ bindBuiltinInfo (BuiltinInfo s d) e = do
             case theDef def of
               Axiom {} -> do
                 builtinSizeHook s q t'
+                -- And compilation pragmas for base types
+                when (s == builtinChar)   $ addHaskellPragma q "= type Char"
+                when (s == builtinString) $ addHaskellPragma q "= type Data.Text.Text"
+                when (s == builtinFloat)  $ addHaskellPragma q "= type Double"
+                when (s == builtinWord64) $ addHaskellPragma q "= type MAlonzo.RTE.Word64"
                 when (s == builtinPathP)  $ builtinPathPHook q
                 bindBuiltinName s v
               _        -> err
@@ -844,23 +849,8 @@ bindUntypedBuiltin b = \case
 -- We simply ignore the parameters.
 bindBuiltinNoDef :: String -> A.QName -> TCM ()
 bindBuiltinNoDef b q = inTopContext $ do
-  if | b == builtinInf   -> ax typeOfInf   >> bindBuiltinInf r
-     | b == builtinSharp -> ax typeOfSharp >> bindBuiltinSharp r
-     | b == builtinFlat  -> ax typeOfFlat  >> bindBuiltinFlat r
-     | otherwise         -> bindBuiltinNoDef' b q
-
-  where
-
-  r :: ResolvedName
-  r = DefinedName PublicAccess (AbsName q DefName Defined NoMetadata)
-
-  ax :: TCM Type -> TCM ()
-  ax mty = do
-    ty <- mty
-    addConstant q $ defaultDefn defaultArgInfo q ty Axiom
-
-bindBuiltinNoDef' :: String -> A.QName -> TCM ()
-bindBuiltinNoDef' b q = do
+  when (b `elem` sizeBuiltins) $ unlessM (optSizedTypes <$> pragmaOptions) $
+    genericError $ "Cannot declare size BUILTIN " ++ b ++ " with option --no-sized-types"
   case builtinDesc <$> findBuiltinInfo b of
     Just (BuiltinPostulate rel mt) -> do
       -- We start by adding the corresponding postulate
@@ -869,11 +859,6 @@ bindBuiltinNoDef' b q = do
       -- And we then *modify* the definition based on our needs:
       -- We add polarity information for SIZE-related definitions
       builtinSizeHook b q t
-      -- And compilation pragmas for base types
-      when (b == builtinChar)   $ addHaskellPragma q "= type Char"
-      when (b == builtinString) $ addHaskellPragma q "= type Data.Text.Text"
-      when (b == builtinFloat)  $ addHaskellPragma q "= type Double"
-      when (b == builtinWord64) $ addHaskellPragma q "= type MAlonzo.RTE.Word64"
       -- Finally, bind the BUILTIN in the environment.
       bindBuiltinName b $ Def q []
       where

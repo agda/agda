@@ -263,7 +263,8 @@ buildParsers r flat kind exprNames = do
 
         (non, fix) = List.partition nonfix (filter (and . partsPresent) ops)
 
-        cons       = getDefinedNames [ConName, PatternSynName] flat
+        cons       = getDefinedNames
+                       [ConName, FldName, PatternSynName] flat
         conNames   = Set.fromList $
                        filter (flip Set.member namesInExpr) $
                        map (notaName . head) cons

@@ -1101,7 +1101,7 @@ treatAbstractly' q env = case envAbstractMode env of
   where
     current = dropAnon $ envCurrentModule env
     m       = dropAnon $ qnameModule q
-    dropAnon (MName ms) = MName $ reverse $ dropWhile isNoName $ reverse ms
+    dropAnon (MName ms) = MName $ List.dropWhileEnd isNoName ms
 
 -- | Get type of a constant, instantiated to the current context.
 {-# SPECIALIZE typeOfConst :: QName -> TCM Type #-}

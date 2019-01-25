@@ -165,7 +165,7 @@ generateAndPrintSyntaxInfo
   -> TCM ()
 generateAndPrintSyntaxInfo decl _ _ | null $ P.getRange decl = return ()
 generateAndPrintSyntaxInfo decl hlLevel updateState = do
-  file <- fromMaybe __IMPOSSIBLE__ <$> asksTC envCurrentPath
+  file <- getCurrentPath
 
   reportSLn "import.iface.create" 15 $
       "Generating syntax info for " ++ filePath file ++ ' ' :
@@ -630,6 +630,8 @@ warningHighlighting w = case tcWarning w of
   DeprecationWarning{}       -> mempty
   UserWarning{}              -> mempty
   LibraryWarning{}           -> mempty
+  InfectiveImport{}          -> mempty
+  CoInfectiveImport{}        -> mempty
   NicifierIssue w           -> case w of
     -- we intentionally override the binding of `w` here so that our pattern of
     -- using `P.getRange w` still yields the most precise range information we

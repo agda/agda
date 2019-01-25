@@ -2,7 +2,7 @@
 
 module Issue202 where
 
-open import Common.Level
+open import Agda.Primitive public using (Level)
 open import Imports.Test
 
 module Test2 {ℓ : Level} (F : Foo ℓ) where

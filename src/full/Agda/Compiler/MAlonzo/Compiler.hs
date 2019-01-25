@@ -488,9 +488,7 @@ checkCover q ty n cs hsCons = do
         return $ HS.Alt pat (HS.UnGuardedRhs $ HS.unit_con) emptyBinds
 
   cs <- zipWithM makeClause cs hsCons
-  let rhs = case cs of
-              [] -> fakeExp "()" -- There is no empty case statement in Haskell
-              _  -> HS.Case (HS.Var $ HS.UnQual $ HS.Ident "x") cs
+  let rhs = HS.Case (HS.Var $ HS.UnQual $ HS.Ident "x") cs
 
   return [ HS.TypeSig [unqhname "cover" q] $ fakeType $ unwords (ty : tvs) ++ " -> ()"
          , HS.FunBind [HS.Match (unqhname "cover" q) [HS.PVar $ HS.Ident "x"]
@@ -786,6 +784,7 @@ writeModule (HS.Module m ps imp ds) = do
   where
   p = HS.LanguagePragma $ List.map HS.Ident $
         [ "EmptyDataDecls"
+        , "EmptyCase"
         , "ExistentialQuantification"
         , "ScopedTypeVariables"
         , "NoMonomorphismRestriction"

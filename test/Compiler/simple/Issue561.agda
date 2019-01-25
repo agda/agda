@@ -1,7 +1,8 @@
 
 module Issue561 where
 
-open import Common.Prelude hiding (primIsDigit)
+open import Agda.Builtin.Bool
+open import Issue561.Core
 
 primitive
   primIsDigit : Char → Bool

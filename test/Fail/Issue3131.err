@@ -1,0 +1,4 @@
+Issue3131.agda:3,3-4
+Set₂ is not less or equal than Set
+when checking that the type (S : Set₁) → A S of the constructor C
+fits in the sort Set of the datatype.

@@ -1,7 +1,7 @@
-OpBind.agda:8,1-4
-Don't know how to parse F !. Could mean any one of:
-  F !
-  _! F
-Operators used in the grammar:
-  ! (postfix operator, level 20) [_! (OpBind.agda:3,5-7)]
-when scope checking the left-hand side F ! in the definition of F
+OpBind.agda:8,7-8
+Not in scope:
+  ! at OpBind.agda:8,7-8
+    (did you mean
+       'R._!' or
+       '_!'?)
+when scope checking !

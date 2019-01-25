@@ -1492,7 +1492,7 @@ With a prefix argument distinct from `(4)' the normal form of
 \"show <expression>\" is computed, and then the resulting string
 is printed.
 
-With any prefix argument \"abstract\" is ignored during the
+With the prefix argument `(4)' \"abstract\" is ignored during the
 computation."
   (interactive "P")
   (let ((cmd (concat "Cmd_compute"
@@ -1510,7 +1510,7 @@ With a prefix argument distinct from `(4)' the normal form of
 \"show <expression>\" is computed, and then the resulting string
 is printed.
 
-With any prefix argument \"abstract\" is ignored during the
+With the prefix argument `(4)' \"abstract\" is ignored during the
 computation."
   (interactive "MExpression: \nP")
   (let ((cmd (concat "Cmd_compute_toplevel"
@@ -1528,7 +1528,7 @@ With a prefix argument distinct from `(4)' the normal form of
 \"show <expression>\" is computed, and then the resulting string
 is printed.
 
-With any prefix argument \"abstract\" is ignored during the
+With the prefix argument `(4)' \"abstract\" is ignored during the
 computation."
   (interactive)
   (if (agda2-goal-at (point))

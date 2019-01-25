@@ -1,4 +1,5 @@
-Issue202.agda:8,31-36
-Cannot instantiate the metavariable _1 to Set ℓ since universe
-polymorphism is disabled
-when checking that the expression Foo ℓ has type _1
+Issue202.agda:6,1-25
+Importing module Imports.Test not using the
+--no-universe-polymorphism flag from a module which does.
+when scope checking the declaration
+  open import Imports.Test
