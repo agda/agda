@@ -1234,7 +1234,6 @@ niceDecls warn ds ret = setCurrentRange ds $ computeFixitiesAndPolarities warn d
   isSafe    <- Lens.getSafeMode <$> pragmaOptions
   isBuiltin <- Lens.isBuiltinModule . filePath =<< getCurrentPath
   let warns = if isSafe && not isBuiltin then warns' else filter notOnlyInSafeMode warns'
-  -- We can then
 
   unless (null warns) $ do
     -- If there are some warnings and the --safe flag is set,
