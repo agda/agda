@@ -83,6 +83,7 @@ import Agda.Interaction.FindFile (checkModuleName)
 import {-# SOURCE #-} Agda.Interaction.Imports (scopeCheckImport)
 import Agda.Interaction.Options
 import qualified Agda.Interaction.Options.Lenses as Lens
+import Agda.Interaction.Options.Warnings
 
 import Agda.Utils.AssocList (AssocList)
 import qualified Agda.Utils.AssocList as AssocList
@@ -1225,26 +1226,37 @@ instance ToAbstract (TopLevel [C.Declaration]) TopLevelInfo where
 niceDecls :: DoWarn -> [C.Declaration] -> ([NiceDeclaration] -> ScopeM a) -> ScopeM a
 niceDecls warn ds ret = setCurrentRange ds $ computeFixitiesAndPolarities warn ds $ do
   fixs <- scopeFixities <$> getScope  -- We need to pass the fixities to the nicifier for clause grouping
-  let (result, warns) = runNice $ niceDeclarations fixs ds
+  let (result, warns') = runNice $ niceDeclarations fixs ds
+
+  -- COMPILED pragmas are not allowed in safe mode unless we are in a builtin module.
+  -- So we start by filtering out all the PragmaCompiled warnings if one of these two
+  -- conditions is not met.
+  isSafe    <- Lens.getSafeMode <$> pragmaOptions
+  isBuiltin <- Lens.isBuiltinModule . filePath =<< getCurrentPath
+  let warns = if isSafe && not isBuiltin then warns' else filter notOnlyInSafeMode warns'
+
   unless (null warns) $ do
     -- If there are some warnings and the --safe flag is set,
     -- we check that none of the NiceWarnings are fatal
-    whenM (optSafe <$> pragmaOptions) $ do
-      let isUnsafe = \case
-            PragmaNoTerminationCheck{} -> True
-            MissingDefinitions{}       -> True
-            _ -> False
+    when isSafe $ do
+      let isUnsafe w = declarationWarningName w `elem`
+            [ PragmaNoTerminationCheck_
+            , PragmaCompiled_
+            , MissingDefinitions_
+            ]
       let (errs, ws) = List.partition isUnsafe warns
       -- If some of them are, we fail
       unless (null errs) $ do
-        mapM_ warning $ NicifierIssue <$> ws
+        warnings $ NicifierIssue <$> ws
         tcerrs <- mapM warning_ $ NicifierIssue <$> errs
-        typeError $ NonFatalErrors tcerrs
+        setCurrentRange errs $ typeError $ NonFatalErrors tcerrs
     -- Otherwise we simply record the warnings
     warnings $ NicifierIssue <$> warns
   case result of
     Left e   -> throwError $ Exception (getRange e) $ pretty e
     Right ds -> ret ds
+
+  where notOnlyInSafeMode = (PragmaCompiled_ /=) . declarationWarningName
 
 instance {-# OVERLAPPING #-} ToAbstract [C.Declaration] [A.Declaration] where
   toAbstract ds = do
