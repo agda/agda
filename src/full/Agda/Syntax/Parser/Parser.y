@@ -58,7 +58,6 @@ import Agda.Utils.List ( spanJust, chopWhen )
 import Agda.Utils.Monad
 import Agda.Utils.Pretty
 import Agda.Utils.Singleton
-import Agda.Utils.Tuple
 
 import Agda.Utils.Impossible
 #include "undefined.h"

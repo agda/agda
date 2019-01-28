@@ -4,38 +4,35 @@
 module Agda.Compiler.Common where
 
 import Data.List as List
-import Data.Map (Map)
+import Data.Map ()
 import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Char
 import Data.Function
-import Data.Semigroup
-import Data.Monoid hiding ((<>))
+import Data.Semigroup ()
+import Data.Monoid ()
 
 import Control.Monad
 import Control.Monad.State  hiding (mapM_, forM_, mapM, forM, sequence)
 
 import Agda.Syntax.Common
-import qualified Agda.Syntax.Abstract.Name as A
+import Agda.Syntax.Abstract.Name ()
 import qualified Agda.Syntax.Concrete.Name as C
 import Agda.Syntax.Internal as I
 
 import Agda.Interaction.FindFile
-import Agda.Interaction.Imports
 import Agda.Interaction.Options
 
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Pretty hiding ((<>))
-import Agda.TypeChecking.Reduce
-import Agda.TypeChecking.Substitute
+import Agda.TypeChecking.Substitute ()
 import Agda.TypeChecking.Telescope
 
 import Agda.Utils.FileName
 import qualified Agda.Utils.HashMap as HMap
 import Agda.Utils.Lens
 import Agda.Utils.Maybe
-import Agda.Utils.Monad
+import Agda.Utils.Monad ()
 import Agda.Utils.Pretty hiding ((<>))
 
 #include "undefined.h"

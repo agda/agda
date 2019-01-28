@@ -27,13 +27,12 @@ module Agda.Termination.CallGraph
 import Prelude hiding (null)
 
 import qualified Data.List as List
-import Data.Semigroup
+import Data.Semigroup ()
 import Data.Set (Set)
 
 import Agda.Termination.CallMatrix (CallMatrix, CallMatrixAug(..), CMSet(..), CallComb(..))
 import qualified Agda.Termination.CallMatrix as CMSet
 import Agda.Termination.CutOff
-import Agda.Termination.SparseMatrix as Matrix
 
 import Agda.Utils.Favorites (Favorites)
 import qualified Agda.Utils.Favorites as Fav
@@ -41,7 +40,7 @@ import Agda.Utils.Graph.AdjacencyMap.Unidirectional (Edge(..),Graph(..))
 import qualified Agda.Utils.Graph.AdjacencyMap.Unidirectional as Graph
 
 import Agda.Utils.Function
-import Agda.Utils.Monad
+import Agda.Utils.Monad ()
 import Agda.Utils.Null
 import Agda.Utils.PartialOrd
 import Agda.Utils.Pretty hiding ((<>))

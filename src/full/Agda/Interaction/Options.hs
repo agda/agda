@@ -32,15 +32,15 @@ module Agda.Interaction.Options
     , getOptSimple
     ) where
 
-import Control.Monad            ( (>=>), when )
+import Control.Monad            ( when )
 import Control.Monad.Trans
 
 import Data.IORef
-import Data.Either
+import Data.Either ()
 import Data.Function
 import Data.Maybe
-import Data.List                ( isSuffixOf , intercalate )
-import Data.Set                 ( Set )
+import Data.List                ( intercalate )
+import Data.Set ()
 import qualified Data.Set as Set
 
 import System.Console.GetOpt    ( getOpt', usageInfo, ArgOrder(ReturnInOrder)
@@ -68,15 +68,12 @@ import Agda.Utils.Functor       ( (<&>) )
 import Agda.Utils.Lens          ( Lens', over )
 import Agda.Utils.List          ( groupOn, wordsBy )
 import Agda.Utils.Monad         ( ifM, readM )
-import Agda.Utils.String        ( indent )
 import Agda.Utils.Trie          ( Trie )
 import qualified Agda.Utils.Trie as Trie
 
 import Agda.Version
 -- Paths_Agda.hs is in $(BUILD_DIR)/build/autogen/.
 import Paths_Agda ( getDataFileName )
-
-import qualified System.IO.Unsafe as UNSAFE (unsafePerformIO)
 
 -- OptDescr is a Functor --------------------------------------------------
 
@@ -563,9 +560,6 @@ dontUniverseCheckFlag o = return $ o { optUniverseCheck = False }
 
 omegaInOmegaFlag :: Flag PragmaOptions
 omegaInOmegaFlag o = return $ o { optOmegaInOmega = True }
-
-etaFlag :: Flag PragmaOptions
-etaFlag o = return $ o { optEta = True }
 
 noEtaFlag :: Flag PragmaOptions
 noEtaFlag o = return $ o { optEta = False }

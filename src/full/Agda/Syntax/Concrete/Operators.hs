@@ -17,9 +17,9 @@ module Agda.Syntax.Concrete.Operators
     , parsePatternSyn
     ) where
 
-import Control.Applicative ( Alternative((<|>)), liftA2 )
-import Control.Arrow ((***), (&&&), first, second)
-import Control.DeepSeq
+import Control.Applicative ( Alternative((<|>)) )
+import Control.Arrow (second)
+import Control.DeepSeq ()
 import Control.Monad
 
 import Data.Either (partitionEithers)
@@ -37,7 +37,6 @@ import qualified Data.Traversable as Trav
 import Agda.Syntax.Concrete.Pretty ()
 import Agda.Syntax.Common
 import Agda.Syntax.Concrete hiding (appView)
-import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Concrete.Operators.Parser
 import Agda.Syntax.Concrete.Operators.Parser.Monad hiding (parse)
 import Agda.Syntax.Concrete.Pattern
@@ -52,7 +51,6 @@ import Agda.TypeChecking.Monad.Base (typeError, TypeError(..), LHSOrPatSyn(..))
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 import Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Monad.State (getScope)
-import Agda.TypeChecking.Monad.Options
 
 import Agda.Utils.Either
 import Agda.Utils.Pretty

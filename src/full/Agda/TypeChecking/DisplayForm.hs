@@ -10,7 +10,7 @@ import Control.Monad
 import Control.Monad.Trans (lift)
 import Control.Monad.Trans.Maybe
 import Data.Foldable (all)
-import qualified Data.Set as Set
+import Data.Set ()
 import qualified Data.Map as Map
 
 import Agda.Syntax.Common
@@ -23,9 +23,9 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Level
 import Agda.TypeChecking.Reduce (instantiate)
 
-import Agda.Utils.Except
+import Agda.Utils.Except ()
 import Agda.Utils.Functor
-import Agda.Utils.Lens
+import Agda.Utils.Lens ()
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Pretty

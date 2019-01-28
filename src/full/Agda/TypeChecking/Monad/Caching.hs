@@ -18,7 +18,7 @@ module Agda.TypeChecking.Monad.Caching
   , restorePostScopeState
   ) where
 
-import Control.Monad.State
+import Control.Monad.State ()
 import qualified Data.Map as Map
 
 import Agda.Syntax.Common

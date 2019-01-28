@@ -5,9 +5,9 @@
 module Agda.TypeChecking.Abstract where
 
 import Control.Monad
-import Control.Monad.State
-import Data.Function
-import Data.Traversable
+import Control.Monad.State ()
+import Data.Function ()
+import Data.Traversable ()
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
@@ -22,11 +22,9 @@ import Agda.TypeChecking.Pretty
 
 import Agda.Utils.Functor
 import Agda.Utils.List (splitExactlyAt)
-import Agda.Utils.Size
 import Agda.Utils.Except
 import qualified Agda.Utils.HashMap as HMap
 
-import Agda.Utils.Impossible
 #include "undefined.h"
 
 typeOf :: Type -> Type

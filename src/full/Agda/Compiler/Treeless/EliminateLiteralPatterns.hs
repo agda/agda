@@ -2,19 +2,17 @@
 -- | Converts case matches on literals to if cascades with equality comparisons.
 module Agda.Compiler.Treeless.EliminateLiteralPatterns where
 
-import Data.Maybe
-
 import Agda.Syntax.Abstract.Name (QName)
 import Agda.Syntax.Treeless
 import Agda.Syntax.Literal
-import qualified Agda.Syntax.Internal as I
+import Agda.Syntax.Internal ()
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Primitive
-import Agda.TypeChecking.Substitute
+import Agda.TypeChecking.Substitute ()
 
-import Agda.Compiler.Treeless.Subst
+import Agda.Compiler.Treeless.Subst ()
 
 import Agda.Utils.Impossible
 
@@ -67,9 +65,6 @@ transform kit = tr
       TLam b                  -> TLam (tr b)
       TApp a bs               -> TApp (tr a) (map tr bs)
       TLet e b                -> TLet (tr e) (tr b)
-
-    isCaseOn (CTData dt) xs = dt `elem` mapMaybe ($ kit) xs
-    isCaseOn _ _ = False
 
     eqFromLit :: Literal -> TPrim
     eqFromLit x = case x of

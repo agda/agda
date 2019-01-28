@@ -15,16 +15,15 @@ module Agda.Utils.Trie
   ) where
 
 import Prelude hiding (null, lookup, filter)
-import qualified Prelude
 
-import Control.Monad
+import Control.Monad ()
 import Data.Function
 import Data.Functor
 import Data.Foldable (Foldable)
 import qualified Data.Maybe as Lazy
 import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
-import Data.Monoid
+import Data.Monoid ()
 import qualified Data.List as List
 
 import qualified Agda.Utils.Maybe.Strict as Strict

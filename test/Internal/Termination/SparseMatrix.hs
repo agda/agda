@@ -5,7 +5,7 @@ module Internal.Termination.SparseMatrix
   , tests
   ) where
 
-import Agda.Termination.Semiring (HasZero(..), Semiring)
+import Agda.Termination.Semiring (HasZero(..))
 import qualified Agda.Termination.Semiring as Semiring
 import Agda.Termination.SparseMatrix
 import Agda.Utils.Functor
@@ -246,32 +246,6 @@ prop_add_correct m1 m2 = toLists (add (+) m1 m2) == toLists (add' (+) m1 m2)
             | i < j = (i,a) : mergeAssocWith f l' m
             | i > j = (j,b) : mergeAssocWith f l m'
             | otherwise = (i, f a b) : mergeAssocWith f l' m'
-
--- ** Matrix multiplication
-
--- | Specification of 'interAssocWith'.
-
-interAssocWith' :: (Eq i) => (a -> a -> a) -> [(i,a)] -> [(i,a)] -> [(i,a)]
-interAssocWith' f l l' = [ (i, f a b) | (i,a) <- l, (j,b) <- l', i == j ]
-
--- | Efficient implementation of 'interAssocWith' matches its specification.
-
-no_tested_prop_interAssocWith_correct :: [(Int,Int)] -> [(Int,Int)] -> Bool
-no_tested_prop_interAssocWith_correct xs ys =
-  interAssocWith (*) l l' == interAssocWith' (*) l l'
-  where
-    l  = List.sortBy (compare `on` fst) xs
-    l' = List.sortBy (compare `on` fst) ys
-
-interAssocWith2 :: Ord i => (a -> a -> a) -> [(i,a)] -> [(i,a)] -> [(i,a)]
-interAssocWith2 f = zipAssocWith (const []) (const []) (const Nothing) (const Nothing) (\ a -> Just . f a)
-
-no_tested_prop_interAssocWith_correct2 :: [(Int,Int)] -> [(Int,Int)] -> Bool
-no_tested_prop_interAssocWith_correct2 xs ys =
-  interAssocWith (*) xs ys == interAssocWith2 (*) xs ys
-  where
-    l  = List.sortBy (compare `on` fst) xs
-    l' = List.sortBy (compare `on` fst) ys
 
 -- | Matrix multiplication is well-defined and associative.
 

@@ -7,9 +7,9 @@ module Agda.TypeChecking.Monad.Open
         , isClosed
         ) where
 
-import Control.Monad
-import Control.Monad.Reader
-import qualified Data.List as List
+import Control.Monad ()
+import Control.Monad.Reader ()
+import Data.List ()
 
 import Agda.Syntax.Internal
 import Agda.TypeChecking.Substitute
@@ -18,8 +18,8 @@ import Agda.TypeChecking.Monad.Base
 import {-# SOURCE #-} Agda.TypeChecking.Monad.Context
 
 import Agda.Utils.Lens
-import Agda.Utils.Maybe
-import Agda.Utils.Except ( MonadError(catchError) )
+import Agda.Utils.Maybe ()
+import Agda.Utils.Except ()
 
 -- | Create an open term in the current context.
 makeOpen :: a -> TCM (Open a)

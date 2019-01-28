@@ -8,7 +8,7 @@ import Control.Monad
 import Data.Data (Data)
 import Data.Foldable (Foldable, toList)
 import Data.Traversable (Traversable)
-import Data.Semigroup
+import Data.Semigroup ()
 import qualified Data.List as List
 
 infixr 5 :!

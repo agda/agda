@@ -27,8 +27,8 @@ runNames [] $ do
 -}
 module Agda.TypeChecking.Names where
 
-import Control.Monad
-import Control.Applicative
+import Control.Monad ()
+import Control.Applicative ()
 
 #if __GLASGOW_HASKELL__ >= 800
 import qualified Control.Monad.Fail as Fail
@@ -37,45 +37,33 @@ import qualified Control.Monad.Fail as Fail
 import Control.Monad.Identity
 import Control.Monad.Reader
 import Control.Monad.State
-import Control.Monad.Trans
+import Control.Monad.Trans ()
 
-import Data.Char
-import Data.Map (Map)
-import qualified Data.Map as Map
-import Data.Maybe
+import Data.Char ()
+import Data.Map ()
+import Data.Maybe ()
 import Data.List
-import Data.Traversable (traverse)
-import Data.Monoid (mempty)
+import Data.Traversable ()
+import Data.Monoid ()
 
-import Agda.Interaction.Options
+import Agda.Interaction.Options ()
 
-import Agda.Syntax.Position
 import Agda.Syntax.Common hiding (Nat)
 import Agda.Syntax.Internal
-import Agda.Syntax.Internal.Generic (TermLike(..))
-import Agda.Syntax.Literal
 import Agda.Syntax.Concrete.Pretty ()
 
 import Agda.TypeChecking.Monad hiding (getConstInfo, typeOfConst)
-import qualified Agda.TypeChecking.Monad as TCM
 import Agda.TypeChecking.Monad.Builtin
-import Agda.TypeChecking.Reduce
-import Agda.TypeChecking.Reduce.Monad
 import Agda.TypeChecking.Substitute
-import Agda.TypeChecking.Errors
-import Agda.TypeChecking.Level
-import Agda.TypeChecking.Quote (QuotingKit, quoteTermWithKit, quoteTypeWithKit, quoteClauseWithKit, quotingKit)
-import Agda.TypeChecking.Pretty ()  -- instances only
+import Agda.TypeChecking.Errors ()
 import Agda.TypeChecking.Free
 
-import Agda.Utils.Monad
-import Agda.Utils.Pretty (pretty)
-import Agda.Utils.String ( Str(Str), unStr )
-import Agda.Utils.Maybe
+import Agda.Utils.Monad ()
+import Agda.Utils.Pretty ()
+import Agda.Utils.Maybe ()
 
 #include "undefined.h"
-import Agda.Utils.Impossible
-import Debug.Trace
+import Debug.Trace ()
 
 instance HasBuiltins m => HasBuiltins (NamesT m) where
   getBuiltinThing b = lift $ getBuiltinThing b

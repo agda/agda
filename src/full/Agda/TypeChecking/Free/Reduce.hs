@@ -14,7 +14,7 @@ import Data.IntMap (IntMap)
 import qualified Data.IntSet as IntSet
 import Data.IntSet (IntSet)
 import qualified Data.Set as Set
-import Data.Set (Set)
+import Data.Set ()
 import Data.Traversable (traverse)
 
 import Agda.Syntax.Common

@@ -2,7 +2,7 @@
 
 module Agda.Auto.Convert where
 
-import Control.Applicative hiding (getConst, Const(..))
+import Control.Applicative ()
 import Data.IORef
 import Data.Maybe (catMaybes)
 import Data.Map (Map)
@@ -34,7 +34,7 @@ import Agda.TypeChecking.Reduce (normalise, instantiate)
 import Agda.TypeChecking.EtaContract (etaContract)
 import Agda.TypeChecking.Monad.Builtin (constructorForm)
 import Agda.TypeChecking.Free as Free (freeIn)
-import Agda.TypeChecking.Errors ( stringTCErr )
+import Agda.TypeChecking.Errors ()
 
 import Agda.Interaction.MakeCase (getClauseForIP)
 
@@ -102,7 +102,7 @@ tomy imi icns typs = do
    case nxt of
     Just cn -> do
      cmap <- fst `liftM` gets sConsts
-     let (mode, c) = cmap Map.! cn
+     let (_mode, c) = cmap Map.! cn
      def <- lift $ getConstInfo cn
      let typ = MB.defType def
          defn = MB.theDef def

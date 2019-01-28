@@ -60,7 +60,7 @@ import Data.Foldable (Foldable)
 import Data.Traversable (Traversable)
 import Data.List hiding (null)
 import Data.Set (Set)
-import Data.Monoid
+import Data.Monoid ()
 
 import Data.Data (Data)
 
@@ -111,15 +111,6 @@ nameFieldA f r = f (_nameFieldA r) <&> \x -> r { _nameFieldA = x }
 
 exprFieldA :: Lens' a (FieldAssignment' a)
 exprFieldA f r = f (_exprFieldA r) <&> \x -> r { _exprFieldA = x }
-
-qnameModA :: Lens' QName ModuleAssignment
-qnameModA f r = f (_qnameModA r) <&> \x -> r { _qnameModA = x }
-
-exprModA :: Lens' [Expr] ModuleAssignment
-exprModA f r = f (_exprModA r) <&> \x -> r { _exprModA = x }
-
-importDirModA :: Lens' ImportDirective ModuleAssignment
-importDirModA f r = f (_importDirModA r) <&> \x -> r { _importDirModA = x }
 
 -- | Concrete expressions. Should represent exactly what the user wrote.
 data Expr

@@ -24,7 +24,7 @@ module Agda.Syntax.Translation.InternalToAbstract
 import Prelude hiding (mapM_, mapM, null)
 import Control.Arrow ((&&&))
 import Control.Monad.State hiding (mapM_, mapM)
-import Control.Monad.Reader hiding (mapM_, mapM)
+import Control.Monad.Reader ()
 
 import Data.Foldable (Foldable, foldMap)
 import qualified Data.List as List
@@ -34,22 +34,20 @@ import Data.Monoid ( Monoid, mempty, mappend )
 import Data.Semigroup ( Semigroup, (<>) )
 import Data.Set (Set)
 import qualified Data.Set as Set
-import Data.Traversable (Traversable, traverse, mapM)
-import qualified Data.Traversable as Trav
+import Data.Traversable (traverse, mapM)
 
 import Agda.Syntax.Literal
 import Agda.Syntax.Position
 import Agda.Syntax.Common
 import Agda.Syntax.Fixity
 import qualified Agda.Syntax.Concrete.Name as C
-import Agda.Syntax.Concrete (FieldAssignment'(..), exprFieldA)
+import Agda.Syntax.Concrete (FieldAssignment'(..))
 import Agda.Syntax.Info as Info
 import Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Pattern
 import Agda.Syntax.Abstract.Pretty
 import Agda.Syntax.Internal as I
-import Agda.Syntax.Internal.Pattern as I
-import Agda.Syntax.Scope.Base (isNameInScope, inverseScopeLookupName)
+import Agda.Syntax.Scope.Base (inverseScopeLookupName)
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
@@ -62,13 +60,11 @@ import {-# SOURCE #-} Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
-import Agda.TypeChecking.DropArgs
 
 import Agda.Interaction.Options ( optPostfixProjections )
 
 import Agda.Utils.Either
 import Agda.Utils.Except ( MonadError(catchError) )
-import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List
@@ -85,10 +81,6 @@ import Agda.Utils.Tuple
 import Agda.Utils.Impossible
 
 -- Composition of reified applications ------------------------------------
-
--- | Drops hidden arguments unless --show-implicit.
-napps :: Expr -> [NamedArg Expr] -> TCM Expr
-napps e = nelims e . map I.Apply
 
 -- | Drops hidden arguments unless --show-implicit.
 apps :: Expr -> [Arg Expr] -> TCM Expr
@@ -793,7 +785,7 @@ data NamedClause = NamedClause QName Bool I.Clause
 
 -- The Monoid instance for Data.Map doesn't require that the values are a
 -- monoid.
-newtype MonoidMap k v = MonoidMap { unMonoidMap :: Map.Map k v }
+newtype MonoidMap k v = MonoidMap { _unMonoidMap :: Map.Map k v }
 
 instance (Ord k, Monoid v) => Semigroup (MonoidMap k v) where
   MonoidMap m1 <> MonoidMap m2 = MonoidMap (Map.unionWith mappend m1 m2)

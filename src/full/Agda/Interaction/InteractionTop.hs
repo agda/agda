@@ -11,7 +11,7 @@ module Agda.Interaction.InteractionTop
 
 import Prelude hiding (null)
 
-import Control.Applicative hiding (empty)
+import Control.Applicative ()
 import Control.Concurrent
 import Control.Concurrent.Async
 import Control.Concurrent.STM.TChan
@@ -28,9 +28,8 @@ import qualified Data.List as List
 import Data.Maybe
 import Data.Map (Map)
 import qualified Data.Map as Map
-import Data.Monoid
+import Data.Monoid ()
 import Data.Traversable (Traversable)
-import qualified Data.Traversable as Trav
 
 import System.Directory
 import System.FilePath
@@ -46,13 +45,11 @@ import Agda.Syntax.Fixity
 import Agda.Syntax.Position
 import Agda.Syntax.Parser
 import Agda.Syntax.Common
-import Agda.Syntax.Literal
 import Agda.Syntax.Concrete as C
-import Agda.Syntax.Concrete.Generic as C
 import Agda.Syntax.Concrete.Pretty ()
 import Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Pretty
-import qualified Agda.Syntax.Internal as I
+import Agda.Syntax.Internal ()
 import Agda.Syntax.Info (mkDefInfo)
 import Agda.Syntax.Translation.ConcreteToAbstract
 import Agda.Syntax.Translation.AbstractToConcrete hiding (withScope)
@@ -72,7 +69,6 @@ import qualified Agda.Interaction.Imports as Imp
 import Agda.TypeChecking.Warnings
 import Agda.Interaction.Highlighting.Generate
 import qualified Agda.Interaction.Highlighting.LaTeX as LaTeX
-import qualified Agda.Interaction.Highlighting.Range as H
 
 import Agda.Compiler.Common (IsMain (..))
 import Agda.Compiler.Backend
@@ -90,9 +86,9 @@ import Agda.Utils.Either
 import Agda.Utils.FileName
 import Agda.Utils.Function
 import Agda.Utils.Hash
-import qualified Agda.Utils.HashMap as HMap
-import Agda.Utils.Lens
-import Agda.Utils.Maybe
+import Agda.Utils.HashMap ()
+import Agda.Utils.Lens ()
+import Agda.Utils.Maybe ()
 import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Monad
 import Agda.Utils.Null
@@ -1480,11 +1476,6 @@ whyInScope s = display_info . Info_WhyInScope =<< do
       , TCP.nest 2 $ TCP.vcat [variable v xs, modules ms]
       ]
       where
-        prettyRange :: Range -> TCM Doc
-        prettyRange r = text . show . (fmap . fmap) mkRel <$> do
-          return r
-        mkRel = Str . makeRelative cwd . filePath
-
         -- variable :: Maybe _ -> [_] -> TCM Doc
         variable Nothing xs = names xs
         variable (Just x) xs

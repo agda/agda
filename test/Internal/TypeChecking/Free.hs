@@ -22,7 +22,6 @@ import qualified Agda.TypeChecking.Free.Lazy as Free
 import qualified Agda.TypeChecking.Free.Old as Old
 
 import qualified Data.IntMap as Map
-import Data.Monoid
 
 import Internal.Helpers
 import Internal.TypeChecking.Free.Lazy ()
@@ -92,9 +91,6 @@ prop_old_freeVars_Pi = same_freeVars ty
 
 same_freeVars t = new_to_old_FV (New.freeVars t) == Old.freeVars t
 
-old_to_new_FV :: Old.FreeVars -> New.FreeVars
-old_to_new_FV (Old.FV a b c d e) = New.FV a b c (Map.fromSet (const mempty) d) e
-
 new_to_old_FV :: New.FreeVars -> Old.FreeVars
 new_to_old_FV (New.FV a b c d e) = Old.FV a b c (Map.keysSet d) e
 
@@ -107,12 +103,6 @@ ty = Pi (defaultDom ab) $ Abs "x" $ El (Type $ Max []) $ var 5
            Sort $ Type $ Max []
     ab = El (Type $ Max [ClosedLevel 1]) $
            Pi (defaultDom a) (Abs "x" b)
-
-new_fv_ty :: New.FreeVars
-new_fv_ty = New.freeVars ty
-
-old_fv_ty :: Old.FreeVars
-old_fv_ty = Old.freeVars ty
 
 prop_old_freeVars_Term conf x = forAll (genC conf) $ \ (t :: Term) ->
    same_freeVars t

@@ -4,7 +4,6 @@
 
 module Internal.TypeChecking.Generators where
 
-import Control.Applicative
 import Control.Monad.State
 import qualified Data.List as List (sort, nub)
 import Data.Word
@@ -17,7 +16,6 @@ import Agda.Syntax.Internal as I
 import qualified Agda.Syntax.Concrete.Name as C
 
 import Agda.TypeChecking.Free
-import Agda.TypeChecking.Substitute
 
 import qualified Agda.Utils.VarSet as Set
 

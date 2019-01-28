@@ -17,12 +17,12 @@ import Data.Tree
 
 import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Common
-import Agda.Syntax.Internal as I
+import Agda.Syntax.Internal ()
 import Agda.Syntax.Literal
 
 import Agda.TypeChecking.Pretty ( PrettyTCM(..) )
 
-import Agda.Utils.Monad
+import Agda.Utils.Monad ()
 import Agda.Utils.Pretty
 
 #include "undefined.h"

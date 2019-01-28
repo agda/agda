@@ -52,7 +52,7 @@ import Data.Array
 import Data.Function
 import qualified Data.List as List
 import Data.Maybe
-import Data.Monoid
+import Data.Monoid ()
 
 import Data.Foldable (Foldable)
 import qualified Data.Foldable as Fold
@@ -63,10 +63,10 @@ import qualified Text.PrettyPrint.Boxes as Boxes
 import Agda.Termination.Semiring (HasZero(..), Semiring)
 import qualified Agda.Termination.Semiring as Semiring
 
-import Agda.Utils.Functor
+import Agda.Utils.Functor ()
 import Agda.Utils.List
 import Agda.Utils.Maybe
-import Agda.Utils.Monad
+import Agda.Utils.Monad ()
 import Agda.Utils.PartialOrd
 import Agda.Utils.Pretty hiding (isEmpty)
 import Agda.Utils.Tuple
@@ -93,12 +93,6 @@ data MIx i = MIx
   , col :: i  -- ^ Column index @1 <= col <= cols@.
   }
   deriving (Eq, Ord, Show, Ix)
-
--- | Convert a 'Size' to a set of bounds suitable for use with
---   the matrices in this module.
-
-toBounds :: Num i => Size i -> (MIx i, MIx i)
-toBounds sz = (MIx { row = 1, col = 1 }, MIx { row = rows sz, col = cols sz })
 
 -- | Type of matrices, parameterised on the type of values.
 --
@@ -190,16 +184,6 @@ blowUpSparseVec zero n l = aux 1 l
           | i > j || i > n = __IMPOSSIBLE__
           | i == j         = b    : aux (i + 1) l'
           | otherwise      = zero : aux (i + 1) l
-
--- Older implementation without replicate.
-blowUpSparseVec' :: (Ord i, Num i, Enum i) => b -> i -> [(i,b)] -> [b]
-blowUpSparseVec' zero n l = aux 1 l
-  where aux i [] | i > n = []
-                 | otherwise = zero : aux (i+1) []
-        aux i ((j,b):l) | i <= n && j == i = b : aux (succ i) l
-        aux i ((j,b):l) | i <= n && j >= i = zero : aux (succ i) ((j,b):l)
-        aux i l = __IMPOSSIBLE__
-          -- error $ "blowUpSparseVec (n = " ++ show n ++ ") aux i=" ++ show i ++ " j=" ++ show (fst (head l)) ++ " length l = " ++ show (length l)
 
 -- | Converts a matrix to a list of row lists.
 --   @O(size)@ where @size = rows × cols@.

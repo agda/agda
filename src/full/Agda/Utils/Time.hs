@@ -18,7 +18,7 @@ module Agda.Utils.Time
 import Control.Monad.Trans
 import qualified System.CPUTime as CPU
 
-import Data.Functor
+import Data.Functor ()
 import qualified Data.Time
 
 import Agda.Utils.Pretty

@@ -6,8 +6,8 @@ module Agda.TypeChecking.Monad.Signature where
 
 import Prelude hiding (null)
 
-import Control.Arrow (first, second, (***))
-import Control.Applicative hiding (empty)
+import Control.Arrow ()
+import Control.Applicative ()
 
 #if __GLASGOW_HASKELL__ >= 800
 import qualified Control.Monad.Fail as Fail
@@ -21,10 +21,10 @@ import Control.Monad.Trans.Maybe
 import qualified Data.List as List
 import Data.Set (Set)
 import qualified Data.Set as Set
-import Data.Map (Map)
+import Data.Map ()
 import qualified Data.Map as Map
 import Data.Maybe
-import Data.Monoid
+import Data.Monoid ()
 
 import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Abstract (Ren, ScopeCopyInfo(..))
@@ -48,22 +48,19 @@ import Agda.TypeChecking.DropArgs
 import Agda.TypeChecking.Warnings
 import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.Substitute
-import {-# SOURCE #-} Agda.TypeChecking.Telescope
 import Agda.TypeChecking.CompiledClause
 import {-# SOURCE #-} Agda.TypeChecking.CompiledClause.Compile
 import {-# SOURCE #-} Agda.TypeChecking.Polarity
 import {-# SOURCE #-} Agda.TypeChecking.ProjectionLike
-import Agda.TypeChecking.Monad.Builtin
+import Agda.TypeChecking.Monad.Builtin ()
 
 import Agda.Utils.Except ( ExceptT )
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List
-import Agda.Utils.Map as Map
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
-import Agda.Utils.Permutation
 import Agda.Utils.Pretty
 import Agda.Utils.Size
 import qualified Agda.Utils.HashMap as HMap

@@ -13,7 +13,6 @@ import Test.Tasty.Silver
 import Test.Tasty.Silver.Filter
 import qualified Data.Text as T
 import Data.Text.Encoding
-import Data.Monoid
 import Data.List
 import System.Directory
 import System.IO.Temp

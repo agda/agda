@@ -577,7 +577,9 @@ library
                  -fwarn-overlapping-patterns
                  -fwarn-unrecognised-pragmas
                  -fwarn-unticked-promoted-constructors
+                 -fwarn-unused-binds
                  -fwarn-unused-do-bind
+                 -fwarn-unused-imports
                  -fwarn-warnings-deprecations
                  -fwarn-wrong-do-bind
 
@@ -820,7 +822,9 @@ test-suite agda-tests
                  -fwarn-overlapping-patterns
                  -fwarn-unrecognised-pragmas
                  -fwarn-unticked-promoted-constructors
+                 -fwarn-unused-binds
                  -fwarn-unused-do-bind
+                 -fwarn-unused-imports
                  -fwarn-warnings-deprecations
                  -fwarn-wrong-do-bind
 

@@ -20,7 +20,6 @@ import qualified Data.List as List
 import Data.Map (Map)
 import qualified Data.Map as Map
 
-import Agda.Syntax.Common (Nat)
 import Agda.Utils.SemiRing
 
 type Matrix a = Array (Int,Int) a
@@ -312,11 +311,6 @@ solve cs = -- trace (show cs) $
          n   = nextNode gr            -- number of nodes
          m0  = mkMatrix n (graph gr)
          m   = warshall m0
-
-         -- tracing only: build output version of transitive graph
-         legend i = fromJust $ Map.lookup i (intMap gr) -- trace only
-         lm0 = LegendMatrix m0 legend legend            -- trace only
-         lm  = LegendMatrix m legend legend             -- trace only
 
          -- compute the sets of flexible and rigid node numbers
          ns  = Map.keys (nodeMap gr)

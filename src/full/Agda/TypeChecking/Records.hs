@@ -8,10 +8,10 @@ import Prelude hiding ((<>))
 #endif
 
 import Control.Monad
-import Control.Monad.Reader
+import Control.Monad.Reader ()
 import Control.Monad.Trans.Maybe
 
-import Data.Function
+import Data.Function ()
 import qualified Data.List as List
 import Data.Maybe
 import qualified Data.Set as Set
@@ -448,7 +448,7 @@ expandRecordVar i gamma0 = do
       l     = size gamma - 1 - i
   -- Extract type of @i@th de Bruijn index.
   -- Γ = Γ₁, x:a, Γ₂
-  let (gamma1, dom@(Dom{domInfo = ai, unDom = (x, a)}) : gamma2) = splitAt l gamma
+  let (gamma1, Dom{unDom = (x, a)} : gamma2) = splitAt l gamma
   -- This must be a eta-expandable record type.
   let failure = do
         reportSDoc "tc.meta.assign.proj" 25 $

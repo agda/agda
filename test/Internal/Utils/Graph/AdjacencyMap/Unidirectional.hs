@@ -17,9 +17,6 @@ import Agda.Utils.Graph.AdjacencyMap.Unidirectional as Graph
 import Agda.Utils.List (distinct)
 import Agda.Utils.Null as Null
 import Agda.Utils.SemiRing
-import Agda.Utils.Singleton (Singleton)
-import qualified Agda.Utils.Singleton as Singleton
-import Agda.Utils.Impossible
 
 import Control.Monad
 
@@ -123,9 +120,6 @@ type E = Occurrence
 
 newtype N = N (Positive Int)
   deriving (Arbitrary, Eq, Ord)
-
-n :: Int -> N
-n = N . Positive
 
 instance Show N where
   show (N (Positive n)) = "n " ++ show n
@@ -579,28 +573,3 @@ return [] -- KEEP!
 
 tests :: TestTree
 tests = testProperties "Internal.Utils.Graph.AdjacencyMap.Unidirectional" $allProperties
-
--- Abbreviations for testing in interpreter.
-
-g1, g2, g3, g4 :: Graph N E
-g1 = Graph $ Map.fromList
-  [ (n 1, Map.fromList [(n 2,Unused)])
-  , (n 2, Map.fromList [(n 1,Unused)])
-  ]
-
-g2 = Graph $ Map.fromList
-  [ (n 1, Map.fromList [(n 2,StrictPos)])
-  , (n 2, Map.fromList [(n 1,StrictPos)])
-  ]
-
-g3 = Graph $ Map.fromList
-  [ (n 1, Map.fromList [(n 2,StrictPos)])
-  , (n 2, Map.fromList [])
-  , (n 4, Map.fromList [(n 1,StrictPos)])
-  ]
-
-g4 = Graph $ Map.fromList
-  [ (n 1, Map.fromList [(n 6,Unused)])
-  , (n 6, Map.fromList [(n 8,StrictPos)])
-  , (n 8, Map.fromList [(n 3,Unused)])
-  ]

@@ -14,8 +14,8 @@ module Agda.Utils.Favorites where
 import Prelude hiding ( null )
 
 import Data.Foldable (Foldable)
-import Data.Functor
-import Data.Semigroup
+import Data.Functor ()
+import Data.Semigroup ()
 import qualified Data.List as List
 import qualified Data.Set as Set
 

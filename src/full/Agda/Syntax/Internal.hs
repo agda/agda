@@ -13,7 +13,7 @@ module Agda.Syntax.Internal
 
 import Prelude hiding (foldr, mapM, null)
 
-import Control.Applicative hiding (empty)
+import Control.Applicative ()
 import Control.Monad.Identity hiding (mapM)
 import Control.DeepSeq
 
@@ -38,11 +38,9 @@ import Agda.Utils.Empty
 import Agda.Utils.Functor
 import Agda.Utils.Geniplate
 import Agda.Utils.Lens
-import Agda.Utils.List
-import Agda.Utils.Maybe
-import Agda.Utils.NonemptyList
+import Agda.Utils.Maybe ()
+import Agda.Utils.NonemptyList ()
 import Agda.Utils.Null
-import Agda.Utils.Permutation
 import Agda.Utils.Size
 import qualified Agda.Utils.Pretty as P
 import Agda.Utils.Pretty hiding ((<>))

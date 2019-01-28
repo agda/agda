@@ -4,17 +4,15 @@ module Agda.TypeChecking.Telescope.Path where
 
 import Prelude hiding (null)
 
-import Control.Applicative hiding (empty)
-import Control.Monad (unless, guard)
+import Control.Applicative ()
+import Control.Monad ()
 
-import Data.Foldable (forM_, find)
+import Data.Foldable ()
 import qualified Data.List as List
 import Data.Maybe
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
-import Agda.Syntax.Internal.Pattern
-import Agda.Syntax.Position
 
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Monad.Builtin
@@ -24,7 +22,7 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 
-import Agda.Utils.Functor
+import Agda.Utils.Functor ()
 import Agda.Utils.List
 import Agda.Utils.Size
 

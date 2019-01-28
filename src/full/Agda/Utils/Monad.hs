@@ -17,7 +17,7 @@ import qualified Control.Monad.Fail as Fail
 
 import Control.Monad.Identity ( Identity )
 import Control.Monad.State
-import Control.Monad.Writer
+import Control.Monad.Writer ()
 import Data.Traversable as Trav hiding (for, sequence)
 import Data.Foldable as Fold
 import Data.Maybe
@@ -28,7 +28,6 @@ import Agda.Utils.Except
   , MonadError(catchError, throwError)
   )
 
-import Agda.Utils.List
 import Agda.Utils.Null (ifNotNullM)
 
 #include "undefined.h"
@@ -227,33 +226,3 @@ readM s = case reads s of
             [(x,"")]    -> return x
             _           ->
               throwError $ strMsg $ "readM: parse error string " ++ s
-
-
--- RETIRED STUFF ----------------------------------------------------------
-
-{- RETIRED, ASR, 09 September 2014. Not used.
--- | Bracket for the 'Error' class.
-
--- bracket :: (Error e, MonadError e m)
---         => m a         -- ^ Acquires resource. Run first.
---         -> (a -> m c)  -- ^ Releases resource. Run last.
---         -> (a -> m b)  -- ^ Computes result. Run in-between.
---         -> m b
--- bracket acquire release compute = do
---   resource <- acquire
---   compute resource `finally` release resource
--}
-
-{- RETIRED, Andreas, 2012-04-30. Not used.
-concatMapM :: Applicative m => (a -> m [b]) -> [a] -> m [b]
-concatMapM f xs = concat <$> traverse f xs
-
--- | Depending on the monad you have to look at the result for
---   the force to be effective. For the 'IO' monad you do.
-forceM :: Monad m => [a] -> m ()
-forceM xs = do () <- length xs `seq` return ()
-               return ()
-
-commuteM :: (Traversable f, Applicative m) => f (m a) -> m (f a)
-commuteM = traverse id
--}

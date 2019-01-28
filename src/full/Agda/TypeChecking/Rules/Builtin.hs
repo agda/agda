@@ -10,17 +10,16 @@ module Agda.TypeChecking.Rules.Builtin
   , bindUntypedBuiltin
   ) where
 
-import Control.Applicative hiding (empty)
+import Control.Applicative ()
 import Control.Monad
-import Control.Monad.Reader (ask)
-import Control.Monad.State (get)
+import Control.Monad.Reader ()
+import Control.Monad.State ()
 import Data.List (find, sortBy)
 import Data.Function (on)
 
 import Agda.Interaction.Options (optSizedTypes)
 
 import qualified Agda.Syntax.Abstract as A
-import qualified Agda.Syntax.Abstract.Views as A
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Position
@@ -55,7 +54,6 @@ import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.NonemptyList
 import Agda.Utils.Null
-import Agda.Utils.Permutation
 import Agda.Utils.Size
 
 #include "undefined.h"
@@ -354,17 +352,11 @@ coreBuiltins =
   where
         (|->) = BuiltinInfo
 
-        v0,v1,v2,v3 :: TCM Term
+        v0 :: TCM Term
         v0 = varM 0
-        v1 = varM 1
-        v2 = varM 2
-        v3 = varM 3
 
-        tv0,tv1 :: TCM Type
+        tv0 :: TCM Type
         tv0 = el v0
-        tv1 = el v1
-        tv2 = el v2
-        tv3 = el v3
 
         arg :: TCM Term -> TCM Term
         arg t = primArg <@> t
@@ -382,7 +374,6 @@ coreBuiltins =
         tnat       = el primNat
         tint       = el primInteger
         tword64    = el primWord64
-        tunit      = el primUnit
         tinteger   = el primInteger
         tfloat     = el primFloat
         tchar      = el primChar
@@ -731,8 +722,7 @@ bindBuiltinInfo (BuiltinInfo s d) e = do
           A.Con{} -> return ()
           _       -> typeError $ BuiltinMustBeConstructor s e
 
-        let v@(Con h _ []) = name v0
-            c = conName h
+        let v@(Con _ _ []) = name v0
 
         bindBuiltinName s v
 

@@ -4,11 +4,10 @@
 
 module Internal.Interaction.Library ( tests ) where
 
-import Control.Applicative ( liftA2, (<$>), (<*>) )
-import Test.QuickCheck
+import Control.Applicative ( liftA2, (<$>) )
+import Test.QuickCheck ()
 
 import Agda.Interaction.Library
-import Agda.Utils.Functor
 
 import Internal.Helpers
 

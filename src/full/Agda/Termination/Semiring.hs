@@ -8,8 +8,6 @@ module Agda.Termination.Semiring
   , boolSemiring
   ) where
 
-import Data.Monoid
-
 -- | @HasZero@ is needed for sparse matrices, to tell which is the element
 --   that does not have to be stored.
 --   It is a cut-down version of @SemiRing@ which is definable

@@ -21,15 +21,15 @@ module Agda.Interaction.Highlighting.Generate
 import Prelude hiding (null)
 
 import Control.Monad
-import Control.Monad.Trans
-import Control.Monad.Reader
+import Control.Monad.Trans ()
+import Control.Monad.Reader ()
 import Control.Arrow (second)
 
-import Data.Monoid
+import Data.Monoid ()
 import Data.Generics.Geniplate
 import qualified Data.Map as Map
 import Data.Maybe
-import Data.List ((\\), isPrefixOf)
+import Data.List ((\\))
 import qualified Data.List as List
 import qualified Data.Foldable as Fold (fold, foldMap, toList)
 import qualified Data.IntMap as IntMap
@@ -56,7 +56,6 @@ import Agda.Syntax.Concrete (FieldAssignment'(..))
 import Agda.Syntax.Concrete.Definitions ( DeclarationWarning(..) )
 import qualified Agda.Syntax.Common as Common
 import qualified Agda.Syntax.Concrete.Name as C
-import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Fixity
 import qualified Agda.Syntax.Info as SI
 import qualified Agda.Syntax.Internal as I

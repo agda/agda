@@ -3,9 +3,8 @@ module Agda.Compiler.MAlonzo.Coerce (addCoercions) where
 
 import Agda.Syntax.Treeless
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Telescope
-import Agda.TypeChecking.Substitute
-import Agda.Utils.Functor
+import Agda.TypeChecking.Substitute ()
+import Agda.Utils.Functor ()
 
 -- | Insert unsafeCoerce (in the form of 'TCoerce') everywhere it's needed in
 --   the right-hand side of a definition.

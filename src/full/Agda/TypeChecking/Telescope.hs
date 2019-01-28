@@ -4,7 +4,7 @@ module Agda.TypeChecking.Telescope where
 
 import Prelude hiding (null)
 
-import Control.Applicative hiding (empty)
+import Control.Applicative ()
 import Control.Monad
 
 import Data.Foldable (forM_, find)
@@ -15,7 +15,6 @@ import Data.Maybe
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
-import Agda.Syntax.Internal.Pattern
 import Agda.Syntax.Position
 
 import Agda.TypeChecking.Monad.Builtin

@@ -74,8 +74,8 @@ import Prelude hiding ( (<>), lookup, null, unzip )
 import Prelude hiding ( lookup, null, unzip )
 #endif
 
-import Control.Applicative hiding (empty)
-import Control.Monad
+import Control.Applicative ()
+import Control.Monad ()
 
 import qualified Data.Array.IArray as Array
 import qualified Data.Edison.Seq.BankersQueue as BQ
@@ -88,21 +88,17 @@ import qualified Data.IntSet as IntSet
 import qualified Data.List as List
 import qualified Data.Map.Strict as Map
 import Data.Map.Strict (Map)
-import qualified Data.Maybe as Maybe
 import Data.Maybe (maybeToList, fromMaybe)
 import qualified Data.Set as Set
 import Data.Set (Set)
 import qualified Data.Tree as Tree
 
 import Agda.Utils.Function
-import Agda.Utils.Functor
-import Agda.Utils.List (headMaybe)
+import Agda.Utils.Functor ()
 import Agda.Utils.Null (Null(null))
 import qualified Agda.Utils.Null as Null
 import Agda.Utils.Pretty
 import Agda.Utils.SemiRing
-import Agda.Utils.Singleton (Singleton)
-import qualified Agda.Utils.Singleton as Singleton
 import Agda.Utils.Tuple
 
 #include "undefined.h"

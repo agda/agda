@@ -26,12 +26,11 @@ module Agda.Syntax.Translation.AbstractToConcrete
 
 import Prelude hiding (null)
 
-import Control.Applicative hiding (empty)
+import Control.Applicative ()
 import Control.Monad.Reader
-import Control.Monad.State
+import Control.Monad.State ()
 
-import Data.Either
-import qualified Data.Map as Map
+import Data.Either ()
 import Data.Maybe
 import Data.Monoid
 import Data.Set (Set)
@@ -57,9 +56,8 @@ import Agda.Syntax.Abstract.PatternSynonyms
 import Agda.Syntax.Scope.Base
 
 import Agda.TypeChecking.Monad.State (getScope, getAllPatternSyns)
-import Agda.TypeChecking.Monad.Base  (TCM, MonadTCState(..), MonadTCEnv(..), HasOptions(..), NamedMeta(..), useTC, asksTC, modifyTCLens, stBuiltinThings, stConcreteNames, stShadowingNames, envContext, BuiltinThings , Builtin(..), pragmaOptions, isExtendedLambdaName)
+import Agda.TypeChecking.Monad.Base  (TCM, MonadTCState(..), HasOptions(..), NamedMeta(..), useTC, asksTC, modifyTCLens, stConcreteNames, stShadowingNames, envContext, pragmaOptions, isExtendedLambdaName)
 import Agda.TypeChecking.Monad.Debug
-import Agda.TypeChecking.Monad.Options
 import Agda.TypeChecking.Monad.Builtin
 import Agda.Interaction.Options
 
@@ -67,9 +65,8 @@ import qualified Agda.Utils.AssocList as AssocList
 import Agda.Utils.Either
 import Agda.Utils.Function
 import Agda.Utils.Functor
-import Agda.Utils.List
 import Agda.Utils.Maybe
-import Agda.Utils.Monad
+import Agda.Utils.Monad ()
 import Agda.Utils.Null
 import Agda.Utils.NonemptyList
 import Agda.Utils.Singleton

@@ -6,52 +6,41 @@ import Prelude hiding ( null, writeFile )
 import Control.Monad.Reader ( liftIO )
 import Control.Monad.Trans
 import Data.Char ( isSpace )
-import Data.List ( intercalate, genericLength, partition )
-import Data.Maybe ( isJust )
+import Data.List ( intercalate, partition )
+import Data.Maybe ()
 import Data.Set ( Set, null, insert, difference, delete )
 import Data.Traversable (traverse)
-import Data.Map ( fromList, elems )
+import Data.Map ( fromList )
 import qualified Data.Set as Set
 import qualified Data.Map as Map
 import System.Directory ( createDirectoryIfMissing )
 import System.FilePath ( splitFileName, (</>) )
 
-import Agda.Interaction.FindFile ( findFile, findInterfaceFile )
 import Agda.Interaction.Imports ( isNewerThan )
-import Agda.Interaction.Options ( optCompileDir )
-import Agda.Syntax.Common ( Nat, unArg, namedArg, NameId(..) )
-import Agda.Syntax.Concrete.Name ( projectRoot , isNoName )
+import Agda.Interaction.Options ()
+import Agda.Syntax.Common ( Nat, unArg, NameId(..) )
+import Agda.Syntax.Concrete.Name ( isNoName )
 import Agda.Syntax.Abstract.Name
-  ( ModuleName(MName), QName,
-    mnameToConcrete,
-    mnameToList, qnameName, qnameModule, isInModule, nameId )
+  ( ModuleName, QName, mnameToList, qnameName, qnameModule, nameId )
 import Agda.Syntax.Internal
-  ( Name, Args, Type,
-    conName,
-    toTopLevelModuleName, arity, unEl, unAbs, nameFixity )
-import Agda.Syntax.Position
+  ( Name, Type, arity, nameFixity )
 import Agda.Syntax.Literal ( Literal(..) )
 import Agda.Syntax.Fixity
 import qualified Agda.Syntax.Treeless as T
-import Agda.TypeChecking.Substitute ( absBody )
-import Agda.TypeChecking.Level ( reallyUnLevelView )
+import Agda.TypeChecking.Substitute ()
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Monad.Debug ( reportSLn )
-import Agda.TypeChecking.Monad.Options ( setCommandLineOptions )
-import Agda.TypeChecking.Reduce ( instantiateFull, normalise )
-import Agda.TypeChecking.Substitute (TelV(..))
-import Agda.TypeChecking.Telescope
+import Agda.TypeChecking.Reduce ( instantiateFull )
+import Agda.TypeChecking.Substitute ()
 import Agda.TypeChecking.Pretty
-import Agda.Utils.FileName ( filePath )
-import Agda.Utils.Function ( iterate' )
 import Agda.Utils.Maybe
 import Agda.Utils.Monad ( (<$>), (<*>), ifM )
 import Agda.Utils.Pretty (prettyShow)
 import qualified Agda.Utils.Pretty as P
 import Agda.Utils.IO.Directory
 import Agda.Utils.IO.UTF8 ( writeFile )
-import qualified Agda.Utils.HashMap as HMap
+import Agda.Utils.HashMap ()
 
 import Agda.Compiler.Common
 import Agda.Compiler.ToTreeless
@@ -65,7 +54,7 @@ import Agda.Compiler.JS.Syntax
     LocalId(LocalId), GlobalId(GlobalId), MemberId(MemberId), Export(Export), Module(Module),
     modName, expName, uses )
 import Agda.Compiler.JS.Substitution
-  ( curriedLambda, curriedApply, emp, subst, apply )
+  ( curriedLambda, curriedApply, emp, apply )
 import qualified Agda.Compiler.JS.Pretty as JSPretty
 
 import Agda.Interaction.Options

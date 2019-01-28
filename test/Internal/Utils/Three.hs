@@ -3,7 +3,6 @@
 module Internal.Utils.Three ( tests ) where
 
 import Agda.Utils.Three
-import Agda.Utils.Functor
 
 import Internal.Helpers
 

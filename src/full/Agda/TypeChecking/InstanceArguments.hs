@@ -12,9 +12,9 @@ module Agda.TypeChecking.InstanceArguments
 import Prelude hiding ((<>))
 #endif
 
-import Control.Applicative hiding (empty)
+import Control.Applicative ()
 import Control.Monad.Reader
-import Control.Monad.State
+import Control.Monad.State ()
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.List as List
@@ -28,16 +28,14 @@ import Agda.Syntax.Scope.Base (isNameInScope)
 import Agda.TypeChecking.Errors ()
 import Agda.TypeChecking.Implicit (implicitArgs)
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
-import Agda.TypeChecking.Free
+import Agda.TypeChecking.Free ()
 
 import {-# SOURCE #-} Agda.TypeChecking.Constraints
-import {-# SOURCE #-} Agda.TypeChecking.MetaVars
 import {-# SOURCE #-} Agda.TypeChecking.Conversion
 
 import qualified Agda.Benchmarking as Benchmark
@@ -48,7 +46,7 @@ import Agda.Utils.Except
 import Agda.Utils.Lens
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
-import Agda.Utils.Functor
+import Agda.Utils.Functor ()
 import Agda.Utils.Pretty (prettyShow)
 import Agda.Utils.Null (empty)
 

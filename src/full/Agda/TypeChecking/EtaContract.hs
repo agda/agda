@@ -3,7 +3,7 @@
 -- | Compute eta short normal forms.
 module Agda.TypeChecking.EtaContract where
 
-import Control.Monad.Reader
+import Control.Monad.Reader ()
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
@@ -45,8 +45,6 @@ binAppView t = case t of
   Dummy{}    -> __IMPOSSIBLE__
   where
     noApp = NoApp t
-    app f [] = noApp
-    app f xs = App (f $ init xs) (last xs)
     appE f [] = noApp
     appE f xs
       | Apply v <- last xs = App (f $ init xs) v

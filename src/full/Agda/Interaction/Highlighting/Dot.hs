@@ -9,7 +9,7 @@ import Control.Monad.State
 import qualified Data.Map as M
 import Data.Map(Map)
 import Data.Maybe
-import Data.Monoid
+import Data.Monoid ()
 
 import qualified Data.Set as S
 import Data.Set (Set)

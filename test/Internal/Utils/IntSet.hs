@@ -6,11 +6,7 @@
 module Internal.Utils.IntSet ( tests ) where
 
 import Agda.Utils.IntSet.Infinite
-import Test.QuickCheck
-import Data.Semigroup hiding (All)
-import Data.List
-import qualified Data.Set as Set
-import Data.Foldable
+import Test.QuickCheck ()
 
 import Internal.Helpers
 

@@ -15,12 +15,12 @@ module Agda.Interaction.Highlighting.HTML
   ) where
 
 import Prelude hiding ((!!), concatMap)
-import Control.Arrow ((***))
+import Control.Arrow ()
 import Control.Monad
 import Control.Monad.Trans
 
 import Data.Function
-import Data.Monoid
+import Data.Monoid ()
 import Data.Foldable (toList, concatMap)
 import Data.Maybe
 import qualified Data.IntMap as IntMap
@@ -46,24 +46,18 @@ import Paths_Agda
 
 import Agda.Interaction.Options
 import Agda.Interaction.Highlighting.Precise
-import Agda.Interaction.Highlighting.Common
-
-import Agda.Interaction.Highlighting.Generate
-  (computeUnsolvedMetaWarnings, computeUnsolvedConstraints)
 
 import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Common
-import Agda.Syntax.Abstract.Name (ModuleName)
 
 import Agda.TypeChecking.Monad (TCM, useTC)
 import qualified Agda.TypeChecking.Monad as TCM
 
 import Agda.Utils.FileName (filePath)
 import Agda.Utils.Function
-import Agda.Utils.Lens
+import Agda.Utils.Lens ()
 import qualified Agda.Utils.IO.UTF8 as UTF8
 import Agda.Utils.Pretty hiding ((<>))
-import Agda.Utils.Tuple
 
 #include "undefined.h"
 import Agda.Utils.Impossible

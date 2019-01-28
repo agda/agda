@@ -13,7 +13,7 @@ import Prelude hiding (null)
 import Control.Arrow ((***), second)
 import Control.Monad ((>=>))
 import Control.Monad.Identity
-import Control.Applicative (Applicative, liftA2)
+import Control.Applicative (liftA2)
 
 import Data.Foldable (Foldable, foldMap)
 import Data.Functor
@@ -25,13 +25,13 @@ import Data.Monoid
 
 import Agda.Syntax.Abstract as A
 import Agda.Syntax.Common
-import Agda.Syntax.Concrete (FieldAssignment', exprFieldA)
+import Agda.Syntax.Concrete (FieldAssignment')
 import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Concrete.Pattern (IsWithP(..))
 import Agda.Syntax.Info
 import Agda.Syntax.Position
 
-import Agda.Utils.Functor
+import Agda.Utils.Functor ()
 import Agda.Utils.List
 import Agda.Utils.Null
 

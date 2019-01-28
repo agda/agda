@@ -31,15 +31,14 @@ module Agda.Utils.Parser.MemoisedCPS
   ) where
 
 import Control.Applicative ( Alternative((<|>), empty, many, some) )
-import Control.Monad (ap, liftM2)
-import Control.Monad.State.Strict (State, evalState, runState, get, put, modify')
+import Control.Monad (liftM2)
+import Control.Monad.State.Strict (State, evalState, runState, get, modify')
 
 import Data.Array
 import Data.Hashable
 import qualified Data.HashMap.Strict as Map
 import Data.HashMap.Strict (HashMap)
-import qualified Data.HashSet as Set
-import Data.HashSet (HashSet)
+import Data.HashSet ()
 import qualified Data.IntMap.Strict as IntMap
 import Data.IntMap.Strict (IntMap)
 import qualified Data.List as List
@@ -68,8 +67,8 @@ type Cont k r tok b a = Pos -> a -> M k r tok b [b]
 -- | Memoised values.
 
 data Value k r tok b = Value
-  { results       :: !(IntMap [r])
-  , continuations :: [Cont k r tok b r]
+  { _results       :: !(IntMap [r])
+  , _continuations :: [Cont k r tok b r]
   }
 
 -- | The parser type.

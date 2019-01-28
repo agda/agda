@@ -5,7 +5,7 @@
 
 module Agda.Auto.SearchControl where
 
-import Control.Applicative hiding (getConst, Const(..))
+import Control.Applicative ()
 import Control.Monad
 import Data.IORef
 import Control.Monad.State
@@ -211,10 +211,8 @@ instance Refinable (Exp o) (RefInfo o) where
    ExpRefInfo { eriMain  = Just (RIMainInfo n tt iotastepdone)
               , eriUnifs = unis
               , eriInfTypeUnknown = inftypeunknown
-              , eriIsEliminand = iseliminand
               , eriUsedVars = Just (uids, usedvars)
               , eriIotaStep = iotastep
-              , eriPickSubsVar = picksubsvar
               , eriEqRState = meqrstate
               } = getinfo infos
 

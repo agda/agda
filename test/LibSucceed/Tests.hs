@@ -11,7 +11,7 @@ import System.FilePath
 import Test.Tasty                 ( testGroup, TestTree )
 import Test.Tasty.Silver          ( printProcResult )
 import Test.Tasty.Silver.Advanced ( GDiff(..), GShow(..), goldenTestIO1 )
-import Test.Tasty.Silver.Filter   ( RegexFilter(RFInclude) )
+import Test.Tasty.Silver.Filter   ( RegexFilter )
 
 import Utils
 

@@ -18,14 +18,11 @@ import Data.List
 import Data.Void
 
 import Agda.Syntax.Common
-import Agda.Syntax.Position
-import Agda.Syntax.Literal
 import Agda.Syntax.Abstract
 import Agda.Syntax.Abstract.Views
-import Agda.Utils.Monad
+import Agda.Utils.Monad ()
 import Agda.Utils.NonemptyList
 
-import Agda.Utils.Impossible
 #include "undefined.h"
 
 -- | Merge a list of pattern synonym definitions. Fails unless all definitions

@@ -31,8 +31,8 @@ module Agda.Interaction.Library
   , findLib'
   ) where
 
-import Control.Arrow ( (***) )
-import Control.Exception
+import Control.Arrow ()
+import Control.Exception ()
 import Control.Monad.Writer
 import Data.Char
 import Data.Data ( Data )
@@ -40,7 +40,7 @@ import Data.Either
 import Data.Bifunctor ( first )
 import Data.Function
 import qualified Data.List as List
-import Data.Maybe
+import Data.Maybe ()
 import System.Directory ( getAppUserDataDirectory )
 import System.Directory
 import System.FilePath
@@ -51,13 +51,13 @@ import Agda.Interaction.Library.Parse
 import Agda.Interaction.Options.Warnings
 
 import Agda.Utils.Environment
-import Agda.Utils.Except ( ExceptT, runExceptT, MonadError(throwError) )
+import Agda.Utils.Except ( ExceptT, MonadError(throwError) )
 import Agda.Utils.IO ( catchIO )
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Pretty
-import Agda.Utils.String ( trim, ltrim )
+import Agda.Utils.String ( trim )
 
 import Agda.Version
 
@@ -138,9 +138,6 @@ type LibM = ExceptT Doc (WriterT [LibWarning] IO)
 
 warnings :: MonadWriter [Either LibError LibWarning] m => [LibWarning] -> m ()
 warnings = tell . map Right
-
-warning :: MonadWriter [Either LibError LibWarning] m => LibWarning -> m ()
-warning = warnings . pure
 
 raiseErrors' :: MonadWriter [Either LibError LibWarning] m => [LibError'] -> m ()
 raiseErrors' = tell . map (Left . (LibError Nothing))

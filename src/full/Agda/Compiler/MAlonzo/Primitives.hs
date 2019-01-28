@@ -2,8 +2,8 @@
 
 module Agda.Compiler.MAlonzo.Primitives where
 
-import Control.Monad.State
-import Data.Char
+import Control.Monad.State ()
+import Data.Char ()
 import qualified Data.List as List
 import Data.Map as M
 import Data.Maybe
@@ -23,9 +23,9 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Pretty
 
 import Agda.Utils.Either
-import Agda.Utils.Except
+import Agda.Utils.Except ()
 import Agda.Utils.Lens
-import Agda.Utils.Monad
+import Agda.Utils.Monad ()
 import qualified Agda.Utils.HashMap as HMap
 import qualified Agda.Utils.Haskell.Syntax as HS
 
@@ -237,11 +237,6 @@ primBody s = maybe unimplemented (fromRight (hsVarUQ . HS.Ident) <$>) $
   ]
   where
   x |-> s = (x, Left <$> s)
-  bin blt op ty from to = do
-    from' <- bltQual' blt from
-    to'   <- bltQual' blt to
-    return $ repl [op, opty ty, from', to'] $
-               "\\ x y -> <<3>> ((<<0>> :: <<1>>) (<<2>> x) (<<2>> y))"
   binNat  op = return $ repl [op] "(<<0>> :: Integer -> Integer -> Integer)"
   binNat4 op = return $ repl [op] "(<<0>> :: Integer -> Integer -> Integer -> Integer -> Integer)"
   binAsis op ty = return $ repl [op, opty ty] $ "((<<0>>) :: <<1>>)"

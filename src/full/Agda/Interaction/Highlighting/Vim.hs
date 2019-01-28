@@ -54,8 +54,6 @@ matches cons icons defs idefs flds iflds =
         icons' = foo "agdaInfixConstructor" $ classify length icons
         defs'  = foo "agdaFunction"         $ classify length defs
         idefs' = foo "agdaInfixFunction"    $ classify length idefs
-        flds'  = foo "agdaProjection"       $ classify length flds
-        iflds' = foo "agdaInfixProjection"  $ classify length iflds
 
         classify f = List.groupBy ((==) `on` f)
                      . List.sortBy (compare `on` f)

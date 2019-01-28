@@ -6,7 +6,7 @@
 
 module Agda.Interaction.Options.Lenses where
 
-import Control.Monad.State
+import Control.Monad.State (liftIO)
 
 import System.FilePath ((</>))
 

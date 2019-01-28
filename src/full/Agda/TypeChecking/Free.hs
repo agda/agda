@@ -38,25 +38,23 @@ module Agda.TypeChecking.Free
 
 import Prelude hiding (null)
 
-import Control.Monad.Reader
+import Control.Monad.Reader ()
 
-import Data.Maybe
+import Data.Maybe ()
 import Data.Monoid ( Monoid, mempty, mappend, mconcat )
 import Data.Semigroup ( Semigroup, (<>), Any(..), All(..) )
 import Data.IntSet (IntSet)
 import qualified Data.IntSet as Set
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as Map
-import Data.Set (Set)
-import Data.Proxy
-
-import qualified Agda.Benchmarking as Bench
+import Data.Set ()
+import Data.Proxy ()
 
 import Agda.Syntax.Common hiding (Arg, Dom, NamedArg)
 import Agda.Syntax.Internal
 
 import Agda.TypeChecking.Free.Lazy
-  ( Free(..) , FreeEnv(..), initFreeEnv
+  ( Free(..)
   , VarOcc(..), topVarOcc, TheVarMap, theVarMap, IgnoreSorts(..), Variable, SingleVar
   , MetaSet, IsVarSet(..), runFreeM
   )
@@ -89,15 +87,8 @@ data FreeVars = FV
     --   in irrelevant positions.
   } deriving (Eq, Show)
 
-mapSRV, mapUGV, mapWRV, mapIRV
-  :: (VarSet -> VarSet) -> FreeVars -> FreeVars
-mapSRV f fv = fv { stronglyRigidVars = f $ stronglyRigidVars fv }
-mapUGV f fv = fv { unguardedVars     = f $ unguardedVars     fv }
-mapWRV f fv = fv { weaklyRigidVars   = f $ weaklyRigidVars   fv }
-mapIRV f fv = fv { irrelevantVars    = f $ irrelevantVars    fv }
-
-mapFXV :: (IntMap MetaSet -> IntMap MetaSet) -> FreeVars -> FreeVars
-mapFXV f fv = fv { flexibleVars      = f $ flexibleVars      fv }
+mapUGV :: (VarSet -> VarSet) -> FreeVars -> FreeVars
+mapUGV f fv = fv { unguardedVars = f $ unguardedVars fv }
 
 -- | Rigid variables: either strongly rigid, unguarded, or weakly rigid.
 rigidVars :: FreeVars -> VarSet
@@ -164,19 +155,6 @@ strongly fv = fv
   , unguardedVars     = Set.empty
   }
 
--- | What happens to the variables occurring under a constructor?
-underConstructor :: ConHead -> FreeVars -> FreeVars
-underConstructor (ConHead c i fs) =
-  case (i,fs) of
-    -- Coinductive (record) constructors admit infinite cycles:
-    (CoInductive, _)   -> weakly
-    -- Inductive data constructors do not admit infinite cycles:
-    (Inductive, [])    -> strongly
-    -- Inductive record constructors do not admit infinite cycles,
-    -- but this cannot be proven inside Agda.
-    -- Thus, unification should not prove it either.
-    (Inductive, (_:_)) -> id
-
 -- | Mark all free variables as irrelevant.
 irrelevantly :: FreeVars -> FreeVars
 irrelevantly fv = empty { irrelevantVars = allVars fv }
@@ -201,10 +179,6 @@ instance Monoid FreeVars where
   mempty  = empty
   mappend = (<>)
   mconcat = unions
-
--- | @delete x fv@ deletes variable @x@ from variable set @fv@.
-delete :: Nat -> FreeVars -> FreeVars
-delete n (FV sv gv rv fv iv) = FV (Set.delete n sv) (Set.delete n gv) (Set.delete n rv) (Map.delete n fv) (Set.delete n iv)
 
 instance Singleton Variable FreeVars where
   singleton i = mapUGV (Set.insert i) mempty
@@ -245,9 +219,6 @@ instance Singleton Variable VarCounts where
 
 -- * Collecting free variables.
 
-bench :: a -> a
-bench = Bench.billToPure [ Bench.Typing , Bench.Free ]
-
 -- | Doesn't go inside solved metas, but collects the variables from a
 -- metavariable application @X ts@ as @flexibleVars@.
 {-# SPECIALIZE freeVars :: Free a => a -> FreeVars #-}
@@ -281,9 +252,6 @@ freeIn = freeIn' IgnoreNot
 
 freeInIgnoringSorts :: Free a => Nat -> a -> Bool
 freeInIgnoringSorts = freeIn' IgnoreAll
-
-freeInIgnoringSortAnn :: Free a => Nat -> a -> Bool
-freeInIgnoringSortAnn = freeIn' IgnoreInAnnotations
 
 newtype RelevantIn a = RelevantIn {getRelevantIn :: a}
   deriving (Semigroup, Monoid)

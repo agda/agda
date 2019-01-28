@@ -1,7 +1,7 @@
 module Agda.TypeChecking.Monad.Debug where
 
 import Control.Monad.IO.Class (MonadIO)
-import Control.Monad.Reader
+import Control.Monad.Reader ()
 
 import Agda.TypeChecking.Monad.Base
 import {-# SOURCE #-} Agda.TypeChecking.Monad.Options

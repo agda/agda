@@ -6,13 +6,10 @@ module Fail.Tests where
 import Test.Tasty
 import Test.Tasty.Silver
 import Test.Tasty.Silver.Advanced (readFileMaybe, goldenTest1, GDiff (..), GShow (..))
-import System.IO.Temp
 import System.FilePath
 import qualified Data.Text as T
 import Data.Text.Encoding
 import System.Exit
-import System.Directory
-import qualified Data.ByteString as BS
 
 import Utils
 

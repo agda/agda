@@ -7,15 +7,14 @@ import Control.Monad.State
 import Prelude hiding ( null )
 
 import qualified Data.List as List
-import Data.Maybe (mapMaybe, isJust, fromMaybe)
-import Data.Monoid ( Monoid, mempty, mappend, mconcat )
-import Data.Semigroup ( Semigroup, (<>), Any(..) )
-import Data.Traversable (traverse)
+import Data.Maybe (mapMaybe)
+import Data.Monoid ( Monoid, mempty, mappend )
+import Data.Semigroup ( Semigroup, (<>) )
+import Data.Traversable ()
 
 import Agda.Syntax.Abstract (IsProjP(..))
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
-import Agda.Syntax.Internal.Pattern ()
 import Agda.Syntax.Literal
 
 import Agda.TypeChecking.Monad
@@ -24,11 +23,8 @@ import Agda.TypeChecking.Records
 import Agda.TypeChecking.Substitute
 
 import Agda.Utils.Null
-import Agda.Utils.Permutation
 import Agda.Utils.Pretty ( Pretty(..), text, (<+>), cat , prettyList_ )
 import qualified Agda.Utils.Pretty as P
-import Agda.Utils.Size
-import Agda.Utils.List
 import Agda.Utils.Monad
 
 #include "undefined.h"

@@ -1,10 +1,9 @@
 {-# LANGUAGE CPP #-}
 module Agda.Compiler.Treeless.Uncase (caseToSeq) where
 
-import Data.Monoid
+import Data.Monoid ()
 
 import Agda.Syntax.Treeless
-import Agda.Syntax.Literal
 import Agda.TypeChecking.Substitute
 import Agda.Compiler.Treeless.Subst
 import Agda.Compiler.Treeless.Compare
@@ -44,13 +43,13 @@ uncase t = case t of
         maybeSeq u | caseLazy t = u
                    | otherwise  = tApp (TPrim PSeq) [TVar x, u]
         fallback = TCase x t d bs
-        (fv, mu)
+        mu
           | isUnreachable d =
             case last bs of
-              TACon _ a b -> (a, tryStrengthen a b)
-              TALit l b   -> (0, Just b)
-              TAGuard _ b -> (0, Just b)
-          | otherwise = (0, Just d)
+              TACon _ a b -> tryStrengthen a b
+              TALit l b   -> Just b
+              TAGuard _ b -> Just b
+          | otherwise = Just d
 
     equalTo :: Int -> TTerm -> TAlt -> Bool
     equalTo x t (TACon c a b)

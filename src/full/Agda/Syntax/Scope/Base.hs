@@ -12,9 +12,9 @@ import Prelude hiding ( (<>), null )
 import Prelude hiding ( null )
 #endif
 
-import Control.Arrow (first, second, (***))
-import Control.Applicative hiding (empty)
-import Control.DeepSeq
+import Control.Arrow (first, second)
+import Control.Applicative ()
+import Control.DeepSeq ()
 import Control.Monad
 
 import Data.Either (partitionEithers)
@@ -848,11 +848,6 @@ scopeLookup' q scope =
         let -- | Get the modules named @x@ in scope @s@.
             mods :: [A.ModuleName]
             mods = amodName . fst <$> lookupName x s
-            -- | Get the definitions named @x@ in scope @s@ and interpret them as modules.
-            -- Andreas, 2013-05-01: Issue 836 debates this feature:
-            -- Qualified constructors are qualified by their datatype rather than a module
-            defs :: [A.ModuleName]
-            defs = mnameFromList . qnameToList . anameName . fst <$> lookupName x s
         -- Andreas, 2013-05-01:  Issue 836 complains about the feature
         -- that constructors can also be qualified by their datatype
         -- and projections by their record type.  This feature is off

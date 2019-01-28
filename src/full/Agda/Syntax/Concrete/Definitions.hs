@@ -46,20 +46,20 @@ module Agda.Syntax.Concrete.Definitions
 
 import Prelude hiding (null)
 
-import Control.Arrow ((&&&), (***), first, second)
-import Control.Applicative hiding (empty)
+import Control.Arrow ((&&&), (***), second)
+import Control.Applicative ()
 import Control.Monad.Except
 import Control.Monad.State
 
-import Data.Either ( partitionEithers )
-import Data.Function ( on )
+import Data.Either ()
+import Data.Function ()
 import qualified Data.Map as Map
 import Data.Map (Map)
 import Data.Maybe
-import Data.Monoid ( Monoid, mempty, mappend )
-import Data.Semigroup ( Semigroup, (<>) )
+import Data.Monoid ()
+import Data.Semigroup ()
 import qualified Data.List as List
-import qualified Data.Set as Set
+import Data.Set ()
 import Data.Traversable (Traversable, traverse)
 import qualified Data.Traversable as Trav
 
@@ -78,13 +78,12 @@ import Agda.Syntax.Concrete.Fixity
 import Agda.Interaction.Options.Warnings
 
 import Agda.Utils.AffineHole
-import Agda.Utils.Except ( MonadError(throwError,catchError) )
-import Agda.Utils.Function
+import Agda.Utils.Except ( MonadError(throwError) )
 import Agda.Utils.Functor
 import Agda.Utils.Lens
-import Agda.Utils.List (caseList, headMaybe, isSublistOf)
+import Agda.Utils.List (headMaybe, isSublistOf)
 import Agda.Utils.Maybe
-import Agda.Utils.Monad
+import Agda.Utils.Monad ()
 import Agda.Utils.Null
 import qualified Agda.Utils.Pretty as Pretty
 import Agda.Utils.Pretty hiding ((<>))
@@ -464,13 +463,13 @@ data InMutual
 
 data DataRecOrFun
   = DataName
-    { kindPosCheck :: PositivityCheck
-    , kindUniCheck :: UniverseCheck
+    { _kindPosCheck :: PositivityCheck
+    , _kindUniCheck :: UniverseCheck
     }
     -- ^ Name of a data type
   | RecName
-    { kindPosCheck :: PositivityCheck
-    , kindUniCheck :: UniverseCheck
+    { _kindPosCheck :: PositivityCheck
+    , _kindUniCheck :: UniverseCheck
     }
     -- ^ Name of a record type
   | FunName TerminationCheck
@@ -826,9 +825,6 @@ niceDeclarations fixs ds = do
             --            *** (d :)
             --            *** (id :: [NiceDeclaration] -> [NiceDeclaration])
             cons d = fmap (id *** (d :) *** id)
-
-    notMeasure TerminationMeasure{} = False
-    notMeasure _ = True
 
     nice :: [Declaration] -> Nice [NiceDeclaration]
     nice [] = return []

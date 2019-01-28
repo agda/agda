@@ -42,12 +42,8 @@ prop_cluster_sound (Fun _ f) as =
   (`all` d) $ \ b ->
   null $ (uncurry (:) $ f a) `intersect` (uncurry (:) $ f b)
 
-neToList :: (a, [a]) -> [a]
-neToList = uncurry (:)
-
-isSingleton, exactlyTwo, atLeastTwo :: [a] -> Bool
+isSingleton, atLeastTwo :: [a] -> Bool
 isSingleton x = length x == 1
-exactlyTwo  x = length x == 2
 atLeastTwo  x = length x >= 2
 
 prop_cluster_empty :: Bool

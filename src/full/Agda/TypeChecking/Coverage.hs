@@ -19,21 +19,20 @@ module Agda.TypeChecking.Coverage
 import Prelude hiding (null, (!!))  -- do not use partial functions like !!
 
 import Control.Monad
-import Control.Monad.Reader
+import Control.Monad.Reader ()
 import Control.Monad.Trans ( lift )
 
-import Data.Either (lefts)
+import Data.Either ()
 import qualified Data.List as List
-import Data.Monoid (Any(..))
+import Data.Monoid ()
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
-import qualified Data.Traversable as Trav
+import Data.Traversable ()
 
 import Agda.Syntax.Common
 import Agda.Syntax.Position
-import Agda.Syntax.Literal
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
 
@@ -68,7 +67,7 @@ import Agda.Interaction.Options
 import Agda.Utils.Either
 import Agda.Utils.Except
   ( ExceptT
-  , MonadError(catchError, throwError)
+  , MonadError(throwError)
   , runExceptT
   )
 import Agda.Utils.Function
@@ -80,8 +79,7 @@ import Agda.Utils.Null
 import Agda.Utils.Permutation
 import Agda.Utils.Pretty (prettyShow)
 import Agda.Utils.Size
-import Agda.Utils.Tuple
-import Agda.Utils.Lens
+import Agda.Utils.Lens ()
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -616,7 +614,6 @@ createMissingHCompClause f n x old_sc (SClause tel ps sigma' cps (Just t)) = set
           let
             ineg j = pure tINeg <@> j
             imax i j = pure tIMax <@> i <@> j
-            imin i j = pure tIMin <@> i <@> j
 
           comp <- do
             let forward la bA r u = pure tTrans <#> (lam "i" $ \ i -> la <@> (i `imax` r))
@@ -1030,7 +1027,7 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps cps c = do
       let rho0' = toSplitPSubst rho0
 
       -- We have Δ₁' ⊢ ρ₀ : Δ₁Γ, so split it into the part for Δ₁ and the part for Γ
-      let (rho1,rho2) = splitS (size gamma) $ rho0'
+      let (rho1, _rho2) = splitS (size gamma) $ rho0'
 
       -- Andreas, 2015-05-01  I guess it is fine to use no @conPType@
       -- as the result of splitting is never used further down the pipeline.
@@ -1306,9 +1303,8 @@ split' ind allowPartialCover fixtarget sc@(SClause tel ps _ cps target) (Blockin
       return $ Right $ Covering (lookupPatternVar sc x) ns
 
   where
-    inContextOfT, inContextOfDelta2 :: (MonadTCM tcm, MonadDebug tcm) => tcm a -> tcm a
+    inContextOfT :: (MonadTCM tcm, MonadDebug tcm) => tcm a -> tcm a
     inContextOfT      = addContext tel . escapeContext (x + 1)
-    inContextOfDelta2 = addContext tel . escapeContext x
 
     -- Debug printing
     debugInit tel x ps cps = liftTCM $ inTopContext $ do
@@ -1321,16 +1317,6 @@ split' ind allowPartialCover fixtarget sc@(SClause tel ps _ cps target) (Blockin
           , "cps     =" <+> prettyTCM cps
           ]
         ]
-
-    debugHoleAndType delta1 delta2 s ps t =
-      liftTCM $ reportSDoc "tc.cover.top" 10 $ nest 2 $ vcat $
-        [ "p      =" <+> text (patVarNameToString s)
-        , "ps     =" <+> text (show ps)
-        , "delta1 =" <+> prettyTCM delta1
-        , "delta2 =" <+> inContextOfDelta2 (prettyTCM delta2)
-        , "t      =" <+> inContextOfT (prettyTCM t)
-        ]
-
 
 -- | splitResult for MakeCase, tries to introduce IApply or ProjP copatterns
 splitResult :: QName -> SplitClause -> TCM (Either SplitError [SplitClause])

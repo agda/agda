@@ -27,10 +27,10 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
 
-import Agda.Compiler.Treeless.Subst
+import Agda.Compiler.Treeless.Subst ()
 
-import Agda.Utils.Except ( MonadError(catchError) )
-import Agda.Utils.Maybe
+import Agda.Utils.Except ()
+import Agda.Utils.Maybe ()
 import Agda.Utils.Impossible
 
 #include "undefined.h"
@@ -134,8 +134,6 @@ transform BuiltinKit{..} = tr
 
                 nPlusKAlt k b = TAGuard (tOp PGeq (TVar e) (tInt k)) $
                                 TLet (tOp PSub (TVar e) (tInt k)) b
-
-                str err = compactS err [Nothing]
 
             TACon c 1 b | isPos c ->
               case tr b of

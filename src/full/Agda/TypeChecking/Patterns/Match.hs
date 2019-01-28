@@ -10,7 +10,7 @@ import Prelude hiding (null)
 
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
-import Data.Monoid
+import Data.Monoid ()
 import Data.Traversable (traverse)
 
 import Agda.Syntax.Common
@@ -22,11 +22,9 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Records
-import Agda.TypeChecking.Datatypes
 
 import Agda.Utils.Empty
 import Agda.Utils.Functor (for, ($>))
-import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null

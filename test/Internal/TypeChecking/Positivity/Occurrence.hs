@@ -12,7 +12,7 @@ import qualified Data.Map.Strict as Map
 import Internal.Helpers
 import Internal.Syntax.Abstract.Name ()
 
-import Test.QuickCheck
+import Test.QuickCheck ()
 
 ------------------------------------------------------------------------------
 -- QuickCheck instances
@@ -152,7 +152,6 @@ prop_boundToEverySome2 =
              every    = \o -> and [ not (s o) | s <- ss ]
              some e   = \o -> every o && not (e o)
              everyG   = arbitrary `suchThat` every
-             segment  = listOf everyG
          os <- uniqOn id <$> mapM (\e -> arbitrary `suchThat` some e) es
          if Prelude.null os
            then listOf1 everyG

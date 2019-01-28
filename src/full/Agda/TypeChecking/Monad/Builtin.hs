@@ -25,7 +25,7 @@ import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Substitute
 
 import Agda.Utils.Except
-import Agda.Utils.Lens
+import Agda.Utils.Lens ()
 import Agda.Utils.Monad
 import Agda.Utils.Maybe
 import Agda.Utils.Tuple

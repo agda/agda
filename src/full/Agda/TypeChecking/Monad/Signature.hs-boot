@@ -6,13 +6,13 @@ module Agda.TypeChecking.Monad.Signature where
 import qualified Control.Monad.Fail as Fail
 #endif
 
-import Control.Monad.Reader
+import Control.Monad.Reader ()
 
 import Agda.Syntax.Abstract.Name (QName)
 import Agda.Syntax.Internal (ModuleName, Telescope)
 
 import Agda.TypeChecking.Monad.Base
-  ( TCM, ReadTCState, HasOptions, TCEnv, MonadTCEnv
+  ( TCM, ReadTCState, HasOptions, MonadTCEnv
   , Definition, RewriteRules
   )
 import Agda.TypeChecking.Monad.Debug (MonadDebug)

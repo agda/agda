@@ -24,21 +24,21 @@ module Agda.TypeChecking.Rewriting.NonLinMatch where
 
 import Prelude hiding (null, sequence)
 
-import Control.Arrow (first, second)
+import Control.Arrow ()
 import Control.Monad.State
 
-import Debug.Trace
-import System.IO.Unsafe
+import Debug.Trace ()
+import System.IO.Unsafe ()
 
 import Data.Maybe
-import Data.Traversable (Traversable,traverse)
+import Data.Traversable (traverse)
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
 import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet
-import Data.Monoid
+import Data.Monoid ()
 import qualified Data.Set as Set
-import Data.Set (Set)
+import Data.Set ()
 
 import Agda.Syntax.Common
 import qualified Agda.Syntax.Common as C
@@ -46,7 +46,7 @@ import Agda.Syntax.Internal
 
 import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.EtaContract
-import Agda.TypeChecking.Free
+import Agda.TypeChecking.Free ()
 import Agda.TypeChecking.Free.Reduce
 import Agda.TypeChecking.Level
 import Agda.TypeChecking.Monad
@@ -67,7 +67,6 @@ import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Permutation
-import Agda.Utils.Singleton
 import Agda.Utils.Size
 
 #include "undefined.h"

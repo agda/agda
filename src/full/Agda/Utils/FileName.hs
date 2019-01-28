@@ -27,7 +27,7 @@ import Data.Function
 import Data.Hashable (Hashable)
 import Data.Data (Data)
 
-import Agda.Utils.Monad
+import Agda.Utils.Monad ()
 import Agda.Utils.Pretty
 
 #include "undefined.h"
@@ -71,10 +71,6 @@ rootPath = joinDrive "C:" [pathSeparator]
 #else
 rootPath = [pathSeparator]
 #endif
-
--- | maps @/bla/bla/bla/foo.bar.xxx@ to @foo.bar@.
-rootName :: AbsolutePath -> String
-rootName = dropExtension . snd . splitFileName . filePath
 
 -- | Makes the path absolute.
 --

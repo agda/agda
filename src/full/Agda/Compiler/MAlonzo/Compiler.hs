@@ -7,19 +7,19 @@ import Prelude hiding ((<>))
 #endif
 
 import Control.Monad.Reader hiding (mapM_, forM_, mapM, forM, sequence)
-import Control.Monad.State  hiding (mapM_, forM_, mapM, forM, sequence)
+import Control.Monad.State ()
 
-import Data.Generics.Geniplate
-import Data.Foldable hiding (any, all, foldr, sequence_)
-import Data.Function
+import Data.Generics.Geniplate ()
+import Data.Foldable ()
+import Data.Function ()
 import qualified Data.List as List
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Maybe
-import Data.Set (Set)
+import Data.Set ()
 import qualified Data.Set as Set
-import Data.Traversable hiding (for)
-import Data.Monoid hiding ((<>))
+import Data.Traversable ()
+import Data.Monoid ()
 
 import Numeric.IEEE
 
@@ -41,34 +41,28 @@ import Agda.Compiler.Treeless.Unused
 import Agda.Compiler.Treeless.Erase
 import Agda.Compiler.Backend
 
-import Agda.Interaction.FindFile
 import Agda.Interaction.Imports
 import Agda.Interaction.Options
 
 import Agda.Syntax.Common
 import Agda.Syntax.Fixity
 import qualified Agda.Syntax.Abstract.Name as A
-import qualified Agda.Syntax.Concrete.Name as C
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Internal.Names (namesIn)
 import qualified Agda.Syntax.Treeless as T
 import Agda.Syntax.Literal
 
-import Agda.TypeChecking.Monad
+import Agda.TypeChecking.Monad ()
 import Agda.TypeChecking.Monad.Builtin
-import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Primitive (getBuiltinName)
-import Agda.TypeChecking.Records
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Warnings
 
-import Agda.TypeChecking.CompiledClause
 
-import Agda.Utils.FileName
-import Agda.Utils.Functor
+import Agda.Utils.Functor ()
 import Agda.Utils.IO.Directory
 import Agda.Utils.Lens
 import Agda.Utils.List
@@ -76,11 +70,8 @@ import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Pretty (prettyShow, Pretty)
 import qualified Agda.Utils.IO.UTF8 as UTF8
-import qualified Agda.Utils.HashMap as HMap
-import Agda.Utils.Singleton
-import Agda.Utils.Size
+import Agda.Utils.HashMap ()
 import Agda.Utils.String
-import Agda.Utils.Tuple
 
 import Paths_Agda
 

@@ -12,7 +12,6 @@ module Internal.Utils.Permutation ( tests ) where
 import Agda.Utils.List ( downFrom )
 import Agda.Utils.Permutation
 
-import Data.Functor
 import Data.List as List
 import Data.Maybe
 

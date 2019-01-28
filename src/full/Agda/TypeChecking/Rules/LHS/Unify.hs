@@ -107,30 +107,24 @@ module Agda.TypeChecking.Rules.LHS.Unify
 
 import Prelude hiding (null)
 
-import Control.Arrow ((***))
-import Control.Applicative hiding (empty)
+import Control.Arrow ()
+import Control.Applicative ()
 import Control.Monad
 import Control.Monad.State
-import Control.Monad.Trans.Maybe
-import Control.Monad.Reader
+import Control.Monad.Trans.Maybe ()
+import Control.Monad.Reader ()
 import Control.Monad.Writer (WriterT(..), MonadWriter(..), Monoid(..))
 
-import Data.Map (Map)
-import qualified Data.Map as Map
+import Data.Map ()
 import Data.Semigroup hiding (Arg)
 import qualified Data.List as List
 
 import Data.Foldable (Foldable)
 import Data.Traversable (Traversable,traverse)
-import qualified Data.Traversable as Trav
-
-import Agda.Interaction.Options (optInjectiveTypeConstructors)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
-import Agda.Syntax.Internal.Pattern
 import Agda.Syntax.Literal
-import Agda.Syntax.Position
 
 import Agda.TypeChecking.Monad
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
@@ -138,27 +132,22 @@ import Agda.TypeChecking.Monad.Builtin (constructorForm)
 import Agda.TypeChecking.Conversion -- equalTerm
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Datatypes
-import Agda.TypeChecking.DropArgs
 import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.Level (reallyUnLevelView)
 import Agda.TypeChecking.Reduce
 import qualified Agda.TypeChecking.Patterns.Match as Match
 import Agda.TypeChecking.Pretty hiding ((<>))
-import Agda.TypeChecking.SizedTypes (compareSizes)
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Free.Reduce
 import Agda.TypeChecking.Records
-import Agda.TypeChecking.MetaVars (assignV, newArgsMetaCtx)
-import Agda.TypeChecking.EtaContract
 import Agda.Interaction.Options (optInjectiveTypeConstructors, optWithoutK)
 
 import Agda.TypeChecking.Rules.LHS.Problem
 -- import Agda.TypeChecking.SyntacticEquality
 
-import Agda.Utils.Except ( MonadError(catchError, throwError) )
-import Agda.Utils.Either
+import Agda.Utils.Except ( MonadError(catchError) )
 import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.List
@@ -226,9 +215,9 @@ unifyIndices tel flex a us vs = liftTCM $ Bench.billTo [Bench.Typing, Bench.Chec
 ----------------------------------------------------
 
 data Equality = Equal
-  { eqType  :: Dom Type
-  , eqLeft  :: Term
-  , eqRight :: Term
+  { _eqType  :: Dom Type
+  , _eqLeft  :: Term
+  , _eqRight :: Term
   }
 
 instance Reduce Equality where
@@ -263,11 +252,6 @@ instance Reduce UnifyState where
            <*> reduce' lhs
            <*> reduce' rhs
 
-reduceVarTel :: UnifyState -> TCM UnifyState
-reduceVarTel s@UState{ varTel = tel } = do
-  tel <- reduce tel
-  return $ s { varTel = tel }
-
 reduceEqTel :: UnifyState -> TCM UnifyState
 reduceEqTel s@UState{ eqTel = tel } = do
   tel <- reduce tel
@@ -285,11 +269,6 @@ normaliseVarTel :: UnifyState -> TCM UnifyState
 normaliseVarTel s@UState{ varTel = tel } = do
   tel <- normalise tel
   return $ s { varTel = tel }
-
-normaliseEqTel :: UnifyState -> TCM UnifyState
-normaliseEqTel s@UState{ eqTel = tel } = do
-  tel <- normalise tel
-  return $ s { eqTel = tel }
 
 instance PrettyTCM UnifyState where
   prettyTCM state = "UnifyState" $$ nest 2 (vcat $
@@ -343,24 +322,6 @@ getEqualityUnraised k UState { eqTel = eqs, eqLHS = lhs, eqRHS = rhs } =
           (unArg $ indexWithDefault __IMPOSSIBLE__ lhs k)
           (unArg $ indexWithDefault __IMPOSSIBLE__ rhs k)
 
-getEqInfo :: Int -> UnifyState -> ArgInfo
-getEqInfo k UState { eqTel = eqs } =
-  domInfo $ indexWithDefault __IMPOSSIBLE__ (telToList eqs) k
-
--- | Add a list of equations to the front of the equation telescope
-addEqs :: Telescope -> [Arg Term] -> [Arg Term] -> UnifyState -> UnifyState
-addEqs tel us vs s =
-  s { eqTel = tel `abstract` eqTel s
-    , eqLHS = us ++ eqLHS s
-    , eqRHS = vs ++ eqRHS s
-    }
-  where k = size tel
-
-addEq :: Type -> Arg Term -> Arg Term -> UnifyState -> UnifyState
-addEq a u v = addEqs (ExtendTel (defaultDom a) (Abs underscore EmptyTel)) [u] [v]
-
-
-
 -- | Instantiate the k'th variable with the given value.
 --   Returns Nothing if there is a cycle.
 solveVar :: Int    -- ^ Index @k@
@@ -409,19 +370,6 @@ solveEq k u s = (,sigma) $ s
     u'    = raise k u
     n     = eqCount s
     sigma = liftS (n-k-1) $ consS (dotP u') idS
-
--- | Simplify the k'th equation with the given value (which can depend on other
---   equation variables). Returns Nothing if there is a cycle.
-simplifyEq :: Int -> Term -> UnifyState -> Maybe (UnifyState, PatternSubstitution)
-simplifyEq k u s = case instantiateTelescope (eqTel s) k u of
-  Nothing -> Nothing
-  Just (tel' , sigma , rho) -> Just $ (,sigma) $ UState
-    { varTel   = varTel s
-    , flexVars = flexVars s
-    , eqTel    = tel'
-    , eqLHS    = permute rho $ eqLHS s
-    , eqRHS    = permute rho $ eqRHS s
-    }
 
 ----------------------------------------------------
 -- Unification strategies
@@ -566,11 +514,6 @@ instance PrettyTCM UnifyStep where
 
 type UnifyStrategy = UnifyState -> ListT TCM UnifyStep
 
-leftToRightStrategy :: UnifyStrategy
-leftToRightStrategy s =
-    msum (for [0..n-1] $ \k -> completeStrategyAt k s)
-  where n = size $ eqTel s
-
 rightToLeftStrategy :: UnifyStrategy
 rightToLeftStrategy s =
     msum (for (downFrom n) $ \k -> completeStrategyAt k s)
@@ -598,9 +541,7 @@ isHom n x = do
 
 findFlexible :: Int -> FlexibleVars -> Maybe (FlexibleVar Nat)
 findFlexible i flex =
-  let flex'      = map flexVar flex
-      flexible i = i `elem` flex'
-  in List.find ((i ==) . flexVar) flex
+  List.find ((i ==) . flexVar) flex
 
 basicUnifyStrategy :: Int -> UnifyStrategy
 basicUnifyStrategy k s = do
@@ -804,8 +745,7 @@ skipIrrelevantStrategy k s = do
 ----------------------------------------------------
 
 data UnifyLogEntry
-  = UnificationDone  UnifyState
-  | UnificationStep  UnifyState UnifyStep
+  = UnificationStep  UnifyState UnifyStep
 
 type UnifyLog = [UnifyLogEntry]
 
@@ -925,7 +865,6 @@ unifyStep s Solution{ solutionAt   = k
 unifyStep s (Injectivity k a d pars ixs c) = do
   ifM (liftTCM $ consOfHIT $ conName c) (return $ DontKnow []) $ do
   withoutK <- liftTCM $ optWithoutK <$> pragmaOptions
-  let n = eqCount s
 
   -- Get constructor telescope and target indices
   ctype <- (`piApply` pars) . defType <$> liftTCM (getConInfo c)
@@ -1067,7 +1006,6 @@ unifyStep s EtaExpandVar{ expandVar = fi, expandVarRecordType = d , expandVarPar
   where
     i = flexVar fi
     m = varCount s
-    n = eqCount s
 
     projFlexKind :: Int -> FlexibleVarKind
     projFlexKind j = case flexKind fi of
@@ -1133,9 +1071,7 @@ unifyStep s (SkipIrrelevantEquation k) = do
 unifyStep s (TypeConInjectivity k d us vs) = do
   dtype <- defType <$> liftTCM (getConstInfo d)
   TelV dtel _ <- liftTCM $ telView dtype
-  let n   = eqCount s
-      m   = size dtel
-      deq = Def d $ map Apply $ teleArgs dtel
+  let deq = Def d $ map Apply $ teleArgs dtel
   -- TODO: tellUnifyProof ???
   -- but d is not a constructor...
   Unifies <$> liftTCM (reduceEqTel $ s

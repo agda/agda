@@ -5,9 +5,9 @@ module Agda.Compiler.ToTreeless
   , closedTermToTreeless
   ) where
 
-import Control.Arrow (first, second)
+import Control.Arrow (first)
 import Control.Monad.Reader
-import Control.Monad.State
+import Control.Monad.State ()
 import Data.Maybe
 import Data.Map (Map)
 import qualified Data.Map as Map
@@ -23,24 +23,23 @@ import qualified Agda.TypeChecking.CompiledClause.Compile as CC
 import Agda.TypeChecking.Records (getRecordConstructor)
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.CompiledClause
-import Agda.TypeChecking.Telescope
 
 import Agda.Compiler.Treeless.Builtin
 import Agda.Compiler.Treeless.Simplify
 import Agda.Compiler.Treeless.Erase
 import Agda.Compiler.Treeless.Uncase
-import Agda.Compiler.Treeless.Pretty
+import Agda.Compiler.Treeless.Pretty ()
 import Agda.Compiler.Treeless.Unused
 import Agda.Compiler.Treeless.AsPatterns
 import Agda.Compiler.Treeless.Identity
 
-import Agda.Syntax.Common
+import Agda.Syntax.Common ()
 import Agda.TypeChecking.Monad as TCM
 import Agda.TypeChecking.Reduce
-import Agda.TypeChecking.Substitute
+import Agda.TypeChecking.Substitute ()
 
 import Agda.Utils.Functor
-import qualified Agda.Utils.HashMap as HMap
+import Agda.Utils.HashMap ()
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad

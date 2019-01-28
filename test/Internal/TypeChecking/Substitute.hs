@@ -2,12 +2,9 @@
 
 module Internal.TypeChecking.Substitute ( tests ) where
 
-import Control.Arrow ((***), first, second)
+import Control.Arrow (second)
 import Control.Applicative
 import Control.Monad
-import Data.Maybe
-import Data.Monoid hiding ((<>))
-import Data.Semigroup
 import Data.Traversable (traverse)
 
 import Agda.Syntax.Internal
@@ -72,9 +69,6 @@ splitCx _ Nil      = error "IMPOSSIBLE"
 
 cxFromList :: [Ty] -> Cx
 cxFromList = foldl (:>) Nil
-
-cxToList :: Cx -> [Ty]
-cxToList = reverse . map snd . contextVars
 
 instance Semigroup Cx where
   gamma <> Nil = gamma
