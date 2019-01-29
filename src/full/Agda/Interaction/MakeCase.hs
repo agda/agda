@@ -309,11 +309,11 @@ makeCase hole rng s = withInteractionId hole $ do
         ifM (liftTCM $ isEmptyTel (scTel sc))
           {- then -} (pure Nothing)
           {- else -} (Just <$> makeAbstractClause f rhs sc)
-    -- 3. If the definition is left empty then rewind and insert a single absurd clause
-    cs <- if not (null cs) then pure cs else do
-      let sc = fromMaybe __IMPOSSIBLE__ (fst <$> headMaybe scs)
-      cl <- makeAbstractClause f rhs sc
-      pure [cl]
+    -- 3. If the cleanup removed everything then we know that none of the clauses where
+    --    absurd but that all of them were trivially empty. In this case we rewind and
+    --    insert all the clauses (garbage in, garbage out!)
+    cs <- if not (null cs) then pure cs
+          else mapM (makeAbstractClause f rhs . fst) scs
 
     reportSDoc "interaction.case" 65 $ vcat
       [ "split result:"
