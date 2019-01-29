@@ -31,6 +31,7 @@ import Agda.Syntax.Translation.InternalToAbstract
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Coverage
 import Agda.TypeChecking.Coverage.Match ( SplitPatVar(..) , SplitPattern , applySplitPSubst , fromSplitPatterns )
+import Agda.TypeChecking.Empty ( isEmptyTel )
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.RecordPatterns
 import Agda.TypeChecking.Reduce
@@ -294,8 +295,14 @@ makeCase hole rng s = withInteractionId hole $ do
     scs <- split f toSplit sc
     -- filter out clauses that are already covered
     scs <- filterM (not <.> isCovered f prevClauses . fst) scs
-    cs <- forM scs $ \(sc, isAbsurd) -> do
-            if isAbsurd then makeAbsurdClause f sc else makeAbstractClause f rhs sc
+    cs <- fmap catMaybes $ forM scs $ \(sc, isAbsurd) -> if isAbsurd
+      -- absurd clause coming from a split asked for by the user
+      then Just <$> makeAbsurdClause f sc
+      -- trivially empty clause due to the refined patterns
+      else
+        ifM (liftTCM $ isEmptyTel (scTel sc))
+          {- then -} (pure Nothing)
+          {- else -} (Just <$> makeAbstractClause f rhs sc)
     reportSDoc "interaction.case" 65 $ vcat
       [ "split result:"
       , nest 2 $ vcat $ map (text . show . A.deepUnscope) cs

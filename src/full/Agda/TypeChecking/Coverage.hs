@@ -133,7 +133,7 @@ splitClauses (Covering _ qcs) = map snd qcs
 -- | Create a split clause from a clause in internal syntax. Used by make-case.
 clauseToSplitClause :: Clause -> SplitClause
 clauseToSplitClause cl = SClause
-  { scTel    = clauseTel  cl
+  { scTel    = clauseTel cl
   , scPats   = toSplitPatterns $ namedClausePats cl
   , scSubst  = idS  -- Andreas, 2014-07-15  TODO: Is this ok?
   , scCheckpoints = Map.empty -- #2996: not __IMPOSSIBLE__ for debug printing
