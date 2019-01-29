@@ -39,3 +39,9 @@ idTrue' b eq = {!!}
 
 both : ∀ b → b ≡ true → b ≡ false → Bool
 both b e f = {!!}
+
+-- This should still be true in an already specialised context
+
+both' : ∀ (c : Bool) b → b ≡ true → b ≡ false → Bool
+both' false b e f = {!!}
+both' true  b e f = {!!}
