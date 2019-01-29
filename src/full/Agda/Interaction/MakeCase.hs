@@ -174,25 +174,29 @@ parseVariables f tel ii rng ss = do
             _   -> failAmbiguous
 
 -- | Lookup the clause for an interaction point in the signature.
---   Returns the CaseContext, the clause itself, and a list of previous clauses
+--   Returns the CaseContext, the previous clauses, the clause itself,
+--   and a list of the remaining ones.
 
--- Andreas, 2016-06-08, issue #289 and #2006.
--- This replace the old findClause hack (shutter with disgust).
-getClauseForIP :: QName -> Int -> TCM (CaseContext, Clause, [Clause])
-getClauseForIP f clauseNo = do
+type ClauseZipper =
+   ( [Clause] -- previous clauses
+   , Clause   -- clause of interest
+   , [Clause] -- other clauses
+   )
+
+getClauseZipperForIP :: QName -> Int -> TCM (CaseContext, ClauseZipper)
+getClauseZipperForIP f clauseNo = do
   (theDef <$> getConstInfo f) >>= \case
     Function{funClauses = cs, funExtLam = extlam} -> do
-      let (cs1,cs2) = fromMaybe __IMPOSSIBLE__ $ splitExactlyAt clauseNo cs
-          c         = fromMaybe __IMPOSSIBLE__ $ headMaybe cs2
-      return (extlam, c, cs1)
+      let (cs1,ccs2) = fromMaybe __IMPOSSIBLE__ $ splitExactlyAt clauseNo cs
+          (c,cs2)    = fromMaybe __IMPOSSIBLE__ $ uncons ccs2
+      return (extlam, (cs1, c, cs2))
     d -> do
       reportSDoc "impossible" 10 $ vcat
-        [ "getClauseForIP" <+> prettyTCM f <+> text (show clauseNo)
+        [ "getClauseZipperForIP" <+> prettyTCM f <+> text (show clauseNo)
           <+> "received"
         , text (show d)
         ]
       __IMPOSSIBLE__
-
 
 -- | Entry point for case splitting tactic.
 
@@ -203,14 +207,14 @@ makeCase hole rng s = withInteractionId hole $ do
   localTC (\ e -> e { envPrintMetasBare = True }) $ do
 
   -- Get function clause which contains the interaction point.
-
   InteractionPoint { ipMeta = mm, ipClause = ipCl} <- lookupInteractionPoint hole
   let meta = fromMaybe __IMPOSSIBLE__ mm
   (f, clauseNo, rhs) <- case ipCl of
     IPClause f clauseNo rhs -> return (f, clauseNo, rhs)
     IPNoClause -> typeError $ GenericError $
       "Cannot split here, as we are not in a function definition"
-  (casectxt, clause, prevClauses) <- getClauseForIP f clauseNo
+  (casectxt, (prevClauses, clause, follClauses)) <- getClauseZipperForIP f clauseNo
+  let otherClauses = prevClauses ++ follClauses
   let perm = fromMaybe __IMPOSSIBLE__ $ clausePerm clause
       tel  = clauseTel  clause
       ps   = namedClausePats clause
@@ -293,8 +297,11 @@ makeCase hole rng s = withInteractionId hole $ do
           if (nis == C.NotInScope) then Left x else Right x
     let sc = makePatternVarsVisible toShow $ clauseToSplitClause clause
     scs <- split f toSplit sc
-    -- filter out clauses that are already covered
+
+    -- CLEAN UP OF THE GENERATED CLAUSES
+    -- 1. filter out clauses that are already covered
     scs <- filterM (not <.> isCovered f prevClauses . fst) scs
+    -- 2. filter out trivially impossible clauses not asked for by the user
     cs <- fmap catMaybes $ forM scs $ \(sc, isAbsurd) -> if isAbsurd
       -- absurd clause coming from a split asked for by the user
       then Just <$> makeAbsurdClause f sc
@@ -303,6 +310,12 @@ makeCase hole rng s = withInteractionId hole $ do
         ifM (liftTCM $ isEmptyTel (scTel sc))
           {- then -} (pure Nothing)
           {- else -} (Just <$> makeAbstractClause f rhs sc)
+    -- 3. If the definition is left empty then rewind and insert a single absurd clause
+    cs <- if not (null cs) || not (null otherClauses) then pure cs else do
+      let sc = fromMaybe __IMPOSSIBLE__ (fst <$> headMaybe scs)
+      cl <- makeAbstractClause f rhs sc
+      pure [cl]
+
     reportSDoc "interaction.case" 65 $ vcat
       [ "split result:"
       , nest 2 $ vcat $ map (text . show . A.deepUnscope) cs
