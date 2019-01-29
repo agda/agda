@@ -177,8 +177,9 @@ checkSizeVarNeverZero i = do
 
 -- | Check whether a variable in the context is bounded by a size expression.
 --   If @x : Size< a@, then @a@ is returned.
-isBounded :: MonadTCM tcm => Nat -> tcm BoundedSize
-isBounded i = liftTCM $ do
+isBounded :: (MonadReduce m, MonadTCEnv m, HasBuiltins m)
+          => Nat -> m BoundedSize
+isBounded i = do
   t <- reduce =<< typeOfBV i
   case unEl t of
     Def x [Apply u] -> do
@@ -253,7 +254,7 @@ deepSizeView v = do
           _                          -> return $ DOtherSize v
   loop v
 
-sizeMaxView :: Term -> TCM SizeMaxView
+sizeMaxView :: (MonadReduce m, HasBuiltins m) => Term -> m SizeMaxView
 sizeMaxView v = do
   inf <- getBuiltinDefName builtinSizeInf
   suc <- getBuiltinDefName builtinSizeSuc
@@ -541,7 +542,8 @@ oldComputeSizeConstraint c =
 -- | Turn a term with de Bruijn indices into a size expression with offset.
 --
 --   Throws a 'patternViolation' if the term isn't a proper size expression.
-oldSizeExpr :: Term -> TCM (OldSizeExpr, Int)
+oldSizeExpr :: (MonadReduce m, MonadDebug m, MonadError TCErr m, HasBuiltins m)
+            => Term -> m (OldSizeExpr, Int)
 oldSizeExpr u = do
   u <- reduce u -- Andreas, 2009-02-09.
                 -- This is necessary to surface the solutions of metavariables.

@@ -38,7 +38,7 @@ import Agda.Utils.Impossible
 
 -- | Modify a 'Context' in a computation.
 {-# SPECIALIZE modifyContext :: (Context -> Context) -> TCM a -> TCM a #-}
-modifyContext :: MonadTCM tcm => (Context -> Context) -> tcm a -> tcm a
+modifyContext :: MonadTCEnv tcm => (Context -> Context) -> tcm a -> tcm a
 modifyContext f = localTC $ \e -> e { envContext = f $ envContext e }
 
 -- | Change to top (=empty) context. Resets the checkpoints.

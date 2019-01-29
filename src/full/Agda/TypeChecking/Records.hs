@@ -35,6 +35,7 @@ import Agda.TypeChecking.Telescope
 import {-# SOURCE #-} Agda.TypeChecking.ProjectionLike (eligibleForProjectionLike)
 
 import Agda.Utils.Either
+import Agda.Utils.Except
 import Agda.Utils.Functor (for, ($>))
 import Agda.Utils.Lens
 import Agda.Utils.List
@@ -115,7 +116,7 @@ recordModule = mnameFromList . qnameToList
 
 -- | Get the definition for a record. Throws an exception if the name
 --   does not refer to a record or the record is abstract.
-getRecordDef :: (MonadTCM m, HasConstInfo m) => QName -> m Defn
+getRecordDef :: (HasConstInfo m, ReadTCState m, MonadError TCErr m) => QName -> m Defn
 getRecordDef r = maybe err return =<< isRecord r
   where err = typeError $ ShouldBeRecordType (El __DUMMY_SORT__ $ Def r [])
 
@@ -169,7 +170,7 @@ getRecordTypeFields t = do
 
 -- | Returns the given record type's constructor name (with an empty
 -- range).
-getRecordConstructor :: QName -> TCM ConHead
+getRecordConstructor :: (HasConstInfo m, ReadTCState m, MonadError TCErr m) => QName -> m ConHead
 getRecordConstructor r = killRange <$> recConHead <$> getRecordDef r
 
 -- | Check if a name refers to a record.
@@ -291,11 +292,12 @@ getDefType f t = do
 --   Precondition: @t@ is reduced.
 --
 projectTyped
-  :: Term        -- ^ Head (record value).
+  :: (HasConstInfo m, MonadReduce m, MonadDebug m)
+  =>  Term        -- ^ Head (record value).
   -> Type        -- ^ Its type.
   -> ProjOrigin
   -> QName       -- ^ Projection.
-  -> TCM (Maybe (Dom Type, Term, Type))
+  -> m (Maybe (Dom Type, Term, Type))
 projectTyped v t o f = caseMaybeM (getDefType f t) (return Nothing) $ \ tf -> do
   ifNotPiType tf (const $ return Nothing) {- else -} $ \ dom b -> do
   u <- applyDef o f (argFromDom dom $> v)
@@ -557,16 +559,16 @@ curryAt t n = do
 
     where @tel@ is the record telescope instantiated at the parameters @pars@.
 -}
-etaExpandRecord :: (MonadTCM m, HasConstInfo m, MonadDebug m)
+etaExpandRecord :: (HasConstInfo m, MonadDebug m, ReadTCState m, MonadError TCErr m)
                 => QName -> Args -> Term -> m (Telescope, Args)
 etaExpandRecord = etaExpandRecord' False
 
 -- | Eta expand a record regardless of whether it's an eta-record or not.
-forceEtaExpandRecord :: (MonadTCM m, HasConstInfo m, MonadDebug m)
+forceEtaExpandRecord :: (HasConstInfo m, MonadDebug m, ReadTCState m, MonadError TCErr m)
                      => QName -> Args -> Term -> m (Telescope, Args)
 forceEtaExpandRecord = etaExpandRecord' True
 
-etaExpandRecord' :: (MonadTCM m, HasConstInfo m, MonadDebug m)
+etaExpandRecord' :: (HasConstInfo m, MonadDebug m, ReadTCState m, MonadError TCErr m)
                  => Bool -> QName -> Args -> Term -> m (Telescope, Args)
 etaExpandRecord' forceEta r pars u = do
   def <- getRecordDef r

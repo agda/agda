@@ -887,12 +887,12 @@ instance Show a => Show (Closure a) where
 instance HasRange a => HasRange (Closure a) where
     getRange = getRange . clValue
 
-buildClosure :: a -> TCM (Closure a)
+buildClosure :: (MonadTCEnv m, ReadTCState m) => a -> m (Closure a)
 buildClosure x = do
     env   <- askTC
-    sig   <- useTC stSignature
-    scope <- useTC stScope
-    cps   <- useTC stModuleCheckpoints
+    sig   <- useR stSignature
+    scope <- useR stScope
+    cps   <- useR stModuleCheckpoints
     return $ Closure sig env scope cps x
 
 ---------------------------------------------------------------------------
@@ -3701,26 +3701,29 @@ instance Monoid (TCM Any) where
   mempty = return mempty
   mappend = (<>)
 
-patternViolation :: TCM a
+patternViolation :: MonadError TCErr m => m a
 patternViolation = throwError PatternErr
 
 internalError :: MonadTCM tcm => String -> tcm a
-internalError s = typeError $ InternalError s
+internalError s = liftTCM $ typeError $ InternalError s
 
-genericError :: MonadTCM tcm => String -> tcm a
+genericError :: (MonadTCEnv m, ReadTCState m, MonadError TCErr m)
+             => String -> m a
 genericError = typeError . GenericError
 
 {-# SPECIALIZE genericDocError :: Doc -> TCM a #-}
-genericDocError :: MonadTCM tcm => Doc -> tcm a
+genericDocError :: (MonadTCEnv m, ReadTCState m, MonadError TCErr m)
+                => Doc -> m a
 genericDocError = typeError . GenericDocError
 
 {-# SPECIALIZE typeError :: TypeError -> TCM a #-}
-typeError :: MonadTCM tcm => TypeError -> tcm a
-typeError err = liftTCM $ throwError =<< typeError_ err
+typeError :: (MonadTCEnv m, ReadTCState m, MonadError TCErr m)
+          => TypeError -> m a
+typeError err = throwError =<< typeError_ err
 
 {-# SPECIALIZE typeError_ :: TypeError -> TCM TCErr #-}
-typeError_ :: MonadTCM tcm => TypeError -> tcm TCErr
-typeError_ err = liftTCM $ TypeError <$> getTC <*> buildClosure err
+typeError_ :: (MonadTCEnv m, ReadTCState m) => TypeError -> m TCErr
+typeError_ err = TypeError <$> getTCState <*> buildClosure err
 
 -- | Running the type checking monad (most general form).
 {-# SPECIALIZE runTCM :: TCEnv -> TCState -> TCM a -> IO (a, TCState) #-}

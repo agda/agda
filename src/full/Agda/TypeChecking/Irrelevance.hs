@@ -89,6 +89,7 @@ import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute.Class
 
+import Agda.Utils.Except
 import Agda.Utils.Function
 import Agda.Utils.Lens
 import Agda.Utils.Monad
@@ -110,14 +111,15 @@ hideAndRelParams = hideOrKeepInstance . mapRelevance nonStrictToIrr
 
 -- | Modify the context whenever going from the l.h.s. (term side)
 --   of the typing judgement to the r.h.s. (type side).
-workOnTypes :: TCM a -> TCM a
+workOnTypes :: (MonadTCEnv m, HasOptions m, MonadDebug m, MonadError err m)
+            => m a -> m a
 workOnTypes cont = do
   allowed <- optExperimentalIrrelevance <$> pragmaOptions
   verboseBracket "tc.irr" 20 "workOnTypes" $ workOnTypes' allowed cont
 
 -- | Internal workhorse, expects value of --experimental-irrelevance flag
 --   as argument.
-workOnTypes' :: Bool -> TCM a -> TCM a
+workOnTypes' :: (MonadTCEnv m) => Bool -> m a -> m a
 workOnTypes' experimental
   = modifyContext (map $ mapRelevance f)
   . applyQuantityToContext Quantity0

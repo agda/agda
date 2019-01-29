@@ -199,6 +199,7 @@ newtype TerM a = TerM { terM :: ReaderT TerEnv TCM a }
            , MonadError TCErr
            , MonadBench Phase
            , HasOptions
+           , HasBuiltins
            , MonadDebug
            , HasConstInfo
            , MonadIO

@@ -222,8 +222,8 @@ modifySignature f = stSignature `modifyTCLens` f
 modifyImportedSignature :: (Signature -> Signature) -> TCM ()
 modifyImportedSignature f = stImports `modifyTCLens` f
 
-getSignature :: TCM Signature
-getSignature = useTC stSignature
+getSignature :: ReadTCState m => m Signature
+getSignature = useR stSignature
 
 -- | Update a possibly imported definition. Warning: changes made to imported
 --   definitions (during type checking) will not persist outside the current

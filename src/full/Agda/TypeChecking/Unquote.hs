@@ -592,7 +592,7 @@ evalTCM v = do
     tcCommit = do
       dirty <- gets fst
       when (dirty == Dirty) $
-        typeError $ GenericError "Cannot use commitTC after declaring new definitions."
+        liftTCM $ typeError $ GenericError "Cannot use commitTC after declaring new definitions."
       s <- getTC
       modify (second $ const s)
       liftTCM primUnitUnit

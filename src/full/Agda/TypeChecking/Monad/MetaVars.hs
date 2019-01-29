@@ -30,7 +30,7 @@ import Agda.Syntax.Scope.Base
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Trace
 import Agda.TypeChecking.Monad.Closure
-import Agda.TypeChecking.Monad.Debug (reportSLn)
+import Agda.TypeChecking.Monad.Debug (MonadDebug, reportSLn)
 import Agda.TypeChecking.Monad.Context
 import Agda.TypeChecking.Substitute
 import {-# SOURCE #-} Agda.TypeChecking.Telescope
@@ -52,7 +52,7 @@ import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Impossible
 
 -- | Switch off assignment of metas.
-dontAssignMetas :: TCM a -> TCM a
+dontAssignMetas :: (MonadTCEnv m, HasOptions m, MonadDebug m) => m a -> m a
 dontAssignMetas cont = do
   reportSLn "tc.meta" 45 $ "don't assign metas"
   localTC (\ env -> env { envAssignMetas = False }) cont

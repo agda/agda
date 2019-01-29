@@ -1432,7 +1432,7 @@ suspendErrors f = do
 
 -- | A more direct implementation of the specification
 --   @softTypeError err == suspendErrors (typeError err)@
-softTypeError :: (MonadTCM m, MonadError TCErr m) => TypeError -> m a
+softTypeError :: (ReadTCState m, MonadError TCErr m, MonadTCEnv m) => TypeError -> m a
 softTypeError err = throwError =<< typeError_ err
 
 -- | A convenient alias for @liftTCM . typeError@. Throws the error directly
@@ -1445,7 +1445,7 @@ hardTypeError = liftTCM . typeError
 --   definition, parameters, and indices. Fails softly if the type could become
 --   a data/record type by instantiating a variable/metavariable, or fail hard
 --   otherwise.
-isDataOrRecordType :: (MonadTCM m, MonadDebug m)
+isDataOrRecordType :: (MonadTCM m, MonadDebug m, ReadTCState m)
                    => Type
                    -> ExceptT TCErr m (DataOrRecord, QName, Args, Args)
 isDataOrRecordType a = liftTCM (reduceB a) >>= \case
@@ -1579,7 +1579,7 @@ disambiguateProjection h ambD@(AmbQ ds) b = do
 
     notRecord = wrongProj $ headNe ds
 
-    wrongProj :: (MonadTCM m, MonadError TCErr m) => QName -> m a
+    wrongProj :: (MonadTCM m, MonadError TCErr m, ReadTCState m) => QName -> m a
     wrongProj d = softTypeError =<< do
       liftTCM $ GenericDocError <$> sep
         [ "Cannot eliminate type "
@@ -1591,7 +1591,7 @@ disambiguateProjection h ambD@(AmbQ ds) b = do
             prettyTCM d
         ]
 
-    wrongHiding :: (MonadTCM m, MonadError TCErr m) => QName -> m a
+    wrongHiding :: (MonadTCM m, MonadError TCErr m, ReadTCState m) => QName -> m a
     wrongHiding d = softTypeError =<< do
       liftTCM $ GenericDocError <$> sep
         [ "Wrong hiding used for projection " , prettyTCM d ]
@@ -1768,8 +1768,8 @@ checkParameters dc d pars = liftTCM $ do
       compareArgs [] [] t (Def d []) vs (take (length vs) pars)
     _ -> __IMPOSSIBLE__
 
-checkSortOfSplitVar :: (MonadTCM tcm, MonadReduce tcm, MonadError TCErr tcm, LensSort a)
-                    => DataOrRecord -> a -> Maybe (Arg Type) -> tcm ()
+checkSortOfSplitVar :: (MonadTCM m, MonadReduce m, MonadError TCErr m, ReadTCState m, LensSort a)
+                    => DataOrRecord -> a -> Maybe (Arg Type) -> m ()
 checkSortOfSplitVar dr a mtarget = do
   infOk <- optOmegaInOmega <$> pragmaOptions
   liftTCM (reduce $ getSort a) >>= \case

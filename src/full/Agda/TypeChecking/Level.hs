@@ -33,8 +33,8 @@ data LevelKit = LevelKit
   }
 
 -- | Get the 'primLevel' as a 'Type'.
-levelType :: TCM Type
-levelType = El (mkType 0) <$> primLevel
+levelType :: (HasBuiltins m) => m Type
+levelType = El (mkType 0) . fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinLevel
 
 levelSucFunction :: TCM (Term -> Term)
 levelSucFunction = apply1 <$> primLevelSuc

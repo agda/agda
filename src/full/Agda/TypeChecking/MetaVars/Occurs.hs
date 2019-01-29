@@ -585,8 +585,8 @@ hasBadRigid xs t = do
 
 -- | Check whether a term @Def f es@ is finally stuck.
 --   Currently, we give only a crude approximation.
-isNeutral :: MonadTCM tcm => Blocked t -> QName -> Elims -> tcm Bool
-isNeutral b f es = liftTCM $ do
+isNeutral :: (HasConstInfo m) => Blocked t -> QName -> Elims -> m Bool
+isNeutral b f es = do
   let yes = return True
       no  = return False
   def <- getConstInfo f

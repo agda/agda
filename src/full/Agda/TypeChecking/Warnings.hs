@@ -24,19 +24,21 @@ import qualified Agda.Utils.Pretty as P
 import Agda.Utils.Except
 
 {-# SPECIALIZE genericWarning :: P.Doc -> TCM () #-}
-genericWarning :: MonadTCM tcm => P.Doc -> tcm ()
+genericWarning :: (MonadTCM m, MonadError TCErr m, ReadTCState m, HasOptions m)
+               => P.Doc -> m ()
 genericWarning = warning . GenericWarning
 
 {-# SPECIALIZE genericNonFatalError :: P.Doc -> TCM () #-}
-genericNonFatalError :: MonadTCM tcm => P.Doc -> tcm ()
+genericNonFatalError :: (MonadTCM m, MonadError TCErr m, ReadTCState m, HasOptions m)
+                     => P.Doc -> m ()
 genericNonFatalError = warning . GenericNonFatalError
 
 {-# SPECIALIZE warning_ :: Warning -> TCM TCWarning #-}
-warning_ :: MonadTCM tcm => Warning -> tcm TCWarning
+warning_ :: (MonadTCM m, ReadTCState m) => Warning -> m TCWarning
 warning_ w = do
   r <- viewTC eRange
   c <- viewTC eCall
-  b <- liftTCM areWeCaching
+  b <- areWeCaching
   -- NicifierIssues print their own error locations in their list of
   -- issues (but we might need to keep the overall range `r` for
   -- comparing ranges)
@@ -53,7 +55,8 @@ applyWarningMode wm w = case classifyWarning w of
   AllWarnings   -> w <$ guard (Set.member (warningName w) $ wm ^. warningSet)
 
 {-# SPECIALIZE warnings :: [Warning] -> TCM () #-}
-warnings :: MonadTCM tcm => [Warning] -> tcm ()
+warnings :: (MonadTCM m, HasOptions m, ReadTCState m, MonadError TCErr m)
+         => [Warning] -> m ()
 warnings ws = do
 
   wmode <- optWarningMode <$> pragmaOptions
@@ -75,7 +78,8 @@ warnings ws = do
   unless (null errs) $ typeError $ NonFatalErrors errs
 
 {-# SPECIALIZE warning :: Warning -> TCM () #-}
-warning :: MonadTCM tcm => Warning -> tcm ()
+warning :: (MonadTCM m, HasOptions m, MonadError TCErr m, ReadTCState m)
+        => Warning -> m ()
 warning = warnings . pure
 
 

@@ -384,7 +384,6 @@ coreBuiltins =
         tnat       = el primNat
         tint       = el primInteger
         tword64    = el primWord64
-        tunit      = el primUnit
         tinteger   = el primInteger
         tfloat     = el primFloat
         tchar      = el primChar
