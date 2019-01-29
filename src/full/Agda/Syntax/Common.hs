@@ -15,7 +15,7 @@ import qualified Data.ByteString.Char8 as ByteString
 import Data.Foldable ()
 import Data.Hashable (Hashable(..))
 import qualified Data.Strict.Maybe as Strict
-import Data.Semigroup ()
+import Data.Semigroup (Semigroup)
 import Data.Traversable ()
 import Data.Data (Data)
 import Data.Word

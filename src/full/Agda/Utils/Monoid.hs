@@ -4,7 +4,7 @@
 
 module Agda.Utils.Monoid where
 
-import Data.Semigroup (Semigroup(..))
+import Data.Semigroup (Semigroup(..), (<>))
 import Data.Monoid (Monoid(..))
 
 -- | Maximum of on-negative (small) natural numbers.

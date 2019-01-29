@@ -27,7 +27,7 @@ module Agda.Termination.CallGraph
 import Prelude hiding (null)
 
 import qualified Data.List as List
-import Data.Semigroup ()
+import Data.Semigroup (Semigroup)
 import Data.Set (Set)
 
 import Agda.Termination.CallMatrix (CallMatrix, CallMatrixAug(..), CMSet(..), CallComb(..))

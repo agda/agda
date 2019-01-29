@@ -15,7 +15,7 @@ import Prelude hiding ( null )
 
 import Data.Foldable (Foldable)
 import Data.Functor ()
-import Data.Semigroup ()
+import Data.Semigroup (Semigroup, (<>))
 import qualified Data.List as List
 import qualified Data.Set as Set
 

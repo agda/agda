@@ -10,7 +10,7 @@ import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Char
 import Data.Function
-import Data.Semigroup ()
+import Data.Semigroup (Semigroup)
 import Data.Monoid ()
 
 import Control.Monad

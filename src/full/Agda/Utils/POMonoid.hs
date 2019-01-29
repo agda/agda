@@ -2,7 +2,7 @@
 
 module Agda.Utils.POMonoid where
 
-import Data.Semigroup ()
+import Data.Semigroup (Semigroup)
 import Data.Monoid ()
 
 import Agda.Utils.PartialOrd

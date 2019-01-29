@@ -9,7 +9,7 @@ module Agda.Utils.IntSet.Infinite
   where
 
 import Control.Arrow ()
-import Data.Semigroup ()
+import Data.Semigroup (Semigroup, (<>))
 import Data.List ()
 import Data.Set (Set)
 import qualified Data.Set as Set

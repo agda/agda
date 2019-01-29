@@ -15,7 +15,7 @@ import Control.Monad
 import Control.Monad.Reader
 import Control.Monad.State
 
-import Data.Semigroup ()
+import Data.Semigroup (Semigroup, (<>))
 
 import Agda.Utils.Maybe
 

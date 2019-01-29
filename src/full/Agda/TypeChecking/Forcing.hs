@@ -64,7 +64,7 @@ import Control.Monad.Trans.Maybe
 import Control.Monad.Writer (WriterT(..), tell)
 import Data.Foldable ()
 import Data.Traversable ()
-import Data.Semigroup ()
+import Data.Semigroup ((<>))
 import Data.Maybe
 import Data.List ((\\))
 

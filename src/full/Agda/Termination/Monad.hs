@@ -24,7 +24,7 @@ import Control.Monad.State ()
 import Data.Foldable (Foldable)
 import Data.Traversable (Traversable)
 import Data.Monoid ( Monoid(..) )
-import Data.Semigroup ( Semigroup(..) )
+import Data.Semigroup ( Semigroup(..), (<>) )
 
 import Agda.Interaction.Options
 

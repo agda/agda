@@ -11,7 +11,7 @@ module Agda.Termination.CallMatrix where
 --   , tests
 --   ) where
 
-import Data.Semigroup ()
+import Data.Semigroup (Semigroup)
 import Data.Foldable (Foldable)
 import Data.Traversable (Traversable)
 
