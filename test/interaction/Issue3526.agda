@@ -29,3 +29,13 @@ absurd e = {!!}
 
 idTrue' : ∀ b → b ≡ true → Bool
 idTrue' b eq = {!!}
+
+-- If the demanded split leads to trivially absurd clauses but the
+-- function has a single clause, then we need to generate at least
+-- one clause.
+
+-- Therefore C-c C-c e RET should give us:
+-- both .true refl f = {!!}
+
+both : ∀ b → b ≡ true → b ≡ false → Bool
+both b e f = {!!}
