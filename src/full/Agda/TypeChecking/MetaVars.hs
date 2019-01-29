@@ -432,30 +432,18 @@ wakeupListener (CheckConstraint _ c) = do
   addAwakeConstraints [c]
   solveAwakeConstraints
 
+instance MonadAssignMeta TCM where
+  assignV dir x args v = assignWrapper dir x (map Apply args) v $ assign dir x args v
+  etaExpandMeta = etaExpandMetaTCM
+
 -- | Do safe eta-expansions for meta (@SingletonRecords,Levels@).
-etaExpandMetaSafe :: MetaId -> TCM ()
+etaExpandMetaSafe :: (MonadAssignMeta m) => MetaId -> m ()
 etaExpandMetaSafe = etaExpandMeta [SingletonRecords,Levels]
-
--- | Various kinds of metavariables.
-
-data MetaKind =
-    Records
-    -- ^ Meta variables of record type.
-  | SingletonRecords
-    -- ^ Meta variables of \"hereditarily singleton\" record type.
-  | Levels
-    -- ^ Meta variables of level type, if type-in-type is activated.
-  deriving (Eq, Enum, Bounded, Show)
-
--- | All possible metavariable kinds.
-
-allMetaKinds :: [MetaKind]
-allMetaKinds = [minBound .. maxBound]
 
 -- | Eta expand a metavariable, if it is of the specified kind.
 --   Don't do anything if the metavariable is a blocked term.
-etaExpandMeta :: [MetaKind] -> MetaId -> TCM ()
-etaExpandMeta kinds m = whenM (asksTC envAssignMetas `and2M` isEtaExpandable kinds m) $ do
+etaExpandMetaTCM :: [MetaKind] -> MetaId -> TCM ()
+etaExpandMetaTCM kinds m = whenM (asksTC envAssignMetas `and2M` isEtaExpandable kinds m) $ do
   verboseBracket "tc.meta.eta" 20 ("etaExpandMeta " ++ prettyShow m) $ do
     let waitFor x = do
           reportSDoc "tc.meta.eta" 20 $ do
@@ -542,7 +530,8 @@ etaExpandMeta kinds m = whenM (asksTC envAssignMetas `and2M` isEtaExpandable kin
 -- | Eta expand blocking metavariables of record type, and reduce the
 -- blocked thing.
 
-etaExpandBlocked :: Reduce t => Blocked t -> TCM (Blocked t)
+etaExpandBlocked :: (MonadReduce m, MonadAssignMeta m, Reduce t)
+                 => Blocked t -> m (Blocked t)
 etaExpandBlocked t@NotBlocked{} = return t
 etaExpandBlocked (Blocked m t)  = do
   etaExpandMeta [Records] m
@@ -551,26 +540,13 @@ etaExpandBlocked (Blocked m t)  = do
     Blocked m' _ | m /= m' -> etaExpandBlocked t
     _                      -> return t
 
--- * Solve constraint @x vs = v@.
-
--- | Assign to an open metavar which may not be frozen.
---   First check that metavar args are in pattern fragment.
---     Then do extended occurs check on given thing.
---
---   Assignment is aborted by throwing a @PatternErr@ via a call to
---   @patternViolation@.  This error is caught by @catchConstraint@
---   during equality checking (@compareAtom@) and leads to
---   restoration of the original constraints.
-
-assignV :: CompareDirection -> MetaId -> Args -> Term -> TCM ()
-assignV dir x args v = assignWrapper dir x (map Apply args) v $ assign dir x args v
-
-assignWrapper :: CompareDirection -> MetaId -> Elims -> Term -> TCM () -> TCM ()
+assignWrapper :: (MonadAssignMeta m, MonadConstraint m, MonadTCEnv m, HasOptions m, MonadError TCErr m, MonadDebug m)
+              => CompareDirection -> MetaId -> Elims -> Term -> m () -> m ()
 assignWrapper dir x es v doAssign = do
   ifNotM (asksTC envAssignMetas) patternViolation $ {- else -} do
     reportSDoc "tc.meta.assign" 10 $ do
       "term" <+> prettyTCM (MetaV x es) <+> text (":" ++ show dir) <+> prettyTCM v
-    liftTCM $ nowSolvingConstraints doAssign `finally` solveAwakeConstraints
+    nowSolvingConstraints doAssign `finally` solveAwakeConstraints
 
 
 -- | Miller pattern unification:

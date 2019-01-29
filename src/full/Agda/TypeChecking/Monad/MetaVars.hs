@@ -51,6 +51,41 @@ import qualified Agda.Utils.Maybe.Strict as Strict
 #include "undefined.h"
 import Agda.Utils.Impossible
 
+-- | Various kinds of metavariables.
+
+data MetaKind =
+    Records
+    -- ^ Meta variables of record type.
+  | SingletonRecords
+    -- ^ Meta variables of \"hereditarily singleton\" record type.
+  | Levels
+    -- ^ Meta variables of level type, if type-in-type is activated.
+  deriving (Eq, Enum, Bounded, Show)
+
+-- | All possible metavariable kinds.
+
+allMetaKinds :: [MetaKind]
+allMetaKinds = [minBound .. maxBound]
+
+-- | Monad service class for solving and eta-expanding of
+--   metavariables.
+class Monad m => MonadAssignMeta m where
+  -- * Solve constraint @x vs = v@.
+
+  -- | Assign to an open metavar which may not be frozen.
+  --   First check that metavar args are in pattern fragment.
+  --     Then do extended occurs check on given thing.
+  --
+  --   Assignment is aborted by throwing a @PatternErr@ via a call to
+  --   @patternViolation@.  This error is caught by @catchConstraint@
+  --   during equality checking (@compareAtom@) and leads to
+  --   restoration of the original constraints.
+  assignV :: CompareDirection -> MetaId -> Args -> Term -> m ()
+
+  -- | Eta expand a metavariable, if it is of the specified kind.
+  --   Don't do anything if the metavariable is a blocked term.
+  etaExpandMeta :: [MetaKind] -> MetaId -> m ()
+
 -- | Switch off assignment of metas.
 dontAssignMetas :: (MonadTCEnv m, HasOptions m, MonadDebug m) => m a -> m a
 dontAssignMetas cont = do
@@ -58,8 +93,8 @@ dontAssignMetas cont = do
   localTC (\ env -> env { envAssignMetas = False }) cont
 
 -- | Get the meta store.
-getMetaStore :: TCM MetaStore
-getMetaStore = useTC stMetaStore
+getMetaStore :: (ReadTCState m) => m MetaStore
+getMetaStore = useR stMetaStore
 
 modifyMetaStore :: (MetaStore -> MetaStore) -> TCM ()
 modifyMetaStore f = stMetaStore `modifyTCLens` f
@@ -73,10 +108,10 @@ metasCreatedBy m = do
   return (a, after IntSet.\\ before)
 
 -- | Lookup a meta variable.
-lookupMeta' :: MetaId -> TCM (Maybe MetaVariable)
+lookupMeta' :: ReadTCState m => MetaId -> m (Maybe MetaVariable)
 lookupMeta' m = IntMap.lookup (metaId m) <$> getMetaStore
 
-lookupMeta :: MetaId -> TCM MetaVariable
+lookupMeta :: (ReadTCState m) => MetaId -> m MetaVariable
 lookupMeta m = fromMaybeM failure $ lookupMeta' m
   where failure = fail $ "no such meta variable " ++ prettyShow m
 
@@ -124,7 +159,7 @@ getMetaTypeInContext m = do
 -- | Check whether all metas are instantiated.
 --   Precondition: argument is a meta (in some form) or a list of metas.
 class IsInstantiatedMeta a where
-  isInstantiatedMeta :: a -> TCM Bool
+  isInstantiatedMeta :: (ReadTCState m) => a -> m Bool
 
 instance IsInstantiatedMeta MetaId where
   isInstantiatedMeta m = isJust <$> isInstantiatedMeta' m
@@ -164,7 +199,7 @@ instance IsInstantiatedMeta a => IsInstantiatedMeta (Arg a) where
 instance IsInstantiatedMeta a => IsInstantiatedMeta (Abs a) where
   isInstantiatedMeta = isInstantiatedMeta . unAbs
 
-isInstantiatedMeta' :: MetaId -> TCM (Maybe Term)
+isInstantiatedMeta' :: (ReadTCState m) => MetaId -> m (Maybe Term)
 isInstantiatedMeta' m = do
   mv <- lookupMeta m
   return $ case mvInstantiation mv of
