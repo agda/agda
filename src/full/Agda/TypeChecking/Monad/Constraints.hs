@@ -142,6 +142,22 @@ buildProblemConstraint_ = buildProblemConstraint Set.empty
 buildConstraint :: Constraint -> TCM ProblemConstraint
 buildConstraint c = flip buildProblemConstraint c =<< asksTC envActiveProblems
 
+-- | Monad service class containing methods for adding and solving
+--   constraints
+class Monad m => MonadConstraint m where
+  -- | Unconditionally add the constraint.
+  addConstraint :: Constraint -> m ()
+
+  -- | Conditionally add the constraint if the given action raises a
+  --   pattern violation.
+  catchConstraint :: Constraint -> m () -> m ()
+
+  solveConstraint :: Constraint -> m ()
+
+  -- | Solve awake constraints matching the predicate. If the second argument is
+  --   True solve constraints even if already 'isSolvingConstraints'.
+  solveSomeAwakeConstraints :: (ProblemConstraint -> Bool) -> Bool -> m ()
+
 -- | Add new a constraint
 addConstraint' :: Constraint -> TCM ()
 addConstraint' = addConstraintTo stSleepingConstraints
@@ -179,10 +195,10 @@ addAwakeConstraints :: Constraints -> TCM ()
 addAwakeConstraints cs = modifyAwakeConstraints (cs ++)
 
 -- | Start solving constraints
-nowSolvingConstraints :: TCM a -> TCM a
+nowSolvingConstraints :: MonadTCEnv m => m a -> m a
 nowSolvingConstraints = localTC $ \e -> e { envSolvingConstraints = True }
 
-isSolvingConstraints :: TCM Bool
+isSolvingConstraints :: MonadTCEnv m => m Bool
 isSolvingConstraints = asksTC envSolvingConstraints
 
 ---------------------------------------------------------------------------

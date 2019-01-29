@@ -41,55 +41,59 @@ import Agda.Utils.Lens
 #include "undefined.h"
 import Agda.Utils.Impossible
 
--- | Catches pattern violation errors and adds a constraint.
---
-catchConstraint :: Constraint -> TCM () -> TCM ()
-catchConstraint c v = liftTCM $
-   catchError_ v $ \err ->
-   case err of
-        -- Not putting s (which should really be the what's already there) makes things go
-        -- a lot slower (+20% total time on standard library). How is that possible??
-        -- The problem is most likely that there are internal catchErrors which forgets the
-        -- state. catchError should preserve the state on pattern violations.
-       PatternErr{} -> addConstraint c
-       _            -> throwError err
+instance MonadConstraint TCM where
+  catchConstraint = catchConstraintTCM
+  addConstraint = addConstraintTCM
+  solveConstraint = solveConstraintTCM
+  solveSomeAwakeConstraints = solveSomeAwakeConstraintsTCM
 
-addConstraint :: Constraint -> TCM ()
-addConstraint c = do
-    pids <- asksTC envActiveProblems
-    reportSDoc "tc.constr.add" 20 $ hsep
-      [ "adding constraint"
-      , text (show $ Set.toList pids)
-      , prettyTCM c ]
-    -- Need to reduce to reveal possibly blocking metas
-    c <- reduce =<< instantiateFull c
-    cs <- simpl c
-    if ([c] /= cs)
-      then do
-        reportSDoc "tc.constr.add" 20 $ "  simplified:" <+> prettyList (map prettyTCM cs)
-        mapM_ solveConstraint_ cs
-      else mapM_ addConstraint' cs
-    -- the added constraint can cause instance constraints to be solved (but only
-    -- the constraints which aren’t blocked on an uninstantiated meta)
-    unless (isInstanceConstraint c) $
-       wakeConstraints' (isWakeableInstanceConstraint . clValue . theConstraint)
-  where
-    isWakeableInstanceConstraint :: Constraint -> TCM Bool
-    isWakeableInstanceConstraint (FindInstance _ b _) = caseMaybe b (return True) (\m -> isInstantiatedMeta m)
-    isWakeableInstanceConstraint _ = return False
+catchConstraintTCM :: Constraint -> TCM () -> TCM ()
+catchConstraintTCM c v =
+     catchError_ v $ \err ->
+     case err of
+          -- Not putting s (which should really be the what's already there) makes things go
+          -- a lot slower (+20% total time on standard library). How is that possible??
+          -- The problem is most likely that there are internal catchErrors which forgets the
+          -- state. catchError should preserve the state on pattern violations.
+         PatternErr{} -> addConstraint c
+         _            -> throwError err
 
-    isLvl LevelCmp{} = True
-    isLvl _          = False
+addConstraintTCM :: Constraint -> TCM ()
+addConstraintTCM c = do
+      pids <- asksTC envActiveProblems
+      reportSDoc "tc.constr.add" 20 $ hsep
+        [ "adding constraint"
+        , text (show $ Set.toList pids)
+        , prettyTCM c ]
+      -- Need to reduce to reveal possibly blocking metas
+      c <- reduce =<< instantiateFull c
+      cs <- simpl c
+      if ([c] /= cs)
+        then do
+          reportSDoc "tc.constr.add" 20 $ "  simplified:" <+> prettyList (map prettyTCM cs)
+          mapM_ solveConstraint_ cs
+        else mapM_ addConstraint' cs
+      -- the added constraint can cause instance constraints to be solved (but only
+      -- the constraints which aren’t blocked on an uninstantiated meta)
+      unless (isInstanceConstraint c) $
+         wakeConstraints' (isWakeableInstanceConstraint . clValue . theConstraint)
+    where
+      isWakeableInstanceConstraint :: Constraint -> TCM Bool
+      isWakeableInstanceConstraint (FindInstance _ b _) = caseMaybe b (return True) (\m -> isInstantiatedMeta m)
+      isWakeableInstanceConstraint _ = return False
 
-    -- Try to simplify a level constraint
-    simpl :: Constraint -> TCM [Constraint]
-    simpl c = if not $ isLvl c then return [c] else do
-      cs <- map theConstraint <$> getAllConstraints
-      lvls <- instantiateFull $ List.filter (isLvl . clValue) cs
-      when (not $ null lvls) $ do
-        reportSDoc "tc.constr.lvl" 40 $ "simplifying level constraint" <+> prettyTCM c
-                                        $$ nest 2 (hang "using" 2 (prettyTCM lvls))
-      return $ simplifyLevelConstraint c $ map clValue lvls
+      isLvl LevelCmp{} = True
+      isLvl _          = False
+
+      -- Try to simplify a level constraint
+      simpl :: Constraint -> TCM [Constraint]
+      simpl c = if not $ isLvl c then return [c] else do
+        cs <- map theConstraint <$> getAllConstraints
+        lvls <- instantiateFull $ List.filter (isLvl . clValue) cs
+        when (not $ null lvls) $ do
+          reportSDoc "tc.constr.lvl" 40 $ "simplifying level constraint" <+> prettyTCM c
+                                          $$ nest 2 (hang "using" 2 (prettyTCM lvls))
+        return $ simplifyLevelConstraint c $ map clValue lvls
 
 -- | Don't allow the argument to produce any blocking constraints.
 noConstraints :: TCM a -> TCM a
@@ -155,16 +159,16 @@ wakeupConstraints_ = do
   wakeConstraints' (return . const True)
   solveAwakeConstraints
 
-solveAwakeConstraints :: TCM ()
+solveAwakeConstraints :: (MonadConstraint m) => m ()
 solveAwakeConstraints = solveAwakeConstraints' False
 
-solveAwakeConstraints' :: Bool -> TCM ()
+solveAwakeConstraints' :: (MonadConstraint m) => Bool -> m ()
 solveAwakeConstraints' = solveSomeAwakeConstraints (const True)
 
 -- | Solve awake constraints matching the predicate. If the second argument is
 --   True solve constraints even if already 'isSolvingConstraints'.
-solveSomeAwakeConstraints :: (ProblemConstraint -> Bool) -> Bool -> TCM ()
-solveSomeAwakeConstraints solveThis force = do
+solveSomeAwakeConstraintsTCM :: (ProblemConstraint -> Bool) -> Bool -> TCM ()
+solveSomeAwakeConstraintsTCM solveThis force = do
     verboseS "profile.constraints" 10 $ liftTCM $ tickMax "max-open-constraints" . List.genericLength =<< getAllConstraints
     whenM ((force ||) . not <$> isSolvingConstraints) $ nowSolvingConstraints $ do
      -- solveSizeConstraints -- Andreas, 2012-09-27 attacks size constrs too early
@@ -180,8 +184,8 @@ solveSomeAwakeConstraints solveThis force = do
         withConstraint solveConstraint c
         solve
 
-solveConstraint :: Constraint -> TCM ()
-solveConstraint c = do
+solveConstraintTCM :: Constraint -> TCM ()
+solveConstraintTCM c = do
     verboseS "profile.constraints" 10 $ liftTCM $ tick "attempted-constraints"
     verboseBracket "tc.constr.solve" 20 "solving constraint" $ do
       pids <- asksTC envActiveProblems

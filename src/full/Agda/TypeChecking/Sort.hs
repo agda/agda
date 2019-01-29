@@ -26,13 +26,14 @@ import Control.Monad
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 
-import {-# SOURCE #-} Agda.TypeChecking.Constraints (addConstraint)
+import {-# SOURCE #-} Agda.TypeChecking.Constraints ()
 import {-# SOURCE #-} Agda.TypeChecking.Conversion
 import {-# SOURCE #-} Agda.TypeChecking.MetaVars
 
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.Monad.Base
+import Agda.TypeChecking.Monad.Constraints (addConstraint)
 import Agda.TypeChecking.Monad.Context
 import Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Pretty
