@@ -214,7 +214,6 @@ makeCase hole rng s = withInteractionId hole $ do
     IPNoClause -> typeError $ GenericError $
       "Cannot split here, as we are not in a function definition"
   (casectxt, (prevClauses, clause, follClauses)) <- getClauseZipperForIP f clauseNo
-  let otherClauses = prevClauses ++ follClauses
   let perm = fromMaybe __IMPOSSIBLE__ $ clausePerm clause
       tel  = clauseTel  clause
       ps   = namedClausePats clause
@@ -311,7 +310,7 @@ makeCase hole rng s = withInteractionId hole $ do
           {- then -} (pure Nothing)
           {- else -} (Just <$> makeAbstractClause f rhs sc)
     -- 3. If the definition is left empty then rewind and insert a single absurd clause
-    cs <- if not (null cs) || not (null otherClauses) then pure cs else do
+    cs <- if not (null cs) then pure cs else do
       let sc = fromMaybe __IMPOSSIBLE__ (fst <$> headMaybe scs)
       cl <- makeAbstractClause f rhs sc
       pure [cl]
