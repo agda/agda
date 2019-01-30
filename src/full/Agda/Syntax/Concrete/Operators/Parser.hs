@@ -259,8 +259,8 @@ opP parseSections p (NewNotation q names _ syn isOp) kind =
   let (normal, binders) = partitionEithers hs
       lastHole          = maximum $ mapMaybe holeTarget syn
 
-      app :: ([(MaybePlaceholder e, NamedArg Int)] ->
-              [(MaybePlaceholder e, NamedArg Int)]) -> e
+      app :: ([(MaybePlaceholder e, NamedArg (Ranged Int))] ->
+              [(MaybePlaceholder e, NamedArg (Ranged Int))]) -> e
       app f =
         -- If we have an operator and there is exactly one
         -- placeholder for every hole, then we only return
@@ -288,24 +288,24 @@ opP parseSections p (NewNotation q names _ syn isOp) kind =
   (withoutExternalHoles, trailingHoles) = spanEnd isNormalHole syn1
 
   leadingHole = case leadingHoles of
-    [NormalHole h] -> h
-    _              -> __IMPOSSIBLE__
+    [NormalHole _ h] -> h
+    _                -> __IMPOSSIBLE__
 
   trailingHole = case trailingHoles of
-    [NormalHole h] -> h
-    _              -> __IMPOSSIBLE__
+    [NormalHole _ h] -> h
+    _                -> __IMPOSSIBLE__
 
   worker ::
     [Name] -> Notation ->
-    Parser e (Range, [Either (MaybePlaceholder e, NamedArg Int)
-                             (LamBinding, Int)])
+    Parser e (Range, [Either (MaybePlaceholder e, NamedArg (Ranged Int))
+                             (LamBinding, Ranged Int)])
   worker ms []              = pure (noRange, [])
   worker ms (IdPart x : xs) =
     (\r1 (r2, es) -> (fuseRanges r1 r2, es))
-      <$> partP ms x
+      <$> partP ms (rangedThing x)
       <*> worker [] xs
           -- Only the first part is qualified.
-  worker ms (NormalHole h : xs) =
+  worker ms (NormalHole _ h : xs) =
     (\e (r, es) -> (r, Left (e, h) : es))
       <$> maybePlaceholder
             (if isOp && parseSections == ParseSections
@@ -315,7 +315,7 @@ opP parseSections p (NewNotation q names _ syn isOp) kind =
   worker ms (WildHole h : xs) =
     (\(r, es) -> (r, Right (mkBinding h $ Name noRange InScope [Hole]) : es))
       <$> worker ms xs
-  worker ms (BindHole h : xs) = do
+  worker ms (BindHole _ h : xs) = do
     (\e (r, es) ->
         let x = case e of
                   Just name -> name
@@ -331,13 +331,13 @@ opP parseSections p (NewNotation q names _ syn isOp) kind =
   set x arg = fmap (fmap (const x)) arg
 
   findExprFor ::
-    [(MaybePlaceholder e, NamedArg Int)] ->
-    [(LamBinding, Int)] -> Int ->
+    [(MaybePlaceholder e, NamedArg (Ranged Int))] ->
+    [(LamBinding, Ranged Int)] -> Int ->
     NamedArg (MaybePlaceholder (OpApp e))
   findExprFor normalHoles binders n =
-    case [ h | h@(_, m) <- normalHoles, namedArg m == n ] of
+    case [ h | h@(_, m) <- normalHoles, rangedThing (namedArg m) == n ] of
       [(Placeholder p,     arg)] -> set (Placeholder p) arg
-      [(NoPlaceholder _ e, arg)] -> case [b | (b, m) <- binders, m == n] of
+      [(NoPlaceholder _ e, arg)] -> case [b | (b, m) <- binders, rangedThing m == n] of
         [] -> set (noPlaceholder (Ordinary e)) arg -- no variable to bind
         bs -> set (noPlaceholder (SyntaxBindingLambda (fuseRange bs e) bs e)) arg
       _ -> __IMPOSSIBLE__

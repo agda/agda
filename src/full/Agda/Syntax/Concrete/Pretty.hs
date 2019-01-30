@@ -591,7 +591,7 @@ instance Pretty Fixity where
             NonAssoc   -> "infix"
 
 instance Pretty GenPart where
-    pretty (IdPart x)   = text x
+    pretty (IdPart x)   = text $ rangedThing x
     pretty BindHole{}   = underscore
     pretty NormalHole{} = underscore
     pretty WildHole{}   = underscore

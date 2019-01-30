@@ -210,8 +210,8 @@ buildParsers r flat kind exprNames = do
           Trie.member (addHole withHole p) partListsInExpr
           where
           p = case n of
-            NormalHole{} : IdPart p : _ -> p
-            IdPart p : _                -> p
+            NormalHole{} : IdPart p : _ -> rangedThing p
+            IdPart p : _                -> rangedThing p
             _                           -> __IMPOSSIBLE__
 
         -- Is the last identifier part present in n present in the
@@ -221,8 +221,8 @@ buildParsers r flat kind exprNames = do
           Trie.member (addHole withHole p) reversedPartListsInExpr
           where
           p = case reverse n of
-            NormalHole{} : IdPart p : _ -> p
-            IdPart p : _                -> p
+            NormalHole{} : IdPart p : _ -> rangedThing p
+            IdPart p : _                -> rangedThing p
             _                           -> __IMPOSSIBLE__
 
         -- | Are the initial and final identifier parts present with

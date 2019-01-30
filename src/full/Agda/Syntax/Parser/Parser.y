@@ -1346,7 +1346,7 @@ UnquoteDecl
 Syntax :: { Declaration }
 Syntax : 'syntax' Id HoleNames '=' SimpleIds  {%
   case $2 of
-    Name _ _ [_] -> case mkNotation $3 (map rangedThing $5) of
+    Name _ _ [_] -> case mkNotation $3 $5 of
       Left err -> parseError $ "Malformed syntax declaration: " ++ err
       Right n -> return $ Syntax $2 n
     _ -> parseError "Syntax declarations are allowed only for simple names (without holes)"
@@ -1382,15 +1382,15 @@ HoleName
 
 SimpleTopHole :: { HoleName }
 SimpleTopHole
-  : SimpleId { ExprHole (rangedThing $1) }
-  | '(' '\\' SimpleId '->' SimpleId ')' { LambdaHole (rangedThing $3) (rangedThing $5) }
-  | '(' '\\' '_'      '->' SimpleId ')' { LambdaHole "_" (rangedThing $5) }
+  : SimpleId { ExprHole $1 }
+  | '(' '\\' SimpleId '->' SimpleId ')' { LambdaHole $3 $5 }
+  | '(' '\\' '_'      '->' SimpleId ')' { LambdaHole (Ranged (getRange $3) "_") $5 }
 
 SimpleHole :: { HoleName }
 SimpleHole
-  : SimpleId { ExprHole (rangedThing $1) }
-  | '\\' SimpleId '->' SimpleId { LambdaHole (rangedThing $2) (rangedThing $4) }
-  | '\\' '_'      '->' SimpleId { LambdaHole "_" (rangedThing $4) }
+  : SimpleId { ExprHole $1 }
+  | '\\' SimpleId '->' SimpleId { LambdaHole $2 $4 }
+  | '\\' '_'      '->' SimpleId { LambdaHole (Ranged (getRange $3) "_") $4 }
 -- Variable name hole to be implemented later.
 
 -- Discard the interval.
