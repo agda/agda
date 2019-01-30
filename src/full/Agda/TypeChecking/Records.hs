@@ -1,5 +1,6 @@
 {-# LANGUAGE CPP                      #-}
 {-# LANGUAGE NondecreasingIndentation #-}
+{-# LANGUAGE ScopedTypeVariables      #-}
 
 module Agda.TypeChecking.Records where
 
@@ -670,22 +671,25 @@ etaContractRecord r c ci args = do
 --
 -- Precondition: The name should refer to a record type, and the
 -- arguments should be the parameters to the type.
-isSingletonRecord :: QName -> Args -> TCM (Either MetaId Bool)
+isSingletonRecord :: (MonadReduce m, MonadAddContext m, HasConstInfo m, ReadTCState m, MonadError TCErr m)
+                  => QName -> Args -> m (Either MetaId Bool)
 isSingletonRecord r ps = mapRight isJust <$> isSingletonRecord' False r ps
 
-isSingletonRecordModuloRelevance :: QName -> Args -> TCM (Either MetaId Bool)
+isSingletonRecordModuloRelevance :: (MonadReduce m, MonadAddContext m, HasConstInfo m, ReadTCState m, MonadError TCErr m)
+                                 => QName -> Args -> m (Either MetaId Bool)
 isSingletonRecordModuloRelevance r ps = mapRight isJust <$> isSingletonRecord' True r ps
 
 -- | Return the unique (closed) inhabitant if exists.
 --   In case of counting irrelevance in, the returned inhabitant
 --   contains dummy terms.
-isSingletonRecord' :: Bool -> QName -> Args -> TCM (Either MetaId (Maybe Term))
+isSingletonRecord' :: forall m. (MonadReduce m, MonadAddContext m, HasConstInfo m, ReadTCState m, MonadError TCErr m)
+                   => Bool -> QName -> Args -> m (Either MetaId (Maybe Term))
 isSingletonRecord' regardIrrelevance r ps = do
   reportSLn "tc.meta.eta" 30 $ "Is " ++ prettyShow r ++ " a singleton record type?"
   def <- getRecordDef r
   emap (mkCon (recConHead def) ConOSystem) <$> check (recTel def `apply` ps)
   where
-  check :: Telescope -> TCM (Either MetaId (Maybe [Arg Term]))
+  check :: Telescope -> m (Either MetaId (Maybe [Arg Term]))
   check tel = do
     reportSDoc "tc.meta.eta" 30 $
       "isSingletonRecord' checking telescope " <+> prettyTCM tel
@@ -705,16 +709,18 @@ isSingletonRecord' regardIrrelevance r ps = do
 
 -- | Check whether a type has a unique inhabitant and return it.
 --   Can be blocked by a metavar.
-isSingletonType :: Type -> TCM (Either MetaId (Maybe Term))
+isSingletonType :: (MonadReduce m, MonadAddContext m, HasConstInfo m, ReadTCState m, MonadError TCErr m)
+                => Type -> m (Either MetaId (Maybe Term))
 isSingletonType = isSingletonType' False
 
 -- | Check whether a type has a unique inhabitant (irrelevant parts ignored).
 --   Can be blocked by a metavar.
-isSingletonTypeModuloRelevance :: (MonadTCM tcm) => Type -> tcm (Either MetaId Bool)
-isSingletonTypeModuloRelevance t = liftTCM $ do
-  mapRight isJust <$> isSingletonType' True t
+isSingletonTypeModuloRelevance :: (MonadReduce m, MonadAddContext m, HasConstInfo m, ReadTCState m, MonadError TCErr m)
+                               => Type -> m (Either MetaId Bool)
+isSingletonTypeModuloRelevance t = mapRight isJust <$> isSingletonType' True t
 
-isSingletonType' :: Bool -> Type -> TCM (Either MetaId (Maybe Term))
+isSingletonType' :: (MonadReduce m, MonadAddContext m, HasConstInfo m, ReadTCState m, MonadError TCErr m)
+                 => Bool -> Type -> m (Either MetaId (Maybe Term))
 isSingletonType' regardIrrelevance t = do
     TelV tel t <- telView t
     ifBlockedType t (\ m _ -> return $ Left m) $ \ _ t -> do
