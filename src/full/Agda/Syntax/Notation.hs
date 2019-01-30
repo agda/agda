@@ -248,7 +248,7 @@ mkNotation holes ids = do
           LambdaHole x y
             | "_" <- rangedThing x -> [(x, WildHole (ri x)),         (y, normalHole y)]
             | otherwise            -> [(x, BindHole noRange (ri x)), (y, normalHole y)]
-                                                 -- ^ Filled in by mkPart
+                                                 -- Filled in by mkPart
 
       -- Check whether all hole names are distinct.
       -- The hole names are the keys of the @holeMap@.
