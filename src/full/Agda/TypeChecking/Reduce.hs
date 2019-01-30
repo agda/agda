@@ -24,7 +24,7 @@ import Agda.Syntax.Internal.Pattern
 import Agda.Syntax.Scope.Base (Scope)
 import Agda.Syntax.Literal
 
-import Agda.TypeChecking.Monad hiding ( underAbstraction_, enterClosure, isInstantiatedMeta
+import Agda.TypeChecking.Monad hiding ( enterClosure, isInstantiatedMeta
                                       , getConstInfo
                                       , lookupMeta )
 import qualified Agda.TypeChecking.Monad as TCM

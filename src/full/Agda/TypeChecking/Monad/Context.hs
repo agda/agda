@@ -4,6 +4,8 @@ module Agda.TypeChecking.Monad.Context where
 
 import Control.Monad.Reader
 import Control.Monad.State
+import Control.Monad.Trans.Maybe
+import Control.Monad.Writer
 
 import qualified Data.List as List
 import Data.Map (Map)
@@ -14,6 +16,7 @@ import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Common
 import Agda.Syntax.Concrete.Name (LensInScope(..))
 import Agda.Syntax.Internal
+import Agda.Syntax.Position
 import Agda.Syntax.Scope.Monad (getLocalVars, setLocalVars)
 
 import Agda.TypeChecking.Monad.Base
@@ -22,7 +25,7 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Monad.Open
 import Agda.TypeChecking.Monad.Options
 
-import Agda.Utils.Except ( MonadError(catchError) )
+import Agda.Utils.Except
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List ((!!!), downFrom)
@@ -138,30 +141,60 @@ getModuleParameterSub m = do
 
 -- * Adding to the context
 
--- | @addCtx x arg cont@ add a variable to the context.
---
---   Chooses an unused 'Name'.
---
---   Warning: Does not update module parameter substitution!
 {-# SPECIALIZE addCtx :: Name -> Dom Type -> TCM a -> TCM a #-}
-addCtx :: (MonadDebug tcm, MonadTCM tcm) => Name -> Dom Type -> tcm a -> tcm a
-addCtx x a ret = do
-  q <- viewTC eQuantity
-  let ce = (x,) <$> inverseApplyQuantity q a
-  when (not $ isNoName x) $ do
-    registerForShadowing x
-    ys <- getContextNames
-    forM_ ys $ \y ->
-      when (not (isNoName y) && sameRoot x y) $ tellShadowing x y
-  updateContext (raiseS 1) (ce :) ret
-      -- let-bindings keep track of own their context
+class Monad m => MonadAddContext m where
+  -- | @addCtx x arg cont@ add a variable to the context.
+  --
+  --   Chooses an unused 'Name'.
+  --
+  --   Warning: Does not update module parameter substitution!
+  addCtx :: Name -> Dom Type -> m a -> m a
 
-  where
-    -- add x to the map of possibly shadowed names
-    registerForShadowing x = modifyTCLens stShadowingNames $ Map.insert x []
+  withFreshName :: Range -> ArgName -> (Name -> m a) -> m a
 
-    -- register the fact that x possibly shadows the name y
-    tellShadowing x y = modifyTCLens stShadowingNames $ Map.adjust (x:) y
+withFreshName_ :: (MonadAddContext m) => ArgName -> (Name -> m a) -> m a
+withFreshName_ = withFreshName noRange
+
+instance MonadAddContext m => MonadAddContext (MaybeT m) where
+  addCtx x a = MaybeT . addCtx x a . runMaybeT
+  withFreshName r x = MaybeT . withFreshName r x . (runMaybeT .)
+
+instance MonadAddContext m => MonadAddContext (ExceptT e m) where
+  addCtx x a = mkExceptT . addCtx x a . runExceptT
+  withFreshName r x = mkExceptT . withFreshName r x . (runExceptT .)
+
+instance MonadAddContext m => MonadAddContext (ReaderT r m) where
+  addCtx x a = ReaderT . (addCtx x a .) . runReaderT
+  withFreshName r x ret = ReaderT $ \env -> withFreshName r x $ \n -> runReaderT (ret n) env
+
+instance (Monoid w, MonadAddContext m) => MonadAddContext (WriterT w m) where
+  addCtx x a = WriterT . addCtx x a . runWriterT
+  withFreshName r x = WriterT . withFreshName r x . (runWriterT .)
+
+instance MonadAddContext m => MonadAddContext (StateT r m) where
+  addCtx x a = StateT . (addCtx x a .) . runStateT
+  withFreshName r x ret = StateT $ \s -> withFreshName r x $ \n -> runStateT (ret n) s
+
+instance MonadAddContext TCM where
+  addCtx x a ret = do
+    q <- viewTC eQuantity
+    let ce = (x,) <$> inverseApplyQuantity q a
+    when (not $ isNoName x) $ do
+      registerForShadowing x
+      ys <- getContextNames
+      forM_ ys $ \y ->
+        when (not (isNoName y) && sameRoot x y) $ tellShadowing x y
+    updateContext (raiseS 1) (ce :) ret
+        -- let-bindings keep track of own their context
+
+    where
+      -- add x to the map of possibly shadowed names
+      registerForShadowing x = modifyTCLens stShadowingNames $ Map.insert x []
+
+      -- register the fact that x possibly shadows the name y
+      tellShadowing x y = modifyTCLens stShadowingNames $ Map.adjust (x:) y
+
+  withFreshName r x m = freshName r x >>= m
 
 addRecordNameContext :: (MonadDebug m, MonadTCM m) => Dom Type -> m b -> m b
 addRecordNameContext dom ret = do
@@ -171,7 +204,7 @@ addRecordNameContext dom ret = do
 -- | Various specializations of @addCtx@.
 {-# SPECIALIZE addContext :: b -> TCM a -> TCM a #-}
 class AddContext b where
-  addContext :: (MonadTCM tcm, MonadDebug tcm) => b -> tcm a -> tcm a
+  addContext :: (MonadAddContext m) => b -> m a -> m a
   contextSize :: b -> Nat
 
 -- | Wrapper to tell 'addContext' not to mark names as
@@ -218,15 +251,13 @@ instance AddContext ([NamedArg Name], Type) where
   contextSize (xs, _) = length xs
 
 instance AddContext (String, Dom Type) where
-  addContext (s, dom) ret = do
-    x <- setNotInScope <$> freshName_ s
-    addCtx x dom ret
+  addContext (s, dom) ret =
+    withFreshName noRange s $ \x -> addCtx (setNotInScope x) dom ret
   contextSize _ = 1
 
 instance AddContext (KeepNames String, Dom Type) where
-  addContext (KeepNames s, dom) ret = do
-    x <- freshName_ s
-    addCtx x dom ret
+  addContext (KeepNames s, dom) ret =
+    withFreshName noRange s $ \ x -> addCtx x dom ret
   contextSize _ = 1
 
 instance AddContext (Dom Type) where
@@ -255,28 +286,28 @@ instance AddContext Telescope where
 
 -- | Go under an abstraction.  Do not extend context in case of 'NoAbs'.
 {-# SPECIALIZE underAbstraction :: Subst t a => Dom Type -> Abs a -> (a -> TCM b) -> TCM b #-}
-underAbstraction :: (Subst t a, MonadTCM tcm, MonadDebug tcm) => Dom Type -> Abs a -> (a -> tcm b) -> tcm b
+underAbstraction :: (Subst t a, MonadAddContext m) => Dom Type -> Abs a -> (a -> m b) -> m b
 underAbstraction = underAbstraction' id
 
-underAbstraction' :: (Subst t a, MonadTCM tcm, MonadDebug tcm, AddContext (name, Dom Type)) =>
-                     (String -> name) -> Dom Type -> Abs a -> (a -> tcm b) -> tcm b
+underAbstraction' :: (Subst t a, MonadAddContext m, AddContext (name, Dom Type)) =>
+                     (String -> name) -> Dom Type -> Abs a -> (a -> m b) -> m b
 underAbstraction' _ _ (NoAbs _ v) k = k v
 underAbstraction' wrap t a k = underAbstractionAbs' wrap t a k
 
 -- | Go under an abstraction, treating 'NoAbs' as 'Abs'.
-underAbstractionAbs :: (Subst t a, MonadTCM tcm, MonadDebug tcm) => Dom Type -> Abs a -> (a -> tcm b) -> tcm b
+underAbstractionAbs :: (Subst t a, MonadAddContext m) => Dom Type -> Abs a -> (a -> m b) -> m b
 underAbstractionAbs = underAbstractionAbs' id
 
 underAbstractionAbs'
-  :: (Subst t a, MonadTCM tcm, MonadDebug tcm, AddContext (name, Dom Type))
-  => (String -> name) -> Dom Type -> Abs a -> (a -> tcm b) -> tcm b
+  :: (Subst t a, MonadAddContext m, AddContext (name, Dom Type))
+  => (String -> name) -> Dom Type -> Abs a -> (a -> m b) -> m b
 underAbstractionAbs' wrap t a k = addContext (wrap $ realName $ absName a, t) $ k $ absBody a
   where
     realName s = if isNoName s then "x" else argNameToString s
 
 -- | Go under an abstract without worrying about the type to add to the context.
 {-# SPECIALIZE underAbstraction_ :: Subst t a => Abs a -> (a -> TCM b) -> TCM b #-}
-underAbstraction_ :: (Subst t a, MonadTCM tcm, MonadDebug tcm) => Abs a -> (a -> tcm b) -> tcm b
+underAbstraction_ :: (Subst t a, MonadAddContext m) => Abs a -> (a -> m b) -> m b
 underAbstraction_ = underAbstraction __DUMMY_DOM__
 
 getLetBindings :: MonadTCM tcm => tcm [(Name,(Term,Dom Type))]

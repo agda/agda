@@ -208,6 +208,7 @@ newtype TerM a = TerM { terM :: ReaderT TerEnv TCM a }
            , MonadTCM
            , ReadTCState
            , MonadReduce
+           , MonadAddContext
            )
 
 instance MonadTer TerM where

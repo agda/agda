@@ -1259,10 +1259,10 @@ primTransHComp cmd ts nelims = do
         reduce2Lam t = do
           t <- reduce' t
           case lam2Abs t of
-            t -> Reduce.underAbstraction_ t $ \ t -> do
+            t -> underAbstraction_ t $ \ t -> do
                t <- reduce' t
                case lam2Abs t of
-                 t -> Reduce.underAbstraction_ t reduce'
+                 t -> underAbstraction_ t reduce'
          where
            lam2Abs (Lam _ t) = t
            lam2Abs t         = Abs "y" (raise 1 t `apply` [argN $ var 0])
@@ -1854,7 +1854,7 @@ garr f a b = do
   return $ El (funSort (getSort a') (getSort b')) $
     Pi (mapRelevance f $ defaultDom a') (NoAbs "_" b')
 
-gpi :: (MonadTCM tcm, MonadDebug tcm)
+gpi :: (MonadTCM tcm, MonadAddContext tcm, MonadDebug tcm)
     => ArgInfo -> String -> tcm Type -> tcm Type -> tcm Type
 gpi info name a b = do
   a <- a
@@ -1864,17 +1864,17 @@ gpi info name a b = do
   return $ El (piSort (getSort a) (Abs y (getSort b)))
               (Pi dom (Abs y b))
 
-hPi, nPi :: (MonadTCM tcm, MonadDebug tcm)
+hPi, nPi :: (MonadTCM tcm, MonadAddContext tcm, MonadDebug tcm)
          => String -> tcm Type -> tcm Type -> tcm Type
 hPi = gpi $ setHiding Hidden defaultArgInfo
 nPi = gpi defaultArgInfo
 
-hPi', nPi' :: (MonadTCM tcm, MonadDebug tcm)
+hPi', nPi' :: (MonadTCM tcm, MonadAddContext tcm, MonadDebug tcm)
            => String -> NamesT tcm Type -> (NamesT tcm Term -> NamesT tcm Type) -> NamesT tcm Type
 hPi' s a b = hPi s a (bind' s b)
 nPi' s a b = nPi s a (bind' s b)
 
-pPi' :: (MonadTCM tcm, MonadDebug tcm)
+pPi' :: (MonadTCM tcm, MonadAddContext tcm, MonadDebug tcm)
      => String -> NamesT tcm Term -> (NamesT tcm Term -> NamesT tcm Type) -> NamesT tcm Type
 pPi' n phi b = toFinitePi <$> nPi' n (elInf $ cl (liftTCM primIsOne) <@> phi) b
  where
