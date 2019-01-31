@@ -206,7 +206,7 @@ unsafeQNameToName = C.unqualify
 
 lookupQName :: AllowAmbiguousNames -> A.QName -> AbsToCon C.QName
 lookupQName ambCon x | Just s <- getGeneralizedFieldName x =
-  return (C.QName $ C.Name noRange C.InScope [C.Id s])
+  return (C.QName $ C.Name noRange C.InScope $ C.stringNameParts s)
 lookupQName ambCon x = do
   ys <- inverseScopeLookupName' ambCon x <$> asks currentScope
   lift $ reportSLn "scope.inverse" 100 $
