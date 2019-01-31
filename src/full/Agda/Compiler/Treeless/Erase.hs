@@ -117,8 +117,9 @@ eraseTerms q eval t = usedArguments q t *> runE (eraseTop q t)
         TError{}       -> pure t
         TCoerce e      -> TCoerce <$> erase e
 
-    tLam TErased = TErased
-    tLam t       = TLam t
+    -- #3380: this is not safe for strict backends
+    tLam TErased | eval == LazyEvaluation = TErased
+    tLam t                                = TLam t
 
     tLet e b
       | freeIn 0 b = TLet e b
