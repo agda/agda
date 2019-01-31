@@ -118,8 +118,9 @@ nonMatchingBind qBind r x e body =
   where bx = DomainFree $ defaultNamedArg $ mkBoundName_ x
 
 appOp :: QName -> Expr -> Expr -> Expr
-appOp q e1 e2 = app (Ident q) [e1, e2]
+appOp q e1 e2 = app (Ident q) [par e1, par e2]
   where
+    par e = Paren (getRange e) e  -- Add parens to get the right precedence context (#3152)
     app e es = foldl (\ e1 e2 -> App (getRange (e1, e2)) e1 (defaultNamedArg e2)) e es
 
 ensureInScope :: QName -> ScopeM ()
