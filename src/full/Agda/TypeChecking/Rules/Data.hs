@@ -663,10 +663,10 @@ defineTranspForFields' pathCons applyProj name params fsT fns rect = do
 
 
   let
-      -- (γ : Γ) ⊢ compR γ : rtype
+      -- (γ : Γ) ⊢ transpR γ : rtype
       theTerm = Def theName [] `apply` teleArgs gamma
 
-      -- (γ : Γ) ⊢ (flatten Φ[δ i1])[n ↦ f_n (compR γ)]
+      -- (γ : Γ) ⊢ (flatten Φ[δ i1])[n ↦ f_n (transpR γ)]
       clause_types = parallelS [theTerm `applyProj` (unArg fn)
                                | fn <- reverse fns] `applySubst`
                        flattenTel (singletonS 0 io `applySubst` fsT') -- Γ, Φ[δ i1] ⊢ flatten Φ[δ i1]
@@ -686,7 +686,7 @@ defineTranspForFields' pathCons applyProj name params fsT fns rect = do
       -- -- (δ , φ , u0) : Γ ⊢ u0 : R (δ i0)
       -- the_u0  = var 0
 
-
+      -- Γ' = (δ : Δ^I, φ : I)
       gamma' = telFromList $ take (size gamma - 1) $ telToList gamma
 
       -- δ : Δ^I, φ : F ⊢ [δ 0] : Δ
@@ -694,10 +694,12 @@ defineTranspForFields' pathCons applyProj name params fsT fns rect = do
       d0 = wkS 1 -- Δ^I, φ : F ⊢ Δ
                        (consS iz IdS `composeS` sub params) -- Δ^I ⊢ Δ
                                  -- Δ^I , i:I ⊢ sub params : Δ
-      -- Ξ , Ξ ⊢ θ : Γ, Ξ ⊢ φ, Ξ ⊢ u : R (δ i0), Ξ ⊢ us
+
+      -- Ξ , Ξ ⊢ θ : Γ, Ξ ⊢ φ, Ξ ⊢ u : R (δ i0), Ξ ⊢ us : Φ[δ i0]
       (tel,theta,the_phi,the_u0, the_fields) =
         case pathCons of
-          Just u -> (abstract gamma' (d0 `applySubst` fsT)
+          -- (δ : Δ).Φ ⊢ u : R δ
+          Just u -> (abstract gamma' (d0 `applySubst` fsT) -- Ξ = δ : Δ^I, φ : F, _ : Φ[δ i0]
                     , (liftS (size fsT) d0 `applySubst` u) `consS` raiseS (size fsT)
                     , raise (size fsT) (var 0)
                     , (liftS (size fsT) d0 `applySubst` u)
@@ -706,6 +708,11 @@ defineTranspForFields' pathCons applyProj name params fsT fns rect = do
 
       fsT_tel = (liftS 1 (raiseS (size tel - size deltaI)) `composeS` sub params) `applySubst` fsT
 
+      iMin x y = imin `apply` [argN x, argN y]
+      iMax x y = imax `apply` [argN x, argN y]
+      iNeg x = ineg `apply` [argN x]
+
+      -- .. ⊢ field : filled_ty' i0
       mkBody (field, filled_ty') = do
         let
           filled_ty = lam_i $ (unEl . unDom) filled_ty'
@@ -728,11 +735,9 @@ defineTranspForFields' pathCons applyProj name params fsT fns rect = do
           _ -> __IMPOSSIBLE__
 
   let
-        iMin x y = imin `apply` [argN x, argN y]
-        iMax x y = imax `apply` [argN x, argN y]
-        iNeg x = ineg `apply` [argN x]
-        -- ' Ξ , i : I ⊢ τ = [(\ j → δ (i ∧ j), φ ∨ ~ i, u] : Ξ
-        tau = parallelS $ us ++ (phi `iMax` iNeg (var 0)) : map (\ d -> Lam defaultArgInfo $ Abs "i" $ raise 1 d `apply` [argN $ (iMin (var 0) (var 1))]) ds
+        -- ' Ξ , i : I ⊢ τ = [(\ j → δ (i ∧ j)), φ ∨ ~ i, u] : Ξ
+        tau = parallelS $ us ++ (phi `iMax` iNeg (var 0))
+                        : map (\ d -> Lam defaultArgInfo $ Abs "i" $ raise 1 d `apply` [argN $ (iMin (var 0) (var 1))]) ds
          where
           -- Ξ, i : I
           (us, phi:ds) = splitAt (size tel - size gamma') $ reverse (raise 1 (map unArg (teleArgs tel)))

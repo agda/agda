@@ -2894,6 +2894,8 @@ data SplitError
       -- ^ We do not know the target type of the clause.
   | CosplitNoRecordType (Closure Type)
       -- ^ Target type is not a record type.
+  | CannotCreateMissingClause QName (Telescope,[NamedArg DeBruijnPattern]) Doc (Closure (Abs Type))
+
   | GenericSplitError String
   deriving (Show)
 

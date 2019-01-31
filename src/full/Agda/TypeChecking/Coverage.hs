@@ -39,6 +39,7 @@ import Agda.Syntax.Internal.Pattern
 
 import Agda.TypeChecking.Names
 import Agda.TypeChecking.Primitive hiding (Nat)
+import Agda.TypeChecking.Primitive.Cubical
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
 
@@ -52,6 +53,7 @@ import Agda.TypeChecking.Coverage.SplitTree
 import Agda.TypeChecking.Conversion (tryConversion, equalType, equalTermOnFace)
 import Agda.TypeChecking.Datatypes (getConForm)
 import {-# SOURCE #-} Agda.TypeChecking.Empty (isEmptyTel)
+import Agda.TypeChecking.Free
 import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.Patterns.Internal (dotPatternsToPatterns)
 import Agda.TypeChecking.Pretty
@@ -510,7 +512,10 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
     etaRecordSplits n ps (q , sc) t =
       (q , addEtaSplits 0 (gatherEtaSplits n sc ps) t)
 
--- | Append a instance clause to the clauses of a function.
+
+
+
+-- | Append an hcomp clause to the clauses of a function.
 createMissingHCompClause
   :: QName
        -- ^ Function name.
@@ -520,14 +525,16 @@ createMissingHCompClause
   -> SplitClause
        -- ^ Clause to add.
    -> TCM Clause
-createMissingHCompClause f n x old_sc (SClause tel ps sigma' cps (Just t)) = setCurrentRange f $ do
+createMissingHCompClause f n x old_sc (SClause tel ps _sigma' cps (Just t)) = setCurrentRange f $ do
   reportSDoc "tc.cover.hcomp" 20 $ addContext tel $ text "Trying to create right-hand side of type" <+> prettyTCM t
   reportSDoc "tc.cover.hcomp" 30 $ addContext tel $ text "ps = " <+> text (show (fromSplitPatterns ps))
   reportSDoc "tc.cover.hcomp" 30 $ text "tel = " <+> prettyTCM tel
 
   io      <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinIOne
   iz      <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinIZero
-
+  let
+    cannotCreate doc t = do
+      typeError . SplitError $ CannotCreateMissingClause f (tel,fromSplitPatterns ps) doc t
   let old_ps = patternsToElims $ fromSplitPatterns $ scPats old_sc
       old_t  = fromJust $ scTarget old_sc
       old_tel = scTel old_sc
@@ -535,18 +542,10 @@ createMissingHCompClause f n x old_sc (SClause tel ps sigma' cps (Just t)) = set
       -- Γ(x:H)Δ ⊢ old_t
       -- vs = iApplyVars old_ps
       -- [ α ⇒ b ] = [(i,f old_ps (i=0),f old_ps (i=1)) | i <- vs]
-      -- Γ(x:H)(δ : Δ) ⊢ [ α ⇒ b ] = [ α0 ⇒ b0 x δ, α1 ⇒ b1 ]
+
+      -- Γ(x:H)(δ : Δ) ⊢ [ α ⇒ b ]
       -- Γ(x:H)Δ ⊢ f old_ps : old_t [ α ⇒ b ]
-      -- Γ ⊢ d = λ x δ. f old_ps : (x : H) → {Δ → old_t}[ α1 ⇒ b1 ] -- actual Pi/Path type here.
-      -- Γ, α0 ⊢ b0 : (x : H) → {Δ → old_t}[ α1 → b1 ]
-      -- Γ, α0 ⊢ b0 = d
-      -- Γ,φ,u,u0 ⊢ comp (\ i. {Δ → old_t}[ α1 → b1 ](x = hfill φ u u0 i))
-      --                 (\ i.  [ φ  ↦ d (hfill φ u u0 i)    {- = d (u i) -}
-      --                          α0 ↦ b0 (hfill φ u u0 i)
-      --                        ])
-      --                 (d u0)
-      -- Γ ⊢ λ (x : H) (δ : Δ). f old_ps : (δ : Δ) -> old_t|β
-      -- Γ,φ,u,u0 ⊢ rhs_we_define : ({Δ → old_t}[α1 → b1](x = hcomp φ u u0))[ α0 ⇒ b0 (hcomp φ u u0) ]
+      -- Γ,φ,u,u0,Δ(x = hcomp φ u u0) ⊢ rhs_we_define : (old_t[ α ⇒ b ])(x = hcomp φ u u0)
 
       -- Extra assumption:
       -- tel = Γ,φ,u,u0,Δ(x = hcomp φ u u0),Δ'
@@ -561,52 +560,45 @@ createMissingHCompClause f n x old_sc (SClause tel ps sigma' cps (Just t)) = set
           s      -> do
             reportSDoc "tc.cover.hcomp" 20 $ text "getLevel, s = " <+> prettyTCM s
             reportSDoc "tc.cover.hcomp" 40 $ text "getLevel, s = " <+> text (show s)
-            typeError . GenericError . show =<<
-                    (text "The result type is non-fibrant when generating hcomp clause:" <+> prettyTCM t)
-                    -- Andrea TODO better error message.
-      (gamma,hdelta@(ExtendTel hdom _)) = splitTelescopeAt (size old_tel - (blockingVarNo x + 1)) old_tel
+            typeError . GenericDocError =<<
+                    (text "The sort of" <+> prettyTCM t <+> text "should be of the form \"Set l\"")
 
+      -- Γ ⊢ hdelta = (x : H)(δ : Δ)
+      (gamma,hdelta@(ExtendTel hdom delta)) = splitTelescopeAt (size old_tel - (blockingVarNo x + 1)) old_tel
 
+      -- Γ,φ,u,u0,Δ(x = hcomp φ u u0) ⊢
+      (working_tel,_deltaEx) = splitTelescopeAt (size gamma + 3 + size delta) tel
+
+      -- Γ,φ,u,u0,(x:H)(δ : Δ) ⊢ rhoS : Γ(x:H)(δ : Δ)
+      rhoS = liftS (size hdelta) $ raiseS 3
       vs = iApplyVars (scPats old_sc)
-  alphab_1 <- forM (filter (< size hdelta) vs) $ \ i -> do
+
+  -- Γ(x:H)(δ : Δ) ⊢ [ α ⇒ b ] = [(i,f old_ps (i=0),f old_ps (i=1)) | i <- vs]
+  alphab <- forM vs $ \ i -> do
                let
+                 -- Γ(x:H)(δ : Δ) ⊢
                  tm = Def f old_ps
-                 (_,rest) = splitTelescopeAt (size hdelta - i) hdelta
-               -- Γ,(x:H).Δ0,(i:I).rest ⊢ tm
-               -- Γ,(x:H).Δ0.rest ⊢ subst i b tm
-               -- Γ,(x:H).Δ0 ⊢ abstract rest $ subst i b tm
                -- TODO only reduce IApply _ _ (0/1), as to avoid termination problems
-               (l,r) <- reduce (subst i iz tm, subst i io tm)
-               return $ (var i, (abstract rest l, abstract rest r))
+               (l,r) <- reduce (inplaceS i iz `applySubst` tm, inplaceS i io `applySubst` tm)
+               return $ (var i, (l, r))
 
-  -- Γ ⊢ [ α0 → b0 ] : (x : H) → {Δ → old_t}[ α1 → b1 ]
-  alphab_0 <- forM (filter (> size hdelta) vs) $ \ i -> do
-               let
-                 tm = Def f old_ps
-                 absd = abstract hdelta
-                 j = i - size hdelta
-               -- Γ,(x:H).Δ ⊢ tm
-               -- Γ ⊢ abstract hdelta tm
-               -- TODO only reduce IApply _ _ (0/1), it's to avoid termination problems anyway
-               -- though right now we are just not termination checking this clause.
-               (l,r) <- reduce $ ( inplaceS i iz `applySubst` tm
-                                 , inplaceS i io `applySubst` tm)
-               return (var j, (absd l, absd r))
 
-  -- Γ,(x:H),Δ ⊢ old_t,  Γ ⊢ [α1 → b1] : ..
-  -- Γ ⊢ (x : H) -> {Δ}[α1 → b1]
-  hdelta_type <- telePiPath id hdelta (unArg old_t) alphab_1
 
   cl <- do
-    (ty,rhs) <- do
-      -- Γ,φ,u,u0 ⊢ comp (\ i. {Δ}[ α1 → b1 ](x = hfill φ u u0 i))
-      --                 (\ i.  [ φ  ↦ d (hfill φ u u0 i)     = d (u i)
-      --                          α0 ↦ b0 (hfill φ u u0 i)
+    (ty,rhs) <- addContext working_tel $ do
+      -- Γ(x:H)Δ ⊢ g = f old_ps : old_t [ α ⇒ b ]
+      -- Γ(x:H)(δ : Δ) ⊢ [ α ⇒ b ]
+      -- Γ,φ,u,u0 ⊢ Δf = i.Δ[x = hfill φ u u0 i]
+      -- Γ,φ,u,u0,δ : Δ(x = hcomp φ u u0) ⊢ δ_fill     = i.tFillTel (i. Δf[~i]) δ (~ i) : i.Δf[i]
+      -- Γ,φ,u,u0,δ : Δ(x = hcomp φ u u0) ⊢ old_t_fill = i.old_t[x = hfill φ u u0 i, δ_fill[i]]
+      -- Γ,φ,u,u0 ⊢ comp (\ i. old_t_fill[i])
+      --                 (\ i. [ φ ↦ g[x = hfill φ u u0 i,δ_fill[i]] = g[u i,δ_fill[i]]
+      --                         α ↦ b[x = hfill φ u u0 i,δ_fill[i]]
       --                        ])
-      --                 (d u0)
+      --                 (g[x = u0,δ_fill[0]]) : old_t[x = hcomp φ u u0,δ]
+
       runNamesT [] $ do
-          cxt <- currentCxt
-          tPOr <- fromMaybe __IMPOSSIBLE__ <$> getTerm' "primPOr"
+          tPOr <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinPOr
           tIMax <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinIMax
           tIMin <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinIMin
           tINeg <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinINeg
@@ -617,7 +609,12 @@ createMissingHCompClause f n x old_sc (SClause tel ps sigma' cps (Just t)) = set
             ineg j = pure tINeg <@> j
             imax i j = pure tIMax <@> i <@> j
             imin i j = pure tIMin <@> i <@> j
-
+            trFillTel' a b c d = do
+              m <- trFillTel <$> a <*> b <*> c <*> d
+              x <- lift $ runExceptT m
+              case x of
+                Left bad_t -> cannotCreate "Cannot transport with type family:" bad_t
+                Right args -> return args
           comp <- do
             let forward la bA r u = pure tTrans <#> (lam "i" $ \ i -> la <@> (i `imax` r))
                                               <@> (lam "i" $ \ i -> bA <@> (i `imax` r))
@@ -629,69 +626,112 @@ createMissingHCompClause f n x old_sc (SClause tel ps sigma' cps (Just t)) = set
                                 forward la bA i (u <@> i <..> o))
                         <@> forward la bA (pure iz) u0
           let
-            hfill la bA phi u u0 i = pure tHComp <#> la <#> bA
-                                               <#> (pure tIMax <@> phi <@> (pure tINeg <@> i))
-                                               <@> (lam "j" $ \ j -> pure tPOr <#> la <@> phi <@> (pure tINeg <@> i) <#> (ilam "o" $ \ _ -> bA)
+            hcomp la bA phi u u0 = pure tHComp <#> la <#> bA
+                                               <#> phi
+                                               <@> u
+                                               <@> u0
+
+            hfill la bA phi u u0 i = hcomp la bA
+                                               (pure tIMax <@> phi <@> (pure tINeg <@> i))
+                                               (lam "j" $ \ j -> pure tPOr <#> la <@> phi <@> (pure tINeg <@> i) <#> (ilam "o" $ \ _ -> bA)
                                                      <@> (ilam "o" $ \ o -> u <@> (pure tIMin <@> i <@> j) <..> o)
                                                      <@> (ilam "o" $ \ _ -> u0)
                                                    )
-                                               <@> u0
-          (hdom,alphab_0) <- pure $ raise 3 (hdom,alphab_0)
-          [hdelta_type] <- mapM (open . raise 3) [hdelta_type]
-          -- Γ,φ,u,u0 ⊢
-          [phi,u,u0] <- mapM (open . var) [2,1,0]
+                                               u0
+          -- Γ,φ,u,u0,(δ : Δ(x = hcomp φ u u0)) ⊢ hcompS : Γ(x:H)(δ : Δ)
+          hcompS <- lift $ do
+            hdom <- pure $ raise 3 hdom
+            let
+              [phi,u,u0] = map (pure . var) [2,1,0]
+              htype = pure $ unEl . unDom $ hdom
+              lvl = getLevel $ unDom hdom
+            hc <- pure tHComp <#> lvl <#> htype
+                                      <#> phi
+                                      <@> u
+                                      <@> u0
+            return $ liftS (size delta) $ hc `consS` raiseS 3
+          -- Γ,φ,u,u0,Δ(x = hcomp phi u u0) ⊢ raise 3+|Δ| hdom
+          hdom <- pure $ raise (3+size delta) hdom
           htype <- open $ unEl . unDom $ hdom
           lvl <- open =<< (lift . getLevel $ unDom hdom)
+
+          -- Γ,φ,u,u0,Δ(x = hcomp phi u u0) ⊢
+          [phi,u,u0] <- mapM (open . raise (size delta) . var) [2,1,0]
           -- Γ,x,Δ ⊢ f old_ps
           -- Γ ⊢ abstract hdelta (f old_ps)
-          d <- open $ raise 3 $ abstract hdelta (Def f old_ps)
-          let call v = d <@> v
+          g <- open $ raise (3+size delta) $ abstract hdelta (Def f old_ps)
+          old_t <- open $ raise (3+size delta) $ abstract hdelta (unArg old_t)
+          let bapp a x = lazyAbsApp <$> a <*> x
+          (delta_fill :: NamesT TCM (Abs Args)) <- (open =<<) $ do
+            -- Γ,φ,u,u0,Δ(x = hcomp phi u u0) ⊢ x.Δ
+            delta <- open $ raise (3+size delta) delta
+            -- Γ,φ,u,u0,Δ(x = hcomp phi u u0) ⊢ i.Δ(x = hfill phi u u0 (~ i))
+            deltaf <- open =<< bind "i" (\ i ->
+                           (delta `bapp` hfill lvl htype phi u u0 (ineg i)))
+            -- Γ,φ,u,u0,Δ(x = hcomp phi u u0) ⊢ Δ(x = hcomp phi u u0) = Δf[0]
+            args <- (open =<<) $ teleArgs <$> (lazyAbsApp <$> deltaf <*> pure iz)
+            bind "i" $ \ i -> addContext ("i" :: String) $ do -- for error messages.
+              -- Γ,φ,u,u0,Δ(x = hcomp phi u u0),(i:I) ⊢ ... : Δ(x = hfill phi u u0 i)
+              trFillTel' deltaf (pure iz) args (ineg i)
+          let
+            apply_delta_fill i f = apply <$> f <*> (delta_fill `bapp` i)
+            call v i = apply_delta_fill i $ g <@> v
           ty <- do
                 return $ \ i -> do
                     v <- hfill lvl htype phi u u0 i
-                    hd <- hdelta_type
-                    lift $ piApplyM hd [Arg (domInfo hdom) v]
-          let
-            pOr la i j u0 u1 = pure tPOr <#> (lift . getLevel =<< la)        <@> i <@> j
-                                         <#> (ilam "o" $ \ _ -> unEl <$> la) <@> u0 <@> u1
-          -- Γ,φ,u,u0 ⊢ α0 : 𝔽
-          alpha0 <- do
-             vars <- mapM (open . fst) alphab_0
-             return $ foldr imax (pure iz) $ map (\ v -> v `imax` ineg v) vars
+                    hd <- old_t
+                    args <- delta_fill `bapp` i
+                    lift $ piApplyM hd $ [Arg (domInfo hdom) v] ++ args
+          ty_level <- do
+            t <- bind "i" ty
+            s <- reduce $ getSort (absBody t)
+            reportSDoc "tc.cover.hcomp" 20 $ text "ty_level, s = " <+> prettyTCM s
+            reportSDoc "tc.cover.hcomp" 60 $ text "ty_level, s = " <+> text (show s)
+            case s of
+              Type l -> open =<< (lam "i" $ \ _ -> pure $ Level l)
+              _      -> cannotCreate "Cannot compose with type family:" =<< (liftTCM $ buildClosure t)
 
-          -- Γ,φ,u,u0 ⊢ b0 : (i : I) → [α0] -> {Δ → old_t}[ α1 → b1 ](x = hfill φ u u0 i)
-          b0 <- do
-             sides <- forM alphab_0 $ \ (psi,(t,u)) -> do
-                [psi,t,u] <- mapM open [psi,t,u]
-                return $ (ineg psi `imax` psi, \ i -> pOr (ty i) (ineg psi) psi (ilam "o" $ \ _ -> t <@> hfill lvl htype phi u u0 i)
-                                                            (ilam "o" $ \ _ -> u <@> hfill lvl htype phi u u0 i))
+          let
+            pOr_ty i phi psi u0 u1 = pure tPOr <#> (ty_level <@> i)
+                                               <@> phi <@> psi
+                                               <#> (ilam "o" $ \ _ -> unEl <$> ty i) <@> u0 <@> u1
+          alpha <- do
+            vars <- mapM (open . applySubst hcompS . fst) alphab
+            return $ foldr imax (pure iz) $ map (\ v -> v `imax` ineg v) vars
+
+          -- Γ,φ,u,u0,Δ(x = hcomp φ u u0) ⊢ b : (i : I) → [α] -> old_t[x = hfill φ u u0 i,δ_fill[i]]
+          b <- do
+             sides <- forM alphab $ \ (psi,(t,u)) -> do
+                psi <- open $ hcompS `applySubst` psi
+
+                [t,u] <- mapM (open . raise (3+size delta) . abstract hdelta) [t,u]
+                return $ (ineg psi `imax` psi, \ i -> pOr_ty i (ineg psi) psi (ilam "o" $ \ _ -> apply_delta_fill i $ t <@> hfill lvl htype phi u u0 i)
+                                                            (ilam "o" $ \ _ -> apply_delta_fill i $ u <@> hfill lvl htype phi u u0 i))
              let recurse []           i = __IMPOSSIBLE__
                  recurse [(psi,u)]    i = u i
-                 recurse ((psi,u):xs) i = pOr (ty i) psi (foldr imax (pure iz) (map fst xs)) (u i) (recurse xs i)
+                 recurse ((psi,u):xs) i = pOr_ty i psi (foldr imax (pure iz) (map fst xs)) (u i) (recurse xs i)
              return $ recurse sides
 
-          -- need to use comp and use a fill in the type
-          -- Γ,φ,u,u0 ⊢ comp (\ i. {Δ}[ α1 → b1 ](x = hfill φ u u0 i))
-          --                 (\ i.  [ φ  ↦ d (hfill φ u u0 i)     = d (u i)
-          --                          α0 ↦ b0 (hfill φ u u0 i)
-          --                        ])
-          --                 (d u0)
           ((,) <$> ty (pure io) <*>) $ do
-            comp (lam "i" $ \ i -> lift . getLevel =<< ty i)
+            comp ty_level
                (lam "i" $ \ i -> unEl <$> ty i)
-                           (phi `imax` alpha0)
+                           (phi `imax` alpha)
                            (lam "i" $ \ i ->
-                               let rhs = (ilam "o" $ \ o -> call (u <@> i <..> o))
-                               in if null alphab_0 then rhs else
-                                   pOr (ty i) phi alpha0 rhs (b0 i)
+                               let rhs = (ilam "o" $ \ o -> call (u <@> i <..> o) i)
+                               in if null alphab then rhs else
+                                   pOr_ty i phi alpha rhs (b i)
                            )
-                           (call u0)
-    let n = size tel - (size gamma + 3)
+                           (call u0 (pure iz))
+    reportSDoc "tc.cover.hcomp" 20 $ text "old_tel =" <+> prettyTCM tel
+    let n = size tel - (size gamma + 3 + size delta)
+    reportSDoc "tc.cover.hcomp" 20 $ text "n =" <+> text (show n)
     (TelV deltaEx t,bs) <- telViewUpToPathBoundary' n ty
     rhs <- pure $ raise n rhs `applyE` teleElims deltaEx bs
 
     cxt <- getContextTelescope
     reportSDoc "tc.cover.hcomp" 30 $ text "cxt = " <+> prettyTCM cxt
+    reportSDoc "tc.cover.hcomp" 30 $ text "tel = " <+> prettyTCM tel
+    reportSDoc "tc.cover.hcomp" 20 $ addContext tel $ text "t = " <+> prettyTCM t
     reportSDoc "tc.cover.hcomp" 20 $ addContext tel $ text "rhs = " <+> prettyTCM rhs
 
     return $ Clause { clauseLHSRange  = noRange
@@ -769,8 +809,7 @@ checkIApplyConfluence f (SClause tel ps' _ cps (Just t)) = setCurrentRange f $ d
             let es = patternsToElims ps
             let lhs = Def f es
             body <- fmap ignoreBlocking $ liftReduce $ unfoldDefinitionE False (return . notBlocked) (Def f []) f es
-            locallyTC eRange (const noRange) $
-              equalTermOnFace phi trhs lhs body
+            equalTermOnFace phi trhs lhs body
 checkIApplyConfluence f (SClause tel ps _ cps Nothing) = __IMPOSSIBLE__
 
 
@@ -920,9 +959,9 @@ computeHCompSplit delta1 n delta2 d pars ixs hix tel ps cps = do
           -- conp = ConP con cpi $ applySubst rho2 $
           --          map (mapArgInfo hiddenInserted) $ tele2NamedArgs gamma0 gamma
           -- -- Andreas, 2016-09-08, issue #2166: use gamma0 for correct argument names
-          defp = DefP PatOSystem hCompName $
+          defp = DefP PatOSystem hCompName . map (setOrigin Inserted) $
                    map (fmap unnamed) [setHiding Hidden $ defaultArg $ applySubst rho1 $ DotP PatOSystem $ dlvl
-                                      ,                   defaultArg $ applySubst rho1 $ DotP PatOSystem $ dterm]
+                                      ,setHiding Hidden $ defaultArg $ applySubst rho1 $ DotP PatOSystem $ dterm]
                    ++ applySubst rho2 (teleNamedArgs gamma) -- rho0?
       -- Compute final context and substitution
       let rho3    = consS defp rho1            -- Δ₁' ⊢ ρ₃ : Δ₁(x:D)
@@ -1263,6 +1302,8 @@ split' ind allowPartialCover fixtarget sc@(SClause tel ps _ cps target) (Blockin
   propArrowRel <- isPropM t `and2M`
     maybe (return True) (not <.> isIrrelevantOrPropM) target
 
+  mHCompName <- getPrimitiveName' builtinHComp
+
   case ns of
     []  -> do
       let absurdp = VarP PatOAbsurd $ SplitPatVar underscore 0 []
@@ -1293,7 +1334,9 @@ split' ind allowPartialCover fixtarget sc@(SClause tel ps _ cps target) (Blockin
         overlap == False,
         let ptags = map (SplitCon . conName) pcons' ++ map SplitLit plits,
         let tags  = map fst ns,
-        let diff  = Set.fromList tags Set.\\ Set.fromList ptags,
+        -- clauses for hcomp will be automatically generated.
+        let inferred_tags = maybe Set.empty (Set.singleton . SplitCon) mHCompName,
+        let diff  = (Set.fromList tags Set.\\ inferred_tags) Set.\\ Set.fromList ptags,
         not (Set.null diff) -> do
           liftTCM $ reportSDoc "tc.cover.precomputed" 10 $ vcat
             [ hsep $ "ptags =" : map prettyTCM ptags

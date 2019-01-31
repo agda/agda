@@ -1446,6 +1446,16 @@ instance PrettyTCM SplitError where
       pwords "Cannot split into projections because the target type "
       ++ [prettyTCM t] ++ pwords " is not a record type"
 
+    CannotCreateMissingClause f cl msg t -> fsep (
+      pwords "Cannot generate inferred clause for" ++ [prettyTCM f <> "."] ++
+      pwords "Case to handle:") $$ nest 2 (vcat $ [display cl])
+                                $$ (pure msg <+> enterClosure t displayAbs <> ".")
+        where
+        displayAbs (Abs x t) = addContext x $ prettyTCM t
+        displayAbs (NoAbs x t) = prettyTCM t
+        display (tel, ps) = prettyTCM $ NamedClause f True $
+          empty { clauseTel = tel, namedClausePats = ps }
+
 
     GenericSplitError s -> fsep $ pwords "Split failed:" ++ pwords s
 

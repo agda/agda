@@ -668,6 +668,9 @@ catchIlltypedPatternBlockedOnMeta m handle = do
             SplitError (NotADatatype aClosure) ->
               enterClosure aClosure $ \ a -> isBlockedType a
 
+            -- Andrea: TODO look for blocking meta in tClosure and its Sort.
+            -- SplitError (CannotCreateMissingClause _ _ _ tClosure) ->
+
             CannotEliminateWithPattern p a -> isBlockedType a
 
             _ -> return Nothing

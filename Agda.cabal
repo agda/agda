@@ -430,6 +430,7 @@ library
                     Agda.TypeChecking.Positivity.Occurrence
                     Agda.TypeChecking.Pretty
                     Agda.TypeChecking.Primitive
+                    Agda.TypeChecking.Primitive.Cubical
                     Agda.TypeChecking.ProjectionLike
                     Agda.TypeChecking.Quote
                     Agda.TypeChecking.ReconstructParameters
