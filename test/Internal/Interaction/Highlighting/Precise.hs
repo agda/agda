@@ -141,6 +141,7 @@ instance CoArbitrary NameKind where
   coarbitrary Record            = variant 8
   coarbitrary Argument          = variant 9
   coarbitrary Macro             = variant 10
+  coarbitrary GeneralizedVar    = variant 11
 
 instance Arbitrary OtherAspect where
   arbitrary = elements [minBound .. maxBound]

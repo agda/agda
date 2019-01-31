@@ -96,6 +96,8 @@ Also sets the default value of VARIABLE to GROUP."
              :foreground "medium blue")
             (agda2-highlight-bound-variable-face
              :foreground "purple")
+            (agda2-highlight-generalized-variable-face
+             :foreground "purple")
             (agda2-highlight-inductive-constructor-face
              :foreground "firebrick3")
             (agda2-highlight-coinductive-constructor-face
@@ -155,6 +157,9 @@ Also sets the default value of VARIABLE to GROUP."
                       (agda2-highlight-face-attributes
                        font-lock-keyword-face))
                 (cons 'agda2-highlight-bound-variable-face
+                      (agda2-highlight-face-attributes
+                       font-lock-variable-name-face))
+                (cons 'agda2-highlight-generalized-variable-face
                       (agda2-highlight-face-attributes
                        font-lock-variable-name-face))
                 (cons 'agda2-highlight-inductive-constructor-face
@@ -258,6 +263,11 @@ If `agda2-highlight-face-groups' is nil."
 (defface agda2-highlight-bound-variable-face
   '((t nil))
   "The face used for bound variables."
+  :group 'agda2-highlight-faces)
+
+(defface agda2-highlight-generalized-variable-face
+  '((t nil))
+  "The face used for generalized variables."
   :group 'agda2-highlight-faces)
 
 (defface agda2-highlight-inductive-constructor-face
@@ -381,6 +391,7 @@ If `agda2-highlight-face-groups' is nil."
     (symbol                 . agda2-highlight-symbol-face)
     (primitivetype          . agda2-highlight-primitive-type-face)
     (bound                  . agda2-highlight-bound-variable-face)
+    (generalizedvar         . agda2-highlight-generalized-variable-face)
     (inductiveconstructor   . agda2-highlight-inductive-constructor-face)
     (coinductiveconstructor . agda2-highlight-coinductive-constructor-face)
     (datatype               . agda2-highlight-datatype-face)

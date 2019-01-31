@@ -19,12 +19,12 @@ Marisa:
     Harvesting bamboo shoots.
 .. raw:: html
    <a id="271" class="Keyword">variable</a>
-     <a id="285" href="RsTHighlightCodeAuto.html#285" class="Bound">i</a> <a id="287" class="Symbol">:</a> <a id="289" href="Agda.Builtin.Size.html#179" class="Postulate">Size</a>
+     <a id="285" href="RsTHighlightCodeAuto.html#285" class="GeneralizedVar">i</a> <a id="287" class="Symbol">:</a> <a id="289" href="Agda.Builtin.Size.html#179" class="Postulate">Size</a>
 
    <a id="298" class="Comment">-- Alice:</a>
    <a id="311" class="Comment">--    A trial of guts.</a>
 
-     <a id="340" href="RsTHighlightCodeAuto.html#340" class="Bound">ℓ</a> <a id="342" class="Symbol">:</a> <a id="344" href="Agda.Primitive.html#408" class="Postulate">Level</a>
+     <a id="340" href="RsTHighlightCodeAuto.html#340" class="GeneralizedVar">ℓ</a> <a id="342" class="Symbol">:</a> <a id="344" href="Agda.Primitive.html#408" class="Postulate">Level</a>
 
    <a id="354" class="Comment">-- Mokou:</a>
    <a id="367" class="Comment">--    Uh, which one is it?</a>
@@ -32,7 +32,7 @@ Marisa:
 Comment tests ↑
 
 .. raw:: html
-     <a id="420" href="RsTHighlightCodeAuto.html#420" class="Bound">A</a> <a id="422" class="Symbol">:</a> <a id="424" class="PrimitiveType">Set</a> <a id="428" href="RsTHighlightCodeAuto.html#340" class="Bound">ℓ</a>
+     <a id="420" href="RsTHighlightCodeAuto.html#420" class="GeneralizedVar">A</a> <a id="422" class="Symbol">:</a> <a id="424" class="PrimitiveType">Set</a> <a id="428" href="RsTHighlightCodeAuto.html#340" class="GeneralizedVar">ℓ</a>
    -- Marisa:
    --   That should've been obvious...
 
@@ -69,7 +69,7 @@ Alice:
     The human before us is obviously mine to crush.
 
 .. raw:: html
-   <a id="infinity"></a><a id="1450" href="RsTHighlightCodeAuto.html#1450" class="Function">infinity</a> <a id="1459" class="Symbol">:</a> <a id="1461" href="RsTHighlightCodeAuto.html#1191" class="Datatype">Conat</a> <a id="1467" href="RsTHighlightCodeAuto.html#285" class="Bound">i</a>
+   <a id="infinity"></a><a id="1450" href="RsTHighlightCodeAuto.html#1450" class="Function">infinity</a> <a id="1459" class="Symbol">:</a> <a id="1461" href="RsTHighlightCodeAuto.html#1191" class="Datatype">Conat</a> <a id="1467" href="RsTHighlightCodeAuto.html#285" class="GeneralizedVar">i</a>
    <a id="1472" href="RsTHighlightCodeAuto.html#1450" class="Function">infinity</a> <a id="1481" class="Symbol">=</a> <a id="1483" href="RsTHighlightCodeAuto.html#1245" class="InductiveConstructor">suc</a> <a id="1487" class="Symbol">λ</a> <a id="1489" class="Keyword">where</a> <a id="1495" class="Symbol">.</a><a id="1496" href="RsTHighlightCodeAuto.html#854" class="Field">Thunk.force</a> <a id="1508" class="Symbol">→</a> <a id="1510" href="RsTHighlightCodeAuto.html#1450" class="Function">infinity</a>
 
 Mokou:

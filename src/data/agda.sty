@@ -143,6 +143,7 @@
 
     % NameKind colours.
     \definecolor{AgdaBound}                 {HTML}{000000}
+    \definecolor{AgdaGeneralizedVar}        {HTML}{000000}
     \definecolor{AgdaInductiveConstructor}  {HTML}{000000}
     \definecolor{AgdaCoinductiveConstructor}{HTML}{000000}
     \definecolor{AgdaDatatype}              {HTML}{000000}
@@ -180,6 +181,7 @@
 
     % NameKind colours.
     \definecolor{AgdaBound}                 {HTML}{A020F0}
+    \definecolor{AgdaGeneralizedVar}        {HTML}{A020F0}
     \definecolor{AgdaInductiveConstructor}  {HTML}{8B0000}
     \definecolor{AgdaCoinductiveConstructor}{HTML}{8B0000}
     \definecolor{AgdaDatatype}              {HTML}{0000CD}
@@ -216,6 +218,7 @@
 
     % NameKind colours.
     \definecolor{AgdaBound}                 {HTML}{000000}
+    \definecolor{AgdaGeneralizedVar}        {HTML}{000000}
     \definecolor{AgdaInductiveConstructor}  {HTML}{008B00}
     \definecolor{AgdaCoinductiveConstructor}{HTML}{8B7500}
     \definecolor{AgdaDatatype}              {HTML}{0000CD}
@@ -287,6 +290,8 @@
 
 \newcommand{\AgdaBound}[1]
     {\AgdaNoSpaceMath{\AgdaBoundFontStyle{\textcolor{AgdaBound}{\AgdaFormat{#1}{#1}}}}}
+\newcommand{\AgdaGeneralizedVar}[1]
+    {\AgdaNoSpaceMath{\AgdaBoundFontStyle{\textcolor{AgdaGeneralizedVar}{\AgdaFormat{#1}{#1}}}}}
 \newcommand{\AgdaInductiveConstructor}[1]
     {\AgdaNoSpaceMath{\AgdaFontStyle{\textcolor{AgdaInductiveConstructor}{\AgdaFormat{#1}{\AgdaLink{#1}}}}}}
 \newcommand{\AgdaCoinductiveConstructor}[1]

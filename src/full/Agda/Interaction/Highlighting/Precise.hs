@@ -82,6 +82,7 @@ data Aspect
 
 data NameKind
   = Bound                         -- ^ Bound variable.
+  | GeneralizedVar                -- ^ Generalized/generalizable variable.
   | Constructor Common.Induction  -- ^ Inductive or coinductive constructor.
   | Datatype
   | Field                         -- ^ Record field.
