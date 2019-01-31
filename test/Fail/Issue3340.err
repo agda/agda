@@ -1,10 +1,3 @@
-Failed to solve the following constraints:
-  _48 := λ {x.A.ℓ} {x.A} {x} {f.P.ℓ} {f.P} {f} → refl
-    [blocked on problem 29]
-  [29, 33] f x = _47 : f.P x
-  [22] [$ y] ~~ [$ x]
-         : "dummyType: src/full/Agda/TypeChecking/Generalize.hs:515"
-  _45 := λ genTel → f y [blocked on problem 22]
-Unsolved metas at the following locations:
-  Issue3340.agda:12,22-25
-  Issue3340.agda:13,13-17
+Issue3340.agda:12,22-25
+y /= x
+when checking that the expression f y has type f.P x
