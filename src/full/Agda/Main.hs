@@ -64,7 +64,7 @@ runAgda' :: [Backend] -> IO ()
 runAgda' backends = runTCMPrettyErrors $ do
   progName <- liftIO getProgName
   argv     <- liftIO getArgs
-  opts     <- liftIO $ runOptM $ parseBackendOptions backends argv
+  opts     <- liftIO $ runOptM $ parseBackendOptions backends argv defaultOptions
   case opts of
     Left  err        -> liftIO $ optionError err
     Right (bs, opts) -> do

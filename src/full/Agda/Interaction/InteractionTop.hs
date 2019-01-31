@@ -1203,10 +1203,11 @@ cmd_load' file argv unsolvedOK mode cmd = do
     -- All options are reset when a file is reloaded, including the
     -- choice of whether or not to display implicit arguments.
     opts0 <- gets optionsOnReload
-    z <- liftIO $ runOptM $ parseStandardOptions' argv opts0
+    backends <- useTC stBackends
+    z <- liftIO $ runOptM $ parseBackendOptions backends argv opts0
     case z of
       Left err   -> lift $ typeError $ GenericError err
-      Right opts -> do
+      Right (_, opts) -> do
         let update o = o { optAllowUnsolved = unsolvedOK && optAllowUnsolved o}
             root     = projectRoot f (Imp.siModuleName si)
         lift $ TM.setCommandLineOptions' root $ mapPragmaOptions update opts
