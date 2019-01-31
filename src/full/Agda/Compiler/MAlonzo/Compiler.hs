@@ -366,7 +366,7 @@ definition env Defn{defName = q, defType = ty, theDef = d} = do
       _ -> return ccls
 
   functionViaTreeless :: QName -> TCM [HS.Decl]
-  functionViaTreeless q = caseMaybeM (toTreeless q) (pure []) $ \ treeless -> do
+  functionViaTreeless q = caseMaybeM (toTreeless LazyEvaluation q) (pure []) $ \ treeless -> do
 
     used <- getCompiledArgUse q
     let dostrip = any not used

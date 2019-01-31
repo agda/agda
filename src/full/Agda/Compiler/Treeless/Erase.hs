@@ -63,8 +63,8 @@ computeErasedConstructorArgs d = do
   cs <- getConstructors d
   runE $ mapM_ getFunInfo cs
 
-eraseTerms :: QName -> TTerm -> TCM TTerm
-eraseTerms q t = usedArguments q t *> runE (eraseTop q t)
+eraseTerms :: QName -> EvaluationStrategy -> TTerm -> TCM TTerm
+eraseTerms q eval t = usedArguments q t *> runE (eraseTop q t)
   where
     eraseTop q t = do
       (_, h) <- getFunInfo q
