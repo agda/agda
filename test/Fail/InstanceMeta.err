@@ -1,5 +1,5 @@
 Failed to solve the following constraints:
-  Resolve instance argument _23 : Eq _A_22
+  Resolve instance argument _r_23 : Eq _A_22
   Candidates
     eq InstanceMeta.aux : Eq Bool
     λ {A} ⦃ z ⦄ → eq InstanceMeta.aux :

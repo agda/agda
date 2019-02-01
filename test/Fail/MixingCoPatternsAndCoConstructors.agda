@@ -1,4 +1,4 @@
-{-# OPTIONS --copatterns #-}
+{-# OPTIONS --guardedness #-}
 module MixingCoPatternsAndCoConstructors where
 
 data ℕ : Set where

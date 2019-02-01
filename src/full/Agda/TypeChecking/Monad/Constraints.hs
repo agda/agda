@@ -111,12 +111,15 @@ holdConstraints p m = do
   catchError (m <* restore) (\ err -> restore *> throwError err)
 
 takeAwakeConstraint :: TCM (Maybe ProblemConstraint)
-takeAwakeConstraint = do
+takeAwakeConstraint = takeAwakeConstraint' (const True)
+
+takeAwakeConstraint' :: (ProblemConstraint -> Bool) -> TCM (Maybe ProblemConstraint)
+takeAwakeConstraint' p = do
   cs <- getAwakeConstraints
-  case cs of
-    []     -> return Nothing
-    c : cs -> do
-      modifyAwakeConstraints $ const cs
+  case break p cs of
+    (_, [])       -> return Nothing
+    (cs0, c : cs) -> do
+      modifyAwakeConstraints $ const (cs0 ++ cs)
       return $ Just c
 
 getAllConstraints :: TCM Constraints

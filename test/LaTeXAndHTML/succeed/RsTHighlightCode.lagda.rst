@@ -8,6 +8,8 @@ Kenjiro:
     You're already dead!
 
 ::
+   {-# OPTIONS --guardedness #-}
+
    module RsTHighlightCode where
 
 Shirou Emiya:

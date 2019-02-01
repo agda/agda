@@ -13,6 +13,7 @@ import Control.Monad.State
 import Control.Monad.Trans.Maybe
 
 import qualified Data.Map as Map
+import Data.Function ( on )
 
 import Agda.Syntax.Common
 import Agda.Syntax.Position
@@ -83,8 +84,11 @@ bindBuiltinName b x = do
 
 bindPrimitive :: String -> PrimFun -> TCM ()
 bindPrimitive b pf = do
-  builtin <- useTC stLocalBuiltins
-  setBuiltinThings $ Map.insert b (Prim pf) builtin
+  builtin <- getBuiltinThing b
+  case builtin of
+    Just (Builtin _) -> typeError $ NoSuchPrimitiveFunction b
+    Just (Prim x)    -> typeError $ (DuplicatePrimitiveBinding b `on` primFunName) x pf
+    Nothing          -> stLocalBuiltins `modifyTCLens` Map.insert b (Prim pf)
 
 getBuiltin :: String -> TCM Term
 getBuiltin x =
@@ -157,8 +161,7 @@ primInteger, primIntegerPos, primIntegerNegSuc,
     primId, primConId, primIdElim,
     primEquiv, primEquivFun, primEquivProof, primPathToEquiv,
     primGlue, prim_glue, prim_unglue,
-    primCompGlue, primFaceForall,
-    primPushOut, primPOInl, primPOInr, primPOPush, primPOhcomp, primPOforward, primPOElim,
+    primFaceForall,
     primNatPlus, primNatMinus, primNatTimes, primNatDivSucAux, primNatModSucAux,
     primNatEquality, primNatLess,
     -- Machine words
@@ -197,7 +200,8 @@ primInteger, primIntegerPos, primIntegerNegSuc,
     primAgdaTCMGetType, primAgdaTCMGetDefinition,
     primAgdaTCMQuoteTerm, primAgdaTCMUnquoteTerm,
     primAgdaTCMBlockOnMeta, primAgdaTCMCommit, primAgdaTCMIsMacro,
-    primAgdaTCMWithNormalisation, primAgdaTCMDebugPrint
+    primAgdaTCMWithNormalisation, primAgdaTCMDebugPrint,
+    primAgdaTCMNoConstraints
     :: TCM Term
 
 primInteger      = getBuiltin builtinInteger
@@ -240,7 +244,6 @@ primPathToEquiv  = getBuiltin builtinPathToEquiv
 primGlue         = getPrimitiveTerm builtinGlue
 prim_glue        = getPrimitiveTerm builtin_glue
 prim_unglue      = getPrimitiveTerm builtin_unglue
-primCompGlue     = getPrimitiveTerm builtinCompGlue
 primFaceForall   = getPrimitiveTerm builtinFaceForall
 primIsOne1       = getBuiltin builtinIsOne1
 primIsOne2       = getBuiltin builtinIsOne2
@@ -248,13 +251,6 @@ primIsOneEmpty   = getBuiltin builtinIsOneEmpty
 primSub          = getBuiltin builtinSub
 primSubIn        = getBuiltin builtinSubIn
 primSubOut       = getPrimitiveTerm builtinSubOut
-primPushOut      = getBuiltin builtinPushOut
-primPOInl        = getBuiltin builtinPOInl
-primPOInr        = getBuiltin builtinPOInr
-primPOPush       = getBuiltin builtinPOPush
-primPOhcomp      = getPrimitiveTerm builtinPOhcomp
-primPOforward    = getPrimitiveTerm builtinPOforward
-primPOElim       = getPrimitiveTerm builtinPOElim
 primNat          = getBuiltin builtinNat
 primSuc          = getBuiltin builtinSuc
 primZero         = getBuiltin builtinZero
@@ -380,6 +376,7 @@ primAgdaTCMCommit             = getBuiltin builtinAgdaTCMCommit
 primAgdaTCMIsMacro            = getBuiltin builtinAgdaTCMIsMacro
 primAgdaTCMWithNormalisation  = getBuiltin builtinAgdaTCMWithNormalisation
 primAgdaTCMDebugPrint         = getBuiltin builtinAgdaTCMDebugPrint
+primAgdaTCMNoConstraints      = getBuiltin builtinAgdaTCMNoConstraints
 
 -- | The coinductive primitives.
 
@@ -574,3 +571,19 @@ equalityUnview :: EqualityView -> Type
 equalityUnview (OtherType t) = t
 equalityUnview (EqualityType s equality l t lhs rhs) =
   El s $ Def equality $ map Apply (l ++ [t, lhs, rhs])
+
+-- | Primitives with typechecking constrants.
+constrainedPrims :: [String]
+constrainedPrims =
+  [ builtinConId
+  , builtinPOr
+  , builtinComp
+  , builtinHComp
+  , builtinTrans
+  , builtin_glue
+  ]
+
+getNameOfConstrained :: HasBuiltins m => String -> m (Maybe QName)
+getNameOfConstrained s = do
+  unless (s `elem` constrainedPrims) __IMPOSSIBLE__
+  getName' s

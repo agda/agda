@@ -1,3 +1,18 @@
+.. _coinduction:
+
+***********
+Coinduction
+***********
+
+The corecursive definitions below are accepted if the option
+:samp:`--guardedness` is active:
+
+::
+
+  {-# OPTIONS --guardedness #-}
+
+(An alternative approach is to use :ref:`sized-types`.)
+
 ..
   ::
   module language.coinduction where
@@ -8,12 +23,6 @@
   open import Agda.Builtin.List
 
   module newcoinduction where
-
-.. _coinduction:
-
-***********
-Coinduction
-***********
 
 .. _copatterns-coinductive-records:
 
@@ -106,9 +115,6 @@ Old Coinduction
 .. note::
    This is the old way of coinduction support in Agda. You are advised to use
    :ref:`copatterns-coinductive-records` instead.
-
-.. note::
-   The type constructor ``∞`` can be used to prove absurdity!
 
 To use coinduction it is recommended that you import the module Coinduction from the `standard library <http://wiki.portal.chalmers.se/agda/pmwiki.php?n=Libraries.StandardLibrary>`_. Coinductive types can then be defined by labelling coinductive occurrences using the delay operator ``∞``:
 

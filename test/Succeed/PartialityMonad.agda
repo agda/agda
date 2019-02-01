@@ -1,4 +1,4 @@
-{-# OPTIONS --show-implicit #-}
+{-# OPTIONS --guardedness --show-implicit #-}
 -- {-# OPTIONS -v tc.def.fun:10 -v tc.def.where:100 #-}
 
 module PartialityMonad where

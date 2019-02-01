@@ -99,7 +99,7 @@ unlevelWithKit LevelKit{ lvlZero = zer, lvlSuc = suc, lvlMax = max } (Max as) =
   case map (unPlusV zer suc) as of
     [a] -> a
     []  -> zer
-    as  -> foldr1 max as
+    as  -> foldl1 max as
 
 unPlusV :: Term -> (Term -> Term) -> PlusLevel -> Term
 unPlusV zer suc (ClosedLevel n) = foldr (.) id (List.genericReplicate n suc) zer

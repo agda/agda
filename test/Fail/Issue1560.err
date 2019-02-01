@@ -1,12 +1,12 @@
-Issue1560.agda:14,1-116,73
+Issue1560.agda:16,1-118,73
 SType' is not strictly positive, because it occurs
 to the left of an arrow
 in the type of the constructor c
 in the definition of SType'.
 Unsolved interaction metas at the following locations:
-  Issue1560.agda:45,25-29
-  Issue1560.agda:53,47-85
-  Issue1560.agda:107,72-76
-  Issue1560.agda:108,70-74
-  Issue1560.agda:112,69-73
-  Issue1560.agda:116,69-73
+  Issue1560.agda:47,25-29
+  Issue1560.agda:55,47-85
+  Issue1560.agda:109,72-76
+  Issue1560.agda:110,70-74
+  Issue1560.agda:114,69-73
+  Issue1560.agda:118,69-73

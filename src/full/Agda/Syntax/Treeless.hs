@@ -27,6 +27,12 @@ data Compiled = Compiled
   , cArgUsage :: [Bool] }
   deriving (Data, Show, Eq, Ord)
 
+-- | The treeless compiler can behave differently depending on the target
+--   language evaluation strategy. For instance, more aggressive erasure for
+--   lazy targets.
+data EvaluationStrategy = LazyEvaluation | EagerEvaluation
+  deriving (Eq, Show)
+
 type Args = [TTerm]
 
 -- this currently assumes that TApp is translated in a lazy/cbn fashion.

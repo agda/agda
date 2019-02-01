@@ -23,8 +23,8 @@ import qualified Agda.Syntax.Abstract.Views as A
 import qualified Agda.Syntax.Info as A
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
-import Agda.Syntax.Scope.Base  ( ResolvedName(..), Binder(..) )
-import Agda.Syntax.Scope.Monad ( resolveName )
+import Agda.Syntax.Scope.Base  ( ResolvedName(..), Binder(..), KindOfName(..), allKindsOfNames )
+import Agda.Syntax.Scope.Monad ( resolveName, resolveName' )
 import Agda.Syntax.Translation.ConcreteToAbstract
 import Agda.Syntax.Translation.InternalToAbstract
 
@@ -112,14 +112,21 @@ parseVariables f tel ii rng ss = do
           failModuleBound = typeError $ GenericError $
             "Cannot split on module parameter " ++ s
           failLetBound v  = typeError . GenericError $
-            "cannot split on let-bound variable " ++ s
+            "Cannot split on let-bound variable " ++ s
           failInstantiatedVar v = typeError . GenericDocError =<< sep
               [ text $ "Cannot split on variable " ++ s ++ ", because it is bound to"
               , prettyTCM v
               ]
+          failCaseLet     = typeError $ GenericError $
+            "Cannot split on variable " ++ s ++
+            ", because let-declarations may not be defined by pattern-matching"
 
+      -- Jesper, 2018-12-19: Don't consider generalizable names since
+      -- they can be shadowed by hidden variables.
+      let kinds = List.delete GeneralizeName allKindsOfNames
+          cname = C.QName $ C.Name r C.InScope $ C.stringNameParts s
       -- Note: the range in the concrete name is only approximate.
-      resName <- resolveName $ C.QName $ C.Name r C.InScope $ C.stringNameParts s
+      resName <- resolveName' kinds Nothing cname
       case resName of
 
         -- Fail if s is a name, but not of a variable.
@@ -138,7 +145,8 @@ parseVariables f tel ii rng ss = do
             -- case the instantiation could as well be the other way
             -- around, so the new clauses will still make sense.
             (Var i [] , PatternBound) -> do
-              when (i < nlocals) __IMPOSSIBLE__
+              reportSLn "interaction.case" 30 $ "resolved variable " ++ show x ++ " = " ++ show i
+              when (i < nlocals) failCaseLet
               return (i - nlocals , C.InScope)
             (Var i [] , LambdaBound)
               | i < nlocals -> failLocal

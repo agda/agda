@@ -1,4 +1,5 @@
 -- {-# OPTIONS -v term:10 -v tc.pos:10 -v tc.decl:10 #-}
+{-# OPTIONS --guardedness #-}
 
 -- Andreas, 2018-02-26, issue #2975
 -- Problem history:

@@ -1,4 +1,4 @@
-Issue1609c.agda:4,1-1
-Issue1609c.agda:4,1: Illegal: with patterns in type signature
+Issue1609c.agda:3,9-9
+Issue1609c.agda:3,9: Illegal: with patterns in type signature
 <EOF><ERROR>
 ...

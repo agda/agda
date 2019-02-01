@@ -45,7 +45,7 @@ import Data.List (sortBy)
 import Agda.Syntax.Common
 import Agda.Syntax.Position
 import Agda.Syntax.Literal
-import Agda.Syntax.Info
+import Agda.Syntax.Info as A
 import Agda.Syntax.Internal (MetaId(..))
 import qualified Agda.Syntax.Internal as I
 import Agda.Syntax.Fixity
@@ -57,7 +57,7 @@ import Agda.Syntax.Abstract.PatternSynonyms
 import Agda.Syntax.Scope.Base
 
 import Agda.TypeChecking.Monad.State (getScope, getAllPatternSyns)
-import Agda.TypeChecking.Monad.Base  (TCM, MonadTCState(..), MonadTCEnv(..), HasOptions(..), NamedMeta(..), useTC, asksTC, modifyTCLens, stBuiltinThings, stConcreteNames, stShadowingNames, envContext, BuiltinThings , Builtin(..), pragmaOptions, isExtendedLambdaName)
+import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Monad.Options
 import Agda.TypeChecking.Monad.Builtin
@@ -205,6 +205,8 @@ unsafeQNameToName :: C.QName -> C.Name
 unsafeQNameToName = C.unqualify
 
 lookupQName :: AllowAmbiguousNames -> A.QName -> AbsToCon C.QName
+lookupQName ambCon x | Just s <- getGeneralizedFieldName x =
+  return (C.QName $ C.Name noRange C.InScope $ C.stringNameParts s)
 lookupQName ambCon x = do
   ys <- inverseScopeLookupName' ambCon x <$> asks currentScope
   lift $ reportSLn "scope.inverse" 100 $
@@ -307,7 +309,7 @@ chooseName x = lookupNameInScope (nameConcrete x) >>= \case
         InScope    -> mustAvoid
         -- If not in scope, we also rename to avoid renaming in-scope
         -- variables in the future.
-        NotInScope -> mustAvoid `Set.union` tryToAvoid'
+        C.NotInScope -> mustAvoid `Set.union` tryToAvoid'
     let shouldAvoid = (`Set.member` (taken `Set.union` toAvoid))
         y = firstNonTakenName shouldAvoid $ nameConcrete x
     reportSLn "toConcrete.bindName" 80 $ show $ vcat
@@ -410,8 +412,8 @@ withInfixDecls = foldr (.) id . map (uncurry withInfixDecl)
 withAbstractPrivate :: DefInfo -> AbsToCon [C.Declaration] -> AbsToCon [C.Declaration]
 withAbstractPrivate i m =
     priv (defAccess i)
-      . abst (defAbstract i)
-      . addInstanceB (defInstance i == InstanceDef)
+      . abst (A.defAbstract i)
+      . addInstanceB (A.defInstance i == InstanceDef)
       <$> m
     where
         priv (PrivateAccess UserWritten)
@@ -752,7 +754,7 @@ instance ToConcrete A.Expr C.Expr where
 makeDomainFree :: A.LamBinding -> A.LamBinding
 makeDomainFree b@(A.DomainFull (A.TBind _ [x] t)) =
   case unScope t of
-    A.Underscore MetaInfo{metaNumber = Nothing} ->
+    A.Underscore A.MetaInfo{metaNumber = Nothing} ->
       A.DomainFree x
     _ -> b
 makeDomainFree b = b
@@ -922,7 +924,7 @@ instance ToConcrete A.Declaration [C.Declaration] where
   toConcrete (ScopedDecl scope ds) =
     withScope scope (declsToConcrete ds)
 
-  toConcrete (Axiom _ i info mp x t) = do
+  toConcrete (A.Axiom _ i info mp x t) = do
     x' <- unsafeQNameToName <$> toConcrete x
     withAbstractPrivate i $
       withInfixDecl i x'  $ do
@@ -945,7 +947,7 @@ instance ToConcrete A.Declaration [C.Declaration] where
     withAbstractPrivate i $
       withInfixDecl i x'  $ do
       t' <- toConcreteTop t
-      return [C.Field (defInstance i) x' t']
+      return [C.Field (A.defInstance i) x' t']
 
   toConcrete (A.Primitive i x t) = do
     x' <- unsafeQNameToName <$> toConcrete x
@@ -1091,9 +1093,9 @@ appBracketsArgs (_:_) ctx = appBrackets ctx
 newtype UserPattern a  = UserPattern a
 newtype SplitPattern a = SplitPattern a
 newtype BindingPattern = BindingPat A.Pattern
-newtype FreshName = FreshenName BindName
+newtype FreshenName = FreshenName BindName
 
-instance ToConcrete FreshName A.Name where
+instance ToConcrete FreshenName A.Name where
   bindToConcrete (FreshenName (BindName x)) ret = bindToConcrete x $ \ y -> ret x { nameConcrete = y }
 
 -- Pass 1: (Issue #2729)
@@ -1107,7 +1109,7 @@ instance ToConcrete (UserPattern A.Pattern) A.Pattern where
         let x = unBind bx
         case isInScope x of
           InScope            -> bindName' x $ ret $ A.VarP bx
-          NotInScope         -> bindName x $ \y ->
+          C.NotInScope       -> bindName x $ \y ->
                                 ret $ A.VarP $ BindName $ x { nameConcrete = y }
       A.WildP{}              -> ret p
       A.ProjP{}              -> ret p

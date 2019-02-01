@@ -1,17 +1,52 @@
 Release notes for Agda version 2.6.0
 ====================================
 
-Installation and infrastructure
---------------------------------
+Syntax
+------
 
-* Added support for GHC 8.6.3.
+* The rules for parsing of patterns have changed slightly [Issue
+  [#3400](https://github.com/agda/agda/issues/3400)].
 
-* Generated the interface file for the `Sigma.agda` built-in when
-  installing Agda
-  [Issue [#3128](https://github.com/agda/agda/issues/3128)].
+  Now projections are treated similarly to constructors: In a pattern
+  name parts coming from projections can only be used as part of
+  projections, constructors or pattern synonyms. They cannot be used
+  as variables, or as part of the name of the defined value.
 
-Type checking and interaction
------------------------------
+  Examples:
+
+  * The following code used to be syntactically ambiguous, but is now
+    parsed, because A can no longer be used as a variable:
+    ```agda
+    record R : Set₂ where
+      field
+        _A : Set₁
+
+    open R
+
+    r : R
+    r A = Set
+    ```
+
+  * On the other hand the following code is no longer parsed:
+    ```agda
+    record R : Set₁ where
+      field
+        ⟨_+_⟩ : Set
+
+    open R
+
+    + : Set → Set
+    + A = A
+    ```
+
+    This is similar to how the following code is not parsed:
+    ```agda
+    data D : Set₁ where
+      ⟨_+_⟩ : D
+
+    + : Set → Set
+    + A = A
+    ```
 
 * Agda now supports implicit generalization of declared variables
   [Issue [#1706](https://github.com/agda/agda/issues/1706)].
@@ -70,7 +105,7 @@ Type checking and interaction
   The following rules are used to place the generalized variables:
 
     - Generalized variables are placed in the front of the type signatures.
-    - Variables defined sooner are placed before variables defined later.
+    - Variables mentioned earlier are placed before variables mentioned later.
       (The dependencies between the variables are obeyed. The current implementation
       uses "smallest-numbered available vertex first" topological sorting to determine
       the exact order.)
@@ -82,7 +117,7 @@ Type checking and interaction
         Con : Set
         Ty  : Con → Set
         Sub : Con → Con → Set
-        _▹_ : (Γ : Con) → Ty Γ → Con
+        _,_ : (Γ : Con) → Ty Γ → Con
 
     variable
         Γ Δ : Con
@@ -91,7 +126,7 @@ Type checking and interaction
     postulate
         π₁ : Sub Γ (Δ ▹ A) → Sub Γ Δ
     --  -- equivalent to
-    --  π₁ : {Γ Δ : Con}{A : Ty Δ} → Sub Γ (Δ ▹ A) → Sub Γ Δ
+    --  π₁ : {Γ Δ : Con}{A : Ty Δ} → Sub Γ (Δ , A) → Sub Γ Δ
     --  -- note that the metavariable was solved with Δ
   ```
   Note that each type signature has a separate copy of such metavariables,
@@ -196,6 +231,134 @@ Type checking and interaction
     const x _ = x
   ```
 
+Type checking
+-------------
+
+* Since Agda 2.5.3, the hiding is considered part of the name in the
+  insertion of implicit arguments.  Until Agda 2.5.2, the following
+  code was rejected:
+  ```agda
+    test : {{X : Set}} {X : Set} → Set
+    test {X = X} = X
+  ```
+  The rationale was that named argument `X` is given with the wrong hiding.
+  The new rationale is that the hiding is considered part of the name,
+  distinguishing `{{X}}` from `{X}`.
+  This language change was accidential and has not been documented in
+  the 2.5.3 release notes.
+
+* Agda now allows omitting absurd clauses in case one of the pattern
+  variable inhabits an obviously empty type
+  [Issue [#1086](https://github.com/agda/agda/issues/1086)].
+  For example:
+  ```agda
+  f : Fin 1 → Nat
+  f zero = 0
+  -- f (suc ())   -- this clause is no longer required
+  ```
+  Absurd clauses are still required in case deep pattern matching is
+  needed to expose the absurd variable, or if there are no non-absurd
+  clauses.
+
+* Agda no longer allows case splitting on irrelevant arguments of
+  record types (see Issue
+  [#3056](https://github.com/agda/agda/issues/3056)).
+
+* Metavariables in module telescopes are now sometimes frozen later
+  [Issue [#1063](https://github.com/agda/agda/issues/1063)].
+
+  Metavariables created in the types of module parameters used to be
+  frozen right after the module's first mutual block had been
+  type-checked (unless, perhaps, if the module itself was contained in
+  a mutual block). Now they are instead frozen at the end of the
+  module (with a similar caveat regarding an outer mutual block).
+
+* When `--without-K` is enabled, Agda no longer allows datatypes with
+  large indices. For example, the following definition of equality is
+  now forbidden when `--without-K` is enabled:
+  ```agda
+    data _≡₀_ {ℓ} {A : Set ℓ} (x : A) : A → Set where
+      refl : x ≡₀ x
+  ```
+
+* The termination checker now also looks for recursive calls in the type of definitions.
+  This fixes an issue where Agda allowed very dependent types
+  [Issue [#1556](https://github.com/agda/agda/issues/1556)].
+
+  This change affects induction-induction, e.g.
+  ```agda
+    mutual
+      data Cxt : Set where
+        ε    :  Cxt
+        _,_  :  (Γ : Cxt) (A : Ty Γ) → Cxt
+
+      data Ty : (Γ : Cxt) → Set where
+        u  :  ∀ Γ → Ty Γ
+        Π  :  ∀ Γ (A : Ty Γ) (B : Ty (Γ , A)) → Ty Γ
+
+    mutual
+      f : Cxt → Cxt
+      f ε        =  ε
+      f (Γ , T)  =  (f Γ , g Γ T)
+
+      g : ∀ Γ → Ty Γ → Ty (f Γ)
+      g Γ (u .Γ)      =  u (f Γ)
+      g Γ (Π .Γ A B)  =  Π (f Γ) (g Γ A) (g (Γ , A) B)
+
+  ```
+  The type of `g` contains a call `g Γ _ --> f Γ` which is now taken
+  into account during termination checking.
+
+Instance search
+---------------
+
+* Instance argument resolution now also applies when there are
+  unconstrained metavariables in the type of the argument. For
+  example, if there is a single instance `eqBool : Eq Bool` in scope,
+  then an instance argument `{{eq : Eq _}}` will be solved to
+  `eqBool`, setting the value of the metavariable `_` to `Bool` in the
+  process.
+
+* By default, Agda no longer allows overlapping instances. Two
+  instances are defined to overlap if they could both solve the
+  instance goal when given appropriate solutions for their recursive
+  (instance) arguments. Agda used to choose between undecidable
+  instances based on the result of recursive instance search, but this
+  lead to an exponential slowdown in instance resolution.
+
+* Explicit arguments are no longer automatically turned into instance
+  arguments for the purpose of recursive instance search. Instead,
+  explicit arguments are left unresolved and will thus never be used.
+
+* Instance arguments that are already solved by conversion checking
+  are no longer ignored by instance search. Thus the constructor of
+  the unit type must now be explicitly be declared as an instance in
+  order to be considered by instance search:
+  ```agda
+    record ⊤ : Set where
+      instance constructor tt
+  ```
+
+* Instances are now (correctly) required to be in scope to be eligible
+  (see Issue [#1913](https://github.com/agda/agda/issues/1913)
+   and Issue [#2489](https://github.com/agda/agda/issues/2489)
+  ).
+  This means that you can no longer import instances from parameterised modules by
+  ```agda
+    import Some.Module Arg₁ Arg2
+  ```
+  without opening or naming the module.
+
+Interaction and error reporting
+-------------------------------
+
+* A new command `agda2-elaborate-give` (C-c C-m) normalizes a goal input
+  (it repects the C-u prefixes), type checks, and inserts the normalized
+  term into the goal.
+
+* 'Solve constraints' (C-c C-s) now turns unsolved metavariables into new
+  interaction holes (see Issue [#2273](https://github.com/agda/agda/issues/2273)).
+
 * Out-of-scope identifiers are no longer prefixed by a '.' dot [Issue
   [#3127](https://github.com/agda/agda/issues/3127)].  This notation
   could be confused with dot patterns, postfix projections, and
@@ -242,187 +405,30 @@ Type checking and interaction
     A : Set
   ```
 
-* Agda now allows omitting absurd clauses in case one of the pattern
-  variable inhabits an obviously empty type
-  [Issue [#1086](https://github.com/agda/agda/issues/1086)].
-  For example:
-  ```agda
-  f : Fin 1 → Nat
-  f zero = 0
-  -- f (suc ())   -- this clause is no longer required
-  ```
-  Absurd clauses are still required in case deep pattern matching is
-  needed to expose the absurd variable, or if there are no non-absurd
-  clauses.
-
-* The termination checker now also looks for recursive calls in the type of definitions.
-  This fixes an issue where Agda allowed very dependent types
-  [Issue [#1556](https://github.com/agda/agda/issues/1556)].
-
-  This change affects induction-induction, e.g.
-  ```agda
-    mutual
-      data Cxt : Set where
-        ε    :  Cxt
-        _,_  :  (Γ : Cxt) (A : Ty Γ) → Cxt
-
-      data Ty : (Γ : Cxt) → Set where
-        u  :  ∀ Γ → Ty Γ
-        Π  :  ∀ Γ (A : Ty Γ) (B : Ty (Γ , A)) → Ty Γ
-
-    mutual
-      f : Cxt → Cxt
-      f ε        =  ε
-      f (Γ , T)  =  (f Γ , g Γ T)
-
-      g : ∀ Γ → Ty Γ → Ty (f Γ)
-      g Γ (u .Γ)      =  u (f Γ)
-      g Γ (Π .Γ A B)  =  Π (f Γ) (g Γ A) (g (Γ , A) B)
-
-  ```
-  The type of `g` contains a call `g Γ _ --> f Γ` which is now taken
-  into account during termination checking.
-
-* Agda no longer allows case splitting on irrelevant arguments of
-  record types (see Issue
-  [#3056](https://github.com/agda/agda/issues/3056)).
-
-* 'Solve constraints' (C-c C-s) now turns unsolved metavariables into new
-  interaction holes (see Issue [#2273](https://github.com/agda/agda/issues/2273)).
-
-* A new command `agda2-elaborate-give` (C-c C-m) normalizes a goal input
-  (it repects the C-u prefixes), type checks, and inserts the normalized
-  term into the goal.
-
-* Instance argument resolution now also applies when there are
-  unconstrained metavariables in the type of the argument. For
-  example, if there is a single instance `eqBool : Eq Bool` in scope,
-  then an instance argument `{{eq : Eq _}}` will be solved to
-  `eqBool`, setting the value of the metavariable `_` to `Bool` in the
-  process.
-
-* By default, Agda no longer allows overlapping instances. Two
-  instances are defined to overlap if they could both solve the
-  instance goal when given appropriate solutions for their recursive
-  (instance) arguments. Agda used to choose between undecidable
-  instances based on the result of recursive instance search, but this
-  lead to an exponential slowdown in instance resolution.
-
-* Explicit arguments are no longer automatically turned into instance
-  arguments for the purpose of recursive instance search. Instead,
-  explicit arguments are left unresolved and will thus never be used.
-
-* Instance arguments that are already solved by conversion checking
-  are no longer ignored by instance search. Thus the constructor of
-  the unit type must now be explicitly be declared as an instance in
-  order to be considered by instance search:
-  ```agda
-    record ⊤ : Set where
-      instance constructor tt
-  ```
-
-* Instances are now (correctly) required to be in scope to be eligible
-  (see Issue [#1913](https://github.com/agda/agda/issues/1913)
-   and Issue [#2489](https://github.com/agda/agda/issues/2489)
-  ).
-  This means that you can no longer import instances from parameterised modules by
-  ```agda
-    import Some.Module Arg₁ Arg2
-  ```
-  without opening or naming the module.
-
-* Metavariables in module telescopes are now sometimes frozen later
-  [Issue [#1063](https://github.com/agda/agda/issues/1063)].
-
-  Metavariables created in the types of module parameters used to be
-  frozen right after the module's first mutual block had been
-  type-checked (unless, perhaps, if the module itself was contained in
-  a mutual block). Now they are instead frozen at the end of the
-  module (with a similar caveat regarding an outer mutual block).
-
-* When `--without-K` is enabled, Agda no longer allows datatypes with
-  large indices. For example, the following definition of equality is
-  now forbidden when `--without-K` is enabled:
-  ```agda
-    data _≡₀_ {ℓ} {A : Set ℓ} (x : A) : A → Set where
-      refl : x ≡₀ x
-  ```
-
 Pragmas and options
 -------------------
 
-* New builtin `SETOMEGA`.
+* New options `--guardedness` and `--no-guardedness` [Issue
+  [#1209](https://github.com/agda/agda/issues/1209)].
 
-  Agda's top sort `Setω` is now defined as a builtin in `Agda.Primitive`
-  and can be renamed when importing that module.
+  Constructor-based guarded corecursion is now only (meant to be)
+  allowed if the `--guardedness` option is active. This option is
+  active by default. The combination of constructor-based guarded
+  corecursion and sized types is not allowed if `--safe` is used,
+  and activating `--safe` turns off both `--guardedness` and
+  `--sized-types` (because this combination is known to be
+  inconsistent in the current implementation). If you want to use
+  either constructor-based guarded corecursion or sized types in
+  safe mode, then you can use `--safe --guardedness` or `--safe
+  --sized-types` respectively (in this order).
 
-* New option `--omega-in-omega`.
-
-  The option `--omega-in-omega` enables the typing rule `Setω : Setω`.
-  Example:
-  ```agda
-  {-# OPTIONS --omega-in-omega #-}
-  open import Agda.Primitive
-
-  data Type : Setω where
-    el : ∀ {ℓ} → Set ℓ → Type
-  ```
-  Like `--type-in-type`, this makes Agda inconsistent. However, code
-  written using `--omega-in-omega` is still compatible with normal
-  universe-polymorphic code and can be used in such files.
-
-* New option `--html-highlight=[code,all,auto]`.
-
-  The option `--html-highlight=code` makes the HTML-backend generate
-  files with:
-
-  0. No HTML footer/header
-  1. Agda codes highlighted
-  2. Non-Agda code parts as-is
-  3. Output file extension as-is (i.e. `.lagda.md` becomes `.md`)
-  4. For ReStructuredText, a `.. raw:: html\n` will be inserted
-     before every code blocks
-
-  This makes it possible to use an ordinary Markdown/ReStructuredText
-  processor to render the generated HTML.
-
-  This will affect all the files involved in one compilation, making
-  pure Agda code files rendered without HTML footer/header as well.
-  To use `code` with literate Agda files and `all` with pure Agda
-  files, use `--html-highlight=auto`, which means auto-detection.
-
-  The old and default behaviour is still `--html-highlight=all`.
+  The option `--no-guardedness` turns off constructor-based guarded
+  corecursion.
 
 * Option `--irrelevant-projections` is now off by default and
   not considered `--safe` any longer.
   Reason: There are consistency issues that may be systemic
   [Issue [#2170](https://github.com/agda/agda/issues/2170)].
-
-* Option `--prop` enables the `Prop` universe but is off by default.
-  Option `--no-prop` disables the `Prop` universe.
-
-  In the absense of `Prop`, the sort `Set` is the lowest sort,
-  thus, sort annotation `: Set` can be ommitted if the sort
-  is constrained to be weakly below `Set`.  For instance:
-  ```agda
-  {-# OPTIONS --no-prop #-}
-
-  data Wrap A : Set where
-    wrap : A → Wrap A
-  ```
-
-* New pragma `{-# NO_UNIVERSE_CHECK #-}`.
-
-  The pragma `{-# NO_UNIVERSE_CHECK #-}` can be put in front of a data
-  or record type to disable universe consistency checking locally.
-  Example:
-  ```agda
-    {-# NO_UNIVERSE_CHECK #-}
-    data U : Set where
-      el : Set → U
-  ```
-  Like the similar pragmas for disabling termination and positivity
-  checking, `{-# NO_UNIVERSE_CHECK #-}` cannot be used with `--safe`.
 
 * New option `--no-syntactic-equality`.
 
@@ -477,6 +483,68 @@ Pragmas and options
 * New primitives `primCharToNatInjective` and `primStringToListInjective`
   internalising the fact that `primCharToNat` and `primStringtoList` are
   injective functions.
+
+* Consistency checking of options used.
+
+  Agda now checks that options used in imported modules are consistent
+  with each other, e.g. a module using `--safe`, `--without-K`,
+  `--no-universe-polymorphism` or `--no-sized-types` may only import
+  modules with the same option, and modules using `--cubical` or
+  `--prop` must in turn use the same option. If an interface file has
+  been generated using different options compared to the current ones,
+  Agda will now re-typecheck the file.
+  [Issue [#2487](https://github.com/agda/agda/issues/2487)].
+
+* The option `--only-scope-checking` is now allowed together with `--safe`.
+
+Pragmas and options concerning universes
+----------------------------------------
+
+* New pragma `{-# NO_UNIVERSE_CHECK #-}`.
+
+  The pragma `{-# NO_UNIVERSE_CHECK #-}` can be put in front of a data
+  or record type to disable universe consistency checking locally.
+  Example:
+  ```agda
+    {-# NO_UNIVERSE_CHECK #-}
+    data U : Set where
+      el : Set → U
+  ```
+  Like the similar pragmas for disabling termination and positivity
+  checking, `{-# NO_UNIVERSE_CHECK #-}` cannot be used with `--safe`.
+
+* New builtin `SETOMEGA`.
+
+  Agda's top sort `Setω` is now defined as a builtin in `Agda.Primitive`
+  and can be renamed when importing that module.
+
+* New option `--omega-in-omega`.
+
+  The option `--omega-in-omega` enables the typing rule `Setω : Setω`.
+  Example:
+  ```agda
+  {-# OPTIONS --omega-in-omega #-}
+  open import Agda.Primitive
+
+  data Type : Setω where
+    el : ∀ {ℓ} → Set ℓ → Type
+  ```
+  Like `--type-in-type`, this makes Agda inconsistent. However, code
+  written using `--omega-in-omega` is still compatible with normal
+  universe-polymorphic code and can be used in such files.
+
+* Option `--prop` enables the `Prop` universe but is off by default.
+  Option `--no-prop` disables the `Prop` universe.
+
+  In the absense of `Prop`, the sort `Set` is the lowest sort,
+  thus, sort annotation `: Set` can be ommitted if the sort
+  is constrained to be weakly below `Set`.  For instance:
+  ```agda
+  {-# OPTIONS --no-prop #-}
+
+  data Wrap A : Set where
+    wrap : A → Wrap A
+  ```
 
 Emacs mode
 ----------
@@ -568,6 +636,31 @@ LaTeX backend
 * The default value of `\AgdaEmptySkip` has been changed from
   `\baselineskip` to `\abovedisplayskip`. This could mean that less
   vertical space is used to render empty lines in code blocks.
+
+HTML backend
+------------
+
+* New option `--html-highlight=[code,all,auto]`.
+
+  The option `--html-highlight=code` makes the HTML-backend generate
+  files with:
+
+  0. No HTML footer/header
+  1. Agda codes highlighted
+  2. Non-Agda code parts as-is
+  3. Output file extension as-is (i.e. `.lagda.md` becomes `.md`)
+  4. For ReStructuredText, a `.. raw:: html\n` will be inserted
+     before every code blocks
+
+  This makes it possible to use an ordinary Markdown/ReStructuredText
+  processor to render the generated HTML.
+
+  This will affect all the files involved in one compilation, making
+  pure Agda code files rendered without HTML footer/header as well.
+  To use `code` with literate Agda files and `all` with pure Agda
+  files, use `--html-highlight=auto`, which means auto-detection.
+
+  The old and default behaviour is still `--html-highlight=all`.
 
 Release notes for Agda version 2.5.4.2
 ======================================
@@ -945,6 +1038,18 @@ Language
   This can be used to declare new postulates. The Visibility of the
   Arg must not be hidden. This feature fails when executed with
   `--safe` flag from command-line.
+
+* The procedure `noConstraints` has also been made available [Issue
+  [#2351](https://github.com/agda/agda/issues/2351)]:
+
+  ```agda
+    noConstraints : ∀ {a} {A : Set a} → TC A → TC A
+  ```
+
+  The computation `noConstraints m` fails if `m` gives rise to new,
+  unsolved
+  ["blocking"](https://github.com/agda/agda/blob/4900ef5fc61776381f3a5e9c94ef776375e9e1f1/src/full/Agda/TypeChecking/Monad/Constraints.hs#L160-L174)
+  constraints.
 
 Pragmas and options
 -------------------

@@ -50,7 +50,7 @@ instance (NamesIn a, NamesIn b, NamesIn c) => NamesIn (a, b, c) where
   namesIn (x, y, z) = namesIn (x, (y, z))
 
 instance NamesIn CompKit where
-  namesIn (CompKit a b c) = namesIn (a,b,c)
+  namesIn (CompKit a b) = namesIn (a,b)
 
 -- Andreas, 2017-07-27
 -- In the following clauses, the choice of fields is not obvious

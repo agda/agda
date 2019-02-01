@@ -349,17 +349,17 @@ instance EmbPrj Agda.Syntax.Fixity.Fixity' where
   value = valueN (\ f n -> Fixity' f n noRange)
 
 instance EmbPrj GenPart where
-  icod_ (BindHole a)   = icodeN 0 BindHole a
-  icod_ (NormalHole a) = icodeN 1 NormalHole a
-  icod_ (WildHole a)   = icodeN 2 WildHole a
-  icod_ (IdPart a)     = icodeN' IdPart a
+  icod_ (BindHole a b)   = icodeN 0 BindHole a b
+  icod_ (NormalHole a b) = icodeN 1 NormalHole a b
+  icod_ (WildHole a)     = icodeN 2 WildHole a
+  icod_ (IdPart a)       = icodeN' IdPart a
 
   value = vcase valu where
-    valu [0, a] = valuN BindHole a
-    valu [1, a] = valuN NormalHole a
-    valu [2, a] = valuN WildHole a
-    valu [a]    = valuN IdPart a
-    valu _      = malformed
+    valu [0, a, b] = valuN BindHole a b
+    valu [1, a, b] = valuN NormalHole a b
+    valu [2, a]    = valuN WildHole a
+    valu [a]       = valuN IdPart a
+    valu _         = malformed
 
 instance EmbPrj MetaId where
   icod_ (MetaId n) = icod_ n

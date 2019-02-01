@@ -1,3 +1,4 @@
+{-# OPTIONS --without-K #-}
 module Common.Bool where
 
 open import Agda.Builtin.Bool public

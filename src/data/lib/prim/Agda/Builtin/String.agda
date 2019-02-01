@@ -1,4 +1,4 @@
-{-# OPTIONS --without-K #-}
+{-# OPTIONS --without-K --safe --no-sized-types --no-guardedness #-}
 
 module Agda.Builtin.String where
 
@@ -7,6 +7,7 @@ open import Agda.Builtin.List
 open import Agda.Builtin.Char
 open import Agda.Builtin.Equality
 
+postulate String : Set
 {-# BUILTIN STRING String #-}
 
 primitive

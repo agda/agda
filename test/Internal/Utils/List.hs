@@ -18,6 +18,8 @@ prop_last2 a b as = last2 (a:b:as) == toPair (drop (length as) $ a:b:as)
   toPair [x,y] = Just (x,y)
   toPair _     = Nothing
 
+prop_dropEnd n as = dropEnd n as == reverse (drop n (reverse as))
+
 -- Trivial:
 -- prop_initLast_nil       = initLast [] == Nothing
 
@@ -33,8 +35,18 @@ prop_updateLast f as = updateLast f as == spec_updateLast f as
 spec_updateAt n f as = let (bs, cs) = splitAt n as in bs ++ updateHead f cs
 prop_updateAt (NonNegative n) f as = updateAt n f as == spec_updateAt n f as
 
+prop_spanEnd_split   p xs = let (ys, zs) = spanEnd p xs in xs == ys ++ zs
+prop_spanEnd_holds   p xs = let (ys, zs) = spanEnd p xs in all p zs
+prop_spanEnd_maximal p xs = let (ys, zs) = spanEnd p xs in maybe True (not . p) (lastMaybe ys)
+
 prop_mapMaybeAndRest_Nothing as = mapMaybeAndRest (const Nothing) as == ([] :: [Int],as)
 prop_mapMaybeAndRest_Just    as = mapMaybeAndRest Just            as == (as,[])
+
+prop_stripSuffix_sound    suf xs  = maybe True (\ pre -> xs == pre ++ suf) $ stripSuffix suf xs
+prop_stripSuffix_complete pre suf = stripSuffix suf (pre ++ suf) == Just pre
+
+prop_stripReversedSuffix_sound    rsuf xs  = maybe True (\ pre -> xs == pre ++ reverse rsuf) $ stripReversedSuffix rsuf xs
+prop_stripReversedSuffix_complete pre rsuf = stripReversedSuffix rsuf (pre ++ reverse rsuf) == Just pre
 
 prop_chop_intercalate :: Property
 prop_chop_intercalate =

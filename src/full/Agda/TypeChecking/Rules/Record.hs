@@ -35,7 +35,7 @@ import Agda.TypeChecking.CompiledClause (hasProjectionPatterns)
 import Agda.TypeChecking.CompiledClause.Compile
 
 import Agda.TypeChecking.Rules.Data ( getGeneralizedParameters, bindGeneralizedParameters, bindParameters, fitsIn, forceSort,
-                                      defineCompData, defineCompForFields, defineTranspForFields, defineHCompForFields )
+                                      defineCompData, defineTranspForFields, defineHCompForFields )
 import Agda.TypeChecking.Rules.Term ( isType_ )
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Decl (checkDecl)
 
@@ -377,12 +377,10 @@ defineCompKitR name params fsT fns rect = do
   reportSDoc "tc.rec.cxt" 30 $ text $ show rect
   sortsOk <- allM (rect : map unDom (flattenTel fsT)) sortOk
   if not $ sortsOk && all isJust required then return $ emptyCompKit else do
-    comp   <- whenDefined [builtinComp]               (defineCompR name params fsT fns rect)
     transp <- whenDefined [builtinTrans]              (defineTranspOrHCompR DoTransp name params fsT fns rect)
     hcomp  <- whenDefined [builtinTrans,builtinHComp] (defineTranspOrHCompR DoHComp name params fsT fns rect)
     return $ CompKit
-      { nameOfComp = comp
-      , nameOfTransp = transp
+      { nameOfTransp = transp
       , nameOfHComp  = hcomp
       }
   where
@@ -394,84 +392,6 @@ defineCompKitR name params fsT fns rect = do
       Type{} -> return True
       _      -> return False
 
-
-defineCompR ::
-  QName          -- ^ some name, e.g. record name
-  -> Telescope   -- ^ param types Δ
-  -> Telescope   -- ^ fields' types Δ ⊢ Φ
-  -> [Arg QName] -- ^ fields' names
-  -> Type        -- ^ record type Δ ⊢ T
-  -> TCM (Maybe QName)
-defineCompR name params fsT fns rect = do
-  (compName, gamma, rtype, clause_types, bodies) <-
-    defineCompForFields (\ t fn -> t `applyE` [Proj ProjSystem fn]) name params fsT fns rect
-  -- phi = 1 clause
-  c' <- do
-           io <- primIOne
-           Just io_name <- getBuiltinName' builtinIOne
-           one <- primItIsOne
-           tInterval <- elInf primInterval
-           let
-              -- CompRArgs = phi : I, u : ..; a0 : ..
-              -- Γ = Δ^I , CompRArgs
-              -- pats = ... | phi = i1
-              -- body = u i1 itIsOne
-              ix = 2
-              p = ConP (ConHead io_name Inductive [])
-                       (noConPatternInfo { conPType = Just (Arg defaultArgInfo tInterval)
-                                      , conPFallThrough = True })
-                         []
-              rhs = Var 1 [] `apply` [argN io, argN one]
-
-              -- gamma, rtype
-
-              s = singletonS ix p
-
-              pats :: [NamedArg DeBruijnPattern]
-              pats = s `applySubst` teleNamedArgs gamma
-
-              t :: Type
-              t = s `applyPatSubst` rtype
-
-              gamma' :: Telescope
-              gamma' = unflattenTel (ns0 ++ ns1) $ s `applyPatSubst` (g0 ++ g1)
-               where
-                (g0,_:g1) = splitAt (size gamma - 1 - ix) $ flattenTel gamma
-                (ns0,_:ns1) = splitAt (size gamma - 1 - ix) $ teleNames gamma
-
-              c = Clause { clauseTel       = gamma'
-                         , clauseType      = Just $ argN t
-                         , namedClausePats = pats
-                         , clauseFullRange = noRange
-                         , clauseLHSRange  = noRange
-                         , clauseCatchall  = False
-                         , clauseBody      = Just $ rhs
-                         , clauseUnreachable = Just False
-                         }
-           reportSDoc "comp.rec.face" 17 $ text $ show c
-           return c
-  cs <- flip mapM (zip3 fns clause_types bodies) $ \ (fname, clause_ty, body) -> do
-          let
-              pats = teleNamedArgs gamma ++ [defaultNamedArg $ ProjP ProjSystem $ unArg fname]
-              c = Clause { clauseTel       = gamma
-                         , clauseType      = Just $ argN (unDom clause_ty)
-                         , namedClausePats = pats
-                         , clauseFullRange = noRange
-                         , clauseLHSRange  = noRange
-                         , clauseCatchall  = False
-                         , clauseBody      = Just body
-                         , clauseUnreachable = Just False
-                         }
-          reportSDoc "comp.rec" 17 $ text $ show c
---          reportSDoc "comp.rec" 10 $ text $ show (clauseType c)
-          reportSDoc "comp.rec" 15 $ prettyTCM $ abstract gamma (unDom clause_ty)
---          reportSDoc "comp.rec" 10 $ prettyTCM (clauseBody c)
-          return c
-  addClauses compName $ c' : cs
-  reportSDoc "comp.rec" 15 $ text $ "compiling clauses for " ++ show compName
-  setCompiledClauses compName =<< inTopContext (compileClauses Nothing cs)
-  reportSDoc "comp.rec" 15 $ text $ "compiled"
-  return $ Just compName
 
 defineTranspOrHCompR ::
   TranspOrHComp

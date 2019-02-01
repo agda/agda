@@ -1,3 +1,5 @@
+{-# OPTIONS --guardedness #-}
+
 open import Agda.Builtin.Char
 open import Agda.Builtin.Coinduction
 open import Agda.Builtin.IO

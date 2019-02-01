@@ -1,3 +1,4 @@
+{-# OPTIONS --guardedness #-}
 -- {-# OPTIONS -v term:30 #-}
 -- 2010-10-14
 module ProjectionsPreserveGuardednessTrivialExample where

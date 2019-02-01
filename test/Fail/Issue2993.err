@@ -1,15 +1,5 @@
 Failed to solve the following constraints:
   Resolve instance argument
-    _AF_165
-      : {n = n₁ : Nat} {F : Set → Set} {A B : Set}
-        ⦃ AF : Applicative F ⦄ →
-        Applicative (λ v → _F_166 v)
-  Candidates
-    AF₁ : Applicative F₁
-    applicativeComp :
-      {F G : Set → Set} ⦃ _ : Applicative F ⦄ ⦃ _ : Applicative G ⦄ →
-      Applicative ((λ {a} → F) o G)
-  Resolve instance argument
     _AF_153
       : {n = n₂ : Nat} {n = n₃ : Nat} {F = F₁ : Set → Set}
         {A = A₁ : Set} {B = B₁ : Set} ⦃ AF = AF₁ : Applicative F₁ ⦄
@@ -21,6 +11,16 @@ Failed to solve the following constraints:
       {F = F₁ : Set → Set} {G : Set → Set} ⦃ _ : Applicative F₁ ⦄
       ⦃ _ : Applicative G ⦄ →
       Applicative ((λ {a} → F₁) o G)
+  Resolve instance argument
+    _AF_165
+      : {n = n₁ : Nat} {F : Set → Set} {A B : Set}
+        ⦃ AF : Applicative F ⦄ →
+        Applicative (λ v → _F_166 v)
+  Candidates
+    AF₁ : Applicative F₁
+    applicativeComp :
+      {F G : Set → Set} ⦃ _ : Applicative F ⦄ ⦃ _ : Applicative G ⦄ →
+      Applicative ((λ {a} → F) o G)
   _167 := λ {n} {F} {A} {B} ⦃ AF ⦄ → vtr [blocked on problem 242]
   [242, 243] F₁ B₁ =< _F_166 _B_164 : Set
   [242] _F_166 (Vec _B_164 n) =< F₁ (Vec B₁ n) : Set

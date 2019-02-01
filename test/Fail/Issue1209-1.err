@@ -1,0 +1,6 @@
+Issue1209-1.agda:22,1-24,15
+Termination checking failed for the following functions:
+  inh
+Problematic calls:
+  inh
+    (at Issue1209-1.agda:23,19-22)

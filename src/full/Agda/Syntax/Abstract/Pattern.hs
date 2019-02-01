@@ -298,9 +298,7 @@ instance IsWithP (Pattern' e) where
 
 -- | Split patterns into (patterns, trailing with-patterns).
 splitOffTrailingWithPatterns :: A.Patterns -> (A.Patterns, A.Patterns)
-splitOffTrailingWithPatterns ps = (reverse rps, reverse rwps)
-  where
-  (rwps, rps) = span (isJust . isWithP) $ reverse ps
+splitOffTrailingWithPatterns = spanEnd (isJust . isWithP)
 
 -- | Get the tail of with-patterns of a pattern spine.
 trailingWithPatterns :: Patterns -> Patterns

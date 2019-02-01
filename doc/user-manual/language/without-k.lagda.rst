@@ -1,5 +1,7 @@
 ..
   ::
+  {-# OPTIONS --guardedness #-}
+
   module language.without-k where
   open import Agda.Builtin.Equality
   open import Agda.Builtin.Coinduction

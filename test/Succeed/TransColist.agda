@@ -1,7 +1,7 @@
 -- Andreas, 2011-09-13, shrunk from Data.Colist
 -- {-# OPTIONS -v tc.lhs.unify:15 #-}
 
-{-# OPTIONS --universe-polymorphism #-}
+{-# OPTIONS --guardedness #-}
 
 module TransColist where
 
@@ -58,4 +58,3 @@ trans : -- forall {a}{A : Set a}
 trans : Transitive (_≈_ {A = A})
 trans []        []         = []
 trans (x ∷ xs≈) (.x ∷ ys≈) = x ∷ ♯ trans (♭ xs≈) (♭ ys≈)
-

@@ -1,4 +1,4 @@
-{-# OPTIONS --copatterns #-}
+{-# OPTIONS --guardedness #-}
 
 -- 2013-05-30 Andreas, Oury's counterexample to subject reduction in Coq
 -- 2014-11-04 Andreas: simplified (removed force)
@@ -26,4 +26,3 @@ eq (inn y) = refl
 equ : u ≡ inn u
 equ = eq u
 -- normalizes to refl, which does not have type u ≡ inn u
-

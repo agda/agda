@@ -25,6 +25,11 @@ module Primitive where
     pos    : Nat → Int
     negsuc : Nat → Int
 
+  postulate
+    String : Set
+    Float  : Set
+    Char   : Set
+
   {-# BUILTIN NATURAL Nat    #-}
   {-# BUILTIN INTEGER Int    #-}
   {-# BUILTIN INTEGERPOS pos #-}

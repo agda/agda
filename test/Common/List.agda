@@ -1,3 +1,4 @@
+{-# OPTIONS --without-K #-}
 module Common.List where
 
 open import Agda.Builtin.List public

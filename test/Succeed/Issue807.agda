@@ -1,5 +1,7 @@
 -- {-# OPTIONS -v term:20 -v tc.term:20  #-}
 -- {-# OPTIONS -v tc.def.alias:100 -v tc.term.expr.coind:100 #-}
+{-# OPTIONS --guardedness #-}
+
 module Issue807 where
 
 open import Common.Coinduction

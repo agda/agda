@@ -181,7 +181,13 @@ isType_ e = traceCall (IsType_ e) $ do
       -- We assume the meta variable use here is in an extension of the original context.
       -- If not we revert to the old buggy behavior of #707 (see test/Succeed/Issue2257b).
       if (length vs /= n) then fallback else do
-      s1  <- piApplyM s0 vs
+      s1  <- reduce =<< piApplyM s0 vs
+      reportSDoc "tc.ip" 20 $ vcat
+        [ "  s1   = " <+> prettyTCM s1
+        ]
+      reportSDoc "tc.ip" 70 $ vcat
+        [ "  s1   = " <+> text (show s1)
+        ]
       case unEl s1 of
         Sort s -> return $ El s $ MetaV x $ map Apply vs
         _ -> __IMPOSSIBLE__
@@ -984,16 +990,9 @@ checkExpr' cmp e t0 =
           ty <- qNameType
           coerce cmp (quoteName x) ty t
 
-          | A.QuoteTerm _ <- unScope q ->
-             do (et, _)   <- inferExpr (namedThing e)
-                et'       <- etaContract =<< instantiateFull et
-                let metas = allMetas et'
-                case metas of
-                  _:_ -> postponeTypeCheckingProblem (CheckExpr cmp e0 t) $ andM $ map isInstantiatedMeta metas
-                  []  -> do
-                    q  <- quoteTerm et'
-                    ty <- el primAgdaTerm
-                    coerce cmp q ty t
+          | A.QuoteTerm _ <- unScope q -> do
+             (et, _) <- inferExpr (namedThing e)
+             doQuoteTerm cmp et t
 
         A.Quote _ -> typeError $ GenericError "quote must be applied to a defined name"
         A.QuoteTerm _ -> typeError $ GenericError "quoteTerm must be applied to a term"
@@ -1175,7 +1174,18 @@ checkExpr' cmp e t0 =
 -- * Reflection
 ---------------------------------------------------------------------------
 
--- | DOCUMENT ME!
+doQuoteTerm :: Comparison -> Term -> Type -> TCM Term
+doQuoteTerm cmp et t = do
+  et'       <- etaContract =<< instantiateFull et
+  let metas = allMetas et'
+  case metas of
+    _:_ -> postponeTypeCheckingProblem (DoQuoteTerm cmp et t) $ andM $ map isInstantiatedMeta metas
+    []  -> do
+      q  <- quoteTerm et'
+      ty <- el primAgdaTerm
+      coerce cmp q ty t
+
+-- | Checking `quoteGoal` (deprecated)
 quoteGoal :: Type -> TCM (Either [MetaId] Term)
 quoteGoal t = do
   t' <- etaContract =<< instantiateFull t
@@ -1186,7 +1196,7 @@ quoteGoal t = do
       quotedGoal <- quoteTerm (unEl t')
       return $ Right quotedGoal
 
--- | DOCUMENT ME!
+-- | Checking `quoteContext` (deprecated)
 quoteContext :: TCM (Either [MetaId] Term)
 quoteContext = do
   contextTypes  <- map (fmap snd) <$> getContext
@@ -1200,11 +1210,12 @@ quoteContext = do
 
 -- | Unquote a TCM computation in a given hole.
 unquoteM :: A.Expr -> Term -> Type -> TCM Term -> TCM Term
-unquoteM tac hole holeType k = do
-  tac <- checkExpr tac =<< (el primAgdaTerm --> el (primAgdaTCM <#> primLevelZero <@> primUnit))
+unquoteM tacA hole holeType k = do
+  tac <- checkExpr tacA =<< (el primAgdaTerm --> el (primAgdaTCM <#> primLevelZero <@> primUnit))
   inFreshModuleIfFreeParams $ unquoteTactic tac hole holeType k
 
--- | DOCUMENT ME!
+-- | Run a tactic `tac : Term → TC ⊤` in a hole (second argument) of the type
+--   given by the third argument. Runs the continuation if successful.
 unquoteTactic :: Term -> Term -> Type -> TCM Term -> TCM Term
 unquoteTactic tac hole goal k = do
   ok  <- runUnquoteM $ unquoteTCM tac hole

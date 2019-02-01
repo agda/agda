@@ -1,4 +1,4 @@
-{-# OPTIONS --without-K #-}
+{-# OPTIONS --without-K --safe --no-sized-types --no-guardedness #-}
 
 module Agda.Builtin.Char where
 
@@ -6,6 +6,7 @@ open import Agda.Builtin.Nat
 open import Agda.Builtin.Bool
 open import Agda.Builtin.Equality
 
+postulate Char : Set
 {-# BUILTIN CHAR Char #-}
 
 primitive

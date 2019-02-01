@@ -1,4 +1,4 @@
-{-# OPTIONS --universe-polymorphism #-}
+{-# OPTIONS --guardedness #-}
 module Coind where
 
 open import Common.IO

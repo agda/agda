@@ -1,4 +1,6 @@
 -- {-# OPTIONS -v tc.polarity:15 -v tc.pos:50 #-}
+{-# OPTIONS --guardedness #-}
+
 module Issue268 where
 
 module Example₁ where

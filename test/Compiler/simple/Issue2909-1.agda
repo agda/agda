@@ -1,3 +1,5 @@
+{-# OPTIONS --guardedness #-}
+
 open import Agda.Builtin.IO
 open import Agda.Builtin.Unit
 

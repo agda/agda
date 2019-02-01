@@ -1,4 +1,4 @@
-NotationDoesNotUseAllBinders.agda:7,1-1
-NotationDoesNotUseAllBinders.agda:7,1: Malformed syntax declaration: syntax must use binding holes exactly once
+NotationDoesNotUseAllBinders.agda:3,29-29
+NotationDoesNotUseAllBinders.agda:3,29: Malformed syntax declaration: syntax must use binding holes exactly once
 <EOF><ERROR>
 ...

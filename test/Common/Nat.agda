@@ -1,3 +1,4 @@
+{-# OPTIONS --without-K #-}
 module Common.Nat where
 
 open import Agda.Builtin.Nat public

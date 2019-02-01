@@ -1,4 +1,4 @@
-{-# OPTIONS --cubical #-}
+{-# OPTIONS --guardedness --cubical #-}
 
 module Issue2799 where
 

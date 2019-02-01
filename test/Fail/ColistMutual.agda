@@ -1,5 +1,5 @@
 -- {-# OPTIONS -v term:30 #-}
-{-# OPTIONS --copatterns #-}
+{-# OPTIONS --guardedness #-}
 module ColistMutual where
 
 mutual

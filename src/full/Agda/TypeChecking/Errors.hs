@@ -27,7 +27,7 @@ import Control.Monad.Reader
 import Control.Monad.State
 
 import Data.Function
-import Data.List (nub, sortBy, intersperse, isInfixOf)
+import Data.List (nub, sortBy, intersperse, isInfixOf, dropWhileEnd)
 import Data.Maybe
 import Data.Char (toLower)
 import qualified Data.Set as Set
@@ -253,6 +253,13 @@ prettyWarning wng = liftTCM $ case wng of
 
     LibraryWarning lw -> pretty lw
 
+    InfectiveImport o m -> fsep $
+      pwords "Importing module" ++ [pretty m] ++ pwords "using the" ++
+      [pretty o] ++ pwords "flag from a module which does not."
+
+    CoInfectiveImport o m -> fsep $
+      pwords "Importing module" ++ [pretty m] ++ pwords "not using the" ++
+      [pretty o] ++ pwords "flag from a module which does."
 
 prettyTCWarnings :: [TCWarning] -> TCM String
 prettyTCWarnings = fmap (unlines . intersperse "") . prettyTCWarnings'
@@ -399,6 +406,7 @@ errorString err = case err of
   NoRHSRequiresAbsurdPattern{}             -> "NoRHSRequiresAbsurdPattern"
   NoSuchBuiltinName{}                      -> "NoSuchBuiltinName"
   NoSuchModule{}                           -> "NoSuchModule"
+  DuplicatePrimitiveBinding{}              -> "DuplicatePrimitiveBinding"
   NoSuchPrimitiveFunction{}                -> "NoSuchPrimitiveFunction"
   NotAModuleExpr{}                         -> "NotAModuleExpr"
   NotAProperTerm                           -> "NotAProperTerm"
@@ -471,6 +479,7 @@ errorString err = case err of
   RelevanceMismatch{}                      -> "RelevanceMismatch"
   NonFatalErrors{}                         -> "NonFatalErrors"
   InstanceSearchDepthExhausted{}           -> "InstanceSearchDepthExhausted"
+  TriedToCopyConstrainedPrim{}             -> "TriedToCopyConstrainedPrim"
 
 instance PrettyTCM TCErr where
   prettyTCM err = case err of
@@ -849,6 +858,10 @@ instance PrettyTCM TypeError where
         pwords "No binding for builtin thing" ++ [text x <> comma] ++
         pwords ("use {-# BUILTIN " ++ x ++ " name #-} to bind it to 'name'")
 
+    DuplicatePrimitiveBinding b x y -> fsep $
+      pwords "Duplicate binding for primitive thing" ++ [text b <> comma] ++
+      pwords "previous binding to" ++ [prettyTCM x]
+
     NoSuchPrimitiveFunction x -> fsep $
       pwords "There is no primitive function called" ++ [text x]
 
@@ -1141,7 +1154,7 @@ instance PrettyTCM TypeError where
                filter (not . closedWithoutHoles) sects))
       where
       trimLeft  = dropWhile isNormalHole
-      trimRight = reverse . dropWhile isNormalHole . reverse
+      trimRight = dropWhileEnd isNormalHole
 
       closedWithoutHoles sect =
         sectKind sect == NonfixNotation
@@ -1188,7 +1201,7 @@ instance PrettyTCM TypeError where
                     (trim (notation nota))
 
         qualifyFirstIdPart _ []              = []
-        qualifyFirstIdPart q (IdPart x : ps) = IdPart (q ++ x) : ps
+        qualifyFirstIdPart q (IdPart x : ps) = IdPart (fmap (q ++) x) : ps
         qualifyFirstIdPart q (p : ps)        = p : qualifyFirstIdPart q ps
 
         trim = case sectKind sect of
@@ -1240,8 +1253,14 @@ instance PrettyTCM TypeError where
       [prettyTCM x] ++
       pwords "(at most" ++ [text (show n)] ++ pwords "allowed)."
 
-    InstanceNoCandidate t -> fsep $
-      pwords "No instance of type" ++ [prettyTCM t] ++ pwords "was found in scope."
+    InstanceNoCandidate t errs -> vcat $
+      [ fsep $ pwords "No instance of type" ++ [prettyTCM t] ++ pwords "was found in scope."
+      , vcat $ map prCand errs ]
+      where
+        prCand (term, err) =
+          text "-" <+>
+            vcat [ prettyTCM term <?> text "was ruled out because"
+                 , prettyTCM err ]
 
     UnquoteFailed e -> case e of
       BadVisibility msg arg -> fsep $
@@ -1308,6 +1327,9 @@ instance PrettyTCM TypeError where
     InstanceSearchDepthExhausted c a d -> fsep $
       pwords ("Instance search depth exhausted (max depth: " ++ show d ++ ") for candidate") ++
       [hang (prettyTCM c <+> ":") 2 (prettyTCM a)]
+
+    TriedToCopyConstrainedPrim q -> fsep $
+      pwords "Cannot create a module containing a copy of" ++ [prettyTCM q]
 
     where
     mpar n args

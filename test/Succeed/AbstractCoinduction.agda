@@ -1,9 +1,18 @@
 -- Andreas, 2016-10-03, re issue #2231
 -- Testing whether the musical coinduction works fine in abstract blocks
 
+{-# OPTIONS --guardedness #-}
+
 module AbstractCoinduction where
 
-{-# BUILTIN INFINITY ∞_  #-}
+infix 1000 ♯_
+
+postulate
+  ∞_ : ∀ {a} (A : Set a) → Set a
+  ♯_ : ∀ {a} {A : Set a} → A → ∞ A
+  ♭  : ∀ {a} {A : Set a} → ∞ A → A
+
+{-# BUILTIN INFINITY ∞_ #-}
 {-# BUILTIN SHARP    ♯_ #-}
 {-# BUILTIN FLAT     ♭  #-}
 

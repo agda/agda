@@ -1,0 +1,4 @@
+Issue3483.agda:3,1-32
+Duplicate binding for primitive thing primLevelZero, previous
+binding to lzero
+when checking the pragma BUILTIN LEVELZERO lzero

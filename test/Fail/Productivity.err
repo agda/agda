@@ -1,16 +1,16 @@
-Productivity.agda:35,3-38,68
+Productivity.agda:37,3-40,68
 Termination checking failed for the following functions:
   expr, term, factor
 Problematic calls:
   term
-    (at Productivity.agda:36,14-18)
+    (at Productivity.agda:38,14-18)
   factor
-    (at Productivity.agda:37,14-20)
+    (at Productivity.agda:39,14-20)
   Productivity.♯-9
-    (at Productivity.agda:38,25-26)
+    (at Productivity.agda:40,25-26)
   Productivity.♯-10
-    (at Productivity.agda:38,28-29)
+    (at Productivity.agda:40,28-29)
   Productivity.♯-12
-    (at Productivity.agda:38,45-46)
+    (at Productivity.agda:40,45-46)
   expr
-    (at Productivity.agda:38,47-51)
+    (at Productivity.agda:40,47-51)

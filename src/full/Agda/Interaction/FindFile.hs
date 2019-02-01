@@ -44,6 +44,7 @@ import Agda.TypeChecking.Warnings (runPM)
 import Agda.Utils.Except
 import Agda.Utils.FileName
 import Agda.Utils.Lens
+import Agda.Utils.List ( stripSuffix )
 import Agda.Utils.Null
 
 #include "undefined.h"
@@ -215,13 +216,10 @@ parseFileExtsShortList :: [String]
 parseFileExtsShortList = [".agda"] ++ literateExtsShortList
 
 dropAgdaExtension :: String -> String
-dropAgdaExtension s = case catMaybes [ stripExtension ext s
+dropAgdaExtension s = case catMaybes [ stripSuffix ext s
                                      | ext <- acceptableFileExts ] of
     [name] -> name
     _      -> __IMPOSSIBLE__
-  where
-    stripExtension :: String -> String -> Maybe String
-    stripExtension e = fmap reverse . List.stripPrefix (reverse e) . reverse
 
 rootNameModule :: AbsolutePath -> String
 rootNameModule = dropAgdaExtension . snd . splitFileName . filePath

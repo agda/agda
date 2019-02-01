@@ -36,6 +36,11 @@ data Int : Set where
   pos : Nat → Int
   negsuc : Nat → Int
 
+postulate
+  String : Set
+  Float  : Set
+  Char   : Set
+
 {-# BUILTIN INTEGER Int    #-}
 {-# BUILTIN INTEGERPOS pos #-}
 {-# BUILTIN INTEGERNEGSUC negsuc #-}

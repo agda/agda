@@ -17,9 +17,8 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinSub, builtinSubIn, builtinSubOut,
   builtinEquiv, builtinEquivFun, builtinEquivProof, builtinPathToEquiv,
   builtinGlue, builtin_glue, builtin_unglue,
-  builtinCompGlue, builtinFaceForall,
+  builtinFaceForall,
   builtinId, builtinConId, builtinIdElim,
-  builtinPushOut, builtinPOInl, builtinPOInr, builtinPOPush, builtinPOhcomp, builtinPOforward, builtinPOElim,
   builtinSizeUniv, builtinSize, builtinSizeLt,
   builtinSizeSuc, builtinSizeInf, builtinSizeMax,
   builtinInf, builtinSharp, builtinFlat,
@@ -59,7 +58,8 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinAgdaTCMGetType, builtinAgdaTCMGetDefinition,
   builtinAgdaTCMQuoteTerm, builtinAgdaTCMUnquoteTerm,
   builtinAgdaTCMBlockOnMeta, builtinAgdaTCMCommit, builtinAgdaTCMIsMacro,
-  builtinAgdaTCMWithNormalisation, builtinAgdaTCMDebugPrint
+  builtinAgdaTCMWithNormalisation, builtinAgdaTCMDebugPrint,
+  builtinAgdaTCMNoConstraints
   :: String
 
 builtinNat                           = "NATURAL"
@@ -111,7 +111,6 @@ builtinPathToEquiv                   = "PATHTOEQUIV"
 builtinGlue                          = "primGlue"
 builtin_glue                         = "prim^glue"
 builtin_unglue                       = "prim^unglue"
-builtinCompGlue                      = "COMPGLUE"
 builtinFaceForall                    = "primFaceForall"
 builtinIsOne1                        = "ISONE1"
 builtinIsOne2                        = "ISONE2"
@@ -123,13 +122,6 @@ builtinHComp                         = "primHComp"
 builtinSub                           = "SUB"
 builtinSubIn                         = "SUBIN"
 builtinSubOut                        = "primSubOut"
-builtinPushOut                       = "PUSHOUT"
-builtinPOInl                         = "PUSHOUTINL"
-builtinPOInr                         = "PUSHOUTINR"
-builtinPOPush                        = "PUSHOUTPUSH"
-builtinPOhcomp                       = "primPushOutHComp"
-builtinPOforward                     = "primPushOutForward"
-builtinPOElim                        = "primPushOutElim"
 builtinSizeUniv                      = "SIZEUNIV"
 builtinSize                          = "SIZE"
 builtinSizeLt                        = "SIZELT"
@@ -244,6 +236,7 @@ builtinAgdaTCMUnquoteTerm   = "AGDATCMUNQUOTETERM"
 builtinAgdaTCMIsMacro       = "AGDATCMISMACRO"
 builtinAgdaTCMWithNormalisation = "AGDATCMWITHNORMALISATION"
 builtinAgdaTCMDebugPrint = "AGDATCMDEBUGPRINT"
+builtinAgdaTCMNoConstraints = "AGDATCMNOCONSTRAINTS"
 
 -- | Builtins that come without a definition in Agda syntax.
 --   These are giving names to Agda internal concepts which
@@ -258,13 +251,8 @@ builtinAgdaTCMDebugPrint = "AGDATCMDEBUGPRINT"
 
 builtinsNoDef :: [String]
 builtinsNoDef =
-  [ builtinSizeUniv
-  , builtinSize
-  , builtinSizeLt
-  , builtinSizeSuc
-  , builtinSizeInf
-  , builtinSizeMax
-  , builtinConId
+  sizeBuiltins ++
+  [ builtinConId
   , builtinInterval
   , builtinPartial
   , builtinPartialP
@@ -273,12 +261,15 @@ builtinsNoDef =
   , builtinIZero
   , builtinIOne
   , builtinSetOmega
-  , builtinString
-  , builtinChar
-  , builtinFloat
-  , builtinWord64
-  , builtinInf
-  , builtinSharp
-  , builtinFlat
+  ]
+
+sizeBuiltins :: [String]
+sizeBuiltins =
+  [ builtinSizeUniv
+  , builtinSize
+  , builtinSizeLt
+  , builtinSizeSuc
+  , builtinSizeInf
+  , builtinSizeMax
   ]
 

@@ -12,6 +12,7 @@ module Agda.Interaction.Options
     , parseStandardOptions, parseStandardOptions'
     , parsePragmaOptions
     , parsePluginOptions
+    , stripRTS
     , defaultOptions
     , defaultInteractionOptions
     , defaultVerbosity
@@ -19,6 +20,10 @@ module Agda.Interaction.Options
     , defaultPragmaOptions
     , standardOptions_
     , unsafePragmaOptions
+    , restartOptions
+    , infectiveOptions
+    , coinfectiveOptions
+    , safeFlag
     , mapFlag
     , usage
     , defaultLibDir
@@ -139,8 +144,8 @@ data PragmaOptions = PragmaOptions
   , optUniverseCheck             :: Bool
   , optOmegaInOmega              :: Bool
   , optSizedTypes                :: Bool
+  , optGuardedness               :: Bool
   , optInjectiveTypeConstructors :: Bool
-  , optGuardingTypeConstructors  :: Bool
   , optUniversePolymorphism      :: Bool
   , optIrrelevantProjections     :: Bool
   , optExperimentalIrrelevance   :: Bool  -- ^ irrelevant levels, irrelevant data matching
@@ -241,8 +246,8 @@ defaultPragmaOptions = PragmaOptions
   , optUniverseCheck             = True
   , optOmegaInOmega              = False
   , optSizedTypes                = True
+  , optGuardedness               = True
   , optInjectiveTypeConstructors = False
-  , optGuardingTypeConstructors  = False
   , optUniversePolymorphism      = True
   , optWithoutK                  = False
   , optCopatterns                = True
@@ -315,8 +320,7 @@ checkOpts opts
 
   exclusive =
     [ ( optOnlyScopeChecking
-      , optSafe . optPragmaOptions :
-        optGenerateVimFile :
+      , optGenerateVimFile :
         atMostOne
       )
     , ( optInteractive
@@ -336,7 +340,7 @@ checkOpts opts
     , "with --html or --dependency-graph. Furthermore"
     , "--interactive and --interaction cannot be combined with"
     , "--latex, and --only-scope-checking cannot be combined with"
-    , "--safe or --vim."
+    , "--vim."
     ]
 
   htmlRelated = not (optGenerateHTML opts) &&
@@ -350,7 +354,7 @@ checkOpts opts
     , "only be used along with --html flag."
     ]
 
--- | Check for unsafe pramas. Gives a list of used unsafe flags.
+-- | Check for unsafe pragmas. Gives a list of used unsafe flags.
 
 unsafePragmaOptions :: PragmaOptions -> [String]
 unsafePragmaOptions opts =
@@ -360,13 +364,74 @@ unsafePragmaOptions opts =
   [ "--type-in-type"                             | not (optUniverseCheck opts)       ] ++
   [ "--omega-in-omega"                           | optOmegaInOmega opts              ] ++
   -- [ "--sized-types"                              | optSizedTypes opts                ] ++
+  [ "--sized-types and --guardedness"            | optSizedTypes opts, optGuardedness opts ] ++
   [ "--injective-type-constructors"              | optInjectiveTypeConstructors opts ] ++
-  [ "--guardedness-preserving-type-constructors" | optGuardingTypeConstructors opts  ] ++
   [ "--irrelevant-projections"                   | optIrrelevantProjections opts     ] ++
   [ "--experimental-irrelevance"                 | optExperimentalIrrelevance opts   ] ++
   [ "--rewriting"                                | optRewriting opts                 ] ++
   [ "--cubical and --with-K"                     | optCubical opts, not $ optWithoutK opts ] ++
   []
+
+-- | If any these options have changed, then the file will be
+--   rechecked. Boolean options are negated to mention non-default
+--   options, where possible.
+
+restartOptions :: [(PragmaOptions -> RestartCodomain, String)]
+restartOptions =
+  [ (C . optTerminationDepth, "--termination-depth")
+  , (B . not . optUseUnicode, "--no-unicode")
+  , (B . optAllowUnsolved, "--allow-unsolved-metas")
+  , (B . optDisablePositivity, "--no-positivity-check")
+  , (B . optTerminationCheck,  "--no-termination-check")
+  , (B . not . optUniverseCheck, "--type-in-type")
+  , (B . optOmegaInOmega, "--omega-in-omega")
+  , (B . not . optSizedTypes, "--no-sized-types")
+  , (B . not . optGuardedness, "--no-guardedness")
+  , (B . optInjectiveTypeConstructors, "--injective-type-constructors")
+  , (B . optProp, "--prop")
+  , (B . not . optUniversePolymorphism, "--no-universe-polymorphism")
+  , (B . optIrrelevantProjections, "--irrelevant-projections")
+  , (B . optExperimentalIrrelevance, "--experimental-irrelevance")
+  , (B . optWithoutK, "--without-K")
+  , (B . optExactSplit, "--exact-split")
+  , (B . not . optEta, "--no-eta-equality")
+  , (B . optRewriting, "--rewriting")
+  , (B . optCubical, "--cubical")
+  , (B . optOverlappingInstances, "--overlapping-instances")
+  , (B . optSafe, "--safe")
+  , (B . optDoubleCheck, "--double-check")
+  , (B . not . optSyntacticEquality, "--no-syntactic-equality")
+  , (B . not . optAutoInline, "--no-auto-inline")
+  , (B . not . optFastReduce, "--no-fast-reduce")
+  , (I . optInstanceSearchDepth, "--instance-search-depth")
+  , (I . optInversionMaxDepth, "--inversion-max-depth")
+  , (W . optWarningMode, "--warning")
+  ]
+
+-- to make all restart options have the same type
+data RestartCodomain = C CutOff | B Bool | I Int | W WarningMode
+  deriving Eq
+
+-- | An infective option is an option that if used in one module, must
+--   be used in all modules that depend on this module.
+
+infectiveOptions :: [(PragmaOptions -> Bool, String)]
+infectiveOptions =
+  [ (optCubical, "--cubical")
+  , (optProp, "--prop")
+  ]
+
+-- | A coinfective option is an option that if used in one module, must
+--   be used in all modules that this module depends on.
+
+coinfectiveOptions :: [(PragmaOptions -> Bool, String)]
+coinfectiveOptions =
+  [ (optSafe, "--safe")
+  , (optWithoutK, "--without-K")
+  , (not . optUniversePolymorphism, "--no-universe-polymorphism")
+  , (not . optSizedTypes, "--no-sized-types")
+  , (not  . optGuardedness, "--no-guardedness")
+  ]
 
 inputFlag :: FilePath -> Flag CommandLineOptions
 inputFlag f o =
@@ -385,7 +450,10 @@ helpFlag (Just str) o = case string2HelpTopic str of
                            intercalate ", " (map fst allHelpTopics) ++ ")"
 
 safeFlag :: Flag PragmaOptions
-safeFlag o = return $ o { optSafe = True }
+safeFlag o = return $ o { optSafe        = True
+                        , optGuardedness = False
+                        , optSizedTypes  = False
+                        }
 
 doubleCheckFlag :: Flag PragmaOptions
 doubleCheckFlag o = return $ o { optDoubleCheck = True }
@@ -508,6 +576,14 @@ sizedTypes o = return $ o { optSizedTypes = True }
 
 noSizedTypes :: Flag PragmaOptions
 noSizedTypes o = return $ o { optSizedTypes = False }
+
+guardedness :: Flag PragmaOptions
+guardedness o = return $ o { optGuardedness = True
+                        -- , optSizedTypes  = False
+                           }
+
+noGuardedness :: Flag PragmaOptions
+noGuardedness o = return $ o { optGuardedness = False }
 
 injectiveTypeConstructorFlag :: Flag PragmaOptions
 injectiveTypeConstructorFlag o = return $ o { optInjectiveTypeConstructors = True }
@@ -755,9 +831,13 @@ pragmaOptions =
     , Option []     ["no-prop"] (NoArg noPropFlag)
                     "disable the use of the Prop universe (default)"
     , Option []     ["sized-types"] (NoArg sizedTypes)
-                    "use sized types (default, inconsistent with `musical' coinduction)"
+                    "enable sized types (default, inconsistent with --guardedness)"
     , Option []     ["no-sized-types"] (NoArg noSizedTypes)
                     "disable sized types"
+    , Option []     ["guardedness"] (NoArg guardedness)
+                    "enable constructor-based guarded corecursion (default, inconsistent with --sized-types)"
+    , Option []     ["no-guardedness"] (NoArg noGuardedness)
+                    "disable constructor-based guarded corecursion"
     , Option []     ["injective-type-constructors"] (NoArg injectiveTypeConstructorFlag)
                     "enable injective type constructors (makes Agda anti-classical and possibly inconsistent)"
     , Option []     ["no-universe-polymorphism"] (NoArg noUniversePolymorphismFlag)
@@ -801,7 +881,7 @@ pragmaOptions =
     , Option []     ["inversion-max-depth"] (ReqArg inversionMaxDepthFlag "N")
                     "set maximum depth for pattern match inversion to N (default: 50)"
     , Option []     ["safe"] (NoArg safeFlag)
-                    "disable postulates, unsafe OPTION pragmas and primEraseEquality"
+                    "disable postulates, unsafe OPTION pragmas and primEraseEquality, implies --no-sized-types and --no-guardedness "
     , Option []     ["double-check"] (NoArg doubleCheckFlag)
                     "enable double-checking of all terms using the internal typechecker"
     , Option []     ["no-syntactic-equality"] (NoArg noSyntacticEqualityFlag)
@@ -935,7 +1015,8 @@ usage options progName GeneralHelp = usageInfo (header progName) options
 
 usage options progName (HelpFor topic) = helpTopicUsage topic
 
--- Remove +RTS .. -RTS from arguments
+-- | Removes RTS options from a list of options.
+
 stripRTS :: [String] -> [String]
 stripRTS [] = []
 stripRTS ("--RTS" : argv) = argv

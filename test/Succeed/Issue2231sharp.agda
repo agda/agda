@@ -1,7 +1,14 @@
 -- Andreas, 2016-10-03, re issue #2231
 -- Termination checking a corecursive definition in abstract mode.
 
+{-# OPTIONS --guardedness #-}
+
 infix 1000 ♯_
+
+postulate
+  ∞  : ∀ {a} (A : Set a) → Set a
+  ♯_ : ∀ {a} {A : Set a} → A → ∞ A
+  ♭  : ∀ {a} {A : Set a} → ∞ A → A
 
 {-# BUILTIN INFINITY ∞  #-}
 {-# BUILTIN SHARP    ♯_ #-}

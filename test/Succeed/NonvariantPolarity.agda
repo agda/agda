@@ -1,7 +1,7 @@
 -- Andreas, 2012-09-15
 -- Positive effects of making Agda recognize constant functions.
 -- Arguments to constant functions are ignored in definitional equality.
-{-# OPTIONS --copatterns #-}
+{-# OPTIONS --guardedness #-}
 module NonvariantPolarity where
 
 open import Common.Equality
@@ -58,4 +58,3 @@ module CoinductiveUnit where
   idConst x y = refl
 
   -- That does not imply x ≡ y (needs bisimulation).
-

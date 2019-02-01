@@ -9,6 +9,7 @@ module Agda.Utils.Pretty
 
 import Data.Int ( Int32 )
 import Data.Data (Data(..))
+import qualified Data.Map as Map
 
 import Text.PrettyPrint hiding (TextDetails(Str), empty)
 

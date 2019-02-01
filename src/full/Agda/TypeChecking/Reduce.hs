@@ -237,23 +237,23 @@ instance Instantiate EqualityView where
 
 -- | Case on whether a term is blocked on a meta (or is a meta).
 --   That means it can change its shape when the meta is instantiated.
-ifBlocked :: MonadTCM tcm =>  Term -> (MetaId -> Term -> tcm a) -> (NotBlocked -> Term -> tcm a) -> tcm a
+ifBlocked :: (MonadReduce m) =>  Term -> (MetaId -> Term -> m a) -> (NotBlocked -> Term -> m a) -> m a
 ifBlocked t blocked unblocked = do
-  t <- liftTCM $ reduceB t
+  t <- reduceB t
   case t of
     Blocked m _              -> blocked m (ignoreBlocking t)
     NotBlocked _ (MetaV m _) -> blocked m (ignoreBlocking t)
     NotBlocked nb _          -> unblocked nb (ignoreBlocking t)
 
-isBlocked :: MonadTCM tcm => Term -> tcm (Maybe MetaId)
+isBlocked :: MonadReduce m => Term -> m (Maybe MetaId)
 isBlocked t = ifBlocked t (\m _ -> return $ Just m) (\_ _ -> return Nothing)
 
 -- | Case on whether a type is blocked on a meta (or is a meta).
-ifBlockedType :: MonadTCM tcm => Type -> (MetaId -> Type -> tcm a) -> (NotBlocked -> Type -> tcm a) -> tcm a
+ifBlockedType :: MonadReduce m => Type -> (MetaId -> Type -> m a) -> (NotBlocked -> Type -> m a) -> m a
 ifBlockedType (El s t) blocked unblocked =
   ifBlocked t (\ m v -> blocked m $ El s v) (\ nb v -> unblocked nb $ El s v)
 
-isBlockedType :: MonadTCM tcm => Type -> tcm (Maybe MetaId)
+isBlockedType :: MonadReduce m => Type -> m (Maybe MetaId)
 isBlockedType t = ifBlockedType t (\m _ -> return $ Just m) (\_ _ -> return Nothing)
 
 class Reduce t where
@@ -361,16 +361,21 @@ instance (Reduce a, Reduce b,Reduce c) => Reduce (a,b,c) where
 reduceIApply :: ReduceM (Blocked Term) -> [Elim] -> ReduceM (Blocked Term)
 reduceIApply = reduceIApply' reduceB'
 
+blockedOrMeta :: Blocked Term -> Blocked ()
+blockedOrMeta r =
+  case r of
+    Blocked m _              -> Blocked m ()
+    NotBlocked _ (MetaV m _) -> Blocked m ()
+    NotBlocked i _           -> NotBlocked i ()
+
 reduceIApply' :: (Term -> ReduceM (Blocked Term)) -> ReduceM (Blocked Term) -> [Elim] -> ReduceM (Blocked Term)
 reduceIApply' reduceB' d (IApply x y r : es) = do
   view <- intervalView'
   r <- reduceB' r
   -- We need to propagate the blocking information so that e.g.
   -- we postpone "someNeutralPath ?0 = a" rather than fail.
-  let blockedInfo = case r of
-        Blocked m _              -> Blocked m ()
-        NotBlocked _ (MetaV m _) -> Blocked m ()
-        NotBlocked i _           -> NotBlocked i ()
+  let blockedInfo = blockedOrMeta r
+
   case view (ignoreBlocking r) of
    IZero -> reduceB' (applyE x es)
    IOne  -> reduceB' (applyE y es)
@@ -1404,7 +1409,7 @@ instance InstantiateFull Clause where
 instance InstantiateFull Interface where
     instantiateFull' (Interface h s ft ms mod scope inside
                                sig display userwarn b foreignCode
-                               highlighting pragmas patsyns warnings) =
+                               highlighting pragmas usedOpts patsyns warnings) =
         Interface h s ft ms mod scope inside
             <$> instantiateFull' sig
             <*> instantiateFull' display
@@ -1413,6 +1418,7 @@ instance InstantiateFull Interface where
             <*> return foreignCode
             <*> return highlighting
             <*> return pragmas
+            <*> return usedOpts
             <*> return patsyns
             <*> return warnings
 

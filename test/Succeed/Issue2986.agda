@@ -1,3 +1,4 @@
+{-# OPTIONS --cubical #-}
 module _ where
 
 open import Agda.Primitive.Cubical

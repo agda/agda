@@ -14,6 +14,7 @@ import qualified Data.Set as Set
 import Agda.Syntax.Internal
 
 import Agda.TypeChecking.Monad
+import Agda.TypeChecking.Monad.Caching
 import Agda.TypeChecking.InstanceArguments
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
@@ -71,7 +72,7 @@ addConstraint c = do
     -- the added constraint can cause instance constraints to be solved (but only
     -- the constraints which aren’t blocked on an uninstantiated meta)
     unless (isInstanceConstraint c) $
-       wakeConstraints (isWakeableInstanceConstraint . clValue . theConstraint)
+       wakeConstraints' (isWakeableInstanceConstraint . clValue . theConstraint)
   where
     isWakeableInstanceConstraint :: Constraint -> TCM Bool
     isWakeableInstanceConstraint (FindInstance _ b _) = caseMaybe b (return True) (\m -> isInstantiatedMeta m)
@@ -90,7 +91,7 @@ addConstraint c = do
                                         $$ nest 2 (hang "using" 2 (prettyTCM lvls))
       return $ simplifyLevelConstraint c $ map clValue lvls
 
--- | Don't allow the argument to produce any constraints.
+-- | Don't allow the argument to produce any blocking constraints.
 noConstraints :: TCM a -> TCM a
 noConstraints problem = liftTCM $ do
   (pid, x) <- newProblem problem
@@ -135,23 +136,35 @@ whenConstraints action handler =
     stealConstraints pid
     handler
 
+-- | Wake constraints matching the given predicate (and aren't instance
+--   constraints if 'isConsideringInstance').
+wakeConstraints' :: (ProblemConstraint -> TCM Bool) -> TCM ()
+wakeConstraints' p = do
+  skipInstance <- isConsideringInstance
+  wakeConstraints (\ c -> (&&) (not $ skipInstance && isInstanceConstraint (clValue $ theConstraint c)) <$> p c)
+
 -- | Wake up the constraints depending on the given meta.
 wakeupConstraints :: MetaId -> TCM ()
 wakeupConstraints x = do
-  wakeConstraints (return . mentionsMeta x)
+  wakeConstraints' (return . mentionsMeta x)
   solveAwakeConstraints
 
 -- | Wake up all constraints.
 wakeupConstraints_ :: TCM ()
 wakeupConstraints_ = do
-  wakeConstraints (return . const True)
+  wakeConstraints' (return . const True)
   solveAwakeConstraints
 
 solveAwakeConstraints :: TCM ()
 solveAwakeConstraints = solveAwakeConstraints' False
 
 solveAwakeConstraints' :: Bool -> TCM ()
-solveAwakeConstraints' force = do
+solveAwakeConstraints' = solveSomeAwakeConstraints (const True)
+
+-- | Solve awake constraints matching the predicate. If the second argument is
+--   True solve constraints even if already 'isSolvingConstraints'.
+solveSomeAwakeConstraints :: (ProblemConstraint -> Bool) -> Bool -> TCM ()
+solveSomeAwakeConstraints solveThis force = do
     verboseS "profile.constraints" 10 $ liftTCM $ tickMax "max-open-constraints" . List.genericLength =<< getAllConstraints
     whenM ((force ||) . not <$> isSolvingConstraints) $ nowSolvingConstraints $ do
      -- solveSizeConstraints -- Andreas, 2012-09-27 attacks size constrs too early
@@ -163,7 +176,7 @@ solveAwakeConstraints' force = do
       reportSDoc "tc.constr.solve" 10 $ hsep [ "Solving awake constraints."
                                              , text . show . length =<< getAwakeConstraints
                                              , "remaining." ]
-      whenJustM takeAwakeConstraint $ \ c -> do
+      whenJustM (takeAwakeConstraint' solveThis) $ \ c -> do
         withConstraint solveConstraint c
         solve
 
@@ -223,7 +236,10 @@ solveConstraint_ (UnBlock m)                =
       Open -> __IMPOSSIBLE__
       OpenInstance -> __IMPOSSIBLE__
 solveConstraint_ (FindInstance m b cands)     = findInstance m cands
-solveConstraint_ (CheckFunDef d i q cs)       = checkFunDef d i q cs
+solveConstraint_ (CheckFunDef d i q cs)       = withoutCache $
+  -- re #3498: checking a fundef would normally be cached, but here it's
+  -- happening out of order so it would only corrupt the caching log.
+  checkFunDef d i q cs
 solveConstraint_ (HasBiggerSort a)            = hasBiggerSort a
 solveConstraint_ (HasPTSRule a b)             = hasPTSRule a b
 
@@ -231,8 +247,11 @@ checkTypeCheckingProblem :: TypeCheckingProblem -> TCM Term
 checkTypeCheckingProblem p = case p of
   CheckExpr cmp e t              -> checkExpr' cmp e t
   CheckArgs eh r args t0 t1 k    -> checkArguments eh r args t0 t1 k
+  CheckProjAppToKnownPrincipalArg cmp e o ds args t k v0 pt ->
+    checkProjAppToKnownPrincipalArg cmp e o ds args t k v0 pt
   CheckLambda cmp args body target -> checkPostponedLambda cmp args body target
   UnquoteTactic tac hole t       -> unquoteTactic tac hole t $ return hole
+  DoQuoteTerm cmp et t           -> doQuoteTerm cmp et t
 
 debugConstraints :: TCM ()
 debugConstraints = verboseS "tc.constr" 50 $ do

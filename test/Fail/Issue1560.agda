@@ -5,6 +5,8 @@
 --   to 2s. With agda-2.4.2 it checks in 18s, which should be long
 --   enough to notice.
 
+{-# OPTIONS --guardedness #-}
+
 open import Common.Coinduction
 
 -- Andreas, 2017-04-26: removing fake mutual speeds up from 1.8s to 1.3s

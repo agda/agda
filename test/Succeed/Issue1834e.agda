@@ -1,4 +1,5 @@
 -- Andreas, 2016-04-18 Issue 1834 regression (extracted from larger test case)
+{-# OPTIONS --guardedness #-}
 -- {-# OPTIONS -v tc.cover:30 #-}
 
 data ℕ : Set where
