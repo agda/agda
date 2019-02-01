@@ -1,0 +1,6 @@
+Checking Issue2487-1 (Issue2487-1.agda).
+Checking Issue2487-1 (Issue2487-1.agda).
+Issue2487-1.agda:3,11-43
+Cannot postulate get-out-of-jail with safe flag
+when scope checking the declaration
+get-out-of-jail : {A : Set} → A

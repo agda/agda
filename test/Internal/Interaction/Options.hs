@@ -3,8 +3,16 @@
 module Internal.Interaction.Options ( tests ) where
 
 import Agda.Interaction.Options
+import Agda.Interaction.Options.Lenses
+
+import Agda.Utils.Monad
+import Agda.Syntax.Parser
 
 import Data.List
+
+import System.FilePath ((</>), takeExtension)
+
+import Utils (getAgdaFilesInDir, SearchMode(Rec))
 
 import Internal.Helpers
 
@@ -18,12 +26,32 @@ prop_defaultPragmaOptionsSafe :: Property
 prop_defaultPragmaOptionsSafe = ioProperty helper
   where
     helper :: IO Bool
-    helper
-      | null unsafe = return True
-      | otherwise   = do putStrLn $ "Following pragmas are default but not safe: "
+    helper = do
+      defaultSafe <- runOptM $ safeFlag defaultPragmaOptions
+      case defaultSafe of
+        Left errs -> do
+          putStrLn $ "Unexpected error: " ++ errs
+          return False
+        Right opts -> let unsafe = unsafePragmaOptions opts in
+          if null unsafe then return True else do
+            putStrLn $ "Following pragmas are default but not safe: "
                                           ++ intercalate ", " unsafe
-                         return False
-        where unsafe = unsafePragmaOptions defaultPragmaOptions
+            return False
+
+prop_allBuiltinsSafePostulatesOrNot :: Property
+prop_allBuiltinsSafePostulatesOrNot = ioProperty helper
+  where
+    helper :: IO Bool
+    helper = do
+      libdirPrim <- (</> "prim") <$> defaultLibDir
+      allFiles <- getAgdaFilesInDir Rec libdirPrim
+      let builtinFiles = map (libdirPrim </>) builtinModules
+      let diff = difference allFiles builtinFiles
+      if null diff then return True else do
+        putStrLn $ "Missing/spurious builtins: " ++ show diff
+        return False
+
+    difference xs ys = (xs \\ ys) `union` (ys \\ xs)
 
 ------------------------------------------------------------------------
 -- * All tests

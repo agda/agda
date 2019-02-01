@@ -46,26 +46,15 @@ followed:
 
     git checkout -b release-$MAJORVERSION
 
+* Added the branch release-$MAJORVERSION to Travis.
+
 * The version of the RC is $VERSION + current date
 
     RC_VERSION=<current-released-version-current-date-eg-2.4.0.2.20150913>
 
-* The $CHANGE_VERSION_FILES variable represents the files where it is
-  necessary to change the version number.
+* Update the Agda version
 
-    $CHANGE_VERSION_FILES=
-      .ghci
-      Agda.cabal
-      default.nix
-      doc/user-manual/conf.py
-      mk/versions.mk
-      src/data/emacs-mode/agda2-mode.el
-      src/data/emacs-mode/agda2-mode-pkg.el
-      src/size-solver/size-solver.cabal
-      test/interaction/Issue1244a.out
-      test/interaction/Issue1244b.out
-
-* Change $MAYOR_VERSION to $RC_VERSION in $CHANGE_VERSION_FILES.
+    ./src/release-tools/change-version.bash VERSION RC_VERSION
 
 * Obtain and install the standard library branch related to the Agda:
 
@@ -127,7 +116,9 @@ followed:
 
 * Restore -Werror and -fprof-auto in Agda.cabal.
 
-* Restore the version number $MAJOR_VERSION in $CHANGE_VERSION_FILES.
+* Restore the Agda version
+
+    ./src/release-tools/change-version.bash RC_VERSION VERSION
 
 * Push all changes (in the release-$MAJORVERSION branch):
 

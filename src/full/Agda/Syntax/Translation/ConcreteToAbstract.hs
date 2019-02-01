@@ -71,7 +71,7 @@ import Agda.TypeChecking.Monad.State
 import Agda.TypeChecking.Monad.MetaVars (registerInteractionPoint)
 import Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Monad.Options
-import Agda.TypeChecking.Monad.Env (insideDotPattern, isInsideDotPattern)
+import Agda.TypeChecking.Monad.Env (insideDotPattern, isInsideDotPattern, getCurrentPath)
 import Agda.TypeChecking.Rules.Builtin (isUntypedBuiltin, bindUntypedBuiltin, builtinKindOfName)
 
 import Agda.TypeChecking.Patterns.Abstract (expandPatternSynonyms)
@@ -83,6 +83,7 @@ import Agda.Interaction.FindFile (checkModuleName)
 import {-# SOURCE #-} Agda.Interaction.Imports (scopeCheckImport)
 import Agda.Interaction.Options
 import qualified Agda.Interaction.Options.Lenses as Lens
+import Agda.Interaction.Options.Warnings
 
 import Agda.Utils.AssocList (AssocList)
 import qualified Agda.Utils.AssocList as AssocList
@@ -180,7 +181,7 @@ recordConstructorType decls =
     -- module.
     niceDecls NoWarn decls $ buildType . takeFields
   where
-    takeFields = reverse . dropWhile notField . reverse
+    takeFields = List.dropWhileEnd notField
 
     notField NiceField{} = False
     notField _           = True
@@ -1225,26 +1226,37 @@ instance ToAbstract (TopLevel [C.Declaration]) TopLevelInfo where
 niceDecls :: DoWarn -> [C.Declaration] -> ([NiceDeclaration] -> ScopeM a) -> ScopeM a
 niceDecls warn ds ret = setCurrentRange ds $ computeFixitiesAndPolarities warn ds $ do
   fixs <- scopeFixities <$> getScope  -- We need to pass the fixities to the nicifier for clause grouping
-  let (result, warns) = runNice $ niceDeclarations fixs ds
+  let (result, warns') = runNice $ niceDeclarations fixs ds
+
+  -- COMPILED pragmas are not allowed in safe mode unless we are in a builtin module.
+  -- So we start by filtering out all the PragmaCompiled warnings if one of these two
+  -- conditions is not met.
+  isSafe    <- Lens.getSafeMode <$> pragmaOptions
+  isBuiltin <- Lens.isBuiltinModule . filePath =<< getCurrentPath
+  let warns = if isSafe && not isBuiltin then warns' else filter notOnlyInSafeMode warns'
+
   unless (null warns) $ do
     -- If there are some warnings and the --safe flag is set,
     -- we check that none of the NiceWarnings are fatal
-    whenM (optSafe <$> pragmaOptions) $ do
-      let isUnsafe = \case
-            PragmaNoTerminationCheck{} -> True
-            MissingDefinitions{}       -> True
-            _ -> False
+    when isSafe $ do
+      let isUnsafe w = declarationWarningName w `elem`
+            [ PragmaNoTerminationCheck_
+            , PragmaCompiled_
+            , MissingDefinitions_
+            ]
       let (errs, ws) = List.partition isUnsafe warns
       -- If some of them are, we fail
       unless (null errs) $ do
-        mapM_ warning $ NicifierIssue <$> ws
+        warnings $ NicifierIssue <$> ws
         tcerrs <- mapM warning_ $ NicifierIssue <$> errs
-        typeError $ NonFatalErrors tcerrs
+        setCurrentRange errs $ typeError $ NonFatalErrors tcerrs
     -- Otherwise we simply record the warnings
     warnings $ NicifierIssue <$> warns
   case result of
     Left e   -> throwError $ Exception (getRange e) $ pretty e
     Right ds -> ret ds
+
+  where notOnlyInSafeMode = (PragmaCompiled_ /=) . declarationWarningName
 
 instance {-# OVERLAPPING #-} ToAbstract [C.Declaration] [A.Declaration] where
   toAbstract ds = do
@@ -1435,9 +1447,11 @@ instance ToAbstract NiceDeclaration A.Declaration where
 
   -- Axiom (actual postulate)
     C.Axiom r p a i rel x t -> do
-      -- check that we do not postulate in --safe mode
-      clo <- commandLineOptions
-      when (Lens.getSafeMode clo) (warning $ SafeFlagPostulate x)
+      -- check that we do not postulate in --safe mode, unless it is a
+      -- builtin module with safe postulates
+      whenM ((return . Lens.getSafeMode =<< commandLineOptions) `and2M`
+             (not <$> (Lens.isBuiltinModuleWithSafePostulates . filePath =<< getCurrentPath)))
+            (warning $ SafeFlagPostulate x)
       -- check the postulate
       toAbstractNiceAxiom A.NoFunSig NotMacroDef d
 
@@ -1783,15 +1797,18 @@ collectGeneralizables m = bracket_ open close $ do
         pure gvs
     close = (stGeneralizedVars `setTCLens`)
 
+createBoundNamesForGeneralizables :: Set I.QName -> ScopeM (Map I.QName I.Name)
+createBoundNamesForGeneralizables vs =
+  flip Map.traverseWithKey (Map.fromSet (const ()) vs) $ \ q _ -> do
+    let x  = nameConcrete $ qnameName q
+        fx = nameFixity   $ qnameName q
+    freshAbstractName fx x
+
 collectAndBindGeneralizables :: ScopeM a -> ScopeM (Map I.QName I.Name, a)
 collectAndBindGeneralizables m = do
   (s, res) <- collectGeneralizables m
-  binds <- fmap Map.fromList $ forM (Set.toList s) $ \ q -> do
-    let x  = nameConcrete $ qnameName q
-        fx = nameFixity   $ qnameName q
-    y <- freshAbstractName fx x
-    return (q, y)
   -- We should bind the named generalizable variables as fresh variables
+  binds <- createBoundNamesForGeneralizables s
   bindGeneralizables binds
   return (binds, res)
 
@@ -2356,7 +2373,7 @@ instance ToAbstract C.Pattern (A.Pattern' C.Expr) where
         (p', q') <- toAbstract (p, q)
         case p' of
             ConP i x as        -> return $ ConP (i {patInfo = info}) x (as ++ [q'])
-            ProjP i o x        -> fail
+            ProjP i o x        -> failure
             DefP _ x as        -> return $ DefP info x (as ++ [q'])
             PatternSynP _ x as -> return $ PatternSynP info x (as ++ [q'])
             A.DotP i e         -> case e of
@@ -2365,13 +2382,13 @@ instance ToAbstract C.Pattern (A.Pattern' C.Expr) where
                   let cpi = ConPatInfo ConOCon i True
                       c   = AmbQ (fmap anameName ds)
                   return $ ConP cpi c [q']
-                _ -> fail
-              _ -> fail
-            _                  -> fail
+                _ -> failure
+              _ -> failure
+            _ -> failure
         where
             r = getRange p0
             info = PatRange r
-            fail = typeError $ InvalidPattern p0
+            failure = typeError $ InvalidPattern p0
 
             distributeDots :: C.Pattern -> ScopeM C.Pattern
             distributeDots p@(C.DotP r e) = distributeDotsExpr r e

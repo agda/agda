@@ -93,7 +93,7 @@ useDefaultFixity n
 --   @M.for x ∈ xs return e@, or @x ℕ.+ y@.
 notationNames :: NewNotation -> [QName]
 notationNames (NewNotation q _ _ parts _) =
-  zipWith ($) (reQualify : repeat QName) [Name noRange InScope [Id x] | IdPart x <- parts ]
+  zipWith ($) (reQualify : repeat QName) [Name noRange InScope [Id $ rangedThing x] | IdPart x <- parts ]
   where
     -- The qualification of @q@.
     modules     = init (qnameParts q)
@@ -114,8 +114,8 @@ syntaxOf (Name _ _ xs)  = mkSyn 0 xs
     -- Result will have no 'BindingHole's.
     mkSyn :: Int -> [NamePart] -> Notation
     mkSyn n []          = []
-    mkSyn n (Hole : xs) = NormalHole (defaultNamedArg n) : mkSyn (1 + n) xs
-    mkSyn n (Id x : xs) = IdPart x : mkSyn n xs
+    mkSyn n (Hole : xs) = NormalHole noRange (defaultNamedArg $ unranged n) : mkSyn (1 + n) xs
+    mkSyn n (Id x : xs) = IdPart (unranged x) : mkSyn n xs
 
 noFixity' :: Fixity'
 noFixity' = Fixity' noFixity noNotation noRange

@@ -1,3 +1,5 @@
-NoSizedTypes.agda:10,10-11
-i != ∞ of type Size
-when checking that the expression x has type Nat
+NoSizedTypes.agda:3,1-44
+Importing module Common.Size not using the --no-sized-types flag
+from a module which does.
+when scope checking the declaration
+  open import Common.Size renaming (↑_ to _^)

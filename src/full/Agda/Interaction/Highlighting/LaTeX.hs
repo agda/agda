@@ -488,6 +488,7 @@ processCode toks' = do
         (\c -> if isOp then ["Operator", c] else [c]) $
         case kind of
           Bound                     -> s
+          Generalizable             -> s
           Constructor Inductive     -> "InductiveConstructor"
           Constructor CoInductive   -> "CoinductiveConstructor"
           Datatype                  -> s
@@ -585,7 +586,7 @@ spaces [ s ] = do
 -- properly
 stringLiteral :: Token -> Tokens
 stringLiteral t | aspect (info t) == Just String =
-  reverse $ foldl (\xs x -> t { text = x } : xs) []
+  map (\ x -> t { text = x })
           $ concatMap leadingSpaces
           $ List.intersperse "\n"
           $ T.lines (text t)

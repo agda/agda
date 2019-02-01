@@ -1,4 +1,4 @@
-{-# OPTIONS --without-K #-}
+{-# OPTIONS --without-K --safe --no-sized-types --no-guardedness #-}
 
 module Agda.Builtin.Reflection where
 
@@ -271,6 +271,10 @@ postulate
   -- on (with the -v flag to Agda).
   debugPrint : String → Nat → List ErrorPart → TC ⊤
 
+  -- Fail if the given computation gives rise to new, unsolved
+  -- "blocking" constraints.
+  noConstraints : ∀ {a} {A : Set a} → TC A → TC A
+
 {-# BUILTIN AGDATCM              TC            #-}
 {-# BUILTIN AGDATCMRETURN        returnTC      #-}
 {-# BUILTIN AGDATCMBIND          bindTC        #-}
@@ -297,3 +301,4 @@ postulate
 {-# BUILTIN AGDATCMISMACRO       isMacro       #-}
 {-# BUILTIN AGDATCMWITHNORMALISATION withNormalisation #-}
 {-# BUILTIN AGDATCMDEBUGPRINT    debugPrint    #-}
+{-# BUILTIN AGDATCMNOCONSTRAINTS noConstraints #-}

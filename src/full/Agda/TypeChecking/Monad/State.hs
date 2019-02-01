@@ -8,7 +8,7 @@ module Agda.TypeChecking.Monad.State where
 import Control.Arrow (first)
 import qualified Control.Exception as E
 import Control.Monad.Reader (asks)
-import Control.Monad.State (put, get, gets, modify, modify')
+import Control.Monad.State (put, get, gets, modify, modify', void)
 import Control.Monad.Trans (liftIO)
 
 import Data.Maybe
@@ -92,6 +92,19 @@ localTCStateSaving compute = do
     putTC oldState
     modifyBenchmark $ const b
   return (result, newState)
+
+data SpeculateResult = SpeculateAbort | SpeculateCommit
+
+-- | Allow rolling back the state changes of a TCM computation.
+speculateTCState :: TCM (a, SpeculateResult) -> TCM a
+speculateTCState m = do
+  ((x, res), newState) <- localTCStateSaving m
+  case res of
+    SpeculateAbort  -> return x
+    SpeculateCommit -> x <$ putTC newState
+
+speculateTCState_ :: TCM SpeculateResult -> TCM ()
+speculateTCState_ m = void $ speculateTCState $ ((),) <$> m
 
 -- | A fresh TCM instance.
 --

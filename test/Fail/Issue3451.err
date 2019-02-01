@@ -1,0 +1,3 @@
+Issue3451.agda:5,1-30
+Cannot declare size BUILTIN SIZE with option --no-sized-types
+when checking the pragma BUILTIN SIZE Size

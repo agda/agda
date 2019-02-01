@@ -17,6 +17,7 @@ import Agda.Utils.FileName (filePath)
 import Agda.Utils.IO.TempFile (writeToTempFile)
 import Agda.Utils.String (quote)
 
+import qualified Data.List as List
 import qualified Data.Map as Map
 import Data.Maybe
 
@@ -49,10 +50,7 @@ showAspects modFile (r, m) = L $
     Cons (A $ quote $ filePath f) (A $ show p)
     where f = Map.findWithDefault __IMPOSSIBLE__ m modFile
 
-  dropNils =
-    reverse .
-    dropWhile (== A "nil") .
-    reverse
+  dropNils = List.dropWhileEnd (== A "nil")
 
 -- | Formats the 'TokenBased' tag for the Emacs backend. No quotes are
 -- added.

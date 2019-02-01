@@ -58,6 +58,7 @@ import qualified Agda.Syntax.Common as Common
 import qualified Agda.Syntax.Concrete.Name as C
 import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Fixity
+import Agda.Syntax.Notation
 import qualified Agda.Syntax.Info as SI
 import qualified Agda.Syntax.Internal as I
 import qualified Agda.Syntax.Literal as L
@@ -165,7 +166,7 @@ generateAndPrintSyntaxInfo
   -> TCM ()
 generateAndPrintSyntaxInfo decl _ _ | null $ P.getRange decl = return ()
 generateAndPrintSyntaxInfo decl hlLevel updateState = do
-  file <- fromMaybe __IMPOSSIBLE__ <$> asksTC envCurrentPath
+  file <- getCurrentPath
 
   reportSLn "import.iface.create" 15 $
       "Generating syntax info for " ++ filePath file ++ ' ' :
@@ -244,7 +245,10 @@ generateAndPrintSyntaxInfo decl hlLevel updateState = do
     , Fold.foldMap getPatSynArgs  $ universeBi decl
     , Fold.foldMap getModuleName  $ universeBi decl
     , Fold.foldMap getModuleInfo  $ universeBi decl
-    , Fold.foldMap getNamedArg    $ universeBi decl
+    , Fold.foldMap getNamedArgE   $ universeBi decl
+    , Fold.foldMap getNamedArgP   $ universeBi decl
+    , Fold.foldMap getNamedArgB   $ universeBi decl
+    , Fold.foldMap getNamedArgL   $ universeBi decl
     ]
     where
     bound (A.BindName n) =
@@ -295,12 +299,21 @@ generateAndPrintSyntaxInfo decl hlLevel updateState = do
     getVarAndField (A.RecUpdate _ _ fs) = mconcat [ field [] x |      (FieldAssignment x _) <- fs ]
     getVarAndField _                    = mempty
 
-    -- Ulf, 2014-04-09: It would be nicer to have it on Named_ a, but
+    -- Ulf, 2019-01-30: It would be nicer to not have to specialize it, but
     -- you can't have polymorphic functions in universeBi.
-    getNamedArg :: Common.RString -> File
-    getNamedArg x = singleton (rToR $ P.getRange x) $
-                       parserBased { aspect =
-                         Just $ Name (Just Argument) False }
+    getNamedArgE :: Common.NamedArg A.Expr -> File
+    getNamedArgE = getNamedArg
+    getNamedArgP :: Common.NamedArg A.Pattern -> File
+    getNamedArgP = getNamedArg
+    getNamedArgB :: Common.NamedArg A.BindName -> File
+    getNamedArgB = getNamedArg
+    getNamedArgL :: Common.NamedArg A.LHSCore -> File
+    getNamedArgL = getNamedArg
+
+    getNamedArg :: Common.NamedArg a -> File
+    getNamedArg x = caseMaybe (Common.nameOf $ Common.unArg x) mempty $ \ s ->
+      singleton (rToR $ P.getRange s) $
+        parserBased { aspect = Just $ Name (Just Argument) False }
 
     getLet :: A.LetBinding -> File
     getLet (A.LetBind _ _ x _ _)     = bound x
@@ -485,7 +498,7 @@ nameKinds hlLevel decl = do
   defnToKind :: Defn -> NameKind
   defnToKind   M.Axiom{}                           = Postulate
   defnToKind   M.DataOrRecSig{}                    = Postulate
-  defnToKind   M.GeneralizableVar{}                = Bound    -- TODO: separate kind for generalizable vars
+  defnToKind   M.GeneralizableVar{}                = Generalizable
   defnToKind d@M.Function{} | isProperProjection d = Field
                             | otherwise            = Function
   defnToKind   M.Datatype{}                        = Datatype
@@ -512,7 +525,7 @@ nameKinds hlLevel decl = do
   declToKind (A.ScopedDecl {})      = id
   declToKind (A.Open {})            = id
   declToKind (A.PatternSynDef q _ _) = insert q (Constructor Common.Inductive)
-  declToKind (A.Generalize _ _ _ q _)  = insert q Postulate
+  declToKind (A.Generalize _ _ _ q _) = insert q Generalizable
   declToKind (A.FunDef  _ q _ _)     = insert q Function
   declToKind (A.UnquoteDecl _ _ qs _) = foldr (\ q f -> insert q Function . f) id qs
   declToKind (A.UnquoteDef _ qs _)    = foldr (\ q f -> insert q Function . f) id qs
@@ -630,6 +643,8 @@ warningHighlighting w = case tcWarning w of
   DeprecationWarning{}       -> mempty
   UserWarning{}              -> mempty
   LibraryWarning{}           -> mempty
+  InfectiveImport{}          -> mempty
+  CoInfectiveImport{}        -> mempty
   NicifierIssue w           -> case w of
     -- we intentionally override the binding of `w` here so that our pattern of
     -- using `P.getRange w` still yields the most precise range information we
@@ -838,6 +853,7 @@ nameToFile modMap file xs x fr m mR =
   isLocal :: NameKind -> Bool
   isLocal = \case
     Bound         -> True
+    Generalizable -> True
     Argument      -> True
     Constructor{} -> False
     Datatype      -> False
@@ -848,7 +864,6 @@ nameToFile modMap file xs x fr m mR =
     Primitive     -> False
     Record        -> False
     Macro         -> False
-
 
 -- | A variant of 'nameToFile' for qualified abstract names.
 
@@ -874,6 +889,7 @@ nameToFileA modMap file x include m =
              r
              m
              (if include then Just $ bindingSite x else Nothing)
+    `mappend` notationFile
   where
     -- Andreas, 2016-09-08, for issue #2140:
     -- Range of name from fixity declaration:
@@ -881,6 +897,13 @@ nameToFileA modMap file x include m =
     -- Somehow we import fixity ranges from other files, we should ignore them.
     -- (I do not understand how we get them as they should not be serialized...)
     r = if P.rangeFile fr == Strict.Just file then fr else P.noRange
+
+    notationFile = mconcat $ map genPartFile $ theNotation $ A.nameFixity $ A.qnameName x
+    boundAspect = parserBased{ aspect = Just $ Name (Just Bound) False }
+    genPartFile (BindHole r i)   = several [rToR r, rToR $ getRange i] boundAspect
+    genPartFile (NormalHole r i) = several [rToR r, rToR $ getRange i] boundAspect
+    genPartFile WildHole{}       = mempty
+    genPartFile (IdPart x)       = singleton (rToR $ P.getRange x) (m False)
 
 concreteBase :: I.QName -> C.Name
 concreteBase = A.nameConcrete . A.qnameName

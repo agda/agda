@@ -26,6 +26,7 @@
 module Agda.Syntax.DoNotation (desugarDoNotation) where
 
 import Control.Monad
+import Data.Maybe
 
 import Agda.Syntax.Common
 import Agda.Syntax.Position
@@ -37,6 +38,7 @@ import Agda.Syntax.Scope.Monad
 import Agda.TypeChecking.Monad
 
 import Agda.Utils.Pretty ( prettyShow )
+import Agda.Utils.List   ( initMaybe )
 
 desugarDoNotation :: Range -> [DoStmt] -> ScopeM Expr
 desugarDoNotation r ss = do
@@ -51,7 +53,7 @@ desugarDoNotation r ss = do
   -- I think we should throw an error rather than silently switching to _>>=_.
   -- / Ulf
   mapM_ ensureInScope $ [qBind | any isBind ss] ++
-                        [qThen | any isThen $ drop 1 $ reverse ss] -- ignore the last 'DoThen'
+                        [qThen | any isThen $ fromMaybe ss $ initMaybe ss] -- ignore the last 'DoThen'
   desugarDo qBind qThen ss
 
 desugarDo :: QName -> QName -> [DoStmt] -> ScopeM Expr
@@ -116,8 +118,9 @@ nonMatchingBind qBind r x e body =
   where bx = DomainFree $ defaultNamedArg $ mkBoundName_ x
 
 appOp :: QName -> Expr -> Expr -> Expr
-appOp q e1 e2 = app (Ident q) [e1, e2]
+appOp q e1 e2 = app (Ident q) [par e1, par e2]
   where
+    par e = Paren (getRange e) e  -- Add parens to get the right precedence context (#3152)
     app e es = foldl (\ e1 e2 -> App (getRange (e1, e2)) e1 (defaultNamedArg e2)) e es
 
 ensureInScope :: QName -> ScopeM ()

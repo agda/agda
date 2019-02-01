@@ -799,7 +799,7 @@ interpret (Cmd_compile b file argv) =
           ]
 
 interpret Cmd_constraints =
-    display_info . Info_Constraints . unlines . map show =<< lift B.getConstraints
+    display_info . Info_Constraints . show . vcat . map pretty =<< lift B.getConstraints
 
 interpret Cmd_metas = do -- CL.showMetas []
   unsolvedNotOK <- lift $ not . optAllowUnsolved <$> pragmaOptions
@@ -1150,12 +1150,12 @@ showOpenMetas = do
   ims <- B.typesOfVisibleMetas B.AsIs
   di <- forM ims $ \ i ->
     B.withInteractionId (B.outputFormId $ B.OutputForm noRange [] i) $
-      showATop i
+      prettyATop i
   -- Show unsolved implicit arguments simplified.
   unsolvedNotOK <- not . optAllowUnsolved <$> pragmaOptions
   hms <- (guard unsolvedNotOK >>) <$> B.typesOfHiddenMetas B.Simplified
   dh <- mapM showA' hms
-  return $ di ++ dh
+  return $ map show di ++ dh
   where
     metaId (B.OfType i _) = i
     metaId (B.JustType i) = i
@@ -1166,8 +1166,8 @@ showOpenMetas = do
     showA' m = do
       let i = nmid $ metaId m
       r <- getMetaRange i
-      d <- B.withMetaId i (showATop m)
-      return $ d ++ "  [ at " ++ show r ++ " ]"
+      d <- B.withMetaId i (prettyATop m)
+      return $ show d ++ "  [ at " ++ show r ++ " ]"
 
 
 -- | @cmd_load' file argv unsolvedOk cmd@
@@ -1203,10 +1203,11 @@ cmd_load' file argv unsolvedOK mode cmd = do
     -- All options are reset when a file is reloaded, including the
     -- choice of whether or not to display implicit arguments.
     opts0 <- gets optionsOnReload
-    z <- liftIO $ runOptM $ parseStandardOptions' argv opts0
+    backends <- useTC stBackends
+    z <- liftIO $ runOptM $ parseBackendOptions backends argv opts0
     case z of
       Left err   -> lift $ typeError $ GenericError err
-      Right opts -> do
+      Right (_, opts) -> do
         let update o = o { optAllowUnsolved = unsolvedOK && optAllowUnsolved o}
             root     = projectRoot f (Imp.siModuleName si)
         lift $ TM.setCommandLineOptions' root $ mapPragmaOptions update opts
@@ -1378,7 +1379,7 @@ prettyTypeOfMeta norm ii = do
   form <- B.typeOfMeta norm ii
   case form of
     B.OfType _ e -> prettyATop e
-    _            -> text <$> showATop form
+    _            -> prettyATop form
 
 -- | Pretty-prints the context of the given meta-variable.
 

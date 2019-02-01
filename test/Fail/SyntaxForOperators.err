@@ -1,4 +1,4 @@
-SyntaxForOperators.agda:6,1-1
-SyntaxForOperators.agda:6,1: Syntax declarations are allowed only for simple names (without holes)
+SyntaxForOperators.agda:5,22-22
+SyntaxForOperators.agda:5,22: Syntax declarations are allowed only for simple names (without holes)
 <EOF><ERROR>
 ...

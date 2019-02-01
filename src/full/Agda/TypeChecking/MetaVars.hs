@@ -150,7 +150,7 @@ newSortMetaCtx vs = do
     i   <- createMetaInfo
     tel <- getContextTelescope
     let t = telePi_ tel __DUMMY_TYPE__
-    x   <- newMeta i normalMetaPriority (idP 0) $ IsSort () t
+    x   <- newMeta i normalMetaPriority (idP $ size tel) $ IsSort () t
     reportSDoc "tc.meta.new" 50 $
       "new sort meta" <+> prettyTCM x <+> ":" <+> prettyTCM t
     return $ MetaS x $ map Apply vs
@@ -370,6 +370,7 @@ postponeTypeCheckingProblem_ p = do
   where
     unblock (CheckExpr _ _ t)         = unblockedTester t
     unblock (CheckArgs _ _ _ t _ _)   = unblockedTester t  -- The type of the head of the application.
+    unblock (CheckProjAppToKnownPrincipalArg _ _ _ _ _ _ _ _ t) = unblockedTester t -- The type of the principal argument
     unblock (CheckLambda _ _ _ t)     = unblockedTester t
     unblock (UnquoteTactic _ _ _)     = __IMPOSSIBLE__     -- unquote problems must be supply their own tester
     unblock (DoQuoteTerm _ _ _)       = __IMPOSSIBLE__     -- also quoteTerm problems
@@ -383,7 +384,7 @@ postponeTypeCheckingProblem p unblock = do
   i   <- createMetaInfo' DontRunMetaOccursCheck
   tel <- getContextTelescope
   cl  <- buildClosure p
-  t   <- problemType p
+  let t = problemType p
   m   <- newMeta' (PostponedTypeCheckingProblem cl unblock)
                   i normalMetaPriority (idP (size tel))
          $ HasType () $ telePi_ tel t
@@ -404,12 +405,13 @@ postponeTypeCheckingProblem p unblock = do
   return v
 
 -- | Type of the term that is produced by solving the 'TypeCheckingProblem'.
-problemType :: TypeCheckingProblem -> TCM Type
-problemType (CheckExpr _ _ t         ) = return t
-problemType (CheckArgs _ _ _ _ t _ )   = return t  -- The target type of the application.
-problemType (CheckLambda _ _ _ t     ) = return t
-problemType (UnquoteTactic tac hole t) = return t
-problemType (DoQuoteTerm _ _ t)        = return t
+problemType :: TypeCheckingProblem -> Type
+problemType (CheckExpr _ _ t         ) = t
+problemType (CheckArgs _ _ _ _ t _ )   = t  -- The target type of the application.
+problemType (CheckProjAppToKnownPrincipalArg _ _ _ _ _ t _ _ _) = t -- The target type of the application
+problemType (CheckLambda _ _ _ t     ) = t
+problemType (UnquoteTactic tac hole t) = t
+problemType (DoQuoteTerm _ _ t)        = t
 
 -- | Eta expand metavariables listening on the current meta.
 etaExpandListeners :: MetaId -> TCM ()
@@ -601,7 +603,9 @@ assign dir x args v = do
     patternViolation
 
   -- We never get blocked terms here anymore. TODO: we actually do. why?
-  whenM (isBlockedTerm x) patternViolation
+  whenM (isBlockedTerm x) $ do
+    reportSLn "tc.meta.assign" 25 $ "aborting: meta is a blocked term!"
+    patternViolation
 
   -- Andreas, 2010-10-15 I want to see whether rhs is blocked
   reportSLn "tc.meta.assign" 50 $ "MetaVars.assign: I want to see whether rhs is blocked"

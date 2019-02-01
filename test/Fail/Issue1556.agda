@@ -1,6 +1,7 @@
 -- Andreas, 2018-08-14, issue #1556
 -- Rule out very dependent types by looking for recursive calls
 -- in the types of definitions.
+{-# OPTIONS --no-guardedness #-}
 
 -- {-# OPTIONS -v term:20 -v rec.graph:80 #-}
 

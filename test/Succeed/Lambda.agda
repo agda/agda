@@ -36,6 +36,10 @@ module Prelude where
   filter p  nil      = nil
   filter p (x :: xs) = if p x then x :: filter p xs else filter p xs
 
+  postulate
+    String : Set
+    Char   : Set
+
   {-# BUILTIN BOOL    Bool   #-}
   {-# BUILTIN FALSE   false  #-}
   {-# BUILTIN TRUE    true   #-}

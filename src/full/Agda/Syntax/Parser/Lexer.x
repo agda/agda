@@ -44,7 +44,6 @@ $op          = [ \- \! \# \$ \% \& \* \+ \/ \< \= \> \^ \| \~ \? \` \[ \] \, \: 
 $idstart     = [ $digit $alpha $op ]
 $idchar      = [ $idstart ' \\ ]
 $nonalpha    = $idchar # $alpha
-$nonalphanum = $nonalpha # $digit
 $white_notab = $white # \t
 $white_nonl  = $white_notab # \n
 

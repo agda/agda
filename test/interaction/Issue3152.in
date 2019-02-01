@@ -1,0 +1,5 @@
+top_command (cmd_load currentFile [])
+goal_command 0 cmd_give "f a"
+goal_command 1 cmd_give "f x <|> f a"
+goal_command 2 cmd_give "f x <|> f y"
+goal_command 3 cmd_give "f x <|> f y"

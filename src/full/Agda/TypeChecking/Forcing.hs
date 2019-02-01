@@ -205,7 +205,7 @@ forceTranslateTelescope delta qs = do
                                 "  from: " ++ show old ++ "\n" ++
                                 "  to:   " ++ show new
       let mods    = map (first dbPatVarIndex) new
-          ms      = reverse [ lookup i mods | i <- [0..size delta - 1] ]
+          ms      = map (`lookup` mods) $ downFrom $ size delta
           delta'  = telFromList $ zipWith (maybe id setModality) ms $ telToList delta
       reportSDoc "tc.force" 60 $ nest 2 $ "delta' =" <?> prettyTCM delta'
       return delta'

@@ -112,11 +112,14 @@ parseVariables f tel ii rng ss = do
           failModuleBound = typeError $ GenericError $
             "Cannot split on module parameter " ++ s
           failLetBound v  = typeError . GenericError $
-            "cannot split on let-bound variable " ++ s
+            "Cannot split on let-bound variable " ++ s
           failInstantiatedVar v = typeError . GenericDocError =<< sep
               [ text $ "Cannot split on variable " ++ s ++ ", because it is bound to"
               , prettyTCM v
               ]
+          failCaseLet     = typeError $ GenericError $
+            "Cannot split on variable " ++ s ++
+            ", because let-declarations may not be defined by pattern-matching"
 
       -- Jesper, 2018-12-19: Don't consider generalizable names since
       -- they can be shadowed by hidden variables.
@@ -142,7 +145,8 @@ parseVariables f tel ii rng ss = do
             -- case the instantiation could as well be the other way
             -- around, so the new clauses will still make sense.
             (Var i [] , PatternBound) -> do
-              when (i < nlocals) __IMPOSSIBLE__
+              reportSLn "interaction.case" 30 $ "resolved variable " ++ show x ++ " = " ++ show i
+              when (i < nlocals) failCaseLet
               return (i - nlocals , C.InScope)
             (Var i [] , LambdaBound)
               | i < nlocals -> failLocal

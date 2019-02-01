@@ -1,4 +1,4 @@
-{-# OPTIONS --without-K #-}
+{-# OPTIONS --without-K --safe --no-sized-types --no-guardedness #-}
 
 module Agda.Builtin.Float where
 
@@ -7,6 +7,7 @@ open import Agda.Builtin.Nat
 open import Agda.Builtin.Int
 open import Agda.Builtin.String
 
+postulate Float : Set
 {-# BUILTIN FLOAT Float #-}
 
 primitive

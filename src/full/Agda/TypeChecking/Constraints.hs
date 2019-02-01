@@ -14,6 +14,7 @@ import qualified Data.Set as Set
 import Agda.Syntax.Internal
 
 import Agda.TypeChecking.Monad
+import Agda.TypeChecking.Monad.Caching
 import Agda.TypeChecking.InstanceArguments
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
@@ -90,7 +91,7 @@ addConstraint c = do
                                         $$ nest 2 (hang "using" 2 (prettyTCM lvls))
       return $ simplifyLevelConstraint c $ map clValue lvls
 
--- | Don't allow the argument to produce any constraints.
+-- | Don't allow the argument to produce any blocking constraints.
 noConstraints :: TCM a -> TCM a
 noConstraints problem = liftTCM $ do
   (pid, x) <- newProblem problem
@@ -235,7 +236,10 @@ solveConstraint_ (UnBlock m)                =
       Open -> __IMPOSSIBLE__
       OpenInstance -> __IMPOSSIBLE__
 solveConstraint_ (FindInstance m b cands)     = findInstance m cands
-solveConstraint_ (CheckFunDef d i q cs)       = checkFunDef d i q cs
+solveConstraint_ (CheckFunDef d i q cs)       = withoutCache $
+  -- re #3498: checking a fundef would normally be cached, but here it's
+  -- happening out of order so it would only corrupt the caching log.
+  checkFunDef d i q cs
 solveConstraint_ (HasBiggerSort a)            = hasBiggerSort a
 solveConstraint_ (HasPTSRule a b)             = hasPTSRule a b
 
@@ -243,6 +247,8 @@ checkTypeCheckingProblem :: TypeCheckingProblem -> TCM Term
 checkTypeCheckingProblem p = case p of
   CheckExpr cmp e t              -> checkExpr' cmp e t
   CheckArgs eh r args t0 t1 k    -> checkArguments eh r args t0 t1 k
+  CheckProjAppToKnownPrincipalArg cmp e o ds args t k v0 pt ->
+    checkProjAppToKnownPrincipalArg cmp e o ds args t k v0 pt
   CheckLambda cmp args body target -> checkPostponedLambda cmp args body target
   UnquoteTactic tac hole t       -> unquoteTactic tac hole t $ return hole
   DoQuoteTerm cmp et t           -> doQuoteTerm cmp et t

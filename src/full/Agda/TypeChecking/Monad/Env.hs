@@ -1,14 +1,21 @@
-
+{-# LANGUAGE CPP #-}
 module Agda.TypeChecking.Monad.Env where
 
 import Control.Monad.Reader
 import qualified Data.List as List
+import qualified Data.Map as Map
+import Data.Maybe (fromMaybe)
 import Data.Monoid
 
 import Agda.Syntax.Common
 import Agda.Syntax.Abstract.Name
 
 import Agda.TypeChecking.Monad.Base
+
+import Agda.Utils.FileName
+
+#include "undefined.h"
+import Agda.Utils.Impossible
 
 -- | Get the name of the current module, if any.
 {-# SPECIALIZE currentModule :: TCM ModuleName #-}
@@ -20,6 +27,10 @@ currentModule = asksTC envCurrentModule
 withCurrentModule :: ModuleName -> TCM a -> TCM a
 withCurrentModule m =
     localTC $ \ e -> e { envCurrentModule = m }
+
+-- | Get the path of the currently checked file
+getCurrentPath :: MonadTCEnv m => m AbsolutePath
+getCurrentPath = fromMaybe __IMPOSSIBLE__ <$> asksTC envCurrentPath
 
 -- | Get the number of variables bound by anonymous modules.
 {-# SPECIALIZE getAnonymousVariables :: ModuleName -> TCM Nat #-}
@@ -55,6 +66,9 @@ withIncreasedModuleNestingLevel =
 -- | Set highlighting level
 withHighlightingLevel :: HighlightingLevel -> TCM a -> TCM a
 withHighlightingLevel h = localTC $ \ e -> e { envHighlightingLevel = h }
+
+withoutOptionsChecking :: TCM a -> TCM a
+withoutOptionsChecking = localTC $ \ e -> e { envCheckOptionConsistency = False }
 
 -- | Restore setting for 'ExpandLast' to default.
 doExpandLast :: TCM a -> TCM a

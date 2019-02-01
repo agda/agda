@@ -9,6 +9,10 @@ data List (A : Set) : Set where
 data _≡_ {A : Set} (x : A) : A → Set where
   refl : x ≡ x
 
+postulate
+  Char   : Set
+  String : Set
+
 {-# BUILTIN CHAR   Char   #-}
 {-# BUILTIN STRING String #-}
 
