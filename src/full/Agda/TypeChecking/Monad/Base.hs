@@ -67,6 +67,8 @@ import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.Free.Lazy (Free(freeVars'), bind', bind)
 
+import Agda.Termination.CutOff
+
 import {-# SOURCE #-} Agda.Compiler.Backend
 
 -- import {-# SOURCE #-} Agda.Interaction.FindFile
@@ -615,6 +617,7 @@ stConsideringInstance f s =
 stBuiltinThings :: TCState -> BuiltinThings PrimFun
 stBuiltinThings s = (s^.stLocalBuiltins) `Map.union` (s^.stImportedBuiltins)
 
+
 -- * Fresh things
 ------------------------------------------------------------------------
 
@@ -759,6 +762,9 @@ data ModuleInfo = ModuleInfo
   , miWarnings   :: Bool
     -- ^ 'True' if warnings were encountered when the module was type
     -- checked.
+  , miPrimitive  :: Bool
+    -- ^ 'True' if the module is a primitive module, which should always
+    -- be importable.
   }
 
 -- Note that the use of 'C.TopLevelModuleName' here is a potential
@@ -804,7 +810,10 @@ data Interface = Interface
   , iForeignCode     :: Map BackendName [ForeignCode]
   , iHighlighting    :: HighlightingInfo
   , iPragmaOptions   :: [OptionsPragma]
-                        -- ^ Pragma options set in the file.
+    -- ^ Pragma options set in the file.
+  , iOptionsUsed     :: PragmaOptions
+    -- ^ Options/features used when checking the file (can be different
+    --   from options set directly in the file).
   , iPatternSyns     :: A.PatternSynDefns
   , iWarnings        :: [TCWarning]
   }
@@ -814,7 +823,7 @@ instance Pretty Interface where
   pretty (Interface
             sourceH source fileT importedM moduleN scope insideS signature
             display userwarn builtin foreignCode highlighting pragmaO
-            patternS warnings) =
+            oUsed patternS warnings) =
     hang "Interface" 2 $ vcat
       [ "source hash:"         <+> (pretty . show) sourceH
       , "source:"              $$  nest 2 (text $ T.unpack source)
@@ -830,6 +839,7 @@ instance Pretty Interface where
       , "Foreign code:"        <+> (pretty . show) foreignCode
       , "highlighting:"        <+> (pretty . show) highlighting
       , "pragma options:"      <+> (pretty . show) pragmaO
+      , "options used:"        <+> (pretty . show) oUsed
       , "pattern syns:"        <+> (pretty . show) patternS
       , "warnings:"            <+> (pretty . show) warnings
       ]
@@ -1092,6 +1102,7 @@ data CheckedTarget = CheckedTarget (Maybe ProblemId)
 data TypeCheckingProblem
   = CheckExpr Comparison A.Expr Type
   | CheckArgs ExpandHidden Range [NamedArg A.Expr] Type Type (Elims -> Type -> CheckedTarget -> TCM Term)
+  | CheckProjAppToKnownPrincipalArg Comparison A.Expr ProjOrigin (NonemptyList QName) A.Args Type Int Term Type
   | CheckLambda Comparison (Arg ([WithHiding Name], Maybe Type)) A.Expr Type
     -- ^ @(λ (xs : t₀) → e) : t@
     --   This is not an instance of 'CheckExpr' as the domain type
@@ -2409,6 +2420,9 @@ data TCEnv =
                 -- ^ Should new metas generalized over.
           , envGeneralizedVars :: Map QName GeneralizedValue
                 -- ^ Values for used generalizable variables.
+          , envCheckOptionConsistency :: Bool
+                -- ^ Do we check that options in imported files are
+                --   consistent with each other?
           }
     deriving Data
 
@@ -2462,6 +2476,7 @@ initEnv = TCEnv { envContext             = []
                 , envCheckpoints            = Map.singleton 0 IdS
                 , envGeneralizeMetas        = NoGeneralize
                 , envGeneralizedVars        = Map.empty
+                , envCheckOptionConsistency = True
                 }
 
 -- | Project 'Relevance' component of 'TCEnv'.
@@ -2723,6 +2738,10 @@ data Warning
     -- ^ User-defined warning (e.g. to mention that a name is deprecated)
   | ModuleDoesntExport C.QName [C.ImportedName]
     -- ^ Some imported names are not actually exported by the source module
+  | InfectiveImport String ModuleName
+    -- ^ Importing a file using an infective option into one which doesn't
+  | CoInfectiveImport String ModuleName
+    -- ^ Importing a file not using a coinfective option from one which does
   deriving (Show , Data)
 
 
@@ -2764,6 +2783,8 @@ warningName w = case w of
   UselessInline{}              -> UselessInline_
   UselessPublic                -> UselessPublic_
   UserWarning{}                -> UserWarning_
+  InfectiveImport{}            -> InfectiveImport_
+  CoInfectiveImport{}          -> CoInfectiveImport_
 
 
 data TCWarning
@@ -2992,6 +3013,7 @@ data TypeError
         | DuplicateBuiltinBinding String Term Term
         | NoBindingForBuiltin String
         | NoSuchPrimitiveFunction String
+        | DuplicatePrimitiveBinding String QName QName
         | ShadowedModule C.Name [A.ModuleName]
         | BuiltinInParameterisedModule String
         | IllegalLetInTelescope C.TypedBinding

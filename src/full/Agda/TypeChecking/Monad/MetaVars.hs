@@ -92,14 +92,19 @@ getMetaType m = do
     HasType{ jMetaType = t } -> t
     IsSort{}  -> __IMPOSSIBLE__
 
+-- | Compute the context variables that a meta should be applied to, accounting
+--   for pruning.
+getMetaContextArgs :: MetaVariable -> TCM Args
+getMetaContextArgs MetaVar{ mvPermutation = p } = do
+  args <- getContextArgs
+  return $ permute (takeP (length args) p) args
+
 -- | Given a meta, return the type applied to the current context.
 getMetaTypeInContext :: MetaId -> TCM Type
 getMetaTypeInContext m = do
-  MetaVar{ mvJudgement = j, mvPermutation = p } <- lookupMeta m
+  mv@MetaVar{ mvJudgement = j } <- lookupMeta m
   case j of
-    HasType{ jMetaType = t } -> do
-      vs <- getContextArgs
-      piApplyM t $ permute (takeP (size vs) p) vs
+    HasType{ jMetaType = t } -> piApplyM t =<< getMetaContextArgs mv
     IsSort{}                 -> __IMPOSSIBLE__
 
 -- | Check whether all metas are instantiated.

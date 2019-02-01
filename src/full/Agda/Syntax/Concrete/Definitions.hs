@@ -221,6 +221,8 @@ data DeclarationWarning
   | PragmaNoTerminationCheck Range
   -- ^ Pragma @{-\# NO_TERMINATION_CHECK \#-}@ has been replaced
   --   by @{-\# TERMINATING \#-}@ and @{-\# NON_TERMINATING \#-}@.
+  | PragmaCompiled Range
+  -- ^ @COMPILE@ pragmas are not allowed in safe mode
   | UnknownFixityInMixfixDecl [Name]
   | UnknownNamesInFixityDecl [Name]
   | UnknownNamesInPolarityPragmas [Name]
@@ -247,6 +249,7 @@ declarationWarningName dw = case dw of
   NotAllowedInMutual{}              -> NotAllowedInMutual_
   PolarityPragmasButNotPostulates{} -> PolarityPragmasButNotPostulates_
   PragmaNoTerminationCheck{}        -> PragmaNoTerminationCheck_
+  PragmaCompiled{}                  -> PragmaCompiled_
   UnknownFixityInMixfixDecl{}       -> UnknownFixityInMixfixDecl_
   UnknownNamesInFixityDecl{}        -> UnknownNamesInFixityDecl_
   UnknownNamesInPolarityPragmas{}   -> UnknownNamesInPolarityPragmas_
@@ -301,6 +304,7 @@ instance HasRange DeclarationWarning where
   getRange (InvalidCatchallPragma r)            = r
   getRange (InvalidNoUniverseCheckPragma r)     = r
   getRange (PragmaNoTerminationCheck r)         = r
+  getRange (PragmaCompiled r)                   = r
 
 instance HasRange NiceDeclaration where
   getRange (Axiom r _ _ _ _ _ _)           = r
@@ -426,6 +430,8 @@ instance Pretty DeclarationWarning where
     pwords "NO_UNIVERSE_CHECKING pragmas can only precede a data/record definition."
   pretty (PragmaNoTerminationCheck _) = fsep $
     pwords "Pragma {-# NO_TERMINATION_CHECK #-} has been removed.  To skip the termination check, label your definitions either as {-# TERMINATING #-} or {-# NON_TERMINATING #-}."
+  pretty (PragmaCompiled _) = fsep $
+    pwords "COMPILE pragma not allowed in safe mode."
 
 declName :: NiceDeclaration -> String
 declName Axiom{}             = "Postulates"
@@ -1064,6 +1070,10 @@ niceDeclarations fixs ds = do
         niceWarning $ InvalidNoUniverseCheckPragma r
         nice1 ds
 
+    nicePragma p@CompilePragma{} ds = do
+      niceWarning $ PragmaCompiled (getRange p)
+      return ([NicePragma (getRange p) p], ds)
+
     nicePragma (PolarityPragma{}) ds = return ([], ds)
 
     nicePragma (BuiltinPragma r str qn@(QName x)) ds = do
@@ -1364,7 +1374,7 @@ niceDeclarations fixs ds = do
             FunSig{}            -> top
             FunDef{}            -> bottom
             NiceDataDef{}       -> bottom
-            NiceRecDef{}            -> bottom
+            NiceRecDef{}        -> bottom
             -- Andreas, 2018-05-11, issue #3052, allow pat.syn.s in mutual blocks
             -- Andreas, 2018-10-29: We shift pattern synonyms to the bottom
             -- since they might refer to constructors defined in a data types

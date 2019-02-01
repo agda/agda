@@ -6,6 +6,8 @@ Problematic calls:
     (at Issue1375.agda:9,12-16)
   Term type
     (at Issue1375.agda:11,10-14)
+  type
+    (at Issue1375.agda:11,15-19)
 Unsolved interaction metas at the following locations:
   Issue1375.agda:16,34-38
   Issue1375.agda:16,52-56

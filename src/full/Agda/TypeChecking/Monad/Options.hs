@@ -51,7 +51,8 @@ setPragmaOptions opts = do
   stPragmaOptions `modifyTCLens` Lens.mapSafeMode (Lens.getSafeMode opts ||)
   clo <- commandLineOptions
   let unsafe = unsafePragmaOptions opts
-  when (Lens.getSafeMode clo && not (null unsafe)) $ warning $ SafeFlagPragma unsafe
+--  when (Lens.getSafeMode clo && not (null unsafe)) $ warning $ SafeFlagPragma unsafe
+  when (Lens.getSafeMode opts && not (null unsafe)) $ warning $ SafeFlagPragma unsafe
   ok <- liftIO $ runOptM $ checkOpts (clo { optPragmaOptions = opts })
   case ok of
     Left err   -> __IMPOSSIBLE__

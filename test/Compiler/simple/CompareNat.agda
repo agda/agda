@@ -4,6 +4,7 @@ module _ where
 open import Agda.Builtin.Nat renaming (_<_ to _<?_)
 open import Common.Prelude
 open import Common.Equality
+open import Agda.Builtin.TrustMe
 
 data _<_ (a b : Nat) : Set where
   diff : (k : Nat) → b ≡ suc k + a → a < b

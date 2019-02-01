@@ -6,6 +6,7 @@ module Agda.TypeChecking.Rules.Application
   , checkArguments_
   , checkApplication
   , inferApplication
+  , checkProjAppToKnownPrincipalArg
   ) where
 
 #if MIN_VERSION_base(4,11,0)
@@ -162,10 +163,10 @@ checkApplication cmp hd args e t = postponeInstanceConstraints $ do
           makeArgs _  []   = ([], [])
           makeArgs tel@(d : _) (arg : args) =
             case insertImplicit arg tel of
+              NoInsertNeeded -> first (mkArg (snd $ unDom d) arg :) $ makeArgs (tail tel) args
               ImpInsert is   -> makeArgs (drop (length is) tel) (arg : args)
               BadImplicits   -> (arg : args, [])  -- fail later in checkHeadApplication
               NoSuchName{}   -> (arg : args, [])  -- ditto
-              NoInsertNeeded -> first (mkArg (snd $ unDom d) arg :) $ makeArgs (tail tel) args
 
           (macroArgs, otherArgs) = makeArgs argTel args
           unq = A.App (A.defaultAppInfo $ fuseRange x args) (A.Unquote A.exprNoRange) . defaultNamedArg
@@ -820,6 +821,14 @@ checkProjApp cmp e o ds args0 t = do
   (v, ti, targetCheck) <- inferOrCheckProjApp e o ds args0 (Just (cmp, t))
   coerce' cmp targetCheck v ti t
 
+-- | Checking the type of an overloaded projection application.
+--   See 'inferOrCheckProjAppToKnownPrincipalArg'.
+
+checkProjAppToKnownPrincipalArg  :: Comparison -> A.Expr -> ProjOrigin -> NonemptyList QName -> A.Args -> Type -> Int -> Term -> Type -> TCM Term
+checkProjAppToKnownPrincipalArg cmp e o ds args0 t k v0 pt = do
+  (v, ti, targetCheck) <- inferOrCheckProjAppToKnownPrincipalArg e o ds args0 (Just (cmp, t)) k v0 pt
+  coerce' cmp targetCheck v ti t
+
 -- | Inferring or Checking an overloaded projection application.
 --
 --   The overloaded projection is disambiguated by inferring the type of its
@@ -846,16 +855,7 @@ inferOrCheckProjApp e o ds args mt = do
     , text   "  t    = " <+> caseMaybe mt "Nothing" prettyTCM
     ]
 
-  let refuse :: String -> TCM a
-      refuse reason = typeError $ GenericError $
-        "Cannot resolve overloaded projection "
-        ++ prettyShow (A.nameConcrete $ A.qnameName $ headNe ds)
-        ++ " because " ++ reason
-      refuseNotApplied = refuse "it is not applied to a visible argument"
-      refuseNoMatching = refuse "no matching candidate found"
-      refuseNotRecordType = refuse "principal argument is not of record type"
-
-      cmp = caseMaybe mt CmpEq fst
+  let cmp = caseMaybe mt CmpEq fst
 
       -- Postpone the whole type checking problem
       -- if type of principal argument (or the type where we get it from)
@@ -877,18 +877,18 @@ inferOrCheckProjApp e o ds args mt = do
 
     -- Case: we have no visible argument to the projection.
     -- In inference mode, we really need the visible argument, postponing does not help
-    [] -> caseMaybe mt refuseNotApplied $ \ (cmp , t) -> do
+    [] -> caseMaybe mt (refuseProjNotApplied ds) $ \ (cmp , t) -> do
       -- If we have the type, we can try to get the type of the principal argument.
       -- It is the first visible argument.
       TelV _ptel core <- telViewUpTo' (-1) (not . visible) t
       ifBlockedType core (\ m _ -> postpone m) $ {-else-} \ _ core -> do
-      ifNotPiType core (\ _ -> refuseNotApplied) $ {-else-} \ dom _b -> do
+      ifNotPiType core (\ _ -> refuseProjNotApplied ds) $ {-else-} \ dom _b -> do
       ifBlockedType (unDom dom) (\ m _ -> postpone m) $ {-else-} \ _ ta -> do
-      caseMaybeM (isRecordType ta) refuseNotRecordType $ \ (_q, _pars, defn) -> do
+      caseMaybeM (isRecordType ta) (refuseProjNotRecordType ds) $ \ (_q, _pars, defn) -> do
       case defn of
         Record { recFields = fs } -> do
           case forMaybe fs $ \ (Arg _ f) -> List.find (f ==) (toList ds) of
-            [] -> refuseNoMatching
+            [] -> refuseProjNoMatching ds
             [d] -> do
               storeDisambiguatedName d
               -- checkHeadApplication will check the target type
@@ -904,100 +904,124 @@ inferOrCheckProjApp e o ds args mt = do
         [ "  principal arg " <+> prettyTCM arg
         , "  has type "      <+> prettyTCM ta
         ]
-      -- ta should be a record type (after introducing the hidden args in v0)
-      (vargs, ta) <- implicitArgs (-1) (not . visible) ta
-      let v = v0 `apply` vargs
-      ifBlockedType ta (\ m _ -> postpone m) {-else-} $ \ _ ta -> do
-      caseMaybeM (isRecordType ta) refuseNotRecordType $ \ (q, _pars0, _) -> do
+      inferOrCheckProjAppToKnownPrincipalArg e o ds args mt k v0 ta
 
-          -- try to project it with all of the possible projections
-          let try d = do
-                reportSDoc "tc.proj.amb" 30 $ vcat
-                  [ text $ "trying projection " ++ prettyShow d
-                  , "  td  = " <+> caseMaybeM (getDefType d ta) "Nothing" prettyTCM
-                  ]
+-- | Same arguments 'inferOrCheckProjApp' above but also gets the position,
+--   value and type of the principal argument.
+inferOrCheckProjAppToKnownPrincipalArg ::
+  A.Expr -> ProjOrigin -> NonemptyList QName -> A.Args -> Maybe (Comparison, Type) ->
+  Int -> Term -> Type -> TCM (Term, Type, CheckedTarget)
+inferOrCheckProjAppToKnownPrincipalArg e o ds args mt k v0 ta = do
+  let cmp = caseMaybe mt CmpEq fst
+      postpone m = do
+        tc <- caseMaybe mt newTypeMeta_ (return . snd)
+        v <- postponeTypeCheckingProblem (CheckProjAppToKnownPrincipalArg cmp e o ds args tc k v0 ta) $ isInstantiatedMeta m
+        return (v, tc, NotCheckedTarget)
+  -- ta should be a record type (after introducing the hidden args in v0)
+  (vargs, ta) <- implicitArgs (-1) (not . visible) ta
+  let v = v0 `apply` vargs
+  ifBlockedType ta (\ m _ -> postpone m) {-else-} $ \ _ ta -> do
+  caseMaybeM (isRecordType ta) (refuseProjNotRecordType ds) $ \ (q, _pars0, _) -> do
 
-                -- get the original projection name
-                def <- lift $ getConstInfo d
-                let isP = isProjection_ $ theDef def
-                reportSDoc "tc.proj.amb" 40 $ vcat $
-                  [ text $ "  isProjection = " ++ caseMaybe isP "no" (const "yes")
-                  ] ++ caseMaybe isP [] (\ Projection{ projProper = proper, projOrig = orig } ->
-                  [ text $ "  proper       = " ++ show proper
-                  , text $ "  orig         = " ++ prettyShow orig
-                  ])
+      -- try to project it with all of the possible projections
+      let try d = do
+            reportSDoc "tc.proj.amb" 30 $ vcat
+              [ text $ "trying projection " ++ prettyShow d
+              , "  td  = " <+> caseMaybeM (getDefType d ta) "Nothing" prettyTCM
+              ]
 
-                -- Andreas, 2017-01-21, issue #2422
-                -- The scope checker considers inherited projections (from nested records)
-                -- as projections and allows overloading.  However, since they are defined
-                -- as *composition* of projections, the type checker does *not* recognize them,
-                -- and @isP@ will be @Nothing@.
-                -- However, we can ignore this, as we only need the @orig@inal projection name
-                -- for removing false ambiguity.  Thus, we skip these checks:
+            -- get the original projection name
+            def <- lift $ getConstInfo d
+            let isP = isProjection_ $ theDef def
+            reportSDoc "tc.proj.amb" 40 $ vcat $
+              [ text $ "  isProjection = " ++ caseMaybe isP "no" (const "yes")
+              ] ++ caseMaybe isP [] (\ Projection{ projProper = proper, projOrig = orig } ->
+              [ text $ "  proper       = " ++ show proper
+              , text $ "  orig         = " ++ prettyShow orig
+              ])
 
-                -- Projection{ projProper = proper, projOrig = orig } <- MaybeT $ return isP
-                -- guard $ isJust proper
-                let orig = caseMaybe isP d projOrig
+            -- Andreas, 2017-01-21, issue #2422
+            -- The scope checker considers inherited projections (from nested records)
+            -- as projections and allows overloading.  However, since they are defined
+            -- as *composition* of projections, the type checker does *not* recognize them,
+            -- and @isP@ will be @Nothing@.
+            -- However, we can ignore this, as we only need the @orig@inal projection name
+            -- for removing false ambiguity.  Thus, we skip these checks:
 
-                -- try to eliminate
-                (dom, u, tb) <- MaybeT (projectTyped v ta o d `catchError` \ _ -> return Nothing)
-                reportSDoc "tc.proj.amb" 30 $ vcat
-                  [ "  dom = " <+> prettyTCM dom
-                  , "  u   = " <+> prettyTCM u
-                  , "  tb  = " <+> prettyTCM tb
-                  ]
-                (q', pars, _) <- MaybeT $ isRecordType $ unDom dom
-                reportSDoc "tc.proj.amb" 30 $ vcat
-                  [ "  q   = " <+> prettyTCM q
-                  , "  q'  = " <+> prettyTCM q'
-                  ]
-                guard (q == q')
-                -- Get the type of the projection and check
-                -- that the first visible argument is the record value.
-                let tfull = defType def
-                TelV tel _ <- lift $ telViewUpTo' (-1) (not . visible) tfull
-                reportSDoc "tc.proj.amb" 30 $ vcat
-                  [ text $ "  size tel  = " ++ show (size tel)
-                  , text $ "  size pars = " ++ show (size pars)
-                  ]
-                -- See issue 1960 for when the following assertion fails for
-                -- the correct disambiguation.
-                -- guard (size tel == size pars)
+            -- Projection{ projProper = proper, projOrig = orig } <- MaybeT $ return isP
+            -- guard $ isJust proper
+            let orig = caseMaybe isP d projOrig
 
-                guard =<< do isNothing <$> do lift $ checkRelevance' d def
-                return (orig, (d, (pars, (dom, u, tb))))
+            -- try to eliminate
+            (dom, u, tb) <- MaybeT (projectTyped v ta o d `catchError` \ _ -> return Nothing)
+            reportSDoc "tc.proj.amb" 30 $ vcat
+              [ "  dom = " <+> prettyTCM dom
+              , "  u   = " <+> prettyTCM u
+              , "  tb  = " <+> prettyTCM tb
+              ]
+            (q', pars, _) <- MaybeT $ isRecordType $ unDom dom
+            reportSDoc "tc.proj.amb" 30 $ vcat
+              [ "  q   = " <+> prettyTCM q
+              , "  q'  = " <+> prettyTCM q'
+              ]
+            guard (q == q')
+            -- Get the type of the projection and check
+            -- that the first visible argument is the record value.
+            let tfull = defType def
+            TelV tel _ <- lift $ telViewUpTo' (-1) (not . visible) tfull
+            reportSDoc "tc.proj.amb" 30 $ vcat
+              [ text $ "  size tel  = " ++ show (size tel)
+              , text $ "  size pars = " ++ show (size pars)
+              ]
+            -- See issue 1960 for when the following assertion fails for
+            -- the correct disambiguation.
+            -- guard (size tel == size pars)
 
-          cands <- groupOn fst . catMaybes <$> mapM (runMaybeT . try) (toList ds)
-          case cands of
-            [] -> refuseNoMatching
-            [[]] -> refuseNoMatching
-            (_:_:_) -> refuse $ "several matching candidates found: "
-                 ++ prettyShow (map (fst . snd) $ concat cands)
-            -- case: just one matching projection d
-            -- the term u = d v
-            -- the type tb is the type of this application
-            [ (_orig, (d, (pars, (_dom,u,tb)))) : _ ] -> do
-              storeDisambiguatedName d
+            guard =<< do isNothing <$> do lift $ checkRelevance' d def
+            return (orig, (d, (pars, (dom, u, tb))))
 
-              -- Check parameters
-              tfull <- typeOfConst d
-              (_,_) <- checkKnownArguments (take k args) pars tfull
+      cands <- groupOn fst . catMaybes <$> mapM (runMaybeT . try) (toList ds)
+      case cands of
+        [] -> refuseProjNoMatching ds
+        [[]] -> refuseProjNoMatching ds
+        (_:_:_) -> refuseProj ds $ "several matching candidates found: "
+             ++ prettyShow (map (fst . snd) $ concat cands)
+        -- case: just one matching projection d
+        -- the term u = d v
+        -- the type tb is the type of this application
+        [ (_orig, (d, (pars, (_dom,u,tb)))) : _ ] -> do
+          storeDisambiguatedName d
 
-              -- Check remaining arguments
-              let r     = getRange e
-                  args' = drop (k + 1) args
-              z <- runExceptT $ checkArgumentsE ExpandLast r args' tb (snd <$> mt)
-              case z of
-                Right (us, trest, targetCheck) -> return (u `applyE` us, trest, targetCheck)
-                Left problem -> do
-                  -- In the inference case:
-                  -- To create a postponed type checking problem,
-                  -- we do not use typeDontCare, but create a meta.
-                  tc <- caseMaybe mt newTypeMeta_ (return . snd)
-                  v  <- postponeArgs problem ExpandLast r args' tc $ \ us trest targetCheck ->
-                          coerce' cmp targetCheck (u `applyE` us) trest tc
+          -- Check parameters
+          tfull <- typeOfConst d
+          (_,_) <- checkKnownArguments (take k args) pars tfull
 
-                  return (v, tc, NotCheckedTarget)
+          -- Check remaining arguments
+          let r     = getRange e
+              args' = drop (k + 1) args
+          z <- runExceptT $ checkArgumentsE ExpandLast r args' tb (snd <$> mt)
+          case z of
+            Right (us, trest, targetCheck) -> return (u `applyE` us, trest, targetCheck)
+            Left problem -> do
+              -- In the inference case:
+              -- To create a postponed type checking problem,
+              -- we do not use typeDontCare, but create a meta.
+              tc <- caseMaybe mt newTypeMeta_ (return . snd)
+              v  <- postponeArgs problem ExpandLast r args' tc $ \ us trest targetCheck ->
+                      coerce' cmp targetCheck (u `applyE` us) trest tc
+
+              return (v, tc, NotCheckedTarget)
+
+refuseProj :: NonemptyList QName -> String -> TCM a
+refuseProj ds reason = typeError $ GenericError $
+        "Cannot resolve overloaded projection "
+        ++ prettyShow (A.nameConcrete $ A.qnameName $ headNe ds)
+        ++ " because " ++ reason
+
+refuseProjNotApplied, refuseProjNoMatching, refuseProjNotRecordType :: NonemptyList QName -> TCM a
+refuseProjNotApplied    ds = refuseProj ds "it is not applied to a visible argument"
+refuseProjNoMatching    ds = refuseProj ds "no matching candidate found"
+refuseProjNotRecordType ds = refuseProj ds "principal argument is not of record type"
 
 -----------------------------------------------------------------------------
 -- * Coinduction

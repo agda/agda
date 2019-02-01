@@ -116,8 +116,11 @@ updateContext sub f = modifyContext f . checkpoint sub
 
 -- | Get the substitution from the context at a given checkpoint to the current context.
 checkpointSubstitution :: MonadTCEnv tcm => CheckpointId -> tcm Substitution
-checkpointSubstitution chkpt =
-  caseMaybeM (viewTC (eCheckpoints . key chkpt)) __IMPOSSIBLE__ return
+checkpointSubstitution = maybe __IMPOSSIBLE__ return <=< checkpointSubstitution'
+
+-- | Get the substitution from the context at a given checkpoint to the current context.
+checkpointSubstitution' :: MonadTCEnv tcm => CheckpointId -> tcm (Maybe Substitution)
+checkpointSubstitution' chkpt = viewTC (eCheckpoints . key chkpt)
 
 -- | Get substitution @Γ ⊢ ρ : Γm@ where @Γ@ is the current context
 --   and @Γm@ is the module parameter telescope of module @m@.

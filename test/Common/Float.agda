@@ -1,3 +1,4 @@
+{-# OPTIONS --without-K #-}
 module Common.Float where
 
 open import Agda.Builtin.Float public

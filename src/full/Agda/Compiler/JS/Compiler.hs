@@ -308,7 +308,7 @@ definition' kit q d t ls = do
     Function{} | otherwise -> do
 
       reportSDoc "compile.js" 5 $ "compiling fun:" <+> prettyTCM q
-      caseMaybeM (toTreeless q) (pure Nothing) $ \ treeless -> do
+      caseMaybeM (toTreeless T.EagerEvaluation q) (pure Nothing) $ \ treeless -> do
         funBody <- eliminateCaseDefaults =<<
           eliminateLiteralPatterns
           (convertGuards treeless)

@@ -222,7 +222,7 @@ page css htmlHighlight modName pageContent =
                 ]
       ]
 
-    rest = body $ pre pageContent
+    rest = body $ (pre ! class_ "Agda") pageContent
 
 -- | Position, Contents, Infomation
 
@@ -296,7 +296,7 @@ code onlyCode fileType = mconcat . if onlyCode
         Just Markup     -> __IMPOSSIBLE__
         _               -> mkHtml token
       go [a, b] = [ mconcat $ work <$> a
-                  , pre ! class_ "agda-code" $ mconcat $ work <$> b
+                  , pre ! class_ "Agda" $ mconcat $ work <$> b
                   ]
       go [a]    = work <$> a
       go _      = __IMPOSSIBLE__

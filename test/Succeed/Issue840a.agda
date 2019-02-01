@@ -17,6 +17,8 @@ data Bool : Set where
 {-# BUILTIN TRUE  true  #-}
 {-# BUILTIN FALSE false #-}
 
+postulate String : Set
+
 {-# BUILTIN STRING String #-}
 
 primitive primStringEquality : String → String → Bool

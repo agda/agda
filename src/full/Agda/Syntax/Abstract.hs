@@ -870,8 +870,10 @@ instanceUniverseBiT' [] [t| (Declaration, Pattern' Void)  |]
 instanceUniverseBiT' [] [t| (Declaration, Declaration)    |]
 instanceUniverseBiT' [] [t| (Declaration, ModuleName)     |]
 instanceUniverseBiT' [] [t| (Declaration, ModuleInfo)     |]
-instanceUniverseBiT' [] [t| (Declaration, RString)        |]
-  -- RString is not quite what you want but we put names on lots of things...
+instanceUniverseBiT' [] [t| (Declaration, NamedArg LHSCore)  |]
+instanceUniverseBiT' [] [t| (Declaration, NamedArg BindName) |]
+instanceUniverseBiT' [] [t| (Declaration, NamedArg Expr)     |]
+instanceUniverseBiT' [] [t| (Declaration, NamedArg Pattern)  |]
 
 ------------------------------------------------------------------------
 -- Queries

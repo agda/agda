@@ -55,10 +55,10 @@ insertImplicitSizeLtPatterns t = do
 
   -- Search for the last SizeLt type among the hidden arguments.
   TelV tel _ <- telView t
-  let ts = reverse $ takeWhile (not . visible) $ telToList tel
-  keep <- reverse <$> dropWhileM (not <.> isSizeLt . snd . unDom) ts
+  let ts = takeWhile (not . visible) $ telToList tel
+  keep <- dropWhileEndM (not <.> isSizeLt . snd . unDom) ts
   -- Insert implicit patterns upto (including) the last SizeLt type.
-  return [ implicitP ai | Dom {domInfo = ai} <- keep ]
+  return $ map (implicitP . domInfo) keep
 
 -- | Insert implicit patterns in a list of patterns.
 --   Even if 'DontExpandLast', trailing SIZELT patterns are inserted.
@@ -74,23 +74,28 @@ insertImplicitPatternsT exh            ps a = do
          , nest 2 $ "tel = " <+> prettyTCM tel
          , nest 2 $ "b   = " <+> addContext tel (prettyTCM b)
          ]
+  reportSDoc "tc.lhs.imp" 70 $
+    vcat [ "insertImplicitPatternsT"
+         , nest 2 $ "ps  = " <+> (text . show) ps
+         , nest 2 $ "tel = " <+> (text . show) tel
+         , nest 2 $ "b   = " <+> (text . show) b
+         ]
   case ps of
     [] -> insImp dummy tel
-    p : ps -> do
+    p : _ -> do
       -- Andreas, 2015-05-11.
       -- If p is a projection pattern, make it visible for the purpose of
       -- calling insImp / insertImplicit, to get correct behavior.
       let p' = applyWhen (isJust $ A.maybeProjP p) (setHiding NotHidden) p
       hs <- insImp p' tel
-      case hs of
-        [] -> do
-          a <- reduce a
-          a <- piOrPath a
-          case a of
-            Left (arg, b) -> do
-              (p :) <$> insertImplicitPatternsT exh ps (absBody b)
-            _ -> return (p : ps)
-        hs -> insertImplicitPatternsT exh (hs ++ p : ps) (telePi tel b)
+      -- Continue with implicit patterns inserted before @p@.
+      -- The list @hs ++ ps@ cannot be empty.
+      let ps0@(~(p1 : ps1)) = hs ++ ps
+      reduce a >>= piOrPath >>= \case
+        -- If @a@ is a function (or path) type, continue inserting after @p1@.
+        Left (_, b) -> (p1 :) <$> insertImplicitPatternsT exh ps1 (absBody b)
+        -- Otherwise, we are done.
+        Right{}     -> return ps0
   where
     dummy = defaultNamedArg (A.VarP __IMPOSSIBLE__)
 
@@ -99,6 +104,5 @@ insertImplicitPatternsT exh            ps a = do
       BadImplicits   -> typeError WrongHidingInLHS
       NoSuchName x   -> typeError WrongHidingInLHS
       ImpInsert n    -> return $ map implicitArg n
-      NoInsertNeeded -> return []
 
     implicitArg h = implicitP $ setHiding h $ defaultArgInfo

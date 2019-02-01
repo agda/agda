@@ -1,5 +1,5 @@
 -- This test case was reported by Andrea Vezzosi.
-
+{-# OPTIONS --no-guardedness #-}
 open import Agda.Builtin.Size
 
 data Σ (A : Set) (B : A → Set) : Set where

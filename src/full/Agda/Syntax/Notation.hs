@@ -34,10 +34,10 @@ import Agda.Utils.Impossible
 -- | Data type constructed in the Happy parser; converted to 'GenPart'
 --   before it leaves the Happy code.
 data HoleName
-  = LambdaHole { _bindHoleName :: RawName
-               , holeName      :: RawName }
+  = LambdaHole { _bindHoleName :: RString
+               , holeName      :: RString }
     -- ^ @\ x -> y@; 1st argument is the bound name (unused for now).
-  | ExprHole   { holeName      :: RawName }
+  | ExprHole   { holeName      :: RString }
     -- ^ Simple named hole with hiding.
 
 -- | Is the hole a binder?
@@ -50,38 +50,72 @@ type Notation = [GenPart]
 
 -- | Part of a Notation
 data GenPart
-  = BindHole !Int
+  = BindHole Range (Ranged Int)
     -- ^ Argument is the position of the hole (with binding) where the binding should occur.
-  | NormalHole (NamedArg Int)
+    --   First range is the rhs range and second is the binder.
+  | NormalHole Range (NamedArg (Ranged Int))
     -- ^ Argument is where the expression should go.
-  | WildHole !Int
+  | WildHole (Ranged Int)
     -- ^ An underscore in binding position.
-  | IdPart RawName
-  deriving (Data, Show, Eq, Ord)
+  | IdPart RString
+  deriving (Data, Show)
+
+instance Eq GenPart where
+  BindHole _ i   == BindHole _ j   = i == j
+  NormalHole _ x == NormalHole _ y = x == y
+  WildHole i     == WildHole j     = i == j
+  IdPart x       == IdPart y       = x == y
+  _              == _              = False
+
+instance Ord GenPart where
+  BindHole _ i   `compare` BindHole _ j   = i `compare` j
+  NormalHole _ x `compare` NormalHole _ y = x `compare` y
+  WildHole i     `compare` WildHole j     = i `compare` j
+  IdPart x       `compare` IdPart y       = x `compare` y
+  BindHole{}     `compare` _              = LT
+  _              `compare` BindHole{}     = GT
+  NormalHole{}   `compare` _              = LT
+  _              `compare` NormalHole{}   = GT
+  WildHole{}     `compare` _              = LT
+  _              `compare` WildHole{}     = GT
+
+instance HasRange GenPart where
+  getRange p = case p of
+    IdPart x       -> getRange x
+    BindHole r _   -> r
+    WildHole i     -> getRange i
+    NormalHole r _ -> r
+
+instance SetRange GenPart where
+  setRange r p = case p of
+    IdPart x       -> IdPart x
+    BindHole _ i   -> BindHole r i
+    WildHole i     -> WildHole i
+    NormalHole _ i -> NormalHole r i
 
 instance KillRange GenPart where
   killRange p = case p of
-    IdPart x     -> IdPart x
-    BindHole i   -> BindHole i
-    WildHole i   -> WildHole i
-    NormalHole x -> NormalHole $ killRange x
+    IdPart x       -> IdPart $ killRange x
+    BindHole _ i   -> BindHole noRange $ killRange i
+    WildHole i     -> WildHole $ killRange i
+    NormalHole _ x -> NormalHole noRange $ killRange x
 
 instance NFData GenPart where
-  rnf (BindHole _)   = ()
-  rnf (NormalHole a) = rnf a
-  rnf (WildHole _)   = ()
-  rnf (IdPart a)     = rnf a
+  rnf (BindHole _ a)   = rnf a
+  rnf (NormalHole _ a) = rnf a
+  rnf (WildHole a)     = rnf a
+  rnf (IdPart a)       = rnf a
 
 -- | Get a flat list of identifier parts of a notation.
-stringParts :: Notation -> [RawName]
-stringParts gs = [ x | IdPart x <- gs ]
+stringParts :: Notation -> [String]
+stringParts gs = [ rangedThing x | IdPart x <- gs ]
 
 -- | Target argument position of a part (Nothing if it is not a hole).
 holeTarget :: GenPart -> Maybe Int
-holeTarget (BindHole   n) = Just n
-holeTarget (WildHole   n) = Just n
-holeTarget (NormalHole n) = Just $ namedArg n
-holeTarget IdPart{}       = Nothing
+holeTarget (BindHole _   n) = Just $ rangedThing n
+holeTarget (WildHole     n) = Just $ rangedThing n
+holeTarget (NormalHole _ n) = Just $ rangedThing $ namedArg n
+holeTarget IdPart{}         = Nothing
 
 -- | Is the part a hole? WildHoles don't count since they don't correspond to
 --   anything the user writes.
@@ -100,9 +134,9 @@ isNormalHole IdPart{}     = False
 
 -- | Is the part a binder?
 isBindingHole :: GenPart -> Bool
-isBindingHole (BindHole _) = True
-isBindingHole (WildHole _) = True
-isBindingHole _ = False
+isBindingHole BindHole{} = True
+isBindingHole WildHole{} = True
+isBindingHole _          = False
 
 -- | Classification of notations.
 
@@ -139,7 +173,7 @@ notationKind syn =
 --      , IdPart "return" , NormalHole 0
 --      ]
 --   @
-mkNotation :: [NamedArg HoleName] -> [RawName] -> Either String Notation
+mkNotation :: [NamedArg HoleName] -> [RString] -> Either String Notation
 mkNotation _ [] = throwError "empty notation is disallowed"
 mkNotation holes ids = do
   unless uniqueHoleNames     $ throwError "syntax must use unique argument names"
@@ -158,42 +192,45 @@ mkNotation holes ids = do
   when   (isSingleHole xs)   $ throwError "syntax cannot be a single hole"
   return $ insertWildHoles xs
     where
-      holeNames :: [RawName]
+      holeNames :: [RString]
       holeNames = map namedArg holes >>= \case
-        LambdaHole x y -> [x,y]
+        LambdaHole x y -> [x, y]
         ExprHole y     -> [y]
 
       prettyHoles :: String
-      prettyHoles = List.unwords holeNames
+      prettyHoles = List.unwords $ map (rawNameToString . rangedThing) holeNames
 
-      nonHoleNames :: Notation -> [RawName]
+      nonHoleNames :: Notation -> [RString]
       nonHoleNames xs = flip mapMaybe xs $ \case
-        WildHole{}   -> Just "_"
+        WildHole{}   -> Just $ unranged "_"
         IdPart x     -> Just x
         BindHole{}   -> Nothing
         NormalHole{} -> Nothing
 
       prettyNonHoles :: Notation -> String
-      prettyNonHoles = List.unwords . nonHoleNames
+      prettyNonHoles = List.unwords . map (rawNameToString . rangedThing) . nonHoleNames
 
-      mkPart ident = fromMaybe (IdPart ident) $ lookup ident holeMap
+      mkPart ident = maybe (IdPart ident) (`withRangeOf` ident) $ lookup ident holeMap
 
       holeNumbers   = [0 .. length holes - 1]
+
+      numberedHoles :: [(Int, NamedArg HoleName)]
       numberedHoles = zip holeNumbers holes
 
       -- The WildHoles don't correspond to anything in the right-hand side so
       -- we add them next to their corresponding body. Slightly subtle: due to
       -- the way the operator parsing works they can't be added first or last.
+      insertWildHoles :: [GenPart] -> [GenPart]
       insertWildHoles xs = foldr ins xs wilds
         where
           wilds = [ i | (_, WildHole i) <- holeMap ]
-          ins w (NormalHole h : hs)
-            | namedArg h == w = NormalHole h : WildHole w : hs
+          ins w (NormalHole r h : hs)
+            | namedArg h == w = NormalHole r h : WildHole w : hs
           ins w (h : hs) = h : insBefore w hs
           ins _ [] = __IMPOSSIBLE__
 
-          insBefore w (NormalHole h : hs)
-            | namedArg h == w = WildHole w : NormalHole h : hs
+          insBefore w (NormalHole r h : hs)
+            | namedArg h == w = WildHole w : NormalHole r h : hs
           insBefore w (h : hs) = h : insBefore w hs
           insBefore _ [] = __IMPOSSIBLE__
 
@@ -201,22 +238,26 @@ mkNotation holes ids = do
       -- A @LambdaHole@ contributes two entries:
       -- both names are mapped to the same number,
       -- but distinguished by BindHole vs. NormalHole.
+      holeMap :: [(RString, GenPart)]
       holeMap = do
-        (i, h) <- numberedHoles
-        let normalHole = NormalHole $ fmap (i <$) h
+        (i, h) <- numberedHoles    -- v This range is filled in by mkPart
+        let ri x = Ranged (getRange x) i
+            normalHole y = NormalHole noRange $ fmap (ri y <$) h
         case namedArg h of
-          ExprHole y       -> [(y, normalHole)]
-          LambdaHole "_" y -> [("_", WildHole i), (y, normalHole)]
-          LambdaHole x y   -> [(x, BindHole i), (y, normalHole)]
+          ExprHole y       -> [(y, normalHole y)]
+          LambdaHole x y
+            | "_" <- rangedThing x -> [(x, WildHole (ri x)),         (y, normalHole y)]
+            | otherwise            -> [(x, BindHole noRange (ri x)), (y, normalHole y)]
+                                                 -- Filled in by mkPart
 
       -- Check whether all hole names are distinct.
       -- The hole names are the keys of the @holeMap@.
-      uniqueHoleNames = distinct [ x | (x, _) <- holeMap, x /= "_" ]
+      uniqueHoleNames = distinct [ x | (x, _) <- holeMap, rangedThing x /= "_" ]
 
       isExprLinear   xs = List.sort [ i | x <- xs, isNormalHole x, let Just i = holeTarget x ] == holeNumbers
-      isLambdaLinear xs = List.sort [ x | BindHole x <- xs ] ==
+      isLambdaLinear xs = List.sort [ rangedThing x | BindHole _ x <- xs ] ==
                           [ i | (i, h) <- numberedHoles,
-                                LambdaHole x _ <- [namedArg h], x /= "_" ]
+                                LambdaHole x _ <- [namedArg h], rangedThing x /= "_" ]
 
       isAlternating :: [GenPart] -> Bool
       isAlternating []       = __IMPOSSIBLE__

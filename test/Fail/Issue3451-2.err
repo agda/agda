@@ -1,0 +1,5 @@
+Issue3451-2.agda:5,1-24
+Importing module Common.Size not using the --no-sized-types flag
+from a module which does.
+when scope checking the declaration
+  open import Common.Size

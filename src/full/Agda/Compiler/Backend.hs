@@ -129,8 +129,8 @@ embedFlag l flag = l flag
 embedOpt :: Lens' a b -> OptDescr (Flag a) -> OptDescr (Flag b)
 embedOpt l = fmap (embedFlag l)
 
-parseBackendOptions :: [Backend] -> [String] -> OptM ([Backend], CommandLineOptions)
-parseBackendOptions backends argv =
+parseBackendOptions :: [Backend] -> [String] -> CommandLineOptions -> OptM ([Backend], CommandLineOptions)
+parseBackendOptions backends argv opts0 =
   case makeAll backendWithOpts backends of
     Some bs -> do
       let agdaFlags    = map (embedOpt lSnd) standardOptions
@@ -139,8 +139,9 @@ parseBackendOptions backends argv =
             BackendWithOpts b <- [lookupIndex bs i]
             opt               <- commandLineFlags b
             return $ embedOpt (lFst . lIndex i . bOptions) opt
-      (backends, opts) <- getOptSimple argv (agdaFlags ++ backendFlags) (embedFlag lSnd . inputFlag)
-                                            (bs, defaultOptions)
+      (backends, opts) <- getOptSimple (stripRTS argv)
+                                       (agdaFlags ++ backendFlags) (embedFlag lSnd . inputFlag)
+                                       (bs, opts0)
       opts <- checkOpts opts
       return (forgetAll forgetOpts backends, opts)
 

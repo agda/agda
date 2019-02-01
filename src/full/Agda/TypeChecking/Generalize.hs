@@ -13,12 +13,15 @@ import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.List (nub, partition, init, sortBy)
 import Data.Function (on)
+import Data.Traversable
 
 import Agda.Syntax.Common
 import Agda.Syntax.Concrete.Name (LensInScope(..))
 import Agda.Syntax.Position
 import Agda.Syntax.Internal
 import Agda.Syntax.Literal
+import Agda.Syntax.Scope.Monad (bindVariable)
+import Agda.Syntax.Scope.Base (Binder(..))
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Abstract
 import Agda.TypeChecking.Constraints
@@ -32,8 +35,9 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Warnings
 
-import Agda.Benchmarking
+import Agda.Benchmarking (Phase(Typing, Generalize))
 import Agda.Utils.Benchmark
+import Agda.Utils.Except
 import Agda.Utils.Functor
 import Agda.Utils.Impossible
 import Agda.Utils.Lens
@@ -49,10 +53,11 @@ generalizeTelescope :: Map QName Name -> (forall a. (Telescope -> TCM a) -> TCM 
 generalizeTelescope vars typecheckAction ret | Map.null vars = typecheckAction (ret [])
 generalizeTelescope vars typecheckAction ret = billTo [Typing, Generalize] $ withGenRecVar $ \ genRecMeta -> do
   let s = Set.fromList (Map.keys vars)
-  ((cxtNames, tel), namedMetas, allmetas) <-
+  ((cxtNames, tel, letbinds), namedMetas, allmetas) <-
     createMetasAndTypeCheck s $ typecheckAction $ \ tel -> do
       cxt <- take (size tel) <$> getContext
-      return (map (fst . unDom) cxt, tel)
+      lbs <- getLetBindings -- This gives let-bindings valid in the current context
+      return (map (fst . unDom) cxt, tel, lbs)
   -- Translate the QName to the corresponding bound variable
   (genTel, genTelNames, sub) <- computeGeneralization genRecMeta namedMetas allmetas
 
@@ -78,12 +83,20 @@ generalizeTelescope vars typecheckAction ret = billTo [Typing, Generalize] $ wit
 
   -- We are in context Γ (r : R) and should call the continuation in context Γ Δ Θρ passing it Δ Θρ
   -- We have
-  -- Γ (r : R) ⊢ Θ            Θ = tel
-  -- Γ ⊢ Δ                    Δ = genTel
-  -- Γ Δ ⊢ ρ : Γ (r : R)      ρ = sub
-  -- Γ ⊢ Δ Θρ                 Θρ = tel'
+  --   Γ (r : R) ⊢ Θ            Θ = tel
+  --   Γ ⊢ Δ                    Δ = genTel
+  --   Γ Δ ⊢ ρ : Γ (r : R)      ρ = sub
+  --   Γ ⊢ Δ Θρ                 Θρ = tel'
+  -- And we shouldn't forget about the let-bindings (#3470)
+  --   Γ (r : R) Θ ⊢ letbinds
+  --   Γ Δ Θρ      ⊢ letbinds' = letbinds(lift |Θ| ρ)
+  letbinds' <- applySubst (liftS (size tel) sub) <$> instantiateFull letbinds
+  let addLet (x, (v, dom)) = addLetBinding' x v dom
+
   updateContext sub ((genTelCxt ++) . drop 1) $
-    updateContext (raiseS (size tel')) (newTelCxt ++) $ ret genTelVars (abstract genTel tel')
+    updateContext (raiseS (size tel')) (newTelCxt ++) $
+      foldr addLet (ret genTelVars $ abstract genTel tel') letbinds'
+
 
 -- | Generalize a type over a set of (used) generalizable variables.
 generalizeType :: Set QName -> TCM Type -> TCM ([Maybe QName], Type)
@@ -153,21 +166,21 @@ computeGeneralization genRecMeta nameMap allmetas = postponeInstanceConstraints 
   -- Any meta in the solution of a generalizable meta should be generalized over (if possible).
   cp <- viewTC eCurrentCheckpoint
   let canGeneralize x = do
-          mv  <- lookupMeta x
-          sub <- enterClosure (miClosRange $ mvInfo mv) $ \ _ ->
-                   checkpointSubstitution cp
+          mv   <- lookupMeta x
+          msub <- enterClosure (miClosRange $ mvInfo mv) $ \ _ ->
+                    checkpointSubstitution' cp
           let sameContext =
                 -- We can only generalize if the metavariable takes the context variables of the
                 -- current context as arguments. This happens either when the context of the meta
                 -- is the same as the current context and there is no pruning, or the meta context
-                -- is a weakening but the extra variables have been prune.
+                -- is a weakening but the extra variables have been pruned.
                 -- It would be possible to generalize also in the case when some context variables
                 -- (other than genTel) have been pruned, but it's hard to construct an example
                 -- where this actually happens.
-                case (sub, mvPermutation mv) of
-                  (IdS, Perm m xs)      -> xs == [0 .. m - 1]
-                  (Wk n IdS, Perm m xs) -> xs == [0 .. m - n - 1]
-                  _                     -> False
+                case (msub, mvPermutation mv) of
+                  (Just IdS, Perm m xs)        -> xs == [0 .. m - 1]
+                  (Just (Wk n IdS), Perm m xs) -> xs == [0 .. m - n - 1]
+                  _                            -> False
           when (not sameContext) $ do
             ty <- getMetaType x
             let Perm m xs = mvPermutation mv
@@ -177,7 +190,7 @@ computeGeneralization genRecMeta nameMap allmetas = postponeInstanceConstraints 
               , text "in context"
               , nest 2 $ inTopContext . prettyTCM =<< getContextTelescope
               , text "permutation:" <+> text (show (m, xs))
-              , text "subst:" <+> pretty sub ]
+              , text "subst:" <+> pretty msub ]
           return sameContext
   inherited <- fmap Set.unions $ forM generalizableClosed $ \ (x, mv) ->
     case mvInstantiation mv of
@@ -234,6 +247,140 @@ computeGeneralization genRecMeta nameMap allmetas = postponeInstanceConstraints 
   -- Now abstract over the telescope. We need to apply the substitution that subsitutes a record
   -- value packing up the generalized variables for the genTel variable.
   let sub = unpackSub genRecCon (map (argInfo . fst) teleTypes) (length teleTypes)
+
+  -- Finally eta-expand the GenTel record in non-generalized open metas. When
+  -- we do also update interaction points to refer to the eta-expanded meta
+  -- (#3340).
+
+  let inscope (ii, InteractionPoint{ipMeta = Just x})
+        | Set.member x allmetas = [(x, ii)]
+      inscope _ = []
+  ips <- Map.fromList . concatMap inscope . Map.toList <$> useTC stInteractionPoints
+
+  cp  <- viewTC eCurrentCheckpoint
+  forM_ reallyDontGeneralize $ \ x -> do
+    mv <- lookupMeta x
+    when (isOpenMeta $ mvInstantiation mv) $ enterClosure (miClosRange $ mvInfo mv) $ \ _ -> do
+      cxt <- instantiateFull =<< getContext
+      let notPruned = [ i | i <- permute (takeP (length cxt) $ mvPermutation mv) $
+                                 reverse $ zipWith const [0..] cxt ]
+      case [ i | (i, Dom{unDom = (_, El _ (Def q _))}) <- zip [(0::Int)..] cxt,
+                 q == genRecName, elem i notPruned ] of
+        []    -> return ()
+        _:_:_ -> __IMPOSSIBLE__
+        [i] -> do
+          -- Get the substitution from the point of generalization to the current
+          -- context. This always succeeds since if the meta depends on GenTel
+          -- it must have been created inside the generalization.
+          δ <- checkpointSubstitution cp
+
+          reportSDoc "tc.generalize.eta" 30 $ vcat
+            [ "eta expanding GenRec in"
+            , nest 2 $ prettyTCM (mvJudgement mv)
+            , nest 2 $ "GenRecTel is var" <+> pretty i ]
+
+          -- So we have
+          --   Γ (r : GenTel) Δ ⊢ x : A  and
+          --   Γ (r : GenTel) Δ ⊢ δ : Γ₀ (r : GenTel)
+          -- where |Δ| = i and r has not been pruned.
+          a <- case mvJudgement mv of
+                 IsSort{}  -> return Nothing
+                 HasType{} -> Just <$> getMetaTypeInContext x
+
+          -- v is x applied to the context variables
+          v <- MetaV x . map Apply <$> getMetaContextArgs mv
+
+          -- Now we want to compute a substitution
+          --   Γ Θ ⊢ σ : Γ (r : GenTel)
+          -- eta expanding the GenTel (actually this is just 'sub', since 'sub'
+          -- is polymorphic in Γ)
+          let σ = sub
+
+          -- We also need Θ, which is genTel but in Γ instead of Γ₀. We don't
+          -- have a substitution from Γ to Γ₀ so we have rebuild the telescope.
+          let name = traverse $ \ (s, ty) -> (,ty) <$> freshName_ s
+              -- Γ₀ (r : GenTel) ⊢ teleTypes
+              -- and we need something in Γ (r : GenTel)
+              -- The teleTypes should not depend on Δ, so we can apply δ and
+              -- strenghten:
+              -- Γ (r : GenTel) ⊢ γ : Γ₀ (r : GenTel)
+              γ = composeS (strengthenS __IMPOSSIBLE__ i) δ
+          theta <- mapM name $ telToList $ buildGeneralizeTel genRecCon $ applySubst γ teleTypes
+
+          -- We can get into the unpacked context by lifting with i:
+          --   Γ Θ Δσ ⊢ ρ : Γ (r : GenTel) Δ
+          let ρ = liftS i σ
+              -- we need to perform the same operation on the 'Context'
+              expand cxt = deltaRσ ++ thetaR ++ gammaR
+                where
+                  (deltaR, _ : gammaR) = splitAt i cxt
+                  thetaR = reverse theta
+                  -- Remember that deltaR is a list and not a telescope. We
+                  -- need to manage lifting manually.
+                  deltaRσ = go (length deltaR - 1) deltaR
+                    where
+                      -- Γ (r : GenTel) Δ₁ ⊢ x, where |Δ₁| = i
+                      -- Γ Θ Δ₁σ ⊢ liftS i σ : Γ (r : GenTel) Δ₁
+                      go i (x : xs) = applySubst (liftS i σ) x : go (i - 1) xs
+                      go _ []       = []
+
+          -- We don't need it, but for documentation purposes here is the
+          -- inverse of ρ:
+          -- Γ (r : GenTel) Δ ⊢ ρ⁻¹ : Γ Θ Δρ
+          let ρinv = liftS i $ [ Var 0 [Proj ProjSystem fld] | fld <- reverse $ genRecFields ] ++# raiseS 1
+
+          reportSDoc "tc.generalize.eta" 50 $ nest 2 $ vcat
+            [ "ρ ∘ ρ⁻¹ =" <+> pretty (composeS ρ ρinv)
+            , "ρ⁻¹ ∘ ρ =" <+> pretty (composeS ρinv ρ) ]
+
+          -- #3519: don't leak the fresh meta if we didn't expand
+          speculateTCState_ $ updateContext ρ expand $ do
+            reportSDoc "tc.generalize.eta" 30 $ nest 2 $
+              "new context:" <+> (inTopContext . prettyTCM =<< getContextTelescope)
+            -- In this context we create a fresh meta Γ Θ Δσ ⊢ y : Aρ
+            (y, u) <- localScope $ do
+
+              -- First, we add the named variables to the scope, to allow
+              -- them to be used in holes (#3341).
+              forM_ theta $ \ Dom{ unDom = (x, _) } -> do
+                -- Recognize named variables by lack of '.' (TODO: hacky!)
+                reportSLn "tc.generalize.eta.scope" 40 $ "Adding (or not) " ++ show (nameConcrete x) ++ " to the scope"
+                when ('.' `notElem` show (nameConcrete x)) $ do
+                  reportSLn "tc.generalize.eta.scope" 40 "  (added)"
+                  bindVariable LambdaBound (nameConcrete x) x
+
+              case a of
+                Nothing -> do
+                  s@(MetaS y _) <- newSortMeta
+                  return (y, Sort s)
+                Just a  -> newNamedValueMeta DontRunMetaOccursCheck
+                                             (miNameSuggestion $ mvInfo mv)
+                                             (applySubst ρ a)
+
+            -- Finally we solve xρ := y. Meta assignment is smart enough to
+            -- treat the GenRec constructor application produced by ρ as a
+            -- Miller pattern.
+            let MetaV _ es = applySubst ρ v
+                Just vs    = allApplyElims es
+
+            reportSDoc "tc.generalize.eta" 30 $ nest 2 $
+              hsep ["assigning", prettyTCM (MetaV x es), ":=", prettyTCM u]
+
+            -- This fails if x is a blocked term. We leave those alone.
+            do  assign DirEq x vs u
+                -- If x is a hole, update the hole to point to y instead. Note that
+                -- holes never point to blocked metas.
+                whenJust (Map.lookup x ips) (`connectInteractionPoint` y)
+                return SpeculateCommit
+
+              `catchError_` \ case
+                PatternErr{} -> do
+                  reportSDoc "tc.generalize.eta" 20 $ nest 2 $
+                    "Skipping eta expansion of blocked term meta" <+> pretty (MetaV x es)
+                  return SpeculateAbort  -- roll back state changes
+                err -> throwError err
+
+
   return (genTel, telNames, sub)
 
 -- | Create a substition from a context where the i first record fields are variables to a context
@@ -363,9 +510,9 @@ createGenRecordType genRecMeta@(El genRecSort _) sortedMetas = do
                   { conName      = con
                   , conInductive = Inductive
                   , conFields    = genRecFields }
-  forM_ genRecFields $ \ fld -> do
-    let field   = unArg fld     -- Filled in later
-        fieldTy = El __DUMMY_SORT__ $ Pi (defaultDom __DUMMY_TYPE__) (Abs "_" __DUMMY_TYPE__)
+  forM_ (zip sortedMetas genRecFields) $ \ (meta, fld) -> do
+    fieldTy <- getMetaType meta
+    let field = unArg fld
     addConstant field $ defaultDefn (argInfo fld) field fieldTy $
       let proj = Projection { projProper   = Just genRecName
                             , projOrig     = field

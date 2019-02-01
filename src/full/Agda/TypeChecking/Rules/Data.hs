@@ -988,6 +988,7 @@ bindParameters npars ps0@(par@(A.DomainFree arg) : ps) t ret = do
   let x          = namedArg arg
       TelV tel _ = telView' t
   case insertImplicit arg $ telToList tel of
+    NoInsertNeeded -> continue ps $ A.unBind x
     ImpInsert _    -> continue ps0 =<< freshName_ (absName b)
     BadImplicits   -> setCurrentRange par $
      typeError . GenericDocError =<< do
@@ -995,7 +996,6 @@ bindParameters npars ps0@(par@(A.DomainFree arg) : ps) t ret = do
     NoSuchName x   -> setCurrentRange par $
       typeError . GenericDocError =<< do
         text ("No parameter of name " ++ x)
-    NoInsertNeeded -> continue ps $ A.unBind x
   where
     Pi dom@(Dom{domInfo = info', unDom = a}) b = unEl t
     continue ps x = bindParameter npars ps x dom b ret

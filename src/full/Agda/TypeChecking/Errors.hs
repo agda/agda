@@ -27,7 +27,7 @@ import Control.Monad.Reader
 import Control.Monad.State
 
 import Data.Function
-import Data.List (nub, sortBy, intersperse, isInfixOf)
+import Data.List (nub, sortBy, intersperse, isInfixOf, dropWhileEnd)
 import Data.Maybe
 import Data.Char (toLower)
 import qualified Data.Set as Set
@@ -253,6 +253,13 @@ prettyWarning wng = liftTCM $ case wng of
 
     LibraryWarning lw -> pretty lw
 
+    InfectiveImport o m -> fsep $
+      pwords "Importing module" ++ [pretty m] ++ pwords "using the" ++
+      [pretty o] ++ pwords "flag from a module which does not."
+
+    CoInfectiveImport o m -> fsep $
+      pwords "Importing module" ++ [pretty m] ++ pwords "not using the" ++
+      [pretty o] ++ pwords "flag from a module which does."
 
 prettyTCWarnings :: [TCWarning] -> TCM String
 prettyTCWarnings = fmap (unlines . intersperse "") . prettyTCWarnings'
@@ -399,6 +406,7 @@ errorString err = case err of
   NoRHSRequiresAbsurdPattern{}             -> "NoRHSRequiresAbsurdPattern"
   NoSuchBuiltinName{}                      -> "NoSuchBuiltinName"
   NoSuchModule{}                           -> "NoSuchModule"
+  DuplicatePrimitiveBinding{}              -> "DuplicatePrimitiveBinding"
   NoSuchPrimitiveFunction{}                -> "NoSuchPrimitiveFunction"
   NotAModuleExpr{}                         -> "NotAModuleExpr"
   NotAProperTerm                           -> "NotAProperTerm"
@@ -850,6 +858,10 @@ instance PrettyTCM TypeError where
         pwords "No binding for builtin thing" ++ [text x <> comma] ++
         pwords ("use {-# BUILTIN " ++ x ++ " name #-} to bind it to 'name'")
 
+    DuplicatePrimitiveBinding b x y -> fsep $
+      pwords "Duplicate binding for primitive thing" ++ [text b <> comma] ++
+      pwords "previous binding to" ++ [prettyTCM x]
+
     NoSuchPrimitiveFunction x -> fsep $
       pwords "There is no primitive function called" ++ [text x]
 
@@ -1142,7 +1154,7 @@ instance PrettyTCM TypeError where
                filter (not . closedWithoutHoles) sects))
       where
       trimLeft  = dropWhile isNormalHole
-      trimRight = reverse . dropWhile isNormalHole . reverse
+      trimRight = dropWhileEnd isNormalHole
 
       closedWithoutHoles sect =
         sectKind sect == NonfixNotation
@@ -1189,7 +1201,7 @@ instance PrettyTCM TypeError where
                     (trim (notation nota))
 
         qualifyFirstIdPart _ []              = []
-        qualifyFirstIdPart q (IdPart x : ps) = IdPart (q ++ x) : ps
+        qualifyFirstIdPart q (IdPart x : ps) = IdPart (fmap (q ++) x) : ps
         qualifyFirstIdPart q (p : ps)        = p : qualifyFirstIdPart q ps
 
         trim = case sectKind sect of
