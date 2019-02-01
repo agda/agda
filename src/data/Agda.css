@@ -12,7 +12,7 @@
 
 /* NameKinds. */
 .Agda .Bound                  { color: black   }
-.Agda .GeneralizedVar         { color: black   }
+.Agda .Generalizable          { color: black   }
 .Agda .InductiveConstructor   { color: #008B00 }
 .Agda .CoinductiveConstructor { color: #8B7500 }
 .Agda .Datatype               { color: #0000CD }

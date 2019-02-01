@@ -488,7 +488,7 @@ processCode toks' = do
         (\c -> if isOp then ["Operator", c] else [c]) $
         case kind of
           Bound                     -> s
-          GeneralizedVar            -> s
+          Generalizable             -> s
           Constructor Inductive     -> "InductiveConstructor"
           Constructor CoInductive   -> "CoinductiveConstructor"
           Datatype                  -> s

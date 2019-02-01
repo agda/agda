@@ -498,7 +498,7 @@ nameKinds hlLevel decl = do
   defnToKind :: Defn -> NameKind
   defnToKind   M.Axiom{}                           = Postulate
   defnToKind   M.DataOrRecSig{}                    = Postulate
-  defnToKind   M.GeneralizableVar{}                = GeneralizedVar
+  defnToKind   M.GeneralizableVar{}                = Generalizable
   defnToKind d@M.Function{} | isProperProjection d = Field
                             | otherwise            = Function
   defnToKind   M.Datatype{}                        = Datatype
@@ -525,7 +525,7 @@ nameKinds hlLevel decl = do
   declToKind (A.ScopedDecl {})      = id
   declToKind (A.Open {})            = id
   declToKind (A.PatternSynDef q _ _) = insert q (Constructor Common.Inductive)
-  declToKind (A.Generalize _ _ _ q _)  = insert q GeneralizedVar
+  declToKind (A.Generalize _ _ _ q _) = insert q Generalizable
   declToKind (A.FunDef  _ q _ _)     = insert q Function
   declToKind (A.UnquoteDecl _ _ qs _) = foldr (\ q f -> insert q Function . f) id qs
   declToKind (A.UnquoteDef _ qs _)    = foldr (\ q f -> insert q Function . f) id qs
@@ -853,7 +853,7 @@ nameToFile modMap file xs x fr m mR =
   isLocal :: NameKind -> Bool
   isLocal = \case
     Bound         -> True
-    GeneralizedVar -> True
+    Generalizable -> True
     Argument      -> True
     Constructor{} -> False
     Datatype      -> False
@@ -864,7 +864,6 @@ nameToFile modMap file xs x fr m mR =
     Primitive     -> False
     Record        -> False
     Macro         -> False
-
 
 -- | A variant of 'nameToFile' for qualified abstract names.
 
