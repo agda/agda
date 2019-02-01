@@ -12,6 +12,7 @@ module Agda.Interaction.Options
     , parseStandardOptions, parseStandardOptions'
     , parsePragmaOptions
     , parsePluginOptions
+    , stripRTS
     , defaultOptions
     , defaultInteractionOptions
     , defaultVerbosity
@@ -1014,7 +1015,8 @@ usage options progName GeneralHelp = usageInfo (header progName) options
 
 usage options progName (HelpFor topic) = helpTopicUsage topic
 
--- Remove +RTS .. -RTS from arguments
+-- | Removes RTS options from a list of options.
+
 stripRTS :: [String] -> [String]
 stripRTS [] = []
 stripRTS ("--RTS" : argv) = argv

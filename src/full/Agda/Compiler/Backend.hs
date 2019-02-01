@@ -139,8 +139,9 @@ parseBackendOptions backends argv opts0 =
             BackendWithOpts b <- [lookupIndex bs i]
             opt               <- commandLineFlags b
             return $ embedOpt (lFst . lIndex i . bOptions) opt
-      (backends, opts) <- getOptSimple argv (agdaFlags ++ backendFlags) (embedFlag lSnd . inputFlag)
-                                            (bs, opts0)
+      (backends, opts) <- getOptSimple (stripRTS argv)
+                                       (agdaFlags ++ backendFlags) (embedFlag lSnd . inputFlag)
+                                       (bs, opts0)
       opts <- checkOpts opts
       return (forgetAll forgetOpts backends, opts)
 
