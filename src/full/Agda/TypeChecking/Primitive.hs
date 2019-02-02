@@ -970,11 +970,25 @@ primTransHComp cmd ts nelims = do
           -- compute "forall. phi"
           forallphi = pure tForall <@> phi
 
-          -- TODO: "ghcomp"
+          -- Without "ghcomp" we're computing:
+          --
+          -- comp^i A [ psi -> a0, forallphi -> e.1 tf ] a0
+          --
+          -- So for "ghcomp" we should compute:
+          --
+          -- comp^i A [ psi \/ (~ psi /\ ~ forallphi) -> a0, forallphi -> e.1 tf ] a0
+
+          -- compute the formula for "ghcomp"
+          ghcomppsi =
+              pure tIMax <@> psi
+                         <@> pure tIMin <@> (pure tINeg <@> psi)
+                                        <@> (pure tINeg <@> forallphi)
+
+          -- a1 with "ghcomp" inlined
           a1 = comp la bA
-                 (pure tIMax <@> psi <@> forallphi)
+                 (pure tIMax <@> ghcomppsi <@> forallphi)
                  (lam "i" $ \ i -> pure tPOr <#> (la <@> i)
-                                             <@> psi
+                                             <@> ghcomppsi
                                              <@> forallphi
                                              <@> (ilam "o" $ \ a -> bA <@> i)
                                              <@> (ilam "o" $ \ _ -> a0)
