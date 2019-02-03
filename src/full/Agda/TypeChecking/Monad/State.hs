@@ -177,17 +177,11 @@ modifyScope :: (ScopeInfo -> ScopeInfo) -> TCM ()
 modifyScope f = modifyScope_ (recomputeInverseScopeMaps . f)
 
 -- | Run a computation in a local scope.
-withScope :: ScopeInfo -> TCM a -> TCM (a, ScopeInfo)
-withScope s m = do
-  s' <- getScope
-  setScope s
-  x   <- m
-  s'' <- getScope
-  setScope s'
-  return (x, s'')
+withScope :: ReadTCState m => ScopeInfo -> m a -> m (a, ScopeInfo)
+withScope s m = locallyTCState stScope (const s) $ (,) <$> m <*> getScope
 
 -- | Same as 'withScope', but discard the scope from the computation.
-withScope_ :: ScopeInfo -> TCM a -> TCM a
+withScope_ :: ReadTCState m => ScopeInfo -> m a -> m a
 withScope_ s m = fst <$> withScope s m
 
 -- | Discard any changes to the scope by a computation.

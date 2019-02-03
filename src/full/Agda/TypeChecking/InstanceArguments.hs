@@ -526,7 +526,7 @@ isConsideringInstance =
   and2M ((^. stConsideringInstance) <$> getTCState)
         (not . optOverlappingInstances <$> pragmaOptions)
 
-nowConsideringInstance :: (MonadTCState m) => m a -> m a
+nowConsideringInstance :: (ReadTCState m) => m a -> m a
 nowConsideringInstance = locallyTCState stConsideringInstance $ const True
 
 wakeupInstanceConstraints :: TCM ()

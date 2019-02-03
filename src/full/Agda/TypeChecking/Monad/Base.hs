@@ -127,31 +127,34 @@ data TCState = TCSt
 
 class Monad m => ReadTCState m where
   getTCState :: m TCState
+  locallyTCState :: Lens' a TCState -> (a -> a) -> m b -> m b
+
   withTCState :: (TCState -> TCState) -> m a -> m a
+  withTCState = locallyTCState id
 
 instance ReadTCState m => ReadTCState (MaybeT m) where
   getTCState = lift getTCState
-  withTCState = mapMaybeT . withTCState
+  locallyTCState l = mapMaybeT . locallyTCState l
 
 instance ReadTCState m => ReadTCState (ListT m) where
   getTCState = lift getTCState
-  withTCState f = ListT . withTCState f . runListT
+  locallyTCState l f = ListT . locallyTCState l f . runListT
 
 instance ReadTCState m => ReadTCState (ExceptT err m) where
   getTCState = lift getTCState
-  withTCState = mapExceptT . withTCState
+  locallyTCState l = mapExceptT . locallyTCState l
 
 instance ReadTCState m => ReadTCState (ReaderT r m) where
   getTCState = lift getTCState
-  withTCState = mapReaderT . withTCState
+  locallyTCState l = mapReaderT . locallyTCState l
 
 instance (Monoid w, ReadTCState m) => ReadTCState (WriterT w m) where
   getTCState = lift getTCState
-  withTCState = mapWriterT . withTCState
+  locallyTCState l = mapWriterT . locallyTCState l
 
 instance ReadTCState m => ReadTCState (StateT s m) where
   getTCState = lift getTCState
-  withTCState = mapStateT . withTCState
+  locallyTCState l = mapStateT . locallyTCState l
 
 instance Show TCState where
   show _ = "TCSt{}"
@@ -3309,7 +3312,7 @@ instance Fail.MonadFail ReduceM where
 
 instance ReadTCState ReduceM where
   getTCState = ReduceM redSt
-  withTCState f = onReduceEnv $ mapRedSt f
+  locallyTCState l f = onReduceEnv $ mapRedSt $ over l f
 
 runReduceM :: ReduceM a -> TCM a
 runReduceM m = do
@@ -3498,15 +3501,6 @@ modifyTCLens l = modifyTC . over l
 modifyTCLensM :: MonadTCState m => Lens' a TCState -> (a -> m a) -> m ()
 modifyTCLensM l f = putTC =<< l f =<< getTC
 
--- | Modify the lens-indicated part of the 'TCState' locally.
-locallyTCState :: MonadTCState m => Lens' a TCState -> (a -> a) -> m b -> m b
-locallyTCState l f k = do
-  old <- useTC l
-  modifyTCLens l f
-  x <- k
-  setTCLens l old
-  return x
-
 
 ---------------------------------------------------------------------------
 -- * Type checking monad transformer
@@ -3535,7 +3529,12 @@ class ( Applicative tcm, MonadIO tcm
 
 instance MonadIO m => ReadTCState (TCMT m) where
   getTCState = getTC
-  withTCState f m = __IMPOSSIBLE__ -- should probably not be used
+  locallyTCState l f m = do
+    old <- useTC l
+    modifyTCLens l f
+    x <- m
+    setTCLens l old
+    return x
 
 instance MonadError TCErr (TCMT IO) where
   throwError = liftIO . E.throwIO
