@@ -1,8 +1,8 @@
 Failed to solve the following constraints:
   _19 := λ A a b → refl [blocked on problem 28]
-  [28, 32] _8 (A = A) false a b = b : A
+  [28, 32] _8 (A = A) false a b =< b : A
   _17 := λ A a b → refl [blocked on problem 23]
-  [23, 27] _8 (A = A) true a b = a : A
+  [23, 27] _8 (A = A) true a b =< a : A
 Unsolved metas at the following locations:
   DontPrune.agda:12,12-13
   DontPrune.agda:15,14-18

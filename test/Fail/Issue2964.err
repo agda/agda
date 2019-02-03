@@ -1,4 +1,4 @@
 Issue2964.agda:13,15-19
-fun test Bool false x refl != false of type Bool
+fun test Bool false x refl !=< false of type Bool
 when checking that the expression refl has type
 fun test Bool false x refl ≡ false

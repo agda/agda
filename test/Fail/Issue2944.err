@@ -1,12 +1,12 @@
 Failed to solve the following constraints:
   _55 := refl [blocked on problem 112]
-  [112, 116] bla₂ _54 .fst = 0 : Nat
+  [112, 116] bla₂ _54 .fst =< 0 : Nat
   _42 := refl [blocked on problem 81]
-  [81, 85] fst (blabla _41) = 1 : Nat
+  [81, 85] fst (blabla _41) =< 1 : Nat
   _29 := refl [blocked on problem 53]
-  [53, 57] bla pred _28 = 1 : Nat
+  [53, 57] bla pred _28 =< 1 : Nat
   _24 := refl [blocked on problem 43]
-  [43, 47] bla pred _23 = 0 : Nat
+  [43, 47] bla pred _23 =< 0 : Nat
 Unsolved metas at the following locations:
   Issue2944.agda:38,17-18
   Issue2944.agda:38,8-26

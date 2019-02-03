@@ -1,10 +1,10 @@
 Failed to solve the following constraints:
   _35 := λ C k {x} {y} → refl [blocked on problem 65]
-  [65, 68] _13 (_19 x (λ k₁ → k₁ y)) y = _13 x x : Nat
+  [65, 68] _13 (_19 x (λ k₁ → k₁ y)) y =< _13 x x : Nat
   _33 := λ C k {x} {y} → refl [blocked on problem 59]
-  [59, 62] _19 x (λ k₁ → k₁ x) = x : Nat
+  [59, 62] _19 x (λ k₁ → k₁ x) =< x : Nat
   _31 := λ C k {x} {y} → refl [blocked on problem 53]
-  [53, 56] _13 x x = suc (_19 x (λ k₁ → k₁ y)) : Nat
+  [53, 56] _13 x x =< suc (_19 x (λ k₁ → k₁ y)) : Nat
 Unsolved metas at the following locations:
   PruningNonMillerPatternFail.agda:13,17-18
   PruningNonMillerPatternFail.agda:15,17-18

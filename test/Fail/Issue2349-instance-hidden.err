@@ -1,4 +1,4 @@
 Issue2349-instance-hidden.agda:12,16-20
-x != c {_} ⦃ _ ⦄ {a} of type D {ℓ} ⦃ A ⦄
+x !=< c {_} ⦃ _ ⦄ {a} of type D {ℓ} ⦃ A ⦄
 when checking that the expression refl has type
 _≡_ {ℓ} {D {ℓ} ⦃ A ⦄} x (c {_} ⦃ _ ⦄ {a})

@@ -1,6 +1,6 @@
 Failed to solve the following constraints:
   _10 := refl [blocked on problem 12]
-  [12, 16] ?0 a x x₁ = ?0 b x x₁ : A
+  [12, 16] ?0 a x x₁ =< ?0 b x x₁ : A
 Unsolved metas at the following locations:
   Issue3114.agda:13,7-11
 Unsolved interaction metas at the following locations:
