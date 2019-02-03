@@ -935,25 +935,43 @@ primTransHComp cmd ts nelims = do
       tPath   <- getTermLocal builtinPath
       kit <- fromMaybe __IMPOSSIBLE__ <$> getSigmaKit
       (redReturn =<<) . runNamesT [] $ do
-        comp <- do
-          let
-            ineg j = pure tINeg <@> j
+        let ineg j = pure tINeg <@> j
             imax i j = pure tIMax <@> i <@> j
+            imin i j = pure tIMin <@> i <@> j
+
+        -- First define a "ghcomp" version of gcomp. Normal comp looks like:
+        --
+        -- comp^i A [ phi -> u ] u0 = hcomp^i A(1/i) [ phi -> forward A i u ] (forward A 0 u)
+        --
+        -- So for "gcomp" we compute:
+        --
+        -- gcomp^i A [ phi -> u ] u0 = hcomp^i A(1/i) [ phi -> forward A i u, ~ phi -> forward A 0 u ] (forward A 0 u)
+        --
+        -- The point of this is that gcomp does not produce any empty
+        -- systems (if phi = 0 it will reduce to "forward A 0 u".
+        gcomp <- do
           let forward la bA r u = pure tTrans <#> (lam "i" $ \ i -> la <@> (i `imax` r))
                                               <@> (lam "i" $ \ i -> bA <@> (i `imax` r))
                                               <@> r
                                               <@> u
           return $ \ la bA phi u u0 ->
-            pure tHComp <#> (la <@> pure io) <#> (bA <@> pure io) <#> phi
-                        <@> (lam "i" $ \ i -> ilam "o" $ \ o ->
-                                forward la bA i (u <@> i <..> o))
+            pure tHComp <#> (la <@> pure io)
+                        <#> (bA <@> pure io)
+                        <#> imax phi (ineg phi)
+                        <@> (lam "i" $ \ i ->
+                              pure tPOr <#> (la <@> i) -- TODO: should this be <@> i?
+                                        <@> phi
+                                        <@> ineg phi
+                                        <@> (ilam "o" $ \ a -> bA <@> i) -- TODO: should this be <@> i?
+                                        <@> (ilam "o" $ \ o -> forward la bA i (u <@> i <..> o))
+                                        <@> (ilam "o" $ \ o -> forward la bA (pure iz) u0))
                         <@> forward la bA (pure iz) u0
-        let
-          transpFill la bA phi u0 i =
-            pure tTrans <#> (ilam "j" $ \ j -> la <@> (pure tIMin <@> i <@> j))
-                        <@> (ilam "j" $ \ j -> bA <@> (pure tIMin <@> i <@> j))
-                        <@> (pure tIMax <@> phi <@> (pure tINeg <@> i))
-                        <@> u0
+
+        let transpFill la bA phi u0 i =
+              pure tTrans <#> (ilam "j" $ \ j -> la <@> imin i j)
+                          <@> (ilam "j" $ \ j -> bA <@> imin i j)
+                          <@> (imax phi (ineg i))
+                          <@> u0
         [psi,u0] <- mapM (open . unArg) [psi,u0]
         glue1 <- do
           g <- open $ (tglue `apply`) . map (setHiding Hidden) . map (subst 0 io) $ [la, lb, bA, phi, bT, e]
@@ -970,25 +988,11 @@ primTransHComp cmd ts nelims = do
           -- compute "forall. phi"
           forallphi = pure tForall <@> phi
 
-          -- Without "ghcomp" we're computing:
-          --
-          -- comp^i A [ psi -> a0, forallphi -> e.1 tf ] a0
-          --
-          -- So for "ghcomp" we should compute:
-          --
-          -- comp^i A [ psi \/ (~ psi /\ ~ forallphi) -> a0, forallphi -> e.1 tf ] a0
-
-          -- compute the formula for "ghcomp"
-          ghcomppsi =
-              pure tIMax <@> psi
-                         <@> pure tIMin <@> (pure tINeg <@> psi)
-                                        <@> (pure tINeg <@> forallphi)
-
-          -- a1 with "ghcomp" inlined
-          a1 = comp la bA
-                 (pure tIMax <@> ghcomppsi <@> forallphi)
+          -- a1 with gcomp
+          a1 = gcomp la bA
+                 (imax psi forallphi)
                  (lam "i" $ \ i -> pure tPOr <#> (la <@> i)
-                                             <@> ghcomppsi
+                                             <@> psi
                                              <@> forallphi
                                              <@> (ilam "o" $ \ a -> bA <@> i)
                                              <@> (ilam "o" $ \ _ -> a0)
@@ -1013,7 +1017,9 @@ primTransHComp cmd ts nelims = do
                                            <@> bA
                                            <@> (lam "a" $ \ a -> pure tPath <#> lb <#> bB <@> (f <@> a) <@> b))
 
-          -- "ghcomp" not necessary as taken care off by tEProof t1'alpha
+          -- We don't have to do anything special for "~ forall. phi"
+          -- here (to implement "ghcomp") as it is taken care off by
+          -- tEProof in t1'alpha below
           pe o = -- o : [ φ 1 ]
             pure tPOr <#> max (la <@> pure io) (lb <@> pure io)
                       <@> psi
@@ -1025,7 +1031,8 @@ primTransHComp cmd ts nelims = do
                       <@> (ilam "o" $ \ o -> sigCon u0 (lam "_" $ \ _ -> a1))
                       <@> (ilam "o" $ \ o -> sigCon (t1 o) (lam "_" $ \ _ -> a1))
 
-          -- "ghcomp" not necessary as taken care off by tEProof
+          -- "ghcomp" is implemented in the proof of tEProof
+          -- (see src/data/lib/prim/Agda/Builtin/Cubical/Glue.agda)
           t1'alpha o = -- o : [ φ 1 ]
              pure tEProof <#> (lb <@> pure io)
                           <#> (la <@> pure io)
@@ -1035,13 +1042,14 @@ primTransHComp cmd ts nelims = do
                           <@> a1
                           <@> forallphi
                           <@> pe o
-          -- optimize
+
+          -- TODO: optimize?
           t1' o = t1'alpha o <&> (`applyE` [Proj ProjSystem (sigmaFst kit)])
           alpha o = t1'alpha o <&> (`applyE` [Proj ProjSystem (sigmaSnd kit)])
           a1' = pure tHComp
                   <#> (la <@> pure io)
                   <#> (bA <@> pure io)
-                  <#> (pure tIMax <@> (phi <@> pure io) <@> psi)
+                  <#> (imax (phi <@> pure io) psi)
                   <@> (lam "j" $ \ j ->
                          pure tPOr <#> (la <@> pure io) <@> (phi <@> pure io) <@> psi <@> (ilam "o" $ \ _ -> bA <@> pure io)
                                    <@> (ilam "o" $ \ o -> alpha o <@@> (w (pure io) o <@> t1' o,a1,j))

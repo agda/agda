@@ -74,7 +74,7 @@ equivFun e = fst e
 -- case. This makes the computational behavior better, in particular
 -- for transp in Glue.
 equivProof : ∀ {la lt} (T : Set la) (A : Set lt) → (w : T ≃ A) → (a : A)
-            → ∀ ψ → (Partial ψ (fiber (w .fst) a)) → fiber (w .fst) a
+           → ∀ ψ → (Partial ψ (fiber (w .fst) a)) → fiber (w .fst) a
 equivProof A B w a ψ fb = contr' {A = fiber (w .fst) a} (w .snd .equiv-proof a) ψ fb
   where
     contr' : ∀ {ℓ} {A : Set ℓ} → isContr A → (φ : I) → (u : Partial φ A) → A
