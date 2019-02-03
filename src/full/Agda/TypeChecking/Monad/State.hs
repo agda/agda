@@ -161,8 +161,8 @@ lensAccumStatistics =  lensPersistentState . lensAccumStatisticsP
 ---------------------------------------------------------------------------
 
 -- | Get the current scope.
-getScope :: TCM ScopeInfo
-getScope = useTC stScope
+getScope :: ReadTCState m => m ScopeInfo
+getScope = useR stScope
 
 -- | Set the current scope.
 setScope :: ScopeInfo -> TCM ()
@@ -355,8 +355,8 @@ setInteractionOutputCallback cb
 -- * Pattern synonyms
 ---------------------------------------------------------------------------
 
-getPatternSyns :: TCM PatternSynDefns
-getPatternSyns = useTC stPatternSyns
+getPatternSyns :: ReadTCState m => m PatternSynDefns
+getPatternSyns = useR stPatternSyns
 
 setPatternSyns :: PatternSynDefns -> TCM ()
 setPatternSyns m = modifyPatternSyns (const m)
@@ -365,11 +365,11 @@ setPatternSyns m = modifyPatternSyns (const m)
 modifyPatternSyns :: (PatternSynDefns -> PatternSynDefns) -> TCM ()
 modifyPatternSyns f = stPatternSyns `modifyTCLens` f
 
-getPatternSynImports :: TCM PatternSynDefns
-getPatternSynImports = useTC stPatternSynImports
+getPatternSynImports :: ReadTCState m => m PatternSynDefns
+getPatternSynImports = useR stPatternSynImports
 
 -- | Get both local and imported pattern synonyms
-getAllPatternSyns :: TCM PatternSynDefns
+getAllPatternSyns :: ReadTCState m => m PatternSynDefns
 getAllPatternSyns = Map.union <$> getPatternSyns <*> getPatternSynImports
 
 lookupPatternSyn :: AmbiguousQName -> TCM PatternSynDefn

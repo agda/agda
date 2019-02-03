@@ -46,7 +46,7 @@ withAnonymousModule m n =
   localTC $ \ e -> e { envAnonymousModules = (m, n) : envAnonymousModules e }
 
 -- | Set the current environment to the given
-withEnv :: TCEnv -> TCM a -> TCM a
+withEnv :: MonadTCEnv m => TCEnv -> m a -> m a
 withEnv env = localTC $ \ env0 -> env
   -- Keep persistent settings
   { envPrintMetasBare         = envPrintMetasBare env0
