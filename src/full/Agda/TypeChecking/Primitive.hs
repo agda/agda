@@ -935,25 +935,43 @@ primTransHComp cmd ts nelims = do
       tPath   <- getTermLocal builtinPath
       kit <- fromMaybe __IMPOSSIBLE__ <$> getSigmaKit
       (redReturn =<<) . runNamesT [] $ do
-        comp <- do
-          let
-            ineg j = pure tINeg <@> j
+        let ineg j = pure tINeg <@> j
             imax i j = pure tIMax <@> i <@> j
+            imin i j = pure tIMin <@> i <@> j
+
+        -- First define a "ghcomp" version of gcomp. Normal comp looks like:
+        --
+        -- comp^i A [ phi -> u ] u0 = hcomp^i A(1/i) [ phi -> forward A i u ] (forward A 0 u0)
+        --
+        -- So for "gcomp" we compute:
+        --
+        -- gcomp^i A [ phi -> u ] u0 = hcomp^i A(1/i) [ phi -> forward A i u, ~ phi -> forward A 0 u0 ] (forward A 0 u0)
+        --
+        -- The point of this is that gcomp does not produce any empty
+        -- systems (if phi = 0 it will reduce to "forward A 0 u".
+        gcomp <- do
           let forward la bA r u = pure tTrans <#> (lam "i" $ \ i -> la <@> (i `imax` r))
                                               <@> (lam "i" $ \ i -> bA <@> (i `imax` r))
                                               <@> r
                                               <@> u
           return $ \ la bA phi u u0 ->
-            pure tHComp <#> (la <@> pure io) <#> (bA <@> pure io) <#> phi
-                        <@> (lam "i" $ \ i -> ilam "o" $ \ o ->
-                                forward la bA i (u <@> i <..> o))
+            pure tHComp <#> (la <@> pure io)
+                        <#> (bA <@> pure io)
+                        <#> imax phi (ineg phi)
+                        <@> (lam "i" $ \ i ->
+                              pure tPOr <#> (la <@> i)
+                                        <@> phi
+                                        <@> ineg phi
+                                        <@> (ilam "o" $ \ a -> bA <@> i)
+                                        <@> (ilam "o" $ \ o -> forward la bA i (u <@> i <..> o))
+                                        <@> (ilam "o" $ \ o -> forward la bA (pure iz) u0))
                         <@> forward la bA (pure iz) u0
-        let
-          transpFill la bA phi u0 i =
-            pure tTrans <#> (ilam "j" $ \ j -> la <@> (pure tIMin <@> i <@> j))
-                        <@> (ilam "j" $ \ j -> bA <@> (pure tIMin <@> i <@> j))
-                        <@> (pure tIMax <@> phi <@> (pure tINeg <@> i))
-                        <@> u0
+
+        let transpFill la bA phi u0 i =
+              pure tTrans <#> (ilam "j" $ \ j -> la <@> imin i j)
+                          <@> (ilam "j" $ \ j -> bA <@> imin i j)
+                          <@> (imax phi (ineg i))
+                          <@> u0
         [psi,u0] <- mapM (open . unArg) [psi,u0]
         glue1 <- do
           g <- open $ (tglue `apply`) . map (setHiding Hidden) . map (subst 0 io) $ [la, lb, bA, phi, bT, e]
@@ -966,37 +984,55 @@ primTransHComp cmd ts nelims = do
           tf i o = transpFill lb (lam "i" $ \ i -> bT <@> i <..> o) psi u0 i
           t1 o = tf (pure io) o
           a0 = unglue0 u0
-          a1 = comp la bA
-                 (pure tIMax <@> psi <@> (pure tForall <@> phi))
-                 (lam "i" $ \ i -> pure tPOr <#> (la <@> i) <@> psi <@> (pure tForall <@> phi) <@> (ilam "o" $ \ a -> bA <@> i)
-                                                     <@> (ilam "o" $ \ _ -> a0)
-                                                     <@> (ilam "o" $ \ o -> pure tEFun <#> (lb <@> i)
-                                                                                       <#> (la <@> i)
-                                                                                       <#> (bT <@> i <..> o)
-                                                                                       <#> (bA <@> i)
-                                                                                       <@> (e <@> i <..> o)
-                                                                                       <@> (tf i o))
-                 )
+
+          -- compute "forall. phi"
+          forallphi = pure tForall <@> phi
+
+          -- a1 with gcomp
+          a1 = gcomp la bA
+                 (imax psi forallphi)
+                 (lam "i" $ \ i -> pure tPOr <#> (la <@> i)
+                                             <@> psi
+                                             <@> forallphi
+                                             <@> (ilam "o" $ \ a -> bA <@> i)
+                                             <@> (ilam "o" $ \ _ -> a0)
+                                             <@> (ilam "o" $ \ o -> pure tEFun <#> (lb <@> i)
+                                                                               <#> (la <@> i)
+                                                                               <#> (bT <@> i <..> o)
+                                                                               <#> (bA <@> i)
+                                                                               <@> (e <@> i <..> o)
+                                                                               <@> (tf i o)))
                  a0
+
           max l l' = pure tLMax <@> l <@> l'
           sigCon x y = pure (Con (sigmaCon kit) ConOSystem []) <@> x <@> y
           w i o = pure tEFun <#> (lb <@> i)
-                                                                                       <#> (la <@> i)
-                                                                                       <#> (bT <@> i <..> o)
-                                                                                       <#> (bA <@> i)
-                                                                                       <@> (e <@> i <..> o)
-          fiber la lb bA bB f b = (pure (Def (sigmaName kit) []) <#> la <#> lb
-                                                            <@> bA
-                                                            <@> (lam "a" $ \ a -> pure tPath <#> lb <#> bB <@> (f <@> a) <@> b))
+                             <#> (la <@> i)
+                             <#> (bT <@> i <..> o)
+                             <#> (bA <@> i)
+                             <@> (e <@> i <..> o)
+          fiber la lb bA bB f b =
+            (pure (Def (sigmaName kit) []) <#> la
+                                           <#> lb
+                                           <@> bA
+                                           <@> (lam "a" $ \ a -> pure tPath <#> lb <#> bB <@> (f <@> a) <@> b))
+
+          -- We don't have to do anything special for "~ forall. phi"
+          -- here (to implement "ghcomp") as it is taken care off by
+          -- tEProof in t1'alpha below
           pe o = -- o : [ φ 1 ]
-            pure tPOr <#> max (la <@> pure io) (lb <@> pure io) <@> psi
-                      <@> (pure tForall <@> phi)
+            pure tPOr <#> max (la <@> pure io) (lb <@> pure io)
+                      <@> psi
+                      <@> forallphi
                       <@> (ilam "o" $ \ _ ->
                              fiber (lb <@> pure io) (la <@> pure io)
                                    (bT <@> (pure io) <..> o) (bA <@> pure io)
                                    (w (pure io) o) a1)
                       <@> (ilam "o" $ \ o -> sigCon u0 (lam "_" $ \ _ -> a1))
                       <@> (ilam "o" $ \ o -> sigCon (t1 o) (lam "_" $ \ _ -> a1))
+
+          -- "ghcomp" is implemented in the proof of tEProof
+          -- (see src/data/lib/prim/Agda/Builtin/Cubical/Glue.agda)
           t1'alpha o = -- o : [ φ 1 ]
              pure tEProof <#> (lb <@> pure io)
                           <#> (la <@> pure io)
@@ -1004,15 +1040,16 @@ primTransHComp cmd ts nelims = do
                           <@> (bA <@> pure io)
                           <@> (e <@> pure io <..> o)
                           <@> a1
-                          <@> (pure tForall <@> phi)
+                          <@> forallphi
                           <@> pe o
-          -- optimize
+
+          -- TODO: optimize?
           t1' o = t1'alpha o <&> (`applyE` [Proj ProjSystem (sigmaFst kit)])
           alpha o = t1'alpha o <&> (`applyE` [Proj ProjSystem (sigmaSnd kit)])
           a1' = pure tHComp
                   <#> (la <@> pure io)
                   <#> (bA <@> pure io)
-                  <#> (pure tIMax <@> (phi <@> pure io) <@> psi)
+                  <#> (imax (phi <@> pure io) psi)
                   <@> (lam "j" $ \ j ->
                          pure tPOr <#> (la <@> pure io) <@> (phi <@> pure io) <@> psi <@> (ilam "o" $ \ _ -> bA <@> pure io)
                                    <@> (ilam "o" $ \ o -> alpha o <@@> (w (pure io) o <@> t1' o,a1,j))

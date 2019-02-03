@@ -13,6 +13,15 @@ transpFill : ∀ {ℓ} {A' : Set ℓ} (φ : I)
                PathP (λ i → ouc (A i)) u0 (primTransp (λ i → ouc (A i)) φ u0)
 transpFill φ A u0 i = primTransp (\ j → ouc (A (i ∧ j))) (~ i ∨ φ) u0
 
+forward : (la : I → Level) (A : ∀ i → Set (la i)) (r : I) → A r → A i1
+forward la A r x = primTransp (\ i → A (i ∨ r)) r x
+
+-- gcomp^i A [ phi -> u ] u0 = hcomp^i A(1/i) [ phi -> forward A i u, ~ phi -> forward A 0 u ] (forward A 0 u0)
+
+gcomp : ∀ {l} (A : I → Set l) (φ : I) (u : ∀ i → Partial φ (A i)) (u0 : A i0 [ φ ↦ u i0 ]) -> A i1
+gcomp A φ u u0 = primHComp {A = A i1} (\ i → \ { (φ = i1) →  forward _ A i (u i itIsOne); (φ = i0) →  forward _ A i0 (ouc u0) })
+                                         (forward _ A i0 (ouc u0))
+
 -- private
 --   internalFiber : ∀ {ℓ ℓ'} {A : Set ℓ} {B : Set ℓ'} (f : A → B) (y : B) → Set (ℓ-max ℓ ℓ')
 --   internalFiber {A = A} f y = Σ A \ x → y ≡ f x
@@ -55,6 +64,13 @@ Glue : ∀ {ℓ ℓ'} (A : Set ℓ) {φ : I}
        → Set ℓ'
 Glue A Te = primGlue A (λ x → Te x .fst) (λ x → Te x .snd)
 
+
+-- Here we test that hcomp and transp for Glue compute as expected.
+-- The current implementation in Agda.TypeChecking.Primitive does not
+-- guarantee that the terms are well-typed, so making sure that those
+-- primitives compute to some well-typed terms helps catching typing
+-- bugs.
+
 module TestHComp {ℓ ℓ'} (A : Set ℓ) {φ : I} (Te : Partial φ (Σ (Set ℓ') \ T →  T ≃ A))
          (ψ : I) (u : I → Partial ψ (Glue A Te)) (u0 : Sub (Glue A Te) ψ (u i0) ) where
   result : Glue A Te
@@ -75,10 +91,10 @@ module TestTransp {ℓ ℓ'} (A : Set ℓ) {φ : I} (Te : Partial φ (Σ (Set �
   ψ = i0
 
   a0 = unglue {φ = φ} u0
-  a1 = primComp (\ _ → A)
+  a1 = gcomp (\ _ → A)
          φ
          (\ { i (φ = i1) → equivFun (Te itIsOne .snd) (transpFill {A' = Te itIsOne .fst} ψ (\ i → inc (Te itIsOne .fst)) u0 i) })
-         a0
+         (inc a0)
 
   pair : PartialP φ λ o → Helpers.fiber (Te o .snd .fst) a1
   pair o = equivProof (Te o .fst) A (Te o .snd) a1 φ \ { (φ = i1) → _ , Helpers.refl }
