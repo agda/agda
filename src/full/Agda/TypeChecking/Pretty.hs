@@ -70,75 +70,75 @@ import Agda.Utils.Impossible
 
 type Doc = P.Doc
 
-comma, colon, equals :: TCM Doc
+comma, colon, equals :: Monad m => m Doc
 comma  = return P.comma
 colon  = return P.colon
 equals = return P.equals
 
-pretty :: P.Pretty a => a -> TCM Doc
+pretty :: (Monad m, P.Pretty a) => a -> m Doc
 pretty x = return $ P.pretty x
 
-prettyA :: (P.Pretty c, ToConcrete a c) => a -> TCM Doc
+prettyA :: (P.Pretty c, ToConcrete a c, MonadAbsToCon m) => a -> m Doc
 prettyA x = AP.prettyA x
 
-prettyAs :: (P.Pretty c, ToConcrete a [c]) => a -> TCM Doc
+prettyAs :: (P.Pretty c, ToConcrete a [c], MonadAbsToCon m) => a -> m Doc
 prettyAs x = AP.prettyAs x
 
-text :: String -> TCM Doc
+text :: Monad m => String -> m Doc
 text s = return $ P.text s
 
-multiLineText :: String -> TCM Doc
+multiLineText :: Monad m => String -> m Doc
 multiLineText s = return $ P.multiLineText s
 
-pwords :: String -> [TCM Doc]
+pwords :: Monad m => String -> [m Doc]
 pwords s = map return $ P.pwords s
 
-fwords :: String -> TCM Doc
+fwords :: Monad m => String -> m Doc
 fwords s = return $ P.fwords s
 
-sep, fsep, hsep, hcat, vcat :: [TCM Doc] -> TCM Doc
+sep, fsep, hsep, hcat, vcat :: Monad m => [m Doc] -> m Doc
 sep ds  = P.sep <$> sequence ds
 fsep ds = P.fsep <$> sequence ds
 hsep ds = P.hsep <$> sequence ds
 hcat ds = P.hcat <$> sequence ds
 vcat ds = P.vcat <$> sequence ds
 
-hang :: TCM Doc -> Int -> TCM Doc -> TCM Doc
+hang :: Applicative m => m Doc -> Int -> m Doc -> m Doc
 hang p n q = P.hang <$> p <*> pure n <*> q
 
 infixl 6 <>, <+>, <?>
 infixl 5 $$, $+$
 
-($$), ($+$), (<>), (<+>), (<?>) :: TCM Doc -> TCM Doc -> TCM Doc
+($$), ($+$), (<>), (<+>), (<?>) :: Applicative m => m Doc -> m Doc -> m Doc
 d1 $$ d2  = (P.$$) <$> d1 <*> d2
 d1 $+$ d2 = (P.$+$) <$> d1 <*> d2
 d1 <> d2  = (P.<>) <$> d1 <*> d2
 d1 <+> d2 = (P.<+>) <$> d1 <*> d2
 d1 <?> d2 = (P.<?>) <$> d1 <*> d2
 
-nest :: Int -> TCM Doc -> TCM Doc
+nest :: Functor m => Int -> m Doc -> m Doc
 nest n d   = P.nest n <$> d
 
-braces, dbraces, brackets, parens :: TCM Doc -> TCM Doc
+braces, dbraces, brackets, parens :: Functor m => m Doc -> m Doc
 braces d   = P.braces <$> d
 dbraces d  = CP.dbraces <$> d
 brackets d = P.brackets <$> d
 parens d   = P.parens <$> d
 
-pshow :: Show a => a -> TCM Doc
+pshow :: (Applicative m, Show a) => a -> m Doc
 pshow = pure . P.pshow
 
 -- | Comma-separated list in brackets.
-prettyList :: [TCM Doc] -> TCM Doc
+prettyList :: Monad m => [m Doc] -> m Doc
 prettyList ds = P.pretty <$> sequence ds
 
 -- | 'prettyList' without the brackets.
-prettyList_ :: [TCM Doc] -> TCM Doc
+prettyList_ :: Monad m => [m Doc] -> m Doc
 prettyList_ ds = fsep $ punctuate comma ds
 
-punctuate :: TCM Doc -> [TCM Doc] -> [TCM Doc]
+punctuate :: Applicative m => m Doc -> [m Doc] -> [m Doc]
 punctuate _ [] = []
-punctuate d ds = zipWith (<>) ds (replicate n d ++ [empty])
+punctuate d ds = zipWith (<>) ds (replicate n d ++ [pure empty])
   where
     n = length ds - 1
 

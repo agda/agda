@@ -10,9 +10,9 @@ import Agda.TypeChecking.Monad.Base
 import Agda.Utils.Pretty (Doc)
 -- import qualified Agda.Utils.Pretty as P
 
-text                  :: String             -> TCM Doc
-sep, fsep, hsep, vcat :: [TCM Doc]          -> TCM Doc
-($$), (<>), (<+>)     :: TCM Doc -> TCM Doc -> TCM Doc
+text                  :: Monad m => String -> m Doc
+sep, fsep, hsep, vcat :: Monad m => [m Doc] -> m Doc
+($$), (<>), (<+>)     :: Applicative m => m Doc -> m Doc -> m Doc
 
 class PrettyTCM a where
     prettyTCM :: a -> TCM Doc
