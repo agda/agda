@@ -9,7 +9,6 @@ module Agda.Interaction.Options
     , HtmlHighlight(..)
     , WarningMode(..)
     , checkOpts
-    , parseStandardOptions, parseStandardOptions'
     , parsePragmaOptions
     , parsePluginOptions
     , stripRTS
@@ -29,7 +28,7 @@ module Agda.Interaction.Options
     , defaultLibDir
     -- Reused by PandocAgda
     , inputFlag
-    , standardOptions
+    , standardOptions, deadStandardOptions
     , getOptSimple
     ) where
 
@@ -975,6 +974,7 @@ getOptSimple argv opts fileArg = \ defaults ->
       sugs [a] = a
       sugs as  = "any of " ++ intercalate " " as
 
+{- No longer used in favour of parseBackendOptions in Agda.Compiler.Backend
 -- | Parse the standard options.
 parseStandardOptions :: [String] -> OptM CommandLineOptions
 parseStandardOptions argv = parseStandardOptions' argv defaultOptions
@@ -983,6 +983,7 @@ parseStandardOptions' :: [String] -> Flag CommandLineOptions
 parseStandardOptions' argv opts = do
   opts <- getOptSimple (stripRTS argv) (deadStandardOptions ++ standardOptions) inputFlag opts
   checkOpts opts
+-}
 
 -- | Parse options from an options pragma.
 parsePragmaOptions
