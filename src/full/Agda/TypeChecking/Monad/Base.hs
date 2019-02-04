@@ -3503,6 +3503,17 @@ modifyTCLens l = modifyTC . over l
 modifyTCLensM :: MonadTCState m => Lens' a TCState -> (a -> m a) -> m ()
 modifyTCLensM l f = putTC =<< l f =<< getTC
 
+-- | Modify the part of the 'TCState' focused on by the lens, and return some result.
+stateTCLens :: MonadTCState m => Lens' a TCState -> (a -> (r , a)) -> m r
+stateTCLens l f = stateTCLensM l $ return . f
+
+-- | Modify a part of the state monadically, and return some result.
+stateTCLensM :: MonadTCState m => Lens' a TCState -> (a -> m (r , a)) -> m r
+stateTCLensM l f = do
+  s <- getTC
+  (result , x) <- f $ s ^. l
+  putTC $ set l x s
+  return result
 
 ---------------------------------------------------------------------------
 -- * Type checking monad transformer
