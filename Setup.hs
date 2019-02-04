@@ -15,8 +15,12 @@ import Distribution.System ( buildPlatform )
 #endif
 import System.FilePath
 import System.FilePath.Find
+import System.Directory (removeFile)
 import System.Process
 import System.Exit
+import System.IO.Error (isDoesNotExistError)
+
+import Control.Exception (catch, throwIO)
 
 
 main = defaultMainWithHooks hooks
@@ -27,6 +31,9 @@ hooks = simpleUserHooks { preConf = notSupportedGHC861
 
 builtins :: FilePath -> IO [FilePath]
 builtins = find always (extension ==? ".agda")
+
+toIFile :: FilePath -> FilePath
+toIFile file = replaceExtension file ".agdai"
 
 agdaExeExtension :: String
 -- ASR (2019-01-10): The Cabal macro @MIN_VERSION_Cabal@ is avaliable
@@ -65,7 +72,13 @@ checkAgdaPrimitive pkg info flags = do
       auxDir = datadir dirs </> "lib" </> "prim" </> "Agda"
       prim   = auxDir </> "Primitive" <.> "agda"
 
+      removeIfExists file = do
+        removeFile file `catch` handleExists
+          where handleExists e | isDoesNotExistError e = return ()
+                               | otherwise             = throwIO e
+
       checkPrim file = do
+        removeIfExists (toIFile file)
         ok <- rawSystem agda [file, "-v0"]
         case ok of
           ExitSuccess   -> return ()
@@ -73,8 +86,9 @@ checkAgdaPrimitive pkg info flags = do
 
   putStrLn "Generating Agda library interface files..."
   checkPrim prim
+  auxPrims <- builtins (auxDir </> "Primitive")
   auxBuiltins <- builtins (auxDir </> "Builtin")
-  mapM_ checkPrim auxBuiltins
+  mapM_ checkPrim (auxPrims ++ auxBuiltins)
 
 checkAgdaPrimitiveAndRegister :: PackageDescription -> LocalBuildInfo -> UserHooks -> RegisterFlags -> IO ()
 checkAgdaPrimitiveAndRegister pkg info hooks flags = do

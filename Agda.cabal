@@ -119,6 +119,7 @@ custom-setup
                 , filepath >= 1.4.0.0 && < 1.5
                 , filemanip >= 0.3.6.2 && < 0.4
                 , process >= 1.2.3.0 && < 1.7
+                , directory >= 1.2.2.0 && < 1.4
 
 library
   hs-source-dirs:   src/full
