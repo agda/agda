@@ -123,10 +123,10 @@ updateMetaVar m f = modifyMetaStore $ IntMap.adjust f $ metaId m
 insertMetaVar :: MetaId -> MetaVariable -> TCM ()
 insertMetaVar m mv = modifyMetaStore $ IntMap.insert (metaId m) mv
 
-getMetaPriority :: MetaId -> TCM MetaPriority
+getMetaPriority :: ReadTCState m => MetaId -> m MetaPriority
 getMetaPriority = mvPriority <.> lookupMeta
 
-isSortMeta :: MetaId -> TCM Bool
+isSortMeta :: ReadTCState m => MetaId -> m Bool
 isSortMeta m = isSortMeta_ <$> lookupMeta m
 
 isSortMeta_ :: MetaVariable -> Bool
@@ -134,7 +134,7 @@ isSortMeta_ mv = case mvJudgement mv of
     HasType{} -> False
     IsSort{}  -> True
 
-getMetaType :: MetaId -> TCM Type
+getMetaType :: ReadTCState m => MetaId -> m Type
 getMetaType m = do
   mv <- lookupMeta m
   return $ case mvJudgement mv of
@@ -143,13 +143,14 @@ getMetaType m = do
 
 -- | Compute the context variables that a meta should be applied to, accounting
 --   for pruning.
-getMetaContextArgs :: MetaVariable -> TCM Args
+getMetaContextArgs :: MonadTCEnv m => MetaVariable -> m Args
 getMetaContextArgs MetaVar{ mvPermutation = p } = do
   args <- getContextArgs
   return $ permute (takeP (length args) p) args
 
 -- | Given a meta, return the type applied to the current context.
-getMetaTypeInContext :: MetaId -> TCM Type
+getMetaTypeInContext :: (MonadTCEnv m, ReadTCState m, MonadReduce m)
+                     => MetaId -> m Type
 getMetaTypeInContext m = do
   mv@MetaVar{ mvJudgement = j } <- lookupMeta m
   case j of
@@ -285,7 +286,7 @@ setValueMetaName v s = do
         "cannot set meta name; newMeta returns " ++ show u
       return ()
 
-getMetaNameSuggestion :: MetaId -> TCM MetaNameSuggestion
+getMetaNameSuggestion :: ReadTCState m => MetaId -> m MetaNameSuggestion
 getMetaNameSuggestion mi = miNameSuggestion . mvInfo <$> lookupMeta mi
 
 setMetaNameSuggestion :: MetaId -> MetaNameSuggestion -> TCM ()
@@ -375,24 +376,24 @@ removeInteractionPoint ii = do
 
 -- | Get a list of interaction ids.
 {-# SPECIALIZE getInteractionPoints :: TCM [InteractionId] #-}
-getInteractionPoints :: MonadTCM tcm => tcm [InteractionId]
-getInteractionPoints = Map.keys <$> useTC stInteractionPoints
+getInteractionPoints :: ReadTCState m => m [InteractionId]
+getInteractionPoints = Map.keys <$> useR stInteractionPoints
 
 -- | Get all metas that correspond to unsolved interaction ids.
-getInteractionMetas :: TCM [MetaId]
+getInteractionMetas :: ReadTCState m => m [MetaId]
 getInteractionMetas =
-  mapMaybe ipMeta . filter (not . ipSolved) . Map.elems <$> useTC stInteractionPoints
+  mapMaybe ipMeta . filter (not . ipSolved) . Map.elems <$> useR stInteractionPoints
 
 -- | Get all metas that correspond to unsolved interaction ids.
-getInteractionIdsAndMetas :: TCM [(InteractionId,MetaId)]
+getInteractionIdsAndMetas :: ReadTCState m => m [(InteractionId,MetaId)]
 getInteractionIdsAndMetas =
-  mapMaybe f . filter (not . ipSolved . snd) . Map.toList <$> useTC stInteractionPoints
+  mapMaybe f . filter (not . ipSolved . snd) . Map.toList <$> useR stInteractionPoints
   where f (ii, ip) = (ii,) <$> ipMeta ip
 
 -- | Does the meta variable correspond to an interaction point?
 --
 --   Time: @O(n)@ where @n@ is the number of interaction metas.
-isInteractionMeta :: MetaId -> TCM (Maybe InteractionId)
+isInteractionMeta :: ReadTCState m => MetaId -> m (Maybe InteractionId)
 isInteractionMeta x = lookup x . map swap <$> getInteractionIdsAndMetas
 
 -- | Get the information associated to an interaction point.
@@ -411,8 +412,8 @@ lookupInteractionId ii = fromMaybeM err2 $ ipMeta <$> lookupInteractionPoint ii
     err2 = typeError $ GenericError $ "No type nor action available for hole " ++ prettyShow ii ++ ". Possible cause: the hole has not been reached during type checking (do you see yellow?)"
 
 -- | Check whether an interaction id is already associated with a meta variable.
-lookupInteractionMeta :: InteractionId -> TCM (Maybe MetaId)
-lookupInteractionMeta ii = lookupInteractionMeta_ ii <$> useTC stInteractionPoints
+lookupInteractionMeta :: ReadTCState m => InteractionId -> m (Maybe MetaId)
+lookupInteractionMeta ii = lookupInteractionMeta_ ii <$> useR stInteractionPoints
 
 lookupInteractionMeta_ :: InteractionId -> InteractionPoints -> Maybe MetaId
 lookupInteractionMeta_ ii m = ipMeta =<< Map.lookup ii m
@@ -447,7 +448,7 @@ getInteractionRange :: MonadTCM tcm => InteractionId -> tcm Range
 getInteractionRange = ipRange <.> lookupInteractionPoint
 
 -- | Get the 'Range' for a meta variable.
-getMetaRange :: MetaId -> TCM Range
+getMetaRange :: ReadTCState m => MetaId -> m Range
 getMetaRange = getRange <.> lookupMeta
 
 getInteractionScope :: InteractionId -> TCM ScopeInfo
@@ -460,15 +461,15 @@ withMetaInfo :: Closure Range -> TCM a -> TCM a
 withMetaInfo mI cont = enterClosure mI $ \ r ->
   setCurrentRange r cont
 
-getMetaVariableSet :: TCM IntSet
+getMetaVariableSet :: ReadTCState m => m IntSet
 getMetaVariableSet = IntMap.keysSet <$> getMetaStore
 
-getMetaVariables :: (MetaVariable -> Bool) -> TCM [MetaId]
+getMetaVariables :: ReadTCState m => (MetaVariable -> Bool) -> m [MetaId]
 getMetaVariables p = do
   store <- getMetaStore
   return [ MetaId i | (i, mv) <- IntMap.assocs store, p mv ]
 
-getInstantiatedMetas :: TCM [MetaId]
+getInstantiatedMetas :: ReadTCState m => m [MetaId]
 getInstantiatedMetas = getMetaVariables (isInst . mvInstantiation)
   where
     isInst Open                           = False
@@ -477,7 +478,7 @@ getInstantiatedMetas = getMetaVariables (isInst . mvInstantiation)
     isInst PostponedTypeCheckingProblem{} = False
     isInst InstV{}                        = True
 
-getOpenMetas :: TCM [MetaId]
+getOpenMetas :: ReadTCState m => m [MetaId]
 getOpenMetas = getMetaVariables (isOpenMeta . mvInstantiation)
 
 isOpenMeta :: MetaInstantiation -> Bool
@@ -499,7 +500,7 @@ unlistenToMeta l m =
   updateMetaVar m $ \mv -> mv { mvListeners = Set.delete l $ mvListeners mv }
 
 -- | Get the listeners to a meta.
-getMetaListeners :: MetaId -> TCM [Listener]
+getMetaListeners :: ReadTCState m => MetaId -> m [Listener]
 getMetaListeners m = Set.toList . mvListeners <$> lookupMeta m
 
 clearMetaListeners :: MetaId -> TCM ()
@@ -546,7 +547,7 @@ unfreezeMetas' cond = modifyMetaStore $ IntMap.mapWithKey $ unfreeze . MetaId
     | cond m    = mvar { mvFrozen = Instantiable }
     | otherwise = mvar
 
-isFrozen :: MetaId -> TCM Bool
+isFrozen :: ReadTCState m => MetaId -> m Bool
 isFrozen x = do
   mvar <- lookupMeta x
   return $ mvFrozen mvar == Frozen
