@@ -375,7 +375,8 @@ isRecordConstructor c = getConstInfo' c >>= \case
 -- | Check if a constructor name is the internally generated record constructor.
 --
 --   Works also for abstract constructors.
-isGeneratedRecordConstructor :: QName -> TCM Bool
+isGeneratedRecordConstructor :: (MonadTCEnv m, HasConstInfo m)
+                             => QName -> m Bool
 isGeneratedRecordConstructor c = ignoreAbstractMode $ do
   caseMaybeM (isRecordConstructor c) (return False) $ \ (_, def) ->
     case def of

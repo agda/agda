@@ -1,5 +1,6 @@
 {-# LANGUAGE CPP                      #-}
 {-# LANGUAGE NondecreasingIndentation #-}
+{-# LANGUAGE ScopedTypeVariables      #-}
 {-# LANGUAGE UndecidableInstances     #-}
 
 module Agda.TypeChecking.Reduce where
@@ -590,13 +591,15 @@ unfoldDefinitionStep unfoldDelayed v0 f es =
             reportSDoc "tc.reduce" 100 $ "    raw   " <+> text (show v)
 
 -- | Reduce a non-primitive definition if it is a copy linking to another def.
-reduceDefCopy :: QName -> Elims -> TCM (Reduced () Term)
+reduceDefCopy :: forall m. (MonadReduce m, HasConstInfo m, HasOptions m,
+                            ReadTCState m, MonadTCEnv m, MonadDebug m)
+              => QName -> Elims -> m (Reduced () Term)
 reduceDefCopy f es = do
-  info <- TCM.getConstInfo f
-  rewr <- instantiateRewriteRules =<< TCM.getRewriteRulesFor f
+  info <- getConstInfo f
+  rewr <- instantiateRewriteRules =<< getRewriteRulesFor f
   if (defCopy info) then reduceDef_ info rewr f es else return $ NoReduction ()
   where
-    reduceDef_ :: Definition -> RewriteRules -> QName -> Elims -> TCM (Reduced () Term)
+    reduceDef_ :: Definition -> RewriteRules -> QName -> Elims -> m (Reduced () Term)
     reduceDef_ info rewr f es = do
       let v0   = Def f []
           cls  = (defClauses info)
@@ -604,7 +607,7 @@ reduceDefCopy f es = do
       if (defDelayed info == Delayed) || (defNonterminating info)
        then return $ NoReduction ()
        else do
-          ev <- runReduceM $ appDefE_ f v0 cls mcc rewr $ map notReduced es
+          ev <- liftReduce $ appDefE_ f v0 cls mcc rewr $ map notReduced es
           case ev of
             YesReduction simpl t -> return $ YesReduction simpl t
             NoReduction{}        -> return $ NoReduction ()

@@ -546,14 +546,14 @@ addDisplayForm x df = do
   whenM (hasLoopingDisplayForm x) $
     typeError . GenericDocError $ "Cannot add recursive display form for" <+> pretty x
 
-isLocal :: QName -> TCM Bool
-isLocal x = HMap.member x <$> useTC (stSignature . sigDefinitions)
+isLocal :: ReadTCState m => QName -> m Bool
+isLocal x = HMap.member x <$> useR (stSignature . sigDefinitions)
 
-getDisplayForms :: QName -> TCM [LocalDisplayForm]
+getDisplayForms :: (HasConstInfo m, ReadTCState m) => QName -> m [LocalDisplayForm]
 getDisplayForms q = do
   ds  <- either (const []) defDisplay <$> getConstInfo' q
-  ds1 <- HMap.lookupDefault [] q <$> useTC stImportsDisplayForms
-  ds2 <- HMap.lookupDefault [] q <$> useTC stImportedDisplayForms
+  ds1 <- HMap.lookupDefault [] q <$> useR stImportsDisplayForms
+  ds2 <- HMap.lookupDefault [] q <$> useR stImportedDisplayForms
   ifM (isLocal q) (return $ ds ++ ds1 ++ ds2)
                   (return $ ds1 ++ ds ++ ds2)
 

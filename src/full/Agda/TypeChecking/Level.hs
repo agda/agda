@@ -59,11 +59,11 @@ builtinLevelKit = do
       }
 
 -- | Raises an error if no level kit is available.
-requireLevels :: TCM LevelKit
+requireLevels :: HasBuiltins m => m LevelKit
 requireLevels = builtinLevelKit
 
 -- | Checks whether level kit is fully available.
-haveLevels :: TCM Bool
+haveLevels :: HasBuiltins m => m Bool
 haveLevels = caseMaybeM (allJustM $ map getBuiltin' levelBuiltins)
     (return False)
     (\ _bs -> return True)
