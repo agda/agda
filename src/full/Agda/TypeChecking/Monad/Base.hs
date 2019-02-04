@@ -774,6 +774,30 @@ lookupModuleFromSource :: AbsolutePath -> TCM (Maybe TopLevelModuleName)
 lookupModuleFromSource f =
   fmap fst . List.find ((f ==) . snd) . Map.toList <$> useTC stModuleToSource
 
+
+---------------------------------------------------------------------------
+-- ** Associating concrete names to an abstract name
+---------------------------------------------------------------------------
+
+-- | A monad that has read and write access to the stConcreteNames
+--   part of the TCState. Basically, this is a synonym for `MonadState
+--   ConcreteNames m` (which cannot be used directly because of the
+--   limitations of Haskell's typeclass system).
+class Monad m => MonadStConcreteNames m where
+  runStConcreteNames :: StateT ConcreteNames m a -> m a
+
+  useConcreteNames :: m ConcreteNames
+  useConcreteNames = runStConcreteNames get
+
+  modifyConcreteNames :: (ConcreteNames -> ConcreteNames) -> m ()
+  modifyConcreteNames = runStConcreteNames . modify
+
+instance MonadStConcreteNames TCM where
+  runStConcreteNames m = stateTCLensM stConcreteNames $ runStateT m
+
+instance MonadStConcreteNames m => MonadStConcreteNames (ReaderT r m) where
+  runStConcreteNames m = ReaderT $ runStConcreteNames . StateT . (flip $ runReaderT . runStateT m)
+
 ---------------------------------------------------------------------------
 -- ** Interface
 ---------------------------------------------------------------------------

@@ -20,7 +20,7 @@ module Agda.Syntax.Translation.AbstractToConcrete
     , abstractToConcreteCtx
     , withScope
     , preserveInteractionIds
-    , AbsToCon, Env
+    , MonadAbsToCon, AbsToCon, Env
     , noTakenNames
     ) where
 
@@ -55,7 +55,7 @@ import Agda.Syntax.Abstract.Views as A
 import Agda.Syntax.Abstract.Pattern as A
 import Agda.Syntax.Abstract.PatternSynonyms
 import Agda.Syntax.Scope.Base
-import Agda.Syntax.Scope.Monad ( resolveName' )
+import Agda.Syntax.Scope.Monad ( tryResolveName )
 
 import Agda.TypeChecking.Monad.State (getScope, getAllPatternSyns)
 import Agda.TypeChecking.Monad.Base
@@ -98,7 +98,7 @@ data Env = Env { takenVarNames :: Set A.Name
                , foldPatternSynonyms :: Bool
                }
 
-makeEnv :: ScopeInfo -> TCM Env
+makeEnv :: MonadAbsToCon m => ScopeInfo -> m Env
 makeEnv scope = do
       -- zero and suc doesn't have to be in scope for natural number literals to work
   let noScopeCheck b = elem b [builtinZero, builtinSuc]
@@ -175,25 +175,84 @@ isBuiltinFun = asks $ is . builtins
 
 -- The Monad --------------------------------------------------------------
 
--- | We put the translation into TCM in order to print debug messages.
-type AbsToCon = ReaderT Env TCM
+-- | We need:
+--   - Read access to the AbsToCon environment
+--   - Read access to the TC environment
+--   - Read access to the TC state
+--   - Read and write access to the stConcreteNames part of the TC state
+--   - Read access to the options
+--   - Permission to print debug messages
+type MonadAbsToCon m =
+  ( MonadTCEnv m
+  , ReadTCState m
+  , MonadStConcreteNames m
+  , HasOptions m
+  , HasBuiltins m
+  , MonadDebug m
+  )
 
-runAbsToCon :: AbsToCon c -> TCM c
+newtype AbsToCon a = AbsToCon
+  { unAbsToCon :: forall m.
+      ( MonadReader Env m
+      , MonadAbsToCon m
+      ) => m a
+  }
+
+-- TODO: Is there some way to automatically derive these boilerplate
+-- instances?  GeneralizedNewtypeDeriving fails us here.
+instance Functor AbsToCon where
+  fmap f x = AbsToCon $ fmap f $ unAbsToCon x
+
+instance Applicative AbsToCon where
+  pure x = AbsToCon $ pure x
+  f <*> m = AbsToCon $ unAbsToCon f <*> unAbsToCon m
+
+instance Monad AbsToCon where
+  m >>= f = AbsToCon $ unAbsToCon m >>= unAbsToCon . f
+
+instance MonadReader Env AbsToCon where
+  ask = AbsToCon ask
+  local f m = AbsToCon $ local f $ unAbsToCon m
+
+instance MonadTCEnv AbsToCon where
+  askTC = AbsToCon askTC
+  localTC f m = AbsToCon $ localTC f $ unAbsToCon m
+
+instance ReadTCState AbsToCon where
+  getTCState = AbsToCon getTCState
+  locallyTCState l f m = AbsToCon $ locallyTCState l f $ unAbsToCon m
+
+instance MonadStConcreteNames AbsToCon where
+  runStConcreteNames m = AbsToCon $ runStConcreteNames $ StateT $ unAbsToCon . runStateT m
+
+instance HasOptions AbsToCon where
+  pragmaOptions = AbsToCon pragmaOptions
+  commandLineOptions = AbsToCon commandLineOptions
+
+instance MonadDebug AbsToCon where
+  displayDebugMessage n s = AbsToCon $ displayDebugMessage n s
+  formatDebugMessage k n s = AbsToCon $ formatDebugMessage k n s
+
+runAbsToCon :: MonadAbsToCon m => AbsToCon c -> m c
 runAbsToCon m = do
   scope <- getScope
   reportSLn "toConcrete" 50 $ render $ "entering AbsToCon with scope:" <+> prettyList_ (map (text . C.nameToRawName . fst) $ scope ^. scopeLocals)
-  runReaderT m =<< makeEnv scope
+  runReaderT (unAbsToCon m) =<< makeEnv scope
 
-abstractToConcreteScope :: ToConcrete a c => ScopeInfo -> a -> TCM c
-abstractToConcreteScope scope a = runReaderT (toConcrete a) =<< makeEnv scope
+abstractToConcreteScope :: (ToConcrete a c, MonadAbsToCon m)
+                        => ScopeInfo -> a -> m c
+abstractToConcreteScope scope a = runReaderT (unAbsToCon $ toConcrete a) =<< makeEnv scope
 
-abstractToConcreteCtx :: ToConcrete a c => Precedence -> a -> TCM c
+abstractToConcreteCtx :: (ToConcrete a c, MonadAbsToCon m)
+                      => Precedence -> a -> m c
 abstractToConcreteCtx ctx x = runAbsToCon $ withPrecedence ctx (toConcrete x)
 
-abstractToConcrete_ :: ToConcrete a c => a -> TCM c
+abstractToConcrete_ :: (ToConcrete a c, MonadAbsToCon m)
+                    => a -> m c
 abstractToConcrete_ = runAbsToCon . toConcrete
 
-abstractToConcreteHiding :: (LensHiding i, ToConcrete a c) => i -> a -> TCM c
+abstractToConcreteHiding :: (LensHiding i, ToConcrete a c, MonadAbsToCon m)
+                         => i -> a -> m c
 abstractToConcreteHiding i = runAbsToCon . toConcreteHiding i
 
 -- Dealing with names -----------------------------------------------------
@@ -212,7 +271,7 @@ lookupQName ambCon x | Just s <- getGeneralizedFieldName x =
   return (C.QName $ C.Name noRange C.InScope $ C.stringNameParts s)
 lookupQName ambCon x = do
   ys <- inverseScopeLookupName' ambCon x <$> asks currentScope
-  lift $ reportSLn "scope.inverse" 100 $
+  reportSLn "scope.inverse" 100 $
     "inverse looking up abstract name " ++ prettyShow x ++ " yields " ++ prettyShow ys
   loop ys
 
@@ -249,16 +308,16 @@ lookupNameInScope y =
 
 -- | Have we already committed to a specific concrete name for this
 --   abstract name? If yes, return the concrete name(s).
-hasConcreteNames :: (MonadTCState m) => A.Name -> m [C.Name]
-hasConcreteNames x = Map.findWithDefault [] x <$> useTC stConcreteNames
+hasConcreteNames :: (MonadStConcreteNames m) => A.Name -> m [C.Name]
+hasConcreteNames x = Map.findWithDefault [] x <$> useConcreteNames
 
 -- | Commit to a specific concrete name for printing the given
 --   abstract name. If the abstract name already has associated
 ---  concrete name(s), the new name is only used when all previous
 ---  names are shadowed. Precondition: the abstract name should be in
 --   scope.
-pickConcreteName :: (MonadTCState m) => A.Name -> C.Name -> m ()
-pickConcreteName x y = modifyTCLens stConcreteNames $ flip Map.alter x $ \case
+pickConcreteName :: (MonadStConcreteNames m) => A.Name -> C.Name -> m ()
+pickConcreteName x y = modifyConcreteNames $ flip Map.alter x $ \case
     Nothing   -> Just $ [y]
     (Just ys) -> Just $ ys ++ [y]
 
@@ -267,16 +326,17 @@ pickConcreteName x y = modifyTCLens stConcreteNames $ flip Map.alter x $ \case
 --      concrete name (so we should definitely avoid these names)
 --   2. second set: flexible names that we would like to keep free if
 --      possible (we can try to avoid them, but it's not required)
-shadowingNames :: (MonadTCState m) => A.Name -> m (Set C.Name, Set C.Name)
+shadowingNames :: (ReadTCState m, MonadStConcreteNames m)
+               => A.Name -> m (Set C.Name, Set C.Name)
 shadowingNames x = do
-  shadows <- Map.findWithDefault [] x <$> useTC stShadowingNames
+  shadows <- Map.findWithDefault [] x <$> useR stShadowingNames
   ys <- concat <$> forM shadows hasConcreteNames
   let zs = map nameConcrete shadows
   return (Set.fromList ys , Set.fromList zs)
 
 toConcreteName :: A.Name -> AbsToCon C.Name
 toConcreteName x | y <- nameConcrete x , isNoName y = return y
-toConcreteName x = (Map.findWithDefault [] x <$> useTC stConcreteNames) >>= loop
+toConcreteName x = (Map.findWithDefault [] x <$> useConcreteNames) >>= loop
   where
     -- case: we already have picked some name(s) for x
     loop (y:ys) = ifM (isGoodName x y) (return y) (loop ys)
@@ -671,13 +731,13 @@ instance ToConcrete A.Expr C.Expr where
               removeApp x@C.IdentP{} = return $ C.RawAppP (getRange x) []
 
               removeApp p = do
-                lift $ reportSLn "extendedlambda" 50 $ "abstractToConcrete removeApp p = " ++ show p
+                reportSLn "extendedlambda" 50 $ "abstractToConcrete removeApp p = " ++ show p
                 return p -- __IMPOSSIBLE__ -- Andreas, this is actually not impossible, my strictification exposed this sleeping bug
           let decl2clause (C.FunClause lhs rhs wh ca) = do
                 let p = lhsOriginalPattern lhs
-                lift $ reportSLn "extendedlambda" 50 $ "abstractToConcrete extended lambda pattern p = " ++ show p
+                reportSLn "extendedlambda" 50 $ "abstractToConcrete extended lambda pattern p = " ++ show p
                 p' <- removeApp p
-                lift $ reportSLn "extendedlambda" 50 $ "abstractToConcrete extended lambda pattern p' = " ++ show p'
+                reportSLn "extendedlambda" 50 $ "abstractToConcrete extended lambda pattern p' = " ++ show p'
                 return $ LamClause lhs{ lhsOriginalPattern = p' } rhs wh ca
               decl2clause _ = __IMPOSSIBLE__
           C.ExtendedLam (getRange i) <$> mapM decl2clause decls
@@ -1227,12 +1287,13 @@ instance ToConcrete A.Pattern C.Pattern where
         -- Erase @v@ to a concrete name and resolve it back to check whether
         -- we have a conflicting field name.
         cn <- toConcreteName v
-        liftTCM (runExceptT (tryResolveName [FldName] Nothing (C.QName cn))) >>= \case
+        runExceptT (tryResolveName [FldName] Nothing (C.QName cn)) >>= \case
           -- If we do then we print .(v) rather than .v
-          FieldName{} -> do
+          Right FieldName{} -> do
             reportSLn "print.dotted" 50 $ "Wrapping ambiguous name " ++ show (nameConcrete v)
             C.DotP r . C.Paren r <$> toConcrete (A.Var v)
-          _ -> printDotDefault i e
+          Right _ -> printDotDefault i e
+          Left _ -> __IMPOSSIBLE__
 
       A.DotP i e -> printDotDefault i e
 
@@ -1372,7 +1433,7 @@ tryToRecoverOpApp e def = fromMaybeM def $
 tryToRecoverOpAppP :: A.Pattern -> AbsToCon (Maybe C.Pattern)
 tryToRecoverOpAppP p = do
   res <- recoverOpApp bracketP_ (const False) opApp view p
-  lift $ reportSLn "print.op" 90 $ unlines
+  reportSLn "print.op" 90 $ unlines
     [ "tryToRecoverOpApp"
     , "in:  " ++ show p
     , "out: " ++ show res
@@ -1519,8 +1580,8 @@ recoverPatternSyn :: ToConcrete a c =>
 recoverPatternSyn applySyn match e fallback = do
   doFold <- asks foldPatternSynonyms
   if not doFold then fallback else do
-    psyns  <- lift getAllPatternSyns
-    scope  <- lift getScope
+    psyns  <- getAllPatternSyns
+    scope  <- getScope
     let isConP ConP{} = True    -- #2828: only fold pattern synonyms with
         isConP _      = False   --        constructor rhs
         cands = [ (q, args, score rhs) | (q, psyndef@(_, rhs)) <- reverse $ Map.toList psyns,
