@@ -142,17 +142,17 @@ setOptionsFromPragma ps = do
       Right opts' -> setPragmaOptions opts'
 
 -- | Disable display forms.
-enableDisplayForms :: TCM a -> TCM a
+enableDisplayForms :: MonadTCEnv m => m a -> m a
 enableDisplayForms =
   localTC $ \e -> e { envDisplayFormsEnabled = True }
 
 -- | Disable display forms.
-disableDisplayForms :: TCM a -> TCM a
+disableDisplayForms :: MonadTCEnv m => m a -> m a
 disableDisplayForms =
   localTC $ \e -> e { envDisplayFormsEnabled = False }
 
 -- | Check if display forms are enabled.
-displayFormsEnabled :: TCM Bool
+displayFormsEnabled :: MonadTCEnv m => m Bool
 displayFormsEnabled = asksTC envDisplayFormsEnabled
 
 -- | Gets the include directories.
@@ -160,7 +160,7 @@ displayFormsEnabled = asksTC envDisplayFormsEnabled
 -- Precondition: 'optAbsoluteIncludePaths' must be nonempty (i.e.
 -- 'setCommandLineOptions' must have run).
 
-getIncludeDirs :: TCM [AbsolutePath]
+getIncludeDirs :: HasOptions m => m [AbsolutePath]
 getIncludeDirs = do
   incs <- optAbsoluteIncludePaths <$> commandLineOptions
   case incs of
@@ -242,7 +242,7 @@ getInputFile' :: TCM (Maybe AbsolutePath)
 getInputFile' = mapM (liftIO . absolute) =<< do
   optInputFile <$> commandLineOptions
 
-hasInputFile :: TCM Bool
+hasInputFile :: HasOptions m => m Bool
 hasInputFile = isJust <$> optInputFile <$> commandLineOptions
 
 isPropEnabled :: HasOptions m => m Bool
@@ -252,13 +252,13 @@ isPropEnabled = optProp <$> pragmaOptions
 hasUniversePolymorphism :: HasOptions m => m Bool
 hasUniversePolymorphism = optUniversePolymorphism <$> pragmaOptions
 
-enableCaching :: TCM Bool
+enableCaching :: HasOptions m => m Bool
 enableCaching = optCaching <$> pragmaOptions
 
-showImplicitArguments :: TCM Bool
+showImplicitArguments :: HasOptions m => m Bool
 showImplicitArguments = optShowImplicit <$> pragmaOptions
 
-showIrrelevantArguments :: TCM Bool
+showIrrelevantArguments :: HasOptions m => m Bool
 showIrrelevantArguments = optShowIrrelevant <$> pragmaOptions
 
 -- | Switch on printing of implicit and irrelevant arguments.
@@ -286,27 +286,26 @@ withPragmaOptions f cont = do
   return x
 
 
-ignoreInterfaces :: TCM Bool
+ignoreInterfaces :: HasOptions m => m Bool
 ignoreInterfaces = optIgnoreInterfaces <$> commandLineOptions
 
-ignoreAllInterfaces :: TCM Bool
+ignoreAllInterfaces :: HasOptions m => m Bool
 ignoreAllInterfaces = optIgnoreAllInterfaces <$> commandLineOptions
 
-
-positivityCheckEnabled :: TCM Bool
+positivityCheckEnabled :: HasOptions m => m Bool
 positivityCheckEnabled = not . optDisablePositivity <$> pragmaOptions
 
 {-# SPECIALIZE typeInType :: TCM Bool #-}
 typeInType :: HasOptions m => m Bool
 typeInType = not . optUniverseCheck <$> pragmaOptions
 
-etaEnabled :: TCM Bool
+etaEnabled :: HasOptions m => m Bool
 etaEnabled = optEta <$> pragmaOptions
 
-maxInstanceSearchDepth :: TCM Int
+maxInstanceSearchDepth :: HasOptions m => m Int
 maxInstanceSearchDepth = optInstanceSearchDepth <$> pragmaOptions
 
-maxInversionDepth :: TCM Int
+maxInversionDepth :: HasOptions m => m Int
 maxInversionDepth = optInversionMaxDepth <$> pragmaOptions
 
 ------------------------------------------------------------------------
@@ -351,8 +350,8 @@ hasExactVerbosity k n =
 -- | Run a computation if a certain verbosity level is activated (exact match).
 
 {-# SPECIALIZE whenExactVerbosity :: VerboseKey -> Int -> TCM () -> TCM () #-}
-whenExactVerbosity :: MonadTCM tcm => VerboseKey -> Int -> tcm () -> tcm ()
-whenExactVerbosity k n = whenM $ liftTCM $ hasExactVerbosity k n
+whenExactVerbosity :: HasOptions m => VerboseKey -> Int -> m () -> m ()
+whenExactVerbosity k n = whenM $ hasExactVerbosity k n
 
 -- | Run a computation if a certain verbosity level is activated.
 --
