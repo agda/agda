@@ -1,61 +1,19 @@
 Importing the primitive modules.
   Getting interface for Agda.Primitive
   Check for cycle
-  Agda.Primitive is not up-to-date.
-Checking Agda.Primitive (agda-default-include-path/Agda/Primitive.agda).
-Creating interface for Agda.Primitive.
-  visited: 
-Starting scope checking.
-Finished scope checking.
-Starting highlighting from scope.
-Finished highlighting from scope.
-Starting type checking.
-Finished type checking.
-Starting highlighting from type info.
-Finished highlighting from type info.
-Starting serialization.
-Building interface...
-  instantiating all meta variables
-  interface complete
-Finished serialization.
-Considering writing to interface file.
-Actually calling writeInterface.
-Writing interface file agda-default-include-path/Agda/Primitive.agdai.
-Wrote interface file.
-Finished (or skipped) writing to interface file.
-Finished Agda.Primitive.
-  using stored version of agda-default-include-path/Agda/Primitive.agdai
+  Agda.Primitive is up-to-date.
+  no stored version, reading agda-default-include-path/Agda/Primitive.agdai
   imports: []
+Loading  Agda.Primitive (agda-default-include-path/Agda/Primitive.agdai).
   New module. Let's check it out.
 Merging interface
   Now we've looked at Agda.Primitive
   Getting interface for Agda.Primitive.Cubical
   Check for cycle
-  Agda.Primitive.Cubical is not up-to-date.
-Checking Agda.Primitive.Cubical (agda-default-include-path/Agda/Primitive/Cubical.agda).
-Creating interface for Agda.Primitive.Cubical.
-  visited: Agda.Primitive
-Starting scope checking.
-Finished scope checking.
-Starting highlighting from scope.
-Finished highlighting from scope.
-Starting type checking.
-Finished type checking.
-Starting highlighting from type info.
-Finished highlighting from type info.
-Starting serialization.
-Building interface...
-  instantiating all meta variables
-  interface complete
-Finished serialization.
-Considering writing to interface file.
-Actually calling writeInterface.
-Writing interface file agda-default-include-path/Agda/Primitive/Cubical.agdai.
-Wrote interface file.
-Finished (or skipped) writing to interface file.
-Finished Agda.Primitive.Cubical.
-  using stored version of agda-default-include-path/Agda/Primitive/Cubical.agdai
+  Agda.Primitive.Cubical is up-to-date.
+  no stored version, reading agda-default-include-path/Agda/Primitive/Cubical.agdai
   imports: []
+Loading  Agda.Primitive.Cubical (agda-default-include-path/Agda/Primitive/Cubical.agdai).
   New module. Let's check it out.
 Merging interface
   Now we've looked at Agda.Primitive.Cubical

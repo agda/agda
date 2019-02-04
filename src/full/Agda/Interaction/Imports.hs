@@ -378,7 +378,8 @@ getInterface' x isMain msi = do
       checkForImportCycle
 
       uptodate <- Bench.billTo [Bench.Import] $ do
-        ignore <- ignoreInterfaces
+        ignore <- ignoreInterfaces `and2M`
+                    (not <$> Lens.isBuiltinModule (filePath file))
         cached <- runMaybeT $ isCached x file
           -- If it's cached ignoreInterfaces has no effect;
           -- to avoid typechecking a file more than once.
