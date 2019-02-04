@@ -198,6 +198,8 @@ data PreScopeState = PreScopeState
 
 type DisambiguatedNames = IntMap A.QName
 
+type ConcreteNames = Map Name [C.Name]
+
 data PostScopeState = PostScopeState
   { stPostSyntaxInfo          :: !CompressedFile
     -- ^ Highlighting info.
@@ -229,7 +231,7 @@ data PostScopeState = PostScopeState
     -- ^ The current module is available after it has been type
     -- checked.
   , stPostInstanceDefs        :: !TempInstanceTable
-  , stPostConcreteNames       :: !(Map Name [C.Name])
+  , stPostConcreteNames       :: !ConcreteNames
     -- ^ Map keeping track of concrete names assigned to each abstract name
     --   (can be more than one name in case the first one is shadowed)
   , stPostShadowingNames      :: !(Map Name [Name])
@@ -562,7 +564,7 @@ stInstanceDefs f s =
   f (stPostInstanceDefs (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostInstanceDefs = x}}
 
-stConcreteNames :: Lens' (Map Name [C.Name]) TCState
+stConcreteNames :: Lens' ConcreteNames TCState
 stConcreteNames f s =
   f (stPostConcreteNames (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostConcreteNames = x}}
