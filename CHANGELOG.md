@@ -1,6 +1,12 @@
 Release notes for Agda version 2.6.0
 ====================================
 
+Installation and infrastructure
+-------------------------------
+
+* Interface files for all builtin and primitive files are now
+  re-generated each time Agda is installed.
+
 Syntax
 ------
 
@@ -492,6 +498,11 @@ Pragmas and options
   [Issue [#2487](https://github.com/agda/agda/issues/2487)].
 
 * The option `--only-scope-checking` is now allowed together with `--safe`.
+
+* The option `--ignore-interfaces` no longer ignores the interfaces of
+  builtin and primitive modules. For experts, there is the option
+  `--ignore-all-interfaces` which also rechecks builtin and primitive
+  files.
 
 Pragmas and options concerning universes
 ----------------------------------------
