@@ -289,6 +289,10 @@ withPragmaOptions f cont = do
 ignoreInterfaces :: TCM Bool
 ignoreInterfaces = optIgnoreInterfaces <$> commandLineOptions
 
+ignoreAllInterfaces :: TCM Bool
+ignoreAllInterfaces = optIgnoreAllInterfaces <$> commandLineOptions
+
+
 positivityCheckEnabled :: TCM Bool
 positivityCheckEnabled = not . optDisablePositivity <$> pragmaOptions
 

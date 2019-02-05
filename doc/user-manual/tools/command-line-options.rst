@@ -96,8 +96,12 @@ Imports and libraries
 (see :ref:`package-system`)
 
 :samp:`--ignore-interfaces`
-      Ignore interface files (re-type check
-      everything)
+      Ignore interface files (re-type check everything, except for
+      builtin and primitive modules)
+
+:samp:`--ignore-all-interfaces`
+      Ignore *all* interface files, including builtin and primitive
+      modules; only use this if you know what you are doing!
 
 :samp:`--include-path={DIR} -i={DIR}`
       Look for imports in
