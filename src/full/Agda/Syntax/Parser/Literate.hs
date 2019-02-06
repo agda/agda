@@ -10,6 +10,7 @@ module Agda.Syntax.Parser.Literate
   , literateTeX
   , literateRsT
   , literateMd
+  , literateOrg
   , illiterate
   , atomizeLayers
   , Processor
@@ -96,6 +97,7 @@ literateProcessors =
     , (".rst", (literateRsT, RstFileType))
     , (".tex", (literateTeX, TexFileType))
     , (".md",  (literateMd,  MdFileType ))
+    , (".org", (literateOrg, OrgFileType))
     ]
 
 -- | Returns @True@ if the role corresponds to Agda code.
@@ -300,3 +302,38 @@ literateRsT pos s = mkLayers pos$ rst s
 
   -- Beginning of a comment block.
   r_comment = rex "[[:space:]]*\\.\\.([[:space:]].*)?"
+
+-- | Preprocessor for Org mode documents.
+
+literateOrg :: Position -> String -> [Layer]
+literateOrg pos s = mkLayers pos$ org s
+  where
+  org :: String -> [(LayerRole, String)]
+  org [] = []
+  org s  =
+    let (line, rest) = getLine s in
+    if org_begin `match` line then
+      (Markup, line) : code rest
+    else
+      (Comment, line) : org rest
+
+  -- Valid: #+begin_src agda2 :tangle yes
+  -- Valid: #+begin_src agda2
+  -- Invalid: #+begin_src adga2-foo
+  org_begin = rex' "\\`(.*)([[:space:]]*\\#\\+begin_src agda2[[:space:]]+)"
+
+  code :: String -> [(LayerRole, String)]
+  code [] = []
+  code s  =
+    let (line, rest) = getLine s in
+    if org_end `match` line then
+      (Markup, line) : org rest
+    else
+      (Code, line) : code rest
+
+  org_end = rex' "\\`([[:space:]]*\\#\\+end_src[[:space:]]*)(.*)"
+
+  -- Explicit type annotation required to disambiguate source.
+  rex' :: String -> Regex
+  -- Source blocks start with `#+begin_src` but the casing does not matter.
+  rex' = makeRegexOpts blankCompOpt{newSyntax = True, caseSensitive = False} blankExecOpt
