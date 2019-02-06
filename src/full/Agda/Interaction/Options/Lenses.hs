@@ -8,6 +8,9 @@ module Agda.Interaction.Options.Lenses where
 
 import Control.Monad.State
 
+import Data.Set (Set)
+import qualified Data.Set as Set
+
 import System.FilePath ((</>))
 
 import Agda.TypeChecking.Monad.Base
@@ -135,9 +138,9 @@ putSafeMode = modifyTC . setSafeMode
 
 -- | These builtins may use postulates, and are still considered --safe
 
-builtinModulesWithSafePostulates :: [FilePath]
+builtinModulesWithSafePostulates :: Set FilePath
 builtinModulesWithSafePostulates =
-  primitiveModules ++
+  primitiveModules `Set.union` (Set.fromList
   [ "Agda" </> "Builtin" </> "Bool.agda"
   , "Agda" </> "Builtin" </> "Char.agda"
   , "Agda" </> "Builtin" </> "Coinduction.agda"
@@ -162,38 +165,37 @@ builtinModulesWithSafePostulates =
   , "Agda" </> "Builtin" </> "String.agda"
   , "Agda" </> "Builtin" </> "Unit.agda"
   , "Agda" </> "Builtin" </> "Word.agda"
-  ]
+  ])
 
 -- | These builtins may not use postulates under --safe. They are not
 --   automatically unsafe, but will be if they use an unsafe feature.
 
-builtinModulesWithUnsafePostulates :: [FilePath]
-builtinModulesWithUnsafePostulates =
+builtinModulesWithUnsafePostulates :: Set FilePath
+builtinModulesWithUnsafePostulates = Set.fromList
   [ "Agda" </> "Builtin" </> "TrustMe.agda"
   , "Agda" </> "Builtin" </> "Equality" </> "Rewrite.agda"
   ]
 
-primitiveModules :: [FilePath]
-primitiveModules =
+primitiveModules :: Set FilePath
+primitiveModules = Set.fromList
   [ "Agda" </> "Primitive.agda"
   , "Agda" </> "Primitive" </> "Cubical.agda"
   ]
 
-builtinModules :: [FilePath]
-builtinModules = builtinModulesWithSafePostulates ++
+builtinModules :: Set FilePath
+builtinModules = builtinModulesWithSafePostulates `Set.union`
                  builtinModulesWithUnsafePostulates
 
 isBuiltinModule :: FilePath -> TCM Bool
 isBuiltinModule file = do
   libdirPrim <- (</> "prim") <$> liftIO defaultLibDir
-  return (file `elem` map (libdirPrim </>) builtinModules)
+  return (file `Set.member` Set.map (libdirPrim </>) builtinModules)
 
 isBuiltinModuleWithSafePostulates :: FilePath -> TCM Bool
 isBuiltinModuleWithSafePostulates file = do
   libdirPrim <- (</> "prim") <$> liftIO defaultLibDir
-  let safeBuiltins   = map (libdirPrim </>) builtinModulesWithSafePostulates
-      unsafeBuiltins = map (libdirPrim </>) builtinModulesWithUnsafePostulates
-  return $ (file `elem` safeBuiltins) && not (file `elem` unsafeBuiltins)
+  let safeBuiltins   = Set.map (libdirPrim </>) builtinModulesWithSafePostulates
+  return (file `Set.member` safeBuiltins)
 
 ---------------------------------------------------------------------------
 -- ** Include directories

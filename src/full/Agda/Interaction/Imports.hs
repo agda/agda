@@ -293,7 +293,7 @@ typeCheckMain f mode si = do
 
     -- We don't want to generate highlighting information for Agda.Primitive.
     withHighlightingLevel None $ withoutOptionsChecking $
-      forM_ (map (libdirPrim </>) Lens.primitiveModules) $ \f -> do
+      forM_ (Set.map (libdirPrim </>) Lens.primitiveModules) $ \f -> do
         let file = mkAbsolute f
         si <- sourceInfo file
         checkModuleName' (siModuleName si) file
