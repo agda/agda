@@ -202,6 +202,7 @@ data DeclarationWarning
   | EmptyPostulate Range  -- ^ Empty @postulate@ block.
   | EmptyPrivate Range    -- ^ Empty @private@   block.
   | EmptyGeneralize Range -- ^ Empty @variable@  block.
+  | EmptyPrimitive Range  -- ^ Empty @primitive@ block.
   | InvalidCatchallPragma Range
       -- ^ A {-\# CATCHALL \#-} pragma
       --   that does not precede a function clause.
@@ -239,6 +240,7 @@ declarationWarningName dw = case dw of
   EmptyPrivate{}                    -> EmptyPrivate_
   EmptyPostulate{}                  -> EmptyPostulate_
   EmptyGeneralize{}                 -> EmptyGeneralize_
+  EmptyPrimitive{}                  -> EmptyPrimitive_
   InvalidCatchallPragma{}           -> InvalidCatchallPragma_
   InvalidNoPositivityCheckPragma{}  -> InvalidNoPositivityCheckPragma_
   InvalidNoUniverseCheckPragma{}    -> InvalidNoUniverseCheckPragma_
@@ -296,6 +298,7 @@ instance HasRange DeclarationWarning where
   getRange (EmptyMacro r)                       = r
   getRange (EmptyPostulate r)                   = r
   getRange (EmptyGeneralize r)                  = r
+  getRange (EmptyPrimitive r)                   = r
   getRange (InvalidTerminationCheckPragma r)    = r
   getRange (InvalidNoPositivityCheckPragma r)   = r
   getRange (InvalidCatchallPragma r)            = r
@@ -409,13 +412,14 @@ instance Pretty DeclarationWarning where
     pwords "Using abstract here has no effect. Abstract applies to only definitions like data definitions, record type definitions and function clauses."
   pretty (UselessInstance _)      = fsep $
     pwords "Using instance here has no effect. Instance applies only to declarations that introduce new identifiers into the module, like type signatures and axioms."
-  pretty (EmptyMutual    _) = fsep $ pwords "Empty mutual block."
-  pretty (EmptyAbstract  _) = fsep $ pwords "Empty abstract block."
-  pretty (EmptyPrivate   _) = fsep $ pwords "Empty private block."
-  pretty (EmptyInstance  _) = fsep $ pwords "Empty instance block."
-  pretty (EmptyMacro     _) = fsep $ pwords "Empty macro block."
-  pretty (EmptyPostulate _) = fsep $ pwords "Empty postulate block."
-  pretty (EmptyGeneralize _)= fsep $ pwords "Empty variable block."
+  pretty (EmptyMutual    _)  = fsep $ pwords "Empty mutual block."
+  pretty (EmptyAbstract  _)  = fsep $ pwords "Empty abstract block."
+  pretty (EmptyPrivate   _)  = fsep $ pwords "Empty private block."
+  pretty (EmptyInstance  _)  = fsep $ pwords "Empty instance block."
+  pretty (EmptyMacro     _)  = fsep $ pwords "Empty macro block."
+  pretty (EmptyPostulate _)  = fsep $ pwords "Empty postulate block."
+  pretty (EmptyGeneralize _) = fsep $ pwords "Empty variable block."
+  pretty (EmptyPrimitive _)  = fsep $ pwords "Empty primitive block."
   pretty (InvalidTerminationCheckPragma _) = fsep $
     pwords "Termination checking pragmas can only precede a function definition or a mutual block (that contains a function definition)."
   pretty (InvalidNoPositivityCheckPragma _) = fsep $
@@ -989,6 +993,7 @@ niceDeclarations fixs ds = do
         Postulate _ ds' ->
           (,ds) <$> niceAxioms PostulateBlock ds'
 
+        Primitive r []  -> justWarning $ EmptyPrimitive r
         Primitive _ ds' -> (,ds) <$> (map toPrim <$> niceAxioms PrimitiveBlock ds')
 
         Module r x tel ds' -> return $

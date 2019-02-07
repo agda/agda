@@ -1333,7 +1333,7 @@ Postulate : 'postulate' Declarations0 { Postulate (fuseRange $1 $2) $2 }
 
 -- Primitives. Can only contain type signatures.
 Primitive :: { Declaration }
-Primitive : 'primitive' TypeSignatures  { Primitive (fuseRange $1 $2) $2 }
+Primitive : 'primitive' TypeSignatures0  { Primitive (fuseRange $1 $2) $2 }
 
 -- Unquoting declarations.
 UnquoteDecl :: { Declaration }
@@ -1737,6 +1737,13 @@ Polarity : string {% polarity $1 }
 {--------------------------------------------------------------------------
     Sequences of declarations
  --------------------------------------------------------------------------}
+
+-- Possibly empty list of type signatures, with several identifiers allowed
+-- for every signature.
+TypeSignatures0 :: { [TypeSignature] }
+TypeSignatures
+    : vopen close    { [] }
+    | TypeSignatures { $1 }
 
 -- Non-empty list of type signatures, with several identifiers allowed
 -- for every signature.
