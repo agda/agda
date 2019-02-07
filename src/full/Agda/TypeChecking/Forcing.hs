@@ -226,7 +226,7 @@ rebindForcedPattern ps toRebind = go $ zip (repeat NotForced) ps
 
     go [] = __IMPOSSIBLE__ -- unforcing cannot fail
     go ((Forced,    p) : ps) = (p :) <$> go ps
-    go ((NotForced, p) : ps) | patternToTerm (namedArg p) == targetDotP
+    go ((NotForced, p) : ps) | namedArg p == toRebind
                              = return $ p : map snd ps
     go ((NotForced, p) : ps) = -- (#3544) A previous rebinding might have already rebound our pattern
       case namedArg p of
