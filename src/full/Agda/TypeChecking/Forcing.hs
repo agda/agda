@@ -97,8 +97,8 @@ import Agda.Utils.Impossible
 --   decide which arguments are forced.
 --   Precondition: the type is of the form @Γ → D vs@ and the @vs@
 --   are in normal form.
-computeForcingAnnotations :: Type -> TCM [IsForced]
-computeForcingAnnotations t =
+computeForcingAnnotations :: QName -> Type -> TCM [IsForced]
+computeForcingAnnotations c t =
   ifM (not . optForcing <$> commandLineOptions)
       (return []) $ do
   -- Andreas, 2015-03-10  Normalization prevents Issue 1454.
@@ -128,8 +128,8 @@ computeForcingAnnotations t =
         | (i, m) <- zip (downFrom n) $ map getModality (telToList tel)
         ]
   reportSLn "tc.force" 60 $ unlines
-    [ "Forcing analysis"
-    , "  xs          = " ++ show xs
+    [ "Forcing analysis for " ++ show c
+    , "  xs          = " ++ show (map snd xs)
     , "  forcedArgs  = " ++ show forcedArgs
     ]
   return forcedArgs

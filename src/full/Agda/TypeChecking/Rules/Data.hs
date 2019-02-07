@@ -212,7 +212,7 @@ checkConstructor d uc tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
         -- check that the type of the constructor is well-formed
         (t, isPathCons) <- checkConstructorType e d
         -- compute which constructor arguments are forced
-        forcedArgs <- computeForcingAnnotations t
+        forcedArgs <- computeForcingAnnotations c t
         -- check that the sort (universe level) of the constructor type
         -- is contained in the sort of the data type
         -- (to avoid impredicative existential types)
