@@ -1,0 +1,36 @@
+<!DOCTYPE HTML>
+<html><head><meta charset="utf-8"><title>OrgMultipleLanguages</title><link rel="stylesheet" href="Agda.css"></head><body><pre class="Agda"><a id="1" class="Background">* Org mode with multiple languages
+
+** Have some Agda!
+
+</a><a id="57" class="Markup">#+begin_src agda2
+</a><a id="75" class="Keyword">module</a> <a id="82" href="OrgMultipleLanguages.html" class="Module">OrgMultipleLanguages</a> <a id="103" class="Keyword">where</a>
+
+<a id="110" class="Keyword">data</a> <a id="Bool"></a><a id="115" href="OrgMultipleLanguages.html#115" class="Datatype">Bool</a> <a id="120" class="Symbol">:</a> <a id="122" class="PrimitiveType">Set</a> <a id="126" class="Keyword">where</a>
+  <a id="Bool.true"></a><a id="134" href="OrgMultipleLanguages.html#134" class="InductiveConstructor">true</a>  <a id="140" class="Symbol">:</a> <a id="142" href="OrgMultipleLanguages.html#115" class="Datatype">Bool</a>
+  <a id="Bool.false"></a><a id="149" href="OrgMultipleLanguages.html#149" class="InductiveConstructor">false</a> <a id="155" class="Symbol">:</a> <a id="157" href="OrgMultipleLanguages.html#115" class="Datatype">Bool</a>
+<a id="162" class="Markup">#+end_src
+</a><a id="172" class="Background">
+
+** Have some Haskell!
+
+#+begin_src haskell
+main = putStrLn &quot;Hello!&quot;
+#+end_src
+
+** Have some elisp
+
+#+begin_src elisp
+(message &quot;Hello!&quot;)
+#+end_src
+
+** Invalid (ignored) Agda
+
+#+begin_src agda2-foo
+module Wrong where
+#+end_src
+
+#+begin_src agda
+module Wrong where
+#+end_src
+</a></pre></body></html>

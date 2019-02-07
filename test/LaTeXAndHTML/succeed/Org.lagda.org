@@ -1,0 +1,18 @@
+* Org mode
+
+- A list item!
+- Another1
+
+#+begin_src agda2
+module Org where
+
+data Bool : Set where
+#+end_src
+
+Some prose.
+Some more code.
+
+#+begin_src agda2
+  true  : Bool
+  false : Bool
+#+end_src
