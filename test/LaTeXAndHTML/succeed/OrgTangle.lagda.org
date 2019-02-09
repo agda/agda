@@ -1,0 +1,9 @@
+* Org tangle
+
+#+begin_src agda2 :tangle OrgTangle.agda
+module OrgTangle where
+
+data Bool : Set where
+  true  : Bool
+  false : Bool
+#+end_src

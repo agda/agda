@@ -86,6 +86,7 @@ highlightOnlyCode HighlightCode _ = True
 highlightOnlyCode HighlightAuto AgdaFileType = False
 highlightOnlyCode HighlightAuto MdFileType   = True
 highlightOnlyCode HighlightAuto RstFileType  = True
+highlightOnlyCode HighlightAuto OrgFileType  = True
 highlightOnlyCode HighlightAuto TexFileType  = False
 
 -- | Determine the generated file extension
@@ -98,6 +99,7 @@ highlightedFileExt hh ft
       MdFileType   -> "md"
       RstFileType  -> "rst"
       TexFileType  -> "tex"
+      OrgFileType  -> "org"
 
 -- | Generates HTML files from all the sources which have been
 --   visited during the type checking phase.
@@ -265,6 +267,7 @@ code onlyCode fileType = mconcat . if onlyCode
          AgdaFileType -> map mkHtml
          -- Any points for using this option?
          TexFileType  -> map mkMd . chunksOf 2 . splitByMarkup
+         OrgFileType  -> map mkOrg . splitByMarkup
   else map mkHtml
   where
   trd (_, _, a) = a
@@ -300,6 +303,13 @@ code onlyCode fileType = mconcat . if onlyCode
                   ]
       go [a]    = work <$> a
       go _      = __IMPOSSIBLE__
+
+  mkOrg :: [TokenInfo] -> Html
+  mkOrg = mconcat . map go
+    where
+      go token@(_, s, mi) = if aspect mi == Just Background
+        then preEscapedToHtml s
+        else mkHtml token
 
   -- | Put anchors that enable referencing that token.
   --   We put a fail safe numeric anchor (file position) for internal references

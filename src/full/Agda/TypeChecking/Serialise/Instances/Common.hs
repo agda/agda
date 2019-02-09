@@ -158,12 +158,14 @@ instance EmbPrj FileType where
   icod_ MdFileType   = icodeN 0 IsRecord
   icod_ RstFileType  = icodeN 1 IsRecord
   icod_ TexFileType  = icodeN 2 IsRecord
+  icod_ OrgFileType  = icodeN 3 IsRecord
 
   value = vcase $ \case
     []  -> valuN AgdaFileType
     [0] -> valuN MdFileType
     [1] -> valuN RstFileType
     [2] -> valuN TexFileType
+    [3] -> valuN OrgFileType
     _   -> malformed
 
 instance EmbPrj DataOrRecord where
