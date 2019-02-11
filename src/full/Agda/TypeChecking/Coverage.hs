@@ -311,9 +311,7 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
     [ nest 2 $ "ps   =" <+> pretty ps
     , nest 2 $ "target =" <+> (text . show) target
     ]
-  cs' <- normaliseProjP cs
-  ps' <- (traverse . traverse . traverse) dotPatternsToPatterns ps
-  case match cs' ps' of
+  match cs ps >>= \case
     Yes (i,mps) -> do
       exact <- allM mps isTrivialPattern
       let noExactClause = if exact || clauseCatchall (indexWithDefault __IMPOSSIBLE__ cs i)
