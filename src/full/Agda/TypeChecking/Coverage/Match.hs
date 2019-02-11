@@ -1,6 +1,14 @@
 {-# LANGUAGE CPP           #-}
 
-module Agda.TypeChecking.Coverage.Match where
+module Agda.TypeChecking.Coverage.Match
+  ( Match(..), match
+  , SplitPattern, SplitPatVar(..), fromSplitPatterns, toSplitPatterns
+  , toSplitPSubst, applySplitPSubst
+  , isTrivialPattern
+  , BlockingVar(..), BlockingVars, BlockedOnResult(..)
+  , setBlockingVarOverlap
+  , ApplyOrIApply(..)
+  ) where
 
 import Control.Monad.State
 
