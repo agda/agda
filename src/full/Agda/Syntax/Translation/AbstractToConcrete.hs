@@ -55,6 +55,7 @@ import Agda.Syntax.Abstract.Views as A
 import Agda.Syntax.Abstract.Pattern as A
 import Agda.Syntax.Abstract.PatternSynonyms
 import Agda.Syntax.Scope.Base
+import Agda.Syntax.Scope.Monad ( resolveName' )
 
 import Agda.TypeChecking.Monad.State (getScope, getAllPatternSyns)
 import Agda.TypeChecking.Monad.Base
@@ -1232,13 +1233,22 @@ instance ToConcrete A.Pattern C.Pattern where
       A.DotP i e@A.Proj{} -> C.DotP r . C.Paren r <$> toConcreteCtx TopCtx e
         where r = getRange i
 
-      A.DotP i e -> do
-        c <- toConcreteCtx DotPatternCtx e
-        case c of
-          -- Andreas, 2016-02-04 print ._ pattern as _ pattern,
-          -- following the fusing of WildP and ImplicitP.
-          C.Underscore{} -> return $ C.WildP $ getRange i
-          _ -> return $ C.DotP (getRange i) c
+      -- gallais, 2019-02-12, issue #3491
+      -- Print p as .(p) if p is a variable but there is a projection of the
+      -- same name in scope.
+      A.DotP i e@(A.Var v) -> do
+        let r = getRange i
+        -- Erase @v@ to a concrete name and resolve it back to check whether
+        -- we have a conflicting field name.
+        cns <- hasConcreteNames v
+        rns <- liftTCM $ mapM (resolveName' [FldName] Nothing . C.QName) cns
+        let ns = filter (\case FieldName{} -> True; _ -> False) rns
+        -- If we do then we print .(v) rather than .v
+        if null ns then printDotDefault i e else do
+          reportSLn "print.dotted" 50 $ "Wrapping ambiguous name " ++ show (nameConcrete v)
+          C.DotP r . C.Paren r <$> toConcrete (A.Var v)
+
+      A.DotP i e -> printDotDefault i e
 
       A.EqualP i es -> do
         C.EqualP (getRange i) <$> toConcrete es
@@ -1251,6 +1261,17 @@ instance ToConcrete A.Pattern C.Pattern where
       A.WithP i p -> C.WithP (getRange i) <$> toConcreteCtx WithArgCtx p
 
     where
+
+    printDotDefault :: PatInfo -> A.Expr -> AbsToCon C.Pattern
+    printDotDefault i e = do
+      c <- toConcreteCtx DotPatternCtx e
+      let r = getRange i
+      case c of
+        -- Andreas, 2016-02-04 print ._ pattern as _ pattern,
+        -- following the fusing of WildP and ImplicitP.
+        C.Underscore{} -> return $ C.WildP r
+        _ -> return $ C.DotP r c
+
     tryOp :: A.QName -> (A.Patterns -> A.Pattern) -> A.Patterns -> AbsToCon C.Pattern
     tryOp x f args = do
       -- Andreas, 2016-02-04, Issue #1792
