@@ -589,7 +589,7 @@ createMissingHCompClause f n x old_sc (SClause tel ps _sigma' cps (Just t)) = se
       -- Γ,φ,u,u0 ⊢ Δf = i.Δ[x = hfill φ u u0 i]
       -- Γ,φ,u,u0,δ : Δ(x = hcomp φ u u0) ⊢ δ_fill     = i.tFillTel (i. Δf[~i]) δ (~ i) : i.Δf[i]
       -- Γ,φ,u,u0,δ : Δ(x = hcomp φ u u0) ⊢ old_t_fill = i.old_t[x = hfill φ u u0 i, δ_fill[i]]
-      -- Γ,φ,u,u0 ⊢ comp (\ i. old_t_fill[i])
+      -- Γ,φ,u,u0,δ : Δ(x = hcomp φ u u0) ⊢ comp (\ i. old_t_fill[i])
       --                 (\ i. [ φ ↦ g[x = hfill φ u u0 i,δ_fill[i]] = g[u i,δ_fill[i]]
       --                         α ↦ b[x = hfill φ u u0 i,δ_fill[i]]
       --                        ])
