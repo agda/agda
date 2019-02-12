@@ -182,6 +182,7 @@ updateProblemEqs eqs = do
 
     update :: ProblemEq -> TCM [ProblemEq]
     update eq@(ProblemEq A.WildP{} _ _) = return []
+    update eq@(ProblemEq p@A.ProjP{} _ _) = typeError $ IllformedProjectionPattern p
     update eq@(ProblemEq p v a) = reduce v >>= constructorForm >>= \case
       Con c ci es -> do
         let vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es

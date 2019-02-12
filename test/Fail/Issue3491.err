@@ -1,0 +1,3 @@
+Issue3491.agda:12,23-33
+Ill-formed projection pattern .unbox
+when checking that the pattern box .unbox has type Box b
