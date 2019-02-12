@@ -96,7 +96,7 @@ instance EmbPrj Warning where
       valu [16]         = valuN WithoutKFlagPrimEraseEquality
       valu [17, a]      = valuN InstanceWithExplicitArg a
       valu [18, a, b]   = valuN InfectiveImport a b
-      valu [19, a, b]   = valuN InfectiveImport a b
+      valu [19, a, b]   = valuN CoInfectiveImport a b
       valu _ = malformed
 
 instance EmbPrj DeclarationWarning where
