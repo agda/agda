@@ -740,14 +740,9 @@ evalTCM v = do
     tcRunSpeculative mu = do
       oldState <- getTC
       u <- reduce =<< evalTCM mu
-      true  <- liftTCM primTrue
-      false <- liftTCM primFalse
       case u of
-        Con _ _ [Apply (Arg { unArg = x }), Apply (Arg { unArg = b0 })] -> do
-          b <- reduce b0
-          if | b == true  -> return x
-             | b == false -> putTC oldState >> return x
-             | otherwise  -> liftTCM $ typeError . GenericDocError =<<
-                 "Should be 'true' or 'false': " <+> prettyTCM b
+        Con _ _ [Apply (Arg { unArg = x }), Apply (Arg { unArg = b })] -> do
+          unlessM (unquote b) $ putTC oldState
+          return x
         _ -> liftTCM $ typeError . GenericDocError =<<
           "Should be a pair: " <+> prettyTCM u
