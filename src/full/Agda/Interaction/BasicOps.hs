@@ -354,6 +354,7 @@ data OutputConstraint a b
       | SizeLtSat a
       | FindInstanceOF b a [(a,a)]
       | PTSInstance b b
+      | PostponedCheckFunDef QName a
   deriving (Functor)
 
 -- | A subset of 'OutputConstraint'.
@@ -384,6 +385,7 @@ outputFormId (OutputForm _ _ o) = out o
       SizeLtSat{}                -> __IMPOSSIBLE__
       FindInstanceOF _ _ _        -> __IMPOSSIBLE__
       PTSInstance i _            -> i
+      PostponedCheckFunDef{}     -> __IMPOSSIBLE__
 
 instance Reify ProblemConstraint (Closure (OutputForm Expr Expr)) where
   reify (PConstr pids cl) = enterClosure cl $ \c -> buildClosure =<< (OutputForm (getRange c) (Set.toList pids) <$> reify c)
@@ -455,7 +457,9 @@ instance Reify Constraint (OutputConstraint Expr Expr) where
             (,) <$> reify tm <*> reify ty)
     reify (IsEmpty r a) = IsEmptyType <$> reify a
     reify (CheckSizeLtSat a) = SizeLtSat  <$> reify a
-    reify (CheckFunDef d i q cs) = __IMPOSSIBLE__
+    reify (CheckFunDef d i q cs) = do
+      a <- reify =<< defType <$> getConstInfo q
+      return $ PostponedCheckFunDef q a
     reify (HasBiggerSort a) = OfType <$> reify a <*> reify (UnivSort a)
     reify (HasPTSRule a b) = do
       (a,(x,b)) <- reify (a,b)
@@ -495,6 +499,7 @@ instance (Pretty a, Pretty b) => Pretty (OutputConstraint a b) where
         , nest 2 $ "Candidate:"
         , nest 4 $ vcat [ pretty v .: t | (v, t) <- cs ] ]
       PTSInstance a b      -> "PTS instance for" <+> pretty (a, b)
+      PostponedCheckFunDef q a -> "Check definition of" <+> pretty q <+> ":" <+> pretty a
     where
       bin a op b = sep [a, nest 2 $ op <+> b]
       pcmp cmp a b = bin (pretty a) (pretty cmp) (pretty b)
@@ -534,6 +539,7 @@ instance (ToConcrete a c, ToConcrete b d) =>
       FindInstanceOF <$> toConcrete s <*> toConcrete t
                      <*> mapM (\(tm,ty) -> (,) <$> toConcrete tm <*> toConcrete ty) cs
     toConcrete (PTSInstance a b) = PTSInstance <$> toConcrete a <*> toConcrete b
+    toConcrete (PostponedCheckFunDef q a) = PostponedCheckFunDef q <$> toConcrete a
 
 instance (Pretty a, Pretty b) => Pretty (OutputConstraint' a b) where
   pretty (OfType' e t) = pretty e <+> ":" <+> pretty t

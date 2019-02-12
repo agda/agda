@@ -320,7 +320,7 @@ instance PrettyTCM Constraint where
             "Is not empty type of sizes:" <?> prettyTCMCtx TopCtx t
         CheckFunDef d i q cs -> do
             t <- defType <$> getConstInfo q
-            prettyTCM q <+> ":" <+> prettyTCM t
+            "Check definition of" <+> prettyTCM q <+> ":" <+> prettyTCM t
         HasBiggerSort a -> "Has bigger sort:" <+> prettyTCM a
         HasPTSRule a b -> "Has PTS rule:" <+> case b of
           NoAbs _ b -> prettyTCM (a,b)
