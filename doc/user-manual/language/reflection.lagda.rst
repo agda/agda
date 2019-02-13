@@ -3,6 +3,7 @@
   module language.reflection where
 
   open import language.built-ins
+  open import Agda.Builtin.Sigma
 
   ¬_ : ∀ {u} → Set u → Set u
   ¬ x  = x → ⊥
