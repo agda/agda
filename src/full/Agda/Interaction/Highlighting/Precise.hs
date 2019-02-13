@@ -56,6 +56,8 @@ import qualified Agda.Syntax.Concrete as SC
 
 import Agda.Interaction.Highlighting.Range
 
+import Agda.Utils.Function
+
 ------------------------------------------------------------------------
 -- Files
 
@@ -214,7 +216,7 @@ instance Monoid TokenBased where
 mergeAspects :: Aspects -> Aspects -> Aspects
 mergeAspects m1 m2 = Aspects
   { aspect       = (mplus `on` aspect) m1 m2
-  , otherAspects = List.nub $ ((++) `on` otherAspects) m1 m2
+  , otherAspects = (mergeOtherAspects `on` otherAspects) m1 m2
   , note         = case (note m1, note m2) of
       (Just n1, Just n2) -> Just $
          if n1 == n2
@@ -226,6 +228,11 @@ mergeAspects m1 m2 = Aspects
   , definitionSite = (mplus `on` definitionSite) m1 m2
   , tokenBased     = tokenBased m1 <> tokenBased m2
   }
+
+mergeOtherAspects :: [OtherAspect] -> [OtherAspect] -> [OtherAspect]
+mergeOtherAspects xs ys =
+  let zs = List.nub $ xs ++ ys
+  in  applyWhen (zs /= [CatchallClause]) (List.delete CatchallClause) zs
 
 instance Semigroup Aspects where
   (<>) = mergeAspects
