@@ -8,55 +8,43 @@
 Safe Agda
 *********
 
-By using the command-line option ``--safe``, a user can
-specify that Agda should ensure that features leading to
-possible inconsistencies should be disabled.
+By using the option ``--safe`` (as a pragma option, or on the
+command-line), a user can specify that Agda should ensure that
+features leading to possible inconsistencies should be disabled.
 
 Here is a list of the features ``--safe`` is incompatible with:
 
-* ``postulate`` can be used to assume any axiom.
+* ``postulate``; can be used to assume any axiom.
 
-* ``--allow-unsolved-metas`` forces Agda to accept unfinished proofs.
+* ``--allow-unsolved-metas``; forces Agda to accept unfinished proofs.
 
-* ``--no-positivity-check`` makes it possible to write non-terminating
+* ``--no-positivity-check``; makes it possible to write non-terminating
   programs by structural "induction" on non strictly positive datatypes.
 
-* ``--no-termination-check`` gives loopy programs any type.
+* ``--no-termination-check``; gives loopy programs any type.
 
-* ``--type-in-type`` and ``--omega-in-omega`` allow the user to encode
+* ``--type-in-type`` and ``--omega-in-omega``; allow the user to encode
   the Girard-Hurken paradox.
 
-* ``--injective-type-constructors`` together with excluded middle leads
-  to an inconsistency via Chnug-Kil Hur's construction.
+* ``--injective-type-constructors``; together with excluded middle leads
+  to an inconsistency via Chung-Kil Hur's construction.
 
-* ``guardedness-preserving-type-constructors`` is based on a rather
-  operational understanding of ``∞``/``♯_``; it's not yet clear if
-  this extension is consistent.
+* ``--guardedness`` together with ``--sized-types``; currently can be
+  used to define a type which is both inductive and coinductive, which
+  leads to an inconsistency. This might be fixed in the future.
 
-* ``--experimental-irrelevance`` enables potentially unsound irrelevance
-  features (irrelevant levels, irrelevant data matching).
+* ``--experimental-irrelevance`` and ``--irrelevant-projections``;
+  enables potentially unsound irrelevance features (irrelevant levels,
+  irrelevant data matching, and projection of irrelevant record
+  fields, respectively).
 
-* ``--rewriting`` turns any equation into one that holds definitionally.
+* ``--rewriting``; turns any equation into one that holds definitionally.
   It can at the very least break convergence.
 
+* ``--cubical`` together with ``--with-K``; the univalence axiom is provable using cubical constructions, which falsifies the K axiom.
 
-Known Issues
-============
+* The ``primEraseEquality`` primitive together with ``--without-K``; using ``primEraseEquality``, one can derive the K axiom.
 
-Pragma Option
--------------
-
-It is possible to specify ``{-# OPTIONS --safe #-}`` at the top of a file.
-Unfortunately a known bug (see `#2487 <https://github.com/agda/agda/issues/2487>`_)
-means that the option choice is not repercuted in the imported file. Therefore
-only the command-line option can be trusted.
-
-Standard Library
-----------------
-
-The standard library uses a lot of unsafe features (e.g. ``postulate`` in
-the Foreign Function Interface) and these are not isolated in separate
-modules. As a consequence virtually any project relying on the standard
-library will not be successfully typechecked with the ``--safe`` option.
-There is `work in progress <https://github.com/agda/agda-stdlib/issues/143>`_
-to fix this issue.
+The option ``--safe`` is coinfective (see
+:ref:`consistency-checking-options`); if a module is declared safe,
+then all its imported modules must also be declared safe.

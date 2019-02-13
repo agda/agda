@@ -610,8 +610,12 @@ computeOccurrences' q = inConcreteOrAbstractMode q $ \ def -> do
         caseMaybeM (isSizeType dom) (return 0) $ \ _ -> return 1
       let np = np0 + sizeIndex
       let xs = [np .. size tel - 1] -- argument positions corresponding to indices
-          ioccs = Concat $ map (OccursHere . AnArg) [np0 .. np - 1]
-                        ++ map (OccursAs Matched . OccursHere . AnArg) xs
+          -- Andreas, 2019-02-03, issue #3541:
+          -- Treat indices like parameters.
+          -- Was before (#802):
+          -- ioccs = Concat $ map (OccursHere . AnArg) [np0 .. np - 1]
+          --               ++ map (OccursAs Matched . OccursHere . AnArg) xs
+          ioccs = Concat $ map (OccursHere . AnArg) [np0 .. size tel - 1]
       -- Then, we compute the occurrences in the constructor types.
       let conOcc c = do
             a <- defType <$> getConstInfo c

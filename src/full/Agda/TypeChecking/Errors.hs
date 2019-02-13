@@ -27,7 +27,7 @@ import Control.Monad.Reader
 import Control.Monad.State
 
 import Data.Function
-import Data.List (nub, sortBy, intersperse, isInfixOf)
+import Data.List (nub, sortBy, intersperse, isInfixOf, dropWhileEnd)
 import Data.Maybe
 import Data.Char (toLower)
 import qualified Data.Set as Set
@@ -197,6 +197,10 @@ prettyWarning wng = liftTCM $ case wng of
       pwords "Instance declarations with explicit arguments are never considered by instance search," ++
       pwords "so making" ++ [prettyTCM q] ++ pwords "into an instance has no effect."
 
+    InstanceNoOutputTypeName xs a -> fsep $
+      pwords "Instance arguments whose type does not end in a named or variable type are never considered by instance search," ++
+      pwords "so having an instance argument" ++ [prettyTCM . TBind noRange xs =<< reify a] ++ pwords "has no effect."
+
     InversionDepthReached f -> do
       maxDepth <- maxInversionDepth
       fsep $ pwords "Refusing to invert pattern matching of" ++ [prettyTCM f] ++
@@ -253,6 +257,13 @@ prettyWarning wng = liftTCM $ case wng of
 
     LibraryWarning lw -> pretty lw
 
+    InfectiveImport o m -> fsep $
+      pwords "Importing module" ++ [pretty m] ++ pwords "using the" ++
+      [pretty o] ++ pwords "flag from a module which does not."
+
+    CoInfectiveImport o m -> fsep $
+      pwords "Importing module" ++ [pretty m] ++ pwords "not using the" ++
+      [pretty o] ++ pwords "flag from a module which does."
 
 prettyTCWarnings :: [TCWarning] -> TCM String
 prettyTCWarnings = fmap (unlines . intersperse "") . prettyTCWarnings'
@@ -399,6 +410,7 @@ errorString err = case err of
   NoRHSRequiresAbsurdPattern{}             -> "NoRHSRequiresAbsurdPattern"
   NoSuchBuiltinName{}                      -> "NoSuchBuiltinName"
   NoSuchModule{}                           -> "NoSuchModule"
+  DuplicatePrimitiveBinding{}              -> "DuplicatePrimitiveBinding"
   NoSuchPrimitiveFunction{}                -> "NoSuchPrimitiveFunction"
   NotAModuleExpr{}                         -> "NotAModuleExpr"
   NotAProperTerm                           -> "NotAProperTerm"
@@ -850,6 +862,10 @@ instance PrettyTCM TypeError where
         pwords "No binding for builtin thing" ++ [text x <> comma] ++
         pwords ("use {-# BUILTIN " ++ x ++ " name #-} to bind it to 'name'")
 
+    DuplicatePrimitiveBinding b x y -> fsep $
+      pwords "Duplicate binding for primitive thing" ++ [text b <> comma] ++
+      pwords "previous binding to" ++ [prettyTCM x]
+
     NoSuchPrimitiveFunction x -> fsep $
       pwords "There is no primitive function called" ++ [text x]
 
@@ -1142,7 +1158,7 @@ instance PrettyTCM TypeError where
                filter (not . closedWithoutHoles) sects))
       where
       trimLeft  = dropWhile isNormalHole
-      trimRight = reverse . dropWhile isNormalHole . reverse
+      trimRight = dropWhileEnd isNormalHole
 
       closedWithoutHoles sect =
         sectKind sect == NonfixNotation
@@ -1189,7 +1205,7 @@ instance PrettyTCM TypeError where
                     (trim (notation nota))
 
         qualifyFirstIdPart _ []              = []
-        qualifyFirstIdPart q (IdPart x : ps) = IdPart (q ++ x) : ps
+        qualifyFirstIdPart q (IdPart x : ps) = IdPart (fmap (q ++) x) : ps
         qualifyFirstIdPart q (p : ps)        = p : qualifyFirstIdPart q ps
 
         trim = case sectKind sect of
@@ -1433,6 +1449,16 @@ instance PrettyTCM SplitError where
     CosplitNoRecordType t -> enterClosure t $ \t -> fsep $
       pwords "Cannot split into projections because the target type "
       ++ [prettyTCM t] ++ pwords " is not a record type"
+
+    CannotCreateMissingClause f cl msg t -> fsep (
+      pwords "Cannot generate inferred clause for" ++ [prettyTCM f <> "."] ++
+      pwords "Case to handle:") $$ nest 2 (vcat $ [display cl])
+                                $$ (pure msg <+> enterClosure t displayAbs <> ".")
+        where
+        displayAbs (Abs x t) = addContext x $ prettyTCM t
+        displayAbs (NoAbs x t) = prettyTCM t
+        display (tel, ps) = prettyTCM $ NamedClause f True $
+          empty { clauseTel = tel, namedClausePats = ps }
 
 
     GenericSplitError s -> fsep $ pwords "Split failed:" ++ pwords s

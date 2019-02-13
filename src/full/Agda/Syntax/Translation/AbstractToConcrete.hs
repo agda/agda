@@ -45,7 +45,7 @@ import Data.List (sortBy)
 import Agda.Syntax.Common
 import Agda.Syntax.Position
 import Agda.Syntax.Literal
-import Agda.Syntax.Info
+import Agda.Syntax.Info as A
 import Agda.Syntax.Internal (MetaId(..))
 import qualified Agda.Syntax.Internal as I
 import Agda.Syntax.Fixity
@@ -55,9 +55,10 @@ import Agda.Syntax.Abstract.Views as A
 import Agda.Syntax.Abstract.Pattern as A
 import Agda.Syntax.Abstract.PatternSynonyms
 import Agda.Syntax.Scope.Base
+import Agda.Syntax.Scope.Monad ( resolveName' )
 
 import Agda.TypeChecking.Monad.State (getScope, getAllPatternSyns)
-import Agda.TypeChecking.Monad.Base  (TCM, MonadTCState(..), MonadTCEnv(..), HasOptions(..), NamedMeta(..), useTC, asksTC, modifyTCLens, stBuiltinThings, stConcreteNames, stShadowingNames, envContext, BuiltinThings , Builtin(..), pragmaOptions, isExtendedLambdaName)
+import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Monad.Options
 import Agda.TypeChecking.Monad.Builtin
@@ -205,6 +206,8 @@ unsafeQNameToName :: C.QName -> C.Name
 unsafeQNameToName = C.unqualify
 
 lookupQName :: AllowAmbiguousNames -> A.QName -> AbsToCon C.QName
+lookupQName ambCon x | Just s <- getGeneralizedFieldName x =
+  return (C.QName $ C.Name noRange C.InScope $ C.stringNameParts s)
 lookupQName ambCon x = do
   ys <- inverseScopeLookupName' ambCon x <$> asks currentScope
   lift $ reportSLn "scope.inverse" 100 $
@@ -307,7 +310,7 @@ chooseName x = lookupNameInScope (nameConcrete x) >>= \case
         InScope    -> mustAvoid
         -- If not in scope, we also rename to avoid renaming in-scope
         -- variables in the future.
-        NotInScope -> mustAvoid `Set.union` tryToAvoid'
+        C.NotInScope -> mustAvoid `Set.union` tryToAvoid'
     let shouldAvoid = (`Set.member` (taken `Set.union` toAvoid))
         y = firstNonTakenName shouldAvoid $ nameConcrete x
     reportSLn "toConcrete.bindName" 80 $ show $ vcat
@@ -410,8 +413,8 @@ withInfixDecls = foldr (.) id . map (uncurry withInfixDecl)
 withAbstractPrivate :: DefInfo -> AbsToCon [C.Declaration] -> AbsToCon [C.Declaration]
 withAbstractPrivate i m =
     priv (defAccess i)
-      . abst (defAbstract i)
-      . addInstanceB (defInstance i == InstanceDef)
+      . abst (A.defAbstract i)
+      . addInstanceB (A.defInstance i == InstanceDef)
       <$> m
     where
         priv (PrivateAccess UserWritten)
@@ -752,7 +755,7 @@ instance ToConcrete A.Expr C.Expr where
 makeDomainFree :: A.LamBinding -> A.LamBinding
 makeDomainFree b@(A.DomainFull (A.TBind _ [x] t)) =
   case unScope t of
-    A.Underscore MetaInfo{metaNumber = Nothing} ->
+    A.Underscore A.MetaInfo{metaNumber = Nothing} ->
       A.DomainFree x
     _ -> b
 makeDomainFree b = b
@@ -922,7 +925,7 @@ instance ToConcrete A.Declaration [C.Declaration] where
   toConcrete (ScopedDecl scope ds) =
     withScope scope (declsToConcrete ds)
 
-  toConcrete (Axiom _ i info mp x t) = do
+  toConcrete (A.Axiom _ i info mp x t) = do
     x' <- unsafeQNameToName <$> toConcrete x
     withAbstractPrivate i $
       withInfixDecl i x'  $ do
@@ -945,7 +948,7 @@ instance ToConcrete A.Declaration [C.Declaration] where
     withAbstractPrivate i $
       withInfixDecl i x'  $ do
       t' <- toConcreteTop t
-      return [C.Field (defInstance i) x' t']
+      return [C.Field (A.defInstance i) x' t']
 
   toConcrete (A.Primitive i x t) = do
     x' <- unsafeQNameToName <$> toConcrete x
@@ -1091,9 +1094,9 @@ appBracketsArgs (_:_) ctx = appBrackets ctx
 newtype UserPattern a  = UserPattern a
 newtype SplitPattern a = SplitPattern a
 newtype BindingPattern = BindingPat A.Pattern
-newtype FreshName = FreshenName BindName
+newtype FreshenName = FreshenName BindName
 
-instance ToConcrete FreshName A.Name where
+instance ToConcrete FreshenName A.Name where
   bindToConcrete (FreshenName (BindName x)) ret = bindToConcrete x $ \ y -> ret x { nameConcrete = y }
 
 -- Pass 1: (Issue #2729)
@@ -1107,7 +1110,7 @@ instance ToConcrete (UserPattern A.Pattern) A.Pattern where
         let x = unBind bx
         case isInScope x of
           InScope            -> bindName' x $ ret $ A.VarP bx
-          NotInScope         -> bindName x $ \y ->
+          C.NotInScope       -> bindName x $ \y ->
                                 ret $ A.VarP $ BindName $ x { nameConcrete = y }
       A.WildP{}              -> ret p
       A.ProjP{}              -> ret p
@@ -1230,13 +1233,22 @@ instance ToConcrete A.Pattern C.Pattern where
       A.DotP i e@A.Proj{} -> C.DotP r . C.Paren r <$> toConcreteCtx TopCtx e
         where r = getRange i
 
-      A.DotP i e -> do
-        c <- toConcreteCtx DotPatternCtx e
-        case c of
-          -- Andreas, 2016-02-04 print ._ pattern as _ pattern,
-          -- following the fusing of WildP and ImplicitP.
-          C.Underscore{} -> return $ C.WildP $ getRange i
-          _ -> return $ C.DotP (getRange i) c
+      -- gallais, 2019-02-12, issue #3491
+      -- Print p as .(p) if p is a variable but there is a projection of the
+      -- same name in scope.
+      A.DotP i e@(A.Var v) -> do
+        let r = getRange i
+        -- Erase @v@ to a concrete name and resolve it back to check whether
+        -- we have a conflicting field name.
+        cns <- hasConcreteNames v
+        rns <- liftTCM $ mapM (resolveName' [FldName] Nothing . C.QName) cns
+        let ns = filter (\case FieldName{} -> True; _ -> False) rns
+        -- If we do then we print .(v) rather than .v
+        if null ns then printDotDefault i e else do
+          reportSLn "print.dotted" 50 $ "Wrapping ambiguous name " ++ show (nameConcrete v)
+          C.DotP r . C.Paren r <$> toConcrete (A.Var v)
+
+      A.DotP i e -> printDotDefault i e
 
       A.EqualP i es -> do
         C.EqualP (getRange i) <$> toConcrete es
@@ -1249,6 +1261,17 @@ instance ToConcrete A.Pattern C.Pattern where
       A.WithP i p -> C.WithP (getRange i) <$> toConcreteCtx WithArgCtx p
 
     where
+
+    printDotDefault :: PatInfo -> A.Expr -> AbsToCon C.Pattern
+    printDotDefault i e = do
+      c <- toConcreteCtx DotPatternCtx e
+      let r = getRange i
+      case c of
+        -- Andreas, 2016-02-04 print ._ pattern as _ pattern,
+        -- following the fusing of WildP and ImplicitP.
+        C.Underscore{} -> return $ C.WildP r
+        _ -> return $ C.DotP r c
+
     tryOp :: A.QName -> (A.Patterns -> A.Pattern) -> A.Patterns -> AbsToCon C.Pattern
     tryOp x f args = do
       -- Andreas, 2016-02-04, Issue #1792

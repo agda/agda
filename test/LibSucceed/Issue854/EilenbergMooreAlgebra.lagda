@@ -42,8 +42,8 @@ module T-algebra
   open T-Alg public
 
   -- Generalised bind operator.
-  >>= : ∀ {X}(A : T-Alg) → T X → (X → Carrier A) → Carrier A
-  >>= A tx f = structure A (f <$> tx)
+  bind : ∀ {X}(A : T-Alg) → T X → (X → Carrier A) → Carrier A
+  bind A tx f = structure A (f <$> tx)
 
   -- Free algebra
   ⋆-alg : Set → T-Alg

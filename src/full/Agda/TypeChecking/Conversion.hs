@@ -1617,6 +1617,10 @@ equalSort s1 s2 = do
 
 forallFaceMaps :: Term -> (Map.Map Int Bool -> MetaId -> Term -> TCM a) -> (Substitution -> TCM a) -> TCM [a]
 forallFaceMaps t kb k = do
+  reportSDoc "conv.forall" 20 $
+      fsep ["forallFaceMaps"
+           , prettyTCM t
+           ]
   as <- decomposeInterval t
   boolToI <- do
     io <- primIOne
@@ -1625,7 +1629,12 @@ forallFaceMaps t kb k = do
   forM as $ \ (ms,ts) -> do
    ifBlockeds ts (kb ms) $ \ _ _ -> do
     let xs = map (id -*- boolToI) $ Map.toAscList ms
-    cxt <- asksTC envContext
+    cxt <- getContext
+    reportSDoc "conv.forall" 20 $
+      fsep ["substContextN"
+           , prettyTCM cxt
+           , prettyTCM xs
+           ]
     (cxt',sigma) <- substContextN cxt xs
     resolved <- forM xs (\ (i,t) -> (,) <$> lookupBV i <*> return (applySubst sigma t))
     updateContext sigma (const cxt') $
@@ -1667,6 +1676,12 @@ forallFaceMaps t kb k = do
     substContext i t [] = __IMPOSSIBLE__
     substContext i t (x:xs) | i == 0 = return $ (xs , singletonS 0 t)
     substContext i t (x:xs) | i > 0 = do
+                                  reportSDoc "conv.forall" 20 $
+                                    fsep ["substContext"
+                                        , text (show (i-1))
+                                        , prettyTCM t
+                                        , prettyTCM xs
+                                        ]
                                   (c,sigma) <- substContext (i-1) t xs
                                   let e = applySubst sigma x
                                   return (e:c, liftS 1 sigma)

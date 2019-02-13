@@ -103,7 +103,7 @@ ltrim = dropWhile isSpace
 
 -- | Remove trailing whitespace.
 rtrim :: String -> String
-rtrim = reverse . ltrim . reverse
+rtrim = List.dropWhileEnd isSpace
 
 -- | Remove leading and trailing whitesapce.
 trim :: String -> String

@@ -1,0 +1,5 @@
+Issue3517/M.agda:5,1-24
+Importing module Issue3517.S not using the --no-sized-types flag
+from a module which does.
+when scope checking the declaration
+  open import Issue3517.S

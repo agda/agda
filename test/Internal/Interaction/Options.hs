@@ -3,8 +3,17 @@
 module Internal.Interaction.Options ( tests ) where
 
 import Agda.Interaction.Options
+import Agda.Interaction.Options.Lenses
+
+import Agda.Utils.Monad
+import Agda.Syntax.Parser
 
 import Data.List
+import qualified Data.Set as Set
+
+import System.FilePath ((</>), takeExtension)
+
+import Utils (getAgdaFilesInDir, SearchMode(Rec))
 
 import Internal.Helpers
 
@@ -18,12 +27,40 @@ prop_defaultPragmaOptionsSafe :: Property
 prop_defaultPragmaOptionsSafe = ioProperty helper
   where
     helper :: IO Bool
-    helper
-      | null unsafe = return True
-      | otherwise   = do putStrLn $ "Following pragmas are default but not safe: "
+    helper = do
+      defaultSafe <- runOptM $ safeFlag defaultPragmaOptions
+      case defaultSafe of
+        Left errs -> do
+          putStrLn $ "Unexpected error: " ++ errs
+          return False
+        Right opts -> let unsafe = unsafePragmaOptions opts in
+          if null unsafe then return True else do
+            putStrLn $ "Following pragmas are default but not safe: "
                                           ++ intercalate ", " unsafe
-                         return False
-        where unsafe = unsafePragmaOptions defaultPragmaOptions
+            return False
+
+prop_allBuiltinsSafePostulatesOrNot :: Property
+prop_allBuiltinsSafePostulatesOrNot = ioProperty helper
+  where
+    helper :: IO Bool
+    helper = do
+      libdirPrim <- (</> "prim") <$> defaultLibDir
+      allFiles <- getAgdaFilesInDir Rec libdirPrim
+      let builtinFiles = Set.map (libdirPrim </>) builtinModules
+      let diff = Set.difference (Set.fromList allFiles) builtinFiles
+      if null diff then return True else do
+        putStrLn $ "Missing/spurious builtins: " ++ show diff
+        return False
+
+prop_BuiltinsSafeIntersectUnsafe :: Property
+prop_BuiltinsSafeIntersectUnsafe = ioProperty helper
+  where
+    helper :: IO Bool
+    helper = do
+      let intersect = Set.intersection builtinModulesWithSafePostulates builtinModulesWithUnsafePostulates
+      if null intersect then return True else do
+        putStrLn $ "Builtins both allowed and not allowed postulates: " ++ show intersect
+        return False
 
 ------------------------------------------------------------------------
 -- * All tests

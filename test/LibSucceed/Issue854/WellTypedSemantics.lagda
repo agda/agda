@@ -62,7 +62,7 @@ mutual
     where
     module M = RawMonad rawMonad
 
-  ⟦ _to_ {Σ″ = Σ″}{V = V} c k p q ⟧^c γ = >>= ⟦ Σ″ ⋆ V ⟧^CType
+  ⟦ _to_ {Σ″ = Σ″}{V = V} c k p q ⟧^c γ = bind ⟦ Σ″ ⋆ V ⟧^CType
     (embed (⊆→⇒ p) (⟦ c ⟧^c γ))
     (λ u → embed (⊆→⇒ q) (⟦ k ⟧^c (γ , u)))
 

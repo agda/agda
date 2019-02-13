@@ -25,6 +25,7 @@ instance EmbPrj HP.NameKind where
   icod_ HP.Record          = icodeN 8 ()
   icod_ HP.Argument        = icodeN 9 ()
   icod_ HP.Macro           = icodeN 10 ()
+  icod_ HP.Generalizable   = icodeN 11 ()
 
   value = vcase valu where
     valu []      = valuN HP.Bound
@@ -38,6 +39,7 @@ instance EmbPrj HP.NameKind where
     valu [8]     = valuN HP.Record
     valu [9]     = valuN HP.Argument
     valu [10]    = valuN HP.Macro
+    valu [11]    = valuN HP.Generalizable
     valu _       = malformed
 
 instance EmbPrj HP.Aspect where

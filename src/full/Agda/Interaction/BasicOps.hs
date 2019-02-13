@@ -354,6 +354,7 @@ data OutputConstraint a b
       | SizeLtSat a
       | FindInstanceOF b a [(a,a)]
       | PTSInstance b b
+      | PostponedCheckFunDef QName a
   deriving (Functor)
 
 -- | A subset of 'OutputConstraint'.
@@ -384,6 +385,7 @@ outputFormId (OutputForm _ _ o) = out o
       SizeLtSat{}                -> __IMPOSSIBLE__
       FindInstanceOF _ _ _        -> __IMPOSSIBLE__
       PTSInstance i _            -> i
+      PostponedCheckFunDef{}     -> __IMPOSSIBLE__
 
 instance Reify ProblemConstraint (Closure (OutputForm Expr Expr)) where
   reify (PConstr pids cl) = enterClosure cl $ \c -> buildClosure =<< (OutputForm (getRange c) (Set.toList pids) <$> reify c)
@@ -438,6 +440,7 @@ instance Reify Constraint (OutputConstraint Expr Expr) where
               t0 <- reify t0
               t1 <- reify t1
               return $ PostponedCheckArgs m' (map (namedThing . unArg) args) t0 t1
+            CheckProjAppToKnownPrincipalArg cmp e _ _ _ t _ _ _ -> TypedAssign m' e <$> reify t
             UnquoteTactic tac _ goal -> do
               tac <- A.App defaultAppInfo_ (A.Unquote exprNoRange) . defaultNamedArg <$> reify tac
               OfType tac <$> reify goal
@@ -454,53 +457,54 @@ instance Reify Constraint (OutputConstraint Expr Expr) where
             (,) <$> reify tm <*> reify ty)
     reify (IsEmpty r a) = IsEmptyType <$> reify a
     reify (CheckSizeLtSat a) = SizeLtSat  <$> reify a
-    reify (CheckFunDef d i q cs) = __IMPOSSIBLE__
+    reify (CheckFunDef d i q cs) = do
+      a <- reify =<< defType <$> getConstInfo q
+      return $ PostponedCheckFunDef q a
     reify (HasBiggerSort a) = OfType <$> reify a <*> reify (UnivSort a)
     reify (HasPTSRule a b) = do
       (a,(x,b)) <- reify (a,b)
       return $ PTSInstance a b
 
--- ASR TODO (28 December 2014): This function will be unnecessary when
--- using a Pretty instance for OutputConstraint instead of the Show
--- instance.
-showComparison :: Comparison -> String
-showComparison cmp = " " ++ prettyShow cmp ++ " "
-
-instance (Show a,Show b) => Show (OutputForm a b) where
-  show o =
-    case o of
-      OutputForm r []   c -> show c ++ range r
-      OutputForm r pids c -> show pids ++ " " ++ show c ++ range r
+instance (Pretty a, Pretty b) => Pretty (OutputForm a b) where
+  pretty (OutputForm r pids c)
+    | null pids = sep [pretty c, prange r]
+    | otherwise = sep [pretty pids, nest 2 $ sep [pretty c, prange r]]
     where
-      range r | null s    = ""
-              | otherwise = " [ at " ++ s ++ " ]"
+      prange r | null s = empty
+               | otherwise = text $ " [ at " ++ s ++ " ]"
         where s = show r
 
-instance (Show a,Show b) => Show (OutputConstraint a b) where
-    show (OfType e t)           = show e ++ " : " ++ show t
-    show (JustType e)           = "Type " ++ show e
-    show (JustSort e)           = "Sort " ++ show e
-    show (CmpInType cmp t e e') = show e ++ showComparison cmp ++ show e' ++ " : " ++ show t
-    show (CmpElim cmp t e e')   = show e ++ " == " ++ show e' ++ " : " ++ show t
-    show (CmpTypes  cmp t t')   = show t ++ showComparison cmp ++ show t'
-    show (CmpLevels cmp t t')   = show t ++ showComparison cmp ++ show t'
-    show (CmpTeles  cmp t t')   = show t ++ showComparison cmp ++ show t'
-    show (CmpSorts cmp s s')    = show s ++ showComparison cmp ++ show s'
-    show (Guard o pid)          = show o ++ " [blocked by problem " ++ prettyShow pid ++ "]"
-    show (Assign m e)           = show m ++ " := " ++ show e
-    show (TypedAssign m e a)    = show m ++ " := " ++ show e ++ " :? " ++ show a
-    show (PostponedCheckArgs m es t0 t1) = show m ++ " := (_ : " ++ show t0 ++ ") " ++ unwords (map (paren . show) es)
-                                                  ++ " : " ++ show t1
-      where paren s | elem ' ' s = "(" ++ s ++ ")"
-                    | otherwise  = s
-    show (IsEmptyType a)        = "Is empty: " ++ show a
-    show (SizeLtSat a)          = "Not empty type of sizes: " ++ show a
-    show (FindInstanceOF s t cs) = "Resolve instance argument " ++ showCand (s,t) ++ ".\n  Candidates:\n    [ " ++
-                                    List.intercalate "\n    , " (map showCand cs) ++ " ]"
-      where
-      showCand (tm,ty) = indent 6 $ show tm ++ " : " ++ show ty
-      indent n s = List.intercalate ("\n" ++ replicate n ' ') $ lines s
-    show (PTSInstance a b)      = "PTS instance for " ++ show (a,b)
+instance (Pretty a, Pretty b) => Pretty (OutputConstraint a b) where
+  pretty oc =
+    case oc of
+      OfType e t           -> pretty e .: t
+      JustType e           -> "Type" <+> pretty e
+      JustSort e           -> "Sort" <+> pretty e
+      CmpInType cmp t e e' -> pcmp cmp e e' .: t
+      CmpElim cmp t e e'   -> pcmp cmp e e' .: t
+      CmpTypes  cmp t t'   -> pcmp cmp t t'
+      CmpLevels cmp t t'   -> pcmp cmp t t'
+      CmpTeles  cmp t t'   -> pcmp cmp t t'
+      CmpSorts cmp s s'    -> pcmp cmp s s'
+      Guard o pid          -> pretty o <?> brackets ("blocked by problem" <+> pretty pid)
+      Assign m e           -> bin (pretty m) ":=" (pretty e)
+      TypedAssign m e a    -> bin (pretty m) ":=" $ bin (pretty e) ":?" (pretty a)
+      PostponedCheckArgs m es t0 t1 ->
+        bin (pretty m) ":=" $ (parens ("_" .: t0) <+> fsep (map (paren . pretty) es)) .: t1
+        where paren d = mparens (any (`elem` [' ', '\n']) $ show d) d
+      IsEmptyType a        -> "Is empty:" <+> pretty a
+      SizeLtSat a          -> "Not empty type of sizes:" <+> pretty a
+      FindInstanceOF s t cs -> vcat
+        [ "Resolve instance argument" <?> (pretty s .: t)
+        , nest 2 $ "Candidate:"
+        , nest 4 $ vcat [ pretty v .: t | (v, t) <- cs ] ]
+      PTSInstance a b      -> "PTS instance for" <+> pretty (a, b)
+      PostponedCheckFunDef q a -> "Check definition of" <+> pretty q <+> ":" <+> pretty a
+    where
+      bin a op b = sep [a, nest 2 $ op <+> b]
+      pcmp cmp a b = bin (pretty a) (pretty cmp) (pretty b)
+      val .: ty = bin val ":" (pretty ty)
+
 
 instance (ToConcrete a c, ToConcrete b d) =>
          ToConcrete (OutputForm a b) (OutputForm c d) where
@@ -535,6 +539,7 @@ instance (ToConcrete a c, ToConcrete b d) =>
       FindInstanceOF <$> toConcrete s <*> toConcrete t
                      <*> mapM (\(tm,ty) -> (,) <$> toConcrete tm <*> toConcrete ty) cs
     toConcrete (PTSInstance a b) = PTSInstance <$> toConcrete a <*> toConcrete b
+    toConcrete (PostponedCheckFunDef q a) = PostponedCheckFunDef q <$> toConcrete a
 
 instance (Pretty a, Pretty b) => Pretty (OutputConstraint' a b) where
   pretty (OfType' e t) = pretty e <+> ":" <+> pretty t

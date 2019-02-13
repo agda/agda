@@ -1,6 +1,14 @@
 {-# LANGUAGE CPP           #-}
 
-module Agda.TypeChecking.Coverage.Match where
+module Agda.TypeChecking.Coverage.Match
+  ( Match(..), match
+  , SplitPattern, SplitPatVar(..), fromSplitPatterns, toSplitPatterns
+  , toSplitPSubst, applySplitPSubst
+  , isTrivialPattern
+  , BlockingVar(..), BlockingVars, BlockedOnResult(..)
+  , setBlockingVarOverlap
+  , ApplyOrIApply(..)
+  ) where
 
 import Control.Monad.State
 
@@ -17,10 +25,13 @@ import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern ()
 import Agda.Syntax.Literal
+import Agda.Syntax.Position
 
 import Agda.TypeChecking.Monad
+import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Pretty ( PrettyTCM(..) )
 import Agda.TypeChecking.Records
+import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 
 import Agda.Utils.Null
@@ -49,10 +60,11 @@ We try to split on this column first.
 -}
 
 -- | Match the given patterns against a list of clauses
-match :: [Clause] -> [NamedArg SplitPattern] -> Match (Nat,[SplitPattern])
-match cs ps = foldr choice No $ zipWith matchIt [0..] cs
+match :: (MonadReduce m , HasConstInfo m , HasBuiltins m) => [Clause] -> [NamedArg SplitPattern] -> m (Match (Nat,[SplitPattern]))
+match cs ps = foldr choice (return No) $ zipWith matchIt [0..] cs
   where
-    matchIt i c = (i,) <$> matchClause ps c
+    matchIt :: (MonadReduce m , HasConstInfo m , HasBuiltins m) => Nat -> Clause -> m (Match (Nat,[SplitPattern]))
+    matchIt i c = fmap (i,) <$> matchClause ps c
 
 -- | For each variable in the patterns of a split clause, we remember the
 --   de Bruijn-index and the literals excluded by previous matches.
@@ -214,17 +226,23 @@ instance Pretty BlockingVar where
 
 type BlockingVars = [BlockingVar]
 
-blockedOnConstructor :: Nat -> ConHead -> Match a
-blockedOnConstructor i c = Block NotBlockedOnResult [BlockingVar i [c] [] False]
+yes :: Monad m => a -> m (Match a)
+yes = return . Yes
 
-blockedOnLiteral :: Nat -> Literal -> Match a
-blockedOnLiteral i l = Block NotBlockedOnResult [BlockingVar i [] [l] False]
+no :: Monad m => m (Match a)
+no = return No
 
-blockedOnProjection :: Match a
-blockedOnProjection = Block (BlockedOnProj False) []
+blockedOnConstructor :: Monad m => Nat -> ConHead -> m (Match a)
+blockedOnConstructor i c = return $ Block NotBlockedOnResult [BlockingVar i [c] [] False]
 
-blockedOnApplication :: ApplyOrIApply -> Match a
-blockedOnApplication b = Block (BlockedOnApply b) []
+blockedOnLiteral :: Monad m => Nat -> Literal -> m (Match a)
+blockedOnLiteral i l = return $ Block NotBlockedOnResult [BlockingVar i [] [l] False]
+
+blockedOnProjection :: Monad m => m (Match a)
+blockedOnProjection = return $ Block (BlockedOnProj False) []
+
+blockedOnApplication :: Monad m => ApplyOrIApply -> m (Match a)
+blockedOnApplication b = return $ Block (BlockedOnApply b) []
 
 -- | Lens for 'blockingVarCons'.
 mapBlockingVarCons :: ([ConHead] -> [ConHead]) -> BlockingVar -> BlockingVar
@@ -274,21 +292,24 @@ choiceBlockedOnResult b1 b2 = case (b1,b2) of
 --   It is for skipping clauses that definitely do not match ('No').
 --   It is left-strict, to be used with @foldr@.
 --   If one clause unconditionally matches ('Yes') we do not look further.
-choice :: Match a -> Match a -> Match a
-choice (Yes a)      _            = Yes a
-choice (Block r xs) (Block s ys) = Block (choiceBlockedOnResult r s) $ zipBlockingVars xs ys
-choice (Block r xs) (Yes _)      = Block (setBlockedOnResultOverlap r) $ overlapping xs
-choice m@Block{}    No           = m
-choice No           m            = m
+choice :: Monad m => m (Match a) -> m (Match a) -> m (Match a)
+choice m m' = m >>= \case
+  Yes a -> yes a
+  Block r xs -> m' >>= \case
+    Block s ys -> return $ Block (choiceBlockedOnResult r s) $ zipBlockingVars xs ys
+    Yes _      -> return $ Block (setBlockedOnResultOverlap r) $ overlapping xs
+    No         -> return $ Block r xs
+  No    -> m'
 
 -- | @matchClause qs i c@ checks whether clause @c@
 --   covers a split clause with patterns @qs@.
 matchClause
-  :: [NamedArg SplitPattern]
+  :: (MonadReduce m , HasConstInfo m , HasBuiltins m)
+  => [NamedArg SplitPattern]
      -- ^ Split clause patterns @qs@.
   -> Clause
      -- ^ Clause @c@ to cover split clause.
-  -> MatchResult
+  -> m MatchResult
      -- ^ Result.
      --   If 'Yes' the instantiation @rs@ such that @(namedClausePats c)[rs] == qs@.
 matchClause qs c = matchPats (namedClausePats c) qs
@@ -310,16 +331,17 @@ matchClause qs c = matchPats (namedClausePats c) qs
 --   in @mconcat []@ which is @Yes []@.
 
 matchPats
-  :: [NamedArg (Pattern' a)]
+  :: (MonadReduce m , HasConstInfo m , HasBuiltins m)
+  => [NamedArg (Pattern' a)]
      -- ^ Clause pattern vector @ps@ (to cover split clause pattern vector).
   -> [NamedArg SplitPattern]
      -- ^ Split clause pattern vector @qs@ (to be covered by clause pattern vector).
-  -> MatchResult
+  -> m MatchResult
      -- ^ Result.
      --   If 'Yes' the instantiation @rs@ such that @ps[rs] == qs@.
-matchPats [] [] = mempty
+matchPats [] [] = yes []
 matchPats (p:ps) (q:qs) =
-  matchPat (namedArg p) (namedArg q) `mappend` matchPats ps qs
+  matchPat (namedArg p) (namedArg q) `combine` matchPats ps qs
 
 -- Patterns left in split clause:
 -- Andreas, 2016-06-03, issue #1986:
@@ -327,8 +349,8 @@ matchPats (p:ps) (q:qs) =
 -- Thus, if the split clause has copatterns left,
 -- the current (shorter) clause is not considered covering.
 matchPats [] qs@(_:_) = case mapMaybe isProjP qs of
-  [] -> mempty -- no proj. patterns left
-  _  -> No     -- proj. patterns left
+  [] -> yes [] -- no proj. patterns left
+  _  -> no     -- proj. patterns left
 
 -- Patterns left in candidate clause:
 -- If the current clause has additional copatterns in
@@ -349,19 +371,16 @@ matchPats (p:ps) [] = case isProjP p of
 --   'Block' accumulates variables of the split clause
 --   that have to be instantiated (an projection names of copattern matches)
 --   to make the split clause an instance of the function clause.
-
-instance Semigroup a => Semigroup (Match a) where
-  Yes a      <> Yes b      = Yes (a <> b)
-  Yes _      <> m          = m
-  No         <> _          = No
-  Block{}    <> No         = No
-  Block r xs <> Block s ys = Block (anyBlockedOnResult r s) (xs ++ ys)
-  m@Block{}  <> Yes{}      = m
-
-instance (Semigroup a, Monoid a) => Monoid (Match a) where
-  mempty  = Yes mempty
-  mappend = (<>)
-
+combine :: (Monad m, Semigroup a) => m (Match a) -> m (Match a) -> m (Match a)
+combine m m' = m >>= \case
+    Yes a -> m' >>= \case
+      Yes b -> yes (a <> b)
+      y     -> return y
+    No    -> no
+    x@(Block r xs) -> m' >>= \case
+      No    -> no
+      Block s ys -> return $ Block (anyBlockedOnResult r s) (xs ++ ys)
+      Yes{} -> return x
 
 -- | @matchPat p q@ checks whether a function clause pattern @p@
 --   covers a split clause pattern @q@.  There are three results:
@@ -374,51 +393,84 @@ instance (Semigroup a, Monoid a) => Monoid (Match a) where
 --   a cover if variable @x@ is instantiated with an appropriate literal.
 
 matchPat
-  :: Pattern' a
+  :: (MonadReduce m , HasConstInfo m , HasBuiltins m)
+  => Pattern' a
      -- ^ Clause pattern @p@ (to cover split clause pattern).
   -> SplitPattern
      -- ^ Split clause pattern @q@ (to be covered by clause pattern).
-  -> MatchResult
+  -> m MatchResult
      -- ^ Result.
      --   If 'Yes', also the instantiation @rs@ of the clause pattern variables
      --   to produce the split clause pattern, @p[rs] = q@.
+matchPat p q = case p of
+  VarP{}   -> yes [q]
+  DotP{}   -> yes []
+  -- Jesper, 2014-11-04: putting 'Yes [q]' here triggers issue 1333.
+  -- Not checking for trivial patterns should be safe here, as dot patterns are
+  -- guaranteed to match if the rest of the pattern does, so some extra splitting
+  -- on them doesn't change the reduction behaviour.
+  p@(LitP l) -> case q of
+    VarP _ x -> if l `elem` splitExcludedLits x
+                then no
+                else blockedOnLiteral (splitPatVarIndex x) l
+    _ -> isLitP q >>= \case
+      Just l' -> if l == l' then yes [] else no
+      Nothing -> no
+  ProjP _ d -> case q of
+    ProjP _ d' -> do
+      d <- getOriginalProjection d
+      if d == d' then yes [] else no
+    _          -> __IMPOSSIBLE__
+  IApplyP{} -> yes [q]
+  ConP c _ ps -> unDotP q >>= \case
+    VarP _ x -> blockedOnConstructor (splitPatVarIndex x) c
+    ConP c' i qs
+      | c == c'   -> matchPats ps qs
+      | otherwise -> no
+    DotP o t  -> no
+    LitP l    -> isLitP p >>= \case
+      Just l' -> if l == l' then yes [] else no
+      Nothing -> no
+    DefP{}   -> no
+    ProjP{}   -> __IMPOSSIBLE__  -- excluded by typing
+    IApplyP _ _ _ x -> blockedOnConstructor (splitPatVarIndex x) c
+  (DefP o c ps) -> unDotP q >>= \case
+    VarP _ x -> __IMPOSSIBLE__ -- blockedOnConstructor (splitPatVarIndex x) c
+    ConP c' i qs -> no
+    DotP o t  -> no
+    LitP _    -> no
+    DefP o c' qs
+      | c == c'   -> matchPats ps qs
+      | otherwise -> no
+    ProjP{}   -> __IMPOSSIBLE__  -- excluded by typing
+    IApplyP _ _ _ x -> __IMPOSSIBLE__ --blockedOnConstructor (splitPatVarIndex x) c
 
-matchPat VarP{}   q = Yes [q]
-matchPat DotP{}   q = mempty
--- Jesper, 2014-11-04: putting 'Yes [q]' here triggers issue 1333.
--- Not checking for trivial patterns should be safe here, as dot patterns are
--- guaranteed to match if the rest of the pattern does, so some extra splitting
--- on them doesn't change the reduction behaviour.
-matchPat p@(LitP l) q = case q of
-  VarP _ x -> if l `elem` splitExcludedLits x
-              then No
-              else blockedOnLiteral (splitPatVarIndex x) l
-  ConP{}   -> No
-  DotP{}   -> No
-  LitP l'  -> if l == l' then Yes [] else No
-  DefP{}   -> No
-  ProjP{}  -> __IMPOSSIBLE__  -- excluded by typing
-  IApplyP{} -> __IMPOSSIBLE__
-matchPat (ProjP _ d) (ProjP _ d') = if d == d' then mempty else No
-matchPat ProjP{} _ = __IMPOSSIBLE__
-matchPat IApplyP{} q = Yes [q]
-matchPat p@(ConP c _ ps) q = case q of
-  VarP _ x -> blockedOnConstructor (splitPatVarIndex x) c
-  ConP c' i qs
-    | c == c'   -> matchPats ps qs
-    | otherwise -> No
-  DotP o t  -> No
-  LitP _    -> No
-  DefP{}   -> No
-  ProjP{}   -> __IMPOSSIBLE__  -- excluded by typing
-  IApplyP _ _ _ x -> blockedOnConstructor (splitPatVarIndex x) c
-matchPat (DefP o c ps) q = case q of
-  VarP _ x -> __IMPOSSIBLE__ -- blockedOnConstructor (splitPatVarIndex x) c
-  ConP c' i qs -> No
-  DotP o t  -> No
-  LitP _    -> No
-  DefP o c' qs
-    | c == c'   -> matchPats ps qs
-    | otherwise -> No
-  ProjP{}   -> __IMPOSSIBLE__  -- excluded by typing
-  IApplyP _ _ _ x -> __IMPOSSIBLE__ --blockedOnConstructor (splitPatVarIndex x) c
+-- unfold one level of a dot pattern to a proper pattern if possible
+unDotP :: (MonadReduce m, DeBruijn (Pattern' a)) => Pattern' a -> m (Pattern' a)
+unDotP (DotP o v) = reduce v >>= \case
+  Var i [] -> return $ deBruijnVar i
+  Con c _ vs -> do
+    let ps = map (fmap $ unnamed . DotP o) $ fromMaybe __IMPOSSIBLE__ $ allApplyElims vs
+    return $ ConP c noConPatternInfo ps
+  Lit l -> return $ LitP l
+  v     -> return $ dotP v
+unDotP p = return p
+
+isLitP :: (MonadReduce m, HasBuiltins m) => Pattern' a -> m (Maybe Literal)
+isLitP (LitP l) = return $ Just l
+isLitP (DotP _ u) = reduce u >>= \case
+  Lit l -> return $ Just l
+  _     -> return $ Nothing
+isLitP (ConP c ci []) = do
+  Con zero _ [] <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinZero
+  if | c == zero -> return $ Just $ LitNat (getRange c) 0
+     | otherwise -> return Nothing
+isLitP (ConP c ci [a]) | visible a && isRelevant a = do
+  Con suc _ [] <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSuc
+  if | c == suc  -> fmap inc <$> isLitP (namedArg a)
+     | otherwise -> return Nothing
+  where
+    inc :: Literal -> Literal
+    inc (LitNat r n) = LitNat (fuseRange c r) $ n + 1
+    inc _ = __IMPOSSIBLE__
+isLitP _ = return Nothing

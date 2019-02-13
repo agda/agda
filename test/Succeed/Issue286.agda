@@ -19,6 +19,8 @@ data _≡_ {ℓ : Level} {A : Set ℓ} : A → A → Set ℓ where
 primitive
   primEraseEquality : ∀ {a} {A : Set a} {x y : A} → x ≡ y → x ≡ y
 
+postulate String : Set
+
 {-# BUILTIN STRING String #-}
 
 primitive

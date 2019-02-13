@@ -1,3 +1,0 @@
-Issue1028.agda:5,7-7,15
-Could not parse the left-hand side F X
-when scope checking let F X = X in F Set

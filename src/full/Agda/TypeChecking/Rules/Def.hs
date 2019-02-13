@@ -333,7 +333,7 @@ checkFunDefS t ai delayed extlam with i name withSub cs = do
               , nest 2 $ sep $ map (prettyTCM . QNamed name) cs
               ]
 
-        reportSDoc "tc.cc.raw" 15 $ do
+        reportSDoc "tc.cc.raw" 65 $ do
           sep [ "clauses before compilation"
               , nest 2 $ sep $ map (text . show) cs
               ]

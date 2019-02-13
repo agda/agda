@@ -1,7 +1,0 @@
-Issue501.agda:37,24-29
-I'm not sure if there should be a case for the constructor ⟨_⟩,
-because I get stuck when trying to solve the following unification
-problems (inferred index ≟ expected index):
-  _45 k ≟ _46 k
-when checking that the pattern ⟨ x ⟩ has type
-(_44 k := _45 k) (_46 k)

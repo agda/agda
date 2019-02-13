@@ -102,6 +102,7 @@ errorWarnings = Set.fromList
   , NotAllowedInMutual_
   , NotStrictlyPositive_
   , OverlappingTokensWarning_
+  , PragmaCompiled_
   , SafeFlagPostulate_
   , SafeFlagPragma_
   , SafeFlagNonTerminating_
@@ -114,6 +115,8 @@ errorWarnings = Set.fromList
   , UnsolvedMetaVariables_
   , UnsolvedInteractionMetas_
   , UnsolvedConstraints_
+  , InfectiveImport_
+  , CoInfectiveImport_
   ]
 
 allWarnings :: Set WarningName
@@ -142,6 +145,7 @@ data WarningName
   | EmptyPostulate_
   | EmptyPrivate_
   | EmptyGeneralize_
+  | EmptyPrimitive_
   | InvalidCatchallPragma_
   | InvalidNoUniverseCheckPragma_
   | InvalidTerminationCheckPragma_
@@ -150,6 +154,7 @@ data WarningName
   | NotAllowedInMutual_
   | PolarityPragmasButNotPostulates_
   | PragmaNoTerminationCheck_
+  | PragmaCompiled_
   | UnknownFixityInMixfixDecl_
   | UnknownNamesInFixityDecl_
   | UnknownNamesInPolarityPragmas_
@@ -164,6 +169,7 @@ data WarningName
   | UnreachableClauses_
   | UselessInline_
   | InstanceWithExplicitArg_
+  | InstanceNoOutputTypeName_
   | GenericWarning_
   | DeprecationWarning_
   | InversionDepthReached_
@@ -188,6 +194,9 @@ data WarningName
   | WithoutKFlagPrimEraseEquality_
   | CantGeneralizeOverSorts_
   | AbsurdPatternRequiresNoRHS_
+  -- Checking consistency of options
+  | InfectiveImport_
+  | CoInfectiveImport_
   deriving (Eq, Ord, Show, Read, Enum, Bounded)
 
 -- | The flag corresponding to a warning is precisely the name of the constructor
@@ -249,6 +258,7 @@ warningNameDescription w = case w of
   EmptyPostulate_                  -> "Empty `postulate' blocks."
   EmptyPrivate_                    -> "Empty `private' blocks."
   EmptyGeneralize_                 -> "Empty `variable' blocks."
+  EmptyPrimitive_                  -> "Empty `primitive' blocks."
   InvalidCatchallPragma_           -> "`CATCHALL' pragmas before a non-function clause."
   InvalidNoPositivityCheckPragma_  -> "No positivity checking pragmas before non-`data', `record' or `mutual' blocks."
   InvalidNoUniverseCheckPragma_    -> "No universe checking pragmas before non-`data' or `record' declaration."
@@ -257,6 +267,7 @@ warningNameDescription w = case w of
   NotAllowedInMutual_              -> "Declarations not allowed in a mutual block."
   PolarityPragmasButNotPostulates_ -> "Polarity pragmas for non-postulates."
   PragmaNoTerminationCheck_        -> "`NO_TERMINATION_CHECK' pragmas are deprecated"
+  PragmaCompiled_                  -> "'COMPILE' pragmas not allowed in safe mode."
   UnknownFixityInMixfixDecl_       -> "Mixfix names without an associated fixity declaration."
   UnknownNamesInFixityDecl_        -> "Names not declared in the same scope as their syntax or fixity declaration."
   UnknownNamesInPolarityPragmas_   -> "Names not declared in the same scope as their polarity pragmas."
@@ -270,6 +281,7 @@ warningNameDescription w = case w of
   UselessPublic_                   -> "`public' blocks where they have no effect."
   UselessInline_                   -> "`INLINE' pragmas where they have no effect."
   InstanceWithExplicitArg_         -> "`instance` declarations with explicit arguments are never considered by instance search."
+  InstanceNoOutputTypeName_        -> "instance arguments whose type does not end in a named or variable type are never considered by instance search."
   UnreachableClauses_              -> "Unreachable function clauses."
   GenericWarning_                  -> ""
   DeprecationWarning_              -> "Feature deprecation."
@@ -295,3 +307,5 @@ warningNameDescription w = case w of
   AbsurdPatternRequiresNoRHS_      -> "A clause with an absurd pattern does not need a Right Hand Side."
   CantGeneralizeOverSorts_         -> "Attempt to generalize over sort metas in 'variable' declaration."
   WithoutKFlagPrimEraseEquality_   -> "`primEraseEquality' usages with the without-K flags."
+  InfectiveImport_                 -> "Importing a file using e.g. `--cubical' into one which doesn't"
+  CoInfectiveImport_               -> "Importing a file not using e.g. `--safe'  from one which does"

@@ -58,7 +58,9 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinAgdaTCMGetType, builtinAgdaTCMGetDefinition,
   builtinAgdaTCMQuoteTerm, builtinAgdaTCMUnquoteTerm,
   builtinAgdaTCMBlockOnMeta, builtinAgdaTCMCommit, builtinAgdaTCMIsMacro,
-  builtinAgdaTCMWithNormalisation, builtinAgdaTCMDebugPrint
+  builtinAgdaTCMWithNormalisation, builtinAgdaTCMDebugPrint,
+  builtinAgdaTCMNoConstraints,
+  builtinAgdaTCMRunSpeculative
   :: String
 
 builtinNat                           = "NATURAL"
@@ -235,6 +237,8 @@ builtinAgdaTCMUnquoteTerm   = "AGDATCMUNQUOTETERM"
 builtinAgdaTCMIsMacro       = "AGDATCMISMACRO"
 builtinAgdaTCMWithNormalisation = "AGDATCMWITHNORMALISATION"
 builtinAgdaTCMDebugPrint = "AGDATCMDEBUGPRINT"
+builtinAgdaTCMNoConstraints = "AGDATCMNOCONSTRAINTS"
+builtinAgdaTCMRunSpeculative = "AGDATCMRUNSPECULATIVE"
 
 -- | Builtins that come without a definition in Agda syntax.
 --   These are giving names to Agda internal concepts which
@@ -249,13 +253,8 @@ builtinAgdaTCMDebugPrint = "AGDATCMDEBUGPRINT"
 
 builtinsNoDef :: [String]
 builtinsNoDef =
-  [ builtinSizeUniv
-  , builtinSize
-  , builtinSizeLt
-  , builtinSizeSuc
-  , builtinSizeInf
-  , builtinSizeMax
-  , builtinConId
+  sizeBuiltins ++
+  [ builtinConId
   , builtinInterval
   , builtinPartial
   , builtinPartialP
@@ -264,12 +263,14 @@ builtinsNoDef =
   , builtinIZero
   , builtinIOne
   , builtinSetOmega
-  , builtinString
-  , builtinChar
-  , builtinFloat
-  , builtinWord64
-  , builtinInf
-  , builtinSharp
-  , builtinFlat
   ]
 
+sizeBuiltins :: [String]
+sizeBuiltins =
+  [ builtinSizeUniv
+  , builtinSize
+  , builtinSizeLt
+  , builtinSizeSuc
+  , builtinSizeInf
+  , builtinSizeMax
+  ]

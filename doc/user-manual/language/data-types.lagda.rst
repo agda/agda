@@ -36,11 +36,11 @@ The ``True`` set represents the trivially true proposition:
       tt : True
 
 The ``False`` set has no constructor and hence no elements. It
-represent the trivially false proposition: ::
+represents the trivially false proposition: ::
 
   data False : Set where
 
-Another example is the data type of non-empty  binary trees with natural numbers in the leaves::
+Another example is the data type of non-empty binary trees with natural numbers in the leaves::
 
   data BinTree : Set where
     leaf   : Nat → BinTree

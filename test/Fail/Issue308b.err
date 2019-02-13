@@ -1,5 +1,5 @@
 Issue308b.agda:6,18-18
-Issue308b.agda:6,18: Malformed syntax declaration: syntax must alternate holes and non-holes
+Issue308b.agda:6,18: Malformed syntax declaration: syntax must alternate holes (x) and non-holes (e)
 x<ERROR>
 g : D → D
 g (d x) = e x

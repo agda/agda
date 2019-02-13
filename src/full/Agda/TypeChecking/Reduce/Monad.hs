@@ -49,8 +49,7 @@ instance HasBuiltins ReduceM where
   getBuiltinThing b = liftM2 mplus (Map.lookup b <$> useR stLocalBuiltins)
                                    (Map.lookup b <$> useR stImportedBuiltins)
 
-constructorForm :: (HasBuiltins m, MonadReduce m)
-                => Term -> m Term
+constructorForm :: HasBuiltins m => Term -> m Term
 constructorForm v = do
   mz <- getBuiltin' builtinZero
   ms <- getBuiltin' builtinSuc

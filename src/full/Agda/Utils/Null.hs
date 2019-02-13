@@ -106,8 +106,14 @@ instance Null Doc where
 ifNull :: (Null a) => a -> b -> (a -> b) -> b
 ifNull a b k = if null a then b else k a
 
+ifNotNull :: (Null a) => a -> (a -> b) -> b -> b
+ifNotNull a k b = ifNull a b k
+
 ifNullM :: (Monad m, Null a) => m a -> m b -> (a -> m b) -> m b
 ifNullM ma mb k = ma >>= \ a -> ifNull a mb k
+
+ifNotNullM :: (Monad m, Null a) => m a -> (a -> m b) -> m b -> m b
+ifNotNullM ma k mb = ifNullM ma mb k
 
 whenNull :: (Monad m, Null a) => a -> m () -> m ()
 whenNull = when . null

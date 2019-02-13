@@ -1,3 +1,9 @@
+Issue2348.agda:12,13-43
+Instance arguments whose type does not end in a named or variable
+type are never considered by instance search, so having an instance
+argument ⦃ A : Set ⦄ has no effect.
+when checking that the expression ⦃ A : Set ⦄ ⦃ r : Wrap A ⦄ → A is
+a type
 Issue2348.agda:28,8-9
 b != Wrap.out w of type B
 when checking that the expression p has type

@@ -1217,6 +1217,16 @@ instance Eq Term where
   Dummy{}    == Dummy{}      = True
   _          == _            = False
 
+instance Eq a => Eq (Pattern' a) where
+  VarP _ x        == VarP _ y          = x == y
+  DotP _ u        == DotP _ v          = u == v
+  ConP c _ ps     == ConP c' _ qs      = c == c && ps == qs
+  LitP l          == LitP l'           = l == l'
+  ProjP _ f       == ProjP _ g         = f == g
+  IApplyP _ u v x == IApplyP _ u' v' y = u == u' && v == v' && x == y
+  DefP _ f ps     == DefP _ g qs       = f == g && ps == qs
+  _               == _                 = False
+
 instance Ord Term where
   Var a b    `compare` Var x y    = compare x a `thenCmp` compare b y -- sort de Bruijn indices down (#2765)
   Var{}      `compare` _          = LT

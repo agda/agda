@@ -50,7 +50,7 @@ instance KillRange Delayed where
 -- * File type
 ---------------------------------------------------------------------------
 
-data FileType = AgdaFileType | MdFileType | RstFileType | TexFileType
+data FileType = AgdaFileType | MdFileType | RstFileType | TexFileType | OrgFileType
   deriving (Data, Eq, Ord)
 
 instance Pretty FileType where
@@ -61,6 +61,7 @@ instance Show FileType where
   show MdFileType   = "Markdown"
   show RstFileType  = "ReStructedText"
   show TexFileType  = "LaTeX"
+  show OrgFileType  = "org-mode"
 
 ---------------------------------------------------------------------------
 -- * Eta-equality

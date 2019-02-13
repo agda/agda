@@ -1,3 +1,8 @@
+Issue1967.agda:4,7-24
+Instance arguments whose type does not end in a named or variable
+type are never considered by instance search, so having an instance
+argument ⦃ A : Set ⦄ has no effect.
+when checking that the expression ⦃ A : Set ⦄ → Set is a type
 Issue1967.agda:5,22-23
 Set should be a function type, but it isn't
 when checking that A is a valid argument to a function of type

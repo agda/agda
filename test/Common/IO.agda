@@ -1,3 +1,4 @@
+{-# OPTIONS --without-K #-}
 module Common.IO where
 
 open import Agda.Builtin.IO public

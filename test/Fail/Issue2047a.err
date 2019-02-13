@@ -1,3 +1,3 @@
 Issue2047a.agda:15,10-14
-(λ { itis → true }) p != (λ { itis → false }) p of type Bool
+(λ { itis → true }) p !=< (λ { itis → false }) p of type Bool
 when checking that the expression refl has type M.foo u ≡ M.bar u

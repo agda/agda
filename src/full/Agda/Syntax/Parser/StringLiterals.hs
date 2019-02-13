@@ -103,7 +103,7 @@ lexStringGap del s =
         case c of
             '\\'            -> lexString del s
             c | isSpace c   -> lexStringGap del s
-            _               -> fail "non-space in string gap"
+            _               -> lookAheadError "non-space in string gap"
 
 -- | Lex a single character.
 lexChar :: LookAhead Char
@@ -121,7 +121,7 @@ lexEscape =
             '^'     -> do c <- eatNextChar
                           if c >= '@' && c <= '_'
                             then return (chr (ord c - ord '@'))
-                            else fail "invalid control character"
+                            else lookAheadError "invalid control character"
 
             'x'     -> readNum isHexDigit 16 hexDigit
             'o'     -> readNum isOctDigit  8 octDigit
@@ -132,7 +132,7 @@ lexEscape =
                 -- Try to match the input (starting with c) against the
                 -- silly escape codes.
                 do  esc <- match' c (map (id -*- return) sillyEscapeChars)
-                                    (fail "bad escape code")
+                                    (lookAheadError "bad escape code")
                     sync
                     return esc
 
@@ -142,7 +142,7 @@ readNum isDigit base conv =
     do  c <- eatNextChar
         if isDigit c
             then readNumAcc isDigit base conv (conv c)
-            else fail "non-digit in numeral"
+            else lookAheadError "non-digit in numeral"
 
 -- | Same as 'readNum' but with an accumulating parameter.
 readNumAcc :: (Char -> Bool) -> Int -> (Char -> Int) -> Int -> LookAhead Char
@@ -158,7 +158,7 @@ readNumAcc isDigit base conv i = scan i
                             sync
                             if i >= ord minBound && i <= ord maxBound
                                 then return (chr i)
-                                else fail "character literal out of bounds"
+                                else lookAheadError "character literal out of bounds"
 
 -- | The escape codes.
 sillyEscapeChars :: [(String, Char)]

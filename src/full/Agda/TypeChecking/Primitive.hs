@@ -179,7 +179,7 @@ instance ToTerm Str     where toTerm = return $ Lit . LitString noRange . unStr
 instance ToTerm QName   where toTerm = return $ Lit . LitQName noRange
 instance ToTerm MetaId  where
   toTerm = do
-    file <- fromMaybe __IMPOSSIBLE__ <$> asksTC TCM.envCurrentPath
+    file <- getCurrentPath
     return $ Lit . LitMeta noRange file
 
 instance ToTerm Integer where
@@ -858,6 +858,8 @@ primTransHComp cmd ts nelims = do
                          | Just as <- allApplyElims es, [] <- recFields r -> compData (recPars r) cmd l (as <$ t) sbA sphi u u0
                      Datatype{dataPars = pars, dataIxs = ixs, dataPathCons = pcons}
                        | and [null pcons | DoHComp  <- [cmd]], Just as <- allApplyElims es -> compData (pars+ixs) cmd l (as <$ t) sbA sphi u u0
+                     -- postulates with no arguments do not need to transport.
+                     Axiom{} | [] <- es, DoTransp <- cmd -> redReturn $ unArg u0
                      _          -> fallback
 
                  _ -> fallback
@@ -933,25 +935,43 @@ primTransHComp cmd ts nelims = do
       tPath   <- getTermLocal builtinPath
       kit <- fromMaybe __IMPOSSIBLE__ <$> getSigmaKit
       (redReturn =<<) . runNamesT [] $ do
-        comp <- do
-          let
-            ineg j = pure tINeg <@> j
+        let ineg j = pure tINeg <@> j
             imax i j = pure tIMax <@> i <@> j
+            imin i j = pure tIMin <@> i <@> j
+
+        -- First define a "ghcomp" version of gcomp. Normal comp looks like:
+        --
+        -- comp^i A [ phi -> u ] u0 = hcomp^i A(1/i) [ phi -> forward A i u ] (forward A 0 u0)
+        --
+        -- So for "gcomp" we compute:
+        --
+        -- gcomp^i A [ phi -> u ] u0 = hcomp^i A(1/i) [ phi -> forward A i u, ~ phi -> forward A 0 u0 ] (forward A 0 u0)
+        --
+        -- The point of this is that gcomp does not produce any empty
+        -- systems (if phi = 0 it will reduce to "forward A 0 u".
+        gcomp <- do
           let forward la bA r u = pure tTrans <#> (lam "i" $ \ i -> la <@> (i `imax` r))
                                               <@> (lam "i" $ \ i -> bA <@> (i `imax` r))
                                               <@> r
                                               <@> u
           return $ \ la bA phi u u0 ->
-            pure tHComp <#> (la <@> pure io) <#> (bA <@> pure io) <#> phi
-                        <@> (lam "i" $ \ i -> ilam "o" $ \ o ->
-                                forward la bA i (u <@> i <..> o))
+            pure tHComp <#> (la <@> pure io)
+                        <#> (bA <@> pure io)
+                        <#> imax phi (ineg phi)
+                        <@> (lam "i" $ \ i ->
+                              pure tPOr <#> (la <@> i)
+                                        <@> phi
+                                        <@> ineg phi
+                                        <@> (ilam "o" $ \ a -> bA <@> i)
+                                        <@> (ilam "o" $ \ o -> forward la bA i (u <@> i <..> o))
+                                        <@> (ilam "o" $ \ o -> forward la bA (pure iz) u0))
                         <@> forward la bA (pure iz) u0
-        let
-          transpFill la bA phi u0 i =
-            pure tTrans <#> (ilam "j" $ \ j -> la <@> (pure tIMin <@> i <@> j))
-                        <@> (ilam "j" $ \ j -> bA <@> (pure tIMin <@> i <@> j))
-                        <@> (pure tIMax <@> phi <@> (pure tINeg <@> i))
-                        <@> u0
+
+        let transpFill la bA phi u0 i =
+              pure tTrans <#> (ilam "j" $ \ j -> la <@> imin i j)
+                          <@> (ilam "j" $ \ j -> bA <@> imin i j)
+                          <@> (imax phi (ineg i))
+                          <@> u0
         [psi,u0] <- mapM (open . unArg) [psi,u0]
         glue1 <- do
           g <- open $ (tglue `apply`) . map (setHiding Hidden) . map (subst 0 io) $ [la, lb, bA, phi, bT, e]
@@ -964,37 +984,55 @@ primTransHComp cmd ts nelims = do
           tf i o = transpFill lb (lam "i" $ \ i -> bT <@> i <..> o) psi u0 i
           t1 o = tf (pure io) o
           a0 = unglue0 u0
-          a1 = comp la bA
-                 (pure tIMax <@> psi <@> (pure tForall <@> phi))
-                 (lam "i" $ \ i -> pure tPOr <#> (la <@> i) <@> psi <@> (pure tForall <@> phi) <@> (ilam "o" $ \ a -> bA <@> i)
-                                                     <@> (ilam "o" $ \ _ -> a0)
-                                                     <@> (ilam "o" $ \ o -> pure tEFun <#> (lb <@> i)
-                                                                                       <#> (la <@> i)
-                                                                                       <#> (bT <@> i <..> o)
-                                                                                       <#> (bA <@> i)
-                                                                                       <@> (e <@> i <..> o)
-                                                                                       <@> (tf i o))
-                 )
+
+          -- compute "forall. phi"
+          forallphi = pure tForall <@> phi
+
+          -- a1 with gcomp
+          a1 = gcomp la bA
+                 (imax psi forallphi)
+                 (lam "i" $ \ i -> pure tPOr <#> (la <@> i)
+                                             <@> psi
+                                             <@> forallphi
+                                             <@> (ilam "o" $ \ a -> bA <@> i)
+                                             <@> (ilam "o" $ \ _ -> a0)
+                                             <@> (ilam "o" $ \ o -> pure tEFun <#> (lb <@> i)
+                                                                               <#> (la <@> i)
+                                                                               <#> (bT <@> i <..> o)
+                                                                               <#> (bA <@> i)
+                                                                               <@> (e <@> i <..> o)
+                                                                               <@> (tf i o)))
                  a0
+
           max l l' = pure tLMax <@> l <@> l'
           sigCon x y = pure (Con (sigmaCon kit) ConOSystem []) <@> x <@> y
           w i o = pure tEFun <#> (lb <@> i)
-                                                                                       <#> (la <@> i)
-                                                                                       <#> (bT <@> i <..> o)
-                                                                                       <#> (bA <@> i)
-                                                                                       <@> (e <@> i <..> o)
-          fiber la lb bA bB f b = (pure (Def (sigmaName kit) []) <#> la <#> lb
-                                                            <@> bA
-                                                            <@> (lam "a" $ \ a -> pure tPath <#> lb <#> bB <@> (f <@> a) <@> b))
+                             <#> (la <@> i)
+                             <#> (bT <@> i <..> o)
+                             <#> (bA <@> i)
+                             <@> (e <@> i <..> o)
+          fiber la lb bA bB f b =
+            (pure (Def (sigmaName kit) []) <#> la
+                                           <#> lb
+                                           <@> bA
+                                           <@> (lam "a" $ \ a -> pure tPath <#> lb <#> bB <@> (f <@> a) <@> b))
+
+          -- We don't have to do anything special for "~ forall. phi"
+          -- here (to implement "ghcomp") as it is taken care off by
+          -- tEProof in t1'alpha below
           pe o = -- o : [ φ 1 ]
-            pure tPOr <#> max (la <@> pure io) (lb <@> pure io) <@> psi
-                      <@> (pure tForall <@> phi)
+            pure tPOr <#> max (la <@> pure io) (lb <@> pure io)
+                      <@> psi
+                      <@> forallphi
                       <@> (ilam "o" $ \ _ ->
                              fiber (lb <@> pure io) (la <@> pure io)
                                    (bT <@> (pure io) <..> o) (bA <@> pure io)
                                    (w (pure io) o) a1)
                       <@> (ilam "o" $ \ o -> sigCon u0 (lam "_" $ \ _ -> a1))
                       <@> (ilam "o" $ \ o -> sigCon (t1 o) (lam "_" $ \ _ -> a1))
+
+          -- "ghcomp" is implemented in the proof of tEProof
+          -- (see src/data/lib/prim/Agda/Builtin/Cubical/Glue.agda)
           t1'alpha o = -- o : [ φ 1 ]
              pure tEProof <#> (lb <@> pure io)
                           <#> (la <@> pure io)
@@ -1002,15 +1040,16 @@ primTransHComp cmd ts nelims = do
                           <@> (bA <@> pure io)
                           <@> (e <@> pure io <..> o)
                           <@> a1
-                          <@> (pure tForall <@> phi)
+                          <@> forallphi
                           <@> pe o
-          -- optimize
+
+          -- TODO: optimize?
           t1' o = t1'alpha o <&> (`applyE` [Proj ProjSystem (sigmaFst kit)])
           alpha o = t1'alpha o <&> (`applyE` [Proj ProjSystem (sigmaSnd kit)])
           a1' = pure tHComp
                   <#> (la <@> pure io)
                   <#> (bA <@> pure io)
-                  <#> (pure tIMax <@> (phi <@> pure io) <@> psi)
+                  <#> (imax (phi <@> pure io) psi)
                   <@> (lam "j" $ \ j ->
                          pure tPOr <#> (la <@> pure io) <@> (phi <@> pure io) <@> psi <@> (ilam "o" $ \ _ -> bA <@> pure io)
                                    <@> (ilam "o" $ \ o -> alpha o <@@> (w (pure io) o <@> t1' o,a1,j))
@@ -1037,6 +1076,8 @@ primTransHComp cmd ts nelims = do
         s <- reduce $ getSort t
         case s of
           (Type l) -> return l
+          -- TODO MetaS | Prop | DefS | ...
+          -- Inf -> __IMPOSSIBLE__
           _        -> __IMPOSSIBLE__
       -- mkLam DoTransp = Lam defaultArgInfo
       -- mkLam DoHComp = id
@@ -1488,6 +1529,58 @@ decomposeInterval' t = do
             , let bsm     = (Map.fromListWith Set.union . map (id -*- Set.singleton)) bs
             ]
 
+-- | @mkPrimInjective@ takes two Set0 @a@ and @b@ and a function @f@ of type
+--   @a -> b@ and outputs a primitive internalizing the fact that @f@ is injective.
+mkPrimInjective :: Type -> Type -> QName -> TCM PrimitiveImpl
+mkPrimInjective a b qn = do
+  -- Define the type
+  eqName <- primEqualityName
+  let lvl0     = Max []
+  let eq a t u = El (Type lvl0) <$> pure (Def eqName []) <#> pure (Level lvl0)
+                                <#> pure (unEl a) <@> t <@> u
+  let f    = pure (Def qn [])
+  ty <- nPi "t" (pure a) $ nPi "u" (pure a) $
+              (eq b (f <@> varM 1) (f <@> varM 0))
+          --> (eq a (      varM 1) (      varM 0))
+
+    -- Get the constructor corresponding to BUILTIN REFL
+  refl <- getRefl
+
+  -- Implementation: when the equality argument reduces to refl so does the primitive.
+  -- If the user want the primitive to reduce whenever the two values are equal (no
+  -- matter whether the equality is refl), they can combine it with @eraseEquality@.
+  return $ PrimImpl ty $ primFun __IMPOSSIBLE__ 3 $ \ ts -> do
+    let t  = fromMaybe __IMPOSSIBLE__ $ headMaybe ts
+    let eq = unArg $ fromMaybe __IMPOSSIBLE__ $ lastMaybe ts
+    eq' <- normalise' eq
+    case eq' of
+      Con{} -> redReturn $ refl t
+      _     -> return $ NoReduction $ map notReduced ts
+
+primCharToNatInjective :: TCM PrimitiveImpl
+primCharToNatInjective = do
+  char  <- primType (undefined :: Char)
+  nat   <- primType (undefined :: Nat)
+  toNat <- primFunName <$> getPrimitive "primCharToNat"
+  mkPrimInjective char nat toNat
+
+primStringToListInjective :: TCM PrimitiveImpl
+primStringToListInjective = do
+  string <- primType (undefined :: Str)
+  chars  <- primType (undefined :: String)
+  toList <- primFunName <$> getPrimitive "primStringToList"
+  mkPrimInjective string chars toList
+
+getRefl :: TCM (Arg Term -> Term)
+getRefl = do
+  -- BUILTIN REFL maybe a constructor with one (the principal) argument or only parameters.
+  -- Get the ArgInfo of the principal argument of refl.
+  con@(Con rf ci []) <- primRefl
+  minfo <- fmap (setOrigin Inserted) <$> getReflArgInfo rf
+  pure $ case minfo of
+    Just ai -> Con rf ci . (:[]) . Apply . setArgInfo ai
+    Nothing -> const con
+
 -- | @primEraseEquality : {a : Level} {A : Set a} {x y : A} -> x ≡ y -> x ≡ y@
 primEraseEquality :: TCM PrimitiveImpl
 primEraseEquality = do
@@ -1511,13 +1604,8 @@ primEraseEquality = do
   t <- let xeqy = pure $ El eqSort $ Def eq $ map Apply $ teleArgs eqTel in
        telePi_ (fmap hide eqTel) <$> (xeqy --> xeqy)
 
-  -- BUILTIN REFL maybe a constructor with one (the principal) argument or only parameters.
-  -- Get the ArgInfo of the principal argument of refl.
-  con@(Con rf ci []) <- primRefl
-  minfo <- fmap (setOrigin Inserted) <$> getReflArgInfo rf
-  let (refl :: Arg Term -> Term) = case minfo of
-        Just ai -> Con rf ci . (:[]) . Apply . setArgInfo ai
-        Nothing -> const con
+  -- Get the constructor corresponding to BUILTIN REFL
+  refl <- getRefl
 
   -- The implementation of primEraseEquality:
   return $ PrimImpl t $ primFun __IMPOSSIBLE__ (1 + size eqTel) $ \ ts -> do
@@ -1943,27 +2031,29 @@ primitiveFunctions = Map.fromList
   , "primShowFloat"       |-> mkPrimFun1 (Str . show      :: Double -> Str)
 
   -- Character functions
-  , "primCharEquality"    |-> mkPrimFun2 ((==) :: Rel Char)
-  , "primIsLower"         |-> mkPrimFun1 isLower
-  , "primIsDigit"         |-> mkPrimFun1 isDigit
-  , "primIsAlpha"         |-> mkPrimFun1 isAlpha
-  , "primIsSpace"         |-> mkPrimFun1 isSpace
-  , "primIsAscii"         |-> mkPrimFun1 isAscii
-  , "primIsLatin1"        |-> mkPrimFun1 isLatin1
-  , "primIsPrint"         |-> mkPrimFun1 isPrint
-  , "primIsHexDigit"      |-> mkPrimFun1 isHexDigit
-  , "primToUpper"         |-> mkPrimFun1 toUpper
-  , "primToLower"         |-> mkPrimFun1 toLower
-  , "primCharToNat"       |-> mkPrimFun1 (fromIntegral . fromEnum :: Char -> Nat)
-  , "primNatToChar"       |-> mkPrimFun1 (toEnum . fromIntegral . (`mod` 0x110000)  :: Nat -> Char)
-  , "primShowChar"        |-> mkPrimFun1 (Str . show . pretty . LitChar noRange)
+  , "primCharEquality"       |-> mkPrimFun2 ((==) :: Rel Char)
+  , "primIsLower"            |-> mkPrimFun1 isLower
+  , "primIsDigit"            |-> mkPrimFun1 isDigit
+  , "primIsAlpha"            |-> mkPrimFun1 isAlpha
+  , "primIsSpace"            |-> mkPrimFun1 isSpace
+  , "primIsAscii"            |-> mkPrimFun1 isAscii
+  , "primIsLatin1"           |-> mkPrimFun1 isLatin1
+  , "primIsPrint"            |-> mkPrimFun1 isPrint
+  , "primIsHexDigit"         |-> mkPrimFun1 isHexDigit
+  , "primToUpper"            |-> mkPrimFun1 toUpper
+  , "primToLower"            |-> mkPrimFun1 toLower
+  , "primCharToNat"          |-> mkPrimFun1 (fromIntegral . fromEnum :: Char -> Nat)
+  , "primCharToNatInjective" |-> primCharToNatInjective
+  , "primNatToChar"          |-> mkPrimFun1 (toEnum . fromIntegral . (`mod` 0x110000)  :: Nat -> Char)
+  , "primShowChar"           |-> mkPrimFun1 (Str . show . pretty . LitChar noRange)
 
   -- String functions
-  , "primStringToList"    |-> mkPrimFun1 unStr
-  , "primStringFromList"  |-> mkPrimFun1 Str
-  , "primStringAppend"    |-> mkPrimFun2 (\s1 s2 -> Str $ unStr s1 ++ unStr s2)
-  , "primStringEquality"  |-> mkPrimFun2 ((==) :: Rel Str)
-  , "primShowString"      |-> mkPrimFun1 (Str . show . pretty . LitString noRange . unStr)
+  , "primStringToList"          |-> mkPrimFun1 unStr
+  , "primStringToListInjective" |-> primStringToListInjective
+  , "primStringFromList"        |-> mkPrimFun1 Str
+  , "primStringAppend"          |-> mkPrimFun2 (\s1 s2 -> Str $ unStr s1 ++ unStr s2)
+  , "primStringEquality"        |-> mkPrimFun2 ((==) :: Rel Str)
+  , "primShowString"            |-> mkPrimFun1 (Str . show . pretty . LitString noRange . unStr)
 
   -- Other stuff
   , "primEraseEquality"   |-> primEraseEquality

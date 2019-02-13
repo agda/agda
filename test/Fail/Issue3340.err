@@ -1,0 +1,3 @@
+Issue3340.agda:12,22-25
+y /= x
+when checking that the expression f y has type f.P x

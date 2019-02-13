@@ -320,7 +320,7 @@ instance PrettyTCM Constraint where
             "Is not empty type of sizes:" <?> prettyTCMCtx TopCtx t
         CheckFunDef d i q cs -> do
             t <- defType <$> getConstInfo q
-            prettyTCM q <+> ":" <+> prettyTCM t
+            "Check definition of" <+> prettyTCM q <+> ":" <+> prettyTCM t
         HasBiggerSort a -> "Has bigger sort:" <+> prettyTCM a
         HasPTSRule a b -> "Has PTS rule:" <+> case b of
           NoAbs _ b -> prettyTCM (a,b)
@@ -338,6 +338,7 @@ instance PrettyTCM TypeCheckingProblem where
     sep [ parens $ "_ :" <+> prettyTCM t0
         , nest 2 $ prettyList $ map prettyA es
         , nest 2 $ ":?" <+> prettyTCM t1 ]
+  prettyTCM (CheckProjAppToKnownPrincipalArg cmp e _ _ _ t _ _ _) = prettyTCM (CheckExpr cmp e t)
   prettyTCM (CheckLambda cmp (Arg ai (xs, mt)) e t) =
     sep [ return CP.lambda <+>
           (CP.prettyRelevance ai .

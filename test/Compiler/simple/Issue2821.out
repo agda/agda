@@ -1,26 +1,6 @@
 EXECUTED_PROGRAM
 
 ret > ExitSuccess
-out > /Issue2821.agda:24,1-30
-out > BUILTIN STRING declares an identifier (no longer expects an already defined identifier)
-out > when scope checking the declaration
-out >   {-# BUILTIN STRING String #-}
-out > /Issue2821.agda:25,1-28
-out > BUILTIN CHAR declares an identifier (no longer expects an already defined identifier)
-out > when scope checking the declaration
-out >   {-# BUILTIN CHAR Char #-}
-out >
-out > ———— All done; warnings encountered ————————————————————————
-out >
-out > /Issue2821.agda:24,1-30
-out > BUILTIN STRING declares an identifier (no longer expects an already defined identifier)
-out > when scope checking the declaration
-out >   {-# BUILTIN STRING String #-}
-out >
-out > /Issue2821.agda:25,1-28
-out > BUILTIN CHAR declares an identifier (no longer expects an already defined identifier)
-out > when scope checking the declaration
-out >   {-# BUILTIN CHAR Char #-}
 out > ALSE
 out > RUE
 out >

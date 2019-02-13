@@ -222,7 +222,7 @@ checkDecl d = setCurrentRange d $ do
     whenNothingM (asksTC envMutualBlock) $ do
 
       -- Syntax highlighting.
-      highlight_ d
+      highlight_ DontHightlightModuleContents d
 
       -- Post-typing checks.
       whenJust finalChecks $ \ theMutualChecks -> do
@@ -378,15 +378,21 @@ instantiateDefinitionType q = do
 --   def <- instantiateFull def
 --   modifySignature $ updateDefinition q $ const def
 
--- | Highlight a declaration.
-highlight_ :: A.Declaration -> TCM ()
-highlight_ d = do
+data HighlightModuleContents = DontHightlightModuleContents | DoHighlightModuleContents
+  deriving (Eq)
+
+-- | Highlight a declaration. Called after checking a mutual block (to ensure
+--   we have the right definitions for all names). For modules inside mutual
+--   blocks we haven't highlighted their contents, but for modules not in a
+--   mutual block we have. Hence the flag.
+highlight_ :: HighlightModuleContents -> A.Declaration -> TCM ()
+highlight_ hlmod d = do
   let highlight d = generateAndPrintSyntaxInfo d Full True
   Bench.billTo [Bench.Highlighting] $ case d of
     A.Axiom{}                -> highlight d
     A.Field{}                -> __IMPOSSIBLE__
     A.Primitive{}            -> highlight d
-    A.Mutual i ds            -> mapM_ highlight_ $ deepUnscopeDecls ds
+    A.Mutual i ds            -> mapM_ (highlight_ DoHighlightModuleContents) $ deepUnscopeDecls ds
     A.Apply{}                -> highlight d
     A.Import{}               -> highlight d
     A.Pragma{}               -> highlight d
@@ -399,9 +405,9 @@ highlight_ d = do
     A.Generalize{}           -> highlight d
     A.UnquoteDecl{}          -> highlight d
     A.UnquoteDef{}           -> highlight d
-    A.Section i x tel _      -> highlight (A.Section i x tel [])
-      -- Each block in the section has already been highlighted,
-      -- all that remains is the module declaration.
+    A.Section i x tel ds     -> do
+      highlight (A.Section i x tel [])
+      when (hlmod == DoHighlightModuleContents) $ mapM_ (highlight_ hlmod) (deepUnscopeDecls ds)
     A.RecSig{}               -> highlight d
     A.RecDef i x uc ind eta c ps tel cs ->
       highlight (A.RecDef i x uc ind eta c A.noDataDefParams dummy cs)

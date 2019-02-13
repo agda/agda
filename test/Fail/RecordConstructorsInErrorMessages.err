@@ -1,4 +1,4 @@
 RecordConstructorsInErrorMessages.agda:31,7-11
-R.A r != A of type Set
+R.A r !=< A of type Set
 when checking that the expression refl has type
 r ≡ record { f = λ x → x ; D = A ; g = λ x _ → x }

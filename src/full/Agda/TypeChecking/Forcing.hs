@@ -97,8 +97,8 @@ import Agda.Utils.Impossible
 --   decide which arguments are forced.
 --   Precondition: the type is of the form @Γ → D vs@ and the @vs@
 --   are in normal form.
-computeForcingAnnotations :: Type -> TCM [IsForced]
-computeForcingAnnotations t =
+computeForcingAnnotations :: QName -> Type -> TCM [IsForced]
+computeForcingAnnotations c t =
   ifM (not . optForcing <$> commandLineOptions)
       (return []) $ do
   -- Andreas, 2015-03-10  Normalization prevents Issue 1454.
@@ -128,8 +128,8 @@ computeForcingAnnotations t =
         | (i, m) <- zip (downFrom n) $ map getModality (telToList tel)
         ]
   reportSLn "tc.force" 60 $ unlines
-    [ "Forcing analysis"
-    , "  xs          = " ++ show xs
+    [ "Forcing analysis for " ++ show c
+    , "  xs          = " ++ show (map snd xs)
     , "  forcedArgs  = " ++ show forcedArgs
     ]
   return forcedArgs
@@ -205,7 +205,7 @@ forceTranslateTelescope delta qs = do
                                 "  from: " ++ show old ++ "\n" ++
                                 "  to:   " ++ show new
       let mods    = map (first dbPatVarIndex) new
-          ms      = reverse [ lookup i mods | i <- [0..size delta - 1] ]
+          ms      = map (`lookup` mods) $ downFrom $ size delta
           delta'  = telFromList $ zipWith (maybe id setModality) ms $ telToList delta
       reportSDoc "tc.force" 60 $ nest 2 $ "delta' =" <?> prettyTCM delta'
       return delta'
@@ -226,7 +226,9 @@ rebindForcedPattern ps toRebind = go $ zip (repeat NotForced) ps
 
     go [] = __IMPOSSIBLE__ -- unforcing cannot fail
     go ((Forced,    p) : ps) = (p :) <$> go ps
-    go ((NotForced, p) : ps) =
+    go ((NotForced, p) : ps) | namedArg p == toRebind
+                             = return $ p : map snd ps
+    go ((NotForced, p) : ps) = -- (#3544) A previous rebinding might have already rebound our pattern
       case namedArg p of
         VarP{}   -> (p :) <$> go ps
         DotP _ v -> mkPat v >>= \ case

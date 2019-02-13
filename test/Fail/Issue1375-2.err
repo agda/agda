@@ -1,12 +1,12 @@
-Issue1375-2.agda:9,1-15,19
+Issue1375-2.agda:10,1-16,19
 Termination checking failed for the following functions:
   Type
 Problematic calls:
   Type
-    (at Issue1375-2.agda:13,12-16)
+    (at Issue1375-2.agda:14,12-16)
   Term type
-    (at Issue1375-2.agda:15,10-14)
-Issue1375-2.agda:24,9-72
+    (at Issue1375-2.agda:16,10-14)
+Issue1375-2.agda:25,9-72
 Term type !=< Type of type Set
 when checking that the inferred type of an application
   Term type
