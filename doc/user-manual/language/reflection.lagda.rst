@@ -382,6 +382,11 @@ following primitive operations::
     -- "blocking" constraints.
     noConstraints : ∀ {a} {A : Set a} → TC A → TC A
 
+    -- Run the given TC action and return the first component. Resets to
+    -- the old TC state if the second component is 'false', or keep the
+    -- new TC state if it is 'true'.
+    runSpeculative : ∀ {a} {A : Set a} → TC (Σ A λ _ → Bool) → TC A
+
   {-# BUILTIN AGDATCMUNIFY              unify              #-}
   {-# BUILTIN AGDATCMTYPEERROR          typeError          #-}
   {-# BUILTIN AGDATCMBLOCKONMETA        blockOnMeta        #-}
@@ -406,6 +411,7 @@ following primitive operations::
   {-# BUILTIN AGDATCMWITHNORMALISATION  withNormalisation  #-}
   {-# BUILTIN AGDATCMDEBUGPRINT         debugPrint         #-}
   {-# BUILTIN AGDATCMNOCONSTRAINTS      noConstraints      #-}
+  {-# BUILTIN AGDATCMRUNSPECULATIVE     runSpeculative     #-}
 
 Metaprogramming
 ---------------

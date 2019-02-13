@@ -59,7 +59,8 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinAgdaTCMQuoteTerm, builtinAgdaTCMUnquoteTerm,
   builtinAgdaTCMBlockOnMeta, builtinAgdaTCMCommit, builtinAgdaTCMIsMacro,
   builtinAgdaTCMWithNormalisation, builtinAgdaTCMDebugPrint,
-  builtinAgdaTCMNoConstraints
+  builtinAgdaTCMNoConstraints,
+  builtinAgdaTCMRunSpeculative
   :: String
 
 builtinNat                           = "NATURAL"
@@ -237,6 +238,7 @@ builtinAgdaTCMIsMacro       = "AGDATCMISMACRO"
 builtinAgdaTCMWithNormalisation = "AGDATCMWITHNORMALISATION"
 builtinAgdaTCMDebugPrint = "AGDATCMDEBUGPRINT"
 builtinAgdaTCMNoConstraints = "AGDATCMNOCONSTRAINTS"
+builtinAgdaTCMRunSpeculative = "AGDATCMRUNSPECULATIVE"
 
 -- | Builtins that come without a definition in Agda syntax.
 --   These are giving names to Agda internal concepts which
@@ -272,4 +274,3 @@ sizeBuiltins =
   , builtinSizeInf
   , builtinSizeMax
   ]
-
