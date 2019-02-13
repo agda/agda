@@ -22,12 +22,9 @@ import System.IO.Error (isDoesNotExistError)
 
 import Control.Exception (catch, throwIO)
 
-
 main = defaultMainWithHooks hooks
 
-hooks = simpleUserHooks { preConf = notSupportedGHC861
-                        , regHook = checkAgdaPrimitiveAndRegister
-                        }
+hooks = simpleUserHooks { regHook = checkAgdaPrimitiveAndRegister }
 
 builtins :: FilePath -> IO [FilePath]
 builtins = find always (extension ==? ".agda")
@@ -94,13 +91,3 @@ checkAgdaPrimitiveAndRegister :: PackageDescription -> LocalBuildInfo -> UserHoo
 checkAgdaPrimitiveAndRegister pkg info hooks flags = do
   checkAgdaPrimitive pkg info flags
   regHook simpleUserHooks pkg info hooks flags  -- This actually does something useful
-
-ghcFullVersion :: IO String
-ghcFullVersion = filter (/= '\n') <$> readProcess "ghc" [ "--numeric-version" ] []
-
-notSupportedGHC861 :: Args -> ConfigFlags -> IO HookedBuildInfo
-notSupportedGHC861 _ _ = do
-  ghcVersion <- ghcFullVersion
-  if ghcVersion == "8.6.1"
-    then die "Error: Agda cannot be built with GHC 8.6.1 due to a compiler bug"
-    else (return emptyHookedBuildInfo)
