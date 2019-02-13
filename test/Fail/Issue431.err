@@ -8,8 +8,8 @@ double (suc (suc (suc (suc (suc _19))))) ≡
 suc (double (suc (suc (suc (suc _18)))))
 Failed to solve the following constraints:
   _20 := refl [blocked on problem 22]
-  [22, 26, 28, 30, 32, 34, 36, 38, 40, 42, 44] suc (double _19)
-                                                 =< double _18
+  [22, 26, 28, 30, 32, 34, 36, 38, 40, 42, 44] double _18
+                                                 = suc (double _19)
                                                  : Nat
 Unsolved metas at the following locations:
   Issue431.agda:16,25-29

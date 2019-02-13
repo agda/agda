@@ -1,3 +1,3 @@
 Issue2256.agda:13,10-14
-(λ ()) x !=< A of type Set a
+(λ ()) x != A of type Set a
 when checking that the expression refl has type abs x ≡ A

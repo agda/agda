@@ -1,7 +1,7 @@
 Failed to solve the following constraints:
   _64 := λ {A} {x} E → J (_56 (E = E)) E [blocked on problem 65]
-  [65, 77] _63 (A' = A) =< x : A
-  [55, 59] x =< _63 (A' = A) : A
+  [65, 77] _63 (A' = A) = x : A
+  [55, 59] x = _63 (A' = A) : A
   _55 := λ {A} {x} E → refl [blocked on problem 55]
 Unsolved metas at the following locations:
   Issue920a.agda:26,52-56

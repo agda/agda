@@ -1,3 +1,3 @@
 Issue857b.agda:35,7-11
-⊥-elim x !=< (λ ()) x of type A
+⊥-elim x != (λ ()) x of type A
 when checking that the expression refl has type ⊥-elim ≡ (λ ())

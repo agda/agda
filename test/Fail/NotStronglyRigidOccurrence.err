@@ -1,6 +1,6 @@
 Failed to solve the following constraints:
   _19 := λ k f → refl [blocked on problem 24]
-  [24, 27] _14 (k = k) f =< suc (f (_14 (k = k) (λ x → k))) : Nat
+  [24, 27] _14 (k = k) f = suc (f (_14 (k = k) (λ x → k))) : Nat
 Unsolved metas at the following locations:
   NotStronglyRigidOccurrence.agda:14,16-17
   NotStronglyRigidOccurrence.agda:16,12-16

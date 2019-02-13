@@ -1,6 +1,6 @@
 Failed to solve the following constraints:
   _24 := λ x y → refl [blocked on problem 31]
-  [31, 35] _23 =< f _23 : o
+  [31, 35] _23 = f _23 : o
 Unsolved metas at the following locations:
   JasonReedPruning.agda:23,11-12
   JasonReedPruning.agda:21,11-12
