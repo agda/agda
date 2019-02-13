@@ -536,7 +536,7 @@ transferOrigins ps qs = do
     matchingArgs p q
       -- The arguments match if
       -- 1. they are both projections,
-      | isJust (A.maybeProjP p) = isJust (isProjP q)
+      | isJust (A.isProjP p) = isJust (isProjP q)
       -- 2. or they are both visible,
       | visible p && visible q = True
       -- 3. or they have the same hiding and the argument is not named,
@@ -966,7 +966,7 @@ checkLHS mf = updateRelevance checkLHS_ where
         ]
 
       -- @p@ should be a projection pattern projection from @target@
-      (orig, ambProjName) <- ifJust (A.maybeProjP p) return $
+      (orig, ambProjName) <- ifJust (A.isProjP p) return $
         addContext tel $ softTypeError $ CannotEliminateWithPattern p (unArg target)
 
       (projName, projType) <- suspendErrors $ do
@@ -983,7 +983,8 @@ checkLHS mf = updateRelevance checkLHS_ where
       target' <- traverse (`piApplyM` self) projType
 
       -- Compute the new state
-      let projP    = target' $> Named Nothing (ProjP orig projName)
+      let projP    = applyWhen (orig == ProjPostfix) (setHiding NotHidden) $
+                       target' $> Named Nothing (ProjP orig projName)
           ip'      = ip ++ [projP]
           -- drop the projection pattern (already splitted)
           problem' = over problemRestPats tail problem

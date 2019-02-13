@@ -109,7 +109,10 @@ class IsProjP a where
   isProjP :: a -> Maybe (ProjOrigin, AmbiguousQName)
 
 instance IsProjP a => IsProjP (Arg a) where
-  isProjP = isProjP . unArg
+  isProjP p = case isProjP $ unArg p of
+    Just (ProjPostfix , f)
+     | getHiding p /= NotHidden -> Nothing
+    x -> x
 
 instance IsProjP a => IsProjP (Named n a) where
   isProjP = isProjP . namedThing

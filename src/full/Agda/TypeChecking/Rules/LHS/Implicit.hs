@@ -86,7 +86,7 @@ insertImplicitPatternsT exh            ps a = do
       -- Andreas, 2015-05-11.
       -- If p is a projection pattern, make it visible for the purpose of
       -- calling insImp / insertImplicit, to get correct behavior.
-      let p' = applyWhen (isJust $ A.maybeProjP p) (setHiding NotHidden) p
+      let p' = applyWhen (isJust $ A.isProjP p) (setHiding NotHidden) p
       hs <- insImp p' tel
       -- Continue with implicit patterns inserted before @p@.
       -- The list @hs ++ ps@ cannot be empty.
