@@ -547,10 +547,11 @@ Example usage:
 
     _>>=_ = bindTC
     _>>_ : ∀ {ℓ} {A : Set ℓ} → TC ⊤ → TC A → TC A
-    a >> b = a >>= (λ { tt → b })
+    a >> b = a >>= λ { tt → b }
 
 ::
 
+    -- Defining: id-name {A} x = x
     defId : (id-name : Name) → TC ⊤
     defId id-name = do
       defineFun id-name
@@ -566,11 +567,8 @@ Example usage:
 
     mkId : (id-name : Name) → TC ⊤
     mkId id-name = do
-      declareDef
-        (arg (arg-info visible relevant) id-name)
-        (pi (arg (arg-info hidden relevant) (agda-sort (lit 0))) (abs "A"
-          (pi (arg (arg-info visible relevant) (var 0 [])) (abs "x"
-            (var 1 [])))))
+      ty ← quoteTC ({A : Set} (x : A) → A)
+      declareDef (arg (arg-info visible relevant) id-name) ty
       defId id-name
 
     unquoteDecl id′ = mkId id′
