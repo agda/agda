@@ -616,12 +616,14 @@ instance PrettyTCM TypeError where
     CannotEliminateWithPattern p a -> do
       let isProj = isJust (isProjP p)
       fsep $
-        pwords "Cannot eliminate type" ++ prettyTCM a :
-        if isProj then
-           pwords "with projection pattern" ++ [prettyA p]
-         else
-           "with" : text (kindOfPattern (namedArg p)) : "pattern" : prettyA p :
-           pwords "(did you supply too many arguments?)"
+        pwords "Cannot eliminate type" ++ prettyTCM a : if
+         | isProj -> pwords "with projection pattern" ++ [prettyA p]
+         | A.ProjP _ _ f <- namedArg p -> pwords "with pattern" ++ [prettyA p] ++
+             pwords "(suggestion: write" ++ [".(" <> prettyA (A.Proj ProjPrefix f) <> ")"] ++ pwords "for a dot pattern," ++
+             pwords "or remove the braces for a postfix projection)"
+         | otherwise ->
+             "with" : text (kindOfPattern (namedArg p)) : "pattern" : prettyA p :
+             pwords "(did you supply too many arguments?)"
       where
       kindOfPattern = \case
         A.VarP{}    -> "variable"
