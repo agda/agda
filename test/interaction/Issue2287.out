@@ -2,7 +2,7 @@
 (agda2-info-action "*Type-checking*" "" nil)
 (agda2-highlight-clear)
 (agda2-status-action "")
-(agda2-info-action "*All Goals*" "?0 : R " nil)
+(agda2-info-action "*All Goals, Warnings*" "?0 : R ———— Warnings —————————————————————————————————————————————— Issue2287.agda:4,5-6,16 Instance arguments whose type does not end in a named or variable type are never considered by instance search, so having an instance argument ⦃ C : Set ⦄ has no effect. when checking that the expression (A : Set) {B : Set} ⦃ C : Set ⦄ → Set is a type " nil)
 ((last . 1) . (agda2-goals-action '(0)))
 ((last . 2) . (agda2-make-case-action '("A r = ?" "B r = ?" "C r = ?")))
 ((last . 1) . (agda2-goals-action '(0)))

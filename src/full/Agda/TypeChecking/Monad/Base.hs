@@ -2712,6 +2712,9 @@ data Warning
   | InstanceWithExplicitArg  QName
   -- ^ An instance was declared with an implicit argument, which means it
   --   will never actually be considered by instance search.
+  | InstanceNoOutputTypeName [NamedArg A.BindName] Type
+  -- ^ The type of an instance argument doesn't end in a named or
+  -- variable type, so it will never be considered by instance search.
   | InversionDepthReached    QName
   -- ^ The --inversion-max-depth was reached.
   -- Generic warnings for one-off things
@@ -2760,6 +2763,7 @@ warningName w = case w of
   EmptyRewritePragma           -> EmptyRewritePragma_
   IllformedAsClause            -> IllformedAsClause_
   InstanceWithExplicitArg{}    -> InstanceWithExplicitArg_
+  InstanceNoOutputTypeName{}   -> InstanceNoOutputTypeName_
   GenericNonFatalError{}       -> GenericNonFatalError_
   GenericWarning{}             -> GenericWarning_
   InversionDepthReached{}      -> InversionDepthReached_

@@ -69,6 +69,7 @@ import Agda.TypeChecking.Sort
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Unquote
+import Agda.TypeChecking.Warnings
 
 import {-# SOURCE #-} Agda.TypeChecking.Empty (isEmptyType)
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Def (checkFunDef', useTerPragma)
@@ -275,13 +276,24 @@ checkTelescope' lamOrPi (b : tel) ret =
 --   is needed for irrelevance.
 
 checkTypedBindings :: LamOrPi -> A.TypedBinding -> (Telescope -> TCM a) -> TCM a
-checkTypedBindings lamOrPi (A.TBind _ xs' e) ret = do
+checkTypedBindings lamOrPi (A.TBind r xs' e) ret = do
     let xs = (map . fmap . fmap) A.unBind xs'
     -- Andreas, 2011-04-26 irrelevant function arguments may appear
     -- non-strictly in the codomain type
     -- 2011-10-04 if flag --experimental-irrelevance is set
     experimental <- optExperimentalIrrelevance <$> pragmaOptions
     t <- modEnv lamOrPi $ isType_ e
+
+    -- Jesper, 2019-02-12, Issue #3534: warn if the type of an
+    -- instance argument does not have the right shape
+    unlessNull (filter isInstance xs') $ \ixs -> do
+      (tel, target) <- getOutputTypeName t
+      case target of
+        OutputTypeName{} -> return ()
+        OutputTypeVar{}  -> return ()
+        OutputTypeNameNotYetKnown{} -> return ()
+        NoOutputTypeName -> warning $ InstanceNoOutputTypeName ixs t
+
     let xs' = (map . mapRelevance) (modRel lamOrPi experimental) xs
     addContext (xs', t) $
       ret $ namedBindsToTel xs t
