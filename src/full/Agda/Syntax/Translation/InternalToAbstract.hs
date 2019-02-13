@@ -1052,12 +1052,18 @@ instance (Binder a, Binder b) => Binder (a, b) where
 -- | Assumes that pattern variables have been added to the context already.
 --   Picks pattern variable names from context.
 reifyPatterns :: MonadTCM tcm => [NamedArg I.DeBruijnPattern] -> tcm [NamedArg A.Pattern]
-reifyPatterns = mapM $ stripNameFromExplicit <.> traverse (traverse reifyPat)
+reifyPatterns = mapM $ (stripNameFromExplicit . stripHidingFromPostfixProj) <.>
+                       traverse (traverse reifyPat)
   where
     stripNameFromExplicit :: NamedArg p -> NamedArg p
     stripNameFromExplicit a
       | visible a = fmap (unnamed . namedThing) a
       | otherwise = a
+
+    stripHidingFromPostfixProj :: IsProjP p => NamedArg p -> NamedArg p
+    stripHidingFromPostfixProj a = case isProjP a of
+      Just (o, _) | o /= ProjPrefix -> setHiding NotHidden a
+      _                             -> a
 
     reifyPat :: MonadTCM tcm => I.DeBruijnPattern -> tcm A.Pattern
     reifyPat p = do

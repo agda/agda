@@ -1,0 +1,8 @@
+(agda2-status-action "")
+(agda2-info-action "*Type-checking*" "" nil)
+(agda2-highlight-clear)
+(agda2-status-action "")
+(agda2-info-action "*All Goals*" "?0 : Nat → Nat " nil)
+((last . 1) . (agda2-goals-action '(0)))
+((last . 2) . (agda2-make-case-action '("f .x x₁ = ?")))
+((last . 1) . (agda2-goals-action '(0)))
