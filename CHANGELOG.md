@@ -4,6 +4,16 @@ Release notes for Agda version 2.6.0
 Installation and infrastructure
 -------------------------------
 
+* Added support for GHC 8.6.3.
+
+* Generated the interface file for the `Sigma.agda` built-in when
+  installing Agda
+  [Issue [#3128](https://github.com/agda/agda/issues/3128)].
+
+* Fixed a regression in the generation of the interface files by
+  `Setup.hs` when using Cabal >= 2.0.0.0
+  [Issue [#3444](https://github.com/agda/agda/issues/3128)].
+
 * Interface files for all builtin and primitive files are now
   re-generated each time Agda is installed.
 
