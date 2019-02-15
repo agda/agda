@@ -337,7 +337,7 @@ code onlyCode fileType = mconcat . if onlyCode
 
     classes = concat
       [ concatMap noteClasses (note mi)
-      , otherAspectClasses (otherAspects mi)
+      , otherAspectClasses (toList $ otherAspects mi)
       , concatMap aspectClasses (aspect mi)
       ]
 
