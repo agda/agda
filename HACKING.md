@@ -223,7 +223,6 @@ Testing and documentation
 
   You can fix the whitespace issues running
 
-      make install-fix-agda-whitespace
       make fix-whitespace
 
 * To build the user manual locally, you need to install
