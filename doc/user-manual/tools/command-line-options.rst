@@ -184,7 +184,7 @@ Experimental features
       :ref:`rewriting`)
 
 :samp:`--cubical`
-      Enable cubical features (see :ref:`cubical`)
+      Enable cubical features. Turns on ``--without-K`` (see :ref:`cubical`)
 
 Errors and warnings
 ~~~~~~~~~~~~~~~~~~~
@@ -261,7 +261,7 @@ Other features
 
 :samp:`--safe`
       Disable postulates, unsafe ``OPTION`` pragmas and
-      ``primTrustMe`` (see :ref:`safe-agda`)
+      ``primTrustMe``. Turns off ``--sized-types`` and ``--guardedness`` (at most one can be turned back on again) (see :ref:`safe-agda`)
 
 :samp:`--type-in-type`
       Ignore universe levels (this makes Agda
@@ -273,16 +273,16 @@ Other features
 
 :samp:`--sized-types`
       Enable sized types (default, inconsistent with constructor-based
-      guarded corecursion; see :ref:`sized-types`). Turned off (but
-      can be turned on again) by ``--safe``.
+      guarded corecursion; see :ref:`sized-types`). Turned off by ``--safe``
+      (but can be turned on again by using ``--sized-types`` *after* ``--safe``).
 
 :samp:`--no-sized-types`
       Disable sized types (see :ref:`sized-types`)
 
 :samp:`--guardedness`
       Enable constructor-based guarded corecursion (default; see
-      :ref:`coinduction`). Turned off (but can be turned
-      on again) by ``--safe``.
+      :ref:`coinduction`). Turned off by ``--safe`` (but can be turned
+      on again  by using ``--guardedness`` *after* ``--safe``).
 
 :samp:`--no-guardedness`
       Disable constructor-based guarded corecursion (see :ref:`coinduction`)
