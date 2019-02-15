@@ -105,6 +105,7 @@ import qualified Agda.Utils.Pretty as P
 import Agda.Utils.Singleton
 import Agda.Utils.Functor
 import Agda.Utils.Function
+import Agda.Utils.WithDefault ( collapseDefault )
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -3197,6 +3198,15 @@ instance HasOptions m => HasOptions (StateT s m) where
 instance (HasOptions m, Monoid w) => HasOptions (WriterT w m) where
   pragmaOptions      = lift pragmaOptions
   commandLineOptions = lift commandLineOptions
+
+-- Ternary options are annoying to deal with so we provide auxiliary
+-- definitions using @collapseDefault@.
+
+sizedTypesOption :: HasOptions m => m Bool
+sizedTypesOption = collapseDefault . optSizedTypes <$> pragmaOptions
+
+guardednessOption :: HasOptions m => m Bool
+guardednessOption = collapseDefault . optGuardedness <$> pragmaOptions
 
 -----------------------------------------------------------------------------
 -- * The reduce monad

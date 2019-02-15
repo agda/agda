@@ -1,4 +1,5 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP       #-}
+{-# LANGUAGE DataKinds #-}
 
 module Agda.Interaction.Options
     ( CommandLineOptions(..)
@@ -71,6 +72,7 @@ import Agda.Utils.Monad         ( ifM, readM )
 import Agda.Utils.String        ( indent )
 import Agda.Utils.Trie          ( Trie )
 import qualified Agda.Utils.Trie as Trie
+import Agda.Utils.WithDefault ( WithDefault(..), collapseDefault, turnDefaultOff )
 
 import Agda.Version
 -- Paths_Agda.hs is in $(BUILD_DIR)/build/autogen/.
@@ -143,8 +145,8 @@ data PragmaOptions = PragmaOptions
   , optCompletenessCheck         :: Bool
   , optUniverseCheck             :: Bool
   , optOmegaInOmega              :: Bool
-  , optSizedTypes                :: Bool
-  , optGuardedness               :: Bool
+  , optSizedTypes                :: WithDefault 'True
+  , optGuardedness               :: WithDefault 'True
   , optInjectiveTypeConstructors :: Bool
   , optUniversePolymorphism      :: Bool
   , optIrrelevantProjections     :: Bool
@@ -246,8 +248,8 @@ defaultPragmaOptions = PragmaOptions
   , optCompletenessCheck         = True
   , optUniverseCheck             = True
   , optOmegaInOmega              = False
-  , optSizedTypes                = True
-  , optGuardedness               = True
+  , optSizedTypes                = Default
+  , optGuardedness               = Default
   , optInjectiveTypeConstructors = False
   , optUniversePolymorphism      = True
   , optWithoutK                  = False
@@ -365,7 +367,8 @@ unsafePragmaOptions opts =
   [ "--type-in-type"                             | not (optUniverseCheck opts)       ] ++
   [ "--omega-in-omega"                           | optOmegaInOmega opts              ] ++
   -- [ "--sized-types"                              | optSizedTypes opts                ] ++
-  [ "--sized-types and --guardedness"            | optSizedTypes opts, optGuardedness opts ] ++
+  [ "--sized-types and --guardedness"            | optSizedTypes opts /= Off
+                                                 , optGuardedness opts /= Off ] ++
   [ "--injective-type-constructors"              | optInjectiveTypeConstructors opts ] ++
   [ "--irrelevant-projections"                   | optIrrelevantProjections opts     ] ++
   [ "--experimental-irrelevance"                 | optExperimentalIrrelevance opts   ] ++
@@ -386,8 +389,8 @@ restartOptions =
   , (B . optTerminationCheck,  "--no-termination-check")
   , (B . not . optUniverseCheck, "--type-in-type")
   , (B . optOmegaInOmega, "--omega-in-omega")
-  , (B . not . optSizedTypes, "--no-sized-types")
-  , (B . not . optGuardedness, "--no-guardedness")
+  , (B . not . collapseDefault . optSizedTypes, "--no-sized-types")
+  , (B . not . collapseDefault . optGuardedness, "--no-guardedness")
   , (B . optInjectiveTypeConstructors, "--injective-type-constructors")
   , (B . optProp, "--prop")
   , (B . not . optUniversePolymorphism, "--no-universe-polymorphism")
@@ -430,8 +433,8 @@ coinfectiveOptions =
   [ (optSafe, "--safe")
   , (optWithoutK, "--without-K")
   , (not . optUniversePolymorphism, "--no-universe-polymorphism")
-  , (not . optSizedTypes, "--no-sized-types")
-  , (not  . optGuardedness, "--no-guardedness")
+  , (not . collapseDefault . optSizedTypes, "--no-sized-types")
+  , (not . collapseDefault . optGuardedness, "--no-guardedness")
   ]
 
 inputFlag :: FilePath -> Flag CommandLineOptions
@@ -451,10 +454,15 @@ helpFlag (Just str) o = case string2HelpTopic str of
                            intercalate ", " (map fst allHelpTopics) ++ ")"
 
 safeFlag :: Flag PragmaOptions
-safeFlag o = return $ o { optSafe        = True
-                        , optGuardedness = False
-                        , optSizedTypes  = False
-                        }
+safeFlag o = do
+  let guardedness = optGuardedness o
+  let sizedTypes  = optSizedTypes o
+  when (guardedness == On && sizedTypes == On) $
+    throwError "Can't use --safe together with --sized-types and --guardedness"
+  return $ o { optSafe        = True
+             , optGuardedness = turnDefaultOff guardedness
+             , optSizedTypes  = turnDefaultOff sizedTypes
+             }
 
 doubleCheckFlag :: Flag PragmaOptions
 doubleCheckFlag o = return $ o { optDoubleCheck = True }
@@ -576,18 +584,26 @@ noEtaFlag :: Flag PragmaOptions
 noEtaFlag o = return $ o { optEta = False }
 
 sizedTypes :: Flag PragmaOptions
-sizedTypes o = return $ o { optSizedTypes = True }
+sizedTypes o = do
+  let guardedness = optGuardedness o
+  when (optSafe o && guardedness == On) $
+    throwError "Can't use --sized-types together with --safe and --guardedness"
+  return $ o { optSizedTypes = On
+             }
 
 noSizedTypes :: Flag PragmaOptions
-noSizedTypes o = return $ o { optSizedTypes = False }
+noSizedTypes o = return $ o { optSizedTypes = Off }
 
 guardedness :: Flag PragmaOptions
-guardedness o = return $ o { optGuardedness = True
-                        -- , optSizedTypes  = False
-                           }
+guardedness o = do
+  let sizedTypes  = optSizedTypes o
+  when (optSafe o && sizedTypes == On) $
+    throwError "Can't use --guardedness together with --safe and --sized-types"
+  return $ o { optGuardedness = On
+             }
 
 noGuardedness :: Flag PragmaOptions
-noGuardedness o = return $ o { optGuardedness = False }
+noGuardedness o = return $ o { optGuardedness = Off }
 
 injectiveTypeConstructorFlag :: Flag PragmaOptions
 injectiveTypeConstructorFlag o = return $ o { optInjectiveTypeConstructors = True }

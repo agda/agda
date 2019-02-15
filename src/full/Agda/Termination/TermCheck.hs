@@ -1020,7 +1020,7 @@ compareArgs es = do
     filterM (isCoinductiveProjection True) $ mapMaybe (fmap snd . isProjElim) es
   cutoff <- terGetCutOff
   let ?cutoff = cutoff
-  useGuardedness <- optGuardedness <$> liftTCM pragmaOptions
+  useGuardedness <- liftTCM guardednessOption
   let guardedness =
         if useGuardedness
         then decr True $ projsCaller - projsCallee
