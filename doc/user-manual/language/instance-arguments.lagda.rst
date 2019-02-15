@@ -131,15 +131,13 @@ for an example where ``{Γ}`` is non-empty).
 
 Instances with explicit arguments are also accepted but will not be
 considered as instances because the value of the explicit arguments
-cannot be derived automatically. However, for an instance argument
-`{{f : A → B}}`, instance resolution will introduce a
-lambda-abstraction and continue by searching an element of type `B`
-for the body of this lambda.
+cannot be derived automatically. Having such an instance has no effect
+and thus raises a warning.
 
 Instance arguments whose types end in any other type are currently
 also accepted but cannot be resolved by instance search, so they must
 be given by hand. For this reason it is not recommended to use such
-instance arguments.
+instance arguments. Doing so will also raise a warning.
 
 Other than that there are no requirements on the type of an instance
 argument. In particular, there is no special declaration to say that a
