@@ -193,6 +193,8 @@ prettyWarning wng = liftTCM $ case wng of
       pwords "It is pointless for INLINE'd function" ++ [prettyTCM q] ++
       pwords "to have a separate Haskell definition"
 
+    WrongInstanceDeclaration -> fwords "Terms marked as eligible for instance search should end with a name, so `instance' is ignored here."
+
     InstanceWithExplicitArg q -> fsep $
       pwords "Instance declarations with explicit arguments are never considered by instance search," ++
       pwords "so making" ++ [prettyTCM q] ++ pwords "into an instance has no effect."
@@ -478,7 +480,6 @@ errorString err = case err of
   WrongHidingInApplication{}               -> "WrongHidingInApplication"
   WrongHidingInLHS{}                       -> "WrongHidingInLHS"
   WrongHidingInLambda{}                    -> "WrongHidingInLambda"
-  WrongInstanceDeclaration{}               -> "WrongInstanceDeclaration"
   WrongIrrelevanceInLambda{}               -> "WrongIrrelevanceInLambda"
   WrongQuantityInLambda{}                  -> "WrongQuantityInLambda"
   WrongNamedArgument{}                     -> "WrongNamedArgument"
@@ -591,8 +592,6 @@ instance PrettyTCM TypeError where
 
     WrongHidingInApplication t ->
       fwords "Found an implicit application where an explicit application was expected"
-
-    WrongInstanceDeclaration -> fwords "Terms marked as eligible for instance search should end with a name"
 
     HidingMismatch h h' -> fwords $
       "Expected " ++ verbalize (Indefinite h') ++ " argument, but found " ++

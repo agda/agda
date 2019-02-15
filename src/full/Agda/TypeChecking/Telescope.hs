@@ -596,8 +596,8 @@ addTypedInstance x t = do
   case n of
     OutputTypeName n -> addNamedInstance x n
     OutputTypeNameNotYetKnown -> addUnknownInstance x
-    NoOutputTypeName -> typeError $ WrongInstanceDeclaration
-    OutputTypeVar -> typeError $ WrongInstanceDeclaration
+    NoOutputTypeName -> warning $ WrongInstanceDeclaration
+    OutputTypeVar -> warning $ WrongInstanceDeclaration
     OutputTypeVisiblePi -> warning $ InstanceWithExplicitArg x
 
 resolveUnknownInstanceDefs :: TCM ()

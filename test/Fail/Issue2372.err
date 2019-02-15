@@ -1,3 +1,11 @@
 Issue2372.agda:13,3-8
-Terms marked as eligible for instance search should end with a name
+Terms marked as eligible for instance search should end with a
+name, so 'instance' is ignored here.
 when checking the definition of i
+Issue2372.agda:21,5-6
+Terms marked as eligible for instance search should end with a
+name, so 'instance' is ignored here.
+when checking that the expression r has type Set
+Issue2372.agda:21,5-6
+No instance of type R was found in scope.
+when checking that the expression r has type Set

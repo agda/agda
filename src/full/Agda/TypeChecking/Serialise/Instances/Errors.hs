@@ -77,6 +77,7 @@ instance EmbPrj Warning where
   icod_ (CoInfectiveImport a b)        = icodeN 19 CoInfectiveImport a b
   icod_ (InstanceNoOutputTypeName a) = icodeN 20 InstanceNoOutputTypeName a
   icod_ (InstanceArgWithExplicitArg a) = icodeN 21 InstanceArgWithExplicitArg a
+  icod_ WrongInstanceDeclaration     = icodeN 22 WrongInstanceDeclaration
 
   value = vcase valu where
       valu [0, a, b]    = valuN UnreachableClauses a b
