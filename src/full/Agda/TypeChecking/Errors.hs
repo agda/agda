@@ -201,6 +201,10 @@ prettyWarning wng = liftTCM $ case wng of
       pwords "Instance arguments whose type does not end in a named or variable type are never considered by instance search," ++
       pwords "so having an instance argument" ++ [return b] ++ pwords "has no effect."
 
+    InstanceArgWithExplicitArg b -> fsep $
+      pwords "Instance arguments with explicit arguments are never considered by instance search," ++
+      pwords "so having an instance argument" ++ [return b] ++ pwords "has no effect."
+
     InversionDepthReached f -> do
       maxDepth <- maxInversionDepth
       fsep $ pwords "Refusing to invert pattern matching of" ++ [prettyTCM f] ++

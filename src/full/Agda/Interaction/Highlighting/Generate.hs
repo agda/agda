@@ -629,6 +629,7 @@ warningHighlighting w = case tcWarning w of
   UselessInline{}            -> mempty
   InstanceWithExplicitArg{}  -> deadcodeHighlighting $ P.getRange w
   InstanceNoOutputTypeName{} -> mempty
+  InstanceArgWithExplicitArg{} -> mempty
   ParseWarning{}             -> mempty
   InversionDepthReached{}    -> mempty
   GenericWarning{}           -> mempty

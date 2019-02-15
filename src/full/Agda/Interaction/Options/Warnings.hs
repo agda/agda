@@ -170,6 +170,7 @@ data WarningName
   | UselessInline_
   | InstanceWithExplicitArg_
   | InstanceNoOutputTypeName_
+  | InstanceArgWithExplicitArg_
   | GenericWarning_
   | DeprecationWarning_
   | InversionDepthReached_
@@ -282,6 +283,7 @@ warningNameDescription w = case w of
   UselessInline_                   -> "`INLINE' pragmas where they have no effect."
   InstanceWithExplicitArg_         -> "`instance` declarations with explicit arguments are never considered by instance search."
   InstanceNoOutputTypeName_        -> "instance arguments whose type does not end in a named or variable type are never considered by instance search."
+  InstanceArgWithExplicitArg_      -> "instance arguments with explicit arguments are never considered by instance search."
   UnreachableClauses_              -> "Unreachable function clauses."
   GenericWarning_                  -> ""
   DeprecationWarning_              -> "Feature deprecation."

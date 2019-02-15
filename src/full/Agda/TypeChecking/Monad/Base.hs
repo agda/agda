@@ -2715,6 +2715,9 @@ data Warning
   | InstanceNoOutputTypeName Doc
   -- ^ The type of an instance argument doesn't end in a named or
   -- variable type, so it will never be considered by instance search.
+  | InstanceArgWithExplicitArg Doc
+  -- ^ As InstanceWithExplicitArg, but for local bindings rather than
+  --   top-level instances.
   | InversionDepthReached    QName
   -- ^ The --inversion-max-depth was reached.
   -- Generic warnings for one-off things
@@ -2764,6 +2767,7 @@ warningName w = case w of
   IllformedAsClause            -> IllformedAsClause_
   InstanceWithExplicitArg{}    -> InstanceWithExplicitArg_
   InstanceNoOutputTypeName{}   -> InstanceNoOutputTypeName_
+  InstanceArgWithExplicitArg{} -> InstanceArgWithExplicitArg_
   GenericNonFatalError{}       -> GenericNonFatalError_
   GenericWarning{}             -> GenericWarning_
   InversionDepthReached{}      -> InversionDepthReached_

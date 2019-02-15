@@ -291,7 +291,7 @@ checkTypedBindings lamOrPi (A.TBind r xs' e) ret = do
       case target of
         OutputTypeName{} -> return ()
         OutputTypeVar{}  -> return ()
-        OutputTypeVisiblePi{} -> return () -- TODO: add warning
+        OutputTypeVisiblePi{} -> warning . InstanceArgWithExplicitArg =<< prettyTCM (A.TBind r ixs e)
         OutputTypeNameNotYetKnown{} -> return ()
         NoOutputTypeName -> warning . InstanceNoOutputTypeName =<< prettyTCM (A.TBind r ixs e)
 
