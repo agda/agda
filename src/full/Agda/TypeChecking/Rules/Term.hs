@@ -291,6 +291,7 @@ checkTypedBindings lamOrPi (A.TBind r xs' e) ret = do
       case target of
         OutputTypeName{} -> return ()
         OutputTypeVar{}  -> return ()
+        OutputTypeVisiblePi{} -> return () -- TODO: add warning
         OutputTypeNameNotYetKnown{} -> return ()
         NoOutputTypeName -> warning $ InstanceNoOutputTypeName ixs t
 
