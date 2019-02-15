@@ -7,15 +7,15 @@ followed:
   Copy the contents of the release notes to the top of the CHANGELOG
   file.
 
-* Run the `closed-issues` program for adding the closed issues to the
-  CHANGELOG excluding issues labelled with:
+* Run the `closed-issues-for-milestone` program for adding the list of
+  closed issues to the CHANGELOG.
 
-  not-in-changelog,
-  status: abandoned,
-  status: duplicated,
-  status: invalid,
-  status: wontfix,
-  status: working-as-intended or
+* Because some titles of some issues can generate new white-space
+  issues after running the `closed-issues-for-milestone` program, run
+
+    make check-whitespace
+
+  and fix the issues both in the CHANGELOG file and GitHub.
 
 * Update the README.md, if necessary.
 
