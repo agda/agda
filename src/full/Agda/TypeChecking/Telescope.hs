@@ -590,16 +590,8 @@ getOutputTypeName t = do
 
 -- | Register the definition with the given type as an instance
 addTypedInstance :: QName -> Type -> TCM ()
-addTypedInstance = addTypedInstance' 0
-
--- | As @addTypedInstance@, but also takes a number of arguments
---   that should not raise a warning when they are explicit.
---   (used for adding record fields as instances).
-addTypedInstance' :: Int -> QName -> Type -> TCM ()
-addTypedInstance' npars x t = do
+addTypedInstance x t = do
   (tel , n) <- getOutputTypeName t
-  forM_ (drop npars $ telToList tel) $ \ dom -> do
-    when (visible dom) $ warning $ InstanceWithExplicitArg x
   case n of
     OutputTypeName n -> addNamedInstance x n
     OutputTypeNameNotYetKnown -> addUnknownInstance x
