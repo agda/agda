@@ -366,9 +366,9 @@ unsafePragmaOptions opts =
   [ "--no-termination-check"                     | not (optTerminationCheck opts)    ] ++
   [ "--type-in-type"                             | not (optUniverseCheck opts)       ] ++
   [ "--omega-in-omega"                           | optOmegaInOmega opts              ] ++
-  -- [ "--sized-types"                              | optSizedTypes opts                ] ++
-  [ "--sized-types and --guardedness"            | optSizedTypes opts /= Off
-                                                 , optGuardedness opts /= Off ] ++
+-- [ "--sized-types"                              | optSizedTypes opts                ] ++
+  [ "--sized-types and --guardedness"            | collapseDefault (optSizedTypes opts)
+                                                 , collapseDefault (optGuardedness opts) ] ++
   [ "--injective-type-constructors"              | optInjectiveTypeConstructors opts ] ++
   [ "--irrelevant-projections"                   | optIrrelevantProjections opts     ] ++
   [ "--experimental-irrelevance"                 | optExperimentalIrrelevance opts   ] ++
@@ -457,8 +457,6 @@ safeFlag :: Flag PragmaOptions
 safeFlag o = do
   let guardedness = optGuardedness o
   let sizedTypes  = optSizedTypes o
-  when (guardedness == On && sizedTypes == On) $
-    throwError "Can't use --safe together with --sized-types and --guardedness"
   return $ o { optSafe        = True
              , optGuardedness = turnDefaultOff guardedness
              , optSizedTypes  = turnDefaultOff sizedTypes
@@ -584,23 +582,13 @@ noEtaFlag :: Flag PragmaOptions
 noEtaFlag o = return $ o { optEta = False }
 
 sizedTypes :: Flag PragmaOptions
-sizedTypes o = do
-  let guardedness = optGuardedness o
-  when (optSafe o && guardedness == On) $
-    throwError "Can't use --sized-types together with --safe and --guardedness"
-  return $ o { optSizedTypes = On
-             }
+sizedTypes o = return $ o { optSizedTypes = On }
 
 noSizedTypes :: Flag PragmaOptions
 noSizedTypes o = return $ o { optSizedTypes = Off }
 
 guardedness :: Flag PragmaOptions
-guardedness o = do
-  let sizedTypes  = optSizedTypes o
-  when (optSafe o && sizedTypes == On) $
-    throwError "Can't use --guardedness together with --safe and --sized-types"
-  return $ o { optGuardedness = On
-             }
+guardedness o = return $ o { optGuardedness = On }
 
 noGuardedness :: Flag PragmaOptions
 noGuardedness o = return $ o { optGuardedness = Off }
