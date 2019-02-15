@@ -37,7 +37,7 @@ The cubical mode adds the following features to Agda:
 
 1. An interval and path types
 2. Partial elements and systems
-3. Kan operations (hcomp and transp)
+3. Kan operations (transp and hcomp)
 4. Glue types
 5. Cubical identity types
 6. Higher inductive types
@@ -191,133 +191,143 @@ example function extensionality (pointwise equal functions are equal):
 Partial elements and systems
 ----------------------------
 
+Path types lets us specify n-dimensional cubes, it is also useful to
+be able to specify subcubes. Given an element of the interval ``r :
+I`` there is a predicate ``IsOne`` which represents the constraint ``r
+= i1``. This comes with a proof that ``ì1`` is actually ``i1`` called
+``1=1 : IsOne i1``.
 
+Using this we introduce a type of partial elements called ``Partial r
+a``, this is a special version of ``IsOne r → A`` with a more
+extensional judgmental equality. There is also a dependent version
+version called ``PartialP r A`` which allows ``A`` to be defined only
+when ``IsOne r``. The types of these are:
 
--- * @IsOne r@ represents the constraint "r = i1".
--- Often we will use "φ" for elements of I, when we intend to use them
--- with IsOne (or Partial[P]).
--- IsOne : I → Setω
+  Partial : ∀ {ℓ} → I → Set ℓ → Setω
+  PartialP : ∀ {ℓ} → (φ : I) → Partial φ (Set ℓ) → Setω
 
--- i1 is indeed equal to i1.
--- 1=1 : IsOne i1
+Partial elements are introduced by pattern matching:
 
-
--- * Types of partial elements, and their dependent version.
-
--- "Partial φ A" is a special version of "IsOne φ → A" with a more
--- extensional judgmental equality.
--- "PartialP φ A" allows "A" to be defined only on "φ".
-
--- Partial : ∀ {ℓ} → I → Set ℓ → Setω
--- PartialP : ∀ {ℓ} → (φ : I) → Partial φ (Set ℓ) → Setω
-
--- Partial elements are introduced by pattern matching with (r = i0)
--- or (r = i1) constraints, like so:
-
-private
   sys : ∀ i → Partial (i ∨ ~ i) Set₁
   sys i (i = i0) = Set
   sys i (i = i1) = Set → Set
 
-  -- It also works with pattern matching lambdas:
-  --  http://wiki.portal.chalmers.se/agda/pmwiki.php?n=ReferenceManual.PatternMatchingLambdas
+It also works with pattern matching lambdas:
+http://wiki.portal.chalmers.se/agda/pmwiki.php?n=ReferenceManual.PatternMatchingLambdas
+
   sys' : ∀ i → Partial (i ∨ ~ i) Set₁
   sys' i = λ { (i = i0) → Set
-             ; (i = i1) → Set → Set
-             }
+             ; (i = i1) → Set → Set }
 
-  -- When the cases overlap they must agree.
+When the cases overlap they must agree:
+
   sys2 : ∀ i j → Partial (i ∨ (i ∧ j)) Set₁
   sys2 i j = λ { (i = i1)          → Set
-               ; (i = i1) (j = i1) → Set
-               }
+               ; (i = i1) (j = i1) → Set }
 
-  -- (i0 = i1) is actually absurd.
+Furthermore ``IsOne i0`` is actually absurd
+
   sys3 : Partial i0 Set₁
   sys3 = λ { () }
 
 
--- * There are cubical subtypes as in CCHM. Note that these are not
--- fibrant (hence in Setω):
+There are cubical subtypes as in CCHM:
 
-_[_↦_] : ∀ {ℓ} (A : Set ℓ) (φ : I) (u : Partial φ A) → Agda.Primitive.Setω
-A [ φ ↦ u ] = Sub A φ u
+  _[_↦_] : ∀ {ℓ} (A : Set ℓ) (r : I) (u : Partial r A) → Setω
+  A [ r ↦ u ] = Sub A r u
 
-infix 4 _[_↦_]
+Any element ``u : A`` can be seen as an element of ``A [ r ↦ u ]``
+which agrees with ``u`` on r:
 
--- Any element u : A can be seen as an element of A [ φ ↦ u ] which
--- agrees with u on φ:
+  inc : ∀ {ℓ} {A : Set ℓ} {r : I} (u : A) → A [ r ↦ (λ _ → u) ]
 
--- inc : ∀ {ℓ} {A : Set ℓ} {φ} (u : A) → A [ φ ↦ (λ _ → u) ]
+One can also forget that an element agrees with ``u`` on ``r``:
 
--- One can also forget that an element agrees with u on φ:
-
-ouc : ∀ {ℓ} {A : Set ℓ} {φ : I} {u : Partial φ A} → A [ φ ↦ u ] → A
-ouc = primSubOut
+  ouc : ∀ {ℓ} {A : Set ℓ} {r : I} {u : Partial r A} → A [ r ↦ u ] → A
 
 
-Kan operations (hcomp and transp)
+Kan operations (transp and hcomp)
 ---------------------------------
 
+While path types are great for reasoning about equality they don't
+natively let us transport or compose, which in particular means that
+we cannot prove the induction principle for paths. In order to remedy
+this we also have a builtin (generalized) transport operation and
+homogeneous composition. The transport operation is generalized in the
+sense that it lets us specify where the operation is the identity
+function 
 
--- * Generalized transport and homogeneous composition [CHM 18].
+  transp : ∀ {ℓ} (A : I → Set ℓ) (φ : I) (a : A i0) → A i1
 
--- When calling "transp A φ a" Agda makes sure that "A" is constant on "φ".
--- transp : ∀ {ℓ} (A : I → Set ℓ) (φ : I) (a : A i0) → A i1
+When calling "transp A φ a" Agda makes sure that "A" is constant on
+"φ". This lets us define normal transport as
 
--- When calling "hcomp A φ u a" Agda makes sure that "a" agrees with "u i0" on "φ".
--- hcomp : ∀ {ℓ} {A : Set ℓ} {φ : I} (u : I → Partial φ A) (a : A) → A
+  transport : {A B : Set ℓ} → A ≡ B → A → B
+  transport p a = transp (λ i → p i) i0 a
 
-private
-  variable
-    ℓ  : Level
-    ℓ′ : I → Level
+Combining the transport operation with the min operation lets us
+define path induction:
 
--- Homogeneous filling
-hfill : {A : Set ℓ}
-        {φ : I}
-        (u : ∀ i → Partial φ A)
-        (u0 : A [ φ ↦ u i0 ])
-        -----------------------
-        (i : I) → A
-hfill {φ = φ} u u0 i =
-  hcomp (λ j → λ { (φ = i1) → u (i ∧ j) 1=1
-                 ; (i = i0) → ouc u0 })
-        (ouc u0)
+module _ (P : ∀ y → x ≡ y → Set ℓ') (d : P x refl) where
+  J : (p : x ≡ y) → P y p
+  J p = transport (λ i → P (p i) (λ j → p (i ∧ j))) d
 
--- Heterogeneous composition defined as in CHM
-comp : (A : ∀ i → Set (ℓ′ i))
-       {φ : I}
-       (u : ∀ i → Partial φ (A i))
-       (u0 : A i0 [ φ ↦ u i0 ])
-     → ---------------------------
-       A i1
-comp A {φ = φ} u u0 =
-  hcomp (λ i → λ { (φ = i1) → transp (λ j → A (i ∨ j)) i (u _ 1=1) })
-        (transp A i0 (ouc u0))
+  
+The homogeneous composition operations generalizes binary composition
+of paths so that we can compose multiple composable cubes. 
 
--- Heterogeneous filling defined using comp
-fill : (A : ∀ i → Set (ℓ′ i))
-       {φ : I}
-       (u : ∀ i → Partial φ (A i))
-       (u0 : A i0 [ φ ↦ u i0 ])
-       ---------------------------
-       (i : I) → A i
-fill A {φ = φ} u u0 i =
-  comp (λ j → A (i ∧ j))
-       (λ j → λ { (φ = i1) → u (i ∧ j) 1=1
-                ; (i = i0) → ouc u0 })
-       (inc {φ = φ ∨ (~ i)} (ouc {φ = φ} u0))
+  hcomp : ∀ {ℓ} {A : Set ℓ} {φ : I} (u : I → Partial φ A) (a : A) → A
 
--- Direct definition of transport filler, note that we have to
--- explicitly tell Agda that the type is constant (like in CHM)
-transpFill : {A : Set ℓ}
-             (φ : I)
-             (A : (i : I) → Set ℓ [ φ ↦ (λ _ → A) ])
-             (u0 : ouc (A i0))
-           → --------------------------------------
-             PathP (λ i → ouc (A i)) u0 (transp (λ i → ouc (A i)) φ u0)
-transpFill φ A u0 i = transp (λ j → ouc (A (i ∧ j))) (~ i ∨ φ) u0
+When calling "hcomp A φ u a" Agda makes sure that "a" agrees with "u
+i0" on "φ". The idea is that ``a`` is the base of the composition
+problem and ``u`` specify the sides of the problem so that we get an
+open higher dimensional cube (maybe with some sides missing) where the
+side opposite of ``a`` is missing. The ``hcomp`` operation then gives
+us the missing side of the cube. For example binary composition of
+paths can be written as
+
+  compPath : x ≡ y → y ≡ z → x ≡ z
+  compPath p q i =
+    hcomp (λ j → \ { (i = i0) → p i0
+                   ; (i = i1) → q j }) (p i)
+
+Given p : Path A x y and q : Path A y z the composite of the two paths
+is obtained from a composition of this open square:
+
+          x   -   -   -   - > z
+          ^                   ^
+          |                   |
+          |                   |
+        x |                   | q j
+          |                   |
+          |                   |
+          |                   |
+          x ----------------> y
+                   p i
+
+The composition is the dashed line at the top of the square. The
+direction i goes left-to-right and j goes down-to-up. As we are
+constructing a path from x to z we have ``i : I`` in the context
+already which is why we have to put ``p i`` as bottom. The direction j
+that we are doing the composition in is abstracted in the first
+argument to ``hcomp``.
+
+We can also define homogeneous filling of cubes as
+
+  hfill : {A : Set ℓ}
+          {φ : I}
+          (u : ∀ i → Partial φ A)
+          (u0 : A [ φ ↦ u i0 ])
+          -----------------------
+          (i : I) → A
+  hfill {φ = φ} u u0 i =
+    hcomp (λ j → λ { (φ = i1) → u (i ∧ j) 1=1
+                   ; (i = i0) → ouc u0 })
+          (ouc u0)
+
+When i is i0 this is u0 and when i is i1 this is hcomp.
+
+
 
 
 Glue types
