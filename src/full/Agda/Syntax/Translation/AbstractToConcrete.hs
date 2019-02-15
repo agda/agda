@@ -66,6 +66,7 @@ import Agda.Interaction.Options
 
 import qualified Agda.Utils.AssocList as AssocList
 import Agda.Utils.Either
+import Agda.Utils.Except
 import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.Lens
@@ -1226,7 +1227,7 @@ instance ToConcrete A.Pattern C.Pattern where
         -- Erase @v@ to a concrete name and resolve it back to check whether
         -- we have a conflicting field name.
         cn <- toConcreteName v
-        liftTCM (resolveName' [FldName] Nothing (C.QName cn)) >>= \case
+        liftTCM (runExceptT (tryResolveName [FldName] Nothing (C.QName cn))) >>= \case
           -- If we do then we print .(v) rather than .v
           FieldName{} -> do
             reportSLn "print.dotted" 50 $ "Wrapping ambiguous name " ++ show (nameConcrete v)

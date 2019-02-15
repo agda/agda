@@ -42,6 +42,7 @@ import Agda.TypeChecking.Positivity.Occurrence (Occurrence)
 import Agda.TypeChecking.Warnings ( warning )
 
 import qualified Agda.Utils.AssocList as AssocList
+import Agda.Utils.Except
 import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.Lens
@@ -244,7 +245,15 @@ resolveName = resolveName' allKindsOfNames Nothing
 --   of a different kind. (See issue 822.)
 resolveName' ::
   [KindOfName] -> Maybe (Set A.Name) -> C.QName -> ScopeM ResolvedName
-resolveName' kinds names x = do
+resolveName' kinds names x = runExceptT (tryResolveName kinds names x) >>= \case
+  Left ys  -> typeError $ AmbiguousName x ys
+  Right x' -> return x'
+
+tryResolveName
+  :: (ReadTCState m, MonadError (NonemptyList A.QName) m)
+  => [KindOfName] -> Maybe (Set A.Name) -> C.QName
+  -> m ResolvedName
+tryResolveName kinds names x = do
   scope <- getScope
   let vars     = AssocList.mapKeysMonotonic C.QName $ scope ^. scopeLocals
       retVar y = return . VarName y{ nameConcrete = unqualify x }
@@ -260,7 +269,7 @@ resolveName' kinds names x = do
         ys -> shadowed ys
       where
       shadowed ys =
-        typeError $ AmbiguousName x $ A.qualify_ y :! map anameName ys
+        throwError $ A.qualify_ y :! map anameName ys
     -- Case: we do not have a local variable x.
     Nothing -> do
       -- Consider only names of one of the given kinds
@@ -280,7 +289,7 @@ resolveName' kinds names x = do
         (d, a) :! [] ->
           return $ DefinedName a $ upd d
 
-        ds -> typeError $ AmbiguousName x (fmap (anameName . fst) ds)
+        ds -> throwError $ fmap (anameName . fst) ds
   where
   upd d = updateConcreteName d $ unqualify x
   updateConcreteName :: AbstractName -> C.Name -> AbstractName
