@@ -2712,7 +2712,7 @@ data Warning
   | InstanceWithExplicitArg  QName
   -- ^ An instance was declared with an implicit argument, which means it
   --   will never actually be considered by instance search.
-  | InstanceNoOutputTypeName [NamedArg A.BindName] Type
+  | InstanceNoOutputTypeName Doc
   -- ^ The type of an instance argument doesn't end in a named or
   -- variable type, so it will never be considered by instance search.
   | InversionDepthReached    QName

@@ -197,9 +197,9 @@ prettyWarning wng = liftTCM $ case wng of
       pwords "Instance declarations with explicit arguments are never considered by instance search," ++
       pwords "so making" ++ [prettyTCM q] ++ pwords "into an instance has no effect."
 
-    InstanceNoOutputTypeName xs a -> fsep $
+    InstanceNoOutputTypeName b -> fsep $
       pwords "Instance arguments whose type does not end in a named or variable type are never considered by instance search," ++
-      pwords "so having an instance argument" ++ [prettyTCM . TBind noRange xs =<< reify a] ++ pwords "has no effect."
+      pwords "so having an instance argument" ++ [return b] ++ pwords "has no effect."
 
     InversionDepthReached f -> do
       maxDepth <- maxInversionDepth
