@@ -544,6 +544,7 @@ library
                     Agda.Utils.Trie
                     Agda.Utils.Tuple
                     Agda.Utils.TypeLevel
+                    Agda.Utils.TypeLits
                     Agda.Utils.Update
                     Agda.Utils.VarSet
                     Agda.Utils.Warshall
