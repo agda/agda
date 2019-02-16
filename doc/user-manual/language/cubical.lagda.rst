@@ -77,12 +77,9 @@ Elements of the interval form a `De Morgan algebra
 
 .. code-block:: agda
 
-    max, min : I → I → I
-    max i j = i ∨ j
-    min i j = i ∧ j
+  _∧_, _∨_ : I → I → I
 
-    neg : I → I
-    neg i = ~ i
+  ~_ : I → I
 
 All the properties of de Morgan algebras hold definitionally. The
 endpoints of the interval ``i0`` and ``i1`` are the bottom and top
@@ -317,9 +314,10 @@ There are cubical subtypes as in CCHM:
   _[_↦_] : ∀ {ℓ} (A : Set ℓ) (φ : I) (u : Partial φ A) → Setω
   A [ φ ↦ u ] = Sub A φ u
 
-A term ``v : A [ φ ↦ u ]`` is of type ``A`` and when ``IsOne φ`` it
-must be definitionally equal to ``u``. Any term ``u : A`` can be seen
-as an term of ``A [ φ ↦ u ]`` which agrees with ``u`` on ``φ``:
+A term ``v : A [ φ ↦ u ]`` is of type ``v : A`` and when ``IsOne φ``
+it must be definitionally equal to ``u : A``. Any term ``u : A`` can
+be seen as an term of ``A [ φ ↦ u ]`` which agrees with itself on
+``φ``:
 
 .. code-block:: agda
 
