@@ -325,7 +325,7 @@ as an term of ``A [ φ ↦ u ]`` which agrees with ``u`` on ``φ``:
 
   inc : ∀ {ℓ} {A : Set ℓ} {φ : I} (u : A) → A [ φ ↦ (λ _ → u) ]
 
-One can also forget that an element agrees with ``u`` on ``φ``:
+One can also forget that a partial element agrees with ``u`` on ``φ``:
 
 .. code-block:: agda
 
@@ -343,13 +343,13 @@ of paths so that we can compose multiple composable cubes.
 
 .. code-block:: agda
 
-  hcomp : ∀ {ℓ} {A : Set ℓ} {φ : I} (u : I → Partial φ A) (a : A) → A
+  hcomp : ∀ {ℓ} {A : Set ℓ} {φ : I} (u : I → Partial φ A) (u0 : A) → A
 
-When calling ``hcomp {φ = φ} u a`` Agda makes sure that ``a`` agrees
-with ``u i0`` on ``φ``. The idea is that ``a`` is the base of the
+When calling ``hcomp {φ = φ} u u0`` Agda makes sure that ``u0`` agrees
+with ``u i0`` on ``φ``. The idea is that ``u0`` is the base of the
 composition problem and ``u`` specify the sides of the problem so that
 we get an open higher dimensional cube (maybe with some sides missing)
-where the side opposite of ``a`` is missing. The ``hcomp`` operation
+where the side opposite of ``u0`` is missing. The ``hcomp`` operation
 then gives us the missing side of the cube. For example binary
 composition of paths can be written as
 
@@ -375,10 +375,10 @@ this open square:
                p i
 
 In the drawing the direction ``i`` goes left-to-right and ``j`` goes
-down-to-up. As we are constructing a path from ``x`` to ``z`` we have
-``i : I`` in the context already which is why we have to put ``p i``
-as bottom. The direction ``j`` that we are doing the composition in is
-abstracted in the first argument to ``hcomp``.
+down-to-up. As we are constructing a path from ``x`` to ``z`` along
+``i`` we have ``i : I`` in the context already which is why we have to
+put ``p i`` as bottom. The direction ``j`` that we are doing the
+composition in is abstracted in the first argument to ``hcomp``.
 
 We can also define homogeneous filling of cubes as
 
@@ -396,10 +396,9 @@ We can also define homogeneous filling of cubes as
           (ouc u0)
 
 When ``i`` is ``i0`` this is ``u0`` and when ``i`` is ``i1`` this is
-``hcomp``.
-
-This gives a direct cubical proof that composing a path ``p`` with
-``refl`` is ``p``
+``hcomp``. This can hence be seen as giving us the interior of an open
+square. In the special case of the square above the filler gives us a
+direct cubical proof that composing ``p`` with ``refl`` is ``p``
 
 .. code-block:: agda
 
