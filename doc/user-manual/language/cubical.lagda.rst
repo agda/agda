@@ -161,6 +161,11 @@ i → A) x y`` gets printed as ``x ≡ y`` when ``A`` does not mention
 By mapping out of more elements of the interval we can define squares,
 cubes, and higher cubes in Agda, making the type theory "cubical".
 
+For example a Square in A is built out of 4 points and 4 lines:
+
+  Square : ∀ {ℓ} {A : Set ℓ} {a0 a1 b0 b1 : A} → a0 ≡ a1 → b0 ≡ b1 → a0 ≡ b0 → a1 ≡ b1 → Set ℓ
+  Square p q r s = PathP (λ i → p i ≡ q i) r s
+
 Viewing equalities as functions out of the interval makes it possible
 to do a lot of equality reasoning in a very direct way:
 
@@ -272,7 +277,18 @@ module _ (P : ∀ y → x ≡ y → Set ℓ') (d : P x refl) where
   J : (p : x ≡ y) → P y p
   J p = transport (λ i → P (p i) (λ j → p (i ∧ j))) d
 
+One subtle difference between this and the propositional equality type
+of Agda is that the computation rule does not hold definitionally. If
+the eliminator is defined using pattern-matching as in the standard
+library this holds, however as transport in a constant family is only
+the identity function up to a path we have to prove:
+
+  transportRefl : (x : A) → transport refl x ≡ x
+  transportRefl {A = A} x i = transp (λ _ → A) i x
   
+  JRefl : J refl ≡ d
+  JRefl = transportRefl d
+
 The homogeneous composition operations generalizes binary composition
 of paths so that we can compose multiple composable cubes. 
 
@@ -328,235 +344,156 @@ We can also define homogeneous filling of cubes as
 When i is i0 this is u0 and when i is i1 this is hcomp.
 
 
-
-
 Glue types
 ----------
 
+In order to be able to prove the univalence axiom we also have Glue
+types. These lets us turn equivalences between types into paths. An
+equivalence of types ``A`` and ``B`` is defined as a map ``f : A → B``
+such that its fibers are contractible.
 
-open import Agda.Builtin.Cubical.Glue public
-  using ( isEquiv       -- ∀ {ℓ ℓ'} {A : Set ℓ} {B : Set ℓ'} (f : A → B) → Set (ℓ ⊔ ℓ')
+  fiber
+  isContr
+  isEquiv
 
-        ; equiv-proof   -- ∀ (y : B) → isContr (fiber f y)
+As everything has to work up to higher dimensions the Glue types take
+a partial family of types that are equivalent to the base type:
 
-        ; _≃_           -- ∀ {ℓ ℓ'} (A : Set ℓ) (B : Set ℓ') → Set (ℓ ⊔ ℓ')
+  Glue : ∀ (A : Set ℓ) {φ : I}
+         → (Te : Partial φ (Σ[ T ∈ Set ℓ' ] T ≃ A))
+         → Set ℓ'
 
-        ; equivFun      -- ∀ {ℓ ℓ'} {A : Set ℓ} {B : Set ℓ'} → A ≃ B → A → B
 
-        ; equivProof    -- ∀ {ℓ ℓ'} (T : Set ℓ) (A : Set ℓ') (w : T ≃ A) (a : A) φ →
-                        -- Partial φ (fiber (equivFun w) a) → fiber (equivFun w) a
+These come with a constructor and eliminator:
 
-        ; primGlue      -- ∀ {ℓ ℓ'} (A : Set ℓ) {φ : I} (T : Partial φ (Set ℓ'))
-                        -- → (e : PartialP φ (λ o → T o ≃ A)) → Set ℓ'
-
-        ; prim^unglue   -- ∀ {ℓ ℓ'} {A : Set ℓ} {φ : I} {T : Partial φ (Set ℓ')}
-                        -- → {e : PartialP φ (λ o → T o ≃ A)} → primGlue A T e → A
-
-        -- The ∀ operation on I. This is commented out as it is not currently used for anything
-        -- ; primFaceForall -- (I → I) → I
-        )
-  renaming ( prim^glue   to glue         -- ∀ {ℓ ℓ'} {A : Set ℓ} {φ : I} {T : Partial φ (Set ℓ')}
+         glue         -- ∀ {ℓ ℓ'} {A : Set ℓ} {φ : I} {T : Partial φ (Set ℓ')}
                                          -- → {e : PartialP φ (λ o → T o ≃ A)}
                                          -- → PartialP φ T → A → primGlue A T e
 
-           ; pathToEquiv to lineToEquiv  -- ∀ {ℓ : → Level} (P : (i : I) → Set (ℓ i)) → P i0 ≃ P i1
-           )
-
-private
-  variable
-    ℓ ℓ' : Level
-
-fiber : ∀ {A : Set ℓ} {B : Set ℓ'} (f : A → B) (y : B) → Set (ℓ-max ℓ ℓ')
-fiber {A = A} f y = Σ[ x ∈ A ] f x ≡ y
-
-equivIsEquiv : ∀ {A : Set ℓ} {B : Set ℓ'} (e : A ≃ B) → isEquiv (equivFun e)
-equivIsEquiv e = snd e
-
-equivCtr : ∀ {A : Set ℓ} {B : Set ℓ'} (e : A ≃ B) (y : B) → fiber (equivFun e) y
-equivCtr e y = e .snd .equiv-proof y .fst
-
-equivCtrPath : ∀ {A : Set ℓ} {B : Set ℓ'} (e : A ≃ B) (y : B) →
-  (v : fiber (equivFun e) y) → Path _ (equivCtr e y) v
-equivCtrPath e y = e .snd .equiv-proof y .snd
-
--- Uncurry Glue to make it more pleasant to use
-Glue : ∀ (A : Set ℓ) {φ : I}
-       → (Te : Partial φ (Σ[ T ∈ Set ℓ' ] T ≃ A))
-       → Set ℓ'
-Glue A Te = primGlue A (λ x → Te x .fst) (λ x → Te x .snd)
-
--- Make the φ argument of prim^unglue explicit
-unglue : ∀ {A : Set ℓ} (φ : I) {T : Partial φ (Set ℓ')}
+         unglue : ∀ {A : Set ℓ} (φ : I) {T : Partial φ (Set ℓ')}
            {e : PartialP φ (λ o → T o ≃ A)} → primGlue A T e → A
-unglue φ = prim^unglue {φ = φ}
 
--- The identity equivalence
-idfun : ∀ {ℓ} → (A : Set ℓ) → A → A
-idfun _ x = x
+Using Glue types we can turn an equivalence of types into a path as follows:
 
-idIsEquiv : ∀ (A : Set ℓ) → isEquiv (idfun A)
-equiv-proof (idIsEquiv A) y =
-  ((y , refl) , λ z i → z .snd (~ i) , λ j → z .snd (~ i ∨ j))
-
-idEquiv : ∀ (A : Set ℓ) → A ≃ A
-idEquiv A = (idfun A , idIsEquiv A)
-
--- The ua constant
 ua : ∀ {A B : Set ℓ} → A ≃ B → A ≡ B
 ua {A = A} {B = B} e i = Glue B (λ { (i = i0) → (A , e)
                                    ; (i = i1) → (B , idEquiv B) })
 
+The idea is that we glue on A at when i is i0 using e and B when i is
+i1 using the identity equivalence. This hence gives us the key part of
+univalence: equivalences are paths. The other part of univalence is
+that this map itself is an equivalence which follows from the
+computation rule for ua:
 
--- Proof of univalence using that unglue is an equivalence:
+  uaβ : ∀ {ℓ} {A B : Set ℓ} (e : A ≃ B) (x : A) → transport (ua e) x ≡ e .fst x
+  uaβ e x = transportRefl (e .fst x)
 
--- unglue is an equivalence
-unglueIsEquiv : ∀ (A : Set ℓ) (φ : I)
-                (f : PartialP φ (λ o → Σ[ T ∈ Set ℓ ] T ≃ A)) →
-                isEquiv {A = Glue A f} (unglue φ)
-equiv-proof (unglueIsEquiv A φ f) = λ (b : A) →
-  let u : I → Partial φ A
-      u i = λ{ (φ = i1) → equivCtr (f 1=1 .snd) b .snd (~ i) }
-      ctr : fiber (unglue φ) b
-      ctr = ( glue (λ { (φ = i1) → equivCtr (f 1=1 .snd) b .fst }) (hcomp u b)
-            , λ j → hfill u (inc b) (~ j))
-  in ( ctr
-     , λ (v : fiber (unglue φ) b) i →
-         let u' : I → Partial (φ ∨ ~ i ∨ i) A
-             u' j = λ { (φ = i1) → equivCtrPath (f 1=1 .snd) b v i .snd (~ j)
-                      ; (i = i0) → hfill u (inc b) j
-                      ; (i = i1) → v .snd (~ j) }
-         in ( glue (λ { (φ = i1) → equivCtrPath (f 1=1 .snd) b v i .fst }) (hcomp u' b)
-            , λ j → hfill u' (inc b) (~ j)))
-
--- Any partial family of equivalences can be extended to a total one
--- from Glue [ φ ↦ (T,f) ] A to A
-unglueEquiv : ∀ (A : Set ℓ) (φ : I)
-              (f : PartialP φ (λ o → Σ[ T ∈ Set ℓ ] T ≃ A)) →
-              (Glue A f) ≃ A
-unglueEquiv A φ f = ( unglue φ , unglueIsEquiv A φ f )
-
-
--- The following is a formulation of univalence proposed by Martín Escardó:
--- https://groups.google.com/forum/#!msg/homotopytypetheory/HfCB_b-PNEU/Ibb48LvUMeUJ
--- See also Theorem 5.8.4 of the HoTT Book.
---
--- The reason we have this formulation in the core library and not the
--- standard one is that this one is more direct to prove using that
--- unglue is an equivalence. The standard formulation can be found in
--- Cubical/Basics/Univalence.
---
-EquivContr : ∀ (A : Set ℓ) → isContr (Σ[ T ∈ Set ℓ ] T ≃ A)
-EquivContr {ℓ = ℓ} A =
-  ( ( A , idEquiv A)
-  , λ w i → let f : PartialP (~ i ∨ i) (λ x → Σ[ T ∈ Set ℓ ] T ≃ A)
-                f = λ { (i = i0) → A , idEquiv A ; (i = i1) → w }
-            in ( Glue A f , unglueEquiv _ _ f) )
-
-
-Cubical identity types
-----------------------
-
-
-open import Agda.Builtin.Cubical.Id public
-  renaming ( conid to ⟨_,_⟩
-           -- TODO: should the user really be able to access these two?
-           ; primIdFace to faceId  -- ∀ {ℓ} {A : Set ℓ} {x y : A} → Id x y → I
-           ; primIdPath to pathId  -- ∀ {ℓ} {A : Set ℓ} {x y : A} → Id x y → Path A x y
-
-           ; primIdElim to elimId  -- ∀ {ℓ ℓ'} {A : Set ℓ} {x : A}
-                                   -- (P : ∀ (y : A) → x ≡ y → Set ℓ')
-                                   -- (h : ∀ (φ : I) (y : A [ φ ↦ (λ _ → x) ])
-                                   --        (w : (Path _ x (ouc y)) [ φ ↦ (λ { (φ = i1) → λ _ → x}) ] ) →
-                                   --        P (ouc y) ⟨ φ , ouc w ⟩) →
-                                   -- {y : A} (w' : x ≡ y) → P y w'
-           )
-
--- Version of the constructor for Id where the y is also
--- explicit. This is sometimes useful when it is needed for
--- typechecking (see JId below).
-conId : ∀ {x : A} φ (y : A [ φ ↦ (λ _ → x) ])
-          (w : (Path _ x (ouc y)) [ φ ↦ (λ { (φ = i1) → λ _ → x}) ]) →
-          x ≡ ouc y
-conId φ _ w = ⟨ φ , ouc w ⟩
-
--- Reflexivity
-refl : ∀ {x : A} → x ≡ x
-refl {x = x} = ⟨ i1 , (λ _ → x) ⟩
-
-
--- Definition of J for Id
-module _ {x : A} (P : ∀ (y : A) → Id x y → Set ℓ') (d : P x refl) where
-  J : ∀ {y : A} (w : x ≡ y) → P y w
-  J {y = y} = elimId P (λ φ y w → comp (λ i → P _ (conId (φ ∨ ~ i) (inc (ouc w i))
-                                                                   (inc (λ j → ouc w (i ∧ j)))))
-                                       (λ i → λ { (φ = i1) → d}) (inc d)) {y = y}
-
-  -- Check that J of refl is the identity function
-  Jdefeq : Path _ (J refl) d
-  Jdefeq _ = d
+Transporting along the path that we get from ua is the same as
+applying the equivalence. For more results about Glue types and
+univalence see Cubical.Primitives.Glue and
+Cubical.Foundations.Univalence in the agda/cubical library.
 
 
 Higher inductive types
 ----------------------
 
+Cubical Agda also lets us directly define higher inductive types as
+datatypes with path constructors. For example the circle and torus can
+be defined as:
 
-data S¹ : Set where
-  base : S¹
-  loop : base ≡ base
+  data S¹ : Set where
+    base : S¹
+    loop : base ≡ base
 
+  data Torus : Set where
+    point : Torus
+    line1 : point ≡ point
+    line2 : point ≡ point
+    square : PathP (λ i → line1 i ≡ line1 i) line2 line2
 
+Functions out of higher inductive types can then be defined by
+pattern-matching:
+    
+  t2c : Torus → S¹ × S¹
+  t2c point        = ( base , base )
+  t2c (line1 i)    = ( loop i , base )
+  t2c (line2 j)    = ( base , loop j )
+  t2c (square i j) = ( loop i , loop j )
+
+  c2t : S¹ × S¹ → Torus
+  c2t (base   , base)   = point
+  c2t (loop i , base)   = line1 i
+  c2t (base   , loop j) = line2 j
+  c2t (loop i , loop j) = square i j
+
+When giving the cases for the path and square constructors we have to
+make sure that the function maps the boundary to the right things. For instance if we would do:
+
+  c2t' : S¹ × S¹ → Torus
+  c2t' (base   , base)   = point
+  c2t' (loop i , base)   = line2 i
+  c2t' (base   , loop j) = line1 j
+  c2t' (loop i , loop j) = square i j
+
+then Agda will complain that something is not right (the boundary of
+the last case does not match up with the expected boundary of the
+square constructor).
+
+These compute judgmentally:
   
-data Torus : Set where
-  point : Torus
-  line1 : point ≡ point
-  line2 : point ≡ point
-  square : PathP (λ i → line1 i ≡ line1 i) line2 line2
+  c2t-t2c : ∀ (t : Torus) → c2t (t2c t) ≡ t
+  c2t-t2c point        = refl
+  c2t-t2c (line1 _)    = refl
+  c2t-t2c (line2 _)    = refl
+  c2t-t2c (square _ _) = refl
 
-t2c : Torus → S¹ × S¹
-t2c point        = ( base , base )
-t2c (line1 i)    = ( loop i , base )
-t2c (line2 j)    = ( base , loop j )
-t2c (square i j) = ( loop i , loop j )
+  t2c-c2t : ∀ (p : S¹ × S¹) → t2c (c2t p) ≡ p
+  t2c-c2t (base   , base)   = refl
+  t2c-c2t (base   , loop _) = refl
+  t2c-c2t (loop _ , base)   = refl
+  t2c-c2t (loop _ , loop _) = refl
 
-c2t : S¹ × S¹ → Torus
-c2t (base   , base)   = point
-c2t (loop i , base)   = line1 i
-c2t (base   , loop j) = line2 j
-c2t (loop i , loop j) = square i j
-
-c2t-t2c : ∀ (t : Torus) → c2t (t2c t) ≡ t
-c2t-t2c point        = refl
-c2t-t2c (line1 _)    = refl
-c2t-t2c (line2 _)    = refl
-c2t-t2c (square _ _) = refl
-
-t2c-c2t : ∀ (p : S¹ × S¹) → t2c (c2t p) ≡ p
-t2c-c2t (base   , base)   = refl
-t2c-c2t (base   , loop _) = refl
-t2c-c2t (loop _ , base)   = refl
-t2c-c2t (loop _ , loop _) = refl
-
-Torus≡S¹×S¹ : Torus ≡ S¹ × S¹
-Torus≡S¹×S¹ = isoToPath (iso t2c c2t t2c-c2t c2t-t2c)
-
-ΩTorus : Set
-ΩTorus = point ≡ point
+By turning this isomorphism into an equivalence we get a direct proof
+that the Torus is equal to two circles:
+  
+  Torus≡S¹×S¹ : Torus ≡ S¹ × S¹
+  Torus≡S¹×S¹ = isoToPath (iso t2c c2t t2c-c2t c2t-t2c)
 
 
+Cubical Agda also supports parametrized and recursive HITs. For
+example propositional truncation is defined as:
 
-data ∥_∥ {ℓ} (A : Set ℓ) : Set ℓ where
-  ∣_∣ : A → ∥ A ∥
-  squash : ∀ (x y : ∥ A ∥) → x ≡ y
+  data ∥_∥ {ℓ} (A : Set ℓ) : Set ℓ where
+    ∣_∣ : A → ∥ A ∥
+    squash : ∀ (x y : ∥ A ∥) → x ≡ y
 
-private
-  variable
-    ℓ : Level
-    A : Set ℓ
+  recPropTrunc : ∀ {ℓ} {A : Set ℓ} {P : Set ℓ} → isProp P → (A → P) → ∥ A ∥ → P
+  recPropTrunc Pprop f ∣ x ∣          = f x
+  recPropTrunc Pprop f (squash x y i) =
+    Pprop (recPropTrunc Pprop f x) (recPropTrunc Pprop f y) i
 
-recPropTrunc : ∀ {P : Set ℓ} → isProp P → (A → P) → ∥ A ∥ → P
-recPropTrunc Pprop f ∣ x ∣          = f x
-recPropTrunc Pprop f (squash x y i) =
-  Pprop (recPropTrunc Pprop f x) (recPropTrunc Pprop f y) i
+
+Cubical identity types and computational HoTT/UF
+------------------------------------------------
+
+As mentioned above the computation rule for J does not hold
+definitionally for path types. Cubical Agda fixes this by introducing
+a Cubical Identity type. The Cubical.Core.Id file of agda/cubical
+exports all of the primitives of this type, including the notation _≡_
+and the J eliminator that computes definitionally on refl.
+
+The Cubical Id type and the path type are equivalent, so all of the
+results for one can be transported to the other. Using this we provide
+an interface to HoTT/UF in Cubical.Core.HoTT-UF which provides the
+user with all of the primitives of Homotopy Type Theory and Univalent
+Foundations implemented using Cubical primitives under the hood. This
+hence gives an axiom free version of HoTT/UF which computes properly.
+
+One drawback of the Cubical Id types compared to the propositional
+equality of Agda is that it is not possible to use pattern-matching
+when writing functions on them. This will hopefully be fixed in a
+future version of Agda, but for now one has to use the J eliminator
+explicitly.
 
 
 ----------
