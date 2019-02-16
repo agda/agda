@@ -219,7 +219,7 @@ us define regular transport as
   transport : ∀ {ℓ} {A B : Set ℓ} → A ≡ B → A → B
   transport p a = transp (λ i → p i) i0 a
 
-Combining the transport operation with the min operation lets us
+Combining the transport operation with the min operation then lets us
 define path induction:
 
 .. code-block:: agda
@@ -231,7 +231,8 @@ One subtle difference between this and the propositional equality type
 of Agda is that the computation rule does not hold definitionally. If
 the eliminator is defined using pattern-matching as in the standard
 library this holds, however as transport in a constant family is only
-the identity function up to a path we have to prove:
+the identity function up to a path we have to prove the computation
+rule up to a path:
 
 .. code-block:: agda
 
@@ -241,12 +242,12 @@ the identity function up to a path we have to prove:
   JRefl : ∀ {ℓ} {A : Set ℓ} {x : A} (P : ∀ y → x ≡ y → Set ℓ) (d : P x refl) → J P d refl ≡ d
   JRefl P d = transportRefl d
 
-Internally in Agda the ``transp`` operations reduce by cases on the
-type, so for Sigma types they are computed pointwise and for dependent
-function types they use a direct back-and-forth algorithm (because of
-contravariance). For Path types it is not yet possible to provide the
-computation rules as we need some way to track the end-points of the
-path after transporting. For this we introduce the homogeneous
+Internally in Agda the ``transp`` operations computes by cases on the
+type, for example for Sigma types they are computed pointwise. For
+Path types it is however not yet possible to provide the computation
+rule as we need some way to keep track the end-points of the path
+after transporting it. Furthermore, this must work for arbitrary
+higher dimensional cubes. For this we introduce the homogeneous
 composition operations that generalize binary composition of paths to
 n-ary composition of higher dimensional cubes.
 
