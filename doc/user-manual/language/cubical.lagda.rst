@@ -187,7 +187,7 @@ definitional equalities compared to the standard Agda definitions:
 
 Path types also lets us prove new things are not provable in standard
 Agda, for example function extensionality (pointwise equal functions
-are equal):
+are equal) has an extremely simple proof:
 
 .. code-block:: agda
 
@@ -200,9 +200,9 @@ Transport
 
 While path types are great for reasoning about equality they don't let
 us transport along paths between types or even compose path, which in
-particular means that we cannot prove the induction principle for
-paths yet. In order to remedy this we also have a builtin
-(generalized) transport operation and homogeneous composition. The
+particular means that we cannot yet prove the induction principle for
+paths. In order to remedy this we also have a builtin (generalized)
+transport operation and homogeneous composition operations. The
 transport operation is generalized in the sense that it lets us
 specify where the operation is the identity function
 
@@ -211,7 +211,7 @@ specify where the operation is the identity function
   transp : ∀ {ℓ} (A : I → Set ℓ) (φ : I) (a : A i0) → A i1
 
 When calling ``transp A φ a`` Agda makes sure that ``A`` is constant
-on ``φ`` so that ``transp A i1 a`` is ``a`` definitionally. This lets
+on ``φ`` so that ``transp A i1 a`` is definitionall ``a``. This lets
 us define regular transport as
 
 .. code-block:: agda
@@ -219,12 +219,14 @@ us define regular transport as
   transport : ∀ {ℓ} {A B : Set ℓ} → A ≡ B → A → B
   transport p a = transp (λ i → p i) i0 a
 
-Combining the transport operation with the min operation then lets us
-define path induction:
+Combining the transport and min operations then lets us define path
+induction:
 
 .. code-block:: agda
 
-  J : ∀ {ℓ} {A : Set ℓ} {x : A} (P : ∀ y → x ≡ y → Set ℓ) (d : P x refl) {y : A} (p : x ≡ y) → P y p
+  J : ∀ {ℓ} {A : Set ℓ} {x : A} (P : ∀ y → x ≡ y → Set ℓ)
+        (d : P x refl) {y : A} (p : x ≡ y)
+      → P y p
   J P d p = transport (λ i → P (p i) (λ j → p (i ∧ j))) d
 
 One subtle difference between this and the propositional equality type
@@ -239,16 +241,17 @@ rule up to a path:
   transportRefl : ∀ {ℓ} {A : Set ℓ} (x : A) → transport refl x ≡ x
   transportRefl {A = A} x i = transp (λ _ → A) i x
 
-  JRefl : ∀ {ℓ} {A : Set ℓ} {x : A} (P : ∀ y → x ≡ y → Set ℓ) (d : P x refl) → J P d refl ≡ d
+  JRefl : ∀ {ℓ} {A : Set ℓ} {x : A} (P : ∀ y → x ≡ y → Set ℓ)
+            (d : P x refl) → J P d refl ≡ d
   JRefl P d = transportRefl d
 
 Internally in Agda the ``transp`` operations computes by cases on the
-type, for example for Sigma types they are computed pointwise. For
+type, so for example for Sigma types it is computed elementwise. For
 Path types it is however not yet possible to provide the computation
-rule as we need some way to keep track the end-points of the path
-after transporting it. Furthermore, this must work for arbitrary
-higher dimensional cubes. For this we introduce the homogeneous
-composition operations that generalize binary composition of paths to
+rule as we need some way to keep track the endpoints of the path after
+transporting it. Furthermore, this must work for arbitrary higher
+dimensional cubes. For this we introduce the "homogeneous composition"
+operations (``hcomp``) that generalize binary composition of paths to
 n-ary composition of higher dimensional cubes.
 
 
@@ -260,8 +263,8 @@ be able to write partially specified n-dimensional cubes (i.e. cubes
 where some faces are missing). Given an element of the interval ``r :
 I`` there is a predicate ``IsOne`` which represents the constraint ``r
 = i1``. This comes with a proof that ``i1`` is equal to ``i1`` called
-``1=1 : IsOne i1``. We use the letter ``φ`` when such an ``r`` should
-be thought of as being in the image of ``IsOne``.
+``1=1 : IsOne i1``. We use the Greek letters like ``φ`` when such an
+``r`` should be thought of as being in the image of ``IsOne``.
 
 Using this we introduce a type of partial elements called ``Partial φ
 A``, this is a special version of ``IsOne φ → A`` with a more
@@ -314,8 +317,9 @@ There are cubical subtypes as in CCHM:
   _[_↦_] : ∀ {ℓ} (A : Set ℓ) (φ : I) (u : Partial φ A) → Setω
   A [ φ ↦ u ] = Sub A φ u
 
-Any element ``u : A`` can be seen as an element of ``A [ φ ↦ u ]``
-which agrees with ``u`` on ``φ``:
+A term ``v : A [ φ ↦ u ]`` is of type ``A`` and when ``IsOne φ`` it
+must be definitionally equal to ``u``. Any term ``u : A`` can be seen
+as an term of ``A [ φ ↦ u ]`` which agrees with ``u`` on ``φ``:
 
 .. code-block:: agda
 
@@ -329,6 +333,7 @@ One can also forget that an element agrees with ``u`` on ``φ``:
 
 With all of this cubical infrastructure we can now describe the
 ``hcomp`` operations.
+
 
 Homogeneous composition
 -----------------------
