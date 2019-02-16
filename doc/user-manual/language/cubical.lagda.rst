@@ -146,17 +146,16 @@ example, the following is not valid:
   refl : ∀ {ℓ} {A : Set ℓ} {x : A} → Path A x x
   refl {x = x} = λ (i : I) → x
 
-Because of the intuitions that paths correspond to equality ``PathP (λ
+Because of the intuition that paths correspond to equality ``PathP (λ
 i → A) x y`` gets printed as ``x ≡ y`` when ``A`` does not mention
-``i``. By mapping out of iterated elements of the interval we can
-define squares, cubes, and higher cubes in Agda, making the type
-theory "cubical". For example a square in ``A`` is built out of 4
-points and 4 lines:
+``i``. By iterating the path type we can define squares, cubes, and
+higher cubes in Agda, making the type theory cubical. For example a
+square in ``A`` is built out of 4 points and 4 lines:
 
 .. code-block:: agda
 
-  Square : ∀ {ℓ} {A : Set ℓ} {a0 a1 b0 b1 : A} →
-             a0 ≡ a1 → b0 ≡ b1 → a0 ≡ b0 → a1 ≡ b1 → Set ℓ
+  Square : ∀ {ℓ} {A : Set ℓ} {x0 x1 y0 y1 : A} →
+             x0 ≡ x1 → y0 ≡ y1 → x0 ≡ y0 → x1 ≡ y1 → Set ℓ
   Square p q r s = PathP (λ i → p i ≡ q i) r s
 
 Viewing equalities as functions out of the interval makes it possible
@@ -172,7 +171,7 @@ to do a lot of equality reasoning in a very direct way:
   cong f p i = f (p i)
 
 Because of the way functions compute these satisfy some new
-definitional equalities compard to the Agda standard library:
+definitional equalities compared to the standard Agda definitions:
 
 .. code-block:: agda
 
@@ -192,9 +191,64 @@ are equal):
 
 .. code-block:: agda
 
-  funExt : ∀ {A : Set} {B : A → Set} {f g : (x : A) → B x} →
+  funExt : ∀ {ℓ} {A : Set ℓ} {B : A → Set ℓ} {f g : (x : A) → B x} →
              ((x : A) → f x ≡ g x) → f ≡ g
   funExt p i x = p x i
+
+Transport
+---------
+
+While path types are great for reasoning about equality they don't
+natively let us transport or compose, which in particular means that
+we cannot prove the induction principle for paths. In order to remedy
+this we also have a builtin (generalized) transport operation and
+homogeneous composition. The transport operation is generalized in the
+sense that it lets us specify where the operation is the identity
+function
+
+.. code-block:: agda
+
+  transp : ∀ {ℓ} (A : I → Set ℓ) (φ : I) (a : A i0) → A i1
+
+When calling ``transp A φ a`` Agda makes sure that ``A`` is constant
+on ``φ``. This lets us define regular transport as
+
+.. code-block:: agda
+
+  transport : {A B : Set ℓ} → A ≡ B → A → B
+  transport p a = transp (λ i → p i) i0 a
+
+Combining the transport operation with the min operation lets us
+define path induction:
+
+.. code-block:: agda
+
+  module _ (P : ∀ y → x ≡ y → Set ℓ') (d : P x refl) where
+    J : (p : x ≡ y) → P y p
+    J p = transport (λ i → P (p i) (λ j → p (i ∧ j))) d
+
+One subtle difference between this and the propositional equality type
+of Agda is that the computation rule does not hold definitionally. If
+the eliminator is defined using pattern-matching as in the standard
+library this holds, however as transport in a constant family is only
+the identity function up to a path we have to prove:
+
+.. code-block:: agda
+
+  transportRefl : (x : A) → transport refl x ≡ x
+  transportRefl {A = A} x i = transp (λ _ → A) i x
+
+  JRefl : J refl ≡ d
+  JRefl = transportRefl d
+
+Internally in Agda the ``transp`` operations reduce by cases on the
+type, so for Sigma types they are computed pointwise and for dependent
+function types they use a direct back-and-forth algorithm (because of
+contravariance). For Path types it is not yet possible to provide the
+computation rules as we need some way to track the end-points of the
+path after transporting. For this we introduce the homogeneous
+composition operations that generalize binary composition of paths to
+n-ary composition of higher dimensional cubes.
 
 
 Partial elements and systems
@@ -272,54 +326,13 @@ One can also forget that an element agrees with ``u`` on ``φ``:
 
   ouc : ∀ {ℓ} {A : Set ℓ} {φ : I} {u : Partial φ A} → A [ φ ↦ u ] → A
 
+With all of this cubical infrastructure we can now describe the
+``hcomp`` operations.
 
-Kan operations (``transp`` and ``hcomp``)
------------------------------------------
+Homogeneous composition
+-----------------------
 
-While path types are great for reasoning about equality they don't
-natively let us transport or compose, which in particular means that
-we cannot prove the induction principle for paths. In order to remedy
-this we also have a builtin (generalized) transport operation and
-homogeneous composition. The transport operation is generalized in the
-sense that it lets us specify where the operation is the identity
-function
-
-.. code-block:: agda
-
-  transp : ∀ {ℓ} (A : I → Set ℓ) (φ : I) (a : A i0) → A i1
-
-When calling ``transp A φ a`` Agda makes sure that ``A`` is constant
-on ``φ``. This lets us define regular transport as
-
-.. code-block:: agda
-
-  transport : {A B : Set ℓ} → A ≡ B → A → B
-  transport p a = transp (λ i → p i) i0 a
-
-Combining the transport operation with the min operation lets us
-define path induction:
-
-.. code-block:: agda
-
-  module _ (P : ∀ y → x ≡ y → Set ℓ') (d : P x refl) where
-    J : (p : x ≡ y) → P y p
-    J p = transport (λ i → P (p i) (λ j → p (i ∧ j))) d
-
-One subtle difference between this and the propositional equality type
-of Agda is that the computation rule does not hold definitionally. If
-the eliminator is defined using pattern-matching as in the standard
-library this holds, however as transport in a constant family is only
-the identity function up to a path we have to prove:
-
-.. code-block:: agda
-
-  transportRefl : (x : A) → transport refl x ≡ x
-  transportRefl {A = A} x i = transp (λ _ → A) i x
-
-  JRefl : J refl ≡ d
-  JRefl = transportRefl d
-
-The homogeneous composition operations generalizes binary composition
+The homogeneous composition operations generalize binary composition
 of paths so that we can compose multiple composable cubes.
 
 .. code-block:: agda
@@ -336,33 +349,30 @@ composition of paths can be written as
 
 .. code-block:: agda
 
-  compPath : x ≡ y → y ≡ z → x ≡ z
-  compPath p q i =
-    hcomp (λ j → \ { (i = i0) → p i0
+  compPath : ∀ {ℓ} {A : Set ℓ} {x y z : A} → x ≡ y → y ≡ z → x ≡ z
+  compPath {x = x} p q i =
+    hcomp (λ j → λ { (i = i0) → x
                    ; (i = i1) → q j }) (p i)
 
-Given ``p : x ≡ y`` and ``q : y ≡ z`` the composite of the two paths
-is obtained from a composition of this open square:
+Pictorially we are given ``p : x ≡ y`` and ``q : y ≡ z``, and the
+composite of the two paths is obtained by computing the missing lid of
+this open square:
 
 .. code-block::
 
-          x   -   -   -   - > z
-          ^                   ^
-          |                   |
-          |                   |
-        x |                   | q j
-          |                   |
-          |                   |
-          |                   |
-          x ----------------> y
-                   p i
+          x             z
+          ^             ^
+          |             |
+        x |             | q j
+          |             |
+          x ----------> y
+               p i
 
-The composition is the dashed line at the top of the square. The
-direction ``i`` goes left-to-right and ``j`` goes down-to-up. As we
-are constructing a path from ``x`` to ``z`` we have ``i : I`` in the
-context already which is why we have to put ``p i`` as bottom. The
-direction ``j`` that we are doing the composition in is abstracted in
-the first argument to ``hcomp``.
+In the drawing the direction ``i`` goes left-to-right and ``j`` goes
+down-to-up. As we are constructing a path from ``x`` to ``z`` we have
+``i : I`` in the context already which is why we have to put ``p i``
+as bottom. The direction ``j`` that we are doing the composition in is
+abstracted in the first argument to ``hcomp``.
 
 We can also define homogeneous filling of cubes as
 
@@ -381,6 +391,16 @@ We can also define homogeneous filling of cubes as
 
 When ``i`` is ``i0`` this is ``u0`` and when ``i`` is ``i1`` this is
 ``hcomp``.
+
+This gives a direct cubical proof that composing a path ``p`` with
+``refl`` is ``p``
+
+.. code-block:: agda
+
+  compPathRefl : ∀ {ℓ} {A : Set ℓ} {x y : A} (p : x ≡ y) → compPath p refl ≡ p
+  compPathRefl {x = x} {y = y} p j i =
+    hfill (λ _ → λ { (i = i0) → x
+                   ; (i = i1) → y }) (inc (p i)) (~ j)
 
 
 Glue types
