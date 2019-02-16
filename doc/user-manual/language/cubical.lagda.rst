@@ -197,17 +197,19 @@ are equal):
 Partial elements and systems
 ----------------------------
 
-Path types lets us specify n-dimensional cubes, it is also useful to
-be able to specify subcubes. Given an element of the interval ``r :
+In order to describe the homogenous composition operations we need to
+be able to write partially specified n-dimensional cubes (i.e. cubes
+where some faces are missing). Given an element of the interval ``r :
 I`` there is a predicate ``IsOne`` which represents the constraint ``r
-= i1``. This comes with a proof that ``ì1`` is actually ``i1`` called
-``1=1 : IsOne i1``.
+= i1``. This comes with a proof that ``i1`` is equal to ``i1`` called
+``1=1 : IsOne i1``. We use the letter ``φ`` when such an ``r`` should
+be thought of as being in the image of ``IsOne``.
 
-Using this we introduce a type of partial elements called ``Partial r
-a``, this is a special version of ``IsOne r → A`` with a more
+Using this we introduce a type of partial elements called ``Partial φ
+A``, this is a special version of ``IsOne φ → A`` with a more
 extensional judgmental equality. There is also a dependent version
-version called ``PartialP r A`` which allows ``A`` to be defined only
-when ``IsOne r``. The types of these are:
+version called ``PartialP φ A`` which allows ``A`` to be defined only
+when ``IsOne φ``. The types of these are:
 
 .. code-block:: agda
 
@@ -251,21 +253,21 @@ There are cubical subtypes as in CCHM:
 
 .. code-block:: agda
 
-  _[_↦_] : ∀ {ℓ} (A : Set ℓ) (r : I) (u : Partial r A) → Setω
-  A [ r ↦ u ] = Sub A r u
+  _[_↦_] : ∀ {ℓ} (A : Set ℓ) (φ : I) (u : Partial φ A) → Setω
+  A [ φ ↦ u ] = Sub A φ u
 
-Any element ``u : A`` can be seen as an element of ``A [ r ↦ u ]``
-which agrees with ``u`` on ``r``:
-
-.. code-block:: agda
-
-  inc : ∀ {ℓ} {A : Set ℓ} {r : I} (u : A) → A [ r ↦ (λ _ → u) ]
-
-One can also forget that an element agrees with ``u`` on ``r``:
+Any element ``u : A`` can be seen as an element of ``A [ φ ↦ u ]``
+which agrees with ``u`` on ``φ``:
 
 .. code-block:: agda
 
-  ouc : ∀ {ℓ} {A : Set ℓ} {r : I} {u : Partial r A} → A [ r ↦ u ] → A
+  inc : ∀ {ℓ} {A : Set ℓ} {φ : I} (u : A) → A [ φ ↦ (λ _ → u) ]
+
+One can also forget that an element agrees with ``u`` on ``φ``:
+
+.. code-block:: agda
+
+  ouc : ∀ {ℓ} {A : Set ℓ} {φ : I} {u : Partial φ A} → A [ φ ↦ u ] → A
 
 
 Kan operations (``transp`` and ``hcomp``)
