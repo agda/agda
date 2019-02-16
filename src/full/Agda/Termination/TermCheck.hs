@@ -449,7 +449,7 @@ termDef name = terSetCurrent name $ inConcreteOrAbstractMode name $ \ def -> do
   -- If --without-K, we disregard all arguments (and result)
   -- which are not of data or record type.
 
-  withoutKEnabled <- liftTCM $ optWithoutK <$> pragmaOptions
+  withoutKEnabled <- liftTCM withoutKOption
   applyWhen withoutKEnabled (setMasks t) $ do
 
     -- If the result should be disregarded, set all calls to unguarded.

@@ -152,7 +152,7 @@ import Agda.TypeChecking.Free.Reduce
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.MetaVars (assignV, newArgsMetaCtx)
 import Agda.TypeChecking.EtaContract
-import Agda.Interaction.Options (optInjectiveTypeConstructors, optWithoutK)
+import Agda.Interaction.Options (optInjectiveTypeConstructors)
 
 import Agda.TypeChecking.Rules.LHS.Problem
 -- import Agda.TypeChecking.SyntacticEquality
@@ -848,7 +848,7 @@ unifyStep s Deletion{ deleteAt = k , deleteType = a , deleteLeft = u , deleteRig
       dontAssignMetas $ noConstraints $ equalTerm a u v
       return Nothing
       `catchError` \err -> return $ Just err
-    withoutK <- liftTCM $ optWithoutK <$> pragmaOptions
+    withoutK <- liftTCM withoutKOption
     case isReflexive of
       Just err     -> return $ DontKnow []
       _ | withoutK -> return $ DontKnow [UnifyReflexiveEq (varTel s) a u]
@@ -924,7 +924,7 @@ unifyStep s Solution{ solutionAt   = k
 
 unifyStep s (Injectivity k a d pars ixs c) = do
   ifM (liftTCM $ consOfHIT $ conName c) (return $ DontKnow []) $ do
-  withoutK <- liftTCM $ optWithoutK <$> pragmaOptions
+  withoutK <- liftTCM withoutKOption
   let n = eqCount s
 
   -- Get constructor telescope and target indices

@@ -3208,6 +3208,9 @@ sizedTypesOption = collapseDefault . optSizedTypes <$> pragmaOptions
 guardednessOption :: HasOptions m => m Bool
 guardednessOption = collapseDefault . optGuardedness <$> pragmaOptions
 
+withoutKOption :: HasOptions m => m Bool
+withoutKOption = collapseDefault . optWithoutK <$> pragmaOptions
+
 -----------------------------------------------------------------------------
 -- * The reduce monad
 -----------------------------------------------------------------------------

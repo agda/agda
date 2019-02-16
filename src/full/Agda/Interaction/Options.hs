@@ -72,7 +72,7 @@ import Agda.Utils.Monad         ( ifM, readM )
 import Agda.Utils.String        ( indent )
 import Agda.Utils.Trie          ( Trie )
 import qualified Agda.Utils.Trie as Trie
-import Agda.Utils.WithDefault ( WithDefault(..), collapseDefault, turnDefaultOff )
+import Agda.Utils.WithDefault
 
 import Agda.Version
 -- Paths_Agda.hs is in $(BUILD_DIR)/build/autogen/.
@@ -151,7 +151,7 @@ data PragmaOptions = PragmaOptions
   , optUniversePolymorphism      :: Bool
   , optIrrelevantProjections     :: Bool
   , optExperimentalIrrelevance   :: Bool  -- ^ irrelevant levels, irrelevant data matching
-  , optWithoutK                  :: Bool
+  , optWithoutK                  :: WithDefault 'False
   , optCopatterns                :: Bool  -- ^ Allow definitions by copattern matching?
   , optPatternMatching           :: Bool  -- ^ Is pattern matching allowed in the current file?
   , optExactSplit                :: Bool
@@ -252,7 +252,7 @@ defaultPragmaOptions = PragmaOptions
   , optGuardedness               = Default
   , optInjectiveTypeConstructors = False
   , optUniversePolymorphism      = True
-  , optWithoutK                  = False
+  , optWithoutK                  = Default
   , optCopatterns                = True
   , optPatternMatching           = True
   , optExactSplit                = False
@@ -373,7 +373,8 @@ unsafePragmaOptions opts =
   [ "--irrelevant-projections"                   | optIrrelevantProjections opts     ] ++
   [ "--experimental-irrelevance"                 | optExperimentalIrrelevance opts   ] ++
   [ "--rewriting"                                | optRewriting opts                 ] ++
-  [ "--cubical and --with-K"                     | optCubical opts, not $ optWithoutK opts ] ++
+  [ "--cubical and --with-K"                     | optCubical opts
+                                                 , not (collapseDefault $ optWithoutK opts) ] ++
   []
 
 -- | If any these options have changed, then the file will be
@@ -396,7 +397,7 @@ restartOptions =
   , (B . not . optUniversePolymorphism, "--no-universe-polymorphism")
   , (B . optIrrelevantProjections, "--irrelevant-projections")
   , (B . optExperimentalIrrelevance, "--experimental-irrelevance")
-  , (B . optWithoutK, "--without-K")
+  , (B . collapseDefault . optWithoutK, "--without-K")
   , (B . optExactSplit, "--exact-split")
   , (B . not . optEta, "--no-eta-equality")
   , (B . optRewriting, "--rewriting")
@@ -431,7 +432,7 @@ infectiveOptions =
 coinfectiveOptions :: [(PragmaOptions -> Bool, String)]
 coinfectiveOptions =
   [ (optSafe, "--safe")
-  , (optWithoutK, "--without-K")
+  , (collapseDefault . optWithoutK, "--without-K")
   , (not . optUniversePolymorphism, "--no-universe-polymorphism")
   , (not . collapseDefault . optSizedTypes, "--no-sized-types")
   , (not . collapseDefault . optGuardedness, "--no-guardedness")
@@ -610,10 +611,10 @@ noForcingFlag :: Flag CommandLineOptions
 noForcingFlag o = return $ o { optForcing = False }
 
 withKFlag :: Flag PragmaOptions
-withKFlag o = return $ o { optWithoutK = False }
+withKFlag o = return $ o { optWithoutK = Off }
 
 withoutKFlag :: Flag PragmaOptions
-withoutKFlag o = return $ o { optWithoutK = True }
+withoutKFlag o = return $ o { optWithoutK = On }
 
 copatternsFlag :: Flag PragmaOptions
 copatternsFlag o = return $ o { optCopatterns = True }
@@ -642,7 +643,11 @@ rewritingFlag :: Flag PragmaOptions
 rewritingFlag o = return $ o { optRewriting = True }
 
 cubicalFlag :: Flag PragmaOptions
-cubicalFlag o = return $ o { optCubical = True, optWithoutK = True }
+cubicalFlag o = do
+  let withoutK = optWithoutK o
+  return $ o { optCubical  = True
+             , optWithoutK = turnDefaultOn withoutK
+             }
 
 postfixProjectionsFlag :: Flag PragmaOptions
 postfixProjectionsFlag o = return $ o { optPostfixProjections = True }

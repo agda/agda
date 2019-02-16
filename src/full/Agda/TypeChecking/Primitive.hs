@@ -1586,7 +1586,7 @@ primEraseEquality :: TCM PrimitiveImpl
 primEraseEquality = do
   -- primEraseEquality is incompatible with --without-K
   -- We raise an error warning if --safe is set and a mere warning otherwise
-  whenM (optWithoutK <$> pragmaOptions) $
+  whenM withoutKOption $
     ifM (Lens.getSafeMode <$> commandLineOptions)
       {- then -} (warning SafeFlagWithoutKFlagPrimEraseEquality)
       {- else -} (warning WithoutKFlagPrimEraseEquality)
