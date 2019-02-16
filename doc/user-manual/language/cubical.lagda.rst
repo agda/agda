@@ -198,24 +198,25 @@ are equal):
 Transport
 ---------
 
-While path types are great for reasoning about equality they don't
-natively let us transport or compose, which in particular means that
-we cannot prove the induction principle for paths. In order to remedy
-this we also have a builtin (generalized) transport operation and
-homogeneous composition. The transport operation is generalized in the
-sense that it lets us specify where the operation is the identity
-function
+While path types are great for reasoning about equality they don't let
+us transport along paths between types or even compose path, which in
+particular means that we cannot prove the induction principle for
+paths yet. In order to remedy this we also have a builtin
+(generalized) transport operation and homogeneous composition. The
+transport operation is generalized in the sense that it lets us
+specify where the operation is the identity function
 
 .. code-block:: agda
 
   transp : ∀ {ℓ} (A : I → Set ℓ) (φ : I) (a : A i0) → A i1
 
 When calling ``transp A φ a`` Agda makes sure that ``A`` is constant
-on ``φ``. This lets us define regular transport as
+on ``φ`` so that ``transp A i1 a`` is ``a`` definitionally. This lets
+us define regular transport as
 
 .. code-block:: agda
 
-  transport : {A B : Set ℓ} → A ≡ B → A → B
+  transport : ∀ {ℓ} {A B : Set ℓ} → A ≡ B → A → B
   transport p a = transp (λ i → p i) i0 a
 
 Combining the transport operation with the min operation lets us
@@ -223,9 +224,8 @@ define path induction:
 
 .. code-block:: agda
 
-  module _ (P : ∀ y → x ≡ y → Set ℓ') (d : P x refl) where
-    J : (p : x ≡ y) → P y p
-    J p = transport (λ i → P (p i) (λ j → p (i ∧ j))) d
+  J : ∀ {ℓ} {A : Set ℓ} {x : A} (P : ∀ y → x ≡ y → Set ℓ) (d : P x refl) {y : A} (p : x ≡ y) → P y p
+  J P d p = transport (λ i → P (p i) (λ j → p (i ∧ j))) d
 
 One subtle difference between this and the propositional equality type
 of Agda is that the computation rule does not hold definitionally. If
@@ -235,11 +235,11 @@ the identity function up to a path we have to prove:
 
 .. code-block:: agda
 
-  transportRefl : (x : A) → transport refl x ≡ x
+  transportRefl : ∀ {ℓ} {A : Set ℓ} (x : A) → transport refl x ≡ x
   transportRefl {A = A} x i = transp (λ _ → A) i x
 
-  JRefl : J refl ≡ d
-  JRefl = transportRefl d
+  JRefl : ∀ {ℓ} {A : Set ℓ} {x : A} (P : ∀ y → x ≡ y → Set ℓ) (d : P x refl) → J P d refl ≡ d
+  JRefl P d = transportRefl d
 
 Internally in Agda the ``transp`` operations reduce by cases on the
 type, so for Sigma types they are computed pointwise and for dependent
