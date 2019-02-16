@@ -60,42 +60,38 @@ The interval and path types
 
 The key idea of cubical type theory is to add an interval type ``I :
 Setω`` (the reason this is in ``Setω`` is because it doesn't support
-the Kan operations).
+the Kan operations). A variable ``i : I`` intuitively corresponds to a
+point the `real unit interval
+<https://en.wikipedia.org/wiki/Unit_interval>`_. In an empty context,
+there are only two values of type ``I``: the two endpoints of the
+interval, ``i0`` and ``i1``
 
-A variable ``i : I`` intuitively corresponds to a point the `real unit
-interval <https://en.wikipedia.org/wiki/Unit_interval>`_. In a closed
-context, there are only two values of type ``I``: the two endpoints of
-the interval, ``i0`` and ``i1``::
+.. code-block:: agda
 
-  a b : I
-  a = i0
-  b = i1
+  i0, i1 : I
 
 Elements of the interval form a `De Morgan algebra
 <https://en.wikipedia.org/wiki/De_Morgan_algebra>`_, with minimum
 (``∧``), maximum (``∨``) and negation (``~``).
 
 .. code-block:: agda
+    max, min : I → I → I
+    max i j = i ∨ j
+    min i j = i ∧ j
 
-  module interval-example₁ (i j : I) where
-    data _≡_ (i : I) : I → Set where
-      reflI : i ≡ i
-
-    infix 10 _≡_
-
-    max min neg : I
-
-.. code-block:: agda
-
-    max = i ∨ j
-    min = i ∧ j
-    neg = ~ i
+    neg : I → I
+    neg i = ~ i
 
 All the properties of de Morgan algebras hold definitionally. The
 endpoints of the interval ``i0`` and ``i1`` are the bottom and top
 elements, respectively
 
 .. code-block:: agda
+  module interval-equations (i j : I) where
+    data _≡_ (i : I) : I → Set where
+      reflI : i ≡ i
+
+    infix 10 _≡_
 
     p₁ : i0 ∨ i    ≡ i
     p₂ : i  ∨ i1   ≡ i1
@@ -105,8 +101,6 @@ elements, respectively
     p₆ : i0        ≡ ~ i1
     p₇ : ~ (i ∨ j) ≡ ~ i ∧ ~ j
     p₈ : ~ (i ∧ j) ≡ ~ i ∨ ~ j
-
-.. code-block:: agda
 
     p₁ = reflI
     p₂ = reflI
@@ -121,30 +115,9 @@ elements, respectively
 
 The core idea of homotopy type theory is a correspondence between
 paths and (proof-relevant) equality. This is taken very literally in
-Cubical Type Theory where a path in a type ``A`` is defined as a
-function out of the interval, ``I → A``. To define paths we hence use
-λ-abstractions. For example, this is the definition of the constant
-path:
-
-..
-  ::
-  module refl-example where
-
-::
-
-    refl : ∀ {a} {A : Set a} {x : A} → Path x x
-    refl {x = x} = λ i → x
-
-Although they use the same syntax, a path is not a function. For
-example, the following is not valid:
-
-.. code-block:: agda
-
-  refl : ∀ {a} {A : Set a} {x : A} → Path x x
-  refl {x = x} = λ (i : I) → x
-
-A ``Path`` is in fact a special case of the more general built-in
-heterogeneous path type:
+Cubical Agda where a path in a type ``A`` is like a function out of
+the interval, ``I → A``. A ``Path`` is in fact a special case of the
+more general built-in heterogeneous path type:
 
 .. code-block:: agda
 
@@ -154,15 +127,28 @@ heterogeneous path type:
    Path : ∀ {ℓ} (A : Set ℓ) → A → A → Set ℓ
    Path A a b = PathP (λ _ → A) a b
 
+To define paths we use λ-abstractions and to apply them we use regular
+application. For example, this is the definition of the constant path:
+
+.. code-block:: agda
+
+  refl : ∀ {ℓ} {A : Set ℓ} {x : A} → Path A x x
+  refl {x = x} = λ i → x
+
+Although they use the same syntax, a path is not a function. For
+example, the following is not valid:
+
+.. code-block:: agda
+
+  refl : ∀ {ℓ} {A : Set ℓ} {x : A} → Path A x x
+  refl {x = x} = λ (i : I) → x
 
 Because of the intuitions that paths correspond to equality ``PathP (λ
 i → A) x y`` gets printed as ``x ≡ y`` when ``A`` does not mention
-``i``.
-
-By mapping out of more elements of the interval we can define squares,
-cubes, and higher cubes in Agda, making the type theory "cubical".
-
-For example a square in ``A`` is built out of 4 points and 4 lines:
+``i``. By mapping out of iterated elements of the interval we can
+define squares, cubes, and higher cubes in Agda, making the type
+theory "cubical". For example a square in ``A`` is built out of 4
+points and 4 lines:
 
 .. code-block:: agda
 
@@ -175,30 +161,35 @@ to do a lot of equality reasoning in a very direct way:
 
 .. code-block:: agda
 
-  sym : ∀ {ℓ} {A : Set} {x y : A} → x ≡ y → y ≡ x
+  sym : ∀ {A : Set} {x y : A} → x ≡ y → y ≡ x
   sym p = λ i → p (~ i)
 
-  cong : ∀ {ℓ} {A : Set} {x y : A} {B : A → Set ℓ'}
-           (f : (a : A) → B a) (p : x ≡ y)
+  cong : ∀ {A : Set} {x y : A} {B : A → Set} (f : (a : A) → B a) (p : x ≡ y)
          → PathP (λ i → B (p i)) (f x) (f y)
-  cong f p = λ i → f (p i)
+  cong f p i = f (p i)
 
 Because of the way functions compute these satisfy some new
-definitional equalities:
+definitional equalities compard to the Agda standard library:
 
 .. code-block:: agda
 
-  sym sym = id
-  cong refl = refl
-  cong (f o g) = cong f o cong g
+  symK : ∀ {A : Set} {x y : A} (p : x ≡ y) → sym (sym p) ≡ p
+  symK p = refl
 
-that are not available in standard Agda. Furthermore, path types lets
-us prove new things are not true provable in standard Agda, for
-example function extensionality (pointwise equal functions are equal):
+  cong1 : ∀ {A : Set} {x y : A} (p : x ≡ y) → cong (λ a → a) p ≡ p
+  cong1 p = refl
+
+  congcomp : ∀ {A B C : Set} (f : A → B) (g : B → C) {x y : A} (p : x ≡ y) →
+               cong (λ a → g (f a)) p ≡ cong g (cong f p)
+  congcomp f g p = refl
+
+Path types also lets us prove new things are not provable in standard
+Agda, for example function extensionality (pointwise equal functions
+are equal):
 
 .. code-block:: agda
 
-  funExt : ∀ {ℓ ℓ'} {A : Set ℓ} {B : A → Set ℓ'} {f g : (x : A) → B x} →
+  funExt : ∀ {A : Set} {B : A → Set} {f g : (x : A) → B x} →
              ((x : A) → f x ≡ g x) → f ≡ g
   funExt p i x = p x i
 
