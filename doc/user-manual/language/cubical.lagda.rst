@@ -133,7 +133,8 @@ heterogeneous path types:
 The central notion of equality in Cubical Agda is hence heterogeneous
 (which is sometimes called "John Major equality"). To define paths we
 use λ-abstractions and to apply them we use regular application.  For
-example, this is the definition of the constant path:
+example, this is the definition of the constant path (or proof of
+reflexivity):
 
 .. code-block:: agda
 
@@ -221,8 +222,8 @@ us define regular transport as
   transport : ∀ {ℓ} {A B : Set ℓ} → A ≡ B → A → B
   transport p a = transp (λ i → p i) i0 a
 
-Combining the transport and min operations then lets us define path
-induction:
+By combining the transport and min operations we can define the
+induction principle for paths:
 
 .. code-block:: agda
 
@@ -231,14 +232,14 @@ induction:
       → P y p
   J P d p = transport (λ i → P (p i) (λ j → p (i ∧ j))) d
 
-One subtle difference between this and the propositional equality type
-of Agda is that the computation rule for ``J`` does not hold
+One subtle difference between paths and the propositional equality
+type of Agda is that the computation rule for ``J`` does not hold
 definitionally. If ``J`` is defined using pattern-matching as in the
 standard library then this holds, however as the path types are not
 inductively defined this does not hold for the above definition of
 ``J``. In particular, transport in a constant family is only the
-identity function up to a path from which we can prove the computation
-rule up to a path:
+identity function up to a path which implies that the computation rule
+for ``J`` only holds up to a path:
 
 .. code-block:: agda
 
@@ -246,13 +247,13 @@ rule up to a path:
   transportRefl {A = A} x i = transp (λ _ → A) i x
 
   JRefl : ∀ {ℓ} {A : Set ℓ} {x : A} (P : ∀ y → x ≡ y → Set ℓ)
-            (d : P x refl) → J P d refl ≡ d
+           (d : P x refl) → J P d refl ≡ d
   JRefl P d = transportRefl d
 
-Internally in Agda the ``transp`` operations computes by cases on the
+Internally in Agda the ``transp`` operation computes by cases on the
 type, so for example for Sigma types it is computed elementwise. For
-Path types it is however not yet possible to provide the computation
-rule as we need some way to keep track the endpoints of the path after
+path types it is however not yet possible to provide the computation
+rule as we need some way to remember the endpoints of the path after
 transporting it. Furthermore, this must work for arbitrary higher
 dimensional cubes (as we can iterate the path types). For this we
 introduce the "homogeneous composition operations" (``hcomp``) that
@@ -285,7 +286,7 @@ which allows ``A`` to be defined only when ``IsOne φ``.
 
   PartialP : ∀ {ℓ} → (φ : I) → Partial φ (Set ℓ) → Setω
 
-Partial elements are introduced by pattern matching:
+Partial elements are introduced using pattern matching:
 
 .. code-block:: agda
 
@@ -293,10 +294,10 @@ Partial elements are introduced by pattern matching:
   sys i (i = i0) = Set
   sys i (i = i1) = Set → Set
 
-The term ``sys`` is hence only defined when ``IsOne (i ∨ ~ i)`` which
-is when ``(i = i0) ∨ (i = i1)``. Terms of type ``Partial`` can also be
-introduced using pattern matching lambdas:
-http://wiki.portal.chalmers.se/agda/pmwiki.php?n=ReferenceManual.PatternMatchingLambdas
+The term ``sys`` is hence only defined when ``IsOne (i ∨ ~ i)``, that
+is, when ``(i = i0) ∨ (i = i1)``. Terms of type ``Partial φ A`` can
+also be introduced using pattern matching lambdas
+(http://wiki.portal.chalmers.se/agda/pmwiki.php?n=ReferenceManual.PatternMatchingLambdas).
 
 .. code-block:: agda
 
@@ -319,7 +320,7 @@ Furthermore ``IsOne i0`` is actually absurd
   sys3 : Partial i0 Set₁
   sys3 = λ { () }
 
-There are cubical subtypes as in the CCHM system:
+Cubical Agda also has cubical subtypes as in the CCHM type theory:
 
 .. code-block:: agda
 
@@ -405,17 +406,17 @@ We can also define homogeneous filling of cubes as
 
 When ``i`` is ``i0`` this is ``u0`` and when ``i`` is ``i1`` this is
 ``hcomp``. This can hence be seen as giving us the interior of an open
-box. In the special case of the square above the filler gives us a
-direct cubical proof that composing ``p`` with ``refl`` is ``p``
+box. In the special case of the square above ``hfill`` gives us a
+direct cubical proof that composing ``p`` with ``refl`` is ``p``.
 
 .. code-block:: agda
 
   compPathRefl : ∀ {ℓ} {A : Set ℓ} {x y : A} (p : x ≡ y) → compPath p refl ≡ p
   compPathRefl {x = x} {y = y} p j i =
     hfill (λ _ → λ { (i = i0) → x
-                   ; (i = i1) → y })
-          (inc (p i))
-          (~ j)
+                  ; (i = i1) → y })
+         (inc (p i))
+         (~ j)
 
 
 Glue types
@@ -423,8 +424,8 @@ Glue types
 
 In order to be able to prove the univalence theorem we also have to
 add "Glue types". These lets us turn equivalences between types into
-paths. An equivalence of types ``A`` and ``B`` is defined as a map ``f
-: A → B`` such that its fibers are contractible.
+paths between types. An equivalence of types ``A`` and ``B`` is
+defined as a map ``f : A → B`` such that its fibers are contractible.
 
 .. code-block:: agda
 
@@ -451,7 +452,7 @@ a partial family of types that are equivalent to the base type ``A``:
 .. code-block:: agda
 
   primGlue : ∀ {ℓ ℓ'} (A : Set ℓ) {φ : I} (T : Partial φ (Set ℓ'))
-         → (e : PartialP φ (λ o → T o ≃ A)) → Set ℓ'
+           → (e : PartialP φ (λ o → T o ≃ A)) → Set ℓ'
 
 These come with a constructor and eliminator:
 
@@ -464,7 +465,7 @@ These come with a constructor and eliminator:
   unglue : ∀ {ℓ ℓ'} {A : Set ℓ} (φ : I) {T : Partial φ (Set ℓ')}
              {e : PartialP φ (λ o → T o ≃ A)} → primGlue A T e → A
 
-In the standard library we uncurry the Glue types to make them more
+In the cubical library we uncurry the Glue types to make them more
 pleasant to use:
 
 .. code-block:: agda
@@ -496,10 +497,10 @@ from the computation rule for ``ua``:
   uaβ e x = transportRefl (e .fst x)
 
 Transporting along the path that we get from applying ``ua`` to an
-equivalence is the same as applying the equivalence. This is what
-makes it possible to use the univalence axiom computationally in
-Cubical Agda: we can package our equivalences as paths, do equality
-reasoning using these paths, and in the end transport along the path
+equivalence is hence the same as applying the equivalence. This is
+what makes it possible to use the univalence axiom computationally in
+Cubical Agda: we can package up our equivalences as paths, do equality
+reasoning using these paths, and in the end transport along the paths
 in order to compute with them.
 
 For more results about Glue types and univalence see
@@ -514,8 +515,8 @@ Higher inductive types
 ----------------------
 
 Cubical Agda also lets us directly define higher inductive types as
-datatypes with path constructors. For example the circle and torus can
-be defined as:
+datatypes with path constructors. For example the circle and `torus
+<https://en.wikipedia.org/wiki/Torus>`_ can be defined as:
 
 .. code-block:: agda
 
@@ -529,7 +530,7 @@ be defined as:
     line2 : point ≡ point
     square : PathP (λ i → line1 i ≡ line1 i) line2 line2
 
-Functions out of higher inductive types can then be defined by
+Functions out of higher inductive types can then be defined using
 pattern-matching:
 
 .. code-block:: agda
@@ -547,20 +548,21 @@ pattern-matching:
   c2t (loop i , loop j) = square i j
 
 When giving the cases for the path and square constructors we have to
-make sure that the function maps the boundary to the right things. For
-instance the following definition does not pass Agda's typechecker (as
+make sure that the function maps the boundary to the right thing. For
+instance the following definition does not pass Agda's typechecker as
 the boundary of the last case does not match up with the expected
-boundary of the square constructor).
+boundary of the square constructor.
 
 .. code-block:: agda
 
-  c2t' : S¹ × S¹ → Torus
-  c2t' (base   , base)   = point
-  c2t' (loop i , base)   = line2 i
-  c2t' (base   , loop j) = line1 j
-  c2t' (loop i , loop j) = square i j
+  c2t_bad : S¹ × S¹ → Torus
+  c2t_bad (base   , base)   = point
+  c2t_bad (loop i , base)   = line2 i
+  c2t_bad (base   , loop j) = line1 j
+  c2t_bad (loop i , loop j) = square i j
 
-These function compute judgmentally, for all constructors:
+Functions defined by pattern-matching on higher inductive types
+compute definitionally, for all constructors.
 
 .. code-block:: agda
 
@@ -577,7 +579,7 @@ These function compute judgmentally, for all constructors:
   t2c-c2t (loop _ , loop _) = refl
 
 By turning this isomorphism into an equivalence we get a direct proof
-that the Torus is equal to two circles:
+that the torus is equal to two circles.
 
 .. code-block:: agda
 
@@ -600,27 +602,27 @@ is defined as:
     Pprop (recPropTrunc Pprop f x) (recPropTrunc Pprop f y) i
 
 For many more examples of higher inductive types see:
-https://github.com/agda/cubical/tree/master/Cubical/HITs
+https://github.com/agda/cubical/tree/master/Cubical/HITs.
 
 Cubical identity types and computational HoTT/UF
 ------------------------------------------------
 
 As mentioned above the computation rule for ``J`` does not hold
-definitionally for path types. Cubical Agda fixes this by introducing
-a Cubical Identity type. The
+definitionally for path types. Cubical Agda solves this by introducing
+a cubical identity type. The
 https://github.com/agda/cubical/blob/master/Cubical/Core/Id.agda file
 exports all of the primitives for this type, including the notation
 ``_≡_`` and a ``J`` eliminator that computes definitionally on
 ``refl``.
 
-The Cubical Identity type and the path type are equivalent, so all of
-the results for one can be transported to the other (using
-univalence). Using this we provide an interface to HoTT/UF in
+The cubical identity type and the path type are equivalent, so all of
+the results for one can be transported to the other one (using
+univalence). Using this we have implemented an interface to HoTT/UF in
 https://github.com/agda/cubical/blob/master/Cubical/Core/HoTT-UF.agda
-which provides the user with all of the primitives of Homotopy Type
-Theory and Univalent Foundations implemented using Cubical primitives
+which provides the user with the key primitives of Homotopy Type
+Theory and Univalent Foundations implemented using cubical primitives
 under the hood. This hence gives an axiom free version of HoTT/UF
-which computes properly:
+which computes properly.
 
 .. code-block:: agda
 
@@ -628,7 +630,7 @@ which computes properly:
 
   open import Cubical.Core.Id public
      using ( _≡_            -- The identity type.
-           ; refl           -- Unfortunately, pattern matching on refl is not available.
+           ; refl            -- Unfortunately, pattern matching on refl is not available.
            ; J              -- Until it is, you have to use the induction principle J.
 
            ; transport      -- As in the HoTT Book.
