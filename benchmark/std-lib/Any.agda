@@ -22,7 +22,7 @@ open import Function
 open import Function.Equality using (_⟨$⟩_)
 open import Function.Equivalence as Eq using (_⇔_; module Equivalence)
 open import Function.Inverse as Inv using (_↔_; module Inverse)
-open import Function.Related as Related using (Related)
+open import Function.Related as Related using (Related; SK-sym)
 open import Function.Related.TypeIsomorphisms
 open import Level
 open import Relation.Binary
@@ -39,7 +39,7 @@ open import Data.List.Relation.BagAndSetEquality
 open Related.EquationalReasoning
 
 private
-  module ×⊎ {k ℓ} = CommutativeSemiring (×⊎-CommutativeSemiring k ℓ)
+  module ×⊎ {k ℓ} = CommutativeSemiring (×-⊎-commutativeSemiring k ℓ)
   open module ListMonad {ℓ} =
     RawMonad (Data.List.Categorical.monad {ℓ = ℓ})
 
@@ -127,7 +127,7 @@ Any-cong : ∀ {k ℓ} {A : Set ℓ} {P₁ P₂ : A → Set ℓ} {xs₁ xs₂ : 
            (∀ x → Related k (P₁ x) (P₂ x)) → xs₁ ∼[ k ] xs₂ →
            Related k (Any P₁ xs₁) (Any P₂ xs₂)
 Any-cong {P₁ = P₁} {P₂} {xs₁} {xs₂} P₁↔P₂ xs₁≈xs₂ =
-  Any P₁ xs₁                ↔⟨ sym $ Any↔ {P = P₁} ⟩
+  Any P₁ xs₁                ↔⟨ SK-sym $ Any↔ {P = P₁} ⟩
   (∃ λ x → x ∈ xs₁ × P₁ x)  ∼⟨ Σ.cong Inv.id (xs₁≈xs₂ ×-cong P₁↔P₂ _) ⟩
   (∃ λ x → x ∈ xs₂ × P₂ x)  ↔⟨ Any↔ {P = P₂} ⟩
   Any P₂ xs₂                ∎
@@ -140,12 +140,12 @@ Any-cong {P₁ = P₁} {P₂} {xs₁} {xs₂} P₁↔P₂ xs₁≈xs₂ =
 swap : ∀ {ℓ} {A B : Set ℓ} {P : A → B → Set ℓ} {xs ys} →
        Any (λ x → Any (P x) ys) xs ↔ Any (λ y → Any (flip P y) xs) ys
 swap {ℓ} {P = P} {xs} {ys} =
-  Any (λ x → Any (P x) ys) xs                ↔⟨ sym $ Any↔ {a = ℓ} {p = ℓ} ⟩
-  (∃ λ x → x ∈ xs × Any (P x) ys)            ↔⟨ sym $ Σ.cong Inv.id (λ {x} → (x ∈ xs ∎) ⟨ ×⊎.*-cong {ℓ = ℓ} ⟩ Any↔ {a = ℓ} {p = ℓ}) ⟩
+  Any (λ x → Any (P x) ys) xs                ↔⟨ SK-sym $ Any↔ {a = ℓ} {p = ℓ} ⟩
+  (∃ λ x → x ∈ xs × Any (P x) ys)            ↔⟨ SK-sym $ Σ.cong Inv.id (λ {x} → (x ∈ xs ∎) ⟨ ×⊎.*-cong {ℓ = ℓ} ⟩ Any↔ {a = ℓ} {p = ℓ}) ⟩
   (∃ λ x → x ∈ xs × ∃ λ y → y ∈ ys × P x y)  ↔⟨ Σ.cong {a₁ = ℓ} Inv.id (∃∃↔∃∃ {a = ℓ} {b = ℓ} {p = ℓ} _) ⟩
   (∃₂ λ x y → x ∈ xs × y ∈ ys × P x y)       ↔⟨ ∃∃↔∃∃ {a = ℓ} {b = ℓ} {p = ℓ} _ ⟩
   (∃₂ λ y x → x ∈ xs × y ∈ ys × P x y)       ↔⟨ Σ.cong Inv.id (λ {y} → Σ.cong Inv.id (λ {x} →
-    (x ∈ xs × y ∈ ys × P x y)                     ↔⟨ sym $ ×⊎.*-assoc _ _ _ ⟩
+    (x ∈ xs × y ∈ ys × P x y)                     ↔⟨ SK-sym $ ×⊎.*-assoc _ _ _ ⟩
     ((x ∈ xs × y ∈ ys) × P x y)                   ↔⟨ ×⊎.*-comm (x ∈ xs) (y ∈ ys) ⟨ ×⊎.*-cong ⟩ (P x y ∎) ⟩
     ((y ∈ ys × x ∈ xs) × P x y)                   ↔⟨ ×⊎.*-assoc _ _ _ ⟩
     (y ∈ ys × x ∈ xs × P x y)                     ∎)) ⟩
@@ -607,8 +607,8 @@ private
   ++-comm∘++-comm (x ∷ xs)      (there p) with ++⁻ xs p | ++-comm∘++-comm xs p
   ++-comm∘++-comm (x ∷ xs) {ys} (there .([ ++⁺ʳ xs , ++⁺ˡ ]′ (++⁻ ys (++⁺ʳ ys p))))
     | inj₁ p | P.refl
-    rewrite ++⁻∘++⁺ ys (inj₂                 p)
-          | ++⁻∘++⁺ ys (inj₂ $ there {x = x} p) = P.refl
+    rewrite ++⁻∘++⁺ ys (inj₂                  p)
+          | ++⁻∘++⁺ ys (inj₂ $′ there {x = x} p) = refl
   ++-comm∘++-comm (x ∷ xs) {ys} (there .([ ++⁺ʳ xs , ++⁺ˡ ]′ (++⁻ ys (++⁺ˡ    p))))
     | inj₂ p | P.refl
     rewrite ++⁻∘++⁺ ys {ys =     xs} (inj₁ p)
