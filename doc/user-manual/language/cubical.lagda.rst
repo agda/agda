@@ -24,35 +24,36 @@ of features from Cubical Type Theory. In particular, computational
 univalence and higher inductive types.
 
 The version of Cubical Type Theory that Agda implements is a variation
-of `CCHM, Cubical`_ where the Kan composition operations are
-decomposed into homogeneous composition and generalized
-transport. This what makes a general schema for higher inductive types
-work, following `CHM, Cubical`_.
+of `CCHM`_ where the Kan composition operations are decomposed into
+homogeneous composition and generalized transport. This is what makes
+the general schema for higher inductive types work, following `CHM`_.
 
 To use cubical type theory, you need to run Agda with the
-``--cubical`` command-line-option. You can also write ``{-#
-OPTIONS --cubical #-}`` at the top of the file.
+``--cubical`` command-line-option or put ``{-# OPTIONS --cubical #-}``
+at the top of the file.
 
 The cubical mode adds the following features to Agda:
 
-1. An interval and path types
+1. An interval ``I`` type and path types
 2. Partial elements and systems
-3. Kan operations (transp and hcomp)
-4. Glue types
-5. Cubical identity types
-6. Higher inductive types
+3. Kan operations (``transp`` and ``hcomp``)
+4. ``Glue`` types
+5. Higher inductive types
+6. Cubical identity types
 
-
-There is a library for Cubical Agda available at:
-https://github.com/agda/cubical
+There is a standard library for Cubical Agda available at
+https://github.com/agda/cubical.
 
 The main design choices of the core part of the library are explained
-in: https://homotopytypetheory.org/2018/12/06/cubical-agda/
+in https://homotopytypetheory.org/2018/12/06/cubical-agda/.
 
-In order to use Cubical Agda one should either import
+In order to get access to the Cubical Agda primitives one should
+either import
 https://github.com/agda/cubical/blob/master/Cubical/Core/Primitives.agda
 or add the relevant import statements from the top of that file.
 
+There is also an older version of the library available at
+https://github.com/Saizan/cubical-demo/.
 
 The interval and path types
 ---------------------------
@@ -573,13 +574,13 @@ explicitly.
 References
 ----------
 
-.. _`CCHM, Cubical`:
+.. _`CCHM`:
 
   Cyril Cohen, Thierry Coquand, Simon Huber and Anders Mörtberg;
   `“Cubical Type Theory: a constructive interpretation of the
   univalence axiom” <https://arxiv.org/abs/1611.02108>`_.
 
-.. _`CHM, Cubical`:
+.. _`CHM`:
 
   Thierry Coquand, Simon Huber, Anders Mörtberg; `"On Higher Inductive
   Types in Cubical Type Theory" <https://arxiv.org/abs/1802.01170>`_.
