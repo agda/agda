@@ -21,7 +21,9 @@ Cubical Type Theory in Agda
 
 As of version 2.6.0 Agda has a cubical mode which extends Agda with a
 variety of features from Cubical Type Theory. In particular,
-computational univalence and higher inductive types. The version of
+computational univalence and higher inductive types which hence gives
+computational meaning to `Homotopy Type Theory and Univalent
+Foundations <https://homotopytypetheory.org/>`_. The version of
 Cubical Type Theory that Agda implements is a variation of `CCHM`_
 where the Kan composition operations are decomposed into homogeneous
 composition and generalized transport. This is what makes the general
@@ -113,11 +115,11 @@ elements, respectively
     p₈ = reflI
 
 
-The core idea of Homotopy Type Theory is a correspondence between
-paths and (proof-relevant) equality. This is taken very literally in
-Cubical Agda where a path in a type ``A`` is like a function out of
-the interval, ``I → A``. A ``Path`` is in fact a special case of the
-more general built-in heterogeneous path type:
+The core idea of Homotopy Type Theory and Univalent Foundations is a
+correspondence between paths and (proof-relevant) equality. This is
+taken very literally in Cubical Agda where a path in a type ``A`` is
+like a function out of the interval, ``I → A``. A ``Path`` is in fact
+a special case of the more general built-in heterogeneous path type:
 
 .. code-block:: agda
 
@@ -127,8 +129,9 @@ more general built-in heterogeneous path type:
    Path : ∀ {ℓ} (A : Set ℓ) → A → A → Set ℓ
    Path A a b = PathP (λ _ → A) a b
 
-To define paths we use λ-abstractions and to apply them we use regular
-application. For example, this is the definition of the constant path:
+The central notion of equality is hence heterogeneous. To define paths
+we use λ-abstractions and to apply them we use regular application.
+For example, this is the definition of the constant path:
 
 .. code-block:: agda
 
@@ -161,10 +164,10 @@ to do a lot of equality reasoning in a very direct way:
 
 .. code-block:: agda
 
-  sym : ∀ {A : Set} {x y : A} → x ≡ y → y ≡ x
+  sym : ∀ {ℓ} {A : Set ℓ} {x y : A} → x ≡ y → y ≡ x
   sym p = λ i → p (~ i)
 
-  cong : ∀ {A : Set} {x y : A} {B : A → Set} (f : (a : A) → B a) (p : x ≡ y)
+  cong : ∀ {ℓ} {A : Set ℓ} {x y : A} {B : A → Set ℓ} (f : (a : A) → B a) (p : x ≡ y)
          → PathP (λ i → B (p i)) (f x) (f y)
   cong f p i = f (p i)
 
@@ -173,15 +176,15 @@ definitional equalities compard to the Agda standard library:
 
 .. code-block:: agda
 
-  symK : ∀ {A : Set} {x y : A} (p : x ≡ y) → sym (sym p) ≡ p
-  symK p = refl
+  symInv : ∀ {ℓ} {A : Set ℓ} {x y : A} (p : x ≡ y) → sym (sym p) ≡ p
+  symInv p = refl
 
-  cong1 : ∀ {A : Set} {x y : A} (p : x ≡ y) → cong (λ a → a) p ≡ p
-  cong1 p = refl
+  congId : ∀ {ℓ} {A : Set ℓ} {x y : A} (p : x ≡ y) → cong (λ a → a) p ≡ p
+  congId p = refl
 
-  congcomp : ∀ {A B C : Set} (f : A → B) (g : B → C) {x y : A} (p : x ≡ y) →
+  congComp : ∀ {ℓ} {A B C : Set ℓ} (f : A → B) (g : B → C) {x y : A} (p : x ≡ y) →
                cong (λ a → g (f a)) p ≡ cong g (cong f p)
-  congcomp f g p = refl
+  congComp f g p = refl
 
 Path types also lets us prove new things are not provable in standard
 Agda, for example function extensionality (pointwise equal functions
