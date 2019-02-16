@@ -19,18 +19,17 @@
 Cubical Type Theory in Agda
 ***************************
 
-As of 2.6.0 Agda has a cubical mode which extends Agda with a variety
-of features from Cubical Type Theory. In particular, computational
-univalence and higher inductive types.
+As of version 2.6.0 Agda has a cubical mode which extends Agda with a
+variety of features from Cubical Type Theory. In particular,
+computational univalence and higher inductive types. The version of
+Cubical Type Theory that Agda implements is a variation of `CCHM`_
+where the Kan composition operations are decomposed into homogeneous
+composition and generalized transport. This is what makes the general
+schema for higher inductive types work, following `CHM`_.
 
-The version of Cubical Type Theory that Agda implements is a variation
-of `CCHM`_ where the Kan composition operations are decomposed into
-homogeneous composition and generalized transport. This is what makes
-the general schema for higher inductive types work, following `CHM`_.
-
-To use cubical type theory, you need to run Agda with the
-``--cubical`` command-line-option or put ``{-# OPTIONS --cubical #-}``
-at the top of the file.
+To use the cubical mode Agda needs to be run with the ``--cubical``
+command-line-option or with ``{-# OPTIONS --cubical #-}`` at the top
+of the file.
 
 The cubical mode adds the following features to Agda:
 
@@ -58,7 +57,7 @@ https://github.com/Saizan/cubical-demo/.
 The interval and path types
 ---------------------------
 
-The key idea of cubical type theory is to add an interval type ``I :
+The key idea of Cubical Type Theory is to add an interval type ``I :
 Setω`` (the reason this is in ``Setω`` is because it doesn't support
 the Kan operations). A variable ``i : I`` intuitively corresponds to a
 point the `real unit interval
@@ -75,6 +74,7 @@ Elements of the interval form a `De Morgan algebra
 (``∧``), maximum (``∨``) and negation (``~``).
 
 .. code-block:: agda
+
     max, min : I → I → I
     max i j = i ∨ j
     min i j = i ∧ j
@@ -87,6 +87,7 @@ endpoints of the interval ``i0`` and ``i1`` are the bottom and top
 elements, respectively
 
 .. code-block:: agda
+
   module interval-equations (i j : I) where
     data _≡_ (i : I) : I → Set where
       reflI : i ≡ i
@@ -112,8 +113,7 @@ elements, respectively
     p₈ = reflI
 
 
-
-The core idea of homotopy type theory is a correspondence between
+The core idea of Homotopy Type Theory is a correspondence between
 paths and (proof-relevant) equality. This is taken very literally in
 Cubical Agda where a path in a type ``A`` is like a function out of
 the interval, ``I → A``. A ``Path`` is in fact a special case of the
