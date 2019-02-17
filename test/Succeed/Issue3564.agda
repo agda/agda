@@ -1,4 +1,5 @@
 {-# OPTIONS --cubical --no-sized-types --guardedness --safe #-}
+
 module Issue3564 where
 record Stream (A : Set) : Set where
   coinductive
@@ -10,4 +11,7 @@ data A : Set where a : A
 
 someA : Stream A
 head someA = a
-tail someA = someA -- termination check failed
+tail someA = someA
+
+-- WAS: termination check failed
+-- NOW: OK

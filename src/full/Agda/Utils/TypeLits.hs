@@ -1,6 +1,6 @@
-{-# LANGUAGE DataKinds           #-}
-{-# LANGUAGE KindSignatures      #-}
-{-# LANGUAGE GADTs               #-}
+{-# LANGUAGE DataKinds      #-}
+{-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE GADTs          #-}
 
 
 -- | Type level literals, inspired by GHC.TypeLits.
