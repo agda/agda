@@ -2710,12 +2710,16 @@ data Warning
     -- ^ If the user opens a module public before the module header.
     --   (See issue #2377.)
   | UselessInline            QName
+  | WrongInstanceDeclaration
   | InstanceWithExplicitArg  QName
   -- ^ An instance was declared with an implicit argument, which means it
   --   will never actually be considered by instance search.
-  | InstanceNoOutputTypeName [NamedArg A.BindName] Type
+  | InstanceNoOutputTypeName Doc
   -- ^ The type of an instance argument doesn't end in a named or
   -- variable type, so it will never be considered by instance search.
+  | InstanceArgWithExplicitArg Doc
+  -- ^ As InstanceWithExplicitArg, but for local bindings rather than
+  --   top-level instances.
   | InversionDepthReached    QName
   -- ^ The --inversion-max-depth was reached.
   -- Generic warnings for one-off things
@@ -2763,8 +2767,10 @@ warningName w = case w of
   DeprecationWarning{}         -> DeprecationWarning_
   EmptyRewritePragma           -> EmptyRewritePragma_
   IllformedAsClause            -> IllformedAsClause_
+  WrongInstanceDeclaration{}   -> WrongInstanceDeclaration_
   InstanceWithExplicitArg{}    -> InstanceWithExplicitArg_
   InstanceNoOutputTypeName{}   -> InstanceNoOutputTypeName_
+  InstanceArgWithExplicitArg{} -> InstanceArgWithExplicitArg_
   GenericNonFatalError{}       -> GenericNonFatalError_
   GenericWarning{}             -> GenericWarning_
   InversionDepthReached{}      -> InversionDepthReached_
@@ -2962,8 +2968,6 @@ data TypeError
             -- ^ Wrong user-given relevance annotation in lambda.
         | WrongQuantityInLambda
             -- ^ Wrong user-given quantity annotation in lambda.
-        | WrongInstanceDeclaration
-            -- ^ A term is declared as an instance but it’s not allowed
         | HidingMismatch Hiding Hiding
             -- ^ The given hiding does not correspond to the expected hiding.
         | RelevanceMismatch Relevance Relevance

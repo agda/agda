@@ -564,47 +564,41 @@ typeArity t = do
 data OutputTypeName
   = OutputTypeName QName
   | OutputTypeVar
+  | OutputTypeVisiblePi
   | OutputTypeNameNotYetKnown
   | NoOutputTypeName
 
--- | Strips all Pi's and return the argument telescope and head
---   definition name, if possible.
+-- | Strips all hidden and instance Pi's and return the argument
+--   telescope and head definition name, if possible.
 getOutputTypeName :: Type -> TCM (Telescope, OutputTypeName)
 getOutputTypeName t = do
-  TelV tel t' <- telView t
+  TelV tel t' <- telViewUpTo' (-1) notVisible t
   ifBlocked (unEl t') (\ _ _ -> return (tel , OutputTypeNameNotYetKnown)) $ \ _ v ->
     case v of
       -- Possible base types:
       Def n _  -> return (tel , OutputTypeName n)
       Sort{}   -> return (tel , NoOutputTypeName)
       Var n _  -> return (tel , OutputTypeVar)
+      Pi{}     -> return (tel , OutputTypeVisiblePi)
       -- Not base types:
       Con{}    -> __IMPOSSIBLE__
       Lam{}    -> __IMPOSSIBLE__
       Lit{}    -> __IMPOSSIBLE__
       Level{}  -> __IMPOSSIBLE__
       MetaV{}  -> __IMPOSSIBLE__
-      Pi{}     -> __IMPOSSIBLE__
       DontCare{} -> __IMPOSSIBLE__
       Dummy s    -> __IMPOSSIBLE_VERBOSE__ s
 
 -- | Register the definition with the given type as an instance
 addTypedInstance :: QName -> Type -> TCM ()
-addTypedInstance = addTypedInstance' 0
-
--- | As @addTypedInstance@, but also takes a number of arguments
---   that should not raise a warning when they are explicit.
---   (used for adding record fields as instances).
-addTypedInstance' :: Int -> QName -> Type -> TCM ()
-addTypedInstance' npars x t = do
+addTypedInstance x t = do
   (tel , n) <- getOutputTypeName t
-  forM_ (drop npars $ telToList tel) $ \ dom -> do
-    when (visible dom) $ warning $ InstanceWithExplicitArg x
   case n of
     OutputTypeName n -> addNamedInstance x n
     OutputTypeNameNotYetKnown -> addUnknownInstance x
-    NoOutputTypeName -> typeError $ WrongInstanceDeclaration
-    OutputTypeVar -> typeError $ WrongInstanceDeclaration
+    NoOutputTypeName -> warning $ WrongInstanceDeclaration
+    OutputTypeVar -> warning $ WrongInstanceDeclaration
+    OutputTypeVisiblePi -> warning $ InstanceWithExplicitArg x
 
 resolveUnknownInstanceDefs :: TCM ()
 resolveUnknownInstanceDefs = do

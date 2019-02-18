@@ -1240,13 +1240,13 @@ instance ToConcrete A.Pattern C.Pattern where
         let r = getRange i
         -- Erase @v@ to a concrete name and resolve it back to check whether
         -- we have a conflicting field name.
-        cns <- hasConcreteNames v
-        rns <- liftTCM $ mapM (resolveName' [FldName] Nothing . C.QName) cns
-        let ns = filter (\case FieldName{} -> True; _ -> False) rns
-        -- If we do then we print .(v) rather than .v
-        if null ns then printDotDefault i e else do
-          reportSLn "print.dotted" 50 $ "Wrapping ambiguous name " ++ show (nameConcrete v)
-          C.DotP r . C.Paren r <$> toConcrete (A.Var v)
+        cn <- toConcreteName v
+        liftTCM (resolveName' [FldName] Nothing (C.QName cn)) >>= \case
+          -- If we do then we print .(v) rather than .v
+          FieldName{} -> do
+            reportSLn "print.dotted" 50 $ "Wrapping ambiguous name " ++ show (nameConcrete v)
+            C.DotP r . C.Paren r <$> toConcrete (A.Var v)
+          _ -> printDotDefault i e
 
       A.DotP i e -> printDotDefault i e
 

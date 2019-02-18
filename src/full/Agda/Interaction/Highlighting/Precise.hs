@@ -38,23 +38,29 @@ module Agda.Interaction.Highlighting.Precise
   , mergeC
   ) where
 
-import Agda.Utils.String
-import Agda.Utils.List
-import Data.Maybe
-import qualified Data.List as List
-import Data.Function
-import Data.Semigroup
 import Control.Applicative ((<$>), (<*>))
 import Control.Arrow (second)
 import Control.Monad
+
+import Data.Function
+import qualified Data.List as List
+import Data.Maybe
+import Data.Semigroup
+
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
+
+import Data.Set (Set)
+import qualified Data.Set as Set
 
 import qualified Agda.Syntax.Position as P
 import qualified Agda.Syntax.Common as Common
 import qualified Agda.Syntax.Concrete as SC
 
 import Agda.Interaction.Highlighting.Range
+
+import Agda.Utils.String
+import Agda.Utils.List
 
 ------------------------------------------------------------------------
 -- Files
@@ -117,17 +123,19 @@ data OtherAspect
   | IncompletePattern
     -- ^ When this constructor is used it is probably a good idea to
     -- include a 'note' explaining why the pattern is incomplete.
-  | CatchallClause
   | TypeChecks
     -- ^ Code which is being type-checked.
-    deriving (Eq, Show, Enum, Bounded)
+  -- NB: We put CatchallClause last so that it is overwritten by other,
+  -- more important, aspects in the emacs mode.
+  | CatchallClause
+    deriving (Eq, Ord, Show, Enum, Bounded)
 
 -- | Meta information which can be associated with a
 -- character\/character range.
 
 data Aspects = Aspects
   { aspect       :: Maybe Aspect
-  , otherAspects :: [OtherAspect]
+  , otherAspects :: Set OtherAspect
   , note         :: Maybe String
     -- ^ This note, if present, can be displayed as a tool-tip or
     -- something like that. It should contain useful information about
@@ -164,7 +172,7 @@ data TokenBased = TokenBased | NotOnlyTokenBased
 
 instance Eq Aspects where
   Aspects a o _ d t == Aspects a' o' _ d' t' =
-    (a, List.nub o, d, t) == (a', List.nub o', d', t')
+    (a, o, d, t) == (a', o', d', t')
 
 -- | A 'File' is a mapping from file positions to meta information.
 --
@@ -214,7 +222,7 @@ instance Monoid TokenBased where
 mergeAspects :: Aspects -> Aspects -> Aspects
 mergeAspects m1 m2 = Aspects
   { aspect       = (mplus `on` aspect) m1 m2
-  , otherAspects = List.nub $ ((++) `on` otherAspects) m1 m2
+  , otherAspects = (Set.union `on` otherAspects) m1 m2
   , note         = case (note m1, note m2) of
       (Just n1, Just n2) -> Just $
          if n1 == n2
@@ -233,7 +241,7 @@ instance Semigroup Aspects where
 instance Monoid Aspects where
   mempty = Aspects
     { aspect         = Nothing
-    , otherAspects   = []
+    , otherAspects   = Set.empty
     , note           = Nothing
     , definitionSite = Nothing
     , tokenBased     = mempty

@@ -23,6 +23,7 @@ config.status
 configure
 dist/
 dist-*/
+.ghc.environment.*
 doc/user-manual.pdf
 examples/compiler/main
 hlint-report.html

@@ -663,8 +663,9 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
                 })
               { defArgOccurrences = [StrictPos] }
           computePolarity [projname]
-          when (Info.defInstance info == InstanceDef) $
-            addTypedInstance' (size tel) projname finalt
+
+        when (Info.defInstance info == InstanceDef) $
+          addTypedInstance projname t
 
         recurse
 

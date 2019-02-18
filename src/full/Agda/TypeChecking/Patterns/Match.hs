@@ -20,6 +20,7 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Reduce.Monad
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Monad
+import Agda.TypeChecking.Monad.Builtin (getName',builtinHComp)
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Datatypes
@@ -188,6 +189,12 @@ matchPatterns :: [NamedArg DeBruijnPattern]
               -> [Arg Term]
               -> ReduceM (Match Term, [Arg Term])
 matchPatterns ps vs = do
+  reportSDoc "tc.match" 20 $
+     vcat [ "matchPatterns"
+          , nest 2 $ "ps =" <+> prettyTCMPatternList ps
+          , nest 2 $ "vs =" <+> fsep (punctuate comma $ map prettyTCM vs)
+          ]
+
   traceSDoc "tc.match" 50
     (vcat [ "matchPatterns"
           , nest 2 $ "ps =" <+> fsep (punctuate comma $ map (text . show) ps)
@@ -243,36 +250,32 @@ matchPattern p u = case (p, u) of
             _ -> return Nothing
         _ -> __IMPOSSIBLE__
   (DefP o q ps, v) -> do
-    let
-          isDef (NotBlocked _ c@Def{}) = Just c
-          isDef (Blocked _ c@Def{})    = Just c
-          isDef _                      = Nothing
-
-    let f sb | Just (Def q' vs) <- isDef sb = Just $
-                 if q == q'
-                 then
-                   Just (Def q,vs)
-                 else
-                   Nothing
-             | otherwise = Nothing
+    let f (Def q' vs) | q == q' = Just (Def q, vs)
+        f _                     = Nothing
     fallback' f ps v
  where
-  fallback c ps v = do
-    let
-          isCon (NotBlocked _ c@Con{}) = Just c
-          isCon (Blocked _ c@Con{})    = Just c
-          isCon _                      = Nothing
-
-    let f sb | Just (Con c' ci' vs) <- isCon sb = Just $
-                 if c == c'
-                 then
-                   Just (Con c' ci',vs)
-                 else
-                   Nothing
-             | otherwise = Nothing
-    fallback' f ps v
     -- Default: not an eta record constructor.
+  fallback c ps v = do
+    isMatchable <- isMatchable'
+    let f (Con c' ci' vs) | c == c' = Just (Con c' ci',vs)
+        f _                         = Nothing
+    fallback' f ps v
+
+  -- Regardless of blocking, constructors and a properly applied @hcomp@
+  -- can be matched on.
+  isMatchable' = do
+    mhcomp <- getName' builtinHComp
+    return $ \ r ->
+      case ignoreBlocking r of
+        t@Con{} -> Just t
+        t@(Def q [l,a,phi,u,u0]) | Just q == mhcomp
+                -> Just t
+        _       -> Nothing
+
+  -- DefP hcomp and ConP matching.
   fallback' mtc ps (Arg info v) = do
+        isMatchable <- isMatchable'
+
         w <- reduceB' v
         -- Unfold delayed (corecursive) definitions one step. This is
         -- only necessary if c is a coinductive constructor, but
@@ -297,17 +300,13 @@ matchPattern p u = case (p, u) of
         let v = ignoreBlocking w
             arg = Arg info v  -- the reduced argument
 
-        -- let
-        --   isCon (NotBlocked _ c@Con{}) = Just c
-        --   isCon (Blocked _ c@Con{})    = Just c
-        --   isCon _                      = Nothing
-
         case w of
-          b | Just (Just (bld, vs)) <- mtc b
-                          -> do
+          b | Just t <- isMatchable b ->
+            case mtc t of
+              Just (bld, vs) -> do
                 (m, vs1) <- yesSimplification <$> matchPatterns ps (fromMaybe __IMPOSSIBLE__ $ allApplyElims vs)
                 return (m, Arg info $ bld (mergeElims vs vs1))
-            | Just Nothing <- mtc b
+              Nothing
                                     -> return (No                          , arg)
           NotBlocked _ (MetaV x vs) -> return (DontKnow $ Blocked x ()     , arg)
           Blocked x _               -> return (DontKnow $ Blocked x ()     , arg)

@@ -291,8 +291,9 @@ checkTypedBindings lamOrPi (A.TBind r xs' e) ret = do
       case target of
         OutputTypeName{} -> return ()
         OutputTypeVar{}  -> return ()
+        OutputTypeVisiblePi{} -> warning . InstanceArgWithExplicitArg =<< prettyTCM (A.TBind r ixs e)
         OutputTypeNameNotYetKnown{} -> return ()
-        NoOutputTypeName -> warning $ InstanceNoOutputTypeName ixs t
+        NoOutputTypeName -> warning . InstanceNoOutputTypeName =<< prettyTCM (A.TBind r ixs e)
 
     let xs' = (map . mapRelevance) (modRel lamOrPi experimental) xs
     addContext (xs', t) $

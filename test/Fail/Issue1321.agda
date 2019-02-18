@@ -10,7 +10,7 @@ open import Common.Prelude
 open import Common.Equality
 
 ¬ : (A : Set) → Set
-¬ A = A → ⊥
+¬ A = {{_ : A}} → ⊥
 
 _≠_ : {A : Set} → (A → A → Set)
 x ≠ y = ¬ (x ≡ y)

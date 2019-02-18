@@ -118,8 +118,8 @@ Agda is packaged in Fedora (since before Fedora 18).
 
 will pull in emacs-agda-mode and ghc-Agda-devel.
 
-FreBSD
-------
+FreeBSD
+-------
 
 Packages are available from `FreshPorts
 <https://www.freebsd.org/cgi/ports.cgi?query=agda&stype=all>`_ for

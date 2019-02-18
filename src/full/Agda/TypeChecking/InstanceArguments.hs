@@ -67,6 +67,8 @@ initialInstanceCandidates t = do
     OutputTypeNameNotYetKnown -> do
       reportSDoc "tc.instance.cands" 30 $ "Instance type is not yet known. "
       return Nothing
+    OutputTypeVisiblePi -> typeError $ GenericError $
+      "Instance search cannot be used to find elements in an explicit function type"
     OutputTypeVar    -> do
       reportSDoc "tc.instance.cands" 30 $ "Instance type is a variable. "
       maybeRight <$> runExceptT getContextVars
@@ -201,7 +203,7 @@ findInstance m Nothing = do
     -- Issue #2577: If the target is a function type the arguments are
     -- potential candidates, so we add them to the context to make
     -- initialInstanceCandidates pick them up.
-    TelV tel t <- telView t
+    TelV tel t <- telViewUpTo' (-1) notVisible t
     cands <- addContext tel $ initialInstanceCandidates t
     case cands of
       Nothing -> do

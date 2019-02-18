@@ -8,8 +8,9 @@ open import Relation.Nullary
 open import Data.Nat.Properties hiding (≤-antisym)
 open import Data.Nat.Solver
 open import Data.Fin using (Fin; toℕ; zero; suc; fromℕ≤)
-open import Data.Fin.Properties using ( bounded; toℕ-fromℕ≤; toℕ-injective )
+open import Data.Fin.Properties using ( toℕ<n; toℕ-fromℕ≤; toℕ-injective )
 open import Relation.Binary.PropositionalEquality
+open import Relation.Binary.PropositionalEquality.WithK
 open import Function
 open import Data.Product
 open import Relation.Binary hiding (NonEmpty)
@@ -44,7 +45,7 @@ large : ∀ {d} {r : Fin (suc d)} x (r′ : Fin (suc d)) → toℕ r ≢ suc x *
 large {d} {r} x r′ pf = irrefl pf (
     start
       suc (toℕ r)
-    ≤⟨ bounded r ⟩
+    ≤⟨ toℕ<n r ⟩
       suc d
     ≤⟨ m≤m+n (suc d) (x * suc d) ⟩
       suc d + x * suc d -- same as (suc x * suc d)
@@ -79,7 +80,8 @@ addMul-lemma x x′ d r r′ hyp rewrite +-comm (toℕ r) (x * suc d)
 
 DivMod-lemma : ∀ x d (r : Fin (suc d)) → (res : DivMod (toℕ r + x * suc d) (suc d)) → res ≡ result x r refl
 DivMod-lemma x d r (result q r′ eq) with addMul-lemma x q d r r′ eq
-DivMod-lemma x d r (result .x .r eq) | refl , refl = cong (result x r) (≡-irrelevance eq refl) -- holy fuck
+DivMod-lemma x d r (result .x .r eq) | refl , refl =
+  cong (result x r) (≡-irrelevant eq refl) -- holy fuck
 
 
 divMod-lemma : ∀ x d (r : Fin (suc d)) → (toℕ r + x * suc d) divMod suc d ≡ result x r refl
@@ -123,7 +125,7 @@ mod-pred .(toℕ r + q * 7) eq | result q r refl | yes p  = toℕ-injective eq4
 mod-pred .(toℕ r + q * 7) eq | result q r refl | no ¬p with eq3
   where eq2 = begin
           6
-            ≡⟨ ≤-antisym (≰⇒> ¬p) (pred-mono (bounded r)) ⟩
+            ≡⟨ ≤-antisym (≰⇒> ¬p) (pred-mono (toℕ<n r)) ⟩
           toℕ r ∎
         eq3 = begin
           zero

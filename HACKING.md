@@ -223,7 +223,6 @@ Testing and documentation
 
   You can fix the whitespace issues running
 
-      make install-fix-agda-whitespace
       make fix-whitespace
 
 * To build the user manual locally, you need to install
@@ -400,8 +399,8 @@ Closing issues
 
 Before releasing for example Agda 1.2.3 we add to the `CHANGELOG`
 *all* the closed issues with milestone 1.2.3 (using the
-`clossed-issues` program) except those issues labelled with
-`not-in-changelog`, `status: abandoned`, `status: duplicated`,
+`clossed-issues-by-milestone` program) except those issues labelled
+with `not-in-changelog`, `status: abandoned`, `status: duplicated`,
 `status: invalid`, `status: wontfix` or `status: working-as-intended`.
 
 

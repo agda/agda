@@ -1,8 +1,8 @@
 {-# LANGUAGE FlexibleContexts          #-}
 {-# LANGUAGE LambdaCase                #-}
+{-# LANGUAGE NamedFieldPuns            #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE OverloadedStrings         #-}
-{-# LANGUAGE NamedFieldPuns            #-}
 
 module Main ( main ) where
 
@@ -13,14 +13,29 @@ import Data.Text (Text)
 import qualified Data.Text as Text
 import qualified Data.ByteString.Char8 as BS
 
+import qualified Data.Vector as V
+
 import System.Environment ( getArgs, getEnv )
 import System.Exit ( exitFailure )
 import System.IO ( hPutStrLn, stderr )
 
 import GitHub.Auth ( Auth( OAuth ) )
 -- import GitHub.Data.Id ( Id(..) )
-import GitHub.Data.Issues ( Issue( Issue, issueMilestone, issueNumber, issueTitle, issueClosedBy, issueUrl ) )
-import GitHub.Data.Name ( Name( N ) )
+
+import GitHub.Data.Definitions ( IssueLabel ( IssueLabel, labelName ) )
+
+import GitHub.Data.Issues
+  ( Issue( Issue
+         , issueClosedBy
+         , issueLabels
+         , issueMilestone
+         , issueNumber
+         , issueTitle
+         , issueUrl
+         )
+  )
+
+import GitHub.Data.Name ( Name( N ), untagName )
 import GitHub.Data.Milestone ( Milestone( milestoneNumber, milestoneTitle ) )
 import GitHub.Data.Options ( stateClosed )
 -- import GitHub.Data.Options ( IssueState(..), IssueRepoMod(..) ) -- not exported:, FilterBy(..) )
@@ -45,6 +60,21 @@ usage = putStrLn $ unlines
   , theRepo ++ " and prints them as csv to stdout."
   ]
 
+issueLabelsNames :: Issue -> [Text]
+issueLabelsNames i = map (untagName . labelName) $ V.toList $ issueLabels i
+
+-- This list should be match the list of the labels in `HACKING.md`
+-- (section "Closing issues").
+labelsNotInChangelog :: [Text]
+labelsNotInChangelog =
+  [ "not-in-changelog"
+  , "status: abandoned"
+  , "status: duplicated"
+  , "status: invalid"
+  , "status: wontfix"
+  , "status: working-as-intended"
+  ]
+
 -- | Retrieve closed issues for the given milestone and print as csv to stdout.
 run :: Text -> IO ()
 run mileStoneTitle = do
@@ -65,20 +95,23 @@ run mileStoneTitle = do
   -- print mileStoneId
 
   -- Get list of issues.
-  issueVector <- crashOr $ GH.issuesForRepo' (Just auth) (N owner) (N repo) $ stateClosed
+  issueVector <- crashOr $ GH.issuesForRepo' (Just auth) (N owner) (N repo) stateClosed
     -- Symbols not exported.
     -- IssueRepoMod $ \ o ->
     --   o { issueRepoOptionsMilestone = FilterBy mileStoneId
     --     , issueRepoOptionsState     = Just StateClosed
     --     }
 
-  -- Filter by milestone.
-  let issues = reverse
+  -- Filter by milestone and labels.
+  let issues :: [Issue]
+      issues = reverse
         [ i
         | i <- toList issueVector
         , m <- maybeToList $ issueMilestone i
-        ,  milestoneNumber m == mileStoneId
+        , milestoneNumber m == mileStoneId
+        , not $ any (`elem` issueLabelsNames i) labelsNotInChangelog
         ]
+
 
   -- Print issues.
 
