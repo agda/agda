@@ -275,10 +275,14 @@ when such an ``r`` should be thought of as being in the image of
 
 Using this we introduce a type of partial elements called ``Partial φ
 A``, this is a special version of ``IsOne φ → A`` with a more
-extensional judgmental equality. The idea is that ``Partial φ A`` is
-the type of cubes in ``A`` that are only defined when ``IsOne φ``.
-There is also a dependent version of this called ``PartialP φ A``
-which allows ``A`` to be defined only when ``IsOne φ``.
+extensional judgmental equality (two elements of ``Partial φ A`` are
+considered equal if they represent the same subcube, so the faces of
+the cubes can for example be given in different order and the two
+elements will still be considered the same). The idea is that
+``Partial φ A`` is the type of cubes in ``A`` that are only defined
+when ``IsOne φ``.  There is also a dependent version of this called
+``PartialP φ A`` which allows ``A`` to be defined only when ``IsOne
+φ``.
 
 .. code-block:: agda
 
