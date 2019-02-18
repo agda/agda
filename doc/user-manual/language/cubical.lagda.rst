@@ -131,7 +131,7 @@ heterogeneous path types:
    Path A a b = PathP (λ _ → A) a b
 
 The central notion of equality in Cubical Agda is hence heterogeneous
-(which is sometimes called "John Major equality"). To define paths we
+equality (in the sense of ``PathOver`` in HoTT). To define paths we
 use λ-abstractions and to apply them we use regular application.  For
 example, this is the definition of the constant path (or proof of
 reflexivity):
