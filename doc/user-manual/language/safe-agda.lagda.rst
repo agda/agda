@@ -56,6 +56,7 @@ then all its imported modules must also be declared safe.
    ``--safe`` option will turn them both off. That is to say that
 
    .. code-block:: agda
+
      {-# OPTIONS --safe #-}
 
    will correspond to ``--safe``, ``--no-guardedness``, and ``--no-sized-types``.
@@ -64,10 +65,16 @@ then all its imported modules must also be declared safe.
    .. code-block:: agda
 
      {-# OPTIONS --safe --guardedness #-}
+
    and
+
+   .. code-block:: agda
+
      {-# OPTIONS --guardedness --safe #-}
 
    will turn on ``--safe``, ``--guardedness``, and ``--no-sized-types``.
-   Setting both ``--sized-types`` and ``--guardedness` whilst demanding that the
+
+
+   Setting both ``--sized-types`` and ``--guardedness`` whilst demanding that the
    module is ``--safe`` will lead to an error as combining these options currently
    is inconsistent.
