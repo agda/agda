@@ -449,7 +449,7 @@ termDef name = terSetCurrent name $ inConcreteOrAbstractMode name $ \ def -> do
   -- If --without-K, we disregard all arguments (and result)
   -- which are not of data or record type.
 
-  withoutKEnabled <- liftTCM $ optWithoutK <$> pragmaOptions
+  withoutKEnabled <- liftTCM withoutKOption
   applyWhen withoutKEnabled (setMasks t) $ do
 
     -- If the result should be disregarded, set all calls to unguarded.
@@ -1020,7 +1020,7 @@ compareArgs es = do
     filterM (isCoinductiveProjection True) $ mapMaybe (fmap snd . isProjElim) es
   cutoff <- terGetCutOff
   let ?cutoff = cutoff
-  useGuardedness <- optGuardedness <$> liftTCM pragmaOptions
+  useGuardedness <- liftTCM guardednessOption
   let guardedness =
         if useGuardedness
         then decr True $ projsCaller - projsCallee

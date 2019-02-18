@@ -28,6 +28,7 @@ import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
 import Data.Text.Lazy (Text)
 import Data.Traversable ( mapM )
+import Data.Typeable
 
 import Data.Void
 
@@ -58,6 +59,8 @@ import Agda.Utils.Except
 
 import Agda.Utils.Empty (Empty)
 import qualified Agda.Utils.Empty as Empty
+
+import Agda.Utils.WithDefault
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -207,6 +210,16 @@ instance EmbPrj a => EmbPrj (Position' a) where
   icod_ (P.Pn file pos line col) = icodeN' P.Pn file pos line col
 
   value = valueN P.Pn
+
+instance Typeable b => EmbPrj (WithDefault b) where
+  icod_ = \case
+    Default -> icodeN' Default
+    Value b -> icodeN' Value b
+
+  value = vcase $ \case
+    []  -> valuN Default
+    [a] -> valuN Value a
+    _ -> malformed
 
 instance EmbPrj TopLevelModuleName where
   icod_ (TopLevelModuleName a b) = icodeN' TopLevelModuleName a b
