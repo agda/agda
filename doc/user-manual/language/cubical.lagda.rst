@@ -380,7 +380,7 @@ Pictorially we are given ``p : x ≡ y`` and ``q : y ≡ z``, and the
 composite of the two paths is obtained by computing the missing lid of
 this open square:
 
-.. code-block::
+.. code-block:: text
 
           x             z
           ^             ^
