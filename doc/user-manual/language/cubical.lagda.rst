@@ -675,7 +675,7 @@ compute on ``refl``. The reason for this is that the syntax for path
 types does not work for the identity types, making many proofs more
 involved as the only way to reason about the identity types is using
 ``J``.
-           
+
 ----------
 References
 ----------
