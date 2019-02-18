@@ -213,14 +213,12 @@ instance EmbPrj a => EmbPrj (Position' a) where
 
 instance Typeable b => EmbPrj (WithDefault b) where
   icod_ = \case
-    Off     -> icodeN' Off
-    Default -> icodeN 0 Default
-    On      -> icodeN 1 On
+    Default -> icodeN' Default
+    Value b -> icodeN' Value b
 
   value = vcase $ \case
-    []  -> valuN Off
-    [0] -> valuN Default
-    [1] -> valuN On
+    []  -> valuN Default
+    [a] -> valuN Value a
     _ -> malformed
 
 instance EmbPrj TopLevelModuleName where

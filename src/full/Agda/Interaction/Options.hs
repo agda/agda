@@ -459,8 +459,8 @@ safeFlag o = do
   let guardedness = optGuardedness o
   let sizedTypes  = optSizedTypes o
   return $ o { optSafe        = True
-             , optGuardedness = turnDefaultOff guardedness
-             , optSizedTypes  = turnDefaultOff sizedTypes
+             , optGuardedness = setDefault False guardedness
+             , optSizedTypes  = setDefault False sizedTypes
              }
 
 doubleCheckFlag :: Flag PragmaOptions
@@ -583,16 +583,16 @@ noEtaFlag :: Flag PragmaOptions
 noEtaFlag o = return $ o { optEta = False }
 
 sizedTypes :: Flag PragmaOptions
-sizedTypes o = return $ o { optSizedTypes = On }
+sizedTypes o = return $ o { optSizedTypes = Value True }
 
 noSizedTypes :: Flag PragmaOptions
-noSizedTypes o = return $ o { optSizedTypes = Off }
+noSizedTypes o = return $ o { optSizedTypes = Value False }
 
 guardedness :: Flag PragmaOptions
-guardedness o = return $ o { optGuardedness = On }
+guardedness o = return $ o { optGuardedness = Value True }
 
 noGuardedness :: Flag PragmaOptions
-noGuardedness o = return $ o { optGuardedness = Off }
+noGuardedness o = return $ o { optGuardedness = Value False }
 
 injectiveTypeConstructorFlag :: Flag PragmaOptions
 injectiveTypeConstructorFlag o = return $ o { optInjectiveTypeConstructors = True }
@@ -611,10 +611,10 @@ noForcingFlag :: Flag CommandLineOptions
 noForcingFlag o = return $ o { optForcing = False }
 
 withKFlag :: Flag PragmaOptions
-withKFlag o = return $ o { optWithoutK = Off }
+withKFlag o = return $ o { optWithoutK = Value False }
 
 withoutKFlag :: Flag PragmaOptions
-withoutKFlag o = return $ o { optWithoutK = On }
+withoutKFlag o = return $ o { optWithoutK = Value True }
 
 copatternsFlag :: Flag PragmaOptions
 copatternsFlag o = return $ o { optCopatterns = True }
@@ -646,7 +646,7 @@ cubicalFlag :: Flag PragmaOptions
 cubicalFlag o = do
   let withoutK = optWithoutK o
   return $ o { optCubical  = True
-             , optWithoutK = turnDefaultOn withoutK
+             , optWithoutK = setDefault True withoutK
              }
 
 postfixProjectionsFlag :: Flag PragmaOptions
