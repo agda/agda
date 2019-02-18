@@ -52,24 +52,22 @@ then all its imported modules must also be declared safe.
 .. NOTE::
 
    The ``--guardedness`` and ``--sized-types`` options are both on by default.
-   Setting the ``--safe`` option will ignore these defaults and only work if at most
-   one of them is explicitly turned on.
+   However, unless they have been set explicitly by the user, setting the
+   ``--safe`` option will turn them both off. That is to say that
+
+   .. code-block:: agda
+     {-# OPTIONS --safe #-}
+
+   will correspond to ``--safe``, ``--no-guardedness``, and ``--no-sized-types``.
+   When both
 
    .. code-block:: agda
 
      {-# OPTIONS --safe --guardedness #-}
-
-  will turn on ``--safe``, ``--no-sized-types`` and ``no-guardedness`` (implied by ``--safe``)
-  and then set ``--guardedness``, while
-
-   .. code-block:: agda
-
+   and
      {-# OPTIONS --guardedness --safe #-}
 
-  will turn on ``guardedness``, then ``--safe`` and ``--no-sized-types`` (implied by ``--safe``).
-
-   .. code-block:: agda
-
-     {-# OPTIONS --guardedness --safe --sized-types #-}
-
-  will fail because both ``--guardedness`` and ``--sized-types`` are set together with ``--safe``.
+   will turn on ``--safe``, ``--guardedness``, and ``--no-sized-types``.
+   Setting both ``--sized-types`` and ``--guardedness` whilst demanding that the
+   module is ``--safe`` will lead to an error as combining these options currently
+   is inconsistent.
