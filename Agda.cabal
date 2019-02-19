@@ -56,6 +56,7 @@ data-files:         Agda.css
                     JS/biginteger.js
                     lib/prim/Agda/Builtin/Bool.agda
                     lib/prim/Agda/Builtin/Char.agda
+                    lib/prim/Agda/Builtin/Char/Properties.agda
                     lib/prim/Agda/Builtin/Coinduction.agda
                     lib/prim/Agda/Builtin/Cubical/Path.agda
                     lib/prim/Agda/Builtin/Cubical/Id.agda
@@ -77,6 +78,7 @@ data-files:         Agda.css
                     lib/prim/Agda/Builtin/Size.agda
                     lib/prim/Agda/Builtin/Strict.agda
                     lib/prim/Agda/Builtin/String.agda
+                    lib/prim/Agda/Builtin/String/Properties.agda
                     lib/prim/Agda/Builtin/TrustMe.agda
                     lib/prim/Agda/Builtin/Unit.agda
                     lib/prim/Agda/Builtin/Word.agda

@@ -143,6 +143,7 @@ builtinModulesWithSafePostulates =
   primitiveModules `Set.union` (Set.fromList
   [ "Agda" </> "Builtin" </> "Bool.agda"
   , "Agda" </> "Builtin" </> "Char.agda"
+  , "Agda" </> "Builtin" </> "Char" </> "Properties.agda"
   , "Agda" </> "Builtin" </> "Coinduction.agda"
   , "Agda" </> "Builtin" </> "Cubical" </> "Glue.agda"
   , "Agda" </> "Builtin" </> "Cubical" </> "Id.agda"
@@ -163,6 +164,7 @@ builtinModulesWithSafePostulates =
   , "Agda" </> "Builtin" </> "Size.agda"
   , "Agda" </> "Builtin" </> "Strict.agda"
   , "Agda" </> "Builtin" </> "String.agda"
+  , "Agda" </> "Builtin" </> "String" </> "Properties.agda"
   , "Agda" </> "Builtin" </> "Unit.agda"
   , "Agda" </> "Builtin" </> "Word.agda"
   ])
