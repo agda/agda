@@ -268,23 +268,16 @@ showIrrelevantArguments = optShowIrrelevant <$> pragmaOptions
 --   Thus, do not attempt to make persistent 'PragmaOptions'
 --   changes in a `withShowAllArguments` bracket.
 
-withShowAllArguments :: TCM a -> TCM a
+withShowAllArguments :: ReadTCState m => m a -> m a
 withShowAllArguments = withShowAllArguments' True
 
-withShowAllArguments' :: Bool -> TCM a -> TCM a
+withShowAllArguments' :: ReadTCState m => Bool -> m a -> m a
 withShowAllArguments' yes = withPragmaOptions $ \ opts ->
   opts { optShowImplicit = yes, optShowIrrelevant = yes }
 
 -- | Change 'PragmaOptions' for a computation and restore afterwards.
-
-withPragmaOptions :: (PragmaOptions -> PragmaOptions) -> TCM a -> TCM a
-withPragmaOptions f cont = do
-  opts <- pragmaOptions
-  setPragmaOptions $ f opts
-  x <- cont
-  setPragmaOptions opts
-  return x
-
+withPragmaOptions :: ReadTCState m => (PragmaOptions -> PragmaOptions) -> m a -> m a
+withPragmaOptions = locallyTCState stPragmaOptions
 
 ignoreInterfaces :: HasOptions m => m Bool
 ignoreInterfaces = optIgnoreInterfaces <$> commandLineOptions
