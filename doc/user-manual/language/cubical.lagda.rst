@@ -20,7 +20,9 @@
           ; equiv-proof
           ; _≃_
           ; primGlue )
+
   open import Agda.Builtin.Sigma public
+  open import Agda.Builtin.Bool public
 
   infix 2 Σ-syntax
 
@@ -59,7 +61,7 @@ The cubical mode adds the following features to Agda:
 
 1. An interval type and path types
 2. Generalized transport (``transp``)
-3. Partial elements and systems
+3. Partial elements
 4. Homogeneous composition (``hcomp``)
 5. Glue types
 6. Higher inductive types
@@ -303,8 +305,8 @@ generalize binary composition of paths to n-ary composition of higher
 dimensional cubes.
 
 
-Partial elements and systems
-----------------------------
+Partial elements
+----------------
 
 In order to describe the homogeneous composition operations we need to
 be able to write partially specified n-dimensional cubes (i.e. cubes
@@ -336,35 +338,37 @@ Partial elements are introduced using pattern matching:
 
 ::
 
-  sys : ∀ i → Partial (i ∨ ~ i) Set₁
-  sys i (i = i0) = Set
-  sys i (i = i1) = Set → Set
+  partialBool : ∀ i → Partial (i ∨ ~ i) Bool
+  partialBool i (i = i0) = true
+  partialBool i (i = i1) = false
 
-The term ``sys`` is hence only defined when ``IsOne (i ∨ ~ i)``, that
-is, when ``(i = i0) ∨ (i = i1)``. Terms of type ``Partial φ A`` can
-also be introduced using pattern matching lambdas
+The term ``partialBool`` should be thought of a boolean with different
+values when ``(i = i0)`` and ``(i = i1)``. Terms of type ``Partial φ
+A`` can also be introduced using pattern matching lambdas
 (http://wiki.portal.chalmers.se/agda/pmwiki.php?n=ReferenceManual.PatternMatchingLambdas).
 
 ::
 
-  sys' : ∀ i → Partial (i ∨ ~ i) Set₁
-  sys' i = λ { (i = i0) → Set
-             ; (i = i1) → Set → Set }
+  partialBool' : ∀ i → Partial (i ∨ ~ i) Bool
+  partialBool' i = λ { (i = i0) → true
+                     ; (i = i1) → false }
 
-When the cases overlap they must agree:
+When the cases overlap they must agree (note that the order of the
+cases doesn't have to match the interval formula exactly):
 
 ::
 
-  sys2 : ∀ i j → Partial (i ∨ (i ∧ j)) Set₁
-  sys2 i j = λ { (i = i1)          → Set
-               ; (i = i1) (j = i1) → Set }
+  partialBool'' : ∀ i j → Partial (~ i ∨ i ∨ (i ∧ j)) Bool
+  partialBool'' i j = λ { (i = i1)          → true
+                        ; (i = i1) (j = i1) → true
+                        ; (i = i0)          → false }
 
 Furthermore ``IsOne i0`` is actually absurd
 
 ::
 
-  sys3 : Partial i0 Set₁
-  sys3 = λ { () }
+  empty : {A : Set} → Partial i0 A
+  empty = λ { () }
 
 Cubical Agda also has cubical subtypes as in the CCHM type theory:
 
