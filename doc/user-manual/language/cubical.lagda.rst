@@ -362,7 +362,7 @@ of paths so that we can compose multiple composable cubes.
 
 When calling ``hcomp {φ = φ} u u0`` Agda makes sure that ``u0`` agrees
 with ``u i0`` on ``φ``. The idea is that ``u0`` is the base and ``u``
-specify the sides of an open box. This is hence an open (higher
+specifies the sides of an open box. This is hence an open (higher
 dimensional) cube (maybe with some sides missing) where the side
 opposite of ``u0`` is missing. The ``hcomp`` operation then gives us
 the missing side of the cube. For example binary composition of paths
