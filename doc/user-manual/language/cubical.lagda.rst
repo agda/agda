@@ -419,7 +419,7 @@ When calling ``hcomp {φ = φ} u u0`` Agda makes sure that ``u0`` agrees
 with ``u i0`` on ``φ``. The idea is that ``u0`` is the base and ``u``
 specifies the sides of an open box. This is hence an open (higher
 dimensional) cube where the side opposite of ``u0`` is missing. The
-``hcomp`` operation then gives us the missing side opposite ove
+``hcomp`` operation then gives us the missing side opposite of
 ``u0``. For example binary composition of paths can be written as:
 
 ::
