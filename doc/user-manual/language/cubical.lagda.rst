@@ -80,7 +80,6 @@ the following to the top of a file (this assumes that the
 .. code-block:: agda
 
   {-# OPTIONS --cubical #-}
-  module MyModule where
 
   open import Cubical.Core.Everything
 
@@ -745,7 +744,6 @@ follows:
 .. code-block:: agda
 
   {-# OPTIONS --cubical #-}
-  module MyModule where
 
   open import Cubical.Core.HoTT-UF
 
