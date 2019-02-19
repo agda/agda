@@ -92,7 +92,7 @@ make this library visible to Agda add
 path to where the ``agda/cubical`` library has been installed). For
 details of Agda's library management see :ref:`package-system`.
 
-Expert users who doesn't want to rely on ``agda/cubical`` can just add
+Expert users who do not want to rely on ``agda/cubical`` can just add
 the relevant import statements at the top of their file (for details
 see :ref:`primitives-ref`). However, for beginners it is
 recommended that one uses at least the core part of the
