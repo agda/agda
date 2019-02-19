@@ -133,29 +133,16 @@ elements, respectively.
 
 .. code-block:: agda
 
-  module interval-equations (i j : I) where
-    data _≡_ (i : I) : I → Setω where
-      reflI : i ≡ i
-
-    infix 10 _≡_
-
-    p₁ : i0 ∨ i    ≡ i
-    p₂ : i  ∨ i1   ≡ i1
-    p₃ : i  ∨ j    ≡ j ∨ i
-    p₄ : i  ∧ j    ≡ j ∧ i
-    p₅ : ~ (~ i)   ≡ i
-    p₆ : i0        ≡ ~ i1
-    p₇ : ~ (i ∨ j) ≡ ~ i ∧ ~ j
-    p₈ : ~ (i ∧ j) ≡ ~ i ∨ ~ j
-
-    p₁ = reflI
-    p₂ = reflI
-    p₃ = reflI
-    p₄ = reflI
-    p₅ = reflI
-    p₆ = reflI
-    p₇ = reflI
-    p₈ = reflI
+    i0 ∨ i    = i
+    i  ∨ i1   = i1
+    i  ∨ j    = j ∨ i
+    i0 ∧ i    = i0
+    i1 ∧ i    = i
+    i  ∧ j    = j ∧ i
+    ~ (~ i)   = i
+    i0        = ~ i1
+    ~ (i ∨ j) = ~ i ∧ ~ j
+    ~ (i ∧ j) = ~ i ∨ ~ j
 
 The core idea of Homotopy Type Theory and Univalent Foundations is a
 correspondence between paths (as in topology) and (proof-relevant)
