@@ -1,5 +1,6 @@
 ..
   ::
+
   {-# OPTIONS --cubical #-}
   module language.cubical where
 
@@ -35,20 +36,20 @@
 
 .. _cubical:
 
-***************************
-Cubical Type Theory in Agda
-***************************
+*******
+Cubical
+*******
 
-As of version 2.6.0 Agda has a cubical mode which extends Agda with a
-variety of features from Cubical Type Theory. In particular,
-computational univalence and higher inductive types which hence gives
-computational meaning to `Homotopy Type Theory and Univalent
-Foundations <https://homotopytypetheory.org/>`_. The version of
-Cubical Type Theory that Agda implements is a variation of the `CCHM`_
-Cubical Type Theory where the Kan composition operations are
-decomposed into homogeneous composition and generalized
-transport. This is what makes the general schema for higher inductive
-types work, following the `CHM`_ paper.
+The Cubical mode extends Agda with a variety of features from Cubical
+Type Theory. In particular, computational univalence and higher
+inductive types which hence gives computational meaning to `Homotopy
+Type Theory and Univalent Foundations
+<https://homotopytypetheory.org/>`_. The version of Cubical Type
+Theory that Agda implements is a variation of the `CCHM`_ Cubical Type
+Theory where the Kan composition operations are decomposed into
+homogeneous composition and generalized transport. This is what makes
+the general schema for higher inductive types work, following the
+`CHM`_ paper.
 
 To use the cubical mode Agda needs to be run with the ``--cubical``
 command-line-option or with ``{-# OPTIONS --cubical #-}`` at the top
@@ -56,34 +57,42 @@ of the file.
 
 The cubical mode adds the following features to Agda:
 
-1. An interval ``I`` type and path types
-2. Partial elements and systems
-3. Kan operations (``transp`` and ``hcomp``)
-4. ``Glue`` types
-5. Higher inductive types
-6. Cubical identity types
+1. An interval type and path types
+2. Generalized transport (``transp``)
+3. Partial elements and systems
+4. Homogeneous composition (``hcomp``)
+5. Glue types
+6. Higher inductive types
+7. Cubical identity types
 
-There is a standard library for Cubical Agda available at
-https://github.com/agda/cubical.
+There is a standard ``agda/cubical`` library for Cubical Agda
+available at https://github.com/agda/cubical. This documentation uses
+the naming conventions of this library, for a detailed list of all of
+the built-in Cubical Agda files and primitives see
+:ref:`primitives-ref`.
 
 The main design choices of the core part of the library are explained
 in https://homotopytypetheory.org/2018/12/06/cubical-agda/.
 
 In order to get access to the Cubical Agda primitives one should
 either import
-https://github.com/agda/cubical/blob/master/Cubical/Core/Primitives.agda
-or add the relevant import statements from the top of that file.
+https://github.com/agda/cubical/blob/master/Cubical/Core/Everything.agda
+or add the relevant import statements from the top of that file (for
+details for experts see :ref:`primitives-ref`). For beginners it is
+recommended that one uses at least the core part of the
+``agda/cubical`` library.
 
 There is also an older version of the library available at
-https://github.com/Saizan/cubical-demo/.
+https://github.com/Saizan/cubical-demo/. However this is relying on
+deprecated features and is not recommended to use.
 
 The interval and path types
 ---------------------------
 
 The key idea of Cubical Type Theory is to add an interval type ``I :
 Setω`` (the reason this is in ``Setω`` is because it doesn't support
-the Kan operations). A variable ``i : I`` intuitively corresponds to a
-point the `real unit interval
+the ``transp`` and ``hcomp`` operations). A variable ``i : I``
+intuitively corresponds to a point the `real unit interval
 <https://en.wikipedia.org/wiki/Unit_interval>`_. In an empty context,
 there are only two values of type ``I``: the two endpoints of the
 interval, ``i0`` and ``i1``.
@@ -105,7 +114,7 @@ Elements of the interval form a `De Morgan algebra
 
 All the properties of De Morgan algebras hold definitionally. The
 endpoints of the interval ``i0`` and ``i1`` are the bottom and top
-elements, respectively
+elements, respectively.
 
 .. code-block:: agda
 
@@ -226,7 +235,7 @@ particular means that we cannot yet prove the induction principle for
 paths. In order to remedy this we also have a built-in (generalized)
 transport operation and homogeneous composition operations. The
 transport operation is generalized in the sense that it lets us
-specify where it is the identity function
+specify where it is the identity function.
 
 .. code-block:: agda
 
@@ -237,16 +246,16 @@ a`` to type-check, which is that ``A`` has to be *constant* on
 ``r``. This means that ``A`` should be a constant function whenever
 the constraint ``r = i1`` is satisfied.  This side condition is
 vacuously true when ``r`` is ``i0``, so there is nothing to check when
-writing ``transp A i0 a``. However when ``r`` is equal to `i1` the
-``transp`` function will compute as the identity function
+writing ``transp A i0 a``. However when ``r`` is equal to ``i1`` the
+``transp`` function will compute as the identity function.
 
 .. code-block:: agda
 
    transp A i1 a = a
 
-and this requires ``A`` to be constant for it to be well-typed.
+This requires ``A`` to be constant for it to be well-typed.
 
-We can use `transp` to define regular transport:
+We can use ``transp`` to define regular transport:
 
 ::
 
@@ -266,8 +275,8 @@ induction principle for paths:
 One subtle difference between paths and the propositional equality
 type of Agda is that the computation rule for ``J`` does not hold
 definitionally. If ``J`` is defined using pattern-matching as in the
-standard library then this holds, however as the path types are not
-inductively defined this does not hold for the above definition of
+Agda standard library then this holds, however as the path types are
+not inductively defined this does not hold for the above definition of
 ``J``. In particular, transport in a constant family is only the
 identity function up to a path which implies that the computation rule
 for ``J`` only holds up to a path:
@@ -282,9 +291,9 @@ for ``J`` only holds up to a path:
   JRefl P d = transportRefl d
 
 Internally in Agda the ``transp`` operation computes by cases on the
-type, so for example for Sigma types it is computed elementwise. For
-path types it is however not yet possible to provide the computation
-rule as we need some way to remember the endpoints of the path after
+type, so for example for Σ-types it is computed elementwise. For path
+types it is however not yet possible to provide the computation rule
+as we need some way to remember the endpoints of the path after
 transporting it. Furthermore, this must work for arbitrary higher
 dimensional cubes (as we can iterate the path types). For this we
 introduce the "homogeneous composition operations" (``hcomp``) that
@@ -362,10 +371,9 @@ Cubical Agda also has cubical subtypes as in the CCHM type theory:
   _[_↦_] : ∀ {ℓ} (A : Set ℓ) (φ : I) (u : Partial φ A) → Setω
   A [ φ ↦ u ] = Sub A φ u
 
-A term ``v : A [ φ ↦ u ]`` is of type ``v : A`` and when ``IsOne φ``
-it must be definitionally equal to ``u : A``. Any term ``u : A`` can
-be seen as an term of ``A [ φ ↦ u ]`` which agrees with itself on
-``φ``:
+A term ``v : A [ φ ↦ u ]`` is of type ``A`` and when ``IsOne φ`` it
+must be definitionally equal to ``u : A``. Any term ``u : A`` can be
+seen as an term of ``A [ φ ↦ u ]`` which agrees with itself on ``φ``:
 
 .. code-block:: agda
 
@@ -394,18 +402,16 @@ of paths so that we can compose multiple composable cubes.
 When calling ``hcomp {φ = φ} u u0`` Agda makes sure that ``u0`` agrees
 with ``u i0`` on ``φ``. The idea is that ``u0`` is the base and ``u``
 specifies the sides of an open box. This is hence an open (higher
-dimensional) cube (maybe with some sides missing) where the side
-opposite of ``u0`` is missing. The ``hcomp`` operation then gives us
-the missing side of the cube. For example binary composition of paths
-can be written as:
+dimensional) cube where the side opposite of ``u0`` is missing. The
+``hcomp`` operation then gives us the missing side opposite ove
+``u0``. For example binary composition of paths can be written as:
 
 ::
 
   compPath : ∀ {ℓ} {A : Set ℓ} {x y z : A} → x ≡ y → y ≡ z → x ≡ z
-  compPath {x = x} p q i =
-    hcomp (λ j → λ { (i = i0) → x
-                   ; (i = i1) → q j })
-          (p i)
+  compPath {x = x} p q i = hcomp (λ j → λ { (i = i0) → x
+                                          ; (i = i1) → q j })
+                                 (p i)
 
 Pictorially we are given ``p : x ≡ y`` and ``q : y ≡ z``, and the
 composite of the two paths is obtained by computing the missing lid of
@@ -434,31 +440,29 @@ We can also define homogeneous filling of cubes as
   hfill : ∀ {ℓ} {A : Set ℓ} {φ : I}
           (u : ∀ i → Partial φ A) (u0 : A [ φ ↦ u i0 ])
           (i : I) → A
-  hfill {φ = φ} u u0 i =
-    hcomp (λ j → λ { (φ = i1) → u (i ∧ j) 1=1
-                   ; (i = i0) → ouc u0 })
-          (ouc u0)
+  hfill {φ = φ} u u0 i = hcomp (λ j → λ { (φ = i1) → u (i ∧ j) 1=1
+                                        ; (i = i0) → ouc u0 })
+                               (ouc u0)
 
 When ``i`` is ``i0`` this is ``u0`` and when ``i`` is ``i1`` this is
-``hcomp``. This can hence be seen as giving us the interior of an open
-box. In the special case of the square above ``hfill`` gives us a
+``hcomp u u0``. This can hence be seen as giving us the interior of an
+open box. In the special case of the square above ``hfill`` gives us a
 direct cubical proof that composing ``p`` with ``refl`` is ``p``.
 
 ::
 
   compPathRefl : ∀ {ℓ} {A : Set ℓ} {x y : A} (p : x ≡ y) → compPath p refl ≡ p
-  compPathRefl {x = x} {y = y} p j i =
-    hfill (λ _ → λ { (i = i0) → x
-                  ; (i = i1) → y })
-         (inc (p i))
-         (~ j)
+  compPathRefl {x = x} {y = y} p j i = hfill (λ _ → λ { (i = i0) → x
+                                                      ; (i = i1) → y })
+                                             (inc (p i))
+                                             (~ j)
 
 
 Glue types
 ----------
 
 In order to be able to prove the univalence theorem we also have to
-add "Glue types". These lets us turn equivalences between types into
+add "Glue" types. These lets us turn equivalences between types into
 paths between types. An equivalence of types ``A`` and ``B`` is
 defined as a map ``f : A → B`` such that its fibers are contractible.
 
@@ -534,8 +538,8 @@ follows:
   ua {_} {A} {B} e i = Glue B (λ { (i = i0) → (A , e)
                                  ; (i = i1) → (B , idEquiv B) })
 
-The idea is that we glue on ``A`` to ``B`` when ``i`` is ``i0`` using
-``e`` and ``B`` to itself when ``i`` is ``i1`` using the identity
+The idea is that we glue on ``A`` to ``B`` when ``i = i0`` using ``e``
+and ``B`` to itself when ``i = i1`` using the identity
 equivalence. This hence gives us the key part of univalence: a
 function for turning equivalences into paths. The other part of
 univalence is that this map itself is an equivalence which follows
@@ -551,7 +555,7 @@ equivalence is hence the same as applying the equivalence. This is
 what makes it possible to use the univalence axiom computationally in
 Cubical Agda: we can package up our equivalences as paths, do equality
 reasoning using these paths, and in the end transport along the paths
-in order to compute with them.
+in order to compute with the equivalences.
 
 For more results about Glue types and univalence see
 https://github.com/agda/cubical/blob/master/Cubical/Core/Glue.agda and
@@ -601,7 +605,8 @@ When giving the cases for the path and square constructors we have to
 make sure that the function maps the boundary to the right thing. For
 instance the following definition does not pass Agda's typechecker as
 the boundary of the last case does not match up with the expected
-boundary of the square constructor.
+boundary of the square constructor (as the ``line1`` and ``line2``
+cases are mixed up).
 
 .. code-block:: agda
 
@@ -719,13 +724,13 @@ which computes properly.
            )
 
 However, even though this interface exists it is still recommended
-that one uses the cubical primitives unless one really need ``J`` to
-compute on ``refl``. The reason for this is that the syntax for path
-types does not work for the identity types, making many proofs more
-involved as the only way to reason about the identity types is using
-``J``.
+that one uses the cubical identity types unless one really need ``J``
+to compute on ``refl``. The reason for this is that the syntax for
+path types does not work for the identity types, making many proofs
+more involved as the only way to reason about them is using ``J``
+(furthermore, the path types satisfy many useful definitional
+equalities that the identity types don't).
 
-----------
 References
 ----------
 
@@ -739,3 +744,168 @@ References
 
   Thierry Coquand, Simon Huber, Anders Mörtberg; `"On Higher Inductive
   Types in Cubical Type Theory" <https://arxiv.org/abs/1802.01170>`_.
+
+
+.. _primitives-ref:
+
+Appendix: Cubical Agda primitives
+---------------------------------
+
+The Cubical Agda primitives and internals are exported by a series of
+files found in the ``lib/prim/Agda/Builtin/Cubical`` directory of
+Agda. The ``agda/cubical`` library exports all of these primitives
+with the names used throughout this document. Experts might find it
+useful to know what is actually exported as there are quite a few
+primitives available that are not really exported by ``agda/cubical``,
+so the goal of this section is to list the contents of these
+files. However, for regular users and beginners the ``agda/cubical``
+library should be sufficient and this section can safely be ignored.
+
+The key file with primitives is ``Agda.Primitive.Cubical``. It exports
+the following ``BUILTIN``, primitives and postulates:
+
+.. code-block:: agda
+
+  {-# BUILTIN INTERVAL I    #-} -- I : Setω
+  {-# BUILTIN IZERO    i0   #-}
+  {-# BUILTIN IONE     i1   #-}
+
+  infix 30 primINeg
+  infixr 20 primIMin primIMax
+
+  primitive
+    primIMin : I → I → I   -- _∧_
+    primIMax : I → I → I   -- _∨_
+    primINeg : I → I       -- ~_
+
+  {-# BUILTIN ISONE IsOne #-} -- IsOne : I → Setω
+
+  postulate
+    itIsOne : IsOne i1     -- 1=1
+    IsOne1  : ∀ i j → IsOne i → IsOne (primIMax i j)
+    IsOne2  : ∀ i j → IsOne j → IsOne (primIMax i j)
+
+  {-# BUILTIN ITISONE      itIsOne  #-}
+  {-# BUILTIN ISONE1       IsOne1   #-}
+  {-# BUILTIN ISONE2       IsOne2   #-}
+  {-# BUILTIN PARTIAL      Partial  #-}
+  {-# BUILTIN PARTIALP     PartialP #-}
+
+  postulate
+    isOneEmpty : ∀ {a} {A : Partial i0 (Set a)} → PartialP i0 A
+  {-# BUILTIN ISONEEMPTY isOneEmpty #-}
+
+  primitive
+    primPOr : ∀ {a} (i j : I) {A : Partial (primIMax i j) (Set a)}
+            → PartialP i (λ z → A (IsOne1 i j z)) → PartialP j (λ z → A (IsOne2 i j z))
+            → PartialP (primIMax i j) A
+
+    -- Computes in terms of primHComp and primTransp
+    primComp : ∀ {a} (A : (i : I) → Set (a i)) (φ : I) → (∀ i → Partial φ (A i)) → (a : A i0) → A i1
+
+  syntax primPOr p q u t = [ p ↦ u , q ↦ t ]
+
+  primitive
+    primTransp : ∀ {a} (A : (i : I) → Set (a i)) (φ : I) → (a : A i0) → A i1
+    primHComp : ∀ {a} {A : Set a} {φ : I} → (∀ i → Partial φ A) → A → A
+
+The Path types are exported by ``Agda.Builtin.Cubical.Path``:
+
+.. code-block:: agda
+
+  postulate
+    PathP : ∀ {ℓ} (A : I → Set ℓ) → A i0 → A i1 → Set ℓ
+
+  {-# BUILTIN PATHP        PathP     #-}
+
+  infix 4 _≡_
+  _≡_ : ∀ {ℓ} {A : Set ℓ} → A → A → Set ℓ
+  _≡_ {A = A} = PathP (λ _ → A)
+
+  {-# BUILTIN PATH         _≡_     #-}
+
+The Cubical subtypes are exported by ``Agda.Builtin.Cubical.Sub``:
+
+.. code-block:: agda
+
+  {-# BUILTIN SUB Sub #-}
+
+  postulate
+    inc : ∀ {ℓ} {A : Set ℓ} {φ} (x : A) → Sub A φ (λ _ → x)
+
+  {-# BUILTIN SUBIN inc #-}
+
+  primitive
+    primSubOut : ∀ {ℓ} {A : Set ℓ} {φ : I} {u : Partial φ A} → Sub _ φ u → A
+
+The Glue types are exported by ``Agda.Builtin.Cubical.Glue``:
+
+.. code-block:: agda
+
+  record isEquiv {ℓ ℓ'} {A : Set ℓ} {B : Set ℓ'} (f : A → B) : Set (ℓ ⊔ ℓ') where
+    field
+      equiv-proof : (y : B) → isContr (fiber f y)
+  infix 4 _≃_
+
+  _≃_ : ∀ {ℓ ℓ'} (A : Set ℓ) (B : Set ℓ') → Set (ℓ ⊔ ℓ')
+  A ≃ B = Σ (A → B) \ f → (isEquiv f)
+
+  equivFun : ∀ {ℓ ℓ'} {A : Set ℓ} {B : Set ℓ'} → A ≃ B → A → B
+  equivFun e = fst e
+
+  equivProof : ∀ {la lt} (T : Set la) (A : Set lt) → (w : T ≃ A) → (a : A)
+             → ∀ ψ → (Partial ψ (fiber (w .fst) a)) → fiber (w .fst) a
+  equivProof A B w a ψ fb = contr' {A = fiber (w .fst) a} (w .snd .equiv-proof a) ψ fb
+    where
+      contr' : ∀ {ℓ} {A : Set ℓ} → isContr A → (φ : I) → (u : Partial φ A) → A
+      contr' {A = A} (c , p) φ u = hcomp (λ i → λ { (φ = i1) → p (u 1=1) i
+                                                  ; (φ = i0) → c }) c
+
+  {-# BUILTIN EQUIV      _≃_        #-}
+  {-# BUILTIN EQUIVFUN   equivFun   #-}
+  {-# BUILTIN EQUIVPROOF equivProof #-}
+
+  primitive
+    primGlue    : ∀ {ℓ ℓ'} (A : Set ℓ) {φ : I}
+      → (T : Partial φ (Set ℓ')) → (e : PartialP φ (λ o → T o ≃ A))
+      → Set ℓ'
+    prim^glue   : ∀ {ℓ ℓ'} {A : Set ℓ} {φ : I}
+      → {T : Partial φ (Set ℓ')} → {e : PartialP φ (λ o → T o ≃ A)}
+      → PartialP φ T → A → primGlue A T e
+    prim^unglue : ∀ {ℓ ℓ'} {A : Set ℓ} {φ : I}
+      → {T : Partial φ (Set ℓ')} → {e : PartialP φ (λ o → T o ≃ A)}
+      → primGlue A T e → A
+    primFaceForall : (I → I) → I
+
+  -- pathToEquiv proves that transport is an equivalence (for details
+  -- see Agda.Builtin.Cubical.Glue). This is needed internally.
+  {-# BUILTIN PATHTOEQUIV pathToEquiv #-}
+
+The ``Agda.Builtin.Cubical.Id`` exports the cubical identity types:
+
+.. code-block:: agda
+
+  postulate
+    Id : ∀ {ℓ} {A : Set ℓ} → A → A → Set ℓ
+
+  {-# BUILTIN ID           Id       #-}
+  {-# BUILTIN CONID        conid    #-}
+
+  primitive
+    primDepIMin : _
+    primIdFace : ∀ {ℓ} {A : Set ℓ} {x y : A} → Id x y → I
+    primIdPath : ∀ {ℓ} {A : Set ℓ} {x y : A} → Id x y → x ≡ y
+
+  primitive
+    primIdJ : ∀ {ℓ ℓ'} {A : Set ℓ} {x : A} (P : ∀ y → Id x y → Set ℓ') →
+                P x (conid i1 (λ i → x)) → ∀ {y} (p : Id x y) → P y p
+
+
+  primitive
+    primIdElim : ∀ {a c} {A : Set a} {x : A}
+                   (C : (y : A) → Id x y → Set c) →
+                   ((φ : I) (y : A [ φ ↦ (λ _ → x) ])
+                    (w : (x ≡ ouc y) [ φ ↦ (λ { (φ = i1) → \ _ → x}) ]) →
+                    C (ouc y) (conid φ (ouc w))) →
+                   {y : A} (p : Id x y) → C y p
+
