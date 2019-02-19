@@ -227,7 +227,7 @@ Transport
 ---------
 
 While path types are great for reasoning about equality they don't let
-us transport along paths between types or even compose path, which in
+us transport along paths between types or even compose paths, which in
 particular means that we cannot yet prove the induction principle for
 paths. In order to remedy this we also have a built-in (generalized)
 transport operation and homogeneous composition operations. The
