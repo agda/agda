@@ -647,9 +647,15 @@ nextFresh s =
   let !c = s^.freshLens
   in (c, set freshLens (nextFresh' c) s)
 
-fresh :: (HasFresh i, MonadTCState m) => m i
-fresh =
-    do  !s <- getTC
+class Monad m => MonadFresh i m where
+  fresh :: m i
+
+instance MonadFresh i m => MonadFresh i (ReaderT r m) where
+  fresh = lift fresh
+
+instance HasFresh i => MonadFresh i TCM where
+  fresh = do
+        !s <- getTC
         let (!c , !s') = nextFresh s
         putTC s'
         return c
@@ -704,27 +710,27 @@ instance Pretty CheckpointId where
 instance HasFresh CheckpointId where
   freshLens = stFreshCheckpointId
 
-freshName :: MonadTCState m => Range -> String -> m Name
+freshName :: MonadFresh NameId m => Range -> String -> m Name
 freshName r s = do
   i <- fresh
   return $ mkName r i s
 
-freshNoName :: MonadTCState m => Range -> m Name
+freshNoName :: MonadFresh NameId m => Range -> m Name
 freshNoName r =
     do  i <- fresh
         return $ Name i (C.NoName noRange i) r noFixity' False
 
-freshNoName_ :: MonadTCState m => m Name
+freshNoName_ :: MonadFresh NameId m => m Name
 freshNoName_ = freshNoName noRange
 
-freshRecordName :: MonadTCState m => m Name
+freshRecordName :: MonadFresh NameId m => m Name
 freshRecordName = do
   i <- fresh
   return $ Name i (C.Name noRange C.NotInScope [C.Id "r"]) noRange noFixity' True
 
 -- | Create a fresh name from @a@.
 class FreshName a where
-  freshName_ :: MonadTCState m => a -> m Name
+  freshName_ :: MonadFresh NameId m => a -> m Name
 
 instance FreshName (Range, String) where
   freshName_ = uncurry freshName

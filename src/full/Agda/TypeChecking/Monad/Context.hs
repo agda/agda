@@ -78,7 +78,9 @@ escapeContext n = modifyContext $ drop n
 -- * Manipulating checkpoints --
 
 -- | Add a new checkpoint. Do not use directly!
-checkpoint :: (MonadDebug tcm, MonadTCM tcm) => Substitution -> tcm a -> tcm a
+checkpoint
+  :: (MonadDebug tcm, MonadTCM tcm, MonadFresh CheckpointId tcm)
+  => Substitution -> tcm a -> tcm a
 checkpoint sub k = do
   unlessDebugPrinting $ reportSLn "tc.cxt.checkpoint" 105 $ "New checkpoint {"
   old     <- viewTC eCurrentCheckpoint
@@ -114,7 +116,9 @@ checkpoint sub k = do
 
 -- | Update the context. Requires a substitution from the old context to the
 --   new.
-updateContext :: (MonadDebug tcm, MonadTCM tcm) => Substitution -> (Context -> Context) -> tcm a -> tcm a
+updateContext
+  :: (MonadDebug tcm, MonadTCM tcm, MonadFresh CheckpointId tcm)
+  => Substitution -> (Context -> Context) -> tcm a -> tcm a
 updateContext sub f = modifyContext f . checkpoint sub
 
 -- | Get the substitution from the context at a given checkpoint to the current context.
@@ -196,7 +200,9 @@ instance MonadAddContext TCM where
 
   withFreshName r x m = freshName r x >>= m
 
-addRecordNameContext :: (MonadDebug m, MonadTCM m) => Dom Type -> m b -> m b
+addRecordNameContext
+  :: (MonadAddContext m, MonadFresh NameId m)
+  => Dom Type -> m b -> m b
 addRecordNameContext dom ret = do
   x <- setNotInScope <$> freshRecordName
   addCtx x dom ret
