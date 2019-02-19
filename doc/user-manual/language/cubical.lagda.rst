@@ -162,7 +162,7 @@ The core idea of Homotopy Type Theory and Univalent Foundations is a
 correspondence between paths (as in topology) and (proof-relevant)
 equality (as in Martin-Löf's identity type). This correspondence is
 taken very literally in Cubical Agda where a path in a type ``A`` is
-represented like a function out of the interval, ``I → A``. In fact a
+represented like a function out of the interval, ``I → A``. A
 path type is in fact a special case of the more general built-in
 heterogeneous path types:
 
