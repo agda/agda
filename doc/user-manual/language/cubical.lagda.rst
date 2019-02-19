@@ -3,15 +3,35 @@
   {-# OPTIONS --cubical #-}
   module language.cubical where
 
+  open import Agda.Primitive
   open import Agda.Primitive.Cubical
-                         renaming ( primIMin to _∧_
-                                  ; primIMax to _∨_
-                                  ; primINeg to ~_
-                                  ; isOneEmpty to empty
-                                  ; primHComp to hcomp
-                                  ; primTransp to transp
-                                  ; itIsOne to 1=1 )
-  open import Agda.Builtin.Cubical.Path renaming (_≡_ to Path)
+    renaming ( primIMin to _∧_
+             ; primIMax to _∨_
+             ; primINeg to ~_
+             ; primHComp to hcomp
+             ; primTransp to transp
+             ; itIsOne to 1=1 )
+  open import Agda.Builtin.Cubical.Path
+  open import Agda.Builtin.Cubical.Sub
+    renaming ( primSubOut to ouc )
+  open import Agda.Builtin.Cubical.Glue public
+    using ( isEquiv
+          ; equiv-proof
+          ; _≃_
+          ; primGlue )
+  open import Agda.Builtin.Sigma public
+
+  infix 2 Σ-syntax
+
+  Σ-syntax : ∀ {ℓ ℓ'} (A : Set ℓ) (B : A → Set ℓ') → Set (ℓ ⊔ ℓ')
+  Σ-syntax = Σ
+
+  syntax Σ-syntax A (λ x → B) = Σ[ x ∈ A ] B
+
+  _×_ : ∀ {ℓ ℓ'} (A : Set ℓ) (B : Set ℓ') → Set (ℓ ⊔ ℓ')
+  A × B = Σ A (λ _ → B)
+
+  infixr 5 _×_
 
 .. _cubical:
 
@@ -90,7 +110,7 @@ elements, respectively
 .. code-block:: agda
 
   module interval-equations (i j : I) where
-    data _≡_ (i : I) : I → Set where
+    data _≡_ (i : I) : I → Setω where
       reflI : i ≡ i
 
     infix 10 _≡_
@@ -113,7 +133,6 @@ elements, respectively
     p₇ = reflI
     p₈ = reflI
 
-
 The core idea of Homotopy Type Theory and Univalent Foundations is a
 correspondence between paths (as in topology) and (proof-relevant)
 equality (as in Martin-Löf's identity type). This correspondence is
@@ -122,13 +141,14 @@ represented like a function out of the interval, ``I → A``. In fact a
 path type is in fact a special case of the more general built-in
 heterogeneous path types:
 
-.. code-block:: agda
+..
+  ::
 
-   PathP : ∀ {ℓ} (A : I → Set ℓ) → A i0 → A i1 → Set ℓ
+  -- PathP : ∀ {ℓ} (A : I → Set ℓ) → A i0 → A i1 → Set ℓ
 
-   -- Non dependent path types
-   Path : ∀ {ℓ} (A : Set ℓ) → A → A → Set ℓ
-   Path A a b = PathP (λ _ → A) a b
+  -- Non dependent path types
+  Path : ∀ {ℓ} (A : Set ℓ) → A → A → Set ℓ
+  Path A a b = PathP (λ _ → A) a b
 
 The central notion of equality in Cubical Agda is hence heterogeneous
 equality (in the sense of ``PathOver`` in HoTT). To define paths we
@@ -136,7 +156,8 @@ use λ-abstractions and to apply them we use regular application.  For
 example, this is the definition of the constant path (or proof of
 reflexivity):
 
-.. code-block:: agda
+..
+  ::
 
   refl : ∀ {ℓ} {A : Set ℓ} {x : A} → Path A x x
   refl {x = x} = λ i → x
@@ -155,7 +176,8 @@ i → A) x y`` gets printed as ``x ≡ y`` when ``A`` does not mention
 higher cubes in Agda, making the type theory cubical. For example a
 square in ``A`` is built out of 4 points and 4 lines:
 
-.. code-block:: agda
+..
+  ::
 
   Square : ∀ {ℓ} {A : Set ℓ} {x0 x1 y0 y1 : A} →
              x0 ≡ x1 → y0 ≡ y1 → x0 ≡ y0 → x1 ≡ y1 → Set ℓ
@@ -164,7 +186,8 @@ square in ``A`` is built out of 4 points and 4 lines:
 Viewing equalities as functions out of the interval makes it possible
 to do a lot of equality reasoning in a very direct way:
 
-.. code-block:: agda
+..
+  ::
 
   sym : ∀ {ℓ} {A : Set ℓ} {x y : A} → x ≡ y → y ≡ x
   sym p = λ i → p (~ i)
@@ -176,7 +199,8 @@ to do a lot of equality reasoning in a very direct way:
 Because of the way functions compute these satisfy some new
 definitional equalities compared to the standard Agda definitions:
 
-.. code-block:: agda
+..
+  ::
 
   symInv : ∀ {ℓ} {A : Set ℓ} {x y : A} (p : x ≡ y) → sym (sym p) ≡ p
   symInv p = refl
@@ -192,7 +216,8 @@ Path types also lets us prove new things are not provable in standard
 Agda, for example function extensionality (pointwise equal functions
 are equal) has an extremely simple proof:
 
-.. code-block:: agda
+..
+  ::
 
   funExt : ∀ {ℓ} {A : Set ℓ} {B : A → Set ℓ} {f g : (x : A) → B x} →
              ((x : A) → f x ≡ g x) → f ≡ g
@@ -217,7 +242,8 @@ When calling ``transp A r a`` Agda makes sure that ``A`` is constant
 on ``r`` so that ``transp A i1 a`` is definitionally ``a``. This lets
 us define regular transport as
 
-.. code-block:: agda
+..
+  ::
 
   transport : ∀ {ℓ} {A B : Set ℓ} → A ≡ B → A → B
   transport p a = transp (λ i → p i) i0 a
@@ -225,7 +251,8 @@ us define regular transport as
 By combining the transport and min operations we can define the
 induction principle for paths:
 
-.. code-block:: agda
+..
+  ::
 
   J : ∀ {ℓ} {A : Set ℓ} {x : A} (P : ∀ y → x ≡ y → Set ℓ)
         (d : P x refl) {y : A} (p : x ≡ y)
@@ -241,7 +268,8 @@ inductively defined this does not hold for the above definition of
 identity function up to a path which implies that the computation rule
 for ``J`` only holds up to a path:
 
-.. code-block:: agda
+..
+  ::
 
   transportRefl : ∀ {ℓ} {A : Set ℓ} (x : A) → transport refl x ≡ x
   transportRefl {A = A} x i = transp (λ _ → A) i x
@@ -292,7 +320,8 @@ when ``IsOne φ``.  There is also a dependent version of this called
 
 Partial elements are introduced using pattern matching:
 
-.. code-block:: agda
+..
+  ::
 
   sys : ∀ i → Partial (i ∨ ~ i) Set₁
   sys i (i = i0) = Set
@@ -303,7 +332,8 @@ is, when ``(i = i0) ∨ (i = i1)``. Terms of type ``Partial φ A`` can
 also be introduced using pattern matching lambdas
 (http://wiki.portal.chalmers.se/agda/pmwiki.php?n=ReferenceManual.PatternMatchingLambdas).
 
-.. code-block:: agda
+..
+  ::
 
   sys' : ∀ i → Partial (i ∨ ~ i) Set₁
   sys' i = λ { (i = i0) → Set
@@ -311,7 +341,8 @@ also be introduced using pattern matching lambdas
 
 When the cases overlap they must agree:
 
-.. code-block:: agda
+..
+  ::
 
   sys2 : ∀ i j → Partial (i ∨ (i ∧ j)) Set₁
   sys2 i j = λ { (i = i1)          → Set
@@ -319,14 +350,16 @@ When the cases overlap they must agree:
 
 Furthermore ``IsOne i0`` is actually absurd
 
-.. code-block:: agda
+..
+  ::
 
   sys3 : Partial i0 Set₁
   sys3 = λ { () }
 
 Cubical Agda also has cubical subtypes as in the CCHM type theory:
 
-.. code-block:: agda
+..
+  ::
 
   _[_↦_] : ∀ {ℓ} (A : Set ℓ) (φ : I) (u : Partial φ A) → Setω
   A [ φ ↦ u ] = Sub A φ u
@@ -368,7 +401,8 @@ opposite of ``u0`` is missing. The ``hcomp`` operation then gives us
 the missing side of the cube. For example binary composition of paths
 can be written as:
 
-.. code-block:: agda
+..
+  ::
 
   compPath : ∀ {ℓ} {A : Set ℓ} {x y z : A} → x ≡ y → y ≡ z → x ≡ z
   compPath {x = x} p q i =
@@ -398,7 +432,8 @@ abstracted in the first argument to ``hcomp``.
 
 We can also define homogeneous filling of cubes as
 
-.. code-block:: agda
+..
+  ::
 
   hfill : ∀ {ℓ} {A : Set ℓ} {φ : I}
           (u : ∀ i → Partial φ A) (u0 : A [ φ ↦ u i0 ])
@@ -413,7 +448,8 @@ When ``i`` is ``i0`` this is ``u0`` and when ``i`` is ``i1`` this is
 box. In the special case of the square above ``hfill`` gives us a
 direct cubical proof that composing ``p`` with ``refl`` is ``p``.
 
-.. code-block:: agda
+..
+  ::
 
   compPathRefl : ∀ {ℓ} {A : Set ℓ} {x y : A} (p : x ≡ y) → compPath p refl ≡ p
   compPathRefl {x = x} {y = y} p j i =
@@ -446,6 +482,22 @@ defined as a map ``f : A → B`` such that its fibers are contractible.
   _≃_ : ∀ {ℓ} (A B : Set ℓ) → Set ℓ
   A ≃ B = Σ[ f ∈ (A → B) ] (isEquiv f)
 
+The simplest example of an equivalence is the identity function.
+
+..
+  ::
+
+  idfun : ∀ {ℓ} → (A : Set ℓ) → A → A
+  idfun _ x = x
+
+  idIsEquiv : ∀ {ℓ} (A : Set ℓ) → isEquiv (idfun A)
+  equiv-proof (idIsEquiv A) y =
+    ((y , refl) , λ z i → z .snd (~ i) , λ j → z .snd (~ i ∨ j))
+
+  idEquiv : ∀ {ℓ} (A : Set ℓ) → A ≃ A
+  idEquiv A = (idfun A , idIsEquiv A)
+
+
 An important special case of equivalent types are isomorphic types
 (i.e. types with maps going back and forth which are mutually
 inverse): https://github.com/agda/cubical/blob/master/Cubical/Foundations/Isomorphism.agda.
@@ -472,9 +524,10 @@ These come with a constructor and eliminator:
 In the cubical library we uncurry the Glue types to make them more
 pleasant to use:
 
-.. code-block:: agda
+..
+  ::
 
-  Glue : ∀ (A : Set ℓ) {φ : I}
+  Glue : ∀ {ℓ ℓ'} (A : Set ℓ) {φ : I}
          → (Te : Partial φ (Σ[ T ∈ Set ℓ' ] T ≃ A))
          → Set ℓ'
   Glue A Te = primGlue A (λ x → Te x .fst) (λ x → Te x .snd)
@@ -482,7 +535,8 @@ pleasant to use:
 Using Glue types we can turn an equivalence of types into a path as
 follows:
 
-.. code-block:: agda
+..
+  ::
 
   ua : ∀ {ℓ} {A B : Set ℓ} → A ≃ B → A ≡ B
   ua {_} {A} {B} e i = Glue B (λ { (i = i0) → (A , e)
@@ -495,7 +549,8 @@ function for turning equivalences into paths. The other part of
 univalence is that this map itself is an equivalence which follows
 from the computation rule for ``ua``:
 
-.. code-block:: agda
+..
+  ::
 
   uaβ : ∀ {ℓ} {A B : Set ℓ} (e : A ≃ B) (x : A) → transport (ua e) x ≡ e .fst x
   uaβ e x = transportRefl (e .fst x)
@@ -522,7 +577,8 @@ Cubical Agda also lets us directly define higher inductive types as
 datatypes with path constructors. For example the circle and `torus
 <https://en.wikipedia.org/wiki/Torus>`_ can be defined as:
 
-.. code-block:: agda
+..
+  ::
 
   data S¹ : Set where
     base : S¹
@@ -537,7 +593,8 @@ datatypes with path constructors. For example the circle and `torus
 Functions out of higher inductive types can then be defined using
 pattern-matching:
 
-.. code-block:: agda
+..
+  ::
 
   t2c : Torus → S¹ × S¹
   t2c point        = ( base , base )
@@ -568,7 +625,8 @@ boundary of the square constructor.
 Functions defined by pattern-matching on higher inductive types
 compute definitionally, for all constructors.
 
-.. code-block:: agda
+..
+  ::
 
   c2t-t2c : ∀ (t : Torus) → c2t (t2c t) ≡ t
   c2t-t2c point        = refl
@@ -594,11 +652,15 @@ Cubical Agda also supports parameterized and recursive higher
 inductive types, for example propositional truncation (squash types)
 is defined as:
 
-.. code-block:: agda
+..
+  ::
 
   data ∥_∥ {ℓ} (A : Set ℓ) : Set ℓ where
     ∣_∣ : A → ∥ A ∥
     squash : ∀ (x y : ∥ A ∥) → x ≡ y
+
+  isProp : ∀ {ℓ} → Set ℓ → Set ℓ
+  isProp A = (x y : A) → x ≡ y
 
   recPropTrunc : ∀ {ℓ} {A : Set ℓ} {P : Set ℓ} → isProp P → (A → P) → ∥ A ∥ → P
   recPropTrunc Pprop f ∣ x ∣          = f x
