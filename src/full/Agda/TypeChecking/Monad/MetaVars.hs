@@ -1,5 +1,6 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE NondecreasingIndentation #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module Agda.TypeChecking.Monad.MetaVars where
 
@@ -35,6 +36,7 @@ import Agda.TypeChecking.Monad.Context
 import Agda.TypeChecking.Substitute
 import {-# SOURCE #-} Agda.TypeChecking.Telescope
 
+import Agda.Utils.Except
 import Agda.Utils.Functor ((<.>))
 import Agda.Utils.Lens
 import Agda.Utils.List
@@ -310,15 +312,29 @@ setMetaOccursCheck mi b = updateMetaVar mi $ \ mvar ->
 
 -- * Query and manipulate interaction points.
 
-modifyInteractionPoints :: (InteractionPoints -> InteractionPoints) -> TCM ()
-modifyInteractionPoints f =
-  stInteractionPoints `modifyTCLens` f
+class (MonadTCEnv m, ReadTCState m) => MonadInteractionPoints m where
+  freshInteractionId :: m InteractionId
+  modifyInteractionPoints :: (InteractionPoints -> InteractionPoints) -> m ()
+
+instance MonadInteractionPoints m => MonadInteractionPoints (ReaderT r m) where
+  freshInteractionId = lift freshInteractionId
+  modifyInteractionPoints = lift . modifyInteractionPoints
+
+instance MonadInteractionPoints m => MonadInteractionPoints (StateT r m) where
+  freshInteractionId = lift freshInteractionId
+  modifyInteractionPoints = lift . modifyInteractionPoints
+
+instance MonadInteractionPoints TCM where
+  freshInteractionId = fresh
+  modifyInteractionPoints f = stInteractionPoints `modifyTCLens` f
 
 -- | Register an interaction point during scope checking.
 --   If there is no interaction id yet, create one.
-registerInteractionPoint :: Bool -> Range -> Maybe Nat -> TCM InteractionId
+registerInteractionPoint
+  :: forall m. MonadInteractionPoints m
+  => Bool -> Range -> Maybe Nat -> m InteractionId
 registerInteractionPoint preciseRange r maybeId = do
-  m <- useTC stInteractionPoints
+  m <- useR stInteractionPoints
   -- If we're given an interaction id we shouldn't look up by range.
   -- This is important when doing 'refine', since all interaction points
   -- created by the refine gets the same range.
@@ -329,11 +345,12 @@ registerInteractionPoint preciseRange r maybeId = do
     -- First, try to find the interaction point by Range.
     caseMaybe (findInteractionPoint_ r m) (continue m) {-else-} return
  where
+ continue :: InteractionPoints -> m InteractionId
  continue m = do
   -- We did not find an interaction id with the same Range, so let's create one!
   ii <- case maybeId of
     Just i  -> return $ InteractionId i
-    Nothing -> fresh
+    Nothing -> freshInteractionId
   let ip = InteractionPoint { ipRange = r, ipMeta = Nothing, ipSolved = False, ipClause = IPNoClause }
   case Map.insertLookupWithKey (\ key new old -> old) ii ip m of
     -- If the interaction point is already present, we keep the old ip.
@@ -359,10 +376,12 @@ findInteractionPoint_ r m = do
     sameRange _ = Nothing
 
 -- | Hook up meta variable to interaction point.
-connectInteractionPoint :: InteractionId -> MetaId -> TCM ()
+connectInteractionPoint
+  :: MonadInteractionPoints m
+  => InteractionId -> MetaId -> m ()
 connectInteractionPoint ii mi = do
   ipCl <- asksTC envClause
-  m <- useTC stInteractionPoints
+  m <- useR stInteractionPoints
   let ip = InteractionPoint { ipRange = __IMPOSSIBLE__, ipMeta = Just mi, ipSolved = False, ipClause = ipCl }
   -- The interaction point needs to be present already, we just set the meta.
   case Map.insertLookupWithKey (\ key new old -> new { ipRange = ipRange old }) ii ip m of
@@ -370,9 +389,9 @@ connectInteractionPoint ii mi = do
     (Just _, m') -> modifyInteractionPoints $ const m'
 
 -- | Mark an interaction point as solved.
-removeInteractionPoint :: InteractionId -> TCM ()
-removeInteractionPoint ii = do
-  stInteractionPoints `modifyTCLens` Map.update (\ ip -> Just ip{ ipSolved = True }) ii
+removeInteractionPoint :: MonadInteractionPoints m => InteractionId -> m ()
+removeInteractionPoint ii =
+  modifyInteractionPoints $ Map.update (\ ip -> Just ip{ ipSolved = True }) ii
 
 -- | Get a list of interaction ids.
 {-# SPECIALIZE getInteractionPoints :: TCM [InteractionId] #-}
@@ -398,15 +417,19 @@ isInteractionMeta x = lookup x . map swap <$> getInteractionIdsAndMetas
 
 -- | Get the information associated to an interaction point.
 {-# SPECIALIZE lookupInteractionPoint :: InteractionId -> TCM InteractionPoint #-}
-lookupInteractionPoint :: MonadTCM tcm => InteractionId -> tcm InteractionPoint
+lookupInteractionPoint
+  :: (ReadTCState m, MonadError TCErr m)
+  => InteractionId -> m InteractionPoint
 lookupInteractionPoint ii =
-  fromMaybeM err $ Map.lookup ii <$> useTC stInteractionPoints
+  fromMaybeM err $ Map.lookup ii <$> useR stInteractionPoints
   where
     err  = fail $ "no such interaction point: " ++ show ii
 
 -- | Get 'MetaId' for an interaction point.
 --   Precondition: interaction point is connected.
-lookupInteractionId :: InteractionId -> TCM MetaId
+lookupInteractionId
+  :: (ReadTCState m, MonadError TCErr m, MonadTCEnv m)
+  => InteractionId -> m MetaId
 lookupInteractionId ii = fromMaybeM err2 $ ipMeta <$> lookupInteractionPoint ii
   where
     err2 = typeError $ GenericError $ "No type nor action available for hole " ++ prettyShow ii ++ ". Possible cause: the hole has not been reached during type checking (do you see yellow?)"
@@ -444,7 +467,9 @@ newMeta' inst frozen mi p perm j = do
 
 -- | Get the 'Range' for an interaction point.
 {-# SPECIALIZE getInteractionRange :: InteractionId -> TCM Range #-}
-getInteractionRange :: MonadTCM tcm => InteractionId -> tcm Range
+getInteractionRange
+  :: (MonadInteractionPoints m, MonadError TCErr m)
+  => InteractionId -> m Range
 getInteractionRange = ipRange <.> lookupInteractionPoint
 
 -- | Get the 'Range' for a meta variable.
