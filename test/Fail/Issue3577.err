@@ -1,0 +1,9 @@
+Issue3577.agda:26,19-23
+transp (λ i → Susp' (ouc (A i))) ψ (hcomp u (ouc u0)) !=
+hcomp (λ j .o → transp (λ i → Susp' (ouc (A i))) ψ (u j _))
+(transp (λ i → Susp' (ouc (A i))) ψ (ouc u0))
+of type Susp' (ouc (A i1))
+when checking that the expression refl has type
+transp (λ i → Susp' (ouc (A i))) ψ (hcomp u (ouc u0)) ≡
+hcomp (λ j .o → transp (λ i → Susp' (ouc (A i))) ψ (u j _))
+(transp (λ i → Susp' (ouc (A i))) ψ (ouc u0))
