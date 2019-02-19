@@ -232,9 +232,21 @@ specify where it is the identity function
 
   transp : ∀ {ℓ} (A : I → Set ℓ) (r : I) (a : A i0) → A i1
 
-When calling ``transp A r a`` Agda makes sure that ``A`` is constant
-on ``r`` so that ``transp A i1 a`` is definitionally ``a``. This lets
-us define regular transport as
+There is an additional side condition to be satisfied for ``transp A r
+a`` to type-check, which is that ``A`` has to be *constant* on
+``r``. This means that ``A`` should be a constant function whenever
+the constraint ``r = i1`` is satisfied.  This side condition is
+vacuously true when ``r`` is ``i0``, so there is nothing to check when
+writing ``transp A i0 a``. However when ``r`` is equal to `i1` the
+``transp`` function will compute as the identity function
+
+.. code-block:: agda
+
+   transp A i1 a = a
+
+and this requires ``A`` to be constant for it to be well-typed.
+
+We can use `transp` to define regular transport:
 
 ::
 
