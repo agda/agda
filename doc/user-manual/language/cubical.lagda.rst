@@ -94,7 +94,7 @@ details of Agda's library management see :ref:`package-system`.
 
 Expert users who doesn't want to rely on ``agda/cubical`` can just add
 the relevant import statements at the top of their file (for details
-for experts see :ref:`primitives-ref`). However, for beginners it is
+see :ref:`primitives-ref`). However, for beginners it is
 recommended that one uses at least the core part of the
 ``agda/cubical`` library.
 
