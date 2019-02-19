@@ -739,6 +739,16 @@ which computes properly.
            ; ∥∥-induction    -- Dependent elimination.
            )
 
+In order to get access to only the HoTT/UF primitives start a file as
+follows:
+
+.. code-block:: agda
+
+  {-# OPTIONS --cubical #-}
+  module MyModule where
+
+  open import Cubical.Core.HoTT-UF
+
 However, even though this interface exists it is still recommended
 that one uses the cubical identity types unless one really need ``J``
 to compute on ``refl``. The reason for this is that the syntax for
