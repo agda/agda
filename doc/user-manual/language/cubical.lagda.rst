@@ -69,16 +69,32 @@ There is a standard ``agda/cubical`` library for Cubical Agda
 available at https://github.com/agda/cubical. This documentation uses
 the naming conventions of this library, for a detailed list of all of
 the built-in Cubical Agda files and primitives see
-:ref:`primitives-ref`.
+:ref:`primitives-ref`. The main design choices of the core part of the
+library are explained in
+https://homotopytypetheory.org/2018/12/06/cubical-agda/.
 
-The main design choices of the core part of the library are explained
-in https://homotopytypetheory.org/2018/12/06/cubical-agda/.
+The recommended way to get access to the Cubical primitives is to add
+the following to the top of a file (this assumes that the
+``agda/cubical`` library is installed and visible to Agda).
 
-In order to get access to the Cubical Agda primitives one should
-either import
-https://github.com/agda/cubical/blob/master/Cubical/Core/Everything.agda
-or add the relevant import statements from the top of that file (for
-details for experts see :ref:`primitives-ref`). For beginners it is
+.. code-block:: agda
+
+  {-# OPTIONS --cubical #-}
+  module MyModule where
+
+  open import Cubical.Core.Everything
+
+For detailed install instructions for ``agda/cubical`` see:
+https://github.com/agda/cubical/blob/master/INSTALL.md. In order to
+make this library visible to Agda add
+``/path/to/cubical/cubical.agda-lib`` to ``.agda/libraries`` and
+``cubical`` to ``.agda/defaults`` (where ``path/to`` is the absolute
+path to where the ``agda/cubical`` library has been installed). For
+details of Agda's library management see :ref:`package-system`.
+
+Expert users who doesn't want to rely on ``agda/cubical`` can just add
+the relevant import statements at the top of their file (for details
+for experts see :ref:`primitives-ref`). However, for beginners it is
 recommended that one uses at least the core part of the
 ``agda/cubical`` library.
 
