@@ -1,10 +1,7 @@
--- Currently this test case is broken. Once Issue 3451 has been fixed
--- it should be moved to test/Fail (and this comment should be
--- removed).
+-- When the following combination of options is used sized types are
+-- turned off.
 
--- The option --guardedness turns off sized types.
-
-{-# OPTIONS --guardedness #-}
+{-# OPTIONS --sized-types --safe #-}
 
 open import Agda.Builtin.Size
 
