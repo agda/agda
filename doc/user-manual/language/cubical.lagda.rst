@@ -509,31 +509,25 @@ inverse): https://github.com/agda/cubical/blob/master/Cubical/Foundations/Isomor
 As everything has to work up to higher dimensions the Glue types take
 a partial family of types that are equivalent to the base type ``A``:
 
-.. code-block:: agda
+::
 
-  primGlue : ∀ {ℓ ℓ'} (A : Set ℓ) {φ : I} (T : Partial φ (Set ℓ'))
-           → (e : PartialP φ (λ o → T o ≃ A)) → Set ℓ'
+  Glue : ∀ {ℓ ℓ'} (A : Set ℓ) {φ : I}
+       → Partial φ (Σ[ T ∈ Set ℓ' ] T ≃ A) → Set ℓ'
+
+..
+  ::
+
+  Glue A Te = primGlue A (λ x → Te x .fst) (λ x → Te x .snd)
 
 These come with a constructor and eliminator:
 
 .. code-block:: agda
 
-  glue : ∀ {ℓ ℓ'} {A : Set ℓ} {φ : I} {T : Partial φ (Set ℓ')}
-           {e : PartialP φ (λ o → T o ≃ A)}
-         → PartialP φ T → A → primGlue A T e
+  glue : ∀ {ℓ ℓ'} {A : Set ℓ} {φ : I} {Te : Partial φ (Σ[ T ∈ Set ℓ' ] T ≃ A)}
+       → PartialP φ T → A → Glue A Te
 
-  unglue : ∀ {ℓ ℓ'} {A : Set ℓ} (φ : I) {T : Partial φ (Set ℓ')}
-             {e : PartialP φ (λ o → T o ≃ A)} → primGlue A T e → A
-
-In the cubical library we uncurry the Glue types to make them more
-pleasant to use:
-
-::
-
-  Glue : ∀ {ℓ ℓ'} (A : Set ℓ) {φ : I}
-         → (Te : Partial φ (Σ[ T ∈ Set ℓ' ] T ≃ A))
-         → Set ℓ'
-  Glue A Te = primGlue A (λ x → Te x .fst) (λ x → Te x .snd)
+  unglue : ∀ {ℓ ℓ'} {A : Set ℓ} (φ : I) {Te : Partial φ (Σ[ T ∈ Set ℓ' ] T ≃ A)}
+         → Glue A Te → A
 
 Using Glue types we can turn an equivalence of types into a path as
 follows:
@@ -895,6 +889,16 @@ The Glue types are exported by ``Agda.Builtin.Cubical.Glue``:
   -- pathToEquiv proves that transport is an equivalence (for details
   -- see Agda.Builtin.Cubical.Glue). This is needed internally.
   {-# BUILTIN PATHTOEQUIV pathToEquiv #-}
+
+Note that the Glue types are uncurried in ``agda/cubical`` to make
+them more pleasant to use:
+
+.. code-block:: agda
+
+  Glue : ∀ {ℓ ℓ'} (A : Set ℓ) {φ : I}
+       → (Te : Partial φ (Σ[ T ∈ Set ℓ' ] T ≃ A))
+       → Set ℓ'
+  Glue A Te = primGlue A (λ x → Te x .fst) (λ x → Te x .snd)
 
 The ``Agda.Builtin.Cubical.Id`` exports the cubical identity types:
 
