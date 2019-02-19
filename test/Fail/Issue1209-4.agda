@@ -1,7 +1,4 @@
--- When the following combination of options is used sized types are
--- turned off.
-
-{-# OPTIONS --sized-types --safe #-}
+{-# OPTIONS --safe --no-sized-types #-}
 
 open import Agda.Builtin.Size
 
@@ -13,8 +10,9 @@ record Stream (A : Set) (i : Size) : Set where
 
 open Stream
 
-postulate
-  destroy-guardedness : {A : Set} → A → A
+destroy-guardedness : ∀ {A i} → Stream A i → Stream A i
+destroy-guardedness xs .head = xs .head
+destroy-guardedness xs .tail = xs .tail
 
 repeat : ∀ {A i} → A → Stream A i
 repeat x .head = x

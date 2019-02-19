@@ -1,7 +1,4 @@
--- When the following combination of options is used constructor-based
--- guardedness is disabled.
-
-{-# OPTIONS --guardedness --safe #-}
+{-# OPTIONS --safe --no-guardedness #-}
 
 record Stream (A : Set) : Set where
   coinductive
