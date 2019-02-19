@@ -1,10 +1,9 @@
-{-# OPTIONS --without-K --safe --no-sized-types --no-guardedness #-}
+{-# OPTIONS --without-K --safe --no-universe-polymorphism --no-sized-types --no-guardedness #-}
 
 module Agda.Builtin.Char where
 
 open import Agda.Builtin.Nat
 open import Agda.Builtin.Bool
-open import Agda.Builtin.Equality
 
 postulate Char : Set
 {-# BUILTIN CHAR Char #-}
@@ -16,4 +15,3 @@ primitive
   primCharToNat : Char → Nat
   primNatToChar : Nat → Char
   primCharEquality : Char → Char → Bool
-  primCharToNatInjective : ∀ a b → primCharToNat a ≡ primCharToNat b → a ≡ b

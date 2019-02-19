@@ -5,7 +5,6 @@ module Agda.Builtin.String where
 open import Agda.Builtin.Bool
 open import Agda.Builtin.List
 open import Agda.Builtin.Char
-open import Agda.Builtin.Equality
 
 postulate String : Set
 {-# BUILTIN STRING String #-}
@@ -17,7 +16,6 @@ primitive
   primStringEquality : String → String → Bool
   primShowChar       : Char → String
   primShowString     : String → String
-  primStringToListInjective : ∀ a b → primStringToList a ≡ primStringToList b → a ≡ b
 
 {-# COMPILE JS primStringToList = function(x) { return x.split(""); } #-}
 {-# COMPILE JS primStringFromList = function(x) { return x.join(""); } #-}

@@ -498,7 +498,8 @@ Pragmas and options
 
 * New primitives `primCharToNatInjective` and `primStringToListInjective`
   internalising the fact that `primCharToNat` and `primStringtoList` are
-  injective functions.
+  injective functions. They are respectively bound in `Agda.Builtin.Char.Properties`
+  and `Agda.Builtin.String.Properties`.
 
 * Consistency checking of options used.
 
