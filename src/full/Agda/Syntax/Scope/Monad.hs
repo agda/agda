@@ -84,7 +84,7 @@ printLocals v s = verboseS "scope.top" v $ do
 useScope :: ReadTCState m => Lens' a ScopeInfo -> m a
 useScope l = useR $ stScope . l
 
-getCurrentModule :: ScopeM A.ModuleName
+getCurrentModule :: ReadTCState m => m A.ModuleName
 getCurrentModule = setRange noRange <$> useScope scopeCurrent
 
 setCurrentModule :: A.ModuleName -> ScopeM ()
