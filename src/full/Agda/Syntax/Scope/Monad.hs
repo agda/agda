@@ -161,17 +161,12 @@ modifyCurrentNameSpace :: NameSpaceId -> (NameSpace -> NameSpace) -> ScopeM ()
 modifyCurrentNameSpace acc f = modifyCurrentScope $ updateScopeNameSpaces $
   AssocList.updateAt acc f
 
-pushContextPrecedence :: Precedence -> ScopeM PrecedenceStack
-pushContextPrecedence p = do
-  old <- useScope scopePrecedence
-  modifyScope_ $ over scopePrecedence (pushPrecedence p)
-  return old
-
 setContextPrecedence :: PrecedenceStack -> ScopeM ()
 setContextPrecedence = modifyScope_ . set scopePrecedence
 
-withContextPrecedence :: Precedence -> ScopeM a -> ScopeM a
-withContextPrecedence p = bracket_ (pushContextPrecedence p) setContextPrecedence
+withContextPrecedence :: ReadTCState m => Precedence -> m a -> m a
+withContextPrecedence p =
+  locallyTCState (stScope . scopePrecedence) $ pushPrecedence p
 
 getLocalVars :: ScopeM LocalVars
 getLocalVars = useScope scopeLocals
