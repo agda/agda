@@ -68,6 +68,7 @@ import qualified Agda.Utils.AssocList as AssocList
 import Agda.Utils.Either
 import Agda.Utils.Function
 import Agda.Utils.Functor
+import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
@@ -111,7 +112,7 @@ makeEnv scope = do
 
   -- pick concrete names for in-scope names now so we don't
   -- accidentally shadow them
-  forM_ (scopeLocals scope) $ \(y , x) -> do
+  forM_ (scope ^. scopeLocals) $ \(y , x) -> do
     pickConcreteName (localVar x) y
 
   builtinList <- concat <$> mapM builtin [ builtinFromNat, builtinFromString, builtinFromNeg, builtinZero, builtinSuc ]
@@ -135,14 +136,14 @@ makeEnv scope = do
            nsNames $ everythingInScope scope
 
 currentPrecedence :: AbsToCon PrecedenceStack
-currentPrecedence = asks $ scopePrecedence . currentScope
+currentPrecedence = asks $ (^. scopePrecedence) . currentScope
 
 preserveInteractionIds :: AbsToCon a -> AbsToCon a
 preserveInteractionIds = local $ \ e -> e { preserveIIds = True }
 
 withPrecedence' :: PrecedenceStack -> AbsToCon a -> AbsToCon a
 withPrecedence' ps = local $ \e ->
-  e { currentScope = (currentScope e) { scopePrecedence = ps } }
+  e { currentScope = set scopePrecedence ps (currentScope e) }
 
 withPrecedence :: Precedence -> AbsToCon a -> AbsToCon a
 withPrecedence p ret = do
@@ -179,7 +180,7 @@ type AbsToCon = ReaderT Env TCM
 runAbsToCon :: AbsToCon c -> TCM c
 runAbsToCon m = do
   scope <- getScope
-  reportSLn "toConcrete" 50 $ render $ "entering AbsToCon with scope:" <+> prettyList_ (map (text . C.nameToRawName . fst) $ scopeLocals scope)
+  reportSLn "toConcrete" 50 $ render $ "entering AbsToCon with scope:" <+> prettyList_ (map (text . C.nameToRawName . fst) $ scope ^. scopeLocals)
   runReaderT m =<< makeEnv scope
 
 abstractToConcreteScope :: ToConcrete a c => ScopeInfo -> a -> TCM c
@@ -243,7 +244,7 @@ lookupModule x =
 --   name in the current scope?
 lookupNameInScope :: C.Name -> AbsToCon (Maybe A.Name)
 lookupNameInScope y =
-  fmap localVar . lookup y . scopeLocals <$> asks currentScope
+  fmap localVar . lookup y <$> asks ((^. scopeLocals) . currentScope)
 
 -- | Have we already committed to a specific concrete name for this
 --   abstract name? If yes, return the concrete name(s).
@@ -856,10 +857,10 @@ mergeSigAndDef (d : ds) = d : mergeSigAndDef ds
 mergeSigAndDef [] = []
 
 openModule' :: A.ModuleName -> C.ImportDirective -> (Scope -> Scope) -> Env -> Env
-openModule' x dir restrict env = env{currentScope = sInfo{scopeModules = mods'}}
+openModule' x dir restrict env = env{currentScope = set scopeModules mods' sInfo}
   where sInfo = currentScope env
-        amod  = scopeCurrent sInfo
-        mods  = scopeModules sInfo
+        amod  = sInfo ^. scopeCurrent
+        mods  = sInfo ^. scopeModules
         news  = setScopeAccess PrivateNS
                 $ applyImportDirective dir
                 $ maybe emptyScope restrict

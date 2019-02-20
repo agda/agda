@@ -44,6 +44,7 @@ import Agda.TypeChecking.Warnings ( warning )
 import qualified Agda.Utils.AssocList as AssocList
 import Agda.Utils.Function
 import Agda.Utils.Functor
+import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
@@ -66,7 +67,7 @@ type ScopeM = TCM
 
 isDatatypeModule :: A.ModuleName -> ScopeM (Maybe DataOrRecord)
 isDatatypeModule m = do
-   scopeDatatypeModule . Map.findWithDefault __IMPOSSIBLE__ m . scopeModules <$> getScope
+   scopeDatatypeModule . Map.findWithDefault __IMPOSSIBLE__ m <$> useScope scopeModules
 
 
 -- Debugging
@@ -79,11 +80,14 @@ printLocals v s = verboseS "scope.top" v $ do
 
 -- * General operations
 
+useScope :: ReadTCState m => Lens' a ScopeInfo -> m a
+useScope l = useR $ stScope . l
+
 getCurrentModule :: ScopeM A.ModuleName
-getCurrentModule = setRange noRange . scopeCurrent <$> getScope
+getCurrentModule = setRange noRange <$> useScope scopeCurrent
 
 setCurrentModule :: A.ModuleName -> ScopeM ()
-setCurrentModule m = modifyScope $ \s -> s { scopeCurrent = m }
+setCurrentModule m = modifyScope $ set scopeCurrent m
 
 withCurrentModule :: A.ModuleName -> ScopeM a -> ScopeM a
 withCurrentModule new action = do
@@ -104,7 +108,7 @@ withCurrentModule' new action = do
 getNamedScope :: A.ModuleName -> ScopeM Scope
 getNamedScope m = do
   scope <- getScope
-  case Map.lookup m (scopeModules scope) of
+  case Map.lookup m (scope ^. scopeModules) of
     Just s  -> return s
     Nothing -> do
       reportSLn "" 0 $ "ERROR: In scope\n" ++ prettyShow scope ++ "\nNO SUCH SCOPE " ++ prettyShow m
@@ -129,7 +133,7 @@ createModule b m = do
 
 -- | Apply a function to the scope map.
 modifyScopes :: (Map A.ModuleName Scope -> Map A.ModuleName Scope) -> ScopeM ()
-modifyScopes f = modifyScope $ \s -> s { scopeModules = f $ scopeModules s }
+modifyScopes = modifyScope . over scopeModules
 
 -- | Apply a function to the given scope.
 modifyNamedScope :: A.ModuleName -> (Scope -> Scope) -> ScopeM ()
@@ -159,18 +163,18 @@ modifyCurrentNameSpace acc f = modifyCurrentScope $ updateScopeNameSpaces $
 
 pushContextPrecedence :: Precedence -> ScopeM PrecedenceStack
 pushContextPrecedence p = do
-  old <- scopePrecedence <$> getScope
-  modifyScope_ $ \ s -> s { scopePrecedence = pushPrecedence p $ scopePrecedence s }
+  old <- useScope scopePrecedence
+  modifyScope_ $ over scopePrecedence (pushPrecedence p)
   return old
 
 setContextPrecedence :: PrecedenceStack -> ScopeM ()
-setContextPrecedence ps = modifyScope_ $ \ s -> s { scopePrecedence = ps }
+setContextPrecedence = modifyScope_ . set scopePrecedence
 
 withContextPrecedence :: Precedence -> ScopeM a -> ScopeM a
 withContextPrecedence p = bracket_ (pushContextPrecedence p) setContextPrecedence
 
 getLocalVars :: ScopeM LocalVars
-getLocalVars = scopeLocals <$> getScope
+getLocalVars = useScope scopeLocals
 
 modifyLocalVars :: (LocalVars -> LocalVars) -> ScopeM ()
 modifyLocalVars = modifyScope_ . updateScopeLocals
@@ -183,7 +187,7 @@ withLocalVars :: ScopeM a -> ScopeM a
 withLocalVars = bracket_ getLocalVars setLocalVars
 
 getVarsToBind :: ScopeM LocalVars
-getVarsToBind = scopeVarsToBind <$> getScope
+getVarsToBind = useScope scopeVarsToBind
 
 addVarToBind :: C.Name -> LocalVar -> ScopeM ()
 addVarToBind x y = modifyScope_ $ updateVarsToBind $ AssocList.insert x y
@@ -247,7 +251,7 @@ resolveName' ::
   [KindOfName] -> Maybe (Set A.Name) -> C.QName -> ScopeM ResolvedName
 resolveName' kinds names x = do
   scope <- getScope
-  let vars     = AssocList.mapKeysMonotonic C.QName $ scopeLocals scope
+  let vars     = AssocList.mapKeysMonotonic C.QName $ scope ^. scopeLocals
       retVar y = return . VarName y{ nameConcrete = unqualify x }
       aName    = A.qnameName . anameName
   case lookup x vars of
@@ -298,11 +302,11 @@ resolveModule x = do
 
 -- | Get the fixity of a not yet bound name.
 getConcreteFixity :: C.Name -> ScopeM Fixity'
-getConcreteFixity x = Map.findWithDefault noFixity' x . scopeFixities <$> getScope
+getConcreteFixity x = Map.findWithDefault noFixity' x <$> useScope scopeFixities
 
 -- | Get the polarities of a not yet bound name.
 getConcretePolarity :: C.Name -> ScopeM (Maybe [Occurrence])
-getConcretePolarity x = Map.lookup x . scopePolarities <$> getScope
+getConcretePolarity x = Map.lookup x <$> useScope scopePolarities
 
 instance MonadFixityError ScopeM where
   throwMultipleFixityDecls xs         = case xs of
@@ -320,11 +324,11 @@ instance MonadFixityError ScopeM where
 --   of declarations and store them in the scope.
 computeFixitiesAndPolarities :: DoWarn -> [C.Declaration] -> ScopeM a -> ScopeM a
 computeFixitiesAndPolarities warn ds ret = do
-  (fixs0, pols0) <- (scopeFixities &&& scopePolarities) <$> getScope
+  (fixs0, pols0) <- (,) <$> useScope scopeFixities <*> useScope scopePolarities
   (fixs, pols)   <- fixitiesAndPolarities warn ds
-  modifyScope $ \ s -> s { scopeFixities = fixs, scopePolarities = pols }
+  modifyScope $ set scopeFixities fixs . set scopePolarities pols
   x <- ret
-  modifyScope $ \ s -> s { scopeFixities = fixs0, scopePolarities = pols0 }
+  modifyScope $ set scopeFixities fixs0 . set scopePolarities pols0
   return x
 
 -- | Get the notation of a name. The name is assumed to be in scope.

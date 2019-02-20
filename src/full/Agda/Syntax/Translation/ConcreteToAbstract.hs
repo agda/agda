@@ -458,7 +458,7 @@ toAbstractHiding _             = toAbstractCtx TopCtx
 setContextCPS :: Precedence -> (a -> ScopeM b) ->
                  ((a -> ScopeM b) -> ScopeM b) -> ScopeM b
 setContextCPS p ret f = do
-  old <- scopePrecedence <$> getScope
+  old <- useScope scopePrecedence
   withContextPrecedence p $ f $ \ x -> setContextPrecedence old >> ret x
 
 localToAbstractCtx :: ToAbstract concrete abstract =>
@@ -1146,7 +1146,7 @@ data TopLevelInfo = TopLevelInfo
 -- | The top-level module name.
 
 topLevelModuleName :: TopLevelInfo -> A.ModuleName
-topLevelModuleName = scopeCurrent . topLevelScope
+topLevelModuleName = (^. scopeCurrent) . topLevelScope
 
 -- | Top-level declarations are always
 --   @
@@ -1225,7 +1225,7 @@ instance ToAbstract (TopLevel [C.Declaration]) TopLevelInfo where
 -- | runs Syntax.Concrete.Definitions.niceDeclarations on main module
 niceDecls :: DoWarn -> [C.Declaration] -> ([NiceDeclaration] -> ScopeM a) -> ScopeM a
 niceDecls warn ds ret = setCurrentRange ds $ computeFixitiesAndPolarities warn ds $ do
-  fixs <- scopeFixities <$> getScope  -- We need to pass the fixities to the nicifier for clause grouping
+  fixs <- useScope scopeFixities  -- We need to pass the fixities to the nicifier for clause grouping
   let (result, warns') = runNice $ niceDeclarations fixs ds
 
   -- COMPILED pragmas are not allowed in safe mode unless we are in a builtin module.
