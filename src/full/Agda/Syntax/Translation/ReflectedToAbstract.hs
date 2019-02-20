@@ -20,6 +20,7 @@ import Agda.Syntax.Reflected as R
 import Agda.TypeChecking.Monad as M hiding (MetaInfo)
 import Agda.Syntax.Scope.Monad (getCurrentModule)
 
+import Agda.Utils.Except
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.List
@@ -28,11 +29,18 @@ import Agda.Utils.Size
 
 type Names = [Name]
 
-type WithNames a = ReaderT Names TCM a
--- Note: we only need the TCM for fresh names
+type MonadReflectedToAbstract m =
+  ( MonadReader Names m
+  , MonadFresh NameId m
+  , MonadError TCErr m
+  , MonadTCEnv m
+  , ReadTCState m
+  , HasOptions m
+  , HasConstInfo m
+  )
 
 -- | Adds a new unique name to the current context.
-withName :: String -> (Name -> WithNames a) -> WithNames a
+withName :: MonadReflectedToAbstract m => String -> (Name -> m a) -> m a
 withName s f = do
   name <- freshName_ s
   ctx  <- asks $ map nameConcrete
@@ -42,18 +50,34 @@ withName s f = do
     notTaken xs x = isNoName x || nameConcrete x `notElem` xs
 
 -- | Returns the name of the variable with the given de Bruijn index.
-askName :: Int -> WithNames (Maybe Name)
+askName :: MonadReflectedToAbstract m => Int -> m (Maybe Name)
 askName i = reader (!!! i)
 
 class ToAbstract r a | r -> a where
-  toAbstract :: r -> WithNames a
+  toAbstract :: MonadReflectedToAbstract m => r -> m a
 
 -- | Translate reflected syntax to abstract, using the names from the current typechecking context.
-toAbstract_ :: ToAbstract r a => r -> TCM a
+toAbstract_ ::
+  (ToAbstract r a
+  , MonadFresh NameId m
+  , MonadError TCErr m
+  , MonadTCEnv m
+  , ReadTCState m
+  , HasOptions m
+  , HasConstInfo m
+  ) => r -> m a
 toAbstract_ = withShowAllArguments . toAbstractWithoutImplicit
 
 -- | Drop implicit arguments unless --show-implicit is on.
-toAbstractWithoutImplicit :: ToAbstract r a => r -> TCM a
+toAbstractWithoutImplicit ::
+  (ToAbstract r a
+  , MonadFresh NameId m
+  , MonadError TCErr m
+  , MonadTCEnv m
+  , ReadTCState m
+  , HasOptions m
+  , HasConstInfo m
+  ) => r -> m a
 toAbstractWithoutImplicit x = runReaderT (toAbstract x) =<< getContextNames
 
 instance ToAbstract r a => ToAbstract (Named name r) (Named name a) where
@@ -73,7 +97,7 @@ instance ToAbstract r Expr => ToAbstract (Dom r, Name) (A.TypedBinding) where
 instance ToAbstract (Expr, Elim) Expr where
   toAbstract (f, Apply arg) = do
     arg     <- toAbstract arg
-    showImp <- lift showImplicitArguments
+    showImp <- showImplicitArguments
     return $ if showImp || visible arg
              then App (setOrigin Reflected defaultAppInfo_) f arg
              else f
@@ -94,13 +118,13 @@ instance ToAbstract Term Expr where
       mname <- askName i
       case mname of
         Nothing -> do
-          cxt   <- lift $ getContextTelescope
+          cxt   <- getContextTelescope
           names <- asks $ drop (size cxt) . reverse
-          lift $ withShowAllArguments' False $ typeError $ DeBruijnIndexOutOfScope i cxt names
+          withShowAllArguments' False $ typeError $ DeBruijnIndexOutOfScope i cxt names
         Just name -> toAbstract (A.Var name, es)
     R.Con c es -> toAbstract (A.Con (unambiguous $ killRange c), es)
     R.Def f es -> do
-      af <- lift $ mkDef (killRange f)
+      af <- mkDef (killRange f)
       toAbstract (af, es)
     R.Lam h t  -> do
       (e, name) <- toAbstract t
@@ -108,7 +132,7 @@ instance ToAbstract Term Expr where
       return $ A.Lam exprNoRange (DomainFree $ unnamedArg info $ BindName name) e
     R.ExtLam cs es -> do
       name <- freshName_ extendedLambdaName
-      m    <- lift $ getCurrentModule
+      m    <- getCurrentModule
       let qname   = qualify m name
           cname   = nameConcrete name
           defInfo = mkDefInfo cname noFixity' PublicAccess ConcreteDef noRange
@@ -124,7 +148,7 @@ instance ToAbstract Term Expr where
       where info = emptyMetaInfo{ metaNumber = Just x }
     R.Unknown      -> return $ Underscore emptyMetaInfo
 
-mkDef :: QName -> TCM A.Expr
+mkDef :: HasConstInfo m => QName -> m A.Expr
 mkDef f =
   ifM (isMacro . theDef <$> getConstInfo f)
       (return $ A.Macro f)
@@ -153,7 +177,7 @@ instance ToAbstract R.Pattern (Names, A.Pattern) where
     R.AbsurdP -> return ([], A.AbsurdP patNoRange)
     R.ProjP d -> return ([], A.ProjP patNoRange ProjSystem $ unambiguous $ killRange d)
 
-toAbstractPats :: [Arg R.Pattern] -> WithNames (Names, [NamedArg A.Pattern])
+toAbstractPats :: MonadReflectedToAbstract m => [Arg R.Pattern] -> m (Names, [NamedArg A.Pattern])
 toAbstractPats pats = case pats of
     []   -> return ([], [])
     p:ps -> do
