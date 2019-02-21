@@ -128,8 +128,13 @@ getRecordOfField d = caseMaybeM (isProjection d) (return Nothing) $
     return $ unArg r <$ proper -- if proper then Just (unArg r) else Nothing
 
 -- | Get the field names of a record.
-getRecordFieldNames :: QName -> TCM [Arg C.Name]
+getRecordFieldNames :: (HasConstInfo m, ReadTCState m, MonadError TCErr m)
+                    => QName -> m [Arg C.Name]
 getRecordFieldNames r = recordFieldNames <$> getRecordDef r
+
+getRecordFieldNames_ :: (HasConstInfo m, ReadTCState m)
+                     => QName -> m (Maybe [Arg C.Name])
+getRecordFieldNames_ r = fmap recordFieldNames <$> isRecord r
 
 recordFieldNames :: Defn -> [Arg C.Name]
 recordFieldNames = map (fmap (nameConcrete . qnameName)) . recFields
