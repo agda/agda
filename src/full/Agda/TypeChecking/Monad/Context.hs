@@ -17,6 +17,7 @@ import Agda.Syntax.Common
 import Agda.Syntax.Concrete.Name (LensInScope(..))
 import Agda.Syntax.Internal
 import Agda.Syntax.Position
+import Agda.Syntax.Scope.Base
 import Agda.Syntax.Scope.Monad (getLocalVars, setLocalVars)
 
 import Agda.TypeChecking.Monad.Base
@@ -24,6 +25,7 @@ import Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Monad.Open
 import Agda.TypeChecking.Monad.Options
+import Agda.TypeChecking.Monad.State
 
 import Agda.Utils.Except
 import Agda.Utils.Functor
@@ -59,13 +61,10 @@ safeInTopContext cont = do
 -- | Change to top (=empty) context, but don't update the checkpoints. Totally
 --   not safe!
 {-# SPECIALIZE inTopContext :: TCM a -> TCM a #-}
-inTopContext :: MonadTCM tcm => tcm a -> tcm a
-inTopContext cont = do
-  locals <- liftTCM $ getLocalVars
-  liftTCM $ setLocalVars []
-  a <- modifyContext (const []) cont
-  liftTCM $ setLocalVars locals
-  return a
+inTopContext :: (MonadTCEnv m, ReadTCState m) => m a -> m a
+inTopContext cont =
+  locallyScope scopeLocals (const []) $
+    modifyContext (const []) cont
 
 -- | Delete the last @n@ bindings from the context.
 --

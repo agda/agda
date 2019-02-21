@@ -176,6 +176,10 @@ modifyScope_ f = stScope `modifyTCLens` f
 modifyScope :: (ScopeInfo -> ScopeInfo) -> TCM ()
 modifyScope f = modifyScope_ (recomputeInverseScopeMaps . f)
 
+-- | Run a computation in a modified scope.
+locallyScope :: ReadTCState m => Lens' a ScopeInfo -> (a -> a) -> m b -> m b
+locallyScope l = locallyTCState $ stScope . l
+
 -- | Run a computation in a local scope.
 withScope :: ReadTCState m => ScopeInfo -> m a -> m (a, ScopeInfo)
 withScope s m = locallyTCState stScope (const s) $ (,) <$> m <*> getScope
