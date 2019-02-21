@@ -66,7 +66,7 @@ type ScopeM = TCM
 
 -- * Errors
 
-isDatatypeModule :: A.ModuleName -> ScopeM (Maybe DataOrRecord)
+isDatatypeModule :: ReadTCState m => A.ModuleName -> m (Maybe DataOrRecord)
 isDatatypeModule m = do
    scopeDatatypeModule . Map.findWithDefault __IMPOSSIBLE__ m <$> useScope scopeModules
 
@@ -169,7 +169,7 @@ withContextPrecedence :: ReadTCState m => Precedence -> m a -> m a
 withContextPrecedence p =
   locallyTCState (stScope . scopePrecedence) $ pushPrecedence p
 
-getLocalVars :: ScopeM LocalVars
+getLocalVars :: ReadTCState m => m LocalVars
 getLocalVars = useScope scopeLocals
 
 modifyLocalVars :: (LocalVars -> LocalVars) -> ScopeM ()

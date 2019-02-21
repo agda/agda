@@ -333,7 +333,7 @@ sayWhen :: Range -> Maybe (Closure Call) -> TCM Doc -> TCM Doc
 sayWhen r Nothing   m = sayWhere r m
 sayWhen r (Just cl) m = sayWhere r (m $$ prettyTCM cl)
 
-panic :: String -> TCM Doc
+panic :: Monad m => String -> m Doc
 panic s = fwords $ "Panic: " ++ s
 
 nameWithBinding :: QName -> TCM Doc
@@ -523,7 +523,7 @@ dropTopLevelModule :: QName -> TCM QName
 dropTopLevelModule q = ($ q) <$> topLevelModuleDropper
 
 -- | Produces a function which drops the filename component of the qualified name.
-topLevelModuleDropper :: TCM (QName -> QName)
+topLevelModuleDropper :: (MonadTCEnv m, ReadTCState m) => m (QName -> QName)
 topLevelModuleDropper = do
   caseMaybeM (asksTC envCurrentPath) (return id) $ \ f -> do
   m <- fromMaybe __IMPOSSIBLE__ <$> lookupModuleFromSource f

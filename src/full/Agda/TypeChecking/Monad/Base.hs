@@ -776,9 +776,9 @@ sourceToModule =
 --
 --   O(n).
 
-lookupModuleFromSource :: AbsolutePath -> TCM (Maybe TopLevelModuleName)
+lookupModuleFromSource :: ReadTCState m => AbsolutePath -> m (Maybe TopLevelModuleName)
 lookupModuleFromSource f =
-  fmap fst . List.find ((f ==) . snd) . Map.toList <$> useTC stModuleToSource
+  fmap fst . List.find ((f ==) . snd) . Map.toList <$> useR stModuleToSource
 
 
 ---------------------------------------------------------------------------
