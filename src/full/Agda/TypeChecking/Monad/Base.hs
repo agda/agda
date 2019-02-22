@@ -653,6 +653,9 @@ class Monad m => MonadFresh i m where
 instance MonadFresh i m => MonadFresh i (ReaderT r m) where
   fresh = lift fresh
 
+instance MonadFresh i m => MonadFresh i (StateT s m) where
+  fresh = lift fresh
+
 instance HasFresh i => MonadFresh i TCM where
   fresh = do
         !s <- getTC
@@ -803,6 +806,11 @@ instance MonadStConcreteNames TCM where
 
 instance MonadStConcreteNames m => MonadStConcreteNames (ReaderT r m) where
   runStConcreteNames m = ReaderT $ runStConcreteNames . StateT . (flip $ runReaderT . runStateT m)
+
+instance MonadStConcreteNames m => MonadStConcreteNames (StateT s m) where
+  runStConcreteNames m = StateT $ \s -> runStConcreteNames $ StateT $ \ns -> do
+    ((x,ns'),s') <- runStateT (runStateT m ns) s
+    return ((x,s'),ns')
 
 ---------------------------------------------------------------------------
 -- ** Interface

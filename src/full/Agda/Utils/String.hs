@@ -1,7 +1,12 @@
 module Agda.Utils.String where
 
+import Control.Monad.Reader
+import Control.Monad.State
+import Control.Monad.Trans
+
 import Data.Char
 import qualified Data.List as List
+import Data.String
 
 import Numeric
 import Agda.Utils.List
@@ -108,3 +113,9 @@ rtrim = List.dropWhileEnd isSpace
 -- | Remove leading and trailing whitesapce.
 trim :: String -> String
 trim = rtrim . ltrim
+
+instance (IsString (m a), Monad m) => IsString (ReaderT r m a) where
+  fromString = lift . fromString
+
+instance (IsString (m a), Monad m) => IsString (StateT s m a) where
+  fromString = lift . fromString
