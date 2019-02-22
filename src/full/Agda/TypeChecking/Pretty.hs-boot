@@ -27,7 +27,6 @@ sep, fsep, hsep, vcat :: Monad m => [m Doc] -> m Doc
 -- having to import them
 type MonadPretty m =
   ( ( MonadReduce m
-    , MonadTCEnv m
     , MonadAddContext m
     , MonadInteractionPoints m
     , MonadFresh NameId m

@@ -145,7 +145,7 @@ getModuleParameterSub m = do
 -- * Adding to the context
 
 {-# SPECIALIZE addCtx :: Name -> Dom Type -> TCM a -> TCM a #-}
-class Monad m => MonadAddContext m where
+class MonadTCEnv m => MonadAddContext m where
   -- | @addCtx x arg cont@ add a variable to the context.
   --
   --   Chooses an unused 'Name'.

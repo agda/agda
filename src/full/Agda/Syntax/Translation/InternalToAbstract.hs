@@ -143,7 +143,6 @@ reifyWhenE False t = return underscore
 
 type MonadReify m =
   ( MonadReduce m
-  , MonadTCEnv m
   , MonadAddContext m
   , MonadInteractionPoints m
   , MonadFresh NameId m
