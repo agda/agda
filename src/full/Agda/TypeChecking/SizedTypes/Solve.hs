@@ -790,10 +790,10 @@ sizeExpr u = do
       _        -> Nothing
 
 -- | Turn a de size expression into a term.
-unSizeExpr :: DBSizeExpr -> TCM Term
+unSizeExpr :: HasBuiltins m => DBSizeExpr -> m Term
 unSizeExpr a =
   case a of
-    Infty         -> primSizeInf
+    Infty         -> fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSizeInf
     Rigid r (O n) -> do
       unless (n >= 0) __IMPOSSIBLE__
       sizeSuc n $ var $ rigidIndex r

@@ -144,18 +144,18 @@ sizeType :: (HasBuiltins m, MonadError TCErr m, MonadTCEnv m, ReadTCState m) => 
 sizeType = El sizeSort <$> primSize
 
 -- | The name of @SIZESUC@.
-sizeSucName :: TCM (Maybe QName)
+sizeSucName :: (HasBuiltins m, HasOptions m) => m (Maybe QName)
 sizeSucName = do
-  ifM (not <$> sizedTypesOption) (return Nothing) $ tryMaybe $ do
-    Def x [] <- primSizeSuc
-    return x
+  ifM (not <$> sizedTypesOption) (return Nothing) $ do
+    getBuiltin' builtinSizeSuc >>= \case
+      Just (Def x []) -> return $ Just x
+      _               -> return Nothing
 
-sizeSuc :: (HasBuiltins m, MonadError TCErr m, MonadTCEnv m, ReadTCState m)
-        => Nat -> Term -> m Term
+sizeSuc :: HasBuiltins m => Nat -> Term -> m Term
 sizeSuc n v | n < 0     = __IMPOSSIBLE__
             | n == 0    = return v
             | otherwise = do
-  Def suc [] <- primSizeSuc
+  Def suc [] <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSizeSuc
   return $ case iterate (sizeSuc_ suc) v !!! n of
              Nothing -> __IMPOSSIBLE__
              Just t  -> t
