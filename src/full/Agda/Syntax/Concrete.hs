@@ -67,6 +67,7 @@ import Data.Data (Data)
 import Agda.Syntax.Position
 import Agda.Syntax.Common
 import Agda.Syntax.Fixity
+import Agda.Syntax.ImportDirective
 import Agda.Syntax.Notation
 import Agda.Syntax.Literal
 

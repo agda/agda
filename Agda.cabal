@@ -331,6 +331,7 @@ library
                     Agda.Syntax.DoNotation
                     Agda.Syntax.Fixity
                     Agda.Syntax.IdiomBrackets
+                    Agda.Syntax.ImportDirective
                     Agda.Syntax.Info
                     Agda.Syntax.Internal
                     Agda.Syntax.Internal.Defs

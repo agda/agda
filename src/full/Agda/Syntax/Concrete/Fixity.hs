@@ -11,6 +11,7 @@ import Prelude hiding (null)
 import Control.Monad
 import Data.Map (Map)
 import qualified Data.Map as Map
+import Data.Maybe (mapMaybe)
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Semigroup
@@ -18,6 +19,7 @@ import Data.Semigroup
 import Agda.Syntax.Common
 import Agda.Syntax.Position
 import Agda.Syntax.Fixity
+import Agda.Syntax.ImportDirective
 import Agda.Syntax.Notation
 import Agda.Syntax.Concrete
 import Agda.Syntax.Builtin (builtinsNoDef)
@@ -139,42 +141,50 @@ fixitiesAndPolarities doWarn ds = do
 
   return (fixs, pols)
 
+fixitiesInImportDirective :: MonadFixityError m => ImportDirective -> MonadicFixPol m
+fixitiesInImportDirective (ImportDirective _ _ _ renaming _) =
+  returnFix $ Map.fromList $ mapMaybe extractFixity renaming
+  where
+    extractFixity (Renaming (ImportedName n) _ _ (Just f))  = Just (n, undefined)
+    extractFixity _                                         = Nothing
+
+
 fixitiesAndPolarities' :: MonadFixityError m => [Declaration] -> MonadicFixPol m
 fixitiesAndPolarities' = foldMap $ \ d -> case d of
   -- These declarations define polarities:
   Pragma (PolarityPragma _ x occs) -> returnPol $ Map.singleton x occs
   -- These declarations define fixities:
-  Syntax x syn    -> returnFix $ Map.singleton x (Fixity' noFixity syn $ getRange x)
-  Infix  f xs     -> returnFix $ Map.fromList $ for xs $ \ x -> (x, Fixity' f noNotation $ getRange x)
+  Syntax x syn     -> returnFix $ Map.singleton x (Fixity' noFixity syn $ getRange x)
+  Infix  f xs      -> returnFix $ Map.fromList $ for xs $ \ x -> (x, Fixity' f noNotation $ getRange x)
+  Open _ _ i       -> fixitiesInImportDirective i
+  Import _ _ _ _ i -> fixitiesInImportDirective i
   -- We look into these blocks:
-  Mutual    _ ds' -> fixitiesAndPolarities' ds'
-  Abstract  _ ds' -> fixitiesAndPolarities' ds'
-  Private _ _ ds' -> fixitiesAndPolarities' ds'
-  InstanceB _ ds' -> fixitiesAndPolarities' ds'
-  Macro     _ ds' -> fixitiesAndPolarities' ds'
+  Mutual    _ ds'  -> fixitiesAndPolarities' ds'
+  Abstract  _ ds'  -> fixitiesAndPolarities' ds'
+  Private _ _ ds'  -> fixitiesAndPolarities' ds'
+  InstanceB _ ds'  -> fixitiesAndPolarities' ds'
+  Macro     _ ds'  -> fixitiesAndPolarities' ds'
   -- All other declarations are ignored.
   -- We expand these boring cases to trigger a revisit
   -- in case the @Declaration@ type is extended in the future.
-  TypeSig     {}  -> mempty
-  Generalize  {}  -> mempty
-  Field       {}  -> mempty
-  FunClause   {}  -> mempty
-  DataSig     {}  -> mempty
-  DataDef     {}  -> mempty
-  Data        {}  -> mempty
-  RecordSig   {}  -> mempty
-  RecordDef   {}  -> mempty
-  Record      {}  -> mempty
-  PatternSyn  {}  -> mempty
-  Postulate   {}  -> mempty
-  Primitive   {}  -> mempty
-  Open        {}  -> mempty
-  Import      {}  -> mempty
-  ModuleMacro {}  -> mempty
-  Module      {}  -> mempty
-  UnquoteDecl {}  -> mempty
-  UnquoteDef  {}  -> mempty
-  Pragma      {}  -> mempty
+  TypeSig     {}   -> mempty
+  Generalize  {}   -> mempty
+  Field       {}   -> mempty
+  FunClause   {}   -> mempty
+  DataSig     {}   -> mempty
+  DataDef     {}   -> mempty
+  Data        {}   -> mempty
+  RecordSig   {}   -> mempty
+  RecordDef   {}   -> mempty
+  Record      {}   -> mempty
+  PatternSyn  {}   -> mempty
+  Postulate   {}   -> mempty
+  Primitive   {}   -> mempty
+  ModuleMacro {}   -> mempty
+  Module      {}   -> mempty
+  UnquoteDecl {}   -> mempty
+  UnquoteDef  {}   -> mempty
+  Pragma      {}   -> mempty
 
 data DeclaredNames = DeclaredNames { allNames, postulates, privateNames :: Set Name }
 

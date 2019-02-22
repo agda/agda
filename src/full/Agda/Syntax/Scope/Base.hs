@@ -34,6 +34,7 @@ import Agda.Benchmarking
 import Agda.Syntax.Position
 import Agda.Syntax.Common
 import Agda.Syntax.Fixity
+import Agda.Syntax.ImportDirective
 import Agda.Syntax.Abstract.Name as A
 import Agda.Syntax.Concrete.Name as C
 import qualified Agda.Syntax.Concrete as C
@@ -659,8 +660,8 @@ applyImportDirective dir s = mergeScope usedOrHidden renamed
                            id
       where
         (drho, mrho) = partitionEithers $ for rho $ \case
-          Renaming (ImportedName   x) (ImportedName   y) _ -> Left  (x,y)
-          Renaming (ImportedModule x) (ImportedModule y) _ -> Right (x,y)
+          Renaming (ImportedName   x) (ImportedName   y) _ _ -> Left  (x,y)
+          Renaming (ImportedModule x) (ImportedModule y) _ _ -> Right (x,y)
           _ -> __IMPOSSIBLE__
 
         ren r x = fromMaybe x $ lookup x r

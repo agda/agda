@@ -41,6 +41,7 @@ import Agda.Syntax.Abstract.Name as A (QNamed)
 import qualified Agda.Syntax.Internal as I
 
 import Agda.Syntax.Common
+import Agda.Syntax.ImportDirective
 import Agda.Syntax.Info
 import Agda.Syntax.Fixity ( Fixity' )
 import Agda.Syntax.Literal

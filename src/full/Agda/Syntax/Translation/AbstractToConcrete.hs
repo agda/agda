@@ -45,6 +45,7 @@ import Data.List (sortBy)
 import Agda.Syntax.Common
 import Agda.Syntax.Position
 import Agda.Syntax.Literal
+import Agda.Syntax.ImportDirective
 import Agda.Syntax.Info as A
 import Agda.Syntax.Internal (MetaId(..))
 import qualified Agda.Syntax.Internal as I

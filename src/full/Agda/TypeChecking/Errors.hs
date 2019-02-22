@@ -39,6 +39,7 @@ import Agda.Interaction.Options
 import Agda.Interaction.Options.Warnings
 import Agda.Syntax.Common
 import Agda.Syntax.Fixity
+import Agda.Syntax.ImportDirective
 import Agda.Syntax.Notation
 import Agda.Syntax.Position
 import qualified Agda.Syntax.Info as A

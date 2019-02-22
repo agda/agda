@@ -46,6 +46,7 @@ import Agda.Syntax.Concrete.Pattern
 import Agda.Syntax.Concrete.Pretty ()
 import Agda.Syntax.Common
 import Agda.Syntax.Fixity
+import Agda.Syntax.ImportDirective
 import Agda.Syntax.Notation
 import Agda.Syntax.Literal
 
@@ -1095,9 +1096,16 @@ Renamings
     : Renaming ';' Renamings    { $1 : $3 }
     | Renaming                  { [$1] }
 
+Fixity :: { Fixity }
+Fixity
+    : 'infix'  Int { Fixity (getRange $1) (Related $2) NonAssoc }
+    | 'infixl' Int { Fixity (getRange $1) (Related $2) LeftAssoc }
+    | 'infixr' Int { Fixity (getRange $1) (Related $2) RightAssoc }
+
 Renaming :: { Renaming }
 Renaming
-    : ImportName_ 'to' Id { Renaming $1 (setImportedName $1 $3) (getRange $2) }
+    : ImportName_ 'to' Id { Renaming $1 (setImportedName $1 $3) (getRange $2) Nothing }
+    | ImportName_ 'to' Fixity Id { Renaming $1 (setImportedName $1 $4) (getRange $2) (Just $3) }
 
 -- We need a special imported name here, since we have to trigger
 -- the imp_dir state exactly one token before the 'to'

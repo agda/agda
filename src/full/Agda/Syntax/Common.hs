@@ -1515,20 +1515,6 @@ instance Pretty InteractionId where
 
 instance KillRange InteractionId where killRange = id
 
------------------------------------------------------------------------------
--- * Import directive
------------------------------------------------------------------------------
-
--- | The things you are allowed to say when you shuffle names between name
---   spaces (i.e. in @import@, @namespace@, or @open@ declarations).
-data ImportDirective' n m = ImportDirective
-  { importDirRange :: Range
-  , using          :: Using' n m
-  , hiding         :: [ImportedName' n m]
-  , impRenaming    :: [Renaming' n m]
-  , publicOpen     :: Bool -- ^ Only for @open@. Exports the opened names from the current module.
-  }
-  deriving (Data, Eq)
 
 data Using' n m = UseEverything | Using [ImportedName' n m]
   deriving (Data, Eq)
@@ -1542,13 +1528,6 @@ instance Monoid (Using' n m) where
   mempty  = UseEverything
   mappend = (<>)
 
--- | Default is directive is @private@ (use everything, but do not export).
-defaultImportDir :: ImportDirective' n m
-defaultImportDir = ImportDirective noRange UseEverything [] [] False
-
-isDefaultImportDir :: ImportDirective' n m -> Bool
-isDefaultImportDir (ImportDirective _ UseEverything [] [] False) = True
-isDefaultImportDir _                                             = False
 
 -- | An imported name can be a module or a defined name.
 data ImportedName' n m
@@ -1569,27 +1548,11 @@ setImportedName (ImportedModule x) y = ImportedModule y
 --   show (ImportedModule x) = "module " ++ show x
 --   show (ImportedName   x) = show x
 
-data Renaming' n m = Renaming
-  { renFrom    :: ImportedName' n m
-    -- ^ Rename from this name.
-  , renTo      :: ImportedName' n m
-    -- ^ To this one.  Must be same kind as 'renFrom'.
-  , renToRange :: Range
-    -- ^ The range of the \"to\" keyword.  Retained for highlighting purposes.
-  }
-  deriving (Data, Eq)
-
 -- ** HasRange instances
-
-instance (HasRange a, HasRange b) => HasRange (ImportDirective' a b) where
-  getRange = importDirRange
 
 instance (HasRange a, HasRange b) => HasRange (Using' a b) where
   getRange (Using  xs) = getRange xs
   getRange UseEverything = noRange
-
-instance (HasRange a, HasRange b) => HasRange (Renaming' a b) where
-  getRange r = getRange (renFrom r, renTo r)
 
 instance (HasRange a, HasRange b) => HasRange (ImportedName' a b) where
   getRange (ImportedName   x) = getRange x
@@ -1597,16 +1560,10 @@ instance (HasRange a, HasRange b) => HasRange (ImportedName' a b) where
 
 -- ** KillRange instances
 
-instance (KillRange a, KillRange b) => KillRange (ImportDirective' a b) where
-  killRange (ImportDirective _ u h r p) =
-    killRange3 (\u h r -> ImportDirective noRange u h r p) u h r
-
 instance (KillRange a, KillRange b) => KillRange (Using' a b) where
   killRange (Using  i) = killRange1 Using  i
   killRange UseEverything = UseEverything
 
-instance (KillRange a, KillRange b) => KillRange (Renaming' a b) where
-  killRange (Renaming i n _) = killRange2 (\i n -> Renaming i n noRange) i n
 
 instance (KillRange a, KillRange b) => KillRange (ImportedName' a b) where
   killRange (ImportedModule n) = killRange1 ImportedModule n
@@ -1616,17 +1573,9 @@ instance (KillRange a, KillRange b) => KillRange (ImportedName' a b) where
 
 -- | Ranges are not forced.
 
-instance (NFData a, NFData b) => NFData (ImportDirective' a b) where
-  rnf (ImportDirective _ a b c _) = rnf a `seq` rnf b `seq` rnf c
-
 instance (NFData a, NFData b) => NFData (Using' a b) where
   rnf UseEverything = ()
   rnf (Using a)     = rnf a
-
--- | Ranges are not forced.
-
-instance (NFData a, NFData b) => NFData (Renaming' a b) where
-  rnf (Renaming a b _) = rnf a `seq` rnf b
 
 instance (NFData a, NFData b) => NFData (ImportedName' a b) where
   rnf (ImportedModule a) = rnf a

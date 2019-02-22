@@ -25,6 +25,7 @@ import Data.Traversable hiding (for)
 import Agda.Syntax.Common
 import Agda.Syntax.Position
 import Agda.Syntax.Fixity
+import Agda.Syntax.ImportDirective
 import Agda.Syntax.Abstract.Name as A
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract (ScopeCopyInfo(..), initCopyInfo)
@@ -649,10 +650,10 @@ applyImportDirectiveM m (ImportDirective rng usn' hdn' ren' public) scope = do
         addExtra f@(ImportedName y) | elem y extra = [f, ImportedModule y]
         addExtra m = [m]
 
-        extraRenaming r@(Renaming from to rng) =
+        extraRenaming r@(Renaming from to rng i) =
           case (from, to) of
             (ImportedName y, ImportedName z) | elem y extra ->
-              [r, Renaming (ImportedModule y) (ImportedModule z) rng]
+              [r, Renaming (ImportedModule y) (ImportedModule z) rng i]
             _ -> [r]
 
     -- | Names and modules (abstract) in scope before the import.
@@ -715,8 +716,8 @@ mapRenaming
   -> [ImportedName' (n1,n2) (m1,m2)]  -- ^ Translation of 'rento'   names and module names.
   -> Renaming' n1 m1  -- ^ Renaming before translation (1).
   -> Renaming' n2 m2  -- ^ Renaming after  translation (2).
-mapRenaming src tgt (Renaming from to r) =
-  Renaming (lookupImportedName from src) (lookupImportedName to tgt) r
+mapRenaming src tgt (Renaming from to r i) =
+  Renaming (lookupImportedName from src) (lookupImportedName to tgt) r i
 
 data OpenKind = LetOpenModule | TopOpenModule
 
