@@ -69,9 +69,16 @@ data MetaKind =
 allMetaKinds :: [MetaKind]
 allMetaKinds = [minBound .. maxBound]
 
--- | Monad service class for solving and eta-expanding of
+-- | Monad service class for creating, solving and eta-expanding of
 --   metavariables.
-class Monad m => MonadAssignMeta m where
+class ( MonadTCEnv m
+      , ReadTCState m
+      ) => MonadMetaSolver m where
+  -- | Generate a new meta variable with some instantiation given.
+  --   For instance, the instantiation could be a 'PostponedTypeCheckingProblem'.
+  newMeta' :: MetaInstantiation -> Frozen -> MetaInfo -> MetaPriority -> Permutation ->
+              Judgement a -> m MetaId
+
   -- * Solve constraint @x vs = v@.
 
   -- | Assign to an open metavar which may not be frozen.
@@ -83,6 +90,12 @@ class Monad m => MonadAssignMeta m where
   --   during equality checking (@compareAtom@) and leads to
   --   restoration of the original constraints.
   assignV :: CompareDirection -> MetaId -> Args -> Term -> m ()
+
+
+  -- | Directly instantiate the metavariable. Skip pattern check,
+  -- occurs check and frozen check. Used for eta expanding frozen
+  -- metas.
+  assignTerm' :: MonadMetaSolver m => MetaId -> [Arg ArgName] -> Term -> m ()
 
   -- | Eta expand a metavariable, if it is of the specified kind.
   --   Don't do anything if the metavariable is a blocked term.
@@ -442,14 +455,14 @@ lookupInteractionMeta_ :: InteractionId -> InteractionPoints -> Maybe MetaId
 lookupInteractionMeta_ ii m = ipMeta =<< Map.lookup ii m
 
 -- | Generate new meta variable.
-newMeta :: Frozen -> MetaInfo -> MetaPriority -> Permutation -> Judgement a -> TCM MetaId
+newMeta :: MonadMetaSolver m => Frozen -> MetaInfo -> MetaPriority -> Permutation -> Judgement a -> m MetaId
 newMeta = newMeta' Open
 
 -- | Generate a new meta variable with some instantiation given.
 --   For instance, the instantiation could be a 'PostponedTypeCheckingProblem'.
-newMeta' :: MetaInstantiation -> Frozen -> MetaInfo -> MetaPriority -> Permutation ->
-            Judgement a -> TCM MetaId
-newMeta' inst frozen mi p perm j = do
+newMetaTCM' :: MetaInstantiation -> Frozen -> MetaInfo -> MetaPriority -> Permutation ->
+               Judgement a -> TCM MetaId
+newMetaTCM' inst frozen mi p perm j = do
   x <- fresh
   let j' = j { jMetaId = x }  -- fill the identifier part of the judgement
       mv = MetaVar{ mvInfo             = mi

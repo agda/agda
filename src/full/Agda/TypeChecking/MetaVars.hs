@@ -65,6 +65,12 @@ import qualified Agda.Utils.VarSet as Set
 #include "undefined.h"
 import Agda.Utils.Impossible
 
+instance MonadMetaSolver TCM where
+  newMeta' = newMetaTCM'
+  assignV dir x args v = assignWrapper dir x (map Apply args) v $ assign dir x args v
+  assignTerm' = assignTermTCM'
+  etaExpandMeta = etaExpandMetaTCM
+
 -- | Find position of a value in a list.
 --   Used to change metavar argument indices during assignment.
 --
@@ -105,20 +111,20 @@ isEtaExpandable kinds x = do
 --   The instantiation should not be an 'InstV' and the 'MetaId'
 --   should point to something 'Open' or a 'BlockedConst'.
 --   Further, the meta variable may not be 'Frozen'.
-assignTerm :: MetaId -> [Arg ArgName] -> Term -> TCM ()
+assignTerm :: MonadMetaSolver m => MetaId -> [Arg ArgName] -> Term -> m ()
 assignTerm x tel v = do
      -- verify (new) invariants
     whenM (isFrozen x) __IMPOSSIBLE__
     assignTerm' x tel v
 
 -- | Skip frozen check.  Used for eta expanding frozen metas.
-assignTerm' :: MetaId -> [Arg ArgName] -> Term -> TCM ()
-assignTerm' x tel v = do
+assignTermTCM' :: MetaId -> [Arg ArgName] -> Term -> TCM ()
+assignTermTCM' x tel v = do
     reportSLn "tc.meta.assign" 70 $ prettyShow x ++ " := " ++ show v ++ "\n  in " ++ show tel
      -- verify (new) invariants
     whenM (not <$> asksTC envAssignMetas) __IMPOSSIBLE__
 
-    verboseS "profile.metas" 10 $ liftTCM $ tickMax "max-open-metas" . (fromIntegral . size) =<< getOpenMetas
+    verboseS "profile.metas" 10 $ liftTCM $ return () {-tickMax "max-open-metas" . (fromIntegral . size) =<< getOpenMetas-}
     modifyMetaStore $ ins x $ InstV tel $ killRange v
     etaExpandListeners x
     wakeupConstraints x
@@ -432,12 +438,8 @@ wakeupListener (CheckConstraint _ c) = do
   addAwakeConstraints [c]
   solveAwakeConstraints
 
-instance MonadAssignMeta TCM where
-  assignV dir x args v = assignWrapper dir x (map Apply args) v $ assign dir x args v
-  etaExpandMeta = etaExpandMetaTCM
-
 -- | Do safe eta-expansions for meta (@SingletonRecords,Levels@).
-etaExpandMetaSafe :: (MonadAssignMeta m) => MetaId -> m ()
+etaExpandMetaSafe :: (MonadMetaSolver m) => MetaId -> m ()
 etaExpandMetaSafe = etaExpandMeta [SingletonRecords,Levels]
 
 -- | Eta expand a metavariable, if it is of the specified kind.
@@ -530,7 +532,7 @@ etaExpandMetaTCM kinds m = whenM (asksTC envAssignMetas `and2M` isEtaExpandable 
 -- | Eta expand blocking metavariables of record type, and reduce the
 -- blocked thing.
 
-etaExpandBlocked :: (MonadReduce m, MonadAssignMeta m, Reduce t)
+etaExpandBlocked :: (MonadReduce m, MonadMetaSolver m, Reduce t)
                  => Blocked t -> m (Blocked t)
 etaExpandBlocked t@NotBlocked{} = return t
 etaExpandBlocked (Blocked m t)  = do
@@ -540,7 +542,7 @@ etaExpandBlocked (Blocked m t)  = do
     Blocked m' _ | m /= m' -> etaExpandBlocked t
     _                      -> return t
 
-assignWrapper :: (MonadAssignMeta m, MonadConstraint m, MonadTCEnv m, HasOptions m, MonadError TCErr m, MonadDebug m)
+assignWrapper :: (MonadMetaSolver m, MonadConstraint m, MonadError TCErr m, MonadDebug m, HasOptions m)
               => CompareDirection -> MetaId -> Elims -> Term -> m () -> m ()
 assignWrapper dir x es v doAssign = do
   ifNotM (asksTC envAssignMetas) patternViolation $ {- else -} do
