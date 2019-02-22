@@ -179,7 +179,7 @@ type AbsToCon = ReaderT Env TCM
 runAbsToCon :: AbsToCon c -> TCM c
 runAbsToCon m = do
   scope <- getScope
-  reportSLn "toConcrete" 50 $ show $ "entering AbsToCon with scope:" <+> prettyList_ (map (text . C.nameToRawName . fst) $ scopeLocals scope)
+  reportSLn "toConcrete" 50 $ render $ "entering AbsToCon with scope:" <+> prettyList_ (map (text . C.nameToRawName . fst) $ scopeLocals scope)
   runReaderT m =<< makeEnv scope
 
 abstractToConcreteScope :: ToConcrete a c => ScopeInfo -> a -> TCM c
@@ -313,7 +313,7 @@ chooseName x = lookupNameInScope (nameConcrete x) >>= \case
         C.NotInScope -> mustAvoid `Set.union` tryToAvoid'
     let shouldAvoid = (`Set.member` (taken `Set.union` toAvoid))
         y = firstNonTakenName shouldAvoid $ nameConcrete x
-    reportSLn "toConcrete.bindName" 80 $ show $ vcat
+    reportSLn "toConcrete.bindName" 80 $ render $ vcat
       [ "picking concrete name for:" <+> text (C.nameToRawName $ nameConcrete x)
       , "names already taken:      " <+> prettyList_ (map C.nameToRawName $ Set.toList taken)
       , "names to avoid:           " <+> prettyList_ (map C.nameToRawName $ Set.toList toAvoid)
@@ -326,7 +326,7 @@ chooseName x = lookupNameInScope (nameConcrete x) >>= \case
     takenConcreteNames = do
       xs <- asks takenDefNames
       ys0 <- asks takenVarNames
-      reportSLn "toConcrete.bindName" 90 $ show $ "abstract names of local vars: " <+> prettyList_ (map (C.nameToRawName . nameConcrete) $ Set.toList ys0)
+      reportSLn "toConcrete.bindName" 90 $ render $ "abstract names of local vars: " <+> prettyList_ (map (C.nameToRawName . nameConcrete) $ Set.toList ys0)
       ys <- Set.fromList . concat <$> mapM hasConcreteNames (Set.toList ys0)
       return $ xs `Set.union` ys
 

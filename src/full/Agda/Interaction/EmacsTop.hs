@@ -148,4 +148,4 @@ lastTag n r = Cons (Cons (A "last") (A $ show n)) r
 -- | Show an iteraction point identifier as an elisp expression.
 
 showNumIId :: InteractionId -> Lisp String
-showNumIId = A . tail . show
+showNumIId = A . show . interactionId

@@ -1399,10 +1399,11 @@ prettyContext norm rev ii = B.withInteractionId ii $ do
       zip (zipWith prettyCtxName ns xs)
           (zipWith prettyCtxType es ss)
   where
+    prettyCtxName :: C.Name -> C.Name -> String
     prettyCtxName n x
-      | n == x                 = show x
-      | isInScope n == InScope = show n ++ " = " ++ show x
-      | otherwise              = show x
+      | n == x                 = prettyShow x
+      | isInScope n == InScope = prettyShow n ++ " = " ++ prettyShow x
+      | otherwise              = prettyShow x
     prettyCtxType e nis = ":" <+> (e P.<> notInScopeMarker nis)
     notInScopeMarker nis = case isInScope nis of
       C.InScope    -> ""
@@ -1444,7 +1445,7 @@ showModuleContents norm rng s = display_info . Info_ModuleContents =<< do
       return (prettyShow x, ":" <+> t)
     return $ vcat
       [ "Modules"
-      , nest 2 $ vcat $ map (text . show) modules
+      , nest 2 $ vcat $ map pretty modules
       , "Names"
       , nest 2 $ align 10 types'
       ]
@@ -1482,9 +1483,9 @@ whyInScope s = display_info . Info_WhyInScope =<< do
       ]
       where
         prettyRange :: Range -> TCM Doc
-        prettyRange r = text . show . (fmap . fmap) mkRel <$> do
+        prettyRange r = pretty . (fmap . fmap) mkRel <$> do
           return r
-        mkRel = Str . makeRelative cwd . filePath
+        mkRel = makeRelative cwd . filePath
 
         -- variable :: Maybe _ -> [_] -> TCM Doc
         variable Nothing xs = names xs
@@ -1533,14 +1534,14 @@ whyInScope s = display_info . Info_WhyInScope =<< do
         pWhy r (Opened (C.QName x) w) | isNoName x = pWhy r w
         pWhy r (Opened m w) =
           "- the opening of"
-          TCP.<+> TCP.text (show m)
+          TCP.<+> TCP.prettyTCM m
           TCP.<+> "at"
           TCP.<+> TCP.prettyTCM (getRange m)
           TCP.$$
           pWhy r w
         pWhy r (Applied m w) =
           "- the application of"
-          TCP.<+> TCP.text (show m)
+          TCP.<+> TCP.prettyTCM m
           TCP.<+> "at"
           TCP.<+> TCP.prettyTCM (getRange m)
           TCP.$$

@@ -2072,11 +2072,11 @@ primitiveFunctions = Map.fromList
   , "primForceLemma"      |-> primForceLemma
   , "primQNameEquality"   |-> mkPrimFun2 ((==) :: Rel QName)
   , "primQNameLess"       |-> mkPrimFun2 ((<) :: Rel QName)
-  , "primShowQName"       |-> mkPrimFun1 (Str . show :: QName -> Str)
+  , "primShowQName"       |-> mkPrimFun1 (Str . prettyShow :: QName -> Str)
   , "primQNameFixity"     |-> mkPrimFun1 (nameFixity . qnameName)
   , "primMetaEquality"    |-> mkPrimFun2 ((==) :: Rel MetaId)
   , "primMetaLess"        |-> mkPrimFun2 ((<) :: Rel MetaId)
-  , "primShowMeta"        |-> mkPrimFun1 (Str . show . pretty :: MetaId -> Str)
+  , "primShowMeta"        |-> mkPrimFun1 (Str . prettyShow :: MetaId -> Str)
   , "primIMin"            |-> primIMin'
   , "primIMax"            |-> primIMax'
   , "primINeg"            |-> primINeg'

@@ -472,7 +472,7 @@ instance (Pretty a, Pretty b) => Pretty (OutputForm a b) where
     where
       prange r | null s = empty
                | otherwise = text $ " [ at " ++ s ++ " ]"
-        where s = show r
+        where s = prettyShow r
 
 instance (Pretty a, Pretty b) => Pretty (OutputConstraint a b) where
   pretty oc =
@@ -858,7 +858,7 @@ introTactic pmLambda ii = do
     conName [p] = [ c | I.ConP c _ _ <- [namedArg p] ]
     conName _   = __IMPOSSIBLE__
 
-    showTCM v = show <$> prettyTCM v
+    showTCM v = render <$> prettyTCM v
 
     introFun tel = addContext tel' $ do
         reportSDoc "interaction.intro" 10 $ do "introFun" TP.<+> prettyTCM (telFromList tel)
