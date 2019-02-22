@@ -5,8 +5,9 @@ import Agda.TypeChecking.Monad.Base
 
 import Agda.Utils.Except
 
-warning :: (MonadTCM m, HasOptions m, MonadError TCErr m, ReadTCState m)
-        => Warning -> m ()
+class (MonadPretty m, MonadError TCErr m) => MonadWarning m where
+  addWarning :: TCWarning -> m ()
 
-warnings :: (MonadTCM m, HasOptions m, ReadTCState m, MonadError TCErr m)
-         => [Warning] -> m ()
+warnings :: MonadWarning m => [Warning] -> m ()
+
+warning :: MonadWarning m => Warning -> m ()

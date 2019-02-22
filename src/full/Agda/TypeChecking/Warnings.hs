@@ -5,10 +5,19 @@ module Agda.TypeChecking.Warnings where
 import qualified Data.Set as Set
 import qualified Data.List as List
 import Data.Maybe ( catMaybes )
+
 import Control.Monad ( guard, forM, unless )
+import Control.Monad.Reader ( ReaderT )
+import Control.Monad.State ( StateT )
+import Control.Monad.Trans ( lift )
 
 import Agda.TypeChecking.Monad.Base
+import {-# SOURCE #-} Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Monad.Caching
+import {-# SOURCE #-} Agda.TypeChecking.Monad.Context ()
+import Agda.TypeChecking.Monad.Debug
+import {-# SOURCE #-} Agda.TypeChecking.Monad.MetaVars ()
+import {-# SOURCE #-} Agda.TypeChecking.Monad.Signature ()
 import {-# SOURCE #-} Agda.TypeChecking.Errors
 import {-# SOURCE #-} Agda.TypeChecking.Pretty
 import {-# SOURCE #-} Agda.TypeChecking.Pretty.Call
@@ -25,18 +34,35 @@ import Agda.Utils.Lens
 import qualified Agda.Utils.Pretty as P
 import Agda.Utils.Except
 
+class (MonadPretty m, MonadError TCErr m) => MonadWarning m where
+  -- | Render the warning
+  addWarning :: TCWarning -> m ()
+
+instance MonadWarning m => MonadWarning (ReaderT r m) where
+  addWarning = lift . addWarning
+
+instance MonadWarning m => MonadWarning (StateT s m) where
+  addWarning = lift . addWarning
+
+instance MonadWarning TCM where
+  addWarning tcwarn = stTCWarnings `modifyTCLens` add w' tcwarn
+    where
+      w' = tcWarning tcwarn
+
+      add w tcwarn tcwarns
+        | onlyOnce w && elem tcwarn tcwarns = tcwarns -- Eq on TCWarning only checks head constructor
+        | otherwise                         = tcwarn : tcwarns
+
 {-# SPECIALIZE genericWarning :: P.Doc -> TCM () #-}
-genericWarning :: (MonadTCM m, MonadError TCErr m, ReadTCState m, HasOptions m)
-               => P.Doc -> m ()
+genericWarning :: MonadWarning m => P.Doc -> m ()
 genericWarning = warning . GenericWarning
 
 {-# SPECIALIZE genericNonFatalError :: P.Doc -> TCM () #-}
-genericNonFatalError :: (MonadTCM m, MonadError TCErr m, ReadTCState m, HasOptions m)
-                     => P.Doc -> m ()
+genericNonFatalError :: MonadWarning m => P.Doc -> m ()
 genericNonFatalError = warning . GenericNonFatalError
 
 {-# SPECIALIZE warning_ :: Warning -> TCM TCWarning #-}
-warning_ :: (MonadTCM m, ReadTCState m) => Warning -> m TCWarning
+warning_ :: MonadWarning m => Warning -> m TCWarning
 warning_ w = do
   r <- viewTC eRange
   c <- viewTC eCall
@@ -45,8 +71,8 @@ warning_ w = do
   -- issues (but we might need to keep the overall range `r` for
   -- comparing ranges)
   let r' = case w of { NicifierIssue{} -> NoRange ; _ -> r }
-  p <- liftTCM $ sayWhen r' c $ prettyTCM w
-  liftTCM $ return $ TCWarning r w p b
+  p <- sayWhen r' c $ prettyTCM w
+  return $ TCWarning r w p b
 
 -- | @applyWarningMode@ filters out the warnings the user has not requested
 -- Users are not allowed to ignore non-fatal errors.
@@ -57,15 +83,10 @@ applyWarningMode wm w = case classifyWarning w of
   AllWarnings   -> w <$ guard (Set.member (warningName w) $ wm ^. warningSet)
 
 {-# SPECIALIZE warnings :: [Warning] -> TCM () #-}
-warnings :: (MonadTCM m, HasOptions m, ReadTCState m, MonadError TCErr m)
-         => [Warning] -> m ()
+warnings :: MonadWarning m => [Warning] -> m ()
 warnings ws = do
 
   wmode <- optWarningMode <$> pragmaOptions
-
-  let add w tcwarn tcwarns
-        | onlyOnce w && elem tcwarn tcwarns = tcwarns -- Eq on TCWarning only checks head constructor
-        | otherwise                         = tcwarn : tcwarns
 
   -- We collect *all* of the warnings no matter whether they are in the @warningSet@
   -- or not. If we find one which should be turned into an error, we keep processing
@@ -74,14 +95,13 @@ warnings ws = do
     tcwarn <- warning_ w'
     if wmode ^. warn2Error && warningName w' `elem` wmode ^. warningSet
     then pure (Just tcwarn)
-    else Nothing <$ (stTCWarnings `modifyTCLens` add w' tcwarn)
+    else Nothing <$ addWarning tcwarn
 
   let errs = catMaybes merrs
   unless (null errs) $ typeError $ NonFatalErrors errs
 
 {-# SPECIALIZE warning :: Warning -> TCM () #-}
-warning :: (MonadTCM m, HasOptions m, MonadError TCErr m, ReadTCState m)
-        => Warning -> m ()
+warning :: MonadWarning m => Warning -> m ()
 warning = warnings . pure
 
 

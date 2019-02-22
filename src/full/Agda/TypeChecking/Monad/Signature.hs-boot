@@ -7,6 +7,7 @@ import qualified Control.Monad.Fail as Fail
 #endif
 
 import Control.Monad.Reader
+import Control.Monad.State
 
 import Agda.Syntax.Abstract.Name (QName)
 import Agda.Syntax.Internal (ModuleName, Telescope)
@@ -41,6 +42,9 @@ class ( Functor m
   getConstInfo' :: QName -> m (Either SigError Definition)
   getConstInfo' q = Right <$> getConstInfo q
   getRewriteRulesFor :: QName -> m RewriteRules
+
+instance HasConstInfo m => HasConstInfo (ReaderT r m)
+instance HasConstInfo m => HasConstInfo (StateT s m)
 
 instance HasConstInfo TCM where
 
