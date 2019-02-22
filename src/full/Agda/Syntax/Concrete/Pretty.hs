@@ -164,10 +164,6 @@ instance Pretty Relevance where
   pretty Irrelevant = "."
   pretty NonStrict  = ".."
 
-instance Pretty Induction where
-  pretty Inductive = "data"
-  pretty CoInductive = "codata"
-
 instance Pretty (OpApp Expr) where
   pretty (Ordinary e) = pretty e
   pretty (SyntaxBindingLambda r bs e) = pretty (Lam r bs e)
@@ -409,7 +405,7 @@ instance Pretty Declaration where
                     , nest 2 $ pretty rhs
                     ] $$ nest 2 (pretty wh)
             DataSig _ ind x tel e ->
-                sep [ hsep  [ pretty ind
+                sep [ hsep  [ "data"
                             , pretty x
                             , fcat (map pretty tel)
                             ]
@@ -419,7 +415,7 @@ instance Pretty Declaration where
                             ]
                     ]
             Data _ ind x tel e cs ->
-                sep [ hsep  [ pretty ind
+                sep [ hsep  [ "data"
                             , pretty x
                             , fcat (map pretty tel)
                             ]
@@ -430,7 +426,7 @@ instance Pretty Declaration where
                             ]
                     ] $$ nest 2 (vcat $ map pretty cs)
             DataDef _ ind x tel cs ->
-                sep [ hsep  [ pretty ind
+                sep [ hsep  [ "data"
                             , pretty x
                             , fcat (map pretty tel)
                             ]
@@ -613,6 +609,9 @@ instance Pretty a => Pretty (Arg a) where
                | otherwise  = 0
             localParens | getOrigin ai == Substitution = parens
                         | otherwise = id
+
+instance Pretty a => Pretty (Dom a) where
+  pretty = pretty . argFromDom
 
 instance Pretty e => Pretty (Named_ e) where
     prettyPrec p (Named Nothing e) = prettyPrec p e

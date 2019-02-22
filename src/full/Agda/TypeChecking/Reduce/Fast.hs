@@ -1365,9 +1365,6 @@ instance Pretty a => Pretty (FastCase a) where
       prSuc Nothing  = []
       prSuc (Just x) = ["suc ->" <?> pretty x]
 
-instance Pretty NameId where
-  pretty = text . show
-
 instance Pretty FastCompiledClauses where
   pretty (FDone xs t) = ("done" <+> prettyList xs) <?> prettyPrec 10 t
   pretty FFail        = "fail"

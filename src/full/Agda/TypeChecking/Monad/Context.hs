@@ -363,4 +363,4 @@ getVarInfo x =
                 case Map.lookup x def of
                     Just vt -> getOpen vt
                     _       -> fail $ "unbound variable " ++ prettyShow (nameConcrete x) ++
-                                " (id: " ++ show (nameId x) ++ ")"
+                                " (id: " ++ prettyShow (nameId x) ++ ")"

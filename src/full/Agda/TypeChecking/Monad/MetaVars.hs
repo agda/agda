@@ -323,7 +323,7 @@ lookupInteractionPoint ii =
 lookupInteractionId :: InteractionId -> TCM MetaId
 lookupInteractionId ii = fromMaybeM err2 $ ipMeta <$> lookupInteractionPoint ii
   where
-    err2 = typeError $ GenericError $ "No type nor action available for hole " ++ show ii ++ ". Possible cause: the hole has not been reached during type checking (do you see yellow?)"
+    err2 = typeError $ GenericError $ "No type nor action available for hole " ++ prettyShow ii ++ ". Possible cause: the hole has not been reached during type checking (do you see yellow?)"
 
 -- | Check whether an interaction id is already associated with a meta variable.
 lookupInteractionMeta :: InteractionId -> TCM (Maybe MetaId)
