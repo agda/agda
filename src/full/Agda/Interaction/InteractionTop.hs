@@ -1351,7 +1351,7 @@ give_gen force ii rng s0 giveRefine = do
     mkNewTxt True  C.Paren{} = Give_Paren
     mkNewTxt True  _         = Give_NoParen
     -- Otherwise, we replace it by the reified value Agda computed.
-    mkNewTxt False ce        = Give_String $ show ce
+    mkNewTxt False ce        = Give_String $ prettyShow ce
 
 highlightExpr :: A.Expr -> TCM ()
 highlightExpr e =

@@ -40,36 +40,38 @@ import qualified System.IO.Unsafe as UNSAFE (unsafePerformIO)
 
 -- Andreas, 2017-10-02, TODO: restore Show to its original purpose
 --
--- deriving instance Show Expr
--- deriving instance (Show a) => Show (OpApp a)
--- deriving instance Show Declaration
--- deriving instance Show Pattern
--- deriving instance Show TypedBinding
--- deriving instance Show LamBinding
--- deriving instance Show ModuleAssignment
--- deriving instance (Show a, Show b) => Show (ImportDirective' a b)
--- deriving instance (Show a, Show b) => Show (Using' a b)
--- deriving instance (Show a, Show b) => Show (Renaming' a b)
--- deriving instance Show Pragma
--- deriving instance Show RHS
--- deriving instance Show LHS
--- deriving instance Show LHSCore
--- deriving instance Show WhereClause
--- deriving instance Show ModuleApplication
+deriving instance Show Expr
+deriving instance (Show a) => Show (OpApp a)
+deriving instance Show Declaration
+deriving instance Show Pattern
+deriving instance Show TypedBinding
+deriving instance Show LamBinding
+deriving instance Show ModuleAssignment
+deriving instance (Show a, Show b) => Show (ImportDirective' a b)
+deriving instance (Show a, Show b) => Show (Using' a b)
+deriving instance (Show a, Show b) => Show (Renaming' a b)
+deriving instance Show Pragma
+deriving instance Show RHS
+deriving instance Show LHS
+deriving instance Show LHSCore
+deriving instance Show LamClause
+deriving instance Show WhereClause
+deriving instance Show ModuleApplication
+deriving instance Show DoStmt
 
-instance Show Expr            where show = show . pretty
-instance Show Declaration     where show = show . pretty
-instance Show Pattern         where show = show . pretty
-instance Show TypedBinding    where show = show . pretty
-instance Show LamBinding      where show = show . pretty
-instance (Pretty a, Pretty b) => Show (ImportDirective' a b)
-                              where show = show . pretty
-instance Show Pragma          where show = show . pretty
-instance Show RHS             where show = show . pretty
-instance Show LHS where show = show . pretty
-instance Show LHSCore where show = show . pretty
-instance Show WhereClause where show = show . pretty
-instance Show ModuleApplication where show = show . pretty
+-- instance Show Expr            where show = show . pretty
+-- instance Show Declaration     where show = show . pretty
+-- instance Show Pattern         where show = show . pretty
+-- instance Show TypedBinding    where show = show . pretty
+-- instance Show LamBinding      where show = show . pretty
+-- instance (Pretty a, Pretty b) => Show (ImportDirective' a b)
+--                               where show = show . pretty
+-- instance Show Pragma          where show = show . pretty
+-- instance Show RHS             where show = show . pretty
+-- instance Show LHS where show = show . pretty
+-- instance Show LHSCore where show = show . pretty
+-- instance Show WhereClause where show = show . pretty
+-- instance Show ModuleApplication where show = show . pretty
 
 
 -- | Picking the appropriate set of special characters depending on

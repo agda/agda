@@ -138,7 +138,7 @@ lispifyResponse (Resp_SolveAll ps) = return
       L [ A "agda2-solveAll-action", Q . L $ concatMap prn ps ]
   ]
   where
-    prn (ii,e)= [showNumIId ii, A $ quote $ show e]
+    prn (ii,e)= [showNumIId ii, A $ quote $ prettyShow e]
 
 -- | Adds a \"last\" tag to a response.
 
