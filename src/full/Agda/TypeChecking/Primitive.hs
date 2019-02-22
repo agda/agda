@@ -1847,15 +1847,15 @@ a --> b = garr id a b
 a .--> b = garr (const $ Irrelevant) a b
 a ..--> b = garr (const $ NonStrict) a b
 
-garr :: Monad tcm => (Relevance -> Relevance) -> tcm Type -> tcm Type -> tcm Type
+garr :: Monad m => (Relevance -> Relevance) -> m Type -> m Type -> m Type
 garr f a b = do
   a' <- a
   b' <- b
   return $ El (funSort (getSort a') (getSort b')) $
     Pi (mapRelevance f $ defaultDom a') (NoAbs "_" b')
 
-gpi :: (MonadTCM tcm, MonadAddContext tcm, MonadDebug tcm)
-    => ArgInfo -> String -> tcm Type -> tcm Type -> tcm Type
+gpi :: (MonadAddContext m, MonadDebug m)
+    => ArgInfo -> String -> m Type -> m Type -> m Type
 gpi info name a b = do
   a <- a
   let dom = defaultNamedArgDom info name a
@@ -1864,23 +1864,25 @@ gpi info name a b = do
   return $ El (piSort (getSort a) (Abs y (getSort b)))
               (Pi dom (Abs y b))
 
-hPi, nPi :: (MonadTCM tcm, MonadAddContext tcm, MonadDebug tcm)
-         => String -> tcm Type -> tcm Type -> tcm Type
+hPi, nPi :: (MonadAddContext m, MonadDebug m)
+         => String -> m Type -> m Type -> m Type
 hPi = gpi $ setHiding Hidden defaultArgInfo
 nPi = gpi defaultArgInfo
 
-hPi', nPi' :: (MonadTCM tcm, MonadAddContext tcm, MonadDebug tcm)
-           => String -> NamesT tcm Type -> (NamesT tcm Term -> NamesT tcm Type) -> NamesT tcm Type
+hPi', nPi' :: (MonadAddContext m, MonadDebug m)
+           => String -> NamesT m Type -> (NamesT m Term -> NamesT m Type) -> NamesT m Type
 hPi' s a b = hPi s a (bind' s b)
 nPi' s a b = nPi s a (bind' s b)
 
-pPi' :: (MonadTCM tcm, MonadAddContext tcm, MonadDebug tcm)
-     => String -> NamesT tcm Term -> (NamesT tcm Term -> NamesT tcm Type) -> NamesT tcm Type
-pPi' n phi b = toFinitePi <$> nPi' n (elInf $ cl (liftTCM primIsOne) <@> phi) b
+pPi' :: (MonadAddContext m, HasBuiltins m, MonadDebug m)
+     => String -> NamesT m Term -> (NamesT m Term -> NamesT m Type) -> NamesT m Type
+pPi' n phi b = toFinitePi <$> nPi' n (elInf $ cl isOne <@> phi) b
  where
    toFinitePi :: Type -> Type
    toFinitePi (El s (Pi d b)) = El s $ Pi (setRelevance Irrelevant $ d { domFinite = True }) b
-   toFinitePi _               = __IMPOSSIBLE__
+   toFinitePi _               = __IMPOSSIBLE__\
+
+   isOne = fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinIsOne
 
 el' :: Monad m => m Term -> m Term -> m Type
 el' l a = El <$> (tmSort <$> l) <*> a
