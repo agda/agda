@@ -41,7 +41,7 @@ import Agda.Syntax.Position (fuseRange, Range, HasRange(..), noRange)
 import Agda.TypeChecking.Datatypes ( isDataOrRecordType )
 import Agda.TypeChecking.Functions
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Monad.Builtin (primInf, CoinductionKit(..), coinductionKit)
+import Agda.TypeChecking.Monad.Builtin (builtinInf, getBuiltin', CoinductionKit(..), coinductionKit)
 import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Records
@@ -783,7 +783,7 @@ instance PrettyTCM (Seq OccursWhere) where
         where
         snd' (OccursWhere _ _ ws) = ws
 
-      prettyOWs :: [OccursWhere] -> TCM (String, Doc)
+      prettyOWs :: MonadPretty m => [OccursWhere] -> m (String, Doc)
       prettyOWs []  = __IMPOSSIBLE__
       prettyOWs [o] = do
         (s, d) <- prettyOW o
@@ -793,7 +793,7 @@ instance PrettyTCM (Seq OccursWhere) where
         (s2, d2) <- prettyOWs os
         return (s1, d1 P.<> "," P.<+> "which" P.<+> P.text s2 P.$$ d2)
 
-      prettyOW :: OccursWhere -> TCM (String, Doc)
+      prettyOW :: MonadPretty m => OccursWhere -> m (String, Doc)
       prettyOW (OccursWhere _ cs ws)
         | null cs   = prettyWs ws
         | otherwise = do
@@ -801,7 +801,7 @@ instance PrettyTCM (Seq OccursWhere) where
             (_, d2) <- prettyWs cs
             return (s, d1 P.$$ "(" P.<> d2 P.<> ")")
 
-      prettyWs :: Seq Where -> TCM (String, Doc)
+      prettyWs :: MonadPretty m => Seq Where -> m (String, Doc)
       prettyWs ws = case Fold.toList ws of
         [InDefOf d, IsIndex] ->
           (,) "is" <$> fsep (pwords "an index of" ++ [prettyTCM d])
@@ -809,14 +809,14 @@ instance PrettyTCM (Seq OccursWhere) where
           (,) "occurs" <$>
             Fold.foldrM (\w d -> return d $$ fsep (prettyW w)) empty ws
 
-      prettyW :: Where -> [TCM Doc]
+      prettyW :: MonadPretty m => Where -> [m Doc]
       prettyW w = case w of
         LeftOfArrow  -> pwords "to the left of an arrow"
         DefArg q i   -> pwords "in the" ++ nth i ++ pwords "argument of" ++
                           [prettyTCM q]
         UnderInf     -> pwords "under" ++
                         [do -- this cannot fail if an 'UnderInf' has been generated
-                            Def inf _ <- primInf
+                            Def inf _ <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinInf
                             prettyTCM inf]
         VarArg       -> pwords "in an argument of a bound variable"
         MetaArg      -> pwords "in an argument of a metavariable"

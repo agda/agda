@@ -180,15 +180,20 @@ addRewriteRule q = do
     , prettyTCM gamma1
     , " |- " <+> do addContext gamma1 $ prettyTCM core
     ]
-  let failureWrongTarget = typeError . GenericDocError =<< hsep
+  let failureWrongTarget :: TCM a
+      failureWrongTarget = typeError . GenericDocError =<< hsep
         [ prettyTCM q , " does not target rewrite relation" ]
-  let failureMetas       = typeError . GenericDocError =<< hsep
+  let failureMetas :: TCM a
+      failureMetas       = typeError . GenericDocError =<< hsep
         [ prettyTCM q , " is not a legal rewrite rule, since it contains unsolved meta variables" ]
-  let failureNotDefOrCon = typeError . GenericDocError =<< hsep
+  let failureNotDefOrCon :: TCM a
+      failureNotDefOrCon = typeError . GenericDocError =<< hsep
         [ prettyTCM q , " is not a legal rewrite rule, since the left-hand side is neither a defined symbol nor a constructor" ]
-  let failureFreeVars xs = typeError . GenericDocError =<< hsep
+  let failureFreeVars :: IntSet -> TCM a
+      failureFreeVars xs = typeError . GenericDocError =<< hsep
         [ prettyTCM q , " is not a legal rewrite rule, since the following variables are not bound by the left hand side: " , prettyList_ (map (prettyTCM . var) $ IntSet.toList xs) ]
-  let failureIllegalRule = typeError . GenericDocError =<< hsep
+  let failureIllegalRule :: TCM a
+      failureIllegalRule = typeError . GenericDocError =<< hsep
         [ prettyTCM q , " is not a legal rewrite rule" ]
 
   -- Check that type of q targets rel.

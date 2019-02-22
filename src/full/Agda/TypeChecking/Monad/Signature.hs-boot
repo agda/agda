@@ -42,6 +42,8 @@ class ( Functor m
   getConstInfo' q = Right <$> getConstInfo q
   getRewriteRulesFor :: QName -> m RewriteRules
 
+instance HasConstInfo TCM where
+
 inFreshModuleIfFreeParams :: TCM a -> TCM a
 lookupSection :: (Functor m, ReadTCState m) => ModuleName -> m Telescope
 

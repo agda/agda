@@ -1,14 +1,11 @@
 module Agda.TypeChecking.Errors where
 
-import Agda.TypeChecking.Monad.Base
-import Agda.Syntax.Position
+import Agda.Syntax.Abstract.Name
 
-import Agda.Utils.Pretty
+import Agda.TypeChecking.Monad.Base
 
 -- Misplaced SPECIALISE pragma:
 -- {-# SPECIALIZE prettyError :: TCErr -> TCM String #-}
 prettyError :: MonadTCM tcm => TCErr -> tcm String
 
-prettyWarning :: MonadTCM tcm => Warning -> tcm Doc
-
-sayWhen :: Range -> Maybe (Closure Call) -> TCM Doc -> TCM Doc
+topLevelModuleDropper :: (MonadTCEnv m, ReadTCState m) => m (QName -> QName)

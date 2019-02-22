@@ -11,6 +11,8 @@ import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Caching
 import {-# SOURCE #-} Agda.TypeChecking.Errors
 import {-# SOURCE #-} Agda.TypeChecking.Pretty
+import {-# SOURCE #-} Agda.TypeChecking.Pretty.Call
+import {-# SOURCE #-} Agda.TypeChecking.Pretty.Warning
 
 import Agda.Syntax.Position
 import Agda.Syntax.Parser
@@ -43,7 +45,7 @@ warning_ w = do
   -- issues (but we might need to keep the overall range `r` for
   -- comparing ranges)
   let r' = case w of { NicifierIssue{} -> NoRange ; _ -> r }
-  p <- liftTCM $ sayWhen r' c $ prettyWarning w
+  p <- liftTCM $ sayWhen r' c $ prettyTCM w
   liftTCM $ return $ TCWarning r w p b
 
 -- | @applyWarningMode@ filters out the warnings the user has not requested

@@ -132,6 +132,7 @@ solveSizeConstraints flag =  do
       [ text $ "Solving constraints (" ++ show flag ++ ")"
       ] ++ map prettyTCM cs0
   let -- Error for giving up
+      cannotSolve :: TCM a
       cannotSolve = typeError . GenericDocError =<<
         vcat ("Cannot solve size constraints" : map prettyTCM cs0)
 

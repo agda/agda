@@ -27,6 +27,7 @@ import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Maybe
+import Data.String
 
 import Agda.Syntax.Position
 import Agda.Syntax.Common
@@ -147,11 +148,18 @@ punctuate d ds = zipWith (<>) ds (replicate n d ++ [pure empty])
 -- * The PrettyTCM class
 ---------------------------------------------------------------------------
 
+type MonadPretty m =
+  ( MonadReify m
+  , MonadAbsToCon m
+  , IsString (m Doc)
+  , Null (m Doc)
+  )
+
 class PrettyTCM a where
-  prettyTCM :: a -> TCM Doc
+  prettyTCM :: MonadPretty m => a -> m Doc
 
 -- | Pretty print with a given context precedence
-prettyTCMCtx :: PrettyTCM a => Precedence -> a -> TCM Doc
+prettyTCMCtx :: (PrettyTCM a, MonadPretty m) => Precedence -> a -> m Doc
 prettyTCMCtx p = withContextPrecedence p . prettyTCM
 
 instance PrettyTCM Bool        where prettyTCM = pretty
@@ -335,7 +343,9 @@ instance PrettyTCM Constraint where
           prettyTCM (A.App A.defaultAppInfo_ (A.Unquote A.exprNoRange) (defaultNamedArg e))
 
       where
-        prettyCmp :: (PrettyTCM a, PrettyTCM b) => TCM Doc -> a -> b -> TCM Doc
+        prettyCmp
+          :: (PrettyTCM a, PrettyTCM b, MonadPretty m)
+          => m Doc -> a -> b -> m Doc
         prettyCmp cmp x y = prettyTCMCtx TopCtx x <?> (cmp <+> prettyTCMCtx TopCtx y)
 
 
@@ -403,23 +413,25 @@ instance PrettyTCM a => PrettyTCM (Pattern' a) where
         prettyTCM c <+> fsep (map (prettyTCM . namedArg) ps)
         where
         b = maybe False (/= PatOCon) $ conPRecord i
-        showRec :: TCM Doc
+        showRec :: MonadPretty m => m Doc
         showRec = sep
           [ "record"
           , bracesAndSemicolons <$> zipWithM showField (conFields c) ps
           ]
+        showField :: MonadPretty m => Arg QName -> NamedArg (Pattern' a) -> m Doc
         showField (Arg ai x) p =
           sep [ prettyTCM (A.qnameName x) <+> "=" , nest 2 $ prettyTCM $ namedArg p ]
+        showCon :: MonadPretty m => m Doc
         showCon = parens $ prTy $ prettyTCM c <+> fsep (map (prettyTCM . namedArg) ps)
         prTy d = d -- caseMaybe (conPType i) d $ \ t -> d  <+> ":" <+> prettyTCM t
   prettyTCM (LitP l)      = text (P.prettyShow l)
   prettyTCM (ProjP _ q)   = text ("." ++ P.prettyShow q)
 
 -- | Proper pretty printing of patterns:
-prettyTCMPatterns :: [NamedArg DeBruijnPattern] -> TCM [Doc]
+prettyTCMPatterns :: MonadPretty m => [NamedArg DeBruijnPattern] -> m [Doc]
 prettyTCMPatterns = mapM prettyA <=< reifyPatterns
 
-prettyTCMPatternList :: [NamedArg DeBruijnPattern] -> TCM Doc
+prettyTCMPatternList :: MonadPretty m => [NamedArg DeBruijnPattern] -> m Doc
 prettyTCMPatternList = prettyList . map prettyA <=< reifyPatterns
 
 instance PrettyTCM (Elim' DisplayTerm) where

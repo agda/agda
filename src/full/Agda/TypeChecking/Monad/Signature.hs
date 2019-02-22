@@ -56,6 +56,7 @@ import {-# SOURCE #-} Agda.TypeChecking.Polarity
 import {-# SOURCE #-} Agda.TypeChecking.ProjectionLike
 import Agda.TypeChecking.Monad.Builtin
 
+import Agda.Utils.Either
 import Agda.Utils.Except ( ExceptT )
 import Agda.Utils.Functor
 import Agda.Utils.Lens
@@ -859,12 +860,12 @@ getCurrentModuleFreeVars = size <$> (lookupSection =<< currentModule)
 
 --   For annoying reasons the qnameModule of a pattern lambda is not correct
 --   (#2883), so make sure to grab the right module for those.
-getDefModule :: HasConstInfo m => QName -> m ModuleName
-getDefModule f = do
-  def <- getConstInfo f
-  return $ case theDef def of
-    Function{ funExtLam = Just (ExtLamInfo m _) } -> m
-    _                                             -> qnameModule f
+getDefModule :: HasConstInfo m => QName -> m (Either SigError ModuleName)
+getDefModule f = mapRight modName <$> getConstInfo' f
+  where
+    modName def = case theDef def of
+      Function{ funExtLam = Just (ExtLamInfo m _) } -> m
+      _                                             -> qnameModule f
 
 -- | Compute the number of free variables of a defined name. This is the sum of
 --   number of parameters shared with the current module and the number of

@@ -19,6 +19,7 @@ import qualified Text.PrettyPrint as P
 import Text.PrettyPrint hiding (TextDetails(Str), empty)
 
 import Agda.Utils.NonemptyList
+import Agda.Utils.Size
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -131,3 +132,6 @@ a <?> b = hang a 2 b
 -- | @pshow = text . pretty@
 pshow :: Show a => a -> Doc
 pshow = text . show
+
+singPlural :: Sized a => a -> c -> c -> c
+singPlural xs singular plural = if size xs == 1 then singular else plural
