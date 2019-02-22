@@ -3580,12 +3580,7 @@ class ( Applicative tcm, MonadIO tcm
 
 instance MonadIO m => ReadTCState (TCMT m) where
   getTCState = getTC
-  locallyTCState l f m = do
-    old <- useTC l
-    modifyTCLens l f
-    x <- m
-    setTCLens l old
-    return x
+  locallyTCState l f = bracket_ (useTC l <* modifyTCLens l f) (setTCLens l)
 
 instance MonadError TCErr (TCMT IO) where
   throwError = liftIO . E.throwIO
