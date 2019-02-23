@@ -140,8 +140,8 @@ sizeType_ :: QName -> Type
 sizeType_ size = El sizeSort $ Def size []
 
 -- | The built-in type @SIZE@.
-sizeType :: (HasBuiltins m, MonadError TCErr m, MonadTCEnv m, ReadTCState m) => m Type
-sizeType = El sizeSort <$> primSize
+sizeType :: (HasBuiltins m, MonadTCEnv m, ReadTCState m) => m Type
+sizeType = El sizeSort . fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSize
 
 -- | The name of @SIZESUC@.
 sizeSucName :: (HasBuiltins m, HasOptions m) => m (Maybe QName)
