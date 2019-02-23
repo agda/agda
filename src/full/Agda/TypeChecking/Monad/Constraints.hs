@@ -54,17 +54,17 @@ solvingProblems pids m = verboseBracket "tc.constr.solve" 50 ("working on proble
     blockedOn pid (Guarded _ pid') = pid == pid'
     blockedOn _ _ = False
 
-isProblemSolved :: ProblemId -> TCM Bool
+isProblemSolved :: (MonadTCEnv m, ReadTCState m) => ProblemId -> m Bool
 isProblemSolved pid =
   and2M (not . Set.member pid <$> asksTC envActiveProblems)
         (all (not . Set.member pid . constraintProblems) <$> getAllConstraints)
 
-getConstraintsForProblem :: ProblemId -> TCM Constraints
+getConstraintsForProblem :: ReadTCState m => ProblemId -> m Constraints
 getConstraintsForProblem pid = List.filter (Set.member pid . constraintProblems) <$> getAllConstraints
 
 -- | Get the awake constraints
-getAwakeConstraints :: TCM Constraints
-getAwakeConstraints = useTC stAwakeConstraints
+getAwakeConstraints :: ReadTCState m => m Constraints
+getAwakeConstraints = useR stAwakeConstraints
 
 wakeConstraints :: (ProblemConstraint-> TCM Bool) -> TCM ()
 wakeConstraints wake = do
@@ -122,8 +122,10 @@ takeAwakeConstraint' p = do
       modifyAwakeConstraints $ const (cs0 ++ cs)
       return $ Just c
 
-getAllConstraints :: TCM Constraints
-getAllConstraints = getsTC $ \s -> s^.stAwakeConstraints ++ s^.stSleepingConstraints
+getAllConstraints :: ReadTCState m => m Constraints
+getAllConstraints = do
+  s <- getTCState
+  return $ s^.stAwakeConstraints ++ s^.stSleepingConstraints
 
 withConstraint :: (Constraint -> TCM a) -> ProblemConstraint -> TCM a
 withConstraint f (PConstr pids c) = do
@@ -133,10 +135,14 @@ withConstraint f (PConstr pids c) = do
     localTC (\e -> e { envActiveProblems = pids', envSolvingConstraints = isSolving }) $
     solvingProblems pids (f c)
 
-buildProblemConstraint :: Set ProblemId -> Constraint -> TCM ProblemConstraint
+buildProblemConstraint
+  :: (MonadTCEnv m, ReadTCState m)
+  => Set ProblemId -> Constraint -> m ProblemConstraint
 buildProblemConstraint pids c = PConstr pids <$> buildClosure c
 
-buildProblemConstraint_ :: Constraint -> TCM ProblemConstraint
+buildProblemConstraint_
+  :: (MonadTCEnv m, ReadTCState m)
+  => Constraint -> m ProblemConstraint
 buildProblemConstraint_ = buildProblemConstraint Set.empty
 
 buildConstraint :: Constraint -> TCM ProblemConstraint
