@@ -736,9 +736,9 @@ However, even though this interface exists it is still recommended
 that one uses the cubical identity types unless one really need ``J``
 to compute on ``refl``. The reason for this is that the syntax for
 path types does not work for the identity types, making many proofs
-more involved as the only way to reason about them is using ``J``
-(furthermore, the path types satisfy many useful definitional
-equalities that the identity types don't).
+more involved as the only way to reason about them is using ``J``.
+Furthermore, the path types satisfy many useful definitional
+equalities that the identity types don't.
 
 References
 ----------
