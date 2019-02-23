@@ -2333,7 +2333,7 @@ resolvePatternIdentifier r x ns = do
     VarPatName y         -> do
       reportSLn "scope.pat" 60 $ "  resolved to VarPatName " ++ show y ++ " with range " ++ show (getRange y)
       return $ VarP $ A.BindName y
-    ConPatName ds        -> return $ ConP (ConPatInfo ConOCon (PatRange r) False)
+    ConPatName ds        -> return $ ConP (ConPatInfo ConOCon (PatRange r) ConPatEager)
                                           (AmbQ $ fmap anameName ds) []
     PatternSynPatName ds -> return $ PatternSynP (PatRange r)
                                                  (AmbQ $ fmap anameName ds) []
@@ -2357,7 +2357,7 @@ applyAPattern p0 p ps = do
       -- Dotted constructors are turned into "lazy" constructor patterns.
       A.DotP i (Ident x)   -> resolveName x >>= \case
         ConstructorName ds -> do
-          let cpi = ConPatInfo ConOCon i True -- lazy
+          let cpi = ConPatInfo ConOCon i ConPatLazy
               c   = AmbQ (fmap anameName ds)
           return $ A.ConP cpi c ps
         _ -> failure
