@@ -395,11 +395,11 @@ trivial u v = do
 ------------------------------------------------------------------------
 
 -- | Test whether a problem consists only of size constraints.
-isSizeProblem :: ProblemId -> TCM Bool
+isSizeProblem :: (ReadTCState m, HasOptions m, HasBuiltins m) => ProblemId -> m Bool
 isSizeProblem pid = andM . map (isSizeConstraint . theConstraint) =<< getConstraintsForProblem pid
 
 -- | Test is a constraint speaks about sizes.
-isSizeConstraint :: Closure Constraint -> TCM Bool
+isSizeConstraint :: (HasOptions m, HasBuiltins m) => Closure Constraint -> m Bool
 isSizeConstraint Closure{ clValue = ValueCmp _ s _ _ } = isJust <$> isSizeType s
 isSizeConstraint _ = return False
 
