@@ -434,7 +434,7 @@ this open square:
                p i
 
 In the drawing the direction ``i`` goes left-to-right and ``j`` goes
-down-to-up. As we are constructing a path from ``x`` to ``z`` along
+bottom-to-top. As we are constructing a path from ``x`` to ``z`` along
 ``i`` we have ``i : I`` in the context already and we put ``p i`` as
 bottom. The direction ``j`` that we are doing the composition in is
 abstracted in the first argument to ``hcomp``.
