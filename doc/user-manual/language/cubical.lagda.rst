@@ -314,7 +314,7 @@ where some faces are missing). Given an element of the interval ``r :
 I`` there is a predicate ``IsOne`` which represents the constraint ``r
 = i1``. This comes with a proof that ``i1`` is in fact equal to ``i1``
 called ``1=1 : IsOne i1``. We use Greek letters like ``φ`` or ``ψ``
-when such an ``r`` should be thought of as being in the image of
+when such an ``r`` should be thought of as being in the domain of
 ``IsOne``.
 
 Using this we introduce a type of partial elements called ``Partial φ
