@@ -546,11 +546,12 @@ prune m' vs xs = do
 --   @hasBadRigid xs v = Nothing@ means that
 --   we cannot prune at all as one of the meta args is matchable.
 --   (See issue 1147.)
-hasBadRigid :: [Nat] -> Term -> ExceptT () TCM Bool
+hasBadRigid :: (MonadReduce m, HasConstInfo m, MonadAddContext m, Monoid (m Any))
+            => [Nat] -> Term -> ExceptT () m Bool
 hasBadRigid xs t = do
   -- We fail if we encounter a matchable argument.
   let failure = throwError ()
-  tb <- liftTCM $ reduceB t
+  tb <- reduceB t
   let t = ignoreBlocking tb
   case t of
     Var x _      -> return $ notElem x xs
@@ -562,18 +563,18 @@ hasBadRigid xs t = do
     -- match: data, record, Pi, levels, sorts
     -- Thus, their offending rigid variables are bad.
     v@(Def f es) -> ifNotM (isNeutral tb f es) failure $ {- else -} do
-      es `rigidVarsNotContainedIn` xs
+      lift $ es `rigidVarsNotContainedIn` xs
     -- Andreas, 2012-05-03: There is room for further improvement.
     -- We could also consider a defined f which is not blocked by a meta.
-    Pi a b       -> (a,b) `rigidVarsNotContainedIn` xs
-    Level v      -> v `rigidVarsNotContainedIn` xs
-    Sort s       -> s `rigidVarsNotContainedIn` xs
+    Pi a b       -> lift $ (a,b) `rigidVarsNotContainedIn` xs
+    Level v      -> lift $ v `rigidVarsNotContainedIn` xs
+    Sort s       -> lift $ s `rigidVarsNotContainedIn` xs
     -- Since constructors can be eliminated by pattern-matching,
     -- offending variables under a constructor could be removed by
     -- the right instantiation of the meta variable.
     -- Thus, they are not rigid.
     Con c _ es | Just args <- allApplyElims es -> do
-      ifM (liftTCM $ isEtaCon (conName c))
+      ifM (isEtaCon (conName c))
         -- in case of a record con, we can in principle prune
         -- (but not this argument; the meta could become a projection!)
         (and <$> mapM (hasBadRigid xs . unArg) args)  -- not andM, we need to force the exceptions!
@@ -607,8 +608,10 @@ isNeutral b f es = do
 --   occurs *definitely* in the term in a rigid position.
 --   Reduces the term successively to remove variables in dead subterms.
 --   This fixes issue 1386.
-rigidVarsNotContainedIn :: (MonadTCM tcm, FoldRigid a) => a -> [Nat] -> tcm Bool
-rigidVarsNotContainedIn v is = liftTCM $ do
+rigidVarsNotContainedIn
+  :: (MonadReduce m, MonadAddContext m, MonadTCEnv m, MonadDebug m, FoldRigid a, Monoid (m Any))
+  => a -> [Nat] -> m Bool
+rigidVarsNotContainedIn v is = do
   n0 <- getContextSize
   let -- allowed variables as de Bruijn levels
       levels = Set.fromList $ map (n0-1 -) is
@@ -631,11 +634,11 @@ rigidVarsNotContainedIn v is = liftTCM $ do
 
 class FoldRigid a where
 --  foldRigid :: (MonadTCM tcm, Monoid (tcm m)) => (Nat -> tcm m) -> a -> tcm m
-  foldRigid :: (Monoid (TCM m)) => (Nat -> TCM m) -> a -> TCM m
+  foldRigid :: (MonadReduce tcm, MonadAddContext tcm, Monoid (tcm m)) => (Nat -> tcm m) -> a -> tcm m
 
 instance FoldRigid Term where
   foldRigid f t = do
-    b <- liftTCM $ reduceB t
+    b <- reduceB t
     case ignoreBlocking b of
       -- Upon entry, we are in rigid position, thus,
       -- bound variables are rigid ones.
@@ -774,7 +777,7 @@ killArgs kills m = do
 --   Invariant: @k'i == True@ iff @ki == True@ and pruning the @i@th argument from
 --   type @b@ is possible without creating unbound variables.
 --   @t'@ is type @t@ after pruning all @k'i==True@.
-killedType :: [(Dom (ArgName, Type), Bool)] -> Type -> TCM ([Arg Bool], Type)
+killedType :: (MonadReduce m) => [(Dom (ArgName, Type), Bool)] -> Type -> m ([Arg Bool], Type)
 killedType args b = do
 
   -- Turn list of bools into an IntSet containing the variables we want to kill
@@ -805,7 +808,7 @@ killedType args b = do
     --    where Δ' ⊆ Δ  (possibly reduced to remove dependencies, see #3177)
     --          ys ⊆ xs are the variables that were dropped from Δ
     --          B' = strengthen ys B
-    go :: [Dom (ArgName, Type)] -> IntSet -> Type -> TCM (IntSet, Type)
+    go :: (MonadReduce m) => [Dom (ArgName, Type)] -> IntSet -> Type -> m (IntSet, Type)
     go [] xs b | IntSet.null xs = return (xs, b)
                | otherwise      = __IMPOSSIBLE__
     go (arg : args) xs b  -- go (Δ (x : A)) xs B, (x = deBruijn index 0)
@@ -831,7 +834,7 @@ killedType args b = do
           -- Shift back up to make it relative to Δ (x : A) again.
           return (up zs, b)
 
-reallyNotFreeIn :: IntSet -> Type -> TCM (IntSet, Type)
+reallyNotFreeIn :: (MonadReduce m) => IntSet -> Type -> m (IntSet, Type)
 reallyNotFreeIn xs a | IntSet.null xs = return (xs, a)  -- Shortcut
 reallyNotFreeIn xs a = do
   let fvs      = freeVars a
