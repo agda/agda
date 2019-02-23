@@ -277,10 +277,12 @@ constraintMetas c = Set.union (allMetas singleton c) <$> metas c
     listenerMetas (CheckConstraint _ c) = constraintMetas (clValue $ theConstraint c)
 
 -- | Create 'MetaInfo' in the current environment.
-createMetaInfo :: TCM MetaInfo
+createMetaInfo :: (MonadTCEnv m, ReadTCState m) => m MetaInfo
 createMetaInfo = createMetaInfo' RunMetaOccursCheck
 
-createMetaInfo' :: RunMetaOccursCheck -> TCM MetaInfo
+createMetaInfo'
+  :: (MonadTCEnv m, ReadTCState m)
+  => RunMetaOccursCheck -> m MetaInfo
 createMetaInfo' b = do
   r   <- getCurrentRange
   cl  <- buildClosure r
