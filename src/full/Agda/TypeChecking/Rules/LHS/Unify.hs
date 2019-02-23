@@ -161,6 +161,7 @@ import Agda.Utils.Except ( MonadError(catchError, throwError) )
 import Agda.Utils.Either
 import Agda.Utils.Function
 import Agda.Utils.Functor
+import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.ListT
 import Agda.Utils.Maybe
@@ -255,6 +256,21 @@ data UnifyState = UState
   , eqRHS    :: [Arg Term]
   } deriving (Show)
 
+lensVarTel   :: Lens' Telescope UnifyState
+lensVarTel   f s = f (varTel s) <&> \ tel -> s { varTel = tel }
+
+lensFlexVars :: Lens' FlexibleVars UnifyState
+lensFlexVars f s = f (flexVars s) <&> \ flex -> s { flexVars = flex }
+
+lensEqTel    :: Lens' Telescope UnifyState
+lensEqTel    f s = f (eqTel s) <&> \ x -> s { eqTel = x }
+
+lensEqLHS    :: Lens' Args UnifyState
+lensEqLHS    f s = f (eqLHS s) <&> \ x -> s { eqLHS = x }
+
+lensEqRHS    :: Lens' Args UnifyState
+lensEqRHS    f s = f (eqRHS s) <&> \ x -> s { eqRHS = x }
+
 instance Reduce UnifyState where
   reduce' (UState var flex eq lhs rhs) =
     UState <$> reduce' var
@@ -263,15 +279,8 @@ instance Reduce UnifyState where
            <*> reduce' lhs
            <*> reduce' rhs
 
-reduceVarTel :: UnifyState -> TCM UnifyState
-reduceVarTel s@UState{ varTel = tel } = do
-  tel <- reduce tel
-  return $ s { varTel = tel }
-
 reduceEqTel :: UnifyState -> TCM UnifyState
-reduceEqTel s@UState{ eqTel = tel } = do
-  tel <- reduce tel
-  return $ s { eqTel = tel }
+reduceEqTel = lensEqTel reduce
 
 instance Normalise UnifyState where
   normalise' (UState var flex eq lhs rhs) =
@@ -280,16 +289,6 @@ instance Normalise UnifyState where
            <*> normalise' eq
            <*> normalise' lhs
            <*> normalise' rhs
-
-normaliseVarTel :: UnifyState -> TCM UnifyState
-normaliseVarTel s@UState{ varTel = tel } = do
-  tel <- normalise tel
-  return $ s { varTel = tel }
-
-normaliseEqTel :: UnifyState -> TCM UnifyState
-normaliseEqTel s@UState{ eqTel = tel } = do
-  tel <- normalise tel
-  return $ s { eqTel = tel }
 
 instance PrettyTCM UnifyState where
   prettyTCM state = "UnifyState" $$ nest 2 (vcat $
@@ -590,7 +589,9 @@ completeStrategyAt k s = msum $ map (\strat -> strat k s) $
     , checkEqualityStrategy
     ]
 
--- | Returns true if the variables 0..k-1 don't occur in x
+-- | @isHom n x@ returns x lowered by n if the variables 0..n-1 don't occur in x.
+--
+-- This is naturally sensitive to normalization.
 isHom :: (Free a, Subst Term a) => Int -> a -> Maybe a
 isHom n x = do
   guard $ getAll $ runFree (All . (>= n)) IgnoreNot x
@@ -855,7 +856,7 @@ unifyStep s Deletion{ deleteAt = k , deleteType = a , deleteLeft = u , deleteRig
       _            -> do
         let (s', sigma) = solveEq k u s
         tellUnifyProof sigma
-        Unifies <$> liftTCM (reduceEqTel s')
+        Unifies <$> liftTCM (lensEqTel reduce s')
 
 unifyStep s Solution{ solutionAt   = k
                     , solutionType = dom@Dom{ unDom = a }
@@ -919,7 +920,7 @@ unifyStep s Solution{ solutionAt   = k
       Just x  -> return $ Just x
       Nothing -> do
         u <- liftTCM $ normalise u
-        s <- liftTCM $ normaliseVarTel s
+        s <- liftTCM $ lensVarTel normalise s
         return $ solveVar i u s
 
 unifyStep s (Injectivity k a d pars ixs c) = do
@@ -1089,7 +1090,7 @@ unifyStep s EtaExpandEquation{ expandAt = k, expandRecordType = d, expandParamet
   rhs   <- expandKth $ eqRHS s
   let (tel, sigma) = expandTelescopeVar (eqTel s) k delta c
   tellUnifyProof sigma
-  Unifies <$> liftTCM (reduceEqTel $ s
+  Unifies <$> liftTCM (lensEqTel reduce $ s
     { eqTel    = tel
     , eqLHS    = lhs
     , eqRHS    = rhs
@@ -1138,7 +1139,7 @@ unifyStep s (TypeConInjectivity k d us vs) = do
       deq = Def d $ map Apply $ teleArgs dtel
   -- TODO: tellUnifyProof ???
   -- but d is not a constructor...
-  Unifies <$> liftTCM (reduceEqTel $ s
+  Unifies <$> liftTCM (lensEqTel reduce $ s
     { eqTel = dtel `abstract` applyUnder k (eqTel s) (raise k deq)
     , eqLHS = us ++ dropAt k (eqLHS s)
     , eqRHS = vs ++ dropAt k (eqRHS s)
