@@ -2338,6 +2338,42 @@ resolvePatternIdentifier r x ns = do
     PatternSynPatName ds -> return $ PatternSynP (PatRange r)
                                                  (AmbQ $ fmap anameName ds) []
 
+-- | Apply an abstract syntax pattern head to pattern arguments.
+--
+--   Fails with 'InvalidPattern' if head is not a constructor pattern
+--   (or similar) that can accept arguments.
+--
+applyAPattern
+  :: C.Pattern            -- ^ The application pattern in concrete syntax.
+  -> A.Pattern' C.Expr    -- ^ Head of application.
+  -> NAPs C.Expr          -- ^ Arguments of application.
+  -> ScopeM (A.Pattern' C.Expr)
+applyAPattern p0 p ps = do
+  setRange (getRange p0) <$> do
+    case p of
+      A.ConP i x as        -> return $ A.ConP        i x (as ++ ps)
+      A.DefP i x as        -> return $ A.DefP        i x (as ++ ps)
+      A.PatternSynP i x as -> return $ A.PatternSynP i x (as ++ ps)
+      -- Dotted constructors are turned into "lazy" constructor patterns.
+      A.DotP i (Ident x)   -> resolveName x >>= \case
+        ConstructorName ds -> do
+          let cpi = ConPatInfo ConOCon i True -- lazy
+              c   = AmbQ (fmap anameName ds)
+          return $ A.ConP cpi c ps
+        _ -> failure
+      A.DotP{}    -> failure
+      A.VarP{}    -> failure
+      A.ProjP{}   -> failure
+      A.WildP{}   -> failure
+      A.AsP{}     -> failure
+      A.AbsurdP{} -> failure
+      A.LitP{}    -> failure
+      A.RecP{}    -> failure
+      A.EqualP{}  -> failure
+      A.WithP{}   -> failure
+  where
+    failure = typeError $ InvalidPattern p0
+
 instance ToAbstract C.Pattern (A.Pattern' C.Expr) where
 
     toAbstract (C.IdentP x) =
@@ -2367,25 +2403,9 @@ instance ToAbstract C.Pattern (A.Pattern' C.Expr) where
         p <- distributeDots p
         reportSLn "scope.pat" 50 $ "distributeDots after  = " ++ show p
         (p', q') <- toAbstract (p, q)
-        case p' of
-            ConP i x as        -> return $ ConP (i {patInfo = info}) x (as ++ [q'])
-            ProjP i o x        -> failure
-            DefP _ x as        -> return $ DefP info x (as ++ [q'])
-            PatternSynP _ x as -> return $ PatternSynP info x (as ++ [q'])
-            A.DotP i e         -> case e of
-              Ident x -> resolveName x >>= \case
-                ConstructorName ds -> do
-                  let cpi = ConPatInfo ConOCon i True
-                      c   = AmbQ (fmap anameName ds)
-                  return $ ConP cpi c [q']
-                _ -> failure
-              _ -> failure
-            _ -> failure
-        where
-            r = getRange p0
-            info = PatRange r
-            failure = typeError $ InvalidPattern p0
+        applyAPattern p0 p' [q']
 
+        where
             distributeDots :: C.Pattern -> ScopeM C.Pattern
             distributeDots p@(C.DotP r e) = distributeDotsExpr r e
             distributeDots p = return p
@@ -2412,15 +2432,10 @@ instance ToAbstract C.Pattern (A.Pattern' C.Expr) where
             parseRawApp e             = return e
 
     toAbstract p0@(OpAppP r op ns ps) = do
+        reportSLn "scope.pat" 60 $ "ConcreteToAbstract.toAbstract OpAppP{}: " ++ show p0
         p  <- resolvePatternIdentifier (getRange op) op (Just ns)
         ps <- toAbstract ps
-        case p of
-          ConP        i x as -> return $ ConP (i {patInfo = info}) x (as ++ ps)
-          DefP        _ x as -> return $ DefP               info   x (as ++ ps)
-          PatternSynP _ x as -> return $ PatternSynP        info   x (as ++ ps)
-          _                  -> __IMPOSSIBLE__
-        where
-        info = PatRange r
+        applyAPattern p0 p ps
 
     -- Removed when parsing
     toAbstract (HiddenP _ _)   = __IMPOSSIBLE__
