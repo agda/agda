@@ -376,9 +376,10 @@ Cubical Agda also has cubical subtypes as in the CCHM type theory:
   _[_↦_] : ∀ {ℓ} (A : Set ℓ) (φ : I) (u : Partial φ A) → Setω
   A [ φ ↦ u ] = Sub A φ u
 
-A term ``v : A [ φ ↦ u ]`` is of type ``A`` and when ``IsOne φ`` it
-must be definitionally equal to ``u : A``. Any term ``u : A`` can be
-seen as an term of ``A [ φ ↦ u ]`` which agrees with itself on ``φ``:
+A term ``v : A [ φ ↦ u ]`` should be thought of as a term of type
+``A`` which is definitionally equal to ``u : A`` when ``IsOne φ`` is
+satisfied. Any term ``u : A`` can be seen as an term of ``A [ φ ↦ u
+]`` which agrees with itself on ``φ``:
 
 .. code-block:: agda
 
