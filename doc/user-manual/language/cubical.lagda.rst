@@ -538,8 +538,8 @@ follows:
   ua {_} {A} {B} e i = Glue B (λ { (i = i0) → (A , e)
                                  ; (i = i1) → (B , idEquiv B) })
 
-The idea is that we glue on ``A`` to ``B`` when ``i = i0`` using ``e``
-and ``B`` to itself when ``i = i1`` using the identity
+The idea is that we glue ``A`` together with ``B`` when ``i = i0``
+using ``e`` and ``B`` with itself when ``i = i1`` using the identity
 equivalence. This hence gives us the key part of univalence: a
 function for turning equivalences into paths. The other part of
 univalence is that this map itself is an equivalence which follows
