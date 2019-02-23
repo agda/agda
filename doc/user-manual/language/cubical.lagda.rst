@@ -590,10 +590,10 @@ pattern-matching:
 ::
 
   t2c : Torus → S¹ × S¹
-  t2c point        = ( base , base )
-  t2c (line1 i)    = ( loop i , base )
-  t2c (line2 j)    = ( base , loop j )
-  t2c (square i j) = ( loop i , loop j )
+  t2c point        = (base   , base)
+  t2c (line1 i)    = (loop i , base)
+  t2c (line2 j)    = (base   , loop j)
+  t2c (square i j) = (loop i , loop j)
 
   c2t : S¹ × S¹ → Torus
   c2t (base   , base)   = point
