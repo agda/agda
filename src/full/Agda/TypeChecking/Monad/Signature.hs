@@ -742,12 +742,12 @@ getConInfo :: HasConstInfo m => ConHead -> m Definition
 getConInfo = getConstInfo . conName
 
 -- | Look up the polarity of a definition.
-getPolarity :: QName -> TCM [Polarity]
+getPolarity :: HasConstInfo m => QName -> m [Polarity]
 getPolarity q = defPolarity <$> getConstInfo q
 
 -- | Look up polarity of a definition and compose with polarity
 --   represented by 'Comparison'.
-getPolarity' :: Comparison -> QName -> TCM [Polarity]
+getPolarity' :: HasConstInfo m => Comparison -> QName -> m [Polarity]
 getPolarity' CmpEq  q = map (composePol Invariant) <$> getPolarity q -- return []
 getPolarity' CmpLeq q = getPolarity q -- composition with Covariant is identity
 
@@ -759,7 +759,7 @@ setPolarity q pol = do
   modifySignature $ updateDefinition q $ updateDefPolarity $ const pol
 
 -- | Look up the forced arguments of a definition.
-getForcedArgs :: QName -> TCM [IsForced]
+getForcedArgs :: HasConstInfo m => QName -> m [IsForced]
 getForcedArgs q = defForced <$> getConstInfo q
 
 -- | Get argument occurrence info for argument @i@ of definition @d@ (never fails).
