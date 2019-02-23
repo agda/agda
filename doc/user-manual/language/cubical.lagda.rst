@@ -344,8 +344,7 @@ Partial elements are introduced using pattern matching:
 
 The term ``partialBool`` should be thought of a boolean with different
 values when ``(i = i0)`` and ``(i = i1)``. Terms of type ``Partial φ
-A`` can also be introduced using pattern matching lambdas
-(http://wiki.portal.chalmers.se/agda/pmwiki.php?n=ReferenceManual.PatternMatchingLambdas).
+A`` can also be introduced using a :ref:`pattern-lambda`.
 
 ::
 
