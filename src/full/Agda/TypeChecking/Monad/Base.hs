@@ -468,10 +468,10 @@ stLocalUserWarnings f s =
   f (stPreLocalUserWarnings (stPreScopeState s)) <&>
   \ x -> s {stPreScopeState = (stPreScopeState s) {stPreLocalUserWarnings = x}}
 
-getUserWarnings :: MonadTCState m => m (Map A.QName String)
+getUserWarnings :: ReadTCState m => m (Map A.QName String)
 getUserWarnings = do
-  iuw <- useTC stImportedUserWarnings
-  luw <- useTC stLocalUserWarnings
+  iuw <- useR stImportedUserWarnings
+  luw <- useR stLocalUserWarnings
   return $ iuw `Map.union` luw
 
 stWarningOnImport :: Lens' (Maybe String) TCState
