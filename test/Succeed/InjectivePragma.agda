@@ -12,5 +12,7 @@ postulate f : Set → Set
 
 {-# INJECTIVE f #-}
 
-test₂ : {A₁ A₂ : Set} → f A₁ ≡ f A₂ → A₁ ≡ A₂
+f' = f
+
+test₂ : {A₁ A₂ : Set} → f A₁ ≡ f' A₂ → A₁ ≡ A₂
 test₂ refl = refl
