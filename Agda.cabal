@@ -67,7 +67,7 @@ library
   include-dirs:     src/full
 
   if flag(cpphs)
-    build-tools: cpphs >= 1.19 && < 1.20
+    build-tools: cpphs >= 1.19 && < 1.21
     ghc-options: -pgmP cpphs -optP --cpp
 
   if os(windows)
@@ -126,7 +126,7 @@ library
     build-depends: base-orphans >= 0.3.1 && < 0.5
 
   build-tools:
-    alex >= 3.1.0 && < 3.2
+    alex >= 3.1.0 && < 3.3
     , happy >= 1.19.4 && < 2
 
   exposed-modules:  Agda.Auto.Auto
