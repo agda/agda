@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP           #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module Agda.TypeChecking.Injectivity where
 
@@ -90,7 +91,9 @@ headSymbol v = do -- ignoreAbstractMode $ do
 
 -- | Do a full whnf and treat neutral terms as rigid. Used on the arguments to
 --   an injective functions and to the right-hand side.
-headSymbol' :: Term -> TCM (Maybe TermHead)
+headSymbol'
+  :: (MonadReduce m, MonadError TCErr m, MonadDebug m, HasBuiltins m)
+  => Term -> m (Maybe TermHead)
 headSymbol' v = do
   v <- traverse constructorForm =<< reduceB v
   case v of
@@ -172,10 +175,12 @@ checkInjectivity f cs = fromMaybe NotInjective <.> runMaybeT $ do
 -- | If a clause is over-applied we can't trust the head (Issue 2944). For
 --   instance, the clause might be `f ps = u , v` and the actual call `f vs
 --   .fst`. In this case the head will be the head of `u` rather than `_,_`.
-checkOverapplication :: Elims -> InversionMap Clause -> TCM (InversionMap Clause)
+checkOverapplication
+  :: forall m. (HasConstInfo m)
+  => Elims -> InversionMap Clause -> m (InversionMap Clause)
 checkOverapplication es = updateHeads overapplied
   where
-    overapplied :: TermHead -> [Clause] -> TCM TermHead
+    overapplied :: TermHead -> [Clause] -> m TermHead
     overapplied h cs | all (not . isOverapplied) cs = return h
     overapplied h cs = ifM (isSuperRigid h) (return h) (return UnknownHead)
 
@@ -206,17 +211,21 @@ checkOverapplication es = updateHeads overapplied
 --   proper heads. These might still be `VarHead`, but in that case they refer to
 --   deBruijn variables. Checks that the instantiated heads are still rigid and
 --   distinct.
-instantiateVarHeads :: QName -> Elims -> InversionMap c -> TCM (Maybe (InversionMap c))
+instantiateVarHeads
+  :: forall m c. (MonadReduce m, MonadError TCErr m, MonadDebug m, HasBuiltins m)
+  => QName -> Elims -> InversionMap c -> m (Maybe (InversionMap c))
 instantiateVarHeads f es m = runMaybeT $ updateHeads (const . instHead) m
   where
-    instHead :: TermHead -> MaybeT TCM TermHead
+    instHead :: TermHead -> MaybeT m TermHead
     instHead h@(VarHead i)
       | Just (Apply arg) <- es !!! i = MaybeT $ headSymbol' (unArg arg)
       | otherwise = empty   -- impossible?
     instHead h = return h
 
 -- | Argument should be in weak head normal form.
-functionInverse :: Term -> TCM InvView
+functionInverse
+  :: (MonadReduce m, MonadError TCErr m, HasBuiltins m, HasConstInfo m)
+  => Term -> m InvView
 functionInverse v = case v of
   Def f es -> do
     inv <- defInverse <$> getConstInfo f
