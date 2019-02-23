@@ -70,6 +70,15 @@ instance MonadMetaSolver TCM where
   assignV dir x args v = assignWrapper dir x (map Apply args) v $ assign dir x args v
   assignTerm' = assignTermTCM'
   etaExpandMeta = etaExpandMetaTCM
+  updateMetaVar = updateMetaVarTCM
+
+  -- Right now we roll back the full state when aborting.
+  -- TODO: only roll back the metavariables
+  speculateMetas fallback m = do
+    (a, s) <- localTCStateSaving m
+    case a of
+      KeepMetas     -> putTC s
+      RollBackMetas -> fallback
 
 -- | Find position of a value in a list.
 --   Used to change metavar argument indices during assignment.
@@ -217,13 +226,15 @@ newNamedValueMeta' b s t = do
   return (x, v)
 
 -- | Create a new metavariable, possibly η-expanding in the process.
-newValueMeta :: RunMetaOccursCheck -> Type -> TCM (MetaId, Term)
+newValueMeta :: MonadMetaSolver m => RunMetaOccursCheck -> Type -> m (MetaId, Term)
 newValueMeta b t = do
   vs  <- getContextArgs
   tel <- getContextTelescope
   newValueMetaCtx Instantiable b t tel (idP $ size tel) vs
 
-newValueMetaCtx :: Frozen -> RunMetaOccursCheck -> Type -> Telescope -> Permutation -> Args -> TCM (MetaId, Term)
+newValueMetaCtx
+  :: MonadMetaSolver m
+  => Frozen -> RunMetaOccursCheck -> Type -> Telescope -> Permutation -> Args -> m (MetaId, Term)
 newValueMetaCtx frozen b t tel perm ctx =
   mapSndM instantiateFull =<< newValueMetaCtx' frozen b t tel perm ctx
 
@@ -234,8 +245,9 @@ newValueMeta' b t = do
   tel <- getContextTelescope
   newValueMetaCtx' Instantiable b t tel (idP $ size tel) vs
 
--- | Create a new value meta with specific dependencies.
-newValueMetaCtx' :: Frozen -> RunMetaOccursCheck -> Type -> Telescope -> Permutation -> Args -> TCM (MetaId, Term)
+newValueMetaCtx'
+  :: MonadMetaSolver m
+  => Frozen -> RunMetaOccursCheck -> Type -> Telescope -> Permutation -> Args -> m (MetaId, Term)
 newValueMetaCtx' frozen b a tel perm vs = do
   i <- createMetaInfo' b
   let t     = telePi_ tel a
@@ -251,7 +263,7 @@ newValueMetaCtx' frozen b a tel perm vs = do
   boundedSizeMetaHook u tel a
   return (x, u)
 
-newTelMeta :: Telescope -> TCM Args
+newTelMeta :: MonadMetaSolver m => Telescope -> m Args
 newTelMeta tel = newArgsMeta (abstract tel $ __DUMMY_TYPE__)
 
 type Condition = Dom Type -> Abs Type -> Bool
@@ -259,10 +271,10 @@ type Condition = Dom Type -> Abs Type -> Bool
 trueCondition :: Condition
 trueCondition _ _ = True
 
-newArgsMeta :: Type -> TCM Args
+newArgsMeta :: MonadMetaSolver m => Type -> m Args
 newArgsMeta = newArgsMeta' trueCondition
 
-newArgsMeta' :: Condition -> Type -> TCM Args
+newArgsMeta' :: MonadMetaSolver m => Condition -> Type -> m Args
 newArgsMeta' condition t = do
   args <- getContextArgs
   tel  <- getContextTelescope
@@ -271,7 +283,9 @@ newArgsMeta' condition t = do
 newArgsMetaCtx :: Type -> Telescope -> Permutation -> Args -> TCM Args
 newArgsMetaCtx = newArgsMetaCtx' Instantiable trueCondition
 
-newArgsMetaCtx' :: Frozen -> Condition -> Type -> Telescope -> Permutation -> Args -> TCM Args
+newArgsMetaCtx'
+  :: MonadMetaSolver m
+  => Frozen -> Condition -> Type -> Telescope -> Permutation -> Args -> m Args
 newArgsMetaCtx' frozen condition (El s tm) tel perm ctx = do
   tm <- reduce tm
   case tm of
@@ -328,12 +342,16 @@ newQuestionMark' new ii t = do
   return (x, m)
 
 -- | Construct a blocked constant if there are constraints.
-blockTerm :: Type -> TCM Term -> TCM Term
+blockTerm
+  :: (MonadMetaSolver m, MonadConstraint m, MonadFresh Nat m, MonadFresh ProblemId m)
+  => Type -> m Term -> m Term
 blockTerm t blocker = do
   (pid, v) <- newProblem blocker
   blockTermOnProblem t v pid
 
-blockTermOnProblem :: Type -> Term -> ProblemId -> TCM Term
+blockTermOnProblem
+  :: (MonadMetaSolver m, MonadFresh Nat m)
+  => Type -> Term -> ProblemId -> m Term
 blockTermOnProblem t v pid =
   -- Andreas, 2012-09-27 do not block on unsolved size constraints
   ifM (isProblemSolved pid `or2M` isSizeProblem pid) (return v) $ do
@@ -358,13 +376,15 @@ blockTermOnProblem t v pid =
         -- constraint solving a bit more robust against instantiation order.
         -- Andreas, 2015-05-22: DontRunMetaOccursCheck to avoid Issue585-17.
         (_, v) <- newValueMeta DontRunMetaOccursCheck t
-        i   <- liftTCM fresh
+        i   <- fresh
         -- This constraint is woken up when unblocking, so it doesn't need a problem id.
         cmp <- buildProblemConstraint_ (ValueCmp CmpEq t v (MetaV x es))
         listenToMeta (CheckConstraint i cmp) x
         return v
 
-blockTypeOnProblem :: Type -> ProblemId -> TCM Type
+blockTypeOnProblem
+  :: (MonadMetaSolver m, MonadFresh Nat m)
+  => Type -> ProblemId -> m Type
 blockTypeOnProblem (El s a) pid = El s <$> blockTermOnProblem (El Inf $ Sort s) a pid
 
 -- | @unblockedTester t@ returns @False@ if @t@ is a meta or a blocked term.

@@ -524,7 +524,7 @@ instance Occurs a => Occurs (Maybe a) where
 --   If any of the meta args @vs@ is matchable, e.g., is a constructor term,
 --   we cannot prune, because the offending variables could be removed by
 --   reduction for a suitable instantiation of the meta variable.
-prune :: MetaId -> Args -> [Nat] -> TCM PruneResult
+prune :: MonadMetaSolver m => MetaId -> Args -> [Nat] -> m PruneResult
 prune m' vs xs = do
   caseEitherM (runExceptT $ mapM (hasBadRigid xs) $ map unArg vs)
     (const $ return PrunedNothing) $ \ kills -> do
@@ -734,7 +734,7 @@ data PruneResult
 
 -- | @killArgs [k1,...,kn] X@ prunes argument @i@ from metavar @X@ if @ki==True@.
 --   Pruning is carried out whenever > 0 arguments can be pruned.
-killArgs :: [Bool] -> MetaId -> TCM PruneResult
+killArgs :: (MonadMetaSolver m) => [Bool] -> MetaId -> m PruneResult
 killArgs kills _
   | not (or kills) = return NothingToPrune  -- nothing to kill
 killArgs kills m = do
@@ -856,11 +856,12 @@ reallyNotFreeIn xs a = do
 -- | Instantiate a meta variable with a new one that only takes
 --   the arguments which are not pruneable.
 performKill
-  :: [Arg Bool]    -- ^ Arguments to old meta var in left to right order
+  :: MonadMetaSolver m
+  => [Arg Bool]    -- ^ Arguments to old meta var in left to right order
                    --   with @Bool@ indicating whether they can be pruned.
   -> MetaId        -- ^ The old meta var to receive pruning.
   -> Type          -- ^ The pruned type of the new meta var.
-  -> TCM ()
+  -> m ()
 performKill kills m a = do
   mv <- lookupMeta m
   when (mvFrozen mv == Frozen) __IMPOSSIBLE__

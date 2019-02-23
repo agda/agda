@@ -29,10 +29,13 @@ import Agda.Syntax.Position
 import Agda.Syntax.Scope.Base
 
 import Agda.TypeChecking.Monad.Base
+import Agda.TypeChecking.Monad.Builtin (HasBuiltins)
 import Agda.TypeChecking.Monad.Trace
 import Agda.TypeChecking.Monad.Closure
+import Agda.TypeChecking.Monad.Constraints (MonadConstraint)
 import Agda.TypeChecking.Monad.Debug (MonadDebug, reportSLn)
 import Agda.TypeChecking.Monad.Context
+import Agda.TypeChecking.Monad.Signature (HasConstInfo)
 import Agda.TypeChecking.Substitute
 import {-# SOURCE #-} Agda.TypeChecking.Telescope
 
@@ -69,10 +72,19 @@ data MetaKind =
 allMetaKinds :: [MetaKind]
 allMetaKinds = [minBound .. maxBound]
 
+data KeepMetas = KeepMetas | RollBackMetas
+
 -- | Monad service class for creating, solving and eta-expanding of
 --   metavariables.
-class ( MonadTCEnv m
+class ( MonadConstraint m
+      , MonadReduce m
+      , MonadAddContext m
+      , MonadTCEnv m
       , ReadTCState m
+      , HasBuiltins m
+      , HasConstInfo m
+      , MonadDebug m
+      , Monoid (m Any) -- short-cutting monadic disjunction
       ) => MonadMetaSolver m where
   -- | Generate a new meta variable with some instantiation given.
   --   For instance, the instantiation could be a 'PostponedTypeCheckingProblem'.
@@ -91,7 +103,6 @@ class ( MonadTCEnv m
   --   restoration of the original constraints.
   assignV :: CompareDirection -> MetaId -> Args -> Term -> m ()
 
-
   -- | Directly instantiate the metavariable. Skip pattern check,
   -- occurs check and frozen check. Used for eta expanding frozen
   -- metas.
@@ -100,6 +111,14 @@ class ( MonadTCEnv m
   -- | Eta expand a metavariable, if it is of the specified kind.
   --   Don't do anything if the metavariable is a blocked term.
   etaExpandMeta :: [MetaKind] -> MetaId -> m ()
+
+  -- | Update the status of the metavariable
+  updateMetaVar :: MetaId -> (MetaVariable -> MetaVariable) -> m ()
+
+  -- | 'speculateMetas fallback m' speculatively runs 'm', but if the
+  --    result is 'RollBackMetas' any changes to metavariables are
+  --    rolled back and 'fallback' is run instead.
+  speculateMetas :: m () -> m KeepMetas -> m ()
 
 -- | Switch off assignment of metas.
 dontAssignMetas :: (MonadTCEnv m, HasOptions m, MonadDebug m) => m a -> m a
@@ -131,8 +150,8 @@ lookupMeta m = fromMaybeM failure $ lookupMeta' m
   where failure = fail $ "no such meta variable " ++ prettyShow m
 
 -- | Update the information associated with a meta variable.
-updateMetaVar :: MetaId -> (MetaVariable -> MetaVariable) -> TCM ()
-updateMetaVar m f = modifyMetaStore $ IntMap.adjust f $ metaId m
+updateMetaVarTCM :: MetaId -> (MetaVariable -> MetaVariable) -> TCM ()
+updateMetaVarTCM m f = modifyMetaStore $ IntMap.adjust f $ metaId m
 
 -- | Insert a new meta variable with associated information into the meta store.
 insertMetaVar :: MetaId -> MetaVariable -> TCM ()
@@ -294,7 +313,7 @@ createMetaInfo' b = do
     , miGeneralizable   = hide $ defaultArg gen
     }
 
-setValueMetaName :: Term -> MetaNameSuggestion -> TCM ()
+setValueMetaName :: MonadMetaSolver m => Term -> MetaNameSuggestion -> m ()
 setValueMetaName v s = do
   case v of
     MetaV mi _ -> setMetaNameSuggestion mi s
@@ -306,22 +325,22 @@ setValueMetaName v s = do
 getMetaNameSuggestion :: ReadTCState m => MetaId -> m MetaNameSuggestion
 getMetaNameSuggestion mi = miNameSuggestion . mvInfo <$> lookupMeta mi
 
-setMetaNameSuggestion :: MetaId -> MetaNameSuggestion -> TCM ()
+setMetaNameSuggestion :: MonadMetaSolver m => MetaId -> MetaNameSuggestion -> m ()
 setMetaNameSuggestion mi s = unless (null s || isUnderscore s) $ do
   reportSLn "tc.meta.name" 20 $
     "setting name of meta " ++ prettyShow mi ++ " to " ++ s
   updateMetaVar mi $ \ mvar ->
     mvar { mvInfo = (mvInfo mvar) { miNameSuggestion = s }}
 
-setMetaArgInfo :: MetaId -> ArgInfo -> TCM ()
+setMetaArgInfo :: MonadMetaSolver m => MetaId -> ArgInfo -> m ()
 setMetaArgInfo m i = updateMetaVar m $ \ mv ->
   mv { mvInfo = (mvInfo mv)
         { miGeneralizable = setArgInfo i (miGeneralizable (mvInfo mv)) } }
 
-updateMetaVarRange :: MetaId -> Range -> TCM ()
+updateMetaVarRange :: MonadMetaSolver m => MetaId -> Range -> m ()
 updateMetaVarRange mi r = updateMetaVar mi (setRange r)
 
-setMetaOccursCheck :: MetaId -> RunMetaOccursCheck -> TCM ()
+setMetaOccursCheck :: MonadMetaSolver m => MetaId -> RunMetaOccursCheck -> m ()
 setMetaOccursCheck mi b = updateMetaVar mi $ \ mvar ->
   mvar { mvInfo = (mvInfo mvar) { miMetaOccursCheck = b } }
 
@@ -530,12 +549,12 @@ isOpenMeta InstV{}                        = False
 
 -- | @listenToMeta l m@: register @l@ as a listener to @m@. This is done
 --   when the type of l is blocked by @m@.
-listenToMeta :: Listener -> MetaId -> TCM ()
+listenToMeta :: MonadMetaSolver m => Listener -> MetaId -> m ()
 listenToMeta l m =
   updateMetaVar m $ \mv -> mv { mvListeners = Set.insert l $ mvListeners mv }
 
 -- | Unregister a listener.
-unlistenToMeta :: Listener -> MetaId -> TCM ()
+unlistenToMeta :: MonadMetaSolver m => Listener -> MetaId -> m ()
 unlistenToMeta l m =
   updateMetaVar m $ \mv -> mv { mvListeners = Set.delete l $ mvListeners mv }
 
@@ -543,7 +562,7 @@ unlistenToMeta l m =
 getMetaListeners :: ReadTCState m => MetaId -> m [Listener]
 getMetaListeners m = Set.toList . mvListeners <$> lookupMeta m
 
-clearMetaListeners :: MetaId -> TCM ()
+clearMetaListeners :: MonadMetaSolver m => MetaId -> m ()
 clearMetaListeners m =
   updateMetaVar m $ \mv -> mv { mvListeners = Set.empty }
 
@@ -595,7 +614,7 @@ isFrozen x = do
 -- | Unfreeze meta and its type if this is a meta again.
 --   Does not unfreeze deep occurrences of metas.
 class UnFreezeMeta a where
-  unfreezeMeta :: a -> TCM ()
+  unfreezeMeta :: MonadMetaSolver m => a -> m ()
 
 instance UnFreezeMeta MetaId where
   unfreezeMeta x = do

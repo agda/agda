@@ -8,14 +8,14 @@ import Agda.TypeChecking.Monad.MetaVars (MonadMetaSolver)
 instance MonadMetaSolver TCM
 
 type Condition = Dom Type -> Abs Type -> Bool
-newArgsMeta'      :: Condition -> Type -> TCM Args
-newArgsMeta       :: Type -> TCM Args
+newArgsMeta'      :: MonadMetaSolver m => Condition -> Type -> m Args
+newArgsMeta       :: MonadMetaSolver m => Type -> m Args
 assignTerm        :: MonadMetaSolver m => MetaId -> [Arg String] -> Term -> m ()
 etaExpandMetaSafe :: MonadMetaSolver m => MetaId -> m ()
 assign            :: CompareDirection -> MetaId -> Args -> Term -> TCM ()
 newInstanceMeta   :: String -> Type -> TCM (MetaId, Term)
-newValueMeta      :: RunMetaOccursCheck -> Type -> TCM (MetaId, Term)
+newValueMeta      :: MonadMetaSolver m => RunMetaOccursCheck -> Type -> m (MetaId, Term)
 newNamedValueMeta :: RunMetaOccursCheck -> String -> Type -> TCM (MetaId, Term)
 newNamedValueMeta':: RunMetaOccursCheck -> String -> Type -> TCM (MetaId, Term)
-newTelMeta        :: Telescope -> TCM Args
+newTelMeta        :: MonadMetaSolver m => Telescope -> m Args
 newSortMeta       :: TCM Sort
