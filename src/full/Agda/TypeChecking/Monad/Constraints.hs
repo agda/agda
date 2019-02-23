@@ -25,7 +25,7 @@ import Agda.Utils.Except
 import Agda.Utils.Impossible
 
 -- | Add all constraints belonging to the given problem to the current problem(s).
-stealConstraints :: ProblemId -> TCM ()
+stealConstraints :: MonadConstraint m => ProblemId -> m ()
 stealConstraints pid = do
   current <- asksTC envActiveProblems
   reportSLn "tc.constr.steal" 50 $ "problem " ++ show (Set.toList current) ++ " is stealing problem " ++ show pid ++ "'s constraints!"
@@ -37,10 +37,10 @@ stealConstraints pid = do
   modifyAwakeConstraints    $ List.map rename
   modifySleepingConstraints $ List.map rename
 
-solvingProblem :: ProblemId -> TCM a -> TCM a
+solvingProblem :: MonadConstraint m => ProblemId -> m a -> m a
 solvingProblem pid = solvingProblems (Set.singleton pid)
 
-solvingProblems :: Set ProblemId -> TCM a -> TCM a
+solvingProblems :: MonadConstraint m => Set ProblemId -> m a -> m a
 solvingProblems pids m = verboseBracket "tc.constr.solve" 50 ("working on problems " ++ show (Set.toList pids)) $ do
   x <- localTC (\e -> e { envActiveProblems = pids `Set.union` envActiveProblems e }) m
   Fold.forM_ pids $ \ pid -> do
@@ -66,9 +66,9 @@ getConstraintsForProblem pid = List.filter (Set.member pid . constraintProblems)
 getAwakeConstraints :: ReadTCState m => m Constraints
 getAwakeConstraints = useR stAwakeConstraints
 
-wakeConstraints :: (ProblemConstraint-> TCM Bool) -> TCM ()
+wakeConstraints :: MonadConstraint m => (ProblemConstraint-> m Bool) -> m ()
 wakeConstraints wake = do
-  c <- useTC stSleepingConstraints
+  c <- useR stSleepingConstraints
   (wakeup, sleepin) <- partitionM wake c
   reportSLn "tc.constr.wake" 50 $
     "waking up         " ++ show (List.map (Set.toList . constraintProblems) wakeup) ++ "\n" ++
@@ -77,20 +77,20 @@ wakeConstraints wake = do
   modifyAwakeConstraints (++ wakeup)
 
 -- danger...
-dropConstraints :: (ProblemConstraint -> Bool) -> TCM ()
+dropConstraints :: MonadConstraint m => (ProblemConstraint -> Bool) -> m ()
 dropConstraints crit = do
   let filt = List.filter $ not . crit
   modifySleepingConstraints filt
   modifyAwakeConstraints    filt
 
-putConstraintsToSleep :: (ProblemConstraint -> Bool) -> TCM ()
+putConstraintsToSleep :: MonadConstraint m => (ProblemConstraint -> Bool) -> m ()
 putConstraintsToSleep sleepy = do
-  awakeOnes <- useTC stAwakeConstraints
+  awakeOnes <- useR stAwakeConstraints
   let (gotoSleep, stayAwake) = List.partition sleepy awakeOnes
   modifySleepingConstraints $ (++ gotoSleep)
   modifyAwakeConstraints    $ const stayAwake
 
-putAllConstraintsToSleep :: TCM ()
+putAllConstraintsToSleep :: MonadConstraint m => m ()
 putAllConstraintsToSleep = putConstraintsToSleep (const True)
 
 data ConstraintStatus = AwakeConstraint | SleepingConstraint
@@ -110,10 +110,12 @@ holdConstraints p m = do
         stSleepingConstraints `modifyTCLens` (holdAsleep ++)
   catchError (m <* restore) (\ err -> restore *> throwError err)
 
-takeAwakeConstraint :: TCM (Maybe ProblemConstraint)
+takeAwakeConstraint :: MonadConstraint m => m (Maybe ProblemConstraint)
 takeAwakeConstraint = takeAwakeConstraint' (const True)
 
-takeAwakeConstraint' :: (ProblemConstraint -> Bool) -> TCM (Maybe ProblemConstraint)
+takeAwakeConstraint'
+  :: MonadConstraint m
+  => (ProblemConstraint -> Bool) -> m (Maybe ProblemConstraint)
 takeAwakeConstraint' p = do
   cs <- getAwakeConstraints
   case break p cs of
@@ -127,7 +129,7 @@ getAllConstraints = do
   s <- getTCState
   return $ s^.stAwakeConstraints ++ s^.stSleepingConstraints
 
-withConstraint :: (Constraint -> TCM a) -> ProblemConstraint -> TCM a
+withConstraint :: MonadConstraint m => (Constraint -> m a) -> ProblemConstraint -> m a
 withConstraint f (PConstr pids c) = do
   -- We should preserve the problem stack and the isSolvingConstraint flag
   (pids', isSolving) <- asksTC $ envActiveProblems &&& envSolvingConstraints
@@ -150,7 +152,12 @@ buildConstraint c = flip buildProblemConstraint c =<< asksTC envActiveProblems
 
 -- | Monad service class containing methods for adding and solving
 --   constraints
-class Monad m => MonadConstraint m where
+class ( MonadTCEnv m
+      , ReadTCState m
+      , MonadError TCErr m
+      , HasOptions m
+      , MonadDebug m
+      ) => MonadConstraint m where
   -- | Unconditionally add the constraint.
   addConstraint :: Constraint -> m ()
 
@@ -166,6 +173,10 @@ class Monad m => MonadConstraint m where
   -- | Solve awake constraints matching the predicate. If the second argument is
   --   True solve constraints even if already 'isSolvingConstraints'.
   solveSomeAwakeConstraints :: (ProblemConstraint -> Bool) -> Bool -> m ()
+
+  modifyAwakeConstraints :: (Constraints -> Constraints) -> m ()
+
+  modifySleepingConstraints  :: (Constraints -> Constraints) -> m ()
 
 -- | Add new a constraint
 addConstraint' :: Constraint -> TCM ()
@@ -219,9 +230,3 @@ mapAwakeConstraints = over stAwakeConstraints
 
 mapSleepingConstraints :: (Constraints -> Constraints) -> TCState -> TCState
 mapSleepingConstraints = over stSleepingConstraints
-
-modifyAwakeConstraints  :: (Constraints -> Constraints) -> TCM ()
-modifyAwakeConstraints = modifyTC . mapAwakeConstraints
-
-modifySleepingConstraints  :: (Constraints -> Constraints) -> TCM ()
-modifySleepingConstraints = modifyTC . mapSleepingConstraints

@@ -190,7 +190,15 @@ isBounded i = do
 -- | Whenever we create a bounded size meta, add a constraint
 --   expressing the bound.
 --   In @boundedSizeMetaHook v tel a@, @tel@ includes the current context.
-boundedSizeMetaHook :: Term -> Telescope -> Type -> TCM ()
+boundedSizeMetaHook
+  :: ( MonadConstraint m
+     , MonadTCEnv m
+     , ReadTCState m
+     , MonadAddContext m
+     , HasOptions m
+     , HasBuiltins m
+     )
+  => Term -> Telescope -> Type -> m ()
 boundedSizeMetaHook v tel0 a = do
   res <- isSizeType a
   case res of

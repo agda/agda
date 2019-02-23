@@ -47,6 +47,8 @@ instance MonadConstraint TCM where
   addAwakeConstraint = addAwakeConstraint'
   solveConstraint = solveConstraintTCM
   solveSomeAwakeConstraints = solveSomeAwakeConstraintsTCM
+  modifyAwakeConstraints = modifyTC . mapAwakeConstraints
+  modifySleepingConstraints = modifyTC . mapSleepingConstraints
 
 catchPatternErrTCM :: TCM a -> TCM a -> TCM a
 catchPatternErrTCM handle v =
@@ -107,7 +109,9 @@ noConstraints problem = liftTCM $ do
   return x
 
 -- | Create a fresh problem for the given action.
-newProblem :: TCM a -> TCM (ProblemId, a)
+newProblem
+  :: (MonadFresh ProblemId m, MonadConstraint m)
+  => m a -> m (ProblemId, a)
 newProblem action = do
   pid <- fresh
   -- Don't get distracted by other constraints while working on the problem
@@ -116,7 +120,9 @@ newProblem action = do
   solveAwakeConstraints
   return (pid, x)
 
-newProblem_ :: TCM () -> TCM ProblemId
+newProblem_
+  :: (MonadFresh ProblemId m, MonadConstraint m)
+  => m a -> m ProblemId
 newProblem_ action = fst <$> newProblem action
 
 ifNoConstraints :: TCM a -> (a -> TCM b) -> (ProblemId -> a -> TCM b) -> TCM b
