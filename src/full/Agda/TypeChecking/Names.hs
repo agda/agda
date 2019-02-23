@@ -70,7 +70,6 @@ import Agda.TypeChecking.Free
 
 import Agda.Utils.Monad
 import Agda.Utils.Pretty (pretty)
-import Agda.Utils.String ( Str(Str), unStr )
 import Agda.Utils.Maybe
 
 #include "undefined.h"
@@ -186,4 +185,3 @@ ilam :: Monad m
 #endif
     => ArgName -> (NamesT m Term -> NamesT m Term) -> NamesT m Term
 ilam n f = glam (setRelevance Irrelevant defaultArgInfo) n f
-
