@@ -113,7 +113,7 @@ traceCall mkCall m = do
   isNoHighlighting NoHighlighting{} = True
   isNoHighlighting _                = False
 
-getCurrentRange :: (MonadTCM tcm, MonadDebug tcm) => tcm Range
+getCurrentRange :: MonadTCEnv m => m Range
 getCurrentRange = asksTC envRange
 
 -- | Sets the current range (for error messages etc.) to the range
