@@ -435,7 +435,7 @@ wakeupListener :: Listener -> TCM ()
 wakeupListener (EtaExpand x)         = etaExpandMetaSafe x
 wakeupListener (CheckConstraint _ c) = do
   reportSDoc "tc.meta.blocked" 20 $ "waking boxed constraint" <+> prettyTCM c
-  addAwakeConstraints [c]
+  modifyAwakeConstraints (c:)
   solveAwakeConstraints
 
 -- | Do safe eta-expansions for meta (@SingletonRecords,Levels@).

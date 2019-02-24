@@ -196,10 +196,6 @@ addConstraintTo bucket c = do
     isBlocking HasPTSRule{}  = False
     isBlocking UnquoteTactic{} = True
 
--- | Add already awake constraints
-addAwakeConstraints :: Constraints -> TCM ()
-addAwakeConstraints cs = modifyAwakeConstraints (cs ++)
-
 -- | Start solving constraints
 nowSolvingConstraints :: MonadTCEnv m => m a -> m a
 nowSolvingConstraints = localTC $ \e -> e { envSolvingConstraints = True }
