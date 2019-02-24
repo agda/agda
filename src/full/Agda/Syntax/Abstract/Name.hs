@@ -174,7 +174,8 @@ class MkName a where
   mkName_ = mkName noRange
 
 instance MkName String where
-  mkName r i s = Name i (C.Name noRange InScope (C.stringNameParts s)) r noFixity'
+  mkName r i "" = Name i (C.RecordName noRange 0) r noFixity'
+  mkName r i s  = Name i (C.Name noRange InScope (C.stringNameParts s)) r noFixity'
 
 
 qnameToList :: QName -> [Name]
