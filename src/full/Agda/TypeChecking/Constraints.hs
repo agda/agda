@@ -99,8 +99,10 @@ addConstraintTCM c = do
         return $ simplifyLevelConstraint c $ map clValue lvls
 
 -- | Don't allow the argument to produce any blocking constraints.
-noConstraints :: TCM a -> TCM a
-noConstraints problem = liftTCM $ do
+noConstraints
+  :: (MonadConstraint m, MonadWarning m, MonadError TCErr m, MonadFresh ProblemId m)
+  => m a -> m a
+noConstraints problem = do
   (pid, x) <- newProblem problem
   cs <- getConstraintsForProblem pid
   unless (null cs) $ do
