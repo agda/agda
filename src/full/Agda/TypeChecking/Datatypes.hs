@@ -78,9 +78,10 @@ consOfHIT c = do
 --   @Nothing@ if @t@ is not a data/record type or does not have
 --   a constructor @c@.
 getConType
-  :: ConHead  -- ^ Constructor.
+  :: (MonadReduce m, MonadAddContext m, HasConstInfo m, MonadDebug m)
+  => ConHead  -- ^ Constructor.
   -> Type     -- ^ Ending in data/record type.
-  -> TCM (Maybe ((QName, Type, Args), Type))
+  -> m (Maybe ((QName, Type, Args), Type))
        -- ^ @Nothing@ if not ends in data or record type.
        --
        --   @Just ((d, dt, pars), ct)@ otherwise, where
