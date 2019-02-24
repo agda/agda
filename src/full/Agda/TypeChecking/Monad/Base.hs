@@ -2703,9 +2703,10 @@ data Warning
     -- ^ In `OldBuiltin old new`, the BUILTIN old has been replaced by new
   | EmptyRewritePragma
     -- ^ If the user wrote just @{-\# REWRITE \#-}@.
-  | IllformedAsClause
+  | IllformedAsClause String
     -- ^ If the user wrote something other than an unqualified name
     --   in the @as@ clause of an @import@ statement.
+    --   The 'String' gives optionally extra explanation.
   | UselessPublic
     -- ^ If the user opens a module public before the module header.
     --   (See issue #2377.)
@@ -2766,7 +2767,7 @@ warningName w = case w of
   CoverageNoExactSplit{}       -> CoverageNoExactSplit_
   DeprecationWarning{}         -> DeprecationWarning_
   EmptyRewritePragma           -> EmptyRewritePragma_
-  IllformedAsClause            -> IllformedAsClause_
+  IllformedAsClause{}          -> IllformedAsClause_
   WrongInstanceDeclaration{}   -> WrongInstanceDeclaration_
   InstanceWithExplicitArg{}    -> InstanceWithExplicitArg_
   InstanceNoOutputTypeName{}   -> InstanceNoOutputTypeName_
