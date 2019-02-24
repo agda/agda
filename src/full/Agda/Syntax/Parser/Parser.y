@@ -1417,7 +1417,8 @@ Open : MaybeOpen 'import' ModuleName OpenArgs ImportDirective {%
          -- which is absolute and messes up suite of failing tests
          -- (different hashs on different installations)
          -- TODO: Don't use (insecure) hashes in this way.
-    ; fresh = Name mr NotInScope [ Id $ stringToRawName $ ".#" ++ prettyShow m ++ "-" ++ show unique ]
+    ; fresh  = Name mr NotInScope [ Id $ stringToRawName $ ".#" ++ prettyShow m ++ "-" ++ show unique ]
+    ; fresh' = Name mr NotInScope [ Id $ stringToRawName $ ".#" ++ prettyShow m ++ "-" ++ show (unique + 1) ]
     ; impStm asR = Import r m (Just (AsName (Right fresh) asR)) DontOpen defaultImportDir
     ; appStm m' es =
         Private r Inserted
@@ -1445,7 +1446,7 @@ Open : MaybeOpen 'import' ModuleName OpenArgs ImportDirective {%
                  [ Import (getRange (m, asR, m', dir)) m
                      (Just (AsName m' asR)) doOpen dir
                  ]
-              else return [ impStm asR, appStm (fromRight (const fresh) m') initArgs ]
+              else return [ impStm asR, appStm (fromRight (const fresh') m') initArgs ]
           -- Andreas, 2017-05-13, issue #2579
           -- Nisse reports that importing with instantation but without open
           -- could be usefule for bringing instances into scope.
