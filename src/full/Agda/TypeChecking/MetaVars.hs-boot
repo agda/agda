@@ -13,9 +13,9 @@ newArgsMeta       :: MonadMetaSolver m => Type -> m Args
 assignTerm        :: MonadMetaSolver m => MetaId -> [Arg String] -> Term -> m ()
 etaExpandMetaSafe :: MonadMetaSolver m => MetaId -> m ()
 assign            :: CompareDirection -> MetaId -> Args -> Term -> TCM ()
-newInstanceMeta   :: String -> Type -> TCM (MetaId, Term)
+newInstanceMeta   :: MonadMetaSolver m => String -> Type -> m (MetaId, Term)
 newValueMeta      :: MonadMetaSolver m => RunMetaOccursCheck -> Type -> m (MetaId, Term)
-newNamedValueMeta :: RunMetaOccursCheck -> String -> Type -> TCM (MetaId, Term)
-newNamedValueMeta':: RunMetaOccursCheck -> String -> Type -> TCM (MetaId, Term)
+newNamedValueMeta :: MonadMetaSolver m => RunMetaOccursCheck -> String -> Type -> m (MetaId, Term)
+newNamedValueMeta':: MonadMetaSolver m => RunMetaOccursCheck -> String -> Type -> m (MetaId, Term)
 newTelMeta        :: MonadMetaSolver m => Telescope -> m Args
 newSortMeta       :: TCM Sort

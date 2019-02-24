@@ -182,13 +182,17 @@ newTypeMeta_  = newTypeMeta =<< (workOnTypes $ newSortMeta)
 
 -- | @newInstanceMeta s t cands@ creates a new instance metavariable
 --   of type the output type of @t@ with name suggestion @s@.
-newInstanceMeta :: MetaNameSuggestion -> Type -> TCM (MetaId, Term)
+newInstanceMeta
+  :: MonadMetaSolver m
+  => MetaNameSuggestion -> Type -> m (MetaId, Term)
 newInstanceMeta s t = do
   vs  <- getContextArgs
   ctx <- getContextTelescope
   newInstanceMetaCtx s (telePi_ ctx t) vs
 
-newInstanceMetaCtx :: MetaNameSuggestion -> Type -> Args -> TCM (MetaId, Term)
+newInstanceMetaCtx
+  :: MonadMetaSolver m
+  => MetaNameSuggestion -> Type -> Args -> m (MetaId, Term)
 newInstanceMetaCtx s t vs = do
   reportSDoc "tc.meta.new" 50 $ fsep
     [ "new instance meta:"
@@ -212,14 +216,14 @@ newInstanceMetaCtx s t vs = do
   return (x, MetaV x $ map Apply vs)
 
 -- | Create a new value meta with specific dependencies, possibly η-expanding in the process.
-newNamedValueMeta :: RunMetaOccursCheck -> MetaNameSuggestion -> Type -> TCM (MetaId, Term)
+newNamedValueMeta :: MonadMetaSolver m => RunMetaOccursCheck -> MetaNameSuggestion -> Type -> m (MetaId, Term)
 newNamedValueMeta b s t = do
   (x, v) <- newValueMeta b t
   setMetaNameSuggestion x s
   return (x, v)
 
 -- | Create a new value meta with specific dependencies without η-expanding.
-newNamedValueMeta' :: RunMetaOccursCheck -> MetaNameSuggestion -> Type -> TCM (MetaId, Term)
+newNamedValueMeta' :: MonadMetaSolver m => RunMetaOccursCheck -> MetaNameSuggestion -> Type -> m (MetaId, Term)
 newNamedValueMeta' b s t = do
   (x, v) <- newValueMeta' b t
   setMetaNameSuggestion x s
@@ -239,7 +243,9 @@ newValueMetaCtx frozen b t tel perm ctx =
   mapSndM instantiateFull =<< newValueMetaCtx' frozen b t tel perm ctx
 
 -- | Create a new value meta without η-expanding.
-newValueMeta' :: RunMetaOccursCheck -> Type -> TCM (MetaId, Term)
+newValueMeta'
+  :: MonadMetaSolver m
+  => RunMetaOccursCheck -> Type -> m (MetaId, Term)
 newValueMeta' b t = do
   vs  <- getContextArgs
   tel <- getContextTelescope
