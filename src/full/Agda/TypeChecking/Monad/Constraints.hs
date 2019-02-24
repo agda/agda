@@ -157,9 +157,9 @@ class Monad m => MonadConstraint m where
   -- | Add constraint as awake constraint.
   addAwakeConstraint :: Constraint -> m ()
 
-  -- | Conditionally add the constraint if the given action raises a
-  --   pattern violation.
-  catchConstraint :: Constraint -> m () -> m ()
+  -- | `catchPatternErr handle m` runs m, handling pattern violations
+  --    with `handle` (doesn't roll back the state)
+  catchPatternErr :: m a -> m a -> m a
 
   solveConstraint :: Constraint -> m ()
 
@@ -205,6 +205,10 @@ nowSolvingConstraints = localTC $ \e -> e { envSolvingConstraints = True }
 
 isSolvingConstraints :: MonadTCEnv m => m Bool
 isSolvingConstraints = asksTC envSolvingConstraints
+
+-- | Add constraint if the action raises a pattern violation
+catchConstraint :: MonadConstraint m => Constraint -> m () -> m ()
+catchConstraint c = catchPatternErr $ addConstraint c
 
 ---------------------------------------------------------------------------
 -- * Lenses
