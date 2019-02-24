@@ -154,6 +154,9 @@ class Monad m => MonadConstraint m where
   -- | Unconditionally add the constraint.
   addConstraint :: Constraint -> m ()
 
+  -- | Add constraint as awake constraint.
+  addAwakeConstraint :: Constraint -> m ()
+
   -- | Conditionally add the constraint if the given action raises a
   --   pattern violation.
   catchConstraint :: Constraint -> m () -> m ()

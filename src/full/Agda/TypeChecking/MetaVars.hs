@@ -198,7 +198,7 @@ newInstanceMetaCtx s t vs = do
   -- If we're not already solving instance constraints we should add this
   -- to the awake constraints to make sure we don't forget about it. If we
   -- are solving constraints it will get woken up later (see #2690)
-  ifM isSolvingConstraints (addConstraint c) (addAwakeConstraint' c)
+  ifM isSolvingConstraints (addConstraint c) (addAwakeConstraint c)
   etaExpandMetaSafe x
   return (x, MetaV x $ map Apply vs)
 

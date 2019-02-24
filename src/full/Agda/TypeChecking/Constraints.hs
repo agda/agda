@@ -44,6 +44,7 @@ import Agda.Utils.Impossible
 instance MonadConstraint TCM where
   catchConstraint = catchConstraintTCM
   addConstraint = addConstraintTCM
+  addAwakeConstraint = addAwakeConstraint'
   solveConstraint = solveConstraintTCM
   solveSomeAwakeConstraints = solveSomeAwakeConstraintsTCM
 
