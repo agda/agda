@@ -96,22 +96,22 @@ getSimplification = asksTC envSimplification
 updateAllowedReductions :: (AllowedReductions -> AllowedReductions) -> TCEnv -> TCEnv
 updateAllowedReductions f e = e { envAllowedReductions = f (envAllowedReductions e) }
 
-modifyAllowedReductions :: (AllowedReductions -> AllowedReductions) -> TCM a -> TCM a
+modifyAllowedReductions :: MonadTCEnv m => (AllowedReductions -> AllowedReductions) -> m a -> m a
 modifyAllowedReductions = localTC . updateAllowedReductions
 
-putAllowedReductions :: AllowedReductions -> TCM a -> TCM a
+putAllowedReductions :: MonadTCEnv m => AllowedReductions -> m a -> m a
 putAllowedReductions = modifyAllowedReductions . const
 
 -- | Reduce @Def f vs@ only if @f@ is a projection.
-onlyReduceProjections :: TCM a -> TCM a
+onlyReduceProjections :: MonadTCEnv m => m a -> m a
 onlyReduceProjections = putAllowedReductions [ProjectionReductions]
 
 -- | Allow all reductions except for non-terminating functions (default).
-allowAllReductions :: TCM a -> TCM a
+allowAllReductions :: MonadTCEnv m => m a -> m a
 allowAllReductions = putAllowedReductions allReductions
 
 -- | Allow all reductions including non-terminating functions.
-allowNonTerminatingReductions :: TCM a -> TCM a
+allowNonTerminatingReductions :: MonadTCEnv m => m a -> m a
 allowNonTerminatingReductions = putAllowedReductions $ [NonTerminatingReductions] ++ allReductions
 
 -- * Concerning 'envInsideDotPattern'

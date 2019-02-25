@@ -429,14 +429,20 @@ teleElims tel boundary = recurse (teleArgs tel)
         Just i | Just (t,u) <- matchVar i -> IApply t u p
         _                                 -> Apply a
 
-pathViewAsPi :: Type -> TCM (Either (Dom Type, Abs Type) Type)
+pathViewAsPi
+  :: (MonadReduce m, HasBuiltins m)
+  =>Type -> m (Either (Dom Type, Abs Type) Type)
 pathViewAsPi t = either (Left . fst) Right <$> pathViewAsPi' t
 
-pathViewAsPi' :: Type -> TCM (Either ((Dom Type, Abs Type), (Term,Term)) Type)
+pathViewAsPi'
+  :: (MonadReduce m, HasBuiltins m)
+  => Type -> m (Either ((Dom Type, Abs Type), (Term,Term)) Type)
 pathViewAsPi' t = do
   pathViewAsPi'whnf <*> reduce t
 
-pathViewAsPi'whnf :: TCM (Type -> Either ((Dom Type, Abs Type), (Term,Term)) Type)
+pathViewAsPi'whnf
+  :: (HasBuiltins m)
+  => m (Type -> Either ((Dom Type, Abs Type), (Term,Term)) Type)
 pathViewAsPi'whnf = do
   view <- pathView'
   minterval  <- getBuiltin' builtinInterval
@@ -475,7 +481,9 @@ telView'UpToPath n t = do
 telView'Path :: Type -> TCM TelView
 telView'Path = telView'UpToPath (-1)
 
-isPath :: Type -> TCM (Maybe (Dom Type, Abs Type))
+isPath
+  :: (MonadReduce m, HasBuiltins m)
+  => Type -> m (Maybe (Dom Type, Abs Type))
 isPath t = either Just (const Nothing) <$> pathViewAsPi t
 
 telePatterns :: (DeBruijn a, DeBruijn (Pattern' a)) =>

@@ -22,7 +22,7 @@ import Agda.Utils.Maybe
 import Agda.Utils.Except ( MonadError(catchError) )
 
 -- | Create an open term in the current context.
-makeOpen :: a -> TCM (Open a)
+makeOpen :: MonadTCEnv m => a -> m (Open a)
 makeOpen x = do
     cp <- viewTC eCurrentCheckpoint
     return $ OpenThing cp x

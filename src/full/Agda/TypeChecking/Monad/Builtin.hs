@@ -56,7 +56,9 @@ instance HasBuiltins m => HasBuiltins (ReaderT e m) where
 instance HasBuiltins m => HasBuiltins (StateT s m) where
   getBuiltinThing b = lift $ getBuiltinThing b
 
-litType :: Literal -> TCM Type
+litType
+  :: (HasBuiltins m, MonadError TCErr m, MonadTCEnv m, ReadTCState m)
+  => Literal -> m Type
 litType l = case l of
   LitNat _ n    -> do
     _ <- primZero

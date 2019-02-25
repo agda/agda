@@ -330,14 +330,14 @@ getLetBindings = do
 
 -- | Add a let bound variable
 {-# SPECIALIZE addLetBinding' :: Name -> Term -> Dom Type -> TCM a -> TCM a #-}
-addLetBinding' :: MonadTCM tcm => Name -> Term -> Dom Type -> tcm a -> tcm a
+addLetBinding' :: MonadTCEnv m => Name -> Term -> Dom Type -> m a -> m a
 addLetBinding' x v t ret = do
-    vt <- liftTCM $ makeOpen (v, t)
+    vt <- makeOpen (v, t)
     flip localTC ret $ \e -> e { envLetBindings = Map.insert x vt $ envLetBindings e }
 
 -- | Add a let bound variable
 {-# SPECIALIZE addLetBinding :: ArgInfo -> Name -> Term -> Type -> TCM a -> TCM a #-}
-addLetBinding :: MonadTCM tcm => ArgInfo -> Name -> Term -> Type -> tcm a -> tcm a
+addLetBinding :: MonadTCEnv m => ArgInfo -> Name -> Term -> Type -> m a -> m a
 addLetBinding info x v t0 ret = addLetBinding' x v (defaultArgDom info t0) ret
 
 
