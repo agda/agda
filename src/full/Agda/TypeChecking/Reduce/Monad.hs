@@ -71,15 +71,13 @@ withFreshR f = do
 instance MonadAddContext ReduceM where
   withFreshName r s k = withFreshR $ \i -> k (mkName r i s)
 
-  addCtx x a ret = do
-    ctx <- asksTC $ map (fst . unDom) . envContext
-    let ce = (x,) <$> a
-    oldChkpt <- viewTC eCurrentCheckpoint
-    withFreshR $ \ chkpt ->
-      localTC (\e -> e { envContext = ce : envContext e
+  addCtx = defaultAddCtx
+
+  updateContext rho f ret = withFreshR $ \ chkpt ->
+    localTC (\e -> e { envContext = f $ envContext e
                      , envCurrentCheckpoint = chkpt
                      , envCheckpoints = Map.insert chkpt IdS $
-                                          fmap (raise 1) (envCheckpoints e)
+                                          fmap (applySubst rho) (envCheckpoints e)
                      }) ret
         -- let-bindings keep track of own their context
 

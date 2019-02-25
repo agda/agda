@@ -113,13 +113,6 @@ checkpoint sub k = do
   unlessDebugPrinting $ reportSLn "tc.cxt.checkpoint" 105 "}"
   return x
 
--- | Update the context. Requires a substitution from the old context to the
---   new.
-updateContext
-  :: (MonadDebug tcm, MonadTCM tcm, MonadFresh CheckpointId tcm)
-  => Substitution -> (Context -> Context) -> tcm a -> tcm a
-updateContext sub f = modifyContext f . checkpoint sub
-
 -- | Get the substitution from the context at a given checkpoint to the current context.
 checkpointSubstitution :: MonadTCEnv tcm => CheckpointId -> tcm Substitution
 checkpointSubstitution = maybe __IMPOSSIBLE__ return <=< checkpointSubstitution'
@@ -153,42 +146,55 @@ class MonadTCEnv m => MonadAddContext m where
   --   Warning: Does not update module parameter substitution!
   addCtx :: Name -> Dom Type -> m a -> m a
 
+  -- | Update the context. Requires a substitution from the old context to the
+  --   new.
+  updateContext :: Substitution -> (Context -> Context) -> m a -> m a
+
   withFreshName :: Range -> ArgName -> (Name -> m a) -> m a
+
+-- | Default implementation of addCtx in terms of updateContext
+defaultAddCtx :: MonadAddContext m => Name -> Dom Type -> m a -> m a
+defaultAddCtx x a ret = do
+  q <- viewTC eQuantity
+  let ce = (x,) <$> inverseApplyQuantity q a
+  updateContext (raiseS 1) (ce :) ret
 
 withFreshName_ :: (MonadAddContext m) => ArgName -> (Name -> m a) -> m a
 withFreshName_ = withFreshName noRange
 
 instance MonadAddContext m => MonadAddContext (MaybeT m) where
   addCtx x a = MaybeT . addCtx x a . runMaybeT
+  updateContext sub f = MaybeT . updateContext sub f . runMaybeT
   withFreshName r x = MaybeT . withFreshName r x . (runMaybeT .)
 
 instance MonadAddContext m => MonadAddContext (ExceptT e m) where
   addCtx x a = mkExceptT . addCtx x a . runExceptT
+  updateContext sub f = mkExceptT . updateContext sub f . runExceptT
   withFreshName r x = mkExceptT . withFreshName r x . (runExceptT .)
 
 instance MonadAddContext m => MonadAddContext (ReaderT r m) where
   addCtx x a = ReaderT . (addCtx x a .) . runReaderT
+  updateContext sub f = ReaderT . (updateContext sub f .) . runReaderT
   withFreshName r x ret = ReaderT $ \env -> withFreshName r x $ \n -> runReaderT (ret n) env
 
 instance (Monoid w, MonadAddContext m) => MonadAddContext (WriterT w m) where
   addCtx x a = WriterT . addCtx x a . runWriterT
+  updateContext sub f = WriterT . updateContext sub f . runWriterT
   withFreshName r x = WriterT . withFreshName r x . (runWriterT .)
 
 instance MonadAddContext m => MonadAddContext (StateT r m) where
   addCtx x a = StateT . (addCtx x a .) . runStateT
+  updateContext sub f = StateT . (updateContext sub f .) . runStateT
   withFreshName r x ret = StateT $ \s -> withFreshName r x $ \n -> runStateT (ret n) s
 
 instance MonadAddContext TCM where
   addCtx x a ret = do
-    q <- viewTC eQuantity
-    let ce = (x,) <$> inverseApplyQuantity q a
     when (not $ isNoName x) $ do
       registerForShadowing x
       ys <- getContextNames
       forM_ ys $ \y ->
         when (not (isNoName y) && sameRoot x y) $ tellShadowing x y
-    updateContext (raiseS 1) (ce :) ret
-        -- let-bindings keep track of own their context
+    defaultAddCtx x a ret
 
     where
       -- add x to the map of possibly shadowed names
@@ -196,6 +202,8 @@ instance MonadAddContext TCM where
 
       -- register the fact that x possibly shadows the name y
       tellShadowing x y = modifyTCLens stShadowingNames $ Map.adjust (x:) y
+
+  updateContext sub f = modifyContext f . checkpoint sub
 
   withFreshName r x m = freshName r x >>= m
 
