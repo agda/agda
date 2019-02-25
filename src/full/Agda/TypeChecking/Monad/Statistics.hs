@@ -1,7 +1,7 @@
 -- | Collect statistics.
 
 module Agda.TypeChecking.Monad.Statistics
-    ( tick, tickN, tickMax, getStatistics, modifyStatistics, printStatistics
+    ( MonadStatistics(..), tick, tickN, tickMax, getStatistics, modifyStatistics, printStatistics
     ) where
 
 import qualified Data.Map as Map

@@ -240,11 +240,9 @@ functionInverse v = case v of
 data InvView = Inv QName [Elim] (InversionMap Clause)
              | NoInv
 
-data MaybeAbort = Abort | KeepGoing
-
 -- | Precondition: The first argument must be blocked and the second must be
 --                 neutral.
-useInjectivity :: CompareDirection -> Type -> Term -> Term -> TCM ()
+useInjectivity :: MonadConversion m => CompareDirection -> Type -> Term -> Term -> m ()
 useInjectivity dir ty blk neu = locallyTC eInjectivityDepth succ $ do
   inv <- functionInverse blk
   -- Injectivity might cause non-termination for unsatisfiable constraints
@@ -313,7 +311,9 @@ useInjectivity dir ty blk neu = locallyTC eInjectivityDepth succ $ do
 
 -- | The second argument should be a blocked application and the third argument
 --   the inverse of the applied function.
-invertFunction :: Comparison -> Term -> InvView -> TermHead -> TCM () -> TCM () -> (Term -> TCM ()) -> TCM ()
+invertFunction
+  :: MonadConversion m
+  => Comparison -> Term -> InvView -> TermHead -> m () -> m () -> (Term -> m ()) -> m ()
 invertFunction _ _ NoInv _ fallback _ _ = fallback
 invertFunction cmp blk (Inv f blkArgs hdMap) hd fallback err success = do
     fTy <- defType <$> getConstInfo f
@@ -325,7 +325,7 @@ invertFunction cmp blk (Inv f blkArgs hdMap) hd fallback err success = do
     case fromMaybe [] $ Map.lookup hd hdMap <> Map.lookup UnknownHead hdMap of
       [] -> err
       _:_:_ -> fallback
-      [cl@Clause{ clauseTel  = tel }] -> maybeAbort $ do
+      [cl@Clause{ clauseTel  = tel }] -> speculateMetas fallback $ do
           let ps   = clausePats cl
               perm = fromMaybe __IMPOSSIBLE__ $ clausePerm cl
           -- These are what dot patterns should be instantiated at
@@ -359,35 +359,33 @@ invertFunction cmp blk (Inv f blkArgs hdMap) hd fallback err success = do
           compareElims pol fs fTy (Def f []) margs blkArgs'
 
           -- Check that we made progress.
-          r <- runReduceM $ unfoldDefinitionStep False blk f blkArgs
+          r <- liftReduce $ unfoldDefinitionStep False blk f blkArgs
           case r of
             YesReduction _ blk' -> do
               reportSDoc "tc.inj.invert.success" 20 $ hsep ["Successful inversion of", prettyTCM f, "at", pretty hd]
-              KeepGoing <$ success blk'
+              KeepMetas <$ success blk'
             NoReduction{}       -> do
               reportSDoc "tc.inj.invert" 30 $ vcat
                 [ "aborting inversion;" <+> prettyTCM blk
                 , "does not reduce"
                 ]
-              return Abort
+              return RollBackMetas
   where
-    maybeAbort m = do
-      (a, s) <- localTCStateSaving m
-      case a of
-        KeepGoing -> putTC s
-        Abort     -> fallback
-
+    nextMeta :: MonadState [Term] m => m Term
     nextMeta = do
       m : ms <- get
       put ms
       return m
 
-    dotP :: Monad m => Term -> StateT [Term] (ReaderT Substitution m) Term
+    dotP :: MonadReader Substitution m => Term -> m Term
     dotP v = do
       sub <- ask
       return $ applySubst sub v
 
-    metaElim (Arg _ (ProjP o p))  = lift $ lift $ Proj o <$> getOriginalProjection p
+    metaElim
+      :: (MonadState [Term] m, MonadReader Substitution m, HasConstInfo m)
+      => Arg DeBruijnPattern -> m Elim
+    metaElim (Arg _ (ProjP o p))  = Proj o <$> getOriginalProjection p
     metaElim (Arg info p)         = Apply . Arg info <$> metaPat p
 
     metaArgs args = mapM (traverse $ metaPat . namedThing) args

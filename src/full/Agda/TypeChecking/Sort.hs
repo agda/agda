@@ -58,7 +58,7 @@ inferUnivSort s = do
       addConstraint $ HasBiggerSort s
       return $ UnivSort s
 
-sortFitsIn :: Sort -> Sort -> TCM ()
+sortFitsIn :: MonadConversion m => Sort -> Sort -> m ()
 sortFitsIn a b = do
   b' <- inferUnivSort a
   equalSort b' b -- CUMULATIVITY: leqSort b' b

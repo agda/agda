@@ -38,7 +38,9 @@ etaExpandOnce a v = reduce a >>= \case
 deepEtaExpand :: Term -> Type -> TCM Term
 deepEtaExpand = checkInternal' etaExpandAction
 
-etaExpandAction :: Action
+etaExpandAction
+  :: (MonadReduce m, MonadTCEnv m, HasOptions m, HasConstInfo m, MonadDebug m)
+  => Action m
 etaExpandAction = Action
   { preAction       = etaExpandOnce
   , postAction      = \ _ -> return

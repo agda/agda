@@ -222,8 +222,10 @@ boundedSizeMetaHook v tel0 a = do
 --   like @Size< i =< Size@.
 --
 --   If it does not succeed it reports failure of conversion check.
-trySizeUniv :: Comparison -> Type -> Term -> Term
-  -> QName -> Elims -> QName -> Elims -> TCM ()
+trySizeUniv
+  :: MonadConversion m
+  => Comparison -> Type -> Term -> Term
+  -> QName -> Elims -> QName -> Elims -> m ()
 trySizeUniv cmp t m n x els1 y els2 = do
   let failure = typeError $ UnequalTerms cmp m n t
       forceInfty u = compareSizes CmpEq (unArg u) =<< primSizeInf
@@ -283,7 +285,7 @@ sizeMaxView v = do
 ------------------------------------------------------------------------
 
 -- | Compare two sizes.
-compareSizes :: Comparison -> Term -> Term -> TCM ()
+compareSizes :: (MonadConversion m) => Comparison -> Term -> Term -> m ()
 compareSizes cmp u v = verboseBracket "tc.conv.size" 10 "compareSizes" $ do
   reportSDoc "tc.conv.size" 10 $ vcat
     [ "Comparing sizes"
@@ -303,7 +305,7 @@ compareSizes cmp u v = verboseBracket "tc.conv.size" 10 "compareSizes" $ do
   compareMaxViews cmp us vs
 
 -- | Compare two sizes in max view.
-compareMaxViews :: Comparison -> SizeMaxView -> SizeMaxView -> TCM ()
+compareMaxViews :: (MonadConversion m) => Comparison -> SizeMaxView -> SizeMaxView -> m ()
 compareMaxViews cmp us vs = case (cmp, us, vs) of
   (CmpLeq, _, (DSizeInf :! _)) -> return ()
   (cmp, u:![], v:![]) -> compareSizeViews cmp u v
@@ -314,7 +316,7 @@ compareMaxViews cmp us vs = case (cmp, us, vs) of
     compareMaxViews CmpLeq vs us
 
 -- | @compareBelowMax u vs@ checks @u <= max vs@.  Precondition: @size vs >= 2@
-compareBelowMax :: DeepSizeView -> SizeMaxView -> TCM ()
+compareBelowMax :: (MonadConversion m) => DeepSizeView -> SizeMaxView -> m ()
 compareBelowMax u vs = verboseBracket "tc.conv.size" 45 "compareBelowMax" $ do
   reportSDoc "tc.conv.size" 45 $ sep
     [ pretty u
@@ -335,7 +337,7 @@ compareBelowMax u vs = verboseBracket "tc.conv.size" 45 "compareBelowMax" $ do
   where
   alt c1 c2 = c1 `catchError` const c2
 
-compareSizeViews :: Comparison -> DeepSizeView -> DeepSizeView -> TCM ()
+compareSizeViews :: (MonadConversion m) => Comparison -> DeepSizeView -> DeepSizeView -> m ()
 compareSizeViews cmp s1' s2' = do
   reportSDoc "tc.conv.size" 45 $ hsep
     [ "compareSizeViews"
@@ -376,14 +378,14 @@ compareSizeViews cmp s1' s2' = do
 
 -- | If 'envAssignMetas' then postpone as constraint, otherwise, fail hard.
 --   Failing is required if we speculatively test several alternatives.
-giveUp :: Comparison -> Type -> Term -> Term -> TCM ()
+giveUp :: (MonadConversion m) => Comparison -> Type -> Term -> Term -> m ()
 giveUp cmp size u v =
   ifM (asksTC envAssignMetas)
     {-then-} (addConstraint $ ValueCmp CmpLeq size u v)
     {-else-} (typeError $ UnequalTerms cmp u v size)
 
 -- | Checked whether a size constraint is trivial (like @X <= X+1@).
-trivial :: Term -> Term -> TCM Bool
+trivial :: (MonadConversion m) => Term -> Term -> m Bool
 trivial u v = do
     a@(e , n ) <- oldSizeExpr u
     b@(e', n') <- oldSizeExpr v
