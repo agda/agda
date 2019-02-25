@@ -628,7 +628,8 @@ reifyTerm expandAnonDefs0 v0 = do
                         let name (I.VarP _ x) = patVarNameToString $ dbPatVarName x
                             name _            = __IMPOSSIBLE__  -- only variables before absurd pattern
                             vars = map (getArgInfo &&& name . namedArg) $ drop (length es) $ init $ namedClausePats cl
-                            lam (i, s) = withFreshName_ s $ \ x ->
+                            lam (i, s) = do
+                              x <- freshName_ s
                               return $ A.Lam exprNoRange (A.DomainFree $ unnamedArg i $ A.BindName x)
                         foldr ($) absLam <$> mapM lam vars
                       | otherwise -> elims absLam =<< reify (drop n es)
@@ -1234,11 +1235,13 @@ instance Reify Sort Expr where
         I.SizeUniv  -> do
           I.Def sizeU [] <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSizeUniv
           return $ A.Def sizeU
-        I.PiSort s1 s2 -> withFreshName_ ("piSort" :: String) $ \pis -> do  -- TODO: hack
+        I.PiSort s1 s2 -> do
+          pis <- freshName_ ("piSort" :: String) -- TODO: hack
           (e1,e2) <- reify (s1, I.Lam defaultArgInfo $ fmap Sort s2)
           let app x y = A.App defaultAppInfo_ x (defaultNamedArg y)
           return $ A.Var pis `app` e1 `app` e2
-        I.UnivSort s -> withFreshName_ ("univSort" :: String) $ \univs -> do -- TODO: hack
+        I.UnivSort s -> do
+          univs <- freshName_ ("univSort" :: String) -- TODO: hack
           e <- reify s
           return $ A.App defaultAppInfo_ (A.Var univs) $ defaultNamedArg e
         I.MetaS x es -> reify $ I.MetaV x es
@@ -1251,21 +1254,21 @@ instance Reify Level Expr where
     -- Andreas, 2017-09-18, issue #2754
     -- While type checking the level builtins, they are not
     -- available for debug printing.  Thus, print some garbage instead.
-    withFreshName_ (".#Lacking_Level_Builtins#" :: String) $ \name ->
-      return $ A.Var name
+    name <- freshName_ (".#Lacking_Level_Builtins#" :: String)
+    return $ A.Var name
 
 instance (Free i, Reify i a) => Reify (Abs i) (Name, a) where
-  reify (NoAbs x v) = withFreshName_ x $ \name -> (name,) <$> reify v
+  reify (NoAbs x v) = freshName_ x >>= \name -> (name,) <$> reify v
   reify (Abs s v) = do
 
     -- If the bound variable is free in the body, then the name "_" is
     -- replaced by "z".
     s <- return $ if isUnderscore s && 0 `freeIn` v then "z" else s
 
-    withFreshName_ s $ \x -> do
-      e <- addContext x -- type doesn't matter
-           $ reify v
-      return (x,e)
+    x <- freshName_ s
+    e <- addContext x -- type doesn't matter
+         $ reify v
+    return (x,e)
 
 instance Reify I.Telescope A.Telescope where
   reify EmptyTel = return []
