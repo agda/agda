@@ -1,12 +1,12 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 -- | Nonempty lists.
-module Agda.Utils.NonemptyList
-  ( module Agda.Utils.NonemptyList
-  , toList ) where
+module Agda.Utils.NonemptyList where
 
 import Control.Monad
 import Data.Data (Data)
-import Data.Foldable (Foldable, toList)
+import Data.Foldable (Foldable)
+  -- The toList method of Foldable may do something stupid,
+  -- like traversing the list just to build a list again.
 import Data.Traversable (Traversable)
 import Data.Semigroup
 import qualified Data.List as List
@@ -28,6 +28,11 @@ instance Monad NonemptyList where
 
 instance Show a => Show (NonemptyList a) where
   showsPrec _ = showList . toList
+
+-- | Implementing conversion to list manually, since @Foldable.toList@
+--   might recurse over the tail and, thus, destroy sharing.
+toList :: NonemptyList a -> [a]
+toList (x :! xs) = x : xs
 
 -- | Returns the union of the argument lists seen as sets. The order of the
 --   elements in the result is not specified. Precondition: arguments contain
@@ -56,4 +61,3 @@ listCaseNe e ne xs = caseListNe xs e ne
 -- | Check if an element is present in a list.
 elemNe :: Eq a => a -> NonemptyList a -> Bool
 elemNe y (x :! xs) = elem y (x : xs)
-

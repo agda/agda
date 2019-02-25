@@ -15,7 +15,7 @@ import Prelude hiding ((<>))
 
 import Control.DeepSeq
 
-import Data.Foldable (Foldable, toList)
+import Data.Foldable (Foldable)
 import Data.Traversable (Traversable)
 import Data.Data (Data)
 import Data.List
