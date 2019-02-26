@@ -58,7 +58,7 @@ data Name
   | RecordName
     {
       nameRange     :: Range,
-      nth           :: Int
+      name          :: String
     }
   deriving Data
 
@@ -158,9 +158,9 @@ nameToRawName :: Name -> RawName
 nameToRawName = prettyShow
 
 nameParts :: Name -> [NamePart]
-nameParts (RecordName {}) = [Id "r"]
-nameParts (Name _ _ ps)   = ps
-nameParts (NoName _ _)    = [Id "_"] -- To not return an empty list
+nameParts (RecordName _ n) = [Id n]
+nameParts (Name _ _ ps)    = ps
+nameParts (NoName _ _)     = [Id "_"] -- To not return an empty list
 
 nameStringParts :: Name -> [RawName]
 nameStringParts n = [ s | Id s <- nameParts n ]
@@ -250,10 +250,14 @@ instance LensInScope QName where
 -- * Generating fresh names
 ------------------------------------------------------------------------
 
+nextStr :: String -> String
+nextStr s = case suffixView s of
+  (s0, suf) -> addSuffix s0 (nextSuffix suf)
+
 -- | Get the next version of the concrete name. For instance,
 --   @nextName "x" = "x₁"@.  The name must not be a 'NoName'.
 nextName :: Name -> Name
-nextName (RecordName r n) = RecordName r (n + 1)
+nextName (RecordName r n) = RecordName r $ nextStr n
 nextName NoName{} = __IMPOSSIBLE__
 nextName x@Name{ nameNameParts = ps } = x { nameInScope = NotInScope, nameNameParts = nextSuf ps }
   where
@@ -261,8 +265,6 @@ nextName x@Name{ nameNameParts = ps } = x { nameInScope = NotInScope, nameNamePa
     nextSuf [Id s, Hole] = [Id $ nextStr s, Hole]
     nextSuf (p : ps)     = p : nextSuf ps
     nextSuf []           = __IMPOSSIBLE__
-    nextStr s = case suffixView s of
-        (s0, suf) -> addSuffix s0 (nextSuffix suf)
 
 -- | Get the first version of the concrete name that does not satisfy
 --   the given predicate.
@@ -386,7 +388,7 @@ instance IsNoName ByteString where
   isNoName = isUnderscore
 
 instance IsNoName Name where
-  isNoName (RecordName _ _ ) = True
+  isNoName (RecordName _ _)  = True
   isNoName (NoName _ _)      = True
   isNoName (Name _ _ [Hole]) = True   -- TODO: Track down where these come from
   isNoName (Name _ _ [])     = True
@@ -425,7 +427,7 @@ instance Show QName where
 ------------------------------------------------------------------------
 
 instance Pretty Name where
-  pretty (RecordName _ i) = text $ if (i == 0) then "r" else addSuffix "r" (Subscript i)
+  pretty (RecordName _ n) = text n
   pretty (Name _ _ xs)    = hcat $ map pretty xs
   pretty (NoName _ _)     = "_"
 
@@ -493,7 +495,7 @@ instance NFData NameInScope where
   rnf NotInScope = ()
 
 instance NFData Name where
-  rnf (RecordName _ idx) = rnf idx
+  rnf (RecordName _ n) = rnf n
   rnf (Name _ nis ns) = rnf nis `seq` rnf ns
   rnf (NoName _ n)  = rnf n
 
