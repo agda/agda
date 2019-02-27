@@ -212,6 +212,12 @@ instance AddContext ([NamedArg Name], Type) where
     addContext (xs, raise 1 t)
   contextSize (xs, _) = length xs
 
+instance AddContext (RecordVar, Dom Type) where
+  addContext (s, dom) ret = do
+    x <- setNotInScope <$> freshName_ s
+    addCtx x dom ret
+  contextSize _ = 1
+
 instance AddContext (String, Dom Type) where
   addContext (s, dom) ret = do
     x <- setNotInScope <$> freshName_ s

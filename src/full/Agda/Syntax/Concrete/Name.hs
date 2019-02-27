@@ -278,7 +278,7 @@ firstNonTakenName taken x =
 --   instance, @nameRoot "x₁₂₃" = "x"@. The name must not be a
 --   'NoName'.
 nameRoot :: Name -> RawName
-nameRoot RecordName{} = "r"
+nameRoot (RecordName _ n) = fst $ suffixView n
 nameRoot NoName{} = __IMPOSSIBLE__
 nameRoot x@Name{ nameNameParts = ps } =
     nameToRawName $ x{ nameNameParts = root ps }

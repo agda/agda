@@ -308,6 +308,9 @@ data TypeCheckAction
 
 -- | Empty persistent state.
 
+
+data RecordVar = RecordVar
+
 initPersistentState :: PersistentTCState
 initPersistentState = PersistentTCSt
   { stPersistentOptions         = defaultOptions
@@ -708,6 +711,11 @@ class FreshName a where
 
 instance FreshName (Range, String) where
   freshName_ = uncurry freshName
+
+instance FreshName RecordVar where
+  freshName_ _ = do
+    i <- fresh
+    return $ Name i (C.RecordName noRange "r") noRange noFixity'
 
 instance FreshName String where
   freshName_ = freshName noRange
