@@ -572,6 +572,9 @@ library
 
   other-modules:    Paths_Agda
 
+  ghc-options: -fexpose-all-unfoldings
+               -fspecialise-aggressively
+
   -- Initially, we disable all the warnings.
   ghc-options: -w
                -Werror
