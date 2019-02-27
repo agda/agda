@@ -308,9 +308,6 @@ data TypeCheckAction
 
 -- | Empty persistent state.
 
-
-data RecordVar = RecordVar
-
 initPersistentState :: PersistentTCState
 initPersistentState = PersistentTCSt
   { stPersistentOptions         = defaultOptions
@@ -705,17 +702,17 @@ freshNoName r =
 freshNoName_ :: MonadTCState m => m Name
 freshNoName_ = freshNoName noRange
 
+freshRecordName :: MonadTCState m => m Name
+freshRecordName = do
+  i <- fresh
+  return $ Name i (C.RecordName noRange "r") noRange noFixity'
+
 -- | Create a fresh name from @a@.
 class FreshName a where
   freshName_ :: MonadTCState m => a -> m Name
 
 instance FreshName (Range, String) where
   freshName_ = uncurry freshName
-
-instance FreshName RecordVar where
-  freshName_ _ = do
-    i <- fresh
-    return $ Name i (C.RecordName noRange "r") noRange noFixity'
 
 instance FreshName String where
   freshName_ = freshName noRange
