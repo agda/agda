@@ -78,9 +78,10 @@ toVim ns = unlines $ matches mcons micons mdefs midefs mflds miflds
         midefs = concatMap parts defs
         miflds = concatMap parts flds
 
-        parts (NoName _ _)   = []
-        parts (Name _ _ [_]) = []
-        parts (Name _ _ ps)  = [ rawNameToString x | Id x <- ps ]
+        parts (RecordName {}) = []
+        parts (NoName _ _)    = []
+        parts (Name _ _ [_])  = []
+        parts (Name _ _ ps)   = [ rawNameToString x | Id x <- ps ]
 
 generateVimFile :: FilePath -> TCM ()
 generateVimFile file = do

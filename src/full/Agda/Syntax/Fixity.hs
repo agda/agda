@@ -105,9 +105,10 @@ notationNames (NewNotation q _ _ parts _) =
 --   'Hole's become 'NormalHole's, 'Id's become 'IdParts'.
 --   If 'Name' has no 'Hole's, it returns 'noNotation'.
 syntaxOf :: Name -> Notation
-syntaxOf (NoName _ _)   = noNotation
-syntaxOf (Name _ _ [_]) = noNotation
-syntaxOf (Name _ _ xs)  = mkSyn 0 xs
+syntaxOf (RecordName {}) = noNotation
+syntaxOf (NoName _ _)    = noNotation
+syntaxOf (Name _ _ [_])  = noNotation
+syntaxOf (Name _ _ xs)   = mkSyn 0 xs
   where
     -- Turn a concrete name into a Notation,
     -- numbering the holes from left to right.

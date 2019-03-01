@@ -275,8 +275,7 @@ checkRecDef i name uc ind eta con (A.DataDefParams gpars ps) contel fields =
 
       let info = setRelevance recordRelevance defaultArgInfo
           addRecordVar =
-            addContext ("" :: String, setArgInfo info $ defaultDom rect)
-          -- the record variable has the empty name by intention, see issue 208
+            addRecordNameContext (setArgInfo info $ defaultDom rect)
 
       let m = qnameToMName name  -- Name of record module.
 

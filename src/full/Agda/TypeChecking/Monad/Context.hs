@@ -163,6 +163,11 @@ addCtx x a ret = do
     -- register the fact that x possibly shadows the name y
     tellShadowing x y = modifyTCLens stShadowingNames $ Map.adjust (x:) y
 
+addRecordNameContext :: (MonadDebug m, MonadTCM m) => Dom Type -> m b -> m b
+addRecordNameContext dom ret = do
+  x <- setNotInScope <$> freshRecordName
+  addCtx x dom ret
+
 -- | Various specializations of @addCtx@.
 {-# SPECIALIZE addContext :: b -> TCM a -> TCM a #-}
 class AddContext b where

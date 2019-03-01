@@ -1,0 +1,3 @@
+Issue3566.agda:13,8-11
+(r : R) → P (R.a r) !=< A of type Set
+when checking that the expression R.b has type A

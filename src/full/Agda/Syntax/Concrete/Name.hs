@@ -55,6 +55,11 @@ data Name
     { nameRange     :: Range
     , nameId        :: NameId
     }
+  | RecordName
+    {
+      nameRange     :: Range,
+      name          :: String
+    }
   deriving Data
 
 -- | An open mixfix identifier is either prefix, infix, or suffix.
@@ -88,15 +93,20 @@ data NamePart
 --   right to be able to do a lookup. -Ulf
 
 instance Eq Name where
-    Name _ _ xs == Name _ _ ys = xs == ys
-    NoName _ i  == NoName _ j  = i == j
-    _           == _           = False
+    RecordName _ i == RecordName _ j = i == j
+    Name _ _ xs    == Name _ _ ys    = xs == ys
+    NoName _ i     == NoName _ j     = i == j
+    _              == _              = False
 
 instance Ord Name where
-    compare (Name _ _ xs) (Name _ _ ys) = compare xs ys
-    compare (NoName _ i)  (NoName _ j)  = compare i j
-    compare (NoName {})   (Name {})     = LT
-    compare (Name {})     (NoName {})   = GT
+    compare (RecordName _ i) (RecordName _ j) = compare i j
+    compare (RecordName {}) _                 = LT
+    compare (Name _ _ xs)  (Name _ _ ys)      = compare xs ys
+    compare (NoName _ i)   (NoName _ j)       = compare i j
+    compare (NoName {})    (Name {})          = LT
+    compare (Name {})      (NoName {})        = GT
+    compare (Name {})      (RecordName {})    = GT
+    compare (NoName {})    (RecordName {})    = GT
 
 instance Eq NamePart where
   Hole  == Hole  = True
@@ -148,8 +158,9 @@ nameToRawName :: Name -> RawName
 nameToRawName = prettyShow
 
 nameParts :: Name -> [NamePart]
-nameParts (Name _ _ ps) = ps
-nameParts (NoName _ _)  = [Id "_"] -- To not return an empty list
+nameParts (RecordName _ n) = [Id n]
+nameParts (Name _ _ ps)    = ps
+nameParts (NoName _ _)     = [Id "_"] -- To not return an empty list
 
 nameStringParts :: Name -> [RawName]
 nameStringParts n = [ s | Id s <- nameParts n ]
@@ -174,6 +185,7 @@ instance NumHoles [NamePart] where
 
 instance NumHoles Name where
   numHoles NoName{}         = 0
+  numHoles RecordName{}     = 0
   numHoles (Name { nameNameParts = parts }) = numHoles parts
 
 instance NumHoles QName where
@@ -183,8 +195,9 @@ instance NumHoles QName where
 -- | Is the name an operator?
 
 isOperator :: Name -> Bool
-isOperator (NoName {})   = False
-isOperator (Name _ _ ps) = length ps > 1
+isOperator (NoName {})     = False
+isOperator (RecordName {}) = False
+isOperator (Name _ _ ps)   = length ps > 1
 
 isHole :: NamePart -> Bool
 isHole Hole = True
@@ -224,6 +237,7 @@ instance LensInScope NameInScope where
 
 instance LensInScope Name where
   lensInScope f = \case
+    n@RecordName{} -> const n <$> f InScope
     n@Name{ nameInScope = nis } -> (\nis' -> n { nameInScope = nis' }) <$> f nis
     n@NoName{} -> const n <$> f InScope
 
@@ -236,9 +250,14 @@ instance LensInScope QName where
 -- * Generating fresh names
 ------------------------------------------------------------------------
 
+nextStr :: String -> String
+nextStr s = case suffixView s of
+  (s0, suf) -> addSuffix s0 (nextSuffix suf)
+
 -- | Get the next version of the concrete name. For instance,
 --   @nextName "x" = "x₁"@.  The name must not be a 'NoName'.
 nextName :: Name -> Name
+nextName (RecordName r n) = RecordName r $ nextStr n
 nextName NoName{} = __IMPOSSIBLE__
 nextName x@Name{ nameNameParts = ps } = x { nameInScope = NotInScope, nameNameParts = nextSuf ps }
   where
@@ -246,8 +265,6 @@ nextName x@Name{ nameNameParts = ps } = x { nameInScope = NotInScope, nameNamePa
     nextSuf [Id s, Hole] = [Id $ nextStr s, Hole]
     nextSuf (p : ps)     = p : nextSuf ps
     nextSuf []           = __IMPOSSIBLE__
-    nextStr s = case suffixView s of
-        (s0, suf) -> addSuffix s0 (nextSuffix suf)
 
 -- | Get the first version of the concrete name that does not satisfy
 --   the given predicate.
@@ -261,6 +278,7 @@ firstNonTakenName taken x =
 --   instance, @nameRoot "x₁₂₃" = "x"@. The name must not be a
 --   'NoName'.
 nameRoot :: Name -> RawName
+nameRoot (RecordName _ n) = fst $ suffixView n
 nameRoot NoName{} = __IMPOSSIBLE__
 nameRoot x@Name{ nameNameParts = ps } =
     nameToRawName $ x{ nameNameParts = root ps }
@@ -370,6 +388,7 @@ instance IsNoName ByteString where
   isNoName = isUnderscore
 
 instance IsNoName Name where
+  isNoName (RecordName _ _)  = True
   isNoName (NoName _ _)      = True
   isNoName (Name _ _ [Hole]) = True   -- TODO: Track down where these come from
   isNoName (Name _ _ [])     = True
@@ -408,8 +427,9 @@ instance Show QName where
 ------------------------------------------------------------------------
 
 instance Pretty Name where
-  pretty (Name _ _ xs) = hcat $ map pretty xs
-  pretty (NoName _ _)  = "_"
+  pretty (RecordName _ n) = text n
+  pretty (Name _ _ xs)    = hcat $ map pretty xs
+  pretty (NoName _ _)     = "_"
 
 instance Pretty NamePart where
   pretty Hole   = "_"
@@ -429,8 +449,9 @@ instance Pretty TopLevelModuleName where
 ------------------------------------------------------------------------
 
 instance HasRange Name where
-    getRange (Name r _ ps) = r
-    getRange (NoName r _)  = r
+    getRange (RecordName r _) = r
+    getRange (Name r _ ps)    = r
+    getRange (NoName r _)     = r
 
 instance HasRange QName where
     getRange (QName  x) = getRange x
@@ -440,6 +461,7 @@ instance HasRange TopLevelModuleName where
   getRange = moduleNameRange
 
 instance SetRange Name where
+  setRange r (RecordName _ i) = RecordName r i
   setRange r (Name _ nis ps) = Name r nis ps
   setRange r (NoName _ i)  = NoName r i
 
@@ -455,8 +477,9 @@ instance KillRange QName where
   killRange (Qual n x) = killRange n `Qual` killRange x
 
 instance KillRange Name where
-  killRange (Name r nis ps) = Name (killRange r) nis ps
-  killRange (NoName r i)    = NoName (killRange r) i
+  killRange (RecordName r i) = RecordName (killRange r) i
+  killRange (Name r nis ps)  = Name (killRange r) nis ps
+  killRange (NoName r i)     = NoName (killRange r) i
 
 instance KillRange TopLevelModuleName where
   killRange (TopLevelModuleName _ x) = TopLevelModuleName noRange x
@@ -472,6 +495,7 @@ instance NFData NameInScope where
   rnf NotInScope = ()
 
 instance NFData Name where
+  rnf (RecordName _ n) = rnf n
   rnf (Name _ nis ns) = rnf nis `seq` rnf ns
   rnf (NoName _ n)  = rnf n
 

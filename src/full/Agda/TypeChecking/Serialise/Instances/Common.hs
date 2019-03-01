@@ -289,12 +289,14 @@ instance EmbPrj SerialisedRange where
     valu _      = malformed
 
 instance EmbPrj C.Name where
-  icod_ (C.NoName a b)    = icodeN 0 C.NoName a b
-  icod_ (C.Name r nis xs) = icodeN 1 C.Name r nis xs
+  icod_ (C.NoName a b)     = icodeN 0 C.NoName a b
+  icod_ (C.Name r nis xs)  = icodeN 1 C.Name r nis xs
+  icod_ (C.RecordName r n) = icodeN 2 C.RecordName r n
 
   value = vcase valu where
     valu [0, a, b]       = valuN C.NoName a b
     valu [1, r, nis, xs] = valuN C.Name   r nis xs
+    valu [2, r, n]       = valuN C.RecordName r n
     valu _               = malformed
 
 instance EmbPrj NamePart where
