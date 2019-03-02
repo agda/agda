@@ -1140,11 +1140,20 @@ checkPrimHComp c vs _ = do
           (apply (unArg u) [iz])
     _ -> typeError $ GenericError $ show c ++ " must be fully applied"
 
+-- | @transp : ∀{ℓ} (A : (i : I) → Set (ℓ i)) (φ : I) (a0 : A i0) → A i1@
+--
+--   Check:  If φ, then @A i = A i0 : Set (ℓ i)@ must hold for all @i : I@.
+--
 checkPrimTrans :: QName -> Args -> Type -> TCM ()
 checkPrimTrans c vs _ = do
   case vs of
-    [l, a, phi, a0] -> do
+    -- Andreas, 2019-03-02, issue #3601, why exactly 4 arguments?
+    -- Only 3 are needed to check the side condition.
+    -- WAS:
+    -- [l, a, phi, a0] -> do
+    l : a : phi : _ -> do
       iz <- Arg defaultArgInfo <$> intervalUnview IZero
+      -- ty = (i : I) -> Set (l i)
       ty <- runNamesT [] $ do
         l <- open $ unArg l
         nPi' "i" (elInf $ cl primInterval) $ \ i -> (sort . tmSort <$> (l <@> i))
