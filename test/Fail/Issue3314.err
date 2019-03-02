@@ -1,5 +1,5 @@
-Issue3314.agda:15,1-4
+Issue3314.agda:13,1-4
 Cannot generate inferred clause for bad. Case to handle:
-  bad (primHComp {.Agda.Primitive.lzero} {.S1} {φ = φ} x x₁)
+  bad (primHComp {.Agda.Primitive.lzero} {.S1} {φ = φ} u a)
 Cannot compose with type family: I.
 when checking the definition of bad
