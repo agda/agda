@@ -396,7 +396,9 @@ checkHeadApplication cmp e t hd args = do
 
     _ -> defaultResult
   where
+  defaultResult :: TCM Term
   defaultResult = defaultResult' Nothing
+  defaultResult' :: Maybe (Args -> Type -> TCM ()) -> TCM Term
   defaultResult' mk = do
     (f, t0) <- inferHead hd
     expandLast <- asksTC envExpandLast
@@ -1118,10 +1120,15 @@ pathAbs (OType _) t = __IMPOSSIBLE__
 pathAbs (PathType s path l a x y) t = do
   return $ Lam defaultArgInfo t
 
+-- | @primComp : ∀ {ℓ} (A : (i : I) → Set (ℓ i)) (φ : I) (u : ∀ i → Partial φ (A i)) (a : A i0) → A i1@
+--
+--   Check:  @u i0 = (λ _ → a) : Partial φ (A i0)@.
+--
 checkPrimComp :: QName -> Args -> Type -> TCM ()
 checkPrimComp c vs _ = do
   case vs of
-    [l, a, phi, u, a0] -> do
+    -- WAS: [l, a, phi, u, a0] -> do
+    l : a : phi : u : a0 : _ -> do
       iz <- Arg defaultArgInfo <$> intervalUnview IZero
       ty <- elInf $ primPartial <#> (pure $ unArg l `apply` [iz]) <@> (pure $ unArg phi) <@> (pure $ unArg a `apply` [iz])
       equalTerm ty -- (El (getSort t1) (apply (unArg a) [iz]))
@@ -1129,12 +1136,20 @@ checkPrimComp c vs _ = do
           (apply (unArg u) [iz])
     _ -> typeError $ GenericError $ show c ++ " must be fully applied"
 
+-- | @primHComp : ∀ {ℓ} {A : Set ℓ} {φ : I} (u : ∀ i → Partial φ A) (a : A) → A@
+--
+--   Check:  @u i0 = (λ _ → a) : Partial φ A@.
+--
 checkPrimHComp :: QName -> Args -> Type -> TCM ()
 checkPrimHComp c vs _ = do
   case vs of
-    [l, a, phi, u, a0] -> do
+    -- WAS: [l, a, phi, u, a0] -> do
+    l : a : phi : u : a0 : _ -> do
+      -- iz = i0
       iz <- Arg defaultArgInfo <$> intervalUnview IZero
+      -- ty = Partial φ A
       ty <- elInf $ primPartial <#> (pure $ unArg l) <@> (pure $ unArg phi) <@> (pure $ unArg a)
+      -- (λ _ → a) = u i0 : ty
       equalTerm ty -- (El (getSort t1) (apply (unArg a) [iz]))
           (Lam defaultArgInfo $ NoAbs "_" $ unArg a0)
           (apply (unArg u) [iz])
@@ -1198,7 +1213,8 @@ checkPOr c vs t1 = do
 checkGlue :: QName -> Args -> Type -> TCM ()
 checkGlue c vs _ = do
   case vs of
-   [la, lb, bA, phi, bT, e, t, a] -> do
+   -- WAS: [la, lb, bA, phi, bT, e, t, a] -> do
+   la : lb : bA : phi : bT : e : t : a : _ -> do
       let iinfo = setRelevance Irrelevant defaultArgInfo
       v <- runNamesT [] $ do
             [lb, la, bA, phi, bT, e, t] <- mapM (open . unArg) [lb, la, bA, phi, bT, e, t]
