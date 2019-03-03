@@ -468,7 +468,21 @@ etaExpandMeta kinds m = whenM (asksTC envAssignMetas `and2M` isEtaExpandable kin
     case mvJudgement meta of
       IsSort{} -> dontExpand
       HasType _ a -> do
+
+        reportSDoc "tc.meta.eta" 40 $ sep
+          [ text "considering eta-expansion at type "
+          , prettyTCM a
+          , text " raw: "
+          , pretty a
+          ]
+
         TelV tel b <- telView a
+        reportSDoc "tc.meta.eta" 40 $ sep
+          [ text "considering eta-expansion at type"
+          , addContext tel (prettyTCM b)
+          , text "under telescope"
+          , prettyTCM tel
+          ]
 
         -- Eta expanding metas with a domFinite will just make sure
         -- they go unsolved: conversion will compare them at the
