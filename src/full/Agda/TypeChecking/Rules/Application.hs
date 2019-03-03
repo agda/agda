@@ -392,7 +392,7 @@ checkHeadApplication cmp e t hd args = do
     A.Def c | Just c == pTrans -> defaultResult' $ Just $ checkPrimTrans c
     A.Def c | Just c == conId -> defaultResult' $ Just $ checkConId c
     A.Def c | Just c == pOr   -> defaultResult' $ Just $ checkPOr c
-    A.Def c | Just c == mglue -> defaultResult' $ Just $ checkGlue c
+    A.Def c | Just c == mglue -> defaultResult' $ Just $ check_glue c
 
     _ -> defaultResult
   where
@@ -1201,7 +1201,7 @@ checkConId c vs t1 = do
 checkPOr :: QName -> Args -> Type -> TCM ()
 checkPOr c vs t1 = do
   case vs of
-   [l, phi1, phi2, a, u, v] -> do
+   l : phi1 : phi2 : a : u : v : _ -> do
       phi <- intervalUnview (IMin phi1 phi2)
       reportSDoc "tc.term.por" 10 $ text (show phi)
       -- phi <- reduce phi
@@ -1210,8 +1210,8 @@ checkPOr c vs t1 = do
       equalTermOnFace phi t1 (unArg u) (unArg v)
    _ -> typeError $ GenericError $ show c ++ " must be fully applied"
 
-checkGlue :: QName -> Args -> Type -> TCM ()
-checkGlue c vs _ = do
+check_glue :: QName -> Args -> Type -> TCM ()
+check_glue c vs _ = do
   case vs of
    -- WAS: [la, lb, bA, phi, bT, e, t, a] -> do
    la : lb : bA : phi : bT : e : t : a : _ -> do
