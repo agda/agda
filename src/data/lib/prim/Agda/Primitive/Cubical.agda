@@ -39,8 +39,8 @@ postulate
 
 primitive
   primPOr : ∀ {ℓ} (i j : I) {A : Partial (primIMax i j) (Set ℓ)}
-            → PartialP i (λ z → A (IsOne1 i j z))
-            → PartialP j (λ z → A (IsOne2 i j z))
+            → (u : PartialP i (λ z → A (IsOne1 i j z)))
+            → (v : PartialP j (λ z → A (IsOne2 i j z)))
             → PartialP (primIMax i j) A
 
   -- Computes in terms of primHComp and primTransp

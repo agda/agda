@@ -14,3 +14,12 @@ module _ (A : Set) (x y z t : A) (f : y ≡ z) (g : y ≡ x) (h : z ≡ t) where
 
 -- Should pass.
 -- Problem was: Agda did not accept overapplied primTransp
+
+
+  -- Also should pass.
+  -- We had a problem with checking the sides at the right type.
+  test2 : ∀ {ℓ} (i : I) {A : Partial i (Set ℓ)}
+          → PartialP i (λ z → A z)
+          → (r : IsOne i)
+          → A r
+  test2 i {A} u r = primPOr i i {A} u (λ o → u o) r

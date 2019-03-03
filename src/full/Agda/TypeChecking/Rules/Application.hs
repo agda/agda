@@ -1202,15 +1202,14 @@ checkConId c vs t1 = do
 -- The following comment contains silly ' escapes to calm CPP about ∨ (\vee).
 -- May not be haddock-parseable.
 
--- ' @primPOr : ∀ {ℓ} (φ₁ φ₂ : Φ₁) {A : Partial (φ₁ ∨ φ₂) (Set ℓ)}
--- '         → (u : PartialP φ₁ (λ (r : IsOne φ₁) → A (IsOne1 φ₁ φ₂ r)))
--- '         → (v : PartialP φ₂ (λ (r : IsOne φ₂) → A (IsOne2 φ₁ φ₂ r)))
+-- ' @primPOr : ∀ {ℓ} (φ₁ φ₂ : I) {A : Partial (φ₁ ∨ φ₂) (Set ℓ)}
+-- '         → (u : PartialP φ₁ (λ (o : IsOne φ₁) → A (IsOne1 φ₁ φ₂ o)))
+-- '         → (v : PartialP φ₂ (λ (o : IsOne φ₂) → A (IsOne2 φ₁ φ₂ o)))
 -- '         → PartialP (φ₁ ∨ φ₂) A@
 -- '
--- ' Checks: @u = v : t1@ whenever @IsOne (φ₁ ∧ φ₂)@.
-
+-- ' Checks: @u = v : PartialP (φ₁ ∨ φ₂) A@ whenever @IsOne (φ₁ ∧ φ₂)@.
 checkPOr :: QName -> Args -> Type -> TCM ()
-checkPOr c vs t1 = do
+checkPOr c vs _ = do
   case vs of
    l : phi1 : phi2 : a : u : v : _ -> do
       phi <- intervalUnview (IMin phi1 phi2)
@@ -1218,9 +1217,20 @@ checkPOr c vs t1 = do
       -- phi <- reduce phi
       -- alphas <- toFaceMaps phi
       -- reportSDoc "tc.term.por" 10 $ text (show alphas)
+      t1 <- runNamesT [] $ do
+             [l,a] <- mapM (open . unArg) [l,a]
+             psi <- open =<< intervalUnview (IMax phi1 phi2)
+             pPi' "o" psi $ \ o -> el' l (a <..> o)
+
+      -- ' φ₁ ∧ φ₂  ⊢ u , v : PartialP (φ₁ ∨ φ₂) \ o → a o
       equalTermOnFace phi t1 (unArg u) (unArg v)
    _ -> typeError $ GenericError $ show c ++ " must be fully applied"
 
+-- | @prim^glue : ∀ {ℓ ℓ'} {A : Set ℓ} {φ : I}
+--              → {T : Partial φ (Set ℓ')} → {e : PartialP φ (λ o → T o ≃ A)}
+--              → (t : PartialP φ T) → (a : A) → primGlue A T e@
+--
+--   Check   @φ ⊢ a = t 1=1@  or actually the equivalent:  @(\ _ → a) = t : PartialP φ T@
 check_glue :: QName -> Args -> Type -> TCM ()
 check_glue c vs _ = do
   case vs of
