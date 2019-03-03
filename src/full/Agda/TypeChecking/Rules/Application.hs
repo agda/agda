@@ -1198,6 +1198,17 @@ checkConId c vs t1 = do
       --   equalTerm ty (applySubst alpha (unArg p)) cx   -- G, phi |- p = \ i . x
    _ -> typeError $ GenericError $ show c ++ " must be fully applied"
 
+
+-- The following comment contains silly ' escapes to calm CPP about ∨ (\vee).
+-- May not be haddock-parseable.
+
+-- ' @primPOr : ∀ {ℓ} (φ₁ φ₂ : Φ₁) {A : Partial (φ₁ ∨ φ₂) (Set ℓ)}
+-- '         → (u : PartialP φ₁ (λ (r : IsOne φ₁) → A (IsOne1 φ₁ φ₂ r)))
+-- '         → (v : PartialP φ₂ (λ (r : IsOne φ₂) → A (IsOne2 φ₁ φ₂ r)))
+-- '         → PartialP (φ₁ ∨ φ₂) A@
+-- '
+-- ' Checks: @u = v : t1@ whenever @IsOne (φ₁ ∧ φ₂)@.
+
 checkPOr :: QName -> Args -> Type -> TCM ()
 checkPOr c vs t1 = do
   case vs of
