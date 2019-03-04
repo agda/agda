@@ -24,7 +24,6 @@ instance Arbitrary Name where
   arbitrary = oneof
     [ Name   <$> arbitrary <*> pure InScope <*> parts
     , NoName <$> arbitrary <*> arbitrary
-    , RecordName <$> arbitrary <*> arbitrary
     ]
     where
     parts = do
@@ -41,4 +40,3 @@ instance CoArbitrary NamePart
 instance CoArbitrary Name where
   coarbitrary (Name _ _ ns) = variant 0 . coarbitrary ns
   coarbitrary (NoName _ i)  = variant 1 . coarbitrary i
-  coarbitrary (RecordName _ i)  = variant 2 . coarbitrary i

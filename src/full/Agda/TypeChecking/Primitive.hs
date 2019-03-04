@@ -2108,7 +2108,7 @@ lookupPrimitiveFunction x =
 lookupPrimitiveFunctionQ :: QName -> TCM (String, PrimitiveImpl)
 lookupPrimitiveFunctionQ q = do
   let s = case qnameName q of
-            Name _ x _ _ -> prettyShow x
+            Name _ x _ _ _ -> prettyShow x
   PrimImpl t pf <- lookupPrimitiveFunction s
   return (s, PrimImpl t $ pf { primFunName = q })
 

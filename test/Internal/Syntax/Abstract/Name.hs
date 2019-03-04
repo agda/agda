@@ -18,6 +18,7 @@ instance Arbitrary Name where
   arbitrary =
     Name <$> arbitrary <*> arbitrary <*> arbitrary
          <*> return noFixity'
+         <*> return False
 
 instance CoArbitrary Name where
   coarbitrary = coarbitrary . nameId
@@ -30,4 +31,3 @@ instance Arbitrary QName where
 
 instance CoArbitrary QName where
   coarbitrary = coarbitrary . qnameName
-

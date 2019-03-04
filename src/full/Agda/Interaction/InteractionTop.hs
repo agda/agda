@@ -1389,16 +1389,16 @@ prettyContext
   -> InteractionId
   -> TCM Doc
 prettyContext norm rev ii = B.withInteractionId ii $ do
-  ctx <- B.contextOfMeta ii norm
+  ctx <- filter (not . shouldHide) <$> B.contextOfMeta ii norm
   es  <- mapM (prettyATop . B.ofExpr) ctx
   xs  <- mapM (abstractToConcrete_ . B.ofName) ctx
   let ns = map (nameConcrete . B.ofName) ctx
       ss = map C.isInScope xs
   return $ align 10 $ applyWhen rev reverse $
-    filter (not . null . fst) $
       zip (zipWith prettyCtxName ns xs)
           (zipWith prettyCtxType es ss)
   where
+    shouldHide (OfType' n e) = isNoName n || nameIsRecordName n
     prettyCtxName :: C.Name -> C.Name -> String
     prettyCtxName n x
       | n == x                 = prettyShow x

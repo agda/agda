@@ -120,7 +120,7 @@ nelimsProjPrefix e d es =
 -- | A.App
 isSelf :: Expr -> Bool
 isSelf = \case
-  A.Var (Name _ C.RecordName{} _ _) -> True
+  A.Var n -> nameIsRecordName n
   _ -> False
 
 -- | Drops hidden arguments unless --show-implicit.
