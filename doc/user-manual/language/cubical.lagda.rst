@@ -342,7 +342,7 @@ There is a new form of pattern matching that can be used to introduce partial el
   partialBool i (i = i0) = true
   partialBool i (i = i1) = false
 
-The term ``partialBool`` should be thought of a boolean with different
+The term ``partialBool i`` should be thought of a boolean with different
 values when ``(i = i0)`` and ``(i = i1)``. Terms of type ``Partial φ
 A`` can also be introduced using a :ref:`pattern-lambda`.
 
