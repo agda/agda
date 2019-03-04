@@ -334,7 +334,7 @@ when ``IsOne φ``.  There is also a dependent version of this called
 
   PartialP : ∀ {ℓ} → (φ : I) → Partial φ (Set ℓ) → Setω
 
-Partial elements are introduced using pattern matching:
+There is a new form of pattern matching that can be used to introduce partial elements:
 
 ::
 
