@@ -62,7 +62,6 @@ For a record
 .. code-block:: agda
 
    record R : Set where
-     inductive
      constructor c
      field
        f : X
