@@ -37,7 +37,7 @@ tested-with:        GHC == 7.10.3
                     GHC == 8.0.2
                     GHC == 8.2.2
                     GHC == 8.4.4
-                    GHC == 8.6.3
+                    GHC == 8.6.4
 extra-source-files: CHANGELOG.md
                     README.md
                     doc/user-manual.pdf
@@ -46,7 +46,7 @@ extra-source-files: CHANGELOG.md
                     stack-8.0.2.yaml
                     stack-8.2.2.yaml
                     stack-8.4.4.yaml
-                    stack-8.6.3.yaml
+                    stack-8.6.4.yaml
 
 data-dir:           src/data
 data-files:         Agda.css
@@ -201,7 +201,10 @@ library
   -- In hTags the mtl library must be compiled with the version of
   -- transformers shipped with GHC, so we use that version in Agda (see,
   -- for example, Issue 2983).
-  if impl(ghc >= 8.4)
+  if impl(ghc == 8.6.4)
+    build-depends: transformers == 0.5.6.2
+
+  if impl(ghc >= 8.4) && impl(ghc < 8.6.4)
     build-depends: transformers == 0.5.5.0
 
   -- ASR (2018-10-16). Required for supporting GHC 8.4.1, 8.4.2 and

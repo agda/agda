@@ -11,7 +11,7 @@ maintainer:          <andreas.abel@gu.se>
 build-type:          Simple
 extra-source-files:  ChangeLog.md
 cabal-version:       >= 1.10
-tested-with:         GHC == 8.6.3
+tested-with:         GHC == 8.6.4
 
 executable closed-issues-for-milestone
   main-is:          Main.hs
