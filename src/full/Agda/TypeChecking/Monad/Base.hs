@@ -64,6 +64,7 @@ import Agda.Syntax.Scope.Base
 import qualified Agda.Syntax.Info as Info
 
 import Agda.TypeChecking.CompiledClause
+import Agda.TypeChecking.Coverage.SplitTree
 import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.Free.Lazy (Free(freeVars'), bind', bind)
 
@@ -1683,6 +1684,10 @@ data Defn = Axiom -- ^ Postulate
               -- ^ 'Nothing' while function is still type-checked.
               --   @Just cc@ after type and coverage checking and
               --   translation to case trees.
+            , funSplitTree      :: Maybe SplitTree
+              -- ^ The split tree constructed by the coverage
+              --   checker. Needed to re-compile the clauses after
+              --   forcing translation.
             , funTreeless       :: Maybe Compiled
               -- ^ Intermediate representation for compiler backends.
             , funCovering :: [Closure Clause]
@@ -1816,6 +1821,7 @@ instance Pretty Defn where
     "Function {" <?> vcat
       [ "funClauses      =" <?> vcat (map pretty funClauses)
       , "funCompiled     =" <?> pshow funCompiled
+      , "funSplitTree    =" <?> pshow funSplitTree
       , "funTreeless     =" <?> pshow funTreeless
       , "funInv          =" <?> pshow funInv
       , "funMutual       =" <?> pshow funMutual
@@ -1878,6 +1884,7 @@ emptyFunction :: Defn
 emptyFunction = Function
   { funClauses     = []
   , funCompiled    = Nothing
+  , funSplitTree   = Nothing
   , funTreeless    = Nothing
   , funInv         = NotInjective
   , funMutual      = Nothing
@@ -3850,8 +3857,8 @@ instance KillRange Defn where
       DataOrRecSig n -> DataOrRecSig n
       GeneralizableVar -> GeneralizableVar
       AbstractDefn{} -> __IMPOSSIBLE__ -- only returned by 'getConstInfo'!
-      Function cls comp tt covering inv mut isAbs delayed proj flags term extlam with copat ->
-        killRange13 (\ cls comp tt -> Function cls comp tt covering) cls comp tt inv mut isAbs delayed proj flags term extlam with copat
+      Function cls comp ct tt covering inv mut isAbs delayed proj flags term extlam with copat ->
+        killRange15 Function cls comp ct tt covering inv mut isAbs delayed proj flags term extlam with copat
       Datatype a b c d e f g h i     -> killRange8 Datatype a b c d e f g h i
       Record a b c d e f g h i j k   -> killRange11 Record a b c d e f g h i j k
       Constructor a b c d e f g h i  -> killRange9 Constructor a b c d e f g h i
@@ -3900,3 +3907,6 @@ instance KillRange DisplayTerm where
       DDef q dts        -> killRange2 DDef q dts
       DDot v            -> killRange1 DDot v
       DTerm v           -> killRange1 DTerm v
+
+instance KillRange a => KillRange (Closure a) where
+  killRange = id

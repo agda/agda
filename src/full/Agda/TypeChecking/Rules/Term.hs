@@ -44,6 +44,7 @@ import Agda.TypeChecking.Abstract
 import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Conversion
+import Agda.TypeChecking.Coverage.SplitTree
 import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.EtaContract
 import Agda.TypeChecking.Generalize
@@ -585,6 +586,7 @@ checkAbsurdLambda cmp i h e t = do
                     }
                   ]
               , funCompiled       = Just Fail
+              , funSplitTree      = Just $ SplittingDone 0
               , funMutual         = Just []
               , funTerminates     = Just True
               }

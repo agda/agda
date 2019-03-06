@@ -39,6 +39,7 @@ import Agda.TypeChecking.Rules.Data ( getGeneralizedParameters, bindGeneralizedP
 import Agda.TypeChecking.Rules.Term ( isType_ )
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Decl (checkDecl)
 
+import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Permutation
@@ -476,7 +477,9 @@ defineTranspOrHCompR cmd name params fsT fns rect = do
           return c
   addClauses theName $ c' : cs
   reportSDoc "trans.rec" 15 $ text $ "compiling clauses for " ++ show theName
-  setCompiledClauses theName =<< inTopContext (compileClauses Nothing cs)
+  (mst, cc) <- inTopContext (compileClauses Nothing cs)
+  whenJust mst $ setSplitTree theName
+  setCompiledClauses theName cc
   reportSDoc "trans.rec" 15 $ text $ "compiled"
   return $ Just theName
 
@@ -642,7 +645,7 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
               -- projection functions are defined. Record pattern
               -- translation is defined in terms of projection
               -- functions.
-        cc <- compileClauses Nothing [clause]
+        (mst , cc) <- compileClauses Nothing [clause]
 
         reportSDoc "tc.cc" 60 $ do
           sep [ "compiled clauses of " <+> prettyTCM projname
@@ -655,6 +658,7 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
               emptyFunction
                 { funClauses        = [clause]
                 , funCompiled       = Just cc
+                , funSplitTree      = mst
                 , funProjection     = Just projection
                 , funMutual         = Just []  -- Projections are not mutually recursive with anything
                 , funTerminates     = Just True
