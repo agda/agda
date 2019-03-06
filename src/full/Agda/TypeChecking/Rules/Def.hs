@@ -44,6 +44,7 @@ import Agda.TypeChecking.Warnings ( warning )
 
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Conversion
+import Agda.TypeChecking.Coverage.SplitTree
 import Agda.TypeChecking.Inlining
 import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.Reduce
@@ -180,6 +181,7 @@ checkAlias t ai delayed i name e mc = atClause name 0 (A.RHS e mc) $ do
                           , clauseUnreachable = Just False
                           } ]
                       , funCompiled = Just $ Done [] $ bodyMod v
+                      , funSplitTree = Just $ SplittingDone 0
                       , funDelayed  = delayed
                       , funAbstr    = Info.defAbstract i
                       }
@@ -344,7 +346,7 @@ checkFunDefS t ai delayed extlam with i name withSub cs = do
         fullType <- flip telePi t <$> getContextTelescope
 
         -- Coverage check and compile the clauses
-        cc <- Bench.billTo [Bench.Coverage] $
+        (mst, cc) <- Bench.billTo [Bench.Coverage] $
           inTopContext $ compileClauses (if isSystem then Nothing else (Just (name, fullType)))
                                         cs
 
@@ -369,6 +371,7 @@ checkFunDefS t ai delayed extlam with i name withSub cs = do
              emptyFunction
              { funClauses        = cs
              , funCompiled       = Just cc
+             , funSplitTree      = mst
              , funDelayed        = delayed
              , funInv            = inv
              , funAbstr          = Info.defAbstract i

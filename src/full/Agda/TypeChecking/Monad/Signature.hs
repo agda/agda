@@ -50,6 +50,7 @@ import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.Substitute
 import {-# SOURCE #-} Agda.TypeChecking.Telescope
 import Agda.TypeChecking.CompiledClause
+import Agda.TypeChecking.Coverage.SplitTree
 import {-# SOURCE #-} Agda.TypeChecking.CompiledClause.Compile
 import {-# SOURCE #-} Agda.TypeChecking.Polarity
 import {-# SOURCE #-} Agda.TypeChecking.ProjectionLike
@@ -106,6 +107,13 @@ setCompiledClauses :: QName -> CompiledClauses -> TCM ()
 setCompiledClauses q cc = modifySignature $ updateDefinition q $ updateTheDef $ setT
   where
     setT def@Function{} = def { funCompiled = Just cc }
+    setT def            = def
+
+-- | Set SplitTree of a defined function symbol.
+setSplitTree :: QName -> SplitTree -> TCM ()
+setSplitTree q st = modifySignature $ updateDefinition q $ updateTheDef $ setT
+  where
+    setT def@Function{} = def { funSplitTree = Just st }
     setT def            = def
 
 -- | Modify the clauses of a function.
@@ -492,7 +500,7 @@ applySection' new ptel old ts ScopeCopyInfo{ renNames = rd, renModules = rm } = 
                          }
                 GeneralizableVar -> return GeneralizableVar
                 _ -> do
-                  cc <- compileClauses Nothing [cl] -- Andreas, 2012-10-07 non need for record pattern translation
+                  (mst, cc) <- compileClauses Nothing [cl] -- Andreas, 2012-10-07 non need for record pattern translation
                   let newDef =
                         set funMacro  (oldDef ^. funMacro) $
                         set funStatic (oldDef ^. funStatic) $
@@ -500,6 +508,7 @@ applySection' new ptel old ts ScopeCopyInfo{ renNames = rd, renModules = rm } = 
                         emptyFunction
                         { funClauses        = [cl]
                         , funCompiled       = Just cc
+                        , funSplitTree      = mst
                         , funMutual         = mutual
                         , funProjection     = proj
                         , funTerminates     = Just True
