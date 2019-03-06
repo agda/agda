@@ -161,6 +161,8 @@ data PragmaOptions = PragmaOptions
       -- ^ Should system generated projections 'ProjSystem' be printed
       --   postfix (True) or prefix (False).
   , optInstanceSearchDepth       :: Int
+  , optFlatSplit                 :: Bool
+      -- ^ Can we split on a (x :{flat} A) argument?
   }
   deriving (Show,Eq)
 
@@ -253,6 +255,7 @@ defaultPragmaOptions = PragmaOptions
   , optCubical                   = False
   , optPostfixProjections        = False
   , optInstanceSearchDepth       = 500
+  , optFlatSplit                 = True
   }
 
 -- | The default termination depth.
@@ -345,6 +348,12 @@ helpFlag o = return $ o { optShowHelp = True }
 
 safeFlag :: Flag CommandLineOptions
 safeFlag o = return $ o { optSafe = True }
+
+flatSplitFlag :: Flag PragmaOptions
+flatSplitFlag o = return $ o { optFlatSplit = True }
+
+noFlatSplitFlag :: Flag PragmaOptions
+noFlatSplitFlag o = return $ o { optFlatSplit = False }
 
 sharingFlag :: Bool -> Flag CommandLineOptions
 sharingFlag b o = return $ o { optSharing = b }
@@ -680,6 +689,10 @@ pragmaOptions =
                     "use sized types (default, inconsistent with `musical' coinduction)"
     , Option []     ["no-sized-types"] (NoArg noSizedTypes)
                     "disable sized types"
+    , Option []     ["flat-split"] (NoArg flatSplitFlag)
+                    "allow split on (x :{flat} A) arguments (default)"
+    , Option []     ["no-flat-split"] (NoArg noFlatSplitFlag)
+                    "disable split on (x :{flat} A) arguments"
     , Option []     ["injective-type-constructors"] (NoArg injectiveTypeConstructorFlag)
                     "enable injective type constructors (makes Agda anti-classical and possibly inconsistent)"
     , Option []     ["guardedness-preserving-type-constructors"] (NoArg guardingTypeConstructorFlag)

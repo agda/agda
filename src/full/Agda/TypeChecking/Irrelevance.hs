@@ -18,6 +18,13 @@ import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Context
 import Agda.TypeChecking.Monad.Options
 
+
+-- | Some modalities do not allow pattern matching (flags dependent)
+unsplittableRelevance :: Relevance -> TCM Bool
+unsplittableRelevance r = do
+  flatSplit <- optFlatSplit <$> pragmaOptions
+  return $ unusableRelevance r || (not flatSplit && r == CoShape)
+
 -- | data 'Relevance'
 --   see "Agda.Syntax.Common".
 

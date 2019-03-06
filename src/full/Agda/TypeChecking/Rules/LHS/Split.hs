@@ -265,7 +265,7 @@ splitProblem mf (Problem ps qs tel pr) = do
           -- not indexed.
 
           -- Andreas, 2010-09-07 cannot split on irrelevant args
-          when (unusableRelevance $ getRelevance ai) $
+          whenM (lift $ unsplittableRelevance $ getRelevance ai) $
             typeError $ SplitOnIrrelevant p dom
 
           -- Succeed if the split type is (already) equal to the type of the literal.
@@ -348,7 +348,7 @@ splitProblem mf (Problem ps qs tel pr) = do
                 -- We cannot split on (shape-)irrelevant non-records.
                 -- Andreas, 2011-10-04 unless allowed by option
                 unless (defIsRecord def) $
-                  when (unusableRelevance $ getRelevance ai) $
+                  whenM (lift $ unsplittableRelevance $ getRelevance ai) $
                   unlessM (liftTCM $ optExperimentalIrrelevance <$> pragmaOptions) $
                   typeError $ SplitOnIrrelevant p dom
 

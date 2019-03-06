@@ -607,7 +607,11 @@ instance PrettyTCM TypeError where
 
     SplitOnIrrelevant p t -> fsep $
       pwords "Cannot pattern match" ++ [prettyA p] ++
-      pwords "against irrelevant type" ++ [prettyTCM t]
+      pwords "against" ++ pwords (modal (getRelevance t)) ++ pwords "argument of type" ++ [prettyTCM t]
+     where
+      modal Irrelevant = "irrelevant"
+      modal CoShape    = "flat"
+      modal _          = __IMPOSSIBLE__
 
     DefinitionIsIrrelevant x -> fsep $
       text "Identifier" : prettyTCM x : pwords "is declared irrelevant, so it cannot be used here"
