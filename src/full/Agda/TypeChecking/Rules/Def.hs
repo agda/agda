@@ -360,6 +360,8 @@ checkFunDefS t ai delayed extlam with i name withSub cs = do
         -- The macro tag might be on the type signature
         ismacro <- isMacro . theDef <$> getConstInfo name
 
+        covering <- funCovering . theDef <$> getConstInfo name
+
         -- Add the definition
         inTopContext $ addConstant name =<< do
           -- If there was a pragma for this definition, we can set the
@@ -375,6 +377,7 @@ checkFunDefS t ai delayed extlam with i name withSub cs = do
              , funExtLam         = (\ e -> e { extLamSys = sys }) <$> extlam
              , funWith           = with
              , funCopatternLHS   = hasProjectionPatterns cc
+             , funCovering       = covering
              }
           useTerPragma $ defaultDefn ai name fullType defn
 

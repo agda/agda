@@ -46,6 +46,7 @@ import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 import Agda.TypeChecking.CheckInternal
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Conversion
+import Agda.TypeChecking.Coverage
 import Agda.TypeChecking.Errors
 import Agda.TypeChecking.Generalize
 import Agda.TypeChecking.Injectivity
@@ -274,6 +275,9 @@ mutualChecks mi d ds mid names = do
   -- to avoid making the injectivity checker loop.
   localTC (\ e -> e { envMutualBlock = Just mid }) $ checkTermination_ d
   revisitRecordPatternTranslation nameList -- Andreas, 2016-11-19 issue #2308
+
+  mapM_ checkIApplyConfluence_ nameList
+
   -- Andreas, 2015-03-26 Issue 1470:
   -- Restricting coinduction to recursive does not solve the
   -- actual problem, and prevents interesting sound applications

@@ -1685,6 +1685,9 @@ data Defn = Axiom -- ^ Postulate
               --   translation to case trees.
             , funTreeless       :: Maybe Compiled
               -- ^ Intermediate representation for compiler backends.
+            , funCovering :: [Closure Clause]
+              -- ^ Covering clauses computed by coverage checking.
+              --   Erased by (IApply) confluence checking(?)
             , funInv            :: FunctionInverse
             , funMutual         :: Maybe [QName]
               -- ^ Mutually recursive functions, @data@s and @record@s.
@@ -1886,6 +1889,7 @@ emptyFunction = Function
   , funExtLam      = Nothing
   , funWith        = Nothing
   , funCopatternLHS = False
+  , funCovering    = []
   }
 
 funFlag :: FunctionFlag -> Lens' Bool Defn
@@ -3846,8 +3850,8 @@ instance KillRange Defn where
       DataOrRecSig n -> DataOrRecSig n
       GeneralizableVar -> GeneralizableVar
       AbstractDefn{} -> __IMPOSSIBLE__ -- only returned by 'getConstInfo'!
-      Function cls comp tt inv mut isAbs delayed proj flags term extlam with copat ->
-        killRange13 Function cls comp tt inv mut isAbs delayed proj flags term extlam with copat
+      Function cls comp tt covering inv mut isAbs delayed proj flags term extlam with copat ->
+        killRange13 (\ cls comp tt -> Function cls comp tt covering) cls comp tt inv mut isAbs delayed proj flags term extlam with copat
       Datatype a b c d e f g h i     -> killRange8 Datatype a b c d e f g h i
       Record a b c d e f g h i j k   -> killRange11 Record a b c d e f g h i j k
       Constructor a b c d e f g h i  -> killRange9 Constructor a b c d e f g h i

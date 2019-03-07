@@ -1,0 +1,9 @@
+Issue3572.agda:17,1-20,22
+Termination checking failed for the following functions:
+  id
+Problematic calls:
+  id (sq i1)
+    (at Issue3572.agda:20,12-14)
+Issue3572.agda:18,1-10
+id (sq i1) != right of type Interval
+when checking the definition of id
