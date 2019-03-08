@@ -1,6 +1,8 @@
 When releasing a release candidate (RC) the following procedure can be
 followed:
 
+* Verify that the Travis builds have no errors.
+
 * Finish the release notes in
   doc/release-notes/<version-written-with-dashes>.txt.
 
@@ -32,7 +34,7 @@ followed:
 
 * Update Stackage resolvers, if necessary.
 
-* Verify that the Travis builds have no errors.
+* Update the year in the copyright of the user manual, if necessary.
 
 * Get a clean Agda repository.
 
