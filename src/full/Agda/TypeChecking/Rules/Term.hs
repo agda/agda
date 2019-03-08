@@ -73,7 +73,7 @@ import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Unquote
 import Agda.TypeChecking.Warnings
 
-import {-# SOURCE #-} Agda.TypeChecking.Empty (isEmptyType)
+import {-# SOURCE #-} Agda.TypeChecking.Empty ( ensureEmptyType )
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Def (checkFunDef', useTerPragma)
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Decl (checkSectionApplication)
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Application
@@ -557,7 +557,7 @@ checkAbsurdLambda cmp i h e t = do
             postponeTypeCheckingProblem (CheckExpr cmp e t') $
               null . allMetas <$> instantiateFull a
         | otherwise -> blockTerm t' $ do
-          isEmptyType (getRange i) a
+          ensureEmptyType (getRange i) a
           -- Add helper function
           top <- currentModule
           aux <- qualify top <$> freshName_ (getRange i, absurdLambdaName)

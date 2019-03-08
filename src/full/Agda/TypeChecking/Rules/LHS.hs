@@ -398,7 +398,7 @@ checkDotPattern (Dot e v (Dom{domInfo = info, unDom = a})) =
     noConstraints $ equalTerm a u v
 
 checkAbsurdPattern :: AbsurdPattern -> TCM ()
-checkAbsurdPattern (Absurd r a) = isEmptyType r a
+checkAbsurdPattern (Absurd r a) = ensureEmptyType r a
 
 data LeftoverPatterns = LeftoverPatterns
   { patternVariables :: IntMap [A.Name]
