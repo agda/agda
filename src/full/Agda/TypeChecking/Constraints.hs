@@ -204,7 +204,7 @@ solveConstraint_ c0@(Guarded c pid)         = do
     {-else-} $ do
       reportSLn "tc.constr.solve" 50 $ "Guarding problem " ++ show pid ++ " is still unsolved."
       addConstraint c0
-solveConstraint_ (IsEmpty r t)              = isEmptyType r t
+solveConstraint_ (IsEmpty r t)              = ensureEmptyType r t
 solveConstraint_ (CheckSizeLtSat t)         = checkSizeLtSat t
 solveConstraint_ (UnquoteTactic _ tac hole goal) = unquoteTactic tac hole goal
 solveConstraint_ (UnBlock m)                =
