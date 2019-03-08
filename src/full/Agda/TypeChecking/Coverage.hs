@@ -14,7 +14,6 @@ module Agda.TypeChecking.Coverage
   , splitLast
   , splitResult
   , normaliseProjP
-  , checkIApplyConfluence_
   ) where
 
 import Prelude hiding (null, (!!))  -- do not use partial functions like !!
@@ -818,42 +817,6 @@ splitStrategy bs tel = return $ updateLast setBlockingVarOverlap xs
     allConstructors :: BlockingVar -> Bool
     allConstructors = isJust . snd
 -}
-
-
-checkIApplyConfluence_ :: QName -> TCM ()
-checkIApplyConfluence_ f = do
-  reportSDoc "tc.cover.iapply" 10 $ text "Checking IApply confluence of" <+> pretty f
-  inConcreteOrAbstractMode f $ \ d -> do
-  case theDef d of
-    Function{funClauses = cls', funCovering = cls} -> do
-      reportSDoc "tc.cover.iapply" 10 $ text "length cls =" <+> pretty (length cls)
-      when (null cls && not (null $ concatMap (iApplyVars . namedClausePats) cls')) $
-        __IMPOSSIBLE__
-      forM_ cls $ checkIApplyConfluence f
-    _ -> return ()
-
--- | @addClause f (SClause _ ps _ _ _)@ checks that @f ps@
--- reduces in a way that agrees with @IApply@ reductions.
-checkIApplyConfluence :: QName -> Closure Clause -> TCM ()
-checkIApplyConfluence f clos = do
-  enterClosure clos $ \ cl ->
-    case cl of
-      Clause {clauseBody = Nothing} -> return ()
-      Clause {clauseType = Nothing} -> __IMPOSSIBLE__
-      cl@Clause { clauseTel = tel
-                , namedClausePats = ps
-                , clauseType = Just t
-                , clauseBody = Just body
-                } -> setCurrentRange (clauseLHSRange cl) $ do
-          let
-            trhs = unArg t
-          ps <- normaliseProjP ps
-          forM_ (iApplyVars ps) $ \ i -> do
-            unview <- intervalUnview'
-            let phi = unview $ IMax (argN $ var $ i) $ argN $ unview (INeg $ argN $ var i)
-            let es = patternsToElims ps
-            let lhs = Def f es
-            equalTermOnFace phi trhs lhs body
 
 
 -- | Check that a type is a non-irrelevant datatype or a record with

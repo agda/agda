@@ -46,7 +46,7 @@ import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 import Agda.TypeChecking.CheckInternal
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Conversion
-import Agda.TypeChecking.Coverage
+import Agda.TypeChecking.IApplyConfluence
 import Agda.TypeChecking.Errors
 import Agda.TypeChecking.Generalize
 import Agda.TypeChecking.Injectivity

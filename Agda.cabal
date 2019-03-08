@@ -402,6 +402,7 @@ library
                     Agda.TypeChecking.Forcing
                     Agda.TypeChecking.Functions
                     Agda.TypeChecking.Generalize
+                    Agda.TypeChecking.IApplyConfluence
                     Agda.TypeChecking.Implicit
                     Agda.TypeChecking.Injectivity
                     Agda.TypeChecking.Inlining
