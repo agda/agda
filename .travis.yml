@@ -356,7 +356,7 @@ script:
     fi
 
   - if [[ $TEST = "MAIN" ]]; then
-       make BUILD_DIR=$BUILD_DIR library-test;
+       travis_wait make BUILD_DIR=$BUILD_DIR library-test;
     fi
 
   - if [[ $TEST = "MAIN" ]]; then
