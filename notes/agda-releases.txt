@@ -1,5 +1,7 @@
 When releasing the following procedure can be followed:
 
+* Verify that the Travis builds have no errors.
+
 * First, release a release candidate (see
   notes/agda-stable-releases-candidates).
 
@@ -36,7 +38,7 @@ When releasing the following procedure can be followed:
 
 * Update Stackage resolvers, if necessary.
 
-* Verify that the Travis builds have no errors.
+* Update the year in the copyright of the user manual, if necessary.
 
 * Update in the bug tracker the milestone field of open issues to the
   next Agda version.
