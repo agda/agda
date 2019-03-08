@@ -1,5 +1,4 @@
 {-# OPTIONS --cubical #-}
-module _ where
 
 open import Agda.Builtin.Nat
 open import Agda.Builtin.Cubical.Path
@@ -12,9 +11,13 @@ data Z : Set where
   neg      : Nat → Z
   sameZero : pos 0 ≡ neg 0
 
+
 _+Z_ : Z → Z → Z
-pos x +Z pos x₁ = admit
-pos x +Z neg x₁ = admit
-pos x +Z sameZero x₁ = admit
-neg x +Z z' = admit
-sameZero x +Z z' = admit
+pos x      +Z pos y      = admit
+pos x      +Z neg y      = admit
+pos x      +Z sameZero i = admit
+-- We want to allow non-full matches like the following on `neg x +Z z`
+neg x      +Z z          = admit
+sameZero i +Z pos x      = admit
+sameZero i +Z neg x      = admit
+sameZero i +Z sameZero j = admit

@@ -1,21 +1,31 @@
--- The option --guardedness turns off sized types, but this can be
--- overridden using --sized-types.
-
-{-# OPTIONS --guardedness --sized-types #-}
+-- By default both sized types and constructor-based guardedness are
+-- available.
 
 open import Agda.Builtin.Size
 
-record Stream (A : Set) (i : Size) : Set where
+record Stream (A : Set) : Set where
   coinductive
   field
     head : A
-    tail : {j : Size< i} → Stream A j
+    tail : Stream A
 
 open Stream
+
+repeat : ∀ {A} → A → Stream A
+repeat x .head = x
+repeat x .tail = repeat x
+
+record Sized-stream (A : Set) (i : Size) : Set where
+  coinductive
+  field
+    head : A
+    tail : {j : Size< i} → Sized-stream A j
+
+open Sized-stream
 
 postulate
   destroy-guardedness : {A : Set} → A → A
 
-repeat : ∀ {A i} → A → Stream A i
-repeat x .head = x
-repeat x .tail = destroy-guardedness (repeat x)
+repeat-sized : ∀ {A i} → A → Sized-stream A i
+repeat-sized x .head = x
+repeat-sized x .tail = destroy-guardedness (repeat-sized x)

@@ -82,6 +82,9 @@ import Agda.Utils.Impossible
 -- * Applications
 -----------------------------------------------------------------------------
 
+-- | Ranges of checked arguments, where present.
+type MaybeRanges = [Maybe Range]
+
 -- | @checkApplication hd args e t@ checks an application.
 --   Precondition: @Application hs args = appView e@
 --
@@ -227,10 +230,10 @@ inferApplication exh hd args e = postponeInstanceConstraints $
       let r = getRange hd
       res <- runExceptT $ checkArgumentsE exh (getRange hd) args t0 Nothing
       case res of
-        Right (vs, t1, _) -> (,t1) <$> unfoldInlined (f vs)
+        Right (_, vs, t1, _) -> (,t1) <$> unfoldInlined (f vs)
         Left problem -> do
           t <- workOnTypes $ newTypeMeta_
-          v <- postponeArgs problem exh r args t $ \ vs _ _ -> unfoldInlined (f vs)
+          v <- postponeArgs problem exh r args t $ \ _ vs _ _ -> unfoldInlined (f vs)
           return (v, t)
 
 -----------------------------------------------------------------------------
@@ -392,21 +395,28 @@ checkHeadApplication cmp e t hd args = do
     A.Def c | Just c == pTrans -> defaultResult' $ Just $ checkPrimTrans c
     A.Def c | Just c == conId -> defaultResult' $ Just $ checkConId c
     A.Def c | Just c == pOr   -> defaultResult' $ Just $ checkPOr c
-    A.Def c | Just c == mglue -> defaultResult' $ Just $ checkGlue c
+    A.Def c | Just c == mglue -> defaultResult' $ Just $ check_glue c
 
     _ -> defaultResult
   where
+  defaultResult :: TCM Term
   defaultResult = defaultResult' Nothing
+  defaultResult' :: Maybe (MaybeRanges -> Args -> Type -> TCM Args) -> TCM Term
   defaultResult' mk = do
     (f, t0) <- inferHead hd
     expandLast <- asksTC envExpandLast
-    checkArguments expandLast (getRange hd) args t0 t $ \ vs t1 checkedTarget -> do
+    checkArguments expandLast (getRange hd) args t0 t $ \ rs vs t1 checkedTarget -> do
       let check = do
            k <- mk
            as <- allApplyElims vs
-           pure $ k as t1
+           pure $ k rs as t1
+      vs <- case check of
+              Just ck -> do
+                map Apply <$> ck
+              Nothing -> do
+                return vs
       v <- unfoldInlined (f vs)
-      maybe id (\ ck m -> blockTerm t $ ck >> m) check $ coerce' cmp checkedTarget v t1 t
+      coerce' cmp checkedTarget v t1 t
 
 -----------------------------------------------------------------------------
 -- * Spines
@@ -432,20 +442,20 @@ coerce' cmp (CheckedTarget (Just pid)) v _        expected = blockTermOnProblem 
 --   that have to be solved for everything to be well-formed.
 
 checkArgumentsE :: ExpandHidden -> Range -> [NamedArg A.Expr] -> Type -> Maybe Type ->
-                   ExceptT (Elims, [NamedArg A.Expr], Type) TCM (Elims, Type, CheckedTarget)
+                   ExceptT (MaybeRanges, Elims, [NamedArg A.Expr], Type) TCM (MaybeRanges, Elims, Type, CheckedTarget)
 checkArgumentsE = checkArgumentsE' NotCheckedTarget
 
 checkArgumentsE' :: CheckedTarget -> ExpandHidden -> Range -> [NamedArg A.Expr] -> Type ->
-                    Maybe Type -> ExceptT (Elims, [NamedArg A.Expr], Type) TCM (Elims, Type, CheckedTarget)
+                    Maybe Type -> ExceptT (MaybeRanges, Elims, [NamedArg A.Expr], Type) TCM (MaybeRanges, Elims, Type, CheckedTarget)
 -- Case: no arguments, do not insert trailing hidden arguments: We are done.
-checkArgumentsE' chk DontExpandLast _ [] t0 _ = return ([], t0, chk)
+checkArgumentsE' chk DontExpandLast _ [] t0 _ = return ([], [], t0, chk)
 
 -- Case: no arguments, but need to insert trailing hiddens.
 checkArgumentsE' chk ExpandLast r [] t0 mt1 =
     traceCallE (CheckArguments r [] t0 mt1) $ lift $ do
       mt1' <- traverse (unEl <.> reduce) mt1
       (us, t) <- implicitArgs (-1) (expand mt1') t0
-      return (map Apply us, t, chk)
+      return (replicate (length us) Nothing, map Apply us, t, chk)
     where
       expand (Just (Pi dom _)) Hidden     = not (hidden dom)
       expand _                 Hidden     = True
@@ -490,7 +500,7 @@ checkArgumentsE' chk exh r args0@(arg@(Arg info e) : args) t0 mt1 =
       t <- lift $ forcePiUsingInjectivity t
 
       -- We are done inserting implicit args.  Now, try to check @arg@.
-      ifBlockedType t (\ m t -> throwError (us, args0, t)) $ \ _ t0' -> do
+      ifBlockedType t (\ m t -> throwError (replicate (length us) Nothing, us, args0, t)) $ \ _ t0' -> do
 
         -- What can go wrong?
 
@@ -576,7 +586,7 @@ checkArgumentsE' chk exh r args0@(arg@(Arg info e) : args) t0 mt1 =
                   let e' = e { nameOf = maybe dname Just (nameOf e) }
                   checkNamedArg (Arg info' e') a
                 -- save relevance info' from domain in argument
-                addCheckedArgs us (Apply $ Arg info' u) $
+                addCheckedArgs us (getRange e) (Apply $ Arg info' u) $
                   checkArgumentsE' chk' exh (fuseRange r e) args (absApp b u) mt1
             | otherwise -> do
                 reportSDoc "error" 10 $ nest 2 $ vcat
@@ -591,15 +601,17 @@ checkArgumentsE' chk exh r args0@(arg@(Arg info e) : args) t0 mt1 =
             , PathType s _ _ bA x y <- viewPath t0' -> do
                 lift $ reportSDoc "tc.term.args" 30 $ text $ show bA
                 u <- lift $ checkExpr (namedThing e) =<< elInf primInterval
-                addCheckedArgs us (IApply (unArg x) (unArg y) u) $
+                addCheckedArgs us (getRange e) (IApply (unArg x) (unArg y) u) $
                   checkArgumentsE exh (fuseRange r e) args (El s $ unArg bA `apply` [argN u]) mt1
           _ -> shouldBePi
   where
-    addCheckedArgs us u rec = do
-        (vs, t, chk) <- rec
-        return (us ++ u : vs, t, chk)
-      `catchError` \ (vs, es, t) ->
-          throwError (us ++ u : vs, es, t)
+    addCheckedArgs us r u rec = do
+        (rs, vs, t, chk) <- rec
+        let rs' = replicate (length us) Nothing ++ Just r : rs
+        return (rs', us ++ u : vs, t, chk)
+      `catchError` \ (rs, vs, es, t) -> do
+          let rs' = replicate (length us) Nothing ++ Just r : rs
+          throwError (rs', us ++ u : vs, es, t)
 
 -- | Check that a list of arguments fits a telescope.
 --   Inserts hidden arguments as necessary.
@@ -615,7 +627,7 @@ checkArguments_ exh r args tel = postponeInstanceConstraints $ do
     z <- runExceptT $
       checkArgumentsE exh r args (telePi tel __DUMMY_TYPE__) Nothing
     case z of
-      Right (args, t, _) -> do
+      Right (_, args, t, _) -> do
         let TelV tel' _ = telView' t
         return (args, tel')
       Left _ -> __IMPOSSIBLE__  -- type cannot be blocked as it is generated by telePi
@@ -628,19 +640,19 @@ checkArguments_ exh r args tel = postponeInstanceConstraints $ do
 -- Checks @e := ((_ : t0) args) : t@.
 checkArguments ::
   ExpandHidden -> Range -> [NamedArg A.Expr] -> Type -> Type ->
-  (Elims -> Type -> CheckedTarget -> TCM Term) -> TCM Term
+  (MaybeRanges -> Elims -> Type -> CheckedTarget -> TCM Term) -> TCM Term
 checkArguments exph r args t0 t k = postponeInstanceConstraints $ do
   z <- runExceptT $ checkArgumentsE exph r args t0 (Just t)
   case z of
-    Right (vs, t1, pid) -> k vs t1 pid
+    Right (rs, vs, t1, pid) -> k rs vs t1 pid
       -- vs = evaluated args
       -- t1 = remaining type (needs to be subtype of t)
     Left problem -> postponeArgs problem exph r args t k
       -- if unsuccessful, postpone checking until t0 unblocks
 
-postponeArgs :: (Elims, [NamedArg A.Expr], Type) -> ExpandHidden -> Range -> [NamedArg A.Expr] -> Type ->
-                (Elims -> Type -> CheckedTarget -> TCM Term) -> TCM Term
-postponeArgs (us, es, t0) exph r args t k = do
+postponeArgs :: (MaybeRanges, Elims, [NamedArg A.Expr], Type) -> ExpandHidden -> Range -> [NamedArg A.Expr] -> Type ->
+                (MaybeRanges -> Elims -> Type -> CheckedTarget -> TCM Term) -> TCM Term
+postponeArgs (rs, us, es, t0) exph r args t k = do
   reportSDoc "tc.term.expr.args" 80 $
     sep [ "postponed checking arguments"
         , nest 4 $ prettyList (map (prettyA . namedThing . unArg) args)
@@ -650,7 +662,7 @@ postponeArgs (us, es, t0) exph r args t k = do
         , nest 2 $ "checked" <+> prettyList (map prettyTCM us)
         , nest 2 $ "remaining" <+> sep [ prettyList (map (prettyA . namedThing . unArg) es)
                                             , nest 2 $ ":" <+> prettyTCM t0 ] ]
-  postponeTypeCheckingProblem_ (CheckArgs exph r es t0 t $ \ vs t pid -> k (us ++ vs) t pid)
+  postponeTypeCheckingProblem_ (CheckArgs exph r es t0 t $ \ rs' vs t pid -> k (rs ++ rs') (us ++ vs) t pid)
 
 -----------------------------------------------------------------------------
 -- * Constructors
@@ -710,7 +722,7 @@ checkConstructorApplication cmp org t c args = do
                args' = dropArgs pnames args
            -- check the non-parameter arguments
            expandLast <- asksTC envExpandLast
-           checkArguments expandLast (getRange c) args' ctype' t $ \ es t' targetCheck -> do
+           checkArguments expandLast (getRange c) args' ctype' t $ \ rs es t' targetCheck -> do
              reportSDoc "tc.term.con" 20 $ nest 2 $ vcat
                [ text "es     =" <+> prettyTCM es
                , text "t'     =" <+> prettyTCM t' ]
@@ -1001,13 +1013,13 @@ inferOrCheckProjAppToKnownPrincipalArg e o ds args mt k v0 ta = do
               args' = drop (k + 1) args
           z <- runExceptT $ checkArgumentsE ExpandLast r args' tb (snd <$> mt)
           case z of
-            Right (us, trest, targetCheck) -> return (u `applyE` us, trest, targetCheck)
+            Right (rs, us, trest, targetCheck) -> return (u `applyE` us, trest, targetCheck)
             Left problem -> do
               -- In the inference case:
               -- To create a postponed type checking problem,
               -- we do not use typeDontCare, but create a meta.
               tc <- caseMaybe mt newTypeMeta_ (return . snd)
-              v  <- postponeArgs problem ExpandLast r args' tc $ \ us trest targetCheck ->
+              v  <- postponeArgs problem ExpandLast r args' tc $ \ rs us trest targetCheck ->
                       coerce' cmp targetCheck (u `applyE` us) trest tc
 
               return (v, tc, NotCheckedTarget)
@@ -1118,53 +1130,90 @@ pathAbs (OType _) t = __IMPOSSIBLE__
 pathAbs (PathType s path l a x y) t = do
   return $ Lam defaultArgInfo t
 
-checkPrimComp :: QName -> Args -> Type -> TCM ()
-checkPrimComp c vs _ = do
+-- | @primComp : ∀ {ℓ} (A : (i : I) → Set (ℓ i)) (φ : I) (u : ∀ i → Partial φ (A i)) (a : A i0) → A i1@
+--
+--   Check:  @u i0 = (λ _ → a) : Partial φ (A i0)@.
+--
+checkPrimComp :: QName -> MaybeRanges -> Args -> Type -> TCM Args
+checkPrimComp c rs vs _ = do
   case vs of
-    [l, a, phi, u, a0] -> do
+    -- WAS: [l, a, phi, u, a0] -> do
+    l : a : phi : u : a0 : rest -> do
       iz <- Arg defaultArgInfo <$> intervalUnview IZero
+      let lz = unArg l `apply` [iz]
+          az = unArg a `apply` [iz]
       ty <- elInf $ primPartial <#> (pure $ unArg l `apply` [iz]) <@> (pure $ unArg phi) <@> (pure $ unArg a `apply` [iz])
-      equalTerm ty -- (El (getSort t1) (apply (unArg a) [iz]))
+      bAz <- el' (pure $ lz) (pure $ az)
+      a0 <- blockArg bAz (rs !!! 4) a0 $ do
+        equalTerm ty -- (El (getSort t1) (apply (unArg a) [iz]))
           (Lam defaultArgInfo $ NoAbs "_" $ unArg a0)
           (apply (unArg u) [iz])
+      return $ l : a : phi : u : a0 : rest
     _ -> typeError $ GenericError $ show c ++ " must be fully applied"
 
-checkPrimHComp :: QName -> Args -> Type -> TCM ()
-checkPrimHComp c vs _ = do
+-- | @primHComp : ∀ {ℓ} {A : Set ℓ} {φ : I} (u : ∀ i → Partial φ A) (a : A) → A@
+--
+--   Check:  @u i0 = (λ _ → a) : Partial φ A@.
+--
+checkPrimHComp :: QName -> MaybeRanges -> Args -> Type -> TCM Args
+checkPrimHComp c rs vs _ = do
   case vs of
-    [l, a, phi, u, a0] -> do
+    -- WAS: [l, a, phi, u, a0] -> do
+    l : a : phi : u : a0 : rest -> do
+      -- iz = i0
       iz <- Arg defaultArgInfo <$> intervalUnview IZero
+      -- ty = Partial φ A
       ty <- elInf $ primPartial <#> (pure $ unArg l) <@> (pure $ unArg phi) <@> (pure $ unArg a)
-      equalTerm ty -- (El (getSort t1) (apply (unArg a) [iz]))
-          (Lam defaultArgInfo $ NoAbs "_" $ unArg a0)
-          (apply (unArg u) [iz])
+      -- (λ _ → a) = u i0 : ty
+      bA <- el' (pure $ unArg l) (pure $ unArg a)
+      a0 <- blockArg bA (rs !!! 4) a0 $ do
+        equalTerm ty -- (El (getSort t1) (apply (unArg a) [iz]))
+            (Lam defaultArgInfo $ NoAbs "_" $ unArg a0)
+            (apply (unArg u) [iz])
+      return $ l : a : phi : u : a0 : rest
     _ -> typeError $ GenericError $ show c ++ " must be fully applied"
 
-checkPrimTrans :: QName -> Args -> Type -> TCM ()
-checkPrimTrans c vs _ = do
+-- | @transp : ∀{ℓ} (A : (i : I) → Set (ℓ i)) (φ : I) (a0 : A i0) → A i1@
+--
+--   Check:  If φ, then @A i = A i0 : Set (ℓ i)@ must hold for all @i : I@.
+--
+checkPrimTrans :: QName -> MaybeRanges -> Args -> Type -> TCM Args
+checkPrimTrans c rs vs _ = do
   case vs of
-    [l, a, phi, a0] -> do
+    -- Andreas, 2019-03-02, issue #3601, why exactly 4 arguments?
+    -- Only 3 are needed to check the side condition.
+    -- WAS:
+    -- [l, a, phi, a0] -> do
+    l : a : phi : rest -> do
       iz <- Arg defaultArgInfo <$> intervalUnview IZero
+      -- ty = (i : I) -> Set (l i)
       ty <- runNamesT [] $ do
         l <- open $ unArg l
         nPi' "i" (elInf $ cl primInterval) $ \ i -> (sort . tmSort <$> (l <@> i))
-      equalTermOnFace (unArg phi) ty
+      a <- blockArg ty (rs !!! 1) a $ do
+        equalTermOnFace (unArg phi) ty
           (unArg a)
           (Lam defaultArgInfo $ NoAbs "_" $ apply (unArg a) [iz])
+      return $ l : a : phi : rest
     _ -> typeError $ GenericError $ show c ++ " must be fully applied"
 
-checkConId :: QName -> Args -> Type -> TCM ()
-checkConId c vs t1 = do
+blockArg :: HasRange r => Type -> r -> Arg Term -> TCM () -> TCM (Arg Term)
+blockArg t r a m =
+  setCurrentRange (getRange $ r) $ fmap (a $>) $ blockTerm t $ m >> return (unArg a)
+
+checkConId :: QName -> MaybeRanges -> Args -> Type -> TCM Args
+checkConId c rs vs t1 = do
   case vs of
-   [_, _, _, _, phi, p] -> do
+   args@[_, _, _, _, phi, p] -> do
       iv@(PathType s _ l a x y) <- idViewAsPath t1
       let ty = pathUnview iv
       -- the following duplicates reduction of phi
       const_x <- blockTerm ty $ do
           equalTermOnFace (unArg phi) (El s (unArg a)) (unArg x) (unArg y)
           pathAbs iv (NoAbs (stringToArgName "_") (unArg x))
-      equalTermOnFace (unArg phi) ty (unArg p) const_x   -- G, phi |- p = \ i . x
-
+      p <- blockArg ty (rs !!! 5) p $ do
+        equalTermOnFace (unArg phi) ty (unArg p) const_x   -- G, phi |- p = \ i . x
+      return $ init args ++ [p]
       -- phi <- reduce phi
       -- forallFaceMaps (unArg phi) $ \ alpha -> do
       --   iv@(PathType s _ l a x y) <- idViewAsPath (applySubst alpha t1)
@@ -1174,22 +1223,48 @@ checkConId c vs t1 = do
       --   equalTerm ty (applySubst alpha (unArg p)) cx   -- G, phi |- p = \ i . x
    _ -> typeError $ GenericError $ show c ++ " must be fully applied"
 
-checkPOr :: QName -> Args -> Type -> TCM ()
-checkPOr c vs t1 = do
+
+-- The following comment contains silly ' escapes to calm CPP about ∨ (\vee).
+-- May not be haddock-parseable.
+
+-- ' @primPOr : ∀ {ℓ} (φ₁ φ₂ : I) {A : Partial (φ₁ ∨ φ₂) (Set ℓ)}
+-- '         → (u : PartialP φ₁ (λ (o : IsOne φ₁) → A (IsOne1 φ₁ φ₂ o)))
+-- '         → (v : PartialP φ₂ (λ (o : IsOne φ₂) → A (IsOne2 φ₁ φ₂ o)))
+-- '         → PartialP (φ₁ ∨ φ₂) A@
+-- '
+-- ' Checks: @u = v : PartialP (φ₁ ∨ φ₂) A@ whenever @IsOne (φ₁ ∧ φ₂)@.
+checkPOr :: QName -> MaybeRanges -> Args -> Type -> TCM Args
+checkPOr c rs vs _ = do
   case vs of
-   [l, phi1, phi2, a, u, v] -> do
+   l : phi1 : phi2 : a : u : v : rest -> do
       phi <- intervalUnview (IMin phi1 phi2)
       reportSDoc "tc.term.por" 10 $ text (show phi)
       -- phi <- reduce phi
       -- alphas <- toFaceMaps phi
       -- reportSDoc "tc.term.por" 10 $ text (show alphas)
-      equalTermOnFace phi t1 (unArg u) (unArg v)
+      t1 <- runNamesT [] $ do
+             [l,a] <- mapM (open . unArg) [l,a]
+             psi <- open =<< intervalUnview (IMax phi1 phi2)
+             pPi' "o" psi $ \ o -> el' l (a <..> o)
+      tv <- runNamesT [] $ do
+             [l,a,phi1,phi2] <- mapM (open . unArg) [l,a,phi1,phi2]
+             pPi' "o" phi2 $ \ o -> el' l (a <..> (cl primIsOne2 <@> phi1 <@> phi2 <@> o))
+      v <- blockArg tv (rs !!! 5) v $ do
+        -- ' φ₁ ∧ φ₂  ⊢ u , v : PartialP (φ₁ ∨ φ₂) \ o → a o
+        equalTermOnFace phi t1 (unArg u) (unArg v)
+      return $ l : phi1 : phi2 : a : u : v : rest
    _ -> typeError $ GenericError $ show c ++ " must be fully applied"
 
-checkGlue :: QName -> Args -> Type -> TCM ()
-checkGlue c vs _ = do
+-- | @prim^glue : ∀ {ℓ ℓ'} {A : Set ℓ} {φ : I}
+--              → {T : Partial φ (Set ℓ')} → {e : PartialP φ (λ o → T o ≃ A)}
+--              → (t : PartialP φ T) → (a : A) → primGlue A T e@
+--
+--   Check   @φ ⊢ a = t 1=1@  or actually the equivalent:  @(\ _ → a) = t : PartialP φ T@
+check_glue :: QName -> MaybeRanges -> Args -> Type -> TCM Args
+check_glue c rs vs _ = do
   case vs of
-   [la, lb, bA, phi, bT, e, t, a] -> do
+   -- WAS: [la, lb, bA, phi, bT, e, t, a] -> do
+   la : lb : bA : phi : bT : e : t : a : rest -> do
       let iinfo = setRelevance Irrelevant defaultArgInfo
       v <- runNamesT [] $ do
             [lb, la, bA, phi, bT, e, t] <- mapM (open . unArg) [lb, la, bA, phi, bT, e, t]
@@ -1199,5 +1274,7 @@ checkGlue c vs _ = do
             [lb, phi, bA] <- mapM (open . unArg) [lb, phi, bA]
             elInf $ cl primPartialP <#> lb <@> phi <@> (glam iinfo "o" $ \ _ -> bA)
       let a' = Lam iinfo (NoAbs "o" $ unArg a)
-      equalTerm ty a' v
+      ta <- el' (pure $ unArg la) (pure $ unArg bA)
+      a <- blockArg ta (rs !!! 7) a $ equalTerm ty a' v
+      return $ la : lb : bA : phi : bT : e : t : a : rest
    _ -> typeError $ GenericError $ show c ++ " must be fully applied"

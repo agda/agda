@@ -360,6 +360,8 @@ checkFunDefS t ai delayed extlam with i name withSub cs = do
         -- The macro tag might be on the type signature
         ismacro <- isMacro . theDef <$> getConstInfo name
 
+        covering <- funCovering . theDef <$> getConstInfo name
+
         -- Add the definition
         inTopContext $ addConstant name =<< do
           -- If there was a pragma for this definition, we can set the
@@ -375,6 +377,7 @@ checkFunDefS t ai delayed extlam with i name withSub cs = do
              , funExtLam         = (\ e -> e { extLamSys = sys }) <$> extlam
              , funWith           = with
              , funCopatternLHS   = hasProjectionPatterns cc
+             , funCovering       = covering
              }
           useTerPragma $ defaultDefn ai name fullType defn
 
@@ -773,7 +776,7 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps absurdPat trhs _ _asb _) rhs0
         -- Process 'rewrite' clause like a suitable 'with' clause.
 
         -- The REFL constructor might have an argument
-        let reflPat  = A.ConP (ConPatInfo ConOCon patNoRange False) (unambiguous $ conName reflCon) $
+        let reflPat  = A.ConP (ConPatInfo ConOCon patNoRange ConPatEager) (unambiguous $ conName reflCon) $
               maybeToList $ fmap (\ ai -> Arg ai $ unnamed $ A.WildP patNoRange) reflInfo
 
         -- Andreas, 2015-12-25  Issue #1740:

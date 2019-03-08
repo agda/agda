@@ -152,7 +152,7 @@ import Agda.TypeChecking.Free.Reduce
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.MetaVars (assignV, newArgsMetaCtx)
 import Agda.TypeChecking.EtaContract
-import Agda.Interaction.Options (optInjectiveTypeConstructors, optWithoutK)
+import Agda.Interaction.Options (optInjectiveTypeConstructors)
 
 import Agda.TypeChecking.Rules.LHS.Problem
 -- import Agda.TypeChecking.SyntacticEquality
@@ -161,6 +161,7 @@ import Agda.Utils.Except ( MonadError(catchError, throwError) )
 import Agda.Utils.Either
 import Agda.Utils.Function
 import Agda.Utils.Functor
+import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.ListT
 import Agda.Utils.Maybe
@@ -255,6 +256,21 @@ data UnifyState = UState
   , eqRHS    :: [Arg Term]
   } deriving (Show)
 
+lensVarTel   :: Lens' Telescope UnifyState
+lensVarTel   f s = f (varTel s) <&> \ tel -> s { varTel = tel }
+
+lensFlexVars :: Lens' FlexibleVars UnifyState
+lensFlexVars f s = f (flexVars s) <&> \ flex -> s { flexVars = flex }
+
+lensEqTel    :: Lens' Telescope UnifyState
+lensEqTel    f s = f (eqTel s) <&> \ x -> s { eqTel = x }
+
+lensEqLHS    :: Lens' Args UnifyState
+lensEqLHS    f s = f (eqLHS s) <&> \ x -> s { eqLHS = x }
+
+lensEqRHS    :: Lens' Args UnifyState
+lensEqRHS    f s = f (eqRHS s) <&> \ x -> s { eqRHS = x }
+
 instance Reduce UnifyState where
   reduce' (UState var flex eq lhs rhs) =
     UState <$> reduce' var
@@ -263,15 +279,8 @@ instance Reduce UnifyState where
            <*> reduce' lhs
            <*> reduce' rhs
 
-reduceVarTel :: UnifyState -> TCM UnifyState
-reduceVarTel s@UState{ varTel = tel } = do
-  tel <- reduce tel
-  return $ s { varTel = tel }
-
 reduceEqTel :: UnifyState -> TCM UnifyState
-reduceEqTel s@UState{ eqTel = tel } = do
-  tel <- reduce tel
-  return $ s { eqTel = tel }
+reduceEqTel = lensEqTel reduce
 
 instance Normalise UnifyState where
   normalise' (UState var flex eq lhs rhs) =
@@ -280,16 +289,6 @@ instance Normalise UnifyState where
            <*> normalise' eq
            <*> normalise' lhs
            <*> normalise' rhs
-
-normaliseVarTel :: UnifyState -> TCM UnifyState
-normaliseVarTel s@UState{ varTel = tel } = do
-  tel <- normalise tel
-  return $ s { varTel = tel }
-
-normaliseEqTel :: UnifyState -> TCM UnifyState
-normaliseEqTel s@UState{ eqTel = tel } = do
-  tel <- normalise tel
-  return $ s { eqTel = tel }
 
 instance PrettyTCM UnifyState where
   prettyTCM state = "UnifyState" $$ nest 2 (vcat $
@@ -309,7 +308,9 @@ initUnifyState tel flex a lhs rhs = do
   unless (n == size rhs) __IMPOSSIBLE__
   TelV eqTel _ <- telView a
   unless (n == size eqTel) __IMPOSSIBLE__
-  reduce $ UState tel flex eqTel lhs rhs
+  return $ UState tel flex eqTel lhs rhs
+  -- Andreas, 2019-02-23, issue #3578: do not eagerly reduce
+  -- reduce $ UState tel flex eqTel lhs rhs
 
 isUnifyStateSolved :: UnifyState -> Bool
 isUnifyStateSolved = null . eqTel
@@ -590,7 +591,9 @@ completeStrategyAt k s = msum $ map (\strat -> strat k s) $
     , checkEqualityStrategy
     ]
 
--- | Returns true if the variables 0..k-1 don't occur in x
+-- | @isHom n x@ returns x lowered by n if the variables 0..n-1 don't occur in x.
+--
+-- This is naturally sensitive to normalization.
 isHom :: (Free a, Subst Term a) => Int -> a -> Maybe a
 isHom n x = do
   guard $ getAll $ runFree (All . (>= n)) IgnoreNot x
@@ -605,6 +608,7 @@ findFlexible i flex =
 basicUnifyStrategy :: Int -> UnifyStrategy
 basicUnifyStrategy k s = do
   Equal dom@Dom{unDom = a} u v <- liftTCM $ eqUnLevel (getEquality k s)
+    -- Andreas, 2019-02-23: reduce equality for the sake of isHom?
   ha <- fromMaybeMP $ isHom n a
   (mi, mj) <- liftTCM $ addContext (varTel s) $ (,) <$> isEtaVar u ha <*> isEtaVar v ha
   liftTCM $ reportSDoc "tc.lhs.unify" 30 $ "isEtaVar results: " <+> text (show [mi,mj])
@@ -638,7 +642,7 @@ basicUnifyStrategy k s = do
 
 dataStrategy :: Int -> UnifyStrategy
 dataStrategy k s = do
-  Equal Dom{unDom = a} u v <- liftTCM $ eqConstructorForm =<< eqUnLevel (getEqualityUnraised k s)
+  Equal Dom{unDom = a} u v <- liftTCM $ eqConstructorForm =<< eqUnLevel =<< reduce (getEqualityUnraised k s)
   case unEl a of
     Def d es | Type{} <- getSort a -> do
       npars <- catMaybesMP $ liftTCM $ getNumberOfParameters d
@@ -683,7 +687,7 @@ literalStrategy k s = do
 
 etaExpandVarStrategy :: Int -> UnifyStrategy
 etaExpandVarStrategy k s = do
-  Equal Dom{unDom = a} u v <- liftTCM $ eqUnLevel (getEquality k s)
+  Equal Dom{unDom = a} u v <- liftTCM $ eqUnLevel <=< reduce $ getEquality k s
   shouldEtaExpand u v a s `mplus` shouldEtaExpand v u a s
   where
     -- TODO: use IsEtaVar to check if the term is a variable
@@ -696,7 +700,7 @@ etaExpandVarStrategy k s = do
       -- record or if it's unified against a record constructor term. Basically
       -- we need to avoid EtaExpandEquation if EtaExpandVar is possible, or the
       -- forcing translation is unhappy.
-      let Dom{unDom = b} = getVarTypeUnraised (varCount s - 1 - i) s
+      b         <- reduce $ unDom $ getVarTypeUnraised (varCount s - 1 - i) s
       (d, pars) <- catMaybesMP $ liftTCM $ isEtaRecordType b
       ps        <- fromMaybeMP $ allProjElims es
       sing      <- liftTCM $ (Right True ==) <$> isSingletonRecord d pars
@@ -714,7 +718,8 @@ etaExpandVarStrategy k s = do
 
 etaExpandEquationStrategy :: Int -> UnifyStrategy
 etaExpandEquationStrategy k s = do
-  let Equal Dom{unDom = a} u v = getEqualityUnraised k s
+  -- Andreas, 2019-02-23, re #3578, is the following reduce redundant?
+  Equal Dom{unDom = a} u v <- reduce $ getEqualityUnraised k s
   (d, pars) <- catMaybesMP $ liftTCM $ addContext tel $ isEtaRecordType a
   sing <- liftTCM $ (Right True ==) <$> isSingletonRecord d pars
   projLeft <- liftTCM $ shouldProject u
@@ -742,7 +747,7 @@ etaExpandEquationStrategy k s = do
 simplifySizesStrategy :: Int -> UnifyStrategy
 simplifySizesStrategy k s = do
   isSizeName <- liftTCM isSizeNameTest
-  let Equal Dom{unDom = a} u v = getEquality k s
+  Equal Dom{unDom = a} u v <- reduce $ getEquality k s
   case unEl a of
     Def d _ -> do
       guard $ isSizeName d
@@ -759,7 +764,7 @@ injectiveTypeConStrategy :: Int -> UnifyStrategy
 injectiveTypeConStrategy k s = do
   injTyCon <- liftTCM $ optInjectiveTypeConstructors <$> pragmaOptions
   guard injTyCon
-  eq <- liftTCM $ eqUnLevel $ getEquality k s
+  eq <- liftTCM $ eqUnLevel <=< reduce $ getEquality k s
   case eq of
     Equal a u@(Def d es) v@(Def d' es') | d == d' -> do
       -- d must be a data, record or axiom
@@ -781,7 +786,7 @@ injectiveTypeConStrategy k s = do
 
 injectivePragmaStrategy :: Int -> UnifyStrategy
 injectivePragmaStrategy k s = do
-  eq <- liftTCM $ eqUnLevel $ getEquality k s
+  eq <- liftTCM $ eqUnLevel <=< reduce $ getEquality k s
   case eq of
     Equal a u@(Def d es) v@(Def d' es') | d == d' -> do
       -- d must have an injective pragma
@@ -794,8 +799,8 @@ injectivePragmaStrategy k s = do
 
 skipIrrelevantStrategy :: Int -> UnifyStrategy
 skipIrrelevantStrategy k s = do
-  let Equal a _ _ = getEquality k s
-  guard =<< isIrrelevantOrPropM a
+  let Equal a _ _ = getEquality k s  -- reduce not necessary
+  guard =<< isIrrelevantOrPropM a    -- reduction takes place here
   return $ SkipIrrelevantEquation k
 
 
@@ -848,14 +853,14 @@ unifyStep s Deletion{ deleteAt = k , deleteType = a , deleteLeft = u , deleteRig
       dontAssignMetas $ noConstraints $ equalTerm a u v
       return Nothing
       `catchError` \err -> return $ Just err
-    withoutK <- liftTCM $ optWithoutK <$> pragmaOptions
+    withoutK <- liftTCM withoutKOption
     case isReflexive of
       Just err     -> return $ DontKnow []
       _ | withoutK -> return $ DontKnow [UnifyReflexiveEq (varTel s) a u]
       _            -> do
         let (s', sigma) = solveEq k u s
         tellUnifyProof sigma
-        Unifies <$> liftTCM (reduceEqTel s')
+        Unifies <$> liftTCM (lensEqTel reduce s')
 
 unifyStep s Solution{ solutionAt   = k
                     , solutionType = dom@Dom{ unDom = a }
@@ -907,24 +912,28 @@ unifyStep s Solution{ solutionAt   = k
   case equalTypes of
     Just err -> return $ DontKnow []
     Nothing | usable -> caseMaybeM (trySolveVar (m-1-i) u s)
+      -- Case: Nothing
       (return $ DontKnow [UnifyRecursiveEq (varTel s) a i u])
-      (\(s',sub) -> do
+      -- Case: Just
+      $ \ (s', sub) -> do
         tellUnifySubst sub
         let (s'', sigma) = solveEq k (applyPatSubst sub u) s'
         tellUnifyProof sigma
-        Unifies <$> liftTCM (reduce s''))
+        return $ Unifies s''
+        -- Andreas, 2019-02-23, issue #3578: do not eagerly reduce
+        -- Unifies <$> liftTCM (reduce s'')
     Nothing -> return $ DontKnow []
   where
     trySolveVar i u s = case solveVar i u s of
       Just x  -> return $ Just x
       Nothing -> do
         u <- liftTCM $ normalise u
-        s <- liftTCM $ normaliseVarTel s
+        s <- liftTCM $ lensVarTel normalise s
         return $ solveVar i u s
 
 unifyStep s (Injectivity k a d pars ixs c) = do
   ifM (liftTCM $ consOfHIT $ conName c) (return $ DontKnow []) $ do
-  withoutK <- liftTCM $ optWithoutK <$> pragmaOptions
+  withoutK <- liftTCM withoutKOption
   let n = eqCount s
 
   -- Get constructor telescope and target indices
@@ -1089,7 +1098,7 @@ unifyStep s EtaExpandEquation{ expandAt = k, expandRecordType = d, expandParamet
   rhs   <- expandKth $ eqRHS s
   let (tel, sigma) = expandTelescopeVar (eqTel s) k delta c
   tellUnifyProof sigma
-  Unifies <$> liftTCM (reduceEqTel $ s
+  Unifies <$> liftTCM (lensEqTel reduce $ s
     { eqTel    = tel
     , eqLHS    = lhs
     , eqRHS    = rhs
@@ -1138,7 +1147,7 @@ unifyStep s (TypeConInjectivity k d us vs) = do
       deq = Def d $ map Apply $ teleArgs dtel
   -- TODO: tellUnifyProof ???
   -- but d is not a constructor...
-  Unifies <$> liftTCM (reduceEqTel $ s
+  Unifies <$> liftTCM (lensEqTel reduce $ s
     { eqTel = dtel `abstract` applyUnder k (eqTel s) (raise k deq)
     , eqLHS = us ++ dropAt k (eqLHS s)
     , eqRHS = vs ++ dropAt k (eqRHS s)

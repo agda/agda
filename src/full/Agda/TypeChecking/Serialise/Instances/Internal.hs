@@ -311,8 +311,9 @@ instance EmbPrj EtaEquality where
 
 instance EmbPrj Defn where
   icod_ Axiom                                   = icodeN 0 Axiom
-  icod_ (Function    a b t c d e f g h i j k m) =
-    icodeN 1 (\ a b -> Function a b t) a b c d e f g h i j k m
+  icod_ (Function    a b t (_:_) c d e f g h i j k m) = __IMPOSSIBLE__
+  icod_ (Function    a b t [] c d e f g h i j k m) =
+    icodeN 1 (\ a b -> Function a b t []) a b c d e f g h i j k m
   icod_ (Datatype    a b c d e f g h i)         = icodeN 2 Datatype a b c d e f g h i
   icod_ (Record      a b c d e f g h i j k)     = icodeN 3 Record a b c d e f g h i j k
   icod_ (Constructor a b c d e f g h i)         = icodeN 4 Constructor a b c d e f g h i
@@ -323,7 +324,7 @@ instance EmbPrj Defn where
 
   value = vcase valu where
     valu [0]                                     = valuN Axiom
-    valu [1, a, b, c, d, e, f, g, h, i, j, k, m] = valuN (\ a b -> Function a b Nothing) a b c d e f g h i j k m
+    valu [1, a, b, c, d, e, f, g, h, i, j, k, m] = valuN (\ a b -> Function a b Nothing []) a b c d e f g h i j k m
     valu [2, a, b, c, d, e, f, g, h, i]          = valuN Datatype a b c d e f g h i
     valu [3, a, b, c, d, e, f, g, h, i, j, k]    = valuN Record  a b c d e f g h i j k
     valu [4, a, b, c, d, e, f, g, h, i]          = valuN Constructor a b c d e f g h i

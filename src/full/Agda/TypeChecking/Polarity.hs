@@ -235,7 +235,7 @@ relevantInIgnoringNonvariant i t (p:ps) = do
 sizePolarity :: QName -> [Polarity] -> TCM [Polarity]
 sizePolarity d pol0 = do
   let exit = return pol0
-  ifM (not . optSizedTypes <$> pragmaOptions) exit $ do
+  ifM (not <$> sizedTypesOption) exit $ do
     def <- getConstInfo d
     case theDef def of
       Datatype{ dataPars = np, dataCons = cons } -> do

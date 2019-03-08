@@ -1,0 +1,6 @@
+Issue1209-5.agda:11,1-13,26
+Termination checking failed for the following functions:
+  repeat
+Problematic calls:
+  repeat x
+    (at Issue1209-5.agda:13,18-24)

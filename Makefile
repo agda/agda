@@ -332,6 +332,7 @@ api-test :
 	@echo "======================================================================"
 	@echo "======== Successfull tests using Agda as a Haskell library ==========="
 	@echo "======================================================================"
+	@$(MAKE) -C test/api clean
 	@$(MAKE) -C test/api
 
 .PHONY : benchmark

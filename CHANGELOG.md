@@ -4,7 +4,7 @@ Release notes for Agda version 2.6.0
 Installation and infrastructure
 -------------------------------
 
-* Added support for GHC 8.6.3.
+* Added support for GHC 8.6.4.
 
 * Generated the interface file for the `Sigma.agda` built-in when
   installing Agda
@@ -498,7 +498,8 @@ Pragmas and options
 
 * New primitives `primCharToNatInjective` and `primStringToListInjective`
   internalising the fact that `primCharToNat` and `primStringtoList` are
-  injective functions.
+  injective functions. They are respectively bound in `Agda.Builtin.Char.Properties`
+  and `Agda.Builtin.String.Properties`.
 
 * Consistency checking of options used.
 

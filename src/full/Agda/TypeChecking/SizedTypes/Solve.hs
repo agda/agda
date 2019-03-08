@@ -512,7 +512,7 @@ solveCluster flag ccs = do
       [ text $ "  xs = " ++ show xs
       , text $ "  u  = " ++ show u
       ]
-    ifM (isFrozen x) (return Set.empty) $ do
+    ifM (isFrozen x `or2M` (not <$> asksTC envAssignMetas)) (return Set.empty) $ do
       assignMeta n x t xs u
       return $ Set.singleton x
     -- WRONG:

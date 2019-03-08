@@ -1236,7 +1236,7 @@ checkLHS mf = updateRelevance checkLHS_ where
 
       -- Don't split on lazy constructor
       case focusPat of
-        A.ConP cpi _ _ | patLazy cpi -> softTypeError $
+        A.ConP cpi _ _ | patLazy cpi == ConPatLazy -> softTypeError $
           ForcedConstructorNotInstantiated focusPat
         _ -> return ()
 

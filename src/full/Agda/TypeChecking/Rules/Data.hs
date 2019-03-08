@@ -120,7 +120,7 @@ checkDataDef i name uc (A.DataDefParams gpars ps) cs =
             let s' = case s of
                   Prop l -> Type l
                   _      -> s
-            whenM (optWithoutK <$> pragmaOptions) $ checkIndexSorts s' ixTel
+            whenM withoutKOption $ checkIndexSorts s' ixTel
 
             reportSDoc "tc.data.sort" 20 $ vcat
               [ "checking datatype" <+> prettyTCM name
@@ -1038,7 +1038,7 @@ fitsIn uc forceds t s = do
                   _              -> Nothing
   case vt of
     Just (isPath, dom, b) -> do
-      withoutK <- optWithoutK <$> pragmaOptions
+      withoutK <- withoutKOption
       let (forced,forceds') = nextIsForced forceds
       unless (isForced forced && not withoutK) $ do
         sa <- reduce $ getSort dom

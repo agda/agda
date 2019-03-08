@@ -1,0 +1,5 @@
+Issue3566-4.agda:3,7-8
+Not in scope:
+  r at Issue3566-4.agda:3,7-8
+    (did you mean 'R'?)
+when scope checking r

@@ -40,36 +40,38 @@ import qualified System.IO.Unsafe as UNSAFE (unsafePerformIO)
 
 -- Andreas, 2017-10-02, TODO: restore Show to its original purpose
 --
--- deriving instance Show Expr
--- deriving instance (Show a) => Show (OpApp a)
--- deriving instance Show Declaration
--- deriving instance Show Pattern
--- deriving instance Show TypedBinding
--- deriving instance Show LamBinding
--- deriving instance Show ModuleAssignment
--- deriving instance (Show a, Show b) => Show (ImportDirective' a b)
--- deriving instance (Show a, Show b) => Show (Using' a b)
--- deriving instance (Show a, Show b) => Show (Renaming' a b)
--- deriving instance Show Pragma
--- deriving instance Show RHS
--- deriving instance Show LHS
--- deriving instance Show LHSCore
--- deriving instance Show WhereClause
--- deriving instance Show ModuleApplication
+deriving instance Show Expr
+deriving instance (Show a) => Show (OpApp a)
+deriving instance Show Declaration
+deriving instance Show Pattern
+deriving instance Show TypedBinding
+deriving instance Show LamBinding
+deriving instance Show ModuleAssignment
+deriving instance (Show a, Show b) => Show (ImportDirective' a b)
+deriving instance (Show a, Show b) => Show (Using' a b)
+deriving instance (Show a, Show b) => Show (Renaming' a b)
+deriving instance Show Pragma
+deriving instance Show RHS
+deriving instance Show LHS
+deriving instance Show LHSCore
+deriving instance Show LamClause
+deriving instance Show WhereClause
+deriving instance Show ModuleApplication
+deriving instance Show DoStmt
 
-instance Show Expr            where show = show . pretty
-instance Show Declaration     where show = show . pretty
-instance Show Pattern         where show = show . pretty
-instance Show TypedBinding    where show = show . pretty
-instance Show LamBinding      where show = show . pretty
-instance (Pretty a, Pretty b) => Show (ImportDirective' a b)
-                              where show = show . pretty
-instance Show Pragma          where show = show . pretty
-instance Show RHS             where show = show . pretty
-instance Show LHS where show = show . pretty
-instance Show LHSCore where show = show . pretty
-instance Show WhereClause where show = show . pretty
-instance Show ModuleApplication where show = show . pretty
+-- instance Show Expr            where show = show . pretty
+-- instance Show Declaration     where show = show . pretty
+-- instance Show Pattern         where show = show . pretty
+-- instance Show TypedBinding    where show = show . pretty
+-- instance Show LamBinding      where show = show . pretty
+-- instance (Pretty a, Pretty b) => Show (ImportDirective' a b)
+--                               where show = show . pretty
+-- instance Show Pragma          where show = show . pretty
+-- instance Show RHS             where show = show . pretty
+-- instance Show LHS where show = show . pretty
+-- instance Show LHSCore where show = show . pretty
+-- instance Show WhereClause where show = show . pretty
+-- instance Show ModuleApplication where show = show . pretty
 
 
 -- | Picking the appropriate set of special characters depending on
@@ -161,10 +163,6 @@ instance Pretty Relevance where
   pretty Relevant   = empty
   pretty Irrelevant = "."
   pretty NonStrict  = ".."
-
-instance Pretty Induction where
-  pretty Inductive = "data"
-  pretty CoInductive = "codata"
 
 instance Pretty (OpApp Expr) where
   pretty (Ordinary e) = pretty e
@@ -407,7 +405,7 @@ instance Pretty Declaration where
                     , nest 2 $ pretty rhs
                     ] $$ nest 2 (pretty wh)
             DataSig _ ind x tel e ->
-                sep [ hsep  [ pretty ind
+                sep [ hsep  [ "data"
                             , pretty x
                             , fcat (map pretty tel)
                             ]
@@ -417,7 +415,7 @@ instance Pretty Declaration where
                             ]
                     ]
             Data _ ind x tel e cs ->
-                sep [ hsep  [ pretty ind
+                sep [ hsep  [ "data"
                             , pretty x
                             , fcat (map pretty tel)
                             ]
@@ -428,7 +426,7 @@ instance Pretty Declaration where
                             ]
                     ] $$ nest 2 (vcat $ map pretty cs)
             DataDef _ ind x tel cs ->
-                sep [ hsep  [ pretty ind
+                sep [ hsep  [ "data"
                             , pretty x
                             , fcat (map pretty tel)
                             ]
@@ -612,6 +610,9 @@ instance Pretty a => Pretty (Arg a) where
             localParens | getOrigin ai == Substitution = parens
                         | otherwise = id
 
+instance Pretty a => Pretty (Dom a) where
+  pretty = pretty . argFromDom
+
 instance Pretty e => Pretty (Named_ e) where
     prettyPrec p (Named Nothing e) = prettyPrec p e
     prettyPrec p (Named (Just s) e) = mparens (p > 0) $ sep [ text (rawNameToString $ rangedThing s) <+> "=", pretty e ]
@@ -645,8 +646,8 @@ prettyOpApp q es = merge [] $ prOp ms xs es
     ms = init (qnameParts q)
     -- xs: the concrete name (alternation of @Id@ and @Hole@)
     xs = case unqualify q of
-           Name _ _ xs -> xs
-           NoName{}    -> __IMPOSSIBLE__
+           Name _ _ xs    -> xs
+           NoName{}       -> __IMPOSSIBLE__
 
     prOp :: [Name] -> [NamePart] -> [NamedArg (MaybePlaceholder a)] -> [(Doc, Maybe PositionInName)]
     prOp ms (Hole : xs) (e : es) =

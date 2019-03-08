@@ -274,15 +274,15 @@ Other features
 :samp:`--sized-types`
       Enable sized types (default, inconsistent with constructor-based
       guarded corecursion; see :ref:`sized-types`). Turned off by ``--safe``
-      (but can be turned on again by using ``--sized-types`` *after* ``--safe``).
+      (but can be turned on again, as long as not also ``--guardedness`` is on).
 
 :samp:`--no-sized-types`
       Disable sized types (see :ref:`sized-types`)
 
 :samp:`--guardedness`
-      Enable constructor-based guarded corecursion (default; see
-      :ref:`coinduction`). Turned off by ``--safe`` (but can be turned
-      on again  by using ``--guardedness`` *after* ``--safe``).
+      Enable constructor-based guarded corecursion (default, inconsistent
+      with sized types; see :ref:`coinduction`). Turned off by ``--safe``
+      (but can be turned on again, as long as not also ``--sized-types`` is on).
 
 :samp:`--no-guardedness`
       Disable constructor-based guarded corecursion (see :ref:`coinduction`)

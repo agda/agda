@@ -6,7 +6,9 @@
 
 module Agda.TypeChecking.Serialise.Base where
 
+import Control.Exception (evaluate)
 import Control.Monad
+import Control.Monad.Catch (catchAll)
 import Control.Monad.Reader
 import Control.Monad.State.Strict (StateT, gets)
 
@@ -179,6 +181,14 @@ class Typeable a => EmbPrj a where
   icode a = do
     tickICode a
     icod_ a
+
+  -- Simple enumeration types can be (de)serialized using (from/to)Enum.
+
+  default value :: (Enum a) => Int32 -> R a
+  value i = liftIO (evaluate (toEnum (fromIntegral i))) `catchAll` const malformed
+
+  default icod_ :: (Enum a) => a -> S Int32
+  icod_ = return . fromIntegral . fromEnum
 
 -- | Increase entry for @a@ in 'stats'.
 tickICode :: forall a. Typeable a => a -> S ()

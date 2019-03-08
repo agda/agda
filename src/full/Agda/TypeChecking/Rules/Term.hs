@@ -1260,7 +1260,7 @@ checkQuestionMark :: (Type -> TCM (MetaId, Term)) -> Type -> A.MetaInfo -> Inter
 checkQuestionMark new t0 i ii = do
   reportSDoc "tc.interaction" 20 $ sep
     [ "Found interaction point"
-    , text (show ii)
+    , pretty ii
     , ":"
     , prettyTCM t0
     ]

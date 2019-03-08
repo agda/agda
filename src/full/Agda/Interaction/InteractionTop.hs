@@ -1351,7 +1351,7 @@ give_gen force ii rng s0 giveRefine = do
     mkNewTxt True  C.Paren{} = Give_Paren
     mkNewTxt True  _         = Give_NoParen
     -- Otherwise, we replace it by the reified value Agda computed.
-    mkNewTxt False ce        = Give_String $ show ce
+    mkNewTxt False ce        = Give_String $ prettyShow ce
 
 highlightExpr :: A.Expr -> TCM ()
 highlightExpr e =
@@ -1389,20 +1389,21 @@ prettyContext
   -> InteractionId
   -> TCM Doc
 prettyContext norm rev ii = B.withInteractionId ii $ do
-  ctx <- B.contextOfMeta ii norm
+  ctx <- filter (not . shouldHide) <$> B.contextOfMeta ii norm
   es  <- mapM (prettyATop . B.ofExpr) ctx
   xs  <- mapM (abstractToConcrete_ . B.ofName) ctx
   let ns = map (nameConcrete . B.ofName) ctx
       ss = map C.isInScope xs
   return $ align 10 $ applyWhen rev reverse $
-    filter (not . null . fst) $
       zip (zipWith prettyCtxName ns xs)
           (zipWith prettyCtxType es ss)
   where
+    shouldHide (OfType' n e) = isNoName n || nameIsRecordName n
+    prettyCtxName :: C.Name -> C.Name -> String
     prettyCtxName n x
-      | n == x                 = show x
-      | isInScope n == InScope = show n ++ " = " ++ show x
-      | otherwise              = show x
+      | n == x                 = prettyShow x
+      | isInScope n == InScope = prettyShow n ++ " = " ++ prettyShow x
+      | otherwise              = prettyShow x
     prettyCtxType e nis = ":" <+> (e P.<> notInScopeMarker nis)
     notInScopeMarker nis = case isInScope nis of
       C.InScope    -> ""
@@ -1444,7 +1445,7 @@ showModuleContents norm rng s = display_info . Info_ModuleContents =<< do
       return (prettyShow x, ":" <+> t)
     return $ vcat
       [ "Modules"
-      , nest 2 $ vcat $ map (text . show) modules
+      , nest 2 $ vcat $ map pretty modules
       , "Names"
       , nest 2 $ align 10 types'
       ]
@@ -1482,9 +1483,9 @@ whyInScope s = display_info . Info_WhyInScope =<< do
       ]
       where
         prettyRange :: Range -> TCM Doc
-        prettyRange r = text . show . (fmap . fmap) mkRel <$> do
+        prettyRange r = pretty . (fmap . fmap) mkRel <$> do
           return r
-        mkRel = Str . makeRelative cwd . filePath
+        mkRel = makeRelative cwd . filePath
 
         -- variable :: Maybe _ -> [_] -> TCM Doc
         variable Nothing xs = names xs
@@ -1533,14 +1534,14 @@ whyInScope s = display_info . Info_WhyInScope =<< do
         pWhy r (Opened (C.QName x) w) | isNoName x = pWhy r w
         pWhy r (Opened m w) =
           "- the opening of"
-          TCP.<+> TCP.text (show m)
+          TCP.<+> TCP.prettyTCM m
           TCP.<+> "at"
           TCP.<+> TCP.prettyTCM (getRange m)
           TCP.$$
           pWhy r w
         pWhy r (Applied m w) =
           "- the application of"
-          TCP.<+> TCP.text (show m)
+          TCP.<+> TCP.prettyTCM m
           TCP.<+> "at"
           TCP.<+> TCP.prettyTCM (getRange m)
           TCP.$$

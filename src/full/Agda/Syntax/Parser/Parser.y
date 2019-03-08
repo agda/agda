@@ -59,6 +59,7 @@ import Agda.Utils.Monad
 import Agda.Utils.Pretty
 import Agda.Utils.Singleton
 import Agda.Utils.Tuple
+import qualified Agda.Utils.Maybe.Strict as Strict
 
 import Agda.Utils.Impossible
 #include "undefined.h"
@@ -1411,12 +1412,13 @@ Open : MaybeOpen 'import' ModuleName OpenArgs ImportDirective {%
     ; dir = $5
     ; r   = getRange ($1, $2, m, es, dir)
     ; mr  = getRange m
-    ; unique = hashString $ show $ (Nothing :: Maybe ()) <$ r
+    ; unique = hashString $ prettyShow $ (Strict.Nothing :: Strict.Maybe ()) <$ r
          -- turn range into unique id, but delete file path
          -- which is absolute and messes up suite of failing tests
          -- (different hashs on different installations)
          -- TODO: Don't use (insecure) hashes in this way.
-    ; fresh = Name mr NotInScope [ Id $ stringToRawName $ ".#" ++ show m ++ "-" ++ show unique ]
+    ; fresh  = Name mr NotInScope [ Id $ stringToRawName $ ".#" ++ prettyShow m ++ "-" ++ show unique ]
+    ; fresh' = Name mr NotInScope [ Id $ stringToRawName $ ".#" ++ prettyShow m ++ "-" ++ show (unique + 1) ]
     ; impStm asR = Import r m (Just (AsName (Right fresh) asR)) DontOpen defaultImportDir
     ; appStm m' es =
         Private r Inserted
@@ -1444,7 +1446,7 @@ Open : MaybeOpen 'import' ModuleName OpenArgs ImportDirective {%
                  [ Import (getRange (m, asR, m', dir)) m
                      (Just (AsName m' asR)) doOpen dir
                  ]
-              else return [ impStm asR, appStm (fromRight (const fresh) m') initArgs ]
+              else return [ impStm asR, appStm (fromRight (const fresh') m') initArgs ]
           -- Andreas, 2017-05-13, issue #2579
           -- Nisse reports that importing with instantation but without open
           -- could be usefule for bringing instances into scope.
@@ -2126,7 +2128,7 @@ verifyImportDirective i =
         []  -> return i
         yss -> parseErrorRange (head $ concat yss) $
                 "Repeated name" ++ s ++ " in import directive: " ++
-                concat (intersperse ", " $ map (show . head) yss)
+                concat (intersperse ", " $ map (prettyShow . head) yss)
             where
                 s = case yss of
                         [_] -> ""
@@ -2145,7 +2147,7 @@ data RecordDirective
 verifyRecordDirectives :: [RecordDirective] -> Parser (Maybe (Ranged Induction), Maybe HasEta, Maybe (Name, IsInstance))
 verifyRecordDirectives xs
   | null rs = return (ltm is, ltm es, ltm cs)
-  | otherwise = parseErrorRange (head rs) $ "Repeated record directives at: \n" ++ intercalate "\n" (map show rs)
+  | otherwise = parseErrorRange (head rs) $ "Repeated record directives at: \n" ++ intercalate "\n" (map prettyShow rs)
  where
   ltm :: [a] -> Maybe a
   ltm [] = Nothing
@@ -2203,7 +2205,7 @@ exprToLHS e = LHS <$> exprToPattern e
 --   valid pattern.
 exprToPattern :: Expr -> Parser Pattern
 exprToPattern e = do
-    let failure = parseErrorRange e $ "Not a valid pattern: " ++ show e
+    let failure = parseErrorRange e $ "Not a valid pattern: " ++ prettyShow e
     case e of
         Ident x                 -> return $ IdentP x
         App _ e1 e2             -> AppP <$> exprToPattern e1
@@ -2263,7 +2265,7 @@ patternSynArgs = mapM pSynArg
     pSynArg Left{}                   = parseError "Absurd patterns are not allowed in pattern synonyms"
     pSynArg (Right DomainFull{})     = parseError "Unexpected type signature in pattern synonym argument"
     pSynArg (Right (DomainFree x))
-      | getHiding x `notElem` [Hidden, NotHidden] = parseError $ show (getHiding x) ++ " arguments not allowed to pattern synonyms"
+      | let h = getHiding x, h `notElem` [Hidden, NotHidden] = parseError $ prettyShow h ++ " arguments not allowed to pattern synonyms"
       | getRelevance x /= Relevant                = parseError "Arguments to pattern synonyms must be relevant"
       | otherwise                                 = return $ fmap (boundName . namedThing) x
 

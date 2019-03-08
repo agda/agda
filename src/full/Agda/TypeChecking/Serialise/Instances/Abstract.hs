@@ -136,6 +136,8 @@ instance EmbPrj ConPatInfo where
 
   value = valueN $ \a b -> ConPatInfo a patNoRange b
 
+instance EmbPrj ConPatLazy
+
 -- Only for pattern synonyms (where a is Void)
 instance EmbPrj a => EmbPrj (A.Pattern' a) where
   icod_ (A.VarP a)            = icodeN 0 A.VarP a

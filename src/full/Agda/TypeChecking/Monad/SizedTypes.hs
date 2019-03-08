@@ -56,7 +56,7 @@ instance IsSizeType Term where
 
 isSizeTypeTest :: TCM (Term -> Maybe BoundedSize)
 isSizeTypeTest =
-  flip (ifM (optSizedTypes <$> pragmaOptions)) (return $ const Nothing) $ do
+  flip (ifM sizedTypesOption) (return $ const Nothing) $ do
     (size, sizelt) <- getBuiltinSize
     let testType (Def d [])        | Just d == size   = Just BoundedNo
         testType (Def d [Apply v]) | Just d == sizelt = Just $ BoundedLt $ unArg v
@@ -76,7 +76,7 @@ getBuiltinSize = do
   return (size, sizelt)
 
 isSizeNameTest :: TCM (QName -> Bool)
-isSizeNameTest = ifM (optSizedTypes <$> pragmaOptions)
+isSizeNameTest = ifM sizedTypesOption
   isSizeNameTestRaw
   (return $ const False)
 
@@ -92,7 +92,7 @@ haveSizedTypes = do
     Def _ [] <- primSize
     Def _ [] <- primSizeInf
     Def _ [] <- primSizeSuc
-    optSizedTypes <$> pragmaOptions
+    sizedTypesOption
   `catchError` \_ -> return False
 
 -- | Test whether the SIZELT builtin is defined.
@@ -140,7 +140,7 @@ sizeType = El sizeSort <$> primSize
 -- | The name of @SIZESUC@.
 sizeSucName :: TCM (Maybe QName)
 sizeSucName = do
-  ifM (not . optSizedTypes <$> pragmaOptions) (return Nothing) $ tryMaybe $ do
+  ifM (not <$> sizedTypesOption) (return Nothing) $ tryMaybe $ do
     Def x [] <- primSizeSuc
     return x
 

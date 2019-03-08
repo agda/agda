@@ -208,11 +208,14 @@ coverageCheck f t cs = do
     ]
   reportSDoc "tc.cover.covering" 10 $ vcat
     [ text $ "covering patterns for " ++ prettyShow f
-    , nest 2 $ vcat $ map (\(SClause tel ps _ _ _) -> addContext tel $ prettyTCMPatternList $ fromSplitPatterns ps) qss
+    , nest 2 $ vcat $ map (\cl -> enterClosure cl $ \ cl -> addContext (clauseTel cl) $ prettyTCMPatternList $ namedClausePats cl) qss
     ]
 
-  -- checking confluence of clauses wrt IApply reductions
-  forM_ qss (checkIApplyConfluence f)
+  -- Storing the covering clauses so that checkIApplyConfluence_ can
+  -- find them later.
+  modifySignature $ updateDefinition f $ updateTheDef
+    $ updateCovering (const qss)
+
 
   -- filter out the missing clauses that are absurd.
   pss <- flip filterM pss $ \(tel,ps) ->
@@ -286,8 +289,9 @@ data CoverResult = CoverResult
   { coverSplitTree       :: SplitTree
   , coverUsedClauses     :: Set Nat
   , coverMissingClauses  :: [(Telescope, [NamedArg DeBruijnPattern])]
-  , coverPatterns        :: [SplitClause]
+  , coverPatterns        :: [Closure Clause]
   -- ^ The set of patterns used as cover.
+  -- Entering the closure puts you directly in the right context (and cps) for the RHS.
   , coverNoExactClauses  :: Set Nat
   }
 
@@ -314,11 +318,14 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
   match cs ps >>= \case
     Yes (i,mps) -> do
       exact <- allM mps isTrivialPattern
+      let cl0 = indexWithDefault __IMPOSSIBLE__ cs i
       let noExactClause = if exact || clauseCatchall (indexWithDefault __IMPOSSIBLE__ cs i)
                           then Set.empty
                           else Set.singleton i
       reportSLn "tc.cover.cover" 10 $ "pattern covered by clause " ++ show i
-      return $ CoverResult (SplittingDone (size tel)) (Set.singleton i) [] [sc] noExactClause
+      reportSDoc "tc.cover.cover" 20 $ text "with mps = " <+> do addContext tel $ pretty $ mps
+      cl <- applyCl sc cl0 mps
+      return $ CoverResult (SplittingDone (size tel)) (Set.singleton i) [] [cl] noExactClause
 
     No        ->  do
       reportSLn "tc.cover" 20 $ "pattern is not covered"
@@ -330,8 +337,8 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
           -- hidden clause is expected to be forced by later clauses, it's too
           -- late to add it now. If it was inferrable we would have gotten a
           -- type error before getting to this point.
-          inferMissingClause f sc
-          return $ CoverResult (SplittingDone (size tel)) Set.empty [] [sc] Set.empty
+          cl <- inferMissingClause f sc
+          return $ CoverResult (SplittingDone (size tel)) Set.empty [] [cl] Set.empty
         _ -> do
           let ps' = fromSplitPatterns ps
           return $ CoverResult (SplittingDone (size tel)) Set.empty [(tel, ps')] [] Set.empty
@@ -353,6 +360,25 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
         continue xs YesAllowPartialCover $ \ err -> do
           typeError $ SplitError err
   where
+    applyCl :: SplitClause -> Clause -> [SplitPattern] -> TCM (Closure Clause)
+    applyCl SClause{scTel = tel, scCheckpoints = cps} cl mps
+      = addContext tel
+        $ locallyTC eCheckpoints (const cps)
+        $ checkpoint IdS $ do
+        -- invariant: tel = clauseTel cl `applyE` patternsToElims mps'
+        buildClosure $
+             Clause { clauseLHSRange  = clauseLHSRange cl
+                    , clauseFullRange = clauseFullRange cl
+                    , clauseTel       = tel -- clauseTel cl `applyE` patternsToElims mps'
+                    , namedClausePats = s `applySubst` namedClausePats cl
+                    , clauseBody      = (s `applyPatSubst`) <$> clauseBody cl
+                    , clauseType      = (s `applyPatSubst`) <$> clauseType cl
+                    , clauseCatchall  = clauseCatchall cl
+                    , clauseUnreachable = clauseUnreachable cl
+                    }
+      where
+        mps' = fromSplitPatterns $ map defaultNamedArg mps
+        s = parallelS (reverse $ map namedArg mps')
     updateRelevance :: TCM a -> TCM a
     updateRelevance cont =
       -- Don't do anything if there is no target type info.
@@ -699,12 +725,12 @@ createMissingHCompClause f n x old_sc (SClause tel ps _sigma' cps (Just t)) = se
 
           -- Γ,φ,u,u0,Δ(x = hcomp φ u u0) ⊢ b : (i : I) → [α] -> old_t[x = hfill φ u u0 i,δ_fill[i]]
           b <- do
-             sides <- forM alphab $ \ (psi,(t,u)) -> do
+             sides <- forM alphab $ \ (psi,(side0,side1)) -> do
                 psi <- open $ hcompS `applySubst` psi
 
-                [t,u] <- mapM (open . raise (3+size delta) . abstract hdelta) [t,u]
-                return $ (ineg psi `imax` psi, \ i -> pOr_ty i (ineg psi) psi (ilam "o" $ \ _ -> apply_delta_fill i $ t <@> hfill lvl htype phi u u0 i)
-                                                            (ilam "o" $ \ _ -> apply_delta_fill i $ u <@> hfill lvl htype phi u u0 i))
+                [side0,side1] <- mapM (open . raise (3+size delta) . abstract hdelta) [side0,side1]
+                return $ (ineg psi `imax` psi, \ i -> pOr_ty i (ineg psi) psi (ilam "o" $ \ _ -> apply_delta_fill i $ side0 <@> hfill lvl htype phi u u0 i)
+                                                            (ilam "o" $ \ _ -> apply_delta_fill i $ side1 <@> hfill lvl htype phi u u0 i))
              let recurse []           i = __IMPOSSIBLE__
                  recurse [(psi,u)]    i = u i
                  recurse ((psi,u):xs) i = pOr_ty i psi (foldr imax (pure iz) (map fst xs)) (u i) (recurse xs i)
@@ -751,7 +777,7 @@ inferMissingClause
        -- ^ Function name.
   -> SplitClause
        -- ^ Clause to add.  Clause hiding (in 'clauseType') must be 'Instance'.
-   -> TCM ()
+   -> TCM (Closure Clause)
 inferMissingClause f (SClause tel ps _ cps (Just t)) = setCurrentRange f $ do
   reportSDoc "tc.cover.infer" 20 $ addContext tel $ "Trying to infer right-hand side of type" <+> prettyTCM t
   cl <- addContext tel
@@ -761,7 +787,8 @@ inferMissingClause f (SClause tel ps _ cps (Just t)) = setCurrentRange f $ do
                   Instance{} -> newInstanceMeta "" (unArg t)
                   Hidden     -> __IMPOSSIBLE__
                   NotHidden  -> __IMPOSSIBLE__
-    return $ Clause { clauseLHSRange  = noRange
+    buildClosure $
+             Clause { clauseLHSRange  = noRange
                     , clauseFullRange = noRange
                     , clauseTel       = tel
                     , namedClausePats = fromSplitPatterns ps
@@ -770,7 +797,8 @@ inferMissingClause f (SClause tel ps _ cps (Just t)) = setCurrentRange f $ do
                     , clauseCatchall  = False
                     , clauseUnreachable = Just False  -- missing, thus, not unreachable
                     }
-  addClauses f [cl]  -- Important: add at the end.
+  addClauses f [clValue cl]  -- Important: add at the end.
+  return cl
 inferMissingClause _ (SClause _ _ _ _ Nothing) = __IMPOSSIBLE__
 
 splitStrategy :: BlockingVars -> Telescope -> TCM BlockingVars
@@ -789,26 +817,6 @@ splitStrategy bs tel = return $ updateLast setBlockingVarOverlap xs
     allConstructors :: BlockingVar -> Bool
     allConstructors = isJust . snd
 -}
-
--- | @addClause f (SClause _ ps _ _ _)@ checks that @f ps@
--- reduces in a way that agrees with @IApply@ reductions.
-checkIApplyConfluence :: QName -> SplitClause -> TCM ()
-checkIApplyConfluence f (SClause tel ps' _ cps (Just t)) = setCurrentRange f $ do
-  addContext tel
-        $ locallyTC eCheckpoints (const cps)
-        $ checkpoint IdS $ do    -- introduce a fresh checkpoint
-          let
-            ps = fromSplitPatterns ps'
-            trhs = unArg t
-          ps <- normaliseProjP ps
-          forM_ (iApplyVars ps) $ \ i -> do
-            unview <- intervalUnview'
-            let phi = unview $ IMax (argN $ var $ i) $ argN $ unview (INeg $ argN $ var i)
-            let es = patternsToElims ps
-            let lhs = Def f es
-            body <- fmap ignoreBlocking $ liftReduce $ unfoldDefinitionE False (return . notBlocked) (Def f []) f es
-            equalTermOnFace phi trhs lhs body
-checkIApplyConfluence f (SClause tel ps _ cps Nothing) = __IMPOSSIBLE__
 
 
 -- | Check that a type is a non-irrelevant datatype or a record with

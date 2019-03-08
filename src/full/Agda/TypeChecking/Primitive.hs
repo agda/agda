@@ -855,9 +855,9 @@ primTransHComp cmd ts nelims = do
                                 -> redReturn $ (Def hCompR []) `apply`
                                                (as ++ [ignoreBlocking sphi,fromMaybe __IMPOSSIBLE__ u,u0])
 
-                         | Just as <- allApplyElims es, [] <- recFields r -> compData (recPars r) cmd l (as <$ t) sbA sphi u u0
+                         | Just as <- allApplyElims es, [] <- recFields r -> compData False (recPars r) cmd l (as <$ t) sbA sphi u u0
                      Datatype{dataPars = pars, dataIxs = ixs, dataPathCons = pcons}
-                       | and [null pcons | DoHComp  <- [cmd]], Just as <- allApplyElims es -> compData (pars+ixs) cmd l (as <$ t) sbA sphi u u0
+                       | and [null pcons | DoHComp  <- [cmd]], Just as <- allApplyElims es -> compData (not $ null $ pcons) (pars+ixs) cmd l (as <$ t) sbA sphi u u0
                      -- postulates with no arguments do not need to transport.
                      Axiom{} | [] <- es, DoTransp <- cmd -> redReturn $ unArg u0
                      _          -> fallback
@@ -1263,7 +1263,7 @@ primTransHComp cmd ts nelims = do
            lam2Abs (Lam _ t) = t
            lam2Abs t         = Abs "y" (raise 1 t `apply` [argN $ var 0])
 
-    compData _ cmd@DoHComp (IsNot l) (IsNot ps) fsc sphi (Just u) a0 = do
+    compData False _ cmd@DoHComp (IsNot l) (IsNot ps) fsc sphi (Just u) a0 = do
       let getTermLocal = getTerm $ cmdToName cmd ++ " for data types"
 
       let sc = famThing <$> fsc
@@ -1298,23 +1298,20 @@ primTransHComp cmd ts nelims = do
           ifM (not <$> sameConHead h u) noRed $ do
             Constructor{ conComp = (cm,_) } <- theDef <$> getConstInfo (conName h)
             case nameOfHComp cm of
-              Just hcompD -> redReturn $ Def hcompD [] `apply` -- TODO pick the right one
+              Just hcompD -> redReturn $ Def hcompD [] `apply`
                                           (ps ++ map argN [phi,u,a0])
               Nothing        -> noRed
         _ -> noRed
-    compData 0 DoTransp (IsFam l) (IsFam ps) fsc sphi Nothing a0 = redReturn $ unArg a0
-    compData _ cmd@DoTransp (IsFam l) (IsFam ps) fsc sphi Nothing a0 = do
+    compData _     0 DoTransp (IsFam l) (IsFam ps) fsc sphi Nothing a0 = redReturn $ unArg a0
+    compData isHIT _ cmd@DoTransp (IsFam l) (IsFam ps) fsc sphi Nothing a0 = do
       let getTermLocal = getTerm $ cmdToName cmd ++ " for data types"
-
       let sc = famThing <$> fsc
-      tEmpty <- getTermLocal builtinIsOneEmpty
+      mhcompName <- getName' builtinHComp
       constrForm <- do
         mz <- getTerm' builtinZero
         ms <- getTerm' builtinSuc
         return $ \ t -> fromMaybe t (constructorForm' mz ms t)
       sa0 <- reduceB' a0
-      view   <- intervalView'
-      unview <- intervalUnview'
       let f = unArg . ignoreBlocking
           phi = f sphi
           a0 = f sa0
@@ -1324,11 +1321,24 @@ primTransHComp cmd ts nelims = do
         Con h _ args -> do
           Constructor{ conComp = (cm,_) } <- theDef <$> getConstInfo (conName h)
           case nameOfTransp cm of
-              Just transpD -> redReturn $ Def transpD [] `apply` -- TODO pick the right one
+              Just transpD -> redReturn $ Def transpD [] `apply`
                                           (map (fmap lam_i) ps ++ map argN [phi,a0])
               Nothing        -> noRed
+        Def q es | isHIT, Just q == mhcompName, Just [_l0,_c0,psi,u,u0] <- allApplyElims es -> do
+           let bC = ignoreBlocking sc
+           hcomp <- getTermLocal builtinHComp
+           transp <- getTermLocal builtinTrans
+           io <- getTermLocal builtinIOne
+           iz <- getTermLocal builtinIZero
+           (redReturn =<<) . runNamesT [] $ do
+             [l,bC,phi,psi,u,u0] <- mapM (open . unArg) [l,bC,ignoreBlocking sphi,psi,u,u0]
+             -- hcomp (sc 1) [psi |-> transp sc phi u] (transp sc phi u0)
+             pure hcomp <#> (l <@> pure io) <#> (bC <@> pure io) <#> psi
+                   <@> (lam "j" $ \ j -> ilam "o" $ \ o ->
+                        pure transp <#> l <@> bC <@> phi <@> (u <@> j <..> o))
+                   <@> (pure transp <#> l <@> bC <@> phi <@> u0)
         _ -> noRed
-    compData _ _ _ _ _ _ _ _ = __IMPOSSIBLE__
+    compData _ _ _ _ _ _ _ _ _ = __IMPOSSIBLE__
     compPO = __IMPOSSIBLE__
 
 primComp :: TCM PrimitiveImpl
@@ -1586,7 +1596,7 @@ primEraseEquality :: TCM PrimitiveImpl
 primEraseEquality = do
   -- primEraseEquality is incompatible with --without-K
   -- We raise an error warning if --safe is set and a mere warning otherwise
-  whenM (optWithoutK <$> pragmaOptions) $
+  whenM withoutKOption $
     ifM (Lens.getSafeMode <$> commandLineOptions)
       {- then -} (warning SafeFlagWithoutKFlagPrimEraseEquality)
       {- else -} (warning WithoutKFlagPrimEraseEquality)
@@ -2062,11 +2072,11 @@ primitiveFunctions = Map.fromList
   , "primForceLemma"      |-> primForceLemma
   , "primQNameEquality"   |-> mkPrimFun2 ((==) :: Rel QName)
   , "primQNameLess"       |-> mkPrimFun2 ((<) :: Rel QName)
-  , "primShowQName"       |-> mkPrimFun1 (Str . show :: QName -> Str)
+  , "primShowQName"       |-> mkPrimFun1 (Str . prettyShow :: QName -> Str)
   , "primQNameFixity"     |-> mkPrimFun1 (nameFixity . qnameName)
   , "primMetaEquality"    |-> mkPrimFun2 ((==) :: Rel MetaId)
   , "primMetaLess"        |-> mkPrimFun2 ((<) :: Rel MetaId)
-  , "primShowMeta"        |-> mkPrimFun1 (Str . show . pretty :: MetaId -> Str)
+  , "primShowMeta"        |-> mkPrimFun1 (Str . prettyShow :: MetaId -> Str)
   , "primIMin"            |-> primIMin'
   , "primIMax"            |-> primIMax'
   , "primINeg"            |-> primINeg'
@@ -2098,7 +2108,7 @@ lookupPrimitiveFunction x =
 lookupPrimitiveFunctionQ :: QName -> TCM (String, PrimitiveImpl)
 lookupPrimitiveFunctionQ q = do
   let s = case qnameName q of
-            Name _ x _ _ -> prettyShow x
+            Name _ x _ _ _ -> prettyShow x
   PrimImpl t pf <- lookupPrimitiveFunction s
   return (s, PrimImpl t $ pf { primFunName = q })
 

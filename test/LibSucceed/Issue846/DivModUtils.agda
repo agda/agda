@@ -10,7 +10,6 @@ open import Data.Nat.Solver
 open import Data.Fin using (Fin; toℕ; zero; suc; fromℕ≤)
 open import Data.Fin.Properties using ( toℕ<n; toℕ-fromℕ≤; toℕ-injective )
 open import Relation.Binary.PropositionalEquality
-open import Relation.Binary.PropositionalEquality.WithK
 open import Function
 open import Data.Product
 open import Relation.Binary hiding (NonEmpty)

@@ -52,9 +52,10 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.With
 import Agda.TypeChecking.Coverage
+import Agda.TypeChecking.Coverage.Match ( SplitPattern )
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Irrelevance (wakeIrrelevantVars)
-import Agda.TypeChecking.Pretty (prettyTCM)
+import Agda.TypeChecking.Pretty ( PrettyTCM, prettyTCM )
 import Agda.TypeChecking.Primitive
 import Agda.TypeChecking.Names
 import Agda.TypeChecking.Free
@@ -472,7 +473,7 @@ instance (Pretty a, Pretty b) => Pretty (OutputForm a b) where
     where
       prange r | null s = empty
                | otherwise = text $ " [ at " ++ s ++ " ]"
-        where s = show r
+        where s = prettyShow r
 
 instance (Pretty a, Pretty b) => Pretty (OutputConstraint a b) where
   pretty oc =
@@ -814,11 +815,12 @@ withMetaId m ret = do
   mv <- lookupMeta m
   withMetaInfo' mv ret
 
--- The intro tactic
-
+-- | The intro tactic.
+--
 -- Returns the terms (as strings) that can be
 -- used to refine the goal. Uses the coverage checker
 -- to find out which constructors are possible.
+--
 introTactic :: Bool -> InteractionId -> TCM [String]
 introTactic pmLambda ii = do
   mi <- lookupInteractionId ii
@@ -855,11 +857,14 @@ introTactic pmLambda ii = do
      `catchError` \_ -> return []
     _ -> __IMPOSSIBLE__
   where
+    conName :: [NamedArg SplitPattern] -> [I.ConHead]
     conName [p] = [ c | I.ConP c _ _ <- [namedArg p] ]
     conName _   = __IMPOSSIBLE__
 
-    showTCM v = show <$> prettyTCM v
+    showTCM :: PrettyTCM a => a -> TCM String
+    showTCM v = render <$> prettyTCM v
 
+    introFun :: ListTel -> TCM [String]
     introFun tel = addContext tel' $ do
         reportSDoc "interaction.intro" 10 $ do "introFun" TP.<+> prettyTCM (telFromList tel)
         imp <- showImplicitArguments
@@ -884,6 +889,7 @@ introTactic pmLambda ii = do
         makeName ("_", t) = ("x", t)
         makeName (x, t)   = (x, t)
 
+    introData :: I.Type -> TCM [String]
     introData t = do
       let tel  = telFromList [defaultDom ("_", t)]
           pat  = [defaultArg $ unnamed $ debruijnNamedVar "c" 0]
@@ -901,6 +907,10 @@ introTactic pmLambda ii = do
       let e = C.Rec noRange $ for fs $ \ f ->
             Left $ C.FieldAssignment f $ C.QuestionMark noRange Nothing
       return [ prettyShow e ]
+      -- Andreas, 2019-02-25, remark:
+      -- prettyShow is ok here since we are just printing something like
+      -- record { f1 = ? ; ... ; fn = ?}
+      -- which does not involve any qualified names, and the fi are C.Name.
 
 -- | Runs the given computation as if in an anonymous goal at the end
 --   of the top-level module.

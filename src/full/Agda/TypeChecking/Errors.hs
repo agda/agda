@@ -185,7 +185,8 @@ prettyWarning wng = liftTCM $ case wng of
 
     EmptyRewritePragma -> fsep . pwords $ "Empty REWRITE pragma"
 
-    IllformedAsClause -> fsep . pwords $ "`as' must be followed by an unqualified name"
+    IllformedAsClause s -> fsep . pwords $
+      "`as' must be followed by an identifier" ++ s
 
     UselessPublic -> fwords $ "Keyword `public' is ignored here"
 
@@ -236,7 +237,7 @@ prettyWarning wng = liftTCM $ case wng of
 
     SafeFlagWithoutKFlagPrimEraseEquality -> fsep (pwords "Cannot use primEraseEquality with safe and without-K flags.")
 
-    WithoutKFlagPrimEraseEquality -> fsep (pwords "Using primEraseEquality with the without-K flag is inconsistent.")
+    WithoutKFlagPrimEraseEquality -> fsep (pwords "Using primEraseEquality implies K, but you have the without-K flag enabled.")
 
     SafeFlagNoPositivityCheck -> fsep $
       pwords "Cannot use NO_POSITIVITY_CHECK pragma with safe flag."

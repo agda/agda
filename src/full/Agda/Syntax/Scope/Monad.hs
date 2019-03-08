@@ -212,6 +212,7 @@ freshAbstractName fx x = do
     , nameConcrete    = x
     , nameBindingSite = getRange x
     , nameFixity      = fx
+    , nameIsRecordName = False
     }
 
 -- | @freshAbstractName_ = freshAbstractName noFixity'@

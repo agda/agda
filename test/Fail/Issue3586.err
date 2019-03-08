@@ -1,0 +1,4 @@
+Issue3586.agda:15,1-14
+y ^ z is not a valid pattern
+when scope checking the left-hand side foo x@(y ^ z) in the
+definition of foo

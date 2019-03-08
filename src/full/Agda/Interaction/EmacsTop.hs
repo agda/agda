@@ -138,7 +138,7 @@ lispifyResponse (Resp_SolveAll ps) = return
       L [ A "agda2-solveAll-action", Q . L $ concatMap prn ps ]
   ]
   where
-    prn (ii,e)= [showNumIId ii, A $ quote $ show e]
+    prn (ii,e)= [showNumIId ii, A $ quote $ prettyShow e]
 
 -- | Adds a \"last\" tag to a response.
 
@@ -148,4 +148,4 @@ lastTag n r = Cons (Cons (A "last") (A $ show n)) r
 -- | Show an iteraction point identifier as an elisp expression.
 
 showNumIId :: InteractionId -> Lisp String
-showNumIId = A . tail . show
+showNumIId = A . show . interactionId

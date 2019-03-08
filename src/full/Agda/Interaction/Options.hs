@@ -1,4 +1,5 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP       #-}
+{-# LANGUAGE DataKinds #-}
 
 module Agda.Interaction.Options
     ( CommandLineOptions(..)
@@ -71,6 +72,7 @@ import Agda.Utils.Monad         ( ifM, readM )
 import Agda.Utils.String        ( indent )
 import Agda.Utils.Trie          ( Trie )
 import qualified Agda.Utils.Trie as Trie
+import Agda.Utils.WithDefault
 
 import Agda.Version
 -- Paths_Agda.hs is in $(BUILD_DIR)/build/autogen/.
@@ -143,13 +145,13 @@ data PragmaOptions = PragmaOptions
   , optCompletenessCheck         :: Bool
   , optUniverseCheck             :: Bool
   , optOmegaInOmega              :: Bool
-  , optSizedTypes                :: Bool
-  , optGuardedness               :: Bool
+  , optSizedTypes                :: WithDefault 'True
+  , optGuardedness               :: WithDefault 'True
   , optInjectiveTypeConstructors :: Bool
   , optUniversePolymorphism      :: Bool
   , optIrrelevantProjections     :: Bool
   , optExperimentalIrrelevance   :: Bool  -- ^ irrelevant levels, irrelevant data matching
-  , optWithoutK                  :: Bool
+  , optWithoutK                  :: WithDefault 'False
   , optCopatterns                :: Bool  -- ^ Allow definitions by copattern matching?
   , optPatternMatching           :: Bool  -- ^ Is pattern matching allowed in the current file?
   , optExactSplit                :: Bool
@@ -246,11 +248,11 @@ defaultPragmaOptions = PragmaOptions
   , optCompletenessCheck         = True
   , optUniverseCheck             = True
   , optOmegaInOmega              = False
-  , optSizedTypes                = True
-  , optGuardedness               = True
+  , optSizedTypes                = Default
+  , optGuardedness               = Default
   , optInjectiveTypeConstructors = False
   , optUniversePolymorphism      = True
-  , optWithoutK                  = False
+  , optWithoutK                  = Default
   , optCopatterns                = True
   , optPatternMatching           = True
   , optExactSplit                = False
@@ -364,13 +366,15 @@ unsafePragmaOptions opts =
   [ "--no-termination-check"                     | not (optTerminationCheck opts)    ] ++
   [ "--type-in-type"                             | not (optUniverseCheck opts)       ] ++
   [ "--omega-in-omega"                           | optOmegaInOmega opts              ] ++
-  -- [ "--sized-types"                              | optSizedTypes opts                ] ++
-  [ "--sized-types and --guardedness"            | optSizedTypes opts, optGuardedness opts ] ++
+-- [ "--sized-types"                              | optSizedTypes opts                ] ++
+  [ "--sized-types and --guardedness"            | collapseDefault (optSizedTypes opts)
+                                                 , collapseDefault (optGuardedness opts) ] ++
   [ "--injective-type-constructors"              | optInjectiveTypeConstructors opts ] ++
   [ "--irrelevant-projections"                   | optIrrelevantProjections opts     ] ++
   [ "--experimental-irrelevance"                 | optExperimentalIrrelevance opts   ] ++
   [ "--rewriting"                                | optRewriting opts                 ] ++
-  [ "--cubical and --with-K"                     | optCubical opts, not $ optWithoutK opts ] ++
+  [ "--cubical and --with-K"                     | optCubical opts
+                                                 , not (collapseDefault $ optWithoutK opts) ] ++
   []
 
 -- | If any these options have changed, then the file will be
@@ -386,14 +390,14 @@ restartOptions =
   , (B . optTerminationCheck,  "--no-termination-check")
   , (B . not . optUniverseCheck, "--type-in-type")
   , (B . optOmegaInOmega, "--omega-in-omega")
-  , (B . not . optSizedTypes, "--no-sized-types")
-  , (B . not . optGuardedness, "--no-guardedness")
+  , (B . not . collapseDefault . optSizedTypes, "--no-sized-types")
+  , (B . not . collapseDefault . optGuardedness, "--no-guardedness")
   , (B . optInjectiveTypeConstructors, "--injective-type-constructors")
   , (B . optProp, "--prop")
   , (B . not . optUniversePolymorphism, "--no-universe-polymorphism")
   , (B . optIrrelevantProjections, "--irrelevant-projections")
   , (B . optExperimentalIrrelevance, "--experimental-irrelevance")
-  , (B . optWithoutK, "--without-K")
+  , (B . collapseDefault . optWithoutK, "--without-K")
   , (B . optExactSplit, "--exact-split")
   , (B . not . optEta, "--no-eta-equality")
   , (B . optRewriting, "--rewriting")
@@ -428,10 +432,10 @@ infectiveOptions =
 coinfectiveOptions :: [(PragmaOptions -> Bool, String)]
 coinfectiveOptions =
   [ (optSafe, "--safe")
-  , (optWithoutK, "--without-K")
+  , (collapseDefault . optWithoutK, "--without-K")
   , (not . optUniversePolymorphism, "--no-universe-polymorphism")
-  , (not . optSizedTypes, "--no-sized-types")
-  , (not  . optGuardedness, "--no-guardedness")
+  , (not . collapseDefault . optSizedTypes, "--no-sized-types")
+  , (not . collapseDefault . optGuardedness, "--no-guardedness")
   ]
 
 inputFlag :: FilePath -> Flag CommandLineOptions
@@ -451,10 +455,13 @@ helpFlag (Just str) o = case string2HelpTopic str of
                            intercalate ", " (map fst allHelpTopics) ++ ")"
 
 safeFlag :: Flag PragmaOptions
-safeFlag o = return $ o { optSafe        = True
-                        , optGuardedness = False
-                        , optSizedTypes  = False
-                        }
+safeFlag o = do
+  let guardedness = optGuardedness o
+  let sizedTypes  = optSizedTypes o
+  return $ o { optSafe        = True
+             , optGuardedness = setDefault False guardedness
+             , optSizedTypes  = setDefault False sizedTypes
+             }
 
 doubleCheckFlag :: Flag PragmaOptions
 doubleCheckFlag o = return $ o { optDoubleCheck = True }
@@ -576,18 +583,16 @@ noEtaFlag :: Flag PragmaOptions
 noEtaFlag o = return $ o { optEta = False }
 
 sizedTypes :: Flag PragmaOptions
-sizedTypes o = return $ o { optSizedTypes = True }
+sizedTypes o = return $ o { optSizedTypes = Value True }
 
 noSizedTypes :: Flag PragmaOptions
-noSizedTypes o = return $ o { optSizedTypes = False }
+noSizedTypes o = return $ o { optSizedTypes = Value False }
 
 guardedness :: Flag PragmaOptions
-guardedness o = return $ o { optGuardedness = True
-                        -- , optSizedTypes  = False
-                           }
+guardedness o = return $ o { optGuardedness = Value True }
 
 noGuardedness :: Flag PragmaOptions
-noGuardedness o = return $ o { optGuardedness = False }
+noGuardedness o = return $ o { optGuardedness = Value False }
 
 injectiveTypeConstructorFlag :: Flag PragmaOptions
 injectiveTypeConstructorFlag o = return $ o { optInjectiveTypeConstructors = True }
@@ -606,10 +611,10 @@ noForcingFlag :: Flag CommandLineOptions
 noForcingFlag o = return $ o { optForcing = False }
 
 withKFlag :: Flag PragmaOptions
-withKFlag o = return $ o { optWithoutK = False }
+withKFlag o = return $ o { optWithoutK = Value False }
 
 withoutKFlag :: Flag PragmaOptions
-withoutKFlag o = return $ o { optWithoutK = True }
+withoutKFlag o = return $ o { optWithoutK = Value True }
 
 copatternsFlag :: Flag PragmaOptions
 copatternsFlag o = return $ o { optCopatterns = True }
@@ -638,7 +643,11 @@ rewritingFlag :: Flag PragmaOptions
 rewritingFlag o = return $ o { optRewriting = True }
 
 cubicalFlag :: Flag PragmaOptions
-cubicalFlag o = return $ o { optCubical = True, optWithoutK = True }
+cubicalFlag o = do
+  let withoutK = optWithoutK o
+  return $ o { optCubical  = True
+             , optWithoutK = setDefault True withoutK
+             }
 
 postfixProjectionsFlag :: Flag PragmaOptions
 postfixProjectionsFlag o = return $ o { optPostfixProjections = True }
