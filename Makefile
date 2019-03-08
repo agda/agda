@@ -298,7 +298,7 @@ library-test : # up-to-date-std-lib
 	(cd std-lib && runhaskell GenerateEverything.hs && \
           time $(AGDA_BIN) --ignore-interfaces --no-default-libraries -v profile:$(PROFVERB) \
                            -i. -isrc README.agda \
-                           +RTS -s -H1G -M1.5G)
+                           +RTS -s -H2G -M2.5G)
 
 .PHONY : continue-library-test
 continue-library-test :
