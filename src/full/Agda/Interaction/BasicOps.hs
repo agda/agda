@@ -1053,6 +1053,9 @@ introTactic pmLambda ii = do
     conName [p] = [ c | I.ConP c _ _ <- [namedArg p] ]
     conName _   = __IMPOSSIBLE__
 
+    showUnambiguousConName v =
+       render <$> pretty <$> runAbsToCon (lookupQName AmbiguousNothing $ I.conName v)
+
     showTCM :: PrettyTCM a => a -> TCM String
     showTCM v = render <$> prettyTCM v
 
@@ -1088,7 +1091,8 @@ introTactic pmLambda ii = do
       r <- splitLast CoInductive tel pat
       case r of
         Left err -> return []
-        Right cov -> mapM showTCM $ concatMap (conName . scPats) $ splitClauses cov
+        Right cov ->
+           mapM showUnambiguousConName $ concatMap (conName . scPats) $ splitClauses cov
 
     introRec :: QName -> TCM [String]
     introRec d = do
