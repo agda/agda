@@ -52,7 +52,7 @@ import Agda.TypeChecking.Coverage.SplitTree
 
 import Agda.TypeChecking.Conversion (tryConversion, equalType, equalTermOnFace)
 import Agda.TypeChecking.Datatypes (getConForm)
-import {-# SOURCE #-} Agda.TypeChecking.Empty (isEmptyTel)
+import {-# SOURCE #-} Agda.TypeChecking.Empty ( isEmptyTel, isEmptyType )
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.Patterns.Internal (dotPatternsToPatterns)
@@ -1169,7 +1169,8 @@ data AllowPartialCover
 
 -- | Entry point from @Interaction.MakeCase@.
 splitClauseWithAbsurd :: SplitClause -> Nat -> TCM (Either SplitError (Either SplitClause Covering))
-splitClauseWithAbsurd c x = split' Inductive NoAllowPartialCover NoFixTarget c (BlockingVar x [] [] True)
+splitClauseWithAbsurd c x =
+  split' CheckEmpty Inductive NoAllowPartialCover NoFixTarget c (BlockingVar x [] [] True)
   -- Andreas, 2016-05-03, issue 1950:
   -- Do not introduce trailing pattern vars after split,
   -- because this does not work for with-clauses.
@@ -1202,7 +1203,7 @@ split :: Induction
       -> BlockingVar
       -> TCM (Either SplitError Covering)
 split ind allowPartialCover sc x =
-  fmap blendInAbsurdClause <$> split' ind allowPartialCover YesFixTarget sc x
+  fmap blendInAbsurdClause <$> split' NoCheckEmpty ind allowPartialCover YesFixTarget sc x
   where
     n = lookupPatternVar sc $ blockingVarNo x
     blendInAbsurdClause :: Either SplitClause Covering -> Covering
@@ -1221,7 +1222,10 @@ lookupPatternVar SClause{ scTel = tel, scPats = pats } x = arg $>
         k = size tel - x - 1
         arg = indexWithDefault __IMPOSSIBLE__ (telVars (size tel) tel) k
 
--- | @split' ind splitClause x = return res@
+
+data CheckEmpty = CheckEmpty | NoCheckEmpty
+
+-- | @split' ind pc ft splitClause x = return res@
 --   splits @splitClause@ at pattern var @x@ (de Bruijn index).
 --
 --   Possible results @res@ are:
@@ -1235,7 +1239,11 @@ lookupPatternVar SClause{ scTel = tel, scPats = pats } x = arg $>
 --   3. @Right (Right covering)@:
 --      A covering set of split clauses, one for each valid constructor.
 
-split' :: Induction
+split' :: CheckEmpty
+          -- ^ Use isEmptyType to check whether the type of the variable to
+          -- split on is empty. This switch is necessary to break the cycle
+          -- between split' and isEmptyType.
+       -> Induction
           -- ^ Coinductive constructors are allowed if this argument is
           -- 'CoInductive'.
        -> AllowPartialCover
@@ -1246,7 +1254,8 @@ split' :: Induction
        -> SplitClause
        -> BlockingVar
        -> TCM (Either SplitError (Either SplitClause Covering))
-split' ind allowPartialCover fixtarget sc@(SClause tel ps _ cps target) (BlockingVar x pcons' plits overlap) =
+split' checkEmpty ind allowPartialCover fixtarget
+       sc@(SClause tel ps _ cps target) (BlockingVar x pcons' plits overlap) =
  liftTCM $ runExceptT $ do
   debugInit tel x ps cps
 
@@ -1261,8 +1270,11 @@ split' ind allowPartialCover fixtarget sc@(SClause tel ps _ cps target) (Blockin
         -- Check that t is a datatype or a record
         -- Andreas, 2010-09-21, isDatatype now directly throws an exception if it fails
         -- cons = constructors of this datatype
-        (dr, d, pars, ixs, cons, isHIT) <- inContextOfT $ isDatatype ind t
-        mns <- forM cons $ \ con -> fmap (SplitCon con,) <$>
+        (dr, d, pars, ixs, cons', isHIT) <- inContextOfT $ isDatatype ind t
+        cons <- case checkEmpty of
+          CheckEmpty   -> ifM (liftTCM $ isEmptyType $ unDom t) (pure []) (pure cons')
+          NoCheckEmpty -> pure cons'
+        mns  <- forM cons $ \ con -> fmap (SplitCon con,) <$>
           computeNeighbourhood delta1 n delta2 d pars ixs x tel ps cps con
         hcompsc <- if isHIT then case fixtarget of YesFixTarget -> computeHCompSplit delta1 n delta2 d pars ixs x tel ps cps; _ -> return Nothing
                             else return Nothing
