@@ -168,8 +168,7 @@ What can't be done to irrelevant arguments
   Cannot pattern match against irrelevant argument of type Nat
   when checking that the pattern zero has type Nat
 
-**Example 4.** We also can't match on an irrelevant record (see
-  :ref:`record-types`).
+**Example 4.** We also can't match on an irrelevant record (see :ref:`record-types`).
 
 .. code-block:: agda
 
@@ -225,7 +224,7 @@ Record fields (see :ref:`record-types`) can be marked as irrelevant by prefixing
       .prop1 : n + m ≡ n * m + 2
       .prop2 : suc m ≤ n
 
-**Example 2.** For any type ``A``, we can define a `squashed' version ``Squash A`` where all elements are equal. ::
+**Example 2.** For any type ``A``, we can define a 'squashed' version ``Squash A`` where all elements are equal. ::
 
   record Squash (A : Set) : Set where
     constructor squash

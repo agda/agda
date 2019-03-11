@@ -49,6 +49,7 @@ import Agda.TypeChecking.EtaContract
 import Agda.TypeChecking.Generalize
 import Agda.TypeChecking.Implicit
 import Agda.TypeChecking.Irrelevance
+import Agda.TypeChecking.IApplyConfluence
 import Agda.TypeChecking.Level
 import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.Names
@@ -625,6 +626,9 @@ checkExtendedLambda cmp i di qname cs e t = do
          useTerPragma $
            (defaultDefn info qname t emptyFunction) { defMutual = j }
        checkFunDef' t info NotDelayed (Just $ ExtLamInfo lamMod Nothing) Nothing di qname cs
+       whenNothingM (asksTC envMutualBlock) $
+         -- Andrea 10-03-2018: Should other checks be performed here too? e.g. termination/positivity/..
+         checkIApplyConfluence_ qname
        return $ Def qname $ map Apply args)
   where
     -- Concrete definitions cannot use information about abstract things.
