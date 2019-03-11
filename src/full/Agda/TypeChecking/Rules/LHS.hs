@@ -1483,7 +1483,11 @@ isDataOrRecordType a = liftTCM (reduceB a) >>= \case
       Function{}    -> hardTypeError =<< notData
 
       Constructor{} -> __IMPOSSIBLE__
-      Primitive{}   -> __IMPOSSIBLE__
+
+      -- Issue #3620: Some primitives are types too.
+      -- Not data though, at least currently 11/03/2018.
+      Primitive{}   -> hardTypeError =<< notData
+
       GeneralizableVar{} -> __IMPOSSIBLE__
 
     -- variable or metavariable: fail softly

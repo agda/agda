@@ -1,0 +1,5 @@
+Issue3620.agda:16,8-12
+Cannot split on argument of non-datatype
+primGlue Bool (?0 (φ = φ)) (?1 (φ = φ))
+when checking that the pattern true has type
+primGlue Bool (?0 (φ = φ)) (?1 (φ = φ))
