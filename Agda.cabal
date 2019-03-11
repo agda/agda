@@ -564,7 +564,6 @@ library
 
   -- Initially, we disable all the warnings.
   ghc-options: -w
-               -Werror
 
   -- This option must be the first one after disabling the warnings. See
   -- Issue #2094.
@@ -619,8 +618,6 @@ library
 
   if impl(ghc >= 8.6)
     ghc-options: -Winaccessible-code
-
-  ghc-prof-options: -fprof-auto
 
   default-language: Haskell2010
 
@@ -814,7 +811,6 @@ test-suite agda-tests
   -- Initially, we disable all the warnings.
   ghc-options: -threaded
                -w
-               -Werror
 
   -- This option must be the first one after disabling the warnings. See
   -- Issue #2094.
