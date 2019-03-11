@@ -106,7 +106,7 @@ followed:
   first):
 
     cd $BASE
-    git tag -a v$RC_VERSION -m "Agda $MAJORVERSION release candidate n"
+    git tag -a v$RC_VERSION -m "Agda $MAJORVERSION release candidate"
 
 * Upload to Hackage the RC (tested with cabal-install >= 2.0.0.0):
 
