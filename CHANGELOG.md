@@ -424,6 +424,11 @@ Interaction and error reporting
 Pragmas and options
 -------------------
 
+* New option `--cubical` to enable support for path equality and
+  related features from [Cubical Type Theory](https://arxiv.org/abs/1611.02108),
+  including univalence and higher inductive types.
+  See `Cubical` in the documentation for more info.
+
 * New options `--guardedness` and `--no-guardedness` [Issue
   [#1209](https://github.com/agda/agda/issues/1209)].
 
