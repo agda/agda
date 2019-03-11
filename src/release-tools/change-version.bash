@@ -3,7 +3,7 @@
 # Change Agda version in all files.
 
 # Usage: From the repository root directory run
-#  ./change-version.bash old_version new_version
+#   ./src/release-tools/change-version.bash old_version new_version
 
 old_version="$1"
 new_version="$2"
