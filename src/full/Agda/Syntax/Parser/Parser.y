@@ -2245,8 +2245,8 @@ instance SetRange Attr where
   setRange r (Attr _ x a) = Attr r x a
 
 -- | Parse an attribute.
-toAttribute :: (HasRange e, Pretty e) => e -> Parser Attr
-toAttribute x = maybe failure (return . Attr (getRange x) y) $ stringToAttribute y
+toAttribute :: Expr -> Parser Attr
+toAttribute x = maybe failure (return . Attr (getRange x) y) $ exprToAttribute x
   where
   y = prettyShow x
   failure = parseErrorRange x $ "Unknown attribute: " ++ y

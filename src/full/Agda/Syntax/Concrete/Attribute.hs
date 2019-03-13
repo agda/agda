@@ -16,6 +16,10 @@ import Data.Maybe
 
 import Agda.Syntax.Common
 import Agda.Syntax.Concrete.Name
+import Agda.Syntax.Concrete (Expr(..))
+import Agda.Syntax.Concrete.Pretty
+
+import Agda.Utils.Pretty (prettyShow)
 
 -- import Agda.Utils.Functor
 
@@ -61,6 +65,11 @@ attributesMap = Map.fromList $ concat
 
 stringToAttribute :: String -> Maybe Attribute
 stringToAttribute = (`Map.lookup` attributesMap)
+
+-- | Parsing an expression into an attribute.
+
+exprToAttribute :: Expr -> Maybe Attribute
+exprToAttribute = stringToAttribute . prettyShow
 
 -- | Setting an attribute (in e.g. an 'Arg').  Overwrites previous value.
 
