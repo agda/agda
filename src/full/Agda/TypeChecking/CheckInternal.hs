@@ -139,7 +139,7 @@ eraseUnusedAction = defaultAction { postAction = eraseUnused }
     eraseIfNonvariant :: [Polarity] -> Elims -> Elims
     eraseIfNonvariant []                  es             = es
     eraseIfNonvariant pols                []             = []
-    eraseIfNonvariant (Nonvariant : pols) (e : es) = (fmap DontCare e) : eraseIfNonvariant pols es
+    eraseIfNonvariant (Nonvariant : pols) (e : es) = (fmap dontCare e) : eraseIfNonvariant pols es
     eraseIfNonvariant (_          : pols) (e : es) = e : eraseIfNonvariant pols es
 
 -- | Entry point for term checking.
