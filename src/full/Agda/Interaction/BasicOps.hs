@@ -15,6 +15,7 @@ import Control.Monad.Reader
 import Control.Monad.State
 import Control.Monad.Identity
 
+import qualified Data.IntMap as IntMap
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.List as List
@@ -637,8 +638,8 @@ typesOfVisibleMetas norm =
 typesOfHiddenMetas :: Rewrite -> TCM [OutputConstraint Expr NamedMeta]
 typesOfHiddenMetas norm = liftTCM $ do
   is    <- getInteractionMetas
-  store <- Map.filterWithKey (openAndImplicit is) <$> getMetaStore
-  mapM (typeOfMetaMI norm) $ Map.keys store
+  store <- IntMap.filterWithKey (openAndImplicit is . MetaId) <$> getMetaStore
+  mapM (typeOfMetaMI norm . MetaId) $ IntMap.keys store
   where
   openAndImplicit is x m =
     case mvInstantiation m of

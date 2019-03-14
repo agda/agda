@@ -21,6 +21,7 @@ import Data.Maybe
 import Data.Map (Map)
 import qualified Data.Sequence as Seq
 import qualified Data.Set as Set
+import qualified Data.IntSet as IntSet
 import qualified Data.Map as Map
 import Data.Set (Set)
 
@@ -235,8 +236,9 @@ checkDecl d = setCurrentRange d $ do
         case d of
             A.Generalize{} -> pure ()
             _ -> do
-                reportSLn "tc.decl" 20 $ "Freezing all metas."
-                forM_ metas $ \mi -> updateMetaVar mi $ \mv -> mv { mvFrozen = Frozen }
+              reportSLn "tc.decl" 20 $ "Freezing all metas."
+              void $ freezeMetas' $ \ (MetaId x) -> IntSet.member x metas
+
         theMutualChecks
 
     where
@@ -531,9 +533,9 @@ whenAbstractFreezeMetasAfter Info.DefInfo{ defAccess, defAbstract} m = do
   let pubAbs = defAccess == PublicAccess && defAbstract == AbstractDef
   if not pubAbs then m else do
     (a, ms) <- metasCreatedBy m
-    xs <- freezeMetas' $ (`Set.member` ms)
+    xs <- freezeMetas' $ (`IntSet.member` ms) . metaId
     reportSDoc "tc.decl.ax" 20 $ vcat
-      [ "Abstract type signature produced new metas: " <+> sep (map prettyTCM $ Set.toList ms)
+      [ "Abstract type signature produced new metas: " <+> sep (map prettyTCM $ IntSet.toList ms)
       , "We froze the following ones of these:       " <+> sep (map prettyTCM xs)
       ]
     return a

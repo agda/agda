@@ -706,7 +706,7 @@ catchIlltypedPatternBlockedOnMeta m handle = do
 
     -- The meta might not be known in the reset state, as it could have been created
     -- somewhere on the way to the type error.
-    Map.lookup x <$> getMetaStore >>= \case
+    lookupMeta' x >>= \case
       -- Case: we do not know the meta, so we reraise.
       Nothing -> reraise
       -- Case: we know the meta here.
@@ -1239,7 +1239,7 @@ unquoteTactic tac hole goal k = do
   case ok of
     Left (BlockedOnMeta oldState x) -> do
       putTC oldState
-      mi <- Map.lookup x <$> getMetaStore
+      mi <- lookupMeta' x
       (r, unblock) <- case mi of
         Nothing -> do -- fresh meta: need to block on something else!
           otherMetas <- allMetas <$> instantiateFull goal

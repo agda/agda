@@ -10,6 +10,10 @@ import Control.Monad.State
 import Control.Monad.Reader
 import Control.Monad.Writer
 
+import Data.IntMap (IntMap)
+import qualified Data.IntMap as IntMap
+import Data.IntSet (IntSet)
+import qualified Data.IntSet as IntSet
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Set (Set)
@@ -59,20 +63,28 @@ modifyMetaStore :: (MetaStore -> MetaStore) -> TCM ()
 modifyMetaStore f = stMetaStore `modifyTCLens` f
 
 -- | Run a computation and record which new metas it created.
-metasCreatedBy :: TCM a -> TCM (a, Set MetaId)
+metasCreatedBy :: TCM a -> TCM (a, IntSet)
 metasCreatedBy m = do
-  before <- Map.keysSet <$> useTC stMetaStore
+  before <- IntMap.keysSet <$> useTC stMetaStore
   a <- m
-  after  <- Map.keysSet <$> useTC stMetaStore
-  return (a, after Set.\\ before)
+  after  <- IntMap.keysSet <$> useTC stMetaStore
+  return (a, after IntSet.\\ before)
 
--- | Lookup a meta variable
+-- | Lookup a meta variable.
+lookupMeta' :: MetaId -> TCM (Maybe MetaVariable)
+lookupMeta' m = IntMap.lookup (metaId m) <$> getMetaStore
+
 lookupMeta :: MetaId -> TCM MetaVariable
-lookupMeta m = fromMaybeM failure $ Map.lookup m <$> getMetaStore
+lookupMeta m = fromMaybeM failure $ lookupMeta' m
   where failure = fail $ "no such meta variable " ++ prettyShow m
 
+-- | Update the information associated with a meta variable.
 updateMetaVar :: MetaId -> (MetaVariable -> MetaVariable) -> TCM ()
-updateMetaVar m f = modifyMetaStore $ Map.adjust f m
+updateMetaVar m f = modifyMetaStore $ IntMap.adjust f $ metaId m
+
+-- | Insert a new meta variable with associated information into the meta store.
+insertMetaVar :: MetaId -> MetaVariable -> TCM ()
+insertMetaVar m mv = modifyMetaStore $ IntMap.insert (metaId m) mv
 
 getMetaPriority :: MetaId -> TCM MetaPriority
 getMetaPriority = mvPriority <.> lookupMeta
@@ -352,7 +364,7 @@ newMeta' inst mi p perm j = do
                   , mvFrozen           = Instantiable }
   -- printing not available (import cycle)
   -- reportSDoc "tc.meta.new" 50 $ "new meta" <+> prettyTCM j'
-  stMetaStore `modifyTCLens` Map.insert x mv
+  insertMetaVar x mv
   return x
 
 -- | Get the 'Range' for an interaction point.
@@ -374,10 +386,13 @@ withMetaInfo :: Closure Range -> TCM a -> TCM a
 withMetaInfo mI cont = enterClosure mI $ \ r ->
   setCurrentRange r cont
 
+getMetaVariableSet :: TCM IntSet
+getMetaVariableSet = IntMap.keysSet <$> getMetaStore
+
 getMetaVariables :: (MetaVariable -> Bool) -> TCM [MetaId]
 getMetaVariables p = do
   store <- getMetaStore
-  return [ i | (i, mv) <- Map.assocs store, p mv ]
+  return [ MetaId i | (i, mv) <- IntMap.assocs store, p mv ]
 
 getInstantiatedMetas :: TCM [MetaId]
 getInstantiatedMetas = getMetaVariables (isInst . mvInstantiation)
@@ -435,7 +450,7 @@ freezeMetas = freezeMetas' $ const True
 
 -- | Freeze some meta variables and return the list of metas that got frozen.
 freezeMetas' :: (MetaId -> Bool) -> TCM [MetaId]
-freezeMetas' p = execWriterT $ modifyTCLensM stMetaStore $ Map.traverseWithKey freeze
+freezeMetas' p = execWriterT $ modifyTCLensM stMetaStore $ IntMap.traverseWithKey (freeze . MetaId)
   where
   freeze :: Monad m => MetaId -> MetaVariable -> WriterT [MetaId] m MetaVariable
   freeze m mvar
@@ -450,7 +465,8 @@ unfreezeMetas = unfreezeMetas' $ const True
 
 -- | Thaw some metas, as indicated by the passed condition.
 unfreezeMetas' :: (MetaId -> Bool) -> TCM ()
-unfreezeMetas' cond = modifyMetaStore $ Map.mapWithKey unfreeze where
+unfreezeMetas' cond = modifyMetaStore $ IntMap.mapWithKey $ unfreeze . MetaId
+  where
   unfreeze :: MetaId -> MetaVariable -> MetaVariable
   unfreeze m mvar
     | cond m    = mvar { mvFrozen = Instantiable }

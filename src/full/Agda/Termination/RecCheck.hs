@@ -23,6 +23,7 @@ import Control.Applicative
 import Data.Graph
 import Data.List (nub)
 import qualified Data.Map as Map
+import qualified Data.IntMap as IntMap
 
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Defs
@@ -73,7 +74,7 @@ anyDefs :: GetDefs a => [QName] -> a -> TCM [QName]
 anyDefs names a = do
   -- Prepare function to lookup metas outside of TCM
   st <- getMetaStore
-  let lookup x = case mvInstantiation <$> Map.lookup x st of
+  let lookup (MetaId x) = case mvInstantiation <$> IntMap.lookup x st of
         Just (InstV _ v) -> Just v    -- TODO: ignoring the lambdas might be bad?
         _                -> Nothing
       -- we collect only those used definitions that are in @names@

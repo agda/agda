@@ -346,7 +346,7 @@ initPostScopeState :: PostScopeState
 initPostScopeState = PostScopeState
   { stPostSyntaxInfo           = mempty
   , stPostDisambiguatedNames   = IntMap.empty
-  , stPostMetaStore            = Map.empty
+  , stPostMetaStore            = IntMap.empty
   , stPostInteractionPoints    = Map.empty
   , stPostAwakeConstraints     = []
   , stPostSleepingConstraints  = []
@@ -1166,7 +1166,7 @@ instance Pretty NamedMeta where
   pretty (NamedMeta "_" x) = pretty x
   pretty (NamedMeta s  x) = text $ "_" ++ s ++ prettyShow x
 
-type MetaStore = Map MetaId MetaVariable
+type MetaStore = IntMap MetaVariable
 
 instance HasRange MetaInfo where
   getRange = clValue . miClosRange

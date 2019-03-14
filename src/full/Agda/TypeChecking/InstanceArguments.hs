@@ -15,6 +15,7 @@ import Prelude hiding ((<>))
 import Control.Applicative hiding (empty)
 import Control.Monad.Reader
 import Control.Monad.State
+import qualified Data.IntSet as IntSet
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.List as List
@@ -330,8 +331,9 @@ filterResetingState m cands f = do
 -- This is sufficient to reduce the list to a singleton should all be equal.
 dropSameCandidates :: MetaId -> [(Candidate, Term, Type, a)] -> TCM [(Candidate, Term, Type, a)]
 dropSameCandidates m cands0 = verboseBracket "tc.instance" 30 "dropSameCandidates" $ do
-  metas <- Set.fromList . Map.keys <$> getMetaStore
-  let freshMetas x = not $ Set.null $ Set.difference (Set.fromList $ allMetas x) metas
+  metas <- getMetaVariableSet
+  -- Does `it` have any metas in the initial meta variable store?
+  let freshMetas = any ((`IntSet.member` metas) . metaId) . allMetas
 
   -- Take overlappable candidates into account
   let cands =
