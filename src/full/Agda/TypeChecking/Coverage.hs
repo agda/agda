@@ -383,11 +383,8 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
     updateRelevance cont =
       -- Don't do anything if there is no target type info.
       caseMaybe target cont $ \ b -> do
-        -- Andreas, 2018-10-27 sort unreduced, e.g. an instantiated 'MetaS'
-        isPrp <- isPropM (unArg b)
-        -- Otherwise, if the target type is a proposition, wake irrelevant vars.
         -- TODO (2018-10-16): if proofs get erased in the compiler, also wake erased vars!
-        let m = applyWhen isPrp (setRelevance Irrelevant) $ getModality b
+        let m = getModality b
         applyModalityToContext m cont
 
     continue
@@ -1306,7 +1303,7 @@ split' ind allowPartialCover fixtarget sc@(SClause tel ps _ cps target) (Blockin
   -- Need to reduce sort to decide on Prop.
   -- Cannot split if domain is a Prop but target is relevant.
   propArrowRel <- isPropM t `and2M`
-    maybe (return True) (not <.> isIrrelevantOrPropM) target
+    maybe (return True) (not <.> isPropM) target
 
   mHCompName <- getPrimitiveName' builtinHComp
 
@@ -1351,7 +1348,7 @@ split' ind allowPartialCover fixtarget sc@(SClause tel ps _ cps target) (Blockin
           throwError (GenericSplitError "precomputed set of constructors does not cover all cases")
 
     _  -> do
-      liftTCM $ checkSortOfSplitVar dr $ unDom t
+      liftTCM $ checkSortOfSplitVar dr (unDom t) target
       return $ Right $ Covering (lookupPatternVar sc x) ns
 
   where

@@ -126,10 +126,6 @@ and its eliminator:
 
 This type allows us to simulate Agda's existing irrelevant arguments
 (see :ref:`irrelevance <irrelevance>`) by replacing .A with Squash A.
-::
-
-  irrToSquash : ∀ {ℓ} {A : Set ℓ} → .A → Squash A
-  irrToSquash x = squash x
 
 Limitations
 -----------

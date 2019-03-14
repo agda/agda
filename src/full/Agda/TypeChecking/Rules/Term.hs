@@ -953,10 +953,7 @@ checkExpr' cmp e t0 =
 
     e <- scopedExpr e
 
-    isPrp <- isPropM t
-    let irrelevantIfProp = applyWhen isPrp $ applyRelevanceToContext Irrelevant
-
-    irrelevantIfProp $ tryInsertHiddenLambda e t $ case e of
+    tryInsertHiddenLambda e t $ case e of
 
         A.ScopedExpr scope e -> __IMPOSSIBLE__ -- setScope scope >> checkExpr e t
 

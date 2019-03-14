@@ -876,11 +876,7 @@ checkLHS mf = updateRelevance checkLHS_ where
     -- If the target type is irrelevant or in Prop,
     -- we need to check the lhs in irr. cxt. (see Issue 939).
  updateRelevance cont st@(LHSState tel ip problem target psplit) = do
-      let m0 = getModality target
-      m <- ifNotM isPropEnabled (return m0) {-else-} $ do
-        liftTCM (reduce $ getSort $ unArg target) >>= \case
-          Prop{} -> return $ setRelevance Irrelevant m0
-          _      -> return m0
+      let m = getModality target
       applyModalityToContext m $ do
         cont $ over (lhsTel . listTel) (map $ inverseApplyModality m) st
         -- Andreas, 2018-10-23, issue #3309
@@ -1227,7 +1223,7 @@ checkLHS mf = updateRelevance checkLHS_ where
       -- We should be at a data/record type
       (dr, d, pars, ixs) <- addContext delta1 $ isDataOrRecordType a
 
-      checkSortOfSplitVar dr a
+      checkSortOfSplitVar dr a (Just target)
 
       -- The constructor should construct an element of this datatype
       (c, b) <- liftTCM $ addContext delta1 $ case ambC of
@@ -1772,19 +1768,21 @@ checkParameters dc d pars = liftTCM $ do
       compareArgs [] [] t (Def d []) vs (take (length vs) pars)
     _ -> __IMPOSSIBLE__
 
-checkSortOfSplitVar :: (MonadTCM tcm, MonadError TCErr tcm, LensSort a)
-                    => DataOrRecord -> a -> tcm ()
-checkSortOfSplitVar dr a = do
+checkSortOfSplitVar :: (MonadTCM tcm, MonadReduce tcm, MonadError TCErr tcm, LensSort a)
+                    => DataOrRecord -> a -> Maybe (Arg Type) -> tcm ()
+checkSortOfSplitVar dr a mtarget = do
   infOk <- optOmegaInOmega <$> pragmaOptions
   liftTCM (reduce $ getSort a) >>= \case
     Type{} -> return ()
-    Prop{} -> asksTC envRelevance >>= \case
-      Irrelevant -> return ()
-      _ | IsRecord <- dr
-                 -> return ()
-      _          -> softTypeError $ GenericError
-        "Cannot split on datatype in Prop unless target is irrelevant"
+    Prop{}
+      | IsRecord <- dr         -> return ()
+      | Just target <- mtarget -> unlessM (isPropM target) splitOnPropError
+      | otherwise              -> splitOnPropError
     Inf{} | infOk -> return ()
     _      -> softTypeError =<< do
       liftTCM $ GenericDocError <$> sep
         [ "Cannot split on datatype in sort" , prettyTCM (getSort a) ]
+
+  where
+    splitOnPropError = softTypeError $ GenericError
+      "Cannot split on datatype in Prop unless target is in Prop"
