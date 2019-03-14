@@ -288,7 +288,10 @@ Set in `agda2-restart'.")
 Set in `agda2-restart'.")
 
 (defvar agda2-in-progress nil
-  "Is the Agda process currently busy?")
+  "Is the Agda process currently busy?
+Valid values: `nil' (not busy), `busy' (busy),
+`not-so-busy' (busy with something that should typically
+terminate fairly quickly).")
 
 ;; Some buffer locals
 (defvar agda2-buffer-external-status ""
@@ -334,14 +337,6 @@ nil) and the time at which the measurement was started.")
 ;; `agda2-output-filter'. Their values are only modified by the filter
 ;; process, `agda2-go', `agda2-restart', `agda2-abort-highlighting',
 ;; and `agda2-abort-done'.
-
-(defvar agda2-responses-expected nil
-  "Is the Agda process expected to produce at least one response?")
-(make-variable-buffer-local 'agda2-responses-expected)
-
-(defvar agda2-responses 0
-  "The number of encountered response commands.")
-(make-variable-buffer-local 'agda2-responses)
 
 (defvar agda2-output-chunk-incomplete (agda2-queue-empty)
   "Buffer for incomplete lines.
@@ -522,29 +517,59 @@ process."
       (insert "\n")
       (process-send-string agda2-process (concat command "\n")))))
 
-(defun agda2-abort-if-in-progress ()
-  "Raise an error if the Agda process is (thought to be) busy."
-  (when agda2-in-progress
-    (error "Another command is currently in progress
-\(if a command has been aborted you may want to restart Agda)")))
-
-(defun agda2-go (save responses-expected highlight do-abort &rest args)
+(defun agda2-go (save highlight how-busy do-abort &rest args)
   "Executes commands in the Agda2 interpreter.
 Sends the list of strings ARGS to the Agda2 interpreter, waits
-for output and executes the responses, if any. If SAVE is
-'save, then the buffer is saved first. If no responses are
-received, and RESPONSES-EXPECTED is non-nil, then an error is
-raised. If HIGHLIGHT is non-nil, then the buffer's syntax
-highlighting may be updated."
+for output and executes the responses, if any.
 
-  (if do-abort (agda2-abort-if-in-progress))
+If SAVE is 'save, then the buffer is saved first.
 
-  (setq agda2-in-progress             t
-        agda2-highlight-in-progress   highlight
-        agda2-responses-expected      responses-expected
-        agda2-responses               0
-        agda2-output-chunk-incomplete (agda2-queue-empty)
-        agda2-file-buffer             (current-buffer))
+If HIGHLIGHT is non-nil, then the buffer's syntax highlighting
+may be updated. This is also the case if the Agda process is
+busy (or `not-so-busy') and `agda2-highlight-in-process' is
+non-nil.
+
+The value HOW-BUSY should be `busy' if it should not be possible
+to invoke other commands while this command is running (with the
+exception of commands for which DO-ABORT is nil). Otherwise it
+should be `not-so-busy' (which should only be used for commands
+that typically terminate fairly quickly).
+
+If the Agda process is busy (or `not-so-busy'), and the current
+buffer does not match `agda2-file-buffer', then the command is
+not executed and an error is raised. The same applies if DO-ABORT
+is non-nil and the Agda process is `busy'."
+
+  ; Check that how-busy is well-formed.
+  (assert (or (equal how-busy 'busy)
+              (equal how-busy 'not-so-busy)))
+
+  (when (and agda2-in-progress
+             (not (equal agda2-file-buffer
+                         (current-buffer))))
+    (error "Agda is busy with something in the buffer %s"
+           agda2-file-buffer))
+
+  (when (and do-abort
+             (equal agda2-in-progress 'busy))
+    (error "Agda is busy with something
+\(you have the option to abort or restart Agda)"))
+
+  (setq agda2-file-buffer (current-buffer))
+
+  (setq agda2-highlight-in-progress
+        (or highlight
+            (and agda2-in-progress
+                 agda2-highlight-in-progress)))
+
+  (unless agda2-in-progress
+    (setq agda2-output-chunk-incomplete (agda2-queue-empty)))
+
+  (setq agda2-in-progress
+        (if (or (equal how-busy 'busy)
+                (equal agda2-in-progress 'busy))
+            'busy
+          'not-so-busy))
 
   (when (equal save 'save) (save-buffer))
 
@@ -574,7 +599,6 @@ Intended to be used by the backend if an abort command was
 successful."
   (agda2-remove-annotations)
   (setq agda2-highlight-in-progress nil
-        agda2-responses-expected    nil
         agda2-last-responses        nil))
 
 (defun agda2-output-filter (proc chunk)
@@ -599,9 +623,7 @@ of commands of the form \"(agda2-highlight-... ...)\".
 
 The non-last commands are run in the order in which they appear.
 
-When the prompt has been reached an error is raised if
-`agda2-responses-expected' is non-nil and no commands have
-arrived. Otherwise highlighting annotations are
+When the prompt has been reached highlighting annotations are
 reloaded from `agda2-highlighting-file', unless
 `agda2-highlighting-in-progress' is nil."
 
@@ -662,8 +684,6 @@ reloaded from `agda2-highlighting-file', unless
                     (insert line)
                     (insert "\n"))))
               (when cmd
-                (unless is-highlighting-command
-                  (incf agda2-responses))
                 (if (equal 'last (car-safe (car cmd)))
                     (push (cons (cdr (car cmd)) (cdr cmd))
                           agda2-last-responses)
@@ -681,10 +701,6 @@ reloaded from `agda2-highlighting-file', unless
           (setq agda2-output-chunk-incomplete (agda2-queue-empty)
                 agda2-in-progress nil
                 agda2-last-responses (nreverse agda2-last-responses))
-
-          (when (and agda2-responses-expected
-                     (equal agda2-responses 0))
-            (agda2-raise-error))
 
           (agda2-run-last-commands)
 
@@ -753,9 +769,7 @@ If the user input is not taken from the goal, then an empty goal
 range is given.
 
 If SAVE is 'save, then the buffer is saved just before the
-command is sent to Agda (if it is sent).
-
-An error is raised if no responses are received."
+command is sent to Agda (if it is sent)."
   (multiple-value-bind (o g) (agda2-goal-at (point))
     (unless g (error "For this command, please place the cursor in a goal"))
     (let ((txt (buffer-substring-no-properties (+ (overlay-start o) 2)
@@ -766,7 +780,7 @@ An error is raised if no responses are received."
                   (or ask (string-match "\\`\\s *\\'" txt)))
              (setq txt (read-string (concat want ": ") nil nil txt t)))
             (t (setq input-from-goal t)))
-      (apply 'agda2-go save t input-from-goal t cmd
+      (apply 'agda2-go save input-from-goal 'busy t cmd
              (format "%d" g)
              (if input-from-goal (agda2-goal-Range o) (agda2-mkRange nil))
              (agda2-string-quote txt) args))))
@@ -788,7 +802,7 @@ An error is raised if no responses are received."
 (defun agda2-load ()
   "Load current buffer."
   (interactive)
-  (agda2-go 'save t t t "Cmd_load"
+  (agda2-go 'save t 'busy t "Cmd_load"
             (agda2-string-quote (buffer-file-name))
             (agda2-list-quote agda2-program-args)
             ))
@@ -803,7 +817,8 @@ The given HIGHLIGHTING-LEVEL is used (if non-nil).
 If CONTINUATION is non-nil, then CONTINUATION is applied to the
 resulting time (represented as a string)."
   (interactive)
-  (agda2-abort-if-in-progress)
+  (when agda2-in-progress
+    (error "Agda is busy with something"))
   (let* ((agda2-highlight-level
           (or highlighting-level agda2-highlight-level)))
     (setq agda2-measure-data (cons continuation (current-time)))
@@ -822,7 +837,7 @@ The variable `agda2-backend' determines which backend is used."
                                          'inherit-input-method))
                        (t agda2-backend))))
     (when (equal backend "") (error "No backend chosen"))
-    (agda2-go 'save t t t "Cmd_compile"
+    (agda2-go 'save t 'busy t "Cmd_compile"
               backend
               (agda2-string-quote (buffer-file-name))
               (agda2-list-quote agda2-program-args)
@@ -899,7 +914,7 @@ of new goals."
 (defun agda2-autoAll ()
   (interactive)
   "Solves all goals by simple proof search."
-  (agda2-go nil t nil t "Cmd_autoAll")
+  (agda2-go nil nil 'busy t "Cmd_autoAll")
 )
 
 (defun agda2-make-case ()
@@ -1078,11 +1093,11 @@ is inserted, and point is placed before this text."
 
 (defun agda2-show-goals()
   "Show all goals." (interactive)
-  (agda2-go nil t t t "Cmd_metas"))
+  (agda2-go nil t 'busy t "Cmd_metas"))
 
 (defun agda2-show-constraints()
   "Show constraints." (interactive)
-  (agda2-go nil t t t "Cmd_constraints"))
+  (agda2-go nil t 'busy t "Cmd_constraints"))
 
 (defun agda2-remove-annotations ()
   "Removes buffer annotations (overlays and text properties)."
@@ -1157,7 +1172,7 @@ The form of the result depends on the prefix argument:
 COMMENT is used to build the function's comments. The function
 NAME takes a prefix argument which tells whether it should
 normalise types or not when running CMD (through
-`agda2-go' nil t nil t; the string PROMPT is used as the goal
+`agda2-go' nil nil 'busy t; the string PROMPT is used as the goal
 command prompt)."
   (let ((eval (make-symbol "eval")))
     `(defun ,name (prefix expr)
@@ -1179,7 +1194,7 @@ The form of the result depends on the prefix argument:
        (let ((,eval (cond ((equal prefix nil) "Simplified")
                           ((equal prefix '(4)) "Instantiated")
                           ("Normalised"))))
-         (agda2-go nil t nil t
+         (agda2-go nil nil 'busy t
                    (concat ,cmd " " ,eval " "
                            (agda2-string-quote expr)))))))
 
@@ -1188,7 +1203,7 @@ The form of the result depends on the prefix argument:
 COMMENT is used to build the function's comments. The function
 NAME takes a prefix argument which tells whether it should
 normalise types or not when running CMD (through
-`agda2-go' nil t nil t;)."
+`agda2-go' nil nil 'busy t;)."
   (let ((eval (make-symbol "eval")))
     `(defun ,name (prefix)
        ,(concat comment ".
@@ -1209,7 +1224,7 @@ The form of the result depends on the prefix argument:
        (let ((,eval (cond ((equal prefix nil) "AsIs")
                           ((equal prefix '(4)) "Simplified")
                           ("Normalised"))))
-         (agda2-go nil t nil t
+         (agda2-go nil nil 'busy t
                    (concat ,cmd " " ,eval " "
                            ))))))
 
@@ -1250,7 +1265,7 @@ top-level scope."
 (defun agda2-why-in-scope-toplevel (name)
   "Explain why something is in scope at the top level."
   (interactive "MName: ")
-  (agda2-go nil t nil t
+  (agda2-go nil nil 'busy t
             "Cmd_why_in_scope_toplevel"
             (agda2-string-quote name)))
 
@@ -1407,7 +1422,8 @@ computation."
                      (cond ((equal arg nil) " DefaultCompute")
                             ((equal arg '(4)) " IgnoreAbstract")
                             (" UseShowInstance")) " ")))
-    (agda2-go nil t nil t (concat cmd (agda2-string-quote expr)))))
+    (agda2-go nil nil 'busy t
+              (concat cmd (agda2-string-quote expr)))))
 
 (defun agda2-compute-normalised-maybe-toplevel ()
   "Compute the normal form of the given expression.
@@ -1428,7 +1444,7 @@ computation."
 (defun agda2-display-program-version ()
   "Display version of Agda"
   (interactive)
-  (agda2-go nil nil nil t "Cmd_show_version"))
+  (agda2-go nil nil 'busy t "Cmd_show_version"))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;
@@ -1437,7 +1453,7 @@ computation."
   "Loads precomputed syntax highlighting info for the current buffer.
 Only if the buffer is unmodified, and only if there is anything to load."
  (unless (buffer-modified-p)
-   (agda2-go nil nil t t
+   (agda2-go nil t 'not-so-busy t
              "Cmd_load_highlighting_info"
              (agda2-string-quote (buffer-file-name)))))
 
@@ -1577,7 +1593,7 @@ text properties."
         (delete-region p (+ p 2)))
         ;; Update highlighting
         (if (and (not (equal new-txt 'paren)) (not (equal new-txt 'no-paren)))
-            (apply 'agda2-go 'save t t nil "Cmd_highlight"
+            (apply 'agda2-go 'save t 'busy nil "Cmd_highlight"
               (format "%d" old-g)
               (agda2-mkRange `(,p ,(- q 2)))
               (agda2-string-quote new-txt) nil))
@@ -1781,10 +1797,11 @@ From the beginning of the current line to the end of the buffer."
   "Compute token-based highlighting information.
 
 Unless `agda2-highlight-level' is `none' or the Agda process is
-busy with something. This command might save the buffer."
+busy (or `not-so-busy') with something. This command might save
+the buffer."
   (unless (or agda2-in-progress
               (equal agda2-highlight-level 'none))
-    (agda2-go 'save nil t t
+    (agda2-go 'save t 'not-so-busy t
               "Cmd_tokenHighlighting"
               (agda2-string-quote (buffer-file-name))
               "Keep")))
@@ -1853,10 +1870,11 @@ With prefix argument, turn on display of implicit arguments if
 the argument is a positive number, otherwise turn it off."
   (interactive "P")
   (cond
-   ((eq arg nil)       (agda2-go nil t t t "ToggleImplicitArgs"))
-   ((and (numberp arg)
-         (> arg 0))    (agda2-go nil t t t "ShowImplicitArgs" "True"))
-   (t                  (agda2-go nil t t t "ShowImplicitArgs" "False"))))
+   ((eq arg nil)
+      (agda2-go nil t 'not-so-busy t "ToggleImplicitArgs"))
+   ((and (numberp arg) (> arg 0))
+      (agda2-go nil t 'not-so-busy t "ShowImplicitArgs" "True"))
+   (t (agda2-go nil t 'not-so-busy t "ShowImplicitArgs" "False"))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;
