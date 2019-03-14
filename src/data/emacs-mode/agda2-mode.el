@@ -59,18 +59,6 @@ Or possibly (let* VARBIND (labels FUNCBIND BODY...))."
   ;; Use cl-labels if available to avoid obsolescence warnings.
   `(let* ,varbind (,(if (fboundp 'cl-labels) 'cl-labels 'labels) ,funcbind ,@body)))
 
-(defun agda2-chunkify (n xs)
-  "Returns a list containing chunks of XS of length at most N.
-All the elements of XS are included, in their original order."
-  (let ((i 0)
-        (len (length xs))
-        out)
-    (while (< i len)
-      (let ((new-i (+ i (min n (- len i)))))
-        (setq out (cons (subseq xs i new-i) out))
-        (setq i new-i)))
-    (nreverse out)))
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; User options
 
