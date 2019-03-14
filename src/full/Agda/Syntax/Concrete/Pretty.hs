@@ -590,9 +590,6 @@ instance Pretty a => Pretty (Arg a) where
             localParens | getOrigin ai == Substitution = parens
                         | otherwise = id
 
-instance Pretty a => Pretty (Dom a) where
-  pretty = pretty . argFromDom
-
 instance Pretty e => Pretty (Named_ e) where
     prettyPrec p (Named Nothing e) = prettyPrec p e
     prettyPrec p (Named (Just s) e) = mparens (p > 0) $ sep [ text (rawNameToString $ rangedThing s) <+> "=", pretty e ]

@@ -52,7 +52,7 @@ import Data.Proxy
 
 import qualified Agda.Benchmarking as Bench
 
-import Agda.Syntax.Common hiding (Arg, Dom, NamedArg)
+import Agda.Syntax.Common hiding (Arg, NamedArg)
 import Agda.Syntax.Internal
 
 import Agda.TypeChecking.Free.Lazy
