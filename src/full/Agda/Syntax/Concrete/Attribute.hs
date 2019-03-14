@@ -28,7 +28,8 @@ import Agda.Utils.Pretty (prettyShow)
 data Attribute
   = RelevanceAttribute Relevance
   | QuantityAttribute  Quantity
-  deriving (Eq, Ord, Show)
+  | TacticAttribute Expr
+  deriving (Show)
 
 -- | (Conjunctive constraint.)
 
@@ -69,7 +70,8 @@ stringToAttribute = (`Map.lookup` attributesMap)
 -- | Parsing an expression into an attribute.
 
 exprToAttribute :: Expr -> Maybe Attribute
-exprToAttribute = stringToAttribute . prettyShow
+exprToAttribute (Paren _ (RawApp _ [Tactic _ t []])) = Just $ TacticAttribute t
+exprToAttribute e = stringToAttribute $ prettyShow e
 
 -- | Setting an attribute (in e.g. an 'Arg').  Overwrites previous value.
 
@@ -77,6 +79,7 @@ setAttribute :: (LensAttribute a) => Attribute -> a -> a
 setAttribute = \case
   RelevanceAttribute r -> setRelevance r
   QuantityAttribute  q -> setQuantity  q
+  TacticAttribute t    -> id
 
 
 -- | Setting some attributes in left-to-right order.
@@ -110,6 +113,7 @@ setPristineAttribute :: (LensAttribute a) => Attribute -> a -> Maybe a
 setPristineAttribute = \case
   RelevanceAttribute r -> setPristineRelevance r
   QuantityAttribute  q -> setPristineQuantity  q
+  TacticAttribute{}    -> Just
 
 -- | Setting a list of unset attributes.
 
