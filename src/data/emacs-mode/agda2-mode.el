@@ -1579,7 +1579,7 @@ ways."
        ;; Don't run modification hooks: we don't want this function to
        ;; trigger agda2-abort-highlighting.
        (inhibit-modification-hooks t))
-      ((delims() (re-search-forward "[?]\\|[{][-!]\\|[-!][}]\\|--\\|^%.*\\\\begin{code}\\|\\\\begin{code}\\|\\\\end{code}" nil t))
+      ((delims() (re-search-forward "[?]\\|[{][-!]\\|[-!][}]\\|--\\|^%.*\\\\begin{code}\\|\\\\begin{code}\\|\\\\end{code}\\|```" nil t))
        ;; is-proper checks whether string s (e.g. "?" or "--") is proper
        ;; i.e., is not part of an identifier.
        ;; comment-starter is true if s starts a comment (e.g. "--")
@@ -1614,6 +1614,8 @@ ways."
         (agda2--case (match-string 0)
           ("\\begin{code}" (when (outside-code)               (pop stk)))
           ("\\end{code}"   (when (not stk)                    (push 'outside stk)))
+          ("```"           (if   (outside-code)               (pop stk)
+                           (when (not stk)                    (push 'outside stk))))
           ("--"            (when (and (not stk)
                                       (is-proper "--" t))     (end-of-line)))
           ("{-"            (when (and (inside-code)
