@@ -5,6 +5,7 @@ module Agda.Syntax.Reflected where
 import Agda.Syntax.Common
 import Agda.Syntax.Literal
 import Agda.Syntax.Abstract.Name
+import Agda.Syntax.Internal (Dom)
 
 type Args       = [Arg Term]
 

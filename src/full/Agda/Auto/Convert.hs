@@ -13,9 +13,9 @@ import Control.Monad.State
 import Agda.Syntax.Common (Hiding(..), getHiding)
 import Agda.Syntax.Concrete (exprFieldA)
 import qualified Agda.Syntax.Internal as I
+import Agda.Syntax.Internal (Dom(..),domInfo,unDom)
 import qualified Agda.Syntax.Internal.Pattern as IP
 import qualified Agda.Syntax.Common as Cm
-import Agda.Syntax.Common (Dom(..),domInfo,unDom)
 import qualified Agda.Syntax.Abstract.Name as AN
 import qualified Agda.Syntax.Abstract as A
 import qualified Agda.Syntax.Position as SP
@@ -126,7 +126,7 @@ tomy imi icns typs = do
        cons2 <- mapM (\con -> getConst True con TMAll) cons
        return (Datatype cons2 [], [])
       MB.Record {MB.recFields = fields, MB.recTel = tel} -> do -- the value of recPars seems unreliable or don't know what it signifies
-       let pars n (I.El _ (I.Pi it typ)) = Cm.Arg (Cm.domInfo it) (I.var n) :
+       let pars n (I.El _ (I.Pi it typ)) = Cm.Arg (I.domInfo it) (I.var n) :
                                            pars (n - 1) (I.unAbs typ)
            pars _ (I.El _ _) = []
            contyp npar I.EmptyTel = I.El (I.mkType 0 {- arbitrary -}) $
@@ -175,7 +175,7 @@ tomy imi icns typs = do
          modify $ \s -> s {sEqs = (Map.insert (Map.size (fst $ sEqs s)) (Just (False, Meta m, sol')) (fst $ sEqs s), snd $ sEqs s)}
        let tt = MB.jMetaType $ mvJudgement mv
            minfo = getMetaInfo mv
-           localVars = map (snd . Cm.unDom) . envContext . clEnv $ minfo
+           localVars = map (snd . I.unDom) . envContext . clEnv $ minfo
        (targettype, localVars) <- lift $ withMetaInfo minfo $ do
         vs <- getContextArgs
         targettype <- tt `piApplyM` permute (takeP (length vs) $ mvPermutation mv) vs
@@ -380,7 +380,7 @@ instance Conversion TOM I.Term (MExp O) where
         cc  <- lift $ liftIO $ readIORef c
         let Just npar = fst $ cdorigin cc
         return $ NotM $ App Nothing (NotM OKVal) (Const c) (foldl (\x _ -> NotM $ ALConPar x) as' [1..npar])
-      I.Pi (Cm.Dom{domInfo = info, unDom = x}) b -> do
+      I.Pi (I.Dom{domInfo = info, unDom = x}) b -> do
         let y    = I.absBody b
             name = I.absName b
         x' <- convert x
@@ -428,7 +428,7 @@ fmExp m (I.Lit _) = False
 fmExp m (I.Level (I.Max as)) = any (fmLevel m) as
 fmExp m (I.Def _ as) = fmExps m $ I.argsFromElims as
 fmExp m (I.Con _ ci as) = fmExps m $ I.argsFromElims as
-fmExp m (I.Pi x y)  = fmType m (Cm.unDom x) || fmType m (I.unAbs y)
+fmExp m (I.Pi x y)  = fmType m (I.unDom x) || fmType m (I.unAbs y)
 fmExp m (I.Sort _) = False
 fmExp m (I.MetaV mid _) = mid == m
 fmExp m (I.DontCare _) = False
@@ -501,7 +501,7 @@ instance Conversion MOT (Exp O) I.Term where
     Lam hid t -> I.Lam (icnvh hid) <$> convert t
     Pi _ hid _ x y -> do
       x' <- convert x
-      let dom = (Cm.defaultDom x') {domInfo = icnvh hid}
+      let dom = (I.defaultDom x') {domInfo = icnvh hid}
       I.Pi dom <$> convert y
    -- maybe have case for Pi where possdep is False which produces Fun (and has to unweaken y), return $ I.Fun (Cm.Arg (icnvh hid) x') y'
     Sort (Set l) -> return $ I.Sort (I.mkType (fromIntegral l))
@@ -609,7 +609,7 @@ frommyClause (ids, pats, mrhs) = do
       let Id id = mid
       tel <- ctel ctx
       t' <- convert t
-      let dom = (Cm.defaultDom t') {domInfo = icnvh hid}
+      let dom = (I.defaultDom t') {domInfo = icnvh hid}
       return $ I.ExtendTel dom (I.Abs id tel)
  tel <- ctel $ reverse ids
  let getperms 0 [] perm nv = return (perm, nv)
@@ -766,7 +766,7 @@ matchType cdfv tctx ctyp ttyp = trmodps cdfv ctyp
       (I.Lit lit1, I.Lit lit2) | lit1 == lit2 -> c (n + 1)
       (I.Def n1 as1, I.Def n2 as2) | n1 == n2 -> fes nl (n + 1) c as1 as2
       (I.Con n1 _ as1, I.Con n2 _ as2) | n1 == n2 -> fs nl (n + 1) c as1 as2
-      (I.Pi (Cm.Dom{domInfo = info1, unDom = it1})  ot1, I.Pi (Cm.Dom{domInfo = info2, unDom = it2})  ot2) | Cm.argInfoHiding info1 == Cm.argInfoHiding info2 -> ft nl n (\n -> ft (nl + 1) n c (I.absBody ot1) (I.absBody ot2)) it1 it2
+      (I.Pi (I.Dom{domInfo = info1, unDom = it1})  ot1, I.Pi (I.Dom{domInfo = info2, unDom = it2})  ot2) | Cm.argInfoHiding info1 == Cm.argInfoHiding info2 -> ft nl n (\n -> ft (nl + 1) n c (I.absBody ot1) (I.absBody ot2)) it1 it2
       (I.Sort{}, I.Sort{}) -> c n -- sloppy
       _ -> Nothing
     fs nl n c es1 es2 = case (es1, es2) of

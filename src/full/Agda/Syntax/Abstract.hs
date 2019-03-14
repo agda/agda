@@ -332,7 +332,7 @@ noDataDefParams = DataDefParams Set.empty []
 data ProblemEq = ProblemEq
   { problemInPat :: Pattern
   , problemInst  :: I.Term
-  , problemType  :: Dom I.Type
+  , problemType  :: I.Dom I.Type
   } deriving (Data, Show)
 
 -- These are not relevant for caching purposes

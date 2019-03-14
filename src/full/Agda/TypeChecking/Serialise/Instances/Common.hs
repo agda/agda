@@ -438,11 +438,6 @@ instance EmbPrj a => EmbPrj (Arg a) where
 
   value = valueN Arg
 
-instance EmbPrj a => EmbPrj (Dom a) where
-  icod_ (Dom a b c d) = icodeN' Dom a b c d
-
-  value = valueN Dom
-
 instance EmbPrj HasEta where
   icod_ YesEta = icodeN' YesEta
   icod_ NoEta  = icodeN 1 NoEta

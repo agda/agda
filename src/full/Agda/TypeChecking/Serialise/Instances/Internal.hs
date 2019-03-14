@@ -23,6 +23,11 @@ import Agda.Utils.Permutation
 #include "undefined.h"
 import Agda.Utils.Impossible
 
+instance EmbPrj a => EmbPrj (Dom a) where
+  icod_ (Dom a b c d) = icodeN' Dom a b c d
+
+  value = valueN Dom
+
 instance EmbPrj Signature where
   icod_ (Sig a b c) = icodeN' Sig a b c
 

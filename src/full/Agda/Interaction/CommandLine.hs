@@ -265,7 +265,7 @@ showContext (meta:args) = do
     i <- InteractionId <$> readM meta
     mi <- lookupMeta =<< lookupInteractionId i
     withMetaInfo (getMetaInfo mi) $ do
-      ctx <- List.map unDom . telToList <$> getContextTelescope
+      ctx <- List.map I.unDom . telToList <$> getContextTelescope
       zipWithM_ display ctx $ reverse $ zipWith const [1..] ctx
     where
         display (x, t) n = do
