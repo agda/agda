@@ -98,11 +98,15 @@ compileClauses mt cs = do
       reportSDoc "tc.cc" 50 $
         "clauses before compilation" <?> pretty cs
       let cc = compileWithSplitTree splitTree cls
-      reportSDoc "tc.cc" 12 $ sep
+      reportSDoc "tc.cc" 20 $ sep
         [ "compiled clauses (still containing record splits)"
         , nest 2 $ return $ P.pretty cc
         ]
       cc <- translateCompiledClauses cc
+      reportSDoc "tc.cc" 12 $ sep
+        [ "compiled clauses"
+        , nest 2 $ return $ P.pretty cc
+        ]
       return (Just splitTree, fmap precomputeFreeVars_ cc)
 
 -- | Stripped-down version of 'Agda.Syntax.Internal.Clause'
