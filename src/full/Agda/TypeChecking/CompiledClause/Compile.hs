@@ -203,9 +203,9 @@ nextSplit (Cl ps _ : cs) = findSplit nonLazy ps <|> findSplit allAgree ps
     getCon _                = Nothing
 
 -- | Is is not a variable pattern?
---   And if yes, is it a record pattern?
+--   And if yes, is it a record pattern and/or a fallThrough one?
 properSplit :: Pattern' a -> Maybe Bool
-properSplit (ConP _ cpi _) = Just (Just PatORec == conPRecord cpi)
+properSplit (ConP _ cpi _) = Just (Just PatORec == conPRecord cpi || conPFallThrough cpi)
 properSplit DefP{}    = Just False
 properSplit LitP{}    = Just False
 properSplit ProjP{}   = Just False
@@ -300,6 +300,22 @@ splitC n (Cl ps b) = caseMaybe mp fallback $ \case
 --       true  -> c
 --       false -> b
 --     false -> a
+-- @
+--
+-- Example from issue #3628:
+-- @
+--   f i j k (i = i0)(k = i1) = base
+--   f i j k (j = i1)         = base
+-- @
+-- case tree:
+-- @
+--   f i j k o = case i of
+--     i0 -> case k of
+--             i1 -> base
+--             _  -> case j of
+--                     i1 -> base
+--     _  -> case j of
+--             i1 -> base
 -- @
 expandCatchAlls :: Bool -> Int -> Cls -> Cls
 expandCatchAlls single n cs =
