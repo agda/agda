@@ -64,7 +64,11 @@ getCompiledClauses q = do
       translate | isProj    = CC.DontRunRecordPatternTranslation
                 | otherwise = CC.RunRecordPatternTranslation
   reportSDoc "treeless.convert" 40 $ "-- before clause compiler" $$ (pretty q <+> "=") <?> vcat (map pretty cs)
-  CC.compileClauses' translate cs
+  let mst = funSplitTree $ theDef def
+  reportSDoc "treeless.convert" 70 $
+    caseMaybe mst "-- not using split tree" $ \st ->
+      "-- using split tree" $$ pretty st
+  CC.compileClauses' translate cs mst
 
 -- | Converts compiled clauses to treeless syntax.
 --

@@ -244,7 +244,8 @@ makeProjection x = -- if True then return () else do
     -- the dropped arguments.
     -- Nor can abstract definitions be projection-like since they won't reduce
     -- outside the abstract block.
-    def@Function{funProjection = Nothing, funClauses = cls, funCompiled = cc0, funInv = NotInjective,
+    def@Function{funProjection = Nothing, funClauses = cls,
+                 funSplitTree = st0, funCompiled = cc0, funInv = NotInjective,
                  funMutual = Just [], -- Andreas, 2012-09-28: only consider non-mutual funs (or those whose recursion status has not yet been determined)
                  funAbstr = ConcreteDef} -> do
       ps0 <- filterM validProj $ candidateArgs [] t
@@ -269,6 +270,7 @@ makeProjection x = -- if True then return () else do
 
               let cls' = map (dropArgs n) cls
                   cc   = dropArgs n cc0
+                  st   = dropArgs n st0
               reportSLn "tc.proj.like" 60 $ "  rewrote clauses to\n    " ++ show cc
 
               -- Andreas, 2013-10-20 build parameter dropping function
@@ -285,6 +287,7 @@ makeProjection x = -- if True then return () else do
               let newDef = def
                            { funProjection     = Just projection
                            , funClauses        = cls'
+                           , funSplitTree      = st
                            , funCompiled       = cc
                            , funInv            = dropArgs n $ funInv def
                            }

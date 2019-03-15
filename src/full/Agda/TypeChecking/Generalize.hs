@@ -520,6 +520,7 @@ createGenRecordType genRecMeta@(El genRecSort _) sortedMetas = do
                             , projLams     = ProjLams [defaultArg "gtel"] } in
       Function { funClauses      = []
                , funCompiled     = Nothing
+               , funSplitTree    = Nothing
                , funTreeless     = Nothing
                , funInv          = NotInjective
                , funMutual       = Just []

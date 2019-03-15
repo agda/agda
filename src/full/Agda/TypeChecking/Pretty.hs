@@ -47,6 +47,7 @@ import qualified Agda.Syntax.Concrete.Pretty as CP
 import qualified Agda.Syntax.Info as A
 import Agda.Syntax.Scope.Monad (withContextPrecedence)
 
+import Agda.TypeChecking.Coverage.SplitTree
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin (equalityUnview)
 import Agda.TypeChecking.Positivity.Occurrence
@@ -478,3 +479,8 @@ instance (PrettyTCM n, PrettyTCM (WithNode n e)) => PrettyTCM (Graph n e) where
         [ prettyTCM n
         , nest 2 $ vcat $ map (prettyTCM . uncurry WithNode) $ Map.assocs es
         ]
+
+instance PrettyTCM SplitTag where
+  prettyTCM (SplitCon c)  = prettyTCM c
+  prettyTCM (SplitLit l)  = prettyTCM l
+  prettyTCM SplitCatchall = return underscore
