@@ -220,7 +220,11 @@ forceTranslateTelescope delta qs = do
 --    rebindForcedPattern [.(suc n), cons .n x xs] n = [suc n, cons .n x xs]
 --
 rebindForcedPattern :: [NamedArg DeBruijnPattern] -> DeBruijnPattern -> TCM [NamedArg DeBruijnPattern]
-rebindForcedPattern ps toRebind = go $ zip (repeat NotForced) ps
+rebindForcedPattern ps toRebind = do
+  reportSDoc "tc.force" 50 $ hsep ["rebinding", pretty toRebind, "in"] <?> pretty ps
+  ps' <- go $ zip (repeat NotForced) ps
+  reportSDoc "tc.force" 50 $ nest 2 $ hsep ["result:", pretty ps']
+  return ps'
   where
     targetDotP = patternToTerm toRebind
 
