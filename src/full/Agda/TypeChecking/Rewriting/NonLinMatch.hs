@@ -336,13 +336,13 @@ instance Match Type NLPat Term where
     let n = size k
         b = void vbt
         (v,t) = ignoreBlocking vbt
-        prettyPat  = addContext (gamma `abstract` k) (prettyTCM p)
-        prettyTerm = addContext k $ prettyTCM v
-        prettyType = addContext k $ prettyTCM t
+        prettyPat  = withShowAllArguments $ addContext (gamma `abstract` k) (prettyTCM p)
+        prettyTerm = withShowAllArguments $ addContext k $ prettyTCM v
+        prettyType = withShowAllArguments $ addContext k $ prettyTCM t
     traceSDoc "rewriting.match" 30 (sep
-      [ "matching " <+> prettyPat
-      , "  with   " <+> prettyTerm
-      , " of type " <+> prettyType ]) $ do
+      [ "matching pattern " <+> prettyPat
+      , "  with term      " <+> prettyTerm
+      , "  of type        " <+> prettyType ]) $ do
     traceSDoc "rewriting.match" 80 (vcat
       [ "  raw pattern:  " <+> text (show p)
       , "  raw term:     " <+> text (show v)
@@ -369,7 +369,7 @@ instance Match Type NLPat Term where
           matchingBlocked (b `mappend` b')
     case p of
       PWild  -> yes
-      PVar i bvs -> traceSDoc "rewriting.match" 60 ("matching a PVar" <+> text (show i)) $ do
+      PVar i bvs -> traceSDoc "rewriting.match" 60 ("matching a PVar: " <+> text (show i)) $ do
         let allowedVars :: IntSet
             allowedVars = IntSet.fromList (map unArg bvs)
             badVars :: IntSet
@@ -383,8 +383,10 @@ instance Match Type NLPat Term where
           Left b         -> block b
           Right Nothing  -> no ""
           Right (Just v) -> tellSub r (i-n) $ teleLam tel $ renameP __IMPOSSIBLE__ perm v
+
       _ | MetaV m es <- v -> matchingBlocked $ Blocked m ()
-      PDef f ps -> traceSDoc "rewriting.match" 60 ("matching a PDef" <+> prettyTCM f) $ do
+
+      PDef f ps -> traceSDoc "rewriting.match" 60 ("matching a PDef: " <+> prettyTCM f) $ do
         v <- Red.addCtxTel k $ constructorForm =<< unLevel v
         case v of
           Def f' es
@@ -402,6 +404,9 @@ instance Match Type NLPat Term where
                 k'    = ExtendTel a (Abs (absName b) k)
             match r gamma k' (absBody b) pbody body
           _ | Just (d, pars) <- etaRecord -> do
+          -- If v is not of record constructor form but we are matching at record
+          -- type, e.g., we eta-expand both v to (c vs) and
+          -- the pattern (p = PDef f ps) to @c (p .f1) ... (p .fn)@.
             def <- Red.addCtxTel k $ theDef <$> getConstInfo d
             (tel, c, ci, vs) <- Red.addCtxTel k $ etaExpandRecord_ d pars def v
             ~(Just (_ , ct)) <- Red.addCtxTel k $ getFullyAppliedConType c t
