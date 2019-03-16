@@ -546,7 +546,7 @@ prune m' vs xs = do
 --   @hasBadRigid xs v = Nothing@ means that
 --   we cannot prune at all as one of the meta args is matchable.
 --   (See issue 1147.)
-hasBadRigid :: (MonadReduce m, HasConstInfo m, MonadAddContext m, Monoid (m Any))
+hasBadRigid :: (MonadReduce m, HasConstInfo m, MonadAddContext m)
             => [Nat] -> Term -> ExceptT () m Bool
 hasBadRigid xs t = do
   -- We fail if we encounter a matchable argument.
@@ -609,7 +609,7 @@ isNeutral b f es = do
 --   Reduces the term successively to remove variables in dead subterms.
 --   This fixes issue 1386.
 rigidVarsNotContainedIn
-  :: (MonadReduce m, MonadAddContext m, MonadTCEnv m, MonadDebug m, FoldRigid a, Monoid (m Any))
+  :: (MonadReduce m, MonadAddContext m, MonadTCEnv m, MonadDebug m, AnyRigid a)
   => a -> [Nat] -> m Bool
 rigidVarsNotContainedIn v is = do
   n0 <- getContextSize
@@ -626,103 +626,102 @@ rigidVarsNotContainedIn v is = do
         when forbidden $
           reportSLn "tc.meta.kill" 20 $
             "found forbidden de Bruijn level " ++ show l
-        return $ Any forbidden
-  getAny <$> foldRigid test v
+        return forbidden
+  anyRigid test v
 
 -- | Collect the *definitely* rigid variables in a monoid.
 --   We need to successively reduce the expression to do this.
 
-class FoldRigid a where
---  foldRigid :: (MonadTCM tcm, Monoid (tcm m)) => (Nat -> tcm m) -> a -> tcm m
-  foldRigid :: (MonadReduce tcm, MonadAddContext tcm, Monoid (tcm m)) => (Nat -> tcm m) -> a -> tcm m
+class AnyRigid a where
+  anyRigid :: (MonadReduce tcm, MonadAddContext tcm)
+           => (Nat -> tcm Bool) -> a -> tcm Bool
 
-instance FoldRigid Term where
-  foldRigid f t = do
+instance AnyRigid Term where
+  anyRigid f t = do
     b <- reduceB t
     case ignoreBlocking b of
       -- Upon entry, we are in rigid position, thus,
       -- bound variables are rigid ones.
-      Var i es   -> f i `mappend` fold es
-      Lam _ t    -> fold t
-      Lit{}      -> mempty
+      Var i es   -> f i `or2M` anyRigid f es
+      Lam _ t    -> anyRigid f t
+      Lit{}      -> return False
       Def _ es   -> case b of
         -- If the definition is blocked by a meta, its arguments
         -- may be in flexible positions.
-        Blocked{}                   -> mempty
+        Blocked{}                   -> return False
         -- If the definition is incomplete, arguments might disappear
         -- by reductions that come with more clauses, thus, these
         -- arguments are not rigid.
-        NotBlocked MissingClauses _ -> mempty
+        NotBlocked MissingClauses _ -> return False
         -- _        -> mempty -- breaks: ImproveInertRHS, Issue442, PruneRecord, PruningNonMillerPattern
-        _        -> fold es
-      Con _ _ ts -> fold ts
-      Pi a b     -> fold (a,b)
-      Sort s     -> fold s
-      Level l    -> fold l
-      MetaV{}    -> mempty
-      DontCare{} -> mempty
-      Dummy{}    -> mempty
-    where fold = foldRigid f
+        _        -> anyRigid f es
+      Con _ _ ts -> anyRigid f ts
+      Pi a b     -> anyRigid f (a,b)
+      Sort s     -> anyRigid f s
+      Level l    -> anyRigid f l
+      MetaV{}    -> return False
+      DontCare{} -> return False
+      Dummy{}    -> return False
 
-instance FoldRigid Type where
-  foldRigid f (El s t) = foldRigid f (s,t)
+instance AnyRigid Type where
+  anyRigid f (El s t) = anyRigid f (s,t)
 
-instance FoldRigid Sort where
-  foldRigid f s =
+instance AnyRigid Sort where
+  anyRigid f s =
     case s of
       Type l     -> fold l
       Prop l     -> fold l
-      Inf        -> mempty
-      SizeUniv   -> mempty
-      PiSort s1 s2 -> mempty
+      Inf        -> return False
+      SizeUniv   -> return False
+      PiSort s1 s2 -> return False
       UnivSort s -> fold s
-      MetaS{}    -> mempty
-      DefS{}     -> mempty
-      DummyS{}   -> mempty
-    where fold = foldRigid f
+      MetaS{}    -> return False
+      DefS{}     -> return False
+      DummyS{}   -> return False
+    where fold = anyRigid f
 
-instance FoldRigid Level where
-  foldRigid f (Max ls) = foldRigid f ls
+instance AnyRigid Level where
+  anyRigid f (Max ls) = anyRigid f ls
 
-instance FoldRigid PlusLevel where
-  foldRigid f ClosedLevel{} = mempty
-  foldRigid f (Plus _ l)    = foldRigid f l
+instance AnyRigid PlusLevel where
+  anyRigid f ClosedLevel{} = return False
+  anyRigid f (Plus _ l)    = anyRigid f l
 
-instance FoldRigid LevelAtom where
-  foldRigid f l =
+instance AnyRigid LevelAtom where
+  anyRigid f l =
     case l of
-      MetaLevel{} -> mempty
-      NeutralLevel MissingClauses _ -> mempty
+      MetaLevel{} -> return False
+      NeutralLevel MissingClauses _ -> return False
       NeutralLevel _              l -> fold l
       BlockedLevel _              l -> fold l
       UnreducedLevel              l -> fold l
-    where fold = foldRigid f
+    where fold = anyRigid f
 
-instance (Subst t a, FoldRigid a) => FoldRigid (Abs a) where
-  foldRigid f b = underAbstraction_ b $ foldRigid f
+instance (Subst t a, AnyRigid a) => AnyRigid (Abs a) where
+  anyRigid f b = underAbstraction_ b $ anyRigid f
 
-instance FoldRigid a => FoldRigid (Arg a) where
-  foldRigid f a =
+instance AnyRigid a => AnyRigid (Arg a) where
+  anyRigid f a =
     case getRelevance a of
       -- Irrelevant arguments are definitionally equal to
       -- values, so the variables there are not considered
       -- "definitely rigid".
-      Irrelevant -> mempty
-      _          -> foldRigid f $ unArg a
+      Irrelevant -> return False
+      _          -> anyRigid f $ unArg a
 
-instance FoldRigid a => FoldRigid (Dom a) where
-  foldRigid f dom = foldRigid f $ unDom dom
+instance AnyRigid a => AnyRigid (Dom a) where
+  anyRigid f dom = anyRigid f $ unDom dom
 
-instance FoldRigid a => FoldRigid (Elim' a) where
-  foldRigid f (Apply a) = foldRigid f a
-  foldRigid f (IApply x y a) = foldRigid f (x,(y,a))
-  foldRigid f Proj{}    = mempty
+instance AnyRigid a => AnyRigid (Elim' a) where
+  anyRigid f (Apply a)      = anyRigid f a
+  anyRigid f (IApply x y a) = anyRigid f (x,(y,a))
+  anyRigid f Proj{}         = return False
 
-instance FoldRigid a => FoldRigid [a] where
-  foldRigid f = foldMap $ foldRigid f
+instance AnyRigid a => AnyRigid [a] where
+  anyRigid f xs = anyM xs $ anyRigid f
 
-instance (FoldRigid a, FoldRigid b) => FoldRigid (a,b) where
-  foldRigid f (a,b) = foldRigid f a `mappend` foldRigid f b
+instance (AnyRigid a, AnyRigid b) => AnyRigid (a,b) where
+  anyRigid f (a,b) = anyRigid f a `or2M` anyRigid f b
 
 
 data PruneResult

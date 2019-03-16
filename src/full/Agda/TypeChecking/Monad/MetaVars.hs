@@ -84,7 +84,6 @@ class ( MonadConstraint m
       , HasBuiltins m
       , HasConstInfo m
       , MonadDebug m
-      , Monoid (m Any) -- short-cutting monadic disjunction
       ) => MonadMetaSolver m where
   -- | Generate a new meta variable with some instantiation given.
   --   For instance, the instantiation could be a 'PostponedTypeCheckingProblem'.

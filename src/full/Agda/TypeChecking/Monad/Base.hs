@@ -3738,14 +3738,6 @@ instance Null (TCM Doc) where
   empty = return empty
   null = __IMPOSSIBLE__
 
--- | Short-cutting disjunction forms a monoid.
-instance Semigroup (TCM Any) where
-  ma <> mb = Any <$> do (getAny <$> ma) `or2M` (getAny <$> mb)
-
-instance Monoid (TCM Any) where
-  mempty = return mempty
-  mappend = (<>)
-
 patternViolation :: MonadError TCErr m => m a
 patternViolation = throwError PatternErr
 
