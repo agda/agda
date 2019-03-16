@@ -47,6 +47,8 @@ instance MonadConstraint TCM where
   addAwakeConstraint = addAwakeConstraint'
   solveConstraint = solveConstraintTCM
   solveSomeAwakeConstraints = solveSomeAwakeConstraintsTCM
+  wakeConstraints = wakeConstraintsTCM
+  stealConstraints = stealConstraintsTCM
   modifyAwakeConstraints = modifyTC . mapAwakeConstraints
   modifySleepingConstraints = modifyTC . mapSleepingConstraints
 
@@ -97,6 +99,29 @@ addConstraintTCM c = do
           reportSDoc "tc.constr.lvl" 40 $ "simplifying level constraint" <+> prettyTCM c
                                           $$ nest 2 (hang "using" 2 (prettyTCM lvls))
         return $ simplifyLevelConstraint c $ map clValue lvls
+
+wakeConstraintsTCM :: (ProblemConstraint-> TCM Bool) -> TCM ()
+wakeConstraintsTCM wake = do
+  c <- useR stSleepingConstraints
+  (wakeup, sleepin) <- partitionM wake c
+  reportSLn "tc.constr.wake" 50 $
+    "waking up         " ++ show (List.map (Set.toList . constraintProblems) wakeup) ++ "\n" ++
+    "  still sleeping: " ++ show (List.map (Set.toList . constraintProblems) sleepin)
+  modifySleepingConstraints $ const sleepin
+  modifyAwakeConstraints (++ wakeup)
+
+-- | Add all constraints belonging to the given problem to the current problem(s).
+stealConstraintsTCM :: ProblemId -> TCM ()
+stealConstraintsTCM pid = do
+  current <- asksTC envActiveProblems
+  reportSLn "tc.constr.steal" 50 $ "problem " ++ show (Set.toList current) ++ " is stealing problem " ++ show pid ++ "'s constraints!"
+  -- Add current to any constraint in pid.
+  let rename pc@(PConstr pids c) | Set.member pid pids = PConstr (Set.union current pids) c
+                                 | otherwise           = pc
+  -- We should never steal from an active problem.
+  whenM (Set.member pid <$> asksTC envActiveProblems) __IMPOSSIBLE__
+  modifyAwakeConstraints    $ List.map rename
+  modifySleepingConstraints $ List.map rename
 
 -- | Don't allow the argument to produce any blocking constraints.
 noConstraints

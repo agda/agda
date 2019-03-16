@@ -24,19 +24,6 @@ import Agda.Utils.Except
 #include "undefined.h"
 import Agda.Utils.Impossible
 
--- | Add all constraints belonging to the given problem to the current problem(s).
-stealConstraints :: MonadConstraint m => ProblemId -> m ()
-stealConstraints pid = do
-  current <- asksTC envActiveProblems
-  reportSLn "tc.constr.steal" 50 $ "problem " ++ show (Set.toList current) ++ " is stealing problem " ++ show pid ++ "'s constraints!"
-  -- Add current to any constraint in pid.
-  let rename pc@(PConstr pids c) | Set.member pid pids = PConstr (Set.union current pids) c
-                                 | otherwise           = pc
-  -- We should never steal from an active problem.
-  whenM (Set.member pid <$> asksTC envActiveProblems) __IMPOSSIBLE__
-  modifyAwakeConstraints    $ List.map rename
-  modifySleepingConstraints $ List.map rename
-
 solvingProblem :: MonadConstraint m => ProblemId -> m a -> m a
 solvingProblem pid = solvingProblems (Set.singleton pid)
 
@@ -65,16 +52,6 @@ getConstraintsForProblem pid = List.filter (Set.member pid . constraintProblems)
 -- | Get the awake constraints
 getAwakeConstraints :: ReadTCState m => m Constraints
 getAwakeConstraints = useR stAwakeConstraints
-
-wakeConstraints :: MonadConstraint m => (ProblemConstraint-> m Bool) -> m ()
-wakeConstraints wake = do
-  c <- useR stSleepingConstraints
-  (wakeup, sleepin) <- partitionM wake c
-  reportSLn "tc.constr.wake" 50 $
-    "waking up         " ++ show (List.map (Set.toList . constraintProblems) wakeup) ++ "\n" ++
-    "  still sleeping: " ++ show (List.map (Set.toList . constraintProblems) sleepin)
-  modifySleepingConstraints $ const sleepin
-  modifyAwakeConstraints (++ wakeup)
 
 -- danger...
 dropConstraints :: MonadConstraint m => (ProblemConstraint -> Bool) -> m ()
@@ -173,6 +150,10 @@ class ( MonadTCEnv m
   -- | Solve awake constraints matching the predicate. If the second argument is
   --   True solve constraints even if already 'isSolvingConstraints'.
   solveSomeAwakeConstraints :: (ProblemConstraint -> Bool) -> Bool -> m ()
+
+  wakeConstraints :: (ProblemConstraint-> m Bool) -> m ()
+
+  stealConstraints :: ProblemId -> m ()
 
   modifyAwakeConstraints :: (Constraints -> Constraints) -> m ()
 
