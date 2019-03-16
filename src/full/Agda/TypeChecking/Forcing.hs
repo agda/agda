@@ -220,7 +220,11 @@ forceTranslateTelescope delta qs = do
 --    rebindForcedPattern [.(suc n), cons .n x xs] n = [suc n, cons .n x xs]
 --
 rebindForcedPattern :: [NamedArg DeBruijnPattern] -> DeBruijnPattern -> TCM [NamedArg DeBruijnPattern]
-rebindForcedPattern ps toRebind = go $ zip (repeat NotForced) ps
+rebindForcedPattern ps toRebind = do
+  reportSDoc "tc.force" 50 $ hsep ["rebinding", pretty toRebind, "in"] <?> pretty ps
+  ps' <- go $ zip (repeat NotForced) ps
+  reportSDoc "tc.force" 50 $ nest 2 $ hsep ["result:", pretty ps']
+  return ps'
   where
     targetDotP = patternToTerm toRebind
 
@@ -288,6 +292,17 @@ rebindForcedPattern ps toRebind = go $ zip (repeat NotForced) ps
 dotForcedPatterns :: [NamedArg DeBruijnPattern] -> TCM ([NamedArg DeBruijnPattern], Maybe [DeBruijnPattern])
 dotForcedPatterns ps = runWriterT $ (traverse . traverse . traverse) (forced NotForced) ps
   where
+    -- We only need to rebind variables, we don't need to rebind them under the
+    -- same constructors.
+    variables :: DeBruijnPattern -> [DeBruijnPattern]
+    variables DotP{}        = []
+    variables ProjP{}       = []
+    variables LitP{}        = []
+    variables IApplyP{}     = []
+    variables p@VarP{}      = [p]
+    variables (DefP _ _ ps) = concatMap (variables . namedArg) ps
+    variables (ConP _ _ ps) = concatMap (variables . namedArg) ps
+
     forced :: IsForced -> DeBruijnPattern -> WriterT (Maybe [DeBruijnPattern]) TCM DeBruijnPattern
     forced f p =
       case p of
@@ -295,7 +310,7 @@ dotForcedPatterns ps = runWriterT $ (traverse . traverse . traverse) (forced Not
         ProjP{}         -> return p
         _ | f == Forced -> do
           properMatch <- isProperMatch p
-          dotP (patternToTerm p) <$ tell (Just [p | properMatch || length p > 0])
+          dotP (patternToTerm p) <$ tell (Just $ guard (properMatch || length p > 0) >> variables p)
         VarP{}          -> return p
         LitP{}          -> return p
         ConP c i ps     -> do
