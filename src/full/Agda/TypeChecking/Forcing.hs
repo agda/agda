@@ -67,6 +67,7 @@ import Data.Traversable
 import Data.Semigroup hiding (Arg)
 import Data.Maybe
 import Data.List ((\\))
+import Data.Function (on)
 
 import Agda.Interaction.Options
 
@@ -220,13 +221,17 @@ forceTranslateTelescope delta qs = do
 --    rebindForcedPattern [.(suc n), cons .n x xs] n = [suc n, cons .n x xs]
 --
 rebindForcedPattern :: [NamedArg DeBruijnPattern] -> DeBruijnPattern -> TCM [NamedArg DeBruijnPattern]
-rebindForcedPattern ps toRebind = go $ zip (repeat NotForced) ps
+rebindForcedPattern ps toRebind = do
+  reportSDoc "tc.force" 50 $ hsep ["rebinding", pretty toRebind, "in"] <?> pretty ps
+  ps' <- go $ zip (repeat NotForced) ps
+  reportSDoc "tc.force" 50 $ nest 2 $ hsep ["result:", pretty ps']
+  return ps'
   where
     targetDotP = patternToTerm toRebind
 
     go [] = __IMPOSSIBLE__ -- unforcing cannot fail
     go ((Forced,    p) : ps) = (p :) <$> go ps
-    go ((NotForced, p) : ps) | namedArg p == toRebind
+    go ((NotForced, p) : ps) | namedArg p `rebinds` toRebind
                              = return $ p : map snd ps
     go ((NotForced, p) : ps) = -- (#3544) A previous rebinding might have already rebound our pattern
       case namedArg p of
@@ -281,6 +286,20 @@ rebindForcedPattern ps toRebind = go $ zip (repeat NotForced) ps
         _ -> return Nothing
       where
         doname = (map . fmap) unnamed
+
+-- | Check if the first pattern rebinds the second pattern. Almost equality,
+--   but allows the first pattern to have a variable where the second pattern
+--   has a dot pattern. Used to fix #3544.
+rebinds :: DeBruijnPattern -> DeBruijnPattern -> Bool
+VarP{}          `rebinds` DotP{}            = True
+VarP _ x        `rebinds` VarP _ y          = x == y
+DotP _ u        `rebinds` DotP _ v          = u == v
+ConP c _ ps     `rebinds` ConP c' _ qs      = c == c && and (zipWith (rebinds `on` namedArg) ps qs)
+LitP l          `rebinds` LitP l'           = l == l'
+ProjP _ f       `rebinds` ProjP _ g         = f == g
+IApplyP _ u v x `rebinds` IApplyP _ u' v' y = u == u' && v == v' && x == y
+DefP _ f ps     `rebinds` DefP _ g qs       = f == g && and (zipWith (rebinds `on` namedArg) ps qs)
+_               `rebinds` _                 = False
 
 -- | Dot all forced patterns and return a list of patterns that need to be
 --   undotted elsewhere. Patterns that need to be undotted are those that bind
