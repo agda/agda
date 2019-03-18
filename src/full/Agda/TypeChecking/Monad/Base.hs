@@ -1112,7 +1112,7 @@ data CheckedTarget = CheckedTarget (Maybe ProblemId)
 
 data TypeCheckingProblem
   = CheckExpr Comparison A.Expr Type
-  | CheckArgs ExpandHidden Range [NamedArg A.Expr] Type Type ([Maybe Range] -> Elims -> Type -> CheckedTarget -> TCM Term)
+  | CheckArgs ExpandHidden Range [NamedArg A.Expr] Type Type (ArgsCheckState CheckedTarget -> TCM Term)
   | CheckProjAppToKnownPrincipalArg Comparison A.Expr ProjOrigin (NonemptyList QName) A.Args Type Int Term Type
   | CheckLambda Comparison (Arg ([WithHiding Name], Maybe Type)) A.Expr Type
     -- ^ @(λ (xs : t₀) → e) : t@
@@ -2693,6 +2693,20 @@ data Candidate  = Candidate { candidateTerm :: Term
 
 instance Free Candidate where
   freeVars' (Candidate t u _) = freeVars' (t, u)
+
+
+---------------------------------------------------------------------------
+-- ** Checking arguments
+---------------------------------------------------------------------------
+
+data ArgsCheckState a = ACState
+       { acRanges :: [Maybe Range]
+       , acElims  :: Elims
+       , acType   :: Type
+       , acData   :: a
+       }
+  deriving (Show, Data)
+
 
 ---------------------------------------------------------------------------
 -- * Type checking warnings (aka non-fatal errors)
