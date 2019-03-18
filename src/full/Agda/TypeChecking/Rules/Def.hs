@@ -343,7 +343,12 @@ checkFunDefS t ai delayed extlam with i name withSub cs = do
         -- add clauses for the coverage checker (needs to reduce)
         inTopContext $ addClauses name cs
 
+        reportSDoc "tc.cc.type" 60 $ "  type   : " <+> (text . prettyShow) t
+        reportSDoc "tc.cc.type" 60 $ "  context: " <+> (text . prettyShow =<< getContextTelescope)
+
         fullType <- flip telePi t <$> getContextTelescope
+
+        reportSLn  "tc.cc.type" 80 $ show fullType
 
         -- Coverage check and compile the clauses
         (mst, cc) <- Bench.billTo [Bench.Coverage] $
