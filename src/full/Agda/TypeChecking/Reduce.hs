@@ -269,22 +269,22 @@ instance Reduce Type where
 
 instance Reduce Sort where
     reduce' s = do
-          s <- instantiate' s
-          case s of
-            PiSort s1 s2 -> do
-              (s1,s2) <- reduce' (s1,s2)
-              maybe (return $ PiSort s1 s2) reduce' $ piSort' s1 s2
-            UnivSort s' -> do
-              s' <- reduce' s'
-              ui <- univInf
-              caseMaybe (univSort' ui s') (return $ UnivSort s') reduce'
-            Prop s'    -> Prop <$> reduce' s'
-            Type s'    -> Type <$> reduce' s'
-            Inf        -> return Inf
-            SizeUniv   -> return SizeUniv
-            MetaS x es -> return s
-            DefS d es  -> return s -- postulated sorts do not reduce
-            DummyS{}   -> return s
+      s <- instantiate' s
+      case s of
+        PiSort s1 s2 -> do
+          (s1,s2) <- reduce' (s1,s2)
+          maybe (return $ PiSort s1 s2) reduce' $ piSort' s1 s2
+        UnivSort s' -> do
+          s' <- reduce' s'
+          ui <- univInf
+          caseMaybe (univSort' ui s') (return $ UnivSort s') reduce'
+        Prop s'    -> Prop <$> reduce' s'
+        Type s'    -> Type <$> reduce' s'
+        Inf        -> return Inf
+        SizeUniv   -> return SizeUniv
+        MetaS x es -> return s
+        DefS d es  -> return s -- postulated sorts do not reduce
+        DummyS{}   -> return s
 
 instance Reduce Elim where
   reduce' (Apply v) = Apply <$> reduce' v
