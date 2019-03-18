@@ -732,12 +732,10 @@ catchIlltypedPatternBlockedOnMeta m handle = do
 
 -- | Picks up record field assignments from modules that export a definition
 --   that has the same name as the missing field.
---
---   Only visible fields are picked up.  Issue #3122: Why is that the case?
 
 expandModuleAssigns
   :: [Either A.Assign A.ModuleName]  -- ^ Modules and field assignments.
-  -> [C.Name]                        -- ^ Names of visible fields of the record type.
+  -> [C.Name]                        -- ^ Names of fields of the record type.
   -> TCM A.Assigns                   -- ^ Completed field assignments from modules.
 expandModuleAssigns mfs exs = do
   let (fs , ms) = partitionEithers mfs
@@ -799,7 +797,6 @@ checkRecordExpression cmp mfs e t = do
       def <- getRecordDef r
       let -- Field names (C.Name) with ArgInfo from record type definition.
           cxs  = recordFieldNames def
-          exs  = filter visible cxs
           -- Just field names.
           xs   = map unArg cxs
           -- Record constructor.
@@ -816,7 +813,8 @@ checkRecordExpression cmp mfs e t = do
       disambiguateRecordFields (map _nameFieldA $ lefts mfs) (map unArg $ recFields def)
 
       -- Compute the list of given fields, decorated with the ArgInfo from the record def.
-      fs <- expandModuleAssigns mfs (map unArg exs)
+      -- Andreas, 2019-03-18, issue #3122, also pick up non-visible fields from the modules.
+      fs <- expandModuleAssigns mfs (map unArg cxs)
 
       -- Compute a list of metas for the missing visible fields.
       scope <- getScope
