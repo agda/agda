@@ -500,6 +500,11 @@ etaExpandMeta kinds m = whenM (asksTC envAssignMetas `and2M` isEtaExpandable kin
               let ps = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
               let expand = do
                     u <- withMetaInfo' meta $ newRecordMetaCtx r ps tel (idP $ size tel) $ teleArgs tel
+                    -- Andreas, 2019-03-18, AIM XXIX, issue #3597
+                    -- When meta is frozen instantiate it with in-turn frozen metas.
+                    whenM (isFrozen m) $ do
+                      let ms = allMetas u
+                      void $ freezeMetas' (`elem` ms)
                     inTopContext $ do
                       verboseS "tc.meta.eta" 15 $ do
                         du <- prettyTCM u
