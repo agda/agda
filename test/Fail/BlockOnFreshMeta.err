@@ -1,4 +1,4 @@
 Failed to solve the following constraints:
-  _21 := unquote (λ hole → blockOnFresh)
+  unquote (λ hole → blockOnFresh)
 Unsolved metas at the following locations:
   BlockOnFreshMeta.agda:24,5-19

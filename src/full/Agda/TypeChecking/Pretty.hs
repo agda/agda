@@ -326,6 +326,9 @@ instance PrettyTCM Constraint where
         HasPTSRule a b -> "Has PTS rule:" <+> case b of
           NoAbs _ b -> prettyTCM (a,b)
           Abs x b   -> "(" <> prettyTCM a <+> "," <+> addContext x (prettyTCM b) <> ")"
+        UnquoteTactic _ v _ _ -> do
+          e <- reify v
+          prettyTCM (A.App A.defaultAppInfo_ (A.Unquote A.exprNoRange) (defaultNamedArg e))
 
       where
         prettyCmp :: (PrettyTCM a, PrettyTCM b) => TCM Doc -> a -> b -> TCM Doc
@@ -353,9 +356,6 @@ instance PrettyTCM TypeCheckingProblem where
           ":?"
         , prettyTCM t
         ]
-  prettyTCM (UnquoteTactic v _ _) = do
-    e <- reify v
-    prettyTCM (A.App A.defaultAppInfo_ (A.Unquote A.exprNoRange) (defaultNamedArg e))
   prettyTCM (DoQuoteTerm _ v _) = do
     e <- reify v
     prettyTCM (A.App A.defaultAppInfo_ (A.QuoteTerm A.exprNoRange) (defaultNamedArg e))

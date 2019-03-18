@@ -420,6 +420,9 @@ instance Reify Constraint (OutputConstraint Expr Expr) where
     reify (Guarded c pid) = do
         o  <- reify c
         return $ Guard o pid
+    reify (UnquoteTactic _ tac _ goal) = do
+        tac <- A.App defaultAppInfo_ (A.Unquote exprNoRange) . defaultNamedArg <$> reify tac
+        OfType tac <$> reify goal
     reify (UnBlock m) = do
         mi <- mvInstantiation <$> lookupMeta m
         m' <- reify (MetaV m [])
@@ -443,9 +446,6 @@ instance Reify Constraint (OutputConstraint Expr Expr) where
               t1 <- reify t1
               return $ PostponedCheckArgs m' (map (namedThing . unArg) args) t0 t1
             CheckProjAppToKnownPrincipalArg cmp e _ _ _ t _ _ _ -> TypedAssign m' e <$> reify t
-            UnquoteTactic tac _ goal -> do
-              tac <- A.App defaultAppInfo_ (A.Unquote exprNoRange) . defaultNamedArg <$> reify tac
-              OfType tac <$> reify goal
             DoQuoteTerm cmp v t -> do
               tm <- A.App defaultAppInfo_ (A.QuoteTerm exprNoRange) . defaultNamedArg <$> reify v
               OfType tm <$> reify t

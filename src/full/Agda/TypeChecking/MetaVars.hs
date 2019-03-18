@@ -372,7 +372,6 @@ postponeTypeCheckingProblem_ p = do
     unblock (CheckArgs _ _ _ t _ _)   = unblockedTester t  -- The type of the head of the application.
     unblock (CheckProjAppToKnownPrincipalArg _ _ _ _ _ _ _ _ t) = unblockedTester t -- The type of the principal argument
     unblock (CheckLambda _ _ _ t)     = unblockedTester t
-    unblock (UnquoteTactic _ _ _)     = __IMPOSSIBLE__     -- unquote problems must be supply their own tester
     unblock (DoQuoteTerm _ _ _)       = __IMPOSSIBLE__     -- also quoteTerm problems
 
 -- | Create a postponed type checking problem @e : t@ that waits for conditon
@@ -410,7 +409,6 @@ problemType (CheckExpr _ _ t         ) = t
 problemType (CheckArgs _ _ _ _ t _ )   = t  -- The target type of the application.
 problemType (CheckProjAppToKnownPrincipalArg _ _ _ _ _ t _ _ _) = t -- The target type of the application
 problemType (CheckLambda _ _ _ t     ) = t
-problemType (UnquoteTactic tac hole t) = t
 problemType (DoQuoteTerm _ _ t)        = t
 
 -- | Eta expand metavariables listening on the current meta.

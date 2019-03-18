@@ -1226,31 +1226,31 @@ quoteContext = do
       return $ Right quotedContext
 
 -- | Unquote a TCM computation in a given hole.
-unquoteM :: A.Expr -> Term -> Type -> TCM Term -> TCM Term
-unquoteM tacA hole holeType k = do
+unquoteM :: A.Expr -> Term -> Type -> TCM ()
+unquoteM tacA hole holeType = do
   tac <- checkExpr tacA =<< (el primAgdaTerm --> el (primAgdaTCM <#> primLevelZero <@> primUnit))
-  inFreshModuleIfFreeParams $ unquoteTactic tac hole holeType k
+  inFreshModuleIfFreeParams $ unquoteTactic tac hole holeType
 
 -- | Run a tactic `tac : Term → TC ⊤` in a hole (second argument) of the type
 --   given by the third argument. Runs the continuation if successful.
-unquoteTactic :: Term -> Term -> Type -> TCM Term -> TCM Term
-unquoteTactic tac hole goal k = do
+unquoteTactic :: Term -> Term -> Type -> TCM ()
+unquoteTactic tac hole goal = do
   ok  <- runUnquoteM $ unquoteTCM tac hole
   case ok of
     Left (BlockedOnMeta oldState x) -> do
       putTC oldState
       mi <- lookupMeta' x
-      (r, unblock) <- case mi of
+      (r, meta) <- case mi of
         Nothing -> do -- fresh meta: need to block on something else!
           otherMetas <- allMetas <$> instantiateFull goal
           case otherMetas of
-            []  -> return (noRange,     return False) -- Nothing to block on, leave it yellow. Alternative: fail.
-            x:_ -> return (noRange,     isInstantiatedMeta x)  -- range?
-        Just mi -> return (getRange mi, isInstantiatedMeta x)
+            []  -> return (noRange,     Nothing) -- Nothing to block on, leave it yellow. Alternative: fail.
+            x:_ -> return (noRange,     Just x)  -- range?
+        Just mi -> return (getRange mi, Just x)
       setCurrentRange r $
-        postponeTypeCheckingProblem (UnquoteTactic tac hole goal) unblock
+        addConstraint (UnquoteTactic meta tac hole goal)
     Left err -> typeError $ UnquoteFailed err
-    Right _ -> k
+    Right _ -> return ()
 
 ---------------------------------------------------------------------------
 -- * Meta variables

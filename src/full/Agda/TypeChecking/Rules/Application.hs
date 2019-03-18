@@ -182,7 +182,8 @@ checkApplication cmp hd args e t = postponeInstanceConstraints $ do
     A.Unquote _
       | [arg] <- args -> do
           (_, hole) <- newValueMeta RunMetaOccursCheck t
-          unquoteM (namedArg arg) hole t $ return hole
+          unquoteM (namedArg arg) hole t
+          return hole
       | arg : args <- args -> do
           -- Example: unquote v a b : A
           --  Create meta H : (x : X) (y : Y x) → Z x y for the hole
@@ -197,7 +198,8 @@ checkApplication cmp hd args e t = postponeInstanceConstraints $ do
           let rho = reverse (map unArg vs) ++# IdS  -- [x := a, y := b]
           equalType (applySubst rho target) t       -- Z a b == A
           (_, hole) <- newValueMeta RunMetaOccursCheck holeType
-          unquoteM (namedArg arg) hole holeType $ return $ apply hole vs
+          unquoteM (namedArg arg) hole holeType
+          return $ apply hole vs
       where
         metaTel :: [Arg a] -> TCM Telescope
         metaTel []           = pure EmptyTel
