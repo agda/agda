@@ -268,10 +268,7 @@ instance Reduce Type where
     reduceB' (El s t) = fmap (El s) <$> reduceB' t
 
 instance Reduce Sort where
-    reduce' s = {-# SCC "reduce'<Sort>" #-}
-      ifNotM hasUniversePolymorphism (red s) $ {- else -} red =<< instantiateFull' s
-      where
-        red s = do
+    reduce' s = do
           s <- instantiate' s
           case s of
             PiSort s1 s2 -> do
