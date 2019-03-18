@@ -1351,7 +1351,9 @@ funSort a b = fromMaybe (PiSort a (NoAbs underscore b)) $ funSort' a b
 piSort' :: Sort -> Abs Sort -> Maybe Sort
 piSort' a      (NoAbs _ b) = funSort' a b
 piSort' a bAbs@(Abs   _ b) = case occurrence 0 b of
-    NoOccurrence  -> funSort' a $ noabsApp {-'-} __IMPOSSIBLE__ bAbs
+    -- Andreas, Jesper, AIM XXIX, 2019-03-18, issue #3631
+    -- Remember the NoAbs here!
+    NoOccurrence  -> Just $ funSort a $ noabsApp __IMPOSSIBLE__ bAbs
     -- Andreas, 2017-01-18, issue #2408:
     -- The sort of @.(a : A) → Set (f a)@ in context @f : .A → Level@
     -- is @dLub Set λ a → Set (lsuc (f a))@, but @DLub@s are not serialized.
