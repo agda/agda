@@ -345,14 +345,14 @@ lookupInteractionMeta_ :: InteractionId -> InteractionPoints -> Maybe MetaId
 lookupInteractionMeta_ ii m = ipMeta =<< Map.lookup ii m
 
 -- | Generate new meta variable.
-newMeta :: MetaInfo -> MetaPriority -> Permutation -> Judgement a -> TCM MetaId
+newMeta :: Frozen -> MetaInfo -> MetaPriority -> Permutation -> Judgement a -> TCM MetaId
 newMeta = newMeta' Open
 
 -- | Generate a new meta variable with some instantiation given.
 --   For instance, the instantiation could be a 'PostponedTypeCheckingProblem'.
-newMeta' :: MetaInstantiation -> MetaInfo -> MetaPriority -> Permutation ->
+newMeta' :: MetaInstantiation -> Frozen -> MetaInfo -> MetaPriority -> Permutation ->
             Judgement a -> TCM MetaId
-newMeta' inst mi p perm j = do
+newMeta' inst frozen mi p perm j = do
   x <- fresh
   let j' = j { jMetaId = x }  -- fill the identifier part of the judgement
       mv = MetaVar{ mvInfo             = mi
@@ -361,7 +361,8 @@ newMeta' inst mi p perm j = do
                   , mvJudgement        = j'
                   , mvInstantiation    = inst
                   , mvListeners        = Set.empty
-                  , mvFrozen           = Instantiable }
+                  , mvFrozen           = frozen
+                  }
   -- printing not available (import cycle)
   -- reportSDoc "tc.meta.new" 50 $ "new meta" <+> prettyTCM j'
   insertMetaVar x mv
