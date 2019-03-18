@@ -2701,8 +2701,12 @@ instance Free Candidate where
 
 data ArgsCheckState a = ACState
        { acRanges :: [Maybe Range]
+         -- ^ Ranges of checked arguments, where present.
+         -- e.g. inserted implicits have no correponding abstract syntax.
        , acElims  :: Elims
+         -- ^ Checked and inserted arguments so far.
        , acType   :: Type
+         -- ^ Type for the rest of the application.
        , acData   :: a
        }
   deriving (Show, Data)
