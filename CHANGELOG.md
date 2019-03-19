@@ -255,7 +255,8 @@ Instance search
   instance goal when given appropriate solutions for their recursive
   (instance) arguments. Agda used to choose between undecidable
   instances based on the result of recursive instance search, but this
-  lead to an exponential slowdown in instance resolution.
+  lead to an exponential slowdown in instance resolution. Overlapping
+  instances can be enabled with the flag `--overlapping-instances`.
 
 * Explicit arguments are no longer automatically turned into instance
   arguments for the purpose of recursive instance search. Instead,
