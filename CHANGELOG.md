@@ -1,18 +1,25 @@
 Release notes for Agda version 2.6.0
 ====================================
 
+Highlights
+----------
+
+* Added a mode for Cubical Agda with path equality and
+  related features from [Cubical Type Theory](https://arxiv.org/abs/1611.02108),
+  including univalence and higher inductive types.
+
+* Added support for ML-style automatically generalized variables.
+
+* Added a new sort ``Prop`` of [definitionally proof-irrelevant
+  propositions](https://hal.inria.fr/hal-01859964).
+
+* The implementation of instance search got a major overhaul and no
+  longer supports overlapping instances (unless enabled by a flag).
+
 Installation and infrastructure
 -------------------------------
 
 * Added support for GHC 8.6.4.
-
-* Generated the interface file for the `Sigma.agda` built-in when
-  installing Agda
-  [Issue [#3128](https://github.com/agda/agda/issues/3128)].
-
-* Fixed a regression in the generation of the interface files by
-  `Setup.hs` when using Cabal >= 2.0.0.0
-  [Issue [#3444](https://github.com/agda/agda/issues/3128)].
 
 * Interface files for all builtin and primitive files are now
   re-generated each time Agda is installed.
@@ -20,193 +27,36 @@ Installation and infrastructure
 Syntax
 ------
 
-* The rules for parsing of patterns have changed slightly [Issue
-  [#3400](https://github.com/agda/agda/issues/3400)].
+* Agda now supports implicit generalization of declared
+  variables. Variables to be generalized can declared with the new
+  keyword `variable`.  For example:
 
-  Now projections are treated similarly to constructors: In a pattern
-  name parts coming from projections can only be used as part of
-  projections, constructors or pattern synonyms. They cannot be used
-  as variables, or as part of the name of the defined value.
-
-  Examples:
-
-  * The following code used to be syntactically ambiguous, but is now
-    parsed, because A can no longer be used as a variable:
-    ```agda
-    record R : Set₂ where
-      field
-        _A : Set₁
-
-    open R
-
-    r : R
-    r A = Set
-    ```
-
-  * On the other hand the following code is no longer parsed:
-    ```agda
-    record R : Set₁ where
-      field
-        ⟨_+_⟩ : Set
-
-    open R
-
-    + : Set → Set
-    + A = A
-    ```
-
-    This is similar to how the following code is not parsed:
-    ```agda
-    data D : Set₁ where
-      ⟨_+_⟩ : D
-
-    + : Set → Set
-    + A = A
-    ```
-
-* Agda now supports implicit generalization of declared variables
-  [Issue [#1706](https://github.com/agda/agda/issues/1706)].
-
-  Variables to be generalized can declared with the new keyword `variable`.
-  For example:
   ```agda
     postulate
-        Con : Set
+      Con : Set
 
     variable
-        Γ Δ θ : Con
+      Γ Δ θ : Con
   ```
 
-  Declared variables are automatically generalized in type signatures, module
-  telescopes and data type and record parameters and indices:
+  Declared variables are automatically generalized in type signatures,
+  module telescopes and data type and record parameters and indices:
+
   ```agda
     postulate
-        Sub : Con → Con → Set
+      Sub : Con → Con → Set
 
-        id  : Sub Γ Γ
-    --  -- equivalent to
-    --  id  : {Γ : Con} → Sub Γ Γ
+      id  : Sub Γ Γ
+   -- -- equivalent to
+   -- id  : {Γ : Con} → Sub Γ Γ
 
-        _∘_ : Sub Θ Δ → Sub Γ Θ → Sub Γ Δ
-    --  -- equivalent to
-    --  _∘_ : {Γ Δ Θ : Con} → Sub Θ Δ → Sub Γ Θ → Sub Γ Δ
+      _∘_ : Sub Θ Δ → Sub Γ Θ → Sub Γ Δ
+   -- -- equivalent to
+   -- _∘_ : {Γ Δ Θ : Con} → Sub Θ Δ → Sub Γ Θ → Sub Γ Δ
   ```
 
-  Note that each type signature has a separate copy of its declared variables,
-  so `id` and `_∘_` refer to two different `Γ` named variables.
-
-  When generalizing data type parameters and indicies a variable is turned into
-  an index if it's only mentioned in indices and into a parameter otherwise.
-  For instance,
-  ```agda
-    variable
-      n  : Nat
-
-    data Vec (A : Set) : Nat → Set where
-      []  : Vec A 0
-      _∷_ : A → Vec A n → Vec A (suc n)
-
-    variable
-      A  : Set
-      x  : A
-      xs : Vec A n
-
-    -- Here `A` will be a parameter and `n` an index. That is,
-    -- data All {A : Set} (P : A → Set) : {n : Nat} → Vec A n → Set
-    data All (P : A → Set) : Vec A n → Set where
-      []  : All P []
-      _∷_ : P x → All P xs → All P (x ∷ xs)
-  ```
-
-  The following rules are used to place the generalized variables:
-
-    - Generalized variables are placed in the front of the type signatures.
-    - Variables mentioned earlier are placed before variables mentioned later.
-      (The dependencies between the variables are obeyed. The current implementation
-      uses "smallest-numbered available vertex first" topological sorting to determine
-      the exact order.)
-
-  `variable` allows metavariables in the type of declared variables.
-  For example:
-  ```agda
-    postulate
-        Con : Set
-        Ty  : Con → Set
-        Sub : Con → Con → Set
-        _,_ : (Γ : Con) → Ty Γ → Con
-
-    variable
-        Γ Δ : Con
-        A : Ty _       -- note the underscore here
-
-    postulate
-        π₁ : Sub Γ (Δ ▹ A) → Sub Γ Δ
-    --  -- equivalent to
-    --  π₁ : {Γ Δ : Con}{A : Ty Δ} → Sub Γ (Δ , A) → Sub Γ Δ
-    --  -- note that the metavariable was solved with Δ
-  ```
-  Note that each type signature has a separate copy of such metavariables,
-  so the underscore in `Ty _` can be solved differently for each type signature
-  which mentions `A`.
-
-  Unsolved metavariables originated from `variable` are generalized.
-  For example:
-  ```agda
-    postulate
-        Con : Set
-        Sub : Con → Con → Set
-
-    variable
-        σ δ ν : Sub _ _   -- metavariables: σ.1, σ.2, δ.1, δ.2, ν.1, ν.2
-
-    postulate
-        ass : (σ ∘ δ) ∘ ν ≡ σ ∘ (δ ∘ ν)
-    --  -- equivalent to
-    --  ass : {σ.1 σ.2 δ.1 ν.1 : Con}
-    --        {σ : Sub σ.1 σ.2}{δ : Sub δ.1 σ.1}{ν : Sub ν.1 δ.1}
-    --      → (σ ∘ δ) ∘ ν ≡ σ ∘ (δ ∘ ν)
-  ```
-  Note that `δ.2` was solved with `σ.1` and `ν.2` was solved with `δ.1`.
-  If two generalizable metavariables can be solved with each-other then
-  the metavariable defined later will be eliminated.
-
-  Hierarchical names like `δ.2` are used so one can track the origin of
-  the metavariables.
-  Currently it is not allowed to use hierarchical names when giving parameters
-  to functions, see [Issue [#3280](https://github.com/agda/agda/issues/3280)].
-
-  Name hints of parameters are used for naming generalizable metavariables too:
-  ```agda
-    postulate
-        Con : Set
-        Sub : (Γ Δ : Con) → Set   -- name hints for parameters of Sub
-
-    variable
-        σ δ ν : Sub _ _   -- metavariables: σ.Γ, σ.Δ, δ.Γ, δ.Δ, ν.Γ, ν.Δ
-  ```
-
-  If a generalizable metavariable M is solved with term T then M is not
-  generalized, but metavariables in T became candidates for generalization.
-
-  It is allowed to nest declared variables.
-  For example:
-  ```agda
-    variable
-        ℓ : Level     -- let ℓ denote a level
-        A : Set ℓ     -- let A denote a set at a level ℓ
-
-    postulate
-        f : A → Set ℓ
-    --  -- equivalent to
-    --  f : {ℓ ℓ' : Level}{A : Set ℓ'} → A → Set ℓ
-
-  ```
-
-  Issues related to this feature are marked with `generalize` in the issue tracker:
-  https://github.com/agda/agda/labels/generalize
-
-* Agda now supports the new sort ``Prop`` of definitionally
-  proof-irrelevant definitions. See the user manual for more details.
+  See the [user manual](https://agda.readthedocs.io/en/latest/language/generalization-of-declared-variables.html)
+  for more details.
 
 * Data type and record definitions separated from their type signatures can no
   longer repeat the types of the parameters, but can bind implicit parameters
@@ -247,21 +97,73 @@ Syntax
     const x _ = x
   ```
 
+* The rules for parsing of patterns have changed slightly [Issue
+  [#3400](https://github.com/agda/agda/issues/3400)].
+
+  Now projections are treated similarly to constructors: In a pattern
+  name parts coming from projections can only be used as part of
+  projections, constructors or pattern synonyms. They cannot be used
+  as variables, or as part of the name of the defined value.
+
+  Examples:
+
+  * The following code used to be syntactically ambiguous, but is now
+    parsed, because A can no longer be used as a variable:
+    ```agda
+    record R : Set₂ where
+      field
+        _A : Set₁
+
+    open R
+
+    r : R
+    r A = Set
+    ```
+
+  * On the other hand the following code is no longer parsed:
+    ```agda
+    record R : Set₁ where
+      field
+        ⟨_+_⟩ : Set
+
+    open R
+
+    + : Set → Set
+    + A = A
+    ```
+
+
 Type checking
 -------------
 
-* Since Agda 2.5.3, the hiding is considered part of the name in the
-  insertion of implicit arguments.  Until Agda 2.5.2, the following
-  code was rejected:
+* Agda now supports a cubical mode which adds new features from
+  [Cubical Type Theory](https://arxiv.org/abs/1611.02108), including
+  univalence and higher inductive types. Option `--cubical` enables
+  the cubical mode, and cubical primitives are defined in the module
+  `Agda.Primitive.Cubical`.  See the [user
+  manual](https://agda.readthedocs.io/en/latest/language/cubical.html)
+  for more info.
+
+* Agda now supports the new sort ``Prop`` of [definitionally
+  proof-irrelevant propositions](https://hal.inria.fr/hal-01859964).
+  Option `--prop` enables the `Prop` universe but is off by default.
+  Option `--no-prop` disables the `Prop` universe.  See the [user
+  manual](https://agda.readthedocs.io/en/latest/language/prop.html)
+  for more details.
+
+  In the absense of `Prop`, the sort `Set` is the lowest sort, thus,
+  the sort annotation `: Set` can be ommitted if the sort is
+  constrained to be weakly below `Set`.  For instance:
+
   ```agda
-    test : {{X : Set}} {X : Set} → Set
-    test {X = X} = X
+  {-# OPTIONS --no-prop #-}
+
+  data Wrap A : Set where
+    wrap : A → Wrap A
   ```
-  The rationale was that named argument `X` is given with the wrong hiding.
-  The new rationale is that the hiding is considered part of the name,
-  distinguishing `{{X}}` from `{X}`.
-  This language change was accidential and has not been documented in
-  the 2.5.3 release notes.
+
+  In contrast, when `--prop` is enabled the sort of `A` could be
+  either `Set` or `Prop` so this code no longer typechecks.
 
 * Agda now allows omitting absurd clauses in case one of the pattern
   variable inhabits an obviously empty type
@@ -275,6 +177,19 @@ Type checking
   Absurd clauses are still required in case deep pattern matching is
   needed to expose the absurd variable, or if there are no non-absurd
   clauses.
+
+* Since Agda 2.5.3, the hiding is considered part of the name in the
+  insertion of implicit arguments.  Until Agda 2.5.2, the following
+  code was rejected:
+  ```agda
+    test : {{X : Set}} {X : Set} → Set
+    test {X = X} = X
+  ```
+  The rationale was that named argument `X` is given with the wrong hiding.
+  The new rationale is that the hiding is considered part of the name,
+  distinguishing `{{X}}` from `{X}`.
+  This language change was accidential and has not been documented in
+  the 2.5.3 release notes.
 
 * Agda no longer allows case splitting on irrelevant arguments of
   record types (see Issue
@@ -345,6 +260,10 @@ Instance search
 * Explicit arguments are no longer automatically turned into instance
   arguments for the purpose of recursive instance search. Instead,
   explicit arguments are left unresolved and will thus never be used.
+
+  If an instance is declared which has explicit arguments, Agda will
+  raise a warning that this instance will never be considered by
+  instance search.
 
 * Instance arguments that are already solved by conversion checking
   are no longer ignored by instance search. Thus the constructor of
@@ -424,10 +343,21 @@ Interaction and error reporting
 Pragmas and options
 -------------------
 
-* New option `--cubical` to enable support for path equality and
-  related features from [Cubical Type Theory](https://arxiv.org/abs/1611.02108),
-  including univalence and higher inductive types.
-  See `Cubical` in the documentation for more info.
+* Consistency checking of options used.
+
+  Agda now checks that options used in imported modules are consistent
+  with each other, e.g. a module using `--safe`, `--without-K`,
+  `--no-universe-polymorphism` or `--no-sized-types` may only import
+  modules with the same option, and modules using `--cubical` or
+  `--prop` must in turn use the same option. If an interface file has
+  been generated using different options compared to the current ones,
+  Agda will now re-typecheck the file.
+  [Issue [#2487](https://github.com/agda/agda/issues/2487)].
+
+* New option `--cubical` to enable Cubical Agda.
+
+* New option `--prop` to enable the ``Prop`` sort, and `--no-prop` to
+  disable it (default).
 
 * New options `--guardedness` and `--no-guardedness` [Issue
   [#1209](https://github.com/agda/agda/issues/1209)].
@@ -451,9 +381,7 @@ Pragmas and options
   Reason: There are consistency issues that may be systemic
   [Issue [#2170](https://github.com/agda/agda/issues/2170)].
 
-* New option `--no-syntactic-equality`.
-
-  The option `--no-syntactic-equality` disables the syntactic equality
+* New option `--no-syntactic-equality` disables the syntactic equality
   shortcut used by the conversion checker. This will slow down
   typechecking in most cases, but makes the performance more
   predictable and stable under minor changes.
@@ -471,26 +399,6 @@ Pragmas and options
 
 * Deprecated options `--sharing` and `--no-sharing` now raise an error.
 
-* New warning `MissingDefinitions`: whenever a declaration has no accompanying
-  definition, we try as much as possible to generate an Axiom for it and emit
-  a warning rather than exit with an error. This is not compatible with `--safe`.
-
-* New warning `AbsurdPatternRequiresNoRHS`: if a clause's LHS contains an absurd,
-  the RHS is not needed. If it is given nonetheless, we raise a warning and ignore
-  it rather than exit with an error.
-
-* New warning `ModuleDoesntExport`: if an import statement for `M` mentions
-  names not exported by `M` (in either `using`, `hiding`, or `renaming) we
-  raise a warning and ignore them instead of exiting with an error.
-
-* New warning `NotAllowedInMutual`: if a pragma, primitive, module or import
-  statement is present in a mutual block we drop it and raise a warning instead
-  of exiting with an error.
-
-* New warning `InstanceWithExplicitArg`: if an instance declaration
-  has an explicit argument, it is no longer turned into an instance
-  argument, thus the instance will never actually be used.
-
 * New primitive `primErase`. It takes a proof of equality and returns a proof of
   the same equality. `primErase eq` reduces to `refl` on the diagonal. `trustMe`
   is not a primitive anymore, it is implemented using `primErase`.
@@ -506,17 +414,6 @@ Pragmas and options
   injective functions. They are respectively bound in `Agda.Builtin.Char.Properties`
   and `Agda.Builtin.String.Properties`.
 
-* Consistency checking of options used.
-
-  Agda now checks that options used in imported modules are consistent
-  with each other, e.g. a module using `--safe`, `--without-K`,
-  `--no-universe-polymorphism` or `--no-sized-types` may only import
-  modules with the same option, and modules using `--cubical` or
-  `--prop` must in turn use the same option. If an interface file has
-  been generated using different options compared to the current ones,
-  Agda will now re-typecheck the file.
-  [Issue [#2487](https://github.com/agda/agda/issues/2487)].
-
 * The option `--only-scope-checking` is now allowed together with `--safe`.
 
 * The option `--ignore-interfaces` no longer ignores the interfaces of
@@ -524,8 +421,23 @@ Pragmas and options
   `--ignore-all-interfaces` which also rechecks builtin and primitive
   files.
 
-Pragmas and options concerning universes
-----------------------------------------
+### New warnings
+
+* A declaration of the form `f : A` without an accompanying definition
+  is no longer an error, but instead raises a warning.
+
+* A clause that has both an absurd pattern and a right-hand side is no
+  longer an error, but instead raises a warning.
+
+* An import statement for `M` that mentions names not exported by `M`
+  (in either `using`, `hiding`, or `renaming`) is no longer an
+  error. Instead, Agda will raise a warning and ignore the names.
+
+* A pragma, primitive, module or import statements in a mutual block
+  are no longer errors. Instead, Agda will raise a warning and ignore
+  these statements.
+
+### Pragmas and options concerning universes
 
 * New pragma `{-# NO_UNIVERSE_CHECK #-}`.
 
@@ -559,19 +471,6 @@ Pragmas and options concerning universes
   Like `--type-in-type`, this makes Agda inconsistent. However, code
   written using `--omega-in-omega` is still compatible with normal
   universe-polymorphic code and can be used in such files.
-
-* Option `--prop` enables the `Prop` universe but is off by default.
-  Option `--no-prop` disables the `Prop` universe.
-
-  In the absense of `Prop`, the sort `Set` is the lowest sort,
-  thus, sort annotation `: Set` can be ommitted if the sort
-  is constrained to be weakly below `Set`.  For instance:
-  ```agda
-  {-# OPTIONS --no-prop #-}
-
-  data Wrap A : Set where
-    wrap : A → Wrap A
-  ```
 
 Emacs mode
 ----------
