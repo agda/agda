@@ -284,6 +284,34 @@ Instance search
   ```
   without opening or naming the module.
 
+Reflection
+----------
+
+
+* New TC primitive `noConstraints` [Issue
+  [#2351](https://github.com/agda/agda/issues/2351)]:
+
+  ```agda
+    noConstraints : ∀ {a} {A : Set a} → TC A → TC A
+  ```
+
+  The computation `noConstraints m` fails if `m` gives rise to new,
+  unsolved
+  ["blocking"](https://github.com/agda/agda/blob/4900ef5fc61776381f3a5e9c94ef776375e9e1f1/src/full/Agda/TypeChecking/Monad/Constraints.hs#L160-L174)
+  constraints.
+
+* New TC primitive `runSpeculative` [Issue
+  [#3346](https://github.com/agda/agda/issues/3346)]:
+
+  ```
+    runSpeculative : ∀ {a} {A : Set a} → TC (Σ A λ _ → Bool) → TC A
+  ```
+
+  The computation `runSpeculative m` runs `m` and either keeps the new
+  TC state (if the second component is `true`) or resets to the old TC
+  state (if it is `false`).
+
+
 Interaction and error reporting
 -------------------------------
 
@@ -1148,29 +1176,6 @@ Language
   This can be used to declare new postulates. The Visibility of the
   Arg must not be hidden. This feature fails when executed with
   `--safe` flag from command-line.
-
-* The procedure `noConstraints` has also been made available [Issue
-  [#2351](https://github.com/agda/agda/issues/2351)]:
-
-  ```agda
-    noConstraints : ∀ {a} {A : Set a} → TC A → TC A
-  ```
-
-  The computation `noConstraints m` fails if `m` gives rise to new,
-  unsolved
-  ["blocking"](https://github.com/agda/agda/blob/4900ef5fc61776381f3a5e9c94ef776375e9e1f1/src/full/Agda/TypeChecking/Monad/Constraints.hs#L160-L174)
-  constraints.
-
-* New TC primitive: `runSpeculative` [Issue
-  [#3346](https://github.com/agda/agda/issues/3346)]
-
-  ```
-    runSpeculative : ∀ {a} {A : Set a} → TC (Σ A λ _ → Bool) → TC A
-  ```
-
-  The computation `runSpeculative m` runs `m` and either keeps the new
-  TC state (if the second component is `true`) or resets to the old TC
-  state (if it is `false`).
 
 Pragmas and options
 -------------------
