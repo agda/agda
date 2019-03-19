@@ -192,6 +192,6 @@ instance SynEq a => SynEq (Dom a) where
     | otherwise = inequal (d, d')
 
 instance SynEq ArgInfo where
-  synEq ai@(ArgInfo h r o _) ai'@(ArgInfo h' r' o' _)
-    | h == h', r == r' = pure2 ai
+  synEq ai@(ArgInfo h r o _ a) ai'@(ArgInfo h' r' o' _ a')
+    | h == h', r == r', a == a' = pure2 ai
     | otherwise        = inequal (ai, ai')

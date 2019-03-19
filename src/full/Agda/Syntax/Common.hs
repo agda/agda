@@ -655,6 +655,86 @@ nonStrictToIrr :: Relevance -> Relevance
 nonStrictToIrr NonStrict = Irrelevant
 nonStrictToIrr rel       = rel
 
+
+---------------------------------------------------------------------------
+-- * Annotations
+---------------------------------------------------------------------------
+
+-- | We have a tuple of annotations, which might not be fully orthogonal.
+data Annotation = Annotation
+  { annLock :: Lock
+    -- ^ Fitch-style dependent right adjoints.
+    --   See Modal Dependent Type Theory and Dependent Right Adjoints, arXiv:1804.05236.
+  } deriving (Data, Eq, Ord, Show, Generic)
+
+defaultAnnotation :: Annotation
+defaultAnnotation = Annotation defaultLock
+
+instance NFData Annotation where
+  rnf (Annotation l) = rnf l
+
+class LensAnnotation a where
+
+  getAnnotation :: a -> Annotation
+
+  setAnnotation :: Annotation -> a -> a
+  setAnnotation = mapAnnotation . const
+
+  mapAnnotation :: (Annotation -> Annotation) -> a -> a
+  mapAnnotation f a = setAnnotation (f $ getAnnotation a) a
+
+instance LensAnnotation Annotation where
+  getAnnotation = id
+  setAnnotation = const
+  mapAnnotation = id
+
+instance LensAnnotation (Arg t) where
+  getAnnotation = getAnnotation . getArgInfo
+  setAnnotation = mapArgInfo . setAnnotation
+
+instance LensAnnotation (Dom t) where
+  getAnnotation = getAnnotation . getArgInfo
+  setAnnotation = mapArgInfo . setAnnotation
+
+---------------------------------------------------------------------------
+-- * Locks
+---------------------------------------------------------------------------
+
+data Lock = IsNotLock
+          | IsLock -- ^ In the future there might be different kinds of them.
+                   --   For now we assume lock weakening.
+  deriving (Data, Show, Generic, Eq, Enum, Bounded, Ord)
+
+defaultLock :: Lock
+defaultLock = IsNotLock
+
+instance NFData Lock where
+  rnf IsNotLock = ()
+  rnf IsLock    = ()
+
+class LensLock a where
+
+  getLock :: a -> Lock
+
+  setLock :: Lock -> a -> a
+  setLock = mapLock . const
+
+  mapLock :: (Lock -> Lock) -> a -> a
+  mapLock f a = setLock (f $ getLock a) a
+
+instance LensLock Lock where
+  getLock = id
+  setLock = const
+  mapLock = id
+
+instance LensLock ArgInfo where
+  getLock = annLock . argInfoAnnotation
+  setLock l info = info { argInfoAnnotation = Annotation l }
+
+instance LensLock (Arg t) where
+  getLock = getLock . getArgInfo
+  setLock = mapArgInfo . setLock
+
 ---------------------------------------------------------------------------
 -- * Origin of arguments (user-written, inserted or reflected)
 ---------------------------------------------------------------------------
@@ -789,6 +869,9 @@ data ArgInfo = ArgInfo
   , argInfoModality      :: Modality
   , argInfoOrigin        :: Origin
   , argInfoFreeVariables :: FreeVariables
+  , argInfoAnnotation    :: Annotation
+    -- ^ Sometimes we want a different kind of binder/pi-type, without it
+    --   supporting any of the @Modality@ interface.
   } deriving (Data, Eq, Ord, Show)
 
 instance KillRange ArgInfo where
@@ -807,7 +890,7 @@ instance LensArgInfo ArgInfo where
   mapArgInfo = id
 
 instance NFData ArgInfo where
-  rnf (ArgInfo a b c d) = rnf a `seq` rnf b `seq` rnf c `seq` rnf d
+  rnf (ArgInfo a b c d e) = rnf a `seq` rnf b `seq` rnf c `seq` rnf d `seq` rnf e
 
 instance LensHiding ArgInfo where
   getHiding = argInfoHiding
@@ -829,6 +912,11 @@ instance LensFreeVariables ArgInfo where
   setFreeVariables o ai = ai { argInfoFreeVariables = o }
   mapFreeVariables f ai = ai { argInfoFreeVariables = f (argInfoFreeVariables ai) }
 
+instance LensAnnotation ArgInfo where
+  getAnnotation = argInfoAnnotation
+  setAnnotation m ai = ai { argInfoAnnotation = m }
+  mapAnnotation f ai = ai { argInfoAnnotation = f (argInfoAnnotation ai) }
+
 -- inherited instances
 
 instance LensRelevance ArgInfo where
@@ -847,6 +935,7 @@ defaultArgInfo =  ArgInfo
   , argInfoModality      = defaultModality
   , argInfoOrigin        = UserWritten
   , argInfoFreeVariables = UnknownFVs
+  , argInfoAnnotation    = defaultAnnotation
   }
 
 -- Accessing through ArgInfo
@@ -921,8 +1010,8 @@ instance KillRange a => KillRange (Arg a) where
 --   Ignores content of argument if 'Irrelevant'.
 --
 instance Eq a => Eq (Arg a) where
-  Arg (ArgInfo h1 m1 _ _) x1 == Arg (ArgInfo h2 m2 _ _) x2 =
-    h1 == h2 && (isIrrelevant m1 || isIrrelevant m2 || x1 == x2)
+  Arg (ArgInfo h1 m1 _ _ a1) x1 == Arg (ArgInfo h2 m2 _ _ a2) x2 =
+    h1 == h2 && (isIrrelevant m1 || isIrrelevant m2 || x1 == x2) && a1 == a2
     -- Andreas, 2017-10-04, issue #2775, ignore irrelevant arguments during with-abstraction.
     -- This is a hack, we should not use '(==)' in with-abstraction
     -- and more generally not use it on Syntax.
@@ -1090,8 +1179,8 @@ instance KillRange a => KillRange (Dom a) where
 
 -- | Ignores 'Origin' and 'FreeVariables'.
 instance Eq a => Eq (Dom a) where
-  Dom (ArgInfo h1 m1 _ _) b1 s1 x1 == Dom (ArgInfo h2 m2 _ _) b2 s2 x2 =
-    (h1, m1, b1, s1, x1) == (h2, m2, b2, s2, x2)
+  Dom (ArgInfo h1 m1 _ _ a1) b1 s1 x1 == Dom (ArgInfo h2 m2 _ _ a2) b2 s2 x2 =
+    (h1, m1, a1, b1, s1, x1) == (h2, m2, a2, b2, s2, x2)
 
 -- instance Show a => Show (Dom a) where
 --   show = show . argFromDom

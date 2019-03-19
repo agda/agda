@@ -24,11 +24,12 @@ import Agda.Syntax.Concrete.Name
 data Attribute
   = RelevanceAttribute Relevance
   | QuantityAttribute  Quantity
+  | LockAttribute      Lock
   deriving (Eq, Ord, Show)
 
 -- | (Conjunctive constraint.)
 
-type LensAttribute a = (LensRelevance a, LensQuantity a)
+type LensAttribute a = (LensRelevance a, LensQuantity a, LensLock a)
 
 -- | Modifiers for 'Relevance'.
 
@@ -49,12 +50,22 @@ quantityAttributeTable = concat
   -- , map (, Quantity01) [ "01", "affine" ]
   ]
 
+-- | Modifiers for 'Quantity'.
+
+lockAttributeTable :: [(String, Lock)]
+lockAttributeTable = concat
+  [ map (, IsNotLock) [ "notlock" ] -- default, shouldn't be used much
+  , map (, IsLock) [ "lock", "tick" ] -- 🔓
+  ]
+
+
 -- | Concrete syntax for all attributes.
 
 attributesMap :: Map String Attribute
 attributesMap = Map.fromList $ concat
   [ map (second RelevanceAttribute) relevanceAttributeTable
   , map (second QuantityAttribute)  quantityAttributeTable
+  , map (second LockAttribute)      lockAttributeTable
   ]
 
 -- | Parsing a string into an attribute.
@@ -68,7 +79,7 @@ setAttribute :: (LensAttribute a) => Attribute -> a -> a
 setAttribute = \case
   RelevanceAttribute r -> setRelevance r
   QuantityAttribute  q -> setQuantity  q
-
+  LockAttribute      l -> setLock      l
 
 -- | Setting some attributes in left-to-right order.
 --   Blindly overwrites previous settings.
@@ -95,12 +106,20 @@ setPristineQuantity q a
   | getQuantity a == defaultQuantity = Just $ setQuantity q a
   | otherwise = Nothing
 
+-- | Setting 'Lock' if unset.
+
+setPristineLock :: (LensLock a) => Lock -> a -> Maybe a
+setPristineLock q a
+  | getLock a == defaultLock = Just $ setLock q a
+  | otherwise = Nothing
+
 -- | Setting an unset attribute (to e.g. an 'Arg').
 
 setPristineAttribute :: (LensAttribute a) => Attribute -> a -> Maybe a
 setPristineAttribute = \case
   RelevanceAttribute r -> setPristineRelevance r
   QuantityAttribute  q -> setPristineQuantity  q
+  LockAttribute      l -> setPristineLock      l
 
 -- | Setting a list of unset attributes.
 

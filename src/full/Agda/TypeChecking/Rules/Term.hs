@@ -435,8 +435,9 @@ checkLambda cmp b@(A.TBind _ xs' typ) body target = do
 -- | Check that modality info in lambda is compatible with modality
 --   coming from the function type.
 --   If lambda has no user-given modality, copy that of function type.
-lambdaModalityCheck :: LensModality dom => dom -> ArgInfo -> TCM ArgInfo
+lambdaModalityCheck :: (LensModality dom, LensAnnotation dom) => dom -> ArgInfo -> TCM ArgInfo
 lambdaModalityCheck dom = lambdaQuantityCheck m <=< lambdaIrrelevanceCheck m
+                          <=< lambdaAnnotationCheck (getAnnotation dom)
   where m = getModality dom
 
 -- | Check that irrelevance info in lambda is compatible with irrelevance
@@ -477,6 +478,18 @@ lambdaQuantityCheck dom info
         -- the expected use qPi cannot be unrestricted
         when (qPi == Quantityω) __IMPOSSIBLE__
         typeError WrongQuantityInLambda
+      return info
+
+lambdaAnnotationCheck :: LensAnnotation dom => dom -> ArgInfo -> TCM ArgInfo
+lambdaAnnotationCheck dom info
+    -- Case: no specific user annotation: use annotation of function type
+  | getAnnotation info == defaultAnnotation = return $ setAnnotation (getAnnotation dom) info
+    -- Case: explicit user annotation is taken seriously
+  | otherwise = do
+      let aPi  = getAnnotation dom  -- annotation of function type
+      let aLam = getAnnotation info -- annotation of lambda
+      unless (aPi == aLam) $ do
+        typeError $ GenericError $ "Wrong annotation in lambda"
       return info
 
 lambdaAddContext :: Name -> ArgName -> Dom Type -> TCM a -> TCM a
