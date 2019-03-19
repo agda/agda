@@ -4,17 +4,21 @@ Release notes for Agda version 2.6.0
 Highlights
 ----------
 
-* Added a mode for Cubical Agda with path equality and
-  related features from [Cubical Type Theory](https://arxiv.org/abs/1611.02108),
-  including univalence and higher inductive types.
+* Added support for [Cubical
+  Agda](https://agda.readthedocs.io/en/latest/language/cubical.html)
+  which adds new features such as univalence and higher inductive
+  types to Agda.
 
-* Added support for ML-style automatically generalized variables.
+* Added support for ML-style [automatic generalization of
+  variables](https://agda.readthedocs.io/en/latest/language/generalization-of-declared-variables.html).
 
 * Added a new sort ``Prop`` of [definitionally proof-irrelevant
-  propositions](https://hal.inria.fr/hal-01859964).
+  propositions](https://agda.readthedocs.io/en/latest/language/prop.html).
 
-* The implementation of instance search got a major overhaul and no
-  longer supports overlapping instances (unless enabled by a flag).
+* The implementation of [instance
+  search](https://agda.readthedocs.io/en/latest/language/instance-arguments.html)
+  got a major overhaul and no longer supports overlapping instances
+  (unless enabled by a flag).
 
 Installation and infrastructure
 -------------------------------
