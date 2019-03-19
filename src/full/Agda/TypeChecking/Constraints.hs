@@ -30,6 +30,7 @@ import {-# SOURCE #-} Agda.TypeChecking.Rules.Term
 import {-# SOURCE #-} Agda.TypeChecking.Conversion
 import {-# SOURCE #-} Agda.TypeChecking.MetaVars
 import {-# SOURCE #-} Agda.TypeChecking.Empty
+import {-# SOURCE #-} Agda.TypeChecking.Lock
 
 import Agda.Utils.Except ( MonadError(throwError) )
 import Agda.Utils.Maybe
@@ -243,6 +244,7 @@ solveConstraint_ (CheckFunDef d i q cs)       = withoutCache $
   checkFunDef d i q cs
 solveConstraint_ (HasBiggerSort a)            = hasBiggerSort a
 solveConstraint_ (HasPTSRule a b)             = hasPTSRule a b
+solveConstraint_ (CheckLockedVars a b c d)    = checkLockedVars a b c d
 
 checkTypeCheckingProblem :: TypeCheckingProblem -> TCM Term
 checkTypeCheckingProblem p = case p of

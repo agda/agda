@@ -615,8 +615,13 @@ checkArgumentsE' chk exh r args0@(arg@(Arg info e) : args) t0 mt1 =
                  -- then postponeTypeCheckingProblem (CheckExpr (namedThing e) a) (return True) else
                   let e' = e { nameOf = maybe dname Just (nameOf e) }
                   checkNamedArg (Arg info' e') a
+
+                let c | IsLock == getLock info' = Just $ Abs "t" (CheckLockedVars (Var 0 []) (raise 1 t0') (raise 1 $ Arg info' u) (raise 1 a))
+                      | otherwise = Nothing
+                lift $ reportSDoc "tc.term.lock" 40 $ text "lock =" <+> text (show $ getLock info')
+                lift $ reportSDoc "tc.term.lock" 40 $ addContext (defaultDom $ t0') $ maybe (text "nothing") prettyTCM (absBody <$> c)
                 -- save relevance info' from domain in argument
-                addCheckedArgs us (getRange e) (Apply $ Arg info' u) $
+                addCheckedArgs us (getRange e) (Apply $ Arg info' u) c $
                   checkArgumentsE' chk' exh (fuseRange r e) args (absApp b u) mt1
             | otherwise -> do
                 reportSDoc "error" 10 $ nest 2 $ vcat
@@ -631,19 +636,19 @@ checkArgumentsE' chk exh r args0@(arg@(Arg info e) : args) t0 mt1 =
             , PathType s _ _ bA x y <- viewPath t0' -> do
                 lift $ reportSDoc "tc.term.args" 30 $ text $ show bA
                 u <- lift $ checkExpr (namedThing e) =<< elInf primInterval
-                addCheckedArgs us (getRange e) (IApply (unArg x) (unArg y) u) $
+                addCheckedArgs us (getRange e) (IApply (unArg x) (unArg y) u) Nothing $
                   checkArgumentsE exh (fuseRange r e) args (El s $ unArg bA `apply` [argN u]) mt1
           _ -> shouldBePi
   where
     -- Andrea: Here one would add constraints too.
-    addCheckedArgs us r u rec = do
+    addCheckedArgs us r u c rec = do
         st@ACState{acRanges = rs, acElims = vs} <- rec
         let rs' = replicate (length us) Nothing ++ Just r : rs
-            cs' = replicate (length us) Nothing ++ Nothing : acConstraints st
+            cs' = replicate (length us) Nothing ++ c : acConstraints st
         return $ st { acRanges = rs', acElims = us ++ u : vs, acConstraints = cs' }
       `catchError` \ st@ACState{acRanges = rs, acElims = vs} -> do
           let rs' = replicate (length us) Nothing ++ Just r : rs
-              cs' = replicate (length us) Nothing ++ Nothing : acConstraints st
+              cs' = replicate (length us) Nothing ++ c : acConstraints st
           throwError $ st { acRanges = rs', acElims = us ++ u : vs, acConstraints = cs' }
 
 -- | Check that a list of arguments fits a telescope.

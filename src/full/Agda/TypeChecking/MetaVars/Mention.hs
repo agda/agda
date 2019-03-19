@@ -111,6 +111,7 @@ instance MentionsMeta Constraint where
     HasBiggerSort a     -> mm a
     HasPTSRule a b      -> mm (a, b)
     UnquoteTactic bl tac hole goal -> Just x == bl
+    CheckLockedVars a b c d -> mm ((a, b), (c, d))
     where
       mm v = mentionsMeta x v
 

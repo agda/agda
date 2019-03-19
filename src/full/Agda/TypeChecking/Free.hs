@@ -25,6 +25,7 @@ module Agda.TypeChecking.Free
     , runFree , rigidVars, relevantVars, allVars
     , allFreeVars, allFreeVarsWithOcc
     , allRelevantVars, allRelevantVarsIgnoring
+    , freeVarsIgnore
     , freeIn, freeInIgnoringSorts, isBinderUsed
     , relevantIn, relevantInIgnoringSortAnn
     , Occurrence(..)

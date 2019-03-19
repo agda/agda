@@ -173,6 +173,7 @@ addConstraintTo bucket c = do
     isBlocking HasBiggerSort{} = False
     isBlocking HasPTSRule{}  = False
     isBlocking UnquoteTactic{} = True
+    isBlocking CheckLockedVars{} = True
 
 -- | Add already awake constraints
 addAwakeConstraints :: Constraints -> TCM ()

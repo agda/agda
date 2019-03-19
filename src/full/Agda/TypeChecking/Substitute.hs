@@ -901,6 +901,7 @@ instance Subst Term Constraint where
     HasBiggerSort s          -> HasBiggerSort (rf s)
     HasPTSRule s1 s2         -> HasPTSRule (rf s1) (rf s2)
     UnquoteTactic m t h g    -> UnquoteTactic m (rf t) (rf h) (rf g)
+    CheckLockedVars a b c d  -> CheckLockedVars (rf a) (rf b) (rf c) (rf d)
     where
       rf x = applySubst rho x
 

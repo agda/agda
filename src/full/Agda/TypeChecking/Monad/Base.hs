@@ -923,6 +923,7 @@ data Constraint
     --   candidates yet)
   | CheckFunDef Delayed Info.DefInfo QName [A.Clause]
   | UnquoteTactic (Maybe MetaId) Term Term Type   -- ^ First argument is computation and the others are hole and goal type
+  | CheckLockedVars Term Type (Arg Term) Type     -- ^ @CheckLockedVars t ty lk lk_ty@ with @t : ty@, @lk : lk_ty@ and @t lk@ well-typed.
   deriving (Data, Show)
 
 instance HasRange Constraint where
@@ -959,6 +960,7 @@ instance Free Constraint where
       HasBiggerSort s       -> freeVars' s
       HasPTSRule s1 s2      -> freeVars' (s1 , s2)
       UnquoteTactic _ t h g -> freeVars' (t, (h, g))
+      CheckLockedVars a b c d -> freeVars' ((a,b),(c,d))
 
 instance TermLike Constraint where
   foldTerm f = \case

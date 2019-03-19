@@ -357,6 +357,7 @@ data OutputConstraint a b
       | FindInstanceOF b a [(a,a)]
       | PTSInstance b b
       | PostponedCheckFunDef QName a
+      | CheckLock b b
   deriving (Functor)
 
 -- | A subset of 'OutputConstraint'.
@@ -388,6 +389,7 @@ outputFormId (OutputForm _ _ o) = out o
       FindInstanceOF _ _ _        -> __IMPOSSIBLE__
       PTSInstance i _            -> i
       PostponedCheckFunDef{}     -> __IMPOSSIBLE__
+      CheckLock i _              -> i
 
 instance Reify ProblemConstraint (Closure (OutputForm Expr Expr)) where
   reify (PConstr pids cl) = enterClosure cl $ \c -> buildClosure =<< (OutputForm (getRange c) (Set.toList pids) <$> reify c)
@@ -466,6 +468,7 @@ instance Reify Constraint (OutputConstraint Expr Expr) where
     reify (HasPTSRule a b) = do
       (a,(x,b)) <- reify (a,b)
       return $ PTSInstance a b
+    reify (CheckLockedVars t _ lk _) = CheckLock <$> reify t <*> reify (unArg lk)
 
 instance (Pretty a, Pretty b) => Pretty (OutputForm a b) where
   pretty (OutputForm r pids c)
@@ -502,6 +505,7 @@ instance (Pretty a, Pretty b) => Pretty (OutputConstraint a b) where
         , nest 4 $ vcat [ pretty v .: t | (v, t) <- cs ] ]
       PTSInstance a b      -> "PTS instance for" <+> pretty (a, b)
       PostponedCheckFunDef q a -> "Check definition of" <+> pretty q <+> ":" <+> pretty a
+      CheckLock t lk       -> "Check lock" <+> pretty lk <+> "allows" <+> pretty t
     where
       bin a op b = sep [a, nest 2 $ op <+> b]
       pcmp cmp a b = bin (pretty a) (pretty cmp) (pretty b)
@@ -542,6 +546,7 @@ instance (ToConcrete a c, ToConcrete b d) =>
                      <*> mapM (\(tm,ty) -> (,) <$> toConcrete tm <*> toConcrete ty) cs
     toConcrete (PTSInstance a b) = PTSInstance <$> toConcrete a <*> toConcrete b
     toConcrete (PostponedCheckFunDef q a) = PostponedCheckFunDef q <$> toConcrete a
+    toConcrete (CheckLock a b) = CheckLock <$> toConcrete a <*> toConcrete b
 
 instance (Pretty a, Pretty b) => Pretty (OutputConstraint' a b) where
   pretty (OfType' e t) = pretty e <+> ":" <+> pretty t

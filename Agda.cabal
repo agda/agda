@@ -416,6 +416,7 @@ library
                     Agda.TypeChecking.Irrelevance
                     Agda.TypeChecking.Level
                     Agda.TypeChecking.LevelConstraints
+                    Agda.TypeChecking.Lock
                     Agda.TypeChecking.MetaVars
                     Agda.TypeChecking.MetaVars.Mention
                     Agda.TypeChecking.MetaVars.Occurs
