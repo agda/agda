@@ -36,10 +36,10 @@ import Agda.Utils.Impossible
 -- | Syntactic equality check for terms.
 --   @
 --      checkSyntacticEquality v v' = do
---        (v,v') <- instantiateFull (v,v')
---         return ((v,v'), v==v')
+--        (v, v') <- instantiateFull (v, v')
+--         return ((v, v'), v==v')
 --   @
---   only that @v,v'@ are only fully instantiated to the depth
+--   only that @v, v'@ are only fully instantiated to the depth
 --   where they are equal.
 
 {-# SPECIALIZE checkSyntacticEquality :: Term -> Term -> ReduceM ((Term, Term), Bool) #-}
@@ -48,7 +48,7 @@ checkSyntacticEquality :: (SynEq a, MonadReduce m) => a -> a -> m ((a, a), Bool)
 checkSyntacticEquality v v' = liftReduce $ do
   ifM (optSyntacticEquality <$> pragmaOptions)
   {-then-} (synEq v v' `runStateT` True)
-  {-else-} (return ((v,v'), False))
+  {-else-} (return ((v, v'), False))
 
 -- | Monad for checking syntactic equality
 type SynEqM = StateT Bool ReduceM
@@ -64,24 +64,24 @@ ifEqual cont a = ifM get (cont a) (return a)
 -- Since List2 is only Applicative, not a monad, I cannot
 -- define a List2T monad transformer, so we do it manually:
 
-(<$$>) :: Functor f => (a -> b) -> f (a,a) -> f (b,b)
+(<$$>) :: Functor f => (a -> b) -> f (a, a) -> f (b, b)
 f <$$> xx = (f *** f) <$> xx
 
-pure2 :: Applicative f => a -> f (a,a)
-pure2 a = pure (a,a)
+pure2 :: Applicative f => a -> f (a, a)
+pure2 a = pure (a, a)
 
-(<**>) :: Applicative f => f (a -> b, a -> b) -> f (a,a) -> f (b,b)
+(<**>) :: Applicative f => f (a -> b, a -> b) -> f (a, a) -> f (b, b)
 ff <**> xx = pure (uncurry (***)) <*> ff <*> xx
 
 -- | Instantiate full as long as things are equal
 class SynEq a where
-  synEq  :: a -> a -> SynEqM (a,a)
-  synEq' :: a -> a -> SynEqM (a,a)
+  synEq  :: a -> a -> SynEqM (a, a)
+  synEq' :: a -> a -> SynEqM (a, a)
   synEq' a a' = ifEqual (uncurry synEq) (a, a')
 
 instance SynEq Bool where
-  synEq x y | x == y = return (x,y)
-  synEq x y | otherwise = inequal (x,y)
+  synEq x y | x == y = return (x, y)
+  synEq x y | otherwise = inequal (x, y)
 
 -- | Syntactic term equality ignores 'DontCare' stuff.
 instance SynEq Term where
@@ -89,7 +89,7 @@ instance SynEq Term where
     (v, v') <- lift $ instantiate' (v, v')
     case (v, v') of
       (Var   i vs, Var   i' vs') | i == i' -> Var i   <$$> synEq vs vs'
-      (Con c ci vs,Con c' ci' vs') | c == c' -> Con c (bestConInfo ci ci') <$$> synEq vs vs'
+      (Con c i vs, Con c' i' vs') | c == c' -> Con c (bestConInfo i i') <$$> synEq vs vs'
       (Def   f vs, Def   f' vs') | f == f' -> Def f   <$$> synEq vs vs'
       (MetaV x vs, MetaV x' vs') | x == x' -> MetaV x <$$> synEq vs vs'
       (Lit   l   , Lit   l'    ) | l == l' -> pure2 $ v
@@ -173,22 +173,14 @@ instance (Subst t a, SynEq a) => SynEq (Abs a) where
       (Abs   x b, NoAbs x' b') -> Abs x  <$$> synEq b (raise 1 b')  -- TODO: mkAbs?
       (NoAbs x b, Abs   x' b') -> Abs x' <$$> synEq (raise 1 b) b'
 
-{- TRIGGERS test/fail/UnequalHiding
--- | Ignores 'ArgInfo'.
-instance SynEq a => SynEq (Arg c a) where
-  synEq (Arg ai a) (Arg ai' a') = (Arg ai *** Arg ai') <$> synEq a a'
-
--- | Ignores 'ArgInfo'.
-instance SynEq a => SynEq (Dom c a) where
-  synEq (Dom ai a) (Dom ai' a') = (Dom ai *** Dom ai') <$> synEq a a'
--}
-
+-- NOTE: Do not ignore 'ArgInfo', or test/fail/UnequalHiding will pass.
 instance SynEq a => SynEq (Arg a) where
   synEq (Arg ai a) (Arg ai' a') = Arg <$$> synEq ai ai' <**> synEq a a'
 
+-- Ignore the tactic.
 instance SynEq a => SynEq (Dom a) where
-  synEq d@(Dom ai b x a) d'@(Dom ai' b' x' a')
-    | x == x'   = Dom <$$> synEq ai ai' <**> synEq b b' <**> pure2 x <**> synEq a a'
+  synEq d@(Dom ai b x t a) d'@(Dom ai' b' x' _ a')
+    | x == x'   = Dom <$$> synEq ai ai' <**> synEq b b' <**> pure2 x <**> pure2 t <**> synEq a a'
     | otherwise = inequal (d, d')
 
 instance SynEq ArgInfo where

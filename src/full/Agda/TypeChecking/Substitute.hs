@@ -1294,6 +1294,8 @@ instance (Subst t a, Ord a) => Ord (Abs a) where
   Abs   _ a `compare` Abs   _ b = a `compare` b
   a         `compare` b         = absBody a `compare` absBody b
 
+deriving instance Ord a => Ord (Dom a)
+
 instance (Subst t a, Eq a)  => Eq  (Elim' a) where
   Apply  a == Apply  b = a == b
   Proj _ x == Proj _ y = x == y
