@@ -280,6 +280,7 @@ checkTelescope' lamOrPi (b : tel) ret =
 checkTypedBindings :: LamOrPi -> A.TypedBinding -> (Telescope -> TCM a) -> TCM a
 checkTypedBindings lamOrPi (A.TBind r tac xs' e) ret = do
     let xs = (map . fmap . fmap) A.unBind xs'
+    tac <- traverse (checkTacticAttribute lamOrPi) tac
     -- Andreas, 2011-04-26 irrelevant function arguments may appear
     -- non-strictly in the codomain type
     -- 2011-10-04 if flag --experimental-irrelevance is set
@@ -293,13 +294,15 @@ checkTypedBindings lamOrPi (A.TBind r tac xs' e) ret = do
       case target of
         OutputTypeName{} -> return ()
         OutputTypeVar{}  -> return ()
-        OutputTypeVisiblePi{} -> warning . InstanceArgWithExplicitArg =<< prettyTCM (A.TBind r ixs e)
+        OutputTypeVisiblePi{} -> warning . InstanceArgWithExplicitArg =<< prettyTCM (A.mkTBind r ixs e)
         OutputTypeNameNotYetKnown{} -> return ()
-        NoOutputTypeName -> warning . InstanceNoOutputTypeName =<< prettyTCM (A.TBind r ixs e)
+        NoOutputTypeName -> warning . InstanceNoOutputTypeName =<< prettyTCM (A.mkTBind r ixs e)
 
-    let xs' = (map . mapRelevance) (modRel lamOrPi experimental) xs
+    let setTac tac EmptyTel            = EmptyTel
+        setTac tac (ExtendTel dom tel) = ExtendTel dom{ domTactic = tac } $ setTac (raise 1 tac) <$> tel
+        xs' = (map . mapRelevance) (modRel lamOrPi experimental) xs
     addContext (xs', t) $
-      ret $ namedBindsToTel xs t
+      ret $ setTac tac $ namedBindsToTel xs t
     where
         -- if we are checking a typed lambda, we resurrect before we check the
         -- types, but do not modify the new context entries
@@ -311,6 +314,13 @@ checkTypedBindings lamOrPi (A.TBind r tac xs' e) ret = do
         modRel _        _  = id
 checkTypedBindings lamOrPi (A.TLet _ lbs) ret = do
     checkLetBindings lbs (ret EmptyTel)
+
+-- | Check a tactic attribute. Should have type Term → TC ⊤.
+checkTacticAttribute :: LamOrPi -> A.Expr -> TCM Term
+checkTacticAttribute LamNotPi e = genericDocError =<< "The @tactic attribute is not allowed here"
+checkTacticAttribute PiNotLam e = do
+  expectedType <- el primAgdaTerm --> el (primAgdaTCM <#> primLevelZero <@> primUnit)
+  checkExpr e expectedType
 
 ifPath :: Type -> TCM a -> TCM a -> TCM a
 ifPath ty fallback work = do
