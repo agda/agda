@@ -278,7 +278,7 @@ checkTelescope' lamOrPi (b : tel) ret =
 --   is needed for irrelevance.
 
 checkTypedBindings :: LamOrPi -> A.TypedBinding -> (Telescope -> TCM a) -> TCM a
-checkTypedBindings lamOrPi (A.TBind r xs' e) ret = do
+checkTypedBindings lamOrPi (A.TBind r tac xs' e) ret = do
     let xs = (map . fmap . fmap) A.unBind xs'
     -- Andreas, 2011-04-26 irrelevant function arguments may appear
     -- non-strictly in the codomain type
@@ -318,7 +318,7 @@ ifPath ty fallback work = do
   if isPathType pv then work else fallback
 
 checkPath :: A.TypedBinding -> A.Expr -> Type -> TCM Term
-checkPath b@(A.TBind _ [x'] typ) body ty = do
+checkPath b@(A.TBind _ _ [x'] typ) body ty = do
     let x    = (fmap . fmap) A.unBind x'
         info = getArgInfo x
     PathType s path level typ lhs rhs <- pathView ty
@@ -345,7 +345,7 @@ checkPath b body ty = __IMPOSSIBLE__
 checkLambda :: Comparison -> A.TypedBinding -> A.Expr -> Type -> TCM Term
 checkLambda cmp (A.TLet _ lbs) body target =
   checkLetBindings lbs (checkExpr body target)
-checkLambda cmp b@(A.TBind _ xs' typ) body target = do
+checkLambda cmp b@(A.TBind _ _ xs' typ) body target = do
   reportSLn "tc.term.lambda" 60 $ "checkLambda   xs = " ++ prettyShow xs
   let numbinds = length xs
       possiblePath = numbinds == 1
@@ -1021,7 +1021,7 @@ checkExpr' cmp e t0 =
 
         A.Lam i (A.DomainFull b) e -> checkLambda cmp b e t
 
-        A.Lam i (A.DomainFree x) e0
+        A.Lam i (A.DomainFree _ x) e0
           | isNothing (nameOf $ unArg x) -> checkExpr' cmp (A.Lam i (domainFree (getArgInfo x) $ A.unBind $ namedArg x) e0) t
           | otherwise -> typeError $ NotImplemented "named arguments in lambdas"
 
@@ -1313,7 +1313,7 @@ checkOrInferMeta newMeta mt i = do
 --   by inserting an underscore for the missing type.
 domainFree :: ArgInfo -> A.Name -> A.LamBinding
 domainFree info x =
-  A.DomainFull $ A.TBind r [unnamedArg info $ A.BindName x] $ A.Underscore underscoreInfo
+  A.DomainFull $ A.mkTBind r [unnamedArg info $ A.mkBindName x] $ A.Underscore underscoreInfo
   where
     r = getRange x
     underscoreInfo = A.MetaInfo

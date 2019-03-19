@@ -978,7 +978,9 @@ instance ToAbstract c a => ToAbstract (FieldAssignment' c) (FieldAssignment' a) 
   toAbstract = traverse toAbstract
 
 instance ToAbstract C.LamBinding A.LamBinding where
-  toAbstract (C.DomainFree x)  = A.DomainFree <$> toAbstract ((fmap . fmap) (NewName LambdaBound) x)
+  toAbstract (C.DomainFree x)  = do
+    tac <- traverse toAbstract $ bnameTactic $ namedArg x
+    A.DomainFree tac <$> toAbstract ((fmap . fmap) (NewName LambdaBound) x)
   toAbstract (C.DomainFull tb) = A.DomainFull <$> toAbstract tb
 
 makeDomainFull :: C.LamBinding -> C.TypedBinding
@@ -989,8 +991,11 @@ makeDomainFull (C.DomainFree x) = C.TBind r [x] $ C.Underscore r Nothing
 instance ToAbstract C.TypedBinding A.TypedBinding where
   toAbstract (C.TBind r xs t) = do
     t' <- toAbstractCtx TopCtx t
+    tac <- traverse toAbstract $ case mapMaybe (bnameTactic . namedArg) xs of
+              []      -> Nothing
+              tac : _ -> Just tac -- Invariant: all tactics are the same (distributed in the parser, TODO: don't)
     xs' <- toAbstract $ (map . fmap . fmap) (NewName LambdaBound) xs
-    return $ A.TBind r xs' t'
+    return $ A.TBind r tac xs' t'
   toAbstract (C.TLet r ds) = A.TLet r <$> toAbstract (LetDefs ds)
 
 -- | Scope check a module (top level function).
@@ -1322,8 +1327,8 @@ instance ToAbstract LetDef [A.LetBinding] where
               -- definition. The first list element below is
               -- used to highlight the declared instance in the
               -- right way (see Issue 1618).
-              return [ A.LetDeclaredVariable (A.BindName (setRange (getRange x') x))
-                     , A.LetBind (LetRange $ getRange d) info' (A.BindName x) t e
+              return [ A.LetDeclaredVariable (A.mkBindName (setRange (getRange x') x))
+                     , A.LetBind (LetRange $ getRange d) info' (A.mkBindName x) t e
                      ]
 
       -- irrefutable let binding, like  (x , y) = rhs
@@ -1415,11 +1420,11 @@ instance ToAbstract LetDef [A.LetBinding] where
 
         -- Named patterns not allowed in let definitions
         lambda e (Arg info (Named Nothing (A.VarP x))) =
-                return $ A.Lam i (A.DomainFree $ unnamedArg info x) e
+                return $ A.Lam i (A.mkDomainFree $ unnamedArg info x) e
             where i = ExprRange (fuseRange x e)
         lambda e (Arg info (Named Nothing (A.WildP i))) =
             do  x <- freshNoName (getRange i)
-                return $ A.Lam i' (A.DomainFree $ unnamedArg info $ A.BindName x) e
+                return $ A.Lam i' (A.mkDomainFree $ unnamedArg info $ A.mkBindName x) e
             where i' = ExprRange (fuseRange i e)
         lambda _ _ = notAValidLetBinding d
 
@@ -2278,7 +2283,7 @@ resolvePatternIdentifier r x ns = do
   case px of
     VarPatName y         -> do
       reportSLn "scope.pat" 60 $ "  resolved to VarPatName " ++ show y ++ " with range " ++ show (getRange y)
-      return $ VarP $ A.BindName y
+      return $ VarP $ A.mkBindName y
     ConPatName ds        -> return $ ConP (ConPatInfo ConOCon (PatRange r) ConPatEager)
                                           (AmbQ $ fmap anameName ds) []
     PatternSynPatName ds -> return $ PatternSynP (PatRange r)
@@ -2399,7 +2404,7 @@ instance ToAbstract C.Pattern (A.Pattern' C.Expr) where
         -- x <- toAbstract (NewName PatternBound x)
         x <- bindPatternVariable x
         p <- toAbstract p
-        return $ A.AsP (PatRange r) (A.BindName x) p
+        return $ A.AsP (PatRange r) (A.mkBindName x) p
     toAbstract p0@(C.EqualP r es)  = return $ A.EqualP (PatRange r) es
 
     -- We have to do dot patterns at the end since they can
@@ -2509,7 +2514,7 @@ toAbstractOpApp op ns es = do
         x <- freshName noRange "section"
         let i = setOrigin Inserted $ argInfo a
         (ls, ns) <- replacePlaceholders as
-        return ( A.DomainFree (unnamedArg i $ A.BindName x) : ls
+        return ( A.mkDomainFree (unnamedArg i $ A.mkBindName x) : ls
                , set (Left (Var x)) a : ns
                )
       where

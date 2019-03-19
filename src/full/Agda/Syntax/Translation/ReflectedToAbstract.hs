@@ -67,9 +67,9 @@ instance ToAbstract [Arg Term] [NamedArg Expr] where
   toAbstract = traverse toAbstract
 
 instance ToAbstract r Expr => ToAbstract (Dom r, Name) (A.TypedBinding) where
-  toAbstract (Dom{domInfo = i,unDom = x}, name) = do
+  toAbstract (Dom{domInfo = i,unDom = x, domTactic = tac}, name) = do
     dom <- toAbstract x
-    return $ TBind noRange [unnamedArg i $ BindName name] dom
+    return $ mkTBind noRange [unnamedArg i $ mkBindName name] dom
 
 instance ToAbstract (Expr, Elim) Expr where
   toAbstract (f, Apply arg) = do
@@ -106,7 +106,7 @@ instance ToAbstract Term Expr where
     R.Lam h t  -> do
       (e, name) <- toAbstract t
       let info  = setHiding h $ setOrigin Reflected defaultArgInfo
-      return $ A.Lam exprNoRange (DomainFree $ unnamedArg info $ BindName name) e
+      return $ A.Lam exprNoRange (mkDomainFree $ unnamedArg info $ mkBindName name) e
     R.ExtLam cs es -> do
       name <- freshName_ extendedLambdaName
       m    <- lift $ getCurrentModule
@@ -145,11 +145,11 @@ instance ToAbstract R.Pattern (Names, A.Pattern) where
       (names, args) <- toAbstractPats args
       return (names, A.ConP (ConPatInfo ConOCon patNoRange ConPatEager) (unambiguous $ killRange c) args)
     R.DotP    -> return ([], A.WildP patNoRange)
-    R.VarP s | isNoName s -> withName "z" $ \ name -> return ([name], A.VarP $ BindName name)
+    R.VarP s | isNoName s -> withName "z" $ \ name -> return ([name], A.VarP $ mkBindName name)
         -- Ulf, 2016-08-09: Also bind noNames (#2129). This to make the
         -- behaviour consistent with lambda and pi.
         -- return ([], A.WildP patNoRange)
-    R.VarP s  -> withName s $ \ name -> return ([name], A.VarP $ BindName name)
+    R.VarP s  -> withName s $ \ name -> return ([name], A.VarP $ mkBindName name)
     R.LitP l  -> return ([], A.LitP l)
     R.AbsurdP -> return ([], A.AbsurdP patNoRange)
     R.ProjP d -> return ([], A.ProjP patNoRange ProjSystem $ unambiguous $ killRange d)

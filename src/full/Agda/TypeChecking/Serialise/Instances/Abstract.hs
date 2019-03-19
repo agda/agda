@@ -24,8 +24,9 @@ import Agda.Utils.Except
 #include "undefined.h"
 import Agda.Utils.Impossible
 
+-- Don't serialize the tactic.
 instance EmbPrj A.BindName where
-  icod_ (A.BindName n) = icodeN' A.BindName n
+  icod_ (A.BindName a) = icodeN' A.BindName a
   value = valueN A.BindName
 
 instance EmbPrj Scope where

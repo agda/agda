@@ -486,7 +486,7 @@ reifyTerm expandAnonDefs0 v0 = do
 --    I.Lam info b | isAbsurdBody b -> return $ A. AbsurdLam noExprInfo $ getHiding info
     I.Lam info b    -> do
       (x,e) <- reify b
-      return $ A.Lam exprNoRange (DomainFree $ unnamedArg info $ BindName x) e
+      return $ A.Lam exprNoRange (mkDomainFree $ unnamedArg info $ mkBindName x) e
       -- Andreas, 2011-04-07 we do not need relevance information at internal Lambda
     I.Lit l        -> reify l
     I.Level l      -> reify l
@@ -504,8 +504,9 @@ reifyTerm expandAnonDefs0 v0 = do
             {- else -} (reify a)
       where
         mkPi b (Arg info a') = do
+          tac <- traverse reify $ domTactic a
           (x, b) <- reify b
-          return $ A.Pi noExprInfo [TBind noRange [Arg info $ Named (domName a) $ BindName x] a'] b
+          return $ A.Pi noExprInfo [TBind noRange tac [Arg info $ Named (domName a) $ BindName x] a'] b
         -- We can omit the domain type if it doesn't have any free variables
         -- and it's mentioned in the target type.
         domainFree a b = do
@@ -616,7 +617,7 @@ reifyTerm expandAnonDefs0 v0 = do
                             vars = map (getArgInfo &&& name . namedArg) $ drop (length es) $ init $ namedClausePats cl
                             lam (i, s) = do
                               x <- freshName_ s
-                              return $ A.Lam exprNoRange (A.DomainFree $ unnamedArg i $ A.BindName x)
+                              return $ A.Lam exprNoRange (A.mkDomainFree $ unnamedArg i $ A.mkBindName x)
                         foldr ($) absLam <$> mapM lam vars
                       | otherwise -> elims absLam =<< reify (drop n es)
 
@@ -982,7 +983,7 @@ instance BlankVars A.LamBinding where
   blank bound (A.DomainFull bs) = A.DomainFull $ blank bound bs
 
 instance BlankVars TypedBinding where
-  blank bound (TBind r n e) = TBind r n $ blank bound e
+  blank bound (TBind r t n e) = TBind r t n $ blank bound e
   blank bound (TLet _ _)    = __IMPOSSIBLE__ -- Since the internal syntax has no let bindings left
 
 
@@ -1019,12 +1020,12 @@ instance Binder A.Pattern where
     A.WithP _ _         -> empty
 
 instance Binder A.LamBinding where
-  varsBoundIn (A.DomainFree x) = varsBoundIn x
-  varsBoundIn (A.DomainFull b) = varsBoundIn b
+  varsBoundIn (A.DomainFree _ x) = varsBoundIn x
+  varsBoundIn (A.DomainFull b)   = varsBoundIn b
 
 instance Binder TypedBinding where
-  varsBoundIn (TBind _ xs _) = varsBoundIn xs
-  varsBoundIn (TLet _ bs)    = varsBoundIn bs
+  varsBoundIn (TBind _ _ xs _) = varsBoundIn xs
+  varsBoundIn (TLet _ bs)      = varsBoundIn bs
 
 instance Binder BindName where
   varsBoundIn x = singleton (unBind x)
@@ -1075,7 +1076,7 @@ reifyPatterns = mapM $ (stripNameFromExplicit . stripHidingFromPostfixProj) <.>
       I.DotP (PatOVar x) v@(I.Var i []) -> do
         x' <- nameOfBV i
         if nameConcrete x == nameConcrete x' then
-          return $ A.VarP $ BindName x'
+          return $ A.VarP $ mkBindName x'
         else
           reifyDotP v
       I.DotP o v -> reifyDotP v
@@ -1098,14 +1099,14 @@ reifyPatterns = mapM $ (stripNameFromExplicit . stripHidingFromPostfixProj) <.>
     reifyVarP x = do
       n <- liftTCM $ nameOfBV $ dbPatVarIndex x
       case dbPatVarName x of
-        "_"  -> return $ A.VarP $ BindName n
+        "_"  -> return $ A.VarP $ mkBindName n
         -- Andreas, 2017-09-03: TODO for #2580
         -- Patterns @VarP "()"@ should have been replaced by @AbsurdP@, but the
         -- case splitter still produces them.
-        y    -> if prettyShow (nameConcrete n) == "()" then return $ A.VarP (BindName n) else
+        y    -> if prettyShow (nameConcrete n) == "()" then return $ A.VarP (mkBindName n) else
           -- Andreas, 2017-09-03, issue #2729
           -- Restore original pattern name.  AbstractToConcrete picks unique names.
-          return $ A.VarP $ BindName n { nameConcrete = C.Name noRange C.InScope [ C.Id y ] }
+          return $ A.VarP $ mkBindName n { nameConcrete = C.Name noRange C.InScope [ C.Id y ] }
 
     reifyDotP :: MonadTCM tcm => Term -> tcm A.Pattern
     reifyDotP v = do
@@ -1260,7 +1261,8 @@ instance Reify I.Telescope A.Telescope where
     (x, bs)  <- reify tel
     let r    = getRange e
         name = domName arg
-    return $ TBind r [Arg info $ Named name $ BindName x] e : bs
+    tac <- traverse reify $ domTactic arg
+    return $ TBind r tac [Arg info $ Named name $ BindName x] e : bs
 
 instance Reify i a => Reify (Dom i) (Arg a) where
     reify (Dom{domInfo = info, unDom = i}) = Arg info <$> reify i

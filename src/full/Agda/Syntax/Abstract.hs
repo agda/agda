@@ -67,15 +67,18 @@ import Agda.Utils.Impossible
 -- e.g. in @{_ : A} -> ..@ vs. @{r : A} -> ..@.
 
 newtype BindName = BindName { unBind :: Name }
-  deriving (Show, Data, HasRange, SetRange, KillRange)
+  deriving (Show, Data, HasRange, KillRange, SetRange)
+
+mkBindName :: Name -> BindName
+mkBindName x = BindName x
 
 instance Eq BindName where
-  (BindName n) == (BindName m)
+  BindName n == BindName m
     = ((==) `on` nameId) n m
       && ((==) `on` nameConcrete) n m
 
 instance Ord BindName where
-  (BindName n) `compare` (BindName m)
+  BindName n `compare` BindName m
     = (compare `on` nameId) n m
       `mappend` (compare `on` nameConcrete) n m
 
@@ -269,12 +272,16 @@ type TypeSignature  = Declaration
 type Constructor    = TypeSignature
 type Field          = TypeSignature
 
+type TacticAttr = Maybe Expr
+
 -- | A lambda binding is either domain free or typed.
 data LamBinding
-  = DomainFree (NamedArg BindName)  -- ^ . @x@ or @{x}@ or @.x@ or @{x = y}@
+  = DomainFree TacticAttr (NamedArg BindName)  -- ^ . @x@ or @{x}@ or @.x@ or @{x = y}@
   | DomainFull TypedBinding         -- ^ . @(xs:e)@ or @{xs:e}@ or @(let Ds)@
   deriving (Data, Show, Eq)
 
+mkDomainFree :: NamedArg BindName -> LamBinding
+mkDomainFree = DomainFree Nothing
 
 -- | A typed binding.  Appears in dependent function spaces, typed lambdas, and
 --   telescopes.  It might be tempting to simplify this to only bind a single
@@ -291,12 +298,14 @@ data LamBinding
 --   that the metas of the copy are aliases of the metas of the original.
 
 data TypedBinding
-  = TBind Range [NamedArg BindName] Expr
+  = TBind Range TacticAttr [NamedArg BindName] Expr
     -- ^ As in telescope @(x y z : A)@ or type @(x y z : A) -> B@.
   | TLet Range [LetBinding]
     -- ^ E.g. @(let x = e)@ or @(let open M)@.
   deriving (Data, Show, Eq)
 
+mkTBind :: Range -> [NamedArg BindName] -> Expr -> TypedBinding
+mkTBind r = TBind r Nothing
 
 type Telescope  = [TypedBinding]
 
@@ -573,24 +582,24 @@ instance Underscore Expr where
   isUnderscore = __IMPOSSIBLE__
 
 instance LensHiding LamBinding where
-  getHiding   (DomainFree x)  = getHiding x
-  getHiding   (DomainFull tb) = getHiding tb
-  mapHiding f (DomainFree x)  = DomainFree $ mapHiding f x
-  mapHiding f (DomainFull tb) = DomainFull $ mapHiding f tb
+  getHiding   (DomainFree _ x) = getHiding x
+  getHiding   (DomainFull tb)  = getHiding tb
+  mapHiding f (DomainFree t x) = DomainFree t $ mapHiding f x
+  mapHiding f (DomainFull tb)  = DomainFull $ mapHiding f tb
 
 instance LensHiding TypedBinding where
-  getHiding (TBind _ (x : _) _) = getHiding x   -- Slightly dubious
-  getHiding (TBind _ [] _)      = __IMPOSSIBLE__
-  getHiding TLet{}              = mempty
-  mapHiding f (TBind r xs e) = TBind r ((map . mapHiding) f xs) e
-  mapHiding f b@TLet{}       = b
+  getHiding (TBind _ _ (x : _) _) = getHiding x   -- Slightly dubious
+  getHiding (TBind _ _ [] _)      = __IMPOSSIBLE__
+  getHiding TLet{}                = mempty
+  mapHiding f (TBind r t xs e)    = TBind r t ((map . mapHiding) f xs) e
+  mapHiding f b@TLet{}            = b
 
 instance HasRange LamBinding where
-    getRange (DomainFree x) = getRange x
-    getRange (DomainFull b) = getRange b
+    getRange (DomainFree _ x) = getRange x
+    getRange (DomainFull b)   = getRange b
 
 instance HasRange TypedBinding where
-    getRange (TBind r _ _) = r
+    getRange (TBind r _ _ _) = r
     getRange (TLet r _)    = r
 
 instance HasRange Expr where
@@ -710,8 +719,8 @@ instance SetRange (Pattern' a) where
     setRange r (WithP i p)          = WithP (setRange r i) p
 
 instance KillRange LamBinding where
-  killRange (DomainFree x) = killRange1 DomainFree x
-  killRange (DomainFull b) = killRange1 DomainFull b
+  killRange (DomainFree t x) = killRange2 DomainFree t x
+  killRange (DomainFull b)   = killRange1 DomainFull b
 
 instance KillRange GeneralizeTelescope where
   killRange (GeneralizeTel s tel) = GeneralizeTel s (killRange tel)
@@ -720,8 +729,8 @@ instance KillRange DataDefParams where
   killRange (DataDefParams s tel) = DataDefParams s (killRange tel)
 
 instance KillRange TypedBinding where
-  killRange (TBind r xs e) = killRange3 TBind r xs e
-  killRange (TLet r lbs)   = killRange2 TLet r lbs
+  killRange (TBind r t xs e) = killRange4 TBind r t xs e
+  killRange (TLet r lbs)     = killRange2 TLet r lbs
 
 instance KillRange Expr where
   killRange (Var x)                = killRange1 Var x
@@ -954,7 +963,7 @@ instance AllNames LamBinding where
   allNames (DomainFull binds) = allNames binds
 
 instance AllNames TypedBinding where
-  allNames (TBind _ _ e) = allNames e
+  allNames (TBind _ t _ e) = allNames (t, e)
   allNames (TLet _ lbs)  = allNames lbs
 
 instance AllNames LetBinding where
@@ -1056,12 +1065,15 @@ type PatternSynDefns = Map QName PatternSynDefn
 
 lambdaLiftExpr :: [Name] -> Expr -> Expr
 lambdaLiftExpr []     e = e
-lambdaLiftExpr (n:ns) e = Lam exprNoRange (DomainFree $ defaultNamedArg $ BindName n) $
+lambdaLiftExpr (n:ns) e = Lam exprNoRange (mkDomainFree $ defaultNamedArg $ mkBindName n) $
                             lambdaLiftExpr ns e
 
 
 class SubstExpr a where
   substExpr :: [(Name, Expr)] -> a -> a
+
+instance SubstExpr a => SubstExpr (Maybe a) where
+  substExpr = fmap . substExpr
 
 instance SubstExpr a => SubstExpr [a] where
   substExpr = fmap . substExpr
@@ -1132,8 +1144,8 @@ instance SubstExpr LetBinding where
 
 instance SubstExpr TypedBinding where
   substExpr s tb = case tb of
-    TBind r ns e -> TBind r ns $ substExpr s e
-    TLet r lbs   -> TLet r $ substExpr s lbs
+    TBind r t ns e -> TBind r (substExpr s t) ns $ substExpr s e
+    TLet r lbs     -> TLet r $ substExpr s lbs
 
 -- TODO: more informative failure
 insertImplicitPatSynArgs :: HasRange a => (Range -> a) -> Range -> [Arg Name] -> [NamedArg a] ->

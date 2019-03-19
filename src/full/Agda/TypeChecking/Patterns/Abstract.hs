@@ -43,7 +43,7 @@ expandLitPattern p = case asView p of
           info  = A.PatRange r
           cinfo = A.ConPatInfo ConOCon info ConPatEager
           p'    = foldr ($) zero $ List.genericReplicate n suc
-      return $ foldr (A.AsP info) p' (map A.BindName xs)
+      return $ foldr (A.AsP info) p' (map A.mkBindName xs)
   _ -> return p
 
   where
