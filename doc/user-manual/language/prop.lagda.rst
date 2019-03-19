@@ -18,7 +18,7 @@ Prop
 propositions*. It is similar to the sort ``Set``, but all elements of
 a type in ``Prop`` are considered to be (definitionally) equal.
 
-The implementation of ``Prop`` is based on the POPL 2018 paper
+The implementation of ``Prop`` is based on the POPL 2019 paper
 `Definitional Proof-Irrelevance without K
 <https://hal.inria.fr/hal-01859964/>`_ by Gaëtan Gilbert, Jesper Cockx,
 Matthieu Sozeau, and Nicolas Tabareau.
