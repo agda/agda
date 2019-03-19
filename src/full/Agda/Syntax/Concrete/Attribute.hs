@@ -134,8 +134,16 @@ isQuantityAttribute = \case
   QuantityAttribute q -> Just q
   _ -> Nothing
 
+isTacticAttribute :: Attribute -> Maybe Expr
+isTacticAttribute (TacticAttribute t) = Just t
+isTacticAttribute _                   = Nothing
+
 relevanceAttributes :: [Attribute] -> [Attribute]
 relevanceAttributes = filter $ isJust . isRelevanceAttribute
 
 quantityAttributes :: [Attribute] -> [Attribute]
 quantityAttributes = filter $ isJust . isQuantityAttribute
+
+tacticAttributes :: [Attribute] -> [Attribute]
+tacticAttributes = filter $ isJust . isTacticAttribute
+
