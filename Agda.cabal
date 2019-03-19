@@ -311,7 +311,6 @@ library
                     Agda.Interaction.Options.Lenses
                     Agda.Interaction.Options.Warnings
                     Agda.Main
-                    Agda.Syntax.Abstract.Copatterns
                     Agda.Syntax.Abstract.Name
                     Agda.Syntax.Abstract.Pattern
                     Agda.Syntax.Abstract.PatternSynonyms
