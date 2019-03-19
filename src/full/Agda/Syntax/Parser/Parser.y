@@ -1921,8 +1921,8 @@ mkNamedArg x y = do
            Just (QName x) -> return $ Just $ Ranged (getRange x) (prettyShow x)
            _              -> parseError "expected unqualified variable name"
   var <- case y of
-           Left (QName y) -> return $ BName y noFixity'
-           Right r        -> return $ BName (noName r) noFixity'
+           Left (QName y) -> return $ mkBoundName y noFixity'
+           Right r        -> return $ mkBoundName (noName r) noFixity'
            _              -> parseError "expected unqualified variable name"
   return $ defaultArg $ Named lbl var
 

@@ -46,6 +46,7 @@ deriving instance Show Declaration
 deriving instance Show Pattern
 deriving instance Show TypedBinding
 deriving instance Show LamBinding
+deriving instance Show BoundName
 deriving instance Show ModuleAssignment
 deriving instance (Show a, Show b) => Show (ImportDirective' a b)
 deriving instance (Show a, Show b) => Show (Using' a b)
