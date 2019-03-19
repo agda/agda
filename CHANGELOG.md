@@ -466,7 +466,7 @@ Pragmas and options
   (in either `using`, `hiding`, or `renaming`) is no longer an
   error. Instead, Agda will raise a warning and ignore the names.
 
-* A pragma, primitive, module or import statements in a mutual block
+* Pragma, primitive, module or import statements in a mutual block
   are no longer errors. Instead, Agda will raise a warning and ignore
   these statements.
 
