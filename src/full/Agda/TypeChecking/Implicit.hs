@@ -101,7 +101,7 @@ newInteractionMetaArg info x a = do
 
 -- | Possible results of 'insertImplicit'.
 data ImplicitInsertion
-      = ImpInsert [Hiding] -- ^ Success: this many implicits have to be inserted (list can be empty).
+      = ImpInsert [Dom ()] -- ^ Success: this many implicits have to be inserted (list can be empty).
       | BadImplicits       -- ^ Error: hidden argument where there should have been a non-hidden argument.
       | NoSuchName ArgName -- ^ Error: bad named argument.
   deriving (Show)
@@ -120,7 +120,7 @@ insertImplicit
   -> ImplicitInsertion
 insertImplicit a doms = insertImplicit' a $ map name doms
   where
-    name dom = x <$ argFromDom dom
+    name dom = x <$ dom
       where x = maybe "_" rangedThing $ domName dom
 
 -- | If the next given argument is @a@ and the expected arguments are @ts@
@@ -130,18 +130,18 @@ insertImplicit a doms = insertImplicit' a $ map name doms
 --
 insertImplicit'
   :: NamedArg e     -- ^ Next given argument @a@.
-  -> [Arg ArgName]  -- ^ Expected arguments @ts@.
+  -> [Dom ArgName]  -- ^ Expected arguments @ts@.
   -> ImplicitInsertion
 insertImplicit' _ [] = BadImplicits
 insertImplicit' a ts
 
   -- If @a@ is visible, then take the non-visible prefix of @ts@.
-  | visible a = ImpInsert $ takeWhile notVisible $ map getHiding ts
+  | visible a = ImpInsert $ takeWhile notVisible $ map void ts
 
   -- If @a@ is named, take prefix of @ts@ until the name of @a@ (with correct hiding).
   -- If the name is not found, throw exception 'NoSuchName'.
   | Just x <- rangedThing <$> nameOf (unArg a) = maybe (NoSuchName x) ImpInsert $
-      takeHiddenUntil (\ t -> x == unArg t && sameHiding a t) ts
+      takeHiddenUntil (\ t -> x == unDom t && sameHiding a t) ts
 
   -- If @a@ is neither visible nor named, take prefix of @ts@ with different hiding than @a@.
   | otherwise = maybe BadImplicits ImpInsert $
@@ -153,10 +153,10 @@ insertImplicit' a ts
     --   If @p@ never holds, 'Nothing' is returned.
     --
     --   Precondition: @p@ should imply @not . visible@.
-    takeHiddenUntil :: (Arg ArgName -> Bool) -> [Arg ArgName] -> Maybe [Hiding]
+    takeHiddenUntil :: (Dom ArgName -> Bool) -> [Dom ArgName] -> Maybe [Dom ()]
     takeHiddenUntil p ts =
       case ts2 of
         []      -> Nothing  -- Predicate was never true
-        (t : _) -> if visible t then Nothing else Just $ map getHiding ts1
+        (t : _) -> if visible t then Nothing else Just $ map void ts1
       where
       (ts1, ts2) = break (\ t -> p t || visible t) ts
