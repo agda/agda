@@ -388,6 +388,7 @@ checkSort action s =
     Prop l   -> Prop <$> checkLevel action l
     Inf      -> return Inf
     SizeUniv -> return SizeUniv
+    LockUniv -> return LockUniv
     PiSort a b -> do
       a <- checkSort action a
       addContext (absName b, defaultDom (sort a) :: Dom Type) $ do

@@ -1148,6 +1148,7 @@ leqSort s1 s2 = catchConstraint (SortCmp CmpLeq s1 s2) $ do
 
       -- @SizeUniv@ and @Prop0@ are bottom sorts.
       -- So is @Set0@ if @Prop@ is not enabled.
+      (_       , LockUniv) -> equalSort s1 s2
       (_       , SizeUniv) -> equalSort s1 s2
       (_       , Prop (Max [])) -> equalSort s1 s2
       (_       , Type (Max []))
@@ -1156,6 +1157,8 @@ leqSort s1 s2 = catchConstraint (SortCmp CmpLeq s1 s2) $ do
       -- SizeUniv is unrelated to any @Set l@ or @Prop l@
       (SizeUniv, Type{}  ) -> no
       (SizeUniv, Prop{}  ) -> no
+      (LockUniv, Type{}  ) -> no
+      (LockUniv, Prop{}  ) -> no
 
       -- If the first sort rigidly depends on a variable and the second
       -- sort does not mention this variable, the second sort must be Inf.
@@ -1523,6 +1526,7 @@ equalSort s1 s2 = do
             -- diagonal cases for rigid sorts
             (Type a     , Type b     ) -> equalLevel a b
             (SizeUniv   , SizeUniv   ) -> yes
+            (LockUniv   , LockUniv   ) -> yes
             (Prop a     , Prop b     ) -> equalLevel a b
             (Inf        , Inf        ) -> yes
 

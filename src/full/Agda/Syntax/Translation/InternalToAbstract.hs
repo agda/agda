@@ -1219,6 +1219,9 @@ instance Reify Sort Expr where
         I.SizeUniv  -> do
           I.Def sizeU [] <- primSizeUniv
           return $ A.Def sizeU
+        I.LockUniv  -> do
+          I.Def lockU [] <- primLockUniv
+          return $ A.Def lockU
         I.PiSort s1 s2 -> do
           pis <- freshName_ ("piSort" :: String) -- TODO: hack
           (e1,e2) <- reify (s1, I.Lam defaultArgInfo $ fmap Sort s2)

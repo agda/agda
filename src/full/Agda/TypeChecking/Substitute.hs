@@ -763,6 +763,7 @@ instance Subst Term Sort where
     Prop n     -> Prop $ sub n
     Inf        -> Inf
     SizeUniv   -> SizeUniv
+    LockUniv   -> LockUniv
     PiSort s1 s2 -> piSort (sub s1) (sub s2)
     UnivSort s -> univSort Nothing $ sub s
     MetaS x es -> MetaS x $ sub es
@@ -1319,6 +1320,7 @@ instance (Subst t a, Ord a) => Ord (Elim' a) where
 univSort' :: Maybe Sort -> Sort -> Maybe Sort
 univSort' univInf (Type l) = Just $ Type $ levelSuc l
 univSort' univInf (Prop l) = Just $ Type $ levelSuc l
+univSort' univInf LockUniv = Just $ Type $ levelSuc $ Max []
 univSort' univInf Inf      = univInf
 univSort' univInf s        = Nothing
 
@@ -1338,6 +1340,8 @@ funSort' a b = case (a, b) of
   (Inf           , _            ) -> Just Inf
   (_             , Inf          ) -> Just Inf
   (Type (Max as) , Type (Max bs)) -> Just $ Type $ levelMax $ as ++ bs
+  (LockUniv      , b            ) -> Just b
+  (a             , LockUniv     ) -> Nothing
   (SizeUniv      , b            ) -> Just b
   (_             , SizeUniv     ) -> Just SizeUniv
   (Prop (Max as) , Type (Max bs)) -> Just $ Type $ levelMax $ as ++ bs

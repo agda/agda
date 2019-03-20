@@ -278,6 +278,7 @@ instance Free Sort where
       Prop a     -> freeVars' a
       Inf        -> mempty
       SizeUniv   -> mempty
+      LockUniv   -> mempty
       PiSort s1 s2 -> weakly <$> freeVars' (s1, s2)
       UnivSort s -> weakly <$> freeVars' s
       MetaS x es -> flexible <$> freeVars' es

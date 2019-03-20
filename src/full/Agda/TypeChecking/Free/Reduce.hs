@@ -159,4 +159,5 @@ instance ForceNotFree Sort where
     DefS d es  -> DefS d   <$> forceNotFree' es
     Inf        -> return s
     SizeUniv   -> return s
+    LockUniv   -> return s
     DummyS{}   -> return s

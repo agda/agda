@@ -81,6 +81,7 @@ instance GetDefs Sort where
     Prop l    -> getDefs l
     Inf       -> return ()
     SizeUniv  -> return ()
+    LockUniv  -> return ()
     PiSort s s' -> getDefs s >> getDefs s'
     UnivSort s  -> getDefs s
     MetaS x es  -> getDefs x >> getDefs es

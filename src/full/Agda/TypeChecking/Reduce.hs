@@ -285,6 +285,7 @@ instance Reduce Sort where
         Type s'    -> Type <$> reduce' s'
         Inf        -> return Inf
         SizeUniv   -> return SizeUniv
+        LockUniv   -> return LockUniv
         MetaS x es -> return s
         DefS d es  -> return s -- postulated sorts do not reduce
         DummyS{}   -> return s
@@ -831,6 +832,7 @@ instance Simplify Sort where
         Prop s     -> Prop <$> simplify' s
         Inf        -> return s
         SizeUniv   -> return s
+        LockUniv   -> return s
         MetaS x es -> MetaS x <$> simplify' es
         DefS d es  -> DefS d <$> simplify' es
         DummyS{}   -> return s
@@ -970,6 +972,7 @@ instance Normalise Sort where
         Type s     -> Type <$> normalise' s
         Inf        -> return Inf
         SizeUniv   -> return SizeUniv
+        LockUniv   -> return LockUniv
         MetaS x es -> return s
         DefS d es  -> return s
         DummyS{}   -> return s
@@ -1149,6 +1152,7 @@ instance InstantiateFull Sort where
               univSort ui <$> instantiateFull' s
             Inf        -> return s
             SizeUniv   -> return s
+            LockUniv   -> return s
             MetaS x es -> MetaS x <$> instantiateFull' es
             DefS d es  -> DefS d <$> instantiateFull' es
             DummyS{}   -> return s

@@ -47,6 +47,7 @@ instance MentionsMeta Sort where
     Prop l     -> mentionsMeta x l
     Inf        -> False
     SizeUniv   -> False
+    LockUniv   -> False
     PiSort s1 s2 -> mentionsMeta x (s1, s2)
     UnivSort s -> mentionsMeta x s
     MetaS m es -> x == m || mentionsMeta x es

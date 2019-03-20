@@ -111,6 +111,7 @@ instance NamesIn Sort where
     Prop l   -> namesIn l
     Inf      -> Set.empty
     SizeUniv -> Set.empty
+    LockUniv -> Set.empty
     PiSort a b -> namesIn (a, b)
     UnivSort a -> namesIn a
     MetaS _ es -> namesIn es

@@ -146,6 +146,7 @@ instance EmbPrj I.Sort where
   icod_ (MetaS a b)  = __IMPOSSIBLE__
   icod_ (DefS a b)   = icodeN 6 DefS a b
   icod_ (DummyS s)   = __IMPOSSIBLE__
+  icod_ LockUniv    = icodeN 7 LockUniv
 
   value = vcase valu where
     valu [0, a]    = valuN Type  a
@@ -155,6 +156,7 @@ instance EmbPrj I.Sort where
     valu [4, a, b] = valuN PiSort a b
     valu [5, a]    = valuN UnivSort a
     valu [6, a, b] = valuN DefS a b
+    valu [7]       = valuN LockUniv
     valu _         = malformed
 
 instance EmbPrj DisplayForm where

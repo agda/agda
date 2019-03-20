@@ -438,6 +438,7 @@ instance Occurs Sort where
       Prop a     -> Prop <$> occurs red ctx m xs a
       Inf        -> return s'
       SizeUniv   -> return s'
+      LockUniv   -> return s'
       UnivSort s -> UnivSort <$> occurs red (weakly ctx) m xs s
       MetaS x es -> do
         MetaV x es <- occurs red ctx m xs (MetaV x es)
@@ -455,6 +456,7 @@ instance Occurs Sort where
       Prop a     -> metaOccurs m a
       Inf        -> return ()
       SizeUniv   -> return ()
+      LockUniv   -> return ()
       UnivSort s -> metaOccurs m s
       MetaS x es -> metaOccurs m $ MetaV x es
       DefS d es  -> metaOccurs m $ Def d es
@@ -671,6 +673,7 @@ instance FoldRigid Sort where
       Prop l     -> fold l
       Inf        -> mempty
       SizeUniv   -> mempty
+      LockUniv   -> mempty
       PiSort s1 s2 -> mempty
       UnivSort s -> fold s
       MetaS{}    -> mempty

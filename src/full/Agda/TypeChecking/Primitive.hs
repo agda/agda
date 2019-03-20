@@ -1741,6 +1741,11 @@ mkPrimSetOmega = do
   let t = sort $ UnivSort Inf
   return $ PrimImpl t $ primFun __IMPOSSIBLE__ 0 $ \_ -> redReturn $ Sort Inf
 
+primLockUniv' :: TCM PrimitiveImpl
+primLockUniv' = do
+  let t = sort $ Type $ levelSuc $ Max []
+  return $ PrimImpl t $ primFun __IMPOSSIBLE__ 0 $ \_ -> redReturn $ Sort LockUniv
+
 mkPrimFun1TCM :: (FromTerm a, ToTerm b, TermLike b) =>
                  TCM Type -> (a -> ReduceM b) -> TCM PrimitiveImpl
 mkPrimFun1TCM mt f = do
@@ -2098,6 +2103,7 @@ primitiveFunctions = Map.fromList
   , "primIdPath"          |-> primIdPath'
   , builtinIdElim         |-> primIdElim'
   , builtinSubOut         |-> primSubOut'
+  , builtinLockUniv       |-> primLockUniv'
   ]
   where
     (|->) = (,)

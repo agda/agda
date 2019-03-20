@@ -123,6 +123,7 @@ instance PatternFrom () Sort NLPat where
       Prop l   -> done --TODO
       Inf      -> done
       SizeUniv -> done
+      LockUniv -> done
       PiSort _ _ -> __IMPOSSIBLE__
       UnivSort _ -> __IMPOSSIBLE__
       MetaS{}  -> __IMPOSSIBLE__

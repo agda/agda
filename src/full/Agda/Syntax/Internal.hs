@@ -225,6 +225,7 @@ data Sort
   | Prop Level  -- ^ @Prop ℓ@.
   | Inf         -- ^ @Setω@.
   | SizeUniv    -- ^ @SizeUniv@, a sort inhabited by type @Size@.
+  | LockUniv    -- ^ @LockUniv@, a sort for locks.
   | PiSort Sort (Abs Sort) -- ^ Sort of the pi type.
   | UnivSort Sort -- ^ Sort of another sort.
   | MetaS {-# UNPACK #-} !MetaId Elims
@@ -1103,6 +1104,7 @@ instance TermSize Sort where
     Prop l    -> 1 + tsize l
     Inf       -> 1
     SizeUniv  -> 1
+    LockUniv  -> 1
     PiSort s s' -> 1 + tsize s + tsize s'
     UnivSort s -> 1 + tsize s
     MetaS _ es -> 1 + tsize es
@@ -1171,6 +1173,7 @@ instance KillRange Sort where
   killRange s = case s of
     Inf        -> Inf
     SizeUniv   -> SizeUniv
+    LockUniv   -> LockUniv
     Type a     -> killRange1 Type a
     Prop a     -> killRange1 Prop a
     PiSort s1 s2 -> killRange2 PiSort s1 s2
@@ -1334,6 +1337,7 @@ instance Pretty Sort where
       Prop l -> mparens (p > 9) $ "Prop" <+> prettyPrec 10 l
       Inf -> "Setω"
       SizeUniv -> "SizeUniv"
+      LockUniv -> "LockUniv"
       PiSort s b -> mparens (p > 9) $
         "piSort" <+> prettyPrec 10 s
                       <+> parens (sep [ text ("λ " ++ absName b ++ " ->")
@@ -1401,6 +1405,7 @@ instance NFData Sort where
     Prop l   -> rnf l
     Inf      -> ()
     SizeUniv -> ()
+    LockUniv -> ()
     PiSort a b -> rnf (a, unAbs b)
     UnivSort a -> rnf a
     MetaS _ es -> rnf es

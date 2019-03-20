@@ -305,6 +305,7 @@ instance UsableRelevance Sort where
     Prop l -> usableRel rel l
     Inf    -> return True
     SizeUniv -> return True
+    LockUniv -> return True
     PiSort s1 s2 -> usableRel rel (s1,s2)
     UnivSort s -> usableRel rel s
     MetaS x es -> usableRel rel es

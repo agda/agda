@@ -709,6 +709,7 @@ instance ExtractCalls Sort where
     case s of
       Inf        -> return empty
       SizeUniv   -> return empty
+      LockUniv   -> return empty
       Type t     -> terUnguarded $ extract t  -- no guarded levels
       Prop t     -> terUnguarded $ extract t
       PiSort s1 s2 -> extract (s1, s2)
