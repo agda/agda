@@ -832,13 +832,16 @@ applyNLPatSubst = applySubst . fmap nlPatToTerm
       PPi a b        -> __IMPOSSIBLE__
       PBoundVar i es -> __IMPOSSIBLE__
 
+applyNLSubstToDom :: Subst NLPat a => Substitution' NLPat -> Dom a -> Dom a
+applyNLSubstToDom rho dom = applySubst rho <$> dom{ domTactic = applyNLPatSubst rho $ domTactic dom }
+
 instance Subst NLPat NLPat where
   applySubst rho p = case p of
     PVar i bvs -> lookupS rho i `applyBV` bvs
     PWild  -> p
     PDef f es -> PDef f $ applySubst rho es
     PLam i u -> PLam i $ applySubst rho u
-    PPi a b -> PPi (applySubst rho a) (applySubst rho b)
+    PPi a b -> PPi (applyNLSubstToDom rho a) (applySubst rho b)
     PBoundVar i es -> PBoundVar i $ applySubst rho es
     PTerm u -> PTerm $ applyNLPatSubst rho u
 
@@ -921,9 +924,10 @@ instance Subst t a => Subst t (Arg a) where
 instance Subst t a => Subst t (Named name a) where
   applySubst rho = fmap (applySubst rho)
 
-instance Subst t a => Subst t (Dom a) where
+instance (Subst Term a) => Subst Term (Dom a) where
   applySubst IdS dom = dom
-  applySubst rho dom = setFreeVariables unknownFreeVariables $ fmap (applySubst rho) dom
+  applySubst rho dom = setFreeVariables unknownFreeVariables $
+    fmap (applySubst rho) dom{ domTactic = applySubst rho (domTactic dom) }
 
 instance Subst t a => Subst t (Maybe a) where
   applySubst rho = fmap (applySubst rho)
@@ -1049,8 +1053,8 @@ type TelView = TelV Type
 data TelV a  = TelV { theTel :: Tele (Dom a), theCore :: a }
   deriving (Show, Functor)
 
-deriving instance (Subst t a, Eq  a) => Eq  (TelV a)
-deriving instance (Subst t a, Ord a) => Ord (TelV a)
+deriving instance (Subst Term a, Eq  a) => Eq  (TelV a)
+deriving instance (Subst Term a, Ord a) => Ord (TelV a)
 
 -- | Takes off all exposed function domains from the given type.
 --   This means that it does not reduce to expose @Pi@-types.

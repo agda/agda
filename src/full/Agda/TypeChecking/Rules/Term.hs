@@ -281,6 +281,7 @@ checkTypedBindings :: LamOrPi -> A.TypedBinding -> (Telescope -> TCM a) -> TCM a
 checkTypedBindings lamOrPi (A.TBind r tac xs' e) ret = do
     let xs = (map . fmap . fmap) A.unBind xs'
     tac <- traverse (checkTacticAttribute lamOrPi) tac
+    whenJust tac $ \ t -> reportSDoc "tc.term.tactic" 30 $ "Checked tactic attribute:" <?> prettyTCM t
     -- Andreas, 2011-04-26 irrelevant function arguments may appear
     -- non-strictly in the codomain type
     -- 2011-10-04 if flag --experimental-irrelevance is set
@@ -301,8 +302,8 @@ checkTypedBindings lamOrPi (A.TBind r tac xs' e) ret = do
     let setTac tac EmptyTel            = EmptyTel
         setTac tac (ExtendTel dom tel) = ExtendTel dom{ domTactic = tac } $ setTac (raise 1 tac) <$> tel
         xs' = (map . mapRelevance) (modRel lamOrPi experimental) xs
-    addContext (xs', t) $
-      ret $ setTac tac $ namedBindsToTel xs t
+    let tel = setTac tac $ namedBindsToTel xs t
+    addContext (xs', t) $ ret tel
     where
         -- if we are checking a typed lambda, we resurrect before we check the
         -- types, but do not modify the new context entries
@@ -1245,6 +1246,9 @@ unquoteM tacA hole holeType = do
 --   given by the third argument. Runs the continuation if successful.
 unquoteTactic :: Term -> Term -> Type -> TCM ()
 unquoteTactic tac hole goal = do
+  reportSDoc "tc.term.tactic" 40 $ sep
+    [ "Running tactic" <+> prettyTCM tac
+    , nest 2 $ "on" <+> prettyTCM hole <+> ":" <+> prettyTCM goal ]
   ok  <- runUnquoteM $ unquoteTCM tac hole
   case ok of
     Left (BlockedOnMeta oldState x) -> do

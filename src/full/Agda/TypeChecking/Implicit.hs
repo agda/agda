@@ -12,12 +12,14 @@ import Agda.Syntax.Internal as I
 
 import Agda.TypeChecking.Irrelevance
 import {-# SOURCE #-} Agda.TypeChecking.MetaVars
+import {-# SOURCE #-} Agda.TypeChecking.Rules.Term (unquoteTactic)
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Pretty
 
 import Agda.Utils.Tuple
+import Agda.Utils.Maybe
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -49,7 +51,7 @@ implicitNamedArgs n expand t0 = do
     reportSDoc "tc.term.args" 30 $ "implicitNamedArgs" <+> prettyTCM t0'
     reportSDoc "tc.term.args" 80 $ "implicitNamedArgs" <+> text (show t0')
     case unEl t0' of
-      Pi Dom{domInfo = info, domName = name, unDom = a} b
+      Pi Dom{domInfo = info, domName = name, domTactic = tac, unDom = a} b
         | let x = maybe "_" rangedThing name, expand (getHiding info) x -> do
           info' <- if hidden info then return info else do
             reportSDoc "tc.term.args.ifs" 15 $
@@ -61,6 +63,7 @@ implicitNamedArgs n expand t0 = do
 
             return $ makeInstance info
           (_, v) <- newMetaArg info' x a
+          whenJust tac $ \ tac -> unquoteTactic tac v a
           let narg = Arg info (Named (Just $ unranged x) v)
           mapFst (narg :) <$> implicitNamedArgs (n-1) expand (absApp b v)
       _ -> return ([], t0')
