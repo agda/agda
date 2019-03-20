@@ -286,6 +286,10 @@ checkTypedBindings lamOrPi (A.TBind r xs' e) ret = do
     experimental <- optExperimentalIrrelevance <$> pragmaOptions
     t <- modEnv lamOrPi $ isType_ e
 
+    -- Andrea TODO: also make sure that LockUniv implies IsLock
+    when (any (\ x -> getLock x == IsLock) xs) $
+        equalSort (getSort t) LockUniv
+
     -- Jesper, 2019-02-12, Issue #3534: warn if the type of an
     -- instance argument does not have the right shape
     unlessNull (filter isInstance xs') $ \ixs -> do
