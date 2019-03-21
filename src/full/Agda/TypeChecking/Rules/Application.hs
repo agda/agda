@@ -769,12 +769,12 @@ checkConstructorApplication cmp org t c args = do
 -- | Returns an unblocking action in case of failure.
 disambiguateConstructor :: NonemptyList QName -> Type -> TCM (Either (TCM Bool) ConHead)
 disambiguateConstructor cs0 t = do
-  reportSLn "tc.check.term" 40 $ "Ambiguous constructor: " ++ prettyShow cs0
+  reportSLn "tc.check.term.con" 40 $ "Ambiguous constructor: " ++ prettyShow cs0
 
   -- Get the datatypes of the various constructors
   let getData Constructor{conData = d} = d
       getData _                        = __IMPOSSIBLE__
-  reportSLn "tc.check.term" 40 $ "  ranges before: " ++ show (getRange cs0)
+  reportSLn "tc.check.term.con" 40 $ "  ranges before: " ++ show (getRange cs0)
   -- We use the reduced constructor when disambiguating, but
   -- the original constructor for type checking. This is important
   -- since they may have different types (different parameters).
@@ -782,12 +782,12 @@ disambiguateConstructor cs0 t = do
   -- Andreas, 2017-08-13, issue #2686: ignore abstract constructors
   (cs, cons)  <- unzip . snd . partitionEithers <$> do
      forM (toList cs0) $ \ c -> mapRight (c,) <$> getConForm c
-  reportSLn "tc.check.term" 40 $ "  reduced: " ++ prettyShow cons
+  reportSLn "tc.check.term.con" 40 $ "  reduced: " ++ prettyShow cons
   case cons of
     []    -> typeError $ AbstractConstructorNotInScope $ headNe cs0
     [con] -> do
       let c = setConName (fromMaybe __IMPOSSIBLE__ $ headMaybe cs) con
-      reportSLn "tc.check.term" 40 $ "  only one non-abstract constructor: " ++ prettyShow c
+      reportSLn "tc.check.term.con" 40 $ "  only one non-abstract constructor: " ++ prettyShow c
       storeDisambiguatedName $ conName c
       return (Right c)
     _   -> do
@@ -806,7 +806,7 @@ disambiguateConstructor cs0 t = do
                caseMaybeM (isDataOrRecord $ unEl t') (badCon t') $ \ d ->
                  case [ c | (d', c) <- dcs, d == d' ] of
                    [c] -> do
-                     reportSLn "tc.check.term" 40 $ "  decided on: " ++ prettyShow c
+                     reportSLn "tc.check.term.con" 40 $ "  decided on: " ++ prettyShow c
                      storeDisambiguatedName $ conName c
                      return $ Just c
                    []  -> badCon $ t' $> Def d []
