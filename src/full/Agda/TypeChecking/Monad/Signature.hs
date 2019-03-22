@@ -137,48 +137,6 @@ mkPragma s = CompilerPragma <$> getCurrentRange <*> pure s
 addPragma :: BackendName -> QName -> String -> TCM ()
 addPragma b q s = modifySignature . updateDefinition q . addCompilerPragma b =<< mkPragma s
 
--- ** Temporary **
---  The functions below are only needed while we still parse the old COMPILED
---  pragmas.
-
-type HaskellCode = String
-type HaskellType = String
-type JSCode = String
-type CoreCode = String
-
-addDeprecatedPragma :: String -> BackendName -> QName -> String -> TCM ()
-addDeprecatedPragma old b q s = do
-  let pq = prettyShow $ nameConcrete $ qnameName q
-  warning $ DeprecationWarning (unwords ["The", old, "pragma"])
-                               (unwords ["{-# COMPILE", b, pq, s, "#-}"]) "2.6"
-  addPragma b q s
-
-dataFormat :: String -> [String] -> String
-dataFormat ty cons = "= data " ++ ty ++ " (" ++ List.intercalate " | " cons ++ ")"
-
-addHaskellCode :: QName -> HaskellCode -> TCM ()
-addHaskellCode q hsCode = addDeprecatedPragma "COMPILED" ghcBackendName q $ "= " ++ hsCode
-
-addHaskellExport :: QName -> String -> TCM ()
-addHaskellExport q hsName = addDeprecatedPragma "COMPILED_EXPORT" ghcBackendName q $ "as " ++ hsName
-
-addHaskellType :: QName -> HaskellType -> TCM ()
-addHaskellType q hsTy = addDeprecatedPragma "COMPILED_TYPE" ghcBackendName q $ "= type " ++ hsTy
-
-addHaskellData :: QName -> HaskellType -> [HaskellCode] -> TCM ()
-addHaskellData q hsTy hsCons = addDeprecatedPragma "COMPILED_DATA" ghcBackendName q $ dataFormat hsTy hsCons
-
-addJSCode :: QName -> JSCode -> TCM ()
-addJSCode q jsDef = addDeprecatedPragma "COMPILED_JS" jsBackendName q ("= " ++ jsDef)
-
-addCoreCode :: QName -> CoreCode -> TCM ()
-addCoreCode q crDef = addDeprecatedPragma "COMPILED_UHC" uhcBackendName q $ "= " ++ crDef
-
-addCoreType :: QName -> CoreCode -> [CoreCode] -> TCM ()
-addCoreType q crTy crCons = addDeprecatedPragma "COMPILED_DATA_UHC" uhcBackendName q $ dataFormat crTy crCons
-
--- ** End of temporary functions **
-
 getUniqueCompilerPragma :: BackendName -> QName -> TCM (Maybe CompilerPragma)
 getUniqueCompilerPragma backend q = do
   ps <- defCompilerPragmas backend <$> getConstInfo q

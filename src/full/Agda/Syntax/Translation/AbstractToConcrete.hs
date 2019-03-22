@@ -1042,30 +1042,9 @@ instance ToConcrete RangeAndPragma C.Pragma where
     A.BuiltinPragma b x       -> C.BuiltinPragma r b <$> toConcrete x
     A.BuiltinNoDefPragma b x  -> C.BuiltinPragma r b <$> toConcrete x
     A.RewritePragma x         -> C.RewritePragma r . singleton <$> toConcrete x
-    A.CompiledTypePragma x hs -> do
-      x <- toConcrete x
-      return $ C.CompiledTypePragma r x hs
-    A.CompiledDataPragma x hs hcs -> do
-      x <- toConcrete x
-      return $ C.CompiledDataPragma r x hs hcs
-    A.CompiledPragma x hs -> do
-      x <- toConcrete x
-      return $ C.CompiledPragma r x hs
     A.CompilePragma b x s -> do
       x <- toConcrete x
       return $ C.CompilePragma r b x s
-    A.CompiledExportPragma x hs -> do
-      x <- toConcrete x
-      return $ C.CompiledExportPragma r x hs
-    A.CompiledJSPragma x e -> do
-      x <- toConcrete x
-      return $ C.CompiledJSPragma r x e
-    A.CompiledUHCPragma x cr -> do
-      x <- toConcrete x
-      return $ C.CompiledUHCPragma r x cr
-    A.CompiledDataUHCPragma x crd crcs -> do
-      x <- toConcrete x
-      return $ C.CompiledDataUHCPragma r x crd crcs
     A.StaticPragma x -> C.StaticPragma r <$> toConcrete x
     A.InjectivePragma x -> C.InjectivePragma r <$> toConcrete x
     A.InlinePragma b x -> C.InlinePragma r b <$> toConcrete x
