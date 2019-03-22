@@ -359,13 +359,6 @@ instance ExprLike Pragma where
       BuiltinNoDefPragma{}        -> pure p
       RewritePragma{}             -> pure p
       CompilePragma{}             -> pure p
-      CompiledPragma{}            -> pure p
-      CompiledExportPragma{}      -> pure p
-      CompiledTypePragma{}        -> pure p
-      CompiledDataPragma{}        -> pure p
-      CompiledJSPragma{}          -> pure p
-      CompiledUHCPragma{}         -> pure p
-      CompiledDataUHCPragma{}     -> pure p
       StaticPragma{}              -> pure p
       InjectivePragma{}           -> pure p
       InlinePragma{}              -> pure p

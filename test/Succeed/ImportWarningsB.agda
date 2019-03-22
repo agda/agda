@@ -5,7 +5,6 @@ module ImportWarningsB where
 
 import Issue2243
 import Issue708quote
-import OldCompilerPragmas
 import RewritingEmptyPragma
 import Unreachable
 

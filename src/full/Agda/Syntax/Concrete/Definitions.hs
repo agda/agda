@@ -1397,25 +1397,11 @@ niceDeclarations fixs ds = do
 
               -- Compiler pragmas are not needed for type checking, thus,
               -- can go to the bottom.
-
-              -- Deprecated compiler pragmas:
-              CompiledDataPragma{}      -> bottom
-              CompiledTypePragma{}      -> bottom
-              CompiledPragma{}          -> bottom
-              CompiledExportPragma{}    -> bottom
-              CompiledJSPragma{}        -> bottom
-              CompiledUHCPragma{}       -> bottom
-              CompiledDataUHCPragma{}   -> bottom
-              HaskellCodePragma{}       -> bottom
-
-              -- New compiler pragmas:
               ForeignPragma{}           -> bottom
               CompilePragma{}           -> bottom
+
               StaticPragma{}            -> bottom
               InlinePragma{}            -> bottom
-              ImportPragma{}            -> bottom
-              ImportUHCPragma{}         -> bottom
-              -- End compiler pragmas
 
               ImpossiblePragma{}        -> top     -- error thrown in scope checker
               EtaPragma{}               -> bottom  -- needs record definition

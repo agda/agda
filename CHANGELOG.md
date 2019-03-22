@@ -454,6 +454,25 @@ Pragmas and options
   `--ignore-all-interfaces` which also rechecks builtin and primitive
   files.
 
+* The following deprecated compiler pragmas have been removed:
+
+  ```
+    {-# COMPILED f e #-}
+    {-# COMPILED_TYPE A T #-}
+    {-# COMPILED_DATA A D C1 .. CN #-}
+    {-# COMPILED_DECLARE_DATA #-}
+    {-# COMPILED_EXPORT f g #-}
+    {-# IMPORT M #-}
+    {-# HASKELL code #-}
+    {-# COMPILED_UHC f e #-}
+    {-# COMPILED_DATA_UHC A D C1 .. CN #-}
+    {-# IMPORT_UHC M #-}
+    {-# COMPILED_JS f e #-}
+  ```
+
+  See the [user manual](https://agda.readthedocs.io/en/latest/language/foreign-function-interface.html)
+  for how to use the `COMPILE` and `FOREIGN` pragmas that replaced these in Agda 2.5.
+
 ### New warnings
 
 * A declaration of the form `f : A` without an accompanying definition

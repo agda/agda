@@ -1554,12 +1554,9 @@ instance HasRange CompilerPragma where
 
 type BackendName    = String
 
--- Temporary: while we still parse the old pragmas we need to know the names of
--- the corresponding backends.
-jsBackendName, ghcBackendName, uhcBackendName :: BackendName
+jsBackendName, ghcBackendName :: BackendName
 jsBackendName  = "JS"
 ghcBackendName = "GHC"
-uhcBackendName = "UHC"
 
 type CompiledRepresentation = Map BackendName [CompilerPragma]
 

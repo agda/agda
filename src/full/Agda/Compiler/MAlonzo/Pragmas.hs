@@ -26,6 +26,9 @@ import Agda.Compiler.Common
 import Agda.Utils.Impossible
 #include "undefined.h"
 
+type HaskellCode = String
+type HaskellType = String
+
 -- | GHC backend translation pragmas.
 data HaskellPragma
   = HsDefn Range HaskellCode

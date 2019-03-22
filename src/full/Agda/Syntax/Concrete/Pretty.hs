@@ -528,22 +528,6 @@ instance Pretty Pragma where
     pretty (BuiltinPragma _ b x)   = hsep [ "BUILTIN", text b, pretty x ]
     pretty (RewritePragma _ xs)    =
       hsep [ "REWRITE", hsep $ map pretty xs ]
-    pretty (CompiledPragma _ x hs) =
-      hsep [ "COMPILED", pretty x, text hs ]
-    pretty (CompiledExportPragma _ x hs) =
-      hsep [ "COMPILED_EXPORT", pretty x, text hs ]
-    pretty (CompiledTypePragma _ x hs) =
-      hsep [ "COMPILED_TYPE", pretty x, text hs ]
-    pretty (CompiledDataPragma _ x hs hcs) =
-      hsep $ ["COMPILED_DATA", pretty x] ++ map text (hs : hcs)
-    pretty (CompiledJSPragma _ x e) =
-      hsep [ "COMPILED_JS", pretty x, text e ]
-    pretty (CompiledUHCPragma _ x e) =
-      hsep [ "COMPILED_UHC", pretty x, text e ]
-    pretty (CompiledDataUHCPragma _ x crd crcs) =
-      hsep $ [ "COMPILED_DATA_UHC", pretty x] ++ map text (crd : crcs)
-    pretty (HaskellCodePragma _ s) =
-      vcat ("HASKELL" : map text (lines s))
     pretty (CompilePragma _ b x e) =
       hsep [ "COMPILE", text b, pretty x, text e ]
     pretty (ForeignPragma _ b s) =
@@ -556,10 +540,6 @@ instance Pretty Pragma where
       hsep $ ["INLINE", pretty i]
     pretty (InlinePragma _ False i) =
       hsep $ ["NOINLINE", pretty i]
-    pretty (ImportPragma _ i) =
-      hsep $ ["IMPORT", text i]
-    pretty (ImportUHCPragma _ i) =
-      hsep $ ["IMPORT_UHC", text i]
     pretty (ImpossiblePragma _) =
       hsep $ ["IMPOSSIBLE"]
     pretty (EtaPragma _ x) =
