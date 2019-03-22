@@ -38,6 +38,7 @@ import Agda.Utils.Time
 import Control.Monad.Trans
 import Data.Int
 import System.IO
+import Agda.Utils.Pretty (Doc)
 
 -- | Responses for any interactive interface
 --
@@ -109,7 +110,7 @@ data DisplayInfo
 data GoalDisplayInfo
     = Goal_HelperFunction (OutputConstraint' A.Expr A.Expr)
     | Goal_NormalForm ComputeMode A.Expr
-    | Goal_GoalType Rewrite GoalTypeAux [ResponseContextEntry] [OutputForm Expr Expr]
+    | Goal_GoalType Rewrite GoalTypeAux [ResponseContextEntry] Doc [OutputForm Expr Expr]
     | Goal_CurrentGoal Rewrite
     | Goal_InferredType A.Expr
 

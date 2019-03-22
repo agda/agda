@@ -1413,13 +1413,14 @@ data IPClause = IPClause
   { ipcQName    :: QName  -- ^ The name of the function.
   , ipcClauseNo :: Int    -- ^ The number of the clause of this function.
   , ipcClause   :: A.RHS  -- ^ The original AST clause rhs.
+  , ipcBoundary :: [Closure ([(Term,Term)],Constraint)]
   }
   | IPNoClause -- ^ The interaction point is not in the rhs of a clause.
   deriving Data
 
 instance Eq IPClause where
   IPNoClause     == IPNoClause       = True
-  IPClause x i _ == IPClause x' i' _ = x == x' && i == i'
+  IPClause x i _ _ == IPClause x' i' _  _ = x == x' && i == i'
   _              == _                = False
 
 ---------------------------------------------------------------------------

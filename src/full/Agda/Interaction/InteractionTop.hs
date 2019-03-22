@@ -1027,7 +1027,18 @@ cmd_goal_type_context_and :: GoalTypeAux -> B.Rewrite -> InteractionId -> Range 
 cmd_goal_type_context_and aux norm ii _ _ = do
   ctx <- lift $ getResponseContext norm ii
   constr <- lift $ lookupInteractionId ii >>= B.getConstraintsMentioning
-  display_info $ Info_GoalSpecific ii (Goal_GoalType norm aux ctx constr)
+  boundary <- lift $ do
+    cs <- do
+      ip <- lookupInteractionPoint ii
+      case ipClause ip of
+        IPClause {ipcBoundary = cs } -> do
+          ocs <- B.prettyConstraints (map (fmap snd) cs)
+          forM (zip cs ocs) $ \ (c, o) -> do
+           eqs <- (enterClosure c $ \ z -> TCP.fsep $ flip map (fst z) $ \ (l,r) -> TCP.prettyTCM l TCP.<+> "=" TCP.<+> TCP.prettyTCM r)
+           return $ eqs <+> "|-" <+> pretty o
+        IPNoClause -> return empty
+    return $ vcat cs
+  display_info $ Info_GoalSpecific ii (Goal_GoalType norm aux ctx boundary constr)
 
 
 -- | Shows all the top-level names in the given module, along with

@@ -197,7 +197,7 @@ lispifyGoalSpecificDisplayInfo ii kind = localTCState $ B.withInteractionId ii $
     Goal_NormalForm cmode expr -> do
       doc <- showComputed cmode expr
       format (render doc) "*Normal Form*"   -- show?
-    Goal_GoalType norm aux ctx constraints -> do
+    Goal_GoalType norm aux ctx bndry constraints -> do
       ctxDoc <- prettyResponseContext ii True ctx
       goalDoc <- prettyTypeOfMeta norm ii
       auxDoc <- case aux of
@@ -216,6 +216,7 @@ lispifyGoalSpecificDisplayInfo ii kind = localTCState $ B.withInteractionId ii $
       let doc = vcat $
             [ "Goal:" <+> goalDoc
             , auxDoc
+            , bndry
             , text (replicate 60 '\x2014')
             , ctxDoc
             ] ++ constraintsDoc

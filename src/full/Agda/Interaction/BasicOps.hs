@@ -178,7 +178,7 @@ redoChecks (Just ii) = do
   ip <- lookupInteractionPoint ii
   case ipClause ip of
     IPNoClause -> return ()
-    IPClause f _ _ -> do
+    IPClause f _ _ _ -> do
       mb <- mutualBlockOf f
       terErrs <- localTC (\ e -> e { envMutualBlock = Just mb }) $ termMutual []
       unless (null terErrs) $ warning $ TerminationIssue terErrs
@@ -566,6 +566,12 @@ instance (Pretty a, Pretty b) => Pretty (OutputConstraint' a b) where
 instance (ToConcrete a c, ToConcrete b d) =>
             ToConcrete (OutputConstraint' a b) (OutputConstraint' c d) where
   toConcrete (OfType' e t) = OfType' <$> toConcrete e <*> toConcreteCtx TopCtx t
+
+prettyConstraints :: [Closure Constraint] -> TCM [OutputForm C.Expr C.Expr]
+prettyConstraints cs = do
+  forM cs $ \ c -> do
+            cl <- reify (PConstr Set.empty c)
+            enterClosure cl abstractToConcrete_
 
 getConstraints :: TCM [OutputForm C.Expr C.Expr]
 getConstraints = getConstraints' return $ const True

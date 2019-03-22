@@ -234,7 +234,7 @@ instantiateTelescopeN
             Substitution) -- Γ' ⊢ σ : Γ
 instantiateTelescopeN tel []         = return (tel, IdS)
 instantiateTelescopeN tel ((k,t):xs) = do
-  (tel', sigma, _) <- instantiateTelescope tel k t
+  (tel', sigma, _) <- instantiateTelescope tel (size tel - k - 1) t
   (tel'', sigma')  <- instantiateTelescopeN tel' (map (subtract 1 -*- applyPatSubst sigma) xs)
   return (tel'', applyPatSubst sigma sigma')
 
@@ -244,7 +244,7 @@ instantiateTelescopeN tel ((k,t):xs) = do
 --   (directly or indirectly) on the variable.
 instantiateTelescope
   :: Telescope -- ^ ⊢ Γ
-  -> Int       -- ^ Γ ⊢ var k : A
+  -> Int       -- ^ Γ ⊢ var k : A   deBruijn _level_
   -> Term      -- ^ Γ ⊢ u : A
   -> Maybe (Telescope,           -- ⊢ Γ'
             PatternSubstitution, -- Γ' ⊢ σ : Γ
