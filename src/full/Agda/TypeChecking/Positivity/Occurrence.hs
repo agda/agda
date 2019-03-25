@@ -195,7 +195,7 @@ boundToEverySome = Map.fromList
 -- belong to the domain of @boundToEverySome@.
 
 -- There is a property for this function in
--- Agda.Utils.Graph.AdjacencyMap.Unidirectional.Tests.
+-- Internal.Utils.Graph.AdjacencyMap.Unidirectional.
 
 productOfEdgesInBoundedWalk ::
   (SemiRing e, Ord n) =>

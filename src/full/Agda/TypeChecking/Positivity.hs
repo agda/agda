@@ -137,7 +137,7 @@ checkStrictlyPositive mi qset = do
             loop = Graph.lookup (DefNode q) (DefNode q) gstar
 
             -- Note the property
-            -- Agda.Utils.Graph.AdjacencyMap.Unidirectional.Tests.prop_productOfEdgesInBoundedWalk,
+            -- Internal.Utils.Graph.AdjacencyMap.Unidirectional.prop_productOfEdgesInBoundedWalk,
             -- which relates productOfEdgesInBoundedWalk to
             -- gaussJordanFloydWarshallMcNaughtonYamada.
 
