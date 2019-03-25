@@ -237,10 +237,6 @@ coverageCheck f t cs = do
         sep [ "adding missing absurd clause"
             , nest 2 $ prettyTCM $ QNamed f cl
             ]
-      reportSDoc "tc.cover.missing" 80 $ inTopContext $ do
-        sep [ "adding missing absurd clause"
-            , nest 2 $ text $ show cl
-            ]
       addClauses f [cl]
       return False
 
@@ -312,10 +308,6 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
     , nest 2 $ "ps   =" <+> do addContext tel $ prettyTCMPatternList $ fromSplitPatterns ps
     , nest 2 $ "target =" <+> do addContext tel $ maybe (text "<none>") prettyTCM target
     , nest 2 $ "target sort =" <+> do addContext tel $ maybe (text "<none>") (prettyTCM . getSort . unArg) target
-    ]
-  reportSDoc "tc.cover.cover" 60 $ vcat
-    [ nest 2 $ "ps   =" <+> pretty ps
-    , nest 2 $ "target =" <+> (text . show) target
     ]
   match cs ps >>= \case
     Yes (i,mps) -> do
@@ -428,7 +420,7 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
             , nest 2 $ vcat
               [ "n   = " <+> text (show n)
               , "scs = " <+> prettyTCM scs
-              , "ps  = " <+> text (show ps)
+              , "ps  = " <+> prettyTCMPatternList (fromSplitPatterns ps)
               ]
             ]
           -- TODO Andrea: do something with etaRecordSplits and qsss?
@@ -550,7 +542,7 @@ createMissingHCompClause
    -> TCM Clause
 createMissingHCompClause f n x old_sc (SClause tel ps _sigma' cps (Just t)) = setCurrentRange f $ do
   reportSDoc "tc.cover.hcomp" 20 $ addContext tel $ text "Trying to create right-hand side of type" <+> prettyTCM t
-  reportSDoc "tc.cover.hcomp" 30 $ addContext tel $ text "ps = " <+> text (show (fromSplitPatterns ps))
+  reportSDoc "tc.cover.hcomp" 30 $ addContext tel $ text "ps = " <+> prettyTCMPatternList (fromSplitPatterns ps)
   reportSDoc "tc.cover.hcomp" 30 $ text "tel = " <+> prettyTCM tel
 
   io      <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinIOne
@@ -582,7 +574,6 @@ createMissingHCompClause f n x old_sc (SClause tel ps _sigma' cps (Just t)) = se
           Type l -> pure (Level l)
           s      -> do
             reportSDoc "tc.cover.hcomp" 20 $ text "getLevel, s = " <+> prettyTCM s
-            reportSDoc "tc.cover.hcomp" 40 $ text "getLevel, s = " <+> text (show s)
             typeError . GenericDocError =<<
                     (text "The sort of" <+> prettyTCM t <+> text "should be of the form \"Set l\"")
 
@@ -709,7 +700,6 @@ createMissingHCompClause f n x old_sc (SClause tel ps _sigma' cps (Just t)) = se
             t <- bind "i" ty
             s <- reduce $ getSort (absBody t)
             reportSDoc "tc.cover.hcomp" 20 $ text "ty_level, s = " <+> prettyTCM s
-            reportSDoc "tc.cover.hcomp" 60 $ text "ty_level, s = " <+> text (show s)
             case s of
               Type l -> open =<< (lam "i" $ \ _ -> pure $ Level l)
               _      -> cannotCreate "Cannot compose with type family:" =<< (liftTCM $ buildClosure t)
@@ -867,7 +857,7 @@ fixTarget sc@SClause{ scTel = sctel, scPats = ps, scSubst = sigma, scCheckpoints
           addContext sctel $ prettyTCMPatternList $ fromSplitPatterns ps
       ]
     reportSDoc "tc.cover.target" 60 $ sep
-      [ "substitution          : " <+> text (show sigma)
+      [ "substitution          : " <+> prettyTCM sigma
       ]
     reportSDoc "tc.cover.target" 30 $ sep
       [ "target type before substitution (variables may be wrong): " <+> do
@@ -906,7 +896,7 @@ fixTarget sc@SClause{ scTel = sctel, scPats = ps, scSubst = sigma, scCheckpoints
           addContext sctel' $ prettyTCMPatternList $ fromSplitPatterns ps'
       ]
     reportSDoc "tc.cover.target" 60 $ sep
-      [ "new split clause substitution: " <+> text (show $ scSubst sc')
+      [ "new split clause substitution: " <+> prettyTCM (scSubst sc')
       ]
     reportSDoc "tc.cover.target" 30 $ sep
       [ "new split clause target      : " <+> do
@@ -1150,10 +1140,6 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps cps c = do
         inTopContext $ addContext delta' $ nest 2 $ vcat
           [ "ps'    =" <+> do prettyTCMPatternList $ fromSplitPatterns ps'
           ]
-      liftTCM $ reportSDoc "tc.cover.split.con" 60 $
-        inTopContext $ addContext delta' $ nest 2 $ vcat
-          [ text "ps'    =" <+> text (show $ fromSplitPatterns ps')
-          ]
 
 -- | Introduce trailing pattern variables via 'fixTarget'?
 data FixTarget
@@ -1385,7 +1371,7 @@ split' checkEmpty ind allowPartialCover fixtarget
     debugHoleAndType delta1 delta2 s ps t =
       liftTCM $ reportSDoc "tc.cover.top" 10 $ nest 2 $ vcat $
         [ "p      =" <+> text (patVarNameToString s)
-        , "ps     =" <+> text (show ps)
+        , "ps     =" <+> prettyTCMPatternList ps
         , "delta1 =" <+> prettyTCM delta1
         , "delta2 =" <+> inContextOfDelta2 (prettyTCM delta2)
         , "t      =" <+> inContextOfT (prettyTCM t)
@@ -1489,7 +1475,7 @@ instance PrettyTCM SplitClause where
     , nest 2 $ vcat
       [ "tel          =" <+> prettyTCM tel
       , "pats         =" <+> sep (map (prettyTCM . namedArg) pats)
-      , "subst        =" <+> (text . show) sigma
+      , "subst        =" <+> prettyTCM sigma
       , "checkpoints  =" <+> prettyTCM cps
       , "target       =" <+> do
           caseMaybe target empty $ \ t -> do
