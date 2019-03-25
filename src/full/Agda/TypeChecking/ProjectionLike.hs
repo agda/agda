@@ -326,10 +326,9 @@ makeProjection x = -- if True then return () else do
     -- and/or positivity checkers.
     recursive = do
       occs <- computeOccurrences x
-      let xocc = Map.lookup (ADef x) occs
-      case xocc of
-        Just (_ : _) -> return True -- recursive occurrence
-        _            -> return False
+      case Map.lookup (ADef x) occs of
+        Just n | n >= 1 -> return True -- recursive occurrence
+        _               -> return False
 
     checkOccurs cls n = all (nonOccur n) cls
 

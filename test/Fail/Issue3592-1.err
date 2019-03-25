@@ -2,7 +2,7 @@ Issue3592-1.agda:5,1-10,20
 P is not strictly positive, because it occurs
 in the first argument to f
 in the first argument to P
-in the first clause
-in the definition of Q, which occurs
+(in the first clause
+ in the definition of Q), which occurs
 as an index
 in the definition of P.

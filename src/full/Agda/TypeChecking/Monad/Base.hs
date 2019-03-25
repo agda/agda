@@ -29,6 +29,7 @@ import Data.Maybe
 import Data.Map (Map)
 import qualified Data.Map as Map -- hiding (singleton, null, empty)
 import Data.Monoid ( Monoid, mempty, mappend )
+import Data.Sequence (Seq)
 import Data.Set (Set)
 import qualified Data.Set as Set -- hiding (singleton, null, empty)
 import Data.Semigroup ( Semigroup, (<>), Any(..) )
@@ -2707,7 +2708,7 @@ data Warning
   | CoverageIssue            QName [(Telescope, [NamedArg DeBruijnPattern])]
   -- ^ `CoverageIssue f pss` means that `pss` are not covered in `f`
   | CoverageNoExactSplit     QName [Clause]
-  | NotStrictlyPositive      QName OccursWhere
+  | NotStrictlyPositive      QName (Seq OccursWhere)
   | UnsolvedMetaVariables    [Range]  -- ^ Do not use directly with 'warning'
   | UnsolvedInteractionMetas [Range]  -- ^ Do not use directly with 'warning'
   | UnsolvedConstraints      Constraints
