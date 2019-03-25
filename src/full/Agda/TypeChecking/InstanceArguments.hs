@@ -333,7 +333,7 @@ dropSameCandidates :: MetaId -> [(Candidate, Term, Type, a)] -> TCM [(Candidate,
 dropSameCandidates m cands0 = verboseBracket "tc.instance" 30 "dropSameCandidates" $ do
   metas <- getMetaVariableSet
   -- Does `it` have any metas in the initial meta variable store?
-  let freshMetas = any ((`IntSet.member` metas) . metaId) . allMetas
+  let freshMetas = any ((`IntSet.notMember` metas) . metaId) . allMetas
 
   -- Take overlappable candidates into account
   let cands =
