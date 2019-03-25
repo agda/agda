@@ -51,7 +51,8 @@ instance CoArbitrary Where where
   coarbitrary (IndArgType a) = variant 6 . coarbitrary a
   coarbitrary (InClause a)   = variant 7 . coarbitrary a
   coarbitrary Matched        = variant 8
-  coarbitrary (InDefOf a)    = variant 9 . coarbitrary a
+  coarbitrary IsIndex        = variant 9
+  coarbitrary (InDefOf a)    = variant 10 . coarbitrary a
 
 instance Arbitrary Occurrence where
   arbitrary = elements [minBound .. maxBound]

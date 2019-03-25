@@ -62,6 +62,7 @@ data Where
   | IndArgType QName -- ^ in a datatype index of a constructor
   | InClause Nat     -- ^ in the nth clause of a defined function
   | Matched          -- ^ matched against in a clause of a defined function
+  | IsIndex          -- ^ is an index of an inductive family
   | InDefOf QName    -- ^ in the definition of a constant
   deriving (Show, Eq, Ord, Data)
 
@@ -100,6 +101,7 @@ instance Pretty Where where
     IndArgType q -> "IndArgType" <+> pretty q
     InClause i   -> "InClause"   <+> pretty i
     Matched      -> "Matched"
+    IsIndex      -> "IsIndex"
     InDefOf q    -> "InDefOf"    <+> pretty q
 
 instance Pretty OccursWhere where

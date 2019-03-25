@@ -317,6 +317,7 @@ instance PrettyTCM OccursWhere where
         IndArgType c -> pwords "in an index of the target type of the constructor" ++ [prettyTCM c]
         InClause i   -> pwords "in the" ++ nth i ++ pwords "clause"
         Matched      -> pwords "as matched against"
+        IsIndex      -> pwords "as an index"
         InDefOf d    -> pwords "in the definition of" ++ [prettyTCM d]
 
       maxOneLeftOfArrow Unknown      = Unknown
@@ -602,7 +603,8 @@ computeOccurrences' q = inConcreteOrAbstractMode q $ \ def -> do
         mapM (getOccurrences []) cs
     Datatype{dataClause = Just c} -> getOccurrences [] =<< instantiateFull c
     Datatype{dataPars = np0, dataCons = cs}       -> do
-      -- Andreas, 2013-02-27: first, each data index occurs as matched on.
+      -- Andreas, 2013-02-27 (later edited by someone else): First,
+      -- include each index of an inductive family.
       TelV tel t <- telView $ defType def
       -- Andreas, 2017-04-26, issue #2554: count first index as parameter if it has type Size.
       -- We compute sizeIndex=1 if first first index has type Size, otherwise sizeIndex==0
@@ -611,7 +613,7 @@ computeOccurrences' q = inConcreteOrAbstractMode q $ \ def -> do
       let np = np0 + sizeIndex
       let xs = [np .. size tel - 1] -- argument positions corresponding to indices
           ioccs = Concat $ map (OccursHere . AnArg) [np0 .. np - 1]
-                        ++ map (OccursAs Matched . OccursHere . AnArg) xs
+                        ++ map (OccursAs IsIndex . OccursHere . AnArg) xs
       -- Then, we compute the occurrences in the constructor types.
       let conOcc c = do
             a <- defType <$> getConstInfo c
@@ -809,6 +811,7 @@ computeEdges muts q ob =
     IndArgType _   -> mixed
     InClause _     -> keepGoing
     Matched        -> mixed -- consider arguments matched against as used
+    IsIndex        -> mixed -- And similarly for indices.
     InDefOf d      -> do
       pol' <- isGuarding d
       return (DefNode d, pol')
