@@ -23,6 +23,7 @@ import Control.Monad.Reader
 import Control.Monad.Trans ( lift )
 
 import Data.Either (lefts)
+import Data.Foldable (for_)
 import qualified Data.List as List
 import Data.Monoid (Any(..))
 import Data.Map (Map)
@@ -1329,25 +1330,27 @@ split' checkEmpty ind allowPartialCover fixtarget
     (_ : _ : _) | not (usableQuantity t) ->
       throwError . ErasedDatatype =<< do liftTCM $ inContextOfT $ buildClosure (unDom t)
 
+    _ -> do
 
-  -- Andreas, 2012-10-10 fail if precomputed constructor set does not cover
-  -- all the data type constructors
-  -- Andreas, 2017-10-08 ... unless partial covering is explicitly allowed.
-    _ | allowPartialCover == NoAllowPartialCover,
-        overlap == False,
-        let ptags = map (SplitCon . conName) pcons' ++ map SplitLit plits,
-        let tags  = map fst ns,
-        -- clauses for hcomp will be automatically generated.
-        let inferred_tags = maybe Set.empty (Set.singleton . SplitCon) mHCompName,
-        let diff  = (Set.fromList tags Set.\\ inferred_tags) Set.\\ Set.fromList ptags,
-        not (Set.null diff) -> do
-          liftTCM $ reportSDoc "tc.cover.precomputed" 10 $ vcat
-            [ hsep $ "ptags =" : map prettyTCM ptags
-            , hsep $ "tags  =" : map prettyTCM tags
-            ]
-          throwError (GenericSplitError "precomputed set of constructors does not cover all cases")
+      -- Andreas, 2012-10-10 fail if precomputed constructor set does not cover
+      -- all the data type constructors
+      -- Andreas, 2017-10-08 ... unless partial covering is explicitly allowed.
+      let ptags = map (SplitCon . conName) pcons' ++ map SplitLit plits
+      -- clauses for hcomp will be automatically generated.
+      let inferred_tags = maybe Set.empty (Set.singleton . SplitCon) mHCompName
+      let all_tags = Set.fromList ptags `Set.union` inferred_tags
 
-    _  -> do
+      when (allowPartialCover == NoAllowPartialCover && overlap == False) $
+        for_ ns $ \(tag, sc) -> do
+          when (not $ tag `Set.member` all_tags) $ do
+            isImpossibleClause <- liftTCM $ isEmptyTel $ scTel sc
+            unless isImpossibleClause $ do
+              liftTCM $ reportSDoc "tc.cover" 10 $ vcat
+                [ text "Missing case for" <+> prettyTCM tag
+                , nest 2 $ prettyTCM sc
+                ]
+              throwError (GenericSplitError "precomputed set of constructors does not cover all cases")
+
       liftTCM $ checkSortOfSplitVar dr (unDom t) target
       return $ Right $ Covering (lookupPatternVar sc x) ns
 
