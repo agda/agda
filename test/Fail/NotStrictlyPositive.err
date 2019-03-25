@@ -1,5 +1,5 @@
 NotStrictlyPositive.agda:12,1-13,23
 Bad is not strictly positive, because it occurs
-in the first argument to Neg
+in the first argument of Neg
 in the type of the constructor bad
 in the definition of Bad.

@@ -799,14 +799,14 @@ instance PrettyTCM (Seq OccursWhere) where
       prettyW :: Where -> [TCM Doc]
       prettyW w = case w of
         LeftOfArrow  -> pwords "to the left of an arrow"
-        DefArg q i   -> pwords "in the" ++ nth i ++ pwords "argument to" ++
+        DefArg q i   -> pwords "in the" ++ nth i ++ pwords "argument of" ++
                           [prettyTCM q]
         UnderInf     -> pwords "under" ++
                         [do -- this cannot fail if an 'UnderInf' has been generated
                             Def inf _ <- primInf
                             prettyTCM inf]
-        VarArg       -> pwords "in an argument to a bound variable"
-        MetaArg      -> pwords "in an argument to a metavariable"
+        VarArg       -> pwords "in an argument of a bound variable"
+        MetaArg      -> pwords "in an argument of a metavariable"
         ConArgType c -> pwords "in the type of the constructor" ++ [prettyTCM c]
         IndArgType c -> pwords "in an index of the target type of the constructor" ++ [prettyTCM c]
         InClause i   -> pwords "in the" ++ nth i ++ pwords "clause"
