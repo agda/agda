@@ -5,10 +5,10 @@ module SizeInconsistentMeta4 where
 
 open import Data.Nat using (ℕ;zero;suc) renaming (_<_ to _N<_)
 open import Data.Product using (_,_;_×_)
+open import Data.Product.Relation.Binary.Lex.Strict using (×-Lex; ×-transitive)
 open import Data.List using (List)
+open import Data.List.Relation.Binary.Lex.Strict using (Lex-<) renaming (<-transitive to Lex<-trans)
 open import Relation.Binary using (Rel;_Respects₂_;Transitive;IsEquivalence)
-open import Relation.Binary.Product.StrictLex using (×-Lex;×-transitive)
-open import Relation.Binary.List.StrictLex using (Lex-<) renaming (transitive to Lex<-trans)
 
 open import Relation.Binary.PropositionalEquality as PropEq using (_≡_)
 

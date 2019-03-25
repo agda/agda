@@ -22,7 +22,7 @@ infixl 4 _∧_ _∨_
 infix 1 _⊢_
 
 data _⊢_ : ∀ {n} → Γ n → prop → Set  where
-  hyp     : ∀ {n}(C : Γ n)(v : Fin n) → C ⊢ (lookup v C)
+  hyp     : ∀ {n}(C : Γ n)(v : Fin n) → C ⊢ (lookup C v)
   andI    : ∀ {n}{C : Γ n}{p p' : prop} → C ⊢ p → C ⊢ p' → C ⊢ p ∧ p'
   andEL   : ∀ {n}{C : Γ n}{p p' : prop} → C ⊢ p ∧ p' → C ⊢ p
   andER   : ∀ {n}{C : Γ n}{p p' : prop} → C ⊢ p ∧ p' → C ⊢ p'
