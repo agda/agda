@@ -2,7 +2,7 @@ module Issue784.Values where
 
 open import Data.Bool using (Bool; true; false; not)
 open import Data.String public using (String)
-open import Data.String.Unsafe public using (_≟_)
+open import Data.String.Properties public using (_≟_)
 
 open import Function public
 open import Data.List using (List; []; _∷_; _++_; [_]; boolFilter) renaming (map to mapL)

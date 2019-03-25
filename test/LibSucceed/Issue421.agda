@@ -44,7 +44,7 @@ module Dim {n : ℕ} where
   ⟦ X ⟧ x i j = x i j
   ⟦ D1 + D2 ⟧ x i j = (⟦ D1 ⟧ x <+> ⟦ D2 ⟧ x) i j
   ⟦ D1 * D2 ⟧ x i j = (⟦ D1 ⟧ x <*> ⟦ D2 ⟧ x) i j
-  ⟦ K S ⟧ x i j = lookup j (lookup i S)
+  ⟦ K S ⟧ x i j = lookup (lookup S i) j
 
   ⟪_⟫ : Poly {Set} -> Set → Set
   ⟪ 0p ⟫ x = ⊥
