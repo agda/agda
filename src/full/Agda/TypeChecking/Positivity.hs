@@ -769,7 +769,8 @@ instance PrettyTCM n => PrettyTCM (WithNode n (Edge OccursWhere)) where
     ]
 
 instance PrettyTCM (Seq OccursWhere) where
-  prettyTCM = prettyOWs . map adjustLeftOfArrow . uniq . Fold.toList
+  prettyTCM =
+    fmap snd . prettyOWs . map adjustLeftOfArrow . uniq . Fold.toList
     where
       nth 0 = pwords "first"
       nth 1 = pwords "second"
@@ -782,19 +783,31 @@ instance PrettyTCM (Seq OccursWhere) where
         where
         snd' (OccursWhere _ _ ws) = ws
 
-      prettyOWs :: [OccursWhere] -> TCM Doc
-      prettyOWs []     = __IMPOSSIBLE__
-      prettyOWs [o]    = prettyOW o <> "."
-      prettyOWs (o:os) = prettyOW o <> ", which occurs" $$ prettyOWs os
+      prettyOWs :: [OccursWhere] -> TCM (String, Doc)
+      prettyOWs []  = __IMPOSSIBLE__
+      prettyOWs [o] = do
+        (s, d) <- prettyOW o
+        return (s, d P.<> ".")
+      prettyOWs (o:os) = do
+        (s1, d1) <- prettyOW  o
+        (s2, d2) <- prettyOWs os
+        return (s1, d1 P.<> "," P.<+> "which" P.<+> P.text s2 P.$$ d2)
 
-      prettyOW :: OccursWhere -> TCM Doc
+      prettyOW :: OccursWhere -> TCM (String, Doc)
       prettyOW (OccursWhere _ cs ws)
         | null cs   = prettyWs ws
-        | otherwise = prettyWs ws $$ "(" <> prettyWs cs <> ")"
+        | otherwise = do
+            (s, d1) <- prettyWs ws
+            (_, d2) <- prettyWs cs
+            return (s, d1 P.$$ "(" P.<> d2 P.<> ")")
 
-      prettyWs :: Seq Where -> TCM Doc
-      prettyWs ws =
-        Fold.foldrM (\w d -> return d $$ fsep (prettyW w)) empty ws
+      prettyWs :: Seq Where -> TCM (String, Doc)
+      prettyWs ws = case Fold.toList ws of
+        [InDefOf d, IsIndex] ->
+          (,) "is" <$> fsep (pwords "an index of" ++ [prettyTCM d])
+        _ ->
+          (,) "occurs" <$>
+            Fold.foldrM (\w d -> return d $$ fsep (prettyW w)) empty ws
 
       prettyW :: Where -> [TCM Doc]
       prettyW w = case w of
