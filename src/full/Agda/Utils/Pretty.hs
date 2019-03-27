@@ -11,6 +11,10 @@ import Data.Int ( Int32 )
 import Data.Data (Data(..))
 import qualified Data.Map as Map
 
+#if __GLASGOW_HASKELL__ < 800
+import qualified Data.Semigroup as S
+#endif
+
 import qualified Text.PrettyPrint as P
 import Text.PrettyPrint hiding (TextDetails(Str), empty)
 
@@ -18,6 +22,13 @@ import Agda.Utils.NonemptyList
 
 #include "undefined.h"
 import Agda.Utils.Impossible
+
+#if __GLASGOW_HASKELL__ < 800
+-- ASR (2019-03-27). I used @(<>)@ from the monoid instance because I
+-- cannot hide this instance.
+instance S.Semigroup Doc where
+  (<>) = (<>)
+#endif
 
 -- * Pretty class
 
