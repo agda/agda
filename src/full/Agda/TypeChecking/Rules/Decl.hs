@@ -187,7 +187,7 @@ checkDecl d = setCurrentRange d $ do
       A.ScopedDecl scope ds    -> none $ setScope scope >> mapM_ checkDeclCached ds
       A.FunDef i x delayed cs  -> impossible $ check x i $ checkFunDef delayed i x cs
       A.DataDef i x uc ps cs   -> impossible $ check x i $ checkDataDef i x uc ps cs
-      A.RecDef i x uc ind eta c ps tel cs -> mutual empty [d] $ check x i $ do
+      A.RecDef i x uc ind eta c ps tel cs -> impossible $ check x i $ do
                                     checkRecDef i x uc ind eta c ps tel cs
                                     blockId <- mutualBlockOf x
 
@@ -260,9 +260,8 @@ checkDecl d = setCurrentRange d $ do
     abstract ConcreteDef = inConcreteMode
     abstract AbstractDef = inAbstractMode
 
--- Some checks that should be run at the end of a mutual
--- block (or non-mutual record declaration). The set names
--- contains the names defined in the mutual block.
+-- Some checks that should be run at the end of a mutual block. The
+-- set names contains the names defined in the mutual block.
 mutualChecks :: Info.MutualInfo -> A.Declaration -> [A.Declaration] -> MutualId -> Set QName -> TCM ()
 mutualChecks mi d ds mid names = do
   -- Andreas, 2014-04-11: instantiate metas in definition types
@@ -435,16 +434,12 @@ highlight_ hlmod d = do
 checkTermination_ :: A.Declaration -> TCM ()
 checkTermination_ d = Bench.billTo [Bench.Termination] $ do
   reportSLn "tc.decl" 20 $ "checkDecl: checking termination..."
-  case d of
-      -- Record module definitions should not be termination-checked twice.
-      A.RecDef {} -> return ()
-      _ -> do
-        termErrs <- termDecl d
-        -- If there are some termination errors, we collect them in
-        -- the state.
-        -- The termination checker already marked non-terminating functions as such.
-        unless (null termErrs) $ do
-          warning $ TerminationIssue termErrs
+  termErrs <- termDecl d
+  -- If there are some termination errors, we collect them in the
+  -- state. The termination checker already marked non-terminating
+  -- functions as such.
+  unless (null termErrs) $ do
+    warning $ TerminationIssue termErrs
 
 -- | Check a set of mutual names for positivity.
 checkPositivity_ :: Info.MutualInfo -> Set QName -> TCM ()
