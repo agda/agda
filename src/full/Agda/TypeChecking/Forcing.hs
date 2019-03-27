@@ -292,9 +292,9 @@ rebindForcedPattern ps toRebind = do
 --   has a dot pattern. Used to fix #3544.
 rebinds :: DeBruijnPattern -> DeBruijnPattern -> Bool
 VarP{}          `rebinds` DotP{}            = True
-VarP _ x        `rebinds` VarP _ y          = x == y
+VarP _ x        `rebinds` VarP _ y          = dbPatVarIndex x == dbPatVarIndex y
 DotP _ u        `rebinds` DotP _ v          = u == v
-ConP c _ ps     `rebinds` ConP c' _ qs      = c == c && and (zipWith (rebinds `on` namedArg) ps qs)
+ConP c _ ps     `rebinds` ConP c' _ qs      = c == c' && and (zipWith (rebinds `on` namedArg) ps qs)
 LitP l          `rebinds` LitP l'           = l == l'
 ProjP _ f       `rebinds` ProjP _ g         = f == g
 IApplyP _ u v x `rebinds` IApplyP _ u' v' y = u == u' && v == v' && x == y
