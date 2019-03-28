@@ -107,7 +107,7 @@ checkIApplyConfluence f clos = do
                 , namedClausePats = ps
                 , clauseType = Just t
                 , clauseBody = Just body
-                } -> setCurrentRange (clauseLHSRange cl) $ do
+                } -> setCurrentRange (getRange f) $ do
           let
             trhs = unArg t
           ps <- normaliseProjP ps
