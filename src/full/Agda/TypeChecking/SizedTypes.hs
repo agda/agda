@@ -7,6 +7,7 @@ import Prelude hiding (null)
 
 import Control.Monad.Writer
 
+import qualified Data.Foldable as Fold
 import qualified Data.List as List
 import qualified Data.Map as Map
 
@@ -27,7 +28,9 @@ import Agda.Utils.Except ( MonadError(catchError, throwError) )
 import Agda.Utils.List as List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
+import Agda.Utils.NonemptyList
 import Agda.Utils.Null
+import Agda.Utils.Singleton
 import Agda.Utils.Size
 import Agda.Utils.Tuple
 
@@ -256,12 +259,12 @@ sizeMaxView v = do
   let loop v = do
         v <- reduce v
         case v of
-          Def x []                   | Just x == inf -> return $ [DSizeInf]
+          Def x []                   | Just x == inf -> return $ singleton $ DSizeInf
           Def x [Apply u]            | Just x == suc -> maxViewSuc_ (fromJust suc) <$> loop (unArg u)
           Def x [Apply u1, Apply u2] | Just x == max -> maxViewMax <$> loop (unArg u1) <*> loop (unArg u2)
-          Var i []                      -> return $ [DSizeVar i 0]
-          MetaV x us                    -> return $ [DSizeMeta x us 0]
-          _                             -> return $ [DOtherSize v]
+          Var i []                      -> return $ singleton $ DSizeVar i 0
+          MetaV x us                    -> return $ singleton $ DSizeMeta x us 0
+          _                             -> return $ singleton $ DOtherSize v
   loop v
 
 ------------------------------------------------------------------------
@@ -291,11 +294,13 @@ compareSizes cmp u v = do
 -- | Compare two sizes in max view.
 compareMaxViews :: Comparison -> SizeMaxView -> SizeMaxView -> TCM ()
 compareMaxViews cmp us vs = case (cmp, us, vs) of
-  (CmpLeq, _, (DSizeInf : _)) -> return ()
-  (cmp,   [u], [v]) -> compareSizeViews cmp u v
-  (CmpLeq, us, [v]) -> forM_ us $ \ u -> compareSizeViews cmp u v
-  (CmpLeq, us, vs)  -> forM_ us $ \ u -> compareBelowMax u vs
-  (CmpEq,  us, vs)  -> compareMaxViews CmpLeq us vs >> compareMaxViews CmpLeq vs us
+  (CmpLeq, _, (DSizeInf :! _)) -> return ()
+  (cmp, u:![], v:![]) -> compareSizeViews cmp u v
+  (CmpLeq, us, v:![]) -> Fold.forM_ us $ \ u -> compareSizeViews cmp u v
+  (CmpLeq, us, vs)    -> Fold.forM_ us $ \ u -> compareBelowMax u vs
+  (CmpEq,  us, vs)    -> do
+    compareMaxViews CmpLeq us vs
+    compareMaxViews CmpLeq vs us
 
 -- | @compareBelowMax u vs@ checks @u <= max vs@.  Precondition: @size vs >= 2@
 compareBelowMax :: DeepSizeView -> SizeMaxView -> TCM ()
@@ -303,7 +308,7 @@ compareBelowMax u vs = do
   reportSDoc "tc.conv.size" 45 $ vcat
     [ "compareBelowMax"
     ]
-  alt (dontAssignMetas $ alts $ map (compareSizeViews CmpLeq u) vs) $ do
+  alt (dontAssignMetas $ Fold.foldr1 alt $ fmap (compareSizeViews CmpLeq u) vs) $ do
     reportSDoc "tc.conv.size" 45 $ vcat
       [ "compareBelowMax: giving up"
       ]
@@ -311,10 +316,8 @@ compareBelowMax u vs = do
     v <- unMaxView vs
     size <- sizeType
     addConstraint $ ValueCmp CmpLeq size u v
-  where alt  c1 c2 = c1 `catchError` const c2
-        alts []     = __IMPOSSIBLE__
-        alts [c]    = c
-        alts (c:cs) = c `alt` alts cs
+  where
+  alt c1 c2 = c1 `catchError` const c2
 
 compareSizeViews :: Comparison -> DeepSizeView -> DeepSizeView -> TCM ()
 compareSizeViews cmp s1' s2' = do

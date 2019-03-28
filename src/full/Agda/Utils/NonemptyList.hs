@@ -29,6 +29,10 @@ instance Monad NonemptyList where
 instance Show a => Show (NonemptyList a) where
   showsPrec _ = showList . toList
 
+-- | Prepending an element.
+consNe :: a -> NonemptyList a -> NonemptyList a
+consNe x (y :! zs) = x :! (y : zs)
+
 -- | Implementing conversion to list manually, since @Foldable.toList@
 --   might recurse over the tail and, thus, destroy sharing.
 toList :: NonemptyList a -> [a]
