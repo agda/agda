@@ -447,8 +447,15 @@ checkArgumentsE :: ExpandHidden -> Range -> [NamedArg A.Expr] -> Type -> Maybe T
                    ExceptT (MaybeRanges, Elims, [NamedArg A.Expr], Type) TCM (MaybeRanges, Elims, Type, CheckedTarget)
 checkArgumentsE = checkArgumentsE' NotCheckedTarget
 
-checkArgumentsE' :: CheckedTarget -> ExpandHidden -> Range -> [NamedArg A.Expr] -> Type ->
-                    Maybe Type -> ExceptT (MaybeRanges, Elims, [NamedArg A.Expr], Type) TCM (MaybeRanges, Elims, Type, CheckedTarget)
+checkArgumentsE'
+  :: CheckedTarget     -- ^ Have we already checked the target?
+  -> ExpandHidden      -- ^ Insert trailing hidden arguments?
+  -> Range             -- ^ Range of the function.
+  -> [NamedArg A.Expr] -- ^ Arguments.
+  -> Type              -- ^ Type of the function.
+  -> Maybe Type        -- ^ Type of the application.
+  -> ExceptT (MaybeRanges, Elims, [NamedArg A.Expr], Type) TCM (MaybeRanges, Elims, Type, CheckedTarget)
+
 -- Case: no arguments, do not insert trailing hidden arguments: We are done.
 checkArgumentsE' chk DontExpandLast _ [] t0 _ = return ([], [], t0, chk)
 
