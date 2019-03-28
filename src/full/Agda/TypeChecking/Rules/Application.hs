@@ -557,9 +557,16 @@ checkArgumentsE' chk exh r args0@(arg@(Arg info e) : args) t0 mt1 =
                     Primitive{}               -> False
                   isRigid _           = return False
               rigid <- isRigid tgt
+              -- Andreas, 2019-03-28, issue #3248:
+              -- If the target type is SIZELT, we need coerce, leqType is insufficient.
+              -- For example, we have i : Size <= (Size< ↑ i), but not Size <= (Size< ↑ i).
+              isSizeLt <- reduce t1 >>= isSizeType <&> \case
+                Just (BoundedLt _) -> True
+                _ -> False
               if | dep       -> return chk    -- must be non-dependent
                  | not rigid -> return chk    -- with a rigid target
                  | not vis   -> return chk    -- and only visible arguments
+                 | isSizeLt  -> return chk    -- Issue #3248, not Size<
                  | otherwise -> do
                   let tgt1 = applySubst (strengthenS __IMPOSSIBLE__ $ size tel) tgt
                   reportSDoc "tc.term.args.target" 30 $ vcat
