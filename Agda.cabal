@@ -227,7 +227,7 @@ library
 
   -- ASR (2018-09-14). We add the dependency on the filemanip library
   -- due to Issue #3225.
-  if impl(ghc >= 7.10) && impl(ghc < 8.0)
+  if impl(ghc < 8.0)
     build-depends:   transformers == 0.4.2.0
                    , filemanip >= 0.3.6.2 && < 0.4
 
@@ -579,33 +579,32 @@ library
   if impl(ghc >= 8.0)
     ghc-options: -Wunrecognised-warning-flags
 
-  if impl(ghc >= 7.10)
-    ghc-options: -fwarn-deprecated-flags
-                 -fwarn-deriving-typeable
-                 -fwarn-dodgy-exports
-                 -fwarn-dodgy-foreign-imports
-                 -fwarn-dodgy-imports
-                 -fwarn-duplicate-exports
-                 -fwarn-empty-enumerations
-                 -fwarn-hi-shadowing
-                 -fwarn-identities
-                 -fwarn-incomplete-patterns
-                 -fwarn-inline-rule-shadowing
-                 -fwarn-missing-fields
-                 -fwarn-missing-methods
-                 -fwarn-missing-signatures
-                 -fwarn-tabs
-                 -fwarn-typed-holes
-                 -fwarn-overflowed-literals
-                 -fwarn-overlapping-patterns
-                 -fwarn-unrecognised-pragmas
-                 -fwarn-unticked-promoted-constructors
-                 -fwarn-unused-do-bind
-                 -fwarn-warnings-deprecations
-                 -fwarn-wrong-do-bind
+  ghc-options: -fwarn-deprecated-flags
+               -fwarn-deriving-typeable
+               -fwarn-dodgy-exports
+               -fwarn-dodgy-foreign-imports
+               -fwarn-dodgy-imports
+               -fwarn-duplicate-exports
+               -fwarn-empty-enumerations
+               -fwarn-hi-shadowing
+               -fwarn-identities
+               -fwarn-incomplete-patterns
+               -fwarn-inline-rule-shadowing
+               -fwarn-missing-fields
+               -fwarn-missing-methods
+               -fwarn-missing-signatures
+               -fwarn-tabs
+               -fwarn-typed-holes
+               -fwarn-overflowed-literals
+               -fwarn-overlapping-patterns
+               -fwarn-unrecognised-pragmas
+               -fwarn-unticked-promoted-constructors
+               -fwarn-unused-do-bind
+               -fwarn-warnings-deprecations
+               -fwarn-wrong-do-bind
 
   -- These options will be removed in GHC 8.0.1.
-  if impl(ghc >= 7.10) && impl(ghc < 8.0)
+  if impl(ghc < 8.0)
     ghc-options: -fwarn-context-quantification
                  -fwarn-duplicate-constraints
                  -fwarn-pointless-pragmas
@@ -668,13 +667,12 @@ executable agda
                   -- except for the prelude.
                 , base >= 4.8.0.0 && < 6
   default-language: Haskell2010
-  if impl(ghc >= 7)
-    -- If someone installs Agda with the setuid bit set, then the
-    -- presence of +RTS may be a security problem (see GHC bug #3910).
-    -- However, we sometimes recommend people to use +RTS to control
-    -- Agda's memory usage, so we want this functionality enabled by
-    -- default.
-    ghc-options:  -rtsopts
+  -- If someone installs Agda with the setuid bit set, then the
+  -- presence of +RTS may be a security problem (see GHC bug #3910).
+  -- However, we sometimes recommend people to use +RTS to control
+  -- Agda's memory usage, so we want this functionality enabled by
+  -- default.
+  ghc-options:  -rtsopts
 
 executable agda-mode
   hs-source-dirs:   src/agda-mode
@@ -836,33 +834,32 @@ test-suite agda-tests
   if impl(ghc >= 8.0)
     ghc-options: -Wunrecognised-warning-flags
 
-  if impl(ghc >= 7.10)
-    ghc-options: -fwarn-deprecated-flags
-                 -fwarn-deriving-typeable
-                 -fwarn-dodgy-exports
-                 -fwarn-dodgy-foreign-imports
-                 -fwarn-dodgy-imports
-                 -fwarn-duplicate-exports
-                 -fwarn-empty-enumerations
-                 -fwarn-hi-shadowing
-                 -fwarn-identities
-                 -fwarn-incomplete-patterns
-                 -fwarn-inline-rule-shadowing
-                 -fwarn-missing-fields
-                 -fwarn-missing-methods
-                 -fwarn-missing-signatures
-                 -fwarn-tabs
-                 -fwarn-typed-holes
-                 -fwarn-overflowed-literals
-                 -fwarn-overlapping-patterns
-                 -fwarn-unrecognised-pragmas
-                 -fwarn-unticked-promoted-constructors
-                 -fwarn-unused-do-bind
-                 -fwarn-warnings-deprecations
-                 -fwarn-wrong-do-bind
+  ghc-options: -fwarn-deprecated-flags
+               -fwarn-deriving-typeable
+               -fwarn-dodgy-exports
+               -fwarn-dodgy-foreign-imports
+               -fwarn-dodgy-imports
+               -fwarn-duplicate-exports
+               -fwarn-empty-enumerations
+               -fwarn-hi-shadowing
+               -fwarn-identities
+               -fwarn-incomplete-patterns
+               -fwarn-inline-rule-shadowing
+               -fwarn-missing-fields
+               -fwarn-missing-methods
+               -fwarn-missing-signatures
+               -fwarn-tabs
+               -fwarn-typed-holes
+               -fwarn-overflowed-literals
+               -fwarn-overlapping-patterns
+               -fwarn-unrecognised-pragmas
+               -fwarn-unticked-promoted-constructors
+               -fwarn-unused-do-bind
+               -fwarn-warnings-deprecations
+               -fwarn-wrong-do-bind
 
   -- These options will be removed in GHC 8.0.1.
-  if impl(ghc >= 7.10) && impl(ghc < 8.0)
+  if impl(ghc < 8.0)
     ghc-options: -fwarn-context-quantification
                  -fwarn-duplicate-constraints
                  -fwarn-pointless-pragmas
