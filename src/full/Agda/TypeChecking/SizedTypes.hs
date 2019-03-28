@@ -312,6 +312,9 @@ compareBelowMax u vs = verboseBracket "tc.conv.size" 45 "compareBelowMax" $ do
     , pretty CmpLeq
     , pretty vs
     ]
+  -- When trying several alternatives, we do not assign metas
+  -- and also do not produce constraints (see 'giveUp' below).
+  -- Andreas, 2019-03-28, issue #3600.
   alt (dontAssignMetas $ Fold.foldr1 alt $ fmap (compareSizeViews CmpLeq u) vs) $ do
     reportSDoc "tc.conv.size" 45 $ vcat
       [ "compareBelowMax: giving up"
@@ -319,7 +322,7 @@ compareBelowMax u vs = verboseBracket "tc.conv.size" 45 "compareBelowMax" $ do
     u <- unDeepSizeView u
     v <- unMaxView vs
     size <- sizeType
-    addConstraint $ ValueCmp CmpLeq size u v
+    giveUp CmpLeq size u v
   where
   alt c1 c2 = c1 `catchError` const c2
 
@@ -359,8 +362,16 @@ compareSizeViews cmp s1' s2' = do
               compareSizes cmp u'' v
              else compareSizes cmp u' =<< sizeSuc 1 v
     (CmpLeq, s1,        s2)         -> withUnView $ \ u v -> do
-      unlessM (trivial u v) $ addConstraint $ ValueCmp CmpLeq size u v
+      unlessM (trivial u v) $ giveUp CmpLeq size u v
     (CmpEq, s1, s2) -> continue cmp
+
+-- | If 'envAssignMetas' then postpone as constraint, otherwise, fail hard.
+--   Failing is required if we speculatively test several alternatives.
+giveUp :: Comparison -> Type -> Term -> Term -> TCM ()
+giveUp cmp size u v =
+  ifM (asksTC envAssignMetas)
+    {-then-} (addConstraint $ ValueCmp CmpLeq size u v)
+    {-else-} (typeError $ UnequalTerms cmp u v size)
 
 -- | Checked whether a size constraint is trivial (like @X <= X+1@).
 trivial :: Term -> Term -> TCM Bool
