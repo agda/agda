@@ -30,10 +30,12 @@ import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.NonemptyList
 import Agda.Utils.Null
+import Agda.Utils.Pretty (Pretty)
 import Agda.Utils.Singleton
 import Agda.Utils.Size
 import Agda.Utils.Tuple
 
+import qualified Agda.Utils.Pretty as P
 import qualified Agda.Utils.Warshall as W
 
 #include "undefined.h"
@@ -273,7 +275,7 @@ sizeMaxView v = do
 
 -- | Compare two sizes.
 compareSizes :: Comparison -> Term -> Term -> TCM ()
-compareSizes cmp u v = do
+compareSizes cmp u v = verboseBracket "tc.conv.size" 10 "compareSizes" $ do
   reportSDoc "tc.conv.size" 10 $ vcat
     [ "Comparing sizes"
     , nest 2 $ sep [ prettyTCM u <+> prettyTCM cmp
@@ -284,8 +286,8 @@ compareSizes cmp u v = do
     u <- reduce u
     v <- reduce v
     reportSDoc "tc.conv.size" 60 $
-      nest 2 $ sep [ text (show u) <+> prettyTCM cmp
-                   , text (show v)
+      nest 2 $ sep [ pretty u <+> prettyTCM cmp
+                   , pretty v
                    ]
   us <- sizeMaxView u
   vs <- sizeMaxView v
@@ -304,9 +306,11 @@ compareMaxViews cmp us vs = case (cmp, us, vs) of
 
 -- | @compareBelowMax u vs@ checks @u <= max vs@.  Precondition: @size vs >= 2@
 compareBelowMax :: DeepSizeView -> SizeMaxView -> TCM ()
-compareBelowMax u vs = do
-  reportSDoc "tc.conv.size" 45 $ vcat
-    [ "compareBelowMax"
+compareBelowMax u vs = verboseBracket "tc.conv.size" 45 "compareBelowMax" $ do
+  reportSDoc "tc.conv.size" 45 $ sep
+    [ pretty u
+    , pretty CmpLeq
+    , pretty vs
     ]
   alt (dontAssignMetas $ Fold.foldr1 alt $ fmap (compareSizeViews CmpLeq u) vs) $ do
     reportSDoc "tc.conv.size" 45 $ vcat
@@ -323,9 +327,9 @@ compareSizeViews :: Comparison -> DeepSizeView -> DeepSizeView -> TCM ()
 compareSizeViews cmp s1' s2' = do
   reportSDoc "tc.conv.size" 45 $ hsep
     [ "compareSizeViews"
-    , text (show s1')
-    , text (show cmp)
-    , text (show s2')
+    , pretty s1'
+    , pretty cmp
+    , pretty s2'
     ]
   size <- sizeType
   let (s1, s2) = removeSucs (s1', s2')
@@ -368,8 +372,8 @@ trivial u v = do
           -- test/lib-succeed/SizeInconsistentMeta4.agda
     reportSDoc "tc.conv.size" 60 $
       nest 2 $ sep [ if triv then "trivial constraint" else empty
-                   , text (show a) <+> "<="
-                   , text (show b)
+                   , pretty a <+> "<="
+                   , pretty b
                    ]
     return triv
   `catchError` \_ -> return False
@@ -467,23 +471,24 @@ getSizeMetas = do
 data OldSizeExpr
   = SizeMeta MetaId [Int] -- ^ A size meta applied to de Bruijn indices.
   | Rigid Int             -- ^ A de Bruijn index.
-  deriving (Eq)
+  deriving (Eq, Show)
 
-instance Show OldSizeExpr where
-  show (SizeMeta m _) = "X" ++ show (fromIntegral m :: Int)
-  show (Rigid i)      = "c" ++ show i
+instance Pretty OldSizeExpr where
+  pretty (SizeMeta m _) = P.text $ "X" ++ show (fromIntegral m :: Int)
+  pretty (Rigid i)      = P.text $ "c" ++ show i
 
 -- | Size constraints we can solve.
 data OldSizeConstraint
   = Leq OldSizeExpr Int OldSizeExpr
     -- ^ @Leq a +n b@ represents @a =< b + n@.
     --   @Leq a -n b@ represents @a + n =< b@.
+  deriving (Show)
 
-instance Show OldSizeConstraint where
-  show (Leq a n b)
-    | n == 0    = show a ++ " =< " ++ show b
-    | n > 0     = show a ++ " =< " ++ show b ++ " + " ++ show n
-    | otherwise = show a ++ " + " ++ show (-n) ++ " =< " ++ show b
+instance Pretty OldSizeConstraint where
+  pretty (Leq a n b)
+    | n == 0    = P.pretty a P.<+> "=<" P.<+> P.pretty b
+    | n > 0     = P.pretty a P.<+> "=<" P.<+> P.pretty b P.<+> "+" P.<+> P.text (show n)
+    | otherwise = P.pretty a P.<+> "+" P.<+> P.text (show (-n)) P.<+> "=<" P.<+> P.pretty b
 
 -- | Compute a set of size constraints that all live in the same context
 --   from constraints over terms of type size that may live in different

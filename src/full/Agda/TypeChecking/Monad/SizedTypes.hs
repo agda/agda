@@ -198,6 +198,13 @@ data DeepSizeView
   | DOtherSize Term
   deriving (Show)
 
+instance Pretty DeepSizeView where
+  pretty = \case
+    DSizeInf        -> "∞"
+    DSizeVar n o     -> text ("@" ++ show n) <+> "+" <+> pretty o
+    DSizeMeta x es o -> pretty (MetaV x es) <+> "+" <+> pretty o
+    DOtherSize t     -> pretty t
+
 data SizeViewComparable a
   = NotComparable
   | YesAbove DeepSizeView a
