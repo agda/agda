@@ -8,7 +8,7 @@ import Distribution.PackageDescription
 -- ASR (2019-01-10): The Cabal macro @MIN_VERSION_Cabal@ is avaliable
 -- from Cabal_>_1.24 so this macro is not supported with the
 -- "standard" GHC 7.10.3 which is shipped with Cabal 1.22.5.0.
-#if __GLASGOW_HASKELL__ > 710
+#if __GLASGOW_HASKELL__ >= 800
 #if MIN_VERSION_Cabal(2,3,0)
 import Distribution.System ( buildPlatform )
 #endif
@@ -84,7 +84,7 @@ agdaExeExtension :: String
 -- ASR (2019-01-10): The Cabal macro @MIN_VERSION_Cabal@ is avaliable
 -- from Cabal_>_1.24 so this macro is not supported with the
 -- "standard" GHC 7.10.3 which is shipped with Cabal 1.22.5.0.
-#if __GLASGOW_HASKELL__ > 710
+#if __GLASGOW_HASKELL__ >= 800
 #if MIN_VERSION_Cabal(2,3,0)
 agdaExeExtension = exeExtension buildPlatform
 #else

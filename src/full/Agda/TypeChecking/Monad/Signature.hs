@@ -636,7 +636,7 @@ sigError f a = \case
 
 class ( Functor m
       , Applicative m
-#if __GLASGOW_HASKELL__ == 710
+#if __GLASGOW_HASKELL__ < 800
       , Monad m
 #else
       , Fail.MonadFail m
