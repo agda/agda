@@ -3624,7 +3624,7 @@ instance MonadIO m => Monad (TCMT m) where
     return = pure
     (>>=)  = bindTCMT
     (>>)   = (*>)
-#if __GLASGOW_HASKELL__ == 710
+#if __GLASGOW_HASKELL__ < 800
     fail   = internalError
 #else
     fail   = Fail.fail
