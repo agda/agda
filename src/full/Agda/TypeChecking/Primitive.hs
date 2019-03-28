@@ -1882,12 +1882,7 @@ pPi' n phi b = toFinitePi <$> nPi' n (elInf $ cl (liftTCM primIsOne) <@> phi) b
    toFinitePi (El s (Pi d b)) = El s $ Pi (setRelevance Irrelevant $ d { domFinite = True }) b
    toFinitePi _               = __IMPOSSIBLE__
 
-#if __GLASGOW_HASKELL__ <= 708
-el' :: (Functor m, Applicative m, Monad m)
-#else
-el' :: Monad m
-#endif
-    => m Term -> m Term -> m Type
+el' :: Monad m => m Term -> m Term -> m Type
 el' l a = El <$> (tmSort <$> l) <*> a
 
 elInf :: Functor m => m Term -> m Type

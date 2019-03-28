@@ -3,10 +3,6 @@
 
 module Agda.TypeChecking.Rules.LHS.ProblemRest where
 
-#if __GLASGOW_HASKELL__ <= 708
-import Data.Functor ( (<$), (<$>) )
-#endif
-
 import Control.Arrow (first, second)
 import Control.Monad
 
