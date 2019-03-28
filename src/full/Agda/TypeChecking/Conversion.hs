@@ -12,10 +12,6 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.IntSet as IntSet
 
-#if __GLASGOW_HASKELL__ <= 708
-import Data.Traversable ( traverse )
-#endif
-
 import Agda.Syntax.Abstract.Views (isSet)
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
