@@ -182,6 +182,13 @@ Type checking
   needed to expose the absurd variable, or if there are no non-absurd
   clauses.
 
+  Due to the changes to the coverage checker required for this new
+  feature, Agda will now sometimes construct a different case when
+  there are multiple valid splitting orders. In some cases this may
+  impact the constraints that Agda is able to solve (for example, see
+  [#673](https://github.com/agda/agda-stdlib/pull/673) on the
+  standard library).
+
 * Since Agda 2.5.3, the hiding is considered part of the name in the
   insertion of implicit arguments.  Until Agda 2.5.2, the following
   code was rejected:

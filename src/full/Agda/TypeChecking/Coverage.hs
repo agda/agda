@@ -1344,7 +1344,7 @@ split' checkEmpty ind allowPartialCover fixtarget
       when (allowPartialCover == NoAllowPartialCover && overlap == False) $
         for_ ns $ \(tag, sc) -> do
           when (not $ tag `Set.member` all_tags) $ do
-            isImpossibleClause <- return False --liftTCM $ isEmptyTel $ scTel sc
+            isImpossibleClause <- liftTCM $ isEmptyTel $ scTel sc
             unless isImpossibleClause $ do
               liftTCM $ reportSDoc "tc.cover" 10 $ vcat
                 [ text "Missing case for" <+> prettyTCM tag

@@ -1,10 +1,10 @@
 Issue1384.agda:18,3-41
 Incomplete pattern matching for test. Missing cases:
   test I
-  test (App a b .false x (App a₁ b₁ .a x₁ x₂ x₃) x₄)
+  test (App false false .false refl (App a b .false x x₁ x₂) x₃)
 when checking the definition of test
 Issue1384.agda:29,3-41
 Incomplete pattern matching for test. Missing cases:
   test I
-  test (App false .false .false (App a b .false x x₁ x₂) x₃ refl)
+  test (App false false .false (App a b .false x x₁ x₂) x₃ refl)
 when checking the definition of test
