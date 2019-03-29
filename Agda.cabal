@@ -145,7 +145,8 @@ library
   if os(windows)
     build-depends:  Win32 >= 2.3.1.0 && < 2.7
 
-  -- Agda cannot be built with GHC 8.6.1 due to a compiler bug
+  -- Agda cannot be built with GHC 8.6.1 due to a compiler bug, see
+  -- Agda Issue #3344.
   if impl(ghc ==8.6.1.*)
     buildable: False
 
