@@ -380,6 +380,12 @@ Interaction and error reporting
     A : Set
   ```
 
+* When case splitting (`C-c C-c` in emacs), Agda will now filter out
+  impossible cases (i.e. ones where at least one of the variables
+  could be replaced by an absurd pattern `()`). If all the clauses
+  produced by a case split are impossible, Agda will not filter out
+  any of them.
+
 Pragmas and options
 -------------------
 
