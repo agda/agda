@@ -147,7 +147,12 @@ library
 
   -- Agda cannot be built with GHC 8.6.1 due to a compiler bug, see
   -- Agda Issue #3344.
-  if impl(ghc ==8.6.1.*)
+  if impl(ghc == 8.6.1)
+    buildable: False
+
+  -- Agda cannot be built with Windows and GHC 8.6.3 due to a compiler
+  -- bug, see Agda Issue #3657.
+  if os(windows) && impl(ghc == 8.6.3)
     buildable: False
 
   build-depends:  aeson >= 0.11.3.0 && < 1.5
