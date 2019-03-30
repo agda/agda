@@ -11,8 +11,8 @@ import Internal.Helpers
 
 instance Arbitrary MaxNat where
   arbitrary = do
-    NonNegative x <- arbitrary
-    return x
+    NonNegative x <- arbitrary :: Gen (NonNegative Int)
+    return (MaxNat x)
 
 ------------------------------------------------------------------------------
 -- Properties
