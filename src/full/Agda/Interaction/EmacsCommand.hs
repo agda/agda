@@ -9,7 +9,6 @@ module Agda.Interaction.EmacsCommand
   , response
   , putResponse
   , display_info'
-  , display_warning
   , clearRunningInfo
   , clearWarning
   , displayRunningInfo
@@ -82,9 +81,6 @@ displayInBuffer buffername append header content =
 
 display_info' :: Bool -> String -> String -> Lisp String
 display_info' = displayInBuffer "agda2-info-action"
-
-display_warning :: String -> String -> Lisp String
-display_warning = displayInBuffer "agda2-warning-action" False
 
 ------------------------------------------------------------------------
 -- Running info

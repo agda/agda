@@ -44,6 +44,7 @@ import Agda.TypeChecking.Abstract
 import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Conversion
+import Agda.TypeChecking.Coverage.SplitTree
 import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.EtaContract
 import Agda.TypeChecking.Generalize
@@ -72,7 +73,7 @@ import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Unquote
 import Agda.TypeChecking.Warnings
 
-import {-# SOURCE #-} Agda.TypeChecking.Empty (isEmptyType)
+import {-# SOURCE #-} Agda.TypeChecking.Empty ( ensureEmptyType )
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Def (checkFunDef', useTerPragma)
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Decl (checkSectionApplication)
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Application
@@ -556,7 +557,7 @@ checkAbsurdLambda cmp i h e t = do
             postponeTypeCheckingProblem (CheckExpr cmp e t') $
               null . allMetas <$> instantiateFull a
         | otherwise -> blockTerm t' $ do
-          isEmptyType (getRange i) a
+          ensureEmptyType (getRange i) a
           -- Add helper function
           top <- currentModule
           aux <- qualify top <$> freshName_ (getRange i, absurdLambdaName)
@@ -585,6 +586,7 @@ checkAbsurdLambda cmp i h e t = do
                     }
                   ]
               , funCompiled       = Just Fail
+              , funSplitTree      = Just $ SplittingDone 0
               , funMutual         = Just []
               , funTerminates     = Just True
               }
@@ -706,7 +708,7 @@ catchIlltypedPatternBlockedOnMeta m handle = do
 
     -- The meta might not be known in the reset state, as it could have been created
     -- somewhere on the way to the type error.
-    Map.lookup x <$> getMetaStore >>= \case
+    lookupMeta' x >>= \case
       -- Case: we do not know the meta, so we reraise.
       Nothing -> reraise
       -- Case: we know the meta here.
@@ -730,12 +732,10 @@ catchIlltypedPatternBlockedOnMeta m handle = do
 
 -- | Picks up record field assignments from modules that export a definition
 --   that has the same name as the missing field.
---
---   Only visible fields are picked up.  Issue #3122: Why is that the case?
 
 expandModuleAssigns
   :: [Either A.Assign A.ModuleName]  -- ^ Modules and field assignments.
-  -> [C.Name]                        -- ^ Names of visible fields of the record type.
+  -> [C.Name]                        -- ^ Names of fields of the record type.
   -> TCM A.Assigns                   -- ^ Completed field assignments from modules.
 expandModuleAssigns mfs exs = do
   let (fs , ms) = partitionEithers mfs
@@ -797,7 +797,6 @@ checkRecordExpression cmp mfs e t = do
       def <- getRecordDef r
       let -- Field names (C.Name) with ArgInfo from record type definition.
           cxs  = recordFieldNames def
-          exs  = filter visible cxs
           -- Just field names.
           xs   = map unArg cxs
           -- Record constructor.
@@ -814,7 +813,8 @@ checkRecordExpression cmp mfs e t = do
       disambiguateRecordFields (map _nameFieldA $ lefts mfs) (map unArg $ recFields def)
 
       -- Compute the list of given fields, decorated with the ArgInfo from the record def.
-      fs <- expandModuleAssigns mfs (map unArg exs)
+      -- Andreas, 2019-03-18, issue #3122, also pick up non-visible fields from the modules.
+      fs <- expandModuleAssigns mfs (map unArg cxs)
 
       -- Compute a list of metas for the missing visible fields.
       scope <- getScope
@@ -953,10 +953,7 @@ checkExpr' cmp e t0 =
 
     e <- scopedExpr e
 
-    isPrp <- isPropM t
-    let irrelevantIfProp = applyWhen isPrp $ applyRelevanceToContext Irrelevant
-
-    irrelevantIfProp $ tryInsertHiddenLambda e t $ case e of
+    tryInsertHiddenLambda e t $ case e of
 
         A.ScopedExpr scope e -> __IMPOSSIBLE__ -- setScope scope >> checkExpr e t
 
@@ -1229,31 +1226,31 @@ quoteContext = do
       return $ Right quotedContext
 
 -- | Unquote a TCM computation in a given hole.
-unquoteM :: A.Expr -> Term -> Type -> TCM Term -> TCM Term
-unquoteM tacA hole holeType k = do
+unquoteM :: A.Expr -> Term -> Type -> TCM ()
+unquoteM tacA hole holeType = do
   tac <- checkExpr tacA =<< (el primAgdaTerm --> el (primAgdaTCM <#> primLevelZero <@> primUnit))
-  inFreshModuleIfFreeParams $ unquoteTactic tac hole holeType k
+  inFreshModuleIfFreeParams $ unquoteTactic tac hole holeType
 
 -- | Run a tactic `tac : Term → TC ⊤` in a hole (second argument) of the type
 --   given by the third argument. Runs the continuation if successful.
-unquoteTactic :: Term -> Term -> Type -> TCM Term -> TCM Term
-unquoteTactic tac hole goal k = do
+unquoteTactic :: Term -> Term -> Type -> TCM ()
+unquoteTactic tac hole goal = do
   ok  <- runUnquoteM $ unquoteTCM tac hole
   case ok of
     Left (BlockedOnMeta oldState x) -> do
       putTC oldState
-      mi <- Map.lookup x <$> getMetaStore
-      (r, unblock) <- case mi of
+      mi <- lookupMeta' x
+      (r, meta) <- case mi of
         Nothing -> do -- fresh meta: need to block on something else!
           otherMetas <- allMetas <$> instantiateFull goal
           case otherMetas of
-            []  -> return (noRange,     return False) -- Nothing to block on, leave it yellow. Alternative: fail.
-            x:_ -> return (noRange,     isInstantiatedMeta x)  -- range?
-        Just mi -> return (getRange mi, isInstantiatedMeta x)
+            []  -> return (noRange,     Nothing) -- Nothing to block on, leave it yellow. Alternative: fail.
+            x:_ -> return (noRange,     Just x)  -- range?
+        Just mi -> return (getRange mi, Just x)
       setCurrentRange r $
-        postponeTypeCheckingProblem (UnquoteTactic tac hole goal) unblock
+        addConstraint (UnquoteTactic meta tac hole goal)
     Left err -> typeError $ UnquoteFailed err
-    Right _ -> k
+    Right _ -> return ()
 
 ---------------------------------------------------------------------------
 -- * Meta variables

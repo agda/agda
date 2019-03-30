@@ -110,6 +110,7 @@ instance MentionsMeta Constraint where
     CheckFunDef{}       -> True   -- not sure what metas this depends on
     HasBiggerSort a     -> mm a
     HasPTSRule a b      -> mm (a, b)
+    UnquoteTactic bl tac hole goal -> Just x == bl
     where
       mm v = mentionsMeta x v
 

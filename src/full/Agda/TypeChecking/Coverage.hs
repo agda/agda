@@ -23,6 +23,7 @@ import Control.Monad.Reader
 import Control.Monad.Trans ( lift )
 
 import Data.Either (lefts)
+import Data.Foldable (for_)
 import qualified Data.List as List
 import Data.Monoid (Any(..))
 import Data.Map (Map)
@@ -52,7 +53,7 @@ import Agda.TypeChecking.Coverage.SplitTree
 
 import Agda.TypeChecking.Conversion (tryConversion, equalType, equalTermOnFace)
 import Agda.TypeChecking.Datatypes (getConForm)
-import {-# SOURCE #-} Agda.TypeChecking.Empty (isEmptyTel)
+import {-# SOURCE #-} Agda.TypeChecking.Empty ( isEmptyTel, isEmptyType )
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.Patterns.Internal (dotPatternsToPatterns)
@@ -133,7 +134,7 @@ splitClauses (Covering _ qcs) = map snd qcs
 -- | Create a split clause from a clause in internal syntax. Used by make-case.
 clauseToSplitClause :: Clause -> SplitClause
 clauseToSplitClause cl = SClause
-  { scTel    = clauseTel  cl
+  { scTel    = clauseTel cl
   , scPats   = toSplitPatterns $ namedClausePats cl
   , scSubst  = idS  -- Andreas, 2014-07-15  TODO: Is this ok?
   , scCheckpoints = Map.empty -- #2996: not __IMPOSSIBLE__ for debug printing
@@ -157,6 +158,8 @@ coverageCheck
   -> TCM SplitTree
 coverageCheck f t cs = do
   reportSLn "tc.cover.top" 30 $ "entering coverageCheck for " ++ show f
+  reportSDoc "tc.cover.top" 75 $ "  of type (raw): " <+> (text . prettyShow) t
+  reportSDoc "tc.cover.top" 45 $ "  of type: " <+> prettyTCM t
   TelV gamma a <- telViewUpTo (-1) t
   reportSLn "tc.cover.top" 30 $ "coverageCheck: computed telView"
 
@@ -213,8 +216,9 @@ coverageCheck f t cs = do
 
   -- Storing the covering clauses so that checkIApplyConfluence_ can
   -- find them later.
-  modifySignature $ updateDefinition f $ updateTheDef
-    $ updateCovering (const qss)
+  -- Andreas, 2019-03-27, only needed when --cubical
+  whenM (optCubical <$> pragmaOptions) $ do
+    modifySignature $ updateDefinition f $ updateTheDef $ updateCovering $ const qss
 
 
   -- filter out the missing clauses that are absurd.
@@ -234,10 +238,6 @@ coverageCheck f t cs = do
       reportSDoc "tc.cover.missing" 20 $ inTopContext $ do
         sep [ "adding missing absurd clause"
             , nest 2 $ prettyTCM $ QNamed f cl
-            ]
-      reportSDoc "tc.cover.missing" 80 $ inTopContext $ do
-        sep [ "adding missing absurd clause"
-            , nest 2 $ text $ show cl
             ]
       addClauses f [cl]
       return False
@@ -311,10 +311,6 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
     , nest 2 $ "target =" <+> do addContext tel $ maybe (text "<none>") prettyTCM target
     , nest 2 $ "target sort =" <+> do addContext tel $ maybe (text "<none>") (prettyTCM . getSort . unArg) target
     ]
-  reportSDoc "tc.cover.cover" 60 $ vcat
-    [ nest 2 $ "ps   =" <+> pretty ps
-    , nest 2 $ "target =" <+> (text . show) target
-    ]
   match cs ps >>= \case
     Yes (i,mps) -> do
       exact <- allM mps isTrivialPattern
@@ -383,11 +379,8 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
     updateRelevance cont =
       -- Don't do anything if there is no target type info.
       caseMaybe target cont $ \ b -> do
-        -- Andreas, 2018-10-27 sort unreduced, e.g. an instantiated 'MetaS'
-        isPrp <- isPropM (unArg b)
-        -- Otherwise, if the target type is a proposition, wake irrelevant vars.
         -- TODO (2018-10-16): if proofs get erased in the compiler, also wake erased vars!
-        let m = applyWhen isPrp (setRelevance Irrelevant) $ getModality b
+        let m = getModality b
         applyModalityToContext m cont
 
     continue
@@ -429,7 +422,7 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
             , nest 2 $ vcat
               [ "n   = " <+> text (show n)
               , "scs = " <+> prettyTCM scs
-              , "ps  = " <+> text (show ps)
+              , "ps  = " <+> prettyTCMPatternList (fromSplitPatterns ps)
               ]
             ]
           -- TODO Andrea: do something with etaRecordSplits and qsss?
@@ -551,7 +544,7 @@ createMissingHCompClause
    -> TCM Clause
 createMissingHCompClause f n x old_sc (SClause tel ps _sigma' cps (Just t)) = setCurrentRange f $ do
   reportSDoc "tc.cover.hcomp" 20 $ addContext tel $ text "Trying to create right-hand side of type" <+> prettyTCM t
-  reportSDoc "tc.cover.hcomp" 30 $ addContext tel $ text "ps = " <+> text (show (fromSplitPatterns ps))
+  reportSDoc "tc.cover.hcomp" 30 $ addContext tel $ text "ps = " <+> prettyTCMPatternList (fromSplitPatterns ps)
   reportSDoc "tc.cover.hcomp" 30 $ text "tel = " <+> prettyTCM tel
 
   io      <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinIOne
@@ -583,7 +576,6 @@ createMissingHCompClause f n x old_sc (SClause tel ps _sigma' cps (Just t)) = se
           Type l -> pure (Level l)
           s      -> do
             reportSDoc "tc.cover.hcomp" 20 $ text "getLevel, s = " <+> prettyTCM s
-            reportSDoc "tc.cover.hcomp" 40 $ text "getLevel, s = " <+> text (show s)
             typeError . GenericDocError =<<
                     (text "The sort of" <+> prettyTCM t <+> text "should be of the form \"Set l\"")
 
@@ -710,7 +702,6 @@ createMissingHCompClause f n x old_sc (SClause tel ps _sigma' cps (Just t)) = se
             t <- bind "i" ty
             s <- reduce $ getSort (absBody t)
             reportSDoc "tc.cover.hcomp" 20 $ text "ty_level, s = " <+> prettyTCM s
-            reportSDoc "tc.cover.hcomp" 60 $ text "ty_level, s = " <+> text (show s)
             case s of
               Type l -> open =<< (lam "i" $ \ _ -> pure $ Level l)
               _      -> cannotCreate "Cannot compose with type family:" =<< (liftTCM $ buildClosure t)
@@ -868,7 +859,7 @@ fixTarget sc@SClause{ scTel = sctel, scPats = ps, scSubst = sigma, scCheckpoints
           addContext sctel $ prettyTCMPatternList $ fromSplitPatterns ps
       ]
     reportSDoc "tc.cover.target" 60 $ sep
-      [ "substitution          : " <+> text (show sigma)
+      [ "substitution          : " <+> prettyTCM sigma
       ]
     reportSDoc "tc.cover.target" 30 $ sep
       [ "target type before substitution (variables may be wrong): " <+> do
@@ -907,7 +898,7 @@ fixTarget sc@SClause{ scTel = sctel, scPats = ps, scSubst = sigma, scCheckpoints
           addContext sctel' $ prettyTCMPatternList $ fromSplitPatterns ps'
       ]
     reportSDoc "tc.cover.target" 60 $ sep
-      [ "new split clause substitution: " <+> text (show $ scSubst sc')
+      [ "new split clause substitution: " <+> prettyTCM (scSubst sc')
       ]
     reportSDoc "tc.cover.target" 30 $ sep
       [ "new split clause target      : " <+> do
@@ -1151,10 +1142,6 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps cps c = do
         inTopContext $ addContext delta' $ nest 2 $ vcat
           [ "ps'    =" <+> do prettyTCMPatternList $ fromSplitPatterns ps'
           ]
-      liftTCM $ reportSDoc "tc.cover.split.con" 60 $
-        inTopContext $ addContext delta' $ nest 2 $ vcat
-          [ text "ps'    =" <+> text (show $ fromSplitPatterns ps')
-          ]
 
 -- | Introduce trailing pattern variables via 'fixTarget'?
 data FixTarget
@@ -1170,7 +1157,8 @@ data AllowPartialCover
 
 -- | Entry point from @Interaction.MakeCase@.
 splitClauseWithAbsurd :: SplitClause -> Nat -> TCM (Either SplitError (Either SplitClause Covering))
-splitClauseWithAbsurd c x = split' Inductive NoAllowPartialCover NoFixTarget c (BlockingVar x [] [] True)
+splitClauseWithAbsurd c x =
+  split' CheckEmpty Inductive NoAllowPartialCover NoFixTarget c (BlockingVar x [] [] True)
   -- Andreas, 2016-05-03, issue 1950:
   -- Do not introduce trailing pattern vars after split,
   -- because this does not work for with-clauses.
@@ -1203,7 +1191,7 @@ split :: Induction
       -> BlockingVar
       -> TCM (Either SplitError Covering)
 split ind allowPartialCover sc x =
-  fmap blendInAbsurdClause <$> split' ind allowPartialCover YesFixTarget sc x
+  fmap blendInAbsurdClause <$> split' NoCheckEmpty ind allowPartialCover YesFixTarget sc x
   where
     n = lookupPatternVar sc $ blockingVarNo x
     blendInAbsurdClause :: Either SplitClause Covering -> Covering
@@ -1222,7 +1210,10 @@ lookupPatternVar SClause{ scTel = tel, scPats = pats } x = arg $>
         k = size tel - x - 1
         arg = indexWithDefault __IMPOSSIBLE__ (telVars (size tel) tel) k
 
--- | @split' ind splitClause x = return res@
+
+data CheckEmpty = CheckEmpty | NoCheckEmpty
+
+-- | @split' ind pc ft splitClause x = return res@
 --   splits @splitClause@ at pattern var @x@ (de Bruijn index).
 --
 --   Possible results @res@ are:
@@ -1236,7 +1227,11 @@ lookupPatternVar SClause{ scTel = tel, scPats = pats } x = arg $>
 --   3. @Right (Right covering)@:
 --      A covering set of split clauses, one for each valid constructor.
 
-split' :: Induction
+split' :: CheckEmpty
+          -- ^ Use isEmptyType to check whether the type of the variable to
+          -- split on is empty. This switch is necessary to break the cycle
+          -- between split' and isEmptyType.
+       -> Induction
           -- ^ Coinductive constructors are allowed if this argument is
           -- 'CoInductive'.
        -> AllowPartialCover
@@ -1247,7 +1242,8 @@ split' :: Induction
        -> SplitClause
        -> BlockingVar
        -> TCM (Either SplitError (Either SplitClause Covering))
-split' ind allowPartialCover fixtarget sc@(SClause tel ps _ cps target) (BlockingVar x pcons' plits overlap) =
+split' checkEmpty ind allowPartialCover fixtarget
+       sc@(SClause tel ps _ cps target) (BlockingVar x pcons' plits overlap) =
  liftTCM $ runExceptT $ do
   debugInit tel x ps cps
 
@@ -1262,8 +1258,11 @@ split' ind allowPartialCover fixtarget sc@(SClause tel ps _ cps target) (Blockin
         -- Check that t is a datatype or a record
         -- Andreas, 2010-09-21, isDatatype now directly throws an exception if it fails
         -- cons = constructors of this datatype
-        (dr, d, pars, ixs, cons, isHIT) <- inContextOfT $ isDatatype ind t
-        mns <- forM cons $ \ con -> fmap (SplitCon con,) <$>
+        (dr, d, pars, ixs, cons', isHIT) <- inContextOfT $ isDatatype ind t
+        cons <- case checkEmpty of
+          CheckEmpty   -> ifM (liftTCM $ isEmptyType $ unDom t) (pure []) (pure cons')
+          NoCheckEmpty -> pure cons'
+        mns  <- forM cons $ \ con -> fmap (SplitCon con,) <$>
           computeNeighbourhood delta1 n delta2 d pars ixs x tel ps cps con
         hcompsc <- if isHIT then case fixtarget of YesFixTarget -> computeHCompSplit delta1 n delta2 d pars ixs x tel ps cps; _ -> return Nothing
                             else return Nothing
@@ -1306,7 +1305,7 @@ split' ind allowPartialCover fixtarget sc@(SClause tel ps _ cps target) (Blockin
   -- Need to reduce sort to decide on Prop.
   -- Cannot split if domain is a Prop but target is relevant.
   propArrowRel <- isPropM t `and2M`
-    maybe (return True) (not <.> isIrrelevantOrPropM) target
+    maybe (return True) (not <.> isPropM) target
 
   mHCompName <- getPrimitiveName' builtinHComp
 
@@ -1332,26 +1331,28 @@ split' ind allowPartialCover fixtarget sc@(SClause tel ps _ cps target) (Blockin
     (_ : _ : _) | not (usableQuantity t) ->
       throwError . ErasedDatatype =<< do liftTCM $ inContextOfT $ buildClosure (unDom t)
 
+    _ -> do
 
-  -- Andreas, 2012-10-10 fail if precomputed constructor set does not cover
-  -- all the data type constructors
-  -- Andreas, 2017-10-08 ... unless partial covering is explicitly allowed.
-    _ | allowPartialCover == NoAllowPartialCover,
-        overlap == False,
-        let ptags = map (SplitCon . conName) pcons' ++ map SplitLit plits,
-        let tags  = map fst ns,
-        -- clauses for hcomp will be automatically generated.
-        let inferred_tags = maybe Set.empty (Set.singleton . SplitCon) mHCompName,
-        let diff  = (Set.fromList tags Set.\\ inferred_tags) Set.\\ Set.fromList ptags,
-        not (Set.null diff) -> do
-          liftTCM $ reportSDoc "tc.cover.precomputed" 10 $ vcat
-            [ hsep $ "ptags =" : map prettyTCM ptags
-            , hsep $ "tags  =" : map prettyTCM tags
-            ]
-          throwError (GenericSplitError "precomputed set of constructors does not cover all cases")
+      -- Andreas, 2012-10-10 fail if precomputed constructor set does not cover
+      -- all the data type constructors
+      -- Andreas, 2017-10-08 ... unless partial covering is explicitly allowed.
+      let ptags = map (SplitCon . conName) pcons' ++ map SplitLit plits
+      -- clauses for hcomp will be automatically generated.
+      let inferred_tags = maybe Set.empty (Set.singleton . SplitCon) mHCompName
+      let all_tags = Set.fromList ptags `Set.union` inferred_tags
 
-    _  -> do
-      liftTCM $ checkSortOfSplitVar dr $ unDom t
+      when (allowPartialCover == NoAllowPartialCover && overlap == False) $
+        for_ ns $ \(tag, sc) -> do
+          when (not $ tag `Set.member` all_tags) $ do
+            isImpossibleClause <- liftTCM $ isEmptyTel $ scTel sc
+            unless isImpossibleClause $ do
+              liftTCM $ reportSDoc "tc.cover" 10 $ vcat
+                [ text "Missing case for" <+> prettyTCM tag
+                , nest 2 $ prettyTCM sc
+                ]
+              throwError (GenericSplitError "precomputed set of constructors does not cover all cases")
+
+      liftTCM $ checkSortOfSplitVar dr (unDom t) target
       return $ Right $ Covering (lookupPatternVar sc x) ns
 
   where
@@ -1374,7 +1375,7 @@ split' ind allowPartialCover fixtarget sc@(SClause tel ps _ cps target) (Blockin
     debugHoleAndType delta1 delta2 s ps t =
       liftTCM $ reportSDoc "tc.cover.top" 10 $ nest 2 $ vcat $
         [ "p      =" <+> text (patVarNameToString s)
-        , "ps     =" <+> text (show ps)
+        , "ps     =" <+> prettyTCMPatternList ps
         , "delta1 =" <+> prettyTCM delta1
         , "delta2 =" <+> inContextOfDelta2 (prettyTCM delta2)
         , "t      =" <+> inContextOfT (prettyTCM t)
@@ -1478,7 +1479,7 @@ instance PrettyTCM SplitClause where
     , nest 2 $ vcat
       [ "tel          =" <+> prettyTCM tel
       , "pats         =" <+> sep (map (prettyTCM . namedArg) pats)
-      , "subst        =" <+> (text . show) sigma
+      , "subst        =" <+> prettyTCM sigma
       , "checkpoints  =" <+> prettyTCM cps
       , "target       =" <+> do
           caseMaybe target empty $ \ t -> do

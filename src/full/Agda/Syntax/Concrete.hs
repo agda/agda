@@ -404,27 +404,10 @@ data Pragma
   = OptionsPragma             Range [String]
   | BuiltinPragma             Range String QName
   | RewritePragma             Range [QName]
-  -- Deprecated compiler pragmas:
-  | CompiledDataPragma        Range QName String [String]
-  | CompiledTypePragma        Range QName String
-  | CompiledPragma            Range QName String
-  | CompiledExportPragma      Range QName String
-  | CompiledJSPragma          Range QName String
-  | CompiledUHCPragma         Range QName String
-  | CompiledDataUHCPragma     Range QName String [String]
-  | HaskellCodePragma         Range String
-
-  -- New compiler pragmas:
   | ForeignPragma             Range String String       -- ^ first string is backend name
   | CompilePragma             Range String QName String -- ^ first string is backend name
   | StaticPragma              Range QName
   | InlinePragma              Range Bool QName  -- ^ INLINE or NOINLINE
-  | ImportPragma              Range String
-    -- ^ Invariant: The string must be a valid Haskell module name.
-  | ImportUHCPragma           Range String
-    -- ^ same as above, but for the UHC backend
-
-  -- end compiler pragmas
 
   | ImpossiblePragma          Range
     -- ^ Throws an internal error in the scope checker.
@@ -702,21 +685,11 @@ instance HasRange Pragma where
   getRange (OptionsPragma r _)               = r
   getRange (BuiltinPragma r _ _)             = r
   getRange (RewritePragma r _)               = r
-  getRange (CompiledDataPragma r _ _ _)      = r
-  getRange (CompiledTypePragma r _ _)        = r
-  getRange (CompiledPragma r _ _)            = r
-  getRange (CompiledExportPragma r _ _)      = r
-  getRange (CompiledJSPragma r _ _)          = r
-  getRange (CompiledUHCPragma r _ _)         = r
-  getRange (CompiledDataUHCPragma r _ _ _)   = r
-  getRange (HaskellCodePragma r _)           = r
   getRange (CompilePragma r _ _ _)           = r
   getRange (ForeignPragma r _ _)             = r
   getRange (StaticPragma r _)                = r
   getRange (InjectivePragma r _)             = r
   getRange (InlinePragma r _ _)              = r
-  getRange (ImportPragma r _)                = r
-  getRange (ImportUHCPragma r _)             = r
   getRange (ImpossiblePragma r)              = r
   getRange (EtaPragma r _)                   = r
   getRange (TerminationCheckPragma r _)      = r
@@ -906,19 +879,9 @@ instance KillRange Pragma where
   killRange (OptionsPragma _ s)               = OptionsPragma noRange s
   killRange (BuiltinPragma _ s e)             = killRange1 (BuiltinPragma noRange s) e
   killRange (RewritePragma _ qs)              = killRange1 (RewritePragma noRange) qs
-  killRange (CompiledDataPragma _ q s ss)     = killRange1 (\q -> CompiledDataPragma noRange q s ss) q
-  killRange (CompiledTypePragma _ q s)        = killRange1 (\q -> CompiledTypePragma noRange q s) q
-  killRange (CompiledPragma _ q s)            = killRange1 (\q -> CompiledPragma noRange q s) q
-  killRange (CompiledExportPragma _ q s)      = killRange1 (\q -> CompiledExportPragma noRange q s) q
-  killRange (CompiledJSPragma _ q s)          = killRange1 (\q -> CompiledJSPragma noRange q s) q
-  killRange (CompiledUHCPragma _ q s)         = killRange1 (\q -> CompiledUHCPragma noRange q s) q
-  killRange (CompiledDataUHCPragma _ q s ss)  = killRange1 (\q -> CompiledDataUHCPragma noRange q s ss) q
-  killRange (HaskellCodePragma _ s)           = HaskellCodePragma noRange s
   killRange (StaticPragma _ q)                = killRange1 (StaticPragma noRange) q
   killRange (InjectivePragma _ q)             = killRange1 (InjectivePragma noRange) q
   killRange (InlinePragma _ b q)              = killRange1 (InlinePragma noRange b) q
-  killRange (ImportPragma _ s)                = ImportPragma noRange s
-  killRange (ImportUHCPragma _ s)             = ImportUHCPragma noRange s
   killRange (CompilePragma _ b q s)           = killRange1 (\ q -> CompilePragma noRange b q s) q
   killRange (ForeignPragma _ b s)             = ForeignPragma noRange b s
   killRange (ImpossiblePragma _)              = ImpossiblePragma noRange
@@ -1048,21 +1011,11 @@ instance NFData Pragma where
   rnf (OptionsPragma _ a)               = rnf a
   rnf (BuiltinPragma _ a b)             = rnf a `seq` rnf b
   rnf (RewritePragma _ a)               = rnf a
-  rnf (CompiledDataPragma _ a b c)      = rnf a `seq` rnf b `seq` rnf c
-  rnf (CompiledTypePragma _ a b)        = rnf a `seq` rnf b
-  rnf (CompiledPragma _ a b)            = rnf a `seq` rnf b
-  rnf (CompiledExportPragma _ a b)      = rnf a `seq` rnf b
-  rnf (CompiledJSPragma _ a b)          = rnf a `seq` rnf b
-  rnf (CompiledUHCPragma _ a b)         = rnf a `seq` rnf b
-  rnf (CompiledDataUHCPragma _ a b c)   = rnf a `seq` rnf b `seq` rnf c
-  rnf (HaskellCodePragma _ s)           = rnf s
   rnf (CompilePragma _ a b c)           = rnf a `seq` rnf b `seq` rnf c
   rnf (ForeignPragma _ b s)             = rnf b `seq` rnf s
   rnf (StaticPragma _ a)                = rnf a
   rnf (InjectivePragma _ a)             = rnf a
   rnf (InlinePragma _ _ a)              = rnf a
-  rnf (ImportPragma _ a)                = rnf a
-  rnf (ImportUHCPragma _ a)             = rnf a
   rnf (ImpossiblePragma _)              = ()
   rnf (EtaPragma _ a)                   = rnf a
   rnf (TerminationCheckPragma _ a)      = rnf a

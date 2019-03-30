@@ -1,5 +1,5 @@
 Issue4.agda:25,1-26,27
 Bad is not strictly positive, because it occurs
-in the first argument to T
+in the first argument of T
 in the type of the constructor bad
 in the definition of Bad.

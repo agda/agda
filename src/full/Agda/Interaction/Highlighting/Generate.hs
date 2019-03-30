@@ -33,6 +33,7 @@ import Data.List ((\\), isPrefixOf)
 import qualified Data.List as List
 import qualified Data.Foldable as Fold (fold, foldMap, toList)
 import qualified Data.IntMap as IntMap
+import Data.Sequence (Seq)
 import qualified Data.Set as Set
 import qualified Data.Text.Lazy as T
 import Data.Void
@@ -683,10 +684,11 @@ terminationErrorHighlighting termErrs = functionDefs `mappend` callSites
 -- definitions.
 
 -- TODO: highlight also the problematic occurrences
-positivityErrorHighlighting :: I.QName -> OccursWhere -> File
-positivityErrorHighlighting q o = several (rToR <$> P.getRange q : rs) m
+positivityErrorHighlighting :: I.QName -> Seq OccursWhere -> File
+positivityErrorHighlighting q os =
+  several (rToR <$> P.getRange q : rs) m
   where
-    rs = case o of Unknown -> []; Known r _ -> [r]
+    rs = map (\(OccursWhere r _ _) -> r) (Fold.toList os)
     m  = parserBased { otherAspects = Set.singleton PositivityProblem }
 
 deadcodeHighlighting :: P.Range -> File

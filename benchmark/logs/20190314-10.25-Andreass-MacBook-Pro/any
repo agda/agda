@@ -1,0 +1,12 @@
+/Users/abel/agda/benchmark/std-lib/Any.agda:20,1-21,19
+Failed to find source of module
+Data.Product.Function.NonDependent.Propositional in any of the
+following locations:
+  /Users/abel/agda/benchmark/../std-lib/src/Data/Product/Function/NonDependent/Propositional.agda
+  /Users/abel/agda/benchmark/../std-lib/src/Data/Product/Function/NonDependent/Propositional.lagda
+  /Users/abel/agda/benchmark/std-lib/Data/Product/Function/NonDependent/Propositional.agda
+  /Users/abel/agda/benchmark/std-lib/Data/Product/Function/NonDependent/Propositional.lagda
+  /Users/abel/.cabal/share/x86_64-osx-ghc-8.4.4/Agda-2.6.0/lib/prim/Data/Product/Function/NonDependent/Propositional.agda
+  /Users/abel/.cabal/share/x86_64-osx-ghc-8.4.4/Agda-2.6.0/lib/prim/Data/Product/Function/NonDependent/Propositional.lagda
+when scope checking the declaration
+  open import Data.Product.Function.NonDependent.Propositional using (_×-cong_)

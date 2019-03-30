@@ -44,13 +44,11 @@ repl callback prompt setup = do
       liftIO $ do
         putStr prompt
         hFlush stdout
-      c <- nextCommand
-      case c of
+      r <- maybeAbort runInteraction
+      case r of
         Done      -> return True -- Done.
         Error s   -> liftIO (putStrLn s) >> return False
-        Command c -> do
-          maybeAbort (runInteraction c)
-          return False
+        Command _ -> return False
 
     lift Bench.print
     unless done interact'

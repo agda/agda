@@ -6,6 +6,9 @@
 
 module Agda.TypeChecking.Monad.SizedTypes where
 
+import qualified Data.Foldable as Fold
+import qualified Data.Traversable as Trav
+
 import Agda.Interaction.Options
 
 import Agda.Syntax.Common
@@ -23,6 +26,9 @@ import Agda.Utils.Except ( MonadError(catchError) )
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
+import Agda.Utils.NonemptyList
+import Agda.Utils.Pretty
+import Agda.Utils.Singleton
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -157,10 +163,9 @@ sizeSuc_ :: QName -> Term -> Term
 sizeSuc_ suc v = Def suc [Apply $ defaultArg v]
 
 -- | Transform list of terms into a term build from binary maximum.
-sizeMax :: [Term] -> TCM Term
+sizeMax :: NonemptyList Term -> TCM Term
 sizeMax vs = case vs of
-  []  -> __IMPOSSIBLE__  -- we do not have a zero size
-  [v] -> return v
+  v :! [] -> return v
   vs  -> do
     Def max [] <- primSizeMax
     return $ foldr1 (\ u v -> Def max $ map (Apply . defaultArg) [u,v]) vs
@@ -192,6 +197,13 @@ data DeepSizeView
   | DSizeMeta MetaId Elims Offset
   | DOtherSize Term
   deriving (Show)
+
+instance Pretty DeepSizeView where
+  pretty = \case
+    DSizeInf        -> "∞"
+    DSizeVar n o     -> text ("@" ++ show n) <+> "+" <+> pretty o
+    DSizeMeta x es o -> pretty (MetaV x es) <+> "+" <+> pretty o
+    DOtherSize t     -> pretty t
 
 data SizeViewComparable a
   = NotComparable
@@ -258,38 +270,37 @@ unDeepSizeView v = case v of
 -- * View on sizes where maximum is pulled to the top
 ------------------------------------------------------------------------
 
-type SizeMaxView = [DeepSizeView]
+type SizeMaxView = NonemptyList DeepSizeView
+type SizeMaxView' = [DeepSizeView]
 
 maxViewMax :: SizeMaxView -> SizeMaxView -> SizeMaxView
 maxViewMax v w = case (v,w) of
-  (DSizeInf : _, _) -> [DSizeInf]
-  (_, DSizeInf : _) -> [DSizeInf]
-  _                 -> foldr maxViewCons w v
+  (DSizeInf :! _, _) -> singleton DSizeInf
+  (_, DSizeInf :! _) -> singleton DSizeInf
+  _                 -> Fold.foldr maxViewCons w v
 
 -- | @maxViewCons v ws = max v ws@.  It only adds @v@ to @ws@ if it is not
 --   subsumed by an element of @ws@.
 maxViewCons :: DeepSizeView -> SizeMaxView -> SizeMaxView
-maxViewCons _ [DSizeInf] = [DSizeInf]
-maxViewCons DSizeInf _   = [DSizeInf]
+maxViewCons _ (DSizeInf :! _) = singleton DSizeInf
+maxViewCons DSizeInf _        = singleton DSizeInf
 maxViewCons v ws = case sizeViewComparableWithMax v ws of
-  NotComparable  -> v:ws
-  YesAbove _ ws' -> v:ws'
+  NotComparable  -> consNe v ws
+  YesAbove _ ws' -> v :! ws'
   YesBelow{}     -> ws
 
 -- | @sizeViewComparableWithMax v ws@ tries to find @w@ in @ws@ that compares with @v@
 --   and singles this out.
 --   Precondition: @v /= DSizeInv@.
-sizeViewComparableWithMax :: DeepSizeView -> SizeMaxView -> SizeViewComparable SizeMaxView
-sizeViewComparableWithMax v ws = case ws of
-  []     -> __IMPOSSIBLE__
-  [w]    -> fmap (const []) $ sizeViewComparable v w
-  (w:ws) -> case sizeViewComparable v w of
-            NotComparable -> fmap (w:) $ sizeViewComparableWithMax v ws
-            r  -> fmap (const ws) r
+sizeViewComparableWithMax :: DeepSizeView -> SizeMaxView -> SizeViewComparable SizeMaxView'
+sizeViewComparableWithMax v (w :! ws) =
+  case (ws, sizeViewComparable v w) of
+    (w':ws', NotComparable) -> fmap (w:) $ sizeViewComparableWithMax v (w' :! ws')
+    (ws    , r)             -> fmap (const ws) r
 
 
 maxViewSuc_ :: QName -> SizeMaxView -> SizeMaxView
-maxViewSuc_ suc = map (sizeViewSuc_ suc)
+maxViewSuc_ suc = fmap (sizeViewSuc_ suc)
 
 unMaxView :: SizeMaxView -> TCM Term
-unMaxView vs = sizeMax =<< mapM unDeepSizeView vs
+unMaxView vs = sizeMax =<< Trav.mapM unDeepSizeView vs

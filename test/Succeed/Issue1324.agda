@@ -139,8 +139,19 @@ bove-capretta {X}{Y} f x ⟨ d ⟩
   helper (sup (inj₁ y , _))  _        = y
   helper (sup (inj₂ _ , k)) (d , dk)  = helper (k d) (dk d)
 
-module _ where
-  open Monad monad
+-- AIM XXIX, 2019-03-18, issue #3597
+-- Freezing cannot be prevented by eta-expansion any more.
+-- WAS:
+-- module _ where
+--   open Monad monad
+--
+-- Ulf: proper use of monad would be this:
+-- module _ where
+--   open module M {Σ} = Monad (monad {Σ})
+--
+-- Andreas: this works because metas in module parameters are not frozed immediately
+module _ (open Monad monad) where
+
   gcd : Π (ℕ × ℕ) (λ _ →  ℕ)
   gcd (0 , n)          = return n
   gcd (m , 0)          = return m

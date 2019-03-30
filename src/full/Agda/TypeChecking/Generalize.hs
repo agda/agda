@@ -7,6 +7,8 @@ module Agda.TypeChecking.Generalize
 
 import Control.Arrow ((***), first, second)
 import Control.Monad
+import Data.IntSet (IntSet)
+import qualified Data.IntSet as IntSet
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Map (Map)
@@ -120,7 +122,7 @@ generalizeType' s typecheckAction = billTo [Typing, Generalize] $ withGenRecVar 
   return (genTelNames, t', userdata)
 
 -- | Create metas for the generalizable variables and run the type check action.
-createMetasAndTypeCheck :: Set QName -> TCM a -> TCM (a, Map MetaId QName, Set MetaId)
+createMetasAndTypeCheck :: Set QName -> TCM a -> TCM (a, Map MetaId QName, IntSet)
 createMetasAndTypeCheck s typecheckAction = do
   ((namedMetas, x), allmetas) <- metasCreatedBy $ do
     (metamap, genvals) <- createGenValues s
@@ -143,10 +145,10 @@ withGenRecVar ret = do
 --   generalized. Called in the context extended with the telescope record variable (whose type is
 --   the first argument). Returns the telescope of generalized variables and a substitution from
 --   this telescope to the current context.
-computeGeneralization :: Type -> Map MetaId name -> Set MetaId -> TCM (Telescope, [Maybe name], Substitution)
+computeGeneralization :: Type -> Map MetaId name -> IntSet -> TCM (Telescope, [Maybe name], Substitution)
 computeGeneralization genRecMeta nameMap allmetas = postponeInstanceConstraints $ do
   -- Pair metas with their metaInfo
-  mvs <- mapM (\ x -> (x,) <$> lookupMeta x) (Set.toList allmetas)
+  mvs <- mapM ((\ x -> (x,) <$> lookupMeta x) . MetaId) $ IntSet.toList allmetas
 
   let isGeneralizable (_, mv) = YesGeneralize == unArg (miGeneralizable (mvInfo mv))
       isSort = isSortMeta_ . snd
@@ -253,7 +255,7 @@ computeGeneralization genRecMeta nameMap allmetas = postponeInstanceConstraints 
   -- (#3340).
 
   let inscope (ii, InteractionPoint{ipMeta = Just x})
-        | Set.member x allmetas = [(x, ii)]
+        | IntSet.member (metaId x) allmetas = [(x, ii)]
       inscope _ = []
   ips <- Map.fromList . concatMap inscope . Map.toList <$> useTC stInteractionPoints
 
@@ -455,10 +457,7 @@ createGenValue x = do
   (m, term) <- newNamedValueMeta DontRunMetaOccursCheck name metaType
 
   -- Freeze the meta to prevent named generalizable metas to be instantiated.
-  let fromJust' :: Lens' a (Maybe a)
-      fromJust' f (Just x) = Just <$> f x
-      fromJust' f Nothing  = {-'-} __IMPOSSIBLE__
-  stMetaStore . key m . fromJust' . metaFrozen `setTCLens` Frozen
+  updateMetaVar m $ \ mv -> mv { mvFrozen = Frozen }
 
   -- Set up names of arg metas
   forM_ (zip3 [1..] (map unArg args) (telToList argTel)) $ \ case
@@ -521,6 +520,7 @@ createGenRecordType genRecMeta@(El genRecSort _) sortedMetas = do
                             , projLams     = ProjLams [defaultArg "gtel"] } in
       Function { funClauses      = []
                , funCompiled     = Nothing
+               , funSplitTree    = Nothing
                , funTreeless     = Nothing
                , funInv          = NotInjective
                , funMutual       = Just []

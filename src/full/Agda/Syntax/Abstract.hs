@@ -237,13 +237,6 @@ data Pragma
     --   but declare a name for an Agda concept.
   | RewritePragma QName
   | CompilePragma String QName String
-  | CompiledPragma QName String
-  | CompiledExportPragma QName String
-  | CompiledTypePragma QName String
-  | CompiledDataPragma QName String [String]
-  | CompiledJSPragma QName String
-  | CompiledUHCPragma QName String
-  | CompiledDataUHCPragma QName String [String]
   | StaticPragma QName
   | EtaPragma QName
     -- ^ For coinductive records, use pragma instead of regular

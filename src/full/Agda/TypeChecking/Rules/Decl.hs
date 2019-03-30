@@ -21,6 +21,7 @@ import Data.Maybe
 import Data.Map (Map)
 import qualified Data.Sequence as Seq
 import qualified Data.Set as Set
+import qualified Data.IntSet as IntSet
 import qualified Data.Map as Map
 import Data.Set (Set)
 
@@ -186,7 +187,7 @@ checkDecl d = setCurrentRange d $ do
       A.ScopedDecl scope ds    -> none $ setScope scope >> mapM_ checkDeclCached ds
       A.FunDef i x delayed cs  -> impossible $ check x i $ checkFunDef delayed i x cs
       A.DataDef i x uc ps cs   -> impossible $ check x i $ checkDataDef i x uc ps cs
-      A.RecDef i x uc ind eta c ps tel cs -> mutual empty [d] $ check x i $ do
+      A.RecDef i x uc ind eta c ps tel cs -> impossible $ check x i $ do
                                     checkRecDef i x uc ind eta c ps tel cs
                                     blockId <- mutualBlockOf x
 
@@ -235,8 +236,9 @@ checkDecl d = setCurrentRange d $ do
         case d of
             A.Generalize{} -> pure ()
             _ -> do
-                reportSLn "tc.decl" 20 $ "Freezing all metas."
-                forM_ metas $ \mi -> updateMetaVar mi $ \mv -> mv { mvFrozen = Frozen }
+              reportSLn "tc.decl" 20 $ "Freezing all metas."
+              void $ freezeMetas' $ \ (MetaId x) -> IntSet.member x metas
+
         theMutualChecks
 
     where
@@ -258,9 +260,8 @@ checkDecl d = setCurrentRange d $ do
     abstract ConcreteDef = inConcreteMode
     abstract AbstractDef = inAbstractMode
 
--- Some checks that should be run at the end of a mutual
--- block (or non-mutual record declaration). The set names
--- contains the names defined in the mutual block.
+-- Some checks that should be run at the end of a mutual block. The
+-- set names contains the names defined in the mutual block.
 mutualChecks :: Info.MutualInfo -> A.Declaration -> [A.Declaration] -> MutualId -> Set QName -> TCM ()
 mutualChecks mi d ds mid names = do
   -- Andreas, 2014-04-11: instantiate metas in definition types
@@ -433,16 +434,12 @@ highlight_ hlmod d = do
 checkTermination_ :: A.Declaration -> TCM ()
 checkTermination_ d = Bench.billTo [Bench.Termination] $ do
   reportSLn "tc.decl" 20 $ "checkDecl: checking termination..."
-  case d of
-      -- Record module definitions should not be termination-checked twice.
-      A.RecDef {} -> return ()
-      _ -> do
-        termErrs <- termDecl d
-        -- If there are some termination errors, we collect them in
-        -- the state.
-        -- The termination checker already marked non-terminating functions as such.
-        unless (null termErrs) $ do
-          warning $ TerminationIssue termErrs
+  termErrs <- termDecl d
+  -- If there are some termination errors, we collect them in the
+  -- state. The termination checker already marked non-terminating
+  -- functions as such.
+  unless (null termErrs) $ do
+    warning $ TerminationIssue termErrs
 
 -- | Check a set of mutual names for positivity.
 checkPositivity_ :: Info.MutualInfo -> Set QName -> TCM ()
@@ -531,9 +528,9 @@ whenAbstractFreezeMetasAfter Info.DefInfo{ defAccess, defAbstract} m = do
   let pubAbs = defAccess == PublicAccess && defAbstract == AbstractDef
   if not pubAbs then m else do
     (a, ms) <- metasCreatedBy m
-    xs <- freezeMetas' $ (`Set.member` ms)
+    xs <- freezeMetas' $ (`IntSet.member` ms) . metaId
     reportSDoc "tc.decl.ax" 20 $ vcat
-      [ "Abstract type signature produced new metas: " <+> sep (map prettyTCM $ Set.toList ms)
+      [ "Abstract type signature produced new metas: " <+> sep (map prettyTCM $ IntSet.toList ms)
       , "We froze the following ones of these:       " <+> sep (map prettyTCM xs)
       ]
     return a
@@ -691,65 +688,11 @@ checkPragma r p =
         A.BuiltinPragma x e -> bindBuiltin x e
         A.BuiltinNoDefPragma b x -> bindBuiltinNoDef b x
         A.RewritePragma q   -> addRewriteRule q
-        A.CompiledTypePragma x hs -> do
-          def <- getConstInfo x
-          case theDef def of
-            Axiom{} -> addHaskellType x hs
-            _       -> typeError $ GenericError
-                        "COMPILED_TYPE directive only works on postulates"
-        A.CompiledDataPragma x hs hcs -> do
-          def <- getConstInfo x
-          -- Check that the pragma appears in the same module
-          -- as the datatype.
-          assertCurrentModule x $
-              "COMPILED_DATA directives must appear in the same module " ++
-              "as their corresponding datatype definition,"
-          case theDef def of
-            Datatype{dataCons = cs} -> addHaskellData x hs hcs
-            Record{recConHead = ch} -> addHaskellData x hs hcs
-            _ -> typeError $ GenericError "COMPILED_DATA on non datatype"
         A.CompilePragma b x s -> do
           assertCurrentModule x $
               "COMPILE pragmas must appear in the same module " ++
               "as their corresponding definitions,"
           addPragma b x s
-        A.CompiledPragma x hs -> do
-          def <- getConstInfo x
-          let addCompiled = addHaskellCode x hs
-          case theDef def of
-            Axiom{} -> addCompiled
-            Function{} -> addCompiled
-            _   -> typeError $ GenericError "COMPILED directive only works on postulates and functions"
-
-        A.CompiledExportPragma x hs -> do
-          def <- getConstInfo x
-          let correct = case theDef def of
-                            Function{} -> True
-                            Constructor{} -> False
-                            _   -> False
-          if not correct
-            then typeError $ GenericError "COMPILED_EXPORT directive only works on functions"
-            else addHaskellExport x hs
-        A.CompiledJSPragma x ep ->
-          addJSCode x ep
-        A.CompiledUHCPragma x cr -> do
-          def <- getConstInfo x
-          case theDef def of
-            Axiom{} -> addCoreCode x cr
-            _ -> typeError $ GenericError "COMPILED_UHC directive only works on postulates" -- only allow postulates for the time being
-        A.CompiledDataUHCPragma x crd crcs -> do
-          -- TODO mostly copy-paste from the CompiledDataPragma, should be refactored into a seperate function
-          def <- getConstInfo x
-          -- Check that the pragma appears in the same module
-          -- as the datatype.
-          m <- currentModule
-          let m' = qnameModule $ defName def
-          unless (m == m') $ typeError $ GenericError $
-              "COMPILED_DATA_UHC directives must appear in the same module " ++
-              "as their corresponding datatype definition,"
-          case theDef def of
-            Datatype{dataCons = cs} -> addCoreType x crd crcs
-            _ -> typeError $ GenericError "COMPILED_DATA_UHC on non datatype"
         A.StaticPragma x -> do
           def <- getConstInfo x
           case theDef def of

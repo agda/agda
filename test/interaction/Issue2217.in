@@ -1,7 +1,0 @@
-top_command (Cmd_load currentFile [])
--- The following command should loop.
-goal_command 0 (Cmd_give WithoutForce) "A"
-top_command Cmd_abort
--- The following command should use the "decoded" interface for
--- Issue2217.M, the interface should not be read from disk.
-top_command (Cmd_load currentFile [])

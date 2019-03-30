@@ -18,10 +18,12 @@ import Test.QuickCheck
 -- QuickCheck instances
 
 instance Arbitrary OccursWhere where
-  arbitrary = oneof [return Unknown, Known <$> arbitrary <*> arbitrary]
+  arbitrary = OccursWhere <$> arbitrary <*> arbitrary <*> arbitrary
 
-  shrink Unknown      = []
-  shrink (Known r ws) = Unknown : [ Known r ws | r <- shrink r, ws <- shrink ws ]
+  shrink (OccursWhere r cs os) =
+    [ OccursWhere r cs os
+    | r <- shrink r, cs <- shrink cs, os <- shrink os
+    ]
 
 instance Arbitrary Where where
   arbitrary = oneof
@@ -38,8 +40,7 @@ instance Arbitrary Where where
     ]
 
 instance CoArbitrary OccursWhere where
-  coarbitrary (Known r ws) = variant 0 . coarbitrary (r, ws)
-  coarbitrary Unknown      = variant 1
+  coarbitrary (OccursWhere r cs os) = coarbitrary (r, cs, os)
 
 instance CoArbitrary Where where
   coarbitrary LeftOfArrow    = variant 0
@@ -51,7 +52,8 @@ instance CoArbitrary Where where
   coarbitrary (IndArgType a) = variant 6 . coarbitrary a
   coarbitrary (InClause a)   = variant 7 . coarbitrary a
   coarbitrary Matched        = variant 8
-  coarbitrary (InDefOf a)    = variant 9 . coarbitrary a
+  coarbitrary IsIndex        = variant 9
+  coarbitrary (InDefOf a)    = variant 10 . coarbitrary a
 
 instance Arbitrary Occurrence where
   arbitrary = elements [minBound .. maxBound]

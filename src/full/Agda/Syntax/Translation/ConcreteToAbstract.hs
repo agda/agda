@@ -1921,54 +1921,6 @@ instance ToAbstract C.Pragma [A.Pragma] where
       A.Con x          -> genericError $ "REWRITE used on ambiguous name " ++ prettyShow x
       A.Var x          -> genericError $ "REWRITE used on parameter " ++ prettyShow x ++ " instead of on a defined symbol"
       _       -> __IMPOSSIBLE__
-  toAbstract (C.CompiledTypePragma _ x hs) = do
-    e <- toAbstract $ OldQName x Nothing
-    case e of
-      A.Def x -> return [ A.CompiledTypePragma x hs ]
-      _       -> genericError $ "Bad compiled type: " ++ prettyShow x  -- TODO: error message
-  toAbstract (C.CompiledDataPragma _ x hs hcs) = do
-    e <- toAbstract $ OldQName x Nothing
-    case e of
-      A.Def x -> return [ A.CompiledDataPragma x hs hcs ]
-      _       -> genericError $ "Not a datatype: " ++ prettyShow x  -- TODO: error message
-  toAbstract (C.CompiledPragma _ x hs) = do
-    e <- toAbstract $ OldQName x Nothing
-    y <- case e of
-          A.Def x -> return x
-          A.Proj _ c | Just x <- getUnambiguous c -> return x -- TODO: do we need to do s.th. special for projections? (Andreas, 2014-10-12)
-          A.Proj _ x -> genericError $ "COMPILED on ambiguous name " ++ prettyShow x
-          A.Con _ -> genericError "Use COMPILED_DATA for constructors" -- TODO
-          _       -> __IMPOSSIBLE__
-    return [ A.CompiledPragma y hs ]
-  toAbstract (C.CompiledExportPragma _ x hs) = do
-    e <- toAbstract $ OldQName x Nothing
-    y <- case e of
-          A.Def x -> return x
-          _       -> __IMPOSSIBLE__
-    return [ A.CompiledExportPragma y hs ]
-  toAbstract (C.CompiledJSPragma _ x ep) = do
-    e <- toAbstract $ OldQName x Nothing
-    y <- case e of
-          A.Def x -> return x
-          A.Proj _ p | Just x <- getUnambiguous p -> return x
-          A.Proj _ x -> genericError $
-            "COMPILED_JS used on ambiguous name " ++ prettyShow x
-          A.Con c | Just x <- getUnambiguous c -> return x
-          A.Con x -> genericError $
-            "COMPILED_JS used on ambiguous name " ++ prettyShow x
-          _       -> __IMPOSSIBLE__
-    return [ A.CompiledJSPragma y ep ]
-  toAbstract (C.CompiledUHCPragma _ x cr) = do
-    e <- toAbstract $ OldQName x Nothing
-    y <- case e of
-          A.Def x -> return x
-          _       -> __IMPOSSIBLE__
-    return [ A.CompiledUHCPragma y cr ]
-  toAbstract (C.CompiledDataUHCPragma _ x crd crcs) = do
-    e <- toAbstract $ OldQName x Nothing
-    case e of
-      A.Def x -> return [ A.CompiledDataUHCPragma x crd crcs ]
-      _       -> fail $ "Bad compiled type: " ++ prettyShow x  -- TODO: error message
   toAbstract (C.ForeignPragma _ b s) = [] <$ addForeignCode b s
   toAbstract (C.CompilePragma _ b x s) = do
     e <- toAbstract $ OldQName x Nothing
@@ -2040,15 +1992,6 @@ instance ToAbstract C.Pragma [A.Pragma] where
     else do
       q <- toAbstract $ ResolveQName q
       return [ A.BuiltinPragma b q ]
-  toAbstract (C.ImportPragma _ i) = do
-    addHaskellImport i
-    return []
-  toAbstract (C.ImportUHCPragma _ i) = do
-    addHaskellImportUHC i
-    return []
-  toAbstract (C.HaskellCodePragma _ s) = do
-    addInlineHaskell s
-    return []
   toAbstract (C.EtaPragma _ x) = do
     e <- toAbstract $ OldQName x Nothing
     case e of

@@ -182,7 +182,8 @@ checkApplication cmp hd args e t = postponeInstanceConstraints $ do
     A.Unquote _
       | [arg] <- args -> do
           (_, hole) <- newValueMeta RunMetaOccursCheck t
-          unquoteM (namedArg arg) hole t $ return hole
+          unquoteM (namedArg arg) hole t
+          return hole
       | arg : args <- args -> do
           -- Example: unquote v a b : A
           --  Create meta H : (x : X) (y : Y x) → Z x y for the hole
@@ -197,7 +198,8 @@ checkApplication cmp hd args e t = postponeInstanceConstraints $ do
           let rho = reverse (map unArg vs) ++# IdS  -- [x := a, y := b]
           equalType (applySubst rho target) t       -- Z a b == A
           (_, hole) <- newValueMeta RunMetaOccursCheck holeType
-          unquoteM (namedArg arg) hole holeType $ return $ apply hole vs
+          unquoteM (namedArg arg) hole holeType
+          return $ apply hole vs
       where
         metaTel :: [Arg a] -> TCM Telescope
         metaTel []           = pure EmptyTel
@@ -445,8 +447,15 @@ checkArgumentsE :: ExpandHidden -> Range -> [NamedArg A.Expr] -> Type -> Maybe T
                    ExceptT (MaybeRanges, Elims, [NamedArg A.Expr], Type) TCM (MaybeRanges, Elims, Type, CheckedTarget)
 checkArgumentsE = checkArgumentsE' NotCheckedTarget
 
-checkArgumentsE' :: CheckedTarget -> ExpandHidden -> Range -> [NamedArg A.Expr] -> Type ->
-                    Maybe Type -> ExceptT (MaybeRanges, Elims, [NamedArg A.Expr], Type) TCM (MaybeRanges, Elims, Type, CheckedTarget)
+checkArgumentsE'
+  :: CheckedTarget     -- ^ Have we already checked the target?
+  -> ExpandHidden      -- ^ Insert trailing hidden arguments?
+  -> Range             -- ^ Range of the function.
+  -> [NamedArg A.Expr] -- ^ Arguments.
+  -> Type              -- ^ Type of the function.
+  -> Maybe Type        -- ^ Type of the application.
+  -> ExceptT (MaybeRanges, Elims, [NamedArg A.Expr], Type) TCM (MaybeRanges, Elims, Type, CheckedTarget)
+
 -- Case: no arguments, do not insert trailing hidden arguments: We are done.
 checkArgumentsE' chk DontExpandLast _ [] t0 _ = return ([], [], t0, chk)
 
@@ -548,9 +557,16 @@ checkArgumentsE' chk exh r args0@(arg@(Arg info e) : args) t0 mt1 =
                     Primitive{}               -> False
                   isRigid _           = return False
               rigid <- isRigid tgt
+              -- Andreas, 2019-03-28, issue #3248:
+              -- If the target type is SIZELT, we need coerce, leqType is insufficient.
+              -- For example, we have i : Size <= (Size< ↑ i), but not Size <= (Size< ↑ i).
+              isSizeLt <- reduce t1 >>= isSizeType <&> \case
+                Just (BoundedLt _) -> True
+                _ -> False
               if | dep       -> return chk    -- must be non-dependent
                  | not rigid -> return chk    -- with a rigid target
                  | not vis   -> return chk    -- and only visible arguments
+                 | isSizeLt  -> return chk    -- Issue #3248, not Size<
                  | otherwise -> do
                   let tgt1 = applySubst (strengthenS __IMPOSSIBLE__ $ size tel) tgt
                   reportSDoc "tc.term.args.target" 30 $ vcat
@@ -767,12 +783,12 @@ checkConstructorApplication cmp org t c args = do
 -- | Returns an unblocking action in case of failure.
 disambiguateConstructor :: NonemptyList QName -> Type -> TCM (Either (TCM Bool) ConHead)
 disambiguateConstructor cs0 t = do
-  reportSLn "tc.check.term" 40 $ "Ambiguous constructor: " ++ prettyShow cs0
+  reportSLn "tc.check.term.con" 40 $ "Ambiguous constructor: " ++ prettyShow cs0
 
   -- Get the datatypes of the various constructors
   let getData Constructor{conData = d} = d
       getData _                        = __IMPOSSIBLE__
-  reportSLn "tc.check.term" 40 $ "  ranges before: " ++ show (getRange cs0)
+  reportSLn "tc.check.term.con" 40 $ "  ranges before: " ++ show (getRange cs0)
   -- We use the reduced constructor when disambiguating, but
   -- the original constructor for type checking. This is important
   -- since they may have different types (different parameters).
@@ -780,12 +796,12 @@ disambiguateConstructor cs0 t = do
   -- Andreas, 2017-08-13, issue #2686: ignore abstract constructors
   (cs, cons)  <- unzip . snd . partitionEithers <$> do
      forM (toList cs0) $ \ c -> mapRight (c,) <$> getConForm c
-  reportSLn "tc.check.term" 40 $ "  reduced: " ++ prettyShow cons
+  reportSLn "tc.check.term.con" 40 $ "  reduced: " ++ prettyShow cons
   case cons of
     []    -> typeError $ AbstractConstructorNotInScope $ headNe cs0
     [con] -> do
       let c = setConName (fromMaybe __IMPOSSIBLE__ $ headMaybe cs) con
-      reportSLn "tc.check.term" 40 $ "  only one non-abstract constructor: " ++ prettyShow c
+      reportSLn "tc.check.term.con" 40 $ "  only one non-abstract constructor: " ++ prettyShow c
       storeDisambiguatedName $ conName c
       return (Right c)
     _   -> do
@@ -804,7 +820,7 @@ disambiguateConstructor cs0 t = do
                caseMaybeM (isDataOrRecord $ unEl t') (badCon t') $ \ d ->
                  case [ c | (d', c) <- dcs, d == d' ] of
                    [c] -> do
-                     reportSLn "tc.check.term" 40 $ "  decided on: " ++ prettyShow c
+                     reportSLn "tc.check.term.con" 40 $ "  decided on: " ++ prettyShow c
                      storeDisambiguatedName $ conName c
                      return $ Just c
                    []  -> badCon $ t' $> Def d []

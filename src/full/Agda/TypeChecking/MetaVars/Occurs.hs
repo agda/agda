@@ -871,7 +871,7 @@ performKill kills m a = do
       judg = case mvJudgement mv of
         HasType{} -> HasType __IMPOSSIBLE__ a
         IsSort{}  -> IsSort  __IMPOSSIBLE__ a
-  m' <- newMeta (mvInfo mv) (mvPriority mv) perm judg
+  m' <- newMeta Instantiable (mvInfo mv) (mvPriority mv) perm judg
   -- Andreas, 2010-10-15 eta expand new meta variable if necessary
   etaExpandMetaSafe m'
   let -- Arguments to new meta (de Bruijn indices)

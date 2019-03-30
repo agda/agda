@@ -2,6 +2,8 @@
 
 module Agda.TypeChecking.DropArgs where
 
+import Control.Arrow (first, second)
+
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 
@@ -9,6 +11,7 @@ import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Substitute
 
 import Agda.TypeChecking.CompiledClause
+import Agda.TypeChecking.Coverage.SplitTree
 
 import Agda.Utils.Functor
 import Agda.Utils.Permutation
@@ -71,3 +74,8 @@ instance DropArgs CompiledClauses where
     Done xs t | length xs < n -> __IMPOSSIBLE__
               | otherwise     -> Done (drop n xs) t
     Fail                      -> Fail
+
+instance DropArgs SplitTree where
+  dropArgs n (SplittingDone m) = SplittingDone (m - n)
+  dropArgs n (SplitAt i ts)    = SplitAt (subtract n <$> i) $ map (second $ dropArgs n) ts
+

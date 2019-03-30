@@ -23,6 +23,8 @@ import Agda.Syntax.Position
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
 
+import Agda.Interaction.Options
+
 import Agda.TypeChecking.Names
 import Agda.TypeChecking.Primitive hiding (Nat)
 import Agda.TypeChecking.Primitive.Cubical
@@ -75,7 +77,11 @@ import Agda.Utils.Lens
 import Agda.Utils.Impossible
 
 checkIApplyConfluence_ :: QName -> TCM ()
-checkIApplyConfluence_ f = do
+checkIApplyConfluence_ f = whenM (optCubical <$> pragmaOptions) $ do
+  -- Andreas, 2019-03-27, iapply confluence should only be checked when --cubical.
+  -- See test/Succeed/CheckIApplyConfluence.agda.
+  -- We cannot reach the following crash point unless --cubical.
+  __CRASH_WHEN__ "tc.cover.iapply.confluence.crash" 666
   reportSDoc "tc.cover.iapply" 10 $ text "Checking IApply confluence of" <+> pretty f
   inConcreteOrAbstractMode f $ \ d -> do
   case theDef d of
@@ -101,7 +107,7 @@ checkIApplyConfluence f clos = do
                 , namedClausePats = ps
                 , clauseType = Just t
                 , clauseBody = Just body
-                } -> setCurrentRange (clauseLHSRange cl) $ do
+                } -> setCurrentRange (getRange f) $ do
           let
             trhs = unArg t
           ps <- normaliseProjP ps
@@ -111,4 +117,3 @@ checkIApplyConfluence f clos = do
             let es = patternsToElims ps
             let lhs = Def f es
             equalTermOnFace phi trhs lhs body
-

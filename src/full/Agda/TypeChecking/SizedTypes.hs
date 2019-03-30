@@ -7,6 +7,7 @@ import Prelude hiding (null)
 
 import Control.Monad.Writer
 
+import qualified Data.Foldable as Fold
 import qualified Data.List as List
 import qualified Data.Map as Map
 
@@ -27,10 +28,14 @@ import Agda.Utils.Except ( MonadError(catchError, throwError) )
 import Agda.Utils.List as List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
+import Agda.Utils.NonemptyList
 import Agda.Utils.Null
+import Agda.Utils.Pretty (Pretty)
+import Agda.Utils.Singleton
 import Agda.Utils.Size
 import Agda.Utils.Tuple
 
+import qualified Agda.Utils.Pretty as P
 import qualified Agda.Utils.Warshall as W
 
 #include "undefined.h"
@@ -256,12 +261,12 @@ sizeMaxView v = do
   let loop v = do
         v <- reduce v
         case v of
-          Def x []                   | Just x == inf -> return $ [DSizeInf]
+          Def x []                   | Just x == inf -> return $ singleton $ DSizeInf
           Def x [Apply u]            | Just x == suc -> maxViewSuc_ (fromJust suc) <$> loop (unArg u)
           Def x [Apply u1, Apply u2] | Just x == max -> maxViewMax <$> loop (unArg u1) <*> loop (unArg u2)
-          Var i []                      -> return $ [DSizeVar i 0]
-          MetaV x us                    -> return $ [DSizeMeta x us 0]
-          _                             -> return $ [DOtherSize v]
+          Var i []                      -> return $ singleton $ DSizeVar i 0
+          MetaV x us                    -> return $ singleton $ DSizeMeta x us 0
+          _                             -> return $ singleton $ DOtherSize v
   loop v
 
 ------------------------------------------------------------------------
@@ -270,7 +275,7 @@ sizeMaxView v = do
 
 -- | Compare two sizes.
 compareSizes :: Comparison -> Term -> Term -> TCM ()
-compareSizes cmp u v = do
+compareSizes cmp u v = verboseBracket "tc.conv.size" 10 "compareSizes" $ do
   reportSDoc "tc.conv.size" 10 $ vcat
     [ "Comparing sizes"
     , nest 2 $ sep [ prettyTCM u <+> prettyTCM cmp
@@ -281,8 +286,8 @@ compareSizes cmp u v = do
     u <- reduce u
     v <- reduce v
     reportSDoc "tc.conv.size" 60 $
-      nest 2 $ sep [ text (show u) <+> prettyTCM cmp
-                   , text (show v)
+      nest 2 $ sep [ pretty u <+> prettyTCM cmp
+                   , pretty v
                    ]
   us <- sizeMaxView u
   vs <- sizeMaxView v
@@ -291,38 +296,43 @@ compareSizes cmp u v = do
 -- | Compare two sizes in max view.
 compareMaxViews :: Comparison -> SizeMaxView -> SizeMaxView -> TCM ()
 compareMaxViews cmp us vs = case (cmp, us, vs) of
-  (CmpLeq, _, (DSizeInf : _)) -> return ()
-  (cmp,   [u], [v]) -> compareSizeViews cmp u v
-  (CmpLeq, us, [v]) -> forM_ us $ \ u -> compareSizeViews cmp u v
-  (CmpLeq, us, vs)  -> forM_ us $ \ u -> compareBelowMax u vs
-  (CmpEq,  us, vs)  -> compareMaxViews CmpLeq us vs >> compareMaxViews CmpLeq vs us
+  (CmpLeq, _, (DSizeInf :! _)) -> return ()
+  (cmp, u:![], v:![]) -> compareSizeViews cmp u v
+  (CmpLeq, us, v:![]) -> Fold.forM_ us $ \ u -> compareSizeViews cmp u v
+  (CmpLeq, us, vs)    -> Fold.forM_ us $ \ u -> compareBelowMax u vs
+  (CmpEq,  us, vs)    -> do
+    compareMaxViews CmpLeq us vs
+    compareMaxViews CmpLeq vs us
 
 -- | @compareBelowMax u vs@ checks @u <= max vs@.  Precondition: @size vs >= 2@
 compareBelowMax :: DeepSizeView -> SizeMaxView -> TCM ()
-compareBelowMax u vs = do
-  reportSDoc "tc.conv.size" 45 $ vcat
-    [ "compareBelowMax"
+compareBelowMax u vs = verboseBracket "tc.conv.size" 45 "compareBelowMax" $ do
+  reportSDoc "tc.conv.size" 45 $ sep
+    [ pretty u
+    , pretty CmpLeq
+    , pretty vs
     ]
-  alt (dontAssignMetas $ alts $ map (compareSizeViews CmpLeq u) vs) $ do
+  -- When trying several alternatives, we do not assign metas
+  -- and also do not produce constraints (see 'giveUp' below).
+  -- Andreas, 2019-03-28, issue #3600.
+  alt (dontAssignMetas $ Fold.foldr1 alt $ fmap (compareSizeViews CmpLeq u) vs) $ do
     reportSDoc "tc.conv.size" 45 $ vcat
       [ "compareBelowMax: giving up"
       ]
     u <- unDeepSizeView u
     v <- unMaxView vs
     size <- sizeType
-    addConstraint $ ValueCmp CmpLeq size u v
-  where alt  c1 c2 = c1 `catchError` const c2
-        alts []     = __IMPOSSIBLE__
-        alts [c]    = c
-        alts (c:cs) = c `alt` alts cs
+    giveUp CmpLeq size u v
+  where
+  alt c1 c2 = c1 `catchError` const c2
 
 compareSizeViews :: Comparison -> DeepSizeView -> DeepSizeView -> TCM ()
 compareSizeViews cmp s1' s2' = do
   reportSDoc "tc.conv.size" 45 $ hsep
     [ "compareSizeViews"
-    , text (show s1')
-    , text (show cmp)
-    , text (show s2')
+    , pretty s1'
+    , pretty cmp
+    , pretty s2'
     ]
   size <- sizeType
   let (s1, s2) = removeSucs (s1', s2')
@@ -352,8 +362,16 @@ compareSizeViews cmp s1' s2' = do
               compareSizes cmp u'' v
              else compareSizes cmp u' =<< sizeSuc 1 v
     (CmpLeq, s1,        s2)         -> withUnView $ \ u v -> do
-      unlessM (trivial u v) $ addConstraint $ ValueCmp CmpLeq size u v
+      unlessM (trivial u v) $ giveUp CmpLeq size u v
     (CmpEq, s1, s2) -> continue cmp
+
+-- | If 'envAssignMetas' then postpone as constraint, otherwise, fail hard.
+--   Failing is required if we speculatively test several alternatives.
+giveUp :: Comparison -> Type -> Term -> Term -> TCM ()
+giveUp cmp size u v =
+  ifM (asksTC envAssignMetas)
+    {-then-} (addConstraint $ ValueCmp CmpLeq size u v)
+    {-else-} (typeError $ UnequalTerms cmp u v size)
 
 -- | Checked whether a size constraint is trivial (like @X <= X+1@).
 trivial :: Term -> Term -> TCM Bool
@@ -365,8 +383,8 @@ trivial u v = do
           -- test/lib-succeed/SizeInconsistentMeta4.agda
     reportSDoc "tc.conv.size" 60 $
       nest 2 $ sep [ if triv then "trivial constraint" else empty
-                   , text (show a) <+> "<="
-                   , text (show b)
+                   , pretty a <+> "<="
+                   , pretty b
                    ]
     return triv
   `catchError` \_ -> return False
@@ -464,23 +482,24 @@ getSizeMetas = do
 data OldSizeExpr
   = SizeMeta MetaId [Int] -- ^ A size meta applied to de Bruijn indices.
   | Rigid Int             -- ^ A de Bruijn index.
-  deriving (Eq)
+  deriving (Eq, Show)
 
-instance Show OldSizeExpr where
-  show (SizeMeta m _) = "X" ++ show (fromIntegral m :: Int)
-  show (Rigid i)      = "c" ++ show i
+instance Pretty OldSizeExpr where
+  pretty (SizeMeta m _) = P.text $ "X" ++ show (fromIntegral m :: Int)
+  pretty (Rigid i)      = P.text $ "c" ++ show i
 
 -- | Size constraints we can solve.
 data OldSizeConstraint
   = Leq OldSizeExpr Int OldSizeExpr
     -- ^ @Leq a +n b@ represents @a =< b + n@.
     --   @Leq a -n b@ represents @a + n =< b@.
+  deriving (Show)
 
-instance Show OldSizeConstraint where
-  show (Leq a n b)
-    | n == 0    = show a ++ " =< " ++ show b
-    | n > 0     = show a ++ " =< " ++ show b ++ " + " ++ show n
-    | otherwise = show a ++ " + " ++ show (-n) ++ " =< " ++ show b
+instance Pretty OldSizeConstraint where
+  pretty (Leq a n b)
+    | n == 0    = P.pretty a P.<+> "=<" P.<+> P.pretty b
+    | n > 0     = P.pretty a P.<+> "=<" P.<+> P.pretty b P.<+> "+" P.<+> P.text (show n)
+    | otherwise = P.pretty a P.<+> "+" P.<+> P.text (show (-n)) P.<+> "=<" P.<+> P.pretty b
 
 -- | Compute a set of size constraints that all live in the same context
 --   from constraints over terms of type size that may live in different

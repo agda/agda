@@ -1,5 +1,5 @@
 Issue690.agda:14,1-15,42
 D is not strictly positive, because it occurs
-in the second argument to _≡_
+in the second argument of _≡_
 in the type of the constructor abs
 in the definition of D.

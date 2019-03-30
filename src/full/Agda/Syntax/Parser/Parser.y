@@ -152,18 +152,8 @@ import Agda.Utils.Impossible
 
     'BUILTIN'                 { TokKeyword KwBUILTIN $$ }
     'CATCHALL'                { TokKeyword KwCATCHALL $$ }
-    'COMPILED'                { TokKeyword KwCOMPILED $$ }
-    'COMPILED_DATA'           { TokKeyword KwCOMPILED_DATA $$ }
-    'COMPILED_DATA_UHC'       { TokKeyword KwCOMPILED_DATA_UHC $$ }
-    'COMPILED_EXPORT'         { TokKeyword KwCOMPILED_EXPORT $$ }
-    'COMPILED_JS'             { TokKeyword KwCOMPILED_JS $$ }
-    'COMPILED_TYPE'           { TokKeyword KwCOMPILED_TYPE $$ }
-    'COMPILED_UHC'            { TokKeyword KwCOMPILED_UHC $$ }
     'DISPLAY'                 { TokKeyword KwDISPLAY $$ }
     'ETA'                     { TokKeyword KwETA $$ }
-    'HASKELL'                 { TokKeyword KwHASKELL $$ }
-    'IMPORT'                  { TokKeyword KwIMPORT $$ }
-    'IMPORT_UHC'              { TokKeyword KwIMPORT_UHC $$ }
     'FOREIGN'                 { TokKeyword KwFOREIGN $$ }
     'COMPILE'                 { TokKeyword KwCOMPILE $$ }
     'IMPOSSIBLE'              { TokKeyword KwIMPOSSIBLE $$ }
@@ -290,18 +280,8 @@ Token
 
     | 'BUILTIN'                 { TokKeyword KwBUILTIN $1 }
     | 'CATCHALL'                { TokKeyword KwCATCHALL $1 }
-    | 'COMPILED'                { TokKeyword KwCOMPILED $1 }
-    | 'COMPILED_DATA'           { TokKeyword KwCOMPILED_DATA $1 }
-    | 'COMPILED_DATA_UHC'       { TokKeyword KwCOMPILED_DATA_UHC $1 }
-    | 'COMPILED_EXPORT'         { TokKeyword KwCOMPILED_EXPORT $1 }
-    | 'COMPILED_JS'             { TokKeyword KwCOMPILED_JS $1 }
-    | 'COMPILED_TYPE'           { TokKeyword KwCOMPILED_TYPE $1 }
-    | 'COMPILED_UHC'            { TokKeyword KwCOMPILED_UHC $1 }
     | 'DISPLAY'                 { TokKeyword KwDISPLAY $1 }
     | 'ETA'                     { TokKeyword KwETA $1 }
-    | 'HASKELL'                 { TokKeyword KwHASKELL $1 }
-    | 'IMPORT'                  { TokKeyword KwIMPORT $1 }
-    | 'IMPORT_UHC'              { TokKeyword KwIMPORT_UHC $1 }
     | 'FOREIGN'                 { TokKeyword KwFOREIGN $1 }
     | 'COMPILE'                 { TokKeyword KwCOMPILE $1 }
     | 'IMPOSSIBLE'              { TokKeyword KwIMPOSSIBLE $1 }
@@ -1526,22 +1506,12 @@ DeclarationPragma :: { Pragma }
 DeclarationPragma
   : BuiltinPragma            { $1 }
   | RewritePragma            { $1 }
-  | CompiledPragma           { $1 }
-  | CompiledExportPragma     { $1 }
-  | CompiledDataPragma       { $1 }
-  | CompiledTypePragma       { $1 }
-  | CompiledJSPragma         { $1 }
-  | CompiledUHCPragma        { $1 }
-  | CompiledDataUHCPragma    { $1 }
-  | HaskellPragma            { $1 }
   | CompilePragma            { $1 }
   | ForeignPragma            { $1 }
   | StaticPragma             { $1 }
   | InjectivePragma          { $1 }
   | InlinePragma             { $1 }
   | NoInlinePragma           { $1 }
-  | ImportPragma             { $1 }
-  | ImportUHCPragma          { $1 }
   | ImpossiblePragma         { $1 }
   | TerminatingPragma        { $1 }
   | NonTerminatingPragma     { $1 }
@@ -1574,45 +1544,6 @@ RewritePragma :: { Pragma }
 RewritePragma
     : '{-#' 'REWRITE' PragmaQNames '#-}'
       { RewritePragma (getRange ($1,$2,$3,$4)) $3 }
-
-CompiledPragma :: { Pragma }
-CompiledPragma
-  : '{-#' 'COMPILED' PragmaQName PragmaStrings '#-}'
-    { CompiledPragma (getRange ($1,$2,$3,$5)) $3 (unwords $4) }
-
-CompiledExportPragma :: { Pragma }
-CompiledExportPragma
-  : '{-#' 'COMPILED_EXPORT' PragmaQName PragmaString '#-}'
-    { CompiledExportPragma (getRange ($1,$2,$3,$5)) $3 $4 }
-
-CompiledTypePragma :: { Pragma }
-CompiledTypePragma
-  : '{-#' 'COMPILED_TYPE' PragmaQName PragmaStrings '#-}'
-    { CompiledTypePragma (getRange ($1,$2,$3,$5)) $3 (unwords $4) }
-
-CompiledDataPragma :: { Pragma }
-CompiledDataPragma
-  : '{-#' 'COMPILED_DATA' PragmaQName string PragmaStrings '#-}'
-    { CompiledDataPragma (getRange ($1,$2,$3,fst $4,$6)) $3 (snd $4) $5 }
-
-CompiledJSPragma :: { Pragma }
-CompiledJSPragma
-  : '{-#' 'COMPILED_JS' PragmaQName PragmaStrings '#-}'
-    { CompiledJSPragma (getRange ($1,$2,$3,$5)) $3 (unwords $4) }
-
-CompiledUHCPragma :: { Pragma }
-CompiledUHCPragma
-  : '{-#' 'COMPILED_UHC' PragmaQName PragmaStrings '#-}'
-    { CompiledUHCPragma (getRange ($1,$2,$3,$5)) $3 (unwords $4) }
-
-CompiledDataUHCPragma :: { Pragma }
-CompiledDataUHCPragma
-  : '{-#' 'COMPILED_DATA_UHC' PragmaQName string PragmaStrings '#-}'
-    { CompiledDataUHCPragma (getRange ($1,$2,$3,fst $4,$6)) $3 (snd $4) $5 }
-
-HaskellPragma :: { Pragma }
-HaskellPragma
-  : '{-#' 'HASKELL' ForeignCode '#-}' { HaskellCodePragma (getRange ($1, $2, $4)) (recoverLayout $3) }
 
 ForeignPragma :: { Pragma }
 ForeignPragma
@@ -1679,25 +1610,6 @@ CatchallPragma :: { Pragma }
 CatchallPragma
   : '{-#' 'CATCHALL' '#-}'
     { CatchallPragma (getRange ($1,$2,$3)) }
-
-
-ImportPragma :: { Pragma }
-ImportPragma
-  : '{-#' 'IMPORT' string '#-}'
-    {% let s = snd $3 in
-       if validHaskellModuleName s
-       then return $ ImportPragma (getRange ($1,$2,fst $3,$4)) s
-       else parseError $ "Malformed module name: " ++ s ++ "."
-    }
-
-ImportUHCPragma :: { Pragma }
-ImportUHCPragma
-  : '{-#' 'IMPORT_UHC' string '#-}'
-    {% let s = snd $3 in
-       if validHaskellModuleName s
-       then return $ ImportUHCPragma (getRange ($1,$2,fst $3,$4)) s
-       else parseError $ "Malformed module name: " ++ s ++ "."
-    }
 
 
 ImpossiblePragma :: { Pragma }

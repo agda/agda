@@ -75,7 +75,7 @@ buildHook' pd lbi hooks flags = do
     removeFile fullpathi `catch` handleExists
 
     putStrLn $ "... " ++ fullpath
-    ok <- rawSystem' ddir agda [ fullpath, "-v0" ]
+    ok <- rawSystem' ddir agda [ "--no-libraries", fullpath, "-v0" ]
     case ok of
       ExitSuccess   -> return ()
       ExitFailure _ -> die $ "Error: Failed to typecheck " ++ fullpath ++ "!"

@@ -45,6 +45,7 @@ import Agda.Interaction.Options
 
 import Agda.Utils.Except
 import Agda.Utils.List
+import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import qualified Agda.Utils.Pretty as P
 import Agda.Utils.Size
@@ -526,7 +527,9 @@ defineCompData d con params names fsT t boundary = do
             }
         cs = [clause]
       addClauses theName cs
-      setCompiledClauses theName =<< inTopContext (compileClauses Nothing cs)
+      (mst, cc) <- inTopContext (compileClauses Nothing cs)
+      whenJust mst $ setSplitTree theName
+      setCompiledClauses theName cc
       setTerminates theName True
       return $ Just theName
 
@@ -585,11 +588,12 @@ defineProjections dataname con params names fsT t = do
 
     noMutualBlock $ do
       let cs = [clause]
-      cc <- inTopContext $ compileClauses Nothing cs
+      (mst , cc) <- inTopContext $ compileClauses Nothing cs
       let fun = emptyFunction
                 { funClauses = cs
                 , funTerminates = Just True
                 , funCompiled = Just cc
+                , funSplitTree = mst
                 , funMutual = Just []
                 }
       addConstant projName $

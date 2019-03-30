@@ -19,7 +19,11 @@ import Data.List.Categorical
 open import Data.Product as Prod hiding (swap)
 open import Data.Product.Function.NonDependent.Propositional
   using (_×-cong_)
+open import Data.Product.Relation.Binary.Pointwise.NonDependent
+import Data.Product.Function.Dependent.Propositional as Σ
 open import Data.Sum as Sum using (_⊎_; inj₁; inj₂; [_,_]′)
+open import Data.Sum.Relation.Pointwise
+open import Data.Sum.Function.Propositional using (_⊎-cong_)
 open import Function
 open import Function.Equality using (_⟨$⟩_)
 open import Function.Equivalence as Eq using (_⇔_; module Equivalence)
@@ -29,16 +33,12 @@ open import Function.Related.TypeIsomorphisms
 open import Level
 open import Relation.Binary
 import Relation.Binary.HeterogeneousEquality as H
-open import Relation.Binary.Product.Pointwise
 open import Relation.Binary.PropositionalEquality as P
   using (_≡_; refl; inspect) renaming ([_] to P[_])
 open import Relation.Unary using (_⟨×⟩_; _⟨→⟩_) renaming (_⊆_ to _⋐_)
-import Data.Product.Function.Dependent.Propositional as Σ
-open import Data.Sum.Relation.Pointwise
-open import Data.Sum.Function.Propositional using (_⊎-cong_)
 
 open import Data.List.Membership.Propositional
-open import Data.List.Relation.BagAndSetEquality
+open import Data.List.Relation.Binary.BagAndSetEquality
 open Related.EquationalReasoning
 
 private

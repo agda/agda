@@ -336,34 +336,6 @@ addForeignCode backend code = do
   modifyTCLens (stForeignCode . key backend) $ Just . (ForeignCode r code :) . fromMaybe []
 
 ---------------------------------------------------------------------------
--- * Temporary: Haskell imports
---   These will go away when we remove the IMPORT and HASKELL pragmas in
---   favour of the FOREIGN pragma.
----------------------------------------------------------------------------
-
-addDeprecatedForeignCode :: String -> BackendName -> String -> TCM ()
-addDeprecatedForeignCode old backend code = do
-  warning $ DeprecationWarning (unwords ["The", old, "pragma"])
-                               foreignPragma "2.6"
-  addForeignCode backend code
-  where
-    spc | length (lines code) > 1 = "\n"
-        | otherwise               = " "
-    foreignPragma =
-      "{-# FOREIGN " ++ backend ++ spc ++ code ++ spc ++ "#-}"
-
--- | Tell the compiler to import the given Haskell module.
-addHaskellImport :: String -> TCM ()
-addHaskellImport i = addDeprecatedForeignCode "IMPORT" ghcBackendName $ "import qualified " ++ i
-
--- | Tell the compiler to import the given Haskell module.
-addHaskellImportUHC :: String -> TCM ()
-addHaskellImportUHC i = addDeprecatedForeignCode "IMPORT_UHC" ghcBackendName $ "__IMPORT__ " ++ i
-
-addInlineHaskell :: String -> TCM ()
-addInlineHaskell s = addDeprecatedForeignCode "HASKELL" ghcBackendName s
-
----------------------------------------------------------------------------
 -- * Interaction output callback
 ---------------------------------------------------------------------------
 

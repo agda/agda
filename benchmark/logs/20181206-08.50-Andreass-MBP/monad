@@ -1,0 +1,17 @@
+Accumulated statistics
+attempted-constraints  8
+max-open-constraints   1
+max-open-metas         8
+metas                 25
+
+/Users/abel/agda/benchmark/monad/Monad.agda:61,8-42
+Failed to find source of module Relation.Binary.Construct.On in any
+of the following locations:
+  /Users/abel/agda/benchmark/monad/Relation/Binary/Construct/On.agda
+  /Users/abel/agda/benchmark/monad/Relation/Binary/Construct/On.lagda
+  /Users/abel/agda/benchmark/../std-lib/src/Relation/Binary/Construct/On.agda
+  /Users/abel/agda/benchmark/../std-lib/src/Relation/Binary/Construct/On.lagda
+  /Users/abel/.cabal/share/x86_64-osx-ghc-8.4.4/Agda-2.6.0/lib/prim/Relation/Binary/Construct/On.agda
+  /Users/abel/.cabal/share/x86_64-osx-ghc-8.4.4/Agda-2.6.0/lib/prim/Relation/Binary/Construct/On.lagda
+when scope checking the declaration
+  import Relation.Binary.Construct.On as On
