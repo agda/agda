@@ -877,3 +877,6 @@ test-suite agda-tests
     ghc-options: -Wcpp-undef
                  -Wsimplifiable-class-constraints
                  -Wunbanged-strict-patterns
+
+  if impl(ghc >= 8.6)
+    ghc-options: -Winaccessible-code
