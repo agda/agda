@@ -44,6 +44,7 @@ import Agda.Utils.Functor
 import Agda.Utils.Impossible
 import Agda.Utils.Lens
 import Agda.Utils.Maybe
+import Agda.Utils.Monad
 import Agda.Utils.Size
 import Agda.Utils.Permutation
 import qualified Agda.Utils.Graph.TopSort as Graph
@@ -225,7 +226,12 @@ computeGeneralization genRecMeta nameMap allmetas = postponeInstanceConstraints 
   -- Solve the generalizable metas. Each generalizable meta is solved by projecting the
   -- corresponding field from the genTel record.
   cxtTel <- getContextTelescope
-  let solve m field = assignTerm' m (telToArgs cxtTel) $ Var 0 [Proj ProjSystem field]
+  let solve m field = do
+        -- m should not be instantiated, but if we don't check constraints
+        -- properly it could be (#3666 and #3667). Fail hard instead of
+        -- generating bogus types.
+        whenM (isInstantiatedMeta m) __IMPOSSIBLE__
+        assignTerm' m (telToArgs cxtTel) $ Var 0 [Proj ProjSystem field]
   zipWithM_ solve sortedMetas genRecFields
 
   -- Record the named variables in the telescope
