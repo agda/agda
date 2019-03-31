@@ -187,6 +187,23 @@ allMetas = foldTerm metas
   levelAtomMetas (MetaLevel m _) = [m]
   levelAtomMetas _               = []
 
+-- | Returns all metavariables in a constraint. Slightly complicated by the
+--   fact that blocked terms are represented by two meta variables. To find the
+--   second one we need to look up the meta listeners for the one in the
+--   UnBlock constraint.
+constraintMetas :: Constraint -> TCM (Set MetaId)
+constraintMetas c = Set.union (Set.fromList $ allMetas c) <$> metas c
+  where
+    -- Dig out constraint-specific meta vars
+    metas (UnBlock x)                    = Set.insert x . Set.unions <$> (mapM listenerMetas =<< getMetaListeners x)
+    metas (Guarded c _)                  = metas c
+    metas (UnquoteTactic (Just x) _ _ _) = return $ Set.singleton x
+    metas _                              = return Set.empty
+
+    -- For blocked constant twin variables
+    listenerMetas EtaExpand{}           = return Set.empty
+    listenerMetas (CheckConstraint _ c) = constraintMetas (clValue $ theConstraint c)
+
 -- | Create 'MetaInfo' in the current environment.
 createMetaInfo :: TCM MetaInfo
 createMetaInfo = createMetaInfo' RunMetaOccursCheck

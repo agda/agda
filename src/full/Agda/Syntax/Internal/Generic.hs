@@ -65,6 +65,7 @@ instance TermLike a => TermLike [a]         where
 instance TermLike a => TermLike (Maybe a)   where
 instance TermLike a => TermLike (Abs a)     where
 instance TermLike a => TermLike (Blocked a) where
+instance TermLike a => TermLike (Tele a)    where
 
 -- Tuples
 

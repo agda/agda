@@ -44,6 +44,7 @@ import Agda.Utils.Functor
 import Agda.Utils.Impossible
 import Agda.Utils.Lens
 import Agda.Utils.Maybe
+import Agda.Utils.Monad
 import Agda.Utils.Size
 import Agda.Utils.Permutation
 import qualified Agda.Utils.Graph.TopSort as Graph
@@ -150,15 +151,25 @@ computeGeneralization genRecMeta nameMap allmetas = postponeInstanceConstraints 
   -- Pair metas with their metaInfo
   mvs <- mapM ((\ x -> (x,) <$> lookupMeta x) . MetaId) $ IntSet.toList allmetas
 
-  let isGeneralizable (_, mv) = YesGeneralize == unArg (miGeneralizable (mvInfo mv))
+  constrainedMetas <- Set.unions <.> mapM (constraintMetas . clValue . theConstraint) =<<
+                        ((++) <$> useTC stAwakeConstraints
+                              <*> useTC stSleepingConstraints)
+
+  let isConstrained x = Set.member x constrainedMetas
+      -- Note: Always generalize named metas even if they are constrained. We
+      -- freeze them so they won't be instantiated by the constraint, and we do
+      -- want the nice error from checking the constraint after generalization.
+      -- See #3276.
+      isGeneralizable (x, mv) = Map.member x nameMap ||
+                                not (isConstrained x) && YesGeneralize == unArg (miGeneralizable (mvInfo mv))
       isSort = isSortMeta_ . snd
       isOpen = isOpenMeta . mvInstantiation . snd
 
   -- Split the generalizable metas in open and closed
-  let (generalizable, nongeneralizable) = partition isGeneralizable mvs
+  let (generalizable, nongeneralizable)         = partition isGeneralizable mvs
       (generalizableOpen', generalizableClosed) = partition isOpen generalizable
-      (openSortMetas, generalizableOpen) = partition isSort generalizableOpen'
-      nongeneralizableOpen = filter isOpen nongeneralizable
+      (openSortMetas, generalizableOpen)        = partition isSort generalizableOpen'
+      nongeneralizableOpen                      = filter isOpen nongeneralizable
 
   -- Issue 3301: We can't generalize over sorts
   case openSortMetas of
@@ -167,7 +178,8 @@ computeGeneralization genRecMeta nameMap allmetas = postponeInstanceConstraints 
 
   -- Any meta in the solution of a generalizable meta should be generalized over (if possible).
   cp <- viewTC eCurrentCheckpoint
-  let canGeneralize x = do
+  let canGeneralize x | isConstrained x = return False
+      canGeneralize x = do
           mv   <- lookupMeta x
           msub <- enterClosure (miClosRange $ mvInfo mv) $ \ _ ->
                     checkpointSubstitution' cp
@@ -225,7 +237,12 @@ computeGeneralization genRecMeta nameMap allmetas = postponeInstanceConstraints 
   -- Solve the generalizable metas. Each generalizable meta is solved by projecting the
   -- corresponding field from the genTel record.
   cxtTel <- getContextTelescope
-  let solve m field = assignTerm' m (telToArgs cxtTel) $ Var 0 [Proj ProjSystem field]
+  let solve m field = do
+        -- m should not be instantiated, but if we don't check constraints
+        -- properly it could be (#3666 and #3667). Fail hard instead of
+        -- generating bogus types.
+        whenM (isInstantiatedMeta m) __IMPOSSIBLE__
+        assignTerm' m (telToArgs cxtTel) $ Var 0 [Proj ProjSystem field]
   zipWithM_ solve sortedMetas genRecFields
 
   -- Record the named variables in the telescope
@@ -593,3 +610,4 @@ fillInGenRecordDetails name con fields recTy fieldTel = do
     r { theDef = (theDef r) { recTel = fullTel } }
   where
     setType q ty = modifyGlobalDefinition q $ \ d -> d { defType = ty }
+

@@ -1,8 +1,9 @@
 Failed to solve the following constraints:
-  [11] v.T v.i =< _T_22 _i_23 : Set
+  [11] _v.T_22 _v.i_23 =< _T_24 _i_25 : Set
   _20 := λ {I} genTel → v [blocked on problem 11]
 Unsolved metas at the following locations:
   Issue3401.agda:12,7-8
+  Issue3401.agda:12,5-8
   Issue3401.agda:12,5-6
 Unsolved interaction metas at the following locations:
   Issue3401.agda:13,5-9
