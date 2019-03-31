@@ -2,9 +2,20 @@
 
 module Internal.TypeChecking.SizedTypes ( tests ) where
 
-import Agda.TypeChecking.SizedTypes.Syntax
+import Agda.TypeChecking.SizedTypes.Syntax ( Cmp(Le, Lt), Offset )
+
 import Agda.TypeChecking.SizedTypes.WarshallSolver
+  ( Label(Label,LInf)
+  , Weight(Offset)
+  , toWeight
+  )
+
 import Agda.TypeChecking.SizedTypes.Utils
+  ( Dioid(compose, unitCompose)
+  , MeetSemiLattice(meet)
+  , Plus(plus)
+  , Top(top)
+  )
 
 import Internal.Helpers
 import Internal.TypeChecking.SizedTypes.WarshallSolver ()
