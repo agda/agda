@@ -1,5 +1,5 @@
 name:            Agda
-version:         2.5.4.2.20190310
+version:         2.5.4.2.20190330
 cabal-version:   >= 1.10
 build-type:      Custom
 license:         OtherLicense
@@ -94,7 +94,7 @@ source-repository head
 source-repository this
   type:     git
   location: https://github.com/agda/agda.git
-  tag:      v2.5.4.2.20190310
+  tag:      v2.5.4.2.20190330
 
 flag cpphs
   default:     False
