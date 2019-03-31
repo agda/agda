@@ -151,15 +151,25 @@ computeGeneralization genRecMeta nameMap allmetas = postponeInstanceConstraints 
   -- Pair metas with their metaInfo
   mvs <- mapM ((\ x -> (x,) <$> lookupMeta x) . MetaId) $ IntSet.toList allmetas
 
-  let isGeneralizable (_, mv) = YesGeneralize == unArg (miGeneralizable (mvInfo mv))
+  constrainedMetas <- Set.unions <.> mapM (constraintMetas . clValue . theConstraint) =<<
+                        ((++) <$> useTC stAwakeConstraints
+                              <*> useTC stSleepingConstraints)
+
+  let isConstrained x = Set.member x constrainedMetas
+      -- Note: Always generalize named metas even if they are constrained. We
+      -- freeze them so they won't be instantiated by the constraint, and we do
+      -- want the nice error from checking the constraint after generalization.
+      -- See #3276.
+      isGeneralizable (x, mv) = Map.member x nameMap ||
+                                not (isConstrained x) && YesGeneralize == unArg (miGeneralizable (mvInfo mv))
       isSort = isSortMeta_ . snd
       isOpen = isOpenMeta . mvInstantiation . snd
 
   -- Split the generalizable metas in open and closed
-  let (generalizable, nongeneralizable) = partition isGeneralizable mvs
+  let (generalizable, nongeneralizable)         = partition isGeneralizable mvs
       (generalizableOpen', generalizableClosed) = partition isOpen generalizable
-      (openSortMetas, generalizableOpen) = partition isSort generalizableOpen'
-      nongeneralizableOpen = filter isOpen nongeneralizable
+      (openSortMetas, generalizableOpen)        = partition isSort generalizableOpen'
+      nongeneralizableOpen                      = filter isOpen nongeneralizable
 
   -- Issue 3301: We can't generalize over sorts
   case openSortMetas of
@@ -168,7 +178,8 @@ computeGeneralization genRecMeta nameMap allmetas = postponeInstanceConstraints 
 
   -- Any meta in the solution of a generalizable meta should be generalized over (if possible).
   cp <- viewTC eCurrentCheckpoint
-  let canGeneralize x = do
+  let canGeneralize x | isConstrained x = return False
+      canGeneralize x = do
           mv   <- lookupMeta x
           msub <- enterClosure (miClosRange $ mvInfo mv) $ \ _ ->
                     checkpointSubstitution' cp
@@ -599,3 +610,4 @@ fillInGenRecordDetails name con fields recTy fieldTel = do
     r { theDef = (theDef r) { recTel = fullTel } }
   where
     setType q ty = modifyGlobalDefinition q $ \ d -> d { defType = ty }
+
