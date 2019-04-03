@@ -1,0 +1,8 @@
+(agda2-status-action "")
+(agda2-info-action "*Type-checking*" "" nil)
+(agda2-highlight-clear)
+(agda2-status-action "")
+(agda2-info-action "*All Goals*" "?0 : B x ?1 : B x ?2 : B x₁ → B x₂ → A " nil)
+((last . 1) . (agda2-goals-action '(0 1 2)))
+(agda2-status-action "")
+(agda2-info-action "*Context*" "x₁ : A (not in scope) x₂ : A (not in scope)" nil)
