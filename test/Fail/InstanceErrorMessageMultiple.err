@@ -1,4 +1,4 @@
-InstanceErrorMessageMultiple.agda:32,16-17
+InstanceErrorMessageMultiple.agda:32,22-26
 No instance of type Semiring Nat was found in scope.
 - ringNat′ was ruled out because
   InstanceErrorMessageMultiple.agda:32,22-26

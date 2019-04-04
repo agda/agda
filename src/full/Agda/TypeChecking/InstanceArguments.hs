@@ -19,10 +19,12 @@ import qualified Data.IntSet as IntSet
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.List as List
+import Data.Function (on)
 
 import Agda.Interaction.Options (optOverlappingInstances)
 
 import Agda.Syntax.Common
+import Agda.Syntax.Position
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Scope.Base (isNameInScope)
 
@@ -254,7 +256,14 @@ findInstance' m cands = ifM (isFrozen m) (do
         Just (errs, []) -> do
           if null errs then reportSDoc "tc.instance" 15 $ "findInstance 5: no viable candidate found..."
                        else reportSDoc "tc.instance" 15 $ "findInstance 5: all viable candidates failed..."
-          typeError $ InstanceNoCandidate t [ (candidateTerm c, err) | (c, err) <- errs ]
+          -- #3676: Sort the candidates based on the size of the range for the errors and
+          --        set the range of the full error to the range of the most precise candidate
+          --        error.
+          let sortedErrs = List.sortBy (compare `on` precision) errs
+                where precision (_, err) = maybe infinity iLength $ rangeToInterval $ getRange err
+                      infinity = 1000000000
+          setCurrentRange (take 1 $ map snd sortedErrs) $
+            typeError $ InstanceNoCandidate t [ (candidateTerm c, err) | (c, err) <- sortedErrs ]
 
         Just (_, [Candidate term t' _]) -> do
           reportSDoc "tc.instance" 15 $ vcat
