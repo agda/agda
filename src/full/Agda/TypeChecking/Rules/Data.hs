@@ -1112,8 +1112,9 @@ constructs nofPars nofExtraVars t q = constrT nofExtraVars t
                   let t' = El (raise n $ dataSort $ theDef def) $ Def q $ map Apply $ us ++ xs
                   -- Andreas, 2017-11-07, issue #2840
                   -- We should not postpone here, otherwise we might upset the positivity checker.
-                  noConstraints $ equalType t t'
-                  constrT n t'
+                  ifM (tryConversion $ equalType t t')
+                      (constrT n t')
+                      (typeError $ ShouldEndInApplicationOfTheDatatype t)
                 _ -> typeError $ ShouldEndInApplicationOfTheDatatype t
 
         checkParams n vs = zipWithM_ sameVar vs ps
