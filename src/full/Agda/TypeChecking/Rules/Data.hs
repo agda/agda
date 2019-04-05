@@ -1087,11 +1087,10 @@ constructs nofPars nofExtraVars t q = constrT nofExtraVars t
                 Pi a b            -> underAbstraction a b $ constrT (n + 1)
                   -- OR: addCxtString (absName b) a $ constrT (n + 1) (absBody b)
                 _ | Left ((a,b),_) <- pathV t -> do
-                      case b of
-                        NoAbs _ b -> constrT n b
-                        b         -> do
-                          _ <- underAbstraction a b $ constrT (n + 1)
-                          return PathCons
+                      _ <- case b of
+                             NoAbs _ b -> constrT n b
+                             b         -> underAbstraction a b $ constrT (n + 1)
+                      return PathCons
                 Def d es | d == q -> do
                   let vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
                   (pars, ixs) <- normalise $ splitAt nofPars vs
