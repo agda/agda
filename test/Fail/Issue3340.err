@@ -6,5 +6,5 @@ Failed to solve the following constraints:
   _45 := λ genTel → f y [blocked on problem 22]
 Unsolved metas at the following locations:
   Issue3340.agda:12,22-25
-  Issue3340.agda:12,8-25
+  Issue3340.agda:12,16-17
   Issue3340.agda:13,13-17

@@ -29,6 +29,7 @@ import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Abstract
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Conversion
+import Agda.TypeChecking.Free
 import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.InstanceArguments (postponeInstanceConstraints)
 import Agda.TypeChecking.MetaVars
@@ -291,14 +292,80 @@ pruneUnsolvedMetas genRecName genRecCon genTel genRecFields interactionPoints is
   | otherwise               = prune [] genTel metas
   where
     prune _ _ [] = return ()
-    prune cxt tel (m : ms) | not (isGeneralized m) = do
-      pruneMeta (telFromList $ reverse cxt) m
-      prune cxt tel ms
-    prune cxt (ExtendTel a tel) (m : ms) = prune (fmap (x,) a : cxt) (unAbs tel) ms
+    prune cxt tel (x : xs) | not (isGeneralized x) = do
+      -- If x is a blocked term we shouldn't instantiate it.
+      whenM (not <$> isBlockedTerm x) $ do
+        x <- if size tel > 0 then prePrune x
+                             else return x
+        pruneMeta (telFromList $ reverse cxt) x
+      prune cxt tel xs
+    prune cxt (ExtendTel a tel) (x : xs) = prune (fmap (x,) a : cxt) (unAbs tel) xs
       where x = absName tel
     prune _ _ _ = __IMPOSSIBLE__
 
     sub = unpackSub genRecCon $ map getArgInfo $ telToList genTel
+
+    prepruneError :: String -> TCM a
+    prepruneError code = do
+      let msg = "Congratulations! You have found an easter egg (#" ++ code ++ "). " ++
+                "Be the first to submit a self-contained test case (max 50 lines of code) " ++
+                "producing this error message to https://github.com/agda/agda/issues/3672 " ++
+                "to receive a small prize."
+      genericDocError =<< fwords msg
+
+    -- If one of the fields depend on this meta, we have to make sure that this meta doesn't depend
+    -- on any variables introduced after the genRec. See test/Fail/Issue3672b.agda for a test case.
+    prePrune x = do
+      cp <- viewTC eCurrentCheckpoint
+      mv <- lookupMeta x
+      (i, _A) <- enterClosure (miClosRange $ mvInfo mv) $ \ _ -> do
+        δ <- checkpointSubstitution cp
+        _A <- case mvJudgement mv of
+                IsSort{}  -> return Nothing
+                HasType{} -> Just <$> getMetaTypeInContext x
+        case δ of
+          Wk n IdS -> return (n, _A)
+          IdS      -> return (0, _A)
+          _        -> prepruneError "RFCX"
+      if i == 0 then return x else do
+        reportSDoc "tc.generalize.prune.pre" 40 $ vcat
+          [ "prepruning"
+          , nest 2 $ pretty x <+> ":" <+> pretty (jMetaType $ mvJudgement mv)
+          , nest 2 $ "|Δ| =" <+> pshow i ]
+
+        -- We have
+        --   Γ (r : GenRec)            current context
+        --   Γ (r : GenRec) Δ ⊢ x : A  with |Δ| = i
+        -- and we need to get rid of the dependency on Δ.
+
+        -- We can only do this if A does not depend on Δ, so check this first.
+        case IntSet.minView (allFreeVars _A) of
+          Just (j, _) | j < i -> prepruneError "FVTY"
+          _                   -> return ()
+
+        -- If it doesn't we can strenghten it to the current context (this is done by
+        -- newMetaFromOld).
+        --   Γ (r : GenRec) ⊢ ρ : Γ (r : GenRec) Δ
+        let ρ  = strengthenS __IMPOSSIBLE__ i
+            ρ' = raiseS i
+
+        (y, u) <- newMetaFromOld mv ρ _A
+
+        let uρ' = applySubst ρ' u
+
+        reportSDoc "tc.generalize.prune.pre" 40 $ nest 2 $ vcat
+          [ "u    =" <+> pretty u
+          , "uρ⁻¹ =" <+> pretty uρ' ]
+
+        -- To solve it we enter the context of x again
+        enterClosure (miClosRange $ mvInfo mv) $ \ _ -> do
+          -- v is x applied to the context variables
+          v <- case _A of
+                 Nothing -> Sort . MetaS x . map Apply <$> getMetaContextArgs mv
+                 Just{}  -> MetaV x . map Apply <$> getMetaContextArgs mv
+          noConstraints (doPrune x mv _A v uρ') `catchError` \ _ -> prepruneError "INST"
+          setInteractionPoint x y
+          return y
 
     pruneMeta _Θ x = do
       cp <- viewTC eCurrentCheckpoint
@@ -306,15 +373,13 @@ pruneUnsolvedMetas genRecName genRecCon genTel genRecFields interactionPoints is
       -- The reason we are doing all this inside the closure of x is so that if x is an interaction
       -- meta we get the right context for the pruned interaction meta.
       enterClosure (miClosRange $ mvInfo mv) $ \ _ ->
-        -- If x is a blocked term we shouldn't instantiate it.
-        whenM (not <$> isBlockedTerm x) $
         -- If we can't find the generalized record, it's already been pruned and we don't have to do
         -- anything.
         whenJustM (findGenRec mv) $ \ i -> do
 
         reportSDoc "tc.generalize.prune" 30 $ vcat
           [ "pruning"
-          , nest 2 $ prettyTCM (mvJudgement mv)
+          , nest 2 $ inTopContext $ prettyTCM (mvJudgement mv)
           , nest 2 $ "GenRecTel is var" <+> pretty i ]
 
         _ΓrΔ <- getContextTelescope
@@ -366,9 +431,11 @@ pruneUnsolvedMetas genRecName genRecCon genTel genRecFields interactionPoints is
           , "σ   =" <+> pretty σ
           , "γ   =" <+> pretty γ
           , "δ   =" <+> pretty δ
+          , "ρ   =" <+> pretty ρ
           , "ρ⁻¹ =" <+> pretty ρ'
           , "Θγ  =" <+> pretty _Θγ
           , "Δσ  =" <+> pretty _Δσ
+          , "_A  =" <+> pretty _A
           ]
 
         -- When updating the context we also need to pick names for the variables. Get them from the
@@ -390,15 +457,7 @@ pruneUnsolvedMetas genRecName genRecCon genTel genRecFields interactionPoints is
           addNamedVariablesToScope rΘ
 
           -- Now we can create the new meta
-          case _A of
-            Nothing -> do
-              s @ (MetaS y _) <- newSortMeta
-              return (y, Sort s)
-            Just _A -> do
-              let _Aρ = applySubst ρ _A
-              (y, u) <- newNamedValueMeta DontRunMetaOccursCheck
-                                          (miNameSuggestion $ mvInfo mv) _Aρ
-              return (y, u)
+          newMetaFromOld mv ρ _A
 
         -- Finally we solve x := yρ⁻¹. The reason for solving it this way instead of xρ := y is that
         -- ρ contains dummy terms for the variables that are not in scope.
@@ -419,24 +478,16 @@ pruneUnsolvedMetas genRecName genRecCon genTel genRecFields interactionPoints is
         reportSDoc "tc.generalize.prune" 80 $ vcat
           [ "solving"
           , nest 2 $ sep [ pretty v   <+> "=="
-                         , pretty uρ' <+> ":" ] ]
-        let isOpen = isOpenMeta $ mvInstantiation mv
-            getArgs v = case v of
-                Sort (MetaS _ es) -> unApply es
-                MetaV _ es        -> unApply es
-                _                 -> __IMPOSSIBLE__
-              where unApply es = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
-            unwrapSort (Sort s) = s
-            unwrapSort _        = __IMPOSSIBLE__
-            solve = case _A of
-              _ | isOpen -> assign DirEq x (getArgs v) uρ'
-              Nothing    -> equalSort (unwrapSort v) (unwrapSort uρ')
-              Just _A    -> equalTerm _A v uρ'
-        noConstraints solve `catchError` niceError x v
+                         , pretty uρ' <+> ":"
+                         , pretty _A ] ]
+        noConstraints (doPrune x mv _A v uρ') `catchError` niceError x v
 
-        -- If x is a hole, update the hole to point to y instead. Note that
-        -- holes never point to blocked metas.
-        whenJust (Map.lookup x interactionPoints) (`connectInteractionPoint` y)
+        reportSDoc "tc.generalize.prune" 80 $ vcat
+          [ "solved"
+          , nest 2 $ "v    =" <+> (pretty =<< instantiateFull v)
+          , nest 2 $ "uρ⁻¹ =" <+> (pretty =<< instantiateFull uρ') ]
+
+        setInteractionPoint x y
 
     findGenRec :: MetaVariable -> TCM (Maybe Int)
     findGenRec mv = do
@@ -448,6 +499,37 @@ pruneUnsolvedMetas genRecName genRecCon genTel genRecFields interactionPoints is
         []    -> return Nothing
         _:_:_ -> __IMPOSSIBLE__
         [i]   -> return (Just i)
+                                                    -- Nothing if sort meta
+    newMetaFromOld :: MetaVariable -> Substitution -> Maybe Type -> TCM (MetaId, Term)
+    newMetaFromOld mv ρ mA = setCurrentRange mv $
+      case mA of
+        Nothing -> do
+          s @ (MetaS y _) <- newSortMeta
+          return (y, Sort s)
+        Just _A -> do
+          let _Aρ = applySubst ρ _A
+          newNamedValueMeta DontRunMetaOccursCheck
+                            (miNameSuggestion $ mvInfo mv) _Aρ
+
+    -- If x is a hole, update the hole to point to y instead.
+    setInteractionPoint x y =
+      whenJust (Map.lookup x interactionPoints) (`connectInteractionPoint` y)
+
+    doPrune :: MetaId -> MetaVariable -> Maybe Type -> Term -> Term -> TCM ()
+    doPrune x mv _A v u =
+      case _A of
+        _ | isOpen -> assign DirEq x (getArgs v) u
+        Nothing    -> equalSort (unwrapSort v) (unwrapSort u)
+        Just _A    -> equalTerm _A v u
+      where
+        isOpen = isOpenMeta $ mvInstantiation mv
+        getArgs v = case v of
+            Sort (MetaS _ es) -> unApply es
+            MetaV _ es        -> unApply es
+            _                 -> __IMPOSSIBLE__
+          where unApply es = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+        unwrapSort (Sort s) = s
+        unwrapSort _        = __IMPOSSIBLE__
 
     niceError x u err = do
       u <- instantiateFull u
@@ -550,7 +632,7 @@ createGenValues s = do
 
 -- | Create a generalisable meta for a generalisable variable.
 createGenValue :: QName -> TCM (QName, MetaId, GeneralizedValue)
-createGenValue x = do
+createGenValue x = setCurrentRange x $ do
   cp  <- viewTC eCurrentCheckpoint
   def <- instantiateDef =<< getConstInfo x
                    -- Only prefix of generalizable arguments (for now?)

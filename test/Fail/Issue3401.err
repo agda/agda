@@ -3,7 +3,6 @@ Failed to solve the following constraints:
   _20 := λ {I} genTel → v [blocked on problem 11]
 Unsolved metas at the following locations:
   Issue3401.agda:12,7-8
-  Issue3401.agda:12,5-8
   Issue3401.agda:12,5-6
 Unsolved interaction metas at the following locations:
   Issue3401.agda:13,5-9
