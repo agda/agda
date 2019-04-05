@@ -305,13 +305,19 @@ pruneUnsolvedMetas genRecName genRecCon genTel genRecFields interactionPoints is
 
     sub = unpackSub genRecCon $ map getArgInfo $ telToList genTel
 
-    prepruneError :: String -> TCM a
-    prepruneError code = do
+    prepruneError :: MetaId -> String -> TCM a
+    prepruneError x code = do
+      r <- getMetaRange x
       let msg = "Congratulations! You have found an easter egg (#" ++ code ++ "). " ++
                 "Be the first to submit a self-contained test case (max 50 lines of code) " ++
                 "producing this error message to https://github.com/agda/agda/issues/3672 " ++
                 "to receive a small prize."
-      genericDocError =<< fwords msg
+          cause = "The error is caused by complicated dependencies between unsolved " ++
+                  "metavariables and generalized variables. In particular, this meta:"
+      genericDocError =<<
+        (fwords msg $+$
+         sep [fwords cause, nest 2 $ prettyTCM (MetaV x []) <+> "at" <+> pretty r]
+        )
 
     -- If one of the fields depend on this meta, we have to make sure that this meta doesn't depend
     -- on any variables introduced after the genRec. See test/Fail/Issue3672b.agda for a test case.
@@ -326,7 +332,7 @@ pruneUnsolvedMetas genRecName genRecCon genTel genRecFields interactionPoints is
         case δ of
           Wk n IdS -> return (n, _A)
           IdS      -> return (0, _A)
-          _        -> prepruneError "RFCX"
+          _        -> prepruneError x "RFCX"
       if i == 0 then return x else do
         reportSDoc "tc.generalize.prune.pre" 40 $ vcat
           [ "prepruning"
@@ -340,7 +346,7 @@ pruneUnsolvedMetas genRecName genRecCon genTel genRecFields interactionPoints is
 
         -- We can only do this if A does not depend on Δ, so check this first.
         case IntSet.minView (allFreeVars _A) of
-          Just (j, _) | j < i -> prepruneError "FVTY"
+          Just (j, _) | j < i -> prepruneError x "FVTY"
           _                   -> return ()
 
         -- If it doesn't we can strenghten it to the current context (this is done by
@@ -363,7 +369,7 @@ pruneUnsolvedMetas genRecName genRecCon genTel genRecFields interactionPoints is
           v <- case _A of
                  Nothing -> Sort . MetaS x . map Apply <$> getMetaContextArgs mv
                  Just{}  -> MetaV x . map Apply <$> getMetaContextArgs mv
-          noConstraints (doPrune x mv _A v uρ') `catchError` \ _ -> prepruneError "INST"
+          noConstraints (doPrune x mv _A v uρ') `catchError` \ _ -> prepruneError x "INST"
           setInteractionPoint x y
           return y
 
