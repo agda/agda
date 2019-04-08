@@ -102,6 +102,7 @@ instance EmbPrj Warning where
       valu [19, a, b]   = valuN CoInfectiveImport a b
       valu [20, a]      = valuN InstanceNoOutputTypeName a
       valu [21, a]      = valuN InstanceArgWithExplicitArg a
+      valu [22]         = valuN WrongInstanceDeclaration
       valu _ = malformed
 
 instance EmbPrj DeclarationWarning where
