@@ -665,8 +665,19 @@ warningHighlighting w = case tcWarning w of
     UselessAbstract{}    -> deadcodeHighlighting $ P.getRange w
     UselessInstance{}    -> deadcodeHighlighting $ P.getRange w
     UselessPrivate{}     -> deadcodeHighlighting $ P.getRange w
-    _ -> mempty -- TODO: explore highlighting opportunities here!
-
+    -- TODO: explore highlighting opportunities here!
+    EmptyPrimitive{} -> mempty
+    InvalidCatchallPragma{} -> mempty
+    InvalidNoPositivityCheckPragma{} -> mempty
+    InvalidNoUniverseCheckPragma{} -> mempty
+    InvalidTerminationCheckPragma{} -> mempty
+    MissingDefinitions{} -> mempty
+    PolarityPragmasButNotPostulates{} -> mempty
+    PragmaNoTerminationCheck{} -> mempty
+    PragmaCompiled{} -> mempty
+    UnknownFixityInMixfixDecl{} -> mempty
+    UnknownNamesInFixityDecl{} -> mempty
+    UnknownNamesInPolarityPragmas{} -> mempty
 
 
 -- | Generate syntax highlighting for termination errors.
