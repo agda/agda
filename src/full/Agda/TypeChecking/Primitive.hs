@@ -4,6 +4,7 @@
 {-# LANGUAGE DeriveFunctor              #-}
 {-# LANGUAGE DeriveFoldable             #-}
 {-# LANGUAGE DeriveTraversable          #-}
+{-# LANGUAGE NondecreasingIndentation #-}
 
 -- ASR (2017-04-10). TODO: Is this option required by the final
 -- version of GHC 8.2.1 (it was required by the RC 1)?
@@ -826,7 +827,7 @@ primTransHComp cmd ts nelims = do
                case famThing t of
                  MetaV m _ -> fallback' (fmap famThing $ Blocked m () *> sbA)
                  -- absName t instead of "i"
-                 Pi a b | nelims > 0  -> redReturn =<< compPi cmd "i" ((a,b) <$ t) (ignoreBlocking sphi) u u0
+                 Pi a b | nelims > 0  -> maybe fallback redReturn =<< compPi cmd "i" ((a,b) <$ t) (ignoreBlocking sphi) u u0
                         | otherwise -> fallback
 
                  Sort (Type l) -> compSort cmd fallback phi u u0 (l <$ t)
@@ -1062,7 +1063,7 @@ primTransHComp cmd ts nelims = do
             -> Arg Term -- Γ
             -> Maybe (Arg Term) -- Γ
             -> Arg Term -- Γ
-            -> ReduceM Term
+            -> ReduceM (Maybe Term)
     compPi cmd t ab phi u u0 = do
      let getTermLocal = getTerm $ cmdToName cmd ++ " for function types"
 
@@ -1072,22 +1073,23 @@ primTransHComp cmd ts nelims = do
      tIMax <- getTermLocal builtinIMax
      iz    <- getTermLocal builtinIZero
      let
-      toLevel t = do
+      toLevel' t = do
         s <- reduce $ getSort t
         case s of
-          (Type l) -> return l
-          -- TODO MetaS | Prop | DefS | ...
-          -- Inf -> __IMPOSSIBLE__
-          _        -> __IMPOSSIBLE__
-      -- mkLam DoTransp = Lam defaultArgInfo
-      -- mkLam DoHComp = id
+          (Type l) -> return (Just l)
+          _        -> return Nothing
+      toLevel t = fromMaybe __IMPOSSIBLE__ <$> toLevel' t
+     -- make sure the codomain has a level.
+     caseMaybeM (toLevel' . absBody . snd . famThing $ ab) (return Nothing) $ \ _ -> do
      runNamesT [] $ do
-      [la,bA] <- do
+      labA <- do
         let (x,f) = case ab of
               IsFam (a,_) -> (a, \ a -> runNames [] $ (lam "i" $ const (pure a)))
               IsNot (a,_) -> (a, id)
-        lx <- toLevel x
-        mapM (open . f) [Level lx, unEl . unDom $ x]
+        lx <- toLevel' x
+        caseMaybe lx (return Nothing) $ \ lx -> Just <$>
+          mapM (open . f) [Level lx, unEl . unDom $ x]
+      caseMaybe labA (return Nothing) $ \ [la,bA] -> Just <$> do
       [phi, u0] <- mapM (open . unArg) [phi, u0]
       u <- traverse open (unArg <$> u)
 
