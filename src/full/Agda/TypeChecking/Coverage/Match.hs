@@ -59,11 +59,13 @@ In these substitutions, we look for a column that has only constructor patterns.
 We try to split on this column first.
 -}
 
+type SplitAssignment = (Nat,SplitPattern)
+
 -- | Match the given patterns against a list of clauses
-match :: (MonadReduce m , HasConstInfo m , HasBuiltins m) => [Clause] -> [NamedArg SplitPattern] -> m (Match (Nat,[SplitPattern]))
+match :: (MonadReduce m , HasConstInfo m , HasBuiltins m) => [Clause] -> [NamedArg SplitPattern] -> m (Match (Nat,[SplitAssignment]))
 match cs ps = foldr choice (return No) $ zipWith matchIt [0..] cs
   where
-    matchIt :: (MonadReduce m , HasConstInfo m , HasBuiltins m) => Nat -> Clause -> m (Match (Nat,[SplitPattern]))
+    matchIt :: (MonadReduce m , HasConstInfo m , HasBuiltins m) => Nat -> Clause -> m (Match (Nat,[SplitAssignment]))
     matchIt i c = fmap (i,) <$> matchClause ps c
 
 -- | For each variable in the patterns of a split clause, we remember the
@@ -173,7 +175,7 @@ isTrivialPattern p = case p of
 
 -- | If matching succeeds, we return the instantiation of the clause pattern vector
 --   to obtain the split clause pattern vector.
-type MatchResult = Match [SplitPattern]
+type MatchResult = Match [SplitAssignment]
 
 -- | If matching is inconclusive (@Block@) we want to know which
 --   variables or projections are blocking the match.
@@ -331,7 +333,7 @@ matchClause qs c = matchPats (namedClausePats c) qs
 --   in @mconcat []@ which is @Yes []@.
 
 matchPats
-  :: (MonadReduce m , HasConstInfo m , HasBuiltins m)
+  :: (MonadReduce m , HasConstInfo m , HasBuiltins m, DeBruijn a)
   => [NamedArg (Pattern' a)]
      -- ^ Clause pattern vector @ps@ (to cover split clause pattern vector).
   -> [NamedArg SplitPattern]
@@ -393,7 +395,7 @@ combine m m' = m >>= \case
 --   a cover if variable @x@ is instantiated with an appropriate literal.
 
 matchPat
-  :: (MonadReduce m , HasConstInfo m , HasBuiltins m)
+  :: (MonadReduce m , HasConstInfo m , HasBuiltins m, DeBruijn a)
   => Pattern' a
      -- ^ Clause pattern @p@ (to cover split clause pattern).
   -> SplitPattern
@@ -403,7 +405,7 @@ matchPat
      --   If 'Yes', also the instantiation @rs@ of the clause pattern variables
      --   to produce the split clause pattern, @p[rs] = q@.
 matchPat p q = case p of
-  VarP{}   -> yes [q]
+  VarP _ x   -> yes [(fromMaybe __IMPOSSIBLE__ (deBruijnView x),q)]
   DotP{}   -> yes []
   -- Jesper, 2014-11-04: putting 'Yes [q]' here triggers issue 1333.
   -- Not checking for trivial patterns should be safe here, as dot patterns are
@@ -421,7 +423,7 @@ matchPat p q = case p of
       d <- getOriginalProjection d
       if d == d' then yes [] else no
     _          -> __IMPOSSIBLE__
-  IApplyP{} -> yes [q]
+  IApplyP _ _ _ x -> yes [(fromMaybe __IMPOSSIBLE__ (deBruijnView x),q)]
   ConP c _ ps -> unDotP q >>= \case
     VarP _ x -> blockedOnConstructor (splitPatVarIndex x) c
     ConP c' i qs

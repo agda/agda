@@ -18,6 +18,8 @@ module Agda.TypeChecking.Coverage
 
 import Prelude hiding (null, (!!))  -- do not use partial functions like !!
 
+import Control.Arrow (second)
+
 import Control.Monad
 import Control.Monad.Reader
 import Control.Monad.Trans ( lift )
@@ -313,7 +315,7 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
     ]
   match cs ps >>= \case
     Yes (i,mps) -> do
-      exact <- allM mps isTrivialPattern
+      exact <- allM (map snd mps) isTrivialPattern
       let cl0 = indexWithDefault __IMPOSSIBLE__ cs i
       let noExactClause = if exact || clauseCatchall (indexWithDefault __IMPOSSIBLE__ cs i)
                           then Set.empty
@@ -356,16 +358,21 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
         continue xs YesAllowPartialCover $ \ err -> do
           typeError $ SplitError err
   where
-    applyCl :: SplitClause -> Clause -> [SplitPattern] -> TCM (Closure Clause)
+    applyCl :: SplitClause -> Clause -> [(Nat, SplitPattern)] -> TCM (Closure Clause)
     applyCl SClause{scTel = tel, scCheckpoints = cps} cl mps
       = addContext tel
         $ locallyTC eCheckpoints (const cps)
         $ checkpoint IdS $ do
-        -- invariant: tel = clauseTel cl `applyE` patternsToElims mps'
+        reportSDoc "tc.cover.applyCl" 40 $ "applyCl"
+        reportSDoc "tc.cover.applyCl" 40 $ "tel    =" <+> prettyTCM tel
+        reportSDoc "tc.cover.applyCl" 40 $ "ps     =" <+> pretty (namedClausePats cl)
+        reportSDoc "tc.cover.applyCl" 40 $ "mps    =" <+> pretty mps
+        reportSDoc "tc.cover.applyCl" 40 $ "s      =" <+> pretty s
+        reportSDoc "tc.cover.applyCl" 40 $ "new ps =" <+> pretty (s `applySubst` namedClausePats cl)
         buildClosure $
              Clause { clauseLHSRange  = clauseLHSRange cl
                     , clauseFullRange = clauseFullRange cl
-                    , clauseTel       = tel -- clauseTel cl `applyE` patternsToElims mps'
+                    , clauseTel       = tel
                     , namedClausePats = s `applySubst` namedClausePats cl
                     , clauseBody      = (s `applyPatSubst`) <$> clauseBody cl
                     , clauseType      = (s `applyPatSubst`) <$> clauseType cl
@@ -373,8 +380,10 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
                     , clauseUnreachable = clauseUnreachable cl
                     }
       where
-        mps' = fromSplitPatterns $ map defaultNamedArg mps
-        s = parallelS (reverse $ map namedArg mps')
+        (vs,qs) = unzip mps
+        mps' = zip vs $ map namedArg $ fromSplitPatterns $ map defaultNamedArg qs
+        s = parallelS (for [0..maximum (-1:vs)] $ (\ i -> fromMaybe (deBruijnVar i) (List.lookup i mps')))
+
     updateRelevance :: TCM a -> TCM a
     updateRelevance cont =
       -- Don't do anything if there is no target type info.

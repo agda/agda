@@ -4,7 +4,7 @@ cabal-version:   >= 1.10
 build-type:      Custom
 license:         OtherLicense
 license-file:    LICENSE
-author:          Agda 2 was originally written by Ulf Norell, partially based on code from Agda 1 by Catarina Coquand and Makoto Takeyama, and from Agdalight by Ulf Norell and Andreas Abel. Agda 2 is currently actively developed mainly by Andreas Abel, Guillaume Allais, Jesper Cockx, Nils Anders Danielsson, Philipp Hausmann, Fredrik Nordvall Forsberg, Ulf Norell, Víctor López Juan, Andrés Sicard-Ramírez, and Andrea Vezzosi. Further, Agda 2 has received contributions by, amongst others, Stevan Andjelkovic, Marcin Benke, Jean-Philippe Bernardy, Guillaume Brunerie, James Chapman, Dominique Devriese, Péter Diviánszki, Olle Fredriksson, Adam Gundry, Daniel Gustafsson, Kuen-Bang Hou (favonia), Patrik Jansson, Alan Jeffrey, Wolfram Kahl, Wen Kokke, Fredrik Lindblad, Francesco Mazzoli, Stefan Monnier, Darin Morrison, Guilhem Moulin, Nicolas Pouillard, Nobuo Yamashita, Christian Sattler, and Makoto Takeyama and many more.
+author:          Agda 2 was originally written by Ulf Norell, partially based on code from Agda 1 by Catarina Coquand and Makoto Takeyama, and from Agdalight by Ulf Norell and Andreas Abel. Agda 2 is currently actively developed mainly by Andreas Abel, Guillaume Allais, Jesper Cockx, Nils Anders Danielsson, Philipp Hausmann, Fredrik Nordvall Forsberg, Ulf Norell, Víctor López Juan, Andrés Sicard-Ramírez, and Andrea Vezzosi. Further, Agda 2 has received contributions by, amongst others, Stevan Andjelkovic, Marcin Benke, Jean-Philippe Bernardy, Guillaume Brunerie, James Chapman, Dominique Devriese, Péter Diviánszky, Olle Fredriksson, Adam Gundry, Daniel Gustafsson, Kuen-Bang Hou (favonia), Patrik Jansson, Alan Jeffrey, Wolfram Kahl, Wen Kokke, Fredrik Lindblad, Francesco Mazzoli, Stefan Monnier, Darin Morrison, Guilhem Moulin, Nicolas Pouillard, Nobuo Yamashita, Christian Sattler, and Makoto Takeyama and many more.
 maintainer:      Ulf Norell <ulfn@chalmers.se>
 homepage:        http://wiki.portal.chalmers.se/agda/
 bug-reports:     https://github.com/agda/agda/issues
@@ -206,8 +206,8 @@ library
 
   -- In hTags the mtl library must be compiled with the version of
   -- transformers shipped with GHC, so we use that version in Agda (see,
-  -- for example, Issue 2983).
-  if impl(ghc == 8.6.4)
+  -- for example, Issue #2983).
+  if impl(ghc >= 8.6.4) && impl(ghc < 8.6.6)
     build-depends: transformers == 0.5.6.2
 
   if impl(ghc >= 8.4) && impl(ghc < 8.6.4)
@@ -745,6 +745,7 @@ test-suite agda-tests
                     , Internal.Utils.ListT
                     , Internal.Utils.Monoid
                     , Internal.Utils.Maybe.Strict
+                    , Internal.Utils.NonemptyList
                     , Internal.Utils.PartialOrd
                     , Internal.Utils.Permutation
                     , Internal.Utils.Three
@@ -791,7 +792,7 @@ test-suite agda-tests
 
   -- Agda cannot be built with GHC 8.6.1 due to a compiler bug, see
   -- Agda Issue #3344.
-  if impl(ghc ==8.6.1.*)
+  if impl(ghc == 8.6.1)
     buildable: False
 
   -- Agda cannot be built with Windows and GHC 8.6.3 due to a compiler
@@ -877,3 +878,6 @@ test-suite agda-tests
     ghc-options: -Wcpp-undef
                  -Wsimplifiable-class-constraints
                  -Wunbanged-strict-patterns
+
+  if impl(ghc >= 8.6)
+    ghc-options: -Winaccessible-code

@@ -484,7 +484,8 @@ termDef name = terSetCurrent name $ inConcreteOrAbstractMode name $ \ def -> do
 --   @@
 
 termType :: Type -> TerM Calls
-termType = loop 0
+termType = return mempty
+-- termType = loop 0  -- Andreas, 2019-04-10 deactivate for backwards-compatibility in 2.6.0 #1556
   where
   loop n t = do
     ps <- mkPats n

@@ -1086,8 +1086,10 @@ constructs nofPars nofExtraVars t q = constrT nofExtraVars t
                 Pi _ (NoAbs _ b)  -> constrT n b
                 Pi a b            -> underAbstraction a b $ constrT (n + 1)
                   -- OR: addCxtString (absName b) a $ constrT (n + 1) (absBody b)
-                _ | Left ((a,b),_) <- pathV t -> do -- TODO, do the special casing like for Pi
-                      _ <- underAbstraction a b $ constrT (n + 1)
+                _ | Left ((a,b),_) <- pathV t -> do
+                      _ <- case b of
+                             NoAbs _ b -> constrT n b
+                             b         -> underAbstraction a b $ constrT (n + 1)
                       return PathCons
                 Def d es | d == q -> do
                   let vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
@@ -1106,11 +1108,12 @@ constructs nofPars nofExtraVars t q = constrT nofExtraVars t
                              take nofPars $ downFrom (nofPars + n)
                   -- The indices are fresh metas
                   xs <- newArgsMeta =<< piApplyM td us
-                  let t' = El (dataSort $ theDef def) $ Def q $ map Apply $ us ++ xs
+                  let t' = El (raise n $ dataSort $ theDef def) $ Def q $ map Apply $ us ++ xs
                   -- Andreas, 2017-11-07, issue #2840
                   -- We should not postpone here, otherwise we might upset the positivity checker.
-                  noConstraints $ equalType t t'
-                  constrT n t'
+                  ifM (tryConversion $ equalType t t')
+                      (constrT n t')
+                      (typeError $ ShouldEndInApplicationOfTheDatatype t)
                 _ -> typeError $ ShouldEndInApplicationOfTheDatatype t
 
         checkParams n vs = zipWithM_ sameVar vs ps

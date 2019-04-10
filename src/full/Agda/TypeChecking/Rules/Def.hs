@@ -641,7 +641,7 @@ checkClause t withSub c@(A.Clause (A.SpineLHS i x aps) strippedPats rhs0 wh catc
             [ "delta =" <+> do escapeContext (size delta) $ prettyTCM delta
             , "ps    =" <+> do P.fsep <$> prettyTCMPatterns ps
             , "body  =" <+> maybe "_|_" prettyTCM body
-            , "type  =" <+> text (show t)
+            , "type  =" <+> prettyTCM t
             ]
           ]
 
@@ -650,6 +650,7 @@ checkClause t withSub c@(A.Clause (A.SpineLHS i x aps) strippedPats rhs0 wh catc
           , nest 2 $ vcat
             [ "ps    =" <+> text (show ps)
             , "body  =" <+> text (show body)
+            , "type  =" <+> text (show t)
             ]
           ]
 
