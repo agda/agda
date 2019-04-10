@@ -996,8 +996,10 @@ moduleContents
      -- ^ The range of the next argument.
   -> String
      -- ^ The module name.
-  -> TCM ([C.Name], [(C.Name, Type)])
-     -- ^ Module names, names paired up with corresponding types.
+  -> TCM ([C.Name], I.Telescope, [(C.Name, Type)])
+     -- ^ Module names,
+     --   context extension needed to print types,
+     --   names paired up with corresponding types.
 
 moduleContents norm rng s = traceCall ModuleContents $ do
   e <- parseExpr rng s
@@ -1016,19 +1018,31 @@ moduleContents norm rng s = traceCall ModuleContents $ do
 getRecordContents
   :: Rewrite  -- ^ Amount of normalization in types.
   -> C.Expr   -- ^ Expression presumably of record type.
-  -> TCM ([C.Name], [(C.Name, Type)])
-              -- ^ Module names, names paired up with corresponding types.
+  -> TCM ([C.Name], I.Telescope, [(C.Name, Type)])
+              -- ^ Module names,
+              --   context extension,
+              --   names paired up with corresponding types.
 getRecordContents norm ce = do
   e <- toAbstract ce
   (_, t) <- inferExpr e
   let notRecordType = typeError $ ShouldBeRecordType t
   (q, vs, defn) <- fromMaybeM notRecordType $ isRecordType t
   case defn of
-    Record{ recFields = fs, recTel = tel } -> do
+    Record{ recFields = fs, recTel = rtel } -> do
       let xs   = map (nameConcrete . qnameName . unArg) fs
-          doms = telToList $ apply tel vs
-      ts <- mapM (normalForm norm) $ map (snd . unDom) doms
-      return ([], zip xs ts)
+          tel  = apply rtel vs
+          doms = flattenTel tel
+      -- Andreas, 2019-04-10, issue #3687: use flattenTel
+      -- to bring types into correct scope.
+      reportSDoc "interaction.contents.record" 20 $ TP.vcat
+        [ "getRecordContents"
+        , "  cxt  = " TP.<+> (prettyTCM =<< getContextTelescope)
+        , "  tel  = " TP.<+> prettyTCM tel
+        , "  doms = " TP.<+> prettyTCM doms
+        , "  doms'= " TP.<+> (addContext tel $ prettyTCM doms)
+        ]
+      ts <- mapM (normalForm norm . unDom) doms
+      return ([], tel, zip xs ts)
     _ -> __IMPOSSIBLE__
 
 -- | Returns the contents of the given module.
@@ -1036,8 +1050,10 @@ getRecordContents norm ce = do
 getModuleContents
   :: Rewrite  -- ^ Amount of normalization in types.
   -> C.QName  -- ^ Module name.
-  -> TCM ([C.Name], [(C.Name, Type)])
-              -- ^ Module names, names paired up with corresponding types.
+  -> TCM ([C.Name], I.Telescope, [(C.Name, Type)])
+              -- ^ Module names,
+              --   context extension,
+              --   names paired up with corresponding types.
 getModuleContents norm m = do
   modScope <- getNamedScope . amodName =<< resolveModule m
   let modules :: ThingsInScope AbstractModule
@@ -1049,7 +1065,7 @@ getModuleContents norm m = do
     d <- getConstInfo $ anameName n
     t <- normalForm norm =<< (defType <$> instantiateDef d)
     return (x, t)
-  return (Map.keys modules, types)
+  return (Map.keys modules, EmptyTel, types)
 
 
 whyInScope :: String -> TCM (Maybe LocalVar, [AbstractName], [AbstractModule])

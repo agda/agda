@@ -2,6 +2,9 @@ TOP = ../..
 
 include $(TOP)/mk/paths.mk
 
+# Extra options when running agda --interaction
+AGDA_OPT=--no-default-libraries
+
 # Enable read -n and 2>&1 |.
 SHELL=/usr/bin/env bash
 
@@ -58,7 +61,7 @@ run_test=if test -f $*.in; \
          | $(sed) "s/goal_command \\([0-9]\+\\) (\\([^)]\+\\)) \\(\"[^\"]*\"\\)/IOTCM currentFile None Indirect (\\2 \\1 noRange \\3)/g" \
          | $(sed) "s/goal_command \\([0-9]\+\\) \\([^ ]\+\\) \\(\"[^\"]*\"\\)/IOTCM currentFile None Indirect (\\2 \\1 noRange \\3)/g" \
          | $(sed) "s/currentFile/\"$(wildcard $*.agda $*.lagda)\"/g" \
-         | $(AGDA_BIN) -v0 -i . -i .. --interaction --ignore-interfaces --no-default-libraries $(RTS_$*) \
+         | $(AGDA_BIN) -v0 -i . -i .. --interaction --ignore-interfaces $(AGDA_OPT) $(RTS_$*) \
            2>&1 | $(filter) ; \
     elif test -f $*.hs; \
     then /usr/bin/env runhaskell ./$*.hs $(AGDA_BIN) 2>&1 | $(filter) ; \
