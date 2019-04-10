@@ -1,8 +1,8 @@
 Issue921.agda:49,1-117,17
 Termination checking failed for the following functions:
-  _ctx-⇛_, Tm
+  _○_, pullback-var, pullback
 Problematic calls:
-  Tm (Γ , _ * A)
-  weaken Γ * _159 (P = P) (Γ = Γ) (A = A) (T = T)
-  Γ ctx-⇛ Δ
-    (at Issue921.agda:58,29-34)
+  weaken Δ ○ snd xtc.eq ms
+  pullback x m
+  pullback-var
+    (at Issue921.agda:108,99-111)
