@@ -144,6 +144,7 @@ instance TermLike Sort where
     Prop l     -> Prop <$> traverseTermM f l
     Inf        -> pure s
     SizeUniv   -> pure s
+    LockUniv   -> pure s
     PiSort a b -> PiSort   <$> traverseTermM f a <*> traverseTermM f b
     UnivSort a -> UnivSort <$> traverseTermM f a
     MetaS x es -> MetaS x  <$> traverseTermM f es
@@ -155,6 +156,7 @@ instance TermLike Sort where
     Prop l     -> foldTerm f l
     Inf        -> mempty
     SizeUniv   -> mempty
+    LockUniv   -> mempty
     PiSort a b -> foldTerm f a <> foldTerm f b
     UnivSort a -> foldTerm f a
     MetaS _ es -> foldTerm f es

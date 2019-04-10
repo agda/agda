@@ -978,6 +978,7 @@ instance TermLike Constraint where
       UnBlock _              -> mempty
       FindInstance _ _ _     -> mempty
       CheckFunDef _ _ _ _    -> mempty
+      CheckLockedVars a b c d -> foldTerm f (a, b, c, d)
       HasBiggerSort s        -> foldTerm f s
       HasPTSRule s1 s2       -> foldTerm f (s1, s2)
   traverseTermM f c = __IMPOSSIBLE__ -- Not yet implemented
