@@ -1,0 +1,20 @@
+Issue3655b.agda:19,9-10
+Variable generalization failed.
+  - Probable cause
+      There were unsolved constraints that obscured the dependencies
+      between the generalized variables.
+  - Suggestion
+      The most reliable solution is to provide enough information to make
+      the dependencies clear, but simply mentioning the variables in the
+      right order should also work.
+  - Further information
+    - Dependency analysis suggested this (likely incorrect) order: x b
+    - After constraint solving it looks like x actually depends on b
+    - The dependency I error is
+      Issue3655b.agda:19,9-10
+      Cannot instantiate the metavariable _22 to solution b since it
+      contains the variable genTel which is not in scope of the
+      metavariable or irrelevant in the metavariable but relevant in the
+      solution
+when checking that the expression D x → (P : F b → Set) → P x has
+type _9

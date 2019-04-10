@@ -55,6 +55,7 @@ open Helpers
 -- copatterns. This is good because copatterns don't get unfolded
 -- unless a projection is applied so it should be more efficient.
 record isEquiv {ℓ ℓ'} {A : Set ℓ} {B : Set ℓ'} (f : A → B) : Set (ℓ ⊔ ℓ') where
+  no-eta-equality
   field
     equiv-proof : (y : B) → isContr (fiber f y)
 

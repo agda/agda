@@ -13,6 +13,7 @@ import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
 
 import Agda.TypeChecking.Monad
+import Agda.TypeChecking.Datatypes (getNumberOfParameters)
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.SizedTypes
 import Agda.TypeChecking.Substitute
@@ -235,7 +236,7 @@ relevantInIgnoringNonvariant i t (p:ps) = do
 sizePolarity :: QName -> [Polarity] -> TCM [Polarity]
 sizePolarity d pol0 = do
   let exit = return pol0
-  ifM (not <$> sizedTypesOption) exit $ do
+  ifNotM sizedTypesOption exit $ {- else -} do
     def <- getConstInfo d
     case theDef def of
       Datatype{ dataPars = np, dataCons = cons } -> do
@@ -271,7 +272,7 @@ sizePolarity d pol0 = do
                           -- check that the size argument appears in the
                           -- right spot in the target type
                           let sizeArg = size tel
-                              isLin = addContext conTel $ checkSizeIndex d np sizeArg target
+                              isLin = addContext conTel $ checkSizeIndex d sizeArg target
 
                           ok <- isPos `and2M` isLin
                           reportSDoc "tc.polarity.size" 15 $
@@ -290,12 +291,12 @@ sizePolarity d pol0 = do
                 return polCo
       _ -> exit
 
--- | @checkSizeIndex d np i a@ checks that constructor target type @a@
---   has form @d ps (↑ⁿ i) idxs@ where @|ps| = np@.
+-- | @checkSizeIndex d i a@ checks that constructor target type @a@
+--   has form @d ps (↑ⁿ i) idxs@ where @|ps| = np(d)@.
 --
 --   Precondition: @a@ is reduced and of form @d ps idxs0@.
-checkSizeIndex :: QName -> Nat -> Nat -> Type -> TCM Bool
-checkSizeIndex d np i a = do
+checkSizeIndex :: QName -> Nat -> Type -> TCM Bool
+checkSizeIndex d i a = do
   reportSDoc "tc.polarity.size" 15 $ withShowAllArguments $ vcat
     [ "checking that constructor target type " <+> prettyTCM a
     , "  is data type " <+> prettyTCM d
@@ -304,13 +305,13 @@ checkSizeIndex d np i a = do
   case unEl a of
     Def d0 es -> do
       whenNothingM (sameDef d d0) __IMPOSSIBLE__
+      np <- fromMaybe __IMPOSSIBLE__ <$> getNumberOfParameters d0
+      let (pars, Apply ix : ixs) = splitAt np es
       s <- deepSizeView $ unArg ix
       case s of
         DSizeVar j _ | i == j
           -> return $ not $ freeIn i (pars ++ ixs)
         _ -> return False
-      where
-        (pars, Apply ix : ixs) = splitAt np es
     _ -> __IMPOSSIBLE__
 
 -- | @polarities i a@ computes the list of polarities of de Bruijn index @i@

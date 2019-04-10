@@ -224,7 +224,7 @@ makeCase hole rng s = withInteractionId hole $ do
       , "context =" <+> ((inTopContext . prettyTCM) =<< getContextTelescope)
       , "tel     =" <+> (inTopContext . prettyTCM) tel
       , "perm    =" <+> text (show perm)
-      , "ps      =" <+> text (show ps)
+      , "ps      =" <+> prettyTCMPatternList ps
       ]
     ]
 
@@ -317,7 +317,7 @@ makeCase hole rng s = withInteractionId hole $ do
 
     reportSDoc "interaction.case" 65 $ vcat
       [ "split result:"
-      , nest 2 $ vcat $ map (text . show . A.deepUnscope) cs
+      , nest 2 $ vcat $ map prettyA cs
       ]
     checkClauseIsClean ipCl
     return (f, casectxt, cs)
@@ -390,7 +390,7 @@ makeAbsurdClause f (SClause tel sps _ _ t) = do
     let c = Clause noRange noRange tel ps Nothing t False Nothing
     -- Normalise the dot patterns
     ps <- addContext tel $ normalise $ namedClausePats c
-    reportSDoc "interaction.case" 60 $ "normalized patterns: " <+> text (show ps)
+    reportSDoc "interaction.case" 60 $ "normalized patterns: " <+> prettyTCMPatternList ps
     inTopContext $ reify $ QNamed f $ c { namedClausePats = ps }
 
 
@@ -400,7 +400,7 @@ makeAbstractClause :: QName -> A.RHS -> SplitClause -> TCM A.Clause
 makeAbstractClause f rhs cl = do
 
   lhs <- A.clauseLHS <$> makeAbsurdClause f cl
-  reportSDoc "interaction.case" 60 $ "reified lhs: " <+> text (show lhs)
+  reportSDoc "interaction.case" 60 $ "reified lhs: " <+> prettyA lhs
   return $ A.Clause lhs [] rhs A.noWhereDecls False
   -- let ii = InteractionId (-1)  -- Dummy interaction point since we never type check this.
   --                              -- Can end up in verbose output though (#1842), hence not __IMPOSSIBLE__.

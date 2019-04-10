@@ -1,5 +1,5 @@
 Issue464.agda:23,1-24,33
 U is not strictly positive, because it occurs
-in the second argument to ⟦_⟧
+in the second argument of ⟦_⟧
 in the type of the constructor intro
 in the definition of U.

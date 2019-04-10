@@ -9,6 +9,6 @@ data D (A : Set) : Set where
 -- WAS: internal error in positivity checker
 
 -- EXPECTED: success, or
--- Failed to solve the following constraints:
---   [4] _F_2 A A = D A : Set
+-- The target of a constructor must be the datatype applied to its
+-- parameters, _F_2 A isn't
 -- when checking the constructor c in the declaration of D

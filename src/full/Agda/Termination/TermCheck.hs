@@ -115,9 +115,6 @@ termDecl' d = case d of
     A.Axiom {}            -> return mempty
     A.Field {}            -> return mempty
     A.Primitive {}        -> return mempty
-    A.Mutual _ ds
-      | [A.RecSig{}, A.RecDef _ _ _ _ _ _ _ _ rds] <- unscopeDefs ds
-                          -> termDecls rds
     A.Mutual i ds         -> termMutual $ getNames ds
     A.Section _ _ _ ds    -> termDecls ds
         -- section structure can be ignored as we are termination checking
@@ -196,6 +193,10 @@ termMutual names0 = ifNotM (optTerminationCheck <$> pragmaOptions) (return mempt
   -- We set the range to avoid panics when printing error messages.
   setCurrentRange i $ do
 
+  -- The following debug statement is part of a test case for Issue
+  -- #3590.
+  reportSLn "term.mutual.id" 40 $
+    "Termination checking mutual block " ++ show mid
   reportSLn "term.mutual" 10 $ "Termination checking " ++ prettyShow allNames
 
   -- NO_TERMINATION_CHECK

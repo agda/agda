@@ -1050,8 +1050,9 @@ coerce cmp v t1 t2 = blockTerm t2 $ do
 --
 --   Precondition: types are reduced.
 coerceSize :: (Type -> Type -> TCM ()) -> Term -> Type -> Type -> TCM ()
-coerceSize leqType v t1 t2 = workOnTypes $ do
-    reportSDoc "tc.conv.coerce" 70 $
+coerceSize leqType v t1 t2 = verboseBracket "tc.conv.size.coerce" 45 "coerceSize" $
+  workOnTypes $ do
+    reportSDoc "tc.conv.size.coerce" 70 $
       "coerceSize" <+> vcat
         [ "term      v  =" <+> pretty v
         , "from type t1 =" <+> pretty t1
@@ -1072,7 +1073,7 @@ coerceSize leqType v t1 t2 = workOnTypes $ do
       unlessM (tryConversion $ dontAssignMetas $ leqType t1 t2) $ do
         -- A (most probably weaker) alternative is to just check syn.eq.
         -- ifM (snd <$> checkSyntacticEquality t1 t2) (return v) $ {- else -} do
-        reportSDoc "tc.conv.coerce" 20 $ "coercing to a size type"
+        reportSDoc "tc.conv.size.coerce" 20 $ "coercing to a size type"
         case b2 of
           -- @t2 = Size@.  We are done!
           BoundedNo -> done

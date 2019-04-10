@@ -1,4 +1,4 @@
 Issue2840.agda:7,3-13
-Failed to solve the following constraints:
-  [4] _F_2 A = D A : Set
+The target of a constructor must be the datatype applied to its
+parameters, _F_2 A isn't
 when checking the constructor c in the declaration of D

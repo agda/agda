@@ -65,6 +65,7 @@ instance TermLike a => TermLike [a]         where
 instance TermLike a => TermLike (Maybe a)   where
 instance TermLike a => TermLike (Abs a)     where
 instance TermLike a => TermLike (Blocked a) where
+instance TermLike a => TermLike (Tele a)    where
 
 -- Tuples
 
@@ -93,7 +94,7 @@ instance TermLike Term where
     MetaV m xs  -> f =<< MetaV m <$> traverseTermM f xs
     Level l     -> f =<< Level <$> traverseTermM f l
     Lit _       -> f t
-    Sort _      -> f t
+    Sort s      -> f =<< Sort <$> traverseTermM f s
     DontCare mv -> f =<< DontCare <$> traverseTermM f mv
     Dummy{}     -> f t
 
@@ -106,7 +107,7 @@ instance TermLike Term where
     MetaV m xs  -> foldTerm f xs
     Level l     -> foldTerm f l
     Lit _       -> mempty
-    Sort _      -> mempty
+    Sort s      -> foldTerm f s
     DontCare mv -> foldTerm f mv
     Dummy{}     -> mempty
 
@@ -136,6 +137,29 @@ instance TermLike LevelAtom where
 instance TermLike Type where
   traverseTermM f (El s t) = El s <$> traverseTermM f t
   foldTerm f (El s t) = foldTerm f t
+
+instance TermLike Sort where
+  traverseTermM f s = case s of
+    Type l     -> Type <$> traverseTermM f l
+    Prop l     -> Prop <$> traverseTermM f l
+    Inf        -> pure s
+    SizeUniv   -> pure s
+    PiSort a b -> PiSort   <$> traverseTermM f a <*> traverseTermM f b
+    UnivSort a -> UnivSort <$> traverseTermM f a
+    MetaS x es -> MetaS x  <$> traverseTermM f es
+    DefS q es  -> DefS q   <$> traverseTermM f es
+    DummyS{}   -> pure s
+
+  foldTerm f s = case s of
+    Type l     -> foldTerm f l
+    Prop l     -> foldTerm f l
+    Inf        -> mempty
+    SizeUniv   -> mempty
+    PiSort a b -> foldTerm f a <> foldTerm f b
+    UnivSort a -> foldTerm f a
+    MetaS _ es -> foldTerm f es
+    DefS _ es  -> foldTerm f es
+    DummyS{}   -> mempty
 
 instance TermLike EqualityView where
 

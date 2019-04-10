@@ -1,0 +1,4 @@
+Termination checking mutual block MutId 0
+Issue3590-2.agda:27,7-10
+Set₁ != Set
+when checking that the expression Set has type Set

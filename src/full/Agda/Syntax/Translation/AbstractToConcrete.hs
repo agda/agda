@@ -277,11 +277,7 @@ toConcreteName x | y <- nameConcrete x , isNoName y = return y
 toConcreteName x = (Map.findWithDefault [] x <$> useTC stConcreteNames) >>= loop
   where
     -- case: we already have picked some name(s) for x
-    loop (y:ys) = lookupNameInScope y >>= \case
-      -- name is shadowed, try next one
-      Just x' | x' /= x -> loop ys
-      -- not shadowed
-      _ -> return y
+    loop (y:ys) = ifM (isGoodName x y) (return y) (loop ys)
 
     -- case: we haven't picked a concrete name yet, or all previously
     -- picked names are shadowed, so we pick a new name now
@@ -289,6 +285,15 @@ toConcreteName x = (Map.findWithDefault [] x <$> useTC stConcreteNames) >>= loop
       y <- chooseName x
       pickConcreteName x y
       return y
+
+    -- Is 'y' a good concrete name for abstract name 'x'?
+    isGoodName :: A.Name -> C.Name -> AbsToCon Bool
+    isGoodName x y = do
+      zs <- Set.toList <$> asks takenVarNames
+      allM zs $ \z -> if x == z then return True else do
+        czs <- hasConcreteNames z
+        return $ all (/= y) czs
+
 
 -- | Choose a new unshadowed name for the given abstract name
 chooseName :: A.Name -> AbsToCon C.Name

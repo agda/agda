@@ -18,7 +18,7 @@ open import Data.Product as Prod
 open import Data.List.Any
 open import Data.Container as Cont hiding (_∈_)
     renaming (⟦_⟧ to ⟦_⟧^C; μ to μ^C; _⇒_ to _⇒^C_)
-open import Data.Container.Combinator using (module Sum) renaming (_⊎_ to _⊎^C_)
+open import Data.Container.Combinator using () renaming (_⊎_ to _⊎^C_)
 open import Data.Container.FreeMonad
     renaming (_⋆_ to _⋆^C_; _⋆C_ to _⋆^CC_)
 open import Data.W

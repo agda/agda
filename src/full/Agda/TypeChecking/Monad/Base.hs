@@ -29,6 +29,7 @@ import Data.Maybe
 import Data.Map (Map)
 import qualified Data.Map as Map -- hiding (singleton, null, empty)
 import Data.Monoid ( Monoid, mempty, mappend )
+import Data.Sequence (Seq)
 import Data.Set (Set)
 import qualified Data.Set as Set -- hiding (singleton, null, empty)
 import Data.Semigroup ( Semigroup, (<>), Any(..) )
@@ -969,14 +970,14 @@ instance TermLike Constraint where
       IsEmpty _ t            -> foldTerm f t
       CheckSizeLtSat u       -> foldTerm f u
       UnquoteTactic _ t h g  -> foldTerm f (t, h, g)
-      TelCmp _ _ _ tel1 tel2 -> __IMPOSSIBLE__  -- foldTerm f (tel1, tel2) -- Not yet implemented
-      SortCmp _ s1 s2        -> __IMPOSSIBLE__  -- foldTerm f (s1, s2) -- Not yet implemented
-      UnBlock _              -> __IMPOSSIBLE__  -- mempty     -- Not yet implemented
-      Guarded c _            -> __IMPOSSIBLE__  -- foldTerm c -- Not yet implemented
-      FindInstance _ _ cs    -> __IMPOSSIBLE__  -- Not yet implemented
-      CheckFunDef _ _ _ _    -> __IMPOSSIBLE__  -- Not yet implemented
-      HasBiggerSort _        -> __IMPOSSIBLE__  -- Not yet implemented
-      HasPTSRule _ _         -> __IMPOSSIBLE__  -- Not yet implemented
+      Guarded c _            -> foldTerm f c
+      TelCmp _ _ _ tel1 tel2 -> foldTerm f (tel1, tel2)
+      SortCmp _ s1 s2        -> foldTerm f (s1, s2)
+      UnBlock _              -> mempty
+      FindInstance _ _ _     -> mempty
+      CheckFunDef _ _ _ _    -> mempty
+      HasBiggerSort s        -> foldTerm f s
+      HasPTSRule s1 s2       -> foldTerm f (s1, s2)
   traverseTermM f c = __IMPOSSIBLE__ -- Not yet implemented
 
 
@@ -2707,7 +2708,7 @@ data Warning
   | CoverageIssue            QName [(Telescope, [NamedArg DeBruijnPattern])]
   -- ^ `CoverageIssue f pss` means that `pss` are not covered in `f`
   | CoverageNoExactSplit     QName [Clause]
-  | NotStrictlyPositive      QName OccursWhere
+  | NotStrictlyPositive      QName (Seq OccursWhere)
   | UnsolvedMetaVariables    [Range]  -- ^ Do not use directly with 'warning'
   | UnsolvedInteractionMetas [Range]  -- ^ Do not use directly with 'warning'
   | UnsolvedConstraints      Constraints
