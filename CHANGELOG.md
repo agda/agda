@@ -668,7 +668,6 @@ For 2.6.0, the following issues have been closed
   -  [#1063](https://github.com/agda/agda/issues/1063): Freeze metas in module telescope after checking the module?
   -  [#1086](https://github.com/agda/agda/issues/1086): Make absurd patterns not needed at toplevel
   -  [#1209](https://github.com/agda/agda/issues/1209): Guardedness checker inconsistency with copatterns
-  -  [#1556](https://github.com/agda/agda/issues/1556): Agda allows "very dependent" types
   -  [#1581](https://github.com/agda/agda/issues/1581): Fields of opened records sometimes highlighted, sometimes not
   -  [#1602](https://github.com/agda/agda/issues/1602): NonStrict arguments should be allowed to occur relevantly in the type
   -  [#1706](https://github.com/agda/agda/issues/1706): Feature request: ML-style forall-generalization
@@ -846,6 +845,8 @@ For 2.6.0, the following issues have been closed
   -  [#3648](https://github.com/agda/agda/issues/3648): Agda could fail to build if a .agda-lib file exists in a parent directory
   -  [#3651](https://github.com/agda/agda/issues/3651): internal error ghc backend
   -  [#3657](https://github.com/agda/agda/issues/3657): Disable compilation with Windows and GHC 8.6.3
+  -  [#3678](https://github.com/agda/agda/issues/3678): Two out-of-scope variables are given the same name
+
 
 Release notes for Agda version 2.5.4.2
 ======================================
