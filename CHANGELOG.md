@@ -846,7 +846,7 @@ For 2.6.0, the following issues have been closed
   -  [#3651](https://github.com/agda/agda/issues/3651): internal error ghc backend
   -  [#3657](https://github.com/agda/agda/issues/3657): Disable compilation with Windows and GHC 8.6.3
   -  [#3678](https://github.com/agda/agda/issues/3678): Two out-of-scope variables are given the same name
-
+  -  [#3687](https://github.com/agda/agda/issues/3687): Show module contents (C-c C-o) prints garbled names in clause
 
 Release notes for Agda version 2.5.4.2
 ======================================
