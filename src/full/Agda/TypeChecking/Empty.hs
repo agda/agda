@@ -42,7 +42,7 @@ instance Monoid ErrorNonEmpty where
   mempty  = Fail
   mappend = (Data.Semigroup.<>)
 
--- | Ensure that a type is empty
+-- | Ensure that a type is empty.
 --   This check may be postponed as emptiness constraint.
 ensureEmptyType
   :: Range -- ^ Range of the absurd pattern.
