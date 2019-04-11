@@ -1498,8 +1498,8 @@ cmd_goal_type_context_and doc norm ii _ _ = display_info . Info_GoalType =<< do
 showModuleContents :: B.Rewrite -> Range -> String -> CommandM ()
 showModuleContents norm rng s = display_info . Info_ModuleContents =<< do
   liftLocalState $ do
-    (modules, types) <- B.moduleContents norm rng s
-    types' <- forM types $ \ (x, t) -> do
+    (modules, tel, types) <- B.moduleContents norm rng s
+    types' <- addContext tel $ forM types $ \ (x, t) -> do
       t <- TCP.prettyTCM t
       return (prettyShow x, ":" <+> t)
     return $ vcat
