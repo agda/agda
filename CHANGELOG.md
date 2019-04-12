@@ -8,18 +8,18 @@ Highlights
 ----------
 
 * Added support for [Cubical
-  Agda](https://agda.readthedocs.io/en/latest/language/cubical.html)
+  Agda](https://agda.readthedocs.io/en/v2.6.0/language/cubical.html)
   which adds new features such as univalence and higher inductive
   types to Agda.
 
 * Added support for ML-style [automatic generalization of
-  variables](https://agda.readthedocs.io/en/latest/language/generalization-of-declared-variables.html).
+  variables](https://agda.readthedocs.io/en/v2.6.0/language/generalization-of-declared-variables.html).
 
 * Added a new sort ``Prop`` of [definitionally proof-irrelevant
-  propositions](https://agda.readthedocs.io/en/latest/language/prop.html).
+  propositions](https://agda.readthedocs.io/en/v2.6.0/language/prop.html).
 
 * The implementation of [instance
-  search](https://agda.readthedocs.io/en/latest/language/instance-arguments.html)
+  search](https://agda.readthedocs.io/en/v2.6.0/language/instance-arguments.html)
   got a major overhaul and no longer supports overlapping instances
   (unless enabled by a flag).
 
@@ -62,7 +62,7 @@ Syntax
    -- _∘_ : {Γ Δ Θ : Con} → Sub Θ Δ → Sub Γ Θ → Sub Γ Δ
   ```
 
-  See the [user manual](https://agda.readthedocs.io/en/latest/language/generalization-of-declared-variables.html)
+  See the [user manual](https://agda.readthedocs.io/en/v2.6.0/language/generalization-of-declared-variables.html)
   for more details.
 
 * Data type and record definitions separated from their type signatures can no
@@ -148,14 +148,14 @@ Type checking
   univalence and higher inductive types. Option `--cubical` enables
   the cubical mode, and cubical primitives are defined in the module
   `Agda.Primitive.Cubical`.  See the [user
-  manual](https://agda.readthedocs.io/en/latest/language/cubical.html)
+  manual](https://agda.readthedocs.io/en/v2.6.0/language/cubical.html)
   for more info.
 
 * Agda now supports the new sort ``Prop`` of [definitionally
   proof-irrelevant propositions](https://hal.inria.fr/hal-01859964).
   Option `--prop` enables the `Prop` universe but is off by default.
   Option `--no-prop` disables the `Prop` universe.  See the [user
-  manual](https://agda.readthedocs.io/en/latest/language/prop.html)
+  manual](https://agda.readthedocs.io/en/v2.6.0/language/prop.html)
   for more details.
 
   In the absense of `Prop`, the sort `Set` is the lowest sort, thus,
@@ -301,7 +301,6 @@ Instance search
 
 Reflection
 ----------
-
 
 * New TC primitive `noConstraints` [Issue
   [#2351](https://github.com/agda/agda/issues/2351)]:
@@ -486,7 +485,7 @@ Pragmas and options
     {-# COMPILED_JS f e #-}
   ```
 
-  See the [user manual](https://agda.readthedocs.io/en/latest/language/foreign-function-interface.html)
+  See the [user manual](https://agda.readthedocs.io/en/v2.6.0/language/foreign-function-interface.html)
   for how to use the `COMPILE` and `FOREIGN` pragmas that replaced these in Agda 2.5.
 
 ### New warnings
@@ -3197,7 +3196,7 @@ Language
     ```
 
     This change fixes an inconsistency, see [Issue [#2169](https://github.com/agda/agda/issues/2169)].
-    For further detail see the [user manual](http://agda.readthedocs.io/en/latest/language/built-ins.html#floats).
+    For further detail see the [user manual](http://agda.readthedocs.io/en/v2.5.2/language/built-ins.html#floats).
 
   - Floats now have only one `NaN` value. This is necessary
     for proper Float support in the JavaScript backend,
