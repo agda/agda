@@ -3852,7 +3852,7 @@ Documentation
 -------------
 
 * There is now an official Agda User Manual:
-  http://agda.readthedocs.org/en/stable/
+  https://agda.readthedocs.io/
 
 Installation and infrastructure
 -------------------------------
