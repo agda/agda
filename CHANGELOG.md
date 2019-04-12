@@ -1,3 +1,6 @@
+Release notes for Agda version 2.6.1
+====================================
+
 Release notes for Agda version 2.6.0
 ====================================
 
