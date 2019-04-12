@@ -452,7 +452,6 @@ errorString err = case err of
   ShouldEndInApplicationOfTheDatatype{}    -> "ShouldEndInApplicationOfTheDatatype"
   SplitError{}                             -> "SplitError"
   ImpossibleConstructor{}                  -> "ImpossibleConstructor"
-  TooFewFields{}                           -> "TooFewFields"
   TooManyFields{}                          -> "TooManyFields"
   TooManyPolarities{}                      -> "TooManyPolarities"
   SplitOnIrrelevant{}                      -> "SplitOnIrrelevant"
@@ -796,10 +795,6 @@ instance PrettyTCM TypeError where
 
     NotLeqSort s1 s2 -> fsep $
       [prettyTCM s1] ++ pwords "is not less or equal than" ++ [prettyTCM s2]
-
-    TooFewFields r xs -> fsep $
-      pwords "Missing fields" ++ punctuate comma (map pretty xs) ++
-      pwords "in an element of the record" ++ [prettyTCM r]
 
     TooManyFields r xs -> fsep $
       pwords "The record type" ++ [prettyTCM r] ++

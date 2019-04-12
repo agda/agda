@@ -57,7 +57,6 @@ orderFields :: QName -> a -> [C.Name] -> [(C.Name, a)] -> TCM [a]
 orderFields r def xs fs = do
   unlessNull (ys List.\\ List.nub ys) $ typeError . DuplicateFields . List.nub
   unlessNull (ys List.\\ xs)          $ typeError . TooManyFields r
-  -- shouldBeNull (xs List.\\ ys)     $ TooFewFields r
   return $ order xs fs
   where
     ys = map fst fs

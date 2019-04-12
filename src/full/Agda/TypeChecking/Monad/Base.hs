@@ -3046,7 +3046,6 @@ data TypeError
         | BuiltinInParameterisedModule String
         | IllegalLetInTelescope C.TypedBinding
         | NoRHSRequiresAbsurdPattern [NamedArg A.Pattern]
-        | TooFewFields QName [C.Name]
         | TooManyFields QName [C.Name]
         | DuplicateFields [C.Name]
         | DuplicateConstructors [C.Name]
