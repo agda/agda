@@ -3046,7 +3046,8 @@ data TypeError
         | BuiltinInParameterisedModule String
         | IllegalLetInTelescope C.TypedBinding
         | NoRHSRequiresAbsurdPattern [NamedArg A.Pattern]
-        | TooManyFields QName [C.Name]
+        | TooManyFields QName [C.Name] [C.Name]
+          -- ^ Record type, fields not supplied by user, non-fields not supplied.
         | DuplicateFields [C.Name]
         | DuplicateConstructors [C.Name]
         | WithOnFreeVariable A.Expr Term

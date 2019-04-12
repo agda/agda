@@ -892,8 +892,9 @@ checkRecordUpdate cmp ei recexpr fs e t = do
         -- to their counterpart in the record type definition.
         disambiguateRecordFields (map _nameFieldA fs) (map unArg projs)
 
-        xs <- map unArg <$> getRecordFieldNames r
-        es <- orderFields r Nothing xs $ map (\ (FieldAssignment x e) -> (x, Just e)) fs
+        axs <- getRecordFieldNames r
+        let xs = map unArg axs
+        es <- orderFields r (\ _ -> Nothing) axs $ map (\ (FieldAssignment x e) -> (x, Just e)) fs
         let es' = zipWith (replaceFields name ei) projs es
         checkExpr' cmp (A.Rec ei [ Left (FieldAssignment x e) | (x, Just e) <- zip xs es' ]) t
 

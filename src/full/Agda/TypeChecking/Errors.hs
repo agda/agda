@@ -796,9 +796,11 @@ instance PrettyTCM TypeError where
     NotLeqSort s1 s2 -> fsep $
       [prettyTCM s1] ++ pwords "is not less or equal than" ++ [prettyTCM s2]
 
-    TooManyFields r xs -> fsep $
+    TooManyFields r missing xs -> fsep $
       pwords "The record type" ++ [prettyTCM r] ++
-      pwords "does not have the fields" ++ punctuate comma (map pretty xs)
+      pwords "does not have the fields" ++ punctuate comma (map pretty xs) ++
+      if null missing then [] else
+        pwords "but it would have the fields"  ++ punctuate comma (map pretty missing)
 
     DuplicateConstructors xs -> fsep $
       pwords "Duplicate constructors" ++ punctuate comma (map pretty xs) ++
