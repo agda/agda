@@ -30,30 +30,13 @@ import Agda.TypeChecking.Primitive hiding (Nat)
 import Agda.TypeChecking.Primitive.Cubical
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
-
--- import Agda.TypeChecking.Rules.LHS (checkSortOfSplitVar)
--- import Agda.TypeChecking.Rules.LHS.Problem (allFlexVars)
--- import Agda.TypeChecking.Rules.LHS.Unify
-
--- import Agda.TypeChecking.Coverage.Match
--- import Agda.TypeChecking.Coverage.SplitTree
-
 import Agda.TypeChecking.Conversion (tryConversion, equalType, equalTermOnFace)
--- import Agda.TypeChecking.Datatypes (getConForm)
--- import {-# SOURCE #-} Agda.TypeChecking.Empty (isEmptyTel)
--- import Agda.TypeChecking.Free
--- import Agda.TypeChecking.Irrelevance
--- import Agda.TypeChecking.Patterns.Internal (dotPatternsToPatterns)
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Telescope.Path
--- import Agda.TypeChecking.MetaVars
--- import Agda.TypeChecking.Warnings
-
--- import Agda.Interaction.Options
 
 import Agda.Utils.Either
 import Agda.Utils.Except
