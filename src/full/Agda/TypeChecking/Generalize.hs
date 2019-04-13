@@ -14,6 +14,7 @@ import qualified Data.Set as Set
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.List (nub, partition, init, sortBy)
+import Data.Monoid
 import Data.Function (on)
 import Data.Traversable
 
@@ -48,6 +49,7 @@ import Agda.Utils.Lens
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Size
+import Agda.Utils.Singleton
 import Agda.Utils.Permutation
 import qualified Agda.Utils.Graph.TopSort as Graph
 
@@ -212,7 +214,7 @@ computeGeneralization genRecMeta nameMap allmetas = postponeInstanceConstraints 
     case mvInstantiation mv of
       InstV _ v -> do
         parentName <- getMetaNameSuggestion x
-        metas <- filterM canGeneralize . allMetas =<< instantiateFull v
+        metas <- filterM canGeneralize . allMetasList =<< instantiateFull v
         let suggestNames i [] = return ()
             suggestNames i (m : ms)  = do
               name <- getMetaNameSuggestion m
@@ -546,7 +548,7 @@ pruneUnsolvedMetas genRecName genRecCon genTel genRecFields interactionPoints is
                    _ -> err
           telList = telToList genTel
           names   = map (fst . unDom) telList
-          late    = map (fst . unDom) $ filter (elem x . allMetas) telList
+          late    = map (fst . unDom) $ filter (getAny . allMetas (Any . (== x))) telList
           projs (Proj _ q)
             | elem q genRecFields = Set.fromList [x | Just x <- [getGeneralizedFieldName q]]
           projs _                 = Set.empty
@@ -691,9 +693,10 @@ createGenValue x = setCurrentRange x $ do
 -- | Sort metas in dependency order.
 sortMetas :: [MetaId] -> TCM [MetaId]
 sortMetas metas = do
-  metaGraph <- fmap concat $ forM metas $ \ m -> do
-                  deps <- nub . filter (`elem` metas) . allMetas <$> getType m
-                  return [ (m, m') | m' <- deps ]
+  metaGraph <- concat <$> do
+    forM metas $ \ m -> do
+      deps <- allMetas (\ m' -> if m' `elem` metas then singleton m' else mempty) <$> getType m
+      return [ (m, m') | m' <- Set.toList deps ]
 
   caseMaybe (Graph.topSort metas metaGraph)
             (typeError GeneralizeCyclicDependency)
@@ -804,4 +807,3 @@ fillInGenRecordDetails name con fields recTy fieldTel = do
     r { theDef = (theDef r) { recTel = fullTel } }
   where
     setType q ty = modifyGlobalDefinition q $ \ d -> d { defType = ty }
-

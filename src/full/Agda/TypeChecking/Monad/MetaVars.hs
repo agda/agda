@@ -19,6 +19,7 @@ import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
 import qualified Data.Foldable as Fold
+import Data.Monoid
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
@@ -43,6 +44,7 @@ import Agda.Utils.Null
 import Agda.Utils.Permutation
 import Agda.Utils.Pretty (prettyShow)
 import Agda.Utils.Tuple
+import Agda.Utils.Singleton
 import Agda.Utils.Size
 import qualified Agda.Utils.Maybe.Strict as Strict
 
@@ -172,27 +174,46 @@ isInstantiatedMeta' m = do
 
 -- | Returns every meta-variable occurrence in the given type, except
 -- for those in 'Sort's.
-allMetas :: TermLike a => a -> [MetaId]
-allMetas = foldTerm metas
+allMetas :: (TermLike a, Monoid m) => (MetaId -> m) -> a -> m
+allMetas singl = foldTerm metas
   where
-  metas (MetaV m _) = [m]
+  metas (MetaV m _) = singl m
   metas (Level l)   = levelMetas l
-  metas _           = []
+  metas _           = mempty
 
-  levelMetas (Max as) = concatMap plusLevelMetas as
+  levelMetas (Max as) = foldMap plusLevelMetas as
 
-  plusLevelMetas ClosedLevel{} = []
+  plusLevelMetas ClosedLevel{} = mempty
   plusLevelMetas (Plus _ l)    = levelAtomMetas l
 
-  levelAtomMetas (MetaLevel m _) = [m]
-  levelAtomMetas _               = []
+  levelAtomMetas (MetaLevel m _) = singl m
+  levelAtomMetas _               = mempty
+
+-- | Returns 'allMetas' in a list.
+--   @allMetasList = allMetas (:[])@.
+--
+--   Note: this resulting list is computed via difference lists.
+--   Thus, use this function if you actually need the whole list of metas.
+--   Otherwise, use 'allMetas' with a suitable monoid.
+allMetasList :: TermLike a => a -> [MetaId]
+allMetasList t = allMetas singleton t `appEndo` []
+
+-- | 'True' if thing contains no metas.
+--   @noMetas = null . allMetasList@.
+noMetas :: TermLike a => a -> Bool
+noMetas = getAll . allMetas (\ _m -> All False)
+
+-- | Returns the first meta it find in the thing, if any.
+--   @firstMeta == headMaybe . allMetasList@.
+firstMeta :: TermLike a => a -> Maybe MetaId
+firstMeta = getFirst . allMetas (First . Just)
 
 -- | Returns all metavariables in a constraint. Slightly complicated by the
 --   fact that blocked terms are represented by two meta variables. To find the
 --   second one we need to look up the meta listeners for the one in the
 --   UnBlock constraint.
 constraintMetas :: Constraint -> TCM (Set MetaId)
-constraintMetas c = Set.union (Set.fromList $ allMetas c) <$> metas c
+constraintMetas c = Set.union (allMetas singleton c) <$> metas c
   where
     -- Dig out constraint-specific meta vars
     metas (UnBlock x)                    = Set.insert x . Set.unions <$> (mapM listenerMetas =<< getMetaListeners x)

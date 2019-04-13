@@ -31,6 +31,7 @@ import Debug.Trace
 import System.IO.Unsafe
 
 import Data.Maybe
+import Data.Monoid
 import Data.Traversable (Traversable,traverse)
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
@@ -528,10 +529,9 @@ equal :: (MonadReduce m, HasConstInfo m)
 equal u v = do
   (u, v) <- etaContract =<< normalise (u, v)
   let ok    = u == v
-      metas = allMetas (u, v)
-      block = caseMaybe (headMaybe metas)
+      block = caseMaybe (firstMeta (u, v))
                 (NotBlocked ReallyNotBlocked ())
-                (\m -> Blocked m ())
+                (\ m -> Blocked m ())
   if ok then return Nothing else do
     traceSDoc "rewriting.match" 10 (sep
       [ "mismatch between " <+> prettyTCM u

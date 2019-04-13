@@ -553,9 +553,9 @@ checkAbsurdLambda cmp i h e t = do
     case unEl t' of
       Pi dom@(Dom{domInfo = info', unDom = a}) b
         | not (sameHiding h info') -> typeError $ WrongHidingInLambda t'
-        | not (null $ allMetas a) ->
+        | not (noMetas a) ->
             postponeTypeCheckingProblem (CheckExpr cmp e t') $
-              null . allMetas <$> instantiateFull a
+              noMetas <$> instantiateFull a
         | otherwise -> blockTerm t' $ do
           ensureEmptyType (getRange i) a
           -- Add helper function
@@ -682,7 +682,7 @@ catchIlltypedPatternBlockedOnMeta m handle = do
               -- (seems to archieve a bit along @normalize@, but how much??).
               problem <- reduce =<< instantiateFull (flattenTel tel, us, vs)
               -- over-approximating the set of metas actually blocking unification
-              return $ listToMaybe $ allMetas problem
+              return $ firstMeta problem
 
             SplitError (NotADatatype aClosure) ->
               enterClosure aClosure $ \ a -> isBlockedType a
@@ -1195,36 +1195,33 @@ checkExpr' cmp e t0 =
 doQuoteTerm :: Comparison -> Term -> Type -> TCM Term
 doQuoteTerm cmp et t = do
   et'       <- etaContract =<< instantiateFull et
-  let metas = allMetas et'
-  case metas of
-    _:_ -> postponeTypeCheckingProblem (DoQuoteTerm cmp et t) $ andM $ map isInstantiatedMeta metas
+  case allMetasList et' of
     []  -> do
       q  <- quoteTerm et'
       ty <- el primAgdaTerm
       coerce cmp q ty t
+    metas -> postponeTypeCheckingProblem (DoQuoteTerm cmp et t) $ andM $ map isInstantiatedMeta metas
 
 -- | Checking `quoteGoal` (deprecated)
 quoteGoal :: Type -> TCM (Either [MetaId] Term)
 quoteGoal t = do
   t' <- etaContract =<< instantiateFull t
-  let metas = allMetas t'
-  case metas of
-    _:_ -> return $ Left metas
+  case allMetasList t' of
     []  -> do
       quotedGoal <- quoteTerm (unEl t')
       return $ Right quotedGoal
+    metas -> return $ Left metas
 
 -- | Checking `quoteContext` (deprecated)
 quoteContext :: TCM (Either [MetaId] Term)
 quoteContext = do
   contextTypes  <- map (fmap snd) <$> getContext
   contextTypes  <- etaContract =<< instantiateFull contextTypes
-  let metas = allMetas contextTypes
-  case metas of
-    _:_ -> return $ Left metas
+  case allMetasList contextTypes of
     []  -> do
       quotedContext <- buildList <*> mapM quoteDom contextTypes
       return $ Right quotedContext
+    metas -> return $ Left metas
 
 -- | Unquote a TCM computation in a given hole.
 unquoteM :: A.Expr -> Term -> Type -> TCM ()
@@ -1243,10 +1240,10 @@ unquoteTactic tac hole goal = do
       mi <- lookupMeta' x
       (r, meta) <- case mi of
         Nothing -> do -- fresh meta: need to block on something else!
-          otherMetas <- allMetas <$> instantiateFull goal
-          case otherMetas of
-            []  -> return (noRange,     Nothing) -- Nothing to block on, leave it yellow. Alternative: fail.
-            x:_ -> return (noRange,     Just x)  -- range?
+          (noRange,) . firstMeta <$> instantiateFull goal
+            -- Remark:
+            -- Nothing:  Nothing to block on, leave it yellow. Alternative: fail.
+            -- Just x:   range?
         Just mi -> return (getRange mi, Just x)
       setCurrentRange r $
         addConstraint (UnquoteTactic meta tac hole goal)

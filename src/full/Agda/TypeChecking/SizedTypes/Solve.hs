@@ -102,6 +102,7 @@ import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Pretty (Pretty, prettyShow)
 import qualified Agda.Utils.Pretty as P
+import Agda.Utils.Singleton
 import Agda.Utils.Size
 import Agda.Utils.Tuple
 import qualified Agda.Utils.VarSet as VarSet
@@ -145,7 +146,7 @@ solveSizeConstraints flag =  do
     -- @allMetas@ does not reduce or instantiate;
     -- this is why we require the size constraints to be normalised.
     return (cl, map metaId . Set.toList $
-      sizeMetaSet `Set.intersection` Set.fromList (allMetas c))
+      sizeMetaSet `Set.intersection` allMetas singleton c)
 
   -- Now, some constraints may have no metas (clcs), the others have at least one (othercs).
   let classify :: (a, [b]) -> Either a (a, NonemptyList b)

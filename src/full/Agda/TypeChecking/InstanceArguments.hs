@@ -20,6 +20,7 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.List as List
 import Data.Function (on)
+import Data.Monoid hiding ((<>))
 
 import Agda.Interaction.Options (optOverlappingInstances)
 
@@ -342,7 +343,7 @@ dropSameCandidates :: MetaId -> [(Candidate, Term, Type, a)] -> TCM [(Candidate,
 dropSameCandidates m cands0 = verboseBracket "tc.instance" 30 "dropSameCandidates" $ do
   metas <- getMetaVariableSet
   -- Does `it` have any metas in the initial meta variable store?
-  let freshMetas = any ((`IntSet.notMember` metas) . metaId) . allMetas
+  let freshMetas = getAny . allMetas (Any . (`IntSet.notMember` metas) . metaId)
 
   -- Take overlappable candidates into account
   let cands =

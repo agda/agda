@@ -1459,9 +1459,9 @@ equalLevel' a b = do
 
         hasMeta ClosedLevel{}               = False
         hasMeta (Plus _ MetaLevel{})        = True
-        hasMeta (Plus _ (BlockedLevel _ v)) = not $ null $ allMetas v
-        hasMeta (Plus _ (NeutralLevel _ v)) = not $ null $ allMetas v
-        hasMeta (Plus _ (UnreducedLevel v)) = not $ null $ allMetas v
+        hasMeta (Plus _ (BlockedLevel _ v)) = isJust $ firstMeta v
+        hasMeta (Plus _ (NeutralLevel _ v)) = isJust $ firstMeta v
+        hasMeta (Plus _ (UnreducedLevel v)) = isJust $ firstMeta v
 
         isThisMeta x (Plus _ (MetaLevel y _)) = x == y
         isThisMeta _ _                      = False
