@@ -55,7 +55,7 @@ import Agda.TypeChecking.Coverage.SplitTree
 
 import Agda.TypeChecking.Conversion (tryConversion, equalType, equalTermOnFace)
 import Agda.TypeChecking.Datatypes (getConForm)
-import {-# SOURCE #-} Agda.TypeChecking.Empty ( isEmptyTel, isEmptyType )
+import {-# SOURCE #-} Agda.TypeChecking.Empty ( checkEmptyTel, isEmptyTel, isEmptyType )
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.Patterns.Internal (dotPatternsToPatterns)
@@ -225,13 +225,21 @@ coverageCheck f t cs = do
 
   -- filter out the missing clauses that are absurd.
   pss <- flip filterM pss $ \(tel,ps) ->
-    ifNotM (isEmptyTel tel) (return True) $ do
+    -- Andreas, 2019-04-13, issue #3692: when adding missing absurd
+    -- clauses, also put the absurd pattern in.
+    caseEitherM (checkEmptyTel noRange tel) (\ _ -> return True) $ \ l -> do
+      -- Now, @l@ is the first type in @tel@ (counting from 0=leftmost)
+      -- which is empty.  Turn it into a de Bruijn index @i@.
+      let i = size tel - 1 - l
+      -- Build a substitution mapping this pattern variable to the absurd pattern.
+      let sub = inplaceS i $ absurdP i
+        -- ifNotM (isEmptyTel tel) (return True) $ do
       -- Jesper, 2018-11-28, Issue #3407: if the clause is absurd,
       -- add the appropriate absurd clause to the definition.
       let cl = Clause { clauseLHSRange    = noRange
                       , clauseFullRange   = noRange
                       , clauseTel         = tel
-                      , namedClausePats   = ps
+                      , namedClausePats   = applySubst sub ps
                       , clauseBody        = Nothing
                       , clauseType        = Nothing
                       , clauseCatchall    = False
@@ -241,6 +249,11 @@ coverageCheck f t cs = do
         sep [ "adding missing absurd clause"
             , nest 2 $ prettyTCM $ QNamed f cl
             ]
+      reportSDoc "tc.cover.missing" 80 $ inTopContext $ vcat
+        [ "l   = " <+> pretty l
+        , "i   = " <+> pretty i
+        , "cl  = " <+> pretty (QNamed f cl)
+        ]
       addClauses f [cl]
       return False
 

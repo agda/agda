@@ -1,0 +1,4 @@
+Issue3692.agda:33,19-23
+m≤n != m≤n' of type m ≤ n
+when checking that the expression refl has type
+inject≤ m n i m≤n ≡ inject≤ m n i m≤n'

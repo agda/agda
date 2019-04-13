@@ -1,9 +1,5 @@
 
-module Agda.TypeChecking.Empty
-       ( isEmptyType
-       , isEmptyTel
-       , ensureEmptyType
-       ) where
+module Agda.TypeChecking.Empty where
 
 import Control.Monad.Except
 
@@ -94,11 +90,15 @@ checkEmptyType range t = do
     -- If t is a record type, see if any of the field types is empty
     Right (r, pars, def) -> do
       if recEtaEquality def == NoEta then return $ Left Fail else do
-        checkEmptyTel range $ recTel def `apply` pars
+        void <$> do checkEmptyTel range $ recTel def `apply` pars
 
-checkEmptyTel :: Range -> Telescope -> TCM (Either ErrorNonEmpty ())
-checkEmptyTel r EmptyTel            = return $ Left Fail
-checkEmptyTel r (ExtendTel dom tel) = orEitherM
-  [ checkEmptyType r (unDom dom)
-  , underAbstraction dom tel (checkEmptyTel r)
-  ]
+-- | Check whether one of the types in the given telescope is constructor-less
+--   and if yes, return its index in the telescope (0 = leftmost).
+checkEmptyTel :: Range -> Telescope -> TCM (Either ErrorNonEmpty Int)
+checkEmptyTel r = loop 0
+  where
+  loop i EmptyTel            = return $ Left Fail
+  loop i (ExtendTel dom tel) = orEitherM
+    [ (i <$) <$> checkEmptyType r (unDom dom)
+    , underAbstraction dom tel $ loop (succ i)
+    ]

@@ -489,6 +489,10 @@ namedVarP x = Named named $ varP x
 namedDBVarP :: Int -> PatVarName -> Named_ DeBruijnPattern
 namedDBVarP m = (fmap . fmap) (\x -> DBPatVar x m) . namedVarP
 
+-- | Make an absurd pattern with the given de Bruijn index.
+absurdP :: Int -> DeBruijnPattern
+absurdP = VarP PatOAbsurd . DBPatVar absurdPatternName
+
 -- | The @ConPatternInfo@ states whether the constructor belongs to
 --   a record type (@Just@) or data type (@Nothing@).
 --   In the former case, the @PatOrigin@ says whether the record pattern
