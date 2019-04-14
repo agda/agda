@@ -44,6 +44,8 @@ Index of pragmas
 
 * :ref:`WARNING_ON_USAGE <warning_pragma>`
 
+* :ref:`WARNING_ON_IMPORT`
+
 See also :ref:`command-line-pragmas`.
 
 .. _inline_pragma:
@@ -80,14 +82,17 @@ Example::
 
 .. _warning_pragma:
 
-The ``WARNING_ON_USAGE`` pragma
-_______________________________________
+The ``WARNING_ON_`` pragmas
+___________________________
 
 A library author can use a ``WARNING_ON_USAGE`` pragma to attach to a defined
 name a warning to be raised whenever this name is used.
 
-This would typically be used to declare a name 'DEPRECATED' and advise the
-end-user to port their code before the feature is dropped.
+Similarly they can use a ``WARNING_ON_IMPORT`` pragma to attach to a module
+a warning to be raised whenever this module is imported.
+
+This would typically be used to declare a name or a module 'DEPRECATED' and
+advise the end-user to port their code before the feature is dropped.
 
 Example::
 
@@ -100,3 +105,4 @@ Example::
 
   -- The warning
   {-# WARNING_ON_USAGE λx→x "DEPRECATED: Use `id` instead of `λx→x`" #-}
+  {-# WARNING_ON_IMPORT "DEPRECATED: Use module `Function.Identity` rather than `Identity`" #-}
