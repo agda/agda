@@ -44,7 +44,7 @@ Index of pragmas
 
 * :ref:`WARNING_ON_USAGE <warning_pragma>`
 
-* :ref:`WARNING_ON_IMPORT`
+* :ref:`WARNING_ON_IMPORT <warning_pragma>`
 
 See also :ref:`command-line-pragmas`.
 
