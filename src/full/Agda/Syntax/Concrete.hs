@@ -416,6 +416,8 @@ data Pragma
     --   @eta-equality@ definition (as it is might make Agda loop).
   | WarningOnUsage            Range QName String
     -- ^ Applies to the named function
+  | WarningOnImport           Range String
+    -- ^ Applies to the current module
   | InjectivePragma           Range QName
     -- ^ Mark a definition as injective for the pattern matching unifier.
   | DisplayPragma             Range Pattern Expr
@@ -694,6 +696,7 @@ instance HasRange Pragma where
   getRange (EtaPragma r _)                   = r
   getRange (TerminationCheckPragma r _)      = r
   getRange (WarningOnUsage r _ _)            = r
+  getRange (WarningOnImport r _)             = r
   getRange (CatchallPragma r)                = r
   getRange (DisplayPragma r _ _)             = r
   getRange (NoPositivityCheckPragma r)       = r
@@ -887,6 +890,7 @@ instance KillRange Pragma where
   killRange (ImpossiblePragma _)              = ImpossiblePragma noRange
   killRange (TerminationCheckPragma _ t)      = TerminationCheckPragma noRange (killRange t)
   killRange (WarningOnUsage _ nm str)         = WarningOnUsage noRange (killRange nm) str
+  killRange (WarningOnImport _ str)           = WarningOnImport noRange str
   killRange (CatchallPragma _)                = CatchallPragma noRange
   killRange (DisplayPragma _ lhs rhs)         = killRange2 (DisplayPragma noRange) lhs rhs
   killRange (EtaPragma _ q)                   = killRange1 (EtaPragma noRange) q
@@ -1020,6 +1024,7 @@ instance NFData Pragma where
   rnf (EtaPragma _ a)                   = rnf a
   rnf (TerminationCheckPragma _ a)      = rnf a
   rnf (WarningOnUsage _ a b)            = rnf a `seq` rnf b
+  rnf (WarningOnImport _ a)             = rnf a
   rnf (CatchallPragma _)                = ()
   rnf (DisplayPragma _ a b)             = rnf a `seq` rnf b
   rnf (NoPositivityCheckPragma _)       = ()

@@ -307,7 +307,7 @@ warningNameDescription w = case w of
   SafeFlagNoPositivityCheck_       -> "`NO_POSITIVITY_CHECK' pragmas with the safe flag."
   SafeFlagPolarity_                -> "`POLARITY' pragmas with the safe flag."
   SafeFlagNoUniverseCheck_         -> "`NO_UNIVERSE_CHECK' pragmas with the safe flag."
-  UserWarning_                     -> "User-defined warning added using the 'WARNING_ON_USAGE' pragma."
+  UserWarning_                     -> "User-defined warning added using one of the 'WARNING_ON_*' pragmas."
   AbsurdPatternRequiresNoRHS_      -> "A clause with an absurd pattern does not need a Right Hand Side."
   CantGeneralizeOverSorts_         -> "Attempt to generalize over sort metas in 'variable' declaration."
   WithoutKFlagPrimEraseEquality_   -> "`primEraseEquality' usages with the without-K flags."

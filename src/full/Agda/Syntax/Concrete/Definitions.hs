@@ -1406,6 +1406,7 @@ niceDeclarations fixs ds = do
               ImpossiblePragma{}        -> top     -- error thrown in scope checker
               EtaPragma{}               -> bottom  -- needs record definition
               WarningOnUsage{}          -> top
+              WarningOnImport{}         -> top
               InjectivePragma{}         -> top     -- only needs name, not definition
               DisplayPragma{}           -> top     -- only for printing
 

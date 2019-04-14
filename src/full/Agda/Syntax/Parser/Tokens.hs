@@ -23,7 +23,7 @@ data Keyword
         | KwIMPOSSIBLE | KwSTATIC | KwINJECTIVE | KwINLINE | KwNOINLINE
         | KwETA
         | KwNO_TERMINATION_CHECK | KwTERMINATING | KwNON_TERMINATING
-        | KwWARNING_ON_USAGE
+        | KwWARNING_ON_USAGE | KwWARNING_ON_IMPORT
         | KwMEASURE | KwDISPLAY
         | KwREWRITE
         | KwQuoteGoal | KwQuoteContext | KwQuote | KwQuoteTerm

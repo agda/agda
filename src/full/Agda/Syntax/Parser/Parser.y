@@ -168,6 +168,7 @@ import Agda.Utils.Impossible
     'OPTIONS'                 { TokKeyword KwOPTIONS $$ }
     'POLARITY'                { TokKeyword KwPOLARITY $$ }
     'WARNING_ON_USAGE'        { TokKeyword KwWARNING_ON_USAGE $$ }
+    'WARNING_ON_IMPORT'       { TokKeyword KwWARNING_ON_IMPORT $$ }
     'REWRITE'                 { TokKeyword KwREWRITE $$ }
     'STATIC'                  { TokKeyword KwSTATIC $$ }
     'TERMINATING'             { TokKeyword KwTERMINATING $$ }
@@ -299,6 +300,7 @@ Token
     | 'STATIC'                  { TokKeyword KwSTATIC $1 }
     | 'TERMINATING'             { TokKeyword KwTERMINATING $1 }
     | 'WARNING_ON_USAGE'        { TokKeyword KwWARNING_ON_USAGE $1 }
+    | 'WARNING_ON_IMPORT'       { TokKeyword KwWARNING_ON_IMPORT $1 }
 
     | setN                      { TokSetN $1 }
     | propN                     { TokPropN $1 }
@@ -1517,6 +1519,7 @@ DeclarationPragma
   | NonTerminatingPragma     { $1 }
   | NoTerminationCheckPragma { $1 }
   | WarningOnUsagePragma     { $1 }
+  | WarningOnImportPragma    { $1 }
   | MeasurePragma            { $1 }
   | CatchallPragma           { $1 }
   | DisplayPragma            { $1 }
@@ -1636,6 +1639,15 @@ WarningOnUsagePragma
   : '{-#' 'WARNING_ON_USAGE' PragmaQName literal '#-}'
   {%  case $4 of
         { LitString r str -> return $ WarningOnUsage (getRange ($1,$2,$3,r,$5)) $3 str
+        ; _ -> parseError "Expected string literal"
+        }
+  }
+
+WarningOnImportPragma :: { Pragma }
+WarningOnImportPragma
+  : '{-#' 'WARNING_ON_IMPORT' literal '#-}'
+  {%  case $3 of
+        { LitString r str -> return $ WarningOnImport (getRange ($1,$2,r,$4)) str
         ; _ -> parseError "Expected string literal"
         }
   }

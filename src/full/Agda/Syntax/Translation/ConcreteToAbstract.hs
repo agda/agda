@@ -2046,6 +2046,10 @@ instance ToAbstract C.Pragma [A.Pragma] where
     stLocalUserWarnings `modifyTCLens` Map.insert qn str
     pure []
 
+  toAbstract (C.WarningOnImport _ str) = do
+    stWarningOnImport `setTCLens` Just str
+    pure []
+
   -- Termination checking pragmes are handled by the nicifier
   toAbstract C.TerminationCheckPragma{} = __IMPOSSIBLE__
 
