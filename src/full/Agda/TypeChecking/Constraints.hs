@@ -204,8 +204,9 @@ solveConstraint_ c0@(Guarded c pid)         = do
     {-else-} $ do
       reportSLn "tc.constr.solve" 50 $ "Guarding problem " ++ show pid ++ " is still unsolved."
       addConstraint c0
-solveConstraint_ (IsEmpty r t)              = isEmptyType r t
+solveConstraint_ (IsEmpty r t)              = ensureEmptyType r t
 solveConstraint_ (CheckSizeLtSat t)         = checkSizeLtSat t
+solveConstraint_ (UnquoteTactic _ tac hole goal) = unquoteTactic tac hole goal
 solveConstraint_ (UnBlock m)                =
   ifM (isFrozen m) (addConstraint $ UnBlock m) $ do
     inst <- mvInstantiation <$> lookupMeta m
@@ -250,7 +251,6 @@ checkTypeCheckingProblem p = case p of
   CheckProjAppToKnownPrincipalArg cmp e o ds args t k v0 pt ->
     checkProjAppToKnownPrincipalArg cmp e o ds args t k v0 pt
   CheckLambda cmp args body target -> checkPostponedLambda cmp args body target
-  UnquoteTactic tac hole t       -> unquoteTactic tac hole t $ return hole
   DoQuoteTerm cmp et t           -> doQuoteTerm cmp et t
 
 debugConstraints :: TCM ()

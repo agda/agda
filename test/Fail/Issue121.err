@@ -1,5 +1,5 @@
 Issue121.agda:15,1-16,31
 D is not strictly positive, because it occurs
-in the second argument to F
+in the second argument of F
 in the type of the constructor nop
 in the definition of D.

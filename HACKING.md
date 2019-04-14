@@ -223,7 +223,6 @@ Testing and documentation
 
   You can fix the whitespace issues running
 
-      make install-fix-agda-whitespace
       make fix-whitespace
 
 * To build the user manual locally, you need to install
@@ -379,12 +378,12 @@ Developing with Stack
 At the time of writing, the whole dev stack of Agda is still centered around
 tools like `Cabal` and `Makefile`.
 
-To replace `Cabal` with `Stack`, you will only have to make a copy of
-`stack.yaml` from `stack-dev-8.4.3.yaml`.
+To develop Agda with `Stack`, copy one of the stack-x.x.x.yaml files of your
+choice, and rename it to `stack.yaml`. For example:
 
-    cp stack-dev-8.4.3.yaml stack.yaml
+    cp stack-8.4.4.yaml stack.yaml
 
-And that's pretty much all of it!
+And you are good to go!
 
 You can proceed to build the project and run tests like you would
 before:
@@ -400,8 +399,8 @@ Closing issues
 
 Before releasing for example Agda 1.2.3 we add to the `CHANGELOG`
 *all* the closed issues with milestone 1.2.3 (using the
-`clossed-issues` program) except those issues labelled with
-`not-in-changelog`, `status: abandoned`, `status: duplicated`,
+`clossed-issues-by-milestone` program) except those issues labelled
+with `not-in-changelog`, `status: abandoned`, `status: duplicated`,
 `status: invalid`, `status: wontfix` or `status: working-as-intended`.
 
 

@@ -176,6 +176,7 @@
 \DeclareUnicodeCharacter{220F}{{\tiny \ensuremath{\prod}}}  % Symbol ∏
 \DeclareUnicodeCharacter{2211}{\ensuremath{\sum}}           % Symbol ∑
 \DeclareUnicodeCharacter{2218}{\ensuremath{\circ}}          % Symbol ∘
+\DeclareUnicodeCharacter{2219}{\ensuremath{\bullet}}        % Symbol ∙
 \DeclareUnicodeCharacter{221E}{\ensuremath{\infty}}         % Symbol ∞
 \DeclareUnicodeCharacter{2223}{\ensuremath{\mid}}           % Symbol ∣
 \DeclareUnicodeCharacter{2225}{\ensuremath{\parallel}}      % Symbol ∥

@@ -297,7 +297,7 @@ typeCheckMain f mode si = do
 
     -- We don't want to generate highlighting information for Agda.Primitive.
     withHighlightingLevel None $ withoutOptionsChecking $
-      forM_ (map (libdirPrim </>) Lens.primitiveModules) $ \f -> do
+      forM_ (Set.map (libdirPrim </>) Lens.primitiveModules) $ \f -> do
         let file = mkAbsolute f
         si <- sourceInfo file
         checkModuleName' (siModuleName si) file
@@ -382,7 +382,9 @@ getInterface' x isMain msi = do
       checkForImportCycle
 
       uptodate <- Bench.billTo [Bench.Import] $ do
-        ignore <- ignoreInterfaces
+        ignore <- (ignoreInterfaces `and2M`
+                    (not <$> Lens.isBuiltinModule (filePath file)))
+                  `or2M` ignoreAllInterfaces
         cached <- runMaybeT $ isCached x file
           -- If it's cached ignoreInterfaces has no effect;
           -- to avoid typechecking a file more than once.

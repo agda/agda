@@ -74,20 +74,10 @@ tokens :-
 <pragma_,fpragma_> "#-}"               { endWith $ symbol SymClosePragma }
 <pragma_>   "BUILTIN"                  { keyword KwBUILTIN }
 <pragma_>   "CATCHALL"                 { keyword KwCATCHALL }
-<pragma_>   "COMPILED"                 { keyword KwCOMPILED }
-<pragma_>   "COMPILED_DATA"            { keyword KwCOMPILED_DATA }
-<pragma_>   "COMPILED_DATA_UHC"        { keyword KwCOMPILED_DATA_UHC }
-<pragma_>   "COMPILED_EXPORT"          { keyword KwCOMPILED_EXPORT }
-<pragma_>   "COMPILED_JS"              { keyword KwCOMPILED_JS }
-<pragma_>   "COMPILED_TYPE"            { keyword KwCOMPILED_TYPE }
-<pragma_>   "COMPILED_UHC"             { keyword KwCOMPILED_UHC }
 <pragma_>   "COMPILE"                  { endWith $ beginWith fpragma $ keyword KwCOMPILE }
 <pragma_>   "FOREIGN"                  { endWith $ beginWith fpragma $ keyword KwFOREIGN }
 <pragma_>   "DISPLAY"                  { keyword KwDISPLAY }
 <pragma_>   "ETA"                      { keyword KwETA }
-<pragma_>   "HASKELL"                  { endWith $ beginWith fpragma $ keyword KwHASKELL }
-<pragma_>   "IMPORT"                   { keyword KwIMPORT }
-<pragma_>   "IMPORT_UHC"               { keyword KwIMPORT_UHC }
 <pragma_>   "IMPOSSIBLE"               { keyword KwIMPOSSIBLE }
 <pragma_>   "INJECTIVE"                { keyword KwINJECTIVE }
 <pragma_>   "INLINE"                   { keyword KwINLINE }

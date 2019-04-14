@@ -34,6 +34,7 @@ import Agda.Utils.List
 import Agda.Utils.Null
 import Agda.Utils.Pretty
 import Agda.Utils.SemiRing
+import Agda.Utils.Size
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -44,11 +45,12 @@ import Agda.Utils.Impossible
 
 -- | Description of an occurrence.
 data OccursWhere
-  = Unknown
-    -- ^ an unknown position (treated as negative)
-  | Known Range (Seq Where)
-    -- ^ The elements of the sequence, from left to right, explain how
-    -- to get to the occurrence.
+  = OccursWhere Range (Seq Where) (Seq Where)
+    -- ^ The elements of the sequences, read from left to right,
+    -- explain how to get to the occurrence. The second sequence
+    -- includes the main information, and if the first sequence is
+    -- non-empty, then it includes information about the context of
+    -- the second sequence.
   deriving (Show, Eq, Ord, Data)
 
 -- | One part of the description of an occurrence.
@@ -62,6 +64,7 @@ data Where
   | IndArgType QName -- ^ in a datatype index of a constructor
   | InClause Nat     -- ^ in the nth clause of a defined function
   | Matched          -- ^ matched against in a clause of a defined function
+  | IsIndex          -- ^ is an index of an inductive family
   | InDefOf QName    -- ^ in the definition of a constant
   deriving (Show, Eq, Ord, Data)
 
@@ -78,7 +81,7 @@ data Occurrence
   | Unused    --  ^ No occurrence.
   deriving (Data, Show, Eq, Ord, Enum, Bounded)
 
--- * Pretty instances
+-- Pretty instances.
 
 instance Pretty Occurrence where
   pretty = text . \case
@@ -100,14 +103,15 @@ instance Pretty Where where
     IndArgType q -> "IndArgType" <+> pretty q
     InClause i   -> "InClause"   <+> pretty i
     Matched      -> "Matched"
+    IsIndex      -> "IsIndex"
     InDefOf q    -> "InDefOf"    <+> pretty q
 
 instance Pretty OccursWhere where
   pretty = \case
-    Unknown     -> "Unknown"
-    Known _r ws -> "Known _" <+> pretty (toList ws)
+    OccursWhere _r ws1 ws2 ->
+      "OccursWhere _" <+> pretty (toList ws1) <+> pretty (toList ws2)
 
--- * Instances for 'Occurrence'
+-- Other instances for 'Occurrence'.
 
 instance NFData Occurrence where rnf x = seq x ()
 
@@ -164,6 +168,14 @@ instance StarSemiRing Occurrence where
 instance Null Occurrence where
   empty = Unused
 
+-- Other instances for 'OccursWhere'.
+
+-- There is an orphan PrettyTCM instance for Seq OccursWhere in
+-- Agda.TypeChecking.Positivity.
+
+instance Sized OccursWhere where
+  size (OccursWhere _ cs os) = 1 + size cs + size os
+
 -- | The map contains bindings of the form @bound |-> ess@, satisfying
 -- the following property: for every non-empty list @w@,
 -- @'foldr1' 'otimes' w '<=' bound@ iff
@@ -195,7 +207,7 @@ boundToEverySome = Map.fromList
 -- belong to the domain of @boundToEverySome@.
 
 -- There is a property for this function in
--- Agda.Utils.Graph.AdjacencyMap.Unidirectional.Tests.
+-- Internal.Utils.Graph.AdjacencyMap.Unidirectional.
 
 productOfEdgesInBoundedWalk ::
   (SemiRing e, Ord n) =>

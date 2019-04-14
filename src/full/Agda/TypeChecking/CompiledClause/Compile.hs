@@ -45,8 +45,8 @@ import Agda.Utils.Impossible
 data RunRecordPatternTranslation = RunRecordPatternTranslation | DontRunRecordPatternTranslation
   deriving (Eq)
 
-compileClauses' :: RunRecordPatternTranslation -> [Clause] -> TCM CompiledClauses
-compileClauses' recpat cs = do
+compileClauses' :: RunRecordPatternTranslation -> [Clause] -> Maybe SplitTree -> TCM CompiledClauses
+compileClauses' recpat cs mSplitTree = do
   -- Apply forcing translation. This only shuffles the deBruijn variables
   -- so doesn't affect the right hand side.
   cs <- sequence [ forcingTranslation ps <&> \ qs -> c{ namedClausePats = qs }
@@ -59,7 +59,8 @@ compileClauses' recpat cs = do
   let translate | recpat == RunRecordPatternTranslation = translateCompiledClauses
                 | otherwise                             = return
 
-  translate $ compile cs
+  translate $ caseMaybe mSplitTree (compile cs) $ \splitTree ->
+    compileWithSplitTree splitTree cs
 
 -- | Process function clauses into case tree.
 --   This involves:
@@ -70,12 +71,12 @@ compileClauses' recpat cs = do
 --   Phases 1. and 2. are skipped if @Nothing@.
 compileClauses ::
   Maybe (QName, Type) -- ^ Translate record patterns and coverage check with given type?
-  -> [Clause] -> TCM CompiledClauses
+  -> [Clause] -> TCM (Maybe SplitTree, CompiledClauses)
 compileClauses mt cs = do
   -- Construct clauses with pattern variables bound in left-to-right order.
   -- Discard de Bruijn indices in patterns.
   case mt of
-    Nothing -> compile . map unBruijn <$> normaliseProjP cs
+    Nothing -> (Nothing,) . compile . map unBruijn <$> normaliseProjP cs
     Just (q, t)  -> do
       splitTree <- coverageCheck q t cs
 
@@ -97,12 +98,16 @@ compileClauses mt cs = do
       reportSDoc "tc.cc" 50 $
         "clauses before compilation" <?> pretty cs
       let cc = compileWithSplitTree splitTree cls
-      reportSDoc "tc.cc" 12 $ sep
+      reportSDoc "tc.cc" 20 $ sep
         [ "compiled clauses (still containing record splits)"
         , nest 2 $ return $ P.pretty cc
         ]
       cc <- translateCompiledClauses cc
-      return (fmap precomputeFreeVars_ cc)
+      reportSDoc "tc.cc" 12 $ sep
+        [ "compiled clauses"
+        , nest 2 $ return $ P.pretty cc
+        ]
+      return (Just splitTree, fmap precomputeFreeVars_ cc)
 
 -- | Stripped-down version of 'Agda.Syntax.Internal.Clause'
 --   used in clause compiler.
@@ -198,9 +203,9 @@ nextSplit (Cl ps _ : cs) = findSplit nonLazy ps <|> findSplit allAgree ps
     getCon _                = Nothing
 
 -- | Is is not a variable pattern?
---   And if yes, is it a record pattern?
+--   And if yes, is it a record pattern and/or a fallThrough one?
 properSplit :: Pattern' a -> Maybe Bool
-properSplit (ConP _ cpi _) = Just (Just PatORec == conPRecord cpi)
+properSplit (ConP _ cpi _) = Just (Just PatORec == conPRecord cpi || conPFallThrough cpi)
 properSplit DefP{}    = Just False
 properSplit LitP{}    = Just False
 properSplit ProjP{}   = Just False
@@ -295,6 +300,22 @@ splitC n (Cl ps b) = caseMaybe mp fallback $ \case
 --       true  -> c
 --       false -> b
 --     false -> a
+-- @
+--
+-- Example from issue #3628:
+-- @
+--   f i j k (i = i0)(k = i1) = base
+--   f i j k (j = i1)         = base
+-- @
+-- case tree:
+-- @
+--   f i j k o = case i of
+--     i0 -> case k of
+--             i1 -> base
+--             _  -> case j of
+--                     i1 -> base
+--     _  -> case j of
+--             i1 -> base
 -- @
 expandCatchAlls :: Bool -> Int -> Cls -> Cls
 expandCatchAlls single n cs =

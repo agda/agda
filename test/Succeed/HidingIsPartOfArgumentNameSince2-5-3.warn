@@ -1,0 +1,15 @@
+HidingIsPartOfArgumentNameSince2-5-3.agda:15,8-35
+Instance arguments whose type does not end in a named or variable
+type are never considered by instance search, so having an instance
+argument ⦃ X : Set ⦄ has no effect.
+when checking that the expression ⦃ X : Set ⦄ {X = X₁ : Set} → Set
+is a type
+
+———— All done; warnings encountered ————————————————————————
+
+HidingIsPartOfArgumentNameSince2-5-3.agda:15,8-35
+Instance arguments whose type does not end in a named or variable
+type are never considered by instance search, so having an instance
+argument ⦃ X : Set ⦄ has no effect.
+when checking that the expression ⦃ X : Set ⦄ {X = X₁ : Set} → Set
+is a type

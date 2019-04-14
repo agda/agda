@@ -44,11 +44,13 @@ import Agda.TypeChecking.Abstract
 import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Conversion
+import Agda.TypeChecking.Coverage.SplitTree
 import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.EtaContract
 import Agda.TypeChecking.Generalize
 import Agda.TypeChecking.Implicit
 import Agda.TypeChecking.Irrelevance
+import Agda.TypeChecking.IApplyConfluence
 import Agda.TypeChecking.Level
 import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.Names
@@ -69,8 +71,9 @@ import Agda.TypeChecking.Sort
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Unquote
+import Agda.TypeChecking.Warnings
 
-import {-# SOURCE #-} Agda.TypeChecking.Empty (isEmptyType)
+import {-# SOURCE #-} Agda.TypeChecking.Empty ( ensureEmptyType )
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Def (checkFunDef', useTerPragma)
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Decl (checkSectionApplication)
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Application
@@ -275,13 +278,25 @@ checkTelescope' lamOrPi (b : tel) ret =
 --   is needed for irrelevance.
 
 checkTypedBindings :: LamOrPi -> A.TypedBinding -> (Telescope -> TCM a) -> TCM a
-checkTypedBindings lamOrPi (A.TBind _ xs' e) ret = do
+checkTypedBindings lamOrPi (A.TBind r xs' e) ret = do
     let xs = (map . fmap . fmap) A.unBind xs'
     -- Andreas, 2011-04-26 irrelevant function arguments may appear
     -- non-strictly in the codomain type
     -- 2011-10-04 if flag --experimental-irrelevance is set
     experimental <- optExperimentalIrrelevance <$> pragmaOptions
     t <- modEnv lamOrPi $ isType_ e
+
+    -- Jesper, 2019-02-12, Issue #3534: warn if the type of an
+    -- instance argument does not have the right shape
+    unlessNull (filter isInstance xs') $ \ixs -> do
+      (tel, target) <- getOutputTypeName t
+      case target of
+        OutputTypeName{} -> return ()
+        OutputTypeVar{}  -> return ()
+        OutputTypeVisiblePi{} -> warning . InstanceArgWithExplicitArg =<< prettyTCM (A.TBind r ixs e)
+        OutputTypeNameNotYetKnown{} -> return ()
+        NoOutputTypeName -> warning . InstanceNoOutputTypeName =<< prettyTCM (A.TBind r ixs e)
+
     let xs' = (map . mapRelevance) (modRel lamOrPi experimental) xs
     addContext (xs', t) $
       ret $ namedBindsToTel xs t
@@ -538,11 +553,11 @@ checkAbsurdLambda cmp i h e t = do
     case unEl t' of
       Pi dom@(Dom{domInfo = info', unDom = a}) b
         | not (sameHiding h info') -> typeError $ WrongHidingInLambda t'
-        | not (null $ allMetas a) ->
+        | not (noMetas a) ->
             postponeTypeCheckingProblem (CheckExpr cmp e t') $
-              null . allMetas <$> instantiateFull a
+              noMetas <$> instantiateFull a
         | otherwise -> blockTerm t' $ do
-          isEmptyType (getRange i) a
+          ensureEmptyType (getRange i) a
           -- Add helper function
           top <- currentModule
           aux <- qualify top <$> freshName_ (getRange i, absurdLambdaName)
@@ -563,7 +578,7 @@ checkAbsurdLambda cmp i h e t = do
                     { clauseLHSRange  = getRange e
                     , clauseFullRange = getRange e
                     , clauseTel       = telFromList [fmap (absurdPatternName,) dom]
-                    , namedClausePats = [Arg info' $ Named (Just $ unranged $ absName b) $ VarP PatOAbsurd (DBPatVar absurdPatternName 0)]
+                    , namedClausePats = [Arg info' $ Named (Just $ unranged $ absName b) $ absurdP 0]
                     , clauseBody      = Nothing
                     , clauseType      = Just $ setRelevance rel $ defaultArg $ absBody b
                     , clauseCatchall  = False
@@ -571,6 +586,7 @@ checkAbsurdLambda cmp i h e t = do
                     }
                   ]
               , funCompiled       = Just Fail
+              , funSplitTree      = Just $ SplittingDone 0
               , funMutual         = Just []
               , funTerminates     = Just True
               }
@@ -612,6 +628,9 @@ checkExtendedLambda cmp i di qname cs e t = do
          useTerPragma $
            (defaultDefn info qname t emptyFunction) { defMutual = j }
        checkFunDef' t info NotDelayed (Just $ ExtLamInfo lamMod Nothing) Nothing di qname cs
+       whenNothingM (asksTC envMutualBlock) $
+         -- Andrea 10-03-2018: Should other checks be performed here too? e.g. termination/positivity/..
+         checkIApplyConfluence_ qname
        return $ Def qname $ map Apply args)
   where
     -- Concrete definitions cannot use information about abstract things.
@@ -663,10 +682,13 @@ catchIlltypedPatternBlockedOnMeta m handle = do
               -- (seems to archieve a bit along @normalize@, but how much??).
               problem <- reduce =<< instantiateFull (flattenTel tel, us, vs)
               -- over-approximating the set of metas actually blocking unification
-              return $ listToMaybe $ allMetas problem
+              return $ firstMeta problem
 
             SplitError (NotADatatype aClosure) ->
               enterClosure aClosure $ \ a -> isBlockedType a
+
+            -- Andrea: TODO look for blocking meta in tClosure and its Sort.
+            -- SplitError (CannotCreateMissingClause _ _ _ tClosure) ->
 
             CannotEliminateWithPattern p a -> isBlockedType a
 
@@ -686,7 +708,7 @@ catchIlltypedPatternBlockedOnMeta m handle = do
 
     -- The meta might not be known in the reset state, as it could have been created
     -- somewhere on the way to the type error.
-    Map.lookup x <$> getMetaStore >>= \case
+    lookupMeta' x >>= \case
       -- Case: we do not know the meta, so we reraise.
       Nothing -> reraise
       -- Case: we know the meta here.
@@ -710,12 +732,10 @@ catchIlltypedPatternBlockedOnMeta m handle = do
 
 -- | Picks up record field assignments from modules that export a definition
 --   that has the same name as the missing field.
---
---   Only visible fields are picked up.  Issue #3122: Why is that the case?
 
 expandModuleAssigns
   :: [Either A.Assign A.ModuleName]  -- ^ Modules and field assignments.
-  -> [C.Name]                        -- ^ Names of visible fields of the record type.
+  -> [C.Name]                        -- ^ Names of fields of the record type.
   -> TCM A.Assigns                   -- ^ Completed field assignments from modules.
 expandModuleAssigns mfs exs = do
   let (fs , ms) = partitionEithers mfs
@@ -777,7 +797,6 @@ checkRecordExpression cmp mfs e t = do
       def <- getRecordDef r
       let -- Field names (C.Name) with ArgInfo from record type definition.
           cxs  = recordFieldNames def
-          exs  = filter visible cxs
           -- Just field names.
           xs   = map unArg cxs
           -- Record constructor.
@@ -794,7 +813,8 @@ checkRecordExpression cmp mfs e t = do
       disambiguateRecordFields (map _nameFieldA $ lefts mfs) (map unArg $ recFields def)
 
       -- Compute the list of given fields, decorated with the ArgInfo from the record def.
-      fs <- expandModuleAssigns mfs (map unArg exs)
+      -- Andreas, 2019-03-18, issue #3122, also pick up non-visible fields from the modules.
+      fs <- expandModuleAssigns mfs (map unArg cxs)
 
       -- Compute a list of metas for the missing visible fields.
       scope <- getScope
@@ -872,8 +892,9 @@ checkRecordUpdate cmp ei recexpr fs e t = do
         -- to their counterpart in the record type definition.
         disambiguateRecordFields (map _nameFieldA fs) (map unArg projs)
 
-        xs <- map unArg <$> getRecordFieldNames r
-        es <- orderFields r Nothing xs $ map (\ (FieldAssignment x e) -> (x, Just e)) fs
+        axs <- getRecordFieldNames r
+        let xs = map unArg axs
+        es <- orderFields r (\ _ -> Nothing) axs $ map (\ (FieldAssignment x e) -> (x, Just e)) fs
         let es' = zipWith (replaceFields name ei) projs es
         checkExpr' cmp (A.Rec ei [ Left (FieldAssignment x e) | (x, Just e) <- zip xs es' ]) t
 
@@ -933,10 +954,7 @@ checkExpr' cmp e t0 =
 
     e <- scopedExpr e
 
-    isPrp <- isPropM t
-    let irrelevantIfProp = applyWhen isPrp $ applyRelevanceToContext Irrelevant
-
-    irrelevantIfProp $ tryInsertHiddenLambda e t $ case e of
+    tryInsertHiddenLambda e t $ case e of
 
         A.ScopedExpr scope e -> __IMPOSSIBLE__ -- setScope scope >> checkExpr e t
 
@@ -1177,63 +1195,60 @@ checkExpr' cmp e t0 =
 doQuoteTerm :: Comparison -> Term -> Type -> TCM Term
 doQuoteTerm cmp et t = do
   et'       <- etaContract =<< instantiateFull et
-  let metas = allMetas et'
-  case metas of
-    _:_ -> postponeTypeCheckingProblem (DoQuoteTerm cmp et t) $ andM $ map isInstantiatedMeta metas
+  case allMetasList et' of
     []  -> do
       q  <- quoteTerm et'
       ty <- el primAgdaTerm
       coerce cmp q ty t
+    metas -> postponeTypeCheckingProblem (DoQuoteTerm cmp et t) $ andM $ map isInstantiatedMeta metas
 
 -- | Checking `quoteGoal` (deprecated)
 quoteGoal :: Type -> TCM (Either [MetaId] Term)
 quoteGoal t = do
   t' <- etaContract =<< instantiateFull t
-  let metas = allMetas t'
-  case metas of
-    _:_ -> return $ Left metas
+  case allMetasList t' of
     []  -> do
       quotedGoal <- quoteTerm (unEl t')
       return $ Right quotedGoal
+    metas -> return $ Left metas
 
 -- | Checking `quoteContext` (deprecated)
 quoteContext :: TCM (Either [MetaId] Term)
 quoteContext = do
   contextTypes  <- map (fmap snd) <$> getContext
   contextTypes  <- etaContract =<< instantiateFull contextTypes
-  let metas = allMetas contextTypes
-  case metas of
-    _:_ -> return $ Left metas
+  case allMetasList contextTypes of
     []  -> do
       quotedContext <- buildList <*> mapM quoteDom contextTypes
       return $ Right quotedContext
+    metas -> return $ Left metas
 
 -- | Unquote a TCM computation in a given hole.
-unquoteM :: A.Expr -> Term -> Type -> TCM Term -> TCM Term
-unquoteM tacA hole holeType k = do
+unquoteM :: A.Expr -> Term -> Type -> TCM ()
+unquoteM tacA hole holeType = do
   tac <- checkExpr tacA =<< (el primAgdaTerm --> el (primAgdaTCM <#> primLevelZero <@> primUnit))
-  inFreshModuleIfFreeParams $ unquoteTactic tac hole holeType k
+  inFreshModuleIfFreeParams $ unquoteTactic tac hole holeType
 
 -- | Run a tactic `tac : Term → TC ⊤` in a hole (second argument) of the type
 --   given by the third argument. Runs the continuation if successful.
-unquoteTactic :: Term -> Term -> Type -> TCM Term -> TCM Term
-unquoteTactic tac hole goal k = do
+unquoteTactic :: Term -> Term -> Type -> TCM ()
+unquoteTactic tac hole goal = do
   ok  <- runUnquoteM $ unquoteTCM tac hole
   case ok of
     Left (BlockedOnMeta oldState x) -> do
       putTC oldState
-      mi <- Map.lookup x <$> getMetaStore
-      (r, unblock) <- case mi of
+      mi <- lookupMeta' x
+      (r, meta) <- case mi of
         Nothing -> do -- fresh meta: need to block on something else!
-          otherMetas <- allMetas <$> instantiateFull goal
-          case otherMetas of
-            []  -> return (noRange,     return False) -- Nothing to block on, leave it yellow. Alternative: fail.
-            x:_ -> return (noRange,     isInstantiatedMeta x)  -- range?
-        Just mi -> return (getRange mi, isInstantiatedMeta x)
+          (noRange,) . firstMeta <$> instantiateFull goal
+            -- Remark:
+            -- Nothing:  Nothing to block on, leave it yellow. Alternative: fail.
+            -- Just x:   range?
+        Just mi -> return (getRange mi, Just x)
       setCurrentRange r $
-        postponeTypeCheckingProblem (UnquoteTactic tac hole goal) unblock
+        addConstraint (UnquoteTactic meta tac hole goal)
     Left err -> typeError $ UnquoteFailed err
-    Right _ -> k
+    Right _ -> return ()
 
 ---------------------------------------------------------------------------
 -- * Meta variables
@@ -1244,7 +1259,7 @@ checkQuestionMark :: (Type -> TCM (MetaId, Term)) -> Type -> A.MetaInfo -> Inter
 checkQuestionMark new t0 i ii = do
   reportSDoc "tc.interaction" 20 $ sep
     [ "Found interaction point"
-    , text (show ii)
+    , pretty ii
     , ":"
     , prettyTCM t0
     ]

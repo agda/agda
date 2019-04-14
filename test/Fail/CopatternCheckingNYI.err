@@ -1,6 +1,0 @@
-
-Termination checking failed for the following functions:
-  alternate
-Problematic calls:
-  tail alternate
-    (at CopatternCheckingNYI.agda:19,32-41)

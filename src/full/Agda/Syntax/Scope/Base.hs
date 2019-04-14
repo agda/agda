@@ -25,6 +25,7 @@ import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Maybe
+import qualified Data.Semigroup as Sgrp
 
 import Data.Data (Data)
 
@@ -46,6 +47,7 @@ import Agda.Utils.List
 import Agda.Utils.NonemptyList
 import Agda.Utils.Null
 import Agda.Utils.Pretty
+import Agda.Utils.Singleton
 import qualified Agda.Utils.Map as Map
 
 #include "undefined.h"
@@ -107,13 +109,17 @@ data ScopeInfo = ScopeInfo
       , scopeVarsToBind    :: LocalVars
       , scopeLocals        :: LocalVars
       , scopePrecedence    :: PrecedenceStack
-      , scopeInverseName   :: Map A.QName [C.QName]
-      , scopeInverseModule :: Map A.ModuleName [C.QName]
+      , scopeInverseName   :: NameMap
+      , scopeInverseModule :: ModuleMap
       , scopeInScope       :: InScopeSet
       , scopeFixities      :: C.Fixities    -- ^ Maps concrete names to fixities
       , scopePolarities    :: C.Polarities  -- ^ Maps concrete names to polarities
       }
   deriving (Data, Show)
+
+type NameMap   = Map A.QName      (NonemptyList C.QName)
+type ModuleMap = Map A.ModuleName [C.QName]
+-- type ModuleMap = Map A.ModuleName (NonemptyList C.QName)
 
 instance Eq ScopeInfo where
   ScopeInfo c1 m1 v1 l1 p1 _ _ _ _ _ == ScopeInfo c2 m2 v2 l2 p2 _ _ _ _ _ =
@@ -926,8 +932,8 @@ inverseScopeLookup' amb name scope = billToPure [ Scoping , InverseScopeLookup ]
     Left  m -> best $ filter unambiguousModule $ findModule m
     Right q -> best $ filter unambiguousName   $ findName q
   where
-    findName   x = fromMaybe [] $ Map.lookup x (scopeInverseName scope)
-    findModule x = fromMaybe [] $ Map.lookup x (scopeInverseModule scope)
+    findName   x = maybe [] toList $ Map.lookup x (scopeInverseName scope)
+    findModule x = fromMaybe []    $ Map.lookup x (scopeInverseModule scope)
 
     len :: C.QName -> Int
     len (C.QName _)  = 1
@@ -991,25 +997,26 @@ recomputeInverseScopeMaps scope = billToPure [ Scoping , InverseScopeLookup ] $
     importMap = Map.fromListWith (++) $ do
       (m, s) <- scopes
       (x, y) <- Map.toList $ scopeImports s
-      return (y, [x])
+      return (y, singleton x)
 
     moduleMap = Map.fromListWith (++) $ do
       (m, s)  <- scopes
       (x, ms) <- Map.toList (allNamesInScope s)
       q       <- amodName <$> ms
-      return (q, [(m, x)])
+      return (q, singleton (m, x))
 
-    nameMap = Map.fromListWith (++) $ do
+    nameMap :: NameMap
+    nameMap = Map.fromListWith (Sgrp.<>) $ do
       (m, s)  <- scopes
       (x, ms) <- Map.toList (allNamesInScope s)
       q       <- anameName <$> ms
       if elem m current
-        then return (q, [C.QName x])
+        then return (q, singleton (C.QName x))
         else do
           y <- findModule m
           let z = C.qualify y x
           guard $ not $ internalName z
-          return (q, [z])
+          return (q, singleton z)
 
 -- | Find the concrete names that map (uniquely) to a given abstract qualified name.
 --   Sort by length, shortest first.

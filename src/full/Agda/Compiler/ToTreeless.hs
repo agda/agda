@@ -64,7 +64,11 @@ getCompiledClauses q = do
       translate | isProj    = CC.DontRunRecordPatternTranslation
                 | otherwise = CC.RunRecordPatternTranslation
   reportSDoc "treeless.convert" 40 $ "-- before clause compiler" $$ (pretty q <+> "=") <?> vcat (map pretty cs)
-  CC.compileClauses' translate cs
+  let mst = funSplitTree $ theDef def
+  reportSDoc "treeless.convert" 70 $
+    caseMaybe mst "-- not using split tree" $ \st ->
+      "-- using split tree" $$ pretty st
+  CC.compileClauses' translate cs mst
 
 -- | Converts compiled clauses to treeless syntax.
 --
@@ -374,8 +378,12 @@ mkRecord fs = lift $ do
   let p1 = fst $ fromMaybe __IMPOSSIBLE__ $ headMaybe $ Map.toList fs
   -- Use the field name to get the record constructor and the field names.
   I.ConHead c _ind xs <- conSrcCon . theDef <$> (getConstInfo =<< canonicalName . I.conName =<< recConFromProj p1)
+  reportSDoc "treeless.convert.mkRecord" 60 $ vcat
+    [ text "record constructor fields: xs      = " <+> (text . show) xs
+    , text "to be filled with content: keys fs = " <+> (text . show) (Map.keys fs)
+    ]
   -- Convert the constructor
-  let (args :: [C.TTerm]) = for xs $ \ (Arg ai x) -> fromMaybe __IMPOSSIBLE__ $ Map.lookup x fs
+  let (args :: [C.TTerm]) = for xs $ \ (Arg ai x) -> Map.findWithDefault __IMPOSSIBLE__ x fs
   return $ C.mkTApp (C.TCon c) args
 
 

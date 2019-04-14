@@ -1,0 +1,4 @@
+SafeFlagPrimTrustMe-1.agda:8,5-60
+Cannot postulate unsafePrimTrustMe with safe flag
+when scope checking the declaration
+  unsafePrimTrustMe : ∀ {a} {A : Set a} {x y : A} → x ≡ y

@@ -41,7 +41,7 @@ expandLitPattern p = case asView p of
       let zero  = A.ConP cinfo (unambiguous $ setRange r $ conName z) []
           suc p = A.ConP cinfo (unambiguous $ setRange r $ conName s) [defaultNamedArg p]
           info  = A.PatRange r
-          cinfo = A.ConPatInfo ConOCon info False
+          cinfo = A.ConPatInfo ConOCon info ConPatEager
           p'    = foldr ($) zero $ List.genericReplicate n suc
       return $ foldr (A.AsP info) p' (map A.BindName xs)
   _ -> return p

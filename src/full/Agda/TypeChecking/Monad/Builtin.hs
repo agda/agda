@@ -201,7 +201,8 @@ primInteger, primIntegerPos, primIntegerNegSuc,
     primAgdaTCMQuoteTerm, primAgdaTCMUnquoteTerm,
     primAgdaTCMBlockOnMeta, primAgdaTCMCommit, primAgdaTCMIsMacro,
     primAgdaTCMWithNormalisation, primAgdaTCMDebugPrint,
-    primAgdaTCMNoConstraints
+    primAgdaTCMNoConstraints,
+    primAgdaTCMRunSpeculative
     :: TCM Term
 
 primInteger      = getBuiltin builtinInteger
@@ -377,6 +378,7 @@ primAgdaTCMIsMacro            = getBuiltin builtinAgdaTCMIsMacro
 primAgdaTCMWithNormalisation  = getBuiltin builtinAgdaTCMWithNormalisation
 primAgdaTCMDebugPrint         = getBuiltin builtinAgdaTCMDebugPrint
 primAgdaTCMNoConstraints      = getBuiltin builtinAgdaTCMNoConstraints
+primAgdaTCMRunSpeculative     = getBuiltin builtinAgdaTCMRunSpeculative
 
 -- | The coinductive primitives.
 

@@ -1,4 +1,0 @@
-Issue292b.agda:38,1-20
-ff ≅ tt should be empty, but that's not obvious to me
-when checking that the clause ¬pbool2 (ff , ()) has type
-¬ P (D false)

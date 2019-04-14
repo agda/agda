@@ -16,6 +16,7 @@ import Agda.TypeChecking.Serialise.Instances.Compilers ()
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Positivity.Occurrence
+import Agda.TypeChecking.Coverage.SplitTree
 
 import Agda.Utils.Permutation
 
@@ -310,26 +311,47 @@ instance EmbPrj EtaEquality where
     valu _     = malformed
 
 instance EmbPrj Defn where
-  icod_ Axiom                                   = icodeN 0 Axiom
-  icod_ (Function    a b t c d e f g h i j k m) =
-    icodeN 1 (\ a b -> Function a b t) a b c d e f g h i j k m
-  icod_ (Datatype    a b c d e f g h i)         = icodeN 2 Datatype a b c d e f g h i
-  icod_ (Record      a b c d e f g h i j k)     = icodeN 3 Record a b c d e f g h i j k
-  icod_ (Constructor a b c d e f g h i)         = icodeN 4 Constructor a b c d e f g h i
-  icod_ (Primitive   a b c d e)                 = icodeN 5 Primitive a b c d e
-  icod_ AbstractDefn{}                          = __IMPOSSIBLE__
-  icod_ GeneralizableVar                        = icodeN 6 GeneralizableVar
-  icod_ DataOrRecSig{}                          = __IMPOSSIBLE__
+  icod_ Axiom                                           = icodeN 0 Axiom
+  icod_ (Function    a b s t (_:_) c d e f g h i j k m) = __IMPOSSIBLE__
+  icod_ (Function    a b s t []    c d e f g h i j k m) =
+    icodeN 1 (\ a b s -> Function a b s t []) a b s c d e f g h i j k m
+  icod_ (Datatype    a b c d e f g h i)                 = icodeN 2 Datatype a b c d e f g h i
+  icod_ (Record      a b c d e f g h i j k)             = icodeN 3 Record a b c d e f g h i j k
+  icod_ (Constructor a b c d e f g h i)                 = icodeN 4 Constructor a b c d e f g h i
+  icod_ (Primitive   a b c d e)                         = icodeN 5 Primitive a b c d e
+  icod_ AbstractDefn{}                                  = __IMPOSSIBLE__
+  icod_ GeneralizableVar                                = icodeN 6 GeneralizableVar
+  icod_ DataOrRecSig{}                                  = __IMPOSSIBLE__
 
   value = vcase valu where
-    valu [0]                                     = valuN Axiom
-    valu [1, a, b, c, d, e, f, g, h, i, j, k, m] = valuN (\ a b -> Function a b Nothing) a b c d e f g h i j k m
-    valu [2, a, b, c, d, e, f, g, h, i]          = valuN Datatype a b c d e f g h i
-    valu [3, a, b, c, d, e, f, g, h, i, j, k]    = valuN Record  a b c d e f g h i j k
-    valu [4, a, b, c, d, e, f, g, h, i]          = valuN Constructor a b c d e f g h i
-    valu [5, a, b, c, d, e]                      = valuN Primitive   a b c d e
-    valu [6]                                     = valuN GeneralizableVar
-    valu _                                       = malformed
+    valu [0]                                        = valuN Axiom
+    valu [1, a, b, s, c, d, e, f, g, h, i, j, k, m] = valuN (\ a b s -> Function a b s Nothing []) a b s c d e f g h i j k m
+    valu [2, a, b, c, d, e, f, g, h, i]             = valuN Datatype a b c d e f g h i
+    valu [3, a, b, c, d, e, f, g, h, i, j, k]       = valuN Record  a b c d e f g h i j k
+    valu [4, a, b, c, d, e, f, g, h, i]             = valuN Constructor a b c d e f g h i
+    valu [5, a, b, c, d, e]                         = valuN Primitive   a b c d e
+    valu [6]                                        = valuN GeneralizableVar
+    valu _                                          = malformed
+
+instance EmbPrj SplitTag where
+  icod_ (SplitCon c)  = icodeN 0 SplitCon c
+  icod_ (SplitLit l)  = icodeN 1 SplitLit l
+  icod_ SplitCatchall = icodeN' SplitCatchall
+
+  value = vcase valu where
+    valu []     = valuN SplitCatchall
+    valu [0, c] = valuN SplitCon c
+    valu [1, l] = valuN SplitLit l
+    valu _      = malformed
+
+instance EmbPrj a => EmbPrj (SplitTree' a) where
+  icod_ (SplittingDone a) = icodeN' SplittingDone a
+  icod_ (SplitAt a b)     = icodeN 0 SplitAt a b
+
+  value = vcase valu where
+    valu [a]       = valuN SplittingDone a
+    valu [0, a, b] = valuN SplitAt a b
+    valu _         = malformed
 
 instance EmbPrj FunctionFlag where
   icod_ FunStatic       = icodeN 0 FunStatic

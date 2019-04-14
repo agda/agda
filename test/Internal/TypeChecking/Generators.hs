@@ -155,6 +155,7 @@ makeConfiguration ds cs ps vs = TermConf
                         , nameConcrete    = C.Name noRange C.InScope [C.Id s]
                         , nameBindingSite = noRange
                         , nameFixity      = noFixity'
+                        , nameIsRecordName = False
                         }
                       }
 

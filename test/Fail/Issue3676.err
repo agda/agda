@@ -1,0 +1,12 @@
+Issue3676.agda:24,11-12
+No instance of type Monad _M_16 was found in scope.
+- F-monad was ruled out because
+  Issue3676.agda:24,11-12
+  Nat should be a function type, but it isn't
+  when checking that n is a valid argument to a function of type Nat
+- G-monad was ruled out because
+  Issue3676.agda:23,11-19
+  G (Σ Nat (λ _ → Nat)) !=< F _A_14 of type Set
+  when checking that the expression return p has type F _A_14
+when checking that p is a valid argument to a function of type
+{M : Set → Set} ⦃ r : Monad M ⦄ {A : Set} → A → M A

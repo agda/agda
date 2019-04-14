@@ -39,6 +39,7 @@ import Agda.TypeChecking.Rules.Data ( getGeneralizedParameters, bindGeneralizedP
 import Agda.TypeChecking.Rules.Term ( isType_ )
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Decl (checkDecl)
 
+import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Permutation
@@ -275,8 +276,7 @@ checkRecDef i name uc ind eta con (A.DataDefParams gpars ps) contel fields =
 
       let info = setRelevance recordRelevance defaultArgInfo
           addRecordVar =
-            addContext ("" :: String, setArgInfo info $ defaultDom rect)
-          -- the record variable has the empty name by intention, see issue 208
+            addRecordNameContext (setArgInfo info $ defaultDom rect)
 
       let m = qnameToMName name  -- Name of record module.
 
@@ -477,7 +477,9 @@ defineTranspOrHCompR cmd name params fsT fns rect = do
           return c
   addClauses theName $ c' : cs
   reportSDoc "trans.rec" 15 $ text $ "compiling clauses for " ++ show theName
-  setCompiledClauses theName =<< inTopContext (compileClauses Nothing cs)
+  (mst, cc) <- inTopContext (compileClauses Nothing cs)
+  whenJust mst $ setSplitTree theName
+  setCompiledClauses theName cc
   reportSDoc "trans.rec" 15 $ text $ "compiled"
   return $ Just theName
 
@@ -643,7 +645,7 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
               -- projection functions are defined. Record pattern
               -- translation is defined in terms of projection
               -- functions.
-        cc <- compileClauses Nothing [clause]
+        (mst , cc) <- compileClauses Nothing [clause]
 
         reportSDoc "tc.cc" 60 $ do
           sep [ "compiled clauses of " <+> prettyTCM projname
@@ -656,6 +658,7 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
               emptyFunction
                 { funClauses        = [clause]
                 , funCompiled       = Just cc
+                , funSplitTree      = mst
                 , funProjection     = Just projection
                 , funMutual         = Just []  -- Projections are not mutually recursive with anything
                 , funTerminates     = Just True
@@ -663,8 +666,9 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
                 })
               { defArgOccurrences = [StrictPos] }
           computePolarity [projname]
-          when (Info.defInstance info == InstanceDef) $
-            addTypedInstance' (size tel) projname finalt
+
+        when (Info.defInstance info == InstanceDef) $
+          addTypedInstance projname t
 
         recurse
 

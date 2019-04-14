@@ -36,7 +36,6 @@ import Agda.Utils.Except
 import Agda.Utils.Impossible
 import Agda.Utils.Monad ( ifM )
 import Agda.Utils.Permutation ( Permutation(Perm), compactP, reverseP )
-import Agda.Utils.String ( Str(Str), unStr )
 import Agda.Utils.VarSet (VarSet)
 import qualified Agda.Utils.VarSet as Set
 import Agda.Utils.FileName

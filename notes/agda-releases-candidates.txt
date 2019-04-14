@@ -1,21 +1,23 @@
 When releasing a release candidate (RC) the following procedure can be
 followed:
 
+* Verify that the Travis builds have no errors.
+
 * Finish the release notes in
   doc/release-notes/<version-written-with-dashes>.txt.
 
   Copy the contents of the release notes to the top of the CHANGELOG
   file.
 
-* Run the `closed-issues` program for adding the closed issues to the
-  CHANGELOG excluding issues labelled with:
+* Run the `closed-issues-for-milestone` program for adding the list of
+  closed issues to the CHANGELOG.
 
-  not-in-changelog,
-  status: abandoned,
-  status: duplicated,
-  status: invalid,
-  status: wontfix,
-  status: working-as-intended or
+* Because some titles of some issues can generate new white-space
+  issues after running the `closed-issues-for-milestone` program, run
+
+    make check-whitespace
+
+  and fix the issues both in the CHANGELOG file and GitHub.
 
 * Update the README.md, if necessary.
 
@@ -32,7 +34,7 @@ followed:
 
 * Update Stackage resolvers, if necessary.
 
-* Verify that the Travis builds have no errors.
+* Update the year in the copyright of the user manual, if necessary.
 
 * Get a clean Agda repository.
 
@@ -104,7 +106,7 @@ followed:
   first):
 
     cd $BASE
-    git tag -a v$RC_VERSION -m "Agda $MAJORVERSION release candidate n"
+    git tag -a v$RC_VERSION -m "Agda $MAJORVERSION release candidate"
 
 * Upload to Hackage the RC (tested with cabal-install >= 2.0.0.0):
 

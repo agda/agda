@@ -1,5 +1,5 @@
 Polarity-pragma-in-local-module.agda:10,1-11,18
 D is not strictly positive, because it occurs
-in the first argument to F
+in the first argument of F
 in the type of the constructor d
 in the definition of D.

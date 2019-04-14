@@ -1,8 +1,0 @@
-Sections-13.agda:4,1-14
-Could not parse the left-hand side m test_test n
-Operators used in the grammar:
-  test_test (infix operator, unrelated) [_test_test_ (Sections-13.agda:3,1-12)]
-(the treatment of operators has changed, so code that used to parse
-may have to be changed)
-when scope checking the left-hand side m test_test n in the
-definition of _test_test_

@@ -237,13 +237,13 @@ data ConPatInfo = ConPatInfo
     -- ^ Does this pattern come form the eta-expansion of an implicit pattern?
     ---  Or from a user written constructor or record pattern?
   , patInfo     :: PatInfo
-  , patLazy     :: Bool
+  , patLazy     :: ConPatLazy
   }
   deriving (Data, Eq)
 
 instance Show ConPatInfo where
   show (ConPatInfo po i l) =
-    applyWhen l ("lazy " ++) $
+    applyWhen (l  == ConPatLazy) ("lazy " ++) $
     applyWhen (po == ConOSystem) ("implicit " ++) $ show i
 
 instance HasRange ConPatInfo where
@@ -254,3 +254,9 @@ instance KillRange ConPatInfo where
 
 instance SetRange ConPatInfo where
   setRange r (ConPatInfo b i l) = ConPatInfo b (PatRange r) l
+
+-- | Has the constructor pattern a dotted (forced) constructor?
+data ConPatLazy
+  = ConPatLazy   -- ^ Dotted constructor.
+  | ConPatEager  -- ^ Ordinary constructor.
+  deriving (Data, Eq, Ord, Show, Bounded, Enum)

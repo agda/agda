@@ -1,5 +1,7 @@
 When releasing the following procedure can be followed:
 
+* Verify that the Travis builds have no errors.
+
 * First, release a release candidate (see
   notes/agda-stable-releases-candidates).
 
@@ -11,15 +13,15 @@ When releasing the following procedure can be followed:
   Copy the contents of the release notes to the top of the CHANGELOG
   file.
 
-* Run the `closed-issues` program for adding the closed issues to the
-  CHANGELOG excluding issues labelled with:
+* Run the `closed-issues-for-milestone` program for adding the list of
+  closed issues to the CHANGELOG.
 
-  not-in-changelog,
-  status: abandoned,
-  status: duplicated,
-  status: invalid,
-  status: wontfix or
-  status: working-as-intended
+* Because some titles of some issues can generate new white-space
+  issues after running the `closed-issues-for-milestone` program, run
+
+    make check-whitespace
+
+  and fix the issues both in the CHANGELOG file and GitHub.
 
 * Update the README.md, if necessary.
 
@@ -36,7 +38,7 @@ When releasing the following procedure can be followed:
 
 * Update Stackage resolvers, if necessary.
 
-* Verify that the Travis builds have no errors.
+* Update the year in the copyright of the user manual, if necessary.
 
 * Update in the bug tracker the milestone field of open issues to the
   next Agda version.

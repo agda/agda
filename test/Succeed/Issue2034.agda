@@ -16,8 +16,8 @@ it : {A : Set} {{_ : A}} → A
 it {{x}} = x
 
 postulate
-  f₁ : {{_ : Nat → C₁}} → T
-  f₂ : {{_ : ∀ n → C₂ n}} → T
+  f₁ : {{_ : {_ : Nat} → C₁}} → T
+  f₂ : {{_ : ∀ {n} → C₂ n}} → T
 
 works₁ : T
 works₁ = f₁         -- f₁ {{λ _ → I₁}}

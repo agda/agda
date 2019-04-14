@@ -133,7 +133,7 @@ parseBackendOptions :: [Backend] -> [String] -> CommandLineOptions -> OptM ([Bac
 parseBackendOptions backends argv opts0 =
   case makeAll backendWithOpts backends of
     Some bs -> do
-      let agdaFlags    = map (embedOpt lSnd) standardOptions
+      let agdaFlags    = map (embedOpt lSnd) (deadStandardOptions ++ standardOptions)
           backendFlags = do
             Some i            <- forgetAll Some $ allIndices bs
             BackendWithOpts b <- [lookupIndex bs i]

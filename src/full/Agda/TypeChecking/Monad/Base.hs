@@ -29,6 +29,7 @@ import Data.Maybe
 import Data.Map (Map)
 import qualified Data.Map as Map -- hiding (singleton, null, empty)
 import Data.Monoid ( Monoid, mempty, mappend )
+import Data.Sequence (Seq)
 import Data.Set (Set)
 import qualified Data.Set as Set -- hiding (singleton, null, empty)
 import Data.Semigroup ( Semigroup, (<>), Any(..) )
@@ -64,6 +65,7 @@ import Agda.Syntax.Scope.Base
 import qualified Agda.Syntax.Info as Info
 
 import Agda.TypeChecking.CompiledClause
+import Agda.TypeChecking.Coverage.SplitTree
 import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.Free.Lazy (Free(freeVars'), bind', bind)
 
@@ -105,6 +107,7 @@ import qualified Agda.Utils.Pretty as P
 import Agda.Utils.Singleton
 import Agda.Utils.Functor
 import Agda.Utils.Function
+import Agda.Utils.WithDefault ( collapseDefault )
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -348,7 +351,7 @@ initPostScopeState :: PostScopeState
 initPostScopeState = PostScopeState
   { stPostSyntaxInfo           = mempty
   , stPostDisambiguatedNames   = IntMap.empty
-  , stPostMetaStore            = Map.empty
+  , stPostMetaStore            = IntMap.empty
   , stPostInteractionPoints    = Map.empty
   , stPostAwakeConstraints     = []
   , stPostSleepingConstraints  = []
@@ -704,10 +707,15 @@ freshName r s = do
 freshNoName :: MonadTCState m => Range -> m Name
 freshNoName r =
     do  i <- fresh
-        return $ Name i (C.NoName noRange i) r noFixity'
+        return $ Name i (C.NoName noRange i) r noFixity' False
 
 freshNoName_ :: MonadTCState m => m Name
 freshNoName_ = freshNoName noRange
+
+freshRecordName :: MonadTCState m => m Name
+freshRecordName = do
+  i <- fresh
+  return $ Name i (C.Name noRange C.NotInScope [C.Id "r"]) noRange noFixity' True
 
 -- | Create a fresh name from @a@.
 class FreshName a where
@@ -926,6 +934,7 @@ data Constraint
     --   of candidates (or Nothing if we haven’t determined the list of
     --   candidates yet)
   | CheckFunDef Delayed Info.DefInfo QName [A.Clause]
+  | UnquoteTactic (Maybe MetaId) Term Term Type   -- ^ First argument is computation and the others are hole and goal type
   deriving (Data, Show)
 
 instance HasRange Constraint where
@@ -961,6 +970,7 @@ instance Free Constraint where
       CheckFunDef _ _ _ _   -> mempty
       HasBiggerSort s       -> freeVars' s
       HasPTSRule s1 s2      -> freeVars' (s1 , s2)
+      UnquoteTactic _ t h g -> freeVars' (t, (h, g))
 
 instance TermLike Constraint where
   foldTerm f = \case
@@ -971,14 +981,15 @@ instance TermLike Constraint where
       LevelCmp _ l l'        -> foldTerm f (l, l')
       IsEmpty _ t            -> foldTerm f t
       CheckSizeLtSat u       -> foldTerm f u
-      TelCmp _ _ _ tel1 tel2 -> __IMPOSSIBLE__  -- foldTerm f (tel1, tel2) -- Not yet implemented
-      SortCmp _ s1 s2        -> __IMPOSSIBLE__  -- foldTerm f (s1, s2) -- Not yet implemented
-      UnBlock _              -> __IMPOSSIBLE__  -- mempty     -- Not yet implemented
-      Guarded c _            -> __IMPOSSIBLE__  -- foldTerm c -- Not yet implemented
-      FindInstance _ _ cs    -> __IMPOSSIBLE__  -- Not yet implemented
-      CheckFunDef _ _ _ _    -> __IMPOSSIBLE__  -- Not yet implemented
-      HasBiggerSort _        -> __IMPOSSIBLE__  -- Not yet implemented
-      HasPTSRule _ _         -> __IMPOSSIBLE__  -- Not yet implemented
+      UnquoteTactic _ t h g  -> foldTerm f (t, h, g)
+      Guarded c _            -> foldTerm f c
+      TelCmp _ _ _ tel1 tel2 -> foldTerm f (tel1, tel2)
+      SortCmp _ s1 s2        -> foldTerm f (s1, s2)
+      UnBlock _              -> mempty
+      FindInstance _ _ _     -> mempty
+      CheckFunDef _ _ _ _    -> mempty
+      HasBiggerSort s        -> foldTerm f s
+      HasPTSRule s1 s2       -> foldTerm f (s1, s2)
   traverseTermM f c = __IMPOSSIBLE__ -- Not yet implemented
 
 
@@ -1113,7 +1124,7 @@ data CheckedTarget = CheckedTarget (Maybe ProblemId)
 
 data TypeCheckingProblem
   = CheckExpr Comparison A.Expr Type
-  | CheckArgs ExpandHidden Range [NamedArg A.Expr] Type Type (Elims -> Type -> CheckedTarget -> TCM Term)
+  | CheckArgs ExpandHidden Range [NamedArg A.Expr] Type Type ([Maybe Range] -> Elims -> Type -> CheckedTarget -> TCM Term)
   | CheckProjAppToKnownPrincipalArg Comparison A.Expr ProjOrigin (NonemptyList QName) A.Args Type Int Term Type
   | CheckLambda Comparison (Arg ([WithHiding Name], Maybe Type)) A.Expr Type
     -- ^ @(λ (xs : t₀) → e) : t@
@@ -1123,7 +1134,6 @@ data TypeCheckingProblem
     --     @(λ (x y : Fin _) → e) : (x : Fin n) → ?@
     --   we want to postpone @(λ (y : Fin n) → e) : ?@ where @Fin n@
     --   is a 'Type' rather than an 'A.Expr'.
-  | UnquoteTactic Term Term Type   -- ^ First argument is computation and the others are hole and goal type
   | DoQuoteTerm Comparison Term Type -- ^ Quote the given term and check type against `Term`
 
 instance Show MetaInstantiation where
@@ -1172,7 +1182,7 @@ instance Pretty NamedMeta where
   pretty (NamedMeta "_" x) = pretty x
   pretty (NamedMeta s  x) = text $ "_" ++ s ++ prettyShow x
 
-type MetaStore = Map MetaId MetaVariable
+type MetaStore = IntMap MetaVariable
 
 instance HasRange MetaInfo where
   getRange = clValue . miClosRange
@@ -1557,12 +1567,9 @@ instance HasRange CompilerPragma where
 
 type BackendName    = String
 
--- Temporary: while we still parse the old pragmas we need to know the names of
--- the corresponding backends.
-jsBackendName, ghcBackendName, uhcBackendName :: BackendName
+jsBackendName, ghcBackendName :: BackendName
 jsBackendName  = "JS"
 ghcBackendName = "GHC"
-uhcBackendName = "UHC"
 
 type CompiledRepresentation = Map BackendName [CompilerPragma]
 
@@ -1689,8 +1696,15 @@ data Defn = Axiom -- ^ Postulate
               -- ^ 'Nothing' while function is still type-checked.
               --   @Just cc@ after type and coverage checking and
               --   translation to case trees.
+            , funSplitTree      :: Maybe SplitTree
+              -- ^ The split tree constructed by the coverage
+              --   checker. Needed to re-compile the clauses after
+              --   forcing translation.
             , funTreeless       :: Maybe Compiled
               -- ^ Intermediate representation for compiler backends.
+            , funCovering :: [Closure Clause]
+              -- ^ Covering clauses computed by coverage checking.
+              --   Erased by (IApply) confluence checking(?)
             , funInv            :: FunctionInverse
             , funMutual         :: Maybe [QName]
               -- ^ Mutually recursive functions, @data@s and @record@s.
@@ -1819,6 +1833,7 @@ instance Pretty Defn where
     "Function {" <?> vcat
       [ "funClauses      =" <?> vcat (map pretty funClauses)
       , "funCompiled     =" <?> pshow funCompiled
+      , "funSplitTree    =" <?> pshow funSplitTree
       , "funTreeless     =" <?> pshow funTreeless
       , "funInv          =" <?> pshow funInv
       , "funMutual       =" <?> pshow funMutual
@@ -1881,6 +1896,7 @@ emptyFunction :: Defn
 emptyFunction = Function
   { funClauses     = []
   , funCompiled    = Nothing
+  , funSplitTree   = Nothing
   , funTreeless    = Nothing
   , funInv         = NotInjective
   , funMutual      = Nothing
@@ -1892,6 +1908,7 @@ emptyFunction = Function
   , funExtLam      = Nothing
   , funWith        = Nothing
   , funCopatternLHS = False
+  , funCovering    = []
   }
 
 funFlag :: FunctionFlag -> Lens' Bool Defn
@@ -2703,7 +2720,7 @@ data Warning
   | CoverageIssue            QName [(Telescope, [NamedArg DeBruijnPattern])]
   -- ^ `CoverageIssue f pss` means that `pss` are not covered in `f`
   | CoverageNoExactSplit     QName [Clause]
-  | NotStrictlyPositive      QName OccursWhere
+  | NotStrictlyPositive      QName (Seq OccursWhere)
   | UnsolvedMetaVariables    [Range]  -- ^ Do not use directly with 'warning'
   | UnsolvedInteractionMetas [Range]  -- ^ Do not use directly with 'warning'
   | UnsolvedConstraints      Constraints
@@ -2714,16 +2731,24 @@ data Warning
     -- ^ In `OldBuiltin old new`, the BUILTIN old has been replaced by new
   | EmptyRewritePragma
     -- ^ If the user wrote just @{-\# REWRITE \#-}@.
-  | IllformedAsClause
+  | IllformedAsClause String
     -- ^ If the user wrote something other than an unqualified name
     --   in the @as@ clause of an @import@ statement.
+    --   The 'String' gives optionally extra explanation.
   | UselessPublic
     -- ^ If the user opens a module public before the module header.
     --   (See issue #2377.)
   | UselessInline            QName
+  | WrongInstanceDeclaration
   | InstanceWithExplicitArg  QName
   -- ^ An instance was declared with an implicit argument, which means it
   --   will never actually be considered by instance search.
+  | InstanceNoOutputTypeName Doc
+  -- ^ The type of an instance argument doesn't end in a named or
+  -- variable type, so it will never be considered by instance search.
+  | InstanceArgWithExplicitArg Doc
+  -- ^ As InstanceWithExplicitArg, but for local bindings rather than
+  --   top-level instances.
   | InversionDepthReached    QName
   -- ^ The --inversion-max-depth was reached.
   -- Generic warnings for one-off things
@@ -2770,8 +2795,11 @@ warningName w = case w of
   CoverageNoExactSplit{}       -> CoverageNoExactSplit_
   DeprecationWarning{}         -> DeprecationWarning_
   EmptyRewritePragma           -> EmptyRewritePragma_
-  IllformedAsClause            -> IllformedAsClause_
+  IllformedAsClause{}          -> IllformedAsClause_
+  WrongInstanceDeclaration{}   -> WrongInstanceDeclaration_
   InstanceWithExplicitArg{}    -> InstanceWithExplicitArg_
+  InstanceNoOutputTypeName{}   -> InstanceNoOutputTypeName_
+  InstanceArgWithExplicitArg{} -> InstanceArgWithExplicitArg_
   GenericNonFatalError{}       -> GenericNonFatalError_
   GenericWarning{}             -> GenericWarning_
   InversionDepthReached{}      -> InversionDepthReached_
@@ -2906,6 +2934,8 @@ data SplitError
       -- ^ We do not know the target type of the clause.
   | CosplitNoRecordType (Closure Type)
       -- ^ Target type is not a record type.
+  | CannotCreateMissingClause QName (Telescope,[NamedArg DeBruijnPattern]) Doc (Closure (Abs Type))
+
   | GenericSplitError String
   deriving (Show)
 
@@ -2967,8 +2997,6 @@ data TypeError
             -- ^ Wrong user-given relevance annotation in lambda.
         | WrongQuantityInLambda
             -- ^ Wrong user-given quantity annotation in lambda.
-        | WrongInstanceDeclaration
-            -- ^ A term is declared as an instance but it’s not allowed
         | HidingMismatch Hiding Hiding
             -- ^ The given hiding does not correspond to the expected hiding.
         | RelevanceMismatch Relevance Relevance
@@ -3030,8 +3058,8 @@ data TypeError
         | BuiltinInParameterisedModule String
         | IllegalLetInTelescope C.TypedBinding
         | NoRHSRequiresAbsurdPattern [NamedArg A.Pattern]
-        | TooFewFields QName [C.Name]
-        | TooManyFields QName [C.Name]
+        | TooManyFields QName [C.Name] [C.Name]
+          -- ^ Record type, fields not supplied by user, non-fields not supplied.
         | DuplicateFields [C.Name]
         | DuplicateConstructors [C.Name]
         | WithOnFreeVariable A.Expr Term
@@ -3203,6 +3231,18 @@ instance HasOptions m => HasOptions (StateT s m) where
 instance (HasOptions m, Monoid w) => HasOptions (WriterT w m) where
   pragmaOptions      = lift pragmaOptions
   commandLineOptions = lift commandLineOptions
+
+-- Ternary options are annoying to deal with so we provide auxiliary
+-- definitions using @collapseDefault@.
+
+sizedTypesOption :: HasOptions m => m Bool
+sizedTypesOption = collapseDefault . optSizedTypes <$> pragmaOptions
+
+guardednessOption :: HasOptions m => m Bool
+guardednessOption = collapseDefault . optGuardedness <$> pragmaOptions
+
+withoutKOption :: HasOptions m => m Bool
+withoutKOption = collapseDefault . optWithoutK <$> pragmaOptions
 
 -----------------------------------------------------------------------------
 -- * The reduce monad
@@ -3829,8 +3869,8 @@ instance KillRange Defn where
       DataOrRecSig n -> DataOrRecSig n
       GeneralizableVar -> GeneralizableVar
       AbstractDefn{} -> __IMPOSSIBLE__ -- only returned by 'getConstInfo'!
-      Function cls comp tt inv mut isAbs delayed proj flags term extlam with copat ->
-        killRange13 Function cls comp tt inv mut isAbs delayed proj flags term extlam with copat
+      Function cls comp ct tt covering inv mut isAbs delayed proj flags term extlam with copat ->
+        killRange15 Function cls comp ct tt covering inv mut isAbs delayed proj flags term extlam with copat
       Datatype a b c d e f g h i     -> killRange8 Datatype a b c d e f g h i
       Record a b c d e f g h i j k   -> killRange11 Record a b c d e f g h i j k
       Constructor a b c d e f g h i  -> killRange9 Constructor a b c d e f g h i
@@ -3879,3 +3919,6 @@ instance KillRange DisplayTerm where
       DDef q dts        -> killRange2 DDef q dts
       DDot v            -> killRange1 DDot v
       DTerm v           -> killRange1 DTerm v
+
+instance KillRange a => KillRange (Closure a) where
+  killRange = id

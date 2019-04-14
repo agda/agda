@@ -9,6 +9,7 @@ import Agda.Utils.Monad
 import Agda.Syntax.Parser
 
 import Data.List
+import qualified Data.Set as Set
 
 import System.FilePath ((</>), takeExtension)
 
@@ -45,13 +46,21 @@ prop_allBuiltinsSafePostulatesOrNot = ioProperty helper
     helper = do
       libdirPrim <- (</> "prim") <$> defaultLibDir
       allFiles <- getAgdaFilesInDir Rec libdirPrim
-      let builtinFiles = map (libdirPrim </>) builtinModules
-      let diff = difference allFiles builtinFiles
+      let builtinFiles = Set.map (libdirPrim </>) builtinModules
+      let diff = Set.difference (Set.fromList allFiles) builtinFiles
       if null diff then return True else do
         putStrLn $ "Missing/spurious builtins: " ++ show diff
         return False
 
-    difference xs ys = (xs \\ ys) `union` (ys \\ xs)
+prop_BuiltinsSafeIntersectUnsafe :: Property
+prop_BuiltinsSafeIntersectUnsafe = ioProperty helper
+  where
+    helper :: IO Bool
+    helper = do
+      let intersect = Set.intersection builtinModulesWithSafePostulates builtinModulesWithUnsafePostulates
+      if null intersect then return True else do
+        putStrLn $ "Builtins both allowed and not allowed postulates: " ++ show intersect
+        return False
 
 ------------------------------------------------------------------------
 -- * All tests

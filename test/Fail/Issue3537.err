@@ -1,0 +1,4 @@
+Issue3537.agda:20,3-21,23
+The target of a constructor must be the datatype applied to its
+parameters, _A_33 (A = A) (p = p) (q = q) i isn't
+when checking the constructor sq in the declaration of Trunc

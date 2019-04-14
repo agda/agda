@@ -33,6 +33,8 @@ import Data.List ((\\), isPrefixOf)
 import qualified Data.List as List
 import qualified Data.Foldable as Fold (fold, foldMap, toList)
 import qualified Data.IntMap as IntMap
+import Data.Sequence (Seq)
+import qualified Data.Set as Set
 import qualified Data.Text.Lazy as T
 import Data.Void
 
@@ -108,7 +110,7 @@ highlightAsTypeChecked rPre r m
   r'        = rToR (P.continuousPerLine r)
   delta     = rPre' `minus` r'
   clear     = mempty
-  highlight = parserBased { otherAspects = [TypeChecks] }
+  highlight = parserBased { otherAspects = Set.singleton TypeChecks }
 
   wrap rs x y = do
     p rs x
@@ -341,7 +343,7 @@ generateAndPrintSyntaxInfo decl hlLevel updateState = do
       | Just _ <- isProjP e = mempty
       | otherwise =
           singleton (rToR $ P.getRange pi)
-                (parserBased { otherAspects = [DottedPattern] })
+                (parserBased { otherAspects = Set.singleton DottedPattern })
     getPattern' (A.PatternSynP _ q _) = patsyn q
     -- Andreas, 2018-06-09, issue #3120
     -- The highlighting for record field tags is now created by the type checker in
@@ -600,7 +602,7 @@ errorHighlighting e = do
   -- Print new highlighting.
   s <- E.prettyError e
   let error = singleton (rToR r)
-         $ parserBased { otherAspects = [Error]
+         $ parserBased { otherAspects = Set.singleton Error
                        , note         = Just s
                        }
   return $ mconcat [ erase, error ]
@@ -626,7 +628,10 @@ warningHighlighting w = case tcWarning w of
   IllformedAsClause{}        -> deadcodeHighlighting $ P.getRange w
   UselessPublic{}            -> mempty
   UselessInline{}            -> mempty
+  WrongInstanceDeclaration{} -> mempty
   InstanceWithExplicitArg{}  -> deadcodeHighlighting $ P.getRange w
+  InstanceNoOutputTypeName{} -> mempty
+  InstanceArgWithExplicitArg{} -> mempty
   ParseWarning{}             -> mempty
   InversionDepthReached{}    -> mempty
   GenericWarning{}           -> mempty
@@ -660,8 +665,19 @@ warningHighlighting w = case tcWarning w of
     UselessAbstract{}    -> deadcodeHighlighting $ P.getRange w
     UselessInstance{}    -> deadcodeHighlighting $ P.getRange w
     UselessPrivate{}     -> deadcodeHighlighting $ P.getRange w
-    _ -> mempty -- TODO: explore highlighting opportunities here!
-
+    -- TODO: explore highlighting opportunities here!
+    EmptyPrimitive{} -> mempty
+    InvalidCatchallPragma{} -> mempty
+    InvalidNoPositivityCheckPragma{} -> mempty
+    InvalidNoUniverseCheckPragma{} -> mempty
+    InvalidTerminationCheckPragma{} -> mempty
+    MissingDefinitions{} -> mempty
+    PolarityPragmasButNotPostulates{} -> mempty
+    PragmaNoTerminationCheck{} -> mempty
+    PragmaCompiled{} -> mempty
+    UnknownFixityInMixfixDecl{} -> mempty
+    UnknownNamesInFixityDecl{} -> mempty
+    UnknownNamesInPolarityPragmas{} -> mempty
 
 
 -- | Generate syntax highlighting for termination errors.
@@ -669,7 +685,7 @@ warningHighlighting w = case tcWarning w of
 terminationErrorHighlighting :: [TerminationError] -> File
 terminationErrorHighlighting termErrs = functionDefs `mappend` callSites
   where
-    m            = parserBased { otherAspects = [TerminationProblem] }
+    m            = parserBased { otherAspects = Set.singleton TerminationProblem }
     functionDefs = Fold.foldMap (\x -> singleton (rToR $ bindingSite x) m) $
                    concatMap M.termErrFunctions termErrs
     callSites    = Fold.foldMap (\r -> singleton (rToR r) m) $
@@ -679,24 +695,25 @@ terminationErrorHighlighting termErrs = functionDefs `mappend` callSites
 -- definitions.
 
 -- TODO: highlight also the problematic occurrences
-positivityErrorHighlighting :: I.QName -> OccursWhere -> File
-positivityErrorHighlighting q o = several (rToR <$> P.getRange q : rs) m
+positivityErrorHighlighting :: I.QName -> Seq OccursWhere -> File
+positivityErrorHighlighting q os =
+  several (rToR <$> P.getRange q : rs) m
   where
-    rs = case o of Unknown -> []; Known r _ -> [r]
-    m  = parserBased { otherAspects = [PositivityProblem] }
+    rs = map (\(OccursWhere r _ _) -> r) (Fold.toList os)
+    m  = parserBased { otherAspects = Set.singleton PositivityProblem }
 
 deadcodeHighlighting :: P.Range -> File
 deadcodeHighlighting r = singleton (rToR $ P.continuousPerLine r) m
-  where m = parserBased { otherAspects = [Deadcode] }
+  where m = parserBased { otherAspects = Set.singleton Deadcode }
 
 coverageErrorHighlighting :: P.Range -> File
 coverageErrorHighlighting r = singleton (rToR $ P.continuousPerLine r) m
-  where m = parserBased { otherAspects = [CoverageProblem] }
+  where m = parserBased { otherAspects = Set.singleton CoverageProblem }
 
 
 catchallHighlighting :: P.Range -> File
 catchallHighlighting r = singleton (rToR $ P.continuousPerLine r) m
-  where m = parserBased { otherAspects = [CatchallClause] }
+  where m = parserBased { otherAspects = Set.singleton CatchallClause }
 
 
 -- | Generates and prints syntax highlighting information for unsolved
@@ -728,7 +745,7 @@ computeUnsolvedMetaWarnings = do
 
 metasHighlighting :: [P.Range] -> File
 metasHighlighting rs = several (map (rToR . P.continuousPerLine) rs)
-                     $ parserBased { otherAspects = [UnsolvedMeta] }
+                     $ parserBased { otherAspects = Set.singleton UnsolvedMeta }
 
 -- | Generates syntax highlighting information for unsolved constraints
 --   (ideally: that are not connected to a meta variable).
@@ -739,7 +756,7 @@ computeUnsolvedConstraints = constraintsHighlighting <$> getAllConstraints
 constraintsHighlighting :: Constraints -> File
 constraintsHighlighting cs =
   several (map (rToR . P.continuousPerLine) rs)
-          (parserBased { otherAspects = [UnsolvedConstraint] })
+          (parserBased { otherAspects = Set.singleton UnsolvedConstraint })
   where
   -- get ranges of interesting unsolved constraints
   rs = (`mapMaybe` (map theConstraint cs)) $ \case

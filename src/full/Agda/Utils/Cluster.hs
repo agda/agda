@@ -10,33 +10,38 @@ module Agda.Utils.Cluster
 import Control.Monad
 
 -- An imperative union-find library:
-import Data.Equivalence.Monad
+import Data.Equivalence.Monad (runEquivM, equateAll, classDesc)
 
 import Data.Char
 import Data.Functor
 import qualified Data.IntMap as IntMap
+import Data.Semigroup
+
+import Agda.Utils.Functor
+import Agda.Utils.NonemptyList
+import Agda.Utils.Singleton
 
 -- | Characteristic identifiers.
 type C = Int
 
--- | Given a function @f :: a -> (C,[C])@ which returns a non-empty list of
+-- | Given a function @f :: a -> NonemptyList C@ which returns a non-empty list of
 --   characteristics @C@ of @a@, partition a list of @a@s into groups
 --   such that each element in a group shares at least one characteristic
 --   with at least one other element of the group.
-cluster :: (a -> (C,[C])) -> [a] -> [[a]]
+cluster :: (a -> NonemptyList C) -> [a] -> [NonemptyList a]
 cluster f as = cluster' $ map (\ a -> (a, f a)) as
 
 -- | Partition a list of @a@s paired with a non-empty list of
 --   characteristics @C@ into groups
 --   such that each element in a group shares at least one characteristic
 --   with at least one other element of the group.
-cluster' :: [(a,(C,[C]))] -> [[a]]
+cluster' :: [(a, NonemptyList C)] -> [NonemptyList a]
 cluster' acs = runEquivM id const $ do
   -- Construct the equivalence classes of characteristics.
-  forM_ acs $ \ (_,(c,cs)) -> equateAll $ c:cs
+  forM_ acs $ \ (_, c :! cs) -> equateAll $ c:cs
   -- Pair each element with its class.
-  cas <- forM acs $ \ (a,(c,_)) -> (`IntMap.singleton` [a]) <$> classDesc c
+  cas <- forM acs $ \ (a, c :! _) -> classDesc c <&> \ k -> IntMap.singleton k (singleton a)
   -- Create a map from class to elements.
-  let m = IntMap.unionsWith (++) cas
+  let m = IntMap.unionsWith (<>) cas
   -- Return the values of the map
   return $ IntMap.elems m

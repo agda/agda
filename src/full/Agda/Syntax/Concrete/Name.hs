@@ -88,15 +88,15 @@ data NamePart
 --   right to be able to do a lookup. -Ulf
 
 instance Eq Name where
-    Name _ _ xs == Name _ _ ys = xs == ys
-    NoName _ i  == NoName _ j  = i == j
-    _           == _           = False
+    Name _ _ xs    == Name _ _ ys    = xs == ys
+    NoName _ i     == NoName _ j     = i == j
+    _              == _              = False
 
 instance Ord Name where
-    compare (Name _ _ xs) (Name _ _ ys) = compare xs ys
-    compare (NoName _ i)  (NoName _ j)  = compare i j
-    compare (NoName {})   (Name {})     = LT
-    compare (Name {})     (NoName {})   = GT
+    compare (Name _ _ xs)  (Name _ _ ys)      = compare xs ys
+    compare (NoName _ i)   (NoName _ j)       = compare i j
+    compare (NoName {})    (Name {})          = LT
+    compare (Name {})      (NoName {})        = GT
 
 instance Eq NamePart where
   Hole  == Hole  = True
@@ -148,8 +148,8 @@ nameToRawName :: Name -> RawName
 nameToRawName = prettyShow
 
 nameParts :: Name -> [NamePart]
-nameParts (Name _ _ ps) = ps
-nameParts (NoName _ _)  = [Id "_"] -- To not return an empty list
+nameParts (Name _ _ ps)    = ps
+nameParts (NoName _ _)     = [Id "_"] -- To not return an empty list
 
 nameStringParts :: Name -> [RawName]
 nameStringParts n = [ s | Id s <- nameParts n ]
@@ -183,8 +183,8 @@ instance NumHoles QName where
 -- | Is the name an operator?
 
 isOperator :: Name -> Bool
-isOperator (NoName {})   = False
-isOperator (Name _ _ ps) = length ps > 1
+isOperator (NoName {})     = False
+isOperator (Name _ _ ps)   = length ps > 1
 
 isHole :: NamePart -> Bool
 isHole Hole = True
@@ -236,6 +236,10 @@ instance LensInScope QName where
 -- * Generating fresh names
 ------------------------------------------------------------------------
 
+nextStr :: String -> String
+nextStr s = case suffixView s of
+  (s0, suf) -> addSuffix s0 (nextSuffix suf)
+
 -- | Get the next version of the concrete name. For instance,
 --   @nextName "x" = "x₁"@.  The name must not be a 'NoName'.
 nextName :: Name -> Name
@@ -246,8 +250,6 @@ nextName x@Name{ nameNameParts = ps } = x { nameInScope = NotInScope, nameNamePa
     nextSuf [Id s, Hole] = [Id $ nextStr s, Hole]
     nextSuf (p : ps)     = p : nextSuf ps
     nextSuf []           = __IMPOSSIBLE__
-    nextStr s = case suffixView s of
-        (s0, suf) -> addSuffix s0 (nextSuffix suf)
 
 -- | Get the first version of the concrete name that does not satisfy
 --   the given predicate.
@@ -408,8 +410,8 @@ instance Show QName where
 ------------------------------------------------------------------------
 
 instance Pretty Name where
-  pretty (Name _ _ xs) = hcat $ map pretty xs
-  pretty (NoName _ _)  = "_"
+  pretty (Name _ _ xs)    = hcat $ map pretty xs
+  pretty (NoName _ _)     = "_"
 
 instance Pretty NamePart where
   pretty Hole   = "_"
@@ -429,8 +431,8 @@ instance Pretty TopLevelModuleName where
 ------------------------------------------------------------------------
 
 instance HasRange Name where
-    getRange (Name r _ ps) = r
-    getRange (NoName r _)  = r
+    getRange (Name r _ ps)    = r
+    getRange (NoName r _)     = r
 
 instance HasRange QName where
     getRange (QName  x) = getRange x
@@ -455,8 +457,8 @@ instance KillRange QName where
   killRange (Qual n x) = killRange n `Qual` killRange x
 
 instance KillRange Name where
-  killRange (Name r nis ps) = Name (killRange r) nis ps
-  killRange (NoName r i)    = NoName (killRange r) i
+  killRange (Name r nis ps)  = Name (killRange r) nis ps
+  killRange (NoName r i)     = NoName (killRange r) i
 
 instance KillRange TopLevelModuleName where
   killRange (TopLevelModuleName _ x) = TopLevelModuleName noRange x

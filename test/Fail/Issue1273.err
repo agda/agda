@@ -1,3 +1,8 @@
 Issue1273.agda:15,7-16
-Terms marked as eligible for instance search should end with a name
+Terms marked as eligible for instance search should end with a
+name, so 'instance' is ignored here.
 when checking the projection set : Set
+Issue1273.agda:21,18-20
+No instance of type Eq (set A) was found in scope.
+when checking that x y are valid arguments to a function of type
+{t : Set} ⦃ r : Eq t ⦄ → t → t → Bool

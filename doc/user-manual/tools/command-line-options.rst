@@ -96,8 +96,12 @@ Imports and libraries
 (see :ref:`package-system`)
 
 :samp:`--ignore-interfaces`
-      Ignore interface files (re-type check
-      everything)
+      Ignore interface files (re-type check everything, except for
+      builtin and primitive modules)
+
+:samp:`--ignore-all-interfaces`
+      Ignore *all* interface files, including builtin and primitive
+      modules; only use this if you know what you are doing!
 
 :samp:`--include-path={DIR} -i={DIR}`
       Look for imports in
@@ -180,7 +184,7 @@ Experimental features
       :ref:`rewriting`)
 
 :samp:`--cubical`
-      Enable cubical features (see :ref:`cubical`)
+      Enable cubical features. Turns on ``--without-K`` (see :ref:`cubical`)
 
 Errors and warnings
 ~~~~~~~~~~~~~~~~~~~
@@ -257,7 +261,7 @@ Other features
 
 :samp:`--safe`
       Disable postulates, unsafe ``OPTION`` pragmas and
-      ``primTrustMe`` (see :ref:`safe-agda`)
+      ``primTrustMe``. Turns off ``--sized-types`` and ``--guardedness`` (at most one can be turned back on again) (see :ref:`safe-agda`)
 
 :samp:`--type-in-type`
       Ignore universe levels (this makes Agda
@@ -269,16 +273,16 @@ Other features
 
 :samp:`--sized-types`
       Enable sized types (default, inconsistent with constructor-based
-      guarded corecursion; see :ref:`sized-types`). Turned off (but
-      can be turned on again) by ``--safe``.
+      guarded corecursion; see :ref:`sized-types`). Turned off by ``--safe``
+      (but can be turned on again, as long as not also ``--guardedness`` is on).
 
 :samp:`--no-sized-types`
       Disable sized types (see :ref:`sized-types`)
 
 :samp:`--guardedness`
-      Enable constructor-based guarded corecursion (default; see
-      :ref:`coinduction`). Turned off (but can be turned
-      on again) by ``--safe``.
+      Enable constructor-based guarded corecursion (default, inconsistent
+      with sized types; see :ref:`coinduction`). Turned off by ``--safe``
+      (but can be turned on again, as long as not also ``--sized-types`` is on).
 
 :samp:`--no-guardedness`
       Disable constructor-based guarded corecursion (see :ref:`coinduction`)

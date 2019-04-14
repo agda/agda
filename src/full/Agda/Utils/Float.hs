@@ -12,7 +12,7 @@ floatLt x y =
     LT -> True
     _  -> False
   where
-    -- Also implemented in the GHC/UHC backends
+    -- Also implemented in the GHC backend
     compareFloat :: Double -> Double -> Ordering
     compareFloat x y
       | identicalIEEE x y          = EQ

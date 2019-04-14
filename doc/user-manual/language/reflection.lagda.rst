@@ -3,6 +3,7 @@
   module language.reflection where
 
   open import language.built-ins
+  open import Agda.Builtin.Sigma
 
   ¬_ : ∀ {u} → Set u → Set u
   ¬ x  = x → ⊥
@@ -382,6 +383,11 @@ following primitive operations::
     -- "blocking" constraints.
     noConstraints : ∀ {a} {A : Set a} → TC A → TC A
 
+    -- Run the given TC action and return the first component. Resets to
+    -- the old TC state if the second component is 'false', or keep the
+    -- new TC state if it is 'true'.
+    runSpeculative : ∀ {a} {A : Set a} → TC (Σ A λ _ → Bool) → TC A
+
   {-# BUILTIN AGDATCMUNIFY              unify              #-}
   {-# BUILTIN AGDATCMTYPEERROR          typeError          #-}
   {-# BUILTIN AGDATCMBLOCKONMETA        blockOnMeta        #-}
@@ -406,6 +412,7 @@ following primitive operations::
   {-# BUILTIN AGDATCMWITHNORMALISATION  withNormalisation  #-}
   {-# BUILTIN AGDATCMDEBUGPRINT         debugPrint         #-}
   {-# BUILTIN AGDATCMNOCONSTRAINTS      noConstraints      #-}
+  {-# BUILTIN AGDATCMRUNSPECULATIVE     runSpeculative     #-}
 
 Metaprogramming
 ---------------
@@ -542,3 +549,38 @@ In ``m`` the ``xᵢ`` stand for the names of the functions being defined (i.e.
 One advantage of ``unquoteDef`` over ``unquoteDecl`` is that
 ``unquoteDef`` is allowed in mutual blocks, allowing mutually
 recursion between generated definitions and hand-written definitions.
+
+Example usage:
+
+..
+  ::
+
+  module unquote-id where
+
+    _>>=_ = bindTC
+    _>>_ : ∀ {ℓ} {A : Set ℓ} → TC ⊤ → TC A → TC A
+    a >> b = a >>= λ { tt → b }
+
+::
+
+    -- Defining: id-name {A} x = x
+    defId : (id-name : Name) → TC ⊤
+    defId id-name = do
+      defineFun id-name
+        [ clause
+          ( arg (arg-info hidden relevant) (var "A")
+          ∷ arg (arg-info visible relevant) (var "x")
+          ∷ [] )
+          (var 0 [])
+        ]
+
+    id : {A : Set} (x : A) → A
+    unquoteDef id = defId id
+
+    mkId : (id-name : Name) → TC ⊤
+    mkId id-name = do
+      ty ← quoteTC ({A : Set} (x : A) → A)
+      declareDef (arg (arg-info visible relevant) id-name) ty
+      defId id-name
+
+    unquoteDecl id′ = mkId id′

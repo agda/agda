@@ -15,13 +15,17 @@ import Prelude hiding ((<>))
 import Control.Applicative hiding (empty)
 import Control.Monad.Reader
 import Control.Monad.State
+import qualified Data.IntSet as IntSet
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.List as List
+import Data.Function (on)
+import Data.Monoid hiding ((<>))
 
 import Agda.Interaction.Options (optOverlappingInstances)
 
 import Agda.Syntax.Common
+import Agda.Syntax.Position
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Scope.Base (isNameInScope)
 
@@ -67,6 +71,8 @@ initialInstanceCandidates t = do
     OutputTypeNameNotYetKnown -> do
       reportSDoc "tc.instance.cands" 30 $ "Instance type is not yet known. "
       return Nothing
+    OutputTypeVisiblePi -> typeError $ GenericError $
+      "Instance search cannot be used to find elements in an explicit function type"
     OutputTypeVar    -> do
       reportSDoc "tc.instance.cands" 30 $ "Instance type is a variable. "
       maybeRight <$> runExceptT getContextVars
@@ -201,7 +207,7 @@ findInstance m Nothing = do
     -- Issue #2577: If the target is a function type the arguments are
     -- potential candidates, so we add them to the context to make
     -- initialInstanceCandidates pick them up.
-    TelV tel t <- telView t
+    TelV tel t <- telViewUpTo' (-1) notVisible t
     cands <- addContext tel $ initialInstanceCandidates t
     case cands of
       Nothing -> do
@@ -251,7 +257,14 @@ findInstance' m cands = ifM (isFrozen m) (do
         Just (errs, []) -> do
           if null errs then reportSDoc "tc.instance" 15 $ "findInstance 5: no viable candidate found..."
                        else reportSDoc "tc.instance" 15 $ "findInstance 5: all viable candidates failed..."
-          typeError $ InstanceNoCandidate t [ (candidateTerm c, err) | (c, err) <- errs ]
+          -- #3676: Sort the candidates based on the size of the range for the errors and
+          --        set the range of the full error to the range of the most precise candidate
+          --        error.
+          let sortedErrs = List.sortBy (compare `on` precision) errs
+                where precision (_, err) = maybe infinity iLength $ rangeToInterval $ getRange err
+                      infinity = 1000000000
+          setCurrentRange (take 1 $ map snd sortedErrs) $
+            typeError $ InstanceNoCandidate t [ (candidateTerm c, err) | (c, err) <- sortedErrs ]
 
         Just (_, [Candidate term t' _]) -> do
           reportSDoc "tc.instance" 15 $ vcat
@@ -328,8 +341,9 @@ filterResetingState m cands f = do
 -- This is sufficient to reduce the list to a singleton should all be equal.
 dropSameCandidates :: MetaId -> [(Candidate, Term, Type, a)] -> TCM [(Candidate, Term, Type, a)]
 dropSameCandidates m cands0 = verboseBracket "tc.instance" 30 "dropSameCandidates" $ do
-  metas <- Set.fromList . Map.keys <$> getMetaStore
-  let freshMetas x = not $ Set.null $ Set.difference (Set.fromList $ allMetas x) metas
+  metas <- getMetaVariableSet
+  -- Does `it` have any metas in the initial meta variable store?
+  let freshMetas = getAny . allMetas (Any . (`IntSet.notMember` metas) . metaId)
 
   -- Take overlappable candidates into account
   let cands =

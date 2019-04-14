@@ -108,7 +108,7 @@ nelims e (I.Apply arg : es) = do
          | otherwise                     = A.App defaultAppInfo_ e arg
   nelims hd es
 nelims e (I.Proj ProjPrefix d : es)             = nelimsProjPrefix e d es
-nelims e (I.Proj o          d : es) | isSelf e  = nelimsProjPrefix e d es
+nelims e (I.Proj o          d : es) | isSelf e  = nelims (A.Proj ProjPrefix $ unambiguous d) es
                                     | otherwise =
   nelims (A.App defaultAppInfo_ e (defaultNamedArg $ A.Proj o $ unambiguous d)) es
 
@@ -116,15 +116,11 @@ nelimsProjPrefix :: Expr -> QName -> [I.Elim' (Named_ Expr)] -> TCM Expr
 nelimsProjPrefix e d es =
   nelims (A.App defaultAppInfo_ (A.Proj ProjPrefix $ unambiguous d) $ defaultNamedArg e) es
 
--- | If we are inside a record definition, the record value (self)
---   is a variable with name "".
---   In this case, we need to use a prefix-projection.  (Issue #2868.)
---   Prefix projections magically print correctly since the thing
---   we are projecting from has a null name, so vanishes in the visible world.
---   We love hacks, don't we?  Sigh.
+-- | If we are referencing the record from inside the record definition, we don't insert an
+-- | A.App
 isSelf :: Expr -> Bool
 isSelf = \case
-  A.Var x -> null $ prettyShow x
+  A.Var n -> nameIsRecordName n
   _ -> False
 
 -- | Drops hidden arguments unless --show-implicit.
@@ -338,10 +334,10 @@ reifyDisplayFormP f ps wps = do
         termToPat (DTerm (I.Var n [])) = return $ unArg $ fromMaybe __IMPOSSIBLE__ $ ps !!! n
 
         termToPat (DCon c ci vs)          = fmap unnamed <$> tryRecPFromConP =<< do
-           A.ConP (ConPatInfo ci patNoRange False) (unambiguous (conName c)) <$> mapM argToPat vs
+           A.ConP (ConPatInfo ci patNoRange ConPatEager) (unambiguous (conName c)) <$> mapM argToPat vs
 
         termToPat (DTerm (I.Con c ci vs)) = fmap unnamed <$> tryRecPFromConP =<< do
-           A.ConP (ConPatInfo ci patNoRange False) (unambiguous (conName c)) <$> mapM (elimToPat . fmap DTerm) vs
+           A.ConP (ConPatInfo ci patNoRange ConPatEager) (unambiguous (conName c)) <$> mapM (elimToPat . fmap DTerm) vs
 
         termToPat (DTerm (I.Def _ [])) = return $ unnamed $ A.WildP patNoRange
         termToPat (DDef _ [])          = return $ unnamed $ A.WildP patNoRange
@@ -1052,12 +1048,18 @@ instance (Binder a, Binder b) => Binder (a, b) where
 -- | Assumes that pattern variables have been added to the context already.
 --   Picks pattern variable names from context.
 reifyPatterns :: MonadTCM tcm => [NamedArg I.DeBruijnPattern] -> tcm [NamedArg A.Pattern]
-reifyPatterns = mapM $ stripNameFromExplicit <.> traverse (traverse reifyPat)
+reifyPatterns = mapM $ (stripNameFromExplicit . stripHidingFromPostfixProj) <.>
+                       traverse (traverse reifyPat)
   where
     stripNameFromExplicit :: NamedArg p -> NamedArg p
     stripNameFromExplicit a
       | visible a = fmap (unnamed . namedThing) a
       | otherwise = a
+
+    stripHidingFromPostfixProj :: IsProjP p => NamedArg p -> NamedArg p
+    stripHidingFromPostfixProj a = case isProjP a of
+      Just (o, _) | o /= ProjPrefix -> setHiding NotHidden a
+      _                             -> a
 
     reifyPat :: MonadTCM tcm => I.DeBruijnPattern -> tcm A.Pattern
     reifyPat p = do
@@ -1116,7 +1118,7 @@ reifyPatterns = mapM $ stripNameFromExplicit <.> traverse (traverse reifyPat)
     reifyConP c cpi ps = do
       tryRecPFromConP =<< do A.ConP ci (unambiguous (conName c)) <$> reifyPatterns ps
       where
-        ci = ConPatInfo origin patNoRange False
+        ci = ConPatInfo origin patNoRange ConPatEager
         origin = fromConPatternInfo cpi
 
 

@@ -28,6 +28,7 @@ import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
 import Data.Text.Lazy (Text)
 import Data.Traversable ( mapM )
+import Data.Typeable
 
 import Data.Void
 
@@ -58,6 +59,8 @@ import Agda.Utils.Except
 
 import Agda.Utils.Empty (Empty)
 import qualified Agda.Utils.Empty as Empty
+
+import Agda.Utils.WithDefault
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -158,12 +161,14 @@ instance EmbPrj FileType where
   icod_ MdFileType   = icodeN 0 IsRecord
   icod_ RstFileType  = icodeN 1 IsRecord
   icod_ TexFileType  = icodeN 2 IsRecord
+  icod_ OrgFileType  = icodeN 3 IsRecord
 
   value = vcase $ \case
     []  -> valuN AgdaFileType
     [0] -> valuN MdFileType
     [1] -> valuN RstFileType
     [2] -> valuN TexFileType
+    [3] -> valuN OrgFileType
     _   -> malformed
 
 instance EmbPrj DataOrRecord where
@@ -205,6 +210,16 @@ instance EmbPrj a => EmbPrj (Position' a) where
   icod_ (P.Pn file pos line col) = icodeN' P.Pn file pos line col
 
   value = valueN P.Pn
+
+instance Typeable b => EmbPrj (WithDefault b) where
+  icod_ = \case
+    Default -> icodeN' Default
+    Value b -> icodeN' Value b
+
+  value = vcase $ \case
+    []  -> valuN Default
+    [a] -> valuN Value a
+    _ -> malformed
 
 instance EmbPrj TopLevelModuleName where
   icod_ (TopLevelModuleName a b) = icodeN' TopLevelModuleName a b
@@ -274,8 +289,8 @@ instance EmbPrj SerialisedRange where
     valu _      = malformed
 
 instance EmbPrj C.Name where
-  icod_ (C.NoName a b)    = icodeN 0 C.NoName a b
-  icod_ (C.Name r nis xs) = icodeN 1 C.Name r nis xs
+  icod_ (C.NoName a b)     = icodeN 0 C.NoName a b
+  icod_ (C.Name r nis xs)  = icodeN 1 C.Name r nis xs
 
   value = vcase valu where
     valu [0, a, b]       = valuN C.NoName a b
@@ -379,8 +394,8 @@ instance EmbPrj A.ModuleName where
   value n           = A.MName `fmap` value n
 
 instance EmbPrj A.Name where
-  icod_ (A.Name a b c d) = icodeMemo nameD nameC a $
-    icodeN' (\ a b -> A.Name a b . underlyingRange) a b (SerialisedRange c) d
+  icod_ (A.Name a b c d e) = icodeMemo nameD nameC a $
+    icodeN' (\ a b -> A.Name a b . underlyingRange) a b (SerialisedRange c) d e
 
   value = valueN (\a b c -> A.Name a b (underlyingRange c))
 

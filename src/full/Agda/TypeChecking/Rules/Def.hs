@@ -44,6 +44,7 @@ import Agda.TypeChecking.Warnings ( warning )
 
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Conversion
+import Agda.TypeChecking.Coverage.SplitTree
 import Agda.TypeChecking.Inlining
 import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.Reduce
@@ -180,6 +181,7 @@ checkAlias t ai delayed i name e mc = atClause name 0 (A.RHS e mc) $ do
                           , clauseUnreachable = Just False
                           } ]
                       , funCompiled = Just $ Done [] $ bodyMod v
+                      , funSplitTree = Just $ SplittingDone 0
                       , funDelayed  = delayed
                       , funAbstr    = Info.defAbstract i
                       }
@@ -333,7 +335,7 @@ checkFunDefS t ai delayed extlam with i name withSub cs = do
               , nest 2 $ sep $ map (prettyTCM . QNamed name) cs
               ]
 
-        reportSDoc "tc.cc.raw" 15 $ do
+        reportSDoc "tc.cc.raw" 65 $ do
           sep [ "clauses before compilation"
               , nest 2 $ sep $ map (text . show) cs
               ]
@@ -341,10 +343,15 @@ checkFunDefS t ai delayed extlam with i name withSub cs = do
         -- add clauses for the coverage checker (needs to reduce)
         inTopContext $ addClauses name cs
 
+        reportSDoc "tc.cc.type" 60 $ "  type   : " <+> (text . prettyShow) t
+        reportSDoc "tc.cc.type" 60 $ "  context: " <+> (text . prettyShow =<< getContextTelescope)
+
         fullType <- flip telePi t <$> getContextTelescope
 
+        reportSLn  "tc.cc.type" 80 $ show fullType
+
         -- Coverage check and compile the clauses
-        cc <- Bench.billTo [Bench.Coverage] $
+        (mst, cc) <- Bench.billTo [Bench.Coverage] $
           inTopContext $ compileClauses (if isSystem then Nothing else (Just (name, fullType)))
                                         cs
 
@@ -360,6 +367,8 @@ checkFunDefS t ai delayed extlam with i name withSub cs = do
         -- The macro tag might be on the type signature
         ismacro <- isMacro . theDef <$> getConstInfo name
 
+        covering <- funCovering . theDef <$> getConstInfo name
+
         -- Add the definition
         inTopContext $ addConstant name =<< do
           -- If there was a pragma for this definition, we can set the
@@ -369,12 +378,14 @@ checkFunDefS t ai delayed extlam with i name withSub cs = do
              emptyFunction
              { funClauses        = cs
              , funCompiled       = Just cc
+             , funSplitTree      = mst
              , funDelayed        = delayed
              , funInv            = inv
              , funAbstr          = Info.defAbstract i
              , funExtLam         = (\ e -> e { extLamSys = sys }) <$> extlam
              , funWith           = with
              , funCopatternLHS   = hasProjectionPatterns cc
+             , funCovering       = covering
              }
           useTerPragma $ defaultDefn ai name fullType defn
 
@@ -630,7 +641,7 @@ checkClause t withSub c@(A.Clause (A.SpineLHS i x aps) strippedPats rhs0 wh catc
             [ "delta =" <+> do escapeContext (size delta) $ prettyTCM delta
             , "ps    =" <+> do P.fsep <$> prettyTCMPatterns ps
             , "body  =" <+> maybe "_|_" prettyTCM body
-            , "type  =" <+> text (show t)
+            , "type  =" <+> prettyTCM t
             ]
           ]
 
@@ -639,6 +650,7 @@ checkClause t withSub c@(A.Clause (A.SpineLHS i x aps) strippedPats rhs0 wh catc
           , nest 2 $ vcat
             [ "ps    =" <+> text (show ps)
             , "body  =" <+> text (show body)
+            , "type  =" <+> text (show t)
             ]
           ]
 
@@ -773,7 +785,7 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps absurdPat trhs _ _asb _) rhs0
         -- Process 'rewrite' clause like a suitable 'with' clause.
 
         -- The REFL constructor might have an argument
-        let reflPat  = A.ConP (ConPatInfo ConOCon patNoRange False) (unambiguous $ conName reflCon) $
+        let reflPat  = A.ConP (ConPatInfo ConOCon patNoRange ConPatEager) (unambiguous $ conName reflCon) $
               maybeToList $ fmap (\ ai -> Arg ai $ unnamed $ A.WildP patNoRange) reflInfo
 
         -- Andreas, 2015-12-25  Issue #1740:

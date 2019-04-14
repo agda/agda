@@ -20,13 +20,16 @@ Instance Arguments
    :depth: 2
    :local:
 
-Instance arguments are the Agda equivalent of Haskell type class
-constraints and can be used for many of the same purposes. In Agda
-terms, they are :ref:`implicit arguments <implicit-arguments>` that
-get solved by a special :ref:`instance
+Instance arguments are a special kind of :ref:`implicit arguments
+<implicit-arguments>` that get solved by a special :ref:`instance
 resolution <instance-resolution>` algorithm, rather than by the
-unification algorithm used for normal implicit arguments. In
-principle, an instance argument is resolved, if a unique *instance* of
+unification algorithm used for normal implicit arguments.
+Instance arguments are the Agda equivalent of Haskell type class
+constraints and can be used for many of the same purposes.
+
+An instance argument will be resolved if its type is a *named type*
+(i.e. a data type or record type) or a *variable type* (i.e. a
+previously bound variable of type `Set ℓ`), and a unique *instance* of
 the required type can be built from :ref:`declared
 instances <declaring-instances>` and the current context.
 
@@ -123,10 +126,18 @@ Defining type classes
 The type of an instance argument should have the form ``{Γ} → C vs``,
 where ``C`` is a postulated name, a bound variable, or the name of a
 data or record type, and ``{Γ}`` denotes an arbitrary number of
-(ordinary) implicit arguments (see :ref:`dependent-instances` below
-for an example where ``Γ`` is non-empty). Instance arguments that do
-not have this form are currently accepted, but instance resolution may
-or may not work as described below for such arguments.
+implicit or instance arguments (see :ref:`dependent-instances` below
+for an example where ``{Γ}`` is non-empty).
+
+Instances with explicit arguments are also accepted but will not be
+considered as instances because the value of the explicit arguments
+cannot be derived automatically. Having such an instance has no effect
+and thus raises a warning.
+
+Instance arguments whose types end in any other type are currently
+also accepted but cannot be resolved by instance search, so they must
+be given by hand. For this reason it is not recommended to use such
+instance arguments. Doing so will also raise a warning.
 
 Other than that there are no requirements on the type of an instance
 argument. In particular, there is no special declaration to say that a
@@ -481,28 +492,32 @@ Given a goal that should be solved using instance resolution we proceed in the
 following four stages:
 
 Verify the goal
-  First we check that the goal type has the right shape to be solved by instance
-  resolution. It should be of the form ``{Γ} → C vs``, where the target type
-  ``C`` is a variable from the context or the name of a data or record type,
-  and ``{Γ}`` denotes a telescope of implicit arguments. If this is not the
-  case instance resolution fails with an error message\ [#issue1322]_.
+  First we check that the goal type has the right shape to be solved
+  by instance resolution. It should be of the form ``{Γ} → C vs``, where
+  the target type ``C`` is a variable from the context or the name of
+  a data or record type, and ``{Γ}`` denotes a telescope of implicit or
+  instance arguments. If this is not the case instance resolution
+  fails with an error message\ [#issue1322]_.
 
 Find candidates
-  In the second stage we compute a set of *candidates*. :ref:`Let-bound
-  <let-and-where>` variables and top-level definitions in scope are candidates if they
-  are defined in an ``instance`` block. Lambda-bound variables, i.e. variables
-  bound in lambdas, function types, left-hand sides, or module parameters, are
-  candidates if they are bound as instance arguments using ``{{ }}``.
-  Only candidates that compute something of type ``C us``, where ``C`` is the
-  target type computed in the previous stage, are considered.
+  In the second stage we compute a set of
+  *candidates*. :ref:`Let-bound <let-and-where>` variables and
+  top-level definitions in scope are candidates if they are defined in
+  an ``instance`` block. Lambda-bound variables, i.e. variables bound
+  in lambdas, function types, left-hand sides, or module parameters,
+  are candidates if they are bound as instance arguments using ``{{
+  }}``.  Only candidates of type ``{Δ} → C us``, where ``C`` is the
+  target type computed in the previous stage and ``{Δ}`` only contains
+  implicit or instance arguments, are considered.
 
 Check the candidates
-  We attempt to use each candidate in turn to build an instance of the goal
-  type ``{Γ} → C vs``. First we extend the current context by ``Γ``. Then,
-  given a candidate ``c : Δ → A`` we generate fresh metavariables ``αs : Δ``
-  for the arguments of ``c``, with ordinary metavariables for implicit
-  arguments, and instance metavariables, solved by a recursive call to instance
-  resolution, for instance arguments.
+  We attempt to use each candidate in turn to build an instance of the
+  goal type ``{Γ} → C vs``. First we extend the current context by
+  ``{Γ}``. Then, given a candidate ``c : {Δ} → A`` we generate fresh
+  metavariables ``αs : {Δ}`` for the arguments of ``c``, with ordinary
+  metavariables for implicit arguments, and instance metavariables,
+  solved by a recursive call to instance resolution, for instance
+  arguments.
 
   Next we :ref:`unify <unification>` ``A[Δ := αs]`` with ``C vs`` and apply
   instance resolution to the instance metavariables in ``αs``. Both unification

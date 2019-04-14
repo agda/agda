@@ -76,7 +76,7 @@ import Agda.Interaction.Options
 
 import Agda.Utils.Either
 import Agda.Utils.Function
-import Agda.Utils.Functor (($>), (<.>))
+import Agda.Utils.Functor
 import Agda.Utils.List
 import Agda.Utils.Size
 import Agda.Utils.Maybe
@@ -115,9 +115,6 @@ termDecl' d = case d of
     A.Axiom {}            -> return mempty
     A.Field {}            -> return mempty
     A.Primitive {}        -> return mempty
-    A.Mutual _ ds
-      | [A.RecSig{}, A.RecDef _ _ _ _ _ _ _ _ rds] <- unscopeDefs ds
-                          -> termDecls rds
     A.Mutual i ds         -> termMutual $ getNames ds
     A.Section _ _ _ ds    -> termDecls ds
         -- section structure can be ignored as we are termination checking
@@ -196,6 +193,10 @@ termMutual names0 = ifNotM (optTerminationCheck <$> pragmaOptions) (return mempt
   -- We set the range to avoid panics when printing error messages.
   setCurrentRange i $ do
 
+  -- The following debug statement is part of a test case for Issue
+  -- #3590.
+  reportSLn "term.mutual.id" 40 $
+    "Termination checking mutual block " ++ show mid
   reportSLn "term.mutual" 10 $ "Termination checking " ++ prettyShow allNames
 
   -- NO_TERMINATION_CHECK
@@ -449,7 +450,7 @@ termDef name = terSetCurrent name $ inConcreteOrAbstractMode name $ \ def -> do
   -- If --without-K, we disregard all arguments (and result)
   -- which are not of data or record type.
 
-  withoutKEnabled <- liftTCM $ optWithoutK <$> pragmaOptions
+  withoutKEnabled <- liftTCM withoutKOption
   applyWhen withoutKEnabled (setMasks t) $ do
 
     -- If the result should be disregarded, set all calls to unguarded.
@@ -483,7 +484,8 @@ termDef name = terSetCurrent name $ inConcreteOrAbstractMode name $ \ def -> do
 --   @@
 
 termType :: Type -> TerM Calls
-termType = loop 0
+termType = return mempty
+-- termType = loop 0  -- Andreas, 2019-04-10 deactivate for backwards-compatibility in 2.6.0 #1556
   where
   loop n t = do
     ps <- mkPats n
@@ -1020,7 +1022,7 @@ compareArgs es = do
     filterM (isCoinductiveProjection True) $ mapMaybe (fmap snd . isProjElim) es
   cutoff <- terGetCutOff
   let ?cutoff = cutoff
-  useGuardedness <- optGuardedness <$> liftTCM pragmaOptions
+  useGuardedness <- liftTCM guardednessOption
   let guardedness =
         if useGuardedness
         then decr True $ projsCaller - projsCallee
@@ -1166,6 +1168,7 @@ compareTerm t p = do
 -- | Remove all non-coinductive projections from an algebraic term
 --   (not going under binders).
 --   Also, remove 'DontCare's.
+--
 class StripAllProjections a where
   stripAllProjections :: a -> TCM a
 
@@ -1195,10 +1198,21 @@ instance StripAllProjections Term where
   stripAllProjections t = do
     case t of
       Var i es   -> Var i <$> stripAllProjections es
-      Con c ci ts -> Con c ci <$> stripAllProjections ts
+      Con c ci ts -> do
+        -- Andreas, 2019-02-23, re #2613.  This is apparently not necessary:
+        -- c <- fromRightM (\ err -> return c) $ getConForm (conName c)
+        Con c ci <$> stripAllProjections ts
       Def d es   -> Def d <$> stripAllProjections es
       DontCare t -> stripAllProjections t
       _ -> return t
+
+-- | Normalize outermost constructor name in a pattern.
+
+reduceConPattern :: DeBruijnPattern -> TCM DeBruijnPattern
+reduceConPattern = \case
+  ConP c i ps -> fromRightM (\ err -> return c) (getConForm (conName c)) <&> \ c' ->
+    ConP c' i ps
+  p -> return p
 
 -- | @compareTerm' t dbpat@
 
@@ -1208,6 +1222,7 @@ compareTerm' v mp@(Masked m p) = do
   cutoff <- terGetCutOff
   let ?cutoff = cutoff
   v <- liftTCM (instantiate v)
+  p <- liftTCM $ reduceConPattern p
   case (v, p) of
 
     -- Andreas, 2013-11-20 do not drop projections,

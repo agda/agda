@@ -234,7 +234,7 @@ runTerDefault cont = do
 
   -- Andreas, 2014-08-28
   -- We do not inline with functions if --without-K.
-  inlineWithFunctions <- not . optWithoutK <$> pragmaOptions
+  inlineWithFunctions <- not <$> withoutKOption
 
   let tenv = defaultTerEnv
         { terInlineWithFunctions      = inlineWithFunctions

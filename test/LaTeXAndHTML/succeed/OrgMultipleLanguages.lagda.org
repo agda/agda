@@ -1,0 +1,34 @@
+* Org mode with multiple languages
+
+** Have some Agda!
+
+#+begin_src agda2
+module OrgMultipleLanguages where
+
+data Bool : Set where
+  true  : Bool
+  false : Bool
+#+end_src
+
+
+** Have some Haskell!
+
+#+begin_src haskell
+main = putStrLn "Hello!"
+#+end_src
+
+** Have some elisp
+
+#+begin_src elisp
+(message "Hello!")
+#+end_src
+
+** Invalid (ignored) Agda
+
+#+begin_src agda2-foo
+module Wrong where
+#+end_src
+
+#+begin_src agda
+module Wrong where
+#+end_src

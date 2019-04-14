@@ -70,7 +70,6 @@ import Agda.TypeChecking.Free
 
 import Agda.Utils.Monad
 import Agda.Utils.Pretty (pretty)
-import Agda.Utils.String ( Str(Str), unStr )
 import Agda.Utils.Maybe
 
 #include "undefined.h"
@@ -166,6 +165,11 @@ glam :: Monad m
      => ArgInfo -> ArgName -> (NamesT m Term -> NamesT m Term) -> NamesT m Term
 glam info n f = Lam info <$> bind n f
 
+glamN :: (Functor m, Monad m) =>
+         [Arg ArgName] -> (NamesT m Args -> NamesT m Term) -> NamesT m Term
+glamN [] f = f $ pure []
+glamN (Arg i n:ns) f = glam i n $ \ x -> glamN ns (\ xs -> f ((:) <$> (Arg i <$> x) <*> xs))
+
 #if __GLASGOW_HASKELL__ <= 708
 lam :: (Functor m, Monad m)
 #else
@@ -181,4 +185,3 @@ ilam :: Monad m
 #endif
     => ArgName -> (NamesT m Term -> NamesT m Term) -> NamesT m Term
 ilam n f = glam (setRelevance Irrelevant defaultArgInfo) n f
-

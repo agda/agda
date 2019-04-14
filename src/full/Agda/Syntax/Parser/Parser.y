@@ -59,6 +59,7 @@ import Agda.Utils.Monad
 import Agda.Utils.Pretty
 import Agda.Utils.Singleton
 import Agda.Utils.Tuple
+import qualified Agda.Utils.Maybe.Strict as Strict
 
 import Agda.Utils.Impossible
 #include "undefined.h"
@@ -151,18 +152,8 @@ import Agda.Utils.Impossible
 
     'BUILTIN'                 { TokKeyword KwBUILTIN $$ }
     'CATCHALL'                { TokKeyword KwCATCHALL $$ }
-    'COMPILED'                { TokKeyword KwCOMPILED $$ }
-    'COMPILED_DATA'           { TokKeyword KwCOMPILED_DATA $$ }
-    'COMPILED_DATA_UHC'       { TokKeyword KwCOMPILED_DATA_UHC $$ }
-    'COMPILED_EXPORT'         { TokKeyword KwCOMPILED_EXPORT $$ }
-    'COMPILED_JS'             { TokKeyword KwCOMPILED_JS $$ }
-    'COMPILED_TYPE'           { TokKeyword KwCOMPILED_TYPE $$ }
-    'COMPILED_UHC'            { TokKeyword KwCOMPILED_UHC $$ }
     'DISPLAY'                 { TokKeyword KwDISPLAY $$ }
     'ETA'                     { TokKeyword KwETA $$ }
-    'HASKELL'                 { TokKeyword KwHASKELL $$ }
-    'IMPORT'                  { TokKeyword KwIMPORT $$ }
-    'IMPORT_UHC'              { TokKeyword KwIMPORT_UHC $$ }
     'FOREIGN'                 { TokKeyword KwFOREIGN $$ }
     'COMPILE'                 { TokKeyword KwCOMPILE $$ }
     'IMPOSSIBLE'              { TokKeyword KwIMPOSSIBLE $$ }
@@ -290,18 +281,8 @@ Token
 
     | 'BUILTIN'                 { TokKeyword KwBUILTIN $1 }
     | 'CATCHALL'                { TokKeyword KwCATCHALL $1 }
-    | 'COMPILED'                { TokKeyword KwCOMPILED $1 }
-    | 'COMPILED_DATA'           { TokKeyword KwCOMPILED_DATA $1 }
-    | 'COMPILED_DATA_UHC'       { TokKeyword KwCOMPILED_DATA_UHC $1 }
-    | 'COMPILED_EXPORT'         { TokKeyword KwCOMPILED_EXPORT $1 }
-    | 'COMPILED_JS'             { TokKeyword KwCOMPILED_JS $1 }
-    | 'COMPILED_TYPE'           { TokKeyword KwCOMPILED_TYPE $1 }
-    | 'COMPILED_UHC'            { TokKeyword KwCOMPILED_UHC $1 }
     | 'DISPLAY'                 { TokKeyword KwDISPLAY $1 }
     | 'ETA'                     { TokKeyword KwETA $1 }
-    | 'HASKELL'                 { TokKeyword KwHASKELL $1 }
-    | 'IMPORT'                  { TokKeyword KwIMPORT $1 }
-    | 'IMPORT_UHC'              { TokKeyword KwIMPORT_UHC $1 }
     | 'FOREIGN'                 { TokKeyword KwFOREIGN $1 }
     | 'COMPILE'                 { TokKeyword KwCOMPILE $1 }
     | 'IMPOSSIBLE'              { TokKeyword KwIMPOSSIBLE $1 }
@@ -1335,7 +1316,7 @@ Postulate : 'postulate' Declarations0 { Postulate (fuseRange $1 $2) $2 }
 
 -- Primitives. Can only contain type signatures.
 Primitive :: { Declaration }
-Primitive : 'primitive' TypeSignatures  { Primitive (fuseRange $1 $2) $2 }
+Primitive : 'primitive' TypeSignatures0  { Primitive (fuseRange $1 $2) $2 }
 
 -- Unquoting declarations.
 UnquoteDecl :: { Declaration }
@@ -1413,12 +1394,13 @@ Open : MaybeOpen 'import' ModuleName OpenArgs ImportDirective {%
     ; dir = $5
     ; r   = getRange ($1, $2, m, es, dir)
     ; mr  = getRange m
-    ; unique = hashString $ show $ (Nothing :: Maybe ()) <$ r
+    ; unique = hashString $ prettyShow $ (Strict.Nothing :: Strict.Maybe ()) <$ r
          -- turn range into unique id, but delete file path
          -- which is absolute and messes up suite of failing tests
          -- (different hashs on different installations)
          -- TODO: Don't use (insecure) hashes in this way.
-    ; fresh = Name mr NotInScope [ Id $ stringToRawName $ ".#" ++ show m ++ "-" ++ show unique ]
+    ; fresh  = Name mr NotInScope [ Id $ stringToRawName $ ".#" ++ prettyShow m ++ "-" ++ show unique ]
+    ; fresh' = Name mr NotInScope [ Id $ stringToRawName $ ".#" ++ prettyShow m ++ "-" ++ show (unique + 1) ]
     ; impStm asR = Import r m (Just (AsName (Right fresh) asR)) DontOpen defaultImportDir
     ; appStm m' es =
         Private r Inserted
@@ -1446,7 +1428,7 @@ Open : MaybeOpen 'import' ModuleName OpenArgs ImportDirective {%
                  [ Import (getRange (m, asR, m', dir)) m
                      (Just (AsName m' asR)) doOpen dir
                  ]
-              else return [ impStm asR, appStm (fromRight (const fresh) m') initArgs ]
+              else return [ impStm asR, appStm (fromRight (const fresh') m') initArgs ]
           -- Andreas, 2017-05-13, issue #2579
           -- Nisse reports that importing with instantation but without open
           -- could be usefule for bringing instances into scope.
@@ -1526,22 +1508,12 @@ DeclarationPragma :: { Pragma }
 DeclarationPragma
   : BuiltinPragma            { $1 }
   | RewritePragma            { $1 }
-  | CompiledPragma           { $1 }
-  | CompiledExportPragma     { $1 }
-  | CompiledDataPragma       { $1 }
-  | CompiledTypePragma       { $1 }
-  | CompiledJSPragma         { $1 }
-  | CompiledUHCPragma        { $1 }
-  | CompiledDataUHCPragma    { $1 }
-  | HaskellPragma            { $1 }
   | CompilePragma            { $1 }
   | ForeignPragma            { $1 }
   | StaticPragma             { $1 }
   | InjectivePragma          { $1 }
   | InlinePragma             { $1 }
   | NoInlinePragma           { $1 }
-  | ImportPragma             { $1 }
-  | ImportUHCPragma          { $1 }
   | ImpossiblePragma         { $1 }
   | TerminatingPragma        { $1 }
   | NonTerminatingPragma     { $1 }
@@ -1575,45 +1547,6 @@ RewritePragma :: { Pragma }
 RewritePragma
     : '{-#' 'REWRITE' PragmaQNames '#-}'
       { RewritePragma (getRange ($1,$2,$3,$4)) $3 }
-
-CompiledPragma :: { Pragma }
-CompiledPragma
-  : '{-#' 'COMPILED' PragmaQName PragmaStrings '#-}'
-    { CompiledPragma (getRange ($1,$2,$3,$5)) $3 (unwords $4) }
-
-CompiledExportPragma :: { Pragma }
-CompiledExportPragma
-  : '{-#' 'COMPILED_EXPORT' PragmaQName PragmaString '#-}'
-    { CompiledExportPragma (getRange ($1,$2,$3,$5)) $3 $4 }
-
-CompiledTypePragma :: { Pragma }
-CompiledTypePragma
-  : '{-#' 'COMPILED_TYPE' PragmaQName PragmaStrings '#-}'
-    { CompiledTypePragma (getRange ($1,$2,$3,$5)) $3 (unwords $4) }
-
-CompiledDataPragma :: { Pragma }
-CompiledDataPragma
-  : '{-#' 'COMPILED_DATA' PragmaQName string PragmaStrings '#-}'
-    { CompiledDataPragma (getRange ($1,$2,$3,fst $4,$6)) $3 (snd $4) $5 }
-
-CompiledJSPragma :: { Pragma }
-CompiledJSPragma
-  : '{-#' 'COMPILED_JS' PragmaQName PragmaStrings '#-}'
-    { CompiledJSPragma (getRange ($1,$2,$3,$5)) $3 (unwords $4) }
-
-CompiledUHCPragma :: { Pragma }
-CompiledUHCPragma
-  : '{-#' 'COMPILED_UHC' PragmaQName PragmaStrings '#-}'
-    { CompiledUHCPragma (getRange ($1,$2,$3,$5)) $3 (unwords $4) }
-
-CompiledDataUHCPragma :: { Pragma }
-CompiledDataUHCPragma
-  : '{-#' 'COMPILED_DATA_UHC' PragmaQName string PragmaStrings '#-}'
-    { CompiledDataUHCPragma (getRange ($1,$2,$3,fst $4,$6)) $3 (snd $4) $5 }
-
-HaskellPragma :: { Pragma }
-HaskellPragma
-  : '{-#' 'HASKELL' ForeignCode '#-}' { HaskellCodePragma (getRange ($1, $2, $4)) (recoverLayout $3) }
 
 ForeignPragma :: { Pragma }
 ForeignPragma
@@ -1682,25 +1615,6 @@ CatchallPragma
     { CatchallPragma (getRange ($1,$2,$3)) }
 
 
-ImportPragma :: { Pragma }
-ImportPragma
-  : '{-#' 'IMPORT' string '#-}'
-    {% let s = snd $3 in
-       if validHaskellModuleName s
-       then return $ ImportPragma (getRange ($1,$2,fst $3,$4)) s
-       else parseError $ "Malformed module name: " ++ s ++ "."
-    }
-
-ImportUHCPragma :: { Pragma }
-ImportUHCPragma
-  : '{-#' 'IMPORT_UHC' string '#-}'
-    {% let s = snd $3 in
-       if validHaskellModuleName s
-       then return $ ImportUHCPragma (getRange ($1,$2,fst $3,$4)) s
-       else parseError $ "Malformed module name: " ++ s ++ "."
-    }
-
-
 ImpossiblePragma :: { Pragma }
   : '{-#' 'IMPOSSIBLE' '#-}'  { ImpossiblePragma (getRange ($1,$2,$3)) }
 
@@ -1749,6 +1663,13 @@ Polarity : string {% polarity $1 }
 {--------------------------------------------------------------------------
     Sequences of declarations
  --------------------------------------------------------------------------}
+
+-- Possibly empty list of type signatures, with several identifiers allowed
+-- for every signature.
+TypeSignatures0 :: { [TypeSignature] }
+TypeSignatures
+    : vopen close    { [] }
+    | TypeSignatures { $1 }
 
 -- Non-empty list of type signatures, with several identifiers allowed
 -- for every signature.
@@ -2131,7 +2052,7 @@ verifyImportDirective i =
         []  -> return i
         yss -> parseErrorRange (head $ concat yss) $
                 "Repeated name" ++ s ++ " in import directive: " ++
-                concat (intersperse ", " $ map (show . head) yss)
+                concat (intersperse ", " $ map (prettyShow . head) yss)
             where
                 s = case yss of
                         [_] -> ""
@@ -2150,7 +2071,7 @@ data RecordDirective
 verifyRecordDirectives :: [RecordDirective] -> Parser (Maybe (Ranged Induction), Maybe HasEta, Maybe (Name, IsInstance))
 verifyRecordDirectives xs
   | null rs = return (ltm is, ltm es, ltm cs)
-  | otherwise = parseErrorRange (head rs) $ "Repeated record directives at: \n" ++ intercalate "\n" (map show rs)
+  | otherwise = parseErrorRange (head rs) $ "Repeated record directives at: \n" ++ intercalate "\n" (map prettyShow rs)
  where
   ltm :: [a] -> Maybe a
   ltm [] = Nothing
@@ -2208,7 +2129,7 @@ exprToLHS e = LHS <$> exprToPattern e
 --   valid pattern.
 exprToPattern :: Expr -> Parser Pattern
 exprToPattern e = do
-    let failure = parseErrorRange e $ "Not a valid pattern: " ++ show e
+    let failure = parseErrorRange e $ "Not a valid pattern: " ++ prettyShow e
     case e of
         Ident x                 -> return $ IdentP x
         App _ e1 e2             -> AppP <$> exprToPattern e1
@@ -2268,7 +2189,7 @@ patternSynArgs = mapM pSynArg
     pSynArg Left{}                   = parseError "Absurd patterns are not allowed in pattern synonyms"
     pSynArg (Right DomainFull{})     = parseError "Unexpected type signature in pattern synonym argument"
     pSynArg (Right (DomainFree x))
-      | getHiding x `notElem` [Hidden, NotHidden] = parseError $ show (getHiding x) ++ " arguments not allowed to pattern synonyms"
+      | let h = getHiding x, h `notElem` [Hidden, NotHidden] = parseError $ prettyShow h ++ " arguments not allowed to pattern synonyms"
       | getRelevance x /= Relevant                = parseError "Arguments to pattern synonyms must be relevant"
       | otherwise                                 = return $ fmap (boundName . namedThing) x
 

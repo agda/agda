@@ -1,3 +1,16 @@
+Issue1322.agda:16,5-38
+Instance arguments with explicit arguments are never considered by
+instance search, so having an instance argument
+⦃ p : n == zero → ⊥ ⦄ has no effect.
+when checking that the expression (n : ℕ) ⦃ p : n == zero → ⊥ ⦄ → ℕ
+is a type
+Issue1322.agda:19,5-38
+Instance arguments with explicit arguments are never considered by
+instance search, so having an instance argument
+⦃ q : n == zero → ⊥ ⦄ has no effect.
+when checking that the expression (n : ℕ) ⦃ q : n == zero → ⊥ ⦄ → ℕ
+is a type
 Issue1322.agda:20,19-21
-No instance of type ⊥ was found in scope.
+Instance search cannot be used to find elements in an explicit
+function type
 when checking that the expression it has type n == zero → ⊥

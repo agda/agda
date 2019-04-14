@@ -36,7 +36,7 @@ import Agda.TypeChecking.Monad.Builtin (constructorForm)
 import Agda.TypeChecking.Free as Free (freeIn)
 import Agda.TypeChecking.Errors ( stringTCErr )
 
-import Agda.Interaction.MakeCase (getClauseForIP)
+import Agda.Interaction.MakeCase (getClauseZipperForIP)
 
 import Agda.Auto.NarrowingSearch
 import Agda.Auto.Syntax hiding (getConst)
@@ -725,7 +725,7 @@ findClauseDeep ii = ignoreAbstractMode $ do  -- Andreas, 2016-09-04, issue #2162
   case ipCl of
     MB.IPNoClause -> return Nothing
     MB.IPClause f clauseNo _ -> do
-      (_, c, _) <- getClauseForIP f clauseNo
+      (_, (_, c, _)) <- getClauseZipperForIP f clauseNo
       return $ Just (f, c, maybe __IMPOSSIBLE__ toplevel $ I.clauseBody c)
   where
     toplevel e =

@@ -23,8 +23,9 @@ let-expressions
 ===============
 
 A let-expression defines an abbreviation.
-In other words, the expression that we define in a let-expression
-can neither be recursive nor defined by pattern matching.
+In other words, the expression that we define in a let-expression can
+neither be recursive, nor can let bound functions be defined by
+pattern matching.
 
 Example::
 
@@ -50,6 +51,40 @@ After type-checking, the meaning of this is simply the substitution
 ``e’[f₁ := λ x₁ … xₙ → e; …; fₘ := λ x₁ … xₖ → eₘ]``.  Since Agda
 substitutes away let-bindings, they do not show up in terms Agda
 prints, nor in the goal display in interactive mode.
+
+.. _let-record-pattern:
+
+Let binding record patterns
+---------------------------
+
+For a record
+
+.. code-block:: agda
+
+   record R : Set where
+     constructor c
+     field
+       f : X
+       g : Y
+       h : Z
+
+a let expression of the form
+
+.. code-block:: agda
+
+  let (c x  y z) = t
+  in  u
+
+will be translated internally to as
+
+.. code-block:: agda
+
+  let x = f t
+      y = g t
+      z = h t
+  in  u
+
+This is not allowed if ``R`` is declared ``coinductive``.
 
 where-blocks
 ============

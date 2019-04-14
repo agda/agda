@@ -68,9 +68,6 @@ lispifyResponse (Resp_DisplayInfo info) = return $ case info of
       where (body, title) = formatWarningsAndErrors g w e
     Info_Auto s -> f s "*Auto*"
     Info_Error s -> f s "*Error*"
-    -- FNF: if Info_Warning comes back into use, the above should be
-    -- clearWarning : f s "*Error*"
-    --Info_Warning s -> [ display_warning "*Errors*" s ] -- FNF: currently unused
     Info_Time s -> f (render s) "*Time*"
     Info_NormalForm s -> f (render s) "*Normal Form*"   -- show?
     Info_InferredType s -> f (render s) "*Inferred Type*"
@@ -98,8 +95,6 @@ lispifyResponse (Resp_ClearHighlighting tokenBased) =
          ]
 lispifyResponse Resp_DoneAborting = return [ L [ A "agda2-abort-done" ] ]
 lispifyResponse Resp_ClearRunningInfo = return [ clearRunningInfo ]
--- FNF: if Info_Warning comes back into use, the above should be
--- return [ clearRunningInfo, clearWarning ]
 lispifyResponse (Resp_RunningInfo n s)
   | n <= 1    = return [ displayRunningInfo s ]
   | otherwise = return [ L [A "agda2-verbose", A (quote s)] ]
@@ -138,7 +133,7 @@ lispifyResponse (Resp_SolveAll ps) = return
       L [ A "agda2-solveAll-action", Q . L $ concatMap prn ps ]
   ]
   where
-    prn (ii,e)= [showNumIId ii, A $ quote $ show e]
+    prn (ii,e)= [showNumIId ii, A $ quote $ prettyShow e]
 
 -- | Adds a \"last\" tag to a response.
 
@@ -148,4 +143,4 @@ lastTag n r = Cons (Cons (A "last") (A $ show n)) r
 -- | Show an iteraction point identifier as an elisp expression.
 
 showNumIId :: InteractionId -> Lisp String
-showNumIId = A . tail . show
+showNumIId = A . show . interactionId

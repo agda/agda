@@ -52,64 +52,62 @@ mkCon :: ConHead -> ConInfo -> Args -> Term
 mkCon h info args = Con h info (map Apply args)
 
 -- | Order the fields of a record construction.
---   Use the second argument for missing fields.
-orderFields :: QName -> a -> [C.Name] -> [(C.Name, a)] -> TCM [a]
-orderFields r def xs fs = do
-  unlessNull (ys List.\\ List.nub ys) $ typeError . DuplicateFields . List.nub
-  unlessNull (ys List.\\ xs)          $ typeError . TooManyFields r
-  -- shouldBeNull (xs List.\\ ys)     $ TooFewFields r
-  return $ order xs fs
+orderFields
+  :: forall a
+  .  QName             -- ^ Name of record type (for error message).
+  -> (Arg C.Name -> a) -- ^ How to fill a missing field.
+  -> [Arg C.Name]      -- ^ Field names of the record type.
+  -> [(C.Name, a)]     -- ^ Provided fields with content in the record expression.
+  -> TCM [a]           -- ^ Content arranged in official order.
+orderFields r fill axs fs = do
+  reportSDoc "tc.record" 30 $ vcat
+    [ "orderFields"
+    , "  official fields: " <+> sep (map pretty xs)
+    , "  provided fields: " <+> sep (map pretty ys)
+    ]
+  unlessNull duplicate $ typeError . DuplicateFields . List.nub
+  unlessNull alien     $ typeError . TooManyFields r missing
+  return $ for axs $ \ ax -> fromMaybe (fill ax) $ lookup (unArg ax) fs
   where
-    ys = map fst fs
-
-    -- invariant: the first list contains at least the fields of the second list
-    order [] [] = []
-    order [] _  = __IMPOSSIBLE__
-    order (x : xs) ys = case lookup x (assocHoles ys) of
-      Just (e, ys') -> e : order xs ys'
-      Nothing       -> def : order xs ys
-
-    assocHoles xs = [ (x, (v, xs')) | ((x, v), xs') <- holes xs ]
+    xs        = map unArg axs           -- official  fields (accord. record type)
+    ys        = map fst fs              -- provided  fields
+    duplicate = ys List.\\ List.nub ys  -- duplicate fields
+    alien     = ys List.\\ xs           -- spurious  fields
+    missing   = xs List.\\ ys           -- missing   fields
 
 -- | A record field assignment @record{xs = es}@ might not mention all
 --   visible fields.  @insertMissingFields@ inserts placeholders for
 --   the missing visible fields and returns the values in order
 --   of the fields in the record declaration.
 insertMissingFields
-  :: QName                -- ^ Name of record type (for error reporting).
+  :: forall a
+  .  QName                -- ^ Name of record type (for error reporting).
   -> (C.Name -> a)        -- ^ Function to generate a placeholder for missing visible field.
   -> [FieldAssignment' a] -- ^ Given fields.
   -> [Arg C.Name]         -- ^ All record field names with 'ArgInfo'.
   -> TCM [NamedArg a]     -- ^ Given fields enriched by placeholders for missing explicit fields.
 insertMissingFields r placeholder fs axs = do
   -- Compute the list of given fields, decorated with the ArgInfo from the record def.
-  let arg x e =
-        case [ a | a <- axs, unArg a == x ] of
-          [a] -> nameIfHidden a e <$ a
-          _   -> defaultNamedArg e -- we only end up here if the field names are bad
+  let arg x e = caseMaybe (List.find ((x ==) . unArg) axs) (defaultNamedArg e) $ \ a ->
+        nameIfHidden a e <$ a
       givenFields = [ (x, Just $ arg x e) | FieldAssignment x e <- fs ]
-  -- Compute a list of p[aceholders for the missing visible fields.
-  let missingExplicits =
-       [ (x, Just $ setOrigin Inserted $ nameIfHidden a . placeholder <$> a)
-       | a <- filter visible axs
-       , let x = unArg a
-       , x `notElem` map (view nameFieldA) fs
-       ]
-  -- In es omitted explicit fields are replaced by placeholders
-  -- (from missingExplicits). Omitted implicit or instance fields
+
+  -- Omitted explicit fields are filled in with placeholders.
+  -- Omitted implicit or instance fields
   -- are still left out and inserted later by checkArguments_.
-  catMaybes <$> do
-    -- Default value @Nothing@ will only be used for missing hidden fields.
-    -- These can be ignored as they will be inserted by @checkArguments_@.
-    orderFields r Nothing (map unArg axs) $ givenFields ++ missingExplicits
+  catMaybes <$> orderFields r fill axs givenFields
   where
+    fill :: Arg C.Name -> Maybe (NamedArg a)
+    fill ax
+      | visible ax = Just $ setOrigin Inserted $ unnamed . placeholder <$> ax
+      | otherwise  = Nothing
     -- Andreas, 2017-04-13, issue #2494
     -- We need to put the field names as argument names for hidden arguments.
     -- Otherwise, insertImplicit does not do the right thing.
     nameIfHidden :: Arg C.Name -> c -> Named_ c
     nameIfHidden ax
       | visible ax = unnamed
-      | otherwise  = named (Ranged (getRange ax) $ prettyShow $ unArg ax)
+      | otherwise  = named $ Ranged (getRange ax) $ prettyShow $ unArg ax
 
 -- | The name of the module corresponding to a record.
 recordModule :: QName -> ModuleName

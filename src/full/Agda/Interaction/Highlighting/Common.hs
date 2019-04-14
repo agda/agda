@@ -11,12 +11,15 @@ import Agda.Syntax.Common
 import Agda.TypeChecking.Monad (HighlightingMethod(..))
 import Data.Maybe (maybeToList)
 import Data.Char (toLower)
+import qualified Data.Set as Set
 
 -- | Converts the 'aspect' and 'otherAspects' fields to strings that are
 -- friendly to editors.
 toAtoms :: Aspects -> [String]
-toAtoms m = map toAtom (otherAspects m) ++ toAtoms' (aspect m)
+toAtoms m = map toAtom (Set.toList $ otherAspects m)
+         ++ toAtoms' (aspect m)
   where
+
   toAtom :: Show a => a -> String
   toAtom = map toLower . show
 
@@ -37,7 +40,9 @@ chooseHighlightingMethod
   -> HighlightingMethod
   -> HighlightingMethod
 chooseHighlightingMethod info method = case ranges info of
-  _             | method == Direct                   -> Direct
-  ((_, mi) : _) | otherAspects mi == [TypeChecks] ||
-                  mi == mempty                       -> Direct
-  _                                                  -> Indirect
+  _             | method == Direct -> Direct
+  ((_, mi) : _) | check mi         -> Direct
+  _                                -> Indirect
+
+  where check mi = otherAspects mi == Set.singleton TypeChecks
+                || mi == mempty

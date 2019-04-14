@@ -45,6 +45,7 @@ import Agda.Interaction.Options
 
 import Agda.Utils.Except
 import Agda.Utils.List
+import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import qualified Agda.Utils.Pretty as P
 import Agda.Utils.Size
@@ -120,7 +121,7 @@ checkDataDef i name uc (A.DataDefParams gpars ps) cs =
             let s' = case s of
                   Prop l -> Type l
                   _      -> s
-            whenM (optWithoutK <$> pragmaOptions) $ checkIndexSorts s' ixTel
+            whenM withoutKOption $ checkIndexSorts s' ixTel
 
             reportSDoc "tc.data.sort" 20 $ vcat
               [ "checking datatype" <+> prettyTCM name
@@ -212,7 +213,7 @@ checkConstructor d uc tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
         -- check that the type of the constructor is well-formed
         (t, isPathCons) <- checkConstructorType e d
         -- compute which constructor arguments are forced
-        forcedArgs <- computeForcingAnnotations t
+        forcedArgs <- computeForcingAnnotations c t
         -- check that the sort (universe level) of the constructor type
         -- is contained in the sort of the data type
         -- (to avoid impredicative existential types)
@@ -526,7 +527,9 @@ defineCompData d con params names fsT t boundary = do
             }
         cs = [clause]
       addClauses theName cs
-      setCompiledClauses theName =<< inTopContext (compileClauses Nothing cs)
+      (mst, cc) <- inTopContext (compileClauses Nothing cs)
+      whenJust mst $ setSplitTree theName
+      setCompiledClauses theName cc
       setTerminates theName True
       return $ Just theName
 
@@ -585,11 +588,12 @@ defineProjections dataname con params names fsT t = do
 
     noMutualBlock $ do
       let cs = [clause]
-      cc <- inTopContext $ compileClauses Nothing cs
+      (mst , cc) <- inTopContext $ compileClauses Nothing cs
       let fun = emptyFunction
                 { funClauses = cs
                 , funTerminates = Just True
                 , funCompiled = Just cc
+                , funSplitTree = mst
                 , funMutual = Just []
                 }
       addConstant projName $
@@ -663,10 +667,10 @@ defineTranspForFields' pathCons applyProj name params fsT fns rect = do
 
 
   let
-      -- (γ : Γ) ⊢ compR γ : rtype
+      -- (γ : Γ) ⊢ transpR γ : rtype
       theTerm = Def theName [] `apply` teleArgs gamma
 
-      -- (γ : Γ) ⊢ (flatten Φ[δ i1])[n ↦ f_n (compR γ)]
+      -- (γ : Γ) ⊢ (flatten Φ[δ i1])[n ↦ f_n (transpR γ)]
       clause_types = parallelS [theTerm `applyProj` (unArg fn)
                                | fn <- reverse fns] `applySubst`
                        flattenTel (singletonS 0 io `applySubst` fsT') -- Γ, Φ[δ i1] ⊢ flatten Φ[δ i1]
@@ -686,7 +690,7 @@ defineTranspForFields' pathCons applyProj name params fsT fns rect = do
       -- -- (δ , φ , u0) : Γ ⊢ u0 : R (δ i0)
       -- the_u0  = var 0
 
-
+      -- Γ' = (δ : Δ^I, φ : I)
       gamma' = telFromList $ take (size gamma - 1) $ telToList gamma
 
       -- δ : Δ^I, φ : F ⊢ [δ 0] : Δ
@@ -694,10 +698,12 @@ defineTranspForFields' pathCons applyProj name params fsT fns rect = do
       d0 = wkS 1 -- Δ^I, φ : F ⊢ Δ
                        (consS iz IdS `composeS` sub params) -- Δ^I ⊢ Δ
                                  -- Δ^I , i:I ⊢ sub params : Δ
-      -- Ξ , Ξ ⊢ θ : Γ, Ξ ⊢ φ, Ξ ⊢ u : R (δ i0), Ξ ⊢ us
+
+      -- Ξ , Ξ ⊢ θ : Γ, Ξ ⊢ φ, Ξ ⊢ u : R (δ i0), Ξ ⊢ us : Φ[δ i0]
       (tel,theta,the_phi,the_u0, the_fields) =
         case pathCons of
-          Just u -> (abstract gamma' (d0 `applySubst` fsT)
+          -- (δ : Δ).Φ ⊢ u : R δ
+          Just u -> (abstract gamma' (d0 `applySubst` fsT) -- Ξ = δ : Δ^I, φ : F, _ : Φ[δ i0]
                     , (liftS (size fsT) d0 `applySubst` u) `consS` raiseS (size fsT)
                     , raise (size fsT) (var 0)
                     , (liftS (size fsT) d0 `applySubst` u)
@@ -706,6 +712,11 @@ defineTranspForFields' pathCons applyProj name params fsT fns rect = do
 
       fsT_tel = (liftS 1 (raiseS (size tel - size deltaI)) `composeS` sub params) `applySubst` fsT
 
+      iMin x y = imin `apply` [argN x, argN y]
+      iMax x y = imax `apply` [argN x, argN y]
+      iNeg x = ineg `apply` [argN x]
+
+      -- .. ⊢ field : filled_ty' i0
       mkBody (field, filled_ty') = do
         let
           filled_ty = lam_i $ (unEl . unDom) filled_ty'
@@ -728,11 +739,9 @@ defineTranspForFields' pathCons applyProj name params fsT fns rect = do
           _ -> __IMPOSSIBLE__
 
   let
-        iMin x y = imin `apply` [argN x, argN y]
-        iMax x y = imax `apply` [argN x, argN y]
-        iNeg x = ineg `apply` [argN x]
-        -- ' Ξ , i : I ⊢ τ = [(\ j → δ (i ∧ j), φ ∨ ~ i, u] : Ξ
-        tau = parallelS $ us ++ (phi `iMax` iNeg (var 0)) : map (\ d -> Lam defaultArgInfo $ Abs "i" $ raise 1 d `apply` [argN $ (iMin (var 0) (var 1))]) ds
+        -- ' Ξ , i : I ⊢ τ = [(\ j → δ (i ∧ j)), φ ∨ ~ i, u] : Ξ
+        tau = parallelS $ us ++ (phi `iMax` iNeg (var 0))
+                        : map (\ d -> Lam defaultArgInfo $ Abs "i" $ raise 1 d `apply` [argN $ (iMin (var 0) (var 1))]) ds
          where
           -- Ξ, i : I
           (us, phi:ds) = splitAt (size tel - size gamma') $ reverse (raise 1 (map unArg (teleArgs tel)))
@@ -1033,7 +1042,7 @@ fitsIn uc forceds t s = do
                   _              -> Nothing
   case vt of
     Just (isPath, dom, b) -> do
-      withoutK <- optWithoutK <$> pragmaOptions
+      withoutK <- withoutKOption
       let (forced,forceds') = nextIsForced forceds
       unless (isForced forced && not withoutK) $ do
         sa <- reduce $ getSort dom
@@ -1077,8 +1086,10 @@ constructs nofPars nofExtraVars t q = constrT nofExtraVars t
                 Pi _ (NoAbs _ b)  -> constrT n b
                 Pi a b            -> underAbstraction a b $ constrT (n + 1)
                   -- OR: addCxtString (absName b) a $ constrT (n + 1) (absBody b)
-                _ | Left ((a,b),_) <- pathV t -> do -- TODO, do the special casing like for Pi
-                      _ <- underAbstraction a b $ constrT (n + 1)
+                _ | Left ((a,b),_) <- pathV t -> do
+                      _ <- case b of
+                             NoAbs _ b -> constrT n b
+                             b         -> underAbstraction a b $ constrT (n + 1)
                       return PathCons
                 Def d es | d == q -> do
                   let vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
@@ -1097,11 +1108,12 @@ constructs nofPars nofExtraVars t q = constrT nofExtraVars t
                              take nofPars $ downFrom (nofPars + n)
                   -- The indices are fresh metas
                   xs <- newArgsMeta =<< piApplyM td us
-                  let t' = El (dataSort $ theDef def) $ Def q $ map Apply $ us ++ xs
+                  let t' = El (raise n $ dataSort $ theDef def) $ Def q $ map Apply $ us ++ xs
                   -- Andreas, 2017-11-07, issue #2840
                   -- We should not postpone here, otherwise we might upset the positivity checker.
-                  noConstraints $ equalType t t'
-                  constrT n t'
+                  ifM (tryConversion $ equalType t t')
+                      (constrT n t')
+                      (typeError $ ShouldEndInApplicationOfTheDatatype t)
                 _ -> typeError $ ShouldEndInApplicationOfTheDatatype t
 
         checkParams n vs = zipWithM_ sameVar vs ps

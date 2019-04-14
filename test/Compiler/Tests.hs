@@ -124,7 +124,7 @@ stdlibTests comp = do
       extraArgs = [ "-i" ++ testDir, "-i" ++ "std-lib" </> "src", "-istd-lib" ]
 
   let rtsOptions :: [String]
-      rtsOptions = [ "+RTS", "-H2G", "-M1.5G", "-RTS" ]
+      rtsOptions = [ "+RTS", "-H2G", "-M2.5G", "-RTS" ]
 
   tests' <- forM inps $ \inp -> do
     opts <- readOptions inp

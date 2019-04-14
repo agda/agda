@@ -20,7 +20,9 @@ Rendering documentation locally
 
     - ``Sphinx`` and ``sphinx-rtd-theme``
 
-        pip install --user -r doc/user-manual/requirements.txt
+        .. code-block:: bash
+
+          pip install --user -r doc/user-manual/requirements.txt
 
       Note that the ``--user`` option puts the Sphinx binaries in
       ``$HOME/.local/bin``.

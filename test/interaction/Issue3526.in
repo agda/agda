@@ -1,0 +1,6 @@
+top_command (cmd_load currentFile [])
+goal_command 0 cmd_make_case "b"
+goal_command 1 cmd_make_case "e"
+goal_command 2 cmd_make_case "b eq"
+goal_command 3 cmd_make_case "e"
+goal_command 4 cmd_make_case "e"

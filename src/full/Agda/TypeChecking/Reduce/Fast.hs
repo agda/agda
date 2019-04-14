@@ -47,6 +47,7 @@ import Control.Monad.ST.Unsafe (unsafeSTToIO, unsafeInterleaveST)
 
 import Data.Map (Map)
 import qualified Data.Map as Map
+import qualified Data.IntMap as IntMap
 import qualified Data.IntSet as IntSet
 import qualified Data.List as List
 import Data.Traversable (traverse)
@@ -773,7 +774,7 @@ reduceTm rEnv bEnv !constInfo normalisation ReductionFlags{..} =
   where
     -- Helpers to get information from the ReduceEnv.
     metaStore      = redSt rEnv ^. stMetaStore
-    getMeta m      = maybe __IMPOSSIBLE__ mvInstantiation (Map.lookup m metaStore)
+    getMeta m      = maybe __IMPOSSIBLE__ mvInstantiation (IntMap.lookup (metaId m) metaStore)
     partialDefs    = runReduce getPartialDefs
     rewriteRules f = cdefRewriteRules (constInfo f)
     callByNeed     = envCallByNeed (redEnv rEnv)
@@ -1364,9 +1365,6 @@ instance Pretty a => Pretty (FastCase a) where
 
       prSuc Nothing  = []
       prSuc (Just x) = ["suc ->" <?> pretty x]
-
-instance Pretty NameId where
-  pretty = text . show
 
 instance Pretty FastCompiledClauses where
   pretty (FDone xs t) = ("done" <+> prettyList xs) <?> prettyPrec 10 t

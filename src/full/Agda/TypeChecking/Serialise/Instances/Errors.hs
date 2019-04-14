@@ -70,11 +70,14 @@ instance EmbPrj Warning where
   icod_ (LibraryWarning a)           = icodeN 12 LibraryWarning a
   icod_ (CoverageNoExactSplit a b)   = icodeN 13 CoverageNoExactSplit a b
   icod_ (CantGeneralizeOverSorts a)  = icodeN 14 CantGeneralizeOverSorts a
-  icod_ IllformedAsClause            = icodeN 15 IllformedAsClause
+  icod_ (IllformedAsClause a)        = icodeN 15 IllformedAsClause a
   icod_ WithoutKFlagPrimEraseEquality = icodeN 16 WithoutKFlagPrimEraseEquality
   icod_ (InstanceWithExplicitArg a)  = icodeN 17 InstanceWithExplicitArg a
   icod_ (InfectiveImport a b)          = icodeN 18 InfectiveImport a b
   icod_ (CoInfectiveImport a b)        = icodeN 19 CoInfectiveImport a b
+  icod_ (InstanceNoOutputTypeName a) = icodeN 20 InstanceNoOutputTypeName a
+  icod_ (InstanceArgWithExplicitArg a) = icodeN 21 InstanceArgWithExplicitArg a
+  icod_ WrongInstanceDeclaration     = icodeN 22 WrongInstanceDeclaration
 
   value = vcase valu where
       valu [0, a, b]    = valuN UnreachableClauses a b
@@ -92,11 +95,14 @@ instance EmbPrj Warning where
       valu [12, a]      = valuN LibraryWarning a
       valu [13, a, b]   = valuN CoverageNoExactSplit a b
       valu [14, a]      = valuN CantGeneralizeOverSorts a
-      valu [15]         = valuN IllformedAsClause
+      valu [15, a]      = valuN IllformedAsClause a
       valu [16]         = valuN WithoutKFlagPrimEraseEquality
       valu [17, a]      = valuN InstanceWithExplicitArg a
       valu [18, a, b]   = valuN InfectiveImport a b
-      valu [19, a, b]   = valuN InfectiveImport a b
+      valu [19, a, b]   = valuN CoInfectiveImport a b
+      valu [20, a]      = valuN InstanceNoOutputTypeName a
+      valu [21, a]      = valuN InstanceArgWithExplicitArg a
+      valu [22]         = valuN WrongInstanceDeclaration
       valu _ = malformed
 
 instance EmbPrj DeclarationWarning where
@@ -123,6 +129,7 @@ instance EmbPrj DeclarationWarning where
     PragmaNoTerminationCheck r        -> icodeN 19 PragmaNoTerminationCheck r
     EmptyGeneralize a                 -> icodeN 20 EmptyGeneralize a
     PragmaCompiled r                  -> icodeN 21 PragmaCompiled r
+    EmptyPrimitive a                  -> icodeN 22 EmptyPrimitive a
 
   value = vcase $ \case
     [0, a]   -> valuN UnknownNamesInFixityDecl a
@@ -147,6 +154,7 @@ instance EmbPrj DeclarationWarning where
     [19,r]   -> valuN PragmaNoTerminationCheck r
     [20,a]   -> valuN EmptyGeneralize a
     [21,a]   -> valuN PragmaCompiled a
+    [22,a]   -> valuN EmptyPrimitive a
     _ -> malformed
 
 instance EmbPrj LibWarning where

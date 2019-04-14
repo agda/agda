@@ -93,7 +93,7 @@ instance SynEq Term where
       (Def   f vs, Def   f' vs') | f == f' -> Def f   <$$> synEq vs vs'
       (MetaV x vs, MetaV x' vs') | x == x' -> MetaV x <$$> synEq vs vs'
       (Lit   l   , Lit   l'    ) | l == l' -> pure2 $ v
-      (Lam   h b , Lam   h' b' ) | h == h' -> Lam h   <$$> synEq b b'
+      (Lam   h b , Lam   h' b' )           -> Lam <$$> synEq h h' <**> synEq b b'
       (Level l   , Level l'    )           -> levelTm <$$> synEq l l'
       (Sort  s   , Sort  s'    )           -> Sort    <$$> synEq s s'
       (Pi    a b , Pi    a' b' )           -> Pi      <$$> synEq a a' <**> synEq' b b'
@@ -161,6 +161,8 @@ instance SynEq a => SynEq (Elim' a) where
     case (e, e') of
       (Proj _ f, Proj _ f') | f == f' -> pure2 e
       (Apply a, Apply a') -> Apply <$$> synEq a a'
+      (IApply u v r, IApply u' v' r')
+                          -> (IApply u v *** IApply u' v') <$> synEq r r'
       _                   -> inequal (e, e')
 
 instance (Subst t a, SynEq a) => SynEq (Abs a) where

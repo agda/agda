@@ -128,10 +128,33 @@ HTML or LaTeX using PanDoc_.
   difficulty of interpreting their indentation level with respect to
   the rest of the file.
 
+Literate Org
+------------
+
+Files ending in :file:`.lagda.org` are interpreted as literate
+Org_ files. Code blocks are surrounded by two lines including only
+```#+begin_src agda2``` and ```#+end_src``` (case insensitive).
+
+.. code-block:: text
+
+    This line is ordinary text, which is ignored by Agda.
+
+    #+begin_src agda2
+    module Whatever where
+    -- Agda code goes here
+    #+end_src
+
+    Another non-code line.
+
+* Code blocks which should be ignored by Agda, but rendered in the
+  final document may be placed in source blocks without the ``agda2``
+  label.
+
 
 .. _TeX: http://tug.org/
 .. _reStructuredText: http://docutils.sourceforge.net/rst.html
 .. _Markdown: https://daringfireball.net/projects/markdown/
+.. _Org: https://orgmode.org
 
 .. _lhs2TeX: https://www.andres-loeh.de/lhs2tex/
 .. _Sphinx: http://www.sphinx-doc.org/en/stable/

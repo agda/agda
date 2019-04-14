@@ -20,7 +20,7 @@
 # -- Project information -----------------------------------------------------
 
 project = 'Agda'
-copyright = u'''2005-2018 remains with the authors.
+copyright = u'''2005–2019 remains with the authors.
 Agda 2 was originally written by Ulf Norell,
 partially based on code from Agda 1 by Catarina Coquand and Makoto Takeyama,
 and from Agdalight by Ulf Norell and Andreas Abel.
@@ -32,7 +32,7 @@ Andrés Sicard-Ramírez, and Andrea Vezzosi.
 
 Further, Agda 2 has received contributions by, amongst others, Stevan
 Andjelkovic, Marcin Benke, Jean-Philippe Bernardy, Guillaume Brunerie,
-James Chapman, Dominique Devriese, Péter Diviánszki, Olle Fredriksson,
+James Chapman, Dominique Devriese, Péter Diviánszky, Olle Fredriksson,
 Adam Gundry, Daniel Gustafsson, Kuen-Bang Hou (favonia), Patrik
 Jansson, Alan Jeffrey, Wolfram Kahl, Wen Kokke, John Leo, Fredrik Lindblad,
 Francesco Mazzoli, Stefan Monnier, Darin Morrison, Guilhem Moulin,
@@ -42,7 +42,7 @@ available at https://github.com/agda/agda/graphs/contributors'''
 author = u'The Agda Team'
 
 # The short X.Y version
-version = '2.6.0'
+version = '2.6.1'
 # The full version, including alpha/beta/rc tags
 release = version
 

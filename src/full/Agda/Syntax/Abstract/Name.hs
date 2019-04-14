@@ -15,7 +15,7 @@ import Prelude hiding ((<>))
 
 import Control.DeepSeq
 
-import Data.Foldable (Foldable, toList)
+import Data.Foldable (Foldable)
 import Data.Traversable (Traversable)
 import Data.Data (Data)
 import Data.List
@@ -48,12 +48,13 @@ data Name = Name { nameId          :: !NameId
                  , nameConcrete    :: C.Name
                  , nameBindingSite :: Range
                  , nameFixity      :: Fixity'
+                 , nameIsRecordName :: Bool
                  }
     deriving Data
 
 -- | Useful for debugging scoping problems
 uglyShowName :: Name -> String
-uglyShowName (Name i c _ _) = show (i,c)
+uglyShowName (Name i c _ _ _) = show (i,c)
 
 -- | Qualified names are non-empty lists of names. Equality on qualified names
 --   are just equality on the last name, i.e. the module part is just
@@ -109,7 +110,10 @@ class IsProjP a where
   isProjP :: a -> Maybe (ProjOrigin, AmbiguousQName)
 
 instance IsProjP a => IsProjP (Arg a) where
-  isProjP = isProjP . unArg
+  isProjP p = case isProjP $ unArg p of
+    Just (ProjPostfix , f)
+     | getHiding p /= NotHidden -> Nothing
+    x -> x
 
 instance IsProjP a => IsProjP (Named n a) where
   isProjP = isProjP . namedThing
@@ -171,7 +175,7 @@ class MkName a where
   mkName_ = mkName noRange
 
 instance MkName String where
-  mkName r i s = Name i (C.Name noRange InScope (C.stringNameParts s)) r noFixity'
+  mkName r i s = Name i (C.Name noRange InScope (C.stringNameParts s)) r noFixity' False
 
 
 qnameToList :: QName -> [Name]
@@ -398,8 +402,8 @@ instance SetRange ModuleName where
 -- ** KillRange
 
 instance KillRange Name where
-  killRange (Name a b c d) =
-    (killRange4 Name a b c d) { nameBindingSite = c }
+  killRange (Name a b c d e) =
+    (killRange4 Name a b c d e) { nameBindingSite = c }
     -- Andreas, 2017-07-25, issue #2649
     -- Preserve the nameBindingSite for error message.
     --
@@ -442,7 +446,7 @@ instance Sized ModuleName where
 -- | The range is not forced.
 
 instance NFData Name where
-  rnf (Name _ a _ b) = rnf a `seq` rnf b
+  rnf (Name _ a _ b c) = rnf a `seq` rnf b `seq` rnf c
 
 instance NFData QName where
   rnf (QName a b) = rnf a `seq` rnf b

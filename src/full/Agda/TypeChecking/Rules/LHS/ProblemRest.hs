@@ -110,7 +110,7 @@ updateProblemRest st@(LHSState tel0 qs0 p@(Problem oldEqs ps ret) a psplit) = do
   reportSDoc "tc.lhs.imp" 20 $
     "insertImplicitPatternsT returned" <+> fsep (map prettyA ps)
   -- (Issue 734: Do only the necessary telView to preserve clause types as much as possible.)
-  let m = length $ takeWhile (isNothing . A.maybeProjP) ps
+  let m = length $ takeWhile (isNothing . A.isProjP) ps
   (TelV gamma b, boundary) <- telViewUpToPathBoundaryP m $ unArg a
   forM_ (zip ps (telToList gamma)) $ \(p, a) ->
     unless (sameHiding p a) $ typeError WrongHidingInLHS

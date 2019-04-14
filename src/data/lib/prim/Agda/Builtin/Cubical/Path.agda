@@ -9,7 +9,10 @@ module Agda.Builtin.Cubical.Path where
   {-# BUILTIN PATHP        PathP     #-}
 
   infix 4 _≡_
+
+  -- We have a variable name in `(λ i → A)` as a hint for case
+  -- splitting.
   _≡_ : ∀ {ℓ} {A : Set ℓ} → A → A → Set ℓ
-  _≡_ {A = A} = PathP (λ _ → A)
+  _≡_ {A = A} = PathP (λ i → A)
 
   {-# BUILTIN PATH         _≡_     #-}

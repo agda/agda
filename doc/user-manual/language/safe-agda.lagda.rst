@@ -48,3 +48,33 @@ Here is a list of the features ``--safe`` is incompatible with:
 The option ``--safe`` is coinfective (see
 :ref:`consistency-checking-options`); if a module is declared safe,
 then all its imported modules must also be declared safe.
+
+.. NOTE::
+
+   The ``--guardedness`` and ``--sized-types`` options are both on by default.
+   However, unless they have been set explicitly by the user, setting the
+   ``--safe`` option will turn them both off. That is to say that
+
+   .. code-block:: agda
+
+     {-# OPTIONS --safe #-}
+
+   will correspond to ``--safe``, ``--no-guardedness``, and ``--no-sized-types``.
+   When both
+
+   .. code-block:: agda
+
+     {-# OPTIONS --safe --guardedness #-}
+
+   and
+
+   .. code-block:: agda
+
+     {-# OPTIONS --guardedness --safe #-}
+
+   will turn on ``--safe``, ``--guardedness``, and ``--no-sized-types``.
+
+
+   Setting both ``--sized-types`` and ``--guardedness`` whilst demanding that the
+   module is ``--safe`` will lead to an error as combining these options currently
+   is inconsistent.

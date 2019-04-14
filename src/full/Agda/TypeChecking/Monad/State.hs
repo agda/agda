@@ -291,6 +291,10 @@ updateFunClauses :: ([Clause] -> [Clause]) -> (Defn -> Defn)
 updateFunClauses f def@Function{ funClauses = cs} = def { funClauses = f cs }
 updateFunClauses f _                              = __IMPOSSIBLE__
 
+updateCovering :: ([Closure Clause] -> [Closure Clause]) -> (Defn -> Defn)
+updateCovering f def@Function{ funCovering = cs} = def { funCovering = f cs }
+updateCovering f _                               = __IMPOSSIBLE__
+
 updateCompiledClauses :: (Maybe CompiledClauses -> Maybe CompiledClauses) -> (Defn -> Defn)
 updateCompiledClauses f def@Function{ funCompiled = cc} = def { funCompiled = f cc }
 updateCompiledClauses f _                              = __IMPOSSIBLE__
@@ -330,34 +334,6 @@ addForeignCode :: BackendName -> String -> TCM ()
 addForeignCode backend code = do
   r <- asksTC envRange  -- can't use TypeChecking.Monad.Trace.getCurrentRange without cycle
   modifyTCLens (stForeignCode . key backend) $ Just . (ForeignCode r code :) . fromMaybe []
-
----------------------------------------------------------------------------
--- * Temporary: Haskell imports
---   These will go away when we remove the IMPORT and HASKELL pragmas in
---   favour of the FOREIGN pragma.
----------------------------------------------------------------------------
-
-addDeprecatedForeignCode :: String -> BackendName -> String -> TCM ()
-addDeprecatedForeignCode old backend code = do
-  warning $ DeprecationWarning (unwords ["The", old, "pragma"])
-                               foreignPragma "2.6"
-  addForeignCode backend code
-  where
-    spc | length (lines code) > 1 = "\n"
-        | otherwise               = " "
-    foreignPragma =
-      "{-# FOREIGN " ++ backend ++ spc ++ code ++ spc ++ "#-}"
-
--- | Tell the compiler to import the given Haskell module.
-addHaskellImport :: String -> TCM ()
-addHaskellImport i = addDeprecatedForeignCode "IMPORT" ghcBackendName $ "import qualified " ++ i
-
--- | Tell the compiler to import the given Haskell module.
-addHaskellImportUHC :: String -> TCM ()
-addHaskellImportUHC i = addDeprecatedForeignCode "IMPORT_UHC" ghcBackendName $ "__IMPORT__ " ++ i
-
-addInlineHaskell :: String -> TCM ()
-addInlineHaskell s = addDeprecatedForeignCode "HASKELL" ghcBackendName s
 
 ---------------------------------------------------------------------------
 -- * Interaction output callback

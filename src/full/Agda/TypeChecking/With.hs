@@ -420,7 +420,7 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
         , nest 2 $ "t   =" <+> prettyTCM t
         ]
       case namedArg q of
-        ProjP o d -> case A.maybeProjP p of
+        ProjP o d -> case A.isProjP p of
           Just (o', AmbQ ds) -> do
             -- Andreas, 2016-12-28, issue #2360:
             -- We disambiguate the projection in the with clause

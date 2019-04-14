@@ -194,12 +194,12 @@ records:
   sum : Pair Nat Nat → Nat
   sum (x , y) = x + y
 
-Internally, this is translated to
+Or, using a :ref:`let binding record pattern<let-record-pattern>`:
 
 ::
 
   sum' : Pair Nat Nat → Nat
-  sum' p = (Pair.fst p) + (Pair.snd p)
+  sum' p = let (x , y) = p in x + y
 
 
 .. note::

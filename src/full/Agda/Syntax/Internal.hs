@@ -372,6 +372,9 @@ stuckOn e r =
 -- * Definitions
 ---------------------------------------------------------------------------
 
+-- | Named pattern arguments.
+type NAPs = [NamedArg DeBruijnPattern]
+
 -- | A clause is a list of patterns and the clause body.
 --
 --  The telescope contains the types of the pattern variables and the
@@ -390,7 +393,7 @@ data Clause = Clause
     , clauseFullRange :: Range
     , clauseTel       :: Telescope
       -- ^ @Δ@: The types of the pattern variables in dependency order.
-    , namedClausePats :: [NamedArg DeBruijnPattern]
+    , namedClausePats :: NAPs
       -- ^ @Δ ⊢ ps@.  The de Bruijn indices refer to @Δ@.
     , clauseBody      :: Maybe Term
       -- ^ @Just v@ with @Δ ⊢ v@ for a regular clause, or @Nothing@ for an
@@ -485,6 +488,10 @@ namedVarP x = Named named $ varP x
 
 namedDBVarP :: Int -> PatVarName -> Named_ DeBruijnPattern
 namedDBVarP m = (fmap . fmap) (\x -> DBPatVar x m) . namedVarP
+
+-- | Make an absurd pattern with the given de Bruijn index.
+absurdP :: Int -> DeBruijnPattern
+absurdP = VarP PatOAbsurd . DBPatVar absurdPatternName
 
 -- | The @ConPatternInfo@ states whether the constructor belongs to
 --   a record type (@Just@) or data type (@Nothing@).

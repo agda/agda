@@ -34,9 +34,9 @@ instance
 
   postulate
     Nat-level : has-level 2 Nat
-    Π-level : {n : Nat} {A : Set} {B : A → Set} {{_ : (a : A) → has-level n (B a)}} → has-level n ((a : A) → B a)
-    Πimp-level : {n : Nat} {A : Set} {B : A → Set} {{_ : (a : A) → has-level n (B a)}} → has-level n ({a : A} → B a)
-    Σ-level : {n : Nat} {A : Set} {B : A → Set} {{_ : has-level n A}} {{_ : (a : A) → has-level n (B a)}} → has-level n (Σ A B)
+    Π-level : {n : Nat} {A : Set} {B : A → Set} {{_ : {a : A} → has-level n (B a)}} → has-level n ((a : A) → B a)
+    Πimp-level : {n : Nat} {A : Set} {B : A → Set} {{_ : {a : A} → has-level n (B a)}} → has-level n ({a : A} → B a)
+    Σ-level : {n : Nat} {A : Set} {B : A → Set} {{_ : has-level n A}} {{_ : {a : A} → has-level n (B a)}} → has-level n (Σ A B)
     Trunc-level : {n : Nat} {A : Set} → has-level n (Trunc n A)
 
 -- Used to check, using instance search, if some type has a given level
