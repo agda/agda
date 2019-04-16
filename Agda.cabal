@@ -82,6 +82,7 @@ data-files:         Agda.css
                     lib/prim/Agda/Builtin/TrustMe.agda
                     lib/prim/Agda/Builtin/Unit.agda
                     lib/prim/Agda/Builtin/Word.agda
+                    lib/prim/Agda/Builtin/Word/Properties.agda
                     lib/prim/Agda/Primitive.agda
                     lib/prim/Agda/Primitive/Cubical.agda
                     MAlonzo/src/MAlonzo/*.hs
