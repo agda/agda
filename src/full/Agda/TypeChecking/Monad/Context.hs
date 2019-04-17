@@ -368,13 +368,20 @@ getContextNames = map (fst . unDom) <$> getContext
 
 -- | get type of bound variable (i.e. deBruijn index)
 --
+{-# SPECIALIZE lookupBV' :: Nat -> TCM (Maybe (Dom (Name, Type))) #-}
+lookupBV' :: MonadTCEnv m => Nat -> m (Maybe (Dom (Name, Type)))
+lookupBV' n = do
+  ctx <- getContext
+  return $ raise (n + 1) <$> ctx !!! n
+
 {-# SPECIALIZE lookupBV :: Nat -> TCM (Dom (Name, Type)) #-}
 lookupBV :: MonadTCEnv m => Nat -> m (Dom (Name, Type))
 lookupBV n = do
-  ctx <- getContext
-  let failure = fail $ "de Bruijn index out of scope: " ++ show n ++
-                       " in context " ++ prettyShow (map (fst . unDom) ctx)
-  maybe failure (return . fmap (raise $ n + 1)) $ ctx !!! n
+  let failure = do
+        ctx <- getContext
+        fail $ "de Bruijn index out of scope: " ++ show n ++
+               " in context " ++ prettyShow (map (fst . unDom) ctx)
+  maybeM failure return $ lookupBV' n
 
 {-# SPECIALIZE domOfBV :: Nat -> TCM (Dom Type) #-}
 domOfBV :: (Applicative m, MonadTCEnv m) => Nat -> m (Dom Type)
@@ -383,6 +390,10 @@ domOfBV n = fmap snd <$> lookupBV n
 {-# SPECIALIZE typeOfBV :: Nat -> TCM Type #-}
 typeOfBV :: (Applicative m, MonadTCEnv m) => Nat -> m Type
 typeOfBV i = unDom <$> domOfBV i
+
+{-# SPECIALIZE nameOfBV' :: Nat -> TCM (Maybe Name) #-}
+nameOfBV' :: (Applicative m, MonadTCEnv m) => Nat -> m (Maybe Name)
+nameOfBV' n = fmap (fst . unDom) <$> lookupBV' n
 
 {-# SPECIALIZE nameOfBV :: Nat -> TCM Name #-}
 nameOfBV :: (Applicative m, MonadTCEnv m) => Nat -> m Name
