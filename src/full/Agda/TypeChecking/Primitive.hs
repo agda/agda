@@ -1585,6 +1585,13 @@ primStringToListInjective = do
   toList <- primFunName <$> getPrimitive "primStringToList"
   mkPrimInjective string chars toList
 
+primWord64ToNatInjective :: TCM PrimitiveImpl
+primWord64ToNatInjective =  do
+  word  <- primType (undefined :: Word64)
+  nat   <- primType (undefined :: Nat)
+  toNat <- primFunName <$> getPrimitive "primWord64ToNat"
+  mkPrimInjective word nat toNat
+
 getRefl :: TCM (Arg Term -> Term)
 getRefl = do
   -- BUILTIN REFL maybe a constructor with one (the principal) argument or only parameters.
@@ -2005,6 +2012,7 @@ primitiveFunctions = Map.fromList
   -- Machine words
   , "primWord64ToNat"     |-> mkPrimFun1 (fromIntegral :: Word64 -> Nat)
   , "primWord64FromNat"   |-> mkPrimFun1 (fromIntegral :: Nat -> Word64)
+  , "primWord64ToNatInjective" |-> primWord64ToNatInjective
 
   -- Level functions
   , "primLevelZero"       |-> mkPrimLevelZero

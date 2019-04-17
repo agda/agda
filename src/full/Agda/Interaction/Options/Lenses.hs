@@ -167,6 +167,7 @@ builtinModulesWithSafePostulates =
   , "Agda" </> "Builtin" </> "String" </> "Properties.agda"
   , "Agda" </> "Builtin" </> "Unit.agda"
   , "Agda" </> "Builtin" </> "Word.agda"
+  , "Agda" </> "Builtin" </> "Word" </> "Properties.agda"
   ])
 
 -- | These builtins may not use postulates under --safe. They are not
