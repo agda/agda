@@ -376,13 +376,13 @@ lookupBV n = do
                        " in context " ++ prettyShow (map (fst . unDom) ctx)
   maybe failure (return . fmap (raise $ n + 1)) $ ctx !!! n
 
-{-# SPECIALIZE typeOfBV' :: Nat -> TCM (Dom Type) #-}
-typeOfBV' :: (Applicative m, MonadTCEnv m) => Nat -> m (Dom Type)
-typeOfBV' n = fmap snd <$> lookupBV n
+{-# SPECIALIZE domOfBV :: Nat -> TCM (Dom Type) #-}
+domOfBV :: (Applicative m, MonadTCEnv m) => Nat -> m (Dom Type)
+domOfBV n = fmap snd <$> lookupBV n
 
 {-# SPECIALIZE typeOfBV :: Nat -> TCM Type #-}
 typeOfBV :: (Applicative m, MonadTCEnv m) => Nat -> m Type
-typeOfBV i = unDom <$> typeOfBV' i
+typeOfBV i = unDom <$> domOfBV i
 
 {-# SPECIALIZE nameOfBV :: Nat -> TCM Name #-}
 nameOfBV :: (Applicative m, MonadTCEnv m) => Nat -> m Name
@@ -398,7 +398,7 @@ getVarInfo x =
         def <- asksTC envLetBindings
         case List.findIndex ((==x) . fst . unDom) ctx of
             Just n -> do
-                t <- typeOfBV' n
+                t <- domOfBV n
                 return (var n, t)
             _       ->
                 case Map.lookup x def of

@@ -276,7 +276,7 @@ class UsableRelevance a where
 instance UsableRelevance Term where
   usableRel rel u = case u of
     Var i vs -> do
-      irel <- getRelevance <$> typeOfBV' i
+      irel <- getRelevance <$> domOfBV i
       let ok = irel `moreRelevant` rel
       reportSDoc "tc.irr" 50 $
         "Variable" <+> prettyTCM (var i) <+>
@@ -372,7 +372,7 @@ class UsableModality a where
 instance UsableModality Term where
   usableMod mod u = case u of
     Var i vs -> do
-      imod <- getModality <$> typeOfBV' i
+      imod <- getModality <$> domOfBV i
       let ok = imod `moreUsableModality` mod
       reportSDoc "tc.irr" 50 $
         "Variable" <+> prettyTCM (var i) <+>
