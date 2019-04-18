@@ -162,6 +162,7 @@ primBody s = maybe unimplemented (fromRight (hsVarUQ . HS.Ident) <$>) $
   -- Machine word functions
   , "primWord64ToNat"   |-> return "MAlonzo.RTE.word64ToNat"
   , "primWord64FromNat" |-> return "MAlonzo.RTE.word64FromNat"
+  , "primWord64ToNatInjective" |-> return "erased"
 
   -- Floating point functions
   , "primNatToFloat"        |-> return "(fromIntegral :: Integer -> Double)"
