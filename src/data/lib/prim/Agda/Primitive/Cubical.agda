@@ -44,7 +44,7 @@ primitive
             → PartialP (primIMax i j) A
 
   -- Computes in terms of primHComp and primTransp
-  primComp : ∀ {ℓ} (A : (i : I) → Set (ℓ i)) (φ : I) (u : ∀ i → Partial φ (A i)) (a : A i0) → A i1
+  primComp : ∀ {ℓ} (A : (i : I) → Set (ℓ i)) {φ : I} (u : ∀ i → Partial φ (A i)) (a : A i0) → A i1
 
 syntax primPOr p q u t = [ p ↦ u , q ↦ t ]
 

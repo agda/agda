@@ -14,8 +14,8 @@ open Helpers
 
 module _ {ℓ} {A : Set ℓ} where
   trans : {x y z : A} → x ≡ y → y ≡ z → x ≡ z
-  trans {x = x} p q i = primComp (λ _ → A) _ (λ { j (i = i0) → x
-                                                ; j (i = i1) → q j }) (p i)
+  trans {x = x} p q i = primComp (λ _ → A) (λ { j (i = i0) → x
+                                              ; j (i = i1) → q j }) (p i)
 
 module _ {ℓ ℓ'} {A : Set ℓ} {x : A}
          (P : ∀ y → x ≡ y → Set ℓ') (d : P x ((λ i → x))) where
@@ -30,7 +30,7 @@ module DerivedComp where
     comp : A i1
     comp = primHComp (\ i → \ { (φ = i1) → forward la A i (u i itIsOne) }) (forward la A i0 (ouc u0))
 
-    comp-test : comp ≡ primComp A φ u (ouc u0)
+    comp-test : comp ≡ primComp A u (ouc u0)
     comp-test = refl
 
 test-sym : ∀ {ℓ} {A : Set ℓ} → {x y : A} → (p : x ≡ y) → sym (sym p) ≡ p
@@ -44,7 +44,7 @@ transpFill φ A u0 i = primTransp (\ j → ouc (A (i ∧ j))) (~ i ∨ φ) u0
 
 
 test-bool : (p : true ≡ false) → Bool
-test-bool p = primComp (λ _ → Bool) i1 (λ j → λ _ → p j) true
+test-bool p = primComp (λ _ → Bool) {φ = i1} (λ j → λ _ → p j) true
 
 -- cannot reduce to true, because it's already reducing to false.
 test-bool-beta : ∀ p → test-bool p ≡ false
@@ -106,7 +106,7 @@ module _ {ℓ ℓ'} {A : I → Set ℓ} {B : ∀ i → A i → Set ℓ'}
          (let ℓ = _ ; C : I → Set ℓ ; C i = (x : A i) → B i x) where
   compPi : (φ : I) → (u : ∀ i → Partial φ (C i)) → (a : C i0 [ φ ↦ u i0 ]) → C i1
   compPi φ u a' x1 = primComp
-      (λ i → B i (v i)) φ (λ i o → u i o (v i)) (a (v i0)) where
+      (λ i → B i (v i)) (λ i o → u i o (v i)) (a (v i0)) where
     a = ouc a'
     v : (i : I) → A i
     v i = primTransp (λ j → A (i ∨ (~ j))) i x1
@@ -115,7 +115,7 @@ module _ {ℓ ℓ'} {A : I → Set ℓ} {B : ∀ i → A i → Set ℓ'}
 
 
   compPi' : (φ : I) → (u : ∀ i → Partial φ (C i)) → (a : C i0 [ φ ↦ u i0 ]) → C i1
-  compPi' φ u a = primComp C φ u (ouc a)
+  compPi' φ u a = primComp C u (ouc a)
 
   test-compPi : (φ : I) → (u : ∀ i → Partial φ (C i)) → (a : C i0 [ φ ↦ u i0 ]) →
                   compPi φ u a ≡ compPi' φ u a
@@ -139,7 +139,7 @@ module TranspPathP {ℓ} {A : I → I → Set ℓ} (u : ∀ i → A i i0)(v : �
                   (p0 : C i0) where
  φ = i0
  transpPathP : C i1
- transpPathP j = primComp (λ i → A i j) _
+ transpPathP j = primComp (λ i → A i j)
                           (\ { i (j = i0) → u i
                              ; i (j = i1) → v i })
                           (p0 j)
@@ -163,13 +163,13 @@ module RecordComp where
     (let ℓ = _ ; Z : Set ℓ ; Z = R(A)(B)(C))
     (φ : I) → (u : ∀ i → Partial φ Z) → Z [ φ ↦ u i0 ] → Z
   fst (hcompR {A = A} {B} φ w w0)
-    = primComp (\ _ → A) φ (λ i →  (λ{ (φ = i1) → fst (w i itIsOne) }) ) (fst (ouc w0))
+    = primComp (\ _ → A) (λ i →  (λ{ (φ = i1) → fst (w i itIsOne) }) ) (fst (ouc w0))
   snd (hcompR {A = A} {B} φ w w0)
-    = primComp (λ i → B (a i)) φ (λ i → (λ { (φ = i1) → snd (w i itIsOne) })) (snd (ouc w0))
+    = primComp (λ i → B (a i)) (λ i → (λ { (φ = i1) → snd (w i itIsOne) })) (snd (ouc w0))
     where
       a = fill (λ z → A) (λ i → (λ { (φ = i1) → fst (w i itIsOne) }) ) (inc (fst (ouc w0)))
   trd (hcompR {A = A} {B} {C} φ w w0)
-    = primComp (λ i → C (a i) (b i)) φ ((λ i → (λ { (φ = i1) → trd (w i itIsOne)}))) (trd (ouc w0))
+    = primComp (λ i → C (a i) (b i)) ((λ i → (λ { (φ = i1) → trd (w i itIsOne)}))) (trd (ouc w0))
     where
       a = fill (λ z → A) (λ i → (λ { (φ = i1) → fst (w i itIsOne) }) ) (inc (fst (ouc w0)))
       b = fill (λ i → B (a i)) (λ i → (λ { (φ = i1) → snd (w i itIsOne) }) ) (inc (snd (ouc w0)))
@@ -273,18 +273,18 @@ notEquiv = not , (λ { .equiv-proof y → (not y , sym (notnot y)) , nothelp y }
 
 test : Bool
 test = primComp (λ i → univ {A = Bool} {B = Bool} notEquiv i)
-                i0 (λ _ → empty) true
+                {φ = i0} (λ _ → empty) true
 
 
-test-test : test ≡ primComp (λ i → Bool) i0 (λ _ _ → false)
-                  (primComp (λ i → Bool) i0 (λ _ _ → false)
-                  (primComp (λ i → Bool) i0 (λ _ _ → false)
-                  (primComp (λ i → Bool) i0 (λ _ _ → false)
-                  (primComp (λ i → Bool) i0 (λ _ _ → false)
-                  (primComp (λ i → Bool) i0 (λ _ _ → false)
-                  (primComp (λ i → Bool) i0 (λ _ _ → false)
-                  (primComp (λ i → Bool) i0 (λ _ _ → false)
-                  (primComp (λ i → Bool) i0 (λ _ _ → false)
+test-test : test ≡ primComp (λ i → Bool) {φ = i0} (λ _ _ → false)
+                  (primComp (λ i → Bool) {φ = i0} (λ _ _ → false)
+                  (primComp (λ i → Bool) {φ = i0} (λ _ _ → false)
+                  (primComp (λ i → Bool) {φ = i0} (λ _ _ → false)
+                  (primComp (λ i → Bool) {φ = i0} (λ _ _ → false)
+                  (primComp (λ i → Bool) {φ = i0} (λ _ _ → false)
+                  (primComp (λ i → Bool) {φ = i0} (λ _ _ → false)
+                  (primComp (λ i → Bool) {φ = i0} (λ _ _ → false)
+                  (primComp (λ i → Bool) {φ = i0} (λ _ _ → false)
                    false))))))))
 test-test = refl
 
@@ -294,28 +294,26 @@ test-test2 = refl
 
 test2 : Bool
 test2 = primComp (λ i → eqToPath {A = Bool} {B = Bool} notEquiv i)
-                 i0
                  (λ _ → empty)
                  true
 
 
-test2-test : test2 ≡ primComp (λ _ → Bool) i0 (λ _ _ → false)
-                    (primComp (λ _ → Bool) i0 ((λ _ _ → false))
-                    (primComp (λ _ → Bool) i0 ((λ _ _ → false))
-                    (primComp (λ _ → Bool) i0 ((λ _ _ → false))
+test2-test : test2 ≡ primComp (λ _ → Bool) {φ = i0} (λ _ _ → false)
+                    (primComp (λ _ → Bool) {φ = i0} ((λ _ _ → false))
+                    (primComp (λ _ → Bool) {φ = i0} ((λ _ _ → false))
+                    (primComp (λ _ → Bool) {φ = i0} ((λ _ _ → false))
                      false)))
 test2-test = refl
 
 test3 : Bool
 test3 = primComp (λ i → eqToPath {A = Bool} {B = Bool} notEquiv i)
-                 i0
                  (λ _ → empty)
                  true
 
 
-test3-test : test3 ≡ primComp (λ i → Bool) i0 (λ _ _ → false)
-                    (primComp (λ _ → Bool) i0 (λ _ _ → false)
-                    (primComp (λ i → Bool) i0 (λ _ _ → false)
+test3-test : test3 ≡ primComp (λ i → Bool) {φ = i0} (λ _ _ → false)
+                    (primComp (λ _ → Bool) {φ = i0} (λ _ _ → false)
+                    (primComp (λ i → Bool) {φ = i0} (λ _ _ → false)
                      false))
 test3-test = refl
 
@@ -323,14 +321,14 @@ data D2 (A : Set) : Set where
    c1 : D2 A
    c2 : D2 A
 
-test5-test : ∀ j →  primComp (λ i → D2 Bool) (j ∨ ~ j)
+test5-test : ∀ j →  primComp (λ i → D2 Bool)
   (λ i → [ j ↦ (λ{ (j = i1) → c1 }) , ~ j ↦ (λ{ (j = i0) → c1 }) ]) c1 ≡ c1
 test5-test j = refl
 
-test6-test : (j : I → I) → primComp (λ i → D2 Bool) (j i0) (λ i o → c1) c1 ≡ c1
+test6-test : (j : I → I) → primComp (λ i → D2 Bool) {φ = j i0} (λ i o → c1) c1 ≡ c1
 test6-test j = refl
 
-test4-test : ∀ j → primComp (λ i → Bool) (j ∨ ~ j)
+test4-test : ∀ j → primComp (λ i → Bool)
   (λ i → [ j ↦ (λ{ (j = i1) → false }) , ~ j ↦ (λ{ (j = i0) → false }) ] ) false ≡ false
 test4-test j = refl
 
@@ -342,13 +340,13 @@ trues : List Bool
 trues = true ∷ true ∷ []
 
 falses : List Bool
-falses = primComp (λ i → ListNot i) i0 (λ _ → empty) trues
+falses = primComp (λ i → ListNot i) (λ _ → empty) trues
 
 test-falses : falses ≡ (false ∷ false ∷ [])
 test-falses = refl
 
 trues2 : List Bool
-trues2 = primComp (λ i → trans ListNot ListNot i) i0 (λ _ → empty) trues
+trues2 = primComp (λ i → trans ListNot ListNot i) (λ _ → empty) trues
 
 test-trues2 : trues2 ≡ trues
 test-trues2 = refl
@@ -356,7 +354,6 @@ test-trues2 = refl
 trues3 : List Bool
 trues3 = primComp (λ i → let p = trans ListNot ListNot in
                          trans p p i)
-                  i0
                   (λ _ → empty)
                   trues
 
