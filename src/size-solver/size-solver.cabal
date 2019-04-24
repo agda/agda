@@ -14,9 +14,9 @@ description:
   See Felix Reihl, 2013, Bachelor thesis, Ludwig-Maximilians-University.
 tested-with: GHC == 7.10.3
              GHC == 8.0.2
-             GHC == 8.2.1
-             GHC == 8.4.1
-             GHC == 8.6.1
+             GHC == 8.2.2
+             GHC == 8.4.4
+             GHC == 8.6.4
 
 -- extra-source-files: src/full/undefined.h
 --                     README.md
