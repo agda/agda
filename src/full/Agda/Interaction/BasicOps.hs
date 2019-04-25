@@ -551,8 +551,11 @@ instance (ToConcrete a c, ToConcrete b d) =>
   toConcrete (OfType' e t) = OfType' <$> toConcrete e <*> toConcreteCtx TopCtx t
 
 getConstraints :: TCM [OutputForm C.Expr C.Expr]
-getConstraints = liftTCM $ do
-    cs <- M.getAllConstraints
+getConstraints = getConstraints' $ const True
+
+getConstraints' :: (ProblemConstraint -> Bool) -> TCM [OutputForm C.Expr C.Expr]
+getConstraints' f = liftTCM $ do
+    cs <- filter f <$> M.getAllConstraints
     cs <- forM cs $ \c -> do
             cl <- reify c
             enterClosure cl abstractToConcrete_

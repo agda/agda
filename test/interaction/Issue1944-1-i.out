@@ -9,7 +9,7 @@
 (agda2-status-action "")
 (agda2-info-action "*Normal Form*" "a" nil)
 (agda2-status-action "")
-(agda2-info-action "*Goal type etc.*" "Goal: A Have: A ———————————————————————————————————————————————————————————— a : A A : Set" nil)
+(agda2-info-action "*Goal type etc.*" "Goal: A Have: A ———————————————————————————————————————————————————————————— a : A A : Set ———— Constraints ——————————————————————————————————————————— _36 := f ? :? _32" nil)
 cannot read: IOTCM "Issue1944-1-i.agda" None Indirect (Cmd_compute IgnoreAbstract 1 noRange "\ r -> f (t r)")
 cannot read: IOTCM "Issue1944-1-i.agda" None Indirect (Cmd_goal_type_context_infer Normalised 1 noRange "\ r -> f (t r)")
 (agda2-give-action 2 "x")

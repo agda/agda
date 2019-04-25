@@ -42,6 +42,7 @@ import qualified Agda.TypeChecking.Monad as TM
 import qualified Agda.TypeChecking.Pretty as TCP
 import Agda.TypeChecking.Rules.Term (checkExpr, isType_)
 import Agda.TypeChecking.Errors
+import Agda.TypeChecking.MetaVars.Mention
 
 import Agda.Syntax.Fixity
 import Agda.Syntax.Position
@@ -1485,12 +1486,18 @@ cmd_goal_type_context_and doc norm ii _ _ = display_info . Info_GoalType =<< do
   lift $ do
     goal <- B.withInteractionId ii $ prettyTypeOfMeta norm ii
     ctx  <- prettyContext norm True ii
-    return $ vcat
+    m    <- lookupInteractionId ii
+    constr <- vcat . map pretty <$> B.getConstraints' (mentionsMeta m)
+    let constrDoc = ifNull constr [] $ \constr ->
+          [ text $ delimiter "Constraints"
+          , constr
+          ]
+    return $ vcat $
       [ "Goal:" <+> goal
       , doc
       , text (replicate 60 '\x2014')
       , ctx
-      ]
+      ] ++ constrDoc
 
 -- | Shows all the top-level names in the given module, along with
 -- their types.
