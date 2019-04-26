@@ -624,7 +624,7 @@ typeOfMetaMI norm mi =
         ]
       reportSDoc "interactive.meta.scope" 20 $ TP.text $ show $ getMetaScope mv
       -- Andreas, 2016-01-19, issue #1783: need piApplyM instead of just piApply
-      OfType x <$> reify t
+      OfType x <$> reifyUnblocked t
     rewriteJudg mv (IsSort i t) = do
       ms <- getMetaNameSuggestion i
       return $ JustSort $ NamedMeta ms i
@@ -789,7 +789,7 @@ contextOfMeta ii norm = do
                              | otherwise        = Nothing
         visible _            = __IMPOSSIBLE__
         out (Dom{unDom = (x, t)}) = do
-          t' <- reify =<< normalForm norm t
+          t' <- reifyUnblocked =<< normalForm norm t
           return $ OfType x t'
 
 
@@ -800,7 +800,7 @@ typeInCurrent :: Rewrite -> Expr -> TCM Expr
 typeInCurrent norm e =
     do  (_,t) <- wakeIrrelevantVars $ inferExpr e
         v <- normalForm norm t
-        reify v
+        reifyUnblocked v
 
 
 
