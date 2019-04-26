@@ -92,7 +92,11 @@ class Instantiate t where
 
 instance Instantiate Term where
   instantiate' t@(MetaV x es) = do
-    mi <- mvInstantiation <$> lookupMeta x
+    blocking <- view stInstantiateBlocking <$> getTCState
+
+    mv <- lookupMeta x
+    mi <- mvInstantiation <$> pure mv
+
     case mi of
       InstV tel v -> instantiate' inst
         where
@@ -107,9 +111,12 @@ instance Instantiate Term where
                 -- when applicable
           -- specification: inst == foldr mkLam v tel `applyE` es
           inst = applySubst rho (foldr mkLam v $ drop (length es1) tel) `applyE` es2
+      _ | Just m' <- mvTwin mv, blocking -> do
+            instantiate' (MetaV m' es)
       Open                             -> return t
       OpenInstance                     -> return t
-      BlockedConst _                   -> return t
+      BlockedConst u | blocking  -> instantiate' $ u `applyE` es
+                     | otherwise -> return t
       PostponedTypeCheckingProblem _ _ -> return t
   instantiate' (Level l) = levelTm <$> instantiate' l
   instantiate' (Sort s) = Sort <$> instantiate' s

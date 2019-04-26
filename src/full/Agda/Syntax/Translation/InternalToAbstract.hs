@@ -19,6 +19,7 @@ module Agda.Syntax.Translation.InternalToAbstract
   , MonadReify
   , NamedClause(..)
   , reifyPatterns
+  , reifyUnblocked
   ) where
 
 import Prelude hiding (mapM_, mapM, null)
@@ -82,6 +83,12 @@ import Agda.Utils.Size
 import Agda.Utils.Tuple
 
 import Agda.Utils.Impossible
+
+
+-- | Like @reify@ but instantiates blocking metas, useful for reporting.
+reifyUnblocked :: Reify i a => i -> TCM a
+reifyUnblocked t = locallyTCState stInstantiateBlocking (const True) $ reify t
+
 
 -- Composition of reified applications ------------------------------------
 

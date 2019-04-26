@@ -379,7 +379,8 @@ blockTermOnProblem t v pid =
         -- blocked terms can be instantiated before they are unblocked, thus making
         -- constraint solving a bit more robust against instantiation order.
         -- Andreas, 2015-05-22: DontRunMetaOccursCheck to avoid Issue585-17.
-        (_, v) <- newValueMeta DontRunMetaOccursCheck t
+        (m', v) <- newValueMeta DontRunMetaOccursCheck t
+        updateMetaVar m' (\ mv -> mv { mvTwin = Just x })
         i   <- fresh
         -- This constraint is woken up when unblocking, so it doesn't need a problem id.
         cmp <- buildProblemConstraint_ (ValueCmp CmpEq t v (MetaV x es))

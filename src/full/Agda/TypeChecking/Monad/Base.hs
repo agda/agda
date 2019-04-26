@@ -247,6 +247,10 @@ data PostScopeState = PostScopeState
   , stPostFreshNameId         :: !NameId
   , stPostAreWeCaching        :: !Bool
   , stPostConsideringInstance :: !Bool
+  , stPostInstantiateBlocking :: !Bool
+    -- ^ Should we instantiate away blocking metas?
+    --   This can produce ill-typed terms but they are often more readable. See issue #3606.
+    --   Best set to True only for calls to pretty*/reify to limit unwanted reductions.
   }
 
 -- | A mutual block of names in the signature.
@@ -377,6 +381,7 @@ initPostScopeState = PostScopeState
   , stPostFreshNameId           = NameId 0 0
   , stPostAreWeCaching         = False
   , stPostConsideringInstance  = False
+  , stPostInstantiateBlocking  = False
   }
 
 initState :: TCState
@@ -625,6 +630,11 @@ stConsideringInstance :: Lens' Bool TCState
 stConsideringInstance f s =
   f (stPostConsideringInstance (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostConsideringInstance = x}}
+
+stInstantiateBlocking :: Lens' Bool TCState
+stInstantiateBlocking f s =
+  f (stPostInstantiateBlocking (stPostScopeState s)) <&>
+  \x -> s {stPostScopeState = (stPostScopeState s) {stPostInstantiateBlocking = x}}
 
 stBuiltinThings :: TCState -> BuiltinThings PrimFun
 stBuiltinThings s = (s^.stLocalBuiltins) `Map.union` (s^.stImportedBuiltins)
@@ -1124,6 +1134,7 @@ data MetaVariable =
                 , mvInstantiation :: MetaInstantiation
                 , mvListeners     :: Set Listener -- ^ meta variables scheduled for eta-expansion but blocked by this one
                 , mvFrozen        :: Frozen -- ^ are we past the point where we can instantiate this meta variable?
+                , mvTwin          :: Maybe MetaId -- ^ @Just m@ means this meta will be equated to @m@ when the latter is unblocked. See @blockedTermOnProblem@.
                 }
 
 data Listener = EtaExpand MetaId
