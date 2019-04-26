@@ -70,16 +70,6 @@ matrix:
           sources:
             - hvr-ghc
 
-    - env: TEST=MAIN GHC_VER=7.10.3 BUILD=CABAL CABAL_VER=1.22
-      addons:
-        apt:
-          packages:
-            - cabal-install-1.22
-            - ghc-7.10.3
-            - texlive-binaries
-          sources:
-            - hvr-ghc
-
     - env: TEST=STACKAGE GHC_VER=8.6.5 BUILD=STACK ARGS="--stack-yaml stack-8.6.5.yaml --system-ghc"
       addons:
         apt:
@@ -109,14 +99,6 @@ matrix:
         apt:
           packages:
             - ghc-8.0.2
-          sources:
-            - hvr-ghc
-
-    - env: TEST=STACKAGE GHC_VER=7.10.3 BUILD=STACK ARGS="--stack-yaml stack-7.10.3.yaml --system-ghc"
-      addons:
-        apt:
-          packages:
-            - ghc-7.10.3
           sources:
             - hvr-ghc
 
