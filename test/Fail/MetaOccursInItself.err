@@ -1,5 +1,4 @@
 Failed to solve the following constraints:
-  _12 := λ x → x [blocked on problem 16]
   [16] _A_11 =< List _A_11 : Set
 Unsolved metas at the following locations:
   MetaOccursInItself.agda:18,9-10

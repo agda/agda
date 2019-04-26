@@ -1,5 +1,4 @@
 Failed to solve the following constraints:
-  _14 := p _x_13 [blocked on problem 22]
   [22, 24] _x_13 = inn (out _x_13) : B
 Unsolved metas at the following locations:
   Issue585t.agda:24,9-10

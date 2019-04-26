@@ -1,5 +1,3 @@
-Failed to solve the following constraints:
-  _10 := (_ : _B_9) [a] :? A
 Unsolved metas at the following locations:
   NoPanic.agda:15,15-16
   NoPanic.agda:15,15-18

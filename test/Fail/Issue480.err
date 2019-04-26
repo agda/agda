@@ -1,5 +1,3 @@
-Failed to solve the following constraints:
-  _7 := λ { a → a } :? _T_6 → _T_6
 Unsolved metas at the following locations:
   Issue480.agda:14,11-17
   Issue480.agda:14,18-29

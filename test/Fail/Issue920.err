@@ -1,8 +1,4 @@
 Failed to solve the following constraints:
-  _8
-    := λ A x →
-         magic (λ B → Eq B (cast A B x) (?0 (A = A) (x = x) (B = B))) A
-    [blocked on problem 23]
   [23, 26] ?0 (B = A) = x : A
 Unsolved metas at the following locations:
   Issue920.agda:16,11-50

@@ -1,8 +1,5 @@
 Failed to solve the following constraints:
-  _20 := refl [blocked on problem 29]
-  [29, 32] _18 := Foo Alpha [blocked on problem 33]
   [29, 32, 33] Foo _15 = Bool : Set
-  _16 := Alpha [blocked on problem 28]
   [28] Bool =< Foo _15 : Set
 Unsolved metas at the following locations:
   Issue1258.agda:20,9-10

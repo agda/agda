@@ -1,5 +1,4 @@
 Failed to solve the following constraints:
-  _4 := λ x → x [blocked on problem 4]
   [4] ?0 =< Loop → Loop : Set
 Unsolved metas at the following locations:
   Issue2710.agda:8,13-14

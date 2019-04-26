@@ -1,5 +1,4 @@
 Failed to solve the following constraints:
-  _51 := g (Lift 1ℓ ?0) (Lift 1ℓ b) [blocked on problem 112]
   [112, 113] Lift (lsuc lzero ⊔ lsuc lzero) (prod (Lift 1ℓ ?0) b)
                = Lift 1ℓ (prod a b)
                : Set₁

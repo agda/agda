@@ -1,6 +1,4 @@
 Failed to solve the following constraints:
-  _22 := λ { (zero , refl) → zero } :? Σ Nat _B_19 → Nat
-  _24 := zero [blocked on problem 14]
   [14] Nat =< _B_19 zero : Set
 Unsolved metas at the following locations:
   Issue2120.agda:16,10-36
