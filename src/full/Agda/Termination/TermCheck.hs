@@ -585,7 +585,7 @@ instance TermToPattern Term DeBruijnPattern where
     -- Leaves.
     Var i []    -> varP . (`DBPatVar` i) . prettyShow <$> nameOfBV i
     Lit l       -> return $ LitP l
-    Dummy s     -> __IMPOSSIBLE_VERBOSE__ s
+    Dummy s _   -> __IMPOSSIBLE_VERBOSE__ s
     t           -> return $ dotP t
 
 

@@ -218,7 +218,7 @@ data Term = Var {-# UNPACK #-} !Int Elims -- ^ @x es@ neutral
             -- ^ Irrelevant stuff in relevant position, but created
             --   in an irrelevant context.  Basically, an internal
             --   version of the irrelevance axiom @.irrAx : .A -> A@.
-          | Dummy String
+          | Dummy String Elims
             -- ^ A (part of a) term or type which is only used for internal purposes.
             --   Replaces the @Sort Prop@ hack.
             --   The @String@ typically describes the location where we create this dummy,
@@ -853,7 +853,7 @@ dontCare v =
 
 -- | Aux: A dummy term to constitute a dummy term/level/sort/type.
 dummyTerm' :: String -> Int -> Term
-dummyTerm' file line = Dummy $ file ++ ":" ++ show line
+dummyTerm' file line = flip Dummy [] $ file ++ ":" ++ show line
 
 -- | Aux: A dummy level to constitute a level/sort.
 dummyLevel' :: String -> Int -> Level
@@ -933,7 +933,7 @@ isSort v = case v of
   _      -> Nothing
 
 impossibleTerm :: String -> Int -> Term
-impossibleTerm file line = Dummy $ unlines
+impossibleTerm file line = flip Dummy [] $ unlines
   [ "An internal error has occurred. Please report this as a bug."
   , "Location of the error: " ++ file ++ ":" ++ show line
   ]
@@ -1390,7 +1390,7 @@ instance Pretty Term where
       Level l     -> prettyPrec p l
       MetaV x els -> pretty x `pApp` els
       DontCare v  -> prettyPrec p v
-      Dummy s     -> parens $ text s
+      Dummy s es  -> parens (text s) `pApp` es
     where
       pApp d els = mparens (not (null els) && p > 9) $
                    sep [d, nest 2 $ fsep (map (prettyPrec 10) els)]
@@ -1509,7 +1509,7 @@ instance NFData Term where
     Level l    -> rnf l
     MetaV _ es -> rnf es
     DontCare v -> rnf v
-    Dummy _    -> ()
+    Dummy _ es -> rnf es
 
 instance NFData Type where
   rnf (El s v) = rnf (s, v)

@@ -575,7 +575,16 @@ reifyTerm expandAnonDefs0 v0 = do
           nelims x' simpl_named_es'
 
     I.DontCare v -> A.DontCare <$> reifyTerm expandAnonDefs v
-    I.Dummy s -> return $ A.Lit $ LitString noRange s
+    I.Dummy s [] -> return $ A.Lit $ LitString noRange s
+    I.Dummy "applyE" es | I.Apply (Arg _ h) : es' <- es -> do
+                            h <- reify h
+                            es' <- reify es'
+                            elims h es'
+                        | otherwise -> __IMPOSSIBLE__
+    I.Dummy s es -> do
+      s <- reify (I.Dummy s [])
+      es <- reify es
+      elims s es
   where
     -- Andreas, 2012-10-20  expand a copy if not in scope
     -- to improve error messages.
