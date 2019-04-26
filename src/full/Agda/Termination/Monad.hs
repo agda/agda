@@ -14,9 +14,7 @@ import Prelude hiding (null)
 
 import Control.Applicative hiding (empty)
 
-#if __GLASGOW_HASKELL__ >= 800
 import qualified Control.Monad.Fail as Fail
-#endif
 
 import Control.Monad.Reader
 import Control.Monad.State
@@ -193,9 +191,7 @@ newtype TerM a = TerM { terM :: ReaderT TerEnv TCM a }
   deriving ( Functor
            , Applicative
            , Monad
-#if __GLASGOW_HASKELL__ >= 800
            , Fail.MonadFail
-#endif
            , MonadError TCErr
            , MonadBench Phase
            , HasOptions

@@ -90,14 +90,8 @@ hTags=../hTags/dist/build/hTags/hTags
 
 CABAL_MACROS=$(BUILD_DIR)/build/autogen/cabal_macros.h
 
-# See Issue #2419.
-ifeq "$(GHC_VERSION)" "7.10"
-hTags_include = $(CABAL_MACROS) ./undefined.h
-hTags_flags   = -i $(CABAL_MACROS) -I ./ --cabal ../../Agda.cabal
-else
 hTags_include = ./undefined.h
 hTags_flags   = -I ./ --cabal ../../Agda.cabal
-endif
 
 $(hTags) : $(wildcard ../hTags/*.hs)
 	$(MAKE) -C ../hTags

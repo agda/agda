@@ -9,9 +9,7 @@ import Prelude hiding (null)
 import Control.Arrow (first, second, (***))
 import Control.Applicative hiding (empty)
 
-#if __GLASGOW_HASKELL__ >= 800
 import qualified Control.Monad.Fail as Fail
-#endif
 
 import Control.Monad.State
 import Control.Monad.Reader
@@ -636,11 +634,7 @@ sigError f a = \case
 
 class ( Functor m
       , Applicative m
-#if __GLASGOW_HASKELL__ < 800
-      , Monad m
-#else
       , Fail.MonadFail m
-#endif
       , HasOptions m
       , MonadDebug m
       , MonadTCEnv m

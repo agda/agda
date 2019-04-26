@@ -220,24 +220,10 @@ library
   else
     build-depends: text >= 1.2.3.1 && < 1.3
 
-  if impl(ghc >= 8.0) && impl(ghc < 8.4)
+  if impl(ghc < 8.4)
     build-depends: transformers == 0.5.2.0
 
-  -- ASR (2018-09-14). We add the dependency on the filemanip library
-  -- due to Issue #3225.
-  if impl(ghc < 8.0)
-    build-depends:   transformers == 0.4.2.0
-                   , filemanip >= 0.3.6.2 && < 0.4
-
-  -- zlib >= 0.6.1 is broken with GHC < 7.10.3. See Issue 1518.
-  if impl(ghc < 7.10.3)
-    build-depends: zlib >= 0.4.0.1 && < 0.6.1
-  else
-    build-depends: zlib >= 0.4.0.1 && < 0.7
-
-  if impl(ghc < 8.0)
-    -- provide/emulate `Data.Semigroups` API for pre-GHC8
-    build-depends:  semigroups == 0.18.*
+  build-depends: zlib >= 0.4.0.1 && < 0.7
 
   -- We don't write upper bounds for Alex nor Happy because the
   -- `build-tools` field can not be modified in Hackage. Agda doesn't
@@ -571,13 +557,10 @@ library
   -- Initially, we disable all the warnings.
   ghc-options: -w
                -Werror
-
-  -- This option must be the first one after disabling the warnings. See
-  -- Issue #2094.
-  if impl(ghc >= 8.0)
-    ghc-options: -Wunrecognised-warning-flags
-
-  ghc-options: -fwarn-deprecated-flags
+               -- This option must be the first one after disabling the
+               -- warnings. See Issue #2094.
+               -Wunrecognised-warning-flags
+               -fwarn-deprecated-flags
                -fwarn-deriving-typeable
                -fwarn-dodgy-exports
                -fwarn-dodgy-foreign-imports
@@ -600,19 +583,11 @@ library
                -fwarn-unused-do-bind
                -fwarn-warnings-deprecations
                -fwarn-wrong-do-bind
-
-  -- These options will be removed in GHC 8.0.1.
-  if impl(ghc < 8.0)
-    ghc-options: -fwarn-context-quantification
-                 -fwarn-duplicate-constraints
-                 -fwarn-pointless-pragmas
-
-  if impl(ghc >= 8.0)
-    ghc-options: -Wmissing-pattern-synonym-signatures
-                 -Wnoncanonical-monad-instances
-                 -Wnoncanonical-monoid-instances
-                 -Wsemigroup
-                 -Wunused-foralls
+               -Wmissing-pattern-synonym-signatures
+               -Wnoncanonical-monad-instances
+               -Wnoncanonical-monoid-instances
+               -Wsemigroup
+               -Wunused-foralls
 
   if impl(ghc >= 8.2)
     ghc-options: -Wcpp-undef
@@ -784,10 +759,6 @@ test-suite agda-tests
   else
     build-depends: text >= 1.2.3.1 && < 1.3
 
-  if impl(ghc < 8.0)
-    -- provide/emulate `Data.Semigroups` API for pre-GHC8
-    build-depends:  semigroups == 0.18.*
-
   -- Agda cannot be built with GHC 8.6.1 due to a compiler bug, see
   -- Agda Issue #3344.
   if impl(ghc == 8.6.1)
@@ -826,13 +797,10 @@ test-suite agda-tests
   ghc-options: -threaded
                -w
                -Werror
-
-  -- This option must be the first one after disabling the warnings. See
-  -- Issue #2094.
-  if impl(ghc >= 8.0)
-    ghc-options: -Wunrecognised-warning-flags
-
-  ghc-options: -fwarn-deprecated-flags
+               -- This option must be the first one after disabling the
+               -- warnings. See Issue #2094.
+               -Wunrecognised-warning-flags
+               -fwarn-deprecated-flags
                -fwarn-deriving-typeable
                -fwarn-dodgy-exports
                -fwarn-dodgy-foreign-imports
@@ -855,19 +823,11 @@ test-suite agda-tests
                -fwarn-unused-do-bind
                -fwarn-warnings-deprecations
                -fwarn-wrong-do-bind
-
-  -- These options will be removed in GHC 8.0.1.
-  if impl(ghc < 8.0)
-    ghc-options: -fwarn-context-quantification
-                 -fwarn-duplicate-constraints
-                 -fwarn-pointless-pragmas
-
-  if impl(ghc >= 8.0)
-    ghc-options: -Wmissing-pattern-synonym-signatures
-                 -Wnoncanonical-monad-instances
-                 -Wnoncanonical-monoid-instances
-                 -Wsemigroup
-                 -Wunused-foralls
+               -Wmissing-pattern-synonym-signatures
+               -Wnoncanonical-monad-instances
+               -Wnoncanonical-monoid-instances
+               -Wsemigroup
+               -Wunused-foralls
 
   -- ASR (2017-04-11). TODO: Using -Wmissing-home-modules generates an
   -- error.
