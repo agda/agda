@@ -61,7 +61,7 @@ prettyWarning wng = case wng of
       $$ nest 2 (P.vcat . List.nub <$> mapM prettyConstraint cs)
 
       where prettyConstraint :: MonadPretty m => ProblemConstraint -> m Doc
-            prettyConstraint c = f (prettyTCM c)
+            prettyConstraint c = f (locallyTCState stInstantiateBlocking (const True) $ prettyTCM c)
               where
               r   = getRange c
               f :: MonadPretty m => m Doc -> m Doc
