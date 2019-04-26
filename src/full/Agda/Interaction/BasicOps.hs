@@ -646,12 +646,13 @@ typesOfHiddenMetas norm = liftTCM $ do
   store <- IntMap.filterWithKey (openAndImplicit is . MetaId) <$> getMetaStore
   mapM (typeOfMetaMI norm . MetaId) $ IntMap.keys store
   where
+  openAndImplicit is x m | isJust (mvTwin m) = False
   openAndImplicit is x m =
     case mvInstantiation m of
       M.InstV{} -> False
       M.Open    -> x `notElem` is
       M.OpenInstance -> x `notElem` is  -- OR: True !?
-      M.BlockedConst{} -> True
+      M.BlockedConst{} -> False
       M.PostponedTypeCheckingProblem{} -> False
 
 metaHelperType :: Rewrite -> InteractionId -> Range -> String -> TCM (OutputConstraint' Expr Expr)

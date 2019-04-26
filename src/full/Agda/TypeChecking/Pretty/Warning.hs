@@ -58,7 +58,7 @@ prettyWarning wng = case wng of
 
     UnsolvedConstraints cs ->
       fsep ( pwords "Failed to solve the following constraints:" )
-      $$ nest 2 (P.vcat . List.nub <$> mapM prettyConstraint cs)
+      $$ nest 2 (P.vcat . List.nub <$> mapM prettyConstraint cs')
 
       where prettyConstraint :: MonadPretty m => ProblemConstraint -> m Doc
             prettyConstraint c = f (locallyTCState stInstantiateBlocking (const True) $ prettyTCM c)
@@ -68,6 +68,13 @@ prettyWarning wng = case wng of
               f d = if null $ P.pretty r
                     then d
                     else d $$ nest 4 ("[ at" <+> prettyTCM r <+> "]")
+            interesting :: ProblemConstraint -> Bool
+            interesting pc = go $ clValue (theConstraint pc)
+              where
+                go UnBlock{}     = False
+                go (Guarded c _) = go c
+                go _             = True
+            cs' = filter interesting cs
 
     TerminationIssue because -> do
       dropTopLevel <- topLevelModuleDropper
