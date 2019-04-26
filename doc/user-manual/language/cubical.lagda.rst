@@ -440,6 +440,15 @@ bottom-to-top. As we are constructing a path from ``x`` to ``z`` along
 bottom. The direction ``j`` that we are doing the composition in is
 abstracted in the first argument to ``hcomp``.
 
+Note that the partial element ```u``` does not have to specify
+all the sides of the open box, giving more sides simply gives you
+more control on the result of ```hcomp```.
+For example if we omit the ```(i = i0) → x``` side in the
+definition of ```compPath``` we still get a valid term of type
+```A```. However, that term would reduce to ```hcomp (\ j → \ { () }) x```
+when ```i = i0``` and so that definition would not build
+a path that starts from ```x```.
+
 We can also define homogeneous filling of cubes as
 
 ::
