@@ -1,4 +1,3 @@
--- {-# LANGUAGE CPP #-}
 
 ------------------------------------------------------------------------
 -- | Handling of the INFINITY, SHARP and FLAT builtins.

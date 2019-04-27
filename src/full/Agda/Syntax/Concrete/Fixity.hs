@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 -- | Collecting fixity declarations (and polarity pragmas) for concrete
 --   declarations.
 module Agda.Syntax.Concrete.Fixity

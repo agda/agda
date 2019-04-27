@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 
 module Agda.Auto.Convert where
 

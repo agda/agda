@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 
 {-| Pretty printing functions.
 -}

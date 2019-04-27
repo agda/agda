@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 
 -- | Generic traversal and reduce for concrete syntax,
 --   in the style of "Agda.Syntax.Internal.Generic".

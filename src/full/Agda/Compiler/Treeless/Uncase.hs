@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 module Agda.Compiler.Treeless.Uncase (caseToSeq) where
 
 import Data.Monoid

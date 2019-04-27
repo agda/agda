@@ -14,7 +14,6 @@
 -- optimisations that analyse case tree, like impossible case elimination.
 --
 -- Ulf, 2015-10-30: Guards are actually a better primitive. Fixed that.
-{-# LANGUAGE CPP #-}
 module Agda.Compiler.Treeless.Builtin (translateBuiltins) where
 
 import qualified Agda.Syntax.Internal as I

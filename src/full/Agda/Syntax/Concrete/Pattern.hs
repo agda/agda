@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP          #-}
 {-# LANGUAGE TypeFamilies #-}  -- For type equality.
 
 -- | Tools for patterns in concrete syntax.

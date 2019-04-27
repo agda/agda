@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 {-# LANGUAGE UndecidableInstances #-}  -- for Arg a => Elim' a
 
 -- | Tools for 'DisplayTerm' and 'DisplayForm'.

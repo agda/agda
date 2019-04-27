@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP              #-}
 
 -- | Generates data used for precise syntax highlighting.
 

@@ -20,7 +20,6 @@
 -- the author of this module whether the change leads to more
 -- non-termination for grammars that are not cyclic.)
 
-{-# LANGUAGE CPP                   #-}
 
 module Agda.Utils.Parser.MemoisedCPS
   ( ParserClass(..)

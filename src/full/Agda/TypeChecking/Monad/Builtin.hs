@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 
 module Agda.TypeChecking.Monad.Builtin
   ( module Agda.TypeChecking.Monad.Builtin

@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP               #-}
 
 -- Initially authored by Andreas, 2013-10-22.
 

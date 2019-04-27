@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP   #-}
 {-# LANGUAGE GADTs #-}
 
 {-| The parser doesn't know about operators and parses everything as normal

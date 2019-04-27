@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP           #-}
 
 module Agda.TypeChecking.Coverage.Match
   ( Match(..), match

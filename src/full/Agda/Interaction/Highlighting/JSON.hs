@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 
 -- | Functions which give precise syntax highlighting info in JSON format.
 

@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 module Agda.TypeChecking.Monad.Env where
 
 import Control.Monad.Reader

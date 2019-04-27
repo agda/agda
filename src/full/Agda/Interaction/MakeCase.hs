@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP             #-}
 {-# LANGUAGE NondecreasingIndentation #-}
 
 module Agda.Interaction.MakeCase where

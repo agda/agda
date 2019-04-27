@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 
 module Agda.ImpossibleTest where
 

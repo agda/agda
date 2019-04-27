@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 
 -- | This module contains the rules for Agda's sort system viewed as a pure
 --   type system (pts). The specification of a pts consists of a set

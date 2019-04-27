@@ -131,7 +131,6 @@ A module consists of the following parts, in the following order:
 
 
 \begin{code}
-{-# LANGUAGE CPP               #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE TupleSections     #-}
 

@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 
 -- | Pattern synonym utilities: folding pattern synonym definitions for
 --   printing and merging pattern synonym definitions to handle overloaded

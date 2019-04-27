@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP                 #-}
 {-# LANGUAGE DeriveDataTypeable  #-}
 
 {-| As a concrete name, a notation is a non-empty list of alternating 'IdPart's and holes.

@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 
 {-| Agda main module.
 -}

@@ -1,4 +1,3 @@
--- {-# LANGUAGE CPP #-}
 
 module Agda.Interaction.Highlighting.Vim where
 

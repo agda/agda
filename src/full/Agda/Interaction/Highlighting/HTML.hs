@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP               #-}
 
 -- | Function for generating highlighted, hyperlinked HTML from Agda
 -- sources.

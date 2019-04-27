@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 {-# LANGUAGE PatternSynonyms #-}
 
 module Agda.Compiler.Treeless.Erase (eraseTerms, computeErasedConstructorArgs) where

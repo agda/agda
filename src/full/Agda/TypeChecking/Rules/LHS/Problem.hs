@@ -1,4 +1,3 @@
--- {-# LANGUAGE CPP #-}
 
 module Agda.TypeChecking.Rules.LHS.Problem
        ( FlexibleVars , FlexibleVarKind(..) , FlexibleVar(..) , allFlexVars

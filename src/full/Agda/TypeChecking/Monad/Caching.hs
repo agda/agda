@@ -1,5 +1,4 @@
 {-# LANGUAGE BangPatterns #-}
-{-# LANGUAGE CPP #-}
 
 module Agda.TypeChecking.Monad.Caching
   ( -- * Log reading/writing operations

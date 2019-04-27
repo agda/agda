@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 
 module Agda.Syntax.Abstract.Copatterns (translateCopatternClauses) where
 

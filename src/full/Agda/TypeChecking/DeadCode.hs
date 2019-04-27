@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 module Agda.TypeChecking.DeadCode (eliminateDeadCode) where
 
 import Control.Monad

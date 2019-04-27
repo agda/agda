@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 
 -- | Reconstruct dropped parameters from constructors.  Used by
 --   with-abstraction to avoid ill-typed abstractions (#745). Note that the

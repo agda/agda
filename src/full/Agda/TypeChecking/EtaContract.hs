@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 
 -- | Compute eta short normal forms.
 module Agda.TypeChecking.EtaContract where

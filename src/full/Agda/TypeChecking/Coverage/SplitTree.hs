@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 {-# LANGUAGE DeriveDataTypeable         #-}
 
 {-| Split tree for transforming pattern clauses into case trees.

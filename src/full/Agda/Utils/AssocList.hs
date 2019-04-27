@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP           #-}
 
 -- | Additional functions for association lists.
 

@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 
 -- | Generate an import dependency graph for a given module.
 

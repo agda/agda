@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 
 {- Checking for recursion:
 

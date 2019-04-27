@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP               #-}
 {-# LANGUAGE TypeFamilies #-}
 
 {-| A constructor argument is forced if it appears as pattern variable

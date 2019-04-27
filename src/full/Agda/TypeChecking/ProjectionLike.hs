@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP               #-}
 
 -- | Dropping initial arguments (``parameters'') from a function which can be
 --   easily reconstructed from its principal argument.
