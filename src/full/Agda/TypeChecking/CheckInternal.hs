@@ -45,7 +45,6 @@ import Agda.Utils.Functor (($>))
 import Agda.Utils.Monad
 import Agda.Utils.Size
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- * Bidirectional rechecker

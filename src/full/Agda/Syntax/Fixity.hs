@@ -29,7 +29,6 @@ import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Pretty
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- * Notation coupled with 'Fixity'

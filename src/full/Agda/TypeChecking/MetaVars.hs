@@ -62,7 +62,6 @@ import Agda.Utils.Permutation
 import Agda.Utils.Pretty ( prettyShow, render )
 import qualified Agda.Utils.VarSet as Set
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | Find position of a value in a list.

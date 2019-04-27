@@ -49,7 +49,6 @@ import qualified Agda.Utils.Pretty as P
 import Agda.Utils.Pretty hiding ((<>))
 import Agda.Utils.Tuple
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | Type of argument lists.

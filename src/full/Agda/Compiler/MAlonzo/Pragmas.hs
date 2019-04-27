@@ -24,7 +24,6 @@ import Agda.Utils.Three
 import Agda.Compiler.Common
 
 import Agda.Utils.Impossible
-#include "undefined.h"
 
 type HaskellCode = String
 type HaskellType = String

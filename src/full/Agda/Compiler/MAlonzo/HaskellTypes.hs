@@ -38,7 +38,6 @@ import Agda.Utils.Except
 import Agda.Utils.Pretty (prettyShow)
 import Agda.Utils.Null
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 hsQCon :: String -> String -> HS.Type

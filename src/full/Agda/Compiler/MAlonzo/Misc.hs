@@ -25,7 +25,6 @@ import Agda.Utils.Monad
 import Agda.Utils.Pretty
 import Agda.Utils.Maybe
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 --------------------------------------------------

@@ -56,7 +56,6 @@ import Agda.Utils.Functor
 import Agda.Utils.Pretty (prettyShow)
 import Agda.Utils.Null (empty)
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | Compute a list of instance candidates.

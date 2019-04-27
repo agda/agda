@@ -16,7 +16,6 @@ import Agda.Utils.Lens
 import Agda.Utils.List ( caseListM )
 import Agda.Utils.Monad
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 addImport :: ModuleName -> TCM ()

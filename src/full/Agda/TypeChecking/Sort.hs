@@ -39,7 +39,6 @@ import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | Infer the sort of another sort. If we can compute the bigger sort

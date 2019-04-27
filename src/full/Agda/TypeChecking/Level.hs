@@ -18,7 +18,6 @@ import Agda.Utils.Except ( MonadError(catchError) )
 import Agda.Utils.Maybe ( caseMaybeM, allJustM )
 import Agda.Utils.Monad ( tryMaybe )
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 data LevelKit = LevelKit

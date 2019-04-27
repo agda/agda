@@ -70,7 +70,6 @@ import Agda.Utils.Monad
 import Agda.Utils.Pretty (pretty)
 import Agda.Utils.Maybe
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 import Debug.Trace
 

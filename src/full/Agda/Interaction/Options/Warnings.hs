@@ -35,7 +35,6 @@ import Data.List ( stripPrefix, intercalate )
 import Agda.Utils.Lens
 import Agda.Utils.Maybe
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 

@@ -53,7 +53,6 @@ import Agda.Utils.Size
 import Agda.Utils.Tuple
 import Agda.Utils.Lens
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | Try whether a computation runs without errors or new constraints

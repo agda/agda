@@ -30,7 +30,6 @@ import Agda.Utils.Functor
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 implicitP :: ArgInfo -> NamedArg A.Pattern

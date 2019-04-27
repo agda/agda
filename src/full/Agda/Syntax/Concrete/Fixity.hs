@@ -27,7 +27,6 @@ import Agda.Utils.Functor
 import Agda.Utils.Null
 import Agda.Utils.Impossible
 
-#include "undefined.h"
 
 type Fixities   = Map Name Fixity'
 type Polarities = Map Name [Occurrence]

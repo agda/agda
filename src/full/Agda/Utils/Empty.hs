@@ -11,7 +11,6 @@ import Data.Data (Data)
 
 import Agda.Utils.Impossible
 
-#include "undefined.h"
 
 data Empty
 deriving instance Data Empty

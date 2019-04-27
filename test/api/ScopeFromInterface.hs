@@ -42,7 +42,6 @@ import Agda.Utils.Null
 import Agda.Utils.Pretty
 import Agda.Utils.Impossible
 
-#include "../../src/full/undefined.h"
 
 ------------------------------------------------------------------------------
 

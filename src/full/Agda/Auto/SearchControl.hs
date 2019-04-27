@@ -15,7 +15,6 @@ import Agda.Syntax.Common (Hiding(..))
 import Agda.Auto.NarrowingSearch
 import Agda.Auto.Syntax
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 instance Refinable (ArgList o) (RefInfo o) where

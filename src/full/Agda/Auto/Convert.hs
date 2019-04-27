@@ -49,7 +49,6 @@ import Agda.Utils.Lens
 import Agda.Utils.Pretty ( prettyShow )
 
 import Agda.Utils.Impossible
-#include "undefined.h"
 
 
 data Hint = Hint

@@ -56,7 +56,6 @@ import Agda.Utils.Size
 import Agda.Utils.Tuple
 import Agda.Utils.Lens
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 checkIApplyConfluence_ :: QName -> TCM ()

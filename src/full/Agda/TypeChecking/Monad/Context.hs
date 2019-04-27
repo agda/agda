@@ -32,7 +32,6 @@ import Agda.Utils.Pretty
 import Agda.Utils.Size
 
 import Agda.Utils.Impossible
-#include "undefined.h"
 
 -- * Modifying the context
 

@@ -15,7 +15,6 @@ import Agda.Compiler.Treeless.Subst
 import Agda.Utils.Pretty
 import Agda.Utils.List
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 data PEnv = PEnv { pPrec :: Int

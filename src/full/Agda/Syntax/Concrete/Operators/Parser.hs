@@ -24,7 +24,6 @@ import qualified Agda.Syntax.Concrete.Operators.Parser.Monad as P
 import Agda.Utils.Pretty
 import Agda.Utils.List ( spanEnd )
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 placeholder :: PositionInName -> Parser e (MaybePlaceholder e)

@@ -38,7 +38,6 @@ import Agda.Utils.Null
 import Agda.Utils.Pretty (prettyShow)
 import Agda.Utils.Lens
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | Catches pattern violation errors and adds a constraint.

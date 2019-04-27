@@ -92,7 +92,6 @@ import Agda.Utils.Pretty (prettyShow)
 import Agda.Utils.Singleton
 import Agda.Utils.Size
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | Compute the set of flexible patterns in a list of patterns. The result is

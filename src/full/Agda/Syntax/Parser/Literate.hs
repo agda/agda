@@ -29,7 +29,6 @@ import Agda.Syntax.Common
 import Agda.Syntax.Position
 import Text.Regex.TDFA
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | Role of a character in the file.

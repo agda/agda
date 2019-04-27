@@ -13,7 +13,6 @@ import Data.Maybe ( fromMaybe )
 
 import Agda.Interaction.Options.Warnings
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | Interface to the @help@ function

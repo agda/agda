@@ -60,7 +60,6 @@ import Agda.Utils.Null
 import Agda.Utils.Pretty ( prettyShow )
 import Agda.Utils.Tuple
 
-#include "undefined.h"
 
 insertAbsurdPattern :: String -> String
 insertAbsurdPattern [] = []

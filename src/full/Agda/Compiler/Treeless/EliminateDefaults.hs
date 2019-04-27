@@ -21,7 +21,6 @@ import Agda.Compiler.Treeless.Subst
 
 import Agda.Utils.Impossible
 
-#include "undefined.h"
 
 eliminateCaseDefaults :: TTerm -> TCM TTerm
 eliminateCaseDefaults = tr

@@ -62,7 +62,6 @@ import Agda.Utils.Tuple
 import qualified Agda.Utils.Maybe.Strict as Strict
 
 import Agda.Utils.Impossible
-#include "undefined.h"
 
 }
 

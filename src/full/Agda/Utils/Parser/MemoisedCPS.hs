@@ -50,7 +50,6 @@ import qualified Text.PrettyPrint.HughesPJ as PP
 
 import Agda.Utils.Pretty ( mparens )
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | Positions.

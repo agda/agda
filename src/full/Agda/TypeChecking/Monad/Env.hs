@@ -14,7 +14,6 @@ import Agda.TypeChecking.Monad.Base
 
 import Agda.Utils.FileName
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | Get the name of the current module, if any.

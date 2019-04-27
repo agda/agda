@@ -77,7 +77,6 @@ import Agda.Utils.Singleton
 import Agda.Utils.Tuple
 import Agda.Utils.Pretty
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- Environment ------------------------------------------------------------

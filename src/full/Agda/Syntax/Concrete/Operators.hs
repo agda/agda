@@ -60,7 +60,6 @@ import Agda.Utils.List
 import Agda.Utils.Trie (Trie)
 import qualified Agda.Utils.Trie as Trie
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 ---------------------------------------------------------------------------

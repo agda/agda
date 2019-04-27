@@ -31,7 +31,6 @@ import qualified Agda.Utils.HashMap as HMap
 import Agda.Utils.Lens
 
 import Agda.Utils.Impossible
-#include "undefined.h"
 
 -- | Run before serialisation to remove any definitions that are not reachable
 --   from the public interface to the module.

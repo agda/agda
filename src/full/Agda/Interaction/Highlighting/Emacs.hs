@@ -21,7 +21,6 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import Data.Maybe
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 ------------------------------------------------------------------------

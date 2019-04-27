@@ -29,7 +29,6 @@ import qualified Agda.Termination.Semiring as Semiring
 import Agda.Utils.PartialOrd
 import Agda.Utils.Pretty
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 ------------------------------------------------------------------------

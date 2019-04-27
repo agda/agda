@@ -32,7 +32,6 @@ import Agda.TypeChecking.Monad
 
 import Agda.Utils.Pretty (prettyShow)
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 recursive :: [QName] -> TCM Bool

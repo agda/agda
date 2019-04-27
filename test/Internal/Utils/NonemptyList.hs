@@ -9,7 +9,6 @@ import Internal.Helpers
 
 import Agda.Utils.NonemptyList
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 ------------------------------------------------------------------------

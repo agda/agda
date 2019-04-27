@@ -26,7 +26,6 @@ import Agda.Syntax.Position
 import Agda.Utils.Monad
 import Agda.Utils.Pretty
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 type SplitTree  = SplitTree'  SplitTag

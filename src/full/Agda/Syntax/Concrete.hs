@@ -78,7 +78,6 @@ import Agda.TypeChecking.Positivity.Occurrence
 import Agda.Utils.Lens
 import Agda.Utils.Null
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 data OpApp e

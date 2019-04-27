@@ -32,7 +32,6 @@ import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Tuple
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 {--------------------------------------------------------------------------

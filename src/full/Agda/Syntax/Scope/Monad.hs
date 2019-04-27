@@ -53,7 +53,6 @@ import Agda.Utils.Pretty
 import Agda.Utils.Size
 import Agda.Utils.Tuple
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- * The scope checking monad

@@ -29,7 +29,6 @@ import Agda.Utils.FileName ()
 
 import Agda.Utils.Lens
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 instance EmbPrj TCWarning where

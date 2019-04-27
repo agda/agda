@@ -39,7 +39,6 @@ import Agda.Utils.Null
 import Agda.Utils.List
 import qualified Agda.Utils.Pretty as P
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 data RunRecordPatternTranslation = RunRecordPatternTranslation | DontRunRecordPatternTranslation

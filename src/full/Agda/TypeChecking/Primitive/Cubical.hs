@@ -26,7 +26,6 @@ import Agda.TypeChecking.Telescope
 
 import Agda.Utils.Except
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 

@@ -92,7 +92,6 @@ import Agda.Utils.Size
 import Agda.Utils.Lens
 import qualified Agda.Utils.HashMap as HMap
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 requireOptionRewriting :: TCM ()

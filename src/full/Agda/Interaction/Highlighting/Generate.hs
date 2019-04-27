@@ -81,7 +81,6 @@ import Agda.Utils.Pretty
 import Agda.Utils.HashMap (HashMap)
 import qualified Agda.Utils.HashMap as HMap
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | @highlightAsTypeChecked rPre r m@ runs @m@ and returns its

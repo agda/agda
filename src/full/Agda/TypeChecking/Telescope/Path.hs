@@ -28,7 +28,6 @@ import Agda.Utils.Functor
 import Agda.Utils.List
 import Agda.Utils.Size
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 

@@ -18,7 +18,6 @@ import Agda.Compiler.Treeless.Subst
 
 import Agda.Utils.Impossible
 
-#include "undefined.h"
 
 eliminateLiteralPatterns :: TTerm -> TCM TTerm
 eliminateLiteralPatterns t = do

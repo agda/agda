@@ -23,7 +23,6 @@ import Agda.TypeChecking.Pretty
 import Agda.Utils.Size
 
 import Agda.Utils.Impossible
-#include "undefined.h"
 
 reconstructParametersInType :: Type -> TCM Type
 reconstructParametersInType a =

@@ -90,7 +90,6 @@ import Agda.Utils.Pretty hiding ((<>))
 import Agda.Utils.Size
 import Agda.Utils.Zipper
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 import Debug.Trace

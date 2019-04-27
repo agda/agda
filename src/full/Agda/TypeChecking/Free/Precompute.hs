@@ -15,7 +15,6 @@ import Agda.Syntax.Internal
 import Agda.Utils.Functor
 import Agda.Utils.Impossible
 
-#include "undefined.h"
 
 type FV = Writer IntSet
 

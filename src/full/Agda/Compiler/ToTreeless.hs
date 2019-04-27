@@ -48,7 +48,6 @@ import Agda.Utils.Lens
 import Agda.Utils.Pretty (prettyShow)
 import qualified Agda.Utils.Pretty as P
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 prettyPure :: P.Pretty a => a -> TCM Doc

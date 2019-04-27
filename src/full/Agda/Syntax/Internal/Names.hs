@@ -24,7 +24,6 @@ import Agda.Utils.Functor
 import Agda.Utils.NonemptyList
 
 import Agda.Utils.Impossible
-#include "undefined.h"
 
 class NamesIn a where
   namesIn :: a -> Set QName

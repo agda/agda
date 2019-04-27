@@ -102,7 +102,6 @@ import Agda.Utils.Pretty (render, Pretty, pretty, prettyShow)
 import Agda.Utils.Tuple
 import Agda.Interaction.FindFile ( rootNameModule )
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 import Agda.ImpossibleTest (impossibleTest)
 

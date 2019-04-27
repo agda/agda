@@ -91,7 +91,6 @@ import Agda.Utils.List
 import Agda.Utils.Monad
 import Agda.Utils.Size
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | Given the type of a constructor (excluding the parameters),

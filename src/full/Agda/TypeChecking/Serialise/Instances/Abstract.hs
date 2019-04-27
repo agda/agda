@@ -21,7 +21,6 @@ import Agda.TypeChecking.Monad
 
 import Agda.Utils.Except
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 instance EmbPrj A.BindName where

@@ -50,7 +50,6 @@ import Agda.Utils.Pretty
 import Agda.Compiler.ToTreeless
 import Agda.Compiler.Common
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- Public interface -------------------------------------------------------

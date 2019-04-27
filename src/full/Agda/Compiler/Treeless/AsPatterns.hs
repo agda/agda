@@ -11,7 +11,6 @@ import Agda.Compiler.Treeless.Subst
 import Agda.Compiler.Treeless.Compare
 
 import Agda.Utils.Impossible
-#include "undefined.h"
 
 data AsPat = AsPat Int QName [Int]  -- x@(c ys)
   deriving (Show)

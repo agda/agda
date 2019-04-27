@@ -33,7 +33,6 @@ import Agda.Utils.Except ( MonadError(catchError) )
 import Agda.Utils.Maybe
 import Agda.Utils.Impossible
 
-#include "undefined.h"
 
 data BuiltinKit = BuiltinKit
   { isZero   :: QName -> Bool

@@ -26,7 +26,6 @@ import Agda.Utils.Pretty ( prettyShow )
 import Agda.Utils.Monad
 import Agda.Utils.Size
 
-#include "undefined.h"
 
 -- | Expand a clause to the maximal arity, by inserting variable
 --   patterns and applying the body to variables.

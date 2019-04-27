@@ -38,7 +38,6 @@ import Prelude hiding (null)
 
 import Test.QuickCheck as QuickCheck
 
-#include "undefined.h"
 
 ------------------------------------------------------------------------
 -- * Generators

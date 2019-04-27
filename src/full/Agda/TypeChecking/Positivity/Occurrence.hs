@@ -36,7 +36,6 @@ import Agda.Utils.Pretty
 import Agda.Utils.SemiRing
 import Agda.Utils.Size
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- Specification of occurrences -------------------------------------------

@@ -54,7 +54,6 @@ import Agda.Utils.Singleton
 import Agda.Utils.Size
 import qualified Agda.Utils.HashMap as HMap
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 type CaseContext = Maybe ExtLamInfo

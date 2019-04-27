@@ -38,7 +38,6 @@ import Agda.Utils.Tuple
 import qualified Agda.Utils.Pretty as P
 import qualified Agda.Utils.Warshall as W
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 ------------------------------------------------------------------------

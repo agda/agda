@@ -42,7 +42,6 @@ import qualified Agda.Utils.Trie as Trie
 import Agda.Utils.Except
 import Agda.Utils.Either
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | Sets the pragma options.

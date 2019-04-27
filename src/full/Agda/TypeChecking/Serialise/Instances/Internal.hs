@@ -20,7 +20,6 @@ import Agda.TypeChecking.Coverage.SplitTree
 
 import Agda.Utils.Permutation
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 instance EmbPrj Signature where

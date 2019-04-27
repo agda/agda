@@ -81,7 +81,6 @@ import Agda.Utils.Singleton
 import Agda.Utils.Size
 import Agda.Utils.Tuple
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- Composition of reified applications ------------------------------------

@@ -62,7 +62,6 @@ import qualified Agda.Utils.Empty as Empty
 
 import Agda.Utils.WithDefault
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 instance {-# OVERLAPPING #-} EmbPrj String where

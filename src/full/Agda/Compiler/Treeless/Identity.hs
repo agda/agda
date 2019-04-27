@@ -18,7 +18,6 @@ import Agda.TypeChecking.Monad
 import Agda.Utils.Lens
 import Agda.Utils.List
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 detectIdentityFunctions :: QName -> TTerm -> TCM TTerm

@@ -28,7 +28,6 @@ import Agda.Utils.Monad
 import Agda.Utils.Maybe
 import Agda.Utils.Tuple
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 class ( Functor m

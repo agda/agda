@@ -16,7 +16,6 @@ import Data.Aeson
 import qualified Data.ByteString.Lazy.Char8 as BS
 import qualified Data.Map as Map
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | Encode meta information into a JSON Value

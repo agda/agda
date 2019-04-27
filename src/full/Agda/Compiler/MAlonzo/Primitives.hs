@@ -30,7 +30,6 @@ import Agda.Utils.Pretty (prettyShow)
 import qualified Agda.Utils.HashMap as HMap
 import qualified Agda.Utils.Haskell.Syntax as HS
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- Andreas, 2019-04-29, issue #3731: exclude certain kinds of names, like constructors.

@@ -21,7 +21,6 @@ import Agda.Utils.List
 import Agda.Utils.Monad
 import Agda.Utils.Except
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | Add all constraints belonging to the given problem to the current problem(s).

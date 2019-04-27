@@ -20,7 +20,6 @@ import Data.Traversable
 
 import Agda.Utils.Functor
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | A set with duplicates.

@@ -72,7 +72,6 @@ import Agda.Interaction.Options
 
 import Paths_Agda
 
-#include "undefined.h"
 import Agda.Utils.Impossible (__IMPOSSIBLE__)
 
 --------------------------------------------------

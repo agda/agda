@@ -53,7 +53,6 @@ import Agda.Utils.Singleton
 import Agda.Utils.Permutation
 import qualified Agda.Utils.Graph.TopSort as Graph
 
-#include "undefined.h"
 
 -- | Generalize a telescope over a set of generalizable variables.
 generalizeTelescope :: Map QName Name -> (forall a. (Telescope -> TCM a) -> TCM a) -> ([Maybe Name] -> Telescope -> TCM a) -> TCM a

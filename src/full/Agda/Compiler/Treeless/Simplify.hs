@@ -22,7 +22,6 @@ import Agda.Compiler.Treeless.Compare
 import Agda.Utils.Pretty
 
 import Agda.Utils.Impossible
-#include "undefined.h"
 
 data SEnv = SEnv
   { envSubst   :: Substitution' TTerm

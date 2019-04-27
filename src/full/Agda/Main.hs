@@ -51,7 +51,6 @@ import Agda.Utils.Except ( MonadError(catchError, throwError) )
 import Agda.Utils.Impossible
 import Agda.Utils.Lens
 
-#include "undefined.h"
 
 builtinBackends :: [Backend]
 builtinBackends = [ ghcBackend, jsBackend ]
