@@ -73,7 +73,7 @@ import Agda.Interaction.Options
 import Paths_Agda
 
 #include "undefined.h"
-import Agda.Utils.Impossible ( Impossible(Impossible), throwImpossible )
+import Agda.Utils.Impossible (__IMPOSSIBLE__)
 
 --------------------------------------------------
 -- Entry point into the compiler

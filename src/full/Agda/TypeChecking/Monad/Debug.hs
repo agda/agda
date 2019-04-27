@@ -2,6 +2,7 @@
 
 module Agda.TypeChecking.Monad.Debug where
 
+import GHC.Stack (HasCallStack, freezeCallStack, callStack)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Monad.Reader
 import Control.Monad.State
@@ -89,6 +90,12 @@ reportSLn :: (HasOptions m, MonadDebug m, MonadTCEnv m)
           => VerboseKey -> Int -> String -> m ()
 reportSLn k n s = verboseS k n $
   displayDebugMessage n (s ++ "\n")
+
+__IMPOSSIBLE_VERBOSE__ :: (HasCallStack, HasOptions m, MonadDebug m, MonadTCEnv m) => String -> m a
+__IMPOSSIBLE_VERBOSE__ s = do { reportSLn "impossible" 10 s ; throwImpossible err }
+  where
+    -- Create the "Impossible" error using *our* caller as the call site.
+    err = withFileAndLine' (freezeCallStack callStack) Impossible
 
 -- | Conditionally render debug 'Doc' and print it.
 {-# SPECIALIZE reportSDoc :: VerboseKey -> Int -> TCM Doc -> TCM () #-}
