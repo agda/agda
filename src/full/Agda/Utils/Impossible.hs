@@ -6,7 +6,10 @@
 
 module Agda.Utils.Impossible where
 
-import Control.Exception as E
+import Control.Exception as E (Exception(..), throw, catch)
+import GHC.Stack
+  (CallStack, HasCallStack, callStack, getCallStack, freezeCallStack
+  , srcLocModule, srcLocFile, srcLocStartLine)
 
 -- | \"Impossible\" errors, annotated with a file name and a line
 -- number corresponding to the source code location of the error.
@@ -51,3 +54,15 @@ throwImpossible = throw
 
 catchImpossible :: IO a -> (Impossible -> IO a) -> IO a
 catchImpossible = E.catch
+
+-- | Create something with the call site's file and line number
+
+withFileAndLine :: HasCallStack => (String -> Integer -> a) -> a
+withFileAndLine ctor = ctor file line
+  where
+    callSiteList = getCallStack (freezeCallStack callStack)
+    notHere (_, loc) = srcLocModule loc /= "Agda.Utils.Impossible"
+    stackLocations = filter notHere callSiteList
+    (file, line) = case stackLocations of
+      (_, loc) : _ -> (srcLocFile loc, fromIntegral (srcLocStartLine loc))
+      [] -> ("?", -1)
