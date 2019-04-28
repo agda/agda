@@ -3,6 +3,7 @@
 module Agda.TypeChecking.Pretty where
 
 import Data.String (IsString)
+import Data.Semigroup (Semigroup)
 
 import Agda.Syntax.Common (NameId)
 import Agda.Syntax.Internal
@@ -21,7 +22,7 @@ import Agda.Utils.Pretty (Doc)
 
 text                  :: Monad m => String -> m Doc
 sep, fsep, hsep, vcat :: Monad m => [m Doc] -> m Doc
-($$), (<>), (<+>)     :: Applicative m => m Doc -> m Doc -> m Doc
+($$), (<+>)           :: Applicative m => m Doc -> m Doc -> m Doc
 
 -- Inlining definitions of MonadReify and MonadAbsToCon to avoid
 -- having to import them
@@ -44,6 +45,7 @@ type MonadPretty m =
     )
   , IsString (m Doc)
   , Null (m Doc)
+  , Semigroup (m Doc)
   )
 
 class PrettyTCM a where

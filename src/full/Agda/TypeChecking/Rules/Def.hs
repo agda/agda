@@ -3,11 +3,7 @@
 
 module Agda.TypeChecking.Rules.Def where
 
-#if MIN_VERSION_base(4,11,0)
-import Prelude hiding ( (<>), mapM, null )
-#else
 import Prelude hiding ( mapM, null )
-#endif
 
 import Control.Arrow ((***),first,second)
 import Control.Monad.State hiding (forM, mapM)
@@ -49,8 +45,7 @@ import Agda.TypeChecking.Inlining
 import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Patterns.Abstract (expandPatternSynonyms)
-import Agda.TypeChecking.Pretty hiding ((<>))
-import qualified Agda.TypeChecking.Pretty as Pr
+import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.CheckInternal
@@ -808,7 +803,7 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps absurdPat trhs _ _asb _) rhs0
                    strippedPats rhs'' outerWhere False
         reportSDoc "tc.rewrite" 60 $ vcat
           [ "rewrite"
-          , "  rhs' = " Pr.<> (text . show) rhs'
+          , "  rhs' = " <> (text . show) rhs'
           ]
         checkWithRHS x qname t lhsResult [withExpr] [withType] [cl]
 

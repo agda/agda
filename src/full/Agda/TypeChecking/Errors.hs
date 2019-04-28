@@ -17,11 +17,7 @@ module Agda.TypeChecking.Errors
   , stringTCErr
   ) where
 
-#if MIN_VERSION_base(4,11,0)
-import Prelude hiding ( (<>), null )
-#else
 import Prelude hiding ( null )
-#endif
 
 import Control.Monad.Reader
 import Control.Monad.State
@@ -1088,7 +1084,7 @@ instance PrettyTCM TypeError where
           , vcat $ map f xs
           ]
       where
-        f (x, fs) = pretty x <> ": " <+> fsep (map pretty fs)
+        f (x, fs) = (pretty x <> ": ") <+> fsep (map pretty fs)
 
     MultiplePolarityPragmas xs -> fsep $
       pwords "Multiple polarity pragmas for" ++ map pretty xs
@@ -1220,7 +1216,7 @@ instance PrettyTCM SplitError where
     CannotCreateMissingClause f cl msg t -> fsep (
       pwords "Cannot generate inferred clause for" ++ [prettyTCM f <> "."] ++
       pwords "Case to handle:") $$ nest 2 (vcat $ [display cl])
-                                $$ (pure msg <+> enterClosure t displayAbs <> ".")
+                                $$ ((pure msg <+> enterClosure t displayAbs) <> ".")
         where
         displayAbs (Abs x t) = addContext x $ prettyTCM t
         displayAbs (NoAbs x t) = prettyTCM t

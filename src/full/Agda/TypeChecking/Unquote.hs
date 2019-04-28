@@ -2,10 +2,6 @@
 
 module Agda.TypeChecking.Unquote where
 
-#if MIN_VERSION_base(4,11,0)
-import Prelude hiding ((<>))
-#endif
-
 import Control.Arrow (first, second)
 import Control.Monad.State
 import Control.Monad.Reader

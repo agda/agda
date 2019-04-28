@@ -472,7 +472,7 @@ checkOptionsCompatible current imported importedModule = flip execStateT True $ 
     implies :: Bool -> Bool -> Bool
     p `implies` q = p <= q
 
-    showOptions opts = P.prettyList (map (\ (o, n) -> P.text n P.<> ": " P.<+> (P.pretty $ o opts))
+    showOptions opts = P.prettyList (map (\ (o, n) -> (P.text n <> ": ") P.<+> (P.pretty $ o opts))
                                  (coinfectiveOptions ++ infectiveOptions))
 
 -- | Check whether interface file exists and is in cache
@@ -900,10 +900,10 @@ createInterface file mname isMain msi =
       -- Grabbing warnings and unsolved metas to highlight them
       warnings <- getAllWarnings AllWarnings
       unless (null warnings) $ reportSDoc "import.iface.create" 20 $
-        "collected warnings: " P.<> prettyTCM warnings
+        "collected warnings: " <> prettyTCM warnings
       unsolved <- getAllUnsolved
       unless (null unsolved) $ reportSDoc "import.iface.create" 20 $
-        "collected unsolved: " P.<> prettyTCM unsolved
+        "collected unsolved: " <> prettyTCM unsolved
       let warningInfo = compress $ foldMap warningHighlighting $ unsolved ++ warnings
 
       stSyntaxInfo `modifyTCLens` \inf -> (inf `mappend` toks) `mappend` warningInfo

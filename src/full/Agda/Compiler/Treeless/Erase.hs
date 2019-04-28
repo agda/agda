@@ -22,7 +22,7 @@ import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Datatypes
-import Agda.TypeChecking.Pretty hiding ((<>))
+import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Primitive
 
 import {-# SOURCE #-} Agda.Compiler.Backend

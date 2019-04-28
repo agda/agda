@@ -23,7 +23,7 @@ import Data.Function
 import qualified Data.List as List
 import Data.Map (Map)
 import Data.Maybe
-import Data.Monoid
+import Data.Monoid hiding ((<>))
 
 import Debug.Trace (trace)
 import Language.Haskell.TH.Syntax (thenCmp) -- lexicographic combination of Ordering

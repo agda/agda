@@ -86,7 +86,7 @@ import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import qualified Agda.Utils.Pretty as Pretty
-import Agda.Utils.Pretty hiding ((<>))
+import Agda.Utils.Pretty
 import Agda.Utils.Singleton
 import Agda.Utils.Three
 import Agda.Utils.Tuple

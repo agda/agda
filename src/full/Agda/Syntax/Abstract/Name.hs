@@ -9,10 +9,6 @@ module Agda.Syntax.Abstract.Name
   , IsNoName(..)
   ) where
 
-#if MIN_VERSION_base(4,11,0)
-import Prelude hiding ((<>))
-#endif
-
 import Control.DeepSeq
 
 import Data.Foldable (Foldable)

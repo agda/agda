@@ -19,7 +19,7 @@ import Control.Monad
 import Control.Monad.Trans
 
 import Data.Function
-import Data.Monoid
+import Data.Monoid hiding ((<>))
 import Data.Foldable (toList, concatMap)
 import Data.Maybe
 import qualified Data.IntMap as IntMap
@@ -61,7 +61,7 @@ import Agda.Utils.FileName (filePath)
 import Agda.Utils.Function
 import Agda.Utils.Lens
 import qualified Agda.Utils.IO.UTF8 as UTF8
-import Agda.Utils.Pretty hiding ((<>))
+import Agda.Utils.Pretty
 import Agda.Utils.Tuple
 
 import Agda.Utils.Impossible

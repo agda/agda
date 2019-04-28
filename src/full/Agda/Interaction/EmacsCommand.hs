@@ -14,10 +14,6 @@ module Agda.Interaction.EmacsCommand
   , displayRunningInfo
   ) where
 
-#if MIN_VERSION_base(4,11,0)
-import Prelude hiding ((<>))
-#endif
-
 import qualified Data.List as List
 
 import Agda.Utils.Pretty

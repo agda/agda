@@ -68,11 +68,7 @@ module Agda.Utils.Graph.AdjacencyMap.Unidirectional
   )
   where
 
-#if MIN_VERSION_base(4,11,0)
-import Prelude hiding ( (<>), lookup, null, unzip )
-#else
 import Prelude hiding ( lookup, null, unzip )
-#endif
 
 import Control.Applicative hiding (empty)
 import Control.Monad
@@ -170,7 +166,7 @@ data Edge n e = Edge
 
 instance (Pretty n, Pretty e) => Pretty (Edge n e) where
   pretty (Edge s t e) =
-    pretty s <+> "--(" <> pretty e <> ")-->" <+> pretty t
+    pretty s <+> ("--(" <> pretty e <> ")-->") <+> pretty t
 
 ------------------------------------------------------------------------
 -- Queries

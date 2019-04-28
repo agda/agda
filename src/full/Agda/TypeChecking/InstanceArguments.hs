@@ -8,10 +8,6 @@ module Agda.TypeChecking.InstanceArguments
   , postponeInstanceConstraints
   ) where
 
-#if MIN_VERSION_base(4,11,0)
-import Prelude hiding ((<>))
-#endif
-
 import Control.Applicative hiding (empty)
 import Control.Monad.Reader
 import Control.Monad.State
@@ -472,11 +468,11 @@ checkCandidates m t cands =
                   case sol of
                     MetaV m' _ | m == m' ->
                       reportSDoc "tc.instance" 15 $
-                        sep [ "instance search: maybe solution for" <+> prettyTCM m <> ":"
+                        sep [ ("instance search: maybe solution for" <+> prettyTCM m) <> ":"
                             , nest 2 $ prettyTCM v ]
                     _ ->
                       reportSDoc "tc.instance" 15 $
-                        sep [ "instance search: found solution for" <+> prettyTCM m <> ":"
+                        sep [ ("instance search: found solution for" <+> prettyTCM m) <> ":"
                             , nest 2 $ prettyTCM sol ]
 
             do solveAwakeConstraints' True

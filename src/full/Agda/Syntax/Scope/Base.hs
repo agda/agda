@@ -6,11 +6,7 @@
 -}
 module Agda.Syntax.Scope.Base where
 
-#if MIN_VERSION_base(4,11,0)
-import Prelude hiding ( (<>), null )
-#else
 import Prelude hiding ( null )
-#endif
 
 import Control.Arrow (first, second, (***))
 import Control.Applicative hiding (empty)

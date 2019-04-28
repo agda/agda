@@ -142,7 +142,7 @@ import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.Level (reallyUnLevelView)
 import Agda.TypeChecking.Reduce
 import qualified Agda.TypeChecking.Patterns.Match as Match
-import Agda.TypeChecking.Pretty hiding ((<>))
+import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.SizedTypes (compareSizes)
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope

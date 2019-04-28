@@ -4,6 +4,7 @@ module Agda.TypeChecking.Warnings where
 import qualified Data.Set as Set
 import qualified Data.List as List
 import Data.Maybe ( catMaybes )
+import Data.Semigroup ( Semigroup, (<>) )
 
 import Control.Monad ( guard, forM, unless )
 import Control.Monad.Reader ( ReaderT )
@@ -37,11 +38,20 @@ class (MonadPretty m, MonadError TCErr m) => MonadWarning m where
   -- | Render the warning
   addWarning :: TCWarning -> m ()
 
+instance Applicative m => Semigroup (ReaderT s m P.Doc) where
+  d1 <> d2 = (<>) <$> d1 <*> d2
+
 instance MonadWarning m => MonadWarning (ReaderT r m) where
   addWarning = lift . addWarning
 
+instance Monad m => Semigroup (StateT s m P.Doc) where
+  d1 <> d2 = (<>) <$> d1 <*> d2
+
 instance MonadWarning m => MonadWarning (StateT s m) where
   addWarning = lift . addWarning
+
+instance {-# OVERLAPPABLE #-} Semigroup (TCM P.Doc) where
+  d1 <> d2 = (<>) <$> d1 <*> d2
 
 instance MonadWarning TCM where
   addWarning tcwarn = stTCWarnings `modifyTCLens` add w' tcwarn

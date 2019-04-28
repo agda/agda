@@ -3,11 +3,7 @@
 
 module Agda.TypeChecking.Rules.Term where
 
-#if MIN_VERSION_base(4,11,0)
-import Prelude hiding ( (<>), null )
-#else
 import Prelude hiding ( null )
-#endif
 
 import Control.Monad.Trans
 import Control.Monad.Trans.Maybe
@@ -564,7 +560,7 @@ checkAbsurdLambda cmp i h e t = do
           -- is added as irrelevant
           rel <- asksTC envRelevance
           reportSDoc "tc.term.absurd" 10 $ vcat
-            [ "Adding absurd function" <+> prettyTCM rel <> prettyTCM aux
+            [ ("Adding absurd function" <+> prettyTCM rel) <> prettyTCM aux
             , nest 2 $ "of type" <+> prettyTCM t'
             ]
           addConstant aux $
@@ -612,8 +608,8 @@ checkExtendedLambda cmp i di qname cs e t = do
      let info = setRelevance rel defaultArgInfo
 
      reportSDoc "tc.term.exlam" 20 $
-       text (show $ A.defAbstract di) <+>
-       "extended lambda's implementation \"" <> prettyTCM qname <>
+       (text (show $ A.defAbstract di) <+>
+       "extended lambda's implementation \"") <> prettyTCM qname <>
        "\" has type: " $$ prettyTCM t -- <+> " where clauses: " <+> text (show cs)
      args     <- getContextArgs
 

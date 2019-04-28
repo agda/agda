@@ -7,7 +7,7 @@ import Control.Monad.Fail (MonadFail)
 import Control.Monad.Trans.Maybe
 import Control.Monad.State
 
-import Data.Monoid
+import Data.Monoid hiding ((<>))
 import Data.String
 
 import Agda.Syntax.Common
@@ -61,6 +61,9 @@ deriving instance ReadTCState     m => ReadTCState     (PureConversionT m)
 deriving instance MonadReduce     m => MonadReduce     (PureConversionT m)
 deriving instance MonadAddContext m => MonadAddContext (PureConversionT m)
 deriving instance MonadDebug      m => MonadDebug      (PureConversionT m)
+
+instance (Monad m, Semigroup a) => Semigroup (PureConversionT m a) where
+  d1 <> d2 = (<>) <$> d1 <*> d2
 
 instance (IsString a, Monad m) => IsString (PureConversionT m a) where
   fromString s = return (fromString s)

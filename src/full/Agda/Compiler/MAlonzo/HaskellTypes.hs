@@ -9,10 +9,6 @@ module Agda.Compiler.MAlonzo.HaskellTypes
   , hsTelApproximation, hsTelApproximation'
   ) where
 
-#if MIN_VERSION_base(4,11,0)
-import Prelude hiding ((<>))
-#endif
-
 import Control.Monad (zipWithM)
 import Data.Maybe (fromMaybe)
 import Data.List (intercalate)
@@ -198,7 +194,7 @@ haskellType q = do
           Pi a b  -> underAbstraction a b $ \b -> hsForall <$> getHsVar 0 <*> underPars (n - 1) b
           _       -> __IMPOSSIBLE__
   ty <- underPars np $ defType def
-  reportSDoc "tc.pragma.compile" 10 $ ("Haskell type for" <+> prettyTCM q <> ":") <?> pretty ty
+  reportSDoc "tc.pragma.compile" 10 $ (("Haskell type for" <+> prettyTCM q) <> ":") <?> pretty ty
   return ty
 
 checkConstructorCount :: QName -> [QName] -> [HaskellCode] -> TCM ()

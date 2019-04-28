@@ -29,7 +29,7 @@ import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.PartialOrd
 import Agda.Utils.POMonoid
-import Agda.Utils.Pretty hiding ((<>))
+import Agda.Utils.Pretty
 
 import Agda.Utils.Impossible
 
