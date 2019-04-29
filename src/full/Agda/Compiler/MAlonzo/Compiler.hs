@@ -181,7 +181,7 @@ ghcPostModule _ _ _ _ defs = do
     (map fakeDecl (hsImps ++ code) ++ concat defs)
   hasMainFunction <$> curIF
 
-ghcCompileDef :: GHCOptions -> GHCModuleEnv -> Definition -> TCM [HS.Decl]
+ghcCompileDef :: GHCOptions -> GHCModuleEnv -> IsMain -> Definition -> TCM [HS.Decl]
 ghcCompileDef _ = definition
 
 -- Compilation ------------------------------------------------------------
@@ -224,16 +224,16 @@ imports = (hsImps ++) <$> imps where
 -- Main compiling clauses
 --------------------------------------------------
 
-definition :: GHCModuleEnv -> Definition -> TCM [HS.Decl]
+definition :: GHCModuleEnv -> IsMain -> Definition -> TCM [HS.Decl]
 -- ignore irrelevant definitions
 {- Andreas, 2012-10-02: Invariant no longer holds
 definition kit (Defn NonStrict _ _  _ _ _ _ _ _) = __IMPOSSIBLE__
 -}
-definition env Defn{defArgInfo = info, defName = q} | not $ usableModality info = do
+definition _env _isMain Defn{defArgInfo = info, defName = q} | not $ usableModality info = do
   reportSDoc "compile.ghc.definition" 10 $
     "Not compiling" <+> prettyTCM q <> "."
   return []
-definition env Defn{defName = q, defType = ty, theDef = d} = do
+definition env isMain def@Defn{defName = q, defType = ty, theDef = d} = do
   reportSDoc "compile.ghc.definition" 10 $ vcat
     [ "Compiling" <+> prettyTCM q <> ":"
     , nest 2 $ text (show d)
@@ -243,7 +243,7 @@ definition env Defn{defName = q, defType = ty, theDef = d} = do
   mlist  <- getBuiltinName builtinList
   minf   <- getBuiltinName builtinInf
   mflat  <- getBuiltinName builtinFlat
-  checkTypeOfMain q ty $ do
+  checkTypeOfMain isMain q def $ do
     infodecl q <$> case d of
 
       _ | Just HsDefn{} <- pragma, Just q == mflat ->

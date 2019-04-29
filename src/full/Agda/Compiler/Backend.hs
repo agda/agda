@@ -82,7 +82,7 @@ data Backend' opts env menv mod def = Backend'
       --   required.
   , postModule       :: env -> menv -> IsMain -> ModuleName -> [def] -> TCM mod
       -- ^ Called after all definitions of a module has been compiled.
-  , compileDef       :: env -> menv -> Definition -> TCM def
+  , compileDef       :: env -> menv -> IsMain -> Definition -> TCM def
       -- ^ Compile a single definition.
   , scopeCheckingSuffices :: Bool
     -- ^ True if the backend works if @--only-scope-checking@ is used.
@@ -201,8 +201,8 @@ compileModule backend env isMain i = do
     Skip m         -> return m
     Recompile menv -> do
       defs <- map snd . sortDefs <$> curDefs
-      res  <- mapM (compileDef' backend env menv <=< instantiateFull) defs
+      res  <- mapM (compileDef' backend env menv isMain <=< instantiateFull) defs
       postModule backend env menv isMain (iModuleName i) res
 
-compileDef' :: Backend' opts env menv mod def -> env -> menv -> Definition -> TCM def
-compileDef' backend env menv def = setCurrentRange (defName def) $ compileDef backend env menv def
+compileDef' :: Backend' opts env menv mod def -> env -> menv -> IsMain -> Definition -> TCM def
+compileDef' backend env menv isMain def = setCurrentRange (defName def) $ compileDef backend env menv isMain def

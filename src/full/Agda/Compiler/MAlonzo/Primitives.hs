@@ -5,7 +5,7 @@ module Agda.Compiler.MAlonzo.Primitives where
 import Control.Monad.State
 import Data.Char
 import qualified Data.List as List
-import Data.Map as M
+import qualified Data.Map as Map
 import Data.Maybe
 
 import Agda.Compiler.Common
@@ -26,29 +26,46 @@ import Agda.Utils.Either
 import Agda.Utils.Except
 import Agda.Utils.Lens
 import Agda.Utils.Monad
+import Agda.Utils.Pretty (prettyShow)
 import qualified Agda.Utils.HashMap as HMap
 import qualified Agda.Utils.Haskell.Syntax as HS
 
 #include "undefined.h"
 import Agda.Utils.Impossible
 
-isMainFunction :: QName -> Bool
-isMainFunction q = "main" == show (nameConcrete $ qnameName q)
+-- Andreas, 2019-04-29, issue #3731: exclude certain kinds of names, like constructors.
+-- TODO: Also only consider top-level definition (not buried inside a module).
+isMainFunction :: QName -> Defn -> Bool
+isMainFunction q = \case
+    Axiom{}                             -> perhaps
+    Function{ funProjection = Nothing } -> perhaps
+    Function{ funProjection = Just{}  } -> no
+    AbstractDefn{}                      -> no
+    GeneralizableVar{}                  -> no
+    DataOrRecSig{}                      -> no
+    Datatype{}                          -> no
+    Record{}                            -> no
+    Constructor{}                       -> no
+    Primitive{}                         -> no
+  where
+  perhaps = "main" == prettyShow (nameConcrete $ qnameName q)  -- ignores the qualification!?
+  no      = False
 
 hasMainFunction :: Interface -> IsMain
 hasMainFunction i
-  | List.any isMainFunction names = IsMain
-  | otherwise                     = NotMain
+  | List.any (\ (x, def) -> isMainFunction x $ theDef def) names = IsMain
+  | otherwise = NotMain
   where
-    names = HMap.keys $ iSignature i ^. sigDefinitions
+    names = HMap.toList $ iSignature i ^. sigDefinitions
 
 -- | Check that the main function has type IO a, for some a.
-checkTypeOfMain :: QName -> Type -> TCM [HS.Decl] -> TCM [HS.Decl]
-checkTypeOfMain q ty ret
-  | not (isMainFunction q) = ret
+checkTypeOfMain :: IsMain -> QName -> Definition -> TCM [HS.Decl] -> TCM [HS.Decl]
+checkTypeOfMain NotMain q def ret = ret
+checkTypeOfMain  IsMain q def ret
+  | not (isMainFunction q $ theDef def) = ret
   | otherwise = do
     Def io _ <- primIO
-    ty <- normalise ty
+    ty <- normalise $ defType def
     case unEl ty of
       Def d _ | d == io -> (mainAlias :) <$> ret
       _                 -> do
@@ -115,7 +132,7 @@ importsForPrim =
 xForPrim :: [(String, TCM [a])] -> TCM [a]
 xForPrim table = do
   qs <- HMap.keys <$> curDefs
-  bs <- toList <$> getsTC stBuiltinThings
+  bs <- Map.toList <$> getsTC stBuiltinThings
   let getName (Builtin (Def q _))    = q
       getName (Builtin (Con q _ _))  = conName q
       getName (Builtin (Lam _ b))    = getName (Builtin $ unAbs b)

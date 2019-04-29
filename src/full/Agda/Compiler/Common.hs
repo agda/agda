@@ -44,6 +44,7 @@ import Agda.Utils.Impossible
 data IsMain = IsMain | NotMain
   deriving (Eq, Show)
 
+-- | Conjunctive semigroup ('NotMain' is absorbing).
 instance Semigroup IsMain where
   NotMain <> _ = NotMain
   _       <> NotMain = NotMain

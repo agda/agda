@@ -151,8 +151,8 @@ jsPostModule _ _ isMain _ defs = do
       IsMain  -> Just $ Apply (Lookup Self $ MemberId "main") [Lambda 1 emp]
       NotMain -> Nothing
 
-jsCompileDef :: JSOptions -> JSModuleEnv -> Definition -> TCM (Maybe Export)
-jsCompileDef _ kit def = definition kit (defName def, def)
+jsCompileDef :: JSOptions -> JSModuleEnv -> IsMain -> Definition -> TCM (Maybe Export)
+jsCompileDef _ kit _isMain def = definition kit (defName def, def)
 
 --------------------------------------------------
 -- Naming
