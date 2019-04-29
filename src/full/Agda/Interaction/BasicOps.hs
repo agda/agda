@@ -47,6 +47,7 @@ import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Errors ( stringTCErr )
 import Agda.TypeChecking.Monad as M hiding (MetaInfo)
 import Agda.TypeChecking.MetaVars
+import Agda.TypeChecking.MetaVars.Mention
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
@@ -549,11 +550,21 @@ instance (ToConcrete a c, ToConcrete b d) =>
   toConcrete (OfType' e t) = OfType' <$> toConcrete e <*> toConcreteCtx TopCtx t
 
 getConstraints :: TCM [OutputForm C.Expr C.Expr]
-getConstraints = getConstraints' $ const True
+getConstraints = getConstraints' return $ const True
 
-getConstraints' :: (ProblemConstraint -> Bool) -> TCM [OutputForm C.Expr C.Expr]
-getConstraints' f = liftTCM $ do
-    cs <- filter f <$> M.getAllConstraints
+
+getConstraintsMentioning :: MetaId -> TCM [OutputForm C.Expr C.Expr]
+getConstraintsMentioning m = getConstraints' instantiateBlockingFull (mentionsMeta m)
+  -- could be optimized by not doing a full instantiation up front, with a more clever mentionsMeta.
+  where
+    instantiateBlockingFull p
+      = locallyTCState stInstantiateBlocking (const True) $
+          instantiateFull p
+
+
+getConstraints' :: (ProblemConstraint -> TCM ProblemConstraint) -> (ProblemConstraint -> Bool) -> TCM [OutputForm C.Expr C.Expr]
+getConstraints' g f = liftTCM $ do
+    cs <- filter f <$> (mapM g =<< M.getAllConstraints)
     cs <- forM cs $ \c -> do
             cl <- reify c
             enterClosure cl abstractToConcrete_

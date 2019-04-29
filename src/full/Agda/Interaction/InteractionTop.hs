@@ -1485,7 +1485,7 @@ cmd_goal_type_context_and doc norm ii _ _ = display_info . Info_GoalType =<< do
     goal <- B.withInteractionId ii $ prettyTypeOfMeta norm ii
     ctx  <- prettyContext norm True ii
     m    <- lookupInteractionId ii
-    constr <- vcat . map pretty <$> B.getConstraints' (mentionsMeta m)
+    constr <- vcat . map pretty <$> B.getConstraintsMentioning m
     let constrDoc = ifNull constr [] $ \constr ->
           [ text $ delimiter "Constraints"
           , constr
