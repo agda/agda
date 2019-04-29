@@ -1,16 +1,6 @@
 {-# LANGUAGE CPP                  #-}
 {-# LANGUAGE UndecidableInstances #-}
 
--- To define <>, we need to add with GHC >= 8.4
---
---   import Prelude hiding ((<>))
---
--- but using that gives warnings and doesn't silence -Wsemigroup in
--- some versions of GHC.
-#if __GLASGOW_HASKELL__ < 804
-{-# OPTIONS_GHC -Wno-semigroup #-}
-#endif
-
 module Agda.TypeChecking.Pretty
     ( module Agda.TypeChecking.Pretty
     -- This re-export can be removed once <GHC-8.4 is dropped.
