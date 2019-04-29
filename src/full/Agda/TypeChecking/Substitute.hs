@@ -20,7 +20,6 @@ module Agda.TypeChecking.Substitute
 
 import Control.Arrow (first, second)
 import Data.Function
-import Data.Functor
 import qualified Data.List as List
 import Data.Map (Map)
 import Data.Maybe

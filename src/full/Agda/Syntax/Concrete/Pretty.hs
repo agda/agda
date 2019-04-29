@@ -13,7 +13,6 @@ import Prelude hiding ( null )
 #endif
 
 import Data.IORef
-import Data.Functor
 import Data.Maybe
 import qualified Data.Strict.Maybe as Strict
 
