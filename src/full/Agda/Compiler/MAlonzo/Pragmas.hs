@@ -47,6 +47,16 @@ instance HasRange HaskellPragma where
   getRange (HsData   r _ _) = r
   getRange (HsExport r _)   = r
 
+instance Pretty HaskellPragma where
+  pretty = \case
+    HsDefn   _r hsCode        -> equals <+> text hsCode
+    HsType   _r hsType        -> equals <+> text hsType
+    HsData   _r hsType hsCons -> hsep $
+      [ equals, "data", text hsType
+      , parens $ hsep $ map text $ List.intersperse "|" hsCons
+      ]
+    HsExport _r hsCode        -> "as" <+> text hsCode
+
 -- Syntax for Haskell pragmas:
 --  HsDefn CODE       "= CODE"
 --  HsType TYPE       "= type TYPE"
