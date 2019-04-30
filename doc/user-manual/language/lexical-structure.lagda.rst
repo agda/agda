@@ -46,8 +46,9 @@ keywords
   ``quoteContext`` ``quoteGoal`` :ref:`quoteTerm <macros>` ``record``
   ``renaming`` ``rewrite`` ``Set`` ``syntax`` ``tactic``
   :ref:`unquote <macros>` :ref:`unquoteDecl <unquoting-declarations>`
-  :ref:`unquoteDef <unquoting-declarations>` ``using`` ``where``
-  ``with``
+  :ref:`unquoteDef <unquoting-declarations>` ``using``
+  :ref:`variable <generalization-of-declared-variables>`
+  ``where`` ``with``
 
   The ``Set`` keyword can appear with a number suffix, optionally subscripted
   (see :ref:`universe-levels`). For instance ``Set42`` and ``Set₄₂`` are both
