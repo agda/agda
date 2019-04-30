@@ -7,6 +7,11 @@ Pragmas and options
 * New pragma `WARNING_ON_IMPORT` to let module authors raise a warning
   when a module is imported. This can be use to tell users deprecations.
 
+Installation and infrastructure
+-------------------
+
+ * Removed support for GHC 7.10.3.
+
 Release notes for Agda version 2.6.0.1
 ======================================
 
