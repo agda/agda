@@ -11,9 +11,7 @@ module Agda.Utils.Monad
 import Prelude       hiding (concat)
 import Control.Monad hiding (mapM, forM)
 
-#if __GLASGOW_HASKELL__ >= 800
 import qualified Control.Monad.Fail as Fail
-#endif
 
 import Control.Monad.Identity ( Identity )
 import Control.Monad.State
@@ -36,10 +34,8 @@ import Agda.Utils.Impossible
 
 ---------------------------------------------------------------------------
 
-#if __GLASGOW_HASKELL__ >= 800
 instance Fail.MonadFail Identity where
   fail = error
-#endif
 
 ---------------------------------------------------------------------------
 

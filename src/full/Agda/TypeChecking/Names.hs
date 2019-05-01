@@ -30,9 +30,7 @@ module Agda.TypeChecking.Names where
 import Control.Monad
 import Control.Applicative
 
-#if __GLASGOW_HASKELL__ >= 800
 import qualified Control.Monad.Fail as Fail
-#endif
 
 import Control.Monad.Identity
 import Control.Monad.Reader
@@ -83,9 +81,7 @@ newtype NamesT m a = NamesT { unName :: ReaderT Names m a }
   deriving ( Functor
            , Applicative
            , Monad
-#if __GLASGOW_HASKELL__ >= 800
            , Fail.MonadFail
-#endif
            , MonadTrans
            , MonadState s
            , MonadIO

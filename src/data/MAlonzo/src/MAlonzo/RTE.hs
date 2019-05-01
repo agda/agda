@@ -4,11 +4,7 @@
 module MAlonzo.RTE where
 
 import Unsafe.Coerce
-#if __GLASGOW_HASKELL__ >= 800
 import qualified GHC.Exts as GHC (Any)
-#else
-import qualified GHC.Prim as GHC (Any)
-#endif
 import qualified Data.Word
 import Numeric.IEEE ( IEEE(identicalIEEE) )
 

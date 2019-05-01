@@ -5,13 +5,8 @@ import Distribution.Simple.LocalBuildInfo
 import Distribution.Simple.Setup
 import Distribution.Simple.BuildPaths (exeExtension)
 import Distribution.PackageDescription
--- ASR (2019-01-10): The Cabal macro @MIN_VERSION_Cabal@ is avaliable
--- from Cabal_>_1.24 so this macro is not supported with the
--- "standard" GHC 7.10.3 which is shipped with Cabal 1.22.5.0.
-#if __GLASGOW_HASKELL__ >= 800
 #if MIN_VERSION_Cabal(2,3,0)
 import Distribution.System ( buildPlatform )
-#endif
 #endif
 import System.FilePath
 import System.Directory (makeAbsolute, removeFile)
@@ -81,15 +76,8 @@ buildHook' pd lbi hooks flags = do
       ExitFailure _ -> die $ "Error: Failed to typecheck " ++ fullpath ++ "!"
 
 agdaExeExtension :: String
--- ASR (2019-01-10): The Cabal macro @MIN_VERSION_Cabal@ is avaliable
--- from Cabal_>_1.24 so this macro is not supported with the
--- "standard" GHC 7.10.3 which is shipped with Cabal 1.22.5.0.
-#if __GLASGOW_HASKELL__ >= 800
 #if MIN_VERSION_Cabal(2,3,0)
 agdaExeExtension = exeExtension buildPlatform
-#else
-agdaExeExtension = exeExtension
-#endif
 #else
 agdaExeExtension = exeExtension
 #endif

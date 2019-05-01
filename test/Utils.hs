@@ -76,11 +76,6 @@ dropAgdaExtension' p =  stripExtension ".agda" p
                         <|> stripExtension ".lagda.rst" p
                         <|> stripExtension ".lagda.md" p
                         <|> stripExtension ".lagda.org" p
-#if !MIN_VERSION_filepath(1,4,1)
-  where
-    stripExtension :: String -> FilePath -> Maybe FilePath
-    stripExtension e = fmap reverse . stripPrefix (reverse e) . reverse
-#endif
 
 dropAgdaExtension :: FilePath -> FilePath
 dropAgdaExtension p =
