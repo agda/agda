@@ -189,8 +189,6 @@ data PreScopeState = PreScopeState
     -- ^ Imported @UserWarning@s, not to be stored in the @Interface@
   , stPreLocalUserWarnings    :: !(Map A.QName String)
     -- ^ Locally defined @UserWarning@s, to be stored in the @Interface@
-  , stPreWarningOnImport      :: !(Maybe String)
-    -- ^ Whether the current module should raise a warning when opened
   }
 
 type DisambiguatedNames = IntMap A.QName
@@ -344,7 +342,6 @@ initPreScopeState = PreScopeState
   , stPreFreshInteractionId   = 0
   , stPreImportedUserWarnings = Map.empty
   , stPreLocalUserWarnings    = Map.empty
-  , stPreWarningOnImport      = Nothing
   }
 
 initPostScopeState :: PostScopeState
@@ -468,11 +465,6 @@ getUserWarnings = do
   iuw <- useTC stImportedUserWarnings
   luw <- useTC stLocalUserWarnings
   return $ iuw `Map.union` luw
-
-stWarningOnImport :: Lens' (Maybe String) TCState
-stWarningOnImport f s =
-  f (stPreWarningOnImport (stPreScopeState s)) <&>
-  \ x -> s {stPreScopeState = (stPreScopeState s) {stPreWarningOnImport = x}}
 
 stBackends :: Lens' [Backend] TCState
 stBackends f s =
@@ -822,8 +814,6 @@ data Interface = Interface
     -- ^ Display forms added for imported identifiers.
   , iUserWarnings    :: Map A.QName String
     -- ^ User warnings for imported identifiers
-  , iImportWarning   :: Maybe String
-    -- ^ Whether this module should raise a warning when imported
   , iBuiltin         :: BuiltinThings (String, QName)
   , iForeignCode     :: Map BackendName [ForeignCode]
   , iHighlighting    :: HighlightingInfo
@@ -840,9 +830,8 @@ data Interface = Interface
 instance Pretty Interface where
   pretty (Interface
             sourceH source fileT importedM moduleN scope insideS signature
-            display userwarn importwarn builtin foreignCode highlighting pragmaO
+            display userwarn builtin foreignCode highlighting pragmaO
             oUsed patternS warnings) =
-
     hang "Interface" 2 $ vcat
       [ "source hash:"         <+> (pretty . show) sourceH
       , "source:"              $$  nest 2 (text $ T.unpack source)
@@ -854,7 +843,6 @@ instance Pretty Interface where
       , "signature:"           <+> (pretty . show) signature
       , "display:"             <+> (pretty . show) display
       , "user warnings:"       <+> (pretty . show) userwarn
-      , "import warning:"      <+> (pretty . show) importwarn
       , "builtin:"             <+> (pretty . show) builtin
       , "Foreign code:"        <+> (pretty . show) foreignCode
       , "highlighting:"        <+> (pretty . show) highlighting

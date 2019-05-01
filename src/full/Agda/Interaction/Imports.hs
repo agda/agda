@@ -193,10 +193,6 @@ scopeCheckImport x = do
     -- we need to reimburse her account.
     i <- Bench.billTo [] $ getInterface x
     addImport x
-
-    -- If that interface was supposed to raise a warning on import, do so.
-    whenJust (iImportWarning i) $ warning . UserWarning
-
     -- let s = publicModules $ iInsideScope i
     let s = iScope i
     return (iModuleName i `withRangesOfQ` mnameToConcrete x, s)
@@ -449,10 +445,6 @@ getInterface' x isMain msi = do
         (_, SomeWarnings w)           -> return ()
         _                             -> storeDecodedModule i
 
-      reportSLn "warning.import" 10 $ unlines $
-        [ "module: " ++ show (C.moduleNameParts x)
-        , "WarningOnImport: " ++ show (iImportWarning i)
-        ]
       return (i, wt')
 
 -- | Check if the options used for checking an imported module are
@@ -1116,8 +1108,7 @@ buildInterface source fileType topLevel pragmas = do
     display <- HMap.filter (not . null) . HMap.map (filter isClosed) <$> useTC stImportsDisplayForms
     -- TODO: Kill some ranges?
     (display, sig) <- eliminateDeadCode display =<< getSignature
-    userwarns  <- useTC stLocalUserWarnings
-    importwarn <- useTC stWarningOnImport
+    userwarns <- useTC stLocalUserWarnings
     syntaxInfo <- useTC stSyntaxInfo
     optionsUsed <- useTC stPragmaOptions
 
@@ -1139,7 +1130,6 @@ buildInterface source fileType topLevel pragmas = do
       , iSignature       = sig
       , iDisplayForms    = display
       , iUserWarnings    = userwarns
-      , iImportWarning   = importwarn
       , iBuiltin         = builtin'
       , iForeignCode     = foreignCode
       , iHighlighting    = syntaxInfo
