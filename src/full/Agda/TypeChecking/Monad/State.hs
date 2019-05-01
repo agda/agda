@@ -182,7 +182,7 @@ locallyScope l = locallyTCState $ stScope . l
 
 -- | Run a computation in a local scope.
 withScope :: ReadTCState m => ScopeInfo -> m a -> m (a, ScopeInfo)
-withScope s m = locallyTCState stScope (const s) $ (,) <$> m <*> getScope
+withScope s m = locallyTCState stScope (recomputeInverseScopeMaps . const s) $ (,) <$> m <*> getScope
 
 -- | Same as 'withScope', but discard the scope from the computation.
 withScope_ :: ReadTCState m => ScopeInfo -> m a -> m a
