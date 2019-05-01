@@ -210,8 +210,7 @@ splitTelescopeExact is tel = guard ok $> SplitTel tel1 tel2 perm
     checkDependencies soFar []     = True
     checkDependencies soFar (j:js) = ok && checkDependencies (IntSet.insert j soFar) js
       where
-        fv' = allFreeVars $  -- newline because of CPP
-                indexWithDefault __IMPOSSIBLE__ ts0 (n-1-j)
+        fv' = allFreeVars $ indexWithDefault __IMPOSSIBLE__ ts0 (n-1-j)
         fv  = fv' `IntSet.intersection` IntSet.fromAscList [ 0 .. n-1 ]
         ok  = fv `IntSet.isSubsetOf` soFar
 
