@@ -30,6 +30,10 @@ import Control.Applicative hiding (empty)
 import Control.Monad.Reader
 import Control.Monad.State
 
+#if __GLASGOW_HASKELL__ >= 800
+import qualified Control.Monad.Fail as Fail
+#endif
+
 import Data.Either
 import qualified Data.Map as Map
 import Data.Maybe
@@ -209,6 +213,12 @@ instance Applicative AbsToCon where
 
 instance Monad AbsToCon where
   m >>= f = AbsToCon $ unAbsToCon m >>= unAbsToCon . f
+#if __GLASGOW_HASKELL__ >= 800
+  fail = Fail.fail
+
+instance Fail.MonadFail AbsToCon where
+  fail = error
+#endif
 
 instance MonadReader Env AbsToCon where
   ask = AbsToCon ask
