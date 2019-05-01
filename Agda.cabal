@@ -649,7 +649,7 @@ executable agda
   -- However, we sometimes recommend people to use +RTS to control
   -- Agda's memory usage, so we want this functionality enabled by
   -- default.
-  ghc-options:  -rtsopts
+  ghc-options: -threaded -rtsopts
 
 executable agda-mode
   hs-source-dirs:   src/agda-mode
