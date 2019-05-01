@@ -72,6 +72,9 @@ type MonadConversion m =
   , HasBuiltins m
   , HasConstInfo m
   , HasOptions m
+#if MIN_VERSION_base(4,11,0)
+  , MonadFail m
+#endif
   )
 
 -- | Try whether a computation runs without errors or new constraints
