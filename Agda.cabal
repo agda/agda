@@ -123,7 +123,6 @@ custom-setup
 
 library
   hs-source-dirs:   src/full
-  include-dirs:     src/full
 
   if flag(cpphs)
     -- We don't write an upper bound for cpphs because the
