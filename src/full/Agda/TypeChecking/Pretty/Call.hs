@@ -2,7 +2,11 @@
 
 module Agda.TypeChecking.Pretty.Call where
 
+#if MIN_VERSION_base(4,11,0)
+import Prelude hiding ( (<>), null )
+#else
 import Prelude hiding ( null )
+#endif
 
 import Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Views
