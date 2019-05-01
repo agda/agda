@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Agda.Compiler.Common where
@@ -38,7 +37,6 @@ import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Pretty hiding ((<>))
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 data IsMain = IsMain | NotMain

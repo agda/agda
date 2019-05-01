@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 
 {-| Pretty printing functions.
 -}
@@ -16,7 +15,6 @@ import Text.PrettyPrint hiding (TextDetails(Str), empty)
 
 import Agda.Utils.NonemptyList
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- * Pretty class

@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
@@ -15,7 +14,6 @@ import Agda.Syntax.Internal (Substitution'(..))
 import Agda.TypeChecking.Substitute
 
 import Agda.Utils.Impossible
-#include "undefined.h"
 
 instance DeBruijn TTerm where
   deBruijnVar = TVar

@@ -75,7 +75,6 @@ import Agda.Utils.Pretty ( prettyShow )
 import Agda.Utils.Size
 import Agda.Utils.Tuple
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 -----------------------------------------------------------------------------

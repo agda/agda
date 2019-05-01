@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP        #-}
 
 module Agda.Utils.Memo where
 

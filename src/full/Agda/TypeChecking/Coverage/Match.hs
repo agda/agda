@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP           #-}
 
 module Agda.TypeChecking.Coverage.Match
   ( Match(..), match
@@ -42,7 +41,6 @@ import Agda.Utils.Size
 import Agda.Utils.List
 import Agda.Utils.Monad
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 {-| Given

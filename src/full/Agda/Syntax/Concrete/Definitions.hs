@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP                #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE GADTs              #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
@@ -93,7 +92,6 @@ import Agda.Utils.Three
 import Agda.Utils.Tuple
 import Agda.Utils.Update
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 {--------------------------------------------------------------------------

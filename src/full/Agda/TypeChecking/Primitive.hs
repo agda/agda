@@ -69,7 +69,6 @@ import Agda.Utils.Size
 import Agda.Utils.String ( Str(Str), unStr )
 import Agda.Utils.Tuple
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 import Debug.Trace
 

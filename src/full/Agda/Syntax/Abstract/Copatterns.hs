@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 
 module Agda.Syntax.Abstract.Copatterns (translateCopatternClauses) where
 
@@ -25,7 +24,6 @@ import Agda.Utils.Either
 import Agda.Utils.Maybe
 import Agda.Utils.Tuple
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 {- Andreas 2012-04-07, 2012-05-08

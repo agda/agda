@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 {-# LANGUAGE UndecidableInstances #-}  -- for Arg a => Elim' a
 
 -- | Tools for 'DisplayTerm' and 'DisplayForm'.
@@ -30,7 +29,6 @@ import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Pretty
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | Convert a 'DisplayTerm' into a 'Term'.

@@ -1,5 +1,4 @@
 {-# LANGUAGE BangPatterns               #-}
-{-# LANGUAGE CPP                        #-}
 {-# LANGUAGE DeriveDataTypeable         #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE TemplateHaskell            #-}
@@ -12,6 +11,7 @@ module Agda.Syntax.Internal
     ) where
 
 import Prelude hiding (foldr, mapM, null)
+import GHC.Stack (HasCallStack, freezeCallStack, callStack)
 
 import Control.Applicative hiding (empty)
 import Control.Monad.Identity hiding (mapM)
@@ -48,7 +48,6 @@ import qualified Agda.Utils.Pretty as P
 import Agda.Utils.Pretty hiding ((<>))
 import Agda.Utils.Tuple
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | Type of argument lists.
@@ -764,25 +763,40 @@ dummyLevel' file line = unreducedLevel $ dummyTerm' file line
 dummyTerm :: String -> Int -> Term
 dummyTerm file line = dummyTerm' ("dummyTerm: " ++ file) line
 
+__DUMMY_TERM__ :: HasCallStack => Term
+__DUMMY_TERM__ = withFileAndLine' (freezeCallStack callStack) dummyTerm
+
 -- | A dummy level created at location.
 --   Note: use macro __DUMMY_LEVEL__ !
 dummyLevel :: String -> Int -> Level
 dummyLevel file line = dummyLevel' ("dummyLevel: " ++ file) line
+
+__DUMMY_LEVEL__ :: HasCallStack => Level
+__DUMMY_LEVEL__ = withFileAndLine' (freezeCallStack callStack) dummyLevel
 
 -- | A dummy sort created at location.
 --   Note: use macro __DUMMY_SORT__ !
 dummySort :: String -> Int -> Sort
 dummySort file line = DummyS $ file ++ ":" ++ show line
 
+__DUMMY_SORT__ :: HasCallStack => Sort
+__DUMMY_SORT__ = withFileAndLine' (freezeCallStack callStack) dummySort
+
 -- | A dummy type created at location.
 --   Note: use macro __DUMMY_TYPE__ !
 dummyType :: String -> Int -> Type
 dummyType file line = El (DummyS "") $ dummyTerm' ("dummyType: " ++ file) line
 
+__DUMMY_TYPE__ :: HasCallStack => Type
+__DUMMY_TYPE__ = withFileAndLine' (freezeCallStack callStack) dummyType
+
 -- | Context entries without a type have this dummy type.
 --   Note: use macro __DUMMY_DOM__ !
 dummyDom :: String -> Int -> Dom Type
 dummyDom file line = defaultDom $ dummyType file line
+
+__DUMMY_DOM__ :: HasCallStack => Dom Type
+__DUMMY_DOM__ = withFileAndLine' (freezeCallStack callStack) dummyDom
 
 unreducedLevel :: Term -> Level
 unreducedLevel v = Max [ Plus 0 $ UnreducedLevel v ]

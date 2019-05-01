@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 
 -- | Compute eta long normal forms.
 module Agda.TypeChecking.EtaExpand where
@@ -14,7 +13,6 @@ import Agda.TypeChecking.Substitute
 
 import Agda.Utils.Monad
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | Eta-expand a term if its type is a function type or an eta-record type.

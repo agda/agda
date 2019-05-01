@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP                #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 
 -- | Case trees.
@@ -29,7 +28,6 @@ import Agda.Syntax.Position
 import Agda.Utils.Null
 import Agda.Utils.Pretty hiding ((<>))
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 data WithArity c = WithArity { arity :: Int, content :: c }

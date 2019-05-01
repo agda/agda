@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP               #-}
 
 -- Initially authored by Andreas, 2013-10-22.
 
@@ -45,7 +44,6 @@ import Agda.Utils.Functor (($>))
 import Agda.Utils.Monad
 import Agda.Utils.Size
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- * Bidirectional rechecker

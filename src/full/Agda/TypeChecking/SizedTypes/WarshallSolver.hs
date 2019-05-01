@@ -32,7 +32,6 @@ import Agda.Utils.Functor
 import Agda.Utils.Null
 import Agda.Utils.Pretty
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 type Graph r f a = Graph.Graph (Node r f) a

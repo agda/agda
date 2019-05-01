@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 
 module Agda.TypeChecking.DropArgs where
 
@@ -16,7 +15,6 @@ import Agda.TypeChecking.Coverage.SplitTree
 import Agda.Utils.Functor
 import Agda.Utils.Permutation
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 ---------------------------------------------------------------------------

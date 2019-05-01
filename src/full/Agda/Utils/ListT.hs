@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP                   #-}
 {-# LANGUAGE UndecidableInstances  #-}  -- Due to limitations of funct.dep.
 
 -- | @ListT@ done right,

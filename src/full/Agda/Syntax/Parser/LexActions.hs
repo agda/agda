@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 
 {-| This module contains the building blocks used to construct the lexer.
 -}
@@ -32,7 +31,6 @@ import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Tuple
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 {--------------------------------------------------------------------------

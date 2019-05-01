@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 
 module Agda.Auto.Typecheck where
 
@@ -10,7 +9,6 @@ import Agda.Auto.NarrowingSearch
 import Agda.Auto.Syntax
 import Agda.Auto.SearchControl
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- ---------------------------------

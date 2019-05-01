@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP               #-}
 
 {-| This module deals with finding imported modules and loading their
     interface files.
@@ -83,7 +82,6 @@ import Agda.Utils.Hash
 import qualified Agda.Utils.HashMap as HMap
 import qualified Agda.Utils.Trie as Trie
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | Some information about the source code.

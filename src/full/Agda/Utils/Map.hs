@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 
 module Agda.Utils.Map where
 
@@ -8,7 +7,6 @@ import Data.Traversable
 
 import Agda.Utils.Tuple
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- * Monadic map operations

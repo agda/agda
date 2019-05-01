@@ -1,5 +1,4 @@
 {-# LANGUAGE BangPatterns       #-}
-{-# LANGUAGE CPP                #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE UndecidableInstances   #-}
 
@@ -58,7 +57,6 @@ import Agda.Utils.Size
 import Agda.Utils.Tuple
 import Agda.Utils.HashMap (HashMap)
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 instance Apply Term where

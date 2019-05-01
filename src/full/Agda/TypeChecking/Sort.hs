@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 
 -- | This module contains the rules for Agda's sort system viewed as a pure
 --   type system (pts). The specification of a pts consists of a set
@@ -39,7 +38,6 @@ import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | Infer the sort of another sort. If we can compute the bigger sort

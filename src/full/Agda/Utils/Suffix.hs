@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 
 module Agda.Utils.Suffix where
 
@@ -6,7 +5,6 @@ import Data.Char
 
 import Agda.Utils.Function
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 import Data.IORef

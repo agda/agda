@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP               #-}
 {-# LANGUAGE NondecreasingIndentation #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
@@ -92,7 +91,6 @@ import Agda.Utils.Size
 import Agda.Utils.Lens
 import qualified Agda.Utils.HashMap as HMap
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 requireOptionRewriting :: TCM ()
@@ -167,8 +165,7 @@ addRewriteRule q = do
       ]
   -- We know that the type of rel is that of a relation.
   relV <- relView =<< do defType <$> getConstInfo rel
-  let RelView _tel delta a _a' _core = -- line break for CPP
-        fromMaybe __IMPOSSIBLE__ relV
+  let RelView _tel delta a _a' _core = fromMaybe __IMPOSSIBLE__ relV
   reportSDoc "rewriting" 30 $ do
     "rewrite relation at type " <+> do
       inTopContext $ prettyTCM (telFromList delta) <+> " |- " <+> do

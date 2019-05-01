@@ -45,7 +45,6 @@ import qualified Agda.Utils.HashMap as HMap
 import Agda.Utils.Pretty (prettyShow)
 import Agda.Utils.Size
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 mkCon :: ConHead -> ConInfo -> Args -> Term

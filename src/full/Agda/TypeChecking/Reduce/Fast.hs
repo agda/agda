@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP           #-}
 {-# LANGUAGE BangPatterns  #-}
 {-# LANGUAGE PatternGuards #-}
 {-# LANGUAGE PatternSynonyms #-}
@@ -90,7 +89,6 @@ import Agda.Utils.Pretty hiding ((<>))
 import Agda.Utils.Size
 import Agda.Utils.Zipper
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 import Debug.Trace
@@ -755,7 +753,7 @@ buildEnv xs spine = go xs spine emptyEnv
         _            -> __IMPOSSIBLE__
 
 unusedPointerString :: String
-unusedPointerString = show (Impossible __FILE__ __LINE__)
+unusedPointerString = show (withFileAndLine Impossible)
 
 unusedPointer :: Pointer s
 unusedPointer = Pure (Closure (Value $ notBlocked ())

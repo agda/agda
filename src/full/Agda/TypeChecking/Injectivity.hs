@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP           #-}
 
 module Agda.TypeChecking.Injectivity where
 
@@ -43,7 +42,6 @@ import Agda.Utils.Monad
 import Agda.Utils.Permutation
 import Agda.Utils.Pretty ( prettyShow )
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 headSymbol :: Term -> TCM (Maybe TermHead)

@@ -41,7 +41,6 @@ tested-with:        GHC == 8.0.2
 extra-source-files: CHANGELOG.md
                     README.md
                     doc/user-manual.pdf
-                    src/full/undefined.h
                     stack-8.0.2.yaml
                     stack-8.2.2.yaml
                     stack-8.4.4.yaml
@@ -124,7 +123,6 @@ custom-setup
 
 library
   hs-source-dirs:   src/full
-  include-dirs:     src/full
 
   if flag(cpphs)
     -- We don't write an upper bound for cpphs because the

@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 
 -- | A simple overlay over Data.Map to manage unordered sets with duplicates.
 
@@ -20,7 +19,6 @@ import Data.Traversable
 
 import Agda.Utils.Functor
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | A set with duplicates.

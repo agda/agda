@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 
 {- | Sparse matrices.
 
@@ -71,7 +70,6 @@ import Agda.Utils.PartialOrd
 import Agda.Utils.Pretty hiding (isEmpty)
 import Agda.Utils.Tuple
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 ------------------------------------------------------------------------

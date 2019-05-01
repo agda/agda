@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 
 -- | Generate an import dependency graph for a given module.
 
@@ -18,7 +17,6 @@ import Agda.Interaction.Options
 import Agda.Syntax.Abstract
 import Agda.TypeChecking.Monad
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | Internal module identifiers for construction of dependency graph.

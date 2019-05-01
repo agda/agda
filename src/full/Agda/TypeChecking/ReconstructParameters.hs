@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 
 -- | Reconstruct dropped parameters from constructors.  Used by
 --   with-abstraction to avoid ill-typed abstractions (#745). Note that the
@@ -23,7 +22,6 @@ import Agda.TypeChecking.Pretty
 import Agda.Utils.Size
 
 import Agda.Utils.Impossible
-#include "undefined.h"
 
 reconstructParametersInType :: Type -> TCM Type
 reconstructParametersInType a =

@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 {-| Compile-time irrelevance.
@@ -93,7 +92,6 @@ import Agda.Utils.Function
 import Agda.Utils.Lens
 import Agda.Utils.Monad
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | data 'Relevance'

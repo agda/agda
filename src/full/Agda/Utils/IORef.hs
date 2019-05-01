@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 
 -- | Utilities for Data.IORef.
 

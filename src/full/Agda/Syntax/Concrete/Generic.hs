@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 
 -- | Generic traversal and reduce for concrete syntax,
 --   in the style of "Agda.Syntax.Internal.Generic".
@@ -16,7 +15,6 @@ import Agda.Syntax.Concrete
 
 import Agda.Utils.Either
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | Generic traversals for concrete expressions.

@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP               #-}
 
 -- | Function for generating highlighted, hyperlinked HTML from Agda
 -- sources.
@@ -65,7 +64,6 @@ import qualified Agda.Utils.IO.UTF8 as UTF8
 import Agda.Utils.Pretty hiding ((<>))
 import Agda.Utils.Tuple
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | The name of the default CSS file.

@@ -56,7 +56,6 @@ import Agda.Utils.Pretty (prettyShow)
 import Agda.Utils.String ( Str(Str), unStr )
 import qualified Agda.Interaction.Options.Lenses as Lens
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 agdaTermType :: TCM Type

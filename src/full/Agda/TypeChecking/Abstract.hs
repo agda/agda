@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 -- | Functions for abstracting terms over other terms.
@@ -27,7 +26,6 @@ import Agda.Utils.Except
 import qualified Agda.Utils.HashMap as HMap
 
 import Agda.Utils.Impossible
-#include "undefined.h"
 
 typeOf :: Type -> Type
 typeOf = sort . getSort

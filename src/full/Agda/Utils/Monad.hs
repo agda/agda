@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 
 module Agda.Utils.Monad
     ( module Agda.Utils.Monad
@@ -29,7 +28,6 @@ import Agda.Utils.Except
 import Agda.Utils.List
 import Agda.Utils.Null (ifNotNullM)
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 ---------------------------------------------------------------------------

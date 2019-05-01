@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 {-# LANGUAGE NondecreasingIndentation #-}
 
 module Agda.TypeChecking.Monad.MetaVars where
@@ -48,7 +47,6 @@ import Agda.Utils.Singleton
 import Agda.Utils.Size
 import qualified Agda.Utils.Maybe.Strict as Strict
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | Switch off assignment of metas.

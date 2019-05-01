@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 module Agda.TypeChecking.Monad.Env where
 
 import Control.Monad.Reader
@@ -14,7 +13,6 @@ import Agda.TypeChecking.Monad.Base
 
 import Agda.Utils.FileName
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | Get the name of the current module, if any.

@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 
 module Agda.TypeChecking.Monad.Builtin
   ( module Agda.TypeChecking.Monad.Builtin
@@ -28,7 +27,6 @@ import Agda.Utils.Monad
 import Agda.Utils.Maybe
 import Agda.Utils.Tuple
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 class ( Functor m

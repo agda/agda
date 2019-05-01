@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP               #-}
 
 -- | Dropping initial arguments (``parameters'') from a function which can be
 --   easily reconstructed from its principal argument.
@@ -84,7 +83,6 @@ import Agda.Utils.Permutation
 import Agda.Utils.Pretty ( prettyShow )
 import Agda.Utils.Size
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | View for a @Def f (Apply a : es)@ where @isProjection f@.

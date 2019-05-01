@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 -- | Converts case matches on literals to if cascades with equality comparisons.
 module Agda.Compiler.Treeless.EliminateLiteralPatterns where
 
@@ -18,7 +17,6 @@ import Agda.Compiler.Treeless.Subst
 
 import Agda.Utils.Impossible
 
-#include "undefined.h"
 
 eliminateLiteralPatterns :: TTerm -> TCM TTerm
 eliminateLiteralPatterns t = do

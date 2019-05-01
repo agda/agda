@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 {-# LANGUAGE NondecreasingIndentation #-}
 
 -- Author:  Ulf Norell
@@ -69,7 +68,6 @@ import Agda.Utils.Permutation
 import Agda.Utils.Size
 
 import Agda.Utils.Impossible
-#include "undefined.h"
 
 -- | Returns 'Nothing' if no inlining happened, otherwise, the new clauses.
 

@@ -131,7 +131,6 @@ A module consists of the following parts, in the following order:
 
 
 \begin{code}
-{-# LANGUAGE CPP               #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE TupleSections     #-}
 
@@ -171,7 +170,6 @@ import Agda.Termination.Bla
 import Agda.Utils.Maybe
 import Agda.Utils.Bla
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 ---------------------------------------------------------------------------
