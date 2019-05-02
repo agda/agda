@@ -2,6 +2,8 @@
 
 module Agda.TypeChecking.CheckInternal where
 
+import qualified Data.Kind as Hs
+
 import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin (HasBuiltins)
@@ -25,7 +27,7 @@ type MonadCheckInternal m =
   , HasOptions m
   )
 
-data Action (m :: * -> *)
+data Action (m :: Hs.Type -> Hs.Type)
 
 defaultAction :: Monad m => Action m
 eraseUnusedAction :: Action TCM
