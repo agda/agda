@@ -152,14 +152,20 @@ ghcPostCompile opts isMain mods = copyRTEModules >> callGHC opts isMain mods
 
 type GHCModuleEnv = ()
 
-ghcPreModule :: GHCOptions -> ModuleName -> FilePath -> TCM (Recompile GHCModuleEnv IsMain)
-ghcPreModule _ m ifile = ifM uptodate noComp yesComp
+ghcPreModule
+  :: GHCOptions
+  -> IsMain      -- ^ Are we looking at the main module?
+  -> ModuleName
+  -> FilePath    -- ^ Path to the @.agdai@ file.
+  -> TCM (Recompile GHCModuleEnv IsMain)
+                 -- ^ Could we confirm the existence of a main function?
+ghcPreModule _ isMain m ifile = ifM uptodate noComp yesComp
   where
     uptodate = liftIO =<< isNewerThan <$> outFile_ <*> pure ifile
 
     noComp = do
       reportSLn "compile.ghc" 2 . (++ " : no compilation is needed.") . show . A.mnameToConcrete =<< curMName
-      Skip . hasMainFunction <$> curIF
+      Skip . hasMainFunction isMain <$> curIF
 
     yesComp = do
       m   <- show . A.mnameToConcrete <$> curMName
@@ -168,8 +174,14 @@ ghcPreModule _ m ifile = ifM uptodate noComp yesComp
       stImportedModules `setTCLens` Set.empty  -- we use stImportedModules to accumulate the required Haskell imports
       return (Recompile ())
 
-ghcPostModule :: GHCOptions -> GHCModuleEnv -> IsMain -> ModuleName -> [[HS.Decl]] -> TCM IsMain
-ghcPostModule _ _ _ _ defs = do
+ghcPostModule
+  :: GHCOptions
+  -> GHCModuleEnv
+  -> IsMain        -- ^ Are we looking at the main module?
+  -> ModuleName
+  -> [[HS.Decl]]   -- ^ Compiled module content.
+  -> TCM IsMain    -- ^ Could we confirm the existence of a main function?
+ghcPostModule _ _ isMain _ defs = do
   m      <- curHsMod
   imps   <- imports
   -- Get content of FOREIGN pragmas.
@@ -178,7 +190,7 @@ ghcPostModule _ _ _ _ defs = do
     (map HS.OtherPragma headerPragmas)
     imps
     (map fakeDecl (hsImps ++ code) ++ concat defs)
-  hasMainFunction <$> curIF
+  hasMainFunction isMain <$> curIF
 
 ghcCompileDef :: GHCOptions -> GHCModuleEnv -> IsMain -> Definition -> TCM [HS.Decl]
 ghcCompileDef _ = definition

@@ -73,13 +73,13 @@ data Backend' opts env menv mod def = Backend'
   , postCompile      :: env -> IsMain -> Map ModuleName mod -> TCM ()
       -- ^ Called after module compilation has completed. The @IsMain@ argument
       --   is @NotMain@ if the @--no-main@ flag is present.
-  , preModule        :: env -> ModuleName -> FilePath -> TCM (Recompile menv mod)
+  , preModule        :: env -> IsMain -> ModuleName -> FilePath -> TCM (Recompile menv mod)
       -- ^ Called before compilation of each module. Gets the path to the
       --   @.agdai@ file to allow up-to-date checking of previously written
       --   compilation results. Should return @Skip m@ if compilation is not
       --   required.
   , postModule       :: env -> menv -> IsMain -> ModuleName -> [def] -> TCM mod
-      -- ^ Called after all definitions of a module has been compiled.
+      -- ^ Called after all definitions of a module have been compiled.
   , compileDef       :: env -> menv -> IsMain -> Definition -> TCM def
       -- ^ Compile a single definition.
   , scopeCheckingSuffices :: Bool
@@ -194,7 +194,7 @@ compileModule :: Backend' opts env menv mod def -> env -> IsMain -> Interface ->
 compileModule backend env isMain i = do
   ifile <- maybe __IMPOSSIBLE__ filePath <$>
             (findInterfaceFile . toTopLevelModuleName =<< curMName)
-  r <- preModule backend env (iModuleName i) ifile
+  r <- preModule backend env isMain (iModuleName i) ifile
   case r of
     Skip m         -> return m
     Recompile menv -> do

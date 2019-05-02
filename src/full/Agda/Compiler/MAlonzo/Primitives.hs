@@ -49,8 +49,13 @@ isMainFunction q = \case
   perhaps = "main" == prettyShow (nameConcrete $ qnameName q)  -- ignores the qualification!?
   no      = False
 
-hasMainFunction :: Interface -> IsMain
-hasMainFunction i
+-- | Check for "main" function, but only in the main module.
+hasMainFunction
+  :: IsMain    -- ^ Are we looking at the main module?
+  -> Interface -- ^ The module.
+  -> IsMain    -- ^ Did we find a "main" function?
+hasMainFunction NotMain _ = NotMain
+hasMainFunction IsMain i
   | List.any (\ (x, def) -> isMainFunction x $ theDef def) names = IsMain
   | otherwise = NotMain
   where

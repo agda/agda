@@ -123,8 +123,8 @@ jsPostCompile _ _ _ = copyRTEModules
 
 type JSModuleEnv = Maybe CoinductionKit
 
-jsPreModule :: JSOptions -> ModuleName -> FilePath -> TCM (Recompile JSModuleEnv ())
-jsPreModule _ m ifile = ifM uptodate noComp yesComp
+jsPreModule :: JSOptions -> IsMain -> ModuleName -> FilePath -> TCM (Recompile JSModuleEnv ())
+jsPreModule _ _ m ifile = ifM uptodate noComp yesComp
   where
     uptodate = liftIO =<< isNewerThan <$> outFile_ <*> pure ifile
 
