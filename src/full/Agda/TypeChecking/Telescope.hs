@@ -38,9 +38,11 @@ import qualified Agda.Utils.VarSet as VarSet
 import Agda.Utils.Impossible
 
 -- | Flatten telescope: (Γ : Tel) -> [Type Γ]
-flattenTel :: Telescope -> [Dom Type]
+flattenTel :: Subst t a => Tele (Dom a) -> [Dom a]
 flattenTel EmptyTel          = []
 flattenTel (ExtendTel a tel) = raise (size tel + 1) a : flattenTel (absBody tel)
+
+{-# SPECIALIZE flattenTel :: Telescope -> [Dom Type] #-}
 
 -- | Order a flattened telescope in the correct dependeny order: Γ ->
 --   Permutation (Γ -> Γ~)
@@ -77,7 +79,7 @@ teleNames = map (fst . unDom) . telToList
 teleArgNames :: Telescope -> [Arg ArgName]
 teleArgNames = map (argFromDom . fmap fst) . telToList
 
-teleArgs :: (DeBruijn a) => Telescope -> [Arg a]
+teleArgs :: (DeBruijn a) => Tele (Dom t) -> [Arg a]
 teleArgs tel =
   [ Arg info (deBruijnVar i)
   | (i, Dom {domInfo = info, unDom = (n,_)}) <- zip (downFrom $ size l) l ]

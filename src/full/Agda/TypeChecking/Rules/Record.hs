@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE NondecreasingIndentation   #-}
 
 module Agda.TypeChecking.Rules.Record where
 
@@ -35,7 +36,7 @@ import Agda.TypeChecking.CompiledClause (hasProjectionPatterns)
 import Agda.TypeChecking.CompiledClause.Compile
 
 import Agda.TypeChecking.Rules.Data ( getGeneralizedParameters, bindGeneralizedParameters, bindParameters, fitsIn, forceSort,
-                                      defineCompData, defineTranspForFields, defineHCompForFields )
+                                      defineCompData, defineTranspOrHCompForFields )
 import Agda.TypeChecking.Rules.Term ( isType_ )
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Decl (checkDecl)
 
@@ -374,9 +375,8 @@ defineCompKitR name params fsT fns rect = do
         ]
   reportSDoc "tc.rec.cxt" 30 $ prettyTCM params
   reportSDoc "tc.rec.cxt" 30 $ prettyTCM fsT
-  reportSDoc "tc.rec.cxt" 30 $ text $ show rect
-  sortsOk <- allM (rect : map unDom (flattenTel fsT)) sortOk
-  if not $ sortsOk && all isJust required then return $ emptyCompKit else do
+  reportSDoc "tc.rec.cxt" 30 $ pretty rect
+  if not $ all isJust required then return $ emptyCompKit else do
     transp <- whenDefined [builtinTrans]              (defineTranspOrHCompR DoTransp name params fsT fns rect)
     hcomp  <- whenDefined [builtinTrans,builtinHComp] (defineTranspOrHCompR DoHComp name params fsT fns rect)
     return $ CompKit
@@ -387,10 +387,6 @@ defineCompKitR name params fsT fns rect = do
     whenDefined xs m = do
       xs <- mapM getTerm' xs
       if all isJust xs then m else return Nothing
-    sortOk :: Type -> TCM Bool
-    sortOk a = reduce (getSort a) >>= \case
-      Type{} -> return True
-      _      -> return False
 
 
 defineTranspOrHCompR ::
@@ -402,10 +398,10 @@ defineTranspOrHCompR ::
   -> Type        -- ^ record type Δ ⊢ T
   -> TCM (Maybe QName)
 defineTranspOrHCompR cmd name params fsT fns rect = do
-  (theName, gamma, rtype, clause_types, bodies) <- fst <$>
-    (case cmd of DoTransp -> defineTranspForFields; DoHComp -> defineHCompForFields)
-       (\ t fn -> t `applyE` [Proj ProjSystem fn]) name params fsT fns rect
+  let project = (\ t fn -> t `applyE` [Proj ProjSystem fn])
+  stuff <- fmap fst <$> defineTranspOrHCompForFields cmd Nothing project name params fsT fns rect
 
+  caseMaybe stuff (return Nothing) $ \ (theName, gamma, rtype, clause_types, bodies) -> do
   -- phi = 1 clause
   c' <- do
            io <- primIOne
