@@ -200,6 +200,7 @@ library
                 , time >= 1.6.0.1 && < 1.9
                 , unordered-containers >= 0.2.5.0 && < 0.3
                 , uri-encode >= 1.5.0.4 && < 1.6
+                , zlib >= 0.4.0.1 && < 0.7
 
   -- In hTags the mtl library must be compiled with the version of
   -- transformers shipped with GHC, so we use that version in Agda (see,
@@ -219,8 +220,6 @@ library
 
   if impl(ghc < 8.4)
     build-depends: transformers == 0.5.2.0
-
-  build-depends: zlib >= 0.4.0.1 && < 0.7
 
   -- We don't write upper bounds for Alex nor Happy because the
   -- `build-tools` field can not be modified in Hackage. Agda doesn't
