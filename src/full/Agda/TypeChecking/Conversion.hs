@@ -7,6 +7,7 @@ module Agda.TypeChecking.Conversion where
 import Control.Monad
 import Control.Monad.Reader
 import Control.Monad.State
+import Control.Monad.Fail (MonadFail)
 
 import qualified Data.List as List
 import qualified Data.Map as Map
@@ -71,9 +72,7 @@ type MonadConversion m =
   , HasBuiltins m
   , HasConstInfo m
   , HasOptions m
-#if MIN_VERSION_base(4,11,0)
   , MonadFail m
-#endif
   )
 
 -- | Try whether a computation runs without errors or new constraints

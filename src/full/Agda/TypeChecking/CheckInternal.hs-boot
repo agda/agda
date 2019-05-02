@@ -1,6 +1,9 @@
 {-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE CPP            #-}
 
 module Agda.TypeChecking.CheckInternal where
+
+import qualified Control.Monad.Fail as Fail
 
 import qualified Data.Kind as Hs
 
@@ -25,6 +28,7 @@ type MonadCheckInternal m =
   , HasBuiltins m
   , HasConstInfo m
   , HasOptions m
+  , Fail.MonadFail m
   )
 
 data Action (m :: Hs.Type -> Hs.Type)

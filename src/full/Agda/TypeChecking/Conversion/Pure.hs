@@ -4,9 +4,7 @@
 module Agda.TypeChecking.Conversion.Pure where
 
 import Control.Monad
-#if __GLASGOW_HASKELL__ >= 800
 import Control.Monad.Fail (MonadFail)
-#endif
 import Control.Monad.Trans.Maybe
 import Control.Monad.State
 
@@ -55,9 +53,7 @@ runPureConversion (PureConversionT m) = do
   reportSLn "tc.conv.pure" 40 $ "runPureConversion result: " ++ show result
   return result
 
-#if __GLASGOW_HASKELL__ >= 800
 deriving instance MonadFail       m => MonadFail       (PureConversionT m)
-#endif
 deriving instance HasBuiltins     m => HasBuiltins     (PureConversionT m)
 deriving instance HasConstInfo    m => HasConstInfo    (PureConversionT m)
 deriving instance HasOptions      m => HasOptions      (PureConversionT m)

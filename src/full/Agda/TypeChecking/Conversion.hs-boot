@@ -2,9 +2,7 @@
 
 module Agda.TypeChecking.Conversion where
 
-#if MIN_VERSION_base(4,11,0)
 import qualified Control.Monad.Fail as Fail
-#endif
 
 import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad
@@ -26,9 +24,7 @@ type MonadConversion m =
   , HasBuiltins m
   , HasConstInfo m
   , HasOptions m
-#if MIN_VERSION_base(4,11,0)
   , Fail.MonadFail m
-#endif
   )
 
 compareTerm  :: MonadConversion m => Comparison -> Type -> Term -> Term -> m ()
