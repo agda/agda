@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP                 #-}
 {-# LANGUAGE DeriveDataTypeable  #-}
 {-# LANGUAGE FlexibleContexts    #-}
 {-# LANGUAGE LambdaCase          #-}
@@ -42,7 +41,6 @@ import Agda.Utils.Null
 import Agda.Utils.Pretty
 import Agda.Utils.Impossible
 
-#include "../../src/full/undefined.h"
 
 ------------------------------------------------------------------------------
 

@@ -1,5 +1,4 @@
 {-# LANGUAGE BangPatterns #-}
-{-# LANGUAGE CPP #-}
 
 module Agda.TypeChecking.Monad.Caching
   ( -- * Log reading/writing operations
@@ -32,7 +31,6 @@ import {-# SOURCE #-} Agda.TypeChecking.Monad.Options
 import Agda.Utils.Lens
 import Agda.Utils.Monad
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | To be called before any write or restore calls.

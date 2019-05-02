@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 {-# LANGUAGE TemplateHaskell #-}
 
 module Internal.Utils.NonemptyList ( tests ) where
@@ -9,7 +8,6 @@ import Internal.Helpers
 
 import Agda.Utils.NonemptyList
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 ------------------------------------------------------------------------

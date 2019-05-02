@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 
 module Agda.TypeChecking.Monad.Context where
 
@@ -37,7 +36,6 @@ import Agda.Utils.Pretty
 import Agda.Utils.Size
 
 import Agda.Utils.Impossible
-#include "undefined.h"
 
 -- * Modifying the context
 

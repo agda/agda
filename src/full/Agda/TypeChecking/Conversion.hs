@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP                      #-}
 {-# LANGUAGE NondecreasingIndentation #-}
 {-# LANGUAGE ScopedTypeVariables      #-}
 
@@ -55,7 +54,6 @@ import Agda.Utils.Size
 import Agda.Utils.Tuple
 import Agda.Utils.Lens
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 type MonadConversion m =

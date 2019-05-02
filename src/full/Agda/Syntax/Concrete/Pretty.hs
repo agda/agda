@@ -33,7 +33,6 @@ import Agda.Utils.Null
 import Agda.Utils.Pretty
 import Agda.Utils.String
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 import qualified System.IO.Unsafe as UNSAFE (unsafePerformIO)

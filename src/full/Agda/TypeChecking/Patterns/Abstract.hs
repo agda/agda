@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP          #-}
 {-# LANGUAGE TypeFamilies #-}
 
 -- | Tools to manipulate patterns in abstract syntax
@@ -25,7 +24,6 @@ import Agda.TypeChecking.Monad.Builtin
 
 import Agda.Utils.Functor
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | Expand literal integer pattern into suc/zero constructor patterns.

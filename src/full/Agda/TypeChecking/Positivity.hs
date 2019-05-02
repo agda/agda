@@ -64,7 +64,6 @@ import Agda.Utils.SemiRing
 import Agda.Utils.Singleton
 import Agda.Utils.Size
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 type Graph n e = Graph.Graph n e

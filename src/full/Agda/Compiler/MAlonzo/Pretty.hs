@@ -18,7 +18,6 @@ import Agda.Compiler.MAlonzo.Encode
 import Agda.Utils.Pretty
 import Agda.Utils.Impossible
 
-#include "undefined.h"
 
 prettyPrint :: Pretty a => a -> String
 prettyPrint = show . pretty

@@ -1,11 +1,7 @@
-{-# LANGUAGE CPP #-}
 
 module Agda.TypeChecking.Monad.Signature where
 
-#if __GLASGOW_HASKELL__ >= 800
 import qualified Control.Monad.Fail as Fail
-#endif
-
 import Control.Monad.Reader
 import Control.Monad.State
 
@@ -24,11 +20,7 @@ data SigError = SigUnknown String | SigAbstract
 
 class ( Functor m
       , Applicative m
-#if __GLASGOW_HASKELL__ < 800
-      , Monad m
-#else
       , Fail.MonadFail m
-#endif
       , HasOptions m
       , MonadDebug m
       , MonadTCEnv m

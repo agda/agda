@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP              #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
@@ -41,7 +40,6 @@ import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Pretty
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 instance HasBuiltins ReduceM where

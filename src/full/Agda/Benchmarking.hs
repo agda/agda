@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP                       #-}
 {-# LANGUAGE IncoherentInstances       #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 

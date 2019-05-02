@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 
 module Agda.TypeChecking.LevelConstraints ( simplifyLevelConstraint ) where
 
@@ -10,7 +9,6 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Free
 import Agda.Utils.Impossible
 
-#include "undefined.h"
 
 -- | @simplifyLevelConstraint c cs@ turns an @c@ into an equality
 --   constraint if it is an inequality constraint and the reverse

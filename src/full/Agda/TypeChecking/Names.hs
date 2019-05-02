@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP                        #-}
 {-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE FlexibleContexts           #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
@@ -30,9 +29,7 @@ module Agda.TypeChecking.Names where
 import Control.Monad
 import Control.Applicative
 
-#if __GLASGOW_HASKELL__ >= 800
 import qualified Control.Monad.Fail as Fail
-#endif
 
 import Control.Monad.Identity
 import Control.Monad.Reader
@@ -73,7 +70,6 @@ import Agda.Utils.Monad
 import Agda.Utils.Pretty (pretty)
 import Agda.Utils.Maybe
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 import Debug.Trace
 
@@ -84,9 +80,7 @@ newtype NamesT m a = NamesT { unName :: ReaderT Names m a }
   deriving ( Functor
            , Applicative
            , Monad
-#if __GLASGOW_HASKELL__ >= 800
            , Fail.MonadFail
-#endif
            , MonadTrans
            , MonadState s
            , MonadIO

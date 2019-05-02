@@ -1,5 +1,4 @@
 {-# LANGUAGE BangPatterns      #-}
-{-# LANGUAGE CPP                      #-}
 {-# LANGUAGE NondecreasingIndentation #-}
 
 module Agda.TypeChecking.Monad.Signature where
@@ -9,9 +8,7 @@ import Prelude hiding (null)
 import Control.Arrow (first, second, (***))
 import Control.Applicative hiding (empty)
 
-#if __GLASGOW_HASKELL__ >= 800
 import qualified Control.Monad.Fail as Fail
-#endif
 
 import Control.Monad.State
 import Control.Monad.Reader
@@ -70,7 +67,6 @@ import Agda.Utils.Pretty
 import Agda.Utils.Size
 import qualified Agda.Utils.HashMap as HMap
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | Add a constant to the signature. Lifts the definition to top level.
@@ -637,11 +633,7 @@ sigError f a = \case
 
 class ( Functor m
       , Applicative m
-#if __GLASGOW_HASKELL__ < 800
-      , Monad m
-#else
       , Fail.MonadFail m
-#endif
       , HasOptions m
       , MonadDebug m
       , MonadTCEnv m

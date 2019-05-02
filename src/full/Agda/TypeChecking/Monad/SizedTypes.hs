@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 
 -- | Stuff for sized types that does not require modules
 --   "Agda.TypeChecking.Reduce" or "Agda.TypeChecking.Constraints"
@@ -30,7 +29,6 @@ import Agda.Utils.NonemptyList
 import Agda.Utils.Pretty
 import Agda.Utils.Singleton
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 ------------------------------------------------------------------------

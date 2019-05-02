@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP                   #-}
 {-# LANGUAGE DeriveDataTypeable    #-}
 
 module Agda.Utils.Permutation where
@@ -22,7 +21,6 @@ import Agda.Utils.List ((!!!))
 import Agda.Utils.Null
 import Agda.Utils.Size
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | Partial permutations. Examples:

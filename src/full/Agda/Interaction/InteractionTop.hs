@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 
 {-# OPTIONS_GHC -fno-cse #-}
 
@@ -103,7 +102,6 @@ import Agda.Utils.String
 import Agda.Utils.Time
 import Agda.Utils.Tuple
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 ------------------------------------------------------------------------

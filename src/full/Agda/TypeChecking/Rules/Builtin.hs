@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 {-# LANGUAGE NondecreasingIndentation #-}
 
 module Agda.TypeChecking.Rules.Builtin
@@ -58,7 +57,6 @@ import Agda.Utils.Null
 import Agda.Utils.Permutation
 import Agda.Utils.Size
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 ---------------------------------------------------------------------------

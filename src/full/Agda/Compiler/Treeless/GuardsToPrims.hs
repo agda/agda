@@ -1,7 +1,6 @@
 -- | Translates guard alternatives to if-then-else cascades.
 --
 -- The builtin translation must be run before this transformation.
-{-# LANGUAGE CPP #-}
 module Agda.Compiler.Treeless.GuardsToPrims ( convertGuards ) where
 
 import qualified Data.List as List
@@ -17,7 +16,6 @@ import Agda.Compiler.Treeless.Subst
 
 import Agda.Utils.Impossible
 
-#include "undefined.h"
 
 
 

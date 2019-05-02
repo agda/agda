@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP                      #-}
 {-# LANGUAGE NondecreasingIndentation #-}
 
 {-| Coverage checking, case splitting, and splitting for refine tactics.
@@ -88,7 +87,6 @@ import Agda.Utils.Size
 import Agda.Utils.Tuple
 import Agda.Utils.Lens
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 data SplitClause = SClause

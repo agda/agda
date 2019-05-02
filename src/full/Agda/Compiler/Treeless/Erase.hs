@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 {-# LANGUAGE PatternSynonyms #-}
 
 module Agda.Compiler.Treeless.Erase (eraseTerms, computeErasedConstructorArgs) where
@@ -40,7 +39,6 @@ import qualified Agda.Utils.Pretty as P
 import Agda.Utils.IntSet.Infinite (IntSet)
 import qualified Agda.Utils.IntSet.Infinite as IntSet
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 data ESt = ESt { _funMap  :: Map QName FunInfo

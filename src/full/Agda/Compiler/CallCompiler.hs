@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 
 ------------------------------------------------------------------------
 -- | A command which calls a compiler
@@ -17,7 +16,6 @@ import System.Process
 
 import Agda.TypeChecking.Monad
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | Calls a compiler:

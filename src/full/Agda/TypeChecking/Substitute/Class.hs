@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 
 module Agda.TypeChecking.Substitute.Class where
 
@@ -14,7 +13,6 @@ import Agda.TypeChecking.Substitute.DeBruijn
 import Agda.Utils.Empty
 import Agda.Utils.List
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 ---------------------------------------------------------------------------

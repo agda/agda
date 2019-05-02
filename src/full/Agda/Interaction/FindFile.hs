@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 ------------------------------------------------------------------------
 -- | Functions which map between module names and file names.
 --
@@ -47,7 +46,6 @@ import Agda.Utils.Lens
 import Agda.Utils.List ( stripSuffix )
 import Agda.Utils.Null
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | Converts an Agda file name to the corresponding interface file

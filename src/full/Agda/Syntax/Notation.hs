@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP                 #-}
 {-# LANGUAGE DeriveDataTypeable  #-}
 
 {-| As a concrete name, a notation is a non-empty list of alternating 'IdPart's and holes.
@@ -29,7 +28,6 @@ import Agda.Utils.Except ( MonadError(throwError) )
 import Agda.Utils.List
 
 import Agda.Utils.Impossible
-#include "undefined.h"
 
 -- | Data type constructed in the Happy parser; converted to 'GenPart'
 --   before it leaves the Happy code.

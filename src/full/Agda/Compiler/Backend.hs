@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE TypeOperators #-}
@@ -50,7 +49,6 @@ import Agda.Utils.Pretty
 import Agda.Compiler.ToTreeless
 import Agda.Compiler.Common
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- Public interface -------------------------------------------------------

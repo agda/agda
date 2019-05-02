@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP                #-}
 {-# LANGUAGE BangPatterns       #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE StandaloneDeriving #-}
@@ -20,7 +19,6 @@ import System.IO.Unsafe
 import Data.Data (Data (..))
 import Data.Typeable (Typeable)
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 data Ptr a = Ptr { ptrTag :: !Integer

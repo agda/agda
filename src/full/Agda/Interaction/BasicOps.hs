@@ -1,5 +1,4 @@
 {-# LANGUAGE BangPatterns          #-}
-{-# LANGUAGE CPP                   #-}
 {-# LANGUAGE UndecidableInstances  #-}
 {-# LANGUAGE NondecreasingIndentation #-}
 
@@ -78,7 +77,6 @@ import Agda.Utils.Pretty
 import Agda.Utils.Permutation
 import Agda.Utils.Size
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | Parses an expression.

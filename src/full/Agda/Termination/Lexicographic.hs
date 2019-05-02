@@ -1,6 +1,5 @@
 -- -- UNUSED
 
--- {-# LANGUAGE CPP #-}
 
 -- -- | Lexicographic order search, more or less as defined in
 -- --      \"A Predicative Analysis of Structural Recursion\" by

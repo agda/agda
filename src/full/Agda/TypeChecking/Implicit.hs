@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 {-# LANGUAGE PatternSynonyms #-}
 
 {-| Functions for inserting implicit arguments at the right places.
@@ -19,7 +18,6 @@ import Agda.TypeChecking.Pretty
 
 import Agda.Utils.Tuple
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | @implicitArgs n expand t@ generates up to @n@ implicit arguments

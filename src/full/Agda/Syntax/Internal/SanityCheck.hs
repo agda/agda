@@ -21,7 +21,6 @@ import Agda.Utils.Pretty
 import Agda.Utils.Size
 import Agda.Utils.Impossible
 
-#include "undefined.h"
 
 sanityCheckVars :: (Pretty a, Free a) => Telescope -> a -> TCM ()
 sanityCheckVars tel v =

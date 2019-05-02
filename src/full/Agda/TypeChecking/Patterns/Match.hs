@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP                      #-}
 {-# LANGUAGE NondecreasingIndentation #-}
 
 -- | Pattern matcher used in the reducer for clauses that
@@ -35,7 +34,6 @@ import Agda.Utils.Singleton
 import Agda.Utils.Size
 import Agda.Utils.Tuple
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | If matching is inconclusive (@DontKnow@) we want to know whether

@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 {-# LANGUAGE NondecreasingIndentation #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
@@ -53,7 +52,6 @@ import Agda.Utils.Singleton
 import Agda.Utils.Size
 import qualified Agda.Utils.Maybe.Strict as Strict
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | Various kinds of metavariables.

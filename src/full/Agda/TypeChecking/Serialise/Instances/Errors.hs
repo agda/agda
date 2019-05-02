@@ -1,5 +1,4 @@
 {-# LANGUAGE RecordWildCards          #-}
-{-# LANGUAGE CPP                      #-}
 {-# OPTIONS_GHC -fno-warn-orphans     #-}
 
 module Agda.TypeChecking.Serialise.Instances.Errors where
@@ -29,7 +28,6 @@ import Agda.Utils.FileName ()
 
 import Agda.Utils.Lens
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 instance EmbPrj TCWarning where

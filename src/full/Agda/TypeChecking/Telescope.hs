@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 
 module Agda.TypeChecking.Telescope where
 
@@ -34,7 +33,6 @@ import Agda.Utils.Tuple
 import Agda.Utils.VarSet (VarSet)
 import qualified Agda.Utils.VarSet as VarSet
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | Flatten telescope: (Γ : Tel) -> [Type Γ]
@@ -66,7 +64,7 @@ unflattenTel (x : xs) (a : tel) = ExtendTel a' (Abs x tel')
   where
     tel' = unflattenTel xs tel
     a'   = applySubst rho a
-    rho  = parallelS (replicate (size tel + 1) __IMPOSSIBLE_TERM__)
+    rho  = parallelS (replicate (size tel + 1) (withFileAndLine impossibleTerm))
 unflattenTel [] (_ : _) = __IMPOSSIBLE__
 unflattenTel (_ : _) [] = __IMPOSSIBLE__
 
@@ -212,8 +210,7 @@ splitTelescopeExact is tel = guard ok $> SplitTel tel1 tel2 perm
     checkDependencies soFar []     = True
     checkDependencies soFar (j:js) = ok && checkDependencies (IntSet.insert j soFar) js
       where
-        fv' = allFreeVars $  -- newline because of CPP
-                indexWithDefault __IMPOSSIBLE__ ts0 (n-1-j)
+        fv' = allFreeVars $ indexWithDefault __IMPOSSIBLE__ ts0 (n-1-j)
         fv  = fv' `IntSet.intersection` IntSet.fromAscList [ 0 .. n-1 ]
         ok  = fv `IntSet.isSubsetOf` soFar
 

@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP                        #-}
 {-# LANGUAGE DeriveDataTypeable         #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE NondecreasingIndentation   #-}
@@ -171,7 +170,6 @@ import Agda.Utils.Permutation
 import Agda.Utils.Singleton
 import Agda.Utils.Size
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | Result of 'unifyIndices'.
@@ -1134,8 +1132,7 @@ unifyStep s (StripSizeSuc k u v) = do
 
 unifyStep s (SkipIrrelevantEquation k) = do
   let lhs = eqLHS s
-      (s', sigma) =  -- newline because of CPP
-        solveEq k (DontCare $ unArg $ indexWithDefault __IMPOSSIBLE__ lhs k) s
+      (s', sigma) = solveEq k (DontCare $ unArg $ indexWithDefault __IMPOSSIBLE__ lhs k) s
   tellUnifyProof sigma
   return $ Unifies s'
 

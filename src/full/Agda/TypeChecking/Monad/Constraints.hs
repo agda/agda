@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 
 module Agda.TypeChecking.Monad.Constraints where
 
@@ -21,7 +20,6 @@ import Agda.Utils.List
 import Agda.Utils.Monad
 import Agda.Utils.Except
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 solvingProblem :: MonadConstraint m => ProblemId -> m a -> m a

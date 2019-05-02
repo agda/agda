@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 
 -- | Compute eta short normal forms.
 module Agda.TypeChecking.EtaContract where
@@ -16,7 +15,6 @@ import {-# SOURCE #-} Agda.TypeChecking.Records
 import {-# SOURCE #-} Agda.TypeChecking.Datatypes
 import Agda.Utils.Monad
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- TODO: move to Agda.Syntax.Internal.SomeThing

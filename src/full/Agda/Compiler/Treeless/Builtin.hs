@@ -14,7 +14,6 @@
 -- optimisations that analyse case tree, like impossible case elimination.
 --
 -- Ulf, 2015-10-30: Guards are actually a better primitive. Fixed that.
-{-# LANGUAGE CPP #-}
 module Agda.Compiler.Treeless.Builtin (translateBuiltins) where
 
 import qualified Agda.Syntax.Internal as I
@@ -33,7 +32,6 @@ import Agda.Utils.Except ( MonadError(catchError) )
 import Agda.Utils.Maybe
 import Agda.Utils.Impossible
 
-#include "undefined.h"
 
 data BuiltinKit = BuiltinKit
   { isZero   :: QName -> Bool

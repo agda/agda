@@ -1,4 +1,3 @@
--- {-# LANGUAGE CPP #-}
 
 module Agda.TypeChecking.Monad.Mutual where
 

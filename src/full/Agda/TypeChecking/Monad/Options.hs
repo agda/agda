@@ -1,8 +1,8 @@
-{-# LANGUAGE CPP #-}
 
 module Agda.TypeChecking.Monad.Options where
 
 import Prelude hiding (mapM)
+import GHC.Stack (HasCallStack, freezeCallStack, callStack)
 
 import Control.Monad.Reader hiding (mapM)
 import Control.Monad.Writer
@@ -41,7 +41,6 @@ import qualified Agda.Utils.Trie as Trie
 import Agda.Utils.Except
 import Agda.Utils.Either
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | Sets the pragma options.
@@ -345,6 +344,12 @@ hasExactVerbosity k n =
 {-# SPECIALIZE whenExactVerbosity :: VerboseKey -> Int -> TCM () -> TCM () #-}
 whenExactVerbosity :: HasOptions m => VerboseKey -> Int -> m () -> m ()
 whenExactVerbosity k n = whenM $ hasExactVerbosity k n
+
+__CRASH_WHEN__ :: (HasCallStack, MonadTCM tcm) => VerboseKey -> Int -> tcm ()
+__CRASH_WHEN__ k n = whenExactVerbosity k n (throwImpossible err)
+  where
+    -- Create the "Unreachable" error using *our* caller as the call site.
+    err = withFileAndLine' (freezeCallStack callStack) Unreachable
 
 -- | Run a computation if a certain verbosity level is activated.
 --

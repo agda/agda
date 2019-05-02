@@ -87,7 +87,6 @@ import Agda.Utils.Pretty (prettyShow)
 import Agda.Utils.Singleton
 import qualified Agda.Utils.VarSet as VarSet
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | Call graph with call info for composed calls.

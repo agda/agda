@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 
 -- | Functions which give precise syntax highlighting info to Emacs.
 
@@ -21,7 +20,6 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import Data.Maybe
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 ------------------------------------------------------------------------

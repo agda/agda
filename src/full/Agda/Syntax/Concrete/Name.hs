@@ -34,7 +34,6 @@ import Agda.Utils.Pretty
 import Agda.Utils.Size
 import Agda.Utils.Suffix
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 {-| A name is a non-empty list of alternating 'Id's and 'Hole's. A normal name

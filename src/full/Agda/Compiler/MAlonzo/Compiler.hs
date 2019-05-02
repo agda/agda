@@ -84,7 +84,6 @@ import Agda.Utils.Tuple
 
 import Paths_Agda
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- The backend callbacks --------------------------------------------------

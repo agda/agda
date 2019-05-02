@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 -- | Eliminates case defaults by adding an alternative for all possible
 -- constructors. Literal cases are preserved as-is.
 module Agda.Compiler.Treeless.EliminateDefaults where
@@ -21,7 +20,6 @@ import Agda.Compiler.Treeless.Subst
 
 import Agda.Utils.Impossible
 
-#include "undefined.h"
 
 eliminateCaseDefaults :: TTerm -> TCM TTerm
 eliminateCaseDefaults = tr

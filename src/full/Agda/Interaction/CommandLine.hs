@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 
 module Agda.Interaction.CommandLine where
 
@@ -33,7 +32,6 @@ import Agda.Utils.Except ( MonadError(catchError) )
 import Agda.Utils.Monad
 import Agda.Utils.Pretty
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 data ExitCode a = Continue | ContinueIn TCEnv | Return a

@@ -1,5 +1,4 @@
 {-# LANGUAGE BangPatterns               #-}
-{-# LANGUAGE CPP                        #-}
 {-# LANGUAGE DeriveDataTypeable         #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
@@ -10,9 +9,7 @@ import Prelude hiding (null)
 import qualified Control.Concurrent as C
 import qualified Control.Exception as E
 
-#if __GLASGOW_HASKELL__ >= 800
 import qualified Control.Monad.Fail as Fail
-#endif
 
 import Control.Monad.State
 import Control.Monad.Reader
@@ -109,7 +106,6 @@ import Agda.Utils.Functor
 import Agda.Utils.Function
 import Agda.Utils.WithDefault ( collapseDefault )
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 ---------------------------------------------------------------------------
@@ -3343,12 +3339,10 @@ instance Monad ReduceM where
   return = pure
   (>>=) = bindReduce
   (>>) = (*>)
-#if __GLASGOW_HASKELL__ >= 800
   fail = Fail.fail
 
 instance Fail.MonadFail ReduceM where
   fail = error
-#endif
 
 instance ReadTCState ReduceM where
   getTCState = ReduceM redSt
@@ -3671,14 +3665,10 @@ instance MonadIO m => Monad (TCMT m) where
     return = pure
     (>>=)  = bindTCMT
     (>>)   = (*>)
-#if __GLASGOW_HASKELL__ < 800
-    fail   = internalError
-#else
     fail   = Fail.fail
 
 instance MonadIO m => Fail.MonadFail (TCMT m) where
   fail = internalError
-#endif
 
 -- One goal of the definitions and pragmas below is to inline the
 -- monad operations as much as possible. This doesn't seem to have a

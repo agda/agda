@@ -17,8 +17,8 @@ executable closed-issues-for-milestone
   main-is:          Main.hs
   default-language: Haskell2010
 
-  build-depends:  base       >= 4.8.0.0  && < 4.13
-                , bytestring >= 0.10.6.0 && < 0.11
+  build-depends:  base       >= 4.9.0.0  && < 4.13
+                , bytestring >= 0.10.8.1 && < 0.11
                 , github     >= 0.16     && < 0.21
                 , vector     >= 0.12.0.1 && < 0.13
 

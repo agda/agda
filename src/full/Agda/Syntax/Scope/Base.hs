@@ -50,7 +50,6 @@ import Agda.Utils.Pretty
 import Agda.Utils.Singleton
 import qualified Agda.Utils.Map as Map
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- * Scope representation

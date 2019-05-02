@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 
 module Agda.TypeChecking.Quote where
 
@@ -41,7 +40,6 @@ import qualified Agda.Utils.VarSet as Set
 import Agda.Utils.FileName
 import Agda.Utils.Size
 
-#include "undefined.h"
 
 data QuotingKit = QuotingKit
   { quoteTermWithKit   :: Term       -> ReduceM Term

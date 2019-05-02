@@ -1,5 +1,4 @@
 {-# LANGUAGE BangPatterns  #-}
-{-# LANGUAGE CPP           #-}
 
 module Agda.TypeChecking.Rules.LHS.ProblemRest where
 
@@ -28,7 +27,6 @@ import Agda.Utils.List
 import Agda.Utils.Size
 import Agda.Utils.Permutation
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | Rename the variables in a telescope using the names from a given pattern.
