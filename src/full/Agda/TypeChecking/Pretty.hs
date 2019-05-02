@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP                  #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 module Agda.TypeChecking.Pretty

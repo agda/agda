@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 
 ------------------------------------------------------------------------
 -- Pretty-printing of Haskell modules

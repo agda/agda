@@ -1,5 +1,4 @@
 {-# LANGUAGE BangPatterns         #-}
-{-# LANGUAGE CPP                  #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 -- | Check that a datatype is strictly positive.

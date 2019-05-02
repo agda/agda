@@ -1,5 +1,4 @@
 {-# LANGUAGE BangPatterns               #-}
-{-# LANGUAGE CPP                        #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 -- | Directed graphs (can of course simulate undirected graphs).

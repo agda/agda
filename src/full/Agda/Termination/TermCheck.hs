@@ -1,5 +1,4 @@
 {-# LANGUAGE BangPatterns               #-}
-{-# LANGUAGE CPP                        #-}
 {-# LANGUAGE GADTs                      #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE ImplicitParams             #-}

@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 -- | Sanity checking for internal syntax. Mostly checking variable scoping.
 module Agda.Syntax.Internal.SanityCheck where
 

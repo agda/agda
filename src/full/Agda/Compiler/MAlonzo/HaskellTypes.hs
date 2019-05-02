@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 
 -- | Translating Agda types to Haskell types. Used to ensure that imported
 --   Haskell functions have the right type.

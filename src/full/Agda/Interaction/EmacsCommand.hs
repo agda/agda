@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 
 ------------------------------------------------------------------------
 -- | Code for instructing Emacs to do things

@@ -1,6 +1,5 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-{-# LANGUAGE CPP #-}
 
 {-| Pretty printer for the concrete syntax.
 -}
