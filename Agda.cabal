@@ -595,6 +595,8 @@ library
 
   if impl(ghc >= 8.6)
     ghc-options: -Winaccessible-code
+                 -Wstar-binder
+                 -Wstar-is-type
 
   ghc-prof-options: -fprof-auto
 
@@ -834,3 +836,5 @@ test-suite agda-tests
 
   if impl(ghc >= 8.6)
     ghc-options: -Winaccessible-code
+                 -Wstar-binder
+                 -Wstar-is-type

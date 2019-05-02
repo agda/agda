@@ -4,10 +4,11 @@
 
 module Agda.Utils.IndexedList where
 
+import Data.Kind ( Type )
 import Agda.Utils.Lens
 
 -- | Existential wrapper for indexed types.
-data Some :: (k -> *) -> * where
+data Some :: (k -> Type) -> Type where
   Some :: f i -> Some f
 
 -- | Unpacking a wrapped value.
@@ -16,7 +17,7 @@ withSome (Some x) f = f x
 
 -- | Lists indexed by a type-level list. A value of type @All p [x₁..xₙ]@ is a
 --   sequence of values of types @p x₁@, .., @p xₙ@.
-data All :: (x -> *) -> [x] -> * where
+data All :: (x -> Type) -> [x] -> Type where
   Nil  :: All p '[]
   Cons :: p x -> All p xs -> All p (x ': xs)
 
@@ -33,7 +34,7 @@ forgetAll f Nil         = []
 forgetAll f (Cons x xs) = f x : forgetAll f xs
 
 -- | An index into a type-level list.
-data Index :: [x] -> x -> * where
+data Index :: [x] -> x -> Type where
   Zero :: Index (x ': xs) x
   Suc  :: Index xs x -> Index (y ': xs) x
 
