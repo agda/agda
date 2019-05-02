@@ -978,7 +978,7 @@ telFromList :: ListTel -> Telescope
 telFromList = telFromList' id
 
 -- | Convert a telescope to its list form.
-telToList :: Telescope -> ListTel
+telToList :: Tele (Dom t) -> [Dom (ArgName,t)]
 telToList EmptyTel                    = []
 telToList (ExtendTel arg (Abs x tel)) = fmap (x,) arg : telToList tel
 telToList (ExtendTel _    NoAbs{}   ) = __IMPOSSIBLE__
