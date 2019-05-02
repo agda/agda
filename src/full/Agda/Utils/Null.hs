@@ -36,7 +36,6 @@ import Text.PrettyPrint (Doc, render)
 import Agda.Utils.Bag (Bag)
 import qualified Agda.Utils.Bag as Bag
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 class Null a where

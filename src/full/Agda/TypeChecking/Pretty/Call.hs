@@ -27,7 +27,6 @@ import Agda.Utils.Function
 import Agda.Utils.Null
 import qualified Agda.Utils.Pretty as P
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 sayWhere :: MonadPretty m => HasRange a => a -> m Doc -> m Doc

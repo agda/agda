@@ -26,7 +26,6 @@ import Agda.Utils.Either
 import Agda.Utils.Except
 import Agda.Utils.Null
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 data FreshThings = FreshThings

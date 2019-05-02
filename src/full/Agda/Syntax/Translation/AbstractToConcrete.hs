@@ -1,4 +1,5 @@
 {-# LANGUAGE UndecidableInstances   #-}
+{-# LANGUAGE CPP                    #-}
 
 -- {-# OPTIONS -fwarn-unused-binds #-}
 
