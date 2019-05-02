@@ -213,13 +213,28 @@ firstMeta = getFirst . allMetas (First . Just)
 --   second one we need to look up the meta listeners for the one in the
 --   UnBlock constraint.
 constraintMetas :: Constraint -> TCM (Set MetaId)
-constraintMetas c = Set.union (allMetas singleton c) <$> metas c
+constraintMetas c = metas c
   where
-    -- Dig out constraint-specific meta vars
-    metas (UnBlock x)                    = Set.insert x . Set.unions <$> (mapM listenerMetas =<< getMetaListeners x)
-    metas (Guarded c _)                  = metas c
-    metas (UnquoteTactic (Just x) _ _ _) = return $ Set.singleton x
-    metas _                              = return Set.empty
+    -- We don't use allMetas here since some constraints should not stop us from generalizing. For
+    -- instance CheckSizeLtSat (see #3694). We also have to check meta listeners to get metas of
+    -- UnBlock constraints.
+    metas c = case c of
+      ValueCmp _ t u v         -> return $ allMetas Set.singleton (t, u, v)
+      ValueCmpOnFace _ p t u v -> return $ allMetas Set.singleton (p, t, u, v)
+      ElimCmp _ _ t u es es'   -> return $ allMetas Set.singleton (t, u, es, es')
+      TypeCmp _ t t'           -> return $ allMetas Set.singleton (t, t')
+      LevelCmp _ l l'          -> return $ allMetas Set.singleton (l, l')
+      UnquoteTactic m t h g    -> return $ Set.fromList [x | Just x <- [m]] `Set.union` allMetas Set.singleton (t, h, g)
+      Guarded c _              -> metas c
+      TelCmp _ _ _ tel1 tel2   -> return $ allMetas Set.singleton (tel1, tel2)
+      SortCmp _ s1 s2          -> return $ allMetas Set.singleton (s1, s2)
+      UnBlock x                -> Set.insert x . Set.unions <$> (mapM listenerMetas =<< getMetaListeners x)
+      FindInstance{}           -> return mempty  -- v Ignore these constraints
+      IsEmpty{}                -> return mempty
+      CheckFunDef{}            -> return mempty
+      CheckSizeLtSat{}         -> return mempty
+      HasBiggerSort{}          -> return mempty
+      HasPTSRule{}             -> return mempty
 
     -- For blocked constant twin variables
     listenerMetas EtaExpand{}           = return Set.empty
