@@ -152,6 +152,7 @@ builtinModulesWithSafePostulates =
   , "Agda" </> "Builtin" </> "Equality" </> "Erase.agda"
   , "Agda" </> "Builtin" </> "Equality.agda"
   , "Agda" </> "Builtin" </> "Float.agda"
+  , "Agda" </> "Builtin" </> "Float" </> "Properties.agda"
   , "Agda" </> "Builtin" </> "FromNat.agda"
   , "Agda" </> "Builtin" </> "FromNeg.agda"
   , "Agda" </> "Builtin" </> "FromString.agda"

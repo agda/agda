@@ -212,6 +212,8 @@ primBody s = maybe unimplemented (fromRight (hsVarUQ . HS.Ident) <$>) $
   , "primATan"              |-> return "(atan :: Double -> Double)"
   , "primATan2"             |-> return "(atan2 :: Double -> Double -> Double)"
   , "primShowFloat"         |-> return "(Data.Text.pack . show :: Double -> Data.Text.Text)"
+  , "primFloatToWord64"     |-> return "doubleToWord64"
+  , "primFloatToWord64Injective" |-> return "erased"
 
   -- Character functions
   , "primCharEquality"   |-> rel "(==)" "Char"
