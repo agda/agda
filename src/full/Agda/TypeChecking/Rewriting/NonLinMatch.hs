@@ -309,7 +309,7 @@ instance Match (Type, Term) [Elim' NLPat] Elims where
     (_ , IApply{}    ) -> __IMPOSSIBLE__ -- TODO
 
 instance Match t a b => Match t (Dom a) (Dom b) where
-  match r gamma k t p v = match r gamma k t (C.unDom p) (C.unDom v)
+  match r gamma k t p v = match r gamma k t (unDom p) (unDom v)
 
 instance Match () NLPType Type where
   match r gamma k _ (NLPType lp p) (El s a) = do
