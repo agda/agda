@@ -5,6 +5,7 @@ import Prelude hiding (mapM)
 
 import Control.Applicative
 import Control.Arrow (first, second)
+import Control.Monad.Fail
 import Control.Monad.State hiding (mapM, forM)
 import Control.Monad.Reader hiding (mapM, forM)
 import Control.Monad.Trans.Maybe
@@ -368,7 +369,7 @@ invertFunction cmp blk (Inv f blkArgs hdMap) hd fallback err success = do
                 ]
               return RollBackMetas
   where
-    nextMeta :: MonadState [Term] m => m Term
+    nextMeta :: (MonadState [Term] m, MonadFail m) => m Term
     nextMeta = do
       m : ms <- get
       put ms
@@ -380,13 +381,19 @@ invertFunction cmp blk (Inv f blkArgs hdMap) hd fallback err success = do
       return $ applySubst sub v
 
     metaElim
-      :: (MonadState [Term] m, MonadReader Substitution m, HasConstInfo m)
+      :: (MonadState [Term] m, MonadReader Substitution m, HasConstInfo m, MonadFail m)
       => Arg DeBruijnPattern -> m Elim
     metaElim (Arg _ (ProjP o p))  = Proj o <$> getOriginalProjection p
     metaElim (Arg info p)         = Apply . Arg info <$> metaPat p
 
+    metaArgs
+      :: (MonadState [Term] m, MonadReader Substitution m, MonadFail m)
+      => [NamedArg DeBruijnPattern] -> m Args
     metaArgs args = mapM (traverse $ metaPat . namedThing) args
 
+    metaPat
+      :: (MonadState [Term] m, MonadReader Substitution m, MonadFail m)
+      => DeBruijnPattern -> m Term
     metaPat (DotP _ v)       = dotP v
     metaPat (VarP _ _)       = nextMeta
     metaPat (IApplyP{})      = nextMeta
