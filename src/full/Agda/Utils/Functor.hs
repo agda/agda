@@ -33,13 +33,15 @@ infixr 9 <.>
 -- | The true pure @for@ loop.
 --   'Data.Traversable.for' is a misnomer, it should be @forA@.
 for :: Functor m => m a -> (a -> b) -> m b
-for = flip fmap
+for a b = fmap b a
+{-# INLINE for #-}
 
 infixl 1 <&>
 
 -- | Infix version of 'for'.
 (<&>) :: Functor m => m a -> (a -> b) -> m b
-(<&>) = for
+(<&>) a b = fmap b a
+{-# INLINE (<&>) #-}
 
 -- | A decoration is a functor that is traversable into any functor.
 --
