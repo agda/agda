@@ -79,6 +79,7 @@ primitive
   primMetaEquality : Meta → Meta → Bool
   primMetaLess     : Meta → Meta → Bool
   primShowMeta     : Meta → String
+  primMetaToNat    : Meta → Nat
 
 -- Arguments --
 

@@ -248,6 +248,8 @@ primBody s = maybe unimplemented (fromRight (hsVarUQ . HS.Ident) <$>) $
   , "primMetaEquality"    |-> rel "(==)" "Integer"
   , "primMetaLess"        |-> rel "(<)" "Integer"
   , "primShowMeta"        |-> return "\\ x -> Data.Text.pack (\"_\" ++ show (x :: Integer))"
+  , "primMetaToNat"       |-> return "(id :: Integer -> Integer)"
+  , "primMetaToNatInjective" |-> return "erased"
 
   -- Seq
   , "primForce"      |-> return "\\ _ _ _ _ x f -> f $! x"
