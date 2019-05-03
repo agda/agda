@@ -366,7 +366,14 @@ instance Occurs QName where
   metaOccurs m d = whenM (defNeedsChecking d) $ do
     tallyDef d
     reportSLn "tc.meta.occurs" 30 $ "Checking for occurrences in " ++ show d
-    metaOccurs m . theDef =<< ignoreAbstractMode (getConstInfo d)
+    metaOccursQName m d
+
+metaOccursQName :: MetaId -> QName -> TCM ()
+metaOccursQName m x = metaOccurs m . theDef =<< do
+  ignoreAbstractMode $ getConstInfo x
+  -- Andreas, 2019-05-03, issue #3742:
+  -- ignoreAbstractMode necessary, as abstract
+  -- constructors are also called up.
 
 instance Occurs Defn where
   occurs red ctx m xs def = __IMPOSSIBLE__
@@ -376,9 +383,8 @@ instance Occurs Defn where
   metaOccurs m Function{ funClauses = cls } = metaOccurs m cls
   -- since a datatype is isomorphic to the sum of its constructor types
   -- we check the constructor types
-  metaOccurs m Datatype{ dataCons = cs }    = mapM_ mocc cs
-    where mocc c = metaOccurs m . defType =<< getConstInfo c
-  metaOccurs m Record{ recConHead = c }     = metaOccurs m . defType =<< getConstInfo (conName c)
+  metaOccurs m Datatype{ dataCons = cs }    = mapM_ (metaOccursQName m) cs
+  metaOccurs m Record{ recConHead = c }     = metaOccursQName m $ conName c
   metaOccurs m Constructor{}                = return ()
   metaOccurs m Primitive{}                  = return ()
   metaOccurs m AbstractDefn{}               = __IMPOSSIBLE__
