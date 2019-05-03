@@ -1568,6 +1568,13 @@ mkPrimInjective a b qn = do
       Con{} -> redReturn $ refl t
       _     -> return $ NoReduction $ map notReduced ts
 
+primMetaToNatInjective :: TCM PrimitiveImpl
+primMetaToNatInjective = do
+  meta  <- primType (undefined :: MetaId)
+  nat   <- primType (undefined :: Nat)
+  toNat <- primFunName <$> getPrimitive "primMetaToNat"
+  mkPrimInjective meta nat toNat
+
 primCharToNatInjective :: TCM PrimitiveImpl
 primCharToNatInjective = do
   char  <- primType (undefined :: Char)
@@ -2091,6 +2098,8 @@ primitiveFunctions = Map.fromList
   , "primMetaEquality"    |-> mkPrimFun2 ((==) :: Rel MetaId)
   , "primMetaLess"        |-> mkPrimFun2 ((<) :: Rel MetaId)
   , "primShowMeta"        |-> mkPrimFun1 (Str . prettyShow :: MetaId -> Str)
+  , "primMetaToNat"       |-> mkPrimFun1 (fromIntegral . metaId :: MetaId -> Nat)
+  , "primMetaToNatInjective" |-> primMetaToNatInjective
   , "primIMin"            |-> primIMin'
   , "primIMax"            |-> primIMax'
   , "primINeg"            |-> primINeg'
