@@ -295,9 +295,9 @@ install:
 # N.B. that these tests are not include in the Makefile tests.
 
   - if [[ $TEST = "STACKAGE" ]]; then
-       travis_wait stack build $ARGS --no-terminal &&
+       travis_wait 30 stack build $ARGS --no-terminal &&
        stack clean $ARGS &&
-       travis_wait stack build $ARGS --no-terminal --flag Agda:cpphs --flag Agda:debug --flag Agda:enable-cluster-counting;
+       travis_wait 30 stack build $ARGS --no-terminal --flag Agda:cpphs --flag Agda:debug --flag Agda:enable-cluster-counting;
     fi
 
 ##############################################################################
