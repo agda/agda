@@ -125,6 +125,14 @@ mapMM f mxs = Trav.mapM f =<< mxs
 forMM :: (Traversable t, Monad m) => m (t a) -> (a -> m b) -> m (t b)
 forMM = flip mapMM
 
+-- Variations of Foldable
+
+mapMM_ :: (Foldable t, Monad m) => (a -> m ()) -> m (t a) -> m ()
+mapMM_ f mxs = Fold.mapM_ f =<< mxs
+
+forMM_ :: (Foldable t, Monad m) => m (t a) -> (a -> m ()) -> m ()
+forMM_ = flip mapMM_
+
 -- Continuation monad -----------------------------------------------------
 
 -- Andreas, 2017-04-11, issue #2543
