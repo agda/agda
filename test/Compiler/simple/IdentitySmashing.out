@@ -11,5 +11,6 @@ out > IdentitySmashing.wk = λ _ a → a
 out > IdentitySmashing.wkN = λ _ _ a → a
 out > IdentitySmashing.wkN′ = λ _ _ a → a
 out > IdentitySmashing.vecPlusZero = λ _ _ _ a → a
-out > IdentitySmashing.main = Common.IO.return () _ _
+out > IdentitySmashing.main =
+out >   Common.IO.return () _ Agda.Builtin.Unit.⊤.tt
 out >

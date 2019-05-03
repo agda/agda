@@ -271,6 +271,8 @@ instance EmbPrj IsForced where
   value 1 = return NotForced
   value _ = malformed
 
+instance EmbPrj ErasureAllowed where
+
 instance EmbPrj NumGeneralizableArgs where
   icod_ NoGeneralizableArgs       = icodeN' NoGeneralizableArgs
   icod_ (SomeGeneralizableArgs a) = icodeN' SomeGeneralizableArgs a
@@ -318,8 +320,8 @@ instance EmbPrj Defn where
   icod_ (Function    a b s t (_:_) c d e f g h i j k m) = __IMPOSSIBLE__
   icod_ (Function    a b s t []    c d e f g h i j k m) =
     icodeN 1 (\ a b s -> Function a b s t []) a b s c d e f g h i j k m
-  icod_ (Datatype    a b c d e f g h i)                 = icodeN 2 Datatype a b c d e f g h i
-  icod_ (Record      a b c d e f g h i j k)             = icodeN 3 Record a b c d e f g h i j k
+  icod_ (Datatype    a b c d e f g h i j)               = icodeN 2 Datatype a b c d e f g h i j
+  icod_ (Record      a b c d e f g h i j k l)           = icodeN 3 Record a b c d e f g h i j k l
   icod_ (Constructor a b c d e f g h i)                 = icodeN 4 Constructor a b c d e f g h i
   icod_ (Primitive   a b c d e)                         = icodeN 5 Primitive a b c d e
   icod_ AbstractDefn{}                                  = __IMPOSSIBLE__
@@ -329,8 +331,8 @@ instance EmbPrj Defn where
   value = vcase valu where
     valu [0]                                        = valuN Axiom
     valu [1, a, b, s, c, d, e, f, g, h, i, j, k, m] = valuN (\ a b s -> Function a b s Nothing []) a b s c d e f g h i j k m
-    valu [2, a, b, c, d, e, f, g, h, i]             = valuN Datatype a b c d e f g h i
-    valu [3, a, b, c, d, e, f, g, h, i, j, k]       = valuN Record  a b c d e f g h i j k
+    valu [2, a, b, c, d, e, f, g, h, i, j]          = valuN Datatype a b c d e f g h i j
+    valu [3, a, b, c, d, e, f, g, h, i, j, k, l]    = valuN Record  a b c d e f g h i j k l
     valu [4, a, b, c, d, e, f, g, h, i]             = valuN Constructor a b c d e f g h i
     valu [5, a, b, c, d, e]                         = valuN Primitive   a b c d e
     valu [6]                                        = valuN GeneralizableVar

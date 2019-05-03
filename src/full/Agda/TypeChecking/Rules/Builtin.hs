@@ -909,6 +909,7 @@ bindBuiltinNoDef b q = inTopContext $ do
               , dataAbstr      = ConcreteDef
               , dataMutual     = Nothing
               , dataPathCons   = []
+              , dataErasureAllowed = ErasureAllowedYes
               }
     Just{}  -> __IMPOSSIBLE__
     Nothing -> __IMPOSSIBLE__ -- typeError $ NoSuchBuiltinName b

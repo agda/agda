@@ -16,7 +16,8 @@ out >               (Agda.Builtin.List.List._∷_ f (CompileAsPattern._.merge _ 
 out > CompileAsPattern.mapM! =
 out >   λ _ a b →
 out >     case b of
-out >       Agda.Builtin.List.List.[] → Common.IO.return () _ _
+out >       Agda.Builtin.List.List.[] →
+out >         Common.IO.return () _ Agda.Builtin.Unit.⊤.tt
 out >       Agda.Builtin.List.List._∷_ c d →
 out >         Common.IO._>>=_
 out >           () () _ _ (a c) (λ _ → CompileAsPattern.mapM! _ a d)

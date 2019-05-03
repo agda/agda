@@ -172,6 +172,14 @@ ghcPreModule _ isMain m ifile = ifM uptodate noComp yesComp
       out <- outFile_
       reportSLn "compile.ghc" 1 $ repl [m, ifile, out] "Compiling <<0>> in <<1>> to <<2>>"
       stImportedModules `setTCLens` Set.empty  -- we use stImportedModules to accumulate the required Haskell imports
+
+      -- Andreas, 2019-05-02, issue #3732:
+      -- Update the signature:
+      -- No erasure of elements of types that have a Haskell binding!
+      forMM_ (HMap.toList <$> curDefs) $ \ (q, _def) -> do
+        whenM (isJust <$> getHaskellPragma q) $ do
+          noErasureAllowed q
+
       return (Recompile ())
 
 ghcPostModule

@@ -214,6 +214,7 @@ checkRecDef i name uc ind eta con (A.DataDefParams gpars ps) contel fields =
               -- Determined by positivity checker:
               , recMutual         = Nothing
               , recComp           = emptyCompKit -- filled in later
+              , recErasureAllowed = ErasureAllowedYes
               }
 
         -- Add record constructor to signature

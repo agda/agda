@@ -276,8 +276,10 @@ getTypeInfo t0 = do
   lift $ reportSDoc "treeless.opt.erase.type" 50 $ prettyTCM t0 <+> text ("is " ++ show e)
   return e
   where
-    typeInfo :: QName -> E TypeInfo
-    typeInfo q = memoRec (typeMap . key q) Erasable $ do  -- assume recursive occurrences are erasable
+  typeInfo :: QName -> E TypeInfo
+  typeInfo q = (lift $ getErasureAllowed q) >>= \case
+    Just ErasureAllowedNo -> return NotErasable
+    _ -> memoRec (typeMap . key q) Erasable $ do  -- assume recursive occurrences are erasable
       msizes <- lift $ mapM getBuiltinName
                          [builtinSize, builtinSizeLt]
       def    <- lift $ getConstInfo q

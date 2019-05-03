@@ -6,9 +6,9 @@ open import Agda.Builtin.Nat
 data Unit : Set where
   c : ⊤ → Nat → ⊤ → Unit
 
--- Note that the ⊤ arguments get erased and shouldn't be present in
+-- Note that the ⊤ arguments do not get erased and should be present in
 -- the Haskell version of Unit.
-{-# FOREIGN GHC data Unit = Unit Integer #-}
+{-# FOREIGN GHC data Unit = Unit () Integer () #-}
 {-# COMPILE GHC Unit = data Unit (Unit) #-}
 
 postulate print : Nat → IO ⊤

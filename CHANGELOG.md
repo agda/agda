@@ -12,13 +12,46 @@ Pragmas and options
 * New pragma `WARNING_ON_IMPORT` to let module authors raise a warning
   when a module is imported. This can be use to tell users deprecations.
 
+GHC Backend
+-----------
+
+* Types which have a COMPILE GHC pragma are no longer erased
+  [[Issue #3732](https://github.com/agda/agda/issues/3732)].
+
+  ```agda
+  data I : Set where
+    bar : I
+
+  {-# FOREIGN GHC data I = Bar     #-}
+  {-# COMPILE GHC I = data I (Bar) #-}
+
+  data S : Set where
+    foo :  I → S
+
+  {-# FOREIGN GHC data S = Foo I #-}
+  {-# COMPILE GHC S = data S (Foo) #-}
+  ```
+  Previously [[Issue #2921](https://github.com/agda/agda/issues/2921)],
+  the last binding was incorrect, since the argument of
+  singleton type `I` was erased from the constructor `foo` during
+  compilation.  The required shape of `S` was previously
+  ```
+  {-# FOREIGN GHC data S = Foo #-}
+  ```
+  i.e., constructor `Foo` had to have no arguments.
+
+  For the sake of transparency, Haskell constructors bound to
+  Agda constructors now take the same arguments.
+  This is especially important if Haskell bindings are to be
+  produced automatically by third party tool.
+
 Release notes for Agda version 2.6.0.1
 ======================================
 
 Installation and infrastructure
 -------------------------------
 
-* Added support for GHC 8.6.5.
+* Added support for GHC 8.6.5.2
 
 Release notes for Agda version 2.6.0
 ====================================
@@ -40,7 +73,7 @@ Highlights
 * The implementation of [instance
   search](https://agda.readthedocs.io/en/v2.6.0/language/instance-arguments.html)
   got a major overhaul and no longer supports overlapping instances
-  (unless enabled by a flag).
+  (unless enabled by a flag)
 
 Installation and infrastructure
 -------------------------------

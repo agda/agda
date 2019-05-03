@@ -770,7 +770,9 @@ createGenRecordType genRecMeta@(El genRecSort _) sortedMetas = do
            , recEtaEquality' = Inferred YesEta
            , recInduction    = Nothing
            , recAbstr        = ConcreteDef
-           , recComp         = emptyCompKit }
+           , recComp         = emptyCompKit
+           , recErasureAllowed = ErasureAllowedYes
+           }
   reportSDoc "tc.generalize" 40 $ vcat
     [ text "created genRec" <+> text (show genRecFields) ]
   -- Solve the genRecMeta

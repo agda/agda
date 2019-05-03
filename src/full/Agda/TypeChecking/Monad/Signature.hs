@@ -801,6 +801,25 @@ setErasedConArgs q args = modifyGlobalDefinition q $ updateTheDef $ \case
     def@Constructor{} -> def{ conErased = args }
     def -> def   -- no-op for non-constructors
 
+-- | Returns 'Nothing' if given symbol has no 'ErasureAllowed' information.
+getErasureAllowed :: QName -> TCM (Maybe ErasureAllowed)
+getErasureAllowed q = (getConstInfo q <&> theDef) >>= \case
+  Datatype{ dataErasureAllowed = a } -> return $ Just a
+  Record  {  recErasureAllowed = a } -> return $ Just a
+  _ -> return $ Nothing
+
+-- | Does nothing if given symbol has no 'ErasureAllowed' information.
+modifyErasureAllowed :: QName -> (ErasureAllowed -> ErasureAllowed) -> TCM ()
+modifyErasureAllowed q f = modifyGlobalDefinition q $ updateTheDef $ \case
+  def@Datatype{ dataErasureAllowed = a } -> def { dataErasureAllowed = f a }
+  def@Record  {  recErasureAllowed = a } -> def {  recErasureAllowed = f a }
+  def -> def
+
+-- | Sets 'ErasureAllowed' of symbol to 'ErasureAllowedNo'.
+--   Does nothing if given symbol has no 'ErasureAllowed' information.
+noErasureAllowed :: QName -> TCM ()
+noErasureAllowed q = modifyErasureAllowed q $ const ErasureAllowedNo
+
 getTreeless :: QName -> TCM (Maybe TTerm)
 getTreeless q = fmap cTreeless <$> getCompiled q
 

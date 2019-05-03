@@ -88,6 +88,7 @@ bindBuiltinSharp x =
                   , recMutual         = Just []
                   , recAbstr          = ConcreteDef
                   , recComp           = emptyCompKit
+                  , recErasureAllowed = ErasureAllowedYes
                   }
               }
     addConstant sharp $
