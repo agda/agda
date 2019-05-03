@@ -797,6 +797,9 @@ test-suite agda-tests
                      , TypeSynonymInstances
                      , TupleSections
 
+  ghc-options: -fexpose-all-unfoldings
+               -fspecialise-aggressively
+
   -- Initially, we disable all the warnings.
   ghc-options: -threaded
                -w
