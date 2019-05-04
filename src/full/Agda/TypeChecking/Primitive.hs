@@ -1877,7 +1877,7 @@ pPi' n phi b = toFinitePi <$> nPi' n (elInf $ cl isOne <@> phi) b
  where
    toFinitePi :: Type -> Type
    toFinitePi (El s (Pi d b)) = El s $ Pi (setRelevance Irrelevant $ d { domFinite = True }) b
-   toFinitePi _               = __IMPOSSIBLE__\
+   toFinitePi _               = __IMPOSSIBLE__
 
    isOne = fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinIsOne
 
