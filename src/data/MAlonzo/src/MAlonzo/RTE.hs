@@ -11,8 +11,8 @@ import Numeric.IEEE ( IEEE(identicalIEEE, nan) )
 import GHC.Float (castDoubleToWord64)
 #else
 import System.IO.Unsafe (unsafePerformIO)
-import Foreign          as F
-import Foreign.Storable as F
+import qualified Foreign          as F
+import qualified Foreign.Storable as F
 #endif
 
 type AgdaAny = GHC.Any
@@ -119,8 +119,13 @@ castDoubleToWord64 float = unsafePerformIO $ F.alloca $ \buf -> do
   F.peek buf
 #endif
 
+normaliseNaN :: Double -> Double
+normaliseNaN x
+  | isNaN x   = nan
+  | otherwise = x
+
 doubleToWord64 :: Double -> Word64
-doubleToWord64 x = castDoubleToWord64 $ if isNaN x then nan else x
+doubleToWord64 = castDoubleToWord64 . normaliseNaN
 
 -- Words --
 
