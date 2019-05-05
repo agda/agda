@@ -94,8 +94,7 @@ Courses using Agda
   (CS__336), Anton Setzer, Swansea University, Lent 2008.
 - `Inductive and inductive-recursive definitions in Intuitionistic Type Theory <https://www.cs.uoregon.edu/research/summerschool/summer15/curriculum.html>`__
   , lectures by Peter Dybjer at the Oregon Programming Languages Summer School 2015.
-- `Introduction to Univalent Foundations of Mathematics with Agda https://www.cs.bham.ac.uk/~mhe/HoTT-UF-in-Agda-Lecture-Notes/index.html`__
-  MGS 2019 Martín Hötzel Escardó
+- `Introduction to Univalent Foundations of Mathematics with Agda <https://www.cs.bham.ac.uk/~mhe/HoTT-UF-in-Agda-Lecture-Notes/index.html>`__ , MGS 2019 Martín Hötzel Escardó
 
 Miscellaneous
 =============
