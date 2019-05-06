@@ -325,7 +325,9 @@ compiler-test :
 	@echo "======================================================================"
 	@echo "========================== Compiler tests ============================"
 	@echo "======================================================================"
-	@AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Compiler
+	@echo "Clearing old *.agdai files"
+	@find test/ -type f -name '*.agdai' -print -delete
+	AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Compiler
 
 .PHONY : api-test
 api-test :
