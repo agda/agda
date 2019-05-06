@@ -563,29 +563,29 @@ library
                -- This option must be the first one after disabling the
                -- warnings. See Issue #2094.
                -Wunrecognised-warning-flags
-               -fwarn-deprecated-flags
-               -fwarn-deriving-typeable
-               -fwarn-dodgy-exports
-               -fwarn-dodgy-foreign-imports
-               -fwarn-dodgy-imports
-               -fwarn-duplicate-exports
-               -fwarn-empty-enumerations
-               -fwarn-hi-shadowing
-               -fwarn-identities
-               -fwarn-incomplete-patterns
-               -fwarn-inline-rule-shadowing
-               -fwarn-missing-fields
-               -fwarn-missing-methods
-               -fwarn-missing-signatures
-               -fwarn-tabs
-               -fwarn-typed-holes
-               -fwarn-overflowed-literals
-               -fwarn-overlapping-patterns
-               -fwarn-unrecognised-pragmas
-               -fwarn-unticked-promoted-constructors
-               -fwarn-unused-do-bind
-               -fwarn-warnings-deprecations
-               -fwarn-wrong-do-bind
+               -Wdeprecated-flags
+               -Wderiving-typeable
+               -Wdodgy-exports
+               -Wdodgy-foreign-imports
+               -Wdodgy-imports
+               -Wduplicate-exports
+               -Wempty-enumerations
+               -Whi-shadowing
+               -Widentities
+               -Wincomplete-patterns
+               -Winline-rule-shadowing
+               -Wmissing-fields
+               -Wmissing-methods
+               -Wmissing-signatures
+               -Wtabs
+               -Wtyped-holes
+               -Woverflowed-literals
+               -Woverlapping-patterns
+               -Wunrecognised-pragmas
+               -Wunticked-promoted-constructors
+               -Wunused-do-bind
+               -Wwarnings-deprecations
+               -Wwrong-do-bind
                -Wmissing-pattern-synonym-signatures
                -Wnoncanonical-monad-instances
                -Wnoncanonical-monoid-instances
@@ -808,29 +808,29 @@ test-suite agda-tests
                -- This option must be the first one after disabling the
                -- warnings. See Issue #2094.
                -Wunrecognised-warning-flags
-               -fwarn-deprecated-flags
-               -fwarn-deriving-typeable
-               -fwarn-dodgy-exports
-               -fwarn-dodgy-foreign-imports
-               -fwarn-dodgy-imports
-               -fwarn-duplicate-exports
-               -fwarn-empty-enumerations
-               -fwarn-hi-shadowing
-               -fwarn-identities
-               -fwarn-incomplete-patterns
-               -fwarn-inline-rule-shadowing
-               -fwarn-missing-fields
-               -fwarn-missing-methods
-               -fwarn-missing-signatures
-               -fwarn-tabs
-               -fwarn-typed-holes
-               -fwarn-overflowed-literals
-               -fwarn-overlapping-patterns
-               -fwarn-unrecognised-pragmas
-               -fwarn-unticked-promoted-constructors
-               -fwarn-unused-do-bind
-               -fwarn-warnings-deprecations
-               -fwarn-wrong-do-bind
+               -Wdeprecated-flags
+               -Wderiving-typeable
+               -Wdodgy-exports
+               -Wdodgy-foreign-imports
+               -Wdodgy-imports
+               -Wduplicate-exports
+               -Wempty-enumerations
+               -Whi-shadowing
+               -Widentities
+               -Wincomplete-patterns
+               -Winline-rule-shadowing
+               -Wmissing-fields
+               -Wmissing-methods
+               -Wmissing-signatures
+               -Wtabs
+               -Wtyped-holes
+               -Woverflowed-literals
+               -Woverlapping-patterns
+               -Wunrecognised-pragmas
+               -Wunticked-promoted-constructors
+               -Wunused-do-bind
+               -Wwarnings-deprecations
+               -Wwrong-do-bind
                -Wmissing-pattern-synonym-signatures
                -Wnoncanonical-monad-instances
                -Wnoncanonical-monoid-instances
