@@ -554,6 +554,7 @@ library
 
   other-modules:    Paths_Agda
 
+  -- NOTE: If adding flags, also add to `.ghci`
   ghc-options: -fexpose-all-unfoldings
                -fspecialise-aggressively
                -- Initially, we disable all the warnings.
@@ -797,6 +798,7 @@ test-suite agda-tests
                      , TypeSynonymInstances
                      , TupleSections
 
+  -- NOTE: If adding flags, also add to `.ghci`
   ghc-options: -fexpose-all-unfoldings
                -fspecialise-aggressively
                -threaded
