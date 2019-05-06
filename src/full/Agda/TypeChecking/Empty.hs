@@ -1,5 +1,10 @@
 
-module Agda.TypeChecking.Empty where
+module Agda.TypeChecking.Empty
+  ( isEmptyType
+  , isEmptyTel
+  , ensureEmptyType
+  , checkEmptyTel
+  ) where
 
 import Control.Monad.Except
 

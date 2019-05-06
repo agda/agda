@@ -68,7 +68,12 @@ import Agda.TypeChecking.Free.Lazy (Free(freeVars'), bind', bind)
 
 import Agda.Termination.CutOff
 
-import {-# SOURCE #-} Agda.Compiler.Backend
+-- Args, defined in Agda.Syntax.Treeless and exported from Agda.Compiler.Backend
+-- conflicts with Args, defined in Agda.Syntax.Internal and also imported here.
+-- This only matters when interpreted in ghci, which sees all of the module's
+-- exported symbols, not just the ones defined in the `.hs-boot`. See the
+-- comment in ../../Compiler/Backend.hs-boot
+import {-# SOURCE #-} Agda.Compiler.Backend hiding (Args)
 
 -- import {-# SOURCE #-} Agda.Interaction.FindFile
 import Agda.Interaction.Options
