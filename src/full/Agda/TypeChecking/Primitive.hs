@@ -555,7 +555,7 @@ primIdJ = do
                                 <@> (pure conid <#> la <#> a <#> x <#> (w i)
                                                 <@> (phi `imax` ineg i)
                                                 <@> (lam "j" $ \ j -> w $ imin i j)))
-                       <@> phi
+                       <#> phi
                        <@> (lam "i" $ \ _ -> nolam <$> d) -- TODO block
                        <@> d
          _ -> return $ NoReduction $ map notReduced [la,lc,a,x,c,d,y] ++ [reduced seq]
@@ -1348,7 +1348,7 @@ primComp = do
   t    <- runNamesT [] $
           hPi' "a" (elInf (cl primInterval) --> (el $ cl primLevel)) $ \ a ->
           nPi' "A" (nPi' "i" (elInf (cl primInterval)) $ \ i -> (sort . tmSort <$> (a <@> i))) $ \ bA ->
-          nPi' "φ" (elInf $ cl primInterval) $ \ phi ->
+          hPi' "φ" (elInf $ cl primInterval) $ \ phi ->
           (nPi' "i" (elInf $ cl primInterval) $ \ i -> pPi' "o" phi $ \ _ -> el' (a <@> i) (bA <@> i)) -->
           (el' (a <@> cl primIZero) (bA <@> cl primIZero) --> el' (a <@> cl primIOne) (bA <@> cl primIOne))
   one <- primItIsOne
