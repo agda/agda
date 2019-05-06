@@ -25,21 +25,21 @@
 :set -Winline-rule-shadowing
 :set -Wmissing-fields
 :set -Wmissing-methods
+:set -Wmissing-pattern-synonym-signatures
 :set -Wmissing-signatures
-:set -Wtabs
-:set -Wtyped-holes
+:set -Wnoncanonical-monad-instances
+:set -Wnoncanonical-monoid-instances
 :set -Woverflowed-literals
 :set -Woverlapping-patterns
+:set -Wsemigroup
+:set -Wtabs
+:set -Wtyped-holes
 :set -Wunrecognised-pragmas
 :set -Wunticked-promoted-constructors
 :set -Wunused-do-bind
+:set -Wunused-foralls
 :set -Wwarnings-deprecations
 :set -Wwrong-do-bind
-:set -Wmissing-pattern-synonym-signatures
-:set -Wnoncanonical-monad-instances
-:set -Wnoncanonical-monoid-instances
-:set -Wsemigroup
-:set -Wunused-foralls
 
 :set -XConstraintKinds
 :set -XDataKinds
@@ -60,5 +60,5 @@
 :set -XRecordWildCards
 :set -XScopedTypeVariables
 :set -XStandaloneDeriving
-:set -XTypeSynonymInstances
 :set -XTupleSections
+:set -XTypeSynonymInstances

@@ -576,21 +576,21 @@ library
                -Winline-rule-shadowing
                -Wmissing-fields
                -Wmissing-methods
+               -Wmissing-pattern-synonym-signatures
                -Wmissing-signatures
-               -Wtabs
-               -Wtyped-holes
+               -Wnoncanonical-monad-instances
+               -Wnoncanonical-monoid-instances
                -Woverflowed-literals
                -Woverlapping-patterns
+               -Wsemigroup
+               -Wtabs
+               -Wtyped-holes
                -Wunrecognised-pragmas
                -Wunticked-promoted-constructors
                -Wunused-do-bind
+               -Wunused-foralls
                -Wwarnings-deprecations
                -Wwrong-do-bind
-               -Wmissing-pattern-synonym-signatures
-               -Wnoncanonical-monad-instances
-               -Wnoncanonical-monoid-instances
-               -Wsemigroup
-               -Wunused-foralls
 
   if impl(ghc >= 8.2)
     ghc-options: -Wcpp-undef
@@ -628,8 +628,8 @@ library
                     , RecordWildCards
                     , ScopedTypeVariables
                     , StandaloneDeriving
-                    , TypeSynonymInstances
                     , TupleSections
+                    , TypeSynonymInstances
 
 executable agda
   hs-source-dirs: src/main
@@ -795,8 +795,8 @@ test-suite agda-tests
                      , RecordWildCards
                      , ScopedTypeVariables
                      , StandaloneDeriving
-                     , TypeSynonymInstances
                      , TupleSections
+                     , TypeSynonymInstances
 
   -- NOTE: If adding flags, also add to `.ghci`
   ghc-options: -fexpose-all-unfoldings
@@ -821,21 +821,21 @@ test-suite agda-tests
                -Winline-rule-shadowing
                -Wmissing-fields
                -Wmissing-methods
+               -Wmissing-pattern-synonym-signatures
                -Wmissing-signatures
-               -Wtabs
-               -Wtyped-holes
+               -Wnoncanonical-monad-instances
+               -Wnoncanonical-monoid-instances
                -Woverflowed-literals
                -Woverlapping-patterns
+               -Wsemigroup
+               -Wtabs
+               -Wtyped-holes
                -Wunrecognised-pragmas
                -Wunticked-promoted-constructors
                -Wunused-do-bind
+               -Wunused-foralls
                -Wwarnings-deprecations
                -Wwrong-do-bind
-               -Wmissing-pattern-synonym-signatures
-               -Wnoncanonical-monad-instances
-               -Wnoncanonical-monoid-instances
-               -Wsemigroup
-               -Wunused-foralls
 
   -- ASR (2017-04-11). TODO: Using -Wmissing-home-modules generates an
   -- error.
