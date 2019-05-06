@@ -1,58 +1,20 @@
-:set -hide-package Agda
-
-:set -fexpose-all-unfoldings
-:set -fspecialise-aggressively
-:set -threaded
-:set -w
--- :set -Werror
-:set -Wunrecognised-warning-flags
-:set -Wdeprecated-flags
-:set -Wderiving-typeable
-:set -Wdodgy-exports
-:set -Wdodgy-foreign-imports
-:set -Wdodgy-imports
-:set -Wduplicate-exports
-:set -Wempty-enumerations
-:set -Whi-shadowing
-:set -Widentities
-:set -Wincomplete-patterns
-:set -Winline-rule-shadowing
-:set -Wmissing-fields
-:set -Wmissing-methods
-:set -Wmissing-pattern-synonym-signatures
-:set -Wmissing-signatures
-:set -Wnoncanonical-monad-instances
-:set -Wnoncanonical-monoid-instances
-:set -Woverflowed-literals
-:set -Woverlapping-patterns
-:set -Wsemigroup
-:set -Wtabs
-:set -Wtyped-holes
-:set -Wunrecognised-pragmas
-:set -Wunticked-promoted-constructors
-:set -Wunused-do-bind
-:set -Wunused-foralls
-:set -Wwarnings-deprecations
-:set -Wwrong-do-bind
-
-:set -XConstraintKinds
-:set -XDataKinds
-:set -XDefaultSignatures
-:set -XDeriveFoldable
-:set -XDeriveFunctor
-:set -XDeriveTraversable
-:set -XExistentialQuantification
-:set -XFlexibleContexts
-:set -XFlexibleInstances
-:set -XFunctionalDependencies
-:set -XLambdaCase
-:set -XMultiParamTypeClasses
-:set -XMultiWayIf
-:set -XNamedFieldPuns
-:set -XOverloadedStrings
-:set -XRankNTypes
-:set -XRecordWildCards
-:set -XScopedTypeVariables
-:set -XStandaloneDeriving
-:set -XTupleSections
-:set -XTypeSynonymInstances
+-- Loads the appropriate .ghci file
+-- (.ghci860, .ghci820, .ghci800)
+--
+:{
+:def agda_load_ghci_by_version \varcmd ->
+  let
+    ghcVersion = Data.Version.versionBranch System.Info.compilerVersion
+  in
+    if (length ghcVersion /= 2)
+    then return "putStrLn \"Strange GHC version…\""
+    else if ghcVersion >= [8,6]
+    then return ":script .ghci860"
+    else if ghcVersion >= [8,2]
+    then return ":script .ghci820"
+    else if ghcVersion >= [8,0]
+    then return ":script .ghci800"
+    else return "putStrLn \"Unsupported GHC version\""
+:}
+:agda_load_ghci_by_version
+:undef agda_load_ghci_by_version

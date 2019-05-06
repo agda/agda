@@ -1,0 +1,64 @@
+-- This file mirrors the flags for the lowest-common-denominator (currently
+-- GHC 8.0.x) enabled in Agda.cabal.
+--
+-- It should be loaded automatically by the `.ghci` file in this directory.
+--
+
+:set -hide-package Agda
+
+:set -fexpose-all-unfoldings
+:set -fspecialise-aggressively
+:set -threaded
+:set -w
+-- :set -Werror
+:set -Wunrecognised-warning-flags
+:set -Wdeprecated-flags
+:set -Wderiving-typeable
+:set -Wdodgy-exports
+:set -Wdodgy-foreign-imports
+:set -Wdodgy-imports
+:set -Wduplicate-exports
+:set -Wempty-enumerations
+:set -Whi-shadowing
+:set -Widentities
+:set -Wincomplete-patterns
+:set -Winline-rule-shadowing
+:set -Wmissing-fields
+:set -Wmissing-methods
+:set -Wmissing-pattern-synonym-signatures
+:set -Wmissing-signatures
+:set -Wnoncanonical-monad-instances
+:set -Wnoncanonical-monoid-instances
+:set -Woverflowed-literals
+:set -Woverlapping-patterns
+:set -Wsemigroup
+:set -Wtabs
+:set -Wtyped-holes
+:set -Wunrecognised-pragmas
+:set -Wunticked-promoted-constructors
+:set -Wunused-do-bind
+:set -Wunused-foralls
+:set -Wwarnings-deprecations
+:set -Wwrong-do-bind
+
+:set -XConstraintKinds
+:set -XDataKinds
+:set -XDefaultSignatures
+:set -XDeriveFoldable
+:set -XDeriveFunctor
+:set -XDeriveTraversable
+:set -XExistentialQuantification
+:set -XFlexibleContexts
+:set -XFlexibleInstances
+:set -XFunctionalDependencies
+:set -XLambdaCase
+:set -XMultiParamTypeClasses
+:set -XMultiWayIf
+:set -XNamedFieldPuns
+:set -XOverloadedStrings
+:set -XRankNTypes
+:set -XRecordWildCards
+:set -XScopedTypeVariables
+:set -XStandaloneDeriving
+:set -XTupleSections
+:set -XTypeSynonymInstances

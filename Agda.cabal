@@ -554,7 +554,7 @@ library
 
   other-modules:    Paths_Agda
 
-  -- NOTE: If adding flags, also add to `.ghci`
+  -- NOTE: If adding flags, also add to `.ghci800`
   ghc-options: -fexpose-all-unfoldings
                -fspecialise-aggressively
                -- Initially, we disable all the warnings.
@@ -592,6 +592,7 @@ library
                -Wwarnings-deprecations
                -Wwrong-do-bind
 
+  -- NOTE: If adding flags, also add to `.ghci820`
   if impl(ghc >= 8.2)
     ghc-options: -Wcpp-undef
                  -- ASR TODO (2017-07-23): `make haddock` fails when
@@ -600,6 +601,7 @@ library
                  -Wsimplifiable-class-constraints
                  -Wunbanged-strict-patterns
 
+  -- NOTE: If adding flags, also add to `.ghci860`
   if impl(ghc >= 8.6)
     ghc-options: -Winaccessible-code
                  -Wstar-binder
@@ -798,7 +800,7 @@ test-suite agda-tests
                      , TupleSections
                      , TypeSynonymInstances
 
-  -- NOTE: If adding flags, also add to `.ghci`
+  -- NOTE: If adding flags, also add to `.ghci800`
   ghc-options: -fexpose-all-unfoldings
                -fspecialise-aggressively
                -threaded
@@ -839,11 +841,13 @@ test-suite agda-tests
 
   -- ASR (2017-04-11). TODO: Using -Wmissing-home-modules generates an
   -- error.
+  -- NOTE: If adding flags, also add to `.ghci820`
   if impl(ghc >= 8.2)
     ghc-options: -Wcpp-undef
                  -Wsimplifiable-class-constraints
                  -Wunbanged-strict-patterns
 
+  -- NOTE: If adding flags, also add to `.ghci860`
   if impl(ghc >= 8.6)
     ghc-options: -Winaccessible-code
                  -Wstar-binder
