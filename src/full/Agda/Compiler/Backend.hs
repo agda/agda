@@ -170,8 +170,8 @@ backendInteraction backends _ check = do
 
 
 compilerMain :: Backend' opts env menv mod def -> IsMain -> Interface -> TCM ()
-compilerMain backend isMain0 i =
-  inCompilerEnv i $ do
+compilerMain backend isMain0 i = inCompilerEnv i $ do
+  localTC (\ e -> e { envActiveBackend = Just $ backendName backend }) $ do
     onlyScoping <- optOnlyScopeChecking <$> commandLineOptions
     when (not (scopeCheckingSuffices backend) && onlyScoping) $
       genericError $

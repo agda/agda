@@ -141,8 +141,8 @@ ghcPreCompile :: GHCOptions -> TCM GHCOptions
 ghcPreCompile ghcOpts = do
   allowUnsolved <- optAllowUnsolved <$> pragmaOptions
   when allowUnsolved $ genericError $ "Unsolved meta variables are not allowed when compiling."
-  propagateNonErasabilityOfHaskellBoundTypes =<< useTC stImports
-  propagateNonErasabilityOfHaskellBoundTypes =<< useTC stSignature
+  -- propagateNonErasabilityOfHaskellBoundTypes =<< useTC stImports
+  -- propagateNonErasabilityOfHaskellBoundTypes =<< useTC stSignature
   return ghcOpts
 
 ghcPostCompile :: GHCOptions -> IsMain -> Map ModuleName IsMain -> TCM ()
@@ -210,7 +210,7 @@ ghcPostModule _ _ isMain _ defs = do
   hasMainFunction isMain <$> curIF
 
 ghcCompileDef :: GHCOptions -> GHCModuleEnv -> IsMain -> Definition -> TCM [HS.Decl]
-ghcCompileDef _ = definition
+ghcCompileDef _ env isMain def = definition env isMain def
 
 -- Compilation ------------------------------------------------------------
 

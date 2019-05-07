@@ -25,6 +25,7 @@ import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Pretty hiding ((<>))
 import Agda.TypeChecking.Primitive
 
+import Agda.Compiler.MAlonzo.Pragmas
 import Agda.Compiler.Treeless.Subst
 import Agda.Compiler.Treeless.Pretty
 import Agda.Compiler.Treeless.Unused
@@ -302,3 +303,16 @@ getTypeInfo t0 = do
             I.Function{ funClauses = cs } ->
               sumTypeInfo <$> mapM (maybe (return Empty) (getTypeInfo . El __DUMMY_SORT__) . clauseBody) cs
             _ -> return NotErasable
+  getErasureAllowed :: QName -> TCM (Maybe ErasureAllowed)
+  getErasureAllowed q = do
+    b <- fromMaybe __IMPOSSIBLE__ <$> asksTC envActiveBackend
+    -- Only GHC backend has erasure restriction at the moment.
+    if b /= ghcBackendName then yes else do
+      -- A type with a GHC COMPILE pragma does not get erased.
+      -- ifJustM (getUniqueCompilerPragma ghcBackendName q) (const no) yes
+      getHaskellPragma q >>= \case
+        Just HsData{} -> no
+        _ -> yes
+    where
+    yes = return $ Just ErasureAllowedYes
+    no  = return $ Just ErasureAllowedNo
