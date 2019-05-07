@@ -1451,8 +1451,6 @@ data NLPat
   = PVar !Int [Arg Int]
     -- ^ Matches anything (modulo non-linearity) that only contains bound
     --   variables that occur in the given arguments.
-  | PWild
-    -- ^ Matches anything (e.g. irrelevant terms).
   | PDef QName PElims
     -- ^ Matches @f es@
   | PLam ArgInfo (Abs NLPat)
@@ -1467,7 +1465,7 @@ data NLPat
 type PElims = [Elim' NLPat]
 
 data NLPType = NLPType
-  { nlpTypeLevel :: NLPat  -- always PWild or PVar (with all bound variables in scope)
+  { nlpTypeLevel :: NLPat  -- always PTerm or PVar (with all bound variables in scope)
   , nlpTypeUnEl  :: NLPat
   } deriving (Data, Show)
 
@@ -3886,7 +3884,6 @@ instance KillRange NumGeneralizableArgs where
 
 instance KillRange NLPat where
   killRange (PVar x y) = killRange2 PVar x y
-  killRange (PWild)    = PWild
   killRange (PDef x y) = killRange2 PDef x y
   killRange (PLam x y) = killRange2 PLam x y
   killRange (PPi x y)  = killRange2 PPi x y

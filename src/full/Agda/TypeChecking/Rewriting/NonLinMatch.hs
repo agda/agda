@@ -114,7 +114,7 @@ instance PatternFrom () Type NLPType where
 instance PatternFrom () Sort NLPat where
   patternFrom r k _ s = do
     s <- reduce s
-    let done = return PWild
+    let done = return $ PTerm $ Sort s
     case s of
       Type l   -> do
         t <- levelType
@@ -142,10 +142,7 @@ instance PatternFrom Type Term NLPat where
       [ "building a pattern from term v = " <+> prettyTCM v
       , " of type " <+> prettyTCM t
       ]
-    let done = if isIrrelevant r then
-                 return PWild
-               else
-                 return $ PTerm v
+    let done = return $ PTerm v
     case (unEl t , v) of
       (Pi a b , _) -> do
         let body = raise 1 v `apply` [ Arg (domInfo a) $ var 0 ]
@@ -201,7 +198,7 @@ instance PatternFrom Type Term NLPat where
         return $ PPi pa (Abs (absName b) pb)
       (_ , Sort s)     -> done
       (_ , Level l)    -> __IMPOSSIBLE__
-      (_ , DontCare{}) -> return PWild
+      (_ , DontCare{}) -> done
       (_ , MetaV{})    -> __IMPOSSIBLE__
       (_ , Dummy s _)    -> __IMPOSSIBLE_VERBOSE__ s
 
@@ -317,11 +314,12 @@ instance Match () NLPType Type where
     match r gamma k () lp s
     match r gamma k (sort s) p a
 
+-- We mine sort annotations for solutions to pattern variables of type
+-- Level, but a wrong sort can never block reduction.
 instance Match () NLPat Sort where
-  match r gamma k _ p s = case (p , s) of
-    (PWild , _     ) -> return ()
-    (p     , Type l) -> match Irrelevant gamma k () p l
-    _                -> matchingBlocked $ NotBlocked ReallyNotBlocked ()
+  match r gamma k _ p s = case s of
+    Type l -> match Irrelevant gamma k () p l
+    _      -> return ()
 
 instance Match () NLPat Level where
   match r gamma k _ p l = do
@@ -351,7 +349,7 @@ instance Match Type NLPat Term where
       [ "pattern vars:   " <+> prettyTCM gamma
       , "bound vars:     " <+> prettyTCM k ]) $ do
     let yes = return ()
-        no msg = do
+        no msg = if r == Irrelevant then yes else do
           traceSDoc "rewriting.match" 10 (sep
             [ "mismatch between" <+> prettyPat
             , " and " <+> prettyTerm
@@ -360,7 +358,7 @@ instance Match Type NLPat Term where
           traceSDoc "rewriting.match" 30 (sep
             [ "blocking tag from reduction: " <+> text (show b) ]) $ do
           matchingBlocked b
-        block b' = do
+        block b' = if r == Irrelevant then yes else do
           traceSDoc "rewriting.match" 10 (sep
             [ "matching blocked on meta"
             , text (show b') ]) $ do
@@ -368,7 +366,6 @@ instance Match Type NLPat Term where
             [ "blocking tag from reduction: " <+> text (show b') ]) $ do
           matchingBlocked (b `mappend` b')
     case p of
-      PWild  -> yes
       PVar i bvs -> traceSDoc "rewriting.match" 60 ("matching a PVar: " <+> text (show i)) $ do
         let allowedVars :: IntSet
             allowedVars = IntSet.fromList (map unArg bvs)

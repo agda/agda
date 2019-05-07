@@ -419,7 +419,6 @@ instance NLPatVars NLPat where
     case p of
       PVar i _  -> singleton $ i - k
       PDef _ es -> nlPatVarsUnder k es
-      PWild     -> empty
       PLam _ p' -> nlPatVarsUnder (k+1) $ unAbs p'
       PPi a b   -> nlPatVarsUnder k a `IntSet.union` nlPatVarsUnder (k+1) (unAbs b)
       PBoundVar _ es -> nlPatVarsUnder k es
@@ -439,7 +438,6 @@ instance GetMatchables NLPat where
   getMatchables p =
     case p of
       PVar _ _       -> empty
-      PWild          -> empty
       PDef f _       -> singleton f
       PLam _ x       -> empty
       PPi a b        -> empty
@@ -453,7 +451,6 @@ instance GetMatchables RewriteRule where
 instance Free NLPat where
   freeVars' p = case p of
     PVar _ _ -> mempty
-    PWild -> mempty
     PDef _ es -> freeVars' es
     PLam _ u -> freeVars' u
     PPi a b -> freeVars' (a,b)
