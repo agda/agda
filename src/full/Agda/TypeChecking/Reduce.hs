@@ -1320,7 +1320,6 @@ instance InstantiateFull Definition where
 
 instance InstantiateFull NLPat where
   instantiateFull' (PVar x y) = return $ PVar x y
-  instantiateFull' (PWild)    = return PWild
   instantiateFull' (PDef x y) = PDef <$> instantiateFull' x <*> instantiateFull' y
   instantiateFull' (PLam x y) = PLam x <$> instantiateFull' y
   instantiateFull' (PPi x y)  = PPi <$> instantiateFull' x <*> instantiateFull' y

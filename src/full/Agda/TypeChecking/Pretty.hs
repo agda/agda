@@ -429,7 +429,6 @@ instance PrettyTCM (Elim' DisplayTerm) where
 
 instance PrettyTCM NLPat where
   prettyTCM (PVar x bvs) = prettyTCM (Var x (map (Apply . fmap var) bvs))
-  prettyTCM (PWild)     = text $ "_"
   prettyTCM (PDef f es) = parens $
     prettyTCM f <+> fsep (map prettyTCM es)
   prettyTCM (PLam i u)  = parens $
@@ -443,8 +442,8 @@ instance PrettyTCM NLPat where
   prettyTCM (PTerm t)   = "." <> parens (prettyTCM t)
 
 instance PrettyTCM NLPType where
-  prettyTCM (NLPType PWild a) = prettyTCM a
-  prettyTCM (NLPType l     a) = "{" <> prettyTCM l <> "}" <> prettyTCM a
+  prettyTCM (NLPType PTerm{} a) = prettyTCM a
+  prettyTCM (NLPType l       a) = "{" <> prettyTCM l <> "}" <> prettyTCM a
 
 instance PrettyTCM (Elim' NLPat) where
   prettyTCM (IApply x y v) = prettyTCM v

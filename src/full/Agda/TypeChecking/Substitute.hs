@@ -812,7 +812,6 @@ instance DeBruijn NLPat where
   deBruijnView p = case p of
     PVar i []   -> Just i
     PVar{}      -> Nothing
-    PWild{}     -> Nothing
     PDef{}      -> Nothing
     PLam{}      -> Nothing
     PPi{}       -> Nothing
@@ -826,7 +825,6 @@ applyNLPatSubst = applySubst . fmap nlPatToTerm
     nlPatToTerm p = case p of
       PVar i xs      -> Var i $ map (Apply . fmap var) xs
       PTerm u        -> u
-      PWild          -> __IMPOSSIBLE__
       PDef f es      -> __IMPOSSIBLE__
       PLam i u       -> __IMPOSSIBLE__
       PPi a b        -> __IMPOSSIBLE__
@@ -835,7 +833,6 @@ applyNLPatSubst = applySubst . fmap nlPatToTerm
 instance Subst NLPat NLPat where
   applySubst rho p = case p of
     PVar i bvs -> lookupS rho i `applyBV` bvs
-    PWild  -> p
     PDef f es -> PDef f $ applySubst rho es
     PLam i u -> PLam i $ applySubst rho u
     PPi a b -> PPi (applySubst rho a) (applySubst rho b)
@@ -847,7 +844,6 @@ instance Subst NLPat NLPat where
       applyBV p ys = case p of
         PVar i xs      -> PVar i (xs ++ ys)
         PTerm u        -> PTerm $ u `apply` map (fmap var) ys
-        PWild          -> __IMPOSSIBLE__
         PDef f es      -> __IMPOSSIBLE__
         PLam i u       -> __IMPOSSIBLE__
         PPi a b        -> __IMPOSSIBLE__
