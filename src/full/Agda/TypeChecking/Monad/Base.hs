@@ -156,7 +156,7 @@ data PreScopeState = PreScopeState
   { stPreTokens             :: !CompressedFile -- from lexer
     -- ^ Highlighting info for tokens (but not those tokens for
     -- which highlighting exists in 'stSyntaxInfo').
-  , stPreImports            :: !Signature  -- XX populated by scopec hecker
+  , stPreImports            :: !Signature  -- XX populated by scope checker
     -- ^ Imported declared identifiers.
     --   Those most not be serialized!
   , stPreImportedModules    :: !(Set ModuleName)  -- imports logic
