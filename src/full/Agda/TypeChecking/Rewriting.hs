@@ -146,7 +146,8 @@ relView t = do
 --   to the signature where @B = A[us/Δ]@.
 --   Remember that @rel : Δ → A → A → Set i@, so
 --   @rel us : (lhs rhs : A[us/Δ]) → Set i@.
-addRewriteRule :: QName -> TCM ()
+--   Returns the head symbol @f@ of the lhs.
+addRewriteRule :: QName -> TCM QName
 addRewriteRule q = do
   requireOptionRewriting
   let failNoBuiltin = typeError $ GenericError $
@@ -272,6 +273,8 @@ addRewriteRule q = do
       -- Add rewrite rule gamma ⊢ lhs ↦ rhs : b for f.
       addRewriteRules f [rew]
 
+      return f
+
     _ -> failureWrongTarget
   where
     checkNoLhsReduction :: QName -> Elims -> TCM ()
@@ -293,13 +296,14 @@ addRewriteRule q = do
           unless ok fail
         _ -> fail
 
-    ifNotAlreadyAdded :: QName -> TCM () -> TCM ()
+    ifNotAlreadyAdded :: QName -> TCM QName -> TCM QName
     ifNotAlreadyAdded f cont = do
       rews <- getRewriteRulesFor f
       -- check if q is already an added rewrite rule
-      if any ((q ==) . rewName) rews then
+      if any ((q ==) . rewName) rews then do
         genericWarning =<< do
           "Rewrite rule " <+> prettyTCM q <+> " has already been added"
+        return f
       else cont
 
     usedArgs :: [Pos.Occurrence] -> IntSet
@@ -376,7 +380,7 @@ rewrite block v rules es = do
         -- Andreas, 2018-09-08, issue #3211:
         -- discount module parameters for constructor heads
       _ -> __IMPOSSIBLE__
-    loop block t rules =<< instantiateFull' es
+    loop block t rules =<< instantiateFull' es -- TODO: remove instantiateFull?
   else
     return $ NoReduction (block $> v `applyE` es)
   where

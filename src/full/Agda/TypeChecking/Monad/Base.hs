@@ -2219,6 +2219,7 @@ data Call = CheckClause Type A.SpineClause
           | CheckPragma Range A.Pragma
           | CheckPrimitive Range QName A.Expr
           | CheckIsEmpty Range Type
+          | CheckConfluence QName QName
           | CheckWithFunctionType Type
           | CheckSectionApplication Range ModuleName A.ModuleApplication
           | CheckNamedWhere ModuleName
@@ -2260,6 +2261,7 @@ instance Pretty Call where
     pretty SetRange{}                = "SetRange"
     pretty CheckSectionApplication{} = "CheckSectionApplication"
     pretty CheckIsEmpty{}            = "CheckIsEmpty"
+    pretty CheckConfluence{}         = "CheckConfluence"
     pretty NoHighlighting{}          = "NoHighlighting"
     pretty ModuleContents{}          = "ModuleContents"
 
@@ -2293,6 +2295,7 @@ instance HasRange Call where
     getRange (SetRange r)                    = r
     getRange (CheckSectionApplication r _ _) = r
     getRange (CheckIsEmpty r _)              = r
+    getRange (CheckConfluence rule1 _)       = getRange rule1
     getRange NoHighlighting                  = noRange
     getRange ModuleContents                  = noRange
 

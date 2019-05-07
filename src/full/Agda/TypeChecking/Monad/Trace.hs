@@ -97,6 +97,7 @@ traceCall mkCall m = do
     CheckPragma{}             -> True
     CheckPrimitive{}          -> True
     CheckIsEmpty{}            -> True
+    CheckConfluence{}         -> False
     CheckWithFunctionType{}   -> True
     CheckSectionApplication{} -> True
     CheckNamedWhere{}         -> False
