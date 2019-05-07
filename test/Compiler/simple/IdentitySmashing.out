@@ -1,16 +1,3 @@
 EXECUTED_PROGRAM
 
 ret > ExitSuccess
-out > IdentitySmashing.vecToList =
-out >   λ _ _ _ a →
-out >     case a of
-out >       IdentitySmashing.Vec.[] → IdentitySmashing.List.[]
-out >       IdentitySmashing.Vec._∷_ _ b c →
-out >         IdentitySmashing.List._∷_ b (IdentitySmashing.vecToList _ _ _ c)
-out > IdentitySmashing.wk = λ _ a → a
-out > IdentitySmashing.wkN = λ _ _ a → a
-out > IdentitySmashing.wkN′ = λ _ _ a → a
-out > IdentitySmashing.vecPlusZero = λ _ _ _ a → a
-out > IdentitySmashing.main =
-out >   Common.IO.return () _ Agda.Builtin.Unit.⊤.tt
-out >

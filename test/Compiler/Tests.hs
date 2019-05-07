@@ -69,6 +69,7 @@ disabledTests =
   , RFInclude "Compiler/JS/simple/VecReverseIrr"
   , RFInclude "Compiler/JS/simple/Issue2821"    -- GHC backend specific
   , RFInclude "Compiler/JS/simple/Issue2914"    -- GHC backend specific
+  , RFInclude "Compiler/JS/simple/Issue3732"    -- GHC backend specific
     -- Fix to 2524 is too unsafe
   , RFInclude "Compiler/.*/simple/Issue2524"
     -- Segfaulting 2640 behaves differently on travis
@@ -79,7 +80,6 @@ disabledTests =
   , RFInclude "Compiler/JS/simple/Issue2879-.*"
   , RFInclude "Compiler/JS/simple/Issue2909-.*"
   , RFInclude "Compiler/JS/simple/Issue2918"
-  , RFInclude "Compiler/MAlonzo/simple/CompileAsPattern"
   ]
 
 tests :: IO TestTree
