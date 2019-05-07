@@ -79,6 +79,7 @@ disabledTests =
   , RFInclude "Compiler/JS/simple/Issue2879-.*"
   , RFInclude "Compiler/JS/simple/Issue2909-.*"
   , RFInclude "Compiler/JS/simple/Issue2918"
+  , RFInclude "Compiler/MAlonzo/simple/CompileAsPattern"
   ]
 
 tests :: IO TestTree
