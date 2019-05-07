@@ -1023,6 +1023,12 @@ blocked x = Blocked x
 notBlocked :: a -> Blocked a
 notBlocked = NotBlocked ReallyNotBlocked
 
+blocked_ :: MetaId -> Blocked_
+blocked_ x = blocked x ()
+
+notBlocked_ :: Blocked_
+notBlocked_ = notBlocked ()
+
 ---------------------------------------------------------------------------
 -- * Simple operations on terms and types.
 ---------------------------------------------------------------------------
