@@ -13,8 +13,8 @@ module Agda.TypeChecking.Errors
   , applyFlagsToTCWarnings'
   , applyFlagsToTCWarnings
   , dropTopLevelModule
+  , topLevelModuleDropper
   , stringTCErr
-  , sayWhen
   ) where
 
 #if MIN_VERSION_base(4,11,0)
@@ -61,6 +61,8 @@ import Agda.TypeChecking.Monad.State
 import Agda.TypeChecking.Monad.MetaVars
 import Agda.TypeChecking.Positivity
 import Agda.TypeChecking.Pretty
+import Agda.TypeChecking.Pretty.Call
+import Agda.TypeChecking.Pretty.Warning
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope ( ifPiType )
 import Agda.TypeChecking.Reduce (instantiate)
@@ -101,241 +103,13 @@ prettyError err = liftTCM $ show <$> prettyError' err []
         `catchError` \ err' -> prettyError' err' (err:errs)
 
 ---------------------------------------------------------------------------
--- * Warnings
----------------------------------------------------------------------------
-
-instance PrettyTCM TCWarning where
-  prettyTCM = return . tcWarningPrintedWarning
-
-instance PrettyTCM Warning where
-  prettyTCM = prettyWarning
-
-{-# SPECIALIZE prettyWarning :: Warning -> TCM Doc #-}
-prettyWarning :: MonadTCM tcm => Warning -> tcm Doc
-prettyWarning wng = liftTCM $ case wng of
-
-    UnsolvedMetaVariables ms  ->
-      fsep ( pwords "Unsolved metas at the following locations:" )
-      $$ nest 2 (vcat $ map prettyTCM ms)
-
-    UnsolvedInteractionMetas is ->
-      fsep ( pwords "Unsolved interaction metas at the following locations:" )
-      $$ nest 2 (vcat $ map prettyTCM is)
-
-    UnsolvedConstraints cs ->
-      fsep ( pwords "Failed to solve the following constraints:" )
-      $$ nest 2 (P.vcat . nub <$> mapM prettyConstraint cs)
-
-      where prettyConstraint :: ProblemConstraint -> TCM Doc
-            prettyConstraint c = f (prettyTCM c)
-              where
-              r   = getRange c
-              f d = if null $ P.pretty r
-                    then d
-                    else d $$ nest 4 ("[ at" <+> prettyTCM r <+> "]")
-
-    TerminationIssue because -> do
-      dropTopLevel <- topLevelModuleDropper
-      fwords "Termination checking failed for the following functions:"
-        $$ (nest 2 $ fsep $ punctuate comma $
-             map (pretty . dropTopLevel) $
-               concatMap termErrFunctions because)
-        $$ fwords "Problematic calls:"
-        $$ (nest 2 $ fmap (P.vcat . nub) $
-              mapM prettyTCM $ sortBy (compare `on` callInfoRange) $
-              concatMap termErrCalls because)
-
-    UnreachableClauses f pss -> fsep $
-      pwords "Unreachable" ++ pwords (plural (length pss) "clause")
-        where
-          plural 1 thing = thing
-          plural n thing = thing ++ "s"
-
-    CoverageIssue f pss -> fsep (
-      pwords "Incomplete pattern matching for" ++ [prettyTCM f <> "."] ++
-      pwords "Missing cases:") $$ nest 2 (vcat $ map display pss)
-        where
-        display (tel, ps) = prettyTCM $ NamedClause f True $
-          empty { clauseTel = tel, namedClausePats = ps }
-
-    CoverageNoExactSplit f cs -> vcat $
-      [ fsep $ pwords "Exact splitting is enabled, but the following" ++ pwords (singPlural cs "clause" "clauses") ++
-               pwords "could not be preserved as definitional equalities in the translation to a case tree:"
-      ] ++
-      map (nest 2 . prettyTCM . NamedClause f True) cs
-
-    NotStrictlyPositive d ocs -> fsep $
-      [prettyTCM d] ++ pwords "is not strictly positive, because it occurs"
-      ++ [prettyTCM ocs]
-
-    CantGeneralizeOverSorts ms -> vcat
-            [ text "Cannot generalize over unsolved sort metas:"
-            , nest 2 $ vcat [ prettyTCM x <+> text "at" <+> (pretty =<< getMetaRange x) | x <- ms ]
-            , fsep $ pwords "Suggestion: add a `variable Any : Set _` and replace unsolved metas by Any"
-            ]
-
-    AbsurdPatternRequiresNoRHS ps -> fwords $
-      "The right-hand side must be omitted if there " ++
-      "is an absurd pattern, () or {}, in the left-hand side."
-
-    OldBuiltin old new -> fwords $
-      "Builtin " ++ old ++ " no longer exists. " ++
-      "It is now bound by BUILTIN " ++ new
-
-    EmptyRewritePragma -> fsep . pwords $ "Empty REWRITE pragma"
-
-    IllformedAsClause s -> fsep . pwords $
-      "`as' must be followed by an identifier" ++ s
-
-    UselessPublic -> fwords $ "Keyword `public' is ignored here"
-
-    UselessInline q -> fsep $
-      pwords "It is pointless for INLINE'd function" ++ [prettyTCM q] ++
-      pwords "to have a separate Haskell definition"
-
-    WrongInstanceDeclaration -> fwords "Terms marked as eligible for instance search should end with a name, so `instance' is ignored here."
-
-    InstanceWithExplicitArg q -> fsep $
-      pwords "Instance declarations with explicit arguments are never considered by instance search," ++
-      pwords "so making" ++ [prettyTCM q] ++ pwords "into an instance has no effect."
-
-    InstanceNoOutputTypeName b -> fsep $
-      pwords "Instance arguments whose type does not end in a named or variable type are never considered by instance search," ++
-      pwords "so having an instance argument" ++ [return b] ++ pwords "has no effect."
-
-    InstanceArgWithExplicitArg b -> fsep $
-      pwords "Instance arguments with explicit arguments are never considered by instance search," ++
-      pwords "so having an instance argument" ++ [return b] ++ pwords "has no effect."
-
-    InversionDepthReached f -> do
-      maxDepth <- maxInversionDepth
-      fsep $ pwords "Refusing to invert pattern matching of" ++ [prettyTCM f] ++
-             pwords ("because the maximum depth (" ++ show maxDepth ++ ") has been reached.") ++
-             pwords "Most likely this means you have an unsatisfiable constraint, but it could" ++
-             pwords "also mean that you need to increase the maximum depth using the flag" ++
-             pwords "--inversion-max-depth=N"
-
-    GenericWarning d -> return d
-
-    GenericNonFatalError d -> return d
-
-    SafeFlagPostulate e -> fsep $
-      pwords "Cannot postulate" ++ [pretty e] ++ pwords "with safe flag"
-
-    SafeFlagPragma xs ->
-      let plural | length xs == 1 = ""
-                 | otherwise      = "s"
-      in fsep $ [fwords ("Cannot set OPTIONS pragma" ++ plural)]
-                ++ map text xs ++ [fwords "with safe flag."]
-
-    SafeFlagNonTerminating -> fsep $
-      pwords "Cannot use NON_TERMINATING pragma with safe flag."
-
-    SafeFlagTerminating -> fsep $
-      pwords "Cannot use TERMINATING pragma with safe flag."
-
-    SafeFlagWithoutKFlagPrimEraseEquality -> fsep (pwords "Cannot use primEraseEquality with safe and without-K flags.")
-
-    WithoutKFlagPrimEraseEquality -> fsep (pwords "Using primEraseEquality implies K, but you have the without-K flag enabled.")
-
-    SafeFlagNoPositivityCheck -> fsep $
-      pwords "Cannot use NO_POSITIVITY_CHECK pragma with safe flag."
-
-    SafeFlagPolarity -> fsep $
-      pwords "Cannot use POLARITY pragma with safe flag."
-
-    SafeFlagNoUniverseCheck -> fsep $
-      pwords "Cannot use NO_UNIVERSE_CHECK pragma with safe flag."
-
-    ParseWarning pw -> pretty pw
-
-    DeprecationWarning old new version -> fsep $
-      [text old] ++ pwords "has been deprecated. Use" ++ [text new] ++ pwords
-      "instead. This will be an error in Agda" ++ [text version <> "."]
-
-    NicifierIssue w -> sayWhere (getRange w) $ pretty w
-
-    UserWarning str -> text str
-
-    ModuleDoesntExport m xs -> fsep $
-      pwords "The module" ++ [pretty m] ++ pwords "doesn't export the following:" ++
-      punctuate comma (map pretty xs)
-
-    LibraryWarning lw -> pretty lw
-
-    InfectiveImport o m -> fsep $
-      pwords "Importing module" ++ [pretty m] ++ pwords "using the" ++
-      [pretty o] ++ pwords "flag from a module which does not."
-
-    CoInfectiveImport o m -> fsep $
-      pwords "Importing module" ++ [pretty m] ++ pwords "not using the" ++
-      [pretty o] ++ pwords "flag from a module which does."
-
-prettyTCWarnings :: [TCWarning] -> TCM String
-prettyTCWarnings = fmap (unlines . intersperse "") . prettyTCWarnings'
-
-prettyTCWarnings' :: [TCWarning] -> TCM [String]
-prettyTCWarnings' = mapM (fmap show . prettyTCM)
-
--- | Turns all warnings into errors.
-tcWarningsToError :: [TCWarning] -> TCM a
-tcWarningsToError ws = typeError $ case ws of
-  [] -> SolvedButOpenHoles
-  _  -> NonFatalErrors ws
-
-
--- | Depending which flags are set, one may happily ignore some
--- warnings.
-
-applyFlagsToTCWarnings' :: MainInterface -> [TCWarning] -> TCM [TCWarning]
-applyFlagsToTCWarnings' isMain ws = do
-
-  -- For some reason some SafeFlagPragma seem to be created multiple times.
-  -- This is a way to collect all of them and remove duplicates.
-  let pragmas w = case tcWarning w of { SafeFlagPragma ps -> ([w], ps); _ -> ([], []) }
-  let sfp = case fmap nub (foldMap pragmas ws) of
-              (TCWarning r w p b:_, sfp) ->
-                 [TCWarning r (SafeFlagPragma sfp) p b]
-              _                        -> []
-
-  warnSet <- do
-    opts <- pragmaOptions
-    let warnSet = optWarningMode opts ^. warningSet
-    pure $ if isMain /= NotMainInterface
-           then Set.union warnSet unsolvedWarnings
-           else warnSet
-
-  -- filter out the warnings the flags told us to ignore
-  let cleanUp w = let wName = warningName w in
-        wName /= SafeFlagPragma_
-        && wName `elem` warnSet
-        && case w of
-          UnsolvedMetaVariables ums    -> not $ null ums
-          UnsolvedInteractionMetas uis -> not $ null uis
-          UnsolvedConstraints ucs      -> not $ null ucs
-          _                            -> True
-
-  return $ sfp ++ filter (cleanUp . tcWarning) ws
-
-applyFlagsToTCWarnings :: [TCWarning] -> TCM [TCWarning]
-applyFlagsToTCWarnings = applyFlagsToTCWarnings' NotMainInterface
-
----------------------------------------------------------------------------
 -- * Helpers
 ---------------------------------------------------------------------------
 
-sayWhere :: HasRange a => a -> TCM Doc -> TCM Doc
-sayWhere x d = applyUnless (null r) (prettyTCM r $$) d
-  where r = getRange x
-
-sayWhen :: Range -> Maybe (Closure Call) -> TCM Doc -> TCM Doc
-sayWhen r Nothing   m = sayWhere r m
-sayWhen r (Just cl) m = sayWhere r (m $$ prettyTCM cl)
-
-panic :: String -> TCM Doc
+panic :: Monad m => String -> m Doc
 panic s = fwords $ "Panic: " ++ s
 
-nameWithBinding :: QName -> TCM Doc
+nameWithBinding :: MonadPretty m => QName -> m Doc
 nameWithBinding q =
   (prettyTCM q <+> "bound at") <?> prettyTCM r
   where
@@ -496,22 +270,13 @@ instance PrettyTCM TCErr where
     -- fact that ̀ws` is non-empty.
     TypeError _ Closure{ clValue = NonFatalErrors ws } -> foldr1 ($$) $ fmap prettyTCM ws
     -- Andreas, 2014-03-23
-    -- This use of localState seems ok since we do not collect
+    -- This use of withTCState seems ok since we do not collect
     -- Benchmark info during printing errors.
-    TypeError s e -> localTCState $ do
-      putTC s
+    TypeError s e -> withTCState (const s) $
       sayWhen (envRange $ clEnv e) (envCall $ clEnv e) $ prettyTCM e
     Exception r s     -> sayWhere r $ return s
     IOException _ r e -> sayWhere r $ fwords $ show e
     PatternErr{}      -> sayWhere err $ panic "uncaught pattern violation"
-
-instance PrettyTCM CallInfo where
-  prettyTCM c = do
-    let call = prettyTCM $ callInfoCall c
-        r    = callInfoRange c
-    if null $ P.pretty r
-      then call
-      else call $$ nest 2 ("(at" <+> prettyTCM r <> ")")
 
 -- | Drops given amount of leading components of the qualified name.
 dropTopLevelModule' :: Int -> QName -> QName
@@ -522,7 +287,7 @@ dropTopLevelModule :: QName -> TCM QName
 dropTopLevelModule q = ($ q) <$> topLevelModuleDropper
 
 -- | Produces a function which drops the filename component of the qualified name.
-topLevelModuleDropper :: TCM (QName -> QName)
+topLevelModuleDropper :: (MonadTCEnv m, ReadTCState m) => m (QName -> QName)
 topLevelModuleDropper = do
   caseMaybeM (asksTC envCurrentPath) (return id) $ \ f -> do
   m <- fromMaybe __IMPOSSIBLE__ <$> lookupModuleFromSource f
@@ -985,7 +750,7 @@ instance PrettyTCM TypeError where
       , fwords "(hint: Use C-c C-w (in Emacs) if you want to know why)"
       ]
       where
-        help :: ModuleName -> TCM Doc
+        help :: MonadPretty m => ModuleName -> m Doc
         help m = do
           anno <- caseMaybeM (isDatatypeModule m) (return empty) $ \case
             IsData   -> return $ "(datatype module)"
@@ -1054,16 +819,16 @@ instance PrettyTCM TypeError where
       pwords "Could mean any one of:"
       ) $$ nest 2 (vcat $ map pretty' es')
       where
-        pretty_es :: TCM Doc
+        pretty_es :: MonadPretty m => m Doc
         pretty_es = pretty $ C.RawApp noRange es
 
-        pretty' :: C.Expr -> TCM Doc
+        pretty' :: MonadPretty m => C.Expr -> m Doc
         pretty' e = do
           p1 <- pretty_es
           p2 <- pretty e
           if show p1 == show p2 then unambiguous e else pretty e
 
-        unambiguous :: C.Expr -> TCM Doc
+        unambiguous :: MonadPretty m => C.Expr -> m Doc
         unambiguous e@(C.OpApp r op _ xs)
           | all (isOrdinary . namedArg) xs =
             pretty $
@@ -1121,10 +886,10 @@ instance PrettyTCM TypeError where
       pwords "Could mean any one of:"
       ) $$ nest 2 (vcat $ map pretty' ps)
       where
-        pretty_p :: TCM Doc
+        pretty_p :: MonadPretty m => m Doc
         pretty_p = pretty p
 
-        pretty' :: C.Pattern -> TCM Doc
+        pretty' :: MonadPretty m => C.Pattern -> m Doc
         pretty' p' = do
           p1 <- pretty_p
           p2 <- pretty p'
@@ -1342,13 +1107,13 @@ instance PrettyTCM TypeError where
       | n > 0 && not (null args) = parens
       | otherwise                = id
 
-    prettyArg :: Arg (I.Pattern' a) -> TCM Doc
+    prettyArg :: MonadPretty m => Arg (I.Pattern' a) -> m Doc
     prettyArg (Arg info x) = case getHiding info of
       Hidden     -> braces $ prettyPat 0 x
       Instance{} -> dbraces $ prettyPat 0 x
       NotHidden  -> prettyPat 1 x
 
-    prettyPat :: Integer -> (I.Pattern' a) -> TCM Doc
+    prettyPat :: MonadPretty m => Integer -> (I.Pattern' a) -> m Doc
     prettyPat _ (I.VarP _ _) = "_"
     prettyPat _ (I.DotP _ _) = "._"
     prettyPat n (I.ConP c _ args) =
@@ -1361,13 +1126,13 @@ instance PrettyTCM TypeError where
     prettyPat _ (I.ProjP _ p) = "." <> prettyTCM p
     prettyPat _ (I.IApplyP _ _ _ _) = "_"
 
-notCmp :: Comparison -> TCM Doc
+notCmp :: MonadPretty m => Comparison -> m Doc
 notCmp cmp = "!" <> prettyTCM cmp
 
 -- | Print two terms that are supposedly unequal.
 --   If they print to the same identifier, add some explanation
 --   why they are different nevertheless.
-prettyInEqual :: Term -> Term -> TCM (Doc, Doc, Doc)
+prettyInEqual :: MonadPretty m => Term -> Term -> m (Doc, Doc, Doc)
 prettyInEqual t1 t2 = do
   d1 <- prettyTCM t1
   d2 <- prettyTCM t2
@@ -1387,18 +1152,18 @@ prettyInEqual t1 t2 = do
         (I.Con{}, I.Var{}) -> varCon
         _                  -> empty
   where
-    varDef, varCon, generic :: TCM Doc
+    varDef, varCon, generic :: MonadPretty m => m Doc
     varDef = parens $ fwords "because one is a variable and one a defined identifier"
     varCon = parens $ fwords "because one is a variable and one a constructor"
     generic = parens $ fwords $ "although these terms are looking the same, " ++
       "they contain different but identically rendered identifiers somewhere"
-    varVar :: Int -> Int -> TCM Doc
+    varVar :: MonadPretty m => Int -> Int -> m Doc
     varVar i j = parens $ fwords $
                    "because one has de Bruijn index " ++ show i
                    ++ " and the other " ++ show j
 
 class PrettyUnequal a where
-  prettyUnequal :: a -> TCM Doc -> a -> TCM Doc
+  prettyUnequal :: MonadPretty m => a -> m Doc -> a -> m Doc
 
 instance PrettyUnequal Term where
   prettyUnequal t1 ncmp t2 = do
@@ -1438,7 +1203,7 @@ instance PrettyTCM SplitError where
           ] ++
           zipWith (\c g -> nest 2 $ addContext tel $ prettyTCM c <+> "≟" <+> prettyTCM g) cIxs gIxs ++
           if null errs then [] else
-            [ fsep $ pwords "Possible" ++ pwords (singPlural errs "reason" "reasons") ++
+            [ fsep $ pwords "Possible" ++ pwords (P.singPlural errs "reason" "reasons") ++
                      pwords "why unification failed:" ] ++
             map (nest 2 . prettyTCM) errs
 
@@ -1498,138 +1263,6 @@ instance PrettyTCM UnificationFailure where
       pwords "because K has been disabled."
 
 
-instance PrettyTCM Call where
-  prettyTCM c = withContextPrecedence TopCtx $ case c of
-    CheckClause t cl -> do
-      reportSLn "error.checkclause" 60 $ "prettyTCM CheckClause: cl = " ++ show (deepUnscope cl)
-      clc <- abstractToConcrete_ cl
-      reportSLn "error.checkclause" 40 $ "cl (Concrete) = " ++ show clc
-      fsep $
-        pwords "when checking that the clause"
-        ++ [prettyA cl] ++ pwords "has type" ++ [prettyTCM t]
-
-    CheckPattern p tel t -> addContext tel $ fsep $
-      pwords "when checking that the pattern"
-      ++ [prettyA p] ++ pwords "has type" ++ [prettyTCM t]
-
-    CheckLetBinding b -> fsep $
-      pwords "when checking the let binding" ++ [prettyA b]
-
-    InferExpr e -> fsep $ pwords "when inferring the type of" ++ [prettyA e]
-
-    CheckExprCall cmp e t -> fsep $
-      pwords "when checking that the expression"
-      ++ [prettyA e] ++ pwords "has type" ++ [prettyTCM t]
-
-    IsTypeCall e s -> fsep $
-      pwords "when checking that the expression"
-      ++ [prettyA e] ++ pwords "is a type of sort" ++ [prettyTCM s]
-
-    IsType_ e -> fsep $
-      pwords "when checking that the expression"
-      ++ [prettyA e] ++ pwords "is a type"
-
-    CheckProjection _ x t -> fsep $
-      pwords "when checking the projection" ++
-      [ sep [ prettyTCM x <+> ":"
-            , nest 2 $ prettyTCM t ] ]
-
-    CheckArguments r es t0 t1 -> fsep $
-      pwords "when checking that" ++
-      map hPretty es ++
-      pwords (singPlural es "is a valid argument" "are valid arguments") ++
-      pwords "to a function of type" ++
-      [prettyTCM t0]
-
-    CheckTargetType r infTy expTy -> sep
-      [ "when checking that the inferred type of an application"
-      , nest 2 $ prettyTCM infTy
-      , "matches the expected type"
-      , nest 2 $ prettyTCM expTy ]
-
-    CheckRecDef _ x ps cs ->
-      fsep $ pwords "when checking the definition of" ++ [prettyTCM x]
-
-    CheckDataDef _ x ps cs ->
-      fsep $ pwords "when checking the definition of" ++ [prettyTCM x]
-
-    CheckConstructor d _ _ (A.Axiom _ _ _ _ c _) -> fsep $
-      pwords "when checking the constructor" ++ [prettyTCM c] ++
-      pwords "in the declaration of" ++ [prettyTCM d]
-
-    CheckConstructor{} -> __IMPOSSIBLE__
-
-    CheckConstructorFitsIn c t s -> fsep $
-      pwords "when checking that the type" ++ [prettyTCM t] ++
-      pwords "of the constructor" ++ [prettyTCM c] ++
-      pwords "fits in the sort" ++ [prettyTCM s] ++
-      pwords "of the datatype."
-
-    CheckFunDefCall _ f _ ->
-      fsep $ pwords "when checking the definition of" ++ [prettyTCM f]
-
-    CheckPragma _ p ->
-      fsep $ pwords "when checking the pragma"
-             ++ [prettyA $ RangeAndPragma noRange p]
-
-    CheckPrimitive _ x e -> fsep $
-      pwords "when checking that the type of the primitive function" ++
-      [prettyTCM x] ++ pwords "is" ++ [prettyA e]
-
-    CheckWithFunctionType a -> fsep $
-      pwords "when checking that the type" ++
-      [prettyTCM a] ++ pwords "of the generated with function is well-formed"
-
-    CheckDotPattern e v -> fsep $
-      pwords "when checking that the given dot pattern" ++ [prettyA e] ++
-      pwords "matches the inferred value" ++ [prettyTCM v]
-
-    CheckPatternShadowing c -> fsep $
-      pwords "when checking the clause" ++ [prettyA c]
-
-    CheckNamedWhere m -> fsep $
-      pwords "when checking the named where block" ++ [prettyA m]
-
-    InferVar x ->
-      fsep $ pwords "when inferring the type of" ++ [prettyTCM x]
-
-    InferDef x ->
-      fsep $ pwords "when inferring the type of" ++ [prettyTCM x]
-
-    CheckIsEmpty r t ->
-      fsep $ pwords "when checking that" ++ [prettyTCM t] ++
-             pwords "has no constructors"
-
-    ScopeCheckExpr e -> fsep $ pwords "when scope checking" ++ [pretty e]
-
-    ScopeCheckDeclaration d ->
-      fwords ("when scope checking the declaration" ++ suffix) $$
-      nest 2 (vcat $ map pretty ds)
-      where
-      ds     = D.notSoNiceDeclarations d
-      suffix = case ds of
-        [_] -> ""
-        _   -> "s"
-
-    ScopeCheckLHS x p ->
-      fsep $ pwords "when scope checking the left-hand side" ++ [pretty p] ++
-             pwords "in the definition of" ++ [pretty x]
-
-    NoHighlighting -> empty
-
-    SetRange r -> fsep (pwords "when doing something at") <+> prettyTCM r
-
-    CheckSectionApplication _ m1 modapp -> fsep $
-      pwords "when checking the module application" ++
-      [prettyA $ A.Apply info m1 modapp initCopyInfo defaultImportDir]
-      where
-      info = A.ModuleInfo noRange noRange Nothing Nothing Nothing
-
-    ModuleContents -> fsep $ pwords "when retrieving the contents of a module"
-
-    where
-    hPretty :: Arg (Named_ Expr) -> TCM Doc
-    hPretty a = withContextPrecedence (ArgumentCtx PreferParen) $ pretty =<< abstractToConcreteHiding a a
 
 ---------------------------------------------------------------------------
 -- * Natural language
@@ -1668,6 +1301,3 @@ instance Verbalize a => Verbalize (Indefinite a) where
       w@(c:cs) | c `elem` ['a','e','i','o'] -> "an " ++ w
                | otherwise                  -> "a " ++ w
       -- Aarne Ranta would whip me if he saw this.
-
-singPlural :: Sized a => a -> c -> c -> c
-singPlural xs singular plural = if size xs == 1 then singular else plural

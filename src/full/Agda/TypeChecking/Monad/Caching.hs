@@ -40,8 +40,8 @@ cachingStarts = do
     stFreshNameId `setTCLens` NameId 1 m
     stAreWeCaching `setTCLens` True
 
-areWeCaching :: TCM Bool
-areWeCaching = useTC stAreWeCaching
+areWeCaching :: (ReadTCState m) => m Bool
+areWeCaching = useR stAreWeCaching
 
 -- | Writes a 'TypeCheckAction' to the current log, using the current
 -- 'PostScopeState'

@@ -6,6 +6,7 @@ module Agda.TypeChecking.Monad.Builtin
 
 import qualified Control.Monad.Fail as Fail
 
+import Control.Monad.Reader
 import Control.Monad.State
 import Control.Monad.Trans.Maybe
 
@@ -41,10 +42,15 @@ instance HasBuiltins m => HasBuiltins (MaybeT m) where
 instance HasBuiltins m => HasBuiltins (ExceptT e m) where
   getBuiltinThing b = lift $ getBuiltinThing b
 
+instance HasBuiltins m => HasBuiltins (ReaderT e m) where
+  getBuiltinThing b = lift $ getBuiltinThing b
+
 instance HasBuiltins m => HasBuiltins (StateT s m) where
   getBuiltinThing b = lift $ getBuiltinThing b
 
-litType :: Literal -> TCM Type
+litType
+  :: (HasBuiltins m, MonadError TCErr m, MonadTCEnv m, ReadTCState m)
+  => Literal -> m Type
 litType l = case l of
   LitNat _ n    -> do
     _ <- primZero
@@ -82,7 +88,8 @@ bindPrimitive b pf = do
     Just (Prim x)    -> typeError $ (DuplicatePrimitiveBinding b `on` primFunName) x pf
     Nothing          -> stLocalBuiltins `modifyTCLens` Map.insert b (Prim pf)
 
-getBuiltin :: String -> TCM Term
+getBuiltin :: (HasBuiltins m, MonadError TCErr m, MonadTCEnv m, ReadTCState m)
+           => String -> m Term
 getBuiltin x =
   fromMaybeM (typeError $ NoBindingForBuiltin x) $ getBuiltin' x
 
@@ -99,11 +106,13 @@ getPrimitive' x = (getPrim =<<) <$> getBuiltinThing x
     getPrim (Prim pf) = return pf
     getPrim _         = Nothing
 
-getPrimitive :: String -> TCM PrimFun
+getPrimitive :: (HasBuiltins m, MonadError TCErr m, MonadTCEnv m, ReadTCState m)
+             => String -> m PrimFun
 getPrimitive x =
   fromMaybeM (typeError $ NoSuchPrimitiveFunction x) $ getPrimitive' x
 
-getPrimitiveTerm :: String -> TCM Term
+getPrimitiveTerm :: (HasBuiltins m, MonadError TCErr m, MonadTCEnv m, ReadTCState m)
+                 => String -> m Term
 getPrimitiveTerm x = (`Def` []) <$> primFunName <$> getPrimitive x
 
 getPrimitiveTerm' :: HasBuiltins m => String -> m (Maybe Term)
@@ -125,7 +134,8 @@ getTerm use name = flip fromMaybeM (getTerm' name) $
 
 
 -- | Rewrite a literal to constructor form if possible.
-constructorForm :: Term -> TCM Term
+constructorForm :: (HasBuiltins m, MonadError TCErr m, MonadTCEnv m, ReadTCState m)
+                => Term -> m Term
 constructorForm v = constructorForm' primZero primSuc v
 
 constructorForm' :: Applicative m => m Term -> m Term -> Term -> m Term
@@ -195,7 +205,7 @@ primInteger, primIntegerPos, primIntegerNegSuc,
     primAgdaTCMWithNormalisation, primAgdaTCMDebugPrint,
     primAgdaTCMNoConstraints,
     primAgdaTCMRunSpeculative
-    :: TCM Term
+    :: (HasBuiltins m, MonadError TCErr m, MonadTCEnv m, ReadTCState m) => m Term
 
 primInteger      = getBuiltin builtinInteger
 primIntegerPos   = getBuiltin builtinIntegerPos

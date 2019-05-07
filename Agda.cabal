@@ -371,6 +371,7 @@ library
                     Agda.TypeChecking.CompiledClause.Match
                     Agda.TypeChecking.Constraints
                     Agda.TypeChecking.Conversion
+                    Agda.TypeChecking.Conversion.Pure
                     Agda.TypeChecking.Coverage
                     Agda.TypeChecking.Coverage.Match
                     Agda.TypeChecking.Coverage.SplitTree
@@ -429,6 +430,8 @@ library
                     Agda.TypeChecking.Positivity
                     Agda.TypeChecking.Positivity.Occurrence
                     Agda.TypeChecking.Pretty
+                    Agda.TypeChecking.Pretty.Call
+                    Agda.TypeChecking.Pretty.Warning
                     Agda.TypeChecking.Primitive
                     Agda.TypeChecking.Primitive.Cubical
                     Agda.TypeChecking.ProjectionLike
@@ -549,6 +552,9 @@ library
                     Agda.VersionCommit
 
   other-modules:    Paths_Agda
+
+  ghc-options: -fexpose-all-unfoldings
+               -fspecialise-aggressively
 
   -- Initially, we disable all the warnings.
   ghc-options: -w
@@ -790,6 +796,9 @@ test-suite agda-tests
                      , StandaloneDeriving
                      , TypeSynonymInstances
                      , TupleSections
+
+  ghc-options: -fexpose-all-unfoldings
+               -fspecialise-aggressively
 
   -- Initially, we disable all the warnings.
   ghc-options: -threaded

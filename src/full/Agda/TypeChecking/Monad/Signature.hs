@@ -53,6 +53,7 @@ import {-# SOURCE #-} Agda.TypeChecking.Polarity
 import {-# SOURCE #-} Agda.TypeChecking.ProjectionLike
 import Agda.TypeChecking.Monad.Builtin
 
+import Agda.Utils.Either
 import Agda.Utils.Except ( ExceptT )
 import Agda.Utils.Functor
 import Agda.Utils.Lens
@@ -542,14 +543,14 @@ addDisplayForm x df = do
   whenM (hasLoopingDisplayForm x) $
     typeError . GenericDocError $ "Cannot add recursive display form for" <+> pretty x
 
-isLocal :: QName -> TCM Bool
-isLocal x = HMap.member x <$> useTC (stSignature . sigDefinitions)
+isLocal :: ReadTCState m => QName -> m Bool
+isLocal x = HMap.member x <$> useR (stSignature . sigDefinitions)
 
-getDisplayForms :: QName -> TCM [LocalDisplayForm]
+getDisplayForms :: (HasConstInfo m, ReadTCState m) => QName -> m [LocalDisplayForm]
 getDisplayForms q = do
   ds  <- either (const []) defDisplay <$> getConstInfo' q
-  ds1 <- HMap.lookupDefault [] q <$> useTC stImportsDisplayForms
-  ds2 <- HMap.lookupDefault [] q <$> useTC stImportedDisplayForms
+  ds1 <- HMap.lookupDefault [] q <$> useR stImportsDisplayForms
+  ds2 <- HMap.lookupDefault [] q <$> useR stImportedDisplayForms
   ifM (isLocal q) (return $ ds ++ ds1 ++ ds2)
                   (return $ ds1 ++ ds ++ ds2)
 
@@ -733,12 +734,12 @@ getConInfo :: HasConstInfo m => ConHead -> m Definition
 getConInfo = getConstInfo . conName
 
 -- | Look up the polarity of a definition.
-getPolarity :: QName -> TCM [Polarity]
+getPolarity :: HasConstInfo m => QName -> m [Polarity]
 getPolarity q = defPolarity <$> getConstInfo q
 
 -- | Look up polarity of a definition and compose with polarity
 --   represented by 'Comparison'.
-getPolarity' :: Comparison -> QName -> TCM [Polarity]
+getPolarity' :: HasConstInfo m => Comparison -> QName -> m [Polarity]
 getPolarity' CmpEq  q = map (composePol Invariant) <$> getPolarity q -- return []
 getPolarity' CmpLeq q = getPolarity q -- composition with Covariant is identity
 
@@ -750,7 +751,7 @@ setPolarity q pol = do
   modifySignature $ updateDefinition q $ updateDefPolarity $ const pol
 
 -- | Look up the forced arguments of a definition.
-getForcedArgs :: QName -> TCM [IsForced]
+getForcedArgs :: HasConstInfo m => QName -> m [IsForced]
 getForcedArgs q = defForced <$> getConstInfo q
 
 -- | Get argument occurrence info for argument @i@ of definition @d@ (never fails).
@@ -870,12 +871,12 @@ getCurrentModuleFreeVars = size <$> (lookupSection =<< currentModule)
 
 --   For annoying reasons the qnameModule of a pattern lambda is not correct
 --   (#2883), so make sure to grab the right module for those.
-getDefModule :: HasConstInfo m => QName -> m ModuleName
-getDefModule f = do
-  def <- getConstInfo f
-  return $ case theDef def of
-    Function{ funExtLam = Just (ExtLamInfo m _) } -> m
-    _                                             -> qnameModule f
+getDefModule :: HasConstInfo m => QName -> m (Either SigError ModuleName)
+getDefModule f = mapRight modName <$> getConstInfo' f
+  where
+    modName def = case theDef def of
+      Function{ funExtLam = Just (ExtLamInfo m _) } -> m
+      _                                             -> qnameModule f
 
 -- | Compute the number of free variables of a defined name. This is the sum of
 --   number of parameters shared with the current module and the number of
@@ -1142,7 +1143,7 @@ projectionArgs :: Defn -> Int
 projectionArgs = maybe 0 (max 0 . pred . projIndex) . isProjection_
 
 -- | Check whether a definition uses copatterns.
-usesCopatterns :: QName -> TCM Bool
+usesCopatterns :: (HasConstInfo m) => QName -> m Bool
 usesCopatterns q = do
   d <- theDef <$> getConstInfo q
   return $ case d of

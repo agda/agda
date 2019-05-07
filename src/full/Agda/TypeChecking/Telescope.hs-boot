@@ -13,4 +13,4 @@ instance PiApplyM Term where
 instance PiApplyM a => PiApplyM (Arg a) where
 instance PiApplyM a => PiApplyM [a] where
 
-telView :: Type -> TCM TelView
+telView :: MonadReduce m => Type -> m TelView

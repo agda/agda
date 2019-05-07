@@ -123,31 +123,34 @@ data TCState = TCSt
 
 class Monad m => ReadTCState m where
   getTCState :: m TCState
+  locallyTCState :: Lens' a TCState -> (a -> a) -> m b -> m b
+
   withTCState :: (TCState -> TCState) -> m a -> m a
+  withTCState = locallyTCState id
 
 instance ReadTCState m => ReadTCState (MaybeT m) where
   getTCState = lift getTCState
-  withTCState = mapMaybeT . withTCState
+  locallyTCState l = mapMaybeT . locallyTCState l
 
 instance ReadTCState m => ReadTCState (ListT m) where
   getTCState = lift getTCState
-  withTCState f = ListT . withTCState f . runListT
+  locallyTCState l f = ListT . locallyTCState l f . runListT
 
 instance ReadTCState m => ReadTCState (ExceptT err m) where
   getTCState = lift getTCState
-  withTCState = mapExceptT . withTCState
+  locallyTCState l = mapExceptT . locallyTCState l
 
 instance ReadTCState m => ReadTCState (ReaderT r m) where
   getTCState = lift getTCState
-  withTCState = mapReaderT . withTCState
+  locallyTCState l = mapReaderT . locallyTCState l
 
 instance (Monoid w, ReadTCState m) => ReadTCState (WriterT w m) where
   getTCState = lift getTCState
-  withTCState = mapWriterT . withTCState
+  locallyTCState l = mapWriterT . locallyTCState l
 
 instance ReadTCState m => ReadTCState (StateT s m) where
   getTCState = lift getTCState
-  withTCState = mapStateT . withTCState
+  locallyTCState l = mapStateT . locallyTCState l
 
 instance Show TCState where
   show _ = "TCSt{}"
@@ -191,6 +194,8 @@ data PreScopeState = PreScopeState
 
 type DisambiguatedNames = IntMap A.QName
 
+type ConcreteNames = Map Name [C.Name]
+
 data PostScopeState = PostScopeState
   { stPostSyntaxInfo          :: !CompressedFile
     -- ^ Highlighting info.
@@ -222,7 +227,7 @@ data PostScopeState = PostScopeState
     -- ^ The current module is available after it has been type
     -- checked.
   , stPostInstanceDefs        :: !TempInstanceTable
-  , stPostConcreteNames       :: !(Map Name [C.Name])
+  , stPostConcreteNames       :: !ConcreteNames
     -- ^ Map keeping track of concrete names assigned to each abstract name
     --   (can be more than one name in case the first one is shadowed)
   , stPostShadowingNames      :: !(Map Name [Name])
@@ -459,10 +464,10 @@ stLocalUserWarnings f s =
   f (stPreLocalUserWarnings (stPreScopeState s)) <&>
   \ x -> s {stPreScopeState = (stPreScopeState s) {stPreLocalUserWarnings = x}}
 
-getUserWarnings :: MonadTCState m => m (Map A.QName String)
+getUserWarnings :: ReadTCState m => m (Map A.QName String)
 getUserWarnings = do
-  iuw <- useTC stImportedUserWarnings
-  luw <- useTC stLocalUserWarnings
+  iuw <- useR stImportedUserWarnings
+  luw <- useR stLocalUserWarnings
   return $ iuw `Map.union` luw
 
 stWarningOnImport :: Lens' (Maybe String) TCState
@@ -555,7 +560,7 @@ stInstanceDefs f s =
   f (stPostInstanceDefs (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostInstanceDefs = x}}
 
-stConcreteNames :: Lens' (Map Name [C.Name]) TCState
+stConcreteNames :: Lens' ConcreteNames TCState
 stConcreteNames f s =
   f (stPostConcreteNames (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostConcreteNames = x}}
@@ -638,9 +643,18 @@ nextFresh s =
   let !c = s^.freshLens
   in (c, set freshLens (nextFresh' c) s)
 
-fresh :: (HasFresh i, MonadTCState m) => m i
-fresh =
-    do  !s <- getTC
+class Monad m => MonadFresh i m where
+  fresh :: m i
+
+instance MonadFresh i m => MonadFresh i (ReaderT r m) where
+  fresh = lift fresh
+
+instance MonadFresh i m => MonadFresh i (StateT s m) where
+  fresh = lift fresh
+
+instance HasFresh i => MonadFresh i TCM where
+  fresh = do
+        !s <- getTC
         let (!c , !s') = nextFresh s
         putTC s'
         return c
@@ -695,27 +709,27 @@ instance Pretty CheckpointId where
 instance HasFresh CheckpointId where
   freshLens = stFreshCheckpointId
 
-freshName :: MonadTCState m => Range -> String -> m Name
+freshName :: MonadFresh NameId m => Range -> String -> m Name
 freshName r s = do
   i <- fresh
   return $ mkName r i s
 
-freshNoName :: MonadTCState m => Range -> m Name
+freshNoName :: MonadFresh NameId m => Range -> m Name
 freshNoName r =
     do  i <- fresh
         return $ Name i (C.NoName noRange i) r noFixity' False
 
-freshNoName_ :: MonadTCState m => m Name
+freshNoName_ :: MonadFresh NameId m => m Name
 freshNoName_ = freshNoName noRange
 
-freshRecordName :: MonadTCState m => m Name
+freshRecordName :: MonadFresh NameId m => m Name
 freshRecordName = do
   i <- fresh
   return $ Name i (C.Name noRange C.NotInScope [C.Id "r"]) noRange noFixity' True
 
 -- | Create a fresh name from @a@.
 class FreshName a where
-  freshName_ :: MonadTCState m => a -> m Name
+  freshName_ :: MonadFresh NameId m => a -> m Name
 
 instance FreshName (Range, String) where
   freshName_ = uncurry freshName
@@ -761,9 +775,38 @@ sourceToModule =
 --
 --   O(n).
 
-lookupModuleFromSource :: AbsolutePath -> TCM (Maybe TopLevelModuleName)
+lookupModuleFromSource :: ReadTCState m => AbsolutePath -> m (Maybe TopLevelModuleName)
 lookupModuleFromSource f =
-  fmap fst . List.find ((f ==) . snd) . Map.toList <$> useTC stModuleToSource
+  fmap fst . List.find ((f ==) . snd) . Map.toList <$> useR stModuleToSource
+
+
+---------------------------------------------------------------------------
+-- ** Associating concrete names to an abstract name
+---------------------------------------------------------------------------
+
+-- | A monad that has read and write access to the stConcreteNames
+--   part of the TCState. Basically, this is a synonym for `MonadState
+--   ConcreteNames m` (which cannot be used directly because of the
+--   limitations of Haskell's typeclass system).
+class Monad m => MonadStConcreteNames m where
+  runStConcreteNames :: StateT ConcreteNames m a -> m a
+
+  useConcreteNames :: m ConcreteNames
+  useConcreteNames = runStConcreteNames get
+
+  modifyConcreteNames :: (ConcreteNames -> ConcreteNames) -> m ()
+  modifyConcreteNames = runStConcreteNames . modify
+
+instance MonadStConcreteNames TCM where
+  runStConcreteNames m = stateTCLensM stConcreteNames $ runStateT m
+
+instance MonadStConcreteNames m => MonadStConcreteNames (ReaderT r m) where
+  runStConcreteNames m = ReaderT $ runStConcreteNames . StateT . (flip $ runReaderT . runStateT m)
+
+instance MonadStConcreteNames m => MonadStConcreteNames (StateT s m) where
+  runStConcreteNames m = StateT $ \s -> runStConcreteNames $ StateT $ \ns -> do
+    ((x,ns'),s') <- runStateT (runStateT m ns) s
+    return ((x,s'),ns')
 
 ---------------------------------------------------------------------------
 -- ** Interface
@@ -883,12 +926,12 @@ instance Show a => Show (Closure a) where
 instance HasRange a => HasRange (Closure a) where
     getRange = getRange . clValue
 
-buildClosure :: a -> TCM (Closure a)
+buildClosure :: (MonadTCEnv m, ReadTCState m) => a -> m (Closure a)
 buildClosure x = do
     env   <- askTC
-    sig   <- useTC stSignature
-    scope <- useTC stScope
-    cps   <- useTC stModuleCheckpoints
+    sig   <- useR stSignature
+    scope <- useR stScope
+    cps   <- useR stModuleCheckpoints
     return $ Closure sig env scope cps x
 
 ---------------------------------------------------------------------------
@@ -3329,7 +3372,7 @@ instance Fail.MonadFail ReduceM where
 
 instance ReadTCState ReduceM where
   getTCState = ReduceM redSt
-  withTCState f = onReduceEnv $ mapRedSt f
+  locallyTCState l f = onReduceEnv $ mapRedSt $ over l f
 
 runReduceM :: ReduceM a -> TCM a
 runReduceM m = do
@@ -3348,7 +3391,9 @@ instance MonadTCEnv ReduceM where
   localTC = onReduceEnv . mapRedEnv
 
 useR :: (ReadTCState m) => Lens' a TCState -> m a
-useR l = (^.l) <$> getTCState
+useR l = do
+  !x <- (^.l) <$> getTCState
+  return x
 
 askR :: ReduceM ReduceEnv
 askR = ReduceM ask
@@ -3518,15 +3563,17 @@ modifyTCLens l = modifyTC . over l
 modifyTCLensM :: MonadTCState m => Lens' a TCState -> (a -> m a) -> m ()
 modifyTCLensM l f = putTC =<< l f =<< getTC
 
--- | Modify the lens-indicated part of the 'TCState' locally.
-locallyTCState :: MonadTCState m => Lens' a TCState -> (a -> a) -> m b -> m b
-locallyTCState l f k = do
-  old <- useTC l
-  modifyTCLens l f
-  x <- k
-  setTCLens l old
-  return x
+-- | Modify the part of the 'TCState' focused on by the lens, and return some result.
+stateTCLens :: MonadTCState m => Lens' a TCState -> (a -> (r , a)) -> m r
+stateTCLens l f = stateTCLensM l $ return . f
 
+-- | Modify a part of the state monadically, and return some result.
+stateTCLensM :: MonadTCState m => Lens' a TCState -> (a -> m (r , a)) -> m r
+stateTCLensM l f = do
+  s <- getTC
+  (result , x) <- f $ s ^. l
+  putTC $ set l x s
+  return result
 
 ---------------------------------------------------------------------------
 -- * Type checking monad transformer
@@ -3555,7 +3602,7 @@ class ( Applicative tcm, MonadIO tcm
 
 instance MonadIO m => ReadTCState (TCMT m) where
   getTCState = getTC
-  withTCState f m = __IMPOSSIBLE__ -- should probably not be used
+  locallyTCState l f = bracket_ (useTC l <* modifyTCLens l f) (setTCLens l)
 
 instance MonadError TCErr (TCMT IO) where
   throwError = liftIO . E.throwIO
@@ -3709,34 +3756,29 @@ instance Null (TCM Doc) where
   empty = return empty
   null = __IMPOSSIBLE__
 
--- | Short-cutting disjunction forms a monoid.
-instance Semigroup (TCM Any) where
-  ma <> mb = Any <$> do (getAny <$> ma) `or2M` (getAny <$> mb)
-
-instance Monoid (TCM Any) where
-  mempty = return mempty
-  mappend = (<>)
-
-patternViolation :: TCM a
+patternViolation :: MonadError TCErr m => m a
 patternViolation = throwError PatternErr
 
 internalError :: MonadTCM tcm => String -> tcm a
-internalError s = typeError $ InternalError s
+internalError s = liftTCM $ typeError $ InternalError s
 
-genericError :: MonadTCM tcm => String -> tcm a
+genericError :: (MonadTCEnv m, ReadTCState m, MonadError TCErr m)
+             => String -> m a
 genericError = typeError . GenericError
 
 {-# SPECIALIZE genericDocError :: Doc -> TCM a #-}
-genericDocError :: MonadTCM tcm => Doc -> tcm a
+genericDocError :: (MonadTCEnv m, ReadTCState m, MonadError TCErr m)
+                => Doc -> m a
 genericDocError = typeError . GenericDocError
 
 {-# SPECIALIZE typeError :: TypeError -> TCM a #-}
-typeError :: MonadTCM tcm => TypeError -> tcm a
-typeError err = liftTCM $ throwError =<< typeError_ err
+typeError :: (MonadTCEnv m, ReadTCState m, MonadError TCErr m)
+          => TypeError -> m a
+typeError err = throwError =<< typeError_ err
 
 {-# SPECIALIZE typeError_ :: TypeError -> TCM TCErr #-}
-typeError_ :: MonadTCM tcm => TypeError -> tcm TCErr
-typeError_ err = liftTCM $ TypeError <$> getTC <*> buildClosure err
+typeError_ :: (MonadTCEnv m, ReadTCState m) => TypeError -> m TCErr
+typeError_ err = TypeError <$> getTCState <*> buildClosure err
 
 -- | Running the type checking monad (most general form).
 {-# SPECIALIZE runTCM :: TCEnv -> TCState -> TCM a -> IO (a, TCState) #-}

@@ -65,6 +65,7 @@ import Agda.TypeChecking.Quote (QuotingKit, quoteTermWithKit, quoteTypeWithKit, 
 import Agda.TypeChecking.Pretty ()  -- instances only
 import Agda.TypeChecking.Free
 
+import Agda.Utils.Except
 import Agda.Utils.Monad
 import Agda.Utils.Pretty (pretty)
 import Agda.Utils.Maybe
@@ -90,6 +91,8 @@ newtype NamesT m a = NamesT { unName :: ReaderT Names m a }
            , MonadTCM
            , ReadTCState
            , MonadReduce
+           , MonadError e
+           , MonadAddContext
            )
 
 -- deriving instance MonadState s m => MonadState s (NamesT m)

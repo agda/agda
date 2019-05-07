@@ -102,7 +102,7 @@ reportSDoc :: (HasOptions m, MonadDebug m, MonadTCEnv m)
 reportSDoc k n d = verboseS k n $ do
   displayDebugMessage n . (++ "\n") =<< formatDebugMessage k n (locallyTC eIsDebugPrinting (const True) d)
 
-unlessDebugPrinting :: MonadTCM m => m () -> m ()
+unlessDebugPrinting :: MonadTCEnv m => m () -> m ()
 unlessDebugPrinting = unlessM (asksTC envIsDebugPrinting)
 
 traceSLn :: (HasOptions m, MonadDebug m)

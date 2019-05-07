@@ -142,7 +142,7 @@ initialInstanceCandidates t = do
     instanceFields' etaOnce (v, t) =
       ifBlockedType t (\m _ -> throwError $ Blocked m ()) $ \ _ t -> do
       caseMaybeM (etaExpand etaOnce t) (return []) $ \ (r, pars) -> do
-        (tel, args) <- forceEtaExpandRecord r pars v
+        (tel, args) <- lift $ forceEtaExpandRecord r pars v
         let types = map unDom $ applySubst (parallelS $ reverse $ map unArg args) (flattenTel tel)
         fmap concat $ forM (zip args types) $ \ (arg, t) ->
           ([ Candidate (unArg arg) t (isOverlappable arg)
@@ -525,7 +525,7 @@ isConsideringInstance =
   and2M ((^. stConsideringInstance) <$> getTCState)
         (not . optOverlappingInstances <$> pragmaOptions)
 
-nowConsideringInstance :: (MonadTCState m) => m a -> m a
+nowConsideringInstance :: (ReadTCState m) => m a -> m a
 nowConsideringInstance = locallyTCState stConsideringInstance $ const True
 
 wakeupInstanceConstraints :: TCM ()

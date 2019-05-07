@@ -20,6 +20,7 @@ import Data.Word
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
 import qualified Agda.Syntax.Reflected as R
+import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Literal
 import Agda.Syntax.Position
 import Agda.Syntax.Fixity
@@ -255,7 +256,7 @@ unquoteString x = unStr <$> unquote x
 unquoteNString :: Arg Term -> UnquoteM String
 unquoteNString x = unStr <$> unquoteN x
 
-data ErrorPart = StrPart String | TermPart R.Term | NamePart QName
+data ErrorPart = StrPart String | TermPart A.Expr | NamePart QName
 
 instance PrettyTCM ErrorPart where
   prettyTCM (StrPart s) = text s
@@ -268,7 +269,7 @@ instance Unquote ErrorPart where
     case t of
       Con c _ es | Just [x] <- allApplyElims es ->
         choice [ (c `isCon` primAgdaErrorPartString, StrPart  <$> unquoteNString x)
-               , (c `isCon` primAgdaErrorPartTerm,   TermPart <$> unquoteN x)
+               , (c `isCon` primAgdaErrorPartTerm,   TermPart <$> ((liftTCM . toAbstractWithoutImplicit) =<< (unquoteN x :: UnquoteM R.Term)))
                , (c `isCon` primAgdaErrorPartName,   NamePart <$> unquoteN x) ]
                __IMPOSSIBLE__
       _ -> throwError $ NonCanonical "error part" t
@@ -591,7 +592,7 @@ evalTCM v = do
     tcCommit = do
       dirty <- gets fst
       when (dirty == Dirty) $
-        typeError $ GenericError "Cannot use commitTC after declaring new definitions."
+        liftTCM $ typeError $ GenericError "Cannot use commitTC after declaring new definitions."
       s <- getTC
       modify (second $ const s)
       liftTCM primUnitUnit
@@ -694,7 +695,7 @@ evalTCM v = do
       liftTCM $ do
         reportSDoc "tc.unquote.decl" 10 $ sep
           [ "declare" <+> prettyTCM x <+> ":"
-          , nest 2 $ prettyTCM a
+          , nest 2 $ prettyR a
           ]
         a <- isType_ =<< toAbstract_ a
         alreadyDefined <- isRight <$> getConstInfo' x
@@ -707,7 +708,7 @@ evalTCM v = do
     tcDeclarePostulate (Arg i x) a = inOriginalContext $ do
       clo <- commandLineOptions
       when (Lens.getSafeMode clo) $ liftTCM $ typeError . GenericDocError =<<
-        "Cannot postulate '" <+> prettyTCM x <+> ":" <+> prettyTCM a <+> "' with safe flag"
+        "Cannot postulate '" <+> prettyTCM x <+> ":" <+> prettyR a <+> "' with safe flag"
       setDirty
       let r = getRelevance i
       when (hidden i) $ liftTCM $ typeError . GenericDocError =<<
@@ -716,7 +717,7 @@ evalTCM v = do
       liftTCM $ do
         reportSDoc "tc.unquote.decl" 10 $ sep
           [ "declare Postulate" <+> prettyTCM x <+> ":"
-          , nest 2 $ prettyTCM a
+          , nest 2 $ prettyR a
           ]
         a <- isType_ =<< toAbstract_ a
         alreadyDefined <- isRight <$> getConstInfo' x

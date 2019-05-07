@@ -8,7 +8,8 @@
 --   have to be reduced since they break bidirectionality.
 
 module Agda.TypeChecking.CheckInternal
-  ( checkType
+  ( MonadCheckInternal
+  , checkType
   , checkType'
   , checkSort
   , checkInternal
@@ -48,13 +49,15 @@ import Agda.Utils.Impossible
 
 -- * Bidirectional rechecker
 
+type MonadCheckInternal m = MonadConversion m
+
 -- -- | Entry point for e.g. checking WithFunctionType.
 -- checkType :: Type -> TCM ()
 -- checkType t = -- dontAssignMetas $ ignoreSorts $
 --   checkInternal (unEl t) (sort Inf)
 
 -- | Entry point for e.g. checking WithFunctionType.
-checkType :: Type -> TCM ()
+checkType :: (MonadCheckInternal m) => Type -> m ()
 checkType t = void $ checkType' t
 
 -- | Check a type and infer its sort.
@@ -66,7 +69,7 @@ checkType t = void $ checkType' t
 --     Abel, Coquand, Dybjer, MPC 08,
 --     Verifying a Semantic βη-Conversion Test for Martin-Löf Type Theory
 --
-checkType' :: Type -> TCM Sort
+checkType' :: (MonadCheckInternal m) => Type -> m Sort
 checkType' t = do
   reportSDoc "tc.check.internal" 20 $ sep
     [ "checking internal type "
@@ -100,16 +103,16 @@ checkType' t = do
     DontCare v -> checkType' $ t $> v
     Dummy s    -> __IMPOSSIBLE_VERBOSE__ s
 
-checkTypeSpine :: Type -> Term -> Elims -> TCM Sort
+checkTypeSpine :: (MonadCheckInternal m) => Type -> Term -> Elims -> m Sort
 checkTypeSpine a self es = shouldBeSort =<< do snd <$> inferSpine a self es
 
 
 -- | 'checkInternal' traverses the whole 'Term', and we can use this
 --   traversal to modify the term.
-data Action = Action
-  { preAction  :: Type -> Term -> TCM Term
+data Action m = Action
+  { preAction  :: Type -> Term -> m Term
     -- ^ Called on each subterm before the checker runs.
-  , postAction :: Type -> Term -> TCM Term
+  , postAction :: Type -> Term -> m Term
     -- ^ Called on each subterm after the type checking.
   , relevanceAction :: Relevance -> Relevance -> Relevance
     -- ^ Called for each @ArgInfo@.
@@ -118,14 +121,14 @@ data Action = Action
   }
 
 -- | The default action is to not change the 'Term' at all.
-defaultAction :: Action
+defaultAction :: Monad m => Action m
 defaultAction = Action
   { preAction       = \ _ -> return
   , postAction      = \ _ -> return
   , relevanceAction = \ _ -> id
   }
 
-eraseUnusedAction :: Action
+eraseUnusedAction :: Action TCM
 eraseUnusedAction = defaultAction { postAction = eraseUnused }
   where
     eraseUnused :: Type -> Term -> TCM Term
@@ -142,10 +145,10 @@ eraseUnusedAction = defaultAction { postAction = eraseUnused }
     eraseIfNonvariant (_          : pols) (e : es) = e : eraseIfNonvariant pols es
 
 -- | Entry point for term checking.
-checkInternal :: Term -> Type -> TCM ()
+checkInternal :: (MonadCheckInternal m) => Term -> Type -> m ()
 checkInternal v t = void $ checkInternal' defaultAction v t
 
-checkInternal' :: Action -> Term -> Type -> TCM Term
+checkInternal' :: (MonadCheckInternal m) => Action m -> Term -> Type -> m Term
 checkInternal' action v t = do
   reportSDoc "tc.check.internal" 20 $ sep
     [ "checking internal "
@@ -204,10 +207,11 @@ checkInternal' action v t = do
 --   and infer the type of the constructor.
 --   Raises a type error if the constructor does not belong to the given type.
 fullyApplyCon
-  :: ConHead -- ^ Constructor.
+  :: (MonadCheckInternal m)
+  => ConHead -- ^ Constructor.
   -> Elims    -- ^ Constructor arguments.
   -> Type    -- ^ Type of the constructor application.
-  -> (QName -> Type -> Args -> Type -> Elims -> Telescope -> Type -> TCM a)
+  -> (QName -> Type -> Args -> Type -> Elims -> Telescope -> Type -> m a)
        -- ^ Name of the data/record type,
        --   type of the data/record type,
        --   reconstructed parameters,
@@ -215,7 +219,7 @@ fullyApplyCon
        --   full application arguments,
        --   types of missing arguments (already added to context),
        --   type of the full application.
-  -> TCM a
+  -> m a
 fullyApplyCon c vs t0 ret = do
   TelV tel t <- telView t0
   -- The type of the constructor application may still be a function
@@ -229,12 +233,13 @@ fullyApplyCon c vs t0 ret = do
         ret d dt pars a (raise (size tel) vs ++ map Apply (teleArgs tel)) tel t
 
 checkSpine
-  :: Action
+  :: (MonadCheckInternal m)
+  => Action m
   -> Type      -- ^ Type of the head @self@.
   -> Term      -- ^ The head @self@.
   -> Elims     -- ^ The eliminations @es@.
   -> Type      -- ^ Expected type of the application @self es@.
-  -> TCM Term  -- ^ The application after modification by the @Action@.
+  -> m Term    -- ^ The application after modification by the @Action@.
 checkSpine action a self es t = do
   reportSDoc "tc.check.internal" 20 $ sep
     [ "checking spine "
@@ -247,12 +252,13 @@ checkSpine action a self es t = do
   v' <$ coerceSize subtype v t' t
 
 checkArgs
-  :: Action
+  :: (MonadCheckInternal m)
+  => Action m
   -> Type      -- ^ Type of the head.
   -> Term      -- ^ The head.
   -> Args      -- ^ The arguments.
   -> Type      -- ^ Expected type of the application.
-  -> TCM Term  -- ^ The application after modification by the @Action@.
+  -> m Term    -- ^ The application after modification by the @Action@.
 checkArgs action a self vs t = checkSpine action a self (map Apply vs) t
 
 -- | @checkArgInfo actual expected@.
@@ -260,25 +266,25 @@ checkArgs action a self vs t = checkSpine action a self (map Apply vs) t
 --   The @expected@ 'ArgInfo' comes from the type.
 --   The @actual@ 'ArgInfo' comes from the term and can be updated
 --   by an action.
-checkArgInfo :: Action -> ArgInfo -> ArgInfo -> TCM ArgInfo
+checkArgInfo :: (MonadCheckInternal m) => Action m -> ArgInfo -> ArgInfo -> m ArgInfo
 checkArgInfo action ai ai' = do
   checkHiding    (getHiding ai)     (getHiding ai')
   r <- checkRelevance action (getRelevance ai)  (getRelevance ai')
   return $ setRelevance r ai
 
-checkHiding    :: Hiding -> Hiding -> TCM ()
+checkHiding    :: (MonadCheckInternal m) => Hiding -> Hiding -> m ()
 checkHiding    h h' = unless (sameHiding h h') $ typeError $ HidingMismatch h h'
 
 -- | @checkRelevance action term type@.
 --
 --   The @term@ 'Relevance' can be updated by the @action@.
-checkRelevance :: Action -> Relevance -> Relevance -> TCM Relevance
+checkRelevance :: (MonadCheckInternal m) => Action m -> Relevance -> Relevance -> m Relevance
 checkRelevance action r r' = do
   unless (r == r') $ typeError $ RelevanceMismatch r r'
   return $ relevanceAction action r' r  -- Argument order for actions: @type@ @term@
 
 -- | Infer type of a neutral term.
-infer :: Term -> TCM Type
+infer :: (MonadCheckInternal m) => Term -> m Type
 infer v = do
   case v of
     Var i es   -> do
@@ -292,13 +298,13 @@ infer v = do
     _ -> __IMPOSSIBLE__
 
 -- | Infer ordinary function application.
-inferDef :: QName -> Elims -> TCM Type
+inferDef :: (MonadCheckInternal m) => QName -> Elims -> m Type
 inferDef f es = do
   a <- defType <$> getConstInfo f
   snd <$> inferSpine a (Def f []) es
 
 -- | Infer possibly projection-like function application
-inferDef' :: QName -> Arg Term -> Elims -> TCM Type
+inferDef' :: (MonadCheckInternal m) => QName -> Arg Term -> Elims -> m Type
 inferDef' f a es = do
   isProj <- isProjection f
   case isProj of
@@ -312,13 +318,14 @@ inferDef' f a es = do
 -- | @inferSpine t self es@ checks that spine @es@ eliminates
 --   value @self@ of type @t@ and returns the remaining type
 --   (target of elimination) and the final self (has that type).
-inferSpine :: Type -> Term -> Elims -> TCM (Term, Type)
+inferSpine :: (MonadCheckInternal m) => Type -> Term -> Elims -> m (Term, Type)
 inferSpine a v es = first fst <$> inferSpine' defaultAction a v v es
 
 -- | Returns both the real term (first) and the transformed term (second). The
 --   transformed term is not necessarily a valid term, so it must not be used
 --   in types.
-inferSpine' :: Action -> Type -> Term -> Term -> Elims -> TCM ((Term, Term), Type)
+inferSpine' :: (MonadCheckInternal m)
+            => Action m -> Type -> Term -> Term -> Elims -> m ((Term, Term), Type)
 inferSpine' action t self self' [] = return ((self, self'), t)
 inferSpine' action t self self' (e : es) = do
   reportSDoc "tc.infer.internal" 30 $ sep
@@ -351,27 +358,27 @@ inferSpine' action t self self' (e : es) = do
 
 -- | Type should either be a record type of a type eligible for
 --   the principal argument of projection-like functions.
-shouldBeProjectible :: Type -> QName -> TCM Type
+shouldBeProjectible :: (MonadCheckInternal m) => Type -> QName -> m Type
 -- shouldBeProjectible t f = maybe failure return =<< projectionType t f
 shouldBeProjectible t f = maybe failure return =<< getDefType f =<< reduce t
   where failure = typeError $ ShouldBeRecordType t
     -- TODO: more accurate error that makes sense also for proj.-like funs.
 
-shouldBePath :: Type -> TCM (Dom Type, Abs Type)
+shouldBePath :: (MonadCheckInternal m) => Type -> m (Dom Type, Abs Type)
 shouldBePath t = do
   m <- isPath t
   case m of
     Just p  -> return p
     Nothing -> typeError $ ShouldBePath t
 
-shouldBePi :: Type -> TCM (Dom Type, Abs Type)
+shouldBePi :: (MonadCheckInternal m) => Type -> m (Dom Type, Abs Type)
 shouldBePi t = ifPiType t (\ a b -> return (a, b)) $ const $ typeError $ ShouldBePi t
 
 -- | Result is in reduced form.
-shouldBeSort :: Type -> TCM Sort
+shouldBeSort :: (MonadCheckInternal m) => Type -> m Sort
 shouldBeSort t = ifIsSort t return (typeError $ ShouldBeASort t)
 
-ifIsSort :: Type -> (Sort -> TCM a) -> TCM a -> TCM a
+ifIsSort :: (MonadReduce m) => Type -> (Sort -> m a) -> m a -> m a
 ifIsSort t yes no = do
   t <- reduce t
   case unEl t of
@@ -379,7 +386,7 @@ ifIsSort t yes no = do
     _      -> no
 
 -- | Check if sort is well-formed.
-checkSort :: Action -> Sort -> TCM Sort
+checkSort :: (MonadCheckInternal m) => Action m -> Sort -> m Sort
 checkSort action s =
   case s of
     Type l   -> Type <$> checkLevel action l
@@ -412,7 +419,7 @@ checkSort action s =
     DummyS s -> __IMPOSSIBLE_VERBOSE__ s
 
 -- | Check if level is well-formed.
-checkLevel :: Action -> Level -> TCM Level
+checkLevel :: (MonadCheckInternal m) => Action m -> Level -> m Level
 checkLevel action (Max ls) = Max <$> mapM checkPlusLevel ls
   where
     checkPlusLevel l@ClosedLevel{} = return l
@@ -427,11 +434,11 @@ checkLevel action (Max ls) = Max <$> mapM checkPlusLevel ls
         UnreducedLevel v -> checkInternal' action v lvl
 
 -- | Type of a term or sort meta.
-metaType :: MetaId -> TCM Type
+metaType :: (MonadCheckInternal m) => MetaId -> m Type
 metaType x = jMetaType . mvJudgement <$> lookupMeta x
 
 -- | Universe subsumption and type equality (subtyping for sizes, resp.).
-subtype :: Type -> Type -> TCM ()
+subtype :: (MonadCheckInternal m) => Type -> Type -> m ()
 subtype t1 t2 = do
   ifIsSort t1 (\ s1 -> (s1 `leqSort`) =<< shouldBeSort t2) $ do
     -- Andreas, 2017-03-09, issue #2493
@@ -440,7 +447,7 @@ subtype t1 t2 = do
 
 -- | Compute the sort of a type.
 
-inferSort :: Term -> TCM Sort
+inferSort :: (MonadCheckInternal m) => Term -> m Sort
 inferSort t = case t of
     Var i es   -> do
       a <- typeOfBV i
@@ -465,7 +472,7 @@ inferSort t = case t of
 
 -- | @eliminate t self es@ eliminates value @self@ of type @t@ by spine @es@
 --   and returns the remaining value and its type.
-eliminate :: Term -> Type -> Elims -> TCM (Term, Type)
+eliminate :: (MonadCheckInternal m) => Term -> Type -> Elims -> m (Term, Type)
 eliminate self t [] = return (self, t)
 eliminate self t (e : es) = case e of
     Apply (Arg _ v) -> ifNotPiType t __IMPOSSIBLE__ {-else-} $ \ _ b ->

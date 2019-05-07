@@ -1375,7 +1375,7 @@ give_gen force ii rng s0 giveRefine = do
     ce        <- lift $ abstractToConcreteScope scope ae
     lift $ reportSLn "interaction.give" 30 $ unlines
       [ "ce = " ++ show ce
-      , "scopePrecedence = " ++ show (scopePrecedence scope)
+      , "scopePrecedence = " ++ show (scope ^. scopePrecedence)
       ]
     -- if the command was @Give@, use the literal user input;
     -- Andreas, 2014-01-15, see issue 1020:

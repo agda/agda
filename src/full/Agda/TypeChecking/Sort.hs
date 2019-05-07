@@ -25,13 +25,14 @@ import Control.Monad
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 
-import {-# SOURCE #-} Agda.TypeChecking.Constraints (addConstraint)
+import {-# SOURCE #-} Agda.TypeChecking.Constraints ()
 import {-# SOURCE #-} Agda.TypeChecking.Conversion
 import {-# SOURCE #-} Agda.TypeChecking.MetaVars
 
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.Monad.Base
+import Agda.TypeChecking.Monad.Constraints (addConstraint, MonadConstraint)
 import Agda.TypeChecking.Monad.Context
 import Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Pretty
@@ -43,7 +44,9 @@ import Agda.Utils.Impossible
 -- | Infer the sort of another sort. If we can compute the bigger sort
 --   straight away, return that. Otherwise, return @UnivSort s@ and add a
 --   constraint to ensure we can compute the sort eventually.
-inferUnivSort :: Sort -> TCM Sort
+inferUnivSort
+  :: (MonadReduce m, MonadConstraint m, HasOptions m)
+  => Sort -> m Sort
 inferUnivSort s = do
   s <- reduce s
   ui <- univInf
@@ -53,7 +56,7 @@ inferUnivSort s = do
       addConstraint $ HasBiggerSort s
       return $ UnivSort s
 
-sortFitsIn :: Sort -> Sort -> TCM ()
+sortFitsIn :: MonadConversion m => Sort -> Sort -> m ()
 sortFitsIn a b = do
   b' <- inferUnivSort a
   equalSort b' b -- CUMULATIVITY: leqSort b' b
@@ -64,7 +67,7 @@ hasBiggerSort = void . inferUnivSort
 -- | Infer the sort of a pi type. If we can compute the sort straight away,
 --   return that. Otherwise, return @PiSort s1 s2@ and add a constraint to
 --   ensure we can compute the sort eventually.
-inferPiSort :: Sort -> Abs Sort -> TCM Sort
+inferPiSort :: MonadReduce m => Sort -> Abs Sort -> m Sort
 inferPiSort s1 s2 = do
   (s1,s2) <- reduce (s1,s2)
   -- we do instantiateFull here to perhaps remove some (flexible)

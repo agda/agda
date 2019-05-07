@@ -237,7 +237,7 @@ refine force ii mr e = do
           ii <- registerInteractionPoint False rng Nothing
           let info = Info.MetaInfo
                 { Info.metaRange = rng
-                , Info.metaScope = scope { scopePrecedence = [argumentCtx_] }
+                , Info.metaScope = set scopePrecedence [argumentCtx_] scope
                     -- Ulf, 2017-09-07: The `argumentCtx_` above is causing #737.
                     -- If we're building an operator application the precedence
                     -- should be something else.
@@ -390,7 +390,7 @@ outputFormId (OutputForm _ _ o) = out o
 instance Reify ProblemConstraint (Closure (OutputForm Expr Expr)) where
   reify (PConstr pids cl) = enterClosure cl $ \c -> buildClosure =<< (OutputForm (getRange c) (Set.toList pids) <$> reify c)
 
-reifyElimToExpr :: I.Elim -> TCM Expr
+reifyElimToExpr :: MonadReify m => I.Elim -> m Expr
 reifyElimToExpr e = case e of
     I.IApply _ _ v -> appl "iapply" <$> reify (defaultArg $ v) -- TODO Andrea: endpoints?
     I.Apply v -> appl "apply" <$> reify v
@@ -943,7 +943,7 @@ atTopLevel m = inConcreteMode $ do
       -- Unfortunately, referring to let-bound variables
       -- from the top level module telescope will for now result in a not-in-scope error.
       let names :: [A.Name]
-          names = map localVar $ filter ((LetBound /=) . localBinder) $ map snd $ reverse $ scopeLocals scope
+          names = map localVar $ filter ((LetBound /=) . localBinder) $ map snd $ reverse $ scope ^. scopeLocals
       -- Andreas, 2016-12-31, issue #2371
       -- The following is an unnecessary complication, as shadowed locals
       -- are not in scope anyway (they are ambiguous).
@@ -1073,6 +1073,6 @@ whyInScope :: String -> TCM (Maybe LocalVar, [AbstractName], [AbstractModule])
 whyInScope s = do
   x     <- parseName noRange s
   scope <- getScope
-  return ( lookup x $ map (first C.QName) $ scopeLocals scope
+  return ( lookup x $ map (first C.QName) $ scope ^. scopeLocals
          , scopeLookup x scope
          , scopeLookup x scope )

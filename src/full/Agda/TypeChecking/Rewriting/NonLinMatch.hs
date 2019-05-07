@@ -44,17 +44,18 @@ import Agda.Syntax.Common
 import qualified Agda.Syntax.Common as C
 import Agda.Syntax.Internal
 
+import Agda.TypeChecking.Conversion.Pure
 import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.EtaContract
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Free.Reduce
 import Agda.TypeChecking.Level
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Monad.Builtin (getBuiltin', builtinLevel, primLevelSuc, primLevelMax)
+import Agda.TypeChecking.Monad.Builtin (HasBuiltins(..), getBuiltin', builtinLevel, primLevelSuc, primLevelMax)
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Reduce
-import Agda.TypeChecking.Reduce.Monad as Red
+import Agda.TypeChecking.Reduce.Monad
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 
@@ -233,23 +234,23 @@ runNLM nlm = do
 matchingBlocked :: Blocked_ -> NLM ()
 matchingBlocked = throwError
 
--- | Add substitution @i |-> v@ to result of matching.
-tellSub :: Relevance -> Int -> Term -> NLM ()
-tellSub r i v = do
+-- | Add substitution @i |-> v : a@ to result of matching.
+tellSub :: Relevance -> Int -> Type -> Term -> NLM ()
+tellSub r i a v = do
   old <- IntMap.lookup i <$> use nlmSub
   case old of
     Nothing -> nlmSub %= IntMap.insert i (r,v)
     Just (r',v')
       | isIrrelevant r  -> return ()
       | isIrrelevant r' -> nlmSub %= IntMap.insert i (r,v)
-      | otherwise       -> whenJustM (equal v v') matchingBlocked
+      | otherwise       -> whenJustM (equal a v v') matchingBlocked
 
-tellEq :: Telescope -> Telescope -> Term -> Term -> NLM ()
-tellEq gamma k u v = do
+tellEq :: Telescope -> Telescope -> Type -> Term -> Term -> NLM ()
+tellEq gamma k a u v = do
   traceSDoc "rewriting.match" 30 (sep
                [ "adding equality between" <+> addContext (gamma `abstract` k) (prettyTCM u)
                , " and " <+> addContext k (prettyTCM v) ]) $ do
-  nlmEqs %= (PostponedEquation k u v:)
+  nlmEqs %= (PostponedEquation k a u v:)
 
 type Sub = IntMap (Relevance, Term)
 
@@ -258,6 +259,7 @@ type Sub = IntMap (Relevance, Term)
 --   the substitution computed by matching.
 data PostponedEquation = PostponedEquation
   { eqFreeVars :: Telescope -- ^ Telescope of free variables in the equation
+  , eqType :: Type    -- ^ Type of the equation, living in same context as the rhs.
   , eqLhs :: Term     -- ^ Term from pattern, living in pattern context.
   , eqRhs :: Term     -- ^ Term from scrutinee, living in context where matching was invoked.
   }
@@ -287,14 +289,14 @@ instance Match (Type, Term) [Elim' NLPat] Elims where
     (Apply p, Apply v) -> do
       ~(Pi a b) <- reduce $ unEl t
       match r gamma k a p v
-      t' <- Red.addCtxTel k $ t `piApplyM` v
+      t' <- addContext k $ t `piApplyM` v
       let hd' = hd `apply` [ v ]
       match r gamma k (t',hd') ps vs
 
     (Proj o f, Proj o' f') | f == f' -> do
       ~(Just (El _ (Pi a b))) <- getDefType f =<< reduce t
       let t' = b `absApp` hd
-      hd' <- Red.addCtxTel k $ applyDef o f (argFromDom a $> hd)
+      hd' <- addContext k $ applyDef o f (argFromDom a $> hd)
       match r gamma k (t',hd') ps vs
 
     (Proj _ f, Proj _ f') | otherwise -> do
@@ -330,8 +332,8 @@ instance Match () NLPat Level where
 
 instance Match Type NLPat Term where
   match r gamma k t p v = do
-    vbt <- Red.addCtxTel k $ reduceB (v,t)
-    etaRecord <- Red.addCtxTel k $ isEtaRecordType t
+    vbt <- addContext k $ reduceB (v,t)
+    etaRecord <- addContext k $ isEtaRecordType t
     let n = size k
         b = void vbt
         (v,t) = ignoreBlocking vbt
@@ -377,24 +379,23 @@ instance Match Type NLPat Term where
             perm = Perm n $ reverse $ map unArg $ bvs
             tel :: Telescope
             tel = permuteTel perm k
-        ok <- Red.addCtxTel k $ reallyFree badVars v
+        ok <- addContext k $ reallyFree badVars v
         case ok of
           Left b         -> block b
           Right Nothing  -> no ""
-          Right (Just v) -> tellSub r (i-n) $ teleLam tel $ renameP __IMPOSSIBLE__ perm v
-
+          Right (Just v) -> tellSub r (i-n) t $ teleLam tel $ renameP __IMPOSSIBLE__ perm v
       _ | MetaV m es <- v -> matchingBlocked $ Blocked m ()
 
       PDef f ps -> traceSDoc "rewriting.match" 60 ("matching a PDef: " <+> prettyTCM f) $ do
-        v <- Red.addCtxTel k $ constructorForm =<< unLevel v
+        v <- addContext k $ constructorForm =<< unLevel v
         case v of
           Def f' es
             | f == f'   -> do
-                ft <- Red.addCtxTel k $ defType <$> getConstInfo f
+                ft <- addContext k $ defType <$> getConstInfo f
                 match r gamma k (ft , Def f []) ps es
           Con c ci vs
             | f == conName c -> do
-                ~(Just (_ , ct)) <- Red.addCtxTel k $ getFullyAppliedConType c t
+                ~(Just (_ , ct)) <- addContext k $ getFullyAppliedConType c t
                 match r gamma k (ct , Con c ci []) ps vs
           _ | Pi a b <- unEl t -> do
             let ai    = domInfo a
@@ -406,9 +407,9 @@ instance Match Type NLPat Term where
           -- If v is not of record constructor form but we are matching at record
           -- type, e.g., we eta-expand both v to (c vs) and
           -- the pattern (p = PDef f ps) to @c (p .f1) ... (p .fn)@.
-            def <- Red.addCtxTel k $ theDef <$> getConstInfo d
-            (tel, c, ci, vs) <- Red.addCtxTel k $ etaExpandRecord_ d pars def v
-            ~(Just (_ , ct)) <- Red.addCtxTel k $ getFullyAppliedConType c t
+            def <- addContext k $ theDef <$> getConstInfo d
+            (tel, c, ci, vs) <- addContext k $ etaExpandRecord_ d pars def v
+            ~(Just (_ , ct)) <- addContext k $ getFullyAppliedConType c t
             let flds = recFields def
                 mkField fld = PDef f (ps ++ [Proj ProjSystem fld])
                 -- Issue #3335: when matching against the record constructor,
@@ -443,15 +444,15 @@ instance Match Type NLPat Term where
               k'    = ExtendTel a (Abs (absName b) k)
           match r gamma k' (absBody b) pbody body
         _ | Just (d, pars) <- etaRecord -> do
-          def <- Red.addCtxTel k $ theDef <$> getConstInfo d
-          (tel, c, ci, vs) <- Red.addCtxTel k $ etaExpandRecord_ d pars def v
-          ~(Just (_ , ct)) <- Red.addCtxTel k $ getFullyAppliedConType c t
+          def <- addContext k $ theDef <$> getConstInfo d
+          (tel, c, ci, vs) <- addContext k $ etaExpandRecord_ d pars def v
+          ~(Just (_ , ct)) <- addContext k $ getFullyAppliedConType c t
           let flds = recFields def
               ps'  = map (fmap $ \fld -> PBoundVar i (ps ++ [Proj ProjSystem fld])) flds
           match r gamma k (ct, Con c ci []) (map Apply ps') (map Apply vs)
         _ -> no ""
       PTerm u -> traceSDoc "rewriting.match" 60 ("matching a PTerm" <+> addContext (gamma `abstract` k) (prettyTCM u)) $
-        tellEq gamma k u v
+        tellEq gamma k t u v
 
 -- Checks if the given term contains any free variables that satisfy the
 -- given condition on their DBI, possibly reducing the term in the process.
@@ -491,18 +492,18 @@ makeSubstitution gamma sub =
                 Just (_         , v) -> Just v
                 Nothing              -> Nothing
 
-checkPostponedEquations :: (MonadReduce m, HasConstInfo m, MonadDebug m)
+checkPostponedEquations :: (MonadReduce m, MonadAddContext m, HasConstInfo m, HasBuiltins m, MonadDebug m)
                         => Substitution -> PostponedEquations -> m (Maybe Blocked_)
 checkPostponedEquations sub eqs = forM' eqs $
-  \ (PostponedEquation k lhs rhs) -> do
+  \ (PostponedEquation k a lhs rhs) -> do
       let lhs' = applySubst (liftS (size k) sub) lhs
       traceSDoc "rewriting.match" 30 (sep
         [ "checking postponed equality between" , addContext k (prettyTCM lhs')
         , " and " , addContext k (prettyTCM rhs) ]) $ do
-      Red.addCtxTel k $ equal lhs' rhs
+      addContext k $ equal a lhs' rhs
 
 -- main function
-nonLinMatch :: (MonadReduce m, HasConstInfo m, MonadDebug m, Match t a b)
+nonLinMatch :: (MonadReduce m, MonadAddContext m, HasConstInfo m, HasBuiltins m, MonadDebug m, Match t a b)
             => Telescope -> t -> a -> b -> m (Either Blocked_ Substitution)
 nonLinMatch gamma t p v = do
   let no msg b = traceSDoc "rewriting.match" 10 (sep
@@ -517,22 +518,20 @@ nonLinMatch gamma t p v = do
       Nothing -> return $ Right sub
       Just b  -> no "checking of postponed equations" b
 
--- | Untyped βη-equality, does not handle things like empty record types.
+-- | Typed βη-equality, also handles empty record types.
 --   Returns `Nothing` if the terms are equal, or `Just b` if the terms are not
 --   (where b contains information about possible metas blocking the comparison)
-
--- TODO: implement a type-directed, lazy version of this function.
-equal :: (MonadReduce m, HasConstInfo m)
-      => Term -> Term -> m (Maybe Blocked_)
-equal u v = do
-  (u, v) <- etaContract =<< normalise (u, v)
-  let ok    = u == v
-      block = caseMaybe (firstMeta (u, v))
-                (NotBlocked ReallyNotBlocked ())
-                (\ m -> Blocked m ())
-  if ok then return Nothing else do
-    traceSDoc "rewriting.match" 10 (sep
+equal :: (MonadReduce m, MonadAddContext m, HasConstInfo m, HasBuiltins m)
+      => Type -> Term -> Term -> m (Maybe Blocked_)
+equal a u v = pureEqualTerm a u v >>= \case
+  True -> return Nothing
+  False -> traceSDoc "rewriting.match" 10 (sep
       [ "mismatch between " <+> prettyTCM u
       , " and " <+> prettyTCM v
       ]) $ do
     return $ Just block
+
+  where
+    block = caseMaybe (firstMeta (u, v))
+              (NotBlocked ReallyNotBlocked ())
+              (\m -> Blocked m ())

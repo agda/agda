@@ -309,18 +309,18 @@ expandTelescopeVar gamma k delta c = (tel', rho)
     tel'        = gamma1 `abstract` (delta `abstract` gamma2')
 
 -- | Gather leading Πs of a type in a telescope.
-telView :: Type -> TCM TelView
+telView :: (MonadReduce m) => Type -> m TelView
 telView = telViewUpTo (-1)
 
 -- | @telViewUpTo n t@ takes off the first @n@ function types of @t@.
 -- Takes off all if @n < 0@.
-telViewUpTo :: Int -> Type -> TCM TelView
+telViewUpTo :: (MonadReduce m) => Int -> Type -> m TelView
 telViewUpTo n t = telViewUpTo' n (const True) t
 
 -- | @telViewUpTo' n p t@ takes off $t$
 --   the first @n@ (or arbitrary many if @n < 0@) function domains
 --   as long as they satify @p@.
-telViewUpTo' :: Int -> (Dom Type -> Bool) -> Type -> TCM TelView
+telViewUpTo' :: (MonadReduce m) => Int -> (Dom Type -> Bool) -> Type -> m TelView
 telViewUpTo' 0 p t = return $ TelV EmptyTel t
 telViewUpTo' n p t = do
   t <- reduce t
@@ -428,14 +428,20 @@ teleElims tel boundary = recurse (teleArgs tel)
         Just i | Just (t,u) <- matchVar i -> IApply t u p
         _                                 -> Apply a
 
-pathViewAsPi :: Type -> TCM (Either (Dom Type, Abs Type) Type)
+pathViewAsPi
+  :: (MonadReduce m, HasBuiltins m)
+  =>Type -> m (Either (Dom Type, Abs Type) Type)
 pathViewAsPi t = either (Left . fst) Right <$> pathViewAsPi' t
 
-pathViewAsPi' :: Type -> TCM (Either ((Dom Type, Abs Type), (Term,Term)) Type)
+pathViewAsPi'
+  :: (MonadReduce m, HasBuiltins m)
+  => Type -> m (Either ((Dom Type, Abs Type), (Term,Term)) Type)
 pathViewAsPi' t = do
   pathViewAsPi'whnf <*> reduce t
 
-pathViewAsPi'whnf :: TCM (Type -> Either ((Dom Type, Abs Type), (Term,Term)) Type)
+pathViewAsPi'whnf
+  :: (HasBuiltins m)
+  => m (Type -> Either ((Dom Type, Abs Type), (Term,Term)) Type)
 pathViewAsPi'whnf = do
   view <- pathView'
   minterval  <- getBuiltin' builtinInterval
@@ -474,7 +480,9 @@ telView'UpToPath n t = do
 telView'Path :: Type -> TCM TelView
 telView'Path = telView'UpToPath (-1)
 
-isPath :: Type -> TCM (Maybe (Dom Type, Abs Type))
+isPath
+  :: (MonadReduce m, HasBuiltins m)
+  => Type -> m (Maybe (Dom Type, Abs Type))
 isPath t = either Just (const Nothing) <$> pathViewAsPi t
 
 telePatterns :: (DeBruijn a, DeBruijn (Pattern' a)) =>

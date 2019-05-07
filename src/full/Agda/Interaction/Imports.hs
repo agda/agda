@@ -773,7 +773,7 @@ writeInterface file i = do
     throwError e
 
 removePrivates :: ScopeInfo -> ScopeInfo
-removePrivates si = si { scopeModules = restrictPrivate <$> scopeModules si }
+removePrivates = over scopeModules $ fmap restrictPrivate
 
 concreteOptionsToOptionPragmas :: [C.Pragma] -> TCM [OptionsPragma]
 concreteOptionsToOptionPragmas p = do
@@ -939,7 +939,7 @@ createInterface file mname isMain msi =
       -- (then includeStateChanges is True).
       when allowUnsolved $ do
         reportSLn "import.iface.create" 7 $ "Turning unsolved metas (if any) into postulates."
-        withCurrentModule (scopeCurrent scope) $
+        withCurrentModule (scope ^. scopeCurrent) $
           openMetasToPostulates
         -- Clear constraints as they might refer to what
         -- they think are open metas.
@@ -1093,7 +1093,7 @@ buildInterface source fileType topLevel pragmas = do
     reportSLn "import.iface" 5 "Building interface..."
     let m = topLevelModuleName topLevel
     scope'  <- getScope
-    let scope = scope' { scopeCurrent = m }
+    let scope = set scopeCurrent m scope'
     -- Andreas, 2014-05-03: killRange did not result in significant reduction
     -- of .agdai file size, and lost a few seconds performance on library-test.
     -- Andreas, Makoto, 2014-10-18 AIM XX: repeating the experiment

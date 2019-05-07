@@ -12,6 +12,6 @@ data ElimView
   | MetaElim MetaId [Elim]   -- ^ Stuck on meta variable @X es@.
   | NoElim   Term
 
-elimView :: Term -> TCM ElimView
+elimView :: (MonadReduce m, MonadTCEnv m, HasConstInfo m) => Bool -> Term -> m Term
 
 unElim :: Term -> [Elim] -> Term

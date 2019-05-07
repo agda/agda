@@ -149,7 +149,7 @@ import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Free.Reduce
 import Agda.TypeChecking.Records
-import Agda.TypeChecking.MetaVars (assignV, newArgsMetaCtx)
+import Agda.TypeChecking.MetaVars (newArgsMetaCtx)
 import Agda.TypeChecking.EtaContract
 import Agda.Interaction.Options (optInjectiveTypeConstructors)
 
