@@ -142,6 +142,11 @@ instance PrettyTCM Call where
       fsep $ pwords "when checking that" ++ [prettyTCM t] ++
              pwords "has no constructors"
 
+    CheckConfluence r1 r2 ->
+      fsep $ pwords "when checking confluence of the rewrite rule" ++
+             [prettyTCM r1] ++ pwords "with" ++
+             if r1 == r2 then pwords "itself" else [prettyTCM r2]
+
     ScopeCheckExpr e -> fsep $ pwords "when scope checking" ++ [pretty e]
 
     ScopeCheckDeclaration d ->

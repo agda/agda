@@ -59,6 +59,7 @@ import Agda.TypeChecking.Records
 import Agda.TypeChecking.RecordPatterns
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Rewriting
+import Agda.TypeChecking.Rewriting.Confluence
 import Agda.TypeChecking.SizedTypes.Solve
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
@@ -680,7 +681,10 @@ checkPragma r p =
     traceCall (CheckPragma r p) $ case p of
         A.BuiltinPragma x e -> bindBuiltin x e
         A.BuiltinNoDefPragma b x -> bindBuiltinNoDef b x
-        A.RewritePragma q   -> addRewriteRule q
+        A.RewritePragma q   -> do
+          f <- addRewriteRule q
+          whenM (optConfluenceCheck <$> pragmaOptions) $
+            checkConfluenceOfDef f
         A.CompilePragma b x s -> do
           assertCurrentModule x $
               "COMPILE pragmas must appear in the same module " ++
