@@ -1,5 +1,4 @@
 {-# LANGUAGE KindSignatures #-}
-{-# LANGUAGE CPP            #-}
 
 module Agda.TypeChecking.CheckInternal where
 
