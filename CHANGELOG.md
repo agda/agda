@@ -51,7 +51,7 @@ Release notes for Agda version 2.6.0.1
 Installation and infrastructure
 -------------------------------
 
-* Added support for GHC 8.6.5.2
+* Added support for GHC 8.6.5.
 
 Release notes for Agda version 2.6.0
 ====================================
@@ -73,7 +73,7 @@ Highlights
 * The implementation of [instance
   search](https://agda.readthedocs.io/en/v2.6.0/language/instance-arguments.html)
   got a major overhaul and no longer supports overlapping instances
-  (unless enabled by a flag)
+  (unless enabled by a flag).
 
 Installation and infrastructure
 -------------------------------
