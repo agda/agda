@@ -1,0 +1,18 @@
+(agda2-status-action "")
+(agda2-info-action "*Type-checking*" "" nil)
+(agda2-highlight-clear)
+conApp: constructor UnderappliedConstructor.R.conR with fields
+Arg {argInfo = ArgInfo {argInfoHiding = NotHidden, argInfoModality = Modality {modRelevance = Relevant, modQuantity = Quantityω}, argInfoOrigin = UserWritten, argInfoFreeVariables = UnknownFVs}, unArg = UnderappliedConstructor.R.A}
+Arg {argInfo = ArgInfo {argInfoHiding = NotHidden, argInfoModality = Modality {modRelevance = Relevant, modQuantity = Quantityω}, argInfoOrigin = UserWritten, argInfoFreeVariables = UnknownFVs}, unArg = UnderappliedConstructor.R.B}
+and args
+Agda.Builtin.Bool.Bool
+projected by UnderappliedConstructor.R.B
+conApp: constructor UnderappliedConstructor.R.conR with fields
+Arg {argInfo = ArgInfo {argInfoHiding = NotHidden, argInfoModality = Modality {modRelevance = Relevant, modQuantity = Quantityω}, argInfoOrigin = UserWritten, argInfoFreeVariables = UnknownFVs}, unArg = UnderappliedConstructor.R.A}
+Arg {argInfo = ArgInfo {argInfoHiding = NotHidden, argInfoModality = Modality {modRelevance = Relevant, modQuantity = Quantityω}, argInfoOrigin = UserWritten, argInfoFreeVariables = UnknownFVs}, unArg = UnderappliedConstructor.R.B}
+and args
+Agda.Builtin.Bool.Bool
+projected by UnderappliedConstructor.R.B
+(agda2-status-action "")
+(agda2-info-action "*All Goals*" "?0 : Bool → Set₁ ?1 : P (conR Bool .R.B) ?2 : P (snd (conD Bool)) " nil)
+((last . 1) . (agda2-goals-action '(0 1 2)))

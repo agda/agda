@@ -105,14 +105,15 @@ conApp ch@(ConHead c _ fs) ci args ees@(Proj o f : es) =
         " and args\n" ++ unlines (map (("  " ++) . prettyShow) args) ++
         " projected by " ++ show f
       isApply e = fromMaybe (failure __IMPOSSIBLE__) $ isApplyElim e
+      stuck = Dummy "applyE" (Apply (defaultArg $ Con ch ci args) : Proj o f : [])
   in
    case findWithIndex ((f==) . unArg) fs of
-     Nothing -> Dummy "applyE" (Apply (defaultArg $ Con ch ci args) : ees)
+     Nothing -> failure $ stuck `applyE` es
      Just (fld, i) -> let
       -- Andreas, 2018-06-12, issue #2170
       -- We safe-guard the projected value by DontCare using the ArgInfo stored at the record constructor,
       -- since the ArgInfo in the constructor application might be inaccurate because of subtyping.
-      v = maybe (failure __IMPOSSIBLE__) (relToDontCare fld . argToDontCare . isApply) $ headMaybe $ drop i args
+      v = maybe (failure stuck) (relToDontCare fld . argToDontCare . isApply) $ headMaybe $ drop i args
       in  applyE v es
 
   -- -- Andreas, 2016-07-20 futile attempt to magically fix ProjOrigin
