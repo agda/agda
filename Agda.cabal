@@ -556,9 +556,8 @@ library
 
   ghc-options: -fexpose-all-unfoldings
                -fspecialise-aggressively
-
-  -- Initially, we disable all the warnings.
-  ghc-options: -w
+               -- Initially, we disable all the warnings.
+               -w
                -Werror
                -- This option must be the first one after disabling the
                -- warnings. See Issue #2094.
@@ -800,9 +799,8 @@ test-suite agda-tests
 
   ghc-options: -fexpose-all-unfoldings
                -fspecialise-aggressively
-
-  -- Initially, we disable all the warnings.
-  ghc-options: -threaded
+               -threaded
+               -- Initially, we disable all the warnings.
                -w
                -Werror
                -- This option must be the first one after disabling the
