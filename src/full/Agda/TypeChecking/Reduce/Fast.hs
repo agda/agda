@@ -562,7 +562,17 @@ data MatchStack s = [CatchAllFrame s] :> Closure s
 infixr 2 :>, >:
 
 (>:) :: CatchAllFrame s -> MatchStack s -> MatchStack s
-c >: cs :> cl = c : cs :> cl
+(>:) c (cs :> cl) = c : cs :> cl
+-- Previously written as:
+--   c >: cs :> cl = c : cs :> cl
+--
+-- However, some versions/tools fail to parse infix data constructors properly.
+-- For example, stylish-haskell@0.9.2.1 fails with the following error:
+--   Language.Haskell.Stylish.Parse.parseModule: could not parse
+--   src/full/Agda/TypeChecking/Reduce/Fast.hs: ParseFailed (SrcLoc
+--   "<unknown>.hs" 625 1) "Parse error in pattern: "
+--
+-- See https://ghc.haskell.org/trac/ghc/ticket/10018 which may be related.
 
 data CatchAllFrame s = CatchAll FastCompiledClauses (Spine s)
                         -- ^ @CatchAll cc spine@. Case trees are not fully expanded, that is,
