@@ -56,7 +56,7 @@ prettyWarning wng = case wng of
       fsep ( pwords "Unsolved interaction metas at the following locations:" )
       $$ nest 2 (vcat $ map prettyTCM is)
 
-    UnsolvedConstraints cs ->
+    UnsolvedConstraints cs -> if null cs' then empty else
       fsep ( pwords "Failed to solve the following constraints:" )
       $$ nest 2 (P.vcat . List.nub <$> mapM prettyConstraint cs')
 
