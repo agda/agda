@@ -9,7 +9,36 @@
 # Specify additional command line arguments
 #
 # - arguments: [--color, --cpp-simple, -XQuasiQuotes]
-
+- arguments: [
+  -XBangPatterns,
+  -XConstraintKinds,
+  -XDefaultSignatures,
+  -XDeriveDataTypeable,
+  -XDeriveFoldable,
+  -XDeriveFunctor,
+  -XDeriveTraversable,
+  -XExistentialQuantification,
+  -XFlexibleContexts,
+  -XFlexibleInstances,
+  -XFunctionalDependencies,
+  -XInstanceSigs,
+  -XLambdaCase,
+  -XMultiParamTypeClasses,
+  -XMultiWayIf,
+  -XNamedFieldPuns,
+  -XOverloadedStrings,
+  -XPatternSynonyms,
+  -XRankNTypes,
+  -XRecordWildCards,
+  -XScopedTypeVariables,
+  -XStandaloneDeriving,
+  -XTupleSections,
+  -XTypeSynonymInstances,
+  # hlint (3.1.6, anyway), seems to assume -XTypeApplications,
+  # which causes a parsing error in some cases.
+  # (At the time of this note, a parse error in Agda.TypeChecking.Generalize)
+  -XNoTypeApplications,
+]
 
 # Control which extensions/flags/modules/functions can be used
 #
