@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP       #-}
 {-# LANGUAGE PolyKinds #-}
 
 module MAlonzo.RTE where
@@ -5,7 +6,14 @@ module MAlonzo.RTE where
 import Unsafe.Coerce
 import qualified GHC.Exts as GHC (Any)
 import qualified Data.Word
-import Numeric.IEEE ( IEEE(identicalIEEE) )
+import Numeric.IEEE ( IEEE(identicalIEEE, nan) )
+#if __GLASGOW_HASKELL__ >= 804
+import GHC.Float (castDoubleToWord64)
+#else
+import System.IO.Unsafe (unsafePerformIO)
+import qualified Foreign          as F
+import qualified Foreign.Storable as F
+#endif
 
 type AgdaAny = GHC.Any
 
@@ -103,6 +111,21 @@ ltFloat :: Double -> Double -> Bool
 ltFloat x y = case compareFloat x y of
                 LT -> True
                 _  -> False
+
+#if __GLASGOW_HASKELL__ < 804
+castDoubleToWord64 :: Double -> Word64
+castDoubleToWord64 float = unsafePerformIO $ F.alloca $ \buf -> do
+  F.poke (F.castPtr buf) float
+  F.peek buf
+#endif
+
+normaliseNaN :: Double -> Double
+normaliseNaN x
+  | isNaN x   = nan
+  | otherwise = x
+
+doubleToWord64 :: Double -> Word64
+doubleToWord64 = castDoubleToWord64 . normaliseNaN
 
 -- Words --
 

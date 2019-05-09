@@ -1,10 +1,40 @@
--- | Logically consistent comparison of floating point numbers.
-module Agda.Utils.Float where
+{-# LANGUAGE CPP #-}
 
-import Numeric.IEEE ( IEEE(identicalIEEE) )
+-- | Logically consistent comparison of floating point numbers.
+module Agda.Utils.Float
+  ( normaliseNaN
+  , doubleToWord64
+  , floatEq
+  , floatLt
+  ) where
+
+import Data.Word
+import Numeric.IEEE     ( IEEE(identicalIEEE, nan) )
+#if __GLASGOW_HASKELL__ >= 804
+import GHC.Float        ( castDoubleToWord64 )
+#else
+import System.IO.Unsafe ( unsafePerformIO )
+import qualified Foreign          as F
+import qualified Foreign.Storable as F
+#endif
+
+#if __GLASGOW_HASKELL__ < 804
+castDoubleToWord64 :: Double -> Word64
+castDoubleToWord64 float = unsafePerformIO $ F.alloca $ \buf -> do
+  F.poke (F.castPtr buf) float
+  F.peek buf
+#endif
+
+normaliseNaN :: Double -> Double
+normaliseNaN x
+  | isNaN x   = nan
+  | otherwise = x
+
+doubleToWord64 :: Double -> Word64
+doubleToWord64 = castDoubleToWord64 . normaliseNaN
 
 floatEq :: Double -> Double -> Bool
-floatEq x y = identicalIEEE x y || (isNaN x && isNaN y)
+floatEq x y = identicalIEEE x y  || (isNaN x && isNaN y)
 
 floatLt :: Double -> Double -> Bool
 floatLt x y =

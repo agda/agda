@@ -199,9 +199,9 @@ primBody s = maybe unimplemented (fromRight (hsVarUQ . HS.Ident) <$>) $
   , "primFloatNumericalEquality" |-> return "MAlonzo.RTE.eqNumFloat"
   , "primFloatNumericalLess"     |-> return "MAlonzo.RTE.ltNumFloat"
   , "primFloatSqrt"         |-> return "(sqrt :: Double -> Double)"
-  , "primRound"             |-> return "(round :: Double -> Integer)"
-  , "primFloor"             |-> return "(floor :: Double -> Integer)"
-  , "primCeiling"           |-> return "(ceiling :: Double -> Integer)"
+  , "primRound"             |-> return "(round . MAlonzo.RTE.normaliseNaN :: Double -> Integer)"
+  , "primFloor"             |-> return "(floor . MAlonzo.RTE.normaliseNaN :: Double -> Integer)"
+  , "primCeiling"           |-> return "(ceiling . MAlonzo.RTE.normaliseNaN :: Double -> Integer)"
   , "primExp"               |-> return "(exp :: Double -> Double)"
   , "primLog"               |-> return "(log :: Double -> Double)"
   , "primSin"               |-> return "(sin :: Double -> Double)"
@@ -212,6 +212,8 @@ primBody s = maybe unimplemented (fromRight (hsVarUQ . HS.Ident) <$>) $
   , "primATan"              |-> return "(atan :: Double -> Double)"
   , "primATan2"             |-> return "(atan2 :: Double -> Double -> Double)"
   , "primShowFloat"         |-> return "(Data.Text.pack . show :: Double -> Data.Text.Text)"
+  , "primFloatToWord64"     |-> return "MAlonzo.RTE.doubleToWord64"
+  , "primFloatToWord64Injective" |-> return "erased"
 
   -- Character functions
   , "primCharEquality"   |-> rel "(==)" "Char"

@@ -1589,6 +1589,13 @@ primWord64ToNatInjective =  do
   toNat <- primFunName <$> getPrimitive "primWord64ToNat"
   mkPrimInjective word nat toNat
 
+primFloatToWord64Injective :: TCM PrimitiveImpl
+primFloatToWord64Injective = do
+  float  <- primType (undefined :: Double)
+  word   <- primType (undefined :: Word64)
+  toWord <- primFunName <$> getPrimitive "primFloatToWord64"
+  mkPrimInjective float word toWord
+
 getRefl :: TCM (Arg Term -> Term)
 getRefl = do
   -- BUILTIN REFL maybe a constructor with one (the principal) argument or only parameters.
@@ -2031,9 +2038,9 @@ primitiveFunctions = Map.fromList
   , "primFloatNumericalEquality" |-> mkPrimFun2 ((==)     :: Rel Double)
   , "primFloatNumericalLess"     |-> mkPrimFun2 ((<)      :: Rel Double)
   , "primFloatSqrt"       |-> mkPrimFun1 (sqrt            :: Double -> Double)
-  , "primRound"           |-> mkPrimFun1 (round           :: Double -> Integer)
-  , "primFloor"           |-> mkPrimFun1 (floor           :: Double -> Integer)
-  , "primCeiling"         |-> mkPrimFun1 (ceiling         :: Double -> Integer)
+  , "primRound"           |-> mkPrimFun1 (round   . normaliseNaN :: Double -> Integer)
+  , "primFloor"           |-> mkPrimFun1 (floor   . normaliseNaN :: Double -> Integer)
+  , "primCeiling"         |-> mkPrimFun1 (ceiling . normaliseNaN :: Double -> Integer)
   , "primExp"             |-> mkPrimFun1 (exp             :: Fun Double)
   , "primLog"             |-> mkPrimFun1 (log             :: Fun Double)
   , "primSin"             |-> mkPrimFun1 (sin             :: Fun Double)
@@ -2044,6 +2051,8 @@ primitiveFunctions = Map.fromList
   , "primATan"            |-> mkPrimFun1 (atan            :: Fun Double)
   , "primATan2"           |-> mkPrimFun2 (atan2           :: Double -> Double -> Double)
   , "primShowFloat"       |-> mkPrimFun1 (Str . show      :: Double -> Str)
+  , "primFloatToWord64"   |-> mkPrimFun1 doubleToWord64
+  , "primFloatToWord64Injective" |-> primFloatToWord64Injective
 
   -- Character functions
   , "primCharEquality"       |-> mkPrimFun2 ((==) :: Rel Char)
