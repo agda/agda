@@ -104,6 +104,7 @@ ghcBackend' = Backend'
   , postModule            = ghcPostModule
   , compileDef            = ghcCompileDef
   , scopeCheckingSuffices = False
+  , mayEraseType          = ghcMayEraseType
   }
 
 --- Options ---
@@ -211,6 +212,17 @@ ghcPostModule _ _ isMain _ defs = do
 
 ghcCompileDef :: GHCOptions -> GHCModuleEnv -> IsMain -> Definition -> TCM [HS.Decl]
 ghcCompileDef _ env isMain def = definition env isMain def
+
+-- | We do not erase types that have a 'HsData' pragma.
+--   This is to ensure a stable interface to third-party code.
+ghcMayEraseType :: QName -> TCM Bool
+ghcMayEraseType q = getHaskellPragma q <&> \case
+  -- Andreas, 2019-05-09, issue #3732.
+  -- We restrict this to 'HsData' since types like @Size@, @Level@
+  -- should be erased although they have a 'HsType' binding to the
+  -- Haskell unit type.
+  Just HsData{} -> False
+  _ -> True
 
 -- Compilation ------------------------------------------------------------
 

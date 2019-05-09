@@ -93,6 +93,12 @@ jsBackend' = Backend'
   , postModule            = jsPostModule
   , compileDef            = jsCompileDef
   , scopeCheckingSuffices = False
+  , mayEraseType          = const $ return True
+      -- Andreas, 2019-05-09, see issue #3732.
+      -- If you want to use JS data structures generated from Agda
+      -- @data@/@record@, you might want to tell the treeless compiler
+      -- not to erase these types even if they have no content,
+      -- to get a stable interface.
   }
 
 --- Options ---

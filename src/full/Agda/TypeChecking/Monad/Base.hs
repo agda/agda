@@ -2514,8 +2514,11 @@ data TCEnv =
           , envCheckOptionConsistency :: Bool
                 -- ^ Do we check that options in imported files are
                 --   consistent with each other?
-          , envActiveBackend :: Maybe BackendName
+          , envActiveBackendName :: Maybe BackendName
                 -- ^ Is some backend active at the moment, and if yes, which?
+                --   NB: we only store the 'BackendName' here, otherwise
+                --   @instance Data TCEnv@ is not derivable.
+                --   The actual backend can be obtained from the name via 'stBackends'.
           }
     deriving Data
 
@@ -2570,7 +2573,7 @@ initEnv = TCEnv { envContext             = []
                 , envGeneralizeMetas        = NoGeneralize
                 , envGeneralizedVars        = Map.empty
                 , envCheckOptionConsistency = True
-                , envActiveBackend          = Nothing
+                , envActiveBackendName      = Nothing
                 }
 
 -- | Project 'Relevance' component of 'TCEnv'.
