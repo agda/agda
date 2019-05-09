@@ -306,6 +306,7 @@ newArgsMetaCtx' frozen condition (El s tm) tel perm ctx = do
       (m, u) <- applyModalityToContext info $
                  newValueMetaCtx frozen RunMetaOccursCheck a tel' perm ctx'
       setMetaArgInfo m (getArgInfo dom)
+      setMetaNameSuggestion m (absName codom)
       args <- newArgsMetaCtx' frozen condition (codom `absApp` u) tel perm ctx
       return $ Arg info u : args
     _  -> return []
