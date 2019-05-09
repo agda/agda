@@ -59,7 +59,8 @@ import Agda.Utils.Size
 import Agda.Utils.Tuple
 import Agda.Utils.Permutation
 import Agda.Utils.Pretty ( prettyShow, render )
-import qualified Agda.Utils.VarSet as Set
+import Agda.Utils.VarSet (VarSet)
+import qualified Agda.Utils.VarSet as VarSet
 
 import Agda.Utils.Impossible
 
@@ -682,7 +683,7 @@ assign dir x args v = do
         if False -- irrelevant $ getMetaRelevance mvar
           then do
             reportSDoc "tc.meta.assign" 25 $ "meta is irrelevant or unused"
-            return (Set.toList $ allFreeVars args, empty, empty)
+            return (VarSet.toList $ allFreeVars args, empty, empty)
           else do
             let vars  = allFreeVarsWithOcc args
                 relVL       = IntMap.keys $ IntMap.filter isRelevant vars
@@ -734,7 +735,7 @@ assign dir x args v = do
       -- we'll build solutions where the irrelevant terms are not valid
       let fvs = allFreeVars v
       reportSDoc "tc.meta.assign" 20 $
-        "fvars rhs:" <+> sep (map (text . show) $ Set.toList fvs)
+        "fvars rhs:" <+> sep (map (text . show) $ VarSet.toList fvs)
 
       -- Check that the arguments are variables
       mids <- do
@@ -759,7 +760,7 @@ assign dir x args v = do
         Just ids -> do
           -- Check linearity
           ids <- do
-            res <- runExceptT $ checkLinearity {- (`Set.member` fvs) -} ids
+            res <- runExceptT $ checkLinearity {- (`VarSet.member` fvs) -} ids
             case res of
               -- case: linear
               Right ids -> return ids
@@ -778,7 +779,7 @@ assign dir x args v = do
       -> TCM a
     attemptPruning x args fvs = do
       -- non-linear lhs: we cannot solve, but prune
-      killResult <- prune x args $ Set.toList fvs
+      killResult <- prune x args $ VarSet.toList fvs
       reportSDoc "tc.meta.assign" 10 $
         "pruning" <+> prettyTCM x <+> do
         text $
@@ -1160,7 +1161,7 @@ etaExpandProjectedVar mvar x t n qs = inTopContext $ do
     _ -> __IMPOSSIBLE__
 -}
 
-type FVs = Set.VarSet
+type FVs = VarSet
 type SubstCand = [(Int,Term)] -- ^ a possibly non-deterministic substitution
 
 -- | Turn non-det substitution into proper substitution, if possible.
