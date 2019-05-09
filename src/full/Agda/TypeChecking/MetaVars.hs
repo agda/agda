@@ -11,6 +11,7 @@ import Data.Function
 import qualified Data.IntMap as IntMap
 import qualified Data.List as List
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 import qualified Data.Foldable as Fold
 import qualified Data.Traversable as Trav
 
@@ -59,6 +60,8 @@ import Agda.Utils.Size
 import Agda.Utils.Tuple
 import Agda.Utils.Permutation
 import Agda.Utils.Pretty ( prettyShow, render )
+import Agda.Utils.Singleton
+import qualified Agda.Utils.Graph.TopSort as Graph
 import Agda.Utils.VarSet (VarSet)
 import qualified Agda.Utils.VarSet as VarSet
 
@@ -1333,3 +1336,21 @@ openMetasToPostulates = do
       let inst = InstV [] $ Def q []
       updateMetaVar (MetaId x) $ \ mv0 -> mv0 { mvInstantiation = inst }
       return ()
+
+-- | Sort metas in dependency order.
+dependencySortMetas :: [MetaId] -> TCM (Maybe [MetaId])
+dependencySortMetas metas = do
+  metaGraph <- concat <$> do
+    forM metas $ \ m -> do
+      deps <- allMetas (\ m' -> if m' `elem` metas then singleton m' else mempty) <$> getType m
+      return [ (m, m') | m' <- Set.toList deps ]
+
+  return $ Graph.topSort metas metaGraph
+
+  where
+    -- Sort metas don't have types, but we still want to sort them.
+    getType m = do
+      mv <- lookupMeta m
+      case mvJudgement mv of
+        IsSort{}                 -> return Nothing
+        HasType{ jMetaType = t } -> Just <$> instantiateFull t
