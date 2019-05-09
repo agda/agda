@@ -15,6 +15,7 @@
 \#*\#
 .\#*
 .ghc.environment.*
+.ghci.local
 agda-ffi/dist
 agda-stdlib
 autom4te.cache
