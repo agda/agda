@@ -1,7 +1,7 @@
 Issue380.agda:21,16-27
-Sigma _A_27 _B_28 !=< fst z == fst y → _26 (y = y) (z = z) == snd z
-of type Set
+Sigma _A_27 _B_28 !=<
+fst z == fst y → _snd_26 (y = y) (z = z) == snd z of type Set
 when checking that the inferred type of an application
   Sigma _A_27 _B_28
 matches the expected type
-  fst z == fst y → _26 (y = y) (z = z) == snd z
+  fst z == fst y → _snd_26 (y = y) (z = z) == snd z
