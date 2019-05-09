@@ -1597,12 +1597,6 @@ data IsForced
   | NotForced
   deriving (Data, Show, Eq)
 
--- | Information about whether we are allowed to erase some erasable thing.
-data ErasureAllowed
-  = ErasureAllowedYes
-  | ErasureAllowedNo
-  deriving (Data, Eq, Show, Enum, Bounded)
-
 -- | The backends are responsible for parsing their own pragmas.
 data CompilerPragma = CompilerPragma Range String
   deriving (Data, Show, Eq)
@@ -1793,12 +1787,6 @@ data Defn = Axiom -- ^ Postulate
               --   @Nothing@ if not yet computed (by positivity checker).
             , dataAbstr          :: IsAbstract
             , dataPathCons       :: [QName]        -- ^ Path constructor names (subset of dataCons)
-            , dataErasureAllowed :: ErasureAllowed
-              -- ^ Should the type contain no information, may we erase it for run-time?
-              --   The default is 'ErasureAllowedYes'.
-              --   Erasure may not be allowed if we bind this data type to a Haskell data type,
-              --   since at the Haskell side there may be matching on elements of this type.
-              --   See issue #3732.
             }
           | Record
             { recPars           :: Nat
@@ -1831,12 +1819,6 @@ data Defn = Axiom -- ^ Postulate
               --   for recursive records.
             , recAbstr          :: IsAbstract
             , recComp           :: CompKit
-            , recErasureAllowed :: ErasureAllowed
-              -- ^ Should the type contain no information, may we erase it for run-time?
-              --   The default is 'ErasureAllowedYes'.
-              --   Erasure may not be allowed if we bind this record type to a Haskell data type,
-              --   since at the Haskell side there may be matching on elements of this type.
-              --   See issue #3732.
             }
           | Constructor
             { conPars   :: Int         -- ^ Number of parameters.
@@ -1900,8 +1882,7 @@ instance Pretty Defn where
       , "funFlags        =" <?> pshow funFlags
       , "funTerminates   =" <?> pshow funTerminates
       , "funWith         =" <?> pshow funWith
-      , "funCopatternLHS =" <?> pshow funCopatternLHS
-      ] <?> "}"
+      , "funCopatternLHS =" <?> pshow funCopatternLHS ] <?> "}"
   pretty Datatype{..} =
     "Datatype {" <?> vcat
       [ "dataPars       =" <?> pshow dataPars
@@ -1911,9 +1892,7 @@ instance Pretty Defn where
       , "dataCons       =" <?> pshow dataCons
       , "dataSort       =" <?> pretty dataSort
       , "dataMutual     =" <?> pshow dataMutual
-      , "dataAbstr      =" <?> pshow dataAbstr
-      , "dataErasureAllowed =" <?> pshow dataErasureAllowed
-      ] <?> "}"
+      , "dataAbstr      =" <?> pshow dataAbstr ] <?> "}"
   pretty Record{..} =
     "Record {" <?> vcat
       [ "recPars         =" <?> pshow recPars
@@ -1925,9 +1904,7 @@ instance Pretty Defn where
       , "recMutual       =" <?> pshow recMutual
       , "recEtaEquality' =" <?> pshow recEtaEquality'
       , "recInduction    =" <?> pshow recInduction
-      , "recAbstr        =" <?> pshow recAbstr
-      , "recErasureAllowed =" <?> pshow recErasureAllowed
-      ] <?> "}"
+      , "recAbstr        =" <?> pshow recAbstr ] <?> "}"
   pretty Constructor{..} =
     "Constructor {" <?> vcat
       [ "conPars   =" <?> pshow conPars
@@ -3932,8 +3909,8 @@ instance KillRange Defn where
       AbstractDefn{} -> __IMPOSSIBLE__ -- only returned by 'getConstInfo'!
       Function cls comp ct tt covering inv mut isAbs delayed proj flags term extlam with copat ->
         killRange15 Function cls comp ct tt covering inv mut isAbs delayed proj flags term extlam with copat
-      Datatype a b c d e f g h i j    -> killRange10 Datatype a b c d e f g h i j
-      Record a b c d e f g h i j k l  -> killRange12 Record a b c d e f g h i j k l
+      Datatype a b c d e f g h i     -> killRange8 Datatype a b c d e f g h i
+      Record a b c d e f g h i j k   -> killRange11 Record a b c d e f g h i j k
       Constructor a b c d e f g h i  -> killRange9 Constructor a b c d e f g h i
       Primitive a b c d e            -> killRange5 Primitive a b c d e
 
@@ -3967,9 +3944,6 @@ instance KillRange Polarity where
   killRange = id
 
 instance KillRange IsForced where
-  killRange = id
-
-instance KillRange ErasureAllowed where
   killRange = id
 
 instance KillRange DoGeneralize where

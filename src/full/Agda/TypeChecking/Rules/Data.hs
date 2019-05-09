@@ -148,7 +148,6 @@ checkDataDef i name uc (A.DataDefParams gpars ps) cs =
                   , dataAbstr      = Info.defAbstract i
                   , dataMutual     = Nothing
                   , dataPathCons   = []     -- Path constructors are added later
-                  , dataErasureAllowed = ErasureAllowedYes  -- The default.
                   }
 
             escapeContext npars $ do

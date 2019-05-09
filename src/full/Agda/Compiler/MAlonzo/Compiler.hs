@@ -142,8 +142,6 @@ ghcPreCompile :: GHCOptions -> TCM GHCOptions
 ghcPreCompile ghcOpts = do
   allowUnsolved <- optAllowUnsolved <$> pragmaOptions
   when allowUnsolved $ genericError $ "Unsolved meta variables are not allowed when compiling."
-  -- propagateNonErasabilityOfHaskellBoundTypes =<< useTC stImports
-  -- propagateNonErasabilityOfHaskellBoundTypes =<< useTC stSignature
   return ghcOpts
 
 ghcPostCompile :: GHCOptions -> IsMain -> Map ModuleName IsMain -> TCM ()
@@ -176,21 +174,6 @@ ghcPreModule _ isMain m ifile = ifM uptodate noComp yesComp
       reportSLn "compile.ghc" 1 $ repl [m, ifile, out] "Compiling <<0>> in <<1>> to <<2>>"
       stImportedModules `setTCLens` Set.empty  -- we use stImportedModules to accumulate the required Haskell imports
       return (Recompile ())
-
--- Andreas, 2019-05-07
--- The propagation of the existence of Haskell bindings
--- to the Treeless compiler needs to happen regardless
--- of whether we need to recompile the module.
--- The information is needed to compile modules
--- that import the current one.
-propagateNonErasabilityOfHaskellBoundTypes :: Signature -> TCM ()
-propagateNonErasabilityOfHaskellBoundTypes sig = do
-  -- Andreas, 2019-05-02, issue #3732:
-  -- Update the signature:
-  -- No erasure of elements of types that have a Haskell binding!
-  forM_ (HMap.toList $ sig ^. sigDefinitions) $ \ (q, _def) -> do
-    whenM (isJust <$> getHaskellPragma q) $ do
-      noErasureAllowed q
 
 ghcPostModule
   :: GHCOptions

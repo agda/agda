@@ -771,7 +771,6 @@ createGenRecordType genRecMeta@(El genRecSort _) sortedMetas = do
            , recInduction    = Nothing
            , recAbstr        = ConcreteDef
            , recComp         = emptyCompKit
-           , recErasureAllowed = ErasureAllowedYes
            }
   reportSDoc "tc.generalize" 40 $ vcat
     [ text "created genRec" <+> text (show genRecFields) ]
