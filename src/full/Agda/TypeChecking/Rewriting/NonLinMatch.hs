@@ -204,7 +204,7 @@ instance PatternFrom Type Term NLPat where
       (_ , Level l)    -> __IMPOSSIBLE__
       (_ , DontCare{}) -> return PWild
       (_ , MetaV{})    -> __IMPOSSIBLE__
-      (_ , Dummy s)    -> __IMPOSSIBLE_VERBOSE__ s
+      (_ , Dummy s _)    -> __IMPOSSIBLE_VERBOSE__ s
 
 -- | Monad for non-linear matching.
 type NLM = ExceptT Blocked_ (StateT NLMState ReduceM)

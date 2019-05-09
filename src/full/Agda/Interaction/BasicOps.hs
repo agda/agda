@@ -47,6 +47,7 @@ import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Errors ( stringTCErr )
 import Agda.TypeChecking.Monad as M hiding (MetaInfo)
 import Agda.TypeChecking.MetaVars
+import Agda.TypeChecking.MetaVars.Mention
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
@@ -549,11 +550,21 @@ instance (ToConcrete a c, ToConcrete b d) =>
   toConcrete (OfType' e t) = OfType' <$> toConcrete e <*> toConcreteCtx TopCtx t
 
 getConstraints :: TCM [OutputForm C.Expr C.Expr]
-getConstraints = getConstraints' $ const True
+getConstraints = getConstraints' return $ const True
 
-getConstraints' :: (ProblemConstraint -> Bool) -> TCM [OutputForm C.Expr C.Expr]
-getConstraints' f = liftTCM $ do
-    cs <- filter f <$> M.getAllConstraints
+
+getConstraintsMentioning :: MetaId -> TCM [OutputForm C.Expr C.Expr]
+getConstraintsMentioning m = getConstraints' instantiateBlockingFull (mentionsMeta m)
+  -- could be optimized by not doing a full instantiation up front, with a more clever mentionsMeta.
+  where
+    instantiateBlockingFull p
+      = locallyTCState stInstantiateBlocking (const True) $
+          instantiateFull p
+
+
+getConstraints' :: (ProblemConstraint -> TCM ProblemConstraint) -> (ProblemConstraint -> Bool) -> TCM [OutputForm C.Expr C.Expr]
+getConstraints' g f = liftTCM $ do
+    cs <- filter f <$> (mapM g =<< M.getAllConstraints)
     cs <- forM cs $ \c -> do
             cl <- reify c
             enterClosure cl abstractToConcrete_
@@ -624,7 +635,7 @@ typeOfMetaMI norm mi =
         ]
       reportSDoc "interactive.meta.scope" 20 $ TP.text $ show $ getMetaScope mv
       -- Andreas, 2016-01-19, issue #1783: need piApplyM instead of just piApply
-      OfType x <$> reify t
+      OfType x <$> reifyUnblocked t
     rewriteJudg mv (IsSort i t) = do
       ms <- getMetaNameSuggestion i
       return $ JustSort $ NamedMeta ms i
@@ -646,12 +657,13 @@ typesOfHiddenMetas norm = liftTCM $ do
   store <- IntMap.filterWithKey (openAndImplicit is . MetaId) <$> getMetaStore
   mapM (typeOfMetaMI norm . MetaId) $ IntMap.keys store
   where
+  openAndImplicit is x m | isJust (mvTwin m) = False
   openAndImplicit is x m =
     case mvInstantiation m of
       M.InstV{} -> False
       M.Open    -> x `notElem` is
       M.OpenInstance -> x `notElem` is  -- OR: True !?
-      M.BlockedConst{} -> True
+      M.BlockedConst{} -> False
       M.PostponedTypeCheckingProblem{} -> False
 
 metaHelperType :: Rewrite -> InteractionId -> Range -> String -> TCM (OutputConstraint' Expr Expr)
@@ -789,7 +801,7 @@ contextOfMeta ii norm = do
                              | otherwise        = Nothing
         visible _            = __IMPOSSIBLE__
         out (Dom{unDom = (x, t)}) = do
-          t' <- reify =<< normalForm norm t
+          t' <- reifyUnblocked =<< normalForm norm t
           return $ OfType x t'
 
 
@@ -800,7 +812,7 @@ typeInCurrent :: Rewrite -> Expr -> TCM Expr
 typeInCurrent norm e =
     do  (_,t) <- wakeIrrelevantVars $ inferExpr e
         v <- normalForm norm t
-        reify v
+        reifyUnblocked v
 
 
 

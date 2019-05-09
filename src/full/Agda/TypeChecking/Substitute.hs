@@ -70,16 +70,17 @@ instance Apply Term where
         case es of
           Apply a : es0 -> lazyAbsApp b (unArg a) `applyE` es0
           IApply _ _ a : es0 -> lazyAbsApp b a `applyE` es0
-          _             -> __IMPOSSIBLE__
+          _             -> softFailure
       MetaV x es' -> MetaV x (es' ++ es)
-      Lit{}       -> __IMPOSSIBLE__
-      Level{}     -> __IMPOSSIBLE__
-      Pi _ _      -> __IMPOSSIBLE__
+      Lit{}       -> softFailure
+      Level{}     -> softFailure
+      Pi _ _      -> softFailure
       Sort s      -> Sort $ s `applyE` es
-      Dummy{}     -> __IMPOSSIBLE__
+      Dummy s es' -> Dummy s (es' ++ es)
       DontCare mv -> dontCare $ mv `applyE` es  -- Andreas, 2011-10-02
         -- need to go under DontCare, since "with" might resurrect irrelevant term
-
+   where
+     softFailure = Dummy "applyE" (Apply (defaultArg m) : es)
 -- | If $v$ is a record value, @canProject f v@
 --   returns its field @f@.
 canProject :: QName -> Term -> Maybe (Arg Term)
@@ -97,19 +98,23 @@ conApp :: ConHead -> ConInfo -> Elims -> Elims -> Term
 conApp ch                  ci args []             = Con ch ci args
 conApp ch                  ci args (a@Apply{} : es) = conApp ch ci (args ++ [a]) es
 conApp ch                  ci args (a@IApply{} : es) = conApp ch ci (args ++ [a]) es
-conApp ch@(ConHead c _ fs) ci args (Proj o f : es) =
+conApp ch@(ConHead c _ fs) ci args ees@(Proj o f : es) =
   let failure err = flip trace err $
         "conApp: constructor " ++ show c ++
         " with fields\n" ++ unlines (map (("  " ++) . show) fs) ++
         " and args\n" ++ unlines (map (("  " ++) . prettyShow) args) ++
         " projected by " ++ show f
       isApply e = fromMaybe (failure __IMPOSSIBLE__) $ isApplyElim e
-      (fld, i) = fromMaybe (failure __IMPOSSIBLE__) $ findWithIndex ((f==) . unArg) fs
+      stuck = Dummy "applyE" (Apply (defaultArg $ Con ch ci args) : Proj o f : [])
+  in
+   case findWithIndex ((f==) . unArg) fs of
+     Nothing -> failure $ stuck `applyE` es
+     Just (fld, i) -> let
       -- Andreas, 2018-06-12, issue #2170
       -- We safe-guard the projected value by DontCare using the ArgInfo stored at the record constructor,
       -- since the ArgInfo in the constructor application might be inaccurate because of subtyping.
-      v = maybe (failure __IMPOSSIBLE__) (relToDontCare fld . argToDontCare . isApply) $ headMaybe $ drop i args
-  in  applyE v es
+      v = maybe (failure stuck) (relToDontCare fld . argToDontCare . isApply) $ headMaybe $ drop i args
+      in  applyE v es
 
   -- -- Andreas, 2016-07-20 futile attempt to magically fix ProjOrigin
   --     fallback = v

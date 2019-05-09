@@ -1,21 +1,17 @@
 Failed to solve the following constraints:
-  _37 := λ {a} → mymaybemplus [blocked on problem 42]
-  _11 := (_ : _1) [a] :? _10
-  _8 := (_ : _1) [a] :? _7
-  _3 := (_ : _1) [a] :? _2
-  [42, 43] _9 (m = _32) (mzero = (λ {a} → _35)) =< Maybe a₁
-             : _7 (m = _32) (mzero = (λ {a} → _35))
-  [42, 44] _12 (m = _32) (mzero = (λ {a} → _35)) =< Maybe a₁
-             : _10 (m = _32) (mzero = (λ {a} → _35))
-  _10 (m = _32) (mzero = (λ {a} → _35)) = Set
-  piSort (_10 (m = _32) (mzero = (λ {a} → _35))) (λ _ → Set) = Set
-  _7 (m = _32) (mzero = (λ {a} → _35)) = Set
-  piSort (_7 (m = _32) (mzero = (λ {a} → _35))) (λ _ → Set) = Set
-  _34 := λ {a} → mymaybemzero [blocked on problem 37]
-  [37, 38] _4 (m = _32) =< Maybe a : _2 (m = _32)
-  _2 (m = _32) = Set
-  piSort (_2 (m = _32)) (λ _ → Set) = Set
-  _31 := Maybe [blocked on problem 34]
+  [42, 43] _9 (m = Maybe) (mzero = (λ {a} → mymaybemzero))
+             =< Maybe a₁
+             : _7 (m = Maybe) (mzero = mymaybemzero)
+  [42, 44] _12 (m = Maybe) (mzero = (λ {a} → mymaybemzero))
+             =< Maybe a₁
+             : _10 (m = Maybe) (mzero = mymaybemzero)
+  _10 (m = Maybe) (mzero = mymaybemzero) = Set
+  piSort (_10 (m = Maybe) (mzero = mymaybemzero)) (λ _ → Set) = Set
+  _7 (m = Maybe) (mzero = mymaybemzero) = Set
+  piSort (_7 (m = Maybe) (mzero = mymaybemzero)) (λ _ → Set) = Set
+  [37, 38] _4 (m = Maybe) =< Maybe a : _2 (m = Maybe)
+  _2 (m = Maybe) = Set
+  piSort (_2 (m = Maybe)) (λ _ → Set) = Set
   [34] Set _a_30 → Set _a_30 =< _1 : Set (Agda.Primitive.lsuc _a_30)
   Set (Agda.Primitive.lsuc _a_30) = _0
   piSort Set₁

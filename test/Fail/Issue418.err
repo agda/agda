@@ -1,5 +1,4 @@
 Failed to solve the following constraints:
-  _4 := refl [blocked on problem 7]
   [7, 9] Set = _3 : Set₁
 Unsolved metas at the following locations:
   Issue418.agda:13,18-19

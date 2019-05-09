@@ -505,6 +505,7 @@ newMetaTCM' inst frozen mi p perm j = do
                   , mvInstantiation    = inst
                   , mvListeners        = Set.empty
                   , mvFrozen           = frozen
+                  , mvTwin             = Nothing
                   }
   -- printing not available (import cycle)
   -- reportSDoc "tc.meta.new" 50 $ "new meta" <+> prettyTCM j'

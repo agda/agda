@@ -166,7 +166,7 @@ instance AbsTerm Term where
       Sort s      -> Sort $ absT s
       MetaV m vs  -> MetaV m $ absT vs
       DontCare mv -> DontCare $ absT mv
-      Dummy s     -> Dummy s
+      Dummy s es   -> Dummy s $ absT es
       where
         absT x = absTerm u x
 

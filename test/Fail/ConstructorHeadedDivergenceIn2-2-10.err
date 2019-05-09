@@ -1,5 +1,4 @@
 Failed to solve the following constraints:
-  _16 := enum (suc n) [blocked on problem 37]
   [37] ℕ × f n =< f _14 : Set
 Unsolved metas at the following locations:
   ConstructorHeadedDivergenceIn2-2-10.agda:27,5-6

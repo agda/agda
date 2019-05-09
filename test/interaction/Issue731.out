@@ -2,7 +2,7 @@
 (agda2-info-action "*Type-checking*" "" nil)
 (agda2-highlight-clear)
 (agda2-status-action "")
-(agda2-info-action "*All Goals, Errors*" "Sort _2 [ at Issue731.agda:5,15-16 ] _3 : _2 [ at Issue731.agda:5,15-16 ] _5 : empty → Set [ at Issue731.agda:9,7-10 ] _6 : empty → Set [ at Issue731.agda:9,7-10 ] ———— Errors ———————————————————————————————————————————————— Failed to solve the following constraints: _5 := foo [blocked on problem 3] [3] _3 =< Set : _2 _2 = Set₁ piSort Set (λ _ → _2) = Set₁ " nil)
+(agda2-info-action "*All Goals, Errors*" "Sort _2 [ at Issue731.agda:5,15-16 ] _3 : _2 [ at Issue731.agda:5,15-16 ] ———— Errors ———————————————————————————————————————————————— Failed to solve the following constraints: [3] _3 =< Set : _2 _2 = Set₁ piSort Set (λ _ → _2) = Set₁ " nil)
 ((last . 1) . (agda2-goals-action '()))
 (agda2-status-action "")
 (agda2-info-action "*Constraints*" "_5 := foo [blocked by problem 3] [3] _3 =< Set : _2 _2 = Set₁ (piSort Set (λ _ → _2)) = Set₁" nil)

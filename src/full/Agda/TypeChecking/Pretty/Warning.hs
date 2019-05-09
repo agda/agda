@@ -56,18 +56,25 @@ prettyWarning wng = case wng of
       fsep ( pwords "Unsolved interaction metas at the following locations:" )
       $$ nest 2 (vcat $ map prettyTCM is)
 
-    UnsolvedConstraints cs ->
+    UnsolvedConstraints cs -> if null cs' then empty else
       fsep ( pwords "Failed to solve the following constraints:" )
-      $$ nest 2 (P.vcat . List.nub <$> mapM prettyConstraint cs)
+      $$ nest 2 (P.vcat . List.nub <$> mapM prettyConstraint cs')
 
       where prettyConstraint :: MonadPretty m => ProblemConstraint -> m Doc
-            prettyConstraint c = f (prettyTCM c)
+            prettyConstraint c = f (locallyTCState stInstantiateBlocking (const True) $ prettyTCM c)
               where
               r   = getRange c
               f :: MonadPretty m => m Doc -> m Doc
               f d = if null $ P.pretty r
                     then d
                     else d $$ nest 4 ("[ at" <+> prettyTCM r <+> "]")
+            interesting :: ProblemConstraint -> Bool
+            interesting pc = go $ clValue (theConstraint pc)
+              where
+                go UnBlock{}     = False
+                go (Guarded c _) = go c
+                go _             = True
+            cs' = filter interesting cs
 
     TerminationIssue because -> do
       dropTopLevel <- topLevelModuleDropper

@@ -594,7 +594,7 @@ getOutputTypeName t = do
       Level{}  -> __IMPOSSIBLE__
       MetaV{}  -> __IMPOSSIBLE__
       DontCare{} -> __IMPOSSIBLE__
-      Dummy s    -> __IMPOSSIBLE_VERBOSE__ s
+      Dummy s _ -> __IMPOSSIBLE_VERBOSE__ s
 
 -- | Register the definition with the given type as an instance
 addTypedInstance :: QName -> Type -> TCM ()
