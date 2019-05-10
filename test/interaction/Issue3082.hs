@@ -1,6 +1,5 @@
 #!/usr/bin/env runhaskell
 
-{-# LANGUAGE RecordWildCards #-}
 
 import System.Directory
 

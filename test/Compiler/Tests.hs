@@ -1,7 +1,4 @@
 {-# LANGUAGE DoAndIfThenElse      #-}
-{-# LANGUAGE FlexibleInstances    #-}
-{-# LANGUAGE OverloadedStrings    #-}
-{-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE PatternGuards        #-}
 
 module Compiler.Tests where

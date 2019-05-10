@@ -1,4 +1,3 @@
-{-# LANGUAGE DeriveFunctor #-}
 
 -- | Contexts with at most one hole.
 

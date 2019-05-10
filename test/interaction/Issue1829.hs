@@ -1,4 +1,3 @@
-{-# LANGUAGE RecordWildCards #-}
 
 import Control.Monad
 

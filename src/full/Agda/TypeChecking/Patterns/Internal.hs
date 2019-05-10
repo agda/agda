@@ -1,5 +1,4 @@
 {-# LANGUAGE GADTs #-}
-{-# LANGUAGE ScopedTypeVariables #-}
 
 -- | Tools to manipulate patterns in internal syntax
 --   in the TCM (type checking monad).

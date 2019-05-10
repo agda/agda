@@ -1,8 +1,5 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE UndecidableInstances       #-}
-{-# LANGUAGE DeriveFunctor              #-}
-{-# LANGUAGE DeriveFoldable             #-}
-{-# LANGUAGE DeriveTraversable          #-}
 {-# LANGUAGE NondecreasingIndentation   #-}
 {-# LANGUAGE MonoLocalBinds             #-}
 

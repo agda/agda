@@ -1,11 +1,8 @@
 {-# LANGUAGE GADTs                #-}
-{-# LANGUAGE DataKinds            #-}
 {-# LANGUAGE PolyKinds            #-}
 {-# LANGUAGE TypeFamilies         #-}
 {-# LANGUAGE TypeOperators        #-}
 {-# LANGUAGE KindSignatures       #-}
-{-# LANGUAGE ConstraintKinds      #-}
-{-# LANGUAGE ScopedTypeVariables  #-}
 -- We need undecidable instances for the definition of @Foldr@,
 -- and @Domains@ and @CoDomain@ using @If@ for instance.
 {-# LANGUAGE UndecidableInstances #-}
