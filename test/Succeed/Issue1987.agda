@@ -1,4 +1,4 @@
-{-# OPTIONS --rewriting #-}
+{-# OPTIONS --rewriting --confluence-check #-}
 
 data Unit : Set where
   unit : Unit

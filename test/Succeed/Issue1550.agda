@@ -1,6 +1,6 @@
 -- Andreas, 2015-08-27 Allow rewrite rules for symbols defined in other file
 
-{-# OPTIONS --rewriting #-}
+{-# OPTIONS --rewriting --confluence-check #-}
 
 open import Common.Nat
 open import Common.Equality

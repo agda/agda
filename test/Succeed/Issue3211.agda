@@ -2,7 +2,7 @@
 -- The new type-directed rewriting was using the wrong type for
 -- constructors of parametrized datatypes.
 
-{-# OPTIONS --rewriting #-}
+{-# OPTIONS --rewriting --confluence-check #-}
 
 module _ where
 

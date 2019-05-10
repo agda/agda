@@ -1,4 +1,4 @@
-{-# OPTIONS --prop --rewriting #-}
+{-# OPTIONS --prop --rewriting --confluence-check #-}
 
 open import Agda.Builtin.Nat
 open import Agda.Builtin.Equality

@@ -1,6 +1,6 @@
 -- Andreas, 2015-08-27 use imported rewrite rule
 
-{-# OPTIONS --rewriting #-}
+{-# OPTIONS --rewriting --confluence-check #-}
 
 open import Common.Nat
 open import Common.Equality

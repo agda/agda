@@ -1,4 +1,4 @@
-{-# OPTIONS --rewriting #-}
+{-# OPTIONS --rewriting --confluence-check #-}
 
 postulate _↦_ : ∀ {a} {A : Set a} → A → A → Set
 {-# BUILTIN REWRITE _↦_ #-}

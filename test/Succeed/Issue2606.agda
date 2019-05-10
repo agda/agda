@@ -7,7 +7,7 @@
 
 -- SHOULD: succeed
 
-{-# OPTIONS --rewriting #-}
+{-# OPTIONS --rewriting --confluence-check #-}
 
 module _ where
 

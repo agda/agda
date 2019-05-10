@@ -1,6 +1,6 @@
 -- Andreas, 2016-08-01, issue #2125, qualified names in pragmas
 
-{-# OPTIONS --rewriting #-}
+{-# OPTIONS --rewriting --confluence-check #-}
 
 import Common.Equality as Eq
 

@@ -1,4 +1,4 @@
-{-# OPTIONS --rewriting #-}
+{-# OPTIONS --rewriting --confluence-check #-}
 
 -- Let us assume that extensionality of functions cannot be proved
 -- inside "plain" Agda. In that case the code below shows that the
