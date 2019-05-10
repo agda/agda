@@ -39,6 +39,22 @@ instance PrettyTCM TCWarning where
 instance PrettyTCM Warning where
   prettyTCM = prettyWarning
 
+prettyConstraint :: MonadPretty m => ProblemConstraint -> m Doc
+prettyConstraint c = f (locallyTCState stInstantiateBlocking (const True) $ prettyTCM c)
+  where
+    r   = getRange c
+    f :: MonadPretty m => m Doc -> m Doc
+    f d = if null $ P.pretty r
+          then d
+          else d $$ nest 4 ("[ at" <+> prettyTCM r <+> "]")
+
+interestingConstraint :: ProblemConstraint -> Bool
+interestingConstraint pc = go $ clValue (theConstraint pc)
+  where
+    go UnBlock{}     = False
+    go (Guarded c _) = go c
+    go _             = True
+
 {-# SPECIALIZE prettyWarning :: Warning -> TCM Doc #-}
 prettyWarning :: MonadPretty m => Warning -> m Doc
 prettyWarning wng = case wng of
@@ -54,22 +70,8 @@ prettyWarning wng = case wng of
     UnsolvedConstraints cs -> if null cs' then empty else
       fsep ( pwords "Failed to solve the following constraints:" )
       $$ nest 2 (P.vcat . List.nub <$> mapM prettyConstraint cs')
-
-      where prettyConstraint :: MonadPretty m => ProblemConstraint -> m Doc
-            prettyConstraint c = f (locallyTCState stInstantiateBlocking (const True) $ prettyTCM c)
-              where
-              r   = getRange c
-              f :: MonadPretty m => m Doc -> m Doc
-              f d = if null $ P.pretty r
-                    then d
-                    else d $$ nest 4 ("[ at" <+> prettyTCM r <+> "]")
-            interesting :: ProblemConstraint -> Bool
-            interesting pc = go $ clValue (theConstraint pc)
-              where
-                go UnBlock{}     = False
-                go (Guarded c _) = go c
-                go _             = True
-            cs' = filter interesting cs
+      where
+        cs' = filter interestingConstraint cs
 
     TerminationIssue because -> do
       dropTopLevel <- topLevelModuleDropper
