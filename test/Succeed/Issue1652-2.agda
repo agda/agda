@@ -1,6 +1,6 @@
 {- Example by Andreas (2015-09-18) -}
 
-{-# OPTIONS --rewriting #-}
+{-# OPTIONS --rewriting --confluence-check #-}
 
 open import Common.Prelude
 open import Common.Equality

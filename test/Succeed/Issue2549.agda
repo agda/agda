@@ -1,4 +1,4 @@
-{-# OPTIONS --without-K --rewriting #-}
+{-# OPTIONS --without-K --rewriting --confluence-check #-}
 
 postulate
   _↦_ : {A : Set} → A → A → Set

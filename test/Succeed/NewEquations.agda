@@ -1,4 +1,4 @@
-{-# OPTIONS --rewriting #-}
+{-# OPTIONS --rewriting --confluence-check #-}
 
 module NewEquations where
 
@@ -55,8 +55,8 @@ fold-++ {c = c} {xs = x ∷ xs} = cong (c _) (fold-++ {xs = xs})
 {-# REWRITE map-id #-}
 {-# REWRITE map-fuse #-}
 {-# REWRITE map-++ #-}
-{-# REWRITE fold-map #-}
 {-# REWRITE fold-++ #-}
+{-# REWRITE fold-map #-} -- Note: confluence check fails if we add fold-map before fold-++
 
 record _×_ (A B : Set) : Set where
   constructor _,_

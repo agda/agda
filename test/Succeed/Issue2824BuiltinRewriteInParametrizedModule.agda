@@ -1,7 +1,7 @@
 -- Andreas, 2017-11-01, issue #2824
 -- allow built-in pragmas in parametrized modules
 
-{-# OPTIONS --rewriting #-}
+{-# OPTIONS --rewriting --confluence-check #-}
 
 open import Agda.Builtin.Equality
 
