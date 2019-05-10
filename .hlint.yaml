@@ -41,7 +41,6 @@
 - ignore: {name: "Use concatMap"}
 - ignore: {name: "Use const"}
 - ignore: {name: "Use empty"}
-- ignore: {name: "Use fewer imports"}
 - ignore: {name: "Use fmap"}
 - ignore: {name: "Use fromMaybe"}
 - ignore: {name: "Use id"}
