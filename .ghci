@@ -1,61 +1,43 @@
-:set -hide-package Agda
-:set -isrc/full
-:set -idist-2.6.1/build/autogen
-:set -idist-2.6.1/build
-:set -Idist-2.6.1/build/autogen
-:set -Idist-2.6.1/build
-:set -Isrc/full
-:set -optP-include
-:set -optPdist-2.6.1/build/autogen/cabal_macros.h
+-- Loads the appropriate .ghci file
+-- (.ghci860, .ghci820, .ghci800)
+--
+:{
+:def agda_load_ghci_by_version \varcmd ->
+  let
+    ghcVersion = Data.Version.versionBranch System.Info.compilerVersion
+  in
+    if (length ghcVersion /= 2)
+    then return "putStrLn \"Strange GHC version…\""
+    else if ghcVersion >= [8,6]
+    then return ":script .ghci860"
+    else if ghcVersion >= [8,2]
+    then return ":script .ghci820"
+    else if ghcVersion >= [8,0]
+    then return ":script .ghci800"
+    else return "putStrLn \"Unsupported GHC version\""
+:}
+:agda_load_ghci_by_version
+:undef agda_load_ghci_by_version
 
-:set -w
-:set -Werror
-:set -Wunrecognised-warning-flags
-:set -fwarn-deprecated-flags
-:set -fwarn-dodgy-exports
-:set -fwarn-dodgy-foreign-imports
-:set -fwarn-dodgy-imports
-:set -fwarn-duplicate-exports
-:set -fwarn-hi-shadowing
-:set -fwarn-identities
-:set -fwarn-incomplete-patterns
-:set -fwarn-missing-fields
-:set -fwarn-missing-methods
-:set -fwarn-missing-signatures
-:set -fwarn-tabs
-:set -fwarn-overlapping-patterns
-:set -fwarn-unrecognised-pragmas
-:set -fwarn-unused-do-bind
-:set -fwarn-warnings-deprecations
-:set -fwarn-wrong-do-bind
-:set -fwarn-empty-enumerations
-:set -fwarn-inline-rule-shadowing
-:set -fwarn-typed-holes
-:set -fwarn-overflowed-literals
-:set -fwarn-unticked-promoted-constructors
-:set -Wmissing-pattern-synonym-signatures
-:set -Wnoncanonical-monad-instances
-:set -Wnoncanonical-monoid-instances
-:set -Wsemigroup
-:set -Wunused-foralls
-
-:set -XConstraintKinds
-:set -XDataKinds
-:set -XDefaultSignatures
-:set -XDeriveFoldable
-:set -XDeriveFunctor
-:set -XDeriveTraversable
-:set -XExistentialQuantification
-:set -XFlexibleContexts
-:set -XFlexibleInstances
-:set -XFunctionalDependencies
-:set -XLambdaCase
-:set -XMultiParamTypeClasses
-:set -XMultiWayIf
-:set -XNamedFieldPuns
-:set -XRankNTypes
-:set -XRecordWildCards
-:set -XScopedTypeVariables
-:set -XStandaloneDeriving
-:set -XTypeSynonymInstances
-:set -XTupleSections
+-- Loads a ".ghci.local" file if it exists.
+-- That file is gitignored, so you may edit it freely.
+--
+-- Put any local .ghci customizations there and they will not be overwritten
+-- by checkouts, nor cause git to appear dirty. Some nice ideas for you which
+-- may become defaults at some point in the future:
+-- :set +c
+-- :set -fdefer-out-of-scope-variables
+-- :set -fdefer-type-errors
+-- :set -fdefer-typed-holes
+-- :set -ferror-spans
+-- :set -fhelpful-errors
+:{
+:def agda_load_local_ghci \_ -> do
+  let localGhci = ".ghci.local"
+  exists <- System.Directory.doesFileExist localGhci
+  return $ if exists
+    then ":script " ++ localGhci
+    else ""
+:}
+:agda_load_local_ghci
+:undef agda_load_local_ghci

@@ -61,7 +61,11 @@ import Agda.TypeChecking.CheckInternal (checkInternal)
 import Agda.TypeChecking.Datatypes hiding (isDataOrRecordType)
 import Agda.TypeChecking.Errors (dropTopLevelModule)
 import Agda.TypeChecking.Irrelevance
-import {-# SOURCE #-} Agda.TypeChecking.Empty
+-- Prevent "Ambiguous occurrence ‘DontKnow’" when loading with ghci.
+-- (DontKnow is one of the constructors of ErrorNonEmpty *and* UnifactionResult').
+-- We can't explicitly hide just the constructor here because it isn't in the
+-- hs-boot file.
+import {-# SOURCE #-} Agda.TypeChecking.Empty (ensureEmptyType)
 import Agda.TypeChecking.Forcing
 import Agda.TypeChecking.Patterns.Abstract
 import Agda.TypeChecking.Pretty

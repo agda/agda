@@ -554,44 +554,45 @@ library
 
   other-modules:    Paths_Agda
 
+  -- NOTE: If adding flags, also add to `.ghci800`
   ghc-options: -fexpose-all-unfoldings
                -fspecialise-aggressively
-
-  -- Initially, we disable all the warnings.
-  ghc-options: -w
+               -- Initially, we disable all the warnings.
+               -w
                -Werror
                -- This option must be the first one after disabling the
                -- warnings. See Issue #2094.
                -Wunrecognised-warning-flags
-               -fwarn-deprecated-flags
-               -fwarn-deriving-typeable
-               -fwarn-dodgy-exports
-               -fwarn-dodgy-foreign-imports
-               -fwarn-dodgy-imports
-               -fwarn-duplicate-exports
-               -fwarn-empty-enumerations
-               -fwarn-hi-shadowing
-               -fwarn-identities
-               -fwarn-incomplete-patterns
-               -fwarn-inline-rule-shadowing
-               -fwarn-missing-fields
-               -fwarn-missing-methods
-               -fwarn-missing-signatures
-               -fwarn-tabs
-               -fwarn-typed-holes
-               -fwarn-overflowed-literals
-               -fwarn-overlapping-patterns
-               -fwarn-unrecognised-pragmas
-               -fwarn-unticked-promoted-constructors
-               -fwarn-unused-do-bind
-               -fwarn-warnings-deprecations
-               -fwarn-wrong-do-bind
+               -Wdeprecated-flags
+               -Wderiving-typeable
+               -Wdodgy-exports
+               -Wdodgy-foreign-imports
+               -Wdodgy-imports
+               -Wduplicate-exports
+               -Wempty-enumerations
+               -Whi-shadowing
+               -Widentities
+               -Wincomplete-patterns
+               -Winline-rule-shadowing
+               -Wmissing-fields
+               -Wmissing-methods
                -Wmissing-pattern-synonym-signatures
+               -Wmissing-signatures
                -Wnoncanonical-monad-instances
                -Wnoncanonical-monoid-instances
+               -Woverflowed-literals
+               -Woverlapping-patterns
                -Wsemigroup
+               -Wtabs
+               -Wtyped-holes
+               -Wunrecognised-pragmas
+               -Wunticked-promoted-constructors
+               -Wunused-do-bind
                -Wunused-foralls
+               -Wwarnings-deprecations
+               -Wwrong-do-bind
 
+  -- NOTE: If adding flags, also add to `.ghci820`
   if impl(ghc >= 8.2)
     ghc-options: -Wcpp-undef
                  -- ASR TODO (2017-07-23): `make haddock` fails when
@@ -600,6 +601,7 @@ library
                  -Wsimplifiable-class-constraints
                  -Wunbanged-strict-patterns
 
+  -- NOTE: If adding flags, also add to `.ghci860`
   if impl(ghc >= 8.6)
     ghc-options: -Winaccessible-code
                  -Wstar-binder
@@ -628,8 +630,8 @@ library
                     , RecordWildCards
                     , ScopedTypeVariables
                     , StandaloneDeriving
-                    , TypeSynonymInstances
                     , TupleSections
+                    , TypeSynonymInstances
 
 executable agda
   hs-source-dirs: src/main
@@ -795,55 +797,57 @@ test-suite agda-tests
                      , RecordWildCards
                      , ScopedTypeVariables
                      , StandaloneDeriving
-                     , TypeSynonymInstances
                      , TupleSections
+                     , TypeSynonymInstances
 
+  -- NOTE: If adding flags, also add to `.ghci800`
   ghc-options: -fexpose-all-unfoldings
                -fspecialise-aggressively
-
-  -- Initially, we disable all the warnings.
-  ghc-options: -threaded
+               -threaded
+               -- Initially, we disable all the warnings.
                -w
                -Werror
                -- This option must be the first one after disabling the
                -- warnings. See Issue #2094.
                -Wunrecognised-warning-flags
-               -fwarn-deprecated-flags
-               -fwarn-deriving-typeable
-               -fwarn-dodgy-exports
-               -fwarn-dodgy-foreign-imports
-               -fwarn-dodgy-imports
-               -fwarn-duplicate-exports
-               -fwarn-empty-enumerations
-               -fwarn-hi-shadowing
-               -fwarn-identities
-               -fwarn-incomplete-patterns
-               -fwarn-inline-rule-shadowing
-               -fwarn-missing-fields
-               -fwarn-missing-methods
-               -fwarn-missing-signatures
-               -fwarn-tabs
-               -fwarn-typed-holes
-               -fwarn-overflowed-literals
-               -fwarn-overlapping-patterns
-               -fwarn-unrecognised-pragmas
-               -fwarn-unticked-promoted-constructors
-               -fwarn-unused-do-bind
-               -fwarn-warnings-deprecations
-               -fwarn-wrong-do-bind
+               -Wdeprecated-flags
+               -Wderiving-typeable
+               -Wdodgy-exports
+               -Wdodgy-foreign-imports
+               -Wdodgy-imports
+               -Wduplicate-exports
+               -Wempty-enumerations
+               -Whi-shadowing
+               -Widentities
+               -Wincomplete-patterns
+               -Winline-rule-shadowing
+               -Wmissing-fields
+               -Wmissing-methods
                -Wmissing-pattern-synonym-signatures
+               -Wmissing-signatures
                -Wnoncanonical-monad-instances
                -Wnoncanonical-monoid-instances
+               -Woverflowed-literals
+               -Woverlapping-patterns
                -Wsemigroup
+               -Wtabs
+               -Wtyped-holes
+               -Wunrecognised-pragmas
+               -Wunticked-promoted-constructors
+               -Wunused-do-bind
                -Wunused-foralls
+               -Wwarnings-deprecations
+               -Wwrong-do-bind
 
   -- ASR (2017-04-11). TODO: Using -Wmissing-home-modules generates an
   -- error.
+  -- NOTE: If adding flags, also add to `.ghci820`
   if impl(ghc >= 8.2)
     ghc-options: -Wcpp-undef
                  -Wsimplifiable-class-constraints
                  -Wunbanged-strict-patterns
 
+  -- NOTE: If adding flags, also add to `.ghci860`
   if impl(ghc >= 8.6)
     ghc-options: -Winaccessible-code
                  -Wstar-binder
