@@ -38,7 +38,6 @@
 - ignore: {name: "Use >"}
 - ignore: {name: "Use Just"}
 - ignore: {name: "Use camelCase"}
-- ignore: {name: "Use concatMap"}
 - ignore: {name: "Use const"}
 - ignore: {name: "Use empty"}
 - ignore: {name: "Use fmap"}
