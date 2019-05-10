@@ -24,7 +24,6 @@ import qualified Data.Set as Set
 import Data.Maybe
 import Data.Monoid
 import Data.Traversable (traverse)
-import Data.Monoid (mempty)
 import Data.Word
 
 import Agda.Interaction.Options

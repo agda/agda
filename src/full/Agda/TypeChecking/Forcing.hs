@@ -81,7 +81,6 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Pretty
-import Agda.TypeChecking.Telescope
 
 import Agda.Utils.Function
 import Agda.Utils.PartialOrd

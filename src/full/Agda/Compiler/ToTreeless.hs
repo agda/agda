@@ -32,8 +32,6 @@ import Agda.Compiler.Treeless.Pretty
 import Agda.Compiler.Treeless.Unused
 import Agda.Compiler.Treeless.AsPatterns
 import Agda.Compiler.Treeless.Identity
-
-import Agda.Syntax.Common
 import Agda.TypeChecking.Monad as TCM
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute

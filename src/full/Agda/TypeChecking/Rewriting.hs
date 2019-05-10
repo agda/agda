@@ -88,8 +88,6 @@ import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Singleton
 import Agda.Utils.Size
-import Agda.Utils.Lens
-import qualified Agda.Utils.HashMap as HMap
 
 import Agda.Utils.Impossible
 

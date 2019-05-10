@@ -17,7 +17,6 @@ import System.FilePath ( splitFileName, (</>) )
 
 import Agda.Interaction.FindFile ( findFile, findInterfaceFile )
 import Agda.Interaction.Imports ( isNewerThan )
-import Agda.Interaction.Options ( optCompileDir )
 import Agda.Syntax.Common ( Nat, unArg, namedArg, NameId(..) )
 import Agda.Syntax.Concrete.Name ( projectRoot , isNoName )
 import Agda.Syntax.Abstract.Name
@@ -32,14 +31,13 @@ import Agda.Syntax.Position
 import Agda.Syntax.Literal ( Literal(..) )
 import Agda.Syntax.Fixity
 import qualified Agda.Syntax.Treeless as T
-import Agda.TypeChecking.Substitute ( absBody )
+import Agda.TypeChecking.Substitute (absBody, TelV(..))
 import Agda.TypeChecking.Level ( reallyUnLevelView )
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Monad.Debug ( reportSLn )
 import Agda.TypeChecking.Monad.Options ( setCommandLineOptions )
 import Agda.TypeChecking.Reduce ( instantiateFull, normalise )
-import Agda.TypeChecking.Substitute (TelV(..))
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Pretty
 import Agda.Utils.FileName ( filePath )

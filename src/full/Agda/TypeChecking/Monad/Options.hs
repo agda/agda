@@ -28,8 +28,6 @@ import Agda.Interaction.Options
 import qualified Agda.Interaction.Options.Lenses as Lens
 import Agda.Interaction.Response
 import Agda.Interaction.Library
-
-import Agda.Utils.Except ( MonadError(catchError) )
 import Agda.Utils.FileName
 import Agda.Utils.Maybe
 import Agda.Utils.Monad

@@ -18,7 +18,6 @@ import qualified Data.Map as Map
 import qualified Data.List as List
 import qualified Data.Set as Set
 import qualified Data.Foldable as Fold (toList)
-import qualified Data.List as List
 import Data.Maybe
 import Data.Monoid (mempty, mappend)
 import Data.Map (Map)

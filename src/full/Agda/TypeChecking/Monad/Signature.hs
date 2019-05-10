@@ -51,7 +51,6 @@ import Agda.TypeChecking.Coverage.SplitTree
 import {-# SOURCE #-} Agda.TypeChecking.CompiledClause.Compile
 import {-# SOURCE #-} Agda.TypeChecking.Polarity
 import {-# SOURCE #-} Agda.TypeChecking.ProjectionLike
-import Agda.TypeChecking.Monad.Builtin
 
 import Agda.Utils.Either
 import Agda.Utils.Except ( ExceptT )

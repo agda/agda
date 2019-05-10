@@ -41,7 +41,6 @@ import Data.Bifunctor ( first )
 import Data.Function
 import qualified Data.List as List
 import Data.Maybe
-import System.Directory ( getAppUserDataDirectory )
 import System.Directory
 import System.FilePath
 import System.Environment
