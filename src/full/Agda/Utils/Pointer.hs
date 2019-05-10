@@ -1,6 +1,5 @@
 {-# LANGUAGE BangPatterns       #-}
 {-# LANGUAGE DeriveDataTypeable #-}
-{-# LANGUAGE StandaloneDeriving #-}
 
 module Agda.Utils.Pointer
   ( Ptr, newPtr, derefPtr, setPtr

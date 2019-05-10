@@ -1,5 +1,3 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
--- {-# LANGUAGE TypeFamilies #-}
 
 -- | Constructing singleton collections.
 

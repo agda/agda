@@ -1,4 +1,3 @@
-{-# LANGUAGE BangPatterns  #-}
 
 module Agda.TypeChecking.Rules.LHS.ProblemRest where
 

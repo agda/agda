@@ -1,4 +1,3 @@
-{-# LANGUAGE RecordWildCards          #-}
 {-# OPTIONS_GHC -fno-warn-orphans     #-}
 
 module Agda.TypeChecking.Serialise.Instances.Errors where

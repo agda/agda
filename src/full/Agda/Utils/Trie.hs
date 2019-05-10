@@ -1,5 +1,4 @@
 {-# LANGUAGE BangPatterns #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 -- | Strict tries (based on "Data.Map.Strict" and "Agda.Utils.Maybe.Strict").
 
