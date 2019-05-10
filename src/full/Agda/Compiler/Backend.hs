@@ -24,7 +24,6 @@ import Control.Monad.State
 import Control.Monad.Trans.Maybe
 
 import qualified Data.List as List
-import Data.Functor
 import Data.Maybe
 
 import Data.Map (Map)

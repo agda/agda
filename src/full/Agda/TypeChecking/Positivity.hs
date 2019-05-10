@@ -1,15 +1,10 @@
 {-# LANGUAGE BangPatterns         #-}
-{-# LANGUAGE CPP                  #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 -- | Check that a datatype is strictly positive.
 module Agda.TypeChecking.Positivity where
 
-#if MIN_VERSION_base(4,11,0)
-import Prelude hiding ( (<>), null )
-#else
 import Prelude hiding ( null )
-#endif
 
 import Control.Applicative hiding (empty)
 import Control.DeepSeq
@@ -612,11 +607,11 @@ buildOccurrenceGraph qs =
       occs <- computeOccurrences' q
 
       reportSDoc "tc.pos.occs" 40 $
-        ("Occurrences in" <+> prettyTCM q <> ":")
+        (("Occurrences in" <+> prettyTCM q) <> ":")
           $+$
         (nest 2 $ vcat $
            map (\(i, n) ->
-                   text (show i) <> ":" <+> text (show n) <+>
+                   (text (show i) <> ":") <+> text (show n) <+>
                    "occurrences") $
            List.sortBy (compare `on` snd) $
            Map.toList (flatten occs))
@@ -632,7 +627,7 @@ buildOccurrenceGraph qs =
            map (\e ->
                    let Edge o w = Graph.label e in
                    prettyTCM (Graph.source e) <+>
-                   "-[" <+> return (P.pretty o) <> "," <+>
+                   "-[" <+> (return (P.pretty o) <> ",") <+>
                                  return (P.pretty w) <+> "]->" <+>
                    prettyTCM (Graph.target e))
                es)
@@ -756,7 +751,7 @@ computeEdges muts q ob =
 instance Pretty Node where
   pretty = \case
     DefNode q   -> P.pretty q
-    ArgNode q i -> P.pretty q P.<> P.text ("." ++ show i)
+    ArgNode q i -> P.pretty q <> P.text ("." ++ show i)
 
 instance PrettyTCM Node where
   prettyTCM = return . P.pretty
@@ -786,11 +781,11 @@ instance PrettyTCM (Seq OccursWhere) where
       prettyOWs []  = __IMPOSSIBLE__
       prettyOWs [o] = do
         (s, d) <- prettyOW o
-        return (s, d P.<> ".")
+        return (s, d <> ".")
       prettyOWs (o:os) = do
         (s1, d1) <- prettyOW  o
         (s2, d2) <- prettyOWs os
-        return (s1, d1 P.<> "," P.<+> "which" P.<+> P.text s2 P.$$ d2)
+        return (s1, d1 <> ("," P.<+> "which" P.<+> P.text s2 P.$$ d2))
 
       prettyOW :: MonadPretty m => OccursWhere -> m (String, Doc)
       prettyOW (OccursWhere _ cs ws)
@@ -798,7 +793,7 @@ instance PrettyTCM (Seq OccursWhere) where
         | otherwise = do
             (s, d1) <- prettyWs ws
             (_, d2) <- prettyWs cs
-            return (s, d1 P.$$ "(" P.<> d2 P.<> ")")
+            return (s, d1 P.$$ "(" <> d2 <> ")")
 
       prettyWs :: MonadPretty m => Seq Where -> m (String, Doc)
       prettyWs ws = case Fold.toList ws of

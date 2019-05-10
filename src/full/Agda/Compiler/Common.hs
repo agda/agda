@@ -25,7 +25,7 @@ import Agda.Interaction.Imports
 import Agda.Interaction.Options
 
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Pretty hiding ((<>))
+import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
@@ -35,7 +35,7 @@ import qualified Agda.Utils.HashMap as HMap
 import Agda.Utils.Lens
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
-import Agda.Utils.Pretty hiding ((<>))
+import Agda.Utils.Pretty
 
 import Agda.Utils.Impossible
 

@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP                  #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 {-| Translation from "Agda.Syntax.Concrete" to "Agda.Syntax.Abstract". Involves scope analysis,
@@ -20,11 +19,7 @@ module Agda.Syntax.Translation.ConcreteToAbstract
     , PatName, APatName
     ) where
 
-#if MIN_VERSION_base(4,11,0)
-import Prelude hiding ( (<>), mapM, null )
-#else
 import Prelude hiding ( mapM, null )
-#endif
 
 import Control.Applicative
 import Control.Arrow (second)

@@ -1,23 +1,12 @@
-{-# LANGUAGE CPP                  #-}
 {-# LANGUAGE UndecidableInstances #-}
 
--- To define <>, we need to add with GHC >= 8.4
---
---   import Prelude hiding ((<>))
---
--- but using that gives warnings and doesn't silence -Wsemigroup in
--- some versions of GHC.
-#if __GLASGOW_HASKELL__ < 804
-{-# OPTIONS_GHC -Wno-semigroup #-}
-#endif
+module Agda.TypeChecking.Pretty
+    ( module Agda.TypeChecking.Pretty
+    -- This re-export can be removed once <GHC-8.4 is dropped.
+    , module Data.Semigroup
+    ) where
 
-module Agda.TypeChecking.Pretty where
-
-#if MIN_VERSION_base(4,11,0)
-import Prelude hiding ( (<>), null )
-#else
 import Prelude hiding ( null )
-#endif
 
 import Control.Applicative hiding (empty)
 import Control.Monad
@@ -28,6 +17,7 @@ import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Maybe
 import Data.String
+import Data.Semigroup (Semigroup((<>)))
 
 import Agda.Syntax.Position
 import Agda.Syntax.Common
@@ -107,13 +97,12 @@ vcat ds = P.vcat <$> sequence ds
 hang :: Applicative m => m Doc -> Int -> m Doc -> m Doc
 hang p n q = P.hang <$> p <*> pure n <*> q
 
-infixl 6 <>, <+>, <?>
+infixl 6 <+>, <?>
 infixl 5 $$, $+$
 
-($$), ($+$), (<>), (<+>), (<?>) :: Applicative m => m Doc -> m Doc -> m Doc
+($$), ($+$), (<+>), (<?>) :: Applicative m => m Doc -> m Doc -> m Doc
 d1 $$ d2  = (P.$$) <$> d1 <*> d2
 d1 $+$ d2 = (P.$+$) <$> d1 <*> d2
-d1 <> d2  = (P.<>) <$> d1 <*> d2
 d1 <+> d2 = (P.<+>) <$> d1 <*> d2
 d1 <?> d2 = (P.<?>) <$> d1 <*> d2
 
@@ -130,14 +119,14 @@ pshow :: (Applicative m, Show a) => a -> m Doc
 pshow = pure . P.pshow
 
 -- | Comma-separated list in brackets.
-prettyList :: Monad m => [m Doc] -> m Doc
+prettyList :: (Monad m, Semigroup (m Doc)) => [m Doc] -> m Doc
 prettyList ds = P.pretty <$> sequence ds
 
 -- | 'prettyList' without the brackets.
-prettyList_ :: Monad m => [m Doc] -> m Doc
+prettyList_ :: (Monad m, Semigroup (m Doc)) => [m Doc] -> m Doc
 prettyList_ ds = fsep $ punctuate comma ds
 
-punctuate :: Applicative m => m Doc -> [m Doc] -> [m Doc]
+punctuate :: (Applicative m, Semigroup (m Doc)) => m Doc -> [m Doc] -> [m Doc]
 punctuate _ [] = []
 punctuate d ds = zipWith (<>) ds (replicate n d ++ [pure empty])
   where
@@ -152,6 +141,7 @@ type MonadPretty m =
   , MonadAbsToCon m
   , IsString (m Doc)
   , Null (m Doc)
+  , Semigroup (m Doc)
   )
 
 class PrettyTCM a where
@@ -226,7 +216,7 @@ instance PrettyTCM MetaId where
     pretty $ NamedMeta mn x
 
 instance PrettyTCM a => PrettyTCM (Blocked a) where
-  prettyTCM (Blocked x a) = "[" <+> prettyTCM a <+> "]" <> text (P.prettyShow x)
+  prettyTCM (Blocked x a) = ("[" <+> prettyTCM a <+> "]") <> text (P.prettyShow x)
   prettyTCM (NotBlocked _ x) = prettyTCM x
 
 instance (Reify a e, ToConcrete e c, P.Pretty c) => PrettyTCM (Named_ a) where
@@ -336,7 +326,7 @@ instance PrettyTCM Constraint where
         HasBiggerSort a -> "Has bigger sort:" <+> prettyTCM a
         HasPTSRule a b -> "Has PTS rule:" <+> case b of
           NoAbs _ b -> prettyTCM (a,b)
-          Abs x b   -> "(" <> prettyTCM a <+> "," <+> addContext x (prettyTCM b) <> ")"
+          Abs x b   -> "(" <> (prettyTCM a <+> "," <+> addContext x (prettyTCM b)) <> ")"
         UnquoteTactic _ v _ _ -> do
           e <- reify v
           prettyTCM (A.App A.defaultAppInfo_ (A.Unquote A.exprNoRange) (defaultNamedArg e))
@@ -447,7 +437,7 @@ instance PrettyTCM NLPat where
     text ("λ " ++ absName u ++ " →") <+>
     (addContext (absName u) $ prettyTCM $ absBody u)
   prettyTCM (PPi a b)   = parens $
-    text ("(" ++ absName b ++ " :") <+> prettyTCM (unDom a) <> ") →" <+>
+    text ("(" ++ absName b ++ " :") <+> (prettyTCM (unDom a) <> ") →") <+>
     (addContext (absName b) $ prettyTCM $ unAbs b)
   prettyTCM (PBoundVar i []) = prettyTCM (var i)
   prettyTCM (PBoundVar i es) = parens $ prettyTCM (var i) <+> fsep (map prettyTCM es)

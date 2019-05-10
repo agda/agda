@@ -28,7 +28,7 @@ import qualified Data.List as List
 import Data.Maybe
 import Data.Map (Map)
 import qualified Data.Map as Map
-import Data.Monoid
+import Data.Monoid hiding ((<>))
 import Data.Traversable (Traversable)
 import qualified Data.Traversable as Trav
 
@@ -97,7 +97,7 @@ import Agda.Utils.Maybe
 import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Monad
 import Agda.Utils.Null
-import Agda.Utils.Pretty as P
+import Agda.Utils.Pretty
 import Agda.Utils.String
 import Agda.Utils.Time
 import Agda.Utils.Tuple
@@ -1462,7 +1462,7 @@ prettyContext norm rev ii = B.withInteractionId ii $ do
       | n == x                 = prettyShow x
       | isInScope n == InScope = prettyShow n ++ " = " ++ prettyShow x
       | otherwise              = prettyShow x
-    prettyCtxType e nis = ":" <+> (e P.<> notInScopeMarker nis)
+    prettyCtxType e nis = ":" <+> (e <> notInScopeMarker nis)
     notInScopeMarker nis = case isInScope nis of
       C.InScope    -> ""
       C.NotInScope -> "  (not in scope)"

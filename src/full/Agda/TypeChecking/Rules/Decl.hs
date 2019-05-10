@@ -1,13 +1,8 @@
-{-# LANGUAGE CPP #-}
 {-# LANGUAGE NondecreasingIndentation #-}
 
 module Agda.TypeChecking.Rules.Decl where
 
-#if MIN_VERSION_base(4,11,0)
-import Prelude hiding ( (<>), null )
-#else
 import Prelude hiding ( null )
-#endif
 
 import Control.Monad
 import Control.Monad.Reader
@@ -247,10 +242,10 @@ checkDecl d = setCurrentRange d $ do
       A.Axiom A.NoFunSig i defaultArgInfo Nothing x t
 
     check x i m = Bench.billTo [Bench.Definition x] $ do
-      reportSDoc "tc.decl" 5 $ "Checking" <+> prettyTCM x <> "."
+      reportSDoc "tc.decl" 5 $ ("Checking" <+> prettyTCM x) <> "."
       reportSLn "tc.decl.abstract" 25 $ show (Info.defAbstract i)
       r <- abstract (Info.defAbstract i) m
-      reportSDoc "tc.decl" 5 $ "Checked" <+> prettyTCM x <> "."
+      reportSDoc "tc.decl" 5 $ ("Checked" <+> prettyTCM x) <> "."
       return r
 
     isAbstract = fmap Info.defAbstract (A.getDefInfo d) == Just AbstractDef
@@ -581,7 +576,7 @@ checkAxiom' gentel funSig i info0 mp x e = whenAbstractFreezeMetasAfter i $ do
 
   reportSDoc "tc.decl.ax" 10 $ sep
     [ text $ "checked type signature"
-    , nest 2 $ prettyTCM rel <> prettyTCM x <+> ":" <+> prettyTCM t
+    , nest 2 $ (prettyTCM rel <> prettyTCM x) <+> ":" <+> prettyTCM t
     , nest 2 $ "of sort " <+> prettyTCM (getSort t)
     ]
 
@@ -728,7 +723,7 @@ checkMutual i ds = inMutualBlock $ \ blockId -> do
 
   verboseS "tc.decl.mutual" 20 $ do
     reportSDoc "tc.decl.mutual" 20 $ vcat $
-      ("Checking mutual block" <+> text (show blockId) <> ":") :
+      (("Checking mutual block" <+> text (show blockId)) <> ":") :
       map (nest 2 . prettyA) ds
 
   insertMutualBlockInfo blockId i

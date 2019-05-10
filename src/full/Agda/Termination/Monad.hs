@@ -39,7 +39,7 @@ import Agda.Termination.RecCheck (anyDefs)
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Benchmark
 import Agda.TypeChecking.Monad.Builtin
-import Agda.TypeChecking.Pretty hiding ((<>))
+import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute

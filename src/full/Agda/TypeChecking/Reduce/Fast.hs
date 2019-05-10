@@ -85,7 +85,7 @@ import Agda.Utils.Memo
 import Agda.Utils.Null (empty)
 import Agda.Utils.Function
 import Agda.Utils.Functor
-import Agda.Utils.Pretty hiding ((<>))
+import Agda.Utils.Pretty
 import Agda.Utils.Size
 import Agda.Utils.Zipper
 

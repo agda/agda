@@ -619,8 +619,8 @@ type Changes = [Change]
 
 instance Pretty (Kind -> Nat) where
   pretty f =
-    "(VarPat:" P.<+> P.text (show $ f VarPat) P.<+>
-    "DotPat:"  P.<+> P.text (show $ f DotPat) P.<> ")"
+    ("(VarPat:" P.<+> P.text (show $ f VarPat) P.<+>
+    "DotPat:"  P.<+> P.text (show $ f DotPat)) <> ")"
 
 instance PrettyTCM (Kind -> Nat) where
   prettyTCM = return . pretty

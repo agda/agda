@@ -1,12 +1,7 @@
-{-# LANGUAGE CPP                      #-}
 {-# LANGUAGE NondecreasingIndentation #-}
 {-# LANGUAGE ScopedTypeVariables      #-}
 
 module Agda.TypeChecking.Records where
-
-#if MIN_VERSION_base(4,11,0)
-import Prelude hiding ((<>))
-#endif
 
 import Control.Monad
 import Control.Monad.Reader
@@ -246,7 +241,7 @@ getDefType f t = do
   -- if @f@ is not a projection (like) function, @a@ is the correct type
       fallback = return $ Just a
   reportSDoc "tc.deftype" 20 $ vcat
-    [ "definition f = " <> prettyTCM f <+> text ("  -- raw: " ++ prettyShow f)
+    [ ("definition f = " <> prettyTCM f) <+> text ("  -- raw: " ++ prettyShow f)
     , "has type   a = " <> prettyTCM a
     , "principal  t = " <> prettyTCM t
     ]

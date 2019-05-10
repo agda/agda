@@ -1,12 +1,7 @@
-{-# LANGUAGE CPP #-}
 
 module Agda.TypeChecking.Pretty.Call where
 
-#if MIN_VERSION_base(4,11,0)
-import Prelude hiding ( (<>), null )
-#else
 import Prelude hiding ( null )
-#endif
 
 import Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Views
@@ -43,7 +38,7 @@ instance PrettyTCM CallInfo where
         r    = callInfoRange c
     if null $ P.pretty r
       then call
-      else call $$ nest 2 ("(at" <+> prettyTCM r <> ")")
+      else call $$ nest 2 ("(at" <+> prettyTCM r) <> ")"
 
 instance PrettyTCM Call where
   prettyTCM c = withContextPrecedence TopCtx $ case c of

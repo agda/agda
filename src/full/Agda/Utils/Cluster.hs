@@ -13,7 +13,6 @@ import Control.Monad
 import Data.Equivalence.Monad (runEquivM, equateAll, classDesc)
 
 import Data.Char
-import Data.Functor
 import qualified Data.IntMap as IntMap
 import Data.Semigroup
 

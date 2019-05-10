@@ -15,8 +15,6 @@ import Control.Monad.Identity
 import Control.Applicative (Applicative, liftA2)
 
 import Data.Foldable (Foldable, foldMap)
-import Data.Functor
-
 import Data.Traversable (Traversable, traverse)
 
 import Data.Maybe

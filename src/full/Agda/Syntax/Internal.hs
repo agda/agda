@@ -44,8 +44,7 @@ import Agda.Utils.NonemptyList
 import Agda.Utils.Null
 import Agda.Utils.Permutation
 import Agda.Utils.Size
-import qualified Agda.Utils.Pretty as P
-import Agda.Utils.Pretty hiding ((<>))
+import Agda.Utils.Pretty
 import Agda.Utils.Tuple
 
 import Agda.Utils.Impossible
@@ -1364,7 +1363,7 @@ instance Pretty a => Pretty (Substitution' a) where
     pr p rho = case rho of
       IdS              -> "idS"
       EmptyS err       -> "emptyS"
-      t :# rho         -> mparens (p > 2) $ sep [ pr 2 rho P.<> ",", prettyPrec 3 t ]
+      t :# rho         -> mparens (p > 2) $ sep [ pr 2 rho <> ",", prettyPrec 3 t ]
       Strengthen _ rho -> mparens (p > 9) $ "strS" <+> pr 10 rho
       Wk n rho         -> mparens (p > 9) $ text ("wkS " ++ show n) <+> pr 10 rho
       Lift n rho       -> mparens (p > 9) $ text ("liftS " ++ show n) <+> pr 10 rho
@@ -1475,7 +1474,7 @@ instance Pretty DBPatVar where
 
 instance Pretty a => Pretty (Pattern' a) where
   prettyPrec n (VarP _o x)   = prettyPrec n x
-  prettyPrec _ (DotP _o t)   = "." P.<> prettyPrec 10 t
+  prettyPrec _ (DotP _o t)   = "." <> prettyPrec 10 t
   prettyPrec n (ConP c i nps)= mparens (n > 0 && not (null nps)) $
     pretty (conName c) <+> fsep (map (prettyPrec 10) ps)
     where ps = map (fmap namedThing) nps

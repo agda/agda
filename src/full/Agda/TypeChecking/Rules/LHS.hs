@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP                  #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE NondecreasingIndentation #-}
 
@@ -10,11 +9,7 @@ module Agda.TypeChecking.Rules.LHS
   , checkSortOfSplitVar
   ) where
 
-#if MIN_VERSION_base(4,11,0)
-import Prelude hiding ( (<>), mapM, null, sequence )
-#else
 import Prelude hiding ( mapM, null, sequence )
-#endif
 
 import Data.Maybe
 
@@ -1578,7 +1573,7 @@ disambiguateProjection h ambD@(AmbQ ds) b = do
   where
     showDisamb (d,_) =
       let r = head $ filter (noRange /=) $ map nameBindingSite $ reverse $ mnameToList $ qnameModule d
-      in  (pretty =<< dropTopLevelModule d) <+> "(introduced at " <> prettyTCM r <> ")"
+      in  (pretty =<< dropTopLevelModule d) <+> ("(introduced at " <> prettyTCM r <> ")")
 
     notRecord = wrongProj $ headNe ds
 
@@ -1694,7 +1689,7 @@ disambiguateConstructor ambC@(AmbQ cs) d pars = do
   where
     showDisamb (c0,_,_) =
       let r = head $ filter (noRange /=) $ map nameBindingSite $ reverse $ mnameToList $ qnameModule c0
-      in  (pretty =<< dropTopLevelModule c0) <+> "(introduced at " <> prettyTCM r <> ")"
+      in  (pretty =<< dropTopLevelModule c0) <+> ("(introduced at " <> prettyTCM r <> ")")
 
     abstractConstructor c = softTypeError $
       AbstractConstructorNotInScope c

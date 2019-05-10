@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP                      #-}
 {-# LANGUAGE NondecreasingIndentation #-}
 
 module Agda.TypeChecking.Rules.Application
@@ -9,11 +8,7 @@ module Agda.TypeChecking.Rules.Application
   , checkProjAppToKnownPrincipalArg
   ) where
 
-#if MIN_VERSION_base(4,11,0)
-import Prelude hiding ( (<>), null )
-#else
 import Prelude hiding ( null )
-#endif
 
 import Control.Arrow (first, second)
 import Control.Monad.Trans
@@ -1113,10 +1108,10 @@ checkSharpApplication e t c args = do
       def <- theDef <$> getConstInfo c'
       vcat $
         [ "The coinductive wrapper"
-        , nest 2 $ prettyTCM rel <> prettyTCM c' <+> ":"
+        , nest 2 $ prettyTCM rel <> (prettyTCM c' <+> ":")
         , nest 4 $ prettyTCM t
         , nest 2 $ prettyA clause
-        , "The definition is" <+> text (show $ funDelayed def) <>
+        , ("The definition is" <+> text (show $ funDelayed def)) <>
           "."
         ]
     return c'

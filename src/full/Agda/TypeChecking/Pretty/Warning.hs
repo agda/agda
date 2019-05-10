@@ -1,12 +1,7 @@
-{-# LANGUAGE CPP #-}
 
 module Agda.TypeChecking.Pretty.Warning where
 
-#if MIN_VERSION_base(4,11,0)
-import Prelude hiding ( (<>), null )
-#else
 import Prelude hiding ( null )
-#endif
 
 import Data.Function
 import qualified Data.Set as Set

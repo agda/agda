@@ -20,11 +20,10 @@ module Agda.TypeChecking.Substitute
 
 import Control.Arrow (first, second)
 import Data.Function
-import Data.Functor
 import qualified Data.List as List
 import Data.Map (Map)
 import Data.Maybe
-import Data.Monoid
+import Data.Monoid hiding ((<>))
 
 import Debug.Trace (trace)
 import Language.Haskell.TH.Syntax (thenCmp) -- lexicographic combination of Ordering

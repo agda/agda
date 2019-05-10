@@ -18,7 +18,6 @@ import qualified Prelude
 
 import Control.Monad
 import Data.Function
-import Data.Functor
 import Data.Foldable (Foldable)
 import qualified Data.Maybe as Lazy
 import Data.Map.Strict (Map)

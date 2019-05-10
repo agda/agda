@@ -1,19 +1,13 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-{-# LANGUAGE CPP #-}
 
 {-| Pretty printer for the concrete syntax.
 -}
 module Agda.Syntax.Concrete.Pretty where
 
-#if MIN_VERSION_base(4,11,0)
-import Prelude hiding ( (<>), null )
-#else
 import Prelude hiding ( null )
-#endif
 
 import Data.IORef
-import Data.Functor
 import Data.Maybe
 import qualified Data.Strict.Maybe as Strict
 
@@ -150,7 +144,7 @@ prettyRelevance a d =
   if render d == "_" then d else pretty (getRelevance a) <> d
 
 instance (Pretty a, Pretty b) => Pretty (a, b) where
-    pretty (a, b) = parens $ pretty a <> comma <+> pretty b
+    pretty (a, b) = parens $ (pretty a <> comma) <+> pretty b
 
 instance Pretty (ThingWithFixity Name) where
     pretty (ThingWithFixity n _) = pretty n

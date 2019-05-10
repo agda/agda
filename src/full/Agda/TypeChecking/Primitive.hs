@@ -1,14 +1,10 @@
-{-# LANGUAGE CPP                        #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE UndecidableInstances       #-}
 {-# LANGUAGE DeriveFunctor              #-}
 {-# LANGUAGE DeriveFoldable             #-}
 {-# LANGUAGE DeriveTraversable          #-}
-{-# LANGUAGE NondecreasingIndentation #-}
-
-#if __GLASGOW_HASKELL__ >= 802
-{-# OPTIONS -Wno-simplifiable-class-constraints #-}
-#endif
+{-# LANGUAGE NondecreasingIndentation   #-}
+{-# LANGUAGE MonoLocalBinds             #-}
 
 {-| Primitive functions, such as addition on builtin integers.
 -}
@@ -1370,7 +1366,7 @@ primComp = do
             (redReturn =<<) . runNamesT [] $ do
               comp <- do
                 let
-                  ineg j = pure tINeg <@> j
+                  ineg j = (pure tINeg <@> j) :: TCMT IO Term
                   imax i j = pure tIMax <@> i <@> j
                 let forward la bA r u = pure tTrans <#> (lam "i" $ \ i -> la <@> (i `imax` r))
                                                     <@> (lam "i" $ \ i -> bA <@> (i `imax` r))

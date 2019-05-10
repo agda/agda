@@ -1,14 +1,9 @@
-{-# LANGUAGE CPP #-}
 
 ------------------------------------------------------------------------
 -- Pretty-printing of Haskell modules
 ------------------------------------------------------------------------
 
 module Agda.Compiler.MAlonzo.Pretty where
-
-#if MIN_VERSION_base(4,11,0)
-import Prelude hiding ((<>))
-#endif
 
 import Data.Generics.Geniplate
 import qualified Agda.Utils.Haskell.Syntax as HS
@@ -129,7 +124,7 @@ instance Pretty HS.Type where
     case t of
       HS.TyForall xs t ->
         mparens (pr > 0) $
-          sep [ "forall" <+> fsep (map pretty xs) <> "."
+          sep [ ("forall" <+> fsep (map pretty xs)) <> "."
               , nest 2 $ pretty t ]
       HS.TyFun a b ->
         mparens (pr > 4) $

@@ -1,10 +1,5 @@
-{-# LANGUAGE CPP #-}
 
 module Agda.Compiler.MAlonzo.Compiler where
-
-#if MIN_VERSION_base(4,11,0)
-import Prelude hiding ((<>))
-#endif
 
 import Control.Monad.Reader hiding (mapM_, forM_, mapM, forM, sequence)
 import Control.Monad.State  hiding (mapM_, forM_, mapM, forM, sequence)
@@ -254,11 +249,11 @@ definition kit (Defn NonStrict _ _  _ _ _ _ _ _) = __IMPOSSIBLE__
 -}
 definition _env _isMain Defn{defArgInfo = info, defName = q} | not $ usableModality info = do
   reportSDoc "compile.ghc.definition" 10 $
-    "Not compiling" <+> prettyTCM q <> "."
+    ("Not compiling" <+> prettyTCM q) <> "."
   return []
 definition env isMain def@Defn{defName = q, defType = ty, theDef = d} = do
   reportSDoc "compile.ghc.definition" 10 $ vcat
-    [ "Compiling" <+> prettyTCM q <> ":"
+    [ ("Compiling" <+> prettyTCM q) <> ":"
     , nest 2 $ text (show d)
     ]
   pragma <- getHaskellPragma q
