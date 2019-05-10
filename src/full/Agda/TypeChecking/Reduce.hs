@@ -1251,6 +1251,11 @@ instance (InstantiateFull a, InstantiateFull b, InstantiateFull c) => Instantiat
         do  (x,(y,z)) <- instantiateFull' (x,(y,z))
             return (x,y,z)
 
+instance (InstantiateFull a, InstantiateFull b, InstantiateFull c, InstantiateFull d) => InstantiateFull (a,b,c,d) where
+    instantiateFull' (x,y,z,w) =
+        do  (x,(y,z,w)) <- instantiateFull' (x,(y,z,w))
+            return (x,y,z,w)
+
 instance InstantiateFull a => InstantiateFull (Closure a) where
     instantiateFull' cl = do
         x <- enterClosure cl instantiateFull'
