@@ -59,7 +59,6 @@
 - ignore: {name: "Use second"}
 - ignore: {name: "Use section"}
 - ignore: {name: "Use sequenceA"}
-- ignore: {name: "Use unless"}
 - ignore: {name: "Use ||"}
 
 

@@ -2551,7 +2551,7 @@ mergeEqualPs = go (empty, [])
   where
     go acc (p@(Arg i (Named mn (A.EqualP r es))) : ps) = setCurrentRange p $ do
       -- Face constraint patterns must be defaultNamedArg; check this:
-      when (not $ null $ getModality i) __IMPOSSIBLE__
+      unless (null $ getModality i) __IMPOSSIBLE__
       when (hidden     i) $ warn i $ "Face constraint patterns cannot be hidden arguments"
       when (isInstance i) $ warn i $ "Face constraint patterns cannot be instance arguments"
       whenJust mn $ \ x -> setCurrentRange x $ warn x $ P.hcat
