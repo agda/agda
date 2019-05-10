@@ -48,9 +48,9 @@ GHC Backend
 Language
 --------
 
-### Builtins 
+### Builtins
 
-* New primitives 
+* New primitives
 
   ```agda
   primWord64ToNatInjective   : ∀ a b → primWord64ToNat a ≡ primWord64ToNat b → a ≡ b
