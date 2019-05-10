@@ -1,4 +1,4 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+
 
 module Agda.Utils.Tuple
   ( (-*-)

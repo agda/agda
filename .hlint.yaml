@@ -29,7 +29,6 @@
 - ignore: {name: "Redundant variable capture"}
 - ignore: {name: "Replace case with fromMaybe"}
 - ignore: {name: "Replace case with maybe"}
-- ignore: {name: "Unused LANGUAGE pragma"}
 - ignore: {name: "Use &&"}
 - ignore: {name: "Use ++"}
 - ignore: {name: "Use :"}
