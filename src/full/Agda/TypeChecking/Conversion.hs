@@ -310,7 +310,7 @@ compareTerm' cmp a m n =
               | Just q == mp -> compareTermOnFace cmp (unArg phi) (El s (Pi (dom {domFinite = False}) b)) m n
           _                  -> equalFun s (Pi (dom{domFinite = False}) b) m n
     equalFun _ (Pi dom@Dom{domInfo = info} b) m n | not $ domFinite dom = do
-        let name = suggest (absName b) ("x" :: String)
+        let name = suggests [ Suggestion b , Suggestion m , Suggestion n ]
         addContext (name, dom) $ compareTerm cmp (absBody b) m' n'
       where
         (m',n') = raise 1 (m,n) `apply` [Arg info $ var 0]
@@ -645,7 +645,7 @@ compareDom cmp dom1@(Dom{domInfo = i1, unDom = a1}) dom2@(Dom{domInfo = i2, unDo
              else return dom1
         -- We only need to require a1 == a2 if b2 is dependent
         -- If it's non-dependent it doesn't matter what we add to the context.
-      name <- freshName_ $ suggest b1 b2
+      let name = suggests [ Suggestion b1 , Suggestion b2 ]
       addContext (name, dom) $ cont
       stealConstraints pid
         -- Andreas, 2013-05-15 Now, comparison of codomains is not

@@ -43,6 +43,7 @@ import Agda.Utils.Maybe
 import Agda.Utils.NonemptyList
 import Agda.Utils.Null
 import Agda.Utils.Permutation
+import Agda.Utils.Singleton
 import Agda.Utils.Size
 import Agda.Utils.Pretty
 import Agda.Utils.Tuple
@@ -1045,22 +1046,34 @@ arity t = case unEl t of
   Pi  _ b -> 1 + arity (unAbs b)
   _       -> 0
 
--- | Pick the better name suggestion, i.e., the one that is not just underscore.
-class Suggest a b where
-  suggest :: a -> b -> String
+-- | Suggest a name if available (i.e. name is not "_")
+class Suggest a where
+  suggestName :: a -> Maybe String
 
-instance Suggest String String where
-  suggest "_" y = y
-  suggest  x  _ = x
+instance Suggest String where
+  suggestName "_" = Nothing
+  suggestName  x  = Just x
 
-instance Suggest (Abs a) (Abs b) where
-  suggest b1 b2 = suggest (absName b1) (absName b2)
+instance Suggest (Abs b) where
+  suggestName = suggestName . absName
 
-instance Suggest String (Abs b) where
-  suggest x b = suggest x (absName b)
+instance Suggest Name where
+  suggestName = suggestName . nameToArgName
 
-instance Suggest Name (Abs b) where
-  suggest n b = suggest (nameToArgName n) (absName b)
+instance Suggest Term where
+  suggestName (Lam _ v) = suggestName v
+  suggestName _         = Nothing
+
+-- Wrapping @forall a. (Suggest a) => a@ into a datatype because
+-- GHC doesn't support impredicative polymorphism
+data Suggestion = forall a. Suggest a => Suggestion a
+
+suggests :: [Suggestion] -> String
+suggests []     = "x"
+suggests (Suggestion x : xs) = fromMaybe (suggests xs) $ suggestName x
+
+suggest :: (Suggest a) => a -> String
+suggest = suggests . singleton . Suggestion
 
 ---------------------------------------------------------------------------
 -- * Eliminations.

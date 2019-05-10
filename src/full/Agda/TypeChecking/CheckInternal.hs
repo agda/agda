@@ -178,7 +178,8 @@ checkInternal' action v t = do
     Lam ai vb  -> do
       (a, b) <- maybe (shouldBePi t) return =<< isPath t
       ai <- checkArgInfo action ai $ domInfo a
-      addContext (suggest vb b, a) $ do
+      let name = suggests [ Suggestion vb , Suggestion b ]
+      addContext (name, a) $ do
         Lam ai . Abs (absName vb) <$> checkInternal' action (absBody vb) (absBody b)
     Pi a b     -> do
       s <- shouldBeSort t
