@@ -289,9 +289,7 @@ install:
 ##############################################################################
 # Some tests
 
-# ASR (2016-09-17). Running the following tests, which use stack, here
-# instead of in the `script` section is faster because Agda's
-# dependencies are not installed again.
+script:
 
 ##############################################################################
 # We test on Stackage the default and non-default Agda flags.
@@ -309,11 +307,6 @@ install:
        stack clean $ARGS &&
        travis_wait 30 stack build $ARGS --no-terminal --flag Agda:cpphs --flag Agda:debug --flag Agda:enable-cluster-counting;
     fi
-
-##############################################################################
-script:
-
-##############################################################################
 
   - if [[ $TEST = "MAIN" ]]; then
        make check-whitespace;
