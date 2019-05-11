@@ -21,7 +21,9 @@ COMPAT_SRC_DIR = $(SRC_DIR)/compat
 #
 # Thus it may be worthwhile to keep the present infrastructure with
 # different build directories for different versions of Agda.
-BUILD_DIR = $(TOP)/dist-$(VERSION)
+ifeq ($(BUILD_DIR),)
+BUILD_DIR := $(TOP)/dist-$(VERSION)
+endif
 
 OUT_DIR        = $(TOP)/out
 FULL_OUT_DIR   = $(OUT_DIR)/full
