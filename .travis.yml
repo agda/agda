@@ -193,6 +193,7 @@ install:
 ##############################################################################
 # Installing the dependencies
 
+  # Used by the Makefile
   - export BUILD_DIR=$HOME/dist
 
 # N.B. that `cabal install` doesn't set up the number of jobs by default
@@ -206,7 +207,7 @@ install:
 # options to `cabal install` set up in the `Makefile`.
   - if [[ $TEST = "MAIN" || $TEST = "HADDOCK" ]]; then
        travis_retry cabal fetch `cabal install --dependencies-only --enable-tests --force-reinstalls --dry-run | sed 1,2d | sed "s|(latest[^)]*)||g"` &&
-       make BUILD_DIR=$BUILD_DIR CABAL_OPTS='-v0 --only-dependencies --force-reinstalls' install-bin;
+       make CABAL_OPTS='-v0 --only-dependencies --force-reinstalls' install-bin;
     elif [[ $TEST = "STACKAGE" ]]; then
          stack build $ARGS --no-terminal --only-dependencies;
     fi
@@ -215,7 +216,7 @@ install:
 # Installing Agda
 
   - if [[ $TEST = "MAIN" ]]; then
-       make BUILD_DIR=$BUILD_DIR CABAL_OPTS=-v1 install-bin;
+       make CABAL_OPTS=-v1 install-bin;
     fi
 
 ##############################################################################
@@ -310,19 +311,19 @@ script:
     fi
 
   - if [[ $TEST = "MAIN" ]]; then
-       make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" BUILD_DIR=$BUILD_DIR succeed;
+       make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" succeed;
     fi
 
   - if [[ $TEST = "MAIN" ]]; then
-       make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" BUILD_DIR=$BUILD_DIR fail;
+       make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" fail;
     fi
 
   - if [[ $TEST = "MAIN" ]]; then
-       make BUILD_DIR=$BUILD_DIR interaction;
+       make interaction;
     fi
 
   - if [[ $TEST = "MAIN" ]]; then
-       make BUILD_DIR=$BUILD_DIR interactive;
+       make interactive;
     fi
 
 # We don't run LaTeX/XeLaTeX/LuaLaTeX on Travis (see Issues #1022 and
@@ -330,47 +331,47 @@ script:
 # golden files.
 
   - if [[ $TEST = "MAIN" ]]; then
-       make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" BUILD_DIR=$BUILD_DIR DONT_RUN_LATEX="Y" latex-html-test;
+       make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" DONT_RUN_LATEX="Y" latex-html-test;
     fi
 
   - if [[ $TEST = "MAIN" ]]; then
-       make BUILD_DIR=$BUILD_DIR examples;
+       make examples;
     fi
 
   - if [[ $TEST = "MAIN" ]]; then
-       make BUILD_DIR=$BUILD_DIR library-test;
+       make library-test;
     fi
 
   - if [[ $TEST = "MAIN" ]]; then
-       make BUILD_DIR=$BUILD_DIR api-test;
+       make api-test;
     fi
 
   - if [[ $TEST = "MAIN" ]]; then
-       make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" BUILD_DIR=$BUILD_DIR user-manual-test;
+       make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" user-manual-test;
     fi
 
   - if [[ $TEST = "MAIN" ]]; then
-       make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" BUILD_DIR=$BUILD_DIR internal-tests;
+       make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" internal-tests;
     fi
 
   - if [[ $TEST = "MAIN" ]]; then
-       make BUILD_DIR=$BUILD_DIR benchmark-without-logs;
+       make benchmark-without-logs;
     fi
 
   - if [[ $TEST = "MAIN" ]]; then
-       make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" BUILD_DIR=$BUILD_DIR compiler-test;
+       make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" compiler-test;
     fi
 
   - if [[ $TEST = "MAIN" ]]; then
-       make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" BUILD_DIR=$BUILD_DIR lib-succeed;
+       make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" lib-succeed;
     fi
 
   - if [[ $TEST = "MAIN" ]]; then
-       make BUILD_DIR=$BUILD_DIR lib-interaction;
+       make lib-interaction;
     fi
 
   - if [[ $TEST = "MAIN" ]]; then
-       make BUILD_DIR=$BUILD_DIR TAGS;
+       make TAGS;
     fi
 
   - if [[ $TEST = "MAIN" ]]; then
@@ -379,7 +380,7 @@ script:
     fi
 
   - if [[ $TEST = "MAIN" ]]; then
-       make BUILD_DIR=$BUILD_DIR testing-emacs-mode;
+       make testing-emacs-mode;
     fi
 
   - if [[ $TEST = "MAIN" ]]; then
@@ -390,7 +391,7 @@ script:
 # Testing Haddock [Issue 1773]
 
   - if [[ $TEST = "HADDOCK" ]]; then
-       make BUILD_DIR=$BUILD_DIR haddock;
+       make haddock;
     fi
 
 ##############################################################################
