@@ -31,7 +31,6 @@ import qualified Agda.Syntax.Translation.ReflectedToAbstract as R
 import qualified Agda.Syntax.Reflected as R
 import qualified Agda.Syntax.Abstract as A
 import qualified Agda.Syntax.Concrete as C
-import qualified Agda.Syntax.Reflected as R
 import qualified Agda.Syntax.Abstract.Pretty as AP
 import Agda.Syntax.Concrete.Pretty (bracesAndSemicolons)
 import qualified Agda.Syntax.Concrete.Pretty as CP

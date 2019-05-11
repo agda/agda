@@ -37,11 +37,11 @@ import qualified Data.Set as Set
 import qualified Data.Text.Lazy as T
 import Data.Void
 
-import Agda.Interaction.Response (Response(Resp_HighlightingInfo))
+import Agda.Interaction.Response
+       (Response(Resp_HighlightingInfo),
+        RemoveTokenBasedHighlighting(KeepHighlighting))
 import Agda.Interaction.Highlighting.Precise
 import Agda.Interaction.Highlighting.Range
-import Agda.Interaction.Response
-  (RemoveTokenBasedHighlighting(KeepHighlighting))
 
 import qualified Agda.TypeChecking.Errors as E
 import Agda.TypeChecking.MetaVars (isBlockedTerm)

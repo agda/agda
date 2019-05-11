@@ -19,8 +19,6 @@ import qualified Data.Traversable as Trav
 import Agda.Utils.Permutation (permute, takeP)
 import Agda.TypeChecking.Monad hiding (withCurrentModule)
 import Agda.TypeChecking.Telescope
-
-import Agda.Syntax.Common (Hiding(..))
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Pretty (prettyA)
 import qualified Agda.Syntax.Concrete.Name as C

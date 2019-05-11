@@ -49,7 +49,6 @@ import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Primitive
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
-import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Rules.Def

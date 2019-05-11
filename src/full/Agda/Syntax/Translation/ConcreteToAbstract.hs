@@ -73,7 +73,7 @@ import Agda.TypeChecking.Patterns.Abstract (expandPatternSynonyms)
 import Agda.TypeChecking.Pretty hiding (pretty, prettyA)
 import Agda.TypeChecking.Warnings
 
-import Agda.Interaction.FindFile (checkModuleName)
+import Agda.Interaction.FindFile (checkModuleName, rootNameModule)
 -- import Agda.Interaction.Imports  -- for type-checking in ghci
 import {-# SOURCE #-} Agda.Interaction.Imports (scopeCheckImport)
 import Agda.Interaction.Options
@@ -95,7 +95,6 @@ import Agda.Utils.Null
 import qualified Agda.Utils.Pretty as P
 import Agda.Utils.Pretty (render, Pretty, pretty, prettyShow)
 import Agda.Utils.Tuple
-import Agda.Interaction.FindFile ( rootNameModule )
 
 import Agda.Utils.Impossible
 import Agda.ImpossibleTest (impossibleTest)

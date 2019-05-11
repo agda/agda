@@ -62,7 +62,6 @@ import Agda.TypeChecking.Rewriting
 import Agda.TypeChecking.SizedTypes.Solve
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
-import Agda.TypeChecking.Unquote
 import Agda.TypeChecking.Warnings
 
 import Agda.TypeChecking.Rules.Application

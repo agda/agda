@@ -47,7 +47,6 @@ import Agda.Syntax.Literal
 import Agda.Syntax.Position
 
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Monad.Builtin (litType, constructorForm)
 
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 import Agda.TypeChecking.Conversion

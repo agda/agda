@@ -48,7 +48,6 @@ import Agda.VersionCommit
 import qualified Agda.Utils.Benchmark as UtilsBench
 import Agda.Utils.Except ( MonadError(catchError, throwError) )
 import Agda.Utils.Impossible
-import Agda.Utils.Lens
 
 
 builtinBackends :: [Backend]

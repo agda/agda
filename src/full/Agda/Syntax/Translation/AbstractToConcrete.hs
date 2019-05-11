@@ -38,7 +38,6 @@ import Data.Monoid
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Map (Map)
-import qualified Data.Map as Map
 import Data.Traversable (traverse)
 import Data.Void
 import Data.List (sortBy)

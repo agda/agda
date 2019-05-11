@@ -151,7 +151,6 @@ import Agda.TypeChecking.Free.Reduce
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.MetaVars (newArgsMetaCtx)
 import Agda.TypeChecking.EtaContract
-import Agda.Interaction.Options (optInjectiveTypeConstructors)
 
 import Agda.TypeChecking.Rules.LHS.Problem
 -- import Agda.TypeChecking.SyntacticEquality

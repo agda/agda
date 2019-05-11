@@ -36,7 +36,6 @@ import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
 import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet
-import Data.Monoid
 import qualified Data.Set as Set
 import Data.Set (Set)
 

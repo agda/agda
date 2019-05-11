@@ -35,7 +35,6 @@ import Agda.Syntax.Position
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
 import qualified Agda.Syntax.Abstract as A
-import Agda.Syntax.Position (Range)
 
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Options (typeInType)
