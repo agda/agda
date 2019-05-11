@@ -1,4 +1,3 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE NondecreasingIndentation   #-}
 {-# LANGUAGE TypeFamilies               #-}  -- for type equality ~
 {-# LANGUAGE UndecidableInstances       #-}

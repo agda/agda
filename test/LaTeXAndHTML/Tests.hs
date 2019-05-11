@@ -1,6 +1,4 @@
 {-# LANGUAGE DoAndIfThenElse   #-}
-{-# LANGUAGE LambdaCase        #-}
-{-# LANGUAGE OverloadedStrings #-}
 
 module LaTeXAndHTML.Tests where
 

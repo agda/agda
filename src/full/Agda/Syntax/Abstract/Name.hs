@@ -1,5 +1,4 @@
 {-# LANGUAGE DeriveDataTypeable         #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 {-| Abstract names carry unique identifiers and stuff.
 -}

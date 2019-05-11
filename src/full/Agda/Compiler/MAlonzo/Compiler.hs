@@ -813,7 +813,7 @@ writeModule (HS.Module m ps imp ds) = do
         , "ExistentialQuantification"
         , "ScopedTypeVariables"
         , "NoMonomorphismRestriction"
-        , "Rank2Types"
+        , "RankNTypes"
         , "PatternSynonyms"
         ]
 

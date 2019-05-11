@@ -1,5 +1,4 @@
 {-# LANGUAGE CPP             #-}
-{-# LANGUAGE TemplateHaskell #-}
 
 -- | Some functions, generators and instances suitable for writing
 -- QuickCheck properties.

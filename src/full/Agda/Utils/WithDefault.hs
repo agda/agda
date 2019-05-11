@@ -1,4 +1,3 @@
-{-# LANGUAGE DataKinds      #-}
 {-# LANGUAGE KindSignatures #-}
 
 -- | Potentially uninitialised Booleans

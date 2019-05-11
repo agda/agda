@@ -1,5 +1,4 @@
 {-# LANGUAGE DoAndIfThenElse   #-}
-{-# LANGUAGE OverloadedStrings #-}
 
 module Interactive.Tests where
 

@@ -1,4 +1,3 @@
-{-# LANGUAGE ScopedTypeVariables        #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module Agda.Auto.NarrowingSearch where

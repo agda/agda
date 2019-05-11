@@ -2,7 +2,6 @@
 -- | An interface for reporting \"impossible\" errors
 ------------------------------------------------------------------------
 
-{-# LANGUAGE DeriveDataTypeable #-}
 
 module Agda.Utils.Impossible where
 
