@@ -193,6 +193,8 @@ install:
 ##############################################################################
 # Installing the dependencies
 
+  - export BUILD_DIR=$HOME/dist
+
 # N.B. that `cabal install` doesn't set up the number of jobs by default
 # (cabal-install 1.22.4.0). See https://github.com/haskell/cabal/issues/2628.
 
@@ -204,15 +206,13 @@ install:
 # options to `cabal install` set up in the `Makefile`.
   - if [[ $TEST = "MAIN" || $TEST = "HADDOCK" ]]; then
        travis_retry cabal fetch `cabal install --dependencies-only --enable-tests --force-reinstalls --dry-run | sed 1,2d | sed "s|(latest[^)]*)||g"` &&
-       make CABAL_OPTS='-v0 --only-dependencies --force-reinstalls' install-bin;
+       make BUILD_DIR=$BUILD_DIR CABAL_OPTS='-v0 --only-dependencies --force-reinstalls' install-bin;
     elif [[ $TEST = "STACKAGE" ]]; then
          stack build $ARGS --no-terminal --only-dependencies;
     fi
 
 ##############################################################################
 # Installing Agda
-
-  - export BUILD_DIR=$HOME/dist
 
   - if [[ $TEST = "MAIN" ]]; then
        make BUILD_DIR=$BUILD_DIR CABAL_OPTS=-v1 install-bin;
