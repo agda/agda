@@ -182,7 +182,7 @@ Testing and documentation
   For example, to only run the simple MAlonzo compiler tests, you
   can use the following command:
 
-      make AGDA_TESTS_OPTIONS="-i -j8 -p MAlonzo/simple" compiler-test
+      make AGDA_TESTS_OPTIONS="-i -j8 -p MAlonzo.simple" compiler-test
 
   You can use the `AGDA_ARGS` environment variable to pass additional
   arguments to Agda when executing the Succeed/Fail/Compiler tests.
