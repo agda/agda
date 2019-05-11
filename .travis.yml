@@ -188,7 +188,7 @@ install:
        emacs --version &&
        export PARALLEL_TESTS=${NUM_CORES} &&
        travis_retry cabal update &&
-       sed -i 's/^jobs:/-- jobs:/' $HOME/.cabal/config &&
+       sed -i "s/^jobs:.*\$/jobs: ${NUM_CORES}/" $HOME/.cabal/config &&
        cat $HOME/.cabal/config &&
        export PATH=$HOME/.cabal/bin:$PATH &&
        travis_retry cabal update &&
