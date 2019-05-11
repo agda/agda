@@ -177,7 +177,8 @@ install:
   # https://docs.travis-ci.com/user/reference/overview/#virtualisation-environment-vs-operating-system
   - export NUM_CORES=2
 
-  - if [[ $BUILD = "CABAL" ]]; then
+  - |
+    if [[ $BUILD = "CABAL" ]]; then
        echo "*** Cabal version ***" &&
        cabal --version &&
        echo "*** GHC version ***" &&
@@ -188,7 +189,7 @@ install:
        emacs --version &&
        export PARALLEL_TESTS=${NUM_CORES} &&
        travis_retry cabal update &&
-       sed -i "s/^jobs:.*\$/jobs: ${NUM_CORES}/" $HOME/.cabal/config &&
+       sed -i $(printf 's/^jobs:.*$/jobs: %s/' ${NUM_CORES}) $HOME/.cabal/config &&
        cat $HOME/.cabal/config &&
        export PATH=$HOME/.cabal/bin:$PATH &&
        travis_retry cabal update &&
@@ -227,7 +228,7 @@ install:
        travis_retry cabal fetch `cabal install --dependencies-only --enable-tests --force-reinstalls --dry-run | sed 1,2d | sed "s|(latest[^)]*)||g"` &&
        make CABAL_OPTS='-v0 --only-dependencies --force-reinstalls' install-bin;
     elif [[ $TEST = "STACKAGE" ]]; then
-       stack build $ARGS --no-terminal --only-dependencies ${AGDA_STACK_BUILD_FLAGS};
+       stack build -j${NUM_CORES} $ARGS --no-terminal --only-dependencies ${AGDA_STACK_BUILD_FLAGS};
     fi
 
 ##############################################################################
@@ -307,7 +308,7 @@ install:
 ##############################################################################
 
   - if [[ $TEST = "STACKAGE" ]]; then
-       travis_wait 30 stack build $ARGS --no-terminal ${AGDA_STACK_BUILD_FLAGS};
+       travis_wait 30 stack build -j${NUM_CORES} $ARGS --no-terminal ${AGDA_STACK_BUILD_FLAGS};
     fi
 
 ##############################################################################
