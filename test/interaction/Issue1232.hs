@@ -1,3 +1,4 @@
+{-# LANGUAGE RecordWildCards #-}
 
 import System.Directory
 

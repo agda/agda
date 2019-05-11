@@ -1,6 +1,7 @@
 -- This test tries to ensure that (certain) changes to OPTIONS pragmas
 -- are respected when a file is reloaded.
 
+{-# LANGUAGE RecordWildCards #-}
 
 import Control.Monad
 import System.Directory

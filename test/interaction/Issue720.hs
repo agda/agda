@@ -1,3 +1,4 @@
+{-# LANGUAGE RecordWildCards #-}
 
 import Control.Monad
 import System.Directory
