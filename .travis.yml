@@ -11,7 +11,17 @@ sudo: required
 
 cache:
   directories:
-  - $HOME/.stack
+    - $HOME/.ghc
+    - $HOME/.cabal
+    - $HOME/.stack
+    - $TRAVIS_BUILD_DIR/.stack-work
+
+before_cache:
+  - rm -fv $HOME/.cabal/packages/hackage.haskell.org/build-reports.log
+  - rm -rfv $TRAVIS_BUILD_DIR/.stack-work/logs
+  # ^ Consider tar'ing up the package index before caching, as done here:
+  # https://github.com/haskell-suite/haskell-src-exts/blob/e0f2aa86d68b993f0a81633af467dc550b3e7270/.travis.yml
+  # Not doing that now because it looks complicated and would need to be adapted for Stack as well.
 
 ##############################################################################
 # Required Ubuntu packages
