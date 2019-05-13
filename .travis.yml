@@ -224,11 +224,18 @@ install:
 
 # We are using `make CABAL_OPTS...` because we are including the
 # options to `cabal install` set up in the `Makefile`.
-  - if [[ $TEST = "MAIN" || $TEST = "HADDOCK" ]]; then
-       travis_retry cabal fetch `cabal install --dependencies-only --enable-tests --force-reinstalls --dry-run | sed 1,2d | sed "s|(latest[^)]*)||g"` &&
-       make CABAL_OPTS='-v0 --only-dependencies --force-reinstalls --build-log=/dev/stdout' install-bin;
+  - |
+    if [[ $TEST = "MAIN" || $TEST = "HADDOCK" ]]; then
+       travis_retry cabal fetch `cabal install --dependencies-only --enable-tests --force-reinstalls --dry-run | sed 1,2d | sed "s|(latest[^)]*)||g"` || return 1
+       set -x
+       _cabal_build_log="$(mktemp --tmpdir cabal-deps-XXXXX.log)"
+       make CABAL_OPTS="-v0 --only-dependencies --force-reinstalls --build-log=${_cabal_build_log}" install-bin &
+       _cabal_pid=$!
+       tail --pid=${_cabal_pid} -F "${_cabal_build_log}" || return $?
+       wait ${_cabal_pid}
+       set +x
     elif [[ $TEST = "STACKAGE" ]]; then
-       stack build -j${NUM_CORES} $ARGS --no-terminal --only-dependencies ${AGDA_STACK_BUILD_FLAGS};
+       stack build -j${NUM_CORES} $ARGS --no-terminal --only-dependencies ${AGDA_STACK_BUILD_FLAGS}
     fi
 
 ##############################################################################
