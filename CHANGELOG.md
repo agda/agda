@@ -12,6 +12,10 @@ Pragmas and options
 * New pragma `WARNING_ON_IMPORT` to let module authors raise a warning
   when a module is imported. This can be use to tell users deprecations.
 
+* New option `--confluence-check` (off by default) enables confluence
+  checking of user-defined rewrite rules (this only has an effect when
+  `--rewriting` is also enabled).
+
 GHC Backend
 -----------
 
