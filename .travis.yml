@@ -78,6 +78,24 @@ matrix:
           sources:
             - hvr-ghc
 
+##############################################################################
+# We test on Stackage the default and non-default Agda flags.
+#
+# Default flags: `cpp` instead of `cpphs`, `debug` off and
+# `enable-cluster-counting` off.
+#
+# Issues related to the flags: `cpp` instead of `cpphs` [Issue #1647]
+# and the `debug` flag [Issue #2070].
+#
+# N.B. that these tests are not include in the Makefile tests.
+    - env: TEST=STACKAGE GHC_VER=8.6.5 BUILD=STACK ARGS="--stack-yaml stack-8.6.5.yaml --system-ghc" AGDA_STACK_BUILD_FLAGS="--flag Agda:cpphs --flag Agda:debug --flag Agda:enable-cluster-counting"
+      addons:
+        apt:
+          packages:
+            - ghc-8.6.5
+          sources:
+            - hvr-ghc
+
     - env: TEST=STACKAGE GHC_VER=8.4.4 BUILD=STACK ARGS="--stack-yaml stack-8.4.4.yaml --system-ghc"
       addons:
         apt:
@@ -206,7 +224,7 @@ install:
        travis_retry cabal fetch `cabal install --dependencies-only --enable-tests --force-reinstalls --dry-run | sed 1,2d | sed "s|(latest[^)]*)||g"` &&
        make CABAL_OPTS='-v0 --only-dependencies --force-reinstalls' install-bin;
     elif [[ $TEST = "STACKAGE" ]]; then
-         stack build $ARGS --no-terminal --only-dependencies;
+       stack build $ARGS --no-terminal --only-dependencies ${AGDA_STACK_BUILD_FLAGS};
     fi
 
 ##############################################################################
@@ -284,20 +302,9 @@ install:
 # dependencies are not installed again.
 
 ##############################################################################
-# We test on Stackage the default and non-default Agda flags.
-
-# Default flags: `cpp` instead of `cpphs`, `debug` off and
-# `enable-cluster-counting` off.
-
-# Issues related to the flags: `cpp` instead of `cpphs` [Issue #1647]
-# and the `debug` flag [Issue #2070].
-
-# N.B. that these tests are not include in the Makefile tests.
 
   - if [[ $TEST = "STACKAGE" ]]; then
-       travis_wait 30 stack build $ARGS --no-terminal &&
-       stack clean $ARGS &&
-       travis_wait 30 stack build $ARGS --no-terminal --flag Agda:cpphs --flag Agda:debug --flag Agda:enable-cluster-counting;
+       travis_wait 30 stack build $ARGS --no-terminal ${AGDA_STACK_BUILD_FLAGS};
     fi
 
 ##############################################################################
