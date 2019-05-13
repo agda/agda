@@ -74,7 +74,7 @@ checkConfluenceOfRule rew = inTopContext $ do
   fpol <- getPolarity' CmpEq f
 
   -- Step 1: check other rewrite rules that overlap at top position
-  forMM_ (getRewriteRulesFor f) $ \ rew' ->
+  forMM_ (getClausesAndRewriteRulesFor f) $ \ rew' ->
     when (rewName rew < rewName rew') $ -- only check < case to prevent double work
     traceCall (CheckConfluence (rewName rew) (rewName rew')) $
     localTCState $ do
@@ -113,7 +113,7 @@ checkConfluenceOfRule rew = inTopContext $ do
 
   -- Step 2: check other rewrite rules that overlap with a subpattern
   forM_ (allPatternHoles es) $ \ hole -> case ohpContents hole of
-    PDef g es' -> forMM_ (getRewriteRulesFor g) $ \ rew' ->
+    PDef g es' -> forMM_ (getClausesAndRewriteRulesFor g) $ \ rew' ->
       traceCall (CheckConfluence (rewName rew) (rewName rew')) $
       localTCState $ do
 
@@ -165,6 +165,10 @@ checkConfluenceOfRule rew = inTopContext $ do
     _ -> return ()
 
   where
+    getClausesAndRewriteRulesFor :: QName -> TCM [RewriteRule]
+    getClausesAndRewriteRulesFor f =
+      (++) <$> getClausesAsRewriteRules f <*> getRewriteRulesFor f
+
     -- Build a substitution that replaces all variables in the given
     -- telescope by fresh metavariables.
     makeMetaSubst :: (MonadMetaSolver m) => Telescope -> m Substitution

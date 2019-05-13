@@ -1,4 +1,5 @@
-{-# OPTIONS --rewriting #-}
+{-# OPTIONS --rewriting --confluence-check #-}
+
 
 -- Let us assume that extensionality of functions cannot be proved
 -- inside "plain" Agda. In that case the code below shows that the
@@ -6,7 +7,9 @@
 -- only use propositional equality as the rewriting relation, and do
 -- not use any postulates.
 
-module RewriteExt where
+-- Jesper, 2019-05-13: This example is not confluent!
+
+module RewriteExt-confluence where
 
 open import Common.Equality
 
