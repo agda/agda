@@ -69,7 +69,7 @@ labelsNotInChangelog :: [Text]
 labelsNotInChangelog =
   [ "not-in-changelog"
   , "status: abandoned"
-  , "status: duplicated"
+  , "status: duplicate"
   , "status: invalid"
   , "status: wontfix"
   , "status: working-as-intended"
