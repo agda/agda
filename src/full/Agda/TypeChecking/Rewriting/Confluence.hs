@@ -210,7 +210,8 @@ checkConfluenceOfRule rew = inTopContext $ do
 
       reportSDoc "rewriting.confluence" 10 $ sep
         [ "Found critical pair: " , nest 2 $ prettyTCM rhs1
-        , " =?= " , nest 2 $ prettyTCM rhs2 ]
+        , " =?= " , nest 2 $ prettyTCM rhs2
+        , " : " , nest 2 $ prettyTCM a ]
 
       let ms = Set.toList $ allMetas singleton $ (a,lhs,rhs1,rhs2)
 
@@ -252,7 +253,7 @@ abstractOverMetas ms x = do
 
     -- Replace metas by variables
     let n           = size ms'
-        metaIndex x = (n-1-) $ fromMaybe __IMPOSSIBLE__ $ elemIndex x ms'
+        metaIndex x = (n-1-) <$> elemIndex x ms'
     runReaderT (metasToVars (gamma, x)) metaIndex
 
 -- ^ A @OneHolePattern p@ is a @p@ with a subpattern @f ps@ singled out.
@@ -350,12 +351,12 @@ instance NLPatToTerm NLPType Type where
 --   convert sort metas.
 class MetasToVars a where
   metasToVars
-    :: (MonadReader (MetaId -> Nat) m , HasBuiltins m)
+    :: (MonadReader (MetaId -> Maybe Nat) m , HasBuiltins m)
     => a -> m a
 
   default metasToVars
     :: ( MetasToVars a', Traversable f, a ~ f a'
-       , MonadReader (MetaId -> Nat) m , HasBuiltins m)
+       , MonadReader (MetaId -> Maybe Nat) m , HasBuiltins m)
     => a -> m a
   metasToVars = traverse metasToVars
 
@@ -365,7 +366,7 @@ instance MetasToVars a => MetasToVars (Dom a) where
 instance MetasToVars a => MetasToVars (Elim' a) where
 
 instance MetasToVars a => MetasToVars (Abs a) where
-  metasToVars (Abs   i x) = Abs i   <$> local (succ .) (metasToVars x)
+  metasToVars (Abs   i x) = Abs i   <$> local (fmap succ .) (metasToVars x)
   metasToVars (NoAbs i x) = NoAbs i <$> metasToVars x
 
 instance MetasToVars Term where
@@ -378,9 +379,9 @@ instance MetasToVars Term where
     Pi a b     -> Pi       <$> metasToVars a <*> metasToVars b
     Sort s     -> Sort     <$> metasToVars s
     Level l    -> Level    <$> metasToVars l
-    MetaV x es -> do
-      i <- ($ x) <$> ask
-      Var i <$> metasToVars es
+    MetaV x es -> ($ x) <$> ask >>= \case
+      Just i   -> Var i    <$> metasToVars es
+      Nothing  -> MetaV x  <$> metasToVars es
     DontCare u -> DontCare <$> metasToVars u
     Dummy s es -> Dummy s  <$> metasToVars es
 
