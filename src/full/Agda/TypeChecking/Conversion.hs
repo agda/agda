@@ -364,38 +364,6 @@ compareTel t1 t2 cmp tel1 tel2 =
     bad = typeError $ UnequalTypes cmp t2 t1
       -- switch t2 and t1 because of contravariance!
 
-
-
--- | Raise 'UnequalTerms' if there is no hope that by
---   meta solving and subsequent eta-contraction these
---   terms could become equal.
---   Precondition: the terms are in reduced form
---   (with no top-level pointer) and
---   failed to be equal in the 'compareAtom' check.
---
---   By eta-contraction, a lambda or a record constructor term
---   can become anything.
-etaInequal :: MonadConversion m => Comparison -> Type -> Term -> Term -> m ()
-etaInequal cmp t m n = do
-  let inequal  = typeError $ UnequalTerms cmp m n t
-      dontKnow = do
-        reportSDoc "tc.conv.inequal" 20 $ hsep
-          [ "etaInequal: postponing "
-          , prettyTCM m
-          , " != "
-          , prettyTCM n
-          ]
-        patternViolation
-  -- if type is not blocked, then we would have tried eta already
-  flip (ifBlockedType t) (\ _ _ -> inequal) $ \ _ _ -> do
-    -- type is blocked
-    case (m, n) of
-      (Con{}, _) -> dontKnow
-      (_, Con{}) -> dontKnow
-      (Lam{}, _) -> dontKnow
-      (_, Lam{}) -> dontKnow
-      _          -> inequal
-
 compareAtomDir :: MonadConversion m => CompareDirection -> Type -> Term -> Term -> m ()
 compareAtomDir dir a = dirToCmp (`compareAtom` a) dir
 
@@ -456,6 +424,16 @@ compareAtom cmp t m n =
         n = ignoreBlocking nb
 
         postpone = addConstraint $ ValueCmp cmp t m n
+
+        -- Jesper, 2019-05-14, Issue #3776: If the type is blocked,
+        -- the comparison could be solved by eta-expansion so we
+        -- cannot fail hard
+        postponeIfBlockedType :: Type -> (Blocked Type -> m ()) -> m ()
+        postponeIfBlockedType t f = ifBlockedType t
+          (\m t -> (f $ Blocked m t) `catchError` \case
+              TypeError{} -> postpone
+              err         -> throwError err)
+          (\nb t -> f $ NotBlocked nb t)
 
         checkSyntacticEquality =
           ifNotM (optSyntacticEquality <$> pragmaOptions) postpone $ do
@@ -518,7 +496,7 @@ compareAtom cmp t m n =
       (Blocked{}, Blocked{})  -> checkSyntacticEquality
       (Blocked{}, _)  -> useInjectivity (fromCmp cmp) t m n   -- The blocked term goes first
       (_, Blocked{})  -> useInjectivity (flipCmp $ fromCmp cmp) t n m
-      _ -> do
+      _ -> postponeIfBlockedType t $ \bt -> do
         -- -- Andreas, 2013-10-20 put projection-like function
         -- -- into the spine, to make compareElims work.
         -- -- 'False' means: leave (Def f []) unchanged even for
@@ -571,7 +549,7 @@ compareAtom cmp t m n =
                   -- Constructors are covariant in their arguments
                   -- (see test/succeed/CovariantConstructors).
                   compareElims (repeat $ polFromCmp cmp) forcedArgs a' (Con x ci []) xArgs yArgs
-          _ -> etaInequal cmp t m n -- fixes issue 856 (unsound conversion error)
+          _ -> typeError $ UnequalTerms cmp m n $ ignoreBlocking bt
     where
         -- returns True in case we handled the comparison already.
         compareEtaPrims :: MonadConversion m => QName -> Elims -> Elims -> m Bool
