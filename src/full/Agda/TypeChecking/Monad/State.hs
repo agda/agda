@@ -91,6 +91,13 @@ localTCStateSaving compute = do
     modifyBenchmark $ const b
   return (result, newState)
 
+-- | Same as 'localTCState' but keep all warnings.
+localTCStateSavingWarnings :: TCM a -> TCM a
+localTCStateSavingWarnings compute = do
+  (result, newState) <- localTCStateSaving compute
+  modifyTC $ over stTCWarnings $ const $ newState ^. stTCWarnings
+  return result
+
 data SpeculateResult = SpeculateAbort | SpeculateCommit
 
 -- | Allow rolling back the state changes of a TCM computation.
