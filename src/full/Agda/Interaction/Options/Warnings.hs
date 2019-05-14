@@ -115,6 +115,8 @@ errorWarnings = Set.fromList
   , UnsolvedConstraints_
   , InfectiveImport_
   , CoInfectiveImport_
+  , RewriteNonConfluent_
+  , RewriteMaybeNonConfluent_
   ]
 
 allWarnings :: Set WarningName
@@ -197,6 +199,8 @@ data WarningName
   -- Checking consistency of options
   | InfectiveImport_
   | CoInfectiveImport_
+  | RewriteNonConfluent_
+  | RewriteMaybeNonConfluent_
   deriving (Eq, Ord, Show, Read, Enum, Bounded)
 
 -- | The flag corresponding to a warning is precisely the name of the constructor
@@ -307,3 +311,5 @@ warningNameDescription w = case w of
   WithoutKFlagPrimEraseEquality_   -> "`primEraseEquality' usages with the without-K flags."
   InfectiveImport_                 -> "Importing a file using e.g. `--cubical' into one which doesn't"
   CoInfectiveImport_               -> "Importing a file not using e.g. `--safe'  from one which does"
+  RewriteNonConfluent_           -> "Failed confluence checks while joining critical pairs."
+  RewriteMaybeNonConfluent_      -> "Failed confluence checks while computing overlap."

@@ -75,6 +75,8 @@ instance EmbPrj Warning where
   icod_ (InstanceNoOutputTypeName a) = icodeN 20 InstanceNoOutputTypeName a
   icod_ (InstanceArgWithExplicitArg a) = icodeN 21 InstanceArgWithExplicitArg a
   icod_ WrongInstanceDeclaration     = icodeN 22 WrongInstanceDeclaration
+  icod_ (RewriteNonConfluent a b c d) = icodeN 23 RewriteNonConfluent a b c d
+  icod_ (RewriteMaybeNonConfluent a b c) = icodeN 24 RewriteMaybeNonConfluent a b c
 
   value = vcase valu where
       valu [0, a, b]    = valuN UnreachableClauses a b
@@ -100,6 +102,8 @@ instance EmbPrj Warning where
       valu [20, a]      = valuN InstanceNoOutputTypeName a
       valu [21, a]      = valuN InstanceArgWithExplicitArg a
       valu [22]         = valuN WrongInstanceDeclaration
+      valu [23, a, b, c, d] = valuN RewriteNonConfluent a b c d
+      valu [24, a, b, c]    = valuN RewriteMaybeNonConfluent a b c
       valu _ = malformed
 
 instance EmbPrj DeclarationWarning where

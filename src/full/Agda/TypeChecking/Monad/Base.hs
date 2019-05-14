@@ -2844,6 +2844,12 @@ data Warning
     -- ^ Importing a file using an infective option into one which doesn't
   | CoInfectiveImport String ModuleName
     -- ^ Importing a file not using a coinfective option from one which does
+  | RewriteNonConfluent Term Term Term Doc
+    -- ^ Confluence checker found critical pair and equality checking
+    --   resulted in a type error
+  | RewriteMaybeNonConfluent Term Term [Doc]
+    -- ^ Confluence checker got stuck on computing overlap between two
+    --   rewrite rules
   deriving (Show , Data)
 
 
@@ -2890,6 +2896,8 @@ warningName w = case w of
   UserWarning{}                -> UserWarning_
   InfectiveImport{}            -> InfectiveImport_
   CoInfectiveImport{}          -> CoInfectiveImport_
+  RewriteNonConfluent{}        -> RewriteNonConfluent_
+  RewriteMaybeNonConfluent{}   -> RewriteMaybeNonConfluent_
 
 
 data TCWarning

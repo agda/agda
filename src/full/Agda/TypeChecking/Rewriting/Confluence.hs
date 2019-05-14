@@ -42,6 +42,7 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Rewriting
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
+import Agda.TypeChecking.Warnings
 
 import Agda.Utils.Either
 import Agda.Utils.Except
@@ -189,14 +190,9 @@ checkConfluenceOfRule rew = inTopContext $ do
         err -> throwError err
       `ifNoConstraints` return $ \pid _ -> do
         cs <- getConstraintsForProblem pid
-        let prettyCs = map prettyConstraint $ filter interestingConstraint cs
-        typeError . GenericDocError <=< vcat $
-          [ fsep
-             [ "Couldn't determine overlap between left-hand sides"
-             , prettyTCM lhs1 , "and" , prettyTCM lhs2
-             , "because of unsolved constraints:"
-             ]
-          ] ++ map (nest 2) prettyCs
+        prettyCs <- traverse prettyConstraint $ filter interestingConstraint cs
+        warning $ RewriteMaybeNonConfluent lhs1 lhs2 prettyCs
+        return Nothing
 
     checkCriticalPair
       :: Type     -- Type of the critical pair
@@ -225,14 +221,10 @@ checkConfluenceOfRule rew = inTopContext $ do
       addContext gamma $ do
           dontAssignMetas $ noConstraints $ equalTerm a rhs1 rhs2
         `catchError` \case
-          TypeError s e -> typeError . GenericDocError =<< fsep
-            [ "Confluence check failed:"
-            , prettyTCM lhs , "reduces to both"
-            , prettyTCM rhs1 , "and" , prettyTCM rhs2
-            , "which are not equal because"
-            , withTCState (const s) $ prettyTCM e
-            ]
-          err -> throwError err
+          TypeError s err -> do
+            prettyErr <- withTCState (const s) $ prettyTCM err
+            warning $ RewriteNonConfluent lhs rhs1 rhs2 prettyErr
+          err           -> throwError err
 
 -- | Given metavariables ms and some x, construct a telescope Γ and
 --   replace all occurrences of the given metavariables in @x@ by
