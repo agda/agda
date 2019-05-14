@@ -77,7 +77,7 @@ checkConfluenceOfRule rew = inTopContext $ do
   forMM_ (getClausesAndRewriteRulesFor f) $ \ rew' ->
     when (rewName rew < rewName rew') $ -- only check < case to prevent double work
     traceCall (CheckConfluence (rewName rew) (rewName rew')) $
-    localTCState $ do
+    localTCStateSavingWarnings $ do
 
       sub1 <- makeMetaSubst $ rewContext rew
       sub2 <- makeMetaSubst $ rewContext rew'
@@ -115,7 +115,7 @@ checkConfluenceOfRule rew = inTopContext $ do
   forM_ (allPatternHoles es) $ \ hole -> case ohpContents hole of
     PDef g es' -> forMM_ (getClausesAndRewriteRulesFor g) $ \ rew' ->
       traceCall (CheckConfluence (rewName rew) (rewName rew')) $
-      localTCState $ do
+      localTCStateSavingWarnings $ do
 
         let bvTel = ohpBoundVars hole
             plug  = ohpPlugHole hole
