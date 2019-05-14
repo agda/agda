@@ -437,7 +437,7 @@ compareAtom cmp t m n =
                                   , ":" <+> prettyTCM t ]
     -- Andreas: what happens if I cut out the eta expansion here?
     -- Answer: Triggers issue 245, does not resolve 348
-    (mb',nb') <- ifM (asksTC envCompareBlocked) ((notBlocked -*- notBlocked) <$> reduce (m,n)) $ do
+    (mb',nb') <- do
       mb' <- etaExpandBlocked =<< reduceB m
       nb' <- etaExpandBlocked =<< reduceB n
       return (mb', nb')
