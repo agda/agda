@@ -1,6 +1,0 @@
-RewritingConfluenceFail.agda:22,13-22
-Confluence check failed: max (max (suc m) (suc n)) m₁
-reduces to both max (suc m) (max (suc n) m₁) and
-max (suc (max m n)) m₁ which are not equal because
-m != max m n of type Nat
-when checking confluence of the rewrite rule max-assoc with max-ss
