@@ -309,23 +309,24 @@ expandTelescopeVar gamma k delta c = (tel', rho)
     tel'        = gamma1 `abstract` (delta `abstract` gamma2')
 
 -- | Gather leading Πs of a type in a telescope.
-telView :: (MonadReduce m) => Type -> m TelView
+telView :: (MonadReduce m, MonadAddContext m) => Type -> m TelView
 telView = telViewUpTo (-1)
 
 -- | @telViewUpTo n t@ takes off the first @n@ function types of @t@.
 -- Takes off all if @n < 0@.
-telViewUpTo :: (MonadReduce m) => Int -> Type -> m TelView
+telViewUpTo :: (MonadReduce m, MonadAddContext m) => Int -> Type -> m TelView
 telViewUpTo n t = telViewUpTo' n (const True) t
 
 -- | @telViewUpTo' n p t@ takes off $t$
 --   the first @n@ (or arbitrary many if @n < 0@) function domains
 --   as long as they satify @p@.
-telViewUpTo' :: (MonadReduce m) => Int -> (Dom Type -> Bool) -> Type -> m TelView
+telViewUpTo' :: (MonadReduce m, MonadAddContext m) => Int -> (Dom Type -> Bool) -> Type -> m TelView
 telViewUpTo' 0 p t = return $ TelV EmptyTel t
 telViewUpTo' n p t = do
   t <- reduce t
   case unEl t of
-    Pi a b | p a -> absV a (absName b) <$> telViewUpTo' (n - 1) p (absBody b)
+    Pi a b | p a -> absV a (absName b) <$> do
+                      underAbstractionAbs a b $ \b -> telViewUpTo' (n - 1) p b
     _            -> return $ TelV EmptyTel t
   where
     absV a x (TelV tel t) = TelV (ExtendTel a (Abs x tel)) t

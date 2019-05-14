@@ -508,6 +508,9 @@ etaExpandMetaTCM kinds m = whenM (asksTC envAssignMetas `and2M` isEtaExpandable 
         -- solution for the whole meta.
         if any domFinite (flattenTel tel) then dontExpand else do
 
+        -- Issue #3774: continue with the right context for b
+        addContext tel $ do
+
         -- if the target type @b@ of @m@ is a meta variable @x@ itself
         -- (@NonBlocked (MetaV{})@),
         -- or it is blocked by a meta-variable @x@ (@Blocked@), we cannot
