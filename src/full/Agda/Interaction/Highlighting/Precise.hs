@@ -127,6 +127,7 @@ data OtherAspect
   -- NB: We put CatchallClause last so that it is overwritten by other,
   -- more important, aspects in the emacs mode.
   | CatchallClause
+  | ConfluenceProblem
     deriving (Eq, Ord, Show, Enum, Bounded)
 
 -- | Meta information which can be associated with a

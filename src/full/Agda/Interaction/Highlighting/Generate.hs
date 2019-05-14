@@ -648,6 +648,8 @@ warningHighlighting w = case tcWarning w of
   LibraryWarning{}           -> mempty
   InfectiveImport{}          -> mempty
   CoInfectiveImport{}        -> mempty
+  RewriteNonConfluent{}      -> confluenceErrorHighlighting $ P.getRange w
+  RewriteMaybeNonConfluent{} -> confluenceErrorHighlighting $ P.getRange w
   NicifierIssue w           -> case w of
     -- we intentionally override the binding of `w` here so that our pattern of
     -- using `P.getRange w` still yields the most precise range information we
@@ -713,6 +715,9 @@ catchallHighlighting :: P.Range -> File
 catchallHighlighting r = singleton (rToR $ P.continuousPerLine r) m
   where m = parserBased { otherAspects = Set.singleton CatchallClause }
 
+confluenceErrorHighlighting :: P.Range -> File
+confluenceErrorHighlighting r = singleton (rToR $ P.continuousPerLine r) m
+  where m = parserBased { otherAspects = Set.singleton ConfluenceProblem }
 
 -- | Generates and prints syntax highlighting information for unsolved
 -- meta-variables and certain unsolved constraints.

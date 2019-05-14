@@ -375,6 +375,11 @@ If `agda2-highlight-face-groups' is nil."
   "The face used for catchall clauses."
   :group 'agda2-highlight-faces)
 
+(defface agda2-highlight-confluence-problem-face
+  '((t (:background "pink")))
+  "The face used for confluence problems."
+  :group 'agda2-highlight-faces)
+
 (defface agda2-highlight-typechecks-face
   '((t (:background "light blue"
         :foreground "black")))
@@ -414,6 +419,7 @@ If `agda2-highlight-face-groups' is nil."
     (positivityproblem      . agda2-highlight-positivity-problem-face)
     (incompletepattern      . agda2-highlight-incomplete-pattern-face)
     (catchallclause         . agda2-highlight-catchall-clause-face)
+    (confluenceproblem      . agda2-highlight-confluence-problem-face)
     (typechecks             . agda2-highlight-typechecks-face))
   "Alist mapping code aspects to the face used when displaying them.
 

@@ -210,6 +210,23 @@ prettyWarning wng = case wng of
       pwords "Importing module" ++ [pretty m] ++ pwords "not using the" ++
       [pretty o] ++ pwords "flag from a module which does."
 
+    RewriteNonConfluent lhs rhs1 rhs2 err -> fsep
+      [ "Confluence check failed:"
+      , prettyTCM lhs , "reduces to both"
+      , prettyTCM rhs1 , "and" , prettyTCM rhs2
+      , "which are not equal because"
+      , return err
+      ]
+
+    RewriteMaybeNonConfluent lhs1 lhs2 cs -> do
+      vcat $
+        [ fsep
+           [ "Couldn't determine overlap between left-hand sides"
+           , prettyTCM lhs1 , "and" , prettyTCM lhs2
+           , "because of unsolved constraints:"
+           ]
+        ] ++ map (nest 2 . return) cs
+
 prettyTCWarnings :: [TCWarning] -> TCM String
 prettyTCWarnings = fmap (unlines . List.intersperse "") . prettyTCWarnings'
 
