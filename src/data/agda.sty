@@ -159,6 +159,7 @@
     % Other aspect colours.
     \definecolor{AgdaDottedPattern}     {HTML}{000000}
     \definecolor{AgdaUnsolvedMeta}      {HTML}{D3D3D3}
+    \definecolor{AgdaUnsolvedConstraint}{HTML}{D3D3D3}
     \definecolor{AgdaTerminationProblem}{HTML}{BEBEBE}
     \definecolor{AgdaIncompletePattern} {HTML}{D3D3D3}
     \definecolor{AgdaError}             {HTML}{696969}
@@ -197,6 +198,7 @@
     % Other aspect colours.
     \definecolor{AgdaDottedPattern}     {HTML}{000000}
     \definecolor{AgdaUnsolvedMeta}      {HTML}{FFD700}
+    \definecolor{AgdaUnsolvedConstraint}{HTML}{FFD700}
     \definecolor{AgdaTerminationProblem}{HTML}{FF0000}
     \definecolor{AgdaIncompletePattern} {HTML}{A020F0}
     \definecolor{AgdaError}             {HTML}{F4A460}
@@ -234,6 +236,7 @@
     % Other aspect colours.
     \definecolor{AgdaDottedPattern}     {HTML}{000000}
     \definecolor{AgdaUnsolvedMeta}      {HTML}{FFFF00}
+    \definecolor{AgdaUnsolvedConstraint}{HTML}{FFFF00}
     \definecolor{AgdaTerminationProblem}{HTML}{FFA07A}
     \definecolor{AgdaIncompletePattern} {HTML}{F5DEB3}
     \definecolor{AgdaError}             {HTML}{FF0000}
@@ -320,6 +323,8 @@
 \newcommand{\AgdaDottedPattern}     [1]{\textcolor{AgdaDottedPattern}{#1}}
 \newcommand{\AgdaUnsolvedMeta}      [1]
     {\AgdaFontStyle{\colorbox{AgdaUnsolvedMeta}{#1}}}
+\newcommand{\AgdaUnsolvedConstraint}[1]
+    {\AgdaFontStyle{\colorbox{AgdaUnsolvedConstraint}{#1}}}
 \newcommand{\AgdaTerminationProblem}[1]
     {\AgdaFontStyle{\colorbox{AgdaTerminationProblem}{#1}}}
 \newcommand{\AgdaIncompletePattern} [1]{\colorbox{AgdaIncompletePattern}{#1}}
