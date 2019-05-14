@@ -4,7 +4,7 @@ Confluence check failed: k * (suc m + m₁) reduces to both
 which are not equal because k != k * m of type Nat
 when checking confluence of the rewrite rule plus-mult-distr-l with
 plus-suc-l
-RewritingNonConfluent3.agda:36,13-23
+RewritingNonConfluent3.agda:38,13-30
 Confluence check failed: suc m * (l + m₁) reduces to both
 (l + m₁) + (m * (l + m₁)) and (suc m * l) + (suc m * m₁)
 which are not equal because m != m₁ * l of type Nat

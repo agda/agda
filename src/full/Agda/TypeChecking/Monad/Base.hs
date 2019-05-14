@@ -2295,7 +2295,7 @@ instance HasRange Call where
     getRange (SetRange r)                    = r
     getRange (CheckSectionApplication r _ _) = r
     getRange (CheckIsEmpty r _)              = r
-    getRange (CheckConfluence rule1 _)       = getRange rule1
+    getRange (CheckConfluence rule1 rule2)   = max (getRange rule1) (getRange rule2)
     getRange NoHighlighting                  = noRange
     getRange ModuleContents                  = noRange
 
