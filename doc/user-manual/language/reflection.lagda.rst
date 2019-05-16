@@ -375,8 +375,12 @@ following primitive operations::
     -- normalisation.
     withNormalisation : ∀ {a} {A : Set a} → Bool → TC A → TC A
 
-    -- Prints the third argument if the corresponding verbosity level is turned
-    -- on (with the -v flag to Agda).
+    -- Prints the third argument to the debg buffer in Emacs
+    -- if the verbosity level (set by the -v flag to Agda)
+    -- is higher than the second argument. Note that Level 0 and 1 are printed
+    -- to the info buffer instead. For instance, giving -v a.b.c:10 enables
+    -- printing from debugPrint "a.b.c.d" 10 msg.
+
     debugPrint : String → Nat → List ErrorPart → TC ⊤
 
     -- Fail if the given computation gives rise to new, unsolved
