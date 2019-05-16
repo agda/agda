@@ -201,7 +201,7 @@ Errors and warnings
       Do not warn about possibly
       nonterminating code (see :ref:`termination-checking`)
 
-:samp:`--warning={GROUP|FLAG} -W={GROUP|FLAG}`
+:samp:`--warning={GROUP|FLAG} -W {GROUP|FLAG}`
       Set warning group or flag (see :ref:`warnings`)
 
 Pattern matching and equality
@@ -432,7 +432,7 @@ enabled, except for warnings about empty ``abstract`` blocks:
 
 .. code-block:: console
 
-   agda -W all --warning noEmptyAbstract file.agda
+   agda -W all --warning=noEmptyAbstract file.agda
 
 
 .. _consistency-checking-options:
