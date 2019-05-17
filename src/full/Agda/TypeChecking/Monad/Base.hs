@@ -2466,6 +2466,14 @@ data TCEnv =
                 -- ^ Injectivity can cause non-termination for unsolvable contraints
                 --   (#431, #3067). Keep a limit on the nesting depth of injectivity
                 --   uses.
+          , envCompareBlocked :: Bool
+                -- ^ When @True@, the conversion checker will consider
+                --   all term constructors as injective, including
+                --   blocked function applications and metas. Warning:
+                --   this should only be used when not assigning any
+                --   metas (e.g. when @envAssignMetas@ is @False@ or
+                --   when running @pureEqualTerms@) or else we get
+                --   non-unique meta solutions.
           , envPrintDomainFreePi :: Bool
                 -- ^ When @True@, types will be omitted from printed pi types if they
                 --   can be inferred.
@@ -2547,6 +2555,7 @@ initEnv = TCEnv { envContext             = []
                 , envSimplification         = NoSimplification
                 , envAllowedReductions      = allReductions
                 , envInjectivityDepth       = 0
+                , envCompareBlocked         = False
                 , envPrintDomainFreePi      = False
                 , envPrintMetasBare         = False
                 , envInsideDotPattern       = False
@@ -2670,6 +2679,9 @@ eAllowedReductions f e = f (envAllowedReductions e) <&> \ x -> e { envAllowedRed
 
 eInjectivityDepth :: Lens' Int TCEnv
 eInjectivityDepth f e = f (envInjectivityDepth e) <&> \ x -> e { envInjectivityDepth = x }
+
+eCompareBlocked :: Lens' Bool TCEnv
+eCompareBlocked f e = f (envCompareBlocked e) <&> \ x -> e { envCompareBlocked = x }
 
 ePrintDomainFreePi :: Lens' Bool TCEnv
 ePrintDomainFreePi f e = f (envPrintDomainFreePi e) <&> \ x -> e { envPrintDomainFreePi = x }
