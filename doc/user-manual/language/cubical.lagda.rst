@@ -529,15 +529,15 @@ a partial family of types that are equivalent to the base type ``A``:
 
   Glue A Te = primGlue A (λ x → Te x .fst) (λ x → Te x .snd)
 
-These come with a constructor and eliminator:
+These come with two computation rules, which hold definitionally:
 
 .. code-block:: agda
 
-  glue : ∀ {ℓ ℓ'} {A : Set ℓ} {φ : I} {Te : Partial φ (Σ[ T ∈ Set ℓ' ] T ≃ A)}
-       → PartialP φ T → A → Glue A Te
+  glueβ₀ : ∀ {ℓ ℓ'} {A : Set ℓ} → {T₀ T₁ : Σ[ T ∈ Set ℓ' ] T ≃ A} →
+    Glue {φ = i0} A (λ {(i = i0) -> T₀ ; (i = i1) → T₁}) ≡ T₀ .fst
 
-  unglue : ∀ {ℓ ℓ'} {A : Set ℓ} (φ : I) {Te : Partial φ (Σ[ T ∈ Set ℓ' ] T ≃ A)}
-         → Glue A Te → A
+  glueβ₁ : ∀ {ℓ ℓ'} {A : Set ℓ} → {T₀ T₁ : Σ[ T ∈ Set ℓ' ] T ≃ A} →
+    Glue {φ = i1} A (λ {(i = i0) -> T₀ ; (i = i1) → T₁}) ≡ T₁ .fst
 
 Using Glue types we can turn an equivalence of types into a path as
 follows:
