@@ -28,6 +28,7 @@ import Agda.TypeChecking.Substitute
 import qualified Agda.TypeChecking.SyntacticEquality as SynEq
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Constraints
+import Agda.TypeChecking.Conversion.Pure (pureEqualTerm)
 import {-# SOURCE #-} Agda.TypeChecking.CheckInternal (infer)
 import Agda.TypeChecking.Errors
 import Agda.TypeChecking.Forcing (isForced, nextIsForced)
@@ -437,13 +438,7 @@ compareAtom cmp t m n =
               err         -> throwError err)
           (\nb t -> f $ NotBlocked nb t)
 
-        checkSyntacticEquality =
-          ifNotM (optSyntacticEquality <$> pragmaOptions) postpone $ do
-          n <- normalise n    -- is this what we want?
-          m <- normalise m
-          if m == n
-              then return ()  -- Check syntactic equality for blocked terms
-              else postpone
+        checkDefinitionalEquality = unlessM (pureEqualTerm t m n) postpone
 
         dir = fromCmp cmp
         rid = flipCmp dir     -- The reverse direction.  Bad name, I know.
@@ -477,7 +472,7 @@ compareAtom cmp t m n =
                   PrunedNothing    -> postpone
                   PrunedSomething  -> postpone
               -- not all relevant arguments are variables
-              Nothing -> checkSyntacticEquality -- Check syntactic equality on meta-variables
+              Nothing -> checkDefinitionalEquality -- Check definitional equality on meta-variables
                               -- (same as for blocked terms)
           | otherwise -> do
               [p1, p2] <- mapM getMetaPriority [x,y]
@@ -498,7 +493,7 @@ compareAtom cmp t m n =
       -- one side a meta, the other an unblocked term
       (NotBlocked _ (MetaV x es), _) -> assign dir x es n
       (_, NotBlocked _ (MetaV x es)) -> assign rid x es m
-      (Blocked{}, Blocked{})  -> checkSyntacticEquality
+      (Blocked{}, Blocked{})  -> checkDefinitionalEquality
       (Blocked{}, _)  -> useInjectivity (fromCmp cmp) t m n   -- The blocked term goes first
       (_, Blocked{})  -> useInjectivity (flipCmp $ fromCmp cmp) t n m
       _ -> postponeIfBlockedType t $ \bt -> do
