@@ -405,7 +405,7 @@ compareAtom cmp t m n =
                                   , ":" <+> prettyTCM t ]
     -- Andreas: what happens if I cut out the eta expansion here?
     -- Answer: Triggers issue 245, does not resolve 348
-    (mb',nb') <- do
+    (mb',nb') <- ifM (asksTC envCompareBlocked) ((notBlocked -*- notBlocked) <$> reduce (m,n)) $ do
       mb' <- etaExpandBlocked =<< reduceB m
       nb' <- etaExpandBlocked =<< reduceB n
       return (mb', nb')
@@ -419,6 +419,8 @@ compareAtom cmp t m n =
 
     mb <- traverse unLevel mb''
     nb <- traverse unLevel nb''
+
+    cmpBlocked <- viewTC eCompareBlocked
 
     let m = ignoreBlocking mb
         n = ignoreBlocking nb
@@ -460,6 +462,9 @@ compareAtom cmp t m n =
       -- equate two metas x and y.  if y is the younger meta,
       -- try first y := x and then x := y
       (NotBlocked _ (MetaV x xArgs), NotBlocked _ (MetaV y yArgs))
+          | x == y , cmpBlocked -> do
+              a <- jMetaType . mvJudgement <$> lookupMeta x
+              compareElims [] [] a (MetaV x []) xArgs yArgs
           | x == y ->
             case intersectVars xArgs yArgs of
               -- all relevant arguments are variables
