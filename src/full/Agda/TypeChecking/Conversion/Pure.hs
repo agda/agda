@@ -13,7 +13,7 @@ import Data.String
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 
-import Agda.TypeChecking.Conversion
+import {-# SOURCE #-} Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Pretty
@@ -38,7 +38,8 @@ newtype PureConversionT m a = PureConversionT
 pureEqualTerm
   :: (MonadReduce m, MonadAddContext m, HasBuiltins m, HasConstInfo m)
   => Type -> Term -> Term -> m Bool
-pureEqualTerm a u v = isRight <$> runPureConversion (equalTerm a u v)
+pureEqualTerm a u v = locallyTC eCompareBlocked (const True) $
+  isRight <$> runPureConversion (equalTerm a u v)
 
 runPureConversion
   :: (ReadTCState m, MonadDebug m, HasOptions m, MonadTCEnv m, Show a)
