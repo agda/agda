@@ -55,7 +55,9 @@ Introduction to Agda
    - `Verified Functional Programming in Agda <https://dl.acm.org/citation.cfm?id=2841316>`__
 - Diviánszky Péter.
    - `Agda Tutorial <https://people.inf.elte.hu/divip/AgdaTutorial/Index.html>`__
-
+- Musa Al-hassy.
+   - `A slow-paced introduction to reflection in Agda <https://github.com/alhassy/gentle-intro-to-reflection>`__
+   
 Courses using Agda
 ==================
 
