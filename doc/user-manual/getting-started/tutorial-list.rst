@@ -57,7 +57,7 @@ Introduction to Agda
    - `Agda Tutorial <https://people.inf.elte.hu/divip/AgdaTutorial/Index.html>`__
 - Musa Al-hassy.
    - `A slow-paced introduction to reflection in Agda <https://github.com/alhassy/gentle-intro-to-reflection>`__
-   
+
 Courses using Agda
 ==================
 
