@@ -114,18 +114,16 @@ instance (MonadDebug m, Monoid w) => MonadDebug (WriterT w m) where
 
 -- | Conditionally print debug string.
 {-# SPECIALIZE reportS :: VerboseKey -> Int -> String -> TCM () #-}
-reportS :: (HasOptions m, MonadDebug m)
-        => VerboseKey -> Int -> String -> m ()
+reportS :: MonadDebug m => VerboseKey -> Int -> String -> m ()
 reportS k n s = verboseS k n $ displayDebugMessage n s
 
 -- | Conditionally println debug string.
 {-# SPECIALIZE reportSLn :: VerboseKey -> Int -> String -> TCM () #-}
-reportSLn :: (HasOptions m, MonadDebug m)
-          => VerboseKey -> Int -> String -> m ()
+reportSLn :: MonadDebug m => VerboseKey -> Int -> String -> m ()
 reportSLn k n s = verboseS k n $
   displayDebugMessage n (s ++ "\n")
 
-__IMPOSSIBLE_VERBOSE__ :: (HasCallStack, HasOptions m, MonadDebug m) => String -> m a
+__IMPOSSIBLE_VERBOSE__ :: (HasCallStack, MonadDebug m) => String -> m a
 __IMPOSSIBLE_VERBOSE__ s = do { reportSLn "impossible" 10 s ; throwImpossible err }
   where
     -- Create the "Impossible" error using *our* caller as the call site.
@@ -133,29 +131,26 @@ __IMPOSSIBLE_VERBOSE__ s = do { reportSLn "impossible" 10 s ; throwImpossible er
 
 -- | Conditionally render debug 'Doc' and print it.
 {-# SPECIALIZE reportSDoc :: VerboseKey -> Int -> TCM Doc -> TCM () #-}
-reportSDoc :: (HasOptions m, MonadDebug m)
-           => VerboseKey -> Int -> TCM Doc -> m ()
+reportSDoc :: MonadDebug m => VerboseKey -> Int -> TCM Doc -> m ()
 reportSDoc k n d = verboseS k n $ do
   displayDebugMessage n . (++ "\n") =<< formatDebugMessage k n (locallyTC eIsDebugPrinting (const True) d)
 
 unlessDebugPrinting :: MonadDebug m => m () -> m ()
 unlessDebugPrinting = unlessM isDebugPrinting
 
-traceSLn :: (HasOptions m, MonadDebug m)
-         => VerboseKey -> Int -> String -> m a -> m a
+traceSLn :: MonadDebug m => VerboseKey -> Int -> String -> m a -> m a
 traceSLn k n s cont = ifNotM (hasVerbosity k n) cont $ {- else -} do
   traceDebugMessage n (s ++ "\n") cont
 
 -- | Conditionally render debug 'Doc', print it, and then continue.
-traceSDoc :: (HasOptions m, MonadDebug m)
-          => VerboseKey -> Int -> TCM Doc -> m a -> m a
+traceSDoc :: MonadDebug m => VerboseKey -> Int -> TCM Doc -> m a -> m a
 traceSDoc k n d cont = ifNotM (hasVerbosity k n) cont $ {- else -} do
   s <- formatDebugMessage k n $ locallyTC eIsDebugPrinting (const True) d
   traceDebugMessage n (s ++ "\n") cont
 
 -- | Print brackets around debug messages issued by a computation.
 {-# SPECIALIZE verboseBracket :: VerboseKey -> Int -> String -> TCM a -> TCM a #-}
-verboseBracket :: (HasOptions m, MonadDebug m, MonadError err m)
+verboseBracket :: (MonadDebug m, MonadError err m)
                => VerboseKey -> Int -> String -> m a -> m a
 verboseBracket k n s m = ifNotM (hasVerbosity k n) m $ {- else -} do
   displayDebugMessage n $ "{ " ++ s ++ "\n"
