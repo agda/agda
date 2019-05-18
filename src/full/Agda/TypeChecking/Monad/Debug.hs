@@ -17,6 +17,7 @@ import {-# SOURCE #-} Agda.TypeChecking.Errors
 import Agda.TypeChecking.Monad.Base
 import {-# SOURCE #-} Agda.TypeChecking.Monad.Options
 
+import Agda.Interaction.Options
 import Agda.Interaction.Response
 
 import Agda.Utils.Except
@@ -26,6 +27,8 @@ import Agda.Utils.ListT
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Pretty
+import Agda.Utils.Trie (Trie)
+import qualified Agda.Utils.Trie as Trie
 
 import Agda.Utils.Impossible
 
@@ -37,6 +40,11 @@ class (Functor m, Applicative m, Monad m) => MonadDebug m where
   traceDebugMessage n s cont = displayDebugMessage n s >> cont
 
   formatDebugMessage  :: VerboseKey -> Int -> TCM Doc -> m String
+
+  getVerbosity :: m (Trie String Int)
+
+  default getVerbosity :: HasOptions m => m (Trie String Int)
+  getVerbosity = optVerbose <$> pragmaOptions
 
 instance (MonadIO m) => MonadDebug (TCMT m) where
 
@@ -55,26 +63,32 @@ instance (MonadIO m) => MonadDebug (TCMT m) where
 instance MonadDebug m => MonadDebug (ExceptT e m) where
   displayDebugMessage n s = lift $ displayDebugMessage n s
   formatDebugMessage k n d = lift $ formatDebugMessage k n d
+  getVerbosity = lift getVerbosity
 
 instance MonadDebug m => MonadDebug (ListT m) where
   displayDebugMessage n s = lift $ displayDebugMessage n s
   formatDebugMessage k n d = lift $ formatDebugMessage k n d
+  getVerbosity = lift getVerbosity
 
 instance MonadDebug m => MonadDebug (MaybeT m) where
   displayDebugMessage n s = lift $ displayDebugMessage n s
   formatDebugMessage k n d = lift $ formatDebugMessage k n d
+  getVerbosity = lift getVerbosity
 
 instance MonadDebug m => MonadDebug (ReaderT r m) where
   displayDebugMessage n s = lift $ displayDebugMessage n s
   formatDebugMessage k n d = lift $ formatDebugMessage k n d
+  getVerbosity = lift getVerbosity
 
 instance MonadDebug m => MonadDebug (StateT s m) where
   displayDebugMessage n s = lift $ displayDebugMessage n s
   formatDebugMessage k n d = lift $ formatDebugMessage k n d
+  getVerbosity = lift getVerbosity
 
 instance (MonadDebug m, Monoid w) => MonadDebug (WriterT w m) where
   displayDebugMessage n s = lift $ displayDebugMessage n s
   formatDebugMessage k n d = lift $ formatDebugMessage k n d
+  getVerbosity = lift getVerbosity
 
 -- | Conditionally print debug string.
 {-# SPECIALIZE reportS :: VerboseKey -> Int -> String -> TCM () #-}
@@ -124,3 +138,68 @@ verboseBracket :: (HasOptions m, MonadDebug m, MonadError err m)
 verboseBracket k n s m = ifNotM (hasVerbosity k n) m $ {- else -} do
   displayDebugMessage n $ "{ " ++ s ++ "\n"
   m `finally` displayDebugMessage n "}\n"
+
+------------------------------------------------------------------------
+-- Verbosity
+
+-- Invariant (which we may or may not currently break): Debug
+-- printouts use one of the following functions:
+--
+--   reportS
+--   reportSLn
+--   reportSDoc
+
+type VerboseKey = String
+
+parseVerboseKey :: VerboseKey -> [String]
+parseVerboseKey = wordsBy (`elem` (".:" :: String))
+
+-- | Check whether a certain verbosity level is activated.
+--
+--   Precondition: The level must be non-negative.
+{-# SPECIALIZE hasVerbosity :: VerboseKey -> Int -> TCM Bool #-}
+hasVerbosity :: MonadDebug m => VerboseKey -> Int -> m Bool
+hasVerbosity k n | n < 0     = __IMPOSSIBLE__
+                 | otherwise = do
+    t <- getVerbosity
+    let ks = parseVerboseKey k
+        m  = last $ 0 : Trie.lookupPath ks t
+    return (n <= m)
+
+-- | Check whether a certain verbosity level is activated (exact match).
+
+{-# SPECIALIZE hasExactVerbosity :: VerboseKey -> Int -> TCM Bool #-}
+hasExactVerbosity :: MonadDebug m => VerboseKey -> Int -> m Bool
+hasExactVerbosity k n =
+  (Just n ==) . Trie.lookup (parseVerboseKey k) <$> getVerbosity
+
+-- | Run a computation if a certain verbosity level is activated (exact match).
+
+{-# SPECIALIZE whenExactVerbosity :: VerboseKey -> Int -> TCM () -> TCM () #-}
+whenExactVerbosity :: MonadDebug m => VerboseKey -> Int -> m () -> m ()
+whenExactVerbosity k n = whenM $ hasExactVerbosity k n
+
+__CRASH_WHEN__ :: (HasCallStack, MonadTCM m, MonadDebug m) => VerboseKey -> Int -> m ()
+__CRASH_WHEN__ k n = whenExactVerbosity k n (throwImpossible err)
+  where
+    -- Create the "Unreachable" error using *our* caller as the call site.
+    err = withFileAndLine' (freezeCallStack callStack) Unreachable
+
+-- | Run a computation if a certain verbosity level is activated.
+--
+--   Precondition: The level must be non-negative.
+{-# SPECIALIZE verboseS :: VerboseKey -> Int -> TCM () -> TCM () #-}
+-- {-# SPECIALIZE verboseS :: MonadIO m => VerboseKey -> Int -> TCMT m () -> TCMT m () #-} -- RULE left-hand side too complicated to desugar
+-- {-# SPECIALIZE verboseS :: MonadTCM tcm => VerboseKey -> Int -> tcm () -> tcm () #-}
+verboseS :: (MonadTCEnv m, MonadDebug m) => VerboseKey -> Int -> m () -> m ()
+verboseS k n action = whenM (hasVerbosity k n) $ locallyTC eIsDebugPrinting (const True) action
+
+-- | Verbosity lens.
+verbosity :: VerboseKey -> Lens' Int TCState
+verbosity k = stPragmaOptions . verbOpt . Trie.valueAt (parseVerboseKey k) . defaultTo 0
+  where
+    verbOpt :: Lens' (Trie String Int) PragmaOptions
+    verbOpt f opts = f (optVerbose opts) <&> \ v -> opts { optVerbose = v }
+
+    defaultTo :: Eq a => a -> Lens' a (Maybe a)
+    defaultTo x f m = f (fromMaybe x m) <&> \ v -> if v == x then Nothing else Just v

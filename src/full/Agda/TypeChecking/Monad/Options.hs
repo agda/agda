@@ -34,8 +34,6 @@ import Agda.Utils.Monad
 import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Pretty
-import Agda.Utils.Trie (Trie)
-import qualified Agda.Utils.Trie as Trie
 import Agda.Utils.Except
 import Agda.Utils.Either
 
@@ -297,73 +295,3 @@ maxInstanceSearchDepth = optInstanceSearchDepth <$> pragmaOptions
 
 maxInversionDepth :: HasOptions m => m Int
 maxInversionDepth = optInversionMaxDepth <$> pragmaOptions
-
-------------------------------------------------------------------------
--- Verbosity
-
--- Invariant (which we may or may not currently break): Debug
--- printouts use one of the following functions:
---
---   reportS
---   reportSLn
---   reportSDoc
-
--- | Retrieve the current verbosity level.
-{-# SPECIALIZE getVerbosity :: TCM (Trie String Int) #-}
-getVerbosity :: HasOptions m => m (Trie String Int)
-getVerbosity = optVerbose <$> pragmaOptions
-
-type VerboseKey = String
-
-parseVerboseKey :: VerboseKey -> [String]
-parseVerboseKey = wordsBy (`elem` (".:" :: String))
-
--- | Check whether a certain verbosity level is activated.
---
---   Precondition: The level must be non-negative.
-{-# SPECIALIZE hasVerbosity :: VerboseKey -> Int -> TCM Bool #-}
-hasVerbosity :: HasOptions m => VerboseKey -> Int -> m Bool
-hasVerbosity k n | n < 0     = __IMPOSSIBLE__
-                 | otherwise = do
-    t <- getVerbosity
-    let ks = parseVerboseKey k
-        m  = last $ 0 : Trie.lookupPath ks t
-    return (n <= m)
-
--- | Check whether a certain verbosity level is activated (exact match).
-
-{-# SPECIALIZE hasExactVerbosity :: VerboseKey -> Int -> TCM Bool #-}
-hasExactVerbosity :: HasOptions m => VerboseKey -> Int -> m Bool
-hasExactVerbosity k n =
-  (Just n ==) . Trie.lookup (parseVerboseKey k) <$> getVerbosity
-
--- | Run a computation if a certain verbosity level is activated (exact match).
-
-{-# SPECIALIZE whenExactVerbosity :: VerboseKey -> Int -> TCM () -> TCM () #-}
-whenExactVerbosity :: HasOptions m => VerboseKey -> Int -> m () -> m ()
-whenExactVerbosity k n = whenM $ hasExactVerbosity k n
-
-__CRASH_WHEN__ :: (HasCallStack, MonadTCM tcm) => VerboseKey -> Int -> tcm ()
-__CRASH_WHEN__ k n = whenExactVerbosity k n (throwImpossible err)
-  where
-    -- Create the "Unreachable" error using *our* caller as the call site.
-    err = withFileAndLine' (freezeCallStack callStack) Unreachable
-
--- | Run a computation if a certain verbosity level is activated.
---
---   Precondition: The level must be non-negative.
-{-# SPECIALIZE verboseS :: VerboseKey -> Int -> TCM () -> TCM () #-}
--- {-# SPECIALIZE verboseS :: MonadIO m => VerboseKey -> Int -> TCMT m () -> TCMT m () #-} -- RULE left-hand side too complicated to desugar
-{-# SPECIALIZE verboseS :: MonadTCM tcm => VerboseKey -> Int -> tcm () -> tcm () #-}
-verboseS :: (MonadTCEnv m, HasOptions m) => VerboseKey -> Int -> m () -> m ()
-verboseS k n action = whenM (hasVerbosity k n) $ locallyTC eIsDebugPrinting (const True) action
-
--- | Verbosity lens.
-verbosity :: VerboseKey -> Lens' Int TCState
-verbosity k = stPragmaOptions . verbOpt . Trie.valueAt (parseVerboseKey k) . defaultTo 0
-  where
-    verbOpt :: Lens' (Trie String Int) PragmaOptions
-    verbOpt f opts = f (optVerbose opts) <&> \ v -> opts { optVerbose = v }
-
-    defaultTo :: Eq a => a -> Lens' a (Maybe a)
-    defaultTo x f m = f (fromMaybe x m) <&> \ v -> if v == x then Nothing else Just v

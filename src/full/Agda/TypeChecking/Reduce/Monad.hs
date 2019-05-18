@@ -96,7 +96,7 @@ isInstantiatedMeta i = do
 --
 --   Precondition: The level must be non-negative.
 {-# SPECIALIZE applyWhenVerboseS :: VerboseKey -> Int -> (ReduceM a -> ReduceM a) -> ReduceM a-> ReduceM a #-}
-applyWhenVerboseS :: HasOptions m => VerboseKey -> Int -> (m a -> m a) -> m a -> m a
+applyWhenVerboseS :: MonadDebug m => VerboseKey -> Int -> (m a -> m a) -> m a -> m a
 applyWhenVerboseS k n f a = ifM (hasVerbosity k n) (f a) a
 
 instance MonadDebug ReduceM where
