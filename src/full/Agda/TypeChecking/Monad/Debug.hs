@@ -46,6 +46,16 @@ class (Functor m, Applicative m, Monad m) => MonadDebug m where
   default getVerbosity :: HasOptions m => m (Trie String Int)
   getVerbosity = optVerbose <$> pragmaOptions
 
+  isDebugPrinting :: m Bool
+
+  default isDebugPrinting :: MonadTCEnv m => m Bool
+  isDebugPrinting = asksTC envIsDebugPrinting
+
+  nowDebugPrinting :: m a -> m a
+
+  default nowDebugPrinting :: MonadTCEnv m => m a -> m a
+  nowDebugPrinting = locallyTC eIsDebugPrinting $ const True
+
 instance (MonadIO m) => MonadDebug (TCMT m) where
 
   displayDebugMessage n s = liftTCM $ do
@@ -64,46 +74,58 @@ instance MonadDebug m => MonadDebug (ExceptT e m) where
   displayDebugMessage n s = lift $ displayDebugMessage n s
   formatDebugMessage k n d = lift $ formatDebugMessage k n d
   getVerbosity = lift getVerbosity
+  isDebugPrinting = lift isDebugPrinting
+  nowDebugPrinting = mapExceptT nowDebugPrinting
 
 instance MonadDebug m => MonadDebug (ListT m) where
   displayDebugMessage n s = lift $ displayDebugMessage n s
   formatDebugMessage k n d = lift $ formatDebugMessage k n d
   getVerbosity = lift getVerbosity
+  isDebugPrinting = lift isDebugPrinting
+  nowDebugPrinting = liftListT nowDebugPrinting
 
 instance MonadDebug m => MonadDebug (MaybeT m) where
   displayDebugMessage n s = lift $ displayDebugMessage n s
   formatDebugMessage k n d = lift $ formatDebugMessage k n d
   getVerbosity = lift getVerbosity
+  isDebugPrinting = lift isDebugPrinting
+  nowDebugPrinting = mapMaybeT nowDebugPrinting
 
 instance MonadDebug m => MonadDebug (ReaderT r m) where
   displayDebugMessage n s = lift $ displayDebugMessage n s
   formatDebugMessage k n d = lift $ formatDebugMessage k n d
   getVerbosity = lift getVerbosity
+  isDebugPrinting = lift isDebugPrinting
+  nowDebugPrinting = mapReaderT nowDebugPrinting
 
 instance MonadDebug m => MonadDebug (StateT s m) where
   displayDebugMessage n s = lift $ displayDebugMessage n s
   formatDebugMessage k n d = lift $ formatDebugMessage k n d
   getVerbosity = lift getVerbosity
+  isDebugPrinting = lift isDebugPrinting
+  nowDebugPrinting = mapStateT nowDebugPrinting
 
 instance (MonadDebug m, Monoid w) => MonadDebug (WriterT w m) where
   displayDebugMessage n s = lift $ displayDebugMessage n s
   formatDebugMessage k n d = lift $ formatDebugMessage k n d
   getVerbosity = lift getVerbosity
+  isDebugPrinting = lift isDebugPrinting
+  nowDebugPrinting = mapWriterT nowDebugPrinting
 
 -- | Conditionally print debug string.
 {-# SPECIALIZE reportS :: VerboseKey -> Int -> String -> TCM () #-}
-reportS :: (HasOptions m, MonadDebug m, MonadTCEnv m)
+reportS :: (HasOptions m, MonadDebug m)
         => VerboseKey -> Int -> String -> m ()
 reportS k n s = verboseS k n $ displayDebugMessage n s
 
 -- | Conditionally println debug string.
 {-# SPECIALIZE reportSLn :: VerboseKey -> Int -> String -> TCM () #-}
-reportSLn :: (HasOptions m, MonadDebug m, MonadTCEnv m)
+reportSLn :: (HasOptions m, MonadDebug m)
           => VerboseKey -> Int -> String -> m ()
 reportSLn k n s = verboseS k n $
   displayDebugMessage n (s ++ "\n")
 
-__IMPOSSIBLE_VERBOSE__ :: (HasCallStack, HasOptions m, MonadDebug m, MonadTCEnv m) => String -> m a
+__IMPOSSIBLE_VERBOSE__ :: (HasCallStack, HasOptions m, MonadDebug m) => String -> m a
 __IMPOSSIBLE_VERBOSE__ s = do { reportSLn "impossible" 10 s ; throwImpossible err }
   where
     -- Create the "Impossible" error using *our* caller as the call site.
@@ -111,13 +133,13 @@ __IMPOSSIBLE_VERBOSE__ s = do { reportSLn "impossible" 10 s ; throwImpossible er
 
 -- | Conditionally render debug 'Doc' and print it.
 {-# SPECIALIZE reportSDoc :: VerboseKey -> Int -> TCM Doc -> TCM () #-}
-reportSDoc :: (HasOptions m, MonadDebug m, MonadTCEnv m)
+reportSDoc :: (HasOptions m, MonadDebug m)
            => VerboseKey -> Int -> TCM Doc -> m ()
 reportSDoc k n d = verboseS k n $ do
   displayDebugMessage n . (++ "\n") =<< formatDebugMessage k n (locallyTC eIsDebugPrinting (const True) d)
 
-unlessDebugPrinting :: MonadTCEnv m => m () -> m ()
-unlessDebugPrinting = unlessM (asksTC envIsDebugPrinting)
+unlessDebugPrinting :: MonadDebug m => m () -> m ()
+unlessDebugPrinting = unlessM isDebugPrinting
 
 traceSLn :: (HasOptions m, MonadDebug m)
          => VerboseKey -> Int -> String -> m a -> m a
@@ -191,8 +213,8 @@ __CRASH_WHEN__ k n = whenExactVerbosity k n (throwImpossible err)
 {-# SPECIALIZE verboseS :: VerboseKey -> Int -> TCM () -> TCM () #-}
 -- {-# SPECIALIZE verboseS :: MonadIO m => VerboseKey -> Int -> TCMT m () -> TCMT m () #-} -- RULE left-hand side too complicated to desugar
 -- {-# SPECIALIZE verboseS :: MonadTCM tcm => VerboseKey -> Int -> tcm () -> tcm () #-}
-verboseS :: (MonadTCEnv m, MonadDebug m) => VerboseKey -> Int -> m () -> m ()
-verboseS k n action = whenM (hasVerbosity k n) $ locallyTC eIsDebugPrinting (const True) action
+verboseS :: MonadDebug m => VerboseKey -> Int -> m () -> m ()
+verboseS k n action = whenM (hasVerbosity k n) $ nowDebugPrinting action
 
 -- | Verbosity lens.
 verbosity :: VerboseKey -> Lens' Int TCState

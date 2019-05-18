@@ -24,13 +24,20 @@ class (Functor m, Applicative m, Monad m) => MonadDebug m where
   default getVerbosity :: HasOptions m => m (Trie String Int)
   getVerbosity = optVerbose <$> pragmaOptions
 
+  isDebugPrinting :: m Bool
+  default isDebugPrinting :: MonadTCEnv m => m Bool
+  isDebugPrinting = asksTC envIsDebugPrinting
+
+  nowDebugPrinting :: m a -> m a
+  default nowDebugPrinting :: MonadTCEnv m => m a -> m a
+  nowDebugPrinting = locallyTC eIsDebugPrinting $ const True
 
 instance (MonadIO m) => MonadDebug (TCMT m)
 
-reportS :: (HasOptions m, MonadDebug m, MonadTCEnv m)
+reportS :: (HasOptions m, MonadDebug m)
         => VerboseKey -> Int -> String -> m ()
-reportSLn :: (HasOptions m, MonadDebug m, MonadTCEnv m)
+reportSLn :: (HasOptions m, MonadDebug m)
           => VerboseKey -> Int -> String -> m ()
-reportSDoc :: (HasOptions m, MonadDebug m, MonadTCEnv m)
+reportSDoc :: (HasOptions m, MonadDebug m)
            => VerboseKey -> Int -> TCM Doc -> m ()
 
