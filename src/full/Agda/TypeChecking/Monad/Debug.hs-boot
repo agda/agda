@@ -34,10 +34,7 @@ class (Functor m, Applicative m, Monad m) => MonadDebug m where
 
 instance (MonadIO m) => MonadDebug (TCMT m)
 
-reportS :: (HasOptions m, MonadDebug m)
-        => VerboseKey -> Int -> String -> m ()
-reportSLn :: (HasOptions m, MonadDebug m)
-          => VerboseKey -> Int -> String -> m ()
-reportSDoc :: (HasOptions m, MonadDebug m)
-           => VerboseKey -> Int -> TCM Doc -> m ()
+reportS :: MonadDebug m => VerboseKey -> Int -> String -> m ()
+reportSLn :: MonadDebug m => VerboseKey -> Int -> String -> m ()
+reportSDoc :: MonadDebug m => VerboseKey -> Int -> TCM Doc -> m ()
 
