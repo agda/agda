@@ -7,6 +7,9 @@ import Agda.TypeChecking.Monad.Base
 import {-# SOURCE #-} Agda.TypeChecking.Monad.Options
 
 import Agda.Utils.Pretty
+import Agda.Utils.Trie (Trie)
+
+type VerboseKey = String
 
 class (Functor m, Applicative m, Monad m) => MonadDebug m where
   displayDebugMessage :: Int -> String -> m ()
@@ -16,6 +19,11 @@ class (Functor m, Applicative m, Monad m) => MonadDebug m where
   traceDebugMessage n s cont = displayDebugMessage n s >> cont
 
   formatDebugMessage  :: VerboseKey -> Int -> TCM Doc -> m String
+
+  getVerbosity :: m (Trie String Int)
+  default getVerbosity :: HasOptions m => m (Trie String Int)
+  getVerbosity = optVerbose <$> pragmaOptions
+
 
 instance (MonadIO m) => MonadDebug (TCMT m)
 
