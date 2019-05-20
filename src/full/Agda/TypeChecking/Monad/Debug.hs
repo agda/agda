@@ -56,7 +56,7 @@ class (Functor m, Applicative m, Monad m) => MonadDebug m where
   default nowDebugPrinting :: MonadTCEnv m => m a -> m a
   nowDebugPrinting = locallyTC eIsDebugPrinting $ const True
 
-instance (MonadIO m) => MonadDebug (TCMT m) where
+instance MonadDebug TCM where
 
   displayDebugMessage n s = liftTCM $ do
     cb <- getsTC $ stInteractionOutputCallback . stPersistentState
