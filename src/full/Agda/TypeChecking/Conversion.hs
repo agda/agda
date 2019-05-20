@@ -711,7 +711,7 @@ antiUnify pid a u v = do
     fallback = blockTermOnProblem a u pid
 
 antiUnifyType :: MonadConversion m => ProblemId -> Type -> Type -> m Type
-antiUnifyType pid (El s a) (El _ b) = El s <$> antiUnify pid (sort s) a b
+antiUnifyType pid (El s a) (El _ b) = workOnTypes $ El s <$> antiUnify pid (sort s) a b
 
 antiUnifyElims :: MonadConversion m => ProblemId -> Type -> Term -> Elims -> Elims -> m Term
 antiUnifyElims pid a self [] [] = return self
@@ -947,6 +947,7 @@ compareArgs pol for a v args1 args2 =
 -- | Equality on Types
 compareType :: MonadConversion m => Comparison -> Type -> Type -> m ()
 compareType cmp ty1@(El s1 a1) ty2@(El s2 a2) =
+    workOnTypes $
     verboseBracket "tc.conv.type" 20 "compareType" $
     catchConstraint (TypeCmp cmp ty1 ty2) $ do
         reportSDoc "tc.conv.type" 50 $ vcat

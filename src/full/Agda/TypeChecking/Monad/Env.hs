@@ -12,6 +12,7 @@ import Agda.Syntax.Abstract.Name
 import Agda.TypeChecking.Monad.Base
 
 import Agda.Utils.FileName
+import Agda.Utils.Function
 
 import Agda.Utils.Impossible
 
@@ -111,6 +112,17 @@ allowAllReductions = putAllowedReductions allReductions
 -- | Allow all reductions including non-terminating functions.
 allowNonTerminatingReductions :: MonadTCEnv m => m a -> m a
 allowNonTerminatingReductions = putAllowedReductions $ [NonTerminatingReductions] ++ allReductions
+
+-- | Allow all reductions when reducing types
+onlyReduceTypes :: MonadTCEnv m => m a -> m a
+onlyReduceTypes = putAllowedReductions [TypeLevelReductions]
+
+-- | Update allowed reductions when working on types
+typeLevelReductions :: MonadTCEnv m => m a -> m a
+typeLevelReductions = modifyAllowedReductions $ \reds -> if
+  | TypeLevelReductions `elem` reds ->
+      applyWhen (NonTerminatingReductions `elem` reds) (NonTerminatingReductions:) allReductions
+  | otherwise -> reds
 
 -- * Concerning 'envInsideDotPattern'
 
