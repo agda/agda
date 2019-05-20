@@ -32,6 +32,8 @@ class (Functor m, Applicative m, Monad m) => MonadDebug m where
   default nowDebugPrinting :: MonadTCEnv m => m a -> m a
   nowDebugPrinting = locallyTC eIsDebugPrinting $ const True
 
+  verboseBracket :: VerboseKey -> Int -> String -> m a -> m a
+
 instance MonadDebug TCM
 
 reportS :: MonadDebug m => VerboseKey -> Int -> String -> m ()

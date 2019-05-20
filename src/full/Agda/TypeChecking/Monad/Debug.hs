@@ -56,6 +56,9 @@ class (Functor m, Applicative m, Monad m) => MonadDebug m where
   default nowDebugPrinting :: MonadTCEnv m => m a -> m a
   nowDebugPrinting = locallyTC eIsDebugPrinting $ const True
 
+  -- | Print brackets around debug messages issued by a computation.
+  verboseBracket :: VerboseKey -> Int -> String -> m a -> m a
+
 instance MonadDebug TCM where
 
   displayDebugMessage n s = liftTCM $ do
@@ -70,12 +73,20 @@ instance MonadDebug TCM where
                  , "failed due to error:" ]) $$
               (nest 2 $ text s)) <$> prettyError err
 
+  verboseBracket k n s = applyWhenVerboseS k n $ \ m -> do
+    openVerboseBracket n s
+    m `finally` closeVerboseBracket n
+
 instance MonadDebug m => MonadDebug (ExceptT e m) where
   displayDebugMessage n s = lift $ displayDebugMessage n s
   formatDebugMessage k n d = lift $ formatDebugMessage k n d
   getVerbosity = lift getVerbosity
   isDebugPrinting = lift isDebugPrinting
   nowDebugPrinting = mapExceptT nowDebugPrinting
+  verboseBracket k n s = applyWhenVerboseS k n $ \m -> do
+    mapExceptT (verboseBracket k n s) m `catchError` \err -> do
+      closeVerboseBracket n
+      throwError err
 
 instance MonadDebug m => MonadDebug (ListT m) where
   displayDebugMessage n s = lift $ displayDebugMessage n s
@@ -83,6 +94,8 @@ instance MonadDebug m => MonadDebug (ListT m) where
   getVerbosity = lift getVerbosity
   isDebugPrinting = lift isDebugPrinting
   nowDebugPrinting = liftListT nowDebugPrinting
+  verboseBracket k n s = liftListT $ verboseBracket k n s
+    -- TODO: this may close the bracket any number of times
 
 instance MonadDebug m => MonadDebug (MaybeT m) where
   displayDebugMessage n s = lift $ displayDebugMessage n s
@@ -90,6 +103,10 @@ instance MonadDebug m => MonadDebug (MaybeT m) where
   getVerbosity = lift getVerbosity
   isDebugPrinting = lift isDebugPrinting
   nowDebugPrinting = mapMaybeT nowDebugPrinting
+  verboseBracket k n s = applyWhenVerboseS k n $ \m -> MaybeT $ do
+    verboseBracket k n s (runMaybeT m) >>= \case
+      Just result -> return $ Just result
+      Nothing     -> closeVerboseBracket n >> return Nothing
 
 instance MonadDebug m => MonadDebug (ReaderT r m) where
   displayDebugMessage n s = lift $ displayDebugMessage n s
@@ -97,6 +114,7 @@ instance MonadDebug m => MonadDebug (ReaderT r m) where
   getVerbosity = lift getVerbosity
   isDebugPrinting = lift isDebugPrinting
   nowDebugPrinting = mapReaderT nowDebugPrinting
+  verboseBracket k n s = mapReaderT $ verboseBracket k n s
 
 instance MonadDebug m => MonadDebug (StateT s m) where
   displayDebugMessage n s = lift $ displayDebugMessage n s
@@ -104,6 +122,7 @@ instance MonadDebug m => MonadDebug (StateT s m) where
   getVerbosity = lift getVerbosity
   isDebugPrinting = lift isDebugPrinting
   nowDebugPrinting = mapStateT nowDebugPrinting
+  verboseBracket k n s = mapStateT $ verboseBracket k n s
 
 instance (MonadDebug m, Monoid w) => MonadDebug (WriterT w m) where
   displayDebugMessage n s = lift $ displayDebugMessage n s
@@ -111,6 +130,7 @@ instance (MonadDebug m, Monoid w) => MonadDebug (WriterT w m) where
   getVerbosity = lift getVerbosity
   isDebugPrinting = lift isDebugPrinting
   nowDebugPrinting = mapWriterT nowDebugPrinting
+  verboseBracket k n s = mapWriterT $ verboseBracket k n s
 
 -- | Conditionally print debug string.
 {-# SPECIALIZE reportS :: VerboseKey -> Int -> String -> TCM () #-}
@@ -147,13 +167,12 @@ traceSDoc k n d = applyWhenVerboseS k n $ \cont -> do
   s <- formatDebugMessage k n $ locallyTC eIsDebugPrinting (const True) d
   traceDebugMessage n (s ++ "\n") cont
 
--- | Print brackets around debug messages issued by a computation.
-{-# SPECIALIZE verboseBracket :: VerboseKey -> Int -> String -> TCM a -> TCM a #-}
-verboseBracket :: (MonadDebug m, MonadError err m)
-               => VerboseKey -> Int -> String -> m a -> m a
-verboseBracket k n s m = ifNotM (hasVerbosity k n) m $ {- else -} do
-  displayDebugMessage n $ "{ " ++ s ++ "\n"
-  m `finally` displayDebugMessage n "}\n"
+openVerboseBracket :: MonadDebug m => Int -> String -> m ()
+openVerboseBracket n s = displayDebugMessage n $ "{ " ++ s ++ "\n"
+
+closeVerboseBracket :: MonadDebug m => Int -> m ()
+closeVerboseBracket n = displayDebugMessage n "}\n"
+
 
 ------------------------------------------------------------------------
 -- Verbosity
