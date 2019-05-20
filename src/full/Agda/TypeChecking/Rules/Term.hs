@@ -359,7 +359,7 @@ checkLambda cmp b@(A.TBind _ xs' typ) body target = do
       cubical <- optCubical <$> pragmaOptions
       reportSLn "tc.term.lambda" 60 $ "trySeeingIfPath for " ++ show xs
       let postpone' = if cubical then postpone else \ _ _ -> dontUseTargetType
-      ifBlockedType target postpone' $ \ _ t -> do
+      ifBlocked target postpone' $ \ _ t -> do
           ifPath t dontUseTargetType $
             if cubical then checkPath b body t
                        else typeError $ GenericError $ "Option --cubical needed to build a path with a lambda abstraction"
@@ -520,7 +520,7 @@ insertHiddenLambdas
 insertHiddenLambdas h target postpone ret = do
   -- If the target type is blocked, we postpone,
   -- because we do not know if a hidden lambda needs to be inserted.
-  ifBlockedType target postpone $ \ _ t -> do
+  ifBlocked target postpone $ \ _ t -> do
     case unEl t of
 
       Pi dom b -> do
@@ -543,7 +543,7 @@ insertHiddenLambdas h target postpone ret = do
 checkAbsurdLambda :: Comparison -> A.ExprInfo -> Hiding -> A.Expr -> Type -> TCM Term
 checkAbsurdLambda cmp i h e t = do
   t <- instantiateFull t
-  ifBlockedType t (\ m t' -> postponeTypeCheckingProblem_ $ CheckExpr cmp e t') $ \ _ t' -> do
+  ifBlocked t (\ m t' -> postponeTypeCheckingProblem_ $ CheckExpr cmp e t') $ \ _ t' -> do
     case unEl t' of
       Pi dom@(Dom{domInfo = info', unDom = a}) b
         | not (sameHiding h info') -> typeError $ WrongHidingInLambda t'
@@ -601,7 +601,7 @@ checkExtendedLambda cmp i di qname cs e t = do
    solveSizeConstraints DontDefaultToInfty
    lamMod <- inFreshModuleIfFreeParams currentModule  -- #2883: need a fresh module if refined params
    t <- instantiateFull t
-   ifBlockedType t (\ m t' -> postponeTypeCheckingProblem_ $ CheckExpr cmp e t') $ \ _ t -> do
+   ifBlocked t (\ m t' -> postponeTypeCheckingProblem_ $ CheckExpr cmp e t') $ \ _ t -> do
      j   <- currentOrFreshMutualBlock
      rel <- asksTC envRelevance
      let info = setRelevance rel defaultArgInfo
@@ -666,7 +666,7 @@ catchIlltypedPatternBlockedOnMeta m handle = do
         TypeError s cl -> localTCState $ do
           putTC s
           enterClosure cl $ \case
-            IlltypedPattern p a -> isBlockedType a
+            IlltypedPattern p a -> isBlocked a
 
             SplitError (UnificationStuck c tel us vs _) -> do
               -- Andreas, 2018-11-23, re issue #3403
@@ -679,12 +679,12 @@ catchIlltypedPatternBlockedOnMeta m handle = do
               return $ firstMeta problem
 
             SplitError (NotADatatype aClosure) ->
-              enterClosure aClosure $ \ a -> isBlockedType a
+              enterClosure aClosure $ \ a -> isBlocked a
 
             -- Andrea: TODO look for blocking meta in tClosure and its Sort.
             -- SplitError (CannotCreateMissingClause _ _ _ tClosure) ->
 
-            CannotEliminateWithPattern p a -> isBlockedType a
+            CannotEliminateWithPattern p a -> isBlocked a
 
             _ -> return Nothing
         _ -> return Nothing
@@ -774,7 +774,7 @@ checkRecordExpression cmp mfs e t = do
     [ "checking record expression"
     , prettyA e
     ]
-  ifBlockedType t (\ _ t -> guessRecordType t) {-else-} $ \ _ t -> do
+  ifBlocked t (\ _ t -> guessRecordType t) {-else-} $ \ _ t -> do
   case unEl t of
     -- Case: We know the type of the record already.
     Def r es  -> do

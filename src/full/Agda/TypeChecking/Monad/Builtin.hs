@@ -9,6 +9,7 @@ import qualified Control.Monad.Fail as Fail
 import Control.Monad.Reader
 import Control.Monad.State
 import Control.Monad.Trans.Maybe
+import Control.Monad.Writer
 
 import qualified Data.Map as Map
 import Data.Function ( on )
@@ -46,6 +47,9 @@ instance HasBuiltins m => HasBuiltins (ReaderT e m) where
   getBuiltinThing b = lift $ getBuiltinThing b
 
 instance HasBuiltins m => HasBuiltins (StateT s m) where
+  getBuiltinThing b = lift $ getBuiltinThing b
+
+instance (HasBuiltins m, Monoid w) => HasBuiltins (WriterT w m) where
   getBuiltinThing b = lift $ getBuiltinThing b
 
 litType

@@ -401,7 +401,7 @@ blockTypeOnProblem (El s a) pid = El s <$> blockTermOnProblem (El Inf $ Sort s) 
 --
 --   Auxiliary function to create a postponed type checking problem.
 unblockedTester :: Type -> TCM Bool
-unblockedTester t = ifBlockedType t (\ m t -> return False) (\ _ t -> return True)
+unblockedTester t = ifBlocked t (\ m t -> return False) (\ _ t -> return True)
 
 -- | Create a postponed type checking problem @e : t@ that waits for type @t@
 --   to unblock (become instantiated or its constraints resolved).

@@ -114,7 +114,7 @@ initialInstanceCandidates t = do
                  ]
       return $ vars ++ fields ++ lets
 
-    etaExpand :: (MonadTCM m, MonadReduce m, HasConstInfo m)
+    etaExpand :: (MonadTCM m, MonadReduce m, HasConstInfo m, HasBuiltins m)
               => Bool -> Type -> m (Maybe (QName, Args))
     etaExpand etaOnce t =
       isEtaRecordType t >>= \case
@@ -135,7 +135,7 @@ initialInstanceCandidates t = do
 
     instanceFields' :: Bool -> (Term,Type) -> ExceptT Blocked_ TCM [Candidate]
     instanceFields' etaOnce (v, t) =
-      ifBlockedType t (\m _ -> throwError $ Blocked m ()) $ \ _ t -> do
+      ifBlocked t (\m _ -> throwError $ Blocked m ()) $ \ _ t -> do
       caseMaybeM (etaExpand etaOnce t) (return []) $ \ (r, pars) -> do
         (tel, args) <- lift $ forceEtaExpandRecord r pars v
         let types = map unDom $ applySubst (parallelS $ reverse $ map unArg args) (flattenTel tel)
