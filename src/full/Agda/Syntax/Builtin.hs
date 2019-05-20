@@ -18,7 +18,7 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinEquiv, builtinEquivFun, builtinEquivProof, builtinPathToEquiv,
   builtinGlue, builtin_glue, builtin_unglue,
   builtinFaceForall,
-  builtinId, builtinConId, builtinIdElim,
+  builtinId, builtinReflId, builtinConId, builtinIdElim,
   builtinSizeUniv, builtinSize, builtinSizeLt,
   builtinSizeSuc, builtinSizeInf, builtinSizeMax,
   builtinInf, builtinSharp, builtinFlat,
@@ -92,7 +92,8 @@ builtinNil                               = "NIL"
 builtinCons                              = "CONS"
 builtinIO                                = "IO"
 builtinId                                = "ID"
-builtinConId                             = "CONID"
+builtinReflId                            = "REFLID"
+builtinConId                             = "primConId"
 builtinIdElim                            = "primIdElim"
 builtinPath                              = "PATH"
 builtinPathP                             = "PATHP"
@@ -258,6 +259,8 @@ builtinsNoDef :: [String]
 builtinsNoDef =
   sizeBuiltins ++
   [ builtinConId
+  , builtinId
+  , builtinReflId
   , builtinInterval
   , builtinPartial
   , builtinPartialP

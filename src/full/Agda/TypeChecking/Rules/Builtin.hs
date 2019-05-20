@@ -159,18 +159,16 @@ coreBuiltins =
                                                                    pPi' "o" (cl primIZero) (\ o ->
                                                                         el' l $ gApply' (setRelevance Irrelevant defaultArgInfo) bA o)))
 
-  , (builtinId                               |-> builtinPostulateC (hPi "a" (el primLevel) $
+  , (builtinId                               |-> BuiltinData ((>>) requireCubical $ hPi "a" (el primLevel) $
                                                               hPi "A" (return $ sort $ varSort 0) $
                                                               (El (varSort 1) <$> varM 0) -->
                                                               (El (varSort 1) <$> varM 0) -->
-                                                              return (sort $ varSort 1)))
-  , (builtinConId                            |-> builtinPostulateC (hPi "a" (el primLevel) $
-                                                           hPi "A" (return $ sort $ varSort 0) $
-                                                           hPi "x" (El (varSort 1) <$> varM 0) $
-                                                           hPi "y" (El (varSort 2) <$> varM 1) $
-                                                           tinterval -->
-                                                           (El (varSort 3) <$> primPath <#> varM 3 <#> varM 2 <@> varM 1 <@> varM 0) -->
-                                                           (El (varSort 3) <$> primId <#> varM 3 <#> varM 2 <@> varM 1 <@> varM 0)))
+                                                             return (sort $ varSort 1)) [builtinReflId])
+  , (builtinReflId                           |-> BuiltinDataCons ((>>) requireCubical $ runNamesT [] $
+                                                              hPi' "a" (el primLevel) $ \ l ->
+                                                              hPi' "A" (sort . tmSort <$> l) $ \ bA ->
+                                                              hPi' "x" (el' l bA) $ \ x ->
+                                                              el' l (primId <#> l <#> bA <@> x <@> x)))
   , (builtinEquiv                            |-> BuiltinUnknown (Just $ requireCubical >> runNamesT [] (
                                                                     hPi' "l" (el $ cl primLevel) $ \ a ->
                                                                     hPi' "l'" (el $ cl primLevel) $ \ b ->

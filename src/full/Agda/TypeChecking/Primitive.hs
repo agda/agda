@@ -849,6 +849,7 @@ primitiveFunctions = Map.fromList
   , "primIdPath"          |-> primIdPath'
   , builtinIdElim         |-> primIdElim'
   , builtinSubOut         |-> primSubOut'
+  , builtinConId          |-> primConId'
   ]
   where
     (|->) = (,)

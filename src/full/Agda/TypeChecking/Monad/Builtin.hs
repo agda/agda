@@ -233,7 +233,7 @@ primNil                               = getBuiltin builtinNil
 primCons                              = getBuiltin builtinCons
 primIO                                = getBuiltin builtinIO
 primId                                = getBuiltin builtinId
-primConId                             = getBuiltin builtinConId
+primConId                             = getPrimitiveTerm builtinConId
 primIdElim                            = getPrimitiveTerm builtinIdElim
 primPath                              = getBuiltin builtinPath
 primPathP                             = getBuiltin builtinPathP
@@ -537,6 +537,24 @@ pathUnview :: PathView -> Type
 pathUnview (OType t) = t
 pathUnview (PathType s path l t lhs rhs) =
   El s $ Def path $ map Apply [l, t, lhs, rhs]
+
+------------------------------------------------------------------------
+-- * Swan's Id Equality
+------------------------------------------------------------------------
+
+-- Turns reflId {l} {A} {x} into conid {l} {A} {x} {x} i1 (\ _ -> x)
+conidView' :: HasBuiltins m => m (Term -> Term)
+conidView' = do
+  mn <- sequence <$> mapM getName' [builtinReflId, builtinConId]
+  mio <- getTerm' builtinIOne
+  caseMaybe mn (return id) $ \ [refl,conid] ->
+   caseMaybe mio (return id) $ \ io -> return $ \ t ->
+    case t of
+      Con h _ args@[Apply l, Apply bA, Apply x] | conName h == refl ->
+        Def conid $ args ++ map Apply [x, defaultArg io
+                                      , defaultArg (Lam defaultArgInfo $ NoAbs "_" $ unArg x)
+                                      ]
+      _ -> t
 
 ------------------------------------------------------------------------
 -- * Builtin equality

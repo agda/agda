@@ -160,7 +160,7 @@ primIdJ = do
        (hPi' "y" (el' a bA) $ \ y ->
         nPi' "p" (el' a $ cl primId <#> a <#> bA <@> x <@> y) $ \ p ->
         el' c $ bC <@> y <@> p)
-  conidn <- getBuiltinName builtinConId
+  conidn <- getName' builtinConId
   conid  <- primConId
   -- TODO make a kit
   return $ PrimImpl t $ primFun __IMPOSSIBLE__ 8 $ \ ts -> do
@@ -222,7 +222,8 @@ primIdElim' = do
     case ts of
       [a,c,bA,x,bC,f,y,p] -> do
         sp <- reduceB' p
-        case unArg $ ignoreBlocking sp of
+        cview <- conidView'
+        case cview $ unArg $ ignoreBlocking sp of
           Def q [Apply _a, Apply _bA, Apply _x, Apply _y, Apply phi , Apply w] -> do
             y' <- return $ sin `apply` [a,bA                            ,phi,argN $ unArg y]
             w' <- return $ sin `apply` [a,argN $ path `apply` [a,bA,x,y],phi,argN $ unArg w]
@@ -321,6 +322,29 @@ primSubOut' = do
               _ -> return $ NoReduction $ map notReduced [a,bA] ++ [reduced sphi, notReduced u, reduced sx]
       _ -> __IMPOSSIBLE__
 
+primConId' :: TCM PrimitiveImpl
+primConId' = do
+  requireCubical
+  t <- runNamesT [] $
+       hPi' "a" (el $ cl primLevel) $ \ a ->
+       hPi' "A" (sort . tmSort <$> a) $ \ bA ->
+       hPi' "x" (el' a bA) $ \ x ->
+       hPi' "y" (el' a bA) $ \ y ->
+       elInf (cl primInterval) -->
+       (el' a $ cl primPath <#> a <#> bA <@> x <@> y)
+       --> (el' a $ cl primId <#> a <#> bA <@> x <@> y)
+  return $ PrimImpl t $ primFun __IMPOSSIBLE__ 6 $ \ ts -> do
+    case ts of
+      [l,bA,x,y,phi,p] -> do
+        sphi <- reduceB' phi
+        view <- intervalView'
+        case view $ unArg $ ignoreBlocking sphi of
+          IOne -> do
+            reflId <- getTerm builtinConId builtinReflId
+            redReturn $ reflId `apply` [l,bA,x]
+          _ -> return $ NoReduction $ map notReduced [l,bA,x,y] ++ [reduced sphi, notReduced p]
+      _ -> __IMPOSSIBLE__
+
 primIdFace' :: TCM PrimitiveImpl
 primIdFace' = do
   requireCubical
@@ -336,7 +360,8 @@ primIdFace' = do
       [l,bA,x,y,t] -> do
         st <- reduceB' t
         mConId <- getName' builtinConId
-        case unArg (ignoreBlocking st) of
+        cview <- conidView'
+        case cview $ unArg (ignoreBlocking st) of
           Def q [_,_,_,_, Apply phi,_] | Just q == mConId -> redReturn (unArg phi)
           _ -> return $ NoReduction $ map notReduced [l,bA,x,y] ++ [reduced st]
       _ -> __IMPOSSIBLE__
@@ -356,7 +381,8 @@ primIdPath' = do
       [l,bA,x,y,t] -> do
         st <- reduceB' t
         mConId <- getName' builtinConId
-        case unArg (ignoreBlocking st) of
+        cview <- conidView'
+        case cview $ unArg (ignoreBlocking st) of
           Def q [_,_,_,_,_,Apply w] | Just q == mConId -> redReturn (unArg w)
           _ -> return $ NoReduction $ map notReduced [l,bA,x,y] ++ [reduced st]
       _ -> __IMPOSSIBLE__
@@ -822,8 +848,9 @@ primTransHComp cmd ts nelims = do
     compId cmd sphi u a0 l bA_x_y = do
       let getTermLocal = getTerm $ cmdToName cmd ++ " for " ++ builtinId
       unview <- intervalUnview'
-      mConId <- getBuiltinName' builtinConId
-      let isConId (Def q _) = Just q == mConId
+      mConId <- getName' builtinConId
+      cview <- conidView'
+      let isConId t | Def q _ <- cview t = Just q == mConId
           isConId _         = False
       sa0 <- reduceB' a0
       -- wasteful to compute b even when cheaper checks might fail
@@ -838,11 +865,12 @@ primTransHComp cmd ts nelims = do
           tFace <- getTermLocal "primIdFace"
           tPath <- getTermLocal "primIdPath"
           tPathType <- getTermLocal builtinPath
+          tConId <- getTermLocal builtinConId
           runNamesT [] $ do
             let irrInfo = setRelevance Irrelevant defaultArgInfo
             let io = pure $ unview IOne
                 iz = pure $ unview IZero
-                conId = pure $ Def conid []
+                conId = pure $ tConId
             l <- case l of
                    IsFam l -> open . unArg $ l
                    IsNot l -> do
