@@ -217,7 +217,7 @@ install:
        if [[ "$(cabal --version)" = *"version 2."* ]]; then
          _cabal_verb_prefix=v1-;
        fi;
-       travis_retry cabal fetch $(cabal ${_cabal_verb_prefix}install --dependencies-only --enable-tests --force-reinstalls --dry-run | sed 1,2d | sed "s|(latest[^)]*)||g") &&
+       travis_retry cabal fetch $(cabal ${_cabal_verb_prefix}install --dependencies-only --enable-tests --reinstall --dry-run | sed 1,2d | sed "s|(latest[^)]*)||g") &&
        make CABAL_OPTS='-v0 --only-dependencies --force-reinstalls' install-bin;
     elif [[ $TEST = "STACKAGE" ]]; then
          stack build $ARGS --no-terminal --only-dependencies;
