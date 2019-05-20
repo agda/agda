@@ -139,12 +139,11 @@ unlessDebugPrinting :: MonadDebug m => m () -> m ()
 unlessDebugPrinting = unlessM isDebugPrinting
 
 traceSLn :: MonadDebug m => VerboseKey -> Int -> String -> m a -> m a
-traceSLn k n s cont = ifNotM (hasVerbosity k n) cont $ {- else -} do
-  traceDebugMessage n (s ++ "\n") cont
+traceSLn k n s = applyWhenVerboseS k n $ traceDebugMessage n $ s ++ "\n"
 
 -- | Conditionally render debug 'Doc', print it, and then continue.
 traceSDoc :: MonadDebug m => VerboseKey -> Int -> TCM Doc -> m a -> m a
-traceSDoc k n d cont = ifNotM (hasVerbosity k n) cont $ {- else -} do
+traceSDoc k n d = applyWhenVerboseS k n $ \cont -> do
   s <- formatDebugMessage k n $ locallyTC eIsDebugPrinting (const True) d
   traceDebugMessage n (s ++ "\n") cont
 
@@ -210,6 +209,12 @@ __CRASH_WHEN__ k n = whenExactVerbosity k n (throwImpossible err)
 -- {-# SPECIALIZE verboseS :: MonadTCM tcm => VerboseKey -> Int -> tcm () -> tcm () #-}
 verboseS :: MonadDebug m => VerboseKey -> Int -> m () -> m ()
 verboseS k n action = whenM (hasVerbosity k n) $ nowDebugPrinting action
+
+-- | Apply a function if a certain verbosity level is activated.
+--
+--   Precondition: The level must be non-negative.
+applyWhenVerboseS :: MonadDebug m => VerboseKey -> Int -> (m a -> m a) -> m a -> m a
+applyWhenVerboseS k n f a = ifM (hasVerbosity k n) (f a) a
 
 -- | Verbosity lens.
 verbosity :: VerboseKey -> Lens' Int TCState

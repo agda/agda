@@ -92,13 +92,6 @@ isInstantiatedMeta i = do
     InstV{} -> True
     _       -> False
 
--- | Apply a function if a certain verbosity level is activated.
---
---   Precondition: The level must be non-negative.
-{-# SPECIALIZE applyWhenVerboseS :: VerboseKey -> Int -> (ReduceM a -> ReduceM a) -> ReduceM a-> ReduceM a #-}
-applyWhenVerboseS :: MonadDebug m => VerboseKey -> Int -> (m a -> m a) -> m a -> m a
-applyWhenVerboseS k n f a = ifM (hasVerbosity k n) (f a) a
-
 instance MonadDebug ReduceM where
 
   traceDebugMessage n s cont = do
