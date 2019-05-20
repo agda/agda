@@ -32,9 +32,8 @@ class (Functor m, Applicative m, Monad m) => MonadDebug m where
   default nowDebugPrinting :: MonadTCEnv m => m a -> m a
   nowDebugPrinting = locallyTC eIsDebugPrinting $ const True
 
-instance (MonadIO m) => MonadDebug (TCMT m)
+instance MonadDebug TCM
 
 reportS :: MonadDebug m => VerboseKey -> Int -> String -> m ()
 reportSLn :: MonadDebug m => VerboseKey -> Int -> String -> m ()
 reportSDoc :: MonadDebug m => VerboseKey -> Int -> TCM Doc -> m ()
-
