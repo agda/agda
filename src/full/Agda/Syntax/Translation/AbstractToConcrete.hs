@@ -235,6 +235,7 @@ instance HasOptions AbsToCon where
 instance MonadDebug AbsToCon where
   displayDebugMessage n s = AbsToCon $ displayDebugMessage n s
   formatDebugMessage k n s = AbsToCon $ formatDebugMessage k n s
+  verboseBracket k n s m = AbsToCon $ verboseBracket k n s $ unAbsToCon m
 
 runAbsToCon :: MonadAbsToCon m => AbsToCon c -> m c
 runAbsToCon m = do

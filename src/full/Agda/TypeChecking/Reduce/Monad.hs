@@ -106,6 +106,9 @@ instance MonadDebug ReduceM where
       (s , _) <- runTCM env st $ formatDebugMessage k n d
       return $ return s
 
+  verboseBracket k n s = applyWhenVerboseS k n $
+    bracket_ (openVerboseBracket n s) (const $ closeVerboseBracket n)
+
 instance HasConstInfo ReduceM where
   getRewriteRulesFor = defaultGetRewriteRulesFor getTCState
   getConstInfo' q = do
