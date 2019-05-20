@@ -109,7 +109,7 @@ hideAndRelParams = hideOrKeepInstance . mapRelevance nonStrictToIrr
 
 -- | Modify the context whenever going from the l.h.s. (term side)
 --   of the typing judgement to the r.h.s. (type side).
-workOnTypes :: (MonadTCEnv m, HasOptions m, MonadDebug m, MonadError err m)
+workOnTypes :: (MonadTCEnv m, HasOptions m, MonadDebug m)
             => m a -> m a
 workOnTypes cont = do
   allowed <- optExperimentalIrrelevance <$> pragmaOptions
@@ -121,6 +121,7 @@ workOnTypes' :: (MonadTCEnv m) => Bool -> m a -> m a
 workOnTypes' experimental
   = modifyContext (map $ mapRelevance f)
   . applyQuantityToContext Quantity0
+  . typeLevelReductions
   . localTC (\ e -> e { envWorkingOnTypes = True })
   where
     f | experimental = irrToNonStrict

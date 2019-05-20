@@ -23,6 +23,7 @@ import Agda.Syntax.Internal.Pattern
 import Agda.Syntax.Scope.Base (Scope)
 import Agda.Syntax.Literal
 
+import {-# SOURCE #-} Agda.TypeChecking.Irrelevance (workOnTypes)
 import {-# SOURCE #-} Agda.TypeChecking.Level (reallyUnLevelView)
 import Agda.TypeChecking.Monad hiding ( enterClosure, isInstantiatedMeta
                                       , getConstInfo
@@ -286,8 +287,8 @@ class Reduce t where
     reduceB' t = notBlocked <$> reduce' t
 
 instance Reduce Type where
-    reduce'  (El s t) = El s <$> reduce' t
-    reduceB' (El s t) = fmap (El s) <$> reduceB' t
+    reduce'  (El s t) = workOnTypes $ El s <$> reduce' t
+    reduceB' (El s t) = workOnTypes $ fmap (El s) <$> reduceB' t
 
 instance Reduce Sort where
     reduce' s = do

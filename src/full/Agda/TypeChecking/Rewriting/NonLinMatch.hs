@@ -48,6 +48,7 @@ import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.EtaContract
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Free.Reduce
+import Agda.TypeChecking.Irrelevance (workOnTypes)
 import Agda.TypeChecking.Level
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin (HasBuiltins(..), getBuiltin', builtinLevel, primLevelSuc, primLevelMax)
@@ -90,7 +91,7 @@ instance PatternFrom (Type, Term) Elims [Elim' NLPat] where
   patternFrom r k (t,hd) = \case
     [] -> return []
     (Apply u : es) -> do
-      ~(Pi a b) <- reduce $ unEl t
+      ~(Pi a b) <- unEl <$> reduce t
       p   <- patternFrom r k a u
       t'  <- t `piApplyM` u
       let hd' = hd `apply` [ u ]
@@ -108,8 +109,9 @@ instance (PatternFrom t a b) => PatternFrom t (Dom a) (Dom b) where
   patternFrom r k t = traverse $ patternFrom r k t
 
 instance PatternFrom () Type NLPType where
-  patternFrom r k _ a = NLPType <$> patternFrom r k () (getSort a)
-                                <*> patternFrom r k (sort $ getSort a) (unEl a)
+  patternFrom r k _ a = workOnTypes $
+    NLPType <$> patternFrom r k () (getSort a)
+            <*> patternFrom r k (sort $ getSort a) (unEl a)
 
 instance PatternFrom () Sort NLPat where
   patternFrom r k _ s = do
@@ -283,7 +285,7 @@ instance Match (Type, Term) [Elim' NLPat] Elims where
   match r gamma k (t, hd) _  [] = matchingBlocked $ NotBlocked ReallyNotBlocked ()
   match r gamma k (t, hd) (p:ps) (v:vs) = case (p,v) of
     (Apply p, Apply v) -> do
-      ~(Pi a b) <- reduce $ unEl t
+      ~(Pi a b) <- unEl <$> reduce t
       match r gamma k a p v
       t' <- addContext k $ t `piApplyM` v
       let hd' = hd `apply` [ v ]
@@ -310,7 +312,7 @@ instance Match t a b => Match t (Dom a) (Dom b) where
   match r gamma k t p v = match r gamma k t (unDom p) (unDom v)
 
 instance Match () NLPType Type where
-  match r gamma k _ (NLPType lp p) (El s a) = do
+  match r gamma k _ (NLPType lp p) (El s a) = workOnTypes $ do
     match r gamma k () lp s
     match r gamma k (sort s) p a
 

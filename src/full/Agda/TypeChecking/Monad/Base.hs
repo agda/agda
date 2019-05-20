@@ -2068,6 +2068,9 @@ data AllowedReduction
   | FunctionReductions       -- ^ Non-recursive functions and primitives may be reduced.
   | RecursiveReductions      -- ^ Even recursive functions may be reduced.
   | LevelReductions          -- ^ Reduce @'Level'@ terms.
+  | TypeLevelReductions      -- ^ Allow @allReductions@ in types, even
+                             --   if not allowed at term level (used
+                             --   by confluence checker)
   | UnconfirmedReductions    -- ^ Functions whose termination has not (yet) been confirmed.
   | NonTerminatingReductions -- ^ Functions that have failed termination checking.
   deriving (Show, Eq, Ord, Enum, Bounded, Data)

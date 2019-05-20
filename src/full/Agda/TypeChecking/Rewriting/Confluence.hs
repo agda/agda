@@ -97,7 +97,7 @@ checkConfluenceOfRule rew = inTopContext $ do
 
       maybeCriticalPair <- tryUnification lhs1 lhs2 $ do
           -- Unify the left-hand sides of both rewrite rules
-          onlyReduceProjections $
+          onlyReduceTypes $
             compareElims fpol [] fa (Def f []) es1 es2
 
           -- Get the rhs of both rewrite rules (after unification)
@@ -141,7 +141,7 @@ checkConfluenceOfRule rew = inTopContext $ do
             -- of the second one
             ga   <- defType <$> getConstInfo g
             gpol <- getPolarity' CmpEq g
-            onlyReduceProjections $ addContext bvTel $
+            onlyReduceTypes $ addContext bvTel $
               compareElims gpol [] ga (Def g []) es1 es2
 
             -- Right-hand side of first rewrite rule (after unification)
