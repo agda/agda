@@ -164,7 +164,7 @@ compareTerm cmp a u v = do
           unlessSubtyping cont =
               if cmp == CmpEq then cont else do
                 -- Andreas, 2014-04-12 do not short cut if type is blocked.
-                ifBlockedType a (\ _ _ -> fallback) {-else-} $ \ _ a -> do
+                ifBlocked a (\ _ _ -> fallback) {-else-} $ \ _ a -> do
                   -- do not short circuit size comparison!
                   caseMaybeM (isSizeType a) cont (\ _ -> fallback)
 
@@ -432,7 +432,7 @@ compareAtom cmp t m n =
         -- the comparison could be solved by eta-expansion so we
         -- cannot fail hard
         postponeIfBlockedType :: Type -> (Blocked Type -> m ()) -> m ()
-        postponeIfBlockedType t f = ifBlockedType t
+        postponeIfBlockedType t f = ifBlocked t
           (\m t -> (f $ Blocked m t) `catchError` \case
               TypeError{} -> postpone
               err         -> throwError err)
@@ -595,7 +595,7 @@ compareAtom cmp t m n =
               return True
             _  -> return False
         -- Andreas, 2013-05-15 due to new postponement strategy, type can now be blocked
-        conType c t = ifBlockedType t (\ _ _ -> patternViolation) $ \ _ t -> do
+        conType c t = ifBlocked t (\ _ _ -> patternViolation) $ \ _ t -> do
           let impossible = do
                 reportSDoc "impossible" 10 $
                   "expected data/record type, found " <+> prettyTCM t
@@ -765,7 +765,7 @@ compareElims pols0 fors0 a v els01 els02 = (catchConstraint (ElimCmp pols0 fors0
       reportSDoc "tc.conv.elim" 25 $ "compareElims IApply"
        -- Andrea: copying stuff from the Apply case..
       let (pol, pols) = nextPolarity pols0
-      ifBlockedType a (\ m t -> patternViolation) $ \ _ a -> do
+      ifBlocked a (\ m t -> patternViolation) $ \ _ a -> do
           va <- pathView a
           reportSDoc "tc.conv.elim.iapply" 60 $ "compareElims IApply" $$ do
             nest 2 $ "va =" <+> text (show (isPathType va))
@@ -802,7 +802,7 @@ compareElims pols0 fors0 a v els01 els02 = (catchConstraint (ElimCmp pols0 fors0
         ]
       let (pol, pols) = nextPolarity pols0
           (for, fors) = nextIsForced fors0
-      ifBlockedType a (\ m t -> patternViolation) $ \ _ a -> do
+      ifBlocked a (\ m t -> patternViolation) $ \ _ a -> do
         reportSLn "tc.conv.elim" 90 $ "type is not blocked"
         case unEl a of
           (Pi (Dom{domInfo = info, unDom = b}) codom) -> do
@@ -866,7 +866,7 @@ compareElims pols0 fors0 a v els01 els02 = (catchConstraint (ElimCmp pols0 fors0
     -- case: f == f' are projections
     (Proj o f : els1, Proj _ f' : els2)
       | f /= f'   -> typeError . GenericError . show =<< prettyTCM f <+> "/=" <+> prettyTCM f'
-      | otherwise -> ifBlockedType a (\ m t -> patternViolation) $ \ _ a -> do
+      | otherwise -> ifBlocked a (\ m t -> patternViolation) $ \ _ a -> do
         res <- projectTyped v a o f -- fails only if f is proj.like but parameters cannot be retrieved
         case res of
           Just (_, u, t) -> do
@@ -1025,7 +1025,7 @@ coerce cmp v t1 t2 = blockTerm t2 $ do
   -- If n  > 0 and b2 is not blocked, it is safe to
   -- insert n many hidden args
   if n <= 0 then fallback else do
-    ifBlockedType b2 (\ _ _ -> fallback) $ \ _ _ -> do
+    ifBlocked b2 (\ _ _ -> fallback) $ \ _ _ -> do
       (args, t1') <- implicitArgs n notVisible t1
       let v' = v `apply` args
       v' <$ coerceSize (compareType cmp) v' t1' t2

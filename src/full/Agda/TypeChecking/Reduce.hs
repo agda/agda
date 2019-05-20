@@ -23,6 +23,7 @@ import Agda.Syntax.Internal.Pattern
 import Agda.Syntax.Scope.Base (Scope)
 import Agda.Syntax.Literal
 
+import {-# SOURCE #-} Agda.TypeChecking.Level (reallyUnLevelView)
 import Agda.TypeChecking.Monad hiding ( enterClosure, isInstantiatedMeta
                                       , getConstInfo
                                       , lookupMeta )
@@ -242,26 +243,40 @@ instance Instantiate EqualityView where
 -- * Reduction to weak head normal form.
 ---------------------------------------------------------------------------
 
+class IsMeta a where
+  isMeta :: HasBuiltins m => a -> m (Maybe MetaId)
+
+instance IsMeta Term where
+  isMeta (MetaV m _) = return $ Just m
+  isMeta _           = return Nothing
+
+instance IsMeta Type where
+  isMeta = isMeta . unEl
+
+instance IsMeta Level where
+  isMeta = isMeta <=< reallyUnLevelView
+
+instance IsMeta Sort where
+  isMeta (MetaS m _) = return $ Just m
+  isMeta _           = return Nothing
+
 -- | Case on whether a term is blocked on a meta (or is a meta).
 --   That means it can change its shape when the meta is instantiated.
-ifBlocked :: (MonadReduce m) =>  Term -> (MetaId -> Term -> m a) -> (NotBlocked -> Term -> m a) -> m a
+ifBlocked
+  :: (Reduce t, IsMeta t, MonadReduce m, HasBuiltins m)
+  => t -> (MetaId -> t -> m a) -> (NotBlocked -> t -> m a) -> m a
 ifBlocked t blocked unblocked = do
   t <- reduceB t
   case t of
-    Blocked m _              -> blocked m (ignoreBlocking t)
-    NotBlocked _ (MetaV m _) -> blocked m (ignoreBlocking t)
-    NotBlocked nb _          -> unblocked nb (ignoreBlocking t)
+    Blocked m t -> blocked m t
+    NotBlocked nb t -> isMeta t >>= \case
+      Just m    -> blocked m t
+      Nothing   -> unblocked nb t
 
-isBlocked :: MonadReduce m => Term -> m (Maybe MetaId)
+isBlocked
+  :: (Reduce t, IsMeta t, MonadReduce m, HasBuiltins m)
+  => t -> m (Maybe MetaId)
 isBlocked t = ifBlocked t (\m _ -> return $ Just m) (\_ _ -> return Nothing)
-
--- | Case on whether a type is blocked on a meta (or is a meta).
-ifBlockedType :: MonadReduce m => Type -> (MetaId -> Type -> m a) -> (NotBlocked -> Type -> m a) -> m a
-ifBlockedType (El s t) blocked unblocked =
-  ifBlocked t (\ m v -> blocked m $ El s v) (\ nb v -> unblocked nb $ El s v)
-
-isBlockedType :: MonadReduce m => Type -> m (Maybe MetaId)
-isBlockedType t = ifBlockedType t (\m _ -> return $ Just m) (\_ _ -> return Nothing)
 
 class Reduce t where
     reduce'  :: t -> ReduceM t

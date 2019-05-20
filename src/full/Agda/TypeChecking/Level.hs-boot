@@ -1,7 +1,8 @@
 
 module Agda.TypeChecking.Level where
 
-import Agda.TypeChecking.Monad
+import Agda.TypeChecking.Monad.Base
+import Agda.TypeChecking.Monad.Builtin (HasBuiltins)
 import Agda.Syntax.Internal
 
-levelView :: Term -> TCM Level
+reallyUnLevelView :: (HasBuiltins m) => Level -> m Term

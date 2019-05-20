@@ -113,7 +113,7 @@ checkSizeNeverZero u = do
 --     let yes     = return True
 --         no      = cont
 --         perhaps = cont >>= \ res -> if res then return res else patternViolation
---     ifBlockedType t (\ _ _ -> perhaps) $ \ t -> do
+--     ifBlocked t (\ _ _ -> perhaps) $ \ t -> do
 --       caseMaybeM (isSizeType t) no $ \ b -> do
 --         case b of
 --           BoundedNo -> no
@@ -154,7 +154,7 @@ checkSizeVarNeverZero i = do
         perhaps = tell (Any True) >> cont
     -- If we encounter a blocked type in the context, we cannot
     -- give a definite answer.
-    ifBlockedType t (\ _ _ -> perhaps) $ \ _ t -> do
+    ifBlocked t (\ _ _ -> perhaps) $ \ _ t -> do
       caseMaybeM (liftTCM $ isSizeType t) cont $ \ b -> do
         case b of
           BoundedNo -> cont

@@ -21,6 +21,7 @@ import Agda.Syntax.Position
 
 import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.Monad
+import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Reduce.Monad ()
@@ -186,7 +187,7 @@ isRecord r = do
 -- | Reduce a type and check whether it is a record type.
 --   Succeeds only if type is not blocked by a meta var.
 --   If yes, return its name, parameters, and definition.
-isRecordType :: (MonadReduce m, HasConstInfo m)
+isRecordType :: (MonadReduce m, HasConstInfo m, HasBuiltins m)
              => Type -> m (Maybe (QName, Args, Defn))
 isRecordType t = either (const Nothing) Just <$> tryRecordType t
 
@@ -194,9 +195,9 @@ isRecordType t = either (const Nothing) Just <$> tryRecordType t
 --   Succeeds only if type is not blocked by a meta var.
 --   If yes, return its name, parameters, and definition.
 --   If no, return the reduced type (unless it is blocked).
-tryRecordType :: (MonadReduce m, HasConstInfo m)
+tryRecordType :: (MonadReduce m, HasConstInfo m, HasBuiltins m)
               => Type -> m (Either (Blocked Type) (QName, Args, Defn))
-tryRecordType t = ifBlockedType t (\ m a -> return $ Left $ Blocked m a) $ \ nb t -> do
+tryRecordType t = ifBlocked t (\ m a -> return $ Left $ Blocked m a) $ \ nb t -> do
   let no = return $ Left $ NotBlocked nb t
   case unEl t of
     Def r es -> do
@@ -670,18 +671,18 @@ etaContractRecord r c ci args = do
 --
 -- Precondition: The name should refer to a record type, and the
 -- arguments should be the parameters to the type.
-isSingletonRecord :: (MonadReduce m, MonadAddContext m, HasConstInfo m, ReadTCState m)
+isSingletonRecord :: (MonadReduce m, MonadAddContext m, HasConstInfo m, HasBuiltins m, ReadTCState m)
                   => QName -> Args -> m (Either MetaId Bool)
 isSingletonRecord r ps = mapRight isJust <$> isSingletonRecord' False r ps
 
-isSingletonRecordModuloRelevance :: (MonadReduce m, MonadAddContext m, HasConstInfo m, ReadTCState m)
+isSingletonRecordModuloRelevance :: (MonadReduce m, MonadAddContext m, HasConstInfo m, HasBuiltins m, ReadTCState m)
                                  => QName -> Args -> m (Either MetaId Bool)
 isSingletonRecordModuloRelevance r ps = mapRight isJust <$> isSingletonRecord' True r ps
 
 -- | Return the unique (closed) inhabitant if exists.
 --   In case of counting irrelevance in, the returned inhabitant
 --   contains dummy terms.
-isSingletonRecord' :: forall m. (MonadReduce m, MonadAddContext m, HasConstInfo m, ReadTCState m)
+isSingletonRecord' :: forall m. (MonadReduce m, MonadAddContext m, HasConstInfo m, HasBuiltins m, ReadTCState m)
                    => Bool -> QName -> Args -> m (Either MetaId (Maybe Term))
 isSingletonRecord' regardIrrelevance r ps = do
   reportSLn "tc.meta.eta" 30 $ "Is " ++ prettyShow r ++ " a singleton record type?"
@@ -710,21 +711,21 @@ isSingletonRecord' regardIrrelevance r ps = do
 
 -- | Check whether a type has a unique inhabitant and return it.
 --   Can be blocked by a metavar.
-isSingletonType :: (MonadReduce m, MonadAddContext m, HasConstInfo m, ReadTCState m)
+isSingletonType :: (MonadReduce m, MonadAddContext m, HasConstInfo m, HasBuiltins m, ReadTCState m)
                 => Type -> m (Either MetaId (Maybe Term))
 isSingletonType = isSingletonType' False
 
 -- | Check whether a type has a unique inhabitant (irrelevant parts ignored).
 --   Can be blocked by a metavar.
-isSingletonTypeModuloRelevance :: (MonadReduce m, MonadAddContext m, HasConstInfo m, ReadTCState m)
+isSingletonTypeModuloRelevance :: (MonadReduce m, MonadAddContext m, HasConstInfo m, HasBuiltins m, ReadTCState m)
                                => Type -> m (Either MetaId Bool)
 isSingletonTypeModuloRelevance t = mapRight isJust <$> isSingletonType' True t
 
-isSingletonType' :: (MonadReduce m, MonadAddContext m, HasConstInfo m, ReadTCState m)
+isSingletonType' :: (MonadReduce m, MonadAddContext m, HasConstInfo m, HasBuiltins m, ReadTCState m)
                  => Bool -> Type -> m (Either MetaId (Maybe Term))
 isSingletonType' regardIrrelevance t = do
     TelV tel t <- telView t
-    ifBlockedType t (\ m _ -> return $ Left m) $ \ _ t -> do
+    ifBlocked t (\ m _ -> return $ Left m) $ \ _ t -> do
       res <- isRecordType t
       case res of
         Just (r, ps, def) | YesEta <- recEtaEquality def -> do
