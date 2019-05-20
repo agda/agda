@@ -45,6 +45,25 @@ GHC Backend
   This is especially important if Haskell bindings are to be
   produced automatically by third party tool.
 
+Language
+--------
+
+### Builtins
+
+* New primitives
+
+  ```agda
+  primWord64ToNatInjective   : ∀ a b → primWord64ToNat a ≡ primWord64ToNat b → a ≡ b
+
+  primFloatToWord64          : Float → Word64
+  primFloatToWord64Injective : ∀ a b → primFloatToWord64 a ≡ primFloatToWord64 b → a ≡ b
+
+  primMetaToNat          : Meta → Nat
+  primMetaToNatInjective : ∀ a b → primMetaToNat a ≡ primMetaToNat b → a ≡ b
+  ```
+
+  These can be used to define safe decidable propositional equality, see issue [agda-stdlib#698](https://github.com/agda/agda-stdlib/issues/698).
+
 Release notes for Agda version 2.6.0.1
 ======================================
 
