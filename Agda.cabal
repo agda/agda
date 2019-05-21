@@ -445,6 +445,7 @@ library
                     Agda.TypeChecking.Reduce.Fast
                     Agda.TypeChecking.Reduce.Monad
                     Agda.TypeChecking.Rewriting
+                    Agda.TypeChecking.Rewriting.Clause
                     Agda.TypeChecking.Rewriting.Confluence
                     Agda.TypeChecking.Rewriting.NonLinMatch
                     Agda.TypeChecking.Rules.Application

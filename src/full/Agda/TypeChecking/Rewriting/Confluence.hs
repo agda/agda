@@ -39,7 +39,7 @@ import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Pretty.Warning
 import Agda.TypeChecking.Reduce
-import Agda.TypeChecking.Rewriting
+import Agda.TypeChecking.Rewriting.Clause
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Warnings
