@@ -1,5 +1,5 @@
 NonConfluentBecauseOfEta.agda:15,13-20
-Couldn't determine overlap between left-hand sides f (λ z → z) and
-f (λ _ → _c_23) because of unsolved constraints:
-  [29, 31] x = _c_23 : _A_21
-when checking confluence of the rewrite rule f-id with f-const
+Couldn't determine overlap between left-hand sides f (λ _ → _c_22)
+and f (λ z → z) because of unsolved constraints:
+  [29, 31] _c_22 = x : _A_21
+when checking confluence of the rewrite rule f-const with f-id

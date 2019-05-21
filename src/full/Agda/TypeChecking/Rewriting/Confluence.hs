@@ -15,7 +15,7 @@
 -- Each of these leads to a *critical pair* @v₁ <-- u --> v₂@, which
 -- should satisfy @v₁ = v₂@.
 
-module Agda.TypeChecking.Rewriting.Confluence ( checkConfluenceOfDef ) where
+module Agda.TypeChecking.Rewriting.Confluence ( checkConfluenceOfRule ) where
 
 import Control.Monad
 import Control.Monad.Reader
@@ -53,13 +53,6 @@ import Agda.Utils.Monad
 import Agda.Utils.Singleton
 import Agda.Utils.Size
 
--- ^ Check confluence of all rewrite rules for the given symbol.
-checkConfluenceOfDef :: QName -> TCM ()
-checkConfluenceOfDef f = do
-  reportSDoc "rewriting.confluence" 5 $
-    "Entering confluence check for" <+> prettyTCM f
-  rews <- getRewriteRulesFor f
-  mapM_ checkConfluenceOfRule rews
 
 -- ^ Check confluence of the given rewrite rule wrt all other rewrite
 --   rules (including itself).
@@ -76,7 +69,6 @@ checkConfluenceOfRule rew = inTopContext $ do
 
   -- Step 1: check other rewrite rules that overlap at top position
   forMM_ (getClausesAndRewriteRulesFor f) $ \ rew' ->
-    when (rewName rew < rewName rew') $ -- only check < case to prevent double work
     traceCall (CheckConfluence (rewName rew) (rewName rew')) $
     localTCStateSavingWarnings $ do
 

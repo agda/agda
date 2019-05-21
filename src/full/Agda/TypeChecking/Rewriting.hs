@@ -78,6 +78,7 @@ import Agda.TypeChecking.Primitive ( getBuiltinName )
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
+import Agda.TypeChecking.Rewriting.Confluence
 import Agda.TypeChecking.Rewriting.NonLinMatch
 import qualified Agda.TypeChecking.Reduce.Monad as Red
 import Agda.TypeChecking.Warnings
@@ -150,7 +151,7 @@ relView t = do
 --   Remember that @rel : Δ → A → A → Set i@, so
 --   @rel us : (lhs rhs : A[us/Δ]) → Set i@.
 --   Returns the head symbol @f@ of the lhs.
-addRewriteRule :: QName -> TCM QName
+addRewriteRule :: QName -> TCM ()
 addRewriteRule q = do
   requireOptionRewriting
   let failNoBuiltin = typeError $ GenericError $
@@ -279,9 +280,12 @@ addRewriteRule q = do
       reportSDoc "rewriting" 30 $ "matchable symbols: " <+> prettyTCM matchables
       modifySignature $ addRewriteRulesFor f [rew] matchables
 
-      return f
+      -- Run confluence check for the new rule
+      whenM (optConfluenceCheck <$> pragmaOptions) $
+        checkConfluenceOfRule rew
 
     _ -> failureWrongTarget
+
   where
     checkNoLhsReduction :: QName -> Elims -> TCM ()
     checkNoLhsReduction f es = do
@@ -302,14 +306,13 @@ addRewriteRule q = do
           unless ok fail
         _ -> fail
 
-    ifNotAlreadyAdded :: QName -> TCM QName -> TCM QName
+    ifNotAlreadyAdded :: QName -> TCM () -> TCM ()
     ifNotAlreadyAdded f cont = do
       rews <- getRewriteRulesFor f
       -- check if q is already an added rewrite rule
       if any ((q ==) . rewName) rews then do
         genericWarning =<< do
           "Rewrite rule " <+> prettyTCM q <+> " has already been added"
-        return f
       else cont
 
     usedArgs :: [Pos.Occurrence] -> IntSet
