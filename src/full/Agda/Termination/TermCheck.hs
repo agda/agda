@@ -49,7 +49,6 @@ import qualified Agda.Termination.SparseMatrix as Matrix
 import Agda.Termination.Termination (endos, idempotent)
 import qualified Agda.Termination.Termination  as Term
 import Agda.Termination.RecCheck
-import Agda.Termination.Inlining
 
 import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.EtaContract
@@ -594,30 +593,8 @@ maskNonDataArgs ps = zipWith mask ps <$> terGetMaskArgs
 
 
 -- | Extract recursive calls from one clause.
-
 termClause :: Clause -> TerM Calls
 termClause clause = do
-
-  -- If with-function inlining is disallowed (e.g. --without-K),
-  -- we check the original clause.
-
-  let fallback = termClause' clause
-  ifNotM (terGetInlineWithFunctions) fallback $ {- else -} do
-
-    -- Otherwise, we will do inlining, hence, can skip with-generated functions.
-
-    name <- terGetCurrent
-    ifM (isJust <$> isWithFunction name) (return mempty) $ {- else -} do
-
-      -- With inlining, the termination check for all subordinated
-      -- with-functions is included in the parent function.
-
-      (liftTCM $ inlineWithClauses name clause) >>= \case
-        Nothing  -> fallback
-        Just cls -> terSetHaveInlinedWith $ mapM' termClause' cls
-
-termClause' :: Clause -> TerM Calls
-termClause' clause = do
   Clause{ clauseTel = tel, namedClausePats = ps, clauseBody = body } <- etaExpandClause clause
   liftTCM $ reportSDoc "term.check.clause" 25 $ vcat
     [ "termClause"
@@ -738,21 +715,10 @@ constructor c ind args = do
              (False, _)           -> const Order.unknown
     terModifyGuarded g' $ extract arg
 
--- | Extract calls from with function application.
-
-withFunction :: QName -> Elims -> TerM Calls
-withFunction g es = do
-  v <- liftTCM $ -- billTo [Benchmark.Termination, Benchmark.With] $  -- 0ms
-         expandWithFunctionCall g es
-  liftTCM $ reportSDoc "term.with.call" 30 $
-    "termination checking expanded with-function call:" <+> prettyTCM v
-  extract v
-
 -- | Handles function applications @g es@.
 
 function :: QName -> Elims -> TerM Calls
-function g es0 = ifM (terGetInlineWithFunctions `and2M` do isJust <$> isWithFunction g) (withFunction g es0)
-  $ {-else, no with function-} do
+function g es0 = do
 
     f       <- terGetCurrent
     names   <- terGetMutual

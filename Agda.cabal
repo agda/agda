@@ -357,7 +357,6 @@ library
                     Agda.Termination.CallGraph
                     Agda.Termination.CallMatrix
                     Agda.Termination.CutOff
-                    Agda.Termination.Inlining
                     Agda.Termination.Monad
                     Agda.Termination.Order
                     Agda.Termination.RecCheck
