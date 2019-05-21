@@ -274,7 +274,10 @@ addRewriteRule q = do
       --     failureFreeVars
 
       -- Add rewrite rule gamma ⊢ lhs ↦ rhs : b for f.
-      addRewriteRules f [rew]
+      reportSDoc "rewriting" 10 $ "rewrite rule ok, adding it to the definition of " <+> prettyTCM f
+      let matchables = getMatchables rew
+      reportSDoc "rewriting" 30 $ "matchable symbols: " <+> prettyTCM matchables
+      modifySignature $ addRewriteRulesFor f [rew] matchables
 
       return f
 
@@ -333,14 +336,6 @@ addRewriteRule q = do
             , nest 2 $ text "Constructor: " <+> prettyTCM c
             , nest 2 $ text "Parameters: " <+> prettyList (map prettyTCM vs)
             ]
-
--- | Append rewrite rules to a definition.
-addRewriteRules :: QName -> RewriteRules -> TCM ()
-addRewriteRules f rews = do
-  reportSDoc "rewriting" 10 $ "rewrite rule ok, adding it to the definition of " <+> prettyTCM f
-  let matchables = getMatchables rews
-  reportSDoc "rewriting" 30 $ "matchable symbols: " <+> prettyTCM matchables
-  modifySignature $ addRewriteRulesFor f rews matchables
 
 -- | @rewriteWith t f es rew@ where @f : t@
 --   tries to rewrite @f es@ with @rew@, returning the reduct if successful.
