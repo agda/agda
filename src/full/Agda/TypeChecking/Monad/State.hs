@@ -254,12 +254,12 @@ addRewriteRulesFor :: QName -> RewriteRules -> [QName] -> Signature -> Signature
 addRewriteRulesFor f rews matchables =
     (over sigRewriteRules $ HMap.insertWith mappend f rews)
   . (updateDefinition f $ updateTheDef setNotInjective)
-  . (foldr (.) id $ map (\g -> updateDefinition g setMatchable) matchables)
+  . (foldr (.) id $ map (\g -> updateDefinition g $ setMatchable) matchables)
     where
       setNotInjective def@Function{} = def { funInv = NotInjective }
       setNotInjective def            = def
 
-      setMatchable def = def { defMatchable = True }
+      setMatchable def = def { defMatchable = Set.insert f $ defMatchable def }
 
 -- ** Modifiers for parts of the signature
 

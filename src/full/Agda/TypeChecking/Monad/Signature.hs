@@ -414,7 +414,7 @@ applySection' new ptel old ts ScopeCopyInfo{ renNames = rd, renModules = rm } = 
                     , defCompiledRep    = noCompiledRep
                     , defInstance       = inst
                     , defCopy           = True
-                    , defMatchable      = False
+                    , defMatchable      = Set.empty
                     , defNoCompilation  = defNoCompilation d
                     , defInjective      = False
                     , theDef            = df }
