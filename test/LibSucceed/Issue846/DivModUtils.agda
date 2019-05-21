@@ -1,7 +1,6 @@
 module Issue846.DivModUtils where
 
 open import Data.Nat
-open import Data.Bool
 
 open import Issue846.OldDivMod
 open import Relation.Nullary

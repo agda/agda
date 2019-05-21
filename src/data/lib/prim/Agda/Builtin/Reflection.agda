@@ -104,7 +104,7 @@ data Relevance : Set where
 data ArgInfo : Set where
   arg-info : (v : Visibility) (r : Relevance) → ArgInfo
 
-data Arg (A : Set) : Set where
+data Arg {a} (A : Set a) : Set a where
   arg : (i : ArgInfo) (x : A) → Arg A
 
 {-# BUILTIN ARGINFO    ArgInfo  #-}
@@ -114,7 +114,7 @@ data Arg (A : Set) : Set where
 
 -- Name abstraction --
 
-data Abs (A : Set) : Set where
+data Abs {a} (A : Set a) : Set a where
   abs : (s : String) (x : A) → Abs A
 
 {-# BUILTIN ABS    Abs #-}
