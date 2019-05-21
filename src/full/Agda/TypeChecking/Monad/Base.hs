@@ -1548,8 +1548,8 @@ data Definition = Defn
   , defCopy           :: Bool
     -- ^ Has this function been created by a module
                          -- instantiation?
-  , defMatchable      :: Bool
-    -- ^ Is the def matched against in a rewrite rule?
+  , defMatchable      :: Set QName
+    -- ^ The set of symbols with rewrite rules that match against this symbol
   , defNoCompilation  :: Bool
     -- ^ should compilers skip this? Used for e.g. cubical's comp
   , defInjective      :: Bool
@@ -1583,7 +1583,7 @@ defaultDefn info x t def = Defn
   , defCompiledRep    = noCompiledRep
   , defInstance       = Nothing
   , defCopy           = False
-  , defMatchable      = False
+  , defMatchable      = Set.empty
   , defNoCompilation  = False
   , defInjective      = False
   , theDef            = def
@@ -1872,7 +1872,7 @@ instance Pretty Definition where
       , "defCompiledRep    =" <?> pshow defCompiledRep
       , "defInstance       =" <?> pshow defInstance
       , "defCopy           =" <?> pshow defCopy
-      , "defMatchable      =" <?> pshow defMatchable
+      , "defMatchable      =" <?> pshow (Set.toList defMatchable)
       , "defInjective      =" <?> pshow defInjective
       , "theDef            =" <?> pretty theDef ] <+> "}"
 
