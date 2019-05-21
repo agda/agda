@@ -64,6 +64,7 @@ checkConfluenceOfRule rew = inTopContext $ do
 
   let f  = rewHead rew
       es = rewPats rew
+  def <- getConstInfo f
 
   -- Step 1: check other rewrite rules that overlap at top position
   forMM_ (getClausesAndRewriteRulesFor f) $ \ rew' ->
@@ -75,6 +76,15 @@ checkConfluenceOfRule rew = inTopContext $ do
     PDef g es' -> forMM_ (getClausesAndRewriteRulesFor g) $ \ rew' ->
       checkConfluenceSub rew rew' hole
     _ -> return ()
+
+  -- Step 3: check other rewrite rules that have a subpattern which
+  -- overlaps with this rewrite rule
+  forM_ (defMatchable def) $ \ g ->
+    forMM_ (getRewriteRulesFor g) $ \ rew' ->
+      forM_ (allPatternHoles $ rewPats rew') $ \ hole ->
+        case ohpContents hole of
+          PDef f' es' | f == f' -> checkConfluenceSub rew' rew hole
+          _ -> return ()
 
   where
 
