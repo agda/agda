@@ -1,0 +1,9 @@
+TerminationWithMerge.agda:17,1-22,36
+Termination checking failed for the following functions:
+  merge
+Problematic calls:
+  merge (x ∷ xs) (y ∷ ys) | x ≤? y
+  merge xs (y ∷ ys)
+    (at TerminationWithMerge.agda:21,19-24)
+  merge (x ∷ xs) ys
+    (at TerminationWithMerge.agda:22,19-24)

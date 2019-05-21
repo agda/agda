@@ -1,5 +1,6 @@
--- With functions are now inlined before termination checking.
-module Issue59 where
+-- Jesper, 2019-05-21: this is the old test case for the removed
+-- with-inlining feature
+module Issue59-RemovedInlining where
 
 open import Common.Prelude
 open import Common.Equality

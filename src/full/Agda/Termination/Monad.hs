@@ -81,8 +81,6 @@ data TerEnv = TerEnv
 
   { terUseDotPatterns :: Bool
     -- ^ Are we mining dot patterns to find evindence of structal descent?
-  , terInlineWithFunctions :: Bool
-    -- ^ Do we inline with functions to enhance termination checking of with?
   , terSizeSuc :: Maybe QName
     -- ^ The name of size successor, if any.
   , terSharp   :: Maybe QName
@@ -150,7 +148,6 @@ data TerEnv = TerEnv
 defaultTerEnv :: TerEnv
 defaultTerEnv = TerEnv
   { terUseDotPatterns           = False -- must be False initially!
-  , terInlineWithFunctions      = True
   , terSizeSuc                  = Nothing
   , terSharp                    = Nothing
   , terCutOff                   = defaultCutOff
@@ -224,13 +221,8 @@ runTerDefault cont = do
   -- The name of sharp (if available).
   sharp <- fmap nameOfSharp <$> coinductionKit
 
-  -- Andreas, 2014-08-28
-  -- We do not inline with functions if --without-K.
-  inlineWithFunctions <- not <$> withoutKOption
-
   let tenv = defaultTerEnv
-        { terInlineWithFunctions      = inlineWithFunctions
-        , terSizeSuc                  = suc
+        { terSizeSuc                  = suc
         , terSharp                    = sharp
         , terCutOff                   = cutoff
         }
@@ -253,9 +245,6 @@ instance (Semigroup m, Monoid m) => Monoid (TerM m) where
   mconcat = mconcat <.> sequence
 
 -- * Modifiers and accessors for the termination environment in the monad.
-
-terGetInlineWithFunctions :: TerM Bool
-terGetInlineWithFunctions = terAsks terInlineWithFunctions
 
 terGetUseDotPatterns :: TerM Bool
 terGetUseDotPatterns = terAsks terUseDotPatterns

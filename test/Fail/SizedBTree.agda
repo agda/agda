@@ -30,6 +30,9 @@ module Old where
   -- deep2 to be given explicitly. This is because otherwise the unifier gets
   -- stuck on an equation [↑ i₁ =?= _i_46 {i} {A} l r t]. It's not clear whether
   -- it is safe to instantiate the meta to [↑ _] here.
+
+  -- Jesper 2019-05-21: This no longer passes the termination check
+  -- since the removal of with-inlining.
   deep2 : ∀ {i A} → BTree A {i} → BTree A {i}
   deep2 (leaf a) = leaf a
   deep2 (node (leaf _) r) = r
