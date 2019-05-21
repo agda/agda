@@ -64,62 +64,81 @@ checkConfluenceOfRule rew = inTopContext $ do
 
   let f  = rewHead rew
       es = rewPats rew
-  fa   <- defType <$> getConstInfo f
-  fpol <- getPolarity' CmpEq f
 
   -- Step 1: check other rewrite rules that overlap at top position
   forMM_ (getClausesAndRewriteRulesFor f) $ \ rew' ->
-    traceCall (CheckConfluence (rewName rew) (rewName rew')) $
-    localTCStateSavingWarnings $ do
+    checkConfluenceTop rew rew'
 
-      sub1 <- makeMetaSubst $ rewContext rew
-      sub2 <- makeMetaSubst $ rewContext rew'
+  -- Step 2: check other rewrite rules that overlap with a subpattern
+  -- of this rewrite rule
+  forM_ (allPatternHoles es) $ \ hole -> case ohpContents hole of
+    PDef g es' -> forMM_ (getClausesAndRewriteRulesFor g) $ \ rew' ->
+      checkConfluenceSub rew rew' hole
+    _ -> return ()
 
-      es1 <- applySubst sub1 <$> nlPatToTerm (rewPats rew)
-      es2 <- applySubst sub2 <$> nlPatToTerm (rewPats rew')
+  where
 
-      let lhs1 = Def f es1
-          lhs2 = Def f es2
+    -- Check confluence of two rewrite rules that have the same head symbol,
+    -- e.g. @f ps --> a@ and @f ps' --> b@.
+    checkConfluenceTop :: RewriteRule -> RewriteRule -> TCM ()
+    checkConfluenceTop rew1 rew2 =
+      traceCall (CheckConfluence (rewName rew1) (rewName rew2)) $
+      localTCStateSavingWarnings $ do
 
-      reportSDoc "rewriting.confluence" 20 $ sep
-        [ "Considering potential critical pair at top-level: "
-        , nest 2 $ prettyTCM $ lhs1 , " =?= "
-        , nest 2 $ prettyTCM $ lhs2
-        ]
+        sub1 <- makeMetaSubst $ rewContext rew1
+        sub2 <- makeMetaSubst $ rewContext rew2
 
-      maybeCriticalPair <- tryUnification lhs1 lhs2 $ do
+        es1 <- applySubst sub1 <$> nlPatToTerm (rewPats rew1)
+        es2 <- applySubst sub2 <$> nlPatToTerm (rewPats rew2)
+
+        let f    = rewHead rew1 -- == rewHead rew2
+            lhs1 = Def f es1
+            lhs2 = Def f es2
+
+        reportSDoc "rewriting.confluence" 20 $ sep
+          [ "Considering potential critical pair at top-level: "
+          , nest 2 $ prettyTCM $ lhs1 , " =?= "
+          , nest 2 $ prettyTCM $ lhs2
+          ]
+
+        maybeCriticalPair <- tryUnification lhs1 lhs2 $ do
           -- Unify the left-hand sides of both rewrite rules
+          fa   <- defType <$> getConstInfo f
+          fpol <- getPolarity' CmpEq f
           onlyReduceTypes $
             compareElims fpol [] fa (Def f []) es1 es2
 
           -- Get the rhs of both rewrite rules (after unification)
-          let rhs1 = applySubst sub1 $ rewRHS rew
-              rhs2 = applySubst sub2 $ rewRHS rew'
+          let rhs1 = applySubst sub1 $ rewRHS rew1
+              rhs2 = applySubst sub2 $ rewRHS rew2
 
           return (rhs1 , rhs2)
 
-      let a   = applySubst sub1 $ rewType rew
-          lhs = Def f es1
+        let a   = applySubst sub1 $ rewType rew1
+            lhs = Def f es1
 
-      whenJust maybeCriticalPair $ \ (rhs1 , rhs2) ->
-        checkCriticalPair a lhs rhs1 rhs2
+        whenJust maybeCriticalPair $ \ (rhs1 , rhs2) ->
+          checkCriticalPair a lhs rhs1 rhs2
 
-  -- Step 2: check other rewrite rules that overlap with a subpattern
-  forM_ (allPatternHoles es) $ \ hole -> case ohpContents hole of
-    PDef g es' -> forMM_ (getClausesAndRewriteRulesFor g) $ \ rew' ->
-      traceCall (CheckConfluence (rewName rew) (rewName rew')) $
+    -- Check confluence between two rules that overlap at a subpattern,
+    -- e.g. @f ps[g qs] --> a@ and @g qs' --> b@.
+    checkConfluenceSub :: RewriteRule -> RewriteRule -> OneHolePattern PElims -> TCM ()
+    checkConfluenceSub rew1 rew2 hole =
+      traceCall (CheckConfluence (rewName rew1) (rewName rew2)) $
       localTCStateSavingWarnings $ do
 
-        let bvTel = ohpBoundVars hole
-            plug  = ohpPlugHole hole
+        let f          = rewHead rew1
+            PDef g es' = ohpContents hole
+            bvTel      = ohpBoundVars hole
+            plug       = ohpPlugHole hole
 
-        sub1 <- makeMetaSubst $ rewContext rew
-        sub2 <- makeMetaSubst $ rewContext rew'
+        sub1 <- makeMetaSubst $ rewContext rew1
+        sub2 <- makeMetaSubst $ rewContext rew2
 
         es1 <- applySubst (liftS (size bvTel) sub1) <$> nlPatToTerm es'
-        es2 <- raise (size bvTel) . applySubst sub2 <$> nlPatToTerm (rewPats rew')
+        es2 <- raise (size bvTel) . applySubst sub2 <$> nlPatToTerm (rewPats rew2)
 
-        lhs1 <- Def f . applySubst sub1 <$> nlPatToTerm es
+        lhs1 <- Def f . applySubst sub1 <$> nlPatToTerm (rewPats rew1)
         lhs2 <- Def f . applySubst sub1 <$> nlPatToTerm (plug $ PTerm $ Def g es2)
 
         reportSDoc "rewriting.confluence" 20 $ sep
@@ -129,35 +148,32 @@ checkConfluenceOfRule rew = inTopContext $ do
           ]
 
         maybeCriticalPair <- tryUnification lhs1 lhs2 $ do
-            -- Unify the subpattern of the first rewrite rule with the lhs
-            -- of the second one
-            ga   <- defType <$> getConstInfo g
-            gpol <- getPolarity' CmpEq g
-            onlyReduceTypes $ addContext bvTel $
-              compareElims gpol [] ga (Def g []) es1 es2
+          -- Unify the subpattern of the first rewrite rule with the lhs
+          -- of the second one
+          ga   <- defType <$> getConstInfo g
+          gpol <- getPolarity' CmpEq g
+          onlyReduceTypes $ addContext bvTel $
+            compareElims gpol [] ga (Def g []) es1 es2
 
-            -- Right-hand side of first rewrite rule (after unification)
-            let rhs1 = applySubst sub1 $ rewRHS rew
+          -- Right-hand side of first rewrite rule (after unification)
+          let rhs1 = applySubst sub1 $ rewRHS rew1
 
-            -- Left-hand side of first rewrite rule, with subpattern
-            -- rewritten by the second rewrite rule
-            let w = raise (size bvTel) $ applySubst sub2 $ rewRHS rew'
-            reportSDoc "rewriting.confluence" 30 $ sep
-              [ "Plugging hole with w = "
-              , nest 2 $ addContext bvTel $ prettyTCM w
-              ]
-            rhs2 <- Def f . applySubst sub1 <$> nlPatToTerm (plug $ PTerm w)
+          -- Left-hand side of first rewrite rule, with subpattern
+          -- rewritten by the second rewrite rule
+          let w = raise (size bvTel) $ applySubst sub2 $ rewRHS rew2
+          reportSDoc "rewriting.confluence" 30 $ sep
+            [ "Plugging hole with w = "
+            , nest 2 $ addContext bvTel $ prettyTCM w
+            ]
+          rhs2 <- Def f . applySubst sub1 <$> nlPatToTerm (plug $ PTerm w)
 
-            return (rhs1 , rhs2)
+          return (rhs1 , rhs2)
 
-        let a   = applySubst sub1 $ rewType rew
+        let a   = applySubst sub1 $ rewType rew1
 
         whenJust maybeCriticalPair $ \ (rhs1 , rhs2) ->
           checkCriticalPair a lhs1 rhs1 rhs2
 
-    _ -> return ()
-
-  where
     getClausesAndRewriteRulesFor :: QName -> TCM [RewriteRule]
     getClausesAndRewriteRulesFor f =
       (++) <$> getClausesAsRewriteRules f <*> getRewriteRulesFor f
