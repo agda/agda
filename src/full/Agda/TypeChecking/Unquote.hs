@@ -8,6 +8,7 @@ import Control.Monad.Writer hiding ((<>))
 import Control.Monad.Trans (lift)
 
 import Data.Char
+import qualified Data.HashSet as HashSet
 import Data.Maybe (fromMaybe)
 import Data.Traversable (traverse)
 import Data.Word
@@ -23,6 +24,7 @@ import Agda.Syntax.Info
 import Agda.Syntax.Translation.ReflectedToAbstract
 
 import Agda.TypeChecking.Constraints
+import Agda.TypeChecking.MetaVars.Mention
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Monad.Env
@@ -477,7 +479,9 @@ evalTCM v = do
   case v of
     I.Def f [] ->
       choice [ (f `isDef` primAgdaTCMGetContext, tcGetContext)
-             , (f `isDef` primAgdaTCMCommit,     tcCommit) ]
+             , (f `isDef` primAgdaTCMCommit,     tcCommit)
+             , (f `isDef` primAgdaTCMSolveConstraints, tcSolveConstraints)
+             ]
              failEval
     I.Def f [u] ->
       choice [ (f `isDef` primAgdaTCMInferType,          tcFun1 tcInferType          u)
@@ -486,7 +490,9 @@ evalTCM v = do
              , (f `isDef` primAgdaTCMGetType,            tcFun1 tcGetType            u)
              , (f `isDef` primAgdaTCMGetDefinition,      tcFun1 tcGetDefinition      u)
              , (f `isDef` primAgdaTCMIsMacro,            tcFun1 tcIsMacro            u)
-             , (f `isDef` primAgdaTCMFreshName,          tcFun1 tcFreshName          u) ]
+             , (f `isDef` primAgdaTCMFreshName,          tcFun1 tcFreshName          u)
+             , (f `isDef` primAgdaTCMSolveConstraintsMentioning, tcFun1 tcSolveConstraintsMentioning u)
+             ]
              failEval
     I.Def f [u, v] ->
       choice [ (f `isDef` primAgdaTCMUnify,      tcFun2 tcUnify      u v)
@@ -602,6 +608,17 @@ evalTCM v = do
 
     tcNoConstraints :: Term -> UnquoteM Term
     tcNoConstraints m = liftU1 noConstraints (evalTCM m)
+
+    tcSolveConstraints :: UnquoteM Term
+    tcSolveConstraints = liftTCM $ do
+      wakeupConstraints_
+      primUnitUnit
+
+    tcSolveConstraintsMentioning :: [MetaId] -> TCM Term
+    tcSolveConstraintsMentioning ms = do
+      wakeConstraints' (return . mentionsMetas (HashSet.fromList ms))
+      solveAwakeConstraints
+      primUnitUnit
 
     tcInferType :: R.Term -> TCM Term
     tcInferType v = do

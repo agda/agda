@@ -68,6 +68,18 @@ Language
 
   These can be used to define safe decidable propositional equality, see issue [agda-stdlib#698](https://github.com/agda/agda-stdlib/issues/698).
 
+* New primitives for asking Agda to try to solve constraints [[Issue
+  #3791](https://github.com/agda/agda/issues/3791)]:
+
+  ```agda
+  solveConstraints           : TC ⊤
+  solveConstraintsMentioning : List Meta → TC ⊤
+  ```
+
+  The former one tries to solve all constraints, whereas the latter
+  one wakes up all constraints mentioning the given meta-variables,
+  and then tries to solve all awake constraints.
+
 Release notes for Agda version 2.6.0.1
 ======================================
 

@@ -60,6 +60,7 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinAgdaTCMBlockOnMeta, builtinAgdaTCMCommit, builtinAgdaTCMIsMacro,
   builtinAgdaTCMWithNormalisation, builtinAgdaTCMDebugPrint,
   builtinAgdaTCMNoConstraints,
+  builtinAgdaTCMSolveConstraints, builtinAgdaTCMSolveConstraintsMentioning,
   builtinAgdaTCMRunSpeculative
   :: String
 
@@ -238,6 +239,8 @@ builtinAgdaTCMIsMacro       = "AGDATCMISMACRO"
 builtinAgdaTCMWithNormalisation = "AGDATCMWITHNORMALISATION"
 builtinAgdaTCMDebugPrint = "AGDATCMDEBUGPRINT"
 builtinAgdaTCMNoConstraints = "AGDATCMNOCONSTRAINTS"
+builtinAgdaTCMSolveConstraints = "AGDATCMSOLVECONSTRAINTS"
+builtinAgdaTCMSolveConstraintsMentioning = "AGDATCMSOLVECONSTRAINTSMENTIONING"
 builtinAgdaTCMRunSpeculative = "AGDATCMRUNSPECULATIVE"
 
 -- | Builtins that come without a definition in Agda syntax.
