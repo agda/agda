@@ -399,33 +399,33 @@ following primitive operations::
     -- new TC state if it is 'true'.
     runSpeculative : ∀ {a} {A : Set a} → TC (Σ A λ _ → Bool) → TC A
 
-  {-# BUILTIN AGDATCMUNIFY              unify              #-}
-  {-# BUILTIN AGDATCMTYPEERROR          typeError          #-}
-  {-# BUILTIN AGDATCMBLOCKONMETA        blockOnMeta        #-}
-  {-# BUILTIN AGDATCMCATCHERROR         catchTC            #-}
-  {-# BUILTIN AGDATCMINFERTYPE          inferType          #-}
-  {-# BUILTIN AGDATCMCHECKTYPE          checkType          #-}
-  {-# BUILTIN AGDATCMNORMALISE          normalise          #-}
-  {-# BUILTIN AGDATCMREDUCE             reduce             #-}
-  {-# BUILTIN AGDATCMGETCONTEXT         getContext         #-}
-  {-# BUILTIN AGDATCMEXTENDCONTEXT      extendContext      #-}
-  {-# BUILTIN AGDATCMINCONTEXT          inContext          #-}
-  {-# BUILTIN AGDATCMQUOTETERM          quoteTC            #-}
-  {-# BUILTIN AGDATCMUNQUOTETERM        unquoteTC          #-}
-  {-# BUILTIN AGDATCMFRESHNAME          freshName          #-}
-  {-# BUILTIN AGDATCMDECLAREDEF         declareDef         #-}
-  {-# BUILTIN AGDATCMDECLAREPOSTULATE   declarePostulate   #-}
-  {-# BUILTIN AGDATCMDEFINEFUN          defineFun          #-}
-  {-# BUILTIN AGDATCMGETTYPE            getType            #-}
-  {-# BUILTIN AGDATCMGETDEFINITION      getDefinition      #-}
-  {-# BUILTIN AGDATCMCOMMIT             commitTC           #-}
-  {-# BUILTIN AGDATCMISMACRO            isMacro            #-}
-  {-# BUILTIN AGDATCMWITHNORMALISATION  withNormalisation  #-}
-  {-# BUILTIN AGDATCMDEBUGPRINT         debugPrint         #-}
-  {-# BUILTIN AGDATCMNOCONSTRAINTS      noConstraints      #-}
-  {-# BUILTIN AGDATCMSOLVECONSTRAINTS   solveConstraints   #-}
+  {-# BUILTIN AGDATCMUNIFY                      unify                      #-}
+  {-# BUILTIN AGDATCMTYPEERROR                  typeError                  #-}
+  {-# BUILTIN AGDATCMBLOCKONMETA                blockOnMeta                #-}
+  {-# BUILTIN AGDATCMCATCHERROR                 catchTC                    #-}
+  {-# BUILTIN AGDATCMINFERTYPE                  inferType                  #-}
+  {-# BUILTIN AGDATCMCHECKTYPE                  checkType                  #-}
+  {-# BUILTIN AGDATCMNORMALISE                  normalise                  #-}
+  {-# BUILTIN AGDATCMREDUCE                     reduce                     #-}
+  {-# BUILTIN AGDATCMGETCONTEXT                 getContext                 #-}
+  {-# BUILTIN AGDATCMEXTENDCONTEXT              extendContext              #-}
+  {-# BUILTIN AGDATCMINCONTEXT                  inContext                  #-}
+  {-# BUILTIN AGDATCMQUOTETERM                  quoteTC                    #-}
+  {-# BUILTIN AGDATCMUNQUOTETERM                unquoteTC                  #-}
+  {-# BUILTIN AGDATCMFRESHNAME                  freshName                  #-}
+  {-# BUILTIN AGDATCMDECLAREDEF                 declareDef                 #-}
+  {-# BUILTIN AGDATCMDECLAREPOSTULATE           declarePostulate           #-}
+  {-# BUILTIN AGDATCMDEFINEFUN                  defineFun                  #-}
+  {-# BUILTIN AGDATCMGETTYPE                    getType                    #-}
+  {-# BUILTIN AGDATCMGETDEFINITION              getDefinition              #-}
+  {-# BUILTIN AGDATCMCOMMIT                     commitTC                   #-}
+  {-# BUILTIN AGDATCMISMACRO                    isMacro                    #-}
+  {-# BUILTIN AGDATCMWITHNORMALISATION          withNormalisation          #-}
+  {-# BUILTIN AGDATCMDEBUGPRINT                 debugPrint                 #-}
+  {-# BUILTIN AGDATCMNOCONSTRAINTS              noConstraints              #-}
+  {-# BUILTIN AGDATCMSOLVECONSTRAINTS           solveConstraints           #-}
   {-# BUILTIN AGDATCMSOLVECONSTRAINTSMENTIONING solveConstraintsMentioning #-}
-  {-# BUILTIN AGDATCMRUNSPECULATIVE     runSpeculative     #-}
+  {-# BUILTIN AGDATCMRUNSPECULATIVE             runSpeculative             #-}
 
 Metaprogramming
 ---------------

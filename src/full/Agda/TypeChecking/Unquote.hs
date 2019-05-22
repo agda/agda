@@ -478,19 +478,19 @@ evalTCM v = do
 
   case v of
     I.Def f [] ->
-      choice [ (f `isDef` primAgdaTCMGetContext, tcGetContext)
-             , (f `isDef` primAgdaTCMCommit,     tcCommit)
+      choice [ (f `isDef` primAgdaTCMGetContext,       tcGetContext)
+             , (f `isDef` primAgdaTCMCommit,           tcCommit)
              , (f `isDef` primAgdaTCMSolveConstraints, tcSolveConstraints)
              ]
              failEval
     I.Def f [u] ->
-      choice [ (f `isDef` primAgdaTCMInferType,          tcFun1 tcInferType          u)
-             , (f `isDef` primAgdaTCMNormalise,          tcFun1 tcNormalise          u)
-             , (f `isDef` primAgdaTCMReduce,             tcFun1 tcReduce             u)
-             , (f `isDef` primAgdaTCMGetType,            tcFun1 tcGetType            u)
-             , (f `isDef` primAgdaTCMGetDefinition,      tcFun1 tcGetDefinition      u)
-             , (f `isDef` primAgdaTCMIsMacro,            tcFun1 tcIsMacro            u)
-             , (f `isDef` primAgdaTCMFreshName,          tcFun1 tcFreshName          u)
+      choice [ (f `isDef` primAgdaTCMInferType,                  tcFun1 tcInferType                  u)
+             , (f `isDef` primAgdaTCMNormalise,                  tcFun1 tcNormalise                  u)
+             , (f `isDef` primAgdaTCMReduce,                     tcFun1 tcReduce                     u)
+             , (f `isDef` primAgdaTCMGetType,                    tcFun1 tcGetType                    u)
+             , (f `isDef` primAgdaTCMGetDefinition,              tcFun1 tcGetDefinition              u)
+             , (f `isDef` primAgdaTCMIsMacro,                    tcFun1 tcIsMacro                    u)
+             , (f `isDef` primAgdaTCMFreshName,                  tcFun1 tcFreshName                  u)
              , (f `isDef` primAgdaTCMSolveConstraintsMentioning, tcFun1 tcSolveConstraintsMentioning u)
              ]
              failEval
