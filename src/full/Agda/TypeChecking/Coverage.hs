@@ -1,4 +1,5 @@
 {-# LANGUAGE NondecreasingIndentation #-}
+{-# LANGUAGE PatternSynonyms #-}
 
 {-| Coverage checking, case splitting, and splitting for refine tactics.
 
@@ -123,13 +124,13 @@ data SplitClause = SClause
 data Covering = Covering
   { covSplitArg     :: Arg Nat
      -- ^ De Bruijn level (counting dot patterns) of argument we split on.
-  , covSplitClauses :: [(SplitTag, SplitClause)]
+  , covSplitClauses :: [(SplitTag, (SplitClause, IInfo))]
       -- ^ Covering clauses, indexed by constructor/literal these clauses share.
   }
 
 -- | Project the split clauses out of a covering.
 splitClauses :: Covering -> [SplitClause]
-splitClauses (Covering _ qcs) = map snd qcs
+splitClauses (Covering _ qcs) = map (fst . snd) qcs
 
 -- | Create a split clause from a clause in internal syntax. Used by make-case.
 clauseToSplitClause :: Clause -> SplitClause
@@ -419,7 +420,8 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
           -- TODO Andrea: I guess an empty pattern is not part of the cover?
           let qs = []
           return $ CoverResult (SplittingDone (size tel)) Set.empty [] qs Set.empty
-        Right (Covering n scs, x) -> do
+        Right (Covering n scs', x) -> do
+          let scs = map (\(t,(sc,i)) -> (t,sc)) scs'
           cs <- do
             let fallback = return cs
             caseMaybeM (getPrimitiveName' builtinHComp) fallback $ \ comp -> do
@@ -428,6 +430,7 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
                   _ -> False
             caseMaybe (List.find (isComp . fst) scs) fallback $ \ (_, newSc) -> do
             snoc cs <$> createMissingHCompClause f n x sc newSc
+          cs <- (cs ++) <$> forM scs' (createMissingConIdClause f n x sc)
           results <- mapM (cover f cs) (map snd scs)
           let trees = map coverSplitTree      results
               useds = map coverUsedClauses    results
@@ -493,7 +496,7 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
         Right (Covering n scs) -> do
           -- If result splitting was successful, continue coverage checking.
           (projs, results) <- unzip <$> do
-            mapM (traverseF $ cover f cs <=< (snd <.> fixTarget)) scs
+            mapM (traverseF $ cover f cs <=< (snd <.> fixTarget)) (map (\(t,(sc,i)) -> (t,sc)) scs)
             -- OR:
             -- forM scs $ \ (proj, sc') -> (proj,) <$> do
             --   cover f cs =<< do
@@ -550,7 +553,75 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
       (q , addEtaSplits 0 (gatherEtaSplits n sc ps) t)
 
 
+createMissingConIdClause :: QName
+                         -> Arg Nat
+                         -> BlockingVar
+                         -> SplitClause
+                         -> (SplitTag, (SplitClause, IInfo))
+                         -> TCMT IO Clause
+createMissingConIdClause f n x old_sc (tag,(SClause tel ps _sigma' _cps ~(Just t),info)) = setCurrentRange f $ do
+  let old_ps = patternsToElims $ fromSplitPatterns $ scPats old_sc
+      old_t  = fromJust $ scTarget old_sc
+      old_tel = scTel old_sc
+  -- old_tel = Γ(x: Id A u v)Δ
+  -- Γ(x: Id A u v)Δ ⊢ old_t
+  -- Γ ⊢ hdelta = (x : Id A u v)(δ : Δ)
+      (gamma,hdelta@(ExtendTel hdom delta)) = splitTelescopeAt (size old_tel - (blockingVarNo x + 1)) old_tel
+  -- tel = Γ',Δ[ρ,x = refl],Δ₂
+  -- Γ' ⊢ ρ : Γ
+  -- Γ' ⊢ u[ρ] = v[ρ] : A[ρ]
+  
+  -- Γ' ⊢ ρ,x=refl : Γ,(x : Id A u v)
+  
+  -- Γ',Δ[ρ,x = refl] ⊢ old_t[ρ,x=refl] = Δ₂ -> t
+  -- Γ',Δ[ρ,x = refl] ⊢ f old_ps[ρ,x = refl] : old_t[ρ,x = refl]
+  -- Γ,(φ : I),(p : Path A u v) ⊢ τ : Γ'
+  
+  -- Γ' ⊢ [ρ,x = refl u[ρ]] : Γ,(x : Id A u v)
+  
+  -- Γ,(φ : I),(p : Path A u v) ⊢ [ρ,x = refl u[ρ]][τ] = [ρ[τ], x = refl u[ρ[τ]]] : Γ,(x : Id A u v)
 
+  -- Γ,(φ : I),(p : Path A u v) ⊢ leftInv : ρ[τ],i1,refl ≡ idS : Γ,(φ : I),(p : Path A u v)
+  
+  -- Γ,(φ : I),(p : Path A u v)| (i : I) ⊢ leftInv i : Γ,(φ : I),(p : Path A u v)
+  
+  -- Γ,(φ : I),(p : Path A u v) ⊢ leftInv i0 = ρ[τ],i1,refl : Γ,(φ : I),(p : Path A u v)
+  -- Γ,(φ : I),(p : Path A u v) ⊢ leftInv i1 = γ   ,φ ,p : Γ,(φ : I),(p : Path A u v)
+  --                      leftInv[φ = i1][i] = idS
+
+  -- Γ,(φ : I),(p : Path A u v),Δ[ρ,x = refl][τ] ⊢ τ' = liftS |Δ[ρ,x = refl]| τ : Γ',Δ[ρ,x = refl]
+  
+  -- Γ,(φ : I),(p : Path A u v),Δ[ρ,x = refl][τ] ⊢ w = f old_ps[ρ[τ],x = refl u[ρ[τ]],δ] : old_t[ρ,x = refl][τ'] = old_t[ρ[τ],x = refl u[ρ[τ]],δ]
+
+  -- Γ,(φ : I),(p : Path A u v) | (i : I) ⊢ μ = ⟨φ,p⟩[leftInv (~i)] : (Id A u v)[γ[leftInv (~ i)]]
+  --                                     μ[0] = ⟨ φ             , p    ⟩
+  --                                     μ[1] = ⟨ 1             , refl ⟩
+  
+  -- Γ,(φ : I),(p : Path A u v),(δ : Δ[x = ⟨ φ , p ⟩]) ⊢ δ_f[1] = vecTransp (i. Δ[γ[leftInv (~ i)], ⟨φ,p⟩[leftInv (~i)] ]) φ δ : Δ[ρ[τ], x = refl u[ρ[τ]]]
+  
+  -- Γ,(φ : I),(p : Path A u v),(δ : Δ[x = ⟨ φ , p ⟩]) ⊢ w[δ_f[1]] : old_t[ρ[τ],x = refl u[ρ[τ]],δ_f[1]]
+  -- Γ,(φ : I),(p : Path A u v),Δ[x = ⟨ φ , p ⟩] ⊢ rhs = transp (i. old_t[γ[leftInv i],x = ⟨φ,p⟩[leftInv i], δ_f[~i]]) φ (w[δ_f[1]]) : old_t[γ,x = ⟨ φ , p ⟩,δ]
+  return undefined
+--createMissingConIdClause _ _ _ _ (SClause _ _ _ _ Nothing) = __IMPOSSIBLE__
+
+
+{-
+  OLD leftInv case
+  -- Γ,(φ : I),(p : Path A u v) ⊢ leftInv : ρ[τ] ≡ wkS 2 : Γ
+  -- Γ,(φ : I),(p : Path A u v)(i : I) ⊢ leftInv i : Γ
+  -- Γ,(φ : I),(p : Path A u v) ⊢ leftInv i0 = ρ[τ] : Γ
+  -- Γ,(φ : I),(p : Path A u v) ⊢ leftInv i1 = wkS 2 : Γ
+  -- leftInv[φ = i1][i] = wkS 2
+
+  -- Γ,(φ : I),(p : Path A u v),Δ[ρ,x = refl][τ] ⊢ τ' = liftS |Δ[ρ,x = refl]| τ : Γ',Δ[ρ,x = refl]
+
+  -- Γ,(φ : I),(p : Path A u v),Δ[ρ,x = refl][τ] ⊢ w = f old_ps[ρ,x = refl][τ'] : old_t[ρ,x = refl][τ'] 
+
+  -- Γ,(φ : I),(p : Path A u v) | (i : I) ⊢ μ = ⟨ (φ ∨ ~ i) , (\ j → p (i ∧ j)) ⟩ : Id A u (p i) =?= (Id A u v)[leftInv (~ i)]
+                                  μ[0] = ⟨ 1 , (\ _ → u[ρ[τ]]) ⟩
+                                  μ[1] = ⟨ φ , p               ⟩
+  -- Γ,(φ : I),(p : Path A u v),(δ : Δ[x = ⟨ φ , p ⟩]) ⊢ vecTransp (i. Δ[leftInv (~ i),μ[i]]) φ δ : Δ[ρ[τ], x = refl u[ρ[τ]]]
+-}
 
 -- | Append an hcomp clause to the clauses of a function.
 createMissingHCompClause
@@ -562,7 +633,7 @@ createMissingHCompClause
   -> SplitClause
        -- ^ Clause to add.
    -> TCM Clause
-createMissingHCompClause f n x old_sc (SClause tel ps _sigma' cps (Just t)) = setCurrentRange f $ do
+createMissingHCompClause f n x old_sc (SClause tel ps _sigma' _cps (Just t)) = setCurrentRange f $ do
   reportSDoc "tc.cover.hcomp" 20 $ addContext tel $ text "Trying to create right-hand side of type" <+> prettyTCM t
   reportSDoc "tc.cover.hcomp" 30 $ addContext tel $ text "ps = " <+> prettyTCMPatternList (fromSplitPatterns ps)
   reportSDoc "tc.cover.hcomp" 30 $ text "tel = " <+> prettyTCM tel
@@ -999,6 +1070,7 @@ computeHCompSplit delta1 n delta2 d pars ixs hix tel ps cps = do
       return $ Just . (SplitCon hCompName,) $ SClause delta' ps' rho cps' Nothing -- target fixed later
 
 
+type IInfo = ()
 
 -- | @computeNeighbourhood delta1 delta2 d pars ixs hix tel ps con@
 --
@@ -1028,7 +1100,7 @@ computeNeighbourhood
   -> [NamedArg SplitPattern]      -- ^ Patterns before doing the split.
   -> Map CheckpointId Substitution -- ^ Current checkpoints
   -> QName                        -- ^ Constructor to fit into hole.
-  -> CoverM (Maybe SplitClause)   -- ^ New split clause if successful.
+  -> CoverM (Maybe (SplitClause, IInfo))   -- ^ New split clause if successful.
 computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps cps c = do
 
   -- Get the type of the datatype
@@ -1113,7 +1185,7 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps cps c = do
 
       let cps' = applySplitPSubst rho cps
 
-      return $ Just $ SClause delta' ps' rho cps' Nothing -- target fixed later
+      return $ Just . (,undefined) $ SClause delta' ps' rho cps' Nothing -- target fixed later
 
   where
     debugInit con ctype d pars ixs cixs delta1 delta2 gamma tel ps hix =
@@ -1233,6 +1305,9 @@ lookupPatternVar SClause{ scTel = tel, scPats = pats } x = arg $>
 
 data CheckEmpty = CheckEmpty | NoCheckEmpty
 
+pattern NoInfo :: IInfo
+pattern NoInfo = ()
+
 -- | @split' ind pc ft splitClause x = return res@
 --   splits @splitClause@ at pattern var @x@ (de Bruijn index).
 --
@@ -1287,7 +1362,7 @@ split' checkEmpty ind allowPartialCover fixtarget
         hcompsc <- if isHIT && fixtarget == YesFixTarget
                    then computeHCompSplit delta1 n delta2 d pars ixs x tel ps cps
                    else return Nothing
-        return $ (dr, catMaybes (mns ++ [hcompsc]))
+        return $ (dr, catMaybes (mns ++ [fmap (fmap (,NoInfo)) hcompsc]))
 
       computeLitNeighborhoods = do
         typeOk <- liftTCM $ do
@@ -1311,7 +1386,7 @@ split' checkEmpty ind allowPartialCover fixtarget
               rho    = liftS x $ consS varp $ raiseS 1
               ps'    = applySubst rho ps
           return (SplitCatchall , SClause delta' ps' rho cps Nothing)
-        return (IsData , ns ++ [ ca ])
+        return (IsData , map ((fmap (,NoInfo))) $ ns ++ [ ca ])
 
   (dr, ns) <- if null pcons' && not (null plits)
         then computeLitNeighborhoods
@@ -1319,8 +1394,8 @@ split' checkEmpty ind allowPartialCover fixtarget
 
   ns <- case fixtarget of
     NoFixTarget  -> return ns
-    YesFixTarget -> lift $ forM ns $ \(con,sc) ->
-      (con,) . snd <$> fixTarget sc{ scTarget = target }
+    YesFixTarget -> lift $ forM ns $ \(con,(sc,info)) ->
+      (con,) . (,info) . snd <$> fixTarget sc{ scTarget = target }
 
   -- Andreas, 2018-10-27, issue #3324; use isPropM.
   -- Need to reduce sort to decide on Prop.
@@ -1363,7 +1438,7 @@ split' checkEmpty ind allowPartialCover fixtarget
       let all_tags = Set.fromList ptags `Set.union` inferred_tags
 
       when (allowPartialCover == NoAllowPartialCover && overlap == False) $
-        for_ ns $ \(tag, sc) -> do
+        for_ ns $ \(tag, (sc, _)) -> do
           when (not $ tag `Set.member` all_tags) $ do
             isImpossibleClause <- liftTCM $ isEmptyTel $ scTel sc
             unless isImpossibleClause $ do
@@ -1478,7 +1553,7 @@ splitResultRecord f sc@(SClause tel ps _ _ target) = do
                          , scSubst  = idS
                          , scTarget = target'
                          }
-            return (SplitCon (unArg proj), sc')
+            return (SplitCon (unArg proj), (sc', NoInfo))
       _ -> addContext tel $ do
         buildClosure (unArg t) >>= failure . CosplitNoRecordType
   -- Andreas, 2018-06-09, issue #2170: splitting with irrelevant fields is always fine!
