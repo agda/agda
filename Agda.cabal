@@ -198,7 +198,7 @@ library
                 , split >= 0.2.0.0 && < 0.2.3.4
                 , stm >= 2.4.4 && < 2.6
                 , strict >= 0.3.2 && < 0.4
-                , template-haskell >= 2.11.1.0 && < 2.15
+                , template-haskell >= 2.11.0.0 && < 2.15
                 , time >= 1.6.0.1 && < 1.9
                 , unordered-containers >= 0.2.5.0 && < 0.3
                 , uri-encode >= 1.5.0.4 && < 1.6
