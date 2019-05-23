@@ -294,7 +294,7 @@ install:
 ##############################################################################
 
   - if [[ $TEST = "STACKAGE" ]]; then
-       travis_wait 30 stack build $ARGS --no-terminal ${AGDA_STACK_BUILD_FLAGS};
+       travis_wait 35 stack build $ARGS --no-terminal ${AGDA_STACK_BUILD_FLAGS};
     fi
 
 ##############################################################################
