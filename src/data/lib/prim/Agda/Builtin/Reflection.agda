@@ -69,6 +69,7 @@ data Fixity : Set where
 
 primitive
   primQNameFixity : Name → Fixity
+  primQNameToWord64s : Name → Σ Word64 (λ _ → Word64)
 
 -- Metavariables --
 
