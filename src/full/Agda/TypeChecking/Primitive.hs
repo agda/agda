@@ -449,6 +449,13 @@ primFloatToWord64Injective = do
   toWord <- primFunName <$> getPrimitive "primFloatToWord64"
   mkPrimInjective float word toWord
 
+primQNameToWord64sInjective :: TCM PrimitiveImpl
+primQNameToWord64sInjective = do
+  name    <- primType (undefined :: QName)
+  words   <- primType (undefined :: (Word64, Word64))
+  toWords <- primFunName <$> getPrimitive "primQNameToWord64s"
+  mkPrimInjective name words toWords
+
 getRefl :: TCM (Arg Term -> Term)
 getRefl = do
   -- BUILTIN REFL maybe a constructor with one (the principal) argument or only parameters.
@@ -814,6 +821,9 @@ primitiveFunctions = Map.fromList
   , "primQNameLess"       |-> mkPrimFun2 ((<) :: Rel QName)
   , "primShowQName"       |-> mkPrimFun1 (Str . prettyShow :: QName -> Str)
   , "primQNameFixity"     |-> mkPrimFun1 (nameFixity . qnameName)
+  , "primQNameToWord64s"  |-> mkPrimFun1 ((\ (NameId x y) -> (x, y)) . nameId . qnameName
+                                          :: QName -> (Word64, Word64))
+  , "primQNameToWord64sInjective" |-> primQNameToWord64sInjective
   , "primMetaEquality"    |-> mkPrimFun2 ((==) :: Rel MetaId)
   , "primMetaLess"        |-> mkPrimFun2 ((<) :: Rel MetaId)
   , "primShowMeta"        |-> mkPrimFun1 (Str . prettyShow :: MetaId -> Str)
