@@ -435,6 +435,7 @@ library
                     Agda.TypeChecking.Pretty.Call
                     Agda.TypeChecking.Pretty.Warning
                     Agda.TypeChecking.Primitive
+                    Agda.TypeChecking.Primitive.Base
                     Agda.TypeChecking.Primitive.Cubical
                     Agda.TypeChecking.ProjectionLike
                     Agda.TypeChecking.Quote

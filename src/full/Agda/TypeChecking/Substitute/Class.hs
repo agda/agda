@@ -220,6 +220,14 @@ lookupS rho i = case rho of
              | otherwise -> raise n $ lookupS rho (i - n)
   EmptyS err             -> absurd err
 
+
+-- | lookupS (listS [(x0,t0)..(xn,tn)]) xi = ti, assuming x0 < .. < xn.
+
+listS :: Subst a a => [(Int,a)] -> Substitution' a
+listS ((i,t):ts) = singletonS i t `composeS` listS ts
+listS []         = IdS
+
+
 ---------------------------------------------------------------------------
 -- * Functions on abstractions
 --   and things we couldn't do before we could define 'absBody'
