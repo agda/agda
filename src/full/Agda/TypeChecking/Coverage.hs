@@ -1,5 +1,4 @@
 {-# LANGUAGE NondecreasingIndentation #-}
-{-# LANGUAGE PatternSynonyms #-}
 
 {-| Coverage checking, case splitting, and splitting for refine tactics.
 
@@ -430,7 +429,7 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
                   _ -> False
             caseMaybe (List.find (isComp . fst) scs) fallback $ \ (_, newSc) -> do
             snoc cs <$> createMissingHCompClause f n x sc newSc
-          cs <- (cs ++) <$> forM scs' (createMissingConIdClause f n x sc)
+          (mtrees,cs) <- fmap (cs ++) . unzip . catMaybes <$> forM scs' (createMissingConIdClause f n x sc)
           results <- mapM (cover f cs) (map snd scs)
           let trees = map coverSplitTree      results
               useds = map coverUsedClauses    results
@@ -449,8 +448,10 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
               ]
             ]
           -- TODO Andrea: do something with etaRecordSplits and qsss?
+          -- let trees' = zipWith (etaRecordSplits (unArg n) ps) (scs ++ scs') (trees ++ trees')
+          --     tree   = SplitAt n trees'
           let trees' = zipWith (etaRecordSplits (unArg n) ps) scs trees
-              tree   = SplitAt n trees'
+              tree   = SplitAt n (trees' ++ mtrees)
           return $ CoverResult tree (Set.unions useds) (concat psss) (concat qsss) (Set.unions noex)
 
     -- Try to split result
@@ -552,56 +553,222 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
     etaRecordSplits n ps (q , sc) t =
       (q , addEtaSplits 0 (gatherEtaSplits n sc ps) t)
 
-
+{- NOPARAM
+    -- iΓ'
+    itel = infoTel
+    -- iΓ' ⊢ iρ : Γ(l : Level)(A : Set l)(x y : A)
+    --
+    -- Δ = Γ(l' : Level)(A' : Set l)(x' y' : A),φ,(l' ≡ l)(A' ≡ A)(x' ≡ u)(p : y' ≡ v) ⊢ iτ : iΓ'
+    -- iΓ' ⊢ ρ = γ[iρ] : Γ
+    -- Γ,(φ : I),(p : u ≡ v) ⊢ τ = iτ[l' = l,A' = A,x' = u, y' = v,φ,refl,refl,refl,p] : iΓ'
+    -- Δ, (i : I) ⊢ ileftInv[i] : Δ
+    -- Γ,(φ : I),(p : u ≡ v) | (i : I) ⊢ leftInv[i] = γ[ileftInv[i]],φ[ileftInv[i]],p[iLeftInv[i]] :  Γ,(φ : I),(p : u ≡ v)
+    irho = infoRho
+-}
 createMissingConIdClause :: QName
                          -> Arg Nat
                          -> BlockingVar
                          -> SplitClause
                          -> (SplitTag, (SplitClause, IInfo))
-                         -> TCMT IO Clause
-createMissingConIdClause f n x old_sc (tag,(SClause tel ps _sigma' _cps ~(Just t),info)) = setCurrentRange f $ do
-  let old_ps = patternsToElims $ fromSplitPatterns $ scPats old_sc
-      old_t  = fromJust $ scTarget old_sc
+                         -> TCM (Maybe ((SplitTag,SplitTree),Clause))
+createMissingConIdClause f n x old_sc (tag,(sc,info@TheInfo{})) = setCurrentRange f $ do
+  let
+    -- iΓ'
+    itel = infoTel
+    -- with 3 params, reflId : Id A u u -- no arguments.
+    -- iΓ' ⊢ iρ : Γ
+    --
+    -- Δ = Γ,φ,(p : u ≡ v) ⊢ iτ : iΓ'
+    -- ρ = iρ
+    -- τ = iτ
+    irho = infoRho info
+    itau = infoTau info
+    ileftInv = infoLeftInv info
+  interval <- elInf primInterval
+  tTrans  <- primTrans
+  tComp  <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinComp
+  conId <- fromMaybe __IMPOSSIBLE__ <$> getName' builtinConId
+  let bindSplit (tel1,tel2) = (tel1,AbsN (teleNames tel1) tel2)
+  let 
       old_tel = scTel old_sc
+
   -- old_tel = Γ(x: Id A u v)Δ
   -- Γ(x: Id A u v)Δ ⊢ old_t
   -- Γ ⊢ hdelta = (x : Id A u v)(δ : Δ)
-      (gamma,hdelta@(ExtendTel hdom delta)) = splitTelescopeAt (size old_tel - (blockingVarNo x + 1)) old_tel
+      pair@(_gamma,_hdelta@(ExtendTel hdom delta)) = splitTelescopeAt (size old_tel - (blockingVarNo x + 1)) old_tel
+      (gamma,hdelta) = bindSplit pair
+      old_t  = AbsN (teleNames old_tel) $ fromJust $ scTarget old_sc
+      old_ps = AbsN (teleNames old_tel) $ patternsToElims $ fromSplitPatterns $ scPats old_sc
+      old_ps' = AbsN (teleNames old_tel) $ fromSplitPatterns $ scPats old_sc
+  let dm = pure __DUMMY_TERM__
+
+  working_tel <- runNamesT [] $ do
+    hdelta <- open hdelta
+    abstractN (pure gamma) $ \ args -> do
+      pTel <- open =<< (lift $ pathTelescope (infoEqTel info) (map defaultArg $ infoEqLHS info) (map defaultArg $ infoEqRHS info))
+      abstractN (pure (telFromList [defaultDom ("phi",interval)] :: Telescope)) $ \ [phi] ->
+        abstractN pTel $ \ [p] ->
+          apply1 <$> applyN hdelta args <*> (cl primConId <#> dm <#> dm <#> dm <#> dm <@> phi <@> p)
+  -- working_tel ⊢ i. γ[leftInv i]
+  (gamma_args_left :: Abs [Term], con_phi_p_left :: Abs Term) <- fmap (raise (size delta) . unAbsN) . runNamesT [] $ do
+    bindN (teleNames gamma ++ ["phi","p"]) $ \ args' -> do
+      let (args,[phi,p]) = splitAt (size gamma) args'
+      gargs <- Abs "i" . applySubst ileftInv <$> sequence args
+      con_phi_p <- Abs "i" . applySubst ileftInv <$> do
+        (cl primConId <#> dm <#> dm <#> dm <#> dm <@> phi <@> p)
+      return (gargs,con_phi_p)
+  ps <- fmap unAbsN . runNamesT [] $ do
+    old_ps' <- open $ old_ps'
+    bindN (teleNames working_tel) $ \ (_ :: [NamesT TCM Term]) -> do
+      let (g,phi:p:d) = splitAt (size gamma) $ telePatterns working_tel []
+      let x = DefP PatOSystem conId $ replicate 4 (argH $ unnamed $ dotP __DUMMY_TERM__) ++ [phi,p]
+      args <- open $ map namedArg g ++ [x] ++ map namedArg d
+      applyN' old_ps' args
   -- tel = Γ',Δ[ρ,x = refl],Δ₂
   -- Γ' ⊢ ρ : Γ
   -- Γ' ⊢ u[ρ] = v[ρ] : A[ρ]
-  
+
   -- Γ' ⊢ ρ,x=refl : Γ,(x : Id A u v)
-  
+
   -- Γ',Δ[ρ,x = refl] ⊢ old_t[ρ,x=refl] = Δ₂ -> t
   -- Γ',Δ[ρ,x = refl] ⊢ f old_ps[ρ,x = refl] : old_t[ρ,x = refl]
   -- Γ,(φ : I),(p : Path A u v) ⊢ τ : Γ'
-  
+
   -- Γ' ⊢ [ρ,x = refl u[ρ]] : Γ,(x : Id A u v)
-  
+
   -- Γ,(φ : I),(p : Path A u v) ⊢ [ρ,x = refl u[ρ]][τ] = [ρ[τ], x = refl u[ρ[τ]]] : Γ,(x : Id A u v)
 
   -- Γ,(φ : I),(p : Path A u v) ⊢ leftInv : ρ[τ],i1,refl ≡ idS : Γ,(φ : I),(p : Path A u v)
-  
+
   -- Γ,(φ : I),(p : Path A u v)| (i : I) ⊢ leftInv i : Γ,(φ : I),(p : Path A u v)
-  
+
   -- Γ,(φ : I),(p : Path A u v) ⊢ leftInv i0 = ρ[τ],i1,refl : Γ,(φ : I),(p : Path A u v)
   -- Γ,(φ : I),(p : Path A u v) ⊢ leftInv i1 = γ   ,φ ,p : Γ,(φ : I),(p : Path A u v)
   --                      leftInv[φ = i1][i] = idS
 
   -- Γ,(φ : I),(p : Path A u v),Δ[ρ,x = refl][τ] ⊢ τ' = liftS |Δ[ρ,x = refl]| τ : Γ',Δ[ρ,x = refl]
-  
-  -- Γ,(φ : I),(p : Path A u v),Δ[ρ,x = refl][τ] ⊢ w = f old_ps[ρ[τ],x = refl u[ρ[τ]],δ] : old_t[ρ,x = refl][τ'] = old_t[ρ[τ],x = refl u[ρ[τ]],δ]
+
+  -- Γ,(φ : I),(p : Path A u v),Δ[ρ,x = refl][τ] ⊢
+  --            w = f old_ps[ρ[τ],x = refl u[ρ[τ]],δ] : old_t[ρ,x = refl][τ'] = old_t[ρ[τ],x = refl u[ρ[τ]],δ]
 
   -- Γ,(φ : I),(p : Path A u v) | (i : I) ⊢ μ = ⟨φ,p⟩[leftInv (~i)] : (Id A u v)[γ[leftInv (~ i)]]
   --                                     μ[0] = ⟨ φ             , p    ⟩
   --                                     μ[1] = ⟨ 1             , refl ⟩
-  
-  -- Γ,(φ : I),(p : Path A u v),(δ : Δ[x = ⟨ φ , p ⟩]) ⊢ δ_f[1] = vecTransp (i. Δ[γ[leftInv (~ i)], ⟨φ,p⟩[leftInv (~i)] ]) φ δ : Δ[ρ[τ], x = refl u[ρ[τ]]]
-  
+
+  -- Γ,(φ : I),(p : Path A u v),(δ : Δ[x = ⟨ φ , p ⟩]) ⊢
+  --         δ_f[1] = vecTransp (i. Δ[γ[leftInv (~ i)], ⟨φ,p⟩[leftInv (~i)]]) φ δ : Δ[ρ[τ], x = refl u[ρ[τ]]]
+
   -- Γ,(φ : I),(p : Path A u v),(δ : Δ[x = ⟨ φ , p ⟩]) ⊢ w[δ_f[1]] : old_t[ρ[τ],x = refl u[ρ[τ]],δ_f[1]]
   -- Γ,(φ : I),(p : Path A u v),Δ[x = ⟨ φ , p ⟩] ⊢ rhs = transp (i. old_t[γ[leftInv i],x = ⟨φ,p⟩[leftInv i], δ_f[~i]]) φ (w[δ_f[1]]) : old_t[γ,x = ⟨ φ , p ⟩,δ]
-  return undefined
+  let
+      getLevel t = do
+        s <- reduce $ getSort t
+        case s of
+          Type l -> pure (Level l)
+          s      -> do
+            reportSDoc "tc.cover.hcomp" 20 $ text "getLevel, s = " <+> prettyTCM s
+            typeError . GenericDocError =<<
+                    (text "The sort of" <+> prettyTCM t <+> text "should be of the form \"Set l\"")
+  (ty,rhs) <- addContext working_tel $ runNamesT [] $ do
+    let
+        raiseFrom tel = raise (size working_tel - size tel)
+        all_args = teleArgs working_tel :: Args
+        (gamma_args,phi:p:delta_args) = splitAt (size gamma) all_args
+    old_t <- open $ raiseFrom EmptyTel old_t
+    old_ps <- open $ raiseFrom EmptyTel old_ps
+    delta_args <- open delta_args
+    gamma_args_left <- open gamma_args_left
+    con_phi_p_left <- open con_phi_p_left
+    hdelta <- open $ raiseFrom gamma hdelta
+    delta_f <- bind "i" $ \ i -> do
+      apply1 <$> applyN' hdelta (lazyAbsApp <$> gamma_args_left <*> (cl primINeg <@> i)) <*> (lazyAbsApp <$> con_phi_p_left <*> (cl primINeg <@> i))
+    delta_f <- open delta_f
+    [phi,p] <- mapM (open . unArg) [phi,p]
+    delta_args_f <- bind "i" $ \ i -> do
+
+      m <- trFillTel' True <$> delta_f <*> phi <*> delta_args <*> i
+      either __IMPOSSIBLE__ id <$> (lift $ runExceptT m)
+    delta_args_f <- open delta_args_f
+    old_t_f <- (open =<<) $ bind "i" $ \ i -> do
+      g <- lazyAbsApp <$> gamma_args_left <*> i
+      x <- lazyAbsApp <$> con_phi_p_left <*> i
+      d <- lazyAbsApp <$> delta_args_f <*> (cl primINeg <@> i)
+      args <- open $ g ++ [x] ++ map unArg d
+      applyN' old_t args
+    w <- (open =<<) . bind "i" $ \ i -> do
+      g <- lazyAbsApp <$> gamma_args_left <*> i
+      x <- lazyAbsApp <$> con_phi_p_left <*> i
+      d <- lazyAbsApp <$> delta_args_f <*> (cl primINeg <@> i)
+      args <- open $ g ++ [x] ++ map unArg d
+      Def f <$> applyN' old_ps args
+
+    ps <- open ps
+    max <- primIMax
+    iz <- primIZero
+    alphas <- (open =<<) $ do
+      vs <- iApplyVars <$> ps
+      neg <- primINeg
+      zero <- primIZero
+      return $ foldr (\ x r -> max `apply` [argN $ max `apply` [argN x, argN (neg `apply` [argN x])], argN r]) zero $ map var vs
+    sides <- (open =<<) $ do
+      neg <- primINeg
+      io <- primIOne
+      bind "i" $ \ i -> do
+        vs <- iApplyVars <$> ps
+        tm <- lazyAbsApp <$> w <*> i
+        xs <- forM vs $ \ v ->
+          -- have to reduce these under the appropriate substitutions, otherwise non-normalizing
+          fmap (var v,) . reduce $ (inplaceS v iz `applySubst` tm, inplaceS v io `applySubst` tm)
+        phiv <- fromMaybe __IMPOSSIBLE__ . deBruijnView <$> phi
+        -- extra assumption: phi |- w i = w 0, otherwise we need [ phi -> w 0 ] specifically
+        tm_phi <- reduce $ inplaceS phiv io `applySubst` tm
+        phi <- phi
+        return $ (phi,tm_phi) : concatMap (\(v,(l,r)) -> [(neg `apply` [argN v],l),(v,r)]) xs
+
+    imax <- return $ \ i j -> apply max . map argN $ [i,j]
+    tPOr <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinPOr
+    let
+      pOr l ty phi psi u0 u1 = do
+          [phi,psi] <- mapM open [phi,psi]
+          pure tPOr <#> l
+                    <@> phi <@> psi
+                    <#> (ilam "o" $ \ _ -> ty) <@> noilam u0 <@> u1
+
+      noilam u = do
+         u <- open u
+         ilam "o" $ \ _ -> u
+
+      combine l ty [] = __IMPOSSIBLE__
+      combine l ty [(psi,u)] = noilam u
+      combine l ty ((psi,u):xs) = pOr l ty psi (foldr imax iz (map fst xs)) u (combine l ty xs)
+
+    let ty i = lazyAbsApp <$> old_t_f <*> i
+    l <- (open =<<) $ lam "i" $ \ i -> do
+           t <- unArg <$> ty i
+           lift $ getLevel t
+    ((,) <$> ty (cl primIOne) <*>) $ do
+         -- TODO don't comp if family is constant?
+         pure tComp <#> l <@> (lam "i" $ \ i -> unEl . unArg <$> ty i)
+                <@> (cl primIMax <@> phi <@> alphas)
+                <@> (lam "i" $ \ i -> ilam "o" $ \ _ -> combine (l <@> i) (unEl . unArg <$> ty i) =<< (lazyAbsApp <$> sides <*> i)) 
+                <@> (lazyAbsApp <$> w <*> primIZero)
+
+  reportSDoc "tc.cover.conid" 20 $ text "conid case for" <+> text (show f)
+  reportSDoc "tc.cover.conid" 20 $ text "tel =" <+> prettyTCM working_tel
+  reportSDoc "tc.cover.conid" 25 $ addContext working_tel $ prettyTCM rhs
+
+  let cl =   Clause { clauseLHSRange  = noRange
+                    , clauseFullRange = noRange
+                    , clauseTel       = working_tel
+                    , namedClausePats = ps
+                    , clauseBody      = Just $ rhs
+                    , clauseType      = Just $ ty
+                    , clauseCatchall  = False
+                    , clauseUnreachable = Just False  -- missing, thus, not unreachable
+                    }
+  addClauses f [cl]
+  return $ Just ((SplitCon conId,SplittingDone (size working_tel)),cl)
+createMissingConIdClause f n x old_sc (tag,(sc,NoInfo)) = return Nothing
 --createMissingConIdClause _ _ _ _ (SClause _ _ _ _ Nothing) = __IMPOSSIBLE__
 
 
@@ -615,7 +782,7 @@ createMissingConIdClause f n x old_sc (tag,(SClause tel ps _sigma' _cps ~(Just t
 
   -- Γ,(φ : I),(p : Path A u v),Δ[ρ,x = refl][τ] ⊢ τ' = liftS |Δ[ρ,x = refl]| τ : Γ',Δ[ρ,x = refl]
 
-  -- Γ,(φ : I),(p : Path A u v),Δ[ρ,x = refl][τ] ⊢ w = f old_ps[ρ,x = refl][τ'] : old_t[ρ,x = refl][τ'] 
+  -- Γ,(φ : I),(p : Path A u v),Δ[ρ,x = refl][τ] ⊢ w = f old_ps[ρ,x = refl][τ'] : old_t[ρ,x = refl][τ']
 
   -- Γ,(φ : I),(p : Path A u v) | (i : I) ⊢ μ = ⟨ (φ ∨ ~ i) , (\ j → p (i ∧ j)) ⟩ : Id A u (p i) =?= (Id A u v)[leftInv (~ i)]
                                   μ[0] = ⟨ 1 , (\ _ → u[ρ[τ]]) ⟩
@@ -1070,7 +1237,20 @@ computeHCompSplit delta1 n delta2 d pars ixs hix tel ps cps = do
       return $ Just . (SplitCon hCompName,) $ SClause delta' ps' rho cps' Nothing -- target fixed later
 
 
-type IInfo = ()
+data IInfo = NoInfo
+           | TheInfo { infoTel :: Telescope -- Γ'
+                     , infoEqTel :: Telescope -- Γ ⊢ Δ
+                     , infoEqLHS :: [Term]
+                     , infoEqRHS :: [Term]
+                     , infoRho :: PatternSubstitution -- Γ' ⊢ ρ : Γ
+                     -- Γ ⊢ us, vs : Δ
+                     , infoTau :: Substitution -- Γ,(φs : Is),(eqs : Paths us vs) ⊢ τ : Γ'
+                     -- Δ = Γ,(φs : Is),(eqs : Paths us vs)
+                     , infoLeftInv :: Substitution   -- Δ | (i : I) ⊢ leftInv : Δ
+                     -- leftInv[0] = ρ[τ],i1,refls
+                     -- leftInv[1] = idS
+                     }
+       deriving (Show)
 
 -- | @computeNeighbourhood delta1 delta2 d pars ixs hix tel ps con@
 --
@@ -1139,12 +1319,14 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps cps c = do
   let conIxs   = drop (size pars) cixs
       givenIxs = raise (size gamma) ixs
 
-  r <- unifyIndices
+  r <- unifyIndices'
          delta1Gamma
          flex
          (raise (size gamma) dtype)
          conIxs
          givenIxs
+         
+  TelV eqTel _ <- telView $ (raise (size gamma) dtype)
 
   case r of
     NoUnify {} -> debugNoUnify $> Nothing
@@ -1152,7 +1334,12 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps cps c = do
     DontKnow errs -> do
       debugCantSplit
       throwError $ UnificationStuck (conName con) (delta1 `abstract` gamma) conIxs givenIxs errs
-    Unifies (delta1',rho0,_) -> do
+    Unifies (delta1',rho0,eqs,tau,leftInv) -> do
+      -- let unifyInfo | null conIxs = NoInfo
+      --               | otherwise   = TheInfo delta1' rho0 undefined undefined
+      mid <- getName' builtinId
+      let unifyInfo | Just d == mid = TheInfo delta1' eqTel (map unArg conIxs) (map unArg givenIxs) rho0 tau leftInv
+                    | otherwise     = NoInfo
       debugSubst "rho0" rho0
 
       let rho0' = toSplitPSubst rho0
@@ -1185,7 +1372,7 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps cps c = do
 
       let cps' = applySplitPSubst rho cps
 
-      return $ Just . (,undefined) $ SClause delta' ps' rho cps' Nothing -- target fixed later
+      return $ Just . (,unifyInfo) $ SClause delta' ps' rho cps' Nothing -- target fixed later
 
   where
     debugInit con ctype d pars ixs cixs delta1 delta2 gamma tel ps hix =
@@ -1201,7 +1388,7 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps cps c = do
           , "ixs    =" <+> do addContext delta1 $ prettyList $ map prettyTCM ixs
           , "cixs   =" <+> do addContext gamma  $ prettyList $ map prettyTCM cixs
           , "delta1 =" <+> do inTopContext $ prettyTCM delta1
-          , "delta2 =" <+> do inTopContext $ addContext delta1 $ addContext gamma $ prettyTCM delta2
+          , "delta2 =" <+> do inTopContext $ addContext delta1 $ addContext n $ prettyTCM delta2
           , "gamma  =" <+> do inTopContext $ addContext delta1 $ prettyTCM gamma
           , "hix    =" <+> text (show hix)
           ]
@@ -1304,9 +1491,6 @@ lookupPatternVar SClause{ scTel = tel, scPats = pats } x = arg $>
 
 
 data CheckEmpty = CheckEmpty | NoCheckEmpty
-
-pattern NoInfo :: IInfo
-pattern NoInfo = ()
 
 -- | @split' ind pc ft splitClause x = return res@
 --   splits @splitClause@ at pattern var @x@ (de Bruijn index).

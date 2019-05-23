@@ -28,11 +28,14 @@ import Agda.TypeChecking.Monad.Builtin
 
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Substitute
+import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Telescope
 
 import Agda.Utils.Except
 import Agda.Utils.Functor
+import Agda.Utils.Maybe
+
 import Agda.Utils.Impossible
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
@@ -172,9 +175,10 @@ primIdJ = do
     case ts of
      [la,lc,a,x,c,d,y,eq] -> do
        seq    <- reduceB' eq
-       case unArg $ ignoreBlocking $ seq of
-         (Def q [Apply la,Apply a,Apply x,Apply y,Apply phi,Apply p])
-           | Just q == conidn, Just comp <- mcomp -> do
+       cview <- conidView'
+       case cview (unArg x) $ unArg $ ignoreBlocking $ seq of
+         Just (phi,p)
+           | Just comp <- mcomp -> do
           redReturn $ runNames [] $ do
              [lc,c,d,la,a,x,y,phi,p] <- mapM (open . unArg) [lc,c,d,la,a,x,y,phi,p]
              let w i = do
@@ -223,8 +227,8 @@ primIdElim' = do
       [a,c,bA,x,bC,f,y,p] -> do
         sp <- reduceB' p
         cview <- conidView'
-        case cview $ unArg $ ignoreBlocking sp of
-          Def q [Apply _a, Apply _bA, Apply _x, Apply _y, Apply phi , Apply w] -> do
+        case cview (unArg x) $ unArg $ ignoreBlocking sp of
+          Just (phi , w) -> do
             y' <- return $ sin `apply` [a,bA                            ,phi,argN $ unArg y]
             w' <- return $ sin `apply` [a,argN $ path `apply` [a,bA,x,y],phi,argN $ unArg w]
             redReturn $ unArg f `apply` [phi, defaultArg y', defaultArg w']
@@ -341,7 +345,7 @@ primConId' = do
         case view $ unArg $ ignoreBlocking sphi of
           IOne -> do
             reflId <- getTerm builtinConId builtinReflId
-            redReturn $ reflId `apply` [l,bA,x]
+            redReturn $ reflId
           _ -> return $ NoReduction $ map notReduced [l,bA,x,y] ++ [reduced sphi, notReduced p]
       _ -> __IMPOSSIBLE__
 
@@ -361,8 +365,8 @@ primIdFace' = do
         st <- reduceB' t
         mConId <- getName' builtinConId
         cview <- conidView'
-        case cview $ unArg (ignoreBlocking st) of
-          Def q [_,_,_,_, Apply phi,_] | Just q == mConId -> redReturn (unArg phi)
+        case cview (unArg x) $ unArg (ignoreBlocking st) of
+          Just (phi,_) -> redReturn (unArg phi)
           _ -> return $ NoReduction $ map notReduced [l,bA,x,y] ++ [reduced st]
       _ -> __IMPOSSIBLE__
 
@@ -382,8 +386,8 @@ primIdPath' = do
         st <- reduceB' t
         mConId <- getName' builtinConId
         cview <- conidView'
-        case cview $ unArg (ignoreBlocking st) of
-          Def q [_,_,_,_,_,Apply w] | Just q == mConId -> redReturn (unArg w)
+        case cview (unArg x) $ unArg (ignoreBlocking st) of
+          Just (_,w)-> redReturn (unArg w)
           _ -> return $ NoReduction $ map notReduced [l,bA,x,y] ++ [reduced st]
       _ -> __IMPOSSIBLE__
 
@@ -850,8 +854,7 @@ primTransHComp cmd ts nelims = do
       unview <- intervalUnview'
       mConId <- getName' builtinConId
       cview <- conidView'
-      let isConId t | Def q _ <- cview t = Just q == mConId
-          isConId _         = False
+      let isConId t = isJust $ cview __DUMMY_TERM__ t
       sa0 <- reduceB' a0
       -- wasteful to compute b even when cheaper checks might fail
       b <- case u of
@@ -1204,7 +1207,12 @@ transpTel :: Abs Telescope -- Γ ⊢ i.Δ
           -> Term          -- Γ ⊢ φ : F  -- i.Δ const on φ
           -> Args          -- Γ ⊢ δ : Δ[0]
           -> ExceptT (Closure (Abs Type)) TCM Args      -- Γ ⊢ Δ[1]
-transpTel delta phi args = do
+transpTel = transpTel' False
+transpTel' :: Bool -> Abs Telescope -- Γ ⊢ i.Δ
+          -> Term          -- Γ ⊢ φ : F  -- i.Δ const on φ
+          -> Args          -- Γ ⊢ δ : Δ[0]
+          -> ExceptT (Closure (Abs Type)) TCM Args      -- Γ ⊢ Δ[1]
+transpTel' flag delta phi args = do
   tTransp <- liftTCM primTrans
   imin <- liftTCM primIMin
   imax <- liftTCM primIMax
@@ -1213,7 +1221,13 @@ transpTel delta phi args = do
     noTranspError t = lift . throwError =<< liftTCM (buildClosure t)
     bapp :: (Applicative m, Subst t a) => m (Abs a) -> m t -> m a
     bapp t u = lazyAbsApp <$> t <*> u
-    gTransp (Just l) t phi a = pure tTransp <#> l <@> (Lam defaultArgInfo . fmap unEl <$> t) <@> phi <@> a
+    gTransp (Just l) t phi a | flag = do
+      t' <- t
+      case 0 `freeIn` (raise 1 t' `lazyAbsApp` var 0) of
+        False -> a
+        True -> pure tTransp <#> l <@> (Lam defaultArgInfo . fmap unEl <$> t) <@> phi <@> a
+                             | otherwise = pure tTransp <#> l <@> (Lam defaultArgInfo . fmap unEl <$> t) <@> phi <@> a
+
     gTransp Nothing  t phi a = do
       -- Γ ⊢ i.Ξ
       xi <- (open =<<) $ do
@@ -1229,20 +1243,24 @@ transpTel delta phi args = do
           xi_args <- xi_args
           ni <- pure ineg <@> i
           phi <- phi
-          lift $ piApplyM ti =<< trFillTel xin phi xi_args ni
+          lift $ piApplyM ti =<< trFillTel' flag xin phi xi_args ni
         axi <- do
           a <- a
           xif <- bind "i" $ \ i -> xi `bapp` (pure ineg <@> i)
           phi <- phi
           xi_args <- xi_args
-          lift $ apply a <$> transpTel xif phi xi_args
+          lift $ apply a <$> transpTel' flag xif phi xi_args
         s <- reduce $ getSort (absBody b')
+        reportSDoc "cubical.transp" 20 $ pretty (raise 1 b' `lazyAbsApp` var 0)
         case s of
           Type l -> do
-            l <- open $ lam_i (Level l)
-            b' <- open b'
-            axi <- open axi
-            gTransp (Just l) b' phi axi
+            case 0 `freeIn` (raise 1 b' `lazyAbsApp` var 0) of
+              False | flag -> return axi
+              _ -> do
+                l <- open $ lam_i (Level l)
+                b' <- open b'
+                axi <- open axi
+                gTransp (Just l) b' phi axi
           Inf    ->
             case 0 `freeIn` (raise 1 b' `lazyAbsApp` var 0) of
               False -> return axi
@@ -1282,11 +1300,60 @@ trFillTel :: Abs Telescope -- Γ ⊢ i.Δ
           -> Args          -- Γ ⊢ δ : Δ[0]
           -> Term          -- Γ ⊢ r : I
           -> ExceptT (Closure (Abs Type)) TCM Args      -- Γ ⊢ Δ[r]
-trFillTel delta phi args r = do
+trFillTel = trFillTel' False
+
+trFillTel' :: Bool -> Abs Telescope -- Γ ⊢ i.Δ
+          -> Term
+          -> Args          -- Γ ⊢ δ : Δ[0]
+          -> Term          -- Γ ⊢ r : I
+          -> ExceptT (Closure (Abs Type)) TCM Args      -- Γ ⊢ Δ[r]
+trFillTel' flag delta phi args r = do
   imin <- liftTCM primIMin
   imax <- liftTCM primIMax
   ineg <- liftTCM primINeg
-  transpTel (Abs "j" $ raise 1 delta `lazyAbsApp` (imin `apply` (map argN [var 0, raise 1 r])))
+  transpTel' flag (Abs "j" $ raise 1 delta `lazyAbsApp` (imin `apply` (map argN [var 0, raise 1 r])))
             (imax `apply` [argN $ ineg `apply` [argN r], argN phi])
             args
 
+
+
+pathTelescope
+  :: Telescope -- Δ
+  -> [Arg Term] -- lhs : Δ
+  -> [Arg Term] -- rhs : Δ
+  -> TCM Telescope
+pathTelescope tel lhs rhs = do
+  pathp <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinPathP
+  go pathp (raise 1 tel) lhs rhs
+ where
+  -- Γ,i ⊢ Δ, Γ ⊢ lhs : Δ[0], Γ ⊢ rhs : Δ[1]
+  go :: Term -> Telescope -> [Arg Term] -> [Arg Term] -> TCM Telescope
+  go pathp (ExtendTel a tel) (u : lhs) (v : rhs) = do
+    let t = unDom a
+    l <- subst 0 __DUMMY_TERM__ <$> getLevel t
+    let a' = El (Type l) (apply pathp $ [argH $ Level l] ++ map argN [Lam defaultArgInfo (Abs "i" $ unEl t), unArg u, unArg v])
+        -- Γ,eq : u ≡ v, i : I ⊢ m = eq i : t[i]
+        -- m  = runNames [] $ do
+        --        [u,v] <- mapM (open . unArg) [u,v]
+        --        bind "eq" $ \ eq -> bind "i" $ \ i ->
+    (ExtendTel (a' <$ a) <$>) . runNamesT [] $ do
+      let nm = (absName tel)
+      tel <- open $ Abs "i" tel
+      [u,v] <- mapM (open . unArg) [u,v]
+      [lhs,rhs] <- mapM open [lhs,rhs]
+      bind nm $ \ eq -> do
+        lhs <- lhs
+        rhs <- rhs
+        tel' <- bind "i" $ \ i ->
+                  lazyAbsApp <$> (lazyAbsApp <$> tel <*> i) <*> (eq <@@> (u, v, i))
+        lift $ go pathp (absBody tel') lhs rhs
+  go _ EmptyTel [] [] = return EmptyTel
+  go _ _ _ _ = __IMPOSSIBLE__
+
+  getLevel t = do
+    s <- reduce $ getSort t
+    case s of
+      Type l -> pure l
+      s      -> do
+         typeError . GenericDocError =<<
+                    (text "The sort of" <+> prettyTCM t <+> text "should be of the form \"Set l\"")

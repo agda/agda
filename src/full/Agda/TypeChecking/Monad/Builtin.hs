@@ -542,19 +542,18 @@ pathUnview (PathType s path l t lhs rhs) =
 -- * Swan's Id Equality
 ------------------------------------------------------------------------
 
--- Turns reflId {l} {A} {x} into conid {l} {A} {x} {x} i1 (\ _ -> x)
-conidView' :: HasBuiltins m => m (Term -> Term)
+-- f x (< phi , p > : Id A x _) = Just (phi,p)
+conidView' :: HasBuiltins m => m (Term -> Term -> Maybe (Arg Term,Arg Term))
 conidView' = do
   mn <- sequence <$> mapM getName' [builtinReflId, builtinConId]
   mio <- getTerm' builtinIOne
-  caseMaybe mn (return id) $ \ [refl,conid] ->
-   caseMaybe mio (return id) $ \ io -> return $ \ t ->
+  let fallback = return $ \ _ _ -> Nothing
+  caseMaybe mn fallback $ \ [refl,conid] ->
+   caseMaybe mio fallback $ \ io -> return $ \ x t ->
     case t of
-      Con h _ args@[Apply l, Apply bA, Apply x] | conName h == refl ->
-        Def conid $ args ++ map Apply [x, defaultArg io
-                                      , defaultArg (Lam defaultArgInfo $ NoAbs "_" $ unArg x)
-                                      ]
-      _ -> t
+      Con h _ [] | conName h == refl -> Just (defaultArg io,defaultArg (Lam defaultArgInfo $ NoAbs "_" $ x))
+      Def d es | Just [l,a,x,y,phi,p] <- allApplyElims es, d == conid -> Just (phi, p)
+      _ -> Nothing
 
 ------------------------------------------------------------------------
 -- * Builtin equality

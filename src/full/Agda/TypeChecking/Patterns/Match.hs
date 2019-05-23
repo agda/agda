@@ -19,7 +19,7 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Reduce.Monad
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Monad.Builtin (getName',builtinHComp)
+import Agda.TypeChecking.Monad.Builtin (getName',builtinHComp, builtinConId)
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Datatypes
@@ -262,11 +262,13 @@ matchPattern p u = case (p, u) of
   -- Regardless of blocking, constructors and a properly applied @hcomp@
   -- can be matched on.
   isMatchable' = do
-    mhcomp <- getName' builtinHComp
+    [mhcomp,mconid] <- mapM getName' [builtinHComp, builtinConId]
     return $ \ r ->
       case ignoreBlocking r of
         t@Con{} -> Just t
         t@(Def q [l,a,phi,u,u0]) | Just q == mhcomp
+                -> Just t
+        t@(Def q [l,a,x,y,phi,p]) | Just q == mconid
                 -> Just t
         _       -> Nothing
 

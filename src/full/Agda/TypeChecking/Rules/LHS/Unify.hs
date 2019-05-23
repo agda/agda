@@ -100,6 +100,7 @@
 module Agda.TypeChecking.Rules.LHS.Unify
   ( UnificationResult
   , UnificationResult'(..)
+  , unifyIndices'
   , unifyIndices ) where
 
 import Prelude hiding (null)
@@ -131,7 +132,10 @@ import Agda.Syntax.Position
 
 import Agda.TypeChecking.Monad
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
-import Agda.TypeChecking.Monad.Builtin (constructorForm)
+import Agda.TypeChecking.Monad.Builtin -- (constructorForm, getTerm, builtinPathP)
+import Agda.TypeChecking.Primitive hiding (Nat)
+import Agda.TypeChecking.Primitive.Cubical
+import Agda.TypeChecking.Names
 import Agda.TypeChecking.Conversion -- equalTerm
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Datatypes
@@ -153,7 +157,7 @@ import Agda.TypeChecking.EtaContract
 import Agda.TypeChecking.Rules.LHS.Problem
 -- import Agda.TypeChecking.SyntacticEquality
 
-import Agda.Utils.Except ( MonadError(catchError, throwError) )
+import Agda.Utils.Except ( MonadError(catchError, throwError), runExceptT )
 import Agda.Utils.Either
 import Agda.Utils.Function
 import Agda.Utils.Functor
@@ -174,6 +178,14 @@ type UnificationResult = UnificationResult'
   ( Telescope                  -- @tel@
   , PatternSubstitution        -- @sigma@ s.t. @tel ⊢ sigma : varTel@
   , [NamedArg DeBruijnPattern] -- @ps@    s.t. @tel ⊢ ps    : eqTel @
+  )
+
+type FullUnificationResult = UnificationResult'
+  ( Telescope                  -- @tel@
+  , PatternSubstitution        -- @sigma@ s.t. @tel ⊢ sigma : varTel@
+  , [NamedArg DeBruijnPattern] -- @ps@    s.t. @tel ⊢ ps    : eqTel @
+  , Substitution -- τ
+  , Substitution -- leftInv
   )
 
 data UnificationResult' a
@@ -200,8 +212,17 @@ unifyIndices :: MonadTCM tcm
              -> Args
              -> Args
              -> tcm UnificationResult
-unifyIndices tel flex a [] [] = return $ Unifies (tel, idS, [])
-unifyIndices tel flex a us vs = liftTCM $ Bench.billTo [Bench.Typing, Bench.CheckLHS, Bench.UnifyIndices] $ do
+unifyIndices tel flex a us vs = fmap (\(a,b,c,_,_) -> (a,b,c)) <$> unifyIndices' tel flex a us vs
+
+unifyIndices' :: MonadTCM tcm
+             => Telescope
+             -> FlexibleVars
+             -> Type
+             -> Args
+             -> Args
+             -> tcm FullUnificationResult
+unifyIndices' tel flex a [] [] = return $ Unifies (tel, idS, [], idS, raiseS 1)
+unifyIndices' tel flex a us vs = liftTCM $ Bench.billTo [Bench.Typing, Bench.CheckLHS, Bench.UnifyIndices] $ do
     reportSDoc "tc.lhs.unify" 10 $
       sep [ "unifyIndices"
           , nest 2 $ prettyTCM tel
@@ -215,7 +236,155 @@ unifyIndices tel flex a us vs = liftTCM $ Bench.billTo [Bench.Typing, Bench.Chec
     reportSDoc "tc.lhs.unify" 70 $ "initial unifyState:" <+> text (show initialState)
     (result,output) <- runUnifyM $ unify initialState rightToLeftStrategy
     let ps = applySubst (unifyProof output) $ teleNamedArgs (eqTel initialState)
-    return $ fmap (\s -> (varTel s , unifySubst output , ps)) result
+    
+    (tau,leftInv) <- case unifyLog output of
+      [UnificationStep st step]
+        | Solution k ty fx tm side <- step -> do
+        reportSDoc "tc.lhs.unify.inv" 20 $ "step unifyState:" <+> prettyTCM st
+        reportSDoc "tc.lhs.unify.inv" 20 $ "step step:" <+> addContext (varTel st) (prettyTCM step)
+        unview <- intervalUnview'
+
+        let
+          -- k counds in eqs from the left
+          m = varCount st
+          gamma = varTel st
+          eqs = eqTel st
+          u = eqLHS st !! k
+          v = eqRHS st !! k
+          x = flexVar fx
+          neqs = size eqs 
+        interval <- elInf primInterval
+        
+        let gamma_phis = abstract gamma (telFromList $ map (defaultDom . (,interval)) $ map (("phi"++) . show) $ [0 .. neqs - 1])
+        working_tel <- abstract gamma_phis <$> pathTelescope (raise neqs $ eqTel st) (raise neqs $ eqLHS st) (raise neqs $ eqRHS st)
+        reportSDoc "tc.lhs.unify.inv" 20 $ prettyTCM (working_tel :: Telescope)
+        addContext working_tel $ reportSDoc "tc.lhs.unify.inv" 20 $ prettyTCM (teleArgs working_tel :: [Arg Term])
+
+        (tau,leftInv) <- addContext working_tel $ runNamesT [] $ do
+          let raiseFrom tel x = raise (size working_tel - size tel) x
+
+          [u,v] <- mapM (open . raiseFrom gamma . unArg) [u,v]
+          -- φ
+          let phi = raiseFrom gamma_phis $ var $ neqs - k - 1
+          -- working_tel ⊢ γ₁,x,γ₂,φ,eqs
+          let all_args = teleArgs working_tel
+          -- Γ₁,x : A,Γ₂
+--          gamma <- open $ raiseFrom EmptyTel gamma
+          -- -- γ₁,x,γ₂,φ,eqs : W
+          -- working_tel <- open $ raiseFrom EmptyTel working_tel
+
+          -- eq_tel <- open $ raiseFrom gamma (eqTel st)
+
+          -- [lhs,rhs] <- mapM (open . raiseFrom gamma) [eqLHS st,eqRHS st]
+          let bindSplit (tel1,tel2) = (tel1,AbsN (teleNames tel1) tel2)
+          -- . ⊢ Γ₁  ,  γ₁. (x : A),Γ₂,φ : I,[lhs ≡ rhs]
+          let (gamma1, xxi) = bindSplit $ splitTelescopeAt (size gamma - x - 1) working_tel
+          let (gamma1_args,xxi_args) = splitAt (size gamma1) all_args
+              (_x_arg:xi_args) = xxi_args
+              (x_arg:xi0,k_arg:xi1) = splitAt ((size gamma - size gamma1) + neqs + k) xxi_args
+              -- W ⊢ (x : A),Γ₂,φ : I,[lhs ≡ rhs]
+          let
+            xxi_here :: Telescope
+            xxi_here = absAppN xxi $ map unArg gamma1_args
+          --                                                      x:A,Γ₂                φ
+          let (xpre,krest) = bindSplit $ splitTelescopeAt ((size gamma - size gamma1) + neqs + k) xxi_here
+          k_arg <- open $ unArg k_arg
+          xpre <- open xpre
+          krest <- open krest
+          delta <- bindN ["x","eq"] $ \ [x,eq] -> do
+                     let pre = apply1 <$> xpre <*> x
+                     abstractN pre $ \ args ->
+                       apply1 <$> applyN krest (x:args) <*> eq
+--          let delta_zero = absAppN delta $ map unArg [x_arg,k_arg]
+          let d_zero_args = xi0 ++ xi1
+          reportSDoc "tc.lhs.unify.inv" 20 $ "size delta:" <+> text (show $ size $ unAbsN delta)
+          reportSDoc "tc.lhs.unify.inv" 20 $ "size d0args:" <+> text (show $ size d_zero_args)
+          let appSide = case side of
+                          Left{} -> id
+                          Right{} -> unview . INeg . argN
+          let
+                  csingl :: NamesT TCM Term -> NamesT TCM [Arg Term]
+                  csingl i = sequence $ map (fmap defaultArg) $ csingl' i
+                  csingl' :: NamesT TCM Term -> [NamesT TCM Term]
+                  csingl' i = [ k_arg <@@> (u,v,appSide <$> i)
+                              , lam "j" $ \ j ->
+                                  let r i j = case side of
+                                            Left{} -> unview (IMax (argN j) (argN i))
+                                            Right{} -> unview (IMin (argN j) (argN . unview $ INeg $ argN i))
+                                  in k_arg <@@> (u,v,r <$> i <*> j)
+                              ]
+          let replaceAt n x xs = xs0 ++ x:xs1
+                where (xs0,_:xs1) = splitAt n xs
+              dropAt n xs = xs0 ++ xs1
+                where (xs0,_:xs1) = splitAt n xs
+          delta <- open delta
+          d <- bind "i" $ \ i -> applyN delta (csingl' i)
+
+          -- Andrea 06/06/2018
+          -- We do not actually add a transp/fill if the family is
+          -- constant (TODO: postpone for metas) This is so variables
+          -- whose types do not depend on "x" are left alone, in
+          -- particular those the solution "t" depends on.
+          --
+          -- We might want to instead use the info discovered by the
+          -- solver when checking if "t" depends on "x" to decide what
+          -- to transp and what not to.
+          let flag = True
+
+          tau <- {-dropAt (size gamma - 1 + k) .-} (gamma1_args ++) . either __IMPOSSIBLE__ id <$> lift (runExceptT (transpTel' flag d phi d_zero_args))
+          leftInv <- do
+            gamma1_args <- open gamma1_args
+            phi <- open phi
+            -- xxi_here <- open xxi_here
+            -- (xi_here_f :: Abs Telescope) <- bind "i" $ \ i -> apply <$> xxi_here <*> (take 1 `fmap` csingl i)
+            -- xi_here_f <- open xi_here_f
+            -- xi_args <- open xi_args
+            -- xif <- bind "i" $ \ i -> do
+            --                      m <- (runExceptT <$> (trFillTel' flag <$> xi_here_f <*> phi <*> xi_args <*> i))
+            --                      either __IMPOSSIBLE__ id <$> lift m
+            -- xif <- open xif
+
+            xi0 <- open xi0
+            xi1 <- open xi1
+            delta0 <- bind "i" $ \ i -> apply <$> xpre <*> (take 1 `fmap` csingl i)
+            delta0 <- open delta0
+            xi0f <- bind "i" $ \ i -> do
+                                 m <- (runExceptT <$> (trFillTel' flag <$> delta0 <*> phi <*> xi0 <*> i))
+                                 either __IMPOSSIBLE__ id <$> lift m
+            xi0f <- open xi0f
+
+            delta1 <- bind "i" $ \ i -> do
+
+                   args <- mapM (open . unArg) =<< (lazyAbsApp <$> xi0f <*> i)
+                   apply <$> applyN krest ((take 1 $ csingl' i) ++ args) <*> (drop 1 `fmap` csingl i)
+            delta1 <- open delta1
+            xi1f <- bind "i" $ \ i -> do
+                                 m <- (runExceptT <$> (trFillTel' flag <$> delta1 <*> phi <*> xi1 <*> i))
+                                 either __IMPOSSIBLE__ id <$> lift m
+            xi1f <- open xi1f
+            fmap absBody . bind "i" $ \ i' -> do
+              let (+++) m = liftA2 (++) m
+                  i = cl primINeg <@> i'
+              replaceAt (size gamma + k) <$> (fmap defaultArg $ cl primIMax <@> phi <@> i) <*> do
+                gamma1_args +++ (take 1 `fmap` csingl i +++ ((lazyAbsApp <$> xi0f <*> i) +++ (drop 1 `fmap` csingl i +++ (lazyAbsApp <$> xi1f <*> i))))
+          return (tau,leftInv)
+        iz <- primIZero
+        io <- primIOne
+        addContext working_tel $ reportSDoc "tc.lhs.unify.inv" 20 $ "tau    :" <+> prettyTCM (map (setHiding NotHidden) tau)
+        addContext working_tel $ addContext ("r" :: String, defaultDom interval)
+                               $ reportSDoc "tc.lhs.unify.inv" 20 $ "leftInv:   " <+> prettyTCM (map (setHiding NotHidden) leftInv)
+        addContext working_tel $ reportSDoc "tc.lhs.unify.inv" 20 $ "leftInv[0]:" <+> (prettyTCM =<< reduce (subst 0 iz $ map (setHiding NotHidden) leftInv))
+        addContext working_tel $ reportSDoc "tc.lhs.unify.inv" 20 $ "leftInv[1]:" <+> (prettyTCM =<< reduce  (subst 0 io $ map (setHiding NotHidden) leftInv))
+        addContext working_tel $ reportSDoc "tc.lhs.unify.inv" 20 $ "[rho]tau :" <+>
+                                                                                  -- k   φ
+          prettyTCM (applySubst (parallelS $ reverse $ map unArg tau) $ fromPatternSubstitution (raise (size (eqTel st) - 1{-k-} + neqs{-φ-}) $ unifySubst output))
+        reportSDoc "tc.lhs.unify.inv" 20 $ "."
+        return $ (parallelS (reverse $ map unArg tau), parallelS (reverse $ map unArg leftInv))
+      _ -> do reportSDoc "tc.lhs.unify.inv" 20 $ "steps"
+              return (idS, idS)
+
+
+    return $ fmap (\s -> (varTel s , unifySubst output , ps, tau, leftInv)) result
 
 ----------------------------------------------------
 -- Equalities
@@ -435,6 +604,8 @@ data UnifyStep
     , solutionType       :: Dom Type
     , solutionVar        :: FlexibleVar Int
     , solutionTerm       :: Term
+    , solutionSide       :: Either () ()
+      -- ^ side of the equation where the variable is.
     }
   | Injectivity
     { injectAt           :: Int
@@ -499,11 +670,12 @@ instance PrettyTCM UnifyStep where
       , "lhs:        " <+> prettyTCM u
       , "rhs:        " <+> prettyTCM v
       ])
-    Solution k a i u -> "Solution" $$ nest 2 (vcat $
+    Solution k a i u s -> "Solution" $$ nest 2 (vcat $
       [ "position:   " <+> text (show k)
       , "type:       " <+> prettyTCM a
       , "variable:   " <+> text (show i)
       , "term:       " <+> prettyTCM u
+      , "side:       " <+> text (show s)
       ])
     Injectivity k a d pars ixs c -> "Injectivity" $$ nest 2 (vcat $
       [ "position:   " <+> text (show k)
@@ -614,10 +786,10 @@ basicUnifyStrategy k s = do
      | Just fi <- findFlexible i flex
      , Just fj <- findFlexible j flex -> do
        let choice = chooseFlex fi fj
-           firstTryLeft  = msum [ return (Solution k dom{unDom = ha} fi v)
-                                , return (Solution k dom{unDom = ha} fj u)]
-           firstTryRight = msum [ return (Solution k dom{unDom = ha} fj u)
-                                , return (Solution k dom{unDom = ha} fi v)]
+           firstTryLeft  = msum [ return (Solution k dom{unDom = ha} fi v left)
+                                , return (Solution k dom{unDom = ha} fj u right)]
+           firstTryRight = msum [ return (Solution k dom{unDom = ha} fj u right)
+                                , return (Solution k dom{unDom = ha} fi v left)]
        liftTCM $ reportSDoc "tc.lhs.unify" 40 $ "fi = " <+> text (show fi)
        liftTCM $ reportSDoc "tc.lhs.unify" 40 $ "fj = " <+> text (show fj)
        liftTCM $ reportSDoc "tc.lhs.unify" 40 $ "chooseFlex: " <+> text (show choice)
@@ -627,13 +799,14 @@ basicUnifyStrategy k s = do
          ExpandBoth   -> mzero -- This should be taken care of by etaExpandEquationStrategy
          ChooseEither -> firstTryRight
     (Just i, _)
-     | Just fi <- findFlexible i flex -> return $ Solution k dom{unDom = ha} fi v
+     | Just fi <- findFlexible i flex -> return $ Solution k dom{unDom = ha} fi v left
     (_, Just j)
-     | Just fj <- findFlexible j flex -> return $ Solution k dom{unDom = ha} fj u
+     | Just fj <- findFlexible j flex -> return $ Solution k dom{unDom = ha} fj u right
     _ -> mzero
   where
     flex = flexVars s
     n = eqCount s
+    left = Left (); right = Right ()
 
 dataStrategy :: Int -> UnifyStrategy
 dataStrategy k s = do

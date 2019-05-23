@@ -810,6 +810,19 @@ builtinPathPHook q =
       $ updateDefPolarity       id
       . updateDefArgOccurrences (const [Unused,StrictPos,Mixed,Mixed])
 
+builtinIdHook :: QName -> TCM ()
+builtinIdHook q = do
+      modifySignature $ updateDefinition q
+        $ updateDefPolarity       id
+        . updateDefArgOccurrences (const [Unused,StrictPos,Mixed,Mixed])
+      modifySignature $ updateDefinition q
+        $ updateTheDef (\ def@Datatype{} -> def { dataPars = 3, dataIxs = 1})
+
+builtinReflIdHook :: QName -> TCM ()
+builtinReflIdHook q = do
+      modifySignature $ updateDefinition q
+        $ updateTheDef (\ def@Constructor{} -> def { conPars = 3, conArity = 0})
+
 -- | Bind a builtin thing to an expression.
 bindBuiltin :: String -> ResolvedName -> TCM ()
 bindBuiltin b x = do
@@ -905,10 +918,14 @@ bindBuiltinNoDef b q = inTopContext $ do
 
       addConstant q $ defaultDefn defaultArgInfo q t def
       addDataCons d [q]
+
+      when (b == builtinReflId)     $ builtinReflIdHook q
+
       bindBuiltinName b $ Con ch ConOSystem []
     Just (BuiltinData mt cs) -> do
       t <- mt
       addConstant q $ defaultDefn defaultArgInfo q t def
+      when (b == builtinId)     $ builtinIdHook q
       bindBuiltinName b $ Def q []
       where
         def = Datatype
