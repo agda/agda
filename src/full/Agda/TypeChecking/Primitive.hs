@@ -103,6 +103,19 @@ class PrimType a where
 instance (PrimType a, PrimType b) => PrimTerm (a -> b) where
   primTerm _ = unEl <$> (primType (undefined :: a) --> primType (undefined :: b))
 
+instance (PrimType a, PrimType b) => PrimTerm (a, b) where
+  primTerm _ = do
+    sigKit <- fromMaybe __IMPOSSIBLE__ <$> getSigmaKit
+    let sig = Def (sigmaName sigKit) []
+    a'       <- primType (undefined :: a)
+    b'       <- primType (undefined :: b)
+    Type la  <- pure $ getSort a'
+    Type lb  <- pure $ getSort b'
+    pure sig <#> pure (Level la)
+             <#> pure (Level lb)
+             <@> pure (unEl a')
+             <@> pure (nolam $ unEl b')
+
 instance PrimTerm a => PrimType a where
   primType _ = el $ primTerm (undefined :: a)
 
@@ -221,6 +234,14 @@ instance ToTerm PrecedenceLevel where
       case p of
         Unrelated -> unrelated
         Related n -> related `apply` [defaultArg $ iToTm n]
+
+instance (ToTerm a, ToTerm b) => ToTerm (a, b) where
+  toTerm = do
+    sigKit <- fromMaybe __IMPOSSIBLE__ <$> getSigmaKit
+    let con = Con (sigmaCon sigKit) ConOSystem []
+    fromA <- toTerm
+    fromB <- toTerm
+    pure $ \ (a, b) -> con `apply` map defaultArg [fromA a, fromB b]
 
 -- | @buildList A ts@ builds a list of type @List A@. Assumes that the terms
 --   @ts@ all have type @A@.
