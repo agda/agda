@@ -2030,8 +2030,23 @@ instance Monoid Simplification where
   mempty = NoSimplification
   mappend = (<>)
 
-data Reduced no yes = NoReduction no | YesReduction Simplification yes
-    deriving Functor
+data Reduced no yes
+  = NoReduction no
+  | YesReduction Simplification yes
+  deriving Functor
+
+redReturn :: a -> ReduceM (Reduced a' a)
+redReturn = return . YesReduction YesSimplification
+
+-- | Conceptually: @redBind m f k = either (return . Left . f) k =<< m@
+
+redBind :: ReduceM (Reduced a a') -> (a -> b) ->
+           (a' -> ReduceM (Reduced b b')) -> ReduceM (Reduced b b')
+redBind ma f k = do
+  r <- ma
+  case r of
+    NoReduction x    -> return $ NoReduction $ f x
+    YesReduction _ y -> k y
 
 -- | Three cases: 1. not reduced, 2. reduced, but blocked, 3. reduced, not blocked.
 data IsReduced
@@ -2081,11 +2096,16 @@ type AllowedReductions = [AllowedReduction]
 allReductions :: AllowedReductions
 allReductions = [minBound..pred maxBound]
 
+
+-- | Primitives
+
+data PrimitiveImpl = PrimImpl Type PrimFun
+
 data PrimFun = PrimFun
-        { primFunName           :: QName
-        , primFunArity          :: Arity
-        , primFunImplementation :: [Arg Term] -> Int -> ReduceM (Reduced MaybeReducedArgs Term)
-        }
+  { primFunName           :: QName
+  , primFunArity          :: Arity
+  , primFunImplementation :: [Arg Term] -> Int -> ReduceM (Reduced MaybeReducedArgs Term)
+  }
 
 primFun :: QName -> Arity -> ([Arg Term] -> ReduceM (Reduced MaybeReducedArgs Term)) -> PrimFun
 primFun q ar imp = PrimFun q ar (\ args _ -> imp args)

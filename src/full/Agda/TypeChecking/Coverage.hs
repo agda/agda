@@ -41,7 +41,7 @@ import Agda.Syntax.Internal.Pattern
 
 import Agda.TypeChecking.Names
 import Agda.TypeChecking.Primitive hiding (Nat)
-import Agda.TypeChecking.Primitive.Cubical
+import Agda.TypeChecking.Primitive.Cubical (trFillTel)
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
 
