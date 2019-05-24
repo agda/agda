@@ -224,6 +224,11 @@ install:
        echo ${_cabal_pkgs}
        echo "}"
        [ ${_cabal_pkgs_sc} -eq 0 ] || return ${_cabal_pkgs_sc}
+       # "All the requested packages are already installed: Use --reinstall if you want to reinstall anyway"
+       # Happens even with --reinstall and --force-reinstalls because who knows.
+       if [[ "${_cabal_pkgs}" != "All the requested packages are already installed"* ]]; then
+         travis_retry cabal fetch $(sed -e '1,2d' -e 's|(latest[^)]*)||g' <<< "${_cabal_pkgs}") || return $?
+       fi
        make CABAL_OPTS='-v0 --only-dependencies --force-reinstalls' install-bin
     elif [[ $TEST = "STACKAGE" ]]; then
          stack build $ARGS --no-terminal --only-dependencies;
