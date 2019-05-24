@@ -23,7 +23,7 @@ Names
 ~~~~~
 
 The built-in ``QNAME`` type represents quoted names and comes equipped with
-equality, ordering and a show function.
+equality, ordering, and a show function.
 
 ::
 
@@ -34,6 +34,27 @@ equality, ordering and a show function.
     primQNameEquality : Name → Name → Bool
     primQNameLess     : Name → Name → Bool
     primShowQName     : Name → String
+    
+The fixity of a name can also be retrived.
+
+::
+
+  primitive 
+    primQNameFixity    : Name → Fixity
+    
+To define a decidable propositional equality with the option ``--safe``, 
+one can use the conversion to a pair of built-in 64-bit machine words
+
+::
+
+  primitive 
+    primQNameToWord64s : Name → Σ Word64 (λ _ → Word64)
+    
+with the injectivity proof in the ``Properties`` module.::
+
+  primitive
+    primQNameToWord64sInjective : ∀ a b → primQNameToWord64s a ≡ primQNameToWord64s b → a ≡ b
+
 
 Name literals are created using the ``quote`` keyword and can appear both in
 terms and in patterns
@@ -53,7 +74,7 @@ Metavariables
 ~~~~~~~~~~~~~
 
 Metavariables are represented by the built-in ``AGDAMETA`` type. They have
-primitive equality, ordering and show::
+primitive equality, ordering, show, and conversion to Nat::
 
   postulate Meta : Set
   {-# BUILTIN AGDAMETA Meta #-}
@@ -62,8 +83,17 @@ primitive equality, ordering and show::
     primMetaEquality : Meta → Meta → Bool
     primMetaLess     : Meta → Meta → Bool
     primShowMeta     : Meta → String
+    primMetaToNat    : Meta → Nat
 
-Builtin metavariables show up in reflected terms.
+Builtin metavariables show up in reflected terms. In ``Properties``, there is a proof of injectivity
+of ``primMetaToNat``
+
+::
+
+  primitive
+    primMetaToNatInjective : ∀ a b → primMetaToNat a ≡ primMetaToNat b → a ≡ b
+
+which can be used to define a decidable propositional equality with the option ``--safe``. 
 
 Literals
 ~~~~~~~~
