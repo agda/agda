@@ -215,14 +215,14 @@ install:
   - |
     if [[ $TEST = "MAIN" || $TEST = "HADDOCK" ]]; then
        _cabal_verb_prefix=''
-       if [[ "$(cabal --version)" = *"version 2."* ]]; then
+       if [[ "$(cabal --version)" = *"version 2."[4-9]* ]]; then
          _cabal_verb_prefix=v1-
        fi
        _cabal_pkgs="$(cabal ${_cabal_verb_prefix}install --dependencies-only --enable-tests --force-reinstalls --reinstall --dry-run)" || return 1
        echo "Packages: {"
        echo ${_cabal_pkgs}
        echo "}"
-       travis_retry cabal fetch $(sed -e 1,2d -e "s|(latest[^)]*)||g" << "${_cabal_pkgs}") &&
+       travis_retry cabal fetch $(sed -e '1,2d' -e 's|(latest[^)]*)||g' <<< "${_cabal_pkgs}") &&
        make CABAL_OPTS='-v0 --only-dependencies --force-reinstalls' install-bin
     elif [[ $TEST = "STACKAGE" ]]; then
          stack build $ARGS --no-terminal --only-dependencies;
