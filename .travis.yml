@@ -355,7 +355,7 @@ script:
     fi
 
   - if [[ $TEST = "MAIN" ]]; then
-       make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" BUILD_DIR=$BUILD_DIR compiler-test;
+       travis_wait 20 make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" BUILD_DIR=$BUILD_DIR compiler-test;
     fi
 
   - if [[ $TEST = "MAIN" ]]; then
