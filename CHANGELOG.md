@@ -57,13 +57,16 @@ Language
 * New primitives
 
   ```agda
-  primWord64ToNatInjective   : ∀ a b → primWord64ToNat a ≡ primWord64ToNat b → a ≡ b
+  primWord64ToNatInjective    : ∀ a b → primWord64ToNat a ≡ primWord64ToNat b → a ≡ b
 
-  primFloatToWord64          : Float → Word64
-  primFloatToWord64Injective : ∀ a b → primFloatToWord64 a ≡ primFloatToWord64 b → a ≡ b
+  primFloatToWord64           : Float → Word64
+  primFloatToWord64Injective  : ∀ a b → primFloatToWord64 a ≡ primFloatToWord64 b → a ≡ b
 
-  primMetaToNat          : Meta → Nat
-  primMetaToNatInjective : ∀ a b → primMetaToNat a ≡ primMetaToNat b → a ≡ b
+  primMetaToNat               : Meta → Nat
+  primMetaToNatInjective      : ∀ a b → primMetaToNat a ≡ primMetaToNat b → a ≡ b
+
+  primQNameToWord64s          : Name → Word64 × Word64
+  primQNameToWord64sInjective : ∀ a b → primQNameToWord64s a ≡ primQNameToWord64s b → a ≡ b
   ```
 
   These can be used to define safe decidable propositional equality, see issue [agda-stdlib#698](https://github.com/agda/agda-stdlib/issues/698).
