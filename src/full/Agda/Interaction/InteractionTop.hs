@@ -1201,17 +1201,13 @@ solveInstantiatedGoals norm mii = do
         e <- withMetaInfo mi $ abstractToConcreteCtx TopCtx e
         return (i, e)
 
-
 -- | Print open metas nicely.
 showOpenMetas :: TCM [String]
 showOpenMetas = do
-  ims <- B.typesOfVisibleMetas B.AsIs
+  (ims, hms) <- B.typesOfOpenMetas
   di <- forM ims $ \ i ->
     B.withInteractionId (B.outputFormId $ B.OutputForm noRange [] i) $
       prettyATop i
-  -- Show unsolved implicit arguments simplified.
-  unsolvedNotOK <- not . optAllowUnsolved <$> pragmaOptions
-  hms <- (guard unsolvedNotOK >>) <$> B.typesOfHiddenMetas B.Simplified
   dh <- mapM showA' hms
   return $ map show di ++ dh
   where

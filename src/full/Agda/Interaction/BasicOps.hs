@@ -358,6 +358,10 @@ data OutputConstraint a b
       | PostponedCheckFunDef QName a
   deriving (Functor)
 
+type OpenMetas = ( [OutputConstraint Expr InteractionId] -- visible metas
+                 , [OutputConstraint Expr NamedMeta]     -- hidden metas
+                 )
+
 -- | A subset of 'OutputConstraint'.
 
 data OutputConstraint' a b = OfType' { ofName :: b
@@ -665,6 +669,15 @@ typesOfHiddenMetas norm = liftTCM $ do
       M.OpenInstance -> x `notElem` is  -- OR: True !?
       M.BlockedConst{} -> False
       M.PostponedTypeCheckingProblem{} -> False
+
+typesOfOpenMetas :: TCM OpenMetas
+typesOfOpenMetas = do
+  -- visible metas (as-is)
+  visibleMetas <- typesOfVisibleMetas AsIs
+  -- hidden metas (unsolved implicit arguments simplified)
+  unsolvedNotOK <- not . optAllowUnsolved <$> pragmaOptions
+  hiddenMetas <- (guard unsolvedNotOK >>) <$> typesOfHiddenMetas Simplified
+  return (visibleMetas, hiddenMetas)
 
 metaHelperType :: Rewrite -> InteractionId -> Range -> String -> TCM (OutputConstraint' Expr Expr)
 metaHelperType norm ii rng s = case words s of
