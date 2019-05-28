@@ -253,11 +253,16 @@ withSignature sig m = do
 addRewriteRulesFor :: QName -> RewriteRules -> [QName] -> Signature -> Signature
 addRewriteRulesFor f rews matchables =
     (over sigRewriteRules $ HMap.insertWith mappend f rews)
-  . (updateDefinition f $ updateTheDef setNotInjective)
+  . (updateDefinition f $ updateTheDef setNotInjective . setCopatternLHS)
   . (foldr (.) id $ map (\g -> updateDefinition g $ setMatchable) matchables)
     where
       setNotInjective def@Function{} = def { funInv = NotInjective }
       setNotInjective def            = def
+
+      setCopatternLHS =
+        updateDefCopatternLHS (|| any hasProjectionPattern rews)
+
+      hasProjectionPattern rew = any (isJust . isProjElim) $ rewPats rew
 
       setMatchable def = def { defMatchable = Set.insert f $ defMatchable def }
 
