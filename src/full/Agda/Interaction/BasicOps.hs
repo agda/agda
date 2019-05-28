@@ -19,6 +19,7 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.List as List
 import Data.Maybe
+import Data.Tuple (swap)
 import Data.Traversable hiding (mapM, forM, for)
 import Data.Monoid
 
@@ -364,6 +365,12 @@ type Goals = ( [OutputConstraint Expr InteractionId] -- visible metas
              , [OutputConstraint Expr NamedMeta]     -- hidden metas
              )
 
+type WarningsAndNonFatalErrors
+      = ( [TCWarning] -- warnings
+        , [TCWarning] -- non-fatal errors
+        )
+
+
 -- | A subset of 'OutputConstraint'.
 
 data OutputConstraint' a b = OfType' { ofName :: b
@@ -681,11 +688,11 @@ getGoals = do
   hiddenMetas <- (guard unsolvedNotOK >>) <$> typesOfHiddenMetas Simplified
   return (visibleMetas, hiddenMetas)
 
-getWarnings :: TCM ([TCWarning], [TCWarning])
-getWarnings = do
+getWarningsAndNonFatalErrors :: TCM WarningsAndNonFatalErrors
+getWarningsAndNonFatalErrors = do
   mws <- getMaybeWarnings AllWarnings
   return $ case filter isNotMeta <$> mws of
-    SomeWarnings ws@(_:_) -> classifyWarnings ws
+    SomeWarnings ws@(_:_) -> swap $ classifyWarnings ws
     _ -> ([], [])
    where isNotMeta w = case tcWarning w of
                          UnsolvedInteractionMetas{} -> False

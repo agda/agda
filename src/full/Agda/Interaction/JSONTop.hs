@@ -47,7 +47,7 @@ instance ToJSON MakeCaseVariant where
 
 -- we leave some of the fields as Null for the moment
 instance ToJSON DisplayInfo where
-  toJSON (Info_CompilationOk warnings errors) = object
+  toJSON (Info_CompilationOk warningsAndErrors) = object
     [ "kind"        .= String "CompilationOk"
     , "warnings"    .= Null
     , "errors"      .= Null
@@ -56,7 +56,7 @@ instance ToJSON DisplayInfo where
     [ "kind"        .= String "Constraints"
     , "constraints" .= Null
     ]
-  toJSON (Info_AllGoalsWarnings _goals _warnings _errors) = object
+  toJSON (Info_AllGoalsWarnings _goals _warningsAndErrors) = object
     [ "kind"        .= String "AllGoalsWarnings"
     , "goals"       .= Null
     , "warnings"    .= Null

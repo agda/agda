@@ -845,8 +845,7 @@ interpret (Cmd_compile b file argv) =
           QuickLaTeX               -> LaTeX.generateLaTeX i
           OtherBackend "GHCNoMain" -> callBackend "GHC" NotMain i   -- for backwards compatibility
           OtherBackend b           -> callBackend b IsMain  i
-        (we, wa) <- lift getWarnings
-        display_info $ Info_CompilationOk we wa
+        display_info . Info_CompilationOk =<< lift getWarningsAndNonFatalErrors
       Imp.SomeWarnings w -> do
         pw <- lift $ prettyTCWarnings w
         display_info $ Info_Error $ unlines
@@ -862,8 +861,8 @@ interpret Cmd_constraints =
 interpret Cmd_metas = do -- CL.showMetas []
   unsolvedNotOK <- lift $ not . optAllowUnsolved <$> pragmaOptions
   ms <- lift B.getGoals
-  (we, wa) <- lift getWarnings
-  display_info $ Info_AllGoalsWarnings ms wa we
+  (we, wa) <- lift getWarningsAndNonFatalErrors
+  display_info . Info_AllGoalsWarnings ms =<< lift getWarningsAndNonFatalErrors
 
 interpret (Cmd_show_module_contents_toplevel norm s) =
   liftCommandMT B.atTopLevel $ showModuleContents norm noRange s

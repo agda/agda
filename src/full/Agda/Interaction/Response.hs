@@ -14,7 +14,7 @@ module Agda.Interaction.Response
   , defaultInteractionOutputCallback
   ) where
 
-import {-# SOURCE #-} Agda.Interaction.BasicOps (Goals, OutputForm)
+import {-# SOURCE #-} Agda.Interaction.BasicOps (Goals, WarningsAndNonFatalErrors, OutputForm)
 import Agda.Interaction.Highlighting.Precise
 import {-# SOURCE #-} Agda.TypeChecking.Monad.Base
 import Agda.Syntax.Common   (InteractionId(..))
@@ -73,11 +73,9 @@ data MakeCaseVariant = Function | ExtendedLambda
 -- | Info to display at the end of an interactive command
 
 data DisplayInfo
-    = Info_CompilationOk [TCWarning] [TCWarning]
-      -- ^ warnings and (non-fatal) errors
+    = Info_CompilationOk WarningsAndNonFatalErrors
     | Info_Constraints [OutputForm Expr Expr]
-    | Info_AllGoalsWarnings Goals [TCWarning] [TCWarning]
-        -- ^ warnings and (non-fatal) errors
+    | Info_AllGoalsWarnings Goals WarningsAndNonFatalErrors
     | Info_Time CPUTime
     | Info_Error String
         -- ^ When an error message is displayed this constructor should be
