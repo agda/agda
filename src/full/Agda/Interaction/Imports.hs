@@ -58,6 +58,7 @@ import Agda.TheTypeChecker
 
 import Agda.Interaction.FindFile
 import {-# SOURCE #-} Agda.Interaction.InteractionTop (showOpenMetas)
+import Agda.Interaction.BasicOps (typesOfOpenMetas)
 import Agda.Interaction.Options
 import qualified Agda.Interaction.Options.Lenses as Lens
 import Agda.Interaction.Highlighting.Precise
@@ -921,7 +922,7 @@ createInterface file mname isMain msi =
     openMetas           <- getOpenMetas
     unless (null openMetas) $ do
       reportSLn "import.metas" 10 "We have unsolved metas."
-      reportSLn "import.metas" 10 . unlines =<< showOpenMetas
+      reportSLn "import.metas" 10 =<< showOpenMetas =<< typesOfOpenMetas
 
     ifTopLevelAndHighlightingLevelIs NonInteractive $
       printUnsolvedInfo

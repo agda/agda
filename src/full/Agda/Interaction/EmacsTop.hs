@@ -18,6 +18,7 @@ import Agda.Interaction.Response as R
 import Agda.Interaction.EmacsCommand hiding (putResponse)
 import Agda.Interaction.Highlighting.Emacs
 import Agda.Interaction.Highlighting.Precise (TokenBased(..))
+import Agda.Interaction.InteractionTop (showOpenMetas)
 
 import Agda.VersionCommit
 
@@ -29,7 +30,7 @@ import Agda.VersionCommit
 --   'mimicGHCi' reads the Emacs frontend commands from stdin,
 --   interprets them and print the result into stdout.
 mimicGHCi :: TCM () -> TCM ()
-mimicGHCi = repl (liftIO . mapM_ print <=< liftIO . lispifyResponse) "Agda2> "
+mimicGHCi = repl (liftIO . mapM_ print <=< lispifyResponse) "Agda2> "
 
 -- | Given strings of goals, warnings and errors, return a pair of the
 --   body and the title for the info buffer
@@ -56,15 +57,17 @@ formatWarningsAndErrors g w e = (body, title)
 
 -- | Convert Response to an elisp value for the interactive emacs frontend.
 
-lispifyResponse :: Response -> IO [Lisp String]
+lispifyResponse :: Response -> TCM [Lisp String]
 lispifyResponse (Resp_HighlightingInfo info remove method modFile) =
-  (:[]) <$> lispifyHighlightingInfo info remove method modFile
-lispifyResponse (Resp_DisplayInfo info) = return $ case info of
+  (:[]) <$> liftIO (lispifyHighlightingInfo info remove method modFile)
+lispifyResponse (Resp_DisplayInfo info) = case info of
     Info_CompilationOk w e -> f body "*Compilation result*"
       where (body, _) = formatWarningsAndErrors "The module was successfully compiled.\n" w e -- abusing the goals field since we ignore the title
     Info_Constraints s -> f s "*Constraints*"
-    Info_AllGoalsWarnings g w e -> f body ("*All" ++ title ++ "*")
-      where (body, title) = formatWarningsAndErrors g w e
+    Info_AllGoalsWarnings ms w e -> do
+      g <- showOpenMetas ms
+      let (body, title) = formatWarningsAndErrors g w e
+      f body ("*All" ++ title ++ "*")
     Info_Auto s -> f s "*Auto*"
     Info_Error s -> f s "*Error*"
     Info_Time s -> f (render s) "*Time*"
@@ -76,7 +79,7 @@ lispifyResponse (Resp_DisplayInfo info) = return $ case info of
     Info_SearchAbout s -> f (render s) "*Search About*"
     Info_WhyInScope s -> f (render s) "*Scope Info*"
     Info_Context s -> f (render s) "*Context*"
-    Info_HelperFunction s -> [ L [ A "agda2-info-action-and-copy"
+    Info_HelperFunction s -> return [ L [ A "agda2-info-action-and-copy"
                                  , A $ quote "*Helper function*"
                                  , A $ quote (render s ++ "\n")
                                  , A "nil"
@@ -84,7 +87,7 @@ lispifyResponse (Resp_DisplayInfo info) = return $ case info of
                              ]
     Info_Intro s -> f (render s) "*Intro*"
     Info_Version -> f ("Agda version " ++ versionWithCommitInfo) "*Agda Version*"
-  where f content bufname = [ display_info' False bufname content ]
+  where f content bufname = return [ display_info' False bufname content ]
 lispifyResponse (Resp_ClearHighlighting tokenBased) =
   return [ L $ A "agda2-highlight-clear" :
                case tokenBased of

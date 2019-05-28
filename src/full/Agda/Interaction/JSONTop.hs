@@ -55,9 +55,9 @@ instance ToJSON DisplayInfo where
     [ "kind"        .= String "Constraints"
     , "constraints" .= constraints
     ]
-  toJSON (Info_AllGoalsWarnings goals warnings errors) = object
+  toJSON (Info_AllGoalsWarnings openMetas warnings errors) = object
     [ "kind"        .= String "AllGoalsWarnings"
-    , "goals"       .= goals
+    , "goals"       .= Null       -- we leave this as null for the moment
     , "warnings"    .= warnings
     , "errors"      .= errors
     ]

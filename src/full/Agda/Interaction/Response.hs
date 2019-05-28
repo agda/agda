@@ -14,6 +14,7 @@ module Agda.Interaction.Response
   , defaultInteractionOutputCallback
   ) where
 
+import {-# SOURCE #-} Agda.Interaction.BasicOps (OpenMetas)
 import Agda.Interaction.Highlighting.Precise
 import {-# SOURCE #-} Agda.TypeChecking.Monad.Base
 import Agda.Syntax.Common   (InteractionId(..))
@@ -74,8 +75,8 @@ data DisplayInfo
     = Info_CompilationOk String String
       -- ^ Strings are the warnings and the (non-fatal) errors
     | Info_Constraints String
-    | Info_AllGoalsWarnings String String String
-        -- ^ Strings are the goals, the warnings and the (non-fatal) errors
+    | Info_AllGoalsWarnings OpenMetas String String
+        -- ^ Strings are the warnings and the (non-fatal) errors
     | Info_Time Doc
     | Info_Error String
         -- ^ When an error message is displayed this constructor should be
@@ -96,7 +97,6 @@ data DisplayInfo
     | Info_Context Doc
     | Info_HelperFunction Doc
     | Info_Version
-        deriving Show
 
 -- | Status information.
 
