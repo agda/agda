@@ -859,7 +859,7 @@ interpret (Cmd_compile b file argv) =
           ]
 
 interpret Cmd_constraints =
-    display_info . Info_Constraints . show . vcat . map pretty =<< lift B.getConstraints
+    display_info . Info_Constraints =<< lift B.getConstraints
 
 interpret Cmd_metas = do -- CL.showMetas []
   unsolvedNotOK <- lift $ not . optAllowUnsolved <$> pragmaOptions

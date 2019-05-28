@@ -64,7 +64,7 @@ lispifyResponse (Resp_HighlightingInfo info remove method modFile) =
 lispifyResponse (Resp_DisplayInfo info) = case info of
     Info_CompilationOk w e -> f body "*Compilation result*"
       where (body, _) = formatWarningsAndErrors "The module was successfully compiled.\n" w e -- abusing the goals field since we ignore the title
-    Info_Constraints s -> f s "*Constraints*"
+    Info_Constraints s -> f (show $ vcat $ map pretty s) "*Constraints*"
     Info_AllGoalsWarnings ms w e -> do
       goals <- showGoals ms
       warnings <- prettyTCWarnings w

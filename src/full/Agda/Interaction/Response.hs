@@ -14,7 +14,7 @@ module Agda.Interaction.Response
   , defaultInteractionOutputCallback
   ) where
 
-import {-# SOURCE #-} Agda.Interaction.BasicOps (Goals)
+import {-# SOURCE #-} Agda.Interaction.BasicOps (Goals, OutputForm)
 import Agda.Interaction.Highlighting.Precise
 import {-# SOURCE #-} Agda.TypeChecking.Monad.Base
 import Agda.Syntax.Common   (InteractionId(..))
@@ -74,7 +74,7 @@ data MakeCaseVariant = Function | ExtendedLambda
 data DisplayInfo
     = Info_CompilationOk String String
       -- ^ Strings are the warnings and the (non-fatal) errors
-    | Info_Constraints String
+    | Info_Constraints [OutputForm Expr Expr]
     | Info_AllGoalsWarnings Goals [TCWarning] [TCWarning]
         -- ^ Strings are the warnings and the (non-fatal) errors
     | Info_Time Doc
