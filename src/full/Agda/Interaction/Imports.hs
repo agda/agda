@@ -57,8 +57,8 @@ import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 import Agda.TheTypeChecker
 
 import Agda.Interaction.FindFile
-import {-# SOURCE #-} Agda.Interaction.InteractionTop (showOpenMetas)
-import Agda.Interaction.BasicOps (typesOfOpenMetas)
+import {-# SOURCE #-} Agda.Interaction.InteractionTop (showGoals)
+import Agda.Interaction.BasicOps (getGoals)
 import Agda.Interaction.Options
 import qualified Agda.Interaction.Options.Lenses as Lens
 import Agda.Interaction.Highlighting.Precise
@@ -922,7 +922,7 @@ createInterface file mname isMain msi =
     openMetas           <- getOpenMetas
     unless (null openMetas) $ do
       reportSLn "import.metas" 10 "We have unsolved metas."
-      reportSLn "import.metas" 10 =<< showOpenMetas =<< typesOfOpenMetas
+      reportSLn "import.metas" 10 =<< showGoals =<< getGoals
 
     ifTopLevelAndHighlightingLevelIs NonInteractive $
       printUnsolvedInfo

@@ -861,7 +861,7 @@ interpret Cmd_constraints =
 
 interpret Cmd_metas = do -- CL.showMetas []
   unsolvedNotOK <- lift $ not . optAllowUnsolved <$> pragmaOptions
-  ms <- lift B.typesOfOpenMetas
+  ms <- lift B.getGoals
   (pwe, pwa) <- interpretWarnings
   display_info $ Info_AllGoalsWarnings ms pwa pwe
 
@@ -1202,8 +1202,8 @@ solveInstantiatedGoals norm mii = do
         return (i, e)
 
 -- | Print open metas nicely.
-showOpenMetas :: OpenMetas -> TCM String
-showOpenMetas (ims, hms) = do
+showGoals :: Goals -> TCM String
+showGoals (ims, hms) = do
   di <- forM ims $ \ i ->
     B.withInteractionId (B.outputFormId $ B.OutputForm noRange [] i) $
       prettyATop i

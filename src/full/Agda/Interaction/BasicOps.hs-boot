@@ -5,6 +5,6 @@ import Agda.Syntax.Common (InteractionId)
 import  {-# SOURCE #-} Agda.TypeChecking.Monad.Base (NamedMeta)
 
 data OutputConstraint a b
-type OpenMetas = ( [OutputConstraint Expr InteractionId] -- visible metas
-                 , [OutputConstraint Expr NamedMeta]     -- hidden metas
-                 )
+type Goals = ( [OutputConstraint Expr InteractionId] -- visible metas
+             , [OutputConstraint Expr NamedMeta]     -- hidden metas
+             )

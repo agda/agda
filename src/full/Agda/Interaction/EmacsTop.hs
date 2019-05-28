@@ -18,7 +18,7 @@ import Agda.Interaction.Response as R
 import Agda.Interaction.EmacsCommand hiding (putResponse)
 import Agda.Interaction.Highlighting.Emacs
 import Agda.Interaction.Highlighting.Precise (TokenBased(..))
-import Agda.Interaction.InteractionTop (showOpenMetas)
+import Agda.Interaction.InteractionTop (showGoals)
 
 import Agda.VersionCommit
 
@@ -65,8 +65,8 @@ lispifyResponse (Resp_DisplayInfo info) = case info of
       where (body, _) = formatWarningsAndErrors "The module was successfully compiled.\n" w e -- abusing the goals field since we ignore the title
     Info_Constraints s -> f s "*Constraints*"
     Info_AllGoalsWarnings ms w e -> do
-      g <- showOpenMetas ms
-      let (body, title) = formatWarningsAndErrors g w e
+      goals <- showGoals ms
+      let (body, title) = formatWarningsAndErrors goals w e
       f body ("*All" ++ title ++ "*")
     Info_Auto s -> f s "*Auto*"
     Info_Error s -> f s "*Error*"

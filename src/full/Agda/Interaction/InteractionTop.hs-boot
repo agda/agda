@@ -1,6 +1,6 @@
 module Agda.Interaction.InteractionTop where
 
 import Agda.TypeChecking.Monad.Base (TCM)
-import Agda.Interaction.BasicOps (OpenMetas)
+import Agda.Interaction.BasicOps (Goals)
 
-showOpenMetas :: OpenMetas -> TCM String
+showGoals :: Goals -> TCM String

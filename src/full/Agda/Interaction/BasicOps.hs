@@ -358,9 +358,9 @@ data OutputConstraint a b
       | PostponedCheckFunDef QName a
   deriving (Functor)
 
-type OpenMetas = ( [OutputConstraint Expr InteractionId] -- visible metas
-                 , [OutputConstraint Expr NamedMeta]     -- hidden metas
-                 )
+type Goals = ( [OutputConstraint Expr InteractionId] -- visible metas
+             , [OutputConstraint Expr NamedMeta]     -- hidden metas
+             )
 
 -- | A subset of 'OutputConstraint'.
 
@@ -670,8 +670,8 @@ typesOfHiddenMetas norm = liftTCM $ do
       M.BlockedConst{} -> False
       M.PostponedTypeCheckingProblem{} -> False
 
-typesOfOpenMetas :: TCM OpenMetas
-typesOfOpenMetas = do
+getGoals :: TCM Goals
+getGoals = do
   -- visible metas (as-is)
   visibleMetas <- typesOfVisibleMetas AsIs
   -- hidden metas (unsolved implicit arguments simplified)

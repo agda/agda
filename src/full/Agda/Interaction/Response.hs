@@ -14,7 +14,7 @@ module Agda.Interaction.Response
   , defaultInteractionOutputCallback
   ) where
 
-import {-# SOURCE #-} Agda.Interaction.BasicOps (OpenMetas)
+import {-# SOURCE #-} Agda.Interaction.BasicOps (Goals)
 import Agda.Interaction.Highlighting.Precise
 import {-# SOURCE #-} Agda.TypeChecking.Monad.Base
 import Agda.Syntax.Common   (InteractionId(..))
@@ -75,7 +75,7 @@ data DisplayInfo
     = Info_CompilationOk String String
       -- ^ Strings are the warnings and the (non-fatal) errors
     | Info_Constraints String
-    | Info_AllGoalsWarnings OpenMetas String String
+    | Info_AllGoalsWarnings Goals String String
         -- ^ Strings are the warnings and the (non-fatal) errors
     | Info_Time Doc
     | Info_Error String
