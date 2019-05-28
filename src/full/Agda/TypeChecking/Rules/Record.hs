@@ -656,9 +656,10 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
                 , funProjection     = Just projection
                 , funMutual         = Just []  -- Projections are not mutually recursive with anything
                 , funTerminates     = Just True
-                , funCopatternLHS   = hasProjectionPatterns cc
                 })
-              { defArgOccurrences = [StrictPos] }
+              { defArgOccurrences = [StrictPos]
+              , defCopatternLHS   = hasProjectionPatterns cc
+              }
           computePolarity [projname]
 
         when (Info.defInstance info == InstanceDef) $
