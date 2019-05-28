@@ -79,7 +79,7 @@ lispifyResponse (Resp_DisplayInfo info) = case info of
       let (body, title) = formatWarningsAndErrors goals warnings errors
       f body ("*All" ++ title ++ "*")
     Info_Auto s -> f s "*Auto*"
-    Info_Error s -> f s "*Error*"
+    Info_Error s -> f (showInfoError s) "*Error*"
     Info_Time s -> f (render $ prettyTimed s) "*Time*"
     Info_NormalForm s -> f (render s) "*Normal Form*"   -- show?
     Info_InferredType s -> f (render s) "*Inferred Type*"
@@ -156,3 +156,11 @@ lastTag n r = Cons (Cons (A "last") (A $ show n)) r
 
 showNumIId :: InteractionId -> Lisp String
 showNumIId = A . show . interactionId
+
+--------------------------------------------------------------------------------
+
+-- | Serializing Info_Error
+showInfoError :: Info_Error -> String
+showInfoError (Info_GenericError s) = s
+showInfoError (Info_CompilationError s) = s
+showInfoError (Info_HighlightingError s) = s

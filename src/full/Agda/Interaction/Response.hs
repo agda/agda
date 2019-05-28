@@ -8,6 +8,7 @@ module Agda.Interaction.Response
   , RemoveTokenBasedHighlighting (..)
   , MakeCaseVariant (..)
   , DisplayInfo (..)
+  , Info_Error(..)
   , Status (..)
   , GiveResult (..)
   , InteractionOutputCallback
@@ -77,7 +78,7 @@ data DisplayInfo
     | Info_Constraints [OutputForm Expr Expr]
     | Info_AllGoalsWarnings Goals WarningsAndNonFatalErrors
     | Info_Time CPUTime
-    | Info_Error String
+    | Info_Error Info_Error
         -- ^ When an error message is displayed this constructor should be
         -- used, if appropriate.
     | Info_Intro Doc
@@ -96,6 +97,15 @@ data DisplayInfo
     | Info_Context Doc
     | Info_HelperFunction Doc
     | Info_Version
+
+-- | Errors that goes into Info_Error
+--
+--   ^ When an error message is displayed this constructor should be
+--   used, if appropriate.
+data Info_Error
+    = Info_GenericError String
+    | Info_CompilationError String
+    | Info_HighlightingError String
 
 -- | Status information.
 
