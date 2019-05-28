@@ -846,9 +846,7 @@ interpret (Cmd_compile b file argv) =
           OtherBackend "GHCNoMain" -> callBackend "GHC" NotMain i   -- for backwards compatibility
           OtherBackend b           -> callBackend b IsMain  i
         (we, wa) <- lift getWarnings
-        pwe <- lift $ prettyTCWarnings we
-        pwa <- lift $ prettyTCWarnings wa
-        display_info $ Info_CompilationOk pwa pwe
+        display_info $ Info_CompilationOk we wa
       Imp.SomeWarnings w -> do
         pw <- lift $ prettyTCWarnings w
         display_info $ Info_Error $ unlines

@@ -72,11 +72,11 @@ data MakeCaseVariant = Function | ExtendedLambda
 -- | Info to display at the end of an interactive command
 
 data DisplayInfo
-    = Info_CompilationOk String String
-      -- ^ Strings are the warnings and the (non-fatal) errors
+    = Info_CompilationOk [TCWarning] [TCWarning]
+      -- ^ warnings and (non-fatal) errors
     | Info_Constraints [OutputForm Expr Expr]
     | Info_AllGoalsWarnings Goals [TCWarning] [TCWarning]
-        -- ^ Strings are the warnings and the (non-fatal) errors
+        -- ^ warnings and (non-fatal) errors
     | Info_Time Doc
     | Info_Error String
         -- ^ When an error message is displayed this constructor should be

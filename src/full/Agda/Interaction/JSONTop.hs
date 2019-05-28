@@ -45,11 +45,12 @@ instance ToJSON MakeCaseVariant where
   toJSON R.Function = String "Function"
   toJSON R.ExtendedLambda = String "ExtendedLambda"
 
+-- we leave some of the fields as Null for the moment
 instance ToJSON DisplayInfo where
   toJSON (Info_CompilationOk warnings errors) = object
     [ "kind"        .= String "CompilationOk"
-    , "warnings"    .= warnings
-    , "errors"      .= errors
+    , "warnings"    .= Null
+    , "errors"      .= Null
     ]
   toJSON (Info_Constraints constraints) = object
     [ "kind"        .= String "Constraints"
@@ -57,7 +58,6 @@ instance ToJSON DisplayInfo where
     ]
   toJSON (Info_AllGoalsWarnings _goals _warnings _errors) = object
     [ "kind"        .= String "AllGoalsWarnings"
-      -- we leave this as null for the moment
     , "goals"       .= Null
     , "warnings"    .= Null
     , "errors"      .= Null

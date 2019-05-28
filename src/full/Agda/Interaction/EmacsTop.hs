@@ -62,8 +62,15 @@ lispifyResponse :: Response -> TCM [Lisp String]
 lispifyResponse (Resp_HighlightingInfo info remove method modFile) =
   (:[]) <$> liftIO (lispifyHighlightingInfo info remove method modFile)
 lispifyResponse (Resp_DisplayInfo info) = case info of
-    Info_CompilationOk w e -> f body "*Compilation result*"
-      where (body, _) = formatWarningsAndErrors "The module was successfully compiled.\n" w e -- abusing the goals field since we ignore the title
+    Info_CompilationOk w e -> do
+      warnings <- prettyTCWarnings w
+      errors <- prettyTCWarnings e
+      -- abusing the goals field since we ignore the title
+      let (body, _) = formatWarningsAndErrors
+                        "The module was successfully compiled.\n"
+                        warnings
+                        errors
+      f body "*Compilation result*"
     Info_Constraints s -> f (show $ vcat $ map pretty s) "*Constraints*"
     Info_AllGoalsWarnings ms w e -> do
       goals <- showGoals ms
