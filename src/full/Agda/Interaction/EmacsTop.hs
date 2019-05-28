@@ -12,7 +12,8 @@ import Agda.Utils.String
 
 import Agda.Syntax.Common
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Pretty.Warning (prettyTCWarnings)
+import Agda.TypeChecking.Pretty.Warning (prettyTCWarnings, prettyTCWarnings')
+import Agda.TypeChecking.Errors (prettyError)
 
 import Agda.Interaction.AgdaTop
 import Agda.Interaction.Response as R
@@ -20,7 +21,7 @@ import Agda.Interaction.EmacsCommand hiding (putResponse)
 import Agda.Interaction.Highlighting.Emacs
 import Agda.Interaction.Highlighting.Precise (TokenBased(..))
 import Agda.Interaction.InteractionTop (showGoals, prettyTimed)
-
+import Agda.Interaction.Imports (getAllWarningsOfTCErr)
 import Agda.VersionCommit
 
 ----------------------------------
@@ -79,7 +80,9 @@ lispifyResponse (Resp_DisplayInfo info) = case info of
       let (body, title) = formatWarningsAndErrors goals warnings errors
       f body ("*All" ++ title ++ "*")
     Info_Auto s -> f s "*Auto*"
-    Info_Error s -> f (showInfoError s) "*Error*"
+    Info_Error err -> do
+      s <- serializeInfoError err
+      f s "*Error*"
     Info_Time s -> f (render $ prettyTimed s) "*Time*"
     Info_NormalForm s -> f (render s) "*Normal Form*"   -- show?
     Info_InferredType s -> f (render s) "*Inferred Type*"
@@ -160,7 +163,36 @@ showNumIId = A . show . interactionId
 --------------------------------------------------------------------------------
 
 -- | Serializing Info_Error
-showInfoError :: Info_Error -> String
-showInfoError (Info_GenericError s) = s
-showInfoError (Info_CompilationError s) = s
-showInfoError (Info_HighlightingError s) = s
+serializeInfoError :: Info_Error -> TCM String
+serializeInfoError (Info_GenericError err) = do
+  e <- prettyError err
+  w <- prettyTCWarnings' =<< getAllWarningsOfTCErr err
+
+  let errorMsg  = if null w
+                      then e
+                      else delimiter "Error" ++ "\n" ++ e
+  let warningMsg = List.intercalate "\n" $ delimiter "Warning(s)"
+                                      : filter (not . null) w
+  return $ if null w
+            then errorMsg
+            else errorMsg ++ "\n\n" ++ warningMsg
+serializeInfoError (Info_CompilationError warnings) = do
+  s <- prettyTCWarnings warnings
+  return $ unlines
+            [ "You need to fix the following errors before you can compile"
+            , "the module:"
+            , ""
+            , s
+            ]
+serializeInfoError (Info_HighlightingParseError ii) =
+  return $ "Highlighting failed to parse expression in " ++ show ii
+serializeInfoError (Info_HighlightingScopeCheckError ii) =
+  return $ "Highlighting failed to scope check expression in " ++ show ii
+
+-- s1 <- lift $ prettyError e
+-- s2 <- lift $ prettyTCWarnings' =<< Imp.getAllWarningsOfTCErr e
+-- let strErr  = if null s2 then s1
+--                          else delimiter "Error" ++ "\n" ++ s1
+-- let strWarn = List.intercalate "\n" $ delimiter "Warning(s)"
+--                                     : filter (not . null) s2
+-- let str     = if null s2 then strErr else strErr ++ "\n\n" ++ strWarn

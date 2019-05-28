@@ -18,6 +18,7 @@ module Agda.Interaction.Response
 import {-# SOURCE #-} Agda.Interaction.BasicOps (Goals, WarningsAndNonFatalErrors, OutputForm)
 import Agda.Interaction.Highlighting.Precise
 import {-# SOURCE #-} Agda.TypeChecking.Monad.Base
+  (TCM, TCErr, TCWarning, HighlightingMethod, ModuleToSource)
 import Agda.Syntax.Common   (InteractionId(..))
 import Agda.Syntax.Concrete (Expr)
 import Agda.Utils.Pretty
@@ -103,9 +104,10 @@ data DisplayInfo
 --   ^ When an error message is displayed this constructor should be
 --   used, if appropriate.
 data Info_Error
-    = Info_GenericError String
-    | Info_CompilationError String
-    | Info_HighlightingError String
+    = Info_GenericError TCErr
+    | Info_CompilationError [TCWarning]
+    | Info_HighlightingParseError InteractionId
+    | Info_HighlightingScopeCheckError InteractionId
 
 -- | Status information.
 

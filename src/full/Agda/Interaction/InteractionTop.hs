@@ -318,16 +318,13 @@ handleCommand wrap onFail cmd = handleNastyErrors $ wrap $ do
         let info = compress $ mconcat $
                      -- Errors take precedence over unsolved things.
                      err : if unsolvedNotOK then [meta, constr] else []
-        s1 <- lift $ prettyError e
-        s2 <- lift $ prettyTCWarnings' =<< Imp.getAllWarningsOfTCErr e
-        let strErr  = if null s2 then s1
-                                 else delimiter "Error" ++ "\n" ++ s1
-        let strWarn = List.intercalate "\n" $ delimiter "Warning(s)"
-                                            : filter (not . null) s2
-        let str     = if null s2 then strErr else strErr ++ "\n\n" ++ strWarn
+
+        -- TODO: make a better predicate for this
+        noError <- lift $ null <$> prettyError e
+
         x <- lift $ optShowImplicit <$> useTC stPragmaOptions
-        unless (null s1) $ mapM_ putResponse $
-            [ Resp_DisplayInfo $ Info_Error $ Info_GenericError str ] ++
+        unless noError $ mapM_ putResponse $
+            [ Resp_DisplayInfo $ Info_Error $ Info_GenericError e ] ++
             tellEmacsToJumpToError (getRange e) ++
             [ Resp_HighlightingInfo info KeepHighlighting
                                     method modFile ] ++
@@ -846,14 +843,7 @@ interpret (Cmd_compile b file argv) =
           OtherBackend "GHCNoMain" -> callBackend "GHC" NotMain i   -- for backwards compatibility
           OtherBackend b           -> callBackend b IsMain  i
         display_info . Info_CompilationOk =<< lift getWarningsAndNonFatalErrors
-      Imp.SomeWarnings w -> do
-        pw <- lift $ prettyTCWarnings w
-        display_info $ Info_Error $ Info_CompilationError $ unlines
-          [ "You need to fix the following errors before you can compile"
-          , "the module:"
-          , ""
-          , pw
-          ]
+      Imp.SomeWarnings w -> display_info $ Info_Error $ Info_CompilationError w
 
 interpret Cmd_constraints =
     display_info . Info_Constraints =<< lift B.getConstraints
@@ -960,21 +950,21 @@ interpret (Cmd_highlight ii rng s) = do
     scope <- getOldInteractionScope ii
     removeOldInteractionScope ii
     handle $ do
-      e <- try ("Highlighting failed to parse expression in " ++ show ii) $
+      e <- try (Info_HighlightingParseError ii) $
              B.parseExpr rng s
-      e <- try ("Highlighting failed to scope check expression in " ++ show ii) $
+      e <- try (Info_HighlightingScopeCheckError ii) $
              concreteToAbstract scope e
       lift $ printHighlightingInfo KeepHighlighting =<<
                generateTokenInfoFromString rng s
       lift $ highlightExpr e
   where
-    handle :: ExceptT String TCM () -> CommandM ()
+    handle :: ExceptT Info_Error TCM () -> CommandM ()
     handle m = do
       res <- lift $ runExceptT m
       case res of
-        Left s  -> display_info $ Info_Error $ Info_HighlightingError s
+        Left err -> display_info $ Info_Error err
         Right _ -> return ()
-    try :: String -> TCM a -> ExceptT String TCM a
+    try :: Info_Error -> TCM a -> ExceptT Info_Error TCM a
     try err m = mkExceptT $ do
       (mapLeft (const err) <$> freshTCM m) `catchError` \ _ -> return (Left err)
       -- freshTCM to avoid scope checking creating new interaction points
