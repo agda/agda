@@ -19,7 +19,7 @@ import Agda.Interaction.Response as R
 import Agda.Interaction.EmacsCommand hiding (putResponse)
 import Agda.Interaction.Highlighting.Emacs
 import Agda.Interaction.Highlighting.Precise (TokenBased(..))
-import Agda.Interaction.InteractionTop (showGoals)
+import Agda.Interaction.InteractionTop (showGoals, prettyTimed)
 
 import Agda.VersionCommit
 
@@ -80,7 +80,7 @@ lispifyResponse (Resp_DisplayInfo info) = case info of
       f body ("*All" ++ title ++ "*")
     Info_Auto s -> f s "*Auto*"
     Info_Error s -> f s "*Error*"
-    Info_Time s -> f (render s) "*Time*"
+    Info_Time s -> f (render $ prettyTimed s) "*Time*"
     Info_NormalForm s -> f (render s) "*Normal Form*"   -- show?
     Info_InferredType s -> f (render s) "*Inferred Type*"
     Info_CurrentGoal s -> f (render s) "*Current Goal*"

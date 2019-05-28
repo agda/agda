@@ -1669,14 +1669,20 @@ parseAndDoAtToplevel cmd title s = do
     e <- lift $ runPM $ parse exprParser s
     maybeTimed $ lift $ B.atTopLevel $ do
       cmd =<< concreteToAbstract_ e
-  display_info $ title $ fromMaybe empty time $$ res
+  display_info $ title $ maybe empty prettyTimed time $$ res
 
-maybeTimed :: CommandM a -> CommandM (Maybe Doc, a)
+maybeTimed :: CommandM a -> CommandM (Maybe CPUTime, a)
 maybeTimed work = do
   doTime <- lift $ hasVerbosity "profile.interactive" 10
-  if not doTime then (Nothing,) <$> work else do
-    (r, time) <- measureTime work
-    return (Just $ "Time:" <+> pretty time, r)
+  if not doTime
+    then (Nothing,) <$> work
+    else do
+      (r, time) <- measureTime work
+      return (Just time, r)
+
+-- | Prefix prettified CPUTime with "Time:"
+prettyTimed :: CPUTime -> Doc
+prettyTimed time = "Time:" <+> pretty time
 
 -- | Tell to highlight the code using the given highlighting
 -- info (unless it is @Nothing@).

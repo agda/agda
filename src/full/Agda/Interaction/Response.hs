@@ -26,6 +26,7 @@ import Data.Int
 import System.IO
 
 import Agda.Utils.Impossible
+import Agda.Utils.Time
 
 -- | Responses for any interactive interface
 --
@@ -77,7 +78,7 @@ data DisplayInfo
     | Info_Constraints [OutputForm Expr Expr]
     | Info_AllGoalsWarnings Goals [TCWarning] [TCWarning]
         -- ^ warnings and (non-fatal) errors
-    | Info_Time Doc
+    | Info_Time CPUTime
     | Info_Error String
         -- ^ When an error message is displayed this constructor should be
         -- used, if appropriate.
