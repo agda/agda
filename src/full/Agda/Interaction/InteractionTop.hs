@@ -42,6 +42,7 @@ import qualified Agda.TypeChecking.Pretty as TCP
 import Agda.TypeChecking.Rules.Term (checkExpr, isType_)
 import Agda.TypeChecking.Errors
 import Agda.TypeChecking.MetaVars.Mention
+import Agda.TypeChecking.Warnings (runPM)
 
 import Agda.Syntax.Fixity
 import Agda.Syntax.Position
@@ -70,7 +71,6 @@ import qualified Agda.Interaction.BasicOps as B
 import Agda.Interaction.BasicOps hiding (whyInScope)
 import Agda.Interaction.Highlighting.Precise hiding (Error, Postulate)
 import qualified Agda.Interaction.Imports as Imp
-import Agda.TypeChecking.Warnings
 import Agda.Interaction.Highlighting.Generate
 import qualified Agda.Interaction.Highlighting.LaTeX as LaTeX
 import qualified Agda.Interaction.Highlighting.Range as H
@@ -845,7 +845,9 @@ interpret (Cmd_compile b file argv) =
           QuickLaTeX               -> LaTeX.generateLaTeX i
           OtherBackend "GHCNoMain" -> callBackend "GHC" NotMain i   -- for backwards compatibility
           OtherBackend b           -> callBackend b IsMain  i
-        (pwe, pwa) <- interpretWarnings
+        (we, wa) <- lift getWarnings
+        pwe <- lift $ prettyTCWarnings we
+        pwa <- lift $ prettyTCWarnings wa
         display_info $ Info_CompilationOk pwa pwe
       Imp.SomeWarnings w -> do
         pw <- lift $ prettyTCWarnings w
@@ -862,8 +864,8 @@ interpret Cmd_constraints =
 interpret Cmd_metas = do -- CL.showMetas []
   unsolvedNotOK <- lift $ not . optAllowUnsolved <$> pragmaOptions
   ms <- lift B.getGoals
-  (pwe, pwa) <- interpretWarnings
-  display_info $ Info_AllGoalsWarnings ms pwa pwe
+  (we, wa) <- lift getWarnings
+  display_info $ Info_AllGoalsWarnings ms wa we
 
 interpret (Cmd_show_module_contents_toplevel norm s) =
   liftCommandMT B.atTopLevel $ showModuleContents norm noRange s
@@ -1166,23 +1168,6 @@ interpret (Cmd_compute cmode ii rng s) = display_info . Info_NormalForm =<< do
 interpret Cmd_show_version = display_info Info_Version
 
 interpret Cmd_abort = return ()
-
--- | Show warnings
-interpretWarnings :: CommandM (String, String)
-interpretWarnings = do
-  mws <- lift $ Imp.getMaybeWarnings AllWarnings
-  case filter isNotMeta <$> mws of
-    Imp.SomeWarnings ws@(_:_) -> do
-      let (we, wa) = classifyWarnings ws
-      pwe <- lift $ prettyTCWarnings we
-      pwa <- lift $ prettyTCWarnings wa
-      return (pwe, pwa)
-    _ -> return ("", "")
-   where isNotMeta w = case tcWarning w of
-                         UnsolvedInteractionMetas{} -> False
-                         UnsolvedMetaVariables{}    -> False
-                         _                          -> True
-
 
 -- | Solved goals already instantiated internally
 -- The second argument potentially limits it to one specific goal.

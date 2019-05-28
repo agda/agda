@@ -23,6 +23,8 @@ import Data.Traversable hiding (mapM, forM, for)
 import Data.Monoid
 
 import Agda.Interaction.Options
+import {-# SOURCE #-} Agda.Interaction.Imports (MaybeWarnings'(..), getMaybeWarnings)
+
 import qualified Agda.Syntax.Concrete as C -- ToDo: Remove with instance of ToConcrete
 import Agda.Syntax.Position
 import Agda.Syntax.Abstract as A hiding (Open, Apply, Assign)
@@ -63,7 +65,7 @@ import Agda.TypeChecking.Free
 import Agda.TypeChecking.CheckInternal
 import Agda.TypeChecking.SizedTypes.Solve
 import qualified Agda.TypeChecking.Pretty as TP
-import Agda.TypeChecking.Warnings ( runPM, warning )
+import Agda.TypeChecking.Warnings ( runPM, warning, WhichWarnings(..), classifyWarnings )
 
 import Agda.Termination.TermCheck (termMutual)
 
@@ -678,6 +680,17 @@ getGoals = do
   unsolvedNotOK <- not . optAllowUnsolved <$> pragmaOptions
   hiddenMetas <- (guard unsolvedNotOK >>) <$> typesOfHiddenMetas Simplified
   return (visibleMetas, hiddenMetas)
+
+getWarnings :: TCM ([TCWarning], [TCWarning])
+getWarnings = do
+  mws <- getMaybeWarnings AllWarnings
+  return $ case filter isNotMeta <$> mws of
+    SomeWarnings ws@(_:_) -> classifyWarnings ws
+    _ -> ([], [])
+   where isNotMeta w = case tcWarning w of
+                         UnsolvedInteractionMetas{} -> False
+                         UnsolvedMetaVariables{}    -> False
+                         _                          -> True
 
 metaHelperType :: Rewrite -> InteractionId -> Range -> String -> TCM (OutputConstraint' Expr Expr)
 metaHelperType norm ii rng s = case words s of

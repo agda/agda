@@ -75,7 +75,7 @@ data DisplayInfo
     = Info_CompilationOk String String
       -- ^ Strings are the warnings and the (non-fatal) errors
     | Info_Constraints String
-    | Info_AllGoalsWarnings Goals String String
+    | Info_AllGoalsWarnings Goals [TCWarning] [TCWarning]
         -- ^ Strings are the warnings and the (non-fatal) errors
     | Info_Time Doc
     | Info_Error String

@@ -12,6 +12,7 @@ import Agda.Utils.String
 
 import Agda.Syntax.Common
 import Agda.TypeChecking.Monad
+import Agda.TypeChecking.Pretty.Warning (prettyTCWarnings)
 
 import Agda.Interaction.AgdaTop
 import Agda.Interaction.Response as R
@@ -66,7 +67,9 @@ lispifyResponse (Resp_DisplayInfo info) = case info of
     Info_Constraints s -> f s "*Constraints*"
     Info_AllGoalsWarnings ms w e -> do
       goals <- showGoals ms
-      let (body, title) = formatWarningsAndErrors goals w e
+      warnings <- prettyTCWarnings w
+      errors <- prettyTCWarnings e
+      let (body, title) = formatWarningsAndErrors goals warnings errors
       f body ("*All" ++ title ++ "*")
     Info_Auto s -> f s "*Auto*"
     Info_Error s -> f s "*Error*"

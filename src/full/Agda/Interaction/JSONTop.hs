@@ -55,11 +55,12 @@ instance ToJSON DisplayInfo where
     [ "kind"        .= String "Constraints"
     , "constraints" .= constraints
     ]
-  toJSON (Info_AllGoalsWarnings _goals warnings errors) = object
+  toJSON (Info_AllGoalsWarnings _goals _warnings _errors) = object
     [ "kind"        .= String "AllGoalsWarnings"
-    , "goals"       .= Null       -- we leave this as null for the moment
-    , "warnings"    .= warnings
-    , "errors"      .= errors
+      -- we leave this as null for the moment
+    , "goals"       .= Null
+    , "warnings"    .= Null
+    , "errors"      .= Null
     ]
   toJSON (Info_Time doc) = object [ "kind" .= String "Time", "payload" .= render doc ]
   toJSON (Info_Error msg) = object [ "kind" .= String "Error", "payload" .= msg ]
