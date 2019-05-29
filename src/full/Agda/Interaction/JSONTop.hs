@@ -86,7 +86,10 @@ instance ToJSON DisplayInfo where
     [ "kind"        .= String "ModuleContents"
     , "payload"     .= Null
     ]
-  toJSON (Info_SearchAbout doc) = object [ "kind" .= String "SearchAbout", "payload" .= render doc ]
+  toJSON (Info_SearchAbout _ _) = object
+    [ "kind"        .= String "SearchAbout"
+    , "payload"     .= Null
+    ]
   toJSON (Info_WhyInScope doc) = object [ "kind" .= String "WhyInScope", "payload" .= render doc ]
   toJSON (Info_NormalForm doc) = object [ "kind" .= String "NormalForm", "payload" .= render doc ]
   toJSON (Info_GoalType doc) = object [ "kind" .= String "GoalType", "payload" .= render doc ]

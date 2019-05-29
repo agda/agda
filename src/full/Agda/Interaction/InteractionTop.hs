@@ -1470,17 +1470,11 @@ showModuleContents norm rng s = do
 -- identifiers in their type.
 
 searchAbout :: B.Rewrite -> Range -> String -> CommandM ()
-searchAbout norm rg nm = do
-  let tnm = trim nm
-  unless (null tnm) $ do
-    fancy <- lift $ B.atTopLevel $ do
-       hits <- findMentions norm rg tnm
-       forM hits $ \ (x, t) -> do
-         t <- TCP.prettyTCM t
-         return (prettyShow x, ":" <+> t)
-    display_info $ Info_SearchAbout $
-      "Definitions about" <+> text (List.intercalate ", " $ words nm) $$
-      nest 2 (align 10 fancy)
+searchAbout norm rg names = do
+  let trimmedNames = trim names
+  unless (null trimmedNames) $ do
+    hits <- lift $ B.atTopLevel $ findMentions norm rg trimmedNames
+    display_info $ Info_SearchAbout hits trimmedNames
 
 -- | Explain why something is in scope.
 

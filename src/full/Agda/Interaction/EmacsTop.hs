@@ -100,7 +100,13 @@ lispifyResponse (Resp_DisplayInfo info) = case info of
           , nest 2 $ align 10 types'
           ]
       f (render s) "*Module contents*"
-    Info_SearchAbout s -> f (render s) "*Search About*"
+    Info_SearchAbout hits names -> do
+      fancy <- forM hits $ \ (x, t) -> do
+        t <- prettyTCM t
+        return (prettyShow x, ":" <+> t)
+      let s = "Definitions about" <+> text (List.intercalate ", " $ words names) $$
+                nest 2 (align 10 fancy)
+      f (render s) "*Search About*"
     Info_WhyInScope s -> f (render s) "*Scope Info*"
     Info_Context s -> f (render s) "*Context*"
     Info_HelperFunction s -> return [ L [ A "agda2-info-action-and-copy"
