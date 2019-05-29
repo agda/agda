@@ -5,13 +5,16 @@ module Agda.Interaction.EmacsTop
 
 import Control.Monad.State
 import qualified Data.List as List
-
-import Agda.Utils.Maybe
-import Agda.Utils.Pretty
-import Agda.Utils.String
+import System.FilePath
 
 import Agda.Syntax.Common
+import Agda.Syntax.Position
+import Agda.Syntax.Scope.Base
+import Agda.Syntax.Abstract as A
+import Agda.Syntax.Concrete as C
+
 import Agda.TypeChecking.Errors (prettyError)
+import qualified Agda.TypeChecking.Pretty as TCP
 import Agda.TypeChecking.Pretty (prettyTCM)
 import Agda.TypeChecking.Pretty.Warning (prettyTCWarnings, prettyTCWarnings')
 import Agda.TypeChecking.Monad
@@ -22,6 +25,11 @@ import Agda.Interaction.Highlighting.Emacs
 import Agda.Interaction.Highlighting.Precise (TokenBased(..))
 import Agda.Interaction.InteractionTop (showGoals, prettyTimed)
 import Agda.Interaction.Imports (getAllWarningsOfTCErr)
+
+import Agda.Utils.FileName (filePath)
+import Agda.Utils.Maybe
+import Agda.Utils.Pretty
+import Agda.Utils.String
 import Agda.VersionCommit
 
 ----------------------------------
@@ -107,7 +115,9 @@ lispifyResponse (Resp_DisplayInfo info) = case info of
       let s = "Definitions about" <+> text (List.intercalate ", " $ words names) $$
                 nest 2 (align 10 fancy)
       f (render s) "*Search About*"
-    Info_WhyInScope s -> f (render s) "*Scope Info*"
+    Info_WhyInScope s cwd v xs ms -> do
+      result <- explainWhyInScope s cwd v xs ms
+      f (render result) "*Scope Info*"
     Info_Context s -> f (render s) "*Context*"
     Info_HelperFunction s -> return [ L [ A "agda2-info-action-and-copy"
                                  , A $ quote "*Helper function*"
@@ -213,3 +223,80 @@ serializeInfoError (Info_HighlightingParseError ii) =
   return $ "Highlighting failed to parse expression in " ++ show ii
 serializeInfoError (Info_HighlightingScopeCheckError ii) =
   return $ "Highlighting failed to scope check expression in " ++ show ii
+
+explainWhyInScope :: FilePath
+                  -> String
+                  -> (Maybe LocalVar)
+                  -> [AbstractName]
+                  -> [AbstractModule]
+                  -> TCM Doc
+explainWhyInScope s _ Nothing [] [] = TCP.text (s ++ " is not in scope.")
+explainWhyInScope s cwd v xs ms = TCP.vcat
+  [ TCP.text (s ++ " is in scope as")
+  , TCP.nest 2 $ TCP.vcat [variable v xs, modules ms]
+  ]
+  where
+    prettyRange :: Range -> TCM Doc
+    prettyRange r = pretty . (fmap . fmap) mkRel <$> do
+      return r
+    mkRel = makeRelative cwd . filePath
+
+    -- variable :: Maybe _ -> [_] -> TCM Doc
+    variable Nothing xs = names xs
+    variable (Just x) xs
+      | null xs   = asVar
+      | otherwise = TCP.vcat
+         [ TCP.sep [ asVar, TCP.nest 2 $ shadowing x]
+         , TCP.nest 2 $ names xs
+         ]
+      where
+        asVar :: TCM Doc
+        asVar = do
+          "* a variable bound at" TCP.<+> TCP.prettyTCM (nameBindingSite $ localVar x)
+        shadowing :: LocalVar -> TCM Doc
+        shadowing (LocalVar _ _ [])    = "shadowing"
+        shadowing _ = "in conflict with"
+    names   xs = TCP.vcat $ map pName xs
+    modules ms = TCP.vcat $ map pMod ms
+
+    pKind DefName        = "defined name"
+    pKind ConName        = "constructor"
+    pKind FldName        = "record field"
+    pKind PatternSynName = "pattern synonym"
+    pKind GeneralizeName = "generalizable variable"
+    pKind DisallowedGeneralizeName = "generalizable variable from let open"
+    pKind MacroName      = "macro name"
+    pKind QuotableName   = "quotable name"
+
+    pName :: AbstractName -> TCM Doc
+    pName a = TCP.sep
+      [ "* a"
+        TCP.<+> pKind (anameKind a)
+        TCP.<+> TCP.text (prettyShow $ anameName a)
+      , TCP.nest 2 $ "brought into scope by"
+      ] TCP.$$
+      TCP.nest 2 (pWhy (nameBindingSite $ qnameName $ anameName a) (anameLineage a))
+    pMod :: AbstractModule -> TCM Doc
+    pMod  a = TCP.sep
+      [ "* a module" TCP.<+> TCP.text (prettyShow $ amodName a)
+      , TCP.nest 2 $ "brought into scope by"
+      ] TCP.$$
+      TCP.nest 2 (pWhy (nameBindingSite $ qnameName $ mnameToQName $ amodName a) (amodLineage a))
+
+    pWhy :: Range -> WhyInScope -> TCM Doc
+    pWhy r Defined = "- its definition at" TCP.<+> TCP.prettyTCM r
+    pWhy r (Opened (C.QName x) w) | isNoName x = pWhy r w
+    pWhy r (Opened m w) =
+      "- the opening of"
+      TCP.<+> TCP.prettyTCM m
+      TCP.<+> "at"
+      TCP.<+> TCP.prettyTCM (getRange m)
+      TCP.$$
+      pWhy r w
+    pWhy r (Applied m w) =
+      "- the application of"
+      TCP.<+> TCP.prettyTCM m
+      TCP.<+> "at"
+      TCP.<+> TCP.prettyTCM (getRange m)
+      TCP.$$
+      pWhy r w

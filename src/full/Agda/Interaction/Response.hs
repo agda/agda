@@ -17,19 +17,20 @@ module Agda.Interaction.Response
 
 import {-# SOURCE #-} Agda.Interaction.BasicOps (Goals, WarningsAndNonFatalErrors, OutputForm)
 import Agda.Interaction.Highlighting.Precise
-import {-# SOURCE #-} Agda.TypeChecking.Monad.Base
-  (TCM, TCErr, TCWarning, HighlightingMethod, ModuleToSource)
 import Agda.Syntax.Common   (InteractionId(..))
 import Agda.Syntax.Concrete (Expr, Name)
+import Agda.Syntax.Scope.Base (AbstractModule, AbstractName, LocalVar)
 import qualified Agda.Syntax.Internal as I
+import {-# SOURCE #-} Agda.TypeChecking.Monad.Base (TCM, TCErr, TCWarning, HighlightingMethod, ModuleToSource)
+import Agda.Utils.Impossible
 import Agda.Utils.Pretty
+import Agda.Utils.Time
 
 import Control.Monad.Trans
 import Data.Int
 import System.IO
+import System.FilePath
 
-import Agda.Utils.Impossible
-import Agda.Utils.Time
 
 -- | Responses for any interactive interface
 --
@@ -90,7 +91,7 @@ data DisplayInfo
         --   TODO: split these into separate constructors
     | Info_ModuleContents [Name] I.Telescope [(Name, I.Type)]
     | Info_SearchAbout [(Name, I.Type)] String
-    | Info_WhyInScope Doc
+    | Info_WhyInScope String FilePath (Maybe LocalVar) [AbstractName] [AbstractModule]
     | Info_NormalForm Doc
     | Info_GoalType Doc
     | Info_CurrentGoal Doc

@@ -1479,83 +1479,11 @@ searchAbout norm rg names = do
 -- | Explain why something is in scope.
 
 whyInScope :: String -> CommandM ()
-whyInScope s = display_info . Info_WhyInScope =<< do
+whyInScope s = do
   Just (file, _) <- gets theCurrentFile
-  let cwd = takeDirectory $ filePath file
-  liftLocalState $ do
-    (v, xs, ms) <- B.whyInScope s
-    explanation cwd v xs ms
-  where
-    explanation _ Nothing [] [] = TCP.text (s ++ " is not in scope.")
-    explanation cwd v xs ms = TCP.vcat
-      [ TCP.text (s ++ " is in scope as")
-      , TCP.nest 2 $ TCP.vcat [variable v xs, modules ms]
-      ]
-      where
-        prettyRange :: Range -> TCM Doc
-        prettyRange r = pretty . (fmap . fmap) mkRel <$> do
-          return r
-        mkRel = makeRelative cwd . filePath
-
-        -- variable :: Maybe _ -> [_] -> TCM Doc
-        variable Nothing xs = names xs
-        variable (Just x) xs
-          | null xs   = asVar
-          | otherwise = TCP.vcat
-             [ TCP.sep [ asVar, TCP.nest 2 $ shadowing x]
-             , TCP.nest 2 $ names xs
-             ]
-          where
-            asVar :: TCM Doc
-            asVar = do
-              "* a variable bound at" TCP.<+> TCP.prettyTCM (nameBindingSite $ localVar x)
-            shadowing :: LocalVar -> TCM Doc
-            shadowing (LocalVar _ _ [])    = "shadowing"
-            shadowing _ = "in conflict with"
-        names   xs = TCP.vcat $ map pName xs
-        modules ms = TCP.vcat $ map pMod ms
-
-        pKind DefName        = "defined name"
-        pKind ConName        = "constructor"
-        pKind FldName        = "record field"
-        pKind PatternSynName = "pattern synonym"
-        pKind GeneralizeName = "generalizable variable"
-        pKind DisallowedGeneralizeName = "generalizable variable from let open"
-        pKind MacroName      = "macro name"
-        pKind QuotableName   = "quotable name"
-
-        pName :: AbstractName -> TCM Doc
-        pName a = TCP.sep
-          [ "* a"
-            TCP.<+> pKind (anameKind a)
-            TCP.<+> TCP.text (prettyShow $ anameName a)
-          , TCP.nest 2 $ "brought into scope by"
-          ] TCP.$$
-          TCP.nest 2 (pWhy (nameBindingSite $ qnameName $ anameName a) (anameLineage a))
-        pMod :: AbstractModule -> TCM Doc
-        pMod  a = TCP.sep
-          [ "* a module" TCP.<+> TCP.text (prettyShow $ amodName a)
-          , TCP.nest 2 $ "brought into scope by"
-          ] TCP.$$
-          TCP.nest 2 (pWhy (nameBindingSite $ qnameName $ mnameToQName $ amodName a) (amodLineage a))
-
-        pWhy :: Range -> WhyInScope -> TCM Doc
-        pWhy r Defined = "- its definition at" TCP.<+> TCP.prettyTCM r
-        pWhy r (Opened (C.QName x) w) | isNoName x = pWhy r w
-        pWhy r (Opened m w) =
-          "- the opening of"
-          TCP.<+> TCP.prettyTCM m
-          TCP.<+> "at"
-          TCP.<+> TCP.prettyTCM (getRange m)
-          TCP.$$
-          pWhy r w
-        pWhy r (Applied m w) =
-          "- the application of"
-          TCP.<+> TCP.prettyTCM m
-          TCP.<+> "at"
-          TCP.<+> TCP.prettyTCM (getRange m)
-          TCP.$$
-          pWhy r w
+  let cwd = takeDirectory (filePath file)
+  (v, xs, ms) <- liftLocalState (B.whyInScope s)
+  display_info $ Info_WhyInScope s cwd v xs ms
 
 -- | Sets the command line options and updates the status information.
 
