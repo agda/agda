@@ -1462,18 +1462,9 @@ cmd_goal_type_context_and doc norm ii _ _ = display_info . Info_GoalType =<< do
 -- their types.
 
 showModuleContents :: B.Rewrite -> Range -> String -> CommandM ()
-showModuleContents norm rng s = display_info . Info_ModuleContents =<< do
-  liftLocalState $ do
-    (modules, tel, types) <- B.moduleContents norm rng s
-    types' <- addContext tel $ forM types $ \ (x, t) -> do
-      t <- TCP.prettyTCM t
-      return (prettyShow x, ":" <+> t)
-    return $ vcat
-      [ "Modules"
-      , nest 2 $ vcat $ map pretty modules
-      , "Names"
-      , nest 2 $ align 10 types'
-      ]
+showModuleContents norm rng s = do
+  (modules, tel, types) <- lift $ B.moduleContents norm rng s
+  display_info $ Info_ModuleContents modules tel types
 
 -- | Shows all the top-level names in scope which mention all the given
 -- identifiers in their type.

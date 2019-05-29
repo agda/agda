@@ -20,7 +20,8 @@ import Agda.Interaction.Highlighting.Precise
 import {-# SOURCE #-} Agda.TypeChecking.Monad.Base
   (TCM, TCErr, TCWarning, HighlightingMethod, ModuleToSource)
 import Agda.Syntax.Common   (InteractionId(..))
-import Agda.Syntax.Concrete (Expr)
+import Agda.Syntax.Concrete (Expr, Name)
+import qualified Agda.Syntax.Internal as I
 import Agda.Utils.Pretty
 
 import Control.Monad.Trans
@@ -87,7 +88,7 @@ data DisplayInfo
     | Info_Auto String
         -- ^ 'Info_Auto' denotes either an error or a success (when 'Resp_GiveAction' is present)
         --   TODO: split these into separate constructors
-    | Info_ModuleContents Doc
+    | Info_ModuleContents [Name] I.Telescope [(Name, I.Type)]
     | Info_SearchAbout Doc
     | Info_WhyInScope Doc
     | Info_NormalForm Doc

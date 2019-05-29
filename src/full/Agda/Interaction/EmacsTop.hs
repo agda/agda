@@ -11,10 +11,10 @@ import Agda.Utils.Pretty
 import Agda.Utils.String
 
 import Agda.Syntax.Common
-import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Pretty.Warning (prettyTCWarnings, prettyTCWarnings')
 import Agda.TypeChecking.Errors (prettyError)
-
+import Agda.TypeChecking.Pretty (prettyTCM)
+import Agda.TypeChecking.Pretty.Warning (prettyTCWarnings, prettyTCWarnings')
+import Agda.TypeChecking.Monad
 import Agda.Interaction.AgdaTop
 import Agda.Interaction.Response as R
 import Agda.Interaction.EmacsCommand hiding (putResponse)
@@ -88,7 +88,18 @@ lispifyResponse (Resp_DisplayInfo info) = case info of
     Info_InferredType s -> f (render s) "*Inferred Type*"
     Info_CurrentGoal s -> f (render s) "*Current Goal*"
     Info_GoalType s -> f (render s) "*Goal type etc.*"
-    Info_ModuleContents s -> f (render s) "*Module contents*"
+    Info_ModuleContents modules tel types -> do
+      s <- localTCState $ do
+        types' <- addContext tel $ forM types $ \ (x, t) -> do
+          t <- prettyTCM t
+          return (prettyShow x, ":" <+> t)
+        return $ vcat
+          [ "Modules"
+          , nest 2 $ vcat $ map pretty modules
+          , "Names"
+          , nest 2 $ align 10 types'
+          ]
+      f (render s) "*Module contents*"
     Info_SearchAbout s -> f (render s) "*Search About*"
     Info_WhyInScope s -> f (render s) "*Scope Info*"
     Info_Context s -> f (render s) "*Context*"

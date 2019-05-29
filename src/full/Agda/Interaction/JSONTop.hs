@@ -78,8 +78,14 @@ instance ToJSON DisplayInfo where
     [ "kind"        .= String "IntroConstructorUnknown"
     , "payload"     .= Null
     ]
-  toJSON (Info_Auto msg) = object [ "kind" .= String "Auto", "payload" .= msg ]
-  toJSON (Info_ModuleContents doc) = object [ "kind" .= String "ModuleContents", "payload" .= render doc ]
+  toJSON (Info_Auto _) = object
+    [ "kind"        .= String "Auto"
+    , "payload"     .= Null
+    ]
+  toJSON (Info_ModuleContents _ _ _) = object
+    [ "kind"        .= String "ModuleContents"
+    , "payload"     .= Null
+    ]
   toJSON (Info_SearchAbout doc) = object [ "kind" .= String "SearchAbout", "payload" .= render doc ]
   toJSON (Info_WhyInScope doc) = object [ "kind" .= String "WhyInScope", "payload" .= render doc ]
   toJSON (Info_NormalForm doc) = object [ "kind" .= String "NormalForm", "payload" .= render doc ]
