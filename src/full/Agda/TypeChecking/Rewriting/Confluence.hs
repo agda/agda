@@ -143,10 +143,10 @@ checkConfluenceOfRule rew = inTopContext $ do
             plug       = ohpPlugHole hole
 
         sub1 <- makeMetaSubst $ rewContext rew1
-        sub2 <- makeMetaSubst $ rewContext rew2
+        sub2 <- addContext bvTel $ makeMetaSubst $ rewContext rew2
 
         es1 <- applySubst (liftS (size bvTel) sub1) <$> nlPatToTerm es'
-        es2 <- raise (size bvTel) . applySubst sub2 <$> nlPatToTerm (rewPats rew2)
+        es2 <- applySubst sub2 <$> nlPatToTerm (rewPats rew2)
 
         lhs1 <- Def f . applySubst sub1 <$> nlPatToTerm (rewPats rew1)
         lhs2 <- Def f . applySubst sub1 <$> nlPatToTerm (plug $ PTerm $ Def g es2)
@@ -170,7 +170,7 @@ checkConfluenceOfRule rew = inTopContext $ do
 
           -- Left-hand side of first rewrite rule, with subpattern
           -- rewritten by the second rewrite rule
-          let w = raise (size bvTel) $ applySubst sub2 $ rewRHS rew2
+          let w = applySubst sub2 $ rewRHS rew2
           reportSDoc "rewriting.confluence" 30 $ sep
             [ "Plugging hole with w = "
             , nest 2 $ addContext bvTel $ prettyTCM w
@@ -179,7 +179,7 @@ checkConfluenceOfRule rew = inTopContext $ do
 
           return (rhs1 , rhs2)
 
-        let a   = applySubst sub1 $ rewType rew1
+        let a = applySubst sub1 $ rewType rew1
 
         whenJust maybeCriticalPair $ \ (rhs1 , rhs2) ->
           checkCriticalPair a lhs1 rhs1 rhs2
