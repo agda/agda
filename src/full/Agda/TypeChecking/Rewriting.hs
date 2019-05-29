@@ -61,6 +61,7 @@ import Agda.Interaction.Options
 import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
+import Agda.Syntax.Internal.Defs ( getDefs' )
 import Agda.Syntax.Position
 
 import Agda.TypeChecking.Datatypes
@@ -456,10 +457,13 @@ instance GetMatchables NLPat where
       PLam _ x       -> getMatchables x
       PPi a b        -> getMatchables (a,b)
       PBoundVar i es -> getMatchables es
-      PTerm _        -> empty -- should be safe (I hope)
+      PTerm u        -> getMatchables u
 
 instance GetMatchables NLPType where
   getMatchables = getMatchables . nlpTypeUnEl
+
+instance GetMatchables Term where
+  getMatchables = getDefs' __IMPOSSIBLE__ singleton
 
 instance GetMatchables RewriteRule where
   getMatchables = getMatchables . rewPats
