@@ -73,8 +73,8 @@ checkConfluenceOfRule rew = inTopContext $ do
 
   -- Step 2: check other rewrite rules that overlap with a subpattern
   -- of this rewrite rule
-  forM_ (allPatternHoles es) $ \ hole -> case ohpContents hole of
-    PDef g es' -> forMM_ (getClausesAndRewriteRulesFor g) $ \ rew' ->
+  forMM_ (allHoles <$> nlPatToTerm es) $ \ hole -> case ohContents hole of
+    Def g es' -> forMM_ (getClausesAndRewriteRulesFor g) $ \ rew' ->
       checkConfluenceSub rew rew' hole
     _ -> return ()
 
@@ -82,9 +82,9 @@ checkConfluenceOfRule rew = inTopContext $ do
   -- overlaps with this rewrite rule
   forM_ (defMatchable def) $ \ g ->
     forMM_ (getRewriteRulesFor g) $ \ rew' ->
-      forM_ (allPatternHoles $ rewPats rew') $ \ hole ->
-        case ohpContents hole of
-          PDef f' es' | f == f' -> checkConfluenceSub rew' rew hole
+      forMM_ (allHoles <$> nlPatToTerm (rewPats rew')) $ \ hole ->
+        case ohContents hole of
+          Def f' es' | f == f' -> checkConfluenceSub rew' rew hole
           _ -> return ()
 
   where
@@ -133,24 +133,24 @@ checkConfluenceOfRule rew = inTopContext $ do
 
     -- Check confluence between two rules that overlap at a subpattern,
     -- e.g. @f ps[g qs] --> a@ and @g qs' --> b@.
-    checkConfluenceSub :: RewriteRule -> RewriteRule -> OneHolePattern PElims -> TCM ()
+    checkConfluenceSub :: RewriteRule -> RewriteRule -> OneHole Elims -> TCM ()
     checkConfluenceSub rew1 rew2 hole =
       traceCall (CheckConfluence (rewName rew1) (rewName rew2)) $
       localTCStateSavingWarnings $ do
 
         let f          = rewHead rew1
-            PDef g es' = ohpContents hole
-            bvTel      = ohpBoundVars hole
-            plug       = ohpPlugHole hole
+            Def g es'  = ohContents hole
+            bvTel      = ohBoundVars hole
+            plug       = ohPlugHole hole
 
         sub1 <- makeMetaSubst $ rewContext rew1
         sub2 <- addContext bvTel $ makeMetaSubst $ rewContext rew2
 
-        es1 <- applySubst (liftS (size bvTel) sub1) <$> nlPatToTerm es'
+        let es1 = applySubst (liftS (size bvTel) sub1) es'
         es2 <- applySubst sub2 <$> nlPatToTerm (rewPats rew2)
 
         lhs1 <- Def f . applySubst sub1 <$> nlPatToTerm (rewPats rew1)
-        lhs2 <- Def f . applySubst sub1 <$> nlPatToTerm (plug $ PTerm $ Def g es2)
+        let lhs2 = applySubst sub1 $ Def f $ plug $ Def g es2
 
         reportSDoc "rewriting.confluence" 20 $ sep
           [ "Considering potential critical pair at subpattern: "
@@ -176,7 +176,7 @@ checkConfluenceOfRule rew = inTopContext $ do
             [ "Plugging hole with w = "
             , nest 2 $ addContext bvTel $ prettyTCM w
             ]
-          rhs2 <- Def f . applySubst sub1 <$> nlPatToTerm (plug $ PTerm w)
+          let rhs2 = applySubst sub1 $ Def f $ plug w
 
           return (rhs1 , rhs2)
 
@@ -267,59 +267,94 @@ abstractOverMetas ms x = do
         metaIndex x = (n-1-) <$> elemIndex x ms'
     runReaderT (metasToVars (gamma, x)) metaIndex
 
--- ^ A @OneHolePattern p@ is a @p@ with a subpattern @f ps@ singled out.
-data OneHolePattern a = OneHolePattern
-  { ohpBoundVars :: Telescope     -- Telescope of bound variables at the hole
-  , ohpPlugHole  :: NLPat -> a    -- Plug the hole with some pattern
-  , ohpContents  :: NLPat         -- The pattern in the hole
+-- ^ A @OneHole p@ is a @p@ with a subpattern @f ps@ singled out.
+data OneHole a = OneHole
+  { ohBoundVars :: Telescope     -- Telescope of bound variables at the hole
+  , ohPlugHole  :: Term -> a     -- Plug the hole with some term
+  , ohContents  :: Term          -- The term in the hole
   } deriving (Functor)
 
-ohpAddBV :: ArgName -> Dom Type -> OneHolePattern a -> OneHolePattern a
-ohpAddBV x a ohp = ohp { ohpBoundVars = ExtendTel a $ Abs x $ ohpBoundVars ohp }
+ohAddBV :: ArgName -> Dom Type -> OneHole a -> OneHole a
+ohAddBV x a oh = oh { ohBoundVars = ExtendTel a $ Abs x $ ohBoundVars oh }
 
--- ^ Given a @p@, @allPatternHoles p@ lists all the possible
+-- ^ Given a @p@, @allHoles p@ lists all the possible
 --   decompositions @p = p'[(f ps)/x]@.
-class AllPatternHoles p where
-  allPatternHoles :: p -> [OneHolePattern p]
+class AllHoles p where
+  allHoles :: p -> [OneHole p]
 
-instance AllPatternHoles p => AllPatternHoles [p] where
-  allPatternHoles []     = []
-  allPatternHoles (p:ps) =
-    map (fmap ( :ps)) (allPatternHoles p ) ++
-    map (fmap (p:  )) (allPatternHoles ps)
+instance AllHoles p => AllHoles [p] where
+  allHoles []     = []
+  allHoles (p:ps) =
+    map (fmap ( :ps)) (allHoles p ) ++
+    map (fmap (p:  )) (allHoles ps)
 
-instance AllPatternHoles p => AllPatternHoles (Arg p) where
-  allPatternHoles x = map (fmap (x $>)) $ allPatternHoles $ unArg x
+instance AllHoles p => AllHoles (Arg p) where
+  allHoles x = map (fmap (x $>)) $ allHoles $ unArg x
 
-instance AllPatternHoles p => AllPatternHoles (Dom p) where
-  allPatternHoles x = map (fmap (x $>)) $ allPatternHoles $ unDom x
+instance AllHoles p => AllHoles (Dom p) where
+  allHoles x = map (fmap (x $>)) $ allHoles $ unDom x
 
-instance AllPatternHoles p  => AllPatternHoles (Elim' p) where
-  allPatternHoles = \case
-    Apply x  -> map (fmap Apply) $ allPatternHoles x
+instance AllHoles p  => AllHoles (Elim' p) where
+  allHoles = \case
+    Apply x  -> map (fmap Apply) $ allHoles x
     Proj{}   -> []
     IApply{} -> __IMPOSSIBLE__ -- Not yet implemented
 
-instance AllPatternHoles p  => AllPatternHoles (Abs p) where
-  allPatternHoles = \case
-    Abs   i x -> map (ohpAddBV i __DUMMY_DOM__ . fmap (Abs i)) $ allPatternHoles x
-    NoAbs i x -> map (fmap (NoAbs i)) $ allPatternHoles x
+instance AllHoles p  => AllHoles (Abs p) where
+  allHoles = \case
+    Abs   i x -> map (ohAddBV i __DUMMY_DOM__ . fmap (Abs i)) $ allHoles x
+    NoAbs i x -> map (fmap (NoAbs i)) $ allHoles x
 
-instance AllPatternHoles NLPType where
-  allPatternHoles (NLPType l a) = map (fmap $ NLPType l) $ allPatternHoles a
+instance AllHoles a => AllHoles (Type' a) where
+  allHoles (El s a) = map (fmap $ El s) $ allHoles a
 
-instance AllPatternHoles NLPat where
-  allPatternHoles = \case
-    PVar i xs      -> []
-    PTerm u        -> []
-    p@(PDef f es)      ->
-      (OneHolePattern EmptyTel id p) :
-      map (fmap $ PDef f) (allPatternHoles es)
-    PLam i u       -> map (fmap $ PLam i) $ allPatternHoles u
-    PPi a b        ->
-      map (fmap $ \a -> PPi a b) (allPatternHoles a) ++
-      map (fmap $ \b -> PPi a b) (allPatternHoles b)
-    PBoundVar i es -> []
+instance AllHoles Term where
+  allHoles = \case
+    Var i es       -> map (fmap $ Var i) $ allHoles es
+    Lam i u        -> map (fmap $ Lam i) $ allHoles u
+    Lit l          -> []
+    v@(Def f es)   ->
+      (OneHole EmptyTel id v) :
+      map (fmap $ Def f) (allHoles es)
+    v@(Con c ci es) ->
+      (OneHole EmptyTel id v) :
+      map (fmap $ Con c ci) (allHoles es)
+    Pi a b         ->
+      map (fmap $ \a -> Pi a b) (allHoles a) ++
+      map (fmap $ \b -> Pi a b) (allHoles b)
+    Sort s         -> map (fmap Sort) $ allHoles s
+    Level l        -> map (fmap Level) $ allHoles l
+    MetaV{}        -> __IMPOSSIBLE__
+    DontCare{}     -> []
+    Dummy{}        -> []
+
+instance AllHoles Sort where
+  allHoles = \case
+    Type l       -> map (fmap Type) $ allHoles l
+    Prop l       -> map (fmap Prop) $ allHoles l
+    Inf          -> []
+    SizeUniv     -> []
+    PiSort s1 s2 ->
+      map (fmap $ \s1 -> PiSort s1 s2) (allHoles s1) ++
+      map (fmap $ \s2 -> PiSort s1 s2) (allHoles s2)
+    UnivSort s   -> map (fmap UnivSort) $ allHoles s
+    MetaS{}      -> __IMPOSSIBLE__
+    DefS f es    -> map (fmap $ DefS f) (allHoles es)
+    DummyS{}     -> []
+
+instance AllHoles Level where
+  allHoles (Max ls) = map (fmap Max) $ allHoles ls
+
+instance AllHoles PlusLevel where
+  allHoles (ClosedLevel n) = []
+  allHoles (Plus n l) = map (fmap $ Plus n) $ allHoles l
+
+instance AllHoles LevelAtom where
+  allHoles = \case
+    MetaLevel{}      -> __IMPOSSIBLE__
+    BlockedLevel{}   -> __IMPOSSIBLE__
+    NeutralLevel b u -> map (fmap $ NeutralLevel b) $ allHoles u
+    UnreducedLevel u -> map (fmap UnreducedLevel) $ allHoles u
 
 -- ^ Convert from a non-linear pattern to a term
 class NLPatToTerm p a where
