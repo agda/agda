@@ -436,18 +436,30 @@ rewArity = length . rewPats
 class GetMatchables a where
   getMatchables :: a -> [QName]
 
-instance (Foldable f, GetMatchables a) => GetMatchables (f a) where
+  default getMatchables :: (Foldable f, GetMatchables a', a ~ f a') => a -> [QName]
   getMatchables = foldMap getMatchables
+
+instance GetMatchables a => GetMatchables [a] where
+instance GetMatchables a => GetMatchables (Arg a) where
+instance GetMatchables a => GetMatchables (Dom a) where
+instance GetMatchables a => GetMatchables (Elim' a) where
+instance GetMatchables a => GetMatchables (Abs a) where
+
+instance (GetMatchables a, GetMatchables b) => GetMatchables (a,b) where
+  getMatchables (x,y) = getMatchables x ++ getMatchables y
 
 instance GetMatchables NLPat where
   getMatchables p =
     case p of
       PVar _ _       -> empty
       PDef f _       -> singleton f
-      PLam _ x       -> empty
-      PPi a b        -> empty
-      PBoundVar i es -> empty
+      PLam _ x       -> getMatchables x
+      PPi a b        -> getMatchables (a,b)
+      PBoundVar i es -> getMatchables es
       PTerm _        -> empty -- should be safe (I hope)
+
+instance GetMatchables NLPType where
+  getMatchables = getMatchables . nlpTypeUnEl
 
 instance GetMatchables RewriteRule where
   getMatchables = getMatchables . rewPats
