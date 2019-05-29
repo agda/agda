@@ -339,10 +339,10 @@ checkModuleMacro apply kind r p x modapp open dir = do
     printScope "mod.inst.copy.after" 20 "after copying"
 
     -- Open the module if DoOpen.
-    -- Andreas, 2014-09-02 openModule_ might shadow some locals!
+    -- Andreas, 2014-09-02: @openModule@ might shadow some locals!
     adir <- case open of
       DontOpen -> return adir'
-      DoOpen   -> openModule_ kind (C.QName x) openDir
+      DoOpen   -> openModule kind (Just m0) (C.QName x) openDir
     printScope "mod.inst" 20 $ show open
     reportSDoc "scope.decl" 90 $ "after open   : m0 =" <+> prettyA m0
 
@@ -387,9 +387,12 @@ renamingRange = getRange . map renToRange . impRenaming
 
 -- | Scope check a 'NiceOpen'.
 checkOpen
-  :: Range -> C.QName -> C.ImportDirective                -- ^ Arguments of 'NiceOpen'
+  :: Range                -- ^ Range of @open@ statement.
+  -> Maybe A.ModuleName   -- ^ Resolution of concrete module name (if already resolved).
+  -> C.QName              -- ^ Module to open.
+  -> C.ImportDirective    -- ^ Scope modifier.
   -> ScopeM (ModuleInfo, A.ModuleName, A.ImportDirective) -- ^ Arguments of 'A.Open'
-checkOpen r x dir = do
+checkOpen r mam x dir = do
   reportSDoc "scope.decl" 70 $ do
     cm <- getCurrentModule
     vcat $
@@ -403,9 +406,9 @@ checkOpen r x dir = do
     whenM ((A.noModuleName ==) <$> getCurrentModule) $ do
       warning $ UselessPublic
 
-  m <- toAbstract (OldModuleName x)
+  m <- caseMaybe mam (toAbstract (OldModuleName x)) return
   printScope "open" 20 $ "opening " ++ prettyShow x
-  adir <- openModule_ TopOpenModule x dir
+  adir <- openModule TopOpenModule (Just m) x dir
   printScope "open" 20 $ "result:"
   let minfo = ModuleInfo
         { minfoRange     = r
@@ -1032,7 +1035,7 @@ scopeCheckNiceModule r p name tel checkDs
       -- unless it's private, in which case we just open it (#2099)
       when open $
        void $ -- We can discard the returned default A.ImportDirective.
-        openModule_ TopOpenModule (C.QName name) $
+        openModule TopOpenModule (Just aname) (C.QName name) $
           defaultImportDir { publicOpen = p == PublicAccess }
       return ds
 
@@ -1651,7 +1654,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
       return adecls
 
     NiceOpen r x dir -> do
-      (minfo, m, adir) <- checkOpen r x dir
+      (minfo, m, adir) <- checkOpen r Nothing x dir
       return [A.Open minfo m adir]
 
     NicePragma r p -> do
@@ -1706,7 +1709,32 @@ instance ToAbstract NiceDeclaration A.Declaration where
             Just a  -> (C.QName (asName a), asRange a, Just (asName a))
       adir <- case open of
         DoOpen   -> do
-          (_minfo, _m, adir) <- checkOpen r name dir
+          -- Andreas, 2019-05-29, issue #3818.
+          -- Pass the resolved name to open instead triggering another resolution.
+          -- This helps in situations like
+          -- @
+          --    module Top where
+          --    module M where
+          --    open import M
+          -- @
+          -- It is clear than in @open import M@, name @M@ must refer to a file
+          -- rather than the above defined local module @M@.
+          -- This already worked in the situation
+          -- @
+          --    module Top where
+          --    module M where
+          --    import M
+          -- @
+          -- Note that the manual desugaring of @open import@ as
+          -- @
+          --    module Top where
+          --    module M where
+          --    import M
+          --    open M
+          -- @
+          -- will not work, as @M@ is now ambiguous in @open M@;
+          -- the information that @M@ is external is lost here.
+          (_minfo, _m, adir) <- checkOpen r (Just m) name dir
           return adir
         -- If not opening, import directives are applied to the original scope.
         DontOpen -> modifyNamedScopeM m $ applyImportDirectiveM x dir
@@ -2120,7 +2148,7 @@ whereToAbstract r whname whds inner = do
   let anonymousSomeWhere = maybe False (isNoName . fst) whname
   when anonymousSomeWhere $
    void $ -- We can ignore the returned default A.ImportDirective.
-    openModule_ TopOpenModule (C.QName m) $
+    openModule TopOpenModule (Just am) (C.QName m) $
       defaultImportDir { publicOpen = True }
   return (x, A.WhereDecls (am <$ whname) ds)
 
