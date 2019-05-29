@@ -976,16 +976,10 @@ interpret (Cmd_intro pmLambda ii rng _) = do
   ss <- lift $ B.introTactic pmLambda ii
   liftCommandMT (B.withInteractionId ii) $ case ss of
     []    -> do
-      display_info $ Info_Intro $ "No introduction forms found."
+      display_info $ Info_Intro Info_Intro_NotFound
     [s]   -> give_gen WithoutForce ii rng s Intro
     _:_:_ -> do
-      display_info $ Info_Intro $
-        sep [ "Don't know which constructor to introduce of"
-            , let mkOr []     = []
-                  mkOr [x, y] = [text x <+> "or" <+> text y]
-                  mkOr (x:xs) = text x : mkOr xs
-              in nest 2 $ fsep $ punctuate comma (mkOr ss)
-            ]
+      display_info $ Info_Intro $ Info_Intro_ConstructorUnknown ss
 
 interpret (Cmd_refine_or_intro pmLambda ii r s) = interpret $
   let s' = trim s

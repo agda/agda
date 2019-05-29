@@ -68,9 +68,12 @@ instance ToJSON DisplayInfo where
     ]
   toJSON (Info_Error msg) = object
     [ "kind"        .= String "Error"
-    , "payload"     .= Null 
+    , "payload"     .= Null
     ]
-  toJSON (Info_Intro doc) = object [ "kind" .= String "Intro", "payload" .= render doc ]
+  toJSON (Info_Intro doc) = object
+    [ "kind"        .= String "Intro"
+    , "payload"     .= Null
+    ]
   toJSON (Info_Auto msg) = object [ "kind" .= String "Auto", "payload" .= msg ]
   toJSON (Info_ModuleContents doc) = object [ "kind" .= String "ModuleContents", "payload" .= render doc ]
   toJSON (Info_SearchAbout doc) = object [ "kind" .= String "SearchAbout", "payload" .= render doc ]

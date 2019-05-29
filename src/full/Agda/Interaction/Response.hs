@@ -9,6 +9,7 @@ module Agda.Interaction.Response
   , MakeCaseVariant (..)
   , DisplayInfo (..)
   , Info_Error(..)
+  , Info_Intro(..)
   , Status (..)
   , GiveResult (..)
   , InteractionOutputCallback
@@ -82,7 +83,7 @@ data DisplayInfo
     | Info_Error Info_Error
         -- ^ When an error message is displayed this constructor should be
         -- used, if appropriate.
-    | Info_Intro Doc
+    | Info_Intro Info_Intro
         -- ^ 'Info_Intro' denotes two different types of errors
         --   TODO: split these into separate constructors
     | Info_Auto String
@@ -101,13 +102,24 @@ data DisplayInfo
 
 -- | Errors that goes into Info_Error
 --
---   ^ When an error message is displayed this constructor should be
+--   When an error message is displayed this constructor should be
 --   used, if appropriate.
 data Info_Error
     = Info_GenericError TCErr
     | Info_CompilationError [TCWarning]
     | Info_HighlightingParseError InteractionId
     | Info_HighlightingScopeCheckError InteractionId
+
+-- | Variants of
+data Info_Intro
+    = Info_Intro_NotFound
+    | Info_Intro_ConstructorUnknown [String]
+
+
+
+
+
+
 
 -- | Status information.
 
