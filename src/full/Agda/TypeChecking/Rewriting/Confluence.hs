@@ -68,7 +68,8 @@ checkConfluenceOfRule rew = inTopContext $ do
 
   -- Step 1: check other rewrite rules that overlap at top position
   forMM_ (getClausesAndRewriteRulesFor f) $ \ rew' ->
-    checkConfluenceTop rew rew'
+    unless (rewName rew == rewName rew') $
+      checkConfluenceTop rew rew'
 
   -- Step 2: check other rewrite rules that overlap with a subpattern
   -- of this rewrite rule
