@@ -976,10 +976,10 @@ interpret (Cmd_intro pmLambda ii rng _) = do
   ss <- lift $ B.introTactic pmLambda ii
   liftCommandMT (B.withInteractionId ii) $ case ss of
     []    -> do
-      display_info $ Info_Intro Info_Intro_NotFound
+      display_info $ Info_Intro_NotFound
     [s]   -> give_gen WithoutForce ii rng s Intro
     _:_:_ -> do
-      display_info $ Info_Intro $ Info_Intro_ConstructorUnknown ss
+      display_info $ Info_Intro_ConstructorUnknown ss
 
 interpret (Cmd_refine_or_intro pmLambda ii r s) = interpret $
   let s' = trim s

@@ -98,7 +98,15 @@ lispifyResponse (Resp_DisplayInfo info) = case info of
                                  , A "nil"
                                  ]
                              ]
-    Info_Intro s -> f (render $ pretty s) "*Intro*"
+    Info_Intro_NotFound -> f "No introduction forms found." "*Intro*"
+    Info_Intro_ConstructorUnknown ss -> do
+      let msg = sep [ "Don't know which constructor to introduce of"
+                    , let mkOr []     = []
+                          mkOr [x, y] = [text x <+> "or" <+> text y]
+                          mkOr (x:xs) = text x : mkOr xs
+                      in nest 2 $ fsep $ punctuate comma (mkOr ss)
+                    ]
+      f (render $ pretty msg) "*Intro*"
     Info_Version -> f ("Agda version " ++ versionWithCommitInfo) "*Agda Version*"
   where f content bufname = return [ display_info' False bufname content ]
 lispifyResponse (Resp_ClearHighlighting tokenBased) =
@@ -188,13 +196,3 @@ serializeInfoError (Info_HighlightingParseError ii) =
   return $ "Highlighting failed to parse expression in " ++ show ii
 serializeInfoError (Info_HighlightingScopeCheckError ii) =
   return $ "Highlighting failed to scope check expression in " ++ show ii
-
-instance Pretty Info_Intro where
-  pretty (Info_Intro_NotFound) = "No introduction forms found."
-  pretty (Info_Intro_ConstructorUnknown ss) =
-    sep [ "Don't know which constructor to introduce of"
-        , let mkOr []     = []
-              mkOr [x, y] = [text x <+> "or" <+> text y]
-              mkOr (x:xs) = text x : mkOr xs
-          in nest 2 $ fsep $ punctuate comma (mkOr ss)
-        ]

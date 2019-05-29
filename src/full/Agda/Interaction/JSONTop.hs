@@ -70,8 +70,12 @@ instance ToJSON DisplayInfo where
     [ "kind"        .= String "Error"
     , "payload"     .= Null
     ]
-  toJSON (Info_Intro doc) = object
-    [ "kind"        .= String "Intro"
+  toJSON Info_Intro_NotFound = object
+    [ "kind"        .= String "IntroNotFound"
+    , "payload"     .= Null
+    ]
+  toJSON (Info_Intro_ConstructorUnknown introductions) = object
+    [ "kind"        .= String "IntroConstructorUnknown"
     , "payload"     .= Null
     ]
   toJSON (Info_Auto msg) = object [ "kind" .= String "Auto", "payload" .= msg ]
