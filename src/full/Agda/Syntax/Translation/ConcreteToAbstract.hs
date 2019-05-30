@@ -548,7 +548,7 @@ instance ToAbstract OldQName A.Expr where
               text "Cannot use generalized variable from let-opened module:" <+> prettyTCM (anameName d)
           _ -> return ()
         -- and then we return the name
-        return $ nameExpr d
+        return $ nameToExpr d
       FieldName     ds     -> return $ A.Proj ProjPrefix $ AmbQ (fmap anameName ds)
       ConstructorName ds   -> return $ A.Con $ AmbQ (fmap anameName ds)
       UnknownName          -> notInScope x

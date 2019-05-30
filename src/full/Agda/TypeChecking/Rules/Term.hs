@@ -731,22 +731,21 @@ expandModuleAssigns
   :: [Either A.Assign A.ModuleName]  -- ^ Modules and field assignments.
   -> [C.Name]                        -- ^ Names of fields of the record type.
   -> TCM A.Assigns                   -- ^ Completed field assignments from modules.
-expandModuleAssigns mfs exs = do
+expandModuleAssigns mfs xs = do
   let (fs , ms) = partitionEithers mfs
-      -- The visible fields of the record that have not been given by field assignments.
-      exs' = exs List.\\ map (view nameFieldA) fs
 
-  -- Getting assignments for the missing visible fields.
-  fs' <- forM exs' $ \ f -> do
+  -- The fields of the record that have not been given by field assignments @fs@
+  -- are looked up in the given modules @ms@.
+  fs' <- forM (xs List.\\ map (view nameFieldA) fs) $ \ f -> do
 
     -- Get the possible assignments for field f from the modules.
     pms <- forM ms $ \ m -> do
-       modScope <- getNamedScope m
-       let names :: ThingsInScope AbstractName
-           names = exportedNamesInScope modScope
-       return $
+      modScope <- getNamedScope m
+      let names :: ThingsInScope AbstractName
+          names = exportedNamesInScope modScope
+      return $
         case Map.lookup f names of
-          Just [n] -> Just (m, FieldAssignment f (A.nameExpr n))
+          Just [n] -> Just (m, FieldAssignment f $ A.nameToExpr n)
           _        -> Nothing
 
     -- If we have several matching assignments, that's an error.

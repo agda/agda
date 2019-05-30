@@ -667,7 +667,7 @@ bindBuiltinSigma t = do
 -- | Bind BUILTIN EQUALITY and BUILTIN REFL.
 bindBuiltinEquality :: ResolvedName -> TCM ()
 bindBuiltinEquality x = do
-  (v, _t) <- inferExpr (A.nameExpr x)
+  (v, _t) <- inferExpr (A.nameToExpr x)
 
   -- Equality needs to be a data type with 1 constructor
   (eq, def) <- inductiveCheck builtinEquality 1 v
@@ -841,7 +841,7 @@ bindBuiltin b x = do
      | b == builtinSharp -> bindBuiltinSharp x
      | b == builtinFlat  -> bindBuiltinFlat x
      | b == builtinEquality -> bindBuiltinEquality x
-     | Just i <- findBuiltinInfo b -> bindBuiltinInfo i (A.nameExpr x)
+     | Just i <- findBuiltinInfo b -> bindBuiltinInfo i (A.nameToExpr x)
      | otherwise -> typeError $ NoSuchBuiltinName b
   where
     now new b = warning $ OldBuiltin b new
