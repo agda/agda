@@ -34,6 +34,7 @@ import Agda.Syntax.Internal
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Datatypes
+import Agda.TypeChecking.Free
 import Agda.TypeChecking.Irrelevance ( workOnTypes )
 import Agda.TypeChecking.Level
 import Agda.TypeChecking.MetaVars
@@ -41,10 +42,11 @@ import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Pretty.Warning
-import Agda.TypeChecking.Records ( getDefType )
+import Agda.TypeChecking.Records
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Rewriting.Clause
 import Agda.TypeChecking.Rewriting.NonLinPattern
+import Agda.TypeChecking.Sort
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Warnings
@@ -113,17 +115,30 @@ checkConfluenceOfRule rew = inTopContext $ do
         sub1 <- makeMetaSubst $ rewContext rew1
         sub2 <- makeMetaSubst $ rewContext rew2
 
+        let f    = rewHead rew1 -- == rewHead rew2
+            a1   = applySubst sub1 $ rewType rew1
+            a2   = applySubst sub2 $ rewType rew2
+
         es1 <- applySubst sub1 <$> nlPatToTerm (rewPats rew1)
         es2 <- applySubst sub2 <$> nlPatToTerm (rewPats rew2)
 
-        let f    = rewHead rew1 -- == rewHead rew2
-            lhs1 = Def f es1
-            lhs2 = Def f es2
+        -- Make sure we are comparing eliminations with the same arity
+        -- (see #3810).
+        let n = min (size es1) (size es2)
+            (es1' , es1r) = splitAt n es1
+            (es2' , es2r) = splitAt n es2
+
+            lhs1 = Def f $ es1' ++ es2r
+            lhs2 = Def f $ es2' ++ es1r
+
+            -- Use type of rewrite rule with the most eliminations
+            a | null es1r = a2
+              | otherwise = a1
 
         reportSDoc "rewriting.confluence" 20 $ sep
           [ "Considering potential critical pair at top-level: "
-          , nest 2 $ prettyTCM $ lhs1 , " =?= "
-          , nest 2 $ prettyTCM $ lhs2
+          , nest 2 $ prettyTCM $ lhs1, " =?= "
+          , nest 2 $ prettyTCM $ lhs2 , " : " , nest 2 $ prettyTCM a
           ]
 
         maybeCriticalPair <- tryUnification lhs1 lhs2 $ do
@@ -131,45 +146,75 @@ checkConfluenceOfRule rew = inTopContext $ do
           fa   <- defType <$> getConstInfo f
           fpol <- getPolarity' CmpEq f
           onlyReduceTypes $
-            compareElims fpol [] fa (Def f []) es1 es2
+            compareElims fpol [] fa (Def f []) es1' es2'
 
-          -- Get the rhs of both rewrite rules (after unification)
-          let rhs1 = applySubst sub1 $ rewRHS rew1
-              rhs2 = applySubst sub2 $ rewRHS rew2
+          -- Get the rhs of both rewrite rules (after unification). In
+          -- case of different arities, add additional arguments from
+          -- one side to the other side.
+          let rhs1 = applySubst sub1 (rewRHS rew1) `applyE` es2r
+              rhs2 = applySubst sub2 (rewRHS rew2) `applyE` es1r
 
           return (rhs1 , rhs2)
 
-        let a   = applySubst sub1 $ rewType rew1
-            lhs = Def f es1
-
         whenJust maybeCriticalPair $ \ (rhs1 , rhs2) ->
-          checkCriticalPair a lhs rhs1 rhs2
+          checkCriticalPair a lhs1 rhs1 rhs2
 
     -- Check confluence between two rules that overlap at a subpattern,
     -- e.g. @f ps[g qs] --> a@ and @g qs' --> b@.
     checkConfluenceSub :: RewriteRule -> RewriteRule -> OneHole Elims -> TCM ()
-    checkConfluenceSub rew1 rew2 hole =
+    checkConfluenceSub rew1 rew2 hole0 =
       traceCall (CheckConfluence (rewName rew1) (rewName rew2)) $
       localTCStateSavingWarnings $ do
 
-        let f          = rewHead rew1
-            Def g es'  = ohContents hole
-            bvTel      = ohBoundVars hole
-            plug       = ohPlugHole hole
-
         sub1 <- makeMetaSubst $ rewContext rew1
+
+        let f          = rewHead rew1
+            bvTel0     = ohBoundVars hole0
+            k          = size bvTel0
+            b0         = applySubst (liftS k sub1) $ ohType hole0
+            Def g es0  = applySubst (liftS k sub1) $ ohContents hole0
+            qs2        = rewPats rew2
+
+        -- If the second rewrite rule has more eliminations than the
+        -- subpattern of the first rule, the only chance of overlap is
+        -- by eta-expanding the subpattern of the first rule.
+        hole1 <- addContext bvTel0 $
+          forceEtaExpansion b0 (Def g es0) $ drop (size es0) qs2
+
+        verboseS "rewriting.confluence.eta" 30 $
+          unless (size es0 == size qs2) $
+          addContext bvTel0 $
+          reportSDoc "rewriting.confluence.eta" 30 $ vcat
+            [ "forceEtaExpansion result:"
+            , nest 2 $ "bound vars: " <+> prettyTCM (ohBoundVars hole1)
+            , nest 2 $ "hole contents: " <+> addContext (ohBoundVars hole1) (prettyTCM $ ohContents hole1)
+            ]
+
+        let hole      = hole1 `composeHole` hole0
+            Def g es' = ohContents hole -- g == rewHead rew2
+            bvTel     = ohBoundVars hole
+            plug      = ohPlugHole hole
+
         sub2 <- addContext bvTel $ makeMetaSubst $ rewContext rew2
 
         let es1 = applySubst (liftS (size bvTel) sub1) es'
         es2 <- applySubst sub2 <$> nlPatToTerm (rewPats rew2)
 
-        lhs1 <- Def f . applySubst sub1 <$> nlPatToTerm (rewPats rew1)
-        let lhs2 = applySubst sub1 $ Def f $ plug $ Def g es2
+        -- Make sure we are comparing eliminations with the same arity
+        -- (see #3810). Because we forced eta-expansion of es1, we
+        -- know that it is at least as long as es2.
+        when (size es1 < size es2) __IMPOSSIBLE__
+        let n = size es2
+            (es1' , es1r) = splitAt n es1
+
+        let lhs1 = applySubst sub1 $ Def f $ plug $ Def g es1
+            lhs2 = applySubst sub1 $ Def f $ plug $ Def g $ es2 ++ es1r
+            a    = applySubst sub1 $ rewType rew1
 
         reportSDoc "rewriting.confluence" 20 $ sep
           [ "Considering potential critical pair at subpattern: "
           , nest 2 $ prettyTCM $ lhs1 , " =?= "
-          , nest 2 $ prettyTCM $ lhs2
+          , nest 2 $ prettyTCM $ lhs2 , " : " , nest 2 $ prettyTCM a
           ]
 
         maybeCriticalPair <- tryUnification lhs1 lhs2 $ do
@@ -178,14 +223,14 @@ checkConfluenceOfRule rew = inTopContext $ do
           ga   <- defType <$> getConstInfo g
           gpol <- getPolarity' CmpEq g
           onlyReduceTypes $ addContext bvTel $
-            compareElims gpol [] ga (Def g []) es1 es2
+            compareElims gpol [] ga (Def g []) es1' es2
 
           -- Right-hand side of first rewrite rule (after unification)
           let rhs1 = applySubst sub1 $ rewRHS rew1
 
           -- Left-hand side of first rewrite rule, with subpattern
           -- rewritten by the second rewrite rule
-          let w = applySubst sub2 $ rewRHS rew2
+          let w = applySubst sub2 (rewRHS rew2) `applyE` es1r
           reportSDoc "rewriting.confluence" 30 $ sep
             [ "Plugging hole with w = "
             , nest 2 $ addContext bvTel $ prettyTCM w
@@ -194,10 +239,8 @@ checkConfluenceOfRule rew = inTopContext $ do
 
           return (rhs1 , rhs2)
 
-        let a = applySubst sub1 $ rewType rew1
-
         whenJust maybeCriticalPair $ \ (rhs1 , rhs2) ->
-          checkCriticalPair a lhs1 rhs1 rhs2
+          checkCriticalPair a lhs2 rhs1 rhs2
 
     typeOfHead :: Definition -> Type -> TCM Type
     typeOfHead def a = case theDef def of
@@ -243,11 +286,6 @@ checkConfluenceOfRule rew = inTopContext $ do
 
       (a,lhs,rhs1,rhs2) <- instantiateFull (a,lhs,rhs1,rhs2)
 
-      reportSDoc "rewriting.confluence" 10 $ sep
-        [ "Found critical pair: " , nest 2 $ prettyTCM rhs1
-        , " =?= " , nest 2 $ prettyTCM rhs2
-        , " : " , nest 2 $ prettyTCM a ]
-
       let ms = Set.toList $ allMetas singleton $ (a,lhs,rhs1,rhs2)
 
       reportSDoc "rewriting.confluence" 30 $ sep
@@ -256,6 +294,11 @@ checkConfluenceOfRule rew = inTopContext $ do
         ]
       (gamma , (a,lhs,rhs1,rhs2)) <- fromMaybe __IMPOSSIBLE__ <$>
         abstractOverMetas ms (a,lhs,rhs1,rhs2)
+
+      reportSDoc "rewriting.confluence" 10 $ sep
+        [ "Found critical pair: " , nest 2 $ prettyTCM rhs1
+        , " =?= " , nest 2 $ prettyTCM rhs2
+        , " : " , nest 2 $ prettyTCM a ]
 
       addContext gamma $ do
           dontAssignMetas $ noConstraints $ equalTerm a rhs1 rhs2
@@ -290,16 +333,30 @@ abstractOverMetas ms x = do
 -- ^ A @OneHole p@ is a @p@ with a subpattern @f ps@ singled out.
 data OneHole a = OneHole
   { ohBoundVars :: Telescope     -- Telescope of bound variables at the hole
+  , ohType      :: Type          -- Type of the term in the hole
   , ohPlugHole  :: Term -> a     -- Plug the hole with some term
   , ohContents  :: Term          -- The term in the hole
   } deriving (Functor)
+
+-- | The trivial hole
+idHole :: Type -> Term -> OneHole Term
+idHole a v = OneHole EmptyTel a id v
+
+-- | Plug a hole with another hole
+composeHole :: OneHole Term -> OneHole a -> OneHole a
+composeHole inner outer = OneHole
+  { ohBoundVars = ohBoundVars outer `abstract` ohBoundVars inner
+  , ohType      = ohType inner
+  , ohPlugHole  = ohPlugHole outer . ohPlugHole inner
+  , ohContents  = ohContents inner
+  }
 
 ohAddBV :: ArgName -> Dom Type -> OneHole a -> OneHole a
 ohAddBV x a oh = oh { ohBoundVars = ExtendTel a $ Abs x $ ohBoundVars oh }
 
 -- ^ Given a @p : a@, @allHoles p@ lists all the possible
 --   decompositions @p = p'[(f ps)/x]@.
-class (Subst Term p , Subst Term (PType p)) => AllHoles p where
+class (Subst Term p , Subst Term (PType p), Free p) => AllHoles p where
   type PType p
   allHoles :: (Alternative m , MonadReduce m, MonadAddContext m, HasBuiltins m, HasConstInfo m)
            => PType p -> p -> m (OneHole p)
@@ -315,6 +372,66 @@ allHolesList
   => PType p -> p -> m [OneHole p]
 allHolesList a = sequenceListT . allHoles a
 
+-- | Given a term @v : a@ and eliminations @es@, force eta-expansion
+--   of @v@ to match the structure (Apply/Proj) of the eliminations.
+--
+--   Examples:
+--
+--   1. @v : _A@ and @es = [$ w]@: this will instantiate
+--      @_A := (x : _A1) → _A2@ and return the @OneHole Term@
+--      @λ x → [v x]@.
+--
+--   2. @v : _A@ and @es = [.fst]@: this will instantiate
+--      @_A := _A1 × _A2@ and return the @OneHole Term@
+--      @([v .fst]) , (v .snd)@.
+forceEtaExpansion :: Type -> Term -> [Elim' a] -> TCM (OneHole Term)
+forceEtaExpansion a v [] = return $ idHole a v
+forceEtaExpansion a v (e:es) = case e of
+
+  Apply (Arg i w) -> do
+
+    -- Force a to be a pi type
+    reportSDoc "rewriting.confluence.eta" 40 $ fsep
+      [ "Forcing" , prettyTCM v , ":" , prettyTCM a , "to take one more argument" ]
+    dom <- Dom i False Nothing <$> newTypeMeta_
+    cod <- addContext dom $ newTypeMeta_
+    equalType a $ mkPi (("x",) <$> dom) cod
+
+    -- Construct body of eta-expansion
+    let body = raise 1 v `apply` [Arg i $ var 0]
+
+    -- Continue with remaining eliminations
+    addContext dom $ ohAddBV "x" dom . fmap (Lam i . mkAbs "x") <$>
+      forceEtaExpansion cod body es
+
+  Proj o f -> do
+
+    -- Force a to be the right record type for projection by f
+    reportSDoc "rewriting.confluence.eta" 40 $ fsep
+      [ "Forcing" , prettyTCM v , ":" , prettyTCM a , "to be projectible by" , prettyTCM f ]
+    r <- fromMaybe __IMPOSSIBLE__ <$> getRecordOfField f
+    rdef <- getConstInfo r
+    let ra = defType rdef
+    pars <- newArgsMeta ra
+    s <- ra `piApplyM` pars >>= \s -> ifIsSort s return __IMPOSSIBLE__
+    equalType a $ El s (Def r $ map Apply pars)
+
+    -- Eta-expand v at record type r, and get field corresponding to f
+    (_ , c , ci , fields) <- etaExpandRecord_ r pars (theDef rdef) v
+    let fs        = recFields $ theDef rdef
+        i         = fromMaybe __IMPOSSIBLE__ $ elemIndex f $ map unArg fs
+        fContent  = unArg $ fromMaybe __IMPOSSIBLE__ $ fields !!! i
+        fUpdate w = Con c ci $ map Apply $ updateAt i (w <$) fields
+
+    -- Get type of field corresponding to f
+    ~(Just (El _ (Pi b c))) <- getDefType f =<< reduce a
+    let fa = c `absApp` v
+
+    -- Continue with remaining eliminations
+    fmap fUpdate <$> forceEtaExpansion fa fContent es
+
+  IApply{} -> __IMPOSSIBLE__ -- Not yet implemented
+
 -- ^ Instances for @AllHoles@
 
 instance AllHoles p => AllHoles (Arg p) where
@@ -328,7 +445,7 @@ instance AllHoles p => AllHoles (Dom p) where
 instance (AllHoles p) => AllHoles (Abs p) where
   type PType (Abs p) = (Dom Type , Abs (PType p))
   allHoles (dom , a) x = addContext (absName x , dom) $
-    ohAddBV (absName a) dom . fmap (Abs $ absName x) <$>
+    ohAddBV (absName a) dom . fmap (mkAbs $ absName x) <$>
       allHoles (absBody a) (absBody x)
 
 instance AllHoles Elims where
@@ -373,11 +490,11 @@ instance AllHoles Term where
       Lit l          -> empty
       v@(Def f es)   -> do
         fa <- defType <$> getConstInfo f
-        pure (OneHole EmptyTel id v)
+        pure (idHole a v)
          <|> (fmap (Def f) <$> allHoles (fa , Def f []) es)
       v@(Con c ci es) -> do
         ca <- snd . fromMaybe __IMPOSSIBLE__ <$> getFullyAppliedConType c a
-        pure (OneHole EmptyTel id v)
+        pure (idHole a v)
          <|> (fmap (Con c ci) <$> allHoles (ca , Con c ci []) es)
       Pi a b         ->
         (fmap (\a -> Pi a b) <$> allHoles_ a) <|>
