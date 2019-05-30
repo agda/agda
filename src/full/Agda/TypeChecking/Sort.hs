@@ -113,3 +113,10 @@ checkTelePiSort (El s (Pi a b)) = do
   hasPTSRule (getSort a) (getSort <$> b)
   underAbstraction a b checkTelePiSort
 checkTelePiSort _ = return ()
+
+ifIsSort :: (MonadReduce m) => Type -> (Sort -> m a) -> m a -> m a
+ifIsSort t yes no = do
+  t <- reduce t
+  case unEl t of
+    Sort s -> yes s
+    _      -> no
