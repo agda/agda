@@ -240,8 +240,14 @@ instance MonadDebug AbsToCon where
 runAbsToCon :: MonadAbsToCon m => AbsToCon c -> m c
 runAbsToCon m = do
   scope <- getScope
-  reportSLn "toConcrete" 50 $ render $ "entering AbsToCon with scope:" <+> prettyList_ (map (text . C.nameToRawName . fst) $ scope ^. scopeLocals)
-  runReaderT (unAbsToCon m) =<< makeEnv scope
+  verboseBracket "toConcrete" 50 "runAbsToCon" $ do
+    reportSLn "toConcrete" 50 $ render $ hsep $
+      [ "entering AbsToCon with scope:"
+      , prettyList_ (map (text . C.nameToRawName . fst) $ scope ^. scopeLocals)
+      ]
+    x <- runReaderT (unAbsToCon m) =<< makeEnv scope
+    reportSLn "toConcrete" 50 $ "leaving AbsToCon"
+    return x
 
 abstractToConcreteScope :: (ToConcrete a c, MonadAbsToCon m)
                         => ScopeInfo -> a -> m c

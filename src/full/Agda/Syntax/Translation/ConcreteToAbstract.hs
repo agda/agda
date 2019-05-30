@@ -15,7 +15,6 @@ module Agda.Syntax.Translation.ConcreteToAbstract
     , AbstractRHS
     , NewModuleName, OldModuleName
     , NewName, OldQName
-    , LeftHandSide, RightHandSide
     , PatName, APatName
     ) where
 
@@ -2111,7 +2110,7 @@ instance ToAbstract C.Clause A.Clause where
 
     if not (null eqs)
       then do
-        rhs <- toAbstract =<< toAbstractCtx TopCtx (RightHandSide eqs with wcs' rhs whds)
+        rhs <- toAbstract =<< toAbstractCtx TopCtx (RightHandSide eqs with wcs' rhs whname whds)
         return $ A.Clause lhs' [] rhs A.noWhereDecls catchall
       else do
         -- ASR (16 November 2015) Issue 1137: We ban termination
@@ -2119,15 +2118,20 @@ instance ToAbstract C.Clause A.Clause where
         when (any isTerminationPragma whds) $
              genericError "Termination pragmas are not allowed inside where clauses"
 
-        -- the right hand side is checked inside the module of the local definitions
+        -- the right hand side is checked with the module of the local definitions opened
         (rhs, ds) <- whereToAbstract (getRange wh) whname whds $
-                      toAbstractCtx TopCtx (RightHandSide eqs with wcs' rhs [])
+                      toAbstractCtx TopCtx (RightHandSide eqs with wcs' rhs Nothing [])
         rhs <- toAbstract rhs
                  -- #2897: we need to restrict named where modules in refined contexts,
                  --        so remember whether it was named here
         return $ A.Clause lhs' [] rhs ds catchall
 
-whereToAbstract :: Range -> Maybe (C.Name, Access) -> [C.Declaration] -> ScopeM a -> ScopeM (a, A.WhereDeclarations)
+whereToAbstract
+  :: Range                            -- ^ The range of the @where@-block.
+  -> Maybe (C.Name, Access)           -- ^ The name of the @where@ module (if any).
+  -> [C.Declaration]                  -- ^ The contents of the @where@ module.
+  -> ScopeM a                         -- ^ The scope-checking task to be run in the context of the @where@ module.
+  -> ScopeM (a, A.WhereDeclarations)  -- ^ Additionally return the scope-checked contents of the @where@ module.
 whereToAbstract _ whname []   inner = (, A.noWhereDecls) <$> inner
 whereToAbstract r whname whds inner = do
   -- Create a fresh concrete name if there isn't (a proper) one.
@@ -2141,7 +2145,11 @@ whereToAbstract r whname whds inner = do
   am  <- toAbstract (NewModuleName m)
   (scope, ds) <- scopeCheckModule r (C.QName m) am tel $ toAbstract whds
   setScope scope
-  x <- inner
+  x <- localScope $ do
+    -- Andreas, 2019-05-30, issue #3823:
+    -- Temporarily bind where-module here so it can be referenced in rhs
+    bindModule acc m am
+    inner
   setCurrentModule old
   bindModule acc m am
   -- Issue 848: if the module was anonymous (module _ where) open it public
@@ -2157,7 +2165,8 @@ data RightHandSide = RightHandSide
   , rhsWithExpr   :: [C.WithExpr]      -- ^ @with e@ (many)
   , rhsSubclauses :: [ScopeM C.Clause] -- ^ the subclauses spawned by a with (monadic because we need to reset the local vars before checking these clauses)
   , rhs           :: C.RHS
-  , rhsWhereDecls :: [C.Declaration]
+  , rhsWhereName  :: Maybe (C.Name, Access)  -- ^ The name of the @where@ module (if any).
+  , rhsWhereDecls :: [C.Declaration]         -- ^ The contents of the @where@ module.
   }
 
 data AbstractRHS
@@ -2188,22 +2197,22 @@ instance ToAbstract AbstractRHS A.RHS where
     A.WithRHS aux es <$> do toAbstract =<< sequence cs
 
 instance ToAbstract RightHandSide AbstractRHS where
-  toAbstract (RightHandSide eqs@(_:_) es cs rhs wh) = do
+  toAbstract (RightHandSide eqs@(_:_) es cs rhs whname wh) = do
     eqs <- toAbstractCtx TopCtx eqs
                  -- TODO: remember named where
-    (rhs, ds) <- whereToAbstract (getRange wh) Nothing wh $
-                  toAbstract (RightHandSide [] es cs rhs [])
+    (rhs, ds) <- whereToAbstract (getRange wh) whname wh $
+                  toAbstract (RightHandSide [] es cs rhs Nothing [])
     return $ RewriteRHS' eqs rhs ds
-  toAbstract (RightHandSide [] [] (_ : _) _ _)        = __IMPOSSIBLE__
-  toAbstract (RightHandSide [] (_ : _) _ (C.RHS _) _) = typeError $ BothWithAndRHS
-  toAbstract (RightHandSide [] [] [] rhs [])          = toAbstract rhs
-  toAbstract (RightHandSide [] es cs C.AbsurdRHS [])  = do
+  toAbstract (RightHandSide [] [] (_ : _) _ _ _)        = __IMPOSSIBLE__
+  toAbstract (RightHandSide [] (_ : _) _ (C.RHS _) _ _) = typeError $ BothWithAndRHS
+  toAbstract (RightHandSide [] [] [] rhs _ [])          = toAbstract rhs
+  toAbstract (RightHandSide [] es cs C.AbsurdRHS _ [])  = do
     es <- toAbstractCtx TopCtx es
     return $ WithRHS' es cs
   -- TODO: some of these might be possible
-  toAbstract (RightHandSide [] (_ : _) _ C.AbsurdRHS (_ : _)) = __IMPOSSIBLE__
-  toAbstract (RightHandSide [] [] [] (C.RHS _) (_ : _))       = __IMPOSSIBLE__
-  toAbstract (RightHandSide [] [] [] C.AbsurdRHS (_ : _))     = __IMPOSSIBLE__
+  toAbstract (RightHandSide [] (_ : _) _ C.AbsurdRHS _ (_ : _)) = __IMPOSSIBLE__
+  toAbstract (RightHandSide [] [] [] (C.RHS _) _ (_ : _))       = __IMPOSSIBLE__
+  toAbstract (RightHandSide [] [] [] C.AbsurdRHS _ (_ : _))     = __IMPOSSIBLE__
 
 instance ToAbstract C.RHS AbstractRHS where
     toAbstract C.AbsurdRHS = return $ AbsurdRHS'
