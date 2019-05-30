@@ -11,6 +11,7 @@ module Agda.Utils.ListT where
 
 import Control.Applicative ( Alternative((<|>), empty) )
 import Control.Monad
+import Control.Monad.Fail as Fail
 import Control.Monad.Reader
 import Control.Monad.State
 
@@ -140,3 +141,6 @@ instance (Applicative m, MonadReader r m) => MonadReader r (ListT m) where
 instance (Applicative m, MonadState s m) => MonadState s (ListT m) where
   get = lift get
   put = lift . put
+
+instance Monad m => MonadFail (ListT m) where
+  fail _ = empty
