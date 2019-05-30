@@ -745,7 +745,7 @@ expandModuleAssigns mfs xs = do
           names = exportedNamesInScope modScope
       return $
         case Map.lookup f names of
-          Just [n] -> Just (m, FieldAssignment f $ A.nameToExpr n)
+          Just [n] -> Just (m, FieldAssignment f $ killRange $ A.nameToExpr n)
           _        -> Nothing
 
     -- If we have several matching assignments, that's an error.
