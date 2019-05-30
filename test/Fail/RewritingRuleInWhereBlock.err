@@ -1,4 +1,4 @@
 RewritingRuleInWhereBlock.agda:15,13-17
-f (suc n) != g (suc n) of type Nat
+f (suc n) !=< g (suc n) of type Nat
 when checking that the expression refl has type
 f (suc n) ≡ g (suc n)

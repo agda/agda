@@ -1,3 +1,3 @@
 NonTerminatingReduce.agda:16,9-13
-loop n != 42 of type Nat
+loop n !=< 42 of type Nat
 when checking that the expression refl has type loop n ≡ 42
