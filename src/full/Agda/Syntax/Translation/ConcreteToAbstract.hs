@@ -2199,7 +2199,6 @@ instance ToAbstract AbstractRHS A.RHS where
 instance ToAbstract RightHandSide AbstractRHS where
   toAbstract (RightHandSide eqs@(_:_) es cs rhs whname wh) = do
     eqs <- toAbstractCtx TopCtx eqs
-                 -- TODO: remember named where
     (rhs, ds) <- whereToAbstract (getRange wh) whname wh $
                   toAbstract (RightHandSide [] es cs rhs Nothing [])
     return $ RewriteRHS' eqs rhs ds
