@@ -57,6 +57,7 @@ import Agda.Utils.Except ( ExceptT )
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List
+import Agda.Utils.ListT
 import Agda.Utils.Map as Map
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
@@ -707,6 +708,10 @@ defaultGetConstInfo st env q = do
 
           dropLastModule q@QName{ qnameModule = m } =
             q{ qnameModule = mnameFromList $ ifNull (mnameToList m) __IMPOSSIBLE__ init }
+
+instance HasConstInfo m => HasConstInfo (ListT m) where
+  getConstInfo' = lift . getConstInfo'
+  getRewriteRulesFor = lift . getRewriteRulesFor
 
 instance HasConstInfo m => HasConstInfo (MaybeT m) where
   getConstInfo' = lift . getConstInfo'
