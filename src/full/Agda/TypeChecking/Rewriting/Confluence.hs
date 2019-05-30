@@ -1,5 +1,5 @@
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE GADTs               #-}
+{-# LANGUAGE TypeFamilies        #-}
 
 -- | Checking confluence of rewrite rules.
 --
@@ -24,7 +24,7 @@ import Control.Monad.Reader
 import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet
 import Data.Functor ( ($>) )
-import Data.List
+import Data.List ( elemIndex )
 import Data.Set (Set)
 import qualified Data.Set as Set
 
@@ -33,12 +33,15 @@ import Agda.Syntax.Internal
 
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Conversion
+import Agda.TypeChecking.Datatypes
+import Agda.TypeChecking.Irrelevance ( workOnTypes )
 import Agda.TypeChecking.Level
 import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Pretty.Warning
+import Agda.TypeChecking.Records ( getDefType )
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Rewriting.Clause
 import Agda.TypeChecking.Substitute
@@ -49,6 +52,7 @@ import Agda.Utils.Either
 import Agda.Utils.Except
 import Agda.Utils.Impossible
 import Agda.Utils.List
+import Agda.Utils.ListT
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Singleton
@@ -63,9 +67,11 @@ checkConfluenceOfRule rew = inTopContext $ do
   reportSDoc "rewriting.confluence" 10 $
     "Checking confluence of rule" <+> prettyTCM (rewName rew)
 
-  let f  = rewHead rew
-      es = rewPats rew
+  let f   = rewHead rew
+      qs  = rewPats rew
+      tel = rewContext rew
   def <- getConstInfo f
+  fa  <- addContext tel $ typeOfHead def (rewType rew)
 
   -- Step 1: check other rewrite rules that overlap at top position
   forMM_ (getClausesAndRewriteRulesFor f) $ \ rew' ->
@@ -74,18 +80,24 @@ checkConfluenceOfRule rew = inTopContext $ do
 
   -- Step 2: check other rewrite rules that overlap with a subpattern
   -- of this rewrite rule
-  forMM_ (allHolesList <$> nlPatToTerm es) $ \ hole -> case ohContents hole of
-    Def g es' -> forMM_ (getClausesAndRewriteRulesFor g) $ \ rew' ->
-      checkConfluenceSub rew rew' hole
-    _ -> return ()
+  es <- nlPatToTerm qs
+  forMM_ (addContext tel $ allHolesList (fa, Def f []) es) $ \ hole ->
+    case ohContents hole of
+      Def g qs' -> forMM_ (getClausesAndRewriteRulesFor g) $ \ rew' ->
+        checkConfluenceSub rew rew' hole
+      _ -> return ()
 
   -- Step 3: check other rewrite rules that have a subpattern which
   -- overlaps with this rewrite rule
-  forM_ (defMatchable def) $ \ g ->
-    forMM_ (getRewriteRulesFor g) $ \ rew' ->
-      forMM_ (allHolesList <$> nlPatToTerm (rewPats rew')) $ \ hole ->
+  forM_ (defMatchable def) $ \ g -> do
+    forMM_ (getRewriteRulesFor g) $ \ rew' -> do
+      es' <- nlPatToTerm (rewPats rew')
+      let tel' = rewContext rew'
+      def' <- getConstInfo g
+      ga <- addContext tel' $ typeOfHead def' (rewType rew')
+      forMM_ (addContext tel' $ allHolesList (ga , Def g []) es') $ \ hole ->
         case ohContents hole of
-          Def f' es' | f == f' -> checkConfluenceSub rew' rew hole
+          Def f' _ | f == f' -> checkConfluenceSub rew' rew hole
           _ -> return ()
 
   where
@@ -186,6 +198,12 @@ checkConfluenceOfRule rew = inTopContext $ do
         whenJust maybeCriticalPair $ \ (rhs1 , rhs2) ->
           checkCriticalPair a lhs1 rhs1 rhs2
 
+    typeOfHead :: Definition -> Type -> TCM Type
+    typeOfHead def a = case theDef def of
+      Constructor{ conSrcCon = ch } ->
+        snd . fromMaybe __IMPOSSIBLE__ <$> getFullyAppliedConType ch a
+      _ -> return $ defType def
+
     getClausesAndRewriteRulesFor :: QName -> TCM [RewriteRule]
     getClausesAndRewriteRulesFor f =
       (++) <$> getClausesAsRewriteRules f <*> getRewriteRulesFor f
@@ -278,87 +296,135 @@ data OneHole a = OneHole
 ohAddBV :: ArgName -> Dom Type -> OneHole a -> OneHole a
 ohAddBV x a oh = oh { ohBoundVars = ExtendTel a $ Abs x $ ohBoundVars oh }
 
--- ^ Given a @p@, @allHoles p@ lists all the possible
+-- ^ Given a @p : a@, @allHoles p@ lists all the possible
 --   decompositions @p = p'[(f ps)/x]@.
-class AllHoles p where
-  allHoles :: Alternative f => p -> f (OneHole p)
+class (Subst Term p , Subst Term (PType p)) => AllHoles p where
+  type PType p
+  allHoles :: (Alternative m , MonadReduce m, MonadAddContext m, HasBuiltins m, HasConstInfo m)
+           => PType p -> p -> m (OneHole p)
 
-allHolesList :: AllHoles p => p -> [OneHole p]
-allHolesList = allHoles
+allHoles_
+  :: ( Alternative m , MonadReduce m, MonadAddContext m, HasBuiltins m, HasConstInfo m, MonadDebug m
+     , AllHoles p , PType p ~ () )
+  => p -> m (OneHole p)
+allHoles_ = allHoles ()
 
-instance AllHoles p => AllHoles [p] where
-  allHoles []     = empty
-  allHoles (p:ps) =
-    (fmap ( :ps) <$> allHoles p ) <|>
-    (fmap (p:  ) <$> allHoles ps)
+allHolesList
+  :: ( MonadReduce m, MonadAddContext m, HasBuiltins m, HasConstInfo m , AllHoles p)
+  => PType p -> p -> m [OneHole p]
+allHolesList a = sequenceListT . allHoles a
 
 instance AllHoles p => AllHoles (Arg p) where
-  allHoles x = fmap (x $>) <$> allHoles (unArg x)
+  type PType (Arg p) = Dom (PType p)
+  allHoles a x = fmap (x $>) <$> allHoles (unDom a) (unArg x)
 
 instance AllHoles p => AllHoles (Dom p) where
-  allHoles x = fmap (x $>) <$> allHoles (unDom x)
+  type PType (Dom p) = PType p
+  allHoles a x = fmap (x $>) <$> allHoles a (unDom x)
 
-instance AllHoles p  => AllHoles (Elim' p) where
-  allHoles = \case
-    Apply x  -> fmap Apply <$> allHoles x
-    Proj{}   -> empty
-    IApply{} -> __IMPOSSIBLE__ -- Not yet implemented
+instance (AllHoles p) => AllHoles (Abs p) where
+  type PType (Abs p) = (Dom Type , Abs (PType p))
+  allHoles (dom , a) x = addContext (absName x , dom) $
+    ohAddBV (absName a) dom . fmap (Abs $ absName x) <$>
+      allHoles (absBody a) (absBody x)
 
-instance AllHoles p  => AllHoles (Abs p) where
-  allHoles = \case
-    Abs   i x -> ohAddBV i __DUMMY_DOM__ . fmap (Abs i) <$> allHoles x
-    NoAbs i x -> fmap (NoAbs i) <$> allHoles x
+instance AllHoles Elims where
+  type PType Elims = (Type,Term)
+  allHoles (a,hd) [] = empty
+  allHoles (a,hd) (e:es) = do
+    reportSDoc "rewriting.confluence.hole" 65 $ fsep
+      [ "Head symbol" , prettyTCM hd , ":" , prettyTCM a
+      , "is eliminated by" , prettyTCM e
+      ]
+    case e of
+      Apply x -> do
+        ~(Pi b c) <- unEl <$> reduce a
+        let a'  = c `absApp` unArg x
+            hd' = hd `applyE` [e]
+        (fmap ((:es) . Apply) <$> allHoles b x)
+         <|> (fmap (e:) <$> allHoles (a' , hd') es)
+      Proj o f -> do
+        ~(Just (El _ (Pi b c))) <- getDefType f =<< reduce a
+        let a' = c `absApp` hd
+        hd' <- applyDef o f (argFromDom b $> hd)
+        fmap (e:) <$> allHoles (a' , hd') es
+      IApply x y u -> __IMPOSSIBLE__ -- Not yet implemented
 
-instance AllHoles a => AllHoles (Type' a) where
-  allHoles (El s a) = fmap (El s) <$> allHoles a
+instance AllHoles Type where
+  type PType Type = ()
+  allHoles _ (El s a) = workOnTypes $
+    fmap (El s) <$> allHoles (sort s) a
 
 instance AllHoles Term where
-  allHoles = \case
-    Var i es       -> fmap (Var i) <$> allHoles es
-    Lam i u        -> fmap (Lam i) <$> allHoles u
-    Lit l          -> empty
-    v@(Def f es)   ->
-      pure (OneHole EmptyTel id v) <|>
-      (fmap (Def f) <$> allHoles es)
-    v@(Con c ci es) ->
-      pure (OneHole EmptyTel id v) <|>
-      (fmap (Con c ci) <$> allHoles es)
-    Pi a b         ->
-      (fmap (\a -> Pi a b) <$> allHoles a) <|>
-      (fmap (\b -> Pi a b) <$> allHoles b)
-    Sort s         -> fmap Sort <$> allHoles s
-    Level l        -> fmap Level <$> allHoles l
-    MetaV{}        -> __IMPOSSIBLE__
-    DontCare{}     -> empty
-    Dummy{}        -> empty
+  type PType Term = Type
+  allHoles a u = do
+    reportSDoc "rewriting.confluence.hole" 60 $ fsep
+      [ "Getting holes of term" , prettyTCM u , ":" , prettyTCM a ]
+    case u of
+      Var i es       -> do
+        ai <- typeOfBV i
+        fmap (Var i) <$> allHoles (ai , var i) es
+      Lam i u        -> do
+        ~(Pi b c) <- unEl <$> reduce a
+        fmap (Lam i) <$> allHoles (b,c) u
+      Lit l          -> empty
+      v@(Def f es)   -> do
+        fa <- defType <$> getConstInfo f
+        pure (OneHole EmptyTel id v)
+         <|> (fmap (Def f) <$> allHoles (fa , Def f []) es)
+      v@(Con c ci es) -> do
+        ca <- snd . fromMaybe __IMPOSSIBLE__ <$> getFullyAppliedConType c a
+        pure (OneHole EmptyTel id v)
+         <|> (fmap (Con c ci) <$> allHoles (ca , Con c ci []) es)
+      Pi a b         ->
+        (fmap (\a -> Pi a b) <$> allHoles_ a) <|>
+        (fmap (\b -> Pi a b) <$> allHoles (a, void b) b)
+      Sort s         -> fmap Sort <$> allHoles_ s
+      Level l        -> fmap Level <$> allHoles_ l
+      MetaV{}        -> __IMPOSSIBLE__
+      DontCare{}     -> empty
+      Dummy{}        -> empty
 
 instance AllHoles Sort where
-  allHoles = \case
-    Type l       -> fmap Type <$> allHoles l
-    Prop l       -> fmap Prop <$> allHoles l
+  type PType Sort = ()
+  allHoles _ = \case
+    Type l       -> fmap Type <$> allHoles_ l
+    Prop l       -> fmap Prop <$> allHoles_ l
     Inf          -> empty
     SizeUniv     -> empty
-    PiSort s1 s2 ->
-      (fmap (\s1 -> PiSort s1 s2) <$> allHoles s1) <|>
-      (fmap (\s2 -> PiSort s1 s2) <$> allHoles s2)
-    UnivSort s   -> fmap UnivSort <$> allHoles s
+    PiSort s1 s2 -> __IMPOSSIBLE__
+    UnivSort s   -> __IMPOSSIBLE__
     MetaS{}      -> __IMPOSSIBLE__
-    DefS f es    -> fmap (DefS f) <$> allHoles es
+    DefS f es    -> do
+      fa <- defType <$> getConstInfo f
+      fmap (DefS f) <$> allHoles (fa , Def f []) es
     DummyS{}     -> empty
 
 instance AllHoles Level where
-  allHoles (Max ls) = fmap Max <$> allHoles ls
+  type PType Level = ()
+  allHoles _ (Max ls) = fmap Max <$> allHoles_ ls
+
+instance AllHoles [PlusLevel] where
+  type PType [PlusLevel] = ()
+  allHoles _ []     = empty
+  allHoles _ (l:ls) =
+    (fmap (:ls) <$> allHoles_ l)
+    <|> (fmap (l:) <$> allHoles_ ls)
 
 instance AllHoles PlusLevel where
-  allHoles (ClosedLevel n) = empty
-  allHoles (Plus n l) = fmap (Plus n) <$> allHoles l
+  type PType PlusLevel = ()
+  allHoles _ (ClosedLevel n) = empty
+  allHoles _ (Plus n l) = fmap (Plus n) <$> allHoles_ l
 
 instance AllHoles LevelAtom where
-  allHoles = \case
-    MetaLevel{}      -> __IMPOSSIBLE__
-    BlockedLevel{}   -> __IMPOSSIBLE__
-    NeutralLevel b u -> fmap (NeutralLevel b) <$> allHoles u
-    UnreducedLevel u -> fmap UnreducedLevel <$> allHoles u
+  type PType LevelAtom = ()
+  allHoles _ l = do
+    la <- levelType
+    case l of
+      MetaLevel{}      -> __IMPOSSIBLE__
+      BlockedLevel{}   -> __IMPOSSIBLE__
+      NeutralLevel b u -> fmap (NeutralLevel b) <$> allHoles la u
+      UnreducedLevel u -> fmap UnreducedLevel <$> allHoles la u
 
 -- ^ Convert from a non-linear pattern to a term
 class NLPatToTerm p a where
