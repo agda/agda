@@ -44,6 +44,7 @@ import Agda.TypeChecking.Pretty.Warning
 import Agda.TypeChecking.Records ( getDefType )
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Rewriting.Clause
+import Agda.TypeChecking.Rewriting.NonLinPattern
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Warnings
@@ -314,6 +315,8 @@ allHolesList
   => PType p -> p -> m [OneHole p]
 allHolesList a = sequenceListT . allHoles a
 
+-- ^ Instances for @AllHoles@
+
 instance AllHoles p => AllHoles (Arg p) where
   type PType (Arg p) = Dom (PType p)
   allHoles a x = fmap (x $>) <$> allHoles (unDom a) (unArg x)
@@ -426,42 +429,6 @@ instance AllHoles LevelAtom where
       NeutralLevel b u -> fmap (NeutralLevel b) <$> allHoles la u
       UnreducedLevel u -> fmap UnreducedLevel <$> allHoles la u
 
--- ^ Convert from a non-linear pattern to a term
-class NLPatToTerm p a where
-  nlPatToTerm
-    :: (MonadReduce m, HasBuiltins m, HasConstInfo m, MonadDebug m)
-    => p -> m a
-  default nlPatToTerm ::
-    ( NLPatToTerm p' a', Traversable f, p ~ f p', a ~ f a'
-    , MonadReduce m, HasBuiltins m, HasConstInfo m, MonadDebug m
-    ) => p -> m a
-  nlPatToTerm = traverse nlPatToTerm
-
-instance NLPatToTerm p a => NLPatToTerm [p] [a] where
-instance NLPatToTerm p a => NLPatToTerm (Arg p) (Arg a) where
-instance NLPatToTerm p a => NLPatToTerm (Dom p) (Dom a) where
-instance NLPatToTerm p a => NLPatToTerm (Elim' p) (Elim' a) where
-instance NLPatToTerm p a => NLPatToTerm (Abs p) (Abs a) where
-
-instance NLPatToTerm Nat Term where
-  nlPatToTerm = return . var
-
-instance NLPatToTerm NLPat Term where
-  nlPatToTerm = \case
-    PVar i xs      -> Var i . map Apply <$> nlPatToTerm xs
-    PTerm u        -> return u
-    PDef f es      -> (theDef <$> getConstInfo f) >>= \case
-      Constructor{ conSrcCon = c } -> Con c ConOSystem <$> nlPatToTerm es
-      _                            -> Def f <$> nlPatToTerm es
-    PLam i u       -> Lam i <$> nlPatToTerm u
-    PPi a b        -> Pi <$> nlPatToTerm a <*> nlPatToTerm b
-    PBoundVar i es -> Var i <$> nlPatToTerm es
-
-instance NLPatToTerm NLPat Level where
-  nlPatToTerm = nlPatToTerm >=> levelView
-
-instance NLPatToTerm NLPType Type where
-  nlPatToTerm (NLPType l a) = El <$> (Type <$> nlPatToTerm l) <*> nlPatToTerm a
 
 -- | Convert metavariables to normal variables. Warning: doesn't
 --   convert sort metas.
