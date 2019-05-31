@@ -124,11 +124,7 @@ stdlibTests comp = do
 
   let rtsOptions :: [String]
 -- See Issue #3792.
-#if __GLASGOW_HASKELL__ < 802
       rtsOptions = [ "+RTS", "-H2G", "-M3G", "-RTS" ]
-#else
-      rtsOptions = [ "+RTS", "-H2G", "-M2.5G", "-RTS" ]
-#endif
 
   tests' <- forM inps $ \inp -> do
     opts <- readOptions inp
