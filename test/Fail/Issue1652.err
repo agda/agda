@@ -1,3 +1,3 @@
 Issue1652.agda:21,12-15
-f y != g y of type B
+f y !=< g y of type B
 when checking that the expression idp has type f y == g y

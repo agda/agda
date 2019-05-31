@@ -30,6 +30,7 @@ import Agda.Utils.Except
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List ((!!!), downFrom)
+import Agda.Utils.ListT
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Pretty
@@ -184,6 +185,11 @@ instance MonadAddContext m => MonadAddContext (StateT r m) where
   addCtx x a = StateT . (addCtx x a .) . runStateT
   updateContext sub f = StateT . (updateContext sub f .) . runStateT
   withFreshName r x ret = StateT $ \s -> withFreshName r x $ \n -> runStateT (ret n) s
+
+instance MonadAddContext m => MonadAddContext (ListT m) where
+  addCtx x a = liftListT $ addCtx x a
+  updateContext sub f = liftListT $ updateContext sub f
+  withFreshName r x ret = ListT $ withFreshName r x $ \n -> runListT (ret n)
 
 instance MonadAddContext TCM where
   addCtx x a ret = do

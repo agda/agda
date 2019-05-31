@@ -1,0 +1,7 @@
+Issue3810c.agda:34,13-18
+Confluence check failed: f (Box A) (g (Box A)) reduces to both b
+and f (Box A) (box a) which are not equal because b != a of type A
+when checking confluence of the rewrite rule rewf₂ with rewg
+Issue3810c.agda:40,9-13
+a !=< b of type A
+when checking that the expression refl has type a ≡ b

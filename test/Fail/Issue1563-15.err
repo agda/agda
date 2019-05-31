@@ -1,5 +1,5 @@
 Issue1563-15.agda:26,10-13
-ap (Circle-rec (Circle → Circle) (λ y → y) idp x) loop != idp of
+ap (Circle-rec (Circle → Circle) (λ y → y) idp x) loop !=< idp of
 type
 Circle-rec (Circle → Circle) (λ y → y) idp x base ==
 Circle-rec (Circle → Circle) (λ y → y) idp x base

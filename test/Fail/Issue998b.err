@@ -1,3 +1,3 @@
 Issue998b.agda:8,7-10
-A != Issue998b.A of type Set
+A !=< Issue998b.A of type Set
 when checking that the expression d A has type D A
