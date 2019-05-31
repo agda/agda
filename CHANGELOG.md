@@ -71,6 +71,14 @@ Language
 
   These can be used to define safe decidable propositional equality, see issue [agda-stdlib#698](https://github.com/agda/agda-stdlib/issues/698).
 
+* New Primitive for showing Natural numbers:
+
+  ```agda
+  primShowNat : Nat → String
+  ```
+
+  placed in Agda.Builtin.String.
+
 * New primitives for asking Agda to try to solve constraints [[Issue
   #3791](https://github.com/agda/agda/issues/3791)]:
 

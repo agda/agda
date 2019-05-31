@@ -742,6 +742,7 @@ primitiveFunctions = Map.fromList
       in mkPrimFun4 aux
   , "primNatEquality"     |-> mkPrimFun2 ((==) :: Rel Nat)
   , "primNatLess"         |-> mkPrimFun2 ((<)  :: Rel Nat)
+  , "primShowNat"         |-> mkPrimFun1 (Str . show :: Nat -> Str)
 
   -- Machine words
   , "primWord64ToNat"     |-> mkPrimFun1 (fromIntegral :: Word64 -> Nat)

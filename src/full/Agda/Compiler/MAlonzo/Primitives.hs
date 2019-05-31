@@ -178,6 +178,7 @@ primBody s = maybe unimplemented (fromRight (hsVarUQ . HS.Ident) <$>) $
   , "primNatModSucAux" |-> binNat4 "(\\ k m n j -> if n > j then mod (n - j - 1) (m + 1) else (k + n))"
   , "primNatEquality"  |-> relNat "(==)"
   , "primNatLess"      |-> relNat "(<)"
+  , "primShowNat"      |-> return "(Data.Text.pack . show :: Integer -> Data.Text.Text)"
 
   -- Machine word functions
   , "primWord64ToNat"   |-> return "MAlonzo.RTE.word64ToNat"
