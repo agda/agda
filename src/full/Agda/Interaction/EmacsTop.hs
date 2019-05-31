@@ -24,10 +24,11 @@ import Agda.Interaction.Response as R
 import Agda.Interaction.EmacsCommand hiding (putResponse)
 import Agda.Interaction.Highlighting.Emacs
 import Agda.Interaction.Highlighting.Precise (TokenBased(..))
-import Agda.Interaction.InteractionTop (showGoals, prettyTimed)
+import Agda.Interaction.InteractionTop (showGoals, prettyTimed, localStateCommandM)
 import Agda.Interaction.Imports (getAllWarningsOfTCErr)
 
 import Agda.Utils.FileName (filePath)
+import Agda.Utils.Null (empty)
 import Agda.Utils.Maybe
 import Agda.Utils.Pretty
 import Agda.Utils.String
@@ -93,7 +94,17 @@ lispifyResponse (Resp_DisplayInfo info) = case info of
       s <- serializeInfoError err
       f s "*Error*"
     Info_Time s -> f (render $ prettyTimed s) "*Time*"
-    Info_NormalForm_TopLevel s -> f (render s) "*Normal Form*"   -- show?
+    Info_NormalForm_TopLevel state cmode time expr -> do
+      doc <- evalStateT prettyExpr state
+      f (render $ maybe empty prettyTimed time $$ doc) "*Normal Form*"
+      where
+        prettyExpr = localStateCommandM
+            $ lift
+            $ B.atTopLevel
+            $ allowNonTerminatingReductions
+            $ (if computeIgnoreAbstract cmode then ignoreAbstractMode else inConcreteMode)
+            $ (B.showComputed cmode)
+            $ expr
     Info_NormalForm cmode ii expr -> do
       doc <- localTCState $ B.withInteractionId ii $ showComputed cmode expr
       f (render doc) "*Normal Form*"   -- show?

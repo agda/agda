@@ -549,12 +549,20 @@ interpret (Cmd_solveOne norm ii _ _) = solveInstantiatedGoals norm' (Just ii)
 interpret (Cmd_infer_toplevel norm s) =
   parseAndDoAtToplevel (prettyA <=< B.typeInCurrent norm) Info_InferredType s
 
-interpret (Cmd_compute_toplevel cmode s) =
-  parseAndDoAtToplevel action Info_NormalForm_TopLevel $ computeWrapInput cmode s
-  where
-  action = allowNonTerminatingReductions
-         . (if computeIgnoreAbstract cmode then ignoreAbstractMode else inConcreteMode)
-         . (B.showComputed cmode <=< B.evalInCurrent)
+interpret (Cmd_compute_toplevel cmode s) = do
+  (time, expr) <- parseAndDoAtToplevel' action (computeWrapInput cmode s)
+  state <- get
+  display_info $ Info_NormalForm_TopLevel state cmode time expr
+    where
+    action = allowNonTerminatingReductions
+           . (if computeIgnoreAbstract cmode then ignoreAbstractMode else inConcreteMode)
+           . B.evalInCurrent
+-- interpret (Cmd_compute_toplevel cmode s) =
+--   parseAndDoAtToplevel action Info_NormalForm_TopLevel $ computeWrapInput cmode s
+--   where
+--   action = allowNonTerminatingReductions
+--          . (if computeIgnoreAbstract cmode then ignoreAbstractMode else inConcreteMode)
+--          . (B.showComputed cmode <=< B.evalInCurrent)
 
 
 interpret (ShowImplicitArgs showImpl) = do
@@ -1228,6 +1236,18 @@ parseAndDoAtToplevel cmd title s = do
     maybeTimed $ lift $ B.atTopLevel $ do
       cmd =<< concreteToAbstract_ e
   display_info $ title $ maybe empty prettyTimed time $$ res
+
+parseAndDoAtToplevel'
+  :: (A.Expr -> TCM a)
+     -- ^ The command to perform.
+  -> String
+     -- ^ The expression to parse.
+  -> CommandM (Maybe CPUTime, a)
+parseAndDoAtToplevel' cmd s = do
+  localStateCommandM $ do
+    e <- lift $ runPM $ parse exprParser s
+    maybeTimed $ lift $ B.atTopLevel $ do
+      cmd =<< concreteToAbstract_ e
 
 maybeTimed :: CommandM a -> CommandM (Maybe CPUTime, a)
 maybeTimed work = do

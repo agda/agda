@@ -16,7 +16,7 @@ module Agda.Interaction.Response
   ) where
 
 import {-# SOURCE #-} Agda.Interaction.BasicOps (Goals, WarningsAndNonFatalErrors, OutputForm, ComputeMode)
-import Agda.Interaction.Base (CommandM)
+import Agda.Interaction.Base (CommandM, CommandState)
 import Agda.Interaction.Highlighting.Precise
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Common   (InteractionId(..))
@@ -94,7 +94,7 @@ data DisplayInfo
     | Info_ModuleContents [Name] I.Telescope [(Name, I.Type)]
     | Info_SearchAbout [(Name, I.Type)] String
     | Info_WhyInScope String FilePath (Maybe LocalVar) [AbstractName] [AbstractModule]
-    | Info_NormalForm_TopLevel Doc
+    | Info_NormalForm_TopLevel CommandState ComputeMode (Maybe CPUTime) A.Expr
     | Info_NormalForm ComputeMode InteractionId A.Expr
     | Info_GoalType Doc
     | Info_CurrentGoal Doc
