@@ -16,6 +16,7 @@ module Agda.Interaction.Response
   ) where
 
 import {-# SOURCE #-} Agda.Interaction.BasicOps (Goals, WarningsAndNonFatalErrors, OutputForm, ComputeMode)
+import Agda.Interaction.Base (CommandM)
 import Agda.Interaction.Highlighting.Precise
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Common   (InteractionId(..))

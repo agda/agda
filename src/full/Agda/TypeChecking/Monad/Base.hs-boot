@@ -12,6 +12,14 @@ data TCErr
 data TCWarning
 data NamedMeta
 data HighlightingMethod
+instance Show HighlightingMethod
+instance Read HighlightingMethod
+
+data HighlightingLevel
+instance Show HighlightingLevel
+instance Read HighlightingLevel
+
+
 data TCEnv
 data TCState
 newtype TCMT m a = TCM { unTCM :: IORef TCState -> TCEnv -> m a }
