@@ -19,6 +19,7 @@ import Agda.TypeChecking.Pretty (prettyTCM)
 import Agda.TypeChecking.Pretty.Warning (prettyTCWarnings, prettyTCWarnings')
 import Agda.TypeChecking.Monad
 import Agda.Interaction.AgdaTop
+import Agda.Interaction.BasicOps as B
 import Agda.Interaction.Response as R
 import Agda.Interaction.EmacsCommand hiding (putResponse)
 import Agda.Interaction.Highlighting.Emacs
@@ -92,7 +93,10 @@ lispifyResponse (Resp_DisplayInfo info) = case info of
       s <- serializeInfoError err
       f s "*Error*"
     Info_Time s -> f (render $ prettyTimed s) "*Time*"
-    Info_NormalForm s -> f (render s) "*Normal Form*"   -- show?
+    Info_NormalForm_TopLevel s -> f (render s) "*Normal Form*"   -- show?
+    Info_NormalForm cmode ii expr -> do
+      doc <- localTCState $ B.withInteractionId ii $ showComputed cmode expr
+      f (render doc) "*Normal Form*"   -- show?
     Info_InferredType s -> f (render s) "*Inferred Type*"
     Info_CurrentGoal s -> f (render s) "*Current Goal*"
     Info_GoalType s -> f (render s) "*Goal type etc.*"

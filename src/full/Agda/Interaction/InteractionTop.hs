@@ -875,7 +875,7 @@ interpret (Cmd_infer_toplevel norm s) =
   parseAndDoAtToplevel (prettyA <=< B.typeInCurrent norm) Info_InferredType s
 
 interpret (Cmd_compute_toplevel cmode s) =
-  parseAndDoAtToplevel action Info_NormalForm $ computeWrapInput cmode s
+  parseAndDoAtToplevel action Info_NormalForm_TopLevel $ computeWrapInput cmode s
   where
   action = allowNonTerminatingReductions
          . (if computeIgnoreAbstract cmode then ignoreAbstractMode else inConcreteMode)
@@ -1139,11 +1139,17 @@ interpret (Cmd_make_case ii rng s) = do
         replEquals (w   : ws) = w : replEquals ws
         replEquals []         = []
 
-interpret (Cmd_compute cmode ii rng s) = display_info . Info_NormalForm =<< do
-  liftLocalState $ do
-    e <- B.parseExprIn ii rng $ computeWrapInput cmode s
-    B.withInteractionId ii $ do
-      showComputed cmode =<< do applyWhen (computeIgnoreAbstract cmode) ignoreAbstractMode $ B.evalInCurrent e
+interpret (Cmd_compute cmode ii rng s) = do
+  expr <- liftLocalState $ do
+    e <- B.parseExprIn ii rng (computeWrapInput cmode s)
+    B.withInteractionId ii $ applyWhen (computeIgnoreAbstract cmode) ignoreAbstractMode $ B.evalInCurrent e
+  display_info $ Info_NormalForm cmode ii expr
+
+  -- display_info . Info_NormalForm =<< do
+  -- liftLocalState $ do
+  --   e <- B.parseExprIn ii rng $ computeWrapInput cmode s
+  --   B.withInteractionId ii $ do
+      -- showComputed cmode =<< do applyWhen (computeIgnoreAbstract cmode) ignoreAbstractMode $ B.evalInCurrent e
 
 
 interpret Cmd_show_version = display_info Info_Version

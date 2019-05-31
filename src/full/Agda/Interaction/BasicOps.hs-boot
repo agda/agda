@@ -4,6 +4,7 @@ import Agda.Syntax.Abstract (Expr)
 import Agda.Syntax.Common (InteractionId)
 import  {-# SOURCE #-} Agda.TypeChecking.Monad.Base (NamedMeta, TCWarning)
 
+data ComputeMode
 data OutputForm a b
 data OutputConstraint a b
 type Goals = ( [OutputConstraint Expr InteractionId] -- visible metas
