@@ -301,16 +301,19 @@ makeCase hole rng s = withInteractionId hole $ do
     --    we consider a generated clause already covered if it is covered by:
     --    a. a pre-existing clause defined before the one we splitted (prevClauses)
     --    b. a pre-existing clause defined after the one we splitted (follClauses)
-    --       under the condition that it did not cover the one we splitted.
+    --       under the condition that it did not cover the one we splitted but was
+    --       covered by it (i.e. it was considered unreachable).
     -- The key idea here is:
-    --       f m    zero = ?                        f (suc m) zero = ?
-    --       f zero n    = ?  ---- split on m --->  f zero    n    = ?
+    --       f m    zero = ?  ---- split on m --->  f (suc m) zero = ?
+    --       f zero zero = ?                        f zero    zero = ?
     --       f _    _    = ?                        f _       _    = ?
-    -- because [f zero n] already defines a case for [f zero zero]
+    -- because [f zero zero] is already defined.
     -- However we ignore [f _ _]: [f m zero] was already a refinement of it,
     -- hinting that we considered it more important than the catchall.
     let sclause = clauseToSplitClause clause
-    fcs <- filterM (\ cl -> not <$> isCovered f [cl] sclause) follClauses
+    fcs <- filterM (\ cl -> (isCovered f [clause] (clauseToSplitClause cl)) `and2M`
+                            (not <$> isCovered f [cl] sclause))
+                   follClauses
     scs <- filterM (not <.> isCovered f (prevClauses ++ fcs) . fst) scs
     reportSLn "interaction.case" 70 $ "makeCase: survived filtering out already covered clauses"
     -- 2. filter out trivially impossible clauses not asked for by the user
