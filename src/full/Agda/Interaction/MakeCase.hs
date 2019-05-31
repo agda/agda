@@ -297,8 +297,21 @@ makeCase hole rng s = withInteractionId hole $ do
     reportSLn "interaction.case" 70 $ "makeCase: survived the splitting"
 
     -- CLEAN UP OF THE GENERATED CLAUSES
-    -- 1. filter out clauses that are already covered
-    scs <- filterM (not <.> isCovered f prevClauses . fst) scs
+    -- 1. filter out the generated clauses that are already covered
+    --    we consider a generated clause already covered if it is covered by:
+    --    a. a pre-existing clause defined before the one we splitted (prevClauses)
+    --    b. a pre-existing clause defined after the one we splitted (follClauses)
+    --       under the condition that it did not cover the one we splitted.
+    -- The key idea here is:
+    --       f m    zero = ?                        f (suc m) zero = ?
+    --       f zero n    = ?  ---- split on m --->  f zero    n    = ?
+    --       f _    _    = ?                        f _       _    = ?
+    -- because [f zero n] already defines a case for [f zero zero]
+    -- However we ignore [f _ _]: [f m zero] was already a refinement of it,
+    -- hinting that we considered it more important than the catchall.
+    let sclause = clauseToSplitClause clause
+    fcs <- filterM (\ cl -> not <$> isCovered f [cl] sclause) follClauses
+    scs <- filterM (not <.> isCovered f (prevClauses ++ fcs) . fst) scs
     reportSLn "interaction.case" 70 $ "makeCase: survived filtering out already covered clauses"
     -- 2. filter out trivially impossible clauses not asked for by the user
     cs <- catMaybes <$> do
