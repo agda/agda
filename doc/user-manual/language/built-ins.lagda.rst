@@ -226,7 +226,7 @@ Machine words can be converted to and from natural numbers using the following p
 
 Converting to a natural number is the trivial embedding, and converting from a natural number
 gives you the remainder modulo :math:`2^{64}`. The proof of the former theorem::
-  
+
   primitive
     primWord64ToNatInjective : ∀ a b → primWord64ToNat a ≡ primWord64ToNat b → a ≡ b
 
@@ -362,8 +362,6 @@ consistency, the following laws apply::
   neg0≠0 : primFloatEquality 0.0 -0.0 ≡ false
   neg0≠0 = refl
 
-
-
 Correspondingly, the ``primFloatLess`` can be used to provide a decidable total order,
 given by the following laws::
 
@@ -387,6 +385,17 @@ given by the following laws::
 For numerical comparisons, use the ``primFloatNumericalEquality`` and
 ``primFloatNumericalLess`` primitives. These are implemented by the
 corresponding IEEE functions.
+
+Floating point numbers can be converted to its raw representation using the primitive::
+
+  primFloatToWord64          : Float → Word64
+
+which normalises all ``NaN`` to a canonical ``NaN`` with an injectivity proof::
+
+  primFloatToWord64Injective : ∀ a b → primFloatToWord64 a ≡ primFloatToWord64 b → a ≡ b
+
+in the ``Properties`` module. These primitives can be used to define
+a decidable propositional equality with the ``--safe`` option.
 
 .. _built-in-list:
 
@@ -467,14 +476,14 @@ are available on characters (given suitable bindings for
 These functions are implemented by the corresponding Haskell functions from
 `Data.Char <data-char_>`_ (``ord`` and ``chr`` for ``primCharToNat`` and
 ``primNatToChar``). To make ``primNatToChar`` total ``chr`` is applied to the
-natural number modulo ``0x110000``. 
+natural number modulo ``0x110000``.
 
 Converting to a natural number is the obvious embedding, and its proof::
 
   primitive
     primCharToNatInjective : ∀ a b → primCharToNat a ≡ primCharToNat b → a ≡ b
-    
-can be found in the ``Properties`` module. 
+
+can be found in the ``Properties`` module.
 
 .. _data-char: https://hackage.haskell.org/package/base-4.8.1.0/docs/Data-Char.html
 
@@ -514,8 +523,8 @@ Converting to a list is injective, and its proof::
 
   primitive
     primStringToListInjective : ∀ a b → primStringToList a ≡ primStringToList b → a ≡ b
-   
-can found in the ``Properties`` module. 
+
+can found in the ``Properties`` module.
 
 .. _built-in-equality:
 

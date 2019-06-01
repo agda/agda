@@ -34,22 +34,22 @@ equality, ordering, and a show function.
     primQNameEquality : Name → Name → Bool
     primQNameLess     : Name → Name → Bool
     primShowQName     : Name → String
-    
+
 The fixity of a name can also be retrived.
 
 ::
 
-  primitive 
+  primitive
     primQNameFixity    : Name → Fixity
-    
-To define a decidable propositional equality with the option ``--safe``, 
+
+To define a decidable propositional equality with the option ``--safe``,
 one can use the conversion to a pair of built-in 64-bit machine words
 
 ::
 
-  primitive 
+  primitive
     primQNameToWord64s : Name → Σ Word64 (λ _ → Word64)
-    
+
 with the injectivity proof in the ``Properties`` module.::
 
   primitive
@@ -93,7 +93,7 @@ of ``primMetaToNat``
   primitive
     primMetaToNatInjective : ∀ a b → primMetaToNat a ≡ primMetaToNat b → a ≡ b
 
-which can be used to define a decidable propositional equality with the option ``--safe``. 
+which can be used to define a decidable propositional equality with the option ``--safe``.
 
 Literals
 ~~~~~~~~
