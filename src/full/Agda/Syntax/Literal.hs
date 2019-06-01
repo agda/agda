@@ -43,7 +43,7 @@ instance Pretty Literal where
     pretty (LitWord64 _ n)  = text $ show n
     pretty (LitFloat _ d)   = text $ show d
     pretty (LitString _ s)  = text $ showString' s ""
-    pretty (LitChar _ c)    = text $ "'" ++ showChar' c "" ++ "'"
+    pretty (LitChar _ c)    = text $ "'" ++ showChar' c "'"
     pretty (LitQName _ x)   = pretty x
     pretty (LitMeta _ _ x)  = pretty x
 

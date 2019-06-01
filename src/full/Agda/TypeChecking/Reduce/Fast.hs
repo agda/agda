@@ -206,14 +206,14 @@ compactDef bEnv def rewr = do
           "primToLower"                -> mkPrim 1 $ charFun toLower
           "primCharToNat"              -> mkPrim 1 $ \ [LitChar _ a] -> nat (fromIntegral (fromEnum a))
           "primNatToChar"              -> mkPrim 1 $ \ [LitNat  _ a] -> char (toEnum $ fromIntegral $ a `mod` 0x110000)
-          "primShowChar"               -> mkPrim 1 $ \ a -> string (show $ pretty a)
+          "primShowChar"               -> mkPrim 1 $ \ [a] -> string (prettyShow a)
 
           -- Strings
           -- "primStringToList"     -- We don't have the list builtins (but could have, TODO)
           -- "primStringFromList"   -- and they are not literals
           "primStringAppend"           -> mkPrim 2 $ \ [LitString _ a, LitString _ b] -> string (b ++ a)
           "primStringEquality"         -> mkPrim 2 $ \ [LitString _ a, LitString _ b] -> bool (b == a)
-          "primShowString"             -> mkPrim 1 $ \ a -> string (show $ pretty a)
+          "primShowString"             -> mkPrim 1 $ \ [a] -> string (prettyShow a)
 
           -- "primErase"
           -- "primForce"

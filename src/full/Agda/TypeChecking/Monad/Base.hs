@@ -1554,6 +1554,8 @@ data Definition = Defn
     -- ^ should compilers skip this? Used for e.g. cubical's comp
   , defInjective      :: Bool
     -- ^ Should the def be treated as injective by the pattern matching unifier?
+  , defCopatternLHS   :: Bool
+    -- ^ Is this a function defined by copatterns?
   , theDef            :: Defn
   }
     deriving (Data, Show)
@@ -1586,6 +1588,7 @@ defaultDefn info x t def = Defn
   , defMatchable      = Set.empty
   , defNoCompilation  = False
   , defInjective      = False
+  , defCopatternLHS   = False
   , theDef            = def
   }
 
@@ -1782,8 +1785,6 @@ data Defn = Axiom -- ^ Postulate
             , funWith           :: Maybe QName
               -- ^ Is this a generated with-function? If yes, then what's the
               --   name of the parent function.
-            , funCopatternLHS   :: Bool
-              -- ^ Is this a function defined by copatterns?
             }
           | Datatype
             { dataPars           :: Nat            -- ^ Number of parameters.
@@ -1874,6 +1875,7 @@ instance Pretty Definition where
       , "defCopy           =" <?> pshow defCopy
       , "defMatchable      =" <?> pshow (Set.toList defMatchable)
       , "defInjective      =" <?> pshow defInjective
+      , "defCopatternLHS   =" <?> pshow defCopatternLHS
       , "theDef            =" <?> pretty theDef ] <+> "}"
 
 instance Pretty Defn where
@@ -1894,8 +1896,7 @@ instance Pretty Defn where
       , "funProjection   =" <?> pshow funProjection
       , "funFlags        =" <?> pshow funFlags
       , "funTerminates   =" <?> pshow funTerminates
-      , "funWith         =" <?> pshow funWith
-      , "funCopatternLHS =" <?> pshow funCopatternLHS ] <?> "}"
+      , "funWith         =" <?> pshow funWith ] <?> "}"
   pretty Datatype{..} =
     "Datatype {" <?> vcat
       [ "dataPars       =" <?> pshow dataPars
@@ -1959,7 +1960,6 @@ emptyFunction = Function
   , funTerminates  = Nothing
   , funExtLam      = Nothing
   , funWith        = Nothing
-  , funCopatternLHS = False
   , funCovering    = []
   }
 
@@ -3909,8 +3909,8 @@ instance KillRange Section where
   killRange (Section tel) = killRange1 Section tel
 
 instance KillRange Definition where
-  killRange (Defn ai name t pols occs gens gpars displ mut compiled inst copy ma nc inj def) =
-    killRange16 Defn ai name t pols occs gens gpars displ mut compiled inst copy ma nc inj def
+  killRange (Defn ai name t pols occs gens gpars displ mut compiled inst copy ma nc inj copat def) =
+    killRange17 Defn ai name t pols occs gens gpars displ mut compiled inst copy ma nc inj copat def
     -- TODO clarify: Keep the range in the defName field?
 
 instance KillRange NumGeneralizableArgs where
@@ -3957,8 +3957,8 @@ instance KillRange Defn where
       DataOrRecSig n -> DataOrRecSig n
       GeneralizableVar -> GeneralizableVar
       AbstractDefn{} -> __IMPOSSIBLE__ -- only returned by 'getConstInfo'!
-      Function cls comp ct tt covering inv mut isAbs delayed proj flags term extlam with copat ->
-        killRange15 Function cls comp ct tt covering inv mut isAbs delayed proj flags term extlam with copat
+      Function cls comp ct tt covering inv mut isAbs delayed proj flags term extlam with ->
+        killRange14 Function cls comp ct tt covering inv mut isAbs delayed proj flags term extlam with
       Datatype a b c d e f g h i     -> killRange8 Datatype a b c d e f g h i
       Record a b c d e f g h i j k   -> killRange11 Record a b c d e f g h i j k
       Constructor a b c d e f g h i  -> killRange9 Constructor a b c d e f g h i

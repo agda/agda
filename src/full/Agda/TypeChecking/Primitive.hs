@@ -802,7 +802,7 @@ primitiveFunctions = Map.fromList
   , "primCharToNat"          |-> mkPrimFun1 (fromIntegral . fromEnum :: Char -> Nat)
   , "primCharToNatInjective" |-> primCharToNatInjective
   , "primNatToChar"          |-> mkPrimFun1 (toEnum . fromIntegral . (`mod` 0x110000)  :: Nat -> Char)
-  , "primShowChar"           |-> mkPrimFun1 (Str . show . pretty . LitChar noRange)
+  , "primShowChar"           |-> mkPrimFun1 (Str . prettyShow . LitChar noRange)
 
   -- String functions
   , "primStringToList"          |-> mkPrimFun1 unStr
@@ -810,7 +810,7 @@ primitiveFunctions = Map.fromList
   , "primStringFromList"        |-> mkPrimFun1 Str
   , "primStringAppend"          |-> mkPrimFun2 (\s1 s2 -> Str $ unStr s1 ++ unStr s2)
   , "primStringEquality"        |-> mkPrimFun2 ((==) :: Rel Str)
-  , "primShowString"            |-> mkPrimFun1 (Str . show . pretty . LitString noRange . unStr)
+  , "primShowString"            |-> mkPrimFun1 (Str . prettyShow . LitString noRange . unStr)
 
   -- Other stuff
   , "primEraseEquality"   |-> primEraseEquality

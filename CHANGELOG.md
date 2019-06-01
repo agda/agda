@@ -291,7 +291,7 @@ Type checking
   clauses.
 
   Due to the changes to the coverage checker required for this new
-  feature, Agda will now sometimes construct a different case when
+  feature, Agda will now sometimes construct a different case tree when
   there are multiple valid splitting orders. In some cases this may
   impact the constraints that Agda is able to solve (for example, see
   [#673](https://github.com/agda/agda-stdlib/pull/673) on the
@@ -379,7 +379,8 @@ Instance search
 
 * Explicit arguments are no longer automatically turned into instance
   arguments for the purpose of recursive instance search. Instead,
-  explicit arguments are left unresolved and will thus never be used.
+  explicit arguments are left unresolved and will thus never be used
+  for instance search.
 
   If an instance is declared which has explicit arguments, Agda will
   raise a warning that this instance will never be considered by
@@ -435,7 +436,7 @@ Interaction and error reporting
 -------------------------------
 
 * A new command `agda2-elaborate-give` (C-c C-m) normalizes a goal input
-  (it repects the C-u prefixes), type checks, and inserts the normalized
+  (it respects the C-u prefixes), type checks, and inserts the normalized
   term into the goal.
 
 * 'Solve constraints' (C-c C-s) now turns unsolved metavariables into new

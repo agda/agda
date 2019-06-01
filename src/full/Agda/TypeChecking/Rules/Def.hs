@@ -377,10 +377,11 @@ checkFunDefS t ai delayed extlam with i name withSub cs = do
              , funAbstr          = Info.defAbstract i
              , funExtLam         = (\ e -> e { extLamSys = sys }) <$> extlam
              , funWith           = with
-             , funCopatternLHS   = hasProjectionPatterns cc
              , funCovering       = covering
              }
-          useTerPragma $ defaultDefn ai name fullType defn
+          useTerPragma $
+            updateDefCopatternLHS (const $ hasProjectionPatterns cc) $
+            defaultDefn ai name fullType defn
 
         reportSDoc "tc.def.fun" 10 $ do
           sep [ "added " <+> prettyTCM name <+> ":"

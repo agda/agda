@@ -253,11 +253,16 @@ withSignature sig m = do
 addRewriteRulesFor :: QName -> RewriteRules -> [QName] -> Signature -> Signature
 addRewriteRulesFor f rews matchables =
     (over sigRewriteRules $ HMap.insertWith mappend f rews)
-  . (updateDefinition f $ updateTheDef setNotInjective)
+  . (updateDefinition f $ updateTheDef setNotInjective . setCopatternLHS)
   . (foldr (.) id $ map (\g -> updateDefinition g $ setMatchable) matchables)
     where
       setNotInjective def@Function{} = def { funInv = NotInjective }
       setNotInjective def            = def
+
+      setCopatternLHS =
+        updateDefCopatternLHS (|| any hasProjectionPattern rews)
+
+      hasProjectionPattern rew = any (isJust . isProjElim) $ rewPats rew
 
       setMatchable def = def { defMatchable = Set.insert f $ defMatchable def }
 
@@ -302,9 +307,8 @@ updateCompiledClauses :: (Maybe CompiledClauses -> Maybe CompiledClauses) -> (De
 updateCompiledClauses f def@Function{ funCompiled = cc} = def { funCompiled = f cc }
 updateCompiledClauses f _                              = __IMPOSSIBLE__
 
-updateFunCopatternLHS :: (Bool -> Bool) -> Defn -> Defn
-updateFunCopatternLHS f def@Function{ funCopatternLHS = b } = def { funCopatternLHS = f b }
-updateFunCopatternLHS f _ = __IMPOSSIBLE__
+updateDefCopatternLHS :: (Bool -> Bool) -> Definition -> Definition
+updateDefCopatternLHS f def@Defn{ defCopatternLHS = b } = def { defCopatternLHS = f b }
 
 ---------------------------------------------------------------------------
 -- * Top level module

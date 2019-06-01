@@ -1142,7 +1142,7 @@ splitApplyElims es             = ([], es)
 class IsProjElim e where
   isProjElim  :: e -> Maybe (ProjOrigin, QName)
 
-instance IsProjElim Elim where
+instance IsProjElim (Elim' a) where
   isProjElim (Proj o d) = Just (o, d)
   isProjElim Apply{}    = Nothing
   isProjElim IApply{} = Nothing

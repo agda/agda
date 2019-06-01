@@ -1,4 +1,5 @@
 {-# LANGUAGE DoAndIfThenElse      #-}
+{-# LANGUAGE CPP                  #-}
 {-# LANGUAGE PatternGuards        #-}
 
 module Compiler.Tests where
@@ -122,7 +123,12 @@ stdlibTests comp = do
       extraArgs = [ "-i" ++ testDir, "-i" ++ "std-lib" </> "src", "-istd-lib" ]
 
   let rtsOptions :: [String]
+-- See Issue #3792.
+#if __GLASGOW_HASKELL__ < 802
+      rtsOptions = [ "+RTS", "-H2G", "-M3G", "-RTS" ]
+#else
       rtsOptions = [ "+RTS", "-H2G", "-M2.5G", "-RTS" ]
+#endif
 
   tests' <- forM inps $ \inp -> do
     opts <- readOptions inp

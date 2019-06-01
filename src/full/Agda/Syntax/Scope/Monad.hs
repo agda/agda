@@ -572,7 +572,11 @@ copyScope oldc new0 s = (inScopeBecause (Applied oldc) *** memoToScopeInfo) <$> 
 
 -- | Apply an import directive and check that all the names mentioned actually
 --   exist.
-applyImportDirectiveM :: C.QName -> C.ImportDirective -> Scope -> ScopeM (A.ImportDirective, Scope)
+applyImportDirectiveM
+  :: C.QName                           -- ^ Name of the scope, only for error reporting.
+  -> C.ImportDirective                 -- ^ Description of how scope is to be modified.
+  -> Scope                             -- ^ Input scope.
+  -> ScopeM (A.ImportDirective, Scope) -- ^ Scope-checked description, output scope.
 applyImportDirectiveM m (ImportDirective rng usn' hdn' ren' public) scope = do
 
     -- We start by checking that all of the names talked about in the import
@@ -733,9 +737,13 @@ noGeneralizedVarsIfLetOpen LetOpenModule = disallowGeneralizedVars
 
 -- | Open a module.
 openModule_ :: OpenKind -> C.QName -> C.ImportDirective -> ScopeM A.ImportDirective
-openModule_ kind cm dir = do
+openModule_ kind cm dir = openModule kind Nothing cm dir
+
+-- | Open a module, possibly given an already resolved module name.
+openModule :: OpenKind -> Maybe A.ModuleName  -> C.QName -> C.ImportDirective -> ScopeM A.ImportDirective
+openModule kind mam cm dir = do
   current <- getCurrentModule
-  m <- amodName <$> resolveModule cm
+  m <- caseMaybe mam (amodName <$> resolveModule cm) return
   let acc | not (publicOpen dir)      = PrivateNS
           | m `isSubModuleOf` current = PublicNS
           | otherwise                 = ImportedNS

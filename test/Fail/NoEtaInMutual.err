@@ -1,3 +1,3 @@
 NoEtaInMutual.agda:24,10-14
-x != y of type ⊤
+x !=< y of type ⊤
 when checking that the expression refl has type x ≡ y

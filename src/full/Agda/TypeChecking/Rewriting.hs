@@ -61,6 +61,7 @@ import Agda.Interaction.Options
 import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
+import Agda.Syntax.Internal.Defs ( getDefs' )
 import Agda.Syntax.Position
 
 import Agda.TypeChecking.Datatypes
@@ -80,6 +81,7 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Rewriting.Confluence
 import Agda.TypeChecking.Rewriting.NonLinMatch
+import Agda.TypeChecking.Rewriting.NonLinPattern
 import qualified Agda.TypeChecking.Reduce.Monad as Red
 import Agda.TypeChecking.Warnings
 
@@ -403,67 +405,5 @@ rewrite block v rules es = do
             Right w               -> return $ YesReduction YesSimplification $ w `applyE` es2
      | otherwise = loop (block `mappend` NotBlocked Underapplied ()) t rews es
 
-------------------------------------------------------------------------
--- * Auxiliary functions
-------------------------------------------------------------------------
-
-class NLPatVars a where
-  nlPatVarsUnder :: Int -> a -> IntSet
-
-  nlPatVars :: a -> IntSet
-  nlPatVars = nlPatVarsUnder 0
-
-instance (Foldable f, NLPatVars a) => NLPatVars (f a) where
-  nlPatVarsUnder k = foldMap $ nlPatVarsUnder k
-
-instance NLPatVars NLPType where
-  nlPatVarsUnder k (NLPType l a) = nlPatVarsUnder k l `IntSet.union` nlPatVarsUnder k a
-
-instance NLPatVars NLPat where
-  nlPatVarsUnder k p =
-    case p of
-      PVar i _  -> singleton $ i - k
-      PDef _ es -> nlPatVarsUnder k es
-      PLam _ p' -> nlPatVarsUnder (k+1) $ unAbs p'
-      PPi a b   -> nlPatVarsUnder k a `IntSet.union` nlPatVarsUnder (k+1) (unAbs b)
-      PBoundVar _ es -> nlPatVarsUnder k es
-      PTerm{}   -> empty
-
-rewArity :: RewriteRule -> Int
-rewArity = length . rewPats
-
--- | Get all symbols that a rewrite rule matches against
-class GetMatchables a where
-  getMatchables :: a -> [QName]
-
-instance (Foldable f, GetMatchables a) => GetMatchables (f a) where
-  getMatchables = foldMap getMatchables
-
-instance GetMatchables NLPat where
-  getMatchables p =
-    case p of
-      PVar _ _       -> empty
-      PDef f _       -> singleton f
-      PLam _ x       -> empty
-      PPi a b        -> empty
-      PBoundVar i es -> empty
-      PTerm _        -> empty -- should be safe (I hope)
-
-instance GetMatchables RewriteRule where
-  getMatchables = getMatchables . rewPats
-
--- Only computes free variables that are not bound (i.e. those in a PTerm)
-instance Free NLPat where
-  freeVars' p = case p of
-    PVar _ _ -> mempty
-    PDef _ es -> freeVars' es
-    PLam _ u -> freeVars' u
-    PPi a b -> freeVars' (a,b)
-    PBoundVar _ es -> freeVars' es
-    PTerm t -> freeVars' t
-
-instance Free NLPType where
-  freeVars' (NLPType l a) =
-    ifM ((IgnoreNot ==) <$> asks feIgnoreSorts)
-      {- then -} (freeVars' (l, a))
-      {- else -} (freeVars' a)
+    rewArity :: RewriteRule -> Int
+    rewArity = length . rewPats

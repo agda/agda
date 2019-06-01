@@ -1,0 +1,4 @@
+Issue3810a.agda:14,13-17
+Confluence check failed: f a reduces to both a and b
+which are not equal because a != b of type A
+when checking confluence of the rewrite rule rew₂ with rew₁

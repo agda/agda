@@ -57,6 +57,7 @@ import Agda.Utils.Except ( ExceptT )
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List
+import Agda.Utils.ListT
 import Agda.Utils.Map as Map
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
@@ -122,9 +123,9 @@ modifyFunClauses q f =
 addClauses :: QName -> [Clause] -> TCM ()
 addClauses q cls = do
   tel <- getContextTelescope
-  modifySignature $ updateDefinition q $ updateTheDef
-    $ updateFunClauses      (++ abstract tel cls)
-    . updateFunCopatternLHS (|| isCopatternLHS cls)
+  modifySignature $ updateDefinition q $
+    updateTheDef (updateFunClauses (++ abstract tel cls))
+    . updateDefCopatternLHS (|| isCopatternLHS cls)
 
 mkPragma :: String -> TCM CompilerPragma
 mkPragma s = CompilerPragma <$> getCurrentRange <*> pure s
@@ -417,6 +418,7 @@ applySection' new ptel old ts ScopeCopyInfo{ renNames = rd, renModules = rm } = 
                     , defMatchable      = Set.empty
                     , defNoCompilation  = defNoCompilation d
                     , defInjective      = False
+                    , defCopatternLHS   = isCopatternLHS [cl]
                     , theDef            = df }
             oldDef = theDef d
             isCon  = case oldDef of { Constructor{} -> True ; _ -> False }
@@ -468,7 +470,6 @@ applySection' new ptel old ts ScopeCopyInfo{ renNames = rd, renModules = rm } = 
                         , funTerminates     = Just True
                         , funExtLam         = extlam
                         , funWith           = with
-                        , funCopatternLHS   = isCopatternLHS [cl]
                         }
                   reportSDoc "tc.mod.apply" 80 $ return $ ("new def for" <+> pretty x) <?> pretty newDef
                   return newDef
@@ -707,6 +708,10 @@ defaultGetConstInfo st env q = do
 
           dropLastModule q@QName{ qnameModule = m } =
             q{ qnameModule = mnameFromList $ ifNull (mnameToList m) __IMPOSSIBLE__ init }
+
+instance HasConstInfo m => HasConstInfo (ListT m) where
+  getConstInfo' = lift . getConstInfo'
+  getRewriteRulesFor = lift . getRewriteRulesFor
 
 instance HasConstInfo m => HasConstInfo (MaybeT m) where
   getConstInfo' = lift . getConstInfo'
@@ -1124,11 +1129,7 @@ projectionArgs = maybe 0 (max 0 . pred . projIndex) . isProjection_
 
 -- | Check whether a definition uses copatterns.
 usesCopatterns :: (HasConstInfo m) => QName -> m Bool
-usesCopatterns q = do
-  d <- theDef <$> getConstInfo q
-  return $ case d of
-    Function{ funCopatternLHS = b } -> b
-    _ -> False
+usesCopatterns q = defCopatternLHS <$> getConstInfo q
 
 -- | Apply a function @f@ to its first argument, producing the proper
 --   postfix projection if @f@ is a projection.

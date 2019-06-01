@@ -379,13 +379,6 @@ shouldBePi t = ifPiType t (\ a b -> return (a, b)) $ const $ typeError $ ShouldB
 shouldBeSort :: (MonadCheckInternal m) => Type -> m Sort
 shouldBeSort t = ifIsSort t return (typeError $ ShouldBeASort t)
 
-ifIsSort :: (MonadReduce m) => Type -> (Sort -> m a) -> m a -> m a
-ifIsSort t yes no = do
-  t <- reduce t
-  case unEl t of
-    Sort s -> yes s
-    _      -> no
-
 -- | Check if sort is well-formed.
 checkSort :: (MonadCheckInternal m) => Action m -> Sort -> m Sort
 checkSort action s =

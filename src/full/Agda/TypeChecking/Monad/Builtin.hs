@@ -25,6 +25,7 @@ import Agda.TypeChecking.Substitute
 
 import Agda.Utils.Except
 import Agda.Utils.Lens
+import Agda.Utils.ListT
 import Agda.Utils.Monad
 import Agda.Utils.Maybe
 import Agda.Utils.Tuple
@@ -41,6 +42,9 @@ instance HasBuiltins m => HasBuiltins (MaybeT m) where
   getBuiltinThing b = lift $ getBuiltinThing b
 
 instance HasBuiltins m => HasBuiltins (ExceptT e m) where
+  getBuiltinThing b = lift $ getBuiltinThing b
+
+instance HasBuiltins m => HasBuiltins (ListT m) where
   getBuiltinThing b = lift $ getBuiltinThing b
 
 instance HasBuiltins m => HasBuiltins (ReaderT e m) where
