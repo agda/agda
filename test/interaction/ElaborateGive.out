@@ -40,7 +40,7 @@
 (agda2-status-action "")
 (agda2-info-action "*All Goals*" "?4 : Nat ?9 : String ?11 : Nat " nil)
 ((last . 1) . (agda2-goals-action '(11 4 9)))
-(agda2-give-action 9 "\"['h']['i']\"")
+(agda2-give-action 9 "\"'h''i'\"")
 (agda2-status-action "")
 (agda2-info-action "*All Goals*" "?4 : Nat ?11 : Nat " nil)
 ((last . 1) . (agda2-goals-action '(11 4)))
