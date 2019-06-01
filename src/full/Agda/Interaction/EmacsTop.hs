@@ -25,7 +25,7 @@ import Agda.Interaction.Response as R
 import Agda.Interaction.EmacsCommand hiding (putResponse)
 import Agda.Interaction.Highlighting.Emacs
 import Agda.Interaction.Highlighting.Precise (TokenBased(..))
-import Agda.Interaction.InteractionTop (showGoals, prettyTimed, localStateCommandM)
+import Agda.Interaction.InteractionTop (showGoals, prettyTimed, localStateCommandM, prettyTypeOfMeta)
 import Agda.Interaction.Imports (getAllWarningsOfTCErr)
 
 import Agda.Utils.FileName (filePath)
@@ -124,7 +124,31 @@ lispifyResponse (Resp_DisplayInfo info) = case info of
       doc <- localTCState $ B.withInteractionId ii $ prettyATop expr
       f (render doc) "*Inferred Type*"
     Info_CurrentGoal s -> f (render s) "*Current Goal*"
-    Info_GoalType s -> f (render s) "*Goal type etc.*"
+    Info_GoalType norm ii aux ctx constraints -> do
+      ctxDoc <- B.withInteractionId ii $ prettyRespContext True ctx
+      goal <- localTCState (B.withInteractionId ii $ prettyTypeOfMeta norm ii)
+      auxDoc <- case aux of
+            GoalOnly -> return empty
+            GoalAndHave expr -> do
+              doc <- prettyATop expr
+              return $ "Have:" <+> doc
+            GoalAndElaboration term -> do
+              doc <- TCP.prettyTCM term
+              return $ "Elaborates to:" <+> doc
+      let constraintsDoc = if (null constraints)
+            then  []
+            else  [ text $ delimiter "Constraints"
+                  , vcat $ map pretty constraints
+                  ]
+      let doc = vcat $
+            [ "Goal:" <+> goal
+            , auxDoc
+            , text (replicate 60 '\x2014')
+            , ctxDoc
+            ] ++ constraintsDoc
+      f (render doc) "*Goal type etc.*"
+
+       -- f (render s) "*Goal type etc.*"
     Info_ModuleContents modules tel types -> do
       s <- localTCState $ do
         types' <- addContext tel $ forM types $ \ (x, t) -> do

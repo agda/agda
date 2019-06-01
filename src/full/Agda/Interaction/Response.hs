@@ -9,6 +9,7 @@ module Agda.Interaction.Response
   , MakeCaseVariant (..)
   , DisplayInfo (..)
   , Info_Error(..)
+  , GoalTypeAux(..)
   , RespContextEntry
   , Status (..)
   , GiveResult (..)
@@ -16,7 +17,7 @@ module Agda.Interaction.Response
   , defaultInteractionOutputCallback
   ) where
 
-import {-# SOURCE #-} Agda.Interaction.BasicOps (Goals, WarningsAndNonFatalErrors, OutputForm, ComputeMode)
+import {-# SOURCE #-} Agda.Interaction.BasicOps (Goals, WarningsAndNonFatalErrors, OutputForm, ComputeMode, Rewrite)
 import Agda.Interaction.Base (CommandM, CommandState)
 import Agda.Interaction.Highlighting.Precise
 import qualified Agda.Syntax.Abstract as A
@@ -98,7 +99,7 @@ data DisplayInfo
     | Info_WhyInScope String FilePath (Maybe LocalVar) [AbstractName] [AbstractModule]
     | Info_NormalForm_TopLevel CommandState ComputeMode (Maybe CPUTime) A.Expr
     | Info_NormalForm ComputeMode InteractionId A.Expr
-    | Info_GoalType Doc
+    | Info_GoalType  Rewrite InteractionId GoalTypeAux [RespContextEntry] [OutputForm Expr Expr]
     | Info_CurrentGoal Doc
     | Info_InferredType_TopLevel CommandState (Maybe CPUTime) A.Expr
     | Info_InferredType InteractionId A.Expr
@@ -116,6 +117,12 @@ data Info_Error
     | Info_HighlightingParseError InteractionId
     | Info_HighlightingScopeCheckError InteractionId
 
+-- | Auxiliary information that comes with Goal Type
+
+data GoalTypeAux
+    = GoalOnly
+    | GoalAndHave A.Expr
+    | GoalAndElaboration I.Term
 
 -- | Entry of Context
 

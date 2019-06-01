@@ -749,28 +749,30 @@ interpret (Cmd_elaborate_give norm ii rng s) = do
   give_gen WithoutForce ii rng have ElaborateGive
 
 interpret (Cmd_goal_type_context norm ii rng s) =
-  cmd_goal_type_context_and empty norm ii rng s
+  cmd_goal_type_context_and GoalOnly norm ii rng s
 
 interpret (Cmd_goal_type_context_infer norm ii rng s) = do
   -- In case of the empty expression to type, don't fail with
   -- a stupid parse error, but just fall back to
   -- Cmd_goal_type_context.
-  have <- if all Char.isSpace s then return empty else liftLocalState $ do
-    typ <- B.withInteractionId ii $
-      prettyATop =<< B.typeInMeta ii norm =<< B.parseExprIn ii rng s
-    return $ "Have:" <+> typ
-  cmd_goal_type_context_and have norm ii rng s
+  aux <- if all Char.isSpace s
+            then return GoalOnly
+            else do
+              typ <- liftLocalState
+                    $ B.withInteractionId ii
+                    $ B.typeInMeta ii norm =<< B.parseExprIn ii rng s
+              return (GoalAndHave typ)
+  cmd_goal_type_context_and aux norm ii rng s
 
 interpret (Cmd_goal_type_context_check norm ii rng s) = do
-  have <- liftLocalState $ B.withInteractionId ii $ do
+  term <- liftLocalState $ B.withInteractionId ii $ do
     expr <- B.parseExprIn ii rng s
     goal <- B.typeOfMeta AsIs ii
     term <- case goal of
       OfType _ ty -> checkExpr expr =<< isType_ ty
       _           -> __IMPOSSIBLE__
-    txt <- TCP.prettyTCM =<< normalForm norm term
-    return $ "Elaborates to:" <+> txt
-  cmd_goal_type_context_and have norm ii rng s
+    normalForm norm term
+  cmd_goal_type_context_and (GoalAndElaboration term) norm ii rng s
 
 interpret (Cmd_show_module_contents norm ii rng s) =
   liftCommandMT (B.withInteractionId ii) $ showModuleContents norm rng s
@@ -1131,24 +1133,13 @@ getRespContext norm ii = B.withInteractionId ii $ do
 --
 --   Should not modify the state.
 
-cmd_goal_type_context_and :: Doc -> B.Rewrite -> InteractionId -> Range ->
-                             String -> StateT CommandState (TCMT IO) ()
-cmd_goal_type_context_and doc norm ii _ _ = display_info . Info_GoalType =<< do
-  lift $ do
-    goal <- B.withInteractionId ii $ prettyTypeOfMeta norm ii
-    ctx  <- prettyContext norm True ii
-    m    <- lookupInteractionId ii
-    constr <- vcat . map pretty <$> B.getConstraintsMentioning m
-    let constrDoc = ifNull constr [] $ \constr ->
-          [ text $ delimiter "Constraints"
-          , constr
-          ]
-    return $ vcat $
-      [ "Goal:" <+> goal
-      , doc
-      , text (replicate 60 '\x2014')
-      , ctx
-      ] ++ constrDoc
+cmd_goal_type_context_and :: GoalTypeAux -> B.Rewrite -> InteractionId -> Range ->
+                             String -> CommandM ()
+cmd_goal_type_context_and aux norm ii _ _ = do
+  ctx <- lift $ getRespContext norm ii
+  constr <- lift $ lookupInteractionId ii >>= B.getConstraintsMentioning
+  display_info $ Info_GoalType norm ii aux ctx constr
+
 
 -- | Shows all the top-level names in the given module, along with
 -- their types.
