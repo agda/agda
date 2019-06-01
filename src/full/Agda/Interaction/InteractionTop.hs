@@ -546,8 +546,10 @@ interpret (Cmd_solveOne norm ii _ _) = solveInstantiatedGoals norm' (Just ii)
                   Instantiated -> Simplified
                   _            -> norm
 
-interpret (Cmd_infer_toplevel norm s) =
-  parseAndDoAtToplevel (prettyA <=< B.typeInCurrent norm) Info_InferredType s
+interpret (Cmd_infer_toplevel norm s) = do
+  (time, expr) <- parseAndDoAtToplevel' (B.typeInCurrent norm) s
+  state <- get
+  display_info $ Info_InferredType_TopLevel state time expr
 
 interpret (Cmd_compute_toplevel cmode s) = do
   (time, expr) <- parseAndDoAtToplevel' action (computeWrapInput cmode s)
@@ -724,10 +726,11 @@ interpret (Cmd_context norm ii _ _) =
 interpret (Cmd_helper_function norm ii rng s) =
   display_info . Info_HelperFunction =<< liftLocalState (cmd_helper_function norm ii rng s)
 
-interpret (Cmd_infer norm ii rng s) =
-  display_info . Info_InferredType
-    =<< liftLocalState (B.withInteractionId ii
-          (prettyATop =<< B.typeInMeta ii norm =<< B.parseExprIn ii rng s))
+interpret (Cmd_infer norm ii rng s) = do
+  expr <- liftLocalState $ B.withInteractionId ii $ B.typeInMeta ii norm =<< B.parseExprIn ii rng s
+  display_info $ Info_InferredType ii expr
+    -- =<< liftLocalState (B.withInteractionId ii
+    --       (prettyATop =<< B.typeInMeta ii norm =<< B.parseExprIn ii rng s))
 
 interpret (Cmd_goal_type norm ii _ _) =
   display_info . Info_CurrentGoal

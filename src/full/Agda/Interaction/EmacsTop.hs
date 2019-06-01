@@ -10,6 +10,7 @@ import System.FilePath
 import Agda.Syntax.Common
 import Agda.Syntax.Position
 import Agda.Syntax.Scope.Base
+import Agda.Syntax.Abstract.Pretty (prettyATop)
 import Agda.Syntax.Abstract as A
 import Agda.Syntax.Concrete as C
 
@@ -108,7 +109,19 @@ lispifyResponse (Resp_DisplayInfo info) = case info of
     Info_NormalForm cmode ii expr -> do
       doc <- localTCState $ B.withInteractionId ii $ showComputed cmode expr
       f (render doc) "*Normal Form*"   -- show?
-    Info_InferredType s -> f (render s) "*Inferred Type*"
+    Info_InferredType_TopLevel state time expr -> do
+      doc <- evalStateT prettyExpr state
+      f (render $ maybe empty prettyTimed time $$ doc) "*Inferred Type*"
+      where
+        prettyExpr = localStateCommandM
+            $ lift
+            $ B.atTopLevel
+            $ TCP.prettyA
+            $ expr
+    -- f (render s) "*Inferred Type*"
+    Info_InferredType ii expr -> do
+      doc <- localTCState $ B.withInteractionId ii $ prettyATop expr
+      f (render doc) "*Inferred Type*"
     Info_CurrentGoal s -> f (render s) "*Current Goal*"
     Info_GoalType s -> f (render s) "*Goal type etc.*"
     Info_ModuleContents modules tel types -> do

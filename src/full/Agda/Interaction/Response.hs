@@ -98,7 +98,8 @@ data DisplayInfo
     | Info_NormalForm ComputeMode InteractionId A.Expr
     | Info_GoalType Doc
     | Info_CurrentGoal Doc
-    | Info_InferredType Doc
+    | Info_InferredType_TopLevel CommandState (Maybe CPUTime) A.Expr
+    | Info_InferredType InteractionId A.Expr
     | Info_Context Doc
     | Info_HelperFunction Doc
     | Info_Version
