@@ -721,7 +721,7 @@ interpret Cmd_autoAll = do
     modifyTheInteractionPoints (List.\\ concat solved)
 
 interpret (Cmd_context norm ii _ _) =
-  display_info . Info_Context =<< liftLocalState (prettyContext norm False ii)
+  display_info . Info_Context =<< liftLocalState (getRespContext norm ii)
 
 interpret (Cmd_helper_function norm ii rng s) =
   display_info . Info_HelperFunction =<< liftLocalState (cmd_helper_function norm ii rng s)
@@ -1106,6 +1106,25 @@ prettyContext norm rev ii = B.withInteractionId ii $ do
 cmd_helper_function :: B.Rewrite -> InteractionId -> Range -> String -> TCM Doc
 cmd_helper_function norm ii r s = B.withInteractionId ii $ inTopContext $
   prettyATop =<< B.metaHelperType norm ii r s
+
+-- | Collecting the context of the given meta-variable.
+getRespContext
+  :: B.Rewrite      -- ^ Normalise?
+  -> InteractionId
+  -> TCM [RespContextEntry]
+getRespContext norm ii = B.withInteractionId ii $ do
+  ctx <- filter (not . shouldHide) <$> B.contextOfMeta ii norm
+  -- name name part
+  let ns = map (nameConcrete . B.ofName) ctx
+  xs  <- mapM (abstractToConcrete_ . B.ofName) ctx
+  -- the type part
+  let es = map B.ofExpr ctx
+  let ss = map C.isInScope xs
+
+  return $ List.zip4 ns xs es ss
+  where
+    shouldHide (OfType' n e) = isNoName n || nameIsRecordName n
+
 
 -- | Displays the current goal, the given document, and the current
 --   context.

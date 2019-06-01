@@ -29,6 +29,7 @@ import Agda.Interaction.InteractionTop (showGoals, prettyTimed, localStateComman
 import Agda.Interaction.Imports (getAllWarningsOfTCErr)
 
 import Agda.Utils.FileName (filePath)
+import Agda.Utils.Function (applyWhen)
 import Agda.Utils.Null (empty)
 import Agda.Utils.Maybe
 import Agda.Utils.Pretty
@@ -146,7 +147,9 @@ lispifyResponse (Resp_DisplayInfo info) = case info of
     Info_WhyInScope s cwd v xs ms -> do
       result <- explainWhyInScope s cwd v xs ms
       f (render result) "*Scope Info*"
-    Info_Context s -> f (render s) "*Context*"
+    Info_Context ctx -> do
+      doc <- localTCState (prettyRespContext False ctx)
+      f (render doc) "*Context*"
     Info_HelperFunction s -> return [ L [ A "agda2-info-action-and-copy"
                                  , A $ quote "*Helper function*"
                                  , A $ quote (render s ++ "\n")
@@ -328,3 +331,32 @@ explainWhyInScope s cwd v xs ms = TCP.vcat
       TCP.<+> TCP.prettyTCM (getRange m)
       TCP.$$
       pWhy r w
+
+
+-- | Pretty-prints the context of the given meta-variable.
+
+prettyRespContext
+  :: Bool           -- ^ Print the elements in reverse order?
+  -> [RespContextEntry]
+  -> TCM Doc
+prettyRespContext rev ctx = do
+  pairs <- mapM compose ctx
+  return $ align 10 $ applyWhen rev reverse pairs
+  where
+    compose :: RespContextEntry -> TCM (String, Doc)
+    compose (a, b, c, d) = do
+      t <- prettyCtxType c d
+      return (prettyCtxName a b, t)
+    prettyCtxName :: C.Name -> C.Name -> String
+    prettyCtxName n x
+      | n == x                 = prettyShow x
+      | isInScope n == InScope = prettyShow n ++ " = " ++ prettyShow x
+      | otherwise              = prettyShow x
+    prettyCtxType :: A.Expr -> NameInScope -> TCM Doc
+    prettyCtxType expr nis = do
+      doc <- prettyATop expr
+      return $ ":" <+> (doc <> notInScopeMarker nis)
+    notInScopeMarker :: NameInScope -> Doc
+    notInScopeMarker nis = case isInScope nis of
+      C.InScope    -> ""
+      C.NotInScope -> "  (not in scope)"

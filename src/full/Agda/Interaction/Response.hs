@@ -9,6 +9,7 @@ module Agda.Interaction.Response
   , MakeCaseVariant (..)
   , DisplayInfo (..)
   , Info_Error(..)
+  , RespContextEntry
   , Status (..)
   , GiveResult (..)
   , InteractionOutputCallback
@@ -21,6 +22,7 @@ import Agda.Interaction.Highlighting.Precise
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Common   (InteractionId(..))
 import Agda.Syntax.Concrete (Expr, Name)
+import Agda.Syntax.Concrete.Name (NameInScope)
 import Agda.Syntax.Scope.Base (AbstractModule, AbstractName, LocalVar)
 import qualified Agda.Syntax.Internal as I
 import {-# SOURCE #-} Agda.TypeChecking.Monad.Base (TCM, TCErr, TCWarning, HighlightingMethod, ModuleToSource)
@@ -100,7 +102,7 @@ data DisplayInfo
     | Info_CurrentGoal Doc
     | Info_InferredType_TopLevel CommandState (Maybe CPUTime) A.Expr
     | Info_InferredType InteractionId A.Expr
-    | Info_Context Doc
+    | Info_Context [RespContextEntry]
     | Info_HelperFunction Doc
     | Info_Version
 
@@ -113,6 +115,12 @@ data Info_Error
     | Info_CompilationError [TCWarning]
     | Info_HighlightingParseError InteractionId
     | Info_HighlightingScopeCheckError InteractionId
+
+
+-- | Entry of Context
+
+type RespContextEntry = (Name, Name, A.Expr, NameInScope)
+
 
 -- | Status information.
 
