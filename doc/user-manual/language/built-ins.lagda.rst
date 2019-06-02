@@ -388,11 +388,12 @@ corresponding IEEE functions.
 
 Floating point numbers can be converted to its raw representation using the primitive::
 
-  primFloatToWord64          : Float → Word64
+  primitive
+    primFloatToWord64          : Float → Word64
 
 which normalises all ``NaN`` to a canonical ``NaN`` with an injectivity proof::
 
-  primFloatToWord64Injective : ∀ a b → primFloatToWord64 a ≡ primFloatToWord64 b → a ≡ b
+    primFloatToWord64Injective : ∀ a b → primFloatToWord64 a ≡ primFloatToWord64 b → a ≡ b
 
 in the ``Properties`` module. These primitives can be used to define
 a decidable propositional equality with the ``--safe`` option.

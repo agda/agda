@@ -10,6 +10,30 @@
 
   infixl 2 ¬_
 
+  data Associativity : Set where
+    left-assoc  : Associativity
+    right-assoc : Associativity
+    non-assoc   : Associativity
+
+  data Precedence : Set where
+    related   : Int → Precedence
+    unrelated : Precedence
+
+  data Fixity : Set where
+    fixity : Associativity → Precedence → Fixity
+
+  {-# BUILTIN ASSOC      Associativity #-}
+  {-# BUILTIN ASSOCLEFT  left-assoc    #-}
+  {-# BUILTIN ASSOCRIGHT right-assoc   #-}
+  {-# BUILTIN ASSOCNON   non-assoc     #-}
+
+  {-# BUILTIN PRECEDENCE    Precedence #-}
+  {-# BUILTIN PRECRELATED   related    #-}
+  {-# BUILTIN PRECUNRELATED unrelated  #-}
+
+  {-# BUILTIN FIXITY       Fixity #-}
+  {-# BUILTIN FIXITYFIXITY fixity #-}
+
 .. _reflection:
 
 **********
