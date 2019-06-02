@@ -110,7 +110,7 @@ ifneq ("$(wildcard stack.yaml)","") # if `stack.yaml` exists
 	$(MAKE) stack-install-test
 	$(MAKE) stack-copy-artefacts
 else
-	$(CABAL_INSTALL) $(CABAL_INSTALL_BIN_OPTS)
+	time $(CABAL_INSTALL) $(CABAL_INSTALL_BIN_OPTS)
 endif
 
 .PHONY : install-prof-bin
