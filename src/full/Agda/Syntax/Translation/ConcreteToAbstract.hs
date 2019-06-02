@@ -1423,8 +1423,6 @@ newtype Blind a = Blind { unBlind :: a }
 instance ToAbstract (Blind a) (Blind a) where
   toAbstract = return
 
--- The only reason why we return a list is that open declarations disappears.
--- For every other declaration we get a singleton list.
 instance ToAbstract NiceDeclaration A.Declaration where
 
   toAbstract d = annotateDecls $
