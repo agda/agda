@@ -1,4 +1,3 @@
-
 {-# OPTIONS_GHC -fno-cse #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
@@ -10,7 +9,6 @@ module Agda.Interaction.InteractionTop
 
 import Prelude hiding (null)
 
-import Control.Applicative hiding (empty)
 import Control.Concurrent
 import Control.Concurrent.Async
 import Control.Concurrent.STM.TChan
@@ -18,19 +16,13 @@ import Control.Concurrent.STM.TVar
 import qualified Control.Exception as E
 import Control.Monad.Identity
 import Control.Monad.Reader
-import Control.Monad.State
+import Control.Monad.State hiding (state)
 import Control.Monad.STM
 
 import qualified Data.Char as Char
-import Data.Foldable (Foldable)
 import Data.Function
 import qualified Data.List as List
-import Data.Maybe
-import Data.Map (Map)
 import qualified Data.Map as Map
-import Data.Monoid hiding ((<>))
-import Data.Traversable (Traversable)
-import qualified Data.Traversable as Trav
 
 import System.Directory
 import System.FilePath
@@ -41,20 +33,16 @@ import qualified Agda.TypeChecking.Monad as TM
 import qualified Agda.TypeChecking.Pretty as TCP
 import Agda.TypeChecking.Rules.Term (checkExpr, isType_)
 import Agda.TypeChecking.Errors
-import Agda.TypeChecking.MetaVars.Mention
 import Agda.TypeChecking.Warnings (runPM)
 
 import Agda.Syntax.Fixity
 import Agda.Syntax.Position
 import Agda.Syntax.Parser
 import Agda.Syntax.Common
-import Agda.Syntax.Literal
 import Agda.Syntax.Concrete as C
-import Agda.Syntax.Concrete.Generic as C
 import Agda.Syntax.Concrete.Pretty ()
 import Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Pretty
-import qualified Agda.Syntax.Internal as I
 import Agda.Syntax.Info (mkDefInfo)
 import Agda.Syntax.Translation.ConcreteToAbstract
 import Agda.Syntax.Translation.AbstractToConcrete hiding (withScope)
@@ -74,7 +62,6 @@ import Agda.Interaction.Highlighting.Precise hiding (Error, Postulate)
 import qualified Agda.Interaction.Imports as Imp
 import Agda.Interaction.Highlighting.Generate
 import qualified Agda.Interaction.Highlighting.LaTeX as LaTeX
-import qualified Agda.Interaction.Highlighting.Range as H
 
 import Agda.Compiler.Common (IsMain (..))
 import Agda.Compiler.Backend
@@ -84,7 +71,7 @@ import Agda.Auto.Auto as Auto
 import Agda.Utils.Except
   ( ExceptT
   , mkExceptT
-  , MonadError(catchError, throwError)
+  , MonadError(catchError)
   , runExceptT
   )
 
@@ -92,9 +79,7 @@ import Agda.Utils.Either
 import Agda.Utils.FileName
 import Agda.Utils.Function
 import Agda.Utils.Hash
-import qualified Agda.Utils.HashMap as HMap
 import Agda.Utils.Lens
-import Agda.Utils.Maybe
 import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Monad
 import Agda.Utils.Null
@@ -131,10 +116,10 @@ revLift
     => (forall c . m c -> st -> k (c, st))      -- ^ run
     -> (forall b . k b -> m b)                  -- ^ lift
     -> (forall x . (m a -> k x) -> k x) -> m a  -- ^ reverse lift in double negative position
-revLift run lift f = do
+revLift run lift' f = do
     st <- get
-    (a, st) <- lift $ f (`run` st)
-    put st
+    (a, st') <- lift' $ f (`run` st)
+    put st'
     return a
 
 revLiftTC
@@ -142,10 +127,10 @@ revLiftTC
     => (forall c . m c -> TCState -> k (c, TCState))  -- ^ run
     -> (forall b . k b -> m b)                        -- ^ lift
     -> (forall x . (m a -> k x) -> k x) -> m a        -- ^ reverse lift in double negative position
-revLiftTC run lift f = do
+revLiftTC run lift' f = do
     st <- getTC
-    (a, st) <- lift $ f (`run` st)
-    putTC st
+    (a, st') <- lift' $ f (`run` st)
+    putTC st'
     return a
 
 -- | Opposite of 'liftIO' for 'CommandM'.
@@ -156,12 +141,12 @@ commandMToIO ci_i = revLift runStateT lift $ \ct -> revLiftTC runSafeTCM liftIO 
 
 -- | Lift a TCM action transformer to a CommandM action transformer.
 
-liftCommandMT :: (forall a . TCM a -> TCM a) -> CommandM a -> CommandM a
+liftCommandMT :: (forall x . TCM x -> TCM x) -> CommandM a -> CommandM a
 liftCommandMT f m = revLift runStateT lift $ f . ($ m)
 
 -- | Ditto, but restore state.
 
-liftCommandMTLocalState :: (forall a . TCM a -> TCM a) -> CommandM a -> CommandM a
+liftCommandMTLocalState :: (forall x . TCM x -> TCM x) -> CommandM a -> CommandM a
 liftCommandMTLocalState f = liftCommandMT f . localStateCommandM
 
 -- | Put a response by the callback function given by 'stInteractionOutputCallback'.
@@ -295,19 +280,19 @@ handleCommand wrap onFail cmd = handleNastyErrors $ wrap $ do
 runInteraction :: IOTCM -> CommandM ()
 runInteraction (IOTCM current highlighting highlightingMethod cmd) =
   handleCommand inEmacs onFail $ do
-    current <- liftIO $ absolute current
+    currentAbs <- liftIO $ absolute current
     -- Raises an error if the given file is not the one currently
     -- loaded.
     cf <- gets theCurrentFile
-    when (not (independent cmd) && Just current /= (fst <$> cf)) $
+    when (not (independent cmd) && Just currentAbs /= (fst <$> cf)) $
         lift $ typeError $ GenericError "Error: First load the file."
 
     withCurrentFile $ interpret cmd
 
-    cf <- gets theCurrentFile
+    cf' <- gets theCurrentFile
     when (updateInteractionPointsAfter cmd
             &&
-          Just current == (fst <$> cf)) $
+          Just currentAbs == (fst <$> cf')) $
         putResponse . Resp_InteractionPoints =<< gets theInteractionPoints
 
   where
@@ -340,8 +325,8 @@ maybeAbort :: (IOTCM -> CommandM a) -> CommandM (Command' (Maybe a))
 maybeAbort m = do
   commandState <- get
   let q = commandQueue commandState
-  (n, c) <- liftIO $ atomically $ readTChan (commands q)
-  case c of
+  (n, cmd) <- liftIO $ atomically $ readTChan (commands q)
+  case cmd of
     Done      -> return Done
     Error e   -> return (Error e)
     Command c -> do
@@ -351,9 +336,9 @@ maybeAbort m = do
                    (runTCM tcEnv tcState $ runStateT (m c) commandState)
                    (waitForAbort n q)
       case result of
-        Left ((x, commandState), tcState) -> do
-          putTC tcState
-          put commandState
+        Left ((x, commandState'), tcState') -> do
+          putTC tcState'
+          put commandState'
           return (Command (Just x))
         Right a -> do
           liftIO $ popAbortedCommands q a
@@ -387,8 +372,8 @@ maybeAbort m = do
     atomically $ do
       a <- readTVar (abort q)
       case a of
-        Just a | n <= a -> return a
-        _               -> retry
+        Just a' | n <= a' -> return a'
+        _                 -> retry
 
   -- | Removes every command for which the command number is at most
   -- the given number (the "abort number") from the command queue.
@@ -401,8 +386,8 @@ maybeAbort m = do
   popAbortedCommands :: CommandQueue -> Integer -> IO ()
   popAbortedCommands q n = do
     done <- atomically $ do
-      c <- tryReadTChan (commands q)
-      case c of
+      cmd <- tryReadTChan (commands q)
+      case cmd of
         Nothing -> return True
         Just c  ->
           if fst c <= n then
@@ -433,11 +418,11 @@ initialiseCommandQueue next = do
             atomically $ writeTVar abort (Just n)
             readCommands n
           _ -> do
-            n <- return (succ n)
-            atomically $ writeTChan commands (n, c)
+            n' <- return (succ n)
+            atomically $ writeTChan commands (n', c)
             case c of
               Done -> return ()
-              _    -> readCommands n
+              _    -> readCommands n'
 
   _ <- forkIO (readCommands 0)
 
@@ -504,15 +489,15 @@ interpret :: Interaction -> CommandM ()
 interpret (Cmd_load m argv) =
   cmd_load' m argv True Imp.TypeCheck $ \_ -> interpret Cmd_metas
 
-interpret (Cmd_compile b file argv) =
-  cmd_load' file argv (b `elem` [LaTeX, QuickLaTeX])
-            (if b == QuickLaTeX
+interpret (Cmd_compile backend file argv) =
+  cmd_load' file argv (backend `elem` [LaTeX, QuickLaTeX])
+            (if backend == QuickLaTeX
              then Imp.ScopeCheck
              else Imp.TypeCheck) $ \(i, mw) -> do
-    mw <- lift $ Imp.applyFlagsToMaybeWarnings mw
-    case mw of
+    mw' <- lift $ Imp.applyFlagsToMaybeWarnings mw
+    case mw' of
       Imp.NoWarnings -> do
-        lift $ case b of
+        lift $ case backend of
           LaTeX                    -> LaTeX.generateLaTeX i
           QuickLaTeX               -> LaTeX.generateLaTeX i
           OtherBackend "GHCNoMain" -> callBackend "GHC" NotMain i   -- for backwards compatibility
@@ -524,9 +509,9 @@ interpret Cmd_constraints =
     display_info . Info_Constraints =<< lift B.getConstraints
 
 interpret Cmd_metas = do -- CL.showMetas []
-  unsolvedNotOK <- lift $ not . optAllowUnsolved <$> pragmaOptions
+  -- unsolvedNotOK <- lift $ not . optAllowUnsolved <$> pragmaOptions
   ms <- lift B.getGoals
-  (we, wa) <- lift getWarningsAndNonFatalErrors
+  -- (we, wa) <- lift getWarningsAndNonFatalErrors
   display_info . Info_AllGoalsWarnings ms =<< lift getWarningsAndNonFatalErrors
 
 interpret (Cmd_show_module_contents_toplevel norm s) =
@@ -617,8 +602,8 @@ interpret (Cmd_tokenHighlighting source remove) = do
              if l == None
                then return Nothing
                else do
-                 source <- liftIO (absolute source)
-                 lift $ (Just <$> generateTokenInfo source)
+                 source' <- liftIO (absolute source)
+                 lift $ (Just <$> generateTokenInfo source')
                            `catchError` \_ ->
                         return Nothing
       `finally`
@@ -626,8 +611,8 @@ interpret (Cmd_tokenHighlighting source remove) = do
       Remove -> liftIO $ removeFile source
       Keep   -> return ()
   case info of
-    Just info -> lift $ printHighlightingInfo RemoveHighlighting info
-    Nothing   -> return ()
+    Just info' -> lift $ printHighlightingInfo RemoveHighlighting info'
+    Nothing    -> return ()
 
 interpret (Cmd_highlight ii rng s) = do
   l <- asksTC envHighlightingLevel
@@ -635,13 +620,13 @@ interpret (Cmd_highlight ii rng s) = do
     scope <- getOldInteractionScope ii
     removeOldInteractionScope ii
     handle $ do
-      e <- try (Info_HighlightingParseError ii) $
+      parsed <- try (Info_HighlightingParseError ii) $
              B.parseExpr rng s
-      e <- try (Info_HighlightingScopeCheckError ii) $
-             concreteToAbstract scope e
+      expr <- try (Info_HighlightingScopeCheckError ii) $
+             concreteToAbstract scope parsed
       lift $ printHighlightingInfo KeepHighlighting =<<
                generateTokenInfoFromString rng s
-      lift $ highlightExpr e
+      lift $ highlightExpr expr
   where
     handle :: ExceptT Info_Error TCM () -> CommandM ()
     handle m = do
@@ -670,26 +655,26 @@ interpret (Cmd_refine_or_intro pmLambda ii r s) = interpret $
   let s' = trim s
   in (if null s' then Cmd_intro pmLambda else Cmd_refine) ii r s'
 
-interpret (Cmd_autoOne ii rng s) = do
+interpret (Cmd_autoOne ii rng hint) = do
   -- Andreas, 2014-07-05 Issue 1226:
   -- Save the state to have access to even those interaction ids
   -- that Auto solves (since Auto gives the solution right away).
   st <- getTC
-  (time , res) <- maybeTimed $ Auto.auto ii rng s
+  (time , res) <- maybeTimed $ Auto.auto ii rng hint
   case autoProgress res of
    Solutions sols -> do
     lift $ reportSLn "auto" 10 $ "Auto produced the following solutions " ++ show sols
-    forM_ sols $ \(ii, s) -> do
+    forM_ sols $ \(ii', sol) -> do
       -- Andreas, 2014-07-05 Issue 1226:
       -- For highlighting, Resp_GiveAction needs to access
       -- the @oldInteractionScope@s of the interaction points solved by Auto.
       -- We dig them out from the state before Auto was invoked.
-      insertOldInteractionScope ii =<< liftLocalState (putTC st >> getInteractionScope ii)
+      insertOldInteractionScope ii' =<< liftLocalState (putTC st >> getInteractionScope ii')
       -- Andreas, 2014-07-07: NOT TRUE:
       -- -- Andreas, 2014-07-05: The following should be obsolete,
       -- -- as Auto has removed the interaction points already:
       -- modifyTheInteractionPoints $ filter (/= ii)
-      putResponse $ Resp_GiveAction ii $ Give_String s
+      putResponse $ Resp_GiveAction ii' $ Give_String sol
     -- Andreas, 2014-07-07: Remove the interaction points in one go.
     modifyTheInteractionPoints (List.\\ (map fst sols))
     case autoMessage res of
@@ -781,17 +766,16 @@ interpret (Cmd_show_module_contents norm ii rng s) =
 interpret (Cmd_why_in_scope_toplevel s) =
   liftCommandMT B.atTopLevel $ whyInScope s
 
-interpret (Cmd_why_in_scope ii rng s) =
+interpret (Cmd_why_in_scope ii _range s) =
   liftCommandMT (B.withInteractionId ii) $ whyInScope s
 
 interpret (Cmd_make_case ii rng s) = do
   (f, casectxt, cs) <- lift $ makeCase ii rng s
   liftCommandMT (B.withInteractionId ii) $ do
-    hidden <- lift $ showImplicitArguments
     tel <- lift $ lookupSection (qnameModule f) -- don't shadow the names in this telescope
     unicode <- getsTC $ optUseUnicode . getPragmaOptions
     pcs      :: [Doc]      <- lift $ inTopContext $ addContext tel $ mapM prettyA cs
-    let pcs' :: [String]    = List.map (extlam_dropName unicode casectxt . render) pcs
+    let pcs' :: [String]    = List.map (extlam_dropName unicode casectxt . decorate) pcs
     lift $ reportSDoc "interaction.case" 60 $ TCP.vcat
       [ "InteractionTop.Cmd_make_case"
       , TCP.nest 2 $ TCP.vcat
@@ -808,7 +792,7 @@ interpret (Cmd_make_case ii rng s) = do
       ]
     putResponse $ Resp_MakeCase (makeCaseVariant casectxt) pcs'
   where
-    render = renderStyle (style { mode = OneLineMode })
+    decorate = renderStyle (style { mode = OneLineMode })
 
     makeCaseVariant :: CaseContext -> MakeCaseVariant
     makeCaseVariant Nothing = R.Function
@@ -859,8 +843,8 @@ solveInstantiatedGoals norm mii = do
   where
       prt (i, m, e) = do
         mi <- getMetaInfo <$> lookupMeta m
-        e <- withMetaInfo mi $ abstractToConcreteCtx TopCtx e
-        return (i, e)
+        e' <- withMetaInfo mi $ abstractToConcreteCtx TopCtx e
+        return (i, e')
 
 -- | Print open metas nicely.
 showGoals :: Goals -> TCM String
@@ -874,7 +858,7 @@ showGoals (ims, hms) = do
     metaId (B.OfType i _) = i
     metaId (B.JustType i) = i
     metaId (B.JustSort i) = i
-    metaId (B.Assign i e) = i
+    metaId (B.Assign i _) = i
     metaId _ = __IMPOSSIBLE__
     showA' :: B.OutputConstraint A.Expr NamedMeta -> TCM String
     showA' m = do
@@ -1006,8 +990,8 @@ give_gen force ii rng s0 giveRefine = do
     insertOldInteractionScope ii scope
     -- sort the new interaction points and put them into the state
     -- in replacement of the old interaction point
-    iis       <- lift $ sortInteractionPoints iis
-    modifyTheInteractionPoints $ replace ii iis
+    iis' <- lift $ sortInteractionPoints iis
+    modifyTheInteractionPoints $ replace ii iis'
     -- print abstract expr
     ce        <- lift $ abstractToConcreteScope scope ae
     lift $ reportSLn "interaction.give" 30 $ unlines
@@ -1050,9 +1034,9 @@ give_gen force ii rng s0 giveRefine = do
 
 highlightExpr :: A.Expr -> TCM ()
 highlightExpr e =
-  localTC (\e -> e { envModuleNestingLevel = 0
-                 , envHighlightingLevel  = NonInteractive
-                 , envHighlightingMethod = Direct }) $
+  localTC (\st -> st { envModuleNestingLevel = 0
+                     , envHighlightingLevel  = NonInteractive
+                     , envHighlightingMethod = Direct }) $
     generateAndPrintSyntaxInfo decl Full True
   where
     dummy = mkName_ (NameId 0 0) ("dummy" :: String)
@@ -1076,6 +1060,9 @@ prettyTypeOfMeta norm ii = do
     B.OfType _ e -> prettyATop e
     _            -> prettyATop form
 
+shouldHide :: OutputConstraint' A.Expr A.Name -> Bool
+shouldHide (OfType' n _) = isNoName n || nameIsRecordName n
+
 -- | Pretty-prints the context of the given meta-variable.
 
 prettyContext
@@ -1093,7 +1080,6 @@ prettyContext norm rev ii = B.withInteractionId ii $ do
       zip (zipWith prettyCtxName ns xs)
           (zipWith prettyCtxType es ss)
   where
-    shouldHide (OfType' n e) = isNoName n || nameIsRecordName n
     prettyCtxName :: C.Name -> C.Name -> String
     prettyCtxName n x
       | n == x                 = prettyShow x
@@ -1119,9 +1105,6 @@ getRespContext norm ii = B.withInteractionId ii $ do
   let ss = map C.isInScope xs
 
   return $ List.zip4 ns xs es ss
-  where
-    shouldHide (OfType' n e) = isNoName n || nameIsRecordName n
-
 
 -- | Displays the current goal, the given document, and the current
 --   context.
@@ -1223,7 +1206,7 @@ refreshStr taken s = go nameModifiers where
   go _        = __IMPOSSIBLE__
 
 nameModifiers :: [String]
-nameModifiers = "" : "'" : "''" : [show i | i <-[3..]]
+nameModifiers = "" : "'" : "''" : [show i | i <- [3..] :: [Int] ]
 
 
 -- | Parses and scope checks an expression (using the \"inside scope\"

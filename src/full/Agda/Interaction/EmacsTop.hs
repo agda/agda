@@ -1,11 +1,9 @@
-
 module Agda.Interaction.EmacsTop
     ( mimicGHCi
     ) where
 
-import Control.Monad.State
+import Control.Monad.State hiding (state)
 import qualified Data.List as List
-import System.FilePath
 
 import Agda.Syntax.Common
 import Agda.Syntax.Position
@@ -28,7 +26,6 @@ import Agda.Interaction.Highlighting.Precise (TokenBased(..))
 import Agda.Interaction.InteractionTop (showGoals, prettyTimed, localStateCommandM, prettyTypeOfMeta)
 import Agda.Interaction.Imports (getAllWarningsOfTCErr)
 
-import Agda.Utils.FileName (filePath)
 import Agda.Utils.Function (applyWhen)
 import Agda.Utils.Null (empty)
 import Agda.Utils.Maybe
@@ -152,27 +149,27 @@ lispifyResponse (Resp_DisplayInfo info) = case info of
 
        -- f (render s) "*Goal type etc.*"
     Info_ModuleContents modules tel types -> do
-      s <- localTCState $ do
-        types' <- addContext tel $ forM types $ \ (x, t) -> do
-          t <- prettyTCM t
-          return (prettyShow x, ":" <+> t)
+      doc <- localTCState $ do
+        typeDocs <- addContext tel $ forM types $ \ (x, t) -> do
+          doc <- prettyTCM t
+          return (prettyShow x, ":" <+> doc)
         return $ vcat
           [ "Modules"
           , nest 2 $ vcat $ map pretty modules
           , "Names"
-          , nest 2 $ align 10 types'
+          , nest 2 $ align 10 typeDocs
           ]
-      f (render s) "*Module contents*"
+      f (render doc) "*Module contents*"
     Info_SearchAbout hits names -> do
-      fancy <- forM hits $ \ (x, t) -> do
-        t <- prettyTCM t
-        return (prettyShow x, ":" <+> t)
-      let s = "Definitions about" <+> text (List.intercalate ", " $ words names) $$
-                nest 2 (align 10 fancy)
-      f (render s) "*Search About*"
+      hitDocs <- forM hits $ \ (x, t) -> do
+        doc <- prettyTCM t
+        return (prettyShow x, ":" <+> doc)
+      let doc = "Definitions about" <+>
+                text (List.intercalate ", " $ words names) $$ nest 2 (align 10 hitDocs)
+      f (render doc) "*Search About*"
     Info_WhyInScope s cwd v xs ms -> do
-      result <- explainWhyInScope s cwd v xs ms
-      f (render result) "*Scope Info*"
+      doc <- explainWhyInScope s cwd v xs ms
+      f (render doc) "*Scope Info*"
     Info_Context ctx -> do
       doc <- localTCState (prettyRespContext False ctx)
       f (render doc) "*Context*"
@@ -290,23 +287,18 @@ explainWhyInScope :: FilePath
                   -> [AbstractModule]
                   -> TCM Doc
 explainWhyInScope s _ Nothing [] [] = TCP.text (s ++ " is not in scope.")
-explainWhyInScope s cwd v xs ms = TCP.vcat
+explainWhyInScope s _ v xs ms = TCP.vcat
   [ TCP.text (s ++ " is in scope as")
   , TCP.nest 2 $ TCP.vcat [variable v xs, modules ms]
   ]
   where
-    prettyRange :: Range -> TCM Doc
-    prettyRange r = pretty . (fmap . fmap) mkRel <$> do
-      return r
-    mkRel = makeRelative cwd . filePath
-
     -- variable :: Maybe _ -> [_] -> TCM Doc
-    variable Nothing xs = names xs
-    variable (Just x) xs
-      | null xs   = asVar
+    variable Nothing vs = names vs
+    variable (Just x) vs
+      | null vs   = asVar
       | otherwise = TCP.vcat
          [ TCP.sep [ asVar, TCP.nest 2 $ shadowing x]
-         , TCP.nest 2 $ names xs
+         , TCP.nest 2 $ names vs
          ]
       where
         asVar :: TCM Doc
@@ -315,8 +307,8 @@ explainWhyInScope s cwd v xs ms = TCP.vcat
         shadowing :: LocalVar -> TCM Doc
         shadowing (LocalVar _ _ [])    = "shadowing"
         shadowing _ = "in conflict with"
-    names   xs = TCP.vcat $ map pName xs
-    modules ms = TCP.vcat $ map pMod ms
+    names   = TCP.vcat . map pName
+    modules = TCP.vcat . map pMod
 
     pKind DefName        = "defined name"
     pKind ConName        = "constructor"

@@ -18,7 +18,7 @@ module Agda.Interaction.Response
   ) where
 
 import {-# SOURCE #-} Agda.Interaction.BasicOps (Goals, WarningsAndNonFatalErrors, OutputForm, ComputeMode, Rewrite, OutputConstraint')
-import Agda.Interaction.Base (CommandM, CommandState)
+import Agda.Interaction.Base (CommandState)
 import Agda.Interaction.Highlighting.Precise
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Common   (InteractionId(..))
@@ -28,7 +28,6 @@ import Agda.Syntax.Scope.Base (AbstractModule, AbstractName, LocalVar)
 import qualified Agda.Syntax.Internal as I
 import {-# SOURCE #-} Agda.TypeChecking.Monad.Base (TCM, TCErr, TCWarning, HighlightingMethod, ModuleToSource)
 import Agda.Utils.Impossible
-import Agda.Utils.Pretty
 import Agda.Utils.Time
 
 import Control.Monad.Trans
