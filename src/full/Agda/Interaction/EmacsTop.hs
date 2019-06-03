@@ -173,8 +173,8 @@ lispifyResponse (Resp_DisplayInfo info) = case info of
     Info_Context ctx -> do
       doc <- localTCState (prettyRespContext False ctx)
       f (render doc) "*Context*"
-    Info_HelperFunction helperType -> do
-      doc <- prettyATop helperType
+    Info_HelperFunction ii helperType -> do
+      doc <- localTCState $ B.withInteractionId ii $ inTopContext $ prettyATop helperType
       return [ L [ A "agda2-info-action-and-copy"
                  , A $ quote "*Helper function*"
                  , A $ quote (render doc ++ "\n")

@@ -103,7 +103,7 @@ data DisplayInfo
     | Info_InferredType_TopLevel CommandState (Maybe CPUTime) A.Expr
     | Info_InferredType InteractionId A.Expr
     | Info_Context [RespContextEntry]
-    | Info_HelperFunction (OutputConstraint' A.Expr A.Expr)
+    | Info_HelperFunction InteractionId (OutputConstraint' A.Expr A.Expr)
     | Info_Version
 
 -- | Errors that goes into Info_Error
