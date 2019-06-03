@@ -44,7 +44,7 @@ data Symbol
         | SymColon | SymArrow | SymEqual | SymLambda
         | SymUnderscore | SymQuestionMark   | SymAs
         | SymOpenParen        | SymCloseParen
-        | SymOpenIdiomBracket | SymCloseIdiomBracket
+        | SymOpenIdiomBracket | SymCloseIdiomBracket | SymEmptyIdiomBracket
         | SymDoubleOpenBrace  | SymDoubleCloseBrace
         | SymOpenBrace        | SymCloseBrace
         | SymOpenVirtualBrace | SymCloseVirtualBrace

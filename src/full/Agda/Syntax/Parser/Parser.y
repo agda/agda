@@ -191,6 +191,7 @@ import Agda.Utils.Impossible
     ')'                       { TokSymbol SymCloseParen $$ }
     '(|'                      { TokSymbol SymOpenIdiomBracket $$ }
     '|)'                      { TokSymbol SymCloseIdiomBracket $$ }
+    '(|)'                     { TokSymbol SymEmptyIdiomBracket $$ }
     '{{'                      { TokSymbol SymDoubleOpenBrace $$ }
     '}}'                      { TokSymbol SymDoubleCloseBrace $$ }
     '{'                       { TokSymbol SymOpenBrace $$ }
@@ -320,6 +321,7 @@ Token
     | ')'                       { TokSymbol SymCloseParen $1 }
     | '(|'                      { TokSymbol SymOpenIdiomBracket $1 }
     | '|)'                      { TokSymbol SymCloseIdiomBracket $1 }
+    | '(|)'                     { TokSymbol SymEmptyIdiomBracket $1 }
     | '{{'                      { TokSymbol SymDoubleOpenBrace $1 }
     | '}}'                      { TokSymbol SymDoubleCloseBrace $1 }
     | '{'                       { TokSymbol SymOpenBrace $1 }
@@ -581,11 +583,11 @@ PragmaStrings :: { [String] }
 PragmaStrings
     : {- empty -}           { [] }
     | string PragmaStrings  { snd $1 : $2 }
-
+{- Unused
 PragmaString :: { String }
 PragmaString
     : string { snd $1 }
-
+-}
 Strings :: { [(Interval, String)] }
 Strings : {- empty -}    { [] }
         | string Strings { $1 : $2 }
@@ -721,7 +723,8 @@ Expr3NoCurly
     | setN                              { SetN (getRange (fst $1)) (snd $1) }
     | propN                             { PropN (getRange (fst $1)) (snd $1) }
     | '{{' Expr DoubleCloseBrace        { InstanceArg (getRange ($1,$2,$3)) (maybeNamed $2) }
-    | '(|' Expr '|)'                    { IdiomBrackets (getRange ($1,$2,$3)) $2 }
+    | '(|' WithExprs '|)'               { IdiomBrackets (getRange ($1,$2,$3)) $2 }
+    | '(|)'                             { IdiomBrackets (getRange $1) [] }
     | '(' ')'                           { Absurd (fuseRange $1 $2) }
     | '{{' DoubleCloseBrace             { let r = fuseRange $1 $2 in InstanceArg r $ unnamed $ Absurd r }
     | Id '@' Expr3                      { As (getRange ($1,$2,$3)) $1 $3 }

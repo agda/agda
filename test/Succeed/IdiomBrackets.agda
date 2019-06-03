@@ -2,6 +2,7 @@
 module _ where
 
 open import Agda.Builtin.Nat
+open import Agda.Builtin.Equality
 
 module Postulates where
 
@@ -11,6 +12,8 @@ module Postulates where
     F     : Set → Set
     pure  : ∀ {A} → A → F A
     _<*>_ : ∀ {A B} → F (A → B) → F A → F B
+    _<|>_ : ∀ {A} → F A → F A → F A
+    empty : ∀ {A} → F A
 
   test₀ : F Nat → F Nat → F Nat
   test₀ a b = (| a + b |)
@@ -27,6 +30,19 @@ module Postulates where
   -- Spaces are required! (Issue #2186)
   test₄ : Nat → Nat
   test₄ |n| = suc (|n| + |n|)
+
+  -- Alternative
+  test₅ : F Nat → F Nat
+  test₅ a = (| suc a | a + a |)
+
+  test₆ : F Nat → F Nat
+  test₆ |n| = (| |n| + |n| | |n| * |n| | 3 |)
+
+  test₇ : ∀ a → test₆ a ≡ ((pure _+_ <*> a <*> a) <|> ((pure _*_ <*> a <*> a) <|> pure 3))
+  test₇ a = refl
+
+  test₈ : F Nat
+  test₈ = (|)
 
 module Params {F : Set → Set}
               (pure : ∀ {A} → A → F A)

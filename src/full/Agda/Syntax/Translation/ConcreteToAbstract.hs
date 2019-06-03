@@ -914,8 +914,8 @@ instance ToAbstract C.Expr A.Expr where
       C.Paren _ e -> toAbstractCtx TopCtx e
 
   -- Idiom brackets
-      C.IdiomBrackets r e ->
-        toAbstractCtx TopCtx =<< parseIdiomBrackets r e
+      C.IdiomBrackets r es ->
+        toAbstractCtx TopCtx =<< parseIdiomBracketsSeq r es
 
   -- Do notation
       C.DoBlock r ss ->
