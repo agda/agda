@@ -723,8 +723,10 @@ interpret Cmd_autoAll = do
 interpret (Cmd_context norm ii _ _) =
   display_info . Info_Context =<< liftLocalState (getRespContext norm ii)
 
-interpret (Cmd_helper_function norm ii rng s) =
-  display_info . Info_HelperFunction =<< liftLocalState (cmd_helper_function norm ii rng s)
+interpret (Cmd_helper_function norm ii rng s) = do
+  -- Create type of application of new helper function that would solve the goal.
+  helperType <- liftLocalState $ B.withInteractionId ii $ inTopContext $ B.metaHelperType norm ii rng s
+  display_info $ Info_HelperFunction helperType
 
 interpret (Cmd_infer norm ii rng s) = do
   expr <- liftLocalState $ B.withInteractionId ii $ B.typeInMeta ii norm =<< B.parseExprIn ii rng s
@@ -1101,12 +1103,6 @@ prettyContext norm rev ii = B.withInteractionId ii $ do
     notInScopeMarker nis = case isInScope nis of
       C.InScope    -> ""
       C.NotInScope -> "  (not in scope)"
-
--- | Create type of application of new helper function that would solve the goal.
-
-cmd_helper_function :: B.Rewrite -> InteractionId -> Range -> String -> TCM Doc
-cmd_helper_function norm ii r s = B.withInteractionId ii $ inTopContext $
-  prettyATop =<< B.metaHelperType norm ii r s
 
 -- | Collecting the context of the given meta-variable.
 getRespContext

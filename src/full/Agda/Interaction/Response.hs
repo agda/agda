@@ -17,7 +17,7 @@ module Agda.Interaction.Response
   , defaultInteractionOutputCallback
   ) where
 
-import {-# SOURCE #-} Agda.Interaction.BasicOps (Goals, WarningsAndNonFatalErrors, OutputForm, ComputeMode, Rewrite)
+import {-# SOURCE #-} Agda.Interaction.BasicOps (Goals, WarningsAndNonFatalErrors, OutputForm, ComputeMode, Rewrite, OutputConstraint')
 import Agda.Interaction.Base (CommandM, CommandState)
 import Agda.Interaction.Highlighting.Precise
 import qualified Agda.Syntax.Abstract as A
@@ -104,7 +104,7 @@ data DisplayInfo
     | Info_InferredType_TopLevel CommandState (Maybe CPUTime) A.Expr
     | Info_InferredType InteractionId A.Expr
     | Info_Context [RespContextEntry]
-    | Info_HelperFunction Doc
+    | Info_HelperFunction (OutputConstraint' A.Expr A.Expr)
     | Info_Version
 
 -- | Errors that goes into Info_Error

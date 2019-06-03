@@ -176,12 +176,14 @@ lispifyResponse (Resp_DisplayInfo info) = case info of
     Info_Context ctx -> do
       doc <- localTCState (prettyRespContext False ctx)
       f (render doc) "*Context*"
-    Info_HelperFunction s -> return [ L [ A "agda2-info-action-and-copy"
-                                 , A $ quote "*Helper function*"
-                                 , A $ quote (render s ++ "\n")
-                                 , A "nil"
-                                 ]
-                             ]
+    Info_HelperFunction helperType -> do
+      doc <- prettyATop helperType
+      return [ L [ A "agda2-info-action-and-copy"
+                 , A $ quote "*Helper function*"
+                 , A $ quote (render doc ++ "\n")
+                 , A "nil"
+                 ]
+             ]
     Info_Intro_NotFound -> f "No introduction forms found." "*Intro*"
     Info_Intro_ConstructorUnknown ss -> do
       let msg = sep [ "Don't know which constructor to introduce of"
