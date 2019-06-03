@@ -100,7 +100,7 @@ data DisplayInfo
     | Info_NormalForm_TopLevel CommandState ComputeMode (Maybe CPUTime) A.Expr
     | Info_NormalForm ComputeMode InteractionId A.Expr
     | Info_GoalType  Rewrite InteractionId GoalTypeAux [RespContextEntry] [OutputForm Expr Expr]
-    | Info_CurrentGoal Doc
+    | Info_CurrentGoal Rewrite InteractionId
     | Info_InferredType_TopLevel CommandState (Maybe CPUTime) A.Expr
     | Info_InferredType InteractionId A.Expr
     | Info_Context [RespContextEntry]

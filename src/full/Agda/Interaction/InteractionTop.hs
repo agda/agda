@@ -733,8 +733,7 @@ interpret (Cmd_infer norm ii rng s) = do
     --       (prettyATop =<< B.typeInMeta ii norm =<< B.parseExprIn ii rng s))
 
 interpret (Cmd_goal_type norm ii _ _) =
-  display_info . Info_CurrentGoal
-    =<< liftLocalState (B.withInteractionId ii $ prettyTypeOfMeta norm ii)
+  display_info $ Info_CurrentGoal norm ii
 
 interpret (Cmd_elaborate_give norm ii rng s) = do
   have <- liftLocalState $ B.withInteractionId ii $ do

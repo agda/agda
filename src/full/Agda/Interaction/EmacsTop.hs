@@ -123,7 +123,9 @@ lispifyResponse (Resp_DisplayInfo info) = case info of
     Info_InferredType ii expr -> do
       doc <- localTCState $ B.withInteractionId ii $ prettyATop expr
       f (render doc) "*Inferred Type*"
-    Info_CurrentGoal s -> f (render s) "*Current Goal*"
+    Info_CurrentGoal norm ii -> do
+      doc <- localTCState (B.withInteractionId ii $ prettyTypeOfMeta norm ii)
+      f (render doc) "*Current Goal*"
     Info_GoalType norm ii aux ctx constraints -> do
       ctxDoc <- B.withInteractionId ii $ prettyRespContext True ctx
       goal <- localTCState (B.withInteractionId ii $ prettyTypeOfMeta norm ii)
