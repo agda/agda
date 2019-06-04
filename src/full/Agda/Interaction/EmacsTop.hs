@@ -71,127 +71,7 @@ formatWarningsAndErrors g w e = (body, title)
 lispifyResponse :: Response -> TCM [Lisp String]
 lispifyResponse (Resp_HighlightingInfo info remove method modFile) =
   (:[]) <$> liftIO (lispifyHighlightingInfo info remove method modFile)
-lispifyResponse (Resp_DisplayInfo info) = case info of
-    Info_CompilationOk (w, e) -> do
-      warnings <- prettyTCWarnings w
-      errors <- prettyTCWarnings e
-      -- abusing the goals field since we ignore the title
-      let (body, _) = formatWarningsAndErrors
-                        "The module was successfully compiled.\n"
-                        warnings
-                        errors
-      f body "*Compilation result*"
-    Info_Constraints s -> f (show $ vcat $ map pretty s) "*Constraints*"
-    Info_AllGoalsWarnings ms (w, e) -> do
-      goals <- showGoals ms
-      warnings <- prettyTCWarnings w
-      errors <- prettyTCWarnings e
-      let (body, title) = formatWarningsAndErrors goals warnings errors
-      f body ("*All" ++ title ++ "*")
-    Info_Auto s -> f s "*Auto*"
-    Info_Error err -> do
-      s <- serializeInfoError err
-      f s "*Error*"
-    Info_Time s -> f (render $ prettyTimed s) "*Time*"
-    Info_NormalForm_TopLevel state cmode time expr -> do
-      doc <- evalStateT prettyExpr state
-      f (render $ maybe empty prettyTimed time $$ doc) "*Normal Form*"
-      where
-        prettyExpr = localStateCommandM
-            $ lift
-            $ B.atTopLevel
-            $ allowNonTerminatingReductions
-            $ (if computeIgnoreAbstract cmode then ignoreAbstractMode else inConcreteMode)
-            $ (B.showComputed cmode)
-            $ expr
-    Info_NormalForm cmode ii expr -> do
-      doc <- localTCState $ B.withInteractionId ii $ showComputed cmode expr
-      f (render doc) "*Normal Form*"   -- show?
-    Info_InferredType_TopLevel state time expr -> do
-      doc <- evalStateT prettyExpr state
-      f (render $ maybe empty prettyTimed time $$ doc) "*Inferred Type*"
-      where
-        prettyExpr = localStateCommandM
-            $ lift
-            $ B.atTopLevel
-            $ TCP.prettyA
-            $ expr
-    -- f (render s) "*Inferred Type*"
-    Info_InferredType ii expr -> do
-      doc <- localTCState $ B.withInteractionId ii $ prettyATop expr
-      f (render doc) "*Inferred Type*"
-    Info_CurrentGoal norm ii -> do
-      doc <- localTCState (B.withInteractionId ii $ prettyTypeOfMeta norm ii)
-      f (render doc) "*Current Goal*"
-    Info_GoalType norm ii aux ctx constraints -> do
-      ctxDoc <- localTCState $ B.withInteractionId ii $ prettyRespContext True ctx
-      goal <- localTCState (B.withInteractionId ii $ prettyTypeOfMeta norm ii)
-      auxDoc <- case aux of
-            GoalOnly -> return empty
-            GoalAndHave expr -> do
-              doc <- prettyATop expr
-              return $ "Have:" <+> doc
-            GoalAndElaboration term -> do
-              doc <- TCP.prettyTCM term
-              return $ "Elaborates to:" <+> doc
-      let constraintsDoc = if (null constraints)
-            then  []
-            else  [ text $ delimiter "Constraints"
-                  , vcat $ map pretty constraints
-                  ]
-      let doc = vcat $
-            [ "Goal:" <+> goal
-            , auxDoc
-            , text (replicate 60 '\x2014')
-            , ctxDoc
-            ] ++ constraintsDoc
-      f (render doc) "*Goal type etc.*"
-
-       -- f (render s) "*Goal type etc.*"
-    Info_ModuleContents modules tel types -> do
-      doc <- localTCState $ do
-        typeDocs <- addContext tel $ forM types $ \ (x, t) -> do
-          doc <- prettyTCM t
-          return (prettyShow x, ":" <+> doc)
-        return $ vcat
-          [ "Modules"
-          , nest 2 $ vcat $ map pretty modules
-          , "Names"
-          , nest 2 $ align 10 typeDocs
-          ]
-      f (render doc) "*Module contents*"
-    Info_SearchAbout hits names -> do
-      hitDocs <- forM hits $ \ (x, t) -> do
-        doc <- prettyTCM t
-        return (prettyShow x, ":" <+> doc)
-      let doc = "Definitions about" <+>
-                text (List.intercalate ", " $ words names) $$ nest 2 (align 10 hitDocs)
-      f (render doc) "*Search About*"
-    Info_WhyInScope s cwd v xs ms -> do
-      doc <- explainWhyInScope s cwd v xs ms
-      f (render doc) "*Scope Info*"
-    Info_Context ctx -> do
-      doc <- localTCState (prettyRespContext False ctx)
-      f (render doc) "*Context*"
-    Info_HelperFunction ii helperType -> do
-      doc <- localTCState $ B.withInteractionId ii $ inTopContext $ prettyATop helperType
-      return [ L [ A "agda2-info-action-and-copy"
-                 , A $ quote "*Helper function*"
-                 , A $ quote (render doc ++ "\n")
-                 , A "nil"
-                 ]
-             ]
-    Info_Intro_NotFound -> f "No introduction forms found." "*Intro*"
-    Info_Intro_ConstructorUnknown ss -> do
-      let msg = sep [ "Don't know which constructor to introduce of"
-                    , let mkOr []     = []
-                          mkOr [x, y] = [text x <+> "or" <+> text y]
-                          mkOr (x:xs) = text x : mkOr xs
-                      in nest 2 $ fsep $ punctuate comma (mkOr ss)
-                    ]
-      f (render $ pretty msg) "*Intro*"
-    Info_Version -> f ("Agda version " ++ versionWithCommitInfo) "*Agda Version*"
-  where f content bufname = return [ display_info' False bufname content ]
+lispifyResponse (Resp_DisplayInfo info) = lispifyDisplayInfo info
 lispifyResponse (Resp_ClearHighlighting tokenBased) =
   return [ L $ A "agda2-highlight-clear" :
                case tokenBased of
@@ -240,6 +120,137 @@ lispifyResponse (Resp_SolveAll ps) = return
   ]
   where
     prn (ii,e)= [showNumIId ii, A $ quote $ prettyShow e]
+
+lispifyDisplayInfo :: DisplayInfo -> TCM [Lisp String]
+lispifyDisplayInfo info = case info of
+    Info_CompilationOk (w, e) -> do
+      warnings <- prettyTCWarnings w
+      errors <- prettyTCWarnings e
+      -- abusing the goals field since we ignore the title
+      let (body, _) = formatWarningsAndErrors
+                        "The module was successfully compiled.\n"
+                        warnings
+                        errors
+      format body "*Compilation result*"
+    Info_Constraints s -> format (show $ vcat $ map pretty s) "*Constraints*"
+    Info_AllGoalsWarnings ms (w, e) -> do
+      goals <- showGoals ms
+      warnings <- prettyTCWarnings w
+      errors <- prettyTCWarnings e
+      let (body, title) = formatWarningsAndErrors goals warnings errors
+      format body ("*All" ++ title ++ "*")
+    Info_Auto s -> format s "*Auto*"
+    Info_Error err -> do
+      s <- serializeInfoError err
+      format s "*Error*"
+    Info_Time s -> format (render $ prettyTimed s) "*Time*"
+    Info_NormalForm_TopLevel state cmode time expr -> do
+      exprDoc <- evalStateT prettyExpr state
+      let doc = maybe empty prettyTimed time $$ exprDoc
+      format (render doc) "*Normal Form*"
+      where
+        prettyExpr = localStateCommandM
+            $ lift
+            $ B.atTopLevel
+            $ allowNonTerminatingReductions
+            $ (if computeIgnoreAbstract cmode then ignoreAbstractMode else inConcreteMode)
+            $ (B.showComputed cmode)
+            $ expr
+    Info_InferredType_TopLevel state time expr -> do
+      exprDoc <- evalStateT prettyExpr state
+      let doc = maybe empty prettyTimed time $$ exprDoc
+      format (render doc) "*Inferred Type*"
+      where
+        prettyExpr = localStateCommandM
+            $ lift
+            $ B.atTopLevel
+            $ TCP.prettyA
+            $ expr
+    Info_ModuleContents modules tel types -> do
+      doc <- localTCState $ do
+        typeDocs <- addContext tel $ forM types $ \ (x, t) -> do
+          doc <- prettyTCM t
+          return (prettyShow x, ":" <+> doc)
+        return $ vcat
+          [ "Modules"
+          , nest 2 $ vcat $ map pretty modules
+          , "Names"
+          , nest 2 $ align 10 typeDocs
+          ]
+      format (render doc) "*Module contents*"
+    Info_SearchAbout hits names -> do
+      hitDocs <- forM hits $ \ (x, t) -> do
+        doc <- prettyTCM t
+        return (prettyShow x, ":" <+> doc)
+      let doc = "Definitions about" <+>
+                text (List.intercalate ", " $ words names) $$ nest 2 (align 10 hitDocs)
+      format (render doc) "*Search About*"
+    Info_WhyInScope s cwd v xs ms -> do
+      doc <- explainWhyInScope s cwd v xs ms
+      format (render doc) "*Scope Info*"
+    Info_Context ctx -> do
+      doc <- localTCState (prettyRespContext False ctx)
+      format (render doc) "*Context*"
+    Info_Intro_NotFound -> format "No introduction forms found." "*Intro*"
+    Info_Intro_ConstructorUnknown ss -> do
+      let doc = sep [ "Don't know which constructor to introduce of"
+                    , let mkOr []     = []
+                          mkOr [x, y] = [text x <+> "or" <+> text y]
+                          mkOr (x:xs) = text x : mkOr xs
+                      in nest 2 $ fsep $ punctuate comma (mkOr ss)
+                    ]
+      format (render doc) "*Intro*"
+    Info_Version -> format ("Agda version " ++ versionWithCommitInfo) "*Agda Version*"
+    Info_GoalSpecific ii kind -> lispifyGoalSpecificDisplayInfo ii kind
+
+lispifyGoalSpecificDisplayInfo :: InteractionId -> GoalDisplayInfo -> TCM [Lisp String]
+lispifyGoalSpecificDisplayInfo ii kind = localTCState $ B.withInteractionId ii $
+  case kind of
+    Goal_HelperFunction helperType -> do
+      doc <- inTopContext $ prettyATop helperType
+      return [ L [ A "agda2-info-action-and-copy"
+                 , A $ quote "*Helper function*"
+                 , A $ quote (render doc ++ "\n")
+                 , A "nil"
+                 ]
+             ]
+    Goal_NormalForm cmode expr -> do
+      doc <- showComputed cmode expr
+      format (render doc) "*Normal Form*"   -- show?
+    Goal_GoalType norm aux ctx constraints -> do
+      ctxDoc <- prettyRespContext True ctx
+      goalDoc <- prettyTypeOfMeta norm ii
+      auxDoc <- case aux of
+            GoalOnly -> return empty
+            GoalAndHave expr -> do
+              doc <- prettyATop expr
+              return $ "Have:" <+> doc
+            GoalAndElaboration term -> do
+              doc <- TCP.prettyTCM term
+              return $ "Elaborates to:" <+> doc
+      let constraintsDoc = if (null constraints)
+            then  []
+            else  [ text $ delimiter "Constraints"
+                  , vcat $ map pretty constraints
+                  ]
+      let doc = vcat $
+            [ "Goal:" <+> goalDoc
+            , auxDoc
+            , text (replicate 60 '\x2014')
+            , ctxDoc
+            ] ++ constraintsDoc
+      format (render doc) "*Goal type etc.*"
+    Goal_CurrentGoal norm -> do
+      doc <- prettyTypeOfMeta norm ii
+      format (render doc) "*Current Goal*"
+    Goal_InferredType expr -> do
+      doc <- prettyATop expr
+      format (render doc) "*Inferred Type*"
+
+-- | Format responses of DisplayInfo
+
+format :: String -> String -> TCM [Lisp String]
+format content bufname = return [ display_info' False bufname content ]
 
 -- | Adds a \"last\" tag to a response.
 

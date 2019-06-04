@@ -1,4 +1,3 @@
-
 ------------------------------------------------------------------------
 -- | Data type for all interactive responses
 ------------------------------------------------------------------------
@@ -8,6 +7,7 @@ module Agda.Interaction.Response
   , RemoveTokenBasedHighlighting (..)
   , MakeCaseVariant (..)
   , DisplayInfo (..)
+  , GoalDisplayInfo(..)
   , Info_Error(..)
   , GoalTypeAux(..)
   , RespContextEntry
@@ -33,8 +33,6 @@ import Agda.Utils.Time
 import Control.Monad.Trans
 import Data.Int
 import System.IO
-import System.FilePath
-
 
 -- | Responses for any interactive interface
 --
@@ -97,14 +95,17 @@ data DisplayInfo
     | Info_SearchAbout [(Name, I.Type)] String
     | Info_WhyInScope String FilePath (Maybe LocalVar) [AbstractName] [AbstractModule]
     | Info_NormalForm_TopLevel CommandState ComputeMode (Maybe CPUTime) A.Expr
-    | Info_NormalForm ComputeMode InteractionId A.Expr
-    | Info_GoalType  Rewrite InteractionId GoalTypeAux [RespContextEntry] [OutputForm Expr Expr]
-    | Info_CurrentGoal Rewrite InteractionId
     | Info_InferredType_TopLevel CommandState (Maybe CPUTime) A.Expr
-    | Info_InferredType InteractionId A.Expr
     | Info_Context [RespContextEntry]
-    | Info_HelperFunction InteractionId (OutputConstraint' A.Expr A.Expr)
     | Info_Version
+    | Info_GoalSpecific InteractionId GoalDisplayInfo
+
+data GoalDisplayInfo
+    = Goal_HelperFunction (OutputConstraint' A.Expr A.Expr)
+    | Goal_NormalForm ComputeMode A.Expr
+    | Goal_GoalType Rewrite GoalTypeAux [RespContextEntry] [OutputForm Expr Expr]
+    | Goal_CurrentGoal Rewrite
+    | Goal_InferredType A.Expr
 
 -- | Errors that goes into Info_Error
 --

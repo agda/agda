@@ -711,16 +711,14 @@ interpret (Cmd_context norm ii _ _) =
 interpret (Cmd_helper_function norm ii rng s) = do
   -- Create type of application of new helper function that would solve the goal.
   helperType <- liftLocalState $ B.withInteractionId ii $ inTopContext $ B.metaHelperType norm ii rng s
-  display_info $ Info_HelperFunction ii helperType
+  display_info $ Info_GoalSpecific ii (Goal_HelperFunction helperType)
 
 interpret (Cmd_infer norm ii rng s) = do
   expr <- liftLocalState $ B.withInteractionId ii $ B.typeInMeta ii norm =<< B.parseExprIn ii rng s
-  display_info $ Info_InferredType ii expr
-    -- =<< liftLocalState (B.withInteractionId ii
-    --       (prettyATop =<< B.typeInMeta ii norm =<< B.parseExprIn ii rng s))
+  display_info $ Info_GoalSpecific ii (Goal_InferredType expr)
 
 interpret (Cmd_goal_type norm ii _ _) =
-  display_info $ Info_CurrentGoal norm ii
+  display_info $ Info_GoalSpecific ii (Goal_CurrentGoal norm)
 
 interpret (Cmd_elaborate_give norm ii rng s) = do
   have <- liftLocalState $ B.withInteractionId ii $ do
@@ -816,14 +814,7 @@ interpret (Cmd_compute cmode ii rng s) = do
   expr <- liftLocalState $ do
     e <- B.parseExprIn ii rng (computeWrapInput cmode s)
     B.withInteractionId ii $ applyWhen (computeIgnoreAbstract cmode) ignoreAbstractMode $ B.evalInCurrent e
-  display_info $ Info_NormalForm cmode ii expr
-
-  -- display_info . Info_NormalForm =<< do
-  -- liftLocalState $ do
-  --   e <- B.parseExprIn ii rng $ computeWrapInput cmode s
-  --   B.withInteractionId ii $ do
-      -- showComputed cmode =<< do applyWhen (computeIgnoreAbstract cmode) ignoreAbstractMode $ B.evalInCurrent e
-
+  display_info $ Info_GoalSpecific ii (Goal_NormalForm cmode expr)
 
 interpret Cmd_show_version = display_info Info_Version
 
@@ -1116,7 +1107,7 @@ cmd_goal_type_context_and :: GoalTypeAux -> B.Rewrite -> InteractionId -> Range 
 cmd_goal_type_context_and aux norm ii _ _ = do
   ctx <- lift $ getRespContext norm ii
   constr <- lift $ lookupInteractionId ii >>= B.getConstraintsMentioning
-  display_info $ Info_GoalType norm ii aux ctx constr
+  display_info $ Info_GoalSpecific ii (Goal_GoalType norm aux ctx constr)
 
 
 -- | Shows all the top-level names in the given module, along with
