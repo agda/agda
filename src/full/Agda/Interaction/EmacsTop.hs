@@ -124,7 +124,7 @@ lispifyResponse (Resp_DisplayInfo info) = case info of
       doc <- localTCState (B.withInteractionId ii $ prettyTypeOfMeta norm ii)
       f (render doc) "*Current Goal*"
     Info_GoalType norm ii aux ctx constraints -> do
-      ctxDoc <- B.withInteractionId ii $ prettyRespContext True ctx
+      ctxDoc <- localTCState $ B.withInteractionId ii $ prettyRespContext True ctx
       goal <- localTCState (B.withInteractionId ii $ prettyTypeOfMeta norm ii)
       auxDoc <- case aux of
             GoalOnly -> return empty
