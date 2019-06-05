@@ -24,7 +24,7 @@ import Agda.Interaction.Response as R
 import Agda.Interaction.EmacsCommand hiding (putResponse)
 import Agda.Interaction.Highlighting.Emacs
 import Agda.Interaction.Highlighting.Precise (TokenBased(..))
-import Agda.Interaction.InteractionTop (prettyTimed, localStateCommandM, prettyTypeOfMeta)
+import Agda.Interaction.InteractionTop (localStateCommandM)
 import Agda.Interaction.Imports (getAllWarningsOfTCErr)
 
 import Agda.Utils.Impossible (__IMPOSSIBLE__)
@@ -33,6 +33,7 @@ import Agda.Utils.Null (empty)
 import Agda.Utils.Maybe
 import Agda.Utils.Pretty
 import Agda.Utils.String
+import Agda.Utils.Time (CPUTime)
 import Agda.VersionCommit
 
 ----------------------------------
@@ -44,29 +45,6 @@ import Agda.VersionCommit
 --   interprets them and print the result into stdout.
 mimicGHCi :: TCM () -> TCM ()
 mimicGHCi = repl (liftIO . mapM_ print <=< lispifyResponse) "Agda2> "
-
--- | Given strings of goals, warnings and errors, return a pair of the
---   body and the title for the info buffer
-formatWarningsAndErrors :: String -> String -> String -> (String, String)
-formatWarningsAndErrors g w e = (body, title)
-  where
-    isG = not $ null g
-    isW = not $ null w
-    isE = not $ null e
-    title = List.intercalate "," $ catMaybes
-              [ " Goals"    <$ guard isG
-              , " Errors"   <$ guard isE
-              , " Warnings" <$ guard isW
-              , " Done"     <$ guard (not (isG || isW || isE))
-              ]
-
-    body = List.intercalate "\n" $ catMaybes
-             [ g                    <$ guard isG
-             , delimiter "Errors"   <$ guard (isE && (isG || isW))
-             , e                    <$ guard isE
-             , delimiter "Warnings" <$ guard (isW && (isG || isE))
-             , w                    <$ guard isW
-             ]
 
 -- | Convert Response to an elisp value for the interactive emacs frontend.
 
@@ -143,7 +121,7 @@ lispifyDisplayInfo info = case info of
       format body ("*All" ++ title ++ "*")
     Info_Auto s -> format s "*Auto*"
     Info_Error err -> do
-      s <- serializeInfoError err
+      s <- showInfoError err
       format s "*Error*"
     Info_Time s -> format (render $ prettyTimed s) "*Time*"
     Info_NormalForm state cmode time expr -> do
@@ -266,9 +244,33 @@ showNumIId = A . show . interactionId
 
 --------------------------------------------------------------------------------
 
+-- | Given strings of goals, warnings and errors, return a pair of the
+--   body and the title for the info buffer
+formatWarningsAndErrors :: String -> String -> String -> (String, String)
+formatWarningsAndErrors g w e = (body, title)
+  where
+    isG = not $ null g
+    isW = not $ null w
+    isE = not $ null e
+    title = List.intercalate "," $ catMaybes
+              [ " Goals"    <$ guard isG
+              , " Errors"   <$ guard isE
+              , " Warnings" <$ guard isW
+              , " Done"     <$ guard (not (isG || isW || isE))
+              ]
+
+    body = List.intercalate "\n" $ catMaybes
+             [ g                    <$ guard isG
+             , delimiter "Errors"   <$ guard (isE && (isG || isW))
+             , e                    <$ guard isE
+             , delimiter "Warnings" <$ guard (isW && (isG || isE))
+             , w                    <$ guard isW
+             ]
+
+
 -- | Serializing Info_Error
-serializeInfoError :: Info_Error -> TCM String
-serializeInfoError (Info_GenericError err) = do
+showInfoError :: Info_Error -> TCM String
+showInfoError (Info_GenericError err) = do
   e <- prettyError err
   w <- prettyTCWarnings' =<< getAllWarningsOfTCErr err
 
@@ -280,7 +282,7 @@ serializeInfoError (Info_GenericError err) = do
   return $ if null w
             then errorMsg
             else errorMsg ++ "\n\n" ++ warningMsg
-serializeInfoError (Info_CompilationError warnings) = do
+showInfoError (Info_CompilationError warnings) = do
   s <- prettyTCWarnings warnings
   return $ unlines
             [ "You need to fix the following errors before you can compile"
@@ -288,9 +290,9 @@ serializeInfoError (Info_CompilationError warnings) = do
             , ""
             , s
             ]
-serializeInfoError (Info_HighlightingParseError ii) =
+showInfoError (Info_HighlightingParseError ii) =
   return $ "Highlighting failed to parse expression in " ++ show ii
-serializeInfoError (Info_HighlightingScopeCheckError ii) =
+showInfoError (Info_HighlightingScopeCheckError ii) =
   return $ "Highlighting failed to scope check expression in " ++ show ii
 
 explainWhyInScope :: FilePath
@@ -414,3 +416,17 @@ showGoals (ims, hms) = do
       r <- getMetaRange i
       d <- B.withMetaId i (prettyATop m)
       return $ show d ++ "  [ at " ++ show r ++ " ]"
+
+-- | Pretty-prints the type of the meta-variable.
+
+prettyTypeOfMeta :: B.Rewrite -> InteractionId -> TCM Doc
+prettyTypeOfMeta norm ii = do
+  form <- B.typeOfMeta norm ii
+  case form of
+    B.OfType _ e -> prettyATop e
+    _            -> prettyATop form
+
+
+-- | Prefix prettified CPUTime with "Time:"
+prettyTimed :: CPUTime -> Doc
+prettyTimed time = "Time:" <+> pretty time

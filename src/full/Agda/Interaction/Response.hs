@@ -111,6 +111,7 @@ data GoalDisplayInfo
     | Goal_CurrentGoal Rewrite
     | Goal_InferredType A.Expr
 
+-- | Goals & Warnings
 type Goals = ( [OutputConstraint A.Expr InteractionId] -- visible metas
              , [OutputConstraint A.Expr NamedMeta]     -- hidden metas
              )

@@ -532,12 +532,12 @@ interpret (Cmd_solveOne norm ii _ _) = solveInstantiatedGoals norm' (Just ii)
                   _            -> norm
 
 interpret (Cmd_infer_toplevel norm s) = do
-  (time, expr) <- parseAndDoAtToplevel' (B.typeInCurrent norm) s
+  (time, expr) <- parseAndDoAtToplevel (B.typeInCurrent norm) s
   state <- get
   display_info $ Info_InferredType state time expr
 
 interpret (Cmd_compute_toplevel cmode s) = do
-  (time, expr) <- parseAndDoAtToplevel' action (computeWrapInput cmode s)
+  (time, expr) <- parseAndDoAtToplevel action (computeWrapInput cmode s)
   state <- get
   display_info $ Info_NormalForm state cmode time expr
     where
@@ -1020,61 +1020,6 @@ sortInteractionPoints is =
     forM is $ \ i -> do
       (i,) <$> getInteractionRange i
 
--- | Pretty-prints the type of the meta-variable.
-
-prettyTypeOfMeta :: B.Rewrite -> InteractionId -> TCM Doc
-prettyTypeOfMeta norm ii = do
-  form <- B.typeOfMeta norm ii
-  case form of
-    B.OfType _ e -> prettyATop e
-    _            -> prettyATop form
-
-shouldHide :: OutputConstraint' A.Expr A.Name -> Bool
-shouldHide (OfType' n _) = isNoName n || nameIsRecordName n
-
--- | Pretty-prints the context of the given meta-variable.
-
-prettyContext
-  :: B.Rewrite      -- ^ Normalise?
-  -> Bool           -- ^ Print the elements in reverse order?
-  -> InteractionId
-  -> TCM Doc
-prettyContext norm rev ii = B.withInteractionId ii $ do
-  ctx <- filter (not . shouldHide) <$> B.contextOfMeta ii norm
-  es  <- mapM (prettyATop . B.ofExpr) ctx
-  xs  <- mapM (abstractToConcrete_ . B.ofName) ctx
-  let ns = map (nameConcrete . B.ofName) ctx
-      ss = map C.isInScope xs
-  return $ align 10 $ applyWhen rev reverse $
-      zip (zipWith prettyCtxName ns xs)
-          (zipWith prettyCtxType es ss)
-  where
-    prettyCtxName :: C.Name -> C.Name -> String
-    prettyCtxName n x
-      | n == x                 = prettyShow x
-      | isInScope n == InScope = prettyShow n ++ " = " ++ prettyShow x
-      | otherwise              = prettyShow x
-    prettyCtxType e nis = ":" <+> (e <> notInScopeMarker nis)
-    notInScopeMarker nis = case isInScope nis of
-      C.InScope    -> ""
-      C.NotInScope -> "  (not in scope)"
-
--- | Collecting the context of the given meta-variable.
-getRespContext
-  :: B.Rewrite      -- ^ Normalise?
-  -> InteractionId
-  -> TCM [RespContextEntry]
-getRespContext norm ii = B.withInteractionId ii $ do
-  ctx <- filter (not . shouldHide) <$> B.contextOfMeta ii norm
-  -- name name part
-  let ns = map (nameConcrete . B.ofName) ctx
-  xs  <- mapM (abstractToConcrete_ . B.ofName) ctx
-  -- the type part
-  let es = map B.ofExpr ctx
-  let ss = map C.isInScope xs
-
-  return $ List.zip4 ns xs es ss
-
 -- | Displays the current goal, the given document, and the current
 --   context.
 --
@@ -1168,42 +1113,17 @@ display_info info = do
   displayStatus
   putResponse $ Resp_DisplayInfo info
 
-refreshStr :: [String] -> String -> ([String], String)
-refreshStr taken s = go nameModifiers where
-  go (m:mods) = let s' = s ++ m in
-                if s' `elem` taken then go mods else (s':taken, s')
-  go _        = __IMPOSSIBLE__
-
-nameModifiers :: [String]
-nameModifiers = "" : "'" : "''" : [show i | i <- [3..] :: [Int] ]
-
-
 -- | Parses and scope checks an expression (using the \"inside scope\"
 -- as the scope), performs the given command with the expression as
--- input, and displays the result.
+-- input, and returns the result and the time it takes.
 
 parseAndDoAtToplevel
-  :: (A.Expr -> TCM Doc)
-     -- ^ The command to perform.
-  -> (Doc -> DisplayInfo)
-     -- ^ The name to use for the buffer displaying the output.
-  -> String
-     -- ^ The expression to parse.
-  -> CommandM ()
-parseAndDoAtToplevel cmd title s = do
-  (time, res) <- localStateCommandM $ do
-    e <- lift $ runPM $ parse exprParser s
-    maybeTimed $ lift $ B.atTopLevel $ do
-      cmd =<< concreteToAbstract_ e
-  display_info $ title $ maybe empty prettyTimed time $$ res
-
-parseAndDoAtToplevel'
   :: (A.Expr -> TCM a)
      -- ^ The command to perform.
   -> String
      -- ^ The expression to parse.
   -> CommandM (Maybe CPUTime, a)
-parseAndDoAtToplevel' cmd s = do
+parseAndDoAtToplevel cmd s = do
   localStateCommandM $ do
     e <- lift $ runPM $ parse exprParser s
     maybeTimed $ lift $ B.atTopLevel $ do
@@ -1217,10 +1137,6 @@ maybeTimed work = do
     else do
       (r, time) <- measureTime work
       return (Just time, r)
-
--- | Prefix prettified CPUTime with "Time:"
-prettyTimed :: CPUTime -> Doc
-prettyTimed time = "Time:" <+> pretty time
 
 -- | Tell to highlight the code using the given highlighting
 -- info (unless it is @Nothing@).

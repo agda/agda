@@ -25,7 +25,7 @@ import Data.Monoid
 
 import Agda.Interaction.Options
 import {-# SOURCE #-} Agda.Interaction.Imports (MaybeWarnings'(..), getMaybeWarnings)
-import Agda.Interaction.Response (Goals, WarningsAndNonFatalErrors)
+import Agda.Interaction.Response (Goals, WarningsAndNonFatalErrors, RespContextEntry)
 
 import qualified Agda.Syntax.Concrete as C -- ToDo: Remove with instance of ToConcrete
 import Agda.Syntax.Position
@@ -602,6 +602,25 @@ getWarningsAndNonFatalErrors = do
                          UnsolvedInteractionMetas{} -> False
                          UnsolvedMetaVariables{}    -> False
                          _                          -> True
+
+-- | Collecting the context of the given meta-variable.
+getRespContext
+  :: Rewrite      -- ^ Normalise?
+  -> InteractionId
+  -> TCM [RespContextEntry]
+getRespContext norm ii = withInteractionId ii $ do
+  ctx <- filter (not . shouldHide) <$> contextOfMeta ii norm
+  -- name name part
+  let ns = map (nameConcrete . ofName) ctx
+  xs  <- mapM (abstractToConcrete_ . ofName) ctx
+  -- the type part
+  let es = map ofExpr ctx
+  let ss = map C.isInScope xs
+
+  return $ List.zip4 ns xs es ss
+
+shouldHide :: OutputConstraint' A.Expr A.Name -> Bool
+shouldHide (OfType' n _) = isNoName n || nameIsRecordName n
 
 -- | @getSolvedInteractionPoints True@ returns all solutions,
 --   even if just solved by another, non-interaction meta.
