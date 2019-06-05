@@ -25,6 +25,7 @@ import Data.Monoid
 
 import Agda.Interaction.Options
 import {-# SOURCE #-} Agda.Interaction.Imports (MaybeWarnings'(..), getMaybeWarnings)
+import Agda.Interaction.Response (Goals, WarningsAndNonFatalErrors)
 
 import qualified Agda.Syntax.Concrete as C -- ToDo: Remove with instance of ToConcrete
 import Agda.Syntax.Position
@@ -361,16 +362,6 @@ data OutputConstraint a b
       | PostponedCheckFunDef QName a
   deriving (Functor)
 
-type Goals = ( [OutputConstraint Expr InteractionId] -- visible metas
-             , [OutputConstraint Expr NamedMeta]     -- hidden metas
-             )
-
-type WarningsAndNonFatalErrors
-      = ( [TCWarning] -- warnings
-        , [TCWarning] -- non-fatal errors
-        )
-
-
 -- | A subset of 'OutputConstraint'.
 
 data OutputConstraint' a b = OfType' { ofName :: b
@@ -590,6 +581,28 @@ getConstraints' g f = liftTCM $ do
         let m = QuestionMark emptyMetaInfo{ metaNumber = Just $ fromIntegral ii } ii
         abstractToConcrete_ $ OutputForm noRange [] $ Assign m e
 
+-- | Goals and Warnings
+
+getGoals :: TCM Goals
+getGoals = do
+  -- visible metas (as-is)
+  visibleMetas <- typesOfVisibleMetas AsIs
+  -- hidden metas (unsolved implicit arguments simplified)
+  unsolvedNotOK <- not . optAllowUnsolved <$> pragmaOptions
+  hiddenMetas <- (guard unsolvedNotOK >>) <$> typesOfHiddenMetas Simplified
+  return (visibleMetas, hiddenMetas)
+
+getWarningsAndNonFatalErrors :: TCM WarningsAndNonFatalErrors
+getWarningsAndNonFatalErrors = do
+  mws <- getMaybeWarnings AllWarnings
+  return $ case filter isNotMeta <$> mws of
+    SomeWarnings ws@(_:_) -> swap $ classifyWarnings ws
+    _ -> ([], [])
+   where isNotMeta w = case tcWarning w of
+                         UnsolvedInteractionMetas{} -> False
+                         UnsolvedMetaVariables{}    -> False
+                         _                          -> True
+
 -- | @getSolvedInteractionPoints True@ returns all solutions,
 --   even if just solved by another, non-interaction meta.
 --
@@ -678,26 +691,6 @@ typesOfHiddenMetas norm = liftTCM $ do
       M.OpenInstance -> x `notElem` is  -- OR: True !?
       M.BlockedConst{} -> False
       M.PostponedTypeCheckingProblem{} -> False
-
-getGoals :: TCM Goals
-getGoals = do
-  -- visible metas (as-is)
-  visibleMetas <- typesOfVisibleMetas AsIs
-  -- hidden metas (unsolved implicit arguments simplified)
-  unsolvedNotOK <- not . optAllowUnsolved <$> pragmaOptions
-  hiddenMetas <- (guard unsolvedNotOK >>) <$> typesOfHiddenMetas Simplified
-  return (visibleMetas, hiddenMetas)
-
-getWarningsAndNonFatalErrors :: TCM WarningsAndNonFatalErrors
-getWarningsAndNonFatalErrors = do
-  mws <- getMaybeWarnings AllWarnings
-  return $ case filter isNotMeta <$> mws of
-    SomeWarnings ws@(_:_) -> swap $ classifyWarnings ws
-    _ -> ([], [])
-   where isNotMeta w = case tcWarning w of
-                         UnsolvedInteractionMetas{} -> False
-                         UnsolvedMetaVariables{}    -> False
-                         _                          -> True
 
 metaHelperType :: Rewrite -> InteractionId -> Range -> String -> TCM (OutputConstraint' Expr Expr)
 metaHelperType norm ii rng s = case words s of

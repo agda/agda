@@ -57,7 +57,7 @@ import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 import Agda.TheTypeChecker
 
 import Agda.Interaction.FindFile
-import {-# SOURCE #-} Agda.Interaction.InteractionTop (showGoals)
+import {-# SOURCE #-} Agda.Interaction.EmacsTop (showGoals)
 import Agda.Interaction.BasicOps (getGoals)
 import Agda.Interaction.Options
 import qualified Agda.Interaction.Options.Lenses as Lens

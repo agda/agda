@@ -1,5 +1,6 @@
 module Agda.Interaction.EmacsTop
     ( mimicGHCi
+    , showGoals
     ) where
 
 import Control.Monad.State hiding (state)
@@ -23,9 +24,10 @@ import Agda.Interaction.Response as R
 import Agda.Interaction.EmacsCommand hiding (putResponse)
 import Agda.Interaction.Highlighting.Emacs
 import Agda.Interaction.Highlighting.Precise (TokenBased(..))
-import Agda.Interaction.InteractionTop (showGoals, prettyTimed, localStateCommandM, prettyTypeOfMeta)
+import Agda.Interaction.InteractionTop (prettyTimed, localStateCommandM, prettyTypeOfMeta)
 import Agda.Interaction.Imports (getAllWarningsOfTCErr)
 
+import Agda.Utils.Impossible (__IMPOSSIBLE__)
 import Agda.Utils.Function (applyWhen)
 import Agda.Utils.Null (empty)
 import Agda.Utils.Maybe
@@ -391,3 +393,24 @@ prettyRespContext rev ctx = do
     notInScopeMarker nis = case isInScope nis of
       C.InScope    -> ""
       C.NotInScope -> "  (not in scope)"
+
+-- | Print open metas nicely.
+showGoals :: Goals -> TCM String
+showGoals (ims, hms) = do
+  di <- forM ims $ \ i ->
+    B.withInteractionId (B.outputFormId $ B.OutputForm noRange [] i) $
+      prettyATop i
+  dh <- mapM showA' hms
+  return $ unlines $ map show di ++ dh
+  where
+    metaId (B.OfType i _) = i
+    metaId (B.JustType i) = i
+    metaId (B.JustSort i) = i
+    metaId (B.Assign i _) = i
+    metaId _ = __IMPOSSIBLE__
+    showA' :: B.OutputConstraint A.Expr NamedMeta -> TCM String
+    showA' m = do
+      let i = nmid $ metaId m
+      r <- getMetaRange i
+      d <- B.withMetaId i (prettyATop m)
+      return $ show d ++ "  [ at " ++ show r ++ " ]"

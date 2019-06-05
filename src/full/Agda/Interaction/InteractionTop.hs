@@ -837,28 +837,6 @@ solveInstantiatedGoals norm mii = do
         e' <- withMetaInfo mi $ abstractToConcreteCtx TopCtx e
         return (i, e')
 
--- | Print open metas nicely.
-showGoals :: Goals -> TCM String
-showGoals (ims, hms) = do
-  di <- forM ims $ \ i ->
-    B.withInteractionId (B.outputFormId $ B.OutputForm noRange [] i) $
-      prettyATop i
-  dh <- mapM showA' hms
-  return $ unlines $ map show di ++ dh
-  where
-    metaId (B.OfType i _) = i
-    metaId (B.JustType i) = i
-    metaId (B.JustSort i) = i
-    metaId (B.Assign i _) = i
-    metaId _ = __IMPOSSIBLE__
-    showA' :: B.OutputConstraint A.Expr NamedMeta -> TCM String
-    showA' m = do
-      let i = nmid $ metaId m
-      r <- getMetaRange i
-      d <- B.withMetaId i (prettyATop m)
-      return $ show d ++ "  [ at " ++ show r ++ " ]"
-
-
 -- | @cmd_load' file argv unsolvedOk cmd@
 --   loads the module in file @file@,
 --   using @argv@ as the command-line options.

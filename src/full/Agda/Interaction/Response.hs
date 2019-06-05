@@ -8,6 +8,8 @@ module Agda.Interaction.Response
   , MakeCaseVariant (..)
   , DisplayInfo (..)
   , GoalDisplayInfo(..)
+  , Goals
+  , WarningsAndNonFatalErrors
   , Info_Error(..)
   , GoalTypeAux(..)
   , RespContextEntry
@@ -18,7 +20,7 @@ module Agda.Interaction.Response
   ) where
 
 import {-# SOURCE #-} Agda.Interaction.BasicOps
-  (Goals, WarningsAndNonFatalErrors, OutputForm, ComputeMode, Rewrite, OutputConstraint')
+  (OutputForm, ComputeMode, Rewrite, OutputConstraint, OutputConstraint')
 import Agda.Interaction.Base (CommandState)
 import Agda.Interaction.Highlighting.Precise
 import qualified Agda.Syntax.Abstract as A
@@ -28,7 +30,7 @@ import Agda.Syntax.Concrete.Name (NameInScope)
 import Agda.Syntax.Scope.Base (AbstractModule, AbstractName, LocalVar)
 import qualified Agda.Syntax.Internal as I
 import {-# SOURCE #-} Agda.TypeChecking.Monad.Base
-  (TCM, TCErr, TCWarning, HighlightingMethod, ModuleToSource)
+  (TCM, TCErr, TCWarning, HighlightingMethod, ModuleToSource, NamedMeta, TCWarning)
 import Agda.Utils.Impossible
 import Agda.Utils.Time
 
@@ -108,6 +110,16 @@ data GoalDisplayInfo
     | Goal_GoalType Rewrite GoalTypeAux [RespContextEntry] [OutputForm Expr Expr]
     | Goal_CurrentGoal Rewrite
     | Goal_InferredType A.Expr
+
+type Goals = ( [OutputConstraint A.Expr InteractionId] -- visible metas
+             , [OutputConstraint A.Expr NamedMeta]     -- hidden metas
+             )
+
+type WarningsAndNonFatalErrors
+      = ( [TCWarning] -- warnings
+        , [TCWarning] -- non-fatal errors
+        )
+
 
 -- | Errors that goes into Info_Error
 --
