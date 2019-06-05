@@ -22,12 +22,16 @@ import Agda.Utils.Monad
 --   rules.
 getClausesAsRewriteRules :: QName -> TCM [RewriteRule]
 getClausesAsRewriteRules f = do
-  let clauseName n i = freshName noRange (show n ++ "-clause" ++ show i)
-      clauseQName  i = QName (qnameModule f) <$> clauseName (qnameName f) i
   cls <- defClauses <$> getConstInfo f
   forMaybeM (zip [1..] cls) $ \(i,cl) -> do
-    clname <- clauseQName i
+    clname <- clauseQName f i
     return $ clauseToRewriteRule f clname cl
+
+-- | Generate a sensible name for the given clause
+clauseQName :: QName -> Int -> TCM QName
+clauseQName f i = QName (qnameModule f) <$> clauseName (qnameName f) i
+  where
+    clauseName n i = freshName noRange (show n ++ "-clause" ++ show i)
 
 -- | @clauseToRewriteRule f q cl@ converts the clause @cl@ of the
 --   function @f@ to a rewrite rule with name @q@. Returns @Nothing@

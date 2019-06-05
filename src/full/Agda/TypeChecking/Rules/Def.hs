@@ -55,6 +55,8 @@ import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.SizedTypes.Solve
 import Agda.TypeChecking.RecordPatterns
 import Agda.TypeChecking.Records
+import Agda.TypeChecking.Rewriting.Clause
+import Agda.TypeChecking.Rewriting.Confluence
 import Agda.TypeChecking.CompiledClause (CompiledClauses'(..), hasProjectionPatterns)
 import Agda.TypeChecking.CompiledClause.Compile
 import Agda.TypeChecking.Primitive hiding (Nat)
@@ -68,7 +70,7 @@ import Agda.Utils.Except ( MonadError(catchError, throwError) )
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List
-import Agda.Utils.Maybe ( whenNothing )
+import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Permutation
@@ -333,7 +335,7 @@ checkFunDefS t ai delayed extlam with i name withSub cs = do
               , nest 2 $ sep $ map (text . show) cs
               ]
 
-        -- add clauses for the coverage checker (needs to reduce)
+        -- add clauses for the coverage (& confluence) checker (needs to reduce)
         inTopContext $ addClauses name cs
 
         reportSDoc "tc.cc.type" 60 $ "  type   : " <+> (text . prettyShow) t
@@ -361,6 +363,13 @@ checkFunDefS t ai delayed extlam with i name withSub cs = do
         ismacro <- isMacro . theDef <$> getConstInfo name
 
         covering <- funCovering . theDef <$> getConstInfo name
+
+        -- Jesper, 2019-05-30: if the constructors used in the
+        -- lhs of a clause have rewrite rules, we need to check
+        -- confluence here
+        whenM (optConfluenceCheck <$> pragmaOptions) $ inTopContext $
+          forM_ (zip cs [0..]) $ \(c , clauseNo) ->
+            checkConfluenceOfClause name clauseNo c
 
         -- Add the definition
         inTopContext $ addConstant name =<< do
