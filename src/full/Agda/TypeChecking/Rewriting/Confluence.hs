@@ -15,7 +15,7 @@
 -- Each of these leads to a *critical pair* @v₁ <-- u --> v₂@, which
 -- should satisfy @v₁ = v₂@.
 
-module Agda.TypeChecking.Rewriting.Confluence ( checkConfluenceOfRule ) where
+module Agda.TypeChecking.Rewriting.Confluence ( checkConfluenceOfRule , checkConfluenceOfClause ) where
 
 import Control.Applicative
 import Control.Monad
@@ -65,7 +65,17 @@ import Agda.Utils.Size
 -- ^ Check confluence of the given rewrite rule wrt all other rewrite
 --   rules (including itself).
 checkConfluenceOfRule :: RewriteRule -> TCM ()
-checkConfluenceOfRule rew = inTopContext $ do
+checkConfluenceOfRule = checkConfluenceOfRule' False
+
+-- ^ Check confluence of the given clause wrt rewrite rules of the
+-- constructors it matches against
+checkConfluenceOfClause :: QName -> Int -> Clause -> TCM ()
+checkConfluenceOfClause f i cl = do
+  fi <- clauseQName f i
+  whenJust (clauseToRewriteRule f fi cl) $ checkConfluenceOfRule' True
+
+checkConfluenceOfRule' :: Bool -> RewriteRule -> TCM ()
+checkConfluenceOfRule' isClause rew = inTopContext $ do
 
   reportSDoc "rewriting.confluence" 10 $
     "Checking confluence of rule" <+> prettyTCM (rewName rew)
@@ -74,21 +84,22 @@ checkConfluenceOfRule rew = inTopContext $ do
       qs  = rewPats rew
       tel = rewContext rew
   def <- getConstInfo f
-  fa  <- addContext tel $ typeOfHead def (rewType rew)
+  (fa , hdf) <- addContext tel $ makeHead def (rewType rew)
 
   -- Step 1: check other rewrite rules that overlap at top position
   forMM_ (getClausesAndRewriteRulesFor f) $ \ rew' ->
     unless (rewName rew == rewName rew') $
-      checkConfluenceTop rew rew'
+      checkConfluenceTop hdf rew rew'
 
   -- Step 2: check other rewrite rules that overlap with a subpattern
   -- of this rewrite rule
   es <- nlPatToTerm qs
-  forMM_ (addContext tel $ allHolesList (fa, Def f []) es) $ \ hole ->
-    case ohContents hole of
-      Def g qs' -> forMM_ (getClausesAndRewriteRulesFor g) $ \ rew' ->
-        checkConfluenceSub rew rew' hole
-      _ -> return ()
+  forMM_ (addContext tel $ allHolesList (fa, hdf) es) $ \ hole ->
+    caseMaybe (headView $ ohContents hole) __IMPOSSIBLE__ $ \ (g , hdg , _) -> do
+      rews <- if
+        | isClause  -> getRewriteRulesFor g
+        | otherwise -> getClausesAndRewriteRulesFor g
+      forM_ rews $ \rew' -> checkConfluenceSub hdf hdg rew rew' hole
 
   -- Step 3: check other rewrite rules that have a subpattern which
   -- overlaps with this rewrite rule
@@ -97,18 +108,17 @@ checkConfluenceOfRule rew = inTopContext $ do
       es' <- nlPatToTerm (rewPats rew')
       let tel' = rewContext rew'
       def' <- getConstInfo g
-      ga <- addContext tel' $ typeOfHead def' (rewType rew')
-      forMM_ (addContext tel' $ allHolesList (ga , Def g []) es') $ \ hole ->
-        case ohContents hole of
-          Def f' _ | f == f' -> checkConfluenceSub rew' rew hole
-          _ -> return ()
+      (ga , hdg) <- addContext tel' $ makeHead def' (rewType rew')
+      forMM_ (addContext tel' $ allHolesList (ga , hdg) es') $ \ hole ->
+        caseMaybe (headView $ ohContents hole) __IMPOSSIBLE__ $ \ (f' , _ , _) ->
+          when (f == f') $ checkConfluenceSub hdg hdf rew' rew hole
 
   where
 
     -- Check confluence of two rewrite rules that have the same head symbol,
     -- e.g. @f ps --> a@ and @f ps' --> b@.
-    checkConfluenceTop :: RewriteRule -> RewriteRule -> TCM ()
-    checkConfluenceTop rew1 rew2 =
+    checkConfluenceTop :: (Elims -> Term) -> RewriteRule -> RewriteRule -> TCM ()
+    checkConfluenceTop hd rew1 rew2 =
       traceCall (CheckConfluence (rewName rew1) (rewName rew2)) $
       localTCStateSavingWarnings $ do
 
@@ -128,8 +138,8 @@ checkConfluenceOfRule rew = inTopContext $ do
             (es1' , es1r) = splitAt n es1
             (es2' , es2r) = splitAt n es2
 
-            lhs1 = Def f $ es1' ++ es2r
-            lhs2 = Def f $ es2' ++ es1r
+            lhs1 = hd $ es1' ++ es2r
+            lhs2 = hd $ es2' ++ es1r
 
             -- Use type of rewrite rule with the most eliminations
             a | null es1r = a2
@@ -146,7 +156,7 @@ checkConfluenceOfRule rew = inTopContext $ do
           fa   <- defType <$> getConstInfo f
           fpol <- getPolarity' CmpEq f
           onlyReduceTypes $
-            compareElims fpol [] fa (Def f []) es1' es2'
+            compareElims fpol [] fa (hd []) es1' es2'
 
           -- Get the rhs of both rewrite rules (after unification). In
           -- case of different arities, add additional arguments from
@@ -161,8 +171,8 @@ checkConfluenceOfRule rew = inTopContext $ do
 
     -- Check confluence between two rules that overlap at a subpattern,
     -- e.g. @f ps[g qs] --> a@ and @g qs' --> b@.
-    checkConfluenceSub :: RewriteRule -> RewriteRule -> OneHole Elims -> TCM ()
-    checkConfluenceSub rew1 rew2 hole0 =
+    checkConfluenceSub :: (Elims -> Term) -> (Elims -> Term) -> RewriteRule -> RewriteRule -> OneHole Elims -> TCM ()
+    checkConfluenceSub hdf hdg rew1 rew2 hole0 =
       traceCall (CheckConfluence (rewName rew1) (rewName rew2)) $
       localTCStateSavingWarnings $ do
 
@@ -172,14 +182,15 @@ checkConfluenceOfRule rew = inTopContext $ do
             bvTel0     = ohBoundVars hole0
             k          = size bvTel0
             b0         = applySubst (liftS k sub1) $ ohType hole0
-            Def g es0  = applySubst (liftS k sub1) $ ohContents hole0
+            (g,_,es0)  = fromMaybe __IMPOSSIBLE__ $ headView $
+                           applySubst (liftS k sub1) $ ohContents hole0
             qs2        = rewPats rew2
 
         -- If the second rewrite rule has more eliminations than the
         -- subpattern of the first rule, the only chance of overlap is
         -- by eta-expanding the subpattern of the first rule.
         hole1 <- addContext bvTel0 $
-          forceEtaExpansion b0 (Def g es0) $ drop (size es0) qs2
+          forceEtaExpansion b0 (hdg es0) $ drop (size es0) qs2
 
         verboseS "rewriting.confluence.eta" 30 $
           unless (size es0 == size qs2) $
@@ -191,7 +202,7 @@ checkConfluenceOfRule rew = inTopContext $ do
             ]
 
         let hole      = hole1 `composeHole` hole0
-            Def g es' = ohContents hole -- g == rewHead rew2
+            (g,_,es') = fromMaybe __IMPOSSIBLE__ $ headView $ ohContents hole -- g == rewHead rew2
             bvTel     = ohBoundVars hole
             plug      = ohPlugHole hole
 
@@ -207,8 +218,8 @@ checkConfluenceOfRule rew = inTopContext $ do
         let n = size es2
             (es1' , es1r) = splitAt n es1
 
-        let lhs1 = applySubst sub1 $ Def f $ plug $ Def g es1
-            lhs2 = applySubst sub1 $ Def f $ plug $ Def g $ es2 ++ es1r
+        let lhs1 = applySubst sub1 $ hdf $ plug $ hdg es1
+            lhs2 = applySubst sub1 $ hdf $ plug $ hdg $ es2 ++ es1r
             a    = applySubst sub1 $ rewType rew1
 
         reportSDoc "rewriting.confluence" 20 $ sep
@@ -223,7 +234,7 @@ checkConfluenceOfRule rew = inTopContext $ do
           ga   <- defType <$> getConstInfo g
           gpol <- getPolarity' CmpEq g
           onlyReduceTypes $ addContext bvTel $
-            compareElims gpol [] ga (Def g []) es1' es2
+            compareElims gpol [] ga (hdg []) es1' es2
 
           -- Right-hand side of first rewrite rule (after unification)
           let rhs1 = applySubst sub1 $ rewRHS rew1
@@ -235,18 +246,24 @@ checkConfluenceOfRule rew = inTopContext $ do
             [ "Plugging hole with w = "
             , nest 2 $ addContext bvTel $ prettyTCM w
             ]
-          let rhs2 = applySubst sub1 $ Def f $ plug w
+          let rhs2 = applySubst sub1 $ hdf $ plug w
 
           return (rhs1 , rhs2)
 
         whenJust maybeCriticalPair $ \ (rhs1 , rhs2) ->
           checkCriticalPair a lhs2 rhs1 rhs2
 
-    typeOfHead :: Definition -> Type -> TCM Type
-    typeOfHead def a = case theDef def of
-      Constructor{ conSrcCon = ch } ->
-        snd . fromMaybe __IMPOSSIBLE__ <$> getFullyAppliedConType ch a
-      _ -> return $ defType def
+    headView :: Term -> Maybe (QName, Elims -> Term, Elims)
+    headView (Def f es) = Just (f , Def f , es)
+    headView (Con c ci es) = Just (conName c , Con c ci , es)
+    headView _ = Nothing
+
+    makeHead :: Definition -> Type -> TCM (Type , Elims -> Term)
+    makeHead def a = case theDef def of
+      Constructor{ conSrcCon = ch } -> do
+        ca <- snd . fromMaybe __IMPOSSIBLE__ <$> getFullyAppliedConType ch a
+        return (ca , Con ch ConOSystem)
+      _ -> return (defType def , Def $ defName def)
 
     getClausesAndRewriteRulesFor :: QName -> TCM [RewriteRule]
     getClausesAndRewriteRulesFor f =
@@ -356,7 +373,7 @@ ohAddBV x a oh = oh { ohBoundVars = ExtendTel a $ Abs x $ ohBoundVars oh }
 
 -- ^ Given a @p : a@, @allHoles p@ lists all the possible
 --   decompositions @p = p'[(f ps)/x]@.
-class (Subst Term p , Subst Term (PType p), Free p) => AllHoles p where
+class (Subst Term p , Free p) => AllHoles p where
   type PType p
   allHoles :: (Alternative m , MonadReduce m, MonadAddContext m, HasBuiltins m, HasConstInfo m)
            => PType p -> p -> m (OneHole p)
@@ -442,31 +459,37 @@ instance AllHoles p => AllHoles (Dom p) where
   type PType (Dom p) = PType p
   allHoles a x = fmap (x $>) <$> allHoles a (unDom x)
 
-instance (AllHoles p) => AllHoles (Abs p) where
-  type PType (Abs p) = (Dom Type , Abs (PType p))
+instance AllHoles (Abs Term) where
+  type PType (Abs Term) = (Dom Type , Abs Type)
   allHoles (dom , a) x = addContext (absName x , dom) $
     ohAddBV (absName a) dom . fmap (mkAbs $ absName x) <$>
       allHoles (absBody a) (absBody x)
 
+instance AllHoles (Abs Type) where
+  type PType (Abs Type) = Dom Type
+  allHoles dom a = addContext (absName a , dom) $
+    ohAddBV (absName a) dom . fmap (mkAbs $ absName a) <$>
+      allHoles_ (absBody a)
+
 instance AllHoles Elims where
-  type PType Elims = (Type,Term)
+  type PType Elims = (Type , Elims -> Term)
   allHoles (a,hd) [] = empty
   allHoles (a,hd) (e:es) = do
     reportSDoc "rewriting.confluence.hole" 65 $ fsep
-      [ "Head symbol" , prettyTCM hd , ":" , prettyTCM a
+      [ "Head symbol" , prettyTCM (hd []) , ":" , prettyTCM a
       , "is eliminated by" , prettyTCM e
       ]
     case e of
       Apply x -> do
         ~(Pi b c) <- unEl <$> reduce a
         let a'  = c `absApp` unArg x
-            hd' = hd `applyE` [e]
+            hd' = hd . (e:)
         (fmap ((:es) . Apply) <$> allHoles b x)
          <|> (fmap (e:) <$> allHoles (a' , hd') es)
       Proj o f -> do
         ~(Just (El _ (Pi b c))) <- getDefType f =<< reduce a
-        let a' = c `absApp` hd
-        hd' <- applyDef o f (argFromDom b $> hd)
+        let a' = c `absApp` hd []
+        hd' <- applyE <$> applyDef o f (argFromDom b $> hd [])
         fmap (e:) <$> allHoles (a' , hd') es
       IApply x y u -> __IMPOSSIBLE__ -- Not yet implemented
 
@@ -483,7 +506,7 @@ instance AllHoles Term where
     case u of
       Var i es       -> do
         ai <- typeOfBV i
-        fmap (Var i) <$> allHoles (ai , var i) es
+        fmap (Var i) <$> allHoles (ai , Var i) es
       Lam i u        -> do
         ~(Pi b c) <- unEl <$> reduce a
         fmap (Lam i) <$> allHoles (b,c) u
@@ -491,14 +514,15 @@ instance AllHoles Term where
       v@(Def f es)   -> do
         fa <- defType <$> getConstInfo f
         pure (idHole a v)
-         <|> (fmap (Def f) <$> allHoles (fa , Def f []) es)
+         <|> (fmap (Def f) <$> allHoles (fa , Def f) es)
       v@(Con c ci es) -> do
-        ca <- snd . fromMaybe __IMPOSSIBLE__ <$> getFullyAppliedConType c a
+        ca <- snd . fromMaybe __IMPOSSIBLE__ <$> do
+          getFullyAppliedConType c =<< reduce a
         pure (idHole a v)
-         <|> (fmap (Con c ci) <$> allHoles (ca , Con c ci []) es)
+         <|> (fmap (Con c ci) <$> allHoles (ca , Con c ci) es)
       Pi a b         ->
         (fmap (\a -> Pi a b) <$> allHoles_ a) <|>
-        (fmap (\b -> Pi a b) <$> allHoles (a, void b) b)
+        (fmap (\b -> Pi a b) <$> allHoles a b)
       Sort s         -> fmap Sort <$> allHoles_ s
       Level l        -> fmap Level <$> allHoles_ l
       MetaV{}        -> __IMPOSSIBLE__
@@ -517,7 +541,7 @@ instance AllHoles Sort where
     MetaS{}      -> __IMPOSSIBLE__
     DefS f es    -> do
       fa <- defType <$> getConstInfo f
-      fmap (DefS f) <$> allHoles (fa , Def f []) es
+      fmap (DefS f) <$> allHoles (fa , Def f) es
     DummyS{}     -> empty
 
 instance AllHoles Level where
