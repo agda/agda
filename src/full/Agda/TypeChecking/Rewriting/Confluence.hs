@@ -72,7 +72,12 @@ checkConfluenceOfRule = checkConfluenceOfRule' False
 checkConfluenceOfClause :: QName -> Int -> Clause -> TCM ()
 checkConfluenceOfClause f i cl = do
   fi <- clauseQName f i
-  whenJust (clauseToRewriteRule f fi cl) $ checkConfluenceOfRule' True
+  whenJust (clauseToRewriteRule f fi cl) $ \rew -> do
+    checkConfluenceOfRule' True rew
+    let matchables = getMatchables rew
+    reportSDoc "rewriting.confluence" 30 $
+      "Function" <+> prettyTCM f <+> "has matchable symbols" <+> prettyList_ (map prettyTCM matchables)
+    modifySignature $ setMatchableSymbols f matchables
 
 checkConfluenceOfRule' :: Bool -> RewriteRule -> TCM ()
 checkConfluenceOfRule' isClause rew = inTopContext $ do
@@ -104,7 +109,7 @@ checkConfluenceOfRule' isClause rew = inTopContext $ do
   -- Step 3: check other rewrite rules that have a subpattern which
   -- overlaps with this rewrite rule
   forM_ (defMatchable def) $ \ g -> do
-    forMM_ (getRewriteRulesFor g) $ \ rew' -> do
+    forMM_ (getClausesAndRewriteRulesFor g) $ \ rew' -> do
       es' <- nlPatToTerm (rewPats rew')
       let tel' = rewContext rew'
       def' <- getConstInfo g
@@ -312,7 +317,7 @@ checkConfluenceOfRule' isClause rew = inTopContext $ do
       (gamma , (a,lhs,rhs1,rhs2)) <- fromMaybe __IMPOSSIBLE__ <$>
         abstractOverMetas ms (a,lhs,rhs1,rhs2)
 
-      reportSDoc "rewriting.confluence" 10 $ sep
+      addContext gamma $ reportSDoc "rewriting.confluence" 10 $ sep
         [ "Found critical pair: " , nest 2 $ prettyTCM rhs1
         , " =?= " , nest 2 $ prettyTCM rhs2
         , " : " , nest 2 $ prettyTCM a ]

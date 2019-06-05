@@ -1,0 +1,6 @@
+Issue3538-2.agda:19,13-16
+Confluence check failed: unD (c ((_ : Nat) → Nat)) reduces to both
+(_ : Nat) → Nat and unD (c (Nat → Bool))
+which are not equal because Nat != Bool of type Set
+when checking confluence of the rewrite rule
+Issue3538-2.unD-clause1 with rew
