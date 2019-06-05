@@ -226,8 +226,9 @@ addRewriteRule q = do
       -- Find head symbol f of the lhs, its type and its arguments.
       (f , hd , t , es) <- case lhs of
         Def f es -> do
-          t <- defType <$> getConstInfo f
-          return (f , Def f , t , es)
+          def <- getConstInfo f
+          checkAxFunOrCon f def
+          return (f , Def f , defType def , es)
         Con c ci vs -> do
           let hd = Con c ci
           ~(Just ((_ , _ , pars) , t)) <- getFullyAppliedConType c $ unDom b
@@ -307,6 +308,18 @@ addRewriteRule q = do
                    compareElims pol [] a (Def f []) es es'
           unless ok fail
         _ -> fail
+
+    checkAxFunOrCon :: QName -> Definition -> TCM ()
+    checkAxFunOrCon f def = case theDef def of
+      Axiom{}        -> return ()
+      Function{}     -> return ()
+      Constructor{}  -> return ()
+      AbstractDefn{} -> return ()
+      Primitive{}    -> return () -- TODO: is this fine?
+      _              -> typeError . GenericDocError =<< hsep
+        [ prettyTCM q , " is not a legal rewrite rule, since the head symbol"
+        , prettyTCM f , "is not a postulate, a function, or a constructor"
+        ]
 
     ifNotAlreadyAdded :: QName -> TCM () -> TCM ()
     ifNotAlreadyAdded f cont = do

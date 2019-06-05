@@ -18,9 +18,14 @@ open import Agda.Builtin.Equality
 1ℓ : Level
 1ℓ = lsuc lzero
 
-record Lift {a} ℓ (A : Set a) : Set (a ⊔ ℓ) where
-  constructor lift
-  field lower : A
+-- Jesper, 2019-06-07: Rewrite rules on type constructors are no
+-- longer allowed, so we have to postulate Lift instead.
+postulate
+  Lift : ∀ {a} ℓ (A : Set a) → Set (a ⊔ ℓ)
+  lift : ∀ {a} {ℓ} {A : Set a} → A → Lift ℓ A
+  lower : ∀ {a} {ℓ} {A : Set a} → Lift ℓ A → A
+  lower-lift : ∀ {a} {ℓ} {A : Set a} → (x : A) → lower {ℓ = ℓ} (lift x) ≡ x
+{-# REWRITE lower-lift #-}
 
 postulate
   prod  : {ℓ ℓ′ : Level} → (A : Set ℓ) → (B : Set ℓ′) → Set (ℓ ⊔ ℓ′)
