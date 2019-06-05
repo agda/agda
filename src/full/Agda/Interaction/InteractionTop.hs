@@ -534,18 +534,18 @@ interpret (Cmd_solveOne norm ii _ _) = solveInstantiatedGoals norm' (Just ii)
 interpret (Cmd_infer_toplevel norm s) = do
   (time, expr) <- parseAndDoAtToplevel' (B.typeInCurrent norm) s
   state <- get
-  display_info $ Info_InferredType_TopLevel state time expr
+  display_info $ Info_InferredType state time expr
 
 interpret (Cmd_compute_toplevel cmode s) = do
   (time, expr) <- parseAndDoAtToplevel' action (computeWrapInput cmode s)
   state <- get
-  display_info $ Info_NormalForm_TopLevel state cmode time expr
+  display_info $ Info_NormalForm state cmode time expr
     where
     action = allowNonTerminatingReductions
            . (if computeIgnoreAbstract cmode then ignoreAbstractMode else inConcreteMode)
            . B.evalInCurrent
 -- interpret (Cmd_compute_toplevel cmode s) =
---   parseAndDoAtToplevel action Info_NormalForm_TopLevel $ computeWrapInput cmode s
+--   parseAndDoAtToplevel action Info_NormalForm $ computeWrapInput cmode s
 --   where
 --   action = allowNonTerminatingReductions
 --          . (if computeIgnoreAbstract cmode then ignoreAbstractMode else inConcreteMode)

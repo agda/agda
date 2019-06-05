@@ -144,7 +144,7 @@ lispifyDisplayInfo info = case info of
       s <- serializeInfoError err
       format s "*Error*"
     Info_Time s -> format (render $ prettyTimed s) "*Time*"
-    Info_NormalForm_TopLevel state cmode time expr -> do
+    Info_NormalForm state cmode time expr -> do
       exprDoc <- evalStateT prettyExpr state
       let doc = maybe empty prettyTimed time $$ exprDoc
       format (render doc) "*Normal Form*"
@@ -156,7 +156,7 @@ lispifyDisplayInfo info = case info of
             $ (if computeIgnoreAbstract cmode then ignoreAbstractMode else inConcreteMode)
             $ (B.showComputed cmode)
             $ expr
-    Info_InferredType_TopLevel state time expr -> do
+    Info_InferredType state time expr -> do
       exprDoc <- evalStateT prettyExpr state
       let doc = maybe empty prettyTimed time $$ exprDoc
       format (render doc) "*Inferred Type*"

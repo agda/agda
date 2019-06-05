@@ -95,7 +95,7 @@ instance ToJSON DisplayInfo where
   --   [ "kind"        .= String "WhyInScope"
   --   , "payload"     .= Null
   --   ]
-  -- toJSON (Info_NormalForm_TopLevel _) = object
+  -- toJSON (Info_NormalForm _) = object
   --   [ "kind"        .= String "NormalForm"
   --   , "payload"     .= Null
   --   ]

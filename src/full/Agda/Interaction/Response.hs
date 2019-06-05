@@ -17,7 +17,8 @@ module Agda.Interaction.Response
   , defaultInteractionOutputCallback
   ) where
 
-import {-# SOURCE #-} Agda.Interaction.BasicOps (Goals, WarningsAndNonFatalErrors, OutputForm, ComputeMode, Rewrite, OutputConstraint')
+import {-# SOURCE #-} Agda.Interaction.BasicOps
+  (Goals, WarningsAndNonFatalErrors, OutputForm, ComputeMode, Rewrite, OutputConstraint')
 import Agda.Interaction.Base (CommandState)
 import Agda.Interaction.Highlighting.Precise
 import qualified Agda.Syntax.Abstract as A
@@ -26,7 +27,8 @@ import Agda.Syntax.Concrete (Expr, Name)
 import Agda.Syntax.Concrete.Name (NameInScope)
 import Agda.Syntax.Scope.Base (AbstractModule, AbstractName, LocalVar)
 import qualified Agda.Syntax.Internal as I
-import {-# SOURCE #-} Agda.TypeChecking.Monad.Base (TCM, TCErr, TCWarning, HighlightingMethod, ModuleToSource)
+import {-# SOURCE #-} Agda.TypeChecking.Monad.Base
+  (TCM, TCErr, TCWarning, HighlightingMethod, ModuleToSource)
 import Agda.Utils.Impossible
 import Agda.Utils.Time
 
@@ -94,8 +96,8 @@ data DisplayInfo
     | Info_ModuleContents [Name] I.Telescope [(Name, I.Type)]
     | Info_SearchAbout [(Name, I.Type)] String
     | Info_WhyInScope String FilePath (Maybe LocalVar) [AbstractName] [AbstractModule]
-    | Info_NormalForm_TopLevel CommandState ComputeMode (Maybe CPUTime) A.Expr
-    | Info_InferredType_TopLevel CommandState (Maybe CPUTime) A.Expr
+    | Info_NormalForm CommandState ComputeMode (Maybe CPUTime) A.Expr
+    | Info_InferredType CommandState (Maybe CPUTime) A.Expr
     | Info_Context [RespContextEntry]
     | Info_Version
     | Info_GoalSpecific InteractionId GoalDisplayInfo
