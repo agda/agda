@@ -560,8 +560,13 @@ library
   other-modules:    Paths_Agda
 
   -- NOTE: If adding flags, also add to `.ghci800`
-  ghc-options: -fexpose-all-unfoldings
-               -fspecialise-aggressively
+  ghc-options:
+               -- Andreas, 2019-06-02: the following optimization flags
+               -- make compilation of Agda too slow.  I turn them off
+               -- in the development version.  Turn on for the release!
+               -- -fexpose-all-unfoldings
+               -- -fspecialise-aggressively
+
                -- Initially, we disable all the warnings.
                -w
                -Werror
