@@ -344,6 +344,8 @@ Individual warnings can be turned on and off by ``-W {Name}`` and ``-W
 
 :samp:`AbsurdPatternRequiresNoRHS`
       RHS given despite an absurd pattern in the LHS.
+:samp:`CantGeneralizeOverSorts`
+      Attempt to generalize over sort metas in 'variable' declaration.
 :samp:`CoverageIssue`
       Failed coverage checks.
 :samp:`CoverageNoExactSplit`
@@ -360,10 +362,20 @@ Individual warnings can be turned on and off by ``-W {Name}`` and ``-W
       Empty ``mutual`` blocks.
 :samp:`EmptyPostulate`
       Empty ``postulate`` blocks.
+:samp:`EmptyPrimitive`
+      Empty ``primitive`` blocks.
 :samp:`EmptyPrivate`
       Empty ``private`` blocks.
 :samp:`EmptyRewritePragma`
       Empty ``REWRITE`` pragmas.
+:samp:`IllformedAsClause`
+      Illformed ``as``-clauses in ``import`` statements.
+:samp:`InstanceNoOutputTypeName`
+      Instance arguments whose type does not end in a named or variable type are never considered by instance search.
+:samp:`InstanceArgWithExplicitArg`
+      Instance arguments with explicit arguments are never considered by instance search.
+:samp:`InstanceWithExplicitArg`
+      Instance declarations with explicit arguments are never considered by instance search.
 :samp:`InvalidCatchallPragma`
       ``CATCHALL`` pragmas before a non-function clause.
 :samp:`InvalidNoPositivityCheckPragma`
@@ -372,6 +384,8 @@ Individual warnings can be turned on and off by ``-W {Name}`` and ``-W
       Termination checking pragmas before non-function or ``mutual`` blocks.
 :samp:`InversionDepthReached`
       Inversions of pattern-matching failed due to exhausted inversion depth.
+:samp:`LibUnknownField`
+      Unknown field in library file.
 :samp:`MissingDefinitions`
       Names declared without an accompanying definition.
 :samp:`ModuleDoesntExport`
@@ -386,20 +400,30 @@ Individual warnings can be turned on and off by ``-W {Name}`` and ``-W
       Multi-line comments spanning one or more literate text blocks.
 :samp:`PolarityPragmasButNotPostulates`
       Polarity pragmas for non-postulates.
-:samp:`SafeFlagNoPositivityCheck`
-      ``NO_POSITIVITY_CHECK`` pragmas with the safe flag.
+:samp:`PragmaCompiled`
+      ``COMPILE`` pragmas not allowed in safe mode.
+:samp:`PragmaNoTerminationCheck`
+      ``NO_TERMINATION_CHECK`` pragmas are deprecated.
+:samp:`RewriteMaybeNonConfluent`
+      Failed confluence checks while computing overlap.
+:samp:`RewriteNonConfluent`
+      Failed confluence checks while joining critical pairs.
 :samp:`SafeFlagNonTerminating`
       ``NON_TERMINATING`` pragmas with the safe flag.
+:samp:`SafeFlagNoPositivityCheck`
+      ``NO_POSITIVITY_CHECK`` pragmas with the safe flag.
+:samp:`SafeFlagNoUniverseCheck`
+      ``NO_UNIVERSE_CHECK`` pragmas with the safe flag.
 :samp:`SafeFlagPolarity`
       ``POLARITY`` pragmas with the safe flag.
 :samp:`SafeFlagPostulate`
       ``postulate`` blocks with the safe flag
 :samp:`SafeFlagPragma`
       Unsafe ``OPTIONS`` pragmas with the safe flag.
-:samp:`SafeFlagPrimTrustMe`
-      ``primTrustMe`` usages with the safe flag.
 :samp:`SafeFlagTerminating`
       ``TERMINATING`` pragmas with the safe flag.
+:samp:`SafeFlagWithoutKFlagPrimEraseEquality`
+      ``primEraseEquality`` used with the safe and without-K flags.
 :samp:`TerminationIssue`
       Failed termination checks.
 :samp:`UnknownFixityInMixfixDecl`
@@ -426,6 +450,14 @@ Individual warnings can be turned on and off by ``-W {Name}`` and ``-W
       ``private`` blocks where they have no effect.
 :samp:`UselessPublic`
       ``public`` blocks where they have no effect.
+:samp:`WithoutKFlagPrimEraseEquality`
+      ``primEraseEquality`` used with the without-K flags.
+:samp:`WrongInstanceDeclaration`
+      Terms marked as eligible for instance search should end with a name.
+:samp:`CoInfectiveImport`
+      Importing a file not using e.g. ``--safe``  from one which does.
+:samp:`InfectiveImport`
+      Importing a file using e.g. ``--cubical`` into one which doesn't.
 
 For example, the following command runs Agda with all warnings
 enabled, except for warnings about empty ``abstract`` blocks:
