@@ -139,22 +139,23 @@ data WarningName
   | LibUnknownField_
   -- Nicifer Warnings
   | EmptyAbstract_
+  | EmptyGeneralize_
   | EmptyInstance_
   | EmptyMacro_
   | EmptyMutual_
   | EmptyPostulate_
-  | EmptyPrivate_
-  | EmptyGeneralize_
   | EmptyPrimitive_
+  | EmptyPrivate_
+  | EmptyRewritePragma_
   | InvalidCatchallPragma_
+  | InvalidNoPositivityCheckPragma_
   | InvalidNoUniverseCheckPragma_
   | InvalidTerminationCheckPragma_
-  | InvalidNoPositivityCheckPragma_
   | MissingDefinitions_
   | NotAllowedInMutual_
   | PolarityPragmasButNotPostulates_
-  | PragmaNoTerminationCheck_
   | PragmaCompiled_
+  | PragmaNoTerminationCheck_
   | UnknownFixityInMixfixDecl_
   | UnknownNamesInFixityDecl_
   | UnknownNamesInPolarityPragmas_
@@ -162,45 +163,44 @@ data WarningName
   | UselessInstance_
   | UselessPrivate_
   -- Scope and Type Checking Warnings
-  | OldBuiltin_
-  | EmptyRewritePragma_
-  | IllformedAsClause_
-  | UselessPublic_
-  | UnreachableClauses_
-  | UselessInline_
-  | WrongInstanceDeclaration_
-  | InstanceWithExplicitArg_
-  | InstanceNoOutputTypeName_
-  | InstanceArgWithExplicitArg_
-  | GenericWarning_
-  | DeprecationWarning_
-  | InversionDepthReached_
-  | TerminationIssue_
+  | AbsurdPatternRequiresNoRHS_
+  | CantGeneralizeOverSorts_
   | CoverageIssue_
   | CoverageNoExactSplit_
+  | DeprecationWarning_
+  | GenericNonFatalError_
+  | GenericWarning_
+  | IllformedAsClause_
+  | InstanceArgWithExplicitArg_
+  | InstanceWithExplicitArg_
+  | InstanceNoOutputTypeName_
+  | InversionDepthReached_
   | ModuleDoesntExport_
   | NotStrictlyPositive_
-  | UnsolvedMetaVariables_
-  | UnsolvedInteractionMetas_
-  | UnsolvedConstraints_
-  | GenericNonFatalError_
+  | OldBuiltin_
+  | RewriteMaybeNonConfluent_
+  | RewriteNonConfluent_
+  | SafeFlagNoPositivityCheck_
+  | SafeFlagNonTerminating_
+  | SafeFlagNoUniverseCheck_
+  | SafeFlagPolarity_
   | SafeFlagPostulate_
   | SafeFlagPragma_
-  | SafeFlagNonTerminating_
   | SafeFlagTerminating_
   | SafeFlagWithoutKFlagPrimEraseEquality_
-  | SafeFlagNoPositivityCheck_
-  | SafeFlagPolarity_
-  | SafeFlagNoUniverseCheck_
+  | TerminationIssue_
+  | UnreachableClauses_
+  | UnsolvedConstraints_
+  | UnsolvedInteractionMetas_
+  | UnsolvedMetaVariables_
+  | UselessInline_
+  | UselessPublic_
   | UserWarning_
   | WithoutKFlagPrimEraseEquality_
-  | CantGeneralizeOverSorts_
-  | AbsurdPatternRequiresNoRHS_
+  | WrongInstanceDeclaration_
   -- Checking consistency of options
-  | InfectiveImport_
   | CoInfectiveImport_
-  | RewriteNonConfluent_
-  | RewriteMaybeNonConfluent_
+  | InfectiveImport_
   deriving (Eq, Ord, Show, Read, Enum, Bounded)
 
 -- | The flag corresponding to a warning is precisely the name of the constructor
@@ -247,18 +247,20 @@ usageWarning = intercalate "\n"
 
 warningNameDescription :: WarningName -> String
 warningNameDescription w = case w of
+  -- Parser Warnings
   OverlappingTokensWarning_        -> "Multi-line comments spanning one or more literate text blocks."
   -- Library Warnings
-  LibUnknownField_                 -> "Unknown field in library file"
+  LibUnknownField_                 -> "Unknown field in library file."
   -- Nicifer Warnings
   EmptyAbstract_                   -> "Empty `abstract' blocks."
+  EmptyGeneralize_                 -> "Empty `variable' blocks."
   EmptyInstance_                   -> "Empty `instance' blocks."
   EmptyMacro_                      -> "Empty `macro' blocks."
   EmptyMutual_                     -> "Empty `mutual' blocks."
   EmptyPostulate_                  -> "Empty `postulate' blocks."
-  EmptyPrivate_                    -> "Empty `private' blocks."
-  EmptyGeneralize_                 -> "Empty `variable' blocks."
   EmptyPrimitive_                  -> "Empty `primitive' blocks."
+  EmptyPrivate_                    -> "Empty `private' blocks."
+  EmptyRewritePragma_              -> "Empty `REWRITE' pragmas."
   InvalidCatchallPragma_           -> "`CATCHALL' pragmas before a non-function clause."
   InvalidNoPositivityCheckPragma_  -> "No positivity checking pragmas before non-`data', `record' or `mutual' blocks."
   InvalidNoUniverseCheckPragma_    -> "No universe checking pragmas before non-`data' or `record' declaration."
@@ -266,50 +268,50 @@ warningNameDescription w = case w of
   MissingDefinitions_              -> "Declarations not associated to a definition."
   NotAllowedInMutual_              -> "Declarations not allowed in a mutual block."
   PolarityPragmasButNotPostulates_ -> "Polarity pragmas for non-postulates."
-  PragmaNoTerminationCheck_        -> "`NO_TERMINATION_CHECK' pragmas are deprecated"
   PragmaCompiled_                  -> "'COMPILE' pragmas not allowed in safe mode."
+  PragmaNoTerminationCheck_        -> "`NO_TERMINATION_CHECK' pragmas are deprecated"
   UnknownFixityInMixfixDecl_       -> "Mixfix names without an associated fixity declaration."
   UnknownNamesInFixityDecl_        -> "Names not declared in the same scope as their syntax or fixity declaration."
   UnknownNamesInPolarityPragmas_   -> "Names not declared in the same scope as their polarity pragmas."
   UselessAbstract_                 -> "`abstract' blocks where they have no effect."
+  UselessInline_                   -> "`INLINE' pragmas where they have no effect."
   UselessInstance_                 -> "`instance' blocks where they have no effect."
   UselessPrivate_                  -> "`private' blocks where they have no effect."
-  -- Scope and Type Checking Warnings
-  OldBuiltin_                      -> "Deprecated `BUILTIN' pragmas."
-  EmptyRewritePragma_              -> "Empty `REWRITE' pragmas."
-  IllformedAsClause_               -> "Illformed `as'-clauses in `import' statements."
   UselessPublic_                   -> "`public' blocks where they have no effect."
-  UselessInline_                   -> "`INLINE' pragmas where they have no effect."
-  WrongInstanceDeclaration_        -> "Terms marked as eligible for instance search should end with a name."
-  InstanceWithExplicitArg_         -> "`instance` declarations with explicit arguments are never considered by instance search."
-  InstanceNoOutputTypeName_        -> "instance arguments whose type does not end in a named or variable type are never considered by instance search."
-  InstanceArgWithExplicitArg_      -> "instance arguments with explicit arguments are never considered by instance search."
-  UnreachableClauses_              -> "Unreachable function clauses."
-  GenericWarning_                  -> ""
-  DeprecationWarning_              -> "Feature deprecation."
-  InversionDepthReached_           -> "Inversions of pattern-matching failed due to exhausted inversion depth."
-  TerminationIssue_                -> "Failed termination checks."
-  CoverageIssue_                   -> "Failed coverage checks."
-  CoverageNoExactSplit_            -> "Failed exact split checks."
-  ModuleDoesntExport_              -> "Imported name is not actually exported."
-  NotStrictlyPositive_             -> "Failed strict positivity checks."
-  UnsolvedMetaVariables_           -> "Unsolved meta variables."
-  UnsolvedInteractionMetas_        -> "Unsolved interaction meta variables."
-  UnsolvedConstraints_             -> "Unsolved constraints."
-  GenericNonFatalError_            -> ""
-  SafeFlagPostulate_               -> "`postulate' blocks with the safe flag"
-  SafeFlagPragma_                  -> "Unsafe `OPTIONS' pragmas with the safe flag."
-  SafeFlagNonTerminating_          -> "`NON_TERMINATING' pragmas with the safe flag."
-  SafeFlagTerminating_             -> "`TERMINATING' pragmas with the safe flag."
-  SafeFlagWithoutKFlagPrimEraseEquality_ -> "`primEraseEquality' usages with the safe and without-K flags."
-  SafeFlagNoPositivityCheck_       -> "`NO_POSITIVITY_CHECK' pragmas with the safe flag."
-  SafeFlagPolarity_                -> "`POLARITY' pragmas with the safe flag."
-  SafeFlagNoUniverseCheck_         -> "`NO_UNIVERSE_CHECK' pragmas with the safe flag."
-  UserWarning_                     -> "User-defined warning added using one of the 'WARNING_ON_*' pragmas."
+  -- Scope and Type Checking Warnings
   AbsurdPatternRequiresNoRHS_      -> "A clause with an absurd pattern does not need a Right Hand Side."
   CantGeneralizeOverSorts_         -> "Attempt to generalize over sort metas in 'variable' declaration."
-  WithoutKFlagPrimEraseEquality_   -> "`primEraseEquality' usages with the without-K flags."
-  InfectiveImport_                 -> "Importing a file using e.g. `--cubical' into one which doesn't"
-  CoInfectiveImport_               -> "Importing a file not using e.g. `--safe'  from one which does"
-  RewriteNonConfluent_           -> "Failed confluence checks while joining critical pairs."
+  CoverageIssue_                   -> "Failed coverage checks."
+  CoverageNoExactSplit_            -> "Failed exact split checks."
+  DeprecationWarning_              -> "Feature deprecation."
+  GenericNonFatalError_            -> ""
+  GenericWarning_                  -> ""
+  IllformedAsClause_               -> "Illformed `as'-clauses in `import' statements."
+  InstanceNoOutputTypeName_        -> "instance arguments whose type does not end in a named or variable type are never considered by instance search."
+  InstanceArgWithExplicitArg_      -> "instance arguments with explicit arguments are never considered by instance search."
+  InstanceWithExplicitArg_         -> "`instance` declarations with explicit arguments are never considered by instance search."
+  InversionDepthReached_           -> "Inversions of pattern-matching failed due to exhausted inversion depth."
+  ModuleDoesntExport_              -> "Imported name is not actually exported."
+  NotStrictlyPositive_             -> "Failed strict positivity checks."
+  OldBuiltin_                      -> "Deprecated `BUILTIN' pragmas."
   RewriteMaybeNonConfluent_      -> "Failed confluence checks while computing overlap."
+  RewriteNonConfluent_           -> "Failed confluence checks while joining critical pairs."
+  SafeFlagNonTerminating_          -> "`NON_TERMINATING' pragmas with the safe flag."
+  SafeFlagNoPositivityCheck_       -> "`NO_POSITIVITY_CHECK' pragmas with the safe flag."
+  SafeFlagNoUniverseCheck_         -> "`NO_UNIVERSE_CHECK' pragmas with the safe flag."
+  SafeFlagPolarity_                -> "`POLARITY' pragmas with the safe flag."
+  SafeFlagPostulate_               -> "`postulate' blocks with the safe flag."
+  SafeFlagPragma_                  -> "Unsafe `OPTIONS' pragmas with the safe flag."
+  SafeFlagTerminating_             -> "`TERMINATING' pragmas with the safe flag."
+  SafeFlagWithoutKFlagPrimEraseEquality_ -> "`primEraseEquality' used with the safe and without-K flags."
+  TerminationIssue_                -> "Failed termination checks."
+  UnreachableClauses_              -> "Unreachable function clauses."
+  UnsolvedConstraints_             -> "Unsolved constraints."
+  UnsolvedInteractionMetas_        -> "Unsolved interaction meta variables."
+  UnsolvedMetaVariables_           -> "Unsolved meta variables."
+  UserWarning_                     -> "User-defined warning added using one of the 'WARNING_ON_*' pragmas."
+  WithoutKFlagPrimEraseEquality_   -> "`primEraseEquality' usages with the without-K flags."
+  WrongInstanceDeclaration_        -> "Terms marked as eligible for instance search should end with a name."
+  -- Checking consistency of options
+  CoInfectiveImport_               -> "Importing a file not using e.g. `--safe'  from one which does."
+  InfectiveImport_                 -> "Importing a file using e.g. `--cubical' into one which doesn't."
