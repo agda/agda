@@ -94,6 +94,9 @@ a warning to be raised whenever this module is imported.
 This would typically be used to declare a name or a module 'DEPRECATED' and
 advise the end-user to port their code before the feature is dropped.
 
+Users can turn these warnings off by using the ``--warn=noUserWarning`` option.
+For more information about the warning machinery, see :ref:`warnings`.
+
 Example::
 
   -- The new name for the identity
