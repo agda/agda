@@ -281,9 +281,8 @@ anyBlockedOnResult b1 b2 = case (b1,b2) of
 choiceBlockedOnResult :: BlockedOnResult -> BlockedOnResult -> BlockedOnResult
 choiceBlockedOnResult b1 b2 = case (b1,b2) of
   (NotBlockedOnResult  , _                 ) -> NotBlockedOnResult
-  (BlockedOnProj _     , NotBlockedOnResult) -> BlockedOnProj True
   (BlockedOnProj o1    , BlockedOnProj o2  ) -> BlockedOnProj (o1 || o2)
-  (BlockedOnProj o1    , BlockedOnApply{}  ) -> BlockedOnProj True
+  (BlockedOnProj _     , _                 ) -> BlockedOnProj True
   (BlockedOnApply b    , _                 ) -> BlockedOnApply b
 
 -- | @choice m m'@ combines the match results @m@ of a function clause
