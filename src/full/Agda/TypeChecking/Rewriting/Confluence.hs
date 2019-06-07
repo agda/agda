@@ -92,7 +92,7 @@ checkConfluenceOfRule' isClause rew = inTopContext $ do
   (fa , hdf) <- addContext tel $ makeHead def (rewType rew)
 
   -- Step 1: check other rewrite rules that overlap at top position
-  forMM_ (getClausesAndRewriteRulesFor f) $ \ rew' ->
+  forMM_ (getRulesFor f isClause) $ \ rew' ->
     unless (rewName rew == rewName rew') $
       checkConfluenceTop hdf rew rew'
 
@@ -101,10 +101,8 @@ checkConfluenceOfRule' isClause rew = inTopContext $ do
   es <- nlPatToTerm qs
   forMM_ (addContext tel $ allHolesList (fa, hdf) es) $ \ hole ->
     caseMaybe (headView $ ohContents hole) __IMPOSSIBLE__ $ \ (g , hdg , _) -> do
-      rews <- if
-        | isClause  -> getRewriteRulesFor g
-        | otherwise -> getClausesAndRewriteRulesFor g
-      forM_ rews $ \rew' -> checkConfluenceSub hdf hdg rew rew' hole
+      forMM_ (getRulesFor g isClause) $ \rew' ->
+        checkConfluenceSub hdf hdg rew rew' hole
 
   -- Step 3: check other rewrite rules that have a subpattern which
   -- overlaps with this rewrite rule
@@ -273,6 +271,11 @@ checkConfluenceOfRule' isClause rew = inTopContext $ do
     getClausesAndRewriteRulesFor :: QName -> TCM [RewriteRule]
     getClausesAndRewriteRulesFor f =
       (++) <$> getClausesAsRewriteRules f <*> getRewriteRulesFor f
+
+    getRulesFor :: QName -> Bool -> TCM [RewriteRule]
+    getRulesFor f isClause
+      | isClause  = getRewriteRulesFor f
+      | otherwise = getClausesAndRewriteRulesFor f
 
     -- Build a substitution that replaces all variables in the given
     -- telescope by fresh metavariables.
