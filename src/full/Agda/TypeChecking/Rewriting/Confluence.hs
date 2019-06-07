@@ -172,7 +172,7 @@ checkConfluenceOfRule' isClause rew = inTopContext $ do
           return (rhs1 , rhs2)
 
         whenJust maybeCriticalPair $ \ (rhs1 , rhs2) ->
-          checkCriticalPair a lhs1 rhs1 rhs2
+          checkCriticalPair a hd (es1' ++ es2r) rhs1 rhs2
 
     -- Check confluence between two rules that overlap at a subpattern,
     -- e.g. @f ps[g qs] --> a@ and @g qs' --> b@.
@@ -256,7 +256,7 @@ checkConfluenceOfRule' isClause rew = inTopContext $ do
           return (rhs1 , rhs2)
 
         whenJust maybeCriticalPair $ \ (rhs1 , rhs2) ->
-          checkCriticalPair a lhs2 rhs1 rhs2
+          checkCriticalPair a hdf (applySubst sub1 $ plug $ hdg es1) rhs1 rhs2
 
     headView :: Term -> Maybe (QName, Elims -> Term, Elims)
     headView (Def f es) = Just (f , Def f , es)
@@ -300,22 +300,23 @@ checkConfluenceOfRule' isClause rew = inTopContext $ do
 
     checkCriticalPair
       :: Type     -- Type of the critical pair
-      -> Term     -- Unified left-hand side
+      -> (Elims -> Term)  -- Head of lhs
+      -> Elims            -- Eliminations of lhs
       -> Term     -- First reduct
       -> Term     -- Second reduct
       -> TCM ()
-    checkCriticalPair a lhs rhs1 rhs2 = do
+    checkCriticalPair a hd es rhs1 rhs2 = do
 
-      (a,lhs,rhs1,rhs2) <- instantiateFull (a,lhs,rhs1,rhs2)
+      (a,es,rhs1,rhs2) <- instantiateFull (a,es,rhs1,rhs2)
 
-      let ms = Set.toList $ allMetas singleton $ (a,lhs,rhs1,rhs2)
+      let ms = Set.toList $ allMetas singleton $ (a,es,rhs1,rhs2)
 
       reportSDoc "rewriting.confluence" 30 $ sep
         [ "Abstracting over metas: "
         , prettyList_ (map (text . show) ms)
         ]
-      (gamma , (a,lhs,rhs1,rhs2)) <- fromMaybe __IMPOSSIBLE__ <$>
-        abstractOverMetas ms (a,lhs,rhs1,rhs2)
+      (gamma , (a,es,rhs1,rhs2)) <- fromMaybe __IMPOSSIBLE__ <$>
+        abstractOverMetas ms (a,es,rhs1,rhs2)
 
       addContext gamma $ reportSDoc "rewriting.confluence" 10 $ sep
         [ "Found critical pair: " , nest 2 $ prettyTCM rhs1
@@ -327,7 +328,7 @@ checkConfluenceOfRule' isClause rew = inTopContext $ do
         `catchError` \case
           TypeError s err -> do
             prettyErr <- withTCState (const s) $ prettyTCM err
-            warning $ RewriteNonConfluent lhs rhs1 rhs2 prettyErr
+            warning $ RewriteNonConfluent (hd es) rhs1 rhs2 prettyErr
           err           -> throwError err
 
 -- | Given metavariables ms and some x, construct a telescope Γ and
