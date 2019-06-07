@@ -266,6 +266,19 @@ checkConfluenceOfRule' isClause rew = inTopContext $ do
       Constructor{ conSrcCon = ch } -> do
         ca <- snd . fromMaybe __IMPOSSIBLE__ <$> getFullyAppliedConType ch a
         return (ca , Con ch ConOSystem)
+      -- For record projections @f : R Δ → A@, we rely on the invariant
+      -- that any clause is fully general in the parameters, i.e. it
+      -- is quantified over the parameter telescope @Δ@
+      Function { funProjection = Just proj } -> do
+        let f          = projOrig proj
+            r          = unArg $ projFromType proj
+        rtype <- defType <$> getConstInfo r
+        TelV ptel _ <- telView rtype
+        n <- getContextSize
+        let pars :: Args
+            pars = raise (n - size ptel) $ teleArgs ptel
+        ftype <- defType def `piApplyM` pars
+        return (ftype , Def f)
       _ -> return (defType def , Def $ defName def)
 
     getClausesAndRewriteRulesFor :: QName -> TCM [RewriteRule]

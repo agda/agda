@@ -24,6 +24,7 @@ import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Names
 import Agda.TypeChecking.Primitive
+import Agda.TypeChecking.Rewriting.Confluence
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Reduce
@@ -321,6 +322,12 @@ checkRecDef i name uc ind eta con (A.DataDefParams gpars ps) contel fields =
       escapeContext npars $ do
         addCompositionForRecord name con tel fs ftel rect
 
+      -- Jesper, 2019-06-07: Check confluence of projection clauses
+      whenM (optConfluenceCheck <$> pragmaOptions) $ forM_ fs $ \f -> do
+        cls <- defClauses <$> getConstInfo (unArg f)
+        forM (zip cls [0..]) $ \(cl,i) ->
+          checkConfluenceOfClause (unArg f) i cl
+
       return ()
 
 
@@ -588,7 +595,8 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
             -- split the telescope into parameters (ptel) and the type or the record
             -- (rt) which should be  R ptel
             telList = telToList tel
-            (_ptel,[rt]) = splitAt (size tel - 1) telList
+            (ptelList,[rt]) = splitAt (size tel - 1) telList
+            ptel   = telFromList ptelList
             cpo    = if hasNamedCon then PatOCon else PatORec
             cpi    = ConPatternInfo { conPRecord = Just cpo
                                     , conPFallThrough = False
@@ -599,7 +607,7 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
                      | Dom{domInfo = ai'} <- telToList ftel
                      ]
             body   = Just $ bodyMod $ var (size ftel2)
-            cltel  = ftel
+            cltel  = ptel `abstract` ftel
             clause = Clause { clauseLHSRange  = getRange info
                             , clauseFullRange = getRange info
                             , clauseTel       = killRange cltel
