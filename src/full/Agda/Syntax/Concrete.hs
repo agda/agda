@@ -148,7 +148,7 @@ data Expr
   | RecUpdate Range Expr [FieldAssignment]     -- ^ ex: @record e {x = a; y = b}@
   | Let Range [Declaration] (Maybe Expr)       -- ^ ex: @let Ds in e@, missing body when parsing do-notation let
   | Paren Range Expr                           -- ^ ex: @(e)@
-  | IdiomBrackets Range Expr                   -- ^ ex: @(| e |)@
+  | IdiomBrackets Range [Expr]                 -- ^ ex: @(| e1 | e2 | .. | en |)@ or @(|)@
   | DoBlock Range [DoStmt]                     -- ^ ex: @do x <- m1; m2@
   | Absurd Range                               -- ^ ex: @()@ or @{}@, only in patterns
   | As Range Name Expr                         -- ^ ex: @x\@p@, only in patterns
@@ -215,7 +215,7 @@ mkBoundName_ :: Name -> BoundName
 mkBoundName_ x = mkBoundName x noFixity'
 
 mkBoundName :: Name -> Fixity' -> BoundName
-mkBoundName x f = BName x f
+mkBoundName = BName
 
 -- | A typed binding.
 
@@ -488,7 +488,7 @@ appView e =
   case e of
     App r e1 e2     -> vApp (appView e1) e2
     RawApp _ (e:es) -> AppView e $ map arg es
-    _               ->  AppView e []
+    _               -> AppView e []
   where
     vApp (AppView e es) arg = AppView e (es ++ [arg])
 
@@ -813,7 +813,7 @@ instance KillRange Expr where
   killRange (RecUpdate _ e ne)   = killRange2 (RecUpdate noRange) e ne
   killRange (Let _ d e)          = killRange2 (Let noRange) d e
   killRange (Paren _ e)          = killRange1 (Paren noRange) e
-  killRange (IdiomBrackets _ e)  = killRange1 (IdiomBrackets noRange) e
+  killRange (IdiomBrackets _ es) = killRange1 (IdiomBrackets noRange) es
   killRange (DoBlock _ ss)       = killRange1 (DoBlock noRange) ss
   killRange (Absurd _)           = Absurd noRange
   killRange (As _ n e)           = killRange2 (As noRange) n e

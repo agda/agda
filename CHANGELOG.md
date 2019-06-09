@@ -91,6 +91,29 @@ Language
   one wakes up all constraints mentioning the given meta-variables,
   and then tries to solve all awake constraints.
 
+### Syntax
+
+* Idiom brackets
+
+  Idiom brackets can accommodate none or multiple applications separated by a vertical bar `|`
+  if there are two additional operations
+  ```agda
+  empty : ∀ {A} → F A
+  _<|>_ : ∀ {A} → F A → F A → F A
+  ```
+  i.e. an Alternative type class in Haskell.
+  As usual, the new idiom brackets desugar before scope checking.
+
+  Idiom brackets with multiple applications
+  ```agda
+  (| e₁ a₁ .. aₙ | e₂ a₁ .. aₘ | .. | eₖ a₁ .. aₗ |)
+  ```
+  expand to (assuming right associative `_<|>_`)
+  ```agda
+  (pure e₁ <*> a₁ <*> .. <*> aₙ) <|> ((pure e₂ <*> a₁ <*> .. <*> aₘ) <|> (pure eₖ <*> a₁ <*> .. <*> aₗ))
+  ```
+  Idiom brackets with no application `(|)` or `⦇⦈` are equivalent to `empty`.
+
 Release notes for Agda version 2.6.0.1
 ======================================
 

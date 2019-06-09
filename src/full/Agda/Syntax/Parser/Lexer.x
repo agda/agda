@@ -207,6 +207,7 @@ tokens :-
 <0,code> "|"            { symbol SymBar }
 <0,code> "(|" /[$white] { symbol SymOpenIdiomBracket }
 <0,code> "|)"           { symbol SymCloseIdiomBracket }
+<0,code> "(|)"          { symbol SymEmptyIdiomBracket }
 <0,code> "("            { symbol SymOpenParen }
 <0,code> ")"            { symbol SymCloseParen }
 <0,code> "->"           { symbol SymArrow }

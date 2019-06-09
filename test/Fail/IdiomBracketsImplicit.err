@@ -1,4 +1,4 @@
 IdiomBracketsImplicit.agda:22,15-37
 Only regular arguments are allowed in idiom brackets (no implicit
 or instance arguments)
-when scope checking (| _∷_ {n = n} a as |)
+when scope checking ⦇ _∷_ {n = n} a as ⦈
