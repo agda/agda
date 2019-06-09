@@ -20,5 +20,9 @@ map : ∀ {a b} {A : Set a} {B : Set b} → (A → B) → List A → List B
 map f [] = []
 map f (x ∷ xs) = f x ∷ map f xs
 
+{-# COMPILE GHC map = \ _ _ _ _ -> Prelude.map #-}
+
+-- `map` however is not erased so this should not raise a warning.
+
 value : List Set
 value = map (λ n → createElem n) (1 ∷ 1 ∷ [])
