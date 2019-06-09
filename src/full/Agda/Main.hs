@@ -49,7 +49,6 @@ import qualified Agda.Utils.Benchmark as UtilsBench
 import Agda.Utils.Except ( MonadError(catchError, throwError) )
 import Agda.Utils.Impossible
 
-
 builtinBackends :: [Backend]
 builtinBackends = [ ghcBackend, jsBackend ]
 

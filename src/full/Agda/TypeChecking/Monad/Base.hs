@@ -2740,6 +2740,9 @@ eGeneralizeMetas f e = f (envGeneralizeMetas e) <&> \ x -> e { envGeneralizeMeta
 eGeneralizedVars :: Lens' (Map QName GeneralizedValue) TCEnv
 eGeneralizedVars f e = f (envGeneralizedVars e) <&> \ x -> e { envGeneralizedVars = x }
 
+eActiveBackendName :: Lens' (Maybe BackendName) TCEnv
+eActiveBackendName f e = f (envActiveBackendName e) <&> \ x -> e { envActiveBackendName = x }
+
 ---------------------------------------------------------------------------
 -- ** Context
 ---------------------------------------------------------------------------

@@ -1,6 +1,10 @@
 {-# LANGUAGE PatternSynonyms #-}
 
-module Agda.Compiler.Treeless.Erase (eraseTerms, computeErasedConstructorArgs) where
+module Agda.Compiler.Treeless.Erase
+       ( eraseTerms
+       , computeErasedConstructorArgs
+       , isErasable
+       ) where
 
 import Control.Arrow ((&&&), (***), first, second)
 import Control.Monad
@@ -241,6 +245,15 @@ getFunInfo q = memo (funMap . key q) $ getInfo q
       | not b                  = Erasable
       | Forced <- f            = Erasable
       | otherwise              = i
+
+isErasable :: QName -> TCM Bool
+isErasable qn =
+  -- The active backend should be set
+  caseMaybeM (viewTC eActiveBackendName) __IMPOSSIBLE__ $ \ bname ->
+  -- However it may not be part of the set of available backends
+  -- in which case we default to not erasable to avoid false negatives.
+  caseMaybeM (lookupBackend bname)       (pure False)   $ \ _ ->
+  erasable . snd <$> runE (getFunInfo qn)
 
 telListView :: Type -> TCM (ListTel, Type)
 telListView t = do

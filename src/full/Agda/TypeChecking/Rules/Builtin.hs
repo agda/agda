@@ -598,8 +598,8 @@ addHaskellPragma = addPragma ghcBackendName
 bindAndSetHaskellCode :: String -> String -> Term -> TCM ()
 bindAndSetHaskellCode b hs t = do
   d <- fromMaybe __IMPOSSIBLE__ <$> getDef t
-  addHaskellPragma d hs
   bindBuiltinName b t
+  addHaskellPragma d hs
 
 bindBuiltinBool :: Term -> TCM ()
 bindBuiltinBool = bindAndSetHaskellCode builtinBool "= type Bool"
@@ -789,6 +789,7 @@ bindBuiltinInfo (BuiltinInfo s d) e = do
               Axiom {} -> do
                 builtinSizeHook s q t'
                 -- And compilation pragmas for base types
+                when (s == builtinLevel)  $ addHaskellPragma q "= type ()"
                 when (s == builtinChar)   $ addHaskellPragma q "= type Char"
                 when (s == builtinString) $ addHaskellPragma q "= type Data.Text.Text"
                 when (s == builtinFloat)  $ addHaskellPragma q "= type Double"
