@@ -114,6 +114,12 @@ Language
   ```
   Idiom brackets with no application `(|)` or `⦇⦈` are equivalent to `empty`.
 
+### Rewrite rules
+
+* Rewrite rules (option `--rewriting`) with data or record types as
+  the head symbol are no longer allowed (see issue
+  [#3846](https://github.com/agda/agda/issues/3846)).
+
 Release notes for Agda version 2.6.0.1
 ======================================
 
