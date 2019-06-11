@@ -178,6 +178,7 @@ data WarningName
   | ModuleDoesntExport_
   | NotStrictlyPositive_
   | OldBuiltin_
+  | PragmaCompileErased_
   | RewriteMaybeNonConfluent_
   | RewriteNonConfluent_
   | SafeFlagNoPositivityCheck_
@@ -294,6 +295,7 @@ warningNameDescription w = case w of
   ModuleDoesntExport_              -> "Imported name is not actually exported."
   NotStrictlyPositive_             -> "Failed strict positivity checks."
   OldBuiltin_                      -> "Deprecated `BUILTIN' pragmas."
+  PragmaCompileErased_             -> "`COMPILE' pragma targeting an erased symbol."
   RewriteMaybeNonConfluent_      -> "Failed confluence checks while computing overlap."
   RewriteNonConfluent_           -> "Failed confluence checks while joining critical pairs."
   SafeFlagNonTerminating_          -> "`NON_TERMINATING' pragmas with the safe flag."

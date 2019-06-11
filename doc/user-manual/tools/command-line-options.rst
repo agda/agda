@@ -402,6 +402,8 @@ Individual warnings can be turned on and off by ``-W {Name}`` and ``-W
       Polarity pragmas for non-postulates.
 :samp:`PragmaCompiled`
       ``COMPILE`` pragmas not allowed in safe mode.
+:samp:`PragmaCompileErased`
+      ``COMPILE`` pragma targeting an erased symbol.
 :samp:`PragmaNoTerminationCheck`
       ``NO_TERMINATION_CHECK`` pragmas are deprecated.
 :samp:`RewriteMaybeNonConfluent`

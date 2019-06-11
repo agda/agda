@@ -2876,6 +2876,8 @@ data Warning
   | RewriteMaybeNonConfluent Term Term [Doc]
     -- ^ Confluence checker got stuck on computing overlap between two
     --   rewrite rules
+  | PragmaCompileErased BackendName QName
+    -- ^ COMPILE directive for an erased symbol
   deriving (Show , Data)
 
 
@@ -2924,7 +2926,7 @@ warningName w = case w of
   CoInfectiveImport{}          -> CoInfectiveImport_
   RewriteNonConfluent{}        -> RewriteNonConfluent_
   RewriteMaybeNonConfluent{}   -> RewriteMaybeNonConfluent_
-
+  PragmaCompileErased{}        -> PragmaCompileErased_
 
 data TCWarning
   = TCWarning

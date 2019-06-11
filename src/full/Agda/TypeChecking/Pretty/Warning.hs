@@ -227,6 +227,10 @@ prettyWarning wng = case wng of
            ]
         ] ++ map (nest 2 . return) cs
 
+    PragmaCompileErased bn qn -> fsep $
+      pwords "The backend" ++ [text bn] ++ pwords "erases" ++ [prettyTCM qn]
+      ++ pwords "so the COMPILE pragma will be ignored."
+
 prettyTCWarnings :: [TCWarning] -> TCM String
 prettyTCWarnings = fmap (unlines . List.intersperse "") . prettyTCWarnings'
 

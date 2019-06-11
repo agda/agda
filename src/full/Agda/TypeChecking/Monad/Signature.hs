@@ -136,10 +136,11 @@ mkPragma s = CompilerPragma <$> getCurrentRange <*> pure s
 
 -- | Add a compiler pragma `{-\# COMPILE <backend> <name> <text> \#-}`
 addPragma :: BackendName -> QName -> String -> TCM ()
-addPragma b q s = do
-  modifySignature . updateDefinition q . addCompilerPragma b =<< mkPragma s
-  whenM erased $ genericWarning $
-    text $ b ++ " erases " ++ show q ++ " which is set to " ++ s
+addPragma b q s = ifM erased
+  {- then -} (warning $ PragmaCompileErased b q)
+  {- else -} $ do
+    pragma <- mkPragma s
+    modifySignature $ updateDefinition q $ addCompilerPragma b pragma
 
   where
 

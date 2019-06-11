@@ -77,6 +77,7 @@ instance EmbPrj Warning where
   icod_ WrongInstanceDeclaration     = icodeN 22 WrongInstanceDeclaration
   icod_ (RewriteNonConfluent a b c d) = icodeN 23 RewriteNonConfluent a b c d
   icod_ (RewriteMaybeNonConfluent a b c) = icodeN 24 RewriteMaybeNonConfluent a b c
+  icod_ (PragmaCompileErased a b) = icodeN 25 PragmaCompileErased a b
 
   value = vcase valu where
       valu [0, a, b]    = valuN UnreachableClauses a b
@@ -104,6 +105,7 @@ instance EmbPrj Warning where
       valu [22]         = valuN WrongInstanceDeclaration
       valu [23, a, b, c, d] = valuN RewriteNonConfluent a b c d
       valu [24, a, b, c]    = valuN RewriteMaybeNonConfluent a b c
+      valu [25, a, b]   = valuN PragmaCompileErased a b
       valu _ = malformed
 
 instance EmbPrj DeclarationWarning where
