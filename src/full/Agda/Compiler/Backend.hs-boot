@@ -3,6 +3,7 @@ module Agda.Compiler.Backend
   ( module Agda.Syntax.Treeless
   , Backend
   , activeBackendMayEraseType
+  , lookupBackend
   )
   where
 
@@ -20,8 +21,9 @@ module Agda.Compiler.Backend
 import Agda.Syntax.Treeless (TTerm, Args)
 
 import Agda.Syntax.Abstract.Name (QName)
-import {-# SOURCE #-} Agda.TypeChecking.Monad.Base (TCM)
+import {-# SOURCE #-} Agda.TypeChecking.Monad.Base (TCM, BackendName)
 
 data Backend
 
 activeBackendMayEraseType :: QName -> TCM Bool
+lookupBackend :: BackendName -> TCM (Maybe Backend)

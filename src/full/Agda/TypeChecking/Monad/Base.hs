@@ -2740,6 +2740,9 @@ eGeneralizeMetas f e = f (envGeneralizeMetas e) <&> \ x -> e { envGeneralizeMeta
 eGeneralizedVars :: Lens' (Map QName GeneralizedValue) TCEnv
 eGeneralizedVars f e = f (envGeneralizedVars e) <&> \ x -> e { envGeneralizedVars = x }
 
+eActiveBackendName :: Lens' (Maybe BackendName) TCEnv
+eActiveBackendName f e = f (envActiveBackendName e) <&> \ x -> e { envActiveBackendName = x }
+
 ---------------------------------------------------------------------------
 -- ** Context
 ---------------------------------------------------------------------------
@@ -2873,6 +2876,8 @@ data Warning
   | RewriteMaybeNonConfluent Term Term [Doc]
     -- ^ Confluence checker got stuck on computing overlap between two
     --   rewrite rules
+  | PragmaCompileErased BackendName QName
+    -- ^ COMPILE directive for an erased symbol
   deriving (Show , Data)
 
 
@@ -2921,7 +2926,7 @@ warningName w = case w of
   CoInfectiveImport{}          -> CoInfectiveImport_
   RewriteNonConfluent{}        -> RewriteNonConfluent_
   RewriteMaybeNonConfluent{}   -> RewriteMaybeNonConfluent_
-
+  PragmaCompileErased{}        -> PragmaCompileErased_
 
 data TCWarning
   = TCWarning

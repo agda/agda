@@ -21,3 +21,5 @@ instance MonadIO m => MonadIO (TCMT m)
 type TCM = TCMT IO
 
 type ModuleToSource = Map TopLevelModuleName AbsolutePath
+
+type BackendName = String

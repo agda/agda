@@ -650,6 +650,7 @@ warningHighlighting w = case tcWarning w of
   CoInfectiveImport{}        -> mempty
   RewriteNonConfluent{}      -> confluenceErrorHighlighting $ P.getRange w
   RewriteMaybeNonConfluent{} -> confluenceErrorHighlighting $ P.getRange w
+  PragmaCompileErased{}      -> deadcodeHighlighting $ P.getRange w
   NicifierIssue w           -> case w of
     -- we intentionally override the binding of `w` here so that our pattern of
     -- using `P.getRange w` still yields the most precise range information we
@@ -703,7 +704,7 @@ positivityErrorHighlighting q os =
     m  = parserBased { otherAspects = Set.singleton PositivityProblem }
 
 deadcodeHighlighting :: P.Range -> File
-deadcodeHighlighting r = singleton (rToR $ P.continuousPerLine r) m
+deadcodeHighlighting r = singleton (rToR $ P.continuous r) m
   where m = parserBased { otherAspects = Set.singleton Deadcode }
 
 coverageErrorHighlighting :: P.Range -> File
