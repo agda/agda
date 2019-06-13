@@ -291,7 +291,7 @@ checkTypedBindings lamOrPi (A.TBind r xs' e) ret = do
         OutputTypeNameNotYetKnown{} -> return ()
         NoOutputTypeName -> warning . InstanceNoOutputTypeName =<< prettyTCM (A.TBind r ixs e)
 
-    let xs' = (map . mapRelevance) (modRel lamOrPi experimental) xs
+    let xs' = map (modMod lamOrPi experimental) xs
     addContext (xs', t) $
       ret $ namedBindsToTel xs t
     where
@@ -301,8 +301,9 @@ checkTypedBindings lamOrPi (A.TBind r xs' e) ret = do
         -- modify the new context entries
         modEnv LamNotPi = workOnTypes
         modEnv _        = id
-        modRel PiNotLam xp = if xp then irrToNonStrict else id
-        modRel _        _  = id
+        modMod PiNotLam xp = (if xp then mapRelevance irrToNonStrict else id)
+                           . (setQuantity Quantityω)
+        modMod _        _  = id
 checkTypedBindings lamOrPi (A.TLet _ lbs) ret = do
     checkLetBindings lbs (ret EmptyTel)
 
