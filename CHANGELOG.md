@@ -120,6 +120,12 @@ Language
   the head symbol are no longer allowed (see issue
   [#3846](https://github.com/agda/agda/issues/3846)).
 
+Emacs mode
+----------
+
+* Agda input method: new key bindings `\ G h` and `\ G H` for `η` and `H` (capital η).
+
+
 Release notes for Agda version 2.6.0.1
 ======================================
 
