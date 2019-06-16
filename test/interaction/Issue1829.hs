@@ -9,7 +9,7 @@ extraArgs   = [ "--no-libraries"
               , "--caching"
               , "--ignore-interfaces"
               , "+RTS"
-              , "-M4M"
+              , "-M32M"  -- Andreas, 2019-06-16, 4M --> 32M for ghc 8.6.5 without Jesper's aggressive opt
               , "-RTS"
               ]
 repetitions = 1000
