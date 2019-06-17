@@ -73,7 +73,7 @@ data Dom e = Dom
   , domName   :: Maybe RString
   , domTactic :: Maybe Term
   , unDom     :: e
-  } deriving (Data, Ord, Show, Functor, Foldable, Traversable)
+  } deriving (Data, Show, Functor, Foldable, Traversable)
 
 instance Decoration Dom where
   traverseF f (Dom ai b x t a) = Dom ai b x t <$> f a

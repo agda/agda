@@ -295,7 +295,7 @@ checkTypedBindings lamOrPi (A.TBind r tac xs' e) ret = do
 
     let setTac tac EmptyTel            = EmptyTel
         setTac tac (ExtendTel dom tel) = ExtendTel dom{ domTactic = tac } $ setTac (raise 1 tac) <$> tel
-        xs' = (map . mapRelevance) (modRel lamOrPi experimental) xs
+        xs' = map (modMod lamOrPi experimental) xs
     let tel = setTac tac $ namedBindsToTel xs t
     addContext (xs', t) $ ret tel
     where
