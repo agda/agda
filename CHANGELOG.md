@@ -118,6 +118,16 @@ Language
   ```
   Idiom brackets with no application `(|)` or `⦇⦈` are equivalent to `empty`.
 
+### Termination checking
+
+* The "with inlining" feature of the termination checker has been
+  removed. As a consequence, some functions defined using `with` are
+  no longer accepted as terminating. See issue
+  [#59](https://github.com/agda/agda/issues/59) for why this feature
+  was originally introduced and
+  [#3604](https://github.com/agda/agda/issues/3604) for why it had to
+  be removed.
+
 ### Rewrite rules
 
 * Rewrite rules (option `--rewriting`) with data or record types as
