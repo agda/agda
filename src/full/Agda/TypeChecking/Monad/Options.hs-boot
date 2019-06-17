@@ -5,11 +5,6 @@ import Control.Monad.Reader
 import Agda.TypeChecking.Monad.Base
 import Agda.Utils.FileName
 
-getIncludeDirs :: TCM [AbsolutePath]
+getIncludeDirs :: HasOptions m => m [AbsolutePath]
 
-type VerboseKey = String
-
-hasVerbosity :: HasOptions m => VerboseKey -> Int -> m Bool
-verboseS :: (MonadTCEnv m, HasOptions m) => VerboseKey -> Int -> m () -> m ()
-
-enableCaching :: TCM Bool
+enableCaching :: HasOptions m => m Bool

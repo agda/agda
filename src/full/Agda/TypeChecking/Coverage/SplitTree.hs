@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 {-# LANGUAGE DeriveDataTypeable         #-}
 
 {-| Split tree for transforming pattern clauses into case trees.
@@ -26,7 +25,6 @@ import Agda.Syntax.Position
 import Agda.Utils.Monad
 import Agda.Utils.Pretty
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 type SplitTree  = SplitTree'  SplitTag

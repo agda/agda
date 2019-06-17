@@ -1,8 +1,8 @@
-{-# LANGUAGE CPP #-}
 
 module Agda.TypeChecking.Monad.Options where
 
 import Prelude hiding (mapM)
+import GHC.Stack (HasCallStack, freezeCallStack, callStack)
 
 import Control.Monad.Reader hiding (mapM)
 import Control.Monad.Writer
@@ -28,20 +28,15 @@ import Agda.Interaction.Options
 import qualified Agda.Interaction.Options.Lenses as Lens
 import Agda.Interaction.Response
 import Agda.Interaction.Library
-
-import Agda.Utils.Except ( MonadError(catchError) )
 import Agda.Utils.FileName
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Pretty
-import Agda.Utils.Trie (Trie)
-import qualified Agda.Utils.Trie as Trie
 import Agda.Utils.Except
 import Agda.Utils.Either
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | Sets the pragma options.
@@ -142,17 +137,17 @@ setOptionsFromPragma ps = do
       Right opts' -> setPragmaOptions opts'
 
 -- | Disable display forms.
-enableDisplayForms :: TCM a -> TCM a
+enableDisplayForms :: MonadTCEnv m => m a -> m a
 enableDisplayForms =
   localTC $ \e -> e { envDisplayFormsEnabled = True }
 
 -- | Disable display forms.
-disableDisplayForms :: TCM a -> TCM a
+disableDisplayForms :: MonadTCEnv m => m a -> m a
 disableDisplayForms =
   localTC $ \e -> e { envDisplayFormsEnabled = False }
 
 -- | Check if display forms are enabled.
-displayFormsEnabled :: TCM Bool
+displayFormsEnabled :: MonadTCEnv m => m Bool
 displayFormsEnabled = asksTC envDisplayFormsEnabled
 
 -- | Gets the include directories.
@@ -160,7 +155,7 @@ displayFormsEnabled = asksTC envDisplayFormsEnabled
 -- Precondition: 'optAbsoluteIncludePaths' must be nonempty (i.e.
 -- 'setCommandLineOptions' must have run).
 
-getIncludeDirs :: TCM [AbsolutePath]
+getIncludeDirs :: HasOptions m => m [AbsolutePath]
 getIncludeDirs = do
   incs <- optAbsoluteIncludePaths <$> commandLineOptions
   case incs of
@@ -242,7 +237,7 @@ getInputFile' :: TCM (Maybe AbsolutePath)
 getInputFile' = mapM (liftIO . absolute) =<< do
   optInputFile <$> commandLineOptions
 
-hasInputFile :: TCM Bool
+hasInputFile :: HasOptions m => m Bool
 hasInputFile = isJust <$> optInputFile <$> commandLineOptions
 
 isPropEnabled :: HasOptions m => m Bool
@@ -252,13 +247,13 @@ isPropEnabled = optProp <$> pragmaOptions
 hasUniversePolymorphism :: HasOptions m => m Bool
 hasUniversePolymorphism = optUniversePolymorphism <$> pragmaOptions
 
-enableCaching :: TCM Bool
+enableCaching :: HasOptions m => m Bool
 enableCaching = optCaching <$> pragmaOptions
 
-showImplicitArguments :: TCM Bool
+showImplicitArguments :: HasOptions m => m Bool
 showImplicitArguments = optShowImplicit <$> pragmaOptions
 
-showIrrelevantArguments :: TCM Bool
+showIrrelevantArguments :: HasOptions m => m Bool
 showIrrelevantArguments = optShowIrrelevant <$> pragmaOptions
 
 -- | Switch on printing of implicit and irrelevant arguments.
@@ -268,107 +263,35 @@ showIrrelevantArguments = optShowIrrelevant <$> pragmaOptions
 --   Thus, do not attempt to make persistent 'PragmaOptions'
 --   changes in a `withShowAllArguments` bracket.
 
-withShowAllArguments :: TCM a -> TCM a
+withShowAllArguments :: ReadTCState m => m a -> m a
 withShowAllArguments = withShowAllArguments' True
 
-withShowAllArguments' :: Bool -> TCM a -> TCM a
+withShowAllArguments' :: ReadTCState m => Bool -> m a -> m a
 withShowAllArguments' yes = withPragmaOptions $ \ opts ->
   opts { optShowImplicit = yes, optShowIrrelevant = yes }
 
 -- | Change 'PragmaOptions' for a computation and restore afterwards.
+withPragmaOptions :: ReadTCState m => (PragmaOptions -> PragmaOptions) -> m a -> m a
+withPragmaOptions = locallyTCState stPragmaOptions
 
-withPragmaOptions :: (PragmaOptions -> PragmaOptions) -> TCM a -> TCM a
-withPragmaOptions f cont = do
-  opts <- pragmaOptions
-  setPragmaOptions $ f opts
-  x <- cont
-  setPragmaOptions opts
-  return x
-
-
-ignoreInterfaces :: TCM Bool
+ignoreInterfaces :: HasOptions m => m Bool
 ignoreInterfaces = optIgnoreInterfaces <$> commandLineOptions
 
-ignoreAllInterfaces :: TCM Bool
+ignoreAllInterfaces :: HasOptions m => m Bool
 ignoreAllInterfaces = optIgnoreAllInterfaces <$> commandLineOptions
 
-
-positivityCheckEnabled :: TCM Bool
+positivityCheckEnabled :: HasOptions m => m Bool
 positivityCheckEnabled = not . optDisablePositivity <$> pragmaOptions
 
 {-# SPECIALIZE typeInType :: TCM Bool #-}
 typeInType :: HasOptions m => m Bool
 typeInType = not . optUniverseCheck <$> pragmaOptions
 
-etaEnabled :: TCM Bool
+etaEnabled :: HasOptions m => m Bool
 etaEnabled = optEta <$> pragmaOptions
 
-maxInstanceSearchDepth :: TCM Int
+maxInstanceSearchDepth :: HasOptions m => m Int
 maxInstanceSearchDepth = optInstanceSearchDepth <$> pragmaOptions
 
-maxInversionDepth :: TCM Int
+maxInversionDepth :: HasOptions m => m Int
 maxInversionDepth = optInversionMaxDepth <$> pragmaOptions
-
-------------------------------------------------------------------------
--- Verbosity
-
--- Invariant (which we may or may not currently break): Debug
--- printouts use one of the following functions:
---
---   reportS
---   reportSLn
---   reportSDoc
-
--- | Retrieve the current verbosity level.
-{-# SPECIALIZE getVerbosity :: TCM (Trie String Int) #-}
-getVerbosity :: HasOptions m => m (Trie String Int)
-getVerbosity = optVerbose <$> pragmaOptions
-
-type VerboseKey = String
-
-parseVerboseKey :: VerboseKey -> [String]
-parseVerboseKey = wordsBy (`elem` (".:" :: String))
-
--- | Check whether a certain verbosity level is activated.
---
---   Precondition: The level must be non-negative.
-{-# SPECIALIZE hasVerbosity :: VerboseKey -> Int -> TCM Bool #-}
-hasVerbosity :: HasOptions m => VerboseKey -> Int -> m Bool
-hasVerbosity k n | n < 0     = __IMPOSSIBLE__
-                 | otherwise = do
-    t <- getVerbosity
-    let ks = parseVerboseKey k
-        m  = last $ 0 : Trie.lookupPath ks t
-    return (n <= m)
-
--- | Check whether a certain verbosity level is activated (exact match).
-
-{-# SPECIALIZE hasExactVerbosity :: VerboseKey -> Int -> TCM Bool #-}
-hasExactVerbosity :: HasOptions m => VerboseKey -> Int -> m Bool
-hasExactVerbosity k n =
-  (Just n ==) . Trie.lookup (parseVerboseKey k) <$> getVerbosity
-
--- | Run a computation if a certain verbosity level is activated (exact match).
-
-{-# SPECIALIZE whenExactVerbosity :: VerboseKey -> Int -> TCM () -> TCM () #-}
-whenExactVerbosity :: MonadTCM tcm => VerboseKey -> Int -> tcm () -> tcm ()
-whenExactVerbosity k n = whenM $ liftTCM $ hasExactVerbosity k n
-
--- | Run a computation if a certain verbosity level is activated.
---
---   Precondition: The level must be non-negative.
-{-# SPECIALIZE verboseS :: VerboseKey -> Int -> TCM () -> TCM () #-}
--- {-# SPECIALIZE verboseS :: MonadIO m => VerboseKey -> Int -> TCMT m () -> TCMT m () #-} -- RULE left-hand side too complicated to desugar
-{-# SPECIALIZE verboseS :: MonadTCM tcm => VerboseKey -> Int -> tcm () -> tcm () #-}
-verboseS :: (MonadTCEnv m, HasOptions m) => VerboseKey -> Int -> m () -> m ()
-verboseS k n action = whenM (hasVerbosity k n) $ locallyTC eIsDebugPrinting (const True) action
-
--- | Verbosity lens.
-verbosity :: VerboseKey -> Lens' Int TCState
-verbosity k = stPragmaOptions . verbOpt . Trie.valueAt (parseVerboseKey k) . defaultTo 0
-  where
-    verbOpt :: Lens' (Trie String Int) PragmaOptions
-    verbOpt f opts = f (optVerbose opts) <&> \ v -> opts { optVerbose = v }
-
-    defaultTo :: Eq a => a -> Lens' a (Maybe a)
-    defaultTo x f m = f (fromMaybe x m) <&> \ v -> if v == x then Nothing else Just v

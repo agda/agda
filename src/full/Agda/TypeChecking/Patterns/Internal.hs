@@ -1,6 +1,4 @@
-{-# LANGUAGE CPP #-}
 {-# LANGUAGE GADTs #-}
-{-# LANGUAGE ScopedTypeVariables #-}
 
 -- | Tools to manipulate patterns in internal syntax
 --   in the TCM (type checking monad).
@@ -22,7 +20,6 @@ import Agda.TypeChecking.Substitute.DeBruijn
 
 import Agda.Utils.Pretty
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | Convert a term (from a dot pattern) to a DeBruijn pattern.

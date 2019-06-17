@@ -25,7 +25,7 @@ module Helpers where
              (u0 : A i0 [ φ ↦ u i0 ]) →
              ∀ i →  A i
     fill A {φ = φ} u u0 i =
-      comp (λ j → A (i ∧ j)) _
+      comp (λ j → A (i ∧ j))
            (λ j → \ { (φ = i1) → u (i ∧ j) 1=1
                     ; (i = i0) → ouc u0 })
            (ouc {φ = φ} u0)
@@ -131,20 +131,20 @@ module _ {ℓ : I → Level} (P : (i : I) → Set (ℓ i)) where
           sys : A → ∀ i → PartialP (~ j ∨ j) (λ _ → E (~ i))
           sys x i (j = i0) = v (~ i) y
           sys x i (j = i1) = u (~ i) x
-        ω0 = comp ~E _ (sys x0) ((β0 (~ j)))
-        ω1 = comp ~E _ (sys x1) ((β1 (~ j)))
+        ω0 = comp ~E (sys x0) ((β0 (~ j)))
+        ω1 = comp ~E (sys x1) ((β1 (~ j)))
         θ0 = fill ~E (sys x0) (inc (β0 (~ j)))
         θ1 = fill ~E (sys x1) (inc (β1 (~ j)))
       sys = λ {j (k = i0) → ω0 j ; j (k = i1) → ω1 j}
       ω = hcomp sys (g y)
       θ = hfill sys (inc (g y))
-      δ = λ (j : I) → comp E _
+      δ = λ (j : I) → comp E
             (λ i → λ { (j = i0) → v i y ; (k = i0) → θ0 j (~ i)
                      ; (j = i1) → u i ω ; (k = i1) → θ1 j (~ i) })
              (θ j)
 
     γ : (y : B) → y ≡ f (g y)
-    γ y j = comp E _ (λ i → λ { (j = i0) → v i y
+    γ y j = comp E (λ i → λ { (j = i0) → v i y
                             ; (j = i1) → u i (g y) }) (g y)
 
   pathToisEquiv : isEquiv f

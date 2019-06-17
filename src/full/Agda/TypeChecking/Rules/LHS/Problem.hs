@@ -1,4 +1,3 @@
--- {-# LANGUAGE CPP #-}
 
 module Agda.TypeChecking.Rules.LHS.Problem
        ( FlexibleVars , FlexibleVarKind(..) , FlexibleVar(..) , allFlexVars
@@ -31,7 +30,7 @@ import Agda.TypeChecking.Monad (TCM)
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Reduce
 import qualified Agda.TypeChecking.Pretty as P
-import Agda.TypeChecking.Pretty hiding ((<>))
+import Agda.TypeChecking.Pretty
 
 import Agda.Utils.Lens
 import Agda.Utils.List
@@ -255,7 +254,7 @@ instance PrettyTCM ProblemEq where
 
 instance PrettyTCM AsBinding where
   prettyTCM (AsB x v a) =
-    sep [ prettyTCM x P.<> "@" P.<> parens (prettyTCM v)
+    sep [ prettyTCM x <> "@" <> parens (prettyTCM v)
         , nest 2 $ ":" <+> prettyTCM a
         ]
 

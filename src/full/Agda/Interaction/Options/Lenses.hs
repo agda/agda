@@ -152,6 +152,7 @@ builtinModulesWithSafePostulates =
   , "Agda" </> "Builtin" </> "Equality" </> "Erase.agda"
   , "Agda" </> "Builtin" </> "Equality.agda"
   , "Agda" </> "Builtin" </> "Float.agda"
+  , "Agda" </> "Builtin" </> "Float" </> "Properties.agda"
   , "Agda" </> "Builtin" </> "FromNat.agda"
   , "Agda" </> "Builtin" </> "FromNeg.agda"
   , "Agda" </> "Builtin" </> "FromString.agda"
@@ -160,6 +161,7 @@ builtinModulesWithSafePostulates =
   , "Agda" </> "Builtin" </> "List.agda"
   , "Agda" </> "Builtin" </> "Nat.agda"
   , "Agda" </> "Builtin" </> "Reflection.agda"
+  , "Agda" </> "Builtin" </> "Reflection" </> "Properties.agda"
   , "Agda" </> "Builtin" </> "Sigma.agda"
   , "Agda" </> "Builtin" </> "Size.agda"
   , "Agda" </> "Builtin" </> "Strict.agda"
@@ -167,6 +169,7 @@ builtinModulesWithSafePostulates =
   , "Agda" </> "Builtin" </> "String" </> "Properties.agda"
   , "Agda" </> "Builtin" </> "Unit.agda"
   , "Agda" </> "Builtin" </> "Word.agda"
+  , "Agda" </> "Builtin" </> "Word" </> "Properties.agda"
   ])
 
 -- | These builtins may not use postulates under --safe. They are not

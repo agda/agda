@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 
 -- | Compute eta long normal forms.
 module Agda.TypeChecking.EtaExpand where
@@ -14,11 +13,12 @@ import Agda.TypeChecking.Substitute
 
 import Agda.Utils.Monad
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | Eta-expand a term if its type is a function type or an eta-record type.
-etaExpandOnce :: Type -> Term -> TCM Term
+etaExpandOnce
+  :: (MonadReduce m, MonadTCEnv m, HasOptions m, HasConstInfo m, MonadDebug m)
+  => Type -> Term -> m Term
 etaExpandOnce a v = reduce a >>= \case
   El _ (Pi a b) -> return $
     Lam ai $ mkAbs (absName b) $ raise 1 v `apply` [ Arg ai $ var 0 ]
@@ -36,7 +36,9 @@ etaExpandOnce a v = reduce a >>= \case
 deepEtaExpand :: Term -> Type -> TCM Term
 deepEtaExpand = checkInternal' etaExpandAction
 
-etaExpandAction :: Action
+etaExpandAction
+  :: (MonadReduce m, MonadTCEnv m, HasOptions m, HasConstInfo m, MonadDebug m)
+  => Action m
 etaExpandAction = Action
   { preAction       = etaExpandOnce
   , postAction      = \ _ -> return

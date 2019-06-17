@@ -1,5 +1,5 @@
 name:            Agda
-version:         2.6.0
+version:         2.6.1
 cabal-version:   >= 1.10
 build-type:      Custom
 license:         OtherLicense
@@ -33,20 +33,18 @@ description:
   policy, because it is not intended to be used by third-party
   packages.
 
-tested-with:        GHC == 7.10.3
-                    GHC == 8.0.2
+tested-with:        GHC == 8.0.2
                     GHC == 8.2.2
                     GHC == 8.4.4
-                    GHC == 8.6.4
+                    GHC == 8.6.5
+
 extra-source-files: CHANGELOG.md
                     README.md
                     doc/user-manual.pdf
-                    src/full/undefined.h
-                    stack-7.10.3.yaml
                     stack-8.0.2.yaml
                     stack-8.2.2.yaml
                     stack-8.4.4.yaml
-                    stack-8.6.4.yaml
+                    stack-8.6.5.yaml
 
 data-dir:           src/data
 data-files:         Agda.css
@@ -66,6 +64,7 @@ data-files:         Agda.css
                     lib/prim/Agda/Builtin/Equality/Erase.agda
                     lib/prim/Agda/Builtin/Equality/Rewrite.agda
                     lib/prim/Agda/Builtin/Float.agda
+                    lib/prim/Agda/Builtin/Float/Properties.agda
                     lib/prim/Agda/Builtin/FromNat.agda
                     lib/prim/Agda/Builtin/FromNeg.agda
                     lib/prim/Agda/Builtin/FromString.agda
@@ -74,6 +73,7 @@ data-files:         Agda.css
                     lib/prim/Agda/Builtin/List.agda
                     lib/prim/Agda/Builtin/Nat.agda
                     lib/prim/Agda/Builtin/Reflection.agda
+                    lib/prim/Agda/Builtin/Reflection/Properties.agda
                     lib/prim/Agda/Builtin/Sigma.agda
                     lib/prim/Agda/Builtin/Size.agda
                     lib/prim/Agda/Builtin/Strict.agda
@@ -82,6 +82,7 @@ data-files:         Agda.css
                     lib/prim/Agda/Builtin/TrustMe.agda
                     lib/prim/Agda/Builtin/Unit.agda
                     lib/prim/Agda/Builtin/Word.agda
+                    lib/prim/Agda/Builtin/Word/Properties.agda
                     lib/prim/Agda/Primitive.agda
                     lib/prim/Agda/Primitive/Cubical.agda
                     MAlonzo/src/MAlonzo/*.hs
@@ -94,7 +95,7 @@ source-repository head
 source-repository this
   type:     git
   location: https://github.com/agda/agda.git
-  tag:      v2.6.0
+  tag:      v2.6.1
 
 flag cpphs
   default:     False
@@ -116,15 +117,14 @@ flag enable-cluster-counting
 -- ASR (2018-09-14). Every new setup dependency should also be added
 -- as a library dependency. See Issue #3225.
 custom-setup
-  setup-depends:  base >= 4.8.0.0 && < 4.13
-                , Cabal >= 1.22.5.0 && < 2.5
-                , filepath >= 1.4.0.0 && < 1.5
-                , process >= 1.2.3.0 && < 1.7
-                , directory >= 1.2.2.0 && < 1.4
+  setup-depends:  base >= 4.9.0.0 && < 4.13
+                , Cabal >= 1.24.0.0 && < 2.5
+                , filepath >= 1.4.1.0 && < 1.5
+                , process >= 1.4.2.0 && < 1.7
+                , directory >= 1.2.6.2 && < 1.4
 
 library
   hs-source-dirs:   src/full
-  include-dirs:     src/full
 
   if flag(cpphs)
     -- We don't write an upper bound for cpphs because the
@@ -143,7 +143,7 @@ library
     build-depends:  text-icu == 0.7.*
 
   if os(windows)
-    build-depends:  Win32 >= 2.3.1.0 && < 2.7
+    build-depends:  Win32 >= 2.3.1.1 && < 2.7
 
   -- Agda cannot be built with GHC 8.6.1 due to a compiler bug, see
   -- Agda Issue #3344.
@@ -156,24 +156,23 @@ library
     buildable: False
 
   build-depends:  aeson >= 0.11.3.0 && < 1.5
-                , array >= 0.5.1.0 && < 0.6
+                , array >= 0.5.1.1 && < 0.6
                 , async >= 2.2 && < 2.3
-                , base >= 4.8.0.0 && < 4.13
-                , binary >= 0.7.3.0 && < 0.9
+                , base >= 4.9.0.0 && < 4.13
+                , binary >= 0.8.3.0 && < 0.9
                 , blaze-html >= 0.8 && < 0.10
                 , boxes >= 0.1.3 && < 0.2
-                , bytestring >= 0.10.6.0 && < 0.11
-                , containers >= 0.5.6.2 && < 0.7
+                , bytestring >= 0.10.8.1 && < 0.11
+                , containers >= 0.5.7.1 && < 0.7
                 , data-hash >= 0.2.0.0 && < 0.3
-                , deepseq >= 1.4.1.1 && < 1.5
-                , directory >= 1.2.2.0 && < 1.4
-                -- EdisonCore 1.3.2 doesn't compile with GHC 7.10.*.
-                , EdisonCore == 1.3.1.1 || >= 1.3.2.1 && < 1.4
+                , deepseq >= 1.4.2.0 && < 1.5
+                , directory >= 1.2.6.2 && < 1.4
+                , EdisonCore >= 1.3.1.1 && < 1.4
                 , edit-distance >= 0.2.1.2 && < 0.3
                 , equivalence >= 0.3.2 && < 0.4
                 -- exceptions-0.8 instead of 0.10 because of stack
                 , exceptions >= 0.8 && < 0.11
-                , filepath >= 1.4.0.0 && < 1.5
+                , filepath >= 1.4.1.0 && < 1.5
                 , geniplate-mirror >= 0.6.0.6 && < 0.8
                 , gitrev >= 1.3.1 && < 2.0
                 -- hashable 1.2.0.10 makes library-test 10x
@@ -186,23 +185,24 @@ library
                 -- have made Agda much slower (infinitely slower?) in
                 -- some cases.
                 , hashtables >= 1.2.0.2 && < 1.3
-                , haskeline >= 0.7.2.1 && < 0.8
+                , haskeline >= 0.7.2.3 && < 0.8
                 , ieee754 >= 0.7.8 && < 0.9
                 -- mtl-2.1 contains a severe bug.
                 --
                 -- mtl >= 2.2 && < 2.2.1 doesn't export Control.Monad.Except.
                 , mtl >= 2.2.1 && < 2.3
                 , murmur-hash >= 0.1 && < 0.2
-                , pretty >= 1.1.2.0 && < 1.2
-                , process >= 1.2.3.0 && < 1.7
+                , pretty >= 1.1.3.3 && < 1.2
+                , process >= 1.4.2.0 && < 1.7
                 , regex-tdfa >= 1.2.2 && < 1.3
                 , split >= 0.2.0.0 && < 0.2.3.4
                 , stm >= 2.4.4 && < 2.6
                 , strict >= 0.3.2 && < 0.4
-                , template-haskell >= 2.10.0.0 && < 2.15
-                , time >= 1.5.0.1 && < 1.9
+                , template-haskell >= 2.11.0.0 && < 2.15
+                , time >= 1.6.0.1 && < 1.9
                 , unordered-containers >= 0.2.5.0 && < 0.3
                 , uri-encode >= 1.5.0.4 && < 1.6
+                , zlib >= 0.4.0.1 && < 0.7
 
   -- In hTags the mtl library must be compiled with the version of
   -- transformers shipped with GHC, so we use that version in Agda (see,
@@ -220,24 +220,8 @@ library
   else
     build-depends: text >= 1.2.3.1 && < 1.3
 
-  if impl(ghc >= 8.0) && impl(ghc < 8.4)
+  if impl(ghc < 8.4)
     build-depends: transformers == 0.5.2.0
-
-  -- ASR (2018-09-14). We add the dependency on the filemanip library
-  -- due to Issue #3225.
-  if impl(ghc >= 7.10) && impl(ghc < 8.0)
-    build-depends:   transformers == 0.4.2.0
-                   , filemanip >= 0.3.6.2 && < 0.4
-
-  -- zlib >= 0.6.1 is broken with GHC < 7.10.3. See Issue 1518.
-  if impl(ghc < 7.10.3)
-    build-depends: zlib >= 0.4.0.1 && < 0.6.1
-  else
-    build-depends: zlib >= 0.4.0.1 && < 0.7
-
-  if impl(ghc < 8.0)
-    -- provide/emulate `Data.Semigroups` API for pre-GHC8
-    build-depends:  semigroups == 0.18.*
 
   -- We don't write upper bounds for Alex nor Happy because the
   -- `build-tools` field can not be modified in Hackage. Agda doesn't
@@ -388,6 +372,7 @@ library
                     Agda.TypeChecking.CompiledClause.Match
                     Agda.TypeChecking.Constraints
                     Agda.TypeChecking.Conversion
+                    Agda.TypeChecking.Conversion.Pure
                     Agda.TypeChecking.Coverage
                     Agda.TypeChecking.Coverage.Match
                     Agda.TypeChecking.Coverage.SplitTree
@@ -446,7 +431,10 @@ library
                     Agda.TypeChecking.Positivity
                     Agda.TypeChecking.Positivity.Occurrence
                     Agda.TypeChecking.Pretty
+                    Agda.TypeChecking.Pretty.Call
+                    Agda.TypeChecking.Pretty.Warning
                     Agda.TypeChecking.Primitive
+                    Agda.TypeChecking.Primitive.Base
                     Agda.TypeChecking.Primitive.Cubical
                     Agda.TypeChecking.ProjectionLike
                     Agda.TypeChecking.Quote
@@ -457,7 +445,10 @@ library
                     Agda.TypeChecking.Reduce.Fast
                     Agda.TypeChecking.Reduce.Monad
                     Agda.TypeChecking.Rewriting
+                    Agda.TypeChecking.Rewriting.Clause
+                    Agda.TypeChecking.Rewriting.Confluence
                     Agda.TypeChecking.Rewriting.NonLinMatch
+                    Agda.TypeChecking.Rewriting.NonLinPattern
                     Agda.TypeChecking.Rules.Application
                     Agda.TypeChecking.Rules.Builtin
                     Agda.TypeChecking.Rules.Builtin.Coinduction
@@ -567,53 +558,50 @@ library
 
   other-modules:    Paths_Agda
 
-  -- Initially, we disable all the warnings.
-  ghc-options: -w
+  -- NOTE: If adding flags, also add to `.ghci800`
+  ghc-options:
+               -- Andreas, 2019-06-02: the following optimization flags
+               -- make compilation of Agda too slow.  I turn them off
+               -- in the development version.  Turn on for the release!
+               -- -fexpose-all-unfoldings
+               -- -fspecialise-aggressively
+
+               -- Initially, we disable all the warnings.
+               -w
                -Werror
+               -- This option must be the first one after disabling the
+               -- warnings. See Issue #2094.
+               -Wunrecognised-warning-flags
+               -Wdeprecated-flags
+               -Wderiving-typeable
+               -Wdodgy-exports
+               -Wdodgy-foreign-imports
+               -Wdodgy-imports
+               -Wduplicate-exports
+               -Wempty-enumerations
+               -Whi-shadowing
+               -Widentities
+               -Wincomplete-patterns
+               -Winline-rule-shadowing
+               -Wmissing-fields
+               -Wmissing-methods
+               -Wmissing-pattern-synonym-signatures
+               -Wmissing-signatures
+               -Wnoncanonical-monad-instances
+               -Wnoncanonical-monoid-instances
+               -Woverflowed-literals
+               -Woverlapping-patterns
+               -Wsemigroup
+               -Wtabs
+               -Wtyped-holes
+               -Wunrecognised-pragmas
+               -Wunticked-promoted-constructors
+               -Wunused-do-bind
+               -Wunused-foralls
+               -Wwarnings-deprecations
+               -Wwrong-do-bind
 
-  -- This option must be the first one after disabling the warnings. See
-  -- Issue #2094.
-  if impl(ghc >= 8.0)
-    ghc-options: -Wunrecognised-warning-flags
-
-  if impl(ghc >= 7.10)
-    ghc-options: -fwarn-deprecated-flags
-                 -fwarn-deriving-typeable
-                 -fwarn-dodgy-exports
-                 -fwarn-dodgy-foreign-imports
-                 -fwarn-dodgy-imports
-                 -fwarn-duplicate-exports
-                 -fwarn-empty-enumerations
-                 -fwarn-hi-shadowing
-                 -fwarn-identities
-                 -fwarn-incomplete-patterns
-                 -fwarn-inline-rule-shadowing
-                 -fwarn-missing-fields
-                 -fwarn-missing-methods
-                 -fwarn-missing-signatures
-                 -fwarn-tabs
-                 -fwarn-typed-holes
-                 -fwarn-overflowed-literals
-                 -fwarn-overlapping-patterns
-                 -fwarn-unrecognised-pragmas
-                 -fwarn-unticked-promoted-constructors
-                 -fwarn-unused-do-bind
-                 -fwarn-warnings-deprecations
-                 -fwarn-wrong-do-bind
-
-  -- These options will be removed in GHC 8.0.1.
-  if impl(ghc >= 7.10) && impl(ghc < 8.0)
-    ghc-options: -fwarn-context-quantification
-                 -fwarn-duplicate-constraints
-                 -fwarn-pointless-pragmas
-
-  if impl(ghc >= 8.0)
-    ghc-options: -Wmissing-pattern-synonym-signatures
-                 -Wnoncanonical-monad-instances
-                 -Wnoncanonical-monoid-instances
-                 -Wsemigroup
-                 -Wunused-foralls
-
+  -- NOTE: If adding flags, also add to `.ghci820`
   if impl(ghc >= 8.2)
     ghc-options: -Wcpp-undef
                  -- ASR TODO (2017-07-23): `make haddock` fails when
@@ -622,8 +610,11 @@ library
                  -Wsimplifiable-class-constraints
                  -Wunbanged-strict-patterns
 
+  -- NOTE: If adding flags, also add to `.ghci860`
   if impl(ghc >= 8.6)
     ghc-options: -Winaccessible-code
+                 -Wstar-binder
+                 -Wstar-is-type
 
   ghc-prof-options: -fprof-auto
 
@@ -648,8 +639,8 @@ library
                     , RecordWildCards
                     , ScopedTypeVariables
                     , StandaloneDeriving
-                    , TypeSynonymInstances
                     , TupleSections
+                    , TypeSynonymInstances
 
 executable agda
   hs-source-dirs: src/main
@@ -663,24 +654,23 @@ executable agda
 
                   -- Nothing is used from the following package,
                   -- except for the prelude.
-                , base >= 4.8.0.0 && < 6
+                , base >= 4.9.0.0 && < 6
   default-language: Haskell2010
-  if impl(ghc >= 7)
-    -- If someone installs Agda with the setuid bit set, then the
-    -- presence of +RTS may be a security problem (see GHC bug #3910).
-    -- However, we sometimes recommend people to use +RTS to control
-    -- Agda's memory usage, so we want this functionality enabled by
-    -- default.
-    ghc-options:  -rtsopts
+  -- If someone installs Agda with the setuid bit set, then the
+  -- presence of +RTS may be a security problem (see GHC bug #3910).
+  -- However, we sometimes recommend people to use +RTS to control
+  -- Agda's memory usage, so we want this functionality enabled by
+  -- default.
+  ghc-options: -threaded -rtsopts
 
 executable agda-mode
   hs-source-dirs:   src/agda-mode
   main-is:          Main.hs
   other-modules:    Paths_Agda
-  build-depends:    base >= 4.8.0.0 && < 4.13
-                  , directory >= 1.2.2.0 && < 1.4
-                  , filepath >= 1.4.0.0 && < 1.5
-                  , process >= 1.2.3.0 && < 1.7
+  build-depends:    base >= 4.9.0.0 && < 4.13
+                  , directory >= 1.2.6.2 && < 1.4
+                  , filepath >= 1.4.1.0 && < 1.5
+                  , process >= 1.4.2.0 && < 1.7
   default-language: Haskell2010
 
 -- Cabal testsuite integration has some serious bugs, but we
@@ -744,6 +734,7 @@ test-suite agda-tests
                     , Internal.Utils.ListT
                     , Internal.Utils.Monoid
                     , Internal.Utils.Maybe.Strict
+                    , Internal.Utils.NonemptyList
                     , Internal.Utils.PartialOrd
                     , Internal.Utils.Permutation
                     , Internal.Utils.Three
@@ -756,17 +747,17 @@ test-suite agda-tests
                     , Utils
 
   build-depends:  Agda
-                , array >= 0.5.1.0 && < 0.6
-                , base >= 4.8.0.0 && < 4.13
-                , bytestring >= 0.10.6.0 && < 0.11
-                , containers >= 0.5.6.2 && < 0.7
-                , directory >= 1.2.2.0 && < 1.4
-                , filepath >= 1.4.0.0 && < 1.5
+                , array >= 0.5.1.1 && < 0.6
+                , base >= 4.9.0.0 && < 4.13
+                , bytestring >= 0.10.8.1 && < 0.11
+                , containers >= 0.5.7.1 && < 0.7
+                , directory >= 1.2.6.2 && < 1.4
+                , filepath >= 1.4.1.0 && < 1.5
                 , filemanip >= 0.3.6.3 && < 0.4
                 , mtl >= 2.2.1 && < 2.3
-                , process >= 1.2.3.0 && < 1.7
+                , process >= 1.4.2.0 && < 1.7
                 , process-extras >= 0.3.0 && < 0.3.4 || >= 0.4.1.3 && < 0.5 || >= 0.7.1 && < 0.8
-                , QuickCheck >= 2.11 && < 2.14
+                , QuickCheck >= 2.13.1 && < 2.14
                 , regex-tdfa >= 1.2.0 && < 1.3
                 , regex-tdfa-text >= 1.0.0.3 && < 1.1
                 , tasty >= 1.1.0.4 && < 1.3
@@ -783,10 +774,6 @@ test-suite agda-tests
     build-depends: text >= 1.2.3.0 && < 1.3
   else
     build-depends: text >= 1.2.3.1 && < 1.3
-
-  if impl(ghc < 8.0)
-    -- provide/emulate `Data.Semigroups` API for pre-GHC8
-    build-depends:  semigroups == 0.18.*
 
   -- Agda cannot be built with GHC 8.6.1 due to a compiler bug, see
   -- Agda Issue #3344.
@@ -819,63 +806,58 @@ test-suite agda-tests
                      , RecordWildCards
                      , ScopedTypeVariables
                      , StandaloneDeriving
-                     , TypeSynonymInstances
                      , TupleSections
+                     , TypeSynonymInstances
 
-  -- Initially, we disable all the warnings.
-  ghc-options: -threaded
+  -- NOTE: If adding flags, also add to `.ghci800`
+  ghc-options: -fexpose-all-unfoldings
+               -fspecialise-aggressively
+               -threaded
+               -- Initially, we disable all the warnings.
                -w
                -Werror
-
-  -- This option must be the first one after disabling the warnings. See
-  -- Issue #2094.
-  if impl(ghc >= 8.0)
-    ghc-options: -Wunrecognised-warning-flags
-
-  if impl(ghc >= 7.10)
-    ghc-options: -fwarn-deprecated-flags
-                 -fwarn-deriving-typeable
-                 -fwarn-dodgy-exports
-                 -fwarn-dodgy-foreign-imports
-                 -fwarn-dodgy-imports
-                 -fwarn-duplicate-exports
-                 -fwarn-empty-enumerations
-                 -fwarn-hi-shadowing
-                 -fwarn-identities
-                 -fwarn-incomplete-patterns
-                 -fwarn-inline-rule-shadowing
-                 -fwarn-missing-fields
-                 -fwarn-missing-methods
-                 -fwarn-missing-signatures
-                 -fwarn-tabs
-                 -fwarn-typed-holes
-                 -fwarn-overflowed-literals
-                 -fwarn-overlapping-patterns
-                 -fwarn-unrecognised-pragmas
-                 -fwarn-unticked-promoted-constructors
-                 -fwarn-unused-do-bind
-                 -fwarn-warnings-deprecations
-                 -fwarn-wrong-do-bind
-
-  -- These options will be removed in GHC 8.0.1.
-  if impl(ghc >= 7.10) && impl(ghc < 8.0)
-    ghc-options: -fwarn-context-quantification
-                 -fwarn-duplicate-constraints
-                 -fwarn-pointless-pragmas
-
-  if impl(ghc >= 8.0)
-    ghc-options: -Wmissing-pattern-synonym-signatures
-                 -Wnoncanonical-monad-instances
-                 -Wnoncanonical-monoid-instances
-                 -Wsemigroup
-                 -Wunused-foralls
+               -- This option must be the first one after disabling the
+               -- warnings. See Issue #2094.
+               -Wunrecognised-warning-flags
+               -Wdeprecated-flags
+               -Wderiving-typeable
+               -Wdodgy-exports
+               -Wdodgy-foreign-imports
+               -Wdodgy-imports
+               -Wduplicate-exports
+               -Wempty-enumerations
+               -Whi-shadowing
+               -Widentities
+               -Wincomplete-patterns
+               -Winline-rule-shadowing
+               -Wmissing-fields
+               -Wmissing-methods
+               -Wmissing-pattern-synonym-signatures
+               -Wmissing-signatures
+               -Wnoncanonical-monad-instances
+               -Wnoncanonical-monoid-instances
+               -Woverflowed-literals
+               -Woverlapping-patterns
+               -Wsemigroup
+               -Wtabs
+               -Wtyped-holes
+               -Wunrecognised-pragmas
+               -Wunticked-promoted-constructors
+               -Wunused-do-bind
+               -Wunused-foralls
+               -Wwarnings-deprecations
+               -Wwrong-do-bind
 
   -- ASR (2017-04-11). TODO: Using -Wmissing-home-modules generates an
   -- error.
+  -- NOTE: If adding flags, also add to `.ghci820`
   if impl(ghc >= 8.2)
     ghc-options: -Wcpp-undef
                  -Wsimplifiable-class-constraints
                  -Wunbanged-strict-patterns
 
+  -- NOTE: If adding flags, also add to `.ghci860`
   if impl(ghc >= 8.6)
     ghc-options: -Winaccessible-code
+                 -Wstar-binder
+                 -Wstar-is-type

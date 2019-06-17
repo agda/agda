@@ -1,19 +1,13 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-{-# LANGUAGE CPP #-}
 
 {-| Pretty printer for the concrete syntax.
 -}
 module Agda.Syntax.Concrete.Pretty where
 
-#if MIN_VERSION_base(4,11,0)
-import Prelude hiding ( (<>), null )
-#else
 import Prelude hiding ( null )
-#endif
 
 import Data.IORef
-import Data.Functor
 import Data.Maybe
 import qualified Data.Strict.Maybe as Strict
 
@@ -33,7 +27,6 @@ import Agda.Utils.Null
 import Agda.Utils.Pretty
 import Agda.Utils.String
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 import qualified System.IO.Unsafe as UNSAFE (unsafePerformIO)
@@ -84,6 +77,9 @@ data SpecialCharacters = SpecialCharacters
   , _lambda  :: Doc
   , _arrow   :: Doc
   , _forallQ :: Doc
+  , _leftIdiomBrkt  :: Doc
+  , _rightIdiomBrkt :: Doc
+  , _emptyIdiomBrkt :: Doc
   }
 
 {-# NOINLINE specialCharacters #-}
@@ -95,11 +91,17 @@ specialCharacters =
                                    , _lambda  = "\x03bb"
                                    , _arrow   = "\x2192"
                                    , _forallQ = "\x2200"
+                                   , _leftIdiomBrkt  = "\x2987"
+                                   , _rightIdiomBrkt = "\x2988"
+                                   , _emptyIdiomBrkt = "\x2987\x2988"
                                    }
     AsciiOnly -> SpecialCharacters { _dbraces = braces . braces'
                                    , _lambda  = "\\"
                                    , _arrow   = "->"
                                    , _forallQ = "forall"
+                                   , _leftIdiomBrkt  = "(|"
+                                   , _rightIdiomBrkt = "|)"
+                                   , _emptyIdiomBrkt = "(|)"
                                    }
 
 braces' :: Doc -> Doc
@@ -118,6 +120,12 @@ dbraces = _dbraces specialCharacters
 -- forall quantifier
 forallQ :: Doc
 forallQ = _forallQ specialCharacters
+
+-- left, right, and empty idiom bracket
+leftIdiomBrkt, rightIdiomBrkt, emptyIdiomBrkt :: Doc
+leftIdiomBrkt  = _leftIdiomBrkt  specialCharacters
+rightIdiomBrkt = _rightIdiomBrkt specialCharacters
+emptyIdiomBrkt = _emptyIdiomBrkt specialCharacters
 
 -- Lays out a list of documents [d₁, d₂, …] in the following way:
 -- @
@@ -156,7 +164,7 @@ prettyTactic BName{ bnameTactic = Nothing } d = d
 prettyTactic BName{ bnameTactic = Just t }  d = "@" <> parens ("tactic" <+> pretty t) <+> d
 
 instance (Pretty a, Pretty b) => Pretty (a, b) where
-    pretty (a, b) = parens $ pretty a <> comma <+> pretty b
+    pretty (a, b) = parens $ (pretty a <> comma) <+> pretty b
 
 instance Pretty (ThingWithFixity Name) where
     pretty (ThingWithFixity n _) = pretty n
@@ -224,7 +232,11 @@ instance Pretty Expr where
                     , maybe empty (\ e -> "in" <+> pretty e) me
                     ]
             Paren _ e -> parens $ pretty e
-            IdiomBrackets _ e -> "(|" <+> pretty e <+> "|)"
+            IdiomBrackets _ es ->
+              case es of
+                []   -> emptyIdiomBrkt
+                [e]  -> leftIdiomBrkt <+> pretty e <+> rightIdiomBrkt
+                e:es -> leftIdiomBrkt <+> pretty e <+> fsep (map (("|" <+>) . pretty) es) <+> rightIdiomBrkt
             DoBlock _ ss -> "do" <+> vcat (map pretty ss)
             As _ x e  -> pretty x <> "@" <> pretty e
             Dot _ e   -> "." <> pretty e
@@ -522,7 +534,7 @@ pRecord x ind eta con tel me cs =
         pEta = maybeToList $ eta <&> \case
           YesEta -> "eta-equality"
           NoEta  -> "no-eta-equality"
-        pCon = maybeToList $ ("constructor" <+>) . pretty <$> fst <$> con
+        pCon = maybeToList $ (("constructor" <+>) . pretty) . fst <$> con
 
 instance Pretty OpenShortHand where
     pretty DoOpen = "open"
@@ -557,6 +569,7 @@ instance Pretty Pragma where
         Terminating            -> "TERMINATING"
         TerminationMeasure _ x -> hsep $ ["MEASURE", pretty x]
     pretty (WarningOnUsage _ nm str) = hsep [ "WARNING_ON_USAGE", pretty nm, text str ]
+    pretty (WarningOnImport _ str)   = hsep [ "WARNING_ON_IMPORT", text str ]
     pretty (CatchallPragma _) = "CATCHALL"
     pretty (DisplayPragma _ lhs rhs) = "DISPLAY" <+> sep [ pretty lhs <+> "=", nest 2 $ pretty rhs ]
     pretty (NoPositivityCheckPragma _) = "NO_POSITIVITY_CHECK"

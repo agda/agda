@@ -1,5 +1,8 @@
-Issue878.agda:30,7-13
-ext (record { P = args.P a ; g = args.g a }) tt !=
-ext (record { P = args.P a ; g = args.g a }) tt tt of type
-args.P a tt
-when checking that the expression β-r tt has type ext a tt tt == tt
+Failed to solve the following constraints:
+  [40, 44] _g_26 tt =< tt : _P_25 tt
+  [40, 43] ext (record { P = _P_25 ; g = _g_26 }) tt = ext a tt tt
+             : _P_25 tt
+  [40, 41] _P_25 tt = ⊤ : Set
+Unsolved metas at the following locations:
+  Issue878.agda:30,7-10
+  Issue878.agda:30,7-13

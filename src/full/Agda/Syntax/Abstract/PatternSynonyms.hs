@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 
 -- | Pattern synonym utilities: folding pattern synonym definitions for
 --   printing and merging pattern synonym definitions to handle overloaded
@@ -26,7 +25,6 @@ import Agda.Utils.Monad
 import Agda.Utils.NonemptyList
 
 import Agda.Utils.Impossible
-#include "undefined.h"
 
 -- | Merge a list of pattern synonym definitions. Fails unless all definitions
 --   have the same shape (i.e. equal up to renaming of variables and constructor

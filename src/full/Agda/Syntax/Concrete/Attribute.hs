@@ -1,6 +1,3 @@
-{-# LANGUAGE TupleSections #-}
-{-# LANGUAGE LambdaCase    #-}
-{-# LANGUAGE ConstraintKinds #-}
 
 -- | Attributes: concrete syntax for ArgInfo, esp. modalities.
 

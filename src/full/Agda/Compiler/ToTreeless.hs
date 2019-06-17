@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 
 module Agda.Compiler.ToTreeless
   ( toTreeless
@@ -33,8 +32,6 @@ import Agda.Compiler.Treeless.Pretty
 import Agda.Compiler.Treeless.Unused
 import Agda.Compiler.Treeless.AsPatterns
 import Agda.Compiler.Treeless.Identity
-
-import Agda.Syntax.Common
 import Agda.TypeChecking.Monad as TCM
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
@@ -48,7 +45,6 @@ import Agda.Utils.Lens
 import Agda.Utils.Pretty (prettyShow)
 import qualified Agda.Utils.Pretty as P
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 prettyPure :: P.Pretty a => a -> TCM Doc

@@ -1,9 +1,9 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
--- {-# LANGUAGE TypeFamilies #-}
 
 -- | Constructing singleton collections.
 
 module Agda.Utils.Singleton where
+
+import Data.Monoid (Endo(..))
 
 import Data.Hashable (Hashable)
 import Data.HashMap.Strict (HashMap)
@@ -30,6 +30,8 @@ class Singleton el coll | coll -> el where
 
 instance Singleton a   (Maybe a)   where singleton = Just
 instance Singleton a   [a]         where singleton = (:[])
+instance Singleton a  ([a] -> [a]) where singleton = (:)
+instance Singleton a   (Endo [a])  where singleton = Endo . (:)
 instance Singleton a   (NonemptyList a)
                                    where singleton = (:! [])
 instance Singleton a   (Seq a)     where singleton = Seq.singleton

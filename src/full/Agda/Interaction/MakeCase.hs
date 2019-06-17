@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP             #-}
 {-# LANGUAGE NondecreasingIndentation #-}
 
 module Agda.Interaction.MakeCase where
@@ -54,7 +53,6 @@ import Agda.Utils.Singleton
 import Agda.Utils.Size
 import qualified Agda.Utils.HashMap as HMap
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 type CaseContext = Maybe ExtLamInfo
@@ -296,12 +294,31 @@ makeCase hole rng s = withInteractionId hole $ do
           if (nis == C.NotInScope) then Left x else Right x
     let sc = makePatternVarsVisible toShow $ clauseToSplitClause clause
     scs <- split f toSplit sc
+    reportSLn "interaction.case" 70 $ "makeCase: survived the splitting"
 
     -- CLEAN UP OF THE GENERATED CLAUSES
-    -- 1. filter out clauses that are already covered
-    scs <- filterM (not <.> isCovered f prevClauses . fst) scs
+    -- 1. filter out the generated clauses that are already covered
+    --    we consider a generated clause already covered if it is covered by:
+    --    a. a pre-existing clause defined before the one we splitted (prevClauses)
+    --    b. a pre-existing clause defined after the one we splitted (follClauses)
+    --       under the condition that it did not cover the one we splitted but was
+    --       covered by it (i.e. it was considered unreachable).
+    -- The key idea here is:
+    --       f m    zero = ?  ---- split on m --->  f (suc m) zero = ?
+    --       f zero zero = ?                        f zero    zero = ?
+    --       f _    _    = ?                        f _       _    = ?
+    -- because [f zero zero] is already defined.
+    -- However we ignore [f _ _]: [f m zero] was already a refinement of it,
+    -- hinting that we considered it more important than the catchall.
+    let sclause = clauseToSplitClause clause
+    fcs <- filterM (\ cl -> (isCovered f [clause] (clauseToSplitClause cl)) `and2M`
+                            (not <$> isCovered f [cl] sclause))
+                   follClauses
+    scs <- filterM (not <.> isCovered f (prevClauses ++ fcs) . fst) scs
+    reportSLn "interaction.case" 70 $ "makeCase: survived filtering out already covered clauses"
     -- 2. filter out trivially impossible clauses not asked for by the user
-    cs <- fmap catMaybes $ forM scs $ \(sc, isAbsurd) -> if isAbsurd
+    cs <- catMaybes <$> do
+     forM scs $ \ (sc, isAbsurd) -> if isAbsurd
       -- absurd clause coming from a split asked for by the user
       then Just <$> makeAbsurdClause f sc
       -- trivially empty clause due to the refined patterns
@@ -309,6 +326,7 @@ makeCase hole rng s = withInteractionId hole $ do
         ifM (liftTCM $ isEmptyTel (scTel sc))
           {- then -} (pure Nothing)
           {- else -} (Just <$> makeAbstractClause f rhs sc)
+    reportSLn "interaction.case" 70 $ "makeCase: survived filtering out impossible clauses"
     -- 3. If the cleanup removed everything then we know that none of the clauses where
     --    absurd but that all of them were trivially empty. In this case we rewind and
     --    insert all the clauses (garbage in, garbage out!)

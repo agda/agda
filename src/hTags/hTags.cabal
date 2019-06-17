@@ -3,31 +3,23 @@ version: 0.1.4
 cabal-version: >= 1.8
 author: Ulf Norell, Nils Anders Danielsson, Andreas Abel
 build-type: Simple
-tested-with: GHC == 7.10.3
-             GHC == 8.0.2
+tested-with: GHC == 8.0.2
              GHC == 8.2.2
              GHC == 8.4.4
-             GHC == 8.6.4
+             GHC == 8.6.5
 
 executable hTags
   main-is: Main.hs
   other-modules: Tags
 
-  build-depends:  base >= 4.8.2.0 && < 4.13
-                -- Most APIs we use are unchanged since 1.10, except for
-                -- Exception in Language.Haskell.Extension. Compare:
-                -- http://hackage.haskell.org/package/Cabal-1.10.2.0/docs/Language-Haskell-Extension.html
-                -- http://hackage.haskell.org/package/Cabal-1.12.0/docs/Language-Haskell-Extension.html
-                --
-                -- We must still support 1.22.5.0 since GHC 7.10.3 was
-                -- built using this version.
-                , Cabal >= 1.22.5.0  && < 2.5
-                , containers >= 0.5.6.2 && < 0.7
-                , directory >= 1.2.2.0 && < 1.4
-                , filepath >= 1.4.0.0 && < 1.5
-                , ghc >= 7.10.3 && < 8.7
+  build-depends:  base >= 4.9.0.0 && < 4.13
+                , Cabal >= 1.24.0.0  && < 2.5
+                , containers >= 0.5.7.1 && < 0.7
+                , directory >= 1.2.6.2 && < 1.4
+                , filepath >= 1.4.1.0 && < 1.5
+                , ghc >= 8.0.2 && < 8.7
                 , mtl >= 2.2.1 && < 2.3
-                , process >= 1.2.3.0 && < 1.7
+                , process >= 1.4.2.0 && < 1.7
                 , strict >= 0.3.2 && < 0.4
 
   ghc-options: -fwarn-incomplete-patterns

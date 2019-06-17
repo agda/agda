@@ -1,5 +1,4 @@
 {-# LANGUAGE CPP       #-}
-{-# LANGUAGE DataKinds #-}
 
 module Agda.Interaction.Options
     ( CommandLineOptions(..)
@@ -179,6 +178,8 @@ data PragmaOptions = PragmaOptions
   , optPrintPatternSynonyms      :: Bool
   , optFastReduce                :: Bool
     -- ^ Use the Agda abstract machine (fastReduce)?
+  , optConfluenceCheck           :: Bool
+    -- ^ Check confluence of rewrite rules?
   }
   deriving (Show, Eq)
 
@@ -273,6 +274,7 @@ defaultPragmaOptions = PragmaOptions
   , optAutoInline                = True
   , optPrintPatternSynonyms      = True
   , optFastReduce                = True
+  , optConfluenceCheck           = False
   }
 
 -- | The default termination depth.
@@ -411,6 +413,7 @@ restartOptions =
   , (I . optInstanceSearchDepth, "--instance-search-depth")
   , (I . optInversionMaxDepth, "--inversion-max-depth")
   , (W . optWarningMode, "--warning")
+  , (B . optConfluenceCheck, "--confluence-check")
   ]
 
 -- to make all restart options have the same type
@@ -742,6 +745,12 @@ terminationDepthFlag s o =
        return $ o { optTerminationDepth = CutOff $ k-1 }
     where usage = throwError "argument to termination-depth should be >= 1"
 
+confluenceCheckFlag :: Flag PragmaOptions
+confluenceCheckFlag o = return $ o { optConfluenceCheck = True }
+
+noConfluenceCheckFlag :: Flag PragmaOptions
+noConfluenceCheckFlag o = return $ o { optConfluenceCheck = False }
+
 integerArgument :: String -> String -> OptM Int
 integerArgument flag s =
     readM s `catchError` \_ ->
@@ -883,6 +892,10 @@ pragmaOptions =
                     "default records to no-eta-equality"
     , Option []     ["rewriting"] (NoArg rewritingFlag)
                     "enable declaration and use of REWRITE rules"
+    , Option []     ["confluence-check"] (NoArg confluenceCheckFlag)
+                    "enable confluence checking of REWRITE rules"
+    , Option []     ["no-confluence-check"] (NoArg noConfluenceCheckFlag)
+                    "disalbe confluence checking of REWRITE rules (default)"
     , Option []     ["cubical"] (NoArg cubicalFlag)
                     "enable cubical features (e.g. overloads lambdas for paths), implies --without-K"
     , Option []     ["postfix-projections"] (NoArg postfixProjectionsFlag)

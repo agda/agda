@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP                        #-}
 {-# LANGUAGE DeriveDataTypeable         #-}
 {-# LANGUAGE DeriveGeneric              #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
@@ -30,9 +29,8 @@ import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.PartialOrd
 import Agda.Utils.POMonoid
-import Agda.Utils.Pretty hiding ((<>))
+import Agda.Utils.Pretty
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 ---------------------------------------------------------------------------
@@ -1335,7 +1333,7 @@ instance Hashable NameId where
 -- | A meta variable identifier is just a natural number.
 --
 newtype MetaId = MetaId { metaId :: Nat }
-    deriving (Eq, Ord, Num, Real, Enum, Integral, Data)
+    deriving (Eq, Ord, Num, Real, Enum, Integral, Data, Generic)
 
 instance Pretty MetaId where
   pretty (MetaId n) = text $ "_" ++ show n
@@ -1347,6 +1345,8 @@ instance Show MetaId where
 
 instance NFData MetaId where
   rnf (MetaId x) = rnf x
+
+instance Hashable MetaId
 
 newtype Constr a = Constr a
 

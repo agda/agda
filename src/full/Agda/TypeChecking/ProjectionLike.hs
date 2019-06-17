@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP               #-}
 
 -- | Dropping initial arguments (``parameters'') from a function which can be
 --   easily reconstructed from its principal argument.
@@ -84,7 +83,6 @@ import Agda.Utils.Permutation
 import Agda.Utils.Pretty ( prettyShow )
 import Agda.Utils.Size
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | View for a @Def f (Apply a : es)@ where @isProjection f@.
@@ -133,7 +131,7 @@ projView v = do
 --   (Also reduces projections, but they should not be there,
 --   since Internal is in lambda- and projection-beta-normal form.)
 --
-reduceProjectionLike :: Term -> TCM Term
+reduceProjectionLike :: (MonadReduce m, MonadTCEnv m, HasConstInfo m) => Term -> m Term
 reduceProjectionLike v = do
   -- Andreas, 2013-11-01 make sure we do not reduce a constructor
   -- because that could be folded back into a literal by reduce.
@@ -156,7 +154,9 @@ reduceProjectionLike v = do
 --   No precondition.
 --   Preserves constructorForm, since it really does only something
 --   on (applications of) projection-like functions.
-elimView :: Bool -> Term -> TCM Term
+elimView
+  :: (MonadReduce m, MonadTCEnv m, HasConstInfo m)
+  => Bool -> Term -> m Term
 elimView loneProjToLambda v = do
   reportSDoc "tc.conv.elim" 30 $ "elimView of " <+> prettyTCM v
   reportSLn  "tc.conv.elim" 50 $ "v = " ++ show v

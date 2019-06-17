@@ -1,10 +1,5 @@
-{-# LANGUAGE CPP #-}
 -- | Sanity checking for internal syntax. Mostly checking variable scoping.
 module Agda.Syntax.Internal.SanityCheck where
-
-#if MIN_VERSION_base(4,11,0)
-import Prelude hiding ((<>))
-#endif
 
 import Control.Monad
 import qualified Data.IntSet as Set
@@ -21,7 +16,6 @@ import Agda.Utils.Pretty
 import Agda.Utils.Size
 import Agda.Utils.Impossible
 
-#include "undefined.h"
 
 sanityCheckVars :: (Pretty a, Free a) => Telescope -> a -> TCM ()
 sanityCheckVars tel v =

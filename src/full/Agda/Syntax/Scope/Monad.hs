@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP                      #-}
 {-# LANGUAGE NondecreasingIndentation #-}
 
 {-| The scope monad with operations.
@@ -42,8 +41,10 @@ import Agda.TypeChecking.Positivity.Occurrence (Occurrence)
 import Agda.TypeChecking.Warnings ( warning )
 
 import qualified Agda.Utils.AssocList as AssocList
+import Agda.Utils.Except
 import Agda.Utils.Function
 import Agda.Utils.Functor
+import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
@@ -53,7 +54,6 @@ import Agda.Utils.Pretty
 import Agda.Utils.Size
 import Agda.Utils.Tuple
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- * The scope checking monad
@@ -64,9 +64,9 @@ type ScopeM = TCM
 
 -- * Errors
 
-isDatatypeModule :: A.ModuleName -> ScopeM (Maybe DataOrRecord)
+isDatatypeModule :: ReadTCState m => A.ModuleName -> m (Maybe DataOrRecord)
 isDatatypeModule m = do
-   scopeDatatypeModule . Map.findWithDefault __IMPOSSIBLE__ m . scopeModules <$> getScope
+   scopeDatatypeModule . Map.findWithDefault __IMPOSSIBLE__ m <$> useScope scopeModules
 
 
 -- Debugging
@@ -79,11 +79,14 @@ printLocals v s = verboseS "scope.top" v $ do
 
 -- * General operations
 
-getCurrentModule :: ScopeM A.ModuleName
-getCurrentModule = setRange noRange . scopeCurrent <$> getScope
+useScope :: ReadTCState m => Lens' a ScopeInfo -> m a
+useScope l = useR $ stScope . l
+
+getCurrentModule :: ReadTCState m => m A.ModuleName
+getCurrentModule = setRange noRange <$> useScope scopeCurrent
 
 setCurrentModule :: A.ModuleName -> ScopeM ()
-setCurrentModule m = modifyScope $ \s -> s { scopeCurrent = m }
+setCurrentModule m = modifyScope $ set scopeCurrent m
 
 withCurrentModule :: A.ModuleName -> ScopeM a -> ScopeM a
 withCurrentModule new action = do
@@ -104,7 +107,7 @@ withCurrentModule' new action = do
 getNamedScope :: A.ModuleName -> ScopeM Scope
 getNamedScope m = do
   scope <- getScope
-  case Map.lookup m (scopeModules scope) of
+  case Map.lookup m (scope ^. scopeModules) of
     Just s  -> return s
     Nothing -> do
       reportSLn "" 0 $ "ERROR: In scope\n" ++ prettyShow scope ++ "\nNO SUCH SCOPE " ++ prettyShow m
@@ -129,7 +132,7 @@ createModule b m = do
 
 -- | Apply a function to the scope map.
 modifyScopes :: (Map A.ModuleName Scope -> Map A.ModuleName Scope) -> ScopeM ()
-modifyScopes f = modifyScope $ \s -> s { scopeModules = f $ scopeModules s }
+modifyScopes = modifyScope . over scopeModules
 
 -- | Apply a function to the given scope.
 modifyNamedScope :: A.ModuleName -> (Scope -> Scope) -> ScopeM ()
@@ -157,20 +160,15 @@ modifyCurrentNameSpace :: NameSpaceId -> (NameSpace -> NameSpace) -> ScopeM ()
 modifyCurrentNameSpace acc f = modifyCurrentScope $ updateScopeNameSpaces $
   AssocList.updateAt acc f
 
-pushContextPrecedence :: Precedence -> ScopeM PrecedenceStack
-pushContextPrecedence p = do
-  old <- scopePrecedence <$> getScope
-  modifyScope_ $ \ s -> s { scopePrecedence = pushPrecedence p $ scopePrecedence s }
-  return old
-
 setContextPrecedence :: PrecedenceStack -> ScopeM ()
-setContextPrecedence ps = modifyScope_ $ \ s -> s { scopePrecedence = ps }
+setContextPrecedence = modifyScope_ . set scopePrecedence
 
-withContextPrecedence :: Precedence -> ScopeM a -> ScopeM a
-withContextPrecedence p = bracket_ (pushContextPrecedence p) setContextPrecedence
+withContextPrecedence :: ReadTCState m => Precedence -> m a -> m a
+withContextPrecedence p =
+  locallyTCState (stScope . scopePrecedence) $ pushPrecedence p
 
-getLocalVars :: ScopeM LocalVars
-getLocalVars = scopeLocals <$> getScope
+getLocalVars :: ReadTCState m => m LocalVars
+getLocalVars = useScope scopeLocals
 
 modifyLocalVars :: (LocalVars -> LocalVars) -> ScopeM ()
 modifyLocalVars = modifyScope_ . updateScopeLocals
@@ -183,7 +181,7 @@ withLocalVars :: ScopeM a -> ScopeM a
 withLocalVars = bracket_ getLocalVars setLocalVars
 
 getVarsToBind :: ScopeM LocalVars
-getVarsToBind = scopeVarsToBind <$> getScope
+getVarsToBind = useScope scopeVarsToBind
 
 addVarToBind :: C.Name -> LocalVar -> ScopeM ()
 addVarToBind x y = modifyScope_ $ updateVarsToBind $ AssocList.insert x y
@@ -245,9 +243,17 @@ resolveName = resolveName' allKindsOfNames Nothing
 --   of a different kind. (See issue 822.)
 resolveName' ::
   [KindOfName] -> Maybe (Set A.Name) -> C.QName -> ScopeM ResolvedName
-resolveName' kinds names x = do
+resolveName' kinds names x = runExceptT (tryResolveName kinds names x) >>= \case
+  Left ys  -> typeError $ AmbiguousName x ys
+  Right x' -> return x'
+
+tryResolveName
+  :: (ReadTCState m, MonadError (NonemptyList A.QName) m)
+  => [KindOfName] -> Maybe (Set A.Name) -> C.QName
+  -> m ResolvedName
+tryResolveName kinds names x = do
   scope <- getScope
-  let vars     = AssocList.mapKeysMonotonic C.QName $ scopeLocals scope
+  let vars     = AssocList.mapKeysMonotonic C.QName $ scope ^. scopeLocals
       retVar y = return . VarName y{ nameConcrete = unqualify x }
       aName    = A.qnameName . anameName
   case lookup x vars of
@@ -261,7 +267,7 @@ resolveName' kinds names x = do
         ys -> shadowed ys
       where
       shadowed ys =
-        typeError $ AmbiguousName x $ A.qualify_ y :! map anameName ys
+        throwError $ A.qualify_ y :! map anameName ys
     -- Case: we do not have a local variable x.
     Nothing -> do
       -- Consider only names of one of the given kinds
@@ -281,7 +287,7 @@ resolveName' kinds names x = do
         (d, a) :! [] ->
           return $ DefinedName a $ upd d
 
-        ds -> typeError $ AmbiguousName x (fmap (anameName . fst) ds)
+        ds -> throwError $ fmap (anameName . fst) ds
   where
   upd d = updateConcreteName d $ unqualify x
   updateConcreteName :: AbstractName -> C.Name -> AbstractName
@@ -298,11 +304,11 @@ resolveModule x = do
 
 -- | Get the fixity of a not yet bound name.
 getConcreteFixity :: C.Name -> ScopeM Fixity'
-getConcreteFixity x = Map.findWithDefault noFixity' x . scopeFixities <$> getScope
+getConcreteFixity x = Map.findWithDefault noFixity' x <$> useScope scopeFixities
 
 -- | Get the polarities of a not yet bound name.
 getConcretePolarity :: C.Name -> ScopeM (Maybe [Occurrence])
-getConcretePolarity x = Map.lookup x . scopePolarities <$> getScope
+getConcretePolarity x = Map.lookup x <$> useScope scopePolarities
 
 instance MonadFixityError ScopeM where
   throwMultipleFixityDecls xs         = case xs of
@@ -320,11 +326,11 @@ instance MonadFixityError ScopeM where
 --   of declarations and store them in the scope.
 computeFixitiesAndPolarities :: DoWarn -> [C.Declaration] -> ScopeM a -> ScopeM a
 computeFixitiesAndPolarities warn ds ret = do
-  (fixs0, pols0) <- (scopeFixities &&& scopePolarities) <$> getScope
+  (fixs0, pols0) <- (,) <$> useScope scopeFixities <*> useScope scopePolarities
   (fixs, pols)   <- fixitiesAndPolarities warn ds
-  modifyScope $ \ s -> s { scopeFixities = fixs, scopePolarities = pols }
+  modifyScope $ set scopeFixities fixs . set scopePolarities pols
   x <- ret
-  modifyScope $ \ s -> s { scopeFixities = fixs0, scopePolarities = pols0 }
+  modifyScope $ set scopeFixities fixs0 . set scopePolarities pols0
   return x
 
 -- | Get the notation of a name. The name is assumed to be in scope.
@@ -566,7 +572,11 @@ copyScope oldc new0 s = (inScopeBecause (Applied oldc) *** memoToScopeInfo) <$> 
 
 -- | Apply an import directive and check that all the names mentioned actually
 --   exist.
-applyImportDirectiveM :: C.QName -> C.ImportDirective -> Scope -> ScopeM (A.ImportDirective, Scope)
+applyImportDirectiveM
+  :: C.QName                           -- ^ Name of the scope, only for error reporting.
+  -> C.ImportDirective                 -- ^ Description of how scope is to be modified.
+  -> Scope                             -- ^ Input scope.
+  -> ScopeM (A.ImportDirective, Scope) -- ^ Scope-checked description, output scope.
 applyImportDirectiveM m (ImportDirective rng usn' hdn' ren' public) scope = do
 
     -- We start by checking that all of the names talked about in the import
@@ -727,9 +737,13 @@ noGeneralizedVarsIfLetOpen LetOpenModule = disallowGeneralizedVars
 
 -- | Open a module.
 openModule_ :: OpenKind -> C.QName -> C.ImportDirective -> ScopeM A.ImportDirective
-openModule_ kind cm dir = do
+openModule_ kind cm dir = openModule kind Nothing cm dir
+
+-- | Open a module, possibly given an already resolved module name.
+openModule :: OpenKind -> Maybe A.ModuleName  -> C.QName -> C.ImportDirective -> ScopeM A.ImportDirective
+openModule kind mam cm dir = do
   current <- getCurrentModule
-  m <- amodName <$> resolveModule cm
+  m <- caseMaybe mam (amodName <$> resolveModule cm) return
   let acc | not (publicOpen dir)      = PrivateNS
           | m `isSubModuleOf` current = PublicNS
           | otherwise                 = ImportedNS

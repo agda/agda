@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP                    #-}
 {-# LANGUAGE TypeFamilies           #-}  -- because of type equality ~
 {-# LANGUAGE UndecidableInstances   #-}  -- because of func. deps.
 
@@ -25,7 +24,6 @@ import Agda.Utils.Permutation
 import Agda.Utils.Size (size)
 import Agda.Utils.Tuple
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- * Tools for clauses

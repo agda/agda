@@ -4,7 +4,6 @@
 
 {-# LANGUAGE CPP           #-}
 {-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE Rank2Types    #-}
 
 module Agda.Syntax.Concrete.Operators.Parser.Monad
   ( MemoKey(..)

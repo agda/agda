@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP              #-}
 
 -- | Generates data used for precise syntax highlighting.
 
@@ -38,11 +37,11 @@ import qualified Data.Set as Set
 import qualified Data.Text.Lazy as T
 import Data.Void
 
-import Agda.Interaction.Response (Response(Resp_HighlightingInfo))
+import Agda.Interaction.Response
+       (Response(Resp_HighlightingInfo),
+        RemoveTokenBasedHighlighting(KeepHighlighting))
 import Agda.Interaction.Highlighting.Precise
 import Agda.Interaction.Highlighting.Range
-import Agda.Interaction.Response
-  (RemoveTokenBasedHighlighting(KeepHighlighting))
 
 import qualified Agda.TypeChecking.Errors as E
 import Agda.TypeChecking.MetaVars (isBlockedTerm)
@@ -81,7 +80,6 @@ import Agda.Utils.Pretty
 import Agda.Utils.HashMap (HashMap)
 import qualified Agda.Utils.HashMap as HMap
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | @highlightAsTypeChecked rPre r m@ runs @m@ and returns its
@@ -650,6 +648,9 @@ warningHighlighting w = case tcWarning w of
   LibraryWarning{}           -> mempty
   InfectiveImport{}          -> mempty
   CoInfectiveImport{}        -> mempty
+  RewriteNonConfluent{}      -> confluenceErrorHighlighting $ P.getRange w
+  RewriteMaybeNonConfluent{} -> confluenceErrorHighlighting $ P.getRange w
+  PragmaCompileErased{}      -> deadcodeHighlighting $ P.getRange w
   NicifierIssue w           -> case w of
     -- we intentionally override the binding of `w` here so that our pattern of
     -- using `P.getRange w` still yields the most precise range information we
@@ -665,8 +666,19 @@ warningHighlighting w = case tcWarning w of
     UselessAbstract{}    -> deadcodeHighlighting $ P.getRange w
     UselessInstance{}    -> deadcodeHighlighting $ P.getRange w
     UselessPrivate{}     -> deadcodeHighlighting $ P.getRange w
-    _ -> mempty -- TODO: explore highlighting opportunities here!
-
+    -- TODO: explore highlighting opportunities here!
+    EmptyPrimitive{} -> mempty
+    InvalidCatchallPragma{} -> mempty
+    InvalidNoPositivityCheckPragma{} -> mempty
+    InvalidNoUniverseCheckPragma{} -> mempty
+    InvalidTerminationCheckPragma{} -> mempty
+    MissingDefinitions{} -> mempty
+    PolarityPragmasButNotPostulates{} -> mempty
+    PragmaNoTerminationCheck{} -> mempty
+    PragmaCompiled{} -> mempty
+    UnknownFixityInMixfixDecl{} -> mempty
+    UnknownNamesInFixityDecl{} -> mempty
+    UnknownNamesInPolarityPragmas{} -> mempty
 
 
 -- | Generate syntax highlighting for termination errors.
@@ -692,7 +704,7 @@ positivityErrorHighlighting q os =
     m  = parserBased { otherAspects = Set.singleton PositivityProblem }
 
 deadcodeHighlighting :: P.Range -> File
-deadcodeHighlighting r = singleton (rToR $ P.continuousPerLine r) m
+deadcodeHighlighting r = singleton (rToR $ P.continuous r) m
   where m = parserBased { otherAspects = Set.singleton Deadcode }
 
 coverageErrorHighlighting :: P.Range -> File
@@ -704,6 +716,9 @@ catchallHighlighting :: P.Range -> File
 catchallHighlighting r = singleton (rToR $ P.continuousPerLine r) m
   where m = parserBased { otherAspects = Set.singleton CatchallClause }
 
+confluenceErrorHighlighting :: P.Range -> File
+confluenceErrorHighlighting r = singleton (rToR $ P.continuousPerLine r) m
+  where m = parserBased { otherAspects = Set.singleton ConfluenceProblem }
 
 -- | Generates and prints syntax highlighting information for unsolved
 -- meta-variables and certain unsolved constraints.

@@ -55,6 +55,8 @@ Introduction to Agda
    - `Verified Functional Programming in Agda <https://dl.acm.org/citation.cfm?id=2841316>`__
 - Diviánszky Péter.
    - `Agda Tutorial <https://people.inf.elte.hu/divip/AgdaTutorial/Index.html>`__
+- Musa Al-hassy.
+   - `A slow-paced introduction to reflection in Agda <https://github.com/alhassy/gentle-intro-to-reflection>`__
 
 Courses using Agda
 ==================
@@ -88,12 +90,13 @@ Courses using Agda
   , Summer (2013) course at the University of Cambridge by Conor McBride.
 - `Computer-Checked Programs and Proofs <http://dlicata.web.wesleyan.edu/teaching/ccpp-f13/>`__
   (COMP 360-1), Dan Licata, Wesleyan, Fall 2013.
-- `Advanced Functional Programming&#65279; <https://github.com/pigworker/CS410-13>`__
-  (CS410), Conor McBride, Strathclyde, Fall 2013.
+- `Advanced Functional Programming Fall 2013 <https://github.com/pigworker/CS410-13>`__
+  (CS410), Conor McBride, Strathclyde, `notes from 2015 <https://github.com/pigworker/CS410-15/blob/master/CS410-notes.pdf>`__, `videos from 2017 <https://github.com/pigworker/CS410-17/>`__.
 - `Interactive Theorem proving <http://www.cs.swan.ac.uk/~csetzer/lectures/intertheo/07/>`__
   (CS__336), Anton Setzer, Swansea University, Lent 2008.
 - `Inductive and inductive-recursive definitions in Intuitionistic Type Theory <https://www.cs.uoregon.edu/research/summerschool/summer15/curriculum.html>`__
   , lectures by Peter Dybjer at the Oregon Programming Languages Summer School 2015.
+- `Introduction to Univalent Foundations of Mathematics with Agda <https://www.cs.bham.ac.uk/~mhe/HoTT-UF-in-Agda-Lecture-Notes/index.html>`__ , MGS 2019 Martín Hötzel Escardó
 
 Miscellaneous
 =============

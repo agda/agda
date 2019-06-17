@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP                      #-}
 {-# LANGUAGE NondecreasingIndentation #-}
 
 module Agda.TypeChecking.Rules.Application
@@ -9,11 +8,7 @@ module Agda.TypeChecking.Rules.Application
   , checkProjAppToKnownPrincipalArg
   ) where
 
-#if MIN_VERSION_base(4,11,0)
-import Prelude hiding ( (<>), null )
-#else
 import Prelude hiding ( null )
-#endif
 
 import Control.Arrow (first, second)
 import Control.Monad.Trans
@@ -54,7 +49,6 @@ import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Primitive
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
-import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Rules.Def
@@ -75,7 +69,6 @@ import Agda.Utils.Pretty ( prettyShow )
 import Agda.Utils.Size
 import Agda.Utils.Tuple
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 -----------------------------------------------------------------------------
@@ -509,7 +502,7 @@ checkArgumentsE' chk exh r args0@(arg@(Arg info e) : args) t0 mt1 =
       t <- lift $ forcePiUsingInjectivity t
 
       -- We are done inserting implicit args.  Now, try to check @arg@.
-      ifBlockedType t (\ m t -> throwError (replicate (length us) Nothing, us, args0, t)) $ \ _ t0' -> do
+      ifBlocked t (\ m t -> throwError (replicate (length us) Nothing, us, args0, t)) $ \ _ t0' -> do
 
         -- What can go wrong?
 
@@ -816,7 +809,7 @@ disambiguateConstructor cs0 t = do
             addContext tel $ do
              reportSDoc "tc.check.term.con" 40 $ nest 2 $
                "target type: " <+> prettyTCM t1
-             ifBlockedType t1 (\ m t -> return Nothing) $ \ _ t' ->
+             ifBlocked t1 (\ m t -> return Nothing) $ \ _ t' ->
                caseMaybeM (isDataOrRecord $ unEl t') (badCon t') $ \ d ->
                  case [ c | (d', c) <- dcs, d == d' ] of
                    [c] -> do
@@ -909,9 +902,9 @@ inferOrCheckProjApp e o ds args mt = do
       -- If we have the type, we can try to get the type of the principal argument.
       -- It is the first visible argument.
       TelV _ptel core <- telViewUpTo' (-1) (not . visible) t
-      ifBlockedType core (\ m _ -> postpone m) $ {-else-} \ _ core -> do
+      ifBlocked core (\ m _ -> postpone m) $ {-else-} \ _ core -> do
       ifNotPiType core (\ _ -> refuseProjNotApplied ds) $ {-else-} \ dom _b -> do
-      ifBlockedType (unDom dom) (\ m _ -> postpone m) $ {-else-} \ _ ta -> do
+      ifBlocked (unDom dom) (\ m _ -> postpone m) $ {-else-} \ _ ta -> do
       caseMaybeM (isRecordType ta) (refuseProjNotRecordType ds) $ \ (_q, _pars, defn) -> do
       case defn of
         Record { recFields = fs } -> do
@@ -948,7 +941,7 @@ inferOrCheckProjAppToKnownPrincipalArg e o ds args mt k v0 ta = do
   -- ta should be a record type (after introducing the hidden args in v0)
   (vargs, ta) <- implicitArgs (-1) (not . visible) ta
   let v = v0 `apply` vargs
-  ifBlockedType ta (\ m _ -> postpone m) {-else-} $ \ _ ta -> do
+  ifBlocked ta (\ m _ -> postpone m) {-else-} $ \ _ ta -> do
   caseMaybeM (isRecordType ta) (refuseProjNotRecordType ds) $ \ (q, _pars0, _) -> do
 
       -- try to project it with all of the possible projections
@@ -1114,10 +1107,10 @@ checkSharpApplication e t c args = do
       def <- theDef <$> getConstInfo c'
       vcat $
         [ "The coinductive wrapper"
-        , nest 2 $ prettyTCM rel <> prettyTCM c' <+> ":"
+        , nest 2 $ prettyTCM rel <> (prettyTCM c' <+> ":")
         , nest 4 $ prettyTCM t
         , nest 2 $ prettyA clause
-        , "The definition is" <+> text (show $ funDelayed def) <>
+        , ("The definition is" <+> text (show $ funDelayed def)) <>
           "."
         ]
     return c'

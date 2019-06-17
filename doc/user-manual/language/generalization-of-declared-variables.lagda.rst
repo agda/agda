@@ -8,6 +8,8 @@
   open import Agda.Builtin.Nat
   open import Agda.Builtin.Bool
 
+.. _generalization-of-declared-variables:
+
 ************************************
 Generalization of Declared Variables
 ************************************

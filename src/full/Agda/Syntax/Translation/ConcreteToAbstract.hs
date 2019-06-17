@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP                  #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 {-| Translation from "Agda.Syntax.Concrete" to "Agda.Syntax.Abstract". Involves scope analysis,
@@ -16,15 +15,10 @@ module Agda.Syntax.Translation.ConcreteToAbstract
     , AbstractRHS
     , NewModuleName, OldModuleName
     , NewName, OldQName
-    , LeftHandSide, RightHandSide
     , PatName, APatName
     ) where
 
-#if MIN_VERSION_base(4,11,0)
-import Prelude hiding ( (<>), mapM, null )
-#else
 import Prelude hiding ( mapM, null )
-#endif
 
 import Control.Applicative
 import Control.Arrow (second)
@@ -78,7 +72,7 @@ import Agda.TypeChecking.Patterns.Abstract (expandPatternSynonyms)
 import Agda.TypeChecking.Pretty hiding (pretty, prettyA)
 import Agda.TypeChecking.Warnings
 
-import Agda.Interaction.FindFile (checkModuleName)
+import Agda.Interaction.FindFile (checkModuleName, rootNameModule)
 -- import Agda.Interaction.Imports  -- for type-checking in ghci
 import {-# SOURCE #-} Agda.Interaction.Imports (scopeCheckImport)
 import Agda.Interaction.Options
@@ -100,9 +94,7 @@ import Agda.Utils.Null
 import qualified Agda.Utils.Pretty as P
 import Agda.Utils.Pretty (render, Pretty, pretty, prettyShow)
 import Agda.Utils.Tuple
-import Agda.Interaction.FindFile ( rootNameModule )
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 import Agda.ImpossibleTest (impossibleTest)
 
@@ -346,10 +338,10 @@ checkModuleMacro apply kind r p x modapp open dir = do
     printScope "mod.inst.copy.after" 20 "after copying"
 
     -- Open the module if DoOpen.
-    -- Andreas, 2014-09-02 openModule_ might shadow some locals!
+    -- Andreas, 2014-09-02: @openModule@ might shadow some locals!
     adir <- case open of
       DontOpen -> return adir'
-      DoOpen   -> openModule_ kind (C.QName x) openDir
+      DoOpen   -> openModule kind (Just m0) (C.QName x) openDir
     printScope "mod.inst" 20 $ show open
     reportSDoc "scope.decl" 90 $ "after open   : m0 =" <+> prettyA m0
 
@@ -394,9 +386,12 @@ renamingRange = getRange . map renToRange . impRenaming
 
 -- | Scope check a 'NiceOpen'.
 checkOpen
-  :: Range -> C.QName -> C.ImportDirective                -- ^ Arguments of 'NiceOpen'
+  :: Range                -- ^ Range of @open@ statement.
+  -> Maybe A.ModuleName   -- ^ Resolution of concrete module name (if already resolved).
+  -> C.QName              -- ^ Module to open.
+  -> C.ImportDirective    -- ^ Scope modifier.
   -> ScopeM (ModuleInfo, A.ModuleName, A.ImportDirective) -- ^ Arguments of 'A.Open'
-checkOpen r x dir = do
+checkOpen r mam x dir = do
   reportSDoc "scope.decl" 70 $ do
     cm <- getCurrentModule
     vcat $
@@ -410,9 +405,9 @@ checkOpen r x dir = do
     whenM ((A.noModuleName ==) <$> getCurrentModule) $ do
       warning $ UselessPublic
 
-  m <- toAbstract (OldModuleName x)
+  m <- caseMaybe mam (toAbstract (OldModuleName x)) return
   printScope "open" 20 $ "opening " ++ prettyShow x
-  adir <- openModule_ TopOpenModule x dir
+  adir <- openModule TopOpenModule (Just m) x dir
   printScope "open" 20 $ "result:"
   let minfo = ModuleInfo
         { minfoRange     = r
@@ -458,7 +453,7 @@ toAbstractHiding _             = toAbstractCtx TopCtx
 setContextCPS :: Precedence -> (a -> ScopeM b) ->
                  ((a -> ScopeM b) -> ScopeM b) -> ScopeM b
 setContextCPS p ret f = do
-  old <- scopePrecedence <$> getScope
+  old <- useScope scopePrecedence
   withContextPrecedence p $ f $ \ x -> setContextPrecedence old >> ret x
 
 localToAbstractCtx :: ToAbstract concrete abstract =>
@@ -553,7 +548,7 @@ instance ToAbstract OldQName A.Expr where
               text "Cannot use generalized variable from let-opened module:" <+> prettyTCM (anameName d)
           _ -> return ()
         -- and then we return the name
-        return $ nameExpr d
+        return $ nameToExpr d
       FieldName     ds     -> return $ A.Proj ProjPrefix $ AmbQ (fmap anameName ds)
       ConstructorName ds   -> return $ A.Con $ AmbQ (fmap anameName ds)
       UnknownName          -> notInScope x
@@ -919,8 +914,8 @@ instance ToAbstract C.Expr A.Expr where
       C.Paren _ e -> toAbstractCtx TopCtx e
 
   -- Idiom brackets
-      C.IdiomBrackets r e ->
-        toAbstractCtx TopCtx =<< parseIdiomBrackets r e
+      C.IdiomBrackets r es ->
+        toAbstractCtx TopCtx =<< parseIdiomBracketsSeq r es
 
   -- Do notation
       C.DoBlock r ss ->
@@ -1044,7 +1039,7 @@ scopeCheckNiceModule r p name tel checkDs
       -- unless it's private, in which case we just open it (#2099)
       when open $
        void $ -- We can discard the returned default A.ImportDirective.
-        openModule_ TopOpenModule (C.QName name) $
+        openModule TopOpenModule (Just aname) (C.QName name) $
           defaultImportDir { publicOpen = p == PublicAccess }
       return ds
 
@@ -1151,7 +1146,7 @@ data TopLevelInfo = TopLevelInfo
 -- | The top-level module name.
 
 topLevelModuleName :: TopLevelInfo -> A.ModuleName
-topLevelModuleName = scopeCurrent . topLevelScope
+topLevelModuleName = (^. scopeCurrent) . topLevelScope
 
 -- | Top-level declarations are always
 --   @
@@ -1230,7 +1225,7 @@ instance ToAbstract (TopLevel [C.Declaration]) TopLevelInfo where
 -- | runs Syntax.Concrete.Definitions.niceDeclarations on main module
 niceDecls :: DoWarn -> [C.Declaration] -> ([NiceDeclaration] -> ScopeM a) -> ScopeM a
 niceDecls warn ds ret = setCurrentRange ds $ computeFixitiesAndPolarities warn ds $ do
-  fixs <- scopeFixities <$> getScope  -- We need to pass the fixities to the nicifier for clause grouping
+  fixs <- useScope scopeFixities  -- We need to pass the fixities to the nicifier for clause grouping
   let (result, warns') = runNice $ niceDeclarations fixs ds
 
   -- COMPILED pragmas are not allowed in safe mode unless we are in a builtin module.
@@ -1433,8 +1428,6 @@ newtype Blind a = Blind { unBlind :: a }
 instance ToAbstract (Blind a) (Blind a) where
   toAbstract = return
 
--- The only reason why we return a list is that open declarations disappears.
--- For every other declaration we get a singleton list.
 instance ToAbstract NiceDeclaration A.Declaration where
 
   toAbstract d = annotateDecls $
@@ -1663,7 +1656,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
       return adecls
 
     NiceOpen r x dir -> do
-      (minfo, m, adir) <- checkOpen r x dir
+      (minfo, m, adir) <- checkOpen r Nothing x dir
       return [A.Open minfo m adir]
 
     NicePragma r p -> do
@@ -1718,7 +1711,32 @@ instance ToAbstract NiceDeclaration A.Declaration where
             Just a  -> (C.QName (asName a), asRange a, Just (asName a))
       adir <- case open of
         DoOpen   -> do
-          (_minfo, _m, adir) <- checkOpen r name dir
+          -- Andreas, 2019-05-29, issue #3818.
+          -- Pass the resolved name to open instead triggering another resolution.
+          -- This helps in situations like
+          -- @
+          --    module Top where
+          --    module M where
+          --    open import M
+          -- @
+          -- It is clear than in @open import M@, name @M@ must refer to a file
+          -- rather than the above defined local module @M@.
+          -- This already worked in the situation
+          -- @
+          --    module Top where
+          --    module M where
+          --    import M
+          -- @
+          -- Note that the manual desugaring of @open import@ as
+          -- @
+          --    module Top where
+          --    module M where
+          --    import M
+          --    open M
+          -- @
+          -- will not work, as @M@ is now ambiguous in @open M@;
+          -- the information that @M@ is external is lost here.
+          (_minfo, _m, adir) <- checkOpen r (Just m) name dir
           return adir
         -- If not opening, import directives are applied to the original scope.
         DontOpen -> modifyNamedScopeM m $ applyImportDirectiveM x dir
@@ -2051,6 +2069,10 @@ instance ToAbstract C.Pragma [A.Pragma] where
     stLocalUserWarnings `modifyTCLens` Map.insert qn str
     pure []
 
+  toAbstract (C.WarningOnImport _ str) = do
+    stWarningOnImport `setTCLens` Just str
+    pure []
+
   -- Termination checking pragmes are handled by the nicifier
   toAbstract C.TerminationCheckPragma{} = __IMPOSSIBLE__
 
@@ -2091,7 +2113,7 @@ instance ToAbstract C.Clause A.Clause where
 
     if not (null eqs)
       then do
-        rhs <- toAbstract =<< toAbstractCtx TopCtx (RightHandSide eqs with wcs' rhs whds)
+        rhs <- toAbstract =<< toAbstractCtx TopCtx (RightHandSide eqs with wcs' rhs whname whds)
         return $ A.Clause lhs' [] rhs A.noWhereDecls catchall
       else do
         -- ASR (16 November 2015) Issue 1137: We ban termination
@@ -2099,15 +2121,20 @@ instance ToAbstract C.Clause A.Clause where
         when (any isTerminationPragma whds) $
              genericError "Termination pragmas are not allowed inside where clauses"
 
-        -- the right hand side is checked inside the module of the local definitions
+        -- the right hand side is checked with the module of the local definitions opened
         (rhs, ds) <- whereToAbstract (getRange wh) whname whds $
-                      toAbstractCtx TopCtx (RightHandSide eqs with wcs' rhs [])
+                      toAbstractCtx TopCtx (RightHandSide eqs with wcs' rhs Nothing [])
         rhs <- toAbstract rhs
                  -- #2897: we need to restrict named where modules in refined contexts,
                  --        so remember whether it was named here
         return $ A.Clause lhs' [] rhs ds catchall
 
-whereToAbstract :: Range -> Maybe (C.Name, Access) -> [C.Declaration] -> ScopeM a -> ScopeM (a, A.WhereDeclarations)
+whereToAbstract
+  :: Range                            -- ^ The range of the @where@-block.
+  -> Maybe (C.Name, Access)           -- ^ The name of the @where@ module (if any).
+  -> [C.Declaration]                  -- ^ The contents of the @where@ module.
+  -> ScopeM a                         -- ^ The scope-checking task to be run in the context of the @where@ module.
+  -> ScopeM (a, A.WhereDeclarations)  -- ^ Additionally return the scope-checked contents of the @where@ module.
 whereToAbstract _ whname []   inner = (, A.noWhereDecls) <$> inner
 whereToAbstract r whname whds inner = do
   -- Create a fresh concrete name if there isn't (a proper) one.
@@ -2121,14 +2148,18 @@ whereToAbstract r whname whds inner = do
   am  <- toAbstract (NewModuleName m)
   (scope, ds) <- scopeCheckModule r (C.QName m) am tel $ toAbstract whds
   setScope scope
-  x <- inner
+  x <- localScope $ do
+    -- Andreas, 2019-05-30, issue #3823:
+    -- Temporarily bind where-module here so it can be referenced in rhs
+    bindModule acc m am
+    inner
   setCurrentModule old
   bindModule acc m am
   -- Issue 848: if the module was anonymous (module _ where) open it public
   let anonymousSomeWhere = maybe False (isNoName . fst) whname
   when anonymousSomeWhere $
    void $ -- We can ignore the returned default A.ImportDirective.
-    openModule_ TopOpenModule (C.QName m) $
+    openModule TopOpenModule (Just am) (C.QName m) $
       defaultImportDir { publicOpen = True }
   return (x, A.WhereDecls (am <$ whname) ds)
 
@@ -2137,7 +2168,8 @@ data RightHandSide = RightHandSide
   , rhsWithExpr   :: [C.WithExpr]      -- ^ @with e@ (many)
   , rhsSubclauses :: [ScopeM C.Clause] -- ^ the subclauses spawned by a with (monadic because we need to reset the local vars before checking these clauses)
   , rhs           :: C.RHS
-  , rhsWhereDecls :: [C.Declaration]
+  , rhsWhereName  :: Maybe (C.Name, Access)  -- ^ The name of the @where@ module (if any).
+  , rhsWhereDecls :: [C.Declaration]         -- ^ The contents of the @where@ module.
   }
 
 data AbstractRHS
@@ -2168,22 +2200,21 @@ instance ToAbstract AbstractRHS A.RHS where
     A.WithRHS aux es <$> do toAbstract =<< sequence cs
 
 instance ToAbstract RightHandSide AbstractRHS where
-  toAbstract (RightHandSide eqs@(_:_) es cs rhs wh) = do
+  toAbstract (RightHandSide eqs@(_:_) es cs rhs whname wh) = do
     eqs <- toAbstractCtx TopCtx eqs
-                 -- TODO: remember named where
-    (rhs, ds) <- whereToAbstract (getRange wh) Nothing wh $
-                  toAbstract (RightHandSide [] es cs rhs [])
+    (rhs, ds) <- whereToAbstract (getRange wh) whname wh $
+                  toAbstract (RightHandSide [] es cs rhs Nothing [])
     return $ RewriteRHS' eqs rhs ds
-  toAbstract (RightHandSide [] [] (_ : _) _ _)        = __IMPOSSIBLE__
-  toAbstract (RightHandSide [] (_ : _) _ (C.RHS _) _) = typeError $ BothWithAndRHS
-  toAbstract (RightHandSide [] [] [] rhs [])          = toAbstract rhs
-  toAbstract (RightHandSide [] es cs C.AbsurdRHS [])  = do
+  toAbstract (RightHandSide [] [] (_ : _) _ _ _)        = __IMPOSSIBLE__
+  toAbstract (RightHandSide [] (_ : _) _ (C.RHS _) _ _) = typeError $ BothWithAndRHS
+  toAbstract (RightHandSide [] [] [] rhs _ [])          = toAbstract rhs
+  toAbstract (RightHandSide [] es cs C.AbsurdRHS _ [])  = do
     es <- toAbstractCtx TopCtx es
     return $ WithRHS' es cs
   -- TODO: some of these might be possible
-  toAbstract (RightHandSide [] (_ : _) _ C.AbsurdRHS (_ : _)) = __IMPOSSIBLE__
-  toAbstract (RightHandSide [] [] [] (C.RHS _) (_ : _))       = __IMPOSSIBLE__
-  toAbstract (RightHandSide [] [] [] C.AbsurdRHS (_ : _))     = __IMPOSSIBLE__
+  toAbstract (RightHandSide [] (_ : _) _ C.AbsurdRHS _ (_ : _)) = __IMPOSSIBLE__
+  toAbstract (RightHandSide [] [] [] (C.RHS _) _ (_ : _))       = __IMPOSSIBLE__
+  toAbstract (RightHandSide [] [] [] C.AbsurdRHS _ (_ : _))     = __IMPOSSIBLE__
 
 instance ToAbstract C.RHS AbstractRHS where
     toAbstract C.AbsurdRHS = return $ AbsurdRHS'

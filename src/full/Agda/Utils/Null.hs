@@ -1,6 +1,5 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-{-# LANGUAGE CPP               #-}
 
 -- | Overloaded @null@ and @empty@ for collections and sequences.
 
@@ -9,6 +8,8 @@ module Agda.Utils.Null where
 import Prelude hiding (null)
 
 import Control.Monad
+import Control.Monad.Reader
+import Control.Monad.State
 
 import Data.ByteString.Char8 (ByteString)
 import qualified Data.ByteString.Char8 as ByteString
@@ -34,6 +35,8 @@ import Text.PrettyPrint (Doc, render)
 
 import Agda.Utils.Bag (Bag)
 import qualified Agda.Utils.Bag as Bag
+
+import Agda.Utils.Impossible
 
 class Null a where
   empty :: a
@@ -100,6 +103,14 @@ instance Null (Maybe a) where
 instance Null Doc where
   empty = mempty
   null  = (== mempty)
+
+instance (Null (m a), Monad m) => Null (ReaderT r m a) where
+  empty = lift empty
+  null  = __IMPOSSIBLE__
+
+instance (Null (m a), Monad m) => Null (StateT r m a) where
+  empty = lift empty
+  null  = __IMPOSSIBLE__
 
 -- * Testing for null.
 

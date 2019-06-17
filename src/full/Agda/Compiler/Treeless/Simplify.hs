@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 module Agda.Compiler.Treeless.Simplify (simplifyTTerm) where
 
 import Control.Arrow (first, second, (***))
@@ -22,7 +21,6 @@ import Agda.Compiler.Treeless.Compare
 import Agda.Utils.Pretty
 
 import Agda.Utils.Impossible
-#include "undefined.h"
 
 data SEnv = SEnv
   { envSubst   :: Substitution' TTerm

@@ -1,5 +1,6 @@
 {-# OPTIONS --rewriting #-}
 
+
 open import Agda.Builtin.Equality
 {-# BUILTIN REWRITE _≡_ #-}
 

@@ -1,0 +1,6 @@
+RewritingNonConfluent2.agda:37,13-23
+Confluence check failed: suc m * suc n reduces to both
+(suc m * n) + suc m and suc n + (m * suc n)
+which are not equal because n + (m * n) != n of type Nat
+when checking confluence of the rewrite rule mult-suc-r with
+mult-suc-l

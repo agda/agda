@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP           #-}
 
 module Agda.TypeChecking.Coverage.Match
   ( Match(..), match
@@ -37,12 +36,10 @@ import Agda.TypeChecking.Substitute
 import Agda.Utils.Null
 import Agda.Utils.Permutation
 import Agda.Utils.Pretty ( Pretty(..), text, (<+>), cat , prettyList_ )
-import qualified Agda.Utils.Pretty as P
 import Agda.Utils.Size
 import Agda.Utils.List
 import Agda.Utils.Monad
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 {-| Given
@@ -78,10 +75,10 @@ data SplitPatVar = SplitPatVar
 
 instance Pretty SplitPatVar where
   prettyPrec _ x =
-    (text $ patVarNameToString (splitPatVarName x)) P.<>
-    (text $ "@" ++ show (splitPatVarIndex x)) P.<>
+    (text $ patVarNameToString (splitPatVarName x)) <>
+    (text $ "@" ++ show (splitPatVarIndex x)) <>
     (ifNull (splitExcludedLits x) empty $ \lits ->
-      "\\{" P.<> prettyList_ lits P.<> "}")
+      "\\{" <> prettyList_ lits <> "}")
 
 instance PrettyTCM SplitPatVar where
   prettyTCM = prettyTCM . var . splitPatVarIndex
@@ -284,9 +281,8 @@ anyBlockedOnResult b1 b2 = case (b1,b2) of
 choiceBlockedOnResult :: BlockedOnResult -> BlockedOnResult -> BlockedOnResult
 choiceBlockedOnResult b1 b2 = case (b1,b2) of
   (NotBlockedOnResult  , _                 ) -> NotBlockedOnResult
-  (BlockedOnProj _     , NotBlockedOnResult) -> BlockedOnProj True
   (BlockedOnProj o1    , BlockedOnProj o2  ) -> BlockedOnProj (o1 || o2)
-  (BlockedOnProj o1    , BlockedOnApply{}  ) -> BlockedOnProj True
+  (BlockedOnProj _     , _                 ) -> BlockedOnProj True
   (BlockedOnApply b    , _                 ) -> BlockedOnApply b
 
 -- | @choice m m'@ combines the match results @m@ of a function clause

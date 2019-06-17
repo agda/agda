@@ -79,6 +79,7 @@ instance EmbPrj HP.OtherAspect where
   icod_ HP.Deadcode            = icodeN 8 ()
   icod_ HP.CoverageProblem     = icodeN 9 ()
   icod_ HP.CatchallClause      = icodeN 10 ()
+  icod_ HP.ConfluenceProblem   = icodeN 11 ()
 
   value = vcase valu where
     valu [0] = valuN HP.Error
@@ -92,6 +93,7 @@ instance EmbPrj HP.OtherAspect where
     valu [8] = valuN HP.Deadcode
     valu [9] = valuN HP.CoverageProblem
     valu [10] = valuN HP.CatchallClause
+    valu [11] = valuN HP.ConfluenceProblem
     valu _   = malformed
 
 instance EmbPrj HP.Aspects where

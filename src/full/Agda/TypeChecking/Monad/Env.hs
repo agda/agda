@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 module Agda.TypeChecking.Monad.Env where
 
 import Control.Monad.Reader
@@ -13,8 +12,8 @@ import Agda.Syntax.Abstract.Name
 import Agda.TypeChecking.Monad.Base
 
 import Agda.Utils.FileName
+import Agda.Utils.Function
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | Get the name of the current module, if any.
@@ -46,7 +45,7 @@ withAnonymousModule m n =
   localTC $ \ e -> e { envAnonymousModules = (m, n) : envAnonymousModules e }
 
 -- | Set the current environment to the given
-withEnv :: TCEnv -> TCM a -> TCM a
+withEnv :: MonadTCEnv m => TCEnv -> m a -> m a
 withEnv env = localTC $ \ env0 -> env
   -- Keep persistent settings
   { envPrintMetasBare         = envPrintMetasBare env0
@@ -96,23 +95,34 @@ getSimplification = asksTC envSimplification
 updateAllowedReductions :: (AllowedReductions -> AllowedReductions) -> TCEnv -> TCEnv
 updateAllowedReductions f e = e { envAllowedReductions = f (envAllowedReductions e) }
 
-modifyAllowedReductions :: (AllowedReductions -> AllowedReductions) -> TCM a -> TCM a
+modifyAllowedReductions :: MonadTCEnv m => (AllowedReductions -> AllowedReductions) -> m a -> m a
 modifyAllowedReductions = localTC . updateAllowedReductions
 
-putAllowedReductions :: AllowedReductions -> TCM a -> TCM a
+putAllowedReductions :: MonadTCEnv m => AllowedReductions -> m a -> m a
 putAllowedReductions = modifyAllowedReductions . const
 
 -- | Reduce @Def f vs@ only if @f@ is a projection.
-onlyReduceProjections :: TCM a -> TCM a
+onlyReduceProjections :: MonadTCEnv m => m a -> m a
 onlyReduceProjections = putAllowedReductions [ProjectionReductions]
 
 -- | Allow all reductions except for non-terminating functions (default).
-allowAllReductions :: TCM a -> TCM a
+allowAllReductions :: MonadTCEnv m => m a -> m a
 allowAllReductions = putAllowedReductions allReductions
 
 -- | Allow all reductions including non-terminating functions.
-allowNonTerminatingReductions :: TCM a -> TCM a
+allowNonTerminatingReductions :: MonadTCEnv m => m a -> m a
 allowNonTerminatingReductions = putAllowedReductions $ [NonTerminatingReductions] ++ allReductions
+
+-- | Allow all reductions when reducing types
+onlyReduceTypes :: MonadTCEnv m => m a -> m a
+onlyReduceTypes = putAllowedReductions [TypeLevelReductions]
+
+-- | Update allowed reductions when working on types
+typeLevelReductions :: MonadTCEnv m => m a -> m a
+typeLevelReductions = modifyAllowedReductions $ \reds -> if
+  | TypeLevelReductions `elem` reds ->
+      applyWhen (NonTerminatingReductions `elem` reds) (NonTerminatingReductions:) allReductions
+  | otherwise -> reds
 
 -- * Concerning 'envInsideDotPattern'
 

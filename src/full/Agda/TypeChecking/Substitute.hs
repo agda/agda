@@ -1,6 +1,4 @@
 {-# LANGUAGE BangPatterns       #-}
-{-# LANGUAGE CPP                #-}
-{-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE UndecidableInstances   #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
@@ -21,11 +19,10 @@ module Agda.TypeChecking.Substitute
 
 import Control.Arrow (first, second)
 import Data.Function
-import Data.Functor
 import qualified Data.List as List
 import Data.Map (Map)
 import Data.Maybe
-import Data.Monoid
+import Data.Monoid hiding ((<>))
 
 import Debug.Trace (trace)
 import Language.Haskell.TH.Syntax (thenCmp) -- lexicographic combination of Ordering
@@ -37,7 +34,6 @@ import Agda.Syntax.Position
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
 import qualified Agda.Syntax.Abstract as A
-import Agda.Syntax.Position (Range)
 
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Options (typeInType)
@@ -58,7 +54,6 @@ import Agda.Utils.Size
 import Agda.Utils.Tuple
 import Agda.Utils.HashMap (HashMap)
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 instance Apply Term where
@@ -72,16 +67,17 @@ instance Apply Term where
         case es of
           Apply a : es0 -> lazyAbsApp b (unArg a) `applyE` es0
           IApply _ _ a : es0 -> lazyAbsApp b a `applyE` es0
-          _             -> __IMPOSSIBLE__
+          _             -> softFailure
       MetaV x es' -> MetaV x (es' ++ es)
-      Lit{}       -> __IMPOSSIBLE__
-      Level{}     -> __IMPOSSIBLE__
-      Pi _ _      -> __IMPOSSIBLE__
+      Lit{}       -> softFailure
+      Level{}     -> softFailure
+      Pi _ _      -> softFailure
       Sort s      -> Sort $ s `applyE` es
-      Dummy{}     -> __IMPOSSIBLE__
+      Dummy s es' -> Dummy s (es' ++ es)
       DontCare mv -> dontCare $ mv `applyE` es  -- Andreas, 2011-10-02
         -- need to go under DontCare, since "with" might resurrect irrelevant term
-
+   where
+     softFailure = Dummy "applyE" (Apply (defaultArg m) : es)
 -- | If $v$ is a record value, @canProject f v@
 --   returns its field @f@.
 canProject :: QName -> Term -> Maybe (Arg Term)
@@ -99,19 +95,23 @@ conApp :: ConHead -> ConInfo -> Elims -> Elims -> Term
 conApp ch                  ci args []             = Con ch ci args
 conApp ch                  ci args (a@Apply{} : es) = conApp ch ci (args ++ [a]) es
 conApp ch                  ci args (a@IApply{} : es) = conApp ch ci (args ++ [a]) es
-conApp ch@(ConHead c _ fs) ci args (Proj o f : es) =
+conApp ch@(ConHead c _ fs) ci args ees@(Proj o f : es) =
   let failure err = flip trace err $
         "conApp: constructor " ++ show c ++
         " with fields\n" ++ unlines (map (("  " ++) . show) fs) ++
         " and args\n" ++ unlines (map (("  " ++) . prettyShow) args) ++
         " projected by " ++ show f
       isApply e = fromMaybe (failure __IMPOSSIBLE__) $ isApplyElim e
-      (fld, i) = fromMaybe (failure __IMPOSSIBLE__) $ findWithIndex ((f==) . unArg) fs
+      stuck = Dummy "applyE" (Apply (defaultArg $ Con ch ci args) : Proj o f : [])
+  in
+   case findWithIndex ((f==) . unArg) fs of
+     Nothing -> failure $ stuck `applyE` es
+     Just (fld, i) -> let
       -- Andreas, 2018-06-12, issue #2170
       -- We safe-guard the projected value by DontCare using the ArgInfo stored at the record constructor,
       -- since the ArgInfo in the constructor application might be inaccurate because of subtyping.
-      v = maybe (failure __IMPOSSIBLE__) (relToDontCare fld . argToDontCare . isApply) $ headMaybe $ drop i args
-  in  applyE v es
+      v = maybe (failure stuck) (relToDontCare fld . argToDontCare . isApply) $ headMaybe $ drop i args
+      in  applyE v es
 
   -- -- Andreas, 2016-07-20 futile attempt to magically fix ProjOrigin
   --     fallback = v
@@ -201,8 +201,8 @@ instance Subst Term a => Apply (Tele a) where
   applyE t es = apply t $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
 
 instance Apply Definition where
-  apply (Defn info x t pol occ gens gpars df m c inst copy ma nc inj d) args =
-    Defn info x (piApply t args) (apply pol args) (apply occ args) (apply gens args) (drop (length args) gpars) df m c inst copy ma nc inj (apply d args)
+  apply (Defn info x t pol occ gens gpars df m c inst copy ma nc inj copat d) args =
+    Defn info x (piApply t args) (apply pol args) (apply occ args) (apply gens args) (drop (length args) gpars) df m c inst copy ma nc inj copat (apply d args)
 
   applyE t es = apply t $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
 
@@ -576,9 +576,9 @@ instance Abstract Telescope where
   ExtendTel arg xtel `abstract` tel = ExtendTel arg $ xtel <&> (`abstract` tel)
 
 instance Abstract Definition where
-  abstract tel (Defn info x t pol occ gens gpars df m c inst copy ma nc inj d) =
+  abstract tel (Defn info x t pol occ gens gpars df m c inst copy ma nc inj copat d) =
     Defn info x (abstract tel t) (abstract tel pol) (abstract tel occ) (abstract tel gens)
-                (replicate (size tel) Nothing ++ gpars) df m c inst copy ma nc inj (abstract tel d)
+                (replicate (size tel) Nothing ++ gpars) df m c inst copy ma nc inj copat (abstract tel d)
 
 -- | @tel ⊢ (Γ ⊢ lhs ↦ rhs : t)@ becomes @tel, Γ ⊢ lhs ↦ rhs : t)@
 --   we do not need to change lhs, rhs, and t since they live in Γ.
@@ -812,7 +812,6 @@ instance DeBruijn NLPat where
   deBruijnView p = case p of
     PVar i []   -> Just i
     PVar{}      -> Nothing
-    PWild{}     -> Nothing
     PDef{}      -> Nothing
     PLam{}      -> Nothing
     PPi{}       -> Nothing
@@ -826,7 +825,6 @@ applyNLPatSubst = applySubst . fmap nlPatToTerm
     nlPatToTerm p = case p of
       PVar i xs      -> Var i $ map (Apply . fmap var) xs
       PTerm u        -> u
-      PWild          -> __IMPOSSIBLE__
       PDef f es      -> __IMPOSSIBLE__
       PLam i u       -> __IMPOSSIBLE__
       PPi a b        -> __IMPOSSIBLE__
@@ -838,7 +836,6 @@ applyNLSubstToDom rho dom = applySubst rho <$> dom{ domTactic = applyNLPatSubst 
 instance Subst NLPat NLPat where
   applySubst rho p = case p of
     PVar i bvs -> lookupS rho i `applyBV` bvs
-    PWild  -> p
     PDef f es -> PDef f $ applySubst rho es
     PLam i u -> PLam i $ applySubst rho u
     PPi a b -> PPi (applyNLSubstToDom rho a) (applySubst rho b)
@@ -850,7 +847,6 @@ instance Subst NLPat NLPat where
       applyBV p ys = case p of
         PVar i xs      -> PVar i (xs ++ ys)
         PTerm u        -> PTerm $ u `apply` map (fmap var) ys
-        PWild          -> __IMPOSSIBLE__
         PDef f es      -> __IMPOSSIBLE__
         PLam i u       -> __IMPOSSIBLE__
         PPi a b        -> __IMPOSSIBLE__

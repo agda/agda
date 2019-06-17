@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 {-# LANGUAGE DeriveDataTypeable    #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
@@ -32,10 +31,6 @@ module Agda.Syntax.Parser.Monad
     )
     where
 
-#if MIN_VERSION_base(4,11,0)
-import Prelude hiding ((<>))
-#endif
-
 import Control.Exception (catch, displayException)
 import Data.Int
 
@@ -57,7 +52,6 @@ import qualified Agda.Utils.Maybe.Strict as Strict
 
 import Agda.Utils.Pretty
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 {--------------------------------------------------------------------------
@@ -184,17 +178,17 @@ instance Show ParseError where
 
 instance Pretty ParseError where
   pretty ParseError{errPos,errSrcFile,errMsg,errPrevToken,errInput} = vcat
-      [ pretty (errPos { srcFile = errSrcFile }) <> colon <+>
+      [ (pretty (errPos { srcFile = errSrcFile }) <> colon) <+>
         text errMsg
       , text $ errPrevToken ++ "<ERROR>"
       , text $ take 30 errInput ++ "..."
       ]
   pretty OverlappingTokensError{errRange} = vcat
-      [ pretty errRange <> colon <+>
+      [ (pretty errRange <> colon) <+>
         "Multi-line comment spans one or more literate text blocks."
       ]
   pretty InvalidExtensionError{errPath,errValidExts} = vcat
-      [ pretty errPath <> colon <+>
+      [ (pretty errPath <> colon) <+>
         "Unsupported extension."
       , "Supported extensions are:" <+> prettyList_ errValidExts
       ]
@@ -218,7 +212,7 @@ instance Show ParseWarning where
 
 instance Pretty ParseWarning where
   pretty OverlappingTokensWarning{warnRange} = vcat
-      [ pretty warnRange <> colon <+>
+      [ (pretty warnRange <> colon) <+>
         "Multi-line comment spans one or more literate text blocks."
       ]
 instance HasRange ParseWarning where

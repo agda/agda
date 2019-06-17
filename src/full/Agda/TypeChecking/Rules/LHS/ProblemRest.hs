@@ -1,11 +1,5 @@
-{-# LANGUAGE BangPatterns  #-}
-{-# LANGUAGE CPP           #-}
 
 module Agda.TypeChecking.Rules.LHS.ProblemRest where
-
-#if __GLASGOW_HASKELL__ <= 708
-import Data.Functor ( (<$), (<$>) )
-#endif
 
 import Control.Arrow (first, second)
 import Control.Monad
@@ -32,7 +26,6 @@ import Agda.Utils.List
 import Agda.Utils.Size
 import Agda.Utils.Permutation
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | Rename the variables in a telescope using the names from a given pattern.

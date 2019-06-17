@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 -- | A syntactic equality check that takes meta instantiations into account,
@@ -30,7 +29,6 @@ import Agda.TypeChecking.Substitute
 
 import Agda.Utils.Monad (ifM)
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | Syntactic equality check for terms.

@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE NondecreasingIndentation #-}
 {-# LANGUAGE UndecidableInstances #-}
@@ -62,7 +61,6 @@ import Agda.Utils.Permutation
 import Agda.Utils.Pretty (prettyShow)
 import Agda.Utils.Size
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 {- To address issue 585 (meta var occurrences in mutual defs)
@@ -366,7 +364,14 @@ instance Occurs QName where
   metaOccurs m d = whenM (defNeedsChecking d) $ do
     tallyDef d
     reportSLn "tc.meta.occurs" 30 $ "Checking for occurrences in " ++ show d
-    metaOccurs m . theDef =<< ignoreAbstractMode (getConstInfo d)
+    metaOccursQName m d
+
+metaOccursQName :: MetaId -> QName -> TCM ()
+metaOccursQName m x = metaOccurs m . theDef =<< do
+  ignoreAbstractMode $ getConstInfo x
+  -- Andreas, 2019-05-03, issue #3742:
+  -- ignoreAbstractMode necessary, as abstract
+  -- constructors are also called up.
 
 instance Occurs Defn where
   occurs red ctx m xs def = __IMPOSSIBLE__
@@ -376,9 +381,8 @@ instance Occurs Defn where
   metaOccurs m Function{ funClauses = cls } = metaOccurs m cls
   -- since a datatype is isomorphic to the sum of its constructor types
   -- we check the constructor types
-  metaOccurs m Datatype{ dataCons = cs }    = mapM_ mocc cs
-    where mocc c = metaOccurs m . defType =<< getConstInfo c
-  metaOccurs m Record{ recConHead = c }     = metaOccurs m . defType =<< getConstInfo (conName c)
+  metaOccurs m Datatype{ dataCons = cs }    = mapM_ (metaOccursQName m) cs
+  metaOccurs m Record{ recConHead = c }     = metaOccursQName m $ conName c
   metaOccurs m Constructor{}                = return ()
   metaOccurs m Primitive{}                  = return ()
   metaOccurs m AbstractDefn{}               = __IMPOSSIBLE__
@@ -524,7 +528,7 @@ instance Occurs a => Occurs (Maybe a) where
 --   If any of the meta args @vs@ is matchable, e.g., is a constructor term,
 --   we cannot prune, because the offending variables could be removed by
 --   reduction for a suitable instantiation of the meta variable.
-prune :: MetaId -> Args -> [Nat] -> TCM PruneResult
+prune :: MonadMetaSolver m => MetaId -> Args -> [Nat] -> m PruneResult
 prune m' vs xs = do
   caseEitherM (runExceptT $ mapM (hasBadRigid xs) $ map unArg vs)
     (const $ return PrunedNothing) $ \ kills -> do
@@ -546,11 +550,12 @@ prune m' vs xs = do
 --   @hasBadRigid xs v = Nothing@ means that
 --   we cannot prune at all as one of the meta args is matchable.
 --   (See issue 1147.)
-hasBadRigid :: [Nat] -> Term -> ExceptT () TCM Bool
+hasBadRigid :: (MonadReduce m, HasConstInfo m, MonadAddContext m)
+            => [Nat] -> Term -> ExceptT () m Bool
 hasBadRigid xs t = do
   -- We fail if we encounter a matchable argument.
   let failure = throwError ()
-  tb <- liftTCM $ reduceB t
+  tb <- reduceB t
   let t = ignoreBlocking tb
   case t of
     Var x _      -> return $ notElem x xs
@@ -562,18 +567,18 @@ hasBadRigid xs t = do
     -- match: data, record, Pi, levels, sorts
     -- Thus, their offending rigid variables are bad.
     v@(Def f es) -> ifNotM (isNeutral tb f es) failure $ {- else -} do
-      es `rigidVarsNotContainedIn` xs
+      lift $ es `rigidVarsNotContainedIn` xs
     -- Andreas, 2012-05-03: There is room for further improvement.
     -- We could also consider a defined f which is not blocked by a meta.
-    Pi a b       -> (a,b) `rigidVarsNotContainedIn` xs
-    Level v      -> v `rigidVarsNotContainedIn` xs
-    Sort s       -> s `rigidVarsNotContainedIn` xs
+    Pi a b       -> lift $ (a,b) `rigidVarsNotContainedIn` xs
+    Level v      -> lift $ v `rigidVarsNotContainedIn` xs
+    Sort s       -> lift $ s `rigidVarsNotContainedIn` xs
     -- Since constructors can be eliminated by pattern-matching,
     -- offending variables under a constructor could be removed by
     -- the right instantiation of the meta variable.
     -- Thus, they are not rigid.
     Con c _ es | Just args <- allApplyElims es -> do
-      ifM (liftTCM $ isEtaCon (conName c))
+      ifM (isEtaCon (conName c))
         -- in case of a record con, we can in principle prune
         -- (but not this argument; the meta could become a projection!)
         (and <$> mapM (hasBadRigid xs . unArg) args)  -- not andM, we need to force the exceptions!
@@ -585,12 +590,12 @@ hasBadRigid xs t = do
 
 -- | Check whether a term @Def f es@ is finally stuck.
 --   Currently, we give only a crude approximation.
-isNeutral :: MonadTCM tcm => Blocked t -> QName -> Elims -> tcm Bool
-isNeutral b f es = liftTCM $ do
+isNeutral :: (HasConstInfo m) => Blocked t -> QName -> Elims -> m Bool
+isNeutral b f es = do
   let yes = return True
       no  = return False
   def <- getConstInfo f
-  if defMatchable def then no else do
+  if not (null $ defMatchable def) then no else do
   case theDef def of
     AbstractDefn{} -> yes
     Axiom{}    -> yes
@@ -607,8 +612,10 @@ isNeutral b f es = liftTCM $ do
 --   occurs *definitely* in the term in a rigid position.
 --   Reduces the term successively to remove variables in dead subterms.
 --   This fixes issue 1386.
-rigidVarsNotContainedIn :: (MonadTCM tcm, FoldRigid a) => a -> [Nat] -> tcm Bool
-rigidVarsNotContainedIn v is = liftTCM $ do
+rigidVarsNotContainedIn
+  :: (MonadReduce m, MonadAddContext m, MonadTCEnv m, MonadDebug m, AnyRigid a)
+  => a -> [Nat] -> m Bool
+rigidVarsNotContainedIn v is = do
   n0 <- getContextSize
   let -- allowed variables as de Bruijn levels
       levels = Set.fromList $ map (n0-1 -) is
@@ -623,103 +630,102 @@ rigidVarsNotContainedIn v is = liftTCM $ do
         when forbidden $
           reportSLn "tc.meta.kill" 20 $
             "found forbidden de Bruijn level " ++ show l
-        return $ Any forbidden
-  getAny <$> foldRigid test v
+        return forbidden
+  anyRigid test v
 
 -- | Collect the *definitely* rigid variables in a monoid.
 --   We need to successively reduce the expression to do this.
 
-class FoldRigid a where
---  foldRigid :: (MonadTCM tcm, Monoid (tcm m)) => (Nat -> tcm m) -> a -> tcm m
-  foldRigid :: (Monoid (TCM m)) => (Nat -> TCM m) -> a -> TCM m
+class AnyRigid a where
+  anyRigid :: (MonadReduce tcm, MonadAddContext tcm)
+           => (Nat -> tcm Bool) -> a -> tcm Bool
 
-instance FoldRigid Term where
-  foldRigid f t = do
-    b <- liftTCM $ reduceB t
+instance AnyRigid Term where
+  anyRigid f t = do
+    b <- reduceB t
     case ignoreBlocking b of
       -- Upon entry, we are in rigid position, thus,
       -- bound variables are rigid ones.
-      Var i es   -> f i `mappend` fold es
-      Lam _ t    -> fold t
-      Lit{}      -> mempty
+      Var i es   -> f i `or2M` anyRigid f es
+      Lam _ t    -> anyRigid f t
+      Lit{}      -> return False
       Def _ es   -> case b of
         -- If the definition is blocked by a meta, its arguments
         -- may be in flexible positions.
-        Blocked{}                   -> mempty
+        Blocked{}                   -> return False
         -- If the definition is incomplete, arguments might disappear
         -- by reductions that come with more clauses, thus, these
         -- arguments are not rigid.
-        NotBlocked MissingClauses _ -> mempty
+        NotBlocked MissingClauses _ -> return False
         -- _        -> mempty -- breaks: ImproveInertRHS, Issue442, PruneRecord, PruningNonMillerPattern
-        _        -> fold es
-      Con _ _ ts -> fold ts
-      Pi a b     -> fold (a,b)
-      Sort s     -> fold s
-      Level l    -> fold l
-      MetaV{}    -> mempty
-      DontCare{} -> mempty
-      Dummy{}    -> mempty
-    where fold = foldRigid f
+        _        -> anyRigid f es
+      Con _ _ ts -> anyRigid f ts
+      Pi a b     -> anyRigid f (a,b)
+      Sort s     -> anyRigid f s
+      Level l    -> anyRigid f l
+      MetaV{}    -> return False
+      DontCare{} -> return False
+      Dummy{}    -> return False
 
-instance FoldRigid Type where
-  foldRigid f (El s t) = foldRigid f (s,t)
+instance AnyRigid Type where
+  anyRigid f (El s t) = anyRigid f (s,t)
 
-instance FoldRigid Sort where
-  foldRigid f s =
+instance AnyRigid Sort where
+  anyRigid f s =
     case s of
       Type l     -> fold l
       Prop l     -> fold l
-      Inf        -> mempty
-      SizeUniv   -> mempty
-      PiSort s1 s2 -> mempty
+      Inf        -> return False
+      SizeUniv   -> return False
+      PiSort s1 s2 -> return False
       UnivSort s -> fold s
-      MetaS{}    -> mempty
-      DefS{}     -> mempty
-      DummyS{}   -> mempty
-    where fold = foldRigid f
+      MetaS{}    -> return False
+      DefS{}     -> return False
+      DummyS{}   -> return False
+    where fold = anyRigid f
 
-instance FoldRigid Level where
-  foldRigid f (Max ls) = foldRigid f ls
+instance AnyRigid Level where
+  anyRigid f (Max ls) = anyRigid f ls
 
-instance FoldRigid PlusLevel where
-  foldRigid f ClosedLevel{} = mempty
-  foldRigid f (Plus _ l)    = foldRigid f l
+instance AnyRigid PlusLevel where
+  anyRigid f ClosedLevel{} = return False
+  anyRigid f (Plus _ l)    = anyRigid f l
 
-instance FoldRigid LevelAtom where
-  foldRigid f l =
+instance AnyRigid LevelAtom where
+  anyRigid f l =
     case l of
-      MetaLevel{} -> mempty
-      NeutralLevel MissingClauses _ -> mempty
+      MetaLevel{} -> return False
+      NeutralLevel MissingClauses _ -> return False
       NeutralLevel _              l -> fold l
       BlockedLevel _              l -> fold l
       UnreducedLevel              l -> fold l
-    where fold = foldRigid f
+    where fold = anyRigid f
 
-instance (Subst t a, FoldRigid a) => FoldRigid (Abs a) where
-  foldRigid f b = underAbstraction_ b $ foldRigid f
+instance (Subst t a, AnyRigid a) => AnyRigid (Abs a) where
+  anyRigid f b = underAbstraction_ b $ anyRigid f
 
-instance FoldRigid a => FoldRigid (Arg a) where
-  foldRigid f a =
+instance AnyRigid a => AnyRigid (Arg a) where
+  anyRigid f a =
     case getRelevance a of
       -- Irrelevant arguments are definitionally equal to
       -- values, so the variables there are not considered
       -- "definitely rigid".
-      Irrelevant -> mempty
-      _          -> foldRigid f $ unArg a
+      Irrelevant -> return False
+      _          -> anyRigid f $ unArg a
 
-instance FoldRigid a => FoldRigid (Dom a) where
-  foldRigid f dom = foldRigid f $ unDom dom
+instance AnyRigid a => AnyRigid (Dom a) where
+  anyRigid f dom = anyRigid f $ unDom dom
 
-instance FoldRigid a => FoldRigid (Elim' a) where
-  foldRigid f (Apply a) = foldRigid f a
-  foldRigid f (IApply x y a) = foldRigid f (x,(y,a))
-  foldRigid f Proj{}    = mempty
+instance AnyRigid a => AnyRigid (Elim' a) where
+  anyRigid f (Apply a)      = anyRigid f a
+  anyRigid f (IApply x y a) = anyRigid f (x,(y,a))
+  anyRigid f Proj{}         = return False
 
-instance FoldRigid a => FoldRigid [a] where
-  foldRigid f = foldMap $ foldRigid f
+instance AnyRigid a => AnyRigid [a] where
+  anyRigid f xs = anyM xs $ anyRigid f
 
-instance (FoldRigid a, FoldRigid b) => FoldRigid (a,b) where
-  foldRigid f (a,b) = foldRigid f a `mappend` foldRigid f b
+instance (AnyRigid a, AnyRigid b) => AnyRigid (a,b) where
+  anyRigid f (a,b) = anyRigid f a `or2M` anyRigid f b
 
 
 data PruneResult
@@ -731,7 +737,7 @@ data PruneResult
 
 -- | @killArgs [k1,...,kn] X@ prunes argument @i@ from metavar @X@ if @ki==True@.
 --   Pruning is carried out whenever > 0 arguments can be pruned.
-killArgs :: [Bool] -> MetaId -> TCM PruneResult
+killArgs :: (MonadMetaSolver m) => [Bool] -> MetaId -> m PruneResult
 killArgs kills _
   | not (or kills) = return NothingToPrune  -- nothing to kill
 killArgs kills m = do
@@ -774,7 +780,7 @@ killArgs kills m = do
 --   Invariant: @k'i == True@ iff @ki == True@ and pruning the @i@th argument from
 --   type @b@ is possible without creating unbound variables.
 --   @t'@ is type @t@ after pruning all @k'i==True@.
-killedType :: [(Dom (ArgName, Type), Bool)] -> Type -> TCM ([Arg Bool], Type)
+killedType :: (MonadReduce m) => [(Dom (ArgName, Type), Bool)] -> Type -> m ([Arg Bool], Type)
 killedType args b = do
 
   -- Turn list of bools into an IntSet containing the variables we want to kill
@@ -805,7 +811,7 @@ killedType args b = do
     --    where Δ' ⊆ Δ  (possibly reduced to remove dependencies, see #3177)
     --          ys ⊆ xs are the variables that were dropped from Δ
     --          B' = strengthen ys B
-    go :: [Dom (ArgName, Type)] -> IntSet -> Type -> TCM (IntSet, Type)
+    go :: (MonadReduce m) => [Dom (ArgName, Type)] -> IntSet -> Type -> m (IntSet, Type)
     go [] xs b | IntSet.null xs = return (xs, b)
                | otherwise      = __IMPOSSIBLE__
     go (arg : args) xs b  -- go (Δ (x : A)) xs B, (x = deBruijn index 0)
@@ -831,7 +837,7 @@ killedType args b = do
           -- Shift back up to make it relative to Δ (x : A) again.
           return (up zs, b)
 
-reallyNotFreeIn :: IntSet -> Type -> TCM (IntSet, Type)
+reallyNotFreeIn :: (MonadReduce m) => IntSet -> Type -> m (IntSet, Type)
 reallyNotFreeIn xs a | IntSet.null xs = return (xs, a)  -- Shortcut
 reallyNotFreeIn xs a = do
   let fvs      = freeVars a
@@ -853,11 +859,12 @@ reallyNotFreeIn xs a = do
 -- | Instantiate a meta variable with a new one that only takes
 --   the arguments which are not pruneable.
 performKill
-  :: [Arg Bool]    -- ^ Arguments to old meta var in left to right order
+  :: MonadMetaSolver m
+  => [Arg Bool]    -- ^ Arguments to old meta var in left to right order
                    --   with @Bool@ indicating whether they can be pruned.
   -> MetaId        -- ^ The old meta var to receive pruning.
   -> Type          -- ^ The pruned type of the new meta var.
-  -> TCM ()
+  -> m ()
 performKill kills m a = do
   mv <- lookupMeta m
   when (mvFrozen mv == Frozen) __IMPOSSIBLE__

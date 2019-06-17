@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP                      #-}
 {-# LANGUAGE NondecreasingIndentation #-}
 {-# LANGUAGE UndecidableInstances     #-}
 
@@ -11,6 +10,7 @@ import qualified Data.List as List
 import Data.List ((\\))
 import Data.Maybe
 import Data.Map (Map)
+import Data.Monoid
 import Data.Traversable
 import Data.Hashable
 
@@ -23,7 +23,9 @@ import Agda.Syntax.Internal.Pattern
 import Agda.Syntax.Scope.Base (Scope)
 import Agda.Syntax.Literal
 
-import Agda.TypeChecking.Monad hiding ( underAbstraction_, enterClosure, isInstantiatedMeta
+import {-# SOURCE #-} Agda.TypeChecking.Irrelevance (workOnTypes)
+import {-# SOURCE #-} Agda.TypeChecking.Level (reallyUnLevelView)
+import Agda.TypeChecking.Monad hiding ( enterClosure, isInstantiatedMeta
                                       , getConstInfo
                                       , lookupMeta )
 import qualified Agda.TypeChecking.Monad as TCM
@@ -49,7 +51,6 @@ import Agda.Utils.HashMap (HashMap)
 import Agda.Utils.Size
 import Agda.Utils.Tuple
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 instantiate :: (Instantiate a, MonadReduce m) => a -> m a
@@ -80,7 +81,7 @@ isFullyInstantiatedMeta :: MetaId -> TCM Bool
 isFullyInstantiatedMeta m = do
   mv <- TCM.lookupMeta m
   case mvInstantiation mv of
-    InstV _tel v -> null . allMetas <$> instantiateFull v
+    InstV _tel v -> noMetas <$> instantiateFull v
     _ -> return False
 
 -- | Instantiate something.
@@ -92,7 +93,11 @@ class Instantiate t where
 
 instance Instantiate Term where
   instantiate' t@(MetaV x es) = do
-    mi <- mvInstantiation <$> lookupMeta x
+    blocking <- view stInstantiateBlocking <$> getTCState
+
+    mv <- lookupMeta x
+    mi <- mvInstantiation <$> pure mv
+
     case mi of
       InstV tel v -> instantiate' inst
         where
@@ -107,9 +112,12 @@ instance Instantiate Term where
                 -- when applicable
           -- specification: inst == foldr mkLam v tel `applyE` es
           inst = applySubst rho (foldr mkLam v $ drop (length es1) tel) `applyE` es2
+      _ | Just m' <- mvTwin mv, blocking -> do
+            instantiate' (MetaV m' es)
       Open                             -> return t
       OpenInstance                     -> return t
-      BlockedConst _                   -> return t
+      BlockedConst u | blocking  -> instantiate' $ u `applyE` es
+                     | otherwise -> return t
       PostponedTypeCheckingProblem _ _ -> return t
   instantiate' (Level l) = levelTm <$> instantiate' l
   instantiate' (Sort s) = Sort <$> instantiate' s
@@ -236,26 +244,40 @@ instance Instantiate EqualityView where
 -- * Reduction to weak head normal form.
 ---------------------------------------------------------------------------
 
+class IsMeta a where
+  isMeta :: HasBuiltins m => a -> m (Maybe MetaId)
+
+instance IsMeta Term where
+  isMeta (MetaV m _) = return $ Just m
+  isMeta _           = return Nothing
+
+instance IsMeta Type where
+  isMeta = isMeta . unEl
+
+instance IsMeta Level where
+  isMeta = isMeta <=< reallyUnLevelView
+
+instance IsMeta Sort where
+  isMeta (MetaS m _) = return $ Just m
+  isMeta _           = return Nothing
+
 -- | Case on whether a term is blocked on a meta (or is a meta).
 --   That means it can change its shape when the meta is instantiated.
-ifBlocked :: (MonadReduce m) =>  Term -> (MetaId -> Term -> m a) -> (NotBlocked -> Term -> m a) -> m a
+ifBlocked
+  :: (Reduce t, IsMeta t, MonadReduce m, HasBuiltins m)
+  => t -> (MetaId -> t -> m a) -> (NotBlocked -> t -> m a) -> m a
 ifBlocked t blocked unblocked = do
   t <- reduceB t
   case t of
-    Blocked m _              -> blocked m (ignoreBlocking t)
-    NotBlocked _ (MetaV m _) -> blocked m (ignoreBlocking t)
-    NotBlocked nb _          -> unblocked nb (ignoreBlocking t)
+    Blocked m t -> blocked m t
+    NotBlocked nb t -> isMeta t >>= \case
+      Just m    -> blocked m t
+      Nothing   -> unblocked nb t
 
-isBlocked :: MonadReduce m => Term -> m (Maybe MetaId)
+isBlocked
+  :: (Reduce t, IsMeta t, MonadReduce m, HasBuiltins m)
+  => t -> m (Maybe MetaId)
 isBlocked t = ifBlocked t (\m _ -> return $ Just m) (\_ _ -> return Nothing)
-
--- | Case on whether a type is blocked on a meta (or is a meta).
-ifBlockedType :: MonadReduce m => Type -> (MetaId -> Type -> m a) -> (NotBlocked -> Type -> m a) -> m a
-ifBlockedType (El s t) blocked unblocked =
-  ifBlocked t (\ m v -> blocked m $ El s v) (\ nb v -> unblocked nb $ El s v)
-
-isBlockedType :: MonadReduce m => Type -> m (Maybe MetaId)
-isBlockedType t = ifBlockedType t (\m _ -> return $ Just m) (\_ _ -> return Nothing)
 
 class Reduce t where
     reduce'  :: t -> ReduceM t
@@ -265,8 +287,8 @@ class Reduce t where
     reduceB' t = notBlocked <$> reduce' t
 
 instance Reduce Type where
-    reduce'  (El s t) = El s <$> reduce' t
-    reduceB' (El s t) = fmap (El s) <$> reduceB' t
+    reduce'  (El s t) = workOnTypes $ El s <$> reduce' t
+    reduceB' (El s t) = workOnTypes $ fmap (El s) <$> reduceB' t
 
 instance Reduce Sort where
     reduce' s = do
@@ -512,10 +534,7 @@ unfoldDefinitionStep unfoldDelayed v0 f es =
         (defNonterminating info && notElem NonTerminatingReductions allowed)
         || (defTerminationUnconfirmed info && notElem UnconfirmedReductions allowed)
         || (defDelayed info == Delayed && not unfoldDelayed)
-      copatterns =
-        case def of
-          Function{funCopatternLHS = b} -> b
-          _                             -> False
+      copatterns = defCopatternLHS info
   case def of
     Constructor{conSrcCon = c} ->
       noReduction $ notBlocked $ Con (c `withRangeOf` f) ConOSystem [] `applyE` es
@@ -589,13 +608,15 @@ unfoldDefinitionStep unfoldDelayed v0 f es =
             reportSDoc "tc.reduce" 100 $ "    raw   " <+> text (show v)
 
 -- | Reduce a non-primitive definition if it is a copy linking to another def.
-reduceDefCopy :: QName -> Elims -> TCM (Reduced () Term)
+reduceDefCopy :: forall m. (MonadReduce m, HasConstInfo m, HasOptions m,
+                            ReadTCState m, MonadTCEnv m, MonadDebug m)
+              => QName -> Elims -> m (Reduced () Term)
 reduceDefCopy f es = do
-  info <- TCM.getConstInfo f
-  rewr <- instantiateRewriteRules =<< TCM.getRewriteRulesFor f
+  info <- getConstInfo f
+  rewr <- instantiateRewriteRules =<< getRewriteRulesFor f
   if (defCopy info) then reduceDef_ info rewr f es else return $ NoReduction ()
   where
-    reduceDef_ :: Definition -> RewriteRules -> QName -> Elims -> TCM (Reduced () Term)
+    reduceDef_ :: Definition -> RewriteRules -> QName -> Elims -> m (Reduced () Term)
     reduceDef_ info rewr f es = do
       let v0   = Def f []
           cls  = (defClauses info)
@@ -603,7 +624,7 @@ reduceDefCopy f es = do
       if (defDelayed info == Delayed) || (defNonterminating info)
        then return $ NoReduction ()
        else do
-          ev <- runReduceM $ appDefE_ f v0 cls mcc rewr $ map notReduced es
+          ev <- liftReduce $ appDefE_ f v0 cls mcc rewr $ map notReduced es
           case ev of
             YesReduction simpl t -> return $ YesReduction simpl t
             NoReduction{}        -> return $ NoReduction ()
@@ -1243,6 +1264,11 @@ instance (InstantiateFull a, InstantiateFull b, InstantiateFull c) => Instantiat
         do  (x,(y,z)) <- instantiateFull' (x,(y,z))
             return (x,y,z)
 
+instance (InstantiateFull a, InstantiateFull b, InstantiateFull c, InstantiateFull d) => InstantiateFull (a,b,c,d) where
+    instantiateFull' (x,y,z,w) =
+        do  (x,(y,z,w)) <- instantiateFull' (x,(y,z,w))
+            return (x,y,z,w)
+
 instance InstantiateFull a => InstantiateFull (Closure a) where
     instantiateFull' cl = do
         x <- enterClosure cl instantiateFull'
@@ -1312,7 +1338,6 @@ instance InstantiateFull Definition where
 
 instance InstantiateFull NLPat where
   instantiateFull' (PVar x y) = return $ PVar x y
-  instantiateFull' (PWild)    = return PWild
   instantiateFull' (PDef x y) = PDef <$> instantiateFull' x <*> instantiateFull' y
   instantiateFull' (PLam x y) = PLam x <$> instantiateFull' y
   instantiateFull' (PPi x y)  = PPi <$> instantiateFull' x <*> instantiateFull' y
@@ -1410,12 +1435,13 @@ instance InstantiateFull Clause where
 
 instance InstantiateFull Interface where
     instantiateFull' (Interface h s ft ms mod scope inside
-                               sig display userwarn b foreignCode
+                               sig display userwarn importwarn b foreignCode
                                highlighting pragmas usedOpts patsyns warnings) =
         Interface h s ft ms mod scope inside
             <$> instantiateFull' sig
             <*> instantiateFull' display
             <*> return userwarn
+            <*> return importwarn
             <*> instantiateFull' b
             <*> return foreignCode
             <*> return highlighting

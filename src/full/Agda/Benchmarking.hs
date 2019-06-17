@@ -1,7 +1,3 @@
-{-# LANGUAGE CPP                       #-}
-{-# LANGUAGE IncoherentInstances       #-}
-{-# LANGUAGE NoMonomorphismRestriction #-}
-
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 -- | Agda-specific benchmarking structure.

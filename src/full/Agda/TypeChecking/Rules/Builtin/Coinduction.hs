@@ -1,4 +1,3 @@
--- {-# LANGUAGE CPP #-}
 
 ------------------------------------------------------------------------
 -- | Handling of the INFINITY, SHARP and FLAT builtins.
@@ -152,13 +151,13 @@ bindBuiltinFlat x =
     addConstant flat $
       flatDefn { defPolarity       = []
                , defArgOccurrences = [StrictPos]  -- changing that to [Mixed] destroys monotonicity of 'Rec' in test/succeed/GuardednessPreservingTypeConstructors
+               , defCopatternLHS = hasProjectionPatterns cc
                , theDef = emptyFunction
                    { funClauses      = [clause]
                    , funCompiled     = Just $ cc
                    , funProjection   = Just projection
                    , funMutual       = Just []
                    , funTerminates   = Just True
-                   , funCopatternLHS = hasProjectionPatterns cc
                    }
                 }
 

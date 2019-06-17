@@ -1,0 +1,5 @@
+Issue3684.agda:11,10-15,4
+The record type R does not have the fields bar, far but it would
+have the fields foo, boo
+when checking that the expression
+record { moo = A ; bar = A ; far = A } has type R

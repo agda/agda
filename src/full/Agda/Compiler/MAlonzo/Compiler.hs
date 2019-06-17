@@ -1,10 +1,5 @@
-{-# LANGUAGE CPP #-}
 
 module Agda.Compiler.MAlonzo.Compiler where
-
-#if MIN_VERSION_base(4,11,0)
-import Prelude hiding ((<>))
-#endif
 
 import Control.Monad.Reader hiding (mapM_, forM_, mapM, forM, sequence)
 import Control.Monad.State  hiding (mapM_, forM_, mapM, forM, sequence)
@@ -84,7 +79,6 @@ import Agda.Utils.Tuple
 
 import Paths_Agda
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- The backend callbacks --------------------------------------------------
@@ -105,6 +99,7 @@ ghcBackend' = Backend'
   , postModule            = ghcPostModule
   , compileDef            = ghcCompileDef
   , scopeCheckingSuffices = False
+  , mayEraseType          = ghcMayEraseType
   }
 
 --- Options ---
@@ -153,14 +148,20 @@ ghcPostCompile opts isMain mods = copyRTEModules >> callGHC opts isMain mods
 
 type GHCModuleEnv = ()
 
-ghcPreModule :: GHCOptions -> ModuleName -> FilePath -> TCM (Recompile GHCModuleEnv IsMain)
-ghcPreModule _ m ifile = ifM uptodate noComp yesComp
+ghcPreModule
+  :: GHCOptions
+  -> IsMain      -- ^ Are we looking at the main module?
+  -> ModuleName
+  -> FilePath    -- ^ Path to the @.agdai@ file.
+  -> TCM (Recompile GHCModuleEnv IsMain)
+                 -- ^ Could we confirm the existence of a main function?
+ghcPreModule _ isMain m ifile = ifM uptodate noComp yesComp
   where
     uptodate = liftIO =<< isNewerThan <$> outFile_ <*> pure ifile
 
     noComp = do
       reportSLn "compile.ghc" 2 . (++ " : no compilation is needed.") . show . A.mnameToConcrete =<< curMName
-      Skip . hasMainFunction <$> curIF
+      Skip . hasMainFunction isMain <$> curIF
 
     yesComp = do
       m   <- show . A.mnameToConcrete <$> curMName
@@ -169,8 +170,14 @@ ghcPreModule _ m ifile = ifM uptodate noComp yesComp
       stImportedModules `setTCLens` Set.empty  -- we use stImportedModules to accumulate the required Haskell imports
       return (Recompile ())
 
-ghcPostModule :: GHCOptions -> GHCModuleEnv -> IsMain -> ModuleName -> [[HS.Decl]] -> TCM IsMain
-ghcPostModule _ _ _ _ defs = do
+ghcPostModule
+  :: GHCOptions
+  -> GHCModuleEnv
+  -> IsMain        -- ^ Are we looking at the main module?
+  -> ModuleName
+  -> [[HS.Decl]]   -- ^ Compiled module content.
+  -> TCM IsMain    -- ^ Could we confirm the existence of a main function?
+ghcPostModule _ _ isMain _ defs = do
   m      <- curHsMod
   imps   <- imports
   -- Get content of FOREIGN pragmas.
@@ -179,10 +186,21 @@ ghcPostModule _ _ _ _ defs = do
     (map HS.OtherPragma headerPragmas)
     imps
     (map fakeDecl (hsImps ++ code) ++ concat defs)
-  hasMainFunction <$> curIF
+  hasMainFunction isMain <$> curIF
 
-ghcCompileDef :: GHCOptions -> GHCModuleEnv -> Definition -> TCM [HS.Decl]
-ghcCompileDef _ = definition
+ghcCompileDef :: GHCOptions -> GHCModuleEnv -> IsMain -> Definition -> TCM [HS.Decl]
+ghcCompileDef _ env isMain def = definition env isMain def
+
+-- | We do not erase types that have a 'HsData' pragma.
+--   This is to ensure a stable interface to third-party code.
+ghcMayEraseType :: QName -> TCM Bool
+ghcMayEraseType q = getHaskellPragma q <&> \case
+  -- Andreas, 2019-05-09, issue #3732.
+  -- We restrict this to 'HsData' since types like @Size@, @Level@
+  -- should be erased although they have a 'HsType' binding to the
+  -- Haskell unit type.
+  Just HsData{} -> False
+  _ -> True
 
 -- Compilation ------------------------------------------------------------
 
@@ -224,18 +242,18 @@ imports = (hsImps ++) <$> imps where
 -- Main compiling clauses
 --------------------------------------------------
 
-definition :: GHCModuleEnv -> Definition -> TCM [HS.Decl]
+definition :: GHCModuleEnv -> IsMain -> Definition -> TCM [HS.Decl]
 -- ignore irrelevant definitions
 {- Andreas, 2012-10-02: Invariant no longer holds
 definition kit (Defn NonStrict _ _  _ _ _ _ _ _) = __IMPOSSIBLE__
 -}
-definition env Defn{defArgInfo = info, defName = q} | not $ usableModality info = do
+definition _env _isMain Defn{defArgInfo = info, defName = q} | not $ usableModality info = do
   reportSDoc "compile.ghc.definition" 10 $
-    "Not compiling" <+> prettyTCM q <> "."
+    ("Not compiling" <+> prettyTCM q) <> "."
   return []
-definition env Defn{defName = q, defType = ty, theDef = d} = do
+definition env isMain def@Defn{defName = q, defType = ty, theDef = d} = do
   reportSDoc "compile.ghc.definition" 10 $ vcat
-    [ "Compiling" <+> prettyTCM q <> ":"
+    [ ("Compiling" <+> prettyTCM q) <> ":"
     , nest 2 $ text (show d)
     ]
   pragma <- getHaskellPragma q
@@ -243,7 +261,7 @@ definition env Defn{defName = q, defType = ty, theDef = d} = do
   mlist  <- getBuiltinName builtinList
   minf   <- getBuiltinName builtinInf
   mflat  <- getBuiltinName builtinFlat
-  checkTypeOfMain q ty $ do
+  checkTypeOfMain isMain q def $ do
     infodecl q <$> case d of
 
       _ | Just HsDefn{} <- pragma, Just q == mflat ->
@@ -314,12 +332,19 @@ definition env Defn{defName = q, defType = ty, theDef = d} = do
       Function{} -> function pragma $ functionViaTreeless q
 
       Datatype{ dataPars = np, dataIxs = ni, dataClause = cl, dataCons = cs }
-        | Just (HsData r ty hsCons) <- pragma -> setCurrentRange r $ do
+        | Just hsdata@(HsData r ty hsCons) <- pragma -> setCurrentRange r $ do
+        reportSDoc "compile.ghc.definition" 40 $ hsep $
+          [ "Compiling data type with COMPILE pragma ...", pretty hsdata ]
         computeErasedConstructorArgs q
         ccscov <- constructorCoverageCode q (np + ni) cs ty hsCons
         cds <- mapM compiledcondecl cs
-        return $ tvaldecl q (dataInduction d) (np + ni) [] (Just __IMPOSSIBLE__) ++
-                 [compiledTypeSynonym q ty np] ++ cds ++ ccscov
+        let result = concat $
+              [ tvaldecl q (dataInduction d) (np + ni) [] (Just __IMPOSSIBLE__)
+              , [ compiledTypeSynonym q ty np ]
+              , cds
+              , ccscov
+              ]
+        return result
       Datatype{ dataPars = np, dataIxs = ni, dataClause = cl,
                 dataCons = cs, dataInduction = ind } -> do
         computeErasedConstructorArgs q
@@ -788,7 +813,7 @@ writeModule (HS.Module m ps imp ds) = do
         , "ExistentialQuantification"
         , "ScopedTypeVariables"
         , "NoMonomorphismRestriction"
-        , "Rank2Types"
+        , "RankNTypes"
         , "PatternSynonyms"
         ]
 

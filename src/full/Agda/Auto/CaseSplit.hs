@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP                  #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 module Agda.Auto.CaseSplit where
@@ -22,7 +21,6 @@ import Agda.Auto.Syntax
 import Agda.Auto.SearchControl
 import Agda.Auto.Typecheck
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 import Agda.Utils.Monad (or2M)
 

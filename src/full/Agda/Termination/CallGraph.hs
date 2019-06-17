@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP                        #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE ImplicitParams             #-}
 
@@ -44,7 +43,7 @@ import Agda.Utils.Function
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.PartialOrd
-import Agda.Utils.Pretty hiding ((<>))
+import Agda.Utils.Pretty
 import Agda.Utils.Singleton
 import Agda.Utils.Tuple
 

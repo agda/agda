@@ -1,4 +1,3 @@
--- {-# LANGUAGE CPP #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE ImplicitParams             #-}
 
@@ -25,7 +24,7 @@ import qualified Agda.Utils.Favorites as Fav
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.PartialOrd
-import Agda.Utils.Pretty hiding ((<>))
+import Agda.Utils.Pretty
 import Agda.Utils.Singleton
 
 ------------------------------------------------------------------------

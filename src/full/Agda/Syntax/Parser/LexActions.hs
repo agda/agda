@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 
 {-| This module contains the building blocks used to construct the lexer.
 -}
@@ -32,7 +31,6 @@ import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Tuple
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 {--------------------------------------------------------------------------
@@ -96,6 +94,7 @@ postToken (TokId (r, "\x2983")) = TokSymbol SymDoubleOpenBrace r
 postToken (TokId (r, "\x2984")) = TokSymbol SymDoubleCloseBrace r
 postToken (TokId (r, "\x2987")) = TokSymbol SymOpenIdiomBracket r
 postToken (TokId (r, "\x2988")) = TokSymbol SymCloseIdiomBracket r
+postToken (TokId (r, "\x2987\x2988")) = TokSymbol SymEmptyIdiomBracket r
 postToken (TokId (r, "\x2200")) = TokKeyword KwForall r
 postToken (TokId (r, s))
   | set == "Set" && all isSub n = TokSetN (r, readSubscript n)

@@ -1,7 +1,5 @@
 {-# LANGUAGE DoAndIfThenElse      #-}
-{-# LANGUAGE FlexibleInstances    #-}
-{-# LANGUAGE OverloadedStrings    #-}
-{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE CPP                  #-}
 {-# LANGUAGE PatternGuards        #-}
 
 module Compiler.Tests where
@@ -69,6 +67,7 @@ disabledTests =
   , RFInclude "Compiler/JS/simple/VecReverseIrr"
   , RFInclude "Compiler/JS/simple/Issue2821"    -- GHC backend specific
   , RFInclude "Compiler/JS/simple/Issue2914"    -- GHC backend specific
+  , RFInclude "Compiler/JS/simple/Issue3732"    -- GHC backend specific
     -- Fix to 2524 is too unsafe
   , RFInclude "Compiler/.*/simple/Issue2524"
     -- Segfaulting 2640 behaves differently on travis
@@ -124,7 +123,12 @@ stdlibTests comp = do
       extraArgs = [ "-i" ++ testDir, "-i" ++ "std-lib" </> "src", "-istd-lib" ]
 
   let rtsOptions :: [String]
+-- See Issue #3792.
+#if __GLASGOW_HASKELL__ < 802
+      rtsOptions = [ "+RTS", "-H2G", "-M3G", "-RTS" ]
+#else
       rtsOptions = [ "+RTS", "-H2G", "-M2.5G", "-RTS" ]
+#endif
 
   tests' <- forM inps $ \inp -> do
     opts <- readOptions inp

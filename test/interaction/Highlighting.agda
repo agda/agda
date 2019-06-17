@@ -50,3 +50,18 @@ open S
 
 bla : ∀{A} → A → S A
 bla x .X = x
+
+-- Issue #3825: highlighting of unsolved metas in record{M} expressions
+
+record R₂ (A : Set) : Set where
+  field
+    impl : {a : A} → A
+
+module M {A : Set} where
+  impl : {a : A} → A   -- yellow should not be here
+  impl {a} = a
+
+r₂ : ∀{A} → R₂ A
+r₂ = record {M}  -- just because there is an unsolved meta here
+
+-- End issue #3825

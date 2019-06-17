@@ -3,7 +3,7 @@
 (agda2-highlight-clear)
 (agda2-verbose "Found interaction point ?0 : (Pow I) ")
 (agda2-status-action "ShowImplicit")
-(agda2-info-action "*All Goals, Errors*" "?0 : Pow I _239 : (a : Arity Ω {i} p) → _X_241 {Ψ = X} {X = i} (m = (input Ω {i} p a)) [ at Issue1353.agda:89,71-72 ] _240 : (a : Arity Ω {i} p) → _X_241 {Ψ = X} {X = i} (m = (input Ω {i} p a)) [ at Issue1353.agda:89,71-72 ] _X_241 : Set [ at Issue1353.agda:89,60-65 ] _242 : Σ (Parameter Ψ i) (λ p₁ → (a : Arity Ψ {i} p₁) → X (input Ψ {i} p₁ a)) [ at Issue1353.agda:89,54-73 ] _243 : Σ (Parameter Ψ i) (λ p₁ → (a : Arity Ψ {i} p₁) → X (input Ψ {i} p₁ a)) [ at Issue1353.agda:89,54-73 ] ———— Errors ———————————————————————————————————————————————— Failed to solve the following constraints: _242 := λ {I} {Ω} {Ψ} {X} φ m {i} p k → ⟪_⟫ {I} {Ω} {Ψ} m (λ v → _X_241 {I = I} {Ψ = X} {X = i} (m = v)) {i} (p , _240 {I = I} {Ω = Ω} {Ψ = Ψ} {X = X} (φ = φ) (m = m) {i = i} (p = p) (k = k)) [blocked on problem 369] [367] X (input Ω {i} p a) =< _X_241 {Ψ = X} {X = i} (m = (input Ω {i} p a)) : Set [369, 371] _X_241 {Ψ = X} {X = i} (m = (input Ψ {i} x a)) =< X (input Ψ {i} x a) : Set _239 := λ {I} {Ω} {Ψ} {X} φ m {i} p k → k [blocked on problem 367] " nil)
+(agda2-info-action "*All Goals, Errors*" "?0 : Pow I _X_241 : Set [ at Issue1353.agda:89,60-65 ] ———— Errors ———————————————————————————————————————————————— Failed to solve the following constraints: [367] X (input Ω {i} p a) =< _X_241 {Ψ = X} {X = i} (m = (input Ω {i} p a)) : Set [369, 371] _X_241 {Ψ = X} {X = i} (m = (input Ψ {i} p₁ a)) =< X (input Ψ {i} p₁ a) : Set " nil)
 ((last . 1) . (agda2-goals-action '(0)))
 (agda2-give-action 0 "X")
 (agda2-status-action "ShowImplicit")

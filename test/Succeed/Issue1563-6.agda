@@ -1,4 +1,4 @@
-{-# OPTIONS --rewriting #-}
+{-# OPTIONS --rewriting --confluence-check #-}
 
 data _==_ {A : Set} (a : A) : A → Set where
   idp : a == a

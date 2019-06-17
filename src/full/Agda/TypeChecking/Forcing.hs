@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP               #-}
 {-# LANGUAGE TypeFamilies #-}
 
 {-| A constructor argument is forced if it appears as pattern variable
@@ -81,8 +80,7 @@ import Agda.TypeChecking.Records
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
-import Agda.TypeChecking.Pretty hiding ((<>))
-import Agda.TypeChecking.Telescope
+import Agda.TypeChecking.Pretty
 
 import Agda.Utils.Function
 import Agda.Utils.PartialOrd
@@ -91,7 +89,6 @@ import Agda.Utils.List
 import Agda.Utils.Monad
 import Agda.Utils.Size
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | Given the type of a constructor (excluding the parameters),

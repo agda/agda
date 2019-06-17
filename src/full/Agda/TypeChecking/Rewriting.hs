@@ -1,5 +1,5 @@
-{-# LANGUAGE CPP               #-}
 {-# LANGUAGE NondecreasingIndentation #-}
+{-# LANGUAGE GADTs #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
@@ -58,8 +58,11 @@ import Data.Monoid
 
 import Agda.Interaction.Options
 
+import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
+import Agda.Syntax.Internal.Defs ( getDefs' )
+import Agda.Syntax.Position
 
 import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Monad
@@ -76,7 +79,9 @@ import Agda.TypeChecking.Primitive ( getBuiltinName )
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
+import Agda.TypeChecking.Rewriting.Confluence
 import Agda.TypeChecking.Rewriting.NonLinMatch
+import Agda.TypeChecking.Rewriting.NonLinPattern
 import qualified Agda.TypeChecking.Reduce.Monad as Red
 import Agda.TypeChecking.Warnings
 
@@ -89,10 +94,7 @@ import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Singleton
 import Agda.Utils.Size
-import Agda.Utils.Lens
-import qualified Agda.Utils.HashMap as HMap
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 requireOptionRewriting :: TCM ()
@@ -150,6 +152,7 @@ relView t = do
 --   to the signature where @B = A[us/Δ]@.
 --   Remember that @rel : Δ → A → A → Set i@, so
 --   @rel us : (lhs rhs : A[us/Δ]) → Set i@.
+--   Returns the head symbol @f@ of the lhs.
 addRewriteRule :: QName -> TCM ()
 addRewriteRule q = do
   requireOptionRewriting
@@ -167,8 +170,7 @@ addRewriteRule q = do
       ]
   -- We know that the type of rel is that of a relation.
   relV <- relView =<< do defType <$> getConstInfo rel
-  let RelView _tel delta a _a' _core = -- line break for CPP
-        fromMaybe __IMPOSSIBLE__ relV
+  let RelView _tel delta a _a' _core = fromMaybe __IMPOSSIBLE__ relV
   reportSDoc "rewriting" 30 $ do
     "rewrite relation at type " <+> do
       inTopContext $ prettyTCM (telFromList delta) <+> " |- " <+> do
@@ -180,15 +182,20 @@ addRewriteRule q = do
     , prettyTCM gamma1
     , " |- " <+> do addContext gamma1 $ prettyTCM core
     ]
-  let failureWrongTarget = typeError . GenericDocError =<< hsep
+  let failureWrongTarget :: TCM a
+      failureWrongTarget = typeError . GenericDocError =<< hsep
         [ prettyTCM q , " does not target rewrite relation" ]
-  let failureMetas       = typeError . GenericDocError =<< hsep
+  let failureMetas :: TCM a
+      failureMetas       = typeError . GenericDocError =<< hsep
         [ prettyTCM q , " is not a legal rewrite rule, since it contains unsolved meta variables" ]
-  let failureNotDefOrCon = typeError . GenericDocError =<< hsep
+  let failureNotDefOrCon :: TCM a
+      failureNotDefOrCon = typeError . GenericDocError =<< hsep
         [ prettyTCM q , " is not a legal rewrite rule, since the left-hand side is neither a defined symbol nor a constructor" ]
-  let failureFreeVars xs = typeError . GenericDocError =<< hsep
+  let failureFreeVars :: IntSet -> TCM a
+      failureFreeVars xs = typeError . GenericDocError =<< hsep
         [ prettyTCM q , " is not a legal rewrite rule, since the following variables are not bound by the left hand side: " , prettyList_ (map (prettyTCM . var) $ IntSet.toList xs) ]
-  let failureIllegalRule = typeError . GenericDocError =<< hsep
+  let failureIllegalRule :: TCM a
+      failureIllegalRule = typeError . GenericDocError =<< hsep
         [ prettyTCM q , " is not a legal rewrite rule" ]
 
   -- Check that type of q targets rel.
@@ -207,8 +214,8 @@ addRewriteRule q = do
       gamma1 <- instantiateFull gamma1
       let gamma = gamma0 `abstract` gamma1
 
-      unless (null $ allMetas (telToList gamma1)) $ do
-        reportSDoc "rewriting" 30 $ "metas in gamma1: " <+> text (show $ allMetas $ telToList gamma1)
+      unless (noMetas (telToList gamma1)) $ do
+        reportSDoc "rewriting" 30 $ "metas in gamma1: " <+> text (show $ allMetasList $ telToList gamma1)
         failureMetas
 
       -- 2017-06-18, Jesper: Unfold inlined definitions on the LHS.
@@ -219,8 +226,9 @@ addRewriteRule q = do
       -- Find head symbol f of the lhs, its type and its arguments.
       (f , hd , t , es) <- case lhs of
         Def f es -> do
-          t <- defType <$> getConstInfo f
-          return (f , Def f , t , es)
+          def <- getConstInfo f
+          checkAxFunOrCon f def
+          return (f , Def f , defType def , es)
         Con c ci vs -> do
           let hd = Con c ci
           ~(Just ((_ , _ , pars) , t)) <- getFullyAppliedConType c $ unDom b
@@ -236,10 +244,10 @@ addRewriteRule q = do
 
         checkNoLhsReduction f es
 
-        unless (null $ allMetas (es, rhs, b)) $ do
-          reportSDoc "rewriting" 30 $ "metas in lhs: " <+> text (show $ allMetas es)
-          reportSDoc "rewriting" 30 $ "metas in rhs: " <+> text (show $ allMetas rhs)
-          reportSDoc "rewriting" 30 $ "metas in b  : " <+> text (show $ allMetas b)
+        unless (noMetas (es, rhs, b)) $ do
+          reportSDoc "rewriting" 30 $ "metas in lhs: " <+> text (show $ allMetasList es)
+          reportSDoc "rewriting" 30 $ "metas in rhs: " <+> text (show $ allMetasList rhs)
+          reportSDoc "rewriting" 30 $ "metas in b  : " <+> text (show $ allMetasList b)
           failureMetas
 
         ps <- patternFrom Relevant 0 (t , Def f []) es
@@ -270,9 +278,17 @@ addRewriteRule q = do
       --     failureFreeVars
 
       -- Add rewrite rule gamma ⊢ lhs ↦ rhs : b for f.
-      addRewriteRules f [rew]
+      reportSDoc "rewriting" 10 $ "rewrite rule ok, adding it to the definition of " <+> prettyTCM f
+      let matchables = getMatchables rew
+      reportSDoc "rewriting" 30 $ "matchable symbols: " <+> prettyTCM matchables
+      modifySignature $ addRewriteRulesFor f [rew] matchables
+
+      -- Run confluence check for the new rule
+      whenM (optConfluenceCheck <$> pragmaOptions) $
+        checkConfluenceOfRule rew
 
     _ -> failureWrongTarget
+
   where
     checkNoLhsReduction :: QName -> Elims -> TCM ()
     checkNoLhsReduction f es = do
@@ -293,11 +309,23 @@ addRewriteRule q = do
           unless ok fail
         _ -> fail
 
+    checkAxFunOrCon :: QName -> Definition -> TCM ()
+    checkAxFunOrCon f def = case theDef def of
+      Axiom{}        -> return ()
+      Function{}     -> return ()
+      Constructor{}  -> return ()
+      AbstractDefn{} -> return ()
+      Primitive{}    -> return () -- TODO: is this fine?
+      _              -> typeError . GenericDocError =<< hsep
+        [ prettyTCM q , " is not a legal rewrite rule, since the head symbol"
+        , prettyTCM f , "is not a postulate, a function, or a constructor"
+        ]
+
     ifNotAlreadyAdded :: QName -> TCM () -> TCM ()
     ifNotAlreadyAdded f cont = do
       rews <- getRewriteRulesFor f
       -- check if q is already an added rewrite rule
-      if any ((q ==) . rewName) rews then
+      if any ((q ==) . rewName) rews then do
         genericWarning =<< do
           "Rewrite rule " <+> prettyTCM q <+> " has already been added"
       else cont
@@ -320,19 +348,12 @@ addRewriteRule q = do
           Var i [] | i < k -> (i :) <$> loop vs
           _                -> errorNotGeneral
 
+        errorNotGeneral :: TCM a
         errorNotGeneral = typeError . GenericDocError =<< vcat
             [ prettyTCM q <+> text " is not a legal rewrite rule, since the constructor parameters are not fully general:"
             , nest 2 $ text "Constructor: " <+> prettyTCM c
             , nest 2 $ text "Parameters: " <+> prettyList (map prettyTCM vs)
             ]
-
--- | Append rewrite rules to a definition.
-addRewriteRules :: QName -> RewriteRules -> TCM ()
-addRewriteRules f rews = do
-  reportSDoc "rewriting" 10 $ "rewrite rule ok, adding it to the definition of " <+> prettyTCM f
-  let matchables = getMatchables rews
-  reportSDoc "rewriting" 30 $ "matchable symbols: " <+> prettyTCM matchables
-  modifySignature $ addRewriteRulesFor f rews matchables
 
 -- | @rewriteWith t f es rew@ where @f : t@
 --   tries to rewrite @f es@ with @rew@, returning the reduct if successful.
@@ -376,7 +397,7 @@ rewrite block v rules es = do
         -- Andreas, 2018-09-08, issue #3211:
         -- discount module parameters for constructor heads
       _ -> __IMPOSSIBLE__
-    loop block t rules =<< instantiateFull' es
+    loop block t rules =<< instantiateFull' es -- TODO: remove instantiateFull?
   else
     return $ NoReduction (block $> v `applyE` es)
   where
@@ -397,71 +418,5 @@ rewrite block v rules es = do
             Right w               -> return $ YesReduction YesSimplification $ w `applyE` es2
      | otherwise = loop (block `mappend` NotBlocked Underapplied ()) t rews es
 
-
-------------------------------------------------------------------------
--- * Auxiliary functions
-------------------------------------------------------------------------
-
-class NLPatVars a where
-  nlPatVarsUnder :: Int -> a -> IntSet
-
-  nlPatVars :: a -> IntSet
-  nlPatVars = nlPatVarsUnder 0
-
-instance (Foldable f, NLPatVars a) => NLPatVars (f a) where
-  nlPatVarsUnder k = foldMap $ nlPatVarsUnder k
-
-instance NLPatVars NLPType where
-  nlPatVarsUnder k (NLPType l a) = nlPatVarsUnder k l `IntSet.union` nlPatVarsUnder k a
-
-instance NLPatVars NLPat where
-  nlPatVarsUnder k p =
-    case p of
-      PVar i _  -> singleton $ i - k
-      PDef _ es -> nlPatVarsUnder k es
-      PWild     -> empty
-      PLam _ p' -> nlPatVarsUnder (k+1) $ unAbs p'
-      PPi a b   -> nlPatVarsUnder k a `IntSet.union` nlPatVarsUnder (k+1) (unAbs b)
-      PBoundVar _ es -> nlPatVarsUnder k es
-      PTerm{}   -> empty
-
-rewArity :: RewriteRule -> Int
-rewArity = length . rewPats
-
--- | Get all symbols that a rewrite rule matches against
-class GetMatchables a where
-  getMatchables :: a -> [QName]
-
-instance (Foldable f, GetMatchables a) => GetMatchables (f a) where
-  getMatchables = foldMap getMatchables
-
-instance GetMatchables NLPat where
-  getMatchables p =
-    case p of
-      PVar _ _       -> empty
-      PWild          -> empty
-      PDef f _       -> singleton f
-      PLam _ x       -> empty
-      PPi a b        -> empty
-      PBoundVar i es -> empty
-      PTerm _        -> empty -- should be safe (I hope)
-
-instance GetMatchables RewriteRule where
-  getMatchables = getMatchables . rewPats
-
--- Only computes free variables that are not bound (i.e. those in a PTerm)
-instance Free NLPat where
-  freeVars' p = case p of
-    PVar _ _ -> mempty
-    PWild -> mempty
-    PDef _ es -> freeVars' es
-    PLam _ u -> freeVars' u
-    PPi a b -> freeVars' (a,b)
-    PBoundVar _ es -> freeVars' es
-    PTerm t -> freeVars' t
-
-instance Free NLPType where
-  freeVars' (NLPType l a) =
-    ifM ((IgnoreNot ==) <$> asks feIgnoreSorts)
-      {- then -} (freeVars' (l, a))
-      {- else -} (freeVars' a)
+    rewArity :: RewriteRule -> Int
+    rewArity = length . rewPats

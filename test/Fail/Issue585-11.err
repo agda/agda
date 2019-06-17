@@ -1,5 +1,4 @@
 Failed to solve the following constraints:
-  _28 := λ {n} p i → f₂ p (f₄ p i) [blocked on problem 33]
   [33, 34] f₁ n (f₃ n i) = _24 (x = n) (x = i) : D₁
 Unsolved metas at the following locations:
   Issue585-11.agda:20,17-18

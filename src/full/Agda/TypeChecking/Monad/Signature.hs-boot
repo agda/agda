@@ -1,12 +1,9 @@
-{-# LANGUAGE CPP #-}
 
 module Agda.TypeChecking.Monad.Signature where
 
-#if __GLASGOW_HASKELL__ >= 800
 import qualified Control.Monad.Fail as Fail
-#endif
-
 import Control.Monad.Reader
+import Control.Monad.State
 
 import Agda.Syntax.Abstract.Name (QName)
 import Agda.Syntax.Internal (ModuleName, Telescope)
@@ -23,11 +20,7 @@ data SigError = SigUnknown String | SigAbstract
 
 class ( Functor m
       , Applicative m
-#if __GLASGOW_HASKELL__ == 710
-      , Monad m
-#else
       , Fail.MonadFail m
-#endif
       , HasOptions m
       , MonadDebug m
       , MonadTCEnv m
@@ -41,6 +34,11 @@ class ( Functor m
   getConstInfo' :: QName -> m (Either SigError Definition)
   getConstInfo' q = Right <$> getConstInfo q
   getRewriteRulesFor :: QName -> m RewriteRules
+
+instance HasConstInfo m => HasConstInfo (ReaderT r m)
+instance HasConstInfo m => HasConstInfo (StateT s m)
+
+instance HasConstInfo TCM where
 
 inFreshModuleIfFreeParams :: TCM a -> TCM a
 lookupSection :: (Functor m, ReadTCState m) => ModuleName -> m Telescope

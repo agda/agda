@@ -1,13 +1,8 @@
-{-# LANGUAGE CPP                       #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 
 module Agda.TypeChecking.SizedTypes.WarshallSolver where
 
-#if MIN_VERSION_base(4,11,0)
-import Prelude hiding ( (<>), null, truncate )
-#else
 import Prelude hiding ( null, truncate )
-#endif
 
 import Control.Applicative hiding (Const, empty)
 import Control.Monad
@@ -32,7 +27,6 @@ import Agda.Utils.Functor
 import Agda.Utils.Null
 import Agda.Utils.Pretty
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 type Graph r f a = Graph.Graph (Node r f) a

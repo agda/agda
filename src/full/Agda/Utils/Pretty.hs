@@ -1,34 +1,25 @@
-{-# LANGUAGE CPP #-}
 
 {-| Pretty printing functions.
 -}
 module Agda.Utils.Pretty
     ( module Agda.Utils.Pretty
     , module Text.PrettyPrint
+    -- This re-export can be removed once <GHC-8.4 is dropped.
+    , module Data.Semigroup
     ) where
 
 import Data.Int ( Int32 )
 import Data.Data (Data(..))
 import qualified Data.Map as Map
 
-#if __GLASGOW_HASKELL__ < 800
-import qualified Data.Semigroup as S
-#endif
-
 import qualified Text.PrettyPrint as P
-import Text.PrettyPrint hiding (TextDetails(Str), empty)
+import Text.PrettyPrint hiding (TextDetails(Str), empty, (<>))
+import Data.Semigroup ((<>))
 
 import Agda.Utils.NonemptyList
+import Agda.Utils.Size
 
-#include "undefined.h"
 import Agda.Utils.Impossible
-
-#if __GLASGOW_HASKELL__ < 800
--- ASR (2019-03-27). I used @(<>)@ from the monoid instance because I
--- cannot hide this instance.
-instance S.Semigroup Doc where
-  (<>) = (<>)
-#endif
 
 -- * Pretty class
 
@@ -131,3 +122,6 @@ a <?> b = hang a 2 b
 -- | @pshow = text . pretty@
 pshow :: Show a => a -> Doc
 pshow = text . show
+
+singPlural :: Sized a => a -> c -> c -> c
+singPlural xs singular plural = if size xs == 1 then singular else plural

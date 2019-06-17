@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP                   #-}
 {-# LANGUAGE UndecidableInstances  #-}  -- Due to limitations of funct.dep.
 
 -- | @ListT@ done right,
@@ -12,6 +11,7 @@ module Agda.Utils.ListT where
 
 import Control.Applicative ( Alternative((<|>), empty) )
 import Control.Monad
+import Control.Monad.Fail as Fail
 import Control.Monad.Reader
 import Control.Monad.State
 
@@ -49,6 +49,10 @@ caseListT l nil cons = caseMaybeM (runListT l) nil $ uncurry cons
 foldListT :: Monad m => (a -> m b -> m b) -> m b -> ListT m a -> m b
 foldListT cons nil = loop where
   loop l = caseListT l nil $ \ a l' -> cons a $ loop l'
+
+-- | Force all values in the lazy list, effects left-to-right
+sequenceListT :: Monad m => ListT m a -> m [a]
+sequenceListT = foldListT ((<$>) . (:)) $ pure []
 
 -- | The join operation of the @ListT m@ monad.
 concatListT :: Monad m => ListT m (ListT m a) -> ListT m a
@@ -141,3 +145,6 @@ instance (Applicative m, MonadReader r m) => MonadReader r (ListT m) where
 instance (Applicative m, MonadState s m) => MonadState s (ListT m) where
   get = lift get
   put = lift . put
+
+instance Monad m => MonadFail (ListT m) where
+  fail _ = empty

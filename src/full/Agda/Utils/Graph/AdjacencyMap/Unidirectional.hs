@@ -1,6 +1,4 @@
 {-# LANGUAGE BangPatterns               #-}
-{-# LANGUAGE CPP                        #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 -- | Directed graphs (can of course simulate undirected graphs).
 --
@@ -68,11 +66,7 @@ module Agda.Utils.Graph.AdjacencyMap.Unidirectional
   )
   where
 
-#if MIN_VERSION_base(4,11,0)
-import Prelude hiding ( (<>), lookup, null, unzip )
-#else
 import Prelude hiding ( lookup, null, unzip )
-#endif
 
 import Control.Applicative hiding (empty)
 import Control.Monad
@@ -105,7 +99,6 @@ import Agda.Utils.Singleton (Singleton)
 import qualified Agda.Utils.Singleton as Singleton
 import Agda.Utils.Tuple
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 ------------------------------------------------------------------------
@@ -171,7 +164,7 @@ data Edge n e = Edge
 
 instance (Pretty n, Pretty e) => Pretty (Edge n e) where
   pretty (Edge s t e) =
-    pretty s <+> "--(" <> pretty e <> ")-->" <+> pretty t
+    pretty s <+> ("--(" <> pretty e <> ")-->") <+> pretty t
 
 ------------------------------------------------------------------------
 -- Queries

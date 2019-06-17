@@ -1,5 +1,3 @@
-{-# LANGUAGE CPP                  #-}
-{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE NondecreasingIndentation #-}
 
 module Agda.TypeChecking.Rules.LHS
@@ -10,11 +8,7 @@ module Agda.TypeChecking.Rules.LHS
   , checkSortOfSplitVar
   ) where
 
-#if MIN_VERSION_base(4,11,0)
-import Prelude hiding ( (<>), mapM, null, sequence )
-#else
 import Prelude hiding ( mapM, null, sequence )
-#endif
 
 import Data.Maybe
 
@@ -52,7 +46,6 @@ import Agda.Syntax.Literal
 import Agda.Syntax.Position
 
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Monad.Builtin (litType, constructorForm)
 
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 import Agda.TypeChecking.Conversion
@@ -61,7 +54,11 @@ import Agda.TypeChecking.CheckInternal (checkInternal)
 import Agda.TypeChecking.Datatypes hiding (isDataOrRecordType)
 import Agda.TypeChecking.Errors (dropTopLevelModule)
 import Agda.TypeChecking.Irrelevance
-import {-# SOURCE #-} Agda.TypeChecking.Empty
+-- Prevent "Ambiguous occurrence ‘DontKnow’" when loading with ghci.
+-- (DontKnow is one of the constructors of ErrorNonEmpty *and* UnifactionResult').
+-- We can't explicitly hide just the constructor here because it isn't in the
+-- hs-boot file.
+import {-# SOURCE #-} Agda.TypeChecking.Empty (ensureEmptyType)
 import Agda.TypeChecking.Forcing
 import Agda.TypeChecking.Patterns.Abstract
 import Agda.TypeChecking.Pretty
@@ -92,7 +89,6 @@ import Agda.Utils.Pretty (prettyShow)
 import Agda.Utils.Singleton
 import Agda.Utils.Size
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | Compute the set of flexible patterns in a list of patterns. The result is
@@ -374,7 +370,7 @@ noShadowingOfConstructors mkCall eqs =
       Level {} -> __IMPOSSIBLE__
       Con   {} -> __IMPOSSIBLE__
       DontCare{} -> __IMPOSSIBLE__
-      Dummy s    -> __IMPOSSIBLE_VERBOSE__ s
+      Dummy s _  -> __IMPOSSIBLE_VERBOSE__ s
 
 -- | Check that a dot pattern matches it's instantiation.
 checkDotPattern :: DotPattern -> TCM ()
@@ -868,7 +864,7 @@ splitStrategy = filter shouldSplit
 
 -- | The loop (tail-recursive): split at a variable in the problem until problem is solved
 checkLHS
-  :: forall tcm a. (MonadTCM tcm, MonadReduce tcm, MonadWriter Blocked_ tcm, HasConstInfo tcm, MonadError TCErr tcm, MonadDebug tcm, MonadReader Nat tcm)
+  :: forall tcm a. (MonadTCM tcm, MonadReduce tcm, MonadAddContext tcm, MonadWriter Blocked_ tcm, HasConstInfo tcm, MonadError TCErr tcm, MonadDebug tcm, MonadReader Nat tcm)
   => Maybe QName      -- ^ The name of the definition we are checking.
   -> LHSState a       -- ^ The current state.
   -> tcm a
@@ -1432,7 +1428,7 @@ suspendErrors f = do
 
 -- | A more direct implementation of the specification
 --   @softTypeError err == suspendErrors (typeError err)@
-softTypeError :: (MonadTCM m, MonadError TCErr m) => TypeError -> m a
+softTypeError :: (ReadTCState m, MonadError TCErr m, MonadTCEnv m) => TypeError -> m a
 softTypeError err = throwError =<< typeError_ err
 
 -- | A convenient alias for @liftTCM . typeError@. Throws the error directly
@@ -1445,7 +1441,7 @@ hardTypeError = liftTCM . typeError
 --   definition, parameters, and indices. Fails softly if the type could become
 --   a data/record type by instantiating a variable/metavariable, or fail hard
 --   otherwise.
-isDataOrRecordType :: (MonadTCM m, MonadDebug m)
+isDataOrRecordType :: (MonadTCM m, MonadDebug m, ReadTCState m)
                    => Type
                    -> ExceptT TCErr m (DataOrRecord, QName, Args, Args)
 isDataOrRecordType a = liftTCM (reduceB a) >>= \case
@@ -1499,7 +1495,7 @@ isDataOrRecordType a = liftTCM (reduceB a) >>= \case
     Con{}      -> __IMPOSSIBLE__
     Level{}    -> __IMPOSSIBLE__
     DontCare{} -> __IMPOSSIBLE__
-    Dummy s    -> __IMPOSSIBLE_VERBOSE__ s
+    Dummy s _  -> __IMPOSSIBLE_VERBOSE__ s
 
   -- Type is blocked on a meta or something else: fail softly
   _ -> softTypeError =<< notData
@@ -1575,11 +1571,11 @@ disambiguateProjection h ambD@(AmbQ ds) b = do
   where
     showDisamb (d,_) =
       let r = head $ filter (noRange /=) $ map nameBindingSite $ reverse $ mnameToList $ qnameModule d
-      in  (pretty =<< dropTopLevelModule d) <+> "(introduced at " <> prettyTCM r <> ")"
+      in  (pretty =<< dropTopLevelModule d) <+> ("(introduced at " <> prettyTCM r <> ")")
 
     notRecord = wrongProj $ headNe ds
 
-    wrongProj :: (MonadTCM m, MonadError TCErr m) => QName -> m a
+    wrongProj :: (MonadTCM m, MonadError TCErr m, ReadTCState m) => QName -> m a
     wrongProj d = softTypeError =<< do
       liftTCM $ GenericDocError <$> sep
         [ "Cannot eliminate type "
@@ -1591,7 +1587,7 @@ disambiguateProjection h ambD@(AmbQ ds) b = do
             prettyTCM d
         ]
 
-    wrongHiding :: (MonadTCM m, MonadError TCErr m) => QName -> m a
+    wrongHiding :: (MonadTCM m, MonadError TCErr m, ReadTCState m) => QName -> m a
     wrongHiding d = softTypeError =<< do
       liftTCM $ GenericDocError <$> sep
         [ "Wrong hiding used for projection " , prettyTCM d ]
@@ -1691,7 +1687,7 @@ disambiguateConstructor ambC@(AmbQ cs) d pars = do
   where
     showDisamb (c0,_,_) =
       let r = head $ filter (noRange /=) $ map nameBindingSite $ reverse $ mnameToList $ qnameModule c0
-      in  (pretty =<< dropTopLevelModule c0) <+> "(introduced at " <> prettyTCM r <> ")"
+      in  (pretty =<< dropTopLevelModule c0) <+> ("(introduced at " <> prettyTCM r <> ")")
 
     abstractConstructor c = softTypeError $
       AbstractConstructorNotInScope c
@@ -1768,8 +1764,8 @@ checkParameters dc d pars = liftTCM $ do
       compareArgs [] [] t (Def d []) vs (take (length vs) pars)
     _ -> __IMPOSSIBLE__
 
-checkSortOfSplitVar :: (MonadTCM tcm, MonadReduce tcm, MonadError TCErr tcm, LensSort a)
-                    => DataOrRecord -> a -> Maybe (Arg Type) -> tcm ()
+checkSortOfSplitVar :: (MonadTCM m, MonadReduce m, MonadError TCErr m, ReadTCState m, LensSort a)
+                    => DataOrRecord -> a -> Maybe (Arg Type) -> m ()
 checkSortOfSplitVar dr a mtarget = do
   infOk <- optOmegaInOmega <$> pragmaOptions
   liftTCM (reduce $ getSort a) >>= \case

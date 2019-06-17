@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP                   #-}
 {-# LANGUAGE DeriveDataTypeable    #-}
 {-# LANGUAGE TemplateHaskell       #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
@@ -55,7 +54,6 @@ import Agda.Utils.Lens
 import Agda.Utils.NonemptyList
 import Agda.Utils.Pretty
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | A name in a binding position: we also compare the nameConcrete
@@ -1008,29 +1006,38 @@ instance AnyAbstract Declaration where
   anyAbstract (RecSig i _ _ _)       = defAbstract i == AbstractDef
   anyAbstract _                      = __IMPOSSIBLE__
 
+-- | Turn a name into an expression.
+
 class NameToExpr a where
-  nameExpr :: a -> Expr
+  nameToExpr :: a -> Expr
 
--- | Turn an 'AbstractName' to an expression.
+-- | Turn an 'AbstractName' into an expression.
+
 instance NameToExpr AbstractName where
-  nameExpr d = mk (anameKind d) $ anameName d
+  nameToExpr d =
+    case anameKind d of
+      DefName                  -> Def x
+      GeneralizeName           -> Def x
+      DisallowedGeneralizeName -> Def x
+      FldName                  -> Proj ProjSystem ux
+      ConName                  -> Con ux
+      PatternSynName           -> PatternSyn ux
+      MacroName                -> Macro x
+      QuotableName             -> App (defaultAppInfo r) (Quote i) (defaultNamedArg $ Def x)
     where
-    mk DefName        x = Def x
-    mk GeneralizeName x = Def x
-    mk DisallowedGeneralizeName x = Def x
-    mk FldName        x = Proj ProjSystem $ unambiguous x
-    mk ConName        x = Con $ unambiguous x
-    mk PatternSynName x = PatternSyn $ unambiguous x
-    mk MacroName      x = Macro x
-    mk QuotableName   x = App (defaultAppInfo r) (Quote i) (defaultNamedArg $ Def x)
-      where i = ExprRange r
-            r = getRange x
+    x  = anameName d
+    ux = unambiguous x
+    r  = getRange x
+    i  = ExprRange r
 
--- | Assumes name is not 'UnknownName'.
+-- | Turn a 'ResolvedName' into an expression.
+--
+--   Assumes name is not 'UnknownName'.
+
 instance NameToExpr ResolvedName where
-  nameExpr = \case
+  nameToExpr = \case
     VarName x _          -> Var x
-    DefinedName _ x      -> nameExpr x  -- Can be 'DefName', 'MacroName', 'QuotableName'.
+    DefinedName _ x      -> nameToExpr x  -- Can be 'DefName', 'MacroName', 'QuotableName'.
     FieldName xs         -> Proj ProjSystem . AmbQ . fmap anameName $ xs
     ConstructorName xs   -> Con . AmbQ . fmap anameName $ xs
     PatternSynResName xs -> PatternSyn . AmbQ . fmap anameName $ xs
@@ -1044,21 +1051,20 @@ mkLet i [] e = e
 mkLet i ds e = Let i ds e
 
 patternToExpr :: Pattern -> Expr
-patternToExpr (VarP x)           = Var (unBind x)
-patternToExpr (ConP _ c ps)       =
-  Con c `app` map (fmap (fmap patternToExpr)) ps
-patternToExpr (ProjP _ o ds)      = Proj o ds
-patternToExpr (DefP _ fs ps) =
-  Def (headAmbQ fs) `app` map (fmap (fmap patternToExpr)) ps
-patternToExpr (WildP _)           = Underscore emptyMetaInfo
-patternToExpr (AsP _ _ p)         = patternToExpr p
-patternToExpr (DotP _ e)          = e
-patternToExpr (AbsurdP _)         = Underscore emptyMetaInfo  -- TODO: could this happen?
-patternToExpr (LitP l)            = Lit l
-patternToExpr (PatternSynP _ c ps) = PatternSyn c `app` (map . fmap . fmap) patternToExpr ps
-patternToExpr (RecP _ as)         = Rec exprNoRange $ map (Left . fmap patternToExpr) as
-patternToExpr EqualP{}            = __IMPOSSIBLE__  -- Andrea TODO: where is this used?
-patternToExpr (WithP r p)         = __IMPOSSIBLE__
+patternToExpr = \case
+  VarP x             -> Var (unBind x)
+  ConP _ c ps        -> Con c `app` map (fmap (fmap patternToExpr)) ps
+  ProjP _ o ds       -> Proj o ds
+  DefP _ fs ps       -> Def (headAmbQ fs) `app` map (fmap (fmap patternToExpr)) ps
+  WildP _            -> Underscore emptyMetaInfo
+  AsP _ _ p          -> patternToExpr p
+  DotP _ e           -> e
+  AbsurdP _          -> Underscore emptyMetaInfo  -- TODO: could this happen?
+  LitP l             -> Lit l
+  PatternSynP _ c ps -> PatternSyn c `app` (map . fmap . fmap) patternToExpr ps
+  RecP _ as          -> Rec exprNoRange $ map (Left . fmap patternToExpr) as
+  EqualP{}           -> __IMPOSSIBLE__  -- Andrea TODO: where is this used?
+  WithP r p          -> __IMPOSSIBLE__
 
 type PatternSynDefn = ([Arg Name], Pattern' Void)
 type PatternSynDefns = Map QName PatternSynDefn

@@ -1,6 +1,5 @@
 Failed to solve the following constraints:
-  _16 := λ .y → refl [blocked on problem 18]
-  [18, 21] _x_15 = resurrect _ : ⊥
+  [18, 21] _x_15 =< resurrect _ : ⊥
 Unsolved metas at the following locations:
   Issue483.agda:17,7-8
   Issue483.agda:17,16-20

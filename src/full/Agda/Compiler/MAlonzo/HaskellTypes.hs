@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 
 -- | Translating Agda types to Haskell types. Used to ensure that imported
 --   Haskell functions have the right type.
@@ -8,10 +7,6 @@ module Agda.Compiler.MAlonzo.HaskellTypes
   , checkConstructorCount
   , hsTelApproximation, hsTelApproximation'
   ) where
-
-#if MIN_VERSION_base(4,11,0)
-import Prelude hiding ((<>))
-#endif
 
 import Control.Monad (zipWithM)
 import Data.Maybe (fromMaybe)
@@ -38,7 +33,6 @@ import Agda.Utils.Except
 import Agda.Utils.Pretty (prettyShow)
 import Agda.Utils.Null
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 hsQCon :: String -> String -> HS.Type
@@ -177,7 +171,7 @@ haskellType' t = runToHs (unEl t) (fromType t)
         Sort{}     -> return hsUnit
         MetaV{}    -> throwError (BadMeta v)
         DontCare{} -> throwError (BadDontCare v)
-        Dummy s    -> __IMPOSSIBLE_VERBOSE__ s
+        Dummy s _  -> __IMPOSSIBLE_VERBOSE__ s
 
 haskellType :: QName -> TCM HS.Type
 haskellType q = do
@@ -199,7 +193,7 @@ haskellType q = do
           Pi a b  -> underAbstraction a b $ \b -> hsForall <$> getHsVar 0 <*> underPars (n - 1) b
           _       -> __IMPOSSIBLE__
   ty <- underPars np $ defType def
-  reportSDoc "tc.pragma.compile" 10 $ ("Haskell type for" <+> prettyTCM q <> ":") <?> pretty ty
+  reportSDoc "tc.pragma.compile" 10 $ (("Haskell type for" <+> prettyTCM q) <> ":") <?> pretty ty
   return ty
 
 checkConstructorCount :: QName -> [QName] -> [HaskellCode] -> TCM ()

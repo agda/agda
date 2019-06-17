@@ -11,7 +11,6 @@
 -- concrete name.
 --
 -- This transfomation should be run as the last transformation.
-{-# LANGUAGE CPP #-}
 module Agda.Compiler.Treeless.NormalizeNames ( normalizeNames ) where
 
 import Agda.TypeChecking.Monad

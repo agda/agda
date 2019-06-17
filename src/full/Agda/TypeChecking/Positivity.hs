@@ -1,15 +1,10 @@
 {-# LANGUAGE BangPatterns         #-}
-{-# LANGUAGE CPP                  #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 -- | Check that a datatype is strictly positive.
 module Agda.TypeChecking.Positivity where
 
-#if MIN_VERSION_base(4,11,0)
-import Prelude hiding ( (<>), null )
-#else
 import Prelude hiding ( null )
-#endif
 
 import Control.Applicative hiding (empty)
 import Control.DeepSeq
@@ -41,7 +36,7 @@ import Agda.Syntax.Position (fuseRange, Range, HasRange(..), noRange)
 import Agda.TypeChecking.Datatypes ( isDataOrRecordType )
 import Agda.TypeChecking.Functions
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Monad.Builtin (primInf, CoinductionKit(..), coinductionKit)
+import Agda.TypeChecking.Monad.Builtin (builtinInf, getBuiltin', CoinductionKit(..), coinductionKit)
 import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Records
@@ -64,7 +59,6 @@ import Agda.Utils.SemiRing
 import Agda.Utils.Singleton
 import Agda.Utils.Size
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 type Graph n e = Graph.Graph n e
@@ -535,8 +529,12 @@ computeOccurrences' q = inConcreteOrAbstractMode q $ \ def -> do
         caseMaybeM (isSizeType dom) (return 0) $ \ _ -> return 1
       let np = np0 + sizeIndex
       let xs = [np .. size tel - 1] -- argument positions corresponding to indices
-          ioccs = Concat $ map (OccursHere . AnArg) [np0 .. np - 1]
-                        ++ map (OccursAs IsIndex . OccursHere . AnArg) xs
+          -- Andreas, 2019-02-03, issue #3541:
+          -- Treat indices like parameters.
+          -- Was before (#802):
+          -- ioccs = Concat $ map (OccursHere . AnArg) [np0 .. np - 1]
+          --               ++ map (OccursAs Matched . OccursHere . AnArg) xs
+          ioccs = Concat $ map (OccursHere . AnArg) [np0 .. size tel - 1]
       -- Then, we compute the occurrences in the constructor types.
       let conOcc c = do
             a <- defType <$> getConstInfo c
@@ -613,11 +611,11 @@ buildOccurrenceGraph qs =
       occs <- computeOccurrences' q
 
       reportSDoc "tc.pos.occs" 40 $
-        ("Occurrences in" <+> prettyTCM q <> ":")
+        (("Occurrences in" <+> prettyTCM q) <> ":")
           $+$
         (nest 2 $ vcat $
            map (\(i, n) ->
-                   text (show i) <> ":" <+> text (show n) <+>
+                   (text (show i) <> ":") <+> text (show n) <+>
                    "occurrences") $
            List.sortBy (compare `on` snd) $
            Map.toList (flatten occs))
@@ -633,7 +631,7 @@ buildOccurrenceGraph qs =
            map (\e ->
                    let Edge o w = Graph.label e in
                    prettyTCM (Graph.source e) <+>
-                   "-[" <+> return (P.pretty o) <> "," <+>
+                   "-[" <+> (return (P.pretty o) <> ",") <+>
                                  return (P.pretty w) <+> "]->" <+>
                    prettyTCM (Graph.target e))
                es)
@@ -757,7 +755,7 @@ computeEdges muts q ob =
 instance Pretty Node where
   pretty = \case
     DefNode q   -> P.pretty q
-    ArgNode q i -> P.pretty q P.<> P.text ("." ++ show i)
+    ArgNode q i -> P.pretty q <> P.text ("." ++ show i)
 
 instance PrettyTCM Node where
   prettyTCM = return . P.pretty
@@ -783,25 +781,25 @@ instance PrettyTCM (Seq OccursWhere) where
         where
         snd' (OccursWhere _ _ ws) = ws
 
-      prettyOWs :: [OccursWhere] -> TCM (String, Doc)
+      prettyOWs :: MonadPretty m => [OccursWhere] -> m (String, Doc)
       prettyOWs []  = __IMPOSSIBLE__
       prettyOWs [o] = do
         (s, d) <- prettyOW o
-        return (s, d P.<> ".")
+        return (s, d <> ".")
       prettyOWs (o:os) = do
         (s1, d1) <- prettyOW  o
         (s2, d2) <- prettyOWs os
-        return (s1, d1 P.<> "," P.<+> "which" P.<+> P.text s2 P.$$ d2)
+        return (s1, d1 <> ("," P.<+> "which" P.<+> P.text s2 P.$$ d2))
 
-      prettyOW :: OccursWhere -> TCM (String, Doc)
+      prettyOW :: MonadPretty m => OccursWhere -> m (String, Doc)
       prettyOW (OccursWhere _ cs ws)
         | null cs   = prettyWs ws
         | otherwise = do
             (s, d1) <- prettyWs ws
             (_, d2) <- prettyWs cs
-            return (s, d1 P.$$ "(" P.<> d2 P.<> ")")
+            return (s, d1 P.$$ "(" <> d2 <> ")")
 
-      prettyWs :: Seq Where -> TCM (String, Doc)
+      prettyWs :: MonadPretty m => Seq Where -> m (String, Doc)
       prettyWs ws = case Fold.toList ws of
         [InDefOf d, IsIndex] ->
           (,) "is" <$> fsep (pwords "an index of" ++ [prettyTCM d])
@@ -809,14 +807,14 @@ instance PrettyTCM (Seq OccursWhere) where
           (,) "occurs" <$>
             Fold.foldrM (\w d -> return d $$ fsep (prettyW w)) empty ws
 
-      prettyW :: Where -> [TCM Doc]
+      prettyW :: MonadPretty m => Where -> [m Doc]
       prettyW w = case w of
         LeftOfArrow  -> pwords "to the left of an arrow"
         DefArg q i   -> pwords "in the" ++ nth i ++ pwords "argument of" ++
                           [prettyTCM q]
         UnderInf     -> pwords "under" ++
                         [do -- this cannot fail if an 'UnderInf' has been generated
-                            Def inf _ <- primInf
+                            Def inf _ <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinInf
                             prettyTCM inf]
         VarArg       -> pwords "in an argument of a bound variable"
         MetaArg      -> pwords "in an argument of a metavariable"

@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 {-# LANGUAGE UndecidableInstances #-}  -- for Arg a => Elim' a
 
 -- | Tools for 'DisplayTerm' and 'DisplayForm'.
@@ -19,6 +18,7 @@ import Agda.Syntax.Internal.Names
 import Agda.Syntax.Scope.Base (inverseScopeLookupName)
 
 import Agda.TypeChecking.Monad
+import Agda.TypeChecking.Monad.Builtin (HasBuiltins(..))
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Level
 import Agda.TypeChecking.Reduce (instantiate)
@@ -30,7 +30,6 @@ import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Pretty
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | Convert a 'DisplayTerm' into a 'Term'.
@@ -44,14 +43,22 @@ dtermToTerm dt = case dt of
   DTerm v          -> v
 
 -- | Get the arities of all display forms for a name.
-displayFormArities :: QName -> TCM [Int]
+displayFormArities :: (HasConstInfo m, ReadTCState m) => QName -> m [Int]
 displayFormArities q = map (length . dfPats . dget) <$> getDisplayForms q
+
+type MonadDisplayForm m =
+  ( MonadReduce m
+  , ReadTCState m
+  , HasConstInfo m
+  , HasBuiltins m
+  , MonadDebug m
+  )
 
 -- | Find a matching display form for @q es@.
 --   In essence this tries to rewrite @q es@ with any
 --   display form @q ps --> dt@ and returns the instantiated
 --   @dt@ if successful.  First match wins.
-displayForm :: QName -> Elims -> TCM (Maybe DisplayTerm)
+displayForm :: MonadDisplayForm m => QName -> Elims -> m (Maybe DisplayTerm)
 displayForm q es = do
   -- Get display forms for name q.
   odfs  <- getDisplayForms q
@@ -102,7 +109,8 @@ displayForm q es = do
 -- | Match a 'DisplayForm' @q ps = v@ against @q es@.
 --   Return the 'DisplayTerm' @v[us]@ if the match was successful,
 --   i.e., @es / ps = Just us@.
-matchDisplayForm :: DisplayForm -> Elims -> MaybeT TCM (DisplayForm, DisplayTerm)
+matchDisplayForm :: MonadDisplayForm m
+                 => DisplayForm -> Elims -> MaybeT m (DisplayForm, DisplayTerm)
 matchDisplayForm d@(Display _ ps v) es
   | length ps > length es = mzero
   | otherwise             = do
@@ -126,7 +134,7 @@ matchDisplayForm d@(Display _ ps v) es
 --   (It has been substituted by __IMPOSSIBLE__ which corresponds to
 --   a raise by -1).
 class Match a where
-  match :: a -> a -> MaybeT TCM [WithOrigin Term]
+  match :: MonadDisplayForm m => a -> a -> MaybeT m [WithOrigin Term]
 
 instance Match a => Match [a] where
   match xs ys = concat <$> zipWithM match xs ys

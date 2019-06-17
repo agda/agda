@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 -- | Collecting fixity declarations (and polarity pragmas) for concrete
 --   declarations.
 module Agda.Syntax.Concrete.Fixity
@@ -27,7 +26,6 @@ import Agda.Utils.Functor
 import Agda.Utils.Null
 import Agda.Utils.Impossible
 
-#include "undefined.h"
 
 type Fixities   = Map Name Fixity'
 type Polarities = Map Name [Occurrence]

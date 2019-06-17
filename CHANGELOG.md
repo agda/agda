@@ -1,3 +1,154 @@
+Release notes for Agda version 2.6.1
+====================================
+
+Installation and infrastructure
+-------------------------------
+
+* Removed support for GHC 7.10.3.
+
+Pragmas and options
+-------------------
+
+* New pragma `WARNING_ON_IMPORT` to let module authors raise a warning
+  when a module is imported. This can be use to tell users deprecations.
+
+* New option `--confluence-check` (off by default) enables confluence
+  checking of user-defined rewrite rules (this only has an effect when
+  `--rewriting` is also enabled).
+
+GHC Backend
+-----------
+
+* Types which have a COMPILE GHC pragma are no longer erased
+  [[Issue #3732](https://github.com/agda/agda/issues/3732)].
+
+  ```agda
+  data I : Set where
+    bar : I
+
+  {-# FOREIGN GHC data I = Bar     #-}
+  {-# COMPILE GHC I = data I (Bar) #-}
+
+  data S : Set where
+    foo :  I → S
+
+  {-# FOREIGN GHC data S = Foo I #-}
+  {-# COMPILE GHC S = data S (Foo) #-}
+  ```
+  Previously [[Issue #2921](https://github.com/agda/agda/issues/2921)],
+  the last binding was incorrect, since the argument of
+  singleton type `I` was erased from the constructor `foo` during
+  compilation.  The required shape of `S` was previously
+  ```
+  {-# FOREIGN GHC data S = Foo #-}
+  ```
+  i.e., constructor `Foo` had to have no arguments.
+
+  For the sake of transparency, Haskell constructors bound to
+  Agda constructors now take the same arguments.
+  This is especially important if Haskell bindings are to be
+  produced automatically by third party tool.
+
+Language
+--------
+
+### Builtins
+
+* New primitives
+
+  ```agda
+  primWord64ToNatInjective    : ∀ a b → primWord64ToNat a ≡ primWord64ToNat b → a ≡ b
+
+  primFloatToWord64           : Float → Word64
+  primFloatToWord64Injective  : ∀ a b → primFloatToWord64 a ≡ primFloatToWord64 b → a ≡ b
+
+  primMetaToNat               : Meta → Nat
+  primMetaToNatInjective      : ∀ a b → primMetaToNat a ≡ primMetaToNat b → a ≡ b
+
+  primQNameToWord64s          : Name → Word64 × Word64
+  primQNameToWord64sInjective : ∀ a b → primQNameToWord64s a ≡ primQNameToWord64s b → a ≡ b
+  ```
+
+  These can be used to define safe decidable propositional equality, see issue [agda-stdlib#698](https://github.com/agda/agda-stdlib/issues/698).
+
+* New Primitive for showing Natural numbers:
+
+  ```agda
+  primShowNat : Nat → String
+  ```
+
+  placed in Agda.Builtin.String.
+
+* New primitives for asking Agda to try to solve constraints [[Issue
+  #3791](https://github.com/agda/agda/issues/3791)]:
+
+  ```agda
+  solveConstraints           : TC ⊤
+  solveConstraintsMentioning : List Meta → TC ⊤
+  ```
+
+  The former one tries to solve all constraints, whereas the latter
+  one wakes up all constraints mentioning the given meta-variables,
+  and then tries to solve all awake constraints.
+
+### Syntax
+
+* Idiom brackets
+
+  Idiom brackets can accommodate none or multiple applications separated by a vertical bar `|`
+  if there are two additional operations
+  ```agda
+  empty : ∀ {A} → F A
+  _<|>_ : ∀ {A} → F A → F A → F A
+  ```
+  i.e. an Alternative type class in Haskell.
+  As usual, the new idiom brackets desugar before scope checking.
+
+  Idiom brackets with multiple applications
+  ```agda
+  (| e₁ a₁ .. aₙ | e₂ a₁ .. aₘ | .. | eₖ a₁ .. aₗ |)
+  ```
+  expand to (assuming right associative `_<|>_`)
+  ```agda
+  (pure e₁ <*> a₁ <*> .. <*> aₙ) <|> ((pure e₂ <*> a₁ <*> .. <*> aₘ) <|> (pure eₖ <*> a₁ <*> .. <*> aₗ))
+  ```
+  Idiom brackets with no application `(|)` or `⦇⦈` are equivalent to `empty`.
+
+### Rewrite rules
+
+* Rewrite rules (option `--rewriting`) with data or record types as
+  the head symbol are no longer allowed (see issue
+  [#3846](https://github.com/agda/agda/issues/3846)).
+
+Emacs mode
+----------
+
+* Agda input method: new key bindings `\ G h` and `\ G H` for `η` and `H` (capital η).
+
+
+Release notes for Agda version 2.6.0.1
+======================================
+
+Installation and infrastructure
+-------------------------------
+
+* Added support for GHC 8.6.5.
+
+List of all closed issues
+-------------------------
+
+For 2.6.0.1, the following issues have been closed
+(see [bug tracker](https://github.com/agda/agda/issues)):
+
+  -  [#3685](https://github.com/agda/agda/issues/3685): Support GHC 8.6.5
+  -  [#3692](https://github.com/agda/agda/issues/3692): Omission of absurd patterns in automatically added absurd clauses causes too optimistic polarity.
+  -  [#3694](https://github.com/agda/agda/issues/3694): Importing Agda.Builtin.Size in one module affects another module
+  -  [#3696](https://github.com/agda/agda/issues/3696): Make `AgdaAny` polykinded?
+  -  [#3697](https://github.com/agda/agda/issues/3697): Panic when checking non-Setω data definitions with --type-in-type
+  -  [#3701](https://github.com/agda/agda/issues/3701): [ re agda/agda-stdlib#710 ] toNat for machine words is injective
+  -  [#3731](https://github.com/agda/agda/issues/3731): GHC backend thinks that a constructor called 'main' is the main program
+  -  [#3742](https://github.com/agda/agda/issues/3742): Strange error message for code that combines mutual and abstract
+
 Release notes for Agda version 2.6.0
 ====================================
 
@@ -5,18 +156,18 @@ Highlights
 ----------
 
 * Added support for [Cubical
-  Agda](https://agda.readthedocs.io/en/latest/language/cubical.html)
+  Agda](https://agda.readthedocs.io/en/v2.6.0/language/cubical.html)
   which adds new features such as univalence and higher inductive
   types to Agda.
 
 * Added support for ML-style [automatic generalization of
-  variables](https://agda.readthedocs.io/en/latest/language/generalization-of-declared-variables.html).
+  variables](https://agda.readthedocs.io/en/v2.6.0/language/generalization-of-declared-variables.html).
 
 * Added a new sort ``Prop`` of [definitionally proof-irrelevant
-  propositions](https://agda.readthedocs.io/en/latest/language/prop.html).
+  propositions](https://agda.readthedocs.io/en/v2.6.0/language/prop.html).
 
 * The implementation of [instance
-  search](https://agda.readthedocs.io/en/latest/language/instance-arguments.html)
+  search](https://agda.readthedocs.io/en/v2.6.0/language/instance-arguments.html)
   got a major overhaul and no longer supports overlapping instances
   (unless enabled by a flag).
 
@@ -59,7 +210,7 @@ Syntax
    -- _∘_ : {Γ Δ Θ : Con} → Sub Θ Δ → Sub Γ Θ → Sub Γ Δ
   ```
 
-  See the [user manual](https://agda.readthedocs.io/en/latest/language/generalization-of-declared-variables.html)
+  See the [user manual](https://agda.readthedocs.io/en/v2.6.0/language/generalization-of-declared-variables.html)
   for more details.
 
 * Data type and record definitions separated from their type signatures can no
@@ -145,14 +296,14 @@ Type checking
   univalence and higher inductive types. Option `--cubical` enables
   the cubical mode, and cubical primitives are defined in the module
   `Agda.Primitive.Cubical`.  See the [user
-  manual](https://agda.readthedocs.io/en/latest/language/cubical.html)
+  manual](https://agda.readthedocs.io/en/v2.6.0/language/cubical.html)
   for more info.
 
 * Agda now supports the new sort ``Prop`` of [definitionally
   proof-irrelevant propositions](https://hal.inria.fr/hal-01859964).
   Option `--prop` enables the `Prop` universe but is off by default.
   Option `--no-prop` disables the `Prop` universe.  See the [user
-  manual](https://agda.readthedocs.io/en/latest/language/prop.html)
+  manual](https://agda.readthedocs.io/en/v2.6.0/language/prop.html)
   for more details.
 
   In the absense of `Prop`, the sort `Set` is the lowest sort, thus,
@@ -183,7 +334,7 @@ Type checking
   clauses.
 
   Due to the changes to the coverage checker required for this new
-  feature, Agda will now sometimes construct a different case when
+  feature, Agda will now sometimes construct a different case tree when
   there are multiple valid splitting orders. In some cases this may
   impact the constraints that Agda is able to solve (for example, see
   [#673](https://github.com/agda/agda-stdlib/pull/673) on the
@@ -271,7 +422,8 @@ Instance search
 
 * Explicit arguments are no longer automatically turned into instance
   arguments for the purpose of recursive instance search. Instead,
-  explicit arguments are left unresolved and will thus never be used.
+  explicit arguments are left unresolved and will thus never be used
+  for instance search.
 
   If an instance is declared which has explicit arguments, Agda will
   raise a warning that this instance will never be considered by
@@ -298,7 +450,6 @@ Instance search
 
 Reflection
 ----------
-
 
 * New TC primitive `noConstraints` [Issue
   [#2351](https://github.com/agda/agda/issues/2351)]:
@@ -328,7 +479,7 @@ Interaction and error reporting
 -------------------------------
 
 * A new command `agda2-elaborate-give` (C-c C-m) normalizes a goal input
-  (it repects the C-u prefixes), type checks, and inserts the normalized
+  (it respects the C-u prefixes), type checks, and inserts the normalized
   term into the goal.
 
 * 'Solve constraints' (C-c C-s) now turns unsolved metavariables into new
@@ -483,7 +634,7 @@ Pragmas and options
     {-# COMPILED_JS f e #-}
   ```
 
-  See the [user manual](https://agda.readthedocs.io/en/latest/language/foreign-function-interface.html)
+  See the [user manual](https://agda.readthedocs.io/en/v2.6.0/language/foreign-function-interface.html)
   for how to use the `COMPILE` and `FOREIGN` pragmas that replaced these in Agda 2.5.
 
 ### New warnings
@@ -668,7 +819,6 @@ For 2.6.0, the following issues have been closed
   -  [#1063](https://github.com/agda/agda/issues/1063): Freeze metas in module telescope after checking the module?
   -  [#1086](https://github.com/agda/agda/issues/1086): Make absurd patterns not needed at toplevel
   -  [#1209](https://github.com/agda/agda/issues/1209): Guardedness checker inconsistency with copatterns
-  -  [#1556](https://github.com/agda/agda/issues/1556): Agda allows "very dependent" types
   -  [#1581](https://github.com/agda/agda/issues/1581): Fields of opened records sometimes highlighted, sometimes not
   -  [#1602](https://github.com/agda/agda/issues/1602): NonStrict arguments should be allowed to occur relevantly in the type
   -  [#1706](https://github.com/agda/agda/issues/1706): Feature request: ML-style forall-generalization
@@ -846,6 +996,8 @@ For 2.6.0, the following issues have been closed
   -  [#3648](https://github.com/agda/agda/issues/3648): Agda could fail to build if a .agda-lib file exists in a parent directory
   -  [#3651](https://github.com/agda/agda/issues/3651): internal error ghc backend
   -  [#3657](https://github.com/agda/agda/issues/3657): Disable compilation with Windows and GHC 8.6.3
+  -  [#3678](https://github.com/agda/agda/issues/3678): Two out-of-scope variables are given the same name
+  -  [#3687](https://github.com/agda/agda/issues/3687): Show module contents (C-c C-o) prints garbled names in clause
 
 Release notes for Agda version 2.5.4.2
 ======================================
@@ -3193,7 +3345,7 @@ Language
     ```
 
     This change fixes an inconsistency, see [Issue [#2169](https://github.com/agda/agda/issues/2169)].
-    For further detail see the [user manual](http://agda.readthedocs.io/en/latest/language/built-ins.html#floats).
+    For further detail see the [user manual](http://agda.readthedocs.io/en/v2.5.2/language/built-ins.html#floats).
 
   - Floats now have only one `NaN` value. This is necessary
     for proper Float support in the JavaScript backend,
@@ -3849,7 +4001,7 @@ Documentation
 -------------
 
 * There is now an official Agda User Manual:
-  http://agda.readthedocs.org/en/stable/
+  https://agda.readthedocs.io/
 
 Installation and infrastructure
 -------------------------------

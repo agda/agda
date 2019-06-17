@@ -5,12 +5,14 @@ module Agda.Builtin.Float where
 open import Agda.Builtin.Bool
 open import Agda.Builtin.Nat
 open import Agda.Builtin.Int
+open import Agda.Builtin.Word
 open import Agda.Builtin.String
 
 postulate Float : Set
 {-# BUILTIN FLOAT Float #-}
 
 primitive
+  primFloatToWord64 : Float → Word64
   primFloatEquality : Float → Float → Bool
   primFloatLess     : Float → Float → Bool
   primFloatNumericalEquality : Float → Float → Bool

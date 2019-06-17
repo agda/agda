@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 
 -- | Generic traversal and reduce for concrete syntax,
 --   in the style of "Agda.Syntax.Internal.Generic".
@@ -16,7 +15,6 @@ import Agda.Syntax.Concrete
 
 import Agda.Utils.Either
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | Generic traversals for concrete expressions.
@@ -135,7 +133,7 @@ instance ExprLike Expr where
      RecUpdate r e es   -> f $ RecUpdate r (mapE e)   $ mapE es
      Let r ds e         -> f $ Let r       (mapE ds)  $ mapE e
      Paren r e          -> f $ Paren r                $ mapE e
-     IdiomBrackets r e  -> f $ IdiomBrackets r        $ mapE e
+     IdiomBrackets r es -> f $ IdiomBrackets r        $ mapE es
      DoBlock r ss       -> f $ DoBlock r              $ mapE ss
      Absurd{}           -> f $ e0
      As r x e           -> f $ As r x                 $ mapE e

@@ -1,5 +1,4 @@
 {-# LANGUAGE BangPatterns               #-}
-{-# LANGUAGE CPP                        #-}
 {-# LANGUAGE DeriveDataTypeable         #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE TemplateHaskell            #-}
@@ -12,6 +11,7 @@ module Agda.Syntax.Internal
     ) where
 
 import Prelude hiding (foldr, mapM, null)
+import GHC.Stack (HasCallStack, freezeCallStack, callStack)
 
 import Control.Applicative hiding (empty)
 import Control.Monad.Identity hiding (mapM)
@@ -43,12 +43,11 @@ import Agda.Utils.Maybe
 import Agda.Utils.NonemptyList
 import Agda.Utils.Null
 import Agda.Utils.Permutation
+import Agda.Utils.Singleton
 import Agda.Utils.Size
-import qualified Agda.Utils.Pretty as P
-import Agda.Utils.Pretty hiding ((<>))
+import Agda.Utils.Pretty
 import Agda.Utils.Tuple
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 ---------------------------------------------------------------------------
@@ -74,7 +73,7 @@ data Dom e = Dom
   , domName   :: Maybe RString
   , domTactic :: Maybe Term
   , unDom     :: e
-  } deriving (Data, Show, Functor, Foldable, Traversable)
+  } deriving (Data, Ord, Show, Functor, Foldable, Traversable)
 
 instance Decoration Dom where
   traverseF f (Dom ai b x t a) = Dom ai b x t <$> f a
@@ -220,7 +219,7 @@ data Term = Var {-# UNPACK #-} !Int Elims -- ^ @x es@ neutral
             -- ^ Irrelevant stuff in relevant position, but created
             --   in an irrelevant context.  Basically, an internal
             --   version of the irrelevance axiom @.irrAx : .A -> A@.
-          | Dummy String
+          | Dummy String Elims
             -- ^ A (part of a) term or type which is only used for internal purposes.
             --   Replaces the @Sort Prop@ hack.
             --   The @String@ typically describes the location where we create this dummy,
@@ -591,6 +590,10 @@ namedVarP x = Named named $ varP x
 namedDBVarP :: Int -> PatVarName -> Named_ DeBruijnPattern
 namedDBVarP m = (fmap . fmap) (\x -> DBPatVar x m) . namedVarP
 
+-- | Make an absurd pattern with the given de Bruijn index.
+absurdP :: Int -> DeBruijnPattern
+absurdP = VarP PatOAbsurd . DBPatVar absurdPatternName
+
 -- | The @ConPatternInfo@ states whether the constructor belongs to
 --   a record type (@Just@) or data type (@Nothing@).
 --   In the former case, the @PatOrigin@ says whether the record pattern
@@ -851,7 +854,7 @@ dontCare v =
 
 -- | Aux: A dummy term to constitute a dummy term/level/sort/type.
 dummyTerm' :: String -> Int -> Term
-dummyTerm' file line = Dummy $ file ++ ":" ++ show line
+dummyTerm' file line = flip Dummy [] $ file ++ ":" ++ show line
 
 -- | Aux: A dummy level to constitute a level/sort.
 dummyLevel' :: String -> Int -> Level
@@ -862,25 +865,40 @@ dummyLevel' file line = unreducedLevel $ dummyTerm' file line
 dummyTerm :: String -> Int -> Term
 dummyTerm file line = dummyTerm' ("dummyTerm: " ++ file) line
 
+__DUMMY_TERM__ :: HasCallStack => Term
+__DUMMY_TERM__ = withFileAndLine' (freezeCallStack callStack) dummyTerm
+
 -- | A dummy level created at location.
 --   Note: use macro __DUMMY_LEVEL__ !
 dummyLevel :: String -> Int -> Level
 dummyLevel file line = dummyLevel' ("dummyLevel: " ++ file) line
+
+__DUMMY_LEVEL__ :: HasCallStack => Level
+__DUMMY_LEVEL__ = withFileAndLine' (freezeCallStack callStack) dummyLevel
 
 -- | A dummy sort created at location.
 --   Note: use macro __DUMMY_SORT__ !
 dummySort :: String -> Int -> Sort
 dummySort file line = DummyS $ file ++ ":" ++ show line
 
+__DUMMY_SORT__ :: HasCallStack => Sort
+__DUMMY_SORT__ = withFileAndLine' (freezeCallStack callStack) dummySort
+
 -- | A dummy type created at location.
 --   Note: use macro __DUMMY_TYPE__ !
 dummyType :: String -> Int -> Type
 dummyType file line = El (DummyS "") $ dummyTerm' ("dummyType: " ++ file) line
 
+__DUMMY_TYPE__ :: HasCallStack => Type
+__DUMMY_TYPE__ = withFileAndLine' (freezeCallStack callStack) dummyType
+
 -- | Context entries without a type have this dummy type.
 --   Note: use macro __DUMMY_DOM__ !
 dummyDom :: String -> Int -> Dom Type
 dummyDom file line = defaultDom $ dummyType file line
+
+__DUMMY_DOM__ :: HasCallStack => Dom Type
+__DUMMY_DOM__ = withFileAndLine' (freezeCallStack callStack) dummyDom
 
 unreducedLevel :: Term -> Level
 unreducedLevel v = Max [ Plus 0 $ UnreducedLevel v ]
@@ -916,7 +934,7 @@ isSort v = case v of
   _      -> Nothing
 
 impossibleTerm :: String -> Int -> Term
-impossibleTerm file line = Dummy $ unlines
+impossibleTerm file line = flip Dummy [] $ unlines
   [ "An internal error has occurred. Please report this as a bug."
   , "Location of the error: " ++ file ++ ":" ++ show line
   ]
@@ -961,7 +979,7 @@ telFromList :: ListTel -> Telescope
 telFromList = telFromList' id
 
 -- | Convert a telescope to its list form.
-telToList :: Telescope -> ListTel
+telToList :: Tele (Dom t) -> [Dom (ArgName,t)]
 telToList EmptyTel                    = []
 telToList (ExtendTel arg (Abs x tel)) = fmap (x,) arg : telToList tel
 telToList (ExtendTel _    NoAbs{}   ) = __IMPOSSIBLE__
@@ -1007,6 +1025,12 @@ blocked x = Blocked x
 notBlocked :: a -> Blocked a
 notBlocked = NotBlocked ReallyNotBlocked
 
+blocked_ :: MetaId -> Blocked_
+blocked_ x = blocked x ()
+
+notBlocked_ :: Blocked_
+notBlocked_ = notBlocked ()
+
 ---------------------------------------------------------------------------
 -- * Simple operations on terms and types.
 ---------------------------------------------------------------------------
@@ -1023,22 +1047,34 @@ arity t = case unEl t of
   Pi  _ b -> 1 + arity (unAbs b)
   _       -> 0
 
--- | Pick the better name suggestion, i.e., the one that is not just underscore.
-class Suggest a b where
-  suggest :: a -> b -> String
+-- | Suggest a name if available (i.e. name is not "_")
+class Suggest a where
+  suggestName :: a -> Maybe String
 
-instance Suggest String String where
-  suggest "_" y = y
-  suggest  x  _ = x
+instance Suggest String where
+  suggestName "_" = Nothing
+  suggestName  x  = Just x
 
-instance Suggest (Abs a) (Abs b) where
-  suggest b1 b2 = suggest (absName b1) (absName b2)
+instance Suggest (Abs b) where
+  suggestName = suggestName . absName
 
-instance Suggest String (Abs b) where
-  suggest x b = suggest x (absName b)
+instance Suggest Name where
+  suggestName = suggestName . nameToArgName
 
-instance Suggest Name (Abs b) where
-  suggest n b = suggest (nameToArgName n) (absName b)
+instance Suggest Term where
+  suggestName (Lam _ v) = suggestName v
+  suggestName _         = Nothing
+
+-- Wrapping @forall a. (Suggest a) => a@ into a datatype because
+-- GHC doesn't support impredicative polymorphism
+data Suggestion = forall a. Suggest a => Suggestion a
+
+suggests :: [Suggestion] -> String
+suggests []     = "x"
+suggests (Suggestion x : xs) = fromMaybe (suggests xs) $ suggestName x
+
+suggest :: (Suggest a) => a -> String
+suggest = suggests . singleton . Suggestion
 
 ---------------------------------------------------------------------------
 -- * Eliminations.
@@ -1107,7 +1143,7 @@ splitApplyElims es             = ([], es)
 class IsProjElim e where
   isProjElim  :: e -> Maybe (ProjOrigin, QName)
 
-instance IsProjElim Elim where
+instance IsProjElim (Elim' a) where
   isProjElim (Proj o d) = Just (o, d)
   isProjElim Apply{}    = Nothing
   isProjElim IApply{} = Nothing
@@ -1347,7 +1383,7 @@ instance Pretty a => Pretty (Substitution' a) where
     pr p rho = case rho of
       IdS              -> "idS"
       EmptyS err       -> "emptyS"
-      t :# rho         -> mparens (p > 2) $ sep [ pr 2 rho P.<> ",", prettyPrec 3 t ]
+      t :# rho         -> mparens (p > 2) $ sep [ pr 2 rho <> ",", prettyPrec 3 t ]
       Strengthen _ rho -> mparens (p > 9) $ "strS" <+> pr 10 rho
       Wk n rho         -> mparens (p > 9) $ text ("wkS " ++ show n) <+> pr 10 rho
       Lift n rho       -> mparens (p > 9) $ text ("liftS " ++ show n) <+> pr 10 rho
@@ -1373,7 +1409,7 @@ instance Pretty Term where
       Level l     -> prettyPrec p l
       MetaV x els -> pretty x `pApp` els
       DontCare v  -> prettyPrec p v
-      Dummy s     -> parens $ text s
+      Dummy s es  -> parens (text s) `pApp` es
     where
       pApp d els = mparens (not (null els) && p > 9) $
                    sep [d, nest 2 $ fsep (map (prettyPrec 10) els)]
@@ -1458,7 +1494,7 @@ instance Pretty DBPatVar where
 
 instance Pretty a => Pretty (Pattern' a) where
   prettyPrec n (VarP _o x)   = prettyPrec n x
-  prettyPrec _ (DotP _o t)   = "." P.<> prettyPrec 10 t
+  prettyPrec _ (DotP _o t)   = "." <> prettyPrec 10 t
   prettyPrec n (ConP c i nps)= mparens (n > 0 && not (null nps)) $
     pretty (conName c) <+> fsep (map (prettyPrec 10) ps)
     where ps = map (fmap namedThing) nps
@@ -1492,7 +1528,7 @@ instance NFData Term where
     Level l    -> rnf l
     MetaV _ es -> rnf es
     DontCare v -> rnf v
-    Dummy _    -> ()
+    Dummy _ es -> rnf es
 
 instance NFData Type where
   rnf (El s v) = rnf (s, v)

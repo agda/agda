@@ -1,4 +1,4 @@
-{-# OPTIONS --rewriting --allow-unsolved-metas #-}
+{-# OPTIONS --rewriting --confluence-check --allow-unsolved-metas #-}
 
 postulate
   C  : Set

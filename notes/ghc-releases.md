@@ -49,9 +49,15 @@ Let's suppose the new version of GHC is X.Y.Z.
 
 * Test the `closed-issues-for-milestone` program.
 
-* Update the `tested-with` field in Agda.cabal, agda-bisect,
-  closed-issues-for-milestone, fix-agda-whitespace.cabal, hTags.cabal
-  and std-lib/lib.agda.
+* Update the `tested-with` field in .cabal files.
+
+  If GHC X.Y.Z is a bug-fix release run
+
+    ./src/release-tools/change-tested-with-field.bash X.Y.(Z-1) X.Y.Z
+
+  else update manually the field.
+
+* Update the `tested-with` field in std-lib/lib.agda.
 
 * Update the CHANGELOG files (Agda and the standard library):
 

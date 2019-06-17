@@ -1,10 +1,5 @@
-{-# LANGUAGE CPP               #-}
 
 module Agda.TypeChecking.Unquote where
-
-#if MIN_VERSION_base(4,11,0)
-import Prelude hiding ((<>))
-#endif
 
 import Control.Arrow (first, second)
 import Control.Monad.State
@@ -13,6 +8,7 @@ import Control.Monad.Writer hiding ((<>))
 import Control.Monad.Trans (lift)
 
 import Data.Char
+import qualified Data.HashSet as HashSet
 import Data.Maybe (fromMaybe)
 import Data.Traversable (traverse)
 import Data.Word
@@ -20,6 +16,7 @@ import Data.Word
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
 import qualified Agda.Syntax.Reflected as R
+import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Literal
 import Agda.Syntax.Position
 import Agda.Syntax.Fixity
@@ -27,6 +24,7 @@ import Agda.Syntax.Info
 import Agda.Syntax.Translation.ReflectedToAbstract
 
 import Agda.TypeChecking.Constraints
+import Agda.TypeChecking.MetaVars.Mention
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Monad.Env
@@ -56,7 +54,6 @@ import Agda.Utils.Pretty (prettyShow)
 import Agda.Utils.String ( Str(Str), unStr )
 import qualified Agda.Interaction.Options.Lenses as Lens
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 agdaTermType :: TCM Type
@@ -256,7 +253,7 @@ unquoteString x = unStr <$> unquote x
 unquoteNString :: Arg Term -> UnquoteM String
 unquoteNString x = unStr <$> unquoteN x
 
-data ErrorPart = StrPart String | TermPart R.Term | NamePart QName
+data ErrorPart = StrPart String | TermPart A.Expr | NamePart QName
 
 instance PrettyTCM ErrorPart where
   prettyTCM (StrPart s) = text s
@@ -269,7 +266,7 @@ instance Unquote ErrorPart where
     case t of
       Con c _ es | Just [x] <- allApplyElims es ->
         choice [ (c `isCon` primAgdaErrorPartString, StrPart  <$> unquoteNString x)
-               , (c `isCon` primAgdaErrorPartTerm,   TermPart <$> unquoteN x)
+               , (c `isCon` primAgdaErrorPartTerm,   TermPart <$> ((liftTCM . toAbstractWithoutImplicit) =<< (unquoteN x :: UnquoteM R.Term)))
                , (c `isCon` primAgdaErrorPartName,   NamePart <$> unquoteN x) ]
                __IMPOSSIBLE__
       _ -> throwError $ NonCanonical "error part" t
@@ -481,17 +478,21 @@ evalTCM v = do
 
   case v of
     I.Def f [] ->
-      choice [ (f `isDef` primAgdaTCMGetContext, tcGetContext)
-             , (f `isDef` primAgdaTCMCommit,     tcCommit) ]
+      choice [ (f `isDef` primAgdaTCMGetContext,       tcGetContext)
+             , (f `isDef` primAgdaTCMCommit,           tcCommit)
+             , (f `isDef` primAgdaTCMSolveConstraints, tcSolveConstraints)
+             ]
              failEval
     I.Def f [u] ->
-      choice [ (f `isDef` primAgdaTCMInferType,          tcFun1 tcInferType          u)
-             , (f `isDef` primAgdaTCMNormalise,          tcFun1 tcNormalise          u)
-             , (f `isDef` primAgdaTCMReduce,             tcFun1 tcReduce             u)
-             , (f `isDef` primAgdaTCMGetType,            tcFun1 tcGetType            u)
-             , (f `isDef` primAgdaTCMGetDefinition,      tcFun1 tcGetDefinition      u)
-             , (f `isDef` primAgdaTCMIsMacro,            tcFun1 tcIsMacro            u)
-             , (f `isDef` primAgdaTCMFreshName,          tcFun1 tcFreshName          u) ]
+      choice [ (f `isDef` primAgdaTCMInferType,                  tcFun1 tcInferType                  u)
+             , (f `isDef` primAgdaTCMNormalise,                  tcFun1 tcNormalise                  u)
+             , (f `isDef` primAgdaTCMReduce,                     tcFun1 tcReduce                     u)
+             , (f `isDef` primAgdaTCMGetType,                    tcFun1 tcGetType                    u)
+             , (f `isDef` primAgdaTCMGetDefinition,              tcFun1 tcGetDefinition              u)
+             , (f `isDef` primAgdaTCMIsMacro,                    tcFun1 tcIsMacro                    u)
+             , (f `isDef` primAgdaTCMFreshName,                  tcFun1 tcFreshName                  u)
+             , (f `isDef` primAgdaTCMSolveConstraintsMentioning, tcFun1 tcSolveConstraintsMentioning u)
+             ]
              failEval
     I.Def f [u, v] ->
       choice [ (f `isDef` primAgdaTCMUnify,      tcFun2 tcUnify      u v)
@@ -592,7 +593,7 @@ evalTCM v = do
     tcCommit = do
       dirty <- gets fst
       when (dirty == Dirty) $
-        typeError $ GenericError "Cannot use commitTC after declaring new definitions."
+        liftTCM $ typeError $ GenericError "Cannot use commitTC after declaring new definitions."
       s <- getTC
       modify (second $ const s)
       liftTCM primUnitUnit
@@ -607,6 +608,17 @@ evalTCM v = do
 
     tcNoConstraints :: Term -> UnquoteM Term
     tcNoConstraints m = liftU1 noConstraints (evalTCM m)
+
+    tcSolveConstraints :: UnquoteM Term
+    tcSolveConstraints = liftTCM $ do
+      wakeupConstraints_
+      primUnitUnit
+
+    tcSolveConstraintsMentioning :: [MetaId] -> TCM Term
+    tcSolveConstraintsMentioning ms = do
+      wakeConstraints' (return . mentionsMetas (HashSet.fromList ms))
+      solveAwakeConstraints
+      primUnitUnit
 
     tcInferType :: R.Term -> TCM Term
     tcInferType v = do
@@ -695,7 +707,7 @@ evalTCM v = do
       liftTCM $ do
         reportSDoc "tc.unquote.decl" 10 $ sep
           [ "declare" <+> prettyTCM x <+> ":"
-          , nest 2 $ prettyTCM a
+          , nest 2 $ prettyR a
           ]
         a <- isType_ =<< toAbstract_ a
         alreadyDefined <- isRight <$> getConstInfo' x
@@ -708,7 +720,7 @@ evalTCM v = do
     tcDeclarePostulate (Arg i x) a = inOriginalContext $ do
       clo <- commandLineOptions
       when (Lens.getSafeMode clo) $ liftTCM $ typeError . GenericDocError =<<
-        "Cannot postulate '" <+> prettyTCM x <+> ":" <+> prettyTCM a <+> "' with safe flag"
+        "Cannot postulate '" <+> prettyTCM x <+> ":" <+> prettyR a <+> "' with safe flag"
       setDirty
       let r = getRelevance i
       when (hidden i) $ liftTCM $ typeError . GenericDocError =<<
@@ -717,7 +729,7 @@ evalTCM v = do
       liftTCM $ do
         reportSDoc "tc.unquote.decl" 10 $ sep
           [ "declare Postulate" <+> prettyTCM x <+> ":"
-          , nest 2 $ prettyTCM a
+          , nest 2 $ prettyR a
           ]
         a <- isType_ =<< toAbstract_ a
         alreadyDefined <- isRight <$> getConstInfo' x

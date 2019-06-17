@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 
 module Agda.TypeChecking.Generalize
   ( generalizeType
@@ -14,6 +13,7 @@ import qualified Data.Set as Set
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.List (nub, partition, init, sortBy)
+import Data.Monoid
 import Data.Function (on)
 import Data.Traversable
 
@@ -48,10 +48,9 @@ import Agda.Utils.Lens
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Size
+import Agda.Utils.Singleton
 import Agda.Utils.Permutation
-import qualified Agda.Utils.Graph.TopSort as Graph
 
-#include "undefined.h"
 
 -- | Generalize a telescope over a set of generalizable variables.
 generalizeTelescope :: Map QName Name -> (forall a. (Telescope -> TCM a) -> TCM a) -> ([Maybe Name] -> Telescope -> TCM a) -> TCM a
@@ -212,7 +211,7 @@ computeGeneralization genRecMeta nameMap allmetas = postponeInstanceConstraints 
     case mvInstantiation mv of
       InstV _ v -> do
         parentName <- getMetaNameSuggestion x
-        metas <- filterM canGeneralize . allMetas =<< instantiateFull v
+        metas <- filterM canGeneralize . allMetasList =<< instantiateFull v
         let suggestNames i [] = return ()
             suggestNames i (m : ms)  = do
               name <- getMetaNameSuggestion m
@@ -231,7 +230,8 @@ computeGeneralization genRecMeta nameMap allmetas = postponeInstanceConstraints 
   -- Sort metas in dependency order. Include open metas that we are not
   -- generalizing over, since they will need to be pruned appropriately (see
   -- Issue 3672).
-  allSortedMetas <- sortMetas (generalizeOver ++ reallyDontGeneralize)
+  allSortedMetas <- fromMaybeM (typeError GeneralizeCyclicDependency) $
+    dependencySortMetas (generalizeOver ++ reallyDontGeneralize)
   let sortedMetas = filter shouldGeneralize allSortedMetas
 
   let dropCxt err = updateContext (strengthenS err 1) (drop 1)
@@ -546,7 +546,7 @@ pruneUnsolvedMetas genRecName genRecCon genTel genRecFields interactionPoints is
                    _ -> err
           telList = telToList genTel
           names   = map (fst . unDom) telList
-          late    = map (fst . unDom) $ filter (elem x . allMetas) telList
+          late    = map (fst . unDom) $ filter (getAny . allMetas (Any . (== x))) telList
           projs (Proj _ q)
             | elem q genRecFields = Set.fromList [x | Just x <- [getGeneralizedFieldName q]]
           projs _                 = Set.empty
@@ -688,25 +688,6 @@ createGenValue x = setCurrentRange x $ do
                                 , genvalTerm       = term
                                 , genvalType       = metaType })
 
--- | Sort metas in dependency order.
-sortMetas :: [MetaId] -> TCM [MetaId]
-sortMetas metas = do
-  metaGraph <- fmap concat $ forM metas $ \ m -> do
-                  deps <- nub . filter (`elem` metas) . allMetas <$> getType m
-                  return [ (m, m') | m' <- deps ]
-
-  caseMaybe (Graph.topSort metas metaGraph)
-            (typeError GeneralizeCyclicDependency)
-            return
-
-  where
-    -- Sort metas don't have types, but we still want to sort them.
-    getType m = do
-      mv <- lookupMeta m
-      case mvJudgement mv of
-        IsSort{}                 -> return Nothing
-        HasType{ jMetaType = t } -> Just <$> instantiateFull t
-
 -- | Create a not-yet correct record type for the generalized telescope. It's not yet correct since
 --   we haven't computed the telescope yet, and we need the record type to do it.
 createGenRecordType :: Type -> [MetaId] -> TCM (QName, ConHead, [QName])
@@ -742,7 +723,6 @@ createGenRecordType genRecMeta@(El genRecSort _) sortedMetas = do
                , funTerminates   = Just True
                , funExtLam       = Nothing
                , funWith         = Nothing
-               , funCopatternLHS = False
                , funCovering     = []
                }
   addConstant (conName genRecCon) $ defaultDefn defaultArgInfo (conName genRecCon) __DUMMY_TYPE__ $ -- Filled in later
@@ -769,7 +749,8 @@ createGenRecordType genRecMeta@(El genRecSort _) sortedMetas = do
            , recEtaEquality' = Inferred YesEta
            , recInduction    = Nothing
            , recAbstr        = ConcreteDef
-           , recComp         = emptyCompKit }
+           , recComp         = emptyCompKit
+           }
   reportSDoc "tc.generalize" 40 $ vcat
     [ text "created genRec" <+> text (show genRecFields) ]
   -- Solve the genRecMeta
@@ -804,4 +785,3 @@ fillInGenRecordDetails name con fields recTy fieldTel = do
     r { theDef = (theDef r) { recTel = fullTel } }
   where
     setType q ty = modifyGlobalDefinition q $ \ d -> d { defType = ty }
-

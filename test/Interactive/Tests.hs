@@ -1,6 +1,4 @@
-{-# LANGUAGE CPP               #-}
 {-# LANGUAGE DoAndIfThenElse   #-}
-{-# LANGUAGE OverloadedStrings #-}
 
 module Interactive.Tests where
 

@@ -94,6 +94,7 @@ tokens :-
 <pragma_>   "STATIC"                   { keyword KwSTATIC }
 <pragma_>   "TERMINATING"              { keyword KwTERMINATING }
 <pragma_>   "WARNING_ON_USAGE"         { keyword KwWARNING_ON_USAGE }
+<pragma_>   "WARNING_ON_IMPORT"        { keyword KwWARNING_ON_IMPORT }
 <pragma_>   . # [ $white \" ] +        { withInterval $ TokString } -- we recognise string literals in pragmas
 <fpragma_>  . # [ $white ] +           { withInterval $ TokString }
 
@@ -206,6 +207,7 @@ tokens :-
 <0,code> "|"            { symbol SymBar }
 <0,code> "(|" /[$white] { symbol SymOpenIdiomBracket }
 <0,code> "|)"           { symbol SymCloseIdiomBracket }
+<0,code> "(|)"          { symbol SymEmptyIdiomBracket }
 <0,code> "("            { symbol SymOpenParen }
 <0,code> ")"            { symbol SymCloseParen }
 <0,code> "->"           { symbol SymArrow }

@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP                        #-}
 {-# LANGUAGE DeriveDataTypeable         #-}
 {-# LANGUAGE DeriveGeneric              #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
@@ -66,11 +65,7 @@ module Agda.Syntax.Position
   , interleaveRanges
   ) where
 
-#if MIN_VERSION_base(4,11,0)
-import Prelude hiding ( (<>), null )
-#else
 import Prelude hiding ( null )
-#endif
 
 import Control.Applicative hiding (empty)
 import Control.Monad
@@ -100,7 +95,6 @@ import Agda.Utils.NonemptyList
 import Agda.Utils.Null
 import Agda.Utils.Pretty
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 {--------------------------------------------------------------------------

@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE TypeOperators #-}
@@ -10,17 +9,22 @@ module Agda.Compiler.Backend
   , toTreeless
   , module Agda.Syntax.Treeless
   , module Agda.TypeChecking.Monad
+  , activeBackendMayEraseType
     -- For Agda.Main
   , backendInteraction
   , parseBackendOptions
     -- For InteractionTop
   , callBackend
+    -- Tools
+  , lookupBackend
+  , activeBackend
   ) where
 
 import Control.Monad.State
+import Control.Monad.Trans.Maybe
 
 import qualified Data.List as List
-import Data.Functor
+import Data.Maybe
 
 import Data.Map (Map)
 import qualified Data.Map as Map
@@ -30,7 +34,13 @@ import System.Exit
 import System.Console.GetOpt
 
 import Agda.Syntax.Treeless
-import Agda.TypeChecking.Monad
+-- Agda.TypeChecking.Monad.Base imports us, relying on the .hs-boot file to
+-- resolve the circular dependency. Fine. However, ghci loads the module after
+-- compilation, so it brings in all of the symbols. That causes .Base to see
+-- getBenchmark (defined in Agda.TypeChecking.Monad.State) *and* the one
+-- defined in Agda.Utils.Benchmark, which causes an error. So we explicitly
+-- hide it here to prevent it from being seen there and causing an error.
+import Agda.TypeChecking.Monad hiding (getBenchmark)
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Pretty as P
 
@@ -50,7 +60,6 @@ import Agda.Utils.Pretty
 import Agda.Compiler.ToTreeless
 import Agda.Compiler.Common
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- Public interface -------------------------------------------------------
@@ -75,27 +84,34 @@ data Backend' opts env menv mod def = Backend'
   , postCompile      :: env -> IsMain -> Map ModuleName mod -> TCM ()
       -- ^ Called after module compilation has completed. The @IsMain@ argument
       --   is @NotMain@ if the @--no-main@ flag is present.
-  , preModule        :: env -> ModuleName -> FilePath -> TCM (Recompile menv mod)
+  , preModule        :: env -> IsMain -> ModuleName -> FilePath -> TCM (Recompile menv mod)
       -- ^ Called before compilation of each module. Gets the path to the
       --   @.agdai@ file to allow up-to-date checking of previously written
       --   compilation results. Should return @Skip m@ if compilation is not
       --   required.
   , postModule       :: env -> menv -> IsMain -> ModuleName -> [def] -> TCM mod
-      -- ^ Called after all definitions of a module has been compiled.
-  , compileDef       :: env -> menv -> Definition -> TCM def
+      -- ^ Called after all definitions of a module have been compiled.
+  , compileDef       :: env -> menv -> IsMain -> Definition -> TCM def
       -- ^ Compile a single definition.
   , scopeCheckingSuffices :: Bool
-    -- ^ True if the backend works if @--only-scope-checking@ is used.
+      -- ^ True if the backend works if @--only-scope-checking@ is used.
+  , mayEraseType     :: QName -> TCM Bool
+      -- ^ The treeless compiler may ask the Backend if elements
+      --   of the given type maybe possibly erased.
+      --   The answer should be 'False' if the compilation of the type
+      --   is used by a third party, e.g. in a FFI binding.
   }
 
 data Recompile menv mod = Recompile menv | Skip mod
 
+-- | Call the 'compilerMain' function of the given backend.
+
 callBackend :: String -> IsMain -> Interface -> TCM ()
-callBackend name iMain i = do
-  backends <- useTC stBackends
-  case [ b | b@(Backend b') <- backends, backendName b' == name ] of
-    Backend b : _ -> compilerMain b iMain i
-    []            -> genericError $
+callBackend name iMain i = lookupBackend name >>= \case
+  Just (Backend b) -> compilerMain b iMain i
+  Nothing -> do
+    backends <- useTC stBackends
+    genericError $
       "No backend called '" ++ name ++ "' " ++
       "(installed backends: " ++
       List.intercalate ", "
@@ -108,6 +124,27 @@ callBackend name iMain i = do
 
 otherBackends :: [String]
 otherBackends = ["GHCNoMain", "LaTeX", "QuickLaTeX"]
+
+-- | Look for a backend of the given name.
+
+lookupBackend :: BackendName -> TCM (Maybe Backend)
+lookupBackend name = useTC stBackends <&> \ backends ->
+  listToMaybe [ b | b@(Backend b') <- backends, backendName b' == name ]
+
+-- | Get the currently active backend (if any).
+
+activeBackend :: TCM (Maybe Backend)
+activeBackend = runMaybeT $ do
+  bname <- MaybeT $ asksTC envActiveBackendName
+  lift $ fromMaybe __IMPOSSIBLE__ <$> lookupBackend bname
+
+-- | Ask the active backend whether a type may be erased.
+--   See issue #3732.
+
+activeBackendMayEraseType :: QName -> TCM Bool
+activeBackendMayEraseType q = do
+  Backend b <- fromMaybe __IMPOSSIBLE__ <$> activeBackend
+  mayEraseType b q
 
 -- Internals --------------------------------------------------------------
 
@@ -172,8 +209,8 @@ backendInteraction backends _ check = do
 
 
 compilerMain :: Backend' opts env menv mod def -> IsMain -> Interface -> TCM ()
-compilerMain backend isMain0 i =
-  inCompilerEnv i $ do
+compilerMain backend isMain0 i = inCompilerEnv i $ do
+  locallyTC eActiveBackendName (const $ Just $ backendName backend) $ do
     onlyScoping <- optOnlyScopeChecking <$> commandLineOptions
     when (not (scopeCheckingSuffices backend) && onlyScoping) $
       genericError $
@@ -196,13 +233,13 @@ compileModule :: Backend' opts env menv mod def -> env -> IsMain -> Interface ->
 compileModule backend env isMain i = do
   ifile <- maybe __IMPOSSIBLE__ filePath <$>
             (findInterfaceFile . toTopLevelModuleName =<< curMName)
-  r <- preModule backend env (iModuleName i) ifile
+  r <- preModule backend env isMain (iModuleName i) ifile
   case r of
     Skip m         -> return m
     Recompile menv -> do
       defs <- map snd . sortDefs <$> curDefs
-      res  <- mapM (compileDef' backend env menv <=< instantiateFull) defs
+      res  <- mapM (compileDef' backend env menv isMain <=< instantiateFull) defs
       postModule backend env menv isMain (iModuleName i) res
 
-compileDef' :: Backend' opts env menv mod def -> env -> menv -> Definition -> TCM def
-compileDef' backend env menv def = setCurrentRange (defName def) $ compileDef backend env menv def
+compileDef' :: Backend' opts env menv mod def -> env -> menv -> IsMain -> Definition -> TCM def
+compileDef' backend env menv isMain def = setCurrentRange (defName def) $ compileDef backend env menv isMain def

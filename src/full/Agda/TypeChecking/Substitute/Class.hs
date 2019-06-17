@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 
 module Agda.TypeChecking.Substitute.Class where
 
@@ -14,7 +13,6 @@ import Agda.TypeChecking.Substitute.DeBruijn
 import Agda.Utils.Empty
 import Agda.Utils.List
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 ---------------------------------------------------------------------------
@@ -221,6 +219,14 @@ lookupS rho i = case rho of
   Lift n rho | i < n     -> deBruijnVar i
              | otherwise -> raise n $ lookupS rho (i - n)
   EmptyS err             -> absurd err
+
+
+-- | lookupS (listS [(x0,t0)..(xn,tn)]) xi = ti, assuming x0 < .. < xn.
+
+listS :: Subst a a => [(Int,a)] -> Substitution' a
+listS ((i,t):ts) = singletonS i t `composeS` listS ts
+listS []         = IdS
+
 
 ---------------------------------------------------------------------------
 -- * Functions on abstractions

@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP                #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE GADTs              #-}
 
@@ -6,11 +5,7 @@
 -}
 module Agda.Syntax.Scope.Base where
 
-#if MIN_VERSION_base(4,11,0)
-import Prelude hiding ( (<>), null )
-#else
 import Prelude hiding ( null )
-#endif
 
 import Control.Arrow (first, second, (***))
 import Control.Applicative hiding (empty)
@@ -50,7 +45,6 @@ import Agda.Utils.Pretty
 import Agda.Utils.Singleton
 import qualified Agda.Utils.Map as Map
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- * Scope representation
@@ -104,16 +98,16 @@ updateScopeNameSpacesM f s = for (f $ scopeNameSpaces s) $ \ x ->
 -- | The complete information about the scope at a particular program point
 --   includes the scope stack, the local variables, and the context precedence.
 data ScopeInfo = ScopeInfo
-      { scopeCurrent       :: A.ModuleName
-      , scopeModules       :: Map A.ModuleName Scope
-      , scopeVarsToBind    :: LocalVars
-      , scopeLocals        :: LocalVars
-      , scopePrecedence    :: PrecedenceStack
-      , scopeInverseName   :: NameMap
-      , scopeInverseModule :: ModuleMap
-      , scopeInScope       :: InScopeSet
-      , scopeFixities      :: C.Fixities    -- ^ Maps concrete names to fixities
-      , scopePolarities    :: C.Polarities  -- ^ Maps concrete names to polarities
+      { _scopeCurrent       :: A.ModuleName
+      , _scopeModules       :: Map A.ModuleName Scope
+      , _scopeVarsToBind    :: LocalVars
+      , _scopeLocals        :: LocalVars
+      , _scopePrecedence    :: PrecedenceStack
+      , _scopeInverseName   :: NameMap
+      , _scopeInverseModule :: ModuleMap
+      , _scopeInScope       :: InScopeSet
+      , _scopeFixities      :: C.Fixities    -- ^ Maps concrete names to fixities
+      , _scopePolarities    :: C.Polarities  -- ^ Maps concrete names to polarities
       }
   deriving (Data, Show)
 
@@ -181,22 +175,73 @@ notShadowedLocal _ = Nothing
 notShadowedLocals :: LocalVars -> AssocList C.Name A.Name
 notShadowedLocals = mapMaybe $ \ (c,x) -> (c,) <$> notShadowedLocal x
 
+-- | Lenses for ScopeInfo components
+scopeCurrent :: Lens' A.ModuleName ScopeInfo
+scopeCurrent f s =
+  f (_scopeCurrent s) <&>
+  \x -> s { _scopeCurrent = x }
+
+scopeModules :: Lens' (Map A.ModuleName Scope) ScopeInfo
+scopeModules f s =
+  f (_scopeModules s) <&>
+  \x -> s { _scopeModules = x }
+
+scopeVarsToBind :: Lens' LocalVars ScopeInfo
+scopeVarsToBind f s =
+  f (_scopeVarsToBind s) <&>
+  \x -> s { _scopeVarsToBind = x }
+
+scopeLocals :: Lens' LocalVars ScopeInfo
+scopeLocals f s =
+  f (_scopeLocals s) <&>
+  \x -> s { _scopeLocals = x }
+
+scopePrecedence :: Lens' PrecedenceStack ScopeInfo
+scopePrecedence f s =
+  f (_scopePrecedence s) <&>
+  \x -> s { _scopePrecedence = x }
+
+scopeInverseName :: Lens' NameMap ScopeInfo
+scopeInverseName f s =
+  f (_scopeInverseName s) <&>
+  \x -> s { _scopeInverseName = x }
+
+scopeInverseModule :: Lens' ModuleMap ScopeInfo
+scopeInverseModule f s =
+  f (_scopeInverseModule s) <&>
+  \x -> s { _scopeInverseModule = x }
+
+scopeInScope :: Lens' InScopeSet ScopeInfo
+scopeInScope f s =
+  f (_scopeInScope s) <&>
+  \x -> s { _scopeInScope = x }
+
+scopeFixities :: Lens' C.Fixities ScopeInfo
+scopeFixities f s =
+  f (_scopeFixities s) <&>
+  \x -> s { _scopeFixities = x }
+
+scopePolarities :: Lens' C.Polarities ScopeInfo
+scopePolarities f s =
+  f (_scopePolarities s) <&>
+  \x -> s { _scopePolarities = x }
+
 -- | Lens for 'scopeVarsToBind'.
 updateVarsToBind :: (LocalVars -> LocalVars) -> ScopeInfo -> ScopeInfo
-updateVarsToBind f sc = sc { scopeVarsToBind = f (scopeVarsToBind sc) }
+updateVarsToBind = over scopeVarsToBind
 
 setVarsToBind :: LocalVars -> ScopeInfo -> ScopeInfo
-setVarsToBind vars = updateVarsToBind (const vars)
+setVarsToBind = set scopeVarsToBind
 
 -- | Lens for 'scopeLocals'.
 updateScopeLocals :: (LocalVars -> LocalVars) -> ScopeInfo -> ScopeInfo
-updateScopeLocals f sc = sc { scopeLocals = f (scopeLocals sc) }
+updateScopeLocals = over scopeLocals
 
 setScopeLocals :: LocalVars -> ScopeInfo -> ScopeInfo
-setScopeLocals vars = updateScopeLocals (const vars)
+setScopeLocals = set scopeLocals
 
 mapScopeInfo :: (Scope -> Scope) -> ScopeInfo -> ScopeInfo
-mapScopeInfo f i = i{ scopeModules = f <$> scopeModules i }
+mapScopeInfo = over scopeModules . fmap
 
 ------------------------------------------------------------------------
 -- * Name spaces
@@ -426,16 +471,16 @@ emptyScope = Scope
 -- | The empty scope info.
 emptyScopeInfo :: ScopeInfo
 emptyScopeInfo = ScopeInfo
-  { scopeCurrent       = noModuleName
-  , scopeModules       = Map.singleton noModuleName emptyScope
-  , scopeVarsToBind    = []
-  , scopeLocals        = []
-  , scopePrecedence    = []
-  , scopeInverseName   = Map.empty
-  , scopeInverseModule = Map.empty
-  , scopeInScope       = Set.empty
-  , scopeFixities      = Map.empty
-  , scopePolarities    = Map.empty
+  { _scopeCurrent       = noModuleName
+  , _scopeModules       = Map.singleton noModuleName emptyScope
+  , _scopeVarsToBind    = []
+  , _scopeLocals        = []
+  , _scopePrecedence    = []
+  , _scopeInverseName   = Map.empty
+  , _scopeInverseModule = Map.empty
+  , _scopeInScope       = Set.empty
+  , _scopeFixities      = Map.empty
+  , _scopePolarities    = Map.empty
   }
 
 -- | Map functions over the names and modules in a scope.
@@ -717,8 +762,8 @@ publicModules :: ScopeInfo -> Map A.ModuleName Scope
 publicModules scope = Map.filterWithKey (\ m _ -> reachable m) allMods
   where
     -- Get all modules in the ScopeInfo.
-    allMods   = Map.map restrictPrivate $ scopeModules scope
-    root      = scopeCurrent scope
+    allMods   = Map.map restrictPrivate $ scope ^. scopeModules
+    root      = scope ^. scopeCurrent
 
     modules s = map amodName $ concat $ Map.elems $ allNamesInScope s
 
@@ -736,17 +781,17 @@ everythingInScope :: ScopeInfo -> NameSpace
 everythingInScope scope = allThingsInScope $ mergeScopes $
     (s0 :) $ map look $ scopeParents s0
   where
-    look m = fromMaybe __IMPOSSIBLE__ $ Map.lookup m $ scopeModules scope
-    s0     = look $ scopeCurrent scope
+    look m = fromMaybe __IMPOSSIBLE__ $ Map.lookup m $ scope ^. scopeModules
+    s0     = look $ scope ^. scopeCurrent
 
 everythingInScopeQualified :: ScopeInfo -> NameSpace
 everythingInScopeQualified scope =
   allThingsInScope $ mergeScopes $
     chase Set.empty scopes
   where
-    s0      = look $ scopeCurrent scope
+    s0      = look $ scope ^. scopeCurrent
     scopes  = s0 : map look (scopeParents s0)
-    look m  = fromMaybe __IMPOSSIBLE__ $ Map.lookup m $ scopeModules scope
+    look m  = fromMaybe __IMPOSSIBLE__ $ Map.lookup m $ scope ^. scopeModules
     lookP   = restrictPrivate . look
 
     -- We start with the current module and all its parents and look through
@@ -768,7 +813,7 @@ flattenScope ms scope =
     (build ms allNamesInScope root)
     imported
   where
-    current = moduleScope $ scopeCurrent scope
+    current = moduleScope $ scope ^. scopeCurrent
     root    = mergeScopes $ current : map moduleScope (scopeParents current)
 
     imported = Map.unionsWith (++)
@@ -793,17 +838,17 @@ flattenScope ms scope =
           , AbsModule m _ <- mods ]
 
     moduleScope :: A.ModuleName -> Scope
-    moduleScope m = fromMaybe __IMPOSSIBLE__ $ Map.lookup m $ scopeModules scope
+    moduleScope m = fromMaybe __IMPOSSIBLE__ $ Map.lookup m $ scope ^. scopeModules
 
 -- | Get all concrete names in scope. Includes bound variables.
 concreteNamesInScope :: ScopeInfo -> Set C.QName
 concreteNamesInScope scope =
   Set.unions [ build allNamesInScope root, imported, locals ]
   where
-    current = moduleScope $ scopeCurrent scope
+    current = moduleScope $ scope ^. scopeCurrent
     root    = mergeScopes $ current : map moduleScope (scopeParents current)
 
-    locals  = Set.fromList [ C.QName x | (x, _) <- scopeLocals scope ]
+    locals  = Set.fromList [ C.QName x | (x, _) <- scope ^. scopeLocals ]
 
     imported = Set.unions
                [ qual c (build exportedNamesInScope $ moduleScope a)
@@ -823,7 +868,7 @@ concreteNamesInScope scope =
           , AbsModule m _ <- mods ]
 
     moduleScope :: A.ModuleName -> Scope
-    moduleScope m = fromMaybe __IMPOSSIBLE__ $ Map.lookup m $ scopeModules scope
+    moduleScope m = fromMaybe __IMPOSSIBLE__ $ Map.lookup m $ scope ^. scopeModules
 
 -- | Look up a name in the scope
 scopeLookup :: InScope a => C.QName -> ScopeInfo -> [a]
@@ -838,10 +883,10 @@ scopeLookup' q scope =
     -- 1. Finding a name in the current scope and its parents.
 
     moduleScope :: A.ModuleName -> Scope
-    moduleScope m = fromMaybe __IMPOSSIBLE__ $ Map.lookup m $ scopeModules scope
+    moduleScope m = fromMaybe __IMPOSSIBLE__ $ Map.lookup m $ scope ^. scopeModules
 
     current :: Scope
-    current = moduleScope $ scopeCurrent scope
+    current = moduleScope $ scope ^. scopeCurrent
 
     root    :: Scope
     root    = mergeScopes $ current : map moduleScope (scopeParents current)
@@ -868,7 +913,7 @@ scopeLookup' q scope =
         -- trace ("mods ++ defs = " ++ show (mods ++ defs)) $ do
         -- m <- nub $ mods ++ defs -- record types will appear both as a mod and a def
         -- Get the scope of module m, if any, and remove its private definitions.
-        let ss  = Map.lookup m $ scopeModules scope
+        let ss  = Map.lookup m $ scope ^. scopeModules
             ss' = restrictPrivate <$> ss
         -- trace ("ss  = " ++ show ss ) $ do
         -- trace ("ss' = " ++ show ss') $ do
@@ -918,7 +963,7 @@ data AllowAmbiguousNames
 isNameInScope :: A.QName -> ScopeInfo -> Bool
 isNameInScope q scope =
   billToPure [ Scoping, InverseScopeLookup ] $
-  Set.member q (scopeInScope scope)
+  Set.member q (scope ^. scopeInScope)
 
 -- | Find the concrete names that map (uniquely) to a given abstract name.
 --   Sort by length, shortest first.
@@ -932,8 +977,8 @@ inverseScopeLookup' amb name scope = billToPure [ Scoping , InverseScopeLookup ]
     Left  m -> best $ filter unambiguousModule $ findModule m
     Right q -> best $ filter unambiguousName   $ findName q
   where
-    findName   x = maybe [] toList $ Map.lookup x (scopeInverseName scope)
-    findModule x = fromMaybe []    $ Map.lookup x (scopeInverseModule scope)
+    findName   x = maybe [] toList $ Map.lookup x (scope ^. scopeInverseName)
+    findModule x = fromMaybe []    $ Map.lookup x (scope ^. scopeInverseModule)
 
     len :: C.QName -> Int
     len (C.QName _)  = 1
@@ -956,17 +1001,17 @@ inverseScopeLookup' amb name scope = billToPure [ Scoping , InverseScopeLookup ]
 
 recomputeInverseScopeMaps :: ScopeInfo -> ScopeInfo
 recomputeInverseScopeMaps scope = billToPure [ Scoping , InverseScopeLookup ] $
-  scope { scopeInverseName   = nameMap
-        , scopeInverseModule = Map.fromList [ (x, findModule x) | x <- Map.keys moduleMap ++ Map.keys importMap ]
-        , scopeInScope       = nsInScope $ everythingInScopeQualified scope
+  scope { _scopeInverseName   = nameMap
+        , _scopeInverseModule = Map.fromList [ (x, findModule x) | x <- Map.keys moduleMap ++ Map.keys importMap ]
+        , _scopeInScope       = nsInScope $ everythingInScopeQualified scope
         }
   where
-    this = scopeCurrent scope
+    this = scope ^. scopeCurrent
     current = this : scopeParents (moduleScope this)
-    scopes  = [ (m, restrict m s) | (m, s) <- Map.toList (scopeModules scope) ]
+    scopes  = [ (m, restrict m s) | (m, s) <- Map.toList (scope ^. scopeModules) ]
 
     moduleScope :: A.ModuleName -> Scope
-    moduleScope m = fromMaybe __IMPOSSIBLE__ $ Map.lookup m $ scopeModules scope
+    moduleScope m = fromMaybe __IMPOSSIBLE__ $ Map.lookup m $ scope ^. scopeModules
 
     restrict m s | m `elem` current = s
                  | otherwise = restrictPrivate s

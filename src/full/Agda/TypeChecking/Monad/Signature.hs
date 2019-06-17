@@ -1,5 +1,4 @@
 {-# LANGUAGE BangPatterns      #-}
-{-# LANGUAGE CPP                      #-}
 {-# LANGUAGE NondecreasingIndentation #-}
 
 module Agda.TypeChecking.Monad.Signature where
@@ -9,9 +8,7 @@ import Prelude hiding (null)
 import Control.Arrow (first, second, (***))
 import Control.Applicative hiding (empty)
 
-#if __GLASGOW_HASKELL__ >= 800
 import qualified Control.Monad.Fail as Fail
-#endif
 
 import Control.Monad.State
 import Control.Monad.Reader
@@ -54,12 +51,17 @@ import Agda.TypeChecking.Coverage.SplitTree
 import {-# SOURCE #-} Agda.TypeChecking.CompiledClause.Compile
 import {-# SOURCE #-} Agda.TypeChecking.Polarity
 import {-# SOURCE #-} Agda.TypeChecking.ProjectionLike
-import Agda.TypeChecking.Monad.Builtin
 
+import {-# SOURCE #-} Agda.Compiler.Treeless.Erase
+
+import {-# SOURCE #-} Agda.Main
+
+import Agda.Utils.Either
 import Agda.Utils.Except ( ExceptT )
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List
+import Agda.Utils.ListT
 import Agda.Utils.Map as Map
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
@@ -69,7 +71,6 @@ import Agda.Utils.Pretty
 import Agda.Utils.Size
 import qualified Agda.Utils.HashMap as HMap
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | Add a constant to the signature. Lifts the definition to top level.
@@ -126,16 +127,34 @@ modifyFunClauses q f =
 addClauses :: QName -> [Clause] -> TCM ()
 addClauses q cls = do
   tel <- getContextTelescope
-  modifySignature $ updateDefinition q $ updateTheDef
-    $ updateFunClauses      (++ abstract tel cls)
-    . updateFunCopatternLHS (|| isCopatternLHS cls)
+  modifySignature $ updateDefinition q $
+    updateTheDef (updateFunClauses (++ abstract tel cls))
+    . updateDefCopatternLHS (|| isCopatternLHS cls)
 
 mkPragma :: String -> TCM CompilerPragma
 mkPragma s = CompilerPragma <$> getCurrentRange <*> pure s
 
 -- | Add a compiler pragma `{-\# COMPILE <backend> <name> <text> \#-}`
 addPragma :: BackendName -> QName -> String -> TCM ()
-addPragma b q s = modifySignature . updateDefinition q . addCompilerPragma b =<< mkPragma s
+addPragma b q s = ifM erased
+  {- then -} (warning $ PragmaCompileErased b q)
+  {- else -} $ do
+    pragma <- mkPragma s
+    modifySignature $ updateDefinition q $ addCompilerPragma b pragma
+
+  where
+
+  erased :: TCM Bool
+  erased = do
+    def <- theDef <$> getConstInfo q
+    case def of
+      -- If we have a defined symbol, we check whether it is erasable
+      Function{} ->
+        locallyTC      eActiveBackendName (const $ Just b) $
+        locallyTCState stBackends         (const $ builtinBackends) $
+        isErasable q
+     -- Otherwise (Axiom, Datatype, Record type, etc.) we keep it
+      _ -> pure False
 
 getUniqueCompilerPragma :: BackendName -> QName -> TCM (Maybe CompilerPragma)
 getUniqueCompilerPragma backend q = do
@@ -418,9 +437,10 @@ applySection' new ptel old ts ScopeCopyInfo{ renNames = rd, renModules = rm } = 
                     , defCompiledRep    = noCompiledRep
                     , defInstance       = inst
                     , defCopy           = True
-                    , defMatchable      = False
+                    , defMatchable      = Set.empty
                     , defNoCompilation  = defNoCompilation d
                     , defInjective      = False
+                    , defCopatternLHS   = isCopatternLHS [cl]
                     , theDef            = df }
             oldDef = theDef d
             isCon  = case oldDef of { Constructor{} -> True ; _ -> False }
@@ -472,7 +492,6 @@ applySection' new ptel old ts ScopeCopyInfo{ renNames = rd, renModules = rm } = 
                         , funTerminates     = Just True
                         , funExtLam         = extlam
                         , funWith           = with
-                        , funCopatternLHS   = isCopatternLHS [cl]
                         }
                   reportSDoc "tc.mod.apply" 80 $ return $ ("new def for" <+> pretty x) <?> pretty newDef
                   return newDef
@@ -546,14 +565,14 @@ addDisplayForm x df = do
   whenM (hasLoopingDisplayForm x) $
     typeError . GenericDocError $ "Cannot add recursive display form for" <+> pretty x
 
-isLocal :: QName -> TCM Bool
-isLocal x = HMap.member x <$> useTC (stSignature . sigDefinitions)
+isLocal :: ReadTCState m => QName -> m Bool
+isLocal x = HMap.member x <$> useR (stSignature . sigDefinitions)
 
-getDisplayForms :: QName -> TCM [LocalDisplayForm]
+getDisplayForms :: (HasConstInfo m, ReadTCState m) => QName -> m [LocalDisplayForm]
 getDisplayForms q = do
   ds  <- either (const []) defDisplay <$> getConstInfo' q
-  ds1 <- HMap.lookupDefault [] q <$> useTC stImportsDisplayForms
-  ds2 <- HMap.lookupDefault [] q <$> useTC stImportedDisplayForms
+  ds1 <- HMap.lookupDefault [] q <$> useR stImportsDisplayForms
+  ds2 <- HMap.lookupDefault [] q <$> useR stImportedDisplayForms
   ifM (isLocal q) (return $ ds ++ ds1 ++ ds2)
                   (return $ ds1 ++ ds ++ ds2)
 
@@ -636,11 +655,7 @@ sigError f a = \case
 
 class ( Functor m
       , Applicative m
-#if __GLASGOW_HASKELL__ == 710
-      , Monad m
-#else
       , Fail.MonadFail m
-#endif
       , HasOptions m
       , MonadDebug m
       , MonadTCEnv m
@@ -716,6 +731,10 @@ defaultGetConstInfo st env q = do
           dropLastModule q@QName{ qnameModule = m } =
             q{ qnameModule = mnameFromList $ ifNull (mnameToList m) __IMPOSSIBLE__ init }
 
+instance HasConstInfo m => HasConstInfo (ListT m) where
+  getConstInfo' = lift . getConstInfo'
+  getRewriteRulesFor = lift . getRewriteRulesFor
+
 instance HasConstInfo m => HasConstInfo (MaybeT m) where
   getConstInfo' = lift . getConstInfo'
   getRewriteRulesFor = lift . getRewriteRulesFor
@@ -741,12 +760,12 @@ getConInfo :: HasConstInfo m => ConHead -> m Definition
 getConInfo = getConstInfo . conName
 
 -- | Look up the polarity of a definition.
-getPolarity :: QName -> TCM [Polarity]
+getPolarity :: HasConstInfo m => QName -> m [Polarity]
 getPolarity q = defPolarity <$> getConstInfo q
 
 -- | Look up polarity of a definition and compose with polarity
 --   represented by 'Comparison'.
-getPolarity' :: Comparison -> QName -> TCM [Polarity]
+getPolarity' :: HasConstInfo m => Comparison -> QName -> m [Polarity]
 getPolarity' CmpEq  q = map (composePol Invariant) <$> getPolarity q -- return []
 getPolarity' CmpLeq q = getPolarity q -- composition with Covariant is identity
 
@@ -758,7 +777,7 @@ setPolarity q pol = do
   modifySignature $ updateDefinition q $ updateDefPolarity $ const pol
 
 -- | Look up the forced arguments of a definition.
-getForcedArgs :: QName -> TCM [IsForced]
+getForcedArgs :: HasConstInfo m => QName -> m [IsForced]
 getForcedArgs q = defForced <$> getConstInfo q
 
 -- | Get argument occurrence info for argument @i@ of definition @d@ (never fails).
@@ -859,12 +878,12 @@ getCurrentModuleFreeVars = size <$> (lookupSection =<< currentModule)
 
 --   For annoying reasons the qnameModule of a pattern lambda is not correct
 --   (#2883), so make sure to grab the right module for those.
-getDefModule :: HasConstInfo m => QName -> m ModuleName
-getDefModule f = do
-  def <- getConstInfo f
-  return $ case theDef def of
-    Function{ funExtLam = Just (ExtLamInfo m _) } -> m
-    _                                             -> qnameModule f
+getDefModule :: HasConstInfo m => QName -> m (Either SigError ModuleName)
+getDefModule f = mapRight modName <$> getConstInfo' f
+  where
+    modName def = case theDef def of
+      Function{ funExtLam = Just (ExtLamInfo m _) } -> m
+      _                                             -> qnameModule f
 
 -- | Compute the number of free variables of a defined name. This is the sum of
 --   number of parameters shared with the current module and the number of
@@ -1131,12 +1150,8 @@ projectionArgs :: Defn -> Int
 projectionArgs = maybe 0 (max 0 . pred . projIndex) . isProjection_
 
 -- | Check whether a definition uses copatterns.
-usesCopatterns :: QName -> TCM Bool
-usesCopatterns q = do
-  d <- theDef <$> getConstInfo q
-  return $ case d of
-    Function{ funCopatternLHS = b } -> b
-    _ -> False
+usesCopatterns :: (HasConstInfo m) => QName -> m Bool
+usesCopatterns q = defCopatternLHS <$> getConstInfo q
 
 -- | Apply a function @f@ to its first argument, producing the proper
 --   postfix projection if @f@ is a projection.

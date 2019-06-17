@@ -3,20 +3,19 @@ version:         0.0.4
 cabal-version:   >= 1.8
 build-type:      Simple
 description:     Fixes whitespace issues for Agda sources.
-tested-with:     GHC == 7.10.3
-                 GHC == 8.0.2
+tested-with:     GHC == 8.0.2
                  GHC == 8.2.2
                  GHC == 8.4.4
-                 GHC == 8.6.4
+                 GHC == 8.6.5
 
 executable fix-agda-whitespace
   hs-source-dirs:   .
   main-is:          FixWhitespace.hs
 
-  build-depends:  base >= 4.8.2.0 && < 4.13
-                , directory >= 1.2.2.0 && < 1.4
+  build-depends:  base >= 4.9.0.0 && < 4.13
+                , directory >= 1.2.6.2 && < 1.4
                 , filemanip >= 0.3.6.2 && < 0.4
-                , filepath >= 1.4.0.0 && < 1.5
+                , filepath >= 1.4.1.0 && < 1.5
 
   -- ASR (2018-10-16). Required for supporting GHC 8.4.1, 8.4.2 and
   -- 8.4.3. See Issue #3277.

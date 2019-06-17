@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP            #-}
 
 module Agda.Compiler.JS.Compiler where
 
@@ -18,7 +17,6 @@ import System.FilePath ( splitFileName, (</>) )
 
 import Agda.Interaction.FindFile ( findFile, findInterfaceFile )
 import Agda.Interaction.Imports ( isNewerThan )
-import Agda.Interaction.Options ( optCompileDir )
 import Agda.Syntax.Common ( Nat, unArg, namedArg, NameId(..) )
 import Agda.Syntax.Concrete.Name ( projectRoot , isNoName )
 import Agda.Syntax.Abstract.Name
@@ -33,14 +31,13 @@ import Agda.Syntax.Position
 import Agda.Syntax.Literal ( Literal(..) )
 import Agda.Syntax.Fixity
 import qualified Agda.Syntax.Treeless as T
-import Agda.TypeChecking.Substitute ( absBody )
+import Agda.TypeChecking.Substitute (absBody, TelV(..))
 import Agda.TypeChecking.Level ( reallyUnLevelView )
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Monad.Debug ( reportSLn )
 import Agda.TypeChecking.Monad.Options ( setCommandLineOptions )
 import Agda.TypeChecking.Reduce ( instantiateFull, normalise )
-import Agda.TypeChecking.Substitute (TelV(..))
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Pretty
 import Agda.Utils.FileName ( filePath )
@@ -72,8 +69,7 @@ import Agda.Interaction.Options
 
 import Paths_Agda
 
-#include "undefined.h"
-import Agda.Utils.Impossible ( Impossible(Impossible), throwImpossible )
+import Agda.Utils.Impossible (__IMPOSSIBLE__)
 
 --------------------------------------------------
 -- Entry point into the compiler
@@ -95,6 +91,12 @@ jsBackend' = Backend'
   , postModule            = jsPostModule
   , compileDef            = jsCompileDef
   , scopeCheckingSuffices = False
+  , mayEraseType          = const $ return True
+      -- Andreas, 2019-05-09, see issue #3732.
+      -- If you want to use JS data structures generated from Agda
+      -- @data@/@record@, you might want to tell the treeless compiler
+      -- not to erase these types even if they have no content,
+      -- to get a stable interface.
   }
 
 --- Options ---
@@ -125,8 +127,8 @@ jsPostCompile _ _ _ = copyRTEModules
 
 type JSModuleEnv = Maybe CoinductionKit
 
-jsPreModule :: JSOptions -> ModuleName -> FilePath -> TCM (Recompile JSModuleEnv ())
-jsPreModule _ m ifile = ifM uptodate noComp yesComp
+jsPreModule :: JSOptions -> IsMain -> ModuleName -> FilePath -> TCM (Recompile JSModuleEnv ())
+jsPreModule _ _ m ifile = ifM uptodate noComp yesComp
   where
     uptodate = liftIO =<< isNewerThan <$> outFile_ <*> pure ifile
 
@@ -151,8 +153,8 @@ jsPostModule _ _ isMain _ defs = do
       IsMain  -> Just $ Apply (Lookup Self $ MemberId "main") [Lambda 1 emp]
       NotMain -> Nothing
 
-jsCompileDef :: JSOptions -> JSModuleEnv -> Definition -> TCM (Maybe Export)
-jsCompileDef _ kit def = definition kit (defName def, def)
+jsCompileDef :: JSOptions -> JSModuleEnv -> IsMain -> Definition -> TCM (Maybe Export)
+jsCompileDef _ kit _isMain def = definition kit (defName def, def)
 
 --------------------------------------------------
 -- Naming

@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 
 module Agda.TypeChecking.Level where
 
@@ -18,7 +17,6 @@ import Agda.Utils.Except ( MonadError(catchError) )
 import Agda.Utils.Maybe ( caseMaybeM, allJustM )
 import Agda.Utils.Monad ( tryMaybe )
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 data LevelKit = LevelKit
@@ -33,8 +31,8 @@ data LevelKit = LevelKit
   }
 
 -- | Get the 'primLevel' as a 'Type'.
-levelType :: TCM Type
-levelType = El (mkType 0) <$> primLevel
+levelType :: (HasBuiltins m) => m Type
+levelType = El (mkType 0) . fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinLevel
 
 levelSucFunction :: TCM (Term -> Term)
 levelSucFunction = apply1 <$> primLevelSuc
@@ -59,11 +57,11 @@ builtinLevelKit = do
       }
 
 -- | Raises an error if no level kit is available.
-requireLevels :: TCM LevelKit
+requireLevels :: HasBuiltins m => m LevelKit
 requireLevels = builtinLevelKit
 
 -- | Checks whether level kit is fully available.
-haveLevels :: TCM Bool
+haveLevels :: HasBuiltins m => m Bool
 haveLevels = caseMaybeM (allJustM $ map getBuiltin' levelBuiltins)
     (return False)
     (\ _bs -> return True)

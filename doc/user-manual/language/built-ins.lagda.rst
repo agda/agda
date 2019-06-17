@@ -211,6 +211,7 @@ Machine words
 .. code-block:: agda
 
   module Agda.Builtin.Word
+  module Agda.Builtin.Word.Properties
 
 Agda supports built-in 64-bit machine words, bound with the ``WORD64`` built-in::
 
@@ -224,7 +225,12 @@ Machine words can be converted to and from natural numbers using the following p
     primWord64FromNat : Nat → Word64
 
 Converting to a natural number is the trivial embedding, and converting from a natural number
-gives you the remainder modulo :math:`2^{64}`. The proofs of these theorems are not primitive,
+gives you the remainder modulo :math:`2^{64}`. The proof of the former theorem::
+
+  primitive
+    primWord64ToNatInjective : ∀ a b → primWord64ToNat a ≡ primWord64ToNat b → a ≡ b
+
+is in the ``Properties`` module. The proof of the latter theorem is not primitive,
 but can be defined in a library using :ref:`primTrustMe`.
 
 
@@ -282,6 +288,7 @@ Floats
 .. code-block:: agda
 
   module Agda.Builtin.Float
+  module Agda.Builtin.Float.Properties
 
 Floating point numbers are bound with the ``FLOAT`` built-in::
 
@@ -379,6 +386,18 @@ For numerical comparisons, use the ``primFloatNumericalEquality`` and
 ``primFloatNumericalLess`` primitives. These are implemented by the
 corresponding IEEE functions.
 
+Floating point numbers can be converted to its raw representation using the primitive::
+
+  primitive
+    primFloatToWord64          : Float → Word64
+
+which normalises all ``NaN`` to a canonical ``NaN`` with an injectivity proof::
+
+    primFloatToWord64Injective : ∀ a b → primFloatToWord64 a ≡ primFloatToWord64 b → a ≡ b
+
+in the ``Properties`` module. These primitives can be used to define
+a decidable propositional equality with the ``--safe`` option.
+
 .. _built-in-list:
 
 Lists
@@ -427,6 +446,7 @@ Characters
 .. code-block:: agda
 
   module Agda.Builtin.Char
+  module Agda.Builtin.Char.Properties
 
 The character type is bound with the ``CHARACTER`` built-in::
 
@@ -459,6 +479,13 @@ These functions are implemented by the corresponding Haskell functions from
 ``primNatToChar``). To make ``primNatToChar`` total ``chr`` is applied to the
 natural number modulo ``0x110000``.
 
+Converting to a natural number is the obvious embedding, and its proof::
+
+  primitive
+    primCharToNatInjective : ∀ a b → primCharToNat a ≡ primCharToNat b → a ≡ b
+
+can be found in the ``Properties`` module.
+
 .. _data-char: https://hackage.haskell.org/package/base-4.8.1.0/docs/Data-Char.html
 
 .. _built-in-string:
@@ -469,6 +496,7 @@ Strings
 .. code-block:: agda
 
   module Agda.Builtin.String
+  module Agda.Builtin.String.Properties
 
 The string type is bound with the ``STRING`` built-in:
 
@@ -491,6 +519,13 @@ functions are available on strings (given suitable bindings for
     primShowString     : String → String
 
 String literals can be :ref:`overloaded <overloaded-strings>`.
+
+Converting to a list is injective, and its proof::
+
+  primitive
+    primStringToListInjective : ∀ a b → primStringToList a ≡ primStringToList b → a ≡ b
+
+can found in the ``Properties`` module.
 
 .. _built-in-equality:
 

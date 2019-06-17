@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP           #-}
 
 -- | Additional functions for association lists.
 
@@ -11,7 +10,6 @@ import Data.Function
 
 import Agda.Utils.Tuple
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | A finite map, represented as a set of pairs.

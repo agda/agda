@@ -30,7 +30,6 @@ import Data.Data (Data)
 import Agda.Utils.Monad
 import Agda.Utils.Pretty
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | Paths which are known to be absolute.

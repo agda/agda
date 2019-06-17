@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 
 module Agda.Auto.Syntax where
 
@@ -8,7 +7,6 @@ import qualified Data.Set as Set
 import Agda.Syntax.Common (Hiding)
 import Agda.Auto.NarrowingSearch
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | Unique identifiers for variable occurrences in unification.

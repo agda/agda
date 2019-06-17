@@ -1,12 +1,9 @@
-{-# LANGUAGE CPP              #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Agda.TypeChecking.Reduce.Monad
   ( constructorForm
   , enterClosure
-  , underAbstraction , underAbstraction_
-  , addCtxTel
   , getConstInfo
   , isInstantiatedMeta
   , lookupMeta
@@ -31,8 +28,7 @@ import Agda.Syntax.Common
 import Agda.Syntax.Position
 import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad hiding
-  ( enterClosure, underAbstraction_, underAbstraction, addCtx,
-    isInstantiatedMeta, verboseS, typeOfConst, lookupMeta, lookupMeta' )
+  ( enterClosure, isInstantiatedMeta, verboseS, typeOfConst, lookupMeta, lookupMeta' )
 import Agda.TypeChecking.Monad.Builtin hiding ( constructorForm )
 import Agda.TypeChecking.Substitute
 import Agda.Interaction.Options
@@ -44,7 +40,6 @@ import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Pretty
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 instance HasBuiltins ReduceM where
@@ -71,38 +66,18 @@ withFreshR f = do
   let (i, s') = nextFresh s
   withTCState (const s') (f i)
 
-withFreshName :: (MonadReduce m) => Range -> ArgName -> (Name -> m a) -> m a
-withFreshName r s k = withFreshR $ \i -> k (mkName r i s)
+instance MonadAddContext ReduceM where
+  withFreshName r s k = withFreshR $ \i -> k (mkName r i s)
 
-withFreshName_ :: (MonadReduce m) => ArgName -> (Name -> m a) -> m a
-withFreshName_ = withFreshName noRange
+  addCtx = defaultAddCtx
 
-addCtx :: (MonadReduce m) => Name -> Dom Type -> m a -> m a
-addCtx x a ret = do
-  ctx <- asksTC $ map (fst . unDom) . envContext
-  let ce = (x,) <$> a
-  oldChkpt <- viewTC eCurrentCheckpoint
-  withFreshR $ \ chkpt ->
-    localTC (\e -> e { envContext = ce : envContext e
-                   , envCurrentCheckpoint = chkpt
-                   , envCheckpoints = Map.insert chkpt IdS $
-                                        fmap (raise 1) (envCheckpoints e)
-                   }) ret
-      -- let-bindings keep track of own their context
-
-addCtxTel :: (MonadReduce m) => Telescope -> m a -> m a
-addCtxTel EmptyTel          ret = ret
-addCtxTel (ExtendTel t tel) ret = underAbstraction t tel $ \tel -> addCtxTel tel ret
-
-underAbstraction :: (MonadReduce m, Subst t a) => Dom Type -> Abs a -> (a -> m b) -> m b
-underAbstraction _ (NoAbs _ v) f = f v
-underAbstraction t a f =
-  withFreshName_ (realName $ absName a) $ \x -> addCtx x t $ f (absBody a)
-  where
-    realName s = if isNoName s then "x" else s
-
-underAbstraction_ :: (MonadReduce m, Subst t a) => Abs a -> (a -> m b) -> m b
-underAbstraction_ = underAbstraction __DUMMY_DOM__
+  updateContext rho f ret = withFreshR $ \ chkpt ->
+    localTC (\e -> e { envContext = f $ envContext e
+                     , envCurrentCheckpoint = chkpt
+                     , envCheckpoints = Map.insert chkpt IdS $
+                                          fmap (applySubst rho) (envCheckpoints e)
+                     }) ret
+        -- let-bindings keep track of own their context
 
 lookupMeta' :: MetaId -> ReduceM (Maybe MetaVariable)
 lookupMeta' (MetaId i) = IntMap.lookup i <$> useR stMetaStore
@@ -117,13 +92,6 @@ isInstantiatedMeta i = do
     InstV{} -> True
     _       -> False
 
--- | Apply a function if a certain verbosity level is activated.
---
---   Precondition: The level must be non-negative.
-{-# SPECIALIZE applyWhenVerboseS :: VerboseKey -> Int -> (ReduceM a -> ReduceM a) -> ReduceM a-> ReduceM a #-}
-applyWhenVerboseS :: HasOptions m => VerboseKey -> Int -> (m a -> m a) -> m a -> m a
-applyWhenVerboseS k n f a = ifM (hasVerbosity k n) (f a) a
-
 instance MonadDebug ReduceM where
 
   traceDebugMessage n s cont = do
@@ -137,6 +105,9 @@ instance MonadDebug ReduceM where
     unsafePerformIO $ do
       (s , _) <- runTCM env st $ formatDebugMessage k n d
       return $ return s
+
+  verboseBracket k n s = applyWhenVerboseS k n $
+    bracket_ (openVerboseBracket n s) (const $ closeVerboseBracket n)
 
 instance HasConstInfo ReduceM where
   getRewriteRulesFor = defaultGetRewriteRulesFor getTCState

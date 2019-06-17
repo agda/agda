@@ -1,0 +1,9 @@
+Issue3848.agda:19,13-17
+Confluence check failed: f (c f₁) reduces to both f₁ and f r
+which are not equal because f₁ != f r of type A
+when checking confluence of the rewrite rule Issue3848.R.f-clause1
+with rew₁
+Issue3848.agda:30,13-17
+Confluence check failed: g (f r) reduces to both a and g a
+which are not equal because a != g a of type A
+when checking confluence of the rewrite rule rew₂ with rew₃

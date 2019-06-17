@@ -1,6 +1,6 @@
 -- Issue #2814 reported by tomjack on 2017-10-18
 
-{-# OPTIONS --cubical --rewriting #-}
+{-# OPTIONS --cubical --rewriting --confluence-check #-}
 
 -- prelude stolen from Saizan/cubical-demo
 

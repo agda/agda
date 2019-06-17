@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE NondecreasingIndentation   #-}
 
 module Agda.TypeChecking.Rules.Record where
 
@@ -24,6 +24,7 @@ import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Names
 import Agda.TypeChecking.Primitive
+import Agda.TypeChecking.Rewriting.Confluence
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Reduce
@@ -35,7 +36,7 @@ import Agda.TypeChecking.CompiledClause (hasProjectionPatterns)
 import Agda.TypeChecking.CompiledClause.Compile
 
 import Agda.TypeChecking.Rules.Data ( getGeneralizedParameters, bindGeneralizedParameters, bindParameters, fitsIn, forceSort,
-                                      defineCompData, defineTranspForFields, defineHCompForFields )
+                                      defineCompData, defineTranspOrHCompForFields )
 import Agda.TypeChecking.Rules.Term ( isType_ )
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Decl (checkDecl)
 
@@ -46,7 +47,6 @@ import Agda.Utils.Permutation
 import qualified Agda.Utils.Pretty as P
 import Agda.Utils.Size
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 ---------------------------------------------------------------------------
@@ -322,6 +322,12 @@ checkRecDef i name uc ind eta con (A.DataDefParams gpars ps) contel fields =
       escapeContext npars $ do
         addCompositionForRecord name con tel fs ftel rect
 
+      -- Jesper, 2019-06-07: Check confluence of projection clauses
+      whenM (optConfluenceCheck <$> pragmaOptions) $ forM_ fs $ \f -> do
+        cls <- defClauses <$> getConstInfo (unArg f)
+        forM (zip cls [0..]) $ \(cl,i) ->
+          checkConfluenceOfClause (unArg f) i cl
+
       return ()
 
 
@@ -374,9 +380,8 @@ defineCompKitR name params fsT fns rect = do
         ]
   reportSDoc "tc.rec.cxt" 30 $ prettyTCM params
   reportSDoc "tc.rec.cxt" 30 $ prettyTCM fsT
-  reportSDoc "tc.rec.cxt" 30 $ text $ show rect
-  sortsOk <- allM (rect : map unDom (flattenTel fsT)) sortOk
-  if not $ sortsOk && all isJust required then return $ emptyCompKit else do
+  reportSDoc "tc.rec.cxt" 30 $ pretty rect
+  if not $ all isJust required then return $ emptyCompKit else do
     transp <- whenDefined [builtinTrans]              (defineTranspOrHCompR DoTransp name params fsT fns rect)
     hcomp  <- whenDefined [builtinTrans,builtinHComp] (defineTranspOrHCompR DoHComp name params fsT fns rect)
     return $ CompKit
@@ -387,10 +392,6 @@ defineCompKitR name params fsT fns rect = do
     whenDefined xs m = do
       xs <- mapM getTerm' xs
       if all isJust xs then m else return Nothing
-    sortOk :: Type -> TCM Bool
-    sortOk a = reduce (getSort a) >>= \case
-      Type{} -> return True
-      _      -> return False
 
 
 defineTranspOrHCompR ::
@@ -402,10 +403,10 @@ defineTranspOrHCompR ::
   -> Type        -- ^ record type Δ ⊢ T
   -> TCM (Maybe QName)
 defineTranspOrHCompR cmd name params fsT fns rect = do
-  (theName, gamma, rtype, clause_types, bodies) <- fst <$>
-    (case cmd of DoTransp -> defineTranspForFields; DoHComp -> defineHCompForFields)
-       (\ t fn -> t `applyE` [Proj ProjSystem fn]) name params fsT fns rect
+  let project = (\ t fn -> t `applyE` [Proj ProjSystem fn])
+  stuff <- fmap fst <$> defineTranspOrHCompForFields cmd Nothing project name params fsT fns rect
 
+  caseMaybe stuff (return Nothing) $ \ (theName, gamma, rtype, clause_types, bodies) -> do
   -- phi = 1 clause
   c' <- do
            io <- primIOne
@@ -594,7 +595,8 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
             -- split the telescope into parameters (ptel) and the type or the record
             -- (rt) which should be  R ptel
             telList = telToList tel
-            (_ptel,[rt]) = splitAt (size tel - 1) telList
+            (ptelList,[rt]) = splitAt (size tel - 1) telList
+            ptel   = telFromList ptelList
             cpo    = if hasNamedCon then PatOCon else PatORec
             cpi    = ConPatternInfo { conPRecord = Just cpo
                                     , conPFallThrough = False
@@ -605,7 +607,7 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
                      | Dom{domInfo = ai'} <- telToList ftel
                      ]
             body   = Just $ bodyMod $ var (size ftel2)
-            cltel  = ftel
+            cltel  = ptel `abstract` ftel
             clause = Clause { clauseLHSRange  = getRange info
                             , clauseFullRange = getRange info
                             , clauseTel       = killRange cltel
@@ -662,9 +664,10 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
                 , funProjection     = Just projection
                 , funMutual         = Just []  -- Projections are not mutually recursive with anything
                 , funTerminates     = Just True
-                , funCopatternLHS   = hasProjectionPatterns cc
                 })
-              { defArgOccurrences = [StrictPos] }
+              { defArgOccurrences = [StrictPos]
+              , defCopatternLHS   = hasProjectionPatterns cc
+              }
           computePolarity [projname]
 
         when (Info.defInstance info == InstanceDef) $

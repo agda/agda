@@ -10,6 +10,30 @@
 
   infixl 2 ¬_
 
+  data Associativity : Set where
+    left-assoc  : Associativity
+    right-assoc : Associativity
+    non-assoc   : Associativity
+
+  data Precedence : Set where
+    related   : Int → Precedence
+    unrelated : Precedence
+
+  data Fixity : Set where
+    fixity : Associativity → Precedence → Fixity
+
+  {-# BUILTIN ASSOC      Associativity #-}
+  {-# BUILTIN ASSOCLEFT  left-assoc    #-}
+  {-# BUILTIN ASSOCRIGHT right-assoc   #-}
+  {-# BUILTIN ASSOCNON   non-assoc     #-}
+
+  {-# BUILTIN PRECEDENCE    Precedence #-}
+  {-# BUILTIN PRECRELATED   related    #-}
+  {-# BUILTIN PRECUNRELATED unrelated  #-}
+
+  {-# BUILTIN FIXITY       Fixity #-}
+  {-# BUILTIN FIXITYFIXITY fixity #-}
+
 .. _reflection:
 
 **********
@@ -23,7 +47,7 @@ Names
 ~~~~~
 
 The built-in ``QNAME`` type represents quoted names and comes equipped with
-equality, ordering and a show function.
+equality, ordering, and a show function.
 
 ::
 
@@ -34,6 +58,27 @@ equality, ordering and a show function.
     primQNameEquality : Name → Name → Bool
     primQNameLess     : Name → Name → Bool
     primShowQName     : Name → String
+
+The fixity of a name can also be retrived.
+
+::
+
+  primitive
+    primQNameFixity    : Name → Fixity
+
+To define a decidable propositional equality with the option ``--safe``,
+one can use the conversion to a pair of built-in 64-bit machine words
+
+::
+
+  primitive
+    primQNameToWord64s : Name → Σ Word64 (λ _ → Word64)
+
+with the injectivity proof in the ``Properties`` module.::
+
+  primitive
+    primQNameToWord64sInjective : ∀ a b → primQNameToWord64s a ≡ primQNameToWord64s b → a ≡ b
+
 
 Name literals are created using the ``quote`` keyword and can appear both in
 terms and in patterns
@@ -53,7 +98,7 @@ Metavariables
 ~~~~~~~~~~~~~
 
 Metavariables are represented by the built-in ``AGDAMETA`` type. They have
-primitive equality, ordering and show::
+primitive equality, ordering, show, and conversion to Nat::
 
   postulate Meta : Set
   {-# BUILTIN AGDAMETA Meta #-}
@@ -62,8 +107,17 @@ primitive equality, ordering and show::
     primMetaEquality : Meta → Meta → Bool
     primMetaLess     : Meta → Meta → Bool
     primShowMeta     : Meta → String
+    primMetaToNat    : Meta → Nat
 
-Builtin metavariables show up in reflected terms.
+Builtin metavariables show up in reflected terms. In ``Properties``, there is a proof of injectivity
+of ``primMetaToNat``
+
+::
+
+  primitive
+    primMetaToNatInjective : ∀ a b → primMetaToNat a ≡ primMetaToNat b → a ≡ b
+
+which can be used to define a decidable propositional equality with the option ``--safe``.
 
 Literals
 ~~~~~~~~
@@ -375,44 +429,57 @@ following primitive operations::
     -- normalisation.
     withNormalisation : ∀ {a} {A : Set a} → Bool → TC A → TC A
 
-    -- Prints the third argument if the corresponding verbosity level is turned
-    -- on (with the -v flag to Agda).
+    -- Prints the third argument to the debug buffer in Emacs
+    -- if the verbosity level (set by the -v flag to Agda)
+    -- is higher than the second argument. Note that Level 0 and 1 are printed
+    -- to the info buffer instead. For instance, giving -v a.b.c:10 enables
+    -- printing from debugPrint "a.b.c.d" 10 msg.
+
     debugPrint : String → Nat → List ErrorPart → TC ⊤
 
     -- Fail if the given computation gives rise to new, unsolved
     -- "blocking" constraints.
     noConstraints : ∀ {a} {A : Set a} → TC A → TC A
 
+    -- Tries to solve all constraints.
+    solveConstraints : TC ⊤
+
+    -- Wakes up all constraints mentioning the given meta-variables,
+    -- and then tries to solve all awake constraints.
+    solveConstraintsMentioning : List Meta → TC ⊤
+
     -- Run the given TC action and return the first component. Resets to
     -- the old TC state if the second component is 'false', or keep the
     -- new TC state if it is 'true'.
     runSpeculative : ∀ {a} {A : Set a} → TC (Σ A λ _ → Bool) → TC A
 
-  {-# BUILTIN AGDATCMUNIFY              unify              #-}
-  {-# BUILTIN AGDATCMTYPEERROR          typeError          #-}
-  {-# BUILTIN AGDATCMBLOCKONMETA        blockOnMeta        #-}
-  {-# BUILTIN AGDATCMCATCHERROR         catchTC            #-}
-  {-# BUILTIN AGDATCMINFERTYPE          inferType          #-}
-  {-# BUILTIN AGDATCMCHECKTYPE          checkType          #-}
-  {-# BUILTIN AGDATCMNORMALISE          normalise          #-}
-  {-# BUILTIN AGDATCMREDUCE             reduce             #-}
-  {-# BUILTIN AGDATCMGETCONTEXT         getContext         #-}
-  {-# BUILTIN AGDATCMEXTENDCONTEXT      extendContext      #-}
-  {-# BUILTIN AGDATCMINCONTEXT          inContext          #-}
-  {-# BUILTIN AGDATCMQUOTETERM          quoteTC            #-}
-  {-# BUILTIN AGDATCMUNQUOTETERM        unquoteTC          #-}
-  {-# BUILTIN AGDATCMFRESHNAME          freshName          #-}
-  {-# BUILTIN AGDATCMDECLAREDEF         declareDef         #-}
-  {-# BUILTIN AGDATCMDECLAREPOSTULATE   declarePostulate   #-}
-  {-# BUILTIN AGDATCMDEFINEFUN          defineFun          #-}
-  {-# BUILTIN AGDATCMGETTYPE            getType            #-}
-  {-# BUILTIN AGDATCMGETDEFINITION      getDefinition      #-}
-  {-# BUILTIN AGDATCMCOMMIT             commitTC           #-}
-  {-# BUILTIN AGDATCMISMACRO            isMacro            #-}
-  {-# BUILTIN AGDATCMWITHNORMALISATION  withNormalisation  #-}
-  {-# BUILTIN AGDATCMDEBUGPRINT         debugPrint         #-}
-  {-# BUILTIN AGDATCMNOCONSTRAINTS      noConstraints      #-}
-  {-# BUILTIN AGDATCMRUNSPECULATIVE     runSpeculative     #-}
+  {-# BUILTIN AGDATCMUNIFY                      unify                      #-}
+  {-# BUILTIN AGDATCMTYPEERROR                  typeError                  #-}
+  {-# BUILTIN AGDATCMBLOCKONMETA                blockOnMeta                #-}
+  {-# BUILTIN AGDATCMCATCHERROR                 catchTC                    #-}
+  {-# BUILTIN AGDATCMINFERTYPE                  inferType                  #-}
+  {-# BUILTIN AGDATCMCHECKTYPE                  checkType                  #-}
+  {-# BUILTIN AGDATCMNORMALISE                  normalise                  #-}
+  {-# BUILTIN AGDATCMREDUCE                     reduce                     #-}
+  {-# BUILTIN AGDATCMGETCONTEXT                 getContext                 #-}
+  {-# BUILTIN AGDATCMEXTENDCONTEXT              extendContext              #-}
+  {-# BUILTIN AGDATCMINCONTEXT                  inContext                  #-}
+  {-# BUILTIN AGDATCMQUOTETERM                  quoteTC                    #-}
+  {-# BUILTIN AGDATCMUNQUOTETERM                unquoteTC                  #-}
+  {-# BUILTIN AGDATCMFRESHNAME                  freshName                  #-}
+  {-# BUILTIN AGDATCMDECLAREDEF                 declareDef                 #-}
+  {-# BUILTIN AGDATCMDECLAREPOSTULATE           declarePostulate           #-}
+  {-# BUILTIN AGDATCMDEFINEFUN                  defineFun                  #-}
+  {-# BUILTIN AGDATCMGETTYPE                    getType                    #-}
+  {-# BUILTIN AGDATCMGETDEFINITION              getDefinition              #-}
+  {-# BUILTIN AGDATCMCOMMIT                     commitTC                   #-}
+  {-# BUILTIN AGDATCMISMACRO                    isMacro                    #-}
+  {-# BUILTIN AGDATCMWITHNORMALISATION          withNormalisation          #-}
+  {-# BUILTIN AGDATCMDEBUGPRINT                 debugPrint                 #-}
+  {-# BUILTIN AGDATCMNOCONSTRAINTS              noConstraints              #-}
+  {-# BUILTIN AGDATCMSOLVECONSTRAINTS           solveConstraints           #-}
+  {-# BUILTIN AGDATCMSOLVECONSTRAINTSMENTIONING solveConstraintsMentioning #-}
+  {-# BUILTIN AGDATCMRUNSPECULATIVE             runSpeculative             #-}
 
 Metaprogramming
 ---------------

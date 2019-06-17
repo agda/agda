@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP           #-}
 {-# LANGUAGE BangPatterns  #-}
 {-# LANGUAGE PatternGuards #-}
 {-# LANGUAGE PatternSynonyms #-}
@@ -59,8 +58,6 @@ import Data.IORef
 import Data.STRef
 import Data.Char
 
-import Debug.Trace (trace)
-
 import Agda.Syntax.Internal
 import Agda.Syntax.Common
 import Agda.Syntax.Position
@@ -86,11 +83,10 @@ import Agda.Utils.Memo
 import Agda.Utils.Null (empty)
 import Agda.Utils.Function
 import Agda.Utils.Functor
-import Agda.Utils.Pretty hiding ((<>))
+import Agda.Utils.Pretty
 import Agda.Utils.Size
 import Agda.Utils.Zipper
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 import Debug.Trace
@@ -210,14 +206,14 @@ compactDef bEnv def rewr = do
           "primToLower"                -> mkPrim 1 $ charFun toLower
           "primCharToNat"              -> mkPrim 1 $ \ [LitChar _ a] -> nat (fromIntegral (fromEnum a))
           "primNatToChar"              -> mkPrim 1 $ \ [LitNat  _ a] -> char (toEnum $ fromIntegral $ a `mod` 0x110000)
-          "primShowChar"               -> mkPrim 1 $ \ a -> string (show $ pretty a)
+          "primShowChar"               -> mkPrim 1 $ \ [a] -> string (prettyShow a)
 
           -- Strings
           -- "primStringToList"     -- We don't have the list builtins (but could have, TODO)
           -- "primStringFromList"   -- and they are not literals
           "primStringAppend"           -> mkPrim 2 $ \ [LitString _ a, LitString _ b] -> string (b ++ a)
           "primStringEquality"         -> mkPrim 2 $ \ [LitString _ a, LitString _ b] -> bool (b == a)
-          "primShowString"             -> mkPrim 1 $ \ a -> string (show $ pretty a)
+          "primShowString"             -> mkPrim 1 $ \ [a] -> string (prettyShow a)
 
           -- "primErase"
           -- "primForce"
@@ -564,7 +560,17 @@ data MatchStack s = [CatchAllFrame s] :> Closure s
 infixr 2 :>, >:
 
 (>:) :: CatchAllFrame s -> MatchStack s -> MatchStack s
-c >: cs :> cl = c : cs :> cl
+(>:) c (cs :> cl) = c : cs :> cl
+-- Previously written as:
+--   c >: cs :> cl = c : cs :> cl
+--
+-- However, some versions/tools fail to parse infix data constructors properly.
+-- For example, stylish-haskell@0.9.2.1 fails with the following error:
+--   Language.Haskell.Stylish.Parse.parseModule: could not parse
+--   src/full/Agda/TypeChecking/Reduce/Fast.hs: ParseFailed (SrcLoc
+--   "<unknown>.hs" 625 1) "Parse error in pattern: "
+--
+-- See https://ghc.haskell.org/trac/ghc/ticket/10018 which may be related.
 
 data CatchAllFrame s = CatchAll FastCompiledClauses (Spine s)
                         -- ^ @CatchAll cc spine@. Case trees are not fully expanded, that is,
@@ -755,7 +761,7 @@ buildEnv xs spine = go xs spine emptyEnv
         _            -> __IMPOSSIBLE__
 
 unusedPointerString :: String
-unusedPointerString = show (Impossible __FILE__ __LINE__)
+unusedPointerString = show (withFileAndLine Impossible)
 
 unusedPointer :: Pointer s
 unusedPointer = Pure (Closure (Value $ notBlocked ())

@@ -1,6 +1,4 @@
-{-# LANGUAGE CPP                        #-}
 {-# LANGUAGE DeriveDataTypeable         #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 {-| Abstract names carry unique identifiers and stuff.
 -}
@@ -8,10 +6,6 @@ module Agda.Syntax.Abstract.Name
   ( module Agda.Syntax.Abstract.Name
   , IsNoName(..)
   ) where
-
-#if MIN_VERSION_base(4,11,0)
-import Prelude hiding ((<>))
-#endif
 
 import Control.DeepSeq
 
@@ -38,7 +32,6 @@ import Agda.Utils.NonemptyList
 import Agda.Utils.Pretty
 import Agda.Utils.Size
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | A name is a unique identifier and a suggestion for a concrete name. The

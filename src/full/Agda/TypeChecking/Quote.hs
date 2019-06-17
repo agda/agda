@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 
 module Agda.TypeChecking.Quote where
 
@@ -41,7 +40,6 @@ import qualified Agda.Utils.VarSet as Set
 import Agda.Utils.FileName
 import Agda.Utils.Size
 
-#include "undefined.h"
 
 data QuotingKit = QuotingKit
   { quoteTermWithKit   :: Term       -> ReduceM Term
@@ -250,7 +248,7 @@ quotingKit = do
           MetaV x es -> meta !@! quoteMeta currentFile x @@ quoteArgs vs
             where vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
           DontCare{} -> pure unsupported -- could be exposed at some point but we have to take care
-          Dummy s    -> __IMPOSSIBLE_VERBOSE__ s
+          Dummy s _  -> __IMPOSSIBLE_VERBOSE__ s
 
       defParameters :: Definition -> [ReduceM Term]
       defParameters def = map par hiding

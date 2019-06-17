@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Agda.Compiler.Treeless.Pretty () where
@@ -15,7 +14,6 @@ import Agda.Compiler.Treeless.Subst
 import Agda.Utils.Pretty
 import Agda.Utils.List
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 data PEnv = PEnv { pPrec :: Int

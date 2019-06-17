@@ -19,7 +19,7 @@ Contributors (alphabetically sorted):
 * James Chapman
 * Jesper Cockx
 * Dominique Devriese
-* Peter Divanski
+* Péter Diviánszky
 * Fredrik Nordvall Forsberg
 * Olle Fredriksson
 * Daniel Gustafsson

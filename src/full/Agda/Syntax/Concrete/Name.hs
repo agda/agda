@@ -1,16 +1,10 @@
-{-# LANGUAGE CPP #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 {-| Names in the concrete syntax are just strings (or lists of strings for
     qualified names).
 -}
 module Agda.Syntax.Concrete.Name where
-
-#if MIN_VERSION_base(4,11,0)
-import Prelude hiding ((<>))
-#endif
 
 import Control.DeepSeq
 
@@ -34,7 +28,6 @@ import Agda.Utils.Pretty
 import Agda.Utils.Size
 import Agda.Utils.Suffix
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 {-| A name is a non-empty list of alternating 'Id's and 'Hole's. A normal name

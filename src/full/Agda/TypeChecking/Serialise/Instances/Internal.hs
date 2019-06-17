@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
@@ -20,7 +19,6 @@ import Agda.TypeChecking.Coverage.SplitTree
 
 import Agda.Utils.Permutation
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 instance EmbPrj a => EmbPrj (Dom a) where
@@ -99,7 +97,7 @@ instance EmbPrj I.Term where
   icod_ (MetaV    a b) = __IMPOSSIBLE__
   icod_ (DontCare a  ) = icodeN 8 DontCare a
   icod_ (Level    a  ) = icodeN 9 Level a
-  icod_ (Dummy s)      = __IMPOSSIBLE__
+  icod_ (Dummy s _)    = __IMPOSSIBLE__
 
   value = vcase valu where
     valu [a]       = valuN var   a
@@ -200,27 +198,25 @@ instance EmbPrj CompKit where
   value = valueN CompKit
 
 instance EmbPrj Definition where
-  icod_ (Defn a b c d e f g h i j k l m n o p) = icodeN' Defn a b (P.killRange c) d e f g h i j k l m n o p
+  icod_ (Defn a b c d e f g h i j k l m n o p q) = icodeN' Defn a b (P.killRange c) d e f g h i j k l m n o p q
 
   value = valueN Defn
 
 instance EmbPrj NLPat where
   icod_ (PVar a b)      = icodeN 0 PVar a b
-  icod_ (PWild)         = icodeN 1 PWild
-  icod_ (PDef a b)      = icodeN 2 PDef a b
-  icod_ (PLam a b)      = icodeN 3 PLam a b
-  icod_ (PPi a b)       = icodeN 4 PPi a b
-  icod_ (PBoundVar a b) = icodeN 5 PBoundVar a b
-  icod_ (PTerm a)       = icodeN 6 PTerm a
+  icod_ (PDef a b)      = icodeN 1 PDef a b
+  icod_ (PLam a b)      = icodeN 2 PLam a b
+  icod_ (PPi a b)       = icodeN 3 PPi a b
+  icod_ (PBoundVar a b) = icodeN 4 PBoundVar a b
+  icod_ (PTerm a)       = icodeN 5 PTerm a
 
   value = vcase valu where
     valu [0, a, b]    = valuN PVar a b
-    valu [1]          = valuN PWild
-    valu [2, a, b]    = valuN PDef a b
-    valu [3, a, b]    = valuN PLam a b
-    valu [4, a, b]    = valuN PPi a b
-    valu [5, a, b]    = valuN PBoundVar a b
-    valu [6, a]       = valuN PTerm a
+    valu [1, a, b]    = valuN PDef a b
+    valu [2, a, b]    = valuN PLam a b
+    valu [3, a, b]    = valuN PPi a b
+    valu [4, a, b]    = valuN PBoundVar a b
+    valu [5, a]       = valuN PTerm a
     valu _            = malformed
 
 instance EmbPrj NLPType where
@@ -317,9 +313,9 @@ instance EmbPrj EtaEquality where
 
 instance EmbPrj Defn where
   icod_ Axiom                                           = icodeN 0 Axiom
-  icod_ (Function    a b s t (_:_) c d e f g h i j k m) = __IMPOSSIBLE__
-  icod_ (Function    a b s t []    c d e f g h i j k m) =
-    icodeN 1 (\ a b s -> Function a b s t []) a b s c d e f g h i j k m
+  icod_ (Function    a b s t (_:_) c d e f g h i j k)   = __IMPOSSIBLE__
+  icod_ (Function    a b s t []    c d e f g h i j k)   =
+    icodeN 1 (\ a b s -> Function a b s t []) a b s c d e f g h i j k
   icod_ (Datatype    a b c d e f g h i)                 = icodeN 2 Datatype a b c d e f g h i
   icod_ (Record      a b c d e f g h i j k)             = icodeN 3 Record a b c d e f g h i j k
   icod_ (Constructor a b c d e f g h i)                 = icodeN 4 Constructor a b c d e f g h i
@@ -330,7 +326,7 @@ instance EmbPrj Defn where
 
   value = vcase valu where
     valu [0]                                        = valuN Axiom
-    valu [1, a, b, s, c, d, e, f, g, h, i, j, k, m] = valuN (\ a b s -> Function a b s Nothing []) a b s c d e f g h i j k m
+    valu [1, a, b, s, c, d, e, f, g, h, i, j, k]    = valuN (\ a b s -> Function a b s Nothing []) a b s c d e f g h i j k
     valu [2, a, b, c, d, e, f, g, h, i]             = valuN Datatype a b c d e f g h i
     valu [3, a, b, c, d, e, f, g, h, i, j, k]       = valuN Record  a b c d e f g h i j k
     valu [4, a, b, c, d, e, f, g, h, i]             = valuN Constructor a b c d e f g h i

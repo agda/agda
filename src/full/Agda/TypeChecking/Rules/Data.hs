@@ -1,5 +1,4 @@
-{-# LANGUAGE CPP #-}
-{-# LANGUAGE MultiWayIf #-}
+{-# LANGUAGE NondecreasingIndentation #-}
 
 module Agda.TypeChecking.Rules.Data where
 
@@ -7,6 +6,8 @@ import Control.Monad
 
 import Data.List (genericTake)
 import Data.Maybe (fromMaybe, catMaybes, isJust)
+import Control.Monad.Trans.Maybe
+import Control.Monad.Trans
 import Data.Set (Set)
 import qualified Data.Set as Set
 
@@ -50,7 +51,6 @@ import Agda.Utils.Monad
 import qualified Agda.Utils.Pretty as P
 import Agda.Utils.Size
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 ---------------------------------------------------------------------------
@@ -341,10 +341,9 @@ defineCompData d con params names fsT t boundary = do
     , builtinPOr
     , builtinItIsOne
     ]
-  sortsOk <- sortOk t `and2M` allM (map unDom (flattenTel fsT)) sortOkField
-  if not sortsOk || not (all isJust required) then return $ emptyCompKit else do
+  if not (all isJust required) then return $ emptyCompKit else do
     hcomp  <- whenDefined (null boundary) [builtinHComp,builtinTrans] (defineTranspOrHCompD DoHComp  d con params names fsT t boundary)
-    transp <- whenDefined True [builtinTrans]              (defineTranspOrHCompD DoTransp d con params names fsT t boundary)
+    transp <- whenDefined True            [builtinTrans]              (defineTranspOrHCompD DoTransp d con params names fsT t boundary)
     return $ CompKit
       { nameOfTransp = transp
       , nameOfHComp  = hcomp
@@ -355,10 +354,12 @@ defineCompData d con params names fsT t boundary = do
     withArgInfo tel = zipWith Arg (map domInfo . telToList $ tel)
     defineTranspOrHCompD cmd d con params names fsT t boundary
       = do
-      ((theName, gamma , ty, _cl_types , bodies), theSub) <-
-        (case cmd of DoTransp -> defineTranspForFields' (guard (not $ null boundary) >> (Just $ Con con ConOSystem $ teleElims fsT boundary))
-                     ; DoHComp -> defineHCompForFields)
-          (\ t p -> apply (Def p []) [argN t]) d params fsT (map argN names) t
+      let project = (\ t p -> apply (Def p []) [argN t])
+      stuff <- defineTranspOrHCompForFields cmd
+                 (guard (not $ null boundary) >> (Just $ Con con ConOSystem $ teleElims fsT boundary))
+                 project d params fsT (map argN names) t
+      caseMaybe stuff (return Nothing) $ \ ((theName, gamma , ty, _cl_types , bodies), theSub) -> do
+
       iz <- primIZero
       body <- do
         case cmd of
@@ -538,18 +539,6 @@ defineCompData d con params names fsT t boundary = do
       xs <- mapM getTerm' xs
       if all isJust xs then m else return Nothing
 
-    sortOk :: Type -> TCM Bool
-    sortOk a = reduce (getSort a) >>= \case
-      Type{} -> return True
-      _      -> return False
-
-    sortOkField :: Type -> TCM Bool
-    sortOkField a = reduce (getSort a) >>= \case
-      Type{} -> return True
-      -- fields might be elements of the interval
-      Inf    -> return True
-      _      -> return False
-
 -- Andrea: TODO handle Irrelevant fields somehow.
 defineProjections :: QName      -- datatype name
                   -> ConHead
@@ -607,29 +596,88 @@ freshAbstractQName'_ :: String -> TCM QName
 freshAbstractQName'_ s = freshAbstractQName noFixity' (C.Name noRange C.InScope [C.Id $ s])
 
 
-defineTranspForFields
-  :: (Term -> QName -> Term) -- ^ how to apply a "projection" to a term
-  -> QName       -- ^ some name, e.g. record name
-  -> Telescope   -- ^ param types Δ
-  -> Telescope   -- ^ fields' types Δ ⊢ Φ
-  -> [Arg QName] -- ^ fields' names
-  -> Type        -- ^ record type Δ ⊢ T
-  -> TCM ((QName, Telescope, Type, [Dom Type], [Term]), Substitution)
-defineTranspForFields = defineTranspForFields' Nothing
+-- * Special cases of Type
+-----------------------------------------------------------
+
+-- | A @Type@ with sort @Type l@
+--   Such a type supports both hcomp and transp.
+data LType = LEl Level Term deriving (Eq,Show)
+
+fromLType :: LType -> Type
+fromLType (LEl l t) = El (Type l) t
+
+lTypeLevel :: LType -> Level
+lTypeLevel (LEl l t) = l
+
+toLType :: MonadReduce m => Type -> m (Maybe LType)
+toLType ty = do
+  sort <- reduce $ getSort ty
+  case sort of
+    Type l -> return $ Just $ LEl l (unEl ty)
+    _      -> return $ Nothing
+
+instance Subst Term LType where
+  applySubst rho (LEl l t) = LEl (applySubst rho l) (applySubst rho t)
+
+-- | A @Type@ that either has sort @Type l@ or is a closed definition.
+--   Such a type supports some version of transp.
+--   In particular we want to allow the Interval as a @ClosedType@.
+data CType = ClosedType QName | LType LType deriving (Eq,Show)
+
+fromCType :: CType -> Type
+fromCType (ClosedType q) = El Inf (Def q [])
+fromCType (LType t) = fromLType t
+
+toCType :: MonadReduce m => Type -> m (Maybe CType)
+toCType ty = do
+  sort <- reduce $ getSort ty
+  case sort of
+    Type l -> return $ Just $ LType (LEl l (unEl ty))
+    Inf    -> do
+      t <- reduce (unEl ty)
+      case t of
+        Def q [] -> return $ Just $ ClosedType q
+        _        -> return $ Nothing
+    _      -> return $ Nothing
+
+instance Subst Term CType where
+  applySubst rho t@ClosedType{} = t
+  applySubst rho (LType t) = LType $ applySubst rho t
 
 
--- invariant: resulting tel Γ is such that Γ = ... , (φ : I), (a0 : ...)
---            where a0 has type matching the arguments of primTrans.
-defineTranspForFields'
-  :: (Maybe Term)                    -- ^ PathCons, Δ.Φ ⊢ u : R δ
+defineTranspOrHCompForFields
+  :: TranspOrHComp
+  -> (Maybe Term)            -- ^ PathCons, Δ.Φ ⊢ u : R δ
   -> (Term -> QName -> Term) -- ^ how to apply a "projection" to a term
   -> QName       -- ^ some name, e.g. record name
   -> Telescope   -- ^ param types Δ
   -> Telescope   -- ^ fields' types Δ ⊢ Φ
   -> [Arg QName] -- ^ fields' names
   -> Type        -- ^ record type Δ ⊢ T
+  -> TCM (Maybe ((QName, Telescope, Type, [Dom Type], [Term]), Substitution))
+defineTranspOrHCompForFields cmd pathCons project name params fsT fns rect =
+   case cmd of
+       DoTransp -> runMaybeT $ do
+         fsT' <- traverse (traverse (MaybeT . toCType)) fsT
+         lift $ defineTranspForFields pathCons project name params fsT' fns rect
+       DoHComp -> runMaybeT $ do
+         fsT' <- traverse (traverse (MaybeT . toLType)) fsT
+         rect' <- MaybeT $ toLType rect
+         lift $ defineHCompForFields project name params fsT' fns rect'
+
+
+-- invariant: resulting tel Γ is such that Γ = ... , (φ : I), (a0 : ...)
+--            where a0 has type matching the arguments of primTrans.
+defineTranspForFields
+  :: (Maybe Term)            -- ^ PathCons, Δ.Φ ⊢ u : R δ
+  -> (Term -> QName -> Term) -- ^ how to apply a "projection" to a term
+  -> QName       -- ^ some name, e.g. record name
+  -> Telescope   -- ^ param types Δ
+  -> Tele (Dom CType)   -- ^ fields' types Δ ⊢ Φ
+  -> [Arg QName] -- ^ fields' names
+  -> Type        -- ^ record type Δ ⊢ T
   -> TCM ((QName, Telescope, Type, [Dom Type], [Term]), Substitution)
-defineTranspForFields' pathCons applyProj name params fsT fns rect = do
+defineTranspForFields pathCons applyProj name params fsT fns rect = do
   interval <- elInf primInterval
   let deltaI = expTelescope interval params
   iz <- primIZero
@@ -703,7 +751,7 @@ defineTranspForFields' pathCons applyProj name params fsT fns rect = do
       (tel,theta,the_phi,the_u0, the_fields) =
         case pathCons of
           -- (δ : Δ).Φ ⊢ u : R δ
-          Just u -> (abstract gamma' (d0 `applySubst` fsT) -- Ξ = δ : Δ^I, φ : F, _ : Φ[δ i0]
+          Just u -> (abstract gamma' (d0 `applySubst` fmap (fmap fromCType) fsT) -- Ξ = δ : Δ^I, φ : F, _ : Φ[δ i0]
                     , (liftS (size fsT) d0 `applySubst` u) `consS` raiseS (size fsT)
                     , raise (size fsT) (var 0)
                     , (liftS (size fsT) d0 `applySubst` u)
@@ -719,11 +767,11 @@ defineTranspForFields' pathCons applyProj name params fsT fns rect = do
       -- .. ⊢ field : filled_ty' i0
       mkBody (field, filled_ty') = do
         let
-          filled_ty = lam_i $ (unEl . unDom) filled_ty'
+          filled_ty = lam_i $ (unEl . fromCType . unDom) filled_ty'
           -- Γ ⊢ l : I -> Level of filled_ty
-        sort <- reduce $ getSort $ unDom filled_ty'
-        case sort of
-          Type l -> do
+        -- sort <- reduce $ getSort $ unDom filled_ty'
+        case unDom filled_ty' of
+          LType (LEl l _) -> do
             let lvl = lam_i $ Level l
             return $ runNames [] $ do
              lvl <- open lvl
@@ -732,11 +780,10 @@ defineTranspForFields' pathCons applyProj name params fsT fns rect = do
                                  <@> phi
                                  <@> field
           -- interval arg
-          Inf  ->
+          ClosedType{}  ->
             return $ runNames [] $ do
             [field] <- mapM open [field]
             field
-          _ -> __IMPOSSIBLE__
 
   let
         -- ' Ξ , i : I ⊢ τ = [(\ j → δ (i ∧ j)), φ ∨ ~ i, u] : Ξ
@@ -765,7 +812,7 @@ defineTranspForFields' pathCons applyProj name params fsT fns rect = do
   let
     -- Ξ, i : I ⊢ ... : Δ.Φ
     theSubst = reverse (tau `applySubst` bodys) ++# (liftS 1 (raiseS (size tel - size deltaI)) `composeS` sub params)
-  return $ ((theName, tel, theta `applySubst` rtype, clause_types, bodys), theSubst)
+  return $ ((theName, tel, theta `applySubst` rtype, map (fmap fromCType) clause_types, bodys), theSubst)
   where
     -- record type in 'exponentiated' context
     -- (params : Δ^I), i : I |- T[params i]
@@ -789,9 +836,9 @@ defineHCompForFields
   :: (Term -> QName -> Term) -- ^ how to apply a "projection" to a term
   -> QName       -- ^ some name, e.g. record name
   -> Telescope   -- ^ param types Δ
-  -> Telescope   -- ^ fields' types Δ ⊢ Φ
+  -> Tele (Dom LType)   -- ^ fields' types Δ ⊢ Φ
   -> [Arg QName] -- ^ fields' names
-  -> Type        -- ^ record type (δ : Δ) ⊢ R[δ]
+  -> LType        -- ^ record type (δ : Δ) ⊢ R[δ]
   -> TCM ((QName, Telescope, Type, [Dom Type], [Term]),Substitution)
 defineHCompForFields applyProj name params fsT fns rect = do
   interval <- elInf primInterval
@@ -816,14 +863,14 @@ defineHCompForFields applyProj name params fsT fns rect = do
   reportSLn "hcomp.rec" 5 $ ("Generated name: " ++ show theName ++ " " ++ showQNameId theName)
 
   theType <- (abstract delta <$>) $ runNamesT [] $ do
-              rect <- open rect
+              rect <- open $ fromLType rect
               nPi' "phi" (elInf $ cl primInterval) $ \ phi ->
                (nPi' "i" (elInf $ cl primInterval) $ \ i ->
                 pPi' "o" phi $ \ _ -> rect) -->
                rect --> rect
 
   reportSDoc "hcomp.rec" 20 $ prettyTCM theType
-  reportSDoc "hcomp.rec" 60 $ text $ "sort = " ++ show (getSort rect)
+  reportSDoc "hcomp.rec" 60 $ text $ "sort = " ++ show (lTypeLevel rect)
 
   noMutualBlock $ addConstant theName $ (defaultDefn defaultArgInfo theName theType
     (emptyFunction { funTerminates = Just True }))
@@ -835,7 +882,7 @@ defineHCompForFields applyProj name params fsT fns rect = do
   let -- Γ ⊢ R δ
       drect_gamma = raiseS (size gamma - size delta) `applySubst` rect
 
-  reportSDoc "hcomp.rec" 60 $ text $ "sort = " ++ show (getSort drect_gamma)
+  reportSDoc "hcomp.rec" 60 $ text $ "sort = " ++ show (lTypeLevel drect_gamma)
 
   let
 
@@ -851,8 +898,8 @@ defineHCompForFields applyProj name params fsT fns rect = do
 
       -- ' (δ, φ, u, u0) : Γ ⊢ fillR Γ : (i : I) → rtype[ δ ↦ (\ j → δ (i ∧ j))]
       fillTerm = runNames [] $ do
-        rect <- open                           $ unEl    drect_gamma
-        lvl  <- open . (\ (Type l) -> Level l) $ getSort drect_gamma
+        rect <- open . unEl  . fromLType  $ drect_gamma
+        lvl  <- open . Level . lTypeLevel $ drect_gamma
         params     <- mapM open $ take (size delta) $ teleArgs gamma
         [phi,w,w0] <- mapM open [the_phi,the_u,the_u0]
         -- (δ : Δ, φ : I, w : .., w0 : R δ) ⊢
@@ -903,9 +950,9 @@ defineHCompForFields applyProj name params fsT fns rect = do
       mkBody (fname, filled_ty') = do
         let
           proj t = (`applyProj` unArg fname) <$> t
-          filled_ty = Lam defaultArgInfo (Abs "i" $ (unEl . unDom) filled_ty')
+          filled_ty = Lam defaultArgInfo (Abs "i" $ (unEl . fromLType . unDom) filled_ty')
           -- Γ ⊢ l : I -> Level of filled_ty
-        Type l <- reduce $ getSort $ unDom filled_ty'
+        l <- reduce $ lTypeLevel $ unDom filled_ty'
         let lvl = Lam defaultArgInfo (Abs "i" $ Level l)
         return $ runNames [] $ do
              lvl <- open lvl
@@ -918,10 +965,10 @@ defineHCompForFields applyProj name params fsT fns rect = do
                   (lam "i" $ \ i -> lam "o" $ \ o -> proj $ w <@> i <@> o) -- TODO wait for phi = 1
                   (proj w0)
 
-  reportSDoc "hcomp.rec" 60 $ text $ "filled_types sorts:" ++ show (map (getSort . unDom) filled_types)
+  reportSDoc "hcomp.rec" 60 $ text $ "filled_types sorts:" ++ show (map (getSort . fromLType . unDom) filled_types)
 
   bodys <- mapM mkBody (zip fns filled_types)
-  return $ ((theName, gamma, rtype, clause_types, bodys),IdS)
+  return $ ((theName, gamma, rtype, map (fmap fromLType) clause_types, bodys),IdS)
 
 
 getGeneralizedParameters :: Set Name -> QName -> TCM [Maybe Name]
@@ -1177,4 +1224,4 @@ isCoinductive t = do
     Sort  {} -> return (Just False)
     MetaV {} -> return Nothing
     DontCare{} -> __IMPOSSIBLE__
-    Dummy s    -> __IMPOSSIBLE_VERBOSE__ s
+    Dummy s _  -> __IMPOSSIBLE_VERBOSE__ s

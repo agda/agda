@@ -1,5 +1,3 @@
-{-# LANGUAGE CPP                        #-}
-{-# LANGUAGE ScopedTypeVariables        #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 -- | The monad for the termination checker.
@@ -14,9 +12,7 @@ import Prelude hiding (null)
 
 import Control.Applicative hiding (empty)
 
-#if __GLASGOW_HASKELL__ >= 800
 import qualified Control.Monad.Fail as Fail
-#endif
 
 import Control.Monad.Reader
 import Control.Monad.State
@@ -42,7 +38,7 @@ import Agda.Termination.RecCheck (anyDefs)
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Benchmark
 import Agda.TypeChecking.Monad.Builtin
-import Agda.TypeChecking.Pretty hiding ((<>))
+import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
@@ -60,7 +56,6 @@ import qualified Agda.Utils.Pretty as P
 import Agda.Utils.VarSet (VarSet)
 import qualified Agda.Utils.VarSet as VarSet
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | The mutual block we are checking.
@@ -150,10 +145,7 @@ data TerEnv = TerEnv
 --   of these values.
 --
 --   Values that do not have a safe default are set to
---   @IMPOSSIBLE@.
-
---   Note: Do not write @__IMPOSSIBLE__@ in the haddock comment above
---   since it will be expanded by the CPP, leading to a haddock parse error.
+--   @__IMPOSSIBLE__@.
 
 defaultTerEnv :: TerEnv
 defaultTerEnv = TerEnv
@@ -193,12 +185,11 @@ newtype TerM a = TerM { terM :: ReaderT TerEnv TCM a }
   deriving ( Functor
            , Applicative
            , Monad
-#if __GLASGOW_HASKELL__ >= 800
            , Fail.MonadFail
-#endif
            , MonadError TCErr
            , MonadBench Phase
            , HasOptions
+           , HasBuiltins
            , MonadDebug
            , HasConstInfo
            , MonadIO
@@ -207,6 +198,7 @@ newtype TerM a = TerM { terM :: ReaderT TerEnv TCM a }
            , MonadTCM
            , ReadTCState
            , MonadReduce
+           , MonadAddContext
            )
 
 instance MonadTer TerM where

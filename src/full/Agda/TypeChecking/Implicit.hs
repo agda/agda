@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 {-# LANGUAGE PatternSynonyms #-}
 
 {-| Functions for inserting implicit arguments at the right places.
@@ -21,7 +20,6 @@ import Agda.TypeChecking.Pretty
 import Agda.Utils.Tuple
 import Agda.Utils.Maybe
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | @implicitArgs n expand t@ generates up to @n@ implicit arguments
@@ -29,10 +27,11 @@ import Agda.Utils.Impossible
 --   and @expand@ holds on the hiding info of its domain.
 
 implicitArgs
-  :: Int               -- ^ @n@, the maximum number of implicts to be inserted.
+  :: (MonadReduce m, MonadMetaSolver m, MonadDebug m)
+  => Int               -- ^ @n@, the maximum number of implicts to be inserted.
   -> (Hiding -> Bool)  -- ^ @expand@, the predicate to test whether we should keep inserting.
   -> Type              -- ^ The (function) type @t@ we are eliminating.
-  -> TCM (Args, Type)  -- ^ The eliminating arguments and the remaining type.
+  -> m (Args, Type)  -- ^ The eliminating arguments and the remaining type.
 implicitArgs n expand t = mapFst (map (fmap namedThing)) <$> do
   implicitNamedArgs n (\ h x -> expand h) t
 
@@ -41,10 +40,11 @@ implicitArgs n expand t = mapFst (map (fmap namedThing)) <$> do
 --   and @expand@ holds on the hiding and name info of its domain.
 
 implicitNamedArgs
-  :: Int                          -- ^ @n@, the maximum number of implicts to be inserted.
+  :: (MonadReduce m, MonadMetaSolver m, MonadDebug m)
+  => Int                          -- ^ @n@, the maximum number of implicts to be inserted.
   -> (Hiding -> ArgName -> Bool)  -- ^ @expand@, the predicate to test whether we should keep inserting.
   -> Type                         -- ^ The (function) type @t@ we are eliminating.
-  -> TCM (NamedArgs, Type)        -- ^ The eliminating arguments and the remaining type.
+  -> m (NamedArgs, Type)        -- ^ The eliminating arguments and the remaining type.
 implicitNamedArgs 0 expand t0 = return ([], t0)
 implicitNamedArgs n expand t0 = do
     t0' <- reduce t0
@@ -71,15 +71,16 @@ implicitNamedArgs n expand t0 = do
 -- | Create a metavariable according to the 'Hiding' info.
 
 newMetaArg
-  :: ArgInfo   -- ^ Kind/relevance of meta.
+  :: MonadMetaSolver m
+  => ArgInfo   -- ^ Kind/relevance of meta.
   -> ArgName   -- ^ Name suggestion for meta.
   -> Type      -- ^ Type of meta.
-  -> TCM (MetaId, Term)  -- ^ The created meta as id and as term.
+  -> m (MetaId, Term)  -- ^ The created meta as id and as term.
 newMetaArg info x a = do
   applyModalityToContext info $
     newMeta (getHiding info) (argNameToString x) a
   where
-    newMeta :: Hiding -> String -> Type -> TCM (MetaId, Term)
+    newMeta :: MonadMetaSolver m => Hiding -> String -> Type -> m (MetaId, Term)
     newMeta Instance{} = newInstanceMeta
     newMeta Hidden     = newNamedValueMeta RunMetaOccursCheck
     newMeta NotHidden  = newNamedValueMeta RunMetaOccursCheck

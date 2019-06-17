@@ -1,5 +1,4 @@
 {-# LANGUAGE BangPatterns               #-}
-{-# LANGUAGE CPP                        #-}
 {-# LANGUAGE DeriveDataTypeable         #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
@@ -10,9 +9,7 @@ import Prelude hiding (null)
 import qualified Control.Concurrent as C
 import qualified Control.Exception as E
 
-#if __GLASGOW_HASKELL__ >= 800
 import qualified Control.Monad.Fail as Fail
-#endif
 
 import Control.Monad.State
 import Control.Monad.Reader
@@ -71,7 +68,12 @@ import Agda.TypeChecking.Free.Lazy (Free(freeVars'), bind', bind)
 
 import Agda.Termination.CutOff
 
-import {-# SOURCE #-} Agda.Compiler.Backend
+-- Args, defined in Agda.Syntax.Treeless and exported from Agda.Compiler.Backend
+-- conflicts with Args, defined in Agda.Syntax.Internal and also imported here.
+-- This only matters when interpreted in ghci, which sees all of the module's
+-- exported symbols, not just the ones defined in the `.hs-boot`. See the
+-- comment in ../../Compiler/Backend.hs-boot
+import {-# SOURCE #-} Agda.Compiler.Backend hiding (Args)
 
 -- import {-# SOURCE #-} Agda.Interaction.FindFile
 import Agda.Interaction.Options
@@ -102,14 +104,12 @@ import Agda.Utils.Monad
 import Agda.Utils.NonemptyList
 import Agda.Utils.Null
 import Agda.Utils.Permutation
-import Agda.Utils.Pretty hiding ((<>))
-import qualified Agda.Utils.Pretty as P
+import Agda.Utils.Pretty
 import Agda.Utils.Singleton
 import Agda.Utils.Functor
 import Agda.Utils.Function
 import Agda.Utils.WithDefault ( collapseDefault )
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 ---------------------------------------------------------------------------
@@ -127,31 +127,34 @@ data TCState = TCSt
 
 class Monad m => ReadTCState m where
   getTCState :: m TCState
+  locallyTCState :: Lens' a TCState -> (a -> a) -> m b -> m b
+
   withTCState :: (TCState -> TCState) -> m a -> m a
+  withTCState = locallyTCState id
 
 instance ReadTCState m => ReadTCState (MaybeT m) where
   getTCState = lift getTCState
-  withTCState = mapMaybeT . withTCState
+  locallyTCState l = mapMaybeT . locallyTCState l
 
 instance ReadTCState m => ReadTCState (ListT m) where
   getTCState = lift getTCState
-  withTCState f = ListT . withTCState f . runListT
+  locallyTCState l f = ListT . locallyTCState l f . runListT
 
 instance ReadTCState m => ReadTCState (ExceptT err m) where
   getTCState = lift getTCState
-  withTCState = mapExceptT . withTCState
+  locallyTCState l = mapExceptT . locallyTCState l
 
 instance ReadTCState m => ReadTCState (ReaderT r m) where
   getTCState = lift getTCState
-  withTCState = mapReaderT . withTCState
+  locallyTCState l = mapReaderT . locallyTCState l
 
 instance (Monoid w, ReadTCState m) => ReadTCState (WriterT w m) where
   getTCState = lift getTCState
-  withTCState = mapWriterT . withTCState
+  locallyTCState l = mapWriterT . locallyTCState l
 
 instance ReadTCState m => ReadTCState (StateT s m) where
   getTCState = lift getTCState
-  withTCState = mapStateT . withTCState
+  locallyTCState l = mapStateT . locallyTCState l
 
 instance Show TCState where
   show _ = "TCSt{}"
@@ -160,7 +163,7 @@ data PreScopeState = PreScopeState
   { stPreTokens             :: !CompressedFile -- from lexer
     -- ^ Highlighting info for tokens (but not those tokens for
     -- which highlighting exists in 'stSyntaxInfo').
-  , stPreImports            :: !Signature  -- XX populated by scopec hecker
+  , stPreImports            :: !Signature  -- XX populated by scope checker
     -- ^ Imported declared identifiers.
     --   Those most not be serialized!
   , stPreImportedModules    :: !(Set ModuleName)  -- imports logic
@@ -189,9 +192,13 @@ data PreScopeState = PreScopeState
     -- ^ Imported @UserWarning@s, not to be stored in the @Interface@
   , stPreLocalUserWarnings    :: !(Map A.QName String)
     -- ^ Locally defined @UserWarning@s, to be stored in the @Interface@
+  , stPreWarningOnImport      :: !(Maybe String)
+    -- ^ Whether the current module should raise a warning when opened
   }
 
 type DisambiguatedNames = IntMap A.QName
+
+type ConcreteNames = Map Name [C.Name]
 
 data PostScopeState = PostScopeState
   { stPostSyntaxInfo          :: !CompressedFile
@@ -224,7 +231,7 @@ data PostScopeState = PostScopeState
     -- ^ The current module is available after it has been type
     -- checked.
   , stPostInstanceDefs        :: !TempInstanceTable
-  , stPostConcreteNames       :: !(Map Name [C.Name])
+  , stPostConcreteNames       :: !ConcreteNames
     -- ^ Map keeping track of concrete names assigned to each abstract name
     --   (can be more than one name in case the first one is shadowed)
   , stPostShadowingNames      :: !(Map Name [Name])
@@ -244,6 +251,10 @@ data PostScopeState = PostScopeState
   , stPostFreshNameId         :: !NameId
   , stPostAreWeCaching        :: !Bool
   , stPostConsideringInstance :: !Bool
+  , stPostInstantiateBlocking :: !Bool
+    -- ^ Should we instantiate away blocking metas?
+    --   This can produce ill-typed terms but they are often more readable. See issue #3606.
+    --   Best set to True only for calls to pretty*/reify to limit unwanted reductions.
   }
 
 -- | A mutual block of names in the signature.
@@ -342,6 +353,7 @@ initPreScopeState = PreScopeState
   , stPreFreshInteractionId   = 0
   , stPreImportedUserWarnings = Map.empty
   , stPreLocalUserWarnings    = Map.empty
+  , stPreWarningOnImport      = Nothing
   }
 
 initPostScopeState :: PostScopeState
@@ -373,6 +385,7 @@ initPostScopeState = PostScopeState
   , stPostFreshNameId           = NameId 0 0
   , stPostAreWeCaching         = False
   , stPostConsideringInstance  = False
+  , stPostInstantiateBlocking  = False
   }
 
 initState :: TCState
@@ -460,11 +473,16 @@ stLocalUserWarnings f s =
   f (stPreLocalUserWarnings (stPreScopeState s)) <&>
   \ x -> s {stPreScopeState = (stPreScopeState s) {stPreLocalUserWarnings = x}}
 
-getUserWarnings :: MonadTCState m => m (Map A.QName String)
+getUserWarnings :: ReadTCState m => m (Map A.QName String)
 getUserWarnings = do
-  iuw <- useTC stImportedUserWarnings
-  luw <- useTC stLocalUserWarnings
+  iuw <- useR stImportedUserWarnings
+  luw <- useR stLocalUserWarnings
   return $ iuw `Map.union` luw
+
+stWarningOnImport :: Lens' (Maybe String) TCState
+stWarningOnImport f s =
+  f (stPreWarningOnImport (stPreScopeState s)) <&>
+  \ x -> s {stPreScopeState = (stPreScopeState s) {stPreWarningOnImport = x}}
 
 stBackends :: Lens' [Backend] TCState
 stBackends f s =
@@ -551,7 +569,7 @@ stInstanceDefs f s =
   f (stPostInstanceDefs (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostInstanceDefs = x}}
 
-stConcreteNames :: Lens' (Map Name [C.Name]) TCState
+stConcreteNames :: Lens' ConcreteNames TCState
 stConcreteNames f s =
   f (stPostConcreteNames (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostConcreteNames = x}}
@@ -617,6 +635,11 @@ stConsideringInstance f s =
   f (stPostConsideringInstance (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostConsideringInstance = x}}
 
+stInstantiateBlocking :: Lens' Bool TCState
+stInstantiateBlocking f s =
+  f (stPostInstantiateBlocking (stPostScopeState s)) <&>
+  \x -> s {stPostScopeState = (stPostScopeState s) {stPostInstantiateBlocking = x}}
+
 stBuiltinThings :: TCState -> BuiltinThings PrimFun
 stBuiltinThings s = (s^.stLocalBuiltins) `Map.union` (s^.stImportedBuiltins)
 
@@ -634,9 +657,18 @@ nextFresh s =
   let !c = s^.freshLens
   in (c, set freshLens (nextFresh' c) s)
 
-fresh :: (HasFresh i, MonadTCState m) => m i
-fresh =
-    do  !s <- getTC
+class Monad m => MonadFresh i m where
+  fresh :: m i
+
+instance MonadFresh i m => MonadFresh i (ReaderT r m) where
+  fresh = lift fresh
+
+instance MonadFresh i m => MonadFresh i (StateT s m) where
+  fresh = lift fresh
+
+instance HasFresh i => MonadFresh i TCM where
+  fresh = do
+        !s <- getTC
         let (!c , !s') = nextFresh s
         putTC s'
         return c
@@ -691,27 +723,27 @@ instance Pretty CheckpointId where
 instance HasFresh CheckpointId where
   freshLens = stFreshCheckpointId
 
-freshName :: MonadTCState m => Range -> String -> m Name
+freshName :: MonadFresh NameId m => Range -> String -> m Name
 freshName r s = do
   i <- fresh
   return $ mkName r i s
 
-freshNoName :: MonadTCState m => Range -> m Name
+freshNoName :: MonadFresh NameId m => Range -> m Name
 freshNoName r =
     do  i <- fresh
         return $ Name i (C.NoName noRange i) r noFixity' False
 
-freshNoName_ :: MonadTCState m => m Name
+freshNoName_ :: MonadFresh NameId m => m Name
 freshNoName_ = freshNoName noRange
 
-freshRecordName :: MonadTCState m => m Name
+freshRecordName :: MonadFresh NameId m => m Name
 freshRecordName = do
   i <- fresh
   return $ Name i (C.Name noRange C.NotInScope [C.Id "r"]) noRange noFixity' True
 
 -- | Create a fresh name from @a@.
 class FreshName a where
-  freshName_ :: MonadTCState m => a -> m Name
+  freshName_ :: MonadFresh NameId m => a -> m Name
 
 instance FreshName (Range, String) where
   freshName_ = uncurry freshName
@@ -757,9 +789,38 @@ sourceToModule =
 --
 --   O(n).
 
-lookupModuleFromSource :: AbsolutePath -> TCM (Maybe TopLevelModuleName)
+lookupModuleFromSource :: ReadTCState m => AbsolutePath -> m (Maybe TopLevelModuleName)
 lookupModuleFromSource f =
-  fmap fst . List.find ((f ==) . snd) . Map.toList <$> useTC stModuleToSource
+  fmap fst . List.find ((f ==) . snd) . Map.toList <$> useR stModuleToSource
+
+
+---------------------------------------------------------------------------
+-- ** Associating concrete names to an abstract name
+---------------------------------------------------------------------------
+
+-- | A monad that has read and write access to the stConcreteNames
+--   part of the TCState. Basically, this is a synonym for `MonadState
+--   ConcreteNames m` (which cannot be used directly because of the
+--   limitations of Haskell's typeclass system).
+class Monad m => MonadStConcreteNames m where
+  runStConcreteNames :: StateT ConcreteNames m a -> m a
+
+  useConcreteNames :: m ConcreteNames
+  useConcreteNames = runStConcreteNames get
+
+  modifyConcreteNames :: (ConcreteNames -> ConcreteNames) -> m ()
+  modifyConcreteNames = runStConcreteNames . modify
+
+instance MonadStConcreteNames TCM where
+  runStConcreteNames m = stateTCLensM stConcreteNames $ runStateT m
+
+instance MonadStConcreteNames m => MonadStConcreteNames (ReaderT r m) where
+  runStConcreteNames m = ReaderT $ runStConcreteNames . StateT . (flip $ runReaderT . runStateT m)
+
+instance MonadStConcreteNames m => MonadStConcreteNames (StateT s m) where
+  runStConcreteNames m = StateT $ \s -> runStConcreteNames $ StateT $ \ns -> do
+    ((x,ns'),s') <- runStateT (runStateT m ns) s
+    return ((x,s'),ns')
 
 ---------------------------------------------------------------------------
 -- ** Interface
@@ -814,6 +875,8 @@ data Interface = Interface
     -- ^ Display forms added for imported identifiers.
   , iUserWarnings    :: Map A.QName String
     -- ^ User warnings for imported identifiers
+  , iImportWarning   :: Maybe String
+    -- ^ Whether this module should raise a warning when imported
   , iBuiltin         :: BuiltinThings (String, QName)
   , iForeignCode     :: Map BackendName [ForeignCode]
   , iHighlighting    :: HighlightingInfo
@@ -830,8 +893,9 @@ data Interface = Interface
 instance Pretty Interface where
   pretty (Interface
             sourceH source fileT importedM moduleN scope insideS signature
-            display userwarn builtin foreignCode highlighting pragmaO
+            display userwarn importwarn builtin foreignCode highlighting pragmaO
             oUsed patternS warnings) =
+
     hang "Interface" 2 $ vcat
       [ "source hash:"         <+> (pretty . show) sourceH
       , "source:"              $$  nest 2 (text $ T.unpack source)
@@ -843,6 +907,7 @@ instance Pretty Interface where
       , "signature:"           <+> (pretty . show) signature
       , "display:"             <+> (pretty . show) display
       , "user warnings:"       <+> (pretty . show) userwarn
+      , "import warning:"      <+> (pretty . show) importwarn
       , "builtin:"             <+> (pretty . show) builtin
       , "Foreign code:"        <+> (pretty . show) foreignCode
       , "highlighting:"        <+> (pretty . show) highlighting
@@ -875,12 +940,12 @@ instance Show a => Show (Closure a) where
 instance HasRange a => HasRange (Closure a) where
     getRange = getRange . clValue
 
-buildClosure :: a -> TCM (Closure a)
+buildClosure :: (MonadTCEnv m, ReadTCState m) => a -> m (Closure a)
 buildClosure x = do
     env   <- askTC
-    sig   <- useTC stSignature
-    scope <- useTC stScope
-    cps   <- useTC stModuleCheckpoints
+    sig   <- useR stSignature
+    scope <- useR stScope
+    cps   <- useR stModuleCheckpoints
     return $ Closure sig env scope cps x
 
 ---------------------------------------------------------------------------
@@ -1073,6 +1138,7 @@ data MetaVariable =
                 , mvInstantiation :: MetaInstantiation
                 , mvListeners     :: Set Listener -- ^ meta variables scheduled for eta-expansion but blocked by this one
                 , mvFrozen        :: Frozen -- ^ are we past the point where we can instantiate this meta variable?
+                , mvTwin          :: Maybe MetaId -- ^ @Just m@ means this meta will be equated to @m@ when the latter is unblocked. See @blockedTermOnProblem@.
                 }
 
 data Listener = EtaExpand MetaId
@@ -1361,7 +1427,7 @@ instance Pretty DisplayTerm where
   prettyPrec p v =
     case v of
       DTerm v          -> prettyPrec p v
-      DDot v           -> "." P.<> prettyPrec 10 v
+      DDot v           -> "." <> prettyPrec 10 v
       DDef f es        -> pretty f `pApp` es
       DCon c _ vs      -> pretty (conName c) `pApp` map Apply vs
       DWithApp h ws es ->
@@ -1385,8 +1451,6 @@ data NLPat
   = PVar !Int [Arg Int]
     -- ^ Matches anything (modulo non-linearity) that only contains bound
     --   variables that occur in the given arguments.
-  | PWild
-    -- ^ Matches anything (e.g. irrelevant terms).
   | PDef QName PElims
     -- ^ Matches @f es@
   | PLam ArgInfo (Abs NLPat)
@@ -1401,7 +1465,7 @@ data NLPat
 type PElims = [Elim' NLPat]
 
 data NLPType = NLPType
-  { nlpTypeLevel :: NLPat  -- always PWild or PVar (with all bound variables in scope)
+  { nlpTypeLevel :: NLPat  -- always PTerm or PVar (with all bound variables in scope)
   , nlpTypeUnEl  :: NLPat
   } deriving (Data, Show)
 
@@ -1484,12 +1548,14 @@ data Definition = Defn
   , defCopy           :: Bool
     -- ^ Has this function been created by a module
                          -- instantiation?
-  , defMatchable      :: Bool
-    -- ^ Is the def matched against in a rewrite rule?
+  , defMatchable      :: Set QName
+    -- ^ The set of symbols with rewrite rules that match against this symbol
   , defNoCompilation  :: Bool
     -- ^ should compilers skip this? Used for e.g. cubical's comp
   , defInjective      :: Bool
     -- ^ Should the def be treated as injective by the pattern matching unifier?
+  , defCopatternLHS   :: Bool
+    -- ^ Is this a function defined by copatterns?
   , theDef            :: Defn
   }
     deriving (Data, Show)
@@ -1519,9 +1585,10 @@ defaultDefn info x t def = Defn
   , defCompiledRep    = noCompiledRep
   , defInstance       = Nothing
   , defCopy           = False
-  , defMatchable      = False
+  , defMatchable      = Set.empty
   , defNoCompilation  = False
   , defInjective      = False
+  , defCopatternLHS   = False
   , theDef            = def
   }
 
@@ -1718,8 +1785,6 @@ data Defn = Axiom -- ^ Postulate
             , funWith           :: Maybe QName
               -- ^ Is this a generated with-function? If yes, then what's the
               --   name of the parent function.
-            , funCopatternLHS   :: Bool
-              -- ^ Is this a function defined by copatterns?
             }
           | Datatype
             { dataPars           :: Nat            -- ^ Number of parameters.
@@ -1808,8 +1873,9 @@ instance Pretty Definition where
       , "defCompiledRep    =" <?> pshow defCompiledRep
       , "defInstance       =" <?> pshow defInstance
       , "defCopy           =" <?> pshow defCopy
-      , "defMatchable      =" <?> pshow defMatchable
+      , "defMatchable      =" <?> pshow (Set.toList defMatchable)
       , "defInjective      =" <?> pshow defInjective
+      , "defCopatternLHS   =" <?> pshow defCopatternLHS
       , "theDef            =" <?> pretty theDef ] <+> "}"
 
 instance Pretty Defn where
@@ -1830,8 +1896,7 @@ instance Pretty Defn where
       , "funProjection   =" <?> pshow funProjection
       , "funFlags        =" <?> pshow funFlags
       , "funTerminates   =" <?> pshow funTerminates
-      , "funWith         =" <?> pshow funWith
-      , "funCopatternLHS =" <?> pshow funCopatternLHS ] <?> "}"
+      , "funWith         =" <?> pshow funWith ] <?> "}"
   pretty Datatype{..} =
     "Datatype {" <?> vcat
       [ "dataPars       =" <?> pshow dataPars
@@ -1895,7 +1960,6 @@ emptyFunction = Function
   , funTerminates  = Nothing
   , funExtLam      = Nothing
   , funWith        = Nothing
-  , funCopatternLHS = False
   , funCovering    = []
   }
 
@@ -1966,8 +2030,23 @@ instance Monoid Simplification where
   mempty = NoSimplification
   mappend = (<>)
 
-data Reduced no yes = NoReduction no | YesReduction Simplification yes
-    deriving Functor
+data Reduced no yes
+  = NoReduction no
+  | YesReduction Simplification yes
+  deriving Functor
+
+redReturn :: a -> ReduceM (Reduced a' a)
+redReturn = return . YesReduction YesSimplification
+
+-- | Conceptually: @redBind m f k = either (return . Left . f) k =<< m@
+
+redBind :: ReduceM (Reduced a a') -> (a -> b) ->
+           (a' -> ReduceM (Reduced b b')) -> ReduceM (Reduced b b')
+redBind ma f k = do
+  r <- ma
+  case r of
+    NoReduction x    -> return $ NoReduction $ f x
+    YesReduction _ y -> k y
 
 -- | Three cases: 1. not reduced, 2. reduced, but blocked, 3. reduced, not blocked.
 data IsReduced
@@ -2004,6 +2083,9 @@ data AllowedReduction
   | FunctionReductions       -- ^ Non-recursive functions and primitives may be reduced.
   | RecursiveReductions      -- ^ Even recursive functions may be reduced.
   | LevelReductions          -- ^ Reduce @'Level'@ terms.
+  | TypeLevelReductions      -- ^ Allow @allReductions@ in types, even
+                             --   if not allowed at term level (used
+                             --   by confluence checker)
   | UnconfirmedReductions    -- ^ Functions whose termination has not (yet) been confirmed.
   | NonTerminatingReductions -- ^ Functions that have failed termination checking.
   deriving (Show, Eq, Ord, Enum, Bounded, Data)
@@ -2014,11 +2096,16 @@ type AllowedReductions = [AllowedReduction]
 allReductions :: AllowedReductions
 allReductions = [minBound..pred maxBound]
 
+
+-- | Primitives
+
+data PrimitiveImpl = PrimImpl Type PrimFun
+
 data PrimFun = PrimFun
-        { primFunName           :: QName
-        , primFunArity          :: Arity
-        , primFunImplementation :: [Arg Term] -> Int -> ReduceM (Reduced MaybeReducedArgs Term)
-        }
+  { primFunName           :: QName
+  , primFunArity          :: Arity
+  , primFunImplementation :: [Arg Term] -> Int -> ReduceM (Reduced MaybeReducedArgs Term)
+  }
 
 primFun :: QName -> Arity -> ([Arg Term] -> ReduceM (Reduced MaybeReducedArgs Term)) -> PrimFun
 primFun q ar imp = PrimFun q ar (\ args _ -> imp args)
@@ -2155,6 +2242,7 @@ data Call = CheckClause Type A.SpineClause
           | CheckPragma Range A.Pragma
           | CheckPrimitive Range QName A.Expr
           | CheckIsEmpty Range Type
+          | CheckConfluence QName QName
           | CheckWithFunctionType Type
           | CheckSectionApplication Range ModuleName A.ModuleApplication
           | CheckNamedWhere ModuleName
@@ -2196,6 +2284,7 @@ instance Pretty Call where
     pretty SetRange{}                = "SetRange"
     pretty CheckSectionApplication{} = "CheckSectionApplication"
     pretty CheckIsEmpty{}            = "CheckIsEmpty"
+    pretty CheckConfluence{}         = "CheckConfluence"
     pretty NoHighlighting{}          = "NoHighlighting"
     pretty ModuleContents{}          = "ModuleContents"
 
@@ -2229,6 +2318,7 @@ instance HasRange Call where
     getRange (SetRange r)                    = r
     getRange (CheckSectionApplication r _ _) = r
     getRange (CheckIsEmpty r _)              = r
+    getRange (CheckConfluence rule1 rule2)   = max (getRange rule1) (getRange rule2)
     getRange NoHighlighting                  = noRange
     getRange ModuleContents                  = noRange
 
@@ -2401,9 +2491,13 @@ data TCEnv =
                 --   (#431, #3067). Keep a limit on the nesting depth of injectivity
                 --   uses.
           , envCompareBlocked :: Bool
-                -- ^ Can we compare blocked things during conversion?
-                --   No by default.
-                --   Yes for rewriting feature.
+                -- ^ When @True@, the conversion checker will consider
+                --   all term constructors as injective, including
+                --   blocked function applications and metas. Warning:
+                --   this should only be used when not assigning any
+                --   metas (e.g. when @envAssignMetas@ is @False@ or
+                --   when running @pureEqualTerms@) or else we get
+                --   non-unique meta solutions.
           , envPrintDomainFreePi :: Bool
                 -- ^ When @True@, types will be omitted from printed pi types if they
                 --   can be inferred.
@@ -2440,6 +2534,11 @@ data TCEnv =
           , envCheckOptionConsistency :: Bool
                 -- ^ Do we check that options in imported files are
                 --   consistent with each other?
+          , envActiveBackendName :: Maybe BackendName
+                -- ^ Is some backend active at the moment, and if yes, which?
+                --   NB: we only store the 'BackendName' here, otherwise
+                --   @instance Data TCEnv@ is not derivable.
+                --   The actual backend can be obtained from the name via 'stBackends'.
           }
     deriving Data
 
@@ -2494,6 +2593,7 @@ initEnv = TCEnv { envContext             = []
                 , envGeneralizeMetas        = NoGeneralize
                 , envGeneralizedVars        = Map.empty
                 , envCheckOptionConsistency = True
+                , envActiveBackendName      = Nothing
                 }
 
 -- | Project 'Relevance' component of 'TCEnv'.
@@ -2640,6 +2740,9 @@ eGeneralizeMetas f e = f (envGeneralizeMetas e) <&> \ x -> e { envGeneralizeMeta
 eGeneralizedVars :: Lens' (Map QName GeneralizedValue) TCEnv
 eGeneralizedVars f e = f (envGeneralizedVars e) <&> \ x -> e { envGeneralizedVars = x }
 
+eActiveBackendName :: Lens' (Maybe BackendName) TCEnv
+eActiveBackendName f e = f (envActiveBackendName e) <&> \ x -> e { envActiveBackendName = x }
+
 ---------------------------------------------------------------------------
 -- ** Context
 ---------------------------------------------------------------------------
@@ -2767,6 +2870,14 @@ data Warning
     -- ^ Importing a file using an infective option into one which doesn't
   | CoInfectiveImport String ModuleName
     -- ^ Importing a file not using a coinfective option from one which does
+  | RewriteNonConfluent Term Term Term Doc
+    -- ^ Confluence checker found critical pair and equality checking
+    --   resulted in a type error
+  | RewriteMaybeNonConfluent Term Term [Doc]
+    -- ^ Confluence checker got stuck on computing overlap between two
+    --   rewrite rules
+  | PragmaCompileErased BackendName QName
+    -- ^ COMPILE directive for an erased symbol
   deriving (Show , Data)
 
 
@@ -2813,7 +2924,9 @@ warningName w = case w of
   UserWarning{}                -> UserWarning_
   InfectiveImport{}            -> InfectiveImport_
   CoInfectiveImport{}          -> CoInfectiveImport_
-
+  RewriteNonConfluent{}        -> RewriteNonConfluent_
+  RewriteMaybeNonConfluent{}   -> RewriteMaybeNonConfluent_
+  PragmaCompileErased{}        -> PragmaCompileErased_
 
 data TCWarning
   = TCWarning
@@ -3046,8 +3159,8 @@ data TypeError
         | BuiltinInParameterisedModule String
         | IllegalLetInTelescope C.TypedBinding
         | NoRHSRequiresAbsurdPattern [NamedArg A.Pattern]
-        | TooFewFields QName [C.Name]
-        | TooManyFields QName [C.Name]
+        | TooManyFields QName [C.Name] [C.Name]
+          -- ^ Record type, fields not supplied by user, non-fields not supplied.
         | DuplicateFields [C.Name]
         | DuplicateConstructors [C.Name]
         | WithOnFreeVariable A.Expr Term
@@ -3288,16 +3401,14 @@ instance Monad ReduceM where
   return = pure
   (>>=) = bindReduce
   (>>) = (*>)
-#if __GLASGOW_HASKELL__ >= 800
   fail = Fail.fail
 
 instance Fail.MonadFail ReduceM where
   fail = error
-#endif
 
 instance ReadTCState ReduceM where
   getTCState = ReduceM redSt
-  withTCState f = onReduceEnv $ mapRedSt f
+  locallyTCState l f = onReduceEnv $ mapRedSt $ over l f
 
 runReduceM :: ReduceM a -> TCM a
 runReduceM m = do
@@ -3316,7 +3427,9 @@ instance MonadTCEnv ReduceM where
   localTC = onReduceEnv . mapRedEnv
 
 useR :: (ReadTCState m) => Lens' a TCState -> m a
-useR l = (^.l) <$> getTCState
+useR l = do
+  !x <- (^.l) <$> getTCState
+  return x
 
 askR :: ReduceM ReduceEnv
 askR = ReduceM ask
@@ -3486,15 +3599,17 @@ modifyTCLens l = modifyTC . over l
 modifyTCLensM :: MonadTCState m => Lens' a TCState -> (a -> m a) -> m ()
 modifyTCLensM l f = putTC =<< l f =<< getTC
 
--- | Modify the lens-indicated part of the 'TCState' locally.
-locallyTCState :: MonadTCState m => Lens' a TCState -> (a -> a) -> m b -> m b
-locallyTCState l f k = do
-  old <- useTC l
-  modifyTCLens l f
-  x <- k
-  setTCLens l old
-  return x
+-- | Modify the part of the 'TCState' focused on by the lens, and return some result.
+stateTCLens :: MonadTCState m => Lens' a TCState -> (a -> (r , a)) -> m r
+stateTCLens l f = stateTCLensM l $ return . f
 
+-- | Modify a part of the state monadically, and return some result.
+stateTCLensM :: MonadTCState m => Lens' a TCState -> (a -> m (r , a)) -> m r
+stateTCLensM l f = do
+  s <- getTC
+  (result , x) <- f $ s ^. l
+  putTC $ set l x s
+  return result
 
 ---------------------------------------------------------------------------
 -- * Type checking monad transformer
@@ -3523,7 +3638,7 @@ class ( Applicative tcm, MonadIO tcm
 
 instance MonadIO m => ReadTCState (TCMT m) where
   getTCState = getTC
-  withTCState f m = __IMPOSSIBLE__ -- should probably not be used
+  locallyTCState l f = bracket_ (useTC l <* modifyTCLens l f) (setTCLens l)
 
 instance MonadError TCErr (TCMT IO) where
   throwError = liftIO . E.throwIO
@@ -3612,14 +3727,10 @@ instance MonadIO m => Monad (TCMT m) where
     return = pure
     (>>=)  = bindTCMT
     (>>)   = (*>)
-#if __GLASGOW_HASKELL__ == 710
-    fail   = internalError
-#else
     fail   = Fail.fail
 
 instance MonadIO m => Fail.MonadFail (TCMT m) where
   fail = internalError
-#endif
 
 -- One goal of the definitions and pragmas below is to inline the
 -- monad operations as much as possible. This doesn't seem to have a
@@ -3681,34 +3792,29 @@ instance Null (TCM Doc) where
   empty = return empty
   null = __IMPOSSIBLE__
 
--- | Short-cutting disjunction forms a monoid.
-instance Semigroup (TCM Any) where
-  ma <> mb = Any <$> do (getAny <$> ma) `or2M` (getAny <$> mb)
-
-instance Monoid (TCM Any) where
-  mempty = return mempty
-  mappend = (<>)
-
-patternViolation :: TCM a
+patternViolation :: MonadError TCErr m => m a
 patternViolation = throwError PatternErr
 
 internalError :: MonadTCM tcm => String -> tcm a
-internalError s = typeError $ InternalError s
+internalError s = liftTCM $ typeError $ InternalError s
 
-genericError :: MonadTCM tcm => String -> tcm a
+genericError :: (MonadTCEnv m, ReadTCState m, MonadError TCErr m)
+             => String -> m a
 genericError = typeError . GenericError
 
 {-# SPECIALIZE genericDocError :: Doc -> TCM a #-}
-genericDocError :: MonadTCM tcm => Doc -> tcm a
+genericDocError :: (MonadTCEnv m, ReadTCState m, MonadError TCErr m)
+                => Doc -> m a
 genericDocError = typeError . GenericDocError
 
 {-# SPECIALIZE typeError :: TypeError -> TCM a #-}
-typeError :: MonadTCM tcm => TypeError -> tcm a
-typeError err = liftTCM $ throwError =<< typeError_ err
+typeError :: (MonadTCEnv m, ReadTCState m, MonadError TCErr m)
+          => TypeError -> m a
+typeError err = throwError =<< typeError_ err
 
 {-# SPECIALIZE typeError_ :: TypeError -> TCM TCErr #-}
-typeError_ :: MonadTCM tcm => TypeError -> tcm TCErr
-typeError_ err = liftTCM $ TypeError <$> getTC <*> buildClosure err
+typeError_ :: (MonadTCEnv m, ReadTCState m) => TypeError -> m TCErr
+typeError_ err = TypeError <$> getTCState <*> buildClosure err
 
 -- | Running the type checking monad (most general form).
 {-# SPECIALIZE runTCM :: TCEnv -> TCState -> TCM a -> IO (a, TCState) #-}
@@ -3808,8 +3914,8 @@ instance KillRange Section where
   killRange (Section tel) = killRange1 Section tel
 
 instance KillRange Definition where
-  killRange (Defn ai name t pols occs gens gpars displ mut compiled inst copy ma nc inj def) =
-    killRange16 Defn ai name t pols occs gens gpars displ mut compiled inst copy ma nc inj def
+  killRange (Defn ai name t pols occs gens gpars displ mut compiled inst copy ma nc inj copat def) =
+    killRange17 Defn ai name t pols occs gens gpars displ mut compiled inst copy ma nc inj copat def
     -- TODO clarify: Keep the range in the defName field?
 
 instance KillRange NumGeneralizableArgs where
@@ -3817,7 +3923,6 @@ instance KillRange NumGeneralizableArgs where
 
 instance KillRange NLPat where
   killRange (PVar x y) = killRange2 PVar x y
-  killRange (PWild)    = PWild
   killRange (PDef x y) = killRange2 PDef x y
   killRange (PLam x y) = killRange2 PLam x y
   killRange (PPi x y)  = killRange2 PPi x y
@@ -3857,8 +3962,8 @@ instance KillRange Defn where
       DataOrRecSig n -> DataOrRecSig n
       GeneralizableVar -> GeneralizableVar
       AbstractDefn{} -> __IMPOSSIBLE__ -- only returned by 'getConstInfo'!
-      Function cls comp ct tt covering inv mut isAbs delayed proj flags term extlam with copat ->
-        killRange15 Function cls comp ct tt covering inv mut isAbs delayed proj flags term extlam with copat
+      Function cls comp ct tt covering inv mut isAbs delayed proj flags term extlam with ->
+        killRange14 Function cls comp ct tt covering inv mut isAbs delayed proj flags term extlam with
       Datatype a b c d e f g h i     -> killRange8 Datatype a b c d e f g h i
       Record a b c d e f g h i j k   -> killRange11 Record a b c d e f g h i j k
       Constructor a b c d e f g h i  -> killRange9 Constructor a b c d e f g h i

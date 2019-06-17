@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 
 {-# OPTIONS_GHC -fno-cse #-}
 
@@ -29,7 +28,7 @@ import qualified Data.List as List
 import Data.Maybe
 import Data.Map (Map)
 import qualified Data.Map as Map
-import Data.Monoid
+import Data.Monoid hiding ((<>))
 import Data.Traversable (Traversable)
 import qualified Data.Traversable as Trav
 
@@ -42,6 +41,7 @@ import qualified Agda.TypeChecking.Monad as TM
 import qualified Agda.TypeChecking.Pretty as TCP
 import Agda.TypeChecking.Rules.Term (checkExpr, isType_)
 import Agda.TypeChecking.Errors
+import Agda.TypeChecking.MetaVars.Mention
 
 import Agda.Syntax.Fixity
 import Agda.Syntax.Position
@@ -97,12 +97,11 @@ import Agda.Utils.Maybe
 import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Monad
 import Agda.Utils.Null
-import Agda.Utils.Pretty as P
+import Agda.Utils.Pretty
 import Agda.Utils.String
 import Agda.Utils.Time
 import Agda.Utils.Tuple
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 ------------------------------------------------------------------------
@@ -1376,7 +1375,7 @@ give_gen force ii rng s0 giveRefine = do
     ce        <- lift $ abstractToConcreteScope scope ae
     lift $ reportSLn "interaction.give" 30 $ unlines
       [ "ce = " ++ show ce
-      , "scopePrecedence = " ++ show (scopePrecedence scope)
+      , "scopePrecedence = " ++ show (scope ^. scopePrecedence)
       ]
     -- if the command was @Give@, use the literal user input;
     -- Andreas, 2014-01-15, see issue 1020:
@@ -1463,7 +1462,7 @@ prettyContext norm rev ii = B.withInteractionId ii $ do
       | n == x                 = prettyShow x
       | isInScope n == InScope = prettyShow n ++ " = " ++ prettyShow x
       | otherwise              = prettyShow x
-    prettyCtxType e nis = ":" <+> (e P.<> notInScopeMarker nis)
+    prettyCtxType e nis = ":" <+> (e <> notInScopeMarker nis)
     notInScopeMarker nis = case isInScope nis of
       C.InScope    -> ""
       C.NotInScope -> "  (not in scope)"
@@ -1485,12 +1484,18 @@ cmd_goal_type_context_and doc norm ii _ _ = display_info . Info_GoalType =<< do
   lift $ do
     goal <- B.withInteractionId ii $ prettyTypeOfMeta norm ii
     ctx  <- prettyContext norm True ii
-    return $ vcat
+    m    <- lookupInteractionId ii
+    constr <- vcat . map pretty <$> B.getConstraintsMentioning m
+    let constrDoc = ifNull constr [] $ \constr ->
+          [ text $ delimiter "Constraints"
+          , constr
+          ]
+    return $ vcat $
       [ "Goal:" <+> goal
       , doc
       , text (replicate 60 '\x2014')
       , ctx
-      ]
+      ] ++ constrDoc
 
 -- | Shows all the top-level names in the given module, along with
 -- their types.
@@ -1498,8 +1503,8 @@ cmd_goal_type_context_and doc norm ii _ _ = display_info . Info_GoalType =<< do
 showModuleContents :: B.Rewrite -> Range -> String -> CommandM ()
 showModuleContents norm rng s = display_info . Info_ModuleContents =<< do
   liftLocalState $ do
-    (modules, types) <- B.moduleContents norm rng s
-    types' <- forM types $ \ (x, t) -> do
+    (modules, tel, types) <- B.moduleContents norm rng s
+    types' <- addContext tel $ forM types $ \ (x, t) -> do
       t <- TCP.prettyTCM t
       return (prettyShow x, ":" <+> t)
     return $ vcat

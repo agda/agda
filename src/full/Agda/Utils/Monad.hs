@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 
 module Agda.Utils.Monad
     ( module Agda.Utils.Monad
@@ -8,12 +7,10 @@ module Agda.Utils.Monad
     )
     where
 
-import Prelude       hiding (concat)
+import Control.Applicative  (liftA2)
 import Control.Monad hiding (mapM, forM)
 
-#if __GLASGOW_HASKELL__ >= 800
 import qualified Control.Monad.Fail as Fail
-#endif
 
 import Control.Monad.Identity ( Identity )
 import Control.Monad.State
@@ -31,15 +28,12 @@ import Agda.Utils.Except
 import Agda.Utils.List
 import Agda.Utils.Null (ifNotNullM)
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 ---------------------------------------------------------------------------
 
-#if __GLASGOW_HASKELL__ >= 800
 instance Fail.MonadFail Identity where
   fail = error
-#endif
 
 ---------------------------------------------------------------------------
 
@@ -105,7 +99,7 @@ orEitherM (m : ms) = caseEitherM m (\e -> mapLeft (e `mappend`) <$> orEitherM ms
 
 -- Loops gathering results in a Monoid ------------------------------------
 
--- | Generalized version of @mapM_ :: Monad m => (a -> m ()) -> [a] -> m ()@
+-- | Generalized version of @traverse_ :: Applicative m => (a -> m ()) -> [a] -> m ()@
 --   Executes effects and collects results in left-to-right order.
 --   Works best with left-associative monoids.
 --
@@ -116,11 +110,11 @@ orEitherM (m : ms) = caseEitherM m (\e -> mapLeft (e `mappend`) <$> orEitherM ms
 --   that collects results in right-to-left order
 --   (effects still left-to-right).
 --   It might be preferable for right associative monoids.
-mapM' :: (Foldable t, Monad m, Monoid b) => (a -> m b) -> t a -> m b
-mapM' f = Fold.foldl (\ mb a -> liftM2 mappend mb (f a)) (return mempty)
+mapM' :: (Foldable t, Applicative m, Monoid b) => (a -> m b) -> t a -> m b
+mapM' f = Fold.foldl (\ mb a -> liftA2 mappend mb (f a)) (pure mempty)
 
--- | Generalized version of @forM_ :: Monad m => [a] -> (a -> m ()) -> m ()@
-forM' :: (Foldable t, Monad m, Monoid b) => t a -> (a -> m b) -> m b
+-- | Generalized version of @for_ :: Applicative m => [a] -> (a -> m ()) -> m ()@
+forM' :: (Foldable t, Applicative m, Monoid b) => t a -> (a -> m b) -> m b
 forM' = flip mapM'
 
 -- Variations of Traversable
@@ -130,6 +124,14 @@ mapMM f mxs = Trav.mapM f =<< mxs
 
 forMM :: (Traversable t, Monad m) => m (t a) -> (a -> m b) -> m (t b)
 forMM = flip mapMM
+
+-- Variations of Foldable
+
+mapMM_ :: (Foldable t, Monad m) => (a -> m ()) -> m (t a) -> m ()
+mapMM_ f mxs = Fold.mapM_ f =<< mxs
+
+forMM_ :: (Foldable t, Monad m) => m (t a) -> (a -> m ()) -> m ()
+forMM_ = flip mapMM_
 
 -- Continuation monad -----------------------------------------------------
 
@@ -227,33 +229,3 @@ readM s = case reads s of
             [(x,"")]    -> return x
             _           ->
               throwError $ strMsg $ "readM: parse error string " ++ s
-
-
--- RETIRED STUFF ----------------------------------------------------------
-
-{- RETIRED, ASR, 09 September 2014. Not used.
--- | Bracket for the 'Error' class.
-
--- bracket :: (Error e, MonadError e m)
---         => m a         -- ^ Acquires resource. Run first.
---         -> (a -> m c)  -- ^ Releases resource. Run last.
---         -> (a -> m b)  -- ^ Computes result. Run in-between.
---         -> m b
--- bracket acquire release compute = do
---   resource <- acquire
---   compute resource `finally` release resource
--}
-
-{- RETIRED, Andreas, 2012-04-30. Not used.
-concatMapM :: Applicative m => (a -> m [b]) -> [a] -> m [b]
-concatMapM f xs = concat <$> traverse f xs
-
--- | Depending on the monad you have to look at the result for
---   the force to be effective. For the 'IO' monad you do.
-forceM :: Monad m => [a] -> m ()
-forceM xs = do () <- length xs `seq` return ()
-               return ()
-
-commuteM :: (Traversable f, Applicative m) => f (m a) -> m (f a)
-commuteM = traverse id
--}

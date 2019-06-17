@@ -1,4 +1,7 @@
-{-# OPTIONS -v treeless.opt:20 #-}
+-- {-# OPTIONS -v treeless.opt:20 #-}
+   -- Andreas, 2019-05-07, #3732: cannot have treeless printout in golden value
+   -- because it is different for the MAlonzo and JS versions now.
+
 module _ where
 
 open import Common.Prelude

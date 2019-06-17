@@ -1,13 +1,8 @@
-{-# LANGUAGE CPP                      #-}
 {-# LANGUAGE NondecreasingIndentation #-}
 
 module Agda.TypeChecking.Rules.Def where
 
-#if MIN_VERSION_base(4,11,0)
-import Prelude hiding ( (<>), mapM, null )
-#else
 import Prelude hiding ( mapM, null )
-#endif
 
 import Control.Arrow ((***),first,second)
 import Control.Monad.State hiding (forM, mapM)
@@ -49,8 +44,7 @@ import Agda.TypeChecking.Inlining
 import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Patterns.Abstract (expandPatternSynonyms)
-import Agda.TypeChecking.Pretty hiding ((<>))
-import qualified Agda.TypeChecking.Pretty as Pr
+import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.CheckInternal
@@ -61,6 +55,8 @@ import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.SizedTypes.Solve
 import Agda.TypeChecking.RecordPatterns
 import Agda.TypeChecking.Records
+import Agda.TypeChecking.Rewriting.Clause
+import Agda.TypeChecking.Rewriting.Confluence
 import Agda.TypeChecking.CompiledClause (CompiledClauses'(..), hasProjectionPatterns)
 import Agda.TypeChecking.CompiledClause.Compile
 import Agda.TypeChecking.Primitive hiding (Nat)
@@ -74,7 +70,7 @@ import Agda.Utils.Except ( MonadError(catchError, throwError) )
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List
-import Agda.Utils.Maybe ( whenNothing )
+import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Permutation
@@ -82,7 +78,6 @@ import Agda.Utils.Pretty ( prettyShow )
 import qualified Agda.Utils.Pretty as P
 import Agda.Utils.Size
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 ---------------------------------------------------------------------------
@@ -340,7 +335,7 @@ checkFunDefS t ai delayed extlam with i name withSub cs = do
               , nest 2 $ sep $ map (text . show) cs
               ]
 
-        -- add clauses for the coverage checker (needs to reduce)
+        -- add clauses for the coverage (& confluence) checker (needs to reduce)
         inTopContext $ addClauses name cs
 
         reportSDoc "tc.cc.type" 60 $ "  type   : " <+> (text . prettyShow) t
@@ -369,6 +364,13 @@ checkFunDefS t ai delayed extlam with i name withSub cs = do
 
         covering <- funCovering . theDef <$> getConstInfo name
 
+        -- Jesper, 2019-05-30: if the constructors used in the
+        -- lhs of a clause have rewrite rules, we need to check
+        -- confluence here
+        whenM (optConfluenceCheck <$> pragmaOptions) $ inTopContext $
+          forM_ (zip cs [0..]) $ \(c , clauseNo) ->
+            checkConfluenceOfClause name clauseNo c
+
         -- Add the definition
         inTopContext $ addConstant name =<< do
           -- If there was a pragma for this definition, we can set the
@@ -384,10 +386,11 @@ checkFunDefS t ai delayed extlam with i name withSub cs = do
              , funAbstr          = Info.defAbstract i
              , funExtLam         = (\ e -> e { extLamSys = sys }) <$> extlam
              , funWith           = with
-             , funCopatternLHS   = hasProjectionPatterns cc
              , funCovering       = covering
              }
-          useTerPragma $ defaultDefn ai name fullType defn
+          useTerPragma $
+            updateDefCopatternLHS (const $ hasProjectionPatterns cc) $
+            defaultDefn ai name fullType defn
 
         reportSDoc "tc.def.fun" 10 $ do
           sep [ "added " <+> prettyTCM name <+> ":"
@@ -809,7 +812,7 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps absurdPat trhs _ _asb _) rhs0
                    strippedPats rhs'' outerWhere False
         reportSDoc "tc.rewrite" 60 $ vcat
           [ "rewrite"
-          , "  rhs' = " Pr.<> (text . show) rhs'
+          , "  rhs' = " <> (text . show) rhs'
           ]
         checkWithRHS x qname t lhsResult [withExpr] [withType] [cl]
 

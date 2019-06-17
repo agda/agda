@@ -1,6 +1,3 @@
-{-# LANGUAGE CPP                        #-}
-{-# LANGUAGE DeriveDataTypeable         #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE NondecreasingIndentation   #-}
 {-# LANGUAGE UndecidableInstances       #-}
 
@@ -143,16 +140,15 @@ import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.Level (reallyUnLevelView)
 import Agda.TypeChecking.Reduce
 import qualified Agda.TypeChecking.Patterns.Match as Match
-import Agda.TypeChecking.Pretty hiding ((<>))
+import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.SizedTypes (compareSizes)
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Free.Reduce
 import Agda.TypeChecking.Records
-import Agda.TypeChecking.MetaVars (assignV, newArgsMetaCtx)
+import Agda.TypeChecking.MetaVars (newArgsMetaCtx)
 import Agda.TypeChecking.EtaContract
-import Agda.Interaction.Options (optInjectiveTypeConstructors)
 
 import Agda.TypeChecking.Rules.LHS.Problem
 -- import Agda.TypeChecking.SyntacticEquality
@@ -171,7 +167,6 @@ import Agda.Utils.Permutation
 import Agda.Utils.Singleton
 import Agda.Utils.Size
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | Result of 'unifyIndices'.
@@ -740,7 +735,7 @@ etaExpandEquationStrategy k s = do
       Level _    -> __IMPOSSIBLE__
       MetaV _ _  -> return False
       DontCare _ -> return False
-      Dummy s    -> __IMPOSSIBLE_VERBOSE__ s
+      Dummy s _  -> __IMPOSSIBLE_VERBOSE__ s
 
     tel = varTel s `abstract` telFromList (take k $ telToList $ eqTel s)
 
@@ -1134,8 +1129,7 @@ unifyStep s (StripSizeSuc k u v) = do
 
 unifyStep s (SkipIrrelevantEquation k) = do
   let lhs = eqLHS s
-      (s', sigma) =  -- newline because of CPP
-        solveEq k (DontCare $ unArg $ indexWithDefault __IMPOSSIBLE__ lhs k) s
+      (s', sigma) = solveEq k (DontCare $ unArg $ indexWithDefault __IMPOSSIBLE__ lhs k) s
   tellUnifyProof sigma
   return $ Unifies s'
 

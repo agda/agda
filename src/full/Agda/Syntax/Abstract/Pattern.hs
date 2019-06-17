@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP                       #-}
 {-# LANGUAGE TypeFamilies              #-}
 {-# LANGUAGE UndecidableInstances      #-}
 
@@ -16,8 +15,6 @@ import Control.Monad.Identity
 import Control.Applicative (Applicative, liftA2)
 
 import Data.Foldable (Foldable, foldMap)
-import Data.Functor
-
 import Data.Traversable (Traversable, traverse)
 
 import Data.Maybe
@@ -35,7 +32,6 @@ import Agda.Utils.Functor
 import Agda.Utils.List
 import Agda.Utils.Null
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- * Generic traversals

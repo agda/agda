@@ -1,13 +1,8 @@
-{-# LANGUAGE CPP                      #-}
 {-# LANGUAGE NondecreasingIndentation #-}
 
 module Agda.TypeChecking.Rules.Term where
 
-#if MIN_VERSION_base(4,11,0)
-import Prelude hiding ( (<>), null )
-#else
 import Prelude hiding ( null )
-#endif
 
 import Control.Monad.Trans
 import Control.Monad.Trans.Maybe
@@ -96,7 +91,6 @@ import qualified Agda.Utils.Pretty as P
 import Agda.Utils.Size
 import Agda.Utils.Tuple
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 ---------------------------------------------------------------------------
@@ -311,8 +305,9 @@ checkTypedBindings lamOrPi (A.TBind r tac xs' e) ret = do
         -- modify the new context entries
         modEnv LamNotPi = workOnTypes
         modEnv _        = id
-        modRel PiNotLam xp = if xp then irrToNonStrict else id
-        modRel _        _  = id
+        modMod PiNotLam xp = (if xp then mapRelevance irrToNonStrict else id)
+                           . (setQuantity Quantityω)
+        modMod _        _  = id
 checkTypedBindings lamOrPi (A.TLet _ lbs) ret = do
     checkLetBindings lbs (ret EmptyTel)
 
@@ -376,7 +371,7 @@ checkLambda cmp b@(A.TBind _ _ xs' typ) body target = do
       cubical <- optCubical <$> pragmaOptions
       reportSLn "tc.term.lambda" 60 $ "trySeeingIfPath for " ++ show xs
       let postpone' = if cubical then postpone else \ _ _ -> dontUseTargetType
-      ifBlockedType target postpone' $ \ _ t -> do
+      ifBlocked target postpone' $ \ _ t -> do
           ifPath t dontUseTargetType $
             if cubical then checkPath b body t
                        else typeError $ GenericError $ "Option --cubical needed to build a path with a lambda abstraction"
@@ -537,7 +532,7 @@ insertHiddenLambdas
 insertHiddenLambdas h target postpone ret = do
   -- If the target type is blocked, we postpone,
   -- because we do not know if a hidden lambda needs to be inserted.
-  ifBlockedType target postpone $ \ _ t -> do
+  ifBlocked target postpone $ \ _ t -> do
     case unEl t of
 
       Pi dom b -> do
@@ -560,13 +555,13 @@ insertHiddenLambdas h target postpone ret = do
 checkAbsurdLambda :: Comparison -> A.ExprInfo -> Hiding -> A.Expr -> Type -> TCM Term
 checkAbsurdLambda cmp i h e t = do
   t <- instantiateFull t
-  ifBlockedType t (\ m t' -> postponeTypeCheckingProblem_ $ CheckExpr cmp e t') $ \ _ t' -> do
+  ifBlocked t (\ m t' -> postponeTypeCheckingProblem_ $ CheckExpr cmp e t') $ \ _ t' -> do
     case unEl t' of
       Pi dom@(Dom{domInfo = info', unDom = a}) b
         | not (sameHiding h info') -> typeError $ WrongHidingInLambda t'
-        | not (null $ allMetas a) ->
+        | not (noMetas a) ->
             postponeTypeCheckingProblem (CheckExpr cmp e t') $
-              null . allMetas <$> instantiateFull a
+              noMetas <$> instantiateFull a
         | otherwise -> blockTerm t' $ do
           ensureEmptyType (getRange i) a
           -- Add helper function
@@ -576,7 +571,7 @@ checkAbsurdLambda cmp i h e t = do
           -- is added as irrelevant
           rel <- asksTC envRelevance
           reportSDoc "tc.term.absurd" 10 $ vcat
-            [ "Adding absurd function" <+> prettyTCM rel <> prettyTCM aux
+            [ ("Adding absurd function" <+> prettyTCM rel) <> prettyTCM aux
             , nest 2 $ "of type" <+> prettyTCM t'
             ]
           addConstant aux $
@@ -589,7 +584,7 @@ checkAbsurdLambda cmp i h e t = do
                     { clauseLHSRange  = getRange e
                     , clauseFullRange = getRange e
                     , clauseTel       = telFromList [fmap (absurdPatternName,) dom]
-                    , namedClausePats = [Arg info' $ Named (Just $ unranged $ absName b) $ VarP PatOAbsurd (DBPatVar absurdPatternName 0)]
+                    , namedClausePats = [Arg info' $ Named (Just $ unranged $ absName b) $ absurdP 0]
                     , clauseBody      = Nothing
                     , clauseType      = Just $ setRelevance rel $ defaultArg $ absBody b
                     , clauseCatchall  = False
@@ -618,14 +613,14 @@ checkExtendedLambda cmp i di qname cs e t = do
    solveSizeConstraints DontDefaultToInfty
    lamMod <- inFreshModuleIfFreeParams currentModule  -- #2883: need a fresh module if refined params
    t <- instantiateFull t
-   ifBlockedType t (\ m t' -> postponeTypeCheckingProblem_ $ CheckExpr cmp e t') $ \ _ t -> do
+   ifBlocked t (\ m t' -> postponeTypeCheckingProblem_ $ CheckExpr cmp e t') $ \ _ t -> do
      j   <- currentOrFreshMutualBlock
      rel <- asksTC envRelevance
      let info = setRelevance rel defaultArgInfo
 
      reportSDoc "tc.term.exlam" 20 $
-       text (show $ A.defAbstract di) <+>
-       "extended lambda's implementation \"" <> prettyTCM qname <>
+       (text (show $ A.defAbstract di) <+>
+       "extended lambda's implementation \"") <> prettyTCM qname <>
        "\" has type: " $$ prettyTCM t -- <+> " where clauses: " <+> text (show cs)
      args     <- getContextArgs
 
@@ -683,7 +678,7 @@ catchIlltypedPatternBlockedOnMeta m handle = do
         TypeError s cl -> localTCState $ do
           putTC s
           enterClosure cl $ \case
-            IlltypedPattern p a -> isBlockedType a
+            IlltypedPattern p a -> isBlocked a
 
             SplitError (UnificationStuck c tel us vs _) -> do
               -- Andreas, 2018-11-23, re issue #3403
@@ -693,15 +688,15 @@ catchIlltypedPatternBlockedOnMeta m handle = do
               -- (seems to archieve a bit along @normalize@, but how much??).
               problem <- reduce =<< instantiateFull (flattenTel tel, us, vs)
               -- over-approximating the set of metas actually blocking unification
-              return $ listToMaybe $ allMetas problem
+              return $ firstMeta problem
 
             SplitError (NotADatatype aClosure) ->
-              enterClosure aClosure $ \ a -> isBlockedType a
+              enterClosure aClosure $ \ a -> isBlocked a
 
             -- Andrea: TODO look for blocking meta in tClosure and its Sort.
             -- SplitError (CannotCreateMissingClause _ _ _ tClosure) ->
 
-            CannotEliminateWithPattern p a -> isBlockedType a
+            CannotEliminateWithPattern p a -> isBlocked a
 
             _ -> return Nothing
         _ -> return Nothing
@@ -748,22 +743,21 @@ expandModuleAssigns
   :: [Either A.Assign A.ModuleName]  -- ^ Modules and field assignments.
   -> [C.Name]                        -- ^ Names of fields of the record type.
   -> TCM A.Assigns                   -- ^ Completed field assignments from modules.
-expandModuleAssigns mfs exs = do
+expandModuleAssigns mfs xs = do
   let (fs , ms) = partitionEithers mfs
-      -- The visible fields of the record that have not been given by field assignments.
-      exs' = exs List.\\ map (view nameFieldA) fs
 
-  -- Getting assignments for the missing visible fields.
-  fs' <- forM exs' $ \ f -> do
+  -- The fields of the record that have not been given by field assignments @fs@
+  -- are looked up in the given modules @ms@.
+  fs' <- forM (xs List.\\ map (view nameFieldA) fs) $ \ f -> do
 
     -- Get the possible assignments for field f from the modules.
     pms <- forM ms $ \ m -> do
-       modScope <- getNamedScope m
-       let names :: ThingsInScope AbstractName
-           names = exportedNamesInScope modScope
-       return $
+      modScope <- getNamedScope m
+      let names :: ThingsInScope AbstractName
+          names = exportedNamesInScope modScope
+      return $
         case Map.lookup f names of
-          Just [n] -> Just (m, FieldAssignment f (A.nameExpr n))
+          Just [n] -> Just (m, FieldAssignment f $ killRange $ A.nameToExpr n)
           _        -> Nothing
 
     -- If we have several matching assignments, that's an error.
@@ -791,7 +785,7 @@ checkRecordExpression cmp mfs e t = do
     [ "checking record expression"
     , prettyA e
     ]
-  ifBlockedType t (\ _ t -> guessRecordType t) {-else-} $ \ _ t -> do
+  ifBlocked t (\ _ t -> guessRecordType t) {-else-} $ \ _ t -> do
   case unEl t of
     -- Case: We know the type of the record already.
     Def r es  -> do
@@ -903,8 +897,9 @@ checkRecordUpdate cmp ei recexpr fs e t = do
         -- to their counterpart in the record type definition.
         disambiguateRecordFields (map _nameFieldA fs) (map unArg projs)
 
-        xs <- map unArg <$> getRecordFieldNames r
-        es <- orderFields r Nothing xs $ map (\ (FieldAssignment x e) -> (x, Just e)) fs
+        axs <- getRecordFieldNames r
+        let xs = map unArg axs
+        es <- orderFields r (\ _ -> Nothing) axs $ map (\ (FieldAssignment x e) -> (x, Just e)) fs
         let es' = zipWith (replaceFields name ei) projs es
         checkExpr' cmp (A.Rec ei [ Left (FieldAssignment x e) | (x, Just e) <- zip xs es' ]) t
 
@@ -1205,36 +1200,33 @@ checkExpr' cmp e t0 =
 doQuoteTerm :: Comparison -> Term -> Type -> TCM Term
 doQuoteTerm cmp et t = do
   et'       <- etaContract =<< instantiateFull et
-  let metas = allMetas et'
-  case metas of
-    _:_ -> postponeTypeCheckingProblem (DoQuoteTerm cmp et t) $ andM $ map isInstantiatedMeta metas
+  case allMetasList et' of
     []  -> do
       q  <- quoteTerm et'
       ty <- el primAgdaTerm
       coerce cmp q ty t
+    metas -> postponeTypeCheckingProblem (DoQuoteTerm cmp et t) $ andM $ map isInstantiatedMeta metas
 
 -- | Checking `quoteGoal` (deprecated)
 quoteGoal :: Type -> TCM (Either [MetaId] Term)
 quoteGoal t = do
   t' <- etaContract =<< instantiateFull t
-  let metas = allMetas t'
-  case metas of
-    _:_ -> return $ Left metas
+  case allMetasList t' of
     []  -> do
       quotedGoal <- quoteTerm (unEl t')
       return $ Right quotedGoal
+    metas -> return $ Left metas
 
 -- | Checking `quoteContext` (deprecated)
 quoteContext :: TCM (Either [MetaId] Term)
 quoteContext = do
   contextTypes  <- map (fmap snd) <$> getContext
   contextTypes  <- etaContract =<< instantiateFull contextTypes
-  let metas = allMetas contextTypes
-  case metas of
-    _:_ -> return $ Left metas
+  case allMetasList contextTypes of
     []  -> do
       quotedContext <- buildList <*> mapM quoteDom contextTypes
       return $ Right quotedContext
+    metas -> return $ Left metas
 
 -- | Unquote a TCM computation in a given hole.
 unquoteM :: A.Expr -> Term -> Type -> TCM ()
@@ -1256,10 +1248,10 @@ unquoteTactic tac hole goal = do
       mi <- lookupMeta' x
       (r, meta) <- case mi of
         Nothing -> do -- fresh meta: need to block on something else!
-          otherMetas <- allMetas <$> instantiateFull goal
-          case otherMetas of
-            []  -> return (noRange,     Nothing) -- Nothing to block on, leave it yellow. Alternative: fail.
-            x:_ -> return (noRange,     Just x)  -- range?
+          (noRange,) . firstMeta <$> instantiateFull goal
+            -- Remark:
+            -- Nothing:  Nothing to block on, leave it yellow. Alternative: fail.
+            -- Just x:   range?
         Just mi -> return (getRange mi, Just x)
       setCurrentRange r $
         addConstraint (UnquoteTactic meta tac hole goal)

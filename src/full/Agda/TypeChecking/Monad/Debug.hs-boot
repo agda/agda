@@ -7,6 +7,9 @@ import Agda.TypeChecking.Monad.Base
 import {-# SOURCE #-} Agda.TypeChecking.Monad.Options
 
 import Agda.Utils.Pretty
+import Agda.Utils.Trie (Trie)
+
+type VerboseKey = String
 
 class (Functor m, Applicative m, Monad m) => MonadDebug m where
   displayDebugMessage :: Int -> String -> m ()
@@ -17,12 +20,22 @@ class (Functor m, Applicative m, Monad m) => MonadDebug m where
 
   formatDebugMessage  :: VerboseKey -> Int -> TCM Doc -> m String
 
-instance (MonadIO m) => MonadDebug (TCMT m)
+  getVerbosity :: m (Trie String Int)
+  default getVerbosity :: HasOptions m => m (Trie String Int)
+  getVerbosity = optVerbose <$> pragmaOptions
 
-reportS :: (HasOptions m, MonadDebug m, MonadTCEnv m)
-        => VerboseKey -> Int -> String -> m ()
-reportSLn :: (HasOptions m, MonadDebug m, MonadTCEnv m)
-          => VerboseKey -> Int -> String -> m ()
-reportSDoc :: (HasOptions m, MonadDebug m, MonadTCEnv m)
-           => VerboseKey -> Int -> TCM Doc -> m ()
+  isDebugPrinting :: m Bool
+  default isDebugPrinting :: MonadTCEnv m => m Bool
+  isDebugPrinting = asksTC envIsDebugPrinting
 
+  nowDebugPrinting :: m a -> m a
+  default nowDebugPrinting :: MonadTCEnv m => m a -> m a
+  nowDebugPrinting = locallyTC eIsDebugPrinting $ const True
+
+  verboseBracket :: VerboseKey -> Int -> String -> m a -> m a
+
+instance MonadDebug TCM
+
+reportS :: MonadDebug m => VerboseKey -> Int -> String -> m ()
+reportSLn :: MonadDebug m => VerboseKey -> Int -> String -> m ()
+reportSDoc :: MonadDebug m => VerboseKey -> Int -> TCM Doc -> m ()

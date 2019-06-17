@@ -1,5 +1,3 @@
-Failed to solve the following constraints:
-  _2 := (_ : _A_1) [{B = Set}] :? Set
 Unsolved metas at the following locations:
   WrongNamedArgument2.agda:7,8-9
   WrongNamedArgument2.agda:7,8-18

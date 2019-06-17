@@ -1,9 +1,6 @@
 Failed to solve the following constraints:
-  _49 := λ {x.A.ℓ} {x.A} {x} {f.P.ℓ} {f} → refl
-    [blocked on problem 31]
-  [31, 35] f x = _48 : _f.P_47 x
+  [31, 35] f x =< _48 : _f.P_47 x
   [22] _f.P_47 y =< _f.P_47 x : Set f.P.ℓ
-  _45 := λ genTel → f y [blocked on problem 22]
 Unsolved metas at the following locations:
   Issue3340.agda:12,22-25
   Issue3340.agda:12,16-17

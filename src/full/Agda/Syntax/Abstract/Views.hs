@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP                       #-}
 {-# LANGUAGE GADTs                     #-}
 {-# LANGUAGE NoMonoLocalBinds          #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}

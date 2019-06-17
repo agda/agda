@@ -1,5 +1,4 @@
 {-# LANGUAGE BangPatterns          #-}
-{-# LANGUAGE CPP                   #-}
 {-# LANGUAGE UndecidableInstances  #-}
 {-# LANGUAGE NondecreasingIndentation #-}
 
@@ -48,6 +47,7 @@ import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Errors ( stringTCErr )
 import Agda.TypeChecking.Monad as M hiding (MetaInfo)
 import Agda.TypeChecking.MetaVars
+import Agda.TypeChecking.MetaVars.Mention
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
@@ -78,7 +78,6 @@ import Agda.Utils.Pretty
 import Agda.Utils.Permutation
 import Agda.Utils.Size
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | Parses an expression.
@@ -239,7 +238,7 @@ refine force ii mr e = do
           ii <- registerInteractionPoint False rng Nothing
           let info = Info.MetaInfo
                 { Info.metaRange = rng
-                , Info.metaScope = scope { scopePrecedence = [argumentCtx_] }
+                , Info.metaScope = set scopePrecedence [argumentCtx_] scope
                     -- Ulf, 2017-09-07: The `argumentCtx_` above is causing #737.
                     -- If we're building an operator application the precedence
                     -- should be something else.
@@ -392,7 +391,7 @@ outputFormId (OutputForm _ _ o) = out o
 instance Reify ProblemConstraint (Closure (OutputForm Expr Expr)) where
   reify (PConstr pids cl) = enterClosure cl $ \c -> buildClosure =<< (OutputForm (getRange c) (Set.toList pids) <$> reify c)
 
-reifyElimToExpr :: I.Elim -> TCM Expr
+reifyElimToExpr :: MonadReify m => I.Elim -> m Expr
 reifyElimToExpr e = case e of
     I.IApply _ _ v -> appl "iapply" <$> reify (defaultArg $ v) -- TODO Andrea: endpoints?
     I.Apply v -> appl "apply" <$> reify v
@@ -551,8 +550,21 @@ instance (ToConcrete a c, ToConcrete b d) =>
   toConcrete (OfType' e t) = OfType' <$> toConcrete e <*> toConcreteCtx TopCtx t
 
 getConstraints :: TCM [OutputForm C.Expr C.Expr]
-getConstraints = liftTCM $ do
-    cs <- M.getAllConstraints
+getConstraints = getConstraints' return $ const True
+
+
+getConstraintsMentioning :: MetaId -> TCM [OutputForm C.Expr C.Expr]
+getConstraintsMentioning m = getConstraints' instantiateBlockingFull (mentionsMeta m)
+  -- could be optimized by not doing a full instantiation up front, with a more clever mentionsMeta.
+  where
+    instantiateBlockingFull p
+      = locallyTCState stInstantiateBlocking (const True) $
+          instantiateFull p
+
+
+getConstraints' :: (ProblemConstraint -> TCM ProblemConstraint) -> (ProblemConstraint -> Bool) -> TCM [OutputForm C.Expr C.Expr]
+getConstraints' g f = liftTCM $ do
+    cs <- filter f <$> (mapM g =<< M.getAllConstraints)
     cs <- forM cs $ \c -> do
             cl <- reify c
             enterClosure cl abstractToConcrete_
@@ -623,7 +635,7 @@ typeOfMetaMI norm mi =
         ]
       reportSDoc "interactive.meta.scope" 20 $ TP.text $ show $ getMetaScope mv
       -- Andreas, 2016-01-19, issue #1783: need piApplyM instead of just piApply
-      OfType x <$> reify t
+      OfType x <$> reifyUnblocked t
     rewriteJudg mv (IsSort i t) = do
       ms <- getMetaNameSuggestion i
       return $ JustSort $ NamedMeta ms i
@@ -645,12 +657,13 @@ typesOfHiddenMetas norm = liftTCM $ do
   store <- IntMap.filterWithKey (openAndImplicit is . MetaId) <$> getMetaStore
   mapM (typeOfMetaMI norm . MetaId) $ IntMap.keys store
   where
+  openAndImplicit is x m | isJust (mvTwin m) = False
   openAndImplicit is x m =
     case mvInstantiation m of
       M.InstV{} -> False
       M.Open    -> x `notElem` is
       M.OpenInstance -> x `notElem` is  -- OR: True !?
-      M.BlockedConst{} -> True
+      M.BlockedConst{} -> False
       M.PostponedTypeCheckingProblem{} -> False
 
 metaHelperType :: Rewrite -> InteractionId -> Range -> String -> TCM (OutputConstraint' Expr Expr)
@@ -788,7 +801,7 @@ contextOfMeta ii norm = do
                              | otherwise        = Nothing
         visible _            = __IMPOSSIBLE__
         out (Dom{unDom = (x, t)}) = do
-          t' <- reify =<< normalForm norm t
+          t' <- reifyUnblocked =<< normalForm norm t
           return $ OfType x t'
 
 
@@ -799,7 +812,7 @@ typeInCurrent :: Rewrite -> Expr -> TCM Expr
 typeInCurrent norm e =
     do  (_,t) <- wakeIrrelevantVars $ inferExpr e
         v <- normalForm norm t
-        reify v
+        reifyUnblocked v
 
 
 
@@ -942,7 +955,7 @@ atTopLevel m = inConcreteMode $ do
       -- Unfortunately, referring to let-bound variables
       -- from the top level module telescope will for now result in a not-in-scope error.
       let names :: [A.Name]
-          names = map localVar $ filter ((LetBound /=) . localBinder) $ map snd $ reverse $ scopeLocals scope
+          names = map localVar $ filter ((LetBound /=) . localBinder) $ map snd $ reverse $ scope ^. scopeLocals
       -- Andreas, 2016-12-31, issue #2371
       -- The following is an unnecessary complication, as shadowed locals
       -- are not in scope anyway (they are ambiguous).
@@ -996,8 +1009,10 @@ moduleContents
      -- ^ The range of the next argument.
   -> String
      -- ^ The module name.
-  -> TCM ([C.Name], [(C.Name, Type)])
-     -- ^ Module names, names paired up with corresponding types.
+  -> TCM ([C.Name], I.Telescope, [(C.Name, Type)])
+     -- ^ Module names,
+     --   context extension needed to print types,
+     --   names paired up with corresponding types.
 
 moduleContents norm rng s = traceCall ModuleContents $ do
   e <- parseExpr rng s
@@ -1016,19 +1031,31 @@ moduleContents norm rng s = traceCall ModuleContents $ do
 getRecordContents
   :: Rewrite  -- ^ Amount of normalization in types.
   -> C.Expr   -- ^ Expression presumably of record type.
-  -> TCM ([C.Name], [(C.Name, Type)])
-              -- ^ Module names, names paired up with corresponding types.
+  -> TCM ([C.Name], I.Telescope, [(C.Name, Type)])
+              -- ^ Module names,
+              --   context extension,
+              --   names paired up with corresponding types.
 getRecordContents norm ce = do
   e <- toAbstract ce
   (_, t) <- inferExpr e
   let notRecordType = typeError $ ShouldBeRecordType t
   (q, vs, defn) <- fromMaybeM notRecordType $ isRecordType t
   case defn of
-    Record{ recFields = fs, recTel = tel } -> do
+    Record{ recFields = fs, recTel = rtel } -> do
       let xs   = map (nameConcrete . qnameName . unArg) fs
-          doms = telToList $ apply tel vs
-      ts <- mapM (normalForm norm) $ map (snd . unDom) doms
-      return ([], zip xs ts)
+          tel  = apply rtel vs
+          doms = flattenTel tel
+      -- Andreas, 2019-04-10, issue #3687: use flattenTel
+      -- to bring types into correct scope.
+      reportSDoc "interaction.contents.record" 20 $ TP.vcat
+        [ "getRecordContents"
+        , "  cxt  = " TP.<+> (prettyTCM =<< getContextTelescope)
+        , "  tel  = " TP.<+> prettyTCM tel
+        , "  doms = " TP.<+> prettyTCM doms
+        , "  doms'= " TP.<+> (addContext tel $ prettyTCM doms)
+        ]
+      ts <- mapM (normalForm norm . unDom) doms
+      return ([], tel, zip xs ts)
     _ -> __IMPOSSIBLE__
 
 -- | Returns the contents of the given module.
@@ -1036,8 +1063,10 @@ getRecordContents norm ce = do
 getModuleContents
   :: Rewrite  -- ^ Amount of normalization in types.
   -> C.QName  -- ^ Module name.
-  -> TCM ([C.Name], [(C.Name, Type)])
-              -- ^ Module names, names paired up with corresponding types.
+  -> TCM ([C.Name], I.Telescope, [(C.Name, Type)])
+              -- ^ Module names,
+              --   context extension,
+              --   names paired up with corresponding types.
 getModuleContents norm m = do
   modScope <- getNamedScope . amodName =<< resolveModule m
   let modules :: ThingsInScope AbstractModule
@@ -1049,13 +1078,13 @@ getModuleContents norm m = do
     d <- getConstInfo $ anameName n
     t <- normalForm norm =<< (defType <$> instantiateDef d)
     return (x, t)
-  return (Map.keys modules, types)
+  return (Map.keys modules, EmptyTel, types)
 
 
 whyInScope :: String -> TCM (Maybe LocalVar, [AbstractName], [AbstractModule])
 whyInScope s = do
   x     <- parseName noRange s
   scope <- getScope
-  return ( lookup x $ map (first C.QName) $ scopeLocals scope
+  return ( lookup x $ map (first C.QName) $ scope ^. scopeLocals
          , scopeLookup x scope
          , scopeLookup x scope )

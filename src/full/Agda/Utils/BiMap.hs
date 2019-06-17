@@ -1,5 +1,3 @@
-{-# LANGUAGE DeriveDataTypeable         #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 -- | Finite bijections (implemented as a pair of tree maps).
 

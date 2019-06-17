@@ -1,0 +1,5 @@
+Issue1445-3.agda:19,13-16
+Confluence check failed: Bar unit reduces to both Unit and Foo y
+which are not equal because Unit != Foo y of type Set
+when checking confluence of the rewrite rule bar with
+Issue1445-3.Bar-clause1

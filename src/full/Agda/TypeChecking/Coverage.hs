@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP                      #-}
 {-# LANGUAGE NondecreasingIndentation #-}
 
 {-| Coverage checking, case splitting, and splitting for refine tactics.
@@ -42,7 +41,7 @@ import Agda.Syntax.Internal.Pattern
 
 import Agda.TypeChecking.Names
 import Agda.TypeChecking.Primitive hiding (Nat)
-import Agda.TypeChecking.Primitive.Cubical
+import Agda.TypeChecking.Primitive.Cubical (trFillTel)
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
 
@@ -55,7 +54,7 @@ import Agda.TypeChecking.Coverage.SplitTree
 
 import Agda.TypeChecking.Conversion (tryConversion, equalType, equalTermOnFace)
 import Agda.TypeChecking.Datatypes (getConForm)
-import {-# SOURCE #-} Agda.TypeChecking.Empty ( isEmptyTel, isEmptyType )
+import {-# SOURCE #-} Agda.TypeChecking.Empty ( checkEmptyTel, isEmptyTel, isEmptyType )
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.Patterns.Internal (dotPatternsToPatterns)
@@ -88,7 +87,6 @@ import Agda.Utils.Size
 import Agda.Utils.Tuple
 import Agda.Utils.Lens
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 data SplitClause = SClause
@@ -225,13 +223,21 @@ coverageCheck f t cs = do
 
   -- filter out the missing clauses that are absurd.
   pss <- flip filterM pss $ \(tel,ps) ->
-    ifNotM (isEmptyTel tel) (return True) $ do
+    -- Andreas, 2019-04-13, issue #3692: when adding missing absurd
+    -- clauses, also put the absurd pattern in.
+    caseEitherM (checkEmptyTel noRange tel) (\ _ -> return True) $ \ l -> do
+      -- Now, @l@ is the first type in @tel@ (counting from 0=leftmost)
+      -- which is empty.  Turn it into a de Bruijn index @i@.
+      let i = size tel - 1 - l
+      -- Build a substitution mapping this pattern variable to the absurd pattern.
+      let sub = inplaceS i $ absurdP i
+        -- ifNotM (isEmptyTel tel) (return True) $ do
       -- Jesper, 2018-11-28, Issue #3407: if the clause is absurd,
       -- add the appropriate absurd clause to the definition.
       let cl = Clause { clauseLHSRange    = noRange
                       , clauseFullRange   = noRange
                       , clauseTel         = tel
-                      , namedClausePats   = ps
+                      , namedClausePats   = applySubst sub ps
                       , clauseBody        = Nothing
                       , clauseType        = Nothing
                       , clauseCatchall    = False
@@ -241,6 +247,11 @@ coverageCheck f t cs = do
         sep [ "adding missing absurd clause"
             , nest 2 $ prettyTCM $ QNamed f cl
             ]
+      reportSDoc "tc.cover.missing" 80 $ inTopContext $ vcat
+        [ "l   = " <+> pretty l
+        , "i   = " <+> pretty i
+        , "cl  = " <+> pretty (QNamed f cl)
+        ]
       addClauses f [cl]
       return False
 
@@ -1269,7 +1280,7 @@ split' checkEmpty ind allowPartialCover fixtarget
         -- cons = constructors of this datatype
         (dr, d, pars, ixs, cons', isHIT) <- inContextOfT $ isDatatype ind t
         cons <- case checkEmpty of
-          CheckEmpty   -> ifM (liftTCM $ isEmptyType $ unDom t) (pure []) (pure cons')
+          CheckEmpty   -> ifM (liftTCM $ inContextOfT $ isEmptyType $ unDom t) (pure []) (pure cons')
           NoCheckEmpty -> pure cons'
         mns  <- forM cons $ \ con -> fmap (SplitCon con,) <$>
           computeNeighbourhood delta1 n delta2 d pars ixs x tel ps cps con
@@ -1365,7 +1376,7 @@ split' checkEmpty ind allowPartialCover fixtarget
       return $ Right $ Covering (lookupPatternVar sc x) ns
 
   where
-    inContextOfT, inContextOfDelta2 :: (MonadTCM tcm, MonadDebug tcm) => tcm a -> tcm a
+    inContextOfT, inContextOfDelta2 :: (MonadTCM tcm, MonadAddContext tcm, MonadDebug tcm) => tcm a -> tcm a
     inContextOfT      = addContext tel . escapeContext (x + 1)
     inContextOfDelta2 = addContext tel . escapeContext x
 

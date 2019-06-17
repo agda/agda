@@ -8,7 +8,6 @@
 old_version="$1"
 new_version="$2"
 
-files='.ghci '
 files+='Agda.cabal '
 files+='doc/user-manual/conf.py '
 files+='mk/versions.mk '

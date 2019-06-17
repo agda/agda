@@ -1,48 +1,4 @@
 EXECUTED_PROGRAM
 
 ret > ExitSuccess
-out > CompileAsPattern._.merge =
-out >   λ _ _ a b c →
-out >     case b of
-out >       Agda.Builtin.List.List.[] → c
-out >       Agda.Builtin.List.List._∷_ d e →
-out >         case c of
-out >           Agda.Builtin.List.List.[] → b
-out >           Agda.Builtin.List.List._∷_ f g →
-out >             Common.Bool.if_then_else_
-out >               _ _ (a d f)
-out >               (Agda.Builtin.List.List._∷_ d (CompileAsPattern._.merge _ _ a e c))
-out >               (Agda.Builtin.List.List._∷_ f (CompileAsPattern._.merge _ _ a b g))
-out > CompileAsPattern.mapM! =
-out >   λ _ a b →
-out >     case b of
-out >       Agda.Builtin.List.List.[] → Common.IO.return () _ _
-out >       Agda.Builtin.List.List._∷_ c d →
-out >         Common.IO._>>=_
-out >           () () _ _ (a c) (λ _ → CompileAsPattern.mapM! _ a d)
-out > CompileAsPattern.xs =
-out >   Agda.Builtin.List.List._∷_
-out >     2
-out >     (Agda.Builtin.List.List._∷_
-out >        3
-out >        (Agda.Builtin.List.List._∷_
-out >           5
-out >           (Agda.Builtin.List.List._∷_
-out >              10 (Agda.Builtin.List.List._∷_ 20 Agda.Builtin.List.List.[]))))
-out > CompileAsPattern.ys =
-out >   Agda.Builtin.List.List._∷_
-out >     0
-out >     (Agda.Builtin.List.List._∷_
-out >        1
-out >        (Agda.Builtin.List.List._∷_
-out >           2
-out >           (Agda.Builtin.List.List._∷_
-out >              8
-out >              (Agda.Builtin.List.List._∷_
-out >                 10 (Agda.Builtin.List.List._∷_ 15 Agda.Builtin.List.List.[])))))
-out > CompileAsPattern.main =
-out >   CompileAsPattern.mapM!
-out >     _ Common.IO.printNat
-out >     (CompileAsPattern._.merge
-out >        _ _ _<_ CompileAsPattern.xs CompileAsPattern.ys)
 out > 012235810101520

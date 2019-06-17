@@ -1,5 +1,3 @@
-{-# LANGUAGE CPP #-}
-{-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module Agda.Syntax.Parser
@@ -58,7 +56,6 @@ import Agda.Utils.IO.UTF8 (readTextFile)
 import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Pretty
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 ------------------------------------------------------------------------

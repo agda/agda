@@ -1,4 +1,3 @@
-{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE ViewPatterns #-}
 
@@ -53,7 +52,6 @@ import Agda.Compiler.CallCompiler
 import qualified Agda.Utils.IO.UTF8 as UTF8
 import Agda.Utils.FileName (filePath, AbsolutePath, mkAbsolute)
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 ------------------------------------------------------------------------

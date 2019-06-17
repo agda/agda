@@ -1,5 +1,4 @@
 {-# LANGUAGE BangPatterns               #-}
-{-# LANGUAGE CPP                        #-}
 {-# LANGUAGE GADTs                      #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE ImplicitParams             #-}
@@ -18,11 +17,7 @@ module Agda.Termination.TermCheck
     , Result
     ) where
 
-#if MIN_VERSION_base(4,11,0)
-import Prelude hiding ( (<>), null )
-#else
 import Prelude hiding ( null )
-#endif
 
 import Control.Applicative hiding (empty)
 import Control.Monad.Reader
@@ -87,7 +82,6 @@ import Agda.Utils.Pretty (prettyShow)
 import Agda.Utils.Singleton
 import qualified Agda.Utils.VarSet as VarSet
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | Call graph with call info for composed calls.
@@ -484,7 +478,8 @@ termDef name = terSetCurrent name $ inConcreteOrAbstractMode name $ \ def -> do
 --   @@
 
 termType :: Type -> TerM Calls
-termType = loop 0
+termType = return mempty
+-- termType = loop 0  -- Andreas, 2019-04-10 deactivate for backwards-compatibility in 2.6.0 #1556
   where
   loop n t = do
     ps <- mkPats n
@@ -585,7 +580,7 @@ instance TermToPattern Term DeBruijnPattern where
     -- Leaves.
     Var i []    -> varP . (`DBPatVar` i) . prettyShow <$> nameOfBV i
     Lit l       -> return $ LitP l
-    Dummy s     -> __IMPOSSIBLE_VERBOSE__ s
+    Dummy s _   -> __IMPOSSIBLE_VERBOSE__ s
     t           -> return $ dotP t
 
 

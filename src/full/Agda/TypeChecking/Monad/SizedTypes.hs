@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 
 -- | Stuff for sized types that does not require modules
 --   "Agda.TypeChecking.Reduce" or "Agda.TypeChecking.Constraints"
@@ -30,7 +29,6 @@ import Agda.Utils.NonemptyList
 import Agda.Utils.Pretty
 import Agda.Utils.Singleton
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 ------------------------------------------------------------------------
@@ -46,7 +44,7 @@ data BoundedSize
 
 -- | Check if a type is the 'primSize' type. The argument should be 'reduce'd.
 class IsSizeType a where
-  isSizeType :: a -> TCM (Maybe BoundedSize)
+  isSizeType :: (HasOptions m, HasBuiltins m) => a -> m (Maybe BoundedSize)
 
 instance IsSizeType a => IsSizeType (Dom a) where
   isSizeType = isSizeType . unDom
@@ -60,7 +58,7 @@ instance IsSizeType a => IsSizeType (Type' a) where
 instance IsSizeType Term where
   isSizeType v = isSizeTypeTest <*> pure v
 
-isSizeTypeTest :: TCM (Term -> Maybe BoundedSize)
+isSizeTypeTest :: (HasOptions m, HasBuiltins m) => m (Term -> Maybe BoundedSize)
 isSizeTypeTest =
   flip (ifM sizedTypesOption) (return $ const Nothing) $ do
     (size, sizelt) <- getBuiltinSize
@@ -69,24 +67,24 @@ isSizeTypeTest =
         testType _                                    = Nothing
     return testType
 
-getBuiltinDefName :: String -> TCM (Maybe QName)
+getBuiltinDefName :: (HasBuiltins m) => String -> m (Maybe QName)
 getBuiltinDefName s = fromDef <$> getBuiltin' s
   where
     fromDef (Just (Def d [])) = Just d
     fromDef _                 = Nothing
 
-getBuiltinSize :: TCM (Maybe QName, Maybe QName)
+getBuiltinSize :: (HasBuiltins m) => m (Maybe QName, Maybe QName)
 getBuiltinSize = do
   size   <- getBuiltinDefName builtinSize
   sizelt <- getBuiltinDefName builtinSizeLt
   return (size, sizelt)
 
-isSizeNameTest :: TCM (QName -> Bool)
+isSizeNameTest :: (HasOptions m, HasBuiltins m) => m (QName -> Bool)
 isSizeNameTest = ifM sizedTypesOption
   isSizeNameTestRaw
   (return $ const False)
 
-isSizeNameTestRaw :: TCM (QName -> Bool)
+isSizeNameTestRaw :: (HasOptions m, HasBuiltins m) => m (QName -> Bool)
 isSizeNameTestRaw = do
   (size, sizelt) <- getBuiltinSize
   return $ (`elem` [size, sizelt]) . Just
@@ -140,21 +138,22 @@ sizeType_ :: QName -> Type
 sizeType_ size = El sizeSort $ Def size []
 
 -- | The built-in type @SIZE@.
-sizeType :: TCM Type
-sizeType = El sizeSort <$> primSize
+sizeType :: (HasBuiltins m, MonadTCEnv m, ReadTCState m) => m Type
+sizeType = El sizeSort . fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSize
 
 -- | The name of @SIZESUC@.
-sizeSucName :: TCM (Maybe QName)
+sizeSucName :: (HasBuiltins m, HasOptions m) => m (Maybe QName)
 sizeSucName = do
-  ifM (not <$> sizedTypesOption) (return Nothing) $ tryMaybe $ do
-    Def x [] <- primSizeSuc
-    return x
+  ifM (not <$> sizedTypesOption) (return Nothing) $ do
+    getBuiltin' builtinSizeSuc >>= \case
+      Just (Def x []) -> return $ Just x
+      _               -> return Nothing
 
-sizeSuc :: Nat -> Term -> TCM Term
+sizeSuc :: HasBuiltins m => Nat -> Term -> m Term
 sizeSuc n v | n < 0     = __IMPOSSIBLE__
             | n == 0    = return v
             | otherwise = do
-  Def suc [] <- primSizeSuc
+  Def suc [] <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSizeSuc
   return $ case iterate (sizeSuc_ suc) v !!! n of
              Nothing -> __IMPOSSIBLE__
              Just t  -> t
@@ -163,7 +162,8 @@ sizeSuc_ :: QName -> Term -> Term
 sizeSuc_ suc v = Def suc [Apply $ defaultArg v]
 
 -- | Transform list of terms into a term build from binary maximum.
-sizeMax :: NonemptyList Term -> TCM Term
+sizeMax :: (HasBuiltins m, MonadError TCErr m, MonadTCEnv m, ReadTCState m)
+        => NonemptyList Term -> m Term
 sizeMax vs = case vs of
   v :! [] -> return v
   vs  -> do
@@ -179,7 +179,8 @@ sizeMax vs = case vs of
 data SizeView = SizeInf | SizeSuc Term | OtherSize Term
 
 -- | Expects argument to be 'reduce'd.
-sizeView :: Term -> TCM SizeView
+sizeView :: (HasBuiltins m, MonadError TCErr m, MonadTCEnv m, ReadTCState m)
+         => Term -> m SizeView
 sizeView v = do
   Def inf [] <- primSizeInf
   Def suc [] <- primSizeSuc
@@ -259,7 +260,8 @@ unSizeView SizeInf       = primSizeInf
 unSizeView (SizeSuc v)   = sizeSuc 1 v
 unSizeView (OtherSize v) = return v
 
-unDeepSizeView :: DeepSizeView -> TCM Term
+unDeepSizeView :: (HasBuiltins m, MonadError TCErr m, MonadTCEnv m, ReadTCState m)
+               => DeepSizeView -> m Term
 unDeepSizeView v = case v of
   DSizeInf         -> primSizeInf
   DSizeVar i     n -> sizeSuc n $ var i
@@ -302,5 +304,6 @@ sizeViewComparableWithMax v (w :! ws) =
 maxViewSuc_ :: QName -> SizeMaxView -> SizeMaxView
 maxViewSuc_ suc = fmap (sizeViewSuc_ suc)
 
-unMaxView :: SizeMaxView -> TCM Term
+unMaxView :: (HasBuiltins m, MonadError TCErr m, MonadTCEnv m, ReadTCState m)
+          => SizeMaxView -> m Term
 unMaxView vs = sizeMax =<< Trav.mapM unDeepSizeView vs

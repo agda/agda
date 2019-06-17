@@ -309,6 +309,36 @@ desugars to
 
   pure if_then_else_ <*> a <*> b <*> c
 
+Idiom brackets also support none or multiple applications. If the applicative
+functor has an additional binary operation
+
+.. code-block:: agda
+
+  _<|>_ : ∀ {A B} → F A → F A → F A
+
+then idiom brackets support multiple applications separated by a vertical bar ``|``, i.e.
+
+.. code-block:: agda
+
+  (| e₁ a₁ .. aₙ | e₂ a₁ .. aₘ | .. | eₖ a₁ .. aₗ |)
+
+which expands to (assuming right associative ``_<|>_``)
+
+.. code-block:: agda
+
+  (pure e₁ <*> a₁ <*> .. <*> aₙ) <|> ((pure e₂ <*> a₁ <*> .. <*> aₘ) <|> (pure eₖ <*> a₁ <*> .. <*> aₗ))
+
+Idiom brackets without any application ``(|)`` or ``⦇⦈`` expend to ``empty`` if
+
+.. code-block:: agda
+
+  empty :  ∀ {A} → F A
+
+is in scope. An applicative functor with ``empty`` and ``_<|>_`` is typically
+called ``Alternative``.
+
+Note that ``pure``, ``_<*>_``, and ``_<|>_`` need not be in scope to use ``(|)``.
+
 Limitations:
 
 - Binding syntax and operator sections cannot appear immediately inside

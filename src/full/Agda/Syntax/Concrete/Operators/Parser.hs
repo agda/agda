@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP          #-}
 {-# LANGUAGE GADTs        #-}
 {-# LANGUAGE TypeFamilies #-}
 
@@ -8,6 +7,7 @@ import Control.Applicative ( Alternative((<|>), many) )
 
 import Data.Either
 import Data.Hashable
+import Data.Kind ( Type )
 import Data.Maybe
 import qualified Data.Strict.Maybe as Strict
 import Data.Set (Set)
@@ -24,7 +24,6 @@ import qualified Agda.Syntax.Concrete.Operators.Parser.Monad as P
 import Agda.Utils.Pretty
 import Agda.Utils.List ( spanEnd )
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 placeholder :: PositionInName -> Parser e (MaybePlaceholder e)
@@ -227,7 +226,7 @@ wildOrUnqualifiedName =
 
 -- | Used to define the return type of 'opP'.
 
-type family OperatorType (k :: NotationKind) (e :: *) :: *
+type family OperatorType (k :: NotationKind) (e :: Type) :: Type
 type instance OperatorType 'InfixNotation   e = MaybePlaceholder e -> MaybePlaceholder e -> e
 type instance OperatorType 'PrefixNotation  e = MaybePlaceholder e -> e
 type instance OperatorType 'PostfixNotation e = MaybePlaceholder e -> e
@@ -236,7 +235,7 @@ type instance OperatorType 'NonfixNotation  e = e
 -- | A singleton type for 'NotationKind' (except for the constructor
 -- 'NoNotation').
 
-data NK (k :: NotationKind) :: * where
+data NK (k :: NotationKind) :: Type where
   In   :: NK 'InfixNotation
   Pre  :: NK 'PrefixNotation
   Post :: NK 'PostfixNotation

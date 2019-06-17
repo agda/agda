@@ -1,5 +1,4 @@
 {-# LANGUAGE CPP             #-}
-{-# LANGUAGE TemplateHaskell #-}
 
 -- | Some functions, generators and instances suitable for writing
 -- QuickCheck properties.
@@ -44,9 +43,7 @@ module Internal.Helpers
 
 import Control.Monad
 
-#if __GLASGOW_HASKELL__ >= 800
 import qualified Control.Monad.Fail as Fail
-#endif
 
 import Data.Functor
 import Data.Monoid ( mappend, mempty, Monoid )
@@ -237,10 +234,8 @@ three gen = liftM3 (,,) gen gen gen
 ------------------------------------------------------------------------
 -- Instances
 
-#if __GLASGOW_HASKELL__ >= 800
 instance Fail.MonadFail Gen where
   fail = error
-#endif
 
 ------------------------------------------------------------------------
 -- Test driver
