@@ -1,12 +1,6 @@
-Issue59.agda:10,1-13,20
-Termination checking failed for the following functions:
-  bad
-Problematic calls:
-  bad m
-    (at Issue59.agda:13,15-18)
-Issue59.agda:16,1-18,12
+Issue59.agda:17,1-19,12
 Termination checking failed for the following functions:
   bad₂
 Problematic calls:
   bad₂ n
-    (at Issue59.agda:17,13-17)
+    (at Issue59.agda:18,13-17)

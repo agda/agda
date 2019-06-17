@@ -1,0 +1,9 @@
+Issue59-RemovedInlining.agda:11,3-17,70
+Termination checking failed for the following functions:
+  Order.merge
+Problematic calls:
+  merge A _≤_ (x ∷ xs) (y ∷ ys) | x ≤ y
+  merge (x ∷ xs) ys
+    (at Issue59-RemovedInlining.agda:15,46-51)
+  merge (x₁ ∷ xs) (y ∷ ys)
+    (at Issue59-RemovedInlining.agda:17,46-51)

@@ -2,5 +2,6 @@ Issue2583.agda:7,1-10,26
 Termination checking failed for the following functions:
   test
 Problematic calls:
+  test x | nothing
   test x
     (at Issue2583.agda:10,20-24)

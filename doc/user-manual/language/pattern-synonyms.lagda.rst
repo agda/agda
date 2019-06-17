@@ -76,3 +76,11 @@ synonym:
     constructor names)
     when checking that the clause lmap f (x ∷ xs) = f x ∷ lmap f xs has
     type {A B : Set} → (A → B) → List A → List B
+
+
+Refolding
+---------
+
+For each pattern ``pattern lhs = rhs``, Agda declares a ``DISPLAY``
+pragma refolding ``rhs`` to ``lhs`` (see :ref:`display_pragma` for
+more details).

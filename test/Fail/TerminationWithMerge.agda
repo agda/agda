@@ -12,6 +12,8 @@ postulate
   a : Set
   _≤?_ : a -> a -> Bool
 
+-- Jesper 2019-05-21: This no longer passes the termination check
+-- since the removal of with-inlining.
 merge : List a -> List a -> List a
 merge xs           []           = xs
 merge []           ys           = ys

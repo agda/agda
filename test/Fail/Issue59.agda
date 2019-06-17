@@ -7,6 +7,7 @@ data Nat : Set where
 
 -- This no longer termination checks with the
 -- new rules for with.
+-- Jesper, 2019-05-21: checks again after removing with-inliner.
 bad : Nat → Nat
 bad n with n
 ... | zero  = zero
