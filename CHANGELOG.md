@@ -1,6 +1,10 @@
 Release notes for Agda version 2.6.1
 ====================================
 
+TODO for release:
+
+* Make sure that optimization is turned back on: revert b72e88e688decbc6737d35c2227ccf4937ca29f4
+
 Installation and infrastructure
 -------------------------------
 
