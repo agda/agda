@@ -27,7 +27,7 @@ import Agda.Utils.Impossible
 --   and @expand@ holds on the hiding info of its domain.
 
 implicitArgs
-  :: (MonadReduce m, MonadMetaSolver m, MonadDebug m)
+  :: (MonadReduce m, MonadMetaSolver m, MonadDebug m, MonadTCM m)
   => Int               -- ^ @n@, the maximum number of implicts to be inserted.
   -> (Hiding -> Bool)  -- ^ @expand@, the predicate to test whether we should keep inserting.
   -> Type              -- ^ The (function) type @t@ we are eliminating.
@@ -40,7 +40,7 @@ implicitArgs n expand t = mapFst (map (fmap namedThing)) <$> do
 --   and @expand@ holds on the hiding and name info of its domain.
 
 implicitNamedArgs
-  :: (MonadReduce m, MonadMetaSolver m, MonadDebug m)
+  :: (MonadReduce m, MonadMetaSolver m, MonadDebug m, MonadTCM m)
   => Int                          -- ^ @n@, the maximum number of implicts to be inserted.
   -> (Hiding -> ArgName -> Bool)  -- ^ @expand@, the predicate to test whether we should keep inserting.
   -> Type                         -- ^ The (function) type @t@ we are eliminating.
@@ -63,7 +63,7 @@ implicitNamedArgs n expand t0 = do
 
             return $ makeInstance info
           (_, v) <- newMetaArg info' x a
-          whenJust tac $ \ tac -> unquoteTactic tac v a
+          whenJust tac $ \ tac -> liftTCM $ unquoteTactic tac v a
           let narg = Arg info (Named (Just $ unranged x) v)
           mapFst (narg :) <$> implicitNamedArgs (n-1) expand (absApp b v)
       _ -> return ([], t0')
