@@ -161,7 +161,7 @@ prettyRelevance a d =
 
 prettyTactic :: BoundName -> Doc -> Doc
 prettyTactic BName{ bnameTactic = Nothing } d = d
-prettyTactic BName{ bnameTactic = Just t }  d = "@" <> parens ("tactic" <+> pretty t) <+> d
+prettyTactic BName{ bnameTactic = Just t }  d = "@" <> (parens ("tactic" <+> pretty t) <+> d)
 
 instance (Pretty a, Pretty b) => Pretty (a, b) where
     pretty (a, b) = parens $ (pretty a <> comma) <+> pretty b
