@@ -300,8 +300,9 @@ inferDef mkTerm x =
     -- getConstInfo retrieves the *absolute* (closed) type of x
     -- instantiateDef relativizes it to the current context
     d  <- instantiateDef =<< getConstInfo x
-    -- irrelevant defs are only allowed in irrelevant position
-    checkRelevance x d
+    -- Irrelevant defs are only allowed in irrelevant position.
+    -- Erased defs are only allowed in erased position (see #3855).
+    checkModality x d
     case theDef d of
       GeneralizableVar{} -> do
         -- Generalizable variables corresponds to metas created
@@ -332,10 +333,6 @@ inferDef mkTerm x =
         , nest 2 $ "-->" <+> prettyTCM v ]
 
 -- | The second argument is the definition of the first.
-checkRelevance :: QName -> Definition -> TCM ()
-checkRelevance x def = maybe (return ()) typeError =<< checkRelevance' x def
-
--- | The second argument is the definition of the first.
 --   Returns 'Nothing' if ok, otherwise the error message.
 checkRelevance' :: QName -> Definition -> TCM (Maybe TypeError)
 checkRelevance' x def = do
@@ -358,6 +355,32 @@ checkRelevance' x def = do
         , " Turn on option --irrelevant-projections to use it (unsafe)."
         ]
 
+-- | The second argument is the definition of the first.
+--   Returns 'Nothing' if ok, otherwise the error message.
+checkQuantity' :: QName -> Definition -> TCM (Maybe TypeError)
+checkQuantity' x def = do
+  case getQuantity def of
+    Quantityω -> return Nothing -- Abundant definitions can be used in any context.
+    dq -> do
+      q <- asksTC getQuantity
+      reportSDoc "tc.irr" 50 $ vcat
+        [ "declaration quantity =" <+> text (show dq)
+        , "context     quantity =" <+> text (show q)
+        ]
+      return $ if (dq `moreQuantity` q) then Nothing else Just $ DefinitionIsErased x
+
+-- | The second argument is the definition of the first.
+checkModality' :: QName -> Definition -> TCM (Maybe TypeError)
+checkModality' x def = do
+  checkRelevance' x def >>= \case
+    Nothing    -> checkQuantity' x def
+    err@Just{} -> return err
+
+-- | The second argument is the definition of the first.
+checkModality :: QName -> Definition -> TCM ()
+checkModality x def = justToError $ checkModality' x def
+  where
+  justToError m = maybe (return ()) typeError =<< m
 
 -- | @checkHeadApplication e t hd args@ checks that @e@ has type @t@,
 -- assuming that @e@ has the form @hd args@. The corresponding
@@ -998,7 +1021,7 @@ inferOrCheckProjAppToKnownPrincipalArg e o ds args mt k v0 ta = do
             -- the correct disambiguation.
             -- guard (size tel == size pars)
 
-            guard =<< do isNothing <$> do lift $ checkRelevance' d def
+            guard =<< do isNothing <$> do lift $ checkModality' d def
             return (orig, (d, (pars, (dom, u, tb))))
 
       cands <- groupOn fst . catMaybes <$> mapM (runMaybeT . try) (toList ds)

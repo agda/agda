@@ -87,8 +87,9 @@ import Agda.Utils.Impossible
 checkFunDef :: Delayed -> Info.DefInfo -> QName -> [A.Clause] -> TCM ()
 checkFunDef delayed i name cs = do
         -- Get the type and relevance of the function
-        t    <- typeOfConst name
-        info  <- flip setRelevance defaultArgInfo <$> relOfConst name
+        def <- instantiateDef =<< getConstInfo name
+        let t    = defType def
+        let info = getArgInfo def
         case isAlias cs t of
           Just (e, mc, x) ->
             traceCall (CheckFunDefCall (getRange i) name cs) $ do
@@ -100,7 +101,7 @@ checkFunDef delayed i name cs = do
           _ -> checkFunDef' t info delayed Nothing Nothing i name cs
 
         -- If it's a macro check that it ends in Term → TC ⊤
-        ismacro <- isMacro . theDef <$> getConstInfo name
+        let ismacro = isMacro . theDef $ def
         when (ismacro || Info.defMacro i == MacroDef) $ checkMacroType t
     `catchIlltypedPatternBlockedOnMeta` \ (err, x) -> do
         reportSDoc "tc.def" 20 $ vcat $

@@ -563,9 +563,9 @@ checkAxiom' gentel funSig i info0 mp x e = whenAbstractFreezeMetasAfter i $ do
 
   -- Andreas, 2012-04-18  if we are in irrelevant context, axioms is irrelevant
   -- even if not declared as such (Issue 610).
-  rel <- max (getRelevance info0) <$> asksTC getRelevance
-  let info = setRelevance rel info0
-  -- rel <- ifM ((Irrelevant ==) <$> asksTC getRelevance) (return Irrelevant) (return rel0)
+  -- Andreas, 2019-06-17  also for erasure (issue #3855).
+  mod <- max (getModality info0) <$> asksTC getModality
+  let info = setModality mod info0
   (genParams, npars, t) <- workOnTypes $ case gentel of
         Nothing     -> ([], 0,) <$> isType_ e
         Just gentel ->
@@ -575,7 +575,7 @@ checkAxiom' gentel funSig i info0 mp x e = whenAbstractFreezeMetasAfter i $ do
 
   reportSDoc "tc.decl.ax" 10 $ sep
     [ text $ "checked type signature"
-    , nest 2 $ (prettyTCM rel <> prettyTCM x) <+> ":" <+> prettyTCM t
+    , nest 2 $ (prettyTCM mod <> prettyTCM x) <+> ":" <+> prettyTCM t
     , nest 2 $ "of sort " <+> prettyTCM (getSort t)
     ]
 

@@ -177,6 +177,12 @@ instance Pretty Relevance where
   pretty Irrelevant = "."
   pretty NonStrict  = ".."
 
+instance Pretty Quantity where
+  pretty = \case
+    Quantity0 -> "@0"
+    Quantity1 -> "@1"
+    Quantityω -> empty
+
 instance Pretty (OpApp Expr) where
   pretty (Ordinary e) = pretty e
   pretty (SyntaxBindingLambda r bs e) = pretty (Lam r bs e)

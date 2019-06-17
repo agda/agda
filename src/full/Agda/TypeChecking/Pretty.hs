@@ -257,6 +257,18 @@ instance PrettyTCM Relevance where
   prettyTCM NonStrict  = ".."
   prettyTCM Relevant   = empty
 
+instance PrettyTCM Quantity where
+  prettyTCM = \case
+    Quantity0 -> "@0"
+    Quantity1 -> "@1"
+    Quantityω -> empty
+
+instance PrettyTCM Modality where
+  prettyTCM mod = hsep
+    [ prettyTCM (getQuantity mod)
+    , prettyTCM (getRelevance mod)
+    ]
+
 instance PrettyTCM ProblemConstraint where
   prettyTCM (PConstr pids c)
     | Set.null pids = prettyTCM c

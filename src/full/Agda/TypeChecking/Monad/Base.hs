@@ -3106,6 +3106,8 @@ data TypeError
             -- ^ Wrong user-given relevance annotation in lambda.
         | WrongQuantityInLambda
             -- ^ Wrong user-given quantity annotation in lambda.
+        | QuantityMismatch Quantity Quantity
+            -- ^ The given quantity does not correspond to the expected quantity.
         | HidingMismatch Hiding Hiding
             -- ^ The given hiding does not correspond to the expected hiding.
         | RelevanceMismatch Relevance Relevance
@@ -3137,6 +3139,7 @@ data TypeError
         -- UNUSED: -- | SplitOnErased (Dom Type)
         | SplitOnNonVariable Term Type
         | DefinitionIsIrrelevant QName
+        | DefinitionIsErased QName
         | VariableIsIrrelevant Name
         | VariableIsErased Name
 --        | UnequalLevel Comparison Term Term  -- UNUSED

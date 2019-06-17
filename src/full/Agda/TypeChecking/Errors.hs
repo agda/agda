@@ -226,6 +226,7 @@ errorString err = case err of
   -- UNUSED: -- SplitOnErased{}                          -> "SplitOnErased"
   SplitOnNonVariable{}                     -> "SplitOnNonVariable"
   DefinitionIsIrrelevant{}                 -> "DefinitionIsIrrelevant"
+  DefinitionIsErased{}                     -> "DefinitionIsErased"
   VariableIsIrrelevant{}                   -> "VariableIsIrrelevant"
   VariableIsErased{}                       -> "VariableIsErased"
   UnequalBecauseOfUniverseConflict{}       -> "UnequalBecauseOfUniverseConflict"
@@ -252,6 +253,7 @@ errorString err = case err of
   WrongQuantityInLambda{}                  -> "WrongQuantityInLambda"
   WrongNamedArgument{}                     -> "WrongNamedArgument"
   WrongNumberOfConstructorArguments{}      -> "WrongNumberOfConstructorArguments"
+  QuantityMismatch{}                       -> "QuantityMismatch"
   HidingMismatch{}                         -> "HidingMismatch"
   RelevanceMismatch{}                      -> "RelevanceMismatch"
   NonFatalErrors{}                         -> "NonFatalErrors"
@@ -359,6 +361,10 @@ instance PrettyTCM TypeError where
     RelevanceMismatch r r' -> fwords $
       "Expected " ++ verbalize (Indefinite r') ++ " argument, but found " ++
       verbalize (Indefinite r) ++ " argument"
+
+    QuantityMismatch q q' -> fwords $
+      "Expected " ++ verbalize (Indefinite q') ++ " argument, but found " ++
+      verbalize (Indefinite q) ++ " argument"
 
     UninstantiatedDotPattern e -> fsep $
       pwords "Failed to infer the value of dotted pattern"
@@ -508,6 +514,9 @@ instance PrettyTCM TypeError where
 
     DefinitionIsIrrelevant x -> fsep $
       "Identifier" : prettyTCM x : pwords "is declared irrelevant, so it cannot be used here"
+
+    DefinitionIsErased x -> fsep $
+      "Identifier" : prettyTCM x : pwords "is declared erased, so it cannot be used here"
 
     VariableIsIrrelevant x -> fsep $
       "Variable" : prettyTCM (nameConcrete x) : pwords "is declared irrelevant, so it cannot be used here"
