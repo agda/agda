@@ -48,6 +48,39 @@ Index of pragmas
 
 See also :ref:`command-line-pragmas`.
 
+.. _display_pragma:
+
+The ``DISPLAY`` pragma
+______________________
+
+
+Users can declare a ``DISPLAY`` pragma::
+
+  {-# DISPLAY f e1 .. en = e #-}
+
+This causes ``f e1 .. en`` to be printed in the same way as ``e``, where
+``ei`` can bind variables used in ``e``. The expressions ``ei`` and ``e``
+are scope checked, but not type checked.
+
+For example this can be used to print overloaded (instance) functions with
+the overloaded name::
+
+  instance
+    NumNat : Num Nat
+    NumNat = record { ..; _+_ = natPlus }
+
+  {-# DISPLAY natPlus a b = a + b #-}
+
+Limitations
+
+  - Left-hand sides are restricted to variables, constructors, defined
+    functions or types, and literals. In particular, lambdas are not
+    allowed in left-hand sides.
+
+  - Since `DISPLAY` pragmas are not type checked implicit argument
+    insertion may not work properly if the type of `f` computes to an
+    implicit function space after pattern matching.
+
 .. _inline_pragma:
 
 The ``INLINE`` and ``NOINLINE`` pragmas
