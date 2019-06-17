@@ -1272,7 +1272,7 @@ getMetaSig :: MetaVariable -> Signature
 getMetaSig m = clSignature $ getMetaInfo m
 
 getMetaRelevance :: MetaVariable -> Relevance
-getMetaRelevance = envRelevance . getMetaEnv
+getMetaRelevance = getRelevance . getMetaEnv
 
 getMetaModality :: MetaVariable -> Modality
 getMetaModality = envModality . getMetaEnv
@@ -1443,9 +1443,6 @@ instance Pretty DisplayTerm where
 defaultDisplayForm :: QName -> [LocalDisplayForm]
 defaultDisplayForm c = []
 
-defRelevance :: Definition -> Relevance
-defRelevance = getRelevance . defArgInfo
-
 -- | Non-linear (non-constructor) first-order pattern.
 data NLPat
   = PVar !Int [Arg Int]
@@ -1559,6 +1556,14 @@ data Definition = Defn
   , theDef            :: Defn
   }
     deriving (Data, Show)
+
+instance LensArgInfo Definition where
+  getArgInfo = defArgInfo
+  mapArgInfo f def = def { defArgInfo = f $ defArgInfo def }
+
+instance LensModality  Definition where
+instance LensQuantity  Definition where
+instance LensRelevance Definition where
 
 data NumGeneralizableArgs
   = NoGeneralizableArgs
@@ -2596,9 +2601,12 @@ initEnv = TCEnv { envContext             = []
                 , envActiveBackendName      = Nothing
                 }
 
--- | Project 'Relevance' component of 'TCEnv'.
-envRelevance :: TCEnv -> Relevance
-envRelevance = modRelevance . envModality
+instance LensModality TCEnv where
+  getModality = envModality
+  mapModality f e = e { envModality = f $ envModality e }
+
+instance LensRelevance TCEnv where
+instance LensQuantity  TCEnv where
 
 data UnquoteFlags = UnquoteFlags
   { _unquoteNormalise :: Bool }

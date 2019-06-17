@@ -176,7 +176,7 @@ instance NFData a => NFData (WithHiding a) where
   rnf (WithHiding _ a) = rnf a
 
 -- | A lens to access the 'Hiding' attribute in data structures.
---   Minimal implementation: @getHiding@ and one of @setHiding@ or @mapHiding@.
+--   Minimal implementation: @getHiding@ and @mapHiding@ or @LensArgInfo@.
 class LensHiding a where
 
   getHiding :: a -> Hiding
@@ -185,7 +185,12 @@ class LensHiding a where
   setHiding h = mapHiding (const h)
 
   mapHiding :: (Hiding -> Hiding) -> a -> a
-  mapHiding f a = setHiding (f $ getHiding a) a
+
+  default getHiding :: LensArgInfo a => a -> Hiding
+  getHiding = argInfoHiding . getArgInfo
+
+  default mapHiding :: LensArgInfo a => (Hiding -> Hiding) -> a -> a
+  mapHiding f = mapArgInfo $ \ ai -> ai { argInfoHiding = f $ argInfoHiding ai }
 
 instance LensHiding Hiding where
   getHiding = id
@@ -344,7 +349,12 @@ class LensModality a where
   setModality = mapModality . const
 
   mapModality :: (Modality -> Modality) -> a -> a
-  mapModality f a = setModality (f $ getModality a) a
+
+  default getModality :: LensArgInfo a => a -> Modality
+  getModality = argInfoModality . getArgInfo
+
+  default mapModality :: LensArgInfo a => (Modality -> Modality) -> a -> a
+  mapModality f = mapArgInfo $ \ ai -> ai { argInfoModality = f $ argInfoModality ai }
 
 instance LensModality Modality where
   getModality = id
@@ -488,7 +498,12 @@ class LensQuantity a where
   setQuantity = mapQuantity . const
 
   mapQuantity :: (Quantity -> Quantity) -> a -> a
-  mapQuantity f a = setQuantity (f $ getQuantity a) a
+
+  default getQuantity :: LensModality a => a -> Quantity
+  getQuantity = modQuantity . getModality
+
+  default mapQuantity :: LensModality a => (Quantity -> Quantity) -> a -> a
+  mapQuantity f = mapModality $ \ ai -> ai { modQuantity = f $ modQuantity ai }
 
 instance LensQuantity Quantity where
   getQuantity = id
@@ -532,7 +547,7 @@ instance NFData Relevance where
   rnf Irrelevant = ()
 
 -- | A lens to access the 'Relevance' attribute in data structures.
---   Minimal implementation: @getRelevance@ and one of @setRelevance@ or @mapRelevance@.
+--   Minimal implementation: @getRelevance@ and @mapRelevance@ or @LensModality@.
 class LensRelevance a where
 
   getRelevance :: a -> Relevance
@@ -541,7 +556,12 @@ class LensRelevance a where
   setRelevance h = mapRelevance (const h)
 
   mapRelevance :: (Relevance -> Relevance) -> a -> a
-  mapRelevance f a = setRelevance (f $ getRelevance a) a
+
+  default getRelevance :: LensModality a => a -> Relevance
+  getRelevance = modRelevance . getModality
+
+  default mapRelevance :: LensModality a => (Relevance -> Relevance) -> a -> a
+  mapRelevance f = mapModality $ \ ai -> ai { modRelevance = f $ modRelevance ai }
 
 instance LensRelevance Relevance where
   getRelevance = id
@@ -699,7 +719,7 @@ instance NFData a => NFData (WithOrigin a) where
   rnf (WithOrigin _ a) = rnf a
 
 -- | A lens to access the 'Origin' attribute in data structures.
---   Minimal implementation: @getOrigin@ and one of @setOrigin@ or @mapOrigin@.
+--   Minimal implementation: @getOrigin@ and @mapOrigin@ or @LensArgInfo@.
 
 class LensOrigin a where
 
@@ -709,7 +729,12 @@ class LensOrigin a where
   setOrigin o = mapOrigin (const o)
 
   mapOrigin :: (Origin -> Origin) -> a -> a
-  mapOrigin f a = setOrigin (f $ getOrigin a) a
+
+  default getOrigin :: LensArgInfo a => a -> Origin
+  getOrigin = argInfoOrigin . getArgInfo
+
+  default mapOrigin :: LensArgInfo a => (Origin -> Origin) -> a -> a
+  mapOrigin f = mapArgInfo $ \ ai -> ai { argInfoOrigin = f $ argInfoOrigin ai }
 
 instance LensOrigin Origin where
   getOrigin = id
@@ -754,7 +779,7 @@ freeVariablesFromList :: [Int] -> FreeVariables
 freeVariablesFromList = mconcat . map oneFreeVariable
 
 -- | A lens to access the 'FreeVariables' attribute in data structures.
---   Minimal implementation: @getFreeVariables@ and one of @setFreeVariables@ or @mapFreeVariables@.
+--   Minimal implementation: @getFreeVariables@ and @mapFreeVariables@ or @LensArgInfo@.
 class LensFreeVariables a where
 
   getFreeVariables :: a -> FreeVariables
@@ -763,7 +788,12 @@ class LensFreeVariables a where
   setFreeVariables o = mapFreeVariables (const o)
 
   mapFreeVariables :: (FreeVariables -> FreeVariables) -> a -> a
-  mapFreeVariables f a = setFreeVariables (f $ getFreeVariables a) a
+
+  default getFreeVariables :: LensArgInfo a => a -> FreeVariables
+  getFreeVariables = argInfoFreeVariables . getArgInfo
+
+  default mapFreeVariables :: LensArgInfo a => (FreeVariables -> FreeVariables) -> a -> a
+  mapFreeVariables f = mapArgInfo $ \ ai -> ai { argInfoFreeVariables = f $ argInfoFreeVariables ai }
 
 instance LensFreeVariables FreeVariables where
   getFreeVariables = id

@@ -569,7 +569,7 @@ checkAbsurdLambda cmp i h e t = do
           aux <- qualify top <$> freshName_ (getRange i, absurdLambdaName)
           -- if we are in irrelevant position, the helper function
           -- is added as irrelevant
-          rel <- asksTC envRelevance
+          rel <- asksTC getRelevance
           reportSDoc "tc.term.absurd" 10 $ vcat
             [ ("Adding absurd function" <+> prettyTCM rel) <> prettyTCM aux
             , nest 2 $ "of type" <+> prettyTCM t'
@@ -615,7 +615,7 @@ checkExtendedLambda cmp i di qname cs e t = do
    t <- instantiateFull t
    ifBlocked t (\ m t' -> postponeTypeCheckingProblem_ $ CheckExpr cmp e t') $ \ _ t -> do
      j   <- currentOrFreshMutualBlock
-     rel <- asksTC envRelevance
+     rel <- asksTC getRelevance
      let info = setRelevance rel defaultArgInfo
 
      reportSDoc "tc.term.exlam" 20 $
@@ -1081,7 +1081,7 @@ checkExpr' cmp e t0 =
         A.RecUpdate ei recexpr fs -> checkRecordUpdate cmp ei recexpr fs e t
 
         A.DontCare e -> -- resurrect vars
-          ifM ((Irrelevant ==) <$> asksTC envRelevance)
+          ifM ((Irrelevant ==) <$> asksTC getRelevance)
             (dontCare <$> do applyRelevanceToContext Irrelevant $ checkExpr' cmp e t)
             (internalError "DontCare may only appear in irrelevant contexts")
 
@@ -1507,7 +1507,7 @@ checkLetBinding b@(A.LetPatBind i p e) ret =
       , nest 2 $ vcat
         [ "p (A) =" <+> prettyA p
         , "t     =" <+> prettyTCM t
-        , "cxtRel=" <+> do pretty =<< asksTC envRelevance
+        , "cxtRel=" <+> do pretty =<< asksTC getRelevance
         ]
       ]
     fvs <- getContextSize
@@ -1519,7 +1519,7 @@ checkLetBinding b@(A.LetPatBind i p e) ret =
       reportSDoc "tc.term.let.pattern" 20 $ nest 2 $ vcat
         [ "p (I) =" <+> prettyTCM p
         , "delta =" <+> prettyTCM delta
-        , "cxtRel=" <+> do pretty =<< asksTC envRelevance
+        , "cxtRel=" <+> do pretty =<< asksTC getRelevance
         ]
       reportSDoc "tc.term.let.pattern" 80 $ nest 2 $ vcat
         [ "p (I) =" <+> (text . show) p

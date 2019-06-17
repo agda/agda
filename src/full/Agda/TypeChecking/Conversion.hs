@@ -128,7 +128,7 @@ equalType = compareType CmpEq
 -- convError ::  MonadTCM tcm => TypeError -> tcm a
 -- | Ignore errors in irrelevant context.
 convError :: TypeError -> TCM ()
-convError err = ifM ((==) Irrelevant <$> asksTC envRelevance) (return ()) $ typeError err
+convError err = ifM ((==) Irrelevant <$> asksTC getRelevance) (return ()) $ typeError err
 
 -- | Type directed equality on values.
 --

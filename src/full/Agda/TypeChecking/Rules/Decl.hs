@@ -563,9 +563,9 @@ checkAxiom' gentel funSig i info0 mp x e = whenAbstractFreezeMetasAfter i $ do
 
   -- Andreas, 2012-04-18  if we are in irrelevant context, axioms is irrelevant
   -- even if not declared as such (Issue 610).
-  rel <- max (getRelevance info0) <$> asksTC envRelevance
+  rel <- max (getRelevance info0) <$> asksTC getRelevance
   let info = setRelevance rel info0
-  -- rel <- ifM ((Irrelevant ==) <$> asksTC envRelevance) (return Irrelevant) (return rel0)
+  -- rel <- ifM ((Irrelevant ==) <$> asksTC getRelevance) (return Irrelevant) (return rel0)
   (genParams, npars, t) <- workOnTypes $ case gentel of
         Nothing     -> ([], 0,) <$> isType_ e
         Just gentel ->

@@ -70,10 +70,11 @@ instance KillRange ExprInfo where
  --------------------------------------------------------------------------}
 
 -- | Information about application
-data AppInfo = AppInfo { appRange  :: Range
-                       , appOrigin :: Origin
-                       , appParens :: ParenPreference -- ^ Do we prefer a appbda argument with or without parens?
-                       }
+data AppInfo = AppInfo
+  { appRange  :: Range
+  , appOrigin :: Origin
+  , appParens :: ParenPreference -- ^ Do we prefer a appbda argument with or without parens?
+  }
   deriving (Data, Show, Eq, Ord)
 
 -- | Default is system inserted and prefer parens.
@@ -92,7 +93,7 @@ instance KillRange AppInfo where
 
 instance LensOrigin AppInfo where
   getOrigin = appOrigin
-  setOrigin o i = i { appOrigin = o }
+  mapOrigin f i = i { appOrigin = f (appOrigin i) }
 
 {--------------------------------------------------------------------------
     Module information

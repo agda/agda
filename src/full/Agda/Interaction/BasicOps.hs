@@ -122,7 +122,7 @@ giveExpr force mii mi e = do
         v <- checkExpr e t'
         case mvInstantiation mv of
 
-          InstV xs v' -> unlessM ((Irrelevant ==) <$> asksTC envRelevance) $ do
+          InstV xs v' -> unlessM ((Irrelevant ==) <$> asksTC getRelevance) $ do
             reportSDoc "interaction.give" 20 $ TP.sep
               [ "meta was already set to value v' = " TP.<+> prettyTCM v'
                 TP.<+> " with free variables " TP.<+> return (fsep $ map pretty xs)

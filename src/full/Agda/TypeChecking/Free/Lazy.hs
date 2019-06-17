@@ -120,7 +120,7 @@ composeVarOcc (VarOcc o r) (VarOcc o' r') = VarOcc (composeFlexRig o o') (max r 
 
 instance LensRelevance VarOcc where
   getRelevance = varRelevance
-  setRelevance rel (VarOcc x _) = VarOcc x rel
+  mapRelevance f (VarOcc x r) = VarOcc x $ f r
 
 -- | Any representation of a set of variables need to be able to be modified by
 --   a variable occurrence. This is to ensure that free variable analysis is

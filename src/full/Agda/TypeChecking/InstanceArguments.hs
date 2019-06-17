@@ -147,7 +147,7 @@ initialInstanceCandidates t = do
     getScopeDefs :: QName -> TCM [Candidate]
     getScopeDefs n = do
       instanceDefs <- getInstanceDefs
-      rel          <- asksTC envRelevance
+      rel          <- asksTC getRelevance
       let qs = maybe [] Set.toList $ Map.lookup n instanceDefs
       catMaybes <$> mapM (candidate rel) qs
 
@@ -159,7 +159,7 @@ initialInstanceCandidates t = do
       -- in this case, we just ignore q (issue 674)
       flip catchError handle $ do
         def <- getConstInfo q
-        if not (defRelevance def `moreRelevant` rel) then return Nothing else do
+        if not (getRelevance def `moreRelevant` rel) then return Nothing else do
           -- Andreas, 2017-01-14: instantiateDef is a bit of an overkill
           -- if we anyway get the freeVarsToApply
           -- WAS: t <- defType <$> instantiateDef def

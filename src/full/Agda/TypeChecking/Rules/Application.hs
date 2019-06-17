@@ -339,14 +339,14 @@ checkRelevance x def = maybe (return ()) typeError =<< checkRelevance' x def
 --   Returns 'Nothing' if ok, otherwise the error message.
 checkRelevance' :: QName -> Definition -> TCM (Maybe TypeError)
 checkRelevance' x def = do
-  case defRelevance def of
+  case getRelevance def of
     Relevant -> return Nothing -- relevance functions can be used in any context.
     drel -> do
       -- Andreas,, 2018-06-09, issue #2170
       -- irrelevant projections are only allowed if --irrelevant-projections
       ifM (return (isJust $ isProjection_ $ theDef def) `and2M`
            (not .optIrrelevantProjections <$> pragmaOptions)) {-then-} needIrrProj {-else-} $ do
-        rel <- asksTC envRelevance
+        rel <- asksTC getRelevance
         reportSDoc "tc.irr" 50 $ vcat
           [ "declaration relevance =" <+> text (show drel)
           , "context     relevance =" <+> text (show rel)
@@ -1080,7 +1080,7 @@ checkSharpApplication e t c args = do
                            (freshName_ name)
 
     -- Define and type check the fresh function.
-    rel <- asksTC envRelevance
+    rel <- asksTC getRelevance
     abs <- aModeToDef <$> asksTC envAbstractMode
     let info   = A.mkDefInfo (A.nameConcrete $ A.qnameName c') noFixity'
                              PublicAccess abs noRange

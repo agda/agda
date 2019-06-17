@@ -670,7 +670,7 @@ checkClause t withSub c@(A.Clause (A.SpineLHS i x aps) strippedPats rhs0 wh catc
                              ConP _ _ ps -> iApplyVars ps
 
         -- compute body modification for irrelevant definitions, see issue 610
-        rel <- asksTC envRelevance
+        rel <- asksTC getRelevance
         let bodyMod body = case rel of
               Irrelevant -> dontCare <$> body
               _          -> body
