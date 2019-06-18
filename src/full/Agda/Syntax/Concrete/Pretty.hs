@@ -159,6 +159,10 @@ prettyRelevance :: LensRelevance a => a -> Doc -> Doc
 prettyRelevance a d =
   if render d == "_" then d else pretty (getRelevance a) <> d
 
+prettyQuantity :: LensQuantity a => a -> Doc -> Doc
+prettyQuantity a d =
+  if render d == "_" then d else pretty (getQuantity a) <+> d
+
 prettyTactic :: BoundName -> Doc -> Doc
 prettyTactic BName{ bnameTactic = Nothing } d = d
 prettyTactic BName{ bnameTactic = Just t }  d = "@" <> (parens ("tactic" <+> pretty t) <+> d)
@@ -222,7 +226,7 @@ instance Pretty Expr where
             AbsurdLam _ h -> lambda <+> absurd h
             ExtendedLam _ pes -> lambda <+> bracesAndSemicolons (map pretty pes)
             Fun _ e1 e2 ->
-                sep [ pretty e1 <+> arrow
+                sep [ prettyQuantity e1 (pretty e1) <+> arrow
                     , pretty e2
                     ]
             Pi tel e ->
@@ -310,7 +314,7 @@ instance Pretty NamedBinding where
     prH $ if | isLabeled x -> text (fromMaybe __IMPOSSIBLE__ $ getLabel x) <+> "=" <+> pretty (namedArg x)
              | otherwise   -> pretty (namedArg x)
     where
-      prH | withH     = prettyRelevance x . prettyHiding x id . prettyTactic (namedArg x)
+      prH | withH     = prettyRelevance x . prettyHiding x id . prettyQuantity x . prettyTactic (namedArg x)
           | otherwise = id
 
 instance Pretty LamBinding where
@@ -322,7 +326,7 @@ instance Pretty TypedBinding where
     pretty (TBind _ xs (Underscore _ Nothing)) =
       fsep (map (pretty . NamedBinding True) xs)
     pretty (TBind _ xs e) = fsep
-      [ prettyRelevance y $ prettyHiding y parens $ prettyTactic (namedArg y) $
+      [ prettyRelevance y $ prettyHiding y parens $ prettyQuantity y $ prettyTactic (namedArg y) $
         sep [ fsep (map (pretty . NamedBinding False) ys)
             , ":" <+> pretty e ]
       | ys@(y : _) <- groupBinds xs ]
@@ -408,13 +412,13 @@ instance Pretty Declaration where
     pretty d =
         case d of
             TypeSig i x e ->
-                sep [ prettyRelevance i $ pretty x <+> ":"
+                sep [ prettyRelevance i $ prettyQuantity i $ pretty x <+> ":"
                     , nest 2 $ pretty e
                     ]
             Field inst x (Arg i e) ->
                 sep [ "field"
                     , nest 2 $ mkInst inst $ mkOverlap i $
-                      prettyRelevance i $ prettyHiding i id $
+                      prettyRelevance i $ prettyHiding i id $ prettyQuantity i $
                         pretty $ TypeSig (setRelevance Relevant i) x e
                     ]
                 where
