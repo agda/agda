@@ -130,6 +130,25 @@ Language
   the head symbol are no longer allowed (see issue
   [#3846](https://github.com/agda/agda/issues/3846)).
 
+### Tactics
+
+* Implicit arguments solved by user-defined tactics
+
+  You can declare tactics to be used to solve a particular implicit argument
+  using the following syntax:
+
+  ```agda
+  example : {@(tactic f) x : A} → B
+  ```
+
+  where `f : Term → TC ⊤`. At calls to `example`, `f` is called on the
+  metavariable inserted for `x`. `f` can be an arbitrary term and may depend on
+  previous arguments to the function. For instance,
+
+  ```agda
+  example₂ : (depth : Nat) {@(tactic search depth) x : A} → B
+  ```
+
 Emacs mode
 ----------
 

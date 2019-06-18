@@ -1026,7 +1026,7 @@ bindParameters npars [] t ret =
                     , text (absName b) <+> text ":" <+> prettyTCM (unDom a) ]
     _ -> __IMPOSSIBLE__
 
-bindParameters npars par@(A.DomainFull (A.TBind _ xs e) : bs) a ret =
+bindParameters npars par@(A.DomainFull (A.TBind _ _ xs e) : bs) a ret =
   setCurrentRange par $
   typeError . GenericDocError =<< do
     let s | length xs > 1 = "s"
@@ -1035,12 +1035,12 @@ bindParameters npars par@(A.DomainFull (A.TBind _ xs e) : bs) a ret =
 
 bindParameters _ (A.DomainFull A.TLet{} : _) _ _ = __IMPOSSIBLE__
 
-bindParameters _ (par@(A.DomainFree arg) : ps) _ _
+bindParameters _ (par@(A.DomainFree _ arg) : ps) _ _
   | getModality arg /= defaultModality = setCurrentRange par $
      typeError . GenericDocError =<< do
        text "Unexpected modality/relevance annotation in" <+> prettyA par
 
-bindParameters npars ps0@(par@(A.DomainFree arg) : ps) t ret = do
+bindParameters npars ps0@(par@(A.DomainFree _ arg) : ps) t ret = do
   let x          = namedArg arg
       TelV tel _ = telView' t
   case insertImplicit arg $ telToList tel of

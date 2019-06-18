@@ -709,10 +709,10 @@ instance ToConcrete A.Expr C.Expr where
                     e  <- toConcreteTop e
                     return $ C.Lam (getRange i) bs e
         where
-            lamView (A.Lam _ b@(A.DomainFree _) e) =
+            lamView (A.Lam _ b@A.DomainFree{} e) =
                 case lamView e of
                     ([], e)                      -> ([b], e)
-                    (bs@(A.DomainFree _ : _), e) -> (b:bs, e)
+                    (bs@(A.DomainFree{} : _), e) -> (b:bs, e)
                     _                            -> ([b], e)
             lamView (A.Lam _ b@(A.DomainFull _) e) =
                 case lamView e of
@@ -830,10 +830,10 @@ instance ToConcrete A.Expr C.Expr where
     toConcrete (A.PatternSyn n) = C.Ident <$> toConcrete (headAmbQ n)
 
 makeDomainFree :: A.LamBinding -> A.LamBinding
-makeDomainFree b@(A.DomainFull (A.TBind _ [x] t)) =
+makeDomainFree b@(A.DomainFull (A.TBind _ tac [x] t)) =
   case unScope t of
     A.Underscore A.MetaInfo{metaNumber = Nothing} ->
-      A.DomainFree x
+      A.DomainFree tac x
     _ -> b
 makeDomainFree b = b
 
@@ -862,15 +862,19 @@ forceNameIfHidden x
     name = Ranged (getRange x) $ C.nameToRawName $ nameConcrete $ unBind $ namedArg x
 
 instance ToConcrete A.LamBinding C.LamBinding where
-    bindToConcrete (A.DomainFree x) ret =
-        bindToConcrete (forceNameIfHidden x) $ ret . C.DomainFree
+    bindToConcrete (A.DomainFree t x) ret = do
+      t <- traverse toConcrete t
+      let setTac x = x { bnameTactic = t }
+      bindToConcrete (forceNameIfHidden x) $ ret . C.DomainFree . (fmap . fmap) setTac
     bindToConcrete (A.DomainFull b) ret = bindToConcrete b $ ret . C.DomainFull
 
 instance ToConcrete A.TypedBinding C.TypedBinding where
-    bindToConcrete (A.TBind r xs e) ret =
+    bindToConcrete (A.TBind r t xs e) ret = do
+        t <- traverse toConcrete t
         bindToConcrete (map forceNameIfHidden xs) $ \ xs -> do
-        e <- toConcreteTop e
-        ret $ C.TBind r xs e
+          e <- toConcreteTop e
+          let setTac x = x { bnameTactic = t }
+          ret $ C.TBind r ((map . fmap . fmap) setTac xs) e
     bindToConcrete (A.TLet r lbs) ret =
         bindToConcrete lbs $ \ ds -> do
         ret $ C.TLet r $ concat ds
@@ -1153,7 +1157,7 @@ newtype BindingPattern = BindingPat A.Pattern
 newtype FreshenName = FreshenName BindName
 
 instance ToConcrete FreshenName A.Name where
-  bindToConcrete (FreshenName (BindName x)) ret = bindToConcrete x $ \ y -> ret x { nameConcrete = y }
+  bindToConcrete (FreshenName BindName{ unBind = x }) ret = bindToConcrete x $ \ y -> ret x { nameConcrete = y }
 
 -- Pass 1: (Issue #2729)
 -- Takes care of binding the originally user-written pattern variables, but doesn't actually
@@ -1167,7 +1171,7 @@ instance ToConcrete (UserPattern A.Pattern) A.Pattern where
         case isInScope x of
           InScope            -> bindName' x $ ret $ A.VarP bx
           C.NotInScope       -> bindName x $ \y ->
-                                ret $ A.VarP $ BindName $ x { nameConcrete = y }
+                                ret $ A.VarP $ mkBindName $ x { nameConcrete = y }
       A.WildP{}              -> ret p
       A.ProjP{}              -> ret p
       A.AbsurdP{}            -> ret p
@@ -1233,7 +1237,7 @@ instance ToConcrete BindingPattern A.Pattern where
   bindToConcrete (BindingPat p) ret = do
     reportSLn "toConcrete.pat" 100 $ "binding pattern (pass 2b)" ++ show p
     case p of
-      A.VarP x               -> bindToConcrete (FreshenName x) $ ret . A.VarP . BindName
+      A.VarP x               -> bindToConcrete (FreshenName x) $ ret . A.VarP . mkBindName
       A.WildP{}              -> ret p
       A.ProjP{}              -> ret p
       A.AbsurdP{}            -> ret p
@@ -1246,7 +1250,7 @@ instance ToConcrete BindingPattern A.Pattern where
       A.RecP i args          -> bindToConcrete ((map . fmap)        BindingPat args) $ ret . A.RecP i
       A.AsP i x p            -> bindToConcrete (FreshenName x) $ \ x ->
                                 bindToConcrete (BindingPat p)  $ \ p ->
-                                ret (A.AsP i (BindName x) p)
+                                ret (A.AsP i (mkBindName x) p)
       A.WithP i p            -> bindToConcrete (BindingPat p) $ ret . A.WithP i
 
 instance ToConcrete A.Pattern C.Pattern where
@@ -1416,7 +1420,7 @@ tryToRecoverOpApp e def = fromMaybeM def $
         Application hd args = A.appView' body
 
         -- Only inserted domain-free visible lambdas come from sections.
-        insertedName (A.DomainFree x)
+        insertedName (A.DomainFree _ x)
           | getOrigin x == Inserted && visible x = Just $ namedArg x
         insertedName _ = Nothing
 

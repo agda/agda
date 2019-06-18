@@ -39,6 +39,7 @@ deriving instance Show Declaration
 deriving instance Show Pattern
 deriving instance Show TypedBinding
 deriving instance Show LamBinding
+deriving instance Show BoundName
 deriving instance Show ModuleAssignment
 deriving instance (Show a, Show b) => Show (ImportDirective' a b)
 deriving instance (Show a, Show b) => Show (Using' a b)
@@ -157,6 +158,10 @@ prettyHiding a parens =
 prettyRelevance :: LensRelevance a => a -> Doc -> Doc
 prettyRelevance a d =
   if render d == "_" then d else pretty (getRelevance a) <> d
+
+prettyTactic :: BoundName -> Doc -> Doc
+prettyTactic BName{ bnameTactic = Nothing } d = d
+prettyTactic BName{ bnameTactic = Just t }  d = "@" <> (parens ("tactic" <+> pretty t) <+> d)
 
 instance (Pretty a, Pretty b) => Pretty (a, b) where
     pretty (a, b) = parens $ (pretty a <> comma) <+> pretty b
@@ -299,7 +304,7 @@ instance Pretty NamedBinding where
     prH $ if | isLabeled x -> text (fromMaybe __IMPOSSIBLE__ $ getLabel x) <+> "=" <+> pretty (namedArg x)
              | otherwise   -> pretty (namedArg x)
     where
-      prH | withH     = prettyRelevance x . prettyHiding x id
+      prH | withH     = prettyRelevance x . prettyHiding x id . prettyTactic (namedArg x)
           | otherwise = id
 
 instance Pretty LamBinding where
@@ -311,7 +316,7 @@ instance Pretty TypedBinding where
     pretty (TBind _ xs (Underscore _ Nothing)) =
       fsep (map (pretty . NamedBinding True) xs)
     pretty (TBind _ xs e) = fsep
-      [ prettyRelevance y $ prettyHiding y parens $
+      [ prettyRelevance y $ prettyHiding y parens $ prettyTactic (namedArg y) $
         sep [ fsep (map (pretty . NamedBinding False) ys)
             , ":" <+> pretty e ]
       | ys@(y : _) <- groupBinds xs ]

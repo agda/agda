@@ -251,16 +251,16 @@ refine force ii mr e = do
                 where isX (A.Var y) | x == y = Sum 1
                       isX _                  = mempty
 
-              lamView (A.Lam _ (DomainFree x) e) = Just (namedArg x, e)
-              lamView (A.Lam i (DomainFull (TBind r (x : xs) a)) e)
+              lamView (A.Lam _ (DomainFree _ x) e) = Just (namedArg x, e)
+              lamView (A.Lam i (DomainFull (TBind r t (x : xs) a)) e)
                 | null xs   = Just (namedArg x, e)
-                | otherwise = Just (namedArg x, A.Lam i (DomainFull $ TBind r xs a) e)
+                | otherwise = Just (namedArg x, A.Lam i (DomainFull $ TBind r t xs a) e)
               lamView _ = Nothing
 
               -- reduce beta-redexes where the argument is used at most once
               smartApp i e arg =
                 case lamView $ unScope e of
-                  Just (A.BindName x, e) | count x e < 2 -> mapExpr subX e
+                  Just (A.BindName{unBind = x}, e) | count x e < 2 -> mapExpr subX e
                     where subX (A.Var y) | x == y = namedArg arg
                           subX e = e
                   _ -> App i e arg
@@ -436,8 +436,8 @@ instance Reify Constraint (OutputConstraint Expr Expr) where
             CheckLambda cmp (Arg ai (xs, mt)) body target -> do
               domType <- maybe (return underscore) reify mt
               target  <- reify target
-              let mkN (WithHiding h x) = setHiding h $ defaultNamedArg $ A.BindName x
-                  bs = TBind noRange (map mkN xs) domType
+              let mkN (WithHiding h x) = setHiding h $ defaultNamedArg $ A.mkBindName x
+                  bs = mkTBind noRange (map mkN xs) domType
                   e  = A.Lam Info.exprNoRange (DomainFull bs) body
               return $ TypedAssign m' e target
             CheckArgs _ _ args t0 t1 _ -> do

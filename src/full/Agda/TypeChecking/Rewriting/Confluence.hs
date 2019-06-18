@@ -432,7 +432,7 @@ forceEtaExpansion a v (e:es) = case e of
     -- Force a to be a pi type
     reportSDoc "rewriting.confluence.eta" 40 $ fsep
       [ "Forcing" , prettyTCM v , ":" , prettyTCM a , "to take one more argument" ]
-    dom <- Dom i False Nothing <$> newTypeMeta_
+    dom <- defaultArgDom i <$> newTypeMeta_
     cod <- addContext dom $ newTypeMeta_
     equalType a $ mkPi (("x",) <$> dom) cod
 

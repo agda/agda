@@ -36,7 +36,7 @@ import qualified Agda.Utils.VarSet as VarSet
 import Agda.Utils.Impossible
 
 -- | Flatten telescope: (Γ : Tel) -> [Type Γ]
-flattenTel :: Subst t a => Tele (Dom a) -> [Dom a]
+flattenTel :: Subst Term a => Tele (Dom a) -> [Dom a]
 flattenTel EmptyTel          = []
 flattenTel (ExtendTel a tel) = raise (size tel + 1) a : flattenTel (absBody tel)
 

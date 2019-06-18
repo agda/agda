@@ -3,7 +3,7 @@
   {-# OPTIONS --allow-unsolved-metas #-}
   module language.implicit-arguments (A B : Set) (C : A → Set) where
 
-  open import language.built-ins using (_≡_ ; refl)
+  open import Agda.Builtin.Equality
 
   _is-the-same-as_ = _≡_
 
@@ -206,6 +206,50 @@ arguments.
 The reason for this liberal approach to implicit arguments is that
 limiting the use of implicit argument to the cases where we guarantee
 that they are solved rules out many useful cases in practice.
+
+.. _tactic_arguments:
+
+Tactic arguments
+----------------
+
+..
+  ::
+  open import Agda.Builtin.Reflection
+  open import Agda.Builtin.Unit
+  open import Agda.Builtin.Nat
+  open import Agda.Builtin.List
+  Proof = Nat
+  Goal  = Nat
+
+You can declare :ref:`tactics<reflection>` to be used to solve a particular implicit argument using
+the ``@(tactic t)`` attribute, where ``t : Term → TC ⊤``. For instance::
+
+  clever-search : Term → TC ⊤
+  clever-search hole = unify hole (lit (nat 17))
+
+  the-best-number : {@(tactic clever-search) n : Nat} → Nat
+  the-best-number {n} = n
+
+  check : the-best-number ≡ 17
+  check = refl
+
+The tactic can be an arbitrary term of the right type and may depend on previous arguments to the function::
+
+  default : {A : Set} → A → Term → TC ⊤
+  default x hole = bindTC (quoteTC x) (unify hole)
+
+  search : (depth : Nat) → Term → TC ⊤
+
+  example : {@(tactic default 10)   depth : Nat}
+            {@(tactic search depth) proof : Proof} →
+            Goal
+
+..
+  ::
+  search depth hole = unify hole (lit (nat depth))
+  example {proof = p} = p
+  check₁ : example ≡ 10
+  check₁ = refl
 
 .. _metavariables:
 

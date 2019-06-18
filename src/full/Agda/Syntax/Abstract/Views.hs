@@ -237,6 +237,7 @@ instance ExprLike Expr where
       Macro{}                 -> f e
 
 instance ExprLike a => ExprLike (Arg a)     where
+instance ExprLike a => ExprLike (Maybe a)   where
 instance ExprLike a => ExprLike (Named x a) where
 instance ExprLike a => ExprLike [a]         where
 
@@ -262,16 +263,16 @@ instance ExprLike QName where
 instance ExprLike LamBinding where
   recurseExpr f e =
     case e of
-      DomainFree{}  -> pure e
-      DomainFull bs -> DomainFull <$> recurseExpr f bs
+      DomainFree t x -> DomainFree <$> recurseExpr f t <*> pure x
+      DomainFull bs  -> DomainFull <$> recurseExpr f bs
   foldExpr f e =
     case e of
-      DomainFree{}  -> mempty
+      DomainFree t _ -> foldExpr f t
       DomainFull bs -> foldExpr f bs
   traverseExpr f e =
     case e of
-      DomainFree{}  -> pure e
-      DomainFull bs -> DomainFull <$> traverseExpr f bs
+      DomainFree t x -> DomainFree <$> traverseExpr f t <*> pure x
+      DomainFull bs  -> DomainFull <$> traverseExpr f bs
 
 instance ExprLike GeneralizeTelescope where
   recurseExpr  f (GeneralizeTel s tel) = GeneralizeTel s <$> recurseExpr f tel
@@ -286,16 +287,16 @@ instance ExprLike DataDefParams where
 instance ExprLike TypedBinding where
   recurseExpr f e =
     case e of
-      TBind r xs e -> TBind r xs <$> recurseExpr f e
-      TLet r ds    -> TLet r <$> recurseExpr f ds
+      TBind r t xs e -> TBind r <$> recurseExpr f t <*> pure xs <*> recurseExpr f e
+      TLet r ds      -> TLet r <$> recurseExpr f ds
   foldExpr f e =
     case e of
-      TBind _ _ e  -> foldExpr f e
-      TLet _ ds    -> foldExpr f ds
+      TBind _ t _ e -> foldExpr f t `mappend` foldExpr f e
+      TLet _ ds     -> foldExpr f ds
   traverseExpr f e =
     case e of
-      TBind r xs e -> TBind r xs <$> traverseExpr f e
-      TLet r ds    -> TLet r <$> traverseExpr f ds
+      TBind r t xs e -> TBind r <$> traverseExpr f t <*> pure xs <*> traverseExpr f e
+      TLet r ds      -> TLet r <$> traverseExpr f ds
 
 instance ExprLike LetBinding where
   recurseExpr f e = do

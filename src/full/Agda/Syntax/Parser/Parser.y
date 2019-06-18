@@ -845,7 +845,7 @@ TBind : CommaBIds ':' Expr  {
 ModalTBind :: { TypedBinding }
 ModalTBind : Attributes1 CommaBIds ':' Expr  {% do
     let r = getRange ($1,$2,$3,$4) -- the range is approximate only for TypedBindings
-    xs <- mapM (applyAttrs $1) $2
+    xs <- mapM (applyAttrs $1 . setTacticAttr $1) $2
     return $ TBind r xs $4
   }
 
@@ -859,7 +859,7 @@ TBindWithHiding : BIdsWithHiding ':' Expr  {
 ModalTBindWithHiding :: { TypedBinding }
 ModalTBindWithHiding : Attributes1 BIdsWithHiding ':' Expr  {% do
     let r = getRange ($1,$2,$3,$4) -- the range is approximate only for TypedBindings
-    xs <- mapM (applyAttrs $1) $2
+    xs <- mapM (applyAttrs $1 . setTacticAttr $1) $2
     return $ TBind r xs $4
   }
 
@@ -1004,16 +1004,16 @@ DomainFreeBindingAbsurd
          { mapLeft (map DomainFree) $2 }
     | '(' Attributes1 CommaBIdAndAbsurds ')'
          {% applyAttrs $2 defaultArgInfo <&> \ ai ->
-              mapLeft (map (DomainFree . setArgInfo ai)) $3 }
+              mapLeft (map (DomainFree . setTacticAttr $2 . setArgInfo ai)) $3 }
     | '{' CommaBIdAndAbsurds '}'
          { mapLeft (map (DomainFree . setHiding Hidden)) $2 }
     | '{' Attributes1 CommaBIdAndAbsurds '}'
          {% applyAttrs $2 defaultArgInfo <&> \ ai ->
-              mapLeft (map (DomainFree . setHiding Hidden . setArgInfo ai)) $3 }
+              mapLeft (map (DomainFree . setHiding Hidden . setTacticAttr $2 . setArgInfo ai)) $3 }
     | '{{' CommaBIds DoubleCloseBrace { Left $ map (DomainFree . makeInstance) $2 }
     | '{{' Attributes1 CommaBIds DoubleCloseBrace
          {% applyAttrs $2 defaultArgInfo <&> \ ai ->
-              Left $ map (DomainFree . makeInstance . setArgInfo ai) $3 }
+              Left $ map (DomainFree . makeInstance . setTacticAttr $2 . setArgInfo ai) $3 }
     | '.' '{' CommaBIds '}' { Left $ map (DomainFree . setHiding Hidden . setRelevance Irrelevant) $3 }
     | '.' '{{' CommaBIds DoubleCloseBrace { Left $ map (DomainFree . makeInstance . setRelevance Irrelevant) $3 }
     | '..' '{' CommaBIds '}' { Left $ map (DomainFree . setHiding Hidden . setRelevance NonStrict) $3 }
@@ -1933,8 +1933,8 @@ mkNamedArg x y = do
            Just (QName x) -> return $ Just $ Ranged (getRange x) (prettyShow x)
            _              -> parseError "expected unqualified variable name"
   var <- case y of
-           Left (QName y) -> return $ BName y noFixity'
-           Right r        -> return $ BName (noName r) noFixity'
+           Left (QName y) -> return $ mkBoundName y noFixity'
+           Right r        -> return $ mkBoundName (noName r) noFixity'
            _              -> parseError "expected unqualified variable name"
   return $ defaultArg $ Named lbl var
 
@@ -2257,8 +2257,8 @@ instance SetRange Attr where
   setRange r (Attr _ x a) = Attr r x a
 
 -- | Parse an attribute.
-toAttribute :: (HasRange e, Pretty e) => e -> Parser Attr
-toAttribute x = maybe failure (return . Attr (getRange x) y) $ stringToAttribute y
+toAttribute :: Expr -> Parser Attr
+toAttribute x = maybe failure (return . Attr (getRange x) y) $ exprToAttribute x
   where
   y = prettyShow x
   failure = parseErrorRange x $ "Unknown attribute: " ++ y
@@ -2280,7 +2280,16 @@ applyAttrs rattrs arg = do
   let attrs = reverse rattrs
   checkForUniqueAttribute (isJust . isQuantityAttribute ) attrs
   checkForUniqueAttribute (isJust . isRelevanceAttribute) attrs
+  checkForUniqueAttribute (isJust . isTacticAttribute)    attrs
   foldM (flip applyAttr) arg attrs
+
+-- | Set the tactic attribute if present.
+setTacticAttr :: [Attr] -> NamedArg BoundName -> NamedArg BoundName
+setTacticAttr as = (fmap . fmap) $ \ b ->
+  case tacticAttributes [ a | Attr _ _ a <- as ] of
+    [TacticAttribute e] -> b{ bnameTactic = Just e }
+    []                  -> b
+    _                   -> __IMPOSSIBLE__
 
 -- | Report a parse error if two attributes in the list are of the same kind,
 --   thus, present conflicting information.

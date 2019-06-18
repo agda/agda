@@ -272,8 +272,10 @@ checkTelescope' lamOrPi (b : tel) ret =
 --   is needed for irrelevance.
 
 checkTypedBindings :: LamOrPi -> A.TypedBinding -> (Telescope -> TCM a) -> TCM a
-checkTypedBindings lamOrPi (A.TBind r xs' e) ret = do
+checkTypedBindings lamOrPi (A.TBind r tac xs' e) ret = do
     let xs = (map . fmap . fmap) A.unBind xs'
+    tac <- traverse (checkTacticAttribute lamOrPi) tac
+    whenJust tac $ \ t -> reportSDoc "tc.term.tactic" 30 $ "Checked tactic attribute:" <?> prettyTCM t
     -- Andreas, 2011-04-26 irrelevant function arguments may appear
     -- non-strictly in the codomain type
     -- 2011-10-04 if flag --experimental-irrelevance is set
@@ -287,13 +289,15 @@ checkTypedBindings lamOrPi (A.TBind r xs' e) ret = do
       case target of
         OutputTypeName{} -> return ()
         OutputTypeVar{}  -> return ()
-        OutputTypeVisiblePi{} -> warning . InstanceArgWithExplicitArg =<< prettyTCM (A.TBind r ixs e)
+        OutputTypeVisiblePi{} -> warning . InstanceArgWithExplicitArg =<< prettyTCM (A.mkTBind r ixs e)
         OutputTypeNameNotYetKnown{} -> return ()
-        NoOutputTypeName -> warning . InstanceNoOutputTypeName =<< prettyTCM (A.TBind r ixs e)
+        NoOutputTypeName -> warning . InstanceNoOutputTypeName =<< prettyTCM (A.mkTBind r ixs e)
 
-    let xs' = map (modMod lamOrPi experimental) xs
-    addContext (xs', t) $
-      ret $ namedBindsToTel xs t
+    let setTac tac EmptyTel            = EmptyTel
+        setTac tac (ExtendTel dom tel) = ExtendTel dom{ domTactic = tac } $ setTac (raise 1 tac) <$> tel
+        xs' = map (modMod lamOrPi experimental) xs
+    let tel = setTac tac $ namedBindsToTel xs t
+    addContext (xs', t) $ ret tel
     where
         -- if we are checking a typed lambda, we resurrect before we check the
         -- types, but do not modify the new context entries
@@ -307,13 +311,20 @@ checkTypedBindings lamOrPi (A.TBind r xs' e) ret = do
 checkTypedBindings lamOrPi (A.TLet _ lbs) ret = do
     checkLetBindings lbs (ret EmptyTel)
 
+-- | Check a tactic attribute. Should have type Term → TC ⊤.
+checkTacticAttribute :: LamOrPi -> A.Expr -> TCM Term
+checkTacticAttribute LamNotPi e = genericDocError =<< "The @tactic attribute is not allowed here"
+checkTacticAttribute PiNotLam e = do
+  expectedType <- el primAgdaTerm --> el (primAgdaTCM <#> primLevelZero <@> primUnit)
+  checkExpr e expectedType
+
 ifPath :: Type -> TCM a -> TCM a -> TCM a
 ifPath ty fallback work = do
   pv <- pathView ty
   if isPathType pv then work else fallback
 
 checkPath :: A.TypedBinding -> A.Expr -> Type -> TCM Term
-checkPath b@(A.TBind _ [x'] typ) body ty = do
+checkPath b@(A.TBind _ _ [x'] typ) body ty = do
     let x    = (fmap . fmap) A.unBind x'
         info = getArgInfo x
     PathType s path level typ lhs rhs <- pathView ty
@@ -340,7 +351,7 @@ checkPath b body ty = __IMPOSSIBLE__
 checkLambda :: Comparison -> A.TypedBinding -> A.Expr -> Type -> TCM Term
 checkLambda cmp (A.TLet _ lbs) body target =
   checkLetBindings lbs (checkExpr body target)
-checkLambda cmp b@(A.TBind _ xs' typ) body target = do
+checkLambda cmp b@(A.TBind _ _ xs' typ) body target = do
   reportSLn "tc.term.lambda" 60 $ "checkLambda   xs = " ++ prettyShow xs
   let numbinds = length xs
       possiblePath = numbinds == 1
@@ -1016,7 +1027,7 @@ checkExpr' cmp e t0 =
 
         A.Lam i (A.DomainFull b) e -> checkLambda cmp b e t
 
-        A.Lam i (A.DomainFree x) e0
+        A.Lam i (A.DomainFree _ x) e0
           | isNothing (nameOf $ unArg x) -> checkExpr' cmp (A.Lam i (domainFree (getArgInfo x) $ A.unBind $ namedArg x) e0) t
           | otherwise -> typeError $ NotImplemented "named arguments in lambdas"
 
@@ -1227,6 +1238,9 @@ unquoteM tacA hole holeType = do
 --   given by the third argument. Runs the continuation if successful.
 unquoteTactic :: Term -> Term -> Type -> TCM ()
 unquoteTactic tac hole goal = do
+  reportSDoc "tc.term.tactic" 40 $ sep
+    [ "Running tactic" <+> prettyTCM tac
+    , nest 2 $ "on" <+> prettyTCM hole <+> ":" <+> prettyTCM goal ]
   ok  <- runUnquoteM $ unquoteTCM tac hole
   case ok of
     Left (BlockedOnMeta oldState x) -> do
@@ -1305,7 +1319,7 @@ checkOrInferMeta newMeta mt i = do
 --   by inserting an underscore for the missing type.
 domainFree :: ArgInfo -> A.Name -> A.LamBinding
 domainFree info x =
-  A.DomainFull $ A.TBind r [unnamedArg info $ A.BindName x] $ A.Underscore underscoreInfo
+  A.DomainFull $ A.mkTBind r [unnamedArg info $ A.mkBindName x] $ A.Underscore underscoreInfo
   where
     r = getRange x
     underscoreInfo = A.MetaInfo

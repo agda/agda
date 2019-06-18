@@ -44,7 +44,7 @@ useNamesFromPattern ps tel = telFromList (zipWith ren ps telList ++ telRemaining
         -- Andreas, 2017-10-12, issue #2803, also preserve user-written hidden names.
         -- However, not if the argument is named, because then the name in the telescope
         -- is significant for implicit insertion.
-        A.VarP (A.BindName x)
+        A.VarP A.BindName{unBind = x}
           | not (isNoName x)
           , visible dom || (getOrigin ai == UserWritten && nm == Nothing) ->
           dom{ unDom = (nameToArgName x, a) }

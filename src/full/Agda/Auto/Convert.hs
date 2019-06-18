@@ -552,8 +552,8 @@ modifyAbstractExpr = f
  where
   f (A.App i e1 (Cm.Arg info (Cm.Named n e2))) =
         A.App i (f e1) (Cm.Arg info (Cm.Named n (f e2)))
-  f (A.Lam i (A.DomainFree x) _)
-     | A.BindName n <- Cm.namedArg x
+  f (A.Lam i (A.DomainFree _ x) _)
+     | A.BindName{unBind = n} <- Cm.namedArg x
      , prettyShow (A.nameConcrete n) == abslamvarname =
         A.AbsurdLam i $ Cm.getHiding x
   f (A.Lam i b e) = A.Lam i b (f e)

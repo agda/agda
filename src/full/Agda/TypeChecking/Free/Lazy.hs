@@ -341,7 +341,7 @@ instance Free a => Free (Arg a) where
   freeVars' a = goRel (getRelevance a) $ freeVars' $ unArg a
 
 instance Free a => Free (Dom a) where
-  freeVars' = freeVars' . unDom
+  freeVars' d = freeVars' (domTactic d, unDom d)
 
 instance Free a => Free (Abs a) where
   freeVars' (Abs   _ b) = bind $ freeVars' b

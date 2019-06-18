@@ -996,7 +996,7 @@ leqType = compareType CmpLeq
 --   currently it only tries to fix problems with hidden function types.
 --
 --   Precondition: @a@ and @b@ are reduced.
-coerce :: MonadConversion m => Comparison -> Term -> Type -> Type -> m Term
+coerce :: (MonadConversion m, MonadTCM m) => Comparison -> Term -> Type -> Type -> m Term
 coerce cmp v t1 t2 = blockTerm t2 $ do
   verboseS "tc.conv.coerce" 10 $ do
     (a1,a2) <- reify (t1,t2)

@@ -71,21 +71,22 @@ data Dom e = Dom
   { domInfo   :: ArgInfo
   , domFinite :: !Bool
   , domName   :: Maybe RString
+  , domTactic :: Maybe Term
   , unDom     :: e
-  } deriving (Data, Ord, Show, Functor, Foldable, Traversable)
+  } deriving (Data, Show, Functor, Foldable, Traversable)
 
 instance Decoration Dom where
-  traverseF f (Dom ai b x a) = Dom ai b x <$> f a
+  traverseF f (Dom ai b x t a) = Dom ai b x t <$> f a
 
 instance HasRange a => HasRange (Dom a) where
   getRange = getRange . unDom
 
 instance KillRange a => KillRange (Dom a) where
-  killRange (Dom info b x a) = killRange4 Dom info b x a
+  killRange (Dom info b x t a) = killRange5 Dom info b x t a
 
--- | Ignores 'Origin' and 'FreeVariables'.
+-- | Ignores 'Origin' and 'FreeVariables' and tactic.
 instance Eq a => Eq (Dom a) where
-  Dom (ArgInfo h1 m1 _ _) b1 s1 x1 == Dom (ArgInfo h2 m2 _ _) b2 s2 x2 =
+  Dom (ArgInfo h1 m1 _ _) b1 s1 _ x1 == Dom (ArgInfo h2 m2 _ _) b2 s2 _ x2 =
     (h1, m1, b1, s1, x1) == (h2, m2, b2, s2, x2)
 
 -- instance Show a => Show (Dom a) where
@@ -131,25 +132,25 @@ instance LensQuantity (Dom e) where
   mapQuantity = mapQuantityMod
 
 argFromDom :: Dom a -> Arg a
-argFromDom (Dom i _ _ a) = Arg i a
+argFromDom Dom{domInfo = i, unDom = a} = Arg i a
 
 namedArgFromDom :: Dom a -> NamedArg a
-namedArgFromDom (Dom i _ s a) = Arg i $ Named s a
+namedArgFromDom Dom{domInfo = i, domName = s, unDom = a} = Arg i $ Named s a
 
 domFromArg :: Arg a -> Dom a
-domFromArg (Arg i a) = Dom i False Nothing a
+domFromArg (Arg i a) = Dom i False Nothing Nothing a
 
 domFromNamedArg :: NamedArg a -> Dom a
-domFromNamedArg (Arg i a) = Dom i False (nameOf a) (namedThing a)
+domFromNamedArg (Arg i a) = Dom i False (nameOf a) Nothing (namedThing a)
 
 defaultDom :: a -> Dom a
 defaultDom = defaultArgDom defaultArgInfo
 
 defaultArgDom :: ArgInfo -> a -> Dom a
-defaultArgDom info x = Dom info False Nothing x
+defaultArgDom info x = domFromArg (Arg info x)
 
 defaultNamedArgDom :: ArgInfo -> String -> a -> Dom a
-defaultNamedArgDom info s = Dom info False (Just $ unranged s)
+defaultNamedArgDom info s x = (defaultArgDom info x) { domName = Just $ unranged s }
 
 -- | Type of argument lists.
 --

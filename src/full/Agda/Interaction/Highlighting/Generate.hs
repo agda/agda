@@ -251,7 +251,7 @@ generateAndPrintSyntaxInfo decl hlLevel updateState = do
     , Fold.foldMap getNamedArgL   $ universeBi decl
     ]
     where
-    bound (A.BindName n) =
+    bound A.BindName{ unBind = n } =
       nameToFile modMap file [] (A.nameConcrete n) P.noRange
                  (\isOp -> parserBased { aspect =
                              Just $ Name (Just Bound) isOp })
@@ -288,7 +288,7 @@ generateAndPrintSyntaxInfo decl hlLevel updateState = do
                            A.nameBindingSite n)
 
     getVarAndField :: A.Expr -> File
-    getVarAndField (A.Var x)            = bound $ A.BindName x
+    getVarAndField (A.Var x)            = bound $ A.mkBindName x
     -- Andreas, 2018-06-09, issue #3120
     -- The highlighting for record field tags is now created by the type checker in
     -- function disambiguateRecordFields.
@@ -323,15 +323,15 @@ generateAndPrintSyntaxInfo decl hlLevel updateState = do
     getLet (A.LetDeclaredVariable x) = bound x
 
     getLam :: A.LamBinding -> File
-    getLam (A.DomainFree x)  = bound $ Common.namedArg x
-    getLam (A.DomainFull {}) = mempty
+    getLam (A.DomainFree _ x) = bound $ Common.namedArg x
+    getLam (A.DomainFull {})  = mempty
 
     getTyped :: A.TypedBinding -> File
-    getTyped (A.TBind _ xs _) = mconcat $ map (bound . Common.namedArg) xs
-    getTyped A.TLet{}         = mempty
+    getTyped (A.TBind _ _ xs _) = mconcat $ map (bound . Common.namedArg) xs
+    getTyped A.TLet{}           = mempty
 
     getPatSynArgs :: A.Declaration -> File
-    getPatSynArgs (A.PatternSynDef _ xs _) = mconcat $ map (bound . A.BindName . Common.unArg) xs
+    getPatSynArgs (A.PatternSynDef _ xs _) = mconcat $ map (bound . A.mkBindName . Common.unArg) xs
     getPatSynArgs _                        = mempty
 
     getPattern' :: IsProjP e => A.Pattern' e -> File

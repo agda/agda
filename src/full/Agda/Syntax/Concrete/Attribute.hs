@@ -13,6 +13,10 @@ import Data.Maybe
 
 import Agda.Syntax.Common
 import Agda.Syntax.Concrete.Name
+import Agda.Syntax.Concrete (Expr(..))
+import Agda.Syntax.Concrete.Pretty
+
+import Agda.Utils.Pretty (prettyShow)
 
 -- import Agda.Utils.Functor
 
@@ -21,7 +25,8 @@ import Agda.Syntax.Concrete.Name
 data Attribute
   = RelevanceAttribute Relevance
   | QuantityAttribute  Quantity
-  deriving (Eq, Ord, Show)
+  | TacticAttribute Expr
+  deriving (Show)
 
 -- | (Conjunctive constraint.)
 
@@ -59,12 +64,19 @@ attributesMap = Map.fromList $ concat
 stringToAttribute :: String -> Maybe Attribute
 stringToAttribute = (`Map.lookup` attributesMap)
 
+-- | Parsing an expression into an attribute.
+
+exprToAttribute :: Expr -> Maybe Attribute
+exprToAttribute (Paren _ (RawApp _ [Tactic _ t []])) = Just $ TacticAttribute t
+exprToAttribute e = stringToAttribute $ prettyShow e
+
 -- | Setting an attribute (in e.g. an 'Arg').  Overwrites previous value.
 
 setAttribute :: (LensAttribute a) => Attribute -> a -> a
 setAttribute = \case
   RelevanceAttribute r -> setRelevance r
   QuantityAttribute  q -> setQuantity  q
+  TacticAttribute t    -> id
 
 
 -- | Setting some attributes in left-to-right order.
@@ -98,6 +110,7 @@ setPristineAttribute :: (LensAttribute a) => Attribute -> a -> Maybe a
 setPristineAttribute = \case
   RelevanceAttribute r -> setPristineRelevance r
   QuantityAttribute  q -> setPristineQuantity  q
+  TacticAttribute{}    -> Just
 
 -- | Setting a list of unset attributes.
 
@@ -118,8 +131,16 @@ isQuantityAttribute = \case
   QuantityAttribute q -> Just q
   _ -> Nothing
 
+isTacticAttribute :: Attribute -> Maybe Expr
+isTacticAttribute (TacticAttribute t) = Just t
+isTacticAttribute _                   = Nothing
+
 relevanceAttributes :: [Attribute] -> [Attribute]
 relevanceAttributes = filter $ isJust . isRelevanceAttribute
 
 quantityAttributes :: [Attribute] -> [Attribute]
 quantityAttributes = filter $ isJust . isQuantityAttribute
+
+tacticAttributes :: [Attribute] -> [Attribute]
+tacticAttributes = filter $ isJust . isTacticAttribute
+

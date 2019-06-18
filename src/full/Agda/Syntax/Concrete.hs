@@ -80,7 +80,7 @@ data OpApp e
     -- ^ An abstraction inside a special syntax declaration
     --   (see Issue 358 why we introduce this).
   | Ordinary e
-  deriving (Data, Functor, Foldable, Traversable)
+  deriving (Data, Functor, Foldable, Traversable, Eq)
 
 fromOrdinary :: e -> OpApp e -> e
 fromOrdinary d (Ordinary e) = e
@@ -96,7 +96,8 @@ data ModuleAssignment  = ModuleAssignment
                            , _exprModA      :: [Expr]
                            , _importDirModA :: ImportDirective
                            }
-  deriving Data
+  deriving (Data, Eq)
+
 type RecordAssignment  = Either FieldAssignment ModuleAssignment
 type RecordAssignments = [RecordAssignment]
 
@@ -164,7 +165,7 @@ data Expr
   | Equal Range Expr Expr                      -- ^ ex: @a = b@, used internally in the parser
   | Ellipsis Range                             -- ^ @...@, used internally to parse patterns.
   | Generalized Expr
-  deriving Data
+  deriving (Data, Eq)
 
 -- | Concrete patterns. No literals in patterns at the moment.
 data Pattern
@@ -190,32 +191,33 @@ data Pattern
   | EqualP Range [(Expr,Expr)]             -- ^ @i = i1@ i.e. cubical face lattice generator
   | EllipsisP Range                        -- ^ @...@, only as left-most pattern.
   | WithP Range Pattern                    -- ^ @| p@, for with-patterns.
-  deriving Data
+  deriving (Data, Eq)
 
 data DoStmt
   = DoBind Range Pattern Expr [LamClause]   -- ^ @p ← e where cs@
   | DoThen Expr
   | DoLet Range [Declaration]
-  deriving Data
+  deriving (Data, Eq)
 
 -- | A lambda binding is either domain free or typed.
 type LamBinding = LamBinding' TypedBinding
 data LamBinding' a
   = DomainFree (NamedArg BoundName) -- ^ . @x@ or @{x}@ or @.x@ or @.{x}@ or @{.x}@
   | DomainFull a                    -- ^ . @(xs : e)@ or @{xs : e}@
-  deriving (Data, Functor, Foldable, Traversable)
+  deriving (Data, Functor, Foldable, Traversable, Eq)
 
 data BoundName = BName
   { boundName   :: Name
   , bnameFixity :: Fixity'
+  , bnameTactic :: Maybe Expr   -- From @tactic attribute
   }
-  deriving (Data, Eq, Show)
+  deriving (Data, Eq)
 
 mkBoundName_ :: Name -> BoundName
 mkBoundName_ x = mkBoundName x noFixity'
 
 mkBoundName :: Name -> Fixity' -> BoundName
-mkBoundName = BName
+mkBoundName x f = BName x f Nothing
 
 -- | A typed binding.
 
@@ -224,7 +226,7 @@ type TypedBinding = TypedBinding' Expr
 data TypedBinding' e
   = TBind Range [NamedArg BoundName] e  -- ^ Binding @(x1 ... xn : A)@.
   | TLet  Range [Declaration]           -- ^ Let binding @(let Ds)@ or @(open M args)@.
-  deriving (Data, Functor, Foldable, Traversable)
+  deriving (Data, Functor, Foldable, Traversable, Eq)
 
 -- | A telescope is a sequence of typed bindings. Bound variables are in scope
 --   in later types.
@@ -263,7 +265,7 @@ data LHS = LHS
   , lhsRewriteEqn      :: [RewriteEqn]  -- ^ @rewrite e@ (many)
   , lhsWithExpr        :: [WithExpr]    -- ^ @with e@ (many)
   } -- ^ Original pattern (including with-patterns), rewrite equations and with-expressions.
-  deriving Data
+  deriving (Data, Eq)
 
 type RewriteEqn = Expr
 type WithExpr   = Expr
@@ -283,12 +285,13 @@ data LHSCore
              , lhsWithPatterns :: [Pattern]          -- ^ Non-empty; at least one @(| p)@.
              , lhsPats         :: [NamedArg Pattern] -- ^ More application patterns.
              }
+  deriving (Data, Eq)
 
 type RHS = RHS' Expr
 data RHS' e
   = AbsurdRHS -- ^ No right hand side because of absurd match.
   | RHS e
-  deriving (Data, Functor, Foldable, Traversable)
+  deriving (Data, Functor, Foldable, Traversable, Eq)
 
 
 type WhereClause = WhereClause' [Declaration]
@@ -299,13 +302,13 @@ data WhereClause' decls
     -- ^ Named where: @module M where@.
     --   The 'Access' flag applies to the 'Name' (not the module contents!)
     --   and is propagated from the parent function.
-  deriving (Data, Functor, Foldable, Traversable)
+  deriving (Data, Functor, Foldable, Traversable, Eq)
 
 data LamClause = LamClause { lamLHS      :: LHS
                            , lamRHS      :: RHS
                            , lamWhere    :: WhereClause -- ^ always 'NoWhere' (see parser)
                            , lamCatchAll :: Bool }
-  deriving Data
+  deriving (Data, Eq)
 
 -- | An expression followed by a where clause.
 --   Currently only used to give better a better error message in interaction.
@@ -327,7 +330,7 @@ data AsName' a = AsName
   , asRange :: Range
     -- ^ The range of the \"as\" keyword.  Retained for highlighting purposes.
   }
-  deriving (Data, Show, Functor, Foldable, Traversable)
+  deriving (Data, Show, Functor, Foldable, Traversable, Eq)
 
 -- | From the parser, we get an expression for the @as@-'Name', which
 --   we have to parse into a 'Name'.
@@ -380,14 +383,14 @@ data Declaration
   | UnquoteDecl Range [Name] Expr
   | UnquoteDef  Range [Name] Expr
   | Pragma      Pragma
-  deriving Data
+  deriving (Data, Eq)
 
 data ModuleApplication
   = SectionApp Range Telescope Expr
     -- ^ @tel. M args@
   | RecordModuleInstance Range QName
     -- ^ @M {{...}}@
-  deriving Data
+  deriving (Data, Eq)
 
 data OpenShortHand = DoOpen | DontOpen
   deriving (Data, Eq, Show)
@@ -428,7 +431,7 @@ data Pragma
   | PolarityPragma            Range Name [Occurrence]
   | NoUniverseCheckPragma     Range
     -- ^ Applies to the following data/record type.
-  deriving Data
+  deriving (Data, Eq)
 
 ---------------------------------------------------------------------------
 
@@ -758,7 +761,7 @@ instance KillRange AsName where
   killRange (AsName n _) = killRange1 (flip AsName noRange) n
 
 instance KillRange BoundName where
-  killRange (BName n f) = killRange2 BName n f
+  killRange (BName n f t) = killRange3 BName n f t
 
 instance KillRange Declaration where
   killRange (TypeSig i n e)         = killRange2 (TypeSig i) n e
@@ -1072,7 +1075,7 @@ instance NFData a => NFData (LamBinding' a) where
   rnf (DomainFull a) = rnf a
 
 instance NFData BoundName where
-  rnf (BName a b) = rnf a `seq` rnf b
+  rnf (BName a b c) = rnf a `seq` rnf b `seq` rnf c
 
 instance NFData a => NFData (RHS' a) where
   rnf AbsurdRHS = ()
