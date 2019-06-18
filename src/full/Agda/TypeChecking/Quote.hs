@@ -150,10 +150,10 @@ quotingKit = do
       quoteSort Inf      = pure unsupportedSort
       quoteSort SizeUniv = pure unsupportedSort
       quoteSort PiSort{} = pure unsupportedSort
-      quoteSort UnivSort{} = pure unsupportedSort
+      quoteSort UnivSort{}   = pure unsupportedSort
       quoteSort (MetaS x es) = quoteTerm $ MetaV x es
-      quoteSort (DefS d es) = quoteTerm $ Def d es
-      quoteSort (DummyS s) =__IMPOSSIBLE_VERBOSE__ s
+      quoteSort (DefS d es)  = quoteTerm $ Def d es
+      quoteSort (DummyS s)   =__IMPOSSIBLE_VERBOSE__ s
 
       quoteType :: Type -> ReduceM Term
       quoteType (El _ t) = quoteTerm t
@@ -172,8 +172,8 @@ quotingKit = do
       quotePat (ConP c _ ps)     = conP !@ quoteQName (conName c) @@ quotePats ps
       quotePat (LitP l)          = litP !@ quoteLit l
       quotePat (ProjP _ x)       = projP !@ quoteQName x
-      quotePat (IApplyP o t u x)  = pure unsupported
-      quotePat DefP{}             = pure unsupported
+      quotePat (IApplyP o t u x) = pure unsupported
+      quotePat DefP{}            = pure unsupported
 
       quoteClause :: Clause -> ReduceM Term
       quoteClause cl@Clause{namedClausePats = ps, clauseBody = body} =
@@ -192,7 +192,7 @@ quotingKit = do
       quoteList q xs = list (map q xs)
 
       quoteDom :: (Type -> ReduceM Term) -> Dom Type -> ReduceM Term
-      quoteDom q (Dom{domInfo = info, unDom = t}) = arg !@ quoteArgInfo info @@ q t
+      quoteDom q Dom{domInfo = info, unDom = t} = arg !@ quoteArgInfo info @@ q t
 
       quoteAbs :: Subst t a => (a -> ReduceM Term) -> Abs a -> ReduceM Term
       quoteAbs q (Abs s t)   = abs !@! quoteString s @@ q t

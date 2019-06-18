@@ -278,7 +278,7 @@ underAbs cont a b = case b of
 --   and puts the 'Lam's back.  @a@ is raised correctly
 --   according to the number of abstractions.
 underLambdas :: Subst Term a => Int -> (a -> Term -> Term) -> a -> Term -> Term
-underLambdas n cont a v = loop n a v where
+underLambdas n cont a = loop n a where
   loop 0 a v = cont a v
   loop n a v = case v of
     Lam h b -> Lam h $ underAbs (loop $ n-1) a b

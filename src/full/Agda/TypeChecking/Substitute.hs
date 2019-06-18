@@ -1133,7 +1133,7 @@ class TeleNoAbs a where
   teleNoAbs :: a -> Term -> Term
 
 instance TeleNoAbs ListTel where
-  teleNoAbs tel t = foldr (\ (Dom{domInfo = ai, unDom = (x, _)}) -> Lam ai . NoAbs x) t tel
+  teleNoAbs tel t = foldr (\ Dom{domInfo = ai, unDom = (x, _)} -> Lam ai . NoAbs x) t tel
 
 instance TeleNoAbs Telescope where
   teleNoAbs tel = teleNoAbs $ telToList tel
