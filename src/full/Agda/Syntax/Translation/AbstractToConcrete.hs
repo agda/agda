@@ -26,6 +26,7 @@ module Agda.Syntax.Translation.AbstractToConcrete
 import Prelude hiding (null)
 
 import Control.Applicative hiding (empty)
+import Control.Arrow (first)
 import Control.Monad.Reader
 import Control.Monad.State
 
@@ -759,7 +760,7 @@ instance ToConcrete A.Expr C.Expr where
              e' <- toConcreteTop e
              return $ C.Pi tel' e'
       where
-        piTel (A.Pi _ tel e) = (tel ++) -*- id $ piTel e
+        piTel (A.Pi _ tel e) = first (tel ++) $ piTel e
         piTel e              = ([], e)
 
     toConcrete (A.Generalized _ e) = C.Generalized <$> toConcrete e
@@ -1052,7 +1053,7 @@ instance ToConcrete A.Declaration [C.Declaration] where
   toConcrete (A.DataDef i x uc bs cs) =
     withAbstractPrivate i $
     bindToConcrete (map makeDomainFree $ dataDefParams bs) $ \ tel' -> do
-      (x',cs') <- (unsafeQNameToName -*- id) <$> toConcrete (x, map Constr cs)
+      (x',cs') <- first unsafeQNameToName <$> toConcrete (x, map Constr cs)
       return [ C.DataDef (getRange i) Inductive x' tel' cs' ]
 
   toConcrete (A.RecSig i x bs t) =
@@ -1065,7 +1066,7 @@ instance ToConcrete A.Declaration [C.Declaration] where
   toConcrete (A.RecDef  i x uc ind eta c bs t cs) =
     withAbstractPrivate i $
     bindToConcrete (map makeDomainFree $ dataDefParams bs) $ \ tel' -> do
-      (x',cs') <- (unsafeQNameToName -*- id) <$> toConcrete (x, map Constr cs)
+      (x',cs') <- first unsafeQNameToName <$> toConcrete (x, map Constr cs)
       return [ C.RecordDef (getRange i) x' ind eta Nothing tel' cs' ]
 
   toConcrete (A.Mutual i ds) = declsToConcrete ds
