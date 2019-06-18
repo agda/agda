@@ -306,7 +306,7 @@ instance UsableRelevance Sort where
     Prop l -> usableRel rel l
     Inf    -> return True
     SizeUniv -> return True
-    PiSort s1 s2 -> usableRel rel (s1,s2)
+    PiSort a s -> usableRel rel (a,s)
     UnivSort s -> usableRel rel s
     MetaS x es -> usableRel rel es
     DefS d es  -> usableRel rel $ Def d es
@@ -413,7 +413,7 @@ instance UsableModality Sort where
   --   Prop l -> usableMod mod l
   --   Inf    -> return True
   --   SizeUniv -> return True
-  --   PiSort s1 s2 -> usableMod mod (s1,s2)
+  --   PiSort a s -> usableMod mod (a,s)
   --   UnivSort s -> usableMod mod s
   --   MetaS x es -> usableMod mod es
   --   DummyS{} -> return True

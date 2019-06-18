@@ -46,6 +46,7 @@ import Agda.Syntax.Internal
 
 import Agda.Utils.Functor
 import Agda.Utils.Monad
+import Agda.Utils.Null
 import Agda.Utils.Singleton
 import Agda.Utils.Size
 
@@ -303,7 +304,12 @@ instance Free Sort where
       Prop a     -> freeVars' a
       Inf        -> mempty
       SizeUniv   -> mempty
-      PiSort s1 s2 -> go WeaklyRigid $ freeVars' (s1, s2)
+      -- Jesper, 2019-06-18: Occurrences in the domain of a pi sort
+      -- might disappear when instantiation of metavariables causes
+      -- the codomain to become non-dependent, so we should count it
+      -- as flexible.
+      PiSort a s -> go (Flexible empty) (freeVars' $ unDom a) `mappend`
+                    go WeaklyRigid (freeVars' (getSort a, s))
       UnivSort s -> go WeaklyRigid $ freeVars' s
       MetaS x es -> go (Flexible $ singleton x) $ freeVars' es
       DefS _ es  -> go WeaklyRigid $ freeVars' es

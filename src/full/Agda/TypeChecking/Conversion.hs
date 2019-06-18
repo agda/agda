@@ -1540,9 +1540,9 @@ equalSort s1 s2 = do
 
             -- @PiSort a b == SizeUniv@ iff @b == SizeUniv@
             (SizeUniv   , PiSort a b ) ->
-              underAbstraction_ b $ equalSort SizeUniv
+              underAbstraction a b $ equalSort SizeUniv
             (PiSort a b , SizeUniv   ) ->
-              underAbstraction_ b $ equalSort SizeUniv
+              underAbstraction a b $ equalSort SizeUniv
 
             -- @Prop0@ and @SizeUniv@ don't contain any universes,
             -- so they cannot be a UnivSort
@@ -1577,7 +1577,7 @@ equalSort s1 s2 = do
       -- equate @piSort a b@ to @s0@, which is assumed to be a (closed) bottom sort
       -- i.e. @piSort a b == s0@ implies @b == s0@.
       piSortEqualsBottom s0 a b = do
-        underAbstraction_ b $ equalSort s0
+        underAbstraction a b $ equalSort s0
         -- we may have instantiated some metas, so @a@ could reduce
         a <- reduce a
         case funSort' a s0 of

@@ -1249,9 +1249,9 @@ instance Reify Sort Expr where
         I.SizeUniv  -> do
           I.Def sizeU [] <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSizeUniv
           return $ A.Def sizeU
-        I.PiSort s1 s2 -> do
+        I.PiSort a s -> do
           pis <- freshName_ ("piSort" :: String) -- TODO: hack
-          (e1,e2) <- reify (s1, I.Lam defaultArgInfo $ fmap Sort s2)
+          (e1,e2) <- reify (getSort a, I.Lam defaultArgInfo $ fmap Sort s)
           let app x y = A.App defaultAppInfo_ x (defaultNamedArg y)
           return $ A.Var pis `app` e1 `app` e2
         I.UnivSort s -> do

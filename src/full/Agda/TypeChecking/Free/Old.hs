@@ -278,7 +278,8 @@ instance Free Sort where
       Prop a     -> freeVars' a
       Inf        -> mempty
       SizeUniv   -> mempty
-      PiSort s1 s2 -> weakly <$> freeVars' (s1, s2)
+      PiSort a s -> (flexible <$> freeVars' (unDom a)) `mappend`
+                    (weakly <$> freeVars' (getSort a, s))
       UnivSort s -> weakly <$> freeVars' s
       MetaS x es -> flexible <$> freeVars' es
       DefS _ es  -> weakly <$> freeVars' es

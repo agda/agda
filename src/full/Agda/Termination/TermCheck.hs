@@ -682,7 +682,7 @@ instance ExtractCalls Sort where
       SizeUniv   -> return empty
       Type t     -> terUnguarded $ extract t  -- no guarded levels
       Prop t     -> terUnguarded $ extract t
-      PiSort s1 s2 -> extract (s1, s2)
+      PiSort a s -> extract (a, s)
       UnivSort s -> extract s
       MetaS x es -> return empty
       DefS d es  -> return empty

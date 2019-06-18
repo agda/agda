@@ -974,7 +974,7 @@ data Constraint
 --  | ShortCut MetaId Term Type
 --    -- ^ A delayed instantiation.  Replaces @ValueCmp@ in 'postponeTypeCheckingProblem'.
   | HasBiggerSort Sort
-  | HasPTSRule Sort (Abs Sort)
+  | HasPTSRule (Dom Type) (Abs Sort)
   | UnBlock MetaId
   | Guarded Constraint ProblemId
   | IsEmpty Range Type
@@ -1022,7 +1022,7 @@ instance Free Constraint where
       FindInstance _ _ cs   -> freeVars' cs
       CheckFunDef _ _ _ _   -> mempty
       HasBiggerSort s       -> freeVars' s
-      HasPTSRule s1 s2      -> freeVars' (s1 , s2)
+      HasPTSRule a s        -> freeVars' (a , s)
       UnquoteTactic _ t h g -> freeVars' (t, (h, g))
 
 instance TermLike Constraint where
@@ -1042,7 +1042,7 @@ instance TermLike Constraint where
       FindInstance _ _ _     -> mempty
       CheckFunDef _ _ _ _    -> mempty
       HasBiggerSort s        -> foldTerm f s
-      HasPTSRule s1 s2       -> foldTerm f (s1, s2)
+      HasPTSRule a s         -> foldTerm f (a, s)
   traverseTermM f c = __IMPOSSIBLE__ -- Not yet implemented
 
 
