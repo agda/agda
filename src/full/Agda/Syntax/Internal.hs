@@ -1564,4 +1564,4 @@ instance NFData a => NFData (Elim' a) where
   rnf (IApply x y r) = rnf x `seq` rnf y `seq` rnf r
 
 instance NFData e => NFData (Dom e) where
-  rnf (Dom a b c d) = rnf a `seq` rnf b `seq` rnf c `seq` rnf d
+  rnf (Dom a b c d e) = rnf a `seq` rnf b `seq` rnf c `seq` rnf d `seq` rnf e
