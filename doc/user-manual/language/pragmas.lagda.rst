@@ -54,7 +54,9 @@ The ``DISPLAY`` pragma
 ______________________
 
 
-Users can declare a ``DISPLAY`` pragma::
+Users can declare a ``DISPLAY`` pragma:
+
+.. code-block:: agda
 
   {-# DISPLAY f e1 .. en = e #-}
 
@@ -63,7 +65,9 @@ This causes ``f e1 .. en`` to be printed in the same way as ``e``, where
 are scope checked, but not type checked.
 
 For example this can be used to print overloaded (instance) functions with
-the overloaded name::
+the overloaded name:
+
+.. code-block:: agda
 
   instance
     NumNat : Num Nat
