@@ -564,7 +564,11 @@ checkAxiom' gentel funSig i info0 mp x e = whenAbstractFreezeMetasAfter i $ do
   -- Andreas, 2012-04-18  if we are in irrelevant context, axioms is irrelevant
   -- even if not declared as such (Issue 610).
   -- Andreas, 2019-06-17  also for erasure (issue #3855).
-  mod <- max (getModality info0) <$> asksTC getModality
+  rel <- max (getRelevance info0) <$> asksTC getRelevance
+  q   <- asksTC getQuantity <&> \case
+    Quantity0 -> Quantity0
+    _         -> getQuantity info0
+  let mod  = Modality rel q
   let info = setModality mod info0
   (genParams, npars, t) <- workOnTypes $ case gentel of
         Nothing     -> ([], 0,) <$> isType_ e

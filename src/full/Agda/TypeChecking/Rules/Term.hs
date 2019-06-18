@@ -510,6 +510,7 @@ checkPostponedLambda cmp args@(Arg info (WithHiding h x : xs, mt)) body target =
     -- to get better error messages.
     -- Using the type dom from the usage context would be more precise,
     -- though.
+    -- TODO: quantity
     let dom' = setRelevance (getRelevance info') . setHiding lamHiding $
           maybe dom (dom $>) mt
     v <- lambdaAddContext x (absName b) dom'  $
@@ -567,15 +568,15 @@ checkAbsurdLambda cmp i h e t = do
           -- Add helper function
           top <- currentModule
           aux <- qualify top <$> freshName_ (getRange i, absurdLambdaName)
-          -- if we are in irrelevant position, the helper function
-          -- is added as irrelevant
-          rel <- asksTC getRelevance
+          -- if we are in irrelevant / erased position, the helper function
+          -- is added as irrelevant / erased
+          mod <- asksTC getModality
           reportSDoc "tc.term.absurd" 10 $ vcat
-            [ ("Adding absurd function" <+> prettyTCM rel) <> prettyTCM aux
+            [ ("Adding absurd function" <+> prettyTCM mod) <> prettyTCM aux
             , nest 2 $ "of type" <+> prettyTCM t'
             ]
           addConstant aux $
-            (\ d -> (defaultDefn (setRelevance rel info') aux t' d)
+            (\ d -> (defaultDefn (setModality mod info') aux t' d)
                     { defPolarity       = [Nonvariant]
                     , defArgOccurrences = [Unused] })
             $ emptyFunction
@@ -586,7 +587,7 @@ checkAbsurdLambda cmp i h e t = do
                     , clauseTel       = telFromList [fmap (absurdPatternName,) dom]
                     , namedClausePats = [Arg info' $ Named (Just $ unranged $ absName b) $ absurdP 0]
                     , clauseBody      = Nothing
-                    , clauseType      = Just $ setRelevance rel $ defaultArg $ absBody b
+                    , clauseType      = Just $ setModality mod $ defaultArg $ absBody b
                     , clauseCatchall  = False
                     , clauseUnreachable = Just True -- absurd clauses are unreachable
                     }
@@ -615,8 +616,8 @@ checkExtendedLambda cmp i di qname cs e t = do
    t <- instantiateFull t
    ifBlocked t (\ m t' -> postponeTypeCheckingProblem_ $ CheckExpr cmp e t') $ \ _ t -> do
      j   <- currentOrFreshMutualBlock
-     rel <- asksTC getRelevance
-     let info = setRelevance rel defaultArgInfo
+     mod <- asksTC getModality
+     let info = setModality mod defaultArgInfo
 
      reportSDoc "tc.term.exlam" 20 $
        (text (show $ A.defAbstract di) <+>
@@ -1508,6 +1509,7 @@ checkLetBinding b@(A.LetPatBind i p e) ret =
         [ "p (A) =" <+> prettyA p
         , "t     =" <+> prettyTCM t
         , "cxtRel=" <+> do pretty =<< asksTC getRelevance
+        , "cxtQnt=" <+> do pretty =<< asksTC getQuantity
         ]
       ]
     fvs <- getContextSize
@@ -1520,6 +1522,7 @@ checkLetBinding b@(A.LetPatBind i p e) ret =
         [ "p (I) =" <+> prettyTCM p
         , "delta =" <+> prettyTCM delta
         , "cxtRel=" <+> do pretty =<< asksTC getRelevance
+        , "cxtQnt=" <+> do pretty =<< asksTC getQuantity
         ]
       reportSDoc "tc.term.let.pattern" 80 $ nest 2 $ vcat
         [ "p (I) =" <+> (text . show) p

@@ -529,6 +529,7 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
           , "t     =" <+> prettyTCM t
           , "ftel2 =" <+> addContext ftel1 (underAbstraction_ ftel2 prettyTCM)
           , "abstr =" <+> (text . show) (Info.defAbstract info)
+          , "quant =" <+> (text . show) (getQuantity ai)
           ]
         ]
 

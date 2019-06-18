@@ -231,16 +231,17 @@ applyModalityToContextOnly m = localTC
 applyModalityToJudgementOnly :: (MonadTCEnv tcm) => Modality -> tcm a -> tcm a
 applyModalityToJudgementOnly = localTC . over eModality . composeModality
 
--- | Like 'applyModalityToContext', but only act on context if
+-- | Like 'applyModalityToContext', but only act on context (for Relevance) if
 --   @--irrelevant-projections@.
 --   See issue #2170.
 applyModalityToContextFunBody :: (MonadTCM tcm, LensModality r) => r -> tcm a -> tcm a
 applyModalityToContextFunBody thing cont = do
-  let m = getModality thing
-  if m == mempty then cont else
-    applyWhenM (optIrrelevantProjections <$> pragmaOptions)
-      (applyRelevanceToContextOnly (getRelevance m)) $    -- enable local irr. defs only when option
-      applyModalityToJudgementOnly m cont  -- enable global irr. defs alway
+    ifM (optIrrelevantProjections <$> pragmaOptions)
+      {-then-} (applyModalityToContext m cont)                -- enable global irr. defs always
+      {-else-} (applyRelevanceToContextFunBody (getRelevance m)
+               $ applyQuantityToContext (getQuantity m) cont) -- enable local irr. defs only when option
+  where
+    m = getModality thing
 
 -- | Wake up irrelevant variables and make them relevant. This is used
 --   when type checking terms in a hole, in which case you want to be able to

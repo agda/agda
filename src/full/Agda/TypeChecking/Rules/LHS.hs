@@ -868,10 +868,10 @@ checkLHS
   => Maybe QName      -- ^ The name of the definition we are checking.
   -> LHSState a       -- ^ The current state.
   -> tcm a
-checkLHS mf = updateRelevance checkLHS_ where
+checkLHS mf = updateModality checkLHS_ where
     -- If the target type is irrelevant or in Prop,
     -- we need to check the lhs in irr. cxt. (see Issue 939).
- updateRelevance cont st@(LHSState tel ip problem target psplit) = do
+ updateModality cont st@(LHSState tel ip problem target psplit) = do
       let m = getModality target
       applyModalityToContext m $ do
         cont $ over (lhsTel . listTel) (map $ inverseApplyModality m) st
@@ -1194,6 +1194,7 @@ checkLHS mf = updateRelevance checkLHS_ where
         [ "checking lhs"
         , nest 2 $ "tel =" <+> prettyTCM tel
         , nest 2 $ "rel =" <+> (text $ show $ getRelevance info)
+        , nest 2 $ "mod =" <+> (text $ show $ getModality  info)
         ]
 
       reportSDoc "tc.lhs.split" 15 $ vcat
@@ -1625,10 +1626,11 @@ disambiguateProjection h ambD@(AmbQ ds) b = do
         -- If this was not an ambiguous projection, that's an error.
         argd <- maybe (wrongProj d) return $ List.find ((d ==) . unArg) fs
 
-        let ai = setRelevance (getRelevance argd) $ projArgInfo proj
+        let ai = setModality (getModality argd) $ projArgInfo proj
 
-        reportSDoc "tc.lhs.split" 20 $ sep
+        reportSDoc "tc.lhs.split" 20 $ vcat
           [ text $ "original proj relevance  = " ++ show (getRelevance argd)
+          , text $ "original proj quantity   = " ++ show (getQuantity  argd)
           ]
         -- Andreas, 2016-12-31, issue #2374:
         -- We can also disambiguate by hiding info.

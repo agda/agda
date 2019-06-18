@@ -259,7 +259,12 @@ inferHead e = do
         ]
       unless (usableRelevance a) $
         typeError $ VariableIsIrrelevant x
-      unless (usableQuantity a) $
+      -- Andreas, 2019-06-18, LAIM 2019, issue #3855:
+      -- Conor McBride style quantity judgement:
+      -- The available quantity for variable x must be below
+      -- the required quantity to construct the term x.
+      -- Note: this whole thing does not work for linearity, where we need some actual arithmetics.
+      unlessM ((getQuantity a `moreQuantity`) <$> asksTC getQuantity) $
         typeError $ VariableIsErased x
       return (applyE u, unDom a)
 
@@ -1103,7 +1108,7 @@ checkSharpApplication e t c args = do
                            (freshName_ name)
 
     -- Define and type check the fresh function.
-    rel <- asksTC getRelevance
+    mod <- asksTC getModality
     abs <- aModeToDef <$> asksTC envAbstractMode
     let info   = A.mkDefInfo (A.nameConcrete $ A.qnameName c') noFixity'
                              PublicAccess abs noRange
@@ -1117,9 +1122,10 @@ checkSharpApplication e t c args = do
     i <- currentOrFreshMutualBlock
 
     -- If we are in irrelevant position, add definition irrelevantly.
+    -- If we are in erased position, add definition as erased.
     -- TODO: is this sufficient?
     addConstant c' =<< do
-      let ai = setRelevance rel defaultArgInfo
+      let ai = setModality mod defaultArgInfo
       useTerPragma $
         (defaultDefn ai c' forcedType emptyFunction)
         { defMutual = i }
@@ -1130,7 +1136,7 @@ checkSharpApplication e t c args = do
       def <- theDef <$> getConstInfo c'
       vcat $
         [ "The coinductive wrapper"
-        , nest 2 $ prettyTCM rel <> (prettyTCM c' <+> ":")
+        , nest 2 $ prettyTCM mod <> (prettyTCM c' <+> ":")
         , nest 4 $ prettyTCM t
         , nest 2 $ prettyA clause
         , ("The definition is" <+> text (show $ funDelayed def)) <>
