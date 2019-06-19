@@ -15,7 +15,6 @@ import Agda.TypeChecking.Free (freeIn)
 import qualified Agda.TypeChecking.Free as New
 import Agda.TypeChecking.Free.Lazy hiding (FlexRig(..))
 import qualified Agda.TypeChecking.Free.Lazy as Free
-import qualified Agda.TypeChecking.Free.Old as Old
 
 import qualified Data.IntMap as Map
 import Data.Monoid
@@ -81,18 +80,7 @@ prop_freeIn = all (0 `freeIn`)
   , Sort $ varSort 0
   ]
 
--- * Conformance with old implementation
-
-prop_old_freeVars_Pi :: Bool
-prop_old_freeVars_Pi = same_freeVars ty
-
-same_freeVars t = new_to_old_FV (New.freeVars t) == Old.freeVars t
-
-old_to_new_FV :: Old.FreeVars -> New.FreeVars
-old_to_new_FV (Old.FV a b c d e) = New.FV a b c (Map.fromSet (const mempty) d) e
-
-new_to_old_FV :: New.FreeVars -> Old.FreeVars
-new_to_old_FV (New.FV a b c d e) = Old.FV a b c (Map.keysSet d) e
+-- Sample term, TODO: expand to unit test.
 
 ty :: Term
 ty = Pi (defaultDom ab) $ Abs "x" $ El (Type $ Max []) $ var 5
@@ -106,17 +94,6 @@ ty = Pi (defaultDom ab) $ Abs "x" $ El (Type $ Max []) $ var 5
 
 new_fv_ty :: New.FreeVars
 new_fv_ty = New.freeVars ty
-
-old_fv_ty :: Old.FreeVars
-old_fv_ty = Old.freeVars ty
-
-prop_old_freeVars_Term conf x = forAll (genC conf) $ \ (t :: Term) ->
-   same_freeVars t
-
-prop_old_freeIn_Term conf x = forAll (genC conf) $ \ (t :: Term) ->
-   New.freeIn x t == Old.freeIn x t
-prop_old_freeIn_Type conf x = forAll (genC conf) $ \ (t :: Type) ->
-   New.freeIn x t == Old.freeIn x t
 
 ------------------------------------------------------------------------
 -- * All tests
