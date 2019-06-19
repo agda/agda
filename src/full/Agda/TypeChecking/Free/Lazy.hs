@@ -95,22 +95,19 @@ data FlexRig
   = Flexible MetaSet  -- ^ In arguments of metas.
                       --   The set of metas is used by ''Agda.TypeChecking.Rewriting.NonLinMatch''
                       --   to generate the right blocking information.
+                      --   The semantics is that the status of a variable occurrence may change
+                      --   if one of the metas in the set gets solved.  We may say the occurrence
+                      --   is tainted by the meta variables in the set.
   | WeaklyRigid       -- ^ In arguments to variables and definitions.
   | Unguarded         -- ^ In top position, or only under inductive record constructors (unit).
   | StronglyRigid     -- ^ Under at least one and only inductive constructors.
   deriving (Eq, Ord, Show)
 
--- Andreas, 2019-06-19: What is the semantics of @Flexible ms@?
--- FlexRig is a semiring and there are two ways to compose @Flexible@.
--- Multiplication (@composeFlexRig@) unions the @MetaSet@s.
--- What should addition do?  Currently it takes the @Ord.max@,
--- which gives something random, as the @Ord@ on @Set@ is not semantic.
--- (Subset ordering is partial!).
-
 -- | 'FlexRig' aggregation (additive operation of the semiring).
 --   For combining occurrences of the same variable in subterms.
 --   This is a refinement of the 'max' operation for 'FlexRig'
---   which would work if 'Flexible' did not have an argument.
+--   which would work if 'Flexible' did not have the 'MetaSet' as an argument.
+--   Now, to aggregate two 'Flexible' occurrences, we union the involved 'MetaSet's.
 
 addFlexRig :: FlexRig -> FlexRig -> FlexRig
 addFlexRig = curry $ \case
@@ -123,8 +120,9 @@ addFlexRig = curry $ \case
   -- Then WeaklyRigid
   (WeaklyRigid, _) -> WeaklyRigid
   (_, WeaklyRigid) -> WeaklyRigid
-  -- Least is Flexible, but what to do with the meta sets?  Intersect?
-  (Flexible ms1, Flexible ms2) -> Flexible $ ms1 `mappend` ms2  -- TODO: correct?!
+  -- Least is Flexible.  We union the meta sets, as the variable
+  -- is tainted by all of the involved meta variable.
+  (Flexible ms1, Flexible ms2) -> Flexible $ ms1 `Set.union` ms2
 
 -- | 'FlexRig' composition (multiplicative operation of the semiring).
 --   For accumulating the context of a variable.
@@ -171,7 +169,7 @@ instance LensRelevance VarOcc where
 --   we care most about about 'StronglyRigid' 'Relevant' occurrences.
 --   E.g., if @t₁@ has a 'StronglyRigid' occurrence and @t₂@ a 'Flexible' occurrence,
 --   then @(t₁,t₂)@ still has a 'StronglyRigid' occurrence.
---   Analogously, @Relevant@ occurrences count most, as we wish e.g. to exclude
+--   Analogously, @Relevant@ occurrences count most, as we wish e.g. to forbid
 --   relevant occurrences of variables that are declared to be irrelevant.
 --
 --   'VarOcc' forms a semiring, and this monoid is the addition of the semiring.
@@ -181,12 +179,14 @@ instance Semigroup VarOcc where
 
 -- | The neutral element for variable occurrence aggregation is least serious
 --   occurrence: flexible, irrelevant.
---   This is also the absorptive element for 'composeVarOcc'.
+--   This is also the absorptive element for 'composeVarOcc', ignoring
+--   the 'MetaSet' in 'Flexible'.
 instance Monoid VarOcc where
   mempty  = VarOcc (Flexible mempty) Irrelevant
   mappend = (<>)
 
--- | The absorptive element of variable occurrence: strongly rigid, relevant.
+-- | The absorptive element of variable occurrence under aggregation:
+--   strongly rigid, relevant.
 topVarOcc :: VarOcc
 topVarOcc = VarOcc StronglyRigid Relevant
 
