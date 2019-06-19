@@ -125,6 +125,12 @@ data WhichWarnings =
 isUnsolvedWarning :: Warning -> Bool
 isUnsolvedWarning w = warningName w `elem` unsolvedWarnings
 
+isMetaWarning :: TCWarning -> Bool
+isMetaWarning w = case tcWarning w of
+   UnsolvedInteractionMetas{} -> True
+   UnsolvedMetaVariables{}    -> True
+   _                          -> False
+
 classifyWarning :: Warning -> WhichWarnings
 classifyWarning w =
   if warningName w `elem` errorWarnings
