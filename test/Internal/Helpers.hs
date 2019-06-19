@@ -21,7 +21,7 @@ module Internal.Helpers
   , isMonoid
   , isMonotoneComposition
   , isGaloisConnection
-  , Prop3, Property3, Property4
+  , BinOp, Prop1, Property1, Prop2, Property2, Prop3, Property3, Prop4, Property4
     -- * Generators
   , natural
   , positive
@@ -71,86 +71,87 @@ quickCheckWith' :: Testable prop => Args -> prop -> IO Bool
 quickCheckWith' args p = fmap isSuccess $ quickCheckWithResult args p
 
 ------------------------------------------------------------------------
+-- Helpers for type signatures of algebraic properties.
+
+-- | Binary operator.
+
+type BinOp a = a -> a -> a
+
+-- | Property over 1 variable.
+
+type Prop1     a = a -> Bool
+type Property1 a = a -> Property
+
+-- | Property over 2 variables.
+
+type Prop2     a = a -> a -> Bool
+type Property2 a = a -> a -> Property
+
+-- | Property over 3 variables.
+
+type Prop3     a = a -> a -> a -> Bool
+type Property3 a = a -> a -> a -> Property
+
+-- | Property over 4 variables.
+
+type Prop4     a = a -> a -> a -> a -> Bool
+type Property4 a = a -> a -> a -> a -> Property
+
+------------------------------------------------------------------------
 -- Algebraic properties
 
 -- | Is the operator associative?
 
-isAssociative :: Eq a
-              => (a -> a -> a)
-              -> a -> a -> a -> Bool
-isAssociative (+) = \x y z ->
+isAssociative :: Eq a => BinOp a -> Prop3 a
+isAssociative (+) = \ x y z ->
   x + (y + z) == (x + y) + z
 
 -- | Is the operator commutative?
 
-isCommutative :: Eq a
-              => (a -> a -> a)
-              -> a -> a -> Bool
-isCommutative (+) = \x y ->
+isCommutative :: Eq a => BinOp a -> Prop2 a
+isCommutative (+) = \ x y ->
   x + y == y + x
 
 -- | Is the operator idempotent?
 
-isIdempotent :: Eq a
-             => (a -> a -> a)
-             -> a -> Bool
+isIdempotent :: Eq a => BinOp a -> Prop1 a
 isIdempotent (/\) = \ x ->
   (x /\ x) == x
 
 -- | Is the element a zero for the operator?
 
-isZero :: Eq a
-       => a -> (a -> a -> a)
-       -> a -> Bool
-isZero zer (*) = \x ->
+isZero :: Eq a => a -> BinOp a -> Prop1 a
+isZero zer (*) = \ x ->
   (zer * x == zer)
   &&
   (x * zer == zer)
 
 -- | Is the element a unit for the operator?
 
-isIdentity :: Eq a
-           => a -> (a -> a -> a)
-           -> a -> Bool
-isIdentity one (*) = \x ->
+isIdentity :: Eq a => a -> BinOp a -> Prop1 a
+isIdentity one (*) = \ x ->
   (one * x == x)
   &&
   (x * one == x)
 
--- | Does the first operator distribute (from the left) over the
--- second one?
+-- | Does the first operator distribute (from the left) over the second one?
 
-isLeftDistributive
-  :: Eq a
-  => (a -> a -> a) -> (a -> a -> a)
-  -> a -> a -> a -> Bool
-isLeftDistributive (*) (+) = \x y z ->
+isLeftDistributive :: Eq a => BinOp a -> BinOp a -> Prop3 a
+isLeftDistributive (*) (+) = \ x y z ->
   x * (y + z) == (x * y) + (x * z)
 
--- | Does the first operator distribute (from the right) over the
--- second one?
+-- | Does the first operator distribute (from the right) over the second one?
 
-isRightDistributive
-  :: Eq a
-  => (a -> a -> a) -> (a -> a -> a)
-  -> a -> a -> a -> Bool
-isRightDistributive (*) (+) = \x y z ->
+isRightDistributive :: Eq a => BinOp a -> BinOp a -> Prop3 a
+isRightDistributive (*) (+) = \ x y z ->
   (x + y) * z == (x * z) + (y * z)
 
 -- | Does the first operator distribute over the second one?
 
-isDistributive
-  :: Eq a
-  => (a -> a -> a) -> (a -> a -> a)
-  -> a -> a -> a -> Bool
+isDistributive :: Eq a => BinOp a -> BinOp a -> Prop3 a
 isDistributive (*) (+) = \ x y z ->
   isLeftDistributive (*) (+) x y z &&
   isRightDistributive (*) (+) x y z
-
--- | Property over 3 variables.
-
-type Prop3     a = a -> a -> a -> Bool
-type Property3 a = a -> a -> a -> Property
 
 -- | Does the operator satisfy the semigroup law?
 
@@ -165,8 +166,6 @@ isMonoid x y z =
 -- because we are using the `-Wnoncanonical-monoid-instances` flag.
   isSemigroup x y z .&&.
   isIdentity mempty mappend x
-
-type Property4 a = a -> a -> a -> a -> Property
 
 -- | Is the semigroup operation monotone in both arguments
 --   wrt. to the associated partial ordering?
