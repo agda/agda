@@ -26,6 +26,38 @@
 -- Also, function types and lambdas do not establish strong rigidity.
 -- Only inductive constructors do so.
 -- (See issue 1271).
+--
+-- For further reading on semirings and semimodules for variable occurrence,
+-- see e.g. Conor McBrides "I got plenty of nuttin'" (Wadlerfest 2016).
+-- There, he treats the "quantity" dimension of variable occurrences.
+--
+-- The semiring has an additive operation for combining occurrences of subterms,
+-- and a multiplicative operation of representing function composition.  E.g.
+-- if variable @x@ appears @o@ in term @u@, but @u@ appears in context @q@ in
+-- term @t@ then occurrence of variable @x@ coming from @u@ is accounted for
+-- as @q o@ in @t@.
+--
+-- Consider example @(λ{ x → (x,x)}) y@:
+--
+--   * Variable @x@ occurs once unguarded in @x@.
+--
+--   * It occurs twice unguarded in the aggregation @x@ @x@
+--
+--   * Inductive constructor @,@ turns this into two strictly rigid occurrences.
+--
+--     If @,@ is a record constructor, then we stay unguarded.
+--
+--   * The function @({λ x → (x,x)})@ provides a context for variable @y@.
+--     This context can be described as weakly rigid with quantity two.
+--
+--   * The final occurrence of @y@ is obtained as composing the context with
+--     the occurrence of @y@ in itself (which is the unit for composition).
+--     Thus, @y@ occurs weakly rigid with quantity two.
+--
+-- It is not a given that the context can be described in the same way
+-- as the variable occurrence.  However, for quantity it is the case
+-- and we obtain a semiring of occurrences with 0, 1, and even ω, which
+-- is an absorptive element for addition.
 
 module Agda.TypeChecking.Free.Lazy where
 
@@ -39,6 +71,7 @@ import qualified Data.IntMap as IntMap
 import Data.Monoid ( Monoid, mempty, mappend, mconcat )
 import Data.Semigroup ( Semigroup, (<>) )
 import Data.Set (Set)
+import qualified Data.Set as Set
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
@@ -63,11 +96,38 @@ data FlexRig
                       --   The set of metas is used by ''Agda.TypeChecking.Rewriting.NonLinMatch''
                       --   to generate the right blocking information.
   | WeaklyRigid       -- ^ In arguments to variables and definitions.
-  | Unguarded         -- ^ In top position, or only under inductive record constructors.
+  | Unguarded         -- ^ In top position, or only under inductive record constructors (unit).
   | StronglyRigid     -- ^ Under at least one and only inductive constructors.
   deriving (Eq, Ord, Show)
 
--- | 'FlexRig' composition.  For accumulating the context of a variable.
+-- Andreas, 2019-06-19: What is the semantics of @Flexible ms@?
+-- FlexRig is a semiring and there are two ways to compose @Flexible@.
+-- Multiplication (@composeFlexRig@) unions the @MetaSet@s.
+-- What should addition do?  Currently it takes the @Ord.max@,
+-- which gives something random, as the @Ord@ on @Set@ is not semantic.
+-- (Subset ordering is partial!).
+
+-- | 'FlexRig' aggregation (additive operation of the semiring).
+--   For combining occurrences of the same variable in subterms.
+--   This is a refinement of the 'max' operation for 'FlexRig'
+--   which would work if 'Flexible' did not have an argument.
+
+addFlexRig :: FlexRig -> FlexRig -> FlexRig
+addFlexRig = curry $ \case
+  -- StronglyRigid is dominant
+  (StronglyRigid, _) -> StronglyRigid
+  (_, StronglyRigid) -> StronglyRigid
+  -- Next is Unguarded
+  (Unguarded, _) -> Unguarded
+  (_, Unguarded) -> Unguarded
+  -- Then WeaklyRigid
+  (WeaklyRigid, _) -> WeaklyRigid
+  (_, WeaklyRigid) -> WeaklyRigid
+  -- Least is Flexible, but what to do with the meta sets?  Intersect?
+  (Flexible ms1, Flexible ms2) -> Flexible $ ms1 `mappend` ms2  -- TODO: correct?!
+
+-- | 'FlexRig' composition (multiplicative operation of the semiring).
+--   For accumulating the context of a variable.
 --
 --   'Flexible' is dominant.  Once we are under a meta, we are flexible
 --   regardless what else comes.
@@ -77,9 +137,10 @@ data FlexRig
 --   'StronglyRigid' is still dominant over 'Unguarded'.
 --
 --   'Unguarded' is the unit.  It is the top (identity) context.
+--
 composeFlexRig :: FlexRig -> FlexRig -> FlexRig
 composeFlexRig = curry $ \case
-    (Flexible ms1, Flexible ms2) -> Flexible $ ms1 `mappend` ms2
+    (Flexible ms1, Flexible ms2) -> Flexible $ ms1 `Set.union` ms2
     (Flexible ms1, _) -> Flexible ms1
     (_, Flexible ms2) -> Flexible ms2
     (WeaklyRigid, _) -> WeaklyRigid
@@ -88,13 +149,6 @@ composeFlexRig = curry $ \case
     (_, StronglyRigid) -> StronglyRigid
     (Unguarded, Unguarded) -> Unguarded
 
--- -- | 'FlexRig' supremum.  Extract the most information about a variable.
--- --
--- --   We make this the default 'Monoid' for 'FlexRig'.
--- instance Monoid FlexRig where
---   mempty  = minBound
---   mappend = max
-
 -- | Occurrence of free variables is classified by several dimensions.
 --   Currently, we have 'FlexRig' and 'Relevance'.
 data VarOcc = VarOcc
@@ -102,6 +156,10 @@ data VarOcc = VarOcc
   , varRelevance :: Relevance
   }
   deriving (Eq, Show)
+
+instance LensRelevance VarOcc where
+  getRelevance = varRelevance
+  mapRelevance f (VarOcc x r) = VarOcc x $ f r
 
 -- | The default way of aggregating free variable info from subterms is by adding
 --   the variable occurrences.  For instance, if we have a pair @(t₁,t₂)@ then
@@ -115,12 +173,15 @@ data VarOcc = VarOcc
 --   then @(t₁,t₂)@ still has a 'StronglyRigid' occurrence.
 --   Analogously, @Relevant@ occurrences count most, as we wish e.g. to exclude
 --   relevant occurrences of variables that are declared to be irrelevant.
+--
+--   'VarOcc' forms a semiring, and this monoid is the addition of the semiring.
 
 instance Semigroup VarOcc where
-  VarOcc o r <> VarOcc o' r' = VarOcc (max o o') (min r r')
+  VarOcc o r <> VarOcc o' r' = VarOcc (addFlexRig o o') (min r r')
 
 -- | The neutral element for variable occurrence aggregation is least serious
 --   occurrence: flexible, irrelevant.
+--   This is also the absorptive element for 'composeVarOcc'.
 instance Monoid VarOcc where
   mempty  = VarOcc (Flexible mempty) Irrelevant
   mappend = (<>)
@@ -129,31 +190,42 @@ instance Monoid VarOcc where
 topVarOcc :: VarOcc
 topVarOcc = VarOcc StronglyRigid Relevant
 
--- | First argument is the outer occurrence and second is the inner.
+-- | First argument is the outer occurrence (context) and second is the inner.
+--   This multiplicative operation is to modify an occurrence under a context.
 composeVarOcc :: VarOcc -> VarOcc -> VarOcc
 composeVarOcc (VarOcc o r) (VarOcc o' r') = VarOcc (composeFlexRig o o') (max r r')
 
-instance LensRelevance VarOcc where
-  getRelevance = varRelevance
-  mapRelevance f (VarOcc x r) = VarOcc x $ f r
+oneVarOcc :: VarOcc
+oneVarOcc = VarOcc Unguarded Relevant
 
 -- | Any representation of a set of variables need to be able to be modified by
 --   a variable occurrence. This is to ensure that free variable analysis is
 --   compositional. For instance, it should be possible to compute `fv (v [u/x])`
 --   from `fv v` and `fv u`.
-class (Semigroup a, Monoid a) => IsVarSet a where
+--
+--   In algebraic terminology, a variable set needs to be a left semimodule
+--   to the semiring 'VarOcc'.
+class Monoid a => IsVarSet a where
   -- | Laws
   --    * Respects monoid operations:
   --      ```
   --        withVarOcc o mempty   == mempty
   --        withVarOcc o (x <> y) == withVarOcc o x <> withVarOcc o y
   --      ```
-  --    * Respects VarOcc composition
+  --    * Respects VarOcc composition:
   --      ```
+  --        withVarOcc oneVarOcc             = id
   --        withVarOcc (composeVarOcc o1 o2) = withVarOcc o1 . withVarOcc o2
+  --      ```
+  --    * Respects VarOcc aggregation.:
+  --      ```
+  --        withVarOcc mempty     x = mempty
+  --        withVarOcc (o1 <> o2) x = withVarOcc o1 x <> withVarOcc o2 x
   --      ```
   withVarOcc :: VarOcc -> a -> a
 
+-- | Representation of a variable set as map from de Bruijn indices
+--   to 'VarOcc'.
 type TheVarMap = IntMap VarOcc
 newtype VarMap = VarMap { theVarMap :: TheVarMap }
   deriving (Show, Singleton (Variable, VarOcc))
@@ -161,13 +233,13 @@ newtype VarMap = VarMap { theVarMap :: TheVarMap }
 mapVarMap :: (TheVarMap -> TheVarMap) -> VarMap -> VarMap
 mapVarMap f = VarMap . f . theVarMap
 
-instance Semigroup VarMap where
-  VarMap m <> VarMap m' = VarMap $ IntMap.unionWith mappend m m'
-
 -- Andreas & Jesper, 2018-05-11, issue #3052:
 
 -- | Proper monoid instance for @VarMap@ rather than inheriting the broken one from IntMap.
 --   We combine two occurrences of a variable using 'mappend'.
+instance Semigroup VarMap where
+  VarMap m <> VarMap m' = VarMap $ IntMap.unionWith mappend m m'
+
 instance Monoid VarMap where
   mempty  = VarMap IntMap.empty
   mappend = (<>)
