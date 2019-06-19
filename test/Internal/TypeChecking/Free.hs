@@ -28,8 +28,6 @@ import Internal.TypeChecking.Generators hiding ( tests )
 
 -- | Ensure the correct linear order is derived.
 
---prop_FlexRig_min = minBound == Free.Flexible
-
 prop_FlexRig_order :: Bool
 prop_FlexRig_order = strictlyAscending
   [ Free.Flexible mempty, Free.WeaklyRigid, Free.Unguarded, Free.StronglyRigid ]
@@ -63,14 +61,22 @@ prop_FlexRig_distributive = isDistributive composeFlexRig max
 -- Not true (I did not expect it to be true, just for sanity I checked):
 -- prop_FlexRig_distributive' = isDistributive max composeFlexRig
 
--- ** 'maxVarOcc'
+------------------------------------------------------------------------------
+-- * Properties of 'VarOcc'
 
-prop_maxVarOcc_top :: VarOcc -> Bool
-prop_maxVarOcc_top = isZero topVarOcc maxVarOcc
+-- ** Commutative 'Monoid' 'VarOcc'
 
-prop_maxVarOcc_bot :: VarOcc -> Bool
-prop_maxVarOcc_bot = isIdentity botVarOcc maxVarOcc
+prop_Monoid_VarOcc :: Property3 VarOcc
+prop_Monoid_VarOcc = isMonoid
 
+prop_Monoid_VarOcc_commutative :: Prop2 VarOcc
+prop_Monoid_VarOcc_commutative = isCommutative mappend
+
+-- | Absorbtive element.
+prop_topVarOcc :: VarOcc -> Bool
+prop_topVarOcc = isZero topVarOcc mappend
+
+------------------------------------------------------------------------------
 -- * Unit tests
 
 prop_freeIn :: Bool

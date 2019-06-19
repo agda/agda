@@ -32,6 +32,7 @@ module Agda.TypeChecking.Free.Lazy where
 import Control.Applicative hiding (empty)
 import Control.Monad.Reader
 
+import Data.Coerce (coerce)
 import Data.Foldable (foldMap)
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
@@ -102,16 +103,31 @@ data VarOcc = VarOcc
   }
   deriving (Eq, Show)
 
--- | When we extract information about occurrence, we care most about
---   about 'StronglyRigid' 'Relevant' occurrences.
-maxVarOcc :: VarOcc -> VarOcc -> VarOcc
-maxVarOcc (VarOcc o r) (VarOcc o' r') = VarOcc (max o o') (min r r')
+-- | The default way of aggregating free variable info from subterms is by adding
+--   the variable occurrences.  For instance, if we have a pair @(t₁,t₂)@ then
+--   and @t₁@ has @o₁@ the occurrences of a variable @x@
+--   and @t₂@ has @o₂@ the occurrences of the same variable, then
+--   @(t₁,t₂)@ has @mappend o₁ o₂@ occurrences of that variable.
+--
+--   From counting 'Quantity', we extrapolate this to 'FlexRig' and 'Relevance':
+--   we care most about about 'StronglyRigid' 'Relevant' occurrences.
+--   E.g., if @t₁@ has a 'StronglyRigid' occurrence and @t₂@ a 'Flexible' occurrence,
+--   then @(t₁,t₂)@ still has a 'StronglyRigid' occurrence.
+--   Analogously, @Relevant@ occurrences count most, as we wish e.g. to exclude
+--   relevant occurrences of variables that are declared to be irrelevant.
 
+instance Semigroup VarOcc where
+  VarOcc o r <> VarOcc o' r' = VarOcc (max o o') (min r r')
+
+-- | The neutral element for variable occurrence aggregation is least serious
+--   occurrence: flexible, irrelevant.
+instance Monoid VarOcc where
+  mempty  = VarOcc (Flexible mempty) Irrelevant
+  mappend = (<>)
+
+-- | The absorptive element of variable occurrence: strongly rigid, relevant.
 topVarOcc :: VarOcc
 topVarOcc = VarOcc StronglyRigid Relevant
-
-botVarOcc :: VarOcc
-botVarOcc = VarOcc (Flexible mempty) Irrelevant
 
 -- | First argument is the outer occurrence and second is the inner.
 composeVarOcc :: VarOcc -> VarOcc -> VarOcc
@@ -146,16 +162,16 @@ mapVarMap :: (TheVarMap -> TheVarMap) -> VarMap -> VarMap
 mapVarMap f = VarMap . f . theVarMap
 
 instance Semigroup VarMap where
-  VarMap m <> VarMap m' = VarMap $ IntMap.unionWith maxVarOcc m m'
+  VarMap m <> VarMap m' = VarMap $ IntMap.unionWith mappend m m'
 
 -- Andreas & Jesper, 2018-05-11, issue #3052:
 
 -- | Proper monoid instance for @VarMap@ rather than inheriting the broken one from IntMap.
---   We combine two occurrences of a variable using 'maxVarOcc'.
+--   We combine two occurrences of a variable using 'mappend'.
 instance Monoid VarMap where
   mempty  = VarMap IntMap.empty
   mappend = (<>)
-  mconcat = VarMap . IntMap.unionsWith maxVarOcc . map theVarMap
+  mconcat = VarMap . IntMap.unionsWith mappend . coerce   -- coerce = map theVarMap
 
 instance IsVarSet VarMap where
   withVarOcc o = mapVarMap $ fmap $ composeVarOcc o
