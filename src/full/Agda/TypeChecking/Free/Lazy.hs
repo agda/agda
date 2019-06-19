@@ -10,7 +10,7 @@
 -- Worst-case complexity does not change (i.e. the case when a variable
 -- does not occur), but best case-complexity does matter.  For instance,
 -- see 'Agda.TypeChecking.Substitute.mkAbs': each time we construct
--- a dependent function type, we check it is actually dependent.
+-- a dependent function type, we check whether it is actually dependent.
 --
 -- The distinction between rigid and strongly rigid occurrences comes from:
 --   Jason C. Reed, PhD thesis, 2009, page 96 (see also his LFMTP 2009 paper)
@@ -77,8 +77,7 @@ data FlexRig
 --
 --   'Unguarded' is the unit.  It is the top (identity) context.
 composeFlexRig :: FlexRig -> FlexRig -> FlexRig
-composeFlexRig o o' =
-  case (o, o') of
+composeFlexRig = curry $ \case
     (Flexible ms1, Flexible ms2) -> Flexible $ ms1 `mappend` ms2
     (Flexible ms1, _) -> Flexible ms1
     (_, Flexible ms2) -> Flexible ms2
@@ -224,7 +223,11 @@ variable n = do
 
 -- | Subtract, but return Nothing if result is negative.
 subVar :: Int -> Maybe Variable -> Maybe Variable
-subVar n x = x >>= \ i -> (i - n) <$ guard (n <= i)
+-- subVar n x = x >>= \ i -> (i - n) <$ guard (n <= i)
+subVar n x = do
+  i <- x
+  guard $ i >= n
+  return $ i - n
 
 -- | Going under a binder.
 bind :: FreeM a -> FreeM a
@@ -238,7 +241,7 @@ go :: FlexRig -> FreeM a -> FreeM a
 go o = local $ \ e -> e { feFlexRig = composeFlexRig o $ feFlexRig e }
 
 -- | Changing the 'Relevance'.
-goRel :: Relevance-> FreeM a -> FreeM a
+goRel :: Relevance -> FreeM a -> FreeM a
 goRel r = local $ \ e -> e { feRelevance = composeRelevance r $ feRelevance e }
 
 -- | What happens to the variables occurring under a constructor?
@@ -338,10 +341,13 @@ instance Free a => Free (Maybe a) where
 instance (Free a, Free b) => Free (a, b) where
   freeVars' (x,y) = freeVars' x `mappend` freeVars' y
 
+instance (Free a, Free b, Free c) => Free (a, b, c) where
+  freeVars' (x,y,z) = freeVars' x `mappend` freeVars' y `mappend` freeVars' z
+
 instance Free a => Free (Elim' a) where
   freeVars' (Apply a) = freeVars' a
   freeVars' (Proj{} ) = mempty
-  freeVars' (IApply x y r) = mconcat $ map freeVars' [x,y,r]
+  freeVars' (IApply x y r) = freeVars' (x,y,r)
 
 instance Free a => Free (Arg a) where
   freeVars' a = goRel (getRelevance a) $ freeVars' $ unArg a
@@ -362,4 +368,4 @@ instance Free Clause where
 
 instance Free EqualityView where
   freeVars' (OtherType t) = freeVars' t
-  freeVars' (EqualityType s _eq l t a b) = freeVars' s `mappend` freeVars' (l ++ [t, a, b])
+  freeVars' (EqualityType s _eq l t a b) = freeVars' (s, l, [t, a, b])
