@@ -31,6 +31,7 @@ import Agda.Syntax.Scope.Base (AbstractModule, AbstractName, LocalVar)
 import qualified Agda.Syntax.Internal as I
 import {-# SOURCE #-} Agda.TypeChecking.Monad.Base
   (TCM, TCErr, TCWarning, HighlightingMethod, ModuleToSource, NamedMeta, TCWarning)
+import Agda.TypeChecking.Warnings (WarningsAndNonFatalErrors)
 import Agda.Utils.Impossible
 import Agda.Utils.Time
 
@@ -115,12 +116,6 @@ data GoalDisplayInfo
 type Goals = ( [OutputConstraint A.Expr InteractionId] -- visible metas
              , [OutputConstraint A.Expr NamedMeta]     -- hidden metas
              )
-
-type WarningsAndNonFatalErrors
-      = ( [TCWarning] -- warnings
-        , [TCWarning] -- non-fatal errors
-        )
-
 
 -- | Errors that goes into Info_Error
 --

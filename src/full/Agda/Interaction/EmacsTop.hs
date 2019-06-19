@@ -18,6 +18,7 @@ import qualified Agda.TypeChecking.Pretty as TCP
 import Agda.TypeChecking.Pretty (prettyTCM)
 import Agda.TypeChecking.Pretty.Warning (prettyTCWarnings, prettyTCWarnings')
 import Agda.TypeChecking.Monad
+import Agda.TypeChecking.Warnings (WarningsAndNonFatalErrors(..))
 import Agda.Interaction.AgdaTop
 import Agda.Interaction.BasicOps as B
 import Agda.Interaction.Response as R
@@ -26,7 +27,6 @@ import Agda.Interaction.Highlighting.Emacs
 import Agda.Interaction.Highlighting.Precise (TokenBased(..))
 import Agda.Interaction.InteractionTop (localStateCommandM)
 import Agda.Interaction.Imports (getAllWarningsOfTCErr)
-
 import Agda.Utils.Impossible (__IMPOSSIBLE__)
 import Agda.Utils.Function (applyWhen)
 import Agda.Utils.Null (empty)
@@ -103,9 +103,9 @@ lispifyResponse (Resp_SolveAll ps) = return
 
 lispifyDisplayInfo :: DisplayInfo -> TCM [Lisp String]
 lispifyDisplayInfo info = case info of
-    Info_CompilationOk (w, e) -> do
-      warnings <- prettyTCWarnings w
-      errors <- prettyTCWarnings e
+    Info_CompilationOk ws -> do
+      warnings <- prettyTCWarnings (tcWarnings ws)
+      errors <- prettyTCWarnings (nonFatalErrors ws)
       -- abusing the goals field since we ignore the title
       let (body, _) = formatWarningsAndErrors
                         "The module was successfully compiled.\n"
@@ -113,10 +113,10 @@ lispifyDisplayInfo info = case info of
                         errors
       format body "*Compilation result*"
     Info_Constraints s -> format (show $ vcat $ map pretty s) "*Constraints*"
-    Info_AllGoalsWarnings ms (w, e) -> do
+    Info_AllGoalsWarnings ms ws -> do
       goals <- showGoals ms
-      warnings <- prettyTCWarnings w
-      errors <- prettyTCWarnings e
+      warnings <- prettyTCWarnings (tcWarnings ws)
+      errors <- prettyTCWarnings (nonFatalErrors ws)
       let (body, title) = formatWarningsAndErrors goals warnings errors
       format body ("*All" ++ title ++ "*")
     Info_Auto s -> format s "*Auto*"

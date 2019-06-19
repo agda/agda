@@ -25,7 +25,7 @@ import Data.Monoid
 
 import Agda.Interaction.Options
 import {-# SOURCE #-} Agda.Interaction.Imports (MaybeWarnings'(..), getMaybeWarnings)
-import Agda.Interaction.Response (Goals, WarningsAndNonFatalErrors, RespContextEntry)
+import Agda.Interaction.Response (Goals, RespContextEntry)
 
 import qualified Agda.Syntax.Concrete as C -- ToDo: Remove with instance of ToConcrete
 import Agda.Syntax.Position
@@ -67,7 +67,7 @@ import Agda.TypeChecking.Free
 import Agda.TypeChecking.CheckInternal
 import Agda.TypeChecking.SizedTypes.Solve
 import qualified Agda.TypeChecking.Pretty as TP
-import Agda.TypeChecking.Warnings ( runPM, warning, WhichWarnings(..), classifyWarnings, isMetaWarning )
+import Agda.TypeChecking.Warnings ( runPM, warning, WhichWarnings(..), classifyWarnings, isMetaWarning, WarningsAndNonFatalErrors(..) )
 
 import Agda.Termination.TermCheck (termMutual)
 
@@ -597,8 +597,8 @@ getWarningsAndNonFatalErrors = do
   mws <- getMaybeWarnings AllWarnings
   let notMetaWarnings = filter (not . isMetaWarning) <$> mws
   return $ case notMetaWarnings of
-    SomeWarnings ws@(_:_) -> swap $ classifyWarnings ws
-    _ -> ([], [])
+    SomeWarnings ws@(_:_) -> classifyWarnings ws
+    _ -> WarningsAndNonFatalErrors [] []
 
 -- | Collecting the context of the given meta-variable.
 getRespContext

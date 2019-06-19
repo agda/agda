@@ -8,6 +8,8 @@ import Data.Map (Map)
 import Agda.Syntax.Concrete.Name (TopLevelModuleName)
 import Agda.Utils.FileName (AbsolutePath)
 
+data Warning
+
 data TCErr
 data TCWarning
 data NamedMeta

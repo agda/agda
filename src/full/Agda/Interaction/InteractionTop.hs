@@ -508,10 +508,8 @@ interpret (Cmd_compile backend file argv) =
 interpret Cmd_constraints =
     display_info . Info_Constraints =<< lift B.getConstraints
 
-interpret Cmd_metas = do -- CL.showMetas []
-  -- unsolvedNotOK <- lift $ not . optAllowUnsolved <$> pragmaOptions
+interpret Cmd_metas = do
   ms <- lift B.getGoals
-  -- (we, wa) <- lift getWarningsAndNonFatalErrors
   display_info . Info_AllGoalsWarnings ms =<< lift getWarningsAndNonFatalErrors
 
 interpret (Cmd_show_module_contents_toplevel norm s) =

@@ -113,15 +113,6 @@ warnings ws = do
 warning :: MonadWarning m => Warning -> m ()
 warning = warnings . pure
 
-
--- | Classifying warnings: some are benign, others are (non-fatal) errors
-
-data WhichWarnings =
-    ErrorWarnings -- ^ warnings that will be turned into errors
-  | AllWarnings   -- ^ all warnings, including errors and benign ones
-  -- Note: order of constructors is important for the derived Ord instance
-  deriving (Eq, Ord)
-
 isUnsolvedWarning :: Warning -> Bool
 isUnsolvedWarning w = warningName w `elem` unsolvedWarnings
 
@@ -130,12 +121,6 @@ isMetaWarning w = case tcWarning w of
    UnsolvedInteractionMetas{} -> True
    UnsolvedMetaVariables{}    -> True
    _                          -> False
-
-classifyWarning :: Warning -> WhichWarnings
-classifyWarning w =
-  if warningName w `elem` errorWarnings
-  then ErrorWarnings
-  else AllWarnings
 
 -- | Should we only emit a single warning with this constructor.
 onlyOnce :: Warning -> Bool
@@ -146,8 +131,31 @@ onlyShowIfUnsolved :: Warning -> Bool
 onlyShowIfUnsolved InversionDepthReached{} = True
 onlyShowIfUnsolved _ = False
 
-classifyWarnings :: [TCWarning] -> ([TCWarning], [TCWarning])
-classifyWarnings = List.partition $ (< AllWarnings) . classifyWarning . tcWarning
+-- | Classifying warnings: some are benign, others are (non-fatal) errors
+
+data WhichWarnings =
+    ErrorWarnings -- ^ warnings that will be turned into errors
+  | AllWarnings   -- ^ all warnings, including errors and benign ones
+  -- Note: order of constructors is important for the derived Ord instance
+  deriving (Eq, Ord)
+
+classifyWarning :: Warning -> WhichWarnings
+classifyWarning w =
+  if warningName w `elem` errorWarnings
+  then ErrorWarnings
+  else AllWarnings
+
+data WarningsAndNonFatalErrors = WarningsAndNonFatalErrors
+  { tcWarnings     :: [TCWarning]
+  , nonFatalErrors :: [TCWarning]
+  }
+
+classifyWarnings :: [TCWarning] -> WarningsAndNonFatalErrors
+classifyWarnings ws = WarningsAndNonFatalErrors warnings errors
+  where
+    partite = (< AllWarnings) . classifyWarning . tcWarning
+    (errors, warnings) = List.partition partite ws
+
 
 -- | running the Parse monad
 
