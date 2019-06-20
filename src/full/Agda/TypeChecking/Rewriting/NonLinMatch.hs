@@ -334,7 +334,7 @@ reallyFree xs v = do
     MaybeFree ms
       | null ms   -> return $ Right Nothing
       | otherwise -> return $ Left $
-        Set.foldr (\m -> mappend $ Blocked m ()) (notBlocked ()) ms
+        foldrMetaSet (\ m -> mappend $ Blocked m ()) (notBlocked ()) ms
     NotFree -> return $ Right (Just v')
 
   where

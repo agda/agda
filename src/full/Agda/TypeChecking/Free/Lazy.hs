@@ -68,6 +68,8 @@ import Data.Coerce (coerce)
 import Data.Foldable (foldMap)
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
+import Data.IntSet (IntSet)
+import qualified Data.IntSet as IntSet
 import Data.Monoid ( Monoid, mempty, mappend, mconcat )
 import Data.Semigroup ( Semigroup, (<>) )
 import Data.Set (Set)
@@ -76,15 +78,31 @@ import qualified Data.Set as Set
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 
--- import Agda.TypeChecking.Irrelevance
-
 import Agda.Utils.Functor
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Singleton
 import Agda.Utils.Size
 
-type MetaSet = Set MetaId
+---------------------------------------------------------------------------
+-- * Set of meta variables.
+
+-- | A set of meta variables.  Forms a monoid under union.
+
+newtype MetaSet = MetaSet { theMetaSet :: IntSet }
+  deriving (Eq, Show, Null, Semigroup, Monoid)
+
+instance Singleton MetaId MetaSet where
+  singleton = MetaSet . singleton . metaId
+
+insertMetaSet :: MetaId -> MetaSet -> MetaSet
+insertMetaSet (MetaId m) (MetaSet ms) = MetaSet $ IntSet.insert m ms
+
+foldrMetaSet :: (MetaId -> a -> a) -> a -> MetaSet -> a
+foldrMetaSet f e ms = IntSet.foldr (f . MetaId) e $ theMetaSet ms
+
+---------------------------------------------------------------------------
+-- * Flexible and rigid occurrences (semigroup)
 
 -- | Depending on the surrounding context of a variable,
 --   it's occurrence can be classified as flexible or rigid,
@@ -122,7 +140,8 @@ addFlexRig = curry $ \case
   (_, WeaklyRigid) -> WeaklyRigid
   -- Least is Flexible.  We union the meta sets, as the variable
   -- is tainted by all of the involved meta variable.
-  (Flexible ms1, Flexible ms2) -> Flexible $ ms1 `Set.union` ms2
+  (Flexible ms1, Flexible ms2) -> Flexible $ ms1 `mappend` ms2
+
 
 -- | 'FlexRig' composition (multiplicative operation of the semiring).
 --   For accumulating the context of a variable.
@@ -138,7 +157,7 @@ addFlexRig = curry $ \case
 --
 composeFlexRig :: FlexRig -> FlexRig -> FlexRig
 composeFlexRig = curry $ \case
-    (Flexible ms1, Flexible ms2) -> Flexible $ ms1 `Set.union` ms2
+    (Flexible ms1, Flexible ms2) -> Flexible $ ms1 `mappend` ms2  -- union
     (Flexible ms1, _) -> Flexible ms1
     (_, Flexible ms2) -> Flexible ms2
     (WeaklyRigid, _) -> WeaklyRigid

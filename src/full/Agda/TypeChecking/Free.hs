@@ -34,6 +34,7 @@ module Agda.TypeChecking.Free
     , freeVars -- only for testing
     , freeVars'
     , MetaSet
+    , insertMetaSet, foldrMetaSet
     ) where
 
 import Prelude hiding (null)
@@ -58,7 +59,8 @@ import Agda.Syntax.Internal
 import Agda.TypeChecking.Free.Lazy
   ( Free(..) , FreeEnv(..), initFreeEnv
   , VarOcc(..), topVarOcc, TheVarMap, theVarMap, IgnoreSorts(..), Variable, SingleVar
-  , MetaSet, IsVarSet(..), runFreeM
+  , MetaSet, insertMetaSet, foldrMetaSet
+  , IsVarSet(..), runFreeM
   )
 import qualified Agda.TypeChecking.Free.Lazy as Free
 
