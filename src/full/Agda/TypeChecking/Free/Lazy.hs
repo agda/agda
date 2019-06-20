@@ -119,7 +119,7 @@ data FlexRig
   | WeaklyRigid       -- ^ In arguments to variables and definitions.
   | Unguarded         -- ^ In top position, or only under inductive record constructors (unit).
   | StronglyRigid     -- ^ Under at least one and only inductive constructors.
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Show)
 
 -- | 'FlexRig' aggregation (additive operation of the semiring).
 --   For combining occurrences of the same variable in subterms.
@@ -142,12 +142,20 @@ addFlexRig = curry $ \case
   -- is tainted by all of the involved meta variable.
   (Flexible ms1, Flexible ms2) -> Flexible $ ms1 `mappend` ms2
 
+-- | Unit for 'addFlexRig'.
+zeroFlexRig :: FlexRig
+zeroFlexRig = Flexible mempty
+
+-- | Absorptive for 'addFlexRig'.
+omegaFlexRig :: FlexRig
+omegaFlexRig = StronglyRigid
 
 -- | 'FlexRig' composition (multiplicative operation of the semiring).
 --   For accumulating the context of a variable.
 --
 --   'Flexible' is dominant.  Once we are under a meta, we are flexible
---   regardless what else comes.
+--   regardless what else comes.  We taint all variable occurrences
+--   under a meta by this meta.
 --
 --   'WeaklyRigid' is next in strength.  Destroys strong rigidity.
 --
@@ -165,6 +173,13 @@ composeFlexRig = curry $ \case
     (StronglyRigid, _) -> StronglyRigid
     (_, StronglyRigid) -> StronglyRigid
     (Unguarded, Unguarded) -> Unguarded
+
+-- | Unit for 'composeFlexRig'.
+oneFlexRig :: FlexRig
+oneFlexRig = Unguarded
+
+---------------------------------------------------------------------------
+-- * Multi-dimensional feature vector for variable occurrence (semigroup)
 
 -- | Occurrence of free variables is classified by several dimensions.
 --   Currently, we have 'FlexRig' and 'Relevance'.
@@ -198,7 +213,7 @@ instance Semigroup VarOcc where
 
 -- | The neutral element for variable occurrence aggregation is least serious
 --   occurrence: flexible, irrelevant.
---   This is also the absorptive element for 'composeVarOcc', ignoring
+--   This is also the absorptive element for 'composeVarOcc', if we ignore
 --   the 'MetaSet' in 'Flexible'.
 instance Monoid VarOcc where
   mempty  = VarOcc (Flexible mempty) Irrelevant
@@ -217,12 +232,15 @@ composeVarOcc (VarOcc o r) (VarOcc o' r') = VarOcc (composeFlexRig o o') (max r 
 oneVarOcc :: VarOcc
 oneVarOcc = VarOcc Unguarded Relevant
 
+---------------------------------------------------------------------------
+-- * Storing variable occurrences (semimodule).
+
 -- | Any representation of a set of variables need to be able to be modified by
 --   a variable occurrence. This is to ensure that free variable analysis is
 --   compositional. For instance, it should be possible to compute `fv (v [u/x])`
 --   from `fv v` and `fv u`.
 --
---   In algebraic terminology, a variable set needs to be a left semimodule
+--   In algebraic terminology, a variable set needs to be (almost) a left semimodule
 --   to the semiring 'VarOcc'.
 class Monoid a => IsVarSet a where
   -- | Laws
@@ -236,11 +254,15 @@ class Monoid a => IsVarSet a where
   --        withVarOcc oneVarOcc             = id
   --        withVarOcc (composeVarOcc o1 o2) = withVarOcc o1 . withVarOcc o2
   --      ```
-  --    * Respects VarOcc aggregation.:
+  --    * Respects VarOcc aggregation:
   --      ```
-  --        withVarOcc mempty     x = mempty
   --        withVarOcc (o1 <> o2) x = withVarOcc o1 x <> withVarOcc o2 x
   --      ```
+  --      Since the corresponding unit law may fail,
+  --      ```
+  --        withVarOcc mempty x = mempty
+  --      ```
+  --      it is not quite a semimodule.
   withVarOcc :: VarOcc -> a -> a
 
 -- | Representation of a variable set as map from de Bruijn indices
@@ -267,6 +289,7 @@ instance Monoid VarMap where
 instance IsVarSet VarMap where
   withVarOcc o = mapVarMap $ fmap $ composeVarOcc o
 
+---------------------------------------------------------------------------
 -- * Collecting free variables.
 
 -- | Where should we skip sorts in free variable analysis?

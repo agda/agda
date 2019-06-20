@@ -11,9 +11,8 @@ module Internal.TypeChecking.Free ( tests ) where
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 
-import Agda.TypeChecking.Free (freeIn)
-import qualified Agda.TypeChecking.Free as New
-import Agda.TypeChecking.Free.Lazy hiding (FlexRig(..))
+import Agda.TypeChecking.Free (freeIn, freeVars, FreeVars)
+import Agda.TypeChecking.Free.Lazy
 import qualified Agda.TypeChecking.Free.Lazy as Free
 
 import qualified Data.IntMap as Map
@@ -26,45 +25,59 @@ import Internal.TypeChecking.Generators hiding ( tests )
 ------------------------------------------------------------------------------
 -- * Properties of 'FlexRig'
 
--- | Ensure the correct linear order is derived.
+-- ** 'addFlexRig' forms an commutative (additive) monoid
+-- with zero (neutral) 'Flexible' and infinity (absorptive element) 'StronglyRigid'
 
-prop_FlexRig_order :: Bool
-prop_FlexRig_order = strictlyAscending
-  [ Free.Flexible mempty, Free.WeaklyRigid, Free.Unguarded, Free.StronglyRigid ]
+prop_addFlexRig_associative :: Prop3 FlexRig
+prop_addFlexRig_associative = isAssociative addFlexRig
 
-strictlyAscending :: Ord a => [a] -> Bool
-strictlyAscending l = and $ zipWith (<) l $ tail l
+prop_addFlexRig_commutative :: Prop2 FlexRig
+prop_addFlexRig_commutative = isCommutative addFlexRig
+
+prop_addFlexRig_neutral :: Prop1 FlexRig
+prop_addFlexRig_neutral = isIdentity zeroFlexRig addFlexRig
+
+prop_addFlexRig_absorptive :: Prop1 FlexRig
+prop_addFlexRig_absorptive = isZero omegaFlexRig addFlexRig
 
 -- ** 'composeFlexRig' forms an idempotent commutative monoid with
 -- unit 'Unguarded' and zero 'Flexible'
 
-prop_composeFlexRig_associative :: Free.FlexRig -> Free.FlexRig ->
-                                   Free.FlexRig -> Bool
+prop_composeFlexRig_associative :: Prop3 FlexRig
 prop_composeFlexRig_associative = isAssociative composeFlexRig
 
-prop_composeFlexRig_commutative :: Free.FlexRig -> Free.FlexRig -> Bool
+prop_composeFlexRig_commutative :: Prop2 FlexRig
 prop_composeFlexRig_commutative = isCommutative composeFlexRig
 
-prop_composeFlexRig_idempotent :: Free.FlexRig -> Bool
-prop_composeFlexRig_idempotent = isIdempotent  composeFlexRig
+prop_composeFlexRig_idempotent :: Prop1 FlexRig
+prop_composeFlexRig_idempotent = isIdempotent composeFlexRig
 
-prop_composeFlexRig_zero :: Free.FlexRig -> Bool
-prop_composeFlexRig_zero = isZero (Free.Flexible mempty) composeFlexRig
+-- Not a zero for multiplication since it does not empty or flood (with everything)
+-- the MetaSet in Flexible.
+-- However, law holds on the fragment of @Flexible mempty@.
+-- See @Free.Lazy.(Arbitrary FlexRig)@.
+prop_composeFlexRig_zero :: Prop1 FlexRig
+prop_composeFlexRig_zero = isZero zeroFlexRig composeFlexRig
 
-prop_composeFlexRig_unit :: Free.FlexRig -> Bool
-prop_composeFlexRig_unit = isIdentity Free.Unguarded composeFlexRig
+prop_composeFlexRig_unit :: Prop1 FlexRig
+prop_composeFlexRig_unit = isIdentity oneFlexRig composeFlexRig
 
-prop_FlexRig_distributive :: Free.FlexRig -> Free.FlexRig ->
-                             Free.FlexRig -> Bool
-prop_FlexRig_distributive = isDistributive composeFlexRig max
+-- Distributivity fails with non-empty Flex MetaSets.
+-- Counterexample:
+--
+--   LHS: Flex ms * (Flex ns + SRig) = Flex ms * SRig = Flex ms
+--   RHS: Flex ms * Flex ns + Flex ms * SRig = Flex (ms ++ ns) + Flex ms = Flex (ms ++ ns)
+
+prop_FlexRig_distributive :: Prop3 FlexRig
+prop_FlexRig_distributive = isDistributive composeFlexRig addFlexRig
 
 -- Not true (I did not expect it to be true, just for sanity I checked):
--- prop_FlexRig_distributive' = isDistributive max composeFlexRig
+-- prop_FlexRig_distributive' = isDistributive addFlexRig composeFlexRig
 
 ------------------------------------------------------------------------------
 -- * Properties of 'VarOcc'
 
--- ** Commutative 'Monoid' 'VarOcc'
+-- ** Commutative (additive) 'Monoid' 'VarOcc'
 
 prop_Monoid_VarOcc :: Property3 VarOcc
 prop_Monoid_VarOcc = isMonoid
@@ -76,6 +89,69 @@ prop_Monoid_VarOcc_commutative = isCommutative mappend
 prop_topVarOcc :: VarOcc -> Bool
 prop_topVarOcc = isZero topVarOcc mappend
 
+-- ** 'composeVarOcc' forms an idempotent commutative monoid with
+-- unit 'oneVarOcc' and zero 'Flexible'
+
+prop_composeVarOcc_associative :: Prop3 VarOcc
+prop_composeVarOcc_associative = isAssociative composeVarOcc
+
+prop_composeVarOcc_commutative :: Prop2 VarOcc
+prop_composeVarOcc_commutative = isCommutative composeVarOcc
+
+prop_composeVarOcc_idempotent :: Prop1 VarOcc
+prop_composeVarOcc_idempotent = isIdempotent composeVarOcc
+
+-- Caveat: not a zero for multiplication in general
+-- since it does not empty or flood (with everything) the MetaSet in Flexible.
+prop_composeVarOcc_zero :: Prop1 VarOcc
+prop_composeVarOcc_zero = isZero mempty composeVarOcc
+
+prop_composeVarOcc_unit :: Prop1 VarOcc
+prop_composeVarOcc_unit = isIdentity oneVarOcc composeVarOcc
+
+-- FAILS for non-empty 'MetaSet', see prop_FlexRig_distributive
+-- | @*@ (composition) distributes over @+@ (aggregation).
+prop_VarOcc_distributive :: Prop3 VarOcc
+prop_VarOcc_distributive = isDistributive composeVarOcc mappend
+
+------------------------------------------------------------------------------
+-- * Properties of 'VarMap'
+
+-- ** Commutative (additive) 'Monoid' 'VarMap'
+
+prop_Monoid_VarMap :: Property3 VarMap
+prop_Monoid_VarMap = isMonoid
+
+prop_Monoid_VarMap_commutative :: Prop2 VarMap
+prop_Monoid_VarMap_commutative = isCommutative mappend
+
+-- ** Left semimodule for 'VarOcc'
+
+-- Distributivity fails with non-empty 'MetaSet':
+
+prop_isAlmostSemimodule_withVarOcc :: VarOcc -> VarOcc -> Property2 VarMap
+prop_isAlmostSemimodule_withVarOcc = isAlmostSemimodule oneVarOcc composeVarOcc withVarOcc
+
+-- The semimodule property can be broken down into the following properties:
+
+prop_isSemimodule_withVarOcc1 :: VarOcc -> Property2 VarMap
+prop_isSemimodule_withVarOcc1 r = isMonoidMorphism (withVarOcc r)
+
+prop_isSemimodule_withVarOcc2 :: VarMap -> Prop2 VarOcc
+prop_isSemimodule_withVarOcc2 m = isSemigroupMorphism (`withVarOcc` m)
+
+-- Not a proper semimodule, since this unit law fails:
+-- prop_isSemimodule_withVarOcc2_unit :: Prop1 VarMap
+-- prop_isSemimodule_withVarOcc2_unit m = withVarOcc empty m == empty
+
+prop_isSemimodule_withVarOcc3a :: Prop1 VarMap
+prop_isSemimodule_withVarOcc3a m =
+  withVarOcc oneVarOcc m == m
+
+prop_isSemimodule_withVarOcc3b :: VarMap -> Prop2 VarOcc
+prop_isSemimodule_withVarOcc3b m r s =
+  withVarOcc (r `composeVarOcc` s) m == withVarOcc r (withVarOcc s m)
+
 ------------------------------------------------------------------------------
 -- * Unit tests
 
@@ -85,6 +161,31 @@ prop_freeIn = all (0 `freeIn`)
   , Lam defaultArgInfo $ Abs "x" $ var 1
   , Sort $ varSort 0
   ]
+
+-- One semimodule unit law fails, since withVarOcc is pointwise application
+-- of the context to the variable set.
+-- (Even for the zero context, the variable set is not cleared.)
+prop_isSemimodule_counterexample :: Prop1 VarOcc
+prop_isSemimodule_counterexample o = withVarOcc mempty m /= mempty
+  where m = VarMap $ Map.fromList [(0,o)]
+
+prop_isSemimodule_withVarOcc2_not_a_counterexample :: Bool
+prop_isSemimodule_withVarOcc2_not_a_counterexample =
+  withVarOcc (r <> s) m ==
+  withVarOcc r m <> withVarOcc s m
+  where
+    occ = VarOcc StronglyRigid
+    r = occ Irrelevant
+    s = occ NonStrict
+    m = VarMap $ Map.fromList [(0, occ Irrelevant)]
+  -- LHS:
+  --   r <> s                = min Irrelevant NonStrict = NonStrict
+  --   withVarOcc (r <> s) m = max NonStrict Irrelevant = Irrelevant
+  -- RHS:
+  --   withVarOcc r m = max Irrelevant Irrelevant = Irrelevant
+  --   withVarOcc s m = max NonStrict  Irrelevant = Irrelevant
+  --   withVarOcc r m <> withVarOcc s m
+  --                  = min Irrelevant Irrelevant = Irrelevant
 
 -- Sample term, TODO: expand to unit test.
 
@@ -98,8 +199,8 @@ ty = Pi (defaultDom ab) $ Abs "x" $ El (Type $ Max []) $ var 5
     ab = El (Type $ Max [ClosedLevel 1]) $
            Pi (defaultDom a) (Abs "x" b)
 
-new_fv_ty :: New.FreeVars
-new_fv_ty = New.freeVars ty
+fv_ty :: FreeVars
+fv_ty = freeVars ty
 
 ------------------------------------------------------------------------
 -- * All tests

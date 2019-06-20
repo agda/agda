@@ -4,49 +4,21 @@
 -- QuickCheck properties.
 
 module Internal.Helpers
-  ( -- * QuickCheck helpers
-    quickCheck'
-  , quickCheckWith'
-    -- * QuickCheck module
+  ( module Internal.Helpers
   , module Test.QuickCheck
-    -- * Algebraic properties
-  , isAssociative
-  , isCommutative
-  , isIdempotent
-  , isZero
-  , isIdentity
-  , isLeftDistributive
-  , isRightDistributive
-  , isDistributive
-  , isMonoid
-  , isMonotoneComposition
-  , isGaloisConnection
-  , BinOp, Prop1, Property1, Prop2, Property2, Prop3, Property3, Prop4, Property4
-    -- * Generators
-  , natural
-  , positive
-  , maybeGen
-  , maybeCoGen
-  , listOfElements
-  , elementsUnlessEmpty
-  , two
-  , three
     -- * Tasty framework functions
   , testGroup
   , testProperties
   , testProperty
   , TestTree
-    -- * Test driver.
-  , runTests
-  )
-  where
+  ) where
 
 import Control.Monad
 
 import qualified Control.Monad.Fail as Fail
 
 import Data.Functor
-import Data.Monoid ( mappend, mempty, Monoid )
+import Data.Monoid ( mappend, mempty, Monoid, Endo(..) )
 import Data.Semigroup ( (<>), Semigroup )
 import Test.QuickCheck
 import Test.Tasty ( testGroup, TestName, TestTree )
@@ -166,6 +138,48 @@ isMonoid x y z =
 -- because we are using the `-Wnoncanonical-monoid-instances` flag.
   isSemigroup x y z .&&.
   isIdentity mempty mappend x
+
+isSemigroupMorphism :: (Eq b, Semigroup a, Semigroup b) => (a -> b) -> Prop2 a
+isSemigroupMorphism f = \ x y ->
+  f (x <> y) == f x <> f y
+
+-- | Monoid morphism where the source monoid is given by a unit and a multiplication.
+isMonoidMorphismUnder :: (Eq b, Monoid b) => a -> (a -> a -> a) -> (a -> b) -> Property2 a
+isMonoidMorphismUnder one (*) f = \ x y ->
+  f one == mempty
+  .&&.
+  f (x * y) == f x <> f y
+
+isMonoidMorphism :: (Eq b, Monoid a, Monoid b) => (a -> b) -> Property2 a
+isMonoidMorphism = isMonoidMorphismUnder mempty mappend
+
+-- | The semiring is given by an additive monoid, a unit and a multiplication.
+isSemimodule :: (Eq m, Monoid r, Monoid m) => r -> (r -> r -> r) -> (r -> m -> m)
+  -> r -> r -> Property2 m
+isSemimodule one (*) op r s m n =
+  isMonoidMorphism (op r) m n
+  .&&.
+  isMonoidMorphism (`op` m) r s
+  .&&.
+  -- isMonoidMorphismUnder one (*) (Endo . op) r s  -- Problem: no Eq Endo
+  -- expand to points:
+  op one m == m
+  .&&.
+  op (r * s) m == op r (op s m)
+
+-- | The semiring is given by an additive monoid, a unit and a multiplication.
+isAlmostSemimodule :: (Eq m, Monoid r, Monoid m) => r -> (r -> r -> r) -> (r -> m -> m)
+  -> r -> r -> Property2 m
+isAlmostSemimodule one (*) op r s m n =
+  isMonoidMorphism (op r) m n
+  .&&.
+  isSemigroupMorphism (`op` m) r s
+  .&&.
+  -- isMonoidMorphismUnder one (*) (Endo . op) r s  -- Problem: no Eq Endo
+  -- expand to points:
+  op one m == m
+  .&&.
+  op (r * s) m == op r (op s m)
 
 -- | Is the semigroup operation monotone in both arguments
 --   wrt. to the associated partial ordering?
