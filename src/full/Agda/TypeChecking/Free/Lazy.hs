@@ -242,7 +242,7 @@ oneVarOcc = VarOcc Unguarded Relevant
 --
 --   In algebraic terminology, a variable set needs to be (almost) a left semimodule
 --   to the semiring 'VarOcc'.
-class Monoid a => IsVarSet a where
+class (Semigroup a, Monoid a) => IsVarSet a where
   -- | Laws
   --    * Respects monoid operations:
   --      ```
@@ -284,7 +284,8 @@ instance Semigroup VarMap where
 instance Monoid VarMap where
   mempty  = VarMap IntMap.empty
   mappend = (<>)
-  mconcat = VarMap . IntMap.unionsWith mappend . coerce   -- coerce = map theVarMap
+  mconcat = VarMap . IntMap.unionsWith mappend . map theVarMap
+  -- mconcat = VarMap . IntMap.unionsWith mappend . coerce   -- ghc 8.6.5 does not seem to like this coerce
 
 instance IsVarSet VarMap where
   withVarOcc o = mapVarMap $ fmap $ composeVarOcc o
