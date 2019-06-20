@@ -735,7 +735,7 @@ data Substitution' a
     --   @
 
   | Wk !Int (Substitution' a)
-    -- ^ Weakning substitution, lifts to an extended context.
+    -- ^ Weakening substitution, lifts to an extended context.
     --   @
     --         Γ ⊢ ρ : Δ
     --     -------------------
