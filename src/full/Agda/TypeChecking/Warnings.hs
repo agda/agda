@@ -1,5 +1,17 @@
-
-module Agda.TypeChecking.Warnings where
+module Agda.TypeChecking.Warnings
+  ( MonadWarning(..)
+  , genericWarning
+  , genericNonFatalError
+  , warning_, warning, warnings
+  , isUnsolvedWarning
+  , isMetaWarning
+  , onlyShowIfUnsolved
+  , WhichWarnings(..), classifyWarning
+  -- not exporting constructor of WarningsAndNonFatalErrors
+  , WarningsAndNonFatalErrors, tcWarnings, nonFatalErrors
+  , emptyWarningsAndNonFatalErrors, classifyWarnings
+  , runPM
+  ) where
 
 import qualified Data.Set as Set
 import qualified Data.List as List
@@ -145,10 +157,16 @@ classifyWarning w =
   then ErrorWarnings
   else AllWarnings
 
+-- | Assorted warnings and errors to be displayed to the user
 data WarningsAndNonFatalErrors = WarningsAndNonFatalErrors
   { tcWarnings     :: [TCWarning]
   , nonFatalErrors :: [TCWarning]
   }
+
+-- | The only way to construct a empty WarningsAndNonFatalErrors
+
+emptyWarningsAndNonFatalErrors :: WarningsAndNonFatalErrors
+emptyWarningsAndNonFatalErrors = WarningsAndNonFatalErrors [] []
 
 classifyWarnings :: [TCWarning] -> WarningsAndNonFatalErrors
 classifyWarnings ws = WarningsAndNonFatalErrors warnings errors

@@ -611,11 +611,11 @@ typeCheck x file isMain msi = do
       withMsgs = bracket_
        (chaseMsg checkMsg x $ Just $ filePath file)
        (const $ do ws <- getAllWarnings AllWarnings
-                   let WarningsAndNonFatalErrors wa we = classifyWarnings ws
-                   let wa' = filter ((Strict.Just file ==) . tcWarningOrigin) wa
+                   let classified = classifyWarnings ws
+                   let wa' = filter ((Strict.Just file ==) . tcWarningOrigin) (tcWarnings classified)
                    unless (null wa') $
                      reportSDoc "warning" 1 $ P.vcat $ P.prettyTCM <$> wa'
-                   when (null we) $ chaseMsg "Finished" x Nothing)
+                   when (null (nonFatalErrors classified)) $ chaseMsg "Finished" x Nothing)
 
   -- Do the type checking.
 

@@ -161,7 +161,7 @@ runAgdaWithOptions backends generateHTML interaction progName opts
             LaTeX.generateLaTeX i
 
           -- Print accumulated warnings
-          WarningsAndNonFatalErrors ws _ <- classifyWarnings <$> Imp.getAllWarnings AllWarnings
+          ws <- tcWarnings . classifyWarnings <$> Imp.getAllWarnings AllWarnings
           unless (null ws) $ do
             let banner = text $ "\n" ++ delimiter "All done; warnings encountered"
             reportSDoc "warning" 1 $

@@ -67,7 +67,9 @@ import Agda.TypeChecking.Free
 import Agda.TypeChecking.CheckInternal
 import Agda.TypeChecking.SizedTypes.Solve
 import qualified Agda.TypeChecking.Pretty as TP
-import Agda.TypeChecking.Warnings ( runPM, warning, WhichWarnings(..), classifyWarnings, isMetaWarning, WarningsAndNonFatalErrors(..) )
+import Agda.TypeChecking.Warnings
+  ( runPM, warning, WhichWarnings(..), classifyWarnings, isMetaWarning
+  , WarningsAndNonFatalErrors, emptyWarningsAndNonFatalErrors )
 
 import Agda.Termination.TermCheck (termMutual)
 
@@ -598,7 +600,7 @@ getWarningsAndNonFatalErrors = do
   let notMetaWarnings = filter (not . isMetaWarning) <$> mws
   return $ case notMetaWarnings of
     SomeWarnings ws@(_:_) -> classifyWarnings ws
-    _ -> WarningsAndNonFatalErrors [] []
+    _ -> emptyWarningsAndNonFatalErrors
 
 -- | Collecting the context of the given meta-variable.
 getRespContext
