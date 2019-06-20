@@ -49,7 +49,7 @@ class Abstract t where
   abstract :: Telescope -> t -> t
 
 ---------------------------------------------------------------------------
--- * Substitution and raising/shifting/weakening
+-- * Substitution and shifting\/weakening\/strengthening
 ---------------------------------------------------------------------------
 
 -- | Apply a substitution.
@@ -64,6 +64,7 @@ class Abstract t where
 class DeBruijn t => Subst t a | a -> t where
   applySubst :: Substitution' t -> a -> a
 
+-- | Raise de Bruijn index, i.e. weakening
 raise :: Subst t a => Nat -> a -> a
 raise = raiseFrom 0
 
