@@ -185,8 +185,7 @@ quotingKit = do
             in normalClause !@ quotePats ps @@ quoteTerm v
 
       list :: [ReduceM Term] -> ReduceM Term
-      list []       = pure nil
-      list (a : as) = cons !@ a @@ list as
+      list = foldr (\ a -> (@@) (cons !@ a)) (pure nil)
 
       quoteList :: (a -> ReduceM Term) -> [a] -> ReduceM Term
       quoteList q xs = list (map q xs)
