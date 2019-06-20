@@ -5,6 +5,7 @@ module Agda.TypeChecking.Warnings
   , warning_, warning, warnings
   , isUnsolvedWarning
   , isMetaWarning
+  , isMetaTCWarning
   , onlyShowIfUnsolved
   , WhichWarnings(..), classifyWarning
   -- not exporting constructor of WarningsAndNonFatalErrors
@@ -128,11 +129,14 @@ warning = warnings . pure
 isUnsolvedWarning :: Warning -> Bool
 isUnsolvedWarning w = warningName w `elem` unsolvedWarnings
 
-isMetaWarning :: TCWarning -> Bool
-isMetaWarning w = case tcWarning w of
+isMetaWarning :: Warning -> Bool
+isMetaWarning w = case w of
    UnsolvedInteractionMetas{} -> True
    UnsolvedMetaVariables{}    -> True
    _                          -> False
+
+isMetaTCWarning :: TCWarning -> Bool
+isMetaTCWarning = isMetaWarning . tcWarning
 
 -- | Should we only emit a single warning with this constructor.
 onlyOnce :: Warning -> Bool

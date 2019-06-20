@@ -68,7 +68,7 @@ import Agda.TypeChecking.CheckInternal
 import Agda.TypeChecking.SizedTypes.Solve
 import qualified Agda.TypeChecking.Pretty as TP
 import Agda.TypeChecking.Warnings
-  ( runPM, warning, WhichWarnings(..), classifyWarnings, isMetaWarning
+  ( runPM, warning, WhichWarnings(..), classifyWarnings, isMetaTCWarning
   , WarningsAndNonFatalErrors, emptyWarningsAndNonFatalErrors )
 
 import Agda.Termination.TermCheck (termMutual)
@@ -597,7 +597,7 @@ getGoals = do
 getWarningsAndNonFatalErrors :: TCM WarningsAndNonFatalErrors
 getWarningsAndNonFatalErrors = do
   mws <- getMaybeWarnings AllWarnings
-  let notMetaWarnings = filter (not . isMetaWarning) <$> mws
+  let notMetaWarnings = filter (not . isMetaTCWarning) <$> mws
   return $ case notMetaWarnings of
     SomeWarnings ws@(_:_) -> classifyWarnings ws
     _ -> emptyWarningsAndNonFatalErrors
