@@ -168,7 +168,7 @@ isSemimodule one (*) op r s m n =
   op (r * s) m == op r (op s m)
 
 -- | The semiring is given by an additive monoid, a unit and a multiplication.
-isAlmostSemimodule :: (Eq m, Semigroup r, Monoid r, Semigroup r, Monoid m) => r -> (r -> r -> r) -> (r -> m -> m)
+isAlmostSemimodule :: (Eq m, Semigroup r, Monoid r, Semigroup m, Monoid m) => r -> (r -> r -> r) -> (r -> m -> m)
   -> r -> r -> Property2 m
 isAlmostSemimodule one (*) op r s m n =
   isMonoidMorphism (op r) m n
