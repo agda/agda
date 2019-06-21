@@ -1202,8 +1202,8 @@ The form of the result depends on the prefix argument:
                         (concat ,cmd " "
                                 ,eval " "
                                 (if ,prompt
-				    (agda2-string-quote (car ,args))
-				    "")))))))))
+                                    (agda2-string-quote (car ,args))
+                                    "")))))))))
 
 (defmacro agda2-maybe-normalised (name comment cmd want)
   `(agda2-proto-maybe-normalised
