@@ -573,7 +573,6 @@ getStoredInterface x file isMain msi = do
 
         -- If any of the imports are newer we need to retype check
         if hs /= map snd (iImportedModules i)
-          -- liftIO close -- Close the interface file. See above.
           then fallback
           else do
             unless cached $ do
