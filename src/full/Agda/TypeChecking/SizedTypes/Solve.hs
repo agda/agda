@@ -307,7 +307,7 @@ castConstraintToCurrentContext' cl = do
   where
     raiseMaybe n c = do
       -- Fine if we have to weaken or strengthening is safe.
-      guard $ n >= 0 || List.all (>= -n) (VarSet.toList $ allVars $ freeVars c)
+      guard $ n >= 0 || List.all (>= -n) (VarSet.toList $ allFreeVars c)
       return $ raise n c
 
 

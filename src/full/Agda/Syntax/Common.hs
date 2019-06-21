@@ -301,6 +301,7 @@ usableModality :: LensModality a => a -> Bool
 usableModality a = usableRelevance m && usableQuantity m
   where m = getModality a
 
+-- | Multiplicative monoid (standard monoid).
 composeModality :: Modality -> Modality -> Modality
 composeModality = (<>)
 
@@ -325,6 +326,16 @@ inverseComposeModality (Modality r q) (Modality r' q') =
 inverseApplyModality :: LensModality a => Modality -> a -> a
 inverseApplyModality m = mapModality (m `inverseComposeModality`)
 
+-- | 'Modality' forms a pointwise additive monoid.
+addModality :: Modality -> Modality -> Modality
+addModality (Modality r q) (Modality r' q') = Modality (addRelevance r r') (addQuantity q q')
+
+zeroModality :: Modality
+zeroModality = Modality zeroRelevance zeroQuantity
+
+-- | Absorptive element under addition.
+topModality :: Modality
+topModality = Modality topRelevance topQuantity
 
 -- boilerplate instances
 
@@ -448,6 +459,25 @@ instance POMonoid Quantity where
 
 instance LeftClosedPOMonoid Quantity where
   inverseCompose = inverseComposeQuantity
+
+-- | 'Quantity' forms an additive monoid with zero Quantity0.
+addQuantity :: Quantity -> Quantity -> Quantity
+addQuantity = curry $ \case
+  -- ω is absorptive
+  (Quantityω, _) -> Quantityω
+  (_, Quantityω) -> Quantityω
+  -- 0 is neutral
+  (Quantity0, q) -> q
+  (q, Quantity0) -> q
+  -- 1 + 1 = ω
+  (Quantity1, Quantity1) -> Quantityω
+
+zeroQuantity :: Quantity
+zeroQuantity = Quantity0
+
+-- | Absorptive element is ω.
+topQuantity :: Quantity
+topQuantity = Quantityω
 
 -- | @m `moreUsableQuantity` m'@ means that an @m@ can be used
 --   where ever an @m'@ is required.
@@ -610,6 +640,7 @@ usableRelevance a = case getRelevance a of
 
 -- | 'Relevance' composition.
 --   'Irrelevant' is dominant, 'Relevant' is neutral.
+--   Composition coincides with 'max'.
 composeRelevance :: Relevance -> Relevance -> Relevance
 composeRelevance r r' =
   case (r, r') of
@@ -658,6 +689,19 @@ instance POMonoid Relevance where
 
 instance LeftClosedPOMonoid Relevance where
   inverseCompose = inverseComposeRelevance
+
+-- | Combine inferred 'Relevance'.
+--   The unit is 'Irrelevant'.
+addRelevance :: Relevance -> Relevance -> Relevance
+addRelevance = min
+
+-- | 'Relevance' forms a monoid under addition, and even a semiring.
+zeroRelevance :: Relevance
+zeroRelevance = Irrelevant
+
+-- | Absorptive element under addition.
+topRelevance :: Relevance
+topRelevance = Relevant
 
 -- | Irrelevant function arguments may appear non-strictly in the codomain type.
 irrToNonStrict :: Relevance -> Relevance

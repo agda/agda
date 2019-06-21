@@ -49,7 +49,7 @@ telePiPath reAbs tel t bs = do
       s <- reduce $ getSort <$> b
       case s of
         NoAbs _ (Type l) -> return l
-        Abs n (Type l) | NoOccurrence <- occurrence 0 s -> return $ noabsApp __IMPOSSIBLE__ (Abs n l)
+        Abs n (Type l) | not (freeIn 0 s) -> return $ noabsApp __IMPOSSIBLE__ (Abs n l)
         _ -> typeError . GenericError . show =<<
              (text "The type is non-fibrant or its sort depends on an interval variable" <+> prettyTCM (unAbs b))
              -- TODO better Type Error

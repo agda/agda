@@ -689,9 +689,9 @@ assign dir x args v = do
             reportSDoc "tc.meta.assign" 25 $ "meta is irrelevant or unused"
             return (VarSet.toList $ allFreeVars args, empty, empty)
           else do
-            let vars  = allFreeVarsWithOcc args
-                relVL       = IntMap.keys $ IntMap.filter isRelevant vars
-                nonstrictVL = IntMap.keys $ IntMap.filter isNonStrict vars
+            let vars        = freeVars args
+                relVL       = filterVarMapToList isRelevant  vars
+                nonstrictVL = filterVarMapToList isNonStrict vars
             -- Andreas, 2011-10-06 only irrelevant vars that are direct
             -- arguments to the meta, hence, can be abstracted over, may
             -- appear on the rhs.  (test/fail/Issue483b)

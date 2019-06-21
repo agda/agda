@@ -65,7 +65,7 @@ import Control.Applicative hiding (empty)
 import Control.Monad.Reader
 
 import Data.Coerce (coerce)
-import Data.Foldable (foldMap)
+import Data.Foldable (Foldable, foldMap)
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
 import Data.IntSet (IntSet)
@@ -109,8 +109,8 @@ foldrMetaSet f e ms = IntSet.foldr (f . MetaId) e $ theMetaSet ms
 --   with finer distinctions.
 --
 --   The constructors are listed in increasing order (wrt. information content).
-data FlexRig
-  = Flexible MetaSet  -- ^ In arguments of metas.
+data FlexRig' a
+  = Flexible a        -- ^ In arguments of metas.
                       --   The set of metas is used by ''Agda.TypeChecking.Rewriting.NonLinMatch''
                       --   to generate the right blocking information.
                       --   The semantics is that the status of a variable occurrence may change
@@ -119,7 +119,9 @@ data FlexRig
   | WeaklyRigid       -- ^ In arguments to variables and definitions.
   | Unguarded         -- ^ In top position, or only under inductive record constructors (unit).
   | StronglyRigid     -- ^ Under at least one and only inductive constructors.
-  deriving (Eq, Show)
+  deriving (Eq, Show, Functor, Foldable)
+
+type FlexRig = FlexRig' MetaSet
 
 -- | 'FlexRig' aggregation (additive operation of the semiring).
 --   For combining occurrences of the same variable in subterms.
@@ -127,7 +129,7 @@ data FlexRig
 --   which would work if 'Flexible' did not have the 'MetaSet' as an argument.
 --   Now, to aggregate two 'Flexible' occurrences, we union the involved 'MetaSet's.
 
-addFlexRig :: FlexRig -> FlexRig -> FlexRig
+addFlexRig :: Semigroup a => FlexRig' a -> FlexRig' a -> FlexRig' a
 addFlexRig = curry $ \case
   -- StronglyRigid is dominant
   (StronglyRigid, _) -> StronglyRigid
@@ -140,14 +142,14 @@ addFlexRig = curry $ \case
   (_, WeaklyRigid) -> WeaklyRigid
   -- Least is Flexible.  We union the meta sets, as the variable
   -- is tainted by all of the involved meta variable.
-  (Flexible ms1, Flexible ms2) -> Flexible $ ms1 `mappend` ms2
+  (Flexible ms1, Flexible ms2) -> Flexible $ ms1 <> ms2
 
 -- | Unit for 'addFlexRig'.
-zeroFlexRig :: FlexRig
+zeroFlexRig :: Monoid a => FlexRig' a
 zeroFlexRig = Flexible mempty
 
 -- | Absorptive for 'addFlexRig'.
-omegaFlexRig :: FlexRig
+omegaFlexRig :: FlexRig' a
 omegaFlexRig = StronglyRigid
 
 -- | 'FlexRig' composition (multiplicative operation of the semiring).
@@ -163,9 +165,9 @@ omegaFlexRig = StronglyRigid
 --
 --   'Unguarded' is the unit.  It is the top (identity) context.
 --
-composeFlexRig :: FlexRig -> FlexRig -> FlexRig
+composeFlexRig :: Semigroup a => FlexRig' a -> FlexRig' a -> FlexRig' a
 composeFlexRig = curry $ \case
-    (Flexible ms1, Flexible ms2) -> Flexible $ ms1 `mappend` ms2  -- union
+    (Flexible ms1, Flexible ms2) -> Flexible $ ms1 <> ms2
     (Flexible ms1, _) -> Flexible ms1
     (_, Flexible ms2) -> Flexible ms2
     (WeaklyRigid, _) -> WeaklyRigid
@@ -175,23 +177,26 @@ composeFlexRig = curry $ \case
     (Unguarded, Unguarded) -> Unguarded
 
 -- | Unit for 'composeFlexRig'.
-oneFlexRig :: FlexRig
+oneFlexRig :: FlexRig' a
 oneFlexRig = Unguarded
 
 ---------------------------------------------------------------------------
 -- * Multi-dimensional feature vector for variable occurrence (semigroup)
 
 -- | Occurrence of free variables is classified by several dimensions.
---   Currently, we have 'FlexRig' and 'Relevance'.
+--   Currently, we have 'FlexRig' and 'Modality'.
 data VarOcc = VarOcc
   { varFlexRig   :: FlexRig
-  , varRelevance :: Relevance
+  , varModality  :: Modality
   }
   deriving (Eq, Show)
 
+instance LensModality VarOcc where
+  getModality = varModality
+  mapModality f (VarOcc x r) = VarOcc x $ f r
+
 instance LensRelevance VarOcc where
-  getRelevance = varRelevance
-  mapRelevance f (VarOcc x r) = VarOcc x $ f r
+instance LensQuantity VarOcc where
 
 -- | The default way of aggregating free variable info from subterms is by adding
 --   the variable occurrences.  For instance, if we have a pair @(t₁,t₂)@ then
@@ -209,28 +214,29 @@ instance LensRelevance VarOcc where
 --   'VarOcc' forms a semiring, and this monoid is the addition of the semiring.
 
 instance Semigroup VarOcc where
-  VarOcc o r <> VarOcc o' r' = VarOcc (addFlexRig o o') (min r r')
+  VarOcc o m <> VarOcc o' m' = VarOcc (addFlexRig o o') (addModality m m')
 
 -- | The neutral element for variable occurrence aggregation is least serious
 --   occurrence: flexible, irrelevant.
 --   This is also the absorptive element for 'composeVarOcc', if we ignore
 --   the 'MetaSet' in 'Flexible'.
 instance Monoid VarOcc where
-  mempty  = VarOcc (Flexible mempty) Irrelevant
+  mempty  = VarOcc (Flexible mempty) $ Modality Irrelevant Quantity0
   mappend = (<>)
 
 -- | The absorptive element of variable occurrence under aggregation:
 --   strongly rigid, relevant.
 topVarOcc :: VarOcc
-topVarOcc = VarOcc StronglyRigid Relevant
+topVarOcc = VarOcc StronglyRigid $ Modality Relevant Quantityω
 
 -- | First argument is the outer occurrence (context) and second is the inner.
 --   This multiplicative operation is to modify an occurrence under a context.
 composeVarOcc :: VarOcc -> VarOcc -> VarOcc
-composeVarOcc (VarOcc o r) (VarOcc o' r') = VarOcc (composeFlexRig o o') (max r r')
+composeVarOcc (VarOcc o m) (VarOcc o' m') = VarOcc (composeFlexRig o o') (m <> m')
+  -- We use the multipicative modality monoid (composition).
 
 oneVarOcc :: VarOcc
-oneVarOcc = VarOcc Unguarded Relevant
+oneVarOcc = VarOcc Unguarded $ Modality Relevant Quantity1
 
 ---------------------------------------------------------------------------
 -- * Storing variable occurrences (semimodule).
@@ -269,7 +275,11 @@ class (Semigroup a, Monoid a) => IsVarSet a where
 --   to 'VarOcc'.
 type TheVarMap = IntMap VarOcc
 newtype VarMap = VarMap { theVarMap :: TheVarMap }
-  deriving (Show, Singleton (Variable, VarOcc))
+  deriving (Show)
+
+-- | A "set"-style 'Singleton' instance with default/initial variable occurrence.
+instance Singleton Variable VarMap where
+  singleton i = VarMap $ IntMap.singleton i oneVarOcc
 
 mapVarMap :: (TheVarMap -> TheVarMap) -> VarMap -> VarMap
 mapVarMap f = VarMap . f . theVarMap
@@ -290,6 +300,30 @@ instance Monoid VarMap where
 instance IsVarSet VarMap where
   withVarOcc o = mapVarMap $ fmap $ composeVarOcc o
 
+
+---------------------------------------------------------------------------
+-- * Simple flexible/rigid variable collection.
+
+-- | Keep track of 'FlexRig' for every variable, but forget the involved meta vars.
+type TheFlexRigMap = IntMap (FlexRig' ())
+newtype FlexRigMap = FlexRigMap { theFlexRigMap :: TheFlexRigMap }
+  deriving (Show, Singleton (Variable, FlexRig' ()))
+
+mapFlexRigMap :: (TheFlexRigMap -> TheFlexRigMap) -> FlexRigMap -> FlexRigMap
+mapFlexRigMap f = FlexRigMap . f . theFlexRigMap
+
+instance Semigroup FlexRigMap where
+  FlexRigMap m <> FlexRigMap m' = FlexRigMap $ IntMap.unionWith addFlexRig m m'
+
+instance Monoid FlexRigMap where
+  mempty  = FlexRigMap IntMap.empty
+  mappend = (<>)
+  mconcat = FlexRigMap . IntMap.unionsWith addFlexRig . map theFlexRigMap
+
+-- | Compose everything with the 'varFlexRig' part of the 'VarOcc'.
+instance IsVarSet FlexRigMap where
+  withVarOcc o = mapFlexRigMap $ fmap $ composeFlexRig $ () <$ varFlexRig o
+
 ---------------------------------------------------------------------------
 -- * Collecting free variables.
 
@@ -308,8 +342,8 @@ data FreeEnv c = FreeEnv
     -- ^ Ignore free variables in sorts.
   , feFlexRig       :: !FlexRig
     -- ^ Are we flexible or rigid?
-  , feRelevance     :: !Relevance
-    -- ^ What is the current relevance?
+  , feModality     :: !Modality
+    -- ^ What is the current relevance and quantity?
   , feSingleton     :: Maybe Variable -> c
     -- ^ Method to return a single variable.
   }
@@ -323,7 +357,7 @@ initFreeEnv :: Monoid c => SingleVar c -> FreeEnv c
 initFreeEnv sing = FreeEnv
   { feIgnoreSorts = IgnoreNot
   , feFlexRig     = Unguarded
-  , feRelevance   = Relevant
+  , feModality    = mempty            -- multiplicative monoid
   , feSingleton   = maybe mempty sing
   }
 
@@ -348,7 +382,7 @@ instance (Semigroup c, Monoid c) => Monoid (FreeM c) where
 variable :: IsVarSet c => Int -> FreeM c
 variable n = do
   o <- asks feFlexRig
-  r <- asks feRelevance
+  r <- asks feModality
   s <- asks feSingleton
   pure $ withVarOcc (VarOcc o r) (s $ Just n)
 
@@ -371,9 +405,9 @@ bind' n = local $ \ e -> e { feSingleton = feSingleton e . subVar n }
 go :: FlexRig -> FreeM a -> FreeM a
 go o = local $ \ e -> e { feFlexRig = composeFlexRig o $ feFlexRig e }
 
--- | Changing the 'Relevance'.
-goRel :: Relevance -> FreeM a -> FreeM a
-goRel r = local $ \ e -> e { feRelevance = composeRelevance r $ feRelevance e }
+-- | Changing the 'Modality'.
+goMod :: Modality -> FreeM a -> FreeM a
+goMod m = local $ \ e -> e { feModality = composeModality m $ feModality e }
 
 -- | What happens to the variables occurring under a constructor?
 underConstructor :: ConHead -> FreeM a -> FreeM a
@@ -421,7 +455,7 @@ instance Free Term where
     Sort s       -> freeVars' s
     Level l      -> freeVars' l
     MetaV m ts   -> go (Flexible $ singleton m) $ freeVars' ts
-    DontCare mt  -> goRel Irrelevant $ freeVars' mt
+    DontCare mt  -> goMod (Modality Irrelevant mempty) $ freeVars' mt
     Dummy{}      -> mempty
 
 instance Free a => Free (Type' a) where
@@ -481,7 +515,7 @@ instance Free a => Free (Elim' a) where
   freeVars' (IApply x y r) = freeVars' (x,y,r)
 
 instance Free a => Free (Arg a) where
-  freeVars' a = goRel (getRelevance a) $ freeVars' $ unArg a
+  freeVars' a = goMod (getModality a) $ freeVars' $ unArg a
 
 instance Free a => Free (Dom a) where
   freeVars' d = freeVars' (domTactic d, unDom d)

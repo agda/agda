@@ -1353,32 +1353,41 @@ funSort a b = fromMaybe (PiSort a (NoAbs underscore b)) $ funSort' a b
 --   and codomain.
 piSort' :: Dom Type -> Abs Sort -> Maybe Sort
 piSort' a      (NoAbs _ b) = funSort' a b
-piSort' a bAbs@(Abs   _ b) = case occurrence 0 b of
-    -- Andreas, Jesper, AIM XXIX, 2019-03-18, issue #3631
-    -- Remember the NoAbs here!
-    NoOccurrence  -> Just $ funSort a $ noabsApp __IMPOSSIBLE__ bAbs
-    -- Andreas, 2017-01-18, issue #2408:
-    -- The sort of @.(a : A) → Set (f a)@ in context @f : .A → Level@
-    -- is @dLub Set λ a → Set (lsuc (f a))@, but @DLub@s are not serialized.
-    -- Alternatives:
-    -- 1. -- Irrelevantly -> sLub s1 (absApp b $ DontCare $ Sort Prop)
-    --    We cheat here by simplifying the sort to @Set (lsuc (f *))@
-    --    where * is a dummy value.  The rationale is that @f * = f a@ (irrelevance!)
-    --    and that if we already have a neutral level @f a@
-    --    it should not hurt to have @f *@ even if type @A@ is empty.
-    --    However: sorts are printed in error messages when sorts do not match.
-    --    Also, sorts with a dummy like Prop would be ill-typed.
-    -- 2. We keep the DLub, and serialize it.
-    --    That's clean and principled, even though DLubs make level solving harder.
-    -- Jesper, 2018-04-20: another alternative:
-    -- 3. Return @Inf@ as in the relevant case. This is conservative and might result
-    --    in more occurrences of @Setω@ than desired, but at least it doesn't pollute
-    --    the sort system with new 'exotic' sorts.
-    Irrelevantly  -> Just Inf
+piSort' a bAbs@(Abs   _ b) = case flexRigOccurrenceIn 0 b of
+  Nothing -> Just $ funSort a $ noabsApp __IMPOSSIBLE__ bAbs
+  Just o -> case o of
     StronglyRigid -> Just Inf
     Unguarded     -> Just Inf
     WeaklyRigid   -> Just Inf
     Flexible _    -> Nothing
+-- Andreas, 2019-06-20
+-- KEEP the following commented out code for the sake of the discussion on irrelevance.
+-- piSort' a bAbs@(Abs   _ b) = case occurrence 0 b of
+--     -- Andreas, Jesper, AIM XXIX, 2019-03-18, issue #3631
+--     -- Remember the NoAbs here!
+--     NoOccurrence  -> Just $ funSort a $ noabsApp __IMPOSSIBLE__ bAbs
+--     -- Andreas, 2017-01-18, issue #2408:
+--     -- The sort of @.(a : A) → Set (f a)@ in context @f : .A → Level@
+--     -- is @dLub Set λ a → Set (lsuc (f a))@, but @DLub@s are not serialized.
+--     -- Alternatives:
+--     -- 1. -- Irrelevantly -> sLub s1 (absApp b $ DontCare $ Sort Prop)
+--     --    We cheat here by simplifying the sort to @Set (lsuc (f *))@
+--     --    where * is a dummy value.  The rationale is that @f * = f a@ (irrelevance!)
+--     --    and that if we already have a neutral level @f a@
+--     --    it should not hurt to have @f *@ even if type @A@ is empty.
+--     --    However: sorts are printed in error messages when sorts do not match.
+--     --    Also, sorts with a dummy like Prop would be ill-typed.
+--     -- 2. We keep the DLub, and serialize it.
+--     --    That's clean and principled, even though DLubs make level solving harder.
+--     -- Jesper, 2018-04-20: another alternative:
+--     -- 3. Return @Inf@ as in the relevant case. This is conservative and might result
+--     --    in more occurrences of @Setω@ than desired, but at least it doesn't pollute
+--     --    the sort system with new 'exotic' sorts.
+--     Irrelevantly  -> Just Inf
+--     StronglyRigid -> Just Inf
+--     Unguarded     -> Just Inf
+--     WeaklyRigid   -> Just Inf
+--     Flexible _    -> Nothing
 
 piSort :: Dom Type -> Abs Sort -> Sort
 piSort a b = fromMaybe (PiSort a b) $ piSort' a b

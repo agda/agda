@@ -11,9 +11,8 @@ module Internal.TypeChecking.Free ( tests ) where
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 
-import Agda.TypeChecking.Free (freeIn, freeVars, FreeVars)
+import Agda.TypeChecking.Free (freeIn, freeVars)
 import Agda.TypeChecking.Free.Lazy
-import qualified Agda.TypeChecking.Free.Lazy as Free
 
 import qualified Data.IntMap as Map
 import Data.Monoid
@@ -174,7 +173,7 @@ prop_isSemimodule_withVarOcc2_not_a_counterexample =
   withVarOcc (r <> s) m ==
   withVarOcc r m <> withVarOcc s m
   where
-    occ = VarOcc StronglyRigid
+    occ r = VarOcc StronglyRigid $ Modality r topQuantity
     r = occ Irrelevant
     s = occ NonStrict
     m = VarMap $ Map.fromList [(0, occ Irrelevant)]
@@ -198,9 +197,6 @@ ty = Pi (defaultDom ab) $ Abs "x" $ El (Type $ Max []) $ var 5
            Sort $ Type $ Max []
     ab = El (Type $ Max [ClosedLevel 1]) $
            Pi (defaultDom a) (Abs "x" b)
-
-fv_ty :: FreeVars
-fv_ty = freeVars ty
 
 ------------------------------------------------------------------------
 -- * All tests

@@ -658,8 +658,8 @@ dataStrategy k s = do
         -- Call forceNotFree to reduce u as far as possible
         -- around any occurrences of i
         (_ , u) <- liftTCM $ forceNotFree (singleton i) u
-        case occurrence i u of
-          StronglyRigid -> ret
+        case flexRigOccurrenceIn i u of
+          Just StronglyRigid -> ret
           _ -> mzero
 
 checkEqualityStrategy :: Int -> UnifyStrategy
