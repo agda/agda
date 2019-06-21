@@ -635,7 +635,7 @@ toConPatternInfo _ = noConPatternInfo
 
 -- | Build 'ConInfo' from 'ConPatternInfo'.
 fromConPatternInfo :: ConPatternInfo -> ConInfo
-fromConPatternInfo = fromMaybe ConOCon . fmap patToConO . conPRecord
+fromConPatternInfo = maybe ConOCon patToConO . conPRecord
   where
     patToConO :: PatOrigin -> ConOrigin
     patToConO = \case
@@ -735,7 +735,7 @@ data Substitution' a
     --   @
 
   | Wk !Int (Substitution' a)
-    -- ^ Weakning substitution, lifts to an extended context.
+    -- ^ Weakening substitution, lifts to an extended context.
     --   @
     --         Γ ⊢ ρ : Δ
     --     -------------------
@@ -863,7 +863,7 @@ dummyLevel' file line = unreducedLevel $ dummyTerm' file line
 -- | A dummy term created at location.
 --   Note: use macro __DUMMY_TERM__ !
 dummyTerm :: String -> Int -> Term
-dummyTerm file line = dummyTerm' ("dummyTerm: " ++ file) line
+dummyTerm file = dummyTerm' ("dummyTerm: " ++ file)
 
 __DUMMY_TERM__ :: HasCallStack => Term
 __DUMMY_TERM__ = withFileAndLine' (freezeCallStack callStack) dummyTerm
@@ -871,7 +871,7 @@ __DUMMY_TERM__ = withFileAndLine' (freezeCallStack callStack) dummyTerm
 -- | A dummy level created at location.
 --   Note: use macro __DUMMY_LEVEL__ !
 dummyLevel :: String -> Int -> Level
-dummyLevel file line = dummyLevel' ("dummyLevel: " ++ file) line
+dummyLevel file = dummyLevel' ("dummyLevel: " ++ file)
 
 __DUMMY_LEVEL__ :: HasCallStack => Level
 __DUMMY_LEVEL__ = withFileAndLine' (freezeCallStack callStack) dummyLevel
@@ -972,7 +972,7 @@ type ListTel = ListTel' ArgName
 telFromList' :: (a -> ArgName) -> ListTel' a -> Telescope
 telFromList' f = List.foldr extTel EmptyTel
   where
-    extTel dom@(Dom{unDom = (x, a)}) = ExtendTel (dom{unDom = a}) . Abs (f x)
+    extTel dom@Dom{unDom = (x, a)} = ExtendTel (dom{unDom = a}) . Abs (f x)
 
 -- | Convert a list telescope to a telescope.
 telFromList :: ListTel -> Telescope
@@ -1020,7 +1020,7 @@ blockingMeta (Blocked m _) = Just m
 blockingMeta NotBlocked{}  = Nothing
 
 blocked :: MetaId -> a -> Blocked a
-blocked x = Blocked x
+blocked = Blocked
 
 notBlocked :: a -> Blocked a
 notBlocked = NotBlocked ReallyNotBlocked
@@ -1378,7 +1378,7 @@ instanceUniverseBiT' [] [t| ([Term], Term)                |]
 -----------------------------------------------------------------------------
 
 instance Pretty a => Pretty (Substitution' a) where
-  prettyPrec p rho = pr p rho
+  prettyPrec = pr
     where
     pr p rho = case rho of
       IdS              -> "idS"
@@ -1447,7 +1447,7 @@ instance Pretty Level where
 instance Pretty PlusLevel where
   prettyPrec p l =
     case l of
-      ClosedLevel n -> sucs p n $ \_ -> "lzero"
+      ClosedLevel n -> sucs p n $ const "lzero"
       Plus n a      -> sucs p n $ \p -> prettyPrec p a
     where
       sucs p 0 d = d p

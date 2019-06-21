@@ -216,8 +216,8 @@ instance Reify DisplayTerm Expr where
 --   If successful, reifies the resulting display term,
 --   otherwise, does @fallback@.
 reifyDisplayForm :: MonadReify m => QName -> I.Elims -> m A.Expr -> m A.Expr
-reifyDisplayForm f es fallback = do
-  ifNotM displayFormsEnabled fallback $ {- else -} do
+reifyDisplayForm f es fallback =
+  ifNotM displayFormsEnabled fallback $ {- else -}
     caseMaybeM (displayForm f es) fallback reify
 
 -- | @reifyDisplayFormP@ tries to recursively
@@ -309,7 +309,7 @@ reifyDisplayFormP f ps wps = do
     okElim :: Elim' I.Term -> Bool
     okElim (I.IApply x y r) = okTerm r
     okElim (I.Apply a) = okArg a
-    okElim (I.Proj{})  = True
+    okElim I.Proj{}  = True
 
     okTerm :: I.Term -> Bool
     okTerm (I.Var _ []) = True
@@ -873,7 +873,7 @@ stripImplicits params ps = do
             , varOrDot (namedArg a)
             ]
 
-          isUnnamedHidden x = notVisible x && nameOf (unArg x) == Nothing && isNothing (isProjP x)
+          isUnnamedHidden x = notVisible x && isNothing (nameOf (unArg x)) && isNothing (isProjP x)
 
           stripArg a = fmap (fmap stripPat) a
 
@@ -1192,8 +1192,8 @@ instance Reify NamedClause A.Clause where
       return $ splitParams nfv lhs
     lhs <- stripImps params lhs
     reportSLn "reify.clause" 60 $ "reifying NamedClause, lhs = " ++ show lhs
-    rhs <- caseMaybe (clauseBody cl) (return AbsurdRHS) $ \ e -> do
-       RHS <$> reify e <*> pure Nothing
+    rhs <- caseMaybe (clauseBody cl) (return AbsurdRHS) $ \ e ->
+      RHS <$> reify e <*> pure Nothing
     reportSLn "reify.clause" 60 $ "reifying NamedClause, rhs = " ++ show rhs
     let result = A.Clause (spineToLhs lhs) [] rhs A.noWhereDecls (I.clauseCatchall cl)
     reportSLn "reify.clause" 60 $ "reified NamedClause, result = " ++ show result
