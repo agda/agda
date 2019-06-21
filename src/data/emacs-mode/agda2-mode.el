@@ -1213,6 +1213,13 @@ The form of the result depends on the prefix argument:
     ("Normalised"   "normalised")
     (fromgoal ,want)))
 
+(defmacro agda2-maybe-normalised-asis (name comment cmd want)
+  `(agda2-proto-maybe-normalised
+    ,name ,comment ,cmd
+    ("AsIs"       "returned as is")
+    ("Simplified" "simplified")
+    ("Normalised" "normalised")
+    (fromgoal ,want)))
 
 (defmacro agda2-maybe-normalised-toplevel (name comment cmd prompt)
   `(agda2-proto-maybe-normalised
@@ -1308,7 +1315,7 @@ top-level scope."
  "Cmd_context"
  nil)
 
-(agda2-maybe-normalised
+(agda2-maybe-normalised-asis
  agda2-helper-function-type
   "Compute the type of a hypothetical helper function."
   "Cmd_helper_function"
