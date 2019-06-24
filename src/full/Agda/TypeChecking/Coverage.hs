@@ -1167,7 +1167,7 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps cps c = do
 data FixTarget
   = YesFixTarget
   | NoFixTarget
-  deriving (Show)
+  deriving (Eq, Show)
 
 -- | Allow partial covering for split?
 data AllowPartialCover
@@ -1284,8 +1284,9 @@ split' checkEmpty ind allowPartialCover fixtarget
           NoCheckEmpty -> pure cons'
         mns  <- forM cons $ \ con -> fmap (SplitCon con,) <$>
           computeNeighbourhood delta1 n delta2 d pars ixs x tel ps cps con
-        hcompsc <- if isHIT then case fixtarget of YesFixTarget -> computeHCompSplit delta1 n delta2 d pars ixs x tel ps cps; _ -> return Nothing
-                            else return Nothing
+        hcompsc <- if isHIT && fixtarget == YesFixTarget
+                   then computeHCompSplit delta1 n delta2 d pars ixs x tel ps cps
+                   else return Nothing
         return $ (dr, catMaybes (mns ++ [hcompsc]))
 
       computeLitNeighborhoods = do
