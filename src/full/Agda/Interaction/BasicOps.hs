@@ -469,7 +469,7 @@ instance Reify Constraint (OutputConstraint Expr Expr) where
       return $ PostponedCheckFunDef q a
     reify (HasBiggerSort a) = OfType <$> reify a <*> reify (UnivSort a)
     reify (HasPTSRule a b) = do
-      (a,(x,b)) <- reify (unDom a,b)
+      (a,(x,b)) <- reify (a,b)
       return $ PTSInstance a b
 
 instance (Pretty a, Pretty b) => Pretty (OutputForm a b) where

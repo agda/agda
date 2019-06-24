@@ -437,7 +437,7 @@ instance Occurs Sort where
             YesUnfold -> reduce s
             NoUnfold  -> instantiate s
     case s' of
-      PiSort a s -> uncurry PiSort <$> occurs red (weakly ctx) m xs (a,s)
+      PiSort s1 s2 -> uncurry PiSort <$> occurs red (weakly ctx) m xs (s1,s2)
       Type a     -> Type <$> occurs red ctx m xs a
       Prop a     -> Prop <$> occurs red ctx m xs a
       Inf        -> return s'
@@ -454,7 +454,7 @@ instance Occurs Sort where
   metaOccurs m s = do
     s <- instantiate s
     case s of
-      PiSort a s -> metaOccurs m (a,s)
+      PiSort s1 s2 -> metaOccurs m (s1,s2)
       Type a     -> metaOccurs m a
       Prop a     -> metaOccurs m a
       Inf        -> return ()
@@ -677,7 +677,7 @@ instance AnyRigid Sort where
       Prop l     -> fold l
       Inf        -> return False
       SizeUniv   -> return False
-      PiSort a s -> return False
+      PiSort s1 s2 -> return False
       UnivSort s -> fold s
       MetaS{}    -> return False
       DefS{}     -> return False
