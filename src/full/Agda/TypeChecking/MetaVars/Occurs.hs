@@ -38,7 +38,8 @@ import Agda.TypeChecking.Monad.Builtin
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Pretty
-import Agda.TypeChecking.Free hiding (FlexRig'(..))
+import Agda.TypeChecking.Free
+import Agda.TypeChecking.Free.Lazy
 import Agda.TypeChecking.Free.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Datatypes
@@ -130,34 +131,36 @@ defNeedsChecking d = Set.member d <$> useTC stOccursCheckDefs
 
 -- | Remove a def from the list of defs to be looked at.
 tallyDef :: QName -> TCM ()
-tallyDef d = modifyOccursCheckDefs $ \ s -> Set.delete d s
+tallyDef d = modifyOccursCheckDefs $ Set.delete d
 
-data OccursCtx
-  = Flex          -- ^ We are in arguments of a meta.
-  | Rigid         -- ^ We are not in arguments of a meta but a bound var.
-  | StronglyRigid -- ^ We are at the start or in the arguments of a constructor.
-  | Irrel         -- ^ We are in an irrelevant argument.
-  deriving (Eq, Show)
+type OccursCtx = VarOcc' ()
 
 data UnfoldStrategy = YesUnfold | NoUnfold
   deriving (Eq, Show)
 
 defArgs :: UnfoldStrategy -> OccursCtx -> OccursCtx
-defArgs NoUnfold  _   = Flex
-defArgs YesUnfold ctx = weakly ctx
+defArgs NoUnfold  = flexibly
+defArgs YesUnfold = weakly
 
 unfold :: UnfoldStrategy -> Term -> TCM (Blocked Term)
 unfold NoUnfold  v = notBlocked <$> instantiate v
 unfold YesUnfold v = reduceB v
 
+goModality :: LensModality a => a -> OccursCtx -> OccursCtx
+goModality = mapModality . composeModality . getModality
+
 -- | Leave the strongly rigid position.
 weakly :: OccursCtx -> OccursCtx
-weakly StronglyRigid = Rigid
-weakly ctx = ctx
+weakly = over lensFlexRig $ composeFlexRig WeaklyRigid
 
 strongly :: OccursCtx -> OccursCtx
-strongly Rigid = StronglyRigid
-strongly ctx = ctx
+strongly = over lensFlexRig $ \case
+  WeaklyRigid -> StronglyRigid
+  Unguarded   -> StronglyRigid
+  ctx -> ctx
+
+flexibly :: OccursCtx -> OccursCtx
+flexibly = set lensFlexRig $ Flexible ()
 
 patternViolation' :: Int -> String -> TCM a
 patternViolation' n err = do
@@ -165,14 +168,23 @@ patternViolation' n err = do
   patternViolation
 
 abort :: OccursCtx -> TypeError -> TCM a
-abort StronglyRigid err = typeError err -- here, throw an uncatchable error (unsolvable constraint)
-abort Flex          err = patternViolation' 70 (show err) -- throws a PatternErr, which leads to delayed constraint
-abort Rigid         err = patternViolation' 70 (show err)
-abort Irrel         err = patternViolation' 70 (show err)
+abort ctx err
+  | isIrrelevant ctx                    = soft
+  | StronglyRigid <- ctx ^. lensFlexRig = hard
+  | otherwise = soft
+  where
+  hard = typeError err -- here, throw an uncatchable error (unsolvable constraint)
+  soft = patternViolation' 70 (show err) -- throws a PatternErr, which leads to delayed constraint
 
 -- | Distinguish relevant, irrelevant and nonstrict variables in occurs check.
 type Vars = ([Nat],[Nat],[Nat])
 -- TODO: refactor this into an actual datatype
+
+goRel :: LensRelevance a => a -> Vars -> Vars
+goRel a = case getRelevance a of
+  Relevant   -> id
+  NonStrict  -> goNonStrict
+  Irrelevant -> goIrrelevant
 
 goIrrelevant :: Vars -> Vars
 goIrrelevant (relVs, nonstrictVs, irrVs) = (irrVs ++ nonstrictVs ++ relVs, [], [])
@@ -204,7 +216,7 @@ occursCheck
   => MetaId -> Vars -> a -> TCM a
 occursCheck m xs v = Bench.billTo [ Bench.Typing, Bench.OccursCheck ] $ do
   mv <- lookupMeta m
-  let ctx = if isIrrelevant (getMetaRelevance mv) then Irrel else StronglyRigid
+  let ctx = VarOcc StronglyRigid $ getMetaModality mv
   initOccursCheck mv
       -- TODO: Can we do this in a better way?
   let redo m = m
@@ -252,7 +264,7 @@ instance Occurs Term where
       -- Don't fail on blocked terms or metas
       NotBlocked _ v      -> occurs' ctx v
       -- Blocked _ v@MetaV{} -> occurs' ctx v  -- does not help with issue 856
-      Blocked _ v         -> occurs' Flex v
+      Blocked _ v         -> occurs' (flexibly ctx) v
     where
       occurs' ctx v = do
         reportSDoc "tc.meta.occurs" 45 $
@@ -281,15 +293,16 @@ instance Occurs Term where
           Level l     -> Level <$> occ ctx l
           Lit l       -> return v
           Dummy{}     -> return v
-          DontCare v  -> if ctx == Irrel then
+          DontCare v  -> if isIrrelevant ctx then
                            dontCare <$> occurs red ctx m xs v
                          else
                            abort (strongly ctx) $ MetaIrrelevantSolution m v
           Def d es    -> do
-            drel <- relOfConst d
-            unless (usableRelevance drel || ctx == Irrel) $ do
-              reportSDoc "tc.meta.occurs" 35 $ text ("relevance of definition: " ++ show drel)
-              abort ctx $ MetaIrrelevantSolution m $ Def d []
+            unless (isIrrelevant ctx) $ do
+              drel <- relOfConst d
+              unless (usableRelevance drel) $ do
+                reportSDoc "tc.meta.occurs" 35 $ text ("relevance of definition: " ++ show drel)
+                abort ctx $ MetaIrrelevantSolution m $ Def d []
             Def d <$> occDef d ctx es
           Con c ci vs -> Con c ci <$> occ ctx vs  -- if strongly rigid, remain so
           Pi a b      -> uncurry Pi <$> occ ctx (a,b)
@@ -312,15 +325,15 @@ instance Occurs Term where
               when (m == m') $ patternViolation' 50 $ "occursCheck failed: Found " ++ prettyShow m
 
               -- The arguments of a meta are in a flexible position
-              (MetaV m' <$> occurs red Flex m xs es) `catchError` \err -> do
+              (MetaV m' <$> occurs red (flexibly ctx) m xs es) `catchError` \ err -> do
                 reportSDoc "tc.meta.kill" 25 $ vcat
-                  [ text $ "error during flexible occurs check, we are " ++ show ctx
+                  [ text $ "error during flexible occurs check, we are " ++ show (ctx ^. lensFlexRig)
                   , text $ show err
                   ]
                 case err of
                   -- On pattern violations try to remove offending
                   -- flexible occurrences (if not already in a flexible context)
-                  PatternErr{} | ctx /= Flex -> do
+                  PatternErr{} | not (isFlexible ctx) -> do
                     reportSLn "tc.meta.kill" 20 $
                       "oops, pattern violation for " ++ prettyShow m'
                     -- Andreas, 2014-03-02, see issue 1070:
@@ -414,7 +427,7 @@ instance Occurs LevelAtom where
         MetaV m' args <- occurs red ctx m xs (MetaV m' args)
         return $ MetaLevel m' args
       NeutralLevel r v  -> NeutralLevel r  <$> occurs red ctx m xs v
-      BlockedLevel m' v -> BlockedLevel m' <$> occurs red Flex m xs v
+      BlockedLevel m' v -> BlockedLevel m' <$> occurs red (flexibly ctx) m xs v
       UnreducedLevel v  -> UnreducedLevel  <$> occurs red ctx m xs v
 
   metaOccurs m l = do
@@ -466,10 +479,11 @@ instance Occurs Sort where
 
 instance Occurs a => Occurs (Elim' a) where
   occurs red ctx m xs e@(Proj _ f) = do
-    frel <- relOfConst f
-    unless (usableRelevance frel || ctx == Irrel) $ do
-      reportSDoc "tc.meta.occurs" 35 $ text ("relevance of projection: " ++ show frel)
-      abort ctx $ MetaIrrelevantSolution m $ Def f []
+    unless (isIrrelevant ctx) $ do
+      frel <- relOfConst f
+      unless (usableRelevance frel) $ do
+        reportSDoc "tc.meta.occurs" 35 $ text ("relevance of projection: " ++ show frel)
+        abort ctx $ MetaIrrelevantSolution m $ Def f []
     return e
   occurs red ctx m xs (Apply a) = Apply <$> occurs red ctx m xs a
   occurs red ctx m xs (IApply x y a)
@@ -489,14 +503,10 @@ instance (Occurs a, Subst t a) => Occurs (Abs a) where
   metaOccurs m (NoAbs s x) = metaOccurs m x
 
 instance Occurs a => Occurs (Arg a) where
-  occurs red ctx m xs (Arg info x) | isIrrelevant info = Arg info <$>
-    occurs red Irrel m (goIrrelevant xs) x
-  occurs red ctx m xs (Arg info x) | isNonStrict info  = Arg info <$>
-    occurs red ctx m (goNonStrict xs) x
   occurs red ctx m xs (Arg info x) = Arg info <$>
-    occurs red ctx m xs x
+    occurs red (goModality info ctx) m (goRel info xs) x
 
-  metaOccurs m a = metaOccurs m (unArg a)
+  metaOccurs m = metaOccurs m . unArg
 
 instance Occurs a => Occurs (Dom a) where
   occurs red ctx m xs = traverse $ occurs red ctx m xs

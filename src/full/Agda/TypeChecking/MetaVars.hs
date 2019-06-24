@@ -703,7 +703,6 @@ assign dir x args v = do
                 fromIrrVar _ = return []
             irrVL <- concat <$> mapM fromIrrVar
                        [ v | Arg info v <- args, isIrrelevant info ]
-                          -- irrelevant (getRelevance info) ]
             return (relVL, nonstrictVL, irrVL)
       reportSDoc "tc.meta.assign" 20 $
           let pr (Var n []) = text (show n)

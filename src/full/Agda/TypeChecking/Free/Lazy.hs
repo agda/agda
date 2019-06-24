@@ -79,6 +79,7 @@ import Agda.Syntax.Common
 import Agda.Syntax.Internal
 
 import Agda.Utils.Functor
+import Agda.Utils.Lens
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Singleton
@@ -122,6 +123,17 @@ data FlexRig' a
   deriving (Eq, Show, Functor, Foldable)
 
 type FlexRig = FlexRig' MetaSet
+
+class LensFlexRig a o | o -> a where
+  lensFlexRig :: Lens' (FlexRig' a) o
+
+instance LensFlexRig a (FlexRig' a) where
+  lensFlexRig f x = f x
+
+isFlexible :: LensFlexRig a o => o -> Bool
+isFlexible o = case o ^. lensFlexRig of
+  Flexible {} -> True
+  _ -> False
 
 -- | 'FlexRig' aggregation (additive operation of the semiring).
 --   For combining occurrences of the same variable in subterms.
@@ -185,18 +197,26 @@ oneFlexRig = Unguarded
 
 -- | Occurrence of free variables is classified by several dimensions.
 --   Currently, we have 'FlexRig' and 'Modality'.
-data VarOcc = VarOcc
-  { varFlexRig   :: FlexRig
+data VarOcc' a = VarOcc
+  { varFlexRig   :: FlexRig' a
   , varModality  :: Modality
   }
   deriving (Eq, Show)
+type VarOcc = VarOcc' MetaSet
 
-instance LensModality VarOcc where
+instance LensModality (VarOcc' a) where
   getModality = varModality
   mapModality f (VarOcc x r) = VarOcc x $ f r
 
-instance LensRelevance VarOcc where
-instance LensQuantity VarOcc where
+instance LensRelevance (VarOcc' a) where
+instance LensQuantity (VarOcc' a) where
+
+-- | Access to 'varFlexRig' in 'VarOcc'.
+instance LensFlexRig a (VarOcc' a) where
+  lensFlexRig f (VarOcc fr m) = f fr <&> \ fr' -> VarOcc fr' m
+-- lensFlexRig :: Lens' (FlexRig' a) (VarOcc' a)
+-- lensFlexRig f (VarOcc fr m) = f fr <&> \ fr' -> VarOcc fr' m
+
 
 -- | The default way of aggregating free variable info from subterms is by adding
 --   the variable occurrences.  For instance, if we have a pair @(t₁,t₂)@ then
