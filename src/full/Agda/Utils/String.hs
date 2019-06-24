@@ -9,11 +9,10 @@ import qualified Data.List as List
 import Data.String
 
 import Numeric
-import Agda.Utils.List
 
-import Data.IORef
-import Agda.Interaction.Options.IORefs (unicodeOrAscii, UnicodeOrAscii(..))
-import qualified System.IO.Unsafe as UNSAFE
+import Agda.Interaction.Options.IORefs ( UnicodeOrAscii(..) )
+import Agda.Utils.List
+import Agda.Utils.Suffix ( subscriptAllowed, toSubscriptDigit )
 
 -- | 'quote' adds double quotes around the string, replaces newline
 -- characters with @\n@, and escapes double quotes and backslashes
@@ -73,11 +72,9 @@ delimiter s = concat [ replicate 4 '\x2014'
 -- 0-9 unless the user explicitly asked us to not use any unicode characters.
 
 showIndex :: (Show i, Integral i) => i -> String
-showIndex n =
-  let opt = UNSAFE.unsafePerformIO (readIORef unicodeOrAscii) in
-  case opt of
-    UnicodeOk -> showIntAtBase 10 (\i -> toEnum (i + fromEnum '\x2080')) n ""
-    AsciiOnly -> show n
+showIndex = case subscriptAllowed of
+  UnicodeOk -> map toSubscriptDigit . show
+  AsciiOnly -> show
 
 -- | Adds a final newline if there is not already one.
 
