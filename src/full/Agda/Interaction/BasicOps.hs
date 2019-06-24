@@ -19,10 +19,14 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.List as List
 import Data.Maybe
+import Data.Tuple (swap)
 import Data.Traversable hiding (mapM, forM, for)
 import Data.Monoid
 
 import Agda.Interaction.Options
+import {-# SOURCE #-} Agda.Interaction.Imports (MaybeWarnings'(..), getMaybeWarnings)
+import Agda.Interaction.Response (Goals, RespContextEntry)
+
 import qualified Agda.Syntax.Concrete as C -- ToDo: Remove with instance of ToConcrete
 import Agda.Syntax.Position
 import Agda.Syntax.Abstract as A hiding (Open, Apply, Assign)
@@ -63,7 +67,9 @@ import Agda.TypeChecking.Free
 import Agda.TypeChecking.CheckInternal
 import Agda.TypeChecking.SizedTypes.Solve
 import qualified Agda.TypeChecking.Pretty as TP
-import Agda.TypeChecking.Warnings ( runPM, warning )
+import Agda.TypeChecking.Warnings
+  ( runPM, warning, WhichWarnings(..), classifyWarnings, isMetaTCWarning
+  , WarningsAndNonFatalErrors, emptyWarningsAndNonFatalErrors )
 
 import Agda.Termination.TermCheck (termMutual)
 
@@ -576,6 +582,44 @@ getConstraints' g f = liftTCM $ do
       withMetaInfo mv $ do
         let m = QuestionMark emptyMetaInfo{ metaNumber = Just $ fromIntegral ii } ii
         abstractToConcrete_ $ OutputForm noRange [] $ Assign m e
+
+-- | Goals and Warnings
+
+getGoals :: TCM Goals
+getGoals = do
+  -- visible metas (as-is)
+  visibleMetas <- typesOfVisibleMetas AsIs
+  -- hidden metas (unsolved implicit arguments simplified)
+  unsolvedNotOK <- not . optAllowUnsolved <$> pragmaOptions
+  hiddenMetas <- (guard unsolvedNotOK >>) <$> typesOfHiddenMetas Simplified
+  return (visibleMetas, hiddenMetas)
+
+getWarningsAndNonFatalErrors :: TCM WarningsAndNonFatalErrors
+getWarningsAndNonFatalErrors = do
+  mws <- getMaybeWarnings AllWarnings
+  let notMetaWarnings = filter (not . isMetaTCWarning) <$> mws
+  return $ case notMetaWarnings of
+    SomeWarnings ws@(_:_) -> classifyWarnings ws
+    _ -> emptyWarningsAndNonFatalErrors
+
+-- | Collecting the context of the given meta-variable.
+getRespContext
+  :: Rewrite      -- ^ Normalise?
+  -> InteractionId
+  -> TCM [RespContextEntry]
+getRespContext norm ii = withInteractionId ii $ do
+  ctx <- filter (not . shouldHide) <$> contextOfMeta ii norm
+  -- name name part
+  let ns = map (nameConcrete . ofName) ctx
+  xs  <- mapM (abstractToConcrete_ . ofName) ctx
+  -- the type part
+  let es = map ofExpr ctx
+  let ss = map C.isInScope xs
+
+  return $ List.zip4 ns xs es ss
+
+shouldHide :: OutputConstraint' A.Expr A.Name -> Bool
+shouldHide (OfType' n _) = isNoName n || nameIsRecordName n
 
 -- | @getSolvedInteractionPoints True@ returns all solutions,
 --   even if just solved by another, non-interaction meta.

@@ -18,7 +18,7 @@ import Agda.TypeChecking.Monad.Base
 import {-# SOURCE #-} Agda.TypeChecking.Monad.Options
 
 import Agda.Interaction.Options
-import Agda.Interaction.Response
+import {-# SOURCE #-} Agda.Interaction.Response (Response(..))
 
 import Agda.Utils.Except
 import Agda.Utils.Lens

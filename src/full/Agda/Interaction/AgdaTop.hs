@@ -6,6 +6,7 @@ import Control.Monad.State
 import Data.Char
 import System.IO
 
+import Agda.Interaction.Base
 import Agda.Interaction.Response as R
 import Agda.Interaction.InteractionTop
 import Agda.Interaction.Options

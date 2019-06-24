@@ -17,6 +17,7 @@ import Agda.TypeChecking.Monad.Options
 import Agda.TypeChecking.Positivity
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Pretty.Call
+import Agda.TypeChecking.Warnings (WarningsAndNonFatalErrors(..))
 
 import Agda.Syntax.Position
 import Agda.Syntax.Parser

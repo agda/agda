@@ -57,7 +57,8 @@ import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 import Agda.TheTypeChecker
 
 import Agda.Interaction.FindFile
-import {-# SOURCE #-} Agda.Interaction.InteractionTop (showOpenMetas)
+import {-# SOURCE #-} Agda.Interaction.EmacsTop (showGoals)
+import Agda.Interaction.BasicOps (getGoals)
 import Agda.Interaction.Options
 import qualified Agda.Interaction.Options.Lenses as Lens
 import Agda.Interaction.Highlighting.Precise
@@ -608,11 +609,11 @@ typeCheck x file isMain msi = do
       withMsgs = bracket_
        (chaseMsg checkMsg x $ Just $ filePath file)
        (const $ do ws <- getAllWarnings AllWarnings
-                   let (we, wa) = classifyWarnings ws
-                   let wa' = filter ((Strict.Just file ==) . tcWarningOrigin) wa
+                   let classified = classifyWarnings ws
+                   let wa' = filter ((Strict.Just file ==) . tcWarningOrigin) (tcWarnings classified)
                    unless (null wa') $
                      reportSDoc "warning" 1 $ P.vcat $ P.prettyTCM <$> wa'
-                   when (null we) $ chaseMsg "Finished" x Nothing)
+                   when (null (nonFatalErrors classified)) $ chaseMsg "Finished" x Nothing)
 
   -- Do the type checking.
 
@@ -918,7 +919,7 @@ createInterface file mname isMain msi =
     openMetas           <- getOpenMetas
     unless (null openMetas) $ do
       reportSLn "import.metas" 10 "We have unsolved metas."
-      reportSLn "import.metas" 10 . unlines =<< showOpenMetas
+      reportSLn "import.metas" 10 =<< showGoals =<< getGoals
 
     ifTopLevelAndHighlightingLevelIs NonInteractive printUnsolvedInfo
 
