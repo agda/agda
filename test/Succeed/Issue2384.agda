@@ -1,4 +1,6 @@
 {-# OPTIONS --show-implicit #-}
+-- {-# OPTIONS -v tc.meta.assign:25 #-}
+
 open import Agda.Builtin.Nat renaming (Nat to ℕ)
 open import Agda.Builtin.Equality
 
@@ -17,9 +19,10 @@ tl α n = α(suc n)
 
 -- Needed to add the implicit arguments for funext in Agda 2.5.2:
 
+
 hd-tl-eta : (X : ℕ → Set) {α : (n : ℕ) → X n} → (hd α :: tl α) ≡ α
-hd-tl-eta X {α} = funext {Y = _} lemma
+hd-tl-eta X {α} = funext {Y = _} (lemma {_})
  where
-  lemma : ∀ {α} → ∀ i → _::_ {_} (hd α) (tl α) i ≡ α i
+  lemma : ∀ {α : _} → ∀ i → _::_ {_} (hd α) (tl α) i ≡ α i
   lemma 0 = refl
   lemma (suc i) = refl

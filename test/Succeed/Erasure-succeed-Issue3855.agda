@@ -64,8 +64,8 @@ module Records where
     Par : Set
     Par = A    -- record module parameters are NOT erased, so, this should be accepted
 
-  proj : (@0 A : Set) → R A → A
-  proj A r = R.el {A = _} r       -- TODO: A instead of _
+  proj : (A : Set) → R A → A  -- TODO: @0 A instead of A
+  proj A r = R.el {A = _} r
 
   MyPar : (A : Set) → R A → Set
   MyPar A = R.Par {A = A}

@@ -319,6 +319,9 @@ instance Singleton Variable VarMap where
 mapVarMap :: (TheVarMap -> TheVarMap) -> VarMap -> VarMap
 mapVarMap f = VarMap . f . theVarMap
 
+lookupVarMap :: Variable -> VarMap -> Maybe VarOcc
+lookupVarMap i = IntMap.lookup i . theVarMap
+
 -- Andreas & Jesper, 2018-05-11, issue #3052:
 
 -- | Proper monoid instance for @VarMap@ rather than inheriting the broken one from IntMap.
@@ -402,6 +405,9 @@ instance LensModality (FreeEnv' a b c) where
   getModality = feModality
   mapModality f e = e { feModality = f (feModality e) }
 
+instance LensRelevance (FreeEnv' a b c) where
+instance LensQuantity (FreeEnv' a b c) where
+
 -- | The initial context.
 
 initFreeEnv :: Monoid c => b -> SingleVar c -> FreeEnv' a b c
@@ -444,23 +450,27 @@ subVar n x = do
   return $ i - n
 
 -- | Going under a binder.
-underBinder :: Monad m => FreeT a b m c -> FreeT a b m c
+underBinder :: MonadReader (FreeEnv' a b c) m => m z -> m z
 underBinder = underBinder' 1
 
 -- | Going under @n@ binders.
-underBinder' :: Monad m => Nat -> FreeT a b m c -> FreeT a b m c
+underBinder' :: MonadReader (FreeEnv' a b c) m => Nat -> m z -> m z
 underBinder' n = local $ \ e -> e { feSingleton = feSingleton e . subVar n }
 
--- | Changing the 'FlexRig' context.
-underFlexRig :: (Monad m, Semigroup a, LensFlexRig a o) => o -> FreeT a b m c -> FreeT a b m c
-underFlexRig = local . over lensFlexRig . composeFlexRig . view lensFlexRig
-
 -- | Changing the 'Modality'.
-underModality :: (Monad m, LensModality o) => o -> FreeT a b m c -> FreeT a b m c
+underModality :: (MonadReader r m, LensModality r, LensModality o) => o -> m z -> m z
 underModality = local . mapModality . composeModality . getModality
 
+-- | Changing the 'Relevance'.
+underRelevance :: (MonadReader r m, LensRelevance r, LensRelevance o) => o -> m z -> m z
+underRelevance = local . mapRelevance . composeRelevance . getRelevance
+
+-- | Changing the 'FlexRig' context.
+underFlexRig :: (MonadReader r m, LensFlexRig a r, Semigroup a, LensFlexRig a o) => o -> m z -> m z
+underFlexRig = local . over lensFlexRig . composeFlexRig . view lensFlexRig
+
 -- | What happens to the variables occurring under a constructor?
-underConstructor :: (Monad m, Semigroup a) => ConHead -> FreeT a b m c -> FreeT a b m c
+underConstructor :: (MonadReader r m, LensFlexRig a r, Semigroup a) => ConHead -> m z -> m z
 underConstructor (ConHead c i fs) =
   case (i,fs) of
     -- Coinductive (record) constructors admit infinite cycles:

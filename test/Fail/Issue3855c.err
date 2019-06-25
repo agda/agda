@@ -1,0 +1,5 @@
+Issue3855c.agda:13,36-37
+Cannot instantiate the metavariable _5 to solution b
+since it contains the variable b
+which is not in scope of the metavariable or irrelevant in the metavariable but relevant in the solution
+when checking that the expression r has type RB ?0

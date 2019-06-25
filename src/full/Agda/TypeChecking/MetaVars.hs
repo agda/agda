@@ -31,6 +31,7 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Free
+import Agda.TypeChecking.Free.Lazy
 import Agda.TypeChecking.Level
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Pretty
@@ -699,6 +700,8 @@ assign dir x args v = do
             -- are mentioned on the rhs.
             -- In the terminology of free variable analysis, the retained
             -- irrelevant variables are exactly the Unguarded ones.
+      let allowedVars = (`mapVarMap` vars) $ IntMap.filter $ \ o ->
+            not (isIrrelevant o) || isUnguarded o
 
       reportSDoc "tc.meta.assign" 20 $
           let pr (Var n []) = text (show n)
@@ -716,7 +719,8 @@ assign dir x args v = do
       -- Herein, distinguish relevant and irrelevant vars,
       -- since when abstracting irrelevant lhs vars, they may only occur
       -- irrelevantly on rhs.
-      v <- liftTCM $ occursCheck x (relVL, nonstrictVL, irrVL) v
+      -- v <- liftTCM $ occursCheck x (relVL, nonstrictVL, irrVL) v
+      v <- liftTCM $ occursCheck x allowedVars v
 
       reportSLn "tc.meta.assign" 15 "passed occursCheck"
       verboseS "tc.meta.assign" 30 $ do
