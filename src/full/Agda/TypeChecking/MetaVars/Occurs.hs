@@ -174,11 +174,15 @@ variableCheck xs mi q = All $
       -- be used in irrelevant position (rhs).
       getModality o `moreUsableModality` q
 
-takeAll :: OccursM [Nat]
-takeAll = do
-  -- n is the number of binders we have stepped under
-  n <- liftM2 (-) getContextSize (asks (occCxtSize . feExtra))
-  ([0..n-1] ++) . map (n +) . IntMap.keys . theVarMap <$> asks (occVars . feExtra)
+-- | Construct a test whether a de Bruijn index is allowed
+--   or needs to be pruned.
+allowedVars :: OccursM (Nat -> Bool)
+allowedVars = do
+  -- @n@ is the number of binders we have stepped under.
+  n  <- liftM2 (-) getContextSize (asks (occCxtSize . feExtra))
+  xs <- IntMap.keysSet . theVarMap <$> asks (occVars . feExtra)
+  -- Bound variables are allowed, and those mentioned in occVars.
+  return $ \ i -> i < n || (i - n) `IntSet.member` xs
 
 -- ** Unfolding during occurs check.
 
@@ -394,8 +398,7 @@ instance Occurs Term where
                     -- Andreas, 2014-03-02, see issue 1070:
                     -- Do not prune when meta is projected!
                     caseMaybe (allApplyElims es) (throwError err) $ \ vs -> do
-                      xs <- takeAll
-                      killResult <- lift $ prune m' vs xs
+                      killResult <- lift . prune m' vs =<< allowedVars
                       if (killResult == PrunedEverything)
                         -- after successful pruning, restart occurs check
                         then occurs =<< instantiate (MetaV m' es)
@@ -576,7 +579,12 @@ instance (Occurs a, Occurs b) => Occurs (a,b) where
 --   If any of the meta args @vs@ is matchable, e.g., is a constructor term,
 --   we cannot prune, because the offending variables could be removed by
 --   reduction for a suitable instantiation of the meta variable.
-prune :: MonadMetaSolver m => MetaId -> Args -> [Nat] -> m PruneResult
+prune
+  :: MonadMetaSolver m
+  => MetaId         -- ^ Meta to prune.
+  -> Args           -- ^ Arguments to meta variable.
+  -> (Nat -> Bool)  -- ^ Test for allowed variable (de Bruijn index).
+  -> m PruneResult
 prune m' vs xs = do
   caseEitherM (runExceptT $ mapM (hasBadRigid xs) $ map unArg vs)
     (const $ return PrunedNothing) $ \ kills -> do
@@ -584,7 +592,7 @@ prune m' vs xs = do
       [ "attempting kills"
       , nest 2 $ vcat
         [ "m'    =" <+> pretty m'
-        , "xs    =" <+> prettyList (map (prettyTCM . var) xs)
+        -- , "xs    =" <+> prettyList (map (prettyTCM . var) xs)  -- no longer printable
         , "vs    =" <+> prettyList (map prettyTCM vs)
         , "kills =" <+> text (show kills)
         ]
@@ -598,15 +606,18 @@ prune m' vs xs = do
 --   @hasBadRigid xs v = Nothing@ means that
 --   we cannot prune at all as one of the meta args is matchable.
 --   (See issue 1147.)
-hasBadRigid :: (MonadReduce m, HasConstInfo m, MonadAddContext m)
-            => [Nat] -> Term -> ExceptT () m Bool
+hasBadRigid
+  :: (MonadReduce m, HasConstInfo m, MonadAddContext m)
+  => (Nat -> Bool)      -- ^ Test for allowed variable (de Bruijn index).
+  -> Term               -- ^ Argument of meta variable.
+  -> ExceptT () m Bool  -- ^ Exception if argument is matchable.
 hasBadRigid xs t = do
   -- We fail if we encounter a matchable argument.
   let failure = throwError ()
   tb <- reduceB t
   let t = ignoreBlocking tb
   case t of
-    Var x _      -> return $ notElem x xs
+    Var x _      -> return $ not $ xs x
     -- Issue 1153: A lambda has to be considered matchable.
     -- Lam _ v    -> hasBadRigid (0 : map (+1) xs) (absBody v)
     Lam _ v      -> failure
@@ -662,11 +673,13 @@ isNeutral b f es = do
 --   This fixes issue 1386.
 rigidVarsNotContainedIn
   :: (MonadReduce m, MonadAddContext m, MonadTCEnv m, MonadDebug m, AnyRigid a)
-  => a -> [Nat] -> m Bool
+  => a
+  -> (Nat -> Bool)   -- ^ Test for allowed variable (de Bruijn index).
+  -> m Bool
 rigidVarsNotContainedIn v is = do
   n0 <- getContextSize
   let -- allowed variables as de Bruijn levels
-      levels = Set.fromList $ map (n0-1 -) is
+      levels = is . (n0-1 -)
       -- test if index is forbidden by converting it to level
       test i = do
         n <- getContextSize
@@ -674,7 +687,7 @@ rigidVarsNotContainedIn v is = do
         let l = n-1 - i
             -- If l >= n0 then it is a bound variable and can be
             -- ignored.  Otherwise, it has to be in the allowed levels.
-            forbidden = l < n0 && not (l `Set.member` levels)
+            forbidden = l < n0 && not (levels l)
         when forbidden $
           reportSLn "tc.meta.kill" 20 $
             "found forbidden de Bruijn level " ++ show l

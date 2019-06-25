@@ -782,7 +782,7 @@ assign dir x args v = do
       -> TCM a
     attemptPruning x args fvs = do
       -- non-linear lhs: we cannot solve, but prune
-      killResult <- prune x args $ VarSet.toList fvs
+      killResult <- prune x args $ (`VarSet.member` fvs)
       reportSDoc "tc.meta.assign" 10 $
         "pruning" <+> prettyTCM x <+> do
         text $

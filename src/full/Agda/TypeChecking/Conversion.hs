@@ -1118,7 +1118,7 @@ leqSort s1 s2 = (catchConstraint (SortCmp CmpLeq s1 s2) :: m () -> m ()) $ do
         ]
   propEnabled <- isPropEnabled
 
-  let fvsRHS = IntSet.toList $ allFreeVars s2
+  let fvsRHS = (`IntSet.member` allFreeVars s2)
   badRigid <- s1 `rigidVarsNotContainedIn` fvsRHS
 
   case (s1, s2) of
