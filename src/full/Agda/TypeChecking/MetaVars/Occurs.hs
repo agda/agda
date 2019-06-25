@@ -227,19 +227,19 @@ occursCheck m xs v = Bench.billTo [ Bench.Typing, Bench.OccursCheck ] $ do
                             -- Produce nicer error messages
       TypeError _ cl -> case clValue cl of
         MetaOccursInItself{} ->
-          typeError . GenericError . show =<<
+          typeError . GenericDocError =<<
             fsep [ text ("Refuse to construct infinite term by instantiating " ++ prettyShow m ++ " to")
                  , prettyTCM =<< instantiateFull v
                  ]
-        MetaCannotDependOn _ _ i ->
+        MetaCannotDependOn _ i ->
           ifM (isSortMeta m `and2M` (not <$> hasUniversePolymorphism))
-          ( typeError . GenericError . show =<<
+          ( typeError . GenericDocError =<<
             fsep [ text ("Cannot instantiate the metavariable " ++ prettyShow m ++ " to")
                  , prettyTCM v
                  , "since universe polymorphism is disabled"
                  ]
           ) {- else -}
-          ( typeError . GenericError . show =<<
+          ( typeError . GenericDocError =<<
               fsep [ text ("Cannot instantiate the metavariable " ++ prettyShow m ++ " to solution")
                    , prettyTCM v
                    , "since it contains the variable"
@@ -248,7 +248,7 @@ occursCheck m xs v = Bench.billTo [ Bench.Typing, Bench.OccursCheck ] $ do
                    ]
             )
         MetaIrrelevantSolution _ _ ->
-          typeError . GenericError . show =<<
+          typeError . GenericDocError =<<
             fsep [ text ("Cannot instantiate the metavariable " ++ prettyShow m ++ " to solution")
                  , prettyTCM v
                  , "since (part of) the solution was created in an irrelevant context."
@@ -286,7 +286,7 @@ instance Occurs Term where
                 Left mid -> patternViolation' 70 $ "Disallowed var " ++ show i ++ " not obviously singleton"
                 -- not a singleton type
                 Right Nothing -> -- abort Rigid turns this error into PatternErr
-                  abort (strongly ctx) $ MetaCannotDependOn m (takeRelevant xs) i
+                  abort (strongly ctx) $ MetaCannotDependOn m i
                 -- is a singleton type with unique inhabitant sv
                 Right (Just sv) -> return $ sv `applyE` es
           Lam h f     -> Lam h <$> occ ctx f

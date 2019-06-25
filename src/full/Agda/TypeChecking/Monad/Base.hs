@@ -3153,9 +3153,8 @@ data TypeError
         | UnequalSorts Sort Sort
         | UnequalBecauseOfUniverseConflict Comparison Term Term
         | NotLeqSort Sort Sort
-        | MetaCannotDependOn MetaId [Nat] Nat
-            -- ^ The arguments are the meta variable, the parameters it can
-            --   depend on and the paratemeter that it wants to depend on.
+        | MetaCannotDependOn MetaId Nat
+            -- ^ The arguments are the meta variable and the parameter that it wants to depend on.
         | MetaOccursInItself MetaId
         | MetaIrrelevantSolution MetaId Term
         | GenericError String

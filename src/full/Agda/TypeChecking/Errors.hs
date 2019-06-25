@@ -596,20 +596,23 @@ instance PrettyTCM TypeError where
       pwords "With clause pattern " ++ [prettyA p] ++
       pwords " is not an instance of its parent pattern " ++ [P.fsep <$> prettyTCMPatterns [q]]
 
-    MetaCannotDependOn m ps i -> fsep $
+    -- The following error is caught and reraised as GenericDocError in Occurs.hs
+    MetaCannotDependOn m {- ps -} i -> fsep $
       pwords "The metavariable" ++ [prettyTCM $ MetaV m []] ++
       pwords "cannot depend on" ++ [pvar i] ++
-      pwords "because it" ++ deps
+      [] -- pwords "because it" ++ deps
         where
           pvar = prettyTCM . I.var
-          deps = case map pvar ps of
-            []  -> pwords "does not depend on any variables"
-            [x] -> pwords "only depends on the variable" ++ [x]
-            xs  -> pwords "only depends on the variables" ++ punctuate comma xs
+          -- deps = case map pvar ps of
+          --   []  -> pwords "does not depend on any variables"
+          --   [x] -> pwords "only depends on the variable" ++ [x]
+          --   xs  -> pwords "only depends on the variables" ++ punctuate comma xs
 
+    -- The following error is caught and reraised as GenericDocError in Occurs.hs
     MetaOccursInItself m -> fsep $
       pwords "Cannot construct infinite solution of metavariable" ++ [prettyTCM $ MetaV m []]
 
+    -- The following error is caught and reraised as GenericDocError in Occurs.hs
     MetaIrrelevantSolution m _ -> fsep $
       pwords "Cannot instantiate the metavariable because (part of) the" ++
       pwords "solution was created in an irrelevant context."
