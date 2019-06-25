@@ -1,4 +1,5 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE UndecidableInstances       #-}
 
 -- | Computing the free variables of a term.
 --
@@ -95,10 +96,10 @@ type VarSet = IntSet
 
 -- In most cases we don't care about the VarOcc.
 
-instance IsVarSet VarSet where withVarOcc _ = id
-instance IsVarSet [Int]  where withVarOcc _ = id
-instance IsVarSet Any    where withVarOcc _ = id
-instance IsVarSet All    where withVarOcc _ = id
+instance IsVarSet () VarSet where withVarOcc _ = id
+instance IsVarSet () [Int]  where withVarOcc _ = id
+instance IsVarSet () Any    where withVarOcc _ = id
+instance IsVarSet () All    where withVarOcc _ = id
 
 ---------------------------------------------------------------------------
 -- * Plain variable occurrence counting.
@@ -112,7 +113,7 @@ instance Monoid VarCounts where
   mempty = VarCounts IntMap.empty
   mappend = (<>)
 
-instance IsVarSet VarCounts where
+instance IsVarSet () VarCounts where
   withVarOcc _ = id
 
 instance Singleton Variable VarCounts where
@@ -126,11 +127,11 @@ instance Singleton Variable VarCounts where
 -- Doesn't go inside solved metas, but collects the variables from a
 -- metavariable application @X ts@ as @flexibleVars@.
 {-# SPECIALIZE freeVars :: Free a => a -> VarMap #-}
-freeVars :: (IsVarSet c, Singleton Variable c, Free a) => a -> c
+freeVars :: (IsVarSet a c, Singleton Variable c, Free t) => t -> c
 freeVars = freeVarsIgnore IgnoreNot
 
-freeVarsIgnore :: (IsVarSet c, Singleton Variable c, Free a) =>
-                  IgnoreSorts -> a -> c
+freeVarsIgnore :: (IsVarSet a c, Singleton Variable c, Free t) =>
+                  IgnoreSorts -> t -> c
 freeVarsIgnore = runFree singleton
 
 -- Specialization to typical monoids
@@ -139,11 +140,10 @@ freeVarsIgnore = runFree singleton
 {-# SPECIALIZE runFree :: SingleVar Any      -> IgnoreSorts -> Term -> Any #-}
 
 -- | Compute free variables.
-runFree :: (IsVarSet c, Free a) => SingleVar c -> IgnoreSorts -> a -> c
+runFree :: (IsVarSet a c, Free t) => SingleVar c -> IgnoreSorts -> t -> c
 runFree single i t = -- bench $  -- Benchmarking is expensive (4% on std-lib)
   runFreeM single i (freeVars' t)
   where
-  bench :: a -> a
   bench = Bench.billToPure [ Bench.Typing , Bench.Free ]
 
 ---------------------------------------------------------------------------
@@ -178,7 +178,7 @@ instance Monoid SingleVarOcc where
   mempty = SingleVarOcc Nothing
   mappend = (<>)
 
-instance IsVarSet SingleVarOcc where
+instance IsVarSet MetaSet SingleVarOcc where
   withVarOcc o = SingleVarOcc . fmap (composeVarOcc o) . theSingleVarOcc
 
 -- ** Flexible /rigid occurrence info for a single variable.
@@ -210,7 +210,7 @@ instance Monoid SingleFlexRig where
   mempty = SingleFlexRig Nothing
   mappend = (<>)
 
-instance IsVarSet SingleFlexRig where
+instance IsVarSet () SingleFlexRig where
   withVarOcc o = SingleFlexRig . fmap (composeFlexRig $ () <$ varFlexRig o) . theSingleFlexRig
 
 -- ** Plain free occurrence.
@@ -236,40 +236,40 @@ isBinderUsed (Abs _ x) = 0 `freeIn` x
 
 -- ** Relevant free occurrence.
 
-newtype RelevantIn a = RelevantIn {getRelevantIn :: a}
+newtype RelevantIn c = RelevantIn {getRelevantIn :: c}
   deriving (Semigroup, Monoid)
 
-instance IsVarSet a => IsVarSet (RelevantIn a) where
+instance IsVarSet a c => IsVarSet a (RelevantIn c) where  -- UndecidableInstances
   withVarOcc o x
-    | isIrrelevant (getRelevance o) = mempty
+    | isIrrelevant o = mempty
     | otherwise = RelevantIn $ withVarOcc o $ getRelevantIn x
 
-relevantIn' :: Free a => IgnoreSorts -> Nat -> a -> Bool
+relevantIn' :: Free t => IgnoreSorts -> Nat -> t -> Bool
 relevantIn' ig x t = getAny . getRelevantIn $ runFree (RelevantIn . Any . (x ==)) ig t
 
-relevantInIgnoringSortAnn :: Free a => Nat -> a -> Bool
+relevantInIgnoringSortAnn :: Free t => Nat -> t -> Bool
 relevantInIgnoringSortAnn = relevantIn' IgnoreInAnnotations
 
-relevantIn :: Free a => Nat -> a -> Bool
+relevantIn :: Free t => Nat -> t -> Bool
 relevantIn = relevantIn' IgnoreAll
 
 ---------------------------------------------------------------------------
 -- * Occurrences of all free variables.
 
 -- | Is the term entirely closed (no free variables)?
-closed :: Free a => a -> Bool
+closed :: Free t => t -> Bool
 closed t = getAll $ runFree (const $ All False) IgnoreNot t
 
 -- | Collect all free variables.
-allFreeVars :: Free a => a -> VarSet
+allFreeVars :: Free t => t -> VarSet
 allFreeVars = runFree IntSet.singleton IgnoreNot
 
 -- | Collect all relevant free variables, possibly ignoring sorts.
-allRelevantVarsIgnoring :: Free a => IgnoreSorts -> a -> VarSet
+allRelevantVarsIgnoring :: Free t => IgnoreSorts -> t -> VarSet
 allRelevantVarsIgnoring ig = getRelevantIn . runFree (RelevantIn . IntSet.singleton) ig
 
 -- | Collect all relevant free variables, excluding the "unused" ones.
-allRelevantVars :: Free a => a -> VarSet
+allRelevantVars :: Free t => t -> VarSet
 allRelevantVars = allRelevantVarsIgnoring IgnoreNot
 
 ---------------------------------------------------------------------------

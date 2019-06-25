@@ -64,7 +64,7 @@ import qualified Agda.Syntax.Info as Info
 import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Coverage.SplitTree
 import Agda.TypeChecking.Positivity.Occurrence
-import Agda.TypeChecking.Free.Lazy (Free(freeVars'), bind', bind)
+import Agda.TypeChecking.Free.Lazy (Free(freeVars'), underBinder', underBinder)
 
 import Agda.Termination.CutOff
 
@@ -1414,7 +1414,7 @@ data DisplayTerm
   deriving (Data, Show)
 
 instance Free DisplayForm where
-  freeVars' (Display n ps t) = bind (freeVars' ps) `mappend` bind' n (freeVars' t)
+  freeVars' (Display n ps t) = underBinder (freeVars' ps) `mappend` underBinder' n (freeVars' t)
 
 instance Free DisplayTerm where
   freeVars' (DWithApp t ws es) = freeVars' (t, (ws, es))

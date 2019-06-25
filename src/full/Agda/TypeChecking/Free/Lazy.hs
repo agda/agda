@@ -248,42 +248,42 @@ instance LensFlexRig a (VarOcc' a) where
 --
 --   'VarOcc' forms a semiring, and this monoid is the addition of the semiring.
 
-instance Semigroup VarOcc where
+instance Semigroup a => Semigroup (VarOcc' a) where
   VarOcc o m <> VarOcc o' m' = VarOcc (addFlexRig o o') (addModality m m')
 
 -- | The neutral element for variable occurrence aggregation is least serious
 --   occurrence: flexible, irrelevant.
 --   This is also the absorptive element for 'composeVarOcc', if we ignore
 --   the 'MetaSet' in 'Flexible'.
-instance Monoid VarOcc where
+instance (Semigroup a, Monoid a) => Monoid (VarOcc' a) where
   mempty  = VarOcc (Flexible mempty) $ Modality Irrelevant Quantity0
   mappend = (<>)
 
 -- | The absorptive element of variable occurrence under aggregation:
 --   strongly rigid, relevant.
-topVarOcc :: VarOcc
+topVarOcc :: VarOcc' a
 topVarOcc = VarOcc StronglyRigid $ Modality Relevant Quantityω
 
 -- | First argument is the outer occurrence (context) and second is the inner.
 --   This multiplicative operation is to modify an occurrence under a context.
-composeVarOcc :: VarOcc -> VarOcc -> VarOcc
+composeVarOcc :: Semigroup a => VarOcc' a -> VarOcc' a -> VarOcc' a
 composeVarOcc (VarOcc o m) (VarOcc o' m') = VarOcc (composeFlexRig o o') (m <> m')
   -- We use the multipicative modality monoid (composition).
 
-oneVarOcc :: VarOcc
+oneVarOcc :: VarOcc' a
 oneVarOcc = VarOcc Unguarded $ Modality Relevant Quantity1
 
 ---------------------------------------------------------------------------
 -- * Storing variable occurrences (semimodule).
 
--- | Any representation of a set of variables need to be able to be modified by
+-- | Any representation @c@ of a set of variables need to be able to be modified by
 --   a variable occurrence. This is to ensure that free variable analysis is
 --   compositional. For instance, it should be possible to compute `fv (v [u/x])`
 --   from `fv v` and `fv u`.
 --
---   In algebraic terminology, a variable set needs to be (almost) a left semimodule
+--   In algebraic terminology, a variable set @a@ needs to be (almost) a left semimodule
 --   to the semiring 'VarOcc'.
-class (Semigroup a, Monoid a) => IsVarSet a where
+class (Singleton MetaId a, Semigroup a, Monoid a, Semigroup c, Monoid c) => IsVarSet a c | c -> a where
   -- | Laws
   --    * Respects monoid operations:
   --      ```
@@ -304,7 +304,7 @@ class (Semigroup a, Monoid a) => IsVarSet a where
   --        withVarOcc mempty x = mempty
   --      ```
   --      it is not quite a semimodule.
-  withVarOcc :: VarOcc -> a -> a
+  withVarOcc :: VarOcc' a -> c -> c
 
 -- | Representation of a variable set as map from de Bruijn indices
 --   to 'VarOcc'.
@@ -332,7 +332,7 @@ instance Monoid VarMap where
   mconcat = VarMap . IntMap.unionsWith mappend . map theVarMap
   -- mconcat = VarMap . IntMap.unionsWith mappend . coerce   -- ghc 8.6.5 does not seem to like this coerce
 
-instance IsVarSet VarMap where
+instance IsVarSet MetaSet VarMap where
   withVarOcc o = mapVarMap $ fmap $ composeVarOcc o
 
 
@@ -356,11 +356,14 @@ instance Monoid FlexRigMap where
   mconcat = FlexRigMap . IntMap.unionsWith addFlexRig . map theFlexRigMap
 
 -- | Compose everything with the 'varFlexRig' part of the 'VarOcc'.
-instance IsVarSet FlexRigMap where
+instance IsVarSet () FlexRigMap where
   withVarOcc o = mapFlexRigMap $ fmap $ composeFlexRig $ () <$ varFlexRig o
 
+instance Singleton MetaId () where
+  singleton _ = ()
+
 ---------------------------------------------------------------------------
--- * Collecting free variables.
+-- * Environment for collecting free variables.
 
 -- | Where should we skip sorts in free variable analysis?
 
@@ -372,54 +375,65 @@ data IgnoreSorts
 
 -- | The current context.
 
-data FreeEnv c = FreeEnv
-  { feIgnoreSorts   :: !IgnoreSorts
-    -- ^ Ignore free variables in sorts.
-  , feFlexRig       :: !FlexRig
+data FreeEnv' a b c = FreeEnv
+  { feExtra     :: !b
+    -- ^ Additional context, e.g., whether to ignore free variables in sorts.
+  , feFlexRig   :: !(FlexRig' a)
     -- ^ Are we flexible or rigid?
-  , feModality     :: !Modality
+  , feModality  :: !Modality
     -- ^ What is the current relevance and quantity?
-  , feSingleton     :: Maybe Variable -> c
+  , feSingleton :: Maybe Variable -> c
     -- ^ Method to return a single variable.
   }
 
 type Variable    = Int
 type SingleVar c = Variable -> c
 
+type FreeEnv c = FreeEnv' MetaSet IgnoreSorts c
+
+-- | Ignore free variables in sorts.
+feIgnoreSorts :: FreeEnv' a IgnoreSorts c -> IgnoreSorts
+feIgnoreSorts = feExtra
+
+instance LensFlexRig a (FreeEnv' a b c) where
+  lensFlexRig f e = f (feFlexRig e) <&> \ fr -> e { feFlexRig = fr }
+
+instance LensModality (FreeEnv' a b c) where
+  getModality = feModality
+  mapModality f e = e { feModality = f (feModality e) }
+
 -- | The initial context.
 
-initFreeEnv :: Monoid c => SingleVar c -> FreeEnv c
-initFreeEnv sing = FreeEnv
-  { feIgnoreSorts = IgnoreNot
+initFreeEnv :: Monoid c => b -> SingleVar c -> FreeEnv' a b c
+initFreeEnv e sing = FreeEnv
+  { feExtra       = e
   , feFlexRig     = Unguarded
   , feModality    = mempty            -- multiplicative monoid
   , feSingleton   = maybe mempty sing
   }
 
-type FreeM c = Reader (FreeEnv c) c
+type FreeT a b m c = ReaderT (FreeEnv' a b c) m c
+type FreeM a c = Reader (FreeEnv' a IgnoreSorts c) c
 
 -- | Run function for FreeM.
-runFreeM :: IsVarSet c => SingleVar c -> IgnoreSorts -> FreeM c -> c
-runFreeM single i m = runReader m $ (initFreeEnv single) { feIgnoreSorts = i }
+runFreeM :: IsVarSet a c => SingleVar c -> IgnoreSorts -> FreeM a c -> c
+runFreeM single i m = runReader m $ initFreeEnv i single
 
-instance Semigroup c => Semigroup (FreeM c) where
+instance (Applicative m, Semigroup c) => Semigroup (FreeT a b m c) where
   (<>) = liftA2 (<>)
 
-instance (Semigroup c, Monoid c) => Monoid (FreeM c) where
+instance (Functor m, Applicative m, Monad m, Semigroup c, Monoid c) => Monoid (FreeT a b m c) where
   mempty  = pure mempty
   mappend = (<>)
   mconcat = mconcat <.> sequence
 
--- instance Singleton a c => Singleton a (FreeM c) where
---   singleton = pure . singleton
-
 -- | Base case: a variable.
-variable :: IsVarSet c => Int -> FreeM c
+variable :: (Monad m, IsVarSet a c) => Int -> FreeT a b m c
 variable n = do
   o <- asks feFlexRig
   r <- asks feModality
   s <- asks feSingleton
-  pure $ withVarOcc (VarOcc o r) (s $ Just n)
+  return $ withVarOcc (VarOcc o r) (s $ Just n)
 
 -- | Subtract, but return Nothing if result is negative.
 subVar :: Int -> Maybe Variable -> Maybe Variable
@@ -430,39 +444,43 @@ subVar n x = do
   return $ i - n
 
 -- | Going under a binder.
-bind :: FreeM a -> FreeM a
-bind = bind' 1
+underBinder :: Monad m => FreeT a b m c -> FreeT a b m c
+underBinder = underBinder' 1
 
-bind' :: Nat -> FreeM a -> FreeM a
-bind' n = local $ \ e -> e { feSingleton = feSingleton e . subVar n }
+-- | Going under @n@ binders.
+underBinder' :: Monad m => Nat -> FreeT a b m c -> FreeT a b m c
+underBinder' n = local $ \ e -> e { feSingleton = feSingleton e . subVar n }
 
 -- | Changing the 'FlexRig' context.
-go :: FlexRig -> FreeM a -> FreeM a
-go o = local $ \ e -> e { feFlexRig = composeFlexRig o $ feFlexRig e }
+underFlexRig :: (Monad m, Semigroup a, LensFlexRig a o) => o -> FreeT a b m c -> FreeT a b m c
+underFlexRig = local . over lensFlexRig . composeFlexRig . view lensFlexRig
 
 -- | Changing the 'Modality'.
-goMod :: Modality -> FreeM a -> FreeM a
-goMod m = local $ \ e -> e { feModality = composeModality m $ feModality e }
+underModality :: (Monad m, LensModality o) => o -> FreeT a b m c -> FreeT a b m c
+underModality = local . mapModality . composeModality . getModality
 
 -- | What happens to the variables occurring under a constructor?
-underConstructor :: ConHead -> FreeM a -> FreeM a
+underConstructor :: (Monad m, Semigroup a) => ConHead -> FreeT a b m c -> FreeT a b m c
 underConstructor (ConHead c i fs) =
   case (i,fs) of
     -- Coinductive (record) constructors admit infinite cycles:
-    (CoInductive, _)   -> go WeaklyRigid
+    (CoInductive, _)   -> underFlexRig WeaklyRigid
     -- Inductive data constructors do not admit infinite cycles:
-    (Inductive, [])    -> go StronglyRigid
+    (Inductive, [])    -> underFlexRig StronglyRigid
     -- Inductive record constructors do not admit infinite cycles,
     -- but this cannot be proven inside Agda.
     -- Thus, unification should not prove it either.
     (Inductive, (_:_)) -> id
 
+---------------------------------------------------------------------------
+-- * Recursively collecting free variables.
+
 -- | Gather free variables in a collection.
-class Free a where
+class Free t where
   -- Misplaced SPECIALIZE pragma:
   -- {-# SPECIALIZE freeVars' :: a -> FreeM Any #-}
   -- So you cannot specialize all instances in one go. :(
-  freeVars' :: IsVarSet c => a -> FreeM c
+  freeVars' :: IsVarSet a c => t -> FreeM a c
 
 instance Free Term where
   -- SPECIALIZE instance does not work as well, see
@@ -472,12 +490,12 @@ instance Free Term where
   -- {-# SPECIALIZE freeVars' :: Term -> FreeM All #-}
   -- {-# SPECIALIZE freeVars' :: Term -> FreeM VarSet #-}
   freeVars' t = case t of
-    Var n ts     -> variable n `mappend` do go WeaklyRigid $ freeVars' ts
+    Var n ts     -> variable n `mappend` do underFlexRig WeaklyRigid $ freeVars' ts
     -- λ is not considered guarding, as
     -- we cannot prove that x ≡ λy.x is impossible.
     Lam _ t      -> freeVars' t
     Lit _        -> mempty
-    Def _ ts     -> go WeaklyRigid $ freeVars' ts  -- because we are not in TCM
+    Def _ ts     -> underFlexRig WeaklyRigid $ freeVars' ts  -- because we are not in TCM
       -- we cannot query whether we are dealing with a data/record (strongly r.)
       -- or a definition by pattern matching (weakly rigid)
       -- thus, we approximate, losing that x = List x is unsolvable
@@ -489,11 +507,11 @@ instance Free Term where
     Pi a b       -> freeVars' (a,b)
     Sort s       -> freeVars' s
     Level l      -> freeVars' l
-    MetaV m ts   -> go (Flexible $ singleton m) $ freeVars' ts
-    DontCare mt  -> goMod (Modality Irrelevant mempty) $ freeVars' mt
+    MetaV m ts   -> underFlexRig (Flexible $ singleton m) $ freeVars' ts
+    DontCare mt  -> underModality (Modality Irrelevant mempty) $ freeVars' mt
     Dummy{}      -> mempty
 
-instance Free a => Free (Type' a) where
+instance Free t => Free (Type' t) where
   freeVars' (El s t) =
     ifM ((IgnoreNot ==) <$> asks feIgnoreSorts)
       {- then -} (freeVars' (s, t))
@@ -509,13 +527,13 @@ instance Free Sort where
       SizeUniv   -> mempty
       -- Jesper, 2019-06-18: Occurrences in the domain of a pi sort
       -- might disappear when instantiation of metavariables causes
-      -- the codomain to become non-dependent, so we should count it
+      -- the codomain to become non-dependent, so we should count them
       -- as flexible.
-      PiSort a s -> go (Flexible empty) (freeVars' $ unDom a) `mappend`
-                    go WeaklyRigid (freeVars' (getSort a, s))
-      UnivSort s -> go WeaklyRigid $ freeVars' s
-      MetaS x es -> go (Flexible $ singleton x) $ freeVars' es
-      DefS _ es  -> go WeaklyRigid $ freeVars' es
+      PiSort a s -> underFlexRig (Flexible mempty) (freeVars' $ unDom a) `mappend`
+                    underFlexRig WeaklyRigid       (freeVars' (getSort a, s))
+      UnivSort s -> underFlexRig WeaklyRigid              $ freeVars' s
+      MetaS x es -> underFlexRig (Flexible $ singleton x) $ freeVars' es
+      DefS _ es  -> underFlexRig WeaklyRigid              $ freeVars' es
       DummyS{}   -> mempty
 
 instance Free Level where
@@ -527,44 +545,44 @@ instance Free PlusLevel where
 
 instance Free LevelAtom where
   freeVars' l = case l of
-    MetaLevel m vs   -> go (Flexible $ singleton m) $ freeVars' vs
+    MetaLevel m vs   -> underFlexRig (Flexible $ singleton m) $ freeVars' vs
     NeutralLevel _ v -> freeVars' v
     BlockedLevel _ v -> freeVars' v
     UnreducedLevel v -> freeVars' v
 
-instance Free a => Free [a] where
+instance Free t => Free [t] where
   freeVars' = foldMap freeVars'
 
-instance Free a => Free (Maybe a) where
+instance Free t => Free (Maybe t) where
   freeVars' = foldMap freeVars'
 
-instance (Free a, Free b) => Free (a, b) where
-  freeVars' (x,y) = freeVars' x `mappend` freeVars' y
+instance (Free t, Free u) => Free (t, u) where
+  freeVars' (t, u) = freeVars' t `mappend` freeVars' u
 
-instance (Free a, Free b, Free c) => Free (a, b, c) where
-  freeVars' (x,y,z) = freeVars' x `mappend` freeVars' y `mappend` freeVars' z
+instance (Free t, Free u, Free v) => Free (t, u, v) where
+  freeVars' (t, u, v) = freeVars' t `mappend` freeVars' u `mappend` freeVars' v
 
-instance Free a => Free (Elim' a) where
-  freeVars' (Apply a) = freeVars' a
+instance Free t => Free (Elim' t) where
+  freeVars' (Apply t) = freeVars' t
   freeVars' (Proj{} ) = mempty
   freeVars' (IApply x y r) = freeVars' (x,y,r)
 
-instance Free a => Free (Arg a) where
-  freeVars' a = goMod (getModality a) $ freeVars' $ unArg a
+instance Free t => Free (Arg t) where
+  freeVars' t = underModality (getModality t) $ freeVars' $ unArg t
 
-instance Free a => Free (Dom a) where
+instance Free t => Free (Dom t) where
   freeVars' d = freeVars' (domTactic d, unDom d)
 
-instance Free a => Free (Abs a) where
-  freeVars' (Abs   _ b) = bind $ freeVars' b
+instance Free t => Free (Abs t) where
+  freeVars' (Abs   _ b) = underBinder $ freeVars' b
   freeVars' (NoAbs _ b) = freeVars' b
 
-instance Free a => Free (Tele a) where
+instance Free t => Free (Tele t) where
   freeVars' EmptyTel          = mempty
-  freeVars' (ExtendTel a tel) = freeVars' (a, tel)
+  freeVars' (ExtendTel t tel) = freeVars' (t, tel)
 
 instance Free Clause where
-  freeVars' cl = bind' (size $ clauseTel cl) $ freeVars' $ clauseBody cl
+  freeVars' cl = underBinder' (size $ clauseTel cl) $ freeVars' $ clauseBody cl
 
 instance Free EqualityView where
   freeVars' (OtherType t) = freeVars' t
