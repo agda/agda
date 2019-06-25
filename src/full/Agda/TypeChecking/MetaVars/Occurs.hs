@@ -65,6 +65,9 @@ import Agda.Utils.Size
 
 import Agda.Utils.Impossible
 
+---------------------------------------------------------------------------
+-- * MetaOccursCheck: going into definitions to exclude cyclic solutions
+
 {- To address issue 585 (meta var occurrences in mutual defs)
 
 data B : Set where
@@ -134,10 +137,8 @@ defNeedsChecking d = Set.member d <$> useTC stOccursCheckDefs
 tallyDef :: QName -> TCM ()
 tallyDef d = modifyOccursCheckDefs $ Set.delete d
 
--- | Unfold definitions during occurs check?
---   This effectively runs the occurs check on the normal form.
-data UnfoldStrategy = YesUnfold | NoUnfold
-  deriving (Eq, Show)
+---------------------------------------------------------------------------
+-- * OccursM monad and its services
 
 -- | Extra environment for the occurs check.  (Complements 'FreeEnv'.)
 data OccursExtra = OccursExtra
@@ -147,20 +148,44 @@ data OccursExtra = OccursExtra
   , occCxtSize :: Nat             -- ^ The size of the typing context upon invocation.
   }
 
--- newtype AllowedVar = AllowedVar { applyApplowedVar :: Modality -> Bool }
-
--- instance Semigroup AllowedVar where
---   AllowedVar f <> AllowedVar g = \ m -> f m && g m
-
--- instance Monoid AllowedVar where
-
-
-type AllowedVar = Modality -> All
 type OccursCtx  = FreeEnv' () OccursExtra AllowedVar
 type OccursM    = ReaderT OccursCtx TCM
 
+-- ** Modality handling.
+
+-- | The passed modality is the one of the current context.
+type AllowedVar = Modality -> All
+
 instance IsVarSet () AllowedVar where
   withVarOcc o f = f . composeModality (getModality o)
+
+-- | Check whether a free variable is allowed in the context as
+--   specified by the modality.
+variableCheck :: VarMap -> Maybe Variable -> AllowedVar
+variableCheck xs mi q = All $
+  -- Bound variables are always allowed to occur:
+  caseMaybe mi True $ \ i ->
+    -- Free variables not listed in @xs@ are forbidden:
+    caseMaybe (lookupVarMap i xs) False $ \ o ->
+      -- For listed variables it holds:
+      -- The ascribed modality @o@ must be submodality of the
+      -- modality @q@ of the current context.
+      -- E.g. irrelevant variables (ascribed, lhs) can only
+      -- be used in irrelevant position (rhs).
+      getModality o `moreUsableModality` q
+
+takeAll :: OccursM [Nat]
+takeAll = do
+  -- n is the number of binders we have stepped under
+  n <- liftM2 (-) getContextSize (asks (occCxtSize . feExtra))
+  ([0..n-1] ++) . map (n +) . IntMap.keys . theVarMap <$> asks (occVars . feExtra)
+
+-- ** Unfolding during occurs check.
+
+-- | Unfold definitions during occurs check?
+--   This effectively runs the occurs check on the normal form.
+data UnfoldStrategy = YesUnfold | NoUnfold
+  deriving (Eq, Show)
 
 defArgs :: OccursM a -> OccursM a
 defArgs m = asks (occUnfold . feExtra) >>= \case
@@ -177,6 +202,8 @@ unfold v = asks (occUnfold . feExtra) >>= \case
   NoUnfold  -> instantiate v
   YesUnfold -> reduce v
 
+-- ** Managing rigidiy during occurs check.
+
 -- | Leave the strongly rigid position.
 weakly :: OccursM a -> OccursM a
 weakly = local $ over lensFlexRig $ composeFlexRig WeaklyRigid
@@ -189,6 +216,8 @@ strongly = local $ over lensFlexRig $ \case
 
 flexibly :: OccursM a -> OccursM a
 flexibly = local $ set lensFlexRig $ Flexible ()
+
+-- ** Error throwing during occurs check.
 
 patternViolation' :: MonadTCM m => Int -> String -> m a
 patternViolation' n err = liftTCM $ do
@@ -206,11 +235,8 @@ abort err = do
   hard = typeError err -- here, throw an uncatchable error (unsolvable constraint)
   soft = patternViolation' 70 (show err) -- throws a PatternErr, which leads to delayed constraint
 
-takeAll :: OccursM [Nat]
-takeAll = do
-  -- n is the number of binders we have stepped under
-  n <- liftM2 (-) getContextSize (asks (occCxtSize . feExtra))
-  ([0..n-1] ++) . map (n +) . IntMap.keys . theVarMap <$> asks (occVars . feExtra)
+---------------------------------------------------------------------------
+-- * Implementation of the occurs check.
 
 -- | Extended occurs check.
 class Occurs t where
@@ -240,13 +266,7 @@ occursCheck m xs v = Bench.billTo [ Bench.Typing, Bench.OccursCheck ] $ do
           }
         , feFlexRig   = StronglyRigid -- ? Unguarded
         , feModality  = getMetaModality mv
-        , feSingleton = \ mi q -> All $ caseMaybe mi True $ \ i ->
-            caseMaybe (lookupVarMap i xs) False $ \ o ->
-            -- The ascribed modality must be submodality of the
-            -- modality @o@ of the current context.
-            -- E.g. irrelevant variables (ascribed, lhs) can only
-            -- be used in irrelevant position (rhs).
-            getModality o `moreUsableModality` q
+        , feSingleton = variableCheck xs
         }
   initOccursCheck mv
       -- TODO: Can we do this in a better way?
@@ -544,8 +564,8 @@ instance (Occurs a, Occurs b) => Occurs (a,b) where
 
   metaOccurs m (x,y) = metaOccurs m x >> metaOccurs m y
 
-
--- * Getting rid of flexible occurrences
+---------------------------------------------------------------------------
+-- * Pruning: getting rid of flexible occurrences.
 
 -- | @prune m' vs xs@ attempts to remove all arguments from @vs@ whose
 --   free variables are not contained in @xs@.
