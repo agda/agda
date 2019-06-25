@@ -19,7 +19,6 @@ import Agda.Syntax.Position
 import Agda.Syntax.Scope.Base
 import Agda.Syntax.Scope.Monad (getLocalVars, setLocalVars)
 
-import Agda.TypeChecking.Free
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Substitute
@@ -327,13 +326,6 @@ underAbstractionAbs' wrap t a k = addContext (wrap $ realName $ absName a, t) $ 
 {-# SPECIALIZE underAbstraction_ :: Subst t a => Abs a -> (a -> TCM b) -> TCM b #-}
 underAbstraction_ :: (Subst t a, MonadAddContext m) => Abs a -> (a -> m b) -> m b
 underAbstraction_ = underAbstraction __DUMMY_DOM__
-
--- | Map a monadic function on the thing under the abstraction, adding
---   the abstracted variable to the context.
-mapAbstraction
-  :: (Subst t a, Subst t' b, Free b, MonadAddContext m)
-  => Dom Type -> (a -> m b) -> Abs a -> m (Abs b)
-mapAbstraction dom f x = (x $>) <$> underAbstraction dom x f
 
 getLetBindings :: MonadTCM tcm => tcm [(Name,(Term,Dom Type))]
 getLetBindings = do

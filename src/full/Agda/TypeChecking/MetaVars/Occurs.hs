@@ -520,7 +520,7 @@ instance Occurs Sort where
   metaOccurs m s = do
     s <- instantiate s
     case s of
-      PiSort a s -> metaOccurs m (a,s)
+      PiSort s1 s2 -> metaOccurs m (s1,s2)
       Type a     -> metaOccurs m a
       Prop a     -> metaOccurs m a
       Inf        -> return ()

@@ -270,6 +270,7 @@ library
                     Agda.Compiler.Treeless.Unused
                     Agda.ImpossibleTest
                     Agda.Interaction.AgdaTop
+                    Agda.Interaction.Base
                     Agda.Interaction.BasicOps
                     Agda.Interaction.SearchAbout
                     Agda.Interaction.CommandLine

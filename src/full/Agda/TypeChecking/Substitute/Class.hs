@@ -49,7 +49,7 @@ class Abstract t where
   abstract :: Telescope -> t -> t
 
 ---------------------------------------------------------------------------
--- * Substitution and raising/shifting/weakening
+-- * Substitution and shifting\/weakening\/strengthening
 ---------------------------------------------------------------------------
 
 -- | Apply a substitution.
@@ -64,6 +64,7 @@ class Abstract t where
 class DeBruijn t => Subst t a | a -> t where
   applySubst :: Substitution' t -> a -> a
 
+-- | Raise de Bruijn index, i.e. weakening
 raise :: Subst t a => Nat -> a -> a
 raise = raiseFrom 0
 
@@ -278,7 +279,7 @@ underAbs cont a b = case b of
 --   and puts the 'Lam's back.  @a@ is raised correctly
 --   according to the number of abstractions.
 underLambdas :: Subst Term a => Int -> (a -> Term -> Term) -> a -> Term -> Term
-underLambdas n cont a v = loop n a v where
+underLambdas n cont a = loop n a where
   loop 0 a v = cont a v
   loop n a v = case v of
     Lam h b -> Lam h $ underAbs (loop $ n-1) a b

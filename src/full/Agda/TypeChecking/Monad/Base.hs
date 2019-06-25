@@ -78,7 +78,7 @@ import {-# SOURCE #-} Agda.Compiler.Backend hiding (Args)
 -- import {-# SOURCE #-} Agda.Interaction.FindFile
 import Agda.Interaction.Options
 import Agda.Interaction.Options.Warnings
-import Agda.Interaction.Response
+import {-# SOURCE #-} Agda.Interaction.Response
   (InteractionOutputCallback, defaultInteractionOutputCallback, Response(..))
 import Agda.Interaction.Highlighting.Precise
   (CompressedFile, HighlightingInfo)
@@ -974,7 +974,7 @@ data Constraint
 --  | ShortCut MetaId Term Type
 --    -- ^ A delayed instantiation.  Replaces @ValueCmp@ in 'postponeTypeCheckingProblem'.
   | HasBiggerSort Sort
-  | HasPTSRule (Dom Type) (Abs Sort)
+  | HasPTSRule Sort (Abs Sort)
   | UnBlock MetaId
   | Guarded Constraint ProblemId
   | IsEmpty Range Type
@@ -1022,7 +1022,7 @@ instance Free Constraint where
       FindInstance _ _ cs   -> freeVars' cs
       CheckFunDef _ _ _ _   -> mempty
       HasBiggerSort s       -> freeVars' s
-      HasPTSRule a s        -> freeVars' (a , s)
+      HasPTSRule s1 s2      -> freeVars' (s1 , s2)
       UnquoteTactic _ t h g -> freeVars' (t, (h, g))
 
 instance TermLike Constraint where
@@ -1042,7 +1042,7 @@ instance TermLike Constraint where
       FindInstance _ _ _     -> mempty
       CheckFunDef _ _ _ _    -> mempty
       HasBiggerSort s        -> foldTerm f s
-      HasPTSRule a s         -> foldTerm f (a, s)
+      HasPTSRule s1 s2       -> foldTerm f (s1, s2)
   traverseTermM f c = __IMPOSSIBLE__ -- Not yet implemented
 
 

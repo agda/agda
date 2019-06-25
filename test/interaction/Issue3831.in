@@ -1,0 +1,7 @@
+top_command (cmd_load currentFile [])
+top_command (cmd_infer_toplevel Normalised "test2")
+top_command (cmd_infer_toplevel Normalised "\\ n -> test1 n")
+top_command (cmd_infer_toplevel Normalised "\\ n m l -> test1 n")
+top_command (cmd_infer_toplevel Normalised "\\ n -> test3 n")
+top_command (cmd_infer_toplevel Normalised "\\ n m -> test3 n")
+top_command (cmd_infer_toplevel Normalised "localvar")

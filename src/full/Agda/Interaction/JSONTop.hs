@@ -45,39 +45,73 @@ instance ToJSON MakeCaseVariant where
   toJSON R.Function = String "Function"
   toJSON R.ExtendedLambda = String "ExtendedLambda"
 
+-- we leave some of the fields as Null for the moment
 instance ToJSON DisplayInfo where
-  toJSON (Info_CompilationOk warnings errors) = object
-    [ "kind"        .= String "CompilationOk"
-    , "warnings"    .= warnings
-    , "errors"      .= errors
-    ]
-  toJSON (Info_Constraints constraints) = object
-    [ "kind"        .= String "Constraints"
-    , "constraints" .= constraints
-    ]
-  toJSON (Info_AllGoalsWarnings goals warnings errors) = object
-    [ "kind"        .= String "AllGoalsWarnings"
-    , "goals"       .= goals
-    , "warnings"    .= warnings
-    , "errors"      .= errors
-    ]
-  toJSON (Info_Time doc) = object [ "kind" .= String "Time", "payload" .= render doc ]
-  toJSON (Info_Error msg) = object [ "kind" .= String "Error", "payload" .= msg ]
-  toJSON (Info_Intro doc) = object [ "kind" .= String "Intro", "payload" .= render doc ]
-  toJSON (Info_Auto msg) = object [ "kind" .= String "Auto", "payload" .= msg ]
-  toJSON (Info_ModuleContents doc) = object [ "kind" .= String "ModuleContents", "payload" .= render doc ]
-  toJSON (Info_SearchAbout doc) = object [ "kind" .= String "SearchAbout", "payload" .= render doc ]
-  toJSON (Info_WhyInScope doc) = object [ "kind" .= String "WhyInScope", "payload" .= render doc ]
-  toJSON (Info_NormalForm doc) = object [ "kind" .= String "NormalForm", "payload" .= render doc ]
-  toJSON (Info_GoalType doc) = object [ "kind" .= String "GoalType", "payload" .= render doc ]
-  toJSON (Info_CurrentGoal doc) = object [ "kind" .= String "CurrentGoal", "payload" .= render doc ]
-  toJSON (Info_InferredType doc) = object [ "kind" .= String "InferredType", "payload" .= render doc ]
-  toJSON (Info_Context doc) = object [ "kind" .= String "Context", "payload" .= render doc ]
-  toJSON (Info_HelperFunction doc) = object [ "kind" .= String "HelperFunction", "payload" .= render doc ]
-  toJSON Info_Version = object
-    [ "kind" .= String "Version"
-    , "version" .= (("Agda version " ++ versionWithCommitInfo) :: String)
-    ]
+  toJSON _ = Null
+  -- toJSON (Info_CompilationOk warningsAndErrors) = object
+  --   [ "kind"        .= String "CompilationOk"
+  --   , "warnings"    .= Null
+  --   , "errors"      .= Null
+  --   ]
+  -- toJSON (Info_Constraints constraints) = object
+  --   [ "kind"        .= String "Constraints"
+  --   , "constraints" .= Null
+  --   ]
+  -- toJSON (Info_AllGoalsWarnings _goals _warningsAndErrors) = object
+  --   [ "kind"        .= String "AllGoalsWarnings"
+  --   , "goals"       .= Null
+  --   , "warnings"    .= Null
+  --   , "errors"      .= Null
+  --   ]
+  -- toJSON (Info_Time doc) = object
+  --   [ "kind"        .= String "Time"
+  --   , "payload"     .= Null
+  --   ]
+  -- toJSON (Info_Error msg) = object
+  --   [ "kind"        .= String "Error"
+  --   , "payload"     .= Null
+  --   ]
+  -- toJSON Info_Intro_NotFound = object
+  --   [ "kind"        .= String "IntroNotFound"
+  --   , "payload"     .= Null
+  --   ]
+  -- toJSON (Info_Intro_ConstructorUnknown introductions) = object
+  --   [ "kind"        .= String "IntroConstructorUnknown"
+  --   , "payload"     .= Null
+  --   ]
+  -- toJSON (Info_Auto _) = object
+  --   [ "kind"        .= String "Auto"
+  --   , "payload"     .= Null
+  --   ]
+  -- toJSON (Info_ModuleContents _ _ _) = object
+  --   [ "kind"        .= String "ModuleContents"
+  --   , "payload"     .= Null
+  --   ]
+  -- toJSON (Info_SearchAbout _ _) = object
+  --   [ "kind"        .= String "SearchAbout"
+  --   , "payload"     .= Null
+  --   ]
+  -- toJSON (Info_WhyInScope _ _ _ _ _) = object
+  --   [ "kind"        .= String "WhyInScope"
+  --   , "payload"     .= Null
+  --   ]
+  -- toJSON (Info_NormalForm _) = object
+  --   [ "kind"        .= String "NormalForm"
+  --   , "payload"     .= Null
+  --   ]
+  -- toJSON (Info_NormalForm _ _) = object
+  --   [ "kind"        .= String "NormalForm"
+  --   , "payload"     .= Null
+  --   ]
+  -- toJSON (Info_GoalType doc) = object [ "kind" .= String "GoalType", "payload" .= render doc ]
+  -- toJSON (Info_CurrentGoal doc) = object [ "kind" .= String "CurrentGoal", "payload" .= render doc ]
+  -- toJSON (Info_InferredType doc) = object [ "kind" .= String "InferredType", "payload" .= render doc ]
+  -- toJSON (Info_Context doc) = object [ "kind" .= String "Context", "payload" .= render doc ]
+  -- toJSON (Info_HelperFunction doc) = object [ "kind" .= String "HelperFunction", "payload" .= render doc ]
+  -- toJSON Info_Version = object
+  --   [ "kind" .= String "Version"
+  --   , "version" .= (("Agda version " ++ versionWithCommitInfo) :: String)
+  --   ]
 
 -- | Convert Response to an JSON value for interactive editor frontends.
 jsonifyResponse :: Response -> IO ByteString

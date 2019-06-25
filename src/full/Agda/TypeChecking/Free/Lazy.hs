@@ -535,15 +535,10 @@ instance Free Sort where
       Prop a     -> freeVars' a
       Inf        -> mempty
       SizeUniv   -> mempty
-      -- Jesper, 2019-06-18: Occurrences in the domain of a pi sort
-      -- might disappear when instantiation of metavariables causes
-      -- the codomain to become non-dependent, so we should count them
-      -- as flexible.
-      PiSort a s -> underFlexRig (Flexible mempty) (freeVars' $ unDom a) `mappend`
-                    underFlexRig WeaklyRigid       (freeVars' (getSort a, s))
-      UnivSort s -> underFlexRig WeaklyRigid              $ freeVars' s
+      PiSort s1 s2 -> underFlexRig WeaklyRigid $ freeVars' (s1, s2)
+      UnivSort s -> underFlexRig WeaklyRigid $ freeVars' s
       MetaS x es -> underFlexRig (Flexible $ singleton x) $ freeVars' es
-      DefS _ es  -> underFlexRig WeaklyRigid              $ freeVars' es
+      DefS _ es  -> underFlexRig WeaklyRigid $ freeVars' es
       DummyS{}   -> mempty
 
 instance Free Level where

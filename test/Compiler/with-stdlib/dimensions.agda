@@ -5,7 +5,7 @@ module dimensions where
 
 open import Data.Nat     as ℕ using (ℕ)
 open import Data.Nat.LCM
-open import Data.Nat.DivMod
+open import Data.Nat.DivMod hiding (_/_)
 open import Data.Integer as ℤ using (ℤ ; +_)
 
 open import Data.Unit using (⊤ ; tt)

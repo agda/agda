@@ -294,9 +294,9 @@ instance Reduce Sort where
     reduce' s = do
       s <- instantiate' s
       case s of
-        PiSort a s -> do
-          (a,s) <- reduce' (a,s)
-          maybe (return $ PiSort a s) reduce' $ piSort' a s
+        PiSort s1 s2 -> do
+          (s1,s2) <- reduce' (s1,s2)
+          maybe (return $ PiSort s1 s2) reduce' $ piSort' s1 s2
         UnivSort s' -> do
           s' <- reduce' s'
           ui <- univInf
@@ -840,7 +840,7 @@ instance Simplify Elim where
 instance Simplify Sort where
     simplify' s = do
       case s of
-        PiSort a s -> piSort <$> simplify' a <*> simplify' s
+        PiSort s1 s2 -> piSort <$> simplify' s1 <*> simplify' s2
         UnivSort s -> do
           ui <- univInf
           univSort ui <$> simplify' s
@@ -977,7 +977,7 @@ instance Normalise Sort where
     normalise' s = do
       s <- reduce' s
       case s of
-        PiSort a s -> piSort <$> normalise' a <*> normalise' s
+        PiSort s1 s2 -> piSort <$> normalise' s1 <*> normalise' s2
         UnivSort s -> do
           ui <- univInf
           univSort ui <$> normalise' s
@@ -1156,7 +1156,7 @@ instance InstantiateFull Sort where
         case s of
             Type n     -> Type <$> instantiateFull' n
             Prop n     -> Prop <$> instantiateFull' n
-            PiSort a s -> piSort <$> instantiateFull' a <*> instantiateFull' s
+            PiSort s1 s2 -> piSort <$> instantiateFull' s1 <*> instantiateFull' s2
             UnivSort s -> do
               ui <- univInf
               univSort ui <$> instantiateFull' s

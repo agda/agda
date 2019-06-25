@@ -1,4 +1,3 @@
-
 ------------------------------------------------------------------------
 -- | Data type for all interactive responses
 ------------------------------------------------------------------------
@@ -8,23 +7,37 @@ module Agda.Interaction.Response
   , RemoveTokenBasedHighlighting (..)
   , MakeCaseVariant (..)
   , DisplayInfo (..)
+  , GoalDisplayInfo(..)
+  , Goals
+  , WarningsAndNonFatalErrors
+  , Info_Error(..)
+  , GoalTypeAux(..)
+  , RespContextEntry
   , Status (..)
   , GiveResult (..)
   , InteractionOutputCallback
   , defaultInteractionOutputCallback
   ) where
 
+import {-# SOURCE #-} Agda.Interaction.BasicOps
+  (OutputForm, ComputeMode, Rewrite, OutputConstraint, OutputConstraint')
+import Agda.Interaction.Base (CommandState)
 import Agda.Interaction.Highlighting.Precise
-import {-# SOURCE #-} Agda.TypeChecking.Monad.Base
+import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Common   (InteractionId(..))
-import Agda.Syntax.Concrete (Expr)
-import Agda.Utils.Pretty
+import Agda.Syntax.Concrete (Expr, Name)
+import Agda.Syntax.Concrete.Name (NameInScope)
+import Agda.Syntax.Scope.Base (AbstractModule, AbstractName, LocalVar)
+import qualified Agda.Syntax.Internal as I
+import {-# SOURCE #-} Agda.TypeChecking.Monad.Base
+  (TCM, TCErr, TCWarning, HighlightingMethod, ModuleToSource, NamedMeta, TCWarning)
+import Agda.TypeChecking.Warnings (WarningsAndNonFatalErrors)
+import Agda.Utils.Impossible
+import Agda.Utils.Time
 
 import Control.Monad.Trans
 import Data.Int
 import System.IO
-
-import Agda.Utils.Impossible
 
 -- | Responses for any interactive interface
 --
@@ -71,32 +84,60 @@ data MakeCaseVariant = Function | ExtendedLambda
 -- | Info to display at the end of an interactive command
 
 data DisplayInfo
-    = Info_CompilationOk String String
-      -- ^ Strings are the warnings and the (non-fatal) errors
-    | Info_Constraints String
-    | Info_AllGoalsWarnings String String String
-        -- ^ Strings are the goals, the warnings and the (non-fatal) errors
-    | Info_Time Doc
-    | Info_Error String
+    = Info_CompilationOk WarningsAndNonFatalErrors
+    | Info_Constraints [OutputForm Expr Expr]
+    | Info_AllGoalsWarnings Goals WarningsAndNonFatalErrors
+    | Info_Time CPUTime
+    | Info_Error Info_Error
         -- ^ When an error message is displayed this constructor should be
         -- used, if appropriate.
-    | Info_Intro Doc
-        -- ^ 'Info_Intro' denotes two different types of errors
-        --   TODO: split these into separate constructors
+    | Info_Intro_NotFound
+    | Info_Intro_ConstructorUnknown [String]
     | Info_Auto String
         -- ^ 'Info_Auto' denotes either an error or a success (when 'Resp_GiveAction' is present)
         --   TODO: split these into separate constructors
-    | Info_ModuleContents Doc
-    | Info_SearchAbout Doc
-    | Info_WhyInScope Doc
-    | Info_NormalForm Doc
-    | Info_GoalType Doc
-    | Info_CurrentGoal Doc
-    | Info_InferredType Doc
-    | Info_Context Doc
-    | Info_HelperFunction Doc
+    | Info_ModuleContents [Name] I.Telescope [(Name, I.Type)]
+    | Info_SearchAbout [(Name, I.Type)] String
+    | Info_WhyInScope String FilePath (Maybe LocalVar) [AbstractName] [AbstractModule]
+    | Info_NormalForm CommandState ComputeMode (Maybe CPUTime) A.Expr
+    | Info_InferredType CommandState (Maybe CPUTime) A.Expr
+    | Info_Context [RespContextEntry]
     | Info_Version
-        deriving Show
+    | Info_GoalSpecific InteractionId GoalDisplayInfo
+
+data GoalDisplayInfo
+    = Goal_HelperFunction (OutputConstraint' A.Expr A.Expr)
+    | Goal_NormalForm ComputeMode A.Expr
+    | Goal_GoalType Rewrite GoalTypeAux [RespContextEntry] [OutputForm Expr Expr]
+    | Goal_CurrentGoal Rewrite
+    | Goal_InferredType A.Expr
+
+-- | Goals & Warnings
+type Goals = ( [OutputConstraint A.Expr InteractionId] -- visible metas
+             , [OutputConstraint A.Expr NamedMeta]     -- hidden metas
+             )
+
+-- | Errors that goes into Info_Error
+--
+--   When an error message is displayed this constructor should be
+--   used, if appropriate.
+data Info_Error
+    = Info_GenericError TCErr
+    | Info_CompilationError [TCWarning]
+    | Info_HighlightingParseError InteractionId
+    | Info_HighlightingScopeCheckError InteractionId
+
+-- | Auxiliary information that comes with Goal Type
+
+data GoalTypeAux
+    = GoalOnly
+    | GoalAndHave A.Expr
+    | GoalAndElaboration I.Term
+
+-- | Entry of Context
+
+type RespContextEntry = (Name, Name, A.Expr, NameInScope)
+
 
 -- | Status information.
 

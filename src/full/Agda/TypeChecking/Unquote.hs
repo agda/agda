@@ -178,7 +178,7 @@ instance Unquote ArgInfo where
   unquote t = do
     t <- reduceQuotedTerm t
     case t of
-      Con c _ es | Just [h,r] <- allApplyElims es -> do
+      Con c _ es | Just [h,r] <- allApplyElims es ->
         choice
           [(c `isCon` primArgArgInfo,
               ArgInfo <$> unquoteN h <*> unquoteN r <*> pure Reflected <*> pure unknownFreeVariables)]
@@ -190,7 +190,7 @@ instance Unquote a => Unquote (Arg a) where
   unquote t = do
     t <- reduceQuotedTerm t
     case t of
-      Con c _ es | Just [info,x] <- allApplyElims es -> do
+      Con c _ es | Just [info,x] <- allApplyElims es ->
         choice
           [(c `isCon` primArgArg, Arg <$> unquoteN info <*> unquoteN x)]
           __IMPOSSIBLE__
@@ -275,11 +275,11 @@ instance Unquote a => Unquote [a] where
   unquote t = do
     t <- reduceQuotedTerm t
     case t of
-      Con c _ es | Just [x,xs] <- allApplyElims es -> do
+      Con c _ es | Just [x,xs] <- allApplyElims es ->
         choice
           [(c `isCon` primCons, (:) <$> unquoteN x <*> unquoteN xs)]
           __IMPOSSIBLE__
-      Con c _ [] -> do
+      Con c _ [] ->
         choice
           [(c `isCon` primNil, return [])]
           __IMPOSSIBLE__
@@ -290,7 +290,7 @@ instance Unquote Hiding where
   unquote t = do
     t <- reduceQuotedTerm t
     case t of
-      Con c _ [] -> do
+      Con c _ [] ->
         choice
           [(c `isCon` primHidden,  return Hidden)
           ,(c `isCon` primInstance, return (Instance NoOverlap))
@@ -303,7 +303,7 @@ instance Unquote Relevance where
   unquote t = do
     t <- reduceQuotedTerm t
     case t of
-      Con c _ [] -> do
+      Con c _ [] ->
         choice
           [(c `isCon` primRelevant,   return Relevant)
           ,(c `isCon` primIrrelevant, return Irrelevant)]
@@ -322,7 +322,7 @@ instance Unquote a => Unquote (R.Abs a) where
   unquote t = do
     t <- reduceQuotedTerm t
     case t of
-      Con c _ es | Just [x,y] <- allApplyElims es -> do
+      Con c _ es | Just [x,y] <- allApplyElims es ->
         choice
           [(c `isCon` primAbsAbs, R.Abs <$> (hint <$> unquoteNString x) <*> unquoteN y)]
           __IMPOSSIBLE__
@@ -353,11 +353,11 @@ instance Unquote R.Sort where
   unquote t = do
     t <- reduceQuotedTerm t
     case t of
-      Con c _ [] -> do
+      Con c _ [] ->
         choice
           [(c `isCon` primAgdaSortUnsupported, return R.UnknownS)]
           __IMPOSSIBLE__
-      Con c _ es | Just [u] <- allApplyElims es -> do
+      Con c _ es | Just [u] <- allApplyElims es ->
         choice
           [(c `isCon` primAgdaSortSet, R.SetS <$> unquoteN u)
           ,(c `isCon` primAgdaSortLit, R.LitS <$> unquoteN u)]
@@ -393,7 +393,7 @@ instance Unquote R.Term where
           [ (c `isCon` primAgdaTermUnsupported, return R.Unknown) ]
           __IMPOSSIBLE__
 
-      Con c _ es | Just [x] <- allApplyElims es -> do
+      Con c _ es | Just [x] <- allApplyElims es ->
         choice
           [ (c `isCon` primAgdaTermSort,      R.Sort      <$> unquoteN x)
           , (c `isCon` primAgdaTermLit,       R.Lit       <$> unquoteN x) ]
@@ -426,18 +426,18 @@ instance Unquote R.Pattern where
   unquote t = do
     t <- reduceQuotedTerm t
     case t of
-      Con c _ [] -> do
+      Con c _ [] ->
         choice
           [ (c `isCon` primAgdaPatAbsurd, return R.AbsurdP)
           , (c `isCon` primAgdaPatDot,    return R.DotP)
           ] __IMPOSSIBLE__
-      Con c _ es | Just [x] <- allApplyElims es -> do
+      Con c _ es | Just [x] <- allApplyElims es ->
         choice
           [ (c `isCon` primAgdaPatVar,  R.VarP  <$> unquoteNString x)
           , (c `isCon` primAgdaPatProj, R.ProjP <$> unquoteN x)
           , (c `isCon` primAgdaPatLit,  R.LitP  <$> unquoteN x) ]
           __IMPOSSIBLE__
-      Con c _ es | Just [x, y] <- allApplyElims es -> do
+      Con c _ es | Just [x, y] <- allApplyElims es ->
         choice
           [ (c `isCon` primAgdaPatCon, R.ConP <$> unquoteN x <*> unquoteN y) ]
           __IMPOSSIBLE__
@@ -448,11 +448,11 @@ instance Unquote R.Clause where
   unquote t = do
     t <- reduceQuotedTerm t
     case t of
-      Con c _ es | Just [x] <- allApplyElims es -> do
+      Con c _ es | Just [x] <- allApplyElims es ->
         choice
           [ (c `isCon` primAgdaClauseAbsurd, R.AbsurdClause <$> unquoteN x) ]
           __IMPOSSIBLE__
-      Con c _ es | Just [x, y] <- allApplyElims es -> do
+      Con c _ es | Just [x, y] <- allApplyElims es ->
         choice
           [ (c `isCon` primAgdaClauseClause, R.Clause <$> unquoteN x <*> unquoteN y) ]
           __IMPOSSIBLE__
@@ -638,8 +638,7 @@ evalTCM v = do
     tcUnquoteTerm :: Type -> R.Term -> TCM Term
     tcUnquoteTerm a v = do
       e <- toAbstract_ v
-      v <- checkExpr e a
-      return v
+      checkExpr e a
 
     tcNormalise :: R.Term -> TCM Term
     tcNormalise v = do
@@ -665,7 +664,7 @@ evalTCM v = do
     tcExtendContext :: Term -> Term -> UnquoteM Term
     tcExtendContext a m = do
       a <- unquote a
-      extendCxt a (evalTCM m)
+      strengthen __UNREACHABLE__ <$> extendCxt a (evalTCM $ raise 1 m)
 
     tcInContext :: Term -> Term -> UnquoteM Term
     tcInContext c m = do

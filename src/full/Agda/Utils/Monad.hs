@@ -55,9 +55,7 @@ guardM c = guard =<< c
 
 -- | Monadic if-then-else.
 ifM :: Monad m => m Bool -> m a -> m a -> m a
-ifM c m m' =
-    do  b <- c
-        if b then m else m'
+ifM c m m' = c >>= \b -> if b then m else m'
 
 -- | @ifNotM mc = ifM (not <$> mc)@
 ifNotM :: Monad m => m Bool -> m a -> m a -> m a
@@ -75,7 +73,7 @@ allM xs f = andM $ fmap f xs
 
 -- | Lazy monadic disjunction.
 or2M :: Monad m => m Bool -> m Bool -> m Bool
-or2M ma mb = ifM ma (return True) mb
+or2M ma = ifM ma (return True)
 
 orM :: (Foldable f, Monad m) => f (m Bool) -> m Bool
 orM = Fold.foldl or2M (return False)
@@ -193,7 +191,7 @@ catMaybesMP = (>>= fromMaybeMP)
 
 finally :: MonadError e m => m a -> m () -> m a
 first `finally` after = do
-  r <- catchError (liftM Right first) (return . Left)
+  r <- catchError (fmap Right first) (return . Left)
   after
   case r of
     Left e  -> throwError e
