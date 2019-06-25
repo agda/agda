@@ -17,10 +17,10 @@ import Level
 
 open import Relation.Binary.PropositionalEquality public hiding ([_]) renaming (cong to ≡-cong; cong₂ to ≡-cong₂)
 open import Relation.Binary.PropositionalEquality.Core public renaming (sym to ≡-sym; trans to ≡-trans)
-
+{-
 ≢-sym : ∀ {ℓ} {A : Set ℓ} {x y : A} → x ≢ y → y ≢ x
 ≢-sym x≢y = x≢y ∘ ≡-sym
-
+-}
 ≡-elim : ∀ {ℓ} {X Y : Set ℓ} → X ≡ Y → X → Y
 ≡-elim refl p = p
 
