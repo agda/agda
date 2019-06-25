@@ -48,7 +48,8 @@ module Agda.TypeChecking.Free
     , allRelevantVars, allRelevantVarsIgnoring
     , freeIn, freeInIgnoringSorts, isBinderUsed
     , relevantIn, relevantInIgnoringSortAnn
-    , FlexRig'(..), FlexRig, LensFlexRig(..), isFlexible
+    , FlexRig'(..), FlexRig
+    , LensFlexRig(..), isFlexible, isUnguarded, isStronglyRigid, isWeaklyRigid
     , VarOcc'(..), VarOcc
     , varOccurrenceIn
     , flexRigOccurrenceIn

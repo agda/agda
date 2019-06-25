@@ -682,28 +682,24 @@ assign dir x args v = do
       -- e.g. _1 x (suc x) = suc (_2 x y)
       -- even though the lhs is not a pattern, we can prune the y from _2
 
-      (relVL, nonstrictVL, irrVL) <- do
-        -- Andreas, 2016-11-03 #2211 attempt to do s.th. for unused
-        if False -- irrelevant $ getMetaRelevance mvar
-          then do
-            reportSDoc "tc.meta.assign" 25 $ "meta is irrelevant or unused"
-            return (VarSet.toList $ allFreeVars args, empty, empty)
-          else do
-            let vars        = freeVars args
+      let
+                vars        = freeVars args
                 relVL       = filterVarMapToList isRelevant  vars
                 nonstrictVL = filterVarMapToList isNonStrict vars
+                irrVL       = filterVarMapToList (liftM2 (&&) isIrrelevant isUnguarded) vars
             -- Andreas, 2011-10-06 only irrelevant vars that are direct
             -- arguments to the meta, hence, can be abstracted over, may
             -- appear on the rhs.  (test/fail/Issue483b)
             -- Update 2011-03-27: Also irr. vars under record constructors.
-            let fromIrrVar (Var i [])   = return [i]
-                fromIrrVar (Con c _ vs)   =
-                  ifM (isNothing <$> isRecordConstructor (conName c)) (return []) $
-                    concat <$> mapM (fromIrrVar . {- stripDontCare .-} unArg) (fromMaybe __IMPOSSIBLE__ (allApplyElims vs))
-                fromIrrVar _ = return []
-            irrVL <- concat <$> mapM fromIrrVar
-                       [ v | Arg info v <- args, isIrrelevant info ]
-            return (relVL, nonstrictVL, irrVL)
+            -- Andreas, 2019-06-25:  The reason is that when solving
+            -- @X args = v@ we drop all irrelevant arguments that
+            -- are not variables (after flattening of record constructors).
+            -- (See isVarOrIrrelevant in inverseSubst.)
+            -- Thus, the occurs-check needs to ensure only these variables
+            -- are mentioned on the rhs.
+            -- In the terminology of free variable analysis, the retained
+            -- irrelevant variables are exactly the Unguarded ones.
+
       reportSDoc "tc.meta.assign" 20 $
           let pr (Var n []) = text (show n)
               pr (Def c []) = prettyTCM c

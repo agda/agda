@@ -135,6 +135,21 @@ isFlexible o = case o ^. lensFlexRig of
   Flexible {} -> True
   _ -> False
 
+isUnguarded :: LensFlexRig a o => o -> Bool
+isUnguarded o = case o ^. lensFlexRig of
+  Unguarded -> True
+  _ -> False
+
+isWeaklyRigid :: LensFlexRig a o => o -> Bool
+isWeaklyRigid o = case o ^. lensFlexRig of
+   WeaklyRigid -> True
+   _ -> False
+
+isStronglyRigid :: LensFlexRig a o => o -> Bool
+isStronglyRigid o = case o ^. lensFlexRig of
+  StronglyRigid -> True
+  _ -> False
+
 -- | 'FlexRig' aggregation (additive operation of the semiring).
 --   For combining occurrences of the same variable in subterms.
 --   This is a refinement of the 'max' operation for 'FlexRig'
