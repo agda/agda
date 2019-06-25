@@ -717,7 +717,7 @@ abstractArgs args x = abstract tel x
         names = cycle $ map (stringToArgName . (:[])) ['a'..'z']
 
 ---------------------------------------------------------------------------
--- * Substitution and raising/shifting/weakening
+-- * Substitution and shifting\/weakening\/strengthening
 ---------------------------------------------------------------------------
 
 -- | If @permute π : [a]Γ -> [a]Δ@, then @applySubst (renaming _ π) : Term Γ -> Term Δ@

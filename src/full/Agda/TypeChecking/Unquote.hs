@@ -664,7 +664,7 @@ evalTCM v = do
     tcExtendContext :: Term -> Term -> UnquoteM Term
     tcExtendContext a m = do
       a <- unquote a
-      extendCxt a (evalTCM $ raise 1 m)
+      strengthen __UNREACHABLE__ <$> extendCxt a (evalTCM $ raise 1 m)
 
     tcInContext :: Term -> Term -> UnquoteM Term
     tcInContext c m = do
