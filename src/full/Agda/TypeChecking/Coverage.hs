@@ -600,22 +600,32 @@ createMissingConIdClause f n x old_sc (tag,(sc,info@TheInfo{})) = setCurrentRang
       old_t  = AbsN (teleNames old_tel) $ fromJust $ scTarget old_sc
       old_ps = AbsN (teleNames old_tel) $ patternsToElims $ fromSplitPatterns $ scPats old_sc
       old_ps' = AbsN (teleNames old_tel) $ fromSplitPatterns $ scPats old_sc
-  let dm = pure __DUMMY_TERM__
+
+  params <- runNamesT [] $ do
+    hdelta <- open hdelta
+    bindN (teleNames gamma) $ \ args -> do
+       hdelta@(ExtendTel hdom _) <- applyN hdelta args
+       Def _Id es@[_,_,_,_] <- reduce $ unEl $ unDom hdom
+       return $ map unArg $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
 
   working_tel <- runNamesT [] $ do
     hdelta <- open hdelta
+    params <- open params
     abstractN (pure gamma) $ \ args -> do
       pTel <- open =<< (lift $ pathTelescope (infoEqTel info) (map defaultArg $ infoEqLHS info) (map defaultArg $ infoEqRHS info))
       abstractN (pure (telFromList [defaultDom ("phi",interval)] :: Telescope)) $ \ [phi] ->
-        abstractN pTel $ \ [p] ->
-          apply1 <$> applyN hdelta args <*> (cl primConId <#> dm <#> dm <#> dm <#> dm <@> phi <@> p)
+        abstractN pTel $ \ [p] -> do
+          [l,bA,x,y] <- mapM open =<< applyN params args
+          apply1 <$> applyN hdelta args <*> (cl primConId <#> l <#> bA <#> x <#> y <@> phi <@> p)
   -- working_tel ⊢ i. γ[leftInv i]
   (gamma_args_left :: Abs [Term], con_phi_p_left :: Abs Term) <- fmap (raise (size delta) . unAbsN) . runNamesT [] $ do
+    params <- open params
     bindN (teleNames gamma ++ ["phi","p"]) $ \ args' -> do
       let (args,[phi,p]) = splitAt (size gamma) args'
+      [l,bA,x,y] <- mapM open =<< applyN params args
       gargs <- Abs "i" . applySubst ileftInv <$> sequence args
       con_phi_p <- Abs "i" . applySubst ileftInv <$> do
-        (cl primConId <#> dm <#> dm <#> dm <#> dm <@> phi <@> p)
+        (cl primConId <#> l <#> bA <#> x <#> y <@> phi <@> p)
       return (gargs,con_phi_p)
   ps <- fmap unAbsN . runNamesT [] $ do
     old_ps' <- open $ old_ps'
@@ -747,10 +757,16 @@ createMissingConIdClause f n x old_sc (tag,(sc,info@TheInfo{})) = setCurrentRang
            t <- unArg <$> ty i
            lift $ getLevel t
     ((,) <$> ty (cl primIOne) <*>) $ do
-         -- TODO don't comp if family is constant?
-         pure tComp <#> l <@> (lam "i" $ \ i -> unEl . unArg <$> ty i)
+         n <- length . unAbs <$> sides
+         -- TODO don't comp if the family and the sides "j. [ α ↦ u ]" are constant?
+         if n > 1 then
+           pure tComp <#> l <@> (lam "i" $ \ i -> unEl . unArg <$> ty i)
                 <@> (cl primIMax <@> phi <@> alphas)
                 <@> (lam "i" $ \ i -> ilam "o" $ \ _ -> combine (l <@> i) (unEl . unArg <$> ty i) =<< (lazyAbsApp <$> sides <*> i)) 
+                <@> (lazyAbsApp <$> w <*> primIZero)
+         else
+           pure tTrans <#> l <@> (lam "i" $ \ i -> unEl . unArg <$> ty i)
+                <@> phi
                 <@> (lazyAbsApp <$> w <*> primIZero)
 
   reportSDoc "tc.cover.conid" 20 $ text "conid case for" <+> text (show f)
