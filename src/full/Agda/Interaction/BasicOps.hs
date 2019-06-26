@@ -615,7 +615,7 @@ getResponseContext norm ii = withInteractionId ii $ do
     let n = nameConcrete $ ofName entry
     x  <- abstractToConcrete_ $ ofName entry
     -- the type part
-    let e = unArg $ ofExpr entry
+    let e = ofExpr entry
     let s = C.isInScope x
     return $ ResponseContextEntry n x e s
 

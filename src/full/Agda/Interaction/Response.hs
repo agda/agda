@@ -24,7 +24,7 @@ import {-# SOURCE #-} Agda.Interaction.BasicOps
 import Agda.Interaction.Base (CommandState)
 import Agda.Interaction.Highlighting.Precise
 import qualified Agda.Syntax.Abstract as A
-import Agda.Syntax.Common   (InteractionId(..))
+import Agda.Syntax.Common   (InteractionId(..), Arg)
 import Agda.Syntax.Concrete (Expr, Name)
 import Agda.Syntax.Concrete.Name (NameInScope)
 import Agda.Syntax.Scope.Base (AbstractModule, AbstractName, LocalVar)
@@ -140,7 +140,7 @@ data GoalTypeAux
 data ResponseContextEntry = ResponseContextEntry
   { respOrigName :: Name        -- ^ The original concrete name.
   , respReifName :: Name        -- ^ The name reified from abstract syntax.
-  , respType     :: A.Expr      -- ^ The type.
+  , respType     :: Arg A.Expr  -- ^ The type.
   , respInScope  :: NameInScope -- ^ Whether the 'respReifName' is in scope.
   }
 

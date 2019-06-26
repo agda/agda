@@ -379,19 +379,23 @@ prettyResponseContext rev ctx = do
   return $ align 10 $ applyWhen rev reverse pairs
   where
     compose :: ResponseContextEntry -> TCM (String, Doc)
-    compose (ResponseContextEntry n x expr nis) = (prettyCtxName,) <$> do
+    compose (ResponseContextEntry n x (Arg ai expr) nis) = (prettyCtxName,) <$> do
         doc <- prettyATop expr
-        return $ ":" <+> (doc <> notInScopeMarker)
+        return $ ":" <+> (doc <> parenSep extras)
       where
         prettyCtxName :: String
         prettyCtxName
           | n == x                 = prettyShow x
           | isInScope n == InScope = prettyShow n ++ " = " ++ prettyShow x
           | otherwise              = prettyShow x
-        notInScopeMarker :: Doc
-        notInScopeMarker = case isInScope nis of
-          C.InScope    -> ""
-          C.NotInScope -> "  (not in scope)"
+        extras :: [Doc]
+        extras = concat $
+          [ [ "not in scope" | isInScope nis == C.NotInScope ]
+          ]
+        parenSep :: [Doc] -> Doc
+        parenSep docs
+          | null docs = empty
+          | otherwise = (" " <+>) $ parens $ fsep $ punctuate comma docs
 
 -- | Print open metas nicely.
 showGoals :: Goals -> TCM String
