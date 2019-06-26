@@ -120,7 +120,6 @@ data CommandLineOptions = Options
   , optCSSFile          :: Maybe FilePath
   , optIgnoreInterfaces :: Bool
   , optIgnoreAllInterfaces :: Bool
-  , optForcing          :: Bool
   , optPragmaOptions    :: PragmaOptions
   , optOnlyScopeChecking :: Bool
     -- ^ Should the top-level module only be scope-checked, and not
@@ -155,6 +154,7 @@ data PragmaOptions = PragmaOptions
   , optPatternMatching           :: Bool  -- ^ Is pattern matching allowed in the current file?
   , optExactSplit                :: Bool
   , optEta                       :: Bool
+  , optForcing                   :: Bool  -- ^ Perform the forcing analysis on data constructors?
   , optRewriting                 :: Bool  -- ^ Can rewrite rules be added and used?
   , optCubical                   :: Bool
   , optPostfixProjections        :: Bool
@@ -228,7 +228,6 @@ defaultOptions = Options
   , optCSSFile          = Nothing
   , optIgnoreInterfaces = False
   , optIgnoreAllInterfaces = False
-  , optForcing          = True
   , optPragmaOptions    = defaultPragmaOptions
   , optOnlyScopeChecking = False
   }
@@ -258,6 +257,7 @@ defaultPragmaOptions = PragmaOptions
   , optPatternMatching           = True
   , optExactSplit                = False
   , optEta                       = True
+  , optForcing                   = True
   , optRewriting                 = False
   , optCubical                   = False
   , optPostfixProjections        = False
@@ -610,7 +610,7 @@ universePolymorphismFlag o = return $ o { optUniversePolymorphism = True }
 noUniversePolymorphismFlag :: Flag PragmaOptions
 noUniversePolymorphismFlag  o = return $ o { optUniversePolymorphism = False }
 
-noForcingFlag :: Flag CommandLineOptions
+noForcingFlag :: Flag PragmaOptions
 noForcingFlag o = return $ o { optForcing = False }
 
 withKFlag :: Flag PragmaOptions
@@ -805,8 +805,6 @@ standardOptions =
                     "don't use any library files"
     , Option []     ["no-default-libraries"] (NoArg noDefaultLibsFlag)
                     "don't use default libraries"
-    , Option []     ["no-forcing"] (NoArg noForcingFlag)
-                    "disable the forcing optimisation"
     , Option []     ["only-scope-checking"] (NoArg onlyScopeCheckingFlag)
                     "only scope-check the top-level module, do not type-check it"
     ] ++ map (fmap lensPragmaOptions) pragmaOptions
@@ -890,6 +888,8 @@ pragmaOptions =
                     "do not require all clauses in a definition to hold as definitional equalities (default)"
     , Option []     ["no-eta-equality"] (NoArg noEtaFlag)
                     "default records to no-eta-equality"
+    , Option []     ["no-forcing"] (NoArg noForcingFlag)
+                    "disable the forcing analysis for data constructors (optimisation)"
     , Option []     ["rewriting"] (NoArg rewritingFlag)
                     "enable declaration and use of REWRITE rules"
     , Option []     ["confluence-check"] (NoArg confluenceCheckFlag)

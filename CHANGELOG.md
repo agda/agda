@@ -16,6 +16,13 @@ Pragmas and options
   checking of user-defined rewrite rules (this only has an effect when
   `--rewriting` is also enabled).
 
+* Option `--no-forcing` is now a pragma option, i.e., the forcing analysis
+  can be switched off on a per-file basis via
+  ```agda
+  {-# OPTIONS --no-forcing #-}
+  ```
+  at the beginning of the file.
+
 GHC Backend
 -----------
 

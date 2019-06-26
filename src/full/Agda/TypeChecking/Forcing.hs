@@ -97,8 +97,7 @@ import Agda.Utils.Impossible
 --   are in normal form.
 computeForcingAnnotations :: QName -> Type -> TCM [IsForced]
 computeForcingAnnotations c t =
-  ifM (not . optForcing <$> commandLineOptions)
-      (return []) $ do
+  ifNotM (optForcing <$> pragmaOptions) {-then-} (return []) $ {-else-} do
   -- Andreas, 2015-03-10  Normalization prevents Issue 1454.
   -- t <- normalise t
   -- Andreas, 2015-03-28  Issue 1469: Normalization too costly.
@@ -113,14 +112,16 @@ computeForcingAnnotations c t =
         Def _ us -> us
         _        -> __IMPOSSIBLE__
       n  = size tel
+      xs :: [(Modality, Nat)]
       xs = forcedVariables vs
       -- #2819: We can only mark an argument as forced if it appears in the
       -- type with a relevance below (i.e. more relevant) than the one of the
       -- constructor argument. Otherwise we can't actually get the value from
       -- the type. Also the argument shouldn't be irrelevant, since in that
       -- case it isn't really forced.
+      isForced :: Modality -> Nat -> Bool
       isForced m i = getRelevance m /= Irrelevant &&
-                     any (\ (m', j) -> i == j && related m' POLE m) xs
+                     any (\ (m', j) -> i == j && m' `moreUsableModality` m) xs
       forcedArgs =
         [ if isForced m i then Forced else NotForced
         | (i, m) <- zip (downFrom n) $ map getModality (telToList tel)
@@ -141,7 +142,7 @@ class ForcedVariables a where
 
 instance ForcedVariables a => ForcedVariables [a] where
 
--- Note the 'a' does not include the 'Arg' in 'Apply'.
+-- Note that the 'a' does not include the 'Arg' in 'Apply'.
 instance ForcedVariables a => ForcedVariables (Elim' a) where
   forcedVariables (Apply x) = forcedVariables x
   forcedVariables IApply{}  = []  -- No forced variables in path applications
