@@ -62,23 +62,26 @@ defaultOptions = TestOptions
 
 disabledTests :: [RegexFilter]
 disabledTests =
-  [ -- See issue 1528
-    RFInclude "Compiler/.*/simple/Sharing"
-  , RFInclude "Compiler/JS/simple/VecReverseIrr"
-  , RFInclude "Compiler/JS/simple/Issue2821"    -- GHC backend specific
-  , RFInclude "Compiler/JS/simple/Issue2914"    -- GHC backend specific
-  , RFInclude "Compiler/JS/simple/Issue3732"    -- GHC backend specific
+  [ -----------------------------------------------------------------------------
+    -- These test are disabled on all backends.
+    -- See issue 1528
+    disable "Compiler/.*/simple/Sharing"
     -- Fix to 2524 is too unsafe
-  , RFInclude "Compiler/.*/simple/Issue2524"
-    -- Segfaulting 2640 behaves differently on travis
-  , RFInclude "Compiler/.*/simple/Erasure-Issue2640"
-  --   -- Andreas, 2018-10-23, dunno why, but VecReverseErased is broken on travis
-  -- , RFInclude "Compiler/.*/simple/VecReverseErased"
-    -- The following test cases are GHC backend specific.
-  , RFInclude "Compiler/JS/simple/Issue2879-.*"
-  , RFInclude "Compiler/JS/simple/Issue2909-.*"
-  , RFInclude "Compiler/JS/simple/Issue2918"
+  , disable "Compiler/.*/simple/Issue2524"
+    -- Issue #2640 (forcing translation for runtime erasure) is still open
+  , disable "Compiler/.*/simple/Erasure-Issue2640"
+    -----------------------------------------------------------------------------
+    -- The following test cases are GHC backend specific and thus disabled on JS.
+  , disable "Compiler/JS/simple/Issue2821"
+  , disable "Compiler/JS/simple/Issue2879-.*"
+  , disable "Compiler/JS/simple/Issue2909-.*"
+  , disable "Compiler/JS/simple/Issue2914"
+  , disable "Compiler/JS/simple/Issue2918"
+  , disable "Compiler/JS/simple/Issue3732"
+  , disable "Compiler/JS/simple/VecReverseIrr"
+  , disable "Compiler/JS/simple/VecReverseErased"  -- RangeError: Maximum call stack size exceeded
   ]
+  where disable = RFInclude
 
 tests :: IO TestTree
 tests = do
