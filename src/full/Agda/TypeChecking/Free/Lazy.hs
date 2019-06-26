@@ -308,34 +308,37 @@ class (Singleton MetaId a, Semigroup a, Monoid a, Semigroup c, Monoid c) => IsVa
 
 -- | Representation of a variable set as map from de Bruijn indices
 --   to 'VarOcc'.
-type TheVarMap = IntMap VarOcc
-newtype VarMap = VarMap { theVarMap :: TheVarMap }
-  deriving (Show)
+type TheVarMap' a = IntMap (VarOcc' a)
+newtype VarMap' a = VarMap { theVarMap :: TheVarMap' a }
+  deriving (Eq, Show)
+
+type TheVarMap = TheVarMap' MetaSet
+type    VarMap =    VarMap' MetaSet
 
 -- | A "set"-style 'Singleton' instance with default/initial variable occurrence.
-instance Singleton Variable VarMap where
+instance Singleton Variable (VarMap' a) where
   singleton i = VarMap $ IntMap.singleton i oneVarOcc
 
-mapVarMap :: (TheVarMap -> TheVarMap) -> VarMap -> VarMap
+mapVarMap :: (TheVarMap' a -> TheVarMap' b) -> VarMap' a -> VarMap' b
 mapVarMap f = VarMap . f . theVarMap
 
-lookupVarMap :: Variable -> VarMap -> Maybe VarOcc
+lookupVarMap :: Variable -> VarMap' a -> Maybe (VarOcc' a)
 lookupVarMap i = IntMap.lookup i . theVarMap
 
 -- Andreas & Jesper, 2018-05-11, issue #3052:
 
 -- | Proper monoid instance for @VarMap@ rather than inheriting the broken one from IntMap.
 --   We combine two occurrences of a variable using 'mappend'.
-instance Semigroup VarMap where
-  VarMap m <> VarMap m' = VarMap $ IntMap.unionWith mappend m m'
+instance Semigroup a => Semigroup (VarMap' a) where
+  VarMap m <> VarMap m' = VarMap $ IntMap.unionWith (<>) m m'
 
-instance Monoid VarMap where
+instance Semigroup a => Monoid (VarMap' a) where
   mempty  = VarMap IntMap.empty
   mappend = (<>)
-  mconcat = VarMap . IntMap.unionsWith mappend . map theVarMap
+  mconcat = VarMap . IntMap.unionsWith (<>) . map theVarMap
   -- mconcat = VarMap . IntMap.unionsWith mappend . coerce   -- ghc 8.6.5 does not seem to like this coerce
 
-instance IsVarSet MetaSet VarMap where
+instance (Singleton MetaId a, Semigroup a, Monoid a) => IsVarSet a (VarMap' a) where
   withVarOcc o = mapVarMap $ fmap $ composeVarOcc o
 
 
