@@ -168,8 +168,8 @@ lispifyDisplayInfo info = case info of
     Info_WhyInScope s cwd v xs ms -> do
       doc <- explainWhyInScope s cwd v xs ms
       format (render doc) "*Scope Info*"
-    Info_Context ctx -> do
-      doc <- localTCState (prettyResponseContext False ctx)
+    Info_Context ii ctx -> do
+      doc <- localTCState (prettyResponseContext ii False ctx)
       format (render doc) "*Context*"
     Info_Intro_NotFound -> format "No introduction forms found." "*Intro*"
     Info_Intro_ConstructorUnknown ss -> do
@@ -198,7 +198,7 @@ lispifyGoalSpecificDisplayInfo ii kind = localTCState $ B.withInteractionId ii $
       doc <- showComputed cmode expr
       format (render doc) "*Normal Form*"   -- show?
     Goal_GoalType norm aux ctx constraints -> do
-      ctxDoc <- prettyResponseContext True ctx
+      ctxDoc <- prettyResponseContext ii True ctx
       goalDoc <- prettyTypeOfMeta norm ii
       auxDoc <- case aux of
             GoalOnly -> return empty
@@ -371,18 +371,15 @@ explainWhyInScope s _ v xs ms = TCP.vcat
 -- | Pretty-prints the context of the given meta-variable.
 
 prettyResponseContext
-  :: Bool           -- ^ Print the elements in reverse order?
+  :: InteractionId  -- ^ Context of this meta-variable.
+  -> Bool           -- ^ Print the elements in reverse order?
   -> [ResponseContextEntry]
   -> TCM Doc
-prettyResponseContext rev ctx = do
-  pairs <- mapM compose ctx
-  return $ align 10 $ applyWhen rev reverse pairs
-  where
-    compose :: ResponseContextEntry -> TCM (String, Doc)
-    compose (ResponseContextEntry n x (Arg ai expr) nis) = (prettyCtxName,) <$> do
-        doc <- prettyATop expr
-        return $ ":" <+> (doc <> parenSep extras)
-      where
+prettyResponseContext ii rev ctx = withInteractionId ii $ do
+  mod   <- asksTC getModality
+  align 10 . applyWhen rev reverse <$> do
+    forM ctx $ \ (ResponseContextEntry n x (Arg ai expr) nis) -> do
+      let
         prettyCtxName :: String
         prettyCtxName
           | n == x                 = prettyShow x
@@ -391,11 +388,19 @@ prettyResponseContext rev ctx = do
         extras :: [Doc]
         extras = concat $
           [ [ "not in scope" | isInScope nis == C.NotInScope ]
+            -- Print erased if hypothesis is erased by goal is non-erased.
+          , [ "erased"       | not $ getQuantity  ai `moreQuantity` getQuantity  mod ]
+            -- Print irrelevant if hypothesis is strictly less relevant than goal.
+          , [ "irrelevant"   | not $ getRelevance ai `moreRelevant` getRelevance mod ]
           ]
-        parenSep :: [Doc] -> Doc
-        parenSep docs
-          | null docs = empty
-          | otherwise = (" " <+>) $ parens $ fsep $ punctuate comma docs
+      doc <- prettyATop expr
+      return (prettyCtxName, ":" <+> (doc <> parenSep extras))
+  where
+    parenSep :: [Doc] -> Doc
+    parenSep docs
+      | null docs = empty
+      | otherwise = (" " <+>) $ parens $ fsep $ punctuate comma docs
+
 
 -- | Print open metas nicely.
 showGoals :: Goals -> TCM String

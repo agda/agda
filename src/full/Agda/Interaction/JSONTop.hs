@@ -106,7 +106,7 @@ instance ToJSON DisplayInfo where
   -- toJSON (Info_GoalType doc) = object [ "kind" .= String "GoalType", "payload" .= render doc ]
   -- toJSON (Info_CurrentGoal doc) = object [ "kind" .= String "CurrentGoal", "payload" .= render doc ]
   -- toJSON (Info_InferredType doc) = object [ "kind" .= String "InferredType", "payload" .= render doc ]
-  -- toJSON (Info_Context doc) = object [ "kind" .= String "Context", "payload" .= render doc ]
+  -- toJSON (Info_Context ii doc) = object [ "kind" .= String "Context", "payload" .= render doc ]
   -- toJSON (Info_HelperFunction doc) = object [ "kind" .= String "HelperFunction", "payload" .= render doc ]
   -- toJSON Info_Version = object
   --   [ "kind" .= String "Version"

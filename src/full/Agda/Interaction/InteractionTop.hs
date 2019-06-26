@@ -704,7 +704,7 @@ interpret Cmd_autoAll = do
     modifyTheInteractionPoints (List.\\ concat solved)
 
 interpret (Cmd_context norm ii _ _) =
-  display_info . Info_Context =<< liftLocalState (getResponseContext norm ii)
+  display_info . Info_Context ii =<< liftLocalState (getResponseContext norm ii)
 
 interpret (Cmd_helper_function norm ii rng s) = do
   -- Create type of application of new helper function that would solve the goal.

@@ -102,7 +102,7 @@ data DisplayInfo
     | Info_WhyInScope String FilePath (Maybe LocalVar) [AbstractName] [AbstractModule]
     | Info_NormalForm CommandState ComputeMode (Maybe CPUTime) A.Expr
     | Info_InferredType CommandState (Maybe CPUTime) A.Expr
-    | Info_Context [ResponseContextEntry]
+    | Info_Context InteractionId [ResponseContextEntry]
     | Info_Version
     | Info_GoalSpecific InteractionId GoalDisplayInfo
 
