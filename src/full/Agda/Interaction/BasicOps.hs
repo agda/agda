@@ -615,11 +615,11 @@ getResponseContext norm ii = withInteractionId ii $ do
     let n = nameConcrete $ ofName entry
     x  <- abstractToConcrete_ $ ofName entry
     -- the type part
-    let e = ofExpr entry
+    let e = unArg $ ofExpr entry
     let s = C.isInScope x
     return $ ResponseContextEntry n x e s
 
-shouldHide :: OutputConstraint' A.Expr A.Name -> Bool
+shouldHide :: OutputConstraint' a A.Name -> Bool
 shouldHide (OfType' n _) = isNoName n || nameIsRecordName n
 
 -- | @getSolvedInteractionPoints True@ returns all solutions,
@@ -828,27 +828,30 @@ metaHelperType norm ii rng s = case words s of
         _                         -> "w"
 
 
--- Gives a list of names and corresponding types.
+-- | Gives a list of names and corresponding types.
+--   This list includes not only the local variables in scope, but also the let-bindings.
 
-contextOfMeta :: InteractionId -> Rewrite -> TCM [OutputConstraint' Expr Name]
+contextOfMeta :: InteractionId -> Rewrite -> TCM [OutputConstraint' (Arg Expr) Name]
 contextOfMeta ii norm = do
   info <- getMetaInfo <$> (lookupMeta =<< lookupInteractionId ii)
   withMetaInfo info $ do
+    -- List of local variables.
     cxt <- getContext
     let n         = length cxt
         localVars = zipWith raise [1..] cxt
-        mkLet (x, lb) = do
-          (tm, !dom) <- getOpen lb
-          return $ (,) x <$> dom
+    -- List of let-bindings.
     letVars <- mapM mkLet . Map.toDescList =<< asksTC envLetBindings
-    mapMaybe visible . reverse <$> mapM out (letVars ++ localVars)
-  where visible (OfType x y) | not (isNoName x) = Just (OfType' x y)
-                             | otherwise        = Nothing
-        visible _            = __IMPOSSIBLE__
-        out (Dom{unDom = (x, t)}) = do
-          t' <- reifyUnblocked =<< normalForm norm t
-          return $ OfType x t'
-
+    -- Reify the types and filter out bindings without a name.
+    reverse <$> do
+      forMaybeM (letVars ++ localVars) $ \ Dom{ domInfo = ai, unDom = (x, t) } -> do
+        if isNoName x then return Nothing else Just <$> do
+          OfType' x . Arg ai <$> do
+            reifyUnblocked =<< normalForm norm t
+  where
+    mkLet :: (Name, Open (Term, Dom Type)) -> TCM (Dom (Name, Type))
+    mkLet (x, lb) = do
+      (_tm, !dom) <- getOpen lb
+      return $ (x,) <$> dom
 
 -- | Returns the type of the expression in the current environment
 --   We wake up irrelevant variables just in case the user want to
