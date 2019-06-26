@@ -2,9 +2,7 @@ module Agda.Interaction.Response where
 
 import Data.Int (Int32)
 
-import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Common   (InteractionId)
-import Agda.Syntax.Concrete.Name (NameInScope)
 import Agda.Syntax.Concrete (Expr, Name)
 
 import {-# SOURCE #-} Agda.TypeChecking.Monad.Base
@@ -25,13 +23,10 @@ data Response
     | Resp_GiveAction InteractionId GiveResult
     | Resp_MakeCase MakeCaseVariant [String]
     | Resp_SolveAll [(InteractionId, Expr)]
-      -- ^ Solution for one or more meta-variables.
     | Resp_DisplayInfo DisplayInfo
     | Resp_RunningInfo Int String
-      -- ^ The integer is the message's debug level.
     | Resp_ClearRunningInfo
     | Resp_ClearHighlighting TokenBased
-      -- ^ Clear highlighting of the given kind.
     | Resp_DoneAborting
 
 data MakeCaseVariant
@@ -42,10 +37,3 @@ data Status
 
 type InteractionOutputCallback = Response -> TCM ()
 defaultInteractionOutputCallback :: InteractionOutputCallback
-
-data ResponseContextEntry = ResponseContextEntry
-  { respOrigName :: Name  
-  , respReifName :: Name  
-  , respType     :: A.Expr 
-  , respInScope  :: NameInScope
-  }
