@@ -169,7 +169,7 @@ lispifyDisplayInfo info = case info of
       doc <- explainWhyInScope s cwd v xs ms
       format (render doc) "*Scope Info*"
     Info_Context ctx -> do
-      doc <- localTCState (prettyRespContext False ctx)
+      doc <- localTCState (prettyResponseContext False ctx)
       format (render doc) "*Context*"
     Info_Intro_NotFound -> format "No introduction forms found." "*Intro*"
     Info_Intro_ConstructorUnknown ss -> do
@@ -198,7 +198,7 @@ lispifyGoalSpecificDisplayInfo ii kind = localTCState $ B.withInteractionId ii $
       doc <- showComputed cmode expr
       format (render doc) "*Normal Form*"   -- show?
     Goal_GoalType norm aux ctx constraints -> do
-      ctxDoc <- prettyRespContext True ctx
+      ctxDoc <- prettyResponseContext True ctx
       goalDoc <- prettyTypeOfMeta norm ii
       auxDoc <- case aux of
             GoalOnly -> return empty
@@ -370,31 +370,28 @@ explainWhyInScope s _ v xs ms = TCP.vcat
 
 -- | Pretty-prints the context of the given meta-variable.
 
-prettyRespContext
+prettyResponseContext
   :: Bool           -- ^ Print the elements in reverse order?
-  -> [RespContextEntry]
+  -> [ResponseContextEntry]
   -> TCM Doc
-prettyRespContext rev ctx = do
+prettyResponseContext rev ctx = do
   pairs <- mapM compose ctx
   return $ align 10 $ applyWhen rev reverse pairs
   where
-    compose :: RespContextEntry -> TCM (String, Doc)
-    compose (a, b, c, d) = do
-      t <- prettyCtxType c d
-      return (prettyCtxName a b, t)
-    prettyCtxName :: C.Name -> C.Name -> String
-    prettyCtxName n x
-      | n == x                 = prettyShow x
-      | isInScope n == InScope = prettyShow n ++ " = " ++ prettyShow x
-      | otherwise              = prettyShow x
-    prettyCtxType :: A.Expr -> NameInScope -> TCM Doc
-    prettyCtxType expr nis = do
-      doc <- prettyATop expr
-      return $ ":" <+> (doc <> notInScopeMarker nis)
-    notInScopeMarker :: NameInScope -> Doc
-    notInScopeMarker nis = case isInScope nis of
-      C.InScope    -> ""
-      C.NotInScope -> "  (not in scope)"
+    compose :: ResponseContextEntry -> TCM (String, Doc)
+    compose (ResponseContextEntry n x expr nis) = (prettyCtxName,) <$> do
+        doc <- prettyATop expr
+        return $ ":" <+> (doc <> notInScopeMarker)
+      where
+        prettyCtxName :: String
+        prettyCtxName
+          | n == x                 = prettyShow x
+          | isInScope n == InScope = prettyShow n ++ " = " ++ prettyShow x
+          | otherwise              = prettyShow x
+        notInScopeMarker :: Doc
+        notInScopeMarker = case isInScope nis of
+          C.InScope    -> ""
+          C.NotInScope -> "  (not in scope)"
 
 -- | Print open metas nicely.
 showGoals :: Goals -> TCM String

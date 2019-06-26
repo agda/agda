@@ -12,7 +12,7 @@ module Agda.Interaction.Response
   , WarningsAndNonFatalErrors
   , Info_Error(..)
   , GoalTypeAux(..)
-  , RespContextEntry
+  , ResponseContextEntry(..)
   , Status (..)
   , GiveResult (..)
   , InteractionOutputCallback
@@ -55,6 +55,7 @@ data Response
     | Resp_InteractionPoints [InteractionId]
     | Resp_GiveAction InteractionId GiveResult
     | Resp_MakeCase MakeCaseVariant [String]
+      -- ^ Response is list of printed clauses.
     | Resp_SolveAll [(InteractionId, Expr)]
       -- ^ Solution for one or more meta-variables.
     | Resp_DisplayInfo DisplayInfo
@@ -101,14 +102,14 @@ data DisplayInfo
     | Info_WhyInScope String FilePath (Maybe LocalVar) [AbstractName] [AbstractModule]
     | Info_NormalForm CommandState ComputeMode (Maybe CPUTime) A.Expr
     | Info_InferredType CommandState (Maybe CPUTime) A.Expr
-    | Info_Context [RespContextEntry]
+    | Info_Context [ResponseContextEntry]
     | Info_Version
     | Info_GoalSpecific InteractionId GoalDisplayInfo
 
 data GoalDisplayInfo
     = Goal_HelperFunction (OutputConstraint' A.Expr A.Expr)
     | Goal_NormalForm ComputeMode A.Expr
-    | Goal_GoalType Rewrite GoalTypeAux [RespContextEntry] [OutputForm Expr Expr]
+    | Goal_GoalType Rewrite GoalTypeAux [ResponseContextEntry] [OutputForm Expr Expr]
     | Goal_CurrentGoal Rewrite
     | Goal_InferredType A.Expr
 
@@ -134,9 +135,14 @@ data GoalTypeAux
     | GoalAndHave A.Expr
     | GoalAndElaboration I.Term
 
--- | Entry of Context
+-- | Entry in context.
 
-type RespContextEntry = (Name, Name, A.Expr, NameInScope)
+data ResponseContextEntry = ResponseContextEntry
+  { respOrigName :: Name        -- ^ The original concrete name.
+  , respReifName :: Name        -- ^ The name reified from abstract syntax.
+  , respType     :: A.Expr      -- ^ The type.
+  , respInScope  :: NameInScope -- ^ Whether the 'respReifName' is in scope.
+  }
 
 
 -- | Status information.

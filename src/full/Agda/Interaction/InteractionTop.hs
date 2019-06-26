@@ -704,7 +704,7 @@ interpret Cmd_autoAll = do
     modifyTheInteractionPoints (List.\\ concat solved)
 
 interpret (Cmd_context norm ii _ _) =
-  display_info . Info_Context =<< liftLocalState (getRespContext norm ii)
+  display_info . Info_Context =<< liftLocalState (getResponseContext norm ii)
 
 interpret (Cmd_helper_function norm ii rng s) = do
   -- Create type of application of new helper function that would solve the goal.
@@ -1026,7 +1026,7 @@ sortInteractionPoints is =
 cmd_goal_type_context_and :: GoalTypeAux -> B.Rewrite -> InteractionId -> Range ->
                              String -> CommandM ()
 cmd_goal_type_context_and aux norm ii _ _ = do
-  ctx <- lift $ getRespContext norm ii
+  ctx <- lift $ getResponseContext norm ii
   constr <- lift $ lookupInteractionId ii >>= B.getConstraintsMentioning
   display_info $ Info_GoalSpecific ii (Goal_GoalType norm aux ctx constr)
 

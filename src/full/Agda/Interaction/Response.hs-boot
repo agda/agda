@@ -1,12 +1,17 @@
 module Agda.Interaction.Response where
 
-import Agda.Interaction.Highlighting.Precise
-    (TokenBased, HighlightingInfo)
+import Data.Int (Int32)
+
+import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Common   (InteractionId)
+import Agda.Syntax.Concrete.Name (NameInScope)
 import Agda.Syntax.Concrete (Expr, Name)
+
 import {-# SOURCE #-} Agda.TypeChecking.Monad.Base
     (TCM, ModuleToSource, HighlightingMethod)
-import Data.Int (Int32)
+
+import Agda.Interaction.Highlighting.Precise
+    (TokenBased, HighlightingInfo)
 
 data Response
     = Resp_HighlightingInfo
@@ -37,3 +42,10 @@ data Status
 
 type InteractionOutputCallback = Response -> TCM ()
 defaultInteractionOutputCallback :: InteractionOutputCallback
+
+data ResponseContextEntry = ResponseContextEntry
+  { respOrigName :: Name  
+  , respReifName :: Name  
+  , respType     :: A.Expr 
+  , respInScope  :: NameInScope
+  }

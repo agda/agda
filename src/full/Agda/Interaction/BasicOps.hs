@@ -25,7 +25,7 @@ import Data.Monoid
 
 import Agda.Interaction.Options
 import {-# SOURCE #-} Agda.Interaction.Imports (MaybeWarnings'(..), getMaybeWarnings)
-import Agda.Interaction.Response (Goals, RespContextEntry)
+import Agda.Interaction.Response (Goals, ResponseContextEntry(..))
 
 import qualified Agda.Syntax.Concrete as C -- ToDo: Remove with instance of ToConcrete
 import Agda.Syntax.Position
@@ -366,9 +366,10 @@ data OutputConstraint a b
 
 -- | A subset of 'OutputConstraint'.
 
-data OutputConstraint' a b = OfType' { ofName :: b
-                                     , ofExpr :: a
-                                     }
+data OutputConstraint' a b = OfType'
+  { ofName :: b
+  , ofExpr :: a
+  }
 
 outputFormId :: OutputForm a b -> b
 outputFormId (OutputForm _ _ o) = out o
@@ -603,20 +604,20 @@ getWarningsAndNonFatalErrors = do
     _ -> emptyWarningsAndNonFatalErrors
 
 -- | Collecting the context of the given meta-variable.
-getRespContext
+getResponseContext
   :: Rewrite      -- ^ Normalise?
   -> InteractionId
-  -> TCM [RespContextEntry]
-getRespContext norm ii = withInteractionId ii $ do
+  -> TCM [ResponseContextEntry]
+getResponseContext norm ii = withInteractionId ii $ do
   ctx <- filter (not . shouldHide) <$> contextOfMeta ii norm
-  -- name name part
-  let ns = map (nameConcrete . ofName) ctx
-  xs  <- mapM (abstractToConcrete_ . ofName) ctx
-  -- the type part
-  let es = map ofExpr ctx
-  let ss = map C.isInScope xs
-
-  return $ List.zip4 ns xs es ss
+  forM ctx $ \ entry -> do
+    -- name name part
+    let n = nameConcrete $ ofName entry
+    x  <- abstractToConcrete_ $ ofName entry
+    -- the type part
+    let e = ofExpr entry
+    let s = C.isInScope x
+    return $ ResponseContextEntry n x e s
 
 shouldHide :: OutputConstraint' A.Expr A.Name -> Bool
 shouldHide (OfType' n _) = isNoName n || nameIsRecordName n
