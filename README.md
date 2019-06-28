@@ -25,9 +25,10 @@ Getting Started
 * [Quick guide to editing, type checking and compiling Agda
   code](http://agda.readthedocs.io/en/latest/getting-started/quick-guide.html)
 
-Hacking on Agda
----------------
+Contributing to Agda
+--------------------
 
-Head to [`HACKING`](https://github.com/agda/agda/blob/master/HACKING.md)
+* Contribution how-to: [`HACKING`](https://github.com/agda/agda/blob/master/HACKING.md)
+* [Haskell style-guide](https://github.com/andreasabel/haskell-style-guide/blob/master/haskell-style.md)
 
 [agdawiki]: http://wiki.portal.chalmers.se/agda/pmwiki.php
