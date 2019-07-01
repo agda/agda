@@ -1119,13 +1119,15 @@ WithExpressions
   | 'with' Expr
       { case $2 of { WithApp _ e es -> e : es; e -> [e] } }
 
-RewriteEquations :: { [Expr] }
+RewriteEquations :: { [RewriteEqn] }
 RewriteEquations
   : {- empty -} { [] }
-  | 'rewrite' Expr1
-      { case $2 of { WithApp _ e es -> e : es; e -> [e] } }
+  | 'rewrite' Expr1 RewriteEquations
+     { (RewriteEqn Rewrite_ $ case $2 of { WithApp _ e es -> e : es; e -> [e] }) : $3 }
+  | 'using'   Expr1 RewriteEquations
+     { (RewriteEqn Using_ $ case $2 of { WithApp _ e es -> e : es; e -> [e] }) : $3 }
 
--- Parsing either an expression @e@ or a @rewrite e1 | ... | en@.
+-- Parsing either an expression @e@ or a @(rewrite | using) e1 | ... | en@.
 HoleContent :: { HoleContent }
 HoleContent
   : Expr             { HoleContentExpr    $1 }
@@ -2122,7 +2124,7 @@ validHaskellModuleName = all ok . splitOnDots
  --------------------------------------------------------------------------}
 
 -- | Turn an expression into a left hand side.
-exprToLHS :: Expr -> Parser ([Expr] -> [Expr] -> LHS)
+exprToLHS :: Expr -> Parser ([RewriteEqn] -> [Expr] -> LHS)
 exprToLHS e = LHS <$> exprToPattern e
 
 -- | Turn an expression into a pattern. Fails if the expression is not a

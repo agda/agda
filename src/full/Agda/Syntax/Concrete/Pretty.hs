@@ -372,17 +372,11 @@ instance Pretty WhereClause where
          ]
 
 instance Pretty LHS where
-  pretty lhs = case lhs of
-    LHS p eqs es  -> pr (pretty p) eqs es
-    where
-      pr d eqs es =
-        sep [ d
-            , nest 2 $ pThing "rewrite" eqs
-            , nest 2 $ pThing "with" es
-            ]
-      pThing thing []       = empty
-      pThing thing (e : es) = fsep $ (text thing <+> pretty e)
-                                   : map (("|" <+>) . pretty) es
+  pretty (LHS p eqs es) = sep
+    [ pretty p
+    , nest 2 $ if null eqs then empty else fsep $ map pretty eqs
+    , nest 2 $ prefixedThings "with" es
+    ]
 
 instance Pretty LHSCore where
   pretty (LHSHead f ps) = sep $ pretty f : map (parens . pretty) ps

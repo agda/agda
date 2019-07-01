@@ -2174,9 +2174,10 @@ data RightHandSide = RightHandSide
 
 data AbstractRHS
   = AbsurdRHS'
-  | WithRHS' [A.Expr] [ScopeM C.Clause]  -- ^ The with clauses haven't been translated yet
+  | WithRHS' [A.Expr] [ScopeM C.Clause]
+    -- ^ The with clauses haven't been translated yet
   | RHS' A.Expr C.Expr
-  | RewriteRHS' [A.Expr] AbstractRHS A.WhereDeclarations
+  | RewriteRHS' [RewriteEqn' A.Expr] AbstractRHS A.WhereDeclarations
 
 qualifyName_ :: A.Name -> ScopeM A.QName
 qualifyName_ x = do
@@ -2188,20 +2189,26 @@ withFunctionName s = do
   NameId i _ <- fresh
   qualifyName_ =<< freshName_ (s ++ show i)
 
+instance ToAbstract (RewriteEqn' a) (RewriteEqn' (A.QName, a)) where
+  toAbstract (RewriteEqn t es) = RewriteEqn t <$> do
+    let fname = case t of { Rewrite_ -> "-rewrite"; Using_ -> "-using" }
+    auxs <- replicateM (length es) $ withFunctionName fname
+    pure $ zip auxs es
+
 instance ToAbstract AbstractRHS A.RHS where
   toAbstract AbsurdRHS'            = return A.AbsurdRHS
   toAbstract (RHS' e c)            = return $ A.RHS e $ Just c
   toAbstract (RewriteRHS' eqs rhs wh) = do
-    auxs <- replicateM (length eqs) $ withFunctionName "rewrite-"
-    rhs  <- toAbstract rhs
-    return $ RewriteRHS (zip auxs eqs) [] rhs wh
+    eqs <- toAbstract eqs
+    rhs <- toAbstract rhs
+    return $ RewriteRHS eqs [] rhs wh
   toAbstract (WithRHS' es cs) = do
     aux <- withFunctionName "with-"
     A.WithRHS aux es <$> do toAbstract =<< sequence cs
 
 instance ToAbstract RightHandSide AbstractRHS where
   toAbstract (RightHandSide eqs@(_:_) es cs rhs whname wh) = do
-    eqs <- toAbstractCtx TopCtx eqs
+    eqs <- mapM (mapM $ toAbstractCtx TopCtx) eqs
     (rhs, ds) <- whereToAbstract (getRange wh) whname wh $
                   toAbstract (RightHandSide [] es cs rhs Nothing [])
     return $ RewriteRHS' eqs rhs ds

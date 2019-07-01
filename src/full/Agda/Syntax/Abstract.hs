@@ -368,6 +368,7 @@ noWhereDecls = WhereDecls Nothing []
 
 type Clause = Clause' LHS
 type SpineClause = Clause' SpineLHS
+type RewriteEqn  = RewriteEqn' (QName, Expr)
 
 data RHS
   = RHS
@@ -381,7 +382,7 @@ data RHS
   | WithRHS QName [Expr] [Clause]
       -- ^ The 'QName' is the name of the with function.
   | RewriteRHS
-    { rewriteExprs      :: [(QName, Expr)]
+    { rewriteExprs      :: [RewriteEqn]
       -- ^ The 'QName's are the names of the generated with functions,
       --   one for each 'Expr'.
     , rewriteStrippedPats :: [ProblemEq]
@@ -688,7 +689,7 @@ instance HasRange RHS where
     getRange AbsurdRHS                = noRange
     getRange (RHS e _)                = getRange e
     getRange (WithRHS _ e cs)         = fuseRange e cs
-    getRange (RewriteRHS xes _ rhs wh) = getRange (map snd xes, rhs, wh)
+    getRange (RewriteRHS xes _ rhs wh) = getRange (map (snd <$>) xes, rhs, wh)
 
 instance HasRange WhereDeclarations where
   getRange (WhereDecls _ ds) = getRange ds
@@ -913,11 +914,15 @@ instance AllNames Declaration where
 instance AllNames Clause where
   allNames cl = allNames (clauseRHS cl, clauseWhereDecls cl)
 
+instance AllNames a => AllNames (RewriteEqn' a) where
+    allNames = Fold.foldMap allNames
+
 instance AllNames RHS where
   allNames (RHS e _)                 = allNames e
   allNames AbsurdRHS{}               = Seq.empty
   allNames (WithRHS q _ cls)         = q <| allNames cls
-  allNames (RewriteRHS qes _ rhs cls) = Seq.fromList (map fst qes) >< allNames rhs >< allNames cls
+  allNames (RewriteRHS qes _ rhs cls) =
+    allNames (map (fst <$>) qes) >< allNames rhs >< allNames cls
 
 instance AllNames WhereDeclarations where
   allNames (WhereDecls _ ds) = allNames ds

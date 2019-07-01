@@ -1651,3 +1651,43 @@ data UniverseCheck = YesUniverseCheck | NoUniverseCheck
 
 instance KillRange UniverseCheck where
   killRange = id
+
+-----------------------------------------------------------------------------
+-- * Rewrite Directives on the LHS
+-----------------------------------------------------------------------------
+
+data RewriteEqn_
+  = Rewrite_ -- ^ @rewrite@
+  | Using_   -- ^ @using@
+  deriving (Data, Eq, Show)
+
+data RewriteEqn' e = RewriteEqn
+  { rewriteVariant   :: RewriteEqn_  -- ^ either @rewrite@ or @using@
+  , rewriteEquations :: [e]          -- ^ non empty @e1 | ... | en@
+  } deriving (Data, Eq, Show, Functor, Foldable, Traversable)
+
+viewRewriteEqn :: RewriteEqn' e -> (RewriteEqn_, e, [e])
+viewRewriteEqn (RewriteEqn t es) = case es of
+  (e:es) -> (t, e, es)
+  _     -> __IMPOSSIBLE__
+
+instance NFData RewriteEqn_ where
+  rnf Rewrite_ = ()
+  rnf Using_   = ()
+
+instance Pretty RewriteEqn_ where
+  pretty r = text $ case r of
+    Rewrite_ -> "rewrite"
+    Using_   -> "using"
+
+instance HasRange e => HasRange (RewriteEqn' e) where
+  getRange (RewriteEqn _ es) = getRange es
+
+instance KillRange e => KillRange (RewriteEqn' e) where
+  killRange (RewriteEqn t es) = killRange1 (RewriteEqn t) es
+
+instance NFData e => NFData (RewriteEqn' e) where
+  rnf (RewriteEqn t es) = rnf t `seq` rnf es
+
+instance Pretty e => Pretty (RewriteEqn' e) where
+  pretty (RewriteEqn t es) = prefixedThings (pretty t) es

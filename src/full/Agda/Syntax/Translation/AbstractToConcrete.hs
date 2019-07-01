@@ -950,7 +950,7 @@ openModule' x dir restrict env = env{currentScope = set scopeModules mods' sInfo
 declsToConcrete :: [A.Declaration] -> AbsToCon [C.Declaration]
 declsToConcrete ds = mergeSigAndDef . concat <$> toConcrete ds
 
-instance ToConcrete A.RHS (C.RHS, [C.Expr], [C.Expr], [C.Declaration]) where
+instance ToConcrete A.RHS (C.RHS, [C.RewriteEqn], [C.Expr], [C.Declaration]) where
     toConcrete (A.RHS e (Just c)) = return (C.RHS c, [], [], [])
     toConcrete (A.RHS e Nothing) = do
       e <- toConcrete e
@@ -963,16 +963,15 @@ instance ToConcrete A.RHS (C.RHS, [C.Expr], [C.Expr], [C.Declaration]) where
     toConcrete (A.RewriteRHS xeqs _spats rhs wh) = do
       wh <- declsToConcrete (A.whereDecls wh)
       (rhs, eqs', es, whs) <- toConcrete rhs
-      unless (null eqs')
-        __IMPOSSIBLE__
-      eqs <- toConcrete $ map snd xeqs
+      unless (null eqs') __IMPOSSIBLE__
+      eqs <- toConcrete $ map (snd <$>) xeqs
       return (rhs, eqs, es, wh ++ whs)
 
+instance ToConcrete a b => ToConcrete (RewriteEqn' a) (RewriteEqn' b) where
+  toConcrete = mapM toConcrete
+
 instance ToConcrete (Maybe A.QName) (Maybe C.Name) where
-  toConcrete Nothing = return Nothing
-  toConcrete (Just x) = do
-    x' <- toConcrete (qnameName x)
-    return $ Just x'
+  toConcrete = mapM (toConcrete . qnameName)
 
 instance ToConcrete (Constr A.Constructor) C.Declaration where
   toConcrete (Constr (A.ScopedDecl scope [d])) =

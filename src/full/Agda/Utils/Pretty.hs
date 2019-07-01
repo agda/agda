@@ -125,3 +125,10 @@ pshow = text . show
 
 singPlural :: Sized a => a -> c -> c -> c
 singPlural xs singular plural = if size xs == 1 then singular else plural
+
+-- | Used for with-like 'telescopes'
+
+prefixedThings :: Pretty a => Doc -> [a] -> Doc
+prefixedThings doc es = case es of
+  []       -> P.empty
+  (e : es) -> fsep $ (doc <+> pretty e) : map (("|" <+>) . pretty) es

@@ -262,12 +262,13 @@ makePi bs e = Pi bs e
 -}
 data LHS = LHS
   { lhsOriginalPattern :: Pattern       -- ^ e.g. @f ps | wps@
-  , lhsRewriteEqn      :: [RewriteEqn]  -- ^ @rewrite e@ (many)
+  , lhsRewriteEqn      :: [RewriteEqn]  -- ^ @(rewrite | using) e@ (many)
   , lhsWithExpr        :: [WithExpr]    -- ^ @with e@ (many)
   } -- ^ Original pattern (including with-patterns), rewrite equations and with-expressions.
   deriving (Data, Eq)
 
-type RewriteEqn = Expr
+type RewriteEqn = RewriteEqn' Expr
+
 type WithExpr   = Expr
 
 -- | Processed (operator-parsed) intermediate form of the core @f ps@ of 'LHS'.
@@ -473,8 +474,8 @@ spanAllowedBeforeModule = span isAllowedBeforeModule
 
 -- | Extended content of an interaction hole.
 data HoleContent' e
-  = HoleContentExpr    e   -- ^ @e@
-  | HoleContentRewrite [e] -- ^ @rewrite e0 | ... | en@
+  = HoleContentExpr    e               -- ^ @e@
+  | HoleContentRewrite [RewriteEqn' e] -- ^ @(rewrite | using) e0 | ... | en@
   deriving (Functor, Foldable, Traversable)
 
 type HoleContent = HoleContent' Expr
@@ -661,7 +662,7 @@ instance HasRange Declaration where
   getRange (Pragma p)              = getRange p
 
 instance HasRange LHS where
-  getRange (LHS p eqns ws) = fuseRange p (eqns ++ ws)
+  getRange (LHS p eqns ws) = p `fuseRange` eqns `fuseRange` ws
 
 instance HasRange LHSCore where
   getRange (LHSHead f ps)              = fuseRange f ps

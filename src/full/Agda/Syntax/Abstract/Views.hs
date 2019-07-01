@@ -341,6 +341,9 @@ instance ExprLike RHS where
       RewriteRHS xes spats rhs ds -> RewriteRHS <$> rec xes <*> pure spats <*> rec rhs <*> rec ds
     where rec e = recurseExpr f e
 
+instance ExprLike e => ExprLike (RewriteEqn' e) where
+  recurseExpr f (RewriteEqn t es) = RewriteEqn t <$> recurseExpr f es
+
 instance ExprLike WhereDeclarations where
   recurseExpr f (WhereDecls a b) = WhereDecls a <$> recurseExpr f b
 
