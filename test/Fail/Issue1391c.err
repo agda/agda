@@ -1,5 +1,5 @@
 Issue1391c.agda:5,14-14
-Issue1391c.agda:5,14: expected sequence of possibly hidden bound identifiers
+Issue1391c.agda:5,14: Expected sequence of possibly hidden bound identifiers
 :<ERROR>
  Set) → Set
 ...
