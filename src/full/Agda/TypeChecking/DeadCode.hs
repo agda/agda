@@ -7,6 +7,8 @@ import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Foldable (foldMap, Foldable)
 import Data.Traversable (traverse)
+import Data.HashMap.Strict (HashMap)
+import qualified Data.HashMap.Strict as HMap
 
 import Agda.Syntax.Common
 import Agda.Syntax.Literal
@@ -25,8 +27,6 @@ import Agda.TypeChecking.Monad
 import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Reduce
 
-import Agda.Utils.HashMap (HashMap)
-import qualified Agda.Utils.HashMap as HMap
 import Agda.Utils.Lens
 
 import Agda.Utils.Impossible

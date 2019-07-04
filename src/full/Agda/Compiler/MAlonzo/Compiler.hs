@@ -15,6 +15,7 @@ import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Traversable hiding (for)
 import Data.Monoid hiding ((<>))
+import qualified Data.HashMap.Strict as HMap
 
 import Numeric.IEEE
 
@@ -71,7 +72,6 @@ import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Pretty (prettyShow, Pretty)
 import qualified Agda.Utils.IO.UTF8 as UTF8
-import qualified Agda.Utils.HashMap as HMap
 import Agda.Utils.Singleton
 import Agda.Utils.Size
 import Agda.Utils.String

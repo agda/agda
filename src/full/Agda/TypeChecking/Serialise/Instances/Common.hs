@@ -27,6 +27,8 @@ import qualified Data.Sequence as Seq
 import Data.Text.Lazy (Text)
 import Data.Traversable ( mapM )
 import Data.Typeable
+import Data.HashMap.Strict (HashMap)
+import qualified Data.HashMap.Strict as HMap
 
 import Data.Void
 
@@ -44,8 +46,6 @@ import Agda.TypeChecking.Serialise.Base
 
 import Agda.Utils.BiMap (BiMap)
 import qualified Agda.Utils.BiMap as BiMap
-import Agda.Utils.HashMap (HashMap)
-import qualified Agda.Utils.HashMap as HMap
 import Agda.Utils.FileName
 import Agda.Utils.Maybe
 import Agda.Utils.NonemptyList

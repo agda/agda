@@ -6,6 +6,7 @@ import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
+import qualified Data.HashMap.Strict as HMap
 import Data.Char
 import Data.Function
 import Data.Semigroup
@@ -30,7 +31,6 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 
 import Agda.Utils.FileName
-import qualified Agda.Utils.HashMap as HMap
 import Agda.Utils.Lens
 import Agda.Utils.Maybe
 import Agda.Utils.Monad

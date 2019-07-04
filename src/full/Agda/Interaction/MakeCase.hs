@@ -9,6 +9,7 @@ import Control.Monad hiding (mapM, mapM_, forM)
 import Control.Monad.Reader (asks)
 
 import qualified Data.Map as Map
+import qualified Data.HashMap.Strict as HMap
 import qualified Data.List as List
 import Data.Maybe
 import Data.Traversable
@@ -51,7 +52,6 @@ import Agda.Utils.Null
 import qualified Agda.Utils.Pretty as P
 import Agda.Utils.Singleton
 import Agda.Utils.Size
-import qualified Agda.Utils.HashMap as HMap
 
 import Agda.Utils.Impossible
 

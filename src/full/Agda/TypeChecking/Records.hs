@@ -10,6 +10,7 @@ import Data.Function
 import qualified Data.List as List
 import Data.Maybe
 import qualified Data.Set as Set
+import qualified Data.HashMap.Strict as HMap
 import Data.Traversable (traverse)
 
 import Agda.Syntax.Common
@@ -38,7 +39,6 @@ import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
-import qualified Agda.Utils.HashMap as HMap
 import Agda.Utils.Pretty (prettyShow)
 import Agda.Utils.Size
 

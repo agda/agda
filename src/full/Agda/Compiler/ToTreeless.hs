@@ -10,6 +10,7 @@ import Control.Monad.State
 import Data.Maybe
 import Data.Map (Map)
 import qualified Data.Map as Map
+import qualified Data.HashMap.Strict as HMap
 import Data.Traversable (traverse)
 
 import Agda.Syntax.Common
@@ -37,7 +38,6 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 
 import Agda.Utils.Functor
-import qualified Agda.Utils.HashMap as HMap
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad

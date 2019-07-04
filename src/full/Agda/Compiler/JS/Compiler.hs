@@ -12,6 +12,7 @@ import Data.Traversable (traverse)
 import Data.Map ( fromList, elems )
 import qualified Data.Set as Set
 import qualified Data.Map as Map
+import qualified Data.HashMap.Strict as HMap
 import System.Directory ( createDirectoryIfMissing )
 import System.FilePath ( splitFileName, (</>) )
 
@@ -48,7 +49,6 @@ import Agda.Utils.Pretty (prettyShow)
 import qualified Agda.Utils.Pretty as P
 import Agda.Utils.IO.Directory
 import Agda.Utils.IO.UTF8 ( writeFile )
-import qualified Agda.Utils.HashMap as HMap
 
 import Agda.Compiler.Common
 import Agda.Compiler.ToTreeless

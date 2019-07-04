@@ -23,6 +23,7 @@ import qualified Data.List as List
 import Data.Map (Map)
 import Data.Maybe
 import Data.Monoid hiding ((<>))
+import Data.HashMap.Strict (HashMap)
 
 import Debug.Trace (trace)
 import Language.Haskell.TH.Syntax (thenCmp) -- lexicographic combination of Ordering
@@ -52,7 +53,6 @@ import Agda.Utils.Permutation
 import Agda.Utils.Pretty
 import Agda.Utils.Size
 import Agda.Utils.Tuple
-import Agda.Utils.HashMap (HashMap)
 
 import Agda.Utils.Impossible
 

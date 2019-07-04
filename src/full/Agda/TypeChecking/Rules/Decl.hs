@@ -18,6 +18,7 @@ import qualified Data.Sequence as Seq
 import qualified Data.Set as Set
 import qualified Data.IntSet as IntSet
 import qualified Data.Map as Map
+import qualified Data.HashMap.Strict as HMap
 import Data.Set (Set)
 
 import Agda.Interaction.Options
@@ -77,7 +78,6 @@ import Agda.Termination.TermCheck
 import Agda.Utils.Except
 import Agda.Utils.Functor
 import Agda.Utils.Function
-import qualified Agda.Utils.HashMap as HMap
 import Agda.Utils.Lens
 import Agda.Utils.Maybe
 import Agda.Utils.Monad

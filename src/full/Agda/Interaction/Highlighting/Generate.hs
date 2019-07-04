@@ -32,6 +32,8 @@ import Data.List ((\\), isPrefixOf)
 import qualified Data.List as List
 import qualified Data.Foldable as Fold (fold, foldMap, toList)
 import qualified Data.IntMap as IntMap
+import Data.HashMap.Strict (HashMap)
+import qualified Data.HashMap.Strict as HMap
 import Data.Sequence (Seq)
 import qualified Data.Set as Set
 import qualified Data.Text.Lazy as T
@@ -77,8 +79,6 @@ import Agda.Utils.Maybe
 import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Null
 import Agda.Utils.Pretty
-import Agda.Utils.HashMap (HashMap)
-import qualified Agda.Utils.HashMap as HMap
 
 import Agda.Utils.Impossible
 
