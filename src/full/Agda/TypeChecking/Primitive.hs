@@ -407,7 +407,7 @@ mkPrimInjective a b qn = do
   -- If the user want the primitive to reduce whenever the two values are equal (no
   -- matter whether the equality is refl), they can combine it with @eraseEquality@.
   return $ PrimImpl ty $ primFun __IMPOSSIBLE__ 3 $ \ ts -> do
-    let t  = fromMaybe __IMPOSSIBLE__ $ headMaybe ts
+    let t  = fromMaybe __IMPOSSIBLE__ $ listToMaybe ts
     let eq = unArg $ fromMaybe __IMPOSSIBLE__ $ lastMaybe ts
     eq' <- normalise' eq
     case eq' of
@@ -524,7 +524,7 @@ getReflArgInfo :: ConHead -> TCM (Maybe ArgInfo)
 getReflArgInfo rf = do
   def <- getConInfo rf
   TelV reflTel _ <- telView $ defType def
-  return $ fmap getArgInfo $ headMaybe $ drop (conPars $ theDef def) $ telToList reflTel
+  return $ fmap getArgInfo $ listToMaybe $ drop (conPars $ theDef def) $ telToList reflTel
 
 
 -- | Used for both @primForce@ and @primForceLemma@.

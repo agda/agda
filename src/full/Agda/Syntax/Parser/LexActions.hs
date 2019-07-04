@@ -19,6 +19,7 @@ module Agda.Syntax.Parser.LexActions
     ) where
 
 import Data.Char
+import Data.Maybe
 
 import Agda.Syntax.Parser.Lexer
 import Agda.Syntax.Parser.Alex
@@ -73,7 +74,7 @@ lexToken =
             AlexToken inp' len action   -> fmap postToken $ action inp inp' len
             AlexError i                 -> parseError $ concat
               [ "Lexical error"
-              , case headMaybe $ lexInput i of
+              , case listToMaybe $ lexInput i of
                   Just '\t'                -> " (you may want to replace tabs with spaces)"
                   Just c | not (isPrint c) -> " (unprintable character)"
                   _ -> ""

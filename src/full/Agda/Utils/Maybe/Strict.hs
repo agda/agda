@@ -1,3 +1,5 @@
+-- Liang-Ting Chen (04-07-2019):
+-- Consider using Data.Maybe.Strict instead
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE DeriveGeneric      #-}
 

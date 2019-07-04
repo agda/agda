@@ -821,7 +821,7 @@ disambiguateConstructor cs0 t = do
   case cons of
     []    -> typeError $ AbstractConstructorNotInScope $ headNe cs0
     [con] -> do
-      let c = setConName (fromMaybe __IMPOSSIBLE__ $ headMaybe cs) con
+      let c = setConName (fromMaybe __IMPOSSIBLE__ $ listToMaybe cs) con
       reportSLn "tc.check.term.con" 40 $ "  only one non-abstract constructor: " ++ prettyShow c
       storeDisambiguatedName $ conName c
       return (Right c)
@@ -829,7 +829,7 @@ disambiguateConstructor cs0 t = do
       dcs <- zipWithM (\ c con -> (, setConName c con) . getData . theDef <$> getConInfo con) cs cons
       -- Type error
       let badCon t = typeError $ flip DoesNotConstructAnElementOf t $
-            fromMaybe __IMPOSSIBLE__ $ headMaybe cs
+            fromMaybe __IMPOSSIBLE__ $ listToMaybe cs
       -- Lets look at the target type at this point
       let getCon :: TCM (Maybe ConHead)
           getCon = do

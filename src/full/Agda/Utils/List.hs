@@ -38,16 +38,12 @@ listCase :: b -> (a -> [a] -> b) -> [a] -> b
 listCase n c []     = n
 listCase n c (x:xs) = c x xs
 
--- | Head function (safe).
-headMaybe :: [a] -> Maybe a
-headMaybe = listToMaybe
-
 -- | Head function (safe). Returns a default value on empty lists.
 --
 -- > headWithDefault 42 []      = 42
 -- > headWithDefault 42 [1,2,3] = 1
 headWithDefault :: a -> [a] -> a
-headWithDefault def = fromMaybe def . headMaybe
+headWithDefault def = fromMaybe def . listToMaybe
 
 -- | Tail function (safe).
 tailMaybe :: [a] -> Maybe [a]
@@ -117,7 +113,7 @@ indexWithDefault a (_ : xs) n = indexWithDefault a xs (n - 1)
 -- | Find an element satisfying a predicate and return it with its index.
 --   TODO: more efficient implementation!?
 findWithIndex :: (a -> Bool) -> [a] -> Maybe (a, Int)
-findWithIndex p as = headMaybe $ filter (p . fst) $ zip as [0..]
+findWithIndex p as = listToMaybe $ filter (p . fst) $ zip as [0..]
 
 -- | downFrom n = [n-1,..1,0]
 downFrom :: Integral a => a -> [a]

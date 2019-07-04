@@ -90,7 +90,6 @@ import qualified Data.Tree as Tree
 
 import Agda.Utils.Function
 import Agda.Utils.Functor
-import Agda.Utils.List (headMaybe)
 import Agda.Utils.Null (Null(null))
 import qualified Agda.Utils.Null as Null
 import Agda.Utils.Pretty

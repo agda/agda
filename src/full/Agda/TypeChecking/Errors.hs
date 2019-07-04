@@ -444,7 +444,7 @@ instance PrettyTCM TypeError where
         reportSLn "scope.class.error" 30 $ "filtered candidates = " ++ prettyShow xms
 
         -- If we found a copy of x with non-empty range, great!
-        ifJust (headMaybe xms) (\ (x', m) -> return (getRange x', m)) $ {-else-} do
+        ifJust (listToMaybe xms) (\ (x', m) -> return (getRange x', m)) $ {-else-} do
 
         -- If that failed, we pick the first m from ms which has a nameBindingSite.
         let rms = ms >>= \ m -> map (,m) $
@@ -454,7 +454,7 @@ instance PrettyTCM TypeError where
         reportSLn "scope.class.error" 30 $ "rangeful clashing modules = " ++ prettyShow rms
 
         -- If even this fails, we pick the first m and give no range.
-        return $ fromMaybe (noRange, m0) $ headMaybe rms
+        return $ fromMaybe (noRange, m0) $ listToMaybe rms
 
       fsep $
         pwords "Duplicate definition of module" ++ [prettyTCM x <> "."] ++
