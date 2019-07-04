@@ -6,6 +6,7 @@
 
 module Agda.Syntax.Concrete.Generic where
 
+import Data.Bifunctor
 import Data.Traversable
 import Data.Monoid
 import Data.Foldable
@@ -72,7 +73,7 @@ instance ExprLike a => ExprLike (MaybePlaceholder a) where
   foldExpr     = foldMap  . foldExpr
 
 instance (ExprLike a, ExprLike b) => ExprLike (Either a b) where
-  mapExpr f      = mapEither (mapExpr f) (mapExpr f)
+  mapExpr f      = bimap (mapExpr f) (mapExpr f)
   traverseExpr f = traverseEither (traverseExpr f) (traverseExpr f)
   foldExpr f     = either (foldExpr f) (foldExpr f)
 
