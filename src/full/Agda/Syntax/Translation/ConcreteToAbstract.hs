@@ -51,7 +51,7 @@ import Agda.Syntax.Concrete.Definitions as C
 import Agda.Syntax.Fixity
 import Agda.Syntax.Concrete.Fixity (DoWarn(..))
 import Agda.Syntax.Notation
-import Agda.Syntax.Scope.Base
+import Agda.Syntax.Scope.Base as A
 import Agda.Syntax.Scope.Monad
 import Agda.Syntax.Translation.AbstractToConcrete (ToConcrete)
 import Agda.Syntax.DoNotation
@@ -193,7 +193,7 @@ recordConstructorType decls =
 
         C.NiceField r pr ab inst x a -> do
           fx  <- getConcreteFixity x
-          let bv = unnamed (C.mkBoundName x fx) <$ a
+          let bv = unnamed (C.mkBinder $ C.mkBoundName x fx) <$ a
           tel <- toAbstract $ C.TBind r [bv] (unArg a)
           return tel
 
@@ -494,7 +494,7 @@ instance ToAbstract c a => ToAbstract (Maybe c) (Maybe a) where
 -- Names ------------------------------------------------------------------
 
 data NewName a = NewName
-  { newBinder   :: Binder -- what kind of binder?
+  { newBinder   :: A.Binder -- what kind of binder?
   , newName     :: a
   }
 

@@ -37,6 +37,7 @@ deriving instance Show Expr
 deriving instance (Show a) => Show (OpApp a)
 deriving instance Show Declaration
 deriving instance Show Pattern
+deriving instance Show Binder
 deriving instance Show TypedBinding
 deriving instance Show LamBinding
 deriving instance Show BoundName
@@ -297,25 +298,37 @@ instance Pretty LamClause where
 instance Pretty BoundName where
   pretty BName{ boundName = x } = pretty x
 
-data NamedBinding = NamedBinding { withHiding   :: Bool
-                                 , namedBinding :: NamedArg BoundName }
+data NamedBinding = NamedBinding
+  { withHiding   :: Bool
+  , namedBinding :: NamedArg Binder
+  }
 
 getLabel :: NamedArg a -> Maybe String
 getLabel = fmap rangedThing . nameOf . unArg
 
-isLabeled :: NamedArg BoundName -> Bool
+isLabeled :: NamedArg Binder -> Bool
 isLabeled x
   | visible x            = False  -- Ignore labels on visible arguments
-  | Just l <- getLabel x = l /= nameToRawName (boundName $ namedArg x)
+  | Just l <- getLabel x = l /= nameToRawName (boundName $ binderName $ namedArg x)
   | otherwise            = False
+
+instance Pretty Binder where
+  pretty (Binder mpat n) = let d = pretty n in case mpat of
+    Nothing  -> d
+    Just pat -> d <+> "@" <+> parens (pretty pat)
 
 instance Pretty NamedBinding where
   pretty (NamedBinding withH x) =
-    prH $ if | isLabeled x -> text (fromMaybe __IMPOSSIBLE__ $ getLabel x) <+> "=" <+> pretty (namedArg x)
-             | otherwise   -> pretty (namedArg x)
+    prH $ if isLabeled x
+          then text (fromMaybe __IMPOSSIBLE__ $ getLabel x) <+> "=" <+> pretty (namedArg x)
+          else pretty (namedArg x)
     where
-      prH | withH     = prettyRelevance x . prettyHiding x id . prettyQuantity x . prettyTactic (namedArg x)
-          | otherwise = id
+
+    prH | withH     = prettyRelevance x
+                    . prettyHiding x id
+                    . prettyQuantity x
+                    . prettyTactic (binderName $ namedArg x)
+        | otherwise = id
 
 instance Pretty LamBinding where
     pretty (DomainFree x) = pretty (NamedBinding True x)
@@ -326,7 +339,10 @@ instance Pretty TypedBinding where
     pretty (TBind _ xs (Underscore _ Nothing)) =
       fsep (map (pretty . NamedBinding True) xs)
     pretty (TBind _ xs e) = fsep
-      [ prettyRelevance y $ prettyHiding y parens $ prettyQuantity y $ prettyTactic (namedArg y) $
+      [ prettyRelevance y
+        $ prettyHiding y parens
+        $ prettyQuantity y
+        $ prettyTactic (binderName $ namedArg y) $
         sep [ fsep (map (pretty . NamedBinding False) ys)
             , ":" <+> pretty e ]
       | ys@(y : _) <- groupBinds xs ]

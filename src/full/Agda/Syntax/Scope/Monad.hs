@@ -30,7 +30,7 @@ import Agda.Syntax.Abstract (ScopeCopyInfo(..), initCopyInfo)
 import Agda.Syntax.Concrete as C
 import Agda.Syntax.Concrete.Fixity
 import Agda.Syntax.Concrete.Definitions (DeclarationWarning(..)) -- TODO: move the relevant warnings out of there
-import Agda.Syntax.Scope.Base
+import Agda.Syntax.Scope.Base as A
 
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Debug
@@ -359,9 +359,9 @@ getNotation x ns = do
 
 -- | Bind a variable.
 bindVariable
-  :: Binder  -- ^ @λ@, @Π@, @let@, ...?
-  -> C.Name  -- ^ Concrete name.
-  -> A.Name  -- ^ Abstract name.
+  :: A.Binder -- ^ @λ@, @Π@, @let@, ...?
+  -> C.Name   -- ^ Concrete name.
+  -> A.Name   -- ^ Abstract name.
   -> ScopeM ()
 bindVariable b x y = modifyLocalVars $ AssocList.insert x $ LocalVar y b []
 

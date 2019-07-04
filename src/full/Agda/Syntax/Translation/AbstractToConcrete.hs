@@ -867,7 +867,7 @@ instance ToConcrete A.LamBinding C.LamBinding where
     bindToConcrete (A.DomainFree t x) ret = do
       t <- traverse toConcrete t
       let setTac x = x { bnameTactic = t }
-      bindToConcrete (forceNameIfHidden x) $ ret . C.DomainFree . (fmap . fmap) setTac
+      bindToConcrete (forceNameIfHidden x) $ ret . C.DomainFree . updateNamedArg (mkBinder . setTac)
     bindToConcrete (A.DomainFull b) ret = bindToConcrete b $ ret . C.DomainFull
 
 instance ToConcrete A.TypedBinding C.TypedBinding where
@@ -876,7 +876,7 @@ instance ToConcrete A.TypedBinding C.TypedBinding where
         bindToConcrete (map forceNameIfHidden xs) $ \ xs -> do
           e <- toConcreteTop e
           let setTac x = x { bnameTactic = t }
-          ret $ C.TBind r ((map . fmap . fmap) setTac xs) e
+          ret $ C.TBind r ((map . updateNamedArg) (mkBinder . setTac) xs) e
     bindToConcrete (A.TLet r lbs) ret =
         bindToConcrete lbs $ \ ds -> do
         ret $ C.TLet r $ concat ds
@@ -1246,9 +1246,9 @@ instance ToConcrete BindingPattern A.Pattern where
       A.LitP{}               -> ret p
       A.DotP{}               -> ret p
       A.EqualP{}             -> ret p
-      A.ConP i c args        -> bindToConcrete ((map . fmap . fmap) BindingPat args) $ ret . A.ConP i c
-      A.DefP i f args        -> bindToConcrete ((map . fmap . fmap) BindingPat args) $ ret . A.DefP i f
-      A.PatternSynP i f args -> bindToConcrete ((map . fmap . fmap) BindingPat args) $ ret . A.PatternSynP i f
+      A.ConP i c args        -> bindToConcrete (map (updateNamedArg BindingPat) args) $ ret . A.ConP i c
+      A.DefP i f args        -> bindToConcrete (map (updateNamedArg BindingPat) args) $ ret . A.DefP i f
+      A.PatternSynP i f args -> bindToConcrete (map (updateNamedArg BindingPat) args) $ ret . A.PatternSynP i f
       A.RecP i args          -> bindToConcrete ((map . fmap)        BindingPat args) $ ret . A.RecP i
       A.AsP i x p            -> bindToConcrete (FreshenName x) $ \ x ->
                                 bindToConcrete (BindingPat p)  $ \ p ->

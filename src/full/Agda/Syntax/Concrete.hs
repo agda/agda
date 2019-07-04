@@ -13,6 +13,10 @@ module Agda.Syntax.Concrete
   , appView, AppView(..)
   , isSingleIdentifierP, removeSingletonRawAppP
     -- * Bindings
+  , Binder'(..)
+  , Binder
+  , mkBinder_
+  , mkBinder
   , LamBinding
   , LamBinding'(..)
   , TypedBinding
@@ -200,10 +204,27 @@ data DoStmt
   deriving (Data, Eq)
 
 -- | A lambda binding is either domain free or typed.
+
+-- A Binder @x\@p@, the pattern is optional
+data Binder' a = Binder
+  { binderPattern :: Maybe Pattern
+  , binderName    :: a
+  } deriving (Data, Eq, Functor, Foldable, Traversable)
+
+type Binder = Binder' BoundName
+
+mkBinder_ :: Name -> Binder
+mkBinder_ = mkBinder . mkBoundName_
+
+mkBinder :: a -> Binder' a
+mkBinder = Binder Nothing
+
 type LamBinding = LamBinding' TypedBinding
 data LamBinding' a
-  = DomainFree (NamedArg BoundName) -- ^ . @x@ or @{x}@ or @.x@ or @.{x}@ or @{.x}@
-  | DomainFull a                    -- ^ . @(xs : e)@ or @{xs : e}@
+  = DomainFree (NamedArg Binder)
+    -- ^ . @x@ or @{x}@ or @.x@ or @.{x}@ or @{.x}@ or @x\@p@ or @(p)@
+  | DomainFull a
+    -- ^ . @(xs : e)@ or @{xs : e}@
   deriving (Data, Functor, Foldable, Traversable, Eq)
 
 data BoundName = BName
@@ -224,8 +245,10 @@ mkBoundName x f = BName x f Nothing
 type TypedBinding = TypedBinding' Expr
 
 data TypedBinding' e
-  = TBind Range [NamedArg BoundName] e  -- ^ Binding @(x1 ... xn : A)@.
-  | TLet  Range [Declaration]           -- ^ Let binding @(let Ds)@ or @(open M args)@.
+  = TBind Range [NamedArg Binder] e
+    -- ^ Binding @(x1\@p1 ... xn\@pn : A)@.
+  | TLet  Range [Declaration]
+    -- ^ Let binding @(let Ds)@ or @(open M args)@.
   deriving (Data, Functor, Foldable, Traversable, Eq)
 
 -- | A telescope is a sequence of typed bindings. Bound variables are in scope
@@ -605,6 +628,9 @@ instance HasRange Expr where
 --     getRange (TeleBind bs) = getRange bs
 --     getRange (TeleFun x y) = fuseRange x y
 
+instance HasRange Binder where
+  getRange (Binder a b) = fuseRange a b
+
 instance HasRange TypedBinding where
   getRange (TBind r _ _) = r
   getRange (TLet r _)    = r
@@ -759,6 +785,9 @@ instance KillRange ModuleAssignment where
 
 instance KillRange AsName where
   killRange (AsName n _) = killRange1 (flip AsName noRange) n
+
+instance KillRange Binder where
+  killRange (Binder a b) = killRange2 Binder a b
 
 instance KillRange BoundName where
   killRange (BName n f t) = killRange3 BName n f t
@@ -1073,6 +1102,9 @@ instance NFData LamClause where
 instance NFData a => NFData (LamBinding' a) where
   rnf (DomainFree a) = rnf a
   rnf (DomainFull a) = rnf a
+
+instance NFData Binder where
+  rnf (Binder a b) = rnf a `seq` rnf b
 
 instance NFData BoundName where
   rnf (BName a b c) = rnf a `seq` rnf b `seq` rnf c
