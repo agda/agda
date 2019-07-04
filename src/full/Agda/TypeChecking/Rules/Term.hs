@@ -273,7 +273,7 @@ checkTelescope' lamOrPi (b : tel) ret =
 
 checkTypedBindings :: LamOrPi -> A.TypedBinding -> (Telescope -> TCM a) -> TCM a
 checkTypedBindings lamOrPi (A.TBind r tac xs' e) ret = do
-    let xs = (map . fmap . fmap) A.unBind xs'
+    let xs = map (updateArgNamed (fmap A.unBind)) xs'
     tac <- traverse (checkTacticAttribute lamOrPi) tac
     whenJust tac $ \ t -> reportSDoc "tc.term.tactic" 30 $ "Checked tactic attribute:" <?> prettyTCM t
     -- Andreas, 2011-04-26 irrelevant function arguments may appear

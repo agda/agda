@@ -24,7 +24,7 @@ import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Generic
 import Agda.Syntax.Literal
 import Agda.Syntax.Scope.Monad (bindVariable)
-import Agda.Syntax.Scope.Base (Binder(..))
+import Agda.Syntax.Scope.Base (BindingSource(..))
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Abstract
 import Agda.TypeChecking.Constraints

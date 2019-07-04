@@ -203,9 +203,7 @@ data DoStmt
   | DoLet Range [Declaration]
   deriving (Data, Eq)
 
--- | A lambda binding is either domain free or typed.
-
--- A Binder @x\@p@, the pattern is optional
+-- | A Binder @x\@p@, the pattern is optional
 data Binder' a = Binder
   { binderPattern :: Maybe Pattern
   , binderName    :: a
@@ -218,6 +216,8 @@ mkBinder_ = mkBinder . mkBoundName_
 
 mkBinder :: a -> Binder' a
 mkBinder = Binder Nothing
+
+-- | A lambda binding is either domain free or typed.
 
 type LamBinding = LamBinding' TypedBinding
 data LamBinding' a

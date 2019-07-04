@@ -359,9 +359,9 @@ getNotation x ns = do
 
 -- | Bind a variable.
 bindVariable
-  :: A.Binder -- ^ @λ@, @Π@, @let@, ...?
-  -> C.Name   -- ^ Concrete name.
-  -> A.Name   -- ^ Abstract name.
+  :: A.BindingSource -- ^ @λ@, @Π@, @let@, ...?
+  -> C.Name          -- ^ Concrete name.
+  -> A.Name          -- ^ Abstract name.
   -> ScopeM ()
 bindVariable b x y = modifyLocalVars $ AssocList.insert x $ LocalVar y b []
 

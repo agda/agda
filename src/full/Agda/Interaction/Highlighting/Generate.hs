@@ -323,11 +323,12 @@ generateAndPrintSyntaxInfo decl hlLevel updateState = do
     getLet (A.LetDeclaredVariable x) = bound x
 
     getLam :: A.LamBinding -> File
-    getLam (A.DomainFree _ x) = bound $ Common.namedArg x
+    getLam (A.DomainFree _ x) = bound $ A.binderName $ Common.namedArg x
     getLam (A.DomainFull {})  = mempty
 
     getTyped :: A.TypedBinding -> File
-    getTyped (A.TBind _ _ xs _) = mconcat $ map (bound . Common.namedArg) xs
+    getTyped (A.TBind _ _ xs _) =
+      mconcat $ map (bound . A.binderName . Common.namedArg) xs
     getTyped A.TLet{}           = mempty
 
     getPatSynArgs :: A.Declaration -> File

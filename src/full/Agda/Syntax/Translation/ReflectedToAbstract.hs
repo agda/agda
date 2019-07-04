@@ -93,7 +93,7 @@ instance ToAbstract [Arg Term] [NamedArg Expr] where
 instance ToAbstract r Expr => ToAbstract (Dom r, Name) (A.TypedBinding) where
   toAbstract (Dom{domInfo = i,unDom = x, domTactic = tac}, name) = do
     dom <- toAbstract x
-    return $ mkTBind noRange [unnamedArg i $ mkBindName name] dom
+    return $ mkTBind noRange [unnamedArg i $ mkBinder_ name] dom
 
 instance ToAbstract (Expr, Elim) Expr where
   toAbstract (f, Apply arg) = do
@@ -130,7 +130,7 @@ instance ToAbstract Term Expr where
     R.Lam h t  -> do
       (e, name) <- toAbstract t
       let info  = setHiding h $ setOrigin Reflected defaultArgInfo
-      return $ A.Lam exprNoRange (mkDomainFree $ unnamedArg info $ mkBindName name) e
+      return $ A.Lam exprNoRange (mkDomainFree $ unnamedArg info $ mkBinder_ name) e
     R.ExtLam cs es -> do
       name <- freshName_ extendedLambdaName
       m    <- getCurrentModule

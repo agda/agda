@@ -494,7 +494,7 @@ instance ToAbstract c a => ToAbstract (Maybe c) (Maybe a) where
 -- Names ------------------------------------------------------------------
 
 data NewName a = NewName
-  { newBinder   :: A.Binder -- what kind of binder?
+  { newBinder   :: A.BindingSource -- what kind of binder?
   , newName     :: a
   }
 
