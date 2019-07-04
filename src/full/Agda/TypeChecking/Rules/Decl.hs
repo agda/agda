@@ -566,8 +566,8 @@ checkAxiom' gentel funSig i info0 mp x e = whenAbstractFreezeMetasAfter i $ do
   -- Andreas, 2019-06-17  also for erasure (issue #3855).
   rel <- max (getRelevance info0) <$> asksTC getRelevance
   q   <- asksTC getQuantity <&> \case
-    Quantity0 -> Quantity0
-    _         -> getQuantity info0
+    q@Quantity0{} -> q
+    _ -> getQuantity info0
   let mod  = Modality rel q
   let info = setModality mod info0
   (genParams, npars, t) <- workOnTypes $ case gentel of

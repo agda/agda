@@ -1,3 +1,4 @@
-Erasure-Lambda-Wrong-Attribute.agda:7,34-35
-Variable y is declared erased, so it cannot be used here
-when checking that the expression y has type _B_7
+Erasure-Lambda-Wrong-Attribute.agda:7,23-35
+Incorrect quantity annotation in lambda
+when checking that the expression λ (@ω y) → y has type
+@0 _A_6 → _B_7

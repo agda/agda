@@ -7,11 +7,13 @@
 -}
 module Agda.Syntax.Common where
 
+import Prelude hiding (null)
+
 import Control.DeepSeq
 
 import Data.ByteString.Char8 (ByteString)
 import qualified Data.ByteString.Char8 as ByteString
-import Data.Foldable
+import Data.Foldable hiding (null)
 import Data.Hashable (Hashable(..))
 import qualified Data.Strict.Maybe as Strict
 import Data.Semigroup hiding (Arg)
@@ -27,6 +29,7 @@ import Agda.Syntax.Position
 
 import Agda.Utils.Functor
 import Agda.Utils.Lens
+import Agda.Utils.Null
 import Agda.Utils.PartialOrd
 import Agda.Utils.POMonoid
 import Agda.Utils.Pretty
@@ -337,6 +340,11 @@ zeroModality = Modality zeroRelevance zeroQuantity
 topModality :: Modality
 topModality = Modality topRelevance topQuantity
 
+-- | Equality ignoring origin.
+
+sameModality :: Modality -> Modality -> Bool
+sameModality (Modality r q) (Modality r' q') = sameRelevance r r' && sameQuantity q q'
+
 -- boilerplate instances
 
 instance KillRange Modality where
@@ -408,6 +416,157 @@ mapQuantityMod = mapModality . mapQuantity
 -- * Quantities
 ---------------------------------------------------------------------------
 
+-- ** Quantity origin.
+
+-- | Origin of 'Quantity0'.
+data Q0Origin
+  = Q0Inferred       -- ^ User wrote nothing.
+  | Q0       Range   -- ^ User wrote "@0".
+  | Q0Erased Range   -- ^ User wrote "@erased".
+  deriving (Data, Show, Generic, Eq, Ord)
+
+-- | Origin of 'Quantity1'.
+data Q1Origin
+  = Q1Inferred       -- ^ User wrote nothing.
+  | Q1       Range   -- ^ User wrote "@1".
+  | Q1Linear Range   -- ^ User wrote "@linear".
+  deriving (Data, Show, Generic, Eq, Ord)
+
+-- | Origin of 'Quantityω'.
+data QωOrigin
+  = QωInferred       -- ^ User wrote nothing.
+  | Qω       Range   -- ^ User wrote "@ω".
+  | QωPlenty Range   -- ^ User wrote "@plenty".
+  deriving (Data, Show, Generic, Eq, Ord)
+
+-- *** Instances for 'Q0Origin'.
+
+-- | Right-biased composition, because the left quantity
+--   acts as context, and the right one as occurrence.
+instance Semigroup Q0Origin where
+  (<>) = curry $ \case
+    (Q0Inferred, o) -> o
+    (o, Q0Inferred) -> o
+    (o, Q0       r) -> Q0 $ fuseRange o r
+    (o, Q0Erased r) -> Q0 $ fuseRange o r
+
+instance Monoid Q0Origin where
+  mempty = Q0Inferred
+  mappend = (<>)
+
+instance Null Q0Origin where
+  empty = mempty
+
+instance HasRange Q0Origin where
+  getRange = \case
+    Q0Inferred -> noRange
+    Q0       r -> r
+    Q0Erased r -> r
+
+instance SetRange Q0Origin where
+  setRange r = \case
+    Q0Inferred -> Q0Inferred
+    Q0       _ -> Q0       r
+    Q0Erased _ -> Q0Erased r
+
+instance KillRange Q0Origin where
+  killRange = \case
+    Q0Inferred -> Q0Inferred
+    Q0       _ -> Q0       noRange
+    Q0Erased _ -> Q0Erased noRange
+
+instance NFData Q0Origin where
+  rnf = \case
+    Q0Inferred -> ()
+    Q0       _ -> ()
+    Q0Erased _ -> ()
+
+-- *** Instances for 'Q1Origin'.
+
+-- | Right-biased composition, because the left quantity
+--   acts as context, and the right one as occurrence.
+instance Semigroup Q1Origin where
+  (<>) = curry $ \case
+    (Q1Inferred, o) -> o
+    (o, Q1Inferred) -> o
+    (o, Q1       r) -> Q1 $ fuseRange o r
+    (o, Q1Linear r) -> Q1 $ fuseRange o r
+
+instance Monoid Q1Origin where
+  mempty = Q1Inferred
+  mappend = (<>)
+
+instance Null Q1Origin where
+  empty = mempty
+
+instance HasRange Q1Origin where
+  getRange = \case
+    Q1Inferred -> noRange
+    Q1       r -> r
+    Q1Linear r -> r
+
+instance SetRange Q1Origin where
+  setRange r = \case
+    Q1Inferred -> Q1Inferred
+    Q1       _ -> Q1       r
+    Q1Linear _ -> Q1Linear r
+
+instance KillRange Q1Origin where
+  killRange = \case
+    Q1Inferred -> Q1Inferred
+    Q1       _ -> Q1       noRange
+    Q1Linear _ -> Q1Linear noRange
+
+instance NFData Q1Origin where
+  rnf = \case
+    Q1Inferred -> ()
+    Q1       _ -> ()
+    Q1Linear _ -> ()
+
+-- *** Instances for 'QωOrigin'.
+
+-- | Right-biased composition, because the left quantity
+--   acts as context, and the right one as occurrence.
+instance Semigroup QωOrigin where
+  (<>) = curry $ \case
+    (QωInferred, o) -> o
+    (o, QωInferred) -> o
+    (o, Qω       r) -> Qω $ fuseRange o r
+    (o, QωPlenty r) -> Qω $ fuseRange o r
+
+instance Monoid QωOrigin where
+  mempty = QωInferred
+  mappend = (<>)
+
+instance Null QωOrigin where
+  empty = mempty
+
+instance HasRange QωOrigin where
+  getRange = \case
+    QωInferred -> noRange
+    Qω       r -> r
+    QωPlenty r -> r
+
+instance SetRange QωOrigin where
+  setRange r = \case
+    QωInferred -> QωInferred
+    Qω       _ -> Qω       r
+    QωPlenty _ -> QωPlenty r
+
+instance KillRange QωOrigin where
+  killRange = \case
+    QωInferred -> QωInferred
+    Qω       _ -> Qω       noRange
+    QωPlenty _ -> QωPlenty noRange
+
+instance NFData QωOrigin where
+  rnf = \case
+    QωInferred -> ()
+    Qω       _ -> ()
+    QωPlenty _ -> ()
+
+-- ** Quantity.
+
 -- | Quantity for linearity.
 --
 --   A quantity is a set of natural numbers, indicating possible semantic
@@ -415,42 +574,52 @@ mapQuantityMod = mapModality . mapQuantity
 --   corresponding variable is used exactly @n@ times.
 --
 data Quantity
-  = Quantity0  -- ^ Zero uses @{0}@, erased at runtime.
-  | Quantity1  -- ^ Linear use @{1}@ (could be updated destructively).
+  = Quantity0 Q0Origin -- ^ Zero uses @{0}@, erased at runtime.
+  | Quantity1 Q1Origin -- ^ Linear use @{1}@ (could be updated destructively).
     -- Mostly TODO (needs postponable constraints between quantities to compute uses).
-  | Quantityω  -- ^ Unrestricted use @ℕ@.
-  deriving (Data, Show, Generic, Eq, Enum, Bounded, Ord)
+  | Quantityω QωOrigin -- ^ Unrestricted use @ℕ@.
+  deriving (Data, Show, Generic, Eq, Ord)
     -- @Ord@ instance in case @Quantity@ is used in keys for maps etc.
 
 defaultQuantity :: Quantity
-defaultQuantity = Quantityω
+defaultQuantity = topQuantity
+
+-- | Equality ignoring origin.
+
+sameQuantity :: Quantity -> Quantity -> Bool
+sameQuantity = curry $ \case
+  (Quantity0{}, Quantity0{}) -> True
+  (Quantity1{}, Quantity1{}) -> True
+  (Quantityω{}, Quantityω{}) -> True
+  _ -> False
 
 -- | Composition of quantities (multiplication).
 --
 -- 'Quantity0' is dominant.
 -- 'Quantity1' is neutral.
 --
+-- Right-biased for origin.
+--
 instance Semigroup Quantity where
-  Quantity1 <> q = q
-  q <> Quantity1 = q
-  Quantity0 <> _ = Quantity0
-  _ <> Quantity0 = Quantity0
-  Quantityω <> _ = Quantityω
-  -- _ <> Quantityω = Quantityω  -- redundant
+  Quantity1{} <> q = q           -- right-bias!
+  q <> Quantity1{} = q
+  _ <> Quantity0 o = Quantity0 o -- right-bias!
+  Quantity0 o <> _ = Quantity0 o
+  _omega <> qomega = qomega      -- right-bias!
 
 -- | In the absense of finite quantities besides 0, ω is the unit.
 --   Otherwise, 1 is the unit.
 instance Monoid Quantity where
-  mempty  = Quantity1
+  mempty  = Quantity1 mempty
   mappend = (<>)
 
 -- | Note that the order is @ω ≤ 0,1@, more options is smaller.
 instance PartialOrd Quantity where
   comparable = curry $ \case
-    (q, q') | q == q' -> POEQ
+    (q, q') | sameQuantity q q' -> POEQ
     -- ω is least
-    (Quantityω, _)    -> POLT
-    (_, Quantityω)    -> POGT
+    (Quantityω{}, _)  -> POLT
+    (_, Quantityω{})  -> POGT
     -- others are uncomparable
     _ -> POAny
 
@@ -464,20 +633,20 @@ instance LeftClosedPOMonoid Quantity where
 addQuantity :: Quantity -> Quantity -> Quantity
 addQuantity = curry $ \case
   -- ω is absorptive
-  (Quantityω, _) -> Quantityω
-  (_, Quantityω) -> Quantityω
+  (q@Quantityω{}, _) -> q
+  (_, q@Quantityω{}) -> q
   -- 0 is neutral
-  (Quantity0, q) -> q
-  (q, Quantity0) -> q
+  (Quantity0{}, q) -> q
+  (q, Quantity0{}) -> q
   -- 1 + 1 = ω
-  (Quantity1, Quantity1) -> Quantityω
+  (Quantity1 _, Quantity1 _) -> topQuantity
 
 zeroQuantity :: Quantity
-zeroQuantity = Quantity0
+zeroQuantity = Quantity0 mempty
 
 -- | Absorptive element is ω.
 topQuantity :: Quantity
-topQuantity = Quantityω
+topQuantity = Quantityω mempty
 
 -- | @m `moreUsableQuantity` m'@ means that an @m@ can be used
 --   where ever an @m'@ is required.
@@ -485,17 +654,13 @@ topQuantity = Quantityω
 moreQuantity :: Quantity -> Quantity -> Bool
 moreQuantity m m' = related m POLE m'
 
--- | A thing of quantity 0 is unusable, all others are usable.
-
-usableQuantity :: LensQuantity a => a -> Bool
-usableQuantity a = getQuantity a /= Quantity0
-
 composeQuantity :: Quantity -> Quantity -> Quantity
 composeQuantity = (<>)
 
 -- | Compose with quantity flag from the left.
 --   This function is e.g. used to update the quantity information
 --   on pattern variables @a@ after a match against something of quantity @q@.
+
 applyQuantity :: LensQuantity a => Quantity -> a -> a
 applyQuantity q = mapQuantity (q `composeQuantity`)
 
@@ -504,19 +669,53 @@ applyQuantity q = mapQuantity (q `composeQuantity`)
 --   @x \`moreQuantity\` (r \`composeQuantity\` y)@
 --   iff
 --   @(r \`inverseComposeQuantity\` x) \`moreQuantity\` y@ (Galois connection).
+
 inverseComposeQuantity :: Quantity -> Quantity -> Quantity
-inverseComposeQuantity q x =
-  case (q, x) of
-    (Quantity1 , x)          -> x          -- going to linear arg: nothing changes
-    (Quantity0 , x)          -> Quantityω  -- going to erased arg: every thing usable
-    (Quantityω , Quantityω)  -> Quantityω
-    (Quantityω , _)          -> Quantity0  -- linear resources are unusable as arguments to unrestricted functions
+inverseComposeQuantity = curry $ \case
+    (Quantity1{} , x)              -> x             -- going to linear arg: nothing changes
+    (Quantity0{} , x)              -> topQuantity   -- going to erased arg: every thing usable
+    (Quantityω{} , x@Quantityω{})  -> x
+    (Quantityω{} , _)              -> zeroQuantity  -- linear resources are unusable as arguments to unrestricted functions
 
 -- | Left division by a 'Quantity'.
 --   Used e.g. to modify context when going into a @q@ argument.
+
 inverseApplyQuantity :: LensQuantity a => Quantity -> a -> a
 inverseApplyQuantity q = mapQuantity (q `inverseComposeQuantity`)
 
+-- | Check for 'Quantity0'.
+
+hasQuantity0 :: LensQuantity a => a -> Bool
+hasQuantity0 a
+  | Quantity0{} <- getQuantity a = True
+  | otherwise = False
+
+-- | Check for 'Quantity1'.
+
+hasQuantity1 :: LensQuantity a => a -> Bool
+hasQuantity1 a
+  | Quantity1{} <- getQuantity a = True
+  | otherwise = False
+
+-- | Check for 'Quantityω'.
+
+hasQuantityω :: LensQuantity a => a -> Bool
+hasQuantityω a
+  | Quantityω{} <- getQuantity a = True
+  | otherwise = False
+
+-- | Did the user supply a quantity annotation?
+
+noUserQuantity :: LensQuantity a => a -> Bool
+noUserQuantity a = case getQuantity a of
+  Quantity0 o -> null o
+  Quantity1 o -> null o
+  Quantityω o -> null o
+
+-- | A thing of quantity 0 is unusable, all others are usable.
+
+usableQuantity :: LensQuantity a => a -> Bool
+usableQuantity = not . hasQuantity0
 
 -- boilerplate instances
 
@@ -540,13 +739,28 @@ instance LensQuantity Quantity where
   setQuantity = const
   mapQuantity = id
 
+instance HasRange Quantity where
+  getRange = \case
+    Quantity0 o -> getRange o
+    Quantity1 o -> getRange o
+    Quantityω o -> getRange o
+
+instance SetRange Quantity where
+  setRange r = \case
+    Quantity0 o -> Quantity0 $ setRange r o
+    Quantity1 o -> Quantity1 $ setRange r o
+    Quantityω o -> Quantityω $ setRange r o
+
 instance KillRange Quantity where
-  killRange = id
+  killRange = \case
+    Quantity0 o -> Quantity0 $ killRange o
+    Quantity1 o -> Quantity1 $ killRange o
+    Quantityω o -> Quantityω $ killRange o
 
 instance NFData Quantity where
-  rnf Quantity0 = ()
-  rnf Quantity1 = ()
-  rnf Quantityω = ()
+  rnf (Quantity0 o) = rnf o
+  rnf (Quantity1 o) = rnf o
+  rnf (Quantityω o) = rnf o
 
 ---------------------------------------------------------------------------
 -- * Relevance
@@ -567,6 +781,12 @@ allRelevances = [minBound..maxBound]
 
 defaultRelevance :: Relevance
 defaultRelevance = Relevant
+
+instance HasRange Relevance where
+  getRange _ = noRange
+
+instance SetRange Relevance where
+  setRange _ = id
 
 instance KillRange Relevance where
   killRange rel = rel -- no range to kill
@@ -613,6 +833,10 @@ isNonStrict a = getRelevance a == NonStrict
 --  Irrelevant@
 moreRelevant :: Relevance -> Relevance -> Bool
 moreRelevant = (<=)
+
+-- | Equality ignoring origin.
+sameRelevance :: Relevance -> Relevance -> Bool
+sameRelevance = (==)
 
 -- | More relevant is smaller.
 instance Ord Relevance where

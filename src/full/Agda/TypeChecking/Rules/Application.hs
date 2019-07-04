@@ -365,7 +365,7 @@ checkRelevance' x def = do
 checkQuantity' :: QName -> Definition -> TCM (Maybe TypeError)
 checkQuantity' x def = do
   case getQuantity def of
-    Quantityω -> return Nothing -- Abundant definitions can be used in any context.
+    Quantityω{} -> return Nothing -- Abundant definitions can be used in any context.
     dq -> do
       q <- asksTC getQuantity
       reportSDoc "tc.irr" 50 $ vcat

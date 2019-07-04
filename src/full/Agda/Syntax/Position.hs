@@ -306,8 +306,7 @@ instance (HasRange a, HasRange b, HasRange c, HasRange d, HasRange e, HasRange f
     getRange (x,y,z,w,v,u,t) = getRange (x,(y,(z,(w,(v,(u,t))))))
 
 instance HasRange a => HasRange (Maybe a) where
-    getRange Nothing  = noRange
-    getRange (Just a) = getRange a
+    getRange = maybe noRange getRange
 
 instance (HasRange a, HasRange b) => HasRange (Either a b) where
     getRange = either getRange getRange
@@ -322,6 +321,9 @@ instance SetRange Range where
   setRange = const
 
 instance SetRange a => SetRange [a] where
+  setRange r = fmap $ setRange r
+
+instance SetRange a => SetRange (Maybe a) where
   setRange r = fmap $ setRange r
 
 -- | Killing the range of an object sets all range information to 'noRange'.

@@ -1294,9 +1294,9 @@ instance Verbalize Relevance where
 
 instance Verbalize Quantity where
   verbalize = \case
-    Quantity0 -> "erased"
-    Quantity1 -> "linear"
-    Quantityω -> "unrestricted"
+    Quantity0{} -> "erased"
+    Quantity1{} -> "linear"
+    Quantityω{} -> "unrestricted"
 
 -- | Indefinite article.
 data Indefinite a = Indefinite a
