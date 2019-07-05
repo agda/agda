@@ -465,15 +465,64 @@ instance EmbPrj Hiding where
   value 3 = return (Instance YesOverlap)
   value _ = malformed
 
-instance EmbPrj Quantity where
-  icod_ Quantity0 = return 0
-  icod_ Quantity1 = return 1
-  icod_ Quantityω = return 2
+instance EmbPrj Q0Origin where
+  icod_ = \case
+    Q0Inferred -> return 0
+    Q0 _       -> return 1
+    Q0Erased _ -> return 2
 
-  value 0 = return Quantity0
-  value 1 = return Quantity1
-  value 2 = return Quantityω
-  value _ = malformed
+  value = \case
+    0 -> return $ Q0Inferred
+    1 -> return $ Q0       noRange
+    2 -> return $ Q0Erased noRange
+    _ -> malformed
+
+instance EmbPrj Q1Origin where
+  icod_ = \case
+    Q1Inferred -> return 0
+    Q1 _       -> return 1
+    Q1Linear _ -> return 2
+
+  value = \case
+    0 -> return $ Q1Inferred
+    1 -> return $ Q1       noRange
+    2 -> return $ Q1Linear noRange
+    _ -> malformed
+
+instance EmbPrj QωOrigin where
+  icod_ = \case
+    QωInferred -> return 0
+    Qω _       -> return 1
+    QωPlenty _ -> return 2
+
+  value = \case
+    0 -> return $ QωInferred
+    1 -> return $ Qω       noRange
+    2 -> return $ QωPlenty noRange
+    _ -> malformed
+
+instance EmbPrj Quantity where
+  icod_ = \case
+    Quantity0 a -> icodeN 0 Quantity0 a
+    Quantity1 a -> icodeN 1 Quantity1 a
+    Quantityω a -> icodeN'  Quantityω a  -- default quantity, shorter code
+
+  value = vcase $ \case
+    [0, a] -> valuN Quantity0 a
+    [1, a] -> valuN Quantity1 a
+    [a]    -> valuN Quantityω a
+    _      -> malformed
+
+-- -- ALT: forget quantity origin when serializing?
+-- instance EmbPrj Quantity where
+--   icod_ Quantity0 = return 0
+--   icod_ Quantity1 = return 1
+--   icod_ Quantityω = return 2
+
+--   value 0 = return Quantity0
+--   value 1 = return Quantity1
+--   value 2 = return Quantityω
+--   value _ = malformed
 
 instance EmbPrj Modality where
   icod_ (Modality a b) = icodeN' Modality a b

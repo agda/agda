@@ -216,8 +216,12 @@ data VarOcc' a = VarOcc
   { varFlexRig   :: FlexRig' a
   , varModality  :: Modality
   }
-  deriving (Eq, Show)
+  deriving (Show)
 type VarOcc = VarOcc' MetaSet
+
+-- | Equality up to origin.
+instance Eq a => Eq (VarOcc' a) where
+  VarOcc fr m == VarOcc fr' m' = fr == fr' && sameModality m m'
 
 instance LensModality (VarOcc' a) where
   getModality = varModality
@@ -256,13 +260,13 @@ instance Semigroup a => Semigroup (VarOcc' a) where
 --   This is also the absorptive element for 'composeVarOcc', if we ignore
 --   the 'MetaSet' in 'Flexible'.
 instance (Semigroup a, Monoid a) => Monoid (VarOcc' a) where
-  mempty  = VarOcc (Flexible mempty) $ Modality Irrelevant Quantity0
+  mempty  = VarOcc (Flexible mempty) $ Modality Irrelevant zeroQuantity
   mappend = (<>)
 
 -- | The absorptive element of variable occurrence under aggregation:
 --   strongly rigid, relevant.
 topVarOcc :: VarOcc' a
-topVarOcc = VarOcc StronglyRigid $ Modality Relevant Quantityω
+topVarOcc = VarOcc StronglyRigid $ Modality Relevant topQuantity
 
 -- | First argument is the outer occurrence (context) and second is the inner.
 --   This multiplicative operation is to modify an occurrence under a context.
@@ -271,7 +275,7 @@ composeVarOcc (VarOcc o m) (VarOcc o' m') = VarOcc (composeFlexRig o o') (m <> m
   -- We use the multipicative modality monoid (composition).
 
 oneVarOcc :: VarOcc' a
-oneVarOcc = VarOcc Unguarded $ Modality Relevant Quantity1
+oneVarOcc = VarOcc Unguarded $ Modality Relevant $ Quantity1 mempty
 
 ---------------------------------------------------------------------------
 -- * Storing variable occurrences (semimodule).

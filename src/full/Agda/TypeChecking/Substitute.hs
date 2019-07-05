@@ -1285,13 +1285,11 @@ instance Ord Term where
 --   which is a special case of renaming
 --   which is a special case of substitution.
 instance (Subst t a, Eq a) => Eq (Abs a) where
-  NoAbs _ a == NoAbs _ b = a == b
-  Abs   _ a == Abs   _ b = a == b
+  NoAbs _ a == NoAbs _ b = a == b  -- no need to raise if both are NoAbs
   a         == b         = absBody a == absBody b
 
 instance (Subst t a, Ord a) => Ord (Abs a) where
-  NoAbs _ a `compare` NoAbs _ b = a `compare` b
-  Abs   _ a `compare` Abs   _ b = a `compare` b
+  NoAbs _ a `compare` NoAbs _ b = a `compare` b  -- no need to raise if both are NoAbs
   a         `compare` b         = absBody a `compare` absBody b
 
 deriving instance Ord a => Ord (Dom a)

@@ -253,15 +253,10 @@ instance PrettyTCM A.TypedBinding where
   prettyTCM = prettyA
 
 instance PrettyTCM Relevance where
-  prettyTCM Irrelevant = "."
-  prettyTCM NonStrict  = ".."
-  prettyTCM Relevant   = empty
+  prettyTCM = pretty
 
 instance PrettyTCM Quantity where
-  prettyTCM = \case
-    Quantity0 -> "@0"
-    Quantity1 -> "@1"
-    Quantityω -> empty
+  prettyTCM = pretty
 
 instance PrettyTCM Modality where
   prettyTCM mod = hsep

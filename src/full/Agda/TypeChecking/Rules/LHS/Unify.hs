@@ -882,7 +882,7 @@ unifyStep s Solution{ solutionAt   = k
   --
   -- Jesper, Andreas, 2018-10-17: the quantity of the equation is morally
   -- always @Quantity0@, since the indices of the data type are runtime erased.
-  -- This, we need not change the quantity of the solution.
+  -- Thus, we need not change the quantity of the solution.
   let eqrel  = getRelevance dom
       varmod = getModality dom'
       mod    = applyUnless (NonStrict `moreRelevant` eqrel) (setRelevance eqrel)
