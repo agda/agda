@@ -82,7 +82,7 @@ quick-install-bin : ensure-hash-is-correct
 # The performance loss is acceptable for running small tests.
 .PHONY : quicker-install-bin
 quicker-install-bin : ensure-hash-is-correct
-	$(QUICK_CABAL_INSTALL) $(CABAL_INSTALL_BIN_OPTS) --ghc-options=-O0
+	$(QUICK_CABAL_INSTALL) $(CABAL_INSTALL_BIN_OPTS) --ghc-options=-O0 --program-suffix=-quicker
 
 # Install Agda using Stack
 .PHONY : stack-install-bin
