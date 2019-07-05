@@ -102,8 +102,8 @@ instance Applicative (P t) where
 instance Monad (P t) where
   return = pure
 
-  (Get f)      >>= k = Get (\c -> f c >>= k)
-  (Look f)     >>= k = Look (\s -> f s >>= k)
+  (Get f)      >>= k = Get (f >=> k)
+  (Look f)     >>= k = Look (f >=> k)
   Fail         >>= k = Fail
   (Result x p) >>= k = k x `mplus` (p >>= k)
   (Final r)    >>= k = final [ys' | (x,s) <- r, ys' <- run (k x) s]
@@ -238,7 +238,7 @@ gather (R m) =
  where
   gath l (Get f)      = Get (\c -> gath (l.(c:)) (f c))
   gath l Fail         = Fail
-  gath l (Look f)     = Look (\s -> gath l (f s))
+  gath l (Look f)     = Look (gath l . f)
   gath l (Result k p) = k (l []) `mplus` gath l p
   gath l (Final r)    = error "do not use readS_to_P in gather!"
 
@@ -258,9 +258,9 @@ string :: Eq t => [t] -> ReadP t [t]
 -- ^ Parses and returns the specified string.
 string this = do s <- look; scan this s
  where
-  scan []     _               = do return this
+  scan []     _               = return this
   scan (x:xs) (y:ys) | x == y = do _ <- get; scan xs ys
-  scan _      _               = do pfail
+  scan _      _               = pfail
 
 eof :: ReadP tok ()
 eof = do
@@ -280,7 +280,7 @@ munch p =
      scan s
  where
   scan (c:cs) | p c = do _ <- get; s <- scan cs; return (c:s)
-  scan _            = do return []
+  scan _            = return []
 
 munch1 :: (t -> Bool) -> ReadP t [t]
 -- ^ Parses the first one or more characters satisfying the predicate.
@@ -301,12 +301,12 @@ skipSpaces =
      skip s
  where
   skip (c:s) | isSpace c = do _ <- get; skip s
-  skip _                 = do return ()
+  skip _                 = return ()
 
 count :: Int -> ReadP t a -> ReadP t [a]
 -- ^ @count n p@ parses @n@ occurrences of @p@ in sequence. A list of
 --   results is returned.
-count n p = sequence (replicate n p)
+count = replicateM
 
 between :: ReadP t open -> ReadP t close -> ReadP t a -> ReadP t a
 -- ^ @between open close p@ parses @open@, followed by @p@ and finally
@@ -324,7 +324,7 @@ option x p = p +++ return x
 
 optional :: ReadP t a -> ReadP t ()
 -- ^ @optional p@ optionally parses @p@ and always returns @()@.
-optional p = (p >> return ()) +++ return ()
+optional p = void p +++ return ()
 
 many :: ReadP t a -> ReadP t [a]
 -- ^ Parses zero or more occurrences of the given parser.
@@ -336,7 +336,7 @@ many1 p = liftM2 (:) p (many p)
 
 skipMany :: ReadP t a -> ReadP t ()
 -- ^ Like 'many', but discards the result.
-skipMany p = many p >> return ()
+skipMany p = void (many p)
 
 skipMany1 :: ReadP t a -> ReadP t ()
 -- ^ Like 'many1', but discards the result.
@@ -381,8 +381,7 @@ chainr1 :: ReadP t a -> ReadP t (a -> a -> a) -> ReadP t a
 chainr1 p op = scan
   where scan   = p >>= rest
         rest x = do f <- op
-                    y <- scan
-                    return (f x y)
+                    f x <$> scan
                  +++ return x
 
 chainl1 :: ReadP t a -> ReadP t (a -> a -> a) -> ReadP t a

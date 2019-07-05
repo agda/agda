@@ -146,7 +146,7 @@ traverse' f = (Bag . Map.fromListWith (++)) <.> traverse trav . Map.elems . bag
 ------------------------------------------------------------------------
 
 instance Show a => Show (Bag a) where
-  showsPrec _ (Bag b) = ("Agda.Utils.Bag.Bag (" ++) . showsPrec 0 b . (')':)
+  showsPrec _ (Bag b) = ("Agda.Utils.Bag.Bag (" ++) . shows b . (')':)
 
 instance Ord a => Semigroup (Bag a) where
   (<>) = union

@@ -194,7 +194,7 @@ addEdge n1 k n2 = do
   i1 <- addNode n1
   i2 <- addNode n2
   st <- get
-  let graph' x y = if (x,y) == (i1,i2) then Finite k `oplus` (graph st) x y
+  let graph' x y = if (x,y) == (i1,i2) then Finite k `oplus` graph st x y
                    else graph st x y
   put $ st { graph = graph' }
 
@@ -226,7 +226,7 @@ instance (Show a, Show b, Show c) => Show (LegendMatrix a b c) where
     -- then output rows
        foldr (\ i s -> "\n" ++ show (rd i) ++
                 foldr (\ j t -> "\t" ++ show (m!(i,j)) ++ t)
-                      (s)
+                      s
                       [c .. c'])
              "" [r .. r']
 
