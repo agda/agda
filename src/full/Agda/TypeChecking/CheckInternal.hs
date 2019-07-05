@@ -83,7 +83,7 @@ checkType' t = do
         let goInside = case b of Abs{}   -> addContext (absName b, a)
                                  NoAbs{} -> id
         goInside $ checkType' $ unAbs b
-      inferPiSort s1 s2
+      inferPiSort a s2
     Sort s -> do
       _ <- checkSort defaultAction s
       inferUnivSort s
@@ -149,7 +149,7 @@ checkInternal :: (MonadCheckInternal m) => Term -> Type -> m ()
 checkInternal v t = void $ checkInternal' defaultAction v t
 
 checkInternal' :: (MonadCheckInternal m) => Action m -> Term -> Type -> m Term
-checkInternal' action v t = do
+checkInternal' action v t = verboseBracket "tc.check.internal" 20 "" $ do
   reportSDoc "tc.check.internal" 20 $ sep
     [ "checking internal "
     , nest 2 $ sep [ prettyTCM v <+> ":"
@@ -160,6 +160,8 @@ checkInternal' action v t = do
   postAction action t =<< case v of
     Var i es   -> do
       a <- typeOfBV i
+      reportSDoc "tc.check.internal" 30 $ fsep
+        [ "variable" , prettyTCM (var i) , "has type" , prettyTCM a ]
       checkSpine action a (Var i []) es t
     Def f es   -> do  -- f is not projection(-like)!
       a <- defType <$> getConstInfo f
@@ -387,10 +389,13 @@ checkSort action s =
     Prop l   -> Prop <$> checkLevel action l
     Inf      -> return Inf
     SizeUniv -> return SizeUniv
-    PiSort a b -> do
-      a <- checkSort action a
-      addContext (absName b, defaultDom (sort a) :: Dom Type) $ do
-        PiSort a . Abs (absName b) <$> checkSort action (absBody b)
+    PiSort dom s2 -> do
+      let El s1 a = unDom dom
+      s1' <- checkSort action s1
+      a' <- checkInternal' action a $ sort s1'
+      let dom' = dom $> El s1' a'
+      s2' <- mapAbstraction dom' (checkSort action) s2
+      return $ PiSort dom' s2'
     UnivSort s -> UnivSort <$> checkSort action s
     MetaS x es -> do -- we assume sort meta instantiations to be well-formed
       a <- metaType x
@@ -455,7 +460,7 @@ inferSort t = case t of
       a <- metaType x
       (_, s) <- eliminate (MetaV x []) a es
       shouldBeSort s
-    Pi a b     -> inferPiSort (getSort a) (getSort <$> b)
+    Pi a b     -> inferPiSort a (getSort <$> b)
     Sort s     -> inferUnivSort s
     Con{}      -> __IMPOSSIBLE__
     Lit{}      -> __IMPOSSIBLE__
