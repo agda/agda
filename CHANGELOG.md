@@ -22,6 +22,9 @@ API
 * `Agda.Utils.Either` no longer provides `mapEither`. Use `bimap` in
   `Data.Bifunctor` instead.
 
+* `Agda.Utils.Map` no longer provides `unionWithM`, `insertWithKeyM`,
+  `allWithKey`, `unzip`, and `unzip3`.
+
 Pragmas and options
 -------------------
 
