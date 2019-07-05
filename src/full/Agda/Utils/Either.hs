@@ -5,7 +5,6 @@
 module Agda.Utils.Either
   ( whileLeft
   , caseEitherM
-  , mapEither
   , mapLeft
   , mapRight
   , traverseEither
@@ -39,10 +38,11 @@ whileLeft test left right = loop where
 caseEitherM :: Monad m => m (Either a b) -> (a -> m c) -> (b -> m c) -> m c
 caseEitherM mm f g = either f g =<< mm
 
--- | 'Either' is a bifunctor.
-
-mapEither :: (a -> c) -> (b -> d) -> Either a b -> Either c d
-mapEither = bimap
+-- UNUSED Liang-Ting Chen (05-07-2019)
+-- -- | 'Either' is a bifunctor.
+--
+-- mapEither :: (a -> c) -> (b -> d) -> Either a b -> Either c d
+-- mapEither = bimap
 
 -- | 'Either _ b' is a functor.
 
@@ -55,7 +55,7 @@ mapRight :: (b -> d) -> Either a b -> Either a d
 mapRight = second
 
 -- | 'Either' is bitraversable.
-
+-- Note: From @base >= 4.10.0.0@ already present in `Data.Bitraversable`.
 traverseEither :: Functor f => (a -> f c) -> (b -> f d) -> Either a b -> f (Either c d)
 traverseEither f g = either (fmap Left . f) (fmap Right . g)
 
