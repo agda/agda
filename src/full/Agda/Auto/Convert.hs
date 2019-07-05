@@ -9,7 +9,7 @@ import qualified Data.Map as Map
 import Data.Traversable (traverse)
 import Control.Monad.State
 
-import Agda.Syntax.Common (Hiding(..), getHiding)
+import Agda.Syntax.Common (Hiding(..), getHiding, Arg)
 import Agda.Syntax.Concrete (exprFieldA)
 import qualified Agda.Syntax.Internal as I
 import Agda.Syntax.Internal (Dom(..),domInfo,unDom)
@@ -55,7 +55,7 @@ data Hint = Hint
   , hintQName         :: I.QName
   }
 
-type O = (Maybe Int, AN.QName)
+type O = (Maybe (Int, [Arg AN.QName]),AN.QName)
   -- Nothing - Def
   -- Just npar - Con with npar parameters which don't appear in Agda
 
@@ -142,7 +142,7 @@ tomy imi icns typs = do
       MB.Constructor {MB.conData = dt} -> do
        _ <- getConst False dt TMAll -- make sure that datatype is included
        cc <- lift $ liftIO $ readIORef c
-       let (Just nomi, _) = cdorigin cc
+       let (Just (nomi,_), _) = cdorigin cc
        return (Constructor (nomi - cddeffreevars cc), [])
      lift $ liftIO $ modifyIORef c (\cdef -> cdef {cdtype = typ', cdcont = cont})
      r $ projfcns2 ++ projfcns
@@ -221,6 +221,7 @@ getConst iscon name mode = do
  case MB.theDef def of
   MB.Record {MB.recConHead = con} -> do
    let conname = I.conName con
+       conflds = I.conFields con
    cmap <- fst `liftM` gets sConsts
    case Map.lookup name cmap of
     Just (mode', c) ->
@@ -234,7 +235,7 @@ getConst iscon name mode = do
      mainm <- gets sMainMeta
      dfv <- lift $ getdfv mainm name
      let nomi = I.arity (MB.defType def)
-     ccon <- lift $ liftIO $ newIORef (ConstDef {cdname = prettyShow name ++ ".CONS", cdorigin = (Just nomi, conname), cdtype = __IMPOSSIBLE__, cdcont = Constructor (nomi - dfv), cddeffreevars = dfv}) -- ?? correct value of deffreevars for records?
+     ccon <- lift $ liftIO $ newIORef (ConstDef {cdname = prettyShow name ++ ".CONS", cdorigin = (Just (nomi,conflds), conname), cdtype = __IMPOSSIBLE__, cdcont = Constructor (nomi - dfv), cddeffreevars = dfv}) -- ?? correct value of deffreevars for records?
      c <- lift $ liftIO $ newIORef (ConstDef {cdname = prettyShow name, cdorigin = (Nothing, name), cdtype = __IMPOSSIBLE__, cdcont = Datatype [ccon] [], cddeffreevars = dfv}) -- ?? correct value of deffreevars for records?
      modify (\s -> s {sConsts = (Map.insert name (mode, c) cmap, name : snd (sConsts s))})
      return $ if iscon then ccon else c
@@ -245,8 +246,8 @@ getConst iscon name mode = do
      return c
     Nothing -> do
      (miscon, sname) <- if iscon then do
-       let MB.Constructor {MB.conPars = npar, MB.conData = dname} = MB.theDef def
-       return (Just npar, prettyShow dname ++ "." ++ prettyShow (I.qnameName name))
+       let MB.Constructor {MB.conPars = npar, MB.conData = dname, MB.conSrcCon = ch} = MB.theDef def
+       return (Just (npar,I.conFields ch), prettyShow dname ++ "." ++ prettyShow (I.qnameName name))
       else
        return (Nothing, prettyShow name)
      mainm <- gets sMainMeta
@@ -337,7 +338,7 @@ instance Conversion TOM (Cm.Arg I.Pattern) (Pat O) where
       pats' <- mapM (convert . fmap Cm.namedThing) pats
       def   <- lift $ getConstInfo n
       cc    <- lift $ liftIO $ readIORef c
-      let Just npar = fst $ cdorigin cc
+      let Just (npar,_) = fst $ cdorigin cc
       return $ PatConApp c (replicate npar PatExp ++ pats')
 
     -- UNSUPPORTED CASES
@@ -376,7 +377,7 @@ instance Conversion TOM I.Term (MExp O) where
         as' <- convert as
         def <- lift $ getConstInfo name
         cc  <- lift $ liftIO $ readIORef c
-        let Just npar = fst $ cdorigin cc
+        let Just (npar,_) = fst $ cdorigin cc
         return $ NotM $ App Nothing (NotM OKVal) (Const c) (foldl (\x _ -> NotM $ ALConPar x) as' [1..npar])
       I.Pi (I.Dom{domInfo = info, unDom = x}) b -> do
         let y    = I.absBody b
@@ -493,7 +494,7 @@ instance Conversion MOT (Exp O) I.Term where
         frommyExps n as v
 -}
           (ndrop, h) = case iscon of
-                         Just n -> (n, \ q -> I.Con (I.ConHead q Cm.Inductive []) Cm.ConOSystem) -- TODO: restore fields
+                         Just (n,fs) -> (n, \ q -> I.Con (I.ConHead q Cm.Inductive fs) Cm.ConOSystem)
                          Nothing -> (0, \ f vs -> I.Def f vs)
       frommyExps ndrop as (h name [])
     Lam hid t -> I.Lam (icnvh hid) <$> convert t
@@ -587,7 +588,7 @@ constructPats cmap mainm clause = do
         (c2, _) <- runStateT (getConst True c TMAll) (S {sConsts = (cmap, []), sMetas = initMapS, sEqs = initMapS, sCurMeta = Nothing, sMainMeta = mainm})
         (ns', ps') <- cnvps ns ps
         cc <- liftIO $ readIORef c2
-        let Just npar = fst $ cdorigin cc
+        let Just (npar,_) = fst $ cdorigin cc
         return (ns', HI hid (CSPatConApp c2 (replicate npar (HI Hidden CSOmittedArg) ++ ps')))
        I.DotP _ t -> do
         (t2, _) <- runStateT (convert t) (S {sConsts = (cmap, []), sMetas = initMapS, sEqs = initMapS, sCurMeta = Nothing, sMainMeta = mainm})
@@ -624,7 +625,7 @@ frommyClause (ids, pats, mrhs) = do
        CSPatVar v -> return ((length ids - 1 - v, nv) : perm, nv + 1)
        CSPatConApp c ps -> do
         cdef <- lift $ readIORef c
-        let (Just ndrop, _) = cdorigin cdef
+        let (Just (ndrop,_), _) = cdorigin cdef
         getperms ndrop ps perm nv
        CSPatExp e -> return (perm, nv + 1)
        _ -> __IMPOSSIBLE__
@@ -647,7 +648,7 @@ frommyClause (ids, pats, mrhs) = do
        CSPatVar v -> return (I.varP $ let HI _ (Id n, _) = ids !! v in n)
        CSPatConApp c ps -> do
         cdef <- lift $ readIORef c
-        let (Just ndrop, name) = cdorigin cdef
+        let (Just (ndrop,_), name) = cdorigin cdef
         ps' <- cnvps ndrop ps
         let con = I.ConHead name Cm.Inductive [] -- TODO: restore record fields!
         return (I.ConP con I.noConPatternInfo ps')
