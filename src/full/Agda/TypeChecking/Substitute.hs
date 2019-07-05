@@ -1,5 +1,7 @@
 {-# LANGUAGE BangPatterns       #-}
 {-# LANGUAGE UndecidableInstances   #-}
+{-# LANGUAGE AllowAmbiguousTypes   #-}
+{-# LANGUAGE TypeApplications   #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
@@ -18,6 +20,7 @@ module Agda.TypeChecking.Substitute
   ) where
 
 import Control.Arrow (first, second)
+import Data.Coerce
 import Data.Function
 import qualified Data.List as List
 import Data.Map (Map)
@@ -56,28 +59,40 @@ import Agda.Utils.HashMap (HashMap)
 
 import Agda.Utils.Impossible
 
-instance Apply Term where
-  applyE m [] = m
-  applyE m es =
-    case m of
+{-# SPECIALIZE applyTermE :: (Empty -> Term -> Term) -> Term -> Elims -> Term #-}
+{-# SPECIALIZE applyTermE :: (Empty -> Term -> Term) -> BraveTerm -> Elims -> BraveTerm #-}
+applyTermE :: forall t. (Coercible Term t, Apply t, Subst t t)
+           => (Empty -> Term -> Term) -> t -> Elims -> t
+applyTermE err' m [] = m
+applyTermE err' m es = coerce $
+    case coerce m of
       Var i es'   -> Var i (es' ++ es)
       Def f es'   -> defApp f es' es  -- remove projection redexes
-      Con c ci args -> conApp c ci args es
+      Con c ci args -> conApp @t err' c ci args es
       Lam _ b     ->
         case es of
-          Apply a : es0 -> lazyAbsApp b (unArg a) `applyE` es0
-          IApply _ _ a : es0 -> lazyAbsApp b a `applyE` es0
-          _             -> softFailure
+          Apply a : es0 -> coerce $ lazyAbsApp (coerce b :: Abs t) (coerce $ unArg a) `applyE` es0
+          IApply _ _ a : es0 -> coerce $ lazyAbsApp (coerce b :: Abs t) (coerce a) `applyE` es0
+          _             -> err __IMPOSSIBLE__
       MetaV x es' -> MetaV x (es' ++ es)
-      Lit{}       -> softFailure
-      Level{}     -> softFailure
-      Pi _ _      -> softFailure
+      Lit{}       -> err __IMPOSSIBLE__
+      Level{}     -> err __IMPOSSIBLE__
+      Pi _ _      -> err __IMPOSSIBLE__
       Sort s      -> Sort $ s `applyE` es
       Dummy s es' -> Dummy s (es' ++ es)
-      DontCare mv -> dontCare $ mv `applyE` es  -- Andreas, 2011-10-02
+      DontCare mv -> dontCare $ mv `app` es  -- Andreas, 2011-10-02
         -- need to go under DontCare, since "with" might resurrect irrelevant term
    where
-     softFailure = Dummy "applyE" (Apply (defaultArg m) : es)
+     app :: Term -> Elims -> Term
+     app t es = coerce $ (coerce t :: t) `applyE` es
+     err e = err' e $ Dummy "applyE" (Apply (defaultArg $ coerce m) : es)
+
+instance Apply Term where
+  applyE = applyTermE absurd
+
+instance Apply BraveTerm where
+  applyE = applyTermE (const id)
+
 -- | If $v$ is a record value, @canProject f v@
 --   returns its field @f@.
 canProject :: QName -> Term -> Maybe (Arg Term)
@@ -91,27 +106,27 @@ canProject f v =
     _ -> Nothing
 
 -- | Eliminate a constructed term.
-conApp :: ConHead -> ConInfo -> Elims -> Elims -> Term
-conApp ch                  ci args []             = Con ch ci args
-conApp ch                  ci args (a@Apply{} : es) = conApp ch ci (args ++ [a]) es
-conApp ch                  ci args (a@IApply{} : es) = conApp ch ci (args ++ [a]) es
-conApp ch@(ConHead c _ fs) ci args ees@(Proj o f : es) =
+conApp :: forall t. (Coercible t Term, Apply t) => (Empty -> Term -> Term) -> ConHead -> ConInfo -> Elims -> Elims -> Term
+conApp fk ch                  ci args []             = Con ch ci args
+conApp fk ch                  ci args (a@Apply{} : es) = conApp @t fk ch ci (args ++ [a]) es
+conApp fk ch                  ci args (a@IApply{} : es) = conApp @t fk ch ci (args ++ [a]) es
+conApp fk ch@(ConHead c _ fs) ci args ees@(Proj o f : es) =
   let failure err = flip trace err $
         "conApp: constructor " ++ show c ++
         " with fields\n" ++ unlines (map (("  " ++) . show) fs) ++
         " and args\n" ++ unlines (map (("  " ++) . prettyShow) args) ++
         " projected by " ++ show f
       isApply e = fromMaybe (failure __IMPOSSIBLE__) $ isApplyElim e
-      stuck = Dummy "applyE" (Apply (defaultArg $ Con ch ci args) : Proj o f : [])
+      stuck err = fk err $ Dummy "applyE" (Apply (defaultArg $ Con ch ci args) : Proj o f : [])
   in
    case findWithIndex ((f==) . unArg) fs of
-     Nothing -> failure $ stuck `applyE` es
+     Nothing -> failure $ stuck __IMPOSSIBLE__ `applyE` es
      Just (fld, i) -> let
       -- Andreas, 2018-06-12, issue #2170
       -- We safe-guard the projected value by DontCare using the ArgInfo stored at the record constructor,
       -- since the ArgInfo in the constructor application might be inaccurate because of subtyping.
-      v = maybe (failure stuck) (relToDontCare fld . argToDontCare . isApply) $ headMaybe $ drop i args
-      in  applyE v es
+      v = maybe (failure $ stuck __IMPOSSIBLE__) (relToDontCare fld . argToDontCare . isApply) $ headMaybe $ drop i args
+      in coerce $ applyE (coerce v :: t) es
 
   -- -- Andreas, 2016-07-20 futile attempt to magically fix ProjOrigin
   --     fallback = v
@@ -739,23 +754,40 @@ renameP err p = applySubst (renaming err p)
 instance Subst a a => Subst a (Substitution' a) where
   applySubst rho sgm = composeS rho sgm
 
-instance Subst Term Term where
-  applySubst IdS t = t
-  applySubst rho t    = case t of
-    Var i es    -> lookupS rho i `applyE` applySubst rho es
-    Lam h m     -> Lam h $ applySubst rho m
-    Def f es    -> defApp f [] $ applySubst rho es
-    Con c ci vs -> Con c ci $ applySubst rho vs
-    MetaV x es  -> MetaV x $ applySubst rho es
+{-# SPECIALIZE applySubstTerm :: Substitution -> Term -> Term #-}
+{-# SPECIALIZE applySubstTerm :: Substitution' BraveTerm -> BraveTerm -> BraveTerm #-}
+applySubstTerm :: forall t. (Coercible t Term, Subst t t, Apply t) => Substitution' t -> t -> t
+applySubstTerm IdS t = t
+applySubstTerm rho t    = coerce $ case coerce t of
+    Var i es    -> coerce $ lookupS rho i  `applyE` subE es
+    Lam h m     -> Lam h $ subAbs m
+    Def f es    -> defApp f [] $ subE es
+    Con c ci vs -> Con c ci $ subE vs
+    MetaV x es  -> MetaV x $ subE es
     Lit l       -> Lit l
-    Level l     -> levelTm $ applySubst rho l
-    Pi a b      -> uncurry Pi $ applySubst rho (a,b)
-    Sort s      -> Sort $ applySubst rho s
-    DontCare mv -> dontCare $ applySubst rho mv
-    Dummy{}     -> t
+    Level l     -> levelTm $ applySubst (coerce rho) l
+    Pi a b      -> uncurry Pi $ subPi (a,b)
+    Sort s      -> Sort $ applySubst (coerce rho) s
+    DontCare mv -> dontCare $ sub mv
+    Dummy s es  -> Dummy s $ subE es
+ where
+   subE :: Elims -> Elims
+   subE es = coerce $ applySubst rho (coerce es :: [Elim' t])
+   subAbs :: Abs Term -> Abs Term
+   subAbs t = coerce $ applySubst rho (coerce t :: Abs t)
+   sub :: Term -> Term
+   sub t = coerce $ applySubst rho (coerce t :: t)
+   subPi :: (Dom Type, Abs Type) -> (Dom Type, Abs Type)
+   subPi t = coerce $ applySubst rho (coerce t :: (Dom (Type' t), Abs (Type' t)))
 
-instance Subst Term a => Subst Term (Type' a) where
-  applySubst rho (El s t) = applySubst rho s `El` applySubst rho t
+instance Subst Term Term where
+  applySubst = applySubstTerm
+
+instance Subst BraveTerm BraveTerm where
+  applySubst = applySubstTerm
+
+instance (Coercible t Term, Subst t a) => Subst t (Type' a) where
+  applySubst rho (El s t) = applySubst (coerce rho) s `El` applySubst rho t
 
 instance Subst Term Sort where
   applySubst rho s = case s of
@@ -806,6 +838,9 @@ instance Subst Term A.ProblemEq where
   applySubst rho (A.ProblemEq p v a) =
     uncurry (A.ProblemEq p) $ applySubst rho (v,a)
 
+instance DeBruijn BraveTerm where
+  deBruijnVar = BraveTerm . deBruijnVar
+  deBruijnView = deBruijnView . unBrave
 
 instance DeBruijn NLPat where
   deBruijnVar i = PVar i []
@@ -920,10 +955,10 @@ instance Subst t a => Subst t (Arg a) where
 instance Subst t a => Subst t (Named name a) where
   applySubst rho = fmap (applySubst rho)
 
-instance (Subst Term a) => Subst Term (Dom a) where
+instance (Coercible t Term, Subst t a) => Subst t (Dom a) where
   applySubst IdS dom = dom
   applySubst rho dom = setFreeVariables unknownFreeVariables $
-    fmap (applySubst rho) dom{ domTactic = applySubst rho (domTactic dom) }
+    fmap (applySubst rho) dom{ domTactic = applySubst (coerce rho) (domTactic dom) }
 
 instance Subst t a => Subst t (Maybe a) where
   applySubst rho = fmap (applySubst rho)

@@ -116,7 +116,7 @@ instance Instantiate Term where
             instantiate' (MetaV m' es)
       Open                             -> return t
       OpenInstance                     -> return t
-      BlockedConst u | blocking  -> instantiate' $ u `applyE` es
+      BlockedConst u | blocking  -> instantiate' . unBrave $ BraveTerm u `applyE` es
                      | otherwise -> return t
       PostponedTypeCheckingProblem _ _ -> return t
   instantiate' (Level l) = levelTm <$> instantiate' l

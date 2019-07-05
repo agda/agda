@@ -224,6 +224,8 @@ data Term = Var {-# UNPACK #-} !Int Elims -- ^ @x es@ neutral
             --   Replaces the @Sort Prop@ hack.
             --   The @String@ typically describes the location where we create this dummy,
             --   but can contain other information as well.
+            --   The second field accumulates eliminations in case we
+            --   apply a dummy term to more of them.
   deriving (Data, Show)
 
 type ConInfo = ConOrigin
@@ -360,6 +362,14 @@ data LevelAtom
   | UnreducedLevel Term
     -- ^ Introduced by 'instantiate', removed by 'reduce'.
   deriving (Show, Data)
+
+---------------------------------------------------------------------------
+-- * Brave Terms
+---------------------------------------------------------------------------
+
+-- | Newtypes for terms that produce a dummy, rather than crash, when
+--   applied to incompatible eliminations.
+newtype BraveTerm = BraveTerm { unBrave :: Term } deriving (Data, Show)
 
 ---------------------------------------------------------------------------
 -- * Blocked Terms
