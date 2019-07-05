@@ -629,9 +629,11 @@ createMissingConIdClause f n x old_sc (tag,(sc,info@TheInfo{})) = setCurrentRang
       return (gargs,con_phi_p)
   ps <- fmap unAbsN . runNamesT [] $ do
     old_ps' <- open $ old_ps'
-    bindN (teleNames working_tel) $ \ (_ :: [NamesT TCM Term]) -> do
+    params <- open params
+    bindN (teleNames working_tel) $ \ (wargs :: [NamesT TCM Term]) -> do
       let (g,phi:p:d) = splitAt (size gamma) $ telePatterns working_tel []
-      let x = DefP PatOSystem conId $ replicate 4 (argH $ unnamed $ dotP __DUMMY_TERM__) ++ [phi,p]
+      params <- map (argH . unnamed . dotP) <$> applyN params (take (size gamma) wargs)
+      let x = DefP PatOSystem conId $ params ++ [phi,p]
       args <- open $ map namedArg g ++ [x] ++ map namedArg d
       applyN' old_ps' args
   -- tel = Γ',Δ[ρ,x = refl],Δ₂
@@ -762,7 +764,7 @@ createMissingConIdClause f n x old_sc (tag,(sc,info@TheInfo{})) = setCurrentRang
          if n > 1 then
            pure tComp <#> l <@> (lam "i" $ \ i -> unEl . unArg <$> ty i)
                 <@> (cl primIMax <@> phi <@> alphas)
-                <@> (lam "i" $ \ i -> ilam "o" $ \ _ -> combine (l <@> i) (unEl . unArg <$> ty i) =<< (lazyAbsApp <$> sides <*> i)) 
+                <@> (lam "i" $ \ i -> ilam "o" $ \ _ -> combine (l <@> i) (unEl . unArg <$> ty i) =<< (lazyAbsApp <$> sides <*> i))
                 <@> (lazyAbsApp <$> w <*> primIZero)
          else
            pure tTrans <#> l <@> (lam "i" $ \ i -> unEl . unArg <$> ty i)
