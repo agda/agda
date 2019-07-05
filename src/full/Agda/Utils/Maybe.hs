@@ -23,6 +23,7 @@ boolToMaybe b x = if b then Just x else Nothing
 
 -- * Collection operations.
 
+-- UNUSED Liang-Ting Chen 05-07-2019
 ---- | @unionWith@ for collections of size <= 1.
 --unionMaybeWith :: (a -> a -> a) -> Maybe a -> Maybe a -> Maybe a
 --unionMaybeWith f Nothing mb      = mb

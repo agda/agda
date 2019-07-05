@@ -1,5 +1,9 @@
 -- Liang-Ting Chen (04-07-2019):
 -- Consider using Data.Maybe.Strict instead
+-- Andreas Abel (05-05-2019)@GitHub:
+-- The dependencies of strict-base-types are too heavy,
+-- especially since it depends on lens which consciously ruled out.
+
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE DeriveGeneric      #-}
 

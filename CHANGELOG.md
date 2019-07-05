@@ -6,6 +6,18 @@ Installation and infrastructure
 
 * Removed support for GHC 7.10.3.
 
+* Removed modules `Agda.Utils.HashMap` and `Agda.Utils.Char`.
+  * The module `Agda.Utils.HashMap` only re-exported `Data.HashMap.Strict`
+  from the package `unordered-containers`. Use `unordered-containers` instead.
+
+  * `Agda.Utils.Char` used to provide functions converting a `Char`
+  in base 8, 10, and 16 to the corresponding `Int`. Use `digitToInt` in
+  `Data.Char` instead. The rest of module was about Unicode test which was
+  not used.
+
+* `Agda.Utils.List` no longer provides `headMaybe`.
+  Use `listToMaybe` in `Data.Maybe` instead.
+
 Pragmas and options
 -------------------
 
