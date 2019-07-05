@@ -234,12 +234,25 @@ unifyIndices' tel flex a us vs = liftTCM $ Bench.billTo [Bench.Typing, Bench.Che
     initialState    <- initUnifyState tel flex a us vs
     reportSDoc "tc.lhs.unify" 20 $ "initial unifyState:" <+> prettyTCM initialState
     reportSDoc "tc.lhs.unify" 70 $ "initial unifyState:" <+> text (show initialState)
-    (result,output) <- runUnifyM $ unify initialState rightToLeftStrategy
+    (result,log) <- runUnifyM $ unify initialState rightToLeftStrategy
+    let output = mconcat [output | UnificationStep _ _ output <- log ]
     let ps = applySubst (unifyProof output) $ teleNamedArgs (eqTel initialState)
-    
-    (tau,leftInv) <- case unifyLog output of
-      [UnificationStep st step]
-        | Solution k ty fx tm side <- step -> do
+    (tau,leftInv) <- buildLeftInverse log
+    return $ fmap (\s -> (varTel s , unifySubst output , ps, tau, leftInv)) result
+
+
+buildLeftInverse :: MonadTCM tcm => UnifyLog -> tcm (Substitution, Substitution)
+buildLeftInverse log = liftTCM $ do
+    mpathp <- getTerm' builtinPathP
+    equivs <- if isJust mpathp then mapM buildEquiv log else return []
+    case equivs of
+      [Just (tel,_,tau,leftInv)] -> return (tau,leftInv)
+      _                 -> return (idS,idS)
+
+type Retract = (Telescope, Substitution, Substitution, Substitution)
+
+buildEquiv :: MonadTCM tcm => UnifyLogEntry -> tcm (Maybe Retract)
+buildEquiv (UnificationStep st step@(Solution k ty fx tm side) output) = liftTCM . fmap Just $ do
         reportSDoc "tc.lhs.unify.inv" 20 $ "step unifyState:" <+> prettyTCM st
         reportSDoc "tc.lhs.unify.inv" 20 $ "step step:" <+> addContext (varTel st) (prettyTCM step)
         unview <- intervalUnview'
@@ -254,9 +267,10 @@ unifyIndices' tel flex a us vs = liftTCM $ Bench.billTo [Bench.Typing, Bench.Che
           x = flexVar fx
           neqs = size eqs 
         interval <- elInf primInterval
-        
+
         let gamma_phis = abstract gamma (telFromList $ map (defaultDom . (,interval)) $ map (("phi"++) . show) $ [0 .. neqs - 1])
-        working_tel <- abstract gamma_phis <$> pathTelescope (raise neqs $ eqTel st) (raise neqs $ eqLHS st) (raise neqs $ eqRHS st)
+        working_tel <- abstract gamma_phis <$>
+          pathTelescope (raise neqs $ eqTel st) (raise neqs $ eqLHS st) (raise neqs $ eqRHS st)
         reportSDoc "tc.lhs.unify.inv" 20 $ prettyTCM (working_tel :: Telescope)
         addContext working_tel $ reportSDoc "tc.lhs.unify.inv" 20 $ prettyTCM (teleArgs working_tel :: [Arg Term])
 
@@ -350,7 +364,8 @@ unifyIndices' tel flex a us vs = liftTCM $ Bench.billTo [Bench.Typing, Bench.Che
             delta0 <- open delta0
             xi0f <- bind "i" $ \ i -> do
                                  m <- (runExceptT <$> (trFillTel' flag <$> delta0 <*> phi <*> xi0 <*> i))
-                                 either __IMPOSSIBLE__ id <$> lift m
+                                 either (const xi0) -- TODO Andrea: propagate error.
+                                   return =<< lift m
             xi0f <- open xi0f
 
             delta1 <- bind "i" $ \ i -> do
@@ -360,7 +375,9 @@ unifyIndices' tel flex a us vs = liftTCM $ Bench.billTo [Bench.Typing, Bench.Che
             delta1 <- open delta1
             xi1f <- bind "i" $ \ i -> do
                                  m <- (runExceptT <$> (trFillTel' flag <$> delta1 <*> phi <*> xi1 <*> i))
-                                 either __IMPOSSIBLE__ id <$> lift m
+                                 either (const xi1) -- TODO Andrea: propagate error
+                                   return
+                                   =<< lift m
             xi1f <- open xi1f
             fmap absBody . bind "i" $ \ i' -> do
               let (+++) m = liftA2 (++) m
@@ -379,12 +396,11 @@ unifyIndices' tel flex a us vs = liftTCM $ Bench.billTo [Bench.Typing, Bench.Che
                                                                                   -- k   φ
           prettyTCM (applySubst (parallelS $ reverse $ map unArg tau) $ fromPatternSubstitution (raise (size (eqTel st) - 1{-k-} + neqs{-φ-}) $ unifySubst output))
         reportSDoc "tc.lhs.unify.inv" 20 $ "."
-        return $ (parallelS (reverse $ map unArg tau), parallelS (reverse $ map unArg leftInv))
-      _ -> do reportSDoc "tc.lhs.unify.inv" 20 $ "steps"
-              return (idS, idS)
-
-
-    return $ fmap (\s -> (varTel s , unifySubst output , ps, tau, leftInv)) result
+        return $ (working_tel, fromPatternSubstitution $ unifySubst output -- TODO fix with unifyProof output and so on.
+                 , parallelS (reverse $ map unArg tau), parallelS (reverse $ map unArg leftInv))
+buildEquiv _  = liftTCM $ do
+  reportSDoc "tc.lhs.unify.inv" 20 $ "steps"
+  return $ Nothing
 
 ----------------------------------------------------
 -- Equalities
@@ -977,43 +993,45 @@ skipIrrelevantStrategy k s = do
 ----------------------------------------------------
 
 data UnifyLogEntry
-  = UnificationDone  UnifyState
-  | UnificationStep  UnifyState UnifyStep
+ -- = UnificationDone  UnifyState
+  = UnificationStep UnifyState UnifyStep UnifyOutput
 
 type UnifyLog = [UnifyLogEntry]
 
 data UnifyOutput = UnifyOutput
   { unifySubst :: PatternSubstitution
   , unifyProof :: PatternSubstitution
-  , unifyLog   :: UnifyLog
+--  , unifyLog   :: UnifyLog
   }
 
 instance Semigroup UnifyOutput where
   x <> y = UnifyOutput
     { unifySubst = unifySubst y `composeS` unifySubst x
     , unifyProof = unifyProof y `composeS` unifyProof x
-    , unifyLog   = unifyLog x ++ unifyLog y
+--    , unifyLog   = unifyLog x ++ unifyLog y
     }
 
 instance Monoid UnifyOutput where
-  mempty  = UnifyOutput IdS IdS []
+  mempty  = UnifyOutput IdS IdS -- []
   mappend = (<>)
 
-type UnifyM a = WriterT UnifyOutput TCM a
+type UnifyM a = WriterT UnifyLog TCM a
 
-tellUnifySubst :: PatternSubstitution -> UnifyM ()
-tellUnifySubst sub = tell $ UnifyOutput sub IdS []
+type UnifyStepM a = WriterT UnifyOutput TCM a
 
-tellUnifyProof :: PatternSubstitution -> UnifyM ()
-tellUnifyProof sub = tell $ UnifyOutput IdS sub []
+tellUnifySubst :: PatternSubstitution -> UnifyStepM ()
+tellUnifySubst sub = tell $ UnifyOutput sub IdS
+
+tellUnifyProof :: PatternSubstitution -> UnifyStepM ()
+tellUnifyProof sub = tell $ UnifyOutput IdS sub
 
 writeUnifyLog :: UnifyLogEntry -> UnifyM ()
-writeUnifyLog x = tell $ UnifyOutput IdS IdS [x]
+writeUnifyLog x = tell $ [x] -- UnifyOutput IdS IdS [x]
 
-runUnifyM :: UnifyM a -> TCM (a,UnifyOutput)
+runUnifyM :: UnifyM a -> TCM (a,UnifyLog)
 runUnifyM = runWriterT
 
-unifyStep :: UnifyState -> UnifyStep -> UnifyM (UnificationResult' UnifyState)
+unifyStep :: UnifyState -> UnifyStep -> UnifyStepM (UnificationResult' UnifyState)
 
 unifyStep s Deletion{ deleteAt = k , deleteType = a , deleteLeft = u , deleteRight = v } = do
     -- Check definitional equality of u and v
@@ -1339,12 +1357,13 @@ unify s strategy = if isUnifyStateSolved s
     tryUnifyStep step fallback = do
       addContext (varTel s) $
         reportSDoc "tc.lhs.unify" 20 $ "trying unifyStep" <+> prettyTCM step
-      x <- unifyStep s step
+      (x, output) <- lift $ runWriterT $ unifyStep s step
       case x of
         Unifies s'   -> do
           reportSDoc "tc.lhs.unify" 20 $ "unifyStep successful."
           reportSDoc "tc.lhs.unify" 20 $ "new unifyState:" <+> prettyTCM s'
-          writeUnifyLog $ UnificationStep s step
+          -- tell output
+          writeUnifyLog $ UnificationStep s step output
           return x
         NoUnify{}     -> return x
         DontKnow err1 -> do
