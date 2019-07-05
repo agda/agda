@@ -972,10 +972,16 @@ instance ToAbstract C.ModuleAssignment (A.ModuleName, [A.LetBinding]) where
 instance ToAbstract c a => ToAbstract (FieldAssignment' c) (FieldAssignment' a) where
   toAbstract = traverse toAbstract
 
+instance ToAbstract a b => ToAbstract (C.Binder' a) (A.Binder' b) where
+  toAbstract (C.Binder p n) = do
+    n' <- toAbstract n
+    p' <- toAbstract =<< toAbstract p
+    pure $ A.Binder p' n'
+
 instance ToAbstract C.LamBinding A.LamBinding where
   toAbstract (C.DomainFree x)  = do
-    tac <- traverse toAbstract $ bnameTactic $ namedArg x
-    A.DomainFree tac <$> toAbstract ((fmap . fmap) (NewName LambdaBound) x)
+    tac <- traverse toAbstract $ bnameTactic $ C.binderName $ namedArg x
+    A.DomainFree tac <$> toAbstract (updateNamedArg (fmap $ NewName LambdaBound) x)
   toAbstract (C.DomainFull tb) = A.DomainFull <$> toAbstract tb
 
 makeDomainFull :: C.LamBinding -> C.TypedBinding
@@ -986,10 +992,13 @@ makeDomainFull (C.DomainFree x) = C.TBind r [x] $ C.Underscore r Nothing
 instance ToAbstract C.TypedBinding A.TypedBinding where
   toAbstract (C.TBind r xs t) = do
     t' <- toAbstractCtx TopCtx t
-    tac <- traverse toAbstract $ case mapMaybe (bnameTactic . namedArg) xs of
-              []      -> Nothing
-              tac : _ -> Just tac -- Invariant: all tactics are the same (distributed in the parser, TODO: don't)
-    xs' <- toAbstract $ (map . fmap . fmap) (NewName LambdaBound) xs
+    tac <- traverse toAbstract $
+             case mapMaybe (bnameTactic . C.binderName . namedArg) xs of
+               []      -> Nothing
+               tac : _ -> Just tac
+               -- Invariant: all tactics are the same
+               -- (distributed in the parser, TODO: don't)
+    xs' <- toAbstract $ map (updateNamedArg (fmap $ NewName LambdaBound)) xs
     return $ A.TBind r tac xs' t'
   toAbstract (C.TLet r ds) = A.TLet r <$> toAbstract (LetDefs ds)
 
@@ -1415,11 +1424,11 @@ instance ToAbstract LetDef [A.LetBinding] where
 
         -- Named patterns not allowed in let definitions
         lambda e (Arg info (Named Nothing (A.VarP x))) =
-                return $ A.Lam i (A.mkDomainFree $ unnamedArg info x) e
+                return $ A.Lam i (A.mkDomainFree $ unnamedArg info $ A.mkBinder x) e
             where i = ExprRange (fuseRange x e)
         lambda e (Arg info (Named Nothing (A.WildP i))) =
             do  x <- freshNoName (getRange i)
-                return $ A.Lam i' (A.mkDomainFree $ unnamedArg info $ A.mkBindName x) e
+                return $ A.Lam i' (A.mkDomainFree $ unnamedArg info $ A.mkBinder_ x) e
             where i' = ExprRange (fuseRange i e)
         lambda _ _ = notAValidLetBinding d
 
@@ -2545,7 +2554,7 @@ toAbstractOpApp op ns es = do
         x <- freshName noRange "section"
         let i = setOrigin Inserted $ argInfo a
         (ls, ns) <- replacePlaceholders as
-        return ( A.mkDomainFree (unnamedArg i $ A.mkBindName x) : ls
+        return ( A.mkDomainFree (unnamedArg i $ A.mkBinder_ x) : ls
                , set (Left (Var x)) a : ns
                )
       where

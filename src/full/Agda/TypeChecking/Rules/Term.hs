@@ -272,8 +272,8 @@ checkTelescope' lamOrPi (b : tel) ret =
 --   is needed for irrelevance.
 
 checkTypedBindings :: LamOrPi -> A.TypedBinding -> (Telescope -> TCM a) -> TCM a
-checkTypedBindings lamOrPi (A.TBind r tac xs' e) ret = do
-    let xs = map (updateArgNamed (fmap A.unBind)) xs'
+checkTypedBindings lamOrPi (A.TBind r tac xps e) ret = do
+    let xs = map (updateNamedArg $ A.unBind . A.binderName) xps
     tac <- traverse (checkTacticAttribute lamOrPi) tac
     whenJust tac $ \ t -> reportSDoc "tc.term.tactic" 30 $ "Checked tactic attribute:" <?> prettyTCM t
     -- Andreas, 2011-04-26 irrelevant function arguments may appear
@@ -284,7 +284,7 @@ checkTypedBindings lamOrPi (A.TBind r tac xs' e) ret = do
 
     -- Jesper, 2019-02-12, Issue #3534: warn if the type of an
     -- instance argument does not have the right shape
-    unlessNull (filter isInstance xs') $ \ixs -> do
+    unlessNull (filter isInstance xps) $ \ixs -> do
       (tel, target) <- getOutputTypeName t
       case target of
         OutputTypeName{} -> return ()
@@ -297,7 +297,11 @@ checkTypedBindings lamOrPi (A.TBind r tac xs' e) ret = do
         setTac tac (ExtendTel dom tel) = ExtendTel dom{ domTactic = tac } $ setTac (raise 1 tac) <$> tel
         xs' = map (modMod lamOrPi experimental) xs
     let tel = setTac tac $ namedBindsToTel xs t
-    addContext (xs', t) $ ret tel
+
+    -- Throwing in let-bindings corresponding to the variables bound in the patterns
+    let ps  = mapMaybe (A.extractPattern . namedArg) xps
+    let lbs = fmap (\ (p, n) -> A.LetPatBind (A.LetRange r) p (A.Var $ A.unBind n)) ps
+    addContext (xs', t) $ checkLetBindings lbs (ret tel)
     where
         -- if we are checking a typed lambda, we resurrect before we check the
         -- types, but do not modify the new context entries
@@ -325,7 +329,7 @@ ifPath ty fallback work = do
 
 checkPath :: A.TypedBinding -> A.Expr -> Type -> TCM Term
 checkPath b@(A.TBind _ _ [x'] typ) body ty = do
-    let x    = (fmap . fmap) A.unBind x'
+    let x    = updateNamedArg (A.unBind . A.binderName) x'
         info = getArgInfo x
     PathType s path level typ lhs rhs <- pathView ty
     interval <- elInf primInterval
@@ -365,7 +369,7 @@ checkLambda cmp b@(A.TBind _ _ xs' typ) body target = do
     then (if possiblePath then trySeeingIfPath else dontUseTargetType)
     else useTargetType tel btyp
   where
-    xs = (map . fmap . fmap) A.unBind xs'
+    xs = map (updateNamedArg (A.unBind . A.binderName)) xs'
     info : _ = map getArgInfo xs
     trySeeingIfPath = do
       cubical <- optCubical <$> pragmaOptions
@@ -1029,7 +1033,8 @@ checkExpr' cmp e t0 =
         A.Lam i (A.DomainFull b) e -> checkLambda cmp b e t
 
         A.Lam i (A.DomainFree _ x) e0
-          | isNothing (nameOf $ unArg x) -> checkExpr' cmp (A.Lam i (domainFree (getArgInfo x) $ A.unBind $ namedArg x) e0) t
+          | isNothing (nameOf $ unArg x) && isNothing (A.binderPattern $ namedArg x) ->
+              checkExpr' cmp (A.Lam i (domainFree (getArgInfo x) $ A.unBind $ A.binderName $ namedArg x) e0) t
           | otherwise -> typeError $ NotImplemented "named arguments in lambdas"
 
         A.Lit lit    -> checkLiteral lit t
@@ -1320,7 +1325,7 @@ checkOrInferMeta newMeta mt i = do
 --   by inserting an underscore for the missing type.
 domainFree :: ArgInfo -> A.Name -> A.LamBinding
 domainFree info x =
-  A.DomainFull $ A.mkTBind r [unnamedArg info $ A.mkBindName x] $ A.Underscore underscoreInfo
+  A.DomainFull $ A.mkTBind r [unnamedArg info $ A.mkBinder_ x] $ A.Underscore underscoreInfo
   where
     r = getRange x
     underscoreInfo = A.MetaInfo

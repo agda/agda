@@ -22,7 +22,7 @@ import qualified Agda.Syntax.Abstract.Views as A
 import qualified Agda.Syntax.Info as A
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
-import Agda.Syntax.Scope.Base  ( ResolvedName(..), Binder(..), KindOfName(..), allKindsOfNames )
+import Agda.Syntax.Scope.Base  ( ResolvedName(..), BindingSource(..), KindOfName(..), allKindsOfNames )
 import Agda.Syntax.Scope.Monad ( resolveName, resolveName' )
 import Agda.Syntax.Translation.ConcreteToAbstract
 import Agda.Syntax.Translation.InternalToAbstract

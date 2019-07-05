@@ -286,6 +286,9 @@ mkBinder = Binder Nothing
 mkBinder_ :: Name -> Binder
 mkBinder_ = mkBinder . mkBindName
 
+extractPattern :: Binder' a -> Maybe (Pattern, a)
+extractPattern (Binder p a) = (,a) <$> p
+
 -- | A lambda binding is either domain free or typed.
 data LamBinding
   = DomainFree TacticAttr (NamedArg Binder)
