@@ -67,11 +67,12 @@ import Agda.Utils.Impossible
 --   type, the elements should be compared by tabulating the domain type.
 --   Only supported in case the domain type is primIsOne, to obtain
 --   the correct equality for partial elements.
+--
 data Dom e = Dom
   { domInfo   :: ArgInfo
   , domFinite :: !Bool
-  , domName   :: Maybe RString
-  , domTactic :: Maybe Term
+  , domName   :: Maybe RString  -- ^ e.g. @x@ in @{x = y : A} -> B@.
+  , domTactic :: Maybe Term     -- ^ "@tactic e".
   , unDom     :: e
   } deriving (Data, Show, Functor, Foldable, Traversable)
 
@@ -99,37 +100,15 @@ instance LensArgInfo (Dom e) where
 
 -- The other lenses are defined through LensArgInfo
 
-instance LensHiding (Dom e) where
-  getHiding = getHidingArgInfo
-  setHiding = setHidingArgInfo
-  mapHiding = mapHidingArgInfo
-
-instance LensModality (Dom e) where
-  getModality = getModalityArgInfo
-  setModality = setModalityArgInfo
-  mapModality = mapModalityArgInfo
-
-instance LensOrigin (Dom e) where
-  getOrigin = getOriginArgInfo
-  setOrigin = setOriginArgInfo
-  mapOrigin = mapOriginArgInfo
-
+instance LensHiding        (Dom e) where
+instance LensModality      (Dom e) where
+instance LensOrigin        (Dom e) where
 instance LensFreeVariables (Dom e) where
-  getFreeVariables = getFreeVariablesArgInfo
-  setFreeVariables = setFreeVariablesArgInfo
-  mapFreeVariables = mapFreeVariablesArgInfo
 
 -- Since we have LensModality, we get relevance and quantity by default
 
 instance LensRelevance (Dom e) where
-  getRelevance = getRelevanceMod
-  setRelevance = setRelevanceMod
-  mapRelevance = mapRelevanceMod
-
-instance LensQuantity (Dom e) where
-  getQuantity = getQuantityMod
-  setQuantity = setQuantityMod
-  mapQuantity = mapQuantityMod
+instance LensQuantity  (Dom e) where
 
 argFromDom :: Dom a -> Arg a
 argFromDom Dom{domInfo = i, unDom = a} = Arg i a
