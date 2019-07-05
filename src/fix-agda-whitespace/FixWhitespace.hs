@@ -149,8 +149,7 @@ transform :: Text -> Text
 transform =
   Text.unlines .
   removeFinalEmptyLinesExceptOne .
-  map removeTrailingWhitespace .
-  map convertTabs .
+  map (removeTrailingWhitespace .  convertTabs) .
   Text.lines
   where
   removeFinalEmptyLinesExceptOne =
