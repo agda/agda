@@ -1199,7 +1199,7 @@ mapFreeVariablesArgInfo = mapArgInfo . mapFreeVariables
 data Arg e  = Arg
   { argInfo :: ArgInfo
   , unArg :: e
-  } deriving (Data, Ord, Show, Functor, Foldable, Traversable)
+  } deriving (Data, Eq, Ord, Show, Functor, Foldable, Traversable)
 
 instance Decoration Arg where
   traverseF f (Arg ai a) = Arg ai <$> f a
@@ -1213,16 +1213,20 @@ instance SetRange a => SetRange (Arg a) where
 instance KillRange a => KillRange (Arg a) where
   killRange (Arg info a) = killRange2 Arg info a
 
--- | Ignores 'Quantity', 'Relevance', 'Origin', and 'FreeVariables'.
---   Ignores content of argument if 'Irrelevant'.
+-- Andreas, 2019-07-05, issue #3889
+-- A dedicated equality for with-abstraction now exists,
+-- thus, we can use intensional equality for Arg.
 --
-instance Eq a => Eq (Arg a) where
-  Arg (ArgInfo h1 m1 _ _) x1 == Arg (ArgInfo h2 m2 _ _) x2 =
-    h1 == h2 && (isIrrelevant m1 || isIrrelevant m2 || x1 == x2)
-    -- Andreas, 2017-10-04, issue #2775, ignore irrelevant arguments during with-abstraction.
-    -- This is a hack, we should not use '(==)' in with-abstraction
-    -- and more generally not use it on Syntax.
-    -- Andrea: except for caching.
+-- -- | Ignores 'Quantity', 'Relevance', 'Origin', and 'FreeVariables'.
+-- --   Ignores content of argument if 'Irrelevant'.
+-- --
+-- instance Eq a => Eq (Arg a) where
+--   Arg (ArgInfo h1 m1 _ _) x1 == Arg (ArgInfo h2 m2 _ _) x2 =
+--     h1 == h2 && (isIrrelevant m1 || isIrrelevant m2 || x1 == x2)
+--     -- Andreas, 2017-10-04, issue #2775, ignore irrelevant arguments during with-abstraction.
+--     -- This is a hack, we should not use '(==)' in with-abstraction
+--     -- and more generally not use it on Syntax.
+--     -- Andrea: except for caching.
 
 -- instance Show a => Show (Arg a) where
 --     show (Arg (ArgInfo h (Modality r q) o fv) a) = showFVs fv $ showQ q $ showR r $ showO o $ showH h $ show a
