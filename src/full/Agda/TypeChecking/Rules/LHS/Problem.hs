@@ -18,11 +18,8 @@ import Data.Semigroup ( Semigroup, (<>) )
 import Data.Traversable
 
 import Agda.Syntax.Common
-import Agda.Syntax.Info
-import Agda.Syntax.Literal
 import Agda.Syntax.Position
 import Agda.Syntax.Internal
-import Agda.Syntax.Internal.Pattern
 import Agda.Syntax.Abstract (ProblemEq(..))
 import qualified Agda.Syntax.Abstract as A
 
@@ -34,8 +31,6 @@ import Agda.TypeChecking.Pretty
 
 import Agda.Utils.Lens
 import Agda.Utils.List
-import Agda.Utils.Null
-import Agda.Utils.Permutation
 import Agda.Utils.Size
 import qualified Agda.Utils.Pretty as PP
 

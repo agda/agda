@@ -78,7 +78,6 @@ import Agda.Interaction.Options.Warnings
 
 import Agda.Utils.AffineHole
 import Agda.Utils.Except ( MonadError(throwError,catchError) )
-import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List (caseList, isSublistOf)

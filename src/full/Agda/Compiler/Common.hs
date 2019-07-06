@@ -21,12 +21,9 @@ import qualified Agda.Syntax.Concrete.Name as C
 import Agda.Syntax.Internal as I
 
 import Agda.Interaction.FindFile
-import Agda.Interaction.Imports
 import Agda.Interaction.Options
 
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Pretty
-import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 
@@ -174,8 +171,7 @@ inCompilerEnv mainI cont = do
       stPragmaOptions `modifyTCLens` \ o -> o { optCompileNoMain = True }
 
     setScope (iInsideScope mainI) -- so that compiler errors don't use overly qualified names
-    ignoreAbstractMode $ do
-      cont
+    ignoreAbstractMode cont
   -- keep generated warnings
   let newWarnings = stPostTCWarnings $  stPostScopeState $ s
   stTCWarnings `setTCLens` newWarnings

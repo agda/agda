@@ -21,7 +21,6 @@ import qualified Agda.Termination.CallMatrix as CMSet
 import Agda.Termination.Order
 import Agda.Termination.SparseMatrix
 
-import Agda.Utils.Either
 import Agda.Utils.List
 import Agda.Utils.Maybe
 

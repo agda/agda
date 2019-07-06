@@ -48,7 +48,6 @@ import Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Pattern
 import Agda.Syntax.Abstract.Pretty
 import Agda.Syntax.Internal as I
-import Agda.Syntax.Internal.Pattern as I
 import Agda.Syntax.Scope.Base (isNameInScope, inverseScopeLookupName)
 
 import Agda.TypeChecking.Monad
@@ -62,13 +61,11 @@ import {-# SOURCE #-} Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
-import Agda.TypeChecking.DropArgs
 
 import Agda.Interaction.Options ( optPostfixProjections )
 
 import Agda.Utils.Either
 import Agda.Utils.Except ( MonadError(catchError) )
-import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List

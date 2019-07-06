@@ -23,7 +23,6 @@ import Agda.Syntax.Position
 
 import Agda.Utils.FileName
 import Agda.Utils.Lens
-import Agda.Utils.List
 import Agda.Utils.Pretty
 import Agda.Utils.Size
 import Agda.Utils.Suffix

@@ -22,7 +22,6 @@ import Agda.TypeChecking.Pretty
 
 import Agda.Utils.Functor
 import Agda.Utils.List (splitExactlyAt)
-import Agda.Utils.Size
 import Agda.Utils.Except
 
 import Agda.Utils.Impossible

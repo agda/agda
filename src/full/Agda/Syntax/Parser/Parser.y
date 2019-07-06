@@ -56,7 +56,6 @@ import Agda.Utils.List ( spanJust, chopWhen )
 import Agda.Utils.Monad
 import Agda.Utils.Pretty
 import Agda.Utils.Singleton
-import Agda.Utils.Tuple
 import qualified Agda.Utils.Maybe.Strict as Strict
 
 import Agda.Utils.Impossible

@@ -34,7 +34,6 @@ import Agda.Syntax.Scope.Base
 
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Debug
-import Agda.TypeChecking.Monad.Options
 import Agda.TypeChecking.Monad.State
 import Agda.TypeChecking.Monad.Trace ( setCurrentRange )
 import Agda.TypeChecking.Positivity.Occurrence (Occurrence)
@@ -42,7 +41,6 @@ import Agda.TypeChecking.Warnings ( warning )
 
 import qualified Agda.Utils.AssocList as AssocList
 import Agda.Utils.Except
-import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List
@@ -51,8 +49,6 @@ import Agda.Utils.Monad
 import Agda.Utils.Null (unlessNull)
 import Agda.Utils.NonemptyList
 import Agda.Utils.Pretty
-import Agda.Utils.Size
-import Agda.Utils.Tuple
 
 import Agda.Utils.Impossible
 

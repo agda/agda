@@ -19,7 +19,6 @@ import qualified Agda.Syntax.Abstract as A
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.CompiledClause
 
-import Agda.Utils.Functor
 import Agda.Utils.NonemptyList
 
 import Agda.Utils.Impossible

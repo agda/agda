@@ -31,7 +31,6 @@ import Debug.Trace
 import Agda.Syntax.Common
 import qualified Agda.Syntax.Info as Info
 import Agda.Syntax.Internal
-import Agda.Syntax.Internal.Pattern
 import Agda.Syntax.Position (fuseRange, Range, HasRange(..), noRange)
 import Agda.TypeChecking.Datatypes ( isDataOrRecordType )
 import Agda.TypeChecking.Functions
@@ -52,7 +51,6 @@ import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
-import qualified Agda.Utils.Permutation as Perm
 import qualified Agda.Utils.Pretty as P
 import Agda.Utils.Pretty (Pretty, prettyShow)
 import Agda.Utils.SemiRing

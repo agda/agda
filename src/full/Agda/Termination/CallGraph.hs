@@ -32,7 +32,6 @@ import Data.Set (Set)
 import Agda.Termination.CallMatrix (CallMatrix, CallMatrixAug(..), CMSet(..), CallComb(..))
 import qualified Agda.Termination.CallMatrix as CMSet
 import Agda.Termination.CutOff
-import Agda.Termination.SparseMatrix as Matrix
 
 import Agda.Utils.Favorites (Favorites)
 import qualified Agda.Utils.Favorites as Fav

@@ -75,14 +75,12 @@ import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
 
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Pretty
 
-import Agda.Utils.Function
 import Agda.Utils.PartialOrd
 import Agda.Utils.Pretty (prettyShow)
 import Agda.Utils.List

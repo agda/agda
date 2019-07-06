@@ -94,7 +94,6 @@ import Agda.Utils.Null (Null(null))
 import qualified Agda.Utils.Null as Null
 import Agda.Utils.Pretty
 import Agda.Utils.SemiRing
-import Agda.Utils.Singleton (Singleton)
 import qualified Agda.Utils.Singleton as Singleton
 import Agda.Utils.Tuple
 

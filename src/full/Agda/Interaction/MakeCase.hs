@@ -19,13 +19,10 @@ import Agda.Syntax.Position
 import Agda.Syntax.Concrete (NameInScope(..), LensInScope(..))
 import qualified Agda.Syntax.Concrete as C
 import qualified Agda.Syntax.Abstract as A
-import qualified Agda.Syntax.Abstract.Views as A
-import qualified Agda.Syntax.Info as A
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
 import Agda.Syntax.Scope.Base  ( ResolvedName(..), Binder(..), KindOfName(..), allKindsOfNames )
 import Agda.Syntax.Scope.Monad ( resolveName, resolveName' )
-import Agda.Syntax.Translation.ConcreteToAbstract
 import Agda.Syntax.Translation.InternalToAbstract
 
 import Agda.TypeChecking.Monad
@@ -33,24 +30,18 @@ import Agda.TypeChecking.Coverage
 import Agda.TypeChecking.Coverage.Match ( SplitPatVar(..) , SplitPattern , applySplitPSubst , fromSplitPatterns )
 import Agda.TypeChecking.Empty ( isEmptyTel )
 import Agda.TypeChecking.Pretty
-import Agda.TypeChecking.RecordPatterns
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
-import Agda.TypeChecking.Irrelevance
-import Agda.TypeChecking.Rules.LHS.Implicit
-import Agda.TheTypeChecker
 
 import Agda.Interaction.Options
 import Agda.Interaction.BasicOps
 
 import Agda.Utils.Function
 import Agda.Utils.Functor
-import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import qualified Agda.Utils.Pretty as P
-import Agda.Utils.Singleton
 import Agda.Utils.Size
 
 import Agda.Utils.Impossible

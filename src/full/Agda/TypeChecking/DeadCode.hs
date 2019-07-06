@@ -10,9 +10,6 @@ import Data.Traversable (traverse)
 import Data.HashMap.Strict (HashMap)
 import qualified Data.HashMap.Strict as HMap
 
-import Agda.Syntax.Common
-import Agda.Syntax.Literal
-import qualified Agda.Syntax.Concrete as C
 import qualified Agda.Syntax.Abstract as A
 
 import Agda.Syntax.Internal
@@ -24,7 +21,6 @@ import qualified Agda.Benchmarking as Bench
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Reduce
 
 import Agda.Utils.Lens
