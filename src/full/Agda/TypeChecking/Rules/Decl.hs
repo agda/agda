@@ -658,7 +658,7 @@ checkPrimitive i x e =
           , "primLevelMax"
           , "primSetOmega"
           ]
-    when (elem name builtinPrimitives) $ typeError $ NoSuchPrimitiveFunction name
+    when (name `elem` builtinPrimitives) $ typeError $ NoSuchPrimitiveFunction name
     t <- isType_ e
     noConstraints $ equalType t t'
     let s  = prettyShow $ qnameName x

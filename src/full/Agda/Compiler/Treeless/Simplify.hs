@@ -223,14 +223,14 @@ simplify FunctionKit{..} = simpl
       , Just trueCon <- true
       , Just falseCon <- false = if k < j then TCon trueCon else TCon falseCon
     simplPrim' (TApp (TPrim op) [u, v])
-      | elem op [PGeq, PLt, PEqI]
+      | op `elem` [PGeq, PLt, PEqI]
       , Just (PAdd, k, u) <- constArithView u
       , Just j <- intView v = TApp (TPrim op) [u, tInt (j - k)]
     simplPrim' (TApp (TPrim PEqI) [u, v])
       | Just (op1, k, u) <- constArithView u,
         Just (op2, j, v) <- constArithView v,
         op1 == op2, k == j,
-        elem op1 [PAdd, PSub] = tOp PEqI u v
+        op1 `elem` [PAdd, PSub] = tOp PEqI u v
     simplPrim' (TPOp op u v)
       | zeroL, isMul || isDiv = tInt 0
       | zeroL, isAdd          = v
@@ -238,18 +238,18 @@ simplify FunctionKit{..} = simpl
       | zeroR, isAdd || isSub = u
       where zeroL = Just 0 == intView u || Just 0 == word64View u
             zeroR = Just 0 == intView v || Just 0 == word64View v
-            isAdd = elem op [PAdd, PAdd64]
-            isSub = elem op [PSub, PSub64]
-            isMul = elem op [PMul, PMul64]
-            isDiv = elem op [PQuot, PQuot64, PRem, PRem64]
+            isAdd = op `elem` [PAdd, PAdd64]
+            isSub = op `elem` [PSub, PSub64]
+            isMul = op `elem` [PMul, PMul64]
+            isDiv = op `elem` [PQuot, PQuot64, PRem, PRem64]
     simplPrim' (TApp (TPrim op) [u, v])
       | Just u <- negView u,
         Just v <- negView v,
-        elem op [PMul, PQuot] = tOp op u v
+        op `elem` [PMul, PQuot] = tOp op u v
       | Just u <- negView u,
-        elem op [PMul, PQuot] = simplArith $ tOp PSub (tInt 0) (tOp op u v)
+        op `elem` [PMul, PQuot] = simplArith $ tOp PSub (tInt 0) (tOp op u v)
       | Just v <- negView v,
-        elem op [PMul, PQuot] = simplArith $ tOp PSub (tInt 0) (tOp op u v)
+        op `elem` [PMul, PQuot] = simplArith $ tOp PSub (tInt 0) (tOp op u v)
     simplPrim' (TApp (TPrim PRem) [u, v])
       | Just u <- negView u  = simplArith $ tOp PSub (tInt 0) (tOp PRem u (unNeg v))
       | Just v <- negView v  = tOp PRem u v
@@ -297,7 +297,7 @@ simplify FunctionKit{..} = simpl
 
     constArithView :: TTerm -> Maybe (TPrim, Integer, TTerm)
     constArithView (TApp (TPrim op) [TLit (LitNat _ k), u])
-      | elem op [PAdd, PSub] = Just (op, k, u)
+      | op `elem` [PAdd, PSub] = Just (op, k, u)
     constArithView (TApp (TPrim op) [u, TLit (LitNat _ k)])
       | op == PAdd = Just (op, k, u)
       | op == PSub = Just (PAdd, -k, u)
@@ -464,8 +464,8 @@ aNeg (Neg a) = Pos a
 
 aCancel :: [Atom] -> [Atom]
 aCancel (a : as)
-  | elem (aNeg a) as = aCancel (List.delete (aNeg a) as)
-  | otherwise        = a : aCancel as
+  | (aNeg a) `elem` as = aCancel (List.delete (aNeg a) as)
+  | otherwise          = a : aCancel as
 aCancel [] = []
 
 sortR :: Ord a => [a] -> [a]

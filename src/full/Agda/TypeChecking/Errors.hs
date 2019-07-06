@@ -628,7 +628,7 @@ instance PrettyTCM TypeError where
       pwords "previous binding to" ++ [prettyTCM x]
 
     NoBindingForBuiltin x
-      | elem x [builtinZero, builtinSuc] -> fsep $
+      | x `elem` [builtinZero, builtinSuc] -> fsep $
         pwords "No binding for builtin " ++ [text x <> comma] ++
         pwords ("use {-# BUILTIN " ++ builtinNat ++ " name #-} to bind builtin natural " ++
                 "numbers to the type 'name'")
@@ -725,7 +725,7 @@ instance PrettyTCM TypeError where
              , suggestion inscope x
              ]
       suggestion inscope x = nest 2 $ par $
-        [ "did you forget space around the ':'?"  | elem ':' s ] ++
+        [ "did you forget space around the ':'?"  | ':' `elem` s ] ++
         [ "did you forget space around the '->'?" | isInfixOf "->" s ] ++
         [ sep [ "did you mean"
               , nest 2 $ vcat (punctuate " or" $ map (\ y -> text $ "'" ++ y ++ "'") ys) <> "?" ]

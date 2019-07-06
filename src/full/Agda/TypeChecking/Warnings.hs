@@ -120,7 +120,7 @@ warning :: MonadWarning m => Warning -> m ()
 warning = warnings . pure
 
 isUnsolvedWarning :: Warning -> Bool
-isUnsolvedWarning w = warningName w `elem` unsolvedWarnings
+isUnsolvedWarning w = warningName w `Set.member` unsolvedWarnings
 
 isMetaWarning :: Warning -> Bool
 isMetaWarning w = case w of
@@ -150,7 +150,7 @@ data WhichWarnings =
 
 classifyWarning :: Warning -> WhichWarnings
 classifyWarning w =
-  if warningName w `elem` errorWarnings
+  if warningName w `Set.member` errorWarnings
   then ErrorWarnings
   else AllWarnings
 

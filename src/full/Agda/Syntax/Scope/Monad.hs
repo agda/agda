@@ -653,12 +653,12 @@ applyImportDirectiveM m (ImportDirective rng usn' hdn' ren' public) scope = do
          , impRenaming = concatMap extraRenaming (impRenaming dir)
          }
       where
-        addExtra f@(ImportedName y) | elem y extra = [f, ImportedModule y]
+        addExtra f@(ImportedName y) | y `elem` extra = [f, ImportedModule y]
         addExtra m = [m]
 
         extraRenaming r@(Renaming from to rng) =
           case (from, to) of
-            (ImportedName y, ImportedName z) | elem y extra ->
+            (ImportedName y, ImportedName z) | y `elem` extra ->
               [r, Renaming (ImportedModule y) (ImportedModule z) rng]
             _ -> [r]
 

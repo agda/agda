@@ -2021,7 +2021,7 @@ buildDoStmt (RawApp r es) cs
               <*> pure (RawApp (getRange es2) es2)
               <*> pure cs
   where
-    isLeftArrow (Ident (QName (Name _ _ [Id arr]))) = elem arr ["<-", "←"]
+    isLeftArrow (Ident (QName (Name _ _ [Id arr]))) = arr `elem` ["<-", "←"]
     isLeftArrow _ = False
 buildDoStmt e (_ : _) = parseError' (rStart' $ getRange e) "Only pattern matching do-statements can have where clauses."
 buildDoStmt e [] = return $ DoThen e

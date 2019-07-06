@@ -98,7 +98,7 @@ data Env = Env { takenVarNames :: Set A.Name
 makeEnv :: MonadAbsToCon m => ScopeInfo -> m Env
 makeEnv scope = do
       -- zero and suc doesn't have to be in scope for natural number literals to work
-  let noScopeCheck b = elem b [builtinZero, builtinSuc]
+  let noScopeCheck b = b `elem` [builtinZero, builtinSuc]
       name (I.Def q _)   = Just q
       name (I.Con q _ _) = Just (I.conName q)
       name _             = Nothing

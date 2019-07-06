@@ -497,7 +497,7 @@ pruneUnsolvedMetas genRecName genRecCon genTel genRecFields interactionPoints is
       let notPruned = [ i | i <- permute (takeP (length cxt) $ mvPermutation mv) $
                                  reverse $ zipWith const [0..] cxt ]
       case [ i | (i, Dom{unDom = (_, El _ (Def q _))}) <- zip [0..] cxt,
-                 q == genRecName, elem i notPruned ] of
+                 q == genRecName, i `elem` notPruned ] of
         []    -> return Nothing
         _:_:_ -> __IMPOSSIBLE__
         [i]   -> return (Just i)
@@ -544,7 +544,7 @@ pruneUnsolvedMetas genRecName genRecCon genTel genRecFields interactionPoints is
           names   = map (fst . unDom) telList
           late    = map (fst . unDom) $ filter (getAny . allMetas (Any . (== x))) telList
           projs (Proj _ q)
-            | elem q genRecFields = Set.fromList [x | Just x <- [getGeneralizedFieldName q]]
+            | q `elem` genRecFields = Set.fromList [x | Just x <- [getGeneralizedFieldName q]]
           projs _                 = Set.empty
           early = Set.toList $ flip foldTerm u $ \ case
                   Var _ es   -> foldMap projs es

@@ -500,7 +500,7 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
             -- Check whether the with-clause constructor can be (possibly trivially)
             -- disambiguated to be equal to the parent-clause constructor.
             -- Andreas, 2017-08-13, herein, ignore abstract constructors.
-            cs' <- liftTCM $ do snd . partitionEithers <$> mapM getConForm (toList cs')
+            cs' <- liftTCM $ snd . partitionEithers <$> mapM getConForm (toList cs')
             unless (elem c cs') mismatch
             -- Strip the subpatterns ps' and then continue.
             stripConP d us b c ConOCon qs' ps'

@@ -1,4 +1,3 @@
-
 -- | Utility functions for lists.
 
 module Agda.Utils.List where
@@ -208,11 +207,7 @@ dropCommon xs ys = (xs, ys)
 
 -- | Sublist relation.
 isSublistOf :: Eq a => [a] -> [a] -> Bool
-isSublistOf []       ys = True
-isSublistOf (x : xs) ys =
-  case dropWhile (x /=) ys of
-    []     -> False
-    (_:ys) -> isSublistOf xs ys
+isSublistOf = List.isSubsequenceOf
 
 type Prefix a = [a]
 type Suffix a = [a]

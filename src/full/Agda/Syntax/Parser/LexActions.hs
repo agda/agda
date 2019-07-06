@@ -186,7 +186,7 @@ end _ _ _ =
 keyword :: Keyword -> LexAction Token
 keyword k = layout $ withInterval_ (TokKeyword k)
     where
-        layout | elem k layoutKeywords  = withLayout
+        layout | k `elem` layoutKeywords  = withLayout
                | otherwise              = id
 
 
