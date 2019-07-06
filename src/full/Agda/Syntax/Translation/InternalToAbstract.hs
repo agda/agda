@@ -688,7 +688,7 @@ reifyTerm expandAnonDefs0 v0 = do
 
               TelV tel _ <- telViewUpTo np (defType defn)
               let (as, rest) = splitAt (np - 1) $ telToList tel
-                  dom = fromMaybe __IMPOSSIBLE__ $ listToMaybe rest
+                  dom = headWithDefault __IMPOSSIBLE__ rest
 
               -- These are the dropped projection arguments
               scope <- getScope

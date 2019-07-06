@@ -407,7 +407,7 @@ mkPrimInjective a b qn = do
   -- If the user want the primitive to reduce whenever the two values are equal (no
   -- matter whether the equality is refl), they can combine it with @eraseEquality@.
   return $ PrimImpl ty $ primFun __IMPOSSIBLE__ 3 $ \ ts -> do
-    let t  = fromMaybe __IMPOSSIBLE__ $ listToMaybe ts
+    let t  = headWithDefault __IMPOSSIBLE__ ts
     let eq = unArg $ fromMaybe __IMPOSSIBLE__ $ lastMaybe ts
     eq' <- normalise' eq
     case eq' of
