@@ -7,6 +7,7 @@ import Control.Monad
 import Control.Monad.State
 import Data.Function
 import Data.Traversable
+import qualified Data.HashMap.Strict as HMap
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
@@ -21,9 +22,7 @@ import Agda.TypeChecking.Pretty
 
 import Agda.Utils.Functor
 import Agda.Utils.List (splitExactlyAt)
-import Agda.Utils.Size
 import Agda.Utils.Except
-import qualified Agda.Utils.HashMap as HMap
 
 import Agda.Utils.Impossible
 

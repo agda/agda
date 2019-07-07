@@ -327,7 +327,7 @@ libraryIncludePaths overrideLibFile libs xs0 = mkLibM libs $ WriterT $ do
       -> Writer [Either LibError LibWarning] [AgdaLibFile]
     find _ _ [] = pure []
     find file visited (x : xs)
-      | elem x visited = find file visited xs
+      | x `elem` visited = find file visited xs
       | otherwise =
           case findLib x libs of
             [l] -> (l :) <$> find file (x : visited) (libDepends l ++ xs)

@@ -25,20 +25,13 @@ import Control.Monad.State ( StateT )
 import Control.Monad.Trans ( lift )
 
 import Agda.TypeChecking.Monad.Base
-import {-# SOURCE #-} Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Monad.Caching
-import {-# SOURCE #-} Agda.TypeChecking.Monad.Context ()
-import Agda.TypeChecking.Monad.Debug
-import {-# SOURCE #-} Agda.TypeChecking.Monad.MetaVars ()
-import {-# SOURCE #-} Agda.TypeChecking.Monad.Signature ()
-import {-# SOURCE #-} Agda.TypeChecking.Errors
 import {-# SOURCE #-} Agda.TypeChecking.Pretty
 import {-# SOURCE #-} Agda.TypeChecking.Pretty.Call
 import {-# SOURCE #-} Agda.TypeChecking.Pretty.Warning
 
 import Agda.Syntax.Position
 import Agda.Syntax.Parser
-import Agda.Syntax.Concrete.Definitions (DeclarationWarning(..))
 
 import Agda.Interaction.Options
 import Agda.Interaction.Options.Warnings
@@ -129,7 +122,7 @@ warning :: MonadWarning m => Warning -> m ()
 warning = warnings . pure
 
 isUnsolvedWarning :: Warning -> Bool
-isUnsolvedWarning w = warningName w `elem` unsolvedWarnings
+isUnsolvedWarning w = warningName w `Set.member` unsolvedWarnings
 
 isMetaWarning :: Warning -> Bool
 isMetaWarning w = case w of
@@ -159,7 +152,7 @@ data WhichWarnings =
 
 classifyWarning :: Warning -> WhichWarnings
 classifyWarning w =
-  if warningName w `elem` errorWarnings
+  if warningName w `Set.member` errorWarnings
   then ErrorWarnings
   else AllWarnings
 

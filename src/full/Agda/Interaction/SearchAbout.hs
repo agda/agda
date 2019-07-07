@@ -17,7 +17,6 @@ import Agda.Syntax.Internal.Names (namesIn)
 import Agda.Interaction.BasicOps (normalForm, Rewrite, parseName)
 
 import qualified Agda.Syntax.Concrete as C
-import qualified Agda.Syntax.Abstract as A
 import qualified Agda.Syntax.Internal as I
 
 import Agda.Utils.Pretty ( prettyShow )

@@ -3,7 +3,6 @@ module Agda.Compiler.MAlonzo.Coerce (addCoercions) where
 
 import Agda.Syntax.Treeless
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Substitute
 import Agda.Utils.Functor
 

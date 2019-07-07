@@ -9,6 +9,7 @@ module Main where
 
 import Control.Monad.IO.Class ( MonadIO(liftIO) )
 import Data.Foldable
+import qualified Data.HashMap.Strict as HashMap
 
 ------------------------------------------------------------------------------
 -- Agda library imports
@@ -23,7 +24,6 @@ import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
 
 import Agda.Utils.FileName
-import qualified Agda.Utils.HashMap as HashMap
 
 import Agda.Utils.Pretty (render)
 

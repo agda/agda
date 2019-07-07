@@ -29,6 +29,8 @@ import Data.Monoid ( Monoid, mempty, mappend )
 import Data.Sequence (Seq)
 import Data.Set (Set)
 import qualified Data.Set as Set -- hiding (singleton, null, empty)
+import Data.HashMap.Strict (HashMap)
+import qualified Data.HashMap.Strict as HMap
 import Data.Semigroup ( Semigroup, (<>), Any(..) )
 import Data.Data (Data, toConstr)
 import Data.Foldable (Foldable)
@@ -95,8 +97,6 @@ import Agda.Utils.Except
 import Agda.Utils.FileName
 import Agda.Utils.Functor
 import Agda.Utils.Function
-import Agda.Utils.HashMap (HashMap)
-import qualified Agda.Utils.HashMap as HMap
 import Agda.Utils.Hash
 import Agda.Utils.Lens
 import Agda.Utils.List

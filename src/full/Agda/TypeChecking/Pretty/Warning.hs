@@ -269,7 +269,7 @@ applyFlagsToTCWarnings' isMain ws = do
   -- filter out the warnings the flags told us to ignore
   let cleanUp w = let wName = warningName w in
         wName /= SafeFlagPragma_
-        && wName `elem` warnSet
+        && wName `Set.member` warnSet
         && case w of
           UnsolvedMetaVariables ums    -> not $ null ums
           UnsolvedInteractionMetas uis -> not $ null uis

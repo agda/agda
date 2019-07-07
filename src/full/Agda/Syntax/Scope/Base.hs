@@ -1055,7 +1055,7 @@ recomputeInverseScopeMaps scope = billToPure [ Scoping , InverseScopeLookup ] $
       (m, s)  <- scopes
       (x, ms) <- Map.toList (allNamesInScope s)
       q       <- anameName <$> ms
-      if elem m current
+      if m `elem` current
         then return (q, singleton (C.QName x))
         else do
           y <- findModule m

@@ -491,7 +491,6 @@ library
                     Agda.Utils.Bag
                     Agda.Utils.Benchmark
                     Agda.Utils.BiMap
-                    Agda.Utils.Char
                     Agda.Utils.Cluster
                     Agda.Utils.Empty
                     Agda.Utils.Environment
@@ -506,7 +505,6 @@ library
                     Agda.Utils.Graph.AdjacencyMap.Unidirectional
                     Agda.Utils.Graph.TopSort
                     Agda.Utils.Hash
-                    Agda.Utils.HashMap
                     Agda.Utils.Haskell.Syntax
                     Agda.Utils.Impossible
                     Agda.Utils.IndexedList

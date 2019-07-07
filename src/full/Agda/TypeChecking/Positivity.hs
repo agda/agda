@@ -32,7 +32,6 @@ import Debug.Trace
 import Agda.Syntax.Common
 import qualified Agda.Syntax.Info as Info
 import Agda.Syntax.Internal
-import Agda.Syntax.Internal.Pattern
 import Agda.Syntax.Position (fuseRange, Range, HasRange(..), noRange)
 import Agda.TypeChecking.Datatypes ( isDataOrRecordType )
 import Agda.TypeChecking.Functions
@@ -53,7 +52,6 @@ import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
-import qualified Agda.Utils.Permutation as Perm
 import qualified Agda.Utils.Pretty as P
 import Agda.Utils.Pretty (Pretty, prettyShow)
 import Agda.Utils.SemiRing
@@ -529,7 +527,7 @@ computeOccurrences' q = inConcreteOrAbstractMode q $ \ def -> do
       TelV tel t <- telView $ defType def
       -- Andreas, 2017-04-26, issue #2554: count first index as parameter if it has type Size.
       -- We compute sizeIndex=1 if first first index has type Size, otherwise sizeIndex==0
-      sizeIndex <- caseMaybe (headMaybe $ drop np0 $ telToList tel) (return 0) $ \ dom -> do
+      sizeIndex <- caseMaybe (listToMaybe $ drop np0 $ telToList tel) (return 0) $ \ dom -> do
         caseMaybeM (isSizeType dom) (return 0) $ \ _ -> return 1
       let np = np0 + sizeIndex
       let xs = [np .. size tel - 1] -- argument positions corresponding to indices

@@ -12,7 +12,6 @@ import qualified Data.Map as Map
 import Data.Maybe
 
 import Agda.Syntax.Common
-import Agda.Syntax.Concrete.Name
 import Agda.Syntax.Concrete (Expr(..))
 import Agda.Syntax.Concrete.Pretty
 import Agda.Syntax.Position

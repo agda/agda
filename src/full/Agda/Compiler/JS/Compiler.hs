@@ -12,10 +12,10 @@ import Data.Traversable (traverse)
 import Data.Map ( fromList, elems )
 import qualified Data.Set as Set
 import qualified Data.Map as Map
+import qualified Data.HashMap.Strict as HMap
 import System.Directory ( createDirectoryIfMissing )
 import System.FilePath ( splitFileName, (</>) )
 
-import Agda.Interaction.FindFile ( findFile, findInterfaceFile )
 import Agda.Interaction.Imports ( isNewerThan )
 import Agda.Syntax.Common ( Nat, unArg, namedArg, NameId(..) )
 import Agda.Syntax.Concrete.Name ( projectRoot , isNoName )
@@ -27,28 +27,21 @@ import Agda.Syntax.Internal
   ( Name, Args, Type,
     conName,
     toTopLevelModuleName, arity, unEl, unAbs, nameFixity )
-import Agda.Syntax.Position
 import Agda.Syntax.Literal ( Literal(..) )
 import Agda.Syntax.Fixity
 import qualified Agda.Syntax.Treeless as T
 import Agda.TypeChecking.Substitute (absBody, TelV(..))
-import Agda.TypeChecking.Level ( reallyUnLevelView )
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Monad.Debug ( reportSLn )
-import Agda.TypeChecking.Monad.Options ( setCommandLineOptions )
 import Agda.TypeChecking.Reduce ( instantiateFull, normalise )
-import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Pretty
-import Agda.Utils.FileName ( filePath )
-import Agda.Utils.Function ( iterate' )
 import Agda.Utils.Maybe
 import Agda.Utils.Monad ( (<$>), (<*>), ifM )
 import Agda.Utils.Pretty (prettyShow)
 import qualified Agda.Utils.Pretty as P
 import Agda.Utils.IO.Directory
 import Agda.Utils.IO.UTF8 ( writeFile )
-import qualified Agda.Utils.HashMap as HMap
 
 import Agda.Compiler.Common
 import Agda.Compiler.ToTreeless

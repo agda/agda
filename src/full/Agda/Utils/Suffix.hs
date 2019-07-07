@@ -3,8 +3,6 @@ module Agda.Utils.Suffix where
 
 import Data.Char
 
-import Agda.Utils.Function
-
 import Agda.Utils.Impossible
 
 import Data.IORef

@@ -23,6 +23,7 @@ import qualified Data.List as List
 import Data.Map (Map)
 import Data.Maybe
 import Data.Monoid hiding ((<>))
+import Data.HashMap.Strict (HashMap)
 
 import Debug.Trace (trace)
 import Language.Haskell.TH.Syntax (thenCmp) -- lexicographic combination of Ordering
@@ -52,7 +53,6 @@ import Agda.Utils.Permutation
 import Agda.Utils.Pretty
 import Agda.Utils.Size
 import Agda.Utils.Tuple
-import Agda.Utils.HashMap (HashMap)
 
 import Agda.Utils.Impossible
 
@@ -87,7 +87,7 @@ canProject f v =
       (fld, i) <- findWithIndex ((f==) . unArg) fs
       -- Andreas, 2018-06-12, issue #2170
       -- The ArgInfo from the ConHead is more accurate (relevance subtyping!).
-      setArgInfo (getArgInfo fld) <.> isApplyElim =<< headMaybe (drop i vs)
+      setArgInfo (getArgInfo fld) <.> isApplyElim =<< listToMaybe (drop i vs)
     _ -> Nothing
 
 -- | Eliminate a constructed term.
@@ -110,7 +110,7 @@ conApp ch@(ConHead c _ fs) ci args ees@(Proj o f : es) =
       -- Andreas, 2018-06-12, issue #2170
       -- We safe-guard the projected value by DontCare using the ArgInfo stored at the record constructor,
       -- since the ArgInfo in the constructor application might be inaccurate because of subtyping.
-      v = maybe (failure stuck) (relToDontCare fld . argToDontCare . isApply) $ headMaybe $ drop i args
+      v = maybe (failure stuck) (relToDontCare fld . argToDontCare . isApply) $ listToMaybe $ drop i args
       in  applyE v es
 
   -- -- Andreas, 2016-07-20 futile attempt to magically fix ProjOrigin
@@ -132,10 +132,10 @@ conApp ch@(ConHead c _ fs) ci args ees@(Proj o f : es) =
 
 {-
       i = maybe failure id    $ elemIndex f $ map unArg fs
-      v = maybe failure unArg $ headMaybe $ drop i args
+      v = maybe failure unArg $ listToMaybe $ drop i args
       -- Andreas, 2013-10-20 see Issue543a:
       -- protect result of irrelevant projection.
-      r = maybe __IMPOSSIBLE__ getRelevance $ headMaybe $ drop i fs
+      r = maybe __IMPOSSIBLE__ getRelevance $ listToMaybe $ drop i fs
       u | Irrelevant <- r = DontCare v
         | otherwise       = v
   in  applyE v es
