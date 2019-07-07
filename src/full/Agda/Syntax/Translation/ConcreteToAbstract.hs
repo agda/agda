@@ -974,9 +974,14 @@ instance ToAbstract c a => ToAbstract (FieldAssignment' c) (FieldAssignment' a) 
 
 instance ToAbstract a b => ToAbstract (C.Binder' a) (A.Binder' b) where
   toAbstract (C.Binder p n) = do
-    n' <- toAbstract n
-    p' <- toAbstract =<< toAbstract p
-    pure $ A.Binder p' n'
+    n <- toAbstract n
+    p <- traverse parsePattern p
+    p <- toAbstract p
+    checkPatternLinearity p $ \ys ->
+      typeError $ RepeatedVariablesInPattern ys
+    bindVarsToBind
+    p <- toAbstract p
+    pure $ A.Binder p n
 
 instance ToAbstract C.LamBinding A.LamBinding where
   toAbstract (C.DomainFree x)  = do
