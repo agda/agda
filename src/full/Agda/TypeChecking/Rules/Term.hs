@@ -298,10 +298,8 @@ checkTypedBindings lamOrPi (A.TBind r tac xps e) ret = do
         xs' = map (modMod lamOrPi experimental) xs
     let tel = setTac tac $ namedBindsToTel xs t
 
-    -- Throwing in let-bindings corresponding to the variables bound in the patterns
-    let ps  = mapMaybe (A.extractPattern . namedArg) xps
-    let lbs = fmap (\ (p, n) -> A.LetPatBind (A.LetRange r) p (A.Var $ A.unBind n)) ps
-    addContext (xs', t) $ checkLetBindings lbs (ret tel)
+    addContext (xs', t) $ addTypedPatterns xps (ret tel)
+
     where
         -- if we are checking a typed lambda, we resurrect before we check the
         -- types, but do not modify the new context entries
@@ -314,6 +312,20 @@ checkTypedBindings lamOrPi (A.TBind r tac xps e) ret = do
         modMod _        _  = id
 checkTypedBindings lamOrPi (A.TLet _ lbs) ret = do
     checkLetBindings lbs (ret EmptyTel)
+
+-- | After a typed binding has been checked, add the patterns it binds
+addTypedPatterns :: [NamedArg A.Binder] -> TCM a -> TCM a
+addTypedPatterns xps ret = do
+  let ps  = mapMaybe (A.extractPattern . namedArg) xps
+  let lbs = fmap letBinding ps
+  checkLetBindings lbs ret
+
+  where
+
+    letBinding :: (A.Pattern, A.BindName) -> A.LetBinding
+    letBinding (p, n) = A.LetPatBind (A.LetRange r) p (A.Var $ A.unBind n)
+      where r = fuseRange p n
+
 
 -- | Check a tactic attribute. Should have type Term → TC ⊤.
 checkTacticAttribute :: LamOrPi -> A.Expr -> TCM Term
@@ -355,30 +367,33 @@ checkPath b body ty = __IMPOSSIBLE__
 checkLambda :: Comparison -> A.TypedBinding -> A.Expr -> Type -> TCM Term
 checkLambda cmp (A.TLet _ lbs) body target =
   checkLetBindings lbs (checkExpr body target)
-checkLambda cmp b@(A.TBind _ _ xs' typ) body target = do
-  reportSLn "tc.term.lambda" 60 $ "checkLambda   xs = " ++ prettyShow xs
-  let numbinds = length xs
-      possiblePath = numbinds == 1
-                   && (case unScope typ of
-                         A.Underscore{} -> True
-                         _              -> False)
-                   && isRelevant info && visible info
-  reportSLn "tc.term.lambda" 60 $ "possiblePath = " ++ show (possiblePath, numbinds, unScope typ, info)
+checkLambda cmp b@(A.TBind _ _ xps typ) body target = do
+  reportSDoc "tc.term.lambda" 60 $ vcat
+    [ "checkLambda xs = " <+> prettyA xps
+    , "possiblePath = " <+> text (show (possiblePath, numbinds, unScope typ, info))
+    ]
   TelV tel btyp <- telViewUpTo numbinds target
   if size tel < numbinds || numbinds /= 1
     then (if possiblePath then trySeeingIfPath else dontUseTargetType)
     else useTargetType tel btyp
+
   where
-    xs = map (updateNamedArg (A.unBind . A.binderName)) xs'
-    info : _ = map getArgInfo xs
+
+    xs = map (updateNamedArg (A.unBind . A.binderName)) xps
+    numbinds = length xps
+    isUnderscore e = case e of { A.Underscore{} -> True; _ -> False }
+    possiblePath = numbinds == 1 && isUnderscore (unScope typ)
+                   && isRelevant info && visible info
+    info = getArgInfo (headWithDefault __IMPOSSIBLE__ xs)
+
     trySeeingIfPath = do
       cubical <- optCubical <$> pragmaOptions
-      reportSLn "tc.term.lambda" 60 $ "trySeeingIfPath for " ++ show xs
+      reportSLn "tc.term.lambda" 60 $ "trySeeingIfPath for " ++ show xps
       let postpone' = if cubical then postpone else \ _ _ -> dontUseTargetType
       ifBlocked target postpone' $ \ _ t -> do
-          ifPath t dontUseTargetType $
-            if cubical then checkPath b body t
-                       else typeError $ GenericError $ "Option --cubical needed to build a path with a lambda abstraction"
+        ifPath t dontUseTargetType $ if cubical
+          then checkPath b body t
+          else genericError "Option --cubical needed to build a path with a lambda abstraction"
 
     postpone m tgt = postponeTypeCheckingProblem_ $
       CheckExpr cmp (A.Lam A.exprNoRange (A.DomainFull b) body) tgt
@@ -408,13 +423,15 @@ checkLambda cmp b@(A.TBind _ _ xs' typ) body target = do
         pid <- newProblem_ $ leqType (telePi tel t1) target
         -- Now check body : ?t₁
         -- WRONG: v <- addContext tel $ checkExpr body t1
-        v <- addContext (xs, argsT) $ checkExpr' cmp body t1
+        v <- addContext (xs, argsT) $ addTypedPatterns xps $
+               checkExpr' cmp body t1
         -- Block on the type comparison
         blockTermOnProblem target (teleLam tel v) pid
        else do
         -- Now check body : ?t₁
         -- WRONG: v <- addContext tel $ checkExpr body t1
-        v <- addContext (xs, argsT) $ checkExpr' cmp body t1
+        v <- addContext (xs, argsT) $ addTypedPatterns xps $
+               checkExpr' cmp body t1
         -- Block on the type comparison
         coerce cmp (teleLam tel v) (telePi tel t1) target
 
@@ -437,7 +454,8 @@ checkLambda cmp b@(A.TBind _ _ xs' typ) body target = do
         -- check.
         (pid, argT) <- newProblem $ isTypeEqualTo typ a
         -- Andreas, Issue 630: take name from function type if lambda name is "_"
-        v <- lambdaAddContext (namedArg x) y (defaultArgDom info argT) $ checkExpr' cmp body btyp
+        v <- lambdaAddContext (namedArg x) y (defaultArgDom info argT) $
+               addTypedPatterns xps $ checkExpr' cmp body btyp
         blockTermOnProblem target (Lam info $ Abs (namedArgName x) v) pid
 
     useTargetType _ _ = __IMPOSSIBLE__
@@ -1034,7 +1052,7 @@ checkExpr' cmp e t0 =
 
         A.Lam i (A.DomainFree _ x) e0
           | isNothing (nameOf $ unArg x) && isNothing (A.binderPattern $ namedArg x) ->
-              checkExpr' cmp (A.Lam i (domainFree (getArgInfo x) $ A.unBind $ A.binderName $ namedArg x) e0) t
+              checkExpr' cmp (A.Lam i (domainFree (getArgInfo x) $ fmap A.unBind $ namedArg x) e0) t
           | otherwise -> typeError $ NotImplemented "named arguments in lambdas"
 
         A.Lit lit    -> checkLiteral lit t
@@ -1172,7 +1190,7 @@ checkExpr' cmp e t0 =
     doInsert info y = do
       x <- C.setNotInScope <$> freshName rx y
       reportSLn "tc.term.expr.impl" 15 $ "Inserting implicit lambda"
-      checkExpr' cmp (A.Lam (A.ExprRange re) (domainFree info x) e) t
+      checkExpr' cmp (A.Lam (A.ExprRange re) (domainFree info $ A.mkBinder x) e) t
 
     hiddenLambdaOrHole h e = case e of
       A.AbsurdLam _ h'        -> sameHiding h h'
@@ -1323,16 +1341,17 @@ checkOrInferMeta newMeta mt i = do
 
 -- | Turn a domain-free binding (e.g. lambda) into a domain-full one,
 --   by inserting an underscore for the missing type.
-domainFree :: ArgInfo -> A.Name -> A.LamBinding
+domainFree :: ArgInfo -> A.Binder' A.Name -> A.LamBinding
 domainFree info x =
-  A.DomainFull $ A.mkTBind r [unnamedArg info $ A.mkBinder_ x] $ A.Underscore underscoreInfo
+  A.DomainFull $ A.mkTBind r [unnamedArg info $ fmap A.mkBindName x]
+               $ A.Underscore underscoreInfo
   where
     r = getRange x
     underscoreInfo = A.MetaInfo
       { A.metaRange          = r
       , A.metaScope          = emptyScopeInfo
       , A.metaNumber         = Nothing
-      , A.metaNameSuggestion = prettyShow $ A.nameConcrete x
+      , A.metaNameSuggestion = prettyShow $ A.nameConcrete $ A.binderName x
       }
 
 

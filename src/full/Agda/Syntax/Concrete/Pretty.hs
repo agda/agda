@@ -37,7 +37,7 @@ deriving instance Show Expr
 deriving instance (Show a) => Show (OpApp a)
 deriving instance Show Declaration
 deriving instance Show Pattern
-deriving instance Show Binder
+deriving instance Show a => Show (Binder' a)
 deriving instance Show TypedBinding
 deriving instance Show LamBinding
 deriving instance Show BoundName
@@ -312,7 +312,7 @@ isLabeled x
   | Just l <- getLabel x = l /= nameToRawName (boundName $ binderName $ namedArg x)
   | otherwise            = False
 
-instance Pretty Binder where
+instance Pretty a => Pretty (Binder' a) where
   pretty (Binder mpat n) = let d = pretty n in case mpat of
     Nothing  -> d
     Just pat -> d <+> "@" <+> parens (pretty pat)
