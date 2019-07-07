@@ -139,7 +139,7 @@ isType_ e = traceCall (IsType_ e) $ do
     A.App i s arg
       | visible arg,
         A.Set _ 0 <- unScope s -> do
-      unlessM hasUniversePolymorphism $ typeError $ GenericError $
+      unlessM hasUniversePolymorphism $ genericError
         "Use --universe-polymorphism to enable level arguments to Set"
       -- allow NonStrict variables when checking level
       --   Set : (NonStrict) Level -> Set\omega
@@ -151,7 +151,7 @@ isType_ e = traceCall (IsType_ e) $ do
       | visible arg,
         A.Prop _ 0 <- unScope s -> do
       unlessM isPropEnabled $ typeError NeedOptionProp
-      unlessM hasUniversePolymorphism $ typeError $ GenericError $
+      unlessM hasUniversePolymorphism $ genericError
         "Use --universe-polymorphism to enable level arguments to Prop"
       applyRelevanceToContext NonStrict $
         sort . Prop <$> checkLevel arg
@@ -870,9 +870,9 @@ checkRecordExpression cmp mfs e t = do
       case rs of
           -- If there are no records with the right fields we might as well fail right away.
         [] -> case fields of
-          []  -> typeError $ GenericError "There are no records in scope"
-          [f] -> typeError $ GenericError $ "There is no known record with the field " ++ prettyShow f
-          _   -> typeError $ GenericError $ "There is no known record with the fields " ++ unwords (map prettyShow fields)
+          []  -> genericError "There are no records in scope"
+          [f] -> genericError $ "There is no known record with the field " ++ prettyShow f
+          _   -> genericError $ "There is no known record with the fields " ++ unwords (map prettyShow fields)
           -- If there's only one record with the appropriate fields, go with that.
         [r] -> do
           def <- getConstInfo r
@@ -996,7 +996,7 @@ checkExpr' cmp e t0 =
         A.App i s arg@(Arg ai l)
           | A.Set _ 0 <- unScope s, visible ai ->
           ifNotM hasUniversePolymorphism
-              (typeError $ GenericError "Use --universe-polymorphism to enable level arguments to Set")
+              (genericError "Use --universe-polymorphism to enable level arguments to Set")
           $ {- else -} do
             -- allow NonStrict variables when checking level
             --   Set : (NonStrict) Level -> Set\omega
@@ -1011,7 +1011,7 @@ checkExpr' cmp e t0 =
         A.App i s arg@(Arg ai l)
           | A.Prop _ 0 <- unScope s, visible ai ->
           ifNotM hasUniversePolymorphism
-              (typeError $ GenericError "Use --universe-polymorphism to enable level arguments to Prop")
+              (genericError "Use --universe-polymorphism to enable level arguments to Prop")
           $ {- else -} do
             n <- applyRelevanceToContext NonStrict $ checkLevel arg
             reportSDoc "tc.univ.poly" 10 $
@@ -1025,13 +1025,13 @@ checkExpr' cmp e t0 =
               quoted (A.Macro x) = return x
               quoted (A.Proj o p) | Just x <- getUnambiguous p = return x
               quoted (A.Proj o p)  =
-                typeError $ GenericError $ "quote: Ambigous name: " ++ prettyShow (unAmbQ p)
+                genericError $ "quote: Ambigous name: " ++ prettyShow (unAmbQ p)
               quoted (A.Con c) | Just x <- getUnambiguous c = return x
               quoted (A.Con c)  =
-                typeError $ GenericError $ "quote: Ambigous name: " ++ prettyShow (unAmbQ c)
+                genericError $ "quote: Ambigous name: " ++ prettyShow (unAmbQ c)
               quoted (A.ScopedExpr _ e) = quoted e
               quoted _                  =
-                typeError $ GenericError $ "quote: not a defined name"
+                genericError "quote: not a defined name"
           x <- quoted (namedThing e)
           ty <- qNameType
           coerce cmp (quoteName x) ty t
@@ -1040,9 +1040,9 @@ checkExpr' cmp e t0 =
              (et, _) <- inferExpr (namedThing e)
              doQuoteTerm cmp et t
 
-        A.Quote _ -> typeError $ GenericError "quote must be applied to a defined name"
-        A.QuoteTerm _ -> typeError $ GenericError "quoteTerm must be applied to a term"
-        A.Unquote _ -> typeError $ GenericError "unquote must be applied to a term"
+        A.Quote{}     -> genericError "quote must be applied to a defined name"
+        A.QuoteTerm{} -> genericError "quoteTerm must be applied to a term"
+        A.Unquote{}   -> genericError "unquote must be applied to a term"
 
         A.AbsurdLam i h -> checkAbsurdLambda cmp i h e t
 
@@ -1141,7 +1141,7 @@ checkExpr' cmp e t0 =
 
         A.ETel _   -> __IMPOSSIBLE__
 
-        A.Dot{} -> typeError $ GenericError $ "Invalid dotted expression"
+        A.Dot{} -> genericError "Invalid dotted expression"
 
         -- Application
         _   | Application hd args <- appView e -> checkApplication cmp hd args e t
