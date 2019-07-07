@@ -56,7 +56,9 @@ instance Monad m => Semigroup (StateT s m P.Doc) where
 instance MonadWarning m => MonadWarning (StateT s m) where
   addWarning = lift . addWarning
 
-instance {-# OVERLAPPABLE #-} Semigroup (TCM P.Doc) where
+-- This instance is more specific than a generic instance
+-- @Semigroup a => Semigroup (TCM a)@
+instance {-# OVERLAPPING #-} Semigroup (TCM P.Doc) where
   d1 <> d2 = (<>) <$> d1 <*> d2
 
 instance MonadWarning TCM where

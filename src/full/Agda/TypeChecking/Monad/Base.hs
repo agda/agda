@@ -86,6 +86,7 @@ import Agda.Interaction.Highlighting.Precise
   (CompressedFile, HighlightingInfo)
 import Agda.Interaction.Library
 
+import Agda.Utils.Benchmark (MonadBench(..))
 import Agda.Utils.Except
   ( Error(strMsg)
   , ExceptT
@@ -93,9 +94,9 @@ import Agda.Utils.Except
   , runExceptT
   , mapExceptT
   )
-
-import Agda.Utils.Benchmark (MonadBench(..))
 import Agda.Utils.FileName
+import Agda.Utils.Functor
+import Agda.Utils.Function
 import Agda.Utils.Hash
 import Agda.Utils.Lens
 import Agda.Utils.List
@@ -106,8 +107,6 @@ import Agda.Utils.Null
 import Agda.Utils.Permutation
 import Agda.Utils.Pretty
 import Agda.Utils.Singleton
-import Agda.Utils.Functor
-import Agda.Utils.Function
 import Agda.Utils.WithDefault ( collapseDefault )
 
 import Agda.Utils.Impossible
@@ -3629,118 +3628,17 @@ stateTCLensM l f = do
 -- Adds readonly 'TCEnv' and mutable 'TCState'.
 newtype TCMT m a = TCM { unTCM :: IORef TCState -> TCEnv -> m a }
 
-instance MonadIO m => MonadTCEnv (TCMT m) where
-  askTC             = TCM $ \ _ e -> return e
-  localTC f (TCM m) = TCM $ \ s e -> m s (f e)
-
-instance MonadIO m => MonadTCState (TCMT m) where
-  getTC   = TCM $ \ r _e -> liftIO (readIORef r)
-  putTC s = TCM $ \ r _e -> liftIO (writeIORef r s)
-
+-- | Type checking monad.
 type TCM = TCMT IO
-
-class ( Applicative tcm, MonadIO tcm
-      , MonadTCEnv tcm
-      , MonadTCState tcm
-      , HasOptions tcm
-      ) => MonadTCM tcm where
-    liftTCM :: TCM a -> tcm a
-
-instance MonadIO m => ReadTCState (TCMT m) where
-  getTCState = getTC
-  locallyTCState l f = bracket_ (useTC l <* modifyTCLens l f) (setTCLens l)
-
-instance MonadError TCErr (TCMT IO) where
-  throwError = liftIO . E.throwIO
-  catchError m h = TCM $ \r e -> do
-    oldState <- liftIO (readIORef r)
-    unTCM m r e `E.catch` \err -> do
-      -- Reset the state, but do not forget changes to the persistent
-      -- component. Not for pattern violations.
-      case err of
-        PatternErr -> return ()
-        _          ->
-          liftIO $ do
-            newState <- readIORef r
-            writeIORef r $ oldState { stPersistentState = stPersistentState newState }
-      unTCM (h err) r e
-
-instance MonadIO m => MonadReduce (TCMT m) where
-  liftReduce = liftTCM . runReduceM
-
-instance (IsString a, MonadIO m) => IsString (TCMT m a) where
-  fromString s = return (fromString s)
-
--- | Interaction monad.
-
-type IM = TCMT (Haskeline.InputT IO)
-
-runIM :: IM a -> TCM a
-runIM = mapTCMT (Haskeline.runInputT Haskeline.defaultSettings)
-
-instance MonadError TCErr IM where
-  throwError = liftIO . E.throwIO
-  catchError m h = mapTCMT liftIO $ runIM m `catchError` (runIM . h)
-
--- | Preserve the state of the failing computation.
-catchError_ :: TCM a -> (TCErr -> TCM a) -> TCM a
-catchError_ m h = TCM $ \r e ->
-  unTCM m r e
-  `E.catch` \err -> unTCM (h err) r e
-
--- | Execute a finalizer even when an exception is thrown.
---   Does not catch any errors.
---   In case both the regular computation and the finalizer
---   throw an exception, the one of the finalizer is propagated.
-finally_ :: TCM a -> TCM b -> TCM a
-finally_ m f = do
-    x <- m `catchError_` \ err -> f >> throwError err
-    _ <- f
-    return x
 
 {-# SPECIALIZE INLINE mapTCMT :: (forall a. IO a -> IO a) -> TCM a -> TCM a #-}
 mapTCMT :: (forall a. m a -> n a) -> TCMT m a -> TCMT n a
-mapTCMT f (TCM m) = TCM $ \s e -> f (m s e)
+mapTCMT f (TCM m) = TCM $ \ s e -> f (m s e)
 
 pureTCM :: MonadIO m => (TCState -> TCEnv -> a) -> TCMT m a
-pureTCM f = TCM $ \r e -> do
+pureTCM f = TCM $ \ r e -> do
   s <- liftIO $ readIORef r
   return (f s e)
-
-{-# RULES "liftTCM/id" liftTCM = id #-}
-instance MonadIO m => MonadTCM (TCMT m) where
-    liftTCM = mapTCMT liftIO
-
-instance MonadTCM tcm => MonadTCM (MaybeT tcm) where
-  liftTCM = lift . liftTCM
-
-instance MonadTCM tcm => MonadTCM (ListT tcm) where
-  liftTCM = lift . liftTCM
-
-instance MonadTCM tcm => MonadTCM (ExceptT err tcm) where
-  liftTCM = lift . liftTCM
-
-instance (Monoid w, MonadTCM tcm) => MonadTCM (WriterT w tcm) where
-  liftTCM = lift . liftTCM
-
-instance (MonadTCM tcm) => MonadTCM (StateT s tcm) where
-  liftTCM = lift . liftTCM
-
-instance (MonadTCM tcm) => MonadTCM (ReaderT r tcm) where
-  liftTCM = lift . liftTCM
-
-instance MonadTrans TCMT where
-    lift m = TCM $ \_ _ -> m
-
--- We want a special monad implementation of fail.
-instance MonadIO m => Monad (TCMT m) where
-    return = pure
-    (>>=)  = bindTCMT
-    (>>)   = (*>)
-    fail   = Fail.fail
-
-instance MonadIO m => Fail.MonadFail (TCMT m) where
-  fail = internalError
 
 -- One goal of the definitions and pragmas below is to inline the
 -- monad operations as much as possible. This doesn't seem to have a
@@ -3779,6 +3677,19 @@ apTCMT :: MonadIO m => TCMT m (a -> b) -> TCMT m a -> TCMT m b
 apTCMT = \(TCM mf) (TCM m) -> TCM $ \r e -> ap (mf r e) (m r e)
 {-# INLINE apTCMT #-}
 
+instance MonadTrans TCMT where
+    lift m = TCM $ \_ _ -> m
+
+-- We want a special monad implementation of fail.
+instance MonadIO m => Monad (TCMT m) where
+    return = pure
+    (>>=)  = bindTCMT
+    (>>)   = (*>)
+    fail   = Fail.fail
+
+instance MonadIO m => Fail.MonadFail (TCMT m) where
+  fail = internalError
+
 instance MonadIO m => MonadIO (TCMT m) where
   liftIO m = TCM $ \s e -> do
                let r = envRange e
@@ -3789,6 +3700,112 @@ instance MonadIO m => MonadIO (TCMT m) where
       wrap s r m = E.catch m $ \e -> do
         s <- readIORef s
         E.throwIO $ IOException s r e
+
+instance MonadIO m => MonadTCEnv (TCMT m) where
+  askTC             = TCM $ \ _ e -> return e
+  localTC f (TCM m) = TCM $ \ s e -> m s (f e)
+
+instance MonadIO m => MonadTCState (TCMT m) where
+  getTC   = TCM $ \ r _e -> liftIO (readIORef r)
+  putTC s = TCM $ \ r _e -> liftIO (writeIORef r s)
+
+instance MonadIO m => ReadTCState (TCMT m) where
+  getTCState = getTC
+  locallyTCState l f = bracket_ (useTC l <* modifyTCLens l f) (setTCLens l)
+
+instance MonadError TCErr (TCMT IO) where
+  throwError = liftIO . E.throwIO
+  catchError m h = TCM $ \r e -> do
+    oldState <- liftIO (readIORef r)
+    unTCM m r e `E.catch` \err -> do
+      -- Reset the state, but do not forget changes to the persistent
+      -- component. Not for pattern violations.
+      case err of
+        PatternErr -> return ()
+        _          ->
+          liftIO $ do
+            newState <- readIORef r
+            writeIORef r $ oldState { stPersistentState = stPersistentState newState }
+      unTCM (h err) r e
+
+instance MonadIO m => MonadReduce (TCMT m) where
+  liftReduce = liftTCM . runReduceM
+
+instance (IsString a, MonadIO m) => IsString (TCMT m a) where
+  fromString s = return (fromString s)
+
+-- | Strict (non-shortcut) semigroup.
+--
+--   Note that there might be a lazy alternative, e.g.,
+--   for TCM All we might want 'Agda.Utils.Monad.and2M' as concatenation,
+--   to shortcut conjunction in case we already have 'False'.
+--
+instance {-# OVERLAPPABLE #-} (MonadIO m, Semigroup a) => Semigroup (TCMT m a) where
+  (<>) = liftA2 (<>)
+
+-- | Strict (non-shortcut) monoid.
+instance {-# OVERLAPPABLE #-} (MonadIO m, Semigroup a, Monoid a) => Monoid (TCMT m a) where
+  mempty  = pure mempty
+  mappend = (<>)
+  mconcat = mconcat <.> sequence
+
+-- | Interaction monad.
+
+type IM = TCMT (Haskeline.InputT IO)
+
+runIM :: IM a -> TCM a
+runIM = mapTCMT (Haskeline.runInputT Haskeline.defaultSettings)
+
+instance MonadError TCErr IM where
+  throwError = liftIO . E.throwIO
+  catchError m h = mapTCMT liftIO $ runIM m `catchError` (runIM . h)
+
+-- | Preserve the state of the failing computation.
+catchError_ :: TCM a -> (TCErr -> TCM a) -> TCM a
+catchError_ m h = TCM $ \r e ->
+  unTCM m r e
+  `E.catch` \err -> unTCM (h err) r e
+
+-- | Execute a finalizer even when an exception is thrown.
+--   Does not catch any errors.
+--   In case both the regular computation and the finalizer
+--   throw an exception, the one of the finalizer is propagated.
+finally_ :: TCM a -> TCM b -> TCM a
+finally_ m f = do
+    x <- m `catchError_` \ err -> f >> throwError err
+    _ <- f
+    return x
+
+-- | Embedding a TCM computation.
+
+class ( Applicative tcm, MonadIO tcm
+      , MonadTCEnv tcm
+      , MonadTCState tcm
+      , HasOptions tcm
+      ) => MonadTCM tcm where
+    liftTCM :: TCM a -> tcm a
+
+{-# RULES "liftTCM/id" liftTCM = id #-}
+instance MonadIO m => MonadTCM (TCMT m) where
+    liftTCM = mapTCMT liftIO
+
+instance MonadTCM tcm => MonadTCM (MaybeT tcm) where
+  liftTCM = lift . liftTCM
+
+instance MonadTCM tcm => MonadTCM (ListT tcm) where
+  liftTCM = lift . liftTCM
+
+instance MonadTCM tcm => MonadTCM (ExceptT err tcm) where
+  liftTCM = lift . liftTCM
+
+instance (Monoid w, MonadTCM tcm) => MonadTCM (WriterT w tcm) where
+  liftTCM = lift . liftTCM
+
+instance (MonadTCM tcm) => MonadTCM (StateT s tcm) where
+  liftTCM = lift . liftTCM
+
+instance (MonadTCM tcm) => MonadTCM (ReaderT r tcm) where
+  liftTCM = lift . liftTCM
 
 -- | We store benchmark statistics in an IORef.
 --   This enables benchmarking pure computation, see
@@ -3876,6 +3893,9 @@ forkTCM m = do
   e <- askTC
   liftIO $ void $ C.forkIO $ void $ runTCM e s m
 
+---------------------------------------------------------------------------
+-- * Names for generated definitions
+---------------------------------------------------------------------------
 
 -- | Base name for extended lambda patterns
 extendedLambdaName :: String
