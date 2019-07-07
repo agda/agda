@@ -1550,6 +1550,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
         reportSLn "scope.data.def" 20 ("checking " ++ show o ++ " DataDef for " ++ prettyShow x)
         (p, ax) <- resolveName (C.QName x) >>= \case
           DefinedName p ax -> do
+            clashUnless x DataName ax  -- Andreas 2019-07-07, issue #3892
             livesInCurrentModule ax  -- Andreas, 2017-12-04, issue #2862
             return (p, ax)
           _ -> genericError $ "Missing type signature for data definition " ++ prettyShow x
@@ -1584,6 +1585,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
       reportSLn "scope.rec.def" 20 ("checking " ++ show o ++ " RecDef for " ++ prettyShow x)
       (p, ax) <- resolveName (C.QName x) >>= \case
         DefinedName p ax -> do
+          clashUnless x RecName ax  -- Andreas 2019-07-07, issue #3892
           livesInCurrentModule ax  -- Andreas, 2017-12-04, issue #2862
           return (p, ax)
         _ -> genericError $ "Missing type signature for record definition " ++ prettyShow x
@@ -1881,6 +1883,12 @@ instance LivesInCurrentModule A.QName where
       ]
     unless (A.qnameModule x == m) $
       genericError $ "Definition in different module than its type signature"
+
+-- | Unless the resolved 'AbstractName' has the given 'KindOfName',
+--   report a 'ClashingDefinition' for the 'C.Name'.
+clashUnless :: C.Name -> KindOfName -> AbstractName -> ScopeM ()
+clashUnless x k ax = unless (anameKind ax == k) $
+  typeError $ ClashingDefinition (C.QName x) (anameName ax)
 
 data IsRecordCon = YesRec | NoRec
 data ConstrDecl = ConstrDecl IsRecordCon A.ModuleName IsAbstract Access C.NiceDeclaration
