@@ -94,25 +94,27 @@ instance EmbPrj AbstractModule where
   value = valueN AbsModule
 
 instance EmbPrj KindOfName where
-  icod_ DefName        = icodeN' DefName
-  icod_ ConName        = icodeN 1 ConName
-  icod_ FldName        = icodeN 2 FldName
-  icod_ PatternSynName = icodeN 3 PatternSynName
-  icod_ QuotableName   = icodeN 4 QuotableName
-  icod_ MacroName      = icodeN 5 MacroName
-  icod_ GeneralizeName = icodeN 6 GeneralizeName
-  icod_ DisallowedGeneralizeName = icodeN 7 DisallowedGeneralizeName
+  -- -- Enums have a generic EmbPrj
+  --
+  -- icod_ DefName        = icodeN' DefName
+  -- icod_ ConName        = icodeN 1 ConName
+  -- icod_ FldName        = icodeN 2 FldName
+  -- icod_ PatternSynName = icodeN 3 PatternSynName
+  -- icod_ QuotableName   = icodeN 4 QuotableName
+  -- icod_ MacroName      = icodeN 5 MacroName
+  -- icod_ GeneralizeName = icodeN 6 GeneralizeName
+  -- icod_ DisallowedGeneralizeName = icodeN 7 DisallowedGeneralizeName
 
-  value = vcase valu where
-    valu []  = valuN DefName
-    valu [1] = valuN ConName
-    valu [2] = valuN FldName
-    valu [3] = valuN PatternSynName
-    valu [4] = valuN QuotableName
-    valu [5] = valuN MacroName
-    valu [6] = valuN GeneralizeName
-    valu [7] = valuN DisallowedGeneralizeName
-    valu _   = malformed
+  -- value = vcase valu where
+  --   valu []  = valuN DefName
+  --   valu [1] = valuN ConName
+  --   valu [2] = valuN FldName
+  --   valu [3] = valuN PatternSynName
+  --   valu [4] = valuN QuotableName
+  --   valu [5] = valuN MacroName
+  --   valu [6] = valuN GeneralizeName
+  --   valu [7] = valuN DisallowedGeneralizeName
+  --   valu _   = malformed
 
 instance EmbPrj Binder where
   icod_ LambdaBound   = icodeN' LambdaBound

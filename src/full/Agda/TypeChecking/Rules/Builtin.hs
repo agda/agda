@@ -928,14 +928,12 @@ bindBuiltinNoDef b q = inTopContext $ do
     Nothing -> __IMPOSSIBLE__ -- typeError $ NoSuchBuiltinName b
 
 
-builtinKindOfName :: String -> TCM (Maybe KindOfName)
-builtinKindOfName b =
-               case find ((b ==) . builtinName) coreBuiltins of
-                    Nothing -> return Nothing
-                    Just d -> return . Just $
-                      case builtinDesc d of
-                        BuiltinDataCons{}  -> ConName
-                        BuiltinData{}      -> DefName
-                        BuiltinPrim{}      -> DefName
-                        BuiltinPostulate{} -> DefName
-                        BuiltinUnknown{}   -> DefName
+builtinKindOfName :: String -> Maybe KindOfName
+builtinKindOfName b = distinguish <$> find ((b ==) . builtinName) coreBuiltins
+  where
+  distinguish d = case builtinDesc d of
+    BuiltinDataCons{}  -> ConName
+    BuiltinData{}      -> DataName
+    BuiltinPrim{}      -> PrimName
+    BuiltinPostulate{} -> AxiomName
+    BuiltinUnknown{}   -> OtherDefName

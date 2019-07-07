@@ -570,7 +570,7 @@ instance ToAbstract PatName APatName where
     case (rx, x) of
       (VarName y _,     C.QName x)                          -> bindPatVar x
       (FieldName d,     C.QName x)                          -> bindPatVar x
-      (DefinedName _ d, C.QName x) | DefName == anameKind d -> bindPatVar x
+      (DefinedName _ d, C.QName x) | isDefName (anameKind d)-> bindPatVar x
       (UnknownName,     C.QName x)                          -> bindPatVar x
       (ConstructorName ds, _)                               -> patCon ds
       (PatternSynResName d, _)                              -> patSyn d
@@ -724,7 +724,7 @@ scopeCheckExtendedLam r cs = do
     forM_ cs $ \ c -> do
       reportSLn "scope.extendedLambda" 60 $ "extended lambda lhs: " ++ show (C.lamLHS c)
   qname <- qualifyName_ name
-  bindName (PrivateAccess Inserted) DefName cname qname
+  bindName (PrivateAccess Inserted) FunName cname qname
 
   -- Compose a function definition and scope check it.
   a <- aModeToDef <$> asksTC envAbstractMode
@@ -1490,7 +1490,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
       t' <- toAbstractCtx TopCtx t
       f  <- getConcreteFixity x
       y  <- freshAbstractQName f x
-      bindName p DefName x y
+      bindName p PrimName x y
       return [ A.Primitive (mkDefInfo x f p a r) y t' ]
 
   -- Definitions (possibly mutual)
@@ -1509,7 +1509,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
         t'  <- toAbstract t
         f   <- getConcreteFixity x
         x'  <- freshAbstractQName f x
-        bindName' p DefName (GeneralizedVarsMetadata $ generalizeTelVars ls') x x'
+        bindName' p RecName (GeneralizedVarsMetadata $ generalizeTelVars ls') x x'
         return [ A.RecSig (mkDefInfo x f p a r) x' ls' t' ]
 
     C.NiceDataSig r p a _pc _uc x ls t -> withLocalVars $ do
@@ -1520,7 +1520,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
           t'  <- toAbstract $ C.Generalized t
           f  <- getConcreteFixity x
           x' <- freshAbstractQName f x
-          bindName' p DefName (GeneralizedVarsMetadata $ generalizeTelVars ls') x x'
+          bindName' p DataName (GeneralizedVarsMetadata $ generalizeTelVars ls') x x'
           return [ A.DataSig (mkDefInfo x f p a r) x' ls' t' ]
 
   -- Type signatures
@@ -1752,7 +1752,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
       ys <- zipWithM freshAbstractQName fxs xs
       zipWithM_ (bindName p QuotableName) xs ys
       e <- toAbstract e
-      zipWithM_ (rebindName p DefName) xs ys
+      zipWithM_ (rebindName p OtherDefName) xs ys
       let mi = MutualInfo tc True r
       return [ A.Mutual mi [A.UnquoteDecl mi [ mkDefInfoInstance x fx p a i NotMacroDef r | (fx, x) <- zip fxs xs ] ys e] ]
 
@@ -1761,7 +1761,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
       ys <- mapM (toAbstract . OldName) xs
       zipWithM_ (rebindName p QuotableName) xs ys
       e <- toAbstract e
-      zipWithM_ (rebindName p DefName) xs ys
+      zipWithM_ (rebindName p OtherDefName) xs ys
       return [ A.UnquoteDef [ mkDefInfo x fx PublicAccess a r | (fx, x) <- zip fxs xs ] ys e ]
 
     NicePatternSyn r n as p -> do
@@ -1797,7 +1797,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
         mp <- getConcretePolarity x
         y  <- freshAbstractQName f x
         let kind | isMacro == MacroDef = MacroName
-                 | otherwise           = DefName
+                 | otherwise           = OtherDefName  -- could be a type signature
         bindName p kind x y
         return [ A.Axiom funSig (mkDefInfoInstance x f p a i isMacro r) info mp y t' ]
       toAbstractNiceAxiom _ _ _ = __IMPOSSIBLE__
@@ -2004,7 +2004,7 @@ instance ToAbstract C.Pragma [A.Pragma] where
             modifyCurrentScope $ removeNameFromScope PublicNS x
           -- We then happily bind the name
           y <- freshAbstractQName' x
-          kind <- fromMaybe __IMPOSSIBLE__ <$> builtinKindOfName b
+          let kind = fromMaybe __IMPOSSIBLE__ $ builtinKindOfName b
           bindName PublicAccess kind x y
           return [ A.BuiltinNoDefPragma b y ]
         _ -> genericError $

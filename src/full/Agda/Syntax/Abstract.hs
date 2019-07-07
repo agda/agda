@@ -1016,7 +1016,12 @@ class NameToExpr a where
 instance NameToExpr AbstractName where
   nameToExpr d =
     case anameKind d of
-      DefName                  -> Def x
+      DataName                 -> Def x
+      RecName                  -> Def x
+      AxiomName                -> Def x
+      PrimName                 -> Def x
+      FunName                  -> Def x
+      OtherDefName             -> Def x
       GeneralizeName           -> Def x
       DisallowedGeneralizeName -> Def x
       FldName                  -> Proj ProjSystem ux
@@ -1037,7 +1042,7 @@ instance NameToExpr AbstractName where
 instance NameToExpr ResolvedName where
   nameToExpr = \case
     VarName x _          -> Var x
-    DefinedName _ x      -> nameToExpr x  -- Can be 'DefName', 'MacroName', 'QuotableName'.
+    DefinedName _ x      -> nameToExpr x  -- Can be 'isDefName', 'MacroName', 'QuotableName'.
     FieldName xs         -> Proj ProjSystem . AmbQ . fmap anameName $ xs
     ConstructorName xs   -> Con . AmbQ . fmap anameName $ xs
     PatternSynResName xs -> PatternSyn . AmbQ . fmap anameName $ xs
