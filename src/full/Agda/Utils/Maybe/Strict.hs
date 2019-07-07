@@ -1,6 +1,6 @@
--- Liang-Ting Chen (04-07-2019):
+-- Liang-Ting Chen (2019-07-04):
 -- Consider using Data.Maybe.Strict instead
--- Andreas Abel (05-05-2019)@GitHub:
+-- Andreas Abel (2019-07-05)@GitHub:
 -- The dependencies of strict-base-types are too heavy,
 -- especially since it depends on lens which consciously ruled out.
 
