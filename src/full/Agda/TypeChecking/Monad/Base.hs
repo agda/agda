@@ -3876,6 +3876,9 @@ forkTCM m = do
   e <- askTC
   liftIO $ void $ C.forkIO $ void $ runTCM e s m
 
+-- | Base name for patterns in telescopes
+patternInTeleName :: String
+patternInTeleName = ".patternInTele"
 
 -- | Base name for extended lambda patterns
 extendedLambdaName :: String

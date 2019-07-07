@@ -417,7 +417,8 @@ checkLambda cmp b@(A.TBind _ _ xps typ) body target = do
       reportSDoc "tc.term.lambda" 60 $ "dontUseTargetType tel =" <+> pretty tel
       -- DONT USE tel for addContext, as it loses NameIds.
       -- WRONG: t1 <- addContext tel $ workOnTypes newTypeMeta_
-      t1 <- addContext (xs, argsT) $ workOnTypes newTypeMeta_
+      t1 <- addContext (xs, argsT) $  addTypedPatterns xps $
+              workOnTypes newTypeMeta_
       -- Do not coerce hidden lambdas
       if notVisible info || any notVisible xs then do
         pid <- newProblem_ $ leqType (telePi tel t1) target

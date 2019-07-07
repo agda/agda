@@ -496,7 +496,7 @@ instance ToAbstract c a => ToAbstract (Maybe c) (Maybe a) where
 data NewName a = NewName
   { newBinder   :: A.BindingSource -- what kind of binder?
   , newName     :: a
-  }
+  } deriving (Functor)
 
 data OldQName     = OldQName C.QName (Maybe (Set A.Name))
   -- ^ If a set is given, then the first name must correspond to one
@@ -719,7 +719,7 @@ scopeCheckExtendedLam r cs = do
     genericError "Extended lambdas are not allowed in dot patterns"
 
   -- Find an unused name for the extended lambda definition.
-  cname <- nextlamname r 0 extendedLambdaName
+  cname <- freshConcreteName r 0 extendedLambdaName
   name  <- freshAbstractName_ cname
   reportSLn "scope.extendedLambda" 10 $ "new extended lambda name: " ++ prettyShow name
   verboseS "scope.extendedLambda" 60 $ do
@@ -772,14 +772,6 @@ scopeCheckExtendedLam r cs = do
     _ -> __IMPOSSIBLE__
 
   where
-    -- Get a concrete name that is not yet in scope.
-    nextlamname :: Range -> Int -> String -> ScopeM C.Name
-    nextlamname r i s = do
-      let cname = C.Name r C.NotInScope [Id $ stringToRawName $ s ++ show i]
-      rn <- resolveName $ C.QName cname
-      case rn of
-        UnknownName -> return cname
-        _           -> nextlamname r (i+1) s
 
 instance ToAbstract C.Expr A.Expr where
   toAbstract e =
@@ -972,9 +964,17 @@ instance ToAbstract C.ModuleAssignment (A.ModuleName, [A.LetBinding]) where
 instance ToAbstract c a => ToAbstract (FieldAssignment' c) (FieldAssignment' a) where
   toAbstract = traverse toAbstract
 
-instance ToAbstract a b => ToAbstract (C.Binder' a) (A.Binder' b) where
+instance ToAbstract (C.Binder' (NewName C.BoundName)) A.Binder where
   toAbstract (C.Binder p n) = do
+    let name = C.boundName $ newName n
+    -- If we do have a pattern then the variable needs to be inserted
+    -- so we do need a proper internal name for it.
+    n <- if not (isNoName name && isJust p) then pure n else do
+           n' <- freshConcreteName (getRange $ newName n) 0 patternInTeleName
+           pure $ fmap (\ n -> n { C.boundName = n' }) n
     n <- toAbstract n
+    -- Actually parsing the pattern, checking it is linear,
+    -- and bind its variables
     p <- traverse parsePattern p
     p <- toAbstract p
     checkPatternLinearity p $ \ys ->

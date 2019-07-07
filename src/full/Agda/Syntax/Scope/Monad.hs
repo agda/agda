@@ -229,6 +229,16 @@ freshAbstractQName' x = do
   fx <- getConcreteFixity x
   freshAbstractQName fx x
 
+-- | Create a concrete name that is not yet in scope.
+freshConcreteName :: Range -> Int -> String -> ScopeM C.Name
+freshConcreteName r i s = do
+  let cname = C.Name r C.NotInScope [Id $ stringToRawName $ s ++ show i]
+  rn <- resolveName $ C.QName cname
+  case rn of
+    UnknownName -> return cname
+    _           -> freshConcreteName r (i+1) s
+
+
 -- * Resolving names
 
 -- | Look up the abstract name referred to by a given concrete name.
