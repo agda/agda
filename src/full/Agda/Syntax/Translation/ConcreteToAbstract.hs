@@ -1,3 +1,4 @@
+{-# LANGUAGE TypeFamilies         #-}  -- for type equality ~
 {-# LANGUAGE UndecidableInstances #-}
 
 {-| Translation from "Agda.Syntax.Concrete" to "Agda.Syntax.Abstract". Involves scope analysis,
@@ -623,7 +624,7 @@ freshQModule m x = A.qualifyM m . mnameFromList . (:[]) <$> freshAbstractName_ x
 
 checkForModuleClash :: C.Name -> ScopeM ()
 checkForModuleClash x = do
-  ms <- scopeLookup (C.QName x) <$> getScope
+  ms :: [AbstractModule] <- scopeLookup (C.QName x) <$> getScope
   unless (null ms) $ do
     reportSLn "scope.clash" 20 $ "clashing modules ms = " ++ prettyShow ms
     reportSLn "scope.clash" 60 $ "clashing modules ms = " ++ show ms
@@ -1077,22 +1078,16 @@ telHasLetStms = any isLetBind
 class EnsureNoLetStms a where
   ensureNoLetStms :: a -> ScopeM ()
 
-{- From ghc 7.2, there is LANGUAGE DefaultSignatures
-  default ensureNoLetStms :: Foldable t => t a -> ScopeM ()
+  default ensureNoLetStms :: (Foldable t, EnsureNoLetStms b, t b ~ a) => a -> ScopeM ()
   ensureNoLetStms = traverse_ ensureNoLetStms
--}
 
 instance EnsureNoLetStms C.TypedBinding where
-  ensureNoLetStms tb =
-    case tb of
-      C.TLet{}  -> typeError $ IllegalLetInTelescope tb
-      C.TBind{} -> return ()
+  ensureNoLetStms = \case
+    tb@C.TLet{} -> typeError $ IllegalLetInTelescope tb
+    C.TBind{}   -> return ()
 
 instance EnsureNoLetStms a => EnsureNoLetStms (LamBinding' a) where
-  ensureNoLetStms = traverse_ ensureNoLetStms
-
 instance EnsureNoLetStms a => EnsureNoLetStms [a] where
-  ensureNoLetStms = traverse_ ensureNoLetStms
 
 
 -- | Returns the scope inside the checked module.
@@ -1512,7 +1507,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
         bindName' p RecName (GeneralizedVarsMetadata $ generalizeTelVars ls') x x'
         return [ A.RecSig (mkDefInfo x f p a r) x' ls' t' ]
 
-    C.NiceDataSig r p a _pc _uc x ls t -> withLocalVars $ do
+    C.NiceDataSig r p a _pc _uc x ls t -> do
         reportSLn "scope.data.sig" 20 ("checking DataSig for " ++ prettyShow x)
         ensureNoLetStms ls
         withLocalVars $ do
@@ -1546,7 +1541,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
     C.NiceFunClause{} -> __IMPOSSIBLE__
 
   -- Data definitions
-    C.NiceDataDef r o a _ uc x pars cons -> withLocalVars $ do
+    C.NiceDataDef r o a _ uc x pars cons -> do
         reportSLn "scope.data.def" 20 ("checking " ++ show o ++ " DataDef for " ++ prettyShow x)
         (p, ax) <- resolveName (C.QName x) >>= \case
           DefinedName p ax -> do
