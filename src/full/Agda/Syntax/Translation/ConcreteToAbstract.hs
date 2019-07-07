@@ -1547,6 +1547,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
           DefinedName p ax -> do
             clashUnless x DataName ax  -- Andreas 2019-07-07, issue #3892
             livesInCurrentModule ax  -- Andreas, 2017-12-04, issue #2862
+            clashIfModuleAlreadyDefinedInCurrentModule x ax
             return (p, ax)
           _ -> genericError $ "Missing type signature for data definition " ++ prettyShow x
         ensureNoLetStms pars
@@ -1582,6 +1583,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
         DefinedName p ax -> do
           clashUnless x RecName ax  -- Andreas 2019-07-07, issue #3892
           livesInCurrentModule ax  -- Andreas, 2017-12-04, issue #2862
+          clashIfModuleAlreadyDefinedInCurrentModule x ax
           return (p, ax)
         _ -> genericError $ "Missing type signature for record definition " ++ prettyShow x
       ensureNoLetStms pars
@@ -1884,6 +1886,19 @@ instance LivesInCurrentModule A.QName where
 clashUnless :: C.Name -> KindOfName -> AbstractName -> ScopeM ()
 clashUnless x k ax = unless (anameKind ax == k) $
   typeError $ ClashingDefinition (C.QName x) (anameName ax)
+
+-- | If a (data/record) module with the given name is already present in the current module,
+--   we take this as evidence that a data/record with that name is already defined.
+clashIfModuleAlreadyDefinedInCurrentModule :: C.Name -> AbstractName -> ScopeM ()
+clashIfModuleAlreadyDefinedInCurrentModule x ax = do
+  datRecMods <- catMaybes <$> do
+    mapM (isDatatypeModule . amodName) =<< lookupModuleInCurrentModule x
+  unlessNull datRecMods $ const $
+    typeError $ ClashingDefinition (C.QName x) (anameName ax)
+
+lookupModuleInCurrentModule :: C.Name -> ScopeM [AbstractModule]
+lookupModuleInCurrentModule x =
+  fromMaybe [] . Map.lookup x . nsModules . thingsInScope [PublicNS, PrivateNS] <$> getCurrentScope
 
 data IsRecordCon = YesRec | NoRec
 data ConstrDecl = ConstrDecl IsRecordCon A.ModuleName IsAbstract Access C.NiceDeclaration
