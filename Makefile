@@ -103,7 +103,7 @@ stack-install-test :
 
 # Copy the artefacts built by Stack as if they were build by Cabal.
 .PHONY : stack-copy-artefacts
-stack-copy-artefacts : 
+stack-copy-artefacts : stack-install-bin stack-install-test
 	mkdir -p $(BUILD_DIR)/build/
 	cp -r $(shell stack path --dist-dir)/build $(BUILD_DIR)
 
@@ -112,6 +112,7 @@ stack-copy-artefacts :
 install-bin : ensure-hash-is-correct
 ifneq ("$(wildcard stack.yaml)","") # if `stack.yaml` exists
 	@echo ""===================== Installing using Stack =============================""
+	$(MAKE) stack-install-bin
 	$(MAKE) stack-install-test
 	$(MAKE) stack-copy-artefacts
 else
