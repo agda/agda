@@ -1098,11 +1098,14 @@ class EnsureNoLetStms a where
   ensureNoLetStms = traverse_ ensureNoLetStms
 -}
 
+instance EnsureNoLetStms C.Binder where
+  ensureNoLetStms arg@(C.Binder p n) =
+    when (isJust p) $ typeError $ IllegalPatternInTelescope arg
+
 instance EnsureNoLetStms C.TypedBinding where
-  ensureNoLetStms tb =
-    case tb of
-      C.TLet{}  -> typeError $ IllegalLetInTelescope tb
-      C.TBind{} -> return ()
+  ensureNoLetStms tb = case tb of
+    C.TLet{}       -> typeError $ IllegalLetInTelescope tb
+    C.TBind _ xs _ -> traverse_ (ensureNoLetStms . namedArg) xs
 
 instance EnsureNoLetStms a => EnsureNoLetStms (LamBinding' a) where
   ensureNoLetStms = traverse_ ensureNoLetStms
