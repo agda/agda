@@ -3,12 +3,12 @@ module _ where
 open import Common.Prelude
 
 data Vec (A : Set) : Nat → Set where
-  [] : Vec A 0
+  []  : Vec A 0
   _∷_ : ∀ {@0 n} → A → Vec A n → Vec A (suc n)
 
 sum : ∀ {@0 n} → Vec Nat n → Nat
 sum (x ∷ xs) = x + sum xs
-sum [] = 0
+sum []       = 0
 
 foldl : ∀ {A} (B : Nat → Set)
       → (f : ∀ {@0 n} → B n → A → B (suc n))
