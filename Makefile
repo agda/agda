@@ -89,6 +89,7 @@ quicker-install-bin : ensure-hash-is-correct
 stack-install-bin:
 	stack build Agda \
 		--test \
+		--no-run-tests \
 		--flag Agda:enable-cluster-counting \
 		--no-haddock \
 		--no-library-profiling
