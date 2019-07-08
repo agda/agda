@@ -200,6 +200,8 @@ data Term = Var {-# UNPACK #-} !Int Elims -- ^ @x es@ neutral
             --   Replaces the @Sort Prop@ hack.
             --   The @String@ typically describes the location where we create this dummy,
             --   but can contain other information as well.
+            --   The second field accumulates eliminations in case we
+            --   apply a dummy term to more of them.
   deriving (Data, Show)
 
 type ConInfo = ConOrigin
@@ -297,15 +299,15 @@ type Telescope = Tele (Dom Type)
 
 -- | Sorts.
 --
-data Sort
-  = Type Level  -- ^ @Set ℓ@.
-  | Prop Level  -- ^ @Prop ℓ@.
+data Sort' t
+  = Type (Level' t)  -- ^ @Set ℓ@.
+  | Prop (Level' t)  -- ^ @Prop ℓ@.
   | Inf         -- ^ @Setω@.
   | SizeUniv    -- ^ @SizeUniv@, a sort inhabited by type @Size@.
-  | PiSort Sort (Abs Sort) -- ^ Sort of the pi type.
-  | UnivSort Sort -- ^ Sort of another sort.
-  | MetaS {-# UNPACK #-} !MetaId Elims
-  | DefS QName Elims -- ^ A postulated sort.
+  | PiSort (Sort' t) (Abs (Sort' t)) -- ^ Sort of the pi type.
+  | UnivSort (Sort' t) -- ^ Sort of another sort.
+  | MetaS {-# UNPACK #-} !MetaId [Elim' t]
+  | DefS QName [Elim' t] -- ^ A postulated sort.
   | DummyS String
     -- ^ A (part of a) term or type which is only used for internal purposes.
     --   Replaces the abuse of @Prop@ for a dummy sort.
@@ -313,29 +315,45 @@ data Sort
     --   but can contain other information as well.
   deriving (Data, Show)
 
+type Sort = Sort' Term
+
 -- | A level is a maximum expression of 0..n 'PlusLevel' expressions
 --   each of which is a number or an atom plus a number.
 --
 --   The empty maximum is the canonical representation for level 0.
-newtype Level = Max [PlusLevel]
+newtype Level' t = Max [PlusLevel' t]
   deriving (Show, Data)
 
-data PlusLevel
+type Level = Level' Term
+
+data PlusLevel' t
   = ClosedLevel Integer     -- ^ @n@, to represent @Setₙ@.
-  | Plus Integer LevelAtom  -- ^ @n + ℓ@.
+  | Plus Integer (LevelAtom' t)  -- ^ @n + ℓ@.
   deriving (Show, Data)
+
+type PlusLevel = PlusLevel' Term
 
 -- | An atomic term of type @Level@.
-data LevelAtom
-  = MetaLevel MetaId Elims
+data LevelAtom' t
+  = MetaLevel MetaId [Elim' t]
     -- ^ A meta variable targeting @Level@ under some eliminations.
-  | BlockedLevel MetaId Term
+  | BlockedLevel MetaId t
     -- ^ A term of type @Level@ whose reduction is blocked by a meta.
-  | NeutralLevel NotBlocked Term
+  | NeutralLevel NotBlocked t
     -- ^ A neutral term of type @Level@.
-  | UnreducedLevel Term
+  | UnreducedLevel t
     -- ^ Introduced by 'instantiate', removed by 'reduce'.
   deriving (Show, Data)
+
+type LevelAtom = LevelAtom' Term
+
+---------------------------------------------------------------------------
+-- * Brave Terms
+---------------------------------------------------------------------------
+
+-- | Newtypes for terms that produce a dummy, rather than crash, when
+--   applied to incompatible eliminations.
+newtype BraveTerm = BraveTerm { unBrave :: Term } deriving (Data, Show)
 
 ---------------------------------------------------------------------------
 -- * Blocked Terms
@@ -1416,7 +1434,7 @@ instance Pretty a => Pretty (Tele (Dom a)) where
 instance Pretty Level where
   prettyPrec p (Max as) =
     case as of
-      []  -> prettyPrec p (ClosedLevel 0)
+      []  -> prettyPrec p (ClosedLevel 0 :: PlusLevel)
       [a] -> prettyPrec p a
       _   -> mparens (p > 9) $ List.foldr1 (\a b -> "lub" <+> a <+> b) $ map (prettyPrec 10) as
 

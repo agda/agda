@@ -40,15 +40,16 @@ import qualified Data.Text.Lazy as T
 import Data.Void
 
 import Agda.Interaction.Response
-       (Response(Resp_HighlightingInfo),
-        RemoveTokenBasedHighlighting(KeepHighlighting))
+  ( Response( Resp_HighlightingInfo )
+  , RemoveTokenBasedHighlighting( KeepHighlighting )
+  )
 import Agda.Interaction.Highlighting.Precise
-import Agda.Interaction.Highlighting.Range
+import Agda.Interaction.Highlighting.Range (rToR, minus)  -- Range is ambiguous
 
 import qualified Agda.TypeChecking.Errors as E
 import Agda.TypeChecking.MetaVars (isBlockedTerm)
 import Agda.TypeChecking.Monad
-  hiding (MetaInfo, Primitive, Constructor, Record, Function, Datatype)
+  hiding (ModuleInfo, MetaInfo, Primitive, Constructor, Record, Function, Datatype)
 import qualified Agda.TypeChecking.Monad as M
 import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.Warnings (runPM)
@@ -62,13 +63,13 @@ import qualified Agda.Syntax.Concrete.Name as C
 import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Fixity
 import Agda.Syntax.Notation
-import qualified Agda.Syntax.Info as SI
+import Agda.Syntax.Info ( ModuleInfo(..), defMacro )
 import qualified Agda.Syntax.Internal as I
 import qualified Agda.Syntax.Literal as L
 import qualified Agda.Syntax.Parser as Pa
 import qualified Agda.Syntax.Parser.Tokens as T
 import qualified Agda.Syntax.Position as P
-import Agda.Syntax.Position (getRange)
+import Agda.Syntax.Position (Range, getRange, noRange)
 
 import Agda.Utils.FileName
 import Agda.Utils.Function
@@ -96,13 +97,13 @@ import Agda.Utils.Impossible
 
 highlightAsTypeChecked
   :: MonadTCM tcm
-  => P.Range
-  -> P.Range
+  => Range   -- ^ @rPre@
+  -> Range   -- ^ @r@
   -> tcm a
   -> tcm a
 highlightAsTypeChecked rPre r m
-  | r /= P.noRange && delta == rPre' = wrap r'    highlight clear
-  | otherwise                        = wrap delta clear     highlight
+  | r /= noRange && delta == rPre' = wrap r'    highlight clear
+  | otherwise                      = wrap delta clear     highlight
   where
   rPre'     = rToR (P.continuousPerLine rPre)
   r'        = rToR (P.continuousPerLine r)
@@ -164,7 +165,7 @@ generateAndPrintSyntaxInfo
   -> Bool
      -- ^ Update the state?
   -> TCM ()
-generateAndPrintSyntaxInfo decl _ _ | null $ P.getRange decl = return ()
+generateAndPrintSyntaxInfo decl _ _ | null $ getRange decl = return ()
 generateAndPrintSyntaxInfo decl hlLevel updateState = do
   file <- getCurrentPath
 
@@ -195,7 +196,7 @@ generateAndPrintSyntaxInfo decl hlLevel updateState = do
     warnInfo <- Fold.foldMap warningHighlighting
                  . filter ((cm ==) . tcWarningOrigin) <$> useTC stTCWarnings
 
-    let (from, to) = case P.rangeToInterval (P.getRange decl) of
+    let (from, to) = case P.rangeToInterval (getRange decl) of
           Nothing -> __IMPOSSIBLE__
           Just i  -> ( fromIntegral $ P.posPos $ P.iStart i
                      , fromIntegral $ P.posPos $ P.iEnd i)
@@ -249,10 +250,11 @@ generateAndPrintSyntaxInfo decl hlLevel updateState = do
     , Fold.foldMap getNamedArgP   $ universeBi decl
     , Fold.foldMap getNamedArgB   $ universeBi decl
     , Fold.foldMap getNamedArgL   $ universeBi decl
+    , Fold.foldMap getQuantityAttr$ universeBi decl
     ]
     where
     bound A.BindName{ unBind = n } =
-      nameToFile modMap file [] (A.nameConcrete n) P.noRange
+      nameToFile modMap file [] (A.nameConcrete n) noRange
                  (\isOp -> parserBased { aspect =
                              Just $ Name (Just Bound) isOp })
                  (Just $ A.nameBindingSite n)
@@ -266,12 +268,14 @@ generateAndPrintSyntaxInfo decl hlLevel updateState = do
                   parserBased { aspect = Just $ Name (Just Macro) isOp }
 
     field :: [C.Name] -> C.Name -> File
-    field m n = nameToFile modMap file m n P.noRange
+    field m n = nameToFile modMap file m n noRange
                            (\isOp -> parserBased { aspect =
                                        Just $ Name (Just Field) isOp })
                            Nothing
+
+    asName :: C.Name -> File
     asName n = nameToFile modMap file []
-                          n P.noRange
+                          n noRange
                           (\isOp -> parserBased { aspect =
                                       Just $ Name (Just Module) isOp })
                           Nothing
@@ -281,7 +285,7 @@ generateAndPrintSyntaxInfo decl hlLevel updateState = do
     -- which defines this module.
     mod isTopLevelModule n =
       nameToFile modMap file []
-                 (A.nameConcrete n) P.noRange
+                 (A.nameConcrete n) noRange
                  (\isOp -> parserBased { aspect =
                              Just $ Name (Just Module) isOp })
                  (Just $ applyWhen isTopLevelModule P.beginningOfFile $
@@ -312,7 +316,7 @@ generateAndPrintSyntaxInfo decl hlLevel updateState = do
 
     getNamedArg :: Common.NamedArg a -> File
     getNamedArg x = caseMaybe (Common.nameOf $ Common.unArg x) mempty $ \ s ->
-      singleton (rToR $ P.getRange s) $
+      singleton (rToR $ getRange s) $
         parserBased { aspect = Just $ Name (Just Argument) False }
 
     getBinder :: A.Binder -> File
@@ -343,7 +347,7 @@ generateAndPrintSyntaxInfo decl hlLevel updateState = do
     getPattern' (A.DotP pi e)
       | Just _ <- isProjP e = mempty
       | otherwise =
-          singleton (rToR $ P.getRange pi)
+          singleton (rToR $ getRange pi)
                 (parserBased { otherAspects = Set.singleton DottedPattern })
     getPattern' (A.PatternSynP _ q _) = patsyn q
     -- Andreas, 2018-06-09, issue #3120
@@ -388,12 +392,16 @@ generateAndPrintSyntaxInfo decl hlLevel updateState = do
                    Just (C.toTopLevelModuleName $ A.mnameToConcrete m)
           []    -> False
 
-    getModuleInfo :: SI.ModuleInfo -> File
-    getModuleInfo (SI.ModuleInfo { SI.minfoAsTo   = asTo
-                                 , SI.minfoAsName = name }) =
-      singleton (rToR asTo) (parserBased { aspect = Just Symbol })
+    getModuleInfo :: ModuleInfo -> File
+    getModuleInfo (ModuleInfo{ minfoAsTo, minfoAsName }) =
+      singleton (rToR minfoAsTo) (parserBased { aspect = Just Symbol })
         `mappend`
-      maybe mempty asName name
+      maybe mempty asName minfoAsName
+
+    -- If the Quantity attribute comes with a Range, highlight the
+    -- corresponding attribute as Symbol.
+    getQuantityAttr :: Common.Quantity -> File
+    getQuantityAttr q = singleton (rToR $ getRange q) (parserBased { aspect = Just Symbol })
 
 -- | Generate and return the syntax highlighting information for the
 -- tokens in the given file.
@@ -420,8 +428,8 @@ generateTokenInfoFromSource file input =
 -- tokens in the given string, which is assumed to correspond to the
 -- given range.
 
-generateTokenInfoFromString :: P.Range -> String -> TCM CompressedFile
-generateTokenInfoFromString r _ | r == P.noRange = return mempty
+generateTokenInfoFromString :: Range -> String -> TCM CompressedFile
+generateTokenInfoFromString r _ | r == noRange = return mempty
 generateTokenInfoFromString r s = do
   runPM $ tokenHighlighting <$> Pa.parsePosString Pa.tokensParser p s
   where
@@ -438,13 +446,13 @@ tokenHighlighting = merge . map tokenToCFile
   merge = CompressedFile . concat . map ranges
 
   tokenToCFile :: T.Token -> CompressedFile
-  tokenToCFile (T.TokSetN (i, _))               = aToF PrimitiveType (P.getRange i)
-  tokenToCFile (T.TokPropN (i, _))              = aToF PrimitiveType (P.getRange i)
-  tokenToCFile (T.TokKeyword T.KwSet  i)        = aToF PrimitiveType (P.getRange i)
-  tokenToCFile (T.TokKeyword T.KwProp i)        = aToF PrimitiveType (P.getRange i)
-  tokenToCFile (T.TokKeyword T.KwForall i)      = aToF Symbol (P.getRange i)
-  tokenToCFile (T.TokKeyword _ i)               = aToF Keyword (P.getRange i)
-  tokenToCFile (T.TokSymbol  _ i)               = aToF Symbol (P.getRange i)
+  tokenToCFile (T.TokSetN (i, _))               = aToF PrimitiveType (getRange i)
+  tokenToCFile (T.TokPropN (i, _))              = aToF PrimitiveType (getRange i)
+  tokenToCFile (T.TokKeyword T.KwSet  i)        = aToF PrimitiveType (getRange i)
+  tokenToCFile (T.TokKeyword T.KwProp i)        = aToF PrimitiveType (getRange i)
+  tokenToCFile (T.TokKeyword T.KwForall i)      = aToF Symbol (getRange i)
+  tokenToCFile (T.TokKeyword _ i)               = aToF Keyword (getRange i)
+  tokenToCFile (T.TokSymbol  _ i)               = aToF Symbol (getRange i)
   tokenToCFile (T.TokLiteral (L.LitNat    r _)) = aToF Number r
   tokenToCFile (T.TokLiteral (L.LitWord64 r _)) = aToF Number r
   tokenToCFile (T.TokLiteral (L.LitFloat  r _)) = aToF Number r
@@ -452,12 +460,12 @@ tokenHighlighting = merge . map tokenToCFile
   tokenToCFile (T.TokLiteral (L.LitChar   r _)) = aToF String r
   tokenToCFile (T.TokLiteral (L.LitQName  r _)) = aToF String r
   tokenToCFile (T.TokLiteral (L.LitMeta r _ _)) = aToF String r
-  tokenToCFile (T.TokComment (i, _))            = aToF Comment (P.getRange i)
-  tokenToCFile (T.TokTeX (i, _))                = aToF Background (P.getRange i)
-  tokenToCFile (T.TokMarkup (i, _))             = aToF Markup (P.getRange i)
+  tokenToCFile (T.TokComment (i, _))            = aToF Comment (getRange i)
+  tokenToCFile (T.TokTeX (i, _))                = aToF Background (getRange i)
+  tokenToCFile (T.TokMarkup (i, _))             = aToF Markup (getRange i)
   tokenToCFile (T.TokId {})                     = mempty
   tokenToCFile (T.TokQId {})                    = mempty
-  tokenToCFile (T.TokString (i,s))              = aToF Pragma (P.getRange i)
+  tokenToCFile (T.TokString (i,s))              = aToF Pragma (getRange i)
   tokenToCFile (T.TokDummy {})                  = mempty
   tokenToCFile (T.TokEOF {})                    = mempty
 
@@ -513,8 +521,8 @@ nameKinds hlLevel decl = do
   declToKind :: A.Declaration ->
                 HashMap A.QName NameKind -> HashMap A.QName NameKind
   declToKind (A.Axiom _ i _ _ q _)
-    | SI.defMacro i == Common.MacroDef = insert q Macro
-    | otherwise                        = insert q Postulate
+    | defMacro i == Common.MacroDef = insert q Macro
+    | otherwise                     = insert q Postulate
   declToKind (A.Field _ q _)        = insert q Field -- Function
     -- Note that the name q can be used both as a field name and as a
     -- projection function. Highlighting of field names is taken care
@@ -562,7 +570,7 @@ generateConstructorInfo modMap file kinds decl = do
   -- Get boundaries of current declaration.
   -- @noRange@ should be impossible, but in case of @noRange@
   -- it makes sense to return the empty File.
-  ifNull (P.rangeIntervals $ P.getRange decl)
+  ifNull (P.rangeIntervals $ getRange decl)
          (return mempty) $ \is -> do
     let start = fromIntegral $ P.posPos $ P.iStart $ head is
         end   = fromIntegral $ P.posPos $ P.iEnd   $ last is
@@ -577,7 +585,7 @@ generateConstructorInfo modMap file kinds decl = do
     let files = for constrs $ \ q -> generate modMap file kinds $ I.unambiguous q
     return $ Fold.fold files
 
-printSyntaxInfo :: P.Range -> TCM ()
+printSyntaxInfo :: Range -> TCM ()
 printSyntaxInfo r = do
   syntaxInfo <- useTC stSyntaxInfo
   ifTopLevelAndHighlightingLevelIs NonInteractive $
@@ -597,7 +605,7 @@ errorHighlighting :: TCErr -> TCM File
 errorHighlighting e = do
 
   -- Erase previous highlighting.
-  let r     = P.getRange e
+  let r     = getRange e
       erase = singleton (rToR $ P.continuousPerLine r) mempty
 
   -- Print new highlighting.
@@ -614,23 +622,23 @@ warningHighlighting :: TCWarning -> File
 warningHighlighting w = case tcWarning w of
   TerminationIssue terrs     -> terminationErrorHighlighting terrs
   NotStrictlyPositive d ocs  -> positivityErrorHighlighting d ocs
-  UnreachableClauses{}       -> deadcodeHighlighting $ P.getRange w
-  CoverageIssue{}            -> coverageErrorHighlighting $ P.getRange w
-  CoverageNoExactSplit{}     -> catchallHighlighting $ P.getRange w
+  UnreachableClauses{}       -> deadcodeHighlighting $ getRange w
+  CoverageIssue{}            -> coverageErrorHighlighting $ getRange w
+  CoverageNoExactSplit{}     -> catchallHighlighting $ getRange w
   UnsolvedConstraints cs     -> constraintsHighlighting cs
   UnsolvedMetaVariables rs   -> metasHighlighting rs
-  AbsurdPatternRequiresNoRHS{} -> deadcodeHighlighting $ P.getRange w
-  ModuleDoesntExport{}         -> deadcodeHighlighting $ P.getRange w
+  AbsurdPatternRequiresNoRHS{} -> deadcodeHighlighting $ getRange w
+  ModuleDoesntExport{}         -> deadcodeHighlighting $ getRange w
   -- expanded catch-all case to get a warning for new constructors
   CantGeneralizeOverSorts{}  -> mempty
   UnsolvedInteractionMetas{} -> mempty
   OldBuiltin{}               -> mempty
-  EmptyRewritePragma{}       -> deadcodeHighlighting $ P.getRange w
-  IllformedAsClause{}        -> deadcodeHighlighting $ P.getRange w
+  EmptyRewritePragma{}       -> deadcodeHighlighting $ getRange w
+  IllformedAsClause{}        -> deadcodeHighlighting $ getRange w
   UselessPublic{}            -> mempty
   UselessInline{}            -> mempty
   WrongInstanceDeclaration{} -> mempty
-  InstanceWithExplicitArg{}  -> deadcodeHighlighting $ P.getRange w
+  InstanceWithExplicitArg{}  -> deadcodeHighlighting $ getRange w
   InstanceNoOutputTypeName{} -> mempty
   InstanceArgWithExplicitArg{} -> mempty
   ParseWarning{}             -> mempty
@@ -651,24 +659,24 @@ warningHighlighting w = case tcWarning w of
   LibraryWarning{}           -> mempty
   InfectiveImport{}          -> mempty
   CoInfectiveImport{}        -> mempty
-  RewriteNonConfluent{}      -> confluenceErrorHighlighting $ P.getRange w
-  RewriteMaybeNonConfluent{} -> confluenceErrorHighlighting $ P.getRange w
-  PragmaCompileErased{}      -> deadcodeHighlighting $ P.getRange w
+  RewriteNonConfluent{}      -> confluenceErrorHighlighting $ getRange w
+  RewriteMaybeNonConfluent{} -> confluenceErrorHighlighting $ getRange w
+  PragmaCompileErased{}      -> deadcodeHighlighting $ getRange w
   NicifierIssue w           -> case w of
     -- we intentionally override the binding of `w` here so that our pattern of
-    -- using `P.getRange w` still yields the most precise range information we
+    -- using `getRange w` still yields the most precise range information we
     -- can get.
-    NotAllowedInMutual{} -> deadcodeHighlighting $ P.getRange w
-    EmptyAbstract{}      -> deadcodeHighlighting $ P.getRange w
-    EmptyInstance{}      -> deadcodeHighlighting $ P.getRange w
-    EmptyMacro{}         -> deadcodeHighlighting $ P.getRange w
-    EmptyMutual{}        -> deadcodeHighlighting $ P.getRange w
-    EmptyPostulate{}     -> deadcodeHighlighting $ P.getRange w
-    EmptyPrivate{}       -> deadcodeHighlighting $ P.getRange w
-    EmptyGeneralize{}    -> deadcodeHighlighting $ P.getRange w
-    UselessAbstract{}    -> deadcodeHighlighting $ P.getRange w
-    UselessInstance{}    -> deadcodeHighlighting $ P.getRange w
-    UselessPrivate{}     -> deadcodeHighlighting $ P.getRange w
+    NotAllowedInMutual{} -> deadcodeHighlighting $ getRange w
+    EmptyAbstract{}      -> deadcodeHighlighting $ getRange w
+    EmptyInstance{}      -> deadcodeHighlighting $ getRange w
+    EmptyMacro{}         -> deadcodeHighlighting $ getRange w
+    EmptyMutual{}        -> deadcodeHighlighting $ getRange w
+    EmptyPostulate{}     -> deadcodeHighlighting $ getRange w
+    EmptyPrivate{}       -> deadcodeHighlighting $ getRange w
+    EmptyGeneralize{}    -> deadcodeHighlighting $ getRange w
+    UselessAbstract{}    -> deadcodeHighlighting $ getRange w
+    UselessInstance{}    -> deadcodeHighlighting $ getRange w
+    UselessPrivate{}     -> deadcodeHighlighting $ getRange w
     -- TODO: explore highlighting opportunities here!
     EmptyPrimitive{} -> mempty
     InvalidCatchallPragma{} -> mempty
@@ -701,25 +709,25 @@ terminationErrorHighlighting termErrs = functionDefs `mappend` callSites
 -- TODO: highlight also the problematic occurrences
 positivityErrorHighlighting :: I.QName -> Seq OccursWhere -> File
 positivityErrorHighlighting q os =
-  several (rToR <$> P.getRange q : rs) m
+  several (rToR <$> getRange q : rs) m
   where
     rs = map (\(OccursWhere r _ _) -> r) (Fold.toList os)
     m  = parserBased { otherAspects = Set.singleton PositivityProblem }
 
-deadcodeHighlighting :: P.Range -> File
+deadcodeHighlighting :: Range -> File
 deadcodeHighlighting r = singleton (rToR $ P.continuous r) m
   where m = parserBased { otherAspects = Set.singleton Deadcode }
 
-coverageErrorHighlighting :: P.Range -> File
+coverageErrorHighlighting :: Range -> File
 coverageErrorHighlighting r = singleton (rToR $ P.continuousPerLine r) m
   where m = parserBased { otherAspects = Set.singleton CoverageProblem }
 
 
-catchallHighlighting :: P.Range -> File
+catchallHighlighting :: Range -> File
 catchallHighlighting r = singleton (rToR $ P.continuousPerLine r) m
   where m = parserBased { otherAspects = Set.singleton CatchallClause }
 
-confluenceErrorHighlighting :: P.Range -> File
+confluenceErrorHighlighting :: Range -> File
 confluenceErrorHighlighting r = singleton (rToR $ P.continuousPerLine r) m
   where m = parserBased { otherAspects = Set.singleton ConfluenceProblem }
 
@@ -750,7 +758,7 @@ computeUnsolvedMetaWarnings = do
   rs <- mapM getMetaRange (ms \\ is)
   return $ metasHighlighting rs
 
-metasHighlighting :: [P.Range] -> File
+metasHighlighting :: [Range] -> File
 metasHighlighting rs = several (map (rToR . P.continuousPerLine) rs)
                      $ parserBased { otherAspects = Set.singleton UnsolvedMeta }
 
@@ -816,12 +824,12 @@ nameToFile :: SourceToModule
               -- ^ The name qualifier (may be empty).
            -> C.Name
               -- ^ The base name.
-           -> P.Range
+           -> Range
               -- ^ The 'Range' of the name in its fixity declaration (if any).
            -> (Bool -> Aspects)
               -- ^ Meta information to be associated with the name.
               -- The argument is 'True' iff the name is an operator.
-           -> Maybe P.Range
+           -> Maybe Range
               -- ^ The definition site of the name. The calculated
               -- meta information is extended with this information,
               -- if possible.
@@ -836,9 +844,9 @@ nameToFile modMap file xs x fr m mR =
     mempty
   where
   aspects    = m $ C.isOperator x
-  fileNames  = mapMaybe (fmap P.srcFile . P.rStart . P.getRange) (x : xs)
+  fileNames  = mapMaybe (fmap P.srcFile . P.rStart . getRange) (x : xs)
   frFile     = singleton (rToR fr) (aspects { definitionSite = notHere <$> mFilePos })
-  rs         = map P.getRange (x : xs)
+  rs         = map getRange (x : xs)
 
   -- The fixity declaration should not get a symbolic anchor.
   notHere d = d { defSiteHere = False }
@@ -860,7 +868,7 @@ nameToFile modMap file xs x fr m mR =
       { defSiteModule = mod
       , defSitePos    = fromIntegral p
         -- Is our current position the definition site?
-      , defSiteHere   = r == P.getRange x
+      , defSiteHere   = r == getRange x
         -- For bound variables etc. we do not create a symbolic anchor name.
         -- Also not for names that include anonymous modules,
         -- otherwise, we do not get unique anchors.
@@ -920,14 +928,14 @@ nameToFileA modMap file x include m =
     fr = theNameRange $ A.nameFixity $ A.qnameName x
     -- Somehow we import fixity ranges from other files, we should ignore them.
     -- (I do not understand how we get them as they should not be serialized...)
-    r = if P.rangeFile fr == Strict.Just file then fr else P.noRange
+    r = if P.rangeFile fr == Strict.Just file then fr else noRange
 
     notationFile = mconcat $ map genPartFile $ theNotation $ A.nameFixity $ A.qnameName x
     boundAspect = parserBased{ aspect = Just $ Name (Just Bound) False }
     genPartFile (BindHole r i)   = several [rToR r, rToR $ getRange i] boundAspect
     genPartFile (NormalHole r i) = several [rToR r, rToR $ getRange i] boundAspect
     genPartFile WildHole{}       = mempty
-    genPartFile (IdPart x)       = singleton (rToR $ P.getRange x) (m False)
+    genPartFile (IdPart x)       = singleton (rToR $ getRange x) (m False)
 
 concreteBase :: I.QName -> C.Name
 concreteBase = A.nameConcrete . A.qnameName
@@ -935,13 +943,13 @@ concreteBase = A.nameConcrete . A.qnameName
 concreteQualifier :: I.QName -> [C.Name]
 concreteQualifier = map A.nameConcrete . A.mnameToList . A.qnameModule
 
-bindingSite :: I.QName -> P.Range
+bindingSite :: I.QName -> Range
 bindingSite = A.nameBindingSite . A.qnameName
 
 -- | Remember a name disambiguation (during type checking).
 --   To be used later during syntax highlighting.
 storeDisambiguatedName :: A.QName -> TCM ()
-storeDisambiguatedName q = whenJust (start $ P.getRange q) $ \ i ->
+storeDisambiguatedName q = whenJust (start $ getRange q) $ \ i ->
   stDisambiguatedNames `modifyTCLens` IntMap.insert i q
   where
   start r = fromIntegral . P.posPos <$> P.rStart' r
