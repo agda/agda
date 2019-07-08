@@ -17,8 +17,10 @@ h {a} b = g a b b
 i : ∀ a b → Nat
 i a b = h {a} b
 
--- j : ∀ a b → Nat
--- j = λ a (e , f) → i a (f , e)
+{-
+j : ∀ x → let (m , n) = x in m ≡ n
+j x = {!!}
+-}
 
 data P (a {b} {{v}} c : Σ Nat (λ _ → Nat)) : Set where
   CON : a ≡ it → P a c
@@ -29,5 +31,18 @@ uncurry :
   ((a , b) : Σ A B)  → C a b
 uncurry f = λ (a , b) → f a b
 
-equal× : {A B : Set} ((a , b) (c , d) : Σ A (λ _ → B)) → Set
+equal× : {A B : Set} (p q : Σ A (λ _ → B)) → Set
 equal× = λ (a , b) (c , d) → Σ (a ≡ c) (λ _ → b ≡ d)
+
+record WRAP : Set where
+  constructor TTTTT
+  field wrapped : Nat
+
+id : WRAP → WRAP
+id = λ x (let (TTTTT n) = x) → let (TTTTT n) = x in x
+
+id' : WRAP → WRAP
+id' = λ x@(TTTTT n) → x
+
+id'' : WRAP → WRAP
+id'' = λ (TTTTT n) → TTTTT n
