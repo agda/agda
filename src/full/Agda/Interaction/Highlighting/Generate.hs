@@ -250,6 +250,7 @@ generateAndPrintSyntaxInfo decl hlLevel updateState = do
     , Fold.foldMap getNamedArgP   $ universeBi decl
     , Fold.foldMap getNamedArgB   $ universeBi decl
     , Fold.foldMap getNamedArgL   $ universeBi decl
+    , Fold.foldMap getQuantityAttr$ universeBi decl
     ]
     where
     bound A.BindName{ unBind = n } =
@@ -393,6 +394,11 @@ generateAndPrintSyntaxInfo decl hlLevel updateState = do
       singleton (rToR minfoAsTo) (parserBased { aspect = Just Symbol })
         `mappend`
       maybe mempty asName minfoAsName
+
+    -- If the Quantity attribute comes with a Range, highlight the
+    -- corresponding attribute as Symbol.
+    getQuantityAttr :: Common.Quantity -> File
+    getQuantityAttr q = singleton (rToR $ getRange q) (parserBased { aspect = Just Symbol })
 
 -- | Generate and return the syntax highlighting information for the
 -- tokens in the given file.

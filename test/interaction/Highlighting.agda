@@ -65,3 +65,12 @@ r₂ : ∀{A} → R₂ A
 r₂ = record {M}  -- just because there is an unsolved meta here
 
 -- End issue #3825
+
+-- Issue #3855: highlighting of quantity attributes.
+-- @0 and @erased should be highlighted as symbols.
+
+idPoly0 : {@0 A : Set} → A → A
+idPoly0 x = x
+
+idPolyE : {@erased A : Set} → A → A
+idPolyE x = x
