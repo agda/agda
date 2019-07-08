@@ -46,3 +46,6 @@ id' = λ x@(TTTTT n) → x
 
 id'' : WRAP → WRAP
 id'' = λ (TTTTT n) → TTTTT n
+
+shadowing : (p@(m , p) : Σ Nat (λ _ → Nat)) → Σ Nat (p ≡_)
+shadowing = λ (_ , p) → p , refl
