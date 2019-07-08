@@ -858,6 +858,7 @@ instanceUniverseBiT' [] [t| (Declaration, NamedArg LHSCore)  |]
 instanceUniverseBiT' [] [t| (Declaration, NamedArg BindName) |]
 instanceUniverseBiT' [] [t| (Declaration, NamedArg Expr)     |]
 instanceUniverseBiT' [] [t| (Declaration, NamedArg Pattern)  |]
+instanceUniverseBiT' [] [t| (Declaration, Quantity)          |]
 
 ------------------------------------------------------------------------
 -- Queries
