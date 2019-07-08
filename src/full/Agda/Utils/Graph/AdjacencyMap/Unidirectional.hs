@@ -90,12 +90,10 @@ import qualified Data.Tree as Tree
 
 import Agda.Utils.Function
 import Agda.Utils.Functor
-import Agda.Utils.List (headMaybe)
 import Agda.Utils.Null (Null(null))
 import qualified Agda.Utils.Null as Null
 import Agda.Utils.Pretty
 import Agda.Utils.SemiRing
-import Agda.Utils.Singleton (Singleton)
 import qualified Agda.Utils.Singleton as Singleton
 import Agda.Utils.Tuple
 
@@ -140,7 +138,7 @@ invariant g =
   Set.isSubsetOf (targetNodes g) (nodes g)
 
 instance (Ord n, Pretty n, Pretty e) => Pretty (Graph n e) where
-  pretty g = vcat (concat $ map pretty' (Set.toAscList (nodes g)))
+  pretty g = vcat (concatMap pretty' (Set.toAscList (nodes g)))
     where
     pretty' n = case edgesFrom g [n] of
       [] -> [pretty n]
@@ -549,7 +547,7 @@ dagInvariant g =
     &&
   all isAcyclic (Graph.scc (dagGraph g))
   where
-  isAcyclic (Tree.Node r []) = not (r `elem` (dagGraph g Array.! r))
+  isAcyclic (Tree.Node r []) = r `notElem` (dagGraph g Array.! r)
   isAcyclic _                = False
 
 -- | The opposite DAG.
@@ -565,13 +563,9 @@ reachable g scc = case scc of
   Graph.CyclicSCC (n : _) -> reachable' n
   Graph.CyclicSCC []      -> __IMPOSSIBLE__
   where
-  lookup' g k = case IntMap.lookup k g of
-    Nothing -> __IMPOSSIBLE__
-    Just x  -> x
+  lookup' g k = fromMaybe __IMPOSSIBLE__ (IntMap.lookup k g)
 
-  lookup'' g k = case Map.lookup k g of
-    Nothing -> __IMPOSSIBLE__
-    Just x  -> x
+  lookup'' g k = fromMaybe __IMPOSSIBLE__ (Map.lookup k g)
 
   reachable' n =
     concatMap (Graph.flattenSCC . lookup' (dagComponentMap g)) $
@@ -603,9 +597,7 @@ sccDAG' g sccs = DAG theDAG componentMap secondNodeMap
     IntSet.toList $ IntSet.fromList
       [ j
       | e <- edgesFrom g ns
-      , let j = case Map.lookup (target e) firstNodeMap of
-                  Nothing -> __IMPOSSIBLE__
-                  Just j  -> j
+      , let j = fromMaybe __IMPOSSIBLE__ (Map.lookup (target e) firstNodeMap)
       , j /= i
       ]
 
@@ -616,9 +608,7 @@ sccDAG' g sccs = DAG theDAG componentMap secondNodeMap
       ]
 
   convertInt :: Int -> Graph.Vertex
-  convertInt i = case toVertex i of
-    Nothing -> __IMPOSSIBLE__
-    Just i  -> i
+  convertInt i = fromMaybe __IMPOSSIBLE__ (toVertex i)
 
   componentMap :: IntMap (Graph.SCC n)
   componentMap = IntMap.fromList (map (mapFst convertInt) components)
@@ -872,6 +862,4 @@ gaussJordanFloydWarshallMcNaughtonYamada g =
       where
       starTimes = otimes (ostar (lookup' k k))
 
-      lookup' s t = case lookup s t g of
-        Nothing -> ozero
-        Just e  -> e
+      lookup' s t = fromMaybe ozero (lookup s t g)

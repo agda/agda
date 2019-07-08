@@ -75,14 +75,12 @@ import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
 
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Pretty
 
-import Agda.Utils.Function
 import Agda.Utils.PartialOrd
 import Agda.Utils.Pretty (prettyShow)
 import Agda.Utils.List
@@ -120,8 +118,11 @@ computeForcingAnnotations c t =
       -- the type. Also the argument shouldn't be irrelevant, since in that
       -- case it isn't really forced.
       isForced :: Modality -> Nat -> Bool
-      isForced m i = getRelevance m /= Irrelevant &&
-                     any (\ (m', j) -> i == j && m' `moreUsableModality` m) xs
+      isForced m i = and
+        [ noUserQuantity m              -- User can disable forcing by giving quantity explicitly.
+        , getRelevance m /= Irrelevant
+        , any (\ (m', j) -> i == j && m' `moreUsableModality` m) xs
+        ]
       forcedArgs =
         [ if isForced m i then Forced else NotForced
         | (i, m) <- zip (downFrom n) $ map getModality (telToList tel)

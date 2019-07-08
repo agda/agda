@@ -15,6 +15,7 @@ import Data.IORef
 import qualified System.Timeout
 import Data.Maybe
 import qualified Data.Traversable as Trav
+import qualified Data.HashMap.Strict as HMap
 
 import Agda.Utils.Permutation (permute, takeP)
 import Agda.TypeChecking.Monad hiding (withCurrentModule)
@@ -37,7 +38,6 @@ import Agda.Syntax.Concrete.Name (NameInScope(..), LensInScope(..))
 import qualified Agda.Syntax.Abstract.Name as AN
 import qualified Agda.TypeChecking.Monad.Base as TCM
 import Agda.TypeChecking.EtaContract (etaContract)
-import qualified Agda.Utils.HashMap as HMap
 
 import Agda.Auto.Options
 import Agda.Auto.Convert

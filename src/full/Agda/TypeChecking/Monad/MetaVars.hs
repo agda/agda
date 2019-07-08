@@ -270,7 +270,7 @@ noMetas :: TermLike a => a -> Bool
 noMetas = getAll . allMetas (\ _m -> All False)
 
 -- | Returns the first meta it find in the thing, if any.
---   @firstMeta == headMaybe . allMetasList@.
+--   @firstMeta == listToMaybe . allMetasList@.
 firstMeta :: TermLike a => a -> Maybe MetaId
 firstMeta = getFirst . allMetas (First . Just)
 
@@ -414,7 +414,7 @@ registerInteractionPoint preciseRange r maybeId = do
 findInteractionPoint_ :: Range -> InteractionPoints -> Maybe InteractionId
 findInteractionPoint_ r m = do
   guard $ not $ null r
-  headMaybe $ mapMaybe sameRange $ Map.toList m
+  listToMaybe $ mapMaybe sameRange $ Map.toList m
   where
     sameRange :: (InteractionId, InteractionPoint) -> Maybe InteractionId
     sameRange (ii, InteractionPoint r' _ _ _) | r == r' = Just ii

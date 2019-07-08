@@ -25,7 +25,6 @@ import Agda.Utils.Except
   , MonadError(catchError, throwError)
   )
 
-import Agda.Utils.List
 import Agda.Utils.Null (ifNotNullM)
 
 import Agda.Utils.Impossible

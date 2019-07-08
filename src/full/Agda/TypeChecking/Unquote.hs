@@ -47,8 +47,6 @@ import Agda.Utils.Except
   , runExceptT
   )
 import Agda.Utils.Either
-import Agda.Utils.FileName
-import Agda.Utils.Lens
 import Agda.Utils.Monad
 import Agda.Utils.Pretty (prettyShow)
 import Agda.Utils.String ( Str(Str), unStr )

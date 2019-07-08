@@ -325,14 +325,21 @@ explainWhyInScope s _ v xs ms = TCP.vcat
     names   = TCP.vcat . map pName
     modules = TCP.vcat . map pMod
 
-    pKind DefName        = "defined name"
-    pKind ConName        = "constructor"
-    pKind FldName        = "record field"
-    pKind PatternSynName = "pattern synonym"
-    pKind GeneralizeName = "generalizable variable"
-    pKind DisallowedGeneralizeName = "generalizable variable from let open"
-    pKind MacroName      = "macro name"
-    pKind QuotableName   = "quotable name"
+    pKind = \case
+      ConName                  -> "constructor"
+      FldName                  -> "record field"
+      PatternSynName           -> "pattern synonym"
+      GeneralizeName           -> "generalizable variable"
+      DisallowedGeneralizeName -> "generalizable variable from let open"
+      MacroName                -> "macro name"
+      QuotableName             -> "quotable name"
+      -- previously DefName:
+      DataName                 -> "data type"
+      RecName                  -> "record type"
+      AxiomName                -> "postulate"
+      PrimName                 -> "primitive function"
+      FunName                  -> "defined name"
+      OtherDefName             -> "defined name"
 
     pName :: AbstractName -> TCM Doc
     pName a = TCP.sep

@@ -120,7 +120,7 @@ workOnTypes cont = do
 workOnTypes' :: (MonadTCEnv m) => Bool -> m a -> m a
 workOnTypes' experimental
   = modifyContext (map $ mapRelevance f)
-  . applyQuantityToContext Quantity0
+  . applyQuantityToContext zeroQuantity
   . typeLevelReductions
   . localTC (\ e -> e { envWorkingOnTypes = True })
   where
@@ -178,7 +178,7 @@ applyRelevanceToContextFunBody thing cont =
 applyQuantityToContext :: (MonadTCEnv tcm, LensQuantity q) => q -> tcm a -> tcm a
 applyQuantityToContext thing =
   case getQuantity thing of
-    Quantity1 -> id
+    Quantity1{} -> id
     q         -> applyQuantityToContextOnly   q
                . applyQuantityToJudgementOnly q
 
@@ -254,7 +254,7 @@ applyModalityToContextFunBody thing cont = do
 wakeIrrelevantVars :: (MonadTCEnv tcm) => tcm a -> tcm a
 wakeIrrelevantVars
   = applyRelevanceToContextOnly Irrelevant
-  . applyQuantityToContextOnly  Quantity0
+  . applyQuantityToContextOnly  zeroQuantity
 
 -- | Check whether something can be used in a position of the given relevance.
 --

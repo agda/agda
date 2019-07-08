@@ -17,7 +17,6 @@ import Agda.Syntax.Internal as I
 import Agda.Syntax.Internal.Pattern ( dbPatPerm' )
 import Agda.Syntax.Literal
 import Agda.Syntax.Position
-import Agda.Syntax.Translation.InternalToAbstract
 
 import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.DropArgs
@@ -25,18 +24,12 @@ import Agda.TypeChecking.Free
 import Agda.TypeChecking.Level
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
-import Agda.TypeChecking.Pretty
-import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Reduce.Monad
 import Agda.TypeChecking.Substitute
-import Agda.TypeChecking.Telescope
 
 import Agda.Utils.Except
 import Agda.Utils.Impossible
 import Agda.Utils.Monad ( ifM )
-import Agda.Utils.Permutation ( Permutation(Perm), compactP, reverseP )
-import Agda.Utils.VarSet (VarSet)
-import qualified Agda.Utils.VarSet as Set
 import Agda.Utils.FileName
 import Agda.Utils.Size
 

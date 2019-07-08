@@ -16,6 +16,7 @@ import qualified Data.Map as Map
 import Data.Monoid
 import Data.Set (Set)
 import qualified Data.Set as Set
+import qualified Data.HashMap.Strict as HMap
 import Data.Traversable (traverse)
 
 import Agda.Benchmarking
@@ -40,7 +41,6 @@ import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.CompiledClause
 
 import Agda.Utils.Hash
-import qualified Agda.Utils.HashMap as HMap
 import Agda.Utils.Lens
 import Agda.Utils.Monad (bracket_)
 import Agda.Utils.NonemptyList

@@ -17,8 +17,6 @@ import Data.List
 import Data.Void
 
 import Agda.Syntax.Common
-import Agda.Syntax.Position
-import Agda.Syntax.Literal
 import Agda.Syntax.Abstract
 import Agda.Syntax.Abstract.Views
 import Agda.Utils.Monad

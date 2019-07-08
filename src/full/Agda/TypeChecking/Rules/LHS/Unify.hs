@@ -125,9 +125,7 @@ import Agda.Interaction.Options (optInjectiveTypeConstructors)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
-import Agda.Syntax.Internal.Pattern
 import Agda.Syntax.Literal
-import Agda.Syntax.Position
 
 import Agda.TypeChecking.Monad
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
@@ -154,7 +152,6 @@ import Agda.TypeChecking.Rules.LHS.Problem
 -- import Agda.TypeChecking.SyntacticEquality
 
 import Agda.Utils.Except ( MonadError(catchError, throwError) )
-import Agda.Utils.Either
 import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.Lens
@@ -882,7 +879,7 @@ unifyStep s Solution{ solutionAt   = k
   --
   -- Jesper, Andreas, 2018-10-17: the quantity of the equation is morally
   -- always @Quantity0@, since the indices of the data type are runtime erased.
-  -- This, we need not change the quantity of the solution.
+  -- Thus, we need not change the quantity of the solution.
   let eqrel  = getRelevance dom
       varmod = getModality dom'
       mod    = applyUnless (NonStrict `moreRelevant` eqrel) (setRelevance eqrel)

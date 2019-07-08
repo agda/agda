@@ -1,2 +1,4 @@
-data D : _ where
-D : _
+-- {-# OPTIONS -v scope.decl.trace:50 #-}
+
+data D : Set where
+D : Set

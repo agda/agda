@@ -445,7 +445,7 @@ instance PrettyTCM TypeError where
         reportSLn "scope.class.error" 30 $ "filtered candidates = " ++ prettyShow xms
 
         -- If we found a copy of x with non-empty range, great!
-        ifJust (headMaybe xms) (\ (x', m) -> return (getRange x', m)) $ {-else-} do
+        ifJust (listToMaybe xms) (\ (x', m) -> return (getRange x', m)) $ {-else-} do
 
         -- If that failed, we pick the first m from ms which has a nameBindingSite.
         let rms = ms >>= \ m -> map (,m) $
@@ -455,7 +455,7 @@ instance PrettyTCM TypeError where
         reportSLn "scope.class.error" 30 $ "rangeful clashing modules = " ++ prettyShow rms
 
         -- If even this fails, we pick the first m and give no range.
-        return $ fromMaybe (noRange, m0) $ headMaybe rms
+        return $ fromMaybe (noRange, m0) $ listToMaybe rms
 
       fsep $
         pwords "Duplicate definition of module" ++ [prettyTCM x <> "."] ++
@@ -629,7 +629,7 @@ instance PrettyTCM TypeError where
       pwords "previous binding to" ++ [prettyTCM x]
 
     NoBindingForBuiltin x
-      | elem x [builtinZero, builtinSuc] -> fsep $
+      | x `elem` [builtinZero, builtinSuc] -> fsep $
         pwords "No binding for builtin " ++ [text x <> comma] ++
         pwords ("use {-# BUILTIN " ++ builtinNat ++ " name #-} to bind builtin natural " ++
                 "numbers to the type 'name'")
@@ -730,7 +730,7 @@ instance PrettyTCM TypeError where
              , suggestion inscope x
              ]
       suggestion inscope x = nest 2 $ par $
-        [ "did you forget space around the ':'?"  | elem ':' s ] ++
+        [ "did you forget space around the ':'?"  | ':' `elem` s ] ++
         [ "did you forget space around the '->'?" | isInfixOf "->" s ] ++
         [ sep [ "did you mean"
               , nest 2 $ vcat (punctuate " or" $ map (\ y -> text $ "'" ++ y ++ "'") ys) <> "?" ]
@@ -1299,9 +1299,9 @@ instance Verbalize Relevance where
 
 instance Verbalize Quantity where
   verbalize = \case
-    Quantity0 -> "erased"
-    Quantity1 -> "linear"
-    Quantityω -> "unrestricted"
+    Quantity0{} -> "erased"
+    Quantity1{} -> "linear"
+    Quantityω{} -> "unrestricted"
 
 -- | Indefinite article.
 data Indefinite a = Indefinite a

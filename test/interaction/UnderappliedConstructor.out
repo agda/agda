@@ -2,14 +2,14 @@
 (agda2-info-action "*Type-checking*" "" nil)
 (agda2-highlight-clear)
 conApp: constructor UnderappliedConstructor.R.conR with fields
-Arg {argInfo = ArgInfo {argInfoHiding = NotHidden, argInfoModality = Modality {modRelevance = Relevant, modQuantity = Quantityω}, argInfoOrigin = UserWritten, argInfoFreeVariables = UnknownFVs}, unArg = UnderappliedConstructor.R.A}
-Arg {argInfo = ArgInfo {argInfoHiding = NotHidden, argInfoModality = Modality {modRelevance = Relevant, modQuantity = Quantityω}, argInfoOrigin = UserWritten, argInfoFreeVariables = UnknownFVs}, unArg = UnderappliedConstructor.R.B}
+Arg {argInfo = ArgInfo {argInfoHiding = NotHidden, argInfoModality = Modality {modRelevance = Relevant, modQuantity = Quantityω QωInferred}, argInfoOrigin = UserWritten, argInfoFreeVariables = UnknownFVs}, unArg = UnderappliedConstructor.R.A}
+Arg {argInfo = ArgInfo {argInfoHiding = NotHidden, argInfoModality = Modality {modRelevance = Relevant, modQuantity = Quantityω QωInferred}, argInfoOrigin = UserWritten, argInfoFreeVariables = UnknownFVs}, unArg = UnderappliedConstructor.R.B}
 and args
 Agda.Builtin.Bool.Bool
 projected by UnderappliedConstructor.R.B
 conApp: constructor UnderappliedConstructor.R.conR with fields
-Arg {argInfo = ArgInfo {argInfoHiding = NotHidden, argInfoModality = Modality {modRelevance = Relevant, modQuantity = Quantityω}, argInfoOrigin = UserWritten, argInfoFreeVariables = UnknownFVs}, unArg = UnderappliedConstructor.R.A}
-Arg {argInfo = ArgInfo {argInfoHiding = NotHidden, argInfoModality = Modality {modRelevance = Relevant, modQuantity = Quantityω}, argInfoOrigin = UserWritten, argInfoFreeVariables = UnknownFVs}, unArg = UnderappliedConstructor.R.B}
+Arg {argInfo = ArgInfo {argInfoHiding = NotHidden, argInfoModality = Modality {modRelevance = Relevant, modQuantity = Quantityω QωInferred}, argInfoOrigin = UserWritten, argInfoFreeVariables = UnknownFVs}, unArg = UnderappliedConstructor.R.A}
+Arg {argInfo = ArgInfo {argInfoHiding = NotHidden, argInfoModality = Modality {modRelevance = Relevant, modQuantity = Quantityω QωInferred}, argInfoOrigin = UserWritten, argInfoFreeVariables = UnknownFVs}, unArg = UnderappliedConstructor.R.B}
 and args
 Agda.Builtin.Bool.Bool
 projected by UnderappliedConstructor.R.B

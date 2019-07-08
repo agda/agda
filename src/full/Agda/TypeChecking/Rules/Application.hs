@@ -365,7 +365,7 @@ checkRelevance' x def = do
 checkQuantity' :: QName -> Definition -> TCM (Maybe TypeError)
 checkQuantity' x def = do
   case getQuantity def of
-    Quantityω -> return Nothing -- Abundant definitions can be used in any context.
+    Quantityω{} -> return Nothing -- Abundant definitions can be used in any context.
     dq -> do
       q <- asksTC getQuantity
       reportSDoc "tc.irr" 50 $ vcat
@@ -821,7 +821,7 @@ disambiguateConstructor cs0 t = do
   case cons of
     []    -> typeError $ AbstractConstructorNotInScope $ headNe cs0
     [con] -> do
-      let c = setConName (fromMaybe __IMPOSSIBLE__ $ headMaybe cs) con
+      let c = setConName (headWithDefault __IMPOSSIBLE__ cs) con
       reportSLn "tc.check.term.con" 40 $ "  only one non-abstract constructor: " ++ prettyShow c
       storeDisambiguatedName $ conName c
       return (Right c)
@@ -829,7 +829,7 @@ disambiguateConstructor cs0 t = do
       dcs <- zipWithM (\ c con -> (, setConName c con) . getData . theDef <$> getConInfo con) cs cons
       -- Type error
       let badCon t = typeError $ flip DoesNotConstructAnElementOf t $
-            fromMaybe __IMPOSSIBLE__ $ headMaybe cs
+            headWithDefault __IMPOSSIBLE__ cs
       -- Lets look at the target type at this point
       let getCon :: TCM (Maybe ConHead)
           getCon = do

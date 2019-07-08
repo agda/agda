@@ -308,7 +308,7 @@ checkTypedBindings lamOrPi (A.TBind r tac xps e) ret = do
         modEnv LamNotPi = workOnTypes
         modEnv _        = id
         modMod PiNotLam xp = (if xp then mapRelevance irrToNonStrict else id)
-                           . (setQuantity Quantityω)
+                           . (setQuantity topQuantity)
         modMod _        _  = id
 checkTypedBindings lamOrPi (A.TLet _ lbs) ret = do
     checkLetBindings lbs (ret EmptyTel)
@@ -497,14 +497,14 @@ lambdaIrrelevanceCheck dom info
 lambdaQuantityCheck :: LensQuantity dom => dom -> ArgInfo -> TCM ArgInfo
 lambdaQuantityCheck dom info
     -- Case: no specific user annotation: use quantity of function type
-  | getQuantity info == defaultQuantity = return $ setQuantity (getQuantity dom) info
+  | noUserQuantity info = return $ setQuantity (getQuantity dom) info
     -- Case: explicit user annotation is taken seriously
   | otherwise = do
       let qPi  = getQuantity dom  -- quantity of function type
       let qLam = getQuantity info -- quantity of lambda
-      unless (moreQuantity qPi qLam) $ do
-        -- the expected use qPi cannot be unrestricted
-        when (qPi == Quantityω) __IMPOSSIBLE__
+      unless (qPi `moreQuantity` qLam) $ do
+        -- the expected use qPi cannot be unrestricted then
+        when (hasQuantityω qPi) __IMPOSSIBLE__
         typeError WrongQuantityInLambda
       return info
 

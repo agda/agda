@@ -24,7 +24,6 @@ import Agda.Syntax.Internal.Pattern
 
 import Agda.Interaction.Options
 
-import Agda.TypeChecking.Names
 import Agda.TypeChecking.Primitive hiding (Nat)
 import Agda.TypeChecking.Primitive.Cubical
 import Agda.TypeChecking.Monad
@@ -32,28 +31,19 @@ import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Conversion (tryConversion, equalType, equalTermOnFace)
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Substitute
-import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Records
-import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Telescope.Path
 
-import Agda.Utils.Either
 import Agda.Utils.Except
   ( ExceptT
   , MonadError(catchError, throwError)
   , runExceptT
   )
-import Agda.Utils.Function
 import Agda.Utils.Functor
-import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
-import Agda.Utils.Permutation
 import Agda.Utils.Pretty (prettyShow)
-import Agda.Utils.Size
-import Agda.Utils.Tuple
-import Agda.Utils.Lens
 
 import Agda.Utils.Impossible
 

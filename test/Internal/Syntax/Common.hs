@@ -5,6 +5,7 @@ module Internal.Syntax.Common ( tests ) where
 import Control.Applicative
 
 import Agda.Syntax.Common
+import Agda.Syntax.Position ( noRange )
 
 import Internal.Helpers
 
@@ -15,9 +16,44 @@ instance CoArbitrary Modality
 instance Arbitrary Modality where
   arbitrary = liftA2 Modality arbitrary arbitrary
 
+instance CoArbitrary Q0Origin where
+  coarbitrary = \case
+    Q0Inferred -> variant 0
+    Q0{}       -> variant 1
+    Q0Erased{} -> variant 2
+
+instance CoArbitrary Q1Origin where
+  coarbitrary = \case
+    Q1Inferred -> variant 0
+    Q1{}       -> variant 1
+    Q1Linear{} -> variant 2
+
+instance CoArbitrary QωOrigin where
+  coarbitrary = \case
+    QωInferred -> variant 0
+    Qω{}       -> variant 1
+    QωPlenty{} -> variant 2
+
+instance Arbitrary Q0Origin where
+  arbitrary = elements [ Q0Inferred, Q0 noRange, Q0Erased noRange ]
+
+instance Arbitrary Q1Origin where
+  arbitrary = elements [ Q1Inferred, Q1 noRange, Q1Linear noRange ]
+
+instance Arbitrary QωOrigin where
+  arbitrary = elements [ QωInferred, Qω noRange, QωPlenty noRange ]
+
 instance CoArbitrary Quantity
 instance Arbitrary Quantity where
-  arbitrary = elements [minBound..maxBound]
+  arbitrary = elements [ Quantity0 mempty, Quantity1 mempty, Quantityω mempty ]
+  -- Andreas, 2019-07-04, TODO:
+  -- The monoid laws hold only modulo origin information.
+  -- Thus, we generate here only origin-free quantities.
+  -- arbitrary = oneof
+  --   [ Quantity0 <$> arbitrary
+  --   , Quantity1 <$> arbitrary
+  --   , Quantityω <$> arbitrary
+  --   ]
 
 instance CoArbitrary Relevance
 instance Arbitrary Relevance where

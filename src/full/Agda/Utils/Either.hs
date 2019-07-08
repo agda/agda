@@ -2,7 +2,27 @@
 -- | Utilities for the 'Either' type.
 ------------------------------------------------------------------------
 
-module Agda.Utils.Either where
+module Agda.Utils.Either
+  ( whileLeft
+  , caseEitherM
+  , mapLeft
+  , mapRight
+  , traverseEither
+  , isLeft
+  , isRight
+  , fromLeft
+  , fromRight
+  , fromLeftM
+  , fromRightM
+  , maybeLeft
+  , maybeRight
+  , allLeft
+  , allRight
+  , maybeToEither
+  ) where
+
+import Data.Bifunctor
+import Data.Either (isLeft, isRight)
 
 -- | Loop while we have an exception.
 
@@ -18,39 +38,26 @@ whileLeft test left right = loop where
 caseEitherM :: Monad m => m (Either a b) -> (a -> m c) -> (b -> m c) -> m c
 caseEitherM mm f g = either f g =<< mm
 
--- | 'Either' is a bifunctor.
-
-mapEither :: (a -> c) -> (b -> d) -> Either a b -> Either c d
-mapEither f g = either (Left . f) (Right . g)
+-- UNUSED Liang-Ting Chen (05-07-2019)
+-- -- | 'Either' is a bifunctor.
+--
+-- mapEither :: (a -> c) -> (b -> d) -> Either a b -> Either c d
+-- mapEither = bimap
 
 -- | 'Either _ b' is a functor.
 
 mapLeft :: (a -> c) -> Either a b -> Either c b
-mapLeft f = mapEither f id
+mapLeft = first
 
 -- | 'Either a' is a functor.
 
 mapRight :: (b -> d) -> Either a b -> Either a d
-mapRight = mapEither id
+mapRight = second
 
 -- | 'Either' is bitraversable.
-
+-- Note: From @base >= 4.10.0.0@ already present in `Data.Bitraversable`.
 traverseEither :: Functor f => (a -> f c) -> (b -> f d) -> Either a b -> f (Either c d)
 traverseEither f g = either (fmap Left . f) (fmap Right . g)
-
--- | Returns 'True' iff the argument is @'Right' x@ for some @x@.
---
---   Note: from @base >= 4.7.0.0@ already present in @Data.Either@.
-isRight :: Either a b -> Bool
-isRight (Right _) = True
-isRight (Left  _) = False
-
--- | Returns 'True' iff the argument is @'Left' x@ for some @x@.
---
---   Note: from @base >= 4.7.0.0@ already present in @Data.Either@.
-isLeft :: Either a b -> Bool
-isLeft (Right _) = False
-isLeft (Left _)  = True
 
 -- | Analogue of 'Data.Maybe.fromMaybe'.
 fromLeft :: (b -> a) -> Either a b -> a

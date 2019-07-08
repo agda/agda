@@ -20,6 +20,7 @@ import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Map (Map)
 import qualified Data.Map as Map
+import qualified Data.HashMap.Strict as HMap
 import Data.Maybe
 import Data.Monoid
 
@@ -69,7 +70,6 @@ import Agda.Utils.Null
 import Agda.Utils.Permutation
 import Agda.Utils.Pretty
 import Agda.Utils.Size
-import qualified Agda.Utils.HashMap as HMap
 
 import Agda.Utils.Impossible
 

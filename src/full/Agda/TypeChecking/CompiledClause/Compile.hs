@@ -191,7 +191,7 @@ nextSplit (Cl ps _ : cs) = findSplit nonLazy ps <|> findSplit allAgree ps
     nonLazy _ (ConP _ cpi _) = not $ conPLazy cpi
     nonLazy _ _              = True
 
-    findSplit okPat ps = headMaybe (catMaybes $
+    findSplit okPat ps = listToMaybe (catMaybes $
       zipWith (\ (Arg ai p) n -> (, Arg ai n) <$> properSplit p <* guard (okPat n p)) ps [0..])
 
     allAgree i (ConP c _ _) = all ((== Just (conName c)) . getCon . map unArg . drop i . clPats) cs
@@ -243,7 +243,7 @@ splitC n (Cl ps b) = caseMaybe mp fallback $ \case
   DotP{}      -> fallback
   where
     (ps0, rest) = splitAt n ps
-    mp          = unArg <$> headMaybe rest
+    mp          = unArg <$> listToMaybe rest
     ps1         = drop 1 rest
     fallback    = catchAll $ Cl ps b
 
@@ -357,7 +357,7 @@ expandCatchAlls single n cs =
                , Arg Pattern)  -- @n+1@st pattern, not a variable
     notVarNth ps = do
       let (ps1, ps2) = splitAt n ps
-      p <- headMaybe ps2
+      p <- listToMaybe ps2
       guard $ not $ isVar $ unArg p
       return (ps1, p)
 

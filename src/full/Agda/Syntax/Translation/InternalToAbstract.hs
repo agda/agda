@@ -49,7 +49,6 @@ import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Pattern
 import Agda.Syntax.Abstract.Pretty
 import Agda.Syntax.Internal as I
-import Agda.Syntax.Internal.Pattern as I
 import Agda.Syntax.Scope.Base (isNameInScope, inverseScopeLookupName)
 
 import Agda.TypeChecking.Monad
@@ -63,13 +62,11 @@ import {-# SOURCE #-} Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
-import Agda.TypeChecking.DropArgs
 
 import Agda.Interaction.Options ( optPostfixProjections )
 
 import Agda.Utils.Either
 import Agda.Utils.Except ( MonadError(catchError) )
-import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List
@@ -689,7 +686,7 @@ reifyTerm expandAnonDefs0 v0 = do
 
               TelV tel _ <- telViewUpTo np (defType defn)
               let (as, rest) = splitAt (np - 1) $ telToList tel
-                  dom = fromMaybe __IMPOSSIBLE__ $ headMaybe rest
+                  dom = headWithDefault __IMPOSSIBLE__ rest
 
               -- These are the dropped projection arguments
               scope <- getScope

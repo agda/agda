@@ -18,6 +18,7 @@ import Control.Monad.Reader
 
 import qualified Data.IntMap as IntMap
 import qualified Data.Map as Map
+import qualified Data.HashMap.Strict as HMap
 import Data.Maybe
 import Data.Monoid
 
@@ -33,7 +34,6 @@ import Agda.TypeChecking.Monad.Builtin hiding ( constructorForm )
 import Agda.TypeChecking.Substitute
 import Agda.Interaction.Options
 
-import qualified Agda.Utils.HashMap as HMap
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.Monad
