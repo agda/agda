@@ -22,7 +22,7 @@ import Agda.Syntax.Concrete.Name (LensInScope(..))
 import Agda.Syntax.Position
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Generic
-import Agda.Syntax.Literal
+import Agda.Syntax.Internal.MetaVars
 import Agda.Syntax.Scope.Monad (bindVariable)
 import Agda.Syntax.Scope.Base (Binder(..))
 import Agda.TypeChecking.Monad

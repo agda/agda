@@ -328,6 +328,7 @@ library
                     Agda.Syntax.Internal
                     Agda.Syntax.Internal.Defs
                     Agda.Syntax.Internal.Generic
+                    Agda.Syntax.Internal.MetaVars
                     Agda.Syntax.Internal.Names
                     Agda.Syntax.Internal.Pattern
                     Agda.Syntax.Internal.SanityCheck

@@ -63,6 +63,7 @@ import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Internal.Defs ( getDefs' )
+import Agda.Syntax.Internal.MetaVars
 import Agda.Syntax.Position
 
 import Agda.TypeChecking.Datatypes

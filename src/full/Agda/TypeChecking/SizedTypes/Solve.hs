@@ -69,6 +69,7 @@ import Agda.Interaction.Options
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
+import Agda.Syntax.Internal.MetaVars
 
 import Agda.TypeChecking.Monad as TCM hiding (Offset)
 import Agda.TypeChecking.Monad.Builtin

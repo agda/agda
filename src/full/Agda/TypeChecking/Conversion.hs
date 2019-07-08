@@ -15,6 +15,7 @@ import qualified Data.IntSet as IntSet
 import Agda.Syntax.Abstract.Views (isSet)
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
+import Agda.Syntax.Internal.MetaVars
 import Agda.Syntax.Translation.InternalToAbstract (reify)
 
 import Agda.TypeChecking.Monad

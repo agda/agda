@@ -42,6 +42,7 @@ import Data.Set (Set)
 import Agda.Syntax.Common
 import qualified Agda.Syntax.Common as C
 import Agda.Syntax.Internal
+import Agda.Syntax.Internal.MetaVars
 
 import Agda.TypeChecking.Conversion.Pure
 import Agda.TypeChecking.Datatypes

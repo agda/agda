@@ -77,6 +77,7 @@ import qualified Data.Set as Set
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
+import Agda.Syntax.Internal.MetaVars
 
 import Agda.Utils.Functor
 import Agda.Utils.Lens

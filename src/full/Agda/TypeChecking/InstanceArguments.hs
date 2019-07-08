@@ -22,6 +22,7 @@ import Agda.Interaction.Options (optOverlappingInstances)
 import Agda.Syntax.Common
 import Agda.Syntax.Position
 import Agda.Syntax.Internal as I
+import Agda.Syntax.Internal.MetaVars
 import Agda.Syntax.Scope.Base (isNameInScope)
 
 import Agda.TypeChecking.Errors ()

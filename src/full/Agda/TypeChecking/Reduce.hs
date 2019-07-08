@@ -20,6 +20,7 @@ import Agda.Interaction.Options
 import Agda.Syntax.Position
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
+import Agda.Syntax.Internal.MetaVars
 import Agda.Syntax.Internal.Pattern
 import Agda.Syntax.Scope.Base (Scope)
 import Agda.Syntax.Literal

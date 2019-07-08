@@ -27,6 +27,7 @@ import Agda.Syntax.Concrete (FieldAssignment'(..), nameFieldA)
 import qualified Agda.Syntax.Concrete.Name as C
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
+import Agda.Syntax.Internal.MetaVars
 import Agda.Syntax.Position
 import Agda.Syntax.Literal
 import Agda.Syntax.Scope.Base ( ThingsInScope, AbstractName
