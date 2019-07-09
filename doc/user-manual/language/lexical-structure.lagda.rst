@@ -44,7 +44,7 @@ keywords
   ``open`` :ref:`overlap <instance-fields>` ``pattern`` ``postulate``
   ``primitive`` ``private`` ``public`` :ref:`quote <reflection>`
   ``quoteContext`` ``quoteGoal`` :ref:`quoteTerm <macros>` ``record``
-  ``renaming`` ``rewrite`` ``Set`` ``syntax`` ``tactic``
+  ``renaming`` ``rewrite`` ``invert`` ``Set`` ``syntax`` ``tactic``
   :ref:`unquote <macros>` :ref:`unquoteDecl <unquoting-declarations>`
   :ref:`unquoteDef <unquoting-declarations>` ``using``
   :ref:`variable <generalization-of-declared-variables>`

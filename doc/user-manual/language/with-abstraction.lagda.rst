@@ -383,6 +383,64 @@ with-abstraction.
 
 ..
   ::
+  module with-invert {a b} {A : Set a} {B : A → Set b} where
+    open import Agda.Builtin.Sigma using (Σ; _,_)
+
+.. _with-invert:
+
+Invert
+~~~~~~
+
+When a pattern is irrefutable, we can use ``invert`` instead of a ``with``
+block. This gives us a lightweight syntax to make a lot of observations
+before using a "proper" ``with`` block. See for instance the redefinitions
+of the first and second projections out of a record::
+
+    module _ (p : Σ A B) where
+
+      fst : A
+      fst invert (a , _) ← p = a
+
+      snd : B fst
+      snd invert (_ , b) ← p = b
+
+The patterns used in such an inversion clause can be arbitrary. We can
+for instance have deep patterns, e.g. writing a cast for properties on
+dependent pairs we know to be equal in a component-wise manner:
+
+::
+
+    Σ-eq : (p q : Σ A B) → Set _
+    Σ-eq p q = Σ (fst p ≡ fst q) (λ where refl → snd p ≡ snd q)
+
+    module _ {p q : Σ A B} (eq : Σ-eq p q) where
+
+      cast : ∀ {l} {P : Σ A B → Set l} → P p → P q
+      cast proof invert (refl , refl) ← eq = proof
+
+Remember example of :ref:`simultaneous
+abstraction <simultaneous-abstraction>` from above. A simultaneous
+``invert`` is to be understood as being nested. That is to say that
+the type refinements introduced by the first pattern may be necessary
+to type the following ones. Here is a contrived example:
+
+::
+
+      -- type annotation operator
+      _∋_ : ∀ {a} (A : Set a) → A → A
+      A ∋ a = a
+
+      cascading : Σ A B
+      cascading
+        invert (refl , refl) ← eq -- identifying p and q componentwise
+             | _ ← (p ≡ q) ∋ refl -- only typechecks if Agda knows p = q
+             = p
+
+You can alternate arbitrarily many ``rewrite`` and ``invert`` clauses
+and still perform a ``with`` abstraction afterwards if necessary.
+
+..
+  ::
   module with-rewrite where
     open import Agda.Builtin.Nat using (_+_)
 
