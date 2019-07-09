@@ -61,7 +61,7 @@ import Control.Arrow (first, second)
 import Control.Monad
 import Control.Monad.Trans.Maybe
 import Control.Monad.Writer (WriterT(..), tell)
-import Data.Foldable hiding (any)
+import Data.Foldable as Fold hiding (any)
 import Data.Traversable
 import Data.Semigroup hiding (Arg)
 import Data.Maybe
@@ -81,6 +81,7 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Pretty
 
+import Agda.Utils.Functor
 import Agda.Utils.PartialOrd
 import Agda.Utils.Pretty (prettyShow)
 import Agda.Utils.List
@@ -176,15 +177,28 @@ nextIsForced (f:fs) = (f, fs)
 forcingTranslation :: [NamedArg DeBruijnPattern] -> TCM [NamedArg DeBruijnPattern]
 forcingTranslation ps = do
   (qs, rebind) <- dotForcedPatterns ps
-  case rebind of
-    Nothing -> return ps
-    Just rebind -> do
+  -- If qs == ps, no patterns were dotted.  Otherwise, report result.
+  verboseS "tc.force" 50 $
+    unless (qs == ps) $
       reportSDoc "tc.force" 50 $ "forcingTranslation" <?> vcat
         [ "patterns:" <?> pretty ps
         , "dotted:  " <?> pretty qs
-        , "rebind:  " <?> pretty rebind ]
+        , "rebind:  " <?> pretty rebind
+        ]
+  -- If @rebind@ is empty, there is no further work to do:
+  --
+  --   dotForcedPatterns adds dot patterns and rebindForcedPattern turns
+  --   the dot patterns into proper patterns.  If rebind is empty we might
+  --   have created some new dot patterns, but since we won't remove any
+  --   dot patterns there is no need to have another go at dotForcedPatterns.
+  --   -- Ulf, 2019-07-09, https://github.com/agda/agda/pull/3902#discussion_r301477181
+  --
+  -- Still, @qs@ might be different from @ps@:
+  -- Dots might have been moved, just not onto binders or strict matches.
+  -- Thus, we return @qs@ and not @ps@.
+  if null rebind then return qs else do
       rs <- foldM rebindForcedPattern qs rebind
-      when (not $ null rebind) $ reportSDoc "tc.force" 50 $ nest 2 $ "result:  " <?> pretty rs
+      reportSDoc "tc.force" 50 $ nest 2 $ "result:  " <?> pretty rs
       -- Repeat translation as long as we're making progress (Issue 3410)
       forcingTranslation rs
 
@@ -201,9 +215,11 @@ forceTranslateTelescope delta qs = do
       old  = xms \\ xms'
       new  = xms' \\ xms
   if null new then return delta else do
-      reportSLn "tc.force" 40 $ "Updating modalities of forced arguments\n" ++
-                                "  from: " ++ show old ++ "\n" ++
-                                "  to:   " ++ show new
+      reportSLn "tc.force" 40 $ unlines $
+        [ "Updating modalities of forced arguments"
+        , "  from: " ++ show old
+        , "  to:   " ++ show new
+        ]
       let mods    = map (first dbPatVarIndex) new
           ms      = map (`lookup` mods) $ downFrom $ size delta
           delta'  = telFromList $ zipWith (maybe id setModality) ms $ telToList delta
@@ -258,7 +274,7 @@ rebindForcedPattern ps toRebind = do
       fs <- defForced <$> getConstInfo (conName c)
       return $ zip (fs ++ repeat NotForced) qs
 
-    -- Try to turn a term in a dot pattern into a pattern matching q
+    -- Try to turn a term in a dot pattern into a pattern matching targetDotP
     mkPat :: Term -> TCM (Maybe DeBruijnPattern)
     mkPat v = mkPat' (NotForced, v)
 
@@ -269,11 +285,10 @@ rebindForcedPattern ps toRebind = do
       case v of
         Con c co es -> do
           let vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
-          fvs <- withForced c vs
-          let fvs' = [ (f,) <$> a | (f, a) <- fvs ] :: [Arg (IsForced, Term)]
+          fovs  :: [Arg (IsForced, Term)] <- map distributeF <$> withForced c vs
           -- It takes a bit of juggling to apply mkPat' under the the 'Arg's, but since it
           -- type checks, it's pretty much guaranteed to be the right thing.
-          mps :: [Maybe (Arg DeBruijnPattern)] <- mapM (runMaybeT . traverse (MaybeT . mkPat')) fvs'
+          mps :: [Maybe (Arg DeBruijnPattern)] <- mapM (runMaybeT . traverse (MaybeT . mkPat')) fovs
           case break (isJust . snd) (zip vs mps) of
             (mvs1, (_, Just p) : mvs2) -> do
               let vs1 = map fst mvs1
@@ -303,17 +318,18 @@ _               `rebinds` _                 = False
 -- | Dot all forced patterns and return a list of patterns that need to be
 --   undotted elsewhere. Patterns that need to be undotted are those that bind
 --   variables or does some actual (non-eta) matching.
-dotForcedPatterns :: [NamedArg DeBruijnPattern] -> TCM ([NamedArg DeBruijnPattern], Maybe [DeBruijnPattern])
+dotForcedPatterns :: [NamedArg DeBruijnPattern] -> TCM ([NamedArg DeBruijnPattern], [DeBruijnPattern])
 dotForcedPatterns ps = runWriterT $ (traverse . traverse . traverse) (forced NotForced) ps
   where
-    forced :: IsForced -> DeBruijnPattern -> WriterT (Maybe [DeBruijnPattern]) TCM DeBruijnPattern
+    forced :: IsForced -> DeBruijnPattern -> WriterT [DeBruijnPattern] TCM DeBruijnPattern
     forced f p =
       case p of
         DotP{}          -> return p
         ProjP{}         -> return p
         _ | f == Forced -> do
           properMatch <- isProperMatch p
-          dotP (patternToTerm p) <$ tell (Just [p | properMatch || length p > 0])
+          tell $ [p | properMatch || not (Fold.null p)]  -- @not (null p)@ means: binds at least one variable
+          return $ dotP (patternToTerm p)
         VarP{}          -> return p
         LitP{}          -> return p
         ConP c i ps     -> do
