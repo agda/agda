@@ -31,8 +31,6 @@ import Agda.TypeChecking.Monad
 
 import Agda.Utils.Pretty (prettyShow)
 
-import Agda.Utils.Impossible
-
 recursive :: [QName] -> TCM Bool
 recursive names = do
   graph <- zip names <$> mapM (\ d -> nub <$> recDef names d) names

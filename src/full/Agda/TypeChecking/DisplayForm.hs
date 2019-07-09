@@ -25,7 +25,6 @@ import Agda.TypeChecking.Reduce (instantiate)
 
 import Agda.Utils.Except
 import Agda.Utils.Functor
-import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Pretty
@@ -89,10 +88,10 @@ displayForm q es = do
       , "displayForms: " ++ show dfs
       , "arguments   : " ++ show es
       , "matches     : " ++ show ms
-      , "result      : " ++ show (headMaybe ms)
+      , "result      : " ++ show (listToMaybe ms)
       ]
     -- Return the first display form that matches.
-    return $ headMaybe ms
+    return $ listToMaybe ms
   where
     -- Look at the original display form, not the instantiated result when
     -- checking if it's well-scoped. Otherwise we might pick up out of scope

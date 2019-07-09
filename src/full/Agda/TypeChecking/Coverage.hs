@@ -35,7 +35,6 @@ import qualified Data.Traversable as Trav
 
 import Agda.Syntax.Common
 import Agda.Syntax.Position
-import Agda.Syntax.Literal
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
 
@@ -57,7 +56,6 @@ import Agda.TypeChecking.Datatypes (getConForm)
 import {-# SOURCE #-} Agda.TypeChecking.Empty ( checkEmptyTel, isEmptyTel, isEmptyType )
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Irrelevance
-import Agda.TypeChecking.Patterns.Internal (dotPatternsToPatterns)
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Reduce
@@ -75,7 +73,6 @@ import Agda.Utils.Except
   , MonadError(catchError, throwError)
   , runExceptT
   )
-import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.List
 import Agda.Utils.Maybe
@@ -84,8 +81,6 @@ import Agda.Utils.Null
 import Agda.Utils.Permutation
 import Agda.Utils.Pretty (prettyShow)
 import Agda.Utils.Size
-import Agda.Utils.Tuple
-import Agda.Utils.Lens
 
 import Agda.Utils.Impossible
 

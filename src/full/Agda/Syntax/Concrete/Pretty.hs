@@ -181,11 +181,29 @@ instance Pretty Relevance where
   pretty Irrelevant = "."
   pretty NonStrict  = ".."
 
+instance Pretty Q0Origin where
+  pretty = \case
+    Q0Inferred -> empty
+    Q0{}       -> "@0"
+    Q0Erased{} -> "@erased"
+
+instance Pretty Q1Origin where
+  pretty = \case
+    Q1Inferred -> empty
+    Q1{}       -> "@1"
+    Q1Linear{} -> "@linear"
+
+instance Pretty QωOrigin where
+  pretty = \case
+    QωInferred -> empty
+    Qω{}       -> "@ω"
+    QωPlenty{} -> "@plenty"
+
 instance Pretty Quantity where
   pretty = \case
-    Quantity0 -> "@0"
-    Quantity1 -> "@1"
-    Quantityω -> empty
+    Quantity0 o -> ifNull (pretty o) "@0" id
+    Quantity1 o -> ifNull (pretty o) "@1" id
+    Quantityω o -> pretty o
 
 instance Pretty (OpApp Expr) where
   pretty (Ordinary e) = pretty e
@@ -311,11 +329,16 @@ isLabeled x
 
 instance Pretty NamedBinding where
   pretty (NamedBinding withH x) =
-    prH $ if | isLabeled x -> text (fromMaybe __IMPOSSIBLE__ $ getLabel x) <+> "=" <+> pretty (namedArg x)
+    prH $ if | isLabeled x -> text (fromMaybe __IMPOSSIBLE__ $ getLabel x) <+> "=" <+> pretty xb
              | otherwise   -> pretty (namedArg x)
     where
-      prH | withH     = prettyRelevance x . prettyHiding x id . prettyQuantity x . prettyTactic (namedArg x)
+      xb = namedArg x
+      prH | withH     = prettyRelevance x . prettyHiding x mparens . prettyQuantity x . prettyTactic xb
           | otherwise = id
+      -- Parentheses are needed when an attribute @... is present
+      mparens
+        | noUserQuantity x, Nothing <- bnameTactic xb = id
+        | otherwise = parens
 
 instance Pretty LamBinding where
     pretty (DomainFree x) = pretty (NamedBinding True x)

@@ -12,9 +12,9 @@ import qualified Data.Map as Map
 import Data.Maybe
 
 import Agda.Syntax.Common
-import Agda.Syntax.Concrete.Name
 import Agda.Syntax.Concrete (Expr(..))
 import Agda.Syntax.Concrete.Pretty
+import Agda.Syntax.Position
 
 import Agda.Utils.Pretty (prettyShow)
 
@@ -27,6 +27,24 @@ data Attribute
   | QuantityAttribute  Quantity
   | TacticAttribute Expr
   deriving (Show)
+
+instance HasRange Attribute where
+  getRange = \case
+    RelevanceAttribute r -> getRange r
+    QuantityAttribute q  -> getRange q
+    TacticAttribute e    -> getRange e
+
+instance SetRange Attribute where
+  setRange r = \case
+    RelevanceAttribute a -> RelevanceAttribute $ setRange r a
+    QuantityAttribute q  -> QuantityAttribute  $ setRange r q
+    TacticAttribute e    -> TacticAttribute e  -- -- $ setRange r e -- SetRange Expr not yet implemented
+
+instance KillRange Attribute where
+  killRange = \case
+    RelevanceAttribute a -> RelevanceAttribute $ killRange a
+    QuantityAttribute q  -> QuantityAttribute  $ killRange q
+    TacticAttribute e    -> TacticAttribute    $ killRange e
 
 -- | (Conjunctive constraint.)
 
@@ -44,12 +62,21 @@ relevanceAttributeTable = concat
 -- | Modifiers for 'Quantity'.
 
 quantityAttributeTable :: [(String, Quantity)]
-quantityAttributeTable = concat
-  [ map (, Quantity0) [ "0", "erased" ] -- , "static", "compile-time" ]
-  , map (, Quantityω) [ "ω", "plenty" ] -- , "dynamic", "runtime", "unrestricted", "abundant" ]
-  -- , map (, Quantity1)  [ "1", "linear" ]
-  -- , map (, Quantity01) [ "01", "affine" ]
+quantityAttributeTable =
+  [ ("0"      , Quantity0 $ Q0       noRange)
+  , ("erased" , Quantity0 $ Q0Erased noRange)
+  -- TODO: linearity
+  -- , ("1"      , Quantity1 $ Q1       noRange)
+  -- , ("linear" , Quantity1 $ Q1Linear noRange)
+  , ("ω"      , Quantityω $ Qω       noRange)
+  , ("plenty" , Quantityω $ QωPlenty noRange)
   ]
+-- quantityAttributeTable = concat
+--   [ map (, Quantity0) [ "0", "erased" ] -- , "static", "compile-time" ]
+--   , map (, Quantityω) [ "ω", "plenty" ] -- , "dynamic", "runtime", "unrestricted", "abundant" ]
+--   -- , map (, Quantity1)  [ "1", "linear" ]
+--   -- , map (, Quantity01) [ "01", "affine" ]
+--   ]
 
 -- | Concrete syntax for all attributes.
 
@@ -68,7 +95,7 @@ stringToAttribute = (`Map.lookup` attributesMap)
 
 exprToAttribute :: Expr -> Maybe Attribute
 exprToAttribute (Paren _ (RawApp _ [Tactic _ t []])) = Just $ TacticAttribute t
-exprToAttribute e = stringToAttribute $ prettyShow e
+exprToAttribute e = setRange (getRange e) $ stringToAttribute $ prettyShow e
 
 -- | Setting an attribute (in e.g. an 'Arg').  Overwrites previous value.
 
@@ -101,7 +128,7 @@ setPristineRelevance r a
 
 setPristineQuantity :: (LensQuantity a) => Quantity -> a -> Maybe a
 setPristineQuantity q a
-  | getQuantity a == defaultQuantity = Just $ setQuantity q a
+  | noUserQuantity a = Just $ setQuantity q a
   | otherwise = Nothing
 
 -- | Setting an unset attribute (to e.g. an 'Arg').
@@ -143,4 +170,3 @@ quantityAttributes = filter $ isJust . isQuantityAttribute
 
 tacticAttributes :: [Attribute] -> [Attribute]
 tacticAttributes = filter $ isJust . isTacticAttribute
-

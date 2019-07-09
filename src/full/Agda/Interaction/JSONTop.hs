@@ -9,9 +9,7 @@ import qualified Data.ByteString.Lazy.Char8 as BS
 
 import Agda.Interaction.AgdaTop
 import Agda.Interaction.Response as R
-import Agda.Interaction.EmacsCommand hiding (putResponse)
 import Agda.Interaction.Highlighting.JSON
-import Agda.Interaction.Highlighting.Precise (TokenBased(..))
 import Agda.Syntax.Common
 import Agda.TypeChecking.Monad
 import Agda.Utils.Pretty

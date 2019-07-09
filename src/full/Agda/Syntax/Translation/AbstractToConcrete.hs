@@ -61,7 +61,6 @@ import Agda.Syntax.Scope.Monad ( tryResolveName )
 import Agda.TypeChecking.Monad.State (getScope, getAllPatternSyns)
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Debug
-import Agda.TypeChecking.Monad.Options
 import Agda.TypeChecking.Monad.Builtin
 import Agda.Interaction.Options
 
@@ -71,13 +70,11 @@ import Agda.Utils.Except
 import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.Lens
-import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.NonemptyList
 import Agda.Utils.Singleton
-import Agda.Utils.Tuple
 import Agda.Utils.Pretty
 
 import Agda.Utils.Impossible
@@ -101,7 +98,7 @@ data Env = Env { takenVarNames :: Set A.Name
 makeEnv :: MonadAbsToCon m => ScopeInfo -> m Env
 makeEnv scope = do
       -- zero and suc doesn't have to be in scope for natural number literals to work
-  let noScopeCheck b = elem b [builtinZero, builtinSuc]
+  let noScopeCheck b = b `elem` [builtinZero, builtinSuc]
       name (I.Def q _)   = Just q
       name (I.Con q _ _) = Just (I.conName q)
       name _             = Nothing

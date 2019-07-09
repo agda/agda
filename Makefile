@@ -82,20 +82,13 @@ quick-install-bin : ensure-hash-is-correct
 # The performance loss is acceptable for running small tests.
 .PHONY : quicker-install-bin
 quicker-install-bin : ensure-hash-is-correct
-	$(QUICK_CABAL_INSTALL) $(CABAL_INSTALL_BIN_OPTS) --ghc-options=-O0
-
-# Install Agda using Stack
-.PHONY : stack-install-bin
-stack-install-bin :
-	stack build Agda:exe:agda \
-		--flag Agda:enable-cluster-counting \
-		--no-haddock \
-		--no-library-profiling
+	$(QUICK_CABAL_INSTALL) $(CABAL_INSTALL_BIN_OPTS) --ghc-options=-O0 --program-suffix=-quicker
 
 # The Stack version of `Cabal install --enable-test`
-.PHONY : stack-install-test
-stack-install-test :
-	stack build Agda:test:agda-tests \
+.PHONY : stack-install-bin
+stack-install-bin:
+	stack build Agda \
+		--test \
 		--no-run-tests \
 		--flag Agda:enable-cluster-counting \
 		--no-haddock \
@@ -103,7 +96,7 @@ stack-install-test :
 
 # Copy the artefacts built by Stack as if they were build by Cabal.
 .PHONY : stack-copy-artefacts
-stack-copy-artefacts : stack-install-bin stack-install-test
+stack-copy-artefacts : stack-install-bin
 	mkdir -p $(BUILD_DIR)/build/
 	cp -r $(shell stack path --dist-dir)/build $(BUILD_DIR)
 
@@ -111,11 +104,10 @@ stack-copy-artefacts : stack-install-bin stack-install-test
 
 install-bin : ensure-hash-is-correct
 ifneq ("$(wildcard stack.yaml)","") # if `stack.yaml` exists
-	@echo ""===================== Installing using Stack =============================""
-	$(MAKE) stack-install-bin
-	$(MAKE) stack-install-test
-	$(MAKE) stack-copy-artefacts
+	@echo "===================== Installing using Stack ============================="
+	time $(MAKE) stack-copy-artefacts
 else
+	@echo "===================== Installing using Cabal ============================="
 	time $(CABAL_INSTALL) $(CABAL_INSTALL_BIN_OPTS)
 endif
 

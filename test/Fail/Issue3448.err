@@ -1,11 +1,8 @@
-Issue3448.agda:2,1-2
+Issue3448.agda:4,1-2
 The following names are declared but not accompanied by a
 definition: D
-Issue3448.agda:2,1-2
-The following names are declared but not accompanied by a
-definition: D
-Issue3448.agda:2,1-6
+Issue3448.agda:4,1-8
 Multiple definitions of D. Previous definition at
-Issue3448.agda:1,6-7
+Issue3448.agda:3,6-7
 when scope checking the declaration
-  D : _
+  D : Set

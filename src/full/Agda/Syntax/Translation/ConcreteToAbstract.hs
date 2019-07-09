@@ -1,3 +1,4 @@
+{-# LANGUAGE TypeFamilies         #-}  -- for type equality ~
 {-# LANGUAGE UndecidableInstances #-}
 
 {-| Translation from "Agda.Syntax.Concrete" to "Agda.Syntax.Abstract". Involves scope analysis,
@@ -58,13 +59,11 @@ import Agda.Syntax.DoNotation
 import Agda.Syntax.IdiomBrackets
 
 import Agda.TypeChecking.Monad.Base hiding (ModuleInfo, MetaInfo)
-import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Monad.Trace (traceCall, setCurrentRange)
 import Agda.TypeChecking.Monad.State
 import Agda.TypeChecking.Monad.MetaVars (registerInteractionPoint)
 import Agda.TypeChecking.Monad.Debug
-import Agda.TypeChecking.Monad.Options
 import Agda.TypeChecking.Monad.Env (insideDotPattern, isInsideDotPattern, getCurrentPath)
 import Agda.TypeChecking.Rules.Builtin (isUntypedBuiltin, bindUntypedBuiltin, builtinKindOfName)
 
@@ -572,7 +571,7 @@ instance ToAbstract PatName APatName where
     case (rx, x) of
       (VarName y _,     C.QName x)                          -> bindPatVar x
       (FieldName d,     C.QName x)                          -> bindPatVar x
-      (DefinedName _ d, C.QName x) | DefName == anameKind d -> bindPatVar x
+      (DefinedName _ d, C.QName x) | isDefName (anameKind d)-> bindPatVar x
       (UnknownName,     C.QName x)                          -> bindPatVar x
       (ConstructorName ds, _)                               -> patCon ds
       (PatternSynResName d, _)                              -> patSyn d
@@ -625,7 +624,7 @@ freshQModule m x = A.qualifyM m . mnameFromList . (:[]) <$> freshAbstractName_ x
 
 checkForModuleClash :: C.Name -> ScopeM ()
 checkForModuleClash x = do
-  ms <- scopeLookup (C.QName x) <$> getScope
+  ms :: [AbstractModule] <- scopeLookup (C.QName x) <$> getScope
   unless (null ms) $ do
     reportSLn "scope.clash" 20 $ "clashing modules ms = " ++ prettyShow ms
     reportSLn "scope.clash" 60 $ "clashing modules ms = " ++ show ms
@@ -726,7 +725,7 @@ scopeCheckExtendedLam r cs = do
     forM_ cs $ \ c -> do
       reportSLn "scope.extendedLambda" 60 $ "extended lambda lhs: " ++ show (C.lamLHS c)
   qname <- qualifyName_ name
-  bindName (PrivateAccess Inserted) DefName cname qname
+  bindName (PrivateAccess Inserted) FunName cname qname
 
   -- Compose a function definition and scope check it.
   a <- aModeToDef <$> asksTC envAbstractMode
@@ -1079,22 +1078,16 @@ telHasLetStms = any isLetBind
 class EnsureNoLetStms a where
   ensureNoLetStms :: a -> ScopeM ()
 
-{- From ghc 7.2, there is LANGUAGE DefaultSignatures
-  default ensureNoLetStms :: Foldable t => t a -> ScopeM ()
+  default ensureNoLetStms :: (Foldable t, EnsureNoLetStms b, t b ~ a) => a -> ScopeM ()
   ensureNoLetStms = traverse_ ensureNoLetStms
--}
 
 instance EnsureNoLetStms C.TypedBinding where
-  ensureNoLetStms tb =
-    case tb of
-      C.TLet{}  -> typeError $ IllegalLetInTelescope tb
-      C.TBind{} -> return ()
+  ensureNoLetStms = \case
+    tb@C.TLet{} -> typeError $ IllegalLetInTelescope tb
+    C.TBind{}   -> return ()
 
 instance EnsureNoLetStms a => EnsureNoLetStms (LamBinding' a) where
-  ensureNoLetStms = traverse_ ensureNoLetStms
-
 instance EnsureNoLetStms a => EnsureNoLetStms [a] where
-  ensureNoLetStms = traverse_ ensureNoLetStms
 
 
 -- | Returns the scope inside the checked module.
@@ -1492,7 +1485,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
       t' <- toAbstractCtx TopCtx t
       f  <- getConcreteFixity x
       y  <- freshAbstractQName f x
-      bindName p DefName x y
+      bindName p PrimName x y
       return [ A.Primitive (mkDefInfo x f p a r) y t' ]
 
   -- Definitions (possibly mutual)
@@ -1511,10 +1504,10 @@ instance ToAbstract NiceDeclaration A.Declaration where
         t'  <- toAbstract t
         f   <- getConcreteFixity x
         x'  <- freshAbstractQName f x
-        bindName' p DefName (GeneralizedVarsMetadata $ generalizeTelVars ls') x x'
+        bindName' p RecName (GeneralizedVarsMetadata $ generalizeTelVars ls') x x'
         return [ A.RecSig (mkDefInfo x f p a r) x' ls' t' ]
 
-    C.NiceDataSig r p a _pc _uc x ls t -> withLocalVars $ do
+    C.NiceDataSig r p a _pc _uc x ls t -> do
         reportSLn "scope.data.sig" 20 ("checking DataSig for " ++ prettyShow x)
         ensureNoLetStms ls
         withLocalVars $ do
@@ -1522,7 +1515,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
           t'  <- toAbstract $ C.Generalized t
           f  <- getConcreteFixity x
           x' <- freshAbstractQName f x
-          bindName' p DefName (GeneralizedVarsMetadata $ generalizeTelVars ls') x x'
+          bindName' p DataName (GeneralizedVarsMetadata $ generalizeTelVars ls') x x'
           return [ A.DataSig (mkDefInfo x f p a r) x' ls' t' ]
 
   -- Type signatures
@@ -1548,11 +1541,13 @@ instance ToAbstract NiceDeclaration A.Declaration where
     C.NiceFunClause{} -> __IMPOSSIBLE__
 
   -- Data definitions
-    C.NiceDataDef r o a _ uc x pars cons -> withLocalVars $ do
+    C.NiceDataDef r o a _ uc x pars cons -> do
         reportSLn "scope.data.def" 20 ("checking " ++ show o ++ " DataDef for " ++ prettyShow x)
         (p, ax) <- resolveName (C.QName x) >>= \case
           DefinedName p ax -> do
+            clashUnless x DataName ax  -- Andreas 2019-07-07, issue #3892
             livesInCurrentModule ax  -- Andreas, 2017-12-04, issue #2862
+            clashIfModuleAlreadyDefinedInCurrentModule x ax
             return (p, ax)
           _ -> genericError $ "Missing type signature for data definition " ++ prettyShow x
         ensureNoLetStms pars
@@ -1586,7 +1581,9 @@ instance ToAbstract NiceDeclaration A.Declaration where
       reportSLn "scope.rec.def" 20 ("checking " ++ show o ++ " RecDef for " ++ prettyShow x)
       (p, ax) <- resolveName (C.QName x) >>= \case
         DefinedName p ax -> do
+          clashUnless x RecName ax  -- Andreas 2019-07-07, issue #3892
           livesInCurrentModule ax  -- Andreas, 2017-12-04, issue #2862
+          clashIfModuleAlreadyDefinedInCurrentModule x ax
           return (p, ax)
         _ -> genericError $ "Missing type signature for record definition " ++ prettyShow x
       ensureNoLetStms pars
@@ -1754,7 +1751,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
       ys <- zipWithM freshAbstractQName fxs xs
       zipWithM_ (bindName p QuotableName) xs ys
       e <- toAbstract e
-      zipWithM_ (rebindName p DefName) xs ys
+      zipWithM_ (rebindName p OtherDefName) xs ys
       let mi = MutualInfo tc True r
       return [ A.Mutual mi [A.UnquoteDecl mi [ mkDefInfoInstance x fx p a i NotMacroDef r | (fx, x) <- zip fxs xs ] ys e] ]
 
@@ -1763,7 +1760,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
       ys <- mapM (toAbstract . OldName) xs
       zipWithM_ (rebindName p QuotableName) xs ys
       e <- toAbstract e
-      zipWithM_ (rebindName p DefName) xs ys
+      zipWithM_ (rebindName p OtherDefName) xs ys
       return [ A.UnquoteDef [ mkDefInfo x fx PublicAccess a r | (fx, x) <- zip fxs xs ] ys e ]
 
     NicePatternSyn r n as p -> do
@@ -1799,7 +1796,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
         mp <- getConcretePolarity x
         y  <- freshAbstractQName f x
         let kind | isMacro == MacroDef = MacroName
-                 | otherwise           = DefName
+                 | otherwise           = OtherDefName  -- could be a type signature
         bindName p kind x y
         return [ A.Axiom funSig (mkDefInfoInstance x f p a i isMacro r) info mp y t' ]
       toAbstractNiceAxiom _ _ _ = __IMPOSSIBLE__
@@ -1883,6 +1880,25 @@ instance LivesInCurrentModule A.QName where
       ]
     unless (A.qnameModule x == m) $
       genericError $ "Definition in different module than its type signature"
+
+-- | Unless the resolved 'AbstractName' has the given 'KindOfName',
+--   report a 'ClashingDefinition' for the 'C.Name'.
+clashUnless :: C.Name -> KindOfName -> AbstractName -> ScopeM ()
+clashUnless x k ax = unless (anameKind ax == k) $
+  typeError $ ClashingDefinition (C.QName x) (anameName ax)
+
+-- | If a (data/record) module with the given name is already present in the current module,
+--   we take this as evidence that a data/record with that name is already defined.
+clashIfModuleAlreadyDefinedInCurrentModule :: C.Name -> AbstractName -> ScopeM ()
+clashIfModuleAlreadyDefinedInCurrentModule x ax = do
+  datRecMods <- catMaybes <$> do
+    mapM (isDatatypeModule . amodName) =<< lookupModuleInCurrentModule x
+  unlessNull datRecMods $ const $
+    typeError $ ClashingDefinition (C.QName x) (anameName ax)
+
+lookupModuleInCurrentModule :: C.Name -> ScopeM [AbstractModule]
+lookupModuleInCurrentModule x =
+  fromMaybe [] . Map.lookup x . nsModules . thingsInScope [PublicNS, PrivateNS] <$> getCurrentScope
 
 data IsRecordCon = YesRec | NoRec
 data ConstrDecl = ConstrDecl IsRecordCon A.ModuleName IsAbstract Access C.NiceDeclaration
@@ -2006,7 +2022,7 @@ instance ToAbstract C.Pragma [A.Pragma] where
             modifyCurrentScope $ removeNameFromScope PublicNS x
           -- We then happily bind the name
           y <- freshAbstractQName' x
-          kind <- fromMaybe __IMPOSSIBLE__ <$> builtinKindOfName b
+          let kind = fromMaybe __IMPOSSIBLE__ $ builtinKindOfName b
           bindName PublicAccess kind x y
           return [ A.BuiltinNoDefPragma b y ]
         _ -> genericError $

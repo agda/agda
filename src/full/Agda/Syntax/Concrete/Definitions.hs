@@ -78,10 +78,9 @@ import Agda.Interaction.Options.Warnings
 
 import Agda.Utils.AffineHole
 import Agda.Utils.Except ( MonadError(throwError,catchError) )
-import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.Lens
-import Agda.Utils.List (caseList, headMaybe, isSublistOf)
+import Agda.Utils.List (caseList, isSublistOf)
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
@@ -573,7 +572,13 @@ data NiceEnv = NiceEnv
     -- ^ Stack of warnings. Head is last warning.
   }
 
-type LoneSigs   = Map Name DataRecOrFun
+type LoneSigs     = Map Name (Name, DataRecOrFun)
+     -- ^ We retain the 'Name' also in the codomain since
+     --   'Name' as a key is up to @Eq Name@ which ignores the range.
+     --   However, without range names are not unique in case the
+     --   user gives a second definition of the same name.
+     --   This causes then problems in 'replaceSigs' which might
+     --   replace the wrong signature.
 type NiceWarnings = [DeclarationWarning]
      -- ^ Stack of warnings. Head is last warning.
 
@@ -600,7 +605,7 @@ loneSigs f e = f (_loneSigs e) <&> \ s -> e { _loneSigs = s }
 
 addLoneSig :: Name -> DataRecOrFun -> Nice ()
 addLoneSig x k = loneSigs %== \ s -> do
-   let (mr, s') = Map.insertLookupWithKey (\ k new old -> new) x k s
+   let (mr, s') = Map.insertLookupWithKey (\ _k new _old -> new) x (x, k) s
    case mr of
      Nothing -> return s'
      Just{}  -> throwError $ DuplicateDefinition x
@@ -613,7 +618,7 @@ removeLoneSig x = loneSigs %= Map.delete x
 -- | Search for forward type signature.
 
 getSig :: Name -> Nice (Maybe DataRecOrFun)
-getSig x = Map.lookup x <$> use loneSigs
+getSig x = fmap snd . Map.lookup x <$> use loneSigs
 
 -- | Check that no lone signatures are left in the state.
 
@@ -622,10 +627,20 @@ noLoneSigs = null <$> use loneSigs
 
 -- | Ensure that all forward declarations have been given a definition.
 
-checkLoneSigs :: Map Name DataRecOrFun -> Nice ()
+checkLoneSigs :: LoneSigs -> Nice ()
 checkLoneSigs xs = do
   loneSigs .= Map.empty
   unless (Map.null xs) (niceWarning $ MissingDefinitions $ Map.keys xs)
+
+-- | Get names of lone function signatures.
+
+loneFuns :: LoneSigs -> [Name]
+loneFuns = map fst . filter (isFunName . snd . snd) . Map.toList
+
+-- | Create a 'LoneSigs' map from an association list.
+
+loneSigsFromLoneNames :: [(Name, DataRecOrFun)] -> LoneSigs
+loneSigsFromLoneNames = Map.fromList . map (\ (x,k) -> (x, (x,k)))
 
 -- | Lens for field '_termChk'.
 
@@ -728,7 +743,7 @@ declKind NiceUnquoteDecl{}                  = OtherDecl
 -- | Replace (Data/Rec/Fun)Sigs with Axioms for postulated names
 --   The first argument is a list of axioms only.
 replaceSigs
-  :: Map Name DataRecOrFun  -- ^ Lone signatures to be turned into Axioms
+  :: LoneSigs               -- ^ Lone signatures to be turned into Axioms
   -> [NiceDeclaration]      -- ^ Declarations containing them
   -> [NiceDeclaration]      -- ^ In the output, everything should be defined
 replaceSigs ps = if Map.null ps then id else \case
@@ -737,7 +752,11 @@ replaceSigs ps = if Map.null ps then id else \case
     case replaceable d of
       -- If declaration d of x is mentioned in the map of lone signatures then replace
       -- it with an axiom
-      Just (x, axiom) | (Just{}, ps') <- Map.updateLookupWithKey (\ _ _ -> Nothing) x ps
+      Just (x, axiom)
+        | (Just (x', _), ps') <- Map.updateLookupWithKey (\ _ _ -> Nothing) x ps
+        , getRange x == getRange x'
+            -- Use the range as UID to ensure we do not replace the wrong signature.
+            -- This could happen if the user wrote a duplicate definition.
         -> axiom : replaceSigs ps' ds
       _ -> d     : replaceSigs ps  ds
 
@@ -863,8 +882,7 @@ niceDeclarations fixs ds = do
         (FunClause lhs _ _ _)         -> do
           termCheck <- use terminationCheckPragma
           catchall  <- popCatchallPragma
-          xs <- map fst . filter (isFunName . snd) . Map.toList
-                <$> use loneSigs
+          xs <- loneFuns <$> use loneSigs
           -- for each type signature 'x' waiting for clauses, we try
           -- if we have some clauses for 'x'
           case [ (x, (fits, rest))
@@ -1015,7 +1033,7 @@ niceDeclarations fixs ds = do
           return ([NiceUnquoteDecl r PublicAccess ConcreteDef NotInstanceDef tc xs e] , ds)
 
         UnquoteDef r xs e -> do
-          sigs <- map fst . filter (isFunName . snd) . Map.toList <$> use loneSigs
+          sigs <- loneFuns <$> use loneSigs
           let missing = filter (`notElem` sigs) xs
           if null missing
             then do
@@ -1302,7 +1320,7 @@ niceDeclarations fixs ds = do
 --          trace ("xStrings = " ++ show xStrings) $
 --          trace ("patStrings = " ++ show patStrings) $
 --          trace ("mFixity = " ++ show mFixity) $
-      case (headMaybe pns, mFixity) of
+      case (listToMaybe pns, mFixity) of
         -- first identifier in the patterns is the fun.symbol?
         (Just y, _) | x == y -> True -- trace ("couldBe since y = " ++ prettyShow y) $ True
         -- are the parts of x contained in p
@@ -1325,7 +1343,7 @@ niceDeclarations fixs ds = do
       -> Nice NiceDeclaration -- ^ Returns a 'NiceMutual'.
     mkOldMutual r ds' = do
         -- Postulate the missing definitions
-        let ps = Map.fromList loneNames
+        let ps = loneSigsFromLoneNames loneNames
         checkLoneSigs ps
         let ds = replaceSigs ps ds'
 

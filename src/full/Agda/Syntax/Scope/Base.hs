@@ -301,15 +301,26 @@ inNameSpace = case inScopeTag :: InScopeTag a of
 -- | For the sake of parsing left-hand sides, we distinguish
 --   constructor and record field names from defined names.
 data KindOfName
-  = ConName        -- ^ Constructor name.
-  | FldName        -- ^ Record field name.
-  | DefName        -- ^ Ordinary defined name.
-  | PatternSynName -- ^ Name of a pattern synonym.
-  | GeneralizeName -- ^ Name to be generalized
+  = ConName                  -- ^ Constructor name.
+  | FldName                  -- ^ Record field name.
+  | PatternSynName           -- ^ Name of a pattern synonym.
+  | GeneralizeName           -- ^ Name to be generalized
   | DisallowedGeneralizeName -- ^ Generalizable variable from a let open
-  | MacroName      -- ^ Name of a macro
-  | QuotableName   -- ^ A name that can only be quoted.
+  | MacroName                -- ^ Name of a macro
+  | QuotableName             -- ^ A name that can only be quoted.
+  -- Previous category @DefName@:
+  -- (Refined in a flat manner as Enum and Bounded are not hereditary.)
+  | DataName                 -- ^ Name of a @data@.
+  | RecName                  -- ^ Name of a @record@.
+  | FunName                  -- ^ Name of a defined function.
+  | AxiomName                -- ^ Name of a @postulate@.
+  | PrimName                 -- ^ Name of a @primitive@.
+  | OtherDefName             -- ^ A @DefName@, but either other kind or don't know which kind.
+  -- End @DefName@.  Keep these together in sequence, for sake of @isDefName@!
   deriving (Eq, Show, Data, Enum, Bounded)
+
+isDefName :: KindOfName -> Bool
+isDefName = (`elem` [DataName .. OtherDefName])
 
 -- | A list containing all name kinds.
 allKindsOfNames :: [KindOfName]
@@ -1055,7 +1066,7 @@ recomputeInverseScopeMaps scope = billToPure [ Scoping , InverseScopeLookup ] $
       (m, s)  <- scopes
       (x, ms) <- Map.toList (allNamesInScope s)
       q       <- anameName <$> ms
-      if elem m current
+      if m `elem` current
         then return (q, singleton (C.QName x))
         else do
           y <- findModule m

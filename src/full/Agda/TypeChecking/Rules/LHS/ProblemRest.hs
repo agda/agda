@@ -22,9 +22,7 @@ import Agda.TypeChecking.Rules.LHS.Problem
 import Agda.TypeChecking.Rules.LHS.Implicit
 
 import Agda.Utils.Functor
-import Agda.Utils.List
 import Agda.Utils.Size
-import Agda.Utils.Permutation
 
 import Agda.Utils.Impossible
 

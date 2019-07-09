@@ -38,11 +38,8 @@ import Agda.Utils.Empty
 import Agda.Utils.Functor
 import Agda.Utils.Geniplate
 import Agda.Utils.Lens
-import Agda.Utils.List
 import Agda.Utils.Maybe
-import Agda.Utils.NonemptyList
 import Agda.Utils.Null
-import Agda.Utils.Permutation
 import Agda.Utils.Singleton
 import Agda.Utils.Size
 import Agda.Utils.Pretty
@@ -67,11 +64,12 @@ import Agda.Utils.Impossible
 --   type, the elements should be compared by tabulating the domain type.
 --   Only supported in case the domain type is primIsOne, to obtain
 --   the correct equality for partial elements.
+--
 data Dom e = Dom
   { domInfo   :: ArgInfo
   , domFinite :: !Bool
-  , domName   :: Maybe RString
-  , domTactic :: Maybe Term
+  , domName   :: Maybe RString  -- ^ e.g. @x@ in @{x = y : A} -> B@.
+  , domTactic :: Maybe Term     -- ^ "@tactic e".
   , unDom     :: e
   } deriving (Data, Show, Functor, Foldable, Traversable)
 
@@ -99,37 +97,15 @@ instance LensArgInfo (Dom e) where
 
 -- The other lenses are defined through LensArgInfo
 
-instance LensHiding (Dom e) where
-  getHiding = getHidingArgInfo
-  setHiding = setHidingArgInfo
-  mapHiding = mapHidingArgInfo
-
-instance LensModality (Dom e) where
-  getModality = getModalityArgInfo
-  setModality = setModalityArgInfo
-  mapModality = mapModalityArgInfo
-
-instance LensOrigin (Dom e) where
-  getOrigin = getOriginArgInfo
-  setOrigin = setOriginArgInfo
-  mapOrigin = mapOriginArgInfo
-
+instance LensHiding        (Dom e) where
+instance LensModality      (Dom e) where
+instance LensOrigin        (Dom e) where
 instance LensFreeVariables (Dom e) where
-  getFreeVariables = getFreeVariablesArgInfo
-  setFreeVariables = setFreeVariablesArgInfo
-  mapFreeVariables = mapFreeVariablesArgInfo
 
 -- Since we have LensModality, we get relevance and quantity by default
 
 instance LensRelevance (Dom e) where
-  getRelevance = getRelevanceMod
-  setRelevance = setRelevanceMod
-  mapRelevance = mapRelevanceMod
-
-instance LensQuantity (Dom e) where
-  getQuantity = getQuantityMod
-  setQuantity = setQuantityMod
-  mapQuantity = mapQuantityMod
+instance LensQuantity  (Dom e) where
 
 argFromDom :: Dom a -> Arg a
 argFromDom Dom{domInfo = i, unDom = a} = Arg i a
@@ -224,6 +200,8 @@ data Term = Var {-# UNPACK #-} !Int Elims -- ^ @x es@ neutral
             --   Replaces the @Sort Prop@ hack.
             --   The @String@ typically describes the location where we create this dummy,
             --   but can contain other information as well.
+            --   The second field accumulates eliminations in case we
+            --   apply a dummy term to more of them.
   deriving (Data, Show)
 
 type ConInfo = ConOrigin
@@ -321,15 +299,15 @@ type Telescope = Tele (Dom Type)
 
 -- | Sorts.
 --
-data Sort
-  = Type Level  -- ^ @Set ℓ@.
-  | Prop Level  -- ^ @Prop ℓ@.
+data Sort' t
+  = Type (Level' t)  -- ^ @Set ℓ@.
+  | Prop (Level' t)  -- ^ @Prop ℓ@.
   | Inf         -- ^ @Setω@.
   | SizeUniv    -- ^ @SizeUniv@, a sort inhabited by type @Size@.
-  | PiSort Sort (Abs Sort) -- ^ Sort of the pi type.
-  | UnivSort Sort -- ^ Sort of another sort.
-  | MetaS {-# UNPACK #-} !MetaId Elims
-  | DefS QName Elims -- ^ A postulated sort.
+  | PiSort (Sort' t) (Abs (Sort' t)) -- ^ Sort of the pi type.
+  | UnivSort (Sort' t) -- ^ Sort of another sort.
+  | MetaS {-# UNPACK #-} !MetaId [Elim' t]
+  | DefS QName [Elim' t] -- ^ A postulated sort.
   | DummyS String
     -- ^ A (part of a) term or type which is only used for internal purposes.
     --   Replaces the abuse of @Prop@ for a dummy sort.
@@ -337,29 +315,45 @@ data Sort
     --   but can contain other information as well.
   deriving (Data, Show)
 
+type Sort = Sort' Term
+
 -- | A level is a maximum expression of 0..n 'PlusLevel' expressions
 --   each of which is a number or an atom plus a number.
 --
 --   The empty maximum is the canonical representation for level 0.
-newtype Level = Max [PlusLevel]
+newtype Level' t = Max [PlusLevel' t]
   deriving (Show, Data)
 
-data PlusLevel
+type Level = Level' Term
+
+data PlusLevel' t
   = ClosedLevel Integer     -- ^ @n@, to represent @Setₙ@.
-  | Plus Integer LevelAtom  -- ^ @n + ℓ@.
+  | Plus Integer (LevelAtom' t)  -- ^ @n + ℓ@.
   deriving (Show, Data)
+
+type PlusLevel = PlusLevel' Term
 
 -- | An atomic term of type @Level@.
-data LevelAtom
-  = MetaLevel MetaId Elims
+data LevelAtom' t
+  = MetaLevel MetaId [Elim' t]
     -- ^ A meta variable targeting @Level@ under some eliminations.
-  | BlockedLevel MetaId Term
+  | BlockedLevel MetaId t
     -- ^ A term of type @Level@ whose reduction is blocked by a meta.
-  | NeutralLevel NotBlocked Term
+  | NeutralLevel NotBlocked t
     -- ^ A neutral term of type @Level@.
-  | UnreducedLevel Term
+  | UnreducedLevel t
     -- ^ Introduced by 'instantiate', removed by 'reduce'.
   deriving (Show, Data)
+
+type LevelAtom = LevelAtom' Term
+
+---------------------------------------------------------------------------
+-- * Brave Terms
+---------------------------------------------------------------------------
+
+-- | Newtypes for terms that produce a dummy, rather than crash, when
+--   applied to incompatible eliminations.
+newtype BraveTerm = BraveTerm { unBrave :: Term } deriving (Data, Show)
 
 ---------------------------------------------------------------------------
 -- * Blocked Terms
@@ -1440,7 +1434,7 @@ instance Pretty a => Pretty (Tele (Dom a)) where
 instance Pretty Level where
   prettyPrec p (Max as) =
     case as of
-      []  -> prettyPrec p (ClosedLevel 0)
+      []  -> prettyPrec p (ClosedLevel 0 :: PlusLevel)
       [a] -> prettyPrec p a
       _   -> mparens (p > 9) $ List.foldr1 (\a b -> "lub" <+> a <+> b) $ map (prettyPrec 10) as
 

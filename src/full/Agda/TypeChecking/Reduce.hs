@@ -13,6 +13,7 @@ import Data.Map (Map)
 import Data.Monoid
 import Data.Traversable
 import Data.Hashable
+import Data.HashMap.Strict (HashMap)
 
 import Agda.Interaction.Options
 
@@ -47,7 +48,6 @@ import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
-import Agda.Utils.HashMap (HashMap)
 import Agda.Utils.Size
 import Agda.Utils.Tuple
 
@@ -116,7 +116,7 @@ instance Instantiate Term where
             instantiate' (MetaV m' es)
       Open                             -> return t
       OpenInstance                     -> return t
-      BlockedConst u | blocking  -> instantiate' $ u `applyE` es
+      BlockedConst u | blocking  -> instantiate' . unBrave $ BraveTerm u `applyE` es
                      | otherwise -> return t
       PostponedTypeCheckingProblem _ _ -> return t
   instantiate' (Level l) = levelTm <$> instantiate' l

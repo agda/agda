@@ -43,7 +43,6 @@ import qualified Agda.Syntax.Parser.Parser as P
 import Agda.Syntax.Parser.Lexer
 import Agda.Syntax.Parser.Literate
 import Agda.Syntax.Concrete
-import Agda.Syntax.Concrete.Definitions
 import Agda.Syntax.Parser.Tokens
 
 import Agda.Utils.Except
@@ -55,8 +54,6 @@ import Agda.Utils.FileName
 import Agda.Utils.IO.UTF8 (readTextFile)
 import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Pretty
-
-import Agda.Utils.Impossible
 
 ------------------------------------------------------------------------
 -- Wrapping parse results

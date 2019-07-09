@@ -21,6 +21,7 @@ import qualified Data.Foldable as Fold (toList)
 import Data.Maybe
 import Data.Monoid (mempty, mappend)
 import Data.Map (Map)
+import qualified Data.HashMap.Strict as HMap
 import Data.Set (Set)
 import Data.Text.Lazy (Text)
 import qualified Data.Text.Lazy as T
@@ -79,7 +80,6 @@ import Agda.Utils.IO.Binary
 import Agda.Utils.Pretty hiding (Mode)
 import Agda.Utils.Time
 import Agda.Utils.Hash
-import qualified Agda.Utils.HashMap as HMap
 import qualified Agda.Utils.Trie as Trie
 
 import Agda.Utils.Impossible

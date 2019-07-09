@@ -44,19 +44,14 @@ import Agda.Interaction.Options
 import Agda.Syntax.Position
 import Agda.Syntax.Common hiding (Nat)
 import Agda.Syntax.Internal
-import Agda.Syntax.Internal.Generic (TermLike(..))
-import Agda.Syntax.Literal
 import Agda.Syntax.Concrete.Pretty ()
 
 import Agda.TypeChecking.Monad hiding (getConstInfo, typeOfConst)
 import qualified Agda.TypeChecking.Monad as TCM
 import Agda.TypeChecking.Monad.Builtin
-import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Reduce.Monad
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Errors
-import Agda.TypeChecking.Level
-import Agda.TypeChecking.Quote (QuotingKit, quoteTermWithKit, quoteTypeWithKit, quoteClauseWithKit, quotingKit)
 import Agda.TypeChecking.Pretty ()  -- instances only
 import Agda.TypeChecking.Free
 

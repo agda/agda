@@ -10,6 +10,7 @@ import Control.Monad.State
 import Data.Maybe
 import Data.Map (Map)
 import qualified Data.Map as Map
+import qualified Data.HashMap.Strict as HMap
 import Data.Traversable (traverse)
 
 import Agda.Syntax.Common
@@ -37,7 +38,6 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 
 import Agda.Utils.Functor
-import qualified Agda.Utils.HashMap as HMap
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
@@ -371,7 +371,7 @@ replaceVar x n cont = do
 mkRecord :: Map QName C.TTerm -> CC C.TTerm
 mkRecord fs = lift $ do
   -- Get the name of the first field
-  let p1 = fst $ fromMaybe __IMPOSSIBLE__ $ headMaybe $ Map.toList fs
+  let p1 = fst $ headWithDefault __IMPOSSIBLE__ $ Map.toList fs
   -- Use the field name to get the record constructor and the field names.
   I.ConHead c _ind xs <- conSrcCon . theDef <$> (getConstInfo =<< canonicalName . I.conName =<< recConFromProj p1)
   reportSDoc "treeless.convert.mkRecord" 60 $ vcat

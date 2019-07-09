@@ -11,7 +11,6 @@ import Text.PrettyPrint (empty)
 
 import Agda.Compiler.MAlonzo.Encode
 import Agda.Utils.Pretty
-import Agda.Utils.Impossible
 
 
 prettyPrint :: Pretty a => a -> String

@@ -30,7 +30,7 @@ module Agda.Utils.Parser.MemoisedCPS
   ) where
 
 import Control.Applicative ( Alternative((<|>), empty, many, some) )
-import Control.Monad (ap, liftM2)
+import Control.Monad (ap, liftM2, (<=<))
 import Control.Monad.State.Strict (State, evalState, runState, get, put, modify')
 
 import Data.Array
@@ -192,8 +192,7 @@ instance ParserClass (Parser k r tok) k r tok where
     let alter j zero f m =
           IntMap.alter (Just . f . fromMaybe zero) j m
 
-        lookupTable   = fmap (\m -> Map.lookup key =<<
-                                    IntMap.lookup i m) get
+        lookupTable   = fmap (Map.lookup key <=< IntMap.lookup i) get
         insertTable v = modify' $ alter i Map.empty (Map.insert key v)
 
     v <- lookupTable

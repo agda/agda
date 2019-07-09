@@ -34,10 +34,7 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 
 import Agda.Utils.Null
-import Agda.Utils.Permutation
 import Agda.Utils.Pretty ( Pretty(..), text, (<+>), cat , prettyList_ )
-import Agda.Utils.Size
-import Agda.Utils.List
 import Agda.Utils.Monad
 
 import Agda.Utils.Impossible

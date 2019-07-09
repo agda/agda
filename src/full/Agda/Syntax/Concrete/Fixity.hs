@@ -14,7 +14,6 @@ import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Semigroup
 
-import Agda.Syntax.Common
 import Agda.Syntax.Position
 import Agda.Syntax.Fixity
 import Agda.Syntax.Notation

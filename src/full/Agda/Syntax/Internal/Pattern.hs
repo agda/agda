@@ -17,12 +17,10 @@ import Agda.Syntax.Abstract (IsProjP(..))
 import Agda.Syntax.Internal
 import qualified Agda.Syntax.Internal as I
 
-import Agda.Utils.Empty
 import Agda.Utils.Functor
 import Agda.Utils.List
 import Agda.Utils.Permutation
 import Agda.Utils.Size (size)
-import Agda.Utils.Tuple
 
 import Agda.Utils.Impossible
 

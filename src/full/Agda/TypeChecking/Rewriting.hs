@@ -53,6 +53,7 @@ import Control.Monad.Reader (local, asks)
 import Data.Foldable ( Foldable, foldMap )
 import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet
+import qualified Data.HashMap.Strict as HMap
 import qualified Data.List as List
 import Data.Monoid
 
@@ -86,7 +87,6 @@ import qualified Agda.TypeChecking.Reduce.Monad as Red
 import Agda.TypeChecking.Warnings
 
 import Agda.Utils.Functor
-import qualified Agda.Utils.HashMap as HMap
 import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Maybe

@@ -117,5 +117,5 @@ doesFileExistCaseSensitive f = do
     bracket (findFirstFile f) (findClose . fst) $
       fmap (takeFileName f ==) . getFindDataFileName . snd
 #else
-doesFileExistCaseSensitive f = doesFileExist f
+doesFileExistCaseSensitive = doesFileExist
 #endif

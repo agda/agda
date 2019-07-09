@@ -14,7 +14,6 @@ import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Primitive
 
-import Agda.Utils.Lens
 import Agda.Utils.Parser.ReadP
 import Agda.Utils.Pretty hiding (char)
 import Agda.Utils.String ( ltrim )

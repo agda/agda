@@ -11,7 +11,6 @@ import Data.Function
 import qualified Agda.Utils.Haskell.Syntax as HS
 
 import Agda.Compiler.Common
-import Agda.Compiler.MAlonzo.Pragmas
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
@@ -19,7 +18,6 @@ import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
 
-import Agda.Utils.Lens
 import Agda.Utils.Monad
 import Agda.Utils.Pretty
 import Agda.Utils.Maybe
