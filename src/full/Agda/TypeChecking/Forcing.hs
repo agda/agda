@@ -245,16 +245,15 @@ rebindForcedPattern ps toRebind = do
   where
     targetDotP = patternToTerm toRebind
 
+    go :: [(IsForced, NamedArg DeBruijnPattern)] -> TCM [NamedArg DeBruijnPattern]
     go [] = __IMPOSSIBLE__ -- unforcing cannot fail
     go ((Forced,    p) : ps) = (p :) <$> go ps
-    go ((NotForced, p) : ps) | namedArg p `rebinds` toRebind
-                             = return $ p : map snd ps
-    go ((NotForced, p) : ps) = -- (#3544) A previous rebinding might have already rebound our pattern
+    go ((NotForced, p) : ps) = ifM (namedArg p `rebinds` toRebind) {-then-} (return $ p : map snd ps) {-else-} $ do
+      -- (#3544) A previous rebinding might have already rebound our pattern
       case namedArg p of
-        VarP{}   -> (p :) <$> go ps
-        DotP _ v -> mkPat v >>= \ case
-          Nothing -> (p :) <$> go ps
-          Just q' -> return $ fmap (q' <$) p : map snd ps
+        VarP{}   -> continue
+        DotP _ v -> caseMaybeM (mkPat v) continue $ \ q' ->
+          return $ fmap (q' <$) p : map snd ps
         ConP c i qs -> do
           fqs <- withForced c qs
           qps <- go (fqs ++ ps)
@@ -266,9 +265,11 @@ rebindForcedPattern ps toRebind = do
           qps <- go (fqs ++ ps)
           let (qs', ps') = splitAt (length qs) qps
           return $ fmap (DefP o q qs' <$) p : ps'
-        LitP{}  -> (p :) <$> go ps
-        ProjP{} -> (p :) <$> go ps
-        IApplyP{} -> (p :) <$> go ps
+        LitP{}    -> continue
+        ProjP{}   -> continue
+        IApplyP{} -> continue
+      where
+      continue = (p :) <$> go ps
 
     withForced :: ConHead -> [a] -> TCM [(IsForced, a)]
     withForced c qs = do
@@ -281,9 +282,8 @@ rebindForcedPattern ps toRebind = do
 
     mkPat' :: (IsForced, Term) -> TCM (Maybe DeBruijnPattern)
     mkPat' (Forced, _) = return Nothing
-    mkPat' (NotForced, v) | targetDotP == v = return (Just toRebind)
-    mkPat' (NotForced, v) =
-      case v of
+    mkPat' (NotForced, v) = ifM (targetDotP `betaEqual` v) {-then-} (return (Just toRebind)) {-else-} $ do
+      reduce v >>= \case
         Con c co es -> do
           let vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
           fovs  :: [Arg (IsForced, Term)] <- map distributeF <$> withForced c vs
@@ -305,16 +305,36 @@ rebindForcedPattern ps toRebind = do
 -- | Check if the first pattern rebinds the second pattern. Almost equality,
 --   but allows the first pattern to have a variable where the second pattern
 --   has a dot pattern. Used to fix #3544.
-rebinds :: DeBruijnPattern -> DeBruijnPattern -> Bool
-VarP{}          `rebinds` DotP{}            = True
-VarP _ x        `rebinds` VarP _ y          = dbPatVarIndex x == dbPatVarIndex y
-DotP _ u        `rebinds` DotP _ v          = u == v
-ConP c _ ps     `rebinds` ConP c' _ qs      = c == c' && and (zipWith (rebinds `on` namedArg) ps qs)
-LitP l          `rebinds` LitP l'           = l == l'
-ProjP _ f       `rebinds` ProjP _ g         = f == g
-IApplyP _ u v x `rebinds` IApplyP _ u' v' y = u == u' && v == v' && x == y
-DefP _ f ps     `rebinds` DefP _ g qs       = f == g && and (zipWith (rebinds `on` namedArg) ps qs)
-_               `rebinds` _                 = False
+rebinds :: DeBruijnPattern -> DeBruijnPattern -> TCM Bool
+rebinds = curry $ \case
+  (VarP{}          , DotP{}            ) -> return $ True
+  (VarP _ x        , VarP _ y          ) -> return $ dbPatVarIndex x == dbPatVarIndex y
+  (DotP _ u        , DotP _ v          ) -> betaEqual u v
+  (ConP c _ ps     , ConP c' _ qs      ) -> andM $ (return $ c == c') : zipWith (rebinds `on` namedArg) ps qs
+  (LitP l          , LitP l'           ) -> return $ l == l'
+  (ProjP _ f       , ProjP _ g         ) -> return $ f == g
+  (IApplyP _ u v x , IApplyP _ u' v' x') -> andM [ betaEqual u u', betaEqual v v', return $ x == x' ]
+  (DefP _ f ps     , DefP _ g qs       ) -> andM $ (return $ f == g) : zipWith (rebinds `on` namedArg) ps qs
+  (_               , _                 ) -> return False
+
+-- rebinds :: DeBruijnPattern -> DeBruijnPattern -> Bool
+-- VarP{}          `rebinds` DotP{}            = True
+-- VarP _ x        `rebinds` VarP _ y          = dbPatVarIndex x == dbPatVarIndex y
+-- DotP _ u        `rebinds` DotP _ v          = u == v
+-- ConP c _ ps     `rebinds` ConP c' _ qs      = c == c' && and (zipWith (rebinds `on` namedArg) ps qs)
+-- LitP l          `rebinds` LitP l'           = l == l'
+-- ProjP _ f       `rebinds` ProjP _ g         = f == g
+-- IApplyP _ u v x `rebinds` IApplyP _ u' v' y = u == u' && v == v' && x == y
+-- DefP _ f ps     `rebinds` DefP _ g qs       = f == g && and (zipWith (rebinds `on` namedArg) ps qs)
+-- _               `rebinds` _                 = False
+
+
+
+-- | TODO: use incremental equality instead of normalization.
+betaEqual :: Term -> Term -> TCM Bool
+betaEqual u v = do
+  (u, v) <- normalise (u, v)
+  return (u == v)
 
 -- | Dot all forced patterns and return a list of patterns that need to be
 --   undotted elsewhere. Patterns that need to be undotted are those that bind
