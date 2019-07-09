@@ -85,6 +85,7 @@ import Agda.Utils.Functor
 import Agda.Utils.PartialOrd
 import Agda.Utils.Pretty (prettyShow)
 import Agda.Utils.List
+import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Size
 
@@ -110,15 +111,13 @@ computeForcingAnnotations c t =
   let vs = case a of
         Def _ us -> us
         _        -> __IMPOSSIBLE__
-      n  = size tel
-      xs :: [(Modality, Nat)]
-      xs = forcedVariables vs
+  xs :: [(Modality, Nat)] <- forcedVariables vs
       -- #2819: We can only mark an argument as forced if it appears in the
       -- type with a relevance below (i.e. more relevant) than the one of the
       -- constructor argument. Otherwise we can't actually get the value from
       -- the type. Also the argument shouldn't be irrelevant, since in that
       -- case it isn't really forced.
-      isForced :: Modality -> Nat -> Bool
+  let isForced :: Modality -> Nat -> Bool
       isForced m i = and
         [ noUserQuantity m              -- User can disable forcing by giving quantity explicitly.
         , getRelevance m /= Irrelevant
@@ -126,7 +125,7 @@ computeForcingAnnotations c t =
         ]
       forcedArgs =
         [ if isForced m i then Forced else NotForced
-        | (i, m) <- zip (downFrom n) $ map getModality (telToList tel)
+        | (i, m) <- zip (downFrom (size tel)) $ map getModality (telToList tel)
         ]
   reportSLn "tc.force" 60 $ unlines
     [ "Forcing analysis for " ++ show c
@@ -137,9 +136,11 @@ computeForcingAnnotations c t =
 
 -- | Compute the pattern variables of a term or term-like thing.
 class ForcedVariables a where
-  forcedVariables :: a -> [(Modality, Nat)]
+  forcedVariables :: a -> TCM [(Modality, Nat)]
 
-  default forcedVariables :: (ForcedVariables b, Foldable t, a ~ t b) => a -> [(Modality, Nat)]
+  default forcedVariables
+    :: (ForcedVariables b, Foldable t, a ~ t b)
+    => a -> TCM [(Modality, Nat)]
   forcedVariables = foldMap forcedVariables
 
 instance ForcedVariables a => ForcedVariables [a] where
@@ -147,19 +148,19 @@ instance ForcedVariables a => ForcedVariables [a] where
 -- Note that the 'a' does not include the 'Arg' in 'Apply'.
 instance ForcedVariables a => ForcedVariables (Elim' a) where
   forcedVariables (Apply x) = forcedVariables x
-  forcedVariables IApply{}  = []  -- No forced variables in path applications
-  forcedVariables Proj{}    = []
+  forcedVariables IApply{}  = mempty  -- No forced variables in path applications
+  forcedVariables Proj{}    = mempty
 
 instance ForcedVariables a => ForcedVariables (Arg a) where
-  forcedVariables x = [ (m <> m', i) | (m', i) <- forcedVariables (unArg x) ]
+  forcedVariables x = map (first (m <>)) <$> forcedVariables (unArg x)
     where m = getModality x
 
--- | Assumes that the term is in normal form.
+-- | Iteratively computes whnf.
 instance ForcedVariables Term where
-  forcedVariables t = case t of
-    Var i [] -> [(mempty, i)]
+  forcedVariables t = reduce t >>= \case
+    Var i []   -> return [(mempty, i)]
     Con _ _ vs -> forcedVariables vs
-    _ -> []
+    _ -> mempty
 
 isForced :: IsForced -> Bool
 isForced Forced    = True

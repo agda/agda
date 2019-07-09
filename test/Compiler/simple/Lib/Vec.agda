@@ -6,7 +6,7 @@ open import Common.Unit
 import Common.List as List; open List using (List ; [] ; _∷_)
 
 data Vec (A : Set) :  Nat → Set where
-  _∷_ : {n : Nat} → A → Vec A n → Vec A (suc n)
+  _∷_ : {n : Nat} → A → Vec A n → Vec A (1 + n)  -- 1 + n only forces n if forcing analysis does normalization
   []  : Vec A zero
 
 infixr 30 _++_
