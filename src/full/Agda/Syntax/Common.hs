@@ -1884,38 +1884,27 @@ instance KillRange UniverseCheck where
 -- * Rewrite Directives on the LHS
 -----------------------------------------------------------------------------
 
-data RewriteEqn_
-  = Rewrite_ -- ^ @rewrite@
-  | Using_   -- ^ @using@
-  deriving (Data, Eq, Show)
+data RewriteEqn' p e
+  = Rewrite [e]      -- ^ @rewrite@
+  | Invert  [(p, e)] -- ^ @invert@
+  deriving (Data, Eq, Show, Functor, Foldable, Traversable)
 
-data RewriteEqn' e = RewriteEqn
-  { rewriteVariant   :: RewriteEqn_  -- ^ either @rewrite@ or @using@
-  , rewriteEquations :: [e]          -- ^ non empty @e1 | ... | en@
-  } deriving (Data, Eq, Show, Functor, Foldable, Traversable)
+instance (NFData p, NFData e) => NFData (RewriteEqn' p e) where
+  rnf = \case
+    Rewrite es -> rnf es
+    Invert pes -> rnf pes
 
-viewRewriteEqn :: RewriteEqn' e -> (RewriteEqn_, e, [e])
-viewRewriteEqn (RewriteEqn t es) = case es of
-  (e:es) -> (t, e, es)
-  _     -> __IMPOSSIBLE__
+instance (Pretty p, Pretty e) => Pretty (RewriteEqn' p e) where
+  pretty = \case
+    Rewrite es -> prefixedThings (text "rewrite") (pretty <$> es)
+    Invert pes -> prefixedThings (text "invert") (pes <&> \ (p, e) -> pretty p <+> "<-" <+> pretty e)
 
-instance NFData RewriteEqn_ where
-  rnf Rewrite_ = ()
-  rnf Using_   = ()
+instance (HasRange p, HasRange e) => HasRange (RewriteEqn' p e) where
+  getRange = \case
+    Rewrite es -> getRange es
+    Invert pes -> getRange pes
 
-instance Pretty RewriteEqn_ where
-  pretty r = text $ case r of
-    Rewrite_ -> "rewrite"
-    Using_   -> "using"
-
-instance HasRange e => HasRange (RewriteEqn' e) where
-  getRange (RewriteEqn _ es) = getRange es
-
-instance KillRange e => KillRange (RewriteEqn' e) where
-  killRange (RewriteEqn t es) = killRange1 (RewriteEqn t) es
-
-instance NFData e => NFData (RewriteEqn' e) where
-  rnf (RewriteEqn t es) = rnf t `seq` rnf es
-
-instance Pretty e => Pretty (RewriteEqn' e) where
-  pretty (RewriteEqn t es) = prefixedThings (pretty t) es
+instance (KillRange e, KillRange p) => KillRange (RewriteEqn' p e) where
+  killRange = \case
+    Rewrite es -> killRange1 Rewrite es
+    Invert pes -> killRange1 Invert pes

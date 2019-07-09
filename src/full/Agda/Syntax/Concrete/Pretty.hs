@@ -398,7 +398,7 @@ instance Pretty LHS where
   pretty (LHS p eqs es) = sep
     [ pretty p
     , nest 2 $ if null eqs then empty else fsep $ map pretty eqs
-    , nest 2 $ prefixedThings "with" es
+    , nest 2 $ prefixedThings "with" (map pretty es)
     ]
 
 instance Pretty LHSCore where

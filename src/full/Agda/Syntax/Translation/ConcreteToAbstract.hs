@@ -2193,7 +2193,7 @@ data AbstractRHS
   | WithRHS' [A.Expr] [ScopeM C.Clause]
     -- ^ The with clauses haven't been translated yet
   | RHS' A.Expr C.Expr
-  | RewriteRHS' [RewriteEqn' A.Expr] AbstractRHS A.WhereDeclarations
+  | RewriteRHS' [RewriteEqn' A.Pattern A.Expr] AbstractRHS A.WhereDeclarations
 
 qualifyName_ :: A.Name -> ScopeM A.QName
 qualifyName_ x = do
@@ -2205,11 +2205,26 @@ withFunctionName s = do
   NameId i _ <- fresh
   qualifyName_ =<< freshName_ (s ++ show i)
 
-instance ToAbstract (RewriteEqn' a) (RewriteEqn' (A.QName, a)) where
-  toAbstract (RewriteEqn t es) = RewriteEqn t <$> do
-    let fname = case t of { Rewrite_ -> "-rewrite"; Using_ -> "-using" }
-    auxs <- replicateM (length es) $ withFunctionName fname
-    pure $ zip auxs es
+instance ToAbstract (RewriteEqn' A.Pattern A.Expr) A.RewriteEqn where
+  toAbstract = \case
+    Rewrite es -> fmap Rewrite $ forM es $ \ e -> do
+      qn <- withFunctionName "-rewrite"
+      pure (qn, e)
+    Invert pes -> fmap Invert $ forM pes $ \ (p, e) -> do
+      qn <- withFunctionName "-invert"
+      pure (p, (qn, e))
+
+instance ToAbstract (C.RewriteEqn) (RewriteEqn' A.Pattern A.Expr) where
+  toAbstract = \case
+    Rewrite es -> Rewrite <$> mapM toAbstract es
+    Invert pes -> fmap Invert $ forM pes $ \ (p, e) -> do
+      p <- parsePattern p
+      p <- toAbstract p
+      checkPatternLinearity p (typeError . RepeatedVariablesInPattern)
+      bindVarsToBind
+      p <- toAbstract p
+      e <- toAbstract e
+      pure (p, e)
 
 instance ToAbstract AbstractRHS A.RHS where
   toAbstract AbsurdRHS'            = return A.AbsurdRHS
@@ -2224,7 +2239,7 @@ instance ToAbstract AbstractRHS A.RHS where
 
 instance ToAbstract RightHandSide AbstractRHS where
   toAbstract (RightHandSide eqs@(_:_) es cs rhs whname wh) = do
-    eqs <- mapM (mapM $ toAbstractCtx TopCtx) eqs
+    eqs <- mapM (toAbstractCtx TopCtx) eqs
     (rhs, ds) <- whereToAbstract (getRange wh) whname wh $
                   toAbstract (RightHandSide [] es cs rhs Nothing [])
     return $ RewriteRHS' eqs rhs ds
@@ -2583,4 +2598,6 @@ toAbstractOpApp op ns es = do
 -- | Content of interaction hole.
 
 instance ToAbstract C.HoleContent A.HoleContent where
-  toAbstract = mapM toAbstract
+  toAbstract = \case
+    HoleContentExpr e     -> HoleContentExpr <$> toAbstract e
+    HoleContentRewrite es -> HoleContentRewrite <$> toAbstract es

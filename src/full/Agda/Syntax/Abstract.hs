@@ -368,7 +368,7 @@ noWhereDecls = WhereDecls Nothing []
 
 type Clause = Clause' LHS
 type SpineClause = Clause' SpineLHS
-type RewriteEqn  = RewriteEqn' (QName, Expr)
+type RewriteEqn  = RewriteEqn' Pattern (QName, Expr)
 
 data RHS
   = RHS
@@ -504,7 +504,7 @@ instance IsProjP Expr where
     Things we parse but are not part of the Agda file syntax
  --------------------------------------------------------------------------}
 
-type HoleContent = C.HoleContent' Expr
+type HoleContent = C.HoleContent' Pattern Expr
 
 {--------------------------------------------------------------------------
     Instances
@@ -915,8 +915,10 @@ instance AllNames Declaration where
 instance AllNames Clause where
   allNames cl = allNames (clauseRHS cl, clauseWhereDecls cl)
 
-instance AllNames a => AllNames (RewriteEqn' a) where
-    allNames = Fold.foldMap allNames
+instance AllNames e => AllNames (RewriteEqn' p e) where
+    allNames = \case
+      Rewrite es -> Fold.foldMap allNames es
+      Invert pes -> Fold.foldMap (Fold.foldMap allNames) pes
 
 instance AllNames RHS where
   allNames (RHS e _)                 = allNames e

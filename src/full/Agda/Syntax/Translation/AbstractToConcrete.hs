@@ -964,8 +964,11 @@ instance ToConcrete A.RHS (C.RHS, [C.RewriteEqn], [C.Expr], [C.Declaration]) whe
       eqs <- toConcrete $ map (snd <$>) xeqs
       return (rhs, eqs, es, wh ++ whs)
 
-instance ToConcrete a b => ToConcrete (RewriteEqn' a) (RewriteEqn' b) where
-  toConcrete = mapM toConcrete
+instance (ToConcrete p q, ToConcrete a b) =>
+         ToConcrete (RewriteEqn' p a) (RewriteEqn' q b) where
+  toConcrete = \case
+    Rewrite es -> Rewrite <$> mapM toConcrete es
+    Invert pes -> Invert <$> mapM toConcrete pes
 
 instance ToConcrete (Maybe A.QName) (Maybe C.Name) where
   toConcrete = mapM (toConcrete . qnameName)

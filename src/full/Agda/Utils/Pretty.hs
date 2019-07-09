@@ -128,7 +128,7 @@ singPlural xs singular plural = if size xs == 1 then singular else plural
 
 -- | Used for with-like 'telescopes'
 
-prefixedThings :: Pretty a => Doc -> [a] -> Doc
-prefixedThings doc es = case es of
-  []       -> P.empty
-  (e : es) -> fsep $ (doc <+> pretty e) : map (("|" <+>) . pretty) es
+prefixedThings :: Doc -> [Doc] -> Doc
+prefixedThings kw = \case
+  []           -> P.empty
+  (doc : docs) -> fsep $ (kw <+> doc) : map ("|" <+>) docs

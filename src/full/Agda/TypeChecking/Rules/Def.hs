@@ -760,22 +760,57 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps absurdPat trhs _ _asb _) rhs0
 
     checkWithRHS x aux t lhsResult vs0 (map OtherType as) cs
 
-  -- Rewrite case: f xs (rewrite / using) a | b | c | ...
+  -- Rewrite case: f xs (rewrite / invert) a | b | c | ...
   rewriteEqnsRHS :: [A.RewriteEqn] -> [A.ProblemEq] -> A.RHS -> A.WhereDeclarations -> TCM (Maybe Term, WithFunctionProblem)
   rewriteEqnsRHS [] strippedPats rhs wh = checkWhere wh $ handleRHS rhs
       -- Case: @rewrite@
       -- Andreas, 2014-01-17, Issue 1402:
       -- If the rewrites are discarded since lhs=rhs, then
       -- we can actually have where clauses.
-  rewriteEqnsRHS (r:rs) strippedPats rhs wh = do
-    let (kw, (qname, eq), qes) = viewRewriteEqn r
-    let rs' = case qes of { [] -> rs; _ -> RewriteEqn kw qes : rs }
-    rewriteEqnRHS (rewriteVariant r) qname eq rs'
+  rewriteEqnsRHS (r:rs) strippedPats rhs wh = case r of
+    Rewrite ((qname, eq) : qes) ->
+      rewriteEqnRHS qname eq (case qes of { [] -> rs; _ -> Rewrite qes : rs })
+    Invert ((pat, (qname, expr)) : pqes) ->
+      invertEqnRHS qname pat expr (case pqes of { [] -> rs; _ -> Invert pqes : rs })
+    -- Invariant: these lists are non-empty
+    Rewrite [] -> __IMPOSSIBLE__
+    Invert [] -> __IMPOSSIBLE__
 
     where
 
-    rewriteEqnRHS :: RewriteEqn_ -> QName -> A.Expr -> [A.RewriteEqn] -> TCM (Maybe Term, WithFunctionProblem)
-    rewriteEqnRHS kw qname eq rs = do
+    -- @invert@ clauses
+    invertEqnRHS :: QName -> A.Pattern -> A.Expr
+                 -> [A.RewriteEqn] -> TCM (Maybe Term, WithFunctionProblem)
+    invertEqnRHS qname pat expr rs = do
+
+      (withExpr, ty) <- inferExpr expr
+      let pats     = [pat]
+      let withType = OtherType ty
+
+      -- Andreas, 2016-04-14, see also Issue #1796
+      -- Run the size constraint solver to improve with-abstraction
+      -- in case the with-expression contains size metas.
+      solveSizeConstraints DefaultToInfty
+
+      let rhs' = insertPatterns pats rhs
+          (rhs'', outerWhere) -- the where clauses should go on the inner-most with
+            | null rs  = (rhs', wh)
+            | otherwise = (A.RewriteRHS rs strippedPats rhs' wh, A.noWhereDecls)
+          -- Andreas, 2014-03-05 kill range of copied patterns
+          -- since they really do not have a source location.
+          cl = A.Clause (A.LHS i $ insertPatternsLHSCore pats $ A.LHSHead x $ killRange aps)
+                 strippedPats rhs'' outerWhere False
+
+      reportSDoc "tc.invert" 60 $ vcat
+        [ text "invert"
+        , "  rhs' = " <> (text . show) rhs'
+        ]
+      checkWithRHS x qname t lhsResult [withExpr] [withType] [cl]
+
+    -- @rewrite@ clauses
+    rewriteEqnRHS :: QName -> A.Expr
+                  -> [A.RewriteEqn] -> TCM (Maybe Term, WithFunctionProblem)
+    rewriteEqnRHS qname eq rs = do
 
       -- Action for skipping this rewrite.
       -- We do not want to create unsolved metas in case of
@@ -847,11 +882,11 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps absurdPat trhs _ _asb _) rhs0
            equalTerm rewriteType rewriteFrom rewriteTo
 
       (pats, withExpr, withType) <- do
-        ifM (isReflexive `or2M` pure (kw == Using_))
+        ifM isReflexive
           {-then-} (return ([ reflPat ], proof, OtherType t'))
           {-else-} (return ([ A.WildP patNoRange, reflPat ], proof, eqt))
 
-      let rhs'     = insertPatterns pats rhs
+      let rhs' = insertPatterns pats rhs
           (rhs'', outerWhere) -- the where clauses should go on the inner-most with
             | null rs  = (rhs', wh)
             | otherwise = (A.RewriteRHS rs strippedPats rhs' wh, A.noWhereDecls)
@@ -860,9 +895,8 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps absurdPat trhs _ _asb _) rhs0
           cl = A.Clause (A.LHS i $ insertPatternsLHSCore pats $ A.LHSHead x $ killRange aps)
                  strippedPats rhs'' outerWhere False
 
-      let catAuxiliary = case kw of { Rewrite_ -> "rewrite"; Using_ -> "using" }
-      reportSDoc ("tc." ++ catAuxiliary) 60 $ vcat
-        [ text catAuxiliary
+      reportSDoc "tc.rewrite" 60 $ vcat
+        [ text "rewrite"
         , "  rhs' = " <> (text . show) rhs'
         ]
       checkWithRHS x qname t lhsResult [withExpr] [withType] [cl]

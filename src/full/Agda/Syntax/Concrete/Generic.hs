@@ -179,8 +179,10 @@ instance ExprLike LHS where
      LHS ps res wes -> LHS ps (mapE res) $ mapE wes
    where mapE e = mapExpr f e
 
-instance ExprLike e => ExprLike (RewriteEqn' e) where
-  mapExpr f (RewriteEqn t es) = RewriteEqn t (mapExpr f es)
+instance ExprLike e => ExprLike (RewriteEqn' p e) where
+  mapExpr f = \case
+    Rewrite es -> Rewrite (mapExpr f es)
+    Invert pes -> Invert (map (mapExpr f <$>) pes)
 
 instance ExprLike LamClause where
   mapExpr f (LamClause lhs rhs wh ca) =

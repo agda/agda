@@ -145,6 +145,7 @@ import Agda.Utils.Impossible
     'where'                   { TokKeyword KwWhere $$ }
     'do'                      { TokKeyword KwDo $$ }
     'with'                    { TokKeyword KwWith $$ }
+    'invert'                  { TokKeyword KwInvert $$ }
 
     'BUILTIN'                 { TokKeyword KwBUILTIN $$ }
     'CATCHALL'                { TokKeyword KwCATCHALL $$ }
@@ -275,6 +276,7 @@ Token
     | 'where'                   { TokKeyword KwWhere $1 }
     | 'do'                      { TokKeyword KwDo $1 }
     | 'with'                    { TokKeyword KwWith $1 }
+    | 'invert'                  { TokKeyword KwInvert $1 }
 
     | 'BUILTIN'                 { TokKeyword KwBUILTIN $1 }
     | 'CATCHALL'                { TokKeyword KwCATCHALL $1 }
@@ -1122,9 +1124,9 @@ RewriteEquations :: { [RewriteEqn] }
 RewriteEquations
   : {- empty -} { [] }
   | 'rewrite' Expr1 RewriteEquations
-     { (RewriteEqn Rewrite_ $ case $2 of { WithApp _ e es -> e : es; e -> [e] }) : $3 }
-  | 'using'   Expr1 RewriteEquations
-     { (RewriteEqn Using_ $ case $2 of { WithApp _ e es -> e : es; e -> [e] }) : $3 }
+     { (Rewrite $ case $2 of { WithApp _ e es -> e : es; e -> [e] }) : $3 }
+  | 'invert' Expr1 RewriteEquations
+     {% (flip fmap) (fmap Invert $ buildInvertStmt $2) (: $3) }
 
 -- Parsing either an expression @e@ or a @(rewrite | using) e1 | ... | en@.
 HoleContent :: { HoleContent }
@@ -2010,23 +2012,45 @@ boundNamesOrAbsurd es
     isAbsurd (RawApp _ exprs)            = any isAbsurd exprs
     isAbsurd _                           = False
 
--- | Build a do-statement
-buildDoStmt :: Expr -> [LamClause] -> Parser DoStmt
-buildDoStmt (RawApp r [e]) cs = buildDoStmt e cs
-buildDoStmt (Let r ds Nothing) [] = return $ DoLet r ds
-buildDoStmt (RawApp r es) cs
+-- | Match a pattern-matching "assignment" statement @p <- e@
+exprToAssignment :: Expr -> Parser (Maybe (Pattern, Range, Expr))
+exprToAssignment (RawApp r es)
   | (es1, arr : es2) <- break isLeftArrow es =
     case filter isLeftArrow es2 of
       arr : _ -> parseError' (rStart' $ getRange arr) $ "Unexpected " ++ prettyShow arr
-      [] -> DoBind (getRange arr)
-              <$> exprToPattern (RawApp (getRange es1) es1)
-              <*> pure (RawApp (getRange es2) es2)
-              <*> pure cs
+      [] -> Just <$> ((,,) <$> exprToPattern (RawApp (getRange es1) es1)
+                           <*> pure (getRange arr)
+                           <*> pure (RawApp (getRange es2) es2))
   where
     isLeftArrow (Ident (QName (Name _ _ [Id arr]))) = arr `elem` ["<-", "←"]
     isLeftArrow _ = False
-buildDoStmt e (_ : _) = parseError' (rStart' $ getRange e) "Only pattern matching do-statements can have where clauses."
-buildDoStmt e [] = return $ DoThen e
+exprToAssignment _ = pure Nothing
+
+-- | Build an inversion statement
+buildInvertStmt :: Expr -> Parser [(Pattern, Expr)]
+buildInvertStmt e =
+  let es = case e of { WithApp _ e es -> e : es; e -> [e] } in
+  forM es $ \ e -> do
+    mpatexpr <- exprToAssignment e
+    case mpatexpr of
+      Just (pat, _, expr) -> pure $ (pat, expr)
+      Nothing -> parseError' (rStart' $ getRange e) "Expected pattern-matching binder"
+
+-- | Build a do-statement
+defaultBuildDoStmt :: Expr -> [LamClause] -> Parser DoStmt
+defaultBuildDoStmt e (_ : _) = parseError' (rStart' $ getRange e) "Only pattern matching do-statements can have where clauses."
+defaultBuildDoStmt e []      = pure $ DoThen e
+
+buildDoStmt :: Expr -> [LamClause] -> Parser DoStmt
+buildDoStmt (RawApp r [e])     cs = buildDoStmt e cs
+buildDoStmt (Let r ds Nothing) [] = return $ DoLet r ds
+buildDoStmt e@(RawApp r es)    cs = do
+  mpatexpr <- exprToAssignment e
+  case mpatexpr of
+    Just (pat, r, expr) -> pure $ DoBind r pat expr cs
+    Nothing -> defaultBuildDoStmt e cs
+buildDoStmt e cs = defaultBuildDoStmt e cs
+
 
 mergeImportDirectives :: [ImportDirective] -> Parser ImportDirective
 mergeImportDirectives is = do
