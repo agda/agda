@@ -307,11 +307,11 @@ script:
     fi
 
   - if [[ $TEST = "MAIN" ]]; then
-       make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" BUILD_DIR=$BUILD_DIR succeed;
+       make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes --ansi-tricks=false" BUILD_DIR=$BUILD_DIR succeed;
     fi
 
   - if [[ $TEST = "MAIN" ]]; then
-       make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" BUILD_DIR=$BUILD_DIR fail;
+       make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes --ansi-tricks=false" BUILD_DIR=$BUILD_DIR fail;
     fi
 
   - if [[ $TEST = "MAIN" ]]; then
@@ -327,7 +327,7 @@ script:
 # golden files.
 
   - if [[ $TEST = "MAIN" ]]; then
-       make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" BUILD_DIR=$BUILD_DIR DONT_RUN_LATEX="Y" latex-html-test;
+       make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes --ansi-tricks=false" BUILD_DIR=$BUILD_DIR DONT_RUN_LATEX="Y" latex-html-test;
     fi
 
   - if [[ $TEST = "MAIN" ]]; then
@@ -343,11 +343,11 @@ script:
     fi
 
   - if [[ $TEST = "MAIN" ]]; then
-       make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" BUILD_DIR=$BUILD_DIR user-manual-test;
+       make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes --ansi-tricks=false" BUILD_DIR=$BUILD_DIR user-manual-test;
     fi
 
   - if [[ $TEST = "MAIN" ]]; then
-       make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" BUILD_DIR=$BUILD_DIR internal-tests;
+       make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes --ansi-tricks=false" BUILD_DIR=$BUILD_DIR internal-tests;
     fi
 
   - if [[ $TEST = "MAIN" ]]; then
@@ -355,11 +355,11 @@ script:
     fi
 
   - if [[ $TEST = "MAIN" ]]; then
-       make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" BUILD_DIR=$BUILD_DIR compiler-test;
+       make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes --ansi-tricks=false" BUILD_DIR=$BUILD_DIR compiler-test;
     fi
 
   - if [[ $TEST = "MAIN" ]]; then
-       make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" BUILD_DIR=$BUILD_DIR lib-succeed;
+       make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes --ansi-tricks=false" BUILD_DIR=$BUILD_DIR lib-succeed;
     fi
 
   - if [[ $TEST = "MAIN" ]]; then
