@@ -784,7 +784,7 @@ applySubstTerm rho t    = coerce $ case coerce t of
    subE :: Elims -> Elims
    subE  = sub @[Elim' t]
    subPi :: (Dom Type, Abs Type) -> (Dom Type, Abs Type)
-   subPi = sub @(Dom (Type' t), Abs (Type' t))
+   subPi = sub @(Dom' t (Type'' t t), Abs (Type'' t t))
 
 instance Subst Term Term where
   applySubst = applySubstTerm
@@ -792,8 +792,8 @@ instance Subst Term Term where
 instance Subst BraveTerm BraveTerm where
   applySubst = applySubstTerm
 
-instance (Coercible t Term, Subst t a) => Subst t (Type' a) where
-  applySubst rho (El s t) = applySubst (coerce rho) s `El` applySubst rho t
+instance (Coercible a Term, Subst t a, Subst t b) => Subst t (Type'' a b) where
+  applySubst rho (El s t) = applySubst rho s `El` applySubst rho t
 
 instance (Coercible a Term, Subst t a) => Subst t (Sort' a) where
   applySubst rho s = case s of
@@ -801,9 +801,7 @@ instance (Coercible a Term, Subst t a) => Subst t (Sort' a) where
     Prop n     -> Prop $ sub n
     Inf        -> Inf
     SizeUniv   -> SizeUniv
-    PiSort a s2 ->
-      let El s1 t = unDom a
-      in  coerce $ piSort (coerce $ a $> El (sub s1) (sub t)) (coerce $ sub s2)
+    PiSort a s2 -> coerce $ piSort (coerce $ sub a) (coerce $ sub s2)
     UnivSort s -> coerce $ univSort Nothing $ coerce $ sub s
     MetaS x es -> MetaS x $ sub es
     DefS d es  -> DefS d $ sub es
@@ -963,10 +961,10 @@ instance Subst t a => Subst t (Arg a) where
 instance Subst t a => Subst t (Named name a) where
   applySubst rho = fmap (applySubst rho)
 
-instance (Coercible t Term, Subst t a) => Subst t (Dom a) where
+instance (Subst t a, Subst t b) => Subst t (Dom' a b) where
   applySubst IdS dom = dom
   applySubst rho dom = setFreeVariables unknownFreeVariables $
-    fmap (applySubst rho) dom{ domTactic = applySubst (coerce rho) (domTactic dom) }
+    fmap (applySubst rho) dom{ domTactic = applySubst rho (domTactic dom) }
 
 instance Subst t a => Subst t (Maybe a) where
   applySubst rho = fmap (applySubst rho)

@@ -65,13 +65,15 @@ import Agda.Utils.Impossible
 --   Only supported in case the domain type is primIsOne, to obtain
 --   the correct equality for partial elements.
 --
-data Dom e = Dom
+data Dom' t e = Dom
   { domInfo   :: ArgInfo
   , domFinite :: !Bool
   , domName   :: Maybe RString  -- ^ e.g. @x@ in @{x = y : A} -> B@.
-  , domTactic :: Maybe Term     -- ^ "@tactic e".
+  , domTactic :: Maybe t        -- ^ "@tactic e".
   , unDom     :: e
   } deriving (Data, Show, Functor, Foldable, Traversable)
+
+type Dom = Dom' Term
 
 instance Decoration Dom where
   traverseF f (Dom ai b x t a) = Dom ai b x t <$> f a
@@ -90,17 +92,17 @@ instance Eq a => Eq (Dom a) where
 -- instance Show a => Show (Dom a) where
 --   show = show . argFromDom
 
-instance LensArgInfo (Dom e) where
+instance LensArgInfo (Dom' t e) where
   getArgInfo        = domInfo
   setArgInfo ai dom = dom { domInfo = ai }
   mapArgInfo f  dom = dom { domInfo = f $ domInfo dom }
 
 -- The other lenses are defined through LensArgInfo
 
-instance LensHiding        (Dom e) where
-instance LensModality      (Dom e) where
-instance LensOrigin        (Dom e) where
-instance LensFreeVariables (Dom e) where
+instance LensHiding        (Dom' t e) where
+instance LensModality      (Dom' t e) where
+instance LensOrigin        (Dom' t e) where
+instance LensFreeVariables (Dom' t e) where
 
 -- Since we have LensModality, we get relevance and quantity by default
 
@@ -306,7 +308,7 @@ data Sort' t
   | Prop (Level' t)  -- ^ @Prop ℓ@.
   | Inf         -- ^ @Setω@.
   | SizeUniv    -- ^ @SizeUniv@, a sort inhabited by type @Size@.
-  | PiSort (Dom (Type'' t t)) (Abs (Sort' t)) -- ^ Sort of the pi type.
+  | PiSort (Dom' t (Type'' t t)) (Abs (Sort' t)) -- ^ Sort of the pi type.
   | UnivSort (Sort' t) -- ^ Sort of another sort.
   | MetaS {-# UNPACK #-} !MetaId [Elim' t]
   | DefS QName [Elim' t] -- ^ A postulated sort.
