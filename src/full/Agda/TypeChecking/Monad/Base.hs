@@ -1846,8 +1846,14 @@ data Defn = Axiom -- ^ Postulate
             , conAbstr  :: IsAbstract
             , conInd    :: Induction   -- ^ Inductive or coinductive?
             , conComp   :: (CompKit, Maybe [QName]) -- ^ (cubical composition, projections)
-            , conForced :: [IsForced]  -- ^ Which arguments are forced (i.e. determined by the type of the constructor)?
-            , conErased :: [Bool]      -- ^ Which arguments are erased at runtime (computed during compilation to treeless)
+            , conForced :: [IsForced]
+              -- ^ Which arguments are forced (i.e. determined by the type of the constructor)?
+              --   Either this list is empty (if the forcing analysis isn't run), or its length is @conArity@.
+            , conErased :: Maybe [Bool]
+              -- ^ Which arguments are erased at runtime (computed during compilation to treeless)?
+              --   'True' means erased, 'False' means retained.
+              --   'Nothing' if no erasure analysis has been performed yet.
+              --   The length of the list is @conArity@.
             }
           | Primitive
             { primAbstr :: IsAbstract

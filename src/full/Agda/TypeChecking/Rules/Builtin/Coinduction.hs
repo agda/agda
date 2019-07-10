@@ -100,7 +100,7 @@ bindBuiltinSharp x =
                     , conInd    = CoInductive
                     , conComp   = (emptyCompKit, Nothing)
                     , conForced = []
-                    , conErased = []
+                    , conErased = Nothing
                     }
                 }
     return sharpE

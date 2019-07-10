@@ -732,12 +732,6 @@ litqnamepat x =
   where
     NameId n m = nameId $ qnameName x
 
-erasedArity :: QName -> TCM Nat
-erasedArity q = do
-  (ar, _) <- conArityAndPars q
-  erased  <- length . filter id <$> getErasedConArgs q
-  return (ar - erased)
-
 condecl :: QName -> Induction -> TCM HS.ConDecl
 condecl q _ind = do
   def <- getConstInfo q
@@ -746,7 +740,7 @@ condecl q _ind = do
   let argTypes   = [ (Just HS.Lazy, t)
                      -- Currently all constructors are lazy.
                    | (t, False) <- zip (drop np argTypes0)
-                                       (erased ++ repeat False)
+                                       (fromMaybe [] erased ++ repeat False)
                    ]
   return $ HS.ConDecl (unqhname "C" q) argTypes
 

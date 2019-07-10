@@ -230,7 +230,7 @@ checkRecDef i name uc ind eta con (A.DataDefParams gpars ps) contel fields =
               , conInd    = conInduction
               , conComp   = (emptyCompKit, Nothing) -- filled in later
               , conForced = []
-              , conErased = []
+              , conErased = Nothing
               }
 
       -- Declare the constructor as eligible for instance search

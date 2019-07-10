@@ -903,7 +903,8 @@ bindBuiltinNoDef b q = inTopContext $ do
       d <- return $! getPrimName $ unEl t
       let
         ch = ConHead q Inductive []
-        def = Constructor 0 0 ch d ConcreteDef Inductive (emptyCompKit, Nothing) [] [] -- Andrea TODO: fix zeros
+        def = Constructor 0 0 ch d ConcreteDef Inductive (emptyCompKit, Nothing) [] Nothing -- Andrea TODO: fix zeros
+          -- more TODOs for Andrea: use record syntax (cf. Datatype below)!
 
       addConstant q $ defaultDefn defaultArgInfo q t def
       addDataCons d [q]

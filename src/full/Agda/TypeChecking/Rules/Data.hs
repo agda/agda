@@ -267,7 +267,7 @@ checkConstructor d uc tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
               , conInd    = Inductive
               , conComp   = cnames
               , conForced = forcedArgs
-              , conErased = []  -- computed during compilation to treeless
+              , conErased = Nothing  -- computed during compilation to treeless
               }
 
           case snd cnames of

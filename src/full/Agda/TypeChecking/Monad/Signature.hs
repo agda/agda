@@ -816,16 +816,21 @@ getCompiled q = do
     Function{ funTreeless = t } -> t
     _                           -> Nothing
 
+-- | Returns a list of length 'conArity'.
+--   If no erasure analysis has been performed yet, this will be a list of 'False's.
 getErasedConArgs :: QName -> TCM [Bool]
 getErasedConArgs q = do
   def <- getConstInfo q
   case theDef def of
-    Constructor{ conData = d, conPars = np, conErased = es } -> return es
+    Constructor{ conArity, conErased } -> return $
+      fromMaybe (replicate conArity False) conErased
     _ -> __IMPOSSIBLE__
 
 setErasedConArgs :: QName -> [Bool] -> TCM ()
 setErasedConArgs q args = modifyGlobalDefinition q $ updateTheDef $ \case
-    def@Constructor{} -> def{ conErased = args }
+    def@Constructor{ conArity }
+      | length args == conArity -> def{ conErased = Just args }
+      | otherwise               -> __IMPOSSIBLE__
     def -> def   -- no-op for non-constructors
 
 getTreeless :: QName -> TCM (Maybe TTerm)

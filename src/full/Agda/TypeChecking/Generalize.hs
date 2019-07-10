@@ -734,7 +734,7 @@ createGenRecordType genRecMeta@(El genRecSort _) sortedMetas = do
                 , conInd    = Inductive
                 , conComp   = (emptyCompKit, Nothing)
                 , conForced = []
-                , conErased = []
+                , conErased = Nothing
                 }
   let dummyTel 0 = EmptyTel
       dummyTel n = ExtendTel (defaultDom __DUMMY_TYPE__) $ Abs "_" $ dummyTel (n - 1)
