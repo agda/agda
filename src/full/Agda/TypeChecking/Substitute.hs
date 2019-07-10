@@ -1354,7 +1354,11 @@ instance (Subst t a, Ord a) => Ord (Elim' a) where
 -- * Sort stuff
 ---------------------------------------------------------------------------
 
--- | Get the next higher sort.
+-- | @univSort' univInf s@ gets the next higher sort of @s@, if it is
+--   known (i.e. it is not just @UnivSort s@). @univInf@ is returned
+--   as the sort of @Inf@.
+--
+--   Precondition: @s@ is reduced
 univSort' :: Maybe Sort -> Sort -> Maybe Sort
 univSort' univInf (Type l) = Just $ Type $ levelSuc l
 univSort' univInf (Prop l) = Just $ Type $ levelSuc l
