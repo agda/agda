@@ -84,7 +84,7 @@ eraseTerms q eval t = usedArguments q t *> runE (eraseTop q t)
 
     erase t = case tAppView t of
 
-      TCon c : vs -> do
+      (TCon c, vs) -> do
         (rs, h) <- getFunInfo c
         when (length rs < length vs) __IMPOSSIBLE__
         case h of
@@ -92,7 +92,7 @@ eraseTerms q eval t = usedArguments q t *> runE (eraseTop q t)
           Empty    -> pure TErased
           _        -> tApp (TCon c) <$> zipWithM eraseRel rs vs
 
-      TDef f : vs -> do
+      (TDef f, vs) -> do
         (rs, h) <- getFunInfo f
         case h of
           Erasable -> pure TErased
@@ -137,7 +137,7 @@ eraseTerms q eval t = usedArguments q t *> runE (eraseTop q t)
     tApp f []                  = f
     tApp TErased _             = TErased
     tApp f _ | isUnreachable f = tUnreachable
-    tApp f es                  = TApp f es
+    tApp f es                  = mkTApp f es
 
     tCase x t d bs
       | isErased d && all (isErased . aBody) bs = pure TErased
