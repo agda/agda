@@ -21,6 +21,7 @@ import Agda.Syntax.Literal
 import qualified Agda.TypeChecking.CompiledClause as CC
 import qualified Agda.TypeChecking.CompiledClause.Compile as CC
 import Agda.TypeChecking.Records (getRecordConstructor)
+import Agda.TypeChecking.EtaContract (binAppView, BinAppView(..))
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Telescope
@@ -37,6 +38,7 @@ import Agda.TypeChecking.Monad as TCM
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 
+import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.List
 import Agda.Utils.Maybe
@@ -397,7 +399,7 @@ recConFromProj q = do
 --   indices in the environment as well.
 substTerm :: I.Term -> CC C.TTerm
 substTerm term = normaliseStatic term >>= \ term ->
-  case I.unSpine term of
+  case I.unSpine $ etaContractErased term of
     I.Var ind es -> do
       ind' <- lookupIndex ind <$> asks ccCxt
       let args = fromMaybe __IMPOSSIBLE__ $ I.allApplyElims es
@@ -420,6 +422,55 @@ substTerm term = normaliseStatic term >>= \ term ->
     I.MetaV _ _ -> __IMPOSSIBLE__   -- we don't compiled if unsolved metas
     I.DontCare _ -> return C.TErased
     I.Dummy{} -> __IMPOSSIBLE__
+
+-- Andreas, 2019-07-10, issue #3792
+-- | Eta-contract erased lambdas.
+--
+-- Should also be fine for strict backends:
+--
+--   * eta-contraction is semantics-preserving for total, effect-free languages.
+--   * should a user rely on thunking, better not used an erased abstraction!
+--
+-- A live-or-death issue for the GHC 8.0 backend.  Consider:
+-- @
+--   foldl : ∀ {A} (B : Nat → Set)
+--         → (f : ∀ {@0 n} → B n → A → B (suc n))
+--         → (z : B 0)
+--         → ∀ {@0 n} → Vec A n → B n
+--   foldl B f z (x ∷ xs) = foldl (λ n → B (suc n)) (λ{@0 x} → f {suc x}) (f z x) xs
+--   foldl B f z [] = z
+-- @
+-- The hidden composition of @f@ with @suc@, term @(λ{@0 x} → f {suc x})@,
+-- can be eta-contracted to just @f@ by the compiler, since the first argument
+-- of @f@ is erased.
+--
+-- GHC >= 8.2 seems to be able to do the optimization himself, but not 8.0.
+--
+etaContractErased :: I.Term -> I.Term
+etaContractErased = trampoline etaErasedOnce
+  where
+  etaErasedOnce :: I.Term -> Either I.Term I.Term  -- Left = done, Right = jump again
+  etaErasedOnce t =
+    case t of
+
+      -- If the abstraction is void, we don't have to strengthen.
+      I.Lam _ (NoAbs _ v) ->
+        case binAppView v of
+          -- If the body is an application ending with an erased argument, eta-reduce!
+          App u arg | not (usableModality arg) -> Right u
+          _ -> done
+
+      -- If the abstraction is non-void, only eta-contract if erased.
+      I.Lam ai (Abs _ v) | not (usableModality ai) ->
+        case binAppView v of
+          -- If the body is an application ending with an erased argument, eta-reduce!
+          -- We need to strengthen the function part then.
+          App u arg | not (usableModality arg) -> Right $ subst 0 (DontCare __DUMMY_TERM__) u
+          _ -> done
+
+      _ -> done
+    where
+    done = Left t
 
 normaliseStatic :: I.Term -> CC I.Term
 normaliseStatic v@(I.Def f es) = lift $ do
