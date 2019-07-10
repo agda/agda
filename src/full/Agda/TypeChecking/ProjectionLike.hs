@@ -62,6 +62,8 @@ import Control.Monad
 import qualified Data.Map as Map
 import Data.Monoid (Any(..), getAny)
 
+import Agda.Interaction.Options
+
 import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
@@ -226,7 +228,7 @@ eligibleForProjectionLike d = eligible . theDef <$> getConstInfo d
 -- Examples for these reasons: see test/Succeed/NotProjectionLike.agda
 
 makeProjection :: QName -> TCM ()
-makeProjection x = -- if True then return () else do
+makeProjection x = whenM (optProjectionLike <$> pragmaOptions) $ do
  inTopContext $ do
   reportSLn "tc.proj.like" 70 $ "Considering " ++ prettyShow x ++ " for projection likeness"
   defn <- getConstInfo x
