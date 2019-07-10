@@ -75,6 +75,7 @@ headSymbol v = do -- ignoreAbstractMode $ do
         GeneralizableVar{} -> __IMPOSSIBLE__
         Constructor{} -> __IMPOSSIBLE__
         AbstractDefn{}-> __IMPOSSIBLE__
+    -- Andreas, 2019-07-10, issue #3900: canonicalName needs ignoreAbstractMode
     Con c _ _ -> ignoreAbstractMode $ Just . ConsHead <$> canonicalName (conName c)
     Sort _  -> return (Just SortHead)
     Pi _ _  -> return (Just PiHead)
