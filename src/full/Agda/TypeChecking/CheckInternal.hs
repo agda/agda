@@ -375,10 +375,6 @@ shouldBePath t = do
 shouldBePi :: (MonadCheckInternal m) => Type -> m (Dom Type, Abs Type)
 shouldBePi t = ifPiType t (\ a b -> return (a, b)) $ const $ typeError $ ShouldBePi t
 
--- | Result is in reduced form.
-shouldBeSort :: (MonadCheckInternal m) => Type -> m Sort
-shouldBeSort t = ifIsSort t return (typeError $ ShouldBeASort t)
-
 -- | Check if sort is well-formed.
 checkSort :: (MonadCheckInternal m) => Action m -> Sort -> m Sort
 checkSort action s =
