@@ -46,8 +46,13 @@ import qualified Agda.Utils.IntSet.Infinite as IntSet
 
 import Agda.Utils.Impossible
 
-data ESt = ESt { _funMap  :: Map QName FunInfo
-               , _typeMap :: Map QName TypeInfo }
+-- | State of the eraser.
+data ESt = ESt
+  { _funMap  :: Map QName FunInfo
+      -- ^ Memoize computed `FunInfo` for functions/constructors/... `QName`.
+  , _typeMap :: Map QName TypeInfo
+      -- ^ Memoize computed `TypeInfo` for data/record types `QName`.
+  }
 
 funMap :: Lens' (Map QName FunInfo) ESt
 funMap f r = f (_funMap r) <&> \ a -> r { _funMap = a }
@@ -55,6 +60,7 @@ funMap f r = f (_funMap r) <&> \ a -> r { _funMap = a }
 typeMap :: Lens' (Map QName TypeInfo) ESt
 typeMap f r = f (_typeMap r) <&> \ a -> r { _typeMap = a }
 
+-- | Eraser monad.
 type E = StateT ESt TCM
 
 runE :: E a -> TCM a
@@ -226,6 +232,7 @@ type FunInfo = ([TypeInfo], TypeInfo)
 getFunInfo :: QName -> E FunInfo
 getFunInfo q = memo (funMap . key q) $ getInfo q
   where
+    getInfo :: QName -> E FunInfo
     getInfo q = do
       (rs, t) <- do
         (tel, t) <- lift $ typeWithoutParams q

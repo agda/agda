@@ -7,6 +7,7 @@ module Agda.Compiler.ToTreeless
 import Control.Arrow (first, second)
 import Control.Monad.Reader
 import Control.Monad.State
+
 import Data.Maybe
 import Data.Map (Map)
 import qualified Data.Map as Map
@@ -15,35 +16,35 @@ import Data.Traversable (traverse)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
+import Agda.Syntax.Literal
 import qualified Agda.Syntax.Treeless as C
 import Agda.Syntax.Treeless (TTerm, EvaluationStrategy)
-import Agda.Syntax.Literal
-import qualified Agda.TypeChecking.CompiledClause as CC
-import qualified Agda.TypeChecking.CompiledClause.Compile as CC
-import Agda.TypeChecking.Records (getRecordConstructor)
-import Agda.TypeChecking.EtaContract (binAppView, BinAppView(..))
-import Agda.TypeChecking.Pretty
-import Agda.TypeChecking.CompiledClause
-import Agda.TypeChecking.Telescope
 
-import Agda.Compiler.Treeless.Builtin
-import Agda.Compiler.Treeless.Simplify
-import Agda.Compiler.Treeless.Erase
-import Agda.Compiler.Treeless.Uncase
-import Agda.Compiler.Treeless.Pretty
-import Agda.Compiler.Treeless.Unused
-import Agda.Compiler.Treeless.AsPatterns
-import Agda.Compiler.Treeless.Identity
+import Agda.TypeChecking.CompiledClause as CC
+import qualified Agda.TypeChecking.CompiledClause.Compile as CC
+import Agda.TypeChecking.EtaContract (binAppView, BinAppView(..))
 import Agda.TypeChecking.Monad as TCM
+import Agda.TypeChecking.Pretty
+import Agda.TypeChecking.Records (getRecordConstructor)
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
+import Agda.TypeChecking.Telescope
+
+import Agda.Compiler.Treeless.AsPatterns
+import Agda.Compiler.Treeless.Builtin
+import Agda.Compiler.Treeless.Erase
+import Agda.Compiler.Treeless.Identity
+import Agda.Compiler.Treeless.Pretty
+import Agda.Compiler.Treeless.Simplify
+import Agda.Compiler.Treeless.Uncase
+import Agda.Compiler.Treeless.Unused
 
 import Agda.Utils.Function
 import Agda.Utils.Functor
+import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
-import Agda.Utils.Lens
 import Agda.Utils.Pretty (prettyShow)
 import qualified Agda.Utils.Pretty as P
 
@@ -304,8 +305,9 @@ withContextSize n cont = do
 
   if diff <= 0
   then do
-    local (\e -> e { ccCxt = shift diff $ drop (-diff) (ccCxt e)}) $
-      C.mkTApp <$> cont <*> pure [C.TVar i | i <- reverse [0..(-diff - 1)]]
+    let diff' = -diff
+    local (\e -> e { ccCxt = shift diff . drop diff' $ ccCxt e }) $
+      cont <&> (`C.mkTApp` map C.TVar (downFrom diff'))
   else do
     local (\e -> e { ccCxt = [0..(diff - 1)] ++ shift diff (ccCxt e)}) $ do
       createLambdas diff <$> do
@@ -333,7 +335,7 @@ lambdasUpTo n cont = do
           -- we also bind the catch all to a let, to avoid code duplication
           local (\e -> e { ccCatchAll = Just 0
                          , ccCxt = shift 1 (ccCxt e)}) $ do
-            let catchAllArgs = map C.TVar $ reverse [0..(diff - 1)]
+            let catchAllArgs = map C.TVar $ downFrom diff
             C.mkLet (C.mkTApp (C.TVar $ catchAll' + diff) catchAllArgs)
               <$> cont
         Nothing -> cont
@@ -351,8 +353,7 @@ litAlts x br = forM (Map.toList br) $ \ (l, cc) ->
     branch (C.TALit l ) cc
 
 branch :: (C.TTerm -> C.TAlt) -> CC.CompiledClauses -> CC C.TAlt
-branch alt cc = do
-  alt <$> casetree cc
+branch alt cc = alt <$> casetree cc
 
 -- | Replace de Bruijn Level @x@ by @n@ new variables.
 replaceVar :: Int -> Int -> CC a -> CC a
@@ -381,7 +382,7 @@ mkRecord fs = lift $ do
     , text "to be filled with content: keys fs = " <+> (text . show) (Map.keys fs)
     ]
   -- Convert the constructor
-  let (args :: [C.TTerm]) = for xs $ \ (Arg ai x) -> Map.findWithDefault __IMPOSSIBLE__ x fs
+  let (args :: [C.TTerm]) = for xs $ \ x -> Map.findWithDefault __IMPOSSIBLE__ (unArg x) fs
   return $ C.mkTApp (C.TCon c) args
 
 
