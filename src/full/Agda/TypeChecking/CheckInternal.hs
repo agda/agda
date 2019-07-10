@@ -166,6 +166,7 @@ checkInternal' action v t = verboseBracket "tc.check.internal" 20 "" $ do
       checkSpine action a (Def f []) es t
     MetaV x es -> do -- we assume meta instantiations to be well-typed
       a <- metaType x
+      reportSDoc "tc.check.internal" 30 $ "metavariable" <+> prettyTCM x <+> "has type" <+> prettyTCM a
       checkSpine action a (MetaV x []) es t
     Con c ci vs -> do
       -- We need to fully apply the constructor to make getConType work!
@@ -196,6 +197,7 @@ checkInternal' action v t = verboseBracket "tc.check.internal" 20 "" $ do
       -- TODO: checkPTS sa sb s
       goInside $ Pi a . mkRng <$> checkInternal' action (unEl $ unAbs b) (sort sb)
     Sort s     -> do
+      reportSDoc "tc.check.internal" 30 $ "checking sort" <+> prettyTCM s
       s <- checkSort action s
       Sort s <$ ((sortFitsIn s) =<< shouldBeSort t) -- sortFitsIn ensures @s /= Inf@
     Level l    -> do
