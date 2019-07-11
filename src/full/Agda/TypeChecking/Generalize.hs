@@ -732,7 +732,8 @@ createGenRecordType genRecMeta@(El genRecSort _) sortedMetas = do
                 , conData   = genRecName
                 , conAbstr  = ConcreteDef
                 , conInd    = Inductive
-                , conComp   = (emptyCompKit, Nothing)
+                , conComp   = emptyCompKit
+                , conProj   = Nothing
                 , conForced = []
                 , conErased = Nothing
                 }

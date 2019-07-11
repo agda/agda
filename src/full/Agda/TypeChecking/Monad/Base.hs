@@ -1845,7 +1845,8 @@ data Defn = Axiom -- ^ Postulate
             , conData   :: QName       -- ^ Name of datatype or record type.
             , conAbstr  :: IsAbstract
             , conInd    :: Induction   -- ^ Inductive or coinductive?
-            , conComp   :: (CompKit, Maybe [QName]) -- ^ (cubical composition, projections)
+            , conComp   :: CompKit     -- ^ Cubical composition.
+            , conProj   :: Maybe [QName] -- ^ Projections. 'Nothing' if not yet computed.
             , conForced :: [IsForced]
               -- ^ Which arguments are forced (i.e. determined by the type of the constructor)?
               --   Either this list is empty (if the forcing analysis isn't run), or its length is @conArity@.
@@ -4002,7 +4003,7 @@ instance KillRange Defn where
         killRange14 Function cls comp ct tt covering inv mut isAbs delayed proj flags term extlam with
       Datatype a b c d e f g h i     -> killRange8 Datatype a b c d e f g h i
       Record a b c d e f g h i j k   -> killRange11 Record a b c d e f g h i j k
-      Constructor a b c d e f g h i  -> killRange9 Constructor a b c d e f g h i
+      Constructor a b c d e f g h i j-> killRange10 Constructor a b c d e f g h i j
       Primitive a b c d e            -> killRange5 Primitive a b c d e
 
 instance KillRange MutualId where

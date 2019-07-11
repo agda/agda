@@ -46,6 +46,9 @@ instance (NamesIn a, NamesIn b) => NamesIn (a, b) where
 instance (NamesIn a, NamesIn b, NamesIn c) => NamesIn (a, b, c) where
   namesIn (x, y, z) = namesIn (x, (y, z))
 
+instance (NamesIn a, NamesIn b, NamesIn c, NamesIn d) => NamesIn (a, b, c, d) where
+  namesIn (x, y, z, u) = namesIn ((x, y), (z, u))
+
 instance NamesIn CompKit where
   namesIn (CompKit a b) = namesIn (a,b)
 
@@ -68,15 +71,15 @@ instance NamesIn Defn where
     -- Andreas 2017-07-27, Q: which names can be in @cc@ which are not already in @cl@?
     Function    { funClauses = cl, funCompiled = cc }              -> namesIn (cl, cc)
     Datatype    { dataClause = cl, dataCons = cs, dataSort = s }   -> namesIn (cl, cs, s)
-    Record      { recClause = cl, recConHead = c, recFields = fs, recComp = comp } -> namesIn (cl, c, (fs, comp))
+    Record      { recClause = cl, recConHead = c, recFields = fs, recComp = comp } -> namesIn (cl, c, fs, comp)
       -- Don't need recTel since those will be reachable from the constructor
-    Constructor { conSrcCon = c, conData = d, conComp = cn }       -> namesIn (c, d, cn)
+    Constructor { conSrcCon = c, conData = d, conComp = kit, conProj = fs }        -> namesIn (c, d, kit, fs)
     Primitive   { primClauses = cl, primCompiled = cc }            -> namesIn (cl, cc)
     AbstractDefn{} -> __IMPOSSIBLE__
 
 instance NamesIn Clause where
   namesIn Clause{ clauseTel = tel, namedClausePats = ps, clauseBody = b, clauseType = t } =
-    namesIn ((tel, ps, b), t)
+    namesIn (tel, ps, b, t)
 
 instance NamesIn CompiledClauses where
   namesIn (Case _ c) = namesIn c
