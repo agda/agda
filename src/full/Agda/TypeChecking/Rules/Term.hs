@@ -1304,7 +1304,7 @@ checkOrInferMeta newMeta mt i = do
       let v = MetaV x []
       reportSDoc "tc.meta.check" 20 $
         "checking existing meta " <+> prettyTCM v
-      t' <- jMetaType . mvJudgement <$> lookupMeta x
+      t' <- metaType x
       reportSDoc "tc.meta.check" 20 $
         nest 2 $ "of type " <+> prettyTCM t'
       case mt of

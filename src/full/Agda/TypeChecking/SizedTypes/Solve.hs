@@ -549,7 +549,7 @@ solveCluster flag ccs = do
           reportSDoc "tc.size.solve" 20 $
             "solution " <+> prettyTCM (MetaV m []) <+>
             " := "      <+> prettyTCM inf
-          t <- jMetaType . mvJudgement <$> lookupMeta m
+          t <- metaType m
           TelV tel core <- telView t
           unlessM (isJust <$> isSizeType core) __IMPOSSIBLE__
           assignMeta 0 m t (List.downFrom $ size tel) inf

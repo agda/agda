@@ -428,10 +428,6 @@ checkLevel action (Max ls) = Max <$> mapM checkPlusLevel ls
         NeutralLevel _ v -> checkInternal' action v lvl
         UnreducedLevel v -> checkInternal' action v lvl
 
--- | Type of a term or sort meta.
-metaType :: (MonadCheckInternal m) => MetaId -> m Type
-metaType x = jMetaType . mvJudgement <$> lookupMeta x
-
 -- | Universe subsumption and type equality (subtyping for sizes, resp.).
 subtype :: (MonadCheckInternal m) => Type -> Type -> m ()
 subtype t1 t2 = do

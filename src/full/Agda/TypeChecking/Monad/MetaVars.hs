@@ -137,6 +137,10 @@ lookupMeta :: (ReadTCState m) => MetaId -> m MetaVariable
 lookupMeta m = fromMaybeM failure $ lookupMeta' m
   where failure = fail $ "no such meta variable " ++ prettyShow m
 
+-- | Type of a term or sort meta.
+metaType :: (ReadTCState m) => MetaId -> m Type
+metaType x = jMetaType . mvJudgement <$> lookupMeta x
+
 -- | Update the information associated with a meta variable.
 updateMetaVarTCM :: MetaId -> (MetaVariable -> MetaVariable) -> TCM ()
 updateMetaVarTCM m f = modifyMetaStore $ IntMap.adjust f $ metaId m
@@ -587,7 +591,7 @@ class UnFreezeMeta a where
 instance UnFreezeMeta MetaId where
   unfreezeMeta x = do
     updateMetaVar x $ \ mv -> mv { mvFrozen = Instantiable }
-    unfreezeMeta =<< do jMetaType . mvJudgement <$> lookupMeta x
+    unfreezeMeta =<< metaType x
 
 instance UnFreezeMeta Type where
   unfreezeMeta (El s t) = unfreezeMeta s >> unfreezeMeta t

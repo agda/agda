@@ -453,7 +453,7 @@ compareAtom cmp t m n =
       -- try first y := x and then x := y
       (NotBlocked _ (MetaV x xArgs), NotBlocked _ (MetaV y yArgs))
           | x == y , cmpBlocked -> do
-              a <- jMetaType . mvJudgement <$> lookupMeta x
+              a <- metaType x
               compareElims [] [] a (MetaV x []) xArgs yArgs
           | x == y ->
             case intersectVars xArgs yArgs of
