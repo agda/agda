@@ -267,7 +267,8 @@ mutualChecks mi d ds mid names = do
     checkPositivity_ mi names
   -- Andreas, 2013-02-27: check termination before injectivity,
   -- to avoid making the injectivity checker loop.
-  localTC (\ e -> e { envMutualBlock = Just mid }) $ checkTermination_ d
+  localTC (\ e -> e { envMutualBlock = Just mid }) $
+    checkTermination_ d
   revisitRecordPatternTranslation nameList -- Andreas, 2016-11-19 issue #2308
 
   mapM_ checkIApplyConfluence_ nameList
@@ -277,14 +278,21 @@ mutualChecks mi d ds mid names = do
   -- actual problem, and prevents interesting sound applications
   -- of sized types.
   -- checkCoinductiveRecords  ds
-  -- Andreas, 2012-09-11:  Injectivity check stores clauses
-  -- whose 'Relevance' is affected by polarity computation,
-  -- so do it here (again).
-  -- Andreas, 2015-07-01:  In particular, 'UnusedArg's of local functions
-  -- are only recognized after the polarity computation.
-  -- See Issue 1366 for an example where injectivity of a local function
-  -- is used to solve metas.  It fails if we do injectivity analysis
-  -- before polarity only.
+
+  -- Andreas, 2019-07-11: The following remarks about injectivity
+  -- and polarity seem outdated, since the UnusedArg Relevance has
+  -- been removed.
+  -- -- Andreas, 2012-09-11:  Injectivity check stores clauses
+  -- -- whose 'Relevance' is affected by polarity computation,
+  -- -- so do it here (again).
+  -- -- Andreas, 2015-07-01:  In particular, 'UnusedArg's of local functions
+  -- -- are only recognized after the polarity computation.
+  -- -- See Issue 1366 for an example where injectivity of a local function
+  -- -- is used to solve metas.  It fails if we do injectivity analysis
+  -- -- before polarity only.
+  -- However, we need to repeat injectivity checking after termination checking,
+  -- since more reductions are available after termination checking, thus,
+  -- more instances of injectivity can be recognized.
   checkInjectivity_        names
   checkProjectionLikeness_ names
 

@@ -321,7 +321,7 @@ checkFunDefS t ai delayed extlam with i name withSub cs = do
         -- Check if the function is injective.
         -- Andreas, 2015-07-01 we do it here in order to resolve metas
         -- in mutual definitions, e.g. the U/El definition in succeed/Issue439.agda
-        -- We do it again for the mutual block after polarity analysis, see Rules.Decl.
+        -- We do it again for the mutual block after termination checking, see Rules.Decl.
         reportSLn "tc.inj.def" 20 $ "checkFunDef': checking injectivity..."
         inv <- Bench.billTo [Bench.Injectivity] $
           checkInjectivity name cs
