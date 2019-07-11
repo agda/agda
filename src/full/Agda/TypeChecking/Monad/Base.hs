@@ -1762,7 +1762,7 @@ data Defn = Axiom -- ^ Postulate
               --   forcing translation.
             , funTreeless       :: Maybe Compiled
               -- ^ Intermediate representation for compiler backends.
-            , funCovering :: [Closure Clause]
+            , funCovering       :: [Clause]
               -- ^ Covering clauses computed by coverage checking.
               --   Erased by (IApply) confluence checking(?)
             , funInv            :: FunctionInverse

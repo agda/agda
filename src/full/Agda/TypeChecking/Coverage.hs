@@ -199,7 +199,7 @@ coverageCheck f t cs = do
     ]
   reportSDoc "tc.cover.covering" 10 $ vcat
     [ text $ "covering patterns for " ++ prettyShow f
-    , nest 2 $ vcat $ map (\cl -> enterClosure cl $ \ cl -> addContext (clauseTel cl) $ prettyTCMPatternList $ namedClausePats cl) qss
+    , nest 2 $ vcat $ map (\ cl -> addContext (clauseTel cl) $ prettyTCMPatternList $ namedClausePats cl) qss
     ]
 
   -- Storing the covering clauses so that checkIApplyConfluence_ can
@@ -290,9 +290,8 @@ data CoverResult = CoverResult
   { coverSplitTree       :: SplitTree
   , coverUsedClauses     :: Set Nat
   , coverMissingClauses  :: [(Telescope, [NamedArg DeBruijnPattern])]
-  , coverPatterns        :: [Closure Clause]
+  , coverPatterns        :: [Clause]
   -- ^ The set of patterns used as cover.
-  -- Entering the closure puts you directly in the right context (and cps) for the RHS.
   , coverNoExactClauses  :: Set Nat
   }
 
@@ -376,18 +375,15 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
           Block{} -> Just c
           No{}    -> Nothing
 
-    applyCl :: SplitClause -> Clause -> [(Nat, SplitPattern)] -> TCM (Closure Clause)
-    applyCl SClause{scTel = tel, scCheckpoints = cps} cl mps
-      = addContext tel
-        $ locallyTC eCheckpoints (const cps)
-        $ checkpoint IdS $ do
+    applyCl :: SplitClause -> Clause -> [(Nat, SplitPattern)] -> TCM Clause
+    applyCl SClause{scTel = tel, scCheckpoints = cps} cl mps = addContext tel $ do
         reportSDoc "tc.cover.applyCl" 40 $ "applyCl"
         reportSDoc "tc.cover.applyCl" 40 $ "tel    =" <+> prettyTCM tel
         reportSDoc "tc.cover.applyCl" 40 $ "ps     =" <+> pretty (namedClausePats cl)
         reportSDoc "tc.cover.applyCl" 40 $ "mps    =" <+> pretty mps
         reportSDoc "tc.cover.applyCl" 40 $ "s      =" <+> pretty s
         reportSDoc "tc.cover.applyCl" 40 $ "new ps =" <+> pretty (s `applySubst` namedClausePats cl)
-        buildClosure $
+        return $
              Clause { clauseLHSRange  = clauseLHSRange cl
                     , clauseFullRange = clauseFullRange cl
                     , clauseTel       = tel
@@ -796,27 +792,26 @@ inferMissingClause
        -- ^ Function name.
   -> SplitClause
        -- ^ Clause to add.  Clause hiding (in 'clauseType') must be 'Instance'.
-   -> TCM (Closure Clause)
+   -> TCM Clause
 inferMissingClause f (SClause tel ps _ cps (Just t)) = setCurrentRange f $ do
   reportSDoc "tc.cover.infer" 20 $ addContext tel $ "Trying to infer right-hand side of type" <+> prettyTCM t
-  cl <- addContext tel
-        $ locallyTC eCheckpoints (const cps)
-        $ checkpoint IdS $ do    -- introduce a fresh checkpoint
-    (_x, rhs) <- case getHiding t of
-                  Instance{} -> newInstanceMeta "" (unArg t)
-                  Hidden     -> __IMPOSSIBLE__
-                  NotHidden  -> __IMPOSSIBLE__
-    buildClosure $
-             Clause { clauseLHSRange  = noRange
-                    , clauseFullRange = noRange
-                    , clauseTel       = tel
-                    , namedClausePats = fromSplitPatterns ps
-                    , clauseBody      = Just rhs
-                    , clauseType      = Just t
-                    , clauseCatchall  = False
-                    , clauseUnreachable = Just False  -- missing, thus, not unreachable
-                    }
-  addClauses f [clValue cl]  -- Important: add at the end.
+  (_x, rhs) <- case getHiding t of
+    Instance{} -> addContext tel
+                   $ locallyTC eCheckpoints (const cps)
+                   $ checkpoint IdS    -- introduce a fresh checkpoint
+                   $ newInstanceMeta "" (unArg t)
+    Hidden     -> __IMPOSSIBLE__
+    NotHidden  -> __IMPOSSIBLE__
+  let cl = Clause { clauseLHSRange  = noRange
+                  , clauseFullRange = noRange
+                  , clauseTel       = tel
+                  , namedClausePats = fromSplitPatterns ps
+                  , clauseBody      = Just rhs
+                  , clauseType      = Just t
+                  , clauseCatchall  = False
+                  , clauseUnreachable = Just False  -- missing, thus, not unreachable
+                  }
+  addClauses f [cl]  -- Important: add at the end.
   return cl
 inferMissingClause _ (SClause _ _ _ _ Nothing) = __IMPOSSIBLE__
 

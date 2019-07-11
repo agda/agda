@@ -43,22 +43,21 @@ checkIApplyConfluence_ f = whenM (optCubical <$> pragmaOptions) $ do
       modifySignature $ updateDefinition f $ updateTheDef
         $ updateCovering (const [])
 
-      forM_ cls $ checkIApplyConfluence f
+      traceCall (CheckFunDefCall (getRange f) f []) $
+        forM_ cls $ checkIApplyConfluence f
     _ -> return ()
 
 -- | @addClause f (Clause {namedClausePats = ps})@ checks that @f ps@
 -- reduces in a way that agrees with @IApply@ reductions.
-checkIApplyConfluence :: QName -> Closure Clause -> TCM ()
-checkIApplyConfluence f clos = do
-  enterClosure clos $ \ cl ->
-    case cl of
+checkIApplyConfluence :: QName -> Clause -> TCM ()
+checkIApplyConfluence f cl = case cl of
       Clause {clauseBody = Nothing} -> return ()
       Clause {clauseType = Nothing} -> __IMPOSSIBLE__
       cl@Clause { clauseTel = tel
                 , namedClausePats = ps
                 , clauseType = Just t
                 , clauseBody = Just body
-                } -> setCurrentRange (getRange f) $ do
+                } -> setCurrentRange (getRange f) $ addContext tel $ do
           let
             trhs = unArg t
           reportSDoc "tc.cover.iapply" 40 $ "tel =" <+> prettyTCM tel
