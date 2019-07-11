@@ -206,7 +206,7 @@ eligibleForProjectionLike d = eligible . theDef <$> getConstInfo d
 --      is inferable (neutral).  Thus:
 --
 --      a. @f@ cannot have absurd clauses (which are stuck even if the principal
---         argument is a constructor)
+--         argument is a constructor).
 --
 --      b. @f@ cannot be abstract as it does not reduce outside abstract blocks
 --         (always stuck).
@@ -216,6 +216,12 @@ eligibleForProjectionLike d = eligible . theDef <$> getConstInfo d
 --      d. @f@ cannot match deeply.
 --
 --      e. @f@s body may not mention the paramters.
+--
+--      f. A rhs of @f@ cannot be a record expression, since this will be
+--         translated to copatterns by recordExpressionsToCopatterns.
+--         Thus, an application of @f@ waiting for a projection
+--         can be stuck even when the principal argument is a constructor.
+--
 --
 -- For internal reasons:
 --
@@ -241,6 +247,8 @@ makeProjection x = whenM (optProjectionLike <$> pragmaOptions) $ do
     Function{funClauses = cls}
       | any (isNothing . clauseBody) cls ->
         reportSLn "tc.proj.like" 30 $ "  projection-like functions cannot have absurd clauses"
+      | any (maybe __IMPOSSIBLE__ isRecordExpression . clauseBody) cls ->
+        reportSLn "tc.proj.like" 30 $ "  projection-like functions cannot have record rhss"
     -- Constructor-headed functions can't be projection-like (at the moment). The reason
     -- for this is that invoking constructor-headedness will circumvent the inference of
     -- the dropped arguments.
@@ -317,6 +325,14 @@ makeProjection x = whenM (optProjectionLike <$> pragmaOptions) $ do
     Primitive{}    -> reportSLn "tc.proj.like" 30 $ "  not a function, but Primitive"
     Record{}       -> reportSLn "tc.proj.like" 30 $ "  not a function, but Record"
   where
+    -- | If the user wrote a record expression as rhs,
+    --   the recordExpressionsToCopatterns translation will turn this into copatterns,
+    --   violating the conditions of projection-likeness.
+    --   Andreas, 2019-07-11, issue #3843.
+    isRecordExpression :: Term -> Bool
+    isRecordExpression = \case
+      Con _ ConORec _ -> True
+      _ -> False
     -- @validProj (d,n)@ checks whether the head @d@ of the type of the
     -- @n@th argument is injective in all args (i.d. being name of data/record/axiom).
     validProj :: (Arg QName, Int) -> TCM Bool
