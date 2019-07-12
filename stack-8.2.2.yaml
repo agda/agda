@@ -3,6 +3,7 @@ resolver: lts-11.22
 extra-deps:
 - async-2.2.1
 - text-1.2.3.1
+- tasty-silver-3.1.13
 
 # Local packages, usually specified by relative directory name
 packages:
