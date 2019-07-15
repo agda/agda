@@ -1,6 +1,7 @@
 {-# LANGUAGE CPP                  #-}
 {-# LANGUAGE TypeFamilies         #-}
 {-# LANGUAGE TypeOperators        #-}
+{-# LANGUAGE DataKinds            #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 module Agda.TypeChecking.Serialise.Base where

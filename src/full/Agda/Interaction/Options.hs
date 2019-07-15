@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP       #-}
+{-# LANGUAGE DataKinds #-}
 
 module Agda.Interaction.Options
     ( CommandLineOptions(..)
