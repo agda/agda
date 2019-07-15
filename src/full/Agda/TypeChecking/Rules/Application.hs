@@ -543,7 +543,7 @@ checkArgumentsE' chk exh r args0@(arg@(Arg info e) : args) t0 mt1 =
               | null xs        = lift $ typeError $ ShouldBePi t0'
               -- c) We did insert implicits, but we ran out of implicit function types.
               --    Then, we should inform the user that we did not find his one.
-              | otherwise      = lift $ typeError $ WrongNamedArgument arg
+              | otherwise      = lift $ typeError $ WrongNamedArgument arg xs
 
         -- 2. We have a function type left, but it is the wrong one.
         --    Our argument must be implicit, case a) is impossible.
@@ -552,7 +552,7 @@ checkArgumentsE' chk exh r args0@(arg@(Arg info e) : args) t0 mt1 =
               -- b) We have not inserted any implicits.
               | null xs   = lift $ typeError $ WrongHidingInApplication t0'
               -- c) We inserted implicits, but did not find his one.
-              | otherwise = lift $ typeError $ WrongNamedArgument arg
+              | otherwise = lift $ typeError $ WrongNamedArgument arg xs
 
         viewPath <- lift pathView'
 
@@ -605,7 +605,7 @@ checkArgumentsE' chk exh r args0@(arg@(Arg info e) : args) t0 mt1 =
           Pi (Dom{domInfo = info', domName = dname, unDom = a}) b
             | let name = maybe "_" rangedThing dname,
               sameHiding info info'
-              && (visible info || maybe True ((name ==) . rangedThing) (nameOf e)) -> do
+              && (visible info || maybe True (name ==) mx) -> do
                 u <- lift $ applyModalityToContext info' $ do
                  -- Andreas, 2014-05-30 experiment to check non-dependent arguments
                  -- after the spine has been processed.  Allows to propagate type info

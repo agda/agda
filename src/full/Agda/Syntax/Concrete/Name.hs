@@ -1,5 +1,6 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE TypeFamilies #-} -- for type equality ~
 
 {-| Names in the concrete syntax are just strings (or lists of strings for
     qualified names).
@@ -10,6 +11,7 @@ import Control.DeepSeq
 
 import Data.ByteString.Char8 (ByteString)
 import Data.Function
+import qualified Data.Foldable as Fold
 import qualified Data.List as List
 import Data.Data (Data)
 import Data.Maybe
@@ -357,6 +359,9 @@ noName r = NoName r (NameId 0 0)
 class IsNoName a where
   isNoName :: a -> Bool
 
+  default isNoName :: (Foldable t, IsNoName b, t b ~ a) => a -> Bool
+  isNoName = Fold.all isNoName
+
 instance IsNoName String where
   isNoName = isUnderscore
 
@@ -373,6 +378,8 @@ instance IsNoName Name where
 instance IsNoName QName where
   isNoName (QName x) = isNoName x
   isNoName Qual{}    = False        -- M.A._ does not qualify as empty name
+
+instance IsNoName a => IsNoName (Ranged a) where
 
 -- no instance for TopLevelModuleName
 
