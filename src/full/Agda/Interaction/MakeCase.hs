@@ -74,8 +74,9 @@ parseVariables f tel ii rng ss = do
 
     -- We might be under some lambdas, in which case the context
     -- is bigger than the number of pattern variables.
-    let nlocals = n - size tel
-    unless (nlocals >= 0) __IMPOSSIBLE__
+    let nPatVars = size tel
+    let nlocals = n - nPatVars
+    unless (nlocals >= 0) __IMPOSSIBLE__  -- cannot be negative
 
     fv <- getDefFreeVars f
     reportSDoc "interaction.case" 20 $ do
@@ -155,8 +156,10 @@ parseVariables f tel ii rng ss = do
           let xs'' = mapMaybe (\ (_,i) -> if i < nlocals then Nothing else Just $ i - nlocals) xs'
           when (null xs'') $ failLocal
           -- Filter out variable bound by parent function or module.
-          let xs''' = mapMaybe (\ i -> if i < fv then Nothing else Just i) xs''
-          case xs''' of
+          -- Andreas, 2019-07-15, issue #3919: deactivating this unsound check.
+          -- Brings back faulty behavior of #3095 (interaction/Issue3095-fail).
+          -- let xs''' = mapMaybe (\ i -> if i >= nPatVars - fv then Nothing else Just i) xs''
+          case xs'' of
             []  -> failModuleBound
             [i] -> return (i , C.NotInScope)
             -- Issue 1325: Variable names in context can be ambiguous.
