@@ -593,6 +593,11 @@ library
                -Wunused-foralls
                -Wwarnings-deprecations
                -Wwrong-do-bind
+               -- Show unused imports and top-level bindings
+               -Wwarn
+              -- -Wunused-top-binds
+               -Wunused-imports
+
 
   -- NOTE: If adding flags, also add to `.ghci820`
   if impl(ghc >= 8.2)
