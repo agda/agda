@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP                        #-}
 {-# LANGUAGE DeriveDataTypeable         #-}
 {-# LANGUAGE DeriveGeneric              #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
@@ -12,6 +13,9 @@ import Prelude hiding (null)
 
 import Control.DeepSeq
 
+#if __GLASGOW_HASKELL__ < 804
+import Data.Semigroup hiding (Arg)
+#endif
 import Data.ByteString.Char8 (ByteString)
 import qualified Data.ByteString.Char8 as ByteString
 import Data.Hashable (Hashable(..))

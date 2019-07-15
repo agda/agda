@@ -1,4 +1,4 @@
-
+{-# LANGUAGE CPP                        #-}
 -- | Types used for precise syntax highlighting.
 
 module Agda.Interaction.Highlighting.Precise
@@ -44,7 +44,9 @@ import Control.Monad
 import Data.Function
 import qualified Data.List as List
 import Data.Maybe
---import Data.Semigroup
+#if __GLASGOW_HASKELL__ < 804
+import Data.Semigroup
+#endif
 
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap

@@ -1,9 +1,11 @@
-
+{-# LANGUAGE CPP #-}
 module Agda.Utils.PartialOrd where
 
 --import Data.Functor
 import Data.Maybe
---import Data.Semigroup
+#if __GLASGOW_HASKELL__ < 804
+import Data.Semigroup
+#endif
 import Data.Set (Set)
 import qualified Data.Set as Set
 
