@@ -141,6 +141,8 @@ Language
 
 ### Syntax
 
+* Implicit non-dependent function spaces `{A} → B` and `{{A}} → B` are now supported.
+
 * Idiom brackets
 
   Idiom brackets can accommodate none or multiple applications separated by a vertical bar `|`
