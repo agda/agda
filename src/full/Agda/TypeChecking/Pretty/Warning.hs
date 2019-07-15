@@ -6,22 +6,16 @@ import Prelude hiding ( null )
 import Data.Function
 import qualified Data.Set as Set
 import qualified Data.List as List
-import Data.Maybe ( catMaybes )
-import Control.Monad ( guard, forM, unless )
 
 import Agda.TypeChecking.Monad.Base
-import Agda.TypeChecking.Monad.Caching
 import {-# SOURCE #-} Agda.TypeChecking.Errors
 import Agda.TypeChecking.Monad.MetaVars
 import Agda.TypeChecking.Monad.Options
-import Agda.TypeChecking.Positivity
+import Agda.TypeChecking.Positivity ()
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Pretty.Call
-import Agda.TypeChecking.Warnings (WarningsAndNonFatalErrors(..))
 
 import Agda.Syntax.Position
-import Agda.Syntax.Parser
-import Agda.Syntax.Concrete.Definitions (DeclarationWarning(..))
 import Agda.Syntax.Internal
 import Agda.Syntax.Translation.InternalToAbstract
 
@@ -32,7 +26,6 @@ import Agda.Interaction.Options.Warnings
 import Agda.Utils.Lens
 import Agda.Utils.Null
 import qualified Agda.Utils.Pretty as P
-import Agda.Utils.Except
 
 instance PrettyTCM TCWarning where
   prettyTCM = return . tcWarningPrintedWarning

@@ -12,33 +12,25 @@ module Agda.TypeChecking.Reduce.Monad
 
 import Prelude hiding (null)
 
-import Control.Arrow ((***), first, second)
-import Control.Applicative hiding (empty)
 import Control.Monad.Reader
 
 import qualified Data.IntMap as IntMap
 import qualified Data.Map as Map
-import qualified Data.HashMap.Strict as HMap
 import Data.Maybe
-import Data.Monoid
 
-import Debug.Trace
 import System.IO.Unsafe
 
 import Agda.Syntax.Common
-import Agda.Syntax.Position
 import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad hiding
   ( enterClosure, isInstantiatedMeta, verboseS, typeOfConst, lookupMeta, lookupMeta' )
 import Agda.TypeChecking.Monad.Builtin hiding ( constructorForm )
 import Agda.TypeChecking.Substitute
-import Agda.Interaction.Options
 
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.Monad
-import Agda.Utils.Null
-import Agda.Utils.Pretty
+import Agda.Utils.Pretty ()
 
 import Agda.Utils.Impossible
 

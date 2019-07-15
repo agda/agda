@@ -17,21 +17,15 @@ module Agda.TypeChecking.Coverage
 
 import Prelude hiding (null, (!!))  -- do not use partial functions like !!
 
-import Control.Arrow (second)
-
 import Control.Monad
-import Control.Monad.Reader
 import Control.Monad.Trans ( lift )
 
-import Data.Either (lefts)
 import Data.Foldable (for_)
 import qualified Data.List as List
-import Data.Monoid (Any(..))
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
-import qualified Data.Traversable as Trav
 
 import Agda.Syntax.Common
 import Agda.Syntax.Position
@@ -51,10 +45,9 @@ import Agda.TypeChecking.Rules.LHS.Unify
 import Agda.TypeChecking.Coverage.Match
 import Agda.TypeChecking.Coverage.SplitTree
 
-import Agda.TypeChecking.Conversion (tryConversion, equalType, equalTermOnFace)
+import Agda.TypeChecking.Conversion (tryConversion, equalType)
 import Agda.TypeChecking.Datatypes (getConForm)
 import {-# SOURCE #-} Agda.TypeChecking.Empty ( checkEmptyTel, isEmptyTel, isEmptyType )
-import Agda.TypeChecking.Free
 import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Substitute
@@ -70,7 +63,7 @@ import Agda.Interaction.Options
 import Agda.Utils.Either
 import Agda.Utils.Except
   ( ExceptT
-  , MonadError(catchError, throwError)
+  , MonadError(throwError)
   , runExceptT
   )
 import Agda.Utils.Functor

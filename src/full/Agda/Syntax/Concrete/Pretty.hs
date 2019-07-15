@@ -17,8 +17,6 @@ import Agda.Syntax.Fixity
 import Agda.Syntax.Notation
 import Agda.Syntax.Position
 
-import Agda.TypeChecking.Positivity.Occurrence
-
 import Agda.Interaction.Options.IORefs (UnicodeOrAscii(..), unicodeOrAscii)
 
 import Agda.Utils.Function

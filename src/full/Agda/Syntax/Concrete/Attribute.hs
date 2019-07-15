@@ -13,7 +13,7 @@ import Data.Maybe
 
 import Agda.Syntax.Common
 import Agda.Syntax.Concrete (Expr(..))
-import Agda.Syntax.Concrete.Pretty
+import Agda.Syntax.Concrete.Pretty ()
 import Agda.Syntax.Position
 
 import Agda.Utils.Pretty (prettyShow)

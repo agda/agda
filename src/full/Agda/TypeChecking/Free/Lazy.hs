@@ -64,7 +64,7 @@ module Agda.TypeChecking.Free.Lazy where
 import Control.Applicative hiding (empty)
 import Control.Monad.Reader
 
-import Data.Coerce (coerce)
+--import Data.Coerce (coerce)
 import Data.Foldable (Foldable, foldMap)
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
@@ -72,12 +72,11 @@ import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet
 import Data.Monoid ( Monoid, mempty, mappend, mconcat )
 import Data.Semigroup ( Semigroup, (<>) )
-import Data.Set (Set)
-import qualified Data.Set as Set
+--import Data.Set (Set)
+--import qualified Data.Set as Set
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
-import Agda.Syntax.Internal.MetaVars
 
 import Agda.Utils.Functor
 import Agda.Utils.Lens

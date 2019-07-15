@@ -5,36 +5,31 @@ import Prelude hiding ( null, writeFile )
 import Control.Monad.Reader ( liftIO )
 import Control.Monad.Trans
 import Data.Char ( isSpace )
-import Data.List ( intercalate, genericLength, partition )
-import Data.Maybe ( isJust )
+import Data.List ( intercalate, partition )
 import Data.Set ( Set, null, insert, difference, delete )
 import Data.Traversable (traverse)
-import Data.Map ( fromList, elems )
+import Data.Map ( fromList )
 import qualified Data.Set as Set
 import qualified Data.Map as Map
-import qualified Data.HashMap.Strict as HMap
 import System.Directory ( createDirectoryIfMissing )
 import System.FilePath ( splitFileName, (</>) )
 
 import Agda.Interaction.Imports ( isNewerThan )
-import Agda.Syntax.Common ( Nat, unArg, namedArg, NameId(..) )
-import Agda.Syntax.Concrete.Name ( projectRoot , isNoName )
+import Agda.Syntax.Common ( Nat, unArg, NameId(..) )
+import Agda.Syntax.Concrete.Name ( isNoName )
 import Agda.Syntax.Abstract.Name
-  ( ModuleName(MName), QName,
-    mnameToConcrete,
-    mnameToList, qnameName, qnameModule, isInModule, nameId )
+  ( ModuleName, QName,
+    mnameToList, qnameName, qnameModule, nameId )
 import Agda.Syntax.Internal
-  ( Name, Args, Type,
-    conName,
-    toTopLevelModuleName, arity, unEl, unAbs, nameFixity )
+  ( Name, Type
+  , arity, nameFixity )
 import Agda.Syntax.Literal ( Literal(..) )
 import Agda.Syntax.Fixity
 import qualified Agda.Syntax.Treeless as T
-import Agda.TypeChecking.Substitute (absBody, TelV(..))
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Monad.Debug ( reportSLn )
-import Agda.TypeChecking.Reduce ( instantiateFull, normalise )
+import Agda.TypeChecking.Reduce ( instantiateFull )
 import Agda.TypeChecking.Pretty
 import Agda.Utils.Maybe
 import Agda.Utils.Monad ( (<$>), (<*>), ifM )
@@ -55,7 +50,7 @@ import Agda.Compiler.JS.Syntax
     LocalId(LocalId), GlobalId(GlobalId), MemberId(MemberId), Export(Export), Module(Module),
     modName, expName, uses )
 import Agda.Compiler.JS.Substitution
-  ( curriedLambda, curriedApply, emp, subst, apply )
+  ( curriedLambda, curriedApply, emp, apply )
 import qualified Agda.Compiler.JS.Pretty as JSPretty
 
 import Agda.Interaction.Options

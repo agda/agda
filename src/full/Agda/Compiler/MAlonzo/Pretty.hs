@@ -5,7 +5,6 @@
 
 module Agda.Compiler.MAlonzo.Pretty where
 
-import Data.Generics.Geniplate
 import qualified Agda.Utils.Haskell.Syntax as HS
 import Text.PrettyPrint (empty)
 

@@ -17,9 +17,9 @@ module Agda.Utils.Tuple
   , List2(..)
   ) where
 
-import Data.Foldable
+--import Data.Foldable
 import Data.Bifunctor
-import Data.Traversable
+--import Data.Traversable
 import Data.Tuple (swap)
 
 infix 2 -*-

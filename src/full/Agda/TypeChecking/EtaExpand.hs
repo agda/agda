@@ -11,10 +11,6 @@ import Agda.TypeChecking.Records
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 
-import Agda.Utils.Monad
-
-import Agda.Utils.Impossible
-
 -- | Eta-expand a term if its type is a function type or an eta-record type.
 etaExpandOnce
   :: (MonadReduce m, MonadTCEnv m, HasOptions m, HasConstInfo m, MonadDebug m)

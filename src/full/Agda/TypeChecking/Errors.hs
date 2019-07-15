@@ -18,59 +18,41 @@ module Agda.TypeChecking.Errors
 
 import Prelude hiding ( null )
 
-import Control.Monad.Reader
-import Control.Monad.State
-
 import Data.Function
-import Data.List (nub, sortBy, intersperse, isInfixOf, dropWhileEnd)
+import Data.List (sortBy, isInfixOf, dropWhileEnd)
 import Data.Maybe
 import Data.Char (toLower)
 import qualified Data.Set as Set
-import qualified Data.Map as Map
 import qualified Text.PrettyPrint.Boxes as Boxes
 
-import {-# SOURCE #-} Agda.Interaction.Imports (MainInterface(..))
-import Agda.Interaction.Options
-import Agda.Interaction.Options.Warnings
 import Agda.Syntax.Common
 import Agda.Syntax.Fixity
 import Agda.Syntax.Notation
 import Agda.Syntax.Position
-import qualified Agda.Syntax.Info as A
 import qualified Agda.Syntax.Concrete as C
-import qualified Agda.Syntax.Concrete.Definitions as D
 import Agda.Syntax.Abstract as A
-import Agda.Syntax.Abstract.Views (deepUnscope)
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Translation.InternalToAbstract
-import Agda.Syntax.Translation.AbstractToConcrete
-import Agda.Syntax.Scope.Monad (isDatatypeModule, withContextPrecedence)
+import Agda.Syntax.Scope.Monad (isDatatypeModule)
 import Agda.Syntax.Scope.Base
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Closure
 import Agda.TypeChecking.Monad.Context
 import Agda.TypeChecking.Monad.Debug
-import Agda.TypeChecking.Monad.Options
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Monad.State
-import Agda.TypeChecking.Monad.MetaVars
-import Agda.TypeChecking.Positivity
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Pretty.Call
 import Agda.TypeChecking.Pretty.Warning
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope ( ifPiType )
 import Agda.TypeChecking.Reduce (instantiate)
-import Agda.TypeChecking.Warnings
 
-import Agda.Utils.Except ( MonadError(catchError, throwError) )
+import Agda.Utils.Except ( MonadError(catchError) )
 import Agda.Utils.FileName
 import Agda.Utils.Function
-import Agda.Utils.Functor
-import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Maybe
-import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.NonemptyList
 import Agda.Utils.Pretty ( prettyShow )

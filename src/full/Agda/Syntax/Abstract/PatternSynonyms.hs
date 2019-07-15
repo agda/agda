@@ -19,10 +19,9 @@ import Data.Void
 import Agda.Syntax.Common
 import Agda.Syntax.Abstract
 import Agda.Syntax.Abstract.Views
-import Agda.Utils.Monad
+--import Agda.Utils.Monad
 import Agda.Utils.NonemptyList
 
-import Agda.Utils.Impossible
 
 -- | Merge a list of pattern synonym definitions. Fails unless all definitions
 --   have the same shape (i.e. equal up to renaming of variables and constructor

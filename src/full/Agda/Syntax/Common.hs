@@ -14,11 +14,8 @@ import Control.DeepSeq
 
 import Data.ByteString.Char8 (ByteString)
 import qualified Data.ByteString.Char8 as ByteString
-import Data.Foldable hiding (null)
 import Data.Hashable (Hashable(..))
 import qualified Data.Strict.Maybe as Strict
-import Data.Semigroup hiding (Arg)
-import Data.Traversable
 import Data.Data (Data)
 import Data.Word
 import Data.IntSet (IntSet)

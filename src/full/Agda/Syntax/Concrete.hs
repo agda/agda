@@ -55,7 +55,7 @@ import Data.Foldable (Foldable)
 import Data.Traversable (Traversable)
 import Data.List hiding (null)
 import Data.Set (Set)
-import Data.Monoid
+--import Data.Monoid
 
 import Data.Data (Data)
 

@@ -3,10 +3,8 @@
 module Agda.TypeChecking.Records where
 
 import Control.Monad
-import Control.Monad.Reader
 import Control.Monad.Trans.Maybe
 
-import Data.Function
 import qualified Data.List as List
 import Data.Maybe
 import qualified Data.Set as Set
@@ -15,7 +13,7 @@ import Data.Traversable (traverse)
 
 import Agda.Syntax.Common
 import qualified Agda.Syntax.Concrete.Name as C
-import Agda.Syntax.Concrete (FieldAssignment'(..), nameFieldA)
+import Agda.Syntax.Concrete (FieldAssignment'(..))
 import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Position
@@ -34,7 +32,6 @@ import {-# SOURCE #-} Agda.TypeChecking.ProjectionLike (eligibleForProjectionLik
 import Agda.Utils.Either
 import Agda.Utils.Except
 import Agda.Utils.Functor (for, ($>))
-import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad

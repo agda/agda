@@ -27,19 +27,16 @@ import Agda.Syntax.Internal
 
 import {-# SOURCE #-} Agda.TypeChecking.Constraints ()
 import {-# SOURCE #-} Agda.TypeChecking.Conversion
-import {-# SOURCE #-} Agda.TypeChecking.MetaVars
+import {-# SOURCE #-} Agda.TypeChecking.MetaVars ()
 
-import Agda.TypeChecking.Free
-import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Constraints (addConstraint, MonadConstraint)
 import Agda.TypeChecking.Monad.Context
 import Agda.TypeChecking.Monad.Debug
-import Agda.TypeChecking.Pretty
+import Agda.TypeChecking.Pretty ()
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 
-import Agda.Utils.Impossible
 import Agda.Utils.Lens
 
 -- | Infer the sort of another sort. If we can compute the bigger sort

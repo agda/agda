@@ -15,7 +15,7 @@ import Control.Monad.Fail as Fail
 import Control.Monad.Reader
 import Control.Monad.State
 
-import Data.Semigroup
+--import Data.Semigroup
 
 import Agda.Utils.Maybe
 

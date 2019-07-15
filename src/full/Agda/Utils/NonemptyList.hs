@@ -11,8 +11,8 @@ import Data.Foldable (Foldable)
   -- The toList method of Foldable may do something stupid,
   -- like traversing the list just to build a list again.
 import Data.Traversable (Traversable)
-import Data.Maybe
-import Data.Semigroup
+--import Data.Maybe
+--import Data.Semigroup
 import qualified Data.List as List
 
 infixr 5 :!

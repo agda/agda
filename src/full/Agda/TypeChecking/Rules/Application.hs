@@ -10,7 +10,7 @@ module Agda.TypeChecking.Rules.Application
 
 import Prelude hiding ( null )
 
-import Control.Arrow (first, second)
+import Control.Arrow (first)
 import Control.Monad.Trans
 import Control.Monad.Trans.Maybe
 import Control.Monad.Reader

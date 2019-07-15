@@ -12,7 +12,7 @@ import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
-import Data.Semigroup
+--import Data.Semigroup
 
 import Agda.Syntax.Position
 import Agda.Syntax.Fixity

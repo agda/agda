@@ -11,16 +11,13 @@ import {-# SOURCE #-} Agda.Interaction.Highlighting.Generate
 import Agda.Syntax.Position
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Debug
-import Agda.TypeChecking.Monad.Options
 
 import Agda.Utils.Function
-import Agda.Utils.Maybe
+--import Agda.Utils.Maybe
 import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Pretty (prettyShow)
-
-import Agda.Utils.Impossible
 
 ---------------------------------------------------------------------------
 -- * Trace

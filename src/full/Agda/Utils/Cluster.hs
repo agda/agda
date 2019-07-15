@@ -12,9 +12,9 @@ import Control.Monad
 -- An imperative union-find library:
 import Data.Equivalence.Monad (runEquivM, equateAll, classDesc)
 
-import Data.Char
+--import Data.Char
 import qualified Data.IntMap as IntMap
-import Data.Semigroup
+--import Data.Semigroup
 
 import Agda.Utils.Functor
 import Agda.Utils.NonemptyList

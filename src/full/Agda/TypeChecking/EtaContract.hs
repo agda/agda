@@ -2,8 +2,6 @@
 -- | Compute eta short normal forms.
 module Agda.TypeChecking.EtaContract where
 
-import Control.Monad.Reader
-
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Generic

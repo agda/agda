@@ -6,10 +6,6 @@ module Agda.TypeChecking.Monad.Open
         , isClosed
         ) where
 
-import Control.Monad
-import Control.Monad.Reader
-import qualified Data.List as List
-
 import Agda.Syntax.Internal
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Monad.Base
@@ -17,8 +13,6 @@ import Agda.TypeChecking.Monad.Base
 import {-# SOURCE #-} Agda.TypeChecking.Monad.Context
 
 import Agda.Utils.Lens
-import Agda.Utils.Maybe
-import Agda.Utils.Except ( MonadError(catchError) )
 
 -- | Create an open term in the current context.
 makeOpen :: MonadTCEnv m => a -> m (Open a)

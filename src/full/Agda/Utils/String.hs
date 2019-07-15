@@ -2,13 +2,13 @@ module Agda.Utils.String where
 
 import Control.Monad.Reader
 import Control.Monad.State
-import Control.Monad.Trans
+--import Control.Monad.Trans
 
 import Data.Char
 import qualified Data.List as List
 import Data.String
 
-import Numeric
+--import Numeric
 
 import Agda.Interaction.Options.IORefs ( UnicodeOrAscii(..) )
 import Agda.Utils.List

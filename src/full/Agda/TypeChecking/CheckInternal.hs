@@ -20,7 +20,7 @@ module Agda.TypeChecking.CheckInternal
   , shouldBeSort
   ) where
 
-import Control.Arrow ((&&&), (***), first, second)
+import Control.Arrow (first)
 import Control.Monad
 
 import Agda.Syntax.Common
@@ -32,7 +32,6 @@ import Agda.TypeChecking.Level
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Pretty
-import Agda.TypeChecking.Primitive
 import Agda.TypeChecking.ProjectionLike (elimView)
 import Agda.TypeChecking.Records (getDefType)
 import Agda.TypeChecking.Reduce
@@ -42,7 +41,6 @@ import Agda.TypeChecking.Telescope
 
 
 import Agda.Utils.Functor (($>))
-import Agda.Utils.Monad
 import Agda.Utils.Size
 
 import Agda.Utils.Impossible

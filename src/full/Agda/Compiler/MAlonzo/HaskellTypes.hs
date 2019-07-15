@@ -26,7 +26,7 @@ import Agda.TypeChecking.Telescope
 
 import Agda.Compiler.MAlonzo.Pragmas
 import Agda.Compiler.MAlonzo.Misc
-import Agda.Compiler.MAlonzo.Pretty
+import Agda.Compiler.MAlonzo.Pretty ()
 
 import qualified Agda.Utils.Haskell.Syntax as HS
 import Agda.Utils.Except

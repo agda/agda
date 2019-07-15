@@ -15,8 +15,8 @@ import Data.Data (Data)
 import Data.List
 import Data.Function
 import Data.Hashable (Hashable(..))
-import Data.Set (Set)
-import qualified Data.Set as Set
+--import Data.Set (Set)
+--import qualified Data.Set as Set
 import Data.Void
 
 import Agda.Syntax.Position
@@ -26,8 +26,8 @@ import Agda.Syntax.Concrete.Name (IsNoName(..), NumHoles(..), NameInScope(..), L
 import qualified Agda.Syntax.Concrete.Name as C
 
 import Agda.Utils.List
-import Agda.Utils.Maybe
-import Agda.Utils.Monad
+--import Agda.Utils.Maybe
+--import Agda.Utils.Monad
 import Agda.Utils.NonemptyList
 import Agda.Utils.Pretty
 import Agda.Utils.Size

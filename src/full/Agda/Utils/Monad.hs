@@ -14,7 +14,7 @@ import qualified Control.Monad.Fail as Fail
 
 import Control.Monad.Identity ( Identity )
 import Control.Monad.State
-import Control.Monad.Writer
+--import Control.Monad.Writer
 import Data.Traversable as Trav hiding (for, sequence)
 import Data.Foldable as Fold
 import Data.Maybe

@@ -21,10 +21,9 @@ import qualified Agda.Termination.CallMatrix as CMSet
 import Agda.Termination.Order
 import Agda.Termination.SparseMatrix
 
-import Agda.Utils.List
 import Agda.Utils.Maybe
 
-import Data.Monoid
+--import Data.Monoid
 
 -- | TODO: This comment seems to be partly out of date.
 --
@@ -69,8 +68,9 @@ checkIdems calls = caseMaybe (listToMaybe offending) (Right ()) $ Left . augCall
     -- Every idempotent call must have decrease, otherwise it offends us.
     offending = filter (not . hasDecrease) $ filter idempotent calls
 
-checkIdem :: (?cutoff :: CutOff) => CallMatrixAug cinfo -> Bool
-checkIdem c = if idempotent c then hasDecrease c else True
+-- UNUSED Liang-Ting 2019-07-15
+--checkIdem :: (?cutoff :: CutOff) => CallMatrixAug cinfo -> Bool
+--checkIdem c = if idempotent c then hasDecrease c else True
 
 -- | A call @c@ is idempotent if it is an endo (@'source' == 'target'@)
 --   of order 1.

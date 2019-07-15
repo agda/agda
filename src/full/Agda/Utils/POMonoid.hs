@@ -2,8 +2,8 @@
 
 module Agda.Utils.POMonoid where
 
-import Data.Semigroup
-import Data.Monoid
+--import Data.Semigroup
+--import Data.Monoid
 
 import Agda.Utils.PartialOrd
 

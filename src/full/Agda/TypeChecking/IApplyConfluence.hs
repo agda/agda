@@ -4,17 +4,6 @@ module Agda.TypeChecking.IApplyConfluence where
 import Prelude hiding (null, (!!))  -- do not use partial functions like !!
 
 import Control.Monad
-import Control.Monad.Reader
-import Control.Monad.Trans ( lift )
-
-import Data.Either (lefts)
-import qualified Data.List as List
-import Data.Monoid (Any(..))
-import Data.Map (Map)
-import qualified Data.Map as Map
-import Data.Set (Set)
-import qualified Data.Set as Set
-import qualified Data.Traversable as Trav
 
 import Agda.Syntax.Common
 import Agda.Syntax.Position
@@ -25,25 +14,17 @@ import Agda.Syntax.Internal.Pattern
 import Agda.Interaction.Options
 
 import Agda.TypeChecking.Primitive hiding (Nat)
-import Agda.TypeChecking.Primitive.Cubical
+-- import Agda.TypeChecking.Primitive.Cubical
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
-import Agda.TypeChecking.Conversion (tryConversion, equalType, equalTermOnFace)
+import Agda.TypeChecking.Conversion (equalTermOnFace)
 import Agda.TypeChecking.Pretty
-import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Telescope.Path
 
-import Agda.Utils.Except
-  ( ExceptT
-  , MonadError(catchError, throwError)
-  , runExceptT
-  )
-import Agda.Utils.Functor
-import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
-import Agda.Utils.Pretty (prettyShow)
+import Agda.Utils.Pretty ()
 
 import Agda.Utils.Impossible
 

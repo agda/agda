@@ -45,20 +45,20 @@ module Agda.Syntax.Concrete.Definitions
 
 import Prelude hiding (null)
 
-import Control.Arrow ((&&&), (***), first, second)
-import Control.Applicative hiding (empty)
+import Control.Arrow ((&&&), (***), second)
+--import Control.Applicative hiding (empty)
 import Control.Monad.Except
 import Control.Monad.State
 
-import Data.Either ( partitionEithers )
-import Data.Function ( on )
+--import Data.Either ( partitionEithers )
+--import Data.Function ( on )
 import qualified Data.Map as Map
 import Data.Map (Map)
 import Data.Maybe
-import Data.Monoid ( Monoid, mempty, mappend )
-import Data.Semigroup ( Semigroup, (<>) )
+--import Data.Monoid ( Monoid, mempty, mappend )
+--import Data.Semigroup ( Semigroup, (<>) )
 import qualified Data.List as List
-import qualified Data.Set as Set
+--import qualified Data.Set as Set
 import Data.Traversable (Traversable, traverse)
 import qualified Data.Traversable as Trav
 
@@ -77,12 +77,12 @@ import Agda.Syntax.Concrete.Fixity
 import Agda.Interaction.Options.Warnings
 
 import Agda.Utils.AffineHole
-import Agda.Utils.Except ( MonadError(throwError,catchError) )
+import Agda.Utils.Except ( MonadError(throwError) )
 import Agda.Utils.Functor
 import Agda.Utils.Lens
-import Agda.Utils.List (caseList, isSublistOf)
+import Agda.Utils.List (isSublistOf)
 import Agda.Utils.Maybe
-import Agda.Utils.Monad
+--import Agda.Utils.Monad
 import Agda.Utils.Null
 import qualified Agda.Utils.Pretty as Pretty
 import Agda.Utils.Pretty

@@ -10,15 +10,12 @@ import Agda.Syntax.Common
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Info
 import Agda.Syntax.Scope.Base
-import Agda.Syntax.Position as P
 import Agda.Syntax.Fixity
 
 import Agda.TypeChecking.Serialise.Base
 import Agda.TypeChecking.Serialise.Instances.Common ()
 
-import Agda.TypeChecking.Monad
-
-import Agda.Utils.Except
+--import Agda.Utils.Except
 
 import Agda.Utils.Impossible
 

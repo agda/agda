@@ -14,15 +14,12 @@ import Control.Monad.State
 import Prelude hiding ( null )
 
 import qualified Data.List as List
-import Data.Maybe (mapMaybe, isJust, fromMaybe)
-import Data.Monoid ( Monoid, mempty, mappend, mconcat )
-import Data.Semigroup ( Semigroup, (<>), Any(..) )
-import Data.Traversable (traverse)
+import Data.Maybe (mapMaybe, fromMaybe)
+import Data.Semigroup ( Semigroup, (<>))
 
 import Agda.Syntax.Abstract (IsProjP(..))
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
-import Agda.Syntax.Internal.Pattern ()
 import Agda.Syntax.Literal
 import Agda.Syntax.Position
 

@@ -1,6 +1,5 @@
 module Agda.TypeChecking.Primitive.Base where
 
-import Data.Map (Map)
 import qualified Data.Map as Map
 
 import Agda.Syntax.Common

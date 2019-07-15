@@ -33,15 +33,15 @@ module Agda.Interaction.Options
     , getOptSimple
     ) where
 
-import Control.Monad            ( (>=>), when )
+import Control.Monad            ( when )
 import Control.Monad.Trans
 
 import Data.IORef
-import Data.Either
+--import Data.Either
 import Data.Function
 import Data.Maybe
-import Data.List                ( isSuffixOf , intercalate )
-import Data.Set                 ( Set )
+import Data.List                ( intercalate )
+--import Data.Set                 ( Set )
 import qualified Data.Set as Set
 
 import System.Console.GetOpt    ( getOpt', usageInfo, ArgOrder(ReturnInOrder)
@@ -69,7 +69,7 @@ import Agda.Utils.Functor       ( (<&>) )
 import Agda.Utils.Lens          ( Lens', over )
 import Agda.Utils.List          ( groupOn, wordsBy )
 import Agda.Utils.Monad         ( ifM, readM )
-import Agda.Utils.String        ( indent )
+--import Agda.Utils.String        ( indent )
 import Agda.Utils.Trie          ( Trie )
 import qualified Agda.Utils.Trie as Trie
 import Agda.Utils.WithDefault
@@ -78,7 +78,7 @@ import Agda.Version
 -- Paths_Agda.hs is in $(BUILD_DIR)/build/autogen/.
 import Paths_Agda ( getDataFileName )
 
-import qualified System.IO.Unsafe as UNSAFE (unsafePerformIO)
+--import qualified System.IO.Unsafe as UNSAFE (unsafePerformIO)
 
 -- OptDescr is a Functor --------------------------------------------------
 

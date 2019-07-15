@@ -31,23 +31,22 @@ module Agda.Syntax.Parser.Monad
     )
     where
 
-import Control.Exception (catch, displayException)
+import Control.Exception (displayException)
 import Data.Int
 
 import Data.Data (Data)
-import qualified Data.Text.Lazy as T
+--import qualified Data.Text.Lazy as T
 
 import Control.Monad.State
-import Control.Monad.Except
+--import Control.Monad.Except
 
 import Agda.Interaction.Options.Warnings
 
 import Agda.Syntax.Position
 
-import Agda.Utils.Except ( MonadError(catchError, throwError) )
+import Agda.Utils.Except ( MonadError(throwError) )
 import Agda.Utils.FileName
 import Agda.Utils.List ( tailWithDefault )
-import qualified Agda.Utils.IO.UTF8 as UTF8
 import qualified Agda.Utils.Maybe.Strict as Strict
 
 import Agda.Utils.Pretty

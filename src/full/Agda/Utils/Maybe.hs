@@ -9,11 +9,11 @@ module Agda.Utils.Maybe
     , module Data.Maybe
     ) where
 
-import Control.Monad
+--import Control.Monad
 import Control.Monad.Trans.Maybe
 
 import Data.Maybe
-import Data.Functor
+--import Data.Functor
 
 -- * Conversion.
 

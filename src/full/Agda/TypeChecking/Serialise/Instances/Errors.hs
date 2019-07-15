@@ -2,30 +2,21 @@
 
 module Agda.TypeChecking.Serialise.Instances.Errors where
 
-import Data.Maybe
-
 import Control.Monad
 
 import Agda.TypeChecking.Serialise.Base
-import Agda.TypeChecking.Serialise.Instances.Common
+import Agda.TypeChecking.Serialise.Instances.Common ()
 import Agda.TypeChecking.Serialise.Instances.Internal ()
 import Agda.TypeChecking.Serialise.Instances.Abstract ()
 
-import Agda.Syntax.Common
 import Agda.Syntax.Concrete.Definitions (DeclarationWarning(..))
-import Agda.Syntax.Abstract.Name (ModuleName)
 import Agda.TypeChecking.Monad.Base
 import Agda.Interaction.Options
 import Agda.Interaction.Options.Warnings
 import Agda.Interaction.Library
 import Agda.Interaction.Library.Parse
 import Agda.Termination.CutOff
-import Agda.TypeChecking.Positivity.Occurrence ()
-import Agda.Syntax.Parser.Monad (ParseWarning( OverlappingTokensWarning ))
 import Agda.Utils.Pretty
-import Agda.Utils.FileName ()
-
-import Agda.Utils.Lens
 
 import Agda.Utils.Impossible
 

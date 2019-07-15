@@ -9,7 +9,7 @@ import Agda.Syntax.Abstract.Name (QName)
 import Agda.Syntax.Internal (ModuleName, Telescope)
 
 import Agda.TypeChecking.Monad.Base
-  ( TCM, ReadTCState, HasOptions, TCEnv, MonadTCEnv
+  ( TCM, ReadTCState, HasOptions, MonadTCEnv
   , Definition, RewriteRules
   )
 import Agda.TypeChecking.Monad.Debug (MonadDebug)

@@ -37,14 +37,14 @@ module Agda.Interaction.Highlighting.Precise
   , mergeC
   ) where
 
-import Control.Applicative ((<$>), (<*>))
+--import Control.Applicative ((<$>), (<*>))
 import Control.Arrow (second)
 import Control.Monad
 
 import Data.Function
 import qualified Data.List as List
 import Data.Maybe
-import Data.Semigroup
+--import Data.Semigroup
 
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap

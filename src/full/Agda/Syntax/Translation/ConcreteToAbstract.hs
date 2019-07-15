@@ -78,7 +78,6 @@ import Agda.Interaction.Options
 import qualified Agda.Interaction.Options.Lenses as Lens
 import Agda.Interaction.Options.Warnings
 
-import Agda.Utils.AssocList (AssocList)
 import qualified Agda.Utils.AssocList as AssocList
 import Agda.Utils.Either
 import Agda.Utils.Except ( MonadError(catchError, throwError) )

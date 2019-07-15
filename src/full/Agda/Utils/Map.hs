@@ -3,11 +3,7 @@ module Agda.Utils.Map where
 
 import Prelude hiding (map, lookup, mapM)
 import Data.Map as Map
-import Data.Traversable
-
-import Agda.Utils.Tuple
-
-import Agda.Utils.Impossible
+--import Data.Traversable
 
 -- UNUSED Liang-Ting Chen (05-07-2019)
 -- -- * Monadic map operations

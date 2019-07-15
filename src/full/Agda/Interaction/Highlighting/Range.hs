@@ -15,7 +15,7 @@ module Agda.Interaction.Highlighting.Range
   , minus
   ) where
 
-import Control.Applicative ((<$>))
+--import Control.Applicative ((<$>))
 
 import qualified Agda.Syntax.Position as P
 
