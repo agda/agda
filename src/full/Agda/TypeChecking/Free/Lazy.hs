@@ -260,13 +260,13 @@ instance Semigroup a => Semigroup (VarOcc' a) where
 --   This is also the absorptive element for 'composeVarOcc', if we ignore
 --   the 'MetaSet' in 'Flexible'.
 instance (Semigroup a, Monoid a) => Monoid (VarOcc' a) where
-  mempty  = VarOcc (Flexible mempty) $ Modality Irrelevant zeroQuantity
+  mempty  = VarOcc (Flexible mempty) $ Modality Irrelevant zeroQuantity zeroCohesion
   mappend = (<>)
 
 -- | The absorptive element of variable occurrence under aggregation:
 --   strongly rigid, relevant.
 topVarOcc :: VarOcc' a
-topVarOcc = VarOcc StronglyRigid $ Modality Relevant topQuantity
+topVarOcc = VarOcc StronglyRigid $ Modality Relevant topQuantity topCohesion
 
 -- | First argument is the outer occurrence (context) and second is the inner.
 --   This multiplicative operation is to modify an occurrence under a context.
@@ -275,7 +275,7 @@ composeVarOcc (VarOcc o m) (VarOcc o' m') = VarOcc (composeFlexRig o o') (m <> m
   -- We use the multipicative modality monoid (composition).
 
 oneVarOcc :: VarOcc' a
-oneVarOcc = VarOcc Unguarded $ Modality Relevant $ Quantity1 mempty
+oneVarOcc = VarOcc Unguarded $ Modality Relevant (Quantity1 mempty) Continuous
 
 ---------------------------------------------------------------------------
 -- * Storing variable occurrences (semimodule).
@@ -525,7 +525,7 @@ instance Free Term where
     Sort s       -> freeVars' s
     Level l      -> freeVars' l
     MetaV m ts   -> underFlexRig (Flexible $ singleton m) $ freeVars' ts
-    DontCare mt  -> underModality (Modality Irrelevant mempty) $ freeVars' mt
+    DontCare mt  -> underModality (Modality Irrelevant mempty mempty) $ freeVars' mt
     Dummy{}      -> mempty
 
 instance Free t => Free (Type' t) where

@@ -106,6 +106,7 @@ instance LensFreeVariables (Dom' t e) where
 
 instance LensRelevance (Dom e) where
 instance LensQuantity  (Dom e) where
+instance LensCohesion  (Dom e) where
 
 argFromDom :: Dom a -> Arg a
 argFromDom Dom{domInfo = i, unDom = a} = Arg i a

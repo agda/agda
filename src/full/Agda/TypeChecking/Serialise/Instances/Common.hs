@@ -524,11 +524,21 @@ instance EmbPrj Quantity where
 --   value 2 = return Quantityω
 --   value _ = malformed
 
+instance EmbPrj Cohesion where
+  icod_ Flat       = return 0
+  icod_ Continuous = return 1
+  icod_ Squash     = return 2
+
+  value 0 = return Flat
+  value 1 = return Continuous
+  value 2 = return Squash
+  value _ = malformed
+
 instance EmbPrj Modality where
-  icod_ (Modality a b) = icodeN' Modality a b
+  icod_ (Modality a b c) = icodeN' Modality a b c
 
   value = vcase $ \case
-    [a, b] -> valuN Modality a b
+    [a, b, c] -> valuN Modality a b c
     _ -> malformed
 
 instance EmbPrj Relevance where
