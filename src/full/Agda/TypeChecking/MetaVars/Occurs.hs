@@ -20,6 +20,7 @@ import Control.Monad
 import Control.Monad.Reader
 
 import Data.Foldable (foldMap, traverse_)
+import Data.Functor
 import Data.Monoid
 import Data.Set (Set)
 import qualified Data.Set as Set
@@ -503,7 +504,11 @@ instance Occurs Type where
 instance Occurs Sort where
   occurs s = do
     unfold s >>= \case
-      PiSort a s -> uncurry PiSort <$> do weakly $ occurs (a,s)
+      PiSort a s2 -> do
+        s1' <- weakly $ occurs $ getSort a
+        a'  <- (a $>) . El s1' <$> do flexibly $ occurs $ unEl $ unDom a
+        s2' <- mapAbstraction a' (weakly . occurs) s2
+        return $ PiSort a' s2'
       Type a     -> Type <$> occurs a
       Prop a     -> Prop <$> occurs a
       s@Inf      -> return s
@@ -520,7 +525,7 @@ instance Occurs Sort where
   metaOccurs m s = do
     s <- instantiate s
     case s of
-      PiSort s1 s2 -> metaOccurs m (s1,s2)
+      PiSort a s -> metaOccurs m (a,s)
       Type a     -> metaOccurs m a
       Prop a     -> metaOccurs m a
       Inf        -> return ()

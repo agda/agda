@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP       #-}
+{-# LANGUAGE DataKinds #-}
 
 module Agda.Interaction.Options
     ( CommandLineOptions(..)
@@ -155,6 +156,7 @@ data PragmaOptions = PragmaOptions
   , optExactSplit                :: Bool
   , optEta                       :: Bool
   , optForcing                   :: Bool  -- ^ Perform the forcing analysis on data constructors?
+  , optProjectionLike            :: Bool  -- ^ Perform the projection-likeness analysis on functions?
   , optRewriting                 :: Bool  -- ^ Can rewrite rules be added and used?
   , optCubical                   :: Bool
   , optPostfixProjections        :: Bool
@@ -258,6 +260,7 @@ defaultPragmaOptions = PragmaOptions
   , optExactSplit                = False
   , optEta                       = True
   , optForcing                   = True
+  , optProjectionLike            = True
   , optRewriting                 = False
   , optCubical                   = False
   , optPostfixProjections        = False
@@ -613,6 +616,9 @@ noUniversePolymorphismFlag  o = return $ o { optUniversePolymorphism = False }
 noForcingFlag :: Flag PragmaOptions
 noForcingFlag o = return $ o { optForcing = False }
 
+noProjectionLikeFlag :: Flag PragmaOptions
+noProjectionLikeFlag o = return $ o { optProjectionLike = False }
+
 withKFlag :: Flag PragmaOptions
 withKFlag o = return $ o { optWithoutK = Value False }
 
@@ -890,6 +896,8 @@ pragmaOptions =
                     "default records to no-eta-equality"
     , Option []     ["no-forcing"] (NoArg noForcingFlag)
                     "disable the forcing analysis for data constructors (optimisation)"
+    , Option []     ["no-projection-like"] (NoArg noForcingFlag)
+                    "disable the analysis whether function signatures liken those of projections (optimisation)"
     , Option []     ["rewriting"] (NoArg rewritingFlag)
                     "enable declaration and use of REWRITE rules"
     , Option []     ["confluence-check"] (NoArg confluenceCheckFlag)

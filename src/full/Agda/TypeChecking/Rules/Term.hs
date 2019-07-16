@@ -27,6 +27,7 @@ import Agda.Syntax.Concrete (FieldAssignment'(..), nameFieldA)
 import qualified Agda.Syntax.Concrete.Name as C
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
+import Agda.Syntax.Internal.MetaVars
 import Agda.Syntax.Position
 import Agda.Syntax.Literal
 import Agda.Syntax.Scope.Base ( ThingsInScope, AbstractName
@@ -112,7 +113,7 @@ isType_ e = traceCall (IsType_ e) $ do
     A.Fun i (Arg info t) b -> do
       a <- setArgInfo info . defaultDom <$> isType_ t
       b <- isType_ b
-      s <- inferFunSort (getSort a) (getSort b)
+      s <- inferFunSort a (getSort b)
       let t' = El s $ Pi a $ NoAbs underscore b
       noFunctionsIntoSize b t'
       return t'
@@ -1065,9 +1066,10 @@ checkExpr' cmp e t0 =
 
         A.Fun _ (Arg info a) b -> do
             a' <- isType_ a
+            let adom = defaultArgDom info a'
             b' <- isType_ b
-            s  <- inferFunSort (getSort a') (getSort b')
-            let v = Pi (defaultArgDom info a') (NoAbs underscore b')
+            s  <- inferFunSort adom (getSort b')
+            let v = Pi adom (NoAbs underscore b')
             noFunctionsIntoSize b' $ El s v
             coerce cmp v (sort s) t
         A.Set _ n    -> do

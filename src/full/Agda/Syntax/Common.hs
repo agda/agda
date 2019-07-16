@@ -1,7 +1,8 @@
 {-# LANGUAGE DeriveDataTypeable         #-}
 {-# LANGUAGE DeriveGeneric              #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE UndecidableInstances       #-} -- for: LensNamed name (Arg a)
+{-# LANGUAGE TypeFamilies               #-} -- for type equality ~
+{-# LANGUAGE UndecidableInstances       #-} -- for functional dependency: LensNamed name (Arg a)
 
 {-| Some common syntactic entities are defined in this module.
 -}
@@ -1379,6 +1380,12 @@ named = Named . Just
 class LensNamed name a | a -> name where
   lensNamed :: Lens' (Maybe name) a
 
+  -- Lenses lift through decorations:
+  default lensNamed :: (Decoration f, LensNamed name b, f b ~ a) => Lens' (Maybe name) a
+  lensNamed = traverseF . lensNamed
+
+instance LensNamed name a => LensNamed name (Arg a) where
+
 instance LensNamed name (Named name a) where
   lensNamed f (Named mn a) = f mn <&> \ mn' -> Named mn' a
 
@@ -1390,12 +1397,6 @@ setNameOf = set lensNamed
 
 mapNameOf :: LensNamed name a => (Maybe name -> Maybe name) -> a -> a
 mapNameOf = over lensNamed
-
--- Lenses lift through decorations:
--- instance (Decoration f, LensNamed name a) => LensNamed name (f a) where
-
-instance LensNamed name a => LensNamed name (Arg a) where
-  lensNamed = traverseF . lensNamed
 
 -- Standard instances for 'Named':
 

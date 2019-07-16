@@ -20,6 +20,7 @@ import Agda.Interaction.Options
 import Agda.Syntax.Position
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
+import Agda.Syntax.Internal.MetaVars
 import Agda.Syntax.Internal.Pattern
 import Agda.Syntax.Scope.Base (Scope)
 import Agda.Syntax.Literal
@@ -294,9 +295,9 @@ instance Reduce Sort where
     reduce' s = do
       s <- instantiate' s
       case s of
-        PiSort s1 s2 -> do
-          (s1,s2) <- reduce' (s1,s2)
-          maybe (return $ PiSort s1 s2) reduce' $ piSort' s1 s2
+        PiSort a s -> do
+          (a,s) <- reduce' (a,s)
+          maybe (return $ PiSort a s) reduce' $ piSort' a s
         UnivSort s' -> do
           s' <- reduce' s'
           ui <- univInf
@@ -638,7 +639,7 @@ reduceHead v = do -- ignoreAbstractMode $ do
 
   -- first, possibly rewrite literal v to constructor form
   v <- constructorForm v
-  traceSDoc "tc.inj.reduce" 30 ("reduceHead" <+> prettyTCM v) $ do
+  traceSDoc "tc.inj.reduce" 30 (ignoreAbstractMode $ "reduceHead" <+> prettyTCM v) $ do
   case v of
     Def f es -> do
 
@@ -840,7 +841,7 @@ instance Simplify Elim where
 instance Simplify Sort where
     simplify' s = do
       case s of
-        PiSort s1 s2 -> piSort <$> simplify' s1 <*> simplify' s2
+        PiSort a s -> piSort <$> simplify' a <*> simplify' s
         UnivSort s -> do
           ui <- univInf
           univSort ui <$> simplify' s
@@ -977,7 +978,7 @@ instance Normalise Sort where
     normalise' s = do
       s <- reduce' s
       case s of
-        PiSort s1 s2 -> piSort <$> normalise' s1 <*> normalise' s2
+        PiSort a s -> piSort <$> normalise' a <*> normalise' s
         UnivSort s -> do
           ui <- univInf
           univSort ui <$> normalise' s
@@ -1156,7 +1157,7 @@ instance InstantiateFull Sort where
         case s of
             Type n     -> Type <$> instantiateFull' n
             Prop n     -> Prop <$> instantiateFull' n
-            PiSort s1 s2 -> piSort <$> instantiateFull' s1 <*> instantiateFull' s2
+            PiSort a s -> piSort <$> instantiateFull' a <*> instantiateFull' s
             UnivSort s -> do
               ui <- univInf
               univSort ui <$> instantiateFull' s

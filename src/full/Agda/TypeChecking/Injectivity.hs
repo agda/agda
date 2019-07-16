@@ -75,7 +75,8 @@ headSymbol v = do -- ignoreAbstractMode $ do
         GeneralizableVar{} -> __IMPOSSIBLE__
         Constructor{} -> __IMPOSSIBLE__
         AbstractDefn{}-> __IMPOSSIBLE__
-    Con c _ _ -> Just . ConsHead <$> canonicalName (conName c)
+    -- Andreas, 2019-07-10, issue #3900: canonicalName needs ignoreAbstractMode
+    Con c _ _ -> ignoreAbstractMode $ Just . ConsHead <$> canonicalName (conName c)
     Sort _  -> return (Just SortHead)
     Pi _ _  -> return (Just PiHead)
     Var i [] -> return (Just $ VarHead i) -- Only naked variables. Otherwise substituting a neutral term is not guaranteed to stay neutral.
@@ -150,7 +151,10 @@ checkInjectivity f cs = fromMaybe NotInjective <.> runMaybeT $ do
 
   -- We don't need to consider absurd clauses
   let computeHead c@Clause{ clauseBody = Just body } = do
-        h <- varToArg c =<< lift (fromMaybe UnknownHead <$> addContext (clauseTel c) (headSymbol body))
+        h <- varToArg c =<< do
+          lift $ fromMaybe UnknownHead <$> do
+            addContext (clauseTel c) $
+              headSymbol body
         return [Map.singleton h [c]]
       computeHead _ = return []
 

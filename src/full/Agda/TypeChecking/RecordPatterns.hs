@@ -205,27 +205,32 @@ mergeCatchAll cc ca = maybe cc (mappend cc) ca
 -- | Transform definitions returning record expressions to use copatterns
 --   instead. This prevents terms from blowing up when reduced.
 recordExpressionsToCopatterns :: CompiledClauses -> TCM CompiledClauses
-recordExpressionsToCopatterns cc =
-  case cc of
+recordExpressionsToCopatterns = \case
     Case i bs -> Case i <$> traverse recordExpressionsToCopatterns bs
-    Fail      -> return cc
-    Done xs (Con c i es) | i == ConORec -> do  -- don't translate if using the record constructor
-      Constructor{conData = d, conArity = ar} <- theDef <$> getConstInfo (conName c)
-      ddef <- theDef <$> getConstInfo d
+    cc@Fail   -> return cc
+    cc@(Done xs (Con c ConORec es)) -> do  -- don't translate if using the record /constructor/
+      let vs = map unArg $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+      Constructor{ conArity = ar } <- theDef <$> getConstInfo (conName c)
       irrProj <- optIrrelevantProjections <$> pragmaOptions
       getConstructorInfo (conName c) >>= \ case
         RecordCon YesEta fs
           | ar <- length fs, ar > 0,                   -- only for eta-records with at least one field
-            length es == ar,                           -- where the constructor application is saturated
+            length vs == ar,                           -- where the constructor application is saturated
             irrProj || not (any isIrrelevant fs) -> do -- and irrelevant projections (if any) are allowed
-              let body (Apply v) = WithArity 0 $ Done xs (unArg v)
-                  body _ = __IMPOSSIBLE__
-                  bs     = Branches True (Map.fromList $ zip (map unArg fs) (map body es))
-                                    Nothing Map.empty Nothing Nothing False
-              -- translate new cases recursively (there might be nested record expressions)
-              Case (defaultArg $ length xs) <$> traverse recordExpressionsToCopatterns bs
+              Case (defaultArg $ length xs) <$> do
+                -- translate new cases recursively (there might be nested record expressions)
+                traverse recordExpressionsToCopatterns $ Branches
+                  { projPatterns   = True
+                  , conBranches    = Map.fromList $
+                      zipWith (\ f v -> (unArg f, WithArity 0 $ Done xs v)) fs vs
+                  , etaBranch      = Nothing
+                  , litBranches    = Map.empty
+                  , catchAllBranch = Nothing
+                  , fallThrough    = Nothing
+                  , lazyMatch      = False
+                  }
         _ -> return cc
-    Done{} -> return cc
+    cc@Done{} -> return cc
 
 -- | @replaceByProjections i projs cc@ replaces variables @i..i+n-1@
 --   (counted from left) by projections @projs_1 i .. projs_n i@.

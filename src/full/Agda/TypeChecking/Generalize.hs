@@ -22,9 +22,11 @@ import Agda.Syntax.Concrete.Name (LensInScope(..))
 import Agda.Syntax.Position
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Generic
+import Agda.Syntax.Internal.MetaVars
 import Agda.Syntax.Scope.Monad (bindVariable)
 import Agda.Syntax.Scope.Base (Binder(..))
 import Agda.TypeChecking.Monad
+import Agda.TypeChecking.Abstract
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Free
@@ -34,6 +36,7 @@ import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
+import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Warnings
 
 import Agda.Benchmarking (Phase(Typing, Generalize))
@@ -45,6 +48,7 @@ import Agda.Utils.Lens
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Size
+import Agda.Utils.Singleton
 import Agda.Utils.Permutation
 
 
@@ -497,7 +501,7 @@ pruneUnsolvedMetas genRecName genRecCon genTel genRecFields interactionPoints is
       let notPruned = [ i | i <- permute (takeP (length cxt) $ mvPermutation mv) $
                                  reverse $ zipWith const [0..] cxt ]
       case [ i | (i, Dom{unDom = (_, El _ (Def q _))}) <- zip [0..] cxt,
-                 q == genRecName, i `elem` notPruned ] of
+                 q == genRecName, elem i notPruned ] of
         []    -> return Nothing
         _:_:_ -> __IMPOSSIBLE__
         [i]   -> return (Just i)
@@ -544,7 +548,7 @@ pruneUnsolvedMetas genRecName genRecCon genTel genRecFields interactionPoints is
           names   = map (fst . unDom) telList
           late    = map (fst . unDom) $ filter (getAny . allMetas (Any . (== x))) telList
           projs (Proj _ q)
-            | q `elem` genRecFields = Set.fromList [x | Just x <- [getGeneralizedFieldName q]]
+            | elem q genRecFields = Set.fromList [x | Just x <- [getGeneralizedFieldName q]]
           projs _                 = Set.empty
           early = Set.toList $ flip foldTerm u $ \ case
                   Var _ es   -> foldMap projs es
@@ -728,9 +732,10 @@ createGenRecordType genRecMeta@(El genRecSort _) sortedMetas = do
                 , conData   = genRecName
                 , conAbstr  = ConcreteDef
                 , conInd    = Inductive
-                , conComp   = (emptyCompKit, Nothing)
+                , conComp   = emptyCompKit
+                , conProj   = Nothing
                 , conForced = []
-                , conErased = []
+                , conErased = Nothing
                 }
   let dummyTel 0 = EmptyTel
       dummyTel n = ExtendTel (defaultDom __DUMMY_TYPE__) $ Abs "_" $ dummyTel (n - 1)
@@ -766,7 +771,7 @@ fillInGenRecordDetails name con fields recTy fieldTel = do
           abstract cxtTel (El s $ Pi (defaultDom recTy) (Abs "r" $ unDom ty)) :
           mkFieldTypes flds (absApp ftel proj)
         where
-          s = PiSort (getSort recTy) (Abs "r" $ getSort ty)
+          s = PiSort (defaultDom recTy) (Abs "r" $ getSort ty)
           proj = Var 0 [Proj ProjSystem fld]
       mkFieldTypes _ _ = __IMPOSSIBLE__
   let fieldTypes = mkFieldTypes fields (raise 1 fieldTel)

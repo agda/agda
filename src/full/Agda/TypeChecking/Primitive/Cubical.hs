@@ -931,7 +931,7 @@ primTransHComp cmd ts nelims = do
       case constrForm a0 of
         Con h _ args -> do
           ifM (not <$> sameConHead h u) noRed $ do
-            Constructor{ conComp = (cm,_) } <- theDef <$> getConstInfo (conName h)
+            Constructor{ conComp = cm } <- theDef <$> getConstInfo (conName h)
             case nameOfHComp cm of
               Just hcompD -> redReturn $ Def hcompD [] `apply`
                                           (ps ++ map argN [phi,u,a0])
@@ -954,7 +954,7 @@ primTransHComp cmd ts nelims = do
       let lam_i = Lam defaultArgInfo . Abs "i"
       case constrForm a0 of
         Con h _ args -> do
-          Constructor{ conComp = (cm,_) } <- theDef <$> getConstInfo (conName h)
+          Constructor{ conComp = cm } <- theDef <$> getConstInfo (conName h)
           case nameOfTransp cm of
               Just transpD -> redReturn $ Def transpD [] `apply`
                                           (map (fmap lam_i) ps ++ map argN [phi,a0])
@@ -1261,4 +1261,3 @@ trFillTel delta phi args r = do
   transpTel (Abs "j" $ raise 1 delta `lazyAbsApp` (imin `apply` (map argN [var 0, raise 1 r])))
             (imax `apply` [argN $ ineg `apply` [argN r], argN phi])
             args
-

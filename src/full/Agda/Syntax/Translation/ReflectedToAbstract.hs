@@ -16,7 +16,7 @@ import Agda.Syntax.Common
 import Agda.Syntax.Abstract as A hiding (Apply)
 import Agda.Syntax.Abstract.Pattern
 import Agda.Syntax.Reflected as R
-import Agda.Syntax.Internal (Dom(..))
+import Agda.Syntax.Internal (Dom,Dom'(..))
 
 import Agda.TypeChecking.Monad as M hiding (MetaInfo)
 import Agda.Syntax.Scope.Monad (getCurrentModule)

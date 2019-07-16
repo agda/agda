@@ -77,6 +77,7 @@ import qualified Data.Set as Set
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
+import Agda.Syntax.Internal.MetaVars
 
 import Agda.Utils.Functor
 import Agda.Utils.Lens
@@ -542,7 +543,8 @@ instance Free Sort where
       Prop a     -> freeVars' a
       Inf        -> mempty
       SizeUniv   -> mempty
-      PiSort s1 s2 -> underFlexRig WeaklyRigid $ freeVars' (s1, s2)
+      PiSort a s -> underFlexRig (Flexible mempty) (freeVars' $ unDom a) `mappend`
+                    underFlexRig WeaklyRigid (freeVars' (getSort a, s))
       UnivSort s -> underFlexRig WeaklyRigid $ freeVars' s
       MetaS x es -> underFlexRig (Flexible $ singleton x) $ freeVars' es
       DefS _ es  -> underFlexRig WeaklyRigid $ freeVars' es

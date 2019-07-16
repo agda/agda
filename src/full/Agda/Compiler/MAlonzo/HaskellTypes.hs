@@ -178,8 +178,8 @@ haskellType q = do
   def <- getConstInfo q
   let (np, erased) =
         case theDef def of
-          Constructor{ conPars = np, conErased = erased }
-            -> (np, erased ++ repeat False)
+          Constructor{ conPars, conErased }
+            -> (conPars, fromMaybe [] conErased ++ repeat False)
           _ -> (0, repeat False)
       stripErased (True  : es) (HS.TyFun _ t)     = stripErased es t
       stripErased (False : es) (HS.TyFun s t)     = HS.TyFun s $ stripErased es t

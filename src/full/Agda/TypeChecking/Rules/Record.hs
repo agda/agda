@@ -228,9 +228,10 @@ checkRecDef i name uc ind eta con (A.DataDefParams gpars ps) contel fields =
               , conData   = name
               , conAbstr  = Info.defAbstract conInfo
               , conInd    = conInduction
-              , conComp   = (emptyCompKit, Nothing) -- filled in later
+              , conComp   = emptyCompKit  -- filled in later
+              , conProj   = Nothing       -- filled in later
               , conForced = []
-              , conErased = []
+              , conErased = Nothing
               }
 
       -- Declare the constructor as eligible for instance search
@@ -332,33 +333,35 @@ checkRecDef i name uc ind eta con (A.DataDefParams gpars ps) contel fields =
 
 
 addCompositionForRecord
-  :: QName      -- datatype name
-               -> ConHead
-               -> Telescope   -- Γ parameters
-               -> [Arg QName] -- projection names
-               -> Telescope   -- Γ ⊢ Φ field types
-               -> Type        -- Γ ⊢ T target type
-               -> TCM ()
+  :: QName       -- ^ Datatype name.
+  -> ConHead
+  -> Telescope   -- ^ @Γ@ parameters.
+  -> [Arg QName] -- ^ Projection names.
+  -> Telescope   -- ^ @Γ ⊢ Φ@ field types.
+  -> Type        -- ^ @Γ ⊢ T@ target type.
+  -> TCM ()
 addCompositionForRecord name con tel fs ftel rect = do
-  compWays <- do
-    cxt <- getContextTelescope
-    escapeContext (size cxt) $
-      if null fs then Left . (,Just []) <$> defineCompData name con (abstract cxt tel) [] ftel rect []
-                 else Right <$>
-                      ifM (return (any (== Irrelevant) $ map getRelevance fs) `and2M` do not . optIrrelevantProjections <$> pragmaOptions)
-                          (return emptyCompKit)
-                          (defineCompKitR name (abstract cxt tel) ftel fs rect)
-  case compWays of
-    Right kit -> do
-      modifySignature $ updateDefinition name $ updateTheDef $ \ d ->
-        case d of
-          r@Record{} -> r { recComp = kit }
-          _          -> __IMPOSSIBLE__
-    Left y -> do
-      modifySignature $ updateDefinition (conName con) $ updateTheDef $ \ d ->
-        case d of
-          r@Constructor{} -> r { conComp = y }
-          _          -> __IMPOSSIBLE__
+  cxt <- getContextTelescope
+  inTopContext $ do
+
+    -- Record has no fields: attach composition data to record constructor
+    if null fs then do
+      kit <- defineCompData name con (abstract cxt tel) [] ftel rect []
+      modifySignature $ updateDefinition (conName con) $ updateTheDef $ \case
+        r@Constructor{} -> r { conComp = kit, conProj = Just [] }  -- no projections
+        _ -> __IMPOSSIBLE__
+
+    -- Record has fields: attach composition data to record type
+    else do
+      -- If record has irrelevant fields but irrelevant projections are disabled,
+      -- we cannot generate composition data.
+      kit <- ifM (return (any isIrrelevant fs)
+                  `and2M` do not . optIrrelevantProjections <$> pragmaOptions)
+        {-then-} (return emptyCompKit)
+        {-else-} (defineCompKitR name (abstract cxt tel) ftel fs rect)
+      modifySignature $ updateDefinition name $ updateTheDef $ \case
+        r@Record{} -> r { recComp = kit }
+        _          -> __IMPOSSIBLE__
 
 defineCompKitR ::
     QName          -- ^ some name, e.g. record name

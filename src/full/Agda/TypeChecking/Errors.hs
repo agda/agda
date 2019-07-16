@@ -347,9 +347,13 @@ instance PrettyTCM TypeError where
     WrongQuantityInLambda ->
       fwords "Incorrect quantity annotation in lambda"
 
-    WrongNamedArgument a -> fsep $
+    WrongNamedArgument a xs0 -> fsep $
       pwords "Function does not accept argument "
       ++ [prettyTCM a] -- ++ pwords " (wrong argument name)"
+      ++ if null xs then [] else
+         [parens $ fsep $ text "possible arguments:" : map pretty xs]
+      where
+      xs = filter (not . isNoName) xs0
 
     WrongHidingInApplication t ->
       fwords "Found an implicit application where an explicit application was expected"

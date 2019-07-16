@@ -130,15 +130,6 @@ repl subs = go where
   go []    = []
 
 
--- | Copy pasted from MAlonzo....
---   Move somewhere else!
-conArityAndPars :: QName -> TCM (Nat, Nat)
-conArityAndPars q = do
-  def <- getConstInfo q
-  n   <- typeArity (defType def)
-  let Constructor{ conPars = np } = theDef def
-  return (n - np, np)
-
 -- | Sets up the compilation environment.
 inCompilerEnv :: Interface -> TCM a -> TCM a
 inCompilerEnv mainI cont = do

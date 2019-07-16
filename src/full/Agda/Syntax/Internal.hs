@@ -65,13 +65,15 @@ import Agda.Utils.Impossible
 --   Only supported in case the domain type is primIsOne, to obtain
 --   the correct equality for partial elements.
 --
-data Dom e = Dom
+data Dom' t e = Dom
   { domInfo   :: ArgInfo
   , domFinite :: !Bool
   , domName   :: Maybe RString  -- ^ e.g. @x@ in @{x = y : A} -> B@.
-  , domTactic :: Maybe Term     -- ^ "@tactic e".
+  , domTactic :: Maybe t        -- ^ "@tactic e".
   , unDom     :: e
   } deriving (Data, Show, Functor, Foldable, Traversable)
+
+type Dom = Dom' Term
 
 instance Decoration Dom where
   traverseF f (Dom ai b x t a) = Dom ai b x t <$> f a
@@ -90,17 +92,17 @@ instance Eq a => Eq (Dom a) where
 -- instance Show a => Show (Dom a) where
 --   show = show . argFromDom
 
-instance LensArgInfo (Dom e) where
+instance LensArgInfo (Dom' t e) where
   getArgInfo        = domInfo
   setArgInfo ai dom = dom { domInfo = ai }
   mapArgInfo f  dom = dom { domInfo = f $ domInfo dom }
 
 -- The other lenses are defined through LensArgInfo
 
-instance LensHiding        (Dom e) where
-instance LensModality      (Dom e) where
-instance LensOrigin        (Dom e) where
-instance LensFreeVariables (Dom e) where
+instance LensHiding        (Dom' t e) where
+instance LensModality      (Dom' t e) where
+instance LensOrigin        (Dom' t e) where
+instance LensFreeVariables (Dom' t e) where
 
 -- Since we have LensModality, we get relevance and quantity by default
 
@@ -262,12 +264,14 @@ instance Decoration Abs where
 
 -- | Types are terms with a sort annotation.
 --
-data Type' a = El { _getSort :: Sort, unEl :: a }
+data Type'' t a = El { _getSort :: Sort' t, unEl :: a }
   deriving (Data, Show, Functor, Foldable, Traversable)
+
+type Type' a = Type'' Term a
 
 type Type = Type' Term
 
-instance Decoration Type' where
+instance Decoration (Type'' t) where
   traverseF f (El s a) = El s <$> f a
 
 class LensSort a where
@@ -304,7 +308,7 @@ data Sort' t
   | Prop (Level' t)  -- ^ @Prop ℓ@.
   | Inf         -- ^ @Setω@.
   | SizeUniv    -- ^ @SizeUniv@, a sort inhabited by type @Size@.
-  | PiSort (Sort' t) (Abs (Sort' t)) -- ^ Sort of the pi type.
+  | PiSort (Dom' t (Type'' t t)) (Abs (Sort' t)) -- ^ Sort of the pi type.
   | UnivSort (Sort' t) -- ^ Sort of another sort.
   | MetaS {-# UNPACK #-} !MetaId [Elim' t]
   | DefS QName [Elim' t] -- ^ A postulated sort.
@@ -1235,7 +1239,7 @@ instance TermSize Sort where
     Prop l    -> 1 + tsize l
     Inf       -> 1
     SizeUniv  -> 1
-    PiSort s s' -> 1 + tsize s + tsize s'
+    PiSort a s -> 1 + tsize a + tsize s
     UnivSort s -> 1 + tsize s
     MetaS _ es -> 1 + tsize es
     DefS _ es  -> 1 + tsize es
@@ -1305,7 +1309,7 @@ instance KillRange Sort where
     SizeUniv   -> SizeUniv
     Type a     -> killRange1 Type a
     Prop a     -> killRange1 Prop a
-    PiSort s1 s2 -> killRange2 PiSort s1 s2
+    PiSort a s -> killRange2 PiSort a s
     UnivSort s -> killRange1 UnivSort s
     MetaS x es -> killRange1 (MetaS x) es
     DefS d es  -> killRange2 DefS d es
@@ -1466,8 +1470,8 @@ instance Pretty Sort where
       Prop l -> mparens (p > 9) $ "Prop" <+> prettyPrec 10 l
       Inf -> "Setω"
       SizeUniv -> "SizeUniv"
-      PiSort s b -> mparens (p > 9) $
-        "piSort" <+> prettyPrec 10 s
+      PiSort a b -> mparens (p > 9) $
+        "piSort" <+> pDom (domInfo a) (text (absName b) <+> ":" <+> pretty (unDom a))
                       <+> parens (sep [ text ("λ " ++ absName b ++ " ->")
                                       , nest 2 $ pretty (unAbs b) ])
       UnivSort s -> mparens (p > 9) $ "univSort" <+> prettyPrec 10 s
@@ -1556,3 +1560,6 @@ instance NFData a => NFData (Elim' a) where
   rnf (Apply x) = rnf x
   rnf Proj{}    = ()
   rnf (IApply x y r) = rnf x `seq` rnf y `seq` rnf r
+
+instance NFData e => NFData (Dom e) where
+  rnf (Dom a b c d e) = rnf a `seq` rnf b `seq` rnf c `seq` rnf d `seq` rnf e

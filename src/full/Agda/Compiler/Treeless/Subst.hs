@@ -75,6 +75,11 @@ instance Monoid Occurs where
   mempty  = Occurs 0 mempty mempty
   mappend = (<>)
 
+
+-- Andreas, 2019-07-10: this free variable computation should be rewritten
+-- in the style of TypeChecking.Free.Lazy.
+-- https://github.com/agda/agda/commit/03eb3945114a4ccdb449f22d69db8d6eaa4699b8#commitcomment-34249120
+
 class HasFree a where
   freeVars :: a -> Map Int Occurs
 

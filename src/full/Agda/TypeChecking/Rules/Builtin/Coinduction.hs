@@ -98,9 +98,10 @@ bindBuiltinSharp x =
                     , conData   = defName infDefn
                     , conAbstr  = ConcreteDef
                     , conInd    = CoInductive
-                    , conComp   = (emptyCompKit, Nothing)
+                    , conComp   = emptyCompKit
+                    , conProj   = Nothing
                     , conForced = []
-                    , conErased = []
+                    , conErased = Nothing
                     }
                 }
     return sharpE

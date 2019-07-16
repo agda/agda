@@ -1,5 +1,6 @@
 Issue952.agda:7,10-11
 Function does not accept argument {A₁ = _}
+(possible arguments: A B)
 when checking that {A₁ = Set} {B₁ = Set} are valid arguments to a
 function of type
 {A = A₁ : Set₁} {B = B₁ : Set₁} (C₁ : Set) → A₁ → B₁ → C₁

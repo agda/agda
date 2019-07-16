@@ -1,4 +1,7 @@
 -- Andreas, 2018-05-28, issue #3095, cannot make hidden shadowing variable visible
+-- Andreas, 2019-07-15, issue #3919, make hidden variable visible in par. module
+
+module _ (A : Set) where
 
 data Nat : Set where
   suc : {n : Nat} → Nat
@@ -20,3 +23,8 @@ test p = aux p
 -- WAS: ERROR
 -- Ambiguous variable n
 -- when checking that the expression ? has type Set
+
+open import Agda.Builtin.Equality
+
+issue3919 : {n m : Nat} → n ≡ m
+issue3919 = {!m!}

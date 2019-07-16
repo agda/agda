@@ -973,7 +973,7 @@ data Constraint
 --  | ShortCut MetaId Term Type
 --    -- ^ A delayed instantiation.  Replaces @ValueCmp@ in 'postponeTypeCheckingProblem'.
   | HasBiggerSort Sort
-  | HasPTSRule Sort (Abs Sort)
+  | HasPTSRule (Dom Type) (Abs Sort)
   | UnBlock MetaId
   | Guarded Constraint ProblemId
   | IsEmpty Range Type
@@ -1021,7 +1021,7 @@ instance Free Constraint where
       FindInstance _ _ cs   -> freeVars' cs
       CheckFunDef _ _ _ _   -> mempty
       HasBiggerSort s       -> freeVars' s
-      HasPTSRule s1 s2      -> freeVars' (s1 , s2)
+      HasPTSRule a s        -> freeVars' (a , s)
       UnquoteTactic _ t h g -> freeVars' (t, (h, g))
 
 instance TermLike Constraint where
@@ -1041,7 +1041,7 @@ instance TermLike Constraint where
       FindInstance _ _ _     -> mempty
       CheckFunDef _ _ _ _    -> mempty
       HasBiggerSort s        -> foldTerm f s
-      HasPTSRule s1 s2       -> foldTerm f (s1, s2)
+      HasPTSRule a s         -> foldTerm f (a, s)
   traverseTermM f c = __IMPOSSIBLE__ -- Not yet implemented
 
 
@@ -1845,9 +1845,16 @@ data Defn = Axiom -- ^ Postulate
             , conData   :: QName       -- ^ Name of datatype or record type.
             , conAbstr  :: IsAbstract
             , conInd    :: Induction   -- ^ Inductive or coinductive?
-            , conComp   :: (CompKit, Maybe [QName]) -- ^ (cubical composition, projections)
-            , conForced :: [IsForced]  -- ^ Which arguments are forced (i.e. determined by the type of the constructor)?
-            , conErased :: [Bool]      -- ^ Which arguments are erased at runtime (computed during compilation to treeless)
+            , conComp   :: CompKit     -- ^ Cubical composition.
+            , conProj   :: Maybe [QName] -- ^ Projections. 'Nothing' if not yet computed.
+            , conForced :: [IsForced]
+              -- ^ Which arguments are forced (i.e. determined by the type of the constructor)?
+              --   Either this list is empty (if the forcing analysis isn't run), or its length is @conArity@.
+            , conErased :: Maybe [Bool]
+              -- ^ Which arguments are erased at runtime (computed during compilation to treeless)?
+              --   'True' means erased, 'False' means retained.
+              --   'Nothing' if no erasure analysis has been performed yet.
+              --   The length of the list is @conArity@.
             }
           | Primitive
             { primAbstr :: IsAbstract
@@ -3099,8 +3106,9 @@ data TypeError
             -- ^ Expected a non-hidden function and found a hidden lambda.
         | WrongHidingInApplication Type
             -- ^ A function is applied to a hidden argument where a non-hidden was expected.
-        | WrongNamedArgument (NamedArg A.Expr)
+        | WrongNamedArgument (NamedArg A.Expr) [RString]
             -- ^ A function is applied to a hidden named argument it does not have.
+            -- The list contains names of possible hidden arguments at this point.
         | WrongIrrelevanceInLambda
             -- ^ Wrong user-given relevance annotation in lambda.
         | WrongQuantityInLambda
@@ -3996,7 +4004,7 @@ instance KillRange Defn where
         killRange14 Function cls comp ct tt covering inv mut isAbs delayed proj flags term extlam with
       Datatype a b c d e f g h i     -> killRange8 Datatype a b c d e f g h i
       Record a b c d e f g h i j k   -> killRange11 Record a b c d e f g h i j k
-      Constructor a b c d e f g h i  -> killRange9 Constructor a b c d e f g h i
+      Constructor a b c d e f g h i j-> killRange10 Constructor a b c d e f g h i j
       Primitive a b c d e            -> killRange5 Primitive a b c d e
 
 instance KillRange MutualId where

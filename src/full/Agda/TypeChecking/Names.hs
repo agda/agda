@@ -1,6 +1,8 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE UndecidableInstances       #-}
 
+{-# OPTIONS_GHC -fwarn-unused-imports #-}
+
 {-| EDSL to construct terms without touching De Bruijn indices.
 
 e.g. if given t, u :: Term, Γ ⊢ t, u : A, we can build "λ f. f t u" like this:
@@ -21,50 +23,24 @@ runNames [] $ do
 -}
 module Agda.TypeChecking.Names where
 
-import Control.Monad
-import Control.Applicative
-
 import qualified Control.Monad.Fail as Fail
 
+import Control.Monad.Except (MonadError)
 import Control.Monad.Identity
 import Control.Monad.Reader
 import Control.Monad.State
-import Control.Monad.Trans
 
-import Data.Char
-import Data.Map (Map)
-import qualified Data.Map as Map
-import Data.Maybe
 import Data.List
-import Data.Traversable (traverse)
-import Data.Monoid (mempty)
 
-import Agda.Interaction.Options
-
-import Agda.Syntax.Position
 import Agda.Syntax.Common hiding (Nat)
 import Agda.Syntax.Internal
 import Agda.Syntax.Concrete.Pretty ()
 
 import Agda.TypeChecking.Monad hiding (getConstInfo, typeOfConst)
-import qualified Agda.TypeChecking.Monad as TCM
 import Agda.TypeChecking.Monad.Builtin
-import Agda.TypeChecking.Reduce.Monad
-import Agda.TypeChecking.Substitute
-import Agda.TypeChecking.Errors
 import Agda.TypeChecking.Pretty ()  -- instances only
 import Agda.TypeChecking.Free
-
-import Agda.Utils.Except
-import Agda.Utils.Monad
-import Agda.Utils.Pretty (pretty)
-import Agda.Utils.Maybe
-
-import Agda.Utils.Impossible
-import Debug.Trace
-
-instance HasBuiltins m => HasBuiltins (NamesT m) where
-  getBuiltinThing b = lift $ getBuiltinThing b
+import Agda.TypeChecking.Substitute
 
 newtype NamesT m a = NamesT { unName :: ReaderT Names m a }
   deriving ( Functor
@@ -84,6 +60,9 @@ newtype NamesT m a = NamesT { unName :: ReaderT Names m a }
            , MonadError e
            , MonadAddContext
            )
+
+instance HasBuiltins m => HasBuiltins (NamesT m) where
+  getBuiltinThing b = lift $ getBuiltinThing b
 
 -- deriving instance MonadState s m => MonadState s (NamesT m)
 

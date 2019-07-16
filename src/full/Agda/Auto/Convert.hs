@@ -12,7 +12,7 @@ import Control.Monad.State
 import Agda.Syntax.Common (Hiding(..), getHiding, Arg)
 import Agda.Syntax.Concrete (exprFieldA)
 import qualified Agda.Syntax.Internal as I
-import Agda.Syntax.Internal (Dom(..),domInfo,unDom)
+import Agda.Syntax.Internal (Dom,Dom'(..),domInfo,unDom)
 import qualified Agda.Syntax.Internal.Pattern as IP
 import qualified Agda.Syntax.Common as Cm
 import qualified Agda.Syntax.Abstract.Name as AN

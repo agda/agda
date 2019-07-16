@@ -1,7 +1,1 @@
 resolver: lts-12.26
-
-# Local packages, usually specified by relative directory name
-packages:
-- '.'
-- 'src/fix-agda-whitespace'
-- 'src/size-solver'

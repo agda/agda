@@ -21,6 +21,7 @@ import Agda.Syntax.Abstract.Name as A
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Generic
+import Agda.Syntax.Internal.MetaVars
 import Agda.Syntax.Position (killRange)
 
 import Agda.TypeChecking.Monad

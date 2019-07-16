@@ -34,6 +34,7 @@ import Agda.Syntax.Position
 import Agda.Syntax.Common hiding (Nat)
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Generic (TermLike(..))
+import Agda.Syntax.Internal.MetaVars
 import Agda.Syntax.Literal
 import Agda.Syntax.Concrete.Pretty ()
 import Agda.Syntax.Fixity
@@ -852,4 +853,3 @@ primitiveFunctions = Map.fromList
   ]
   where
     (|->) = (,)
-
