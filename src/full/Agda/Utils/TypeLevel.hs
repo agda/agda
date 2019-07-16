@@ -1,4 +1,5 @@
 {-# LANGUAGE GADTs                #-}
+{-# LANGUAGE DataKinds            #-}
 {-# LANGUAGE PolyKinds            #-}
 {-# LANGUAGE TypeFamilies         #-}
 {-# LANGUAGE TypeOperators        #-}
