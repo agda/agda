@@ -317,10 +317,8 @@ output item = do
 -- Polytable, http://www.ctan.org/pkg/polytable, is used for code
 -- alignment, similar to lhs2TeX's approach.
 
-nl, beginCode, endCode :: Text
-nl        = "%\n"
-beginCode = "\\begin{code}"
-endCode   = "\\end{code}"
+nl :: Text
+nl = "%\n"
 
 -- | A command that is used when two tokens are put next to each other
 -- in the same column.

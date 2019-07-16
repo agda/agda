@@ -207,9 +207,9 @@ unifyIndices tel flex a us vs = liftTCM $ Bench.billTo [Bench.Typing, Bench.Chec
 ----------------------------------------------------
 
 data Equality = Equal
-  { eqType  :: Dom Type
-  , eqLeft  :: Term
-  , eqRight :: Term
+  { _eqType  :: Dom Type
+  , _eqLeft  :: Term
+  , _eqRight :: Term
   }
 
 instance Reduce Equality where
@@ -238,18 +238,20 @@ data UnifyState = UState
 
 lensVarTel   :: Lens' Telescope UnifyState
 lensVarTel   f s = f (varTel s) <&> \ tel -> s { varTel = tel }
-
-lensFlexVars :: Lens' FlexibleVars UnifyState
-lensFlexVars f s = f (flexVars s) <&> \ flex -> s { flexVars = flex }
+--UNUSED Liang-Ting Chen 2019-07-16
+--lensFlexVars :: Lens' FlexibleVars UnifyState
+--lensFlexVars f s = f (flexVars s) <&> \ flex -> s { flexVars = flex }
 
 lensEqTel    :: Lens' Telescope UnifyState
 lensEqTel    f s = f (eqTel s) <&> \ x -> s { eqTel = x }
 
-lensEqLHS    :: Lens' Args UnifyState
-lensEqLHS    f s = f (eqLHS s) <&> \ x -> s { eqLHS = x }
+--UNUSED Liang-Ting Chen 2019-07-16
+--lensEqLHS    :: Lens' Args UnifyState
+--lensEqLHS    f s = f (eqLHS s) <&> \ x -> s { eqLHS = x }
 
-lensEqRHS    :: Lens' Args UnifyState
-lensEqRHS    f s = f (eqRHS s) <&> \ x -> s { eqRHS = x }
+--UNUSED Liang-Ting Chen 2019-07-16
+--lensEqRHS    :: Lens' Args UnifyState
+--lensEqRHS    f s = f (eqRHS s) <&> \ x -> s { eqRHS = x }
 
 instance Reduce UnifyState where
   reduce' (UState var flex eq lhs rhs) =
@@ -259,8 +261,9 @@ instance Reduce UnifyState where
            <*> reduce' lhs
            <*> reduce' rhs
 
-reduceEqTel :: UnifyState -> TCM UnifyState
-reduceEqTel = lensEqTel reduce
+--UNUSED Liang-Ting Chen 2019-07-16
+--reduceEqTel :: UnifyState -> TCM UnifyState
+--reduceEqTel = lensEqTel reduce
 
 instance Normalise UnifyState where
   normalise' (UState var flex eq lhs rhs) =
@@ -324,21 +327,22 @@ getEqualityUnraised k UState { eqTel = eqs, eqLHS = lhs, eqRHS = rhs } =
           (unArg $ indexWithDefault __IMPOSSIBLE__ lhs k)
           (unArg $ indexWithDefault __IMPOSSIBLE__ rhs k)
 
-getEqInfo :: Int -> UnifyState -> ArgInfo
-getEqInfo k UState { eqTel = eqs } =
-  domInfo $ indexWithDefault __IMPOSSIBLE__ (telToList eqs) k
-
--- | Add a list of equations to the front of the equation telescope
-addEqs :: Telescope -> [Arg Term] -> [Arg Term] -> UnifyState -> UnifyState
-addEqs tel us vs s =
-  s { eqTel = tel `abstract` eqTel s
-    , eqLHS = us ++ eqLHS s
-    , eqRHS = vs ++ eqRHS s
-    }
-  where k = size tel
-
-addEq :: Type -> Arg Term -> Arg Term -> UnifyState -> UnifyState
-addEq a u v = addEqs (ExtendTel (defaultDom a) (Abs underscore EmptyTel)) [u] [v]
+--UNUSED Liang-Ting Chen 2019-07-16
+--getEqInfo :: Int -> UnifyState -> ArgInfo
+--getEqInfo k UState { eqTel = eqs } =
+--  domInfo $ indexWithDefault __IMPOSSIBLE__ (telToList eqs) k
+--
+---- | Add a list of equations to the front of the equation telescope
+--addEqs :: Telescope -> [Arg Term] -> [Arg Term] -> UnifyState -> UnifyState
+--addEqs tel us vs s =
+--  s { eqTel = tel `abstract` eqTel s
+--    , eqLHS = us ++ eqLHS s
+--    , eqRHS = vs ++ eqRHS s
+--    }
+--  where k = size tel
+--
+--addEq :: Type -> Arg Term -> Arg Term -> UnifyState -> UnifyState
+--addEq a u v = addEqs (ExtendTel (defaultDom a) (Abs underscore EmptyTel)) [u] [v]
 
 
 
@@ -391,19 +395,20 @@ solveEq k u s = (,sigma) $ s
     n     = eqCount s
     sigma = liftS (n-k-1) $ consS (dotP u') idS
 
--- | Simplify the k'th equation with the given value (which can depend on other
---   equation variables). Returns Nothing if there is a cycle.
-simplifyEq :: Int -> Term -> UnifyState -> Maybe (UnifyState, PatternSubstitution)
-simplifyEq k u s = case instantiateTelescope (eqTel s) k u of
-  Nothing -> Nothing
-  Just (tel' , sigma , rho) -> Just $ (,sigma) $ UState
-    { varTel   = varTel s
-    , flexVars = flexVars s
-    , eqTel    = tel'
-    , eqLHS    = permute rho $ eqLHS s
-    , eqRHS    = permute rho $ eqRHS s
-    }
-
+--UNUSED Liang-Ting Chen 2019-07-16
+---- | Simplify the k'th equation with the given value (which can depend on other
+----   equation variables). Returns Nothing if there is a cycle.
+--simplifyEq :: Int -> Term -> UnifyState -> Maybe (UnifyState, PatternSubstitution)
+--simplifyEq k u s = case instantiateTelescope (eqTel s) k u of
+--  Nothing -> Nothing
+--  Just (tel' , sigma , rho) -> Just $ (,sigma) $ UState
+--    { varTel   = varTel s
+--    , flexVars = flexVars s
+--    , eqTel    = tel'
+--    , eqLHS    = permute rho $ eqLHS s
+--    , eqRHS    = permute rho $ eqRHS s
+--    }
+--
 ----------------------------------------------------
 -- Unification strategies
 ----------------------------------------------------
@@ -547,10 +552,11 @@ instance PrettyTCM UnifyStep where
 
 type UnifyStrategy = UnifyState -> ListT TCM UnifyStep
 
-leftToRightStrategy :: UnifyStrategy
-leftToRightStrategy s =
-    msum (for [0..n-1] $ \k -> completeStrategyAt k s)
-  where n = size $ eqTel s
+--UNUSED Liang-Ting Chen 2019-07-16
+--leftToRightStrategy :: UnifyStrategy
+--leftToRightStrategy s =
+--    msum (for [0..n-1] $ \k -> completeStrategyAt k s)
+--  where n = size $ eqTel s
 
 rightToLeftStrategy :: UnifyStrategy
 rightToLeftStrategy s =
@@ -789,8 +795,8 @@ skipIrrelevantStrategy k s = do
 ----------------------------------------------------
 
 data UnifyLogEntry
-  = UnificationDone  UnifyState
-  | UnificationStep  UnifyState UnifyStep
+  = UnificationStep  UnifyState UnifyStep
+--  | UnificationDone  UnifyState -- unused?
 
 type UnifyLog = [UnifyLogEntry]
 

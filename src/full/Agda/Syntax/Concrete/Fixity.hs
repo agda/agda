@@ -176,7 +176,7 @@ fixitiesAndPolarities' = foldMap $ \ d -> case d of
   UnquoteDef  {}  -> mempty
   Pragma      {}  -> mempty
 
-data DeclaredNames = DeclaredNames { allNames, postulates, privateNames :: Set Name }
+data DeclaredNames = DeclaredNames { _allNames, _postulates, _privateNames :: Set Name }
 
 instance Semigroup DeclaredNames where
   DeclaredNames xs ps as <> DeclaredNames ys qs bs =

@@ -22,8 +22,9 @@ data PEnv = PEnv { pPrec :: Int
 
 type P = Reader PEnv
 
-withName :: (String -> P a) -> P a
-withName k = withNames 1 $ \[x] -> k x
+--UNUSED Liang-Ting Chen 2019-07-16
+--withName :: (String -> P a) -> P a
+--withName k = withNames 1 $ \[x] -> k x
 
 withNames :: Int -> ([String] -> P a) -> P a
 withNames n k = do
