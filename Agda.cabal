@@ -571,6 +571,7 @@ library
                -- This option must be the first one after disabling the
                -- warnings. See Issue #2094.
                -Wunused-imports
+               -Wunused-top-binds
                -Werror=unrecognised-warning-flags
                -Werror=deprecated-flags
                -Werror=deriving-typeable
@@ -621,7 +622,7 @@ library
   default-language: Haskell2010
 
   default-extensions: ConstraintKinds
-                    --L-T Chen (2019-07-15): 
+                    --L-T Chen (2019-07-15):
                     -- Enabling DataKinds only locally makes the compile time
                     -- slightly shorter, see PR #3920.
                     --, DataKinds
