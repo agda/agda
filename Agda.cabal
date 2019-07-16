@@ -614,7 +614,10 @@ library
   default-language: Haskell2010
 
   default-extensions: ConstraintKinds
---                    , DataKinds
+                    --L-T Chen (2019-07-15): 
+                    -- Enabling DataKinds only locally makes the compile time
+                    -- slightly shorter, see PR #3920.
+                    --, DataKinds
                     , DefaultSignatures
                     , DeriveFoldable
                     , DeriveFunctor
