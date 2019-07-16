@@ -3,7 +3,27 @@
 
 -- Andreas, 2018-10-27, re issue #3327: restructured test cases.
 
+-- Andreas, 2019-07-16, issue #3916:
+-- {-# NO_UNIVERSE_CHECK #-} should also disable the index sort check
+-- for --without-K.
+
+{-# OPTIONS --without-K #-}
+
 module _ where
+
+-- Switch off the index sort check
+
+module BigHetEq where
+
+  {-# NO_UNIVERSE_CHECK #-}
+  data _≅_ {a}{A : Set a} (x : A) : {B : Set a} → B → Set where
+     refl : x ≅ x
+
+module PittsHetEq where
+
+  {-# NO_UNIVERSE_CHECK #-}
+  data _≅_ {a}{A : Set a} (x : A) : {B : Set a} → B → Set a where
+     refl : x ≅ x
 
 -- Pragma is naturally attached to definition.
 

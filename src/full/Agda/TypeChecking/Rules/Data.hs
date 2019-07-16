@@ -122,7 +122,10 @@ checkDataDef i name uc (A.DataDefParams gpars ps) cs =
             let s' = case s of
                   Prop l -> Type l
                   _      -> s
-            whenM withoutKOption $ checkIndexSorts s' ixTel
+            -- Andreas, 2019-07-16, issue #3916:
+            -- NoUniverseCheck should also disable the index sort check!
+            unless (uc == NoUniverseCheck) $
+              whenM withoutKOption $ checkIndexSorts s' ixTel
 
             reportSDoc "tc.data.sort" 20 $ vcat
               [ "checking datatype" <+> prettyTCM name
