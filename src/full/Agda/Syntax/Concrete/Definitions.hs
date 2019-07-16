@@ -65,7 +65,7 @@ import qualified Agda.Syntax.Common as Common
 import Agda.Syntax.Position
 import Agda.Syntax.Fixity
 import Agda.Syntax.Notation
-import Agda.Syntax.Concrete.Pretty ()
+import Agda.Syntax.Concrete.Pretty () --instance only
 import Agda.Syntax.Concrete.Fixity
 
 import Agda.Interaction.Options.Warnings

@@ -30,7 +30,7 @@ import Agda.TypeChecking.Substitute
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.Monad
-import Agda.Utils.Pretty ()
+import Agda.Utils.Pretty () --instance only
 
 import Agda.Utils.Impossible
 

@@ -24,19 +24,14 @@ import qualified Data.Sequence as Seq
 import qualified Data.Set as Set
 import Data.Set (Set)
 import Data.Void
-
 import Data.Data (Data)
 import Data.Monoid (mappend)
 
 import Agda.Syntax.Concrete (FieldAssignment'(..), exprFieldA)--, HoleContent'(..))
 import qualified Agda.Syntax.Concrete as C
-import Agda.Syntax.Concrete.Pretty ()
-
 import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Abstract.Name as A (QNamed)
-
 import qualified Agda.Syntax.Internal as I
-
 import Agda.Syntax.Common
 import Agda.Syntax.Info
 import Agda.Syntax.Literal

@@ -31,7 +31,6 @@ import Agda.Compiler.Treeless.AsPatterns
 import Agda.Compiler.Treeless.Builtin
 import Agda.Compiler.Treeless.Erase
 import Agda.Compiler.Treeless.Identity
-import Agda.Compiler.Treeless.Pretty ()
 import Agda.Compiler.Treeless.Simplify
 import Agda.Compiler.Treeless.Uncase
 import Agda.Compiler.Treeless.Unused

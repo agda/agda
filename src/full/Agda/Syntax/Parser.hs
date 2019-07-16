@@ -50,7 +50,6 @@ import Agda.Utils.Except
 import Agda.Utils.FileName
 import Agda.Utils.IO.UTF8 (readTextFile)
 import qualified Agda.Utils.Maybe.Strict as Strict
-import Agda.Utils.Pretty ()
 
 ------------------------------------------------------------------------
 -- Wrapping parse results

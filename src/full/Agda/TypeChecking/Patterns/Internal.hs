@@ -18,8 +18,6 @@ import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Reduce (reduce)
 import Agda.TypeChecking.Substitute.DeBruijn
 
-import Agda.Utils.Pretty ()
-
 import Agda.Utils.Impossible
 
 -- | Convert a term (from a dot pattern) to a DeBruijn pattern.

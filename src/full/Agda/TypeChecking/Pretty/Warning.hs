@@ -11,7 +11,7 @@ import Agda.TypeChecking.Monad.Base
 import {-# SOURCE #-} Agda.TypeChecking.Errors
 import Agda.TypeChecking.Monad.MetaVars
 import Agda.TypeChecking.Monad.Options
-import Agda.TypeChecking.Positivity ()
+import Agda.TypeChecking.Positivity () --instance only
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Pretty.Call
 

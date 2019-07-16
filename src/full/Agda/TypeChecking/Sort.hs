@@ -25,9 +25,9 @@ import Control.Monad
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 
-import {-# SOURCE #-} Agda.TypeChecking.Constraints ()
+import {-# SOURCE #-} Agda.TypeChecking.Constraints () -- instance only
 import {-# SOURCE #-} Agda.TypeChecking.Conversion
-import {-# SOURCE #-} Agda.TypeChecking.MetaVars ()
+import {-# SOURCE #-} Agda.TypeChecking.MetaVars () -- instance only
 
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Constraints (addConstraint, MonadConstraint)

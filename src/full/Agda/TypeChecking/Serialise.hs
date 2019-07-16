@@ -45,7 +45,7 @@ import qualified Codec.Compression.GZip as G
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 
 import Agda.TypeChecking.Serialise.Base
-import Agda.TypeChecking.Serialise.Instances ()
+import Agda.TypeChecking.Serialise.Instances () --instance only
 
 import Agda.TypeChecking.Monad
 
