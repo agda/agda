@@ -18,7 +18,6 @@ module Agda.Syntax.Concrete.Operators
 
 import Control.Applicative ( Alternative((<|>)))
 import Control.Arrow (second)
---import Control.DeepSeq
 import Control.Monad
 
 import Data.Either (partitionEithers)
@@ -36,7 +35,6 @@ import qualified Data.Traversable as Trav
 import Agda.Syntax.Concrete.Pretty ()
 import Agda.Syntax.Common
 import Agda.Syntax.Concrete hiding (appView)
---import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Concrete.Operators.Parser
 import Agda.Syntax.Concrete.Operators.Parser.Monad hiding (parse)
 import Agda.Syntax.Concrete.Pattern

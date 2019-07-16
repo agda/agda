@@ -42,7 +42,7 @@ import Agda.Utils.Graph.AdjacencyMap.Unidirectional (Edge(..),Graph(..))
 import qualified Agda.Utils.Graph.AdjacencyMap.Unidirectional as Graph
 
 import Agda.Utils.Function
---import Agda.Utils.Monad
+
 import Agda.Utils.Null
 import Agda.Utils.PartialOrd
 import Agda.Utils.Pretty

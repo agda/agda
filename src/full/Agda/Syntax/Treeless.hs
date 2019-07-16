@@ -14,7 +14,6 @@ module Agda.Syntax.Treeless
 
 import Control.Arrow (first, second)
 
---import Data.Map (Map)
 import Data.Data (Data)
 import Data.Word
 

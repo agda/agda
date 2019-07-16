@@ -15,7 +15,7 @@ import Agda.Syntax.Fixity
 import Agda.TypeChecking.Serialise.Base
 import Agda.TypeChecking.Serialise.Instances.Common ()
 
---import Agda.Utils.Except
+
 
 import Agda.Utils.Impossible
 

@@ -2,8 +2,8 @@
 module Agda.TypeChecking.Monad.Constraints where
 
 import Control.Arrow ((&&&))
---import Control.Monad.State
---import Control.Monad.Reader
+
+
 
 import qualified Data.Foldable as Fold
 import qualified Data.List as List

@@ -51,7 +51,7 @@ import Data.Array
 import Data.Function
 import qualified Data.List as List
 import Data.Maybe
---import Data.Monoid
+
 
 import Data.Foldable (Foldable)
 import qualified Data.Foldable as Fold
@@ -62,10 +62,10 @@ import qualified Text.PrettyPrint.Boxes as Boxes
 import Agda.Termination.Semiring (HasZero(..), Semiring)
 import qualified Agda.Termination.Semiring as Semiring
 
---import Agda.Utils.Functor
+
 import Agda.Utils.List
 import Agda.Utils.Maybe
---import Agda.Utils.Monad
+
 import Agda.Utils.PartialOrd
 import Agda.Utils.Pretty hiding (isEmpty)
 import Agda.Utils.Tuple

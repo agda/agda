@@ -2,7 +2,7 @@
 module Agda.TypeChecking.Monad.Debug where
 
 import GHC.Stack (HasCallStack, freezeCallStack, callStack)
---import Control.Monad.IO.Class (MonadIO, liftIO)
+
 import Control.Monad.Reader
 import Control.Monad.State
 import Control.Monad.Trans.Maybe
@@ -10,8 +10,8 @@ import Control.Monad.Writer
 
 import Data.Maybe
 import Data.Monoid ( Monoid)
---import Data.Semigroup ( Semigroup, (<>), Any(..) )
---import Data.Traversable
+
+
 
 import {-# SOURCE #-} Agda.TypeChecking.Errors
 import Agda.TypeChecking.Monad.Base
@@ -23,7 +23,7 @@ import Agda.Utils.Except
 import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.ListT
---import Agda.Utils.Maybe
+
 import Agda.Utils.Monad
 import Agda.Utils.Pretty
 import Agda.Utils.Trie (Trie)

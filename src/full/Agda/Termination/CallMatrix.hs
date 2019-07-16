@@ -24,7 +24,7 @@ import Agda.Termination.Semiring (HasZero(..))
 
 import Agda.Utils.Favorites (Favorites)
 import qualified Agda.Utils.Favorites as Fav
---import Agda.Utils.Monad
+
 import Agda.Utils.Null
 import Agda.Utils.PartialOrd
 import Agda.Utils.Pretty

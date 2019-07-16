@@ -37,7 +37,6 @@ module Agda.Interaction.Highlighting.Precise
   , mergeC
   ) where
 
---import Control.Applicative ((<$>), (<*>))
 import Control.Arrow (second)
 import Control.Monad
 

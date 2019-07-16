@@ -31,7 +31,6 @@ module Agda.Interaction.Library.Parse
   , LibWarning'(..)
   ) where
 
---import Control.Exception
 import Control.Monad
 import Control.Monad.Writer
 import Data.Char

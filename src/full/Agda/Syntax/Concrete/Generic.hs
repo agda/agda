@@ -7,9 +7,6 @@
 module Agda.Syntax.Concrete.Generic where
 
 import Data.Bifunctor
---import Data.Traversable
---import Data.Monoid
---import Data.Foldable
 
 import Agda.Syntax.Common
 import Agda.Syntax.Concrete

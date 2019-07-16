@@ -31,8 +31,6 @@ module Agda.Interaction.Library
   , findLib'
   ) where
 
---import Control.Arrow ( (***) )
---import Control.Exception
 import Control.Monad.Writer
 import Data.Char
 import Data.Data ( Data )
@@ -40,7 +38,6 @@ import Data.Either
 import Data.Bifunctor ( first )
 import Data.Function
 import qualified Data.List as List
---import Data.Maybe
 import System.Directory
 import System.FilePath
 import System.Environment

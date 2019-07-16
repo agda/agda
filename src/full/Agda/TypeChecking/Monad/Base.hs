@@ -37,7 +37,7 @@ import Data.Foldable (Foldable)
 import Data.String
 import Data.Text.Lazy (Text)
 import qualified Data.Text.Lazy as T
---import Data.Traversable
+
 import Data.IORef
 
 import qualified System.Console.Haskeline as Haskeline

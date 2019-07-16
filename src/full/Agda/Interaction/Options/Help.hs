@@ -7,12 +7,7 @@ module Agda.Interaction.Options.Help
        , allHelpTopics
        ) where
 
---import Data.Tuple ( swap )
---import Data.Maybe ( fromMaybe )
-
 import Agda.Interaction.Options.Warnings
-
---import Agda.Utils.Impossible
 
 -- | Interface to the @help@ function
 data Help

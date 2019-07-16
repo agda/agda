@@ -35,10 +35,8 @@ import Control.Exception (displayException)
 import Data.Int
 
 import Data.Data (Data)
---import qualified Data.Text.Lazy as T
 
 import Control.Monad.State
---import Control.Monad.Except
 
 import Agda.Interaction.Options.Warnings
 

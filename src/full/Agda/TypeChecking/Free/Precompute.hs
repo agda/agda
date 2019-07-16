@@ -11,7 +11,7 @@ import Data.Traversable (Traversable, traverse)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
---import Agda.Utils.Functor
+
 
 
 type FV = Writer IntSet

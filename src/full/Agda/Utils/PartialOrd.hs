@@ -1,7 +1,7 @@
 {-# LANGUAGE CPP #-}
 module Agda.Utils.PartialOrd where
 
---import Data.Functor
+
 import Data.Maybe
 #if __GLASGOW_HASKELL__ < 804
 import Data.Semigroup

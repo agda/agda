@@ -19,7 +19,6 @@ module Agda.Interaction.FindFile
 
 import Prelude hiding (null)
 
---import Control.Applicative hiding (empty)
 import Control.Monad
 import Control.Monad.Trans
 import qualified Data.List as List

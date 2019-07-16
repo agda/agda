@@ -23,7 +23,7 @@ import Agda.Termination.SparseMatrix
 
 import Agda.Utils.Maybe
 
---import Data.Monoid
+
 
 -- | TODO: This comment seems to be partly out of date.
 --

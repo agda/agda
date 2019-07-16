@@ -13,7 +13,7 @@ import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Debug
 
 import Agda.Utils.Function
---import Agda.Utils.Maybe
+
 import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Monad
 import Agda.Utils.Null

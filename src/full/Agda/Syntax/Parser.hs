@@ -28,12 +28,9 @@ import Control.Arrow (second)
 import Control.Exception
 import Control.Monad (forM_)
 import Control.Monad.State
---import Control.Monad.Reader
---import Control.Monad.Writer hiding ((<>))
 
 import qualified Data.List as List
 import Data.Text.Lazy (Text)
---import qualified Data.Text.Lazy as T
 
 import Agda.Syntax.Common
 import Agda.Syntax.Position

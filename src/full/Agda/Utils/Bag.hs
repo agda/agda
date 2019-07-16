@@ -5,17 +5,17 @@ module Agda.Utils.Bag where
 
 import Prelude hiding (null, map)
 
---import Control.Applicative hiding (empty)
+
 import Text.Show.Functions ()
 
 import Data.Foldable (Foldable(foldMap))
---import Data.Functor.Identity
+
 import qualified Data.List as List
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Semigroup
---import qualified Data.Set as Set
---import Data.Traversable
+
+
 
 import Agda.Utils.Functor
 

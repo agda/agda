@@ -23,13 +23,11 @@ import Data.Sequence (Seq, (<|), (><))
 import qualified Data.Sequence as Seq
 import qualified Data.Set as Set
 import Data.Set (Set)
---import Data.Traversable
 import Data.Void
 
 import Data.Data (Data)
 import Data.Monoid (mappend)
 
---import Agda.Syntax.Concrete.Name (NumHoles(..))
 import Agda.Syntax.Concrete (FieldAssignment'(..), exprFieldA)--, HoleContent'(..))
 import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Concrete.Pretty ()
@@ -41,17 +39,14 @@ import qualified Agda.Syntax.Internal as I
 
 import Agda.Syntax.Common
 import Agda.Syntax.Info
---import Agda.Syntax.Fixity ( Fixity' )
 import Agda.Syntax.Literal
 import Agda.Syntax.Position
 import Agda.Syntax.Scope.Base
 
 import Agda.TypeChecking.Positivity.Occurrence
 
---import Agda.Utils.Functor
 import Agda.Utils.Geniplate
 import Agda.Utils.Lens
---import Agda.Utils.NonemptyList
 import Agda.Utils.Pretty
 
 import Agda.Utils.Impossible

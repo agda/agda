@@ -35,7 +35,7 @@ import Agda.TypeChecking.Reduce.Monad as Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Level
---import Agda.TypeChecking.Quote (QuotingKit, quoteTermWithKit, quoteTypeWithKit, quoteClauseWithKit, quotingKit)
+
 import Agda.TypeChecking.Quote (quoteTermWithKit, quoteTypeWithKit, quotingKit)
 import Agda.TypeChecking.Pretty ()  -- instances only
 import Agda.TypeChecking.Primitive.Base

@@ -5,7 +5,6 @@ module Agda.Auto.NarrowingSearch where
 import Data.IORef hiding (writeIORef, modifyIORef)
 import qualified Data.IORef as NoUndo (writeIORef, modifyIORef)
 import Control.Monad.State
---import Control.Applicative hiding (Const(..), getConst)
 
 import Agda.Utils.Impossible
 import Agda.Utils.Empty
