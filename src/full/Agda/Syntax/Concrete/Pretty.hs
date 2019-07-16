@@ -163,6 +163,10 @@ prettyQuantity :: LensQuantity a => a -> Doc -> Doc
 prettyQuantity a d =
   if render d == "_" then d else pretty (getQuantity a) <+> d
 
+prettyCohesion :: LensCohesion a => a -> Doc -> Doc
+prettyCohesion a d =
+  if render d == "_" then d else pretty (getCohesion a) <+> d
+
 prettyTactic :: BoundName -> Doc -> Doc
 prettyTactic BName{ bnameTactic = Nothing } d = d
 prettyTactic BName{ bnameTactic = Just t }  d = "@" <> (parens ("tactic" <+> pretty t) <+> d)
@@ -205,6 +209,11 @@ instance Pretty Quantity where
     Quantity1 o -> ifNull (pretty o) "@1" id
     Quantityω o -> pretty o
 
+instance Pretty Cohesion where
+  pretty Flat   = "@♭"
+  pretty Continuous = mempty
+  pretty Squash  = "@⊤"
+
 instance Pretty (OpApp Expr) where
   pretty (Ordinary e) = pretty e
   pretty (SyntaxBindingLambda r bs e) = pretty (Lam r bs e)
@@ -244,7 +253,7 @@ instance Pretty Expr where
             AbsurdLam _ h -> lambda <+> absurd h
             ExtendedLam _ pes -> lambda <+> bracesAndSemicolons (map pretty pes)
             Fun _ e1 e2 ->
-                sep [ prettyQuantity e1 (pretty e1) <+> arrow
+                sep [ prettyCohesion e1 (prettyQuantity e1 (pretty e1)) <+> arrow
                     , pretty e2
                     ]
             Pi tel e ->
@@ -333,7 +342,7 @@ instance Pretty NamedBinding where
              | otherwise   -> pretty (namedArg x)
     where
       xb = namedArg x
-      prH | withH     = prettyRelevance x . prettyHiding x mparens . prettyQuantity x . prettyTactic xb
+      prH | withH     = prettyRelevance x . prettyHiding x mparens . prettyCohesion x . prettyQuantity x . prettyTactic xb
           | otherwise = id
       -- Parentheses are needed when an attribute @... is present
       mparens
@@ -349,7 +358,7 @@ instance Pretty TypedBinding where
     pretty (TBind _ xs (Underscore _ Nothing)) =
       fsep (map (pretty . NamedBinding True) xs)
     pretty (TBind _ xs e) = fsep
-      [ prettyRelevance y $ prettyHiding y parens $ prettyQuantity y $ prettyTactic (namedArg y) $
+      [ prettyRelevance y $ prettyHiding y parens $ prettyCohesion y $ prettyQuantity y $ prettyTactic (namedArg y) $
         sep [ fsep (map (pretty . NamedBinding False) ys)
             , ":" <+> pretty e ]
       | ys@(y : _) <- groupBinds xs ]
@@ -435,13 +444,13 @@ instance Pretty Declaration where
     pretty d =
         case d of
             TypeSig i x e ->
-                sep [ prettyRelevance i $ prettyQuantity i $ pretty x <+> ":"
+                sep [ prettyRelevance i $ prettyCohesion i $ prettyQuantity i $ pretty x <+> ":"
                     , nest 2 $ pretty e
                     ]
             Field inst x (Arg i e) ->
                 sep [ "field"
                     , nest 2 $ mkInst inst $ mkOverlap i $
-                      prettyRelevance i $ prettyHiding i id $ prettyQuantity i $
+                      prettyRelevance i $ prettyHiding i id $ prettyCohesion i $ prettyQuantity i $
                         pretty $ TypeSig (setRelevance Relevant i) x e
                     ]
                 where

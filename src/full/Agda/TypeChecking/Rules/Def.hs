@@ -291,6 +291,8 @@ checkFunDefS t ai delayed extlam with i name withSub cs = do
               , nest 2 $ sep $ map (text . show . QNamed name) cs
               ]
 
+        -- Needed to calculate the proper fullType below.
+        applyCohesionToContext ai $ do
 
         -- Systems have their own coverage and "coherence" check, we
         -- also add an absurd clause for the cases not needed.

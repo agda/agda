@@ -1169,6 +1169,8 @@ checkLHS mf = updateModality checkLHS_ where
       --
       -- Thus, no checking of (usableQuantity info) here.
 
+      unless (usableCohesion info) $
+        addContext delta1 $ softTypeError $ SplitOnUnusableCohesion dom
 
       -- check that a is indeed the type of lit (otherwise fail softly)
       -- if not, fail softly since it could be instantiated by a later split.
@@ -1216,6 +1218,9 @@ checkLHS mf = updateModality checkLHS_ where
       -- if there is a single constructor (checked in Coverage).
       --
       -- Thus, no checking of (usableQuantity info) here.
+
+      unless (usableCohesion info) $
+        addContext delta1 $ softTypeError $ SplitOnUnusableCohesion dom
 
       -- We should be at a data/record type
       (dr, d, pars, ixs) <- addContext delta1 $ isDataOrRecordType a

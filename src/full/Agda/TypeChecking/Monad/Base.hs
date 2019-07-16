@@ -2576,7 +2576,7 @@ initEnv = TCEnv { envContext             = []
   -- The initial mode should be 'ConcreteMode', ensuring you
   -- can only look into abstract things in an abstract
   -- definition (which sets 'AbstractMode').
-                , envModality               = Modality Relevant $ Quantity1 mempty
+                , envModality               = Modality Relevant (Quantity1 mempty) mempty
                 , envDisplayFormsEnabled    = True
                 , envRange                  = noRange
                 , envHighlightingRange      = noRange
@@ -2608,8 +2608,9 @@ initEnv = TCEnv { envContext             = []
                 }
 
 instance LensModality TCEnv where
-  getModality = envModality
-  mapModality f e = e { envModality = f $ envModality e }
+  -- Cohesion shouldn't have an environment component.
+  getModality = setCohesion defaultCohesion . envModality
+  mapModality f e = e { envModality = setCohesion defaultCohesion $ f $ envModality e }
 
 instance LensRelevance TCEnv where
 instance LensQuantity  TCEnv where
@@ -3143,12 +3144,14 @@ data TypeError
             -- ^ This term, a function type constructor, lives in
             --   @SizeUniv@, which is not allowed.
         | SplitOnIrrelevant (Dom Type)
+        | SplitOnUnusableCohesion (Dom Type)
         -- UNUSED: -- | SplitOnErased (Dom Type)
         | SplitOnNonVariable Term Type
         | DefinitionIsIrrelevant QName
         | DefinitionIsErased QName
         | VariableIsIrrelevant Name
         | VariableIsErased Name
+        | VariableIsOfUnusableCohesion Name Cohesion
 --        | UnequalLevel Comparison Term Term  -- UNUSED
         | UnequalTerms Comparison Term Term Type
         | UnequalTypes Comparison Type Type

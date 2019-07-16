@@ -1244,6 +1244,7 @@ inverseSubst args = map (mapFst unArg) <$> loop (zip args terms)
                        , argInfoModality = Modality
                          { modRelevance  = max (getRelevance info) (getRelevance info')
                          , modQuantity   = max (getQuantity  info) (getQuantity  info')
+                         , modCohesion   = max (getCohesion  info) (getCohesion  info')
                          }
                        , argInfoOrigin   = min (getOrigin info) (getOrigin info')
                        , argInfoFreeVariables = unknownFreeVariables

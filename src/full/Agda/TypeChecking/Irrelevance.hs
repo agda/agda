@@ -200,6 +200,20 @@ applyQuantityToContextOnly q = localTC
 applyQuantityToJudgementOnly :: (MonadTCEnv tcm) => Quantity -> tcm a -> tcm a
 applyQuantityToJudgementOnly = localTC . over eQuantity . composeQuantity
 
+-- | Apply inverse composition with the given cohesion to the typing context.
+applyCohesionToContext :: (MonadTCEnv tcm, LensCohesion m) => m -> tcm a -> tcm a
+applyCohesionToContext thing =
+  case getCohesion thing of
+    m | m == mempty -> id
+      | otherwise   -> applyCohesionToContextOnly   m
+                       -- Cohesion does not apply to the judgment.
+
+applyCohesionToContextOnly :: (MonadTCEnv tcm) => Cohesion -> tcm a -> tcm a
+applyCohesionToContextOnly q = localTC
+  $ over eContext     (map $ inverseApplyCohesion q)
+  . over eLetBindings (Map.map . fmap . second $ inverseApplyCohesion q)
+
+
 -- | (Conditionally) wake up irrelevant variables and make them relevant.
 --   For instance,
 --   in an irrelevant function argument otherwise irrelevant variables
@@ -239,6 +253,7 @@ applyModalityToContextFunBody thing cont = do
     ifM (optIrrelevantProjections <$> pragmaOptions)
       {-then-} (applyModalityToContext m cont)                -- enable global irr. defs always
       {-else-} (applyRelevanceToContextFunBody (getRelevance m)
+               $ applyCohesionToContext (getCohesion m)
                $ applyQuantityToContext (getQuantity m) cont) -- enable local irr. defs only when option
   where
     m = getModality thing

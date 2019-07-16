@@ -576,8 +576,13 @@ checkAxiom' gentel funSig i info0 mp x e = whenAbstractFreezeMetasAfter i $ do
   q   <- asksTC getQuantity <&> \case
     q@Quantity0{} -> q
     _ -> getQuantity info0
-  let mod  = Modality rel q
+
+  -- Andrea, 2019-07-16 Cohesion is purely based on left-division, it
+  -- does not take envModality into account.
+  let c = getCohesion info0
+  let mod  = Modality rel q c
   let info = setModality mod info0
+  applyCohesionToContext c $ do
   (genParams, npars, t) <- workOnTypes $ case gentel of
         Nothing     -> ([], 0,) <$> isType_ e
         Just gentel ->

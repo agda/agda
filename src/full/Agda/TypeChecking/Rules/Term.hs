@@ -281,7 +281,12 @@ checkTypedBindings lamOrPi (A.TBind r tac xs' e) ret = do
     -- non-strictly in the codomain type
     -- 2011-10-04 if flag --experimental-irrelevance is set
     experimental <- optExperimentalIrrelevance <$> pragmaOptions
-    t <- modEnv lamOrPi $ isType_ e
+
+    let cs = map getCohesion xs'
+        c = fromMaybe __IMPOSSIBLE__ $ listToMaybe cs
+    unless (all (c ==) cs) $ __IMPOSSIBLE__
+
+    t <- applyCohesionToContext c $ modEnv lamOrPi $ isType_ e
 
     -- Jesper, 2019-02-12, Issue #3534: warn if the type of an
     -- instance argument does not have the right shape

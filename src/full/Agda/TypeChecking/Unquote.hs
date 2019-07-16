@@ -168,9 +168,9 @@ pickName a =
               isAlpha c -> [toLower c]
     _        -> "_"
 
--- TODO: reflect Quantity
+-- TODO: reflect Quantity, Cohesion
 instance Unquote Modality where
-  unquote t = (`Modality` defaultQuantity) <$> unquote t
+  unquote t = (\ r -> Modality r defaultQuantity defaultCohesion) <$> unquote t
 
 instance Unquote ArgInfo where
   unquote t = do

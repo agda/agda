@@ -26,29 +26,33 @@ data Attribute
   = RelevanceAttribute Relevance
   | QuantityAttribute  Quantity
   | TacticAttribute Expr
+  | CohesionAttribute Cohesion
   deriving (Show)
 
 instance HasRange Attribute where
   getRange = \case
     RelevanceAttribute r -> getRange r
     QuantityAttribute q  -> getRange q
+    CohesionAttribute c  -> getRange c
     TacticAttribute e    -> getRange e
 
 instance SetRange Attribute where
   setRange r = \case
     RelevanceAttribute a -> RelevanceAttribute $ setRange r a
     QuantityAttribute q  -> QuantityAttribute  $ setRange r q
+    CohesionAttribute c  -> CohesionAttribute  $ setRange r c
     TacticAttribute e    -> TacticAttribute e  -- -- $ setRange r e -- SetRange Expr not yet implemented
 
 instance KillRange Attribute where
   killRange = \case
     RelevanceAttribute a -> RelevanceAttribute $ killRange a
     QuantityAttribute q  -> QuantityAttribute  $ killRange q
+    CohesionAttribute c  -> CohesionAttribute  $ killRange c
     TacticAttribute e    -> TacticAttribute    $ killRange e
 
 -- | (Conjunctive constraint.)
 
-type LensAttribute a = (LensRelevance a, LensQuantity a)
+type LensAttribute a = (LensRelevance a, LensQuantity a, LensCohesion a)
 
 -- | Modifiers for 'Relevance'.
 
@@ -78,12 +82,19 @@ quantityAttributeTable =
 --   -- , map (, Quantity01) [ "01", "affine" ]
 --   ]
 
+cohesionAttributeTable :: [(String, Cohesion)]
+cohesionAttributeTable =
+  [ ("♭"    , Flat)
+  , ("flat" , Flat)
+  ]
+
 -- | Concrete syntax for all attributes.
 
 attributesMap :: Map String Attribute
 attributesMap = Map.fromList $ concat
   [ map (second RelevanceAttribute) relevanceAttributeTable
   , map (second QuantityAttribute)  quantityAttributeTable
+  , map (second CohesionAttribute)  cohesionAttributeTable
   ]
 
 -- | Parsing a string into an attribute.
@@ -103,6 +114,7 @@ setAttribute :: (LensAttribute a) => Attribute -> a -> a
 setAttribute = \case
   RelevanceAttribute r -> setRelevance r
   QuantityAttribute  q -> setQuantity  q
+  CohesionAttribute  c -> setCohesion  c
   TacticAttribute t    -> id
 
 
@@ -131,12 +143,20 @@ setPristineQuantity q a
   | noUserQuantity a = Just $ setQuantity q a
   | otherwise = Nothing
 
+-- | Setting 'Cohesion' if unset.
+
+setPristineCohesion :: (LensCohesion a) => Cohesion -> a -> Maybe a
+setPristineCohesion c a
+  | getCohesion a == defaultCohesion = Just $ setCohesion c a
+  | otherwise = Nothing
+
 -- | Setting an unset attribute (to e.g. an 'Arg').
 
 setPristineAttribute :: (LensAttribute a) => Attribute -> a -> Maybe a
 setPristineAttribute = \case
   RelevanceAttribute r -> setPristineRelevance r
   QuantityAttribute  q -> setPristineQuantity  q
+  CohesionAttribute  c -> setPristineCohesion  c
   TacticAttribute{}    -> Just
 
 -- | Setting a list of unset attributes.

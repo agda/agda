@@ -223,12 +223,14 @@ errorString err = case err of
   TooManyFields{}                          -> "TooManyFields"
   TooManyPolarities{}                      -> "TooManyPolarities"
   SplitOnIrrelevant{}                      -> "SplitOnIrrelevant"
+  SplitOnUnusableCohesion{}                -> "SplitOnUnusableCohesion"
   -- UNUSED: -- SplitOnErased{}                          -> "SplitOnErased"
   SplitOnNonVariable{}                     -> "SplitOnNonVariable"
   DefinitionIsIrrelevant{}                 -> "DefinitionIsIrrelevant"
   DefinitionIsErased{}                     -> "DefinitionIsErased"
   VariableIsIrrelevant{}                   -> "VariableIsIrrelevant"
   VariableIsErased{}                       -> "VariableIsErased"
+  VariableIsOfUnusableCohesion{}           -> "VariableIsOfUnusableCohesion"
   UnequalBecauseOfUniverseConflict{}       -> "UnequalBecauseOfUniverseConflict"
   UnequalRelevance{}                       -> "UnequalRelevance"
   UnequalHiding{}                          -> "UnequalHiding"
@@ -507,6 +509,10 @@ instance PrettyTCM TypeError where
       pwords "Cannot pattern match against" ++ [text $ verbalize $ getRelevance t] ++
       pwords "argument of type" ++ [prettyTCM $ unDom t]
 
+    SplitOnUnusableCohesion t -> fsep $
+      pwords "Cannot pattern match against" ++ [text $ verbalize $ getCohesion t] ++
+      pwords "argument of type" ++ [prettyTCM $ unDom t]
+
     -- UNUSED:
     -- SplitOnErased t -> fsep $
     --   pwords "Cannot pattern match against" ++ [text $ verbalize $ getQuantity t] ++
@@ -527,6 +533,9 @@ instance PrettyTCM TypeError where
 
     VariableIsErased x -> fsep $
       "Variable" : prettyTCM (nameConcrete x) : pwords "is declared erased, so it cannot be used here"
+
+    VariableIsOfUnusableCohesion x c -> fsep
+      ["Variable", prettyTCM (nameConcrete x), "is declared", text (show c), "so it cannot be used here"]
 
     UnequalBecauseOfUniverseConflict cmp s t -> fsep $
       [prettyTCM s, notCmp cmp, prettyTCM t, "because this would result in an invalid use of Setω" ]
@@ -1301,6 +1310,13 @@ instance Verbalize Quantity where
     Quantity0{} -> "erased"
     Quantity1{} -> "linear"
     Quantityω{} -> "unrestricted"
+
+instance Verbalize Cohesion where
+  verbalize r =
+    case r of
+      Flat       -> "flat"
+      Continuous -> "continuous"
+      Squash     -> "squashed"
 
 -- | Indefinite article.
 data Indefinite a = Indefinite a
