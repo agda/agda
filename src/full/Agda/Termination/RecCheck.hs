@@ -17,11 +17,8 @@ module Agda.Termination.RecCheck
     )
  where
 
-import Control.Applicative
-
 import Data.Graph
 import Data.List (nub)
-import qualified Data.Map as Map
 import qualified Data.IntMap as IntMap
 
 import Agda.Syntax.Internal

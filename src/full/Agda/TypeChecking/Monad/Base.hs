@@ -31,13 +31,13 @@ import Data.Set (Set)
 import qualified Data.Set as Set -- hiding (singleton, null, empty)
 import Data.HashMap.Strict (HashMap)
 import qualified Data.HashMap.Strict as HMap
-import Data.Semigroup ( Semigroup, (<>), Any(..) )
+import Data.Semigroup ( Semigroup, (<>)) --, Any(..) )
 import Data.Data (Data, toConstr)
 import Data.Foldable (Foldable)
 import Data.String
 import Data.Text.Lazy (Text)
 import qualified Data.Text.Lazy as T
-import Data.Traversable
+
 import Data.IORef
 
 import qualified System.Console.Haskeline as Haskeline
@@ -52,10 +52,8 @@ import Agda.Syntax.Concrete.Definitions
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract (AllNames)
 import Agda.Syntax.Internal as I
-import Agda.Syntax.Internal.Pattern ()
 import Agda.Syntax.Internal.Generic (TermLike(..))
-import Agda.Syntax.Literal
-import Agda.Syntax.Parser (PM(..), ParseWarning, runPMIO)
+import Agda.Syntax.Parser (ParseWarning)
 import Agda.Syntax.Parser.Monad (parseWarningName)
 import Agda.Syntax.Treeless (Compiled)
 import Agda.Syntax.Fixity
@@ -68,8 +66,6 @@ import Agda.TypeChecking.Coverage.SplitTree
 import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.Free.Lazy (Free(freeVars'), underBinder', underBinder)
 
-import Agda.Termination.CutOff
-
 -- Args, defined in Agda.Syntax.Treeless and exported from Agda.Compiler.Backend
 -- conflicts with Args, defined in Agda.Syntax.Internal and also imported here.
 -- This only matters when interpreted in ghci, which sees all of the module's
@@ -81,7 +77,7 @@ import {-# SOURCE #-} Agda.Compiler.Backend hiding (Args)
 import Agda.Interaction.Options
 import Agda.Interaction.Options.Warnings
 import {-# SOURCE #-} Agda.Interaction.Response
-  (InteractionOutputCallback, defaultInteractionOutputCallback, Response(..))
+  (InteractionOutputCallback, defaultInteractionOutputCallback)
 import Agda.Interaction.Highlighting.Precise
   (CompressedFile, HighlightingInfo)
 import Agda.Interaction.Library
@@ -91,12 +87,10 @@ import Agda.Utils.Except
   ( Error(strMsg)
   , ExceptT
   , MonadError(catchError, throwError)
-  , runExceptT
   , mapExceptT
   )
 import Agda.Utils.FileName
 import Agda.Utils.Functor
-import Agda.Utils.Function
 import Agda.Utils.Hash
 import Agda.Utils.Lens
 import Agda.Utils.List

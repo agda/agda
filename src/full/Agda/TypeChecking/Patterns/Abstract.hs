@@ -6,7 +6,6 @@
 module Agda.TypeChecking.Patterns.Abstract where
 
 import qualified Data.List as List
-import Data.Traversable hiding (mapM, sequence)
 import Data.Void
 
 import qualified Agda.Syntax.Abstract as A
@@ -21,8 +20,6 @@ import Agda.Syntax.Position
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
-
-import Agda.Utils.Functor
 
 import Agda.Utils.Impossible
 

@@ -19,13 +19,12 @@ module Agda.TypeChecking.Substitute
   , Substitution'(..), Substitution
   ) where
 
-import Control.Arrow (first, second)
+import Control.Arrow (second)
 import Data.Coerce
 import Data.Function
 import qualified Data.List as List
 import Data.Map (Map)
 import Data.Maybe
-import Data.Monoid hiding ((<>))
 import Data.HashMap.Strict (HashMap)
 
 import Debug.Trace (trace)

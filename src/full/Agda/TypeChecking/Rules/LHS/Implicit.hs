@@ -3,26 +3,18 @@ module Agda.TypeChecking.Rules.LHS.Implicit where
 
 import Prelude hiding (null)
 
-import Control.Applicative hiding (empty)
-import Control.Monad (forM)
-
 import Agda.Syntax.Common
 import Agda.Syntax.Position
 import Agda.Syntax.Info
 import Agda.Syntax.Internal as I
-import Agda.Syntax.Abstract (IsProjP(..))
 import qualified Agda.Syntax.Abstract as A
-import Agda.Syntax.Translation.InternalToAbstract (reify)
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Implicit
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Pretty
-import Agda.TypeChecking.Records
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Telescope
-
-import Agda.TypeChecking.Rules.LHS.Problem
 
 import Agda.Utils.Function
 import Agda.Utils.Functor

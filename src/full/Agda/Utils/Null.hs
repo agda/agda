@@ -13,7 +13,7 @@ import Control.Monad.State
 
 import Data.ByteString.Char8 (ByteString)
 import qualified Data.ByteString.Char8 as ByteString
-import Data.Function
+
 import Data.HashMap.Strict (HashMap)
 import qualified Data.HashMap.Strict as HashMap
 import Data.HashSet (HashSet)
@@ -25,13 +25,13 @@ import qualified Data.IntSet as IntSet
 import qualified Data.List as List
 import Data.Map (Map)
 import qualified Data.Map as Map
-import Data.Monoid
+
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
 import Data.Set (Set)
 import qualified Data.Set as Set
 
-import Text.PrettyPrint (Doc, render)
+import Text.PrettyPrint (Doc)
 
 import Agda.Utils.Bag (Bag)
 import qualified Agda.Utils.Bag as Bag

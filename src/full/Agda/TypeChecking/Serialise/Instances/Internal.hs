@@ -3,8 +3,6 @@
 
 module Agda.TypeChecking.Serialise.Instances.Internal where
 
-import Control.Monad.State.Strict
-
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Position as P
 

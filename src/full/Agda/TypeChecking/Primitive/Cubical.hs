@@ -5,7 +5,6 @@ module Agda.TypeChecking.Primitive.Cubical where
 import Prelude hiding (null, (!!))
 
 import Control.Monad
-import Control.Monad.Reader
 import Control.Monad.Trans ( lift )
 
 import Data.Either ( partitionEithers )
@@ -17,8 +16,6 @@ import qualified Data.Set as Set
 import Agda.Interaction.Options ( optCubical )
 
 import Agda.Syntax.Common
-import Agda.Syntax.Position
-import Agda.Syntax.Literal
 import Agda.Syntax.Internal
 
 import Agda.TypeChecking.Names

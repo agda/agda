@@ -9,19 +9,15 @@ module Agda.TypeChecking.Empty
 import Control.Monad.Except
 
 import Data.Semigroup
-import Data.Monoid
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
-import Agda.Syntax.Internal.Pattern
 import Agda.Syntax.Position
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Coverage
 import Agda.TypeChecking.Coverage.Match ( fromSplitPatterns )
-import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Records
-import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 

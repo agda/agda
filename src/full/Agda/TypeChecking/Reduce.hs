@@ -6,13 +6,10 @@ module Agda.TypeChecking.Reduce where
 import Prelude hiding (mapM)
 import Control.Monad.Reader hiding (mapM)
 
-import qualified Data.List as List
 import Data.List ((\\))
 import Data.Maybe
 import Data.Map (Map)
-import Data.Monoid
 import Data.Traversable
-import Data.Hashable
 import Data.HashMap.Strict (HashMap)
 
 import Agda.Interaction.Options
@@ -21,7 +18,6 @@ import Agda.Syntax.Position
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.MetaVars
-import Agda.Syntax.Internal.Pattern
 import Agda.Syntax.Scope.Base (Scope)
 import Agda.Syntax.Literal
 
@@ -44,7 +40,6 @@ import {-# SOURCE #-} Agda.TypeChecking.Pretty
 import {-# SOURCE #-} Agda.TypeChecking.Rewriting
 import {-# SOURCE #-} Agda.TypeChecking.Reduce.Fast
 
-import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.Maybe

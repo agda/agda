@@ -7,9 +7,7 @@ import Control.Monad.Trans.Maybe
 import Control.Monad.Writer
 
 import qualified Data.List as List
-import Data.Map (Map)
 import qualified Data.Map as Map
-import Data.Monoid
 
 import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Common
@@ -24,7 +22,6 @@ import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Monad.Open
-import Agda.TypeChecking.Monad.Options
 import Agda.TypeChecking.Monad.State
 
 import Agda.Utils.Except
@@ -33,7 +30,6 @@ import Agda.Utils.Lens
 import Agda.Utils.List ((!!!), downFrom)
 import Agda.Utils.ListT
 import Agda.Utils.Maybe
-import Agda.Utils.Monad
 import Agda.Utils.Pretty
 import Agda.Utils.Size
 

@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 
 -- | Create clusters of non-overlapping things.
 
@@ -12,9 +13,10 @@ import Control.Monad
 -- An imperative union-find library:
 import Data.Equivalence.Monad (runEquivM, equateAll, classDesc)
 
-import Data.Char
 import qualified Data.IntMap as IntMap
+#if __GLASGOW_HASKELL__ < 804
 import Data.Semigroup
+#endif
 
 import Agda.Utils.Functor
 import Agda.Utils.NonemptyList

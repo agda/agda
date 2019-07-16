@@ -27,7 +27,7 @@ import Data.Function
 import Data.Hashable (Hashable)
 import Data.Data (Data)
 
-import Agda.Utils.Monad
+
 import Agda.Utils.Pretty
 
 import Agda.Utils.Impossible

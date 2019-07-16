@@ -22,7 +22,7 @@ module Agda.Syntax.Parser.Literate
   where
 
 import Prelude hiding (getLine)
-import Data.Char (isSpace, isControl)
+import Data.Char (isSpace)
 import Data.List (isPrefixOf)
 import Agda.Syntax.Common
 import Agda.Syntax.Position

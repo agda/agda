@@ -18,7 +18,6 @@ import Control.Monad.State
 import qualified Data.List as List
 import Data.Maybe
 import qualified Data.Map as Map
-import qualified Data.Traversable
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I

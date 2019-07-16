@@ -8,9 +8,6 @@ import Control.Applicative ( Const(Const), getConst )
 import Control.Arrow (first)
 import Control.Monad.Identity
 
-import Data.Foldable (foldMap)
-import Data.Monoid
-import Data.Traversable
 import Data.Void
 
 import Agda.Syntax.Common

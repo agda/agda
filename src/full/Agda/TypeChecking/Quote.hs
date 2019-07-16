@@ -3,14 +3,8 @@ module Agda.TypeChecking.Quote where
 
 import Control.Arrow ((&&&))
 import Control.Monad
-import Control.Monad.State (runState, get, put)
-import Control.Monad.Reader (asks)
-import Control.Monad.Writer (execWriterT, tell)
-import Control.Monad.Trans (lift)
 
-import Data.Char
 import Data.Maybe (fromMaybe)
-import Data.Traversable (traverse)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
@@ -20,16 +14,12 @@ import Agda.Syntax.Position
 
 import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.DropArgs
-import Agda.TypeChecking.Free
 import Agda.TypeChecking.Level
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
-import Agda.TypeChecking.Reduce.Monad
 import Agda.TypeChecking.Substitute
 
-import Agda.Utils.Except
 import Agda.Utils.Impossible
-import Agda.Utils.Monad ( ifM )
 import Agda.Utils.FileName
 import Agda.Utils.Size
 

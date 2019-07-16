@@ -73,8 +73,7 @@ variable rule:
 
 module Agda.TypeChecking.Irrelevance where
 
-import Control.Arrow (first, second)
-import Control.Monad.Reader
+import Control.Arrow (second)
 
 import qualified Data.Map as Map
 
@@ -88,12 +87,9 @@ import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute.Class
 
-import Agda.Utils.Except
 import Agda.Utils.Function
 import Agda.Utils.Lens
 import Agda.Utils.Monad
-
-import Agda.Utils.Impossible
 
 -- | data 'Relevance'
 --   see "Agda.Syntax.Common".

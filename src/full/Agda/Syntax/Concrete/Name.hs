@@ -14,7 +14,6 @@ import Data.Function
 import qualified Data.Foldable as Fold
 import qualified Data.List as List
 import Data.Data (Data)
-import Data.Maybe
 
 import GHC.Generics (Generic)
 

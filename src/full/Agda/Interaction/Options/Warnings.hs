@@ -23,8 +23,6 @@ where
 import Control.Arrow ( (&&&) )
 import Control.Monad ( guard )
 
-import Data.Traversable ( for )
-
 import Text.Read ( readMaybe )
 import Data.Set (Set)
 import qualified Data.Set as Set

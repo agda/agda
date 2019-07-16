@@ -13,7 +13,7 @@ import Control.Monad.Reader
 import Control.Monad.State
 
 import Data.Foldable (foldMap)
-import Data.Functor
+
 import Data.Function
 import qualified Data.List as List
 import Data.Monoid

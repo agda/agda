@@ -1,8 +1,6 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE UndecidableInstances       #-}
 
-{-# OPTIONS_GHC -fwarn-unused-imports #-}
-
 {-| EDSL to construct terms without touching De Bruijn indices.
 
 e.g. if given t, u :: Term, Γ ⊢ t, u : A, we can build "λ f. f t u" like this:
@@ -25,7 +23,6 @@ module Agda.TypeChecking.Names where
 
 import qualified Control.Monad.Fail as Fail
 
-import Control.Monad.Except (MonadError)
 import Control.Monad.Identity
 import Control.Monad.Reader
 import Control.Monad.State
@@ -38,9 +35,14 @@ import Agda.Syntax.Concrete.Pretty ()
 
 import Agda.TypeChecking.Monad hiding (getConstInfo, typeOfConst)
 import Agda.TypeChecking.Monad.Builtin
+import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Pretty ()  -- instances only
 import Agda.TypeChecking.Free
-import Agda.TypeChecking.Substitute
+
+import Agda.Utils.Except
+
+instance HasBuiltins m => HasBuiltins (NamesT m) where
+  getBuiltinThing b = lift $ getBuiltinThing b
 
 newtype NamesT m a = NamesT { unName :: ReaderT Names m a }
   deriving ( Functor
@@ -60,9 +62,6 @@ newtype NamesT m a = NamesT { unName :: ReaderT Names m a }
            , MonadError e
            , MonadAddContext
            )
-
-instance HasBuiltins m => HasBuiltins (NamesT m) where
-  getBuiltinThing b = lift $ getBuiltinThing b
 
 -- deriving instance MonadState s m => MonadState s (NamesT m)
 

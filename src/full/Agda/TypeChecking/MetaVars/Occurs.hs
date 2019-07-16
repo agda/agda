@@ -19,13 +19,12 @@ module Agda.TypeChecking.MetaVars.Occurs where
 import Control.Monad
 import Control.Monad.Reader
 
-import Data.Foldable (foldMap, traverse_)
+import Data.Foldable (traverse_)
 import Data.Functor
 import Data.Monoid
 import Data.Set (Set)
 import qualified Data.Set as Set
 import qualified Data.IntMap as IntMap
-import Data.IntMap (IntMap)
 import qualified Data.IntSet as IntSet
 import Data.IntSet (IntSet)
 import Data.Traversable (traverse)
@@ -36,7 +35,6 @@ import Agda.Syntax.Common
 import Agda.Syntax.Internal
 
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Monad.Builtin
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Pretty

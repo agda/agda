@@ -3,7 +3,7 @@
 
 module Agda.Utils.AffineHole where
 
-import Control.Applicative
+
 
 data AffineHole r a
   = ZeroHoles a

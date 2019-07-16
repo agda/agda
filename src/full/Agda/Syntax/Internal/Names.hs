@@ -4,8 +4,6 @@
 
 module Agda.Syntax.Internal.Names where
 
-import Data.Foldable
-import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set

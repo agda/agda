@@ -9,17 +9,11 @@ module Agda.TypeChecking.Rules.Builtin
   , bindUntypedBuiltin
   ) where
 
-import Control.Applicative hiding (empty)
 import Control.Monad
-import Control.Monad.Reader (ask)
-import Control.Monad.State (get)
 import Data.List (find, sortBy)
 import Data.Function (on)
 
-import Agda.Interaction.Options (optSizedTypes)
-
 import qualified Agda.Syntax.Abstract as A
-import qualified Agda.Syntax.Abstract.Views as A
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Position
@@ -54,7 +48,6 @@ import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.NonemptyList
 import Agda.Utils.Null
-import Agda.Utils.Permutation
 import Agda.Utils.Size
 
 import Agda.Utils.Impossible

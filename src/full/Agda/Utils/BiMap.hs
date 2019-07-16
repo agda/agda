@@ -5,14 +5,14 @@ module Agda.Utils.BiMap where
 
 import Prelude hiding (lookup, unzip)
 
-import Control.Applicative ((<*>))
+
 
 import Data.Function
-import Data.Functor
+
 import qualified Data.List as List
 import Data.Map (Map)
 import qualified Data.Map as Map
-import Data.Tuple
+
 
 -- | Finite bijective map from @a@ to @b@.  There, and back again.
 data BiMap a b = BiMap

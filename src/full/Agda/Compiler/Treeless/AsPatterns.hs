@@ -1,11 +1,8 @@
 module Agda.Compiler.Treeless.AsPatterns (recoverAsPatterns) where
 
 import Control.Monad.Reader
-import Data.Monoid
 
 import Agda.Syntax.Treeless
-import Agda.TypeChecking.Substitute
-import Agda.Compiler.Treeless.Subst
 
 data AsPat = AsPat Int QName [Int]  -- x@(c ys)
   deriving (Show)

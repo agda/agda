@@ -4,9 +4,7 @@
 module Agda.TypeChecking.Abstract where
 
 import Control.Monad
-import Control.Monad.State
 import Data.Function
-import Data.Traversable
 import qualified Data.HashMap.Strict as HMap
 
 import Agda.Syntax.Common

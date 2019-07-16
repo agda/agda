@@ -1,5 +1,6 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE ImplicitParams             #-}
+{-# LANGUAGE CPP                        #-}
 
 module Agda.Termination.CallMatrix where
 
@@ -10,7 +11,9 @@ module Agda.Termination.CallMatrix where
 --   , tests
 --   ) where
 
+#if __GLASGOW_HASKELL__ < 804
 import Data.Semigroup
+#endif
 import Data.Foldable (Foldable)
 import Data.Traversable (Traversable)
 
@@ -21,7 +24,7 @@ import Agda.Termination.Semiring (HasZero(..))
 
 import Agda.Utils.Favorites (Favorites)
 import qualified Agda.Utils.Favorites as Fav
-import Agda.Utils.Monad
+
 import Agda.Utils.Null
 import Agda.Utils.PartialOrd
 import Agda.Utils.Pretty

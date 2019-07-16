@@ -51,7 +51,6 @@ import Agda.TypeChecking.Monad
 
 import Agda.Utils.Hash
 import Agda.Utils.IORef
-import Agda.Utils.Lens
 
 import Agda.Utils.Except
 

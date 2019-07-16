@@ -2,12 +2,9 @@
 
 module Agda.TypeChecking.Conversion.Pure where
 
-import Control.Monad
 import Control.Monad.Fail (MonadFail)
-import Control.Monad.Trans.Maybe
 import Control.Monad.State
 
-import Data.Monoid hiding ((<>))
 import Data.String
 
 import Agda.Syntax.Common

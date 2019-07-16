@@ -28,7 +28,7 @@ import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Caching
 import {-# SOURCE #-} Agda.TypeChecking.Pretty
 import {-# SOURCE #-} Agda.TypeChecking.Pretty.Call
-import {-# SOURCE #-} Agda.TypeChecking.Pretty.Warning
+import {-# SOURCE #-} Agda.TypeChecking.Pretty.Warning ()
 
 import Agda.Syntax.Position
 import Agda.Syntax.Parser

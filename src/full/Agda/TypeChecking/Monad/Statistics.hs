@@ -13,9 +13,7 @@ import Agda.Syntax.Concrete.Name as C
 
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Debug
-import Agda.TypeChecking.Monad.Options
 
-import Agda.Utils.Lens
 import Agda.Utils.Maybe
 import Agda.Utils.Null
 import Agda.Utils.Pretty
