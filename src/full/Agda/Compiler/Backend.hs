@@ -52,7 +52,6 @@ import Agda.Utils.Functor
 import Agda.Utils.IndexedList
 import Agda.Utils.Lens
 import Agda.Utils.Monad
-import Agda.Utils.Pretty ()
 
 import Agda.Compiler.ToTreeless
 import Agda.Compiler.Common

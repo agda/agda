@@ -10,8 +10,7 @@ import Agda.Syntax.Treeless
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Substitute
 
-import Agda.Compiler.Treeless.Subst ()
-import Agda.Compiler.Treeless.Pretty ()
+import Agda.Compiler.Treeless.Pretty () --instance only
 
 import Agda.Utils.Pretty (prettyShow)
 

@@ -24,7 +24,6 @@ import Agda.TypeChecking.Telescope.Path
 
 import Agda.Utils.Monad
 import Agda.Utils.Null
-import Agda.Utils.Pretty ()
 
 import Agda.Utils.Impossible
 

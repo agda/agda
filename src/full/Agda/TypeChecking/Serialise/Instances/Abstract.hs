@@ -13,9 +13,7 @@ import Agda.Syntax.Scope.Base
 import Agda.Syntax.Fixity
 
 import Agda.TypeChecking.Serialise.Base
-import Agda.TypeChecking.Serialise.Instances.Common ()
-
-
+import Agda.TypeChecking.Serialise.Instances.Common () --instance only
 
 import Agda.Utils.Impossible
 

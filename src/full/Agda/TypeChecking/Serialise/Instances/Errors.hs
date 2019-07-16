@@ -5,9 +5,8 @@ module Agda.TypeChecking.Serialise.Instances.Errors where
 import Control.Monad
 
 import Agda.TypeChecking.Serialise.Base
-import Agda.TypeChecking.Serialise.Instances.Common ()
-import Agda.TypeChecking.Serialise.Instances.Internal ()
-import Agda.TypeChecking.Serialise.Instances.Abstract ()
+import Agda.TypeChecking.Serialise.Instances.Internal () --instance only
+import Agda.TypeChecking.Serialise.Instances.Abstract () --instance only
 
 import Agda.Syntax.Concrete.Definitions (DeclarationWarning(..))
 import Agda.TypeChecking.Monad.Base

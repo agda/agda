@@ -8,7 +8,7 @@ import Agda.Syntax.Internal.Generic
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Reduce.Monad ()
+import Agda.TypeChecking.Reduce.Monad () --instance only
 import {-# SOURCE #-} Agda.TypeChecking.Records
 import {-# SOURCE #-} Agda.TypeChecking.Datatypes
 import Agda.Utils.Monad

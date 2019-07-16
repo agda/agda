@@ -8,7 +8,6 @@ import Agda.Syntax.Common
 
 import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Pretty ()
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Reduce.Monad as RedM
 import Agda.TypeChecking.Substitute

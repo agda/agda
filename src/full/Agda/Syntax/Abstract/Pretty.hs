@@ -1,7 +1,6 @@
 
 module Agda.Syntax.Abstract.Pretty where
 
-import Agda.Syntax.Concrete.Pretty ()
 import Agda.Syntax.Fixity
 import Agda.Syntax.Translation.AbstractToConcrete
 import Agda.Utils.Pretty

@@ -18,7 +18,7 @@ import Data.Data (Data)
 
 import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Common
-import Agda.Syntax.Concrete.Pretty ()
+import Agda.Syntax.Concrete.Pretty () --instance only
 import Agda.Syntax.Literal
 import Agda.Syntax.Position
 

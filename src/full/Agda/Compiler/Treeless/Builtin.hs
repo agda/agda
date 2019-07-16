@@ -26,7 +26,7 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
 
-import Agda.Compiler.Treeless.Subst ()
+import Agda.Compiler.Treeless.Subst () --instance only
 import Agda.Utils.Impossible
 
 

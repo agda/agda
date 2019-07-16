@@ -31,7 +31,6 @@ import Data.List
 
 import Agda.Syntax.Common hiding (Nat)
 import Agda.Syntax.Internal
-import Agda.Syntax.Concrete.Pretty ()
 
 import Agda.TypeChecking.Monad hiding (getConstInfo, typeOfConst)
 import Agda.TypeChecking.Monad.Builtin

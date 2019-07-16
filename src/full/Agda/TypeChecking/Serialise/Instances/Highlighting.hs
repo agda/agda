@@ -6,7 +6,7 @@ import qualified Agda.Interaction.Highlighting.Range   as HR
 import qualified Agda.Interaction.Highlighting.Precise as HP
 
 import Agda.TypeChecking.Serialise.Base
-import Agda.TypeChecking.Serialise.Instances.Common ()
+import Agda.TypeChecking.Serialise.Instances.Common () --instance only
 
 instance EmbPrj HR.Range where
   icod_ (HR.Range a b) = icodeN' HR.Range a b

@@ -18,7 +18,6 @@ import Agda.Compiler.Treeless.Compare
 
 import Agda.Utils.List
 import Agda.Utils.Maybe
-import Agda.Utils.Pretty ()
 
 import Agda.Utils.Impossible
 

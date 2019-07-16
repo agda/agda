@@ -11,8 +11,6 @@ import System.Environment
 import System.Exit
 import System.Console.GetOpt
 
-import Agda.Syntax.Concrete.Pretty ()
-
 import Agda.Interaction.CommandLine
 import Agda.Interaction.Options
 import Agda.Interaction.Options.Help (Help (..))

@@ -10,7 +10,7 @@ import Agda.Syntax.Treeless
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Substitute
 
-import Agda.Compiler.Treeless.Subst ()
+import Agda.Compiler.Treeless.Subst () --instance only
 
 eliminateCaseDefaults :: TTerm -> TCM TTerm
 eliminateCaseDefaults = tr
