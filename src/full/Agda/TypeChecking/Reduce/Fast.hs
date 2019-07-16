@@ -291,13 +291,14 @@ data FastCase c = FBranches
     -- ^ (if True) In case of non-canonical argument use catchAllBranch.
   }
 
-noBranches :: FastCase a
-noBranches = FBranches{ fprojPatterns   = False
-                      , fconBranches    = Map.empty
-                      , fsucBranch      = Nothing
-                      , flitBranches    = Map.empty
-                      , fcatchAllBranch = Nothing
-                      , ffallThrough    = False }
+--UNUSED Liang-Ting Chen 2019-07-16
+--noBranches :: FastCase a
+--noBranches = FBranches{ fprojPatterns   = False
+--                      , fconBranches    = Map.empty
+--                      , fsucBranch      = Nothing
+--                      , flitBranches    = Map.empty
+--                      , fcatchAllBranch = Nothing
+--                      , ffallThrough    = False }
 
 -- | Case tree with bodies.
 
@@ -502,9 +503,9 @@ newtype Env s = Env [Pointer s]
 
 emptyEnv :: Env s
 emptyEnv = Env []
-
-isEmptyEnv :: Env s -> Bool
-isEmptyEnv (Env xs) = null xs
+--UNUSED Liang-Ting Chen 2019-07-16
+--isEmptyEnv :: Env s -> Bool
+--isEmptyEnv (Env xs) = null xs
 
 envSize :: Env s -> Int
 envSize (Env xs) = length xs

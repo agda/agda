@@ -577,8 +577,9 @@ dontUniverseCheckFlag o = return $ o { optUniverseCheck = False }
 omegaInOmegaFlag :: Flag PragmaOptions
 omegaInOmegaFlag o = return $ o { optOmegaInOmega = True }
 
-etaFlag :: Flag PragmaOptions
-etaFlag o = return $ o { optEta = True }
+--UNUSED Liang-Ting Chen 2019-07-16
+--etaFlag :: Flag PragmaOptions
+--etaFlag o = return $ o { optEta = True }
 
 noEtaFlag :: Flag PragmaOptions
 noEtaFlag o = return $ o { optEta = False }
@@ -611,8 +612,9 @@ noUniversePolymorphismFlag  o = return $ o { optUniversePolymorphism = False }
 noForcingFlag :: Flag PragmaOptions
 noForcingFlag o = return $ o { optForcing = False }
 
-noProjectionLikeFlag :: Flag PragmaOptions
-noProjectionLikeFlag o = return $ o { optProjectionLike = False }
+--UNUSED Liang-Ting Chen 2019-07-16
+--noProjectionLikeFlag :: Flag PragmaOptions
+--noProjectionLikeFlag o = return $ o { optProjectionLike = False }
 
 withKFlag :: Flag PragmaOptions
 withKFlag o = return $ o { optWithoutK = Value False }

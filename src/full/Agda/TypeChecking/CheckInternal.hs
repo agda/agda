@@ -251,16 +251,16 @@ checkSpine action a self es t = do
   ((v, v'), t') <- inferSpine' action a self self es
   t' <- reduce t'
   v' <$ coerceSize subtype v t' t
-
-checkArgs
-  :: (MonadCheckInternal m)
-  => Action m
-  -> Type      -- ^ Type of the head.
-  -> Term      -- ^ The head.
-  -> Args      -- ^ The arguments.
-  -> Type      -- ^ Expected type of the application.
-  -> m Term    -- ^ The application after modification by the @Action@.
-checkArgs action a self vs t = checkSpine action a self (map Apply vs) t
+--UNUSED Liang-Ting Chen 2019-07-16
+--checkArgs
+--  :: (MonadCheckInternal m)
+--  => Action m
+--  -> Type      -- ^ Type of the head.
+--  -> Term      -- ^ The head.
+--  -> Args      -- ^ The arguments.
+--  -> Type      -- ^ Expected type of the application.
+--  -> m Term    -- ^ The application after modification by the @Action@.
+--checkArgs action a self vs t = checkSpine action a self (map Apply vs) t
 
 -- | @checkArgInfo actual expected@.
 --

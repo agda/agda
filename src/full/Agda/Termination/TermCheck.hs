@@ -996,11 +996,11 @@ compareArgs es = do
 --   off, if inductive.
 --
 --   UNUSED
-annotatePatsWithUseSizeLt :: [DeBruijnPattern] -> TerM [(Bool,DeBruijnPattern)]
-annotatePatsWithUseSizeLt = loop where
-  loop [] = return []
-  loop (p@(ProjP _ q) : pats) = ((False,p) :) <$> do projUseSizeLt q $ loop pats
-  loop (p : pats) = (\ b ps -> (b,p) : ps) <$> terGetUseSizeLt <*> loop pats
+--annotatePatsWithUseSizeLt :: [DeBruijnPattern] -> TerM [(Bool,DeBruijnPattern)]
+--annotatePatsWithUseSizeLt = loop where
+--  loop [] = return []
+--  loop (p@(ProjP _ q) : pats) = ((False,p) :) <$> do projUseSizeLt q $ loop pats
+--  loop (p : pats) = (\ b ps -> (b,p) : ps) <$> terGetUseSizeLt <*> loop pats
 
 
 -- | @compareElim e dbpat@
@@ -1092,17 +1092,17 @@ composeGuardedness _ _ = __IMPOSSIBLE__
 offsetFromConstructor :: MonadTCM tcm => QName -> tcm Int
 offsetFromConstructor c = maybe 1 (const 0) <$> do
   liftTCM $ isRecordConstructor c
-
--- | Compute the proper subpatterns of a 'DeBruijnPattern'.
-subPatterns :: DeBruijnPattern -> [DeBruijnPattern]
-subPatterns = foldPattern $ \case
-  ConP _ _ ps -> map namedArg ps
-  DefP _ _ ps -> map namedArg ps -- TODO check semantics
-  VarP _ _    -> mempty
-  LitP _      -> mempty
-  DotP _ _    -> mempty
-  ProjP _ _   -> mempty
-  IApplyP{}   -> mempty
+--UNUSED Liang-Ting 2019-07-16
+---- | Compute the proper subpatterns of a 'DeBruijnPattern'.
+--subPatterns :: DeBruijnPattern -> [DeBruijnPattern]
+--subPatterns = foldPattern $ \case
+--  ConP _ _ ps -> map namedArg ps
+--  DefP _ _ ps -> map namedArg ps -- TODO check semantics
+--  VarP _ _    -> mempty
+--  LitP _      -> mempty
+--  DotP _ _    -> mempty
+--  ProjP _ _   -> mempty
+--  IApplyP{}   -> mempty
 
 
 compareTerm :: Term -> Masked DeBruijnPattern -> TerM Order

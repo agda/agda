@@ -56,7 +56,7 @@ import Agda.Utils.Impossible
  --------------------------------------------------------------------------}
 
 -- | The parse monad.
-newtype Parser a = P { runP :: StateT ParseState (Either ParseError) a }
+newtype Parser a = P { _runP :: StateT ParseState (Either ParseError) a }
   deriving (Functor, Applicative, Monad, MonadState ParseState, MonadError ParseError)
 
 -- | The parser state. Contains everything the parser and the lexer could ever
@@ -288,8 +288,9 @@ getParseInterval = do
 getLexState :: Parser [LexState]
 getLexState = parseLexState <$> get
 
-setLexState :: [LexState] -> Parser ()
-setLexState ls = modify $ \ s -> s { parseLexState = ls }
+-- UNUSED Liang-Ting Chen 2019-07-16
+--setLexState :: [LexState] -> Parser ()
+--setLexState ls = modify $ \ s -> s { parseLexState = ls }
 
 modifyLexState :: ([LexState] -> [LexState]) -> Parser ()
 modifyLexState f = modify $ \ s -> s { parseLexState = f (parseLexState s) }

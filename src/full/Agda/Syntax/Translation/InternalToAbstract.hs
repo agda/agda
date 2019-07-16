@@ -84,10 +84,10 @@ reifyUnblocked t = locallyTCState stInstantiateBlocking (const True) $ reify t
 
 
 -- Composition of reified applications ------------------------------------
-
--- | Drops hidden arguments unless --show-implicit.
-napps :: Expr -> [NamedArg Expr] -> TCM Expr
-napps e = nelims e . map I.Apply
+--UNUSED Liang-Ting 2019-07-16
+---- | Drops hidden arguments unless --show-implicit.
+--napps :: Expr -> [NamedArg Expr] -> TCM Expr
+--napps e = nelims e . map I.Apply
 
 -- | Drops hidden arguments unless --show-implicit.
 apps :: MonadReify m => Expr -> [Arg Expr] -> m Expr
@@ -811,7 +811,7 @@ data NamedClause = NamedClause QName Bool I.Clause
 
 -- The Monoid instance for Data.Map doesn't require that the values are a
 -- monoid.
-newtype MonoidMap k v = MonoidMap { unMonoidMap :: Map.Map k v }
+newtype MonoidMap k v = MonoidMap { _unMonoidMap :: Map.Map k v }
 
 instance (Ord k, Monoid v) => Semigroup (MonoidMap k v) where
   MonoidMap m1 <> MonoidMap m2 = MonoidMap (Map.unionWith mappend m1 m2)

@@ -19,7 +19,7 @@ import qualified Data.List as List
 import Data.Maybe ( catMaybes )
 import Data.Semigroup ( Semigroup, (<>) )
 
-import Control.Monad ( guard, forM, unless )
+import Control.Monad ( forM, unless )
 import Control.Monad.Reader ( ReaderT )
 import Control.Monad.State ( StateT )
 import Control.Monad.Trans ( lift )
@@ -91,13 +91,14 @@ warning_ w = do
   p <- sayWhen r' c $ prettyTCM w
   return $ TCWarning r w p b
 
--- | @applyWarningMode@ filters out the warnings the user has not requested
--- Users are not allowed to ignore non-fatal errors.
-
-applyWarningMode :: WarningMode -> Warning -> Maybe Warning
-applyWarningMode wm w = case classifyWarning w of
-  ErrorWarnings -> Just w
-  AllWarnings   -> w <$ guard (Set.member (warningName w) $ wm ^. warningSet)
+-- UNUSED Liang-Ting Chen 2019-07-16
+---- | @applyWarningMode@ filters out the warnings the user has not requested
+---- Users are not allowed to ignore non-fatal errors.
+--
+--applyWarningMode :: WarningMode -> Warning -> Maybe Warning
+--applyWarningMode wm w = case classifyWarning w of
+--  ErrorWarnings -> Just w
+--  AllWarnings   -> w <$ guard (Set.member (warningName w) $ wm ^. warningSet)
 
 {-# SPECIALIZE warnings :: [Warning] -> TCM () #-}
 warnings :: MonadWarning m => [Warning] -> m ()

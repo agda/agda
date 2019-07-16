@@ -65,7 +65,7 @@ type GenericFile = [GenericEntry]
 
 data GenericEntry = GenericEntry
   { geHeader  :: String   -- ^ E.g. field name.    @trim@med.
-  , geContent :: [String] -- ^ E.g. field content. @trim@med.
+  , _geContent :: [String] -- ^ E.g. field content. @trim@med.
   }
 
 -- | Library file field format format [sic!].

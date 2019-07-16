@@ -66,8 +66,8 @@ type Cont k r tok b a = Pos -> a -> M k r tok b [b]
 -- | Memoised values.
 
 data Value k r tok b = Value
-  { results       :: !(IntMap [r])
-  , continuations :: [Cont k r tok b r]
+  { _results       :: !(IntMap [r])
+  , _continuations :: [Cont k r tok b r]
   }
 
 -- | The parser type.
