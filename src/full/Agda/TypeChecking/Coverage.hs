@@ -1062,6 +1062,15 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps cps c = do
   let conIxs   = drop (size pars) cixs
       givenIxs = raise (size gamma) ixs
 
+  -- Andrea 2019-07-17 propagate the Cohesion to the equation telescope
+  -- TODO: should we propagate the modality in general?
+  -- See also LHS checking.
+  dtype <- do
+         let (_, Dom{domInfo = info} : _) = splitAt (size tel - hix - 1) (telToList tel)
+         let updCoh = composeCohesion (getCohesion info)
+         TelV dtel dt <- telView dtype
+         return $ abstract (mapCohesion updCoh <$> dtel) dt
+
   r <- unifyIndices
          delta1Gamma
          flex
@@ -1126,6 +1135,7 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps cps c = do
           , "delta1 =" <+> do inTopContext $ prettyTCM delta1
           , "delta2 =" <+> do inTopContext $ addContext delta1 $ addContext gamma $ prettyTCM delta2
           , "gamma  =" <+> do inTopContext $ addContext delta1 $ prettyTCM gamma
+          , "tel  =" <+> do inTopContext $ prettyTCM tel
           , "hix    =" <+> text (show hix)
           ]
         ]

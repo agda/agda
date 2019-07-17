@@ -881,6 +881,7 @@ unifyStep s Solution{ solutionAt   = k
   -- always @Quantity0@, since the indices of the data type are runtime erased.
   -- Thus, we need not change the quantity of the solution.
   let eqrel  = getRelevance dom
+      eqmod  = getModality dom
       varmod = getModality dom'
       mod    = applyUnless (NonStrict `moreRelevant` eqrel) (setRelevance eqrel)
              $ varmod
@@ -900,6 +901,10 @@ unifyStep s Solution{ solutionAt   = k
   usable <- liftTCM $ addContext (varTel s) $ usableRel (getRelevance mod) u
   reportSDoc "tc.lhs.unify" 45 $ "Modality ok: " <+> prettyTCM usable
   unless usable $ reportSLn "tc.lhs.unify" 65 $ "Rejected solution: " ++ show u
+
+  -- We need a Flat equality to solve a Flat variable.
+  -- This also ought to take care of the need for a usableCohesion check.
+  if not (getCohesion eqmod `moreCohesion` getCohesion varmod) then return $ DontKnow [] else do
 
   case equalTypes of
     Just err -> return $ DontKnow []

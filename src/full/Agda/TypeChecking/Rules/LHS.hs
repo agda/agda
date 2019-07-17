@@ -1314,6 +1314,14 @@ checkLHS mf = updateModality checkLHS_ where
       -- from Δ' = Δ₁';Δ₂ρ₃
       --        Δ' ⊢ ρ : Δ₁(x : D vs ws)Δ₂
 
+      -- Andrea 2019-07-17 propagate the Cohesion to the equation telescope
+      -- TODO: should we propagate the modality in general?
+      -- See also Coverage checking.
+      da' <- do
+             let updCoh = composeCohesion (getCohesion info)
+             TelV tel dt <- telView da'
+             return $ abstract (mapCohesion updCoh <$> tel) a
+
       liftTCM (unifyIndices delta1Gamma flex da' cixs ixs') >>= \case
 
         -- Mismatch.  Report and abort.
