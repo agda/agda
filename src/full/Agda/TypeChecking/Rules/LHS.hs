@@ -1169,7 +1169,7 @@ checkLHS mf = updateModality checkLHS_ where
       --
       -- Thus, no checking of (usableQuantity info) here.
 
-      unless (usableCohesion info) $
+      unlessM (splittableCohesion info) $
         addContext delta1 $ softTypeError $ SplitOnUnusableCohesion dom
 
       -- check that a is indeed the type of lit (otherwise fail softly)
@@ -1219,7 +1219,7 @@ checkLHS mf = updateModality checkLHS_ where
       --
       -- Thus, no checking of (usableQuantity info) here.
 
-      unless (usableCohesion info) $
+      unlessM (splittableCohesion info) $
         addContext delta1 $ softTypeError $ SplitOnUnusableCohesion dom
 
       -- We should be at a data/record type
