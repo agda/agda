@@ -72,8 +72,9 @@ import Prelude hiding ( lookup, null, unzip )
 
 
 import qualified Data.Array.IArray as Array
-import qualified Data.Edison.Seq.BankersQueue as BQ
-import qualified Data.Edison.Seq.SimpleQueue as SQ
+import Data.Foldable (toList)
+import Data.Sequence (Seq(..))
+import qualified Data.Sequence as Seq
 import Data.Function
 import qualified Data.Graph as Graph
 import Data.IntMap.Strict (IntMap)
@@ -657,19 +658,19 @@ reachableFromSet g ns = Map.keysSet (reachableFromInternal g ns)
 reachableFromInternal ::
   Ord n => Graph n e -> Set n -> Map n (Int, [Edge n e])
 reachableFromInternal g ns =
-  bfs (SQ.fromList (map (, BQ.empty) (Set.toList ns))) Map.empty
+  bfs (Seq.fromList (map (, Seq.empty) (Set.toList ns))) Map.empty
   where
-  bfs !q !map = case SQ.lview q of
-    Nothing          -> map
-    Just ((u, p), q) ->
+  bfs !q !map = case q of
+    Empty        -> map
+    (u, p) :<| q ->
       if u `Map.member` map
       then bfs q map
-      else bfs (foldr SQ.rcons q
-                      [ (v, BQ.rcons (Edge u v e) p)
+      else bfs (foldr (flip (:|>)) q
+                      [ (v, p :|> (Edge u v e))
                       | (v, e) <- neighbours u g
                       ])
-               (let n = BQ.size p in
-                n `seq` Map.insert u (n, BQ.toList p) map)
+               (let n = Seq.length p in
+                n `seq` Map.insert u (n, toList p) map)
 
 -- | @walkSatisfying every some g from to@ determines if there is a
 -- walk from @from@ to @to@ in @g@, in which every edge satisfies the
