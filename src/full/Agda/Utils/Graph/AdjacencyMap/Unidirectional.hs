@@ -1,4 +1,5 @@
 {-# LANGUAGE BangPatterns               #-}
+{-# LANGUAGE CPP                        #-}
 
 -- | Directed graphs (can of course simulate undirected graphs).
 --
@@ -68,12 +69,13 @@ module Agda.Utils.Graph.AdjacencyMap.Unidirectional
 
 import Prelude hiding ( lookup, null, unzip )
 
-
-
-
 import qualified Data.Array.IArray as Array
 import Data.Foldable (toList)
+#if __GLASGOW_HASKELL__ < 802
+import Data.Sequence (ViewL(..))
+#else
 import Data.Sequence (Seq(..))
+#endif
 import qualified Data.Sequence as Seq
 import Data.Function
 import qualified Data.Graph as Graph
@@ -660,13 +662,24 @@ reachableFromInternal ::
 reachableFromInternal g ns =
   bfs (Seq.fromList (map (, Seq.empty) (Set.toList ns))) Map.empty
   where
+#if __GLASGOW_HASKELL__ < 802
+  bfs !q !map = case Seq.viewl q of
+    EmptyL     -> map
+    (u, p) :< q ->
+#else
   bfs !q !map = case q of
     Empty        -> map
     (u, p) :<| q ->
+#endif
       if u `Map.member` map
       then bfs q map
+#if __GLASGOW_HASKELL__ < 802
+      else bfs (foldr (flip (Seq.|>)) q
+                      [ (v, p Seq.|> (Edge u v e))
+#else
       else bfs (foldr (flip (:|>)) q
                       [ (v, p :|> (Edge u v e))
+#endif
                       | (v, e) <- neighbours u g
                       ])
                (let n = Seq.length p in
