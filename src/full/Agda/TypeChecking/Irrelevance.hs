@@ -209,6 +209,12 @@ applyCohesionToContextOnly q = localTC
   $ over eContext     (map $ inverseApplyCohesion q)
   . over eLetBindings (Map.map . fmap . second $ inverseApplyCohesion q)
 
+-- | Can we split on arguments of the given cohesion?
+splittableCohesion :: (HasOptions m, LensCohesion a) => a -> m Bool
+splittableCohesion a = do
+  let c = getCohesion a
+  flatSplit <- optFlatSplit <$> pragmaOptions
+  return $ usableCohesion c && (flatSplit || c /= Flat)
 
 -- | (Conditionally) wake up irrelevant variables and make them relevant.
 --   For instance,

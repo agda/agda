@@ -177,6 +177,8 @@ data PragmaOptions = PragmaOptions
     -- ^ Use the Agda abstract machine (fastReduce)?
   , optConfluenceCheck           :: Bool
     -- ^ Check confluence of rewrite rules?
+  , optFlatSplit                 :: Bool
+     -- ^ Can we split on a (x :{flat} A) argument?
   }
   deriving (Show, Eq)
 
@@ -273,6 +275,7 @@ defaultPragmaOptions = PragmaOptions
   , optPrintPatternSynonyms      = True
   , optFastReduce                = True
   , optConfluenceCheck           = False
+  , optFlatSplit                 = True
   }
 
 -- | The default termination depth.
@@ -463,6 +466,12 @@ safeFlag o = do
              , optGuardedness = setDefault False guardedness
              , optSizedTypes  = setDefault False sizedTypes
              }
+
+flatSplitFlag :: Flag PragmaOptions
+flatSplitFlag o = return $ o { optFlatSplit = True }
+
+noFlatSplitFlag :: Flag PragmaOptions
+noFlatSplitFlag o = return $ o { optFlatSplit = False }
 
 doubleCheckFlag :: Flag PragmaOptions
 doubleCheckFlag o = return $ o { optDoubleCheck = True }
@@ -859,6 +868,10 @@ pragmaOptions =
                     "enable sized types (default, inconsistent with --guardedness)"
     , Option []     ["no-sized-types"] (NoArg noSizedTypes)
                     "disable sized types"
+    , Option []     ["flat-split"] (NoArg flatSplitFlag)
+                    "allow split on (x :{flat} A) arguments (default)"
+    , Option []     ["no-flat-split"] (NoArg noFlatSplitFlag)
+                    "disable split on (x :{flat} A) arguments"
     , Option []     ["guardedness"] (NoArg guardedness)
                     "enable constructor-based guarded corecursion (default, inconsistent with --sized-types)"
     , Option []     ["no-guardedness"] (NoArg noGuardedness)
