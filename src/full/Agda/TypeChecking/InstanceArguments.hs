@@ -452,7 +452,7 @@ checkCandidates m t cands =
             -- Jesper, 05-12-2014: When we abort, we should add a constraint to
             -- instantiate the meta at a later time (see issue 1377).
             ctxElims <- map Apply <$> getContextArgs
-            guardConstraint (ValueCmp CmpEq t'' (MetaV m ctxElims) v) $ leqType t'' t
+            guardConstraint (ValueCmp CmpEq (AsTermsOf t'') (MetaV m ctxElims) v) $ leqType t'' t
             -- make a pass over constraints, to detect cases where some are made
             -- unsolvable by the assignment, but don't do this for FindInstance's
             -- to prevent loops.

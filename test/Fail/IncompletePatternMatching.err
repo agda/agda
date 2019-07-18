@@ -4,5 +4,5 @@ Incomplete pattern matching for _==_. Missing cases:
   suc x == zero
 when checking the definition of _==_
 IncompletePatternMatching.agda:18,7-9
-True !=< zero == suc zero of type Set
+True !=< zero == suc zero
 when checking that the expression tt has type zero == suc zero

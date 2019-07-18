@@ -239,7 +239,7 @@ data InvView = Inv QName [Elim] (InversionMap Clause)
 
 -- | Precondition: The first argument must be blocked and the second must be
 --                 neutral.
-useInjectivity :: MonadConversion m => CompareDirection -> Type -> Term -> Term -> m ()
+useInjectivity :: MonadConversion m => CompareDirection -> CompareAs -> Term -> Term -> m ()
 useInjectivity dir ty blk neu = locallyTC eInjectivityDepth succ $ do
   inv <- functionInverse blk
   -- Injectivity might cause non-termination for unsatisfiable constraints
@@ -256,7 +256,7 @@ useInjectivity dir ty blk neu = locallyTC eInjectivityDepth succ $ do
       | otherwise -> do
       reportSDoc "tc.inj.use" 30 $ fsep $
         pwords "useInjectivity on" ++
-        [ prettyTCM blk, prettyTCM cmp, prettyTCM neu, ":", prettyTCM ty ]
+        [ prettyTCM blk, prettyTCM cmp, prettyTCM neu, prettyTCM ty]
       let canReduceToSelf = Map.member (ConsHead f) hdMap || Map.member UnknownHead hdMap
           allUnique       = all isUnique hdMap
           isUnique [_] = True
@@ -299,7 +299,7 @@ useInjectivity dir ty blk neu = locallyTC eInjectivityDepth succ $ do
             where err = typeError $ app (\ u v -> UnequalTerms cmp u v ty) blk neu
   where
     fallback     = addConstraint $ app (ValueCmp cmp ty) blk neu
-    success blk' = app (compareTerm cmp ty) blk' neu
+    success blk' = app (compareAs cmp ty) blk' neu
 
     (cmp, app) = case dir of
       DirEq -> (CmpEq, id)

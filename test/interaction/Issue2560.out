@@ -2,7 +2,7 @@
 (agda2-info-action "*Type-checking*" "" nil)
 (agda2-highlight-clear)
 (agda2-status-action "")
-(agda2-info-action "*All Goals, Errors*" "?0 : proofAG _v'_43 ?1 : Set _v'_43 : FVec (suc n) [ at Issue2560.agda:25,25-26 ] _50 : FVec (suc n) [ at Issue2560.agda:33,19-20 ] ———— Errors ———————————————————————————————————————————————— Failed to solve the following constraints: [92] pre FNil _50 p =< pre v v' p : Set [71] pre FNil _v'_43 p =< pre v v' p : Set " nil)
+(agda2-info-action "*All Goals, Errors*" "?0 : proofAG _v'_43 ?1 : Set _v'_43 : FVec (suc n) [ at Issue2560.agda:25,25-26 ] _50 : FVec (suc n) [ at Issue2560.agda:33,19-20 ] ———— Errors ———————————————————————————————————————————————— Failed to solve the following constraints: [92] pre FNil _50 p =< pre v v' p [71] pre FNil _v'_43 p =< pre v v' p " nil)
 ((last . 1) . (agda2-goals-action '(0 1)))
 ((last . 1) . (agda2-goals-action '(0 1)))
 ((last . 2) . (agda2-make-case-action '("preAG₂ _ ()")))

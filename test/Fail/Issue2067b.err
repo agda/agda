@@ -1,3 +1,3 @@
 Issue2067b.agda:21,7-8
-Nat !=< M.A n of type Set
+Nat !=< M.A n
 when checking that the expression n has type M.A n

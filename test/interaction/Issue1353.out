@@ -3,7 +3,7 @@
 (agda2-highlight-clear)
 (agda2-verbose "Found interaction point ?0 : (Pow I) ")
 (agda2-status-action "ShowImplicit")
-(agda2-info-action "*All Goals, Errors*" "?0 : Pow I _X_241 : Set [ at Issue1353.agda:89,60-65 ] ———— Errors ———————————————————————————————————————————————— Failed to solve the following constraints: [367] X (input Ω {i} p a) =< _X_241 {Ψ = X} {X = i} (m = (input Ω {i} p a)) : Set [369, 371] _X_241 {Ψ = X} {X = i} (m = (input Ψ {i} p₁ a)) =< X (input Ψ {i} p₁ a) : Set " nil)
+(agda2-info-action "*All Goals, Errors*" "?0 : Pow I _X_241 : Set [ at Issue1353.agda:89,60-65 ] ———— Errors ———————————————————————————————————————————————— Failed to solve the following constraints: [367] X (input Ω {i} p a) =< _X_241 {Ψ = X} {X = i} (m = (input Ω {i} p a)) [369, 371] _X_241 {Ψ = X} {X = i} (m = (input Ψ {i} p₁ a)) =< X (input Ψ {i} p₁ a) " nil)
 ((last . 1) . (agda2-goals-action '(0)))
 (agda2-give-action 0 "X")
 (agda2-status-action "ShowImplicit")

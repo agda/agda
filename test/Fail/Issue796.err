@@ -1,5 +1,5 @@
 Failed to solve the following constraints:
-  [18] A' =< [ _u_13 ] : Set
+  [18] A' =< [ _u_13 ]
 Unsolved metas at the following locations:
   Issue796.agda:34,11-12
   Issue796.agda:34,13-14

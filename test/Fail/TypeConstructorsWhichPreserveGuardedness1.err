@@ -1,5 +1,5 @@
 TypeConstructorsWhichPreserveGuardedness1.agda:32,10-16
-_A_18 ⊎ _B_19 !=< ℕ of type Set
+_A_18 ⊎ _B_19 !=< ℕ
 when checking that the inferred type of an application
   _A_18 ⊎ _B_19
 matches the expected type
