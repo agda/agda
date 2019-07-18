@@ -12,6 +12,7 @@ import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
+import Data.Foldable hiding (null)
 
 import Agda.Interaction.Options ( optCubical )
 
@@ -879,27 +880,45 @@ primTransHComp cmd ts nelims = do
             let
               boolToI b = if b then unview IOne else unview IZero
             as <- decomposeInterval phi
-            (and <$>) . forM as $ \ (bs,ts) -> do -- OPTIMIZE: stop at the first False
+            andM . for as $ \ (bs,ts) -> do
                  let u' = listS (Map.toAscList $ Map.map boolToI bs) `applySubst` u
                  t <- reduce2Lam u'
-                 return $! p t
-      where
-        reduce2Lam t = do
+                 return $! p $ ignoreBlocking t
+    reduce2Lam t = do
           t <- reduce' t
           case lam2Abs t of
             t -> underAbstraction_ t $ \ t -> do
                t <- reduce' t
                case lam2Abs t of
-                 t -> underAbstraction_ t reduce'
+                 t -> underAbstraction_ t reduceB'
          where
-           lam2Abs (Lam _ t) = t
+           lam2Abs (Lam _ t) = absBody t <$ t
            lam2Abs t         = Abs "y" (raise 1 t `apply` [argN $ var 0])
-
+    allComponentsBack unview phi u p = do
+            let
+              boolToI b = if b then unview IOne else unview IZero
+              lamlam t = Lam defaultArgInfo (Abs "i" (Lam (setRelevance Irrelevant defaultArgInfo) (Abs "o" t)))
+            as <- decomposeInterval phi
+            (flags,t_alphas) <- fmap unzip . forM as $ \ (bs,ts) -> do
+                 let u' = listS bs' `applySubst` u
+                     bs' = (Map.toAscList $ Map.map boolToI bs)
+                 let weaken = foldr composeS idS $ map (\ j -> liftS j (raiseS 1)) $ map fst bs'
+                 t <- reduce2Lam u'
+                 return $ (p $ ignoreBlocking t, listToMaybe [ (weaken `applySubst` (lamlam <$> t),bs) | null ts ])
+            return $ (flags,t_alphas)
     compData False _ cmd@DoHComp (IsNot l) (IsNot ps) fsc sphi (Just u) a0 = do
       let getTermLocal = getTerm $ cmdToName cmd ++ " for data types"
 
       let sc = famThing <$> fsc
       tEmpty <- getTermLocal builtinIsOneEmpty
+      tPOr   <- getTermLocal builtinPOr
+      iO   <- getTermLocal builtinIOne
+      iZ   <- getTermLocal builtinIZero
+      tMin <- getTermLocal builtinIMin
+      tNeg <- getTermLocal builtinINeg
+      let iNeg t = tNeg `apply` [argN t]
+          iMin t u = tMin `apply` [argN t, argN u]
+          iz = pure iZ
       constrForm <- do
         mz <- getTerm' builtinZero
         ms <- getTerm' builtinSuc
@@ -912,7 +931,17 @@ primTransHComp cmd ts nelims = do
           phi = f sphi
           u = f su
           a0 = f sa0
-          noRed = return $ NoReduction [notReduced l,reduced sc, reduced sphi, reduced su', reduced sa0]
+          isLit t@(Lit lt) = Just t
+          isLit _ = Nothing
+          isCon (Con h _ _) = Just h
+          isCon _           = Nothing
+          combine l ty d [] = d
+          combine l ty d [(psi,u)] = u
+          combine l ty d ((psi,u):xs)
+            = pure tPOr <#> l <@> psi <@> (foldr imax iz (map fst xs))
+                        <#> (ilam "o" $ \ _ -> ty) -- the type
+                        <@> u <@> (combine l ty d xs)
+          noRed' su = return $ NoReduction [notReduced l,reduced sc, reduced sphi, reduced su', reduced sa0]
             where
               su' = case view phi of
                      IZero -> notBlocked $ argN $ runNames [] $ do
@@ -920,20 +949,41 @@ primTransHComp cmd ts nelims = do
                                  lam "i" $ \ i -> pure tEmpty <#> l
                                                               <#> (ilam "o" $ \ _ -> c)
                      _     -> su
-          sameConHead h u = allComponents unview phi u $ \ t ->
-            case constrForm t of
-              Con h' _ _ -> h == h'
-              _        -> False
+          sameConHeadBack Nothing Nothing su k = noRed' su
+          sameConHeadBack lt h su k = do
+            let u = unArg . ignoreBlocking $ su
+            (b, ts) <- allComponentsBack unview phi u $ \ t ->
+                        (isLit t == lt, isCon (constrForm t) == h)
+            let
+              (lit,hd) = unzip b
 
-      case constrForm a0 of
-        Con h _ args -> do
-          ifM (not <$> sameConHead h u) noRed $ do
+            if isJust lt && and lit then redReturn a0 else do
+            su <- caseMaybe (sequence ts) (return su) $ \ ts -> do
+              let (us,bools) = unzip ts
+              fmap ((sequenceA_ us $>) . argN) $ do
+              let
+                phis :: [Term]
+                phis = for bools $ \ m ->
+                            foldr iMin iO $ map (\(i,b) -> if b then var i else iNeg (var i)) $ Map.toList m
+              runNamesT [] $ do
+                u <- open u
+                [l,c] <- mapM (open . unArg) [l,ignoreBlocking sc]
+                phis <- mapM open phis
+                us   <- mapM (open . ignoreBlocking) us
+                lam "i" $ \ i -> do
+                  combine l c (u <@> i) $ zip phis (map (\ t -> t <@> i) us)
+
+            if isJust h && and hd then k (fromMaybe __IMPOSSIBLE__ h) su
+                      else noRed' su
+
+      sameConHeadBack (isLit a0) (isCon a0) su $ \ h su -> do
+            let u = unArg . ignoreBlocking $ su
             Constructor{ conComp = cm } <- theDef <$> getConstInfo (conName h)
             case nameOfHComp cm of
               Just hcompD -> redReturn $ Def hcompD [] `apply`
                                           (ps ++ map argN [phi,u,a0])
-              Nothing        -> noRed
-        _ -> noRed
+              Nothing        -> noRed' su
+
     compData _     0 DoTransp (IsFam l) (IsFam ps) fsc sphi Nothing a0 = redReturn $ unArg a0
     compData isHIT _ cmd@DoTransp (IsFam l) (IsFam ps) fsc sphi Nothing a0 = do
       let getTermLocal = getTerm $ cmdToName cmd ++ " for data types"
