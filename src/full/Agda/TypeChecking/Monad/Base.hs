@@ -957,7 +957,7 @@ instance HasRange ProblemConstraint where
   getRange = getRange . theConstraint
 
 data Constraint
-  = ValueCmp Comparison Type Term Term
+  = ValueCmp Comparison CompareAs Term Term
   | ValueCmpOnFace Comparison Term Type Term Term
   | ElimCmp [Polarity] [IsForced] Type Term [Elim] [Elim]
   | TypeCmp Comparison Type Type
@@ -1074,6 +1074,22 @@ dirToCmp :: (Comparison -> a -> a -> c) -> CompareDirection -> a -> a -> c
 dirToCmp cont DirEq  = cont CmpEq
 dirToCmp cont DirLeq = cont CmpLeq
 dirToCmp cont DirGeq = flip $ cont CmpLeq
+
+-- | We can either compare two terms at a given type, or compare two
+--   types without knowing (or caring about) their sorts.
+data CompareAs
+  = AsTermsOf Type
+  | AsTypes
+  deriving (Data, Show)
+
+instance Free CompareAs where
+  freeVars' (AsTermsOf a) = freeVars' a
+  freeVars' AsTypes       = mempty
+
+instance TermLike CompareAs where
+  foldTerm f (AsTermsOf a) = foldTerm f a
+  foldTerm f AsTypes       = mempty
+  traverseTermM f c = __IMPOSSIBLE__ -- not yet implemented
 
 ---------------------------------------------------------------------------
 -- * Open things
@@ -3162,7 +3178,7 @@ data TypeError
         | VariableIsErased Name
         | VariableIsOfUnusableCohesion Name Cohesion
 --        | UnequalLevel Comparison Term Term  -- UNUSED
-        | UnequalTerms Comparison Term Term Type
+        | UnequalTerms Comparison Term Term CompareAs
         | UnequalTypes Comparison Type Type
 --      | UnequalTelescopes Comparison Telescope Telescope -- UNUSED
         | UnequalRelevance Comparison Term Term

@@ -1,4 +1,4 @@
 Issue610-module.agda:29,8-40
-.(M.out _) !=< ⊥ of type Set
+.(M.out _) !=< ⊥
 when checking that the expression subst (λ x → x) (cong ack hah) _
 has type ⊥

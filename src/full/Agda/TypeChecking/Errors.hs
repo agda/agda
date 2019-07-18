@@ -537,7 +537,11 @@ instance PrettyTCM TypeError where
       (s            , Sort DefS{}  ) -> prettyTCM $ ShouldBeASort $ El Inf s
       (_            , _            ) -> do
         (d1, d2, d) <- prettyInEqual s t
-        fsep $ [return d1, notCmp cmp, return d2] ++ pwords "of type" ++ [prettyTCM a] ++ [return d]
+        fsep $ [return d1, notCmp cmp, return d2]
+          ++ (case a of
+                AsTermsOf t -> pwords "of type" ++ [prettyTCM t]
+                AsTypes     -> [])
+          ++ [return d]
 
 -- UnequalLevel is UNUSED
 --   UnequalLevel cmp s t -> fsep $

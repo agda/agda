@@ -268,7 +268,7 @@ instance PrettyTCM ProblemConstraint where
 
 instance PrettyTCM Constraint where
     prettyTCM c = case c of
-        ValueCmp cmp ty s t      -> prettyCmp (prettyTCM cmp) s t <?> (":" <+> prettyTCMCtx TopCtx ty)
+        ValueCmp cmp ty s t -> prettyCmp (prettyTCM cmp) s t <?> prettyTCM ty
         ValueCmpOnFace cmp p ty s t ->
             sep [ prettyTCM p <+> "|"
                 , prettyCmp (prettyTCM cmp) s t ]
@@ -340,6 +340,9 @@ instance PrettyTCM Constraint where
           => m Doc -> a -> b -> m Doc
         prettyCmp cmp x y = prettyTCMCtx TopCtx x <?> (cmp <+> prettyTCMCtx TopCtx y)
 
+instance PrettyTCM CompareAs where
+  prettyTCM (AsTermsOf a) = ":" <+> prettyTCMCtx TopCtx a
+  prettyTCM AsTypes       = ""
 
 instance PrettyTCM TypeCheckingProblem where
   prettyTCM (CheckExpr cmp e a) =

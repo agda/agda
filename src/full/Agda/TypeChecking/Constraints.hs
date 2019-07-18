@@ -222,7 +222,7 @@ solveConstraintTCM c = do
       solveConstraint_ c
 
 solveConstraint_ :: Constraint -> TCM ()
-solveConstraint_ (ValueCmp cmp a u v)       = compareTerm cmp a u v
+solveConstraint_ (ValueCmp cmp a u v)       = compareAs cmp a u v
 solveConstraint_ (ValueCmpOnFace cmp p a u v) = compareTermOnFace cmp p a u v
 solveConstraint_ (ElimCmp cmp fs a e u v)   = compareElims cmp fs a e u v
 solveConstraint_ (TypeCmp cmp a b)          = compareType cmp a b

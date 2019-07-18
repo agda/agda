@@ -1,3 +1,3 @@
 Issue2057.agda:18,20-21
-(x₁ : _A_9) → P x₁ !=< P x of type Set
+(x₁ : _A_9) → P x₁ !=< P x
 when checking that the expression p has type P x

@@ -53,6 +53,10 @@ instance IsSizeType a => IsSizeType (Type' a) where
 instance IsSizeType Term where
   isSizeType v = isSizeTypeTest <*> pure v
 
+instance IsSizeType CompareAs where
+  isSizeType (AsTermsOf a) = isSizeType a
+  isSizeType AsTypes       = return Nothing
+
 isSizeTypeTest :: (HasOptions m, HasBuiltins m) => m (Term -> Maybe BoundedSize)
 isSizeTypeTest =
   flip (ifM sizedTypesOption) (return $ const Nothing) $ do

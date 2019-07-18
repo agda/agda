@@ -70,7 +70,7 @@
 ((last . 1) . (agda2-goals-action '(7 1 2 3 5)))
 ((last . 2) . (agda2-solveAll-action '(5 "D z")))
 ((last . 1) . (agda2-goals-action '(7 1 2 3 5)))
-(agda2-info-action "*Error*" "1,1-4 Nat !=< Maybe Nat of type Set when checking that the inferred type of an application Nat matches the expected type Maybe Nat" nil)
+(agda2-info-action "*Error*" "1,1-4 Nat !=< Maybe Nat when checking that the inferred type of an application Nat matches the expected type Maybe Nat" nil)
 (agda2-highlight-load-and-delete-action)
 (agda2-status-action "")
 (agda2-status-action "")

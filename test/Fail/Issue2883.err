@@ -1,3 +1,3 @@
 Issue2883.agda:33,19-20
-Σ (El box) (λ x → El ((λ { [ a ] → box }) x)) !=< Nat of type Set
+Σ (El box) (λ x → El ((λ { [ a ] → box }) x)) !=< Nat
 when checking that the expression p has type Nat

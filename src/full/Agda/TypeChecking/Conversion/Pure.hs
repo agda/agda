@@ -38,6 +38,12 @@ pureEqualTerm
 pureEqualTerm a u v = locallyTC eCompareBlocked (const True) $
   isRight <$> runPureConversion (equalTerm a u v)
 
+pureCompareAs
+  :: (MonadReduce m, MonadAddContext m, HasBuiltins m, HasConstInfo m)
+  => Comparison -> CompareAs -> Term -> Term -> m Bool
+pureCompareAs cmp a u v = locallyTC eCompareBlocked (const True) $
+  isRight <$> runPureConversion (compareAs cmp a u v)
+
 runPureConversion
   :: (ReadTCState m, MonadDebug m, HasOptions m, MonadTCEnv m, Show a)
   => PureConversionT m a -> m (Either TCErr a)

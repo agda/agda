@@ -950,6 +950,10 @@ instance Subst Term Constraint where
     where
       rf x = applySubst rho x
 
+instance Subst Term CompareAs where
+  applySubst rho (AsTermsOf a) = AsTermsOf $ applySubst rho a
+  applySubst rho AsTypes       = AsTypes
+
 instance Subst t a => Subst t (Elim' a) where
   applySubst rho e = case e of
     Apply v -> Apply $ applySubst rho v
@@ -1228,6 +1232,7 @@ deriving instance (Subst t a, Eq a)  => Eq  (Tele a)
 deriving instance (Subst t a, Ord a) => Ord (Tele a)
 
 deriving instance Eq Constraint
+deriving instance Eq CompareAs
 deriving instance Eq Section
 
 instance Ord PlusLevel where
