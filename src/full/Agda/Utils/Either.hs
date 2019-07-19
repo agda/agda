@@ -18,11 +18,14 @@ module Agda.Utils.Either
   , maybeRight
   , allLeft
   , allRight
+  , groupByEither
   , maybeToEither
   ) where
 
 import Data.Bifunctor
 import Data.Either (isLeft, isRight)
+
+import Agda.Utils.List ( listCase )
 
 -- | Loop while we have an exception.
 
@@ -109,6 +112,23 @@ allLeft = mapM maybeLeft
 
 allRight :: [Either a b] -> Maybe [b]
 allRight = mapM maybeRight
+
+-- | Groups a list into alternating chunks of 'Left' and 'Right' values
+groupByEither :: forall a b. [Either a b] -> [Either [a] [b]]
+groupByEither = listCase [] (go . init) where
+
+  go :: Either [a] [b] -> [Either a b] -> [Either [a] [b]]
+  go acc         []              = adjust acc : []
+  -- match: next value can be tacked onto the accumulator
+  go acc@Left{}  (Left a  : abs) = go (consL a acc) abs
+  go acc@Right{} (Right b : abs) = go (consR b acc) abs
+  -- mismatch: switch the accumulator to the other mode
+  go acc         (ab      : abs) = adjust acc : go (init ab) abs
+
+  adjust = bimap reverse reverse
+  consL  = first . (:)
+  consR  = second . (:)
+  init   = bimap pure pure
 
 -- | Convert 'Maybe' to @'Either' ()@.
 maybeToEither :: Maybe a -> Either () a

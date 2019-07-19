@@ -1111,28 +1111,29 @@ CommaImportNames1
 -- A left hand side of a function clause. We parse it as an expression, and
 -- then check that it is a valid left hand side.
 LHS :: { LHS }
-LHS : Expr1 RewriteEquations WithExpressions
-        {% exprToLHS $1 >>= \p -> return (p $2 $3) }
+LHS : Expr1 WithRewriteExpressions
+        {% exprToLHS $1      >>= \p ->
+           buildWithBlock $2 >>= \ (rs, es) ->
+           return (p rs es)
+        }
 
-WithExpressions :: { [Expr] }
-WithExpressions
+WithRewriteExpressions :: { [Either RewriteEqn [Expr]] }
+WithRewriteExpressions
   : {- empty -} { [] }
-  | 'with' Expr
-      { case $2 of { WithApp _ e es -> e : es; e -> [e] } }
+  | 'with' Expr1 WithRewriteExpressions
+    {% fmap (++ $3) (buildWithStmt $2)  }
+  | 'rewrite' Expr1 WithRewriteExpressions
+    { Left (Rewrite $ fromWithApp $2) : $3 }
 
-RewriteEquations :: { [RewriteEqn] }
-RewriteEquations
-  : {- empty -} { [] }
-  | 'rewrite' Expr1 RewriteEquations
-     { (Rewrite $ case $2 of { WithApp _ e es -> e : es; e -> [e] }) : $3 }
-  | 'invert' Expr1 RewriteEquations
-     {% (flip fmap) (fmap Invert $ buildInvertStmt $2) (: $3) }
-
--- Parsing either an expression @e@ or a @(rewrite | using) e1 | ... | en@.
+-- Parsing either an expression @e@ or a @(rewrite | with p <-) e1 | ... | en@.
 HoleContent :: { HoleContent }
 HoleContent
-  : Expr             { HoleContentExpr    $1 }
-  | RewriteEquations { HoleContentRewrite $1 }
+  : Expr                   {  HoleContentExpr    $1 }
+  | WithRewriteExpressions
+    {% fmap HoleContentRewrite $ forM $1 $ \case
+         Left r  -> pure r
+         Right{} -> parseError "Cannot declare a 'with' abstraction from inside a hole."
+      }
 
 -- Where clauses are optional.
 WhereClause :: { WhereClause }
@@ -2026,15 +2027,38 @@ exprToAssignment (RawApp r es)
     isLeftArrow _ = False
 exprToAssignment _ = pure Nothing
 
--- | Build an inversion statement
-buildInvertStmt :: Expr -> Parser [(Pattern, Expr)]
-buildInvertStmt e =
-  let es = case e of { WithApp _ e es -> e : es; e -> [e] } in
-  forM es $ \ e -> do
-    mpatexpr <- exprToAssignment e
-    case mpatexpr of
-      Just (pat, _, expr) -> pure $ (pat, expr)
-      Nothing -> parseError' (rStart' $ getRange e) "Expected pattern-matching binder"
+-- | Build a with-block
+buildWithBlock :: [Either RewriteEqn [Expr]] -> Parser ([RewriteEqn], [Expr])
+buildWithBlock rees = case groupByEither rees of
+  (Left rs : rest) -> (rs,) <$> finalWith rest
+  rest             -> ([],) <$> finalWith rest
+
+  where
+
+    finalWith :: [Either [RewriteEqn] [[Expr]]] -> Parser [Expr]
+    finalWith []             = pure $ []
+    finalWith [Right ees]    = pure $ concat ees
+    finalWith (Right{} : tl) = parseError' (rStart' $ getRange tl)
+      "Cannot use rewrite / pattern-matching with after a with-abstraction."
+
+-- | Build a with-statement
+buildWithStmt :: Expr -> Parser [Either RewriteEqn [Expr]]
+buildWithStmt e = do
+  es <- mapM buildSingleWithStmt $ fromWithApp e
+  let ees = groupByEither es
+  pure $ map (mapLeft Invert) ees
+
+buildSingleWithStmt :: Expr -> Parser (Either (Pattern, Expr) Expr)
+buildSingleWithStmt e = do
+  mpatexpr <- exprToAssignment e
+  pure $ case mpatexpr of
+    Just (pat, _, expr) -> Left (pat, expr)
+    Nothing             -> Right e
+
+fromWithApp :: Expr -> [Expr]
+fromWithApp = \case
+  WithApp _ e es -> e : es
+  e              -> [e]
 
 -- | Build a do-statement
 defaultBuildDoStmt :: Expr -> [LamClause] -> Parser DoStmt
