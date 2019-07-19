@@ -14,6 +14,7 @@ Language Reference
    core-language
    cubical
    data-types
+   flat
    foreign-function-interface
    function-definitions
    function-types
