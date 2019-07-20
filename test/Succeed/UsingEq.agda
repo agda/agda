@@ -41,6 +41,9 @@ module _ {a} {A : Set a} {n} (xs : Vec A (suc n)) where
   head : A
   head with (x ∷ _) ← xs = x
 
+  tail : Vec A n
+  tail with (_ ∷ xs) ← xs = xs -- pattern shadows variable with'd on
+
 castVec : ∀ {m n} → m ≡ n → Vec Nat m → Vec Nat n
 castVec eq ms with refl ← eq = ms
 

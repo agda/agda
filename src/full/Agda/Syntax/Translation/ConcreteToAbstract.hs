@@ -2218,12 +2218,17 @@ instance ToAbstract (C.RewriteEqn) (RewriteEqn' A.Pattern A.Expr) where
   toAbstract = \case
     Rewrite es -> Rewrite <$> mapM toAbstract es
     Invert pes -> fmap Invert $ forM pes $ \ (p, e) -> do
+      -- first check the expression: the pattern may shadow
+      -- some of the variables mentioned in it!
+      e <- toAbstract e
+      -- then parse the pattern and go through the motions of converting it,
+      -- checking it for linearity, binding the variable it introduced and
+      -- finally producing an abstract pattern.
       p <- parsePattern p
       p <- toAbstract p
       checkPatternLinearity p (typeError . RepeatedVariablesInPattern)
       bindVarsToBind
       p <- toAbstract p
-      e <- toAbstract e
       pure (p, e)
 
 instance ToAbstract AbstractRHS A.RHS where
