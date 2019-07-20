@@ -1886,8 +1886,8 @@ instance KillRange UniverseCheck where
 -----------------------------------------------------------------------------
 
 data RewriteEqn' p e
-  = Rewrite [e]      -- ^ @rewrite@
-  | Invert  [(p, e)] -- ^ @invert@
+  = Rewrite [e]      -- ^ @rewrite e@
+  | Invert  [(p, e)] -- ^ @with p <- e@
   deriving (Data, Eq, Show, Functor, Foldable, Traversable)
 
 instance (NFData p, NFData e) => NFData (RewriteEqn' p e) where

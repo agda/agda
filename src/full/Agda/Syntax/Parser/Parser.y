@@ -145,7 +145,6 @@ import Agda.Utils.Impossible
     'where'                   { TokKeyword KwWhere $$ }
     'do'                      { TokKeyword KwDo $$ }
     'with'                    { TokKeyword KwWith $$ }
-    'invert'                  { TokKeyword KwInvert $$ }
 
     'BUILTIN'                 { TokKeyword KwBUILTIN $$ }
     'CATCHALL'                { TokKeyword KwCATCHALL $$ }
@@ -276,7 +275,6 @@ Token
     | 'where'                   { TokKeyword KwWhere $1 }
     | 'do'                      { TokKeyword KwDo $1 }
     | 'with'                    { TokKeyword KwWith $1 }
-    | 'invert'                  { TokKeyword KwInvert $1 }
 
     | 'BUILTIN'                 { TokKeyword KwBUILTIN $1 }
     | 'CATCHALL'                { TokKeyword KwCATCHALL $1 }

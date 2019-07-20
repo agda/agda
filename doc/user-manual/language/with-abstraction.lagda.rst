@@ -383,61 +383,90 @@ with-abstraction.
 
 ..
   ::
-  module with-invert {a b} {A : Set a} {B : A → Set b} where
-    open import Agda.Builtin.Sigma using (Σ; _,_)
+  module with-invert {a} {A : Set a} where
+    open import Agda.Builtin.Nat
+    open import Agda.Builtin.Sigma
+    open import Agda.Builtin.Equality
+    open import Agda.Builtin.Unit
 
 .. _with-invert:
 
-Invert
-~~~~~~
+Irrefutable With
+~~~~~~~~~~~~~~~~
 
-When a pattern is irrefutable, we can use ``invert`` instead of a ``with``
-block. This gives us a lightweight syntax to make a lot of observations
-before using a "proper" ``with`` block. See for instance the redefinitions
-of the first and second projections out of a record::
+When a pattern is irrefutable, we can use a pattern-matching ``with``
+instead of a traditional ``with`` block. This gives us a lightweight
+syntax to make a lot of observations before using a "proper" ``with``
+block. For a basic example of such an irrefutable pattern, see this
+unfolding lemma for ``pred`` ::
 
-    module _ (p : Σ A B) where
+    pred : Nat → Nat
+    pred zero    = zero
+    pred (suc n) = n
 
-      fst : A
-      fst invert (a , _) ← p = a
+    NotNull : Nat → Set
+    NotNull zero    = ⊥ -- false
+    NotNull (suc n) = ⊤ -- trivially true
 
-      snd : B fst
-      snd invert (_ , b) ← p = b
+    module _  {n} (pr : NotNull n) where
+
+      pred-correct : suc (pred n) ≡ n
+      pred-correct with suc p ← n = refl
+
+In the above code snippet we do not need to entertain the idea that ``n``
+could be equal to ``zero``: Agda detects that the proof ``pr`` allows us
+to dismiss such a case entirely.
 
 The patterns used in such an inversion clause can be arbitrary. We can
-for instance have deep patterns, e.g. writing a cast for properties on
-dependent pairs we know to be equal in a component-wise manner:
+for instance have deep patterns, e.g. projecting out the second element
+of a vector whose length is neither 0 nor 1:
 
 ::
 
-    Σ-eq : (p q : Σ A B) → Set _
-    Σ-eq p q = Σ (fst p ≡ fst q) (λ where refl → snd p ≡ snd q)
+    infixr 5 _∷_
+    data Vec {a} (A : Set a) : Nat → Set a where
+      []  : Vec A zero
+      _∷_ : ∀ {n} → A → Vec A n → Vec A (suc n)
 
-    module _ {p q : Σ A B} (eq : Σ-eq p q) where
+    module _ {n} (pr : NotNull (pred n)) (vs : Vec A n) where
 
-      cast : ∀ {l} {P : Σ A B → Set l} → P p → P q
-      cast proof invert (refl , refl) ← eq = proof
+      second : A
+      second with (_ ∷ v ∷ _) ← vs = v
 
 Remember example of :ref:`simultaneous
 abstraction <simultaneous-abstraction>` from above. A simultaneous
-``invert`` is to be understood as being nested. That is to say that
-the type refinements introduced by the first pattern may be necessary
-to type the following ones. Here is a contrived example:
+rewrite / pattern-matching ``with`` is to be understood as being nested.
+That is to say that the type refinements introduced by the first
+case analysis may be necessary to type the following ones.
+
+In the following example, in ``focusAt`` we are only able to perform
+the ``splitAt`` we are interested in because we have massaged the type
+of the vector argument using ``suc-+`` first.
 
 ::
 
-      -- type annotation operator
-      _∋_ : ∀ {a} (A : Set a) → A → A
-      A ∋ a = a
+      suc-+ : ∀ m n → suc m + n ≡ m + suc n
+      suc-+ zero    n                   = refl
+      suc-+ (suc m) n rewrite suc-+ m n = refl
 
-      cascading : Σ A B
-      cascading
-        invert (refl , refl) ← eq -- identifying p and q componentwise
-             | _ ← (p ≡ q) ∋ refl -- only typechecks if Agda knows p = q
-             = p
+      infixr 1 _×_
+      _×_ : ∀ {a b} (A : Set a) (B : Set b) → Set ?
+      A × B = Σ A (λ _ → B)
 
-You can alternate arbitrarily many ``rewrite`` and ``invert`` clauses
-and still perform a ``with`` abstraction afterwards if necessary.
+      splitAt : ∀ m {n} → Vec A (m + n) → Vec A m × Vec A n
+      splitAt zero    xs       = ([] , xs)
+      splitAt (suc m) (x ∷ xs) with (ys , zs) ← splitAt m xs = (x ∷ ys , zs)
+
+      -- focusAt m (x₀ ∷ ⋯ ∷ xₘ₋₁ ∷ xₘ ∷ xₘ₊₁ ∷ ⋯ ∷ xₘ₊ₙ)
+      -- returns ((x₀ ∷ ⋯ ∷ xₘ₋₁) , xₘ , (xₘ₊₁ ∷ ⋯ ∷ xₘ₊ₙ))
+      focusAt : ∀ m {n} → Vec A (suc (m + n)) → Vec A m × A × Vec A n
+      focusAt m {n} vs rewrite suc-+ m n
+                       with (before , focus ∷ after) ← splitAt m vs
+                       = (before , focus , after)
+
+You can alternate arbitrarily many ``rewrite`` and pattern-matching
+``with`` clauses and still perform a ``with`` abstraction afterwards
+if necessary.
 
 ..
   ::

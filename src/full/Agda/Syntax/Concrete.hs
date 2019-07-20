@@ -262,7 +262,7 @@ makePi bs e = Pi bs e
 -}
 data LHS = LHS
   { lhsOriginalPattern :: Pattern       -- ^ e.g. @f ps | wps@
-  , lhsRewriteEqn      :: [RewriteEqn]  -- ^ @(rewrite | using) e@ (many)
+  , lhsRewriteEqn      :: [RewriteEqn]  -- ^ @(rewrite e | with p <- e)@ (many)
   , lhsWithExpr        :: [WithExpr]    -- ^ @with e@ (many)
   } -- ^ Original pattern (including with-patterns), rewrite equations and with-expressions.
   deriving (Data, Eq)

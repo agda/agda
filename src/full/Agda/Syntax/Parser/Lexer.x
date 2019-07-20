@@ -143,7 +143,6 @@ tokens :-
 <0,code> do             { keyword KwDo }
 <0,code> field          { keyword KwField }
 <0,code> with           { keyword KwWith }
-<0,code> invert         { keyword KwInvert }
 <0,code> rewrite        { keyword KwRewrite }
 <0,code> postulate      { keyword KwPostulate }
 <0,code> primitive      { keyword KwPrimitive }

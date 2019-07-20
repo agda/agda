@@ -148,13 +148,13 @@ Language
   Idiom brackets with no application `(|)` or `⦇⦈` are equivalent to `empty`.
 
 
-* Invert keyword
+* Irrefutable With
 
-  The new keyword `invert` allows users to match on irrefutable patterns
-  on the LHS. An expression of the form:
+  Users can now match on irrefutable patterns on the LHS using a
+  pattern-matching `with`. An expression of the form:
 
   ```agda
-  f xs invert p1 <- e1 | ... | pn <- en = rhs
+  f xs with p1 <- e1 | ... | pn <- en = rhs
   ```
 
   is translated to nested `with` clauses, essentially equivalent to:
@@ -165,7 +165,6 @@ Language
      (...) with en
   ... | pn = rhs
   ```
-
 
 ### Termination checking
 
