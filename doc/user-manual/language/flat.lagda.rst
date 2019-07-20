@@ -27,11 +27,11 @@ inductive definition:
 
 ::
 
-   data ♭ {@♭ l : Level} (@♭ A : Set l) : Set l where
-     con : (@♭ x : A) → ♭ A
+  data ♭ {@♭ l : Level} (@♭ A : Set l) : Set l where
+    con : (@♭ x : A) → ♭ A
 
-   counit : {@♭ l : Level} {@♭ A : Set l} → ♭ A → A
-   counit (con x) = x
+  counit : {@♭ l : Level} {@♭ A : Set l} → ♭ A → A
+  counit (con x) = x
 
 
 When trying to provide a ``@♭`` arguments only other ``@♭``
@@ -67,7 +67,7 @@ provided as ``@♭``
 
 ::
 
-  flat-subst : (@♭ x y : A) (@♭ eq : x ≡ y) → P x → P y
+  flat-subst : {@♭ A : Set} {P : A → Set} (@♭ x y : A) (@♭ eq : x ≡ y) → P x → P y
   flat-subst x .x refl p = p
 
 if we simply had ``(eq : x ≡ y)`` the code would be rejected.
