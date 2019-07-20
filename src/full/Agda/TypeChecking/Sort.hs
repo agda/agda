@@ -25,21 +25,19 @@ import Control.Monad
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 
-import {-# SOURCE #-} Agda.TypeChecking.Constraints ()
+import {-# SOURCE #-} Agda.TypeChecking.Constraints () -- instance only
 import {-# SOURCE #-} Agda.TypeChecking.Conversion
-import {-# SOURCE #-} Agda.TypeChecking.MetaVars
+import {-# SOURCE #-} Agda.TypeChecking.MetaVars () -- instance only
 
-import Agda.TypeChecking.Free
-import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Constraints (addConstraint, MonadConstraint)
 import Agda.TypeChecking.Monad.Context
 import Agda.TypeChecking.Monad.Debug
-import Agda.TypeChecking.Pretty
+import Agda.TypeChecking.Pretty ()
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 
-import Agda.Utils.Impossible
+import Agda.Utils.Except
 import Agda.Utils.Lens
 
 -- | Infer the sort of another sort. If we can compute the bigger sort
@@ -125,3 +123,9 @@ ifIsSort t yes no = do
   case unEl t of
     Sort s -> yes s
     _      -> no
+
+-- | Result is in reduced form.
+shouldBeSort
+  :: (MonadReduce m, MonadTCEnv m, ReadTCState m, MonadError TCErr m)
+  => Type -> m Sort
+shouldBeSort t = ifIsSort t return (typeError $ ShouldBeASort t)

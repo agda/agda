@@ -25,14 +25,12 @@ module Agda.Syntax.Translation.AbstractToConcrete
 
 import Prelude hiding (null)
 
-import Control.Applicative hiding (empty)
 import Control.Arrow (first)
 import Control.Monad.Reader
 import Control.Monad.State
 
 import qualified Control.Monad.Fail as Fail
 
-import Data.Either
 import qualified Data.Map as Map
 import Data.Maybe
 import Data.Monoid

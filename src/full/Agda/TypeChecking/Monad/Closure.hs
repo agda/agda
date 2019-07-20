@@ -5,8 +5,6 @@ import Control.Monad
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Env
 import Agda.TypeChecking.Monad.State
-import Agda.TypeChecking.Monad.Context
-import Agda.Utils.Lens
 
 enterClosure :: (MonadTCEnv m, ReadTCState m)
              => Closure a -> (a -> m b) -> m b

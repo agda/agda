@@ -5,7 +5,6 @@ import Control.Arrow (first, second)
 import Control.Monad.State
 import Control.Monad.Reader
 import Control.Monad.Writer hiding ((<>))
-import Control.Monad.Trans (lift)
 
 import Data.Char
 import qualified Data.HashSet as HashSet
@@ -27,7 +26,6 @@ import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.MetaVars.Mention
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
-import Agda.TypeChecking.Monad.Env
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
@@ -168,9 +166,9 @@ pickName a =
               isAlpha c -> [toLower c]
     _        -> "_"
 
--- TODO: reflect Quantity
+-- TODO: reflect Quantity, Cohesion
 instance Unquote Modality where
-  unquote t = (`Modality` defaultQuantity) <$> unquote t
+  unquote t = (\ r -> Modality r defaultQuantity defaultCohesion) <$> unquote t
 
 instance Unquote ArgInfo where
   unquote t = do

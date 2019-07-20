@@ -13,7 +13,6 @@ module Agda.Syntax.Internal
 import Prelude hiding (foldr, mapM, null)
 import GHC.Stack (HasCallStack, freezeCallStack, callStack)
 
-import Control.Applicative hiding (empty)
 import Control.Monad.Identity hiding (mapM)
 import Control.DeepSeq
 
@@ -38,7 +37,6 @@ import Agda.Utils.Empty
 import Agda.Utils.Functor
 import Agda.Utils.Geniplate
 import Agda.Utils.Lens
-import Agda.Utils.Maybe
 import Agda.Utils.Null
 import Agda.Utils.Singleton
 import Agda.Utils.Size
@@ -108,6 +106,7 @@ instance LensFreeVariables (Dom' t e) where
 
 instance LensRelevance (Dom e) where
 instance LensQuantity  (Dom e) where
+instance LensCohesion  (Dom e) where
 
 argFromDom :: Dom a -> Arg a
 argFromDom Dom{domInfo = i, unDom = a} = Arg i a

@@ -25,8 +25,8 @@ import {-# SOURCE #-} qualified Agda.Interaction.BasicOps    as B
 import           Agda.Interaction.Options     (CommandLineOptions,
                                                defaultOptions)
 
-import           Agda.Utils.Except            (ExceptT, MonadError (catchError, throwError),
-                                               mkExceptT, runExceptT)
+import           Agda.Utils.Except            (ExceptT, MonadError (throwError),
+                                               runExceptT)
 import           Agda.Utils.FileName          (AbsolutePath, mkAbsolute)
 import           Agda.Utils.Time              (ClockTime)
 

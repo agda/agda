@@ -15,14 +15,13 @@ import Data.Maybe
 import Control.Arrow (left)
 import Control.Monad
 import Control.Monad.Reader
-import Control.Monad.State
 import Control.Monad.Writer hiding ((<>))
 import Control.Monad.Trans.Maybe
 
 import Data.Either (partitionEithers)
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
-import Data.List (delete, sortBy, stripPrefix, (\\), findIndex)
+import Data.List (findIndex)
 import qualified Data.List as List
 import Data.Monoid ( Monoid, mempty, mappend )
 import Data.Semigroup ( Semigroup )
@@ -39,7 +38,7 @@ import Agda.Syntax.Internal.Pattern
 import Agda.Syntax.Abstract (IsProjP(..))
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Views (asView, deepUnscope)
-import Agda.Syntax.Concrete (FieldAssignment'(..),NameInScope(..),LensInScope(..))
+import Agda.Syntax.Concrete (FieldAssignment'(..),LensInScope(..))
 import Agda.Syntax.Common as Common
 import Agda.Syntax.Info as A
 import Agda.Syntax.Literal
@@ -90,13 +89,13 @@ import Agda.Utils.Singleton
 import Agda.Utils.Size
 
 import Agda.Utils.Impossible
-
--- | Compute the set of flexible patterns in a list of patterns. The result is
---   the deBruijn indices of the flexible patterns.
-flexiblePatterns :: [NamedArg A.Pattern] -> TCM FlexibleVars
-flexiblePatterns nps = do
-  forMaybeM (zip (downFrom $ length nps) nps) $ \ (i, Arg ai p) -> do
-    runMaybeT $ (\ f -> FlexibleVar (getHiding ai) (getOrigin ai) f (Just i) i) <$> maybeFlexiblePattern p
+--UNUSED Liang-Ting Chen 2019-07-16
+---- | Compute the set of flexible patterns in a list of patterns. The result is
+----   the deBruijn indices of the flexible patterns.
+--flexiblePatterns :: [NamedArg A.Pattern] -> TCM FlexibleVars
+--flexiblePatterns nps = do
+--  forMaybeM (zip (downFrom $ length nps) nps) $ \ (i, Arg ai p) -> do
+--    runMaybeT $ (\ f -> FlexibleVar (getHiding ai) (getOrigin ai) f (Just i) i) <$> maybeFlexiblePattern p
 
 -- | A pattern is flexible if it is dotted or implicit, or a record pattern
 --   with only flexible subpatterns.
@@ -1169,6 +1168,8 @@ checkLHS mf = updateModality checkLHS_ where
       --
       -- Thus, no checking of (usableQuantity info) here.
 
+      unlessM (splittableCohesion info) $
+        addContext delta1 $ softTypeError $ SplitOnUnusableCohesion dom
 
       -- check that a is indeed the type of lit (otherwise fail softly)
       -- if not, fail softly since it could be instantiated by a later split.
@@ -1216,6 +1217,9 @@ checkLHS mf = updateModality checkLHS_ where
       -- if there is a single constructor (checked in Coverage).
       --
       -- Thus, no checking of (usableQuantity info) here.
+
+      unlessM (splittableCohesion info) $
+        addContext delta1 $ softTypeError $ SplitOnUnusableCohesion dom
 
       -- We should be at a data/record type
       (dr, d, pars, ixs) <- addContext delta1 $ isDataOrRecordType a
@@ -1308,6 +1312,14 @@ checkLHS mf = updateModality checkLHS_ where
       -- and lifting over Δ₂ gives the final substitution ρ = ρ₃;Δ₂
       -- from Δ' = Δ₁';Δ₂ρ₃
       --        Δ' ⊢ ρ : Δ₁(x : D vs ws)Δ₂
+
+      -- Andrea 2019-07-17 propagate the Cohesion to the equation telescope
+      -- TODO: should we propagate the modality in general?
+      -- See also Coverage checking.
+      da' <- do
+             let updCoh = composeCohesion (getCohesion info)
+             TelV tel dt <- telView da'
+             return $ abstract (mapCohesion updCoh <$> tel) a
 
       liftTCM (unifyIndices delta1Gamma flex da' cixs ixs') >>= \case
 

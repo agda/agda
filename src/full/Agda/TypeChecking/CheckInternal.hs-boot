@@ -41,4 +41,3 @@ checkSort :: (MonadCheckInternal m) => Action m -> Sort -> m Sort
 checkInternal :: (MonadCheckInternal m) => Term -> Type -> m ()
 checkInternal' :: (MonadCheckInternal m) => Action m -> Term -> Type -> m Term
 infer :: (MonadCheckInternal m) => Term -> m Type
-shouldBeSort :: (MonadCheckInternal m) => Type -> m Sort

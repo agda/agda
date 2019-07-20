@@ -78,7 +78,6 @@ import Agda.Interaction.Options
 import qualified Agda.Interaction.Options.Lenses as Lens
 import Agda.Interaction.Options.Warnings
 
-import Agda.Utils.AssocList (AssocList)
 import qualified Agda.Utils.AssocList as AssocList
 import Agda.Utils.Either
 import Agda.Utils.Except ( MonadError(catchError, throwError) )
@@ -118,9 +117,9 @@ notAValidLetBinding d = typeError $ NotAValidLetBinding d
 {--------------------------------------------------------------------------
     Helpers
  --------------------------------------------------------------------------}
-
-annotateDecl :: ScopeM A.Declaration -> ScopeM A.Declaration
-annotateDecl m = annotateDecls $ (:[]) <$> m
+--UNUSED Liang-Ting Chen 2019-07-16
+--annotateDecl :: ScopeM A.Declaration -> ScopeM A.Declaration
+--annotateDecl m = annotateDecls $ (:[]) <$> m
 
 annotateDecls :: ScopeM [A.Declaration] -> ScopeM A.Declaration
 annotateDecls m = do
@@ -153,10 +152,10 @@ noDotorEqPattern err = dot
       A.PatternSynP i c args -> A.PatternSynP i c <$> (traverse $ traverse $ traverse dot) args
       A.RecP i fs            -> A.RecP i <$> (traverse $ traverse dot) fs
       A.WithP i p            -> A.WithP i <$> dot p
-
--- | Make sure that there are no dot patterns (WAS: called on pattern synonyms).
-noDotPattern :: String -> A.Pattern' e -> ScopeM (A.Pattern' Void)
-noDotPattern err = traverse $ const $ genericError err
+--UNUSED Liang-Ting Chen 2019-07-16
+---- | Make sure that there are no dot patterns (WAS: called on pattern synonyms).
+--noDotPattern :: String -> A.Pattern' e -> ScopeM (A.Pattern' Void)
+--noDotPattern err = traverse $ const $ genericError err
 
 newtype RecordConstructorType = RecordConstructorType [C.Declaration]
 
@@ -442,22 +441,24 @@ toAbstractCtx :: ToAbstract concrete abstract =>
                  Precedence -> concrete -> ScopeM abstract
 toAbstractCtx ctx c = withContextPrecedence ctx $ toAbstract c
 
-toAbstractTopCtx :: ToAbstract c a => c -> ScopeM a
-toAbstractTopCtx = toAbstractCtx TopCtx
+--UNUSED Liang-Ting Chen 2019-07-16
+--toAbstractTopCtx :: ToAbstract c a => c -> ScopeM a
+--toAbstractTopCtx = toAbstractCtx TopCtx
 
 toAbstractHiding :: (LensHiding h, ToAbstract c a) => h -> c -> ScopeM a
 toAbstractHiding h | visible h = toAbstract -- don't change precedence if visible
 toAbstractHiding _             = toAbstractCtx TopCtx
 
-setContextCPS :: Precedence -> (a -> ScopeM b) ->
-                 ((a -> ScopeM b) -> ScopeM b) -> ScopeM b
-setContextCPS p ret f = do
-  old <- useScope scopePrecedence
-  withContextPrecedence p $ f $ \ x -> setContextPrecedence old >> ret x
-
-localToAbstractCtx :: ToAbstract concrete abstract =>
-                     Precedence -> concrete -> (abstract -> ScopeM a) -> ScopeM a
-localToAbstractCtx ctx c ret = setContextCPS ctx ret (localToAbstract c)
+--UNUSED Liang-Ting Chen 2019-07-16
+--setContextCPS :: Precedence -> (a -> ScopeM b) ->
+--                 ((a -> ScopeM b) -> ScopeM b) -> ScopeM b
+--setContextCPS p ret f = do
+--  old <- useScope scopePrecedence
+--  withContextPrecedence p $ f $ \ x -> setContextPrecedence old >> ret x
+--
+--localToAbstractCtx :: ToAbstract concrete abstract =>
+--                     Precedence -> concrete -> (abstract -> ScopeM a) -> ScopeM a
+--localToAbstractCtx ctx c ret = setContextCPS ctx ret (localToAbstract c)
 
 -- | This operation does not affect the scope, i.e. the original scope
 --   is restored upon completion.
@@ -493,8 +494,8 @@ instance ToAbstract c a => ToAbstract (Maybe c) (Maybe a) where
 -- Names ------------------------------------------------------------------
 
 data NewName a = NewName
-  { newBinder   :: Binder -- what kind of binder?
-  , newName     :: a
+  { _newBinder   :: Binder -- what kind of binder?
+  , _newName     :: a
   }
 
 data OldQName     = OldQName C.QName (Maybe (Set A.Name))
@@ -656,22 +657,22 @@ instance ToAbstract OldModuleName A.ModuleName where
     amodName <$> resolveModule q
 
 -- Expressions ------------------------------------------------------------
-
--- | Peel off 'C.HiddenArg' and represent it as an 'NamedArg'.
-mkNamedArg :: C.Expr -> NamedArg C.Expr
-mkNamedArg (C.HiddenArg   _ e) = Arg (hide         defaultArgInfo) e
-mkNamedArg (C.InstanceArg _ e) = Arg (makeInstance defaultArgInfo) e
-mkNamedArg e                   = Arg defaultArgInfo $ unnamed e
+--UNUSED Liang-Ting Chen 2019-07-16
+---- | Peel off 'C.HiddenArg' and represent it as an 'NamedArg'.
+--mkNamedArg :: C.Expr -> NamedArg C.Expr
+--mkNamedArg (C.HiddenArg   _ e) = Arg (hide         defaultArgInfo) e
+--mkNamedArg (C.InstanceArg _ e) = Arg (makeInstance defaultArgInfo) e
+--mkNamedArg e                   = Arg defaultArgInfo $ unnamed e
 
 -- | Peel off 'C.HiddenArg' and represent it as an 'Arg', throwing away any name.
 mkArg' :: ArgInfo -> C.Expr -> Arg C.Expr
 mkArg' info (C.HiddenArg   _ e) = Arg (hide         info) $ namedThing e
 mkArg' info (C.InstanceArg _ e) = Arg (makeInstance info) $ namedThing e
 mkArg' info e                   = Arg (setHiding NotHidden info) e
-
--- | By default, arguments are @Relevant@.
-mkArg :: C.Expr -> Arg C.Expr
-mkArg e = mkArg' defaultArgInfo e
+--UNUSED Liang-Ting 2019-07-16
+---- | By default, arguments are @Relevant@.
+--mkArg :: C.Expr -> Arg C.Expr
+--mkArg e = mkArg' defaultArgInfo e
 
 inferParenPreference :: C.Expr -> ParenPreference
 inferParenPreference C.Paren{} = PreferParen
@@ -1416,10 +1417,11 @@ instance ToAbstract LetDef [A.LetBinding] where
             where i' = ExprRange (fuseRange i e)
         lambda _ _ = notAValidLetBinding d
 
-newtype Blind a = Blind { unBlind :: a }
-
-instance ToAbstract (Blind a) (Blind a) where
-  toAbstract = return
+--UNUSED Liang-Ting Chen 2019-07-16
+--newtype Blind a = Blind { unBlind :: a }
+--
+--instance ToAbstract (Blind a) (Blind a) where
+--  toAbstract = return
 
 instance ToAbstract NiceDeclaration A.Declaration where
 
@@ -2180,12 +2182,12 @@ whereToAbstract r whname whds inner = do
   return (x, A.WhereDecls (am <$ whname) ds)
 
 data RightHandSide = RightHandSide
-  { rhsRewriteEqn :: [C.RewriteEqn]    -- ^ @rewrite e@ (many)
-  , rhsWithExpr   :: [C.WithExpr]      -- ^ @with e@ (many)
-  , rhsSubclauses :: [ScopeM C.Clause] -- ^ the subclauses spawned by a with (monadic because we need to reset the local vars before checking these clauses)
-  , rhs           :: C.RHS
-  , rhsWhereName  :: Maybe (C.Name, Access)  -- ^ The name of the @where@ module (if any).
-  , rhsWhereDecls :: [C.Declaration]         -- ^ The contents of the @where@ module.
+  { _rhsRewriteEqn :: [C.RewriteEqn]    -- ^ @rewrite e@ (many)
+  , _rhsWithExpr   :: [C.WithExpr]      -- ^ @with e@ (many)
+  , _rhsSubclauses :: [ScopeM C.Clause] -- ^ the subclauses spawned by a with (monadic because we need to reset the local vars before checking these clauses)
+  , _rhs           :: C.RHS
+  , _rhsWhereName  :: Maybe (C.Name, Access)  -- ^ The name of the @where@ module (if any).
+  , _rhsWhereDecls :: [C.Declaration]         -- ^ The contents of the @where@ module.
   }
 
 data AbstractRHS

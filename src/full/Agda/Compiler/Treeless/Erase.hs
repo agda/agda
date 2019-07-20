@@ -6,12 +6,11 @@ module Agda.Compiler.Treeless.Erase
        , isErasable
        ) where
 
-import Control.Arrow ((&&&), (***), first, second)
+import Control.Arrow (first, second)
 import Control.Monad
 import Control.Monad.State
 import Data.Map (Map)
 import qualified Data.Map as Map
-import Data.Semigroup
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
@@ -24,14 +23,12 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Monad as I
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Telescope
-import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Primitive
 
 import {-# SOURCE #-} Agda.Compiler.Backend
 import Agda.Compiler.Treeless.Subst
-import Agda.Compiler.Treeless.Pretty
 import Agda.Compiler.Treeless.Unused
 
 import Agda.Utils.Functor
@@ -40,7 +37,6 @@ import Agda.Utils.Maybe
 import Agda.Utils.Memo
 import Agda.Utils.Monad
 import Agda.Utils.Pretty (prettyShow)
-import qualified Agda.Utils.Pretty as P
 import Agda.Utils.IntSet.Infinite (IntSet)
 import qualified Agda.Utils.IntSet.Infinite as IntSet
 

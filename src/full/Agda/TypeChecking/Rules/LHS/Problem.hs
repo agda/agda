@@ -10,12 +10,9 @@ module Agda.TypeChecking.Rules.LHS.Problem
 
 import Prelude hiding (null)
 
-import Control.Applicative hiding (empty)
 import Data.Foldable ( Foldable )
-import Data.Maybe ( fromMaybe )
 import Data.Monoid ( Monoid, mempty, mappend, mconcat )
 import Data.Semigroup ( Semigroup, (<>) )
-import Data.Traversable
 
 import Agda.Syntax.Common
 import Agda.Syntax.Position
@@ -225,8 +222,9 @@ lhsProblem f p = f (_lhsProblem p) <&> \x -> p {_lhsProblem = x}
 lhsTarget :: Lens' (Arg Type) (LHSState a)
 lhsTarget f p = f (_lhsTarget p) <&> \x -> p {_lhsTarget = x}
 
-lhsPartialSplit :: Lens' [Maybe Int] (LHSState a)
-lhsPartialSplit f p = f (_lhsPartialSplit p) <&> \x -> p {_lhsPartialSplit = x}
+-- UNUSED Liang-Ting Chen 2019-07-16
+--lhsPartialSplit :: Lens' [Maybe Int] (LHSState a)
+--lhsPartialSplit f p = f (_lhsPartialSplit p) <&> \x -> p {_lhsPartialSplit = x}
 
 instance Subst Term (Problem a) where
   applySubst rho (Problem eqs rps cont) = Problem (applySubst rho eqs) rps cont

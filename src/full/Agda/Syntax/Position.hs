@@ -67,9 +67,7 @@ module Agda.Syntax.Position
 
 import Prelude hiding ( null )
 
-import Control.Applicative hiding (empty)
-import Control.Monad
-import Control.Monad.Writer (runWriter, Writer, tell)
+import Control.Monad.Writer (runWriter, tell)
 
 import Data.Foldable (Foldable)
 import qualified Data.Foldable as Fold

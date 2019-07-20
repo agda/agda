@@ -1,8 +1,7 @@
 module Agda.Compiler.Treeless.Simplify (simplifyTTerm) where
 
-import Control.Arrow (first, second, (***))
+import Control.Arrow (second, (***))
 import Control.Monad.Reader
-import Control.Monad.Writer
 import Data.Traversable (traverse)
 import qualified Data.List as List
 
@@ -15,13 +14,10 @@ import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Primitive
 import Agda.TypeChecking.Substitute
 
-import Agda.Compiler.Treeless.Subst
-import Agda.Compiler.Treeless.Pretty
 import Agda.Compiler.Treeless.Compare
 
 import Agda.Utils.List
 import Agda.Utils.Maybe
-import Agda.Utils.Pretty
 
 import Agda.Utils.Impossible
 

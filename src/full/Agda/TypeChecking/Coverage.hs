@@ -17,21 +17,15 @@ module Agda.TypeChecking.Coverage
 
 import Prelude hiding (null, (!!))  -- do not use partial functions like !!
 
-import Control.Arrow (second)
-
 import Control.Monad
-import Control.Monad.Reader
 import Control.Monad.Trans ( lift )
 
-import Data.Either (lefts)
 import Data.Foldable (for_)
 import qualified Data.List as List
-import Data.Monoid (Any(..))
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
-import qualified Data.Traversable as Trav
 
 import Agda.Syntax.Common
 import Agda.Syntax.Position
@@ -51,10 +45,9 @@ import Agda.TypeChecking.Rules.LHS.Unify
 import Agda.TypeChecking.Coverage.Match
 import Agda.TypeChecking.Coverage.SplitTree
 
-import Agda.TypeChecking.Conversion (tryConversion, equalType, equalTermOnFace)
+import Agda.TypeChecking.Conversion (tryConversion, equalType)
 import Agda.TypeChecking.Datatypes (getConForm)
 import {-# SOURCE #-} Agda.TypeChecking.Empty ( checkEmptyTel, isEmptyTel, isEmptyType )
-import Agda.TypeChecking.Free
 import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Substitute
@@ -70,7 +63,7 @@ import Agda.Interaction.Options
 import Agda.Utils.Either
 import Agda.Utils.Except
   ( ExceptT
-  , MonadError(catchError, throwError)
+  , MonadError(throwError)
   , runExceptT
   )
 import Agda.Utils.Functor
@@ -1062,6 +1055,15 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps cps c = do
   let conIxs   = drop (size pars) cixs
       givenIxs = raise (size gamma) ixs
 
+  -- Andrea 2019-07-17 propagate the Cohesion to the equation telescope
+  -- TODO: should we propagate the modality in general?
+  -- See also LHS checking.
+  dtype <- do
+         let (_, Dom{domInfo = info} : _) = splitAt (size tel - hix - 1) (telToList tel)
+         let updCoh = composeCohesion (getCohesion info)
+         TelV dtel dt <- telView dtype
+         return $ abstract (mapCohesion updCoh <$> dtel) dt
+
   r <- unifyIndices
          delta1Gamma
          flex
@@ -1126,6 +1128,7 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps cps c = do
           , "delta1 =" <+> do inTopContext $ prettyTCM delta1
           , "delta2 =" <+> do inTopContext $ addContext delta1 $ addContext gamma $ prettyTCM delta2
           , "gamma  =" <+> do inTopContext $ addContext delta1 $ prettyTCM gamma
+          , "tel  =" <+> do inTopContext $ prettyTCM tel
           , "hix    =" <+> text (show hix)
           ]
         ]

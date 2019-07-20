@@ -4,12 +4,10 @@ module Agda.TypeChecking.Polarity where
 import Control.Monad.State
 
 import Data.Maybe
-import Data.Traversable (traverse)
 
 import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
-import Agda.Syntax.Internal.Pattern
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Datatypes (getNumberOfParameters)
@@ -21,12 +19,9 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Positivity.Occurrence
 
-import Agda.Interaction.Options
-
 import Agda.Utils.List
 import Agda.Utils.Maybe ( whenNothingM )
 import Agda.Utils.Monad
-import Agda.Utils.Permutation
 import Agda.Utils.Pretty ( prettyShow )
 import Agda.Utils.Size
 

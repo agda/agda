@@ -6,8 +6,8 @@ import Data.Semigroup (Semigroup)
 
 import Agda.Syntax.Common (NameId)
 import Agda.Syntax.Internal
--- import Agda.Syntax.Literal
-import Agda.Syntax.Position (Range)
+
+
 
 import Agda.TypeChecking.Monad.Base
 import {-# SOURCE #-} Agda.TypeChecking.Monad.Builtin

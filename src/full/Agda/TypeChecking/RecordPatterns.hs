@@ -18,7 +18,6 @@ import Control.Monad.State
 import qualified Data.List as List
 import Data.Maybe
 import qualified Data.Map as Map
-import qualified Data.Traversable
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
@@ -91,11 +90,12 @@ recordPatternToProjections p =
 conjColumns :: [[Bool]] -> [Bool]
 conjColumns =  foldl1 (zipWith (&&))
 
--- | @insertColumn i a m@ inserts a column before the @i@th column in
---   matrix @m@ and fills it with value @a@.
-insertColumn :: Int -> a -> [[a]] -> [[a]]
-insertColumn i a rows = map ins rows where
-  ins row = let (init, last) = splitAt i row in init ++ a : last
+-- UNUSED Liang-Ting 2019-07-16
+---- | @insertColumn i a m@ inserts a column before the @i@th column in
+----   matrix @m@ and fills it with value @a@.
+--insertColumn :: Int -> a -> [[a]] -> [[a]]
+--insertColumn i a rows = map ins rows where
+--  ins row = let (init, last) = splitAt i row in init ++ a : last
 
 {- UNUSED
 -- | @cutColumn i m@ removes the @i@th column from matrix @m@.
@@ -109,13 +109,14 @@ cutColumns :: Int -> Int -> [[a]] -> ([[a]], [[a]])
 cutColumns i n rows = unzip (map (cutSublist i n) rows)
 -}
 
--- | @cutSublist i n xs = (xs', ys, xs'')@ cuts out a sublist @ys@
---   of width @n@ from @xs@, starting at column @i@.
-cutSublist :: Int -> Int -> [a] -> ([a], [a], [a])
-cutSublist i n row =
-  let (init, rest) = splitAt i row
-      (mid , last) = splitAt n rest
-  in  (init, mid, last)
+-- UNUSED Liang-Ting 2019-07-16
+---- | @cutSublist i n xs = (xs', ys, xs'')@ cuts out a sublist @ys@
+----   of width @n@ from @xs@, starting at column @i@.
+--cutSublist :: Int -> Int -> [a] -> ([a], [a], [a])
+--cutSublist i n row =
+--  let (init, rest) = splitAt i row
+--      (mid , last) = splitAt n rest
+--  in  (init, mid, last)
 
 getEtaAndArity :: SplitTag -> TCM (Bool, Nat)
 getEtaAndArity (SplitCon c) =
@@ -232,113 +233,113 @@ recordExpressionsToCopatterns = \case
         _ -> return cc
     cc@Done{} -> return cc
 
--- | @replaceByProjections i projs cc@ replaces variables @i..i+n-1@
---   (counted from left) by projections @projs_1 i .. projs_n i@.
+-- UNUSED Liang-Ting Chen 2019-07-16
+---- | @replaceByProjections i projs cc@ replaces variables @i..i+n-1@
+----   (counted from left) by projections @projs_1 i .. projs_n i@.
+----
+----   If @n==0@, we matched on a zero-field record, which means that
+----   we are actually introduce a new variable, increasing split
+----   positions greater or equal to @i@ by one.
+----   Otherwise, we have to lower
+----
+--replaceByProjections :: Arg Int -> [QName] -> CompiledClauses -> CompiledClauses
+--replaceByProjections (Arg ai i) projs cc =
+--  let n = length projs
 --
---   If @n==0@, we matched on a zero-field record, which means that
---   we are actually introduce a new variable, increasing split
---   positions greater or equal to @i@ by one.
---   Otherwise, we have to lower
+--      loop :: Int -> CompiledClauses -> CompiledClauses
+--      loop i cc = case cc of
+--        Case j cs
 --
-replaceByProjections :: Arg Int -> [QName] -> CompiledClauses -> CompiledClauses
-replaceByProjections (Arg ai i) projs cc =
-  let n = length projs
+--        -- if j < i, we leave j untouched, but we increase i by the number
+--        -- of variables replacing j in the branches
+--          | unArg j < i -> Case j $ loops i cs
+--
+--        -- if j >= i then we shrink j by (n-1)
+--          | otherwise   -> Case (j <&> \ k -> k - (n-1)) $ fmap (loop i) cs
+--
+--        Done xs v ->
+--        -- we have to delete (n-1) variables from xs
+--        -- and instantiate v suitably with the projections
+--          let (xs0,xs1,xs2)     = cutSublist i n xs
+--              names | null xs1  = ["r"]
+--                    | otherwise = map unArg xs1
+--              x                 = Arg ai $ foldr1 appendArgNames names
+--              xs'               = xs0 ++ x : xs2
+--              us                = map (\ p -> Var 0 [Proj ProjSystem p]) (reverse projs)
+--              -- go from level (i + n - 1) to index (subtract from |xs|-1)
+--              index             = length xs - (i + n)
+--          in  Done xs' $ applySubst (liftS (length xs2) $ us ++# raiseS 1) v
+--          -- The body is NOT guarded by lambdas!
+--          -- WRONG: underLambdas i (flip apply) (map defaultArg us) v
+--
+--        Fail -> Fail
+--
+--      loops :: Int -> Case CompiledClauses -> Case CompiledClauses
+--      loops i bs@Branches{ conBranches    = conMap
+--                         , litBranches    = litMap
+--                         , catchAllBranch = catchAll } =
+--        bs{ conBranches    = fmap (\ (WithArity n c) -> WithArity n $ loop (i + n - 1) c) conMap
+--          , litBranches    = fmap (loop (i - 1)) litMap
+--          , catchAllBranch = fmap (loop i) catchAll
+--          }
+--  in  loop i cc
 
-      loop :: Int -> CompiledClauses -> CompiledClauses
-      loop i cc = case cc of
-        Case j cs
-
-        -- if j < i, we leave j untouched, but we increase i by the number
-        -- of variables replacing j in the branches
-          | unArg j < i -> Case j $ loops i cs
-
-        -- if j >= i then we shrink j by (n-1)
-          | otherwise   -> Case (j <&> \ k -> k - (n-1)) $ fmap (loop i) cs
-
-        Done xs v ->
-        -- we have to delete (n-1) variables from xs
-        -- and instantiate v suitably with the projections
-          let (xs0,xs1,xs2)     = cutSublist i n xs
-              names | null xs1  = ["r"]
-                    | otherwise = map unArg xs1
-              x                 = Arg ai $ foldr1 appendArgNames names
-              xs'               = xs0 ++ x : xs2
-              us                = map (\ p -> Var 0 [Proj ProjSystem p]) (reverse projs)
-              -- go from level (i + n - 1) to index (subtract from |xs|-1)
-              index             = length xs - (i + n)
-          in  Done xs' $ applySubst (liftS (length xs2) $ us ++# raiseS 1) v
-          -- The body is NOT guarded by lambdas!
-          -- WRONG: underLambdas i (flip apply) (map defaultArg us) v
-
-        Fail -> Fail
-
-      loops :: Int -> Case CompiledClauses -> Case CompiledClauses
-      loops i bs@Branches{ conBranches    = conMap
-                         , litBranches    = litMap
-                         , catchAllBranch = catchAll } =
-        bs{ conBranches    = fmap (\ (WithArity n c) -> WithArity n $ loop (i + n - 1) c) conMap
-          , litBranches    = fmap (loop (i - 1)) litMap
-          , catchAllBranch = fmap (loop i) catchAll
-          }
-  in  loop i cc
-
--- | Check if a split is on a record constructor, and return the projections
---   if yes.
-isRecordCase :: Case c -> TCM (Maybe ([QName], c))
-isRecordCase (Branches { conBranches = conMap
-                       , litBranches = litMap
-                       , catchAllBranch = Nothing })
-  | Map.null litMap
-  , [(con, WithArity _ br)] <- Map.toList conMap = do
-    isRC <- isRecordConstructor con
-    case isRC of
-      Just (r, Record { recFields = fs }) -> return $ Just (map unArg fs, br)
-      Just (r, _) -> __IMPOSSIBLE__
-      Nothing -> return Nothing
-isRecordCase _ = return Nothing
+-- UNUSED Liang-Ting 2019-07-16
+---- | Check if a split is on a record constructor, and return the projections
+----   if yes.
+--isRecordCase :: Case c -> TCM (Maybe ([QName], c))
+--isRecordCase (Branches { conBranches = conMap
+--                       , litBranches = litMap
+--                       , catchAllBranch = Nothing })
+--  | Map.null litMap
+--  , [(con, WithArity _ br)] <- Map.toList conMap = do
+--    isRC <- isRecordConstructor con
+--    case isRC of
+--      Just (r, Record { recFields = fs }) -> return $ Just (map unArg fs, br)
+--      Just (r, _) -> __IMPOSSIBLE__
+--      Nothing -> return Nothing
+--isRecordCase _ = return Nothing
 
 ---------------------------------------------------------------------------
 -- * Record pattern translation for split trees
 ---------------------------------------------------------------------------
-
--- | Split tree annotation.
-data RecordSplitNode = RecordSplitNode
-  { splitTag           :: SplitTag
-                                 -- ^ Constructor name/literal for this branch.
-  , splitArity         :: Int    -- ^ Arity of the constructor.
-  , splitRecordPattern :: Bool   -- ^ Should we translate this split away?
-  }
+--UNUSED Liang-Ting Chen 2019-07-16
+---- | Split tree annotation.
+--data RecordSplitNode = RecordSplitNode
+--  { _splitTag           :: SplitTag -- ^ Constructor name/literal for this branch.
+--  , _splitArity         :: Int      -- ^ Arity of the constructor.
+--  , _splitRecordPattern :: Bool     -- ^ Should we translate this split away?
+--  }
 
 -- | Split tree annotated for record pattern translation.
-type RecordSplitTree  = SplitTree' RecordSplitNode
-type RecordSplitTrees = SplitTrees' RecordSplitNode
+--type RecordSplitTree  = SplitTree' RecordSplitNode
+--type RecordSplitTrees = SplitTrees' RecordSplitNode
 
-
-
--- | Bottom-up procedure to annotate split tree.
-recordSplitTree :: SplitTree -> TCM RecordSplitTree
-recordSplitTree t = snd <$> loop t
-  where
-
-    loop :: SplitTree -> TCM ([Bool], RecordSplitTree)
-    loop t = case t of
-      SplittingDone n -> return (replicate n True, SplittingDone n)
-      SplitAt i ts    -> do
-        (xs, ts) <- loops (unArg i) ts
-        return (xs, SplitAt i ts)
-
-    loops :: Int -> SplitTrees -> TCM ([Bool], RecordSplitTrees)
-    loops i ts = do
-      (xss, ts) <- unzip <$> do
-        forM ts $ \ (c, t) -> do
-          (xs, t) <- loop t
-          (isRC, n) <- getEtaAndArity c
-          let (xs0, rest) = splitAt i xs
-              (xs1, xs2)  = splitAt n rest
-              x           = isRC && and xs1
-              xs'         = xs0 ++ x : xs2
-          return (xs, (RecordSplitNode c n x, t))
-      return (foldl1 (zipWith (&&)) xss, ts)
+--UNUSED Liang-Ting Chen 2019-07-16
+---- | Bottom-up procedure to annotate split tree.
+--recordSplitTree :: SplitTree -> TCM RecordSplitTree
+--recordSplitTree t = snd <$> loop t
+--  where
+--
+--    loop :: SplitTree -> TCM ([Bool], RecordSplitTree)
+--    loop t = case t of
+--      SplittingDone n -> return (replicate n True, SplittingDone n)
+--      SplitAt i ts    -> do
+--        (xs, ts) <- loops (unArg i) ts
+--        return (xs, SplitAt i ts)
+--
+--    loops :: Int -> SplitTrees -> TCM ([Bool], RecordSplitTrees)
+--    loops i ts = do
+--      (xss, ts) <- unzip <$> do
+--        forM ts $ \ (c, t) -> do
+--          (xs, t) <- loop t
+--          (isRC, n) <- getEtaAndArity c
+--          let (xs0, rest) = splitAt i xs
+--              (xs1, xs2)  = splitAt n rest
+--              x           = isRC && and xs1
+--              xs'         = xs0 ++ x : xs2
+--          return (xs, (RecordSplitNode c n x, t))
+--      return (foldl1 (zipWith (&&)) xss, ts)
 
 -- | Bottom-up procedure to record-pattern-translate split tree.
 translateSplitTree :: SplitTree -> TCM SplitTree

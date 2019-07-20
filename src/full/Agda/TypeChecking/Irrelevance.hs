@@ -73,8 +73,7 @@ variable rule:
 
 module Agda.TypeChecking.Irrelevance where
 
-import Control.Arrow (first, second)
-import Control.Monad.Reader
+import Control.Arrow (second)
 
 import qualified Data.Map as Map
 
@@ -88,12 +87,9 @@ import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute.Class
 
-import Agda.Utils.Except
 import Agda.Utils.Function
 import Agda.Utils.Lens
 import Agda.Utils.Monad
-
-import Agda.Utils.Impossible
 
 -- | data 'Relevance'
 --   see "Agda.Syntax.Common".
@@ -200,6 +196,26 @@ applyQuantityToContextOnly q = localTC
 applyQuantityToJudgementOnly :: (MonadTCEnv tcm) => Quantity -> tcm a -> tcm a
 applyQuantityToJudgementOnly = localTC . over eQuantity . composeQuantity
 
+-- | Apply inverse composition with the given cohesion to the typing context.
+applyCohesionToContext :: (MonadTCEnv tcm, LensCohesion m) => m -> tcm a -> tcm a
+applyCohesionToContext thing =
+  case getCohesion thing of
+    m | m == mempty -> id
+      | otherwise   -> applyCohesionToContextOnly   m
+                       -- Cohesion does not apply to the judgment.
+
+applyCohesionToContextOnly :: (MonadTCEnv tcm) => Cohesion -> tcm a -> tcm a
+applyCohesionToContextOnly q = localTC
+  $ over eContext     (map $ inverseApplyCohesion q)
+  . over eLetBindings (Map.map . fmap . second $ inverseApplyCohesion q)
+
+-- | Can we split on arguments of the given cohesion?
+splittableCohesion :: (HasOptions m, LensCohesion a) => a -> m Bool
+splittableCohesion a = do
+  let c = getCohesion a
+  flatSplit <- optFlatSplit <$> pragmaOptions
+  return $ usableCohesion c && (flatSplit || c /= Flat)
+
 -- | (Conditionally) wake up irrelevant variables and make them relevant.
 --   For instance,
 --   in an irrelevant function argument otherwise irrelevant variables
@@ -239,6 +255,7 @@ applyModalityToContextFunBody thing cont = do
     ifM (optIrrelevantProjections <$> pragmaOptions)
       {-then-} (applyModalityToContext m cont)                -- enable global irr. defs always
       {-else-} (applyRelevanceToContextFunBody (getRelevance m)
+               $ applyCohesionToContext (getCohesion m)
                $ applyQuantityToContext (getQuantity m) cont) -- enable local irr. defs only when option
   where
     m = getModality thing

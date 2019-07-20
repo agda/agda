@@ -19,7 +19,6 @@ module Agda.Interaction.FindFile
 
 import Prelude hiding (null)
 
-import Control.Applicative hiding (empty)
 import Control.Monad
 import Control.Monad.Trans
 import qualified Data.List as List
@@ -27,14 +26,12 @@ import Data.Maybe (catMaybes)
 import qualified Data.Map as Map
 import System.FilePath
 
-import Agda.Syntax.Common
 import Agda.Syntax.Concrete
 import Agda.Syntax.Parser
 import Agda.Syntax.Parser.Literate (literateExtsShortList)
 import Agda.Syntax.Position
 
 import Agda.TypeChecking.Monad.Base
-import Agda.TypeChecking.Monad.Trace
 import Agda.TypeChecking.Monad.Benchmark (billTo)
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 import {-# SOURCE #-} Agda.TypeChecking.Monad.Options (getIncludeDirs)
@@ -42,9 +39,7 @@ import Agda.TypeChecking.Warnings (runPM)
 
 import Agda.Utils.Except
 import Agda.Utils.FileName
-import Agda.Utils.Lens
 import Agda.Utils.List ( stripSuffix )
-import Agda.Utils.Null
 
 import Agda.Utils.Impossible
 

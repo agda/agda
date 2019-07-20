@@ -20,8 +20,6 @@ import Agda.TypeChecking.Pretty
 import Agda.Utils.Tuple
 import Agda.Utils.Maybe
 
-import Agda.Utils.Impossible
-
 -- | @implicitArgs n expand t@ generates up to @n@ implicit arguments
 --   metas (unbounded if @n<0@), as long as @t@ is a function type
 --   and @expand@ holds on the hiding info of its domain.

@@ -4,7 +4,7 @@ module Agda.TypeChecking.Generalize
   , generalizeType'
   , generalizeTelescope ) where
 
-import Control.Arrow ((***), first, second)
+import Control.Arrow (first)
 import Control.Monad
 import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet
@@ -12,10 +12,9 @@ import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Map (Map)
 import qualified Data.Map as Map
-import Data.List (nub, partition, init, sortBy)
+import Data.List (partition, sortBy)
 import Data.Monoid
 import Data.Function (on)
-import Data.Traversable
 
 import Agda.Syntax.Common
 import Agda.Syntax.Concrete.Name (LensInScope(..))
@@ -26,7 +25,6 @@ import Agda.Syntax.Internal.MetaVars
 import Agda.Syntax.Scope.Monad (bindVariable)
 import Agda.Syntax.Scope.Base (Binder(..))
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Abstract
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Free
@@ -36,7 +34,6 @@ import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
-import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Warnings
 
 import Agda.Benchmarking (Phase(Typing, Generalize))
@@ -44,11 +41,9 @@ import Agda.Utils.Benchmark
 import Agda.Utils.Except
 import Agda.Utils.Functor
 import Agda.Utils.Impossible
-import Agda.Utils.Lens
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Size
-import Agda.Utils.Singleton
 import Agda.Utils.Permutation
 
 

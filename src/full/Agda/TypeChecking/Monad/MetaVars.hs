@@ -4,21 +4,17 @@ module Agda.TypeChecking.Monad.MetaVars where
 
 import Prelude hiding (null)
 
-import Control.Applicative hiding (empty)
 import Control.Monad.State
 import Control.Monad.Reader
 import Control.Monad.Writer
 
-import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
 import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet
-import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
 import qualified Data.Foldable as Fold
-import Data.Monoid
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
@@ -39,16 +35,12 @@ import {-# SOURCE #-} Agda.TypeChecking.Telescope
 
 import Agda.Utils.Except
 import Agda.Utils.Functor ((<.>))
-import Agda.Utils.Lens
-import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Permutation
 import Agda.Utils.Pretty (prettyShow)
 import Agda.Utils.Tuple
-import Agda.Utils.Singleton
-import Agda.Utils.Size
 import qualified Agda.Utils.Maybe.Strict as Strict
 
 import Agda.Utils.Impossible
@@ -144,6 +136,10 @@ lookupMeta' m = IntMap.lookup (metaId m) <$> getMetaStore
 lookupMeta :: (ReadTCState m) => MetaId -> m MetaVariable
 lookupMeta m = fromMaybeM failure $ lookupMeta' m
   where failure = fail $ "no such meta variable " ++ prettyShow m
+
+-- | Type of a term or sort meta.
+metaType :: (ReadTCState m) => MetaId -> m Type
+metaType x = jMetaType . mvJudgement <$> lookupMeta x
 
 -- | Update the information associated with a meta variable.
 updateMetaVarTCM :: MetaId -> (MetaVariable -> MetaVariable) -> TCM ()
@@ -595,7 +591,7 @@ class UnFreezeMeta a where
 instance UnFreezeMeta MetaId where
   unfreezeMeta x = do
     updateMetaVar x $ \ mv -> mv { mvFrozen = Instantiable }
-    unfreezeMeta =<< do jMetaType . mvJudgement <$> lookupMeta x
+    unfreezeMeta =<< metaType x
 
 instance UnFreezeMeta Type where
   unfreezeMeta (El s t) = unfreezeMeta s >> unfreezeMeta t

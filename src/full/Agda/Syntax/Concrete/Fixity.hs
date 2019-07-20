@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP                        #-}
 -- | Collecting fixity declarations (and polarity pragmas) for concrete
 --   declarations.
 module Agda.Syntax.Concrete.Fixity
@@ -12,7 +13,9 @@ import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
+#if __GLASGOW_HASKELL__ < 804
 import Data.Semigroup
+#endif
 
 import Agda.Syntax.Position
 import Agda.Syntax.Fixity
@@ -173,7 +176,7 @@ fixitiesAndPolarities' = foldMap $ \ d -> case d of
   UnquoteDef  {}  -> mempty
   Pragma      {}  -> mempty
 
-data DeclaredNames = DeclaredNames { allNames, postulates, privateNames :: Set Name }
+data DeclaredNames = DeclaredNames { _allNames, _postulates, _privateNames :: Set Name }
 
 instance Semigroup DeclaredNames where
   DeclaredNames xs ps as <> DeclaredNames ys qs bs =

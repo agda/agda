@@ -14,12 +14,10 @@ module Agda.Interaction.Highlighting.HTML
   ) where
 
 import Prelude hiding ((!!), concatMap)
-import Control.Arrow ((***))
 import Control.Monad
 import Control.Monad.Trans
 
 import Data.Function
-import Data.Monoid hiding ((<>))
 import Data.Foldable (toList, concatMap)
 import Data.Maybe
 import qualified Data.IntMap as IntMap

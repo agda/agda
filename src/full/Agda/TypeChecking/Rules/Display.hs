@@ -2,7 +2,6 @@
 module Agda.TypeChecking.Rules.Display (checkDisplayPragma) where
 
 import Data.Maybe
-import qualified Data.List as List
 
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Views
@@ -26,10 +25,11 @@ checkDisplayPragma f ps e = do
   reportSLn "tc.display.pragma" 20 $ "Adding display form for " ++ show f ++ "\n  " ++ show df
   addDisplayForm f df
 
--- Compute a left-hand side for a display form. Inserts implicits, but no type
--- checking so does the wrong thing if implicitness is computed. Binds variables.
-displayLHS :: Telescope -> [NamedArg A.Pattern] -> (Int -> [Term] -> TCM a) -> TCM a
-displayLHS tel ps ret = patternsToTerms tel ps $ \n vs -> ret n (map unArg vs)
+--UNUSED Liang-Ting 2019-07-16
+---- Compute a left-hand side for a display form. Inserts implicits, but no type
+---- checking so does the wrong thing if implicitness is computed. Binds variables.
+--displayLHS :: Telescope -> [NamedArg A.Pattern] -> (Int -> [Term] -> TCM a) -> TCM a
+--displayLHS tel ps ret = patternsToTerms tel ps $ \n vs -> ret n (map unArg vs)
 
 patternsToTerms :: Telescope -> [NamedArg A.Pattern] -> (Int -> Args -> TCM a) -> TCM a
 patternsToTerms _ [] ret = ret 0 []

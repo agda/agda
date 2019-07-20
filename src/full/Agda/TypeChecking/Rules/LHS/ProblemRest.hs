@@ -1,16 +1,13 @@
 
 module Agda.TypeChecking.Rules.LHS.ProblemRest where
 
-import Control.Arrow (first, second)
 import Control.Monad
 
-import Data.Functor ((<$))
 import Data.Maybe
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
-import Agda.Syntax.Abstract.Pattern
 import qualified Agda.Syntax.Abstract as A
 
 import Agda.TypeChecking.Monad

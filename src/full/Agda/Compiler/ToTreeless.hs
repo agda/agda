@@ -4,14 +4,12 @@ module Agda.Compiler.ToTreeless
   , closedTermToTreeless
   ) where
 
-import Control.Arrow (first, second)
+import Control.Arrow (first)
 import Control.Monad.Reader
-import Control.Monad.State
 
 import Data.Maybe
 import Data.Map (Map)
 import qualified Data.Map as Map
-import qualified Data.HashMap.Strict as HMap
 import Data.Traversable (traverse)
 
 import Agda.Syntax.Common
@@ -28,13 +26,11 @@ import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Records (getRecordConstructor)
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
-import Agda.TypeChecking.Telescope
 
 import Agda.Compiler.Treeless.AsPatterns
 import Agda.Compiler.Treeless.Builtin
 import Agda.Compiler.Treeless.Erase
 import Agda.Compiler.Treeless.Identity
-import Agda.Compiler.Treeless.Pretty
 import Agda.Compiler.Treeless.Simplify
 import Agda.Compiler.Treeless.Uncase
 import Agda.Compiler.Treeless.Unused

@@ -13,8 +13,6 @@ import qualified Data.IntMap as IntMap
 import Data.IntMap (IntMap)
 import qualified Data.IntSet as IntSet
 import Data.IntSet (IntSet)
-import qualified Data.Set as Set
-import Data.Set (Set)
 import Data.Traversable (traverse)
 
 import Agda.Syntax.Common
@@ -23,7 +21,6 @@ import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Free
-import Agda.TypeChecking.Free.Lazy
 import Agda.TypeChecking.Free.Precompute
 import Agda.Utils.Monad
 

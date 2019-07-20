@@ -1,12 +1,7 @@
 
 module Agda.Compiler.MAlonzo.Misc where
 
-import Control.Monad.State (gets)
 import Data.Char
-import qualified Data.List as List
-import Data.Map as Map
-import Data.Set as Set
-import Data.Function
 
 import qualified Agda.Utils.Haskell.Syntax as HS
 
@@ -18,9 +13,7 @@ import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
 
-import Agda.Utils.Monad
 import Agda.Utils.Pretty
-import Agda.Utils.Maybe
 
 import Agda.Utils.Impossible
 

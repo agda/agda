@@ -4,10 +4,8 @@ module Agda.TypeChecking.Rules.Record where
 
 import Prelude hiding (null)
 
-import Control.Applicative hiding (empty)
 import Control.Monad
 import Data.Maybe
-import qualified Data.Set as Set
 
 import Agda.Interaction.Options
 
@@ -17,12 +15,9 @@ import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
 import Agda.Syntax.Position
 import qualified Agda.Syntax.Info as Info
-import Agda.Syntax.Scope.Monad (freshAbstractQName)
-import Agda.Syntax.Fixity
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
-import Agda.TypeChecking.Names
 import Agda.TypeChecking.Primitive
 import Agda.TypeChecking.Rewriting.Confluence
 import Agda.TypeChecking.Substitute

@@ -7,7 +7,6 @@ import Control.Monad.Trans
 import Control.Monad.Trans.Maybe
 
 import Data.Foldable (traverse_)
-import Data.List (genericTake)
 import Data.Maybe (fromMaybe, catMaybes, isJust)
 import Data.Set (Set)
 import qualified Data.Set as Set
@@ -25,7 +24,6 @@ import Agda.Syntax.Fixity
 import {-# SOURCE #-} Agda.TypeChecking.CompiledClause.Compile
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin -- (primLevel)
-import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Generalize
@@ -42,8 +40,6 @@ import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.ProjectionLike
 
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Term ( isType_ )
-
-import Agda.Interaction.Options
 
 import Agda.Utils.Except
 import Agda.Utils.List

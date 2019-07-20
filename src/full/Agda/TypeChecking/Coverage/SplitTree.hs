@@ -14,15 +14,14 @@ each leaf of the split tree.
 module Agda.TypeChecking.Coverage.SplitTree where
 
 import Data.Tree
-import Data.Data (Data, toConstr)
+import Data.Data (Data)
 
 import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Common
-import Agda.Syntax.Internal as I
+import Agda.Syntax.Concrete.Pretty () --instance only
 import Agda.Syntax.Literal
 import Agda.Syntax.Position
 
-import Agda.Utils.Monad
 import Agda.Utils.Pretty
 
 import Agda.Utils.Impossible

@@ -3,14 +3,11 @@
 
 module Agda.TypeChecking.Serialise.Instances.Internal where
 
-import Control.Monad.State.Strict
-
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Position as P
 
 import Agda.TypeChecking.Serialise.Base
-import Agda.TypeChecking.Serialise.Instances.Common ()
-import Agda.TypeChecking.Serialise.Instances.Compilers ()
+import Agda.TypeChecking.Serialise.Instances.Compilers () --instance only
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.CompiledClause

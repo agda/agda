@@ -1,10 +1,10 @@
 module Agda.TypeChecking.Monad.Env where
 
-import Control.Monad.Reader
+
 import qualified Data.List as List
-import qualified Data.Map as Map
+
 import Data.Maybe (fromMaybe)
-import Data.Monoid
+
 
 import Agda.Syntax.Common
 import Agda.Syntax.Abstract.Name

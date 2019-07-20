@@ -329,7 +329,7 @@ prop_isSemimodule_withVarOcc2_not_a_counterexample =
   withVarOcc (r <> s) m ==
   withVarOcc r m <> withVarOcc s m
   where
-    occ r = VarOcc StronglyRigid $ Modality r topQuantity
+    occ r = VarOcc StronglyRigid $ Modality r topQuantity topCohesion
     r, s  :: VarOcc
     r     = occ Irrelevant
     s     = occ NonStrict

@@ -19,13 +19,12 @@ module Agda.TypeChecking.Substitute
   , Substitution'(..), Substitution
   ) where
 
-import Control.Arrow (first, second)
+import Control.Arrow (second)
 import Data.Coerce
 import Data.Function
 import qualified Data.List as List
 import Data.Map (Map)
 import Data.Maybe
-import Data.Monoid hiding ((<>))
 import Data.HashMap.Strict (HashMap)
 
 import Debug.Trace (trace)
@@ -1355,7 +1354,11 @@ instance (Subst t a, Ord a) => Ord (Elim' a) where
 -- * Sort stuff
 ---------------------------------------------------------------------------
 
--- | Get the next higher sort.
+-- | @univSort' univInf s@ gets the next higher sort of @s@, if it is
+--   known (i.e. it is not just @UnivSort s@). @univInf@ is returned
+--   as the sort of @Inf@.
+--
+--   Precondition: @s@ is reduced
 univSort' :: Maybe Sort -> Sort -> Maybe Sort
 univSort' univInf (Type l) = Just $ Type $ levelSuc l
 univSort' univInf (Prop l) = Just $ Type $ levelSuc l

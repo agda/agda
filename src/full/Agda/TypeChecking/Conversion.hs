@@ -3,8 +3,6 @@
 module Agda.TypeChecking.Conversion where
 
 import Control.Monad
-import Control.Monad.Reader
-import Control.Monad.State
 import Control.Monad.Fail (MonadFail)
 
 import qualified Data.List as List
@@ -20,7 +18,6 @@ import Agda.Syntax.Translation.InternalToAbstract (reify)
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
-import Agda.TypeChecking.CompiledClause (CompiledClauses'(Fail))
 import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.MetaVars.Occurs (killArgs,PruneResult(..),rigidVarsNotContainedIn)
 import Agda.TypeChecking.Names
@@ -31,7 +28,6 @@ import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Conversion.Pure (pureEqualTerm)
 import {-# SOURCE #-} Agda.TypeChecking.CheckInternal (infer)
-import Agda.TypeChecking.Errors
 import Agda.TypeChecking.Forcing (isForced, nextIsForced)
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Datatypes (getConType, getFullyAppliedConType)
@@ -43,7 +39,6 @@ import Agda.TypeChecking.SizedTypes
 import Agda.TypeChecking.Level
 import Agda.TypeChecking.Implicit (implicitArgs)
 import Agda.TypeChecking.Irrelevance
-import Agda.TypeChecking.ProjectionLike (elimView)
 import Agda.TypeChecking.Primitive
 import Agda.TypeChecking.Warnings (MonadWarning)
 import Agda.Interaction.Options
@@ -54,7 +49,6 @@ import Agda.Utils.Monad
 import Agda.Utils.Maybe
 import Agda.Utils.Size
 import Agda.Utils.Tuple
-import Agda.Utils.Lens
 
 import Agda.Utils.Impossible
 
@@ -459,7 +453,7 @@ compareAtom cmp t m n =
       -- try first y := x and then x := y
       (NotBlocked _ (MetaV x xArgs), NotBlocked _ (MetaV y yArgs))
           | x == y , cmpBlocked -> do
-              a <- jMetaType . mvJudgement <$> lookupMeta x
+              a <- metaType x
               compareElims [] [] a (MetaV x []) xArgs yArgs
           | x == y ->
             case intersectVars xArgs yArgs of

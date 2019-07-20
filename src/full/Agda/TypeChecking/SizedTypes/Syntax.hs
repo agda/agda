@@ -8,7 +8,7 @@ module Agda.TypeChecking.SizedTypes.Syntax where
 
 import Prelude hiding ( null )
 
-import Data.Maybe
+
 import Data.Foldable (Foldable)
 import Data.Map (Map)
 import qualified Data.Map as Map

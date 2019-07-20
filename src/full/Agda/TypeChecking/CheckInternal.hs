@@ -20,7 +20,7 @@ module Agda.TypeChecking.CheckInternal
   , shouldBeSort
   ) where
 
-import Control.Arrow ((&&&), (***), first, second)
+import Control.Arrow (first)
 import Control.Monad
 
 import Agda.Syntax.Common
@@ -32,7 +32,6 @@ import Agda.TypeChecking.Level
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Pretty
-import Agda.TypeChecking.Primitive
 import Agda.TypeChecking.ProjectionLike (elimView)
 import Agda.TypeChecking.Records (getDefType)
 import Agda.TypeChecking.Reduce
@@ -42,7 +41,6 @@ import Agda.TypeChecking.Telescope
 
 
 import Agda.Utils.Functor (($>))
-import Agda.Utils.Monad
 import Agda.Utils.Size
 
 import Agda.Utils.Impossible
@@ -168,6 +166,7 @@ checkInternal' action v t = verboseBracket "tc.check.internal" 20 "" $ do
       checkSpine action a (Def f []) es t
     MetaV x es -> do -- we assume meta instantiations to be well-typed
       a <- metaType x
+      reportSDoc "tc.check.internal" 30 $ "metavariable" <+> prettyTCM x <+> "has type" <+> prettyTCM a
       checkSpine action a (MetaV x []) es t
     Con c ci vs -> do
       -- We need to fully apply the constructor to make getConType work!
@@ -198,6 +197,7 @@ checkInternal' action v t = verboseBracket "tc.check.internal" 20 "" $ do
       -- TODO: checkPTS sa sb s
       goInside $ Pi a . mkRng <$> checkInternal' action (unEl $ unAbs b) (sort sb)
     Sort s     -> do
+      reportSDoc "tc.check.internal" 30 $ "checking sort" <+> prettyTCM s
       s <- checkSort action s
       Sort s <$ ((sortFitsIn s) =<< shouldBeSort t) -- sortFitsIn ensures @s /= Inf@
     Level l    -> do
@@ -253,16 +253,16 @@ checkSpine action a self es t = do
   ((v, v'), t') <- inferSpine' action a self self es
   t' <- reduce t'
   v' <$ coerceSize subtype v t' t
-
-checkArgs
-  :: (MonadCheckInternal m)
-  => Action m
-  -> Type      -- ^ Type of the head.
-  -> Term      -- ^ The head.
-  -> Args      -- ^ The arguments.
-  -> Type      -- ^ Expected type of the application.
-  -> m Term    -- ^ The application after modification by the @Action@.
-checkArgs action a self vs t = checkSpine action a self (map Apply vs) t
+--UNUSED Liang-Ting Chen 2019-07-16
+--checkArgs
+--  :: (MonadCheckInternal m)
+--  => Action m
+--  -> Type      -- ^ Type of the head.
+--  -> Term      -- ^ The head.
+--  -> Args      -- ^ The arguments.
+--  -> Type      -- ^ Expected type of the application.
+--  -> m Term    -- ^ The application after modification by the @Action@.
+--checkArgs action a self vs t = checkSpine action a self (map Apply vs) t
 
 -- | @checkArgInfo actual expected@.
 --
@@ -377,10 +377,6 @@ shouldBePath t = do
 shouldBePi :: (MonadCheckInternal m) => Type -> m (Dom Type, Abs Type)
 shouldBePi t = ifPiType t (\ a b -> return (a, b)) $ const $ typeError $ ShouldBePi t
 
--- | Result is in reduced form.
-shouldBeSort :: (MonadCheckInternal m) => Type -> m Sort
-shouldBeSort t = ifIsSort t return (typeError $ ShouldBeASort t)
-
 -- | Check if sort is well-formed.
 checkSort :: (MonadCheckInternal m) => Action m -> Sort -> m Sort
 checkSort action s =
@@ -431,10 +427,6 @@ checkLevel action (Max ls) = Max <$> mapM checkPlusLevel ls
         BlockedLevel _ v -> checkInternal' action v lvl
         NeutralLevel _ v -> checkInternal' action v lvl
         UnreducedLevel v -> checkInternal' action v lvl
-
--- | Type of a term or sort meta.
-metaType :: (MonadCheckInternal m) => MetaId -> m Type
-metaType x = jMetaType . mvJudgement <$> lookupMeta x
 
 -- | Universe subsumption and type equality (subtyping for sizes, resp.).
 subtype :: (MonadCheckInternal m) => Type -> Type -> m ()

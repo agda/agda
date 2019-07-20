@@ -1,7 +1,7 @@
 
 module Agda.TypeChecking.DropArgs where
 
-import Control.Arrow (first, second)
+import Control.Arrow (second)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal

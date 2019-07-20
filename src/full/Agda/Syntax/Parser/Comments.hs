@@ -18,8 +18,6 @@ import Agda.Syntax.Parser.Alex
 import Agda.Syntax.Parser.LookAhead
 import Agda.Syntax.Position
 
-import Agda.Utils.Monad
-
 -- | Should comment tokens be output?
 
 keepComments :: LexPredicate

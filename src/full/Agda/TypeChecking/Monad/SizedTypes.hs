@@ -8,18 +8,13 @@ module Agda.TypeChecking.Monad.SizedTypes where
 import qualified Data.Foldable as Fold
 import qualified Data.Traversable as Trav
 
-import Agda.Interaction.Options
-
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 
 import Agda.TypeChecking.Monad.Base
-import Agda.TypeChecking.Monad.Debug
-import Agda.TypeChecking.Monad.Options
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Monad.State
 import Agda.TypeChecking.Positivity.Occurrence
-import Agda.TypeChecking.Substitute ()
 
 import Agda.Utils.Except ( MonadError(catchError) )
 import Agda.Utils.List

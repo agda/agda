@@ -104,22 +104,15 @@ module Agda.TypeChecking.Rules.LHS.Unify
 
 import Prelude hiding (null)
 
-import Control.Arrow ((***))
-import Control.Applicative hiding (empty)
 import Control.Monad
 import Control.Monad.State
-import Control.Monad.Trans.Maybe
-import Control.Monad.Reader
 import Control.Monad.Writer (WriterT(..), MonadWriter(..), Monoid(..))
 
-import Data.Map (Map)
-import qualified Data.Map as Map
 import Data.Semigroup hiding (Arg)
 import qualified Data.List as List
 
 import Data.Foldable (Foldable)
 import Data.Traversable (Traversable,traverse)
-import qualified Data.Traversable as Trav
 
 import Agda.Interaction.Options (optInjectiveTypeConstructors)
 
@@ -133,25 +126,20 @@ import Agda.TypeChecking.Monad.Builtin (constructorForm)
 import Agda.TypeChecking.Conversion -- equalTerm
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Datatypes
-import Agda.TypeChecking.DropArgs
 import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.Level (reallyUnLevelView)
 import Agda.TypeChecking.Reduce
 import qualified Agda.TypeChecking.Patterns.Match as Match
 import Agda.TypeChecking.Pretty
-import Agda.TypeChecking.SizedTypes (compareSizes)
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Free.Reduce
 import Agda.TypeChecking.Records
-import Agda.TypeChecking.MetaVars (newArgsMetaCtx)
-import Agda.TypeChecking.EtaContract
 
 import Agda.TypeChecking.Rules.LHS.Problem
--- import Agda.TypeChecking.SyntacticEquality
 
-import Agda.Utils.Except ( MonadError(catchError, throwError) )
+import Agda.Utils.Except ( MonadError(catchError) )
 import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.Lens
@@ -219,9 +207,9 @@ unifyIndices tel flex a us vs = liftTCM $ Bench.billTo [Bench.Typing, Bench.Chec
 ----------------------------------------------------
 
 data Equality = Equal
-  { eqType  :: Dom Type
-  , eqLeft  :: Term
-  , eqRight :: Term
+  { _eqType  :: Dom Type
+  , _eqLeft  :: Term
+  , _eqRight :: Term
   }
 
 instance Reduce Equality where
@@ -250,18 +238,20 @@ data UnifyState = UState
 
 lensVarTel   :: Lens' Telescope UnifyState
 lensVarTel   f s = f (varTel s) <&> \ tel -> s { varTel = tel }
-
-lensFlexVars :: Lens' FlexibleVars UnifyState
-lensFlexVars f s = f (flexVars s) <&> \ flex -> s { flexVars = flex }
+--UNUSED Liang-Ting Chen 2019-07-16
+--lensFlexVars :: Lens' FlexibleVars UnifyState
+--lensFlexVars f s = f (flexVars s) <&> \ flex -> s { flexVars = flex }
 
 lensEqTel    :: Lens' Telescope UnifyState
 lensEqTel    f s = f (eqTel s) <&> \ x -> s { eqTel = x }
 
-lensEqLHS    :: Lens' Args UnifyState
-lensEqLHS    f s = f (eqLHS s) <&> \ x -> s { eqLHS = x }
+--UNUSED Liang-Ting Chen 2019-07-16
+--lensEqLHS    :: Lens' Args UnifyState
+--lensEqLHS    f s = f (eqLHS s) <&> \ x -> s { eqLHS = x }
 
-lensEqRHS    :: Lens' Args UnifyState
-lensEqRHS    f s = f (eqRHS s) <&> \ x -> s { eqRHS = x }
+--UNUSED Liang-Ting Chen 2019-07-16
+--lensEqRHS    :: Lens' Args UnifyState
+--lensEqRHS    f s = f (eqRHS s) <&> \ x -> s { eqRHS = x }
 
 instance Reduce UnifyState where
   reduce' (UState var flex eq lhs rhs) =
@@ -271,8 +261,9 @@ instance Reduce UnifyState where
            <*> reduce' lhs
            <*> reduce' rhs
 
-reduceEqTel :: UnifyState -> TCM UnifyState
-reduceEqTel = lensEqTel reduce
+--UNUSED Liang-Ting Chen 2019-07-16
+--reduceEqTel :: UnifyState -> TCM UnifyState
+--reduceEqTel = lensEqTel reduce
 
 instance Normalise UnifyState where
   normalise' (UState var flex eq lhs rhs) =
@@ -336,21 +327,22 @@ getEqualityUnraised k UState { eqTel = eqs, eqLHS = lhs, eqRHS = rhs } =
           (unArg $ indexWithDefault __IMPOSSIBLE__ lhs k)
           (unArg $ indexWithDefault __IMPOSSIBLE__ rhs k)
 
-getEqInfo :: Int -> UnifyState -> ArgInfo
-getEqInfo k UState { eqTel = eqs } =
-  domInfo $ indexWithDefault __IMPOSSIBLE__ (telToList eqs) k
-
--- | Add a list of equations to the front of the equation telescope
-addEqs :: Telescope -> [Arg Term] -> [Arg Term] -> UnifyState -> UnifyState
-addEqs tel us vs s =
-  s { eqTel = tel `abstract` eqTel s
-    , eqLHS = us ++ eqLHS s
-    , eqRHS = vs ++ eqRHS s
-    }
-  where k = size tel
-
-addEq :: Type -> Arg Term -> Arg Term -> UnifyState -> UnifyState
-addEq a u v = addEqs (ExtendTel (defaultDom a) (Abs underscore EmptyTel)) [u] [v]
+--UNUSED Liang-Ting Chen 2019-07-16
+--getEqInfo :: Int -> UnifyState -> ArgInfo
+--getEqInfo k UState { eqTel = eqs } =
+--  domInfo $ indexWithDefault __IMPOSSIBLE__ (telToList eqs) k
+--
+---- | Add a list of equations to the front of the equation telescope
+--addEqs :: Telescope -> [Arg Term] -> [Arg Term] -> UnifyState -> UnifyState
+--addEqs tel us vs s =
+--  s { eqTel = tel `abstract` eqTel s
+--    , eqLHS = us ++ eqLHS s
+--    , eqRHS = vs ++ eqRHS s
+--    }
+--  where k = size tel
+--
+--addEq :: Type -> Arg Term -> Arg Term -> UnifyState -> UnifyState
+--addEq a u v = addEqs (ExtendTel (defaultDom a) (Abs underscore EmptyTel)) [u] [v]
 
 
 
@@ -403,19 +395,20 @@ solveEq k u s = (,sigma) $ s
     n     = eqCount s
     sigma = liftS (n-k-1) $ consS (dotP u') idS
 
--- | Simplify the k'th equation with the given value (which can depend on other
---   equation variables). Returns Nothing if there is a cycle.
-simplifyEq :: Int -> Term -> UnifyState -> Maybe (UnifyState, PatternSubstitution)
-simplifyEq k u s = case instantiateTelescope (eqTel s) k u of
-  Nothing -> Nothing
-  Just (tel' , sigma , rho) -> Just $ (,sigma) $ UState
-    { varTel   = varTel s
-    , flexVars = flexVars s
-    , eqTel    = tel'
-    , eqLHS    = permute rho $ eqLHS s
-    , eqRHS    = permute rho $ eqRHS s
-    }
-
+--UNUSED Liang-Ting Chen 2019-07-16
+---- | Simplify the k'th equation with the given value (which can depend on other
+----   equation variables). Returns Nothing if there is a cycle.
+--simplifyEq :: Int -> Term -> UnifyState -> Maybe (UnifyState, PatternSubstitution)
+--simplifyEq k u s = case instantiateTelescope (eqTel s) k u of
+--  Nothing -> Nothing
+--  Just (tel' , sigma , rho) -> Just $ (,sigma) $ UState
+--    { varTel   = varTel s
+--    , flexVars = flexVars s
+--    , eqTel    = tel'
+--    , eqLHS    = permute rho $ eqLHS s
+--    , eqRHS    = permute rho $ eqRHS s
+--    }
+--
 ----------------------------------------------------
 -- Unification strategies
 ----------------------------------------------------
@@ -559,10 +552,11 @@ instance PrettyTCM UnifyStep where
 
 type UnifyStrategy = UnifyState -> ListT TCM UnifyStep
 
-leftToRightStrategy :: UnifyStrategy
-leftToRightStrategy s =
-    msum (for [0..n-1] $ \k -> completeStrategyAt k s)
-  where n = size $ eqTel s
+--UNUSED Liang-Ting Chen 2019-07-16
+--leftToRightStrategy :: UnifyStrategy
+--leftToRightStrategy s =
+--    msum (for [0..n-1] $ \k -> completeStrategyAt k s)
+--  where n = size $ eqTel s
 
 rightToLeftStrategy :: UnifyStrategy
 rightToLeftStrategy s =
@@ -801,8 +795,8 @@ skipIrrelevantStrategy k s = do
 ----------------------------------------------------
 
 data UnifyLogEntry
-  = UnificationDone  UnifyState
-  | UnificationStep  UnifyState UnifyStep
+  = UnificationStep  UnifyState UnifyStep
+--  | UnificationDone  UnifyState -- unused?
 
 type UnifyLog = [UnifyLogEntry]
 
@@ -881,6 +875,7 @@ unifyStep s Solution{ solutionAt   = k
   -- always @Quantity0@, since the indices of the data type are runtime erased.
   -- Thus, we need not change the quantity of the solution.
   let eqrel  = getRelevance dom
+      eqmod  = getModality dom
       varmod = getModality dom'
       mod    = applyUnless (NonStrict `moreRelevant` eqrel) (setRelevance eqrel)
              $ varmod
@@ -900,6 +895,10 @@ unifyStep s Solution{ solutionAt   = k
   usable <- liftTCM $ addContext (varTel s) $ usableRel (getRelevance mod) u
   reportSDoc "tc.lhs.unify" 45 $ "Modality ok: " <+> prettyTCM usable
   unless usable $ reportSLn "tc.lhs.unify" 65 $ "Rejected solution: " ++ show u
+
+  -- We need a Flat equality to solve a Flat variable.
+  -- This also ought to take care of the need for a usableCohesion check.
+  if not (getCohesion eqmod `moreCohesion` getCohesion varmod) then return $ DontKnow [] else do
 
   case equalTypes of
     Just err -> return $ DontKnow []

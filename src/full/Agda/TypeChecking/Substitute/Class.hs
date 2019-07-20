@@ -2,7 +2,7 @@
 module Agda.TypeChecking.Substitute.Class where
 
 import Control.Arrow ((***), second)
-import Data.Maybe
+
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
