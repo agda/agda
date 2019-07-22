@@ -1356,7 +1356,8 @@ checkKnownArgument arg@(Arg info e) (Arg _infov v : vs) t = do
   (Dom{domInfo = info',unDom = a}, b) <- mustBePi t
   -- Skip the arguments from vs that do not correspond to e
   if not (sameHiding info info'
-          && (visible info || maybe True ((absName b ==) . rangedThing . woThing) (nameOf e)))
+          && (visible info || maybe True (absName b ==) (bareNameOf e)))
+                                          -- TODO #3353: use domName, not absName !!
     -- Continue with the next one
     then checkKnownArgument arg vs (b `absApp` v)
     -- Found the right argument
@@ -1370,7 +1371,7 @@ checkKnownArgument arg@(Arg info e) (Arg _infov v : vs) t = do
 checkNamedArg :: NamedArg A.Expr -> Type -> TCM Term
 checkNamedArg arg@(Arg info e0) t0 = do
   let e = namedThing e0
-  let x = maybe "" (rangedThing . woThing) $ nameOf e0
+  let x = bareNameWithDefault "" e0
   traceCall (CheckExprCall CmpLeq e t0) $ do
     reportSDoc "tc.term.args.named" 15 $ do
         "Checking named arg" <+> sep

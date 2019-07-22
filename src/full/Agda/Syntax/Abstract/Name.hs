@@ -330,6 +330,12 @@ instance Show ModuleName where
 instance Show QName where
   show = prettyShow
 
+nameToArgName :: Name -> ArgName
+nameToArgName = stringToArgName . prettyShow
+
+namedArgName :: NamedArg Name -> ArgName
+namedArgName x = fromMaybe (nameToArgName $ namedArg x) $ bareNameOf x
+
 ------------------------------------------------------------------------
 -- * Pretty instances
 ------------------------------------------------------------------------

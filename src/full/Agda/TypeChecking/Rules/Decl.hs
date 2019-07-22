@@ -781,9 +781,9 @@ checkModuleArity m tel args = check tel args
     check :: Telescope -> [NamedArg A.Expr] -> TCM Telescope
     check tel []             = return tel
     check EmptyTel (_:_)     = bad
-    check (ExtendTel dom@Dom{domInfo = info} btel) args0@(Arg info' (Named rname _) : args) =
-      let name = fmap (rangedThing . woThing) rname
-          my   = fmap (rangedThing . woThing) $ domName dom
+    check (ExtendTel dom@Dom{domInfo = info} btel) args0@(Arg info' arg : args) =
+      let name = bareNameOf arg
+          my   = bareNameOf dom
           tel  = absBody btel in
       case (argInfoHiding info, argInfoHiding info', name) of
         (Instance{}, NotHidden, _)        -> check tel args0

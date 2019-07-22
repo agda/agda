@@ -720,7 +720,7 @@ reifyTerm expandAnonDefs0 v0 = do
               let padTail = filter (sameHiding dom) padRest
 
               -- ... and even the same name.
-              let padSame = filter ((Just (fst $ unDom dom) ==) . fmap (rangedThing . woThing)  . getNameOf) padTail
+              let padSame = filter ((Just (fst $ unDom dom) ==) . bareNameOf) padTail
 
               return $ if null padTail || not showImp
                 then (padVis           , map (fmap unnamed) es')

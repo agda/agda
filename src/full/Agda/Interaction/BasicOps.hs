@@ -818,10 +818,10 @@ metaHelperType norm ii rng s = case words s of
     betterName = do
       arg : args <- get
       put args
-      return $ case arg of
-        Arg _ (Named _ (A.Var x)) -> show $ A.nameConcrete x
-        Arg _ (Named (Just x) _)  -> argNameToString $ rangedThing $ woThing x
-        _                         -> "w"
+      return $ if
+        | Arg _ (Named _ (A.Var x)) <- arg -> prettyShow $ A.nameConcrete x
+        | Just x <- bareNameOf arg         -> argNameToString x
+        | otherwise                        -> "w"
 
 
 -- | Gives a list of names and corresponding types.

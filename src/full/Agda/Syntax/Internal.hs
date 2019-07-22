@@ -73,22 +73,22 @@ data Dom' t e = Dom
 
 type Dom = Dom' Term
 
-instance Decoration Dom where
+instance Decoration (Dom' t) where
   traverseF f (Dom ai b x t a) = Dom ai b x t <$> f a
 
-instance HasRange a => HasRange (Dom a) where
+instance HasRange a => HasRange (Dom' t a) where
   getRange = getRange . unDom
 
-instance KillRange a => KillRange (Dom a) where
+instance (KillRange t, KillRange a) => KillRange (Dom' t a) where
   killRange (Dom info b x t a) = killRange5 Dom info b x t a
 
 -- | Ignores 'Origin' and 'FreeVariables' and tactic.
-instance Eq a => Eq (Dom a) where
+instance Eq a => Eq (Dom' t a) where
   Dom (ArgInfo h1 m1 _ _) b1 s1 _ x1 == Dom (ArgInfo h2 m2 _ _) b2 s2 _ x2 =
     (h1, m1, b1, s1, x1) == (h2, m2, b2, s2, x2)
 
--- instance Show a => Show (Dom a) where
---   show = show . argFromDom
+instance LensNamed NamedName (Dom' t e) where
+  lensNamed f dom = f (domName dom) <&> \ nm -> dom { domName = nm }
 
 instance LensArgInfo (Dom' t e) where
   getArgInfo        = domInfo
@@ -104,15 +104,20 @@ instance LensFreeVariables (Dom' t e) where
 
 -- Since we have LensModality, we get relevance and quantity by default
 
-instance LensRelevance (Dom e) where
-instance LensQuantity  (Dom e) where
-instance LensCohesion  (Dom e) where
+instance LensRelevance (Dom' t e) where
+instance LensQuantity  (Dom' t e) where
+instance LensCohesion  (Dom' t e) where
 
-argFromDom :: Dom a -> Arg a
+argFromDom :: Dom' t a -> Arg a
 argFromDom Dom{domInfo = i, unDom = a} = Arg i a
 
-namedArgFromDom :: Dom a -> NamedArg a
+namedArgFromDom :: Dom' t a -> NamedArg a
 namedArgFromDom Dom{domInfo = i, domName = s, unDom = a} = Arg i $ Named s a
+
+-- The following functions are less general than they could be:
+-- @Dom@ could be replaced by @Dom' t@.
+-- However, this causes problems with instance resolution in several places.
+-- often for class AddContext.
 
 domFromArg :: Arg a -> Dom a
 domFromArg (Arg i a) = Dom i False Nothing Nothing a
@@ -229,28 +234,12 @@ instance LensOrigin (Elim' a) where
   mapOrigin f e@Proj{}  = e
   mapOrigin f e@IApply{} = e
 
--- | Names in binders and arguments.
-type ArgName = String
-
-argNameToString :: ArgName -> String
-argNameToString = id
-
-stringToArgName :: String -> ArgName
-stringToArgName = id
-
-appendArgNames :: ArgName -> ArgName -> ArgName
-appendArgNames = (++)
-
-nameToArgName :: Name -> ArgName
-nameToArgName = stringToArgName . prettyShow
-
-namedArgName :: NamedArg Name -> ArgName
-namedArgName x = maybe (nameToArgName $ namedArg x) (rangedThing . woThing) $ getNameOf x
-
 -- | Binder.
+--
 --   'Abs': The bound variable might appear in the body.
 --   'NoAbs' is pseudo-binder, it does not introduce a fresh variable,
 --      similar to the @const@ of Haskell.
+--
 data Abs a = Abs   { absName :: ArgName, unAbs :: a }
                -- ^ The body has (at least) one free variable.
                --   Danger: 'unAbs' doesn't shift variables properly

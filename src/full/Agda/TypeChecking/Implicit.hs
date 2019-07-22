@@ -17,8 +17,9 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Pretty
 
-import Agda.Utils.Tuple
+import Agda.Utils.Functor
 import Agda.Utils.Maybe
+import Agda.Utils.Tuple
 
 -- | @implicitArgs n expand t@ generates up to @n@ implicit arguments
 --   metas (unbounded if @n<0@), as long as @t@ is a function type
@@ -49,8 +50,8 @@ implicitNamedArgs n expand t0 = do
     reportSDoc "tc.term.args" 30 $ "implicitNamedArgs" <+> prettyTCM t0'
     reportSDoc "tc.term.args" 80 $ "implicitNamedArgs" <+> text (show t0')
     case unEl t0' of
-      Pi Dom{domInfo = info, domName = name, domTactic = tac, unDom = a} b
-        | let x = maybe "_" (rangedThing . woThing) name, expand (getHiding info) x -> do
+      Pi dom@Dom{domInfo = info, domTactic = tac, unDom = a} b
+        | let x = bareNameWithDefault "_" dom, expand (getHiding info) x -> do
           info' <- if hidden info then return info else do
             reportSDoc "tc.term.args.ifs" 15 $
               "inserting instance meta for type" <+> prettyTCM a
@@ -120,10 +121,9 @@ insertImplicit
   :: NamedArg e  -- ^ Next given argument @a@.
   -> [Dom a]     -- ^ Expected arguments @ts@.
   -> ImplicitInsertion
-insertImplicit a doms = insertImplicit' a $ map name doms
-  where
-    name dom = x <$ dom
-      where x = maybe "_" (rangedThing . woThing) $ domName dom
+insertImplicit a doms = insertImplicit' a $
+  for doms $ \ dom ->
+    dom $> bareNameWithDefault "_" dom
 
 -- | If the next given argument is @a@ and the expected arguments are @ts@
 --   @insertImplicit' a ts@ returns the prefix of @ts@ that precedes @a@.
@@ -142,7 +142,7 @@ insertImplicit' a ts
 
   -- If @a@ is named, take prefix of @ts@ until the name of @a@ (with correct hiding).
   -- If the name is not found, throw exception 'NoSuchName'.
-  | Just x <- rangedThing . woThing <$> getNameOf a = maybe (NoSuchName x) ImpInsert $
+  | Just x <- bareNameOf a = maybe (NoSuchName x) ImpInsert $
       takeHiddenUntil (\ t -> x == unDom t && sameHiding a t) ts
 
   -- If @a@ is neither visible nor named, take prefix of @ts@ with different hiding than @a@.

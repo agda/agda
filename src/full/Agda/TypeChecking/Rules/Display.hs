@@ -37,9 +37,9 @@ patternsToTerms EmptyTel (p : ps) ret =
   patternToTerm (namedArg p) $ \n v ->
   patternsToTerms EmptyTel ps     $ \m vs -> ret (n + m) (inheritHiding p v : vs)
 patternsToTerms (ExtendTel a tel) (p : ps) ret
-  | sameHiding p a, let n = getNameOf p,
-    visible p || isNothing n || Just (absName tel) == (rangedThing . woThing <$> n)
-    = patternToTerm (namedArg p) $ \n v ->
+  | sameHiding p a, visible p || maybe True (absName tel ==) (bareNameOf p) =  -- no ArgName or same as p
+                                          -- TODO #3353: use domName, not absName !!
+      patternToTerm (namedArg p) $ \n v ->
       patternsToTerms (unAbs tel) ps  $ \m vs -> ret (n + m) (inheritHiding p v : vs)
   | otherwise =
       bindWild $ patternsToTerms (unAbs tel) (p : ps) $ \n vs ->

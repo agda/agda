@@ -271,7 +271,7 @@ showContext (meta:args) = do
                     ["normal"] -> normalise $ raise n t
                     _          -> return $ raise n t
             d <- prettyTCM t
-            liftIO $ print $ text (I.argNameToString x) <+> ":" <+> d
+            liftIO $ print $ text (argNameToString x) <+> ":" <+> d
 showContext _ = liftIO $ putStrLn ":Context meta"
 
 -- | The logo that prints when Agda is started in interactive mode.
