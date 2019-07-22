@@ -37,6 +37,7 @@ import Data.Monoid
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Map (Map)
+import qualified Data.Foldable as Fold
 import Data.Traversable (traverse)
 import Data.Void
 import Data.List (sortBy)
@@ -1593,12 +1594,26 @@ recoverPatternSyn applySyn match e fallback = do
   if not doFold then fallback else do
     psyns  <- getAllPatternSyns
     scope  <- getScope
+    reportSLn "toConcrete.patsyn" 100 $ render $ hsep $
+      [ "Scope when attempting to recover pattern synonyms:"
+      , pretty scope
+      ]
     let isConP ConP{} = True    -- #2828: only fold pattern synonyms with
         isConP _      = False   --        constructor rhs
-        cands = [ (q, args, score rhs) | (q, psyndef@(_, rhs)) <- reverse $ Map.toList psyns,
-                                         isConP rhs, Just args <- [match psyndef e],
-                                         isNameInScope q scope ]
+        cands = [ (q, args, score rhs)
+                | (q, psyndef@(_, rhs)) <- reverse $ Map.toList psyns
+                , isConP rhs
+                , Just args <- [match psyndef e]
+                -- #3879: only fold pattern synonyms with an unqualified concrete name in scope
+                -- Note that we only need to consider the head of the inverse lookup result: they
+                -- are already sorted from shortest to longest!
+                , C.QName{} <- Fold.toList $ listToMaybe $ inverseScopeLookupName q scope
+                ]
         cmp (_, _, x) (_, _, y) = flip compare x y
+    reportSLn "toConcrete.patsyn" 50 $ render $ hsep $
+      [ "Found pattern synonym candidates:"
+      , prettyList_ $ map (\ (q,_,_) -> q) cands
+      ]
     case sortBy cmp cands of
       (q, args, _) : _ -> toConcrete $ applySyn q $ (map . fmap) unnamed args
       []               -> fallback
