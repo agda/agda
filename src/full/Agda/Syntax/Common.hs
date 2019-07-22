@@ -1027,9 +1027,9 @@ instance LensCohesion Cohesion where
   mapCohesion = id
 
 -- | Information ordering.
--- @Flat  \`moreRelevant\`
---  Continuous \`moreRelevant\`
---  Sharp \`moreRelevant\`
+-- @Flat  \`moreCohesion\`
+--  Continuous \`moreCohesion\`
+--  Sharp \`moreCohesion\`
 --  Squash@
 moreCohesion :: Cohesion -> Cohesion -> Bool
 moreCohesion = (<=)
@@ -1038,7 +1038,7 @@ moreCohesion = (<=)
 sameCohesion :: Cohesion -> Cohesion -> Bool
 sameCohesion = (==)
 
--- | More relevant is smaller.
+-- | Order is given by implication: flatter is smaller.
 instance Ord Cohesion where
   compare = curry $ \case
     (r, r') | r == r' -> EQ
@@ -1051,7 +1051,7 @@ instance Ord Cohesion where
     -- redundant case
     (Continuous,Continuous) -> EQ
 
--- | More relevant is smaller.
+-- | Flatter is smaller.
 instance PartialOrd Cohesion where
   comparable = comparableOrd
 
@@ -1060,8 +1060,7 @@ usableCohesion :: LensCohesion a => a -> Bool
 usableCohesion a = getCohesion a `moreCohesion` Continuous
 
 -- | 'Cohesion' composition.
---   'Irrelevant' is dominant, 'Relevant' is neutral.
---   Composition coincides with 'max'.
+--   'Squash' is dominant, 'Continuous' is neutral.
 composeCohesion :: Cohesion -> Cohesion -> Cohesion
 composeCohesion r r' =
   case (r, r') of
@@ -1072,7 +1071,7 @@ composeCohesion r r' =
     (Continuous, Continuous) -> Continuous
 
 -- | Compose with cohesion flag from the left.
---   This function is e.g. used to update the relevance information
+--   This function is e.g. used to update the cohesion information
 --   on pattern variables @a@ after a match against something of cohesion @rel@.
 applyCohesion :: LensCohesion a => Cohesion -> a -> a
 applyCohesion rel = mapCohesion (rel `composeCohesion`)
@@ -1082,6 +1081,7 @@ applyCohesion rel = mapCohesion (rel `composeCohesion`)
 --   @x \`moreCohesion\` (r \`composeCohesion\` y)@
 --   iff
 --   @(r \`inverseComposeCohesion\` x) \`moreCohesion\` y@ (Galois connection).
+--   The above law fails for @r = Squash@.
 inverseComposeCohesion :: Cohesion -> Cohesion -> Cohesion
 inverseComposeCohesion r x =
   case (r, x) of

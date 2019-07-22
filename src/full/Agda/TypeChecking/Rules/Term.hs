@@ -72,6 +72,7 @@ import Agda.Utils.Except
   (MonadError(catchError, throwError))
 import Agda.Utils.Functor
 import Agda.Utils.Lens
+import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
@@ -271,7 +272,7 @@ checkTypedBindings lamOrPi (A.TBind r tac xs' e) ret = do
     experimental <- optExperimentalIrrelevance <$> pragmaOptions
 
     let cs = map getCohesion xs'
-        c = fromMaybe __IMPOSSIBLE__ $ listToMaybe cs
+        c = headWithDefault __IMPOSSIBLE__ cs
     unless (all (c ==) cs) $ __IMPOSSIBLE__
 
     t <- applyCohesionToContext c $ modEnv lamOrPi $ isType_ e
