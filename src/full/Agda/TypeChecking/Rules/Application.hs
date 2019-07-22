@@ -539,7 +539,8 @@ checkArgumentsE' chk exh r args0@(arg@(Arg info e) : args) t0 mt1 =
         ]
       -- First, insert implicit arguments, depending on current argument @arg@.
       let hx = getHiding info  -- hiding of current argument
-          mx = fmap (rangedThing . woThing) $ nameOf e -- name of current argument
+          mx :: Maybe ArgName
+          mx = bareNameOf e    -- name of current argument
           -- do not insert visible arguments
           expand NotHidden y = False
           -- insert a hidden argument if arg is not hidden or has different name
@@ -635,7 +636,7 @@ checkArgumentsE' chk exh r args0@(arg@(Arg info e) : args) t0 mt1 =
         -- t0' <- lift $ forcePi (getHiding info) (maybe "_" rangedThing $ nameOf e) t0'
         case unEl t0' of
           Pi (Dom{domInfo = info', domName = dname, unDom = a}) b
-            | let name = maybe "_" (rangedThing . woThing) dname,
+            | let name = bareNameWithDefault "_" dname,
               sameHiding info info'
               && (visible info || maybe True (name ==) mx) -> do
                 u <- lift $ applyModalityToContext info' $ do
@@ -823,7 +824,7 @@ checkConstructorApplication cmp org t c args = do
         Just ps' <- unnamedPar h ps = dropArgs ps' args'
       | otherwise                   = args
       where
-        name = fmap (rangedThing . woThing) $ getNameOf arg
+        name = bareNameOf arg
         h    = getHiding arg
 
         namedPar   x = dropPar ((x ==) . unDom)

@@ -33,6 +33,7 @@ import Agda.Syntax.Position
 
 import Agda.Utils.Functor
 import Agda.Utils.Lens
+import Agda.Utils.Maybe
 import Agda.Utils.Null
 import Agda.Utils.PartialOrd
 import Agda.Utils.POMonoid
@@ -1565,7 +1566,7 @@ data Named name a =
 type Named_ = Named NamedName
 
 -- | Standard argument names.
-type NamedName = WithOrigin RString
+type NamedName = WithOrigin (Ranged ArgName)
 
 -- | Equality of argument names of things modulo 'Range' and 'Origin'.
 sameName :: NamedName -> NamedName -> Bool
@@ -1577,7 +1578,7 @@ unnamed = Named Nothing
 named :: name -> a -> Named name a
 named = Named . Just
 
-userNamed :: RString -> a -> Named_ a
+userNamed :: Ranged ArgName -> a -> Named_ a
 userNamed = Named . Just . WithOrigin UserWritten
 
 -- | Accessor/editor for the 'nameOf' component.
@@ -1590,6 +1591,9 @@ class LensNamed name a | a -> name where
 
 instance LensNamed name a => LensNamed name (Arg a) where
 
+instance LensNamed name (Maybe name) where
+  lensNamed = id
+
 instance LensNamed name (Named name a) where
   lensNamed f (Named mn a) = f mn <&> \ mn' -> Named mn' a
 
@@ -1601,6 +1605,12 @@ setNameOf = set lensNamed
 
 mapNameOf :: LensNamed name a => (Maybe name -> Maybe name) -> a -> a
 mapNameOf = over lensNamed
+
+bareNameOf :: LensNamed NamedName a => a -> Maybe ArgName
+bareNameOf a = rangedThing . woThing <$> getNameOf a
+
+bareNameWithDefault :: LensNamed NamedName a => ArgName -> a -> ArgName
+bareNameWithDefault x a = maybe x (rangedThing . woThing) $ getNameOf a
 
 -- | Equality of argument names of things modulo 'Range' and 'Origin'.
 namedSame :: (LensNamed NamedName a, LensNamed NamedName b) => a -> b -> Bool
@@ -1656,6 +1666,20 @@ updateNamedArg = fmap . fmap
 -- | @setNamedArg a b = updateNamedArg (const b) a@
 setNamedArg :: NamedArg a -> b -> NamedArg b
 setNamedArg a b = (b <$) <$> a
+
+-- ** ArgName
+
+-- | Names in binders and arguments.
+type ArgName = String
+
+argNameToString :: ArgName -> String
+argNameToString = id
+
+stringToArgName :: String -> ArgName
+stringToArgName = id
+
+appendArgNames :: ArgName -> ArgName -> ArgName
+appendArgNames = (++)
 
 ---------------------------------------------------------------------------
 -- * Range decoration.

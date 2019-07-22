@@ -21,6 +21,7 @@ import Agda.Interaction.Options.IORefs (UnicodeOrAscii(..), unicodeOrAscii)
 
 import Agda.Utils.Function
 import Agda.Utils.Functor
+import Agda.Utils.Maybe
 import Agda.Utils.Null
 import Agda.Utils.Pretty
 import Agda.Utils.String
@@ -327,19 +328,16 @@ data NamedBinding = NamedBinding
   , namedBinding :: NamedArg BoundName
   }
 
-getLabel :: NamedArg a -> Maybe String
-getLabel = fmap (rangedThing . woThing) . getNameOf
-
-isLabeled :: NamedArg BoundName -> Bool
+isLabeled :: NamedArg BoundName -> Maybe ArgName
 isLabeled x
-  | visible x            = False  -- Ignore labels on visible arguments
-  | Just l <- getLabel x = l /= nameToRawName (boundName $ namedArg x)
-  | otherwise            = False
+  | visible x              = Nothing  -- Ignore labels on visible arguments
+  | Just l <- bareNameOf x = boolToMaybe (l /= nameToRawName (boundName $ namedArg x)) l
+  | otherwise              = Nothing
 
 instance Pretty NamedBinding where
   pretty (NamedBinding withH x) =
-    prH $ if | isLabeled x -> text (fromMaybe __IMPOSSIBLE__ $ getLabel x) <+> "=" <+> pretty xb
-             | otherwise   -> pretty (namedArg x)
+    prH $ if | Just l <- isLabeled x -> text l <+> "=" <+> pretty xb
+             | otherwise             -> pretty (namedArg x)
     where
       xb = namedArg x
       prH | withH     = prettyRelevance x . prettyHiding x mparens . prettyCohesion x . prettyQuantity x . prettyTactic xb
@@ -365,10 +363,10 @@ instance Pretty TypedBinding where
       where
         groupBinds [] = []
         groupBinds (x : xs)
-          | isLabeled x = [x] : groupBinds xs
+          | Just{} <- isLabeled x = [x] : groupBinds xs
           | otherwise   = (x : ys) : groupBinds zs
           where (ys, zs) = span (same x) xs
-                same x y = getArgInfo x == getArgInfo y && not (isLabeled y)
+                same x y = getArgInfo x == getArgInfo y && isNothing (isLabeled y)
 
 newtype Tel = Tel Telescope
 
@@ -645,9 +643,9 @@ instance Pretty a => Pretty (Arg a) where
                         | otherwise = id
 
 instance Pretty e => Pretty (Named_ e) where
-    prettyPrec p (Named Nothing   e) = prettyPrec p e
-    prettyPrec p (Named (Just nm) e) = mparens (p > 0) $ sep [ text s <+> "=", pretty e ]
-      where s = rawNameToString $ rangedThing $ woThing nm
+  prettyPrec p (Named nm e)
+    | Just s <- bareNameOf nm = mparens (p > 0) $ sep [ text s <+> "=", pretty e ]
+    | otherwise               = prettyPrec p e
 
 instance Pretty Pattern where
     prettyList = fsep . map pretty
