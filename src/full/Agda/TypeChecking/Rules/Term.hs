@@ -1352,12 +1352,17 @@ checkKnownArgument
   -> TCM (Args, Type)   -- ^ Remaining inferred arguments, remaining type.
 checkKnownArgument arg [] _ = genericDocError =<< do
   "Invalid projection parameter " <+> prettyA arg
-checkKnownArgument arg@(Arg info e) (Arg _infov v : vs) t = do
-  (Dom{domInfo = info',unDom = a}, b) <- mustBePi t
+-- Andreas, 2019-07-22, while #3353: we should use domName, not absName !!
+-- WAS:
+-- checkKnownArgument arg@(Arg info e) (Arg _infov v : vs) t = do
+--   (dom@Dom{domInfo = info',unDom = a}, b) <- mustBePi t
+--   -- Skip the arguments from vs that do not correspond to e
+--   if not (sameHiding info info'
+--           && (visible info || maybe True (absName b ==) (bareNameOf e)))
+checkKnownArgument arg (Arg _ v : vs) t = do
   -- Skip the arguments from vs that do not correspond to e
-  if not (sameHiding info info'
-          && (visible info || maybe True (absName b ==) (bareNameOf e)))
-                                          -- TODO #3353: use domName, not absName !!
+  (dom@Dom{ unDom = a }, b) <- mustBePi t
+  if not $ fromMaybe __IMPOSSIBLE__ $ fittingNamedArg arg dom
     -- Continue with the next one
     then checkKnownArgument arg vs (b `absApp` v)
     -- Found the right argument

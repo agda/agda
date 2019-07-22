@@ -1619,6 +1619,32 @@ namedSame a b = case (getNameOf a, getNameOf b) of
   (Just x , Just y ) -> sameName x y
   _ -> False
 
+-- | Does an argument @arg@ fit the shape @dom@ of the next expected argument?
+--
+--   The hiding has to match, and if the argument has a name, it should match
+--   the name of the domain.
+--
+--   'Nothing' should be '__IMPOSSIBLE__', so use as
+--   @@
+--     fromMaybe __IMPOSSIBLE__ $ fittingNamedArg arg dom
+--   @@
+--
+fittingNamedArg
+  :: ( LensNamed NamedName arg, LensHiding arg
+     , LensNamed NamedName dom, LensHiding dom )
+  => arg -> dom -> Maybe Bool
+fittingNamedArg arg dom
+    | not $ sameHiding arg dom = no
+    | visible arg              = yes
+    | otherwise =
+        caseMaybe (bareNameOf arg) yes        $ \ x ->
+        caseMaybe (bareNameOf dom) impossible $ \ y ->
+        return $ x == y
+  where
+    yes = return True
+    no  = return False
+    impossible = Nothing
+
 -- Standard instances for 'Named':
 
 instance Decoration (Named name) where

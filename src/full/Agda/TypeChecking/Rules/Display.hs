@@ -13,6 +13,7 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Pretty
 
+import Agda.Utils.Impossible
 import Agda.Utils.NonemptyList
 
 checkDisplayPragma :: QName -> [NamedArg A.Pattern] -> A.Expr -> TCM ()
@@ -37,8 +38,9 @@ patternsToTerms EmptyTel (p : ps) ret =
   patternToTerm (namedArg p) $ \n v ->
   patternsToTerms EmptyTel ps     $ \m vs -> ret (n + m) (inheritHiding p v : vs)
 patternsToTerms (ExtendTel a tel) (p : ps) ret
-  | sameHiding p a, visible p || maybe True (absName tel ==) (bareNameOf p) =  -- no ArgName or same as p
-                                          -- TODO #3353: use domName, not absName !!
+  -- Andreas, 2019-07-22, while #3353: we should use domName, not absName !!
+  -- WAS: -- | sameHiding p a, visible p || maybe True (absName tel ==) (bareNameOf p) =  -- no ArgName or same as p
+  | fromMaybe __IMPOSSIBLE__ $ fittingNamedArg p a =
       patternToTerm (namedArg p) $ \n v ->
       patternsToTerms (unAbs tel) ps  $ \m vs -> ret (n + m) (inheritHiding p v : vs)
   | otherwise =
