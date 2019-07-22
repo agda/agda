@@ -120,14 +120,12 @@ groupByEither = listCase [] (go . init) where
   go :: Either [a] [b] -> [Either a b] -> [Either [a] [b]]
   go acc         []              = adjust acc : []
   -- match: next value can be tacked onto the accumulator
-  go acc@Left{}  (Left a  : abs) = go (consL a acc) abs
-  go acc@Right{} (Right b : abs) = go (consR b acc) abs
+  go (Left  acc) (Left  a : abs) = go (Left  $ a : acc) abs
+  go (Right acc) (Right b : abs) = go (Right $ b : acc) abs
   -- mismatch: switch the accumulator to the other mode
   go acc         (ab      : abs) = adjust acc : go (init ab) abs
 
   adjust = bimap reverse reverse
-  consL  = first . (:)
-  consR  = second . (:)
   init   = bimap pure pure
 
 -- | Convert 'Maybe' to @'Either' ()@.
