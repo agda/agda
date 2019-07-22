@@ -483,8 +483,9 @@ transferOrigins ps qs = do
     transfers (p : ps) [] = __IMPOSSIBLE__
     transfers (p : ps) (q : qs)
       | matchingArgs p q = do
-          q' <- setOrigin (getOrigin p) <$>
-                  (traverse $ traverse $ transfer $ namedArg p) q
+          q' <- mapNameOf (maybe id (const . Just) $ getNameOf p) -- take NamedName from p if present
+              . setOrigin (getOrigin p)
+            <$> (traverse $ traverse $ transfer $ namedArg p) q
           (q' :) <$> transfers ps qs
       | otherwise = (setOrigin Inserted q :) <$> transfers (p : ps) qs
 

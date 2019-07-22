@@ -822,13 +822,20 @@ instance (Ord k, Monoid v) => Monoid (MonoidMap k v) where
   mempty = MonoidMap Map.empty
   mappend = (<>)
 
+-- | Removes argument names.  Preserves names present in the source.
+removeNameUnlessUserWritten :: (LensNamed n a, LensOrigin n) => a -> a
+removeNameUnlessUserWritten a
+  | (getOrigin <$> getNameOf a) == Just UserWritten = a
+  | otherwise = setNameOf Nothing a
+
+
 -- | Removes implicit arguments that are not needed, that is, that don't bind
 --   any variables that are actually used and doesn't do pattern matching.
 --   Doesn't strip any arguments that were written explicitly by the user.
 stripImplicits :: MonadReify m => A.Patterns -> A.Patterns -> m A.Patterns
 stripImplicits params ps = do
   -- if --show-implicit we don't need the names
-  ifM showImplicitArguments (return $ map (unnamed . namedThing <$>) ps) $ do
+  ifM showImplicitArguments (return $ map (fmap removeNameUnlessUserWritten) ps) $ do
     reportSLn "reify.implicit" 30 $ unlines
       [ "stripping implicits"
       , "  ps   = " ++ show ps
@@ -859,17 +866,18 @@ stripImplicits params ps = do
               a'     = setNamedArg a $ A.WildP $ Info.PatRange $ getRange a
               goWild = stripName fixedPos a' : stripArgs True as
 
-          stripName True  = fmap (unnamed . namedThing)
+          stripName True  = fmap removeNameUnlessUserWritten
           stripName False = id
 
           -- TODO: vars appearing in EqualPs shouldn't be stripped.
           canStrip a = and
             [ notVisible a
             , getOrigin a `notElem` [ UserWritten , CaseSplit ]
+            , (getOrigin <$> getNameOf a) /= Just UserWritten
             , varOrDot (namedArg a)
             ]
 
-          isUnnamedHidden x = notVisible x && isNothing (nameOf (unArg x)) && isNothing (isProjP x)
+          isUnnamedHidden x = notVisible x && isNothing (getNameOf x) && isNothing (isProjP x)
 
           stripArg a = fmap (fmap stripPat) a
 
@@ -892,7 +900,7 @@ stripImplicits params ps = do
           varOrDot A.WildP{}     = True
           varOrDot A.DotP{}      = True
           varOrDot (A.ConP cpi _ ps) | patOrigin cpi == ConOSystem
-                                 = all varOrDot $ map namedArg ps
+                                 = all (varOrDot . namedArg) ps
           varOrDot _             = False
 
 -- | @blank bound e@ replaces all variables in expression @e@ that are not in @bound@ by
