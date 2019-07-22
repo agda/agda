@@ -125,7 +125,13 @@ updateProblemRest st@(LHSState tel0 qs0 p@(Problem oldEqs ps ret) a psplit) = do
     ]
   reportSDoc "tc.lhs.problem" 60 $ addContext tel0 $ vcat
     [ nest 2 $ vcat
-      [ "qs1    =" <+> fsep (map pretty qs1)
+      [ "ps    =" <+> (text . show) ps
+      , "a     =" <+> (text . show) a
+      , "tel1  =" <+> (text . show) tel1
+      , "ps1   =" <+> (text . show) ps1
+      , "ps2   =" <+> (text . show) ps2
+      , "b     =" <+> (text . show) b
+      , "qs1   =" <+> fsep (map pretty qs1)
       ]
     ]
   return $ LHSState
