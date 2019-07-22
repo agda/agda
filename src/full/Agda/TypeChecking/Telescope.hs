@@ -81,11 +81,12 @@ teleArgs tel =
   | (i, Dom {domInfo = info, unDom = (n,_)}) <- zip (downFrom $ size l) l ]
   where l = telToList tel
 
-withNamedArgsFromTel :: [a] -> Telescope -> [NamedArg a]
-xs `withNamedArgsFromTel` tel =
-  [ Arg info (Named (Just $ Ranged noRange $ argNameToString name) x)
-  | (x, Dom {domInfo = info, unDom = (name,_)}) <- zip xs l ]
-  where l = telToList tel
+-- UNUSED
+-- withNamedArgsFromTel :: [a] -> Telescope -> [NamedArg a]
+-- xs `withNamedArgsFromTel` tel =
+--   [ Arg info (Named (Just $ Ranged noRange $ argNameToString name) x)
+--   | (x, Dom {domInfo = info, unDom = (name,_)}) <- zip xs l ]
+--   where l = telToList tel
 
 teleNamedArgs :: (DeBruijn a) => Telescope -> [NamedArg a]
 teleNamedArgs tel =
@@ -99,7 +100,7 @@ teleNamedArgs tel =
 --   Precondition: the two telescopes have the same length.
 tele2NamedArgs :: (DeBruijn a) => Telescope -> Telescope -> [NamedArg a]
 tele2NamedArgs tel0 tel =
-  [ Arg info (Named (Just $ Ranged noRange $ argNameToString argName) (debruijnNamedVar varName i))
+  [ Arg info (Named (Just $ WithOrigin Inserted $ unranged $ argNameToString argName) (debruijnNamedVar varName i))
   | (i, Dom{domInfo = info, unDom = (argName,_)}, Dom{unDom = (varName,_)}) <- zip3 (downFrom $ size l) l0 l ]
   where
   l  = telToList tel

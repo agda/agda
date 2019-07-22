@@ -50,7 +50,7 @@ implicitNamedArgs n expand t0 = do
     reportSDoc "tc.term.args" 80 $ "implicitNamedArgs" <+> text (show t0')
     case unEl t0' of
       Pi Dom{domInfo = info, domName = name, domTactic = tac, unDom = a} b
-        | let x = maybe "_" rangedThing name, expand (getHiding info) x -> do
+        | let x = maybe "_" (rangedThing . woThing) name, expand (getHiding info) x -> do
           info' <- if hidden info then return info else do
             reportSDoc "tc.term.args.ifs" 15 $
               "inserting instance meta for type" <+> prettyTCM a
@@ -62,7 +62,7 @@ implicitNamedArgs n expand t0 = do
             return $ makeInstance info
           (_, v) <- newMetaArg info' x a
           whenJust tac $ \ tac -> liftTCM $ unquoteTactic tac v a
-          let narg = Arg info (Named (Just $ unranged x) v)
+          let narg = Arg info (Named (Just $ WithOrigin Inserted $ unranged x) v)
           mapFst (narg :) <$> implicitNamedArgs (n-1) expand (absApp b v)
       _ -> return ([], t0')
 
@@ -123,7 +123,7 @@ insertImplicit
 insertImplicit a doms = insertImplicit' a $ map name doms
   where
     name dom = x <$ dom
-      where x = maybe "_" rangedThing $ domName dom
+      where x = maybe "_" (rangedThing . woThing) $ domName dom
 
 -- | If the next given argument is @a@ and the expected arguments are @ts@
 --   @insertImplicit' a ts@ returns the prefix of @ts@ that precedes @a@.
@@ -142,7 +142,7 @@ insertImplicit' a ts
 
   -- If @a@ is named, take prefix of @ts@ until the name of @a@ (with correct hiding).
   -- If the name is not found, throw exception 'NoSuchName'.
-  | Just x <- rangedThing <$> nameOf (unArg a) = maybe (NoSuchName x) ImpInsert $
+  | Just x <- rangedThing . woThing <$> getNameOf a = maybe (NoSuchName x) ImpInsert $
       takeHiddenUntil (\ t -> x == unDom t && sameHiding a t) ts
 
   -- If @a@ is neither visible nor named, take prefix of @ts@ with different hiding than @a@.

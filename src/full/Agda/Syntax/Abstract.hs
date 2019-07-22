@@ -1157,8 +1157,13 @@ instance SubstExpr TypedBinding where
     TLet r lbs     -> TLet r $ substExpr s lbs
 
 -- TODO: more informative failure
-insertImplicitPatSynArgs :: HasRange a => (Range -> a) -> Range -> [Arg Name] -> [NamedArg a] ->
-                            Maybe ([(Name, a)], [Arg Name])
+insertImplicitPatSynArgs
+  :: HasRange a
+  => (Range -> a)
+  -> Range
+  -> [Arg Name]
+  -> [NamedArg a]
+  -> Maybe ([(Name, a)], [Arg Name])
 insertImplicitPatSynArgs wild r ns as = matchArgs r ns as
   where
     matchNextArg r n as@(~(a : as'))
@@ -1169,8 +1174,8 @@ insertImplicitPatSynArgs wild r ns as = matchArgs r ns as
     matchNext _ [] = False
     matchNext n (a:as) = sameHiding n a && matchName
       where
-        x = unranged $ C.nameToRawName $ nameConcrete $ unArg n
-        matchName = maybe True (== x) (nameOf $ unArg a)
+        x = C.nameToRawName $ nameConcrete $ unArg n
+        matchName = maybe True ((x ==) . rangedThing . woThing) $ getNameOf a
 
     matchArgs r [] []     = return ([], [])
     matchArgs r [] as     = Nothing

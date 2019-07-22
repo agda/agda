@@ -379,6 +379,7 @@ instance IsNoName QName where
   isNoName Qual{}    = False        -- M.A._ does not qualify as empty name
 
 instance IsNoName a => IsNoName (Ranged a) where
+instance IsNoName a => IsNoName (WithOrigin a) where
 
 -- no instance for TopLevelModuleName
 

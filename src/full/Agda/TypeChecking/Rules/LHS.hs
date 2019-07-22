@@ -535,9 +535,9 @@ transferOrigins ps qs = do
       -- 2. or they are both visible,
       | visible p && visible q = True
       -- 3. or they have the same hiding and the argument is not named,
-      | sameHiding p q && isNothing (nameOf (unArg p)) = True
+      | sameHiding p q && isNothing (getNameOf p) = True
       -- 4. or they have the same hiding and the same name.
-      | sameHiding p q && nameOf (unArg p) == nameOf (unArg q) = True
+      | sameHiding p q && namedSame p q = True
       -- Otherwise this argument was inserted by the typechecker.
       | otherwise = False
 
