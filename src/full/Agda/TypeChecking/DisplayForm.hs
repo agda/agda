@@ -81,7 +81,7 @@ displayForm q es = do
       return [ m | Just (d, m) <- ms, wellScoped scope d ]
     -- Not safe when printing non-terminating terms.
     -- (nfdfs, us) <- normalise (dfs, es)
-    unlessDebugPrinting $ reportSLn "tc.display.top" 100 $ unlines
+    unlessDebugPrinting $ reportS "tc.display.top" 100
       [ "name        : " ++ prettyShow q
       , "displayForms: " ++ show dfs
       , "arguments   : " ++ show es

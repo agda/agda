@@ -1876,7 +1876,7 @@ instance LivesInCurrentModule AbstractName where
 instance LivesInCurrentModule A.QName where
   livesInCurrentModule x = do
     m <- getCurrentModule
-    reportSLn "scope.data.def" 30 $ unlines
+    reportS "scope.data.def" 30
       [ "  A.QName of data type: " ++ show x
       , "  current module: " ++ show m
       ]

@@ -131,16 +131,31 @@ instance (MonadDebug m, Monoid w) => MonadDebug (WriterT w m) where
   nowDebugPrinting = mapWriterT nowDebugPrinting
   verboseBracket k n s = mapWriterT $ verboseBracket k n s
 
--- | Conditionally print debug string.
-{-# SPECIALIZE reportS :: VerboseKey -> Int -> String -> TCM () #-}
-reportS :: MonadDebug m => VerboseKey -> Int -> String -> m ()
-reportS k n s = verboseS k n $ displayDebugMessage n s
+-- | Debug print some lines if the verbosity level for the given
+--   'VerboseKey' is at least 'Int'.
+--
+-- Note: In the presence of @OverloadedStrings@, just
+-- @@
+--   reportS key level "Literate string"
+-- @@
+-- gives an @Ambiguous type variable@ error in @GHC@.
+-- Use the legacy functions 'reportSLn' and 'reportSDoc' instead then.
+--
+class ReportS a where
+  reportS :: MonadDebug m => VerboseKey -> Int -> a -> m ()
+
+instance ReportS (TCM Doc) where reportS = reportSDoc
+instance ReportS String    where reportS = reportSLn
+
+instance ReportS [TCM Doc] where reportS k n = reportSDoc k n . fmap vcat . sequence
+instance ReportS [String]  where reportS k n = reportSLn  k n . unlines
+instance ReportS [Doc]     where reportS k n = reportSLn  k n . render . vcat
+instance ReportS Doc       where reportS k n = reportSLn  k n . render
 
 -- | Conditionally println debug string.
 {-# SPECIALIZE reportSLn :: VerboseKey -> Int -> String -> TCM () #-}
 reportSLn :: MonadDebug m => VerboseKey -> Int -> String -> m ()
-reportSLn k n s = verboseS k n $
-  displayDebugMessage n (s ++ "\n")
+reportSLn k n s = verboseS k n $ displayDebugMessage n $ s ++ "\n"
 
 __IMPOSSIBLE_VERBOSE__ :: (HasCallStack, MonadDebug m) => String -> m a
 __IMPOSSIBLE_VERBOSE__ s = do { reportSLn "impossible" 10 s ; throwImpossible err }
@@ -156,6 +171,27 @@ reportSDoc k n d = verboseS k n $ do
 
 unlessDebugPrinting :: MonadDebug m => m () -> m ()
 unlessDebugPrinting = unlessM isDebugPrinting
+
+-- | Debug print some lines if the verbosity level for the given
+--   'VerboseKey' is at least 'Int'.
+--
+-- Note: In the presence of @OverloadedStrings@, just
+-- @@
+--   traceS key level "Literate string"
+-- @@
+-- gives an @Ambiguous type variable@ error in @GHC@.
+-- Use the legacy functions 'traceSLn' and 'traceSDoc' instead then.
+--
+class TraceS a where
+  traceS :: MonadDebug m => VerboseKey -> Int -> a -> m c -> m c
+
+instance TraceS (TCM Doc) where traceS = traceSDoc
+instance TraceS String    where traceS = traceSLn
+
+instance TraceS [TCM Doc] where traceS k n = traceSDoc k n . fmap vcat . sequence
+instance TraceS [String]  where traceS k n = traceSLn  k n . unlines
+instance TraceS [Doc]     where traceS k n = traceSLn  k n . render . vcat
+instance TraceS Doc       where traceS k n = traceSLn  k n . render
 
 traceSLn :: MonadDebug m => VerboseKey -> Int -> String -> m a -> m a
 traceSLn k n s = applyWhenVerboseS k n $ traceDebugMessage n $ s ++ "\n"

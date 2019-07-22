@@ -597,14 +597,14 @@ reifyTerm expandAnonDefs0 v0 = do
       r <- reduceDefCopy x es
       case r of
         YesReduction _ v -> do
-          reportSLn "reify.anon" 60 $ unlines
+          reportS "reify.anon" 60
             [ "reduction on defined ident. in anonymous module"
             , "x = " ++ prettyShow x
             , "v = " ++ show v
             ]
           reify v
         NoReduction () -> do
-          reportSLn "reify.anon" 60 $ unlines
+          reportS "reify.anon" 60
             [ "no reduction on defined ident. in anonymous module"
             , "x  = " ++ prettyShow x
             , "es = " ++ show es
@@ -729,7 +729,7 @@ reifyTerm expandAnonDefs0 v0 = do
             -- If it is not a projection(-like) function, we need no padding.
             _ -> return ([], map (fmap unnamed) $ drop n es)
 
-           reportSLn "reify.def" 70 $ unlines
+           reportS "reify.def" 70
              [ "  pad = " ++ show pad
              , "  nes = " ++ show nes
              ]
@@ -836,12 +836,12 @@ stripImplicits :: MonadReify m => A.Patterns -> A.Patterns -> m A.Patterns
 stripImplicits params ps = do
   -- if --show-implicit we don't need the names
   ifM showImplicitArguments (return $ map (fmap removeNameUnlessUserWritten) ps) $ do
-    reportSLn "reify.implicit" 30 $ unlines
+    reportS "reify.implicit" 30
       [ "stripping implicits"
       , "  ps   = " ++ show ps
       ]
     let ps' = blankDots $ strip ps
-    reportSLn "reify.implicit" 30 $ unlines
+    reportS "reify.implicit" 30
       [ "  ps'  = " ++ show ps'
       ]
     return ps'
@@ -1211,7 +1211,7 @@ instance Reify NamedClause A.Clause where
 
 instance Reify (QNamed System) [A.Clause] where
   reify (QNamed f (System tel sys)) = addContext tel $ do
-    reportSLn "reify.system" 40 $ unlines $ show tel : map show sys
+    reportS "reify.system" 40 $ show tel : map show sys
     unview <- intervalUnview'
     forM sys $ \ (alpha,u) -> do
       rhs <- RHS <$> reify u <*> pure Nothing

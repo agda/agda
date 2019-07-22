@@ -290,7 +290,7 @@ reportCalls no calls = do
   -- We work in TCM exclusively.
   liftTCM $ do
 
-    reportS "term.lex" 20 $ unlines
+    reportS "term.lex" 20
       [ "Calls (" ++ no ++ "dot patterns): " ++ prettyShow calls
       ]
 

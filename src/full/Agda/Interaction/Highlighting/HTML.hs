@@ -143,8 +143,8 @@ generateHTMLWithPageGen generatePage = do
         cssFile <- getDataFileName defaultCSSFile
         copyFile cssFile (dir </> defaultCSSFile)
 
-      TCM.reportSLn "html" 1 $ unlines
-        [ ""
+      TCM.reportS "html" 1
+        [ "" :: String
         , "Warning: HTML is currently generated for ALL files which can be"
         , "reached from the given module, including library files."
         ]

@@ -174,7 +174,7 @@ checkDecl d = setCurrentRange d $ do
                                     verboseS "tc.decl.mutual" 70 $ do
                                       current <- asksTC envMutualBlock
                                       unless (Just blockId == current) $ do
-                                        reportSLn "" 0 $ unlines
+                                        reportS "" 0
                                           [ "mutual block id discrepancy for " ++ prettyShow x
                                           , "  current    mut. bl. = " ++ show current
                                           , "  calculated mut. bl. = " ++ show blockId

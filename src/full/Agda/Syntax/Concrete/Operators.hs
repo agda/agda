@@ -100,7 +100,7 @@ localNames flat = do
   let defs = getDefinedNames allKindsOfNames flat
   locals <- nubOn fst . notShadowedLocals <$> getLocalVars
   -- Note: Debug printout aligned with the one in buildParsers.
-  reportSLn "scope.operators" 50 $ unlines
+  reportS "scope.operators" 50
     [ "flat  = " ++ show flat
     , "defs  = " ++ show defs
     , "locals= " ++ show locals
@@ -339,7 +339,7 @@ buildParsers r flat kind exprNames = do
           unrelatedOperators ++
           nonWithSections
 
-    reportSLn "scope.operators" 50 $ unlines
+    reportS "scope.operators" 50
       [ "unrelatedOperators = " ++ show unrelatedOperators
       , "nonWithSections    = " ++ show nonWithSections
       , "relatedOperators   = " ++ show relatedOperators

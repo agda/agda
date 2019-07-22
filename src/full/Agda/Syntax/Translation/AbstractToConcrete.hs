@@ -1447,7 +1447,7 @@ tryToRecoverOpApp e def = fromMaybeM def $
 tryToRecoverOpAppP :: A.Pattern -> AbsToCon (Maybe C.Pattern)
 tryToRecoverOpAppP p = do
   res <- recoverOpApp bracketP_ (const False) opApp view p
-  reportSLn "print.op" 90 $ unlines
+  reportS "print.op" 90
     [ "tryToRecoverOpApp"
     , "in:  " ++ show p
     , "out: " ++ show res
