@@ -147,6 +147,25 @@ Language
   ```
   Idiom brackets with no application `(|)` or `⦇⦈` are equivalent to `empty`.
 
+
+* Irrefutable With
+
+  Users can now match on irrefutable patterns on the LHS using a
+  pattern-matching `with`. An expression of the form:
+
+  ```agda
+  f xs with p1 <- e1 | ... | pn <- en = rhs
+  ```
+
+  is translated to nested `with` clauses, essentially equivalent to:
+
+  ```agda
+  f xs with e1
+  ... | p1 with
+     (...) with en
+  ... | pn = rhs
+  ```
+
 ### Termination checking
 
 * The "with inlining" feature of the termination checker has been

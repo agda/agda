@@ -2192,9 +2192,10 @@ data RightHandSide = RightHandSide
 
 data AbstractRHS
   = AbsurdRHS'
-  | WithRHS' [A.Expr] [ScopeM C.Clause]  -- ^ The with clauses haven't been translated yet
+  | WithRHS' [A.Expr] [ScopeM C.Clause]
+    -- ^ The with clauses haven't been translated yet
   | RHS' A.Expr C.Expr
-  | RewriteRHS' [A.Expr] AbstractRHS A.WhereDeclarations
+  | RewriteRHS' [RewriteEqn' A.Pattern A.Expr] AbstractRHS A.WhereDeclarations
 
 qualifyName_ :: A.Name -> ScopeM A.QName
 qualifyName_ x = do
@@ -2206,20 +2207,46 @@ withFunctionName s = do
   NameId i _ <- fresh
   qualifyName_ =<< freshName_ (s ++ show i)
 
+instance ToAbstract (RewriteEqn' A.Pattern A.Expr) A.RewriteEqn where
+  toAbstract = \case
+    Rewrite es -> fmap Rewrite $ forM es $ \ e -> do
+      qn <- withFunctionName "-rewrite"
+      pure (qn, e)
+    Invert pes -> fmap Invert $ forM pes $ \ (p, e) -> do
+      qn <- withFunctionName "-invert"
+      pure (p, (qn, e))
+
+instance ToAbstract (C.RewriteEqn) (RewriteEqn' A.Pattern A.Expr) where
+  toAbstract = \case
+    Rewrite es -> Rewrite <$> mapM toAbstract es
+    Invert pes -> fmap Invert $ forM pes $ \ (p, e) -> do
+      -- first check the expression: the pattern may shadow
+      -- some of the variables mentioned in it!
+      e <- toAbstract e
+      -- then parse the pattern and go through the motions of converting it,
+      -- checking it for linearity, binding the variable it introduced and
+      -- finally producing an abstract pattern.
+      p <- parsePattern p
+      p <- toAbstract p
+      checkPatternLinearity p (typeError . RepeatedVariablesInPattern)
+      bindVarsToBind
+      p <- toAbstract p
+      pure (p, e)
+
 instance ToAbstract AbstractRHS A.RHS where
   toAbstract AbsurdRHS'            = return A.AbsurdRHS
   toAbstract (RHS' e c)            = return $ A.RHS e $ Just c
   toAbstract (RewriteRHS' eqs rhs wh) = do
-    auxs <- replicateM (length eqs) $ withFunctionName "rewrite-"
-    rhs  <- toAbstract rhs
-    return $ RewriteRHS (zip auxs eqs) [] rhs wh
+    eqs <- toAbstract eqs
+    rhs <- toAbstract rhs
+    return $ RewriteRHS eqs [] rhs wh
   toAbstract (WithRHS' es cs) = do
     aux <- withFunctionName "with-"
     A.WithRHS aux es <$> do toAbstract =<< sequence cs
 
 instance ToAbstract RightHandSide AbstractRHS where
   toAbstract (RightHandSide eqs@(_:_) es cs rhs whname wh) = do
-    eqs <- toAbstractCtx TopCtx eqs
+    eqs <- mapM (toAbstractCtx TopCtx) eqs
     (rhs, ds) <- whereToAbstract (getRange wh) whname wh $
                   toAbstract (RightHandSide [] es cs rhs Nothing [])
     return $ RewriteRHS' eqs rhs ds
@@ -2578,4 +2605,6 @@ toAbstractOpApp op ns es = do
 -- | Content of interaction hole.
 
 instance ToAbstract C.HoleContent A.HoleContent where
-  toAbstract = mapM toAbstract
+  toAbstract = \case
+    HoleContentExpr e     -> HoleContentExpr <$> toAbstract e
+    HoleContentRewrite es -> HoleContentRewrite <$> toAbstract es
