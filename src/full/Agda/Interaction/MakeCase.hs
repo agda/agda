@@ -215,6 +215,16 @@ makeCase hole rng s = withInteractionId hole $ do
       , "ps      =" <+> prettyTCMPatternList ps
       ]
     ]
+  reportSDoc "interaction.case" 60 $ vcat
+    [ "splitting clause:"
+    , nest 2 $ vcat
+      [ "f       =" <+> (text . show) f
+      , "context =" <+> ((inTopContext . (text . show)) =<< getContextTelescope)
+      , "tel     =" <+> (text . show) tel
+      , "perm    =" <+> text (show perm)
+      , "ps      =" <+> (text . show) ps
+      ]
+    ]
 
   -- Check split variables.
 
