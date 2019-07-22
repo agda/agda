@@ -322,11 +322,13 @@ instance Pretty LamClause where
 instance Pretty BoundName where
   pretty BName{ boundName = x } = pretty x
 
-data NamedBinding = NamedBinding { withHiding   :: Bool
-                                 , namedBinding :: NamedArg BoundName }
+data NamedBinding = NamedBinding
+  { withHiding   :: Bool
+  , namedBinding :: NamedArg BoundName
+  }
 
 getLabel :: NamedArg a -> Maybe String
-getLabel = fmap rangedThing . nameOf . unArg
+getLabel = fmap (rangedThing . woThing) . getNameOf
 
 isLabeled :: NamedArg BoundName -> Bool
 isLabeled x
@@ -649,8 +651,9 @@ instance Pretty a => Pretty (Arg a) where
                         | otherwise = id
 
 instance Pretty e => Pretty (Named_ e) where
-    prettyPrec p (Named Nothing e) = prettyPrec p e
-    prettyPrec p (Named (Just s) e) = mparens (p > 0) $ sep [ text (rawNameToString $ rangedThing s) <+> "=", pretty e ]
+    prettyPrec p (Named Nothing   e) = prettyPrec p e
+    prettyPrec p (Named (Just nm) e) = mparens (p > 0) $ sep [ text s <+> "=", pretty e ]
+      where s = rawNameToString $ rangedThing $ woThing nm
 
 instance Pretty Pattern where
     prettyList = fsep . map pretty

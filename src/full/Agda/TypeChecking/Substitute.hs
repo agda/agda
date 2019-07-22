@@ -1128,7 +1128,7 @@ domFromNamedArgName :: NamedArg Name -> Dom ()
 domFromNamedArgName x = () <$ domFromNamedArg (fmap forceName x)
   where
     -- If no explicit name is given we use the bound name for the label.
-    forceName (Named Nothing x) = Named (Just $ Ranged (getRange x) $ nameToArgName x) x
+    forceName (Named Nothing x) = Named (Just $ WithOrigin Inserted $ Ranged (getRange x) $ nameToArgName x) x
     forceName x = x
 
 -- ** Abstracting in terms and types

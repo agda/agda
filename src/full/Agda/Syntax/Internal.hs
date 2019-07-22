@@ -66,7 +66,7 @@ import Agda.Utils.Impossible
 data Dom' t e = Dom
   { domInfo   :: ArgInfo
   , domFinite :: !Bool
-  , domName   :: Maybe RString  -- ^ e.g. @x@ in @{x = y : A} -> B@.
+  , domName   :: Maybe NamedName  -- ^ e.g. @x@ in @{x = y : A} -> B@.
   , domTactic :: Maybe t        -- ^ "@tactic e".
   , unDom     :: e
   } deriving (Data, Show, Functor, Foldable, Traversable)
@@ -127,7 +127,7 @@ defaultArgDom :: ArgInfo -> a -> Dom a
 defaultArgDom info x = domFromArg (Arg info x)
 
 defaultNamedArgDom :: ArgInfo -> String -> a -> Dom a
-defaultNamedArgDom info s x = (defaultArgDom info x) { domName = Just $ unranged s }
+defaultNamedArgDom info s x = (defaultArgDom info x) { domName = Just $ WithOrigin Inserted $ unranged s }
 
 -- | Type of argument lists.
 --
@@ -245,7 +245,7 @@ nameToArgName :: Name -> ArgName
 nameToArgName = stringToArgName . prettyShow
 
 namedArgName :: NamedArg Name -> ArgName
-namedArgName x = maybe (nameToArgName $ namedArg x) rangedThing $ nameOf $ unArg x
+namedArgName x = maybe (nameToArgName $ namedArg x) (rangedThing . woThing) $ getNameOf x
 
 -- | Binder.
 --   'Abs': The bound variable might appear in the body.
@@ -582,7 +582,7 @@ type DeBruijnPattern = Pattern' DBPatVar
 
 namedVarP :: PatVarName -> Named_ Pattern
 namedVarP x = Named named $ varP x
-  where named = if isUnderscore x then Nothing else Just $ unranged x
+  where named = if isUnderscore x then Nothing else Just $ WithOrigin Inserted $ unranged x
 
 namedDBVarP :: Int -> PatVarName -> Named_ DeBruijnPattern
 namedDBVarP m = (fmap . fmap) (\x -> DBPatVar x m) . namedVarP

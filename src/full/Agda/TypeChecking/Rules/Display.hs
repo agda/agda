@@ -36,16 +36,14 @@ patternsToTerms _ [] ret = ret 0 []
 patternsToTerms EmptyTel (p : ps) ret =
   patternToTerm (namedArg p) $ \n v ->
   patternsToTerms EmptyTel ps     $ \m vs -> ret (n + m) (inheritHiding p v : vs)
-patternsToTerms (ExtendTel a tel) (p : ps) ret = do
-  let isMatch = sameHiding p a &&
-                (visible p || isNothing (nameOf (unArg p)) ||
-                 Just (absName tel) == (rangedThing <$> nameOf (unArg p)))
-  case isMatch of
-    True ->
-      patternToTerm (namedArg p) $ \n v ->
+patternsToTerms (ExtendTel a tel) (p : ps) ret
+  | sameHiding p a, let n = getNameOf p,
+    visible p || isNothing n || Just (absName tel) == (rangedThing . woThing <$> n)
+    = patternToTerm (namedArg p) $ \n v ->
       patternsToTerms (unAbs tel) ps  $ \m vs -> ret (n + m) (inheritHiding p v : vs)
-    False ->
-      bindWild $ patternsToTerms (unAbs tel) (p : ps) $ \n vs -> ret (1 + n) (inheritHiding a (Var 0 []) : vs)
+  | otherwise =
+      bindWild $ patternsToTerms (unAbs tel) (p : ps) $ \n vs ->
+      ret (1 + n) (inheritHiding a (Var 0 []) : vs)
 
 inheritHiding :: LensHiding a => a -> b -> Arg b
 inheritHiding a b = setHiding (getHiding a) (defaultArg b)

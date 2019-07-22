@@ -18,6 +18,8 @@ import Data.Semigroup hiding (Arg)
 #endif
 import Data.ByteString.Char8 (ByteString)
 import qualified Data.ByteString.Char8 as ByteString
+import Data.Foldable hiding (null)
+import Data.Function
 import Data.Hashable (Hashable(..))
 import qualified Data.Strict.Maybe as Strict
 import Data.Data (Data)
@@ -1154,6 +1156,9 @@ data WithOrigin a = WithOrigin
 instance Decoration WithOrigin where
   traverseF f (WithOrigin h a) = WithOrigin h <$> f a
 
+instance Pretty a => Pretty (WithOrigin a) where
+  prettyPrec p = prettyPrec p . woThing
+
 instance HasRange a => HasRange (WithOrigin a) where
   getRange = getRange . dget
 
@@ -1557,13 +1562,23 @@ data Named name a =
     deriving (Eq, Ord, Show, Data, Functor, Foldable, Traversable)
 
 -- | Standard naming.
-type Named_ = Named RString
+type Named_ = Named NamedName
+
+-- | Standard argument names.
+type NamedName = WithOrigin RString
+
+-- | Equality of argument names of things modulo 'Range' and 'Origin'.
+sameName :: NamedName -> NamedName -> Bool
+sameName = (==) `on` (rangedThing . woThing)
 
 unnamed :: a -> Named name a
 unnamed = Named Nothing
 
 named :: name -> a -> Named name a
 named = Named . Just
+
+userNamed :: RString -> a -> Named_ a
+userNamed = Named . Just . WithOrigin UserWritten
 
 -- | Accessor/editor for the 'nameOf' component.
 class LensNamed name a | a -> name where
@@ -1586,6 +1601,13 @@ setNameOf = set lensNamed
 
 mapNameOf :: LensNamed name a => (Maybe name -> Maybe name) -> a -> a
 mapNameOf = over lensNamed
+
+-- | Equality of argument names of things modulo 'Range' and 'Origin'.
+namedSame :: (LensNamed NamedName a, LensNamed NamedName b) => a -> b -> Bool
+namedSame a b = case (getNameOf a, getNameOf b) of
+  (Nothing, Nothing) -> True
+  (Just x , Just y ) -> sameName x y
+  _ -> False
 
 -- Standard instances for 'Named':
 

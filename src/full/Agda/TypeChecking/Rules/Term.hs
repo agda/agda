@@ -579,7 +579,7 @@ checkAbsurdLambda cmp i h e t = do
                     { clauseLHSRange  = getRange e
                     , clauseFullRange = getRange e
                     , clauseTel       = telFromList [fmap (absurdPatternName,) dom]
-                    , namedClausePats = [Arg info' $ Named (Just $ unranged $ absName b) $ absurdP 0]
+                    , namedClausePats = [Arg info' $ Named (Just $ WithOrigin Inserted $ unranged $ absName b) $ absurdP 0]
                     , clauseBody      = Nothing
                     , clauseType      = Just $ setModality mod $ defaultArg $ absBody b
                     , clauseCatchall  = False
@@ -1356,7 +1356,7 @@ checkKnownArgument arg@(Arg info e) (Arg _infov v : vs) t = do
   (Dom{domInfo = info',unDom = a}, b) <- mustBePi t
   -- Skip the arguments from vs that do not correspond to e
   if not (sameHiding info info'
-          && (visible info || maybe True ((absName b ==) . rangedThing) (nameOf e)))
+          && (visible info || maybe True ((absName b ==) . rangedThing . woThing) (nameOf e)))
     -- Continue with the next one
     then checkKnownArgument arg vs (b `absApp` v)
     -- Found the right argument
@@ -1370,7 +1370,7 @@ checkKnownArgument arg@(Arg info e) (Arg _infov v : vs) t = do
 checkNamedArg :: NamedArg A.Expr -> Type -> TCM Term
 checkNamedArg arg@(Arg info e0) t0 = do
   let e = namedThing e0
-  let x = maybe "" rangedThing $ nameOf e0
+  let x = maybe "" (rangedThing . woThing) $ nameOf e0
   traceCall (CheckExprCall CmpLeq e t0) $ do
     reportSDoc "tc.term.args.named" 15 $ do
         "Checking named arg" <+> sep

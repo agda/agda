@@ -552,7 +552,7 @@ reifyTerm expandAnonDefs0 v0 = do
               p = mvPermutation mv
               applyPerm p vs = permute (takeP (size vs) p) vs
 
-              names = map unranged $ p `applyPerm` teleNames meta_tel
+              names = map (WithOrigin Inserted . unranged) $ p `applyPerm` teleNames meta_tel
               named_es' = addNames names es'
 
               dropIdentitySubs sub_local2G sub_tel2G =
@@ -687,8 +687,10 @@ reifyTerm expandAnonDefs0 v0 = do
               -- These are the dropped projection arguments
               scope <- getScope
               let underscore = A.Underscore $ Info.emptyMetaInfo { metaScope = scope }
-              let pad = for as $ \ (Dom{domInfo = ai, unDom = (x, _)}) ->
-                    Arg ai $ Named (Just $ unranged x) underscore
+              let pad :: [NamedArg Expr]
+                  pad = for as $ \ (Dom{domInfo = ai, unDom = (x, _)}) ->
+                    Arg ai $ Named (Just $ WithOrigin Inserted $ unranged x) underscore
+                      -- TODO #3353 Origin from Dom?
 
               -- Now pad' ++ es' = drop n (pad ++ es)
               let pad' = drop n pad
@@ -712,13 +714,13 @@ reifyTerm expandAnonDefs0 v0 = do
               let (padVisNamed, padRest) = filterAndRest visible pad'
 
               -- Remove the names from the visible arguments.
-              let padVis  = map (fmap (unnamed . namedThing)) padVisNamed
+              let padVis  = map (fmap $ unnamed . namedThing) padVisNamed
 
               -- Keep only the rest with the same visibility of @dom@...
               let padTail = filter (sameHiding dom) padRest
 
               -- ... and even the same name.
-              let padSame = filter ((Just (fst (unDom dom)) ==) . fmap rangedThing . nameOf . unArg) padTail
+              let padSame = filter ((Just (fst $ unDom dom) ==) . fmap (rangedThing . woThing)  . getNameOf) padTail
 
               return $ if null padTail || not showImp
                 then (padVis           , map (fmap unnamed) es')
@@ -780,7 +782,7 @@ reifyTerm expandAnonDefs0 v0 = do
 -- | @nameFirstIfHidden (x:a) ({e} es) = {x = e} es@
 nameFirstIfHidden :: Dom (ArgName, t) -> [Elim' a] -> [Elim' (Named_ a)]
 nameFirstIfHidden dom (I.Apply (Arg info e) : es) | notVisible info =
-  I.Apply (Arg info (Named (Just $ unranged $ fst $ unDom dom) e)) :
+  I.Apply (Arg info (Named (Just $ WithOrigin Inserted $ unranged $ fst $ unDom dom) e)) :
   map (fmap unnamed) es
 nameFirstIfHidden _ es =
   map (fmap unnamed) es
