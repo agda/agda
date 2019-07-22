@@ -43,7 +43,7 @@ elements of some type ``A`` as follows,
 As opposed to inductive record types, we have to introduce the keyword
 ``coinductive`` before defining the fields that constitute the record.
 
-It is interesting to note that is not neccessary to give an explicit
+It is interesting to note that is not necessary to give an explicit
 constructor to the record type ``Stream A``.
 
 ..
