@@ -9,12 +9,13 @@ module Agda.Syntax.Abstract.Name
 
 import Control.DeepSeq
 
-import Data.Foldable (Foldable)
-import Data.Traversable (Traversable)
 import Data.Data (Data)
-import Data.List
+import Data.Foldable (Foldable)
 import Data.Function
 import Data.Hashable (Hashable(..))
+import Data.List
+import Data.Maybe
+import Data.Traversable (Traversable)
 import Data.Void
 
 import Agda.Syntax.Position
