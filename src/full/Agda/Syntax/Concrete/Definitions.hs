@@ -1384,7 +1384,7 @@ niceDeclarations fixs ds = do
             FunDef{}            -> bottom
             NiceDataDef{}       -> bottom
             NiceRecDef{}        -> bottom
-            -- Andreas, 2018-05-11, issue #3052, allow pat.syn.s in mutual blocks
+            -- Andreas, 2018-05-11, issue #3051, allow pat.syn.s in mutual blocks
             -- Andreas, 2018-10-29: We shift pattern synonyms to the bottom
             -- since they might refer to constructors defined in a data types
             -- just above them.

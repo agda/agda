@@ -1426,10 +1426,14 @@ instance ToAbstract LetDef [A.LetBinding] where
 instance ToAbstract NiceDeclaration A.Declaration where
 
   toAbstract d = annotateDecls $
-    traceSLn "scope.decl.trace" 50 (unlines
+    traceS "scope.decl.trace" 50
       [ "scope checking declaration"
       , "  " ++  prettyShow d
-      ]) $
+      ] $
+    traceS "scope.decl.trace" 80
+      [ "scope checking declaration (raw)"
+      , "  " ++  show d
+      ] $
     traceCall (ScopeCheckDeclaration d) $
     -- Andreas, 2015-10-05, Issue 1677:
     -- We record in the environment whether we are scope checking an
