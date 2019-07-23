@@ -392,7 +392,7 @@ instance Pretty DeclarationWarning where
    pwords "The following names are declared but not accompanied by a definition:"
    ++ punctuate comma (map pretty xs)
   pretty (NotAllowedInMutual r nd) = fsep $
-    [text nd] ++ pwords "in mutual blocks are not supported.  Suggestion: get rid of mutual block by manually ordering declarations"
+    [text nd] ++ pwords "in mutual blocks are not supported.  Suggestion: get rid of the mutual block by manually ordering declarations"
   pretty (PolarityPragmasButNotPostulates xs) = fsep $
     pwords "Polarity pragmas have been given for the following identifiers which are not postulates:"
     ++ punctuate comma (map pretty xs)
@@ -1367,8 +1367,9 @@ niceDeclarations fixs ds = do
             Axiom{}             -> top
             NiceField{}         -> top
             PrimitiveFunction{} -> top
-            -- Nested mutual blocks should have been flattened by now.
-            NiceMutual{}        -> __IMPOSSIBLE__
+            -- Andreas, 2019-07-23 issue #3932:
+            -- Nested mutual blocks are not supported.
+            NiceMutual{}        -> invalid "mutual blocks"
             -- Andreas, 2018-10-29, issue #3246
             -- We could allow modules (top), but this is potentially confusing.
             NiceModule{}        -> invalid "Module definitions"
@@ -1469,7 +1470,7 @@ niceDeclarations fixs ds = do
         termCheck (FunSig _ _ _ _ _ _ tc _ _)      = tc
         termCheck (FunDef _ _ _ _ tc _ _)          = tc
         -- ASR (28 December 2015): Is this equation necessary?
-        termCheck (NiceMutual _ tc _ _)            = __IMPOSSIBLE__
+        termCheck (NiceMutual _ tc _ _)            = tc
         termCheck (NiceUnquoteDecl _ _ _ _ tc _ _) = tc
         termCheck (NiceUnquoteDef _ _ _ tc _ _)    = tc
         termCheck Axiom{}                          = TerminationCheck
@@ -1494,7 +1495,7 @@ niceDeclarations fixs ds = do
         positivityCheckOldMutual :: NiceDeclaration -> PositivityCheck
         positivityCheckOldMutual (NiceDataDef _ _ _ pc _ _ _ _) = pc
         positivityCheckOldMutual (NiceDataSig _ _ _ pc _ _ _ _) = pc
-        positivityCheckOldMutual (NiceMutual _ _ pc _)          = __IMPOSSIBLE__
+        positivityCheckOldMutual (NiceMutual _ _ pc _)          = pc
         positivityCheckOldMutual (NiceRecSig _ _ _ pc _ _ _ _)  = pc
         positivityCheckOldMutual (NiceRecDef _ _ _ pc _ _ _ _ _ _ _) = pc
         positivityCheckOldMutual _                              = True
