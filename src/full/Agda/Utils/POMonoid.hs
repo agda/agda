@@ -29,7 +29,7 @@ class (PartialOrd a, Semigroup a) => POSemigroup a where
 --   related (x <> y) POLE (x' <> y')
 -- @
 
-class (PartialOrd a, Monoid a) => POMonoid a where
+class (PartialOrd a, Semigroup a, Monoid a) => POMonoid a where
 
 -- | Completing POMonoids with inverses to form a Galois connection.
 --
