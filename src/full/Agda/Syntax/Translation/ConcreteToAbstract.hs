@@ -1360,7 +1360,7 @@ instance ToAbstract LetDef [A.LetBinding] where
               definedName C.HiddenP{}            = Nothing -- Not impossible, see issue #2291
               definedName C.InstanceP{}          = Nothing
               definedName C.WithP{}              = Nothing
-              definedName C.RawAppP{}            = __IMPOSSIBLE__
+              definedName (C.RawAppP _ [])       = __IMPOSSIBLE__
               definedName C.AppP{}               = __IMPOSSIBLE__
               definedName C.OpAppP{}             = __IMPOSSIBLE__
               definedName C.EllipsisP{}          = __IMPOSSIBLE__

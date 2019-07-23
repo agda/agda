@@ -521,7 +521,7 @@ patternAppView p = case p of
 -- | Returns the list of possible parses.
 parsePat ::
   (ParseSections, Parser Pattern Pattern) -> Pattern -> [Pattern]
-parsePat prs p = case p of
+parsePat prs = \case
     AppP p (Arg info q) ->
         fullParen' <$> (AppP <$> parsePat prs p <*> (Arg info <$> traverse (parsePat prs) q))
     RawAppP _ ps     -> fullParen' <$> (parsePat prs =<< parse prs ps)
@@ -529,15 +529,15 @@ parsePat prs p = case p of
     HiddenP _ _      -> fail "bad hidden argument"
     InstanceP _ _    -> fail "bad instance argument"
     AsP r x p        -> AsP r x <$> parsePat prs p
-    DotP r e         -> return $ DotP r e
+    p@DotP{}         -> return p
     ParenP r p       -> fullParen' <$> parsePat prs p
-    WildP _          -> return p
-    AbsurdP _        -> return p
-    LitP _           -> return p
-    QuoteP _         -> return p
-    IdentP _         -> return p
+    p@WildP{}        -> return p
+    p@AbsurdP{}      -> return p
+    p@LitP{}         -> return p
+    p@QuoteP{}       -> return p
+    p@IdentP{}       -> return p
     RecP r fs        -> RecP r <$> mapM (traverse (parsePat prs)) fs
-    EqualP{}         -> return p -- Andrea: cargo culted from DotP
+    p@EqualP{}       -> return p -- Andrea: cargo culted from DotP
     EllipsisP _      -> fail "bad ellipsis"
     WithP r p        -> WithP r <$> parsePat prs p
 
@@ -578,33 +578,53 @@ parsePat prs p = case p of
    - the applied patterns
 -}
 
+-- | The result of 'parseLHS' is either a pattern ('Left') or a lhs ('Right').
 type ParseLHS = Either Pattern (QName, LHSCore)
 
--- | The returned list contains all operators/notations/sections that
--- were used to generate the grammar.
+-- | Parses a left-hand side, workhorse for 'parseLHS'.
+--
+parseLHS'
+  :: LHSOrPatSyn
+       -- ^ Are we trying to parse a lhs or a pattern synonym?
+       --   For error reporting only!
+  -> Maybe QName
+       -- ^ Name of the function/patSyn definition if we parse a lhs.
+       --   'Nothing' if we parse a pattern.
+  -> Pattern
+       -- ^ Thing to parse.
+  -> ScopeM (ParseLHS, [NotationSection])
+       -- ^ The returned list contains all operators/notations/sections that
+       -- were used to generate the grammar.
 
-parseLHS' ::
-  LHSOrPatSyn -> Maybe QName -> Pattern ->
-  ScopeM (ParseLHS, [NotationSection])
 parseLHS' IsLHS (Just qn) (RawAppP _ [WildP{}]) =
     return (Right (qn, LHSHead qn []), [])
+
 parseLHS' lhsOrPatSyn top p = do
+
+    -- Build parser.
     let names = patternQNames p
         ms    = qualifierModules names
     flat <- flattenScope ms <$> getScope
     (parseSections, ops, parsers) <-
       buildParsers (getRange p) flat IsPattern names
     let patP = (parseSections, pTop parsers)
+
+    -- Run parser, forcing result.
+    let ps   = let result = parsePat patP p
+               in  foldr seq () result `seq` result
+
+    -- Classify parse results.
     let cons = getNames [ConName, PatternSynName] flat
     let flds = getNames [FldName] flat
-    case [ res | let result = parsePat patP p
-               , p' <- foldr seq () result `seq` result
-               , res <- validPattern (PatternCheckConfig top cons flds) p' ] of
-        [(p,lhs)] -> do reportSDoc "scope.operators" 50 $ return $
-                          "Parsed lhs:" <+> pretty lhs
+    let conf = PatternCheckConfig top cons flds
+    case mapMaybe (validPattern conf) ps of
+        -- Unique result.
+        [(_,lhs)] -> do reportS "scope.operators" 50 $ "Parsed lhs:" <+> pretty lhs
                         return (lhs, ops)
+        -- No result.
         []        -> typeError $ OperatorInformation ops
                                $ NoParseForLHS lhsOrPatSyn p
+        -- Ambiguous result.
         rs        -> typeError $ OperatorInformation ops
                                $ AmbiguousParseForLHS lhsOrPatSyn p $
                        map (fullParen . fst) rs
@@ -612,18 +632,19 @@ parseLHS' lhsOrPatSyn top p = do
         getNames kinds flat =
           map (notaName . head) $ getDefinedNames kinds flat
 
-        -- validPattern returns an empty or singleton list (morally a Maybe)
-        validPattern :: PatternCheckConfig -> Pattern -> [(Pattern, ParseLHS)]
-        validPattern conf p = case (classifyPattern conf p, top) of
-            (Just r@(Left _), Nothing) -> [(p, r)] -- expect pattern
-            (Just r@(Right _), Just{}) -> [(p, r)] -- expect lhs
-            _ -> []
+        -- The pattern is retained for error reporting in case of ambiguous parses.
+        validPattern :: PatternCheckConfig -> Pattern -> Maybe (Pattern, ParseLHS)
+        validPattern conf p =
+          case (classifyPattern conf p, top) of
+            (Just res@Left{}, Nothing) -> Just (p, res)  -- expect pattern
+            (Just res@Right{}, Just{}) -> Just (p, res)  -- expect lhs
+            _ -> Nothing
 
 -- | Name sets for classifying a pattern.
 data PatternCheckConfig = PatternCheckConfig
-  { topName  :: Maybe QName -- ^ name of defined symbol
-  , conNames :: [QName]     -- ^ valid constructor names
-  , fldNames :: [QName]     -- ^ valid field names
+  { topName  :: Maybe QName -- ^ Name of defined symbol.
+  , conNames :: [QName]     -- ^ Valid constructor names.
+  , fldNames :: [QName]     -- ^ Valid field names.
   }
 
 -- | Returns zero or one classified patterns.
