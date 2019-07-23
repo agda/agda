@@ -1363,7 +1363,7 @@ instance ToAbstract LetDef [A.LetBinding] where
               definedName (C.RawAppP _ [])       = __IMPOSSIBLE__
               definedName C.AppP{}               = __IMPOSSIBLE__
               definedName C.OpAppP{}             = __IMPOSSIBLE__
-              definedName C.EllipsisP{}          = __IMPOSSIBLE__
+              definedName C.EllipsisP{}          = Nothing -- Not impossible, see issue #3937
 
       -- You can't open public in a let
       NiceOpen r x dirs -> do
