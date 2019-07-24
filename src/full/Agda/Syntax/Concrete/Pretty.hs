@@ -329,9 +329,6 @@ data NamedBinding = NamedBinding
   , namedBinding :: NamedArg Binder
   }
 
-getLabel :: NamedArg a -> Maybe String
-getLabel = fmap rangedThing . nameOf . unArg
-
 isLabeled :: NamedArg Binder -> Maybe ArgName
 isLabeled x
   | visible x              = Nothing  -- Ignore labels on visible arguments

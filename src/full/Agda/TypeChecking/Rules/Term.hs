@@ -271,7 +271,7 @@ checkTypedBindings lamOrPi (A.TBind r tac xps e) ret = do
     -- 2011-10-04 if flag --experimental-irrelevance is set
     experimental <- optExperimentalIrrelevance <$> pragmaOptions
 
-    let cs = map getCohesion xs'
+    let cs = map getCohesion xps
         c = headWithDefault __IMPOSSIBLE__ cs
     unless (all (c ==) cs) $ __IMPOSSIBLE__
 

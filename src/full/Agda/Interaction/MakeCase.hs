@@ -19,7 +19,7 @@ import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
 import Agda.Syntax.Scope.Base  ( ResolvedName(..), BindingSource(..), KindOfName(..), allKindsOfNames )
-import Agda.Syntax.Scope.Monad ( resolveName, resolveName' )
+import Agda.Syntax.Scope.Monad ( resolveName' )
 import Agda.Syntax.Translation.InternalToAbstract
 
 import Agda.TypeChecking.Monad
