@@ -863,7 +863,10 @@ forceNameIfHidden x
          $ unBind $ A.binderName $ namedArg x
 
 instance ToConcrete a b => ToConcrete (A.Binder' a) (C.Binder' b) where
-  toConcrete (A.Binder p a) = C.Binder <$> toConcrete p <*> toConcrete a
+  bindToConcrete (A.Binder p a) ret =
+    bindToConcrete a $ \ a ->
+    bindToConcrete p $ \ p ->
+    ret $ C.Binder p a
 
 instance ToConcrete A.LamBinding C.LamBinding where
     bindToConcrete (A.DomainFree t x) ret = do
