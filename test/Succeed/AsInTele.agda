@@ -50,3 +50,6 @@ id'' = λ (TTTTT n) → TTTTT n
 shadowing : (p@(m , p) m@(r , s) : Σ Nat (λ _ → Nat)) →
   Σ (Σ Nat (p ≡_)) (λ _ → Σ _ (m ≡_))
 shadowing = λ (_ , p) m → (p , refl) , (m , refl)
+
+shadowing' : (x@(m , p) p@(r , s) : Σ Nat (λ _ → Nat)) → x ≡ p → m ≡ r
+shadowing' _ _ refl = refl
