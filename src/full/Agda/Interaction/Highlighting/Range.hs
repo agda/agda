@@ -15,8 +15,6 @@ module Agda.Interaction.Highlighting.Range
   , minus
   ) where
 
-import Control.Applicative ((<$>))
-
 import qualified Agda.Syntax.Position as P
 
 -- | Character ranges. The first character in the file has position 1.

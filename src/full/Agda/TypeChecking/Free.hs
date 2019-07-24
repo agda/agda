@@ -61,17 +61,17 @@ module Agda.TypeChecking.Free
 
 import Prelude hiding (null)
 
-import Control.Monad.Reader
 
-import Data.Maybe
-import Data.Monoid ( Monoid, mempty, mappend, mconcat )
+
+
+import Data.Monoid ( Monoid, mempty, mappend)
 import Data.Semigroup ( Semigroup, (<>), Any(..), All(..) )
 import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
-import Data.Set (Set)
-import Data.Proxy
+
+
 
 import qualified Agda.Benchmarking as Bench
 
@@ -86,7 +86,6 @@ import Agda.TypeChecking.Free.Lazy
   -- , IsVarSet(..), runFreeM
   -- )
 
-import Agda.Utils.Null
 import Agda.Utils.Singleton
 
 ---------------------------------------------------------------------------
@@ -226,8 +225,9 @@ freeIn = freeIn' IgnoreNot
 freeInIgnoringSorts :: Free a => Nat -> a -> Bool
 freeInIgnoringSorts = freeIn' IgnoreAll
 
-freeInIgnoringSortAnn :: Free a => Nat -> a -> Bool
-freeInIgnoringSortAnn = freeIn' IgnoreInAnnotations
+-- UNUSED Liang-Ting Chen 2019-07-16
+--freeInIgnoringSortAnn :: Free a => Nat -> a -> Bool
+--freeInIgnoringSortAnn = freeIn' IgnoreInAnnotations
 
 -- | Is the variable bound by the abstraction actually used?
 isBinderUsed :: Free a => Abs a -> Bool
@@ -297,29 +297,31 @@ unguardedVars = filterVarMap $ \case
   VarOcc Unguarded _ -> True
   _ -> False
 
--- | Ordinary rigid variables, e.g., in arguments of variables or functions.
-weaklyRigidVars :: VarMap -> VarSet
-weaklyRigidVars = filterVarMap $ \case
-  VarOcc WeaklyRigid _ -> True
-  _ -> False
+-- UNUSED Liang-Ting Chen 2019-07-16
+---- | Ordinary rigid variables, e.g., in arguments of variables or functions.
+--weaklyRigidVars :: VarMap -> VarSet
+--weaklyRigidVars = filterVarMap $ \case
+--  VarOcc WeaklyRigid _ -> True
+--  _ -> False
 
 -- | Rigid variables: either strongly rigid, unguarded, or weakly rigid.
 rigidVars :: VarMap -> VarSet
 rigidVars = filterVarMap $ \case
   VarOcc o _ -> o `elem` [ WeaklyRigid, Unguarded, StronglyRigid ]
 
+-- UNUSED Liang-Ting Chen 2019-07-16
 -- | Variables occuring in arguments of metas.
 --   These are only potentially free, depending how the meta variable is instantiated.
 --   The set contains the id's of the meta variables that this variable is an argument to.
-flexibleVars :: VarMap -> IntMap MetaSet
-flexibleVars (VarMap m) = (`IntMap.mapMaybe` m) $ \case
-  VarOcc (Flexible ms) _ -> Just ms
-  _ -> Nothing
-
--- | Variables in irrelevant arguments and under a @DontCare@, i.e.,
---   in irrelevant positions.
-irrelevantVars :: VarMap -> VarSet
-irrelevantVars = filterVarMap isIrrelevant
+--flexibleVars :: VarMap -> IntMap MetaSet
+--flexibleVars (VarMap m) = (`IntMap.mapMaybe` m) $ \case
+--  VarOcc (Flexible ms) _ -> Just ms
+--  _ -> Nothing
+--
+---- | Variables in irrelevant arguments and under a @DontCare@, i.e.,
+----   in irrelevant positions.
+--irrelevantVars :: VarMap -> VarSet
+--irrelevantVars = filterVarMap isIrrelevant
 
 allVars :: VarMap -> VarSet
 allVars = IntMap.keysSet . theVarMap

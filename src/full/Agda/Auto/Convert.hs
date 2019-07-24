@@ -1,7 +1,6 @@
 
 module Agda.Auto.Convert where
 
-import Control.Applicative hiding (getConst, Const(..))
 import Data.IORef
 import Data.Maybe (catMaybes)
 import Data.Map (Map)
@@ -12,7 +11,7 @@ import Control.Monad.State
 import Agda.Syntax.Common (Hiding(..), getHiding, Arg)
 import Agda.Syntax.Concrete (exprFieldA)
 import qualified Agda.Syntax.Internal as I
-import Agda.Syntax.Internal (Dom(..),domInfo,unDom)
+import Agda.Syntax.Internal (Dom'(..),domInfo,unDom)
 import qualified Agda.Syntax.Internal.Pattern as IP
 import qualified Agda.Syntax.Common as Cm
 import qualified Agda.Syntax.Abstract.Name as AN
@@ -33,7 +32,6 @@ import Agda.TypeChecking.Reduce (normalise, instantiate)
 import Agda.TypeChecking.EtaContract (etaContract)
 import Agda.TypeChecking.Monad.Builtin (constructorForm)
 import Agda.TypeChecking.Free as Free (freeIn)
-import Agda.TypeChecking.Errors ( stringTCErr )
 
 import Agda.Interaction.MakeCase (getClauseZipperForIP)
 

@@ -5,9 +5,6 @@ module Agda.TypeChecking.Monad.Signature where
 
 import Prelude hiding (null)
 
-import Control.Arrow (first, second, (***))
-import Control.Applicative hiding (empty)
-
 import qualified Control.Monad.Fail as Fail
 
 import Control.Monad.State
@@ -18,11 +15,9 @@ import Control.Monad.Trans.Maybe
 import qualified Data.List as List
 import Data.Set (Set)
 import qualified Data.Set as Set
-import Data.Map (Map)
 import qualified Data.Map as Map
 import qualified Data.HashMap.Strict as HMap
 import Data.Maybe
-import Data.Monoid
 
 import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Abstract (Ren, ScopeCopyInfo(..))
@@ -36,7 +31,6 @@ import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Monad.Context
-import Agda.TypeChecking.Monad.Options
 import Agda.TypeChecking.Monad.Env
 import Agda.TypeChecking.Monad.Mutual
 import Agda.TypeChecking.Monad.Open
@@ -46,7 +40,6 @@ import Agda.TypeChecking.DropArgs
 import Agda.TypeChecking.Warnings
 import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.Substitute
-import {-# SOURCE #-} Agda.TypeChecking.Telescope
 import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Coverage.SplitTree
 import {-# SOURCE #-} Agda.TypeChecking.CompiledClause.Compile
@@ -63,11 +56,9 @@ import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.ListT
-import Agda.Utils.Map as Map
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
-import Agda.Utils.Permutation
 import Agda.Utils.Pretty
 import Agda.Utils.Size
 
@@ -816,16 +807,21 @@ getCompiled q = do
     Function{ funTreeless = t } -> t
     _                           -> Nothing
 
+-- | Returns a list of length 'conArity'.
+--   If no erasure analysis has been performed yet, this will be a list of 'False's.
 getErasedConArgs :: QName -> TCM [Bool]
 getErasedConArgs q = do
   def <- getConstInfo q
   case theDef def of
-    Constructor{ conData = d, conPars = np, conErased = es } -> return es
+    Constructor{ conArity, conErased } -> return $
+      fromMaybe (replicate conArity False) conErased
     _ -> __IMPOSSIBLE__
 
 setErasedConArgs :: QName -> [Bool] -> TCM ()
 setErasedConArgs q args = modifyGlobalDefinition q $ updateTheDef $ \case
-    def@Constructor{} -> def{ conErased = args }
+    def@Constructor{ conArity }
+      | length args == conArity -> def{ conErased = Just args }
+      | otherwise               -> __IMPOSSIBLE__
     def -> def   -- no-op for non-constructors
 
 getTreeless :: QName -> TCM (Maybe TTerm)

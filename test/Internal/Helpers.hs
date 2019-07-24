@@ -183,10 +183,10 @@ isAlmostSemimodule one (*) op r s m n =
 
 -- | Is the semigroup operation monotone in both arguments
 --   wrt. to the associated partial ordering?
-
-isMonotoneComposition :: (Eq a, POSemigroup a) => Property4 a
-isMonotoneComposition x x' y y' =
-  related x POLE x' && related y POLE y' ==> related (x <> y) POLE (x' <> y')
+--   We state this with only three variables to get fewer discarded tests.
+isMonotoneComposition :: (Eq a, POSemigroup a) => Property3 a
+isMonotoneComposition x x' y =
+  related x POLE x' ==> related (x <> y) POLE (x' <> y) && related (y <> x) POLE (y <> x')
 
 -- | Do the semigroup operation and the inverse composition form
 --   a Galois connection?

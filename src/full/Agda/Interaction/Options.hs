@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP       #-}
+{-# LANGUAGE DataKinds #-}
 
 module Agda.Interaction.Options
     ( CommandLineOptions(..)
@@ -32,15 +33,13 @@ module Agda.Interaction.Options
     , getOptSimple
     ) where
 
-import Control.Monad            ( (>=>), when )
+import Control.Monad            ( when )
 import Control.Monad.Trans
 
 import Data.IORef
-import Data.Either
 import Data.Function
 import Data.Maybe
-import Data.List                ( isSuffixOf , intercalate )
-import Data.Set                 ( Set )
+import Data.List                ( intercalate )
 import qualified Data.Set as Set
 
 import System.Console.GetOpt    ( getOpt', usageInfo, ArgOrder(ReturnInOrder)
@@ -68,7 +67,6 @@ import Agda.Utils.Functor       ( (<&>) )
 import Agda.Utils.Lens          ( Lens', over )
 import Agda.Utils.List          ( groupOn, wordsBy )
 import Agda.Utils.Monad         ( ifM, readM )
-import Agda.Utils.String        ( indent )
 import Agda.Utils.Trie          ( Trie )
 import qualified Agda.Utils.Trie as Trie
 import Agda.Utils.WithDefault
@@ -76,8 +74,6 @@ import Agda.Utils.WithDefault
 import Agda.Version
 -- Paths_Agda.hs is in $(BUILD_DIR)/build/autogen/.
 import Paths_Agda ( getDataFileName )
-
-import qualified System.IO.Unsafe as UNSAFE (unsafePerformIO)
 
 -- OptDescr is a Functor --------------------------------------------------
 
@@ -155,6 +151,7 @@ data PragmaOptions = PragmaOptions
   , optExactSplit                :: Bool
   , optEta                       :: Bool
   , optForcing                   :: Bool  -- ^ Perform the forcing analysis on data constructors?
+  , optProjectionLike            :: Bool  -- ^ Perform the projection-likeness analysis on functions?
   , optRewriting                 :: Bool  -- ^ Can rewrite rules be added and used?
   , optCubical                   :: Bool
   , optPostfixProjections        :: Bool
@@ -180,6 +177,8 @@ data PragmaOptions = PragmaOptions
     -- ^ Use the Agda abstract machine (fastReduce)?
   , optConfluenceCheck           :: Bool
     -- ^ Check confluence of rewrite rules?
+  , optFlatSplit                 :: Bool
+     -- ^ Can we split on a (x :{flat} A) argument?
   }
   deriving (Show, Eq)
 
@@ -258,6 +257,7 @@ defaultPragmaOptions = PragmaOptions
   , optExactSplit                = False
   , optEta                       = True
   , optForcing                   = True
+  , optProjectionLike            = True
   , optRewriting                 = False
   , optCubical                   = False
   , optPostfixProjections        = False
@@ -275,6 +275,7 @@ defaultPragmaOptions = PragmaOptions
   , optPrintPatternSynonyms      = True
   , optFastReduce                = True
   , optConfluenceCheck           = False
+  , optFlatSplit                 = True
   }
 
 -- | The default termination depth.
@@ -466,6 +467,12 @@ safeFlag o = do
              , optSizedTypes  = setDefault False sizedTypes
              }
 
+flatSplitFlag :: Flag PragmaOptions
+flatSplitFlag o = return $ o { optFlatSplit = True }
+
+noFlatSplitFlag :: Flag PragmaOptions
+noFlatSplitFlag o = return $ o { optFlatSplit = False }
+
 doubleCheckFlag :: Flag PragmaOptions
 doubleCheckFlag o = return $ o { optDoubleCheck = True }
 
@@ -579,8 +586,9 @@ dontUniverseCheckFlag o = return $ o { optUniverseCheck = False }
 omegaInOmegaFlag :: Flag PragmaOptions
 omegaInOmegaFlag o = return $ o { optOmegaInOmega = True }
 
-etaFlag :: Flag PragmaOptions
-etaFlag o = return $ o { optEta = True }
+--UNUSED Liang-Ting Chen 2019-07-16
+--etaFlag :: Flag PragmaOptions
+--etaFlag o = return $ o { optEta = True }
 
 noEtaFlag :: Flag PragmaOptions
 noEtaFlag o = return $ o { optEta = False }
@@ -612,6 +620,10 @@ noUniversePolymorphismFlag  o = return $ o { optUniversePolymorphism = False }
 
 noForcingFlag :: Flag PragmaOptions
 noForcingFlag o = return $ o { optForcing = False }
+
+--UNUSED Liang-Ting Chen 2019-07-16
+--noProjectionLikeFlag :: Flag PragmaOptions
+--noProjectionLikeFlag o = return $ o { optProjectionLike = False }
 
 withKFlag :: Flag PragmaOptions
 withKFlag o = return $ o { optWithoutK = Value False }
@@ -856,6 +868,10 @@ pragmaOptions =
                     "enable sized types (default, inconsistent with --guardedness)"
     , Option []     ["no-sized-types"] (NoArg noSizedTypes)
                     "disable sized types"
+    , Option []     ["flat-split"] (NoArg flatSplitFlag)
+                    "allow split on (x :{flat} A) arguments (default)"
+    , Option []     ["no-flat-split"] (NoArg noFlatSplitFlag)
+                    "disable split on (x :{flat} A) arguments"
     , Option []     ["guardedness"] (NoArg guardedness)
                     "enable constructor-based guarded corecursion (default, inconsistent with --sized-types)"
     , Option []     ["no-guardedness"] (NoArg noGuardedness)
@@ -890,6 +906,8 @@ pragmaOptions =
                     "default records to no-eta-equality"
     , Option []     ["no-forcing"] (NoArg noForcingFlag)
                     "disable the forcing analysis for data constructors (optimisation)"
+    , Option []     ["no-projection-like"] (NoArg noForcingFlag)
+                    "disable the analysis whether function signatures liken those of projections (optimisation)"
     , Option []     ["rewriting"] (NoArg rewritingFlag)
                     "enable declaration and use of REWRITE rules"
     , Option []     ["confluence-check"] (NoArg confluenceCheckFlag)

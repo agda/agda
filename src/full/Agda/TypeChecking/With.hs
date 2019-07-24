@@ -2,19 +2,15 @@
 
 module Agda.TypeChecking.With where
 
-import Control.Arrow ((&&&), (***), first, second)
-import Control.Applicative hiding (empty)
 import Control.Monad
 import Control.Monad.Writer (WriterT, runWriterT, tell)
 
 import Data.Either
 import qualified Data.List as List
 import Data.Maybe
-import Data.Monoid
 import Data.Traversable (traverse)
 
 import Agda.Syntax.Common
-import Agda.Syntax.Concrete.Pattern (IsWithP(..))
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Internal.Pattern
 import qualified Agda.Syntax.Abstract as A
@@ -24,7 +20,6 @@ import Agda.Syntax.Info
 import Agda.Syntax.Position
 
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.EtaContract
@@ -34,8 +29,6 @@ import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
-import Agda.TypeChecking.ReconstructParameters
-import Agda.TypeChecking.Rules.Term
 
 import Agda.TypeChecking.Abstract
 import Agda.TypeChecking.Rules.LHS.Implicit

@@ -1,4 +1,4 @@
 Issue949.agda:8,9-10
-Function does not accept argument {B = _}
+Function does not accept argument {B = _} (possible arguments: A)
 when checking that {B = S} is a valid argument to a function of
 type {A : Set} → Set

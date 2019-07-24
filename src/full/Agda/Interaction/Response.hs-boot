@@ -3,7 +3,7 @@ module Agda.Interaction.Response where
 import Data.Int (Int32)
 
 import Agda.Syntax.Common   (InteractionId)
-import Agda.Syntax.Concrete (Expr, Name)
+import Agda.Syntax.Concrete (Expr)
 
 import {-# SOURCE #-} Agda.TypeChecking.Monad.Base
     (TCM, ModuleToSource, HighlightingMethod)

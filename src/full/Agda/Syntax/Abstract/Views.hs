@@ -8,9 +8,6 @@ import Control.Applicative ( Const(Const), getConst )
 import Control.Arrow (first)
 import Control.Monad.Identity
 
-import Data.Foldable (foldMap)
-import Data.Monoid
-import Data.Traversable
 import Data.Void
 
 import Agda.Syntax.Common
@@ -338,6 +335,11 @@ instance ExprLike RHS where
       WithRHS x es cs         -> WithRHS x <$> rec es <*> rec cs
       RewriteRHS xes spats rhs ds -> RewriteRHS <$> rec xes <*> pure spats <*> rec rhs <*> rec ds
     where rec e = recurseExpr f e
+
+instance (ExprLike p, ExprLike e) => ExprLike (RewriteEqn' p e) where
+  recurseExpr f = \case
+    Rewrite es -> Rewrite <$> recurseExpr f es
+    Invert pes -> Invert <$> recurseExpr f pes
 
 instance ExprLike WhereDeclarations where
   recurseExpr f (WhereDecls a b) = WhereDecls a <$> recurseExpr f b

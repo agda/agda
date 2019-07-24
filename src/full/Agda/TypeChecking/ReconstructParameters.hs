@@ -6,8 +6,6 @@
 
 module Agda.TypeChecking.ReconstructParameters where
 
-import Data.Traversable
-
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Generic
@@ -15,7 +13,6 @@ import Agda.Syntax.Internal.Generic
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.CheckInternal
 import Agda.TypeChecking.Substitute
-import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Pretty
 

@@ -64,7 +64,7 @@ module Agda.TypeChecking.Free.Lazy where
 import Control.Applicative hiding (empty)
 import Control.Monad.Reader
 
-import Data.Coerce (coerce)
+
 import Data.Foldable (Foldable, foldMap)
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
@@ -72,8 +72,8 @@ import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet
 import Data.Monoid ( Monoid, mempty, mappend, mconcat )
 import Data.Semigroup ( Semigroup, (<>) )
-import Data.Set (Set)
-import qualified Data.Set as Set
+
+
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
@@ -260,13 +260,13 @@ instance Semigroup a => Semigroup (VarOcc' a) where
 --   This is also the absorptive element for 'composeVarOcc', if we ignore
 --   the 'MetaSet' in 'Flexible'.
 instance (Semigroup a, Monoid a) => Monoid (VarOcc' a) where
-  mempty  = VarOcc (Flexible mempty) $ Modality Irrelevant zeroQuantity
+  mempty  = VarOcc (Flexible mempty) $ Modality Irrelevant zeroQuantity zeroCohesion
   mappend = (<>)
 
 -- | The absorptive element of variable occurrence under aggregation:
 --   strongly rigid, relevant.
 topVarOcc :: VarOcc' a
-topVarOcc = VarOcc StronglyRigid $ Modality Relevant topQuantity
+topVarOcc = VarOcc StronglyRigid $ Modality Relevant topQuantity topCohesion
 
 -- | First argument is the outer occurrence (context) and second is the inner.
 --   This multiplicative operation is to modify an occurrence under a context.
@@ -275,7 +275,7 @@ composeVarOcc (VarOcc o m) (VarOcc o' m') = VarOcc (composeFlexRig o o') (m <> m
   -- We use the multipicative modality monoid (composition).
 
 oneVarOcc :: VarOcc' a
-oneVarOcc = VarOcc Unguarded $ Modality Relevant $ Quantity1 mempty
+oneVarOcc = VarOcc Unguarded $ Modality Relevant (Quantity1 mempty) Continuous
 
 ---------------------------------------------------------------------------
 -- * Storing variable occurrences (semimodule).
@@ -525,7 +525,7 @@ instance Free Term where
     Sort s       -> freeVars' s
     Level l      -> freeVars' l
     MetaV m ts   -> underFlexRig (Flexible $ singleton m) $ freeVars' ts
-    DontCare mt  -> underModality (Modality Irrelevant mempty) $ freeVars' mt
+    DontCare mt  -> underModality (Modality Irrelevant mempty mempty) $ freeVars' mt
     Dummy{}      -> mempty
 
 instance Free t => Free (Type' t) where
@@ -542,7 +542,8 @@ instance Free Sort where
       Prop a     -> freeVars' a
       Inf        -> mempty
       SizeUniv   -> mempty
-      PiSort s1 s2 -> underFlexRig WeaklyRigid $ freeVars' (s1, s2)
+      PiSort a s -> underFlexRig (Flexible mempty) (freeVars' $ unDom a) `mappend`
+                    underFlexRig WeaklyRigid (freeVars' (getSort a, s))
       UnivSort s -> underFlexRig WeaklyRigid $ freeVars' s
       MetaS x es -> underFlexRig (Flexible $ singleton x) $ freeVars' es
       DefS _ es  -> underFlexRig WeaklyRigid $ freeVars' es

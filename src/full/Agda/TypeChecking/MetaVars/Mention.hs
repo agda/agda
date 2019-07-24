@@ -53,7 +53,7 @@ instance MentionsMeta Sort where
     Prop l     -> mentionsMetas xs l
     Inf        -> False
     SizeUniv   -> False
-    PiSort s1 s2 -> mentionsMetas xs (s1, s2)
+    PiSort a s -> mentionsMetas xs (a, s)
     UnivSort s -> mentionsMetas xs s
     MetaS m es -> HashSet.member m xs || mentionsMetas xs es
     DefS d es  -> mentionsMetas xs es

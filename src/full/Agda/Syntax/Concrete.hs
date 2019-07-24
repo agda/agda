@@ -59,7 +59,6 @@ import Data.Foldable (Foldable)
 import Data.Traversable (Traversable)
 import Data.List hiding (null)
 import Data.Set (Set)
-import Data.Monoid
 
 import Data.Data (Data)
 
@@ -111,14 +110,15 @@ nameFieldA f r = f (_nameFieldA r) <&> \x -> r { _nameFieldA = x }
 exprFieldA :: Lens' a (FieldAssignment' a)
 exprFieldA f r = f (_exprFieldA r) <&> \x -> r { _exprFieldA = x }
 
-qnameModA :: Lens' QName ModuleAssignment
-qnameModA f r = f (_qnameModA r) <&> \x -> r { _qnameModA = x }
-
-exprModA :: Lens' [Expr] ModuleAssignment
-exprModA f r = f (_exprModA r) <&> \x -> r { _exprModA = x }
-
-importDirModA :: Lens' ImportDirective ModuleAssignment
-importDirModA f r = f (_importDirModA r) <&> \x -> r { _importDirModA = x }
+-- UNUSED Liang-Ting Chen 2019-07-16
+--qnameModA :: Lens' QName ModuleAssignment
+--qnameModA f r = f (_qnameModA r) <&> \x -> r { _qnameModA = x }
+--
+--exprModA :: Lens' [Expr] ModuleAssignment
+--exprModA f r = f (_exprModA r) <&> \x -> r { _exprModA = x }
+--
+--importDirModA :: Lens' ImportDirective ModuleAssignment
+--importDirModA f r = f (_importDirModA r) <&> \x -> r { _importDirModA = x }
 
 -- | Concrete expressions. Should represent exactly what the user wrote.
 data Expr
@@ -285,12 +285,13 @@ makePi bs e = Pi bs e
 -}
 data LHS = LHS
   { lhsOriginalPattern :: Pattern       -- ^ e.g. @f ps | wps@
-  , lhsRewriteEqn      :: [RewriteEqn]  -- ^ @rewrite e@ (many)
+  , lhsRewriteEqn      :: [RewriteEqn]  -- ^ @(rewrite e | with p <- e)@ (many)
   , lhsWithExpr        :: [WithExpr]    -- ^ @with e@ (many)
   } -- ^ Original pattern (including with-patterns), rewrite equations and with-expressions.
   deriving (Data, Eq)
 
-type RewriteEqn = Expr
+type RewriteEqn = RewriteEqn' Pattern Expr
+
 type WithExpr   = Expr
 
 -- | Processed (operator-parsed) intermediate form of the core @f ps@ of 'LHS'.
@@ -495,12 +496,12 @@ spanAllowedBeforeModule = span isAllowedBeforeModule
  --------------------------------------------------------------------------}
 
 -- | Extended content of an interaction hole.
-data HoleContent' e
-  = HoleContentExpr    e   -- ^ @e@
-  | HoleContentRewrite [e] -- ^ @rewrite e0 | ... | en@
+data HoleContent' p e
+  = HoleContentExpr    e                 -- ^ @e@
+  | HoleContentRewrite [RewriteEqn' p e] -- ^ @(rewrite | invert) e0 | ... | en@
   deriving (Functor, Foldable, Traversable)
 
-type HoleContent = HoleContent' Expr
+type HoleContent = HoleContent' Pattern Expr
 
 {--------------------------------------------------------------------------
     Views
@@ -687,7 +688,7 @@ instance HasRange Declaration where
   getRange (Pragma p)              = getRange p
 
 instance HasRange LHS where
-  getRange (LHS p eqns ws) = fuseRange p (eqns ++ ws)
+  getRange (LHS p eqns ws) = p `fuseRange` eqns `fuseRange` ws
 
 instance HasRange LHSCore where
   getRange (LHSHead f ps)              = fuseRange f ps

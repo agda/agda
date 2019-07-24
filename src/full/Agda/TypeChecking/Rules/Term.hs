@@ -4,9 +4,6 @@ module Agda.TypeChecking.Rules.Term where
 
 import Prelude hiding ( null )
 
-import Control.Monad.Trans
-import Control.Monad.Trans.Maybe
-import Control.Monad.State (get, put)
 import Control.Monad.Reader
 
 import Data.Maybe
@@ -14,7 +11,6 @@ import Data.Either (partitionEithers, lefts)
 import Data.Monoid (mappend)
 import qualified Data.List as List
 import qualified Data.Map as Map
-import qualified Data.Set as Set
 
 import Agda.Interaction.Options
 import Agda.Interaction.Highlighting.Generate (disambiguateRecordFields)
@@ -27,15 +23,15 @@ import Agda.Syntax.Concrete (FieldAssignment'(..), nameFieldA)
 import qualified Agda.Syntax.Concrete.Name as C
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
+import Agda.Syntax.Internal.MetaVars
 import Agda.Syntax.Position
 import Agda.Syntax.Literal
 import Agda.Syntax.Scope.Base ( ThingsInScope, AbstractName
                               , emptyScopeInfo
                               , exportedNamesInScope)
-import Agda.Syntax.Scope.Monad (getNamedScope, freshAbstractQName)
+import Agda.Syntax.Scope.Monad (getNamedScope)
 import Agda.Syntax.Translation.InternalToAbstract (reify)
 
-import Agda.TypeChecking.Abstract
 import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Conversion
@@ -48,7 +44,6 @@ import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.IApplyConfluence
 import Agda.TypeChecking.Level
 import Agda.TypeChecking.MetaVars
-import Agda.TypeChecking.Names
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Patterns.Abstract
@@ -74,18 +69,12 @@ import {-# SOURCE #-} Agda.TypeChecking.Rules.Decl (checkSectionApplication)
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Application
 
 import Agda.Utils.Except
-  ( ExceptT
-  , MonadError(catchError, throwError)
-  , runExceptT
-  )
-import Agda.Utils.Function
+  (MonadError(catchError, throwError))
 import Agda.Utils.Functor
 import Agda.Utils.Lens
-import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
-import Agda.Utils.NonemptyList
 import Agda.Utils.Pretty ( prettyShow )
 import qualified Agda.Utils.Pretty as P
 import Agda.Utils.Size
@@ -112,7 +101,7 @@ isType_ e = traceCall (IsType_ e) $ do
     A.Fun i (Arg info t) b -> do
       a <- setArgInfo info . defaultDom <$> isType_ t
       b <- isType_ b
-      s <- inferFunSort (getSort a) (getSort b)
+      s <- inferFunSort a (getSort b)
       let t' = El s $ Pi a $ NoAbs underscore b
       noFunctionsIntoSize b t'
       return t'
@@ -280,7 +269,12 @@ checkTypedBindings lamOrPi (A.TBind r tac xps e) ret = do
     -- non-strictly in the codomain type
     -- 2011-10-04 if flag --experimental-irrelevance is set
     experimental <- optExperimentalIrrelevance <$> pragmaOptions
-    t <- modEnv lamOrPi $ isType_ e
+
+    let cs = map getCohesion xs'
+        c = fromMaybe __IMPOSSIBLE__ $ listToMaybe cs
+    unless (all (c ==) cs) $ __IMPOSSIBLE__
+
+    t <- applyCohesionToContext c $ modEnv lamOrPi $ isType_ e
 
     -- Jesper, 2019-02-12, Issue #3534: warn if the type of an
     -- instance argument does not have the right shape
@@ -1089,9 +1083,10 @@ checkExpr' cmp e t0 =
 
         A.Fun _ (Arg info a) b -> do
             a' <- isType_ a
+            let adom = defaultArgDom info a'
             b' <- isType_ b
-            s  <- inferFunSort (getSort a') (getSort b')
-            let v = Pi (defaultArgDom info a') (NoAbs underscore b')
+            s  <- inferFunSort adom (getSort b')
+            let v = Pi adom (NoAbs underscore b')
             noFunctionsIntoSize b' $ El s v
             coerce cmp v (sort s) t
         A.Set _ n    -> do
@@ -1333,7 +1328,7 @@ checkOrInferMeta newMeta mt i = do
       let v = MetaV x []
       reportSDoc "tc.meta.check" 20 $
         "checking existing meta " <+> prettyTCM v
-      t' <- jMetaType . mvJudgement <$> lookupMeta x
+      t' <- metaType x
       reportSDoc "tc.meta.check" 20 $
         nest 2 $ "of type " <+> prettyTCM t'
       case mt of

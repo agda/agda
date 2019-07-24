@@ -3,21 +3,17 @@
 
 module Agda.Syntax.Internal.Pattern where
 
-import Control.Arrow (first, second)
+import Control.Arrow (second)
 import Control.Monad.State
 
 import Data.Maybe
 import Data.Monoid
 import qualified Data.List as List
-import Data.Foldable
-import Data.Traversable
 
 import Agda.Syntax.Common
 import Agda.Syntax.Abstract (IsProjP(..))
 import Agda.Syntax.Internal
-import qualified Agda.Syntax.Internal as I
 
-import Agda.Utils.Functor
 import Agda.Utils.List
 import Agda.Utils.Permutation
 import Agda.Utils.Size (size)
@@ -329,10 +325,11 @@ instance PatternVarModalities a x => PatternVarModalities (Arg a) x where
   patternVarModalities arg = map (second (m <>)) (patternVarModalities $ unArg arg)
     where m = getModality arg
 
-instance PatternVarModalities a x => PatternVarModalities (Elim' a) x where
-  patternVarModalities (Apply x) = patternVarModalities x -- Note: x :: Arg a
-  patternVarModalities (IApply x y p) = patternVarModalities [x, y, p]
-  patternVarModalities Proj{}    = []
+-- UNUSED:
+-- instance PatternVarModalities a x => PatternVarModalities (Elim' a) x where
+--   patternVarModalities (Apply x) = patternVarModalities x -- Note: x :: Arg a
+--   patternVarModalities (IApply x y p) = patternVarModalities [x, y, p]
+--   patternVarModalities Proj{}    = []
 
 instance PatternVarModalities (Pattern' x) x where
   patternVarModalities p =

@@ -10,7 +10,7 @@ module Agda.TypeChecking.Rules.Application
 
 import Prelude hiding ( null )
 
-import Control.Arrow (first, second)
+import Control.Arrow (first)
 import Control.Monad.Trans
 import Control.Monad.Trans.Maybe
 import Control.Monad.Reader
@@ -38,6 +38,7 @@ import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Free
+import Agda.TypeChecking.Free.Lazy (VarMap, lookupVarMap)
 import Agda.TypeChecking.Implicit
 import Agda.TypeChecking.Injectivity
 import Agda.TypeChecking.Irrelevance
@@ -266,6 +267,10 @@ inferHead e = do
       -- Note: this whole thing does not work for linearity, where we need some actual arithmetics.
       unlessM ((getQuantity a `moreQuantity`) <$> asksTC getQuantity) $
         typeError $ VariableIsErased x
+
+      unless (usableCohesion a) $
+        typeError $ VariableIsOfUnusableCohesion x (getCohesion a)
+
       return (applyE u, unDom a)
 
     A.Def x -> inferHeadDef ProjPrefix x
@@ -325,6 +330,13 @@ inferDef mkTerm x =
         vs <- freeVarsToApply x
         let t = defType d
             v = mkTerm vs -- applies x to vs, dropping parameters
+
+        -- Andrea 2019-07-16, Check that the supplied arguments
+        -- respect the cohesion modalities of the current context.
+        -- Cohesion is purely based on left-division, so it does not
+        -- rely on "position" like Relevance/Quantity.
+        checkCohesionArgs vs
+
         debug vs t v
         return (v, t)
   where
@@ -336,6 +348,26 @@ inferDef mkTerm x =
         [ "inferred def " <+> prettyTCM x <+> hsep (map prettyTCM vs)
         , nest 2 $ ":" <+> prettyTCM t
         , nest 2 $ "-->" <+> prettyTCM v ]
+
+checkCohesionArgs :: Args -> TCM ()
+checkCohesionArgs vs = do
+  let
+    vmap :: VarMap
+    vmap = freeVars vs
+
+  -- we iterate over all vars in the context and their ArgInfo,
+  -- checking for each that "vs" uses them as allowed.
+  as <- getContextArgs
+  forM_ as $ \ (Arg avail t) -> do
+    let m = do
+          v <- deBruijnView t
+          varModality <$> lookupVarMap v vmap
+    whenJust m $ \ used -> do
+        unless (getCohesion avail `moreCohesion` getCohesion used) $
+           (genericDocError =<<) $ fsep $
+                ["Variable" , prettyTCM t]
+             ++ pwords "is used as" ++ [text $ show $ getCohesion used]
+             ++ pwords "but only available as" ++ [text $ show $ getCohesion avail]
 
 -- | The second argument is the definition of the first.
 --   Returns 'Nothing' if ok, otherwise the error message.
@@ -543,7 +575,7 @@ checkArgumentsE' chk exh r args0@(arg@(Arg info e) : args) t0 mt1 =
               | null xs        = lift $ typeError $ ShouldBePi t0'
               -- c) We did insert implicits, but we ran out of implicit function types.
               --    Then, we should inform the user that we did not find his one.
-              | otherwise      = lift $ typeError $ WrongNamedArgument arg
+              | otherwise      = lift $ typeError $ WrongNamedArgument arg xs
 
         -- 2. We have a function type left, but it is the wrong one.
         --    Our argument must be implicit, case a) is impossible.
@@ -552,7 +584,7 @@ checkArgumentsE' chk exh r args0@(arg@(Arg info e) : args) t0 mt1 =
               -- b) We have not inserted any implicits.
               | null xs   = lift $ typeError $ WrongHidingInApplication t0'
               -- c) We inserted implicits, but did not find his one.
-              | otherwise = lift $ typeError $ WrongNamedArgument arg
+              | otherwise = lift $ typeError $ WrongNamedArgument arg xs
 
         viewPath <- lift pathView'
 
@@ -605,7 +637,7 @@ checkArgumentsE' chk exh r args0@(arg@(Arg info e) : args) t0 mt1 =
           Pi (Dom{domInfo = info', domName = dname, unDom = a}) b
             | let name = maybe "_" rangedThing dname,
               sameHiding info info'
-              && (visible info || maybe True ((name ==) . rangedThing) (nameOf e)) -> do
+              && (visible info || maybe True (name ==) mx) -> do
                 u <- lift $ applyModalityToContext info' $ do
                  -- Andreas, 2014-05-30 experiment to check non-dependent arguments
                  -- after the spine has been processed.  Allows to propagate type info

@@ -5,9 +5,6 @@
 
 module Agda.TypeChecking.Rules.Builtin.Coinduction where
 
-import qualified Data.Map as Map
-import qualified Data.Set as Set
-
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
@@ -25,8 +22,6 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Rules.Builtin
 import Agda.TypeChecking.Rules.Term
-
-import Agda.Utils.Permutation
 
 -- | The type of @∞@.
 
@@ -98,9 +93,10 @@ bindBuiltinSharp x =
                     , conData   = defName infDefn
                     , conAbstr  = ConcreteDef
                     , conInd    = CoInductive
-                    , conComp   = (emptyCompKit, Nothing)
+                    , conComp   = emptyCompKit
+                    , conProj   = Nothing
                     , conForced = []
-                    , conErased = []
+                    , conErased = Nothing
                     }
                 }
     return sharpE

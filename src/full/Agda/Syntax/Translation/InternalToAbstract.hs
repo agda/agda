@@ -24,7 +24,6 @@ module Agda.Syntax.Translation.InternalToAbstract
 import Prelude hiding (mapM_, mapM, null)
 import Control.Arrow ((&&&))
 import Control.Monad.State hiding (mapM_, mapM)
-import Control.Monad.Reader hiding (mapM_, mapM)
 
 import Data.Foldable (Foldable, foldMap)
 import qualified Data.List as List
@@ -34,22 +33,21 @@ import Data.Monoid ( Monoid, mempty, mappend )
 import Data.Semigroup ( Semigroup, (<>) )
 import Data.Set (Set)
 import qualified Data.Set as Set
-import Data.Traversable (Traversable, traverse, mapM)
-import qualified Data.Traversable as Trav
+import Data.Traversable (traverse, mapM)
 
 import Agda.Syntax.Literal
 import Agda.Syntax.Position
 import Agda.Syntax.Common
 import Agda.Syntax.Fixity
 import qualified Agda.Syntax.Concrete.Name as C
-import Agda.Syntax.Concrete (FieldAssignment'(..), exprFieldA)
+import Agda.Syntax.Concrete (FieldAssignment'(..))
 import Agda.Syntax.Info as Info
 import Agda.Syntax.Abstract as A hiding (Binder)
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Pattern
 import Agda.Syntax.Abstract.Pretty
 import Agda.Syntax.Internal as I
-import Agda.Syntax.Scope.Base (isNameInScope, inverseScopeLookupName)
+import Agda.Syntax.Scope.Base (inverseScopeLookupName)
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
@@ -66,7 +64,6 @@ import Agda.TypeChecking.Telescope
 import Agda.Interaction.Options ( optPostfixProjections )
 
 import Agda.Utils.Either
-import Agda.Utils.Except ( MonadError(catchError) )
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List
@@ -88,10 +85,10 @@ reifyUnblocked t = locallyTCState stInstantiateBlocking (const True) $ reify t
 
 
 -- Composition of reified applications ------------------------------------
-
--- | Drops hidden arguments unless --show-implicit.
-napps :: Expr -> [NamedArg Expr] -> TCM Expr
-napps e = nelims e . map I.Apply
+--UNUSED Liang-Ting 2019-07-16
+---- | Drops hidden arguments unless --show-implicit.
+--napps :: Expr -> [NamedArg Expr] -> TCM Expr
+--napps e = nelims e . map I.Apply
 
 -- | Drops hidden arguments unless --show-implicit.
 apps :: MonadReify m => Expr -> [Arg Expr] -> m Expr
@@ -815,7 +812,7 @@ data NamedClause = NamedClause QName Bool I.Clause
 
 -- The Monoid instance for Data.Map doesn't require that the values are a
 -- monoid.
-newtype MonoidMap k v = MonoidMap { unMonoidMap :: Map.Map k v }
+newtype MonoidMap k v = MonoidMap { _unMonoidMap :: Map.Map k v }
 
 instance (Ord k, Monoid v) => Semigroup (MonoidMap k v) where
   MonoidMap m1 <> MonoidMap m2 = MonoidMap (Map.unionWith mappend m1 m2)
@@ -1251,9 +1248,9 @@ instance Reify Sort Expr where
         I.SizeUniv  -> do
           I.Def sizeU [] <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSizeUniv
           return $ A.Def sizeU
-        I.PiSort s1 s2 -> do
+        I.PiSort a s -> do
           pis <- freshName_ ("piSort" :: String) -- TODO: hack
-          (e1,e2) <- reify (s1, I.Lam defaultArgInfo $ fmap Sort s2)
+          (e1,e2) <- reify (getSort a, I.Lam defaultArgInfo $ fmap Sort s)
           let app x y = A.App defaultAppInfo_ x (defaultNamedArg y)
           return $ A.Var pis `app` e1 `app` e2
         I.UnivSort s -> do

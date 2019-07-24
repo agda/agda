@@ -8,8 +8,7 @@ module Agda.Interaction.BasicOps where
 
 import Prelude hiding (null)
 
-import Control.Arrow ((***), first, second)
-import Control.Applicative hiding (empty)
+import Control.Arrow (first)
 import Control.Monad.Reader
 import Control.Monad.State
 import Control.Monad.Identity
@@ -17,10 +16,7 @@ import Control.Monad.Identity
 import qualified Data.IntMap as IntMap
 import qualified Data.Map as Map
 import qualified Data.Set as Set
-import qualified Data.List as List
 import Data.Maybe
-import Data.Tuple (swap)
-import Data.Traversable hiding (mapM, forM, for)
 import Data.Monoid
 
 import Agda.Interaction.Options
@@ -33,7 +29,7 @@ import Agda.Syntax.Abstract as A hiding (Open, Apply, Assign)
 import Agda.Syntax.Abstract.Views as A
 import Agda.Syntax.Abstract.Pretty
 import Agda.Syntax.Common
-import Agda.Syntax.Info (ExprInfo(..),MetaInfo(..),emptyMetaInfo,exprNoRange,defaultAppInfo_,defaultAppInfo)
+import Agda.Syntax.Info (MetaInfo(..),emptyMetaInfo,exprNoRange,defaultAppInfo_,defaultAppInfo)
 import qualified Agda.Syntax.Info as Info
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Literal
@@ -470,7 +466,7 @@ instance Reify Constraint (OutputConstraint Expr Expr) where
       return $ PostponedCheckFunDef q a
     reify (HasBiggerSort a) = OfType <$> reify a <*> reify (UnivSort a)
     reify (HasPTSRule a b) = do
-      (a,(x,b)) <- reify (a,b)
+      (a,(x,b)) <- reify (unDom a,b)
       return $ PTSInstance a b
 
 instance (Pretty a, Pretty b) => Pretty (OutputForm a b) where

@@ -4,19 +4,16 @@ module Agda.Interaction.MakeCase where
 
 import Prelude hiding (mapM, mapM_, null)
 
-import Control.Applicative hiding (empty)
 import Control.Monad hiding (mapM, mapM_, forM)
-import Control.Monad.Reader (asks)
 
 import qualified Data.Map as Map
-import qualified Data.HashMap.Strict as HMap
 import qualified Data.List as List
 import Data.Maybe
 import Data.Traversable
 
 import Agda.Syntax.Common
 import Agda.Syntax.Position
-import Agda.Syntax.Concrete (NameInScope(..), LensInScope(..))
+import Agda.Syntax.Concrete (NameInScope(..))
 import qualified Agda.Syntax.Concrete as C
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Internal
@@ -31,7 +28,6 @@ import Agda.TypeChecking.Coverage.Match ( SplitPatVar(..) , SplitPattern , apply
 import Agda.TypeChecking.Empty ( isEmptyTel )
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
-import Agda.TypeChecking.Substitute
 
 import Agda.Interaction.Options
 import Agda.Interaction.BasicOps
@@ -74,8 +70,9 @@ parseVariables f tel ii rng ss = do
 
     -- We might be under some lambdas, in which case the context
     -- is bigger than the number of pattern variables.
-    let nlocals = n - size tel
-    unless (nlocals >= 0) __IMPOSSIBLE__
+    let nPatVars = size tel
+    let nlocals = n - nPatVars
+    unless (nlocals >= 0) __IMPOSSIBLE__  -- cannot be negative
 
     fv <- getDefFreeVars f
     reportSDoc "interaction.case" 20 $ do
@@ -155,8 +152,10 @@ parseVariables f tel ii rng ss = do
           let xs'' = mapMaybe (\ (_,i) -> if i < nlocals then Nothing else Just $ i - nlocals) xs'
           when (null xs'') $ failLocal
           -- Filter out variable bound by parent function or module.
-          let xs''' = mapMaybe (\ i -> if i < fv then Nothing else Just i) xs''
-          case xs''' of
+          -- Andreas, 2019-07-15, issue #3919: deactivating this unsound check.
+          -- Brings back faulty behavior of #3095 (interaction/Issue3095-fail).
+          -- let xs''' = mapMaybe (\ i -> if i >= nPatVars - fv then Nothing else Just i) xs''
+          case xs'' of
             []  -> failModuleBound
             [i] -> return (i , C.NotInScope)
             -- Issue 1325: Variable names in context can be ambiguous.

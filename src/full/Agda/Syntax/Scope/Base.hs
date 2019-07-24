@@ -7,9 +7,7 @@ module Agda.Syntax.Scope.Base where
 
 import Prelude hiding ( null )
 
-import Control.Arrow (first, second, (***))
-import Control.Applicative hiding (empty)
-import Control.DeepSeq
+import Control.Arrow (first, second)
 import Control.Monad
 
 import Data.Either (partitionEithers)

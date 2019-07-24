@@ -4,9 +4,7 @@
 module Agda.TypeChecking.Abstract where
 
 import Control.Monad
-import Control.Monad.State
 import Data.Function
-import Data.Traversable
 import qualified Data.HashMap.Strict as HMap
 
 import Agda.Syntax.Common
@@ -175,7 +173,7 @@ instance AbsTerm Sort where
     Prop n     -> Prop $ absS n
     Inf        -> Inf
     SizeUniv   -> SizeUniv
-    PiSort s1 s2 -> PiSort (absS s1) (absS s2)
+    PiSort a s -> PiSort (absS a) (absS s)
     UnivSort s -> UnivSort $ absS s
     MetaS x es -> MetaS x $ absS es
     DefS d es  -> DefS d $ absS es

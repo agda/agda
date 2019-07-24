@@ -19,7 +19,6 @@ import Agda.Syntax.Internal.Defs
 import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Free.Lazy
-import Agda.TypeChecking.Free.Reduce
 import Agda.TypeChecking.Irrelevance (workOnTypes)
 import Agda.TypeChecking.Level
 import Agda.TypeChecking.Monad

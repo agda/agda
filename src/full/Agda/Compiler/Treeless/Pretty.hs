@@ -4,7 +4,7 @@ module Agda.Compiler.Treeless.Pretty () where
 
 import Prelude hiding ((!!)) -- don't use partial functions!
 
-import Control.Arrow ((&&&), (***), first, second)
+import Control.Arrow (first)
 import Control.Monad.Reader
 import Data.Maybe
 import qualified Data.Map as Map
@@ -22,8 +22,9 @@ data PEnv = PEnv { pPrec :: Int
 
 type P = Reader PEnv
 
-withName :: (String -> P a) -> P a
-withName k = withNames 1 $ \[x] -> k x
+--UNUSED Liang-Ting Chen 2019-07-16
+--withName :: (String -> P a) -> P a
+--withName k = withNames 1 $ \[x] -> k x
 
 withNames :: Int -> ([String] -> P a) -> P a
 withNames n k = do

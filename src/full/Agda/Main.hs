@@ -11,10 +11,6 @@ import System.Environment
 import System.Exit
 import System.Console.GetOpt
 
-import Agda.Syntax.Position (Range)
-import Agda.Syntax.Concrete.Pretty ()
-import Agda.Syntax.Abstract.Name (toTopLevelModuleName)
-
 import Agda.Interaction.CommandLine
 import Agda.Interaction.Options
 import Agda.Interaction.Options.Help (Help (..))
@@ -33,13 +29,11 @@ import Agda.TypeChecking.Errors
 import Agda.TypeChecking.Warnings
 import Agda.TypeChecking.Pretty
 
-import Agda.Compiler.Common (IsMain (..))
 import Agda.Compiler.MAlonzo.Compiler (ghcBackend)
 import Agda.Compiler.JS.Compiler (jsBackend)
 
 import Agda.Compiler.Backend
 
-import Agda.Utils.Lens
 import Agda.Utils.Monad
 import Agda.Utils.String
 

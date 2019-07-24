@@ -40,6 +40,9 @@
 :set -Wunused-foralls
 :set -Wwarnings-deprecations
 :set -Wwrong-do-bind
+:set -Wunused-imports
+:set -Wunused-top-binds
+
 
 :set -XConstraintKinds
 :set -XDataKinds

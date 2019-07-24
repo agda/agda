@@ -5,11 +5,11 @@ module Agda.TypeChecking.Serialise.Instances () where
 
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Serialise.Base
-import Agda.TypeChecking.Serialise.Instances.Abstract ()
-import Agda.TypeChecking.Serialise.Instances.Common ()
-import Agda.TypeChecking.Serialise.Instances.Compilers ()
+--import Agda.TypeChecking.Serialise.Instances.Abstract ()
+--import Agda.TypeChecking.Serialise.Instances.Common ()
+--import Agda.TypeChecking.Serialise.Instances.Compilers ()
 import Agda.TypeChecking.Serialise.Instances.Highlighting ()
-import Agda.TypeChecking.Serialise.Instances.Internal ()
+--import Agda.TypeChecking.Serialise.Instances.Internal ()
 import Agda.TypeChecking.Serialise.Instances.Errors ()
 
 instance EmbPrj Interface where

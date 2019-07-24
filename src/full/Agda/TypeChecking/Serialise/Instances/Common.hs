@@ -7,7 +7,7 @@ import Prelude hiding (mapM)
 
 import Control.Monad.Reader hiding (mapM)
 import Control.Monad.State.Strict (gets, modify)
-import Control.Exception
+
 
 import Data.Array.IArray
 import Data.Word
@@ -15,7 +15,7 @@ import qualified Data.Foldable as Fold
 import Data.Hashable
 import qualified Data.HashTable.IO as H
 import Data.Int (Int32)
-import Data.Maybe
+
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Set (Set)
@@ -51,7 +51,7 @@ import Agda.Utils.Maybe
 import Agda.Utils.NonemptyList
 import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Trie (Trie(..))
-import qualified Agda.Utils.Trie as Trie
+
 
 import Agda.Utils.Except
 
@@ -524,11 +524,21 @@ instance EmbPrj Quantity where
 --   value 2 = return Quantityω
 --   value _ = malformed
 
+instance EmbPrj Cohesion where
+  icod_ Flat       = return 0
+  icod_ Continuous = return 1
+  icod_ Squash     = return 2
+
+  value 0 = return Flat
+  value 1 = return Continuous
+  value 2 = return Squash
+  value _ = malformed
+
 instance EmbPrj Modality where
-  icod_ (Modality a b) = icodeN' Modality a b
+  icod_ (Modality a b c) = icodeN' Modality a b c
 
   value = vcase $ \case
-    [a, b] -> valuN Modality a b
+    [a, b, c] -> valuN Modality a b c
     _ -> malformed
 
 instance EmbPrj Relevance where

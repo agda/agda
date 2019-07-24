@@ -4,25 +4,21 @@ module Agda.TypeChecking.Monad.MetaVars where
 
 import Prelude hiding (null)
 
-import Control.Applicative hiding (empty)
 import Control.Monad.State
 import Control.Monad.Reader
 import Control.Monad.Writer
 
-import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
 import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet
-import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
 import qualified Data.Foldable as Fold
-import Data.Monoid
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
-import Agda.Syntax.Internal.Generic
+import Agda.Syntax.Internal.MetaVars
 import Agda.Syntax.Position
 import Agda.Syntax.Scope.Base
 
@@ -39,16 +35,12 @@ import {-# SOURCE #-} Agda.TypeChecking.Telescope
 
 import Agda.Utils.Except
 import Agda.Utils.Functor ((<.>))
-import Agda.Utils.Lens
-import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Permutation
 import Agda.Utils.Pretty (prettyShow)
 import Agda.Utils.Tuple
-import Agda.Utils.Singleton
-import Agda.Utils.Size
 import qualified Agda.Utils.Maybe.Strict as Strict
 
 import Agda.Utils.Impossible
@@ -145,6 +137,10 @@ lookupMeta :: (ReadTCState m) => MetaId -> m MetaVariable
 lookupMeta m = fromMaybeM failure $ lookupMeta' m
   where failure = fail $ "no such meta variable " ++ prettyShow m
 
+-- | Type of a term or sort meta.
+metaType :: (ReadTCState m) => MetaId -> m Type
+metaType x = jMetaType . mvJudgement <$> lookupMeta x
+
 -- | Update the information associated with a meta variable.
 updateMetaVarTCM :: MetaId -> (MetaVariable -> MetaVariable) -> TCM ()
 updateMetaVarTCM m f = modifyMetaStore $ IntMap.adjust f $ metaId m
@@ -237,42 +233,6 @@ isInstantiatedMeta' m = do
     InstV tel v -> Just $ foldr mkLam v tel
     _           -> Nothing
 
-
--- | Returns every meta-variable occurrence in the given type, except
--- for those in 'Sort's.
-allMetas :: (TermLike a, Monoid m) => (MetaId -> m) -> a -> m
-allMetas singl = foldTerm metas
-  where
-  metas (MetaV m _) = singl m
-  metas (Level l)   = levelMetas l
-  metas _           = mempty
-
-  levelMetas (Max as) = foldMap plusLevelMetas as
-
-  plusLevelMetas ClosedLevel{} = mempty
-  plusLevelMetas (Plus _ l)    = levelAtomMetas l
-
-  levelAtomMetas (MetaLevel m _) = singl m
-  levelAtomMetas _               = mempty
-
--- | Returns 'allMetas' in a list.
---   @allMetasList = allMetas (:[])@.
---
---   Note: this resulting list is computed via difference lists.
---   Thus, use this function if you actually need the whole list of metas.
---   Otherwise, use 'allMetas' with a suitable monoid.
-allMetasList :: TermLike a => a -> [MetaId]
-allMetasList t = allMetas singleton t `appEndo` []
-
--- | 'True' if thing contains no metas.
---   @noMetas = null . allMetasList@.
-noMetas :: TermLike a => a -> Bool
-noMetas = getAll . allMetas (\ _m -> All False)
-
--- | Returns the first meta it find in the thing, if any.
---   @firstMeta == listToMaybe . allMetasList@.
-firstMeta :: TermLike a => a -> Maybe MetaId
-firstMeta = getFirst . allMetas (First . Just)
 
 -- | Returns all metavariables in a constraint. Slightly complicated by the
 --   fact that blocked terms are represented by two meta variables. To find the
@@ -631,7 +591,7 @@ class UnFreezeMeta a where
 instance UnFreezeMeta MetaId where
   unfreezeMeta x = do
     updateMetaVar x $ \ mv -> mv { mvFrozen = Instantiable }
-    unfreezeMeta =<< do jMetaType . mvJudgement <$> lookupMeta x
+    unfreezeMeta =<< metaType x
 
 instance UnFreezeMeta Type where
   unfreezeMeta (El s t) = unfreezeMeta s >> unfreezeMeta t

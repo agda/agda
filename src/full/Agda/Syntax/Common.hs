@@ -1,7 +1,9 @@
+{-# LANGUAGE CPP                        #-}
 {-# LANGUAGE DeriveDataTypeable         #-}
 {-# LANGUAGE DeriveGeneric              #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE UndecidableInstances       #-} -- for: LensNamed name (Arg a)
+{-# LANGUAGE TypeFamilies               #-} -- for type equality ~
+{-# LANGUAGE UndecidableInstances       #-} -- for functional dependency: LensNamed name (Arg a)
 
 {-| Some common syntactic entities are defined in this module.
 -}
@@ -11,13 +13,13 @@ import Prelude hiding (null)
 
 import Control.DeepSeq
 
+#if __GLASGOW_HASKELL__ < 804
+import Data.Semigroup hiding (Arg)
+#endif
 import Data.ByteString.Char8 (ByteString)
 import qualified Data.ByteString.Char8 as ByteString
-import Data.Foldable hiding (null)
 import Data.Hashable (Hashable(..))
 import qualified Data.Strict.Maybe as Strict
-import Data.Semigroup hiding (Arg)
-import Data.Traversable
 import Data.Data (Data)
 import Data.Word
 import Data.IntSet (IntSet)
@@ -270,23 +272,27 @@ data Modality = Modality
       -- ^ Cardinality / runtime erasure.
       --   See Conor McBride, I got plenty o' nutting, Wadlerfest 2016.
       --   See Bob Atkey, Syntax and Semantics of Quantitative Type Theory, LiCS 2018.
+  , modCohesion :: Cohesion
+      -- ^ Cohesion/what was in Agda-flat.
+      --   see "Brouwer's fixed-point theorem in real-cohesive homotopy type theory" (arXiv:1509.07584)
+      --   Currently only the comonad is implemented.
   } deriving (Data, Eq, Ord, Show, Generic)
 
 defaultModality :: Modality
-defaultModality = Modality defaultRelevance defaultQuantity
+defaultModality = Modality defaultRelevance defaultQuantity defaultCohesion
 
 -- | Pointwise composition.
 instance Semigroup Modality where
-  Modality r q <> Modality r' q' = Modality (r <> r') (q <> q')
+  Modality r q c <> Modality r' q' c' = Modality (r <> r') (q <> q') (c <> c')
 
 -- | Pointwise unit.
 instance Monoid Modality where
-  mempty = Modality mempty mempty
+  mempty = Modality mempty mempty mempty
   mappend = (<>)
 
 -- | Dominance ordering.
 instance PartialOrd Modality where
-  comparable (Modality r q) (Modality r' q') = comparable (r, q) (r', q')
+  comparable (Modality r q c) (Modality r' q' c') = comparable (r, (q, c)) (r', (q', c'))
 
 instance POSemigroup Modality where
 instance POMonoid Modality where
@@ -320,9 +326,10 @@ applyModality m = mapModality (m `composeModality`)
 --   iff
 --   @(r \`inverseComposeModality\` x) \`moreUsableModality\` y@ (Galois connection).
 inverseComposeModality :: Modality -> Modality -> Modality
-inverseComposeModality (Modality r q) (Modality r' q') =
+inverseComposeModality (Modality r q c) (Modality r' q' c') =
   Modality (r `inverseComposeRelevance` r')
            (q `inverseComposeQuantity`  q')
+           (c `inverseComposeCohesion`  c')
 
 -- | Left division by a 'Modality'.
 --   Used e.g. to modify context when going into a @m@ argument.
@@ -331,19 +338,19 @@ inverseApplyModality m = mapModality (m `inverseComposeModality`)
 
 -- | 'Modality' forms a pointwise additive monoid.
 addModality :: Modality -> Modality -> Modality
-addModality (Modality r q) (Modality r' q') = Modality (addRelevance r r') (addQuantity q q')
+addModality (Modality r q c) (Modality r' q' c') = Modality (addRelevance r r') (addQuantity q q') (addCohesion c c')
 
 zeroModality :: Modality
-zeroModality = Modality zeroRelevance zeroQuantity
+zeroModality = Modality zeroRelevance zeroQuantity zeroCohesion
 
 -- | Absorptive element under addition.
 topModality :: Modality
-topModality = Modality topRelevance topQuantity
+topModality = Modality topRelevance topQuantity topCohesion
 
 -- | Equality ignoring origin.
 
 sameModality :: Modality -> Modality -> Bool
-sameModality (Modality r q) (Modality r' q') = sameRelevance r r' && sameQuantity q q'
+sameModality (Modality r q c) (Modality r' q' c') = sameRelevance r r' && sameQuantity q q' && sameCohesion c c'
 
 -- boilerplate instances
 
@@ -359,6 +366,9 @@ lModRelevance f m = f (modRelevance m) <&> \ r -> m { modRelevance = r }
 
 lModQuantity :: Lens' Quantity Modality
 lModQuantity f m = f (modQuantity m) <&> \ q -> m { modQuantity = q }
+
+lModCohesion :: Lens' Cohesion Modality
+lModCohesion f m = f (modCohesion m) <&> \ q -> m { modCohesion = q }
 
 class LensModality a where
 
@@ -390,6 +400,11 @@ instance LensQuantity Modality where
   setQuantity h m = m { modQuantity = h }
   mapQuantity f m = m { modQuantity = f (modQuantity m) }
 
+instance LensCohesion Modality where
+  getCohesion = modCohesion
+  setCohesion h m = m { modCohesion = h }
+  mapCohesion f m = m { modCohesion = f (modCohesion m) }
+
 -- default accessors for Relevance
 
 getRelevanceMod :: LensModality a => LensGet Relevance a
@@ -411,6 +426,17 @@ setQuantityMod = mapModality . setQuantity
 
 mapQuantityMod :: LensModality a => LensMap Quantity a
 mapQuantityMod = mapModality . mapQuantity
+
+-- default accessors for Cohesion
+
+getCohesionMod :: LensModality a => LensGet Cohesion a
+getCohesionMod = getCohesion . getModality
+
+setCohesionMod :: LensModality a => LensSet Cohesion a
+setCohesionMod = mapModality . setCohesion
+
+mapCohesionMod :: LensModality a => LensMap Cohesion a
+mapCohesionMod = mapModality . mapCohesion
 
 ---------------------------------------------------------------------------
 -- * Quantities
@@ -942,6 +968,160 @@ nonStrictToIrr NonStrict = Irrelevant
 nonStrictToIrr rel       = rel
 
 ---------------------------------------------------------------------------
+-- * Cohesion
+---------------------------------------------------------------------------
+
+-- | Cohesion modalities
+--   see "Brouwer's fixed-point theorem in real-cohesive homotopy type theory" (arXiv:1509.07584)
+--   types are now given an additional topological layer which the modalities interact with.
+data Cohesion
+  = Flat        -- ^ same points, discrete topology, idempotent comonad, box-like.
+  | Continuous  -- ^ identity modality.
+  -- | Sharp    -- ^ same points, codiscrete topology, idempotent monad, diamond-like.
+  | Squash      -- ^ single point space, artificially added for Flat left-composition.
+    deriving (Data, Show, Eq, Enum, Bounded, Generic)
+
+allCohesions :: [Cohesion]
+allCohesions = [minBound..maxBound]
+
+defaultCohesion :: Cohesion
+defaultCohesion = Continuous
+
+instance HasRange Cohesion where
+  getRange _ = noRange
+
+instance SetRange Cohesion where
+  setRange _ = id
+
+instance KillRange Cohesion where
+  killRange rel = rel -- no range to kill
+
+instance NFData Cohesion where
+  rnf Flat       = ()
+  rnf Continuous = ()
+  rnf Squash     = ()
+
+-- | A lens to access the 'Cohesion' attribute in data structures.
+--   Minimal implementation: @getCohesion@ and @mapCohesion@ or @LensModality@.
+class LensCohesion a where
+
+  getCohesion :: a -> Cohesion
+
+  setCohesion :: Cohesion -> a -> a
+  setCohesion h = mapCohesion (const h)
+
+  mapCohesion :: (Cohesion -> Cohesion) -> a -> a
+
+  default getCohesion :: LensModality a => a -> Cohesion
+  getCohesion = modCohesion . getModality
+
+  default mapCohesion :: LensModality a => (Cohesion -> Cohesion) -> a -> a
+  mapCohesion f = mapModality $ \ ai -> ai { modCohesion = f $ modCohesion ai }
+
+instance LensCohesion Cohesion where
+  getCohesion = id
+  setCohesion = const
+  mapCohesion = id
+
+-- | Information ordering.
+-- @Flat  \`moreRelevant\`
+--  Continuous \`moreRelevant\`
+--  Sharp \`moreRelevant\`
+--  Squash@
+moreCohesion :: Cohesion -> Cohesion -> Bool
+moreCohesion = (<=)
+
+-- | Equality ignoring origin.
+sameCohesion :: Cohesion -> Cohesion -> Bool
+sameCohesion = (==)
+
+-- | More relevant is smaller.
+instance Ord Cohesion where
+  compare = curry $ \case
+    (r, r') | r == r' -> EQ
+    -- top
+    (_, Squash) -> LT
+    (Squash, _) -> GT
+    -- bottom
+    (Flat, _) -> LT
+    (_, Flat) -> GT
+    -- redundant case
+    (Continuous,Continuous) -> EQ
+
+-- | More relevant is smaller.
+instance PartialOrd Cohesion where
+  comparable = comparableOrd
+
+-- | @usableCohesion rel == False@ iff we cannot use a variable of @rel@.
+usableCohesion :: LensCohesion a => a -> Bool
+usableCohesion a = getCohesion a `moreCohesion` Continuous
+
+-- | 'Cohesion' composition.
+--   'Irrelevant' is dominant, 'Relevant' is neutral.
+--   Composition coincides with 'max'.
+composeCohesion :: Cohesion -> Cohesion -> Cohesion
+composeCohesion r r' =
+  case (r, r') of
+    (Squash, _) -> Squash
+    (_, Squash) -> Squash
+    (Flat, _)  -> Flat
+    (_, Flat)  -> Flat
+    (Continuous, Continuous) -> Continuous
+
+-- | Compose with cohesion flag from the left.
+--   This function is e.g. used to update the relevance information
+--   on pattern variables @a@ after a match against something of cohesion @rel@.
+applyCohesion :: LensCohesion a => Cohesion -> a -> a
+applyCohesion rel = mapCohesion (rel `composeCohesion`)
+
+-- | @inverseComposeCohesion r x@ returns the least @y@
+--   such that forall @x@, @y@ we have
+--   @x \`moreCohesion\` (r \`composeCohesion\` y)@
+--   iff
+--   @(r \`inverseComposeCohesion\` x) \`moreCohesion\` y@ (Galois connection).
+inverseComposeCohesion :: Cohesion -> Cohesion -> Cohesion
+inverseComposeCohesion r x =
+  case (r, x) of
+    (Continuous  , x) -> x          -- going to continous arg.: nothing changes
+                                    -- because Continuous is comp.-neutral
+    (Squash, x)       -> Squash     -- artificial case, should not be needed.
+    (Flat , Flat)     -> Flat       -- otherwise: Flat things remain Flat
+    (Flat , _)        -> Squash     -- but everything else becomes unusable.
+
+-- | Left division by a 'Cohesion'.
+--   Used e.g. to modify context when going into a @rel@ argument.
+inverseApplyCohesion :: LensCohesion a => Cohesion -> a -> a
+inverseApplyCohesion rel = mapCohesion (rel `inverseComposeCohesion`)
+
+-- | 'Cohesion' forms a semigroup under composition.
+instance Semigroup Cohesion where
+  (<>) = composeCohesion
+
+-- | 'Continous' is the unit.
+instance Monoid Cohesion where
+  mempty  = Continuous
+  mappend = (<>)
+
+instance POSemigroup Cohesion where
+instance POMonoid Cohesion where
+
+instance LeftClosedPOMonoid Cohesion where
+  inverseCompose = inverseComposeCohesion
+
+-- | Combine inferred 'Cohesion'.
+--   The unit is 'Squash'.
+addCohesion :: Cohesion -> Cohesion -> Cohesion
+addCohesion = min
+
+-- | 'Cohesion' forms a monoid under addition, and even a semiring.
+zeroCohesion :: Cohesion
+zeroCohesion = Squash
+
+-- | Absorptive element under addition.
+topCohesion :: Cohesion
+topCohesion = Flat
+
+---------------------------------------------------------------------------
 -- * Origin of arguments (user-written, inserted or reflected)
 ---------------------------------------------------------------------------
 
@@ -1137,6 +1317,11 @@ instance LensQuantity ArgInfo where
   setQuantity = setQuantityMod
   mapQuantity = mapQuantityMod
 
+instance LensCohesion ArgInfo where
+  getCohesion = getCohesionMod
+  setCohesion = setCohesionMod
+  mapCohesion = mapCohesionMod
+
 defaultArgInfo :: ArgInfo
 defaultArgInfo =  ArgInfo
   { argInfoHiding        = NotHidden
@@ -1321,6 +1506,11 @@ instance LensQuantity (Arg e) where
   setQuantity = setQuantityMod
   mapQuantity = mapQuantityMod
 
+instance LensCohesion (Arg e) where
+  getCohesion = getCohesionMod
+  setCohesion = setCohesionMod
+  mapCohesion = mapCohesionMod
+
 defaultArg :: a -> Arg a
 defaultArg = Arg defaultArgInfo
 
@@ -1379,6 +1569,12 @@ named = Named . Just
 class LensNamed name a | a -> name where
   lensNamed :: Lens' (Maybe name) a
 
+  -- Lenses lift through decorations:
+  default lensNamed :: (Decoration f, LensNamed name b, f b ~ a) => Lens' (Maybe name) a
+  lensNamed = traverseF . lensNamed
+
+instance LensNamed name a => LensNamed name (Arg a) where
+
 instance LensNamed name (Named name a) where
   lensNamed f (Named mn a) = f mn <&> \ mn' -> Named mn' a
 
@@ -1390,12 +1586,6 @@ setNameOf = set lensNamed
 
 mapNameOf :: LensNamed name a => (Maybe name -> Maybe name) -> a -> a
 mapNameOf = over lensNamed
-
--- Lenses lift through decorations:
--- instance (Decoration f, LensNamed name a) => LensNamed name (f a) where
-
-instance LensNamed name a => LensNamed name (Arg a) where
-  lensNamed = traverseF . lensNamed
 
 -- Standard instances for 'Named':
 
@@ -1882,3 +2072,32 @@ data UniverseCheck = YesUniverseCheck | NoUniverseCheck
 
 instance KillRange UniverseCheck where
   killRange = id
+
+-----------------------------------------------------------------------------
+-- * Rewrite Directives on the LHS
+-----------------------------------------------------------------------------
+
+data RewriteEqn' p e
+  = Rewrite [e]      -- ^ @rewrite e@
+  | Invert  [(p, e)] -- ^ @with p <- e@
+  deriving (Data, Eq, Show, Functor, Foldable, Traversable)
+
+instance (NFData p, NFData e) => NFData (RewriteEqn' p e) where
+  rnf = \case
+    Rewrite es -> rnf es
+    Invert pes -> rnf pes
+
+instance (Pretty p, Pretty e) => Pretty (RewriteEqn' p e) where
+  pretty = \case
+    Rewrite es -> prefixedThings (text "rewrite") (pretty <$> es)
+    Invert pes -> prefixedThings (text "invert") (pes <&> \ (p, e) -> pretty p <+> "<-" <+> pretty e)
+
+instance (HasRange p, HasRange e) => HasRange (RewriteEqn' p e) where
+  getRange = \case
+    Rewrite es -> getRange es
+    Invert pes -> getRange pes
+
+instance (KillRange e, KillRange p) => KillRange (RewriteEqn' p e) where
+  killRange = \case
+    Rewrite es -> killRange1 Rewrite es
+    Invert pes -> killRange1 Invert pes

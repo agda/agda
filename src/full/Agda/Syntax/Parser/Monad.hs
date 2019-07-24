@@ -31,23 +31,20 @@ module Agda.Syntax.Parser.Monad
     )
     where
 
-import Control.Exception (catch, displayException)
+import Control.Exception (displayException)
 import Data.Int
 
 import Data.Data (Data)
-import qualified Data.Text.Lazy as T
 
 import Control.Monad.State
-import Control.Monad.Except
 
 import Agda.Interaction.Options.Warnings
 
 import Agda.Syntax.Position
 
-import Agda.Utils.Except ( MonadError(catchError, throwError) )
+import Agda.Utils.Except ( MonadError(throwError) )
 import Agda.Utils.FileName
 import Agda.Utils.List ( tailWithDefault )
-import qualified Agda.Utils.IO.UTF8 as UTF8
 import qualified Agda.Utils.Maybe.Strict as Strict
 
 import Agda.Utils.Pretty
@@ -59,7 +56,7 @@ import Agda.Utils.Impossible
  --------------------------------------------------------------------------}
 
 -- | The parse monad.
-newtype Parser a = P { runP :: StateT ParseState (Either ParseError) a }
+newtype Parser a = P { _runP :: StateT ParseState (Either ParseError) a }
   deriving (Functor, Applicative, Monad, MonadState ParseState, MonadError ParseError)
 
 -- | The parser state. Contains everything the parser and the lexer could ever
@@ -291,8 +288,9 @@ getParseInterval = do
 getLexState :: Parser [LexState]
 getLexState = parseLexState <$> get
 
-setLexState :: [LexState] -> Parser ()
-setLexState ls = modify $ \ s -> s { parseLexState = ls }
+-- UNUSED Liang-Ting Chen 2019-07-16
+--setLexState :: [LexState] -> Parser ()
+--setLexState ls = modify $ \ s -> s { parseLexState = ls }
 
 modifyLexState :: ([LexState] -> [LexState]) -> Parser ()
 modifyLexState f = modify $ \ s -> s { parseLexState = f (parseLexState s) }

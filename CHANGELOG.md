@@ -35,6 +35,13 @@ Pragmas and options
   checking of user-defined rewrite rules (this only has an effect when
   `--rewriting` is also enabled).
 
+* New option `--no-projection-like` to turn off the analysis whether a
+  type signature likens that of a projection.
+  Projection-likeness is an optimization that reduces the size of
+  terms by dropping parameter-like reconstructible function arguments.
+  Thus, it is advisable to leave this optimization on, the flag is
+  meant for debugging Agda.
+
 * Option `--no-forcing` is now a pragma option, i.e., the forcing analysis
   can be switched off on a per-file basis via
   ```agda
@@ -139,6 +146,25 @@ Language
   (pure e₁ <*> a₁ <*> .. <*> aₙ) <|> ((pure e₂ <*> a₁ <*> .. <*> aₘ) <|> (pure eₖ <*> a₁ <*> .. <*> aₗ))
   ```
   Idiom brackets with no application `(|)` or `⦇⦈` are equivalent to `empty`.
+
+
+* Irrefutable With
+
+  Users can now match on irrefutable patterns on the LHS using a
+  pattern-matching `with`. An expression of the form:
+
+  ```agda
+  f xs with p1 <- e1 | ... | pn <- en = rhs
+  ```
+
+  is translated to nested `with` clauses, essentially equivalent to:
+
+  ```agda
+  f xs with e1
+  ... | p1 with
+     (...) with en
+  ... | pn = rhs
+  ```
 
 ### Termination checking
 

@@ -16,7 +16,6 @@ import Agda.Benchmarking
 
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Debug
-import{-# SOURCE #-} Agda.TypeChecking.Monad.Options
 
 import qualified Agda.Utils.Benchmark as B
 

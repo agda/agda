@@ -42,7 +42,6 @@ import Agda.Syntax.Parser.Tokens
 import Agda.Syntax.Concrete as C
 import Agda.Syntax.Concrete.Attribute
 import Agda.Syntax.Concrete.Pattern
-import Agda.Syntax.Concrete.Pretty ()
 import Agda.Syntax.Common
 import Agda.Syntax.Fixity
 import Agda.Syntax.Notation
@@ -1099,26 +1098,29 @@ CommaImportNames1
 -- A left hand side of a function clause. We parse it as an expression, and
 -- then check that it is a valid left hand side.
 LHS :: { LHS }
-LHS : Expr1 RewriteEquations WithExpressions
-        {% exprToLHS $1 >>= \p -> return (p $2 $3) }
+LHS : Expr1 WithRewriteExpressions
+        {% exprToLHS $1      >>= \p ->
+           buildWithBlock $2 >>= \ (rs, es) ->
+           return (p rs es)
+        }
 
-WithExpressions :: { [Expr] }
-WithExpressions
+WithRewriteExpressions :: { [Either RewriteEqn [Expr]] }
+WithRewriteExpressions
   : {- empty -} { [] }
-  | 'with' Expr
-      { case $2 of { WithApp _ e es -> e : es; e -> [e] } }
+  | 'with' Expr1 WithRewriteExpressions
+    {% fmap (++ $3) (buildWithStmt $2)  }
+  | 'rewrite' Expr1 WithRewriteExpressions
+    { Left (Rewrite $ fromWithApp $2) : $3 }
 
-RewriteEquations :: { [Expr] }
-RewriteEquations
-  : {- empty -} { [] }
-  | 'rewrite' Expr1
-      { case $2 of { WithApp _ e es -> e : es; e -> [e] } }
-
--- Parsing either an expression @e@ or a @rewrite e1 | ... | en@.
+-- Parsing either an expression @e@ or a @(rewrite | with p <-) e1 | ... | en@.
 HoleContent :: { HoleContent }
 HoleContent
-  : Expr             { HoleContentExpr    $1 }
-  | RewriteEquations { HoleContentRewrite $1 }
+  : Expr                   {  HoleContentExpr    $1 }
+  | WithRewriteExpressions
+    {% fmap HoleContentRewrite $ forM $1 $ \case
+         Left r  -> pure r
+         Right{} -> parseError "Cannot declare a 'with' abstraction from inside a hole."
+      }
 
 -- Where clauses are optional.
 WhereClause :: { WhereClause }
@@ -2028,23 +2030,68 @@ boundNamesOrAbsurd es
     isAbsurd (RawApp _ es)               = any isAbsurd es
     isAbsurd _                           = False
 
--- | Build a do-statement
-buildDoStmt :: Expr -> [LamClause] -> Parser DoStmt
-buildDoStmt (RawApp r [e]) cs = buildDoStmt e cs
-buildDoStmt (Let r ds Nothing) [] = return $ DoLet r ds
-buildDoStmt (RawApp r es) cs
+-- | Match a pattern-matching "assignment" statement @p <- e@
+exprToAssignment :: Expr -> Parser (Maybe (Pattern, Range, Expr))
+exprToAssignment (RawApp r es)
   | (es1, arr : es2) <- break isLeftArrow es =
     case filter isLeftArrow es2 of
       arr : _ -> parseError' (rStart' $ getRange arr) $ "Unexpected " ++ prettyShow arr
-      [] -> DoBind (getRange arr)
-              <$> exprToPattern (RawApp (getRange es1) es1)
-              <*> pure (RawApp (getRange es2) es2)
-              <*> pure cs
+      [] -> Just <$> ((,,) <$> exprToPattern (RawApp (getRange es1) es1)
+                           <*> pure (getRange arr)
+                           <*> pure (RawApp (getRange es2) es2))
   where
     isLeftArrow (Ident (QName (Name _ _ [Id arr]))) = arr `elem` ["<-", "←"]
     isLeftArrow _ = False
-buildDoStmt e (_ : _) = parseError' (rStart' $ getRange e) "Only pattern matching do-statements can have where clauses."
-buildDoStmt e [] = return $ DoThen e
+exprToAssignment _ = pure Nothing
+
+-- | Build a with-block
+buildWithBlock :: [Either RewriteEqn [Expr]] -> Parser ([RewriteEqn], [Expr])
+buildWithBlock rees = case groupByEither rees of
+  (Left rs : rest) -> (rs,) <$> finalWith rest
+  rest             -> ([],) <$> finalWith rest
+
+  where
+
+    finalWith :: [Either [RewriteEqn] [[Expr]]] -> Parser [Expr]
+    finalWith []             = pure $ []
+    finalWith [Right ees]    = pure $ concat ees
+    finalWith (Right{} : tl) = parseError' (rStart' $ getRange tl)
+      "Cannot use rewrite / pattern-matching with after a with-abstraction."
+
+-- | Build a with-statement
+buildWithStmt :: Expr -> Parser [Either RewriteEqn [Expr]]
+buildWithStmt e = do
+  es <- mapM buildSingleWithStmt $ fromWithApp e
+  let ees = groupByEither es
+  pure $ map (mapLeft Invert) ees
+
+buildSingleWithStmt :: Expr -> Parser (Either (Pattern, Expr) Expr)
+buildSingleWithStmt e = do
+  mpatexpr <- exprToAssignment e
+  pure $ case mpatexpr of
+    Just (pat, _, expr) -> Left (pat, expr)
+    Nothing             -> Right e
+
+fromWithApp :: Expr -> [Expr]
+fromWithApp = \case
+  WithApp _ e es -> e : es
+  e              -> [e]
+
+-- | Build a do-statement
+defaultBuildDoStmt :: Expr -> [LamClause] -> Parser DoStmt
+defaultBuildDoStmt e (_ : _) = parseError' (rStart' $ getRange e) "Only pattern matching do-statements can have where clauses."
+defaultBuildDoStmt e []      = pure $ DoThen e
+
+buildDoStmt :: Expr -> [LamClause] -> Parser DoStmt
+buildDoStmt (RawApp r [e])     cs = buildDoStmt e cs
+buildDoStmt (Let r ds Nothing) [] = return $ DoLet r ds
+buildDoStmt e@(RawApp r es)    cs = do
+  mpatexpr <- exprToAssignment e
+  case mpatexpr of
+    Just (pat, r, expr) -> pure $ DoBind r pat expr cs
+    Nothing -> defaultBuildDoStmt e cs
+buildDoStmt e cs = defaultBuildDoStmt e cs
+
 
 mergeImportDirectives :: [ImportDirective] -> Parser ImportDirective
 mergeImportDirectives is = do
@@ -2141,7 +2188,7 @@ validHaskellModuleName = all ok . splitOnDots
  --------------------------------------------------------------------------}
 
 -- | Turn an expression into a left hand side.
-exprToLHS :: Expr -> Parser ([Expr] -> [Expr] -> LHS)
+exprToLHS :: Expr -> Parser ([RewriteEqn] -> [Expr] -> LHS)
 exprToLHS e = LHS <$> exprToPattern e
 
 -- | Turn an expression into a pattern. Fails if the expression is not a

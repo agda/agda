@@ -14,15 +14,12 @@ import Control.Monad.State
 import Prelude hiding ( null )
 
 import qualified Data.List as List
-import Data.Maybe (mapMaybe, isJust, fromMaybe)
-import Data.Monoid ( Monoid, mempty, mappend, mconcat )
-import Data.Semigroup ( Semigroup, (<>), Any(..) )
-import Data.Traversable (traverse)
+import Data.Maybe (mapMaybe, fromMaybe)
+import Data.Semigroup ( Semigroup, (<>))
 
 import Agda.Syntax.Abstract (IsProjP(..))
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
-import Agda.Syntax.Internal.Pattern ()
 import Agda.Syntax.Literal
 import Agda.Syntax.Position
 
@@ -239,14 +236,14 @@ blockedOnProjection = return $ Block (BlockedOnProj False) []
 
 blockedOnApplication :: Monad m => ApplyOrIApply -> m (Match a)
 blockedOnApplication b = return $ Block (BlockedOnApply b) []
-
--- | Lens for 'blockingVarCons'.
-mapBlockingVarCons :: ([ConHead] -> [ConHead]) -> BlockingVar -> BlockingVar
-mapBlockingVarCons f b = b { blockingVarCons = f (blockingVarCons b) }
-
--- | Lens for 'blockingVarLits'.
-mapBlockingVarLits :: ([Literal] -> [Literal]) -> BlockingVar -> BlockingVar
-mapBlockingVarLits f b = b { blockingVarLits = f (blockingVarLits b) }
+--UNUSED Liang-Ting Chen 2019-07-16
+---- | Lens for 'blockingVarCons'.
+--mapBlockingVarCons :: ([ConHead] -> [ConHead]) -> BlockingVar -> BlockingVar
+--mapBlockingVarCons f b = b { blockingVarCons = f (blockingVarCons b) }
+--
+---- | Lens for 'blockingVarLits'.
+--mapBlockingVarLits :: ([Literal] -> [Literal]) -> BlockingVar -> BlockingVar
+--mapBlockingVarLits f b = b { blockingVarLits = f (blockingVarLits b) }
 
 setBlockingVarOverlap :: BlockingVar -> BlockingVar
 setBlockingVarOverlap = \x -> x { blockingVarOverlap = True }

@@ -20,7 +20,7 @@ module Agda.TypeChecking.CheckInternal
   , shouldBeSort
   ) where
 
-import Control.Arrow ((&&&), (***), first, second)
+import Control.Arrow (first)
 import Control.Monad
 
 import Agda.Syntax.Common
@@ -32,7 +32,6 @@ import Agda.TypeChecking.Level
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Pretty
-import Agda.TypeChecking.Primitive
 import Agda.TypeChecking.ProjectionLike (elimView)
 import Agda.TypeChecking.Records (getDefType)
 import Agda.TypeChecking.Reduce
@@ -42,7 +41,6 @@ import Agda.TypeChecking.Telescope
 
 
 import Agda.Utils.Functor (($>))
-import Agda.Utils.Monad
 import Agda.Utils.Size
 
 import Agda.Utils.Impossible
@@ -83,7 +81,7 @@ checkType' t = do
         let goInside = case b of Abs{}   -> addContext (absName b, a)
                                  NoAbs{} -> id
         goInside $ checkType' $ unAbs b
-      inferPiSort s1 s2
+      inferPiSort a s2
     Sort s -> do
       _ <- checkSort defaultAction s
       inferUnivSort s
@@ -149,7 +147,7 @@ checkInternal :: (MonadCheckInternal m) => Term -> Type -> m ()
 checkInternal v t = void $ checkInternal' defaultAction v t
 
 checkInternal' :: (MonadCheckInternal m) => Action m -> Term -> Type -> m Term
-checkInternal' action v t = do
+checkInternal' action v t = verboseBracket "tc.check.internal" 20 "" $ do
   reportSDoc "tc.check.internal" 20 $ sep
     [ "checking internal "
     , nest 2 $ sep [ prettyTCM v <+> ":"
@@ -160,12 +158,15 @@ checkInternal' action v t = do
   postAction action t =<< case v of
     Var i es   -> do
       a <- typeOfBV i
+      reportSDoc "tc.check.internal" 30 $ fsep
+        [ "variable" , prettyTCM (var i) , "has type" , prettyTCM a ]
       checkSpine action a (Var i []) es t
     Def f es   -> do  -- f is not projection(-like)!
       a <- defType <$> getConstInfo f
       checkSpine action a (Def f []) es t
     MetaV x es -> do -- we assume meta instantiations to be well-typed
       a <- metaType x
+      reportSDoc "tc.check.internal" 30 $ "metavariable" <+> prettyTCM x <+> "has type" <+> prettyTCM a
       checkSpine action a (MetaV x []) es t
     Con c ci vs -> do
       -- We need to fully apply the constructor to make getConType work!
@@ -196,6 +197,7 @@ checkInternal' action v t = do
       -- TODO: checkPTS sa sb s
       goInside $ Pi a . mkRng <$> checkInternal' action (unEl $ unAbs b) (sort sb)
     Sort s     -> do
+      reportSDoc "tc.check.internal" 30 $ "checking sort" <+> prettyTCM s
       s <- checkSort action s
       Sort s <$ ((sortFitsIn s) =<< shouldBeSort t) -- sortFitsIn ensures @s /= Inf@
     Level l    -> do
@@ -251,16 +253,16 @@ checkSpine action a self es t = do
   ((v, v'), t') <- inferSpine' action a self self es
   t' <- reduce t'
   v' <$ coerceSize subtype v t' t
-
-checkArgs
-  :: (MonadCheckInternal m)
-  => Action m
-  -> Type      -- ^ Type of the head.
-  -> Term      -- ^ The head.
-  -> Args      -- ^ The arguments.
-  -> Type      -- ^ Expected type of the application.
-  -> m Term    -- ^ The application after modification by the @Action@.
-checkArgs action a self vs t = checkSpine action a self (map Apply vs) t
+--UNUSED Liang-Ting Chen 2019-07-16
+--checkArgs
+--  :: (MonadCheckInternal m)
+--  => Action m
+--  -> Type      -- ^ Type of the head.
+--  -> Term      -- ^ The head.
+--  -> Args      -- ^ The arguments.
+--  -> Type      -- ^ Expected type of the application.
+--  -> m Term    -- ^ The application after modification by the @Action@.
+--checkArgs action a self vs t = checkSpine action a self (map Apply vs) t
 
 -- | @checkArgInfo actual expected@.
 --
@@ -375,10 +377,6 @@ shouldBePath t = do
 shouldBePi :: (MonadCheckInternal m) => Type -> m (Dom Type, Abs Type)
 shouldBePi t = ifPiType t (\ a b -> return (a, b)) $ const $ typeError $ ShouldBePi t
 
--- | Result is in reduced form.
-shouldBeSort :: (MonadCheckInternal m) => Type -> m Sort
-shouldBeSort t = ifIsSort t return (typeError $ ShouldBeASort t)
-
 -- | Check if sort is well-formed.
 checkSort :: (MonadCheckInternal m) => Action m -> Sort -> m Sort
 checkSort action s =
@@ -387,10 +385,13 @@ checkSort action s =
     Prop l   -> Prop <$> checkLevel action l
     Inf      -> return Inf
     SizeUniv -> return SizeUniv
-    PiSort a b -> do
-      a <- checkSort action a
-      addContext (absName b, defaultDom (sort a) :: Dom Type) $ do
-        PiSort a . Abs (absName b) <$> checkSort action (absBody b)
+    PiSort dom s2 -> do
+      let El s1 a = unDom dom
+      s1' <- checkSort action s1
+      a' <- checkInternal' action a $ sort s1'
+      let dom' = dom $> El s1' a'
+      s2' <- mapAbstraction dom' (checkSort action) s2
+      return $ PiSort dom' s2'
     UnivSort s -> UnivSort <$> checkSort action s
     MetaS x es -> do -- we assume sort meta instantiations to be well-formed
       a <- metaType x
@@ -427,10 +428,6 @@ checkLevel action (Max ls) = Max <$> mapM checkPlusLevel ls
         NeutralLevel _ v -> checkInternal' action v lvl
         UnreducedLevel v -> checkInternal' action v lvl
 
--- | Type of a term or sort meta.
-metaType :: (MonadCheckInternal m) => MetaId -> m Type
-metaType x = jMetaType . mvJudgement <$> lookupMeta x
-
 -- | Universe subsumption and type equality (subtyping for sizes, resp.).
 subtype :: (MonadCheckInternal m) => Type -> Type -> m ()
 subtype t1 t2 = do
@@ -455,7 +452,7 @@ inferSort t = case t of
       a <- metaType x
       (_, s) <- eliminate (MetaV x []) a es
       shouldBeSort s
-    Pi a b     -> inferPiSort (getSort a) (getSort <$> b)
+    Pi a b     -> inferPiSort a (getSort <$> b)
     Sort s     -> inferUnivSort s
     Con{}      -> __IMPOSSIBLE__
     Lit{}      -> __IMPOSSIBLE__

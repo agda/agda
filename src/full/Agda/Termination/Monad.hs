@@ -15,7 +15,6 @@ import Control.Applicative hiding (empty)
 import qualified Control.Monad.Fail as Fail
 
 import Control.Monad.Reader
-import Control.Monad.State
 
 import Data.Foldable (Foldable)
 import Data.Traversable (Traversable)
@@ -24,7 +23,7 @@ import Data.Semigroup ( Semigroup(..) )
 
 import Agda.Interaction.Options
 
-import Agda.Syntax.Abstract (IsProjP(..), AllNames)
+import Agda.Syntax.Abstract (AllNames)
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
@@ -43,7 +42,7 @@ import Agda.TypeChecking.Records
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 
-import Agda.Utils.Except ( MonadError(catchError, throwError) )
+import Agda.Utils.Except ( MonadError )
 import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.Lens

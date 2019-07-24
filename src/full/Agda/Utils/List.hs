@@ -11,8 +11,6 @@ import Data.Maybe
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
-import Text.Show.Functions ()
-
 import qualified Agda.Utils.Bag as Bag
 
 import Agda.Utils.Tuple

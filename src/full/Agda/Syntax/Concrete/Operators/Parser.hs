@@ -1,12 +1,12 @@
 {-# LANGUAGE GADTs        #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE DataKinds    #-}
 
 module Agda.Syntax.Concrete.Operators.Parser where
 
 import Control.Applicative ( Alternative((<|>), many) )
 
 import Data.Either
-import Data.Hashable
 import Data.Kind ( Type )
 import Data.Maybe
 import qualified Data.Strict.Maybe as Strict

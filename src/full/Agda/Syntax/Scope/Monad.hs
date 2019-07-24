@@ -6,7 +6,7 @@
 module Agda.Syntax.Scope.Monad where
 
 import Prelude hiding (mapM, any, all)
-import Control.Arrow (first, second, (***), (&&&))
+import Control.Arrow ((***))
 import Control.Monad hiding (mapM, forM)
 import Control.Monad.Writer hiding (mapM, forM)
 import Control.Monad.State hiding (mapM, forM)
@@ -18,7 +18,7 @@ import qualified Data.Map as Map
 import Data.Maybe
 import Data.Set (Set)
 import qualified Data.Set as Set
-import Data.Foldable (any, all)
+import Data.Foldable (all)
 import Data.Traversable hiding (for)
 
 import Agda.Syntax.Common
@@ -26,7 +26,7 @@ import Agda.Syntax.Position
 import Agda.Syntax.Fixity
 import Agda.Syntax.Abstract.Name as A
 import qualified Agda.Syntax.Abstract as A
-import Agda.Syntax.Abstract (ScopeCopyInfo(..), initCopyInfo)
+import Agda.Syntax.Abstract (ScopeCopyInfo(..))
 import Agda.Syntax.Concrete as C
 import Agda.Syntax.Concrete.Fixity
 import Agda.Syntax.Concrete.Definitions (DeclarationWarning(..)) -- TODO: move the relevant warnings out of there

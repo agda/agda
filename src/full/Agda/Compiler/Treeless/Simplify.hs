@@ -1,24 +1,23 @@
 module Agda.Compiler.Treeless.Simplify (simplifyTTerm) where
 
-import Control.Arrow (first, second, (***))
+import Control.Arrow (second, (***))
 import Control.Monad.Reader
-import Control.Monad.Writer
 import Data.Traversable (traverse)
 import qualified Data.List as List
 
 import Agda.Syntax.Treeless
 import Agda.Syntax.Internal (Substitution'(..))
 import Agda.Syntax.Literal
+
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Primitive
 import Agda.TypeChecking.Substitute
-import Agda.Utils.Maybe
 
-import Agda.Compiler.Treeless.Subst
-import Agda.Compiler.Treeless.Pretty
 import Agda.Compiler.Treeless.Compare
-import Agda.Utils.Pretty
+
+import Agda.Utils.List
+import Agda.Utils.Maybe
 
 import Agda.Utils.Impossible
 
@@ -77,11 +76,11 @@ simplifyTTerm t = do
 simplify :: FunctionKit -> TTerm -> S TTerm
 simplify FunctionKit{..} = simpl
   where
-    simpl = rewrite' >=> unchainCase >=> \ t -> case t of
+    simpl = rewrite' >=> unchainCase >=> \case
 
-      TDef{}  -> pure t
-      TPrim{} -> pure t
-      TVar{}  -> pure t
+      t@TDef{}  -> pure t
+      t@TPrim{} -> pure t
+      t@TVar{}  -> pure t
 
       TApp (TDef f) [TLit (LitNat _ 0), m, n, m']
         -- div/mod are equivalent to quot/rem on natural numbers.
@@ -97,7 +96,7 @@ simplify FunctionKit{..} = simpl
           opTo64 op = lookup op [(PAdd, PAdd64), (PSub, PSub64), (PMul, PMul64),
                                  (PQuot, PQuot64), (PRem, PRem64)]
 
-      TApp (TPrim _) _ -> pure t  -- taken care of by rewrite'
+      t@(TApp (TPrim _) _) -> pure t  -- taken care of by rewrite'
 
       TCoerce t -> TCoerce <$> simpl t
 
@@ -105,12 +104,11 @@ simplify FunctionKit{..} = simpl
         f  <- simpl f
         es <- traverse simpl es
         maybeMinusToPrim f es
-      TLam b         -> TLam <$> underLam (simpl b)
-      TLit{}         -> pure t
-      TCon{}         -> pure t
-      TLet e b       -> do
-        e <- simpl e
-        case e of
+      TLam b    -> TLam <$> underLam (simpl b)
+      t@TLit{}  -> pure t
+      t@TCon{}  -> pure t
+      TLet e b  -> do
+        simpl e >>= \case
           TPFn P64ToI a -> do
             -- Inline calls to P64ToI since these trigger optimisations.
             -- Ideally, the optimisations would trigger anyway, but at the
@@ -118,7 +116,7 @@ simplify FunctionKit{..} = simpl
             -- good idea.
             let rho = inplaceS 0 (TPFn P64ToI (TVar 0))
             tLet a <$> underLet a (simpl (applySubst rho b))
-          _ -> tLet e <$> underLet e (simpl b)
+          e -> tLet e <$> underLet e (simpl b)
 
       TCase x t d bs -> do
         v <- lookupVar x
@@ -148,14 +146,14 @@ simplify FunctionKit{..} = simpl
             bs <- traverse (simplAlt x) bs
             tCase x t d bs
 
-      TUnit          -> pure t
-      TSort          -> pure t
-      TErased        -> pure t
-      TError{}       -> pure t
+      t@TUnit    -> pure t
+      t@TSort    -> pure t
+      t@TErased  -> pure t
+      t@TError{} -> pure t
 
-    conView (TCon c)           = Just (c, [])
-    conView (TApp (TCon c) as) = Just (c, as)
-    conView e                  = Nothing
+    conView (TCon c)    = Just (c, [])
+    conView (TApp f as) = second (++ as) <$> conView f
+    conView e           = Nothing
 
     -- Collapse chained cases (case x of bs -> vs; _ -> case x of bs' -> vs'  ==>
     --                         case x of bs -> vs; bs' -> vs')
@@ -304,7 +302,7 @@ simplify FunctionKit{..} = simpl
     constArithView _ = Nothing
 
     simplAlt x (TACon c a b) = TACon c a <$> underLams a (maybeAddRewrite (x + a) conTerm $ simpl b)
-      where conTerm = mkTApp (TCon c) [TVar i | i <- reverse $ take a [0..]]
+      where conTerm = mkTApp (TCon c) $ map TVar $ downFrom a
     simplAlt x (TALit l b)   = TALit l   <$> maybeAddRewrite x (TLit l) (simpl b)
     simplAlt x (TAGuard g b) = TAGuard   <$> simpl g <*> simpl b
 

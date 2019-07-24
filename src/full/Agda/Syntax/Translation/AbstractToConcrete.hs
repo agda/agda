@@ -25,20 +25,19 @@ module Agda.Syntax.Translation.AbstractToConcrete
 
 import Prelude hiding (null)
 
-import Control.Applicative hiding (empty)
 import Control.Arrow (first)
 import Control.Monad.Reader
 import Control.Monad.State
 
 import qualified Control.Monad.Fail as Fail
 
-import Data.Either
 import qualified Data.Map as Map
 import Data.Maybe
 import Data.Monoid
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Map (Map)
+import qualified Data.Foldable as Fold
 import Data.Traversable (traverse)
 import Data.Void
 import Data.List (sortBy)
@@ -954,7 +953,7 @@ openModule' x dir restrict env = env{currentScope = set scopeModules mods' sInfo
 declsToConcrete :: [A.Declaration] -> AbsToCon [C.Declaration]
 declsToConcrete ds = mergeSigAndDef . concat <$> toConcrete ds
 
-instance ToConcrete A.RHS (C.RHS, [C.Expr], [C.Expr], [C.Declaration]) where
+instance ToConcrete A.RHS (C.RHS, [C.RewriteEqn], [C.Expr], [C.Declaration]) where
     toConcrete (A.RHS e (Just c)) = return (C.RHS c, [], [], [])
     toConcrete (A.RHS e Nothing) = do
       e <- toConcrete e
@@ -967,16 +966,18 @@ instance ToConcrete A.RHS (C.RHS, [C.Expr], [C.Expr], [C.Declaration]) where
     toConcrete (A.RewriteRHS xeqs _spats rhs wh) = do
       wh <- declsToConcrete (A.whereDecls wh)
       (rhs, eqs', es, whs) <- toConcrete rhs
-      unless (null eqs')
-        __IMPOSSIBLE__
-      eqs <- toConcrete $ map snd xeqs
+      unless (null eqs') __IMPOSSIBLE__
+      eqs <- toConcrete $ map (snd <$>) xeqs
       return (rhs, eqs, es, wh ++ whs)
 
+instance (ToConcrete p q, ToConcrete a b) =>
+         ToConcrete (RewriteEqn' p a) (RewriteEqn' q b) where
+  toConcrete = \case
+    Rewrite es -> Rewrite <$> mapM toConcrete es
+    Invert pes -> Invert <$> mapM toConcrete pes
+
 instance ToConcrete (Maybe A.QName) (Maybe C.Name) where
-  toConcrete Nothing = return Nothing
-  toConcrete (Just x) = do
-    x' <- toConcrete (qnameName x)
-    return $ Just x'
+  toConcrete = mapM (toConcrete . qnameName)
 
 instance ToConcrete (Constr A.Constructor) C.Declaration where
   toConcrete (Constr (A.ScopedDecl scope [d])) =
@@ -1605,12 +1606,26 @@ recoverPatternSyn applySyn match e fallback = do
   if not doFold then fallback else do
     psyns  <- getAllPatternSyns
     scope  <- getScope
+    reportSLn "toConcrete.patsyn" 100 $ render $ hsep $
+      [ "Scope when attempting to recover pattern synonyms:"
+      , pretty scope
+      ]
     let isConP ConP{} = True    -- #2828: only fold pattern synonyms with
         isConP _      = False   --        constructor rhs
-        cands = [ (q, args, score rhs) | (q, psyndef@(_, rhs)) <- reverse $ Map.toList psyns,
-                                         isConP rhs, Just args <- [match psyndef e],
-                                         isNameInScope q scope ]
+        cands = [ (q, args, score rhs)
+                | (q, psyndef@(_, rhs)) <- reverse $ Map.toList psyns
+                , isConP rhs
+                , Just args <- [match psyndef e]
+                -- #3879: only fold pattern synonyms with an unqualified concrete name in scope
+                -- Note that we only need to consider the head of the inverse lookup result: they
+                -- are already sorted from shortest to longest!
+                , C.QName{} <- Fold.toList $ listToMaybe $ inverseScopeLookupName q scope
+                ]
         cmp (_, _, x) (_, _, y) = flip compare x y
+    reportSLn "toConcrete.patsyn" 50 $ render $ hsep $
+      [ "Found pattern synonym candidates:"
+      , prettyList_ $ map (\ (q,_,_) -> q) cands
+      ]
     case sortBy cmp cands of
       (q, args, _) : _ -> toConcrete $ applySyn q $ (map . fmap) unnamed args
       []               -> fallback

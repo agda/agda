@@ -9,17 +9,11 @@ module Agda.TypeChecking.Rules.Builtin
   , bindUntypedBuiltin
   ) where
 
-import Control.Applicative hiding (empty)
 import Control.Monad
-import Control.Monad.Reader (ask)
-import Control.Monad.State (get)
 import Data.List (find, sortBy)
 import Data.Function (on)
 
-import Agda.Interaction.Options (optSizedTypes)
-
 import qualified Agda.Syntax.Abstract as A
-import qualified Agda.Syntax.Abstract.Views as A
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Position
@@ -54,7 +48,6 @@ import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.NonemptyList
 import Agda.Utils.Null
-import Agda.Utils.Permutation
 import Agda.Utils.Size
 
 import Agda.Utils.Impossible
@@ -866,6 +859,7 @@ bindBuiltinNoDef b q = inTopContext $ do
   when (b `elem` sizeBuiltins) $ unlessM sizedTypesOption $
     genericError $ "Cannot declare size BUILTIN " ++ b ++ " with option --no-sized-types"
   case builtinDesc <$> findBuiltinInfo b of
+
     Just (BuiltinPostulate rel mt) -> do
       -- We start by adding the corresponding postulate
       t <- mt
@@ -885,6 +879,7 @@ bindBuiltinNoDef b q = inTopContext $ do
                 , funTerminates = Just True
                 }
             | otherwise = Axiom
+
     Just (BuiltinPrim name axioms) -> do
       PrimImpl t pf <- lookupPrimitiveFunction name
       bindPrimitive name $ pf { primFunName = q }
@@ -898,16 +893,28 @@ bindBuiltinNoDef b q = inTopContext $ do
       addConstant q $ defaultDefn defaultArgInfo q t def
       axioms v
       bindBuiltinName b v
+
     Just (BuiltinDataCons mt) -> do
       t <- mt
       d <- return $! getPrimName $ unEl t
       let
         ch = ConHead q Inductive []
-        def = Constructor 0 0 ch d ConcreteDef Inductive (emptyCompKit, Nothing) [] [] -- Andrea TODO: fix zeros
-
+        def = Constructor
+              { conPars   = 0   -- Andrea TODO: fix zeros
+              , conArity  = 0
+              , conSrcCon = ch
+              , conData   = d
+              , conAbstr  = ConcreteDef
+              , conInd    = Inductive
+              , conComp   = emptyCompKit
+              , conProj   = Nothing
+              , conForced = []
+              , conErased = Nothing
+              }
       addConstant q $ defaultDefn defaultArgInfo q t def
       addDataCons d [q]
       bindBuiltinName b $ Con ch ConOSystem []
+
     Just (BuiltinData mt cs) -> do
       t <- mt
       addConstant q $ defaultDefn defaultArgInfo q t def
@@ -924,6 +931,7 @@ bindBuiltinNoDef b q = inTopContext $ do
               , dataMutual     = Nothing
               , dataPathCons   = []
               }
+
     Just{}  -> __IMPOSSIBLE__
     Nothing -> __IMPOSSIBLE__ -- typeError $ NoSuchBuiltinName b
 

@@ -1,22 +1,21 @@
+{-# LANGUAGE CPP #-}
 
 module Agda.Compiler.Common where
 
 import Data.List as List
-import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
 import qualified Data.HashMap.Strict as HMap
 import Data.Char
 import Data.Function
+#if __GLASGOW_HASKELL__ < 804
 import Data.Semigroup
-import Data.Monoid hiding ((<>))
+#endif
 
 import Control.Monad
 import Control.Monad.State  hiding (mapM_, forM_, mapM, forM, sequence)
 
-import Agda.Syntax.Common
-import qualified Agda.Syntax.Abstract.Name as A
 import qualified Agda.Syntax.Concrete.Name as C
 import Agda.Syntax.Internal as I
 
@@ -24,13 +23,10 @@ import Agda.Interaction.FindFile
 import Agda.Interaction.Options
 
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Substitute
-import Agda.TypeChecking.Telescope
 
 import Agda.Utils.FileName
 import Agda.Utils.Lens
 import Agda.Utils.Maybe
-import Agda.Utils.Monad
 import Agda.Utils.Pretty
 
 import Agda.Utils.Impossible
@@ -129,15 +125,6 @@ repl subs = go where
   go (c:s) = c : go s
   go []    = []
 
-
--- | Copy pasted from MAlonzo....
---   Move somewhere else!
-conArityAndPars :: QName -> TCM (Nat, Nat)
-conArityAndPars q = do
-  def <- getConstInfo q
-  n   <- typeArity (defType def)
-  let Constructor{ conPars = np } = theDef def
-  return (n - np, np)
 
 -- | Sets up the compilation environment.
 inCompilerEnv :: Interface -> TCM a -> TCM a

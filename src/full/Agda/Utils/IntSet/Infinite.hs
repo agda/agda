@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 -- |  Possibly infinite sets of integers (but with finitely many consecutive
 --    segments). Used for checking guard coverage in int/nat cases in the
 --    treeless compiler.
@@ -8,9 +9,10 @@ module Agda.Utils.IntSet.Infinite
   , invariant )
   where
 
-import Control.Arrow (first, second)
+#if __GLASGOW_HASKELL__ < 804
 import Data.Semigroup hiding (All(..))
-import Data.List
+#endif
+
 import Data.Set (Set)
 import qualified Data.Set as Set
 

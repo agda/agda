@@ -5,7 +5,6 @@ import Data.Maybe
 import Data.Char
 import qualified Data.List as List
 import Data.Traversable (traverse)
-import Data.Map (Map)
 import qualified Data.Map as Map
 
 import Agda.Syntax.Position

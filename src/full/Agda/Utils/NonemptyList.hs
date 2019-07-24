@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 
 -- | Nonempty lists.
@@ -8,12 +9,11 @@ import Control.Monad
 
 import Data.Data (Data)
 import Data.Foldable (Foldable)
-  -- The toList method of Foldable may do something stupid,
-  -- like traversing the list just to build a list again.
 import Data.Traversable (Traversable)
-import Data.Maybe
-import Data.Semigroup
 import qualified Data.List as List
+#if __GLASGOW_HASKELL__ < 804
+import Data.Semigroup
+#endif
 
 infixr 5 :!
 data NonemptyList a = (:!) { headNe :: a, tailNe :: [a] }

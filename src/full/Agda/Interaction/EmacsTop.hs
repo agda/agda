@@ -392,6 +392,13 @@ prettyResponseContext ii rev ctx = withInteractionId ii $ do
           | n == x                 = prettyShow x
           | isInScope n == InScope = prettyShow n ++ " = " ++ prettyShow x
           | otherwise              = prettyShow x
+
+        -- Some attributes are useful to report whenever they are not
+        -- in the default state.
+        attribute :: String
+        attribute = c ++ if null c then "" else " "
+          where c = prettyShow (getCohesion ai)
+
         extras :: [Doc]
         extras = concat $
           [ [ "not in scope" | isInScope nis == C.NotInScope ]
@@ -401,7 +408,7 @@ prettyResponseContext ii rev ctx = withInteractionId ii $ do
           , [ "irrelevant"   | not $ getRelevance ai `moreRelevant` getRelevance mod ]
           ]
       doc <- prettyATop expr
-      return (prettyCtxName, ":" <+> (doc <> parenSep extras))
+      return (attribute ++ prettyCtxName, ":" <+> (doc <> parenSep extras))
   where
     parenSep :: [Doc] -> Doc
     parenSep docs

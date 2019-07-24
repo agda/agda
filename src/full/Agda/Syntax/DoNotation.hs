@@ -25,13 +25,11 @@
  -}
 module Agda.Syntax.DoNotation (desugarDoNotation) where
 
-import Control.Monad
 import Data.Maybe
 
 import Agda.Syntax.Common
 import Agda.Syntax.Position
 import Agda.Syntax.Concrete
-import Agda.Syntax.Concrete.Operators
 
 import Agda.Syntax.Scope.Base
 import Agda.Syntax.Scope.Monad

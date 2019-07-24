@@ -103,7 +103,7 @@ For example, in the following, ``y1`` and ``y2`` are equivalent.
 Implicit arguments are inserted eagerly in left-hand sides so ``y3`` and ``y4``
 are equivalent. An exception is when no type signature is given, in which case
 no implicit argument insertion takes place. Thus in the definition of ``y5``
-there only implicit is the ``A`` argument of ``subst``.
+the only implicit is the ``A`` argument of ``subst``.
 
 ::
 

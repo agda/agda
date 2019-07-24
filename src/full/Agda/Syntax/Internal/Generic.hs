@@ -1,12 +1,13 @@
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE CPP          #-}
 
 -- | Tree traversal for internal syntax.
 
 module Agda.Syntax.Internal.Generic where
 
-import Data.Traversable
-import Data.Monoid
-import Data.Foldable
+#if __GLASGOW_HASKELL__ < 804
+import Data.Monoid ((<>))
+#endif
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 

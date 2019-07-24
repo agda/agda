@@ -3,11 +3,11 @@
 module Agda.TypeChecking.Rules.Data where
 
 import Control.Monad
-
-import Data.List (genericTake)
-import Data.Maybe (fromMaybe, catMaybes, isJust)
-import Control.Monad.Trans.Maybe
 import Control.Monad.Trans
+import Control.Monad.Trans.Maybe
+
+import Data.Foldable (traverse_)
+import Data.Maybe (fromMaybe, catMaybes, isJust)
 import Data.Set (Set)
 import qualified Data.Set as Set
 
@@ -24,7 +24,6 @@ import Agda.Syntax.Fixity
 import {-# SOURCE #-} Agda.TypeChecking.CompiledClause.Compile
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin -- (primLevel)
-import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Generalize
@@ -41,8 +40,6 @@ import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.ProjectionLike
 
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Term ( isType_ )
-
-import Agda.Interaction.Options
 
 import Agda.Utils.Except
 import Agda.Utils.List
@@ -121,7 +118,10 @@ checkDataDef i name uc (A.DataDefParams gpars ps) cs =
             let s' = case s of
                   Prop l -> Type l
                   _      -> s
-            whenM withoutKOption $ checkIndexSorts s' ixTel
+            -- Andreas, 2019-07-16, issue #3916:
+            -- NoUniverseCheck should also disable the index sort check!
+            unless (uc == NoUniverseCheck) $
+              whenM withoutKOption $ checkIndexSorts s' ixTel
 
             reportSDoc "tc.data.sort" 20 $ vcat
               [ "checking datatype" <+> prettyTCM name
@@ -238,9 +238,13 @@ checkConstructor d uc tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
         let con = ConHead c Inductive [] -- data constructors have no projectable fields and are always inductive
         escapeContext (size tel) $ do
 
-          cnames <- if nofIxs /= 0 || (Info.defAbstract i == AbstractDef) then return (emptyCompKit, Nothing) else do
-            inTopContext $ do
-              names <- forM [0 .. size fields - 1] (\ i -> freshAbstractQName'_ (P.prettyShow (A.qnameName c) ++ "-" ++ show i))
+          -- Cannot compose indexed inductive types yet.
+          (comp, projNames) <- if nofIxs /= 0 || (Info.defAbstract i == AbstractDef)
+            then return (emptyCompKit, Nothing)
+            else inTopContext $ do
+              -- Name for projection of ith field of constructor c is just c-i
+              names <- forM [0 .. size fields - 1] $ \ i ->
+                freshAbstractQName'_ $ P.prettyShow (A.qnameName c) ++ "-" ++ show i
 
               -- nofIxs == 0 means the data type can be reconstructed
               -- by appling the QName d to the parameters.
@@ -255,7 +259,7 @@ checkConstructor d uc tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
 
               defineProjections d con params names fields dataT
               comp <- defineCompData d con params names fields dataT boundary
-              return $ (comp, Just names)
+              return (comp, Just names)
 
           addConstant c $
             defaultDefn defaultArgInfo c (telePi tel t) $ Constructor
@@ -265,14 +269,14 @@ checkConstructor d uc tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
               , conData   = d
               , conAbstr  = Info.defAbstract i
               , conInd    = Inductive
-              , conComp   = cnames
+              , conComp   = comp
+              , conProj   = projNames
               , conForced = forcedArgs
-              , conErased = []  -- computed during compilation to treeless
+              , conErased = Nothing  -- computed during compilation to treeless
               }
 
-          case snd cnames of
-            Nothing -> return ()
-            Just names -> mapM_ makeProjection names
+          -- Check generated projections for projection-likeness
+          traverse_ (mapM_ makeProjection) $ projNames
 
         -- Add the constructor to the instance table, if needed
         when (Info.defInstance i == InstanceDef) $ do

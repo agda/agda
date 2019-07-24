@@ -12,7 +12,7 @@ module Agda.Syntax.Abstract
     ) where
 
 import Prelude
-import Control.Arrow (first, second, (***))
+import Control.Arrow (first)--, second, (***))
 
 import Data.Foldable (Foldable)
 import qualified Data.Foldable as Fold
@@ -23,35 +23,25 @@ import Data.Sequence (Seq, (<|), (><))
 import qualified Data.Sequence as Seq
 import qualified Data.Set as Set
 import Data.Set (Set)
-import Data.Traversable
 import Data.Void
-
 import Data.Data (Data)
 import Data.Monoid (mappend)
 
-import Agda.Syntax.Concrete.Name (NumHoles(..))
-import Agda.Syntax.Concrete (FieldAssignment'(..), exprFieldA, HoleContent'(..))
+import Agda.Syntax.Concrete (FieldAssignment'(..), exprFieldA)--, HoleContent'(..))
 import qualified Agda.Syntax.Concrete as C
-import Agda.Syntax.Concrete.Pretty ()
-
 import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Abstract.Name as A (QNamed)
-
 import qualified Agda.Syntax.Internal as I
-
 import Agda.Syntax.Common
 import Agda.Syntax.Info
-import Agda.Syntax.Fixity ( Fixity' )
 import Agda.Syntax.Literal
 import Agda.Syntax.Position
 import Agda.Syntax.Scope.Base
 
 import Agda.TypeChecking.Positivity.Occurrence
 
-import Agda.Utils.Functor
 import Agda.Utils.Geniplate
 import Agda.Utils.Lens
-import Agda.Utils.NonemptyList
 import Agda.Utils.Pretty
 
 import Agda.Utils.Impossible
@@ -387,6 +377,7 @@ noWhereDecls = WhereDecls Nothing []
 
 type Clause = Clause' LHS
 type SpineClause = Clause' SpineLHS
+type RewriteEqn  = RewriteEqn' Pattern (QName, Expr)
 
 data RHS
   = RHS
@@ -400,7 +391,7 @@ data RHS
   | WithRHS QName [Expr] [Clause]
       -- ^ The 'QName' is the name of the with function.
   | RewriteRHS
-    { rewriteExprs      :: [(QName, Expr)]
+    { rewriteExprs      :: [RewriteEqn]
       -- ^ The 'QName's are the names of the generated with functions,
       --   one for each 'Expr'.
     , rewriteStrippedPats :: [ProblemEq]
@@ -522,7 +513,7 @@ instance IsProjP Expr where
     Things we parse but are not part of the Agda file syntax
  --------------------------------------------------------------------------}
 
-type HoleContent = C.HoleContent' Expr
+type HoleContent = C.HoleContent' Pattern Expr
 
 {--------------------------------------------------------------------------
     Instances
@@ -710,7 +701,7 @@ instance HasRange RHS where
     getRange AbsurdRHS                = noRange
     getRange (RHS e _)                = getRange e
     getRange (WithRHS _ e cs)         = fuseRange e cs
-    getRange (RewriteRHS xes _ rhs wh) = getRange (map snd xes, rhs, wh)
+    getRange (RewriteRHS xes _ rhs wh) = getRange (map (snd <$>) xes, rhs, wh)
 
 instance HasRange WhereDeclarations where
   getRange (WhereDecls _ ds) = getRange ds
@@ -939,11 +930,17 @@ instance AllNames Declaration where
 instance AllNames Clause where
   allNames cl = allNames (clauseRHS cl, clauseWhereDecls cl)
 
+instance AllNames e => AllNames (RewriteEqn' p e) where
+    allNames = \case
+      Rewrite es -> Fold.foldMap allNames es
+      Invert pes -> Fold.foldMap (Fold.foldMap allNames) pes
+
 instance AllNames RHS where
   allNames (RHS e _)                 = allNames e
   allNames AbsurdRHS{}               = Seq.empty
   allNames (WithRHS q _ cls)         = q <| allNames cls
-  allNames (RewriteRHS qes _ rhs cls) = Seq.fromList (map fst qes) >< allNames rhs >< allNames cls
+  allNames (RewriteRHS qes _ rhs cls) =
+    allNames (map (fst <$>) qes) >< allNames rhs >< allNames cls
 
 instance AllNames WhereDeclarations where
   allNames (WhereDecls _ ds) = allNames ds

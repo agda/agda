@@ -3,8 +3,6 @@
 module Agda.TypeChecking.Conversion where
 
 import Control.Monad
-import Control.Monad.Reader
-import Control.Monad.State
 import Control.Monad.Fail (MonadFail)
 
 import qualified Data.List as List
@@ -15,11 +13,11 @@ import qualified Data.IntSet as IntSet
 import Agda.Syntax.Abstract.Views (isSet)
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
+import Agda.Syntax.Internal.MetaVars
 import Agda.Syntax.Translation.InternalToAbstract (reify)
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
-import Agda.TypeChecking.CompiledClause (CompiledClauses'(Fail))
 import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.MetaVars.Occurs (killArgs,PruneResult(..),rigidVarsNotContainedIn)
 import Agda.TypeChecking.Names
@@ -30,7 +28,6 @@ import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Conversion.Pure (pureEqualTerm)
 import {-# SOURCE #-} Agda.TypeChecking.CheckInternal (infer)
-import Agda.TypeChecking.Errors
 import Agda.TypeChecking.Forcing (isForced, nextIsForced)
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Datatypes (getConType, getFullyAppliedConType)
@@ -42,7 +39,6 @@ import Agda.TypeChecking.SizedTypes
 import Agda.TypeChecking.Level
 import Agda.TypeChecking.Implicit (implicitArgs)
 import Agda.TypeChecking.Irrelevance
-import Agda.TypeChecking.ProjectionLike (elimView)
 import Agda.TypeChecking.Primitive
 import Agda.TypeChecking.Warnings (MonadWarning)
 import Agda.Interaction.Options
@@ -53,7 +49,6 @@ import Agda.Utils.Monad
 import Agda.Utils.Maybe
 import Agda.Utils.Size
 import Agda.Utils.Tuple
-import Agda.Utils.Lens
 
 import Agda.Utils.Impossible
 
@@ -458,7 +453,7 @@ compareAtom cmp t m n =
       -- try first y := x and then x := y
       (NotBlocked _ (MetaV x xArgs), NotBlocked _ (MetaV y yArgs))
           | x == y , cmpBlocked -> do
-              a <- jMetaType . mvJudgement <$> lookupMeta x
+              a <- metaType x
               compareElims [] [] a (MetaV x []) xArgs yArgs
           | x == y ->
             case intersectVars xArgs yArgs of
@@ -1540,9 +1535,9 @@ equalSort s1 s2 = do
 
             -- @PiSort a b == SizeUniv@ iff @b == SizeUniv@
             (SizeUniv   , PiSort a b ) ->
-              underAbstraction_ b $ equalSort SizeUniv
+              underAbstraction a b $ equalSort SizeUniv
             (PiSort a b , SizeUniv   ) ->
-              underAbstraction_ b $ equalSort SizeUniv
+              underAbstraction a b $ equalSort SizeUniv
 
             -- @Prop0@ and @SizeUniv@ don't contain any universes,
             -- so they cannot be a UnivSort
@@ -1577,7 +1572,7 @@ equalSort s1 s2 = do
       -- equate @piSort a b@ to @s0@, which is assumed to be a (closed) bottom sort
       -- i.e. @piSort a b == s0@ implies @b == s0@.
       piSortEqualsBottom s0 a b = do
-        underAbstraction_ b $ equalSort s0
+        underAbstraction a b $ equalSort s0
         -- we may have instantiated some metas, so @a@ could reduce
         a <- reduce a
         case funSort' a s0 of

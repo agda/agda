@@ -19,13 +19,12 @@ module Agda.TypeChecking.Substitute
   , Substitution'(..), Substitution
   ) where
 
-import Control.Arrow (first, second)
+import Control.Arrow (second)
 import Data.Coerce
 import Data.Function
 import qualified Data.List as List
 import Data.Map (Map)
 import Data.Maybe
-import Data.Monoid hiding ((<>))
 import Data.HashMap.Strict (HashMap)
 
 import Debug.Trace (trace)
@@ -784,7 +783,7 @@ applySubstTerm rho t    = coerce $ case coerce t of
    subE :: Elims -> Elims
    subE  = sub @[Elim' t]
    subPi :: (Dom Type, Abs Type) -> (Dom Type, Abs Type)
-   subPi = sub @(Dom (Type' t), Abs (Type' t))
+   subPi = sub @(Dom' t (Type'' t t), Abs (Type'' t t))
 
 instance Subst Term Term where
   applySubst = applySubstTerm
@@ -792,8 +791,8 @@ instance Subst Term Term where
 instance Subst BraveTerm BraveTerm where
   applySubst = applySubstTerm
 
-instance (Coercible t Term, Subst t a) => Subst t (Type' a) where
-  applySubst rho (El s t) = applySubst (coerce rho) s `El` applySubst rho t
+instance (Coercible a Term, Subst t a, Subst t b) => Subst t (Type'' a b) where
+  applySubst rho (El s t) = applySubst rho s `El` applySubst rho t
 
 instance (Coercible a Term, Subst t a) => Subst t (Sort' a) where
   applySubst rho s = case s of
@@ -801,7 +800,7 @@ instance (Coercible a Term, Subst t a) => Subst t (Sort' a) where
     Prop n     -> Prop $ sub n
     Inf        -> Inf
     SizeUniv   -> SizeUniv
-    PiSort s1 s2 -> coerce $ piSort (coerce $ sub s1) (coerce $ sub s2)
+    PiSort a s2 -> coerce $ piSort (coerce $ sub a) (coerce $ sub s2)
     UnivSort s -> coerce $ univSort Nothing $ coerce $ sub s
     MetaS x es -> MetaS x $ sub es
     DefS d es  -> DefS d $ sub es
@@ -939,7 +938,7 @@ instance Subst Term Constraint where
     UnBlock{}                -> c
     CheckFunDef{}            -> c
     HasBiggerSort s          -> HasBiggerSort (rf s)
-    HasPTSRule s1 s2         -> HasPTSRule (rf s1) (rf s2)
+    HasPTSRule a s           -> HasPTSRule (rf a) (rf s)
     UnquoteTactic m t h g    -> UnquoteTactic m (rf t) (rf h) (rf g)
     where
       rf x = applySubst rho x
@@ -961,10 +960,10 @@ instance Subst t a => Subst t (Arg a) where
 instance Subst t a => Subst t (Named name a) where
   applySubst rho = fmap (applySubst rho)
 
-instance (Coercible t Term, Subst t a) => Subst t (Dom a) where
+instance (Subst t a, Subst t b) => Subst t (Dom' a b) where
   applySubst IdS dom = dom
   applySubst rho dom = setFreeVariables unknownFreeVariables $
-    fmap (applySubst rho) dom{ domTactic = applySubst (coerce rho) (domTactic dom) }
+    fmap (applySubst rho) dom{ domTactic = applySubst rho (domTactic dom) }
 
 instance Subst t a => Subst t (Maybe a) where
   applySubst rho = fmap (applySubst rho)
@@ -1140,7 +1139,7 @@ mkPi !dom b = el $ Pi a (mkAbs x b)
   where
     x = fst $ unDom dom
     a = snd <$> dom
-    el = El $ piSort (getSort a) (Abs x (getSort b)) -- piSort checks x freeIn
+    el = El $ piSort a (Abs x (getSort b)) -- piSort checks x freeIn
 
 mkLam :: Arg ArgName -> Term -> Term
 mkLam a v = Lam (argInfo a) (Abs (unArg a) v)
@@ -1151,7 +1150,7 @@ telePi' reAbs = telePi where
   telePi (ExtendTel u tel) t = el $ Pi u $ reAbs b
     where
       b  = (`telePi` t) <$> tel
-      el = El $ piSort (getSort u) (getSort <$> b)
+      el = El $ piSort u (getSort <$> b)
 
 -- | Uses free variable analysis to introduce 'NoAbs' bindings.
 telePi :: Telescope -> Type -> Type
@@ -1355,7 +1354,11 @@ instance (Subst t a, Ord a) => Ord (Elim' a) where
 -- * Sort stuff
 ---------------------------------------------------------------------------
 
--- | Get the next higher sort.
+-- | @univSort' univInf s@ gets the next higher sort of @s@, if it is
+--   known (i.e. it is not just @UnivSort s@). @univInf@ is returned
+--   as the sort of @Inf@.
+--
+--   Precondition: @s@ is reduced
 univSort' :: Maybe Sort -> Sort -> Maybe Sort
 univSort' univInf (Type l) = Just $ Type $ levelSuc l
 univSort' univInf (Prop l) = Just $ Type $ levelSuc l
@@ -1373,8 +1376,8 @@ univInf =
 
 -- | Compute the sort of a function type from the sorts of its
 --   domain and codomain.
-funSort' :: Sort -> Sort -> Maybe Sort
-funSort' a b = case (a, b) of
+funSort' :: Dom Type -> Sort -> Maybe Sort
+funSort' a b = case (getSort a, b) of
   (Inf           , _            ) -> Just Inf
   (_             , Inf          ) -> Just Inf
   (Type (Max as) , Type (Max bs)) -> Just $ Type $ levelMax $ as ++ bs
@@ -1385,12 +1388,12 @@ funSort' a b = case (a, b) of
   (Prop (Max as) , Prop (Max bs)) -> Just $ Prop $ levelMax $ as ++ bs
   (a             , b            ) -> Nothing
 
-funSort :: Sort -> Sort -> Sort
+funSort :: Dom Type -> Sort -> Sort
 funSort a b = fromMaybe (PiSort a (NoAbs underscore b)) $ funSort' a b
 
 -- | Compute the sort of a pi type from the sorts of its domain
 --   and codomain.
-piSort' :: Sort -> Abs Sort -> Maybe Sort
+piSort' :: Dom Type -> Abs Sort -> Maybe Sort
 piSort' a      (NoAbs _ b) = funSort' a b
 piSort' a bAbs@(Abs   _ b) = case flexRigOccurrenceIn 0 b of
   Nothing -> Just $ funSort a $ noabsApp __IMPOSSIBLE__ bAbs
@@ -1428,7 +1431,7 @@ piSort' a bAbs@(Abs   _ b) = case flexRigOccurrenceIn 0 b of
 --     WeaklyRigid   -> Just Inf
 --     Flexible _    -> Nothing
 
-piSort :: Sort -> Abs Sort -> Sort
+piSort :: Dom Type -> Abs Sort -> Sort
 piSort a b = fromMaybe (PiSort a b) $ piSort' a b
 
 ---------------------------------------------------------------------------

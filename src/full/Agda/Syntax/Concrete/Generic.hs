@@ -7,9 +7,6 @@
 module Agda.Syntax.Concrete.Generic where
 
 import Data.Bifunctor
-import Data.Traversable
-import Data.Monoid
-import Data.Foldable
 
 import Agda.Syntax.Common
 import Agda.Syntax.Concrete
@@ -178,6 +175,11 @@ instance ExprLike LHS where
   mapExpr f e0 = case e0 of
      LHS ps res wes -> LHS ps (mapE res) $ mapE wes
    where mapE e = mapExpr f e
+
+instance ExprLike e => ExprLike (RewriteEqn' p e) where
+  mapExpr f = \case
+    Rewrite es -> Rewrite (mapExpr f es)
+    Invert pes -> Invert (map (mapExpr f <$>) pes)
 
 instance ExprLike LamClause where
   mapExpr f (LamClause lhs rhs wh ca) =

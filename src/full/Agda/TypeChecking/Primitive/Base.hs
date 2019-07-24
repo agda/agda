@@ -1,6 +1,5 @@
 module Agda.TypeChecking.Primitive.Base where
 
-import Data.Map (Map)
 import qualified Data.Map as Map
 
 import Agda.Syntax.Common
@@ -36,7 +35,7 @@ garr :: Monad m => (Relevance -> Relevance) -> m Type -> m Type -> m Type
 garr f a b = do
   a' <- a
   b' <- b
-  return $ El (funSort (getSort a') (getSort b')) $
+  return $ El (funSort (defaultDom a') (getSort b')) $
     Pi (mapRelevance f $ defaultDom a') (NoAbs "_" b')
 
 gpi :: (MonadAddContext m, MonadDebug m)
@@ -46,7 +45,7 @@ gpi info name a b = do
   let dom = defaultNamedArgDom info name a
   b <- addContext (name, dom) b
   let y = stringToArgName name
-  return $ El (piSort (getSort a) (Abs y (getSort b)))
+  return $ El (piSort dom (Abs y (getSort b)))
               (Pi dom (Abs y b))
 
 hPi, nPi :: (MonadAddContext m, MonadDebug m)

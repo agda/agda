@@ -383,6 +383,93 @@ with-abstraction.
 
 ..
   ::
+  module with-invert {a} {A : Set a} where
+    open import Agda.Builtin.Nat
+    open import Agda.Builtin.Sigma
+    open import Agda.Builtin.Equality
+    open import Agda.Builtin.Unit
+
+.. _with-invert:
+
+Irrefutable With
+~~~~~~~~~~~~~~~~
+
+When a pattern is irrefutable, we can use a pattern-matching ``with``
+instead of a traditional ``with`` block. This gives us a lightweight
+syntax to make a lot of observations before using a "proper" ``with``
+block. For a basic example of such an irrefutable pattern, see this
+unfolding lemma for ``pred`` ::
+
+    pred : Nat → Nat
+    pred zero    = zero
+    pred (suc n) = n
+
+    NotNull : Nat → Set
+    NotNull zero    = ⊥ -- false
+    NotNull (suc n) = ⊤ -- trivially true
+
+    module _  {n} (pr : NotNull n) where
+
+      pred-correct : suc (pred n) ≡ n
+      pred-correct with suc p ← n = refl
+
+In the above code snippet we do not need to entertain the idea that ``n``
+could be equal to ``zero``: Agda detects that the proof ``pr`` allows us
+to dismiss such a case entirely.
+
+The patterns used in such an inversion clause can be arbitrary. We can
+for instance have deep patterns, e.g. projecting out the second element
+of a vector whose length is neither 0 nor 1:
+
+::
+
+    infixr 5 _∷_
+    data Vec {a} (A : Set a) : Nat → Set a where
+      []  : Vec A zero
+      _∷_ : ∀ {n} → A → Vec A n → Vec A (suc n)
+
+    module _ {n} (pr : NotNull (pred n)) (vs : Vec A n) where
+
+      second : A
+      second with (_ ∷ v ∷ _) ← vs = v
+
+Remember example of :ref:`simultaneous
+abstraction <simultaneous-abstraction>` from above. A simultaneous
+rewrite / pattern-matching ``with`` is to be understood as being nested.
+That is to say that the type refinements introduced by the first
+case analysis may be necessary to type the following ones.
+
+In the following example, in ``focusAt`` we are only able to perform
+the ``splitAt`` we are interested in because we have massaged the type
+of the vector argument using ``suc-+`` first.
+
+::
+
+      suc-+ : ∀ m n → suc m + n ≡ m + suc n
+      suc-+ zero    n                   = refl
+      suc-+ (suc m) n rewrite suc-+ m n = refl
+
+      infixr 1 _×_
+      _×_ : ∀ {a b} (A : Set a) (B : Set b) → Set ?
+      A × B = Σ A (λ _ → B)
+
+      splitAt : ∀ m {n} → Vec A (m + n) → Vec A m × Vec A n
+      splitAt zero    xs       = ([] , xs)
+      splitAt (suc m) (x ∷ xs) with (ys , zs) ← splitAt m xs = (x ∷ ys , zs)
+
+      -- focusAt m (x₀ ∷ ⋯ ∷ xₘ₋₁ ∷ xₘ ∷ xₘ₊₁ ∷ ⋯ ∷ xₘ₊ₙ)
+      -- returns ((x₀ ∷ ⋯ ∷ xₘ₋₁) , xₘ , (xₘ₊₁ ∷ ⋯ ∷ xₘ₊ₙ))
+      focusAt : ∀ m {n} → Vec A (suc (m + n)) → Vec A m × A × Vec A n
+      focusAt m {n} vs rewrite suc-+ m n
+                       with (before , focus ∷ after) ← splitAt m vs
+                       = (before , focus , after)
+
+You can alternate arbitrarily many ``rewrite`` and pattern-matching
+``with`` clauses and still perform a ``with`` abstraction afterwards
+if necessary.
+
+..
+  ::
   module with-rewrite where
     open import Agda.Builtin.Nat using (_+_)
 
