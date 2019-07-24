@@ -1,3 +1,13 @@
+Agda Flat
+=========
+
+Support for the modality Flat has been merged into the "master" branch of Agda:
+
+https://agda.readthedocs.io/en/latest/language/flat.html
+
+The branch "flat" will no longer be developed.
+
+
 Agda 2
 ======
 
