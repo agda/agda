@@ -332,7 +332,7 @@ data NamedBinding = NamedBinding
 getLabel :: NamedArg a -> Maybe String
 getLabel = fmap rangedThing . nameOf . unArg
 
-isLabeled :: NamedArg BoundName -> Maybe ArgName
+isLabeled :: NamedArg Binder -> Maybe ArgName
 isLabeled x
   | visible x              = Nothing  -- Ignore labels on visible arguments
   | Just l <- bareNameOf x = boolToMaybe (l /= nameToRawName (boundName $ binderName $ namedArg x)) l
