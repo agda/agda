@@ -100,7 +100,7 @@ insertMissingFields r placeholder fs axs = do
     nameIfHidden :: Arg C.Name -> c -> Named_ c
     nameIfHidden ax
       | visible ax = unnamed
-      | otherwise  = named $ Ranged (getRange ax) $ prettyShow $ unArg ax
+      | otherwise  = named $ WithOrigin Inserted $ Ranged (getRange ax) $ prettyShow $ unArg ax
 
 -- | The name of the module corresponding to a record.
 recordModule :: QName -> ModuleName

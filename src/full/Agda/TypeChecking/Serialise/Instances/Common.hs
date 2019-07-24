@@ -565,6 +565,11 @@ instance EmbPrj Origin where
   value 4 = return Substitution
   value _ = malformed
 
+instance EmbPrj a => EmbPrj (WithOrigin a) where
+  icod_ (WithOrigin a b) = icodeN' WithOrigin a b
+
+  value = valueN WithOrigin
+
 instance EmbPrj FreeVariables where
   icod_ UnknownFVs   = icodeN' UnknownFVs
   icod_ (KnownFVs a) = icodeN' KnownFVs a

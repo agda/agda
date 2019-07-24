@@ -72,6 +72,7 @@ import Agda.Utils.Except
   (MonadError(catchError, throwError))
 import Agda.Utils.Functor
 import Agda.Utils.Lens
+import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
@@ -271,7 +272,7 @@ checkTypedBindings lamOrPi (A.TBind r tac xps e) ret = do
     experimental <- optExperimentalIrrelevance <$> pragmaOptions
 
     let cs = map getCohesion xs'
-        c = fromMaybe __IMPOSSIBLE__ $ listToMaybe cs
+        c = headWithDefault __IMPOSSIBLE__ cs
     unless (all (c ==) cs) $ __IMPOSSIBLE__
 
     t <- applyCohesionToContext c $ modEnv lamOrPi $ isType_ e
@@ -602,7 +603,7 @@ checkAbsurdLambda cmp i h e t = do
                     { clauseLHSRange  = getRange e
                     , clauseFullRange = getRange e
                     , clauseTel       = telFromList [fmap (absurdPatternName,) dom]
-                    , namedClausePats = [Arg info' $ Named (Just $ unranged $ absName b) $ absurdP 0]
+                    , namedClausePats = [Arg info' $ Named (Just $ WithOrigin Inserted $ unranged $ absName b) $ absurdP 0]
                     , clauseBody      = Nothing
                     , clauseType      = Just $ setModality mod $ defaultArg $ absBody b
                     , clauseCatchall  = False
@@ -1377,11 +1378,17 @@ checkKnownArgument
   -> TCM (Args, Type)   -- ^ Remaining inferred arguments, remaining type.
 checkKnownArgument arg [] _ = genericDocError =<< do
   "Invalid projection parameter " <+> prettyA arg
-checkKnownArgument arg@(Arg info e) (Arg _infov v : vs) t = do
-  (Dom{domInfo = info',unDom = a}, b) <- mustBePi t
+-- Andreas, 2019-07-22, while #3353: we should use domName, not absName !!
+-- WAS:
+-- checkKnownArgument arg@(Arg info e) (Arg _infov v : vs) t = do
+--   (dom@Dom{domInfo = info',unDom = a}, b) <- mustBePi t
+--   -- Skip the arguments from vs that do not correspond to e
+--   if not (sameHiding info info'
+--           && (visible info || maybe True (absName b ==) (bareNameOf e)))
+checkKnownArgument arg (Arg _ v : vs) t = do
   -- Skip the arguments from vs that do not correspond to e
-  if not (sameHiding info info'
-          && (visible info || maybe True ((absName b ==) . rangedThing) (nameOf e)))
+  (dom@Dom{ unDom = a }, b) <- mustBePi t
+  if not $ fromMaybe __IMPOSSIBLE__ $ fittingNamedArg arg dom
     -- Continue with the next one
     then checkKnownArgument arg vs (b `absApp` v)
     -- Found the right argument
@@ -1395,7 +1402,7 @@ checkKnownArgument arg@(Arg info e) (Arg _infov v : vs) t = do
 checkNamedArg :: NamedArg A.Expr -> Type -> TCM Term
 checkNamedArg arg@(Arg info e0) t0 = do
   let e = namedThing e0
-  let x = maybe "" rangedThing $ nameOf e0
+  let x = bareNameWithDefault "" e0
   traceCall (CheckExprCall CmpLeq e t0) $ do
     reportSDoc "tc.term.args.named" 15 $ do
         "Checking named arg" <+> sep

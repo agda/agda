@@ -174,7 +174,7 @@ checkDecl d = setCurrentRange d $ do
                                     verboseS "tc.decl.mutual" 70 $ do
                                       current <- asksTC envMutualBlock
                                       unless (Just blockId == current) $ do
-                                        reportSLn "" 0 $ unlines
+                                        reportS "" 0
                                           [ "mutual block id discrepancy for " ++ prettyShow x
                                           , "  current    mut. bl. = " ++ show current
                                           , "  calculated mut. bl. = " ++ show blockId
@@ -778,11 +778,12 @@ checkModuleArity m tel args = check tel args
   where
     bad = typeError $ ModuleArityMismatch m tel args
 
+    check :: Telescope -> [NamedArg A.Expr] -> TCM Telescope
     check tel []             = return tel
     check EmptyTel (_:_)     = bad
-    check (ExtendTel dom@Dom{domInfo = info} btel) args0@(Arg info' (Named rname _) : args) =
-      let name = fmap rangedThing rname
-          my   = fmap rangedThing $ domName dom
+    check (ExtendTel dom@Dom{domInfo = info} btel) args0@(Arg info' arg : args) =
+      let name = bareNameOf arg
+          my   = bareNameOf dom
           tel  = absBody btel in
       case (argInfoHiding info, argInfoHiding info', name) of
         (Instance{}, NotHidden, _)        -> check tel args0
@@ -905,7 +906,7 @@ checkSectionApplication' i m1 (A.RecordModuleInstance x) copyInfo = do
       -- Found last parameter: switch it to @Instance@.
       instFinal (ExtendTel dom (Abs n EmptyTel)) =
                  ExtendTel do' (Abs n EmptyTel)
-        where do' = makeInstance dom { domName = Just $ unranged "r" }
+        where do' = makeInstance dom { domName = Just $ WithOrigin Inserted $ unranged "r" }
       -- Otherwise, keep searchinf for last parameter:
       instFinal (ExtendTel arg (Abs n tel)) =
                  ExtendTel arg (Abs n (instFinal tel))

@@ -1351,8 +1351,8 @@ HoleName
   : SimpleTopHole { defaultNamedArg $1 }
   | '{'  SimpleHole '}'  { hide         $ defaultNamedArg $2 }
   | '{{' SimpleHole '}}' { makeInstance $ defaultNamedArg $2 }
-  | '{'  SimpleId '=' SimpleHole '}'  { hide         $ defaultArg $ named $2 $4 }
-  | '{{' SimpleId '=' SimpleHole '}}' { makeInstance $ defaultArg $ named $2 $4 }
+  | '{'  SimpleId '=' SimpleHole '}'  { hide         $ defaultArg $ userNamed $2 $4 }
+  | '{{' SimpleId '=' SimpleHole '}}' { makeInstance $ defaultArg $ userNamed $2 $4 }
 
 SimpleTopHole :: { HoleName }
 SimpleTopHole
@@ -1926,8 +1926,8 @@ pragmaQName (r, s) = do
 mkNamedArg :: Maybe QName -> Either QName Range -> Parser (NamedArg BoundName)
 mkNamedArg x y = do
   lbl <- case x of
-           Nothing        -> return $ Just $ unranged "_"
-           Just (QName x) -> return $ Just $ Ranged (getRange x) (prettyShow x)
+           Nothing        -> return $ Just $ WithOrigin UserWritten $ unranged "_"
+           Just (QName x) -> return $ Just $ WithOrigin UserWritten $ Ranged (getRange x) $ prettyShow x
            _              -> parseError "expected unqualified variable name"
   var <- case y of
            Left (QName y) -> return $ mkBoundName y noFixity'
@@ -2246,7 +2246,8 @@ isEqual e =
 maybeNamed :: Expr -> Named_ Expr
 maybeNamed e =
   case isEqual e of
-    Just (Ident (QName x), b) -> named (Ranged (getRange x) (nameToRawName x)) b
+    Just (Ident (QName x), b) -> named nm b
+      where nm = WithOrigin UserWritten $ Ranged (getRange x) $ nameToRawName x
     _                         -> unnamed e
 
 patternSynArgs :: [Either Hiding LamBinding] -> Parser [Arg Name]

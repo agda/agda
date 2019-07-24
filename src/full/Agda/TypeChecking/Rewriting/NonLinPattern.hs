@@ -94,7 +94,7 @@ instance PatternFrom () Sort NLPat where
       MetaS{}  -> __IMPOSSIBLE__
       DefS{}   -> done
       DummyS s -> do
-        reportSLn "impossible" 10 $ unlines
+        reportS "impossible" 10
           [ "patternFrom: hit dummy sort with content:"
           , s
           ]

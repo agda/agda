@@ -39,6 +39,7 @@ import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Permutation
+import Agda.Utils.POMonoid
 import qualified Agda.Utils.Pretty as P
 import Agda.Utils.Size
 
@@ -528,8 +529,21 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
           , "ftel2 =" <+> addContext ftel1 (underAbstraction_ ftel2 prettyTCM)
           , "abstr =" <+> (text . show) (Info.defAbstract info)
           , "quant =" <+> (text . show) (getQuantity ai)
+          , "coh   =" <+> (text . show) (getCohesion ai)
           ]
         ]
+
+      -- Cohesion check:
+      -- For a field `@c π : A` we would create a projection `π : .., (@(c^-1) r : R as) -> A`
+      -- So we want to check that `@.., (c^-1 . c) x : A |- x : A` is allowed by the modalities.
+      --
+      -- Alternatively we could create a projection `.. |- π r :c A`
+      -- but that would require support for a `t :c A` judgment.
+      if hasLeftAdjoint (getCohesion ai)
+        then unless (getCohesion ai == Continuous)
+                    -- Andrea TODO: properly update the context/type of the projection when we add Sharp
+                    __IMPOSSIBLE__
+        else genericError $ "Cannot have record fields with modality " ++ show (getCohesion ai)
 
       -- Andreas, 2010-09-09 The following comments are misleading, TODO: update
       -- in fact, tel includes the variable of record type as last one

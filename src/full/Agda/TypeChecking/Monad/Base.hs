@@ -2570,7 +2570,7 @@ initEnv = TCEnv { envContext             = []
   -- The initial mode should be 'ConcreteMode', ensuring you
   -- can only look into abstract things in an abstract
   -- definition (which sets 'AbstractMode').
-                , envModality               = Modality Relevant (Quantity1 mempty) mempty
+                , envModality               = mempty
                 , envDisplayFormsEnabled    = True
                 , envRange                  = noRange
                 , envHighlightingRange      = noRange
@@ -3101,7 +3101,7 @@ data TypeError
             -- ^ Expected a non-hidden function and found a hidden lambda.
         | WrongHidingInApplication Type
             -- ^ A function is applied to a hidden argument where a non-hidden was expected.
-        | WrongNamedArgument (NamedArg A.Expr) [RString]
+        | WrongNamedArgument (NamedArg A.Expr) [NamedName]
             -- ^ A function is applied to a hidden named argument it does not have.
             -- The list contains names of possible hidden arguments at this point.
         | WrongIrrelevanceInLambda

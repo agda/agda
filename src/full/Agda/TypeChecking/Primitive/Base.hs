@@ -42,7 +42,8 @@ gpi :: (MonadAddContext m, MonadDebug m)
     => ArgInfo -> String -> m Type -> m Type -> m Type
 gpi info name a b = do
   a <- a
-  let dom = defaultNamedArgDom info name a
+  let dom :: Dom Type
+      dom = defaultNamedArgDom info name a
   b <- addContext (name, dom) b
   let y = stringToArgName name
   return $ El (piSort dom (Abs y (getSort b)))

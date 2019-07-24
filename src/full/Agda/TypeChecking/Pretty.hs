@@ -295,7 +295,7 @@ instance PrettyTCM Constraint where
               -- Thus, this case is not IMPOSSIBLE.
               --
               -- InstV args t -> do
-              --   reportSLn "impossible" 10 $ unlines
+              --   reportS "impossible" 10
               --     [ "UnBlock meta " ++ show m ++ " surprisingly has InstV instantiation:"
               --     , show m ++ show args ++ " := " ++ show t
               --     ]

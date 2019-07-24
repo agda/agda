@@ -1169,7 +1169,7 @@ leqSort s1 s2 = (catchConstraint (SortCmp CmpLeq s1 s2) :: m () -> m ()) $ do
 
   where
   impossibleSort s = do
-    reportSLn "impossible" 10 $ unlines
+    reportS "impossible" 10
       [ "leqSort: found dummy sort with description:"
       , s
       ]
@@ -1579,7 +1579,7 @@ equalSort s1 s2 = do
           Just s  -> equalSort s s0
           Nothing -> addConstraint $ SortCmp CmpEq (funSort a s0) s0
       impossibleSort s = do
-        reportSLn "impossible" 10 $ unlines
+        reportS "impossible" 10
           [ "equalSort: found dummy sort with description:"
           , s
           ]
@@ -1634,14 +1634,15 @@ forallFaceMaps t kb k = do
         tel <- getContextTelescope
         m <- currentModule
         sub <- getModuleParameterSub m
-        reportSLn "conv.forall" 10 $ unlines [replicate 10 '-'
-                                             , show (envCurrentModule $ clEnv cl)
-                                             , show (envLetBindings $ clEnv cl)
-                                             , show tel -- (toTelescope $ envContext $ clEnv cl)
-                                             , show sigma
-                                             , show m
-                                             , show sub]
-
+        reportS "conv.forall" 10
+          [ replicate 10 '-'
+          , show (envCurrentModule $ clEnv cl)
+          , show (envLetBindings $ clEnv cl)
+          , show tel -- (toTelescope $ envContext $ clEnv cl)
+          , show sigma
+          , show m
+          , show sub
+          ]
         k sigma
   where
     -- TODO Andrea: inefficient because we try to reduce the ts which we know are in whnf

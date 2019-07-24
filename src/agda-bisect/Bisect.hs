@@ -50,6 +50,8 @@ compiledAgda =
 data Options = Options
   { mustSucceed               :: Bool
   , mustOutput, mustNotOutput :: [String]
+  , noInternalError           :: Bool
+      -- ^ Implies "must-fail" and "must-not-output" @internalErrorString@.
   , mustFinishWithin          :: Maybe Int
   , extraArguments            :: Bool
   , compiler                  :: Maybe String
@@ -63,6 +65,17 @@ data Options = Options
   , dryRun                    :: Maybe (Either FilePath String)
   , scriptOrArguments         :: Either (FilePath, [String]) [String]
   }
+
+-- | Substantiates implied options, e.g. those implied by 'noInternalError'.
+
+normalizeOptions :: Options -> Options
+normalizeOptions opt
+  | noInternalError opt = opt
+      { mustSucceed   = False
+      , mustNotOutput = internalErrorString : mustNotOutput opt
+      }
+  | otherwise = opt
+
 
 -- | Parses command-line options. Prints usage information and aborts
 -- this program if the options are malformed (or the help flag is
@@ -84,16 +97,18 @@ options =
           (strOption (long "must-output" <>
                       help "The command must output STRING" <>
                       metavar "STRING"))
-    <*> ((\ss ms -> maybeToList ms ++ ss) <$>
-         many
+    <*> many
            (strOption (long "must-not-output" <>
                        help "The command must not output STRING" <>
-                       metavar "STRING")) <*>
-         optional
-           (flag' internalErrorString
-                  (long "no-internal-error" <>
-                   help ("The command must not output " ++
-                         show internalErrorString))))
+                       metavar "STRING"))
+    <*> switch
+        (  long "no-internal-error"
+        <> help (concat
+            [ "The command must not output "
+            , show internalErrorString
+            , ".  Implies --must-fail."
+            ])
+        )
     <*> (optional $
            option
              (do n <- auto
@@ -284,7 +299,7 @@ options =
 
 main :: IO ()
 main = do
-  opts <- options
+  opts <- normalizeOptions <$> options
   case dryRun opts of
     Just (Left agda) -> do
       runAgda agda opts

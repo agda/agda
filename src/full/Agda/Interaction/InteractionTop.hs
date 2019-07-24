@@ -960,7 +960,7 @@ give_gen force ii rng s0 giveRefine = do
     modifyTheInteractionPoints $ replace ii iis'
     -- print abstract expr
     ce        <- lift $ abstractToConcreteScope scope ae
-    lift $ reportSLn "interaction.give" 30 $ unlines
+    lift $ reportS "interaction.give" 30
       [ "ce = " ++ show ce
       , "scopePrecedence = " ++ show (scope ^. scopePrecedence)
       ]

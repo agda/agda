@@ -1068,6 +1068,7 @@ instance PrettyTCM TypeError where
             , inTopContext $ addContext ("_" :: String) $ prettyTCM cxt' ]
       where
         cxt' = cxt `abstract` raise (size cxt) (nameCxt names)
+        nameCxt :: [Name] -> I.Telescope
         nameCxt [] = EmptyTel
         nameCxt (x : xs) = ExtendTel (defaultDom (El __DUMMY_SORT__ $ I.var 0)) $
           NoAbs (P.prettyShow x) $ nameCxt xs

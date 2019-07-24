@@ -1378,10 +1378,10 @@ instance ToAbstract LetDef [A.LetBinding] where
               definedName C.HiddenP{}            = Nothing -- Not impossible, see issue #2291
               definedName C.InstanceP{}          = Nothing
               definedName C.WithP{}              = Nothing
-              definedName C.RawAppP{}            = __IMPOSSIBLE__
+              definedName (C.RawAppP _ [])       = __IMPOSSIBLE__
               definedName C.AppP{}               = __IMPOSSIBLE__
               definedName C.OpAppP{}             = __IMPOSSIBLE__
-              definedName C.EllipsisP{}          = __IMPOSSIBLE__
+              definedName C.EllipsisP{}          = Nothing -- Not impossible, see issue #3937
 
       -- You can't open public in a let
       NiceOpen r x dirs -> do
@@ -1444,10 +1444,14 @@ instance ToAbstract LetDef [A.LetBinding] where
 instance ToAbstract NiceDeclaration A.Declaration where
 
   toAbstract d = annotateDecls $
-    traceSLn "scope.decl.trace" 50 (unlines
+    traceS "scope.decl.trace" 50
       [ "scope checking declaration"
       , "  " ++  prettyShow d
-      ]) $
+      ] $
+    traceS "scope.decl.trace" 80
+      [ "scope checking declaration (raw)"
+      , "  " ++  show d
+      ] $
     traceCall (ScopeCheckDeclaration d) $
     -- Andreas, 2015-10-05, Issue 1677:
     -- We record in the environment whether we are scope checking an
@@ -1894,7 +1898,7 @@ instance LivesInCurrentModule AbstractName where
 instance LivesInCurrentModule A.QName where
   livesInCurrentModule x = do
     m <- getCurrentModule
-    reportSLn "scope.data.def" 30 $ unlines
+    reportS "scope.data.def" 30
       [ "  A.QName of data type: " ++ show x
       , "  current module: " ++ show m
       ]

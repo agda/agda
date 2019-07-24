@@ -553,7 +553,7 @@ reifyTerm expandAnonDefs0 v0 = do
               p = mvPermutation mv
               applyPerm p vs = permute (takeP (size vs) p) vs
 
-              names = map unranged $ p `applyPerm` teleNames meta_tel
+              names = map (WithOrigin Inserted . unranged) $ p `applyPerm` teleNames meta_tel
               named_es' = addNames names es'
 
               dropIdentitySubs sub_local2G sub_tel2G =
@@ -598,14 +598,14 @@ reifyTerm expandAnonDefs0 v0 = do
       r <- reduceDefCopy x es
       case r of
         YesReduction _ v -> do
-          reportSLn "reify.anon" 60 $ unlines
+          reportS "reify.anon" 60
             [ "reduction on defined ident. in anonymous module"
             , "x = " ++ prettyShow x
             , "v = " ++ show v
             ]
           reify v
         NoReduction () -> do
-          reportSLn "reify.anon" 60 $ unlines
+          reportS "reify.anon" 60
             [ "no reduction on defined ident. in anonymous module"
             , "x  = " ++ prettyShow x
             , "es = " ++ show es
@@ -688,8 +688,10 @@ reifyTerm expandAnonDefs0 v0 = do
               -- These are the dropped projection arguments
               scope <- getScope
               let underscore = A.Underscore $ Info.emptyMetaInfo { metaScope = scope }
-              let pad = for as $ \ (Dom{domInfo = ai, unDom = (x, _)}) ->
-                    Arg ai $ Named (Just $ unranged x) underscore
+              let pad :: [NamedArg Expr]
+                  pad = for as $ \ (Dom{domInfo = ai, unDom = (x, _)}) ->
+                    Arg ai $ Named (Just $ WithOrigin Inserted $ unranged x) underscore
+                      -- TODO #3353 Origin from Dom?
 
               -- Now pad' ++ es' = drop n (pad ++ es)
               let pad' = drop n pad
@@ -713,13 +715,13 @@ reifyTerm expandAnonDefs0 v0 = do
               let (padVisNamed, padRest) = filterAndRest visible pad'
 
               -- Remove the names from the visible arguments.
-              let padVis  = map (fmap (unnamed . namedThing)) padVisNamed
+              let padVis  = map (fmap $ unnamed . namedThing) padVisNamed
 
               -- Keep only the rest with the same visibility of @dom@...
               let padTail = filter (sameHiding dom) padRest
 
               -- ... and even the same name.
-              let padSame = filter ((Just (fst (unDom dom)) ==) . fmap rangedThing . nameOf . unArg) padTail
+              let padSame = filter ((Just (fst $ unDom dom) ==) . bareNameOf) padTail
 
               return $ if null padTail || not showImp
                 then (padVis           , map (fmap unnamed) es')
@@ -728,7 +730,7 @@ reifyTerm expandAnonDefs0 v0 = do
             -- If it is not a projection(-like) function, we need no padding.
             _ -> return ([], map (fmap unnamed) $ drop n es)
 
-           reportSLn "reify.def" 70 $ unlines
+           reportS "reify.def" 70
              [ "  pad = " ++ show pad
              , "  nes = " ++ show nes
              ]
@@ -781,7 +783,7 @@ reifyTerm expandAnonDefs0 v0 = do
 -- | @nameFirstIfHidden (x:a) ({e} es) = {x = e} es@
 nameFirstIfHidden :: Dom (ArgName, t) -> [Elim' a] -> [Elim' (Named_ a)]
 nameFirstIfHidden dom (I.Apply (Arg info e) : es) | notVisible info =
-  I.Apply (Arg info (Named (Just $ unranged $ fst $ unDom dom) e)) :
+  I.Apply (Arg info (Named (Just $ WithOrigin Inserted $ unranged $ fst $ unDom dom) e)) :
   map (fmap unnamed) es
 nameFirstIfHidden _ es =
   map (fmap unnamed) es
@@ -821,19 +823,26 @@ instance (Ord k, Monoid v) => Monoid (MonoidMap k v) where
   mempty = MonoidMap Map.empty
   mappend = (<>)
 
+-- | Removes argument names.  Preserves names present in the source.
+removeNameUnlessUserWritten :: (LensNamed n a, LensOrigin n) => a -> a
+removeNameUnlessUserWritten a
+  | (getOrigin <$> getNameOf a) == Just UserWritten = a
+  | otherwise = setNameOf Nothing a
+
+
 -- | Removes implicit arguments that are not needed, that is, that don't bind
 --   any variables that are actually used and doesn't do pattern matching.
 --   Doesn't strip any arguments that were written explicitly by the user.
 stripImplicits :: MonadReify m => A.Patterns -> A.Patterns -> m A.Patterns
 stripImplicits params ps = do
   -- if --show-implicit we don't need the names
-  ifM showImplicitArguments (return $ map (unnamed . namedThing <$>) ps) $ do
-    reportSLn "reify.implicit" 30 $ unlines
+  ifM showImplicitArguments (return $ map (fmap removeNameUnlessUserWritten) ps) $ do
+    reportS "reify.implicit" 30
       [ "stripping implicits"
       , "  ps   = " ++ show ps
       ]
     let ps' = blankDots $ strip ps
-    reportSLn "reify.implicit" 30 $ unlines
+    reportS "reify.implicit" 30
       [ "  ps'  = " ++ show ps'
       ]
     return ps'
@@ -858,17 +867,18 @@ stripImplicits params ps = do
               a'     = setNamedArg a $ A.WildP $ Info.PatRange $ getRange a
               goWild = stripName fixedPos a' : stripArgs True as
 
-          stripName True  = fmap (unnamed . namedThing)
+          stripName True  = fmap removeNameUnlessUserWritten
           stripName False = id
 
           -- TODO: vars appearing in EqualPs shouldn't be stripped.
           canStrip a = and
             [ notVisible a
             , getOrigin a `notElem` [ UserWritten , CaseSplit ]
+            , (getOrigin <$> getNameOf a) /= Just UserWritten
             , varOrDot (namedArg a)
             ]
 
-          isUnnamedHidden x = notVisible x && isNothing (nameOf (unArg x)) && isNothing (isProjP x)
+          isUnnamedHidden x = notVisible x && isNothing (getNameOf x) && isNothing (isProjP x)
 
           stripArg a = fmap (fmap stripPat) a
 
@@ -891,7 +901,7 @@ stripImplicits params ps = do
           varOrDot A.WildP{}     = True
           varOrDot A.DotP{}      = True
           varOrDot (A.ConP cpi _ ps) | patOrigin cpi == ConOSystem
-                                 = all varOrDot $ map namedArg ps
+                                 = all (varOrDot . namedArg) ps
           varOrDot _             = False
 
 -- | @blank bound e@ replaces all variables in expression @e@ that are not in @bound@ by
@@ -1206,7 +1216,7 @@ instance Reify NamedClause A.Clause where
 
 instance Reify (QNamed System) [A.Clause] where
   reify (QNamed f (System tel sys)) = addContext tel $ do
-    reportSLn "reify.system" 40 $ unlines $ show tel : map show sys
+    reportS "reify.system" 40 $ show tel : map show sys
     unview <- intervalUnview'
     forM sys $ \ (alpha,u) -> do
       rhs <- RHS <$> reify u <*> pure Nothing

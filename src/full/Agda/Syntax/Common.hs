@@ -18,6 +18,8 @@ import Data.Semigroup hiding (Arg)
 #endif
 import Data.ByteString.Char8 (ByteString)
 import qualified Data.ByteString.Char8 as ByteString
+import Data.Foldable ()
+import Data.Function
 import Data.Hashable (Hashable(..))
 import qualified Data.Strict.Maybe as Strict
 import Data.Data (Data)
@@ -31,6 +33,7 @@ import Agda.Syntax.Position
 
 import Agda.Utils.Functor
 import Agda.Utils.Lens
+import Agda.Utils.Maybe
 import Agda.Utils.Null
 import Agda.Utils.PartialOrd
 import Agda.Utils.POMonoid
@@ -1024,9 +1027,9 @@ instance LensCohesion Cohesion where
   mapCohesion = id
 
 -- | Information ordering.
--- @Flat  \`moreRelevant\`
---  Continuous \`moreRelevant\`
---  Sharp \`moreRelevant\`
+-- @Flat  \`moreCohesion\`
+--  Continuous \`moreCohesion\`
+--  Sharp \`moreCohesion\`
 --  Squash@
 moreCohesion :: Cohesion -> Cohesion -> Bool
 moreCohesion = (<=)
@@ -1035,7 +1038,7 @@ moreCohesion = (<=)
 sameCohesion :: Cohesion -> Cohesion -> Bool
 sameCohesion = (==)
 
--- | More relevant is smaller.
+-- | Order is given by implication: flatter is smaller.
 instance Ord Cohesion where
   compare = curry $ \case
     (r, r') | r == r' -> EQ
@@ -1048,7 +1051,7 @@ instance Ord Cohesion where
     -- redundant case
     (Continuous,Continuous) -> EQ
 
--- | More relevant is smaller.
+-- | Flatter is smaller.
 instance PartialOrd Cohesion where
   comparable = comparableOrd
 
@@ -1057,8 +1060,7 @@ usableCohesion :: LensCohesion a => a -> Bool
 usableCohesion a = getCohesion a `moreCohesion` Continuous
 
 -- | 'Cohesion' composition.
---   'Irrelevant' is dominant, 'Relevant' is neutral.
---   Composition coincides with 'max'.
+--   'Squash' is dominant, 'Continuous' is neutral.
 composeCohesion :: Cohesion -> Cohesion -> Cohesion
 composeCohesion r r' =
   case (r, r') of
@@ -1069,7 +1071,7 @@ composeCohesion r r' =
     (Continuous, Continuous) -> Continuous
 
 -- | Compose with cohesion flag from the left.
---   This function is e.g. used to update the relevance information
+--   This function is e.g. used to update the cohesion information
 --   on pattern variables @a@ after a match against something of cohesion @rel@.
 applyCohesion :: LensCohesion a => Cohesion -> a -> a
 applyCohesion rel = mapCohesion (rel `composeCohesion`)
@@ -1079,6 +1081,7 @@ applyCohesion rel = mapCohesion (rel `composeCohesion`)
 --   @x \`moreCohesion\` (r \`composeCohesion\` y)@
 --   iff
 --   @(r \`inverseComposeCohesion\` x) \`moreCohesion\` y@ (Galois connection).
+--   The above law fails for @r = Squash@.
 inverseComposeCohesion :: Cohesion -> Cohesion -> Cohesion
 inverseComposeCohesion r x =
   case (r, x) of
@@ -1153,6 +1156,9 @@ data WithOrigin a = WithOrigin
 
 instance Decoration WithOrigin where
   traverseF f (WithOrigin h a) = WithOrigin h <$> f a
+
+instance Pretty a => Pretty (WithOrigin a) where
+  prettyPrec p = prettyPrec p . woThing
 
 instance HasRange a => HasRange (WithOrigin a) where
   getRange = getRange . dget
@@ -1557,13 +1563,23 @@ data Named name a =
     deriving (Eq, Ord, Show, Data, Functor, Foldable, Traversable)
 
 -- | Standard naming.
-type Named_ = Named RString
+type Named_ = Named NamedName
+
+-- | Standard argument names.
+type NamedName = WithOrigin (Ranged ArgName)
+
+-- | Equality of argument names of things modulo 'Range' and 'Origin'.
+sameName :: NamedName -> NamedName -> Bool
+sameName = (==) `on` (rangedThing . woThing)
 
 unnamed :: a -> Named name a
 unnamed = Named Nothing
 
 named :: name -> a -> Named name a
 named = Named . Just
+
+userNamed :: Ranged ArgName -> a -> Named_ a
+userNamed = Named . Just . WithOrigin UserWritten
 
 -- | Accessor/editor for the 'nameOf' component.
 class LensNamed name a | a -> name where
@@ -1574,6 +1590,9 @@ class LensNamed name a | a -> name where
   lensNamed = traverseF . lensNamed
 
 instance LensNamed name a => LensNamed name (Arg a) where
+
+instance LensNamed name (Maybe name) where
+  lensNamed = id
 
 instance LensNamed name (Named name a) where
   lensNamed f (Named mn a) = f mn <&> \ mn' -> Named mn' a
@@ -1586,6 +1605,45 @@ setNameOf = set lensNamed
 
 mapNameOf :: LensNamed name a => (Maybe name -> Maybe name) -> a -> a
 mapNameOf = over lensNamed
+
+bareNameOf :: LensNamed NamedName a => a -> Maybe ArgName
+bareNameOf a = rangedThing . woThing <$> getNameOf a
+
+bareNameWithDefault :: LensNamed NamedName a => ArgName -> a -> ArgName
+bareNameWithDefault x a = maybe x (rangedThing . woThing) $ getNameOf a
+
+-- | Equality of argument names of things modulo 'Range' and 'Origin'.
+namedSame :: (LensNamed NamedName a, LensNamed NamedName b) => a -> b -> Bool
+namedSame a b = case (getNameOf a, getNameOf b) of
+  (Nothing, Nothing) -> True
+  (Just x , Just y ) -> sameName x y
+  _ -> False
+
+-- | Does an argument @arg@ fit the shape @dom@ of the next expected argument?
+--
+--   The hiding has to match, and if the argument has a name, it should match
+--   the name of the domain.
+--
+--   'Nothing' should be '__IMPOSSIBLE__', so use as
+--   @@
+--     fromMaybe __IMPOSSIBLE__ $ fittingNamedArg arg dom
+--   @@
+--
+fittingNamedArg
+  :: ( LensNamed NamedName arg, LensHiding arg
+     , LensNamed NamedName dom, LensHiding dom )
+  => arg -> dom -> Maybe Bool
+fittingNamedArg arg dom
+    | not $ sameHiding arg dom = no
+    | visible arg              = yes
+    | otherwise =
+        caseMaybe (bareNameOf arg) yes        $ \ x ->
+        caseMaybe (bareNameOf dom) impossible $ \ y ->
+        return $ x == y
+  where
+    yes = return True
+    no  = return False
+    impossible = Nothing
 
 -- Standard instances for 'Named':
 
@@ -1637,6 +1695,20 @@ updateNamedArgA = traverse . traverse
 -- | @setNamedArg a b = updateNamedArg (const b) a@
 setNamedArg :: NamedArg a -> b -> NamedArg b
 setNamedArg a b = (b <$) <$> a
+
+-- ** ArgName
+
+-- | Names in binders and arguments.
+type ArgName = String
+
+argNameToString :: ArgName -> String
+argNameToString = id
+
+stringToArgName :: String -> ArgName
+stringToArgName = id
+
+appendArgNames :: ArgName -> ArgName -> ArgName
+appendArgNames = (++)
 
 ---------------------------------------------------------------------------
 -- * Range decoration.

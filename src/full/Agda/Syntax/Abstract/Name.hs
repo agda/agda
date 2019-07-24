@@ -9,12 +9,13 @@ module Agda.Syntax.Abstract.Name
 
 import Control.DeepSeq
 
-import Data.Foldable (Foldable)
-import Data.Traversable (Traversable)
 import Data.Data (Data)
-import Data.List
+import Data.Foldable (Foldable)
 import Data.Function
 import Data.Hashable (Hashable(..))
+import Data.List
+import Data.Maybe
+import Data.Traversable (Traversable)
 import Data.Void
 
 import Agda.Syntax.Position
@@ -329,6 +330,12 @@ instance Show ModuleName where
 --   abstract 'QName' into a string use @prettyShow@.
 instance Show QName where
   show = prettyShow
+
+nameToArgName :: Name -> ArgName
+nameToArgName = stringToArgName . prettyShow
+
+namedArgName :: NamedArg Name -> ArgName
+namedArgName x = fromMaybe (nameToArgName $ namedArg x) $ bareNameOf x
 
 ------------------------------------------------------------------------
 -- * Pretty instances

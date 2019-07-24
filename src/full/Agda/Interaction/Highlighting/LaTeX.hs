@@ -621,7 +621,7 @@ generateLaTeX i = do
                     "kpsewhich" [ "--path=" ++ dir,  defaultStyFile ] ""
 
   when (code /= ExitSuccess) $ do
-    TCM.reportSLn "compile.latex" 1 $ unlines
+    TCM.reportS "compile.latex" 1
       [ defaultStyFile ++ " was not found. Copying a default version of " ++
           defaultStyFile
       , "into " ++ dir ++ "."

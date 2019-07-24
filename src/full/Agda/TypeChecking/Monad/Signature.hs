@@ -264,7 +264,7 @@ addDisplayForms x = do
           case unSpine <$> body of
             Just (Def y es) -> do
               let df = Display m es $ DTerm $ Def top $ map Apply args
-              reportSLn "tc.display.section" 20 $ unlines
+              reportS "tc.display.section" 20
                 [ "adding display form " ++ prettyShow y ++ " --> " ++ prettyShow top
                 , show df
                 ]
@@ -275,7 +275,7 @@ addDisplayForms x = do
         [] | Constructor{ conSrcCon = h } <- theDef def -> do
               let y  = conName h
                   df = Display 0 [] $ DTerm $ Con (h {conName = top }) ConOSystem []
-              reportSLn "tc.display.section" 20 $ unlines
+              reportS "tc.display.section" 20
                 [ "adding display form " ++ prettyShow y ++ " --> " ++ prettyShow top
                 , show df
                 ]
@@ -931,7 +931,7 @@ moduleParamsToApply m = do
   sub <- getModuleParameterSub m
   verboseS "tc.sig.param" 60 $ do
     cxt <- getContext
-    reportSLn "tc.sig.param" 60 $ unlines $
+    reportS "tc.sig.param" 60 $
       [ "  n    = " ++ show n
       , "  cxt  = " ++ show (map (fmap fst) cxt)
       , "  sub  = " ++ show sub

@@ -1,5 +1,41 @@
-Working with Git (from 2013-06-15)
-====================================
+Code of conduct
+===============
+
+* Follow the Haskell style guide at
+  https://github.com/andreasabel/haskell-style-guide/blob/master/haskell-style.md .
+
+* Familiarize yourself with our local toolbox at `src/full/Agda/Utils/*`.
+
+* Write code with verification in mind, documenting invariants and
+  pre- and post-conditions.  Testable invariants and algebraic properties
+  go to the internal testsuite at `test/Internal`.
+
+* Document (in `haddock` style) the purpose of functions and data structures,
+  down to the individual constructor and field.
+  An overview over a component or algorithm should be given in the
+  `haddock` module comment.
+
+* Remember to document your new feature in `doc/user-manual` and briefly in
+  `CHANGELOG.md`. See [Testing and documentation](#testing-and-documentation).
+
+  Excluded are simple bug fixes with a milestone on github and without
+  the tag `not-in-changelog`.  These are added upon release by the
+  release manager via the tool `src/release-tools/closed-issues-for-milestone`.
+  See [Closing issues](#closing-issues).
+
+* Run the full testsuite before pushing patches!
+
+  The recommended way is to run the testsuite on `travis-ci.org`.
+  It is automatically started when submitting a pull request.
+
+Note: Some instructions in this document are likely outdated,
+so take everything with a grain of salt.
+Fixes to outdated instructions welcome!
+
+Working with git
+================
+
+Since: 2013-06-15.
 
 Branches
 ---------
@@ -79,7 +115,7 @@ Finding the commit that introduced a regression
 If you want to find the commit that introduced a regression that
 caused Module-that-should-be-accepted to be rejected, then you can try
 the following recipe:
-
+  ```sh
     git clone <agda repository> agda-bug
     cd agda-bug
     git checkout <suitable branch>
@@ -92,23 +128,23 @@ the following recipe:
                      --disable-documentation || exit 125; \
        .cabal-sandbox/bin/agda --ignore-interfaces \
          Module-that-should-be-accepted.agda"
-
+  ```
 An alternative is to use the program agda-bisect from
 `src/agda-bisect`:
-
+  ```sh
     git clone <agda repository> agda-bug
     cd agda-bug
     cp <some path>/Module-that-should-be-accepted.agda .
     agda-bisect --bad <bad commit> --good <good commit> \
       Module-that-should-be-accepted.agda
-
+  ```
 See `agda-bisect --help` for usage information.
 
 The following command temporarily enables Bash completion for
 `agda-bisect`:
-
+  ```sh
     source < (agda-bisect --bash-completion-script `which agda-bisect`)
-
+  ```
 Bash completion can perhaps be enabled more permanently by storing the
 output of the command above in a file in a suitable directory (like
 `/etc/bash_completion.d/`).
@@ -141,9 +177,10 @@ Standard library submodule
 
   If the new version of the standard library also passes all tests, you can
   have the repository point to it:
-
+  ```sh
       git add std-lib
       git commit
+  ```
 
 * The standard library is tracked as a git submodule, which means that the
   `/std-lib` subdirectory will appear as a git repository in a detached-HEAD
@@ -166,12 +203,13 @@ Testing and documentation
   and `test/Fail`, and maybe also `test/interaction`. When adding test
   cases under `test/Fail`, remember to record the error messages
   (`.err` files) after running make test.
+  Same for `.warn` files in `test/Succeed` and `.out` files in `test/interaction`.
 
-* Run the test-suite, using `make test`.  Maybe you want to build
-  using `make` first as well.
+* Run the test-suite, using `make test`.
+  Maybe you want to build Agda first, using `make` or `make install-bin`.
 
-* You can run a single test by going into the directory and typing
-  `make <test name>.cmp`.
+* You can run a single interaction test by going into the
+  `test/interaction` directory and typing `make <test name>.cmp`.
 
 * Additional options for the tests using the Haskell/tasty test runner
   can be given using `AGDA_TESTS_OPTIONS`. By default, the interactive
@@ -181,9 +219,9 @@ Testing and documentation
   You can select certain tests to run by using the `-p` pattern option.
   For example, to only run the simple MAlonzo compiler tests, you
   can use the following command:
-
-      make AGDA_TESTS_OPTIONS="-i -j8 -p MAlonzo.simple" compiler-test
-
+  ```sh
+    make AGDA_TESTS_OPTIONS="-i -j8 -p MAlonzo.simple" compiler-test
+  ```
   You can use the `AGDA_ARGS` environment variable to pass additional
   arguments to Agda when executing the Succeed/Fail/Compiler tests.
 
@@ -199,9 +237,9 @@ Testing and documentation
   accept the new golden value.
 
 * Make sure you do not introduce performance regression.  If you
-
-      make library-test
-
+  ```sh
+    make library-test
+  ```
   you get a small table with benchmarks at the end. (Due to garbage
   collection, these benchmarks are not 100% stable.)  Compare this
   with benchmarks before the new feature/bug fix.
@@ -213,17 +251,18 @@ Testing and documentation
 
 * To avoid problems with the whitespace test failing we suggest add the
   following lines to `.git/hooks/pre-commit`:
-
+  ```sh
       echo "Starting pre-commit"
       make check-whitespace
       if [ $? -ne 0 ]; then
         exit 1
       fi
       echo "Ending pre-commit"
-
+  ```
   You can fix the whitespace issues running
-
+  ```sh
       make fix-whitespace
+  ```
 
 * To build the user manual locally, you need to install
   the following dependencies:
@@ -248,22 +287,21 @@ Testing and documentation
   If the sandbox uses for example the directory
   `dist/dist-sandbox-12345` you can run the test-suite using the
   following commands:
-
+  ```sh
       export AGDA_BIN=dist/dist-sandbox-12345/build/agda/agda
       export AGDA_TESTS_BIN=dist/dist-sandbox-12345/build/agda-tests/agda-tests
       make test
+  ```
 
 * Internal test-suite
 
-  The internal test-suite is used for testing the Agda library (which
-  after closing Issue #2083 doesn't use the QuickCheck library).
+  The internal test-suite `test/Internal` is used for testing the Agda library
+  (which after closing Issue #2083 doesn't use the QuickCheck library).
 
-  The test-suite uses the same directory structure than the Agda
-  library.
+  The test-suite uses the same directory structure as the Agda library.
 
-  A new internal test or a new `QuickCheck` instance, i.e. instances
-  of `Arbitrary` or `CoArbitrary`, for a module `Agda.Foo.Bar` should
-  be added into the module `InternalTests.Foo.Bar`
+  Internal tests for a module `Agda.Foo.Bar` should reside in module
+  `InternalTests.Foo.Bar`.  Same for `Arbitrary` and `CoArbitrary` instances.
 
 Some Agda Hacking Lore
 ======================
@@ -300,9 +338,9 @@ Some Agda Hacking Lore
   In order to avoid *unnecessary* orphan instances the flag
   `-fwarn-orphans` is turned on. If you feel that you really want to use
   an orphan instance, place
-
+  ```haskell
       {-# OPTIONS_GHC -fno-warn-orphans #-}
-
+  ```
   at the top of the module containing the instance.
 
 Haskell-mode and the Agda codebase
@@ -344,7 +382,7 @@ Emacs mode
 
 * The following Elisp code by Nils Anders Danielsson fixes whitespace
   issues upon save.  Add to your `.emacs`.
-
+  ```elisp
       (defvar fix-whitespace-modes
         '(text-mode agda2-mode haskell-mode emacs-lisp-mode LaTeX-mode TeX-mode)
         "*Whitespace issues should be fixed when these modes are used.")
@@ -362,6 +400,28 @@ Emacs mode
                 (unless (equal ?\n (char-before (point-max)))
                   (goto-char (point-max))
                   (insert "\n")))))))
+  ```
+
+Faster compilation of Agda
+==========================
+
+Since: July 2019.
+
+* `make quicker-install-bin` compiles Agda will all optimizations turned off (`-O0`).
+  This could be e.g. 5 times as fast (5min instead of 25min).
+
+* Recommended during the development process of a refactoring, new feature or bug fix.
+  Not recommended when building Agda for Agda development.
+  Unoptimized Agda is slooooow.
+
+* The generated executables have the suffix `-quicker`, e.g., `agda-quicker`.
+
+* In Emacs, activate this version of Agda via
+  `M-x agda2-set-program-version RET quicker RET`.
+
+* Running the testsuite requires some tinkering.  E.g., the interactive testsuite
+  can be run via `make -C test/interaction AGDA-BIN=agda-quicker`.
+
 
 Cabal stuff
 ===========
@@ -399,7 +459,7 @@ Closing issues
 
 Before releasing for example Agda 1.2.3 we add to the `CHANGELOG`
 *all* the closed issues with milestone 1.2.3 (using the
-`clossed-issues-by-milestone` program) except those issues labelled
+`closed-issues-by-milestone` program) except those issues labelled
 with `not-in-changelog`, `status: abandoned`, `status: duplicated`,
 `status: invalid`, `status: wontfix` or `status: working-as-intended`.
 

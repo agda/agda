@@ -49,6 +49,8 @@ Pragmas and options
   ```
   at the beginning of the file.
 
+* New pragma option `--no-flat-split` disables pattern matching on `@♭` arguments.
+
 GHC Backend
 -----------
 
@@ -123,6 +125,14 @@ Language
   The former one tries to solve all constraints, whereas the latter
   one wakes up all constraints mentioning the given meta-variables,
   and then tries to solve all awake constraints.
+
+### Modalities
+
+* New Flat Modality
+
+  New modality `@♭/@flat` (previously only available in the branch "flat").
+  An idempotent comonadic modality modeled after spatial/crisp type thepry.
+  See "Flat Modality" in the documentation for more.
 
 ### Syntax
 

@@ -125,7 +125,7 @@ printHighlightingInfo ::
 printHighlightingInfo remove info = do
   modToSrc <- useTC stModuleToSource
   method   <- viewTC eHighlightingMethod
-  liftTCM $ reportSLn "highlighting" 50 $ unlines
+  liftTCM $ reportS "highlighting" 50
     [ "Printing highlighting info:"
     , show info
     , "  modToSrc = " ++ show modToSrc

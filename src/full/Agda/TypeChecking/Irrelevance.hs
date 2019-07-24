@@ -213,8 +213,7 @@ applyCohesionToContextOnly q = localTC
 splittableCohesion :: (HasOptions m, LensCohesion a) => a -> m Bool
 splittableCohesion a = do
   let c = getCohesion a
-  flatSplit <- optFlatSplit <$> pragmaOptions
-  return $ usableCohesion c && (flatSplit || c /= Flat)
+  pure (usableCohesion c) `and2M` (pure (c /= Flat) `or2M` do optFlatSplit <$> pragmaOptions)
 
 -- | (Conditionally) wake up irrelevant variables and make them relevant.
 --   For instance,

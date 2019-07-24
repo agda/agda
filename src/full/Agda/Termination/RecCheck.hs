@@ -54,7 +54,7 @@ recDef names name = do
     Function{ funClauses = cls } -> anyDefs names cls
     _ -> return []
 
-  reportSLn "rec.graph" 20 $ unlines
+  reportS "rec.graph" 20
     [ "recDef " ++ prettyShow name
     , "  names in the type: " ++ show ns1
     , "  names in the def:  " ++ show ns2

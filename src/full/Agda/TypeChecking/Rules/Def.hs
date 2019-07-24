@@ -398,7 +398,7 @@ useTerPragma def@Defn{ defName = name, theDef = fun@Function{}} = do
         NonTerminating -> Just False
         Terminating    -> Just True
         _              -> Nothing
-  reportSLn "tc.fundef" 30 $ unlines $
+  reportS "tc.fundef" 30 $
     [ "funTerminates of " ++ prettyShow name ++ " set to " ++ show terminates
     , "  tc = " ++ show tc
     ]

@@ -124,7 +124,7 @@ computeForcingAnnotations c t =
         [ if isForced m i then Forced else NotForced
         | (i, m) <- zip (downFrom n) $ map getModality (telToList tel)
         ]
-  reportSLn "tc.force" 60 $ unlines
+  reportS "tc.force" 60
     [ "Forcing analysis for " ++ show c
     , "  xs          = " ++ show (map snd xs)
     , "  forcedArgs  = " ++ show forcedArgs
@@ -211,7 +211,7 @@ forceTranslateTelescope delta qs = do
       old  = xms \\ xms'
       new  = xms' \\ xms
   if null new then return delta else do
-      reportSLn "tc.force" 40 $ unlines $
+      reportS "tc.force" 40 $
         [ "Updating modalities of forced arguments"
         , "  from: " ++ show old
         , "  to:   " ++ show new

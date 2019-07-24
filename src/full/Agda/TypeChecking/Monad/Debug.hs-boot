@@ -36,6 +36,5 @@ class (Functor m, Applicative m, Monad m) => MonadDebug m where
 
 instance MonadDebug TCM
 
-reportS :: MonadDebug m => VerboseKey -> Int -> String -> m ()
 reportSLn :: MonadDebug m => VerboseKey -> Int -> String -> m ()
 reportSDoc :: MonadDebug m => VerboseKey -> Int -> TCM Doc -> m ()

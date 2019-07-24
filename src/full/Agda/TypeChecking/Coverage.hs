@@ -1042,8 +1042,7 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps cps c = do
 
   let preserve (x, t@(El _ (Def d' _))) | d == d' = (n, t)
       preserve (x, t) = (x, t)
-      gammal = map (fmap preserve) . telToList $ gamma0
-      gamma  = telFromList gammal
+      gamma  = telFromList . map (fmap preserve) . telToList $ gamma0
       delta1Gamma = delta1 `abstract` gamma
 
   debugInit con ctype d pars ixs cixs delta1 delta2 gamma tel ps hix
@@ -1113,8 +1112,8 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps cps c = do
       return $ Just $ SClause delta' ps' rho cps' Nothing -- target fixed later
 
   where
-    debugInit con ctype d pars ixs cixs delta1 delta2 gamma tel ps hix =
-      liftTCM $ reportSDoc "tc.cover.split.con" 20 $ vcat
+    debugInit con ctype d pars ixs cixs delta1 delta2 gamma tel ps hix = liftTCM $ do
+      reportSDoc "tc.cover.split.con" 20 $ vcat
         [ "computeNeighbourhood"
         , nest 2 $ vcat
           [ "context=" <+> (inTopContext . prettyTCM =<< getContextTelescope)
@@ -1129,6 +1128,23 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps cps c = do
           , "delta2 =" <+> do inTopContext $ addContext delta1 $ addContext gamma $ prettyTCM delta2
           , "gamma  =" <+> do inTopContext $ addContext delta1 $ prettyTCM gamma
           , "tel  =" <+> do inTopContext $ prettyTCM tel
+          , "hix    =" <+> text (show hix)
+          ]
+        ]
+      reportSDoc "tc.cover.split.con" 70 $ vcat
+        [ "computeNeighbourhood"
+        , nest 2 $ vcat
+          [ "context=" <+> (inTopContext . (text . show) =<< getContextTelescope)
+          , "con    =" <+> (text . show) con
+          , "ctype  =" <+> (text . show) ctype
+          , "ps     =" <+> (text . show) ps
+          , "d      =" <+> (text . show) d
+          , "pars   =" <+> (text . show) pars
+          , "ixs    =" <+> (text . show) ixs
+          , "cixs   =" <+> (text . show) cixs
+          , "delta1 =" <+> (text . show) delta1
+          , "delta2 =" <+> (text . show) delta2
+          , "gamma  =" <+> (text . show) gamma
           , "hix    =" <+> text (show hix)
           ]
         ]
@@ -1388,6 +1404,15 @@ split' checkEmpty ind allowPartialCover fixtarget
           , "x       =" <+> prettyTCM x
           , "ps      =" <+> do addContext tel $ prettyTCMPatternList $ fromSplitPatterns ps
           , "cps     =" <+> prettyTCM cps
+          ]
+        ]
+      reportSDoc "tc.cover.top" 60 $ vcat
+        [ "TypeChecking.Coverage.split': split"
+        , nest 2 $ vcat
+          [ "tel     =" <+> (text . show) tel
+          , "x       =" <+> (text . show) x
+          , "ps      =" <+> (text . show) ps
+          , "cps     =" <+> (text . show) cps
           ]
         ]
 

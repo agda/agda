@@ -853,14 +853,14 @@ instance ToConcrete a c => ToConcrete (FieldAssignment' a) (FieldAssignment' c) 
 -- name safe.
 forceNameIfHidden :: NamedArg A.Binder -> NamedArg A.Binder
 forceNameIfHidden x
-  | isJust $ nameOf $ unArg x = x
-  | visible x                 = x
-  | otherwise                 = x <&> \ y -> y { nameOf = Just name }
+  | isJust $ getNameOf  x = x
+  | visible x             = x
+  | otherwise             = setNameOf (Just name) x
   where
-    name = Ranged (getRange x)
+    name = WithOrigin Inserted
+         $ Ranged (getRange x)
          $ C.nameToRawName $ nameConcrete
          $ unBind $ A.binderName $ namedArg x
-
 
 instance ToConcrete a b => ToConcrete (A.Binder' a) (C.Binder' b) where
   toConcrete (A.Binder p a) = C.Binder <$> toConcrete p <*> toConcrete a
@@ -1457,7 +1457,7 @@ tryToRecoverOpApp e def = fromMaybeM def $
 tryToRecoverOpAppP :: A.Pattern -> AbsToCon (Maybe C.Pattern)
 tryToRecoverOpAppP p = do
   res <- recoverOpApp bracketP_ (const False) opApp view p
-  reportSLn "print.op" 90 $ unlines
+  reportS "print.op" 90
     [ "tryToRecoverOpApp"
     , "in:  " ++ show p
     , "out: " ++ show res

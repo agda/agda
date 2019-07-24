@@ -13,6 +13,7 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Pretty
 
+import Agda.Utils.Impossible
 import Agda.Utils.NonemptyList
 
 checkDisplayPragma :: QName -> [NamedArg A.Pattern] -> A.Expr -> TCM ()
@@ -36,16 +37,15 @@ patternsToTerms _ [] ret = ret 0 []
 patternsToTerms EmptyTel (p : ps) ret =
   patternToTerm (namedArg p) $ \n v ->
   patternsToTerms EmptyTel ps     $ \m vs -> ret (n + m) (inheritHiding p v : vs)
-patternsToTerms (ExtendTel a tel) (p : ps) ret = do
-  let isMatch = sameHiding p a &&
-                (visible p || isNothing (nameOf (unArg p)) ||
-                 Just (absName tel) == (rangedThing <$> nameOf (unArg p)))
-  case isMatch of
-    True ->
+patternsToTerms (ExtendTel a tel) (p : ps) ret
+  -- Andreas, 2019-07-22, while #3353: we should use domName, not absName !!
+  -- WAS: -- | sameHiding p a, visible p || maybe True (absName tel ==) (bareNameOf p) =  -- no ArgName or same as p
+  | fromMaybe __IMPOSSIBLE__ $ fittingNamedArg p a =
       patternToTerm (namedArg p) $ \n v ->
       patternsToTerms (unAbs tel) ps  $ \m vs -> ret (n + m) (inheritHiding p v : vs)
-    False ->
-      bindWild $ patternsToTerms (unAbs tel) (p : ps) $ \n vs -> ret (1 + n) (inheritHiding a (Var 0 []) : vs)
+  | otherwise =
+      bindWild $ patternsToTerms (unAbs tel) (p : ps) $ \n vs ->
+      ret (1 + n) (inheritHiding a (Var 0 []) : vs)
 
 inheritHiding :: LensHiding a => a -> b -> Arg b
 inheritHiding a b = setHiding (getHiding a) (defaultArg b)

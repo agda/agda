@@ -438,7 +438,7 @@ getInterface' x isMain msi =
         (_, SomeWarnings w)           -> return ()
         _                             -> storeDecodedModule i
 
-      reportSLn "warning.import" 10 $ unlines
+      reportS "warning.import" 10
         [ "module: " ++ show (C.moduleNameParts x)
         , "WarningOnImport: " ++ show (iImportWarning i)
         ]
@@ -937,7 +937,7 @@ createInterface file mname isMain msi =
     i <- Bench.billTo [Bench.Serialization, Bench.BuildInterface] $
       buildInterface source fileType topLevel options
 
-    reportSLn "tc.top" 101 $ unlines $
+    reportS "tc.top" 101 $
       "Signature:" :
       [ unlines
           [ prettyShow x
