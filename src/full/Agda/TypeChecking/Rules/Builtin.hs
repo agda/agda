@@ -199,6 +199,21 @@ coreBuiltins =
                                                                   (pPi' "o" phi $ \ o -> fiber) --> fiber
                                                              ))
                                                               (const $ const $ return ()))
+  , (builtinTranspProof                       |-> BuiltinUnknown (Just $ requireCubical >> runNamesT [] (
+                                                               hPi' "l" (el $ cl primLevel) $ \ la ->
+                                                               nPi' "e" (cl tinterval --> (sort . tmSort <$> la)) $ \ e -> do
+                                                               let lb = la; bA = e <@> cl primIZero; bB = e <@> cl primIOne
+                                                               nPi' "b" (el' lb bB) $ \ b -> do
+                                                                let f = cl primTrans <#> (lam "i" $ \ _ -> la) <@> e <@> cl primIZero
+                                                                    fiber = el' la
+                                                                                (cl primSigma <#> la <#> lb
+                                                                                  <@> bA
+                                                                                  <@> (lam "a" $ \ a ->
+                                                                                         cl primPath <#> lb <#> bB <@> (f <@> a) <@> b))
+                                                                nPi' "φ" (cl tinterval) $ \ phi ->
+                                                                  (pPi' "o" phi $ \ o -> fiber) --> fiber
+                                                             ))
+                                                              (const $ const $ return ()))
   , (builtinPathToEquiv                      |-> BuiltinUnknown
                                                               (Just $ requireCubical >> runNamesT [] (
                                                                  hPi' "l" (cl tinterval --> (el $ cl primLevel)) $ \ a ->

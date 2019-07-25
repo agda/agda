@@ -16,7 +16,9 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinTrans, builtinHComp,
   builtinSub, builtinSubIn, builtinSubOut,
   builtinEquiv, builtinEquivFun, builtinEquivProof, builtinPathToEquiv,
+  builtinTranspProof,
   builtinGlue, builtin_glue, builtin_unglue,
+  builtinHCompU, builtin_glueU, builtin_unglueU,
   builtinFaceForall,
   builtinId, builtinConId, builtinIdElim,
   builtinSizeUniv, builtinSize, builtinSizeLt,
@@ -109,10 +111,14 @@ builtinItIsOne                           = "ITISONE"
 builtinEquiv                             = "EQUIV"
 builtinEquivFun                          = "EQUIVFUN"
 builtinEquivProof                        = "EQUIVPROOF"
+builtinTranspProof                       = "TRANSPPROOF"
 builtinPathToEquiv                       = "PATHTOEQUIV"
 builtinGlue                              = "primGlue"
 builtin_glue                             = "prim^glue"
 builtin_unglue                           = "prim^unglue"
+builtinHCompU                            = "primHCompU"
+builtin_glueU                            = "prim^glueU"
+builtin_unglueU                          = "prim^unglueU"
 builtinFaceForall                        = "primFaceForall"
 builtinIsOne1                            = "ISONE1"
 builtinIsOne2                            = "ISONE2"

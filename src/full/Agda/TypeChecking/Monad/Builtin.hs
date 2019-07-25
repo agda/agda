@@ -169,7 +169,9 @@ primInteger, primIntegerPos, primIntegerNegSuc,
     primTrans, primHComp,
     primId, primConId, primIdElim,
     primEquiv, primEquivFun, primEquivProof, primPathToEquiv,
+    primTranspProof,
     primGlue, prim_glue, prim_unglue,
+    primHCompU, prim_glueU, prim_unglueU,
     primFaceForall,
     primNatPlus, primNatMinus, primNatTimes, primNatDivSucAux, primNatModSucAux,
     primNatEquality, primNatLess,
@@ -251,7 +253,11 @@ primHComp                             = getPrimitiveTerm builtinHComp
 primEquiv                             = getBuiltin builtinEquiv
 primEquivFun                          = getBuiltin builtinEquivFun
 primEquivProof                        = getBuiltin builtinEquivProof
+primTranspProof                       = getBuiltin builtinTranspProof
 primPathToEquiv                       = getBuiltin builtinPathToEquiv
+primHCompU                            = getPrimitiveTerm builtinHCompU
+prim_glueU                            = getPrimitiveTerm builtin_glueU
+prim_unglueU                          = getPrimitiveTerm builtin_unglueU
 primGlue                              = getPrimitiveTerm builtinGlue
 prim_glue                             = getPrimitiveTerm builtin_glue
 prim_unglue                           = getPrimitiveTerm builtin_unglue
