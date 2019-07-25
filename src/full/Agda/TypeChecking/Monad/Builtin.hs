@@ -168,10 +168,10 @@ primInteger, primIntegerPos, primIntegerNegSuc,
     primSub, primSubIn, primSubOut,
     primTrans, primHComp,
     primId, primConId, primIdElim,
-    primEquiv, primEquivFun, primEquivProof, primPathToEquiv,
+    primEquiv, primEquivFun, primEquivProof,
     primTranspProof,
     primGlue, prim_glue, prim_unglue,
-    primHCompU, prim_glueU, prim_unglueU,
+    prim_glueU, prim_unglueU,
     primFaceForall,
     primNatPlus, primNatMinus, primNatTimes, primNatDivSucAux, primNatModSucAux,
     primNatEquality, primNatLess,
@@ -254,8 +254,6 @@ primEquiv                             = getBuiltin builtinEquiv
 primEquivFun                          = getBuiltin builtinEquivFun
 primEquivProof                        = getBuiltin builtinEquivProof
 primTranspProof                       = getBuiltin builtinTranspProof
-primPathToEquiv                       = getBuiltin builtinPathToEquiv
-primHCompU                            = getPrimitiveTerm builtinHCompU
 prim_glueU                            = getPrimitiveTerm builtin_glueU
 prim_unglueU                          = getPrimitiveTerm builtin_unglueU
 primGlue                              = getPrimitiveTerm builtinGlue
@@ -601,6 +599,7 @@ constrainedPrims =
   , builtinHComp
   , builtinTrans
   , builtin_glue
+  , builtin_glueU
   ]
 
 getNameOfConstrained :: HasBuiltins m => String -> m (Maybe QName)

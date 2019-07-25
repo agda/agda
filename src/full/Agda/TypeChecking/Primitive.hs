@@ -828,7 +828,6 @@ primitiveFunctions = Map.fromList
   , "primIdPath"          |-> primIdPath'
   , builtinIdElim         |-> primIdElim'
   , builtinSubOut         |-> primSubOut'
-  , builtinHCompU         |-> primHCompU'
   , builtin_glueU         |-> prim_glueU'
   , builtin_unglueU       |-> prim_unglueU'
   ]

@@ -200,29 +200,23 @@ coreBuiltins =
                                                              ))
                                                               (const $ const $ return ()))
   , (builtinTranspProof                       |-> BuiltinUnknown (Just $ requireCubical >> runNamesT [] (
-                                                               hPi' "l" (el $ cl primLevel) $ \ la ->
+                                                               hPi' "l" (el $ cl primLevel) $ \ la -> do
                                                                nPi' "e" (cl tinterval --> (sort . tmSort <$> la)) $ \ e -> do
                                                                let lb = la; bA = e <@> cl primIZero; bB = e <@> cl primIOne
-                                                               nPi' "b" (el' lb bB) $ \ b -> do
-                                                                let f = cl primTrans <#> (lam "i" $ \ _ -> la) <@> e <@> cl primIZero
-                                                                    fiber = el' la
-                                                                                (cl primSigma <#> la <#> lb
+                                                               nPi' "φ" (cl tinterval) $ \ phi -> do
+                                                               nPi' "a" (pPi' "o" phi (\ _ -> el' la bA)) $ \ a -> do
+                                                               let f = cl primTrans <#> (lam "i" $ \ _ -> la) <@> e <@> cl primIZero
+                                                                   z = ilam "o" $ \ o -> f <@> (a <@> o)
+                                                               nPi' "b" (elInf (cl primSub <#> lb <@> bB <@> phi <@> z)) $ \ b' -> do
+                                                               let b = cl primSubOut <#> lb <#> bB <#> phi <#> z <@> b'
+                                                                   fiber = el' la
+                                                                               (cl primSigma <#> la <#> lb
                                                                                   <@> bA
                                                                                   <@> (lam "a" $ \ a ->
                                                                                          cl primPath <#> lb <#> bB <@> (f <@> a) <@> b))
-                                                                nPi' "φ" (cl tinterval) $ \ phi ->
-                                                                  (pPi' "o" phi $ \ o -> fiber) --> fiber
+                                                               fiber
                                                              ))
                                                               (const $ const $ return ()))
-  , (builtinPathToEquiv                      |-> BuiltinUnknown
-                                                              (Just $ requireCubical >> runNamesT [] (
-                                                                 hPi' "l" (cl tinterval --> (el $ cl primLevel)) $ \ a ->
-                                                                 nPi' "E" (nPi' "i" (cl tinterval) $ \ i -> (sort . tmSort <$> (a <@> i))) $ \bE ->
-                                                                 el' (cl primLevelMax <@> (a <@> cl primIZero) <@> (a <@> cl primIOne))
-                                                                  (cl primEquiv <#> (a <@> cl primIZero) <#> (a <@> cl primIOne) <@>
-                                                                     (bE <@> cl primIZero) <@> (bE <@> cl primIOne)
-                                                                       )))
-                                                       (const $ const $ return ()))
   , (builtinAgdaSort                         |-> BuiltinData tset [builtinAgdaSortSet, builtinAgdaSortLit, builtinAgdaSortUnsupported])
   , (builtinAgdaTerm                         |-> BuiltinData tset
                                                    [ builtinAgdaTermVar, builtinAgdaTermLam, builtinAgdaTermExtLam

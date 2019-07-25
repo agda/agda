@@ -323,6 +323,7 @@ compareTerm' cmp a m n =
        mI     <- getBuiltinName'   builtinInterval
        mIsOne <- getBuiltinName'   builtinIsOne
        mGlue  <- getPrimitiveName' builtinGlue
+       mHComp <- getPrimitiveName' builtinHComp
        mSub   <- getBuiltinName' builtinSub
        case ty of
          Def q es | Just q == mIsOne -> return ()
@@ -331,6 +332,15 @@ compareTerm' cmp a m n =
               unglue <- prim_unglue
               let mkUnglue m = apply unglue $ map (setHiding Hidden) args ++ [argN m]
               reportSDoc "conv.glue" 20 $ prettyTCM (ty,mkUnglue m,mkUnglue n)
+              compareTermOnFace cmp (unArg phi) ty m n
+              compareTerm cmp ty (mkUnglue m) (mkUnglue n)
+         Def q es | Just q == mHComp, Just (_:s:args@[phi,u,u0]) <- allApplyElims es
+                  , Sort (Type lvl) <- unArg s -> do
+              let l = Level lvl
+              ty <- el' (pure $ l) (pure $ unArg u0)
+              unglueU <- prim_unglueU
+              let mkUnglue m = apply unglueU $ [argH l] ++ map (setHiding Hidden) args ++ [argN m]
+              reportSDoc "conv.hcompU" 20 $ prettyTCM (ty,mkUnglue m,mkUnglue n)
               compareTermOnFace cmp (unArg phi) ty m n
               compareTerm cmp ty (mkUnglue m) (mkUnglue n)
          Def q es | Just q == mSub, Just args@(l:a:_) <- allApplyElims es -> do
@@ -550,9 +560,11 @@ compareAtom cmp t m n =
         compareEtaPrims :: MonadConversion m => QName -> Elims -> Elims -> m Bool
         compareEtaPrims q es es' = do
           munglue <- getPrimitiveName' builtin_unglue
+          munglueU <- getPrimitiveName' builtin_unglueU
           msubout <- getPrimitiveName' builtinSubOut
           case () of
             _ | Just q == munglue -> compareUnglueApp q es es'
+            _ | Just q == munglueU -> compareUnglueUApp q es es'
             _ | Just q == msubout -> compareSubApp q es es'
             _                     -> return False
         compareSubApp q es es' = do
@@ -587,6 +599,20 @@ compareAtom cmp t m n =
               compareAtom cmp (El (tmSort (unArg lb)) $ apply tGlue $ [la,lb] ++ map (setHiding NotHidden) [bA,phi,bT,e])
                               (unArg b) (unArg b')
               compareElims [] [] (El (tmSort (unArg la)) (unArg bA)) (Def q as) bs bs'
+              return True
+            _  -> return False
+        compareUnglueUApp q es es' = do
+          let (as,bs) = splitAt 5 es; (as',bs') = splitAt 5 es'
+          case (allApplyElims as, allApplyElims as') of
+            (Just [la,phi,bT,bA,b], Just [la',phi',bT',bA',b']) -> do
+              tHComp <- primHComp
+              tLSuc <- primLevelSuc
+              let lsuc t = tLSuc `apply` [argN t]
+                  s = tmSort $ unArg la
+                  sucla = lsuc <$> la
+              compareAtom cmp (El (tmSort . unArg $ sucla) $ apply tHComp $ [sucla, argH (Sort s), phi] ++ map (setHiding NotHidden) [bT,bA])
+                              (unArg b) (unArg b')
+              compareElims [] [] (El s (unArg bA)) (Def q as) bs bs'
               return True
             _  -> return False
         -- Andreas, 2013-05-15 due to new postponement strategy, type can now be blocked

@@ -439,6 +439,7 @@ checkHeadApplication cmp e t hd args = do
   pHComp <- getNameOfConstrained builtinHComp
   pTrans <- getNameOfConstrained builtinTrans
   mglue  <- getNameOfConstrained builtin_glue
+  mglueU  <- getNameOfConstrained builtin_glueU
   case hd of
     -- Type checking #. The # that the user can write will be a Def, but the
     -- sharp we generate in the body of the wrapper is a Con.
@@ -451,6 +452,7 @@ checkHeadApplication cmp e t hd args = do
     A.Def c | Just c == conId -> defaultResult' $ Just $ checkConId c
     A.Def c | Just c == pOr   -> defaultResult' $ Just $ checkPOr c
     A.Def c | Just c == mglue -> defaultResult' $ Just $ check_glue c
+    A.Def c | Just c == mglueU -> defaultResult' $ Just $ check_glueU c
 
     _ -> defaultResult
   where
@@ -1348,4 +1350,29 @@ check_glue c rs vs _ = do
       ta <- el' (pure $ unArg la) (pure $ unArg bA)
       a <- blockArg ta (rs !!! 7) a $ equalTerm ty a' v
       return $ la : lb : bA : phi : bT : e : t : a : rest
+   _ -> typeError $ GenericError $ show c ++ " must be fully applied"
+
+
+-- | @prim^glueU : ∀ {ℓ} {φ : I}
+--              → {T : I → Partial φ (Set ℓ)} → {A : Set ℓ}
+--              → (t : PartialP φ (T i1)) → (a : A) → hcomp T A@
+--
+--   Check   @φ ⊢ a = t 1=1@  or actually the equivalent:  @(\ _ → a) = t : PartialP φ (T i1)@
+check_glueU :: QName -> MaybeRanges -> Args -> Type -> TCM Args
+check_glueU c rs vs _ = do
+  case vs of
+   -- WAS: [la, lb, bA, phi, bT, e, t, a] -> do
+   la : phi : bT : bA : t : a : rest -> do
+      let iinfo = setRelevance Irrelevant defaultArgInfo
+      v <- runNamesT [] $ do
+            [la, phi, bT, bA, t] <- mapM (open . unArg) [la, phi, bT, bA, t]
+            let f o = cl primTrans <#> (lam "i" $ const la) <@> (lam "i" $ \ i -> bT <@> (cl primINeg <@> i) <..> o) <@> cl primIZero
+            glam iinfo "o" $ \ o -> f o <@> (t <..> o)
+      ty <- runNamesT [] $ do
+            [la, phi, bA] <- mapM (open . unArg) [la, phi, bA]
+            elInf $ cl primPartialP <#> la <@> phi <@> (glam iinfo "o" $ \ _ -> bA)
+      let a' = Lam iinfo (NoAbs "o" $ unArg a)
+      ta <- el' (pure $ unArg la) (pure $ unArg bA)
+      a <- blockArg ta (rs !!! 5) a $ equalTerm ty a' v
+      return $ la : phi : bT : bA : t : a : rest
    _ -> typeError $ GenericError $ show c ++ " must be fully applied"
