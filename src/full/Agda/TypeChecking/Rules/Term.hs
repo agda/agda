@@ -562,8 +562,8 @@ insertHiddenLambdas h target postpone ret = do
           -- That's an error, as we cannot insert a visible lambda.
           if visible h' then typeError $ WrongHidingInLambda target else do
             -- Otherwise, we found a hidden argument that we can insert.
-            let x = absName b
-            Lam (domInfo dom) . Abs x <$> do
+            let x    = absName b
+            Lam (setOrigin Inserted $ domInfo dom) . Abs x <$> do
               addContext (x, dom) $ insertHiddenLambdas h (absBody b) postpone ret
 
       _ -> typeError . GenericDocError =<< do
@@ -1158,14 +1158,15 @@ checkExpr' cmp e t0 =
   tryInsertHiddenLambda :: A.Expr -> Type -> TCM Term -> TCM Term
   tryInsertHiddenLambda e t fallback
     -- Insert hidden lambda if all of the following conditions are met:
-        -- type is a hidden function type, {x : A} -> B or {{x : A}} -> B
+    -- type is a hidden function type, {x : A} -> B or {{x : A}} -> B
+    -- expresion is not a lambda with the appropriate hiding yet
     | Pi (Dom{domInfo = info, unDom = a}) b <- unEl t
         , let h = getHiding info
         , notVisible h
         -- expression is not a matching hidden lambda or question mark
         , not (hiddenLambdaOrHole h e)
         = do
-      let proceed = doInsert info $ absName b
+      let proceed = doInsert (setOrigin Inserted info) $ absName b
       -- If we skip the lambda insertion for an introduction,
       -- we will hit a dead end, so proceed no matter what.
       if definitelyIntroduction then proceed else do
