@@ -620,10 +620,13 @@ noLoneSigs = null <$> use loneSigs
 
 -- | Ensure that all forward declarations have been given a definition.
 
+forgetLoneSigs :: Nice ()
+forgetLoneSigs = loneSigs .= Map.empty
+
 checkLoneSigs :: LoneSigs -> Nice ()
 checkLoneSigs xs = do
-  loneSigs .= Map.empty
-  unless (Map.null xs) (niceWarning $ MissingDefinitions $ Map.keys xs)
+  forgetLoneSigs
+  unless (Map.null xs) $ niceWarning $ MissingDefinitions $ Map.keys xs
 
 -- | Get names of lone function signatures.
 
@@ -817,7 +820,10 @@ niceDeclarations fixs ds = do
       where
         untilAllDefined :: ([TerminationCheck], [PositivityCheck])
                         -> [NiceDeclaration]
-                        -> Nice (([TerminationCheck], [PositivityCheck]), ([NiceDeclaration], [NiceDeclaration]))
+                        -> Nice (([TerminationCheck], [PositivityCheck]) -- checks for this block
+                                , ([NiceDeclaration]                     -- mutual block
+                                , [NiceDeclaration])                     -- leftovers
+                                )
         untilAllDefined tcpc@(tc, pc) ds = do
           done <- noLoneSigs
           if done then return (tcpc, ([], ds)) else
@@ -908,7 +914,8 @@ niceDeclarations fixs ds = do
                return ([FunDef (getRange fits) fits ConcreteDef NotInstanceDef termCheck x cs] , rest)
 
             -- case: clauses match more than one sigs (ambiguity)
-            l -> throwError $ AmbiguousFunClauses lhs $ reverse $ map fst l -- "ambiguous function clause; cannot assign it uniquely to one type signature"
+            l -> throwError $ AmbiguousFunClauses lhs $ reverse $ map fst l
+                 -- "ambiguous function clause; cannot assign it uniquely to one type signature"
 
         Field{}                       -> (,ds) <$> niceAxioms FieldBlock [ d ]
         DataSig r CoInductive _ _ _   -> throwError (Codata r)
@@ -978,9 +985,13 @@ niceDeclarations fixs ds = do
                     return r x ((tel,) <$> mt) (Just (tel, cs))
               <*> return ds
 
-        Mutual r []  -> justWarning $ EmptyMutual r
-        Mutual r ds' ->
-          (,ds) <$> (singleton <$> (mkOldMutual r =<< nice ds'))
+        Mutual r ds' -> do
+          -- The lone signatures encountered so far are not in scope
+          -- for the mutual definition
+          forgetLoneSigs
+          case ds' of
+            [] -> justWarning $ EmptyMutual r
+            _  -> (,ds) <$> (singleton <$> (mkOldMutual r =<< nice ds'))
 
         Abstract r []  -> justWarning $ EmptyAbstract r
         Abstract r ds' ->

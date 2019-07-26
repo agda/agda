@@ -1,0 +1,8 @@
+Issue3932-2.agda:4,1-2
+The following names are declared but not accompanied by a
+definition: f
+Issue3932-2.agda:7,3-4
+Multiple definitions of f. Previous definition at
+Issue3932-2.agda:4,1-2
+when scope checking the declaration
+  f : _
