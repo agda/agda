@@ -261,7 +261,7 @@ refine force ii mr e = do
 
               -- reduce beta-redexes where the argument is used at most once
               smartApp i e arg =
-                case lamView $ unScope e of
+                case fmap (first A.binderName) (lamView $ unScope e) of
                   Just (A.BindName{unBind = x}, e) | count x e < 2 -> mapExpr subX e
                     where subX (A.Var y) | x == y = namedArg arg
                           subX e = e
@@ -439,7 +439,7 @@ instance Reify Constraint (OutputConstraint Expr Expr) where
             CheckLambda cmp (Arg ai (xs, mt)) body target -> do
               domType <- maybe (return underscore) reify mt
               target  <- reify target
-              let mkN (WithHiding h x) = setHiding h $ defaultNamedArg $ A.mkBindName x
+              let mkN (WithHiding h x) = setHiding h $ defaultNamedArg $ A.mkBinder_ x
                   bs = mkTBind noRange (map mkN xs) domType
                   e  = A.Lam Info.exprNoRange (DomainFull bs) body
               return $ TypedAssign m' e target
@@ -999,7 +999,8 @@ atTopLevel m = inConcreteMode $ do
       -- Unfortunately, referring to let-bound variables
       -- from the top level module telescope will for now result in a not-in-scope error.
       let names :: [A.Name]
-          names = map localVar $ filter ((LetBound /=) . localBinder) $ map snd $ reverse $ scope ^. scopeLocals
+          names = map localVar $ filter ((LetBound /=) . localBindingSource)
+                               $ map snd $ reverse $ scope ^. scopeLocals
       -- Andreas, 2016-12-31, issue #2371
       -- The following is an unnecessary complication, as shadowed locals
       -- are not in scope anyway (they are ambiguous).

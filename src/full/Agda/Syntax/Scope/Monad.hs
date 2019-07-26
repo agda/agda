@@ -30,7 +30,7 @@ import Agda.Syntax.Abstract (ScopeCopyInfo(..))
 import Agda.Syntax.Concrete as C
 import Agda.Syntax.Concrete.Fixity
 import Agda.Syntax.Concrete.Definitions (DeclarationWarning(..)) -- TODO: move the relevant warnings out of there
-import Agda.Syntax.Scope.Base
+import Agda.Syntax.Scope.Base as A
 
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Debug
@@ -225,6 +225,16 @@ freshAbstractQName' x = do
   fx <- getConcreteFixity x
   freshAbstractQName fx x
 
+-- | Create a concrete name that is not yet in scope.
+freshConcreteName :: Range -> Int -> String -> ScopeM C.Name
+freshConcreteName r i s = do
+  let cname = C.Name r C.NotInScope [Id $ stringToRawName $ s ++ show i]
+  rn <- resolveName $ C.QName cname
+  case rn of
+    UnknownName -> return cname
+    _           -> freshConcreteName r (i+1) s
+
+
 -- * Resolving names
 
 -- | Look up the abstract name referred to by a given concrete name.
@@ -355,9 +365,9 @@ getNotation x ns = do
 
 -- | Bind a variable.
 bindVariable
-  :: Binder  -- ^ @λ@, @Π@, @let@, ...?
-  -> C.Name  -- ^ Concrete name.
-  -> A.Name  -- ^ Abstract name.
+  :: A.BindingSource -- ^ @λ@, @Π@, @let@, ...?
+  -> C.Name          -- ^ Concrete name.
+  -> A.Name          -- ^ Abstract name.
   -> ScopeM ()
 bindVariable b x y = modifyLocalVars $ AssocList.insert x $ LocalVar y b []
 

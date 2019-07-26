@@ -141,6 +141,7 @@ errorString err = case err of
   IllformedProjectionPattern{}             -> "IllformedProjectionPattern"
   CannotEliminateWithPattern{}             -> "CannotEliminateWithPattern"
   IllegalLetInTelescope{}                  -> "IllegalLetInTelescope"
+  IllegalPatternInTelescope{}              -> "IllegalPatternInTelescope"
 -- UNUSED:  IncompletePatternMatching{}              -> "IncompletePatternMatching"
   InternalError{}                          -> "InternalError"
   InvalidPattern{}                         -> "InvalidPattern"
@@ -645,6 +646,10 @@ instance PrettyTCM TypeError where
     IllegalLetInTelescope tb -> fsep $
       -- pwords "The binding" ++
       [pretty tb] ++
+      pwords " is not allowed in a telescope here."
+
+    IllegalPatternInTelescope bd -> fsep $
+      [pretty bd] ++
       pwords " is not allowed in a telescope here."
 
     NoRHSRequiresAbsurdPattern ps -> fwords $

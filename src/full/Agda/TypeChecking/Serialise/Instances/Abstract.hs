@@ -111,7 +111,7 @@ instance EmbPrj KindOfName where
   --   valu [7] = valuN DisallowedGeneralizeName
   --   valu _   = malformed
 
-instance EmbPrj Binder where
+instance EmbPrj BindingSource where
   icod_ LambdaBound   = icodeN' LambdaBound
   icod_ PatternBound  = icodeN 1 PatternBound
   icod_ LetBound      = icodeN 2 LetBound

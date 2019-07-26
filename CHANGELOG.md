@@ -176,6 +176,32 @@ Language
   ... | pn = rhs
   ```
 
+* Irrefutable patterns in telescopes
+
+  Users can now use irrefutable patterns in telescope and lambda abstractions.
+  The type of the second projection from a dependent pair is the prototypical
+  example It can be defined as follows:
+
+  ```agda
+  snd : ((a , _) : Σ A B) → B a
+  ```
+
+  And this second projection can be implemented with a lamba-abstraction using
+  one of these irrefutable patterns:
+
+  ```agda
+  snd = λ (a , b) → b
+  ```
+
+  Using an as-pattern, users can get a name for the value as well as for its
+  subparts. We can for instance prove that any pair is equal to the pairing
+  of its first and second projections:
+
+  ```agda
+  eta : (p@(a , b) : Σ A B) → p ≡ (a , b)
+  eta p = refl
+  ```
+
 ### Termination checking
 
 * The "with inlining" feature of the termination checker has been

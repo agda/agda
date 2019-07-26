@@ -52,7 +52,7 @@ import Agda.Syntax.Concrete.Definitions as C
 import Agda.Syntax.Fixity
 import Agda.Syntax.Concrete.Fixity (DoWarn(..))
 import Agda.Syntax.Notation
-import Agda.Syntax.Scope.Base
+import Agda.Syntax.Scope.Base as A
 import Agda.Syntax.Scope.Monad
 import Agda.Syntax.Translation.AbstractToConcrete (ToConcrete)
 import Agda.Syntax.DoNotation
@@ -191,7 +191,7 @@ recordConstructorType decls =
 
         C.NiceField r pr ab inst x a -> do
           fx  <- getConcreteFixity x
-          let bv = unnamed (C.mkBoundName x fx) <$ a
+          let bv = unnamed (C.mkBinder $ C.mkBoundName x fx) <$ a
           tel <- toAbstract $ C.TBind r [bv] (unArg a)
           return tel
 
@@ -494,9 +494,9 @@ instance ToAbstract c a => ToAbstract (Maybe c) (Maybe a) where
 -- Names ------------------------------------------------------------------
 
 data NewName a = NewName
-  { _newBinder   :: Binder -- what kind of binder?
-  , _newName     :: a
-  }
+  { newBinder   :: A.BindingSource -- what kind of binder?
+  , newName     :: a
+  } deriving (Functor)
 
 data OldQName     = OldQName C.QName (Maybe (Set A.Name))
   -- ^ If a set is given, then the first name must correspond to one
@@ -719,7 +719,7 @@ scopeCheckExtendedLam r cs = do
     genericError "Extended lambdas are not allowed in dot patterns"
 
   -- Find an unused name for the extended lambda definition.
-  cname <- nextlamname r 0 extendedLambdaName
+  cname <- freshConcreteName r 0 extendedLambdaName
   name  <- freshAbstractName_ cname
   reportSLn "scope.extendedLambda" 10 $ "new extended lambda name: " ++ prettyShow name
   verboseS "scope.extendedLambda" 60 $ do
@@ -772,14 +772,6 @@ scopeCheckExtendedLam r cs = do
     _ -> __IMPOSSIBLE__
 
   where
-    -- Get a concrete name that is not yet in scope.
-    nextlamname :: Range -> Int -> String -> ScopeM C.Name
-    nextlamname r i s = do
-      let cname = C.Name r C.NotInScope [Id $ stringToRawName $ s ++ show i]
-      rn <- resolveName $ C.QName cname
-      case rn of
-        UnknownName -> return cname
-        _           -> nextlamname r (i+1) s
 
 instance ToAbstract C.Expr A.Expr where
   toAbstract e =
@@ -972,10 +964,29 @@ instance ToAbstract C.ModuleAssignment (A.ModuleName, [A.LetBinding]) where
 instance ToAbstract c a => ToAbstract (FieldAssignment' c) (FieldAssignment' a) where
   toAbstract = traverse toAbstract
 
+instance ToAbstract (C.Binder' (NewName C.BoundName)) A.Binder where
+  toAbstract (C.Binder p n) = do
+    let name = C.boundName $ newName n
+    -- If we do have a pattern then the variable needs to be inserted
+    -- so we do need a proper internal name for it.
+    n <- if not (isNoName name && isJust p) then pure n else do
+           n' <- freshConcreteName (getRange $ newName n) 0 patternInTeleName
+           pure $ fmap (\ n -> n { C.boundName = n' }) n
+    n <- toAbstract n
+    -- Actually parsing the pattern, checking it is linear,
+    -- and bind its variables
+    p <- traverse parsePattern p
+    p <- toAbstract p
+    checkPatternLinearity p $ \ys ->
+      typeError $ RepeatedVariablesInPattern ys
+    bindVarsToBind
+    p <- toAbstract p
+    pure $ A.Binder p n
+
 instance ToAbstract C.LamBinding A.LamBinding where
   toAbstract (C.DomainFree x)  = do
-    tac <- traverse toAbstract $ bnameTactic $ namedArg x
-    A.DomainFree tac <$> toAbstract ((fmap . fmap) (NewName LambdaBound) x)
+    tac <- traverse toAbstract $ bnameTactic $ C.binderName $ namedArg x
+    A.DomainFree tac <$> toAbstract (updateNamedArg (fmap $ NewName LambdaBound) x)
   toAbstract (C.DomainFull tb) = A.DomainFull <$> toAbstract tb
 
 makeDomainFull :: C.LamBinding -> C.TypedBinding
@@ -986,10 +997,13 @@ makeDomainFull (C.DomainFree x) = C.TBind r [x] $ C.Underscore r Nothing
 instance ToAbstract C.TypedBinding A.TypedBinding where
   toAbstract (C.TBind r xs t) = do
     t' <- toAbstractCtx TopCtx t
-    tac <- traverse toAbstract $ case mapMaybe (bnameTactic . namedArg) xs of
-              []      -> Nothing
-              tac : _ -> Just tac -- Invariant: all tactics are the same (distributed in the parser, TODO: don't)
-    xs' <- toAbstract $ (map . fmap . fmap) (NewName LambdaBound) xs
+    tac <- traverse toAbstract $
+             case mapMaybe (bnameTactic . C.binderName . namedArg) xs of
+               []      -> Nothing
+               tac : _ -> Just tac
+               -- Invariant: all tactics are the same
+               -- (distributed in the parser, TODO: don't)
+    xs' <- toAbstract $ map (updateNamedArg (fmap $ NewName LambdaBound)) xs
     return $ A.TBind r tac xs' t'
   toAbstract (C.TLet r ds) = A.TLet r <$> toAbstract (LetDefs ds)
 
@@ -1082,10 +1096,14 @@ class EnsureNoLetStms a where
   default ensureNoLetStms :: (Foldable t, EnsureNoLetStms b, t b ~ a) => a -> ScopeM ()
   ensureNoLetStms = traverse_ ensureNoLetStms
 
+instance EnsureNoLetStms C.Binder where
+  ensureNoLetStms arg@(C.Binder p n) =
+    when (isJust p) $ typeError $ IllegalPatternInTelescope arg
+
 instance EnsureNoLetStms C.TypedBinding where
   ensureNoLetStms = \case
-    tb@C.TLet{} -> typeError $ IllegalLetInTelescope tb
-    C.TBind{}   -> return ()
+    tb@C.TLet{}    -> typeError $ IllegalLetInTelescope tb
+    C.TBind _ xs _ -> traverse_ (ensureNoLetStms . namedArg) xs
 
 instance EnsureNoLetStms a => EnsureNoLetStms (LamBinding' a) where
 instance EnsureNoLetStms a => EnsureNoLetStms [a] where
@@ -1409,11 +1427,11 @@ instance ToAbstract LetDef [A.LetBinding] where
 
         -- Named patterns not allowed in let definitions
         lambda e (Arg info (Named Nothing (A.VarP x))) =
-                return $ A.Lam i (A.mkDomainFree $ unnamedArg info x) e
+                return $ A.Lam i (A.mkDomainFree $ unnamedArg info $ A.mkBinder x) e
             where i = ExprRange (fuseRange x e)
         lambda e (Arg info (Named Nothing (A.WildP i))) =
             do  x <- freshNoName (getRange i)
-                return $ A.Lam i' (A.mkDomainFree $ unnamedArg info $ A.mkBindName x) e
+                return $ A.Lam i' (A.mkDomainFree $ unnamedArg info $ A.mkBinder_ x) e
             where i' = ExprRange (fuseRange i e)
         lambda _ _ = notAValidLetBinding d
 
@@ -2594,7 +2612,7 @@ toAbstractOpApp op ns es = do
         x <- freshName noRange "section"
         let i = setOrigin Inserted $ argInfo a
         (ls, ns) <- replacePlaceholders as
-        return ( A.mkDomainFree (unnamedArg i $ A.mkBindName x) : ls
+        return ( A.mkDomainFree (unnamedArg i $ A.mkBinder_ x) : ls
                , set (Left (Var x)) a : ns
                )
       where

@@ -1689,6 +1689,9 @@ unnamedArg info = Arg info . unnamed
 updateNamedArg :: (a -> b) -> NamedArg a -> NamedArg b
 updateNamedArg = fmap . fmap
 
+updateNamedArgA :: Applicative f => (a -> f b) -> NamedArg a -> f (NamedArg b)
+updateNamedArgA = traverse . traverse
+
 -- | @setNamedArg a b = updateNamedArg (const b) a@
 setNamedArg :: NamedArg a -> b -> NamedArg b
 setNamedArg a b = (b <$) <$> a

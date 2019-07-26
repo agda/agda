@@ -122,7 +122,7 @@ type LocalVars = AssocList C.Name LocalVar
 
 -- | For each bound variable, we want to know whether it was bound by a
 --   λ, Π, module telescope, pattern, or @let@.
-data Binder
+data BindingSource
   = LambdaBound  -- ^ @λ@ (currently also used for @Π@ and module parameters)
   | PatternBound -- ^ @f ... =@
   | LetBound     -- ^ @let ... in@
@@ -132,11 +132,11 @@ data Binder
 --   In case of reference to a shadowed variable, we want to report
 --   a scope error.
 data LocalVar = LocalVar
-  { localVar        :: A.Name
+  { localVar           :: A.Name
     -- ^ Unique ID of local variable.
-  , localBinder     :: Binder
+  , localBindingSource :: BindingSource
     -- ^ Kind of binder used to introduce the variable (@λ@, @let@, ...).
-  , localShadowedBy :: [AbstractName]
+  , localShadowedBy    :: [AbstractName]
      -- ^ If this list is not empty, the local variable is
      --   shadowed by one or more imports.
   }
@@ -161,7 +161,8 @@ shadowLocal ys (LocalVar x b zs) = LocalVar x b (ys ++ zs)
 -- | Treat patternBound variable as a module parameter
 patternToModuleBound :: LocalVar -> LocalVar
 patternToModuleBound x
- | localBinder x == PatternBound = x { localBinder = LambdaBound }
+ | localBindingSource x == PatternBound =
+   x { localBindingSource = LambdaBound }
  | otherwise                     = x
 
 -- | Project name of unshadowed local variable.
@@ -388,8 +389,8 @@ lensAmodName f am = f (amodName am) <&> \ m -> am { amodName = m }
 data ResolvedName
   = -- | Local variable bound by λ, Π, module telescope, pattern, @let@.
     VarName
-    { resolvedVar      :: A.Name
-    , resolvedBinder   :: Binder    -- ^ What kind of binder?
+    { resolvedVar           :: A.Name
+    , resolvedBindingSource :: BindingSource    -- ^ What kind of binder?
     }
 
   | -- | Function, data/record type, postulate.

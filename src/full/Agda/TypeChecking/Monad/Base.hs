@@ -3172,6 +3172,7 @@ data TypeError
         | ShadowedModule C.Name [A.ModuleName]
         | BuiltinInParameterisedModule String
         | IllegalLetInTelescope C.TypedBinding
+        | IllegalPatternInTelescope C.Binder
         | NoRHSRequiresAbsurdPattern [NamedArg A.Pattern]
         | TooManyFields QName [C.Name] [C.Name]
           -- ^ Record type, fields not supplied by user, non-fields not supplied.
@@ -3901,6 +3902,10 @@ forkTCM m = do
 ---------------------------------------------------------------------------
 -- * Names for generated definitions
 ---------------------------------------------------------------------------
+
+-- | Base name for patterns in telescopes
+patternInTeleName :: String
+patternInTeleName = ".patternInTele"
 
 -- | Base name for extended lambda patterns
 extendedLambdaName :: String

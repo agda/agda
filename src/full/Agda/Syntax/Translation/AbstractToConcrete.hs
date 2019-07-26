@@ -851,19 +851,29 @@ instance ToConcrete a c => ToConcrete (FieldAssignment' a) (FieldAssignment' c) 
 
 -- If there is no label we set it to the bound name, to make renaming the bound
 -- name safe.
-forceNameIfHidden :: NamedArg A.BindName -> NamedArg A.BindName
+forceNameIfHidden :: NamedArg A.Binder -> NamedArg A.Binder
 forceNameIfHidden x
   | isJust $ getNameOf  x = x
   | visible x             = x
   | otherwise             = setNameOf (Just name) x
   where
-    name = WithOrigin Inserted $ Ranged (getRange x) $ C.nameToRawName $ nameConcrete $ unBind $ namedArg x
+    name = WithOrigin Inserted
+         $ Ranged (getRange x)
+         $ C.nameToRawName $ nameConcrete
+         $ unBind $ A.binderName $ namedArg x
+
+instance ToConcrete a b => ToConcrete (A.Binder' a) (C.Binder' b) where
+  bindToConcrete (A.Binder p a) ret =
+    bindToConcrete a $ \ a ->
+    bindToConcrete p $ \ p ->
+    ret $ C.Binder p a
 
 instance ToConcrete A.LamBinding C.LamBinding where
     bindToConcrete (A.DomainFree t x) ret = do
       t <- traverse toConcrete t
       let setTac x = x { bnameTactic = t }
-      bindToConcrete (forceNameIfHidden x) $ ret . C.DomainFree . (fmap . fmap) setTac
+      bindToConcrete (forceNameIfHidden x) $
+        ret . C.DomainFree . updateNamedArg (fmap setTac)
     bindToConcrete (A.DomainFull b) ret = bindToConcrete b $ ret . C.DomainFull
 
 instance ToConcrete A.TypedBinding C.TypedBinding where
@@ -872,7 +882,7 @@ instance ToConcrete A.TypedBinding C.TypedBinding where
         bindToConcrete (map forceNameIfHidden xs) $ \ xs -> do
           e <- toConcreteTop e
           let setTac x = x { bnameTactic = t }
-          ret $ C.TBind r ((map . fmap . fmap) setTac xs) e
+          ret $ C.TBind r (map (updateNamedArg (fmap setTac)) xs) e
     bindToConcrete (A.TLet r lbs) ret =
         bindToConcrete lbs $ \ ds -> do
         ret $ C.TLet r $ concat ds
@@ -1244,9 +1254,9 @@ instance ToConcrete BindingPattern A.Pattern where
       A.LitP{}               -> ret p
       A.DotP{}               -> ret p
       A.EqualP{}             -> ret p
-      A.ConP i c args        -> bindToConcrete ((map . fmap . fmap) BindingPat args) $ ret . A.ConP i c
-      A.DefP i f args        -> bindToConcrete ((map . fmap . fmap) BindingPat args) $ ret . A.DefP i f
-      A.PatternSynP i f args -> bindToConcrete ((map . fmap . fmap) BindingPat args) $ ret . A.PatternSynP i f
+      A.ConP i c args        -> bindToConcrete (map (updateNamedArg BindingPat) args) $ ret . A.ConP i c
+      A.DefP i f args        -> bindToConcrete (map (updateNamedArg BindingPat) args) $ ret . A.DefP i f
+      A.PatternSynP i f args -> bindToConcrete (map (updateNamedArg BindingPat) args) $ ret . A.PatternSynP i f
       A.RecP i args          -> bindToConcrete ((map . fmap)        BindingPat args) $ ret . A.RecP i
       A.AsP i x p            -> bindToConcrete (FreshenName x) $ \ x ->
                                 bindToConcrete (BindingPat p)  $ \ p ->
@@ -1348,6 +1358,9 @@ instance ToConcrete A.Pattern C.Pattern where
     applyTo args c = bracketP_ (appBracketsArgs args) $ do
       foldl C.AppP c <$> toConcreteCtx argumentCtx_ args
 
+instance ToConcrete (Maybe A.Pattern) (Maybe C.Pattern) where
+  toConcrete = traverse toConcrete
+
 -- Helpers for recovering natural number literals
 
 tryToRecoverNatural :: A.Expr -> AbsToCon C.Expr -> AbsToCon C.Expr
@@ -1414,7 +1427,7 @@ tryToRecoverOpApp e def = fromMaybeM def $
     view e
         -- Do we have a series of inserted lambdas?
       | Just xs@(_:_) <- traverse insertedName bs =
-        (,) <$> getHead hd <*> sectionArgs (map unBind xs) args
+        (,) <$> getHead hd <*> sectionArgs (map (unBind . A.binderName) xs) args
       where
         LamView     bs body = A.lamView e
         Application hd args = A.appView' body

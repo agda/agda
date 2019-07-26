@@ -36,6 +36,7 @@ deriving instance Show Expr
 deriving instance (Show a) => Show (OpApp a)
 deriving instance Show Declaration
 deriving instance Show Pattern
+deriving instance Show a => Show (Binder' a)
 deriving instance Show TypedBinding
 deriving instance Show LamBinding
 deriving instance Show BoundName
@@ -325,27 +326,39 @@ instance Pretty BoundName where
 
 data NamedBinding = NamedBinding
   { withHiding   :: Bool
-  , namedBinding :: NamedArg BoundName
+  , namedBinding :: NamedArg Binder
   }
 
-isLabeled :: NamedArg BoundName -> Maybe ArgName
+isLabeled :: NamedArg Binder -> Maybe ArgName
 isLabeled x
   | visible x              = Nothing  -- Ignore labels on visible arguments
-  | Just l <- bareNameOf x = boolToMaybe (l /= nameToRawName (boundName $ namedArg x)) l
+  | Just l <- bareNameOf x = boolToMaybe (l /= nameToRawName (boundName $ binderName $ namedArg x)) l
   | otherwise              = Nothing
 
+instance Pretty a => Pretty (Binder' a) where
+  pretty (Binder mpat n) = let d = pretty n in case mpat of
+    Nothing  -> d
+    Just pat -> d <+> "@" <+> parens (pretty pat)
+
 instance Pretty NamedBinding where
-  pretty (NamedBinding withH x) =
-    prH $ if | Just l <- isLabeled x -> text l <+> "=" <+> pretty xb
-             | otherwise             -> pretty (namedArg x)
+  pretty (NamedBinding withH x) = prH $
+    if | Just l <- isLabeled x -> text l <+> "=" <+> pretty xb
+       | otherwise             -> pretty xb
+
     where
-      xb = namedArg x
-      prH | withH     = prettyRelevance x . prettyHiding x mparens . prettyCohesion x . prettyQuantity x . prettyTactic xb
-          | otherwise = id
-      -- Parentheses are needed when an attribute @... is present
-      mparens
-        | noUserQuantity x, Nothing <- bnameTactic xb = id
-        | otherwise = parens
+
+    xb = namedArg x
+    bn = binderName xb
+    prH | withH     = prettyRelevance x
+                    . prettyHiding x mparens
+                    . prettyCohesion x
+                    . prettyQuantity x
+                    . prettyTactic bn
+        | otherwise = id
+    -- Parentheses are needed when an attribute @... is present
+    mparens
+      | noUserQuantity x, Nothing <- bnameTactic bn = id
+      | otherwise = parens
 
 instance Pretty LamBinding where
     pretty (DomainFree x) = pretty (NamedBinding True x)
@@ -356,7 +369,11 @@ instance Pretty TypedBinding where
     pretty (TBind _ xs (Underscore _ Nothing)) =
       fsep (map (pretty . NamedBinding True) xs)
     pretty (TBind _ xs e) = fsep
-      [ prettyRelevance y $ prettyHiding y parens $ prettyCohesion y $ prettyQuantity y $ prettyTactic (namedArg y) $
+      [ prettyRelevance y
+        $ prettyHiding y parens
+        $ prettyCohesion y
+        $ prettyQuantity y
+        $ prettyTactic (binderName $ namedArg y) $
         sep [ fsep (map (pretty . NamedBinding False) ys)
             , ":" <+> pretty e ]
       | ys@(y : _) <- groupBinds xs ]

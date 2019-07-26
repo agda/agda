@@ -1048,7 +1048,7 @@ bindParameters npars ps0@(par@(A.DomainFree _ arg) : ps) t ret = do
   let x          = namedArg arg
       TelV tel _ = telView' t
   case insertImplicit arg $ telToList tel of
-    NoInsertNeeded -> continue ps $ A.unBind x
+    NoInsertNeeded -> continue ps $ A.unBind $ A.binderName x
     ImpInsert _    -> continue ps0 =<< freshName_ (absName b)
     BadImplicits   -> setCurrentRange par $
      typeError . GenericDocError =<< do

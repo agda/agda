@@ -315,6 +315,9 @@ generateAndPrintSyntaxInfo decl hlLevel updateState = do
       singleton (rToR $ getRange s) $
         parserBased { aspect = Just $ Name (Just Argument) False }
 
+    getBinder :: A.Binder -> File
+    getBinder (A.Binder p n) = mconcat $ bound n : map getPattern (maybeToList p)
+
     getLet :: A.LetBinding -> File
     getLet (A.LetBind _ _ x _ _)     = bound x
     getLet A.LetPatBind{}            = mempty
@@ -323,11 +326,11 @@ generateAndPrintSyntaxInfo decl hlLevel updateState = do
     getLet (A.LetDeclaredVariable x) = bound x
 
     getLam :: A.LamBinding -> File
-    getLam (A.DomainFree _ x) = bound $ Common.namedArg x
-    getLam (A.DomainFull {})  = mempty
+    getLam (A.DomainFree _ xs) = getBinder (Common.namedArg xs)
+    getLam (A.DomainFull {})   = mempty
 
     getTyped :: A.TypedBinding -> File
-    getTyped (A.TBind _ _ xs _) = mconcat $ map (bound . Common.namedArg) xs
+    getTyped (A.TBind _ _ xs _) = Fold.foldMap (getBinder . Common.namedArg) xs
     getTyped A.TLet{}           = mempty
 
     getPatSynArgs :: A.Declaration -> File

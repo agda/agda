@@ -262,13 +262,32 @@ type Field          = TypeSignature
 
 type TacticAttr = Maybe Expr
 
+-- A Binder @x\@p@, the pattern is optional
+data Binder' a = Binder
+  { binderPattern :: Maybe Pattern
+  , binderName    :: a
+  } deriving (Data, Show, Eq, Functor, Foldable, Traversable)
+
+type Binder = Binder' BindName
+
+mkBinder :: a -> Binder' a
+mkBinder = Binder Nothing
+
+mkBinder_ :: Name -> Binder
+mkBinder_ = mkBinder . mkBindName
+
+extractPattern :: Binder' a -> Maybe (Pattern, a)
+extractPattern (Binder p a) = (,a) <$> p
+
 -- | A lambda binding is either domain free or typed.
 data LamBinding
-  = DomainFree TacticAttr (NamedArg BindName)  -- ^ . @x@ or @{x}@ or @.x@ or @{x = y}@
-  | DomainFull TypedBinding         -- ^ . @(xs:e)@ or @{xs:e}@ or @(let Ds)@
+  = DomainFree TacticAttr (NamedArg Binder)
+    -- ^ . @x@ or @{x}@ or @.x@ or @{x = y}@ or @x\@p@ or @(p)@
+  | DomainFull TypedBinding
+    -- ^ . @(xs:e)@ or @{xs:e}@ or @(let Ds)@
   deriving (Data, Show, Eq)
 
-mkDomainFree :: NamedArg BindName -> LamBinding
+mkDomainFree :: NamedArg Binder -> LamBinding
 mkDomainFree = DomainFree Nothing
 
 -- | A typed binding.  Appears in dependent function spaces, typed lambdas, and
@@ -286,13 +305,13 @@ mkDomainFree = DomainFree Nothing
 --   that the metas of the copy are aliases of the metas of the original.
 
 data TypedBinding
-  = TBind Range TacticAttr [NamedArg BindName] Expr
+  = TBind Range TacticAttr [NamedArg Binder] Expr
     -- ^ As in telescope @(x y z : A)@ or type @(x y z : A) -> B@.
   | TLet Range [LetBinding]
     -- ^ E.g. @(let x = e)@ or @(let open M)@.
   deriving (Data, Show, Eq)
 
-mkTBind :: Range -> [NamedArg BindName] -> Expr -> TypedBinding
+mkTBind :: Range -> [NamedArg Binder] -> Expr -> TypedBinding
 mkTBind r = TBind r Nothing
 
 type Telescope  = [TypedBinding]
@@ -583,6 +602,9 @@ instance LensHiding TypedBinding where
   mapHiding f (TBind r t xs e)    = TBind r t ((map . mapHiding) f xs) e
   mapHiding f b@TLet{}            = b
 
+instance HasRange a => HasRange (Binder' a) where
+  getRange (Binder p n) = fuseRange p n
+
 instance HasRange LamBinding where
     getRange (DomainFree _ x) = getRange x
     getRange (DomainFull b)   = getRange b
@@ -706,6 +728,9 @@ instance SetRange (Pattern' a) where
     setRange r (RecP i as)          = RecP (PatRange r) as
     setRange r (EqualP _ es)        = EqualP (PatRange r) es
     setRange r (WithP i p)          = WithP (setRange r i) p
+
+instance KillRange a => KillRange (Binder' a) where
+  killRange (Binder a b) = killRange2 Binder a b
 
 instance KillRange LamBinding where
   killRange (DomainFree t x) = killRange2 DomainFree t x
@@ -1074,9 +1099,9 @@ type PatternSynDefns = Map QName PatternSynDefn
 
 lambdaLiftExpr :: [Name] -> Expr -> Expr
 lambdaLiftExpr []     e = e
-lambdaLiftExpr (n:ns) e = Lam exprNoRange (mkDomainFree $ defaultNamedArg $ mkBindName n) $
-                            lambdaLiftExpr ns e
-
+lambdaLiftExpr (n:ns) e =
+  Lam exprNoRange (mkDomainFree $ defaultNamedArg $ mkBinder_ n) $
+  lambdaLiftExpr ns e
 
 class SubstExpr a where
   substExpr :: [(Name, Expr)] -> a -> a

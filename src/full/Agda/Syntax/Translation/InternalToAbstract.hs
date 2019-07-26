@@ -42,7 +42,8 @@ import Agda.Syntax.Fixity
 import qualified Agda.Syntax.Concrete.Name as C
 import Agda.Syntax.Concrete (FieldAssignment'(..))
 import Agda.Syntax.Info as Info
-import Agda.Syntax.Abstract as A
+import Agda.Syntax.Abstract as A hiding (Binder)
+import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Pattern
 import Agda.Syntax.Abstract.Pretty
 import Agda.Syntax.Internal as I
@@ -498,7 +499,7 @@ reifyTerm expandAnonDefs0 v0 = do
 --    I.Lam info b | isAbsurdBody b -> return $ A. AbsurdLam noExprInfo $ getHiding info
     I.Lam info b    -> do
       (x,e) <- reify b
-      return $ A.Lam exprNoRange (mkDomainFree $ unnamedArg info $ mkBindName x) e
+      return $ A.Lam exprNoRange (mkDomainFree $ unnamedArg info $ mkBinder_ x) e
       -- Andreas, 2011-04-07 we do not need relevance information at internal Lambda
     I.Lit l        -> reify l
     I.Level l      -> reify l
@@ -518,7 +519,7 @@ reifyTerm expandAnonDefs0 v0 = do
         mkPi b (Arg info a') = do
           tac <- traverse reify $ domTactic a
           (x, b) <- reify b
-          return $ A.Pi noExprInfo [TBind noRange tac [Arg info $ Named (domName a) $ BindName x] a'] b
+          return $ A.Pi noExprInfo [TBind noRange tac [Arg info $ Named (domName a) $ mkBinder_ x] a'] b
         -- We can omit the domain type if it doesn't have any free variables
         -- and it's mentioned in the target type.
         domainFree a b = do
@@ -638,7 +639,7 @@ reifyTerm expandAnonDefs0 v0 = do
                             vars = map (getArgInfo &&& name . namedArg) $ drop (length es) $ init $ namedClausePats cl
                             lam (i, s) = do
                               x <- freshName_ s
-                              return $ A.Lam exprNoRange (A.mkDomainFree $ unnamedArg i $ A.mkBindName x)
+                              return $ A.Lam exprNoRange (A.mkDomainFree $ unnamedArg i $ A.mkBinder_ x)
                         foldr ($) absLam <$> mapM lam vars
                       | otherwise -> elims absLam =<< reify (drop n es)
 
@@ -1050,6 +1051,9 @@ instance Binder A.Pattern where
     A.EqualP{}          -> empty
     A.WithP _ _         -> empty
 
+instance Binder a => Binder (A.Binder' a) where
+  varsBoundIn (A.Binder p n) = varsBoundIn (p, n)
+
 instance Binder A.LamBinding where
   varsBoundIn (A.DomainFree _ x) = varsBoundIn x
   varsBoundIn (A.DomainFull b)   = varsBoundIn b
@@ -1072,6 +1076,7 @@ instance Binder a => Binder (FieldAssignment' a) where
 instance Binder a => Binder (Arg a)              where
 instance Binder a => Binder (Named x a)          where
 instance Binder a => Binder [a]                  where
+instance Binder a => Binder (Maybe a)            where
 
 instance (Binder a, Binder b) => Binder (a, b) where
   varsBoundIn (x, y) = varsBoundIn x `Set.union` varsBoundIn y
@@ -1296,7 +1301,7 @@ instance Reify I.Telescope A.Telescope where
     let r    = getRange e
         name = domName arg
     tac <- traverse reify $ domTactic arg
-    return $ TBind r tac [Arg info $ Named name $ BindName x] e : bs
+    return $ TBind r tac [Arg info $ Named name $ A.mkBinder_ x] e : bs
 
 instance Reify i a => Reify (Dom i) (Arg a) where
     reify (Dom{domInfo = info, unDom = i}) = Arg info <$> reify i

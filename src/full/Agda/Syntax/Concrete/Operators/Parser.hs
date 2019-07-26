@@ -325,7 +325,7 @@ opP parseSections p (NewNotation q names _ syn isOp) kind =
       <$> wildOrUnqualifiedName
       <*> worker ms xs
 
-  mkBinding h x = (DomainFree $ defaultNamedArg $ mkBoundName_ x, h)
+  mkBinding h x = (DomainFree $ defaultNamedArg (mkBinder_ x), h)
 
   set x arg = fmap (fmap (const x)) arg
 
