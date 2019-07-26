@@ -88,7 +88,7 @@ the even positions and the other the elements in odd positions.
     odd : ∀ {A} → Stream A → Stream A
     odd x = even (tl x)
 
-    split : ∀ {A } → Stream A → Stream A × Stream A
+    split : ∀ {A} → Stream A → Stream A × Stream A
     split xs = even xs , odd xs
 
 And merge a pair of ``Stream`` by interleaving their elements.
