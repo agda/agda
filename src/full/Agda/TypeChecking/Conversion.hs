@@ -334,12 +334,14 @@ compareTerm' cmp a m n =
               reportSDoc "conv.glue" 20 $ prettyTCM (ty,mkUnglue m,mkUnglue n)
               compareTermOnFace cmp (unArg phi) ty m n
               compareTerm cmp ty (mkUnglue m) (mkUnglue n)
-         Def q es | Just q == mHComp, Just (_:s:args@[phi,u,u0]) <- allApplyElims es
+         Def q es | Just q == mHComp, Just (sl:s:args@[phi,u,u0]) <- allApplyElims es
                   , Sort (Type lvl) <- unArg s -> do
               let l = Level lvl
               ty <- el' (pure $ l) (pure $ unArg u0)
               unglueU <- prim_unglueU
-              let mkUnglue m = apply unglueU $ [argH l] ++ map (setHiding Hidden) args ++ [argN m]
+              subIn <- primSubIn
+              let bA = subIn `apply` [sl,s,phi,u0]
+              let mkUnglue m = apply unglueU $ [argH l] ++ map (setHiding Hidden) [phi,u]  ++ [argH bA,argN m]
               reportSDoc "conv.hcompU" 20 $ prettyTCM (ty,mkUnglue m,mkUnglue n)
               compareTermOnFace cmp (unArg phi) ty m n
               compareTerm cmp ty (mkUnglue m) (mkUnglue n)
@@ -601,18 +603,24 @@ compareAtom cmp t m n =
               compareElims [] [] (El (tmSort (unArg la)) (unArg bA)) (Def q as) bs bs'
               return True
             _  -> return False
+        compareUnglueUApp :: MonadConversion m => QName -> Elims -> Elims -> m Bool
         compareUnglueUApp q es es' = do
           let (as,bs) = splitAt 5 es; (as',bs') = splitAt 5 es'
           case (allApplyElims as, allApplyElims as') of
-            (Just [la,phi,bT,bA,b], Just [la',phi',bT',bA',b']) -> do
+            (Just [la,phi,bT,bAS,b], Just [la',phi',bT',bA',b']) -> do
               tHComp <- primHComp
               tLSuc <- primLevelSuc
+              tSubOut <- primSubOut
+              iz <- primIZero
               let lsuc t = tLSuc `apply` [argN t]
                   s = tmSort $ unArg la
                   sucla = lsuc <$> la
-              compareAtom cmp (El (tmSort . unArg $ sucla) $ apply tHComp $ [sucla, argH (Sort s), phi] ++ map (setHiding NotHidden) [bT,bA])
+              bA <- runNamesT [] $ do
+                [la,phi,bT,bAS] <- mapM (open . unArg) [la,phi,bT,bAS]
+                (pure tSubOut <#> (pure tLSuc <@> la) <#> (Sort . tmSort <$> la) <#> phi <#> (bT <@> primIZero) <@> bAS)
+              compareAtom cmp (El (tmSort . unArg $ sucla) $ apply tHComp $ [sucla, argH (Sort s), phi] ++ [argH (unArg bT), argH bA])
                               (unArg b) (unArg b')
-              compareElims [] [] (El s (unArg bA)) (Def q as) bs bs'
+              compareElims [] [] (El s bA) (Def q as) bs bs'
               return True
             _  -> return False
         -- Andreas, 2013-05-15 due to new postponement strategy, type can now be blocked

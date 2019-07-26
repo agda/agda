@@ -1332,7 +1332,7 @@ checkPOr c rs vs _ = do
 --              → {T : Partial φ (Set ℓ')} → {e : PartialP φ (λ o → T o ≃ A)}
 --              → (t : PartialP φ T) → (a : A) → primGlue A T e@
 --
---   Check   @φ ⊢ a = t 1=1@  or actually the equivalent:  @(\ _ → a) = t : PartialP φ T@
+--   Check   @φ ⊢ a = e 1=1 (t 1=1)@  or actually the equivalent:  @(\ _ → a) = (\ o -> e o (t o)) : PartialP φ A@
 check_glue :: QName -> MaybeRanges -> Args -> Type -> TCM Args
 check_glue c rs vs _ = do
   case vs of
@@ -1354,10 +1354,11 @@ check_glue c rs vs _ = do
 
 
 -- | @prim^glueU : ∀ {ℓ} {φ : I}
---              → {T : I → Partial φ (Set ℓ)} → {A : Set ℓ}
---              → (t : PartialP φ (T i1)) → (a : A) → hcomp T A@
+--              → {T : I → Partial φ (Set ℓ)} → {A : Set ℓ [ φ ↦ T i0 ]}
+--              → (t : PartialP φ (T i1)) → (a : outS A) → hcomp T (outS A)@
 --
---   Check   @φ ⊢ a = t 1=1@  or actually the equivalent:  @(\ _ → a) = t : PartialP φ (T i1)@
+--   Check   @φ ⊢ a = transp (\ i -> T 1=1 (~ i)) i0 (t 1=1)@  or actually the equivalent:
+--           @(\ _ → a) = (\o -> transp (\ i -> T o (~ i)) i0 (t o)) : PartialP φ (T i0)@
 check_glueU :: QName -> MaybeRanges -> Args -> Type -> TCM Args
 check_glueU c rs vs _ = do
   case vs of
@@ -1369,10 +1370,12 @@ check_glueU c rs vs _ = do
             let f o = cl primTrans <#> (lam "i" $ const la) <@> (lam "i" $ \ i -> bT <@> (cl primINeg <@> i) <..> o) <@> cl primIZero
             glam iinfo "o" $ \ o -> f o <@> (t <..> o)
       ty <- runNamesT [] $ do
-            [la, phi, bA] <- mapM (open . unArg) [la, phi, bA]
-            elInf $ cl primPartialP <#> la <@> phi <@> (glam iinfo "o" $ \ _ -> bA)
+            [la, phi, bT] <- mapM (open . unArg) [la, phi, bT]
+            pPi' "o" phi $ \ o -> el' la (bT <@> cl primIZero <..> o)
       let a' = Lam iinfo (NoAbs "o" $ unArg a)
-      ta <- el' (pure $ unArg la) (pure $ unArg bA)
+      ta <- runNamesT [] $ do
+            [la, phi, bT, bA] <- mapM (open . unArg) [la, phi, bT, bA]
+            el' la (cl primSubOut <#> (cl primLevelSuc <@> la) <#> (Sort . tmSort <$> la) <#> phi <#> (bT <@> cl primIZero) <@> bA)
       a <- blockArg ta (rs !!! 5) a $ equalTerm ty a' v
       return $ la : phi : bT : bA : t : a : rest
    _ -> typeError $ GenericError $ show c ++ " must be fully applied"

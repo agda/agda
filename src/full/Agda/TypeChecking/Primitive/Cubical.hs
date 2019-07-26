@@ -561,6 +561,8 @@ primTransHComp cmd ts nelims = do
       tTransp  <- getTermLocal builtinTrans
       tglue   <- getTermLocal builtin_glueU
       tunglue <- getTermLocal builtin_unglueU
+      tLSuc   <- getTermLocal builtinLevelSuc
+      tSubIn <- getTermLocal builtinSubIn
       (redReturn =<<) . runNamesT [] $ do
         [psi, u, u0] <- mapM (open . unArg) [psi, u, u0]
         [la, phi, bT, bA] <- mapM (open . unArg) [la, phi, bT, bA]
@@ -575,7 +577,8 @@ primTransHComp cmd ts nelims = do
                                                <@> u0
           transp la bA a0 = pure tTransp <#> (lam "i" $ const la) <@> lam "i" bA <@> pure iz <@> a0
           tf i o = hfill la (bT <@> pure io <..> o) psi u u0 i
-          unglue g = pure tunglue <#> la <#> phi <#> bT <#> bA <@> g
+          bAS = pure tSubIn <#> (pure tLSuc <@> la) <#> (Sort . tmSort <$> la) <#> phi <@> bA
+          unglue g = pure tunglue <#> la <#> phi <#> bT <#> bAS <@> g
           a1 = pure tHComp <#> la <#> bA <#> (pure tIMax <@> psi <@> phi)
                            <@> (lam "i" $ \ i -> pure tPOr <#> la <@> psi <@> phi <@> (ilam "_" $ \ _ -> bA)
                                  <@> (ilam "o" $ \ o -> unglue (u <@> i <..> o))
@@ -583,7 +586,7 @@ primTransHComp cmd ts nelims = do
                                )
                            <@> unglue u0
           t1 = tf (pure io)
-        pure tglue <#> la <#> phi <#> bT <#> bA <@> (ilam "o" $ \ o -> t1 o) <@> a1
+        pure tglue <#> la <#> phi <#> bT <#> bAS <@> (ilam "o" $ \ o -> t1 o) <@> a1
     compHCompU DoTransp psi Nothing u0 (IsFam (la, phi, bT, bA)) = do
       let
         localUse = builtinTrans ++ " for " ++ builtinHComp ++ " of Set"
@@ -597,11 +600,9 @@ primTransHComp cmd ts nelims = do
       tTranspProof <- getTermLocal builtinTranspProof
       tSubIn <- getTermLocal builtinSubIn
       tForall  <- getTermLocal builtinFaceForall
-      tglue   <- getTermLocal builtin_glueU
-      tunglue <- getTermLocal builtin_unglueU
       io      <- getTermLocal builtinIOne
       iz      <- getTermLocal builtinIZero
-      tLMax   <- getTermLocal builtinLevelMax
+      tLSuc   <- getTermLocal builtinLevelSuc
       tPath   <- getTermLocal builtinPath
       kit <- fromMaybe __IMPOSSIBLE__ <$> getSigmaKit
       (redReturn =<<) . runNamesT [] $ do
@@ -619,10 +620,16 @@ primTransHComp cmd ts nelims = do
                           <@> u0
         [psi,u0] <- mapM (open . unArg) [psi,u0]
         glue1 <- do
-          g <- open $ (tglue `apply`) . map (setHiding Hidden) . map (subst 0 io) $ [la, phi, bT, bA]
+          tglue   <- cl $ getTermLocal builtin_glueU
+          [la, phi, bT, bA] <- mapM (open . unArg . subst 0 io) $ [la, phi, bT, bA]
+          let bAS = pure tSubIn <#> (pure tLSuc <@> la) <#> (Sort . tmSort <$> la) <#> phi <@> bA
+          g <- (open =<<) $ pure tglue <#> la <#> phi <#> bT <#> bAS
           return $ \ t a -> g <@> t <@> a
         unglue0 <- do
-          ug <- open $ (tunglue `apply`) . map (setHiding Hidden) . map (subst 0 iz) $ [la, phi, bT, bA]
+          tunglue <- cl $ getTermLocal builtin_unglueU
+          [la, phi, bT, bA] <- mapM (open . unArg . subst 0 iz) $ [la, phi, bT, bA]
+          let bAS = pure tSubIn <#> (pure tLSuc <@> la) <#> (Sort . tmSort <$> la) <#> phi <@> bA
+          ug <- (open =<<) $ pure tunglue <#> la <#> phi <#> bT <#> bAS
           return $ \ a -> ug <@> a
         [la, phi, bT, bA] <- mapM (\ a -> open . runNames [] $ (lam "i" $ const (pure $ unArg a))) [la, phi, bT, bA]
         let
@@ -647,7 +654,7 @@ primTransHComp cmd ts nelims = do
                                                                            (tf i o)))
                  a0
 
-          max l l' = pure tLMax <@> l <@> l'
+--          max l l' = pure tLMax <@> l <@> l'
           sigCon x y = pure (Con (sigmaCon kit) ConOSystem []) <@> x <@> y
           w i o = lam "x" $
                   transp (la <@> i)
@@ -1230,9 +1237,11 @@ prim_glueU' = do
        (hPi' "la" (el $ cl primLevel) $ \ la ->
        hPi' "φ" (elInf $ cl primInterval) $ \ φ ->
        hPi' "T" (nPi' "i" (elInf $ cl primInterval) $ \ _ -> pPi' "o" φ $ \ o -> sort . tmSort <$> la) $ \ t ->
-       hPi' "A" (sort . tmSort <$> la) $ \ a ->
-       (pPi' "o" φ $ \ o -> el' la (t <@> cl primIOne <..> o)) --> (el' la a
-       --> el' (cl primLevelSuc <@> la) (cl primHComp <#> (cl primLevelSuc <@> la) <#> (Sort . tmSort <$> la) <#> φ <@> t <@> a)))
+       hPi' "A" (elInf $ cl primSub <#> (cl primLevelSuc <@> la) <@> (Sort . tmSort <$> la) <@> φ <@> (t <@> primIZero)) $ \ a -> do
+       let bA = (cl primSubOut <#> (cl primLevelSuc <@> la) <#> (Sort . tmSort <$> la) <#> φ <#> (t <@> primIZero) <@> a)
+       (pPi' "o" φ $ \ o -> el' la (t <@> cl primIOne <..> o))
+         --> (el' la bA)
+         --> el' la (cl primHComp <#> (cl primLevelSuc <@> la) <#> (Sort . tmSort <$> la) <#> φ <@> t <@> bA))
   view <- intervalView'
   one <- primItIsOne
   return $ PrimImpl t $ primFun __IMPOSSIBLE__ 6 $ \ts ->
@@ -1251,9 +1260,10 @@ prim_unglueU' = do
        (hPi' "la" (el $ cl primLevel) $ \ la ->
        hPi' "φ" (elInf $ cl primInterval) $ \ φ ->
        hPi' "T" (nPi' "i" (elInf $ cl primInterval) $ \ _ -> pPi' "o" φ $ \ o -> sort . tmSort <$> la) $ \ t ->
-       hPi' "A" (sort . tmSort <$> la) $ \ a ->
-       el' (cl primLevelSuc <@> la) (cl primHComp <#> (cl primLevelSuc <@> la) <#> (Sort . tmSort <$> la) <#> φ <@> t <@> a)
-       --> el' la a)
+       hPi' "A" (elInf $ cl primSub <#> (cl primLevelSuc <@> la) <@> (Sort . tmSort <$> la) <@> φ <@> (t <@> primIZero)) $ \ a -> do
+       let bA = (cl primSubOut <#> (cl primLevelSuc <@> la) <#> (Sort . tmSort <$> la) <#> φ <#> (t <@> primIZero) <@> a)
+       el' la (cl primHComp <#> (cl primLevelSuc <@> la) <#> (Sort . tmSort <$> la) <#> φ <@> t <@> bA)
+         --> el' la bA)
   view <- intervalView'
   one <- primItIsOne
   mglueU <- getPrimitiveName' builtin_glueU
