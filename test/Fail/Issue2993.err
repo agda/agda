@@ -10,7 +10,7 @@ Failed to solve the following constraints:
     applicativeComp :
       {F = F₁ : Set → Set} {G : Set → Set} ⦃ _ : Applicative F₁ ⦄
       ⦃ _ : Applicative G ⦄ →
-      Applicative ((λ {a} → F₁) o G)
+      Applicative (F₁ o G)
   Resolve instance argument
     _AF_165
       : {n = n₁ : Nat} {F : Set → Set} {A B : Set}
@@ -20,7 +20,7 @@ Failed to solve the following constraints:
     AF₁ : Applicative F₁
     applicativeComp :
       {F G : Set → Set} ⦃ _ : Applicative F ⦄ ⦃ _ : Applicative G ⦄ →
-      Applicative ((λ {a} → F) o G)
+      Applicative (F o G)
   [242, 243] F₁ B₁ =< _F_166 _B_164 : Set
   [242] _F_166 (Vec _B_164 n) =< F₁ (Vec B₁ n) : Set
   [222] F B =< _F_160 _B_152 : Set
