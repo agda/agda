@@ -43,6 +43,7 @@ interestingCall = \case
     IsTypeCall{}              -> True
     IsType_{}                 -> True
     CheckArguments{}          -> True
+    CheckMetaSolution{}       -> True
     CheckTargetType{}         -> True
     CheckDataDef{}            -> True
     CheckRecDef{}             -> True
@@ -144,6 +145,7 @@ traceClosureCall cl m = do
     InferVar{}                -> True
     InferDef{}                -> True
     CheckArguments{}          -> True
+    CheckMetaSolution{}       -> False
     CheckTargetType{}         -> False
     CheckDataDef{}            -> True
     CheckRecDef{}             -> True

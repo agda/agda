@@ -21,7 +21,7 @@ import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Generic
 import Agda.Syntax.Internal.MetaVars
-import Agda.Syntax.Position (killRange)
+import Agda.Syntax.Position (getRange, killRange)
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
@@ -958,12 +958,15 @@ assignMeta' m x t n ids v = do
       addContext tel' $ case mvJudgement m of
         HasType{} -> do
           reportSDoc "tc.meta.check" 30 $ nest 2 $
-            prettyTCM v' <+> " : " <+> prettyTCM a
-          checkInternal v' a
+            prettyTCM x <+> " : " <+> prettyTCM a <+> ":=" <+> prettyTCM v'
+          traceCall (CheckMetaSolution (getRange m) x a v') $
+            checkInternal v' a
         IsSort{}  -> void $ do
           reportSDoc "tc.meta.check" 30 $ nest 2 $
-            prettyTCM v' <+> " is a sort"
-          checkSort defaultAction =<< shouldBeSort (El __DUMMY_SORT__ v')
+            prettyTCM x <+> ":=" <+> prettyTCM v' <+> " is a sort"
+          s <- shouldBeSort (El __DUMMY_SORT__ v')
+          traceCall (CheckMetaSolution (getRange m) x (sort (univSort Nothing s)) (Sort s)) $
+            checkSort defaultAction s
 
     reportSDoc "tc.meta.assign" 10 $
       "solving" <+> prettyTCM x <+> ":=" <+> prettyTCM vsol

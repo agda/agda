@@ -2246,6 +2246,7 @@ data Call
   | InferVar Name
   | InferDef QName
   | CheckArguments Range [NamedArg A.Expr] Type (Maybe Type)
+  | CheckMetaSolution Range MetaId Type Term
   | CheckTargetType Range Type Type
   | CheckDataDef Range QName [A.LamBinding] [A.Constructor]
   | CheckRecDef Range QName [A.LamBinding] [A.Constructor]
@@ -2280,6 +2281,7 @@ instance Pretty Call where
     pretty InferVar{}                = "InferVar"
     pretty InferDef{}                = "InferDef"
     pretty CheckArguments{}          = "CheckArguments"
+    pretty CheckMetaSolution{}       = "CheckMetaSolution"
     pretty CheckTargetType{}         = "CheckTargetType"
     pretty CheckDataDef{}            = "CheckDataDef"
     pretty CheckRecDef{}             = "CheckRecDef"
@@ -2314,6 +2316,7 @@ instance HasRange Call where
     getRange (InferVar x)                    = getRange x
     getRange (InferDef f)                    = getRange f
     getRange (CheckArguments r _ _ _)        = r
+    getRange (CheckMetaSolution r _ _ _)     = r
     getRange (CheckTargetType r _ _)         = r
     getRange (CheckDataDef i _ _ _)          = getRange i
     getRange (CheckRecDef i _ _ _)           = getRange i

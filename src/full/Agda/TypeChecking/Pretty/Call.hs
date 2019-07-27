@@ -92,6 +92,11 @@ instance PrettyTCM Call where
       pwords "to a function of type" ++
       [prettyTCM t0]
 
+    CheckMetaSolution r m a v -> fsep $
+      pwords "when checking that the solution" ++ [prettyTCM v] ++
+      pwords "of metavariable" ++ [prettyTCM m] ++
+      pwords "has the expected type" ++ [prettyTCM a]
+
     CheckTargetType r infTy expTy -> sep
       [ "when checking that the inferred type of an application"
       , nest 2 $ prettyTCM infTy
