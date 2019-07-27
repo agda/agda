@@ -196,7 +196,9 @@ noFunctionsIntoSize t tBlame = do
   reportSDoc "tc.fun" 20 $ do
     let El s (Pi dom b) = tBlame
     sep [ "created function type " <+> prettyTCM tBlame
-        , "with pts rule" <+> prettyTCM (getSort dom, getSort b, s)
+        , "with pts rule (" <+> prettyTCM (getSort dom) <+>
+                        "," <+> underAbstraction_ b (prettyTCM . getSort) <+>
+                        "," <+> prettyTCM s <+> ")"
         ]
   s <- reduce $ getSort t
   when (s == SizeUniv) $ do
