@@ -16,3 +16,6 @@ postulate
 
 test : (f ∘ g) ≡ (f ∘ g)
 test = {!!}
+
+-- WAS: goal displayed as ((λ {x} -> f) ∘ g) ≡ ((λ {x} -> f) ∘ g)
+-- WANT: no spurious hidden lambda i.e. (f ∘ g) ≡ (f ∘ g)
