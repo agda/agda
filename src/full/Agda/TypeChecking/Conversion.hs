@@ -708,6 +708,12 @@ antiUnify pid a u v = do
   ((u, v), eq) <- SynEq.checkSyntacticEquality u v
   if eq then return u else do
   (u, v) <- reduce (u, v)
+  reportSDoc "tc.conv.antiUnify" 30 $ vcat
+    [ "antiUnify"
+    , "a =" <+> prettyTCM a
+    , "u =" <+> prettyTCM u
+    , "v =" <+> prettyTCM v
+    ]
   case (u, v) of
     (Pi ua ub, Pi va vb) -> do
       wa0 <- antiUnifyType pid (unDom ua) (unDom va)
@@ -865,6 +871,12 @@ compareElims pols0 fors0 a v els01 els02 = (catchConstraint (ElimCmp pols0 fors0
             reportSLn "tc.conv.elim" 90 $ "solved = " ++ show solved
             arg <- if dependent && not solved
                    then do
+                    reportSDoc "tc.conv.elims" 30 $ vcat $
+                      [ "Trying antiUnify:"
+                      , nest 2 $ "b    =" <+> prettyTCM b
+                      , nest 2 $ "arg1 =" <+> prettyTCM arg1
+                      , nest 2 $ "arg2 =" <+> prettyTCM arg2
+                      ]
                     arg <- (arg1 $>) <$> antiUnify pid b (unArg arg1) (unArg arg2)
                     reportSDoc "tc.conv.elims" 30 $ hang "Anti-unification:" 2 (prettyTCM arg)
                     reportSDoc "tc.conv.elims" 70 $ nest 2 $ "raw:" <+> pretty arg
