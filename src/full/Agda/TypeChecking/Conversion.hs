@@ -718,11 +718,11 @@ antiUnify pid a u v = do
     (Pi ua ub, Pi va vb) -> do
       wa0 <- antiUnifyType pid (unDom ua) (unDom va)
       let wa = wa0 <$ ua
-      wb <- addContext wa $ antiUnifyType pid (unAbs ub) (unAbs vb)
-      return $ Pi wa (wb <$ ub)
+      wb <- addContext wa $ antiUnifyType pid (absBody ub) (absBody vb)
+      return $ Pi wa (mkAbs (absName ub) wb)
     (Lam i u, Lam _ v) ->
       case unEl a of
-        Pi a b -> Lam i . (<$ u) <$> addContext a (antiUnify pid (unAbs b) (unAbs u) (unAbs v))
+        Pi a b -> Lam i . (mkAbs (absName u)) <$> addContext a (antiUnify pid (absBody b) (absBody u) (absBody v))
         _      -> fallback
     (Var i us, Var j vs) | i == j -> maybeGiveUp $ do
       a <- typeOfBV i
