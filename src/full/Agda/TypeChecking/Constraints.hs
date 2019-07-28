@@ -241,7 +241,7 @@ solveConstraint_ (IsEmpty r t)              = ensureEmptyType r t
 solveConstraint_ (CheckSizeLtSat t)         = checkSizeLtSat t
 solveConstraint_ (UnquoteTactic _ tac hole goal) = unquoteTactic tac hole goal
 solveConstraint_ (UnBlock m)                =
-  ifM (isFrozen m) (addConstraint $ UnBlock m) $ do
+  ifM (isFrozen m `or2M` (not <$> asksTC envAssignMetas)) (addConstraint $ UnBlock m) $ do
     inst <- mvInstantiation <$> lookupMeta m
     reportSDoc "tc.constr.unblock" 15 $ text ("unblocking a metavar yields the constraint: " ++ show inst)
     case inst of
