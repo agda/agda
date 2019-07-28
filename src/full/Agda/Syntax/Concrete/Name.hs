@@ -292,11 +292,15 @@ qnameParts :: QName -> [Name]
 qnameParts (Qual x q) = x : qnameParts q
 qnameParts (QName x)  = [x]
 
--- | Is the name qualified?
+-- | Is the name (un)qualified?
 
 isQualified :: QName -> Bool
 isQualified Qual{}  = True
 isQualified QName{} = False
+
+isUnqualified :: QName -> Maybe Name
+isUnqualified Qual{}    = Nothing
+isUnqualified (QName n) = Just n
 
 ------------------------------------------------------------------------
 -- * Operations on 'TopLevelModuleName'
