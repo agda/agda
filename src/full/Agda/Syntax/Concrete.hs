@@ -12,6 +12,7 @@ module Agda.Syntax.Concrete
   , module Agda.Syntax.Concrete.Name
   , appView, AppView(..)
   , isSingleIdentifierP, removeSingletonRawAppP
+  , isPattern, isBinderP
     -- * Bindings
   , Binder'(..)
   , Binder
@@ -56,7 +57,7 @@ import Prelude hiding (null)
 
 import Control.DeepSeq
 import Data.Foldable (Foldable)
-import Data.Traversable (Traversable)
+import Data.Traversable (Traversable, forM, mapM)
 import Data.List hiding (null)
 import Data.Set (Set)
 
@@ -73,6 +74,7 @@ import qualified Agda.Syntax.Abstract.Name as A
 
 import Agda.TypeChecking.Positivity.Occurrence
 
+import Agda.Utils.Either ( maybeLeft )
 import Agda.Utils.Lens
 import Agda.Utils.Null
 
@@ -534,6 +536,46 @@ removeSingletonRawAppP p = case p of
     RawAppP _ [p'] -> removeSingletonRawAppP p'
     ParenP _ p'    -> removeSingletonRawAppP p'
     _ -> p
+
+-- | Turn an expression into a pattern. Fails if the expression is not a
+--   valid pattern.
+
+isPattern :: Expr -> Maybe Pattern
+isPattern = \case
+  Ident x                 -> return $ IdentP x
+  App _ e1 e2             -> AppP <$> isPattern e1 <*> mapM (mapM isPattern) e2
+  Paren r e               -> ParenP r <$> isPattern e
+  Underscore r _          -> return $ WildP r
+  Absurd r                -> return $ AbsurdP r
+  As r x e                -> AsP r x <$> isPattern e
+  Dot r (HiddenArg _ e)   -> return $ HiddenP r $ fmap (DotP r) e
+  Dot r e                 -> return $ DotP r e
+  Lit l                   -> return $ LitP l
+  HiddenArg r e           -> HiddenP r <$> mapM isPattern e
+  InstanceArg r e         -> InstanceP r <$> mapM isPattern e
+  RawApp r es             -> RawAppP r <$> mapM isPattern es
+  Quote r                 -> return $ QuoteP r
+  Equal r e1 e2           -> return $ EqualP r [(e1, e2)]
+  Ellipsis r              -> return $ EllipsisP r
+  Rec r es                -> do
+    fs <- mapM maybeLeft es
+    RecP r <$> mapM (mapM isPattern) fs
+  -- WithApp has already lost the range information of the bars '|'
+  WithApp r e es          -> do
+    p  <- isPattern e
+    ps <- forM es $ \ e -> do
+      p <- isPattern e
+      pure $ defaultNamedArg $ WithP (getRange e) p   -- TODO #2822: Range!
+    return $ foldl AppP p ps
+  _ -> Nothing
+
+isBinderP :: Pattern -> Maybe Binder
+isBinderP = \case
+  IdentP qn  -> mkBinder_ <$> isUnqualified qn
+  WildP r    -> pure $ mkBinder_ (Name r InScope [Hole])
+  AsP r n p  -> pure $ Binder (Just p) (mkBoundName_ n)
+  ParenP r p -> pure $ Binder (Just p) (mkBoundName_ $ Name r InScope [Hole])
+  _ -> Nothing
 
 {--------------------------------------------------------------------------
     Instances

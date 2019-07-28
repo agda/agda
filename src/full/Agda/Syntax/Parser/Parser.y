@@ -2194,34 +2194,9 @@ exprToLHS e = LHS <$> exprToPattern e
 -- | Turn an expression into a pattern. Fails if the expression is not a
 --   valid pattern.
 exprToPattern :: Expr -> Parser Pattern
-exprToPattern e = do
-    let failure = parseErrorRange e $ "Not a valid pattern: " ++ prettyShow e
-    case e of
-        Ident x                 -> return $ IdentP x
-        App _ e1 e2             -> AppP <$> exprToPattern e1
-                                        <*> T.mapM (T.mapM exprToPattern) e2
-        Paren r e               -> ParenP r
-                                        <$> exprToPattern e
-        Underscore r _          -> return $ WildP r
-        Absurd r                -> return $ AbsurdP r
-        As r x e                -> AsP r x <$> exprToPattern e
-        Dot r (HiddenArg _ e)   -> return $ HiddenP r $ fmap (DotP r) e
-        Dot r e                 -> return $ DotP r e
-        Lit l                   -> return $ LitP l
-        HiddenArg r e           -> HiddenP r <$> T.mapM exprToPattern e
-        InstanceArg r e         -> InstanceP r <$> T.mapM exprToPattern e
-        RawApp r es             -> RawAppP r <$> mapM exprToPattern es
-        Quote r                 -> return $ QuoteP r
-        Rec r es | Just fs <- mapM maybeLeft es -> do
-          RecP r <$> T.mapM (T.mapM exprToPattern) fs
-        Equal r e1 e2           -> return $ EqualP r [(e1, e2)]
-        Ellipsis r              -> return $ EllipsisP r
-        -- WithApp has already lost the range information of the bars '|'
-        WithApp r e es          -> do
-          p  <- exprToPattern e
-          ps <- forM es $ \ e -> defaultNamedArg . WithP (getRange e) <$> exprToPattern e  -- TODO #2822: Range!
-          return $ foldl AppP p ps
-        _ -> failure
+exprToPattern e = case C.isPattern e of
+  Nothing -> parseErrorRange e $ "Not a valid pattern: " ++ prettyShow e
+  Just p  -> pure p
 
 opAppExprToPattern :: OpApp Expr -> Parser Pattern
 opAppExprToPattern (SyntaxBindingLambda _ _ _) = parseError "Syntax binding lambda cannot appear in a pattern"
