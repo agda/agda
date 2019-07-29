@@ -49,15 +49,14 @@ import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 
 import Agda.TheTypeChecker
 
-import Agda.Interaction.FindFile
-import {-# SOURCE #-} Agda.Interaction.EmacsTop (showGoals)
 import Agda.Interaction.BasicOps (getGoals)
+import {-# SOURCE #-} Agda.Interaction.EmacsTop (showGoals)
+import Agda.Interaction.FindFile
+import Agda.Interaction.Highlighting.Generate
+import Agda.Interaction.Highlighting.Precise  ( compress )
+import Agda.Interaction.Highlighting.Vim
 import Agda.Interaction.Options
 import qualified Agda.Interaction.Options.Lenses as Lens
-import Agda.Interaction.Highlighting.Precise
-  (compress)
-import Agda.Interaction.Highlighting.Generate
-import Agda.Interaction.Highlighting.Vim
 import Agda.Interaction.Response
   (RemoveTokenBasedHighlighting(KeepHighlighting))
 
@@ -86,8 +85,8 @@ data SourceInfo = SourceInfo
 
 -- | Computes a 'SourceInfo' record for the given file.
 
-sourceInfo :: AbsolutePath -> TCM SourceInfo
-sourceInfo f = Bench.billTo [Bench.Parsing] $ do
+sourceInfo :: SourceFile -> TCM SourceInfo
+sourceInfo (SourceFile f) = Bench.billTo [Bench.Parsing] $ do
   source                <- runPM $ readFilePM f
   (parsedMod, fileType) <- runPM $
                            parseFile moduleParser f $ T.unpack source
@@ -265,7 +264,7 @@ alreadyVisited x isMain currentOptions getIface = do
 --   complete interface is returned.
 
 typeCheckMain
-  :: AbsolutePath
+  :: SourceFile
      -- ^ The path to the file.
   -> Mode
      -- ^ Should the file be type-checked, or only scope-checked?
@@ -288,7 +287,7 @@ typeCheckMain f mode si = do
     -- We don't want to generate highlighting information for Agda.Primitive.
     withHighlightingLevel None $ withoutOptionsChecking $
       forM_ (Set.map (libdirPrim </>) Lens.primitiveModules) $ \f -> do
-        let file = mkAbsolute f
+        let file = SourceFile $ mkAbsolute f
         si <- sourceInfo file
         checkModuleName' (siModuleName si) file
         _ <- getInterface_ (siModuleName si) (Just si)
@@ -373,16 +372,18 @@ getInterface' x isMain msi =
 
       uptodate <- Bench.billTo [Bench.Import] $ do
         ignore <- (ignoreInterfaces `and2M`
-                    (not <$> Lens.isBuiltinModule (filePath file)))
+                    (not <$> Lens.isBuiltinModule (filePath $ srcFilePath file)))
                   `or2M` ignoreAllInterfaces
         cached <- runMaybeT $ isCached x file
           -- If it's cached ignoreInterfaces has no effect;
           -- to avoid typechecking a file more than once.
         sourceH <- case msi of
-                     Nothing -> liftIO $ hashTextFile file
+                     Nothing -> liftIO $ hashTextFile (srcFilePath file)
                      Just si -> return $ hashText (siSource si)
         ifaceH  <- case cached of
-            Nothing -> fmap fst <$> getInterfaceFileHashes (filePath $ toIFile file)
+            Nothing -> do
+              mifile <- liftIO $ toIFile file
+              fmap fst <$> getInterfaceFileHashes mifile
             Just i  -> return $ Just $ iSourceHash i
         let unchanged = Just sourceH == ifaceH
         return $ unchanged && (not ignore || isJust cached)
@@ -408,7 +409,7 @@ getInterface' x isMain msi =
       unless (topLevelName == x) $
         -- Andreas, 2014-03-27 This check is now done in the scope checker.
         -- checkModuleName topLevelName file
-        typeError $ OverlappingProjects file topLevelName x
+        typeError $ OverlappingProjects (srcFilePath file) topLevelName x
 
       visited <- isVisited x
       reportSLn "import.iface" 5 $ if visited then "  We've been here. Don't merge."
@@ -472,21 +473,18 @@ checkOptionsCompatible current imported importedModule = flip execStateT True $ 
 isCached
   :: C.TopLevelModuleName
      -- ^ Module name of file we process.
-  -> AbsolutePath
+  -> SourceFile
      -- ^ File we process.
   -> MaybeT TCM Interface
 
 isCached x file = do
-  let ifile = filePath $ toIFile file
-
-  -- Make sure the file exists in the case sensitive spelling.
-  guardM $ liftIO $ doesFileExistCaseSensitive ifile
+  ifile <- MaybeT $ findInterfaceFile' file
 
   -- Check that we have cached the module.
   mi <- MaybeT $ getDecodedModule x
 
   -- Check that the interface file exists and return its hash.
-  h  <- MaybeT $ fmap snd <$> getInterfaceFileHashes ifile
+  h  <- MaybeT $ fmap snd <$> getInterfaceFileHashes' ifile
 
   -- Make sure the hashes match.
   guard $ iFullHash mi == h
@@ -498,7 +496,7 @@ isCached x file = do
 getStoredInterface
   :: C.TopLevelModuleName
      -- ^ Module name of file we process.
-  -> AbsolutePath
+  -> SourceFile
      -- ^ File we process.
   -> MainInterface
   -> Maybe SourceInfo
@@ -506,6 +504,7 @@ getStoredInterface
   -> TCM (Bool, (Interface, MaybeWarnings))
      -- ^ @Bool@ is: do we have to merge the interface?
 getStoredInterface x file isMain msi = do
+  let fp = filePath $ srcFilePath file
   -- If something goes wrong (interface outdated etc.)
   -- we revert to fresh type checking.
   let fallback = typeCheck x file isMain msi
@@ -513,7 +512,8 @@ getStoredInterface x file isMain msi = do
   -- Examine the hash of the interface file. If it is different from the
   -- stored version (in stDecodedModules), or if there is no stored version,
   -- read and decode it. Otherwise use the stored version.
-  let ifile = filePath $ toIFile file
+  ifile <- liftIO $ toIFile file
+  let ifp = filePath ifile
   h <- fmap snd <$> getInterfaceFileHashes ifile
   mm <- getDecodedModule x
   (cached, mi) <- Bench.billTo [Bench.Deserialization] $ case mm of
@@ -523,13 +523,13 @@ getStoredInterface x file isMain msi = do
         dropDecodedModule x
         reportSLn "import.iface" 50 $ "  cached hash = " ++ show (iFullHash mi)
         reportSLn "import.iface" 50 $ "  stored hash = " ++ show h
-        reportSLn "import.iface" 5 $ "  file is newer, re-reading " ++ ifile
+        reportSLn "import.iface" 5 $ "  file is newer, re-reading " ++ ifp
         (False,) <$> readInterface ifile
       else do
-        reportSLn "import.iface" 5 $ "  using stored version of " ++ ifile
+        reportSLn "import.iface" 5 $ "  using stored version of " ++ ifp
         return (True, Just mi)
     Nothing -> do
-      reportSLn "import.iface" 5 $ "  no stored version, reading " ++ ifile
+      reportSLn "import.iface" 5 $ "  no stored version, reading " ++ ifp
       (False,) <$> readInterface ifile
 
   -- Check that it's the right version
@@ -549,14 +549,19 @@ getStoredInterface x file isMain msi = do
       -- Check that options that matter haven't changed compared to
       -- current options (issue #2487)
       optionsChanged <-ifM ((not <$> asksTC envCheckOptionConsistency) `or2M`
-                            Lens.isBuiltinModule (filePath file))
+                            Lens.isBuiltinModule fp)
                        {-then-} (return False) {-else-} $ do
         currentOptions <- useTC stPragmaOptions
         let disagreements =
               [ optName | (opt, optName) <- restartOptions,
                           opt currentOptions /= opt (iOptionsUsed i) ]
         if null disagreements then return False else do
-          reportSLn "import.iface.options" 4 $ "  Changes in the following options in " ++ prettyShow (filePath file) ++ ", re-typechecking: "  ++ prettyShow disagreements
+          reportSLn "import.iface.options" 4 $ concat
+            [ "  Changes in the following options in "
+            , prettyShow fp
+            , ", re-typechecking: "
+            , prettyShow disagreements
+            ]
           return True
 
       if optionsChanged then fallback else do
@@ -568,9 +573,9 @@ getStoredInterface x file isMain msi = do
           then fallback
           else do
             unless cached $ do
-              chaseMsg "Loading " x $ Just ifile
+              chaseMsg "Loading " x $ Just ifp
               -- print imported warnings
-              let ws = filter ((Strict.Just file ==) . tcWarningOrigin) (iWarnings i)
+              let ws = filter ((Strict.Just (srcFilePath file) ==) . tcWarningOrigin) (iWarnings i)
               unless (null ws) $ reportSDoc "warning" 1 $ P.vcat $ P.prettyTCM <$> ws
 
             return (False, (i, NoWarnings))
@@ -585,7 +590,7 @@ getStoredInterface x file isMain msi = do
 typeCheck
   :: C.TopLevelModuleName
      -- ^ Module name of file we process.
-  -> AbsolutePath
+  -> SourceFile
      -- ^ File we process.
   -> MainInterface
   -> Maybe SourceInfo
@@ -593,15 +598,16 @@ typeCheck
   -> TCM (Bool, (Interface, MaybeWarnings))
      -- ^ @Bool@ is: do we have to merge the interface?
 typeCheck x file isMain msi = do
+  let fp = filePath $ srcFilePath file
   unless (includeStateChanges isMain) cleanCachedLog
   let checkMsg = case isMain of
                    MainInterface ScopeCheck -> "Reading "
                    _                        -> "Checking"
       withMsgs = bracket_
-       (chaseMsg checkMsg x $ Just $ filePath file)
+       (chaseMsg checkMsg x $ Just fp)
        (const $ do ws <- getAllWarnings AllWarnings
                    let classified = classifyWarnings ws
-                   let wa' = filter ((Strict.Just file ==) . tcWarningOrigin) (tcWarnings classified)
+                   let wa' = filter ((Strict.Just (srcFilePath file) ==) . tcWarningOrigin) (tcWarnings classified)
                    unless (null wa') $
                      reportSDoc "warning" 1 $ P.vcat $ P.prettyTCM <$> wa'
                    when (null (nonFatalErrors classified)) $ chaseMsg "Finished" x Nothing)
@@ -698,19 +704,27 @@ chaseMsg kind x file = do
 
 highlightFromInterface
   :: Interface
-  -> AbsolutePath
+  -> SourceFile
      -- ^ The corresponding file.
   -> TCM ()
 highlightFromInterface i file = do
   reportSLn "import.iface" 5 $
-    "Generating syntax info for " ++ filePath file ++
+    "Generating syntax info for " ++ filePath (srcFilePath file) ++
     " (read from interface)."
   printHighlightingInfo KeepHighlighting (iHighlighting i)
 
-readInterface :: FilePath -> TCM (Maybe Interface)
-readInterface file = do
+-- | Read interface file corresponding to a module.
+
+readInterface :: AbsolutePath -> TCM (Maybe Interface)
+readInterface file = runMaybeT $ do
+  ifile <- MaybeT $ liftIO $ mkInterfaceFile file
+  MaybeT $ readInterface' ifile
+
+readInterface' :: InterfaceFile -> TCM (Maybe Interface)
+readInterface' file = do
+    let ifp = filePath $ intFilePath file
     -- Decode the interface file
-    (s, close) <- liftIO $ readBinaryFile' file
+    (s, close) <- liftIO $ readBinaryFile' ifp
     do  mi <- liftIO . E.evaluate =<< decodeInterface s
 
         -- Close the file. Note
@@ -736,9 +750,10 @@ readInterface file = do
 
 -- | Writes the given interface to the given file.
 
-writeInterface :: FilePath -> Interface -> TCM ()
-writeInterface file i = do
-    reportSLn "import.iface.write" 5  $ "Writing interface file " ++ file ++ "."
+writeInterface :: AbsolutePath -> Interface -> TCM ()
+writeInterface file i = let fp = filePath file in do
+    reportSLn "import.iface.write" 5  $
+      "Writing interface file " ++ fp ++ "."
     -- Andreas, 2015-07-13
     -- After QName memoization (AIM XXI), scope serialization might be cheap enough.
     -- -- Andreas, Makoto, 2014-10-18 AIM XX:
@@ -750,14 +765,14 @@ writeInterface file i = do
     -- i <- return $
     --   i { iInsideScope  = removePrivates $ iInsideScope i
     --     }
-    encodeFile file i
+    encodeFile fp i
     reportSLn "import.iface.write" 5 "Wrote interface file."
     reportSLn "import.iface.write" 50 $ "  hash = " ++ show (iFullHash i)
   `catchError` \e -> do
     reportSLn "" 1 $
-      "Failed to write interface " ++ file ++ "."
+      "Failed to write interface " ++ fp ++ "."
     liftIO $
-      whenM (doesFileExist file) $ removeFile file
+      whenM (doesFileExist fp) $ removeFile fp
     throwError e
 
 removePrivates :: ScopeInfo -> ScopeInfo
@@ -779,14 +794,14 @@ concreteOptionsToOptionPragmas p = do
 -- information.
 
 createInterface
-  :: AbsolutePath          -- ^ The file to type check.
+  :: SourceFile            -- ^ The file to type check.
   -> C.TopLevelModuleName  -- ^ The expected module name.
   -> MainInterface         -- ^ Are we dealing with the main module?
   -> Maybe SourceInfo      -- ^ Optional information about the source code.
   -> TCM (Interface, MaybeWarnings)
 createInterface file mname isMain msi =
   Bench.billTo [Bench.TopModule mname] $
-  localTC (\e -> e { envCurrentPath = Just file }) $ do
+  localTC (\e -> e { envCurrentPath = Just (srcFilePath file) }) $ do
 
     reportSLn "import.iface.create" 5 $
       "Creating interface for " ++ prettyShow mname ++ "."
@@ -805,7 +820,7 @@ createInterface file mname isMain msi =
     modFile       <- useTC stModuleToSource
     fileTokenInfo <- Bench.billTo [Bench.Highlighting] $
                        generateTokenInfoFromSource
-                         file (T.unpack source)
+                         (srcFilePath file) (T.unpack source)
     stTokens `setTCLens` fileTokenInfo
 
     options <- concreteOptionsToOptionPragmas pragmas
@@ -815,7 +830,7 @@ createInterface file mname isMain msi =
     -- Scope checking.
     reportSLn "import.iface.create" 7 "Starting scope checking."
     topLevel <- Bench.billTo [Bench.Scoping] $
-      concreteToAbstract_ (TopLevel file mname top)
+      concreteToAbstract_ (TopLevel (srcFilePath file) mname top)
     reportSLn "import.iface.create" 7 "Finished scope checking."
 
     let ds    = topLevelDecls topLevel
@@ -898,7 +913,7 @@ createInterface file mname isMain msi =
 
       whenM (optGenerateVimFile <$> commandLineOptions) $
         -- Generate Vim file.
-        withScope_ scope $ generateVimFile $ filePath file
+        withScope_ scope $ generateVimFile $ filePath $ srcFilePath $ file
     reportSLn "import.iface.create" 7 "Finished highlighting from type info."
 
     setScope scope
@@ -967,7 +982,7 @@ createInterface file mname isMain msi =
         reportSLn "import.iface.create" 7 "Actually calling writeInterface."
         -- The file was successfully type-checked (and no warnings were
         -- encountered), so the interface should be written out.
-        let ifile = filePath $ toIFile file
+        ifile <- liftIO $ toIFile file
         writeInterface ifile i
     reportSLn "import.iface.create" 7 "Finished (or skipped) writing to interface file."
 
@@ -1135,14 +1150,20 @@ buildInterface source fileType topLevel pragmas = do
     return i
 
 -- | Returns (iSourceHash, iFullHash)
-getInterfaceFileHashes :: FilePath -> TCM (Maybe (Hash, Hash))
-getInterfaceFileHashes ifile = do
-  exist <- liftIO $ doesFileExist ifile
-  if not exist then return Nothing else do
-    (s, close) <- liftIO $ readBinaryFile' ifile
-    let hs = decodeHashes s
-    liftIO $ maybe 0 (uncurry (+)) hs `seq` close
-    return hs
+--   We do not need to check that the file exist because we only
+--   accept @InterfaceFile@ as an input and not arbitrary @AbsolutePath@!
+getInterfaceFileHashes :: AbsolutePath -> TCM (Maybe (Hash, Hash))
+getInterfaceFileHashes fp = runMaybeT $ do
+  mifile <- MaybeT $ liftIO $ mkInterfaceFile fp
+  MaybeT $ getInterfaceFileHashes' mifile
+
+getInterfaceFileHashes' :: InterfaceFile -> TCM (Maybe (Hash, Hash))
+getInterfaceFileHashes' fp = do
+  let ifile = filePath $ intFilePath fp
+  (s, close) <- liftIO $ readBinaryFile' ifile
+  let hs = decodeHashes s
+  liftIO $ maybe 0 (uncurry (+)) hs `seq` close
+  return hs
 
 moduleHash :: ModuleName -> TCM Hash
 moduleHash m = iFullHash <$> getInterface m

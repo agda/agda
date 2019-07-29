@@ -36,6 +36,7 @@ Tests=$(patsubst %.lagda,%.cmp,$(patsubst %.agda,%.cmp,$(AgdaFiles)))
 default : $(Tests)
 
 export TMPDIR=highlighting-tmp
+export BUILDDIR=_build/
 
 # Filter out absolute pathes, make all whitespace equal, remove
 # "Linking..." messages since GHC 7.0 doesn't have them.
@@ -156,4 +157,4 @@ $(Tests) : %.cmp : %.out
 			fi; \
 	 fi
 	@$(cleanup_$*)
-	@rm -rf $(TMPDIR)
+	@rm -rf $(TMPDIR) $(BUILDDIR)

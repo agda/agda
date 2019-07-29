@@ -18,7 +18,8 @@
 --   @
 --
 module Agda.Interaction.Library
-  ( getDefaultLibraries
+  ( findProjectRoot
+  , getDefaultLibraries
   , getInstalledLibraries
   , libraryIncludePaths
   , LibName
@@ -186,20 +187,32 @@ defaultsFile = "defaults"
 -- * Get the libraries for the current project
 ------------------------------------------------------------------------
 
--- | Get pathes of @.agda-lib@ files in given project root.
+-- | Find project root by looking for @.agda-lib@ files.
 --
 --   If there are none, look in the parent directories until one is found.
---
-findAgdaLibFiles
-  :: FilePath       -- ^ Project root.
-  -> IO [FilePath]  -- ^ Pathes of @.agda-lib@ files for this project (if any).
-findAgdaLibFiles root = do
+
+findProjectConfig
+  :: FilePath                          -- ^ Candidate (init: the directory Agda was called in)
+  -> IO (Maybe (FilePath, [FilePath])) -- ^ Actual root and @.agda-lib@ files for this project
+findProjectConfig root = do
   libs <- map (root </>) . filter ((== ".agda-lib") . takeExtension) <$> getDirectoryContents root
   case libs of
     []    -> do
       up <- canonicalizePath $ root </> ".."
-      if up == root then return [] else findAgdaLibFiles up
-    files -> return files
+      if up == root then return Nothing else findProjectConfig up
+    files -> return (Just (root, files))
+
+-- | Get project root
+
+findProjectRoot :: FilePath -> IO (Maybe FilePath)
+findProjectRoot root = fmap fst <$> findProjectConfig root
+
+-- | Get pathes of @.agda-lib@ files in given project root.
+
+findAgdaLibFiles
+  :: FilePath       -- ^ Project root.
+  -> IO [FilePath]  -- ^ Pathes of @.agda-lib@ files for this project (if any).
+findAgdaLibFiles root = fromMaybe [] . fmap snd <$> findProjectConfig root
 
 -- | Get dependencies and include paths for given project root:
 --

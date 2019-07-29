@@ -18,6 +18,7 @@ import Agda.Interaction.Monad
 import Agda.Interaction.EmacsTop (mimicGHCi)
 import Agda.Interaction.JSONTop (jsonREPL)
 import Agda.Interaction.Imports (MaybeWarnings'(..))
+import Agda.Interaction.FindFile ( SourceFile(SourceFile) )
 import qualified Agda.Interaction.Imports as Imp
 import qualified Agda.Interaction.Highlighting.Dot as Dot
 import qualified Agda.Interaction.Highlighting.LaTeX as LaTeX
@@ -128,7 +129,7 @@ runAgdaWithOptions backends generateHTML interaction progName opts
                      then Imp.ScopeCheck
                      else Imp.TypeCheck
 
-          file    <- getInputFile
+          file    <- SourceFile <$> getInputFile
           (i, mw) <- Imp.typeCheckMain file mode =<< Imp.sourceInfo file
 
           -- An interface is only generated if the mode is

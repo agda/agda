@@ -145,7 +145,7 @@ inCompilerEnv mainI cont = do
       Nothing  -> do
         -- The default output directory is the project root.
         let tm = toTopLevelModuleName $ iModuleName mainI
-        f <- findFile tm
+        f <- srcFilePath <$> findFile tm
         return $ filePath $ C.projectRoot f tm
     setCommandLineOptions $
       opts { optCompileDir = Just compileDir }

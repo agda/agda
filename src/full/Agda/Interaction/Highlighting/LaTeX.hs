@@ -612,7 +612,7 @@ generateLaTeX i = do
   dir <- case O.optGHCiInteraction options of
     False -> return $ O.optLaTeXDir options
     True  -> do
-      sourceFile <- Find.findFile mod
+      sourceFile <- Find.srcFilePath <$> Find.findFile mod
       return $ filePath (projectRoot sourceFile mod)
                  </> O.optLaTeXDir options
   liftIO $ createDirectoryIfMissing True dir
@@ -632,7 +632,7 @@ generateLaTeX i = do
       liftIO $ copyFile styFile (dir </> defaultStyFile)
 
   let outPath = modToFile mod
-  inAbsPath <- liftM filePath (Find.findFile mod)
+  inAbsPath <- liftM filePath (Find.srcFilePath <$> Find.findFile mod)
 
   liftIO $ do
     latex <- E.encodeUtf8 `fmap`
