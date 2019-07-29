@@ -123,6 +123,7 @@ instance EmbPrj DeclarationWarning where
     EmptyGeneralize a                 -> icodeN 20 EmptyGeneralize a
     PragmaCompiled r                  -> icodeN 21 PragmaCompiled r
     EmptyPrimitive a                  -> icodeN 22 EmptyPrimitive a
+    EmptyField r                      -> icodeN 23 EmptyField r
 
   value = vcase $ \case
     [0, a]   -> valuN UnknownNamesInFixityDecl a
@@ -148,6 +149,7 @@ instance EmbPrj DeclarationWarning where
     [20,a]   -> valuN EmptyGeneralize a
     [21,a]   -> valuN PragmaCompiled a
     [22,a]   -> valuN EmptyPrimitive a
+    [23,r]   -> valuN EmptyField r
     _ -> malformed
 
 instance EmbPrj LibWarning where

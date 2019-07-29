@@ -193,6 +193,7 @@ data DeclarationWarning
   | EmptyPrivate Range    -- ^ Empty @private@   block.
   | EmptyGeneralize Range -- ^ Empty @variable@  block.
   | EmptyPrimitive Range  -- ^ Empty @primitive@ block.
+  | EmptyField Range      -- ^ Empty @field@     block.
   | InvalidCatchallPragma Range
       -- ^ A {-\# CATCHALL \#-} pragma
       --   that does not precede a function clause.
@@ -231,6 +232,7 @@ declarationWarningName dw = case dw of
   EmptyPostulate{}                  -> EmptyPostulate_
   EmptyGeneralize{}                 -> EmptyGeneralize_
   EmptyPrimitive{}                  -> EmptyPrimitive_
+  EmptyField{}                      -> EmptyField_
   InvalidCatchallPragma{}           -> InvalidCatchallPragma_
   InvalidNoPositivityCheckPragma{}  -> InvalidNoPositivityCheckPragma_
   InvalidNoUniverseCheckPragma{}    -> InvalidNoUniverseCheckPragma_
@@ -289,6 +291,7 @@ instance HasRange DeclarationWarning where
   getRange (EmptyPostulate r)                   = r
   getRange (EmptyGeneralize r)                  = r
   getRange (EmptyPrimitive r)                   = r
+  getRange (EmptyField r)                       = r
   getRange (InvalidTerminationCheckPragma r)    = r
   getRange (InvalidNoPositivityCheckPragma r)   = r
   getRange (InvalidCatchallPragma r)            = r
@@ -410,6 +413,7 @@ instance Pretty DeclarationWarning where
   pretty (EmptyPostulate _)  = fsep $ pwords "Empty postulate block."
   pretty (EmptyGeneralize _) = fsep $ pwords "Empty variable block."
   pretty (EmptyPrimitive _)  = fsep $ pwords "Empty primitive block."
+  pretty (EmptyField _)      = fsep $ pwords "Empty field block."
   pretty (InvalidTerminationCheckPragma _) = fsep $
     pwords "Termination checking pragmas can only precede a function definition or a mutual block (that contains a function definition)."
   pretty (InvalidNoPositivityCheckPragma _) = fsep $
@@ -863,12 +867,15 @@ niceDeclarations fixs ds = do
 
       case d of
 
-        (TypeSig info x t)            -> do
+        TypeSig info x t -> do
           termCheck <- use terminationCheckPragma
           let r = getRange d
           -- register x as lone type signature, to recognize clauses later
           addLoneSig x $ FunName termCheck
           return ([FunSig r PublicAccess ConcreteDef NotInstanceDef NotMacroDef info termCheck x t] , ds)
+
+        -- Should not show up: all FieldSig are part of a Field block
+        FieldSig{} -> __IMPOSSIBLE__
 
         Generalize r [] -> justWarning $ EmptyGeneralize r
         Generalize r sigs -> do
@@ -917,7 +924,9 @@ niceDeclarations fixs ds = do
             l -> throwError $ AmbiguousFunClauses lhs $ reverse $ map fst l
                  -- "ambiguous function clause; cannot assign it uniquely to one type signature"
 
-        Field{}                       -> (,ds) <$> niceAxioms FieldBlock [ d ]
+        Field r [] -> justWarning $ EmptyField r
+        Field _ fs -> (,ds) <$> niceAxioms FieldBlock fs
+
         DataSig r CoInductive _ _ _   -> throwError (Codata r)
         Data r CoInductive _ _ _ _    -> throwError (Codata r)
         DataDef r CoInductive _ _ _   -> throwError (Codata r)
@@ -1213,7 +1222,7 @@ niceDeclarations fixs ds = do
     niceAxiom b d = case d of
       TypeSig rel x t -> do
         return [ Axiom (getRange d) PublicAccess ConcreteDef NotInstanceDef rel x t ]
-      Field i x argt | b == FieldBlock -> do
+      FieldSig i x argt | b == FieldBlock -> do
         return [ NiceField (getRange d) PublicAccess ConcreteDef i x argt ]
       InstanceB r decls -> do
         instanceBlock r =<< niceAxioms InstanceBlock decls
@@ -1714,7 +1723,7 @@ instance MakePrivate WhereClause where
 notSoNiceDeclarations :: NiceDeclaration -> [Declaration]
 notSoNiceDeclarations = \case
     Axiom _ _ _ i rel x e          -> inst i [TypeSig rel x e]
-    NiceField _ _ _ i x argt       -> [Field i x argt]
+    NiceField _ _ _ i x argt       -> [FieldSig i x argt]
     PrimitiveFunction r _ _ x e    -> [Primitive r [TypeSig defaultArgInfo x e]]
     NiceMutual r _ _ ds            -> [Mutual r $ concatMap notSoNiceDeclarations ds]
     NiceModule r _ _ x tel ds      -> [Module r x tel ds]

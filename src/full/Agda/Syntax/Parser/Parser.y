@@ -1140,7 +1140,7 @@ ExprWhere : Expr WhereClause { ExprWhere $1 $2 }
 -- Top-level definitions.
 Declaration :: { [Declaration] }
 Declaration
-    : Fields        {  $1  }
+    : Fields        { [$1] }
     | FunClause     {  $1  }  -- includes type signatures
     | Data          { [$1] }
     | DataSig       { [$1] }  -- lone data type signature in mutual block
@@ -1253,21 +1253,21 @@ Infix : 'infix'  Int SpaceBIds  { Infix (Fixity (getRange ($1,$3)) (Related $2) 
       | 'infixr' Int SpaceBIds  { Infix (Fixity (getRange ($1,$3)) (Related $2) RightAssoc) $3 }
 
 -- Field declarations.
-Fields :: { [Declaration] }
-Fields : 'field' ArgTypeSignatures
+Fields :: { Declaration }
+Fields : 'field' ArgTypeSignaturesOrEmpty
             { let
                 inst i = case getHiding i of
                            Instance _ -> InstanceDef
                            _          -> NotInstanceDef
-                toField (Arg info (TypeSig info' x t)) = Field (inst info') x (Arg info t)
-              in map toField $2 }
+                toField (Arg info (TypeSig info' x t)) = FieldSig (inst info') x (Arg info t)
+              in Field (getRange $1) $ map toField $2 }
   -- | 'field' ModalArgTypeSignatures
   --           { let
   --               inst i = case getHiding i of
   --                          Instance _ -> InstanceDef
   --                          _          -> NotInstanceDef
-  --               toField (Arg info (TypeSig info' x t)) = Field (inst info') x (Arg info t)
-  --             in map toField $2 }
+  --               toField (Arg info (TypeSig info' x t)) = FieldSig (inst info') x (Arg info t)
+  --             in Field $ map toField $2 }
 
 -- Variable declarations for automatic generalization
 Generalize :: { [Declaration] }
