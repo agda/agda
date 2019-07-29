@@ -1,5 +1,4 @@
 Issue1523a.agda:30,28-32,13
 Possibly empty type of sizes  (Size< i)
-when checking that the expression
-λ {j} n → case n default λ _ → r zero has type
-{j : Size< i} → Nat j → A
+when checking that the expression λ n → case n default λ _ → r zero
+has type {j : Size< i} → Nat j → A

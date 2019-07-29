@@ -1382,6 +1382,10 @@ setFreeVariablesArgInfo = mapArgInfo . setFreeVariables
 mapFreeVariablesArgInfo :: LensArgInfo a => LensMap FreeVariables a
 mapFreeVariablesArgInfo = mapArgInfo . mapFreeVariables
 
+-- inserted hidden arguments
+
+isInsertedHidden :: (LensHiding a, LensOrigin a) => a -> Bool
+isInsertedHidden a = getHiding a == Hidden && getOrigin a == Inserted
 
 ---------------------------------------------------------------------------
 -- * Arguments

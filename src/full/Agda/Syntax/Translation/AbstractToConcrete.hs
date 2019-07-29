@@ -699,24 +699,34 @@ instance ToConcrete A.Expr C.Expr where
       bracket lamBrackets $ return $ C.AbsurdLam (getRange i) h
     toConcrete e@(A.Lam i _ _)      =
         tryToRecoverOpApp e   -- recover sections
-        $ bracket lamBrackets
         $ case lamView e of
-            (bs, e) ->
+            ([], e) -> toConcrete e
+            (bs, e) -> bracket lamBrackets $
                 bindToConcrete (map makeDomainFree bs) $ \ bs -> do
-                    e  <- toConcreteTop e
-                    return $ C.Lam (getRange i) bs e
+                  e  <- toConcreteTop e
+                  return $ C.Lam (getRange i) bs e
         where
-            lamView (A.Lam _ b@A.DomainFree{} e) =
+          -- #3238 GA: We drop the hidden lambda abstractions which have
+          -- been inserted by the machine rather than the user. This means
+          -- that the result of lamView may actually be an empty list of
+          -- binders.
+          lamView :: A.Expr -> ([A.LamBinding], A.Expr)
+          lamView (A.Lam _ b@(A.DomainFree _ x) e)
+            | isInsertedHidden x = lamView e
+            | otherwise = case lamView e of
+              (bs@(A.DomainFree{} : _), e) -> (b:bs, e)
+              _                            -> ([b] , e)
+          lamView (A.Lam _ b@(A.DomainFull A.TLet{}) e) = case lamView e of
+            (bs@(A.DomainFull _ : _), e) -> (b:bs, e)
+            _                            -> ([b], e)
+          lamView (A.Lam _ (A.DomainFull (A.TBind r t xs ty)) e) =
+            case filter (not . isInsertedHidden) xs of
+              []  -> lamView e
+              xs' -> let b = A.DomainFull (A.TBind r t xs' ty) in
                 case lamView e of
-                    ([], e)                      -> ([b], e)
-                    (bs@(A.DomainFree{} : _), e) -> (b:bs, e)
-                    _                            -> ([b], e)
-            lamView (A.Lam _ b@(A.DomainFull _) e) =
-                case lamView e of
-                    ([], e)                      -> ([b], e)
-                    (bs@(A.DomainFull _ : _), e) -> (b:bs, e)
-                    _                            -> ([b], e)
-            lamView e = ([], e)
+                  (bs@(A.DomainFull _ : _), e) -> (b:bs, e)
+                  _                            -> ([b], e)
+          lamView e = ([], e)
     toConcrete (A.ExtendedLam i di qname cs) =
         bracket lamBrackets $ do
           decls <- concat <$> toConcrete cs
