@@ -51,6 +51,10 @@ See :ref:`compilers` for backend-specific options.
 :samp:`--no-forcing`
       Disable the forcing optimisation
 
+:samp:`--with-compiler={PATH}`
+      Set :samp:`PATH` as the executable to call to compile
+      the backend's output (default: ghc for the GHC backend).
+
 Generating highlighted source code
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
