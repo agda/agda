@@ -11,10 +11,14 @@ import System.Exit            ( exitSuccess )
 ------------------------------------------------------------------------------
 -- Agda library imports
 
-import Agda.Interaction.Imports        ( readInterface )
+import Agda.Interaction.FindFile       ( SourceFile(..), findInterfaceFile' )
+import Agda.Interaction.Imports        ( readInterface' )
 import Agda.Interaction.Options        ( defaultOptions )
 import Agda.TypeChecking.Monad.Base    ( Interface, runTCMTop, TCErr )
 import Agda.TypeChecking.Monad.Options ( setCommandLineOptions )
+import Agda.Utils.FileName
+import Agda.Utils.Impossible
+import Agda.Utils.Maybe
 
 ------------------------------------------------------------------------------
 
@@ -22,7 +26,9 @@ main :: IO ()
 main = do
   r :: Either TCErr (Maybe Interface) <- liftIO $ runTCMTop $
     do setCommandLineOptions defaultOptions
-       readInterface "Issue1168.agdai"
+       src   <- liftIO $ SourceFile <$> absolute "Issue1168.agda"
+       ifile <- findInterfaceFile' src
+       readInterface' $ fromMaybe __IMPOSSIBLE__ ifile
 
   case r of
     Right (Just _) -> exitSuccess

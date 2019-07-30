@@ -14,6 +14,7 @@ import qualified Data.HashMap.Strict as HashMap
 ------------------------------------------------------------------------------
 -- Agda library imports
 
+import Agda.Interaction.FindFile ( SourceFile(..) )
 import Agda.Interaction.Imports ( typeCheckMain, Mode(TypeCheck), sourceInfo )
 import Agda.Interaction.Options ( defaultOptions )
 
@@ -37,7 +38,7 @@ main = do
 mainTCM :: TCM ()
 mainTCM = do
   setCommandLineOptions defaultOptions
-  f <- liftIO $ absolute "PrettyInterface.agda"
+  f <- liftIO $ SourceFile <$> absolute "PrettyInterface.agda"
   (i, _mw) <- typeCheckMain f TypeCheck =<< sourceInfo f
   compilerMain i
 
