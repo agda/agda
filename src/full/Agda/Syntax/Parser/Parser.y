@@ -1260,14 +1260,14 @@ Fields : 'field' ArgTypeSignaturesOrEmpty
                            Instance _ -> InstanceDef
                            _          -> NotInstanceDef
                 toField (Arg info (TypeSig info' x t)) = FieldSig (inst info') x (Arg info t)
-              in Field (getRange $1) $ map toField $2 }
+              in Field (fuseRange $1 $2) $ map toField $2 }
   -- | 'field' ModalArgTypeSignatures
   --           { let
   --               inst i = case getHiding i of
   --                          Instance _ -> InstanceDef
   --                          _          -> NotInstanceDef
   --               toField (Arg info (TypeSig info' x t)) = FieldSig (inst info') x (Arg info t)
-  --             in Field $ map toField $2 }
+  --             in Field (fuseRange $1 $2) $ map toField $2 }
 
 -- Variable declarations for automatic generalization
 Generalize :: { [Declaration] }
