@@ -120,6 +120,8 @@ data CommandLineOptions = Options
   , optOnlyScopeChecking :: Bool
     -- ^ Should the top-level module only be scope-checked, and not
     --   type-checked?
+  , optWithCompiler     :: Maybe FilePath
+    -- ^ Use the compiler at PATH instead of ghc / js / etc.
   }
   deriving Show
 
@@ -229,6 +231,7 @@ defaultOptions = Options
   , optIgnoreAllInterfaces = False
   , optPragmaOptions    = defaultPragmaOptions
   , optOnlyScopeChecking = False
+  , optWithCompiler      = Nothing
   }
 
 defaultPragmaOptions :: PragmaOptions
@@ -763,6 +766,12 @@ confluenceCheckFlag o = return $ o { optConfluenceCheck = True }
 noConfluenceCheckFlag :: Flag PragmaOptions
 noConfluenceCheckFlag o = return $ o { optConfluenceCheck = False }
 
+withCompilerFlag :: FilePath -> Flag CommandLineOptions
+withCompilerFlag fp o = case optWithCompiler o of
+ Nothing -> pure o { optWithCompiler = Just fp }
+ Just{}  -> throwError "only one compiler path allowed"
+
+
 integerArgument :: String -> String -> OptM Int
 integerArgument flag s =
     readM s `catchError` \_ ->
@@ -819,6 +828,8 @@ standardOptions =
                     "don't use default libraries"
     , Option []     ["only-scope-checking"] (NoArg onlyScopeCheckingFlag)
                     "only scope-check the top-level module, do not type-check it"
+    , Option []     ["with-compiler"] (ReqArg withCompilerFlag "PATH")
+                    "use the compiler available at PATH"
     ] ++ map (fmap lensPragmaOptions) pragmaOptions
 
 -- | Defined locally here since module ''Agda.Interaction.Options.Lenses''
