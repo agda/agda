@@ -512,7 +512,6 @@ outFile_ = do
   m <- curMName
   outFile (jsMod m)
 
-
 copyRTEModules :: TCM ()
 copyRTEModules = do
   dataDir <- lift getDataDir

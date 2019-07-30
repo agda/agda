@@ -156,6 +156,7 @@ fixitiesAndPolarities' = foldMap $ \ d -> case d of
   -- We expand these boring cases to trigger a revisit
   -- in case the @Declaration@ type is extended in the future.
   TypeSig     {}  -> mempty
+  FieldSig    {}  -> mempty
   Generalize  {}  -> mempty
   Field       {}  -> mempty
   FunClause   {}  -> mempty
@@ -203,7 +204,8 @@ declaresName x = declaresNames [x]
 declaredNames :: Declaration -> DeclaredNames
 declaredNames d = case d of
   TypeSig _ x _        -> declaresName x
-  Field _ x _          -> declaresName x
+  FieldSig _ x _       -> declaresName x
+  Field _ fs           -> foldMap declaredNames fs
   FunClause (LHS p [] []) _ _ _
     | IdentP (QName x) <- removeSingletonRawAppP p
                        -> declaresName x

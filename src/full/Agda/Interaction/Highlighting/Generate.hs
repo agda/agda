@@ -670,6 +670,7 @@ warningHighlighting w = case tcWarning w of
     EmptyPostulate{}     -> deadcodeHighlighting $ getRange w
     EmptyPrivate{}       -> deadcodeHighlighting $ getRange w
     EmptyGeneralize{}    -> deadcodeHighlighting $ getRange w
+    EmptyField{}         -> deadcodeHighlighting $ getRange w
     UselessAbstract{}    -> deadcodeHighlighting $ getRange w
     UselessInstance{}    -> deadcodeHighlighting $ getRange w
     UselessPrivate{}     -> deadcodeHighlighting $ getRange w

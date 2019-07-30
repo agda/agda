@@ -1247,7 +1247,9 @@ niceDecls warn ds ret = setCurrentRange ds $ computeFixitiesAndPolarities warn d
   isBuiltin <- Lens.isBuiltinModule . filePath =<< getCurrentPath
   let warns = if isSafe && not isBuiltin then warns' else filter notOnlyInSafeMode warns'
 
-  unless (null warns) $ do
+  -- Respect the @DoWarn@ directive. For this to be sound, we need to know for
+  -- sure that each @Declaration@ is checked at least once with @DoWarn@.
+  unless (warn == NoWarn || null warns) $ do
     -- If there are some warnings and the --safe flag is set,
     -- we check that none of the NiceWarnings are fatal
     when isSafe $ do
@@ -1632,8 +1634,12 @@ instance ToAbstract NiceDeclaration A.Declaration where
           return afields
         -- Andreas, 2017-07-13 issue #2642 disallow duplicate fields
         -- Check for duplicate fields. (See "Check for duplicate constructors")
-        do let fs = forMaybe fields $ \case
-                 C.Field _ f _ -> Just f
+        do let fs :: [C.Name]
+               fs = concat $ forMaybe fields $ \case
+                 C.Field _ fs -> Just $ fs <&> \case
+                   -- a Field block only contains field signatures
+                   C.FieldSig _ f _ -> f
+                   _ -> __IMPOSSIBLE__
                  _ -> Nothing
            let dups = nub $ fs \\ nub fs
                bad  = filter (`elem` dups) fs

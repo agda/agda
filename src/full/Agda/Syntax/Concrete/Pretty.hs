@@ -456,18 +456,24 @@ instance Pretty Declaration where
                 sep [ prettyRelevance i $ prettyCohesion i $ prettyQuantity i $ pretty x <+> ":"
                     , nest 2 $ pretty e
                     ]
-            Field inst x (Arg i e) ->
-                sep [ "field"
-                    , nest 2 $ mkInst inst $ mkOverlap i $
-                      prettyRelevance i $ prettyHiding i id $ prettyCohesion i $ prettyQuantity i $
-                        pretty $ TypeSig (setRelevance Relevant i) x e
-                    ]
+
+            FieldSig inst x (Arg i e) ->
+                mkInst inst $ mkOverlap i $
+                prettyRelevance i $ prettyHiding i id $ prettyCohesion i $ prettyQuantity i $
+                pretty $ TypeSig (setRelevance Relevant i) x e
+
                 where
+
                   mkInst InstanceDef    d = sep [ "instance", nest 2 d ]
                   mkInst NotInstanceDef d = d
 
                   mkOverlap i d | isOverlappable i = "overlap" <+> d
                                 | otherwise        = d
+
+            Field _ fs ->
+              sep [ "field"
+                  , nest 2 $ vcat (map pretty fs)
+                  ]
             FunClause lhs rhs wh _ ->
                 sep [ pretty lhs
                     , nest 2 $ pretty rhs

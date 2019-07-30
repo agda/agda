@@ -137,6 +137,7 @@ data WarningName
   | LibUnknownField_
   -- Nicifer Warnings
   | EmptyAbstract_
+  | EmptyField_
   | EmptyGeneralize_
   | EmptyInstance_
   | EmptyMacro_
@@ -252,6 +253,7 @@ warningNameDescription w = case w of
   LibUnknownField_                 -> "Unknown field in library file."
   -- Nicifer Warnings
   EmptyAbstract_                   -> "Empty `abstract' blocks."
+  EmptyField_                      -> "Empty `field` blocks."
   EmptyGeneralize_                 -> "Empty `variable' blocks."
   EmptyInstance_                   -> "Empty `instance' blocks."
   EmptyMacro_                      -> "Empty `macro' blocks."

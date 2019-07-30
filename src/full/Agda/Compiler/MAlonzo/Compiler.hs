@@ -850,7 +850,8 @@ callGHC opts modIsMain mods = do
         , "-fno-warn-overlapping-patterns"
         ]
       args     = overridableArgs ++ ghcopts ++ otherArgs
-      compiler = "ghc"
+
+  compiler <- fromMaybeM (pure "ghc") (optWithCompiler <$> commandLineOptions)
 
   -- Note: Some versions of GHC use stderr for progress reports. For
   -- those versions of GHC we don't print any progress information
