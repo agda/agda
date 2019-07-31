@@ -9,6 +9,7 @@
 --       standard-library
 --     include: .
 --       src more-src
+--
 --   @
 --
 --   Should parse as:
@@ -42,6 +43,7 @@ import Agda.Interaction.Library.Base
 
 import Agda.Utils.Except ( MonadError(throwError), ExceptT, runExceptT )
 import Agda.Utils.IO ( catchIO )
+import Agda.Utils.Lens
 import Agda.Utils.String ( ltrim )
 
 -- | Parser monad: Can throw @String@ error messages, and collects
@@ -64,42 +66,50 @@ warningP = tell . pure
 type GenericFile = [GenericEntry]
 
 data GenericEntry = GenericEntry
-  { geHeader  :: String   -- ^ E.g. field name.    @trim@med.
+  { geHeader   :: String   -- ^ E.g. field name.    @trim@med.
   , _geContent :: [String] -- ^ E.g. field content. @trim@med.
   }
 
 -- | Library file field format format [sic!].
 data Field = forall a. Field
-  { fName     :: String                           -- ^ Name of the field.
-  , fOptional :: Bool                             -- ^ Is it optional?
-  , fParse    :: [String] -> P a                  -- ^ Content parser for this field.
-  , fSet      :: a -> AgdaLibFile -> AgdaLibFile  -- ^ Sets parsed content in 'AgdaLibFile' structure.
+  { fName     :: String            -- ^ Name of the field.
+  , fOptional :: Bool              -- ^ Is it optional?
+  , fParse    :: [String] -> P a   -- ^ Content parser for this field.
+  , fSet      :: LensSet a AgdaLibFile
+    -- ^ Sets parsed content in 'AgdaLibFile' structure.
   }
+
+optionalField :: String -> ([String] -> P a) -> Lens' a AgdaLibFile -> Field
+optionalField str p l = Field str True p (set l)
 
 -- | @.agda-lib@ file format with parsers and setters.
 agdaLibFields :: [Field]
 agdaLibFields =
   -- Andreas, 2017-08-23, issue #2708, field "name" is optional.
-  [ Field "name"    True  parseName                      $ \ name l -> l { libName     = name }
-  , Field "include" True  (pure . concatMap words)       $ \ inc  l -> l { libIncludes = inc }
-  , Field "depend"  True  (pure . concatMap splitCommas) $ \ ds   l -> l { libDepends  = ds }
+  [ optionalField "name"    parseName                      libName
+  , optionalField "include" (pure . concatMap words)       libIncludes
+  , optionalField "depend"  (pure . concatMap splitCommas) libDepends
   ]
   where
+    parseName :: [String] -> P LibName
     parseName [s] | [name] <- words s = pure name
     parseName ls = throwError $ "Bad library name: '" ++ unwords ls ++ "'"
 
 -- | Parse @.agda-lib@ file.
 --
---   Sets 'libFile' name and turn mentioned include directories into absolute pathes
---   (provided the given 'FilePath' is absolute).
+-- Sets 'libFile' name and turn mentioned include directories into absolute
+-- pathes (provided the given 'FilePath' is absolute).
 --
 parseLibFile :: FilePath -> IO (P AgdaLibFile)
 parseLibFile file =
   (fmap setPath . parseLib <$> readFile file) `catchIO` \e ->
-    return $ throwError $ "Failed to read library file " ++ file ++ ".\nReason: " ++ show e
+    return $ throwError $ unlines
+      [ "Failed to read library file " ++ file ++ "."
+      , "Reason: " ++ show e
+      ]
   where
-    setPath lib = unrelativise (takeDirectory file) lib{ libFile = file }
-    unrelativise dir lib = lib { libIncludes = map (dir </>) (libIncludes lib) }
+    setPath      lib = unrelativise (takeDirectory file) (set libFile file lib)
+    unrelativise dir = over libIncludes (map (dir </>))
 
 -- | Parse file contents.
 parseLib :: String -> P AgdaLibFile
@@ -112,7 +122,9 @@ fromGeneric = fromGeneric' agdaLibFields
 -- | Given a list of 'Field' descriptors (with their custom parsers),
 --   parse a 'GenericFile' into the 'AgdaLibFile' structure.
 --
---   Checks mandatory fields are present; no duplicate fields, no unknown fields.
+--   Checks mandatory fields are present;
+--   no duplicate fields, no unknown fields.
+
 fromGeneric' :: [Field] -> GenericFile -> P AgdaLibFile
 fromGeneric' fields fs = do
   checkFields fields (map geHeader fs)
