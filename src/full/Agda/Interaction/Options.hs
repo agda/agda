@@ -89,8 +89,8 @@ data HtmlHighlight = HighlightAll | HighlightCode | HighlightAuto
 data CommandLineOptions = Options
   { optProgramName      :: String
   , optInputFile        :: Maybe FilePath
-  , optIncludePaths     :: [FilePath]
-  , optAbsoluteIncludePaths :: [AbsolutePath]
+  , optIncludePaths     :: LibFilePaths
+  , optAbsoluteIncludePaths :: LibAbsolutePaths
   , optLibraries        :: [LibName]
   , optOverrideLibrariesFile :: Maybe FilePath
   -- ^ Use this (if Just) instead of .agda/libraries
@@ -206,8 +206,8 @@ defaultOptions :: CommandLineOptions
 defaultOptions = Options
   { optProgramName      = "agda"
   , optInputFile        = Nothing
-  , optIncludePaths     = []
-  , optAbsoluteIncludePaths = []
+  , optIncludePaths     = mempty
+  , optAbsoluteIncludePaths = mempty
   , optLibraries        = []
   , optOverrideLibrariesFile = Nothing
   , optDefaultLibs      = True
@@ -719,7 +719,7 @@ cssFlag :: FilePath -> Flag CommandLineOptions
 cssFlag f o = return $ o { optCSSFile = Just f }
 
 includeFlag :: FilePath -> Flag CommandLineOptions
-includeFlag d o = return $ o { optIncludePaths = d : optIncludePaths o }
+includeFlag d o = return $ o { optIncludePaths = LibPaths [d] [] <> optIncludePaths o }
 
 libraryFlag :: String -> Flag CommandLineOptions
 libraryFlag s o = return $ o { optLibraries = optLibraries o ++ [s] }

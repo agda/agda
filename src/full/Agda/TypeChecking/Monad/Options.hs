@@ -46,12 +46,12 @@ setPragmaOptions opts = do
 -- are updated).
 --
 -- Relative include directories are made absolute with respect to the
--- current working directory. If the include directories have changed
--- (thus, they are 'Left' now, and were previously @'Right' something@),
--- then the state is reset (completely, see setIncludeDirs) .
+-- current working directory.
 --
--- An empty list of relative include directories (@'Left' []@) is
--- interpreted as @["."]@.
+-- When loading a file in a different project than where we started, we
+-- have to be careful to remove the include paths from the old project.
+--
+-- An empty list of include directories @[]@ is interpreted as @["."]@.
 setCommandLineOptions :: CommandLineOptions -> TCM ()
 setCommandLineOptions opts = do
   root <- liftIO (absolute =<< getCurrentDirectory)
@@ -68,7 +68,7 @@ setCommandLineOptions' root opts = do
     Left err   -> __IMPOSSIBLE__
     Right opts -> do
       incs <- case optAbsoluteIncludePaths opts of
-        [] -> do
+        LibPaths [] [] -> do
           opts' <- setLibraryPaths root opts
           let incs = optIncludePaths opts'
           setIncludeDirs incs root
@@ -100,7 +100,7 @@ setLibraryIncludes o = do
     let libs = optLibraries o
     installed <- libToTCM $ getInstalledLibraries (optOverrideLibrariesFile o)
     paths     <- libToTCM $ libraryIncludePaths (optOverrideLibrariesFile o) installed libs
-    return o{ optIncludePaths = paths ++ optIncludePaths o }
+    return o{ optIncludePaths = paths <> optIncludePaths o }
 
 addDefaultLibraries
   :: AbsolutePath
@@ -113,7 +113,7 @@ addDefaultLibraries root o
        , optShowVersion o ] = pure o
   | otherwise = do
   (libs, incs) <- libToTCM $ getDefaultLibraries (filePath root) (optDefaultLibs o)
-  return o{ optIncludePaths = incs ++ optIncludePaths o, optLibraries = libs }
+  return o{ optIncludePaths = incs <> optIncludePaths o, optLibraries = libs }
 
 setOptionsFromPragma :: OptionsPragma -> TCM ()
 setOptionsFromPragma ps = do
@@ -142,10 +142,10 @@ displayFormsEnabled = asksTC envDisplayFormsEnabled
 -- Precondition: 'optAbsoluteIncludePaths' must be nonempty (i.e.
 -- 'setCommandLineOptions' must have run).
 
-getIncludeDirs :: HasOptions m => m [AbsolutePath]
+getIncludeDirs :: HasOptions m => m LibAbsolutePaths
 getIncludeDirs = do
   incs <- optAbsoluteIncludePaths <$> commandLineOptions
-  case incs of
+  case libIncludePaths incs of
     [] -> __IMPOSSIBLE__
     _  -> return incs
 
@@ -157,17 +157,18 @@ getIncludeDirs = do
 --
 -- An empty list is interpreted as @["."]@.
 
-setIncludeDirs :: [FilePath]    -- ^ New include directories.
+setIncludeDirs :: LibFilePaths  -- ^ New include directories.
                -> AbsolutePath  -- ^ The base directory of relative paths.
                -> TCM ()
-setIncludeDirs incs root = do
+setIncludeDirs (LibPaths incs excs) root = do
   -- save the previous include dirs
-  oldIncs <- getsTC Lens.getAbsoluteIncludePaths
+  (LibPaths oldIncs oldExcs) <- getsTC Lens.getAbsoluteIncludePaths
 
   -- Add the current dir if no include path is given
   incs <- return $ if null incs then ["."] else incs
   -- Make paths absolute
-  incs <- return $  map (mkAbsolute . (filePath root </>)) incs
+  incs <- return $ map (mkAbsolute . (filePath root </>)) incs
+  excs <- return $ map (mkAbsolute . (filePath root </>)) excs
 
   -- Andreas, 2013-10-30  Add default include dir
   libdir <- liftIO $ defaultLibDir
@@ -184,6 +185,10 @@ setIncludeDirs incs root = do
     , nest 2 $ vcat $ map pretty oldIncs
     , "New include directories:"
     , nest 2 $ vcat $ map pretty incs
+    , "Old exclude directories:"
+    , nest 2 $ vcat $ map pretty oldExcs
+    , "New exclude directories:"
+    , nest 2 $ vcat $ map pretty excs
     ]
 
   -- Check whether the include dirs have changed.  If yes, reset state.
@@ -206,7 +211,7 @@ setIncludeDirs incs root = do
     setTCLens stTCWarnings tcWarnings
     setInteractionOutputCallback ho
 
-  Lens.putAbsoluteIncludePaths incs
+  Lens.putAbsoluteIncludePaths $ LibPaths incs excs
 
 setInputFile :: FilePath -> TCM ()
 setInputFile file =

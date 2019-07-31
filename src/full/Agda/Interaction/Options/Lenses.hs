@@ -16,9 +16,9 @@ import System.FilePath ((</>))
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.State
 import Agda.Interaction.Options
+import Agda.Interaction.Library
 
 import Agda.Utils.Lens
-import Agda.Utils.FileName
 
 ---------------------------------------------------------------------------
 -- * Pragma options
@@ -208,13 +208,13 @@ isBuiltinModuleWithSafePostulates file = do
 ---------------------------------------------------------------------------
 
 class LensIncludePaths a where
-  getIncludePaths :: a -> [FilePath]
-  setIncludePaths :: [FilePath] -> a -> a
-  mapIncludePaths :: ([FilePath] -> [FilePath]) -> a -> a
+  getIncludePaths :: a -> LibFilePaths
+  setIncludePaths :: LibFilePaths -> a -> a
+  mapIncludePaths :: (LibFilePaths -> LibFilePaths) -> a -> a
 
-  getAbsoluteIncludePaths :: a -> [AbsolutePath]
-  setAbsoluteIncludePaths :: [AbsolutePath] -> a -> a
-  mapAbsoluteIncludePaths :: ([AbsolutePath] -> [AbsolutePath]) -> a -> a
+  getAbsoluteIncludePaths :: a -> LibAbsolutePaths
+  setAbsoluteIncludePaths :: LibAbsolutePaths -> a -> a
+  mapAbsoluteIncludePaths :: (LibAbsolutePaths -> LibAbsolutePaths) -> a -> a
 
   -- default implementations
   setIncludePaths     = mapIncludePaths . const
@@ -240,16 +240,16 @@ instance LensIncludePaths TCState where
   getAbsoluteIncludePaths = getAbsoluteIncludePaths . getCommandLineOptions
   mapAbsoluteIncludePaths = mapCommandLineOptions . mapAbsoluteIncludePaths
 
-modifyIncludePaths :: ([FilePath] -> [FilePath]) -> TCM ()
+modifyIncludePaths :: (LibFilePaths -> LibFilePaths) -> TCM ()
 modifyIncludePaths = modifyTC . mapIncludePaths
 
-putIncludePaths :: [FilePath] -> TCM ()
+putIncludePaths :: LibFilePaths -> TCM ()
 putIncludePaths = modifyTC . setIncludePaths
 
-modifyAbsoluteIncludePaths :: ([AbsolutePath] -> [AbsolutePath]) -> TCM ()
+modifyAbsoluteIncludePaths :: (LibAbsolutePaths -> LibAbsolutePaths) -> TCM ()
 modifyAbsoluteIncludePaths = modifyTC . mapAbsoluteIncludePaths
 
-putAbsoluteIncludePaths :: [AbsolutePath] -> TCM ()
+putAbsoluteIncludePaths :: LibAbsolutePaths -> TCM ()
 putAbsoluteIncludePaths = modifyTC . setAbsoluteIncludePaths
 
 ---------------------------------------------------------------------------

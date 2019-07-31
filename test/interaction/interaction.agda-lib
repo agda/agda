@@ -3,3 +3,5 @@ include:
   .
   ..
   space\ in\ the\ path
+
+exclude: space\ in\ the\ path/Imports

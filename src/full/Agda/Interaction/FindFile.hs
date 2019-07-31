@@ -31,6 +31,8 @@ import Agda.Syntax.Parser
 import Agda.Syntax.Parser.Literate (literateExtsShortList)
 import Agda.Syntax.Position
 
+import Agda.Interaction.Library
+
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Benchmark (billTo)
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
@@ -102,30 +104,31 @@ findFile' m = do
 -- | A variant of 'findFile'' which does not require 'TCM'.
 
 findFile''
-  :: [AbsolutePath]
+  :: LibAbsolutePaths
   -- ^ Include paths.
   -> TopLevelModuleName
   -> ModuleToSource
   -- ^ Cached invocations of 'findFile'''. An updated copy is returned.
   -> IO (Either FindError AbsolutePath, ModuleToSource)
-findFile'' dirs m modFile =
+findFile'' (LibPaths incs excs) m modFile =
   case Map.lookup m modFile of
     Just f  -> return (Right f, modFile)
     Nothing -> do
-      files <- fileList acceptableFileExts
-      filesShortList <- fileList parseFileExtsShortList
-      existingFiles <-
-        liftIO $ filterM (doesFileExistCaseSensitive . filePath) files
+      files          <- fileList incs acceptableFileExts
+      filesShortList <- fileList incs parseFileExtsShortList
+      existingFiles  <- liftIO $ filterM (doesFileExistCaseSensitive . filePath) files
       return $ case List.nub existingFiles of
         []     -> (Left (NotFound filesShortList), modFile)
         [file] -> (Right file, Map.insert m file modFile)
         files  -> (Left (Ambiguous existingFiles), modFile)
   where
-    fileList exts = mapM absolute
-                    [ filePath dir </> file
-                    | dir  <- dirs
-                    , file <- map (moduleNameToFileName m) exts
-                    ]
+    fileList dirs exts = mapM absolute
+                       [ cand
+                       | dir  <- dirs
+                       , file <- map (moduleNameToFileName m) exts
+                       , let cand = filePath dir </> file
+                       , not $ any ((`List.isPrefixOf` cand) . filePath) excs
+                       ]
 
 -- | Finds the interface file corresponding to a given top-level
 -- module name. The returned paths are absolute.

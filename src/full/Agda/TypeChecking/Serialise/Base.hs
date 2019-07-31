@@ -27,6 +27,7 @@ import Data.Typeable ( cast, Typeable, typeOf, TypeRep )
 
 import Agda.Syntax.Common (NameId)
 import Agda.Syntax.Internal (Term, QName(..), ModuleName(..), nameId)
+import Agda.Interaction.Library (LibAbsolutePaths, LibPaths(..))
 import Agda.TypeChecking.Monad.Base (TypeError(GenericError), ModuleToSource)
 
 import Agda.Utils.FileName
@@ -152,7 +153,7 @@ data St = St
     --   Used to introduce sharing while deserializing objects.
   , modFile   :: !ModuleToSource
     -- ^ Maps module names to file names. Constructed by the decoder.
-  , includes  :: [AbsolutePath]
+  , includes  :: LibAbsolutePaths
     -- ^ The include directories.
   }
 

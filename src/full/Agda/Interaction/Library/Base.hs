@@ -19,7 +19,8 @@ libNameForCurrentDir = "."
 data AgdaLibFile = AgdaLibFile
   { _libName     :: LibName     -- ^ The symbolic name of the library.
   , _libFile     :: FilePath    -- ^ Path to this @.agda-lib@ file (not content of the file).
-  , _libIncludes :: [FilePath]  -- ^ Roots where to look for the modules of the library.
+  , _libIncludes :: [FilePath]  -- ^ Prefix of defined and exported modules.
+  , _libExcludes :: [FilePath]  -- ^ Prefix of defined but not exported modules.
   , _libDepends  :: [LibName]   -- ^ Dependencies.
   }
   deriving (Show)
@@ -29,6 +30,7 @@ emptyLibFile = AgdaLibFile
   { _libName     = ""
   , _libFile     = ""
   , _libIncludes = []
+  , _libExcludes = []
   , _libDepends  = []
   }
 
@@ -42,6 +44,9 @@ libFile f a = f (_libFile a) <&> \ x -> a { _libFile = x }
 
 libIncludes :: Lens' [FilePath] AgdaLibFile
 libIncludes f a = f (_libIncludes a) <&> \ x -> a { _libIncludes = x }
+
+libExcludes :: Lens' [FilePath] AgdaLibFile
+libExcludes f a = f (_libExcludes a) <&> \ x -> a { _libExcludes = x }
 
 libDepends :: Lens' [LibName] AgdaLibFile
 libDepends f a = f (_libDepends a) <&> \ x -> a { _libDepends = x }

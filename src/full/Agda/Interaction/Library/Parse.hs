@@ -9,7 +9,7 @@
 --       standard-library
 --     include: .
 --       src more-src
---
+--     exclude: more-src/README/
 --   @
 --
 --   Should parse as:
@@ -19,6 +19,7 @@
 --       { libName     = "Main"
 --       , libFile     = path_to_this_file
 --       , libIncludes = [ "." , "src" , "more-src" ]
+--       , libExcludes = [ "more-src/README/" ]
 --       , libDepends  = [ "standard-library" ]
 --       }
 --   @
@@ -89,6 +90,7 @@ agdaLibFields =
   -- Andreas, 2017-08-23, issue #2708, field "name" is optional.
   [ optionalField "name"    parseName                      libName
   , optionalField "include" (pure . concatMap parsePaths)  libIncludes
+  , optionalField "exclude" (pure . concatMap parsePaths)  libExcludes
   , optionalField "depend"  (pure . concatMap splitCommas) libDepends
   ]
   where
@@ -177,8 +179,9 @@ findField s fs = maybe err (return . Just) $ List.find ((s ==) . fName) fs
 --     == Right [("name",["Main"]),("depend",["standard-library"]),("include",[".","src more-src"])]
 -- @
 parseGeneric :: String -> P GenericFile
-parseGeneric s =
-  groupLines =<< concat <$> mapM (uncurry parseLine) (zip [1..] $ map stripComments $ lines s)
+parseGeneric s = do
+  let nls = zip [1..] $ map stripComments $ lines s
+  groupLines =<< concat <$> mapM (uncurry parseLine) nls
 
 type LineNumber = Int
 

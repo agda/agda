@@ -11,6 +11,7 @@ import Agda.Interaction.Base
 import Agda.Interaction.Response as R
 import Agda.Interaction.InteractionTop
 import Agda.Interaction.Options
+import Agda.Interaction.Library ()
 import Agda.TypeChecking.Monad
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 
@@ -34,7 +35,7 @@ repl callback prompt setup = do
     opts <- commandLineOptions
     _ <- interact' `runStateT`
            (initCommandState commands)
-             { optionsOnReload = opts{ optAbsoluteIncludePaths = [] } }
+             { optionsOnReload = opts{ optAbsoluteIncludePaths = mempty } }
     return ()
   where
   interact' :: CommandM ()

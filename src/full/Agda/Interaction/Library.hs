@@ -20,6 +20,7 @@
 module Agda.Interaction.Library
   ( getDefaultLibraries
   , getInstalledLibraries
+  , LibPaths(..), LibFilePaths, LibAbsolutePaths
   , libraryIncludePaths
   , LibName
   , LibM
@@ -49,8 +50,8 @@ import Agda.Interaction.Options.Warnings
 
 import Agda.Utils.Environment
 import Agda.Utils.Except ( ExceptT, MonadError(throwError) )
+import Agda.Utils.FileName ( AbsolutePath )
 import Agda.Utils.IO ( catchIO )
-import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
@@ -212,16 +213,21 @@ findAgdaLibFiles root = do
 getDefaultLibraries
   :: FilePath  -- ^ Project root.
   -> Bool      -- ^ Use @defaults@ if no @.agda-lib@ file exists for this project?
-  -> LibM ([LibName], [FilePath])  -- ^ The returned @LibName@s are all non-empty strings.
+  -> LibM ([LibName], LibFilePaths) -- ^ The returned @LibName@s are all non-empty strings.
 getDefaultLibraries root optDefaultLibs = mkLibM [] $ do
   libs <- lift $ findAgdaLibFiles root
   if null libs
-    then (,[]) <$> if optDefaultLibs then (libNameForCurrentDir :) <$> readDefaultsFile else return []
+    then (,mempty) <$> if optDefaultLibs
+                       then (libNameForCurrentDir :) <$> readDefaultsFile
+                       else return []
     else libsAndPaths <$> parseLibFiles Nothing (map (0,) libs)
   where
-    libsAndPaths ls = ( concatMap _libDepends ls
-                      , List.nub (concatMap _libIncludes ls)
-                      )
+    libsAndPaths ls =
+      ( concatMap _libDepends ls
+      , LibPaths { libIncludePaths = List.nub (concatMap _libIncludes ls)
+                 , libExcludePaths = List.nub (concatMap _libExcludes ls)
+                 }
+      )
 
 -- | Return list of libraries to be used by default.
 --
@@ -304,22 +310,41 @@ stripCommentLines = concatMap strip . zip [1..] . lines
       where s' = trimLineComment s
 
 ------------------------------------------------------------------------
--- * Resolving library names to include pathes
+-- * Resolving library names to include and exclude pathes
 ------------------------------------------------------------------------
+
+data LibPaths a = LibPaths
+  { libIncludePaths :: [a]
+  , libExcludePaths :: [a]
+  } deriving (Show)
+
+type LibFilePaths     = LibPaths FilePath
+type LibAbsolutePaths = LibPaths AbsolutePath
+
+instance Semigroup (LibPaths a) where
+  (LibPaths is es) <> (LibPaths js fs) = LibPaths (is ++ js) (es ++ fs)
+
+instance Monoid (LibPaths a) where
+  mempty  = LibPaths [] []
+  mappend = (<>)
 
 -- | Get all include pathes for a list of libraries to use.
 libraryIncludePaths
-  :: Maybe FilePath  -- ^ @libraries@ file (error reporting only).
-  -> [AgdaLibFile]   -- ^ Libraries Agda knows about.
-  -> [LibName]       -- ^ (Non-empty) library names to be resolved to (lists of) pathes.
-  -> LibM [FilePath] -- ^ Resolved pathes (no duplicates).  Contains "." if @[LibName]@ does.
+  :: Maybe FilePath    -- ^ @libraries@ file (error reporting only).
+  -> [AgdaLibFile]     -- ^ Libraries Agda knows about.
+  -> [LibName]         -- ^ (Non-empty) library names to be resolved to (lists of) pathes.
+  -> LibM LibFilePaths -- ^ Resolved pathes (no duplicates). Contains "." if @[LibName]@ does.
 libraryIncludePaths overrideLibFile libs xs0 = mkLibM libs $ WriterT $ do
     file <- getLibrariesFile overrideLibFile
-    return $ runWriter $ (dot ++) . incs <$> find file [] xs
+    return $ runWriter $ extract <$> find file [] xs
   where
     (dots, xs) = List.partition (== libNameForCurrentDir) $ map trim xs0
-    incs       = List.nub . concatMap _libIncludes
+    includes   = List.nub . concatMap _libIncludes
+    excludes   = List.nub . concatMap _libExcludes
     dot        = [ "." | not $ null dots ]
+    extract fs = LibPaths { libIncludePaths = dot ++ includes fs
+                          , libExcludePaths = excludes fs
+                          }
 
     -- | Due to library dependencies, the work list may grow temporarily.
     find
