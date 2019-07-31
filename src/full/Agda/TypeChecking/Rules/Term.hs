@@ -460,7 +460,7 @@ checkLambda cmp b@(A.TBind _ _ xps typ) body target = do
 --   coming from the function type.
 --   If lambda has no user-given modality, copy that of function type.
 lambdaModalityCheck :: LensModality dom => dom -> ArgInfo -> TCM ArgInfo
-lambdaModalityCheck dom = lambdaQuantityCheck m <=< lambdaIrrelevanceCheck m
+lambdaModalityCheck dom = lambdaCohesionCheck m <=< lambdaQuantityCheck m <=< lambdaIrrelevanceCheck m
   where m = getModality dom
 
 -- | Check that irrelevance info in lambda is compatible with irrelevance
@@ -498,9 +498,24 @@ lambdaQuantityCheck dom info
       let qPi  = getQuantity dom  -- quantity of function type
       let qLam = getQuantity info -- quantity of lambda
       unless (qPi `moreQuantity` qLam) $ do
-        -- the expected use qPi cannot be unrestricted then
-        when (hasQuantityω qPi) __IMPOSSIBLE__
         typeError WrongQuantityInLambda
+      return info
+
+-- | Check that cohesion info in lambda is compatible with cohesion
+--   coming from the function type.
+--   If lambda has no user-given cohesion, copy that of function type.
+lambdaCohesionCheck :: LensCohesion dom => dom -> ArgInfo -> TCM ArgInfo
+lambdaCohesionCheck dom info
+    -- Case: no specific user annotation: use cohesion of function type
+  | getCohesion info == defaultCohesion = return $ setCohesion (getCohesion dom) info
+    -- Case: explicit user annotation is taken seriously
+  | otherwise = do
+      let cPi  = getCohesion dom  -- cohesion of function type
+      let cLam = getCohesion info -- cohesion of lambda
+      unless (cPi `sameCohesion` cLam) $ do
+        -- if there is a cohesion annotation then
+        -- it better match the domain.
+        typeError WrongCohesionInLambda
       return info
 
 lambdaAddContext :: Name -> ArgName -> Dom Type -> TCM a -> TCM a
