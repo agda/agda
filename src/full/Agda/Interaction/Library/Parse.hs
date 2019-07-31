@@ -41,6 +41,7 @@ import System.FilePath
 
 import Agda.Interaction.Library.Base
 
+import Agda.Utils.Applicative
 import Agda.Utils.Except ( MonadError(throwError), ExceptT, runExceptT )
 import Agda.Utils.IO ( catchIO )
 import Agda.Utils.Lens
@@ -87,13 +88,22 @@ agdaLibFields :: [Field]
 agdaLibFields =
   -- Andreas, 2017-08-23, issue #2708, field "name" is optional.
   [ optionalField "name"    parseName                      libName
-  , optionalField "include" (pure . concatMap words)       libIncludes
+  , optionalField "include" (pure . concatMap parsePaths)  libIncludes
   , optionalField "depend"  (pure . concatMap splitCommas) libDepends
   ]
   where
     parseName :: [String] -> P LibName
     parseName [s] | [name] <- words s = pure name
     parseName ls = throwError $ "Bad library name: '" ++ unwords ls ++ "'"
+
+    parsePaths :: String -> [FilePath]
+    parsePaths = go id where
+      fixup acc = let fp = acc [] in not (null fp) ?$> fp
+      go acc []           = fixup acc
+      go acc ('\\' : ' '  :cs) = go (acc . (' ':)) cs
+      go acc ('\\' : '\\' :cs) = go (acc . ('\\':)) cs
+      go acc (       ' '  :cs) = fixup acc ++ go id cs
+      go acc (c           :cs) = go (acc . (c:)) cs
 
 -- | Parse @.agda-lib@ file.
 --

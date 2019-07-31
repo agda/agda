@@ -489,6 +489,7 @@ library
                     Agda.TypeChecking.Warnings
                     Agda.TypeChecking.With
                     Agda.Utils.AffineHole
+                    Agda.Utils.Applicative
                     Agda.Utils.AssocList
                     Agda.Utils.Bag
                     Agda.Utils.Benchmark
