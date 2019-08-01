@@ -22,6 +22,9 @@ module Agda.TypeChecking.Serialise
   )
   where
 
+import System.Directory ( createDirectoryIfMissing )
+import System.FilePath ( takeDirectory )
+
 import Control.Arrow (second)
 import Control.DeepSeq
 import qualified Control.Exception as E
@@ -201,7 +204,10 @@ encodeInterface i = L.append hashes <$> encode i
 -- positions are replaced with module names.
 
 encodeFile :: FilePath -> Interface -> TCM ()
-encodeFile f i = liftIO . L.writeFile f =<< encodeInterface i
+encodeFile f i = do
+  bs <- encodeInterface i
+  liftIO $ createDirectoryIfMissing True (takeDirectory f)
+  liftIO $ L.writeFile f bs
 
 -- | Decodes something. The result depends on the include path.
 --

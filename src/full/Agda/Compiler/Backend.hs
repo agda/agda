@@ -228,7 +228,7 @@ compilerMain backend isMain0 i = inCompilerEnv i $ do
 compileModule :: Backend' opts env menv mod def -> env -> IsMain -> Interface -> TCM mod
 compileModule backend env isMain i = do
   mName <- toTopLevelModuleName <$> curMName
-  ifile <- maybe __IMPOSSIBLE__ filePath <$> findInterfaceFile mName
+  ifile <- maybe __IMPOSSIBLE__ (filePath . intFilePath) <$> findInterfaceFile mName
   r     <- preModule backend env isMain (iModuleName i) ifile
   case r of
     Skip m         -> return m

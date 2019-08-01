@@ -571,7 +571,7 @@ interpret (Cmd_load_highlighting_info source) = do
 
     resp <- lift $ liftIO . tellToUpdateHighlighting =<< do
       ex <- liftIO $ doesFileExist source
-      absSource <- liftIO $ absolute source
+      absSource <- liftIO $ SourceFile <$> absolute source
       case ex of
         False -> return Nothing
         True  -> (do
@@ -849,8 +849,8 @@ cmd_load' :: FilePath -> [String]
           -> ((Interface, Imp.MaybeWarnings) -> CommandM ())
           -> CommandM ()
 cmd_load' file argv unsolvedOK mode cmd = do
-    f <- liftIO $ absolute file
-    ex <- liftIO $ doesFileExist $ filePath f
+    f <- liftIO $ SourceFile <$> absolute file
+    ex <- liftIO $ doesFileExist $ filePath (srcFilePath f)
     unless ex $ typeError $ GenericError $
       "The file " ++ file ++ " was not found."
 
@@ -873,7 +873,7 @@ cmd_load' file argv unsolvedOK mode cmd = do
       Left err   -> lift $ typeError $ GenericError err
       Right (_, opts) -> do
         let update o = o { optAllowUnsolved = unsolvedOK && optAllowUnsolved o}
-            root     = projectRoot f (Imp.siModuleName si)
+            root     = projectRoot (srcFilePath f) (Imp.siModuleName si)
         lift $ TM.setCommandLineOptions' root $ mapPragmaOptions update opts
         displayStatus
 
@@ -899,7 +899,7 @@ cmd_load' file argv unsolvedOK mode cmd = do
     when (t == t') $ do
       is <- lift $ sortInteractionPoints =<< getInteractionPoints
       modify $ \st -> st { theInteractionPoints = is
-                         , theCurrentFile       = Just (f, t)
+                         , theCurrentFile       = Just (srcFilePath f, t)
                          }
 
     cmd ok
