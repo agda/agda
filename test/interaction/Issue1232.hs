@@ -34,6 +34,6 @@ main = runAgda [ "--no-libraries"
 
   -- Clean up.
   writeUTF8File file "\n"
-  removeFile $ concat [ "_build/", version, "/", file, "i" ]
+  removeFile $ concat [ "_build/", version, "/agda/", file, "i" ]
 
   return ()

@@ -76,7 +76,7 @@ toIFile (SourceFile src) = do
   pure $ replaceModuleExtension ".agdai" $ case mroot of
     Nothing   -> src
     Just root ->
-      let buildDir = root </> "_build" </> version
+      let buildDir = root </> "_build" </> version </> "agda"
           fileName = makeRelative root fp
       in mkAbsolute $ buildDir </> fileName
 

@@ -41,6 +41,6 @@ main = runAgda ["--no-libraries"] $ \(AgdaCommands { .. }) -> do
   echoUntilPrompt
 
   -- Clean up.
-  mapM_ removeFile [libFile, concat [ "_build/", version, "/", libFile, "i" ], badFile]
+  mapM_ removeFile [libFile, concat [ "_build/", version, "/agda/", libFile, "i" ], badFile]
 
   return ()
