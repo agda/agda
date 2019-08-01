@@ -6,6 +6,11 @@ Installation and infrastructure
 
 * Removed support for GHC 7.10.3.
 
+* Interface files are now written in directory _build/VERSION/agda/ at
+  the project root (the closest enclosing directory where an .agda-lib
+  file is present). If there is no project root then the interface file
+  is written alongside the module it corresponds to.
+
 API
 ----
 * Removed module `Agda.Utils.HashMap`. It only re-exported `Data.HashMap.Strict`
