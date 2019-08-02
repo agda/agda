@@ -152,6 +152,8 @@ data WarningName
   | InvalidTerminationCheckPragma_
   | MissingDefinitions_
   | NotAllowedInMutual_
+  | OpenPublicAbstract_
+  | OpenPublicPrivate_
   | PolarityPragmasButNotPostulates_
   | PragmaCompiled_
   | PragmaNoTerminationCheck_
@@ -268,6 +270,8 @@ warningNameDescription w = case w of
   InvalidTerminationCheckPragma_   -> "Termination checking pragmas before non-function or `mutual' blocks."
   MissingDefinitions_              -> "Declarations not associated to a definition."
   NotAllowedInMutual_              -> "Declarations not allowed in a mutual block."
+  OpenPublicAbstract_              -> "'open public' directive in an 'abstract' block."
+  OpenPublicPrivate_               -> "'open public' directive in a 'private' block."
   PolarityPragmasButNotPostulates_ -> "Polarity pragmas for non-postulates."
   PragmaCompiled_                  -> "'COMPILE' pragmas not allowed in safe mode."
   PragmaNoTerminationCheck_        -> "`NO_TERMINATION_CHECK' pragmas are deprecated"

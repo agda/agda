@@ -1996,7 +1996,7 @@ data ImportDirective' n m = ImportDirective
   , using          :: Using' n m
   , hiding         :: [ImportedName' n m]
   , impRenaming    :: [Renaming' n m]
-  , publicOpen     :: Bool -- ^ Only for @open@. Exports the opened names from the current module.
+  , publicOpen     :: Maybe Range -- ^ Only for @open@. Exports the opened names from the current module.
   }
   deriving (Data, Eq)
 
@@ -2014,11 +2014,11 @@ instance Monoid (Using' n m) where
 
 -- | Default is directive is @private@ (use everything, but do not export).
 defaultImportDir :: ImportDirective' n m
-defaultImportDir = ImportDirective noRange UseEverything [] [] False
+defaultImportDir = ImportDirective noRange UseEverything [] [] Nothing
 
 isDefaultImportDir :: ImportDirective' n m -> Bool
-isDefaultImportDir (ImportDirective _ UseEverything [] [] False) = True
-isDefaultImportDir _                                             = False
+isDefaultImportDir (ImportDirective _ UseEverything [] [] Nothing) = True
+isDefaultImportDir _                                               = False
 
 -- | An imported name can be a module or a defined name.
 data ImportedName' n m

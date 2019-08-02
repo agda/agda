@@ -750,7 +750,7 @@ openModule :: OpenKind -> Maybe A.ModuleName  -> C.QName -> C.ImportDirective ->
 openModule kind mam cm dir = do
   current <- getCurrentModule
   m <- caseMaybe mam (amodName <$> resolveModule cm) return
-  let acc | not (publicOpen dir)      = PrivateNS
+  let acc | Nothing <- publicOpen dir = PrivateNS
           | m `isSubModuleOf` current = PublicNS
           | otherwise                 = ImportedNS
 
@@ -784,7 +784,7 @@ openModule kind mam cm dir = do
   where
     -- Only checks for clashes that would lead to the same
     -- name being exported twice from the module.
-    checkForClashes = when (publicOpen dir) $ do
+    checkForClashes = when (isJust $ publicOpen dir) $ do
 
         exported <- allThingsInScope . restrictPrivate <$> (getNamedScope =<< getCurrentModule)
 

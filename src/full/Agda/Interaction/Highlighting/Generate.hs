@@ -674,6 +674,8 @@ warningHighlighting w = case tcWarning w of
     UselessAbstract{}    -> deadcodeHighlighting $ getRange w
     UselessInstance{}    -> deadcodeHighlighting $ getRange w
     UselessPrivate{}     -> deadcodeHighlighting $ getRange w
+    OpenPublicAbstract{} -> deadcodeHighlighting $ getRange w
+    OpenPublicPrivate{}  -> deadcodeHighlighting $ getRange w
     -- TODO: explore highlighting opportunities here!
     EmptyPrimitive{} -> mempty
     InvalidCatchallPragma{} -> mempty
