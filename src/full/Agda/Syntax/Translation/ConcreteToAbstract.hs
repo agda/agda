@@ -306,7 +306,7 @@ checkModuleMacro apply kind r p x modapp open dir = do
     reportSDoc "scope.decl" 70 $ vcat $
       [ text $ "scope checking ModuleMacro " ++ prettyShow x
       ]
-    notPublicWithoutOpen open dir
+    dir <- notPublicWithoutOpen open dir
 
     m0 <- toAbstract (NewModuleName x)
     reportSDoc "scope.decl" 90 $ "NewModuleName: m0 =" <+> prettyA m0
@@ -371,10 +371,12 @@ checkModuleMacro apply kind r p x modapp open dir = do
 
 -- | The @public@ keyword must only be used together with @open@.
 
-notPublicWithoutOpen :: OpenShortHand -> C.ImportDirective -> ScopeM ()
-notPublicWithoutOpen DoOpen   dir = return ()
-notPublicWithoutOpen DontOpen dir = when (isJust $ publicOpen dir) $ genericError
-    "The public keyword must only be used together with the open keyword"
+notPublicWithoutOpen :: OpenShortHand -> C.ImportDirective -> ScopeM C.ImportDirective
+notPublicWithoutOpen DoOpen   dir = return dir
+notPublicWithoutOpen DontOpen dir = do
+  whenJust (publicOpen dir) $ \ r ->
+    setCurrentRange r $ warning UselessPublic
+  return $ dir { publicOpen = Nothing }
 
 -- | Computes the range of all the \"to\" keywords used in a renaming
 -- directive.
@@ -1691,7 +1693,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
       return $ map (A.Pragma r) ps
 
     NiceImport r x as open dir -> setCurrentRange r $ do
-      notPublicWithoutOpen open dir
+      dir <- notPublicWithoutOpen open dir
 
       -- Andreas, 2018-11-03, issue #3364, parse expression in as-clause as Name.
       let illformedAs s = traceCall (SetRange $ getRange as) $ do

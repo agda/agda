@@ -1,0 +1,11 @@
+PublicWithoutOpen2.agda:3,18-24
+Keyword 'public' is ignored here
+when scope checking the declaration
+  import Imports.A public
+
+———— All done; warnings encountered ————————————————————————
+
+PublicWithoutOpen2.agda:3,18-24
+Keyword 'public' is ignored here
+when scope checking the declaration
+  import Imports.A public

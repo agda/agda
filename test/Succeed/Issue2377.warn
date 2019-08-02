@@ -1,34 +1,34 @@
-Issue2377.agda:7,1-36
+Issue2377.agda:7,30-36
 Keyword 'public' is ignored here
 when scope checking the declaration
   open import Agda.Builtin.Nat public
-Issue2377.agda:12,1-14
+Issue2377.agda:12,8-14
 Keyword 'public' is ignored here
 when scope checking the declaration
   open B public
-Issue2377.agda:20,16-29
+Issue2377.agda:20,23-29
 Keyword 'public' is ignored here
 when scope checking let open B public in Set
-Issue2377.agda:24,17-41
+Issue2377.agda:24,35-41
 Keyword 'public' is ignored here
 when scope checking let open module C = B public in Set
 
 ———— All done; warnings encountered ————————————————————————
 
-Issue2377.agda:7,1-36
+Issue2377.agda:7,30-36
 Keyword 'public' is ignored here
 when scope checking the declaration
   open import Agda.Builtin.Nat public
 
-Issue2377.agda:12,1-14
+Issue2377.agda:12,8-14
 Keyword 'public' is ignored here
 when scope checking the declaration
   open B public
 
-Issue2377.agda:20,16-29
+Issue2377.agda:20,23-29
 Keyword 'public' is ignored here
 when scope checking let open B public in Set
 
-Issue2377.agda:24,17-41
+Issue2377.agda:24,35-41
 Keyword 'public' is ignored here
 when scope checking let open module C = B public in Set
