@@ -2929,7 +2929,7 @@ warningName w = case w of
   UnsolvedConstraints{}        -> UnsolvedConstraints_
   UnsolvedMetaVariables{}      -> UnsolvedMetaVariables_
   UselessInline{}              -> UselessInline_
-  UselessPublic                -> UselessPublic_
+  UselessPublic{}              -> UselessPublic_
   UserWarning{}                -> UserWarning_
   InfectiveImport{}            -> InfectiveImport_
   CoInfectiveImport{}          -> CoInfectiveImport_

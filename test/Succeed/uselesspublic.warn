@@ -1,0 +1,9 @@
+uselesspublic.agda:3,18-24
+Keyword 'public' is ignored here
+when scope checking let open Nat public in Nat → Nat
+
+———— All done; warnings encountered ————————————————————————
+
+uselesspublic.agda:3,18-24
+Keyword 'public' is ignored here
+when scope checking let open Nat public in Nat → Nat

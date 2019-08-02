@@ -399,9 +399,9 @@ checkOpen r mam x dir = do
       , text $ "  C.ImportDirective      = " ++ prettyShow dir
       ]
   -- Andreas, 2017-01-01, issue #2377: warn about useless `public`
-  when (isJust $ publicOpen dir) $ do
+  whenJust (publicOpen dir) $ \ r -> do
     whenM ((A.noModuleName ==) <$> getCurrentModule) $ do
-      warning UselessPublic
+      setCurrentRange r $ warning UselessPublic
 
   m <- caseMaybe mam (toAbstract (OldModuleName x)) return
   printScope "open" 20 $ "opening " ++ prettyShow x
@@ -1387,7 +1387,7 @@ instance ToAbstract LetDef [A.LetBinding] where
 
       -- You can't open public in a let
       NiceOpen r x dirs -> do
-        when (isJust $ publicOpen dirs) $ warning UselessPublic
+        whenJust (publicOpen dirs) $ \r -> setCurrentRange r $ warning UselessPublic
         m    <- toAbstract (OldModuleName x)
         adir <- openModule_ LetOpenModule x dirs
         let minfo = ModuleInfo
@@ -1400,7 +1400,7 @@ instance ToAbstract LetDef [A.LetBinding] where
         return [A.LetOpen minfo m adir]
 
       NiceModuleMacro r p x modapp open dir -> do
-        when (isJust $ publicOpen dir) $ warning UselessPublic
+        whenJust (publicOpen dir) $ \ r -> setCurrentRange r $ warning UselessPublic
         -- Andreas, 2014-10-09, Issue 1299: module macros in lets need
         -- to be private
         checkModuleMacro LetApply LetOpenModule r (PrivateAccess Inserted) x modapp open dir

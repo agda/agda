@@ -631,7 +631,7 @@ warningHighlighting w = case tcWarning w of
   OldBuiltin{}               -> mempty
   EmptyRewritePragma{}       -> deadcodeHighlighting $ getRange w
   IllformedAsClause{}        -> deadcodeHighlighting $ getRange w
-  UselessPublic{}            -> mempty
+  UselessPublic{}            -> deadcodeHighlighting $ getRange w
   UselessInline{}            -> mempty
   WrongInstanceDeclaration{} -> mempty
   InstanceWithExplicitArg{}  -> deadcodeHighlighting $ getRange w
