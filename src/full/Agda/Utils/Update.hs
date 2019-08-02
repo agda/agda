@@ -1,7 +1,11 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module Agda.Utils.Update
-  ( Change
+  ( ChangeT
+  , runChangeT
+  , UpdaterT
+  , runUpdaterT
+  , Change
   , MonadChange(..)
   , runChange
   , Updater
@@ -38,6 +42,16 @@ instance Monad m => MonadChange (ChangeT m) where
     (a, Any dirty) <- listen (fromChangeT m)
     return (a, dirty)
 
+type UpdaterT m a = a -> ChangeT m a
+
+-- | Run a 'ChangeT' computation, returning result plus change flag.
+runChangeT :: Functor m => ChangeT m a -> m (a, Bool)
+runChangeT = fmap (mapSnd getAny) . runWriterT . fromChangeT
+
+-- | Blindly run an updater.
+runUpdaterT :: Functor m => UpdaterT m a -> a -> m (a, Bool)
+runUpdaterT f a = runChangeT $ f a
+
 -- | A mock change monad.
 instance MonadChange Identity where
   tellDirty                = Identity ()
@@ -46,37 +60,31 @@ instance MonadChange Identity where
 -- * Pure endo function and updater
 
 type EndoFun a = a -> a
-type Updater a = a -> Change a
+type Change  a = ChangeT Identity a
+type Updater a = UpdaterT Identity a
 
--- BEGIN REAL STUFF
-
--- | The @Change@ monad.
-newtype Change a = Change { fromChange :: Writer Any a }
-  deriving (Functor, Applicative, Monad)
-
-instance MonadChange Change where
-  tellDirty = Change $ tell $ Any True
-  listenDirty m = Change $ do
-    (a, Any dirty) <- listen (fromChange m)
-    return (a, dirty)
+fromChange :: Change a -> Writer Any a
+fromChange = fromChangeT
 
 -- | Run a 'Change' computation, returning result plus change flag.
+{-# INLINE runChange #-}
 runChange :: Change a -> (a, Bool)
-runChange = mapSnd getAny . runWriter . fromChange
+runChange = runIdentity . runChangeT
 
 -- | Blindly run an updater.
+{-# INLINE runUpdater #-}
 runUpdater :: Updater a -> a -> (a, Bool)
 runUpdater f a = runChange $ f a
 
 -- | Mark a computation as dirty.
-dirty :: Updater a
+dirty :: Monad m => UpdaterT m a
 dirty a = do
   tellDirty
   return a
 
 {-# SPECIALIZE ifDirty :: Change a -> (a -> Change b) -> (a -> Change b) -> Change b #-}
 {-# SPECIALIZE ifDirty :: Identity a -> (a -> Identity b) -> (a -> Identity b) -> Identity b #-}
-ifDirty :: MonadChange m => m a -> (a -> m b) -> (a -> m b) -> m b
+ifDirty :: (Monad m, MonadChange m) => m a -> (a -> m b) -> (a -> m b) -> m b
 ifDirty m f g = do
   (a, dirty) <- listenDirty m
   if dirty then f a else g a
@@ -84,14 +92,14 @@ ifDirty m f g = do
 -- * Proper updater (Q-combinators)
 
 -- | Replace result of updating with original input if nothing has changed.
-sharing :: Updater a -> Updater a
+sharing :: Monad m => UpdaterT m a -> UpdaterT m a
 sharing f a = do
   (a', changed) <- listenDirty $ f a
   return $ if changed then a' else a
 
 -- | Eval an updater (using 'sharing').
 evalUpdater :: Updater a -> EndoFun a
-evalUpdater f a = fst $ runWriter $ fromChange $ sharing f a
+evalUpdater f a = fst $ runChange $ sharing f a
 
 -- END REAL STUFF
 

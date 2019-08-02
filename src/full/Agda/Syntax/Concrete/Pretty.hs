@@ -748,8 +748,8 @@ instance (Pretty a, Pretty b) => Pretty (ImportDirective' a b) where
             , rename $ impRenaming i
             ]
         where
-            public True  = "public"
-            public False = empty
+            public Just{}  = "public"
+            public Nothing = empty
 
             prettyHiding [] = empty
             prettyHiding xs = "hiding" <+> parens (fsep $ punctuate ";" $ map pretty xs)

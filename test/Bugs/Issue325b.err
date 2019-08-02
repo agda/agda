@@ -13,7 +13,7 @@ out > initOccursCheck: we look into the following definitions:
 out > Nat
 out > passed occursCheck
 out > fvars rhs:
-out > type of meta = "dummyType: src/full/Agda/TypeChecking/MetaVars.hs:167"
+out > type of meta = "dummyType: src/full/Agda/TypeChecking/MetaVars.hs"
 out > solving _0 := Set
 out > completed assignment of _0
 out > term _1 :DirEq Set
@@ -28,7 +28,7 @@ out > initOccursCheck: we look into the following definitions:
 out > Nat
 out > passed occursCheck
 out > fvars rhs:
-out > type of meta = "dummyType: src/full/Agda/TypeChecking/MetaVars.hs:167"
+out > type of meta = "dummyType: src/full/Agda/TypeChecking/MetaVars.hs"
 out > solving _1 := Set
 out > completed assignment of _1
 out > term _2 :DirEq Set
@@ -43,7 +43,7 @@ out > initOccursCheck: we look into the following definitions:
 out > Nat zero
 out > passed occursCheck
 out > fvars rhs:
-out > type of meta = "dummyType: src/full/Agda/TypeChecking/MetaVars.hs:167"
+out > type of meta = "dummyType: src/full/Agda/TypeChecking/MetaVars.hs"
 out > solving _2 := Set
 out > completed assignment of _2
 out > term _3 :DirEq Set
@@ -58,7 +58,7 @@ out > initOccursCheck: we look into the following definitions:
 out > Nat zero
 out > passed occursCheck
 out > fvars rhs:
-out > type of meta = "dummyType: src/full/Agda/TypeChecking/MetaVars.hs:167"
+out > type of meta = "dummyType: src/full/Agda/TypeChecking/MetaVars.hs"
 out > solving _3 := Set
 out > completed assignment of _3
 out > term _4 :DirEq Set
@@ -74,7 +74,7 @@ out >
 out > passed occursCheck
 out > fvars rhs:
 out > type of meta = ((X : Set) →
-out >                 "dummyType: src/full/Agda/TypeChecking/MetaVars.hs:167")
+out >                 "dummyType: src/full/Agda/TypeChecking/MetaVars.hs")
 out > solving _4 := (λ X → Set)
 out > completed assignment of _4
 out > term _5 :DirEq Set
@@ -90,7 +90,7 @@ out > Vec
 out > passed occursCheck
 out > fvars rhs:
 out > type of meta = (X : Set) →
-out >                "dummyType: src/full/Agda/TypeChecking/MetaVars.hs:167"
+out >                "dummyType: src/full/Agda/TypeChecking/MetaVars.hs"
 out > solving _5 := λ X → Set
 out > completed assignment of _5
 out > term _6 :DirEq Set
@@ -106,7 +106,7 @@ out > Vec
 out > passed occursCheck
 out > fvars rhs:
 out > type of meta = (X : Set) →
-out >                "dummyType: src/full/Agda/TypeChecking/MetaVars.hs:167"
+out >                "dummyType: src/full/Agda/TypeChecking/MetaVars.hs"
 out > solving _6 := λ X → Set
 out > completed assignment of _6
 out > term _7 :DirEq Set
@@ -122,7 +122,7 @@ out > Vec []
 out > passed occursCheck
 out > fvars rhs:
 out > type of meta = (X : Set) →
-out >                "dummyType: src/full/Agda/TypeChecking/MetaVars.hs:167"
+out >                "dummyType: src/full/Agda/TypeChecking/MetaVars.hs"
 out > solving _7 := λ X → Set
 out > completed assignment of _7
 out > term _8 :DirEq Set
@@ -138,7 +138,7 @@ out > Vec []
 out > passed occursCheck
 out > fvars rhs:
 out > type of meta = ((X : Set) (n : Nat) →
-out >                 "dummyType: src/full/Agda/TypeChecking/MetaVars.hs:167")
+out >                 "dummyType: src/full/Agda/TypeChecking/MetaVars.hs")
 out > solving _8 := (λ X n → Set)
 out > completed assignment of _8
 out > term _9 :DirEq Set
@@ -154,7 +154,7 @@ out > Vec []
 out > passed occursCheck
 out > fvars rhs:
 out > type of meta = ((X : Set) (n : Nat) →
-out >                 "dummyType: src/full/Agda/TypeChecking/MetaVars.hs:167")
+out >                 "dummyType: src/full/Agda/TypeChecking/MetaVars.hs")
 out > solving _9 := (λ X n → Set)
 out > completed assignment of _9
 out > term _10 :DirEq Set
@@ -170,7 +170,7 @@ out > Vec []
 out > passed occursCheck
 out > fvars rhs:
 out > type of meta = (X : Set) (n : Nat) →
-out >                "dummyType: src/full/Agda/TypeChecking/MetaVars.hs:167"
+out >                "dummyType: src/full/Agda/TypeChecking/MetaVars.hs"
 out > solving _10 := λ X n → Set
 out > completed assignment of _10
 out > term _11 :DirEq Set
@@ -186,7 +186,7 @@ out >
 out > passed occursCheck
 out > fvars rhs:
 out > type of meta = ((S : Set) →
-out >                 "dummyType: src/full/Agda/TypeChecking/MetaVars.hs:167")
+out >                 "dummyType: src/full/Agda/TypeChecking/MetaVars.hs")
 out > solving _11 := (λ S → Set)
 out > completed assignment of _11
 out > term _12 :DirEq Set
@@ -202,7 +202,7 @@ out >
 out > passed occursCheck
 out > fvars rhs:
 out > type of meta = (S : Set) (T : Nat → Set) →
-out >                "dummyType: src/full/Agda/TypeChecking/MetaVars.hs:167"
+out >                "dummyType: src/full/Agda/TypeChecking/MetaVars.hs"
 out > solving _12 := λ S T → Set
 out > completed assignment of _12
 out > term _13 :DirEq Set
@@ -218,7 +218,7 @@ out >
 out > passed occursCheck
 out > fvars rhs:
 out > type of meta = ((S : Set) (T : Nat → Set) (n : Nat) →
-out >                 "dummyType: src/full/Agda/TypeChecking/MetaVars.hs:167")
+out >                 "dummyType: src/full/Agda/TypeChecking/MetaVars.hs")
 out > solving _13 := (λ S T n → Set)
 out > completed assignment of _13
 out > term _14 :DirEq Set
@@ -234,7 +234,7 @@ out >
 out > passed occursCheck
 out > fvars rhs:
 out > type of meta = ((S : Set) (T : Nat → Set) (n : Nat) →
-out >                 "dummyType: src/full/Agda/TypeChecking/MetaVars.hs:167")
+out >                 "dummyType: src/full/Agda/TypeChecking/MetaVars.hs")
 out > solving _14 := (λ S T n → Set)
 out > completed assignment of _14
 out > term _15 :DirEq Set
@@ -250,7 +250,7 @@ out >
 out > passed occursCheck
 out > fvars rhs:
 out > type of meta = (S : Set) (T : Nat → Set) (n : Nat) →
-out >                "dummyType: src/full/Agda/TypeChecking/MetaVars.hs:167"
+out >                "dummyType: src/full/Agda/TypeChecking/MetaVars.hs"
 out > solving _15 := λ S T n → Set
 out > completed assignment of _15
 out > term _16 :DirEq Set
@@ -266,7 +266,7 @@ out >
 out > passed occursCheck
 out > fvars rhs:
 out > type of meta = ((S : Set) (T : Nat → Set) →
-out >                 "dummyType: src/full/Agda/TypeChecking/MetaVars.hs:167")
+out >                 "dummyType: src/full/Agda/TypeChecking/MetaVars.hs")
 out > solving _16 := (λ S T → Set)
 out > completed assignment of _16
 out > term _17 :DirEq Set
@@ -282,7 +282,7 @@ out >
 out > passed occursCheck
 out > fvars rhs:
 out > type of meta = (S : Set) (T : Nat → Set) →
-out >                "dummyType: src/full/Agda/TypeChecking/MetaVars.hs:167"
+out >                "dummyType: src/full/Agda/TypeChecking/MetaVars.hs"
 out > solving _17 := λ S T → Set
 out > completed assignment of _17
 out > term _18 :DirEq Set
@@ -298,7 +298,7 @@ out >
 out > passed occursCheck
 out > fvars rhs:
 out > type of meta = ((S : Set) (T : Nat → Set) (n : Nat) →
-out >                 "dummyType: src/full/Agda/TypeChecking/MetaVars.hs:167")
+out >                 "dummyType: src/full/Agda/TypeChecking/MetaVars.hs")
 out > solving _18 := (λ S T n → Set)
 out > completed assignment of _18
 out > term _19 :DirEq Set
@@ -314,7 +314,7 @@ out >
 out > passed occursCheck
 out > fvars rhs:
 out > type of meta = (S : Set) (T : Nat → Set) (n : Nat) →
-out >                "dummyType: src/full/Agda/TypeChecking/MetaVars.hs:167"
+out >                "dummyType: src/full/Agda/TypeChecking/MetaVars.hs"
 out > solving _19 := λ S T n → Set
 out > completed assignment of _19
 out > { etaExpandMeta _20
@@ -394,7 +394,7 @@ out > fvars rhs: 4
 out > not all arguments are variables:  [m, S, Tsn, f, t, s, ss, zero]
 out >   aborting assignment
 out > blocked _24 := λ m S Tsn f t s ss → f zero t s
-out >      by [[46] Tsn (suc zero) =< _T_22 zero : Set]
+out >      by [[46] Tsn (suc zero) =< _T_22 zero ]
 out > { etaExpandMeta _25
 out > postponing eta-expansion of meta variable _25 which is blocked by _T_22
 out > }
@@ -450,7 +450,7 @@ out > we do not expand meta variable _T_27 (requested was expansion of [Singleto
 out > }
 out > actual killing
 out >   new meta: _27
-out >   kills   : [Arg {argInfo = ArgInfo {argInfoHiding = NotHidden, argInfoModality = Modality {modRelevance = Relevant, modQuantity = Quantityω QωInferred, modCohesion = Continuous}, argInfoOrigin = UserWritten, argInfoFreeVariables = UnknownFVs}, unArg = False},Arg {argInfo = ArgInfo {argInfoHiding = NotHidden, argInfoModality = Modality {modRelevance = Relevant, modQuantity = Quantityω QωInferred, modCohesion = Continuous}, argInfoOrigin = UserWritten, argInfoFreeVariables = UnknownFVs}, unArg = True},Arg {argInfo = ArgInfo {argInfoHiding = NotHidden, argInfoModality = Modality {modRelevance = Relevant, modQuantity = Quantityω QωInferred, modCohesion = Continuous}, argInfoOrigin = UserWritten, argInfoFreeVariables = UnknownFVs}, unArg = False},Arg {argInfo = ArgInfo {argInfoHiding = NotHidden, argInfoModality = Modality {modRelevance = Relevant, modQuantity = Quantityω QωInferred, modCohesion = Continuous}, argInfoOrigin = UserWritten, argInfoFreeVariables = UnknownFVs}, unArg = True},Arg {argInfo = ArgInfo {argInfoHiding = NotHidden, argInfoModality = Modality {modRelevance = Relevant, modQuantity = Quantityω QωInferred, modCohesion = Continuous}, argInfoOrigin = UserWritten, argInfoFreeVariables = UnknownFVs}, unArg = True},Arg {argInfo = ArgInfo {argInfoHiding = NotHidden, argInfoModality = Modality {modRelevance = Relevant, modQuantity = Quantityω QωInferred, modCohesion = Continuous}, argInfoOrigin = UserWritten, argInfoFreeVariables = UnknownFVs}, unArg = True},Arg {argInfo = ArgInfo {argInfoHiding = NotHidden, argInfoModality = Modality {modRelevance = Relevant, modQuantity = Quantityω QωInferred, modCohesion = Continuous}, argInfoOrigin = UserWritten, argInfoFreeVariables = UnknownFVs}, unArg = True},Arg {argInfo = ArgInfo {argInfoHiding = NotHidden, argInfoModality = Modality {modRelevance = Relevant, modQuantity = Quantityω QωInferred, modCohesion = Continuous}, argInfoOrigin = UserWritten, argInfoFreeVariables = UnknownFVs}, unArg = False}]
+out >   kills   : False, True, False, True, True, True, True, False
 out >   inst    : _22 := _T_27 (m = @7) (Tsn = S) ss
 out > { etaExpandMeta _23
 out > postponing eta-expansion of meta variable _23 which is blocked by _T_27
@@ -510,7 +510,7 @@ out >                  foldl S (λ v → _T_27 (m = m) (Tsn = Tsn) v)
 out >                  (_23 (m = m) (S = S) (Tsn = Tsn) (f = f) (t = t) (s = s) (ss = ss))
 out >                  (_25 (m = m) (S = S) (Tsn = Tsn) (f = f) (t = t) (s = s) (ss = ss))
 out >                  m ss
-out >      by [[50] _T_27 m =< Tsn (suc m) : Set]
+out >      by [[50] _T_27 m =< Tsn (suc m) ]
 out > { etaExpandMeta _29
 out > we do not expand meta variable _29 (requested was expansion of [SingletonRecords,Levels])
 out > }
@@ -655,8 +655,8 @@ out > term _T_27 zero :DirGeq Tsn (suc zero)
 out > term _T_27 zero :DirGeq Tsn (suc zero)
 out > term _T_27 zero :DirGeq Tsn (suc zero)
 out > Failed to solve the following constraints:
-out >   [46] Tsn (suc zero) =< _T_27 zero : Set
-out >   [50] _T_27 m =< Tsn (suc m) : Set
+out >   [46] Tsn (suc zero) =< _T_27 zero 
+out >   [50] _T_27 m =< Tsn (suc m) 
 out > Unsolved metas at the following locations:
 out >   Issue325b.agda:23,12-13
 out >   Issue325b.agda:23,15-25

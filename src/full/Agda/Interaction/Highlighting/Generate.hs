@@ -633,7 +633,7 @@ warningHighlighting w = case tcWarning w of
   OldBuiltin{}               -> mempty
   EmptyRewritePragma{}       -> deadcodeHighlighting $ getRange w
   IllformedAsClause{}        -> deadcodeHighlighting $ getRange w
-  UselessPublic{}            -> mempty
+  UselessPublic{}            -> deadcodeHighlighting $ getRange w
   UselessInline{}            -> mempty
   WrongInstanceDeclaration{} -> mempty
   InstanceWithExplicitArg{}  -> deadcodeHighlighting $ getRange w
@@ -676,6 +676,8 @@ warningHighlighting w = case tcWarning w of
     UselessAbstract{}    -> deadcodeHighlighting $ getRange w
     UselessInstance{}    -> deadcodeHighlighting $ getRange w
     UselessPrivate{}     -> deadcodeHighlighting $ getRange w
+    OpenPublicAbstract{} -> deadcodeHighlighting $ getRange w
+    OpenPublicPrivate{}  -> deadcodeHighlighting $ getRange w
     -- TODO: explore highlighting opportunities here!
     EmptyPrimitive{} -> mempty
     InvalidCatchallPragma{} -> mempty

@@ -2,5 +2,5 @@ AGDA_FAILURE
 
 ret > ExitFailure 1
 out > An internal error has occurred. Please report this as a bug.
-out > Location of the error: src/full/Agda/TypeChecking/Reduce/Fast.hs:1340
+out > Location of the error: src/full/Agda/TypeChecking/Reduce/Fast.hs
 out >

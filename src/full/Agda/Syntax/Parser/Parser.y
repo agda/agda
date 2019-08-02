@@ -24,6 +24,7 @@ module Agda.Syntax.Parser.Parser (
     , splitOnDots  -- only used by the internal test-suite
     ) where
 
+import Control.Applicative ( (<|>) )
 import Control.Monad
 
 import Data.Bifunctor (first)
@@ -1039,7 +1040,7 @@ ImportDirectives
   | {- empty -}                       { [] }
 
 ImportDirective1 :: { ImportDirective }
-  : 'public'      { defaultImportDir { importDirRange = getRange $1, publicOpen = True } }
+  : 'public'      { defaultImportDir { importDirRange = getRange $1, publicOpen = Just (getRange $1) } }
   | Using         { defaultImportDir { importDirRange = snd $1, using    = fst $1 } }
   | Hiding        { defaultImportDir { importDirRange = snd $1, hiding   = fst $1 } }
   | RenamingDir   { defaultImportDir { importDirRange = snd $1, impRenaming = fst $1 } }
@@ -2115,7 +2116,7 @@ mergeImportDirectives is = do
         , using          = mappend (using i1) (using i2)
         , hiding         = hiding i1 ++ hiding i2
         , impRenaming    = impRenaming i1 ++ impRenaming i2
-        , publicOpen     = publicOpen i1 || publicOpen i2 }
+        , publicOpen     = publicOpen i1 <|> publicOpen i2 }
 
 -- | Check that an import directive doesn't contain repeated names
 verifyImportDirective :: ImportDirective -> Parser ImportDirective

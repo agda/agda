@@ -220,6 +220,8 @@ data DeclarationWarning
   | UselessAbstract Range
   | UselessInstance Range
   | UselessPrivate Range
+  | OpenPublicPrivate Range
+  | OpenPublicAbstract Range
   deriving (Data, Show)
 
 declarationWarningName :: DeclarationWarning -> WarningName
@@ -248,6 +250,8 @@ declarationWarningName dw = case dw of
   UselessAbstract{}                 -> UselessAbstract_
   UselessInstance{}                 -> UselessInstance_
   UselessPrivate{}                  -> UselessPrivate_
+  OpenPublicPrivate{}               -> OpenPublicPrivate_
+  OpenPublicAbstract{}              -> OpenPublicAbstract_
 
 -- | Several declarations expect only type signatures as sub-declarations.  These are:
 data KindOfBlock
@@ -298,6 +302,8 @@ instance HasRange DeclarationWarning where
   getRange (InvalidNoUniverseCheckPragma r)     = r
   getRange (PragmaNoTerminationCheck r)         = r
   getRange (PragmaCompiled r)                   = r
+  getRange (OpenPublicAbstract r)               = r
+  getRange (OpenPublicPrivate r)                = r
 
 instance HasRange NiceDeclaration where
   getRange (Axiom r _ _ _ _ _ _)           = r
@@ -426,6 +432,10 @@ instance Pretty DeclarationWarning where
     pwords "Pragma {-# NO_TERMINATION_CHECK #-} has been removed.  To skip the termination check, label your definitions either as {-# TERMINATING #-} or {-# NON_TERMINATING #-}."
   pretty (PragmaCompiled _) = fsep $
     pwords "COMPILE pragma not allowed in safe mode."
+  pretty (OpenPublicAbstract _) = fsep $
+    pwords "public does not have any effect in an abstract block."
+  pretty (OpenPublicPrivate _) = fsep $
+    pwords "public does not have any effect in a private block."
 
 declName :: NiceDeclaration -> String
 declName Axiom{}             = "Postulates"
@@ -1525,8 +1535,8 @@ niceDeclarations fixs ds = do
 
     abstractBlock _ [] = return []
     abstractBlock r ds = do
-      let (ds', anyChange) = runChange $ mkAbstract ds
-          inherited        = r == noRange
+      (ds', anyChange) <- runChangeT $ mkAbstract ds
+      let inherited = r == noRange
       if anyChange then return ds' else do
         -- hack to avoid failing on inherited abstract blocks in where clauses
         unless inherited $ niceWarning $ UselessAbstract r
@@ -1534,7 +1544,7 @@ niceDeclarations fixs ds = do
 
     privateBlock _ _ [] = return []
     privateBlock r o ds = do
-      let (ds', anyChange) = runChange $ mkPrivate o ds
+      (ds', anyChange) <- runChangeT $ mkPrivate o ds
       if anyChange then return ds' else do
         when (o == UserWritten) $ niceWarning $ UselessPrivate r
         return ds -- no change!
@@ -1592,8 +1602,8 @@ niceDeclarations fixs ds = do
 -- Then, nested @abstract@s would sometimes also be complained about.
 
 class MakeAbstract a where
-  mkAbstract :: Updater a
-  default mkAbstract :: (Traversable f, MakeAbstract a', a ~ f a') => Updater a
+  mkAbstract :: UpdaterT Nice a
+  default mkAbstract :: (Traversable f, MakeAbstract a', a ~ f a') => UpdaterT Nice a
   mkAbstract = traverse mkAbstract
 
 instance MakeAbstract a => MakeAbstract [a] where
@@ -1628,12 +1638,14 @@ instance MakeAbstract NiceDeclaration where
       PrimitiveFunction r p _ x e    -> return $ PrimitiveFunction r p AbstractDef x e
       -- Andreas, 2016-07-17 it does have effect on unquoted defs.
       -- Need to set updater state to dirty!
-      NiceUnquoteDecl r p _ i t x e  -> dirty $ NiceUnquoteDecl r p AbstractDef i t x e
-      NiceUnquoteDef r p _ t x e     -> dirty $ NiceUnquoteDef r p AbstractDef t x e
+      NiceUnquoteDecl r p _ i t x e  -> NiceUnquoteDecl r p AbstractDef i t x e <$ tellDirty
+      NiceUnquoteDef r p _ t x e     -> NiceUnquoteDef r p AbstractDef t x e    <$ tellDirty
       d@NiceModule{}                 -> return d
       d@NiceModuleMacro{}            -> return d
       d@NicePragma{}                 -> return d
-      d@NiceOpen{}                   -> return d
+      d@(NiceOpen _ _ directives)              -> do
+        whenJust (publicOpen directives) $ lift . niceWarning . OpenPublicAbstract
+        return d
       d@NiceImport{}                 -> return d
       d@NicePatternSyn{}             -> return d
       d@NiceGeneralize{}             -> return d
@@ -1658,8 +1670,8 @@ instance MakeAbstract WhereClause where
 -- Then, nested @private@s would sometimes also be complained about.
 
 class MakePrivate a where
-  mkPrivate :: Origin -> Updater a
-  default mkPrivate :: (Traversable f, MakePrivate a', a ~ f a') => Origin -> Updater a
+  mkPrivate :: Origin -> UpdaterT Nice a
+  default mkPrivate :: (Traversable f, MakePrivate a', a ~ f a') => Origin -> UpdaterT Nice a
   mkPrivate o = traverse $ mkPrivate o
 
 instance MakePrivate a => MakePrivate [a] where
@@ -1691,7 +1703,9 @@ instance MakePrivate NiceDeclaration where
       NiceUnquoteDef r p a t x e               -> (\ p -> NiceUnquoteDef r p a t x e)               <$> mkPrivate o p
       NiceGeneralize r p i x t                 -> (\ p -> NiceGeneralize r p i x t)                 <$> mkPrivate o p
       d@NicePragma{}                           -> return d
-      d@NiceOpen{}                             -> return d
+      d@(NiceOpen _ _ directives)              -> do
+        whenJust (publicOpen directives) $ lift . niceWarning . OpenPublicPrivate
+        return d
       d@NiceImport{}                           -> return d
       -- Andreas, 2016-07-08, issue #2089
       -- we need to propagate 'private' to the named where modules
