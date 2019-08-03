@@ -134,6 +134,7 @@ data PragmaOptions = PragmaOptions
   , optVerbose                   :: Verbosity
   , optProp                      :: Bool
   , optAllowUnsolved             :: Bool
+  , optAllowIncompleteMatch      :: Bool
   , optDisablePositivity         :: Bool
   , optTerminationCheck          :: Bool
   , optTerminationDepth          :: CutOff
@@ -244,6 +245,7 @@ defaultPragmaOptions = PragmaOptions
   , optExperimentalIrrelevance   = False
   , optIrrelevantProjections     = False -- off by default in > 2.5.4, see issue #2170
   , optAllowUnsolved             = False
+  , optAllowIncompleteMatch      = False
   , optDisablePositivity         = False
   , optTerminationCheck          = True
   , optTerminationDepth          = defaultCutOff
@@ -368,6 +370,7 @@ checkOpts opts
 unsafePragmaOptions :: PragmaOptions -> [String]
 unsafePragmaOptions opts =
   [ "--allow-unsolved-metas"                     | optAllowUnsolved opts             ] ++
+  [ "--allow-incomplete-match"                   | optAllowIncompleteMatch opts      ] ++
   [ "--no-positivity-check"                      | optDisablePositivity opts         ] ++
   [ "--no-termination-check"                     | not (optTerminationCheck opts)    ] ++
   [ "--type-in-type"                             | not (optUniverseCheck opts)       ] ++
@@ -392,6 +395,7 @@ restartOptions =
   [ (C . optTerminationDepth, "--termination-depth")
   , (B . not . optUseUnicode, "--no-unicode")
   , (B . optAllowUnsolved, "--allow-unsolved-metas")
+  , (B . optAllowIncompleteMatch, "--allow-incomplete-match")
   , (B . optDisablePositivity, "--no-positivity-check")
   , (B . optTerminationCheck,  "--no-termination-check")
   , (B . not . optUniverseCheck, "--type-in-type")
@@ -515,6 +519,13 @@ allowUnsolvedFlag o = do
   let upd = over warningSet (Set.\\ unsolvedWarnings)
   return $ o { optAllowUnsolved = True
              , optWarningMode   = upd (optWarningMode o)
+             }
+
+allowIncompleteMatchFlag :: Flag PragmaOptions
+allowIncompleteMatchFlag o = do
+  let upd = over warningSet (Set.\\ incompleteMatchWarnings)
+  return $ o { optAllowIncompleteMatch = True
+             , optWarningMode          = upd (optWarningMode o)
              }
 
 showImplicitFlag :: Flag PragmaOptions
@@ -861,6 +872,8 @@ pragmaOptions =
                     "set verbosity level to N"
     , Option []     ["allow-unsolved-metas"] (NoArg allowUnsolvedFlag)
                     "succeed and create interface file regardless of unsolved meta variables"
+    , Option []     ["allow-incomplete-match"] (NoArg allowIncompleteMatchFlag)
+                    "succeed and create interface file regardless of incomplete pattern matches"
     , Option []     ["no-positivity-check"] (NoArg noPositivityFlag)
                     "do not warn about not strictly positive data types"
     , Option []     ["no-termination-check"] (NoArg dontTerminationCheckFlag)

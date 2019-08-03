@@ -9,6 +9,7 @@ module Agda.Interaction.Options.Warnings
        , usualWarnings
        , noWarnings
        , unsolvedWarnings
+       , incompleteMatchWarnings
        , errorWarnings
        , defaultWarningMode
        , warningModeUpdate
@@ -89,6 +90,9 @@ unsolvedWarnings = Set.fromList
                  , UnsolvedInteractionMetas_
                  , UnsolvedConstraints_
                  ]
+
+incompleteMatchWarnings :: Set WarningName
+incompleteMatchWarnings = Set.fromList [ CoverageIssue_ ]
 
 errorWarnings :: Set WarningName
 errorWarnings = Set.fromList
