@@ -509,7 +509,7 @@ again, the source file is re-typechecked instead:
 * ``--termination-depth``
 * ``--no-unicode``
 * ``--allow-unsolved-metas``
-* ``--allow-incomplete-match``
+* ``--allow-incomplete-matches``
 * ``--no-positivity-check``
 * ``--no-termination-check``
 * ``--type-in-type``
