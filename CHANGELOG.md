@@ -56,6 +56,10 @@ Pragmas and options
 
 * New pragma option `--no-flat-split` disables pattern matching on `@♭` arguments.
 
+* New pragma option `--allow-incomplete-match`. It is similar to
+  `--allow-unsolved-meta`: modules containing partial function definitions
+  can be imported.
+
 GHC Backend
 -----------
 
