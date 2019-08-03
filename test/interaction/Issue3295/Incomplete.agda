@@ -1,4 +1,4 @@
-{-# OPTIONS --allow-incomplete-match #-}
+{-# OPTIONS --allow-incomplete-matches #-}
 
 module Issue3295.Incomplete where
 

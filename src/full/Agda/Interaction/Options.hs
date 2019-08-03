@@ -370,7 +370,7 @@ checkOpts opts
 unsafePragmaOptions :: PragmaOptions -> [String]
 unsafePragmaOptions opts =
   [ "--allow-unsolved-metas"                     | optAllowUnsolved opts             ] ++
-  [ "--allow-incomplete-match"                   | optAllowIncompleteMatch opts      ] ++
+  [ "--allow-incomplete-matches"                 | optAllowIncompleteMatch opts      ] ++
   [ "--no-positivity-check"                      | optDisablePositivity opts         ] ++
   [ "--no-termination-check"                     | not (optTerminationCheck opts)    ] ++
   [ "--type-in-type"                             | not (optUniverseCheck opts)       ] ++
@@ -395,7 +395,7 @@ restartOptions =
   [ (C . optTerminationDepth, "--termination-depth")
   , (B . not . optUseUnicode, "--no-unicode")
   , (B . optAllowUnsolved, "--allow-unsolved-metas")
-  , (B . optAllowIncompleteMatch, "--allow-incomplete-match")
+  , (B . optAllowIncompleteMatch, "--allow-incomplete-matches")
   , (B . optDisablePositivity, "--no-positivity-check")
   , (B . optTerminationCheck,  "--no-termination-check")
   , (B . not . optUniverseCheck, "--type-in-type")
@@ -872,7 +872,7 @@ pragmaOptions =
                     "set verbosity level to N"
     , Option []     ["allow-unsolved-metas"] (NoArg allowUnsolvedFlag)
                     "succeed and create interface file regardless of unsolved meta variables"
-    , Option []     ["allow-incomplete-match"] (NoArg allowIncompleteMatchFlag)
+    , Option []     ["allow-incomplete-matches"] (NoArg allowIncompleteMatchFlag)
                     "succeed and create interface file regardless of incomplete pattern matches"
     , Option []     ["no-positivity-check"] (NoArg noPositivityFlag)
                     "do not warn about not strictly positive data types"

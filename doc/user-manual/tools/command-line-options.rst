@@ -197,7 +197,7 @@ Errors and warnings
       Succeed and create interface file
       regardless of unsolved meta variables (see :ref:`metavariables`)
 
-:samp:`--allow-incomplete-match`
+:samp:`--allow-incomplete-matches`
       Succeed and create interface file
       regardless of incomplete pattern-matching definitions
 
