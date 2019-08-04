@@ -51,7 +51,8 @@ data Options = Options
   { mustSucceed               :: Bool
   , mustOutput, mustNotOutput :: [String]
   , noInternalError           :: Bool
-      -- ^ Implies "must-fail" and "must-not-output" @internalErrorString@.
+      -- ^ Implies \"must-fail\" and \"must-not-output\"
+      -- 'internalErrorString'.
   , mustFinishWithin          :: Maybe Int
   , extraArguments            :: Bool
   , compiler                  :: Maybe String
@@ -66,17 +67,6 @@ data Options = Options
   , scriptOrArguments         :: Either (FilePath, [String]) [String]
   }
 
--- | Substantiates implied options, e.g. those implied by 'noInternalError'.
-
-normalizeOptions :: Options -> Options
-normalizeOptions opt
-  | noInternalError opt = opt
-      { mustSucceed   = False
-      , mustNotOutput = internalErrorString : mustNotOutput opt
-      }
-  | otherwise = opt
-
-
 -- | Parses command-line options. Prints usage information and aborts
 -- this program if the options are malformed (or the help flag is
 -- given).
@@ -84,7 +74,7 @@ normalizeOptions opt
 options :: IO Options
 options =
   execParser
-    (info (helper <*> opts)
+    (info (helper <*> (fixOptions <$> opts))
           (header "Git bisect wrapper script for the Agda code base" <>
            footerDoc (Just msg)))
   where
@@ -98,17 +88,16 @@ options =
                       help "The command must output STRING" <>
                       metavar "STRING"))
     <*> many
-           (strOption (long "must-not-output" <>
-                       help "The command must not output STRING" <>
-                       metavar "STRING"))
+          (strOption (long "must-not-output" <>
+                      help "The command must not output STRING" <>
+                      metavar "STRING"))
     <*> switch
-        (  long "no-internal-error"
-        <> help (concat
-            [ "The command must not output "
-            , show internalErrorString
-            , ".  Implies --must-fail."
-            ])
-        )
+          (long "no-internal-error" <>
+           help (unwords
+             [ "The command must not output"
+             , show internalErrorString ++ ";"
+             , "implies --must-fail"
+             ]))
     <*> (optional $
            option
              (do n <- auto
@@ -201,6 +190,17 @@ options =
             (strArgument (metavar "PROGRAM ARGUMENTS..." <>
                           help ("Extra arguments for the " ++
                                 "--script program")))))
+
+  -- | Substantiates implied options, e.g. those implied by
+  -- 'noInternalError'. Note that this function is not idempotent.
+
+  fixOptions :: Options -> Options
+  fixOptions opt
+    | noInternalError opt = opt
+        { mustSucceed   = False
+        , mustNotOutput = internalErrorString : mustNotOutput opt
+        }
+    | otherwise = opt
 
   paragraph ss      = fillSep (map string $ words $ unlines ss)
   d1 `newline` d2   = d1 PP.<> hardline PP.<> d2
@@ -299,7 +299,7 @@ options =
 
 main :: IO ()
 main = do
-  opts <- normalizeOptions <$> options
+  opts <- options
   case dryRun opts of
     Just (Left agda) -> do
       runAgda agda opts
