@@ -38,6 +38,14 @@ defaultFlags =
   , "--no-libraries"
   ]
 
+-- | Default flags given to cabal install (excludes some flags that
+-- cannot be overridden).
+
+defaultCabalFlags :: [String]
+defaultCabalFlags =
+  [ "--ghc-option=-O0"
+  ]
+
 -- | An absolute path to the compiled Agda executable. (If caching is
 -- not enabled.)
 
@@ -56,6 +64,7 @@ data Options = Options
   , mustFinishWithin          :: Maybe Int
   , extraArguments            :: Bool
   , compiler                  :: Maybe String
+  , defaultCabalOptions       :: Bool
   , cabalOptions              :: [String]
   , skipStrings               :: [String]
   , onlyOnBranches            :: [String]
@@ -117,6 +126,13 @@ options =
                       help "Use COMPILER to compile Agda" <>
                       metavar "COMPILER" <>
                       action "command"))
+    <*> (not <$>
+         switch
+           (long "no-default-cabal-options" <>
+            help (unwords
+              [ "Do not (by default) give certain options to cabal"
+              , "install"
+              ])))
     <*> many
           (strOption (long "cabal-option" <>
                       help "Additional option given to cabal install" <>
@@ -200,6 +216,9 @@ options =
         { mustSucceed   = False
         , mustNotOutput = internalErrorString : mustNotOutput opt
         }
+    | defaultCabalOptions opt = opt
+        { cabalOptions = defaultCabalFlags ++ cabalOptions opt
+        }
     | otherwise = opt
 
   paragraph ss      = fillSep (map string $ words $ unlines ss)
@@ -228,6 +247,16 @@ options =
         [ "Use \"--\" to signal that the remaining arguments are"
         , "not options to this script (but to Agda or the --script"
         , "program)."
+        ]
+
+    , paragraph
+        [ "The script gives the following options to cabal install,"
+        , "unless --no-default-cabal-options has been given:"
+        ] `newline`
+      indent 2 (foldr1 newline $ map string defaultCabalFlags)
+        `newline`
+      paragraph
+        [ "(Other options are also given to cabal install.)"
         ]
 
     , paragraph
