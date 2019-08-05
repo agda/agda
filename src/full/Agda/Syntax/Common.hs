@@ -2136,7 +2136,21 @@ instance NFData a => NFData (TerminationCheck a) where
 -----------------------------------------------------------------------------
 
 -- | Positivity check? (Default = True).
-type PositivityCheck = Bool
+data PositivityCheck = YesPositivityCheck | NoPositivityCheck
+  deriving (Eq, Ord, Show, Bounded, Enum, Data)
+
+instance KillRange PositivityCheck where
+  killRange = id
+
+-- Semigroup and Monoid via conjunction
+instance Semigroup PositivityCheck where
+  NoPositivityCheck <> _ = NoPositivityCheck
+  _ <> NoPositivityCheck = NoPositivityCheck
+  _ <> _ = YesPositivityCheck
+
+instance Monoid PositivityCheck where
+  mempty  = YesPositivityCheck
+  mappend = (<>)
 
 -----------------------------------------------------------------------------
 -- * Universe checking
@@ -2148,6 +2162,27 @@ data UniverseCheck = YesUniverseCheck | NoUniverseCheck
 
 instance KillRange UniverseCheck where
   killRange = id
+
+-----------------------------------------------------------------------------
+-- * Universe checking
+-----------------------------------------------------------------------------
+
+-- | Coverage check? (Default is yes).
+data CoverageCheck = YesCoverageCheck | NoCoverageCheck
+  deriving (Eq, Ord, Show, Bounded, Enum, Data)
+
+instance KillRange CoverageCheck where
+  killRange = id
+
+-- Semigroup and Monoid via conjunction
+instance Semigroup CoverageCheck where
+  NoCoverageCheck <> _ = NoCoverageCheck
+  _ <> NoCoverageCheck = NoCoverageCheck
+  _ <> _ = YesCoverageCheck
+
+instance Monoid CoverageCheck where
+  mempty  = YesCoverageCheck
+  mappend = (<>)
 
 -----------------------------------------------------------------------------
 -- * Rewrite Directives on the LHS

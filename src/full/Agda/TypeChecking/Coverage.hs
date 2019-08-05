@@ -247,7 +247,8 @@ coverageCheck f t cs = do
   -- report a warning if there are uncovered cases,
   unless (null pss) $ do
     stLocalPartialDefs `modifyTCLens` Set.insert f
-    setCurrentRange cs $ warning $ CoverageIssue f pss
+    whenM ((YesCoverageCheck ==) <$> viewTC eCoverageCheck) $
+      setCurrentRange cs $ warning $ CoverageIssue f pss
 
   -- Andreas, 2017-08-28, issue #2723:
   -- Mark clauses as reachable or unreachable in the signature.

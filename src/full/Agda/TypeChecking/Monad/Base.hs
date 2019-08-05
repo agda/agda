@@ -2455,6 +2455,7 @@ data TCEnv =
           , envImportPath          :: [C.TopLevelModuleName] -- ^ to detect import cycles
           , envMutualBlock         :: Maybe MutualId -- ^ the current (if any) mutual block
           , envTerminationCheck    :: TerminationCheck ()  -- ^ are we inside the scope of a termination pragma
+          , envCoverageCheck       :: CoverageCheck        -- ^ are we inside the scope of a coverage pragma
           , envSolvingConstraints  :: Bool
                 -- ^ Are we currently in the process of solving active constraints?
           , envCheckingWhere       :: Bool
@@ -2580,6 +2581,7 @@ initEnv = TCEnv { envContext             = []
                 , envImportPath          = []
                 , envMutualBlock         = Nothing
                 , envTerminationCheck    = TerminationCheck
+                , envCoverageCheck       = YesCoverageCheck
                 , envSolvingConstraints  = False
                 , envCheckingWhere       = False
                 , envActiveProblems      = Set.empty
@@ -2673,6 +2675,9 @@ eMutualBlock f e = f (envMutualBlock e) <&> \ x -> e { envMutualBlock = x }
 
 eTerminationCheck :: Lens' (TerminationCheck ()) TCEnv
 eTerminationCheck f e = f (envTerminationCheck e) <&> \ x -> e { envTerminationCheck = x }
+
+eCoverageCheck :: Lens' CoverageCheck TCEnv
+eCoverageCheck f e = f (envCoverageCheck e) <&> \ x -> e { envCoverageCheck = x }
 
 eSolvingConstraints :: Lens' Bool TCEnv
 eSolvingConstraints f e = f (envSolvingConstraints e) <&> \ x -> e { envSolvingConstraints = x }

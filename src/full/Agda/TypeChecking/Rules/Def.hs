@@ -393,7 +393,7 @@ checkFunDefS t ai delayed extlam with i name withSub cs = do
 --   which comes from a possible termination pragma.
 useTerPragma :: Definition -> TCM Definition
 useTerPragma def@Defn{ defName = name, theDef = fun@Function{}} = do
-  tc <- asksTC envTerminationCheck
+  tc <- viewTC eTerminationCheck
   let terminates = case tc of
         NonTerminating -> Just False
         Terminating    -> Just True
@@ -404,7 +404,6 @@ useTerPragma def@Defn{ defName = name, theDef = fun@Function{}} = do
     ]
   return $ def { theDef = fun { funTerminates = terminates }}
 useTerPragma def = return def
-
 
 -- | Insert some with-patterns into the with-clauses LHS of the given RHS.
 -- (Used for @rewrite@.)

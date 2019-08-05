@@ -161,6 +161,7 @@ import Agda.Utils.Impossible
     'NO_POSITIVITY_CHECK'     { TokKeyword KwNO_POSITIVITY_CHECK $$ }
     'NO_UNIVERSE_CHECK'       { TokKeyword KwNO_UNIVERSE_CHECK $$ }
     'NON_TERMINATING'         { TokKeyword KwNON_TERMINATING $$ }
+    'NON_COVERING'            { TokKeyword KwNON_COVERING $$ }
     'OPTIONS'                 { TokKeyword KwOPTIONS $$ }
     'POLARITY'                { TokKeyword KwPOLARITY $$ }
     'WARNING_ON_USAGE'        { TokKeyword KwWARNING_ON_USAGE $$ }
@@ -291,6 +292,7 @@ Token
     | 'NO_POSITIVITY_CHECK'     { TokKeyword KwNO_POSITIVITY_CHECK $1 }
     | 'NO_UNIVERSE_CHECK'       { TokKeyword KwNO_UNIVERSE_CHECK $1 }
     | 'NON_TERMINATING'         { TokKeyword KwNON_TERMINATING $1 }
+    | 'NON_COVERING'            { TokKeyword KwNON_COVERING $1 }
     | 'OPTIONS'                 { TokKeyword KwOPTIONS $1 }
     | 'POLARITY'                { TokKeyword KwPOLARITY $1 }
     | 'REWRITE'                 { TokKeyword KwREWRITE $1 }
@@ -1509,6 +1511,7 @@ DeclarationPragma
   | TerminatingPragma        { $1 }
   | NonTerminatingPragma     { $1 }
   | NoTerminationCheckPragma { $1 }
+  | NonCoveringPragma        { $1 }
   | WarningOnUsagePragma     { $1 }
   | WarningOnImportPragma    { $1 }
   | MeasurePragma            { $1 }
@@ -1594,6 +1597,11 @@ TerminatingPragma
   : '{-#' 'TERMINATING' '#-}'
     { TerminationCheckPragma (getRange ($1,$2,$3)) Terminating }
 
+NonCoveringPragma :: { Pragma }
+NonCoveringPragma
+  : '{-#' 'NON_COVERING' '#-}'
+    { NoCoverageCheckPragma (getRange ($1,$2,$3)) }
+
 MeasurePragma :: { Pragma }
 MeasurePragma
   : '{-#' 'MEASURE' PragmaName '#-}'
@@ -1605,9 +1613,10 @@ CatchallPragma
   : '{-#' 'CATCHALL' '#-}'
     { CatchallPragma (getRange ($1,$2,$3)) }
 
-
 ImpossiblePragma :: { Pragma }
-  : '{-#' 'IMPOSSIBLE' '#-}'  { ImpossiblePragma (getRange ($1,$2,$3)) }
+ImpossiblePragma
+  : '{-#' 'IMPOSSIBLE' '#-}'
+    { ImpossiblePragma (getRange ($1,$2,$3)) }
 
 NoPositivityCheckPragma :: { Pragma }
 NoPositivityCheckPragma
