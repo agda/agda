@@ -1,2 +1,2 @@
 top_command (cmd_load currentFile ["-i.","-i../../std-lib/src/"])
-goal_command 0 cmd_autoOne ""
+goal_command 0 cmd_autoOne "-t 2s"
