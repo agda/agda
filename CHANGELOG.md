@@ -207,6 +207,9 @@ Language
   eta p = refl
   ```
 
+* Absurd match in a do block
+  The last expression in a do block can now also be an absurd match `() <- f`.
+
 ### Termination checking
 
 * The "with inlining" feature of the termination checker has been
