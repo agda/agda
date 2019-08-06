@@ -181,9 +181,9 @@ Language
   ... | pn = rhs
   ```
 
-* Irrefutable patterns in telescopes
+* Record patterns in telescopes
 
-  Users can now use irrefutable patterns in telescope and lambda abstractions.
+  Users can now use record patterns in telescope and lambda abstractions.
   The type of the second projection from a dependent pair is the prototypical
   example It can be defined as follows:
 
