@@ -12,7 +12,7 @@ module Agda.Syntax.Concrete
   , module Agda.Syntax.Concrete.Name
   , appView, AppView(..)
   , isSingleIdentifierP, removeSingletonRawAppP
-  , isPattern, isBinderP
+  , isPattern, isAbsurdP, isBinderP
     -- * Bindings
   , Binder'(..)
   , Binder
@@ -585,6 +585,16 @@ isPattern = \case
       HiddenArg _ p   -> HiddenP r (fmap f p)
       InstanceArg _ p -> InstanceP r (fmap f p)
       p               -> f p
+
+isAbsurdP :: Pattern -> Maybe (Range, Hiding)
+isAbsurdP = \case
+  AbsurdP r      -> pure (r, NotHidden)
+  AsP _ _      p -> isAbsurdP p
+  ParenP _     p -> isAbsurdP p
+  RawAppP _ [p]  -> isAbsurdP p
+  HiddenP   _ np -> (Hidden <$)              <$> isAbsurdP (namedThing np)
+  InstanceP _ np -> (Instance YesOverlap <$) <$> isAbsurdP (namedThing np)
+  _ -> Nothing
 
 isBinderP :: Pattern -> Maybe Binder
 isBinderP = \case
