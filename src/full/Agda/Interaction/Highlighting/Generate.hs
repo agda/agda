@@ -618,7 +618,7 @@ warningHighlighting :: TCWarning -> File
 warningHighlighting w = case tcWarning w of
   TerminationIssue terrs     -> terminationErrorHighlighting terrs
   NotStrictlyPositive d ocs  -> positivityErrorHighlighting d ocs
-  UnreachableClauses{}       -> deadcodeHighlighting $ getRange w
+  UnreachableClauses _ rs    -> Fold.foldMap deadcodeHighlighting rs
   CoverageIssue{}            -> coverageErrorHighlighting $ getRange w
   CoverageNoExactSplit{}     -> catchallHighlighting $ getRange w
   UnsolvedConstraints cs     -> constraintsHighlighting cs
