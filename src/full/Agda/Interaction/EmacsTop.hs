@@ -1,6 +1,10 @@
 module Agda.Interaction.EmacsTop
     ( mimicGHCi
+    -- temporarily lending these serialisation functions to JSONTop
     , showGoals
+    , prettyTimed
+    , showInfoError
+    , prettyUnknownConstructors
     ) where
 
 import Control.Monad.State hiding (state)
@@ -450,3 +454,13 @@ prettyTypeOfMeta norm ii = do
 -- | Prefix prettified CPUTime with "Time:"
 prettyTimed :: CPUTime -> Doc
 prettyTimed time = "Time:" <+> pretty time
+
+-- | Pretty-prints unknown constructors
+prettyUnknownConstructors :: [String] -> Doc
+prettyUnknownConstructors ss = sep
+  [ "Don't know which constructor to introduce of"
+  , let mkOr []     = []
+        mkOr [x, y] = [text x <+> "or" <+> text y]
+        mkOr (x:xs) = text x : mkOr xs
+    in nest 2 $ fsep $ punctuate comma (mkOr ss)
+  ]

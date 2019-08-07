@@ -15,10 +15,11 @@ import Agda.Syntax.Common
 import Agda.TypeChecking.Monad
 import Agda.VersionCommit
 
--- borrowed from EmacsTop, for temporarily serialising stuff
-import Agda.TypeChecking.Pretty.Warning (prettyTCWarnings, prettyTCWarnings')
+-- temporarily borrowing these serialisation functions from EmacsTop
+import Agda.TypeChecking.Pretty.Warning (prettyTCWarnings)
 import Agda.TypeChecking.Warnings (WarningsAndNonFatalErrors(..))
-import Agda.Utils.Pretty (render)
+import Agda.Utils.Pretty (pretty)
+import Agda.Interaction.EmacsTop
 
 --------------------------------------------------------------------------------
 
@@ -58,27 +59,26 @@ instance EncodeTCM DisplayInfo where
     , "errors"      #= prettyTCWarnings (nonFatalErrors wes)
     ]
   encodeTCM (Info_Constraints constraints) = kind "Constraints"
-    [ "constraints" @= Null
+    [ "constraints" @= pretty constraints
     ]
-  encodeTCM (Info_AllGoalsWarnings _goals _warningsAndErrors) = kind "AllGoalsWarnings"
-    [ "goals"       @= Null
-    , "warnings"    @= Null
-    , "errors"      @= Null
+  encodeTCM (Info_AllGoalsWarnings goals wes) = kind "AllGoalsWarnings"
+    [ "goals"       #= showGoals goals
+    , "warnings"    #= prettyTCWarnings (tcWarnings wes)
+    , "errors"      #= prettyTCWarnings (nonFatalErrors wes)
     ]
-  encodeTCM (Info_Time doc) = kind "Time"
-    [ "payload"     @= Null
+  encodeTCM (Info_Time time) = kind "Time"
+    [ "payload"     @= prettyTimed time
     ]
   encodeTCM (Info_Error msg) = kind "Error"
-    [ "payload"     @= Null
+    [ "payload"     #= showInfoError msg
     ]
   encodeTCM Info_Intro_NotFound = kind "IntroNotFound"
-    [ "payload"     @= Null
-    ]
+    []
   encodeTCM (Info_Intro_ConstructorUnknown introductions) = kind "IntroConstructorUnknown"
-    [ "payload"     @= Null
+    [ "payload"     @= prettyUnknownConstructors introductions
     ]
-  encodeTCM (Info_Auto _) = kind "Auto"
-    [ "payload"     @= Null
+  encodeTCM (Info_Auto payload) = kind "Auto"
+    [ "payload"     @= payload
     ]
   encodeTCM (Info_ModuleContents _ _ _) = kind "ModuleContents"
     [ "payload"     @= Null
