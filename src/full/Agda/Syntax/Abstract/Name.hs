@@ -34,13 +34,15 @@ import Agda.Utils.Impossible
 -- | A name is a unique identifier and a suggestion for a concrete name. The
 --   concrete name contains the source location (if any) of the name. The
 --   source location of the binding site is also recorded.
-data Name = Name { nameId          :: !NameId
-                 , nameConcrete    :: C.Name
-                 , nameBindingSite :: Range
-                 , nameFixity      :: Fixity'
-                 , nameIsRecordName :: Bool
-                 }
-    deriving Data
+data Name = Name
+  { nameId           :: !NameId
+  , nameConcrete     :: C.Name
+  , nameBindingSite  :: Range
+  , nameFixity       :: Fixity'
+  , nameIsRecordName :: Bool
+      -- ^ Is this the name of the invisible record variable `self`?
+      --   Should not be printed or displayed in the context, see issue #3584.
+  } deriving Data
 
 -- | Useful for debugging scoping problems
 uglyShowName :: Name -> String
