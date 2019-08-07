@@ -30,7 +30,37 @@ interestingCall cl = case clValue cl of
     CheckArguments _ [] _ _ -> False
     SetRange{}              -> False
     NoHighlighting{}        -> False
-    _                       -> True
+    -- Andreas, 2019-08-07, expanded catch-all pattern.
+    -- The previous presence of a catch-all raises the following question:
+    -- are all of the following really interesting?
+    CheckClause{}             -> True
+    CheckPattern{}            -> True
+    CheckLetBinding{}         -> True
+    InferExpr{}               -> True
+    CheckExprCall{}           -> True
+    CheckDotPattern{}         -> True
+    CheckPatternShadowing{}   -> True
+    IsTypeCall{}              -> True
+    IsType_{}                 -> True
+    CheckArguments{}          -> True
+    CheckTargetType{}         -> True
+    CheckDataDef{}            -> True
+    CheckRecDef{}             -> True
+    CheckConstructor{}        -> True
+    CheckConstructorFitsIn{}  -> True
+    CheckFunDefCall{}         -> True
+    CheckPragma{}             -> True
+    CheckPrimitive{}          -> True
+    CheckIsEmpty{}            -> True
+    CheckConfluence{}         -> True
+    CheckWithFunctionType{}   -> True
+    CheckSectionApplication{} -> True
+    CheckNamedWhere{}         -> True
+    ScopeCheckExpr{}          -> True
+    ScopeCheckDeclaration{}   -> True
+    ScopeCheckLHS{}           -> True
+    CheckProjection{}         -> True
+    ModuleContents{}          -> True
 
 traceCallM :: (MonadTCM tcm, MonadDebug tcm) => tcm Call -> tcm a -> tcm a
 traceCallM mkCall m = flip traceCall m =<< mkCall
@@ -40,9 +70,8 @@ traceCallM mkCall m = flip traceCall m =<< mkCall
 -- RULE left-hand side too complicated to desugar
 -- {-# SPECIALIZE traceCall :: Call -> TCM a -> TCM a #-}
 traceCall :: (MonadTCM tcm, MonadDebug tcm) => Call -> tcm a -> tcm a
-traceCall mkCall m = do
-  let call      = mkCall
-      callRange = getRange call
+traceCall call m = do
+
   -- Andreas, 2016-09-13 issue #2177
   -- Since the fix of #2092 we may report an error outside the current file.
   -- (For instance, if we import a module which then happens to have the
@@ -58,21 +87,33 @@ traceCall mkCall m = do
           prettyShow call ++
           " is setting the current range to " ++ show callRange ++
           " which is outside of the current file " ++ show currentFile
+
   cl <- liftTCM $ buildClosure call
-  let trace = localTC $ foldr (.) id $
-        [ \e -> e { envCall = Just cl } | interestingCall cl ] ++
-        [ \e -> e { envHighlightingRange = callRange }
-          | callRange /= noRange && highlightCall call || isNoHighlighting call ] ++
-        [ \e -> e { envRange = callRange } | callRange /= noRange ]
-  wrap <- ifM (do l <- envHighlightingLevel <$> askTC
-                  return (l == Interactive && highlightCall call))
-              (do oldRange <- envHighlightingRange <$> askTC
-                  return $ highlightAsTypeChecked oldRange callRange)
-              (return id)
-  wrap $ trace m
+
+  -- Compute update to 'Range' and 'Call' components of 'TCEnv'.
+  let withCall = localTC $ foldr (.) id $ concat $
+        [ [ \e -> e { envCall = Just cl } | interestingCall cl ]
+        , [ \e -> e { envHighlightingRange = callRange }
+          | callHasRange && highlightCall
+            || isNoHighlighting
+          ]
+        , [ \e -> e { envRange = callRange } | callHasRange ]
+        ]
+
+  -- For interactive highlighting, also wrap computation @m@ in 'highlightAsTypeChecked':
+  ifNotM (pure highlightCall `and2M` do (Interactive ==) . envHighlightingLevel <$> askTC)
+    {-then-} (withCall m)
+    {-else-} $ do
+      oldRange <- envHighlightingRange <$> askTC
+      highlightAsTypeChecked oldRange callRange $
+        withCall m
   where
+
+  callRange = getRange call
+  callHasRange = not $ null callRange
+
   -- | Should the given call trigger interactive highlighting?
-  highlightCall call = case call of
+  highlightCall = case call of
     CheckClause{}             -> True
     CheckPattern{}            -> True
     CheckLetBinding{}         -> True
@@ -106,8 +147,9 @@ traceCall mkCall m = do
     SetRange{}                -> False
     ModuleContents{}          -> False
 
-  isNoHighlighting NoHighlighting{} = True
-  isNoHighlighting _                = False
+  isNoHighlighting = case call of
+    NoHighlighting{} -> True
+    _ -> False
 
 getCurrentRange :: MonadTCEnv m => m Range
 getCurrentRange = asksTC envRange
