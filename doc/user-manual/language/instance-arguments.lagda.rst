@@ -99,14 +99,11 @@ given explicitly. The above definition is equivalent to
 A very useful function that exploits this is the function ``it`` which lets you
 apply instance resolution to solve an arbitrary goal::
 
-  it : ∀ {a} {A : Set a} {{_ : A}} → A
+  it : ∀ {a} {A : Set a} → {{A}} → A
   it {{x}} = x
 
-Note that instance arguments in types are always named, but the name can be ``_``:
-
-.. code-block:: agda
-
-  _==_ : {A : Set} → {{Eq A}} → A → A → Bool    -- INVALID
+As the last example shows, the name of the instance argument can be
+omitted in the type signature:
 
 ..
   ::
@@ -114,7 +111,7 @@ Note that instance arguments in types are always named, but the name can be ``_`
 
 ::
 
-     _==_ : {A : Set} {{_ : Eq A}} → A → A → Bool  -- VALID
+     _==_ : {A : Set} → {{Eq A}} → A → A → Bool
 
 ..
   ::
@@ -170,8 +167,8 @@ This will bring into scope
 
 ::
 
-    mempty : ∀ {a} {A : Set a} {{_ : Monoid A}} → A
-    _<>_   : ∀ {a} {A : Set a} {{_ : Monoid A}} → A → A → A
+    mempty : ∀ {a} {A : Set a} → {{Monoid A}} → A
+    _<>_   : ∀ {a} {A : Set a} → {{Monoid A}} → A → A → A
 
 ..
   ::
@@ -190,7 +187,7 @@ the module application is desugared. If defined by hand, ``mempty`` would be
 ::
 
 
-    mempty : ∀ {a} {A : Set a} {{_ : Monoid A}} → A
+    mempty : ∀ {a} {A : Set a} → {{Monoid A}} → A
     mempty {{mon}} = Monoid.mempty mon
 
 Although record types are a natural fit for Haskell-style type
@@ -239,7 +236,7 @@ cannot be declared for types in the context.
 You can define local instances in let-expressions in the same way as a
 top-level instance. For example::
 
-  mconcat : ∀ {a} {A : Set a} {{_ : Monoid A}} → List A → A
+  mconcat : ∀ {a} {A : Set a} → {{Monoid A}} → List A → A
   mconcat [] = mempty
   mconcat (x ∷ xs) = x <> mconcat xs
 
@@ -266,7 +263,7 @@ recursively during instance resolution. For instance,
     open Eq {{...}} public
 
     instance
-      eqList : ∀ {a} {A : Set a} {{_ : Eq A}} → Eq (List A)
+      eqList : ∀ {a} {A : Set a} → {{Eq A}} → Eq (List A)
       _==_ {{eqList}} []       []       = true
       _==_ {{eqList}} (x ∷ xs) (y ∷ ys) = x == y && xs == ys
       _==_ {{eqList}} _        _        = false
@@ -287,7 +284,7 @@ and return the solution ``eqList {{eqNat}}``.
 .. note::
    At the moment there is no termination check on instances, so it is possible
    to construct non-sensical instances like
-   ``loop : ∀ {a} {A : Set a} {{_ : Eq A}} → Eq A``.
+   ``loop : ∀ {a} {A : Set a} → {{Eq A}} → Eq A``.
    To prevent looping in cases like this, the search depth of instance search
    is limited, and once the maximum depth is reached, a type error will be
    thrown. You can set the maximum depth using the ``--instance-search-depth``
@@ -370,7 +367,7 @@ natural number and gives back a ``Fin n`` (the type of naturals smaller than
     zero : ∀ {n} → Fin (suc n)
     suc  : ∀ {n} → Fin n → Fin (suc n)
 
-  mkFin : ∀ {n} (m : Nat) {{_ : suc m - n ≡ 0}} → Fin n
+  mkFin : ∀ {n} (m : Nat) → {{suc m - n ≡ 0}} → Fin n
   mkFin {zero}  m {{}}
   mkFin {suc n} zero    = zero
   mkFin {suc n} (suc m) = suc (mkFin m)
@@ -410,7 +407,7 @@ goal when given appropriate arguments, hence instance search fails.
   data _∈_ {A : Set} (x : A) : List A → Set where
     instance
       zero : ∀ {xs} → x ∈ x ∷ xs
-      suc  : ∀ {y xs} {{_ : x ∈ xs}} → x ∈ y ∷ xs
+      suc  : ∀ {y xs} → {{x ∈ xs}} → x ∈ y ∷ xs
 
   ex₁ : 1 ∈ 1 ∷ 2 ∷ 3 ∷ 4 ∷ []
   ex₁ = it  -- overlapping instances
@@ -466,7 +463,7 @@ are equal, and comparing ``y`` and ``y₁`` makes sense.
 An ``Eq`` instance for ``Σ`` can be defined as follows::
 
     instance
-      eqΣ : ∀ {a b} {A : Set a} {B : A → Set b} {{_ : Eq A}} {{_ : ∀ {x} → Eq (B x)}} → Eq (Σ A B)
+      eqΣ : ∀ {a b} {A : Set a} {B : A → Set b} → {{Eq A}} → {{∀ {x} → Eq (B x)}} → Eq (Σ A B)
       _==_ {{eqΣ}} (x , y) (x₁ , y₁) with x == x₁
       _==_ {{eqΣ}} (x , y) (x₁ , y₁)    | nothing = nothing
       _==_ {{eqΣ}} (x , y) (.x , y₁)    | just refl with y == y₁
