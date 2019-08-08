@@ -1,3 +1,4 @@
-Issue1413.agda:15,3-18
+Issue1413.agda:15,3-11
 Wrong hiding used for projection  Foo.foo
-when checking that the clause foo Foo⊤ = ? has type Foo ⊤
+when checking the clause left hand side
+foo Foo⊤

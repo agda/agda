@@ -2227,12 +2227,12 @@ type Statistics = Map String Integer
 
 data Call
   = CheckClause Type A.SpineClause
+  | CheckLHS A.SpineLHS
   | CheckPattern A.Pattern Telescope Type
   | CheckLetBinding A.LetBinding
   | InferExpr A.Expr
   | CheckExprCall Comparison A.Expr Type
   | CheckDotPattern A.Expr Term
-  | CheckPatternShadowing A.SpineClause
   | CheckProjection Range QName Type
   | IsTypeCall A.Expr Sort
   | IsType_ A.Expr
@@ -2262,6 +2262,7 @@ data Call
 
 instance Pretty Call where
     pretty CheckClause{}             = "CheckClause"
+    pretty CheckLHS{}                = "CheckLHS"
     pretty CheckPattern{}            = "CheckPattern"
     pretty InferExpr{}               = "InferExpr"
     pretty CheckExprCall{}           = "CheckExprCall"
@@ -2286,7 +2287,6 @@ instance Pretty Call where
     pretty ScopeCheckDeclaration{}   = "ScopeCheckDeclaration"
     pretty ScopeCheckLHS{}           = "ScopeCheckLHS"
     pretty CheckDotPattern{}         = "CheckDotPattern"
-    pretty CheckPatternShadowing{}   = "CheckPatternShadowing"
     pretty SetRange{}                = "SetRange"
     pretty CheckSectionApplication{} = "CheckSectionApplication"
     pretty CheckIsEmpty{}            = "CheckIsEmpty"
@@ -2296,6 +2296,7 @@ instance Pretty Call where
 
 instance HasRange Call where
     getRange (CheckClause _ c)               = getRange c
+    getRange (CheckLHS lhs)                  = getRange lhs
     getRange (CheckPattern p _ _)            = getRange p
     getRange (InferExpr e)                   = getRange e
     getRange (CheckExprCall _ e _)           = getRange e
@@ -2320,7 +2321,6 @@ instance HasRange Call where
     getRange (ScopeCheckDeclaration d)       = getRange d
     getRange (ScopeCheckLHS _ p)             = getRange p
     getRange (CheckDotPattern e _)           = getRange e
-    getRange (CheckPatternShadowing c)       = getRange c
     getRange (SetRange r)                    = r
     getRange (CheckSectionApplication r _ _) = r
     getRange (CheckIsEmpty r _)              = r

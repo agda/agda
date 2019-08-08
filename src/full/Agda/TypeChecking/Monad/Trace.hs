@@ -23,8 +23,8 @@ import Agda.Utils.Pretty (prettyShow)
 -- * Trace
 ---------------------------------------------------------------------------
 
-interestingCall :: Closure Call -> Bool
-interestingCall cl = case clValue cl of
+interestingCall :: Call -> Bool
+interestingCall = \case
     InferVar{}              -> False
     InferDef{}              -> False
     CheckArguments _ [] _ _ -> False
@@ -34,12 +34,12 @@ interestingCall cl = case clValue cl of
     -- The previous presence of a catch-all raises the following question:
     -- are all of the following really interesting?
     CheckClause{}             -> True
+    CheckLHS{}                -> True
     CheckPattern{}            -> True
     CheckLetBinding{}         -> True
     InferExpr{}               -> True
     CheckExprCall{}           -> True
     CheckDotPattern{}         -> True
-    CheckPatternShadowing{}   -> True
     IsTypeCall{}              -> True
     IsType_{}                 -> True
     CheckArguments{}          -> True
@@ -63,7 +63,22 @@ interestingCall cl = case clValue cl of
     ModuleContents{}          -> True
 
 traceCallM :: (MonadTCM tcm, MonadDebug tcm) => tcm Call -> tcm a -> tcm a
-traceCallM mkCall m = flip traceCall m =<< mkCall
+traceCallM call m = flip traceCall m =<< call
+
+-- | Reset 'envCall' to previous value in the continuation.
+--
+-- Caveat: if the last 'traceCall' did not set an 'interestingCall',
+-- for example, only set the 'Range' with 'SetRange',
+-- we will revert to the last interesting call.
+
+traceCallCPS :: (MonadTCM tcm, MonadDebug tcm)
+  => Call
+  -> ((a -> tcm b) -> tcm b)
+  -> ((a -> tcm b) -> tcm b)
+traceCallCPS call k ret = do
+  mcall <- asksTC envCall
+  traceCall call $ k $ \ a -> do
+    maybe id traceClosureCall mcall $ ret a
 
 -- | Record a function call in the trace.
 
@@ -71,6 +86,11 @@ traceCallM mkCall m = flip traceCall m =<< mkCall
 -- {-# SPECIALIZE traceCall :: Call -> TCM a -> TCM a #-}
 traceCall :: (MonadTCM tcm, MonadDebug tcm) => Call -> tcm a -> tcm a
 traceCall call m = do
+  cl <- liftTCM $ buildClosure call
+  traceClosureCall cl m
+
+traceClosureCall :: (MonadTCM tcm, MonadDebug tcm) => Closure Call -> tcm a -> tcm a
+traceClosureCall cl m = do
 
   -- Andreas, 2016-09-13 issue #2177
   -- Since the fix of #2092 we may report an error outside the current file.
@@ -88,11 +108,9 @@ traceCall call m = do
           " is setting the current range to " ++ show callRange ++
           " which is outside of the current file " ++ show currentFile
 
-  cl <- liftTCM $ buildClosure call
-
   -- Compute update to 'Range' and 'Call' components of 'TCEnv'.
   let withCall = localTC $ foldr (.) id $ concat $
-        [ [ \e -> e { envCall = Just cl } | interestingCall cl ]
+        [ [ \e -> e { envCall = Just cl } | interestingCall call ]
         , [ \e -> e { envHighlightingRange = callRange }
           | callHasRange && highlightCall
             || isNoHighlighting
@@ -108,19 +126,19 @@ traceCall call m = do
       highlightAsTypeChecked oldRange callRange $
         withCall m
   where
-
+  call = clValue cl
   callRange = getRange call
   callHasRange = not $ null callRange
 
   -- | Should the given call trigger interactive highlighting?
   highlightCall = case call of
     CheckClause{}             -> True
+    CheckLHS{}                -> True
     CheckPattern{}            -> True
     CheckLetBinding{}         -> True
     InferExpr{}               -> True
     CheckExprCall{}           -> True
     CheckDotPattern{}         -> True
-    CheckPatternShadowing{}   -> True
     IsTypeCall{}              -> True
     IsType_{}                 -> True
     InferVar{}                -> True

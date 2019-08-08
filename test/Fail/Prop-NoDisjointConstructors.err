@@ -2,5 +2,5 @@ Prop-NoDisjointConstructors.agda:10,1-9
 p₁ ≡Prop p₂ should be empty, but the following constructor patterns
 are valid:
   refl
-when checking that the clause p₁≢p₂ () has type
-{P : Prop} → p₁ ≡Prop p₂ → P
+when checking the clause left hand side
+p₁≢p₂ ()

@@ -574,7 +574,7 @@ checkClause
   -> A.SpineClause -- ^ Clause.
   -> TCM (Clause,ClausesPostChecks)  -- ^ Type-checked clause
 
-checkClause t withSub c@(A.Clause (A.SpineLHS i x aps) strippedPats rhs0 wh catchall) = do
+checkClause t withSub c@(A.Clause lhs@(A.SpineLHS i x aps) strippedPats rhs0 wh catchall) = do
     reportSDoc "tc.lhs.top" 30 $ "Checking clause" $$ prettyA c
     unlessNull (trailingWithPatterns aps) $ \ withPats -> do
       typeError $ UnexpectedWithPatterns $ map namedArg withPats
@@ -584,7 +584,7 @@ checkClause t withSub c@(A.Clause (A.SpineLHS i x aps) strippedPats rhs0 wh catc
       when (not $ null strippedPats) $ reportSDoc "tc.lhs.top" 50 $
         "strippedPats:" <+> vcat [ prettyA p <+> "=" <+> prettyTCM v <+> ":" <+> prettyTCM a | A.ProblemEq p v a <- strippedPats ]
       closed_t <- flip abstract t <$> getContextTelescope
-      checkLeftHandSide (CheckPatternShadowing c) (Just x) aps t withSub strippedPats $ \ lhsResult@(LHSResult npars delta ps absurdPat trhs patSubst asb psplit) -> do
+      checkLeftHandSide (CheckLHS lhs) (Just x) aps t withSub strippedPats $ \ lhsResult@(LHSResult npars delta ps absurdPat trhs patSubst asb psplit) -> do
         -- Note that we might now be in irrelevant context,
         -- in case checkLeftHandSide walked over an irrelevant projection pattern.
 
