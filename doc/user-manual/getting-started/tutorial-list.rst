@@ -17,10 +17,6 @@ Introduction to Agda
    - `A Brief Overview of Agda - A Functional Language with Dependent Types <http://wiki.portal.chalmers.se/agda/pmwiki.php?n=Main.Documentation?action=download&upname=AgdaOverview2009.pdf>`__
      (in TPHOLs 2009) with an example of reflection.
      `Code <http://www.cse.chalmers.se/~ulfn/code/tphols09/>`__
-- Yoshiki Kinoshita.
-   - `On the Agda Language (in Japanese) <http://ocvs.cfv.jp/tr-data/PS2008-014.pdf>`__
-   - `Slides (English) <http://staff.aist.go.jp/yoriyuki.yamagata/AgdaTutorial20090312.ppt>`__
-   - `Slides (Japanese) <http://staff.aist.go.jp/yoriyuki.yamagata/AgdaTutorial20080908.ppt>`__
 - Anton Setzer.
    - `Lecture notes on Interactive Theorem Proving <http://www.cs.swan.ac.uk/~csetzer/lectures/intertheo/07/interactiveTheoremProvingForAgdaUsers.html>`__.
      Swansea University. These lecture notes are based on Agda and contain an
@@ -67,8 +63,6 @@ Courses using Agda
   Material for an Agda course in Rosario, Argentina in 2011 by  Thorsten Altenkirch
 - `Software System Design and Implementation <http://www.cse.unsw.edu.au/~cs3141/>`__
   , undergrad(?) course at the University of New South Wales by Manuel Chakravarty.
-- `Seminar on Dependently Typed Programming <http://www.cs.uu.nl/wiki/DTP>`__
-  , course at Utrecht University by Andres Löh.
 - `Tüübiteooria / Type Theory <http://courses.cs.ut.ee/2011/typet/Main/HomePage>`__
   , graduate course at the University of Tartu by Varmo Vene and James Chapman.
 - `Advanced Topics in Programming Languages: Dependent Type Systems <http://www.seas.upenn.edu/~sweirich/cis670/09/>`__
@@ -86,7 +80,7 @@ Courses using Agda
   , course at Chalmers University of Technology.
 - `Advanced Functional Programming <http://www.tcs.ifi.lmu.de/lehre/ss-2012/fun>`__
   (in German), course at Ludwig-Maximilians-University Munich.
-- `Dependently typed metaprogramming (in Agda) <http://www.cl.cam.ac.uk/~ok259/agda-course-13/>`__
+- `Dependently typed metaprogramming (in Agda) <https://danel.ahman.ee/agda-course-13/>`__
   , Summer (2013) course at the University of Cambridge by Conor McBride.
 - `Computer-Checked Programs and Proofs <http://dlicata.web.wesleyan.edu/teaching/ccpp-f13/>`__
   (COMP 360-1), Dan Licata, Wesleyan, Fall 2013.
