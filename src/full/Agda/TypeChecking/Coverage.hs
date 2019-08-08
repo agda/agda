@@ -65,7 +65,7 @@ import Agda.Interaction.Options
 import Agda.Utils.Either
 import Agda.Utils.Except
   ( ExceptT
-  , MonadError(throwError)
+  , MonadError (throwError, catchError)
   , runExceptT
   )
 import Agda.Utils.Functor
@@ -285,7 +285,7 @@ coverageCheck f t cs = do
 --   case splitter
 isCovered :: QName -> [Clause] -> SplitClause -> TCM Bool
 isCovered f cs sc = do
-  reportSDoc "tc.cover" 20 $ vcat
+  reportSDoc "tc.cover.isCovered" 20 $ vcat
     [ "isCovered"
     , nest 2 $ vcat $
       [ "f  = " <+> prettyTCM f
@@ -297,6 +297,10 @@ isCovered f cs sc = do
   (_ , sc') <- insertTrailingArgs sc
   CoverResult { coverMissingClauses = missing } <- cover f cs sc'
   return $ null missing
+ -- Andreas, 2019-08-08 and 2020-02-11
+ -- If there is an error (e.g. unification error), don't report it
+ -- to the user.  Rather, assume the clause is not already covered.
+ `catchError` \ _ -> return False
 
 data CoverResult = CoverResult
   { coverSplitTree       :: SplitTree
