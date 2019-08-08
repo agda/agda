@@ -139,7 +139,6 @@ import Agda.TypeChecking.Records
 
 import Agda.TypeChecking.Rules.LHS.Problem
 
-import Agda.Utils.Except ( MonadError(catchError) )
 import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.Lens
@@ -169,22 +168,23 @@ data UnificationResult' a
 
 -- | Unify indices.
 --
---   In @unifyIndices gamma flex us vs@,
+--   In @unifyIndices gamma flex a us vs@,
 --
---   @us@ and @vs@ are the argument lists to unify,
+--   * @us@ and @vs@ are the argument lists to unify, eliminating type @a@.
 --
---   @gamma@ is the telescope of free variables in @us@ and @vs@.
+--   * @gamma@ is the telescope of free variables in @us@ and @vs@.
 --
---   @flex@ is the set of flexible (instantiable) variabes in @us@ and @vs@.
+--   * @flex@ is the set of flexible (instantiable) variabes in @us@ and @vs@.
 --
 --   The result is the most general unifier of @us@ and @vs@.
-unifyIndices :: MonadTCM tcm
-             => Telescope
-             -> FlexibleVars
-             -> Type
-             -> Args
-             -> Args
-             -> tcm UnificationResult
+unifyIndices
+  :: MonadTCM tcm
+  => Telescope     -- ^ @gamma@
+  -> FlexibleVars  -- ^ @flex@
+  -> Type          -- ^ @a@
+  -> Args          -- ^ @us@
+  -> Args          -- ^ @vs@
+  -> tcm UnificationResult
 unifyIndices tel flex a [] [] = return $ Unifies (tel, idS, [])
 unifyIndices tel flex a us vs = liftTCM $ Bench.billTo [Bench.Typing, Bench.CheckLHS, Bench.UnifyIndices] $ do
     reportSDoc "tc.lhs.unify" 10 $
@@ -835,10 +835,8 @@ unifyStep :: UnifyState -> UnifyStep -> UnifyM (UnificationResult' UnifyState)
 
 unifyStep s Deletion{ deleteAt = k , deleteType = a , deleteLeft = u , deleteRight = v } = do
     -- Check definitional equality of u and v
-    isReflexive <- liftTCM $ addContext (varTel s) $ do
+    isReflexive <- liftTCM $ addContext (varTel s) $ tryCatch $ do
       dontAssignMetas $ noConstraints $ equalTerm a u v
-      return Nothing
-      `catchError` \err -> return $ Just err
     withoutK <- liftTCM withoutKOption
     case isReflexive of
       Just err     -> return $ DontKnow []
@@ -857,12 +855,10 @@ unifyStep s Solution{ solutionAt   = k
   -- Check that the type of the variable is equal to the type of the equation
   -- (not just a subtype), otherwise we cannot instantiate (see Issue 2407).
   let dom'@Dom{ unDom = a' } = getVarType (m-1-i) s
-  equalTypes <- liftTCM $ addContext (varTel s) $ do
+  equalTypes <- liftTCM $ addContext (varTel s) $ tryCatch $ do
     reportSDoc "tc.lhs.unify" 45 $ "Equation type: " <+> prettyTCM a
     reportSDoc "tc.lhs.unify" 45 $ "Variable type: " <+> prettyTCM a'
     dontAssignMetas $ noConstraints $ equalType a a'
-    return Nothing
-    `catchError` \err -> return $ Just err
 
   -- The conditions on the relevances are as follows (see #2640):
   -- - If the type of the equation is relevant, then the solution must be
