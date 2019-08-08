@@ -232,6 +232,7 @@ instance EmbPrj NLPSort where
     valu [1, a] = valuN PProp a
     valu [2]    = valuN PInf
     valu [3]    = valuN PSizeUniv
+    valu _      = malformed
 
 instance EmbPrj RewriteRule where
   icod_ (RewriteRule a b c d e f) = icodeN' RewriteRule a b c d e f
