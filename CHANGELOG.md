@@ -210,6 +210,9 @@ Language
 * Absurd match in a do block
   The last expression in a do block can now also be an absurd match `() <- f`.
 
+* `{{-` is now lexed as `{ {-` rather than `{{ -`,
+  see issue [#3962](https://github.com/agda/agda/issues/3962).
+
 ### Termination checking
 
 * The "with inlining" feature of the termination checker has been
