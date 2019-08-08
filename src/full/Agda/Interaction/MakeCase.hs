@@ -201,7 +201,12 @@ makeCase hole rng s = withInteractionId hole $ do
     IPClause f clauseNo rhs -> return (f, clauseNo, rhs)
     IPNoClause -> typeError $ GenericError $
       "Cannot split here, as we are not in a function definition"
-  (casectxt, (prevClauses, clause, follClauses)) <- getClauseZipperForIP f clauseNo
+  (casectxt, (prevClauses0, clause, follClauses0)) <- getClauseZipperForIP f clauseNo
+  let (prevClauses, follClauses) = killRange (prevClauses0, follClauses0)
+    -- Andreas, 2019-08-08, issue #3966
+    -- Kill the ranges of the existing clauses to prevent wrong error
+    -- location to be set by the coverage checker (via isCovered)
+    -- for test/interaction/Issue191
   let perm = fromMaybe __IMPOSSIBLE__ $ clausePerm clause
       tel  = clauseTel  clause
       ps   = namedClausePats clause

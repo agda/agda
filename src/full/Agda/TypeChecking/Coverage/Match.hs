@@ -11,7 +11,7 @@ when yes, where).
 -}
 
 module Agda.TypeChecking.Coverage.Match
-  ( Match(..), match
+  ( Match(..), match, matchClause
   , SplitPattern, SplitPatVar(..), fromSplitPatterns, toSplitPatterns
   , toSplitPSubst, applySplitPSubst
   , isTrivialPattern
