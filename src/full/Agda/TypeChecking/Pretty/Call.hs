@@ -42,6 +42,7 @@ instance PrettyTCM CallInfo where
 
 instance PrettyTCM Call where
   prettyTCM c = withContextPrecedence TopCtx $ case c of
+
     CheckClause t cl -> do
       reportSLn "error.checkclause" 60 $ "prettyTCM CheckClause: cl = " ++ show (deepUnscope cl)
       clc <- abstractToConcrete_ cl
@@ -176,4 +177,6 @@ instance PrettyTCM Call where
 
     where
     hPretty :: MonadPretty m => Arg (Named_ Expr) -> m Doc
-    hPretty a = withContextPrecedence (ArgumentCtx PreferParen) $ pretty =<< abstractToConcreteHiding a a
+    hPretty a = do
+      withContextPrecedence (ArgumentCtx PreferParen) $
+        pretty =<< abstractToConcreteHiding a a

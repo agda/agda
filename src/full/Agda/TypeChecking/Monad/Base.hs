@@ -2225,39 +2225,40 @@ type Statistics = Map String Integer
 -- ** Trace
 ---------------------------------------------------------------------------
 
-data Call = CheckClause Type A.SpineClause
-          | CheckPattern A.Pattern Telescope Type
-          | CheckLetBinding A.LetBinding
-          | InferExpr A.Expr
-          | CheckExprCall Comparison A.Expr Type
-          | CheckDotPattern A.Expr Term
-          | CheckPatternShadowing A.SpineClause
-          | CheckProjection Range QName Type
-          | IsTypeCall A.Expr Sort
-          | IsType_ A.Expr
-          | InferVar Name
-          | InferDef QName
-          | CheckArguments Range [NamedArg A.Expr] Type (Maybe Type)
-          | CheckTargetType Range Type Type
-          | CheckDataDef Range QName [A.LamBinding] [A.Constructor]
-          | CheckRecDef Range QName [A.LamBinding] [A.Constructor]
-          | CheckConstructor QName Telescope Sort A.Constructor
-          | CheckConstructorFitsIn QName Type Sort
-          | CheckFunDefCall Range QName [A.Clause]
-          | CheckPragma Range A.Pragma
-          | CheckPrimitive Range QName A.Expr
-          | CheckIsEmpty Range Type
-          | CheckConfluence QName QName
-          | CheckWithFunctionType Type
-          | CheckSectionApplication Range ModuleName A.ModuleApplication
-          | CheckNamedWhere ModuleName
-          | ScopeCheckExpr C.Expr
-          | ScopeCheckDeclaration NiceDeclaration
-          | ScopeCheckLHS C.QName C.Pattern
-          | NoHighlighting
-          | ModuleContents  -- ^ Interaction command: show module contents.
-          | SetRange Range  -- ^ used by 'setCurrentRange'
-    deriving Data
+data Call
+  = CheckClause Type A.SpineClause
+  | CheckPattern A.Pattern Telescope Type
+  | CheckLetBinding A.LetBinding
+  | InferExpr A.Expr
+  | CheckExprCall Comparison A.Expr Type
+  | CheckDotPattern A.Expr Term
+  | CheckPatternShadowing A.SpineClause
+  | CheckProjection Range QName Type
+  | IsTypeCall A.Expr Sort
+  | IsType_ A.Expr
+  | InferVar Name
+  | InferDef QName
+  | CheckArguments Range [NamedArg A.Expr] Type (Maybe Type)
+  | CheckTargetType Range Type Type
+  | CheckDataDef Range QName [A.LamBinding] [A.Constructor]
+  | CheckRecDef Range QName [A.LamBinding] [A.Constructor]
+  | CheckConstructor QName Telescope Sort A.Constructor
+  | CheckConstructorFitsIn QName Type Sort
+  | CheckFunDefCall Range QName [A.Clause]
+  | CheckPragma Range A.Pragma
+  | CheckPrimitive Range QName A.Expr
+  | CheckIsEmpty Range Type
+  | CheckConfluence QName QName
+  | CheckWithFunctionType Type
+  | CheckSectionApplication Range ModuleName A.ModuleApplication
+  | CheckNamedWhere ModuleName
+  | ScopeCheckExpr C.Expr
+  | ScopeCheckDeclaration NiceDeclaration
+  | ScopeCheckLHS C.QName C.Pattern
+  | NoHighlighting
+  | ModuleContents  -- ^ Interaction command: show module contents.
+  | SetRange Range  -- ^ used by 'setCurrentRange'
+  deriving Data
 
 instance Pretty Call where
     pretty CheckClause{}             = "CheckClause"
