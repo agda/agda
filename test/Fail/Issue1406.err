@@ -2,6 +2,6 @@ Issue1406.agda:33,24-28
 I'm not sure if there should be a case for the constructor refl,
 because I get stuck when trying to solve the following unification
 problems (inferred index ≟ expected index):
-  {_} ≟ {_}
+  {SING F} ≟ {SING F₁}
   sing F ≟ sing F₁
 when checking that the pattern refl has type HEq (sing F) (sing F₁)
