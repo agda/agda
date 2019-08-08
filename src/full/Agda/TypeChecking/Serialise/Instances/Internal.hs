@@ -221,6 +221,18 @@ instance EmbPrj NLPType where
 
   value = valueN NLPType
 
+instance EmbPrj NLPSort where
+  icod_ (PType a)   = icodeN 0 PType a
+  icod_ (PProp a)   = icodeN 1 PProp a
+  icod_ PInf        = icodeN 2 PInf
+  icod_ PSizeUniv   = icodeN 3 PSizeUniv
+
+  value = vcase valu where
+    valu [0, a] = valuN PType a
+    valu [1, a] = valuN PProp a
+    valu [2]    = valuN PInf
+    valu [3]    = valuN PSizeUniv
+
 instance EmbPrj RewriteRule where
   icod_ (RewriteRule a b c d e f) = icodeN' RewriteRule a b c d e f
 

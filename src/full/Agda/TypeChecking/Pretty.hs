@@ -446,8 +446,14 @@ instance PrettyTCM NLPat where
   prettyTCM (PTerm t)   = "." <> parens (prettyTCM t)
 
 instance PrettyTCM NLPType where
-  prettyTCM (NLPType PTerm{} a) = prettyTCM a
-  prettyTCM (NLPType l       a) = "{" <> prettyTCM l <> "}" <> prettyTCM a
+  prettyTCM (NLPType s a) = prettyTCM a
+
+instance PrettyTCM NLPSort where
+  prettyTCM = \case
+    PType l   -> parens $ "Set" <+> prettyTCM l
+    PProp l   -> parens $ "Prop" <+> prettyTCM l
+    PInf      -> prettyTCM (Inf :: Sort)
+    PSizeUniv -> prettyTCM (SizeUniv :: Sort)
 
 instance PrettyTCM (Elim' NLPat) where
   prettyTCM (IApply x y v) = prettyTCM v

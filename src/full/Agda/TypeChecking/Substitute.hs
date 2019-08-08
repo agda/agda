@@ -895,6 +895,13 @@ instance Subst NLPat NLPat where
 instance Subst NLPat NLPType where
   applySubst rho (NLPType s a) = NLPType (applySubst rho s) (applySubst rho a)
 
+instance Subst NLPat NLPSort where
+  applySubst rho = \case
+    PType l   -> PType $ applySubst rho l
+    PProp l   -> PProp $ applySubst rho l
+    PInf      -> PInf
+    PSizeUniv -> PSizeUniv
+
 instance Subst NLPat RewriteRule where
   applySubst rho (RewriteRule q gamma f ps rhs t) =
     RewriteRule q (applyNLPatSubst rho gamma)

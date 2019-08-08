@@ -1341,9 +1341,15 @@ instance InstantiateFull NLPat where
   instantiateFull' (PTerm x)  = PTerm <$> instantiateFull' x
 
 instance InstantiateFull NLPType where
-  instantiateFull' (NLPType l a) = NLPType
-    <$> instantiateFull' l
+  instantiateFull' (NLPType s a) = NLPType
+    <$> instantiateFull' s
     <*> instantiateFull' a
+
+instance InstantiateFull NLPSort where
+  instantiateFull' (PType x) = PType <$> instantiateFull' x
+  instantiateFull' (PProp x) = PProp <$> instantiateFull' x
+  instantiateFull' PInf      = return PInf
+  instantiateFull' PSizeUniv = return PSizeUniv
 
 instance InstantiateFull RewriteRule where
   instantiateFull' (RewriteRule q gamma f ps rhs t) =

@@ -78,27 +78,30 @@ instance PatternFrom () Type NLPType where
     NLPType <$> patternFrom r k () (getSort a)
             <*> patternFrom r k (sort $ getSort a) (unEl a)
 
-instance PatternFrom () Sort NLPat where
+instance PatternFrom () Sort NLPSort where
   patternFrom r k _ s = do
     s <- reduce s
-    let done = return $ PTerm $ Sort s
     case s of
-      Type l   -> do
-        t <- levelType
-        patternFrom Irrelevant k t (Level l)
-      Prop l   -> done --TODO
-      Inf      -> done
-      SizeUniv -> done
+      Type l   -> PType <$> patternFrom r k () l
+      Prop l   -> PProp <$> patternFrom r k () l
+      Inf      -> return PInf
+      SizeUniv -> return PSizeUniv
       PiSort _ _ -> __IMPOSSIBLE__
       UnivSort _ -> __IMPOSSIBLE__
       MetaS{}  -> __IMPOSSIBLE__
-      DefS{}   -> done
+      DefS{}   -> __IMPOSSIBLE__
       DummyS s -> do
         reportS "impossible" 10
           [ "patternFrom: hit dummy sort with content:"
           , s
           ]
         __IMPOSSIBLE__
+
+instance PatternFrom () Level NLPat where
+  patternFrom r k _ l = do
+    t <- levelType
+    v <- reallyUnLevelView l
+    patternFrom r k t v
 
 instance PatternFrom Type Term NLPat where
   patternFrom r k t v = do
@@ -204,7 +207,13 @@ instance NLPatToTerm NLPat Level where
   nlPatToTerm = nlPatToTerm >=> levelView
 
 instance NLPatToTerm NLPType Type where
-  nlPatToTerm (NLPType l a) = El <$> (Type <$> nlPatToTerm l) <*> nlPatToTerm a
+  nlPatToTerm (NLPType s a) = El <$> (nlPatToTerm s) <*> nlPatToTerm a
+
+instance NLPatToTerm NLPSort Sort where
+  nlPatToTerm (PType l) = Type <$> nlPatToTerm l
+  nlPatToTerm (PProp l) = Prop <$> nlPatToTerm l
+  nlPatToTerm PInf      = return Inf
+  nlPatToTerm PSizeUniv = return SizeUniv
 
 -- | Gather the set of pattern variables of a non-linear pattern
 class NLPatVars a where
@@ -218,6 +227,13 @@ instance (Foldable f, NLPatVars a) => NLPatVars (f a) where
 
 instance NLPatVars NLPType where
   nlPatVarsUnder k (NLPType l a) = nlPatVarsUnder k l `IntSet.union` nlPatVarsUnder k a
+
+instance NLPatVars NLPSort where
+  nlPatVarsUnder k = \case
+    PType l   -> nlPatVarsUnder k l
+    PProp l   -> nlPatVarsUnder k l
+    PInf      -> empty
+    PSizeUniv -> empty
 
 instance NLPatVars NLPat where
   nlPatVarsUnder k p =
@@ -275,7 +291,14 @@ instance Free NLPat where
     PTerm t -> freeVars' t
 
 instance Free NLPType where
-  freeVars' (NLPType l a) =
+  freeVars' (NLPType s a) =
     ifM ((IgnoreNot ==) <$> asks feIgnoreSorts)
-      {- then -} (freeVars' (l, a))
+      {- then -} (freeVars' (s, a))
       {- else -} (freeVars' a)
+
+instance Free NLPSort where
+  freeVars' = \case
+    PType l   -> freeVars' l
+    PProp l   -> freeVars' l
+    PInf      -> mempty
+    PSizeUniv -> mempty

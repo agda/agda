@@ -1455,9 +1455,16 @@ data NLPat
 type PElims = [Elim' NLPat]
 
 data NLPType = NLPType
-  { nlpTypeLevel :: NLPat  -- always PTerm or PVar (with all bound variables in scope)
-  , nlpTypeUnEl  :: NLPat
+  { nlpTypeSort :: NLPSort
+  , nlpTypeUnEl :: NLPat
   } deriving (Data, Show)
+
+data NLPSort
+  = PType NLPat
+  | PProp NLPat
+  | PInf
+  | PSizeUniv
+  deriving (Data, Show)
 
 type RewriteRules = [RewriteRule]
 
@@ -3976,6 +3983,12 @@ instance KillRange NLPat where
 
 instance KillRange NLPType where
   killRange (NLPType s a) = killRange2 NLPType s a
+
+instance KillRange NLPSort where
+  killRange (PType l) = killRange1 PType l
+  killRange (PProp l) = killRange1 PProp l
+  killRange PInf      = PInf
+  killRange PSizeUniv = PSizeUniv
 
 instance KillRange RewriteRule where
   killRange (RewriteRule q gamma f es rhs t) =
