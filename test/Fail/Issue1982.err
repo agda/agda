@@ -2,6 +2,6 @@ Issue1982.agda:29,19-23
 I'm not sure if there should be a case for the constructor up,
 because I get stuck when trying to solve the following unification
 problems (inferred index ≟ expected index):
-  {_} ≟ {_}
+  {suc (suc n)} ≟ {_n_99}
   (! t) ∶ (t ∶ A) ≟ A₁
 when checking that the pattern up j has type True Γ A

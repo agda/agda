@@ -26,6 +26,7 @@ import qualified Data.Set as Set
 import qualified Text.PrettyPrint.Boxes as Boxes
 
 import Agda.Syntax.Common
+import Agda.Syntax.Concrete.Pretty (prettyHiding, prettyRelevance)
 import Agda.Syntax.Fixity
 import Agda.Syntax.Notation
 import Agda.Syntax.Position
@@ -35,6 +36,7 @@ import Agda.Syntax.Internal as I
 import Agda.Syntax.Translation.InternalToAbstract
 import Agda.Syntax.Scope.Monad (isDatatypeModule)
 import Agda.Syntax.Scope.Base
+
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Closure
 import Agda.TypeChecking.Monad.Context
@@ -1207,17 +1209,26 @@ instance PrettyTCM SplitError where
 
     UnificationStuck c tel cIxs gIxs errs
       | length cIxs /= length gIxs -> __IMPOSSIBLE__
-      | otherwise                  -> vcat $
-          [ fsep $ pwords "I'm not sure if there should be a case for the constructor" ++
-                   [prettyTCM c <> ","] ++
-                   pwords "because I get stuck when trying to solve the following" ++
-                   pwords "unification problems (inferred index ≟ expected index):"
-          ] ++
-          zipWith (\c g -> nest 2 $ addContext tel $ prettyTCM c <+> "≟" <+> prettyTCM g) cIxs gIxs ++
-          if null errs then [] else
+      | otherwise                  -> vcat . concat $
+        [ [ fsep . concat $
+            [ pwords "I'm not sure if there should be a case for the constructor"
+            , [prettyTCM c <> ","]
+            , pwords "because I get stuck when trying to solve the following"
+            , pwords "unification problems (inferred index ≟ expected index):"
+            ]
+          ]
+        , zipWith prEq cIxs gIxs
+        , if null errs then [] else
             [ fsep $ pwords "Possible" ++ pwords (P.singPlural errs "reason" "reasons") ++
                      pwords "why unification failed:" ] ++
             map (nest 2 . prettyTCM) errs
+        ]
+      where
+        -- Andreas, 2019-08-08, issue #3943
+        -- To not print hidden indices just as {_}, we strip the Arg and print
+        -- the hiding information manually.
+        prEq cIx gIx = addContext tel $ nest 2 $ hsep [ pr cIx , "≟" , pr gIx ]
+        pr arg = prettyRelevance arg . prettyHiding arg id <$> prettyTCM (unArg arg)
 
     CosplitCatchall -> fsep $
       pwords "Cannot split into projections because not all clauses have a projection copattern"
