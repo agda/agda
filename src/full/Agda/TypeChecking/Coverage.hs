@@ -268,8 +268,8 @@ coverageCheck f t cs = do
   unless (null is) $ do
     -- Warn about unreachable clauses.
     let unreached = filter ((Just True ==) . clauseUnreachable) cs1
-    setCurrentRange (map clauseFullRange unreached) $
-      warning $ UnreachableClauses f $ map namedClausePats unreached
+    let ranges    = map clauseFullRange unreached
+    setCurrentRange ranges $ warning $ UnreachableClauses f ranges
 
   -- report a warning if there are clauses that are not preserved as
   -- definitional equalities and --exact-split is enabled
