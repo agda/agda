@@ -3,6 +3,7 @@ module LibSucceed.Tests where
 
 import qualified Data.Text as T
 import Data.List (isInfixOf)
+import Data.Monoid ((<>))
 
 import System.Exit
 import System.FilePath
@@ -76,11 +77,10 @@ mkLibSucceedTest inp =
                      , "--no-libraries"
                      , inp
                      ] ++ rtsOptions
-      ret <- runAgdaWithOptions testName agdaArgs Nothing
-
+      (res, ret) <- runAgdaWithOptions testName agdaArgs Nothing
       pure $ case ret of
-        AgdaSuccess{}   -> TestSuccess -- TODO: fail if unexpected warnings?
-        AgdaFailure res -> TestUnexpectedFail res
+        AgdaSuccess{} -> TestSuccess -- TODO: fail if unexpected warnings?
+        AgdaFailure   -> TestUnexpectedFail res
 
 resDiff :: T.Text -> T.Text -> IO GDiff
 resDiff t1 t2 =
@@ -95,4 +95,4 @@ resShow = return . ShowText
 
 printAgdaResult :: TestResult -> T.Text
 printAgdaResult TestSuccess            = "AGDA_SUCCESS"
-printAgdaResult (TestUnexpectedFail p) = "AGDA_UNEXPECTED_FAIL\n\n" `T.append` printProcResult p
+printAgdaResult (TestUnexpectedFail p) = "AGDA_UNEXPECTED_FAIL\n\n" <> printProgramResult p

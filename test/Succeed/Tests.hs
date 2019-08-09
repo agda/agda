@@ -68,7 +68,7 @@ mkSucceedTest extraOpts dir inp =
                          , "-vimpossible:10" -- BEWARE: no spaces allowed here
                          , "-vwarning:1"
                          ] ++ extraOpts
-          ret <- runAgdaWithOptions testName agdaArgs (Just flagFile)
+          (res, ret) <- runAgdaWithOptions testName agdaArgs (Just flagFile)
           case ret of
             AgdaSuccess{} | testName == "Issue481" -> do
               dotOrig <- TIO.readFile (dir </> "Issue481.dot.orig")
@@ -83,9 +83,9 @@ mkSucceedTest extraOpts dir inp =
               warnExists <- doesFileExist warnFile
               return $
                 if warnExists || isJust warn
-                then TestSuccessWithWarnings (fromMaybe "" warn)
+                then TestSuccessWithWarnings $ stdOut res -- TODO: distinguish log vs. warn?
                 else TestSuccess
-            AgdaFailure res -> return $ TestUnexpectedFail res
+            AgdaFailure -> return $ TestUnexpectedFail res
 
 resDiff :: T.Text -> T.Text -> IO GDiff
 resDiff t1 t2 =
@@ -102,5 +102,5 @@ printTestResult :: TestResult -> T.Text
 printTestResult r = case r of
   TestSuccess               -> "AGDA_SUCCESS\n\n"
   TestSuccessWithWarnings t -> t
-  TestUnexpectedFail p      -> "AGDA_UNEXPECTED_FAIL\n\n" <> printProcResult p
+  TestUnexpectedFail p      -> "AGDA_UNEXPECTED_FAIL\n\n" <> printProgramResult p
   TestWrongDotOutput t      -> "AGDA_WRONG_DOT_OUTPUT\n\n" <> t

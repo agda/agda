@@ -33,7 +33,21 @@ import qualified Text.Regex.TDFA.Text as RT (compile)
 
 import Agda.Utils.Maybe
 
-type ProgramResult = (ExitCode, T.Text, T.Text)
+data ProgramResult = ProgramResult
+  { exitCode :: ExitCode
+  , stdOut   :: T.Text
+  , stdErr   :: T.Text
+  } deriving (Read, Show, Eq)
+
+fromProgramResult :: ProgramResult -> (ExitCode, T.Text, T.Text)
+fromProgramResult (ProgramResult c o e) = (c, o, e)
+
+toProgramResult :: (ExitCode, T.Text, T.Text) -> ProgramResult
+toProgramResult (c, o, e) = ProgramResult c o e
+
+printProgramResult :: ProgramResult -> T.Text
+printProgramResult = printProcResult . fromProgramResult
+
 type AgdaArgs = [String]
 
 
@@ -46,13 +60,13 @@ readAgdaProcessWithExitCode args inp = do
 
 data AgdaResult
   = AgdaSuccess (Maybe T.Text) -- A success can come with warnings
-  | AgdaFailure ProgramResult  -- A failure always comes with a message
+  | AgdaFailure                -- A failure
 
 runAgdaWithOptions
   :: String         -- ^ test name
   -> AgdaArgs       -- ^ options (including the name of the input file)
   -> Maybe FilePath -- ^ file containing additional options and flags
-  -> IO AgdaResult
+  -> IO (ProgramResult, AgdaResult)
 runAgdaWithOptions testName opts mflag = do
   flags <- case mflag of
     Nothing       -> pure []
@@ -71,11 +85,11 @@ runAgdaWithOptions testName opts mflag = do
     else runAgda []
 
   cleanedStdOut <- cleanOutput stdOut
-  case ret of
-    ExitSuccess -> pure $ AgdaSuccess $ filterMaybe hasWarning cleanedStdOut
-    _ -> do
-      cleanedStdErr <- cleanOutput stdErr
-      pure $ AgdaFailure (ret, cleanedStdOut, cleanedStdErr)
+  cleanedStdErr <- cleanOutput stdErr
+  let res = ProgramResult ret cleanedStdOut cleanedStdErr
+  pure $ (res,) $ case ret of
+    ExitSuccess -> AgdaSuccess $ filterMaybe hasWarning cleanedStdOut
+    _           -> AgdaFailure
 
 hasWarning :: T.Text -> Bool
 hasWarning t =
