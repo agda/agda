@@ -1,0 +1,5 @@
+AGDA_FAILURE
+
+ret > ExitFailure 1
+out > Unrecognized option: --disable-positivity-check
+out >

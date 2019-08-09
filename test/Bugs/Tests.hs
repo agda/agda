@@ -1,16 +1,18 @@
+{-# LANGUAGE MultiWayIf #-}
+
 module Bugs.Tests where
+
+import qualified Data.Text as T
+import Data.Text.Encoding
 
 import Test.Tasty
 import Test.Tasty.Silver
 import Test.Tasty.Silver.Advanced
        (readFileMaybe, GDiff(..), GShow(..), goldenTest1)
-import System.IO.Temp
-import System.FilePath
-import qualified Data.Text as T
-import Data.Text.Encoding
-import System.Exit
+
 import System.Directory
-import qualified Data.ByteString as BS
+import System.Exit
+import System.FilePath
 
 import Utils
 
@@ -20,44 +22,61 @@ testDir = "test" </> "Bugs"
 tests :: IO TestTree
 tests = do
   inpFiles <- getAgdaFilesInDir NonRec testDir
-  return $ testGroup "Bugs" $
-    map mkFailTest inpFiles
+  return $ testGroup "Bugs" $ map mkTest inpFiles
 
-data AgdaResult
-  = AgdaFail
-  | AgdaUnexpectedSuccess ProgramResult
-  deriving (Eq)
+data TestResult
+  = TestFailure T.Text
+  | TestWarning T.Text
+  | TestSuccess
 
-mkFailTest :: FilePath -- inp file
-           -> TestTree
-mkFailTest inp =
-  goldenTest1 testName (pure $ Just AgdaFail) doRun resDiff resShow
-              (const $ pure ())
+mkTest :: FilePath -- inp file
+       -> TestTree
+mkTest inp =
+  goldenTest1 testName readGolden doRun resDiff resShow resUpdate where
 
-  where testName   = asTestName testDir inp
-        flagFile   = dropAgdaExtension inp <.> ".flags"
+  testName   = asTestName testDir inp
+  flagFile   = dropAgdaExtension inp <.> ".flags"
+  errFile    = dropAgdaExtension inp <.> ".err"
+  warnFile   = dropAgdaExtension inp <.> ".warn"
 
-        doRun = do
-          flags <- maybe [] (T.unpack . decodeUtf8) <$> readFileMaybe flagFile
-          let agdaArgs = ["-v0", "-i" ++ testDir, "-itest/"
-                         , inp, "--ignore-interfaces", "--no-libraries"
-                         ] ++ words flags
-          expectFail <$> readAgdaProcessWithExitCode agdaArgs T.empty
+  readGolden = Just <$> do
+    hasWarn <- doesFileExist warnFile
+    hasErr  <- doesFileExist errFile
+    if | hasWarn && hasErr -> error "Cannot have both .warn and .err file"
+       | hasWarn           -> TestWarning <$> readTextFile warnFile
+       | hasErr            -> TestFailure <$> readTextFile errFile
+       | otherwise         -> pure TestSuccess
 
-expectFail :: ProgramResult -> AgdaResult
-expectFail res@(ret, stdout, _)
-  | ret == ExitSuccess = AgdaUnexpectedSuccess res
-  | otherwise          = AgdaFail
+  doRun = do
+    let agdaArgs = ["-v0", "-i" ++ testDir, "-itest/"
+                   , inp, "--ignore-interfaces", "--no-libraries"
+                   ]
+    ret <- runAgdaWithOptions testName agdaArgs (Just flagFile)
+    pure $ case ret of
+      AgdaSuccess Nothing  -> TestSuccess
+      AgdaSuccess (Just w) -> TestWarning $ "AGDA_WARNING\n\n" <> w
+      AgdaFailure p        -> TestFailure $ "AGDA_FAILURE\n\n" <> printProcResult p
 
-resDiff :: AgdaResult -> AgdaResult -> GDiff
+  resUpdate :: TestResult -> IO ()
+  resUpdate = \case
+    TestSuccess   -> pure ()
+    TestWarning w -> writeTextFile warnFile w
+    TestFailure e -> writeTextFile errFile e
+
+
+resDiff :: TestResult -> TestResult -> GDiff
 resDiff t1 t2
-  | t1 == t2  = Equal
-  | otherwise = DiffText Nothing (printAgdaResult t1) (printAgdaResult t2)
+  | m1 == m2  = Equal
+  | otherwise = DiffText Nothing m1 m2
 
-resShow :: AgdaResult -> GShow
-resShow = ShowText . printAgdaResult
+  where m1 = printTestResult t1
+        m2 = printTestResult t2
 
-printAgdaResult :: AgdaResult -> T.Text
-printAgdaResult = \case
-  AgdaFail                -> ""
-  AgdaUnexpectedSuccess p -> "AGDA_UNEXPECTED_SUCCESS\n\n" <> printProcResult p
+resShow :: TestResult -> GShow
+resShow = ShowText . printTestResult
+
+printTestResult :: TestResult -> T.Text
+printTestResult = \case
+  TestSuccess   -> "AGDA_SUCCESS\n\n"
+  TestWarning w -> w
+  TestFailure p -> p

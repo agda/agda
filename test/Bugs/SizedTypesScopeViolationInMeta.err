@@ -1,0 +1,15 @@
+AGDA_FAILURE
+
+ret > ExitFailure 1
+out > SizedTypesScopeViolationInMeta.agda:5,1-17
+out > Failed to find source of module Size in any of the following
+out > locations:
+out >   ../Size.agda
+out >   ../Size.lagda
+out >   Size.agda
+out >   Size.lagda
+out >   agda-default-include-path/Size.agda
+out >   agda-default-include-path/Size.lagda
+out > when scope checking the declaration
+out >   open import Size
+out >

@@ -1,0 +1,665 @@
+AGDA_FAILURE
+
+ret > ExitFailure 1
+out > term _0 :DirEq Set
+out > term _0 :DirEq Set
+out > is _0 a blocked term? 
+out >   no
+out > mvar args:
+out > fvars lhs (rel):
+out > fvars lhs (nonstrict):
+out > fvars lhs (irr):
+out > initOccursCheck: we look into the following definitions:
+out > Nat
+out > passed occursCheck
+out > fvars rhs:
+out > type of meta = "dummyType: src/full/Agda/TypeChecking/MetaVars.hs:167"
+out > solving _0 := Set
+out > completed assignment of _0
+out > term _1 :DirEq Set
+out > term _1 :DirEq Set
+out > is _1 a blocked term? 
+out >   no
+out > mvar args:
+out > fvars lhs (rel):
+out > fvars lhs (nonstrict):
+out > fvars lhs (irr):
+out > initOccursCheck: we look into the following definitions:
+out > Nat
+out > passed occursCheck
+out > fvars rhs:
+out > type of meta = "dummyType: src/full/Agda/TypeChecking/MetaVars.hs:167"
+out > solving _1 := Set
+out > completed assignment of _1
+out > term _2 :DirEq Set
+out > term _2 :DirEq Set
+out > is _2 a blocked term? 
+out >   no
+out > mvar args:
+out > fvars lhs (rel):
+out > fvars lhs (nonstrict):
+out > fvars lhs (irr):
+out > initOccursCheck: we look into the following definitions:
+out > Nat zero
+out > passed occursCheck
+out > fvars rhs:
+out > type of meta = "dummyType: src/full/Agda/TypeChecking/MetaVars.hs:167"
+out > solving _2 := Set
+out > completed assignment of _2
+out > term _3 :DirEq Set
+out > term _3 :DirEq Set
+out > is _3 a blocked term? 
+out >   no
+out > mvar args:
+out > fvars lhs (rel):
+out > fvars lhs (nonstrict):
+out > fvars lhs (irr):
+out > initOccursCheck: we look into the following definitions:
+out > Nat zero
+out > passed occursCheck
+out > fvars rhs:
+out > type of meta = "dummyType: src/full/Agda/TypeChecking/MetaVars.hs:167"
+out > solving _3 := Set
+out > completed assignment of _3
+out > term _4 :DirEq Set
+out > term _4 :DirEq Set
+out > is _4 a blocked term? 
+out >   no
+out > mvar args: 0
+out > fvars lhs (rel): 0
+out > fvars lhs (nonstrict):
+out > fvars lhs (irr):
+out > initOccursCheck: we look into the following definitions:
+out >
+out > passed occursCheck
+out > fvars rhs:
+out > type of meta = ((X : Set) →
+out >                 "dummyType: src/full/Agda/TypeChecking/MetaVars.hs:167")
+out > solving _4 := (λ X → Set)
+out > completed assignment of _4
+out > term _5 :DirEq Set
+out > term _5 :DirEq Set
+out > is _5 a blocked term? 
+out >   no
+out > mvar args: 1
+out > fvars lhs (rel): 1
+out > fvars lhs (nonstrict):
+out > fvars lhs (irr):
+out > initOccursCheck: we look into the following definitions:
+out > Vec
+out > passed occursCheck
+out > fvars rhs:
+out > type of meta = (X : Set) →
+out >                "dummyType: src/full/Agda/TypeChecking/MetaVars.hs:167"
+out > solving _5 := λ X → Set
+out > completed assignment of _5
+out > term _6 :DirEq Set
+out > term _6 :DirEq Set
+out > is _6 a blocked term? 
+out >   no
+out > mvar args: 0
+out > fvars lhs (rel): 0
+out > fvars lhs (nonstrict):
+out > fvars lhs (irr):
+out > initOccursCheck: we look into the following definitions:
+out > Vec
+out > passed occursCheck
+out > fvars rhs:
+out > type of meta = (X : Set) →
+out >                "dummyType: src/full/Agda/TypeChecking/MetaVars.hs:167"
+out > solving _6 := λ X → Set
+out > completed assignment of _6
+out > term _7 :DirEq Set
+out > term _7 :DirEq Set
+out > is _7 a blocked term? 
+out >   no
+out > mvar args: 0
+out > fvars lhs (rel): 0
+out > fvars lhs (nonstrict):
+out > fvars lhs (irr):
+out > initOccursCheck: we look into the following definitions:
+out > Vec []
+out > passed occursCheck
+out > fvars rhs:
+out > type of meta = (X : Set) →
+out >                "dummyType: src/full/Agda/TypeChecking/MetaVars.hs:167"
+out > solving _7 := λ X → Set
+out > completed assignment of _7
+out > term _8 :DirEq Set
+out > term _8 :DirEq Set
+out > is _8 a blocked term? 
+out >   no
+out > mvar args: 1 0
+out > fvars lhs (rel): 0 1
+out > fvars lhs (nonstrict):
+out > fvars lhs (irr):
+out > initOccursCheck: we look into the following definitions:
+out > Vec []
+out > passed occursCheck
+out > fvars rhs:
+out > type of meta = ((X : Set) (n : Nat) →
+out >                 "dummyType: src/full/Agda/TypeChecking/MetaVars.hs:167")
+out > solving _8 := (λ X n → Set)
+out > completed assignment of _8
+out > term _9 :DirEq Set
+out > term _9 :DirEq Set
+out > is _9 a blocked term? 
+out >   no
+out > mvar args: 1 0
+out > fvars lhs (rel): 0 1
+out > fvars lhs (nonstrict):
+out > fvars lhs (irr):
+out > initOccursCheck: we look into the following definitions:
+out > Vec []
+out > passed occursCheck
+out > fvars rhs:
+out > type of meta = ((X : Set) (n : Nat) →
+out >                 "dummyType: src/full/Agda/TypeChecking/MetaVars.hs:167")
+out > solving _9 := (λ X n → Set)
+out > completed assignment of _9
+out > term _10 :DirEq Set
+out > term _10 :DirEq Set
+out > is _10 a blocked term? 
+out >   no
+out > mvar args: 1 0
+out > fvars lhs (rel): 0 1
+out > fvars lhs (nonstrict):
+out > fvars lhs (irr):
+out > initOccursCheck: we look into the following definitions:
+out > Vec []
+out > passed occursCheck
+out > fvars rhs:
+out > type of meta = (X : Set) (n : Nat) →
+out >                "dummyType: src/full/Agda/TypeChecking/MetaVars.hs:167"
+out > solving _10 := λ X n → Set
+out > completed assignment of _10
+out > term _11 :DirEq Set
+out > term _11 :DirEq Set
+out > is _11 a blocked term? 
+out >   no
+out > mvar args: 0
+out > fvars lhs (rel): 0
+out > fvars lhs (nonstrict):
+out > fvars lhs (irr):
+out > initOccursCheck: we look into the following definitions:
+out >
+out > passed occursCheck
+out > fvars rhs:
+out > type of meta = ((S : Set) →
+out >                 "dummyType: src/full/Agda/TypeChecking/MetaVars.hs:167")
+out > solving _11 := (λ S → Set)
+out > completed assignment of _11
+out > term _12 :DirEq Set
+out > term _12 :DirEq Set
+out > is _12 a blocked term? 
+out >   no
+out > mvar args: 1 0
+out > fvars lhs (rel): 0 1
+out > fvars lhs (nonstrict):
+out > fvars lhs (irr):
+out > initOccursCheck: we look into the following definitions:
+out >
+out > passed occursCheck
+out > fvars rhs:
+out > type of meta = (S : Set) (T : Nat → Set) →
+out >                "dummyType: src/full/Agda/TypeChecking/MetaVars.hs:167"
+out > solving _12 := λ S T → Set
+out > completed assignment of _12
+out > term _13 :DirEq Set
+out > term _13 :DirEq Set
+out > is _13 a blocked term? 
+out >   no
+out > mvar args: 2 1 0
+out > fvars lhs (rel): 0 1 2
+out > fvars lhs (nonstrict):
+out > fvars lhs (irr):
+out > initOccursCheck: we look into the following definitions:
+out >
+out > passed occursCheck
+out > fvars rhs:
+out > type of meta = ((S : Set) (T : Nat → Set) (n : Nat) →
+out >                 "dummyType: src/full/Agda/TypeChecking/MetaVars.hs:167")
+out > solving _13 := (λ S T n → Set)
+out > completed assignment of _13
+out > term _14 :DirEq Set
+out > term _14 :DirEq Set
+out > is _14 a blocked term? 
+out >   no
+out > mvar args: 2 1 0
+out > fvars lhs (rel): 0 1 2
+out > fvars lhs (nonstrict):
+out > fvars lhs (irr):
+out > initOccursCheck: we look into the following definitions:
+out >
+out > passed occursCheck
+out > fvars rhs:
+out > type of meta = ((S : Set) (T : Nat → Set) (n : Nat) →
+out >                 "dummyType: src/full/Agda/TypeChecking/MetaVars.hs:167")
+out > solving _14 := (λ S T n → Set)
+out > completed assignment of _14
+out > term _15 :DirEq Set
+out > term _15 :DirEq Set
+out > is _15 a blocked term? 
+out >   no
+out > mvar args: 2 1 0
+out > fvars lhs (rel): 0 1 2
+out > fvars lhs (nonstrict):
+out > fvars lhs (irr):
+out > initOccursCheck: we look into the following definitions:
+out >
+out > passed occursCheck
+out > fvars rhs:
+out > type of meta = (S : Set) (T : Nat → Set) (n : Nat) →
+out >                "dummyType: src/full/Agda/TypeChecking/MetaVars.hs:167"
+out > solving _15 := λ S T n → Set
+out > completed assignment of _15
+out > term _16 :DirEq Set
+out > term _16 :DirEq Set
+out > is _16 a blocked term? 
+out >   no
+out > mvar args: 1 0
+out > fvars lhs (rel): 0 1
+out > fvars lhs (nonstrict):
+out > fvars lhs (irr):
+out > initOccursCheck: we look into the following definitions:
+out >
+out > passed occursCheck
+out > fvars rhs:
+out > type of meta = ((S : Set) (T : Nat → Set) →
+out >                 "dummyType: src/full/Agda/TypeChecking/MetaVars.hs:167")
+out > solving _16 := (λ S T → Set)
+out > completed assignment of _16
+out > term _17 :DirEq Set
+out > term _17 :DirEq Set
+out > is _17 a blocked term? 
+out >   no
+out > mvar args: 1 0
+out > fvars lhs (rel): 0 1
+out > fvars lhs (nonstrict):
+out > fvars lhs (irr):
+out > initOccursCheck: we look into the following definitions:
+out >
+out > passed occursCheck
+out > fvars rhs:
+out > type of meta = (S : Set) (T : Nat → Set) →
+out >                "dummyType: src/full/Agda/TypeChecking/MetaVars.hs:167"
+out > solving _17 := λ S T → Set
+out > completed assignment of _17
+out > term _18 :DirEq Set
+out > term _18 :DirEq Set
+out > is _18 a blocked term? 
+out >   no
+out > mvar args: 2 1 0
+out > fvars lhs (rel): 0 1 2
+out > fvars lhs (nonstrict):
+out > fvars lhs (irr):
+out > initOccursCheck: we look into the following definitions:
+out >
+out > passed occursCheck
+out > fvars rhs:
+out > type of meta = ((S : Set) (T : Nat → Set) (n : Nat) →
+out >                 "dummyType: src/full/Agda/TypeChecking/MetaVars.hs:167")
+out > solving _18 := (λ S T n → Set)
+out > completed assignment of _18
+out > term _19 :DirEq Set
+out > term _19 :DirEq Set
+out > is _19 a blocked term? 
+out >   no
+out > mvar args: 2 1 0
+out > fvars lhs (rel): 0 1 2
+out > fvars lhs (nonstrict):
+out > fvars lhs (irr):
+out > initOccursCheck: we look into the following definitions:
+out >
+out > passed occursCheck
+out > fvars rhs:
+out > type of meta = (S : Set) (T : Nat → Set) (n : Nat) →
+out >                "dummyType: src/full/Agda/TypeChecking/MetaVars.hs:167"
+out > solving _19 := λ S T n → Set
+out > completed assignment of _19
+out > { etaExpandMeta _20
+out > we do not expand meta variable _20 (requested was expansion of [SingletonRecords,Levels])
+out > }
+out > term _20 :DirEq zero
+out > term _20 :DirEq zero
+out > is _20 a blocked term? 
+out >   no
+out > mvar args: 3 2 1 0
+out > fvars lhs (rel): 0 1 2 3
+out > fvars lhs (nonstrict):
+out > fvars lhs (irr):
+out > initOccursCheck: we look into the following definitions:
+out > foldl
+out > passed occursCheck
+out > fvars rhs:
+out > type of meta = (S : Set) (T0 : Nat → Set)
+out >                (f : (n : Nat) → T0 n → S → T0 (suc n)) (t : T0 zero) →
+out >                Nat
+out > solving _20 := λ S T0 f t → zero
+out > completed assignment of _20
+out > { etaExpandMeta _21
+out > we do not expand meta variable _21 (requested was expansion of [SingletonRecords,Levels])
+out > }
+out > term _21 :DirEq suc m
+out > term _21 :DirEq suc m
+out > is _21 a blocked term? 
+out >   no
+out > mvar args: 6 5 4 3 2 1 0
+out > fvars lhs (rel): 0 1 2 3 4 5 6
+out > fvars lhs (nonstrict):
+out > fvars lhs (irr):
+out > initOccursCheck: we look into the following definitions:
+out > foldl
+out > passed occursCheck
+out > fvars rhs: 6
+out > type of meta = (m : Nat) (S : Set) (Tsn : Nat → Set)
+out >                (f : (n : Nat) → Tsn n → S → Tsn (suc n)) (t : Tsn zero) (s : S)
+out >                (ss : Vec S m) →
+out >                Nat
+out > solving _21 := λ m S Tsn f t s ss → suc m
+out > completed assignment of _21
+out > { etaExpandMeta _22
+out > we do not expand meta variable _22 (requested was expansion of [SingletonRecords,Levels])
+out > }
+out > setting name of meta _22 to T
+out > { etaExpandMeta _23
+out > postponing eta-expansion of meta variable _23 which is blocked by _T_22
+out > }
+out > term _T_22 zero :DirGeq Tsn (suc zero)
+out > term _T_22 zero :DirGeq Tsn (suc zero)
+out > is _22 a blocked term? 
+out >   no
+out > mvar args: 6 5 4 3 2 1 0 ..
+out > fvars lhs (rel): 0 1 2 3 4 5 6
+out > fvars lhs (nonstrict):
+out > fvars lhs (irr):
+out > initOccursCheck: we look into the following definitions:
+out > foldl
+out > passed occursCheck
+out > fvars rhs: 4
+out > not all arguments are variables:  [m, S, Tsn, f, t, s, ss, zero]
+out >   aborting assignment
+out > term _T_22 zero :DirGeq Tsn (suc zero)
+out > term _T_22 zero :DirGeq Tsn (suc zero)
+out > is _22 a blocked term? 
+out >   no
+out > mvar args: 6 5 4 3 2 1 0 ..
+out > fvars lhs (rel): 0 1 2 3 4 5 6
+out > fvars lhs (nonstrict):
+out > fvars lhs (irr):
+out > initOccursCheck: we look into the following definitions:
+out > foldl
+out > passed occursCheck
+out > fvars rhs: 4
+out > not all arguments are variables:  [m, S, Tsn, f, t, s, ss, zero]
+out >   aborting assignment
+out > blocked _24 := λ m S Tsn f t s ss → f zero t s
+out >      by [[46] Tsn (suc zero) =< _T_22 zero : Set]
+out > { etaExpandMeta _25
+out > postponing eta-expansion of meta variable _25 which is blocked by _T_22
+out > }
+out > { etaExpandMeta _26
+out > we do not expand meta variable _26 (requested was expansion of [SingletonRecords,Levels])
+out > }
+out > setting name of meta _26 to n
+out > term _n_26 :DirGeq m
+out > term _n_26 :DirGeq m
+out > is _26 a blocked term? 
+out >   no
+out > mvar args: 6 5 4 3 2 1 0
+out > fvars lhs (rel): 0 1 2 3 4 5 6
+out > fvars lhs (nonstrict):
+out > fvars lhs (irr):
+out > initOccursCheck: we look into the following definitions:
+out > foldl
+out > passed occursCheck
+out > fvars rhs: 6
+out > type of meta = ((m : Nat) (S : Set) (Tsn : Nat → Set)
+out >                 (f : (n : Nat) → Tsn n → S → Tsn (suc n)) (t : Tsn zero) (s : S)
+out >                 (ss : Vec S m) →
+out >                 Nat)
+out > solving _n_26 := λ m S Tsn f t s ss → m
+out > completed assignment of _26
+out > term _T_22 m :DirLeq Tsn (suc m)
+out > term _T_22 m :DirLeq Tsn (suc m)
+out > is _22 a blocked term? 
+out >   no
+out > mvar args: 6 5 4 3 2 1 0 6
+out > fvars lhs (rel): 0 1 2 3 4 5 6
+out > fvars lhs (nonstrict):
+out > fvars lhs (irr):
+out > initOccursCheck: we look into the following definitions:
+out > foldl
+out > passed occursCheck
+out > fvars rhs: 4 6
+out > attempting kills
+out >   m'    = _22
+out >   vs    = [m, S, Tsn, f, t, s, ss, m]
+out >   kills = [False,True,False,True,True,True,True,False]
+out > after kill analysis
+out >   metavar = _T_22
+out >   kills   = [False,True,False,True,True,True,True,False]
+out >   kills'  = [Arg {argInfo = ArgInfo {argInfoHiding = NotHidden, argInfoModality = Modality {modRelevance = Relevant, modQuantity = Quantityω QωInferred, modCohesion = Continuous}, argInfoOrigin = UserWritten, argInfoFreeVariables = UnknownFVs}, unArg = False},Arg {argInfo = ArgInfo {argInfoHiding = NotHidden, argInfoModality = Modality {modRelevance = Relevant, modQuantity = Quantityω QωInferred, modCohesion = Continuous}, argInfoOrigin = UserWritten, argInfoFreeVariables = UnknownFVs}, unArg = True},Arg {argInfo = ArgInfo {argInfoHiding = NotHidden, argInfoModality = Modality {modRelevance = Relevant, modQuantity = Quantityω QωInferred, modCohesion = Continuous}, argInfoOrigin = UserWritten, argInfoFreeVariables = UnknownFVs}, unArg = False},Arg {argInfo = ArgInfo {argInfoHiding = NotHidden, argInfoModality = Modality {modRelevance = Relevant, modQuantity = Quantityω QωInferred, modCohesion = Continuous}, argInfoOrigin = UserWritten, argInfoFreeVariables = UnknownFVs}, unArg = True},Arg {argInfo = ArgInfo {argInfoHiding = NotHidden, argInfoModality = Modality {modRelevance = Relevant, modQuantity = Quantityω QωInferred, modCohesion = Continuous}, argInfoOrigin = UserWritten, argInfoFreeVariables = UnknownFVs}, unArg = True},Arg {argInfo = ArgInfo {argInfoHiding = NotHidden, argInfoModality = Modality {modRelevance = Relevant, modQuantity = Quantityω QωInferred, modCohesion = Continuous}, argInfoOrigin = UserWritten, argInfoFreeVariables = UnknownFVs}, unArg = True},Arg {argInfo = ArgInfo {argInfoHiding = NotHidden, argInfoModality = Modality {modRelevance = Relevant, modQuantity = Quantityω QωInferred, modCohesion = Continuous}, argInfoOrigin = UserWritten, argInfoFreeVariables = UnknownFVs}, unArg = True},Arg {argInfo = ArgInfo {argInfoHiding = NotHidden, argInfoModality = Modality {modRelevance = Relevant, modQuantity = Quantityω QωInferred, modCohesion = Continuous}, argInfoOrigin = UserWritten, argInfoFreeVariables = UnknownFVs}, unArg = False}]
+out >   oldType = (m₁ : Nat) (S₁ : Set) (Tsn₁ : Nat → Set)
+out >             (f₁ : (n : Nat) → Tsn₁ n → S₁ → Tsn₁ (suc n)) (t₁ : Tsn₁ zero)
+out >             (s₁ : S₁) (ss₁ : Vec S₁ m₁) →
+out >             Nat → Set
+out >   newType = Nat → (Nat → Set) → Nat → Set
+out > { etaExpandMeta _27
+out > we do not expand meta variable _T_27 (requested was expansion of [SingletonRecords,Levels])
+out > }
+out > actual killing
+out >   new meta: _27
+out >   kills   : [Arg {argInfo = ArgInfo {argInfoHiding = NotHidden, argInfoModality = Modality {modRelevance = Relevant, modQuantity = Quantityω QωInferred, modCohesion = Continuous}, argInfoOrigin = UserWritten, argInfoFreeVariables = UnknownFVs}, unArg = False},Arg {argInfo = ArgInfo {argInfoHiding = NotHidden, argInfoModality = Modality {modRelevance = Relevant, modQuantity = Quantityω QωInferred, modCohesion = Continuous}, argInfoOrigin = UserWritten, argInfoFreeVariables = UnknownFVs}, unArg = True},Arg {argInfo = ArgInfo {argInfoHiding = NotHidden, argInfoModality = Modality {modRelevance = Relevant, modQuantity = Quantityω QωInferred, modCohesion = Continuous}, argInfoOrigin = UserWritten, argInfoFreeVariables = UnknownFVs}, unArg = False},Arg {argInfo = ArgInfo {argInfoHiding = NotHidden, argInfoModality = Modality {modRelevance = Relevant, modQuantity = Quantityω QωInferred, modCohesion = Continuous}, argInfoOrigin = UserWritten, argInfoFreeVariables = UnknownFVs}, unArg = True},Arg {argInfo = ArgInfo {argInfoHiding = NotHidden, argInfoModality = Modality {modRelevance = Relevant, modQuantity = Quantityω QωInferred, modCohesion = Continuous}, argInfoOrigin = UserWritten, argInfoFreeVariables = UnknownFVs}, unArg = True},Arg {argInfo = ArgInfo {argInfoHiding = NotHidden, argInfoModality = Modality {modRelevance = Relevant, modQuantity = Quantityω QωInferred, modCohesion = Continuous}, argInfoOrigin = UserWritten, argInfoFreeVariables = UnknownFVs}, unArg = True},Arg {argInfo = ArgInfo {argInfoHiding = NotHidden, argInfoModality = Modality {modRelevance = Relevant, modQuantity = Quantityω QωInferred, modCohesion = Continuous}, argInfoOrigin = UserWritten, argInfoFreeVariables = UnknownFVs}, unArg = True},Arg {argInfo = ArgInfo {argInfoHiding = NotHidden, argInfoModality = Modality {modRelevance = Relevant, modQuantity = Quantityω QωInferred, modCohesion = Continuous}, argInfoOrigin = UserWritten, argInfoFreeVariables = UnknownFVs}, unArg = False}]
+out >   inst    : _22 := _T_27 (m = @7) (Tsn = S) ss
+out > { etaExpandMeta _23
+out > postponing eta-expansion of meta variable _23 which is blocked by _T_27
+out > }
+out > { etaExpandMeta _25
+out > postponing eta-expansion of meta variable _25 which is blocked by _T_27
+out > }
+out > completed assignment of _22
+out > pruning _T_22 succeeded
+out > term _T_27 m :DirLeq Tsn (suc m)
+out > term _T_27 m :DirLeq Tsn (suc m)
+out > is _27 a blocked term? 
+out >   no
+out > mvar args: 6 4 6
+out > fvars lhs (rel): 4 6
+out > fvars lhs (nonstrict):
+out > fvars lhs (irr):
+out > initOccursCheck: we look into the following definitions:
+out > foldl
+out > passed occursCheck
+out > fvars rhs: 4 6
+out > attempting kills
+out >   m'    = _27
+out >   vs    = [m, Tsn, m]
+out >   kills = [False,False,False]
+out > pruning _T_27 failed
+out > term _T_27 zero :DirGeq Tsn (suc zero)
+out > term _T_27 zero :DirGeq Tsn (suc zero)
+out > is _27 a blocked term? 
+out >   no
+out > mvar args: 6 4 ..
+out > fvars lhs (rel): 4 6
+out > fvars lhs (nonstrict):
+out > fvars lhs (irr):
+out > initOccursCheck: we look into the following definitions:
+out > foldl
+out > passed occursCheck
+out > fvars rhs: 4
+out > not all arguments are variables:  [m, Tsn, zero]
+out >   aborting assignment
+out > term _T_27 zero :DirGeq Tsn (suc zero)
+out > term _T_27 zero :DirGeq Tsn (suc zero)
+out > is _27 a blocked term? 
+out >   no
+out > mvar args: 6 4 ..
+out > fvars lhs (rel): 4 6
+out > fvars lhs (nonstrict):
+out > fvars lhs (irr):
+out > initOccursCheck: we look into the following definitions:
+out > foldl
+out > passed occursCheck
+out > fvars rhs: 4
+out > not all arguments are variables:  [m, Tsn, zero]
+out >   aborting assignment
+out > blocked _28 := λ m S Tsn f t s ss →
+out >                  foldl S (λ v → _T_27 (m = m) (Tsn = Tsn) v)
+out >                  (_23 (m = m) (S = S) (Tsn = Tsn) (f = f) (t = t) (s = s) (ss = ss))
+out >                  (_25 (m = m) (S = S) (Tsn = Tsn) (f = f) (t = t) (s = s) (ss = ss))
+out >                  m ss
+out >      by [[50] _T_27 m =< Tsn (suc m) : Set]
+out > { etaExpandMeta _29
+out > we do not expand meta variable _29 (requested was expansion of [SingletonRecords,Levels])
+out > }
+out > term _T_27 zero :DirGeq Tsn (suc zero)
+out > term _T_27 zero :DirGeq Tsn (suc zero)
+out > is _27 a blocked term? 
+out >   no
+out > mvar args: 6 4 ..
+out > fvars lhs (rel): 4 6
+out > fvars lhs (nonstrict):
+out > fvars lhs (irr):
+out > initOccursCheck: we look into the following definitions:
+out > foldl
+out > passed occursCheck
+out > fvars rhs: 4
+out > not all arguments are variables:  [m, Tsn, zero]
+out >   aborting assignment
+out > term _T_27 zero :DirGeq Tsn (suc zero)
+out > term _T_27 zero :DirGeq Tsn (suc zero)
+out > is _27 a blocked term? 
+out >   no
+out > mvar args: 6 4 ..
+out > fvars lhs (rel): 4 6
+out > fvars lhs (nonstrict):
+out > fvars lhs (irr):
+out > initOccursCheck: we look into the following definitions:
+out > foldl
+out > passed occursCheck
+out > fvars rhs: 4
+out > not all arguments are variables:  [m, Tsn, zero]
+out >   aborting assignment
+out > term _T_27 m :DirLeq Tsn (suc m)
+out > term _T_27 m :DirLeq Tsn (suc m)
+out > is _27 a blocked term? 
+out >   no
+out > mvar args: 6 4 6
+out > fvars lhs (rel): 4 6
+out > fvars lhs (nonstrict):
+out > fvars lhs (irr):
+out > initOccursCheck: we look into the following definitions:
+out > foldl
+out > passed occursCheck
+out > fvars rhs: 4 6
+out > attempting kills
+out >   m'    = _27
+out >   vs    = [m, Tsn, m]
+out >   kills = [False,False,False]
+out > pruning _T_27 failed
+out > term _T_27 m :DirLeq Tsn (suc m)
+out > term _T_27 m :DirLeq Tsn (suc m)
+out > is _27 a blocked term? 
+out >   no
+out > mvar args: 6 4 6
+out > fvars lhs (rel): 4 6
+out > fvars lhs (nonstrict):
+out > fvars lhs (irr):
+out > initOccursCheck: we look into the following definitions:
+out > foldl
+out > passed occursCheck
+out > fvars rhs: 4 6
+out > attempting kills
+out >   m'    = _27
+out >   vs    = [m, Tsn, m]
+out >   kills = [False,False,False]
+out > pruning _T_27 failed
+out > term _T_27 m :DirLeq Tsn (suc m)
+out > term _T_27 m :DirLeq Tsn (suc m)
+out > is _27 a blocked term? 
+out >   no
+out > mvar args: 6 4 6
+out > fvars lhs (rel): 4 6
+out > fvars lhs (nonstrict):
+out > fvars lhs (irr):
+out > initOccursCheck: we look into the following definitions:
+out > foldl
+out > passed occursCheck
+out > fvars rhs: 4 6
+out > attempting kills
+out >   m'    = _27
+out >   vs    = [m, Tsn, m]
+out >   kills = [False,False,False]
+out > pruning _T_27 failed
+out > term _T_27 m :DirLeq Tsn (suc m)
+out > term _T_27 m :DirLeq Tsn (suc m)
+out > is _27 a blocked term? 
+out >   no
+out > mvar args: 6 4 6
+out > fvars lhs (rel): 4 6
+out > fvars lhs (nonstrict):
+out > fvars lhs (irr):
+out > initOccursCheck: we look into the following definitions:
+out > foldl
+out > passed occursCheck
+out > fvars rhs: 4 6
+out > attempting kills
+out >   m'    = _27
+out >   vs    = [m, Tsn, m]
+out >   kills = [False,False,False]
+out > pruning _T_27 failed
+out > term _T_27 zero :DirGeq Tsn (suc zero)
+out > term _T_27 zero :DirGeq Tsn (suc zero)
+out > is _27 a blocked term? 
+out >   no
+out > mvar args: 6 4 ..
+out > fvars lhs (rel): 4 6
+out > fvars lhs (nonstrict):
+out > fvars lhs (irr):
+out > initOccursCheck: we look into the following definitions:
+out > foldl
+out > passed occursCheck
+out > fvars rhs: 4
+out > not all arguments are variables:  [m, Tsn, zero]
+out >   aborting assignment
+out > term _T_27 zero :DirGeq Tsn (suc zero)
+out > term _T_27 zero :DirGeq Tsn (suc zero)
+out > is _27 a blocked term? 
+out >   no
+out > mvar args: 6 4 ..
+out > fvars lhs (rel): 4 6
+out > fvars lhs (nonstrict):
+out > fvars lhs (irr):
+out > initOccursCheck: we look into the following definitions:
+out > foldl
+out > passed occursCheck
+out > fvars rhs: 4
+out > not all arguments are variables:  [m, Tsn, zero]
+out >   aborting assignment
+out > term _T_27 zero :DirGeq Tsn (suc zero)
+out > term _T_27 zero :DirGeq Tsn (suc zero)
+out > term _T_27 zero :DirGeq Tsn (suc zero)
+out > term _T_27 zero :DirGeq Tsn (suc zero)
+out > term _T_27 m :DirLeq Tsn (suc m)
+out > term _T_27 m :DirLeq Tsn (suc m)
+out > term _T_27 m :DirLeq Tsn (suc m)
+out > term _T_27 m :DirLeq Tsn (suc m)
+out > term _T_27 m :DirLeq Tsn (suc m)
+out > term _T_27 m :DirLeq Tsn (suc m)
+out > term _T_27 m :DirLeq Tsn (suc m)
+out > term _T_27 m :DirLeq Tsn (suc m)
+out > term _T_27 zero :DirGeq Tsn (suc zero)
+out > term _T_27 zero :DirGeq Tsn (suc zero)
+out > term _T_27 zero :DirGeq Tsn (suc zero)
+out > term _T_27 zero :DirGeq Tsn (suc zero)
+out > Failed to solve the following constraints:
+out >   [46] Tsn (suc zero) =< _T_27 zero : Set
+out >   [50] _T_27 m =< Tsn (suc m) : Set
+out > Unsolved metas at the following locations:
+out >   Issue325b.agda:23,12-13
+out >   Issue325b.agda:23,15-25
+out >   Issue325b.agda:21,11-12
+out >   Issue325b.agda:21,3-23,31
+out >

@@ -2,18 +2,23 @@
 
 module Succeed.Tests where
 
-import Test.Tasty
-import Test.Tasty.Silver
-import Test.Tasty.Silver.Advanced (readFileMaybe, goldenTestIO1, GDiff (..), GShow (..))
-import System.FilePath
-import System.IO.Temp
+import Data.List
+import Data.Maybe (isJust, fromMaybe)
+import Data.Monoid ((<>))
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
 import Data.Text.Encoding
-import Data.Monoid ((<>))
-import System.Exit
-import Data.List
+
+import Test.Tasty
+import Test.Tasty.Silver
+import Test.Tasty.Silver.Advanced
+  (readFileMaybe, goldenTestIO1, GDiff (..), GShow (..))
+
 import System.Directory
+import System.Exit
+import System.FilePath
+import System.IO.Temp
+
 
 import Utils
 
@@ -29,19 +34,19 @@ tests = do
 
   return $ testGroup "Succeed" tests'
 
-data AgdaResult
-  = AgdaSuccess
-  | AgdaSuccessWithWarnings T.Text -- the cleaned stdout
-  | AgdaUnexpectedFail ProgramResult
-  | AgdaWrongDotOutput T.Text
+data TestResult
+  = TestSuccess
+  | TestSuccessWithWarnings T.Text -- the cleaned stdout
+  | TestUnexpectedFail ProgramResult
+  | TestWrongDotOutput T.Text
 
 mkSucceedTest
-  :: [String] -- ^ Extra options to Agda.
+  :: AgdaArgs -- ^ Extra options to Agda.
   -> FilePath -- ^ Test directory.
   -> FilePath -- ^ Input file.
   -> TestTree
 mkSucceedTest extraOpts dir inp =
-  goldenTestIO1 testName readGolden (printAgdaResult <$> doRun) resDiff resShow updGolden
+  goldenTestIO1 testName readGolden (printTestResult <$> doRun) resDiff resShow updGolden
 --  goldenVsAction testName goldenFile doRun printAgdaResult
   where testName = asTestName dir inp
         flagFile = dropAgdaExtension inp <.> ".flags"
@@ -53,57 +58,34 @@ mkSucceedTest extraOpts dir inp =
         readGolden = do
           warnExists <- doesFileExist warnFile
           if warnExists then readTextFileMaybe warnFile
-                        else return $ Just $ printAgdaResult AgdaSuccess
+                        else return $ Just $ printTestResult TestSuccess
 
         updGolden = Just $ writeTextFile warnFile
 
         doRun = do
-          flags <- maybe [] (T.unpack . decodeUtf8) <$> readFileMaybe flagFile
           let agdaArgs = [ "-v0", "-i" ++ dir, "-itest/" , inp
                          , "--no-libraries"
                          , "-vimpossible:10" -- BEWARE: no spaces allowed here
                          , "-vwarning:1"
-                         ] ++
-                         extraOpts ++ words flags
-          let run = \extraArgs -> readAgdaProcessWithExitCode (agdaArgs ++ extraArgs) T.empty
-
-          res@(ret, stdOut, _) <-
-            if "--compile" `isInfixOf` flags
-              then
-                -- Andreas, 2017-04-14, issue #2317
-                -- Create temporary files in system temp directory.
-                -- This has the advantage that upon Ctrl-C no junk is left behind
-                -- in the Agda directory.
-                -- withTempDirectory dir ("MAZ_compile_" ++ testName) (\compDir ->
-                withSystemTempDirectory ("MAZ_compile_" ++ testName) (\compDir ->
-                  run ["--compile-dir=" ++ compDir]
-                  )
-              else
-                run []
-
+                         ] ++ extraOpts
+          ret <- runAgdaWithOptions testName agdaArgs (Just flagFile)
           case ret of
-            ExitSuccess | testName == "Issue481" -> do
+            AgdaSuccess{} | testName == "Issue481" -> do
               dotOrig <- TIO.readFile (dir </> "Issue481.dot.orig")
               dot <- TIO.readFile "Issue481.dot"
               removeFile "Issue481.dot"
               if dot == dotOrig
                 then
-                  return $ AgdaSuccess
+                  return $ TestSuccess
                 else
-                  return $ AgdaWrongDotOutput dot
-            ExitSuccess -> do
-              cleanedStdOut <- cleanOutput stdOut
-              warnExists    <- doesFileExist warnFile
+                  return $ TestWrongDotOutput dot
+            AgdaSuccess warn -> do
+              warnExists <- doesFileExist warnFile
               return $
-                if warnExists || hasWarning cleanedStdOut
-                then AgdaSuccessWithWarnings cleanedStdOut
-                else AgdaSuccess
-            _ -> return $ AgdaUnexpectedFail res
-
-hasWarning :: T.Text -> Bool
-hasWarning t =
- "———— All done; warnings encountered ————————————————————————"
- `T.isInfixOf` t
+                if warnExists || isJust warn
+                then TestSuccessWithWarnings (fromMaybe "" warn)
+                else TestSuccess
+            AgdaFailure res -> return $ TestUnexpectedFail res
 
 resDiff :: T.Text -> T.Text -> IO GDiff
 resDiff t1 t2 =
@@ -116,9 +98,9 @@ resDiff t1 t2 =
 resShow :: T.Text -> IO GShow
 resShow = return . ShowText
 
-printAgdaResult :: AgdaResult -> T.Text
-printAgdaResult r = case r of
-  AgdaSuccess               -> "AGDA_SUCCESS\n\n"
-  AgdaSuccessWithWarnings t -> t
-  AgdaUnexpectedFail p      -> "AGDA_UNEXPECTED_FAIL\n\n" <> printProcResult p
-  AgdaWrongDotOutput t      -> "AGDA_WRONG_DOT_OUTPUT\n\n" <> t
+printTestResult :: TestResult -> T.Text
+printTestResult r = case r of
+  TestSuccess               -> "AGDA_SUCCESS\n\n"
+  TestSuccessWithWarnings t -> t
+  TestUnexpectedFail p      -> "AGDA_UNEXPECTED_FAIL\n\n" <> printProcResult p
+  TestWrongDotOutput t      -> "AGDA_WRONG_DOT_OUTPUT\n\n" <> t

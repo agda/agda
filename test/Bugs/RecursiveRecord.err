@@ -1,0 +1,6 @@
+AGDA_FAILURE
+
+ret > ExitFailure 1
+out > RecursiveRecord.agda:12,12-13
+out > Recursive record R needs to be declared as either inductive or coinductive
+out >

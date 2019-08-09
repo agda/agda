@@ -46,8 +46,9 @@ tests = do
 rtsOptions :: [String]
 rtsOptions = [ "+RTS", "-H1G", "-M1.5G", "-RTS" ]
 
-data AgdaResult = AgdaSuccess
-                | AgdaUnexpectedFail ProgramResult
+data TestResult
+  = TestSuccess
+  | TestUnexpectedFail ProgramResult
 
 mkLibSucceedTest :: FilePath  -- inp file
                  -> TestTree
@@ -61,29 +62,25 @@ mkLibSucceedTest inp =
     -- function. TODO extend tasty-silver to handle this use case
     -- properly
     readGolden :: IO (Maybe T.Text)
-    readGolden = return $ Just $ printAgdaResult AgdaSuccess
+    readGolden = return $ Just $ printAgdaResult TestSuccess
 
-    doRun :: IO AgdaResult
+    doRun :: IO TestResult
     doRun = do
       -- ASR (04 January 2016). We don't use the @--ignore-interfaces@
       -- option for avoiding type-check the standard library in every
       -- test-case. The interface files are deleted in the Makefile.
-      let agdaArgs :: [String]
+      let agdaArgs :: AgdaArgs
           agdaArgs = [ "-v0"
                      , "-i" ++ testDir
                      , "-i" ++ "std-lib/src"
                      , "--no-libraries"
                      , inp
                      ] ++ rtsOptions
+      ret <- runAgdaWithOptions testName agdaArgs Nothing
 
-      let run :: [String] -> IO (ExitCode, T.Text, T.Text)
-          run extraArgs = readAgdaProcessWithExitCode (agdaArgs ++ extraArgs) T.empty
-
-      res@(ret, _, _) <- run []
-
-      case ret of
-        ExitSuccess -> return AgdaSuccess
-        _           -> return $ AgdaUnexpectedFail res
+      pure $ case ret of
+        AgdaSuccess{}   -> TestSuccess -- TODO: fail if unexpected warnings?
+        AgdaFailure res -> TestUnexpectedFail res
 
 resDiff :: T.Text -> T.Text -> IO GDiff
 resDiff t1 t2 =
@@ -96,6 +93,6 @@ resDiff t1 t2 =
 resShow :: T.Text -> IO GShow
 resShow = return . ShowText
 
-printAgdaResult :: AgdaResult -> T.Text
-printAgdaResult AgdaSuccess            = "AGDA_SUCCESS"
-printAgdaResult (AgdaUnexpectedFail p) = "AGDA_UNEXPECTED_FAIL\n\n" `T.append` printProcResult p
+printAgdaResult :: TestResult -> T.Text
+printAgdaResult TestSuccess            = "AGDA_SUCCESS"
+printAgdaResult (TestUnexpectedFail p) = "AGDA_UNEXPECTED_FAIL\n\n" `T.append` printProcResult p

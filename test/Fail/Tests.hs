@@ -2,16 +2,20 @@
 
 module Fail.Tests where
 
-import Test.Tasty
-import Test.Tasty.Silver
-import Test.Tasty.Silver.Advanced (readFileMaybe, goldenTest1, GDiff (..), GShow (..))
-import System.IO.Temp
-import System.FilePath
+import qualified Data.ByteString as BS
+import Data.Monoid ((<>))
 import qualified Data.Text as T
 import Data.Text.Encoding
-import System.Exit
+
 import System.Directory
-import qualified Data.ByteString as BS
+import System.Exit
+import System.FilePath
+import System.IO.Temp
+
+import Test.Tasty
+import Test.Tasty.Silver
+import Test.Tasty.Silver.Advanced
+  (readFileMaybe, goldenTest1, GDiff (..), GShow (..))
 
 import Utils
 
@@ -25,15 +29,15 @@ tests = do
     [ testGroup "customised" [ issue2649, nestedProjectRoots ]]
     ++ map mkFailTest inpFiles
 
-data AgdaResult
-  = AgdaResult T.Text -- the cleaned stdout
-  | AgdaUnexpectedSuccess ProgramResult
+data TestResult
+  = TestResult T.Text -- the cleaned stdout
+  | TestUnexpectedSuccess ProgramResult
 
 mkFailTest :: FilePath -- inp file
     -> TestTree
 mkFailTest inp =
-  goldenTest1 testName readGolden (printAgdaResult <$> doRun) resDiff resShow updGolden
---  goldenVsAction testName goldenFile doRun printAgdaResult
+  goldenTest1 testName readGolden (printTestResult <$> doRun) resDiff resShow updGolden
+--  goldenVsAction testName goldenFile doRun printTestResult
   where testName   = asTestName testDir inp
         goldenFile = dropAgdaExtension inp <.> ".err"
         flagFile   = dropAgdaExtension inp <.> ".flags"
@@ -59,7 +63,7 @@ issue2649 = goldenTest1 "Issue2649" (readTextFileMaybe goldenFile)
       _  <- readAgdaProcessWithExitCode
               ["--no-libraries", "-i" ++ dir, dir </> "Issue2649-2.agda"]
               T.empty
-      fmap printAgdaResult . expectFail =<< do
+      fmap printTestResult . expectFail =<< do
             readAgdaProcessWithExitCode
               ["--no-libraries", "-i" ++ dir, dir </> "Issue2649.agda"]
               T.empty
@@ -73,24 +77,24 @@ nestedProjectRoots = goldenTest1 "NestedProjectRoots" (readTextFileMaybe goldenF
     doRun = do
       r1 <- readAgdaProcessWithExitCode
               ["--ignore-interfaces", "--no-libraries", "-i" ++ dir, "-i" ++ dir </> "Imports", dir </> "NestedProjectRoots.agda"]
-              T.empty >>= fmap printAgdaResult . expectFail
+              T.empty >>= fmap printTestResult . expectFail
       r2 <- readAgdaProcessWithExitCode
               ["--no-libraries", "-i" ++ dir </> "Imports", dir </> "Imports" </> "A.agda"]
               T.empty >>= expectOk
       r3 <- readAgdaProcessWithExitCode
               ["--no-libraries", "-i" ++ dir, "-i" ++ dir </> "Imports", dir </> "NestedProjectRoots.agda"]
-              T.empty >>= fmap printAgdaResult . expectFail
+              T.empty >>= fmap printTestResult . expectFail
       return $ r1 `T.append` r2 `T.append` r3
 
 expectOk :: ProgramResult -> IO T.Text
-expectOk (ExitSuccess, stdout, _) = cleanOutput stdout
+expectOk (ExitSuccess, stdout, _) = pure stdout
 expectOk p = return $ "UNEXPECTED_SUCCESS\n\n" `T.append` printProcResult p
 
-expectFail :: ProgramResult -> IO AgdaResult
-expectFail res@(ret, stdout, _) =
+expectFail :: ProgramResult -> IO TestResult
+expectFail res@(ret, stdout, _) = pure $
   if ret == ExitSuccess
-    then return $ AgdaUnexpectedSuccess res
-    else AgdaResult <$> cleanOutput stdout
+  then TestUnexpectedSuccess res
+  else TestResult stdout
 
 -- | Treats newlines or consecutive whitespaces as one single whitespace.
 --
@@ -110,6 +114,6 @@ resDiff t1 t2 =
 resShow :: T.Text -> GShow
 resShow = ShowText
 
-printAgdaResult :: AgdaResult -> T.Text
-printAgdaResult (AgdaResult t)            = t
-printAgdaResult (AgdaUnexpectedSuccess p) = "AGDA_UNEXPECTED_SUCCESS\n\n" `T.append` printProcResult p
+printTestResult :: TestResult -> T.Text
+printTestResult (TestResult t)            = t
+printTestResult (TestUnexpectedSuccess p) = "AGDA_UNEXPECTED_SUCCESS\n\n" <> printProcResult p

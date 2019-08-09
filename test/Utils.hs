@@ -1,44 +1,87 @@
 
 module Utils where
 
+import Control.Applicative
+
+import Data.Array
+import qualified Data.ByteString as BS
+import Data.Char
+import Data.List
+import Data.Maybe
 import Data.Ord
+import qualified Data.Set as S
 import Data.Text (Text)
 import qualified Data.Text as T
-import System.Exit
+import Data.Text.Encoding
 
-import Control.Applicative
+import System.Directory
 import System.Environment
-import Data.Maybe
-import Data.Char
-import qualified Data.Set as S
-import Test.Tasty.Silver
-import Test.Tasty.Silver.Advanced (readFileMaybe)
-import Data.List
+import System.Exit
 import System.FilePath
 import qualified System.FilePath.Find as Find
 import System.FilePath.GlobPattern
-import System.Directory
+import System.IO.Temp
 import System.PosixCompat.Time (epochTime)
 import System.PosixCompat.Files (modificationTime)
-
-import qualified Data.ByteString as BS
-
-import Data.Text.Encoding
 import qualified System.Process.Text as PT
-import Data.Array
+
+import Test.Tasty.Silver
+import Test.Tasty.Silver.Advanced (readFileMaybe)
+
 import qualified Text.Regex.TDFA as R
 import qualified Text.Regex.TDFA.Text as RT (compile)
 
-type ProgramResult = (ExitCode, T.Text, T.Text)
+import Agda.Utils.Maybe
 
+type ProgramResult = (ExitCode, T.Text, T.Text)
 type AgdaArgs = [String]
 
 
-readAgdaProcessWithExitCode :: AgdaArgs -> T.Text -> IO (ExitCode, T.Text, T.Text)
+readAgdaProcessWithExitCode :: AgdaArgs -> T.Text
+                            -> IO (ExitCode, T.Text, T.Text)
 readAgdaProcessWithExitCode args inp = do
   agdaBin <- getAgdaBin
   envArgs <- getEnvAgdaArgs
   PT.readProcessWithExitCode agdaBin (envArgs ++ args) inp
+
+data AgdaResult
+  = AgdaSuccess (Maybe T.Text) -- A success can come with warnings
+  | AgdaFailure ProgramResult  -- A failure always comes with a message
+
+runAgdaWithOptions
+  :: String         -- ^ test name
+  -> AgdaArgs       -- ^ options (including the name of the input file)
+  -> Maybe FilePath -- ^ file containing additional options and flags
+  -> IO AgdaResult
+runAgdaWithOptions testName opts mflag = do
+  flags <- case mflag of
+    Nothing       -> pure []
+    Just flagFile -> maybe [] T.unpack <$> readTextFileMaybe flagFile
+  let agdaArgs = opts ++ words flags
+  let runAgda  = \ extraArgs -> let args = agdaArgs ++ extraArgs in
+                                readAgdaProcessWithExitCode args T.empty
+  (ret, stdOut, stdErr) <-
+    if "--compile" `elem` agdaArgs
+      -- Andreas, 2017-04-14, issue #2317
+      -- Create temporary files in system temp directory.
+      -- This has the advantage that upon Ctrl-C no junk is left behind
+      -- in the Agda directory.
+    then withSystemTempDirectory ("MAZ_compile_" ++ testName)
+           (\ compDir -> runAgda ["--compile-dir=" ++ compDir])
+    else runAgda []
+
+  cleanedStdOut <- cleanOutput stdOut
+  case ret of
+    ExitSuccess -> pure $ AgdaSuccess $ filterMaybe hasWarning cleanedStdOut
+    _ -> do
+      cleanedStdErr <- cleanOutput stdErr
+      pure $ AgdaFailure (ret, cleanedStdOut, cleanedStdErr)
+
+hasWarning :: T.Text -> Bool
+hasWarning t =
+ "———— All done; warnings encountered ————————————————————————"
+ `T.isInfixOf` t
+
 
 getEnvAgdaArgs :: IO AgdaArgs
 getEnvAgdaArgs = maybe [] words <$> getEnvVar "AGDA_ARGS"
@@ -136,6 +179,9 @@ asTestName testDir path = intercalate "-" parts
 doesEnvContain :: String -> IO Bool
 doesEnvContain v = isJust <$> getEnvVar v
 
+readTextFile :: FilePath -> IO Text
+readTextFile f = decodeUtf8 <$> BS.readFile f
+
 readTextFileMaybe :: FilePath -> IO (Maybe Text)
 readTextFileMaybe f = fmap decodeUtf8 <$> readFileMaybe f
 
@@ -175,6 +221,8 @@ cleanOutput inp = do
           [ ("[^ (]*test.Fail.", "")
           , ("[^ (]*test.Succeed.", "")
           , ("[^ (]*test.Common.", "")
+          , ("[^ (]*test.Bugs.", "")
+          , ("[^ (]*test.LibSucceed.", "")
           , (T.pack pwd `T.append` ".test", "..")
           , ("\\\\", "/")
           , (":[[:digit:]]+:$", "")

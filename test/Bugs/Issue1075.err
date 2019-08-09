@@ -1,0 +1,41 @@
+AGDA_FAILURE
+
+ret > ExitFailure 1
+out > Issue1075.agda:280,1-441,54
+out > Termination checking failed for the following functions:
+out >   cut⁺, cut⁻, rsubst+, lsubst
+out > Problematic calls:
+out >   cut⁺ pfΓ pf (z ∷ LA) (id⁺ v ∷ Values) N | pfΓ v
+out >   rsubst+ Γ' pfΓ pf [] LA- LT [] (focL pf₁ x Sp)
+out >   | fromctxGen Γ' (map Pers LA-) x
+out >   cut⁺ (conssusp pfΓ) pf LA (wken-all-rfoc Values) N
+out >     (at Issue1075.agda:335,40-44)
+out >   rsubst+ [] pfΓ pf LA (A ∷ []) (N ∷ []) Values N'
+out >     (at Issue1075.agda:337,3-10)
+out >   cut⁺ pfΓ pf (A ∷ []) (V₁ ∷ []) N
+out >     (at Issue1075.agda:342,96-100)
+out >   lsubst pfΓ pf N₁ N₂
+out >     (at Issue1075.agda:357,60-66)
+out >   cut⁻ pfΓ pf (x₁ ∷ LA) refl
+out >   (cut⁺ pfΓ unit (x ∷ []) (V ∷ []) N₁ ∷ LExp) (Sp ∷ LExp')
+out >     (at Issue1075.agda:360,3-7)
+out >   cut⁻ pfΓ (pf₁ , pf) (A ∷ []) refl
+out >   (?0 (Γ' = Γ') (LA- = LA-) (x = x) (x₁ = x₁) (pfΓ = pfΓ) (pf = pf)
+out >    (LT = LT) (pf₁ = pf₁) (Sp = Sp))
+out >   (rsubst-v Γ' pfΓ pf LA- LT Sp ∷ [])
+out >     (at Issue1075.agda:379,3-7)
+out >   cut⁺ pfΓ (proj₂ pf) (A ∷ []) (V ∷ []) N
+out >     (at Issue1075.agda:428,32-36)
+out > Failed to solve the following constraints:
+out >   Set = _53
+out >   _53 = Set
+out >   Set₁ = piSort _53 (λ _ → Set₁)
+out >   piSort _53 (λ _ → Set) = Set
+out >   univSort (piSort _53 (λ _ → Set)) = Set₁
+out >   Has bigger sort: _53
+out > Unsolved metas at the following locations:
+out >   Issue1075.agda:44,19-20
+out > Unsolved interaction metas at the following locations:
+out >   Issue1075.agda:379,37-55
+out >   Issue1075.agda:423,39-40
+out >
