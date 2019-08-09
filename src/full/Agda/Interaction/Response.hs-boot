@@ -21,7 +21,7 @@ data Response
     | Resp_JumpToError FilePath Int32
     | Resp_InteractionPoints [InteractionId]
     | Resp_GiveAction InteractionId GiveResult
-    | Resp_MakeCase MakeCaseVariant [String]
+    | Resp_MakeCase InteractionId MakeCaseVariant [String]
     | Resp_SolveAll [(InteractionId, Expr)]
     | Resp_DisplayInfo DisplayInfo
     | Resp_RunningInfo Int String
