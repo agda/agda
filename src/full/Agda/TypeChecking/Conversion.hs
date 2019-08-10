@@ -735,7 +735,7 @@ antiUnify pid a u v = do
       wb <- addContext wa $ antiUnifyType pid (absBody ub) (absBody vb)
       return $ Pi wa (mkAbs (absName ub) wb)
     (Lam i u, Lam _ v) ->
-      case unEl a of
+      reduce (unEl a) >>= \case
         Pi a b -> Lam i . (mkAbs (absName u)) <$> addContext a (antiUnify pid (absBody b) (absBody u) (absBody v))
         _      -> fallback
     (Var i us, Var j vs) | i == j -> maybeGiveUp $ do
@@ -770,7 +770,7 @@ antiUnifyElims pid a self (Proj o f : es1) (Proj _ g : es2) | f == g = do
     Just (_, self, a) -> antiUnifyElims pid a self es1 es2
     Nothing -> patternViolation -- can fail for projection like
 antiUnifyElims pid a self (Apply u : es1) (Apply v : es2) = do
-  case unEl a of
+  reduce (unEl a) >>= \case
     Pi a b -> do
       w <- antiUnify pid (unDom a) (unArg u) (unArg v)
       antiUnifyElims pid (b `lazyAbsApp` w) (apply self [w <$ u]) es1 es2
