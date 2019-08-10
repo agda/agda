@@ -77,10 +77,6 @@ data Conc : Set where
   True : (A : Type ⁺) → Conc
   Susp : (A : Type ⁻) → Conc
 
-
-
-
-
 stable : Conc → Set
 stable (Inv A) = ⊥
 stable (True A) = ⊤
@@ -420,7 +416,7 @@ rsubst+ Γ' pfΓ pf (⊤⁺ ∷ LA+) LA- LT (_ ∷ Values) (⊤⁺L N) =  rsubst
 -- ... | proj₁ , ()
 rsubst+ Γ' pfΓ pf ((x ∧⁺ x₁) ∷ LA+) LA- LT (∧⁺R V₁ V₂ ∷ Values) (∧⁺L N) =
   rsubst+ Γ' pfΓ pf (x ∷ x₁ ∷ LA+) LA- LT (V₁ ∷ V₂ ∷ Values) N
-rsubst+ {_} {_} {_} _ _ _ _ _ _ _ _ = ?
+rsubst+ {_} {_} {_} _ _ _ _ _ _ _ _ = {!!}
 
 
 
@@ -439,4 +435,3 @@ lsubst pfΓ pf (↑L M) N = ↑L (lsubst pfΓ pf M N)
 lsubst pfΓ pf (⊃L V Sp) N = ⊃L V (lsubst pfΓ pf Sp N)
 lsubst pfΓ pf (∧⁻L₁ Sp) N = ∧⁻L₁ (lsubst pfΓ pf Sp N)
 lsubst pfΓ pf (∧⁻L₂ Sp) N = ∧⁻L₂ (lsubst pfΓ pf Sp N)
-

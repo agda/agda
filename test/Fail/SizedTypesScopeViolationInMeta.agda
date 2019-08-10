@@ -17,6 +17,14 @@ A = (Id : {i : Size} -> Nat {_} -> Set)
     ->
     (j : Size)(n : Nat {j}) -> Id {j} n
 
+-- Current error (problematic):
+--
+-- Cannot solve size constraints
+-- [Id, k, m, j, n] j ≤ (_size_9 (i = j))
+-- [Id, k, m, j, n] (↑ k) ≤ (_size_9 (i = k))
+-- Reason: inconsistent lower bound for 9
+-- when checking that the expression n has type Nat {_size_9 {i = j}}
+
 {-
 mutual
 

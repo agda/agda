@@ -2,9 +2,7 @@
 
 module SizedTypesLoopDueInadmissibility where
 
-{-# BUILTIN SIZE Size  #-}
-{-# BUILTIN SIZESUC _^ #-}
-{-# BUILTIN SIZEINF ∞  #-}
+open import Agda.Builtin.Size renaming (↑_ to _^)
 
 data Nat : {size : Size} -> Set where
   zero : {size : Size} -> Nat {size ^}
