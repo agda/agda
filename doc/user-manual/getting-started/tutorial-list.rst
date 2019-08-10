@@ -28,7 +28,7 @@ Introduction to Agda
 - Conor McBride.
    - `Introduction to Dependently Typed Programming using Agda <https://www.youtube.com/playlist?list=PL44F162A8B8CB7C87>`__.
      (videos of lectures).
-     `Associated source files, with exercises <http://personal.cis.strath.ac.uk/~conor/pub/dtp/>`__.
+     `Associated source files, with exercises <https://personal.cis.strath.ac.uk/conor.mcbride/pub/dtp/>`__.
 - Andreas Abel.
    - `Agda lecture notes <http://www2.tcs.ifi.lmu.de/~abel/projects.html>`__.
      Lecture notes used in teaching functional programming: basic
