@@ -72,8 +72,6 @@ Courses using Agda
   - `More info and feedback <http://permalink.gmane.org/gmane.comp.lang.agda/1579>`__
 - `Dependently typed functional languages <http://www1.eafit.edu.co/asr/courses/dependently-typed-functional-languages/>`_
   , master level course at EAFIT University by Andrés Sicard-Ramírez.
-- `Introduction to Dependently Typed Programming using Agda <http://homepages.inf.ed.ac.uk/s0894694/agda-course/>`__
-  , research level course at the University of Edinburgh by Conor McBride.
 - `Agda <https://people.inf.elte.hu/divip/AgdaTutorial/Index.html>`__
   , introductory course for master students at ELTE Eötvös Collegium in Budapest by Péter Diviánszky and Ambrus Kaposi.
 - `Types for Programs and Proofs <http://www.cse.chalmers.se/edu/course/DAT140/>`__
