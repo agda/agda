@@ -790,8 +790,8 @@ compareElims pols0 fors0 a v els01 els02 = (catchConstraint (ElimCmp pols0 fors0
     reportSDoc "tc.conv.elim" 25 $ "compareElims" $$ do
      nest 2 $ vcat
       [ "a     =" <+> prettyTCM a
-      , "pols0 (truncated to 10) =" <+> sep (map prettyTCM $ take 10 pols0)
-      , "fors0 (truncated to 10) =" <+> sep (map prettyTCM $ take 10 fors0)
+      , "pols0 (truncated to 10) =" <+> hsep (map prettyTCM $ take 10 pols0)
+      , "fors0 (truncated to 10) =" <+> hsep (map prettyTCM $ take 10 fors0)
       , "v     =" <+> prettyTCM v
       , "els01 =" <+> prettyTCM els01
       , "els02 =" <+> prettyTCM els02

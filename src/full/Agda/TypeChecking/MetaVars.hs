@@ -129,7 +129,10 @@ assignTerm x tel v = do
 -- | Skip frozen check.  Used for eta expanding frozen metas.
 assignTermTCM' :: MetaId -> [Arg ArgName] -> Term -> TCM ()
 assignTermTCM' x tel v = do
-    reportSLn "tc.meta.assign" 70 $ prettyShow x ++ " := " ++ show v ++ "\n  in " ++ show tel
+    reportSDoc "tc.meta.assign" 70 $ vcat
+      [ "assignTerm" <+> prettyTCM x <+> " := " <+> prettyTCM v
+      , nest 2 $ "tel =" <+> prettyList_ (map (text . unArg) tel)
+      ]
      -- verify (new) invariants
     whenM (not <$> asksTC envAssignMetas) __IMPOSSIBLE__
 
@@ -936,7 +939,6 @@ assignMeta' m x t n ids v = do
     -- (no longer from ids which may not be the complete variable list
     -- any more)
     reportSDoc "tc.meta.assign" 15 $ "type of meta =" <+> prettyTCM t
-    reportSDoc "tc.meta.assign" 70 $ "type of meta =" <+> text (show t)
 
     (telv@(TelV tel' a),bs) <- telViewUpToPathBoundary n t
     reportSDoc "tc.meta.assign" 30 $ "tel'  =" <+> prettyTCM tel'
