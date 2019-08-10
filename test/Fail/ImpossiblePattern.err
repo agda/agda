@@ -1,6 +1,0 @@
-ImpossiblePattern.agda:5,1-8
-Could not parse the left-hand side f (_ _)
-Operators used in the grammar:
-  None
-when scope checking the left-hand side f (_ _) in the definition of
-f
