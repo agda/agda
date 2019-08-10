@@ -957,18 +957,7 @@ assignMeta' m x t n ids v = do
     whenM (optDoubleCheck <$> pragmaOptions) $ noConstraints $ dontAssignMetas $ do
       m <- lookupMeta x
       reportSDoc "tc.meta.check" 30 $ "double checking solution"
-      addContext tel' $ case mvJudgement m of
-        HasType{} -> do
-          reportSDoc "tc.meta.check" 30 $ nest 2 $
-            prettyTCM x <+> " : " <+> prettyTCM a <+> ":=" <+> prettyTCM v'
-          traceCall (CheckMetaSolution (getRange m) x a v') $
-            checkInternal v' a
-        IsSort{}  -> void $ do
-          reportSDoc "tc.meta.check" 30 $ nest 2 $
-            prettyTCM x <+> ":=" <+> prettyTCM v' <+> " is a sort"
-          s <- shouldBeSort (El __DUMMY_SORT__ v')
-          traceCall (CheckMetaSolution (getRange m) x (sort (univSort Nothing s)) (Sort s)) $
-            checkSort defaultAction s
+      addContext tel' $ checkSolutionForMeta x m v' a
 
     reportSDoc "tc.meta.assign" 10 $
       "solving" <+> prettyTCM x <+> ":=" <+> prettyTCM vsol
@@ -986,6 +975,24 @@ assignMeta' m x t n ids v = do
           equalTermOnFace (neg `apply1` r) t x v
           equalTermOnFace r  t y v
         return v
+
+-- | Check that the instantiation of the metavariable with the given
+--   term is well-typed.
+checkSolutionForMeta :: MetaId -> MetaVariable -> Term -> Type -> TCM ()
+checkSolutionForMeta x m v a = do
+  reportSDoc "tc.meta.check" 30 $ "checking solution for meta" <+> prettyTCM x
+  case mvJudgement m of
+    HasType{} -> do
+      reportSDoc "tc.meta.check" 30 $ nest 2 $
+        prettyTCM x <+> " : " <+> prettyTCM a <+> ":=" <+> prettyTCM v
+      traceCall (CheckMetaSolution (getRange m) x a v) $
+        checkInternal v a
+    IsSort{}  -> void $ do
+      reportSDoc "tc.meta.check" 30 $ nest 2 $
+        prettyTCM x <+> ":=" <+> prettyTCM v <+> " is a sort"
+      s <- shouldBeSort (El __DUMMY_SORT__ v)
+      traceCall (CheckMetaSolution (getRange m) x (sort (univSort Nothing s)) (Sort s)) $
+        checkSort defaultAction s
 
 -- | Turn the assignment problem @_X args <= SizeLt u@ into
 -- @_X args = SizeLt (_Y args)@ and constraint
