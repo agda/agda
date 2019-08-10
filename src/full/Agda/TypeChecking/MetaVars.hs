@@ -160,6 +160,8 @@ newSortMeta =
   -- else (no universe polymorphism)
   $ do i   <- createMetaInfo
        x   <- newMeta Instantiable i normalMetaPriority (idP 0) $ IsSort () __DUMMY_TYPE__
+       reportSDoc "tc.meta.new" 50 $
+         "new sort meta" <+> prettyTCM x
        return $ MetaS x []
 
 -- | Create a sort meta that may be instantiated with 'Inf' (Setω).
@@ -386,6 +388,7 @@ blockTermOnProblem t v pid =
         -- constraint solving a bit more robust against instantiation order.
         -- Andreas, 2015-05-22: DontRunMetaOccursCheck to avoid Issue585-17.
         (m', v) <- newValueMeta DontRunMetaOccursCheck t
+        reportSDoc "tc.meta.blocked" 30 $ "setting twin of" <+> prettyTCM m' <+> "to be" <+> prettyTCM x
         updateMetaVar m' (\ mv -> mv { mvTwin = Just x })
         i   <- fresh
         -- This constraint is woken up when unblocking, so it doesn't need a problem id.
@@ -429,6 +432,10 @@ postponeTypeCheckingProblem p unblock = do
   m   <- newMeta' (PostponedTypeCheckingProblem cl unblock)
                   Instantiable i normalMetaPriority (idP (size tel))
          $ HasType () $ telePi_ tel t
+  inTopContext $ reportSDoc "tc.meta.postponed" 20 $ vcat
+    [ "new meta" <+> prettyTCM m <+> ":" <+> prettyTCM (telePi_ tel t)
+    , "for postponed typechecking problem" <+> prettyTCM p
+    ]
 
   -- Create the meta that we actually return
   -- Andreas, 2012-03-15
@@ -579,11 +586,14 @@ etaExpandBlocked (Blocked m t)  = do
 assignWrapper :: (MonadMetaSolver m, MonadConstraint m, MonadError TCErr m, MonadDebug m, HasOptions m)
               => CompareDirection -> MetaId -> Elims -> Term -> m () -> m ()
 assignWrapper dir x es v doAssign = do
-  ifNotM (asksTC envAssignMetas) patternViolation $ {- else -} do
+  ifNotM (asksTC envAssignMetas) dontAssign $ {- else -} do
     reportSDoc "tc.meta.assign" 10 $ do
       "term" <+> prettyTCM (MetaV x es) <+> text (":" ++ show dir) <+> prettyTCM v
     nowSolvingConstraints doAssign `finally` solveAwakeConstraints
 
+  where dontAssign = do
+          reportSLn "tc.meta.assign" 10 "don't assign metas"
+          patternViolation
 
 -- | Miller pattern unification:
 --
