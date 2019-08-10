@@ -967,7 +967,8 @@ assignMeta' m x t n ids v = do
     whenM (optDoubleCheck <$> pragmaOptions) $ noConstraints $ dontAssignMetas $ do
       m <- lookupMeta x
       reportSDoc "tc.meta.check" 30 $ "double checking solution"
-      addContext tel' $ checkSolutionForMeta x m v' a
+      catchConstraint (CheckMetaInst x) $
+        addContext tel' $ checkSolutionForMeta x m v' a
 
     reportSDoc "tc.meta.assign" 10 $
       "solving" <+> prettyTCM x <+> ":=" <+> prettyTCM vsol
@@ -985,6 +986,24 @@ assignMeta' m x t n ids v = do
           equalTermOnFace (neg `apply1` r) t x v
           equalTermOnFace r  t y v
         return v
+
+-- | Check that the instantiation of the given metavariable fits the
+--   type of the metavariable. If the metavariable is not yet
+--   instantiated, add a constraint to check the instantiation later.
+checkMetaInst :: MetaId -> TCM ()
+checkMetaInst x = do
+  m <- lookupMeta x
+  let postpone = addConstraint $ CheckMetaInst x
+  case mvInstantiation m of
+    BlockedConst{} -> postpone
+    PostponedTypeCheckingProblem{} -> postpone
+    Open{} -> postpone
+    OpenInstance{} -> postpone
+    InstV xs v -> do
+      let n = size xs
+          t = jMetaType $ mvJudgement m
+      (telv@(TelV tel a),bs) <- telViewUpToPathBoundary n t
+      catchConstraint (CheckMetaInst x) $ addContext tel $ checkSolutionForMeta x m v a
 
 -- | Check that the instantiation of the metavariable with the given
 --   term is well-typed.

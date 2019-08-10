@@ -261,6 +261,7 @@ constraintMetas c = metas c
       CheckSizeLtSat{}         -> return mempty
       HasBiggerSort{}          -> return mempty
       HasPTSRule{}             -> return mempty
+      CheckMetaInst x          -> return mempty
 
     -- For blocked constant twin variables
     listenerMetas EtaExpand{}           = return Set.empty

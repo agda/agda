@@ -968,6 +968,7 @@ data Constraint
 --    -- ^ A delayed instantiation.  Replaces @ValueCmp@ in 'postponeTypeCheckingProblem'.
   | HasBiggerSort Sort
   | HasPTSRule (Dom Type) (Abs Sort)
+  | CheckMetaInst MetaId
   | UnBlock MetaId
   | Guarded Constraint ProblemId
   | IsEmpty Range Type
@@ -1017,6 +1018,7 @@ instance Free Constraint where
       HasBiggerSort s       -> freeVars' s
       HasPTSRule a s        -> freeVars' (a , s)
       UnquoteTactic _ t h g -> freeVars' (t, (h, g))
+      CheckMetaInst m       -> mempty
 
 instance TermLike Constraint where
   foldTerm f = \case
@@ -1036,6 +1038,7 @@ instance TermLike Constraint where
       CheckFunDef _ _ _ _    -> mempty
       HasBiggerSort s        -> foldTerm f s
       HasPTSRule a s         -> foldTerm f (a, s)
+      CheckMetaInst m        -> mempty
   traverseTermM f c = __IMPOSSIBLE__ -- Not yet implemented
 
 

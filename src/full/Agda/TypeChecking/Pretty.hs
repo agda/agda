@@ -333,6 +333,11 @@ instance PrettyTCM Constraint where
         UnquoteTactic _ v _ _ -> do
           e <- reify v
           prettyTCM (A.App A.defaultAppInfo_ (A.Unquote A.exprNoRange) (defaultNamedArg e))
+        CheckMetaInst x -> do
+          m <- lookupMeta x
+          case mvJudgement m of
+            HasType{ jMetaType = t } -> prettyTCM x <+> ":" <+> prettyTCM t
+            IsSort{} -> prettyTCM x <+> "is a sort"
 
       where
         prettyCmp

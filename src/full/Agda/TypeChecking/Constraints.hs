@@ -276,6 +276,7 @@ solveConstraint_ (CheckFunDef d i q cs)       = withoutCache $
   checkFunDef d i q cs
 solveConstraint_ (HasBiggerSort a)            = hasBiggerSort a
 solveConstraint_ (HasPTSRule a b)             = hasPTSRule a b
+solveConstraint_ (CheckMetaInst m)            = checkMetaInst m
 
 checkTypeCheckingProblem :: TypeCheckingProblem -> TCM Term
 checkTypeCheckingProblem p = case p of

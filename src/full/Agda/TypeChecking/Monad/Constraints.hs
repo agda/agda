@@ -185,6 +185,7 @@ addConstraintTo bucket c = do
     isBlocking HasBiggerSort{} = False
     isBlocking HasPTSRule{}  = False
     isBlocking UnquoteTactic{} = True
+    isBlocking CheckMetaInst{} = True
 
 -- | Start solving constraints
 nowSolvingConstraints :: MonadTCEnv m => m a -> m a

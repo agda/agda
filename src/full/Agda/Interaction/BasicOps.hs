@@ -469,6 +469,10 @@ instance Reify Constraint (OutputConstraint Expr Expr) where
     reify (HasPTSRule a b) = do
       (a,(x,b)) <- reify (unDom a,b)
       return $ PTSInstance a b
+    reify (CheckMetaInst m) = do
+      t <- jMetaType . mvJudgement <$> lookupMeta m
+      OfType <$> reify (MetaV m []) <*> reify t
+
 
 instance (Pretty a, Pretty b) => Pretty (OutputForm a b) where
   pretty (OutputForm r pids c)

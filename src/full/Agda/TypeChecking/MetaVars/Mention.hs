@@ -119,6 +119,7 @@ instance MentionsMeta Constraint where
     UnquoteTactic bl tac hole goal -> case bl of
       Nothing -> False
       Just m  -> HashSet.member m xs
+    CheckMetaInst m     -> True   -- TODO
     where
       mm v = mentionsMetas xs v
 
