@@ -76,7 +76,7 @@ Courses using Agda
   , research level course at the University of Edinburgh by Conor McBride.
 - `Agda <https://people.inf.elte.hu/divip/AgdaTutorial/Index.html>`__
   , introductory course for master students at ELTE Eötvös Collegium in Budapest by Péter Diviánszky and Ambrus Kaposi.
-- `Types for Programs and Proofs <http://www.cse.chalmers.se/edu/course/DAT140__Types/>`__
+- `Types for Programs and Proofs <http://www.cse.chalmers.se/edu/course/DAT140/>`__
   , course at Chalmers University of Technology.
 - `Advanced Functional Programming <https://www.tcs.ifi.lmu.de/lehre/ss-2012/fun>`__
   (in German), course at Ludwig-Maximilians-University Munich.
