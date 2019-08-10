@@ -41,7 +41,7 @@ data All {A : Set}
   []  : All P []
   _∷_ : ∀ {x xs} (px : P x) (pxs : All P xs) → All P (x ∷ xs)
 
-_⋐_ : ∀{A} (P Q : A → Set) → Set
+_⋐_ : ∀{A : Set} (P Q : A → Set) → Set
 P ⋐ Q = ∀{x} → P x → Q x
 
 map-all : ∀ {A : Set} {P : A → Set} {Q : A → Set} →

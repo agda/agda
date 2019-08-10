@@ -2,7 +2,7 @@
 
 module SizedTypesScopeViolationInMeta where
 
-open import Size
+open import Agda.Builtin.Size
 
 data Nat : {size : Size} -> Set where
   zero : {size : Size} -> Nat {↑ size}

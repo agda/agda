@@ -1,7 +1,0 @@
-AGDA_FAILURE
-
-ret > ExitFailure 1
-out > Issue1023.agda:18,6-11
-out > Set₁ is not less or equal than Set
-out > when checking the definition of _<->_
-out >
