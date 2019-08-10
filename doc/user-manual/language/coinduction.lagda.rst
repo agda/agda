@@ -116,7 +116,7 @@ Old Coinduction
    This is the old way of coinduction support in Agda. You are advised to use
    :ref:`copatterns-coinductive-records` instead.
 
-To use coinduction it is recommended that you import the module Coinduction from the `standard library <http://wiki.portal.chalmers.se/agda/pmwiki.php?n=Libraries.StandardLibrary>`_. Coinductive types can then be defined by labelling coinductive occurrences using the delay operator ``∞``:
+To use coinduction it is recommended that you import the module Coinduction from the `standard library <https://wiki.portal.chalmers.se/agda/pmwiki.php?n=Libraries.StandardLibrary>`_. Coinductive types can then be defined by labelling coinductive occurrences using the delay operator ``∞``:
 
 ..
   ::

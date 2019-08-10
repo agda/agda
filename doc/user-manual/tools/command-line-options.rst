@@ -532,5 +532,5 @@ again, the source file is re-typechecked instead:
 * ``--warning``
 
 
-.. _Vim: http://www.vim.org/
+.. _Vim: https://www.vim.org/
 .. _Dot: http://www.graphviz.org/content/dot-language

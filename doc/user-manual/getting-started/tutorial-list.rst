@@ -14,7 +14,7 @@ Introduction to Agda
    - `Dependent Types at Work <http://www.cse.chalmers.se/~peterd/papers/DependentTypesAtWork.pdf>`__.
      A gentle introduction including logic and proofs of programs.
 - Ana Bove, Peter Dybjer, and Ulf Norell.
-   - `A Brief Overview of Agda - A Functional Language with Dependent Types <http://wiki.portal.chalmers.se/agda/pmwiki.php?n=Main.Documentation?action=download&upname=AgdaOverview2009.pdf>`__
+   - `A Brief Overview of Agda - A Functional Language with Dependent Types <https://wiki.portal.chalmers.se/agda/pmwiki.php?n=Main.Documentation?action=download&upname=AgdaOverview2009.pdf>`__
      (in TPHOLs 2009) with an example of reflection.
      `Code <http://www.cse.chalmers.se/~ulfn/code/tphols09/>`__
 - Anton Setzer.
@@ -23,10 +23,10 @@ Introduction to Agda
      introduction of Agda for students with a very basic background in logic
      and functional programming.
 - Daniel Peebles.
-   - `Introduction to Agda <http://www.youtube.com/playlist?p=B7F836675DCE009C>`__.
+   - `Introduction to Agda <https://www.youtube.com/playlist?p=B7F836675DCE009C>`__.
      Video of talk from the January 2011 Boston Haskell session at MIT.
 - Conor McBride.
-   - `Introduction to Dependently Typed Programming using Agda <http://www.youtube.com/playlist?list=PL44F162A8B8CB7C87>`__.
+   - `Introduction to Dependently Typed Programming using Agda <https://www.youtube.com/playlist?list=PL44F162A8B8CB7C87>`__.
      (videos of lectures).
      `Associated source files, with exercises <http://personal.cis.strath.ac.uk/~conor/pub/dtp/>`__.
 - Andreas Abel.
@@ -35,9 +35,9 @@ Introduction to Agda
      introduction to Agda, Curry-Howard, equality, and verification
      of optimizations like fusion.
 - Jan Malakhovski.
-   - `Brutal [Meta]Introduction to Dependent Types in Agda <http://oxij.org/note/BrutalDepTypes/>`__
+   - `Brutal [Meta]Introduction to Dependent Types in Agda <https://oxij.org/note/BrutalDepTypes/>`__
 - Thorsten Altenkirch.
-   - `Computer Aided Formal Reasoning <http://www.cs.nott.ac.uk/~txa/g53cfr/>`__
+   - `Computer Aided Formal Reasoning <http://www.cs.nott.ac.uk/~psztxa/g53cfr/>`__
      \- online lecture notes
 - Daniel Licata.
    - `Dependently Typed Programming in Agda <https://www.cs.uoregon.edu/research/summerschool/summer13/curriculum.html>`__
@@ -57,28 +57,28 @@ Introduction to Agda
 Courses using Agda
 ==================
 
-- `Computer Aided Reasoning <http://www.cs.nott.ac.uk/~txa/g53cfr/>`__
+- `Computer Aided Reasoning <http://www.cs.nott.ac.uk/~psztxa/g53cfr/>`__
   Material for a 3rd / 4th year course (g53cfr, g54 cfr) at the university of Nottingham 2010 by Thorsten Altenkirch
-- `Type Theory in Rosario <http://www.cs.nott.ac.uk/~txa/rosario/>`__
+- `Type Theory in Rosario <http://www.cs.nott.ac.uk/~psztxa/rosario/>`__
   Material for an Agda course in Rosario, Argentina in 2011 by  Thorsten Altenkirch
 - `Software System Design and Implementation <http://www.cse.unsw.edu.au/~cs3141/>`__
   , undergrad(?) course at the University of New South Wales by Manuel Chakravarty.
-- `Tüübiteooria / Type Theory <http://courses.cs.ut.ee/2011/typet/Main/HomePage>`__
+- `Tüübiteooria / Type Theory <https://courses.cs.ut.ee/2011/typet/Main/HomePage>`__
   , graduate course at the University of Tartu by Varmo Vene and James Chapman.
-- `Advanced Topics in Programming Languages: Dependent Type Systems <http://www.seas.upenn.edu/~sweirich/cis670/09/>`__
+- `Advanced Topics in Programming Languages: Dependent Type Systems <https://www.seas.upenn.edu/~sweirich/cis670/09/>`__
   , course at the University of Pennsylvania by Stephanie Weirich.
-- `Categorical Logic <http://www.cl.cam.ac.uk/teaching/0910/L20/>`__
+- `Categorical Logic <https://www.cl.cam.ac.uk/teaching/0910/L20/>`__
   , course at the University of Cambridge by Samuel Staton.
   - `More info and feedback <http://permalink.gmane.org/gmane.comp.lang.agda/1579>`__
 - `Dependently typed functional languages <http://www1.eafit.edu.co/asr/courses/dependently-typed-functional-languages/>`_
   , master level course at EAFIT University by Andrés Sicard-Ramírez.
 - `Introduction to Dependently Typed Programming using Agda <http://homepages.inf.ed.ac.uk/s0894694/agda-course/>`__
   , research level course at the University of Edinburgh by Conor McBride.
-- `Agda <http://people.inf.elte.hu/divip/AgdaTutorial/Index.html>`__
+- `Agda <https://people.inf.elte.hu/divip/AgdaTutorial/Index.html>`__
   , introductory course for master students at ELTE Eötvös Collegium in Budapest by Péter Diviánszky and Ambrus Kaposi.
 - `Types for Programs and Proofs <http://www.cse.chalmers.se/edu/course/DAT140__Types/>`__
   , course at Chalmers University of Technology.
-- `Advanced Functional Programming <http://www.tcs.ifi.lmu.de/lehre/ss-2012/fun>`__
+- `Advanced Functional Programming <https://www.tcs.ifi.lmu.de/lehre/ss-2012/fun>`__
   (in German), course at Ludwig-Maximilians-University Munich.
 - `Dependently typed metaprogramming (in Agda) <https://danel.ahman.ee/agda-course-13/>`__
   , Summer (2013) course at the University of Cambridge by Conor McBride.
@@ -96,4 +96,4 @@ Miscellaneous
 =============
 
 - Agda has a `Wikipedia page
-  <https://en.wikipedia.org/wiki/Agda__(programming__language)>`__
+  <https://en.wikipedia.org/wiki/Agda_(programming_language)>`__
