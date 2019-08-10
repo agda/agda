@@ -1,10 +1,6 @@
-AGDA_FAILURE
-
-ret > ExitFailure 1
-out > ImpossiblePattern.agda:5,1-8
-out > Could not parse the left-hand side f (_ _)
-out > Operators used in the grammar:
-out >   None
-out > when scope checking the left-hand side f (_ _) in the definition of
-out > f
-out >
+ImpossiblePattern.agda:5,1-8
+Could not parse the left-hand side f (_ _)
+Operators used in the grammar:
+  None
+when scope checking the left-hand side f (_ _) in the definition of
+f
