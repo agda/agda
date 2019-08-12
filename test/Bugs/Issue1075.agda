@@ -41,7 +41,7 @@ data All {A : Set}
   []  : All P []
   _∷_ : ∀ {x xs} (px : P x) (pxs : All P xs) → All P (x ∷ xs)
 
-_⋐_ : ∀{A} (P Q : A → Set) → Set
+_⋐_ : ∀{A : Set} (P Q : A → Set) → Set
 P ⋐ Q = ∀{x} → P x → Q x
 
 map-all : ∀ {A : Set} {P : A → Set} {Q : A → Set} →
@@ -76,10 +76,6 @@ data Conc : Set where
   Inv  : (A : Type ⁻) → Conc
   True : (A : Type ⁺) → Conc
   Susp : (A : Type ⁻) → Conc
-
-
-
-
 
 stable : Conc → Set
 stable (Inv A) = ⊥
@@ -420,7 +416,7 @@ rsubst+ Γ' pfΓ pf (⊤⁺ ∷ LA+) LA- LT (_ ∷ Values) (⊤⁺L N) =  rsubst
 -- ... | proj₁ , ()
 rsubst+ Γ' pfΓ pf ((x ∧⁺ x₁) ∷ LA+) LA- LT (∧⁺R V₁ V₂ ∷ Values) (∧⁺L N) =
   rsubst+ Γ' pfΓ pf (x ∷ x₁ ∷ LA+) LA- LT (V₁ ∷ V₂ ∷ Values) N
-rsubst+ {_} {_} {_} _ _ _ _ _ _ _ _ = ?
+rsubst+ {_} {_} {_} _ _ _ _ _ _ _ _ = {!!}
 
 
 
@@ -439,4 +435,3 @@ lsubst pfΓ pf (↑L M) N = ↑L (lsubst pfΓ pf M N)
 lsubst pfΓ pf (⊃L V Sp) N = ⊃L V (lsubst pfΓ pf Sp N)
 lsubst pfΓ pf (∧⁻L₁ Sp) N = ∧⁻L₁ (lsubst pfΓ pf Sp N)
 lsubst pfΓ pf (∧⁻L₂ Sp) N = ∧⁻L₂ (lsubst pfΓ pf Sp N)
-
