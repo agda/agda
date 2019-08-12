@@ -186,7 +186,7 @@ Installation of the Development Version
 =======================================
 
 After getting the development version following the instructions in
-the `Agda wiki <http://wiki.portal.chalmers.se/agda/pmwiki.php>`_:
+the `Agda wiki <https://wiki.portal.chalmers.se/agda/pmwiki.php>`_:
 
 * Install the :ref:`prerequisites <prerequisites>`
 

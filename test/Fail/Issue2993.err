@@ -21,10 +21,10 @@ Failed to solve the following constraints:
     applicativeComp :
       {F G : Set → Set} ⦃ _ : Applicative F ⦄ ⦃ _ : Applicative G ⦄ →
       Applicative (F o G)
-  [242, 243] F₁ B₁ =< _F_166 _B_164 : Set
-  [242] _F_166 (Vec _B_164 n) =< F₁ (Vec B₁ n) : Set
-  [222] F B =< _F_160 _B_152 : Set
-  [227] _F_160 (Vec _B_152 n₁) =< F (Vec B n₁) : Set
+  [242, 243] F₁ B₁ =< _F_166 _B_164 
+  [242] _F_166 (Vec _B_164 n) =< F₁ (Vec B₁ n) 
+  [222] F B =< _F_160 _B_152 
+  [227] _F_160 (Vec _B_152 n₁) =< F (Vec B n₁) 
 Unsolved metas at the following locations:
   Issue2993.agda:66,80-83
   Issue2993.agda:66,84-85

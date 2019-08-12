@@ -681,7 +681,7 @@ interpret (Cmd_autoOne ii rng hint) = do
     case autoMessage res of
      Nothing  -> return ()
      Just msg -> display_info $ Info_Auto msg
-    putResponse $ Resp_MakeCase R.Function cs
+    putResponse $ Resp_MakeCase ii R.Function cs
    Refinement s -> give_gen WithoutForce ii rng s Refine
   maybe (return ()) (display_info . Info_Time) time
 
@@ -785,7 +785,7 @@ interpret (Cmd_make_case ii rng s) = do
         [ "cs   = " TCP.<+> TCP.text (show cs)
         ]
       ]
-    putResponse $ Resp_MakeCase (makeCaseVariant casectxt) pcs'
+    putResponse $ Resp_MakeCase ii (makeCaseVariant casectxt) pcs'
   where
     decorate = renderStyle (style { mode = OneLineMode })
 

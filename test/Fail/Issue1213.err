@@ -1,3 +1,3 @@
 Issue1213.agda:23,8-10
-⊤ !=< ⊥ of type Set _a_16
+⊤ !=< ⊥
 when checking that the expression tt has type IsZero (suc _15)

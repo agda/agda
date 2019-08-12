@@ -616,9 +616,9 @@ Expr :: { Expr }
 Expr
   : TeleArrow Expr                      { Pi $1 $2 }
   | Application3 '->' Expr              { Fun (getRange ($1,$2,$3))
-                                              (defaultArg $ RawApp (getRange $1) $1)
+                                              (defaultArg $ rawAppUnlessSingleton (getRange $1) $1)
                                               $3 }
-  | Attributes1 Application3 '->' Expr  {% applyAttrs $1 (defaultArg $ RawApp (getRange ($1,$2)) $2) <&> \ dom ->
+  | Attributes1 Application3 '->' Expr  {% applyAttrs $1 (defaultArg $ rawAppUnlessSingleton (getRange ($1,$2)) $2) <&> \ dom ->
                                              Fun (getRange ($1,$2,$3,$4)) dom $4 }
   | Expr1 '=' Expr                      { Equal (getRange ($1, $2, $3)) $1 $3 }
   | Expr1 %prec LOWEST                  { $1 }
@@ -1975,6 +1975,15 @@ isName s (_,s')
 -- | Build a forall pi (forall x y z -> ...)
 forallPi :: [LamBinding] -> Expr -> Expr
 forallPi bs e = Pi (map addType bs) e
+
+-- | Builds a 'RawApp' from 'Range' and 'Expr' list, unless the list
+-- is a single expression.  In the latter case, just the 'Expr' is
+-- returned.
+rawAppUnlessSingleton :: Range -> [Expr] -> Expr
+rawAppUnlessSingleton r = \case
+  []  -> __IMPOSSIBLE__
+  [e] -> e
+  es  -> RawApp r es
 
 -- | Converts lambda bindings to typed bindings.
 addType :: LamBinding -> TypedBinding

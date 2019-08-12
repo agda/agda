@@ -171,16 +171,33 @@ instance Match t a b => Match t (Dom a) (Dom b) where
   match r gamma k t p v = match r gamma k t (unDom p) (unDom v)
 
 instance Match () NLPType Type where
-  match r gamma k _ (NLPType lp p) (El s a) = workOnTypes $ do
-    match r gamma k () lp s
+  match r gamma k _ (NLPType sp p) (El s a) = workOnTypes $ do
+    match r gamma k () sp s
     match r gamma k (sort s) p a
 
--- We mine sort annotations for solutions to pattern variables of type
--- Level, but a wrong sort can never block reduction.
-instance Match () NLPat Sort where
-  match r gamma k _ p s = case s of
-    Type l -> match Irrelevant gamma k () p l
-    _      -> return ()
+instance Match () NLPSort Sort where
+  match r gamma k _ p s = do
+    bs <- reduceB s
+    let b = void bs
+        s = ignoreBlocking bs
+        yes = return ()
+        no  = matchingBlocked $ NotBlocked ReallyNotBlocked ()
+    traceSDoc "rewriting.match" 30 (sep
+      [ "matching pattern " <+> addContext (gamma `abstract` k) (prettyTCM p)
+      , "  with sort      " <+> addContext k (prettyTCM s) ]) $ do
+    case (p , s) of
+      (PType lp  , Type l  ) -> match r gamma k () lp l
+      (PProp lp  , Prop l  ) -> match r gamma k () lp l
+      (PInf      , Inf     ) -> yes
+      (PSizeUniv , SizeUniv) -> yes
+
+      -- blocked cases
+      (_ , UnivSort{}) -> matchingBlocked b
+      (_ , PiSort{}  ) -> matchingBlocked b
+      (_ , MetaS m _ ) -> matchingBlocked $ Blocked m ()
+
+      -- all other cases do not match
+      (_ , _) -> no
 
 instance Match () NLPat Level where
   match r gamma k _ p l = do

@@ -1,0 +1,6 @@
+Issue3966.agda:34,1-43
+I'm not sure if there should be a case for the constructor refl,
+because I get stuck when trying to solve the following unification
+problems (inferred index ≟ expected index):
+  ⊆-trans (x ∷ʳ σ') ρ ≟ refl ∷ σ
+when checking the definition of test

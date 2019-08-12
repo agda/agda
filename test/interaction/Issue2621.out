@@ -4,7 +4,7 @@
 (agda2-status-action "")
 (agda2-info-action "*All Goals*" "?0 : b ≡ c _k_61 : ℕ [ at Issue2621.agda:16,70-76 ] " nil)
 ((last . 1) . (agda2-goals-action '(0)))
-(agda2-info-action "*Error*" "Issue2621.agda:17,23-30 I'm not sure if there should be a case for the constructor [], because I get stuck when trying to solve the following unification problems (inferred index ≟ expected index): {_} ≟ {_} [] ≟ a₁ [] ≟ b₁ when checking that the expression ? has type b ≡ c" nil)
+(agda2-info-action "*Error*" "Issue2621.agda:17,23-30 I'm not sure if there should be a case for the constructor [], because I get stuck when trying to solve the following unification problems (inferred index ≟ expected index): {zero} ≟ {_k_61 (R = R₁) (h = h₁)} [] ≟ a₁ [] ≟ b₁ when checking that the expression ? has type b ≡ c" nil)
 ((last . 3) . (agda2-maybe-goto '("Issue2621.agda" . 620)))
 (agda2-highlight-load-and-delete-action)
 (agda2-status-action "")

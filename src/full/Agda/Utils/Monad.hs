@@ -201,6 +201,11 @@ first `finally` after = do
 tryMaybe :: (MonadError e m, Functor m) => m a -> m (Maybe a)
 tryMaybe m = (Just <$> m) `catchError` \ _ -> return Nothing
 
+-- | Run a command, catch the exception and return it.
+
+tryCatch :: (MonadError e m, Functor m) => m () -> m (Maybe e)
+tryCatch m = (Nothing <$ m) `catchError` \ err -> return $ Just err
+
 -- State monad ------------------------------------------------------------
 
 -- | Bracket without failure.  Typically used to preserve state.

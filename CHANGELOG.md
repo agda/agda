@@ -141,6 +141,8 @@ Language
 
 ### Syntax
 
+* Implicit non-dependent function spaces `{A} → B` and `{{A}} → B` are now supported.
+
 * Idiom brackets
 
   Idiom brackets can accommodate none or multiple applications separated by a vertical bar `|`
@@ -206,6 +208,12 @@ Language
   eta : (p@(a , b) : Σ A B) → p ≡ (a , b)
   eta p = refl
   ```
+
+* Absurd match in a do block
+  The last expression in a do block can now also be an absurd match `() <- f`.
+
+* `{{-` is now lexed as `{ {-` rather than `{{ -`,
+  see issue [#3962](https://github.com/agda/agda/issues/3962).
 
 ### Termination checking
 

@@ -1,5 +1,5 @@
 Failed to solve the following constraints:
-  [14] Nat =< _B_19 zero : Set
+  [14] Nat =< _B_19 zero
 Unsolved metas at the following locations:
   Issue2120.agda:16,10-36
   Issue2120.agda:16,48-49

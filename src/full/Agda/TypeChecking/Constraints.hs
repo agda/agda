@@ -222,7 +222,7 @@ solveConstraintTCM c = do
       solveConstraint_ c
 
 solveConstraint_ :: Constraint -> TCM ()
-solveConstraint_ (ValueCmp cmp a u v)       = compareTerm cmp a u v
+solveConstraint_ (ValueCmp cmp a u v)       = compareAs cmp a u v
 solveConstraint_ (ValueCmpOnFace cmp p a u v) = compareTermOnFace cmp p a u v
 solveConstraint_ (ElimCmp cmp fs a e u v)   = compareElims cmp fs a e u v
 solveConstraint_ (TypeCmp cmp a b)          = compareType cmp a b
@@ -241,7 +241,7 @@ solveConstraint_ (IsEmpty r t)              = ensureEmptyType r t
 solveConstraint_ (CheckSizeLtSat t)         = checkSizeLtSat t
 solveConstraint_ (UnquoteTactic _ tac hole goal) = unquoteTactic tac hole goal
 solveConstraint_ (UnBlock m)                =
-  ifM (isFrozen m) (addConstraint $ UnBlock m) $ do
+  ifM (isFrozen m `or2M` (not <$> asksTC envAssignMetas)) (addConstraint $ UnBlock m) $ do
     inst <- mvInstantiation <$> lookupMeta m
     reportSDoc "tc.constr.unblock" 15 $ text ("unblocking a metavar yields the constraint: " ++ show inst)
     case inst of
@@ -276,6 +276,7 @@ solveConstraint_ (CheckFunDef d i q cs)       = withoutCache $
   checkFunDef d i q cs
 solveConstraint_ (HasBiggerSort a)            = hasBiggerSort a
 solveConstraint_ (HasPTSRule a b)             = hasPTSRule a b
+solveConstraint_ (CheckMetaInst m)            = checkMetaInst m
 
 checkTypeCheckingProblem :: TypeCheckingProblem -> TCM Term
 checkTypeCheckingProblem p = case p of

@@ -1,5 +1,5 @@
 Issue1194j.agda:21,8-13
-D₂ !=< D₁ of type Set
+D₂ !=< D₁
 when checking that the inferred type of an application
   D₂
 matches the expected type

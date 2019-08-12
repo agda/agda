@@ -6,5 +6,5 @@
 ((last . 1) . (agda2-goals-action '(0)))
 (agda2-give-action 0 "∀ B → B")
 (agda2-status-action "")
-(agda2-info-action "*All Goals, Errors*" "Sort _6 [ at 1,7-8 ] ———— Errors ———————————————————————————————————————————————— Failed to solve the following constraints: _6 =< _6 Has bigger sort: _6 piSort (univSort _6) (λ _ → _6) = Set ℓ univSort (piSort (univSort _6) (λ _ → _6)) = Set (Agda.Primitive.lsuc ℓ) " nil)
+(agda2-info-action "*All Goals, Errors*" "Sort _6 [ at 1,7-8 ] ———— Errors ———————————————————————————————————————————————— Failed to solve the following constraints: _6 =< _6 Has bigger sort: _6 univSort (piSort (univSort _6) (λ _ → _6)) = Set (Agda.Primitive.lsuc ℓ) piSort (univSort _6) (λ _ → _6) = Set ℓ " nil)
 ((last . 1) . (agda2-goals-action '()))

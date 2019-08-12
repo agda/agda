@@ -1,4 +1,4 @@
-Issue1986u.agda:21,1-22,13
+Issue1986u.agda:21,1-22,2
 Cannot split into projections because not all clauses have a
 projection copattern
 when checking the definition of p

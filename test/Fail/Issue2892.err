@@ -1,5 +1,5 @@
-Issue2892.agda:6,1-25
+Issue2892.agda:6,1-21
 Ill-typed pattern after with abstraction:  y
 (perhaps you can replace it by '_'?)
-when checking that the clause Issue2892.with-14 A X y = ? has type
-(A w : Set) (x : w) → Set
+when checking the clause left hand side
+Issue2892.with-14 A X y

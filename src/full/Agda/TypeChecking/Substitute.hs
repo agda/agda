@@ -294,16 +294,17 @@ instance Apply Defn where
     DataOrRecSig n -> DataOrRecSig (n - length args)
     GeneralizableVar{} -> d
     AbstractDefn d -> AbstractDefn $ apply d args
-    Function{ funClauses = cs, funCompiled = cc, funInv = inv
+    Function{ funClauses = cs, funCompiled = cc, funCovering = cov, funInv = inv
             , funExtLam = extLam
             , funProjection = Nothing } ->
       d { funClauses    = apply cs args
         , funCompiled   = apply cc args
+        , funCovering   = apply cov args
         , funInv        = apply inv args
         , funExtLam     = modifySystem (`apply` args) <$> extLam
         }
 
-    Function{ funClauses = cs, funCompiled = cc, funInv = inv
+    Function{ funClauses = cs, funCompiled = cc, funCovering = cov, funInv = inv
             , funExtLam = extLam
             , funProjection = Just p0} ->
       case p0 `apply` args of
@@ -315,6 +316,7 @@ instance Apply Defn where
           | otherwise ->
               d { funClauses        = apply cs args'
                 , funCompiled       = apply cc args'
+                , funCovering       = apply cov args'
                 , funInv            = apply inv args'
                 , funProjection     = if isVar0 then Just p{ projIndex = 0 } else Nothing
                 , funExtLam         = modifySystem (\ _ -> __IMPOSSIBLE__) <$> extLam
@@ -640,15 +642,16 @@ instance Abstract Defn where
     DataOrRecSig n -> DataOrRecSig (size tel + n)
     GeneralizableVar{} -> d
     AbstractDefn d -> AbstractDefn $ abstract tel d
-    Function{ funClauses = cs, funCompiled = cc, funInv = inv
+    Function{ funClauses = cs, funCompiled = cc, funCovering = cov, funInv = inv
             , funExtLam = extLam
             , funProjection = Nothing  } ->
       d { funClauses  = abstract tel cs
         , funCompiled = abstract tel cc
+        , funCovering = abstract tel cov
         , funInv      = abstract tel inv
         , funExtLam   = modifySystem (abstract tel) <$> extLam
         }
-    Function{ funClauses = cs, funCompiled = cc, funInv = inv
+    Function{ funClauses = cs, funCompiled = cc, funCovering = cov, funInv = inv
             , funExtLam = extLam
             , funProjection = Just p } ->
       -- Andreas, 2015-05-11 if projection was applied to Var 0
@@ -656,6 +659,7 @@ instance Abstract Defn where
       if projIndex p > 0 then d' else
         d' { funClauses  = abstract tel1 cs
            , funCompiled = abstract tel1 cc
+           , funCovering = abstract tel1 cov
            , funInv      = abstract tel1 inv
            , funExtLam   = modifySystem (\ _ -> __IMPOSSIBLE__) <$> extLam
            }
@@ -895,6 +899,13 @@ instance Subst NLPat NLPat where
 instance Subst NLPat NLPType where
   applySubst rho (NLPType s a) = NLPType (applySubst rho s) (applySubst rho a)
 
+instance Subst NLPat NLPSort where
+  applySubst rho = \case
+    PType l   -> PType $ applySubst rho l
+    PProp l   -> PProp $ applySubst rho l
+    PInf      -> PInf
+    PSizeUniv -> PSizeUniv
+
 instance Subst NLPat RewriteRule where
   applySubst rho (RewriteRule q gamma f ps rhs t) =
     RewriteRule q (applyNLPatSubst rho gamma)
@@ -940,8 +951,13 @@ instance Subst Term Constraint where
     HasBiggerSort s          -> HasBiggerSort (rf s)
     HasPTSRule a s           -> HasPTSRule (rf a) (rf s)
     UnquoteTactic m t h g    -> UnquoteTactic m (rf t) (rf h) (rf g)
+    CheckMetaInst m          -> CheckMetaInst m
     where
       rf x = applySubst rho x
+
+instance Subst Term CompareAs where
+  applySubst rho (AsTermsOf a) = AsTermsOf $ applySubst rho a
+  applySubst rho AsTypes       = AsTypes
 
 instance Subst t a => Subst t (Elim' a) where
   applySubst rho e = case e of
@@ -1221,6 +1237,7 @@ deriving instance (Subst t a, Eq a)  => Eq  (Tele a)
 deriving instance (Subst t a, Ord a) => Ord (Tele a)
 
 deriving instance Eq Constraint
+deriving instance Eq CompareAs
 deriving instance Eq Section
 
 instance Ord PlusLevel where

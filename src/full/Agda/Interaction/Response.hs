@@ -54,7 +54,7 @@ data Response
     | Resp_JumpToError FilePath Int32
     | Resp_InteractionPoints [InteractionId]
     | Resp_GiveAction InteractionId GiveResult
-    | Resp_MakeCase MakeCaseVariant [String]
+    | Resp_MakeCase InteractionId MakeCaseVariant [String]
       -- ^ Response is list of printed clauses.
     | Resp_SolveAll [(InteractionId, Expr)]
       -- ^ Solution for one or more meta-variables.

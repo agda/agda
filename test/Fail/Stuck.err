@@ -1,4 +1,4 @@
-Stuck.agda:12,1-10
+Stuck.agda:12,1-4
 I'm not sure if there should be a case for the constructor e,
 because I get stuck when trying to solve the following unification
 problems (inferred index ≟ expected index):

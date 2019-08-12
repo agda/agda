@@ -957,7 +957,7 @@ instance HasRange ProblemConstraint where
   getRange = getRange . theConstraint
 
 data Constraint
-  = ValueCmp Comparison Type Term Term
+  = ValueCmp Comparison CompareAs Term Term
   | ValueCmpOnFace Comparison Term Type Term Term
   | ElimCmp [Polarity] [IsForced] Type Term [Elim] [Elim]
   | TypeCmp Comparison Type Type
@@ -968,6 +968,7 @@ data Constraint
 --    -- ^ A delayed instantiation.  Replaces @ValueCmp@ in 'postponeTypeCheckingProblem'.
   | HasBiggerSort Sort
   | HasPTSRule (Dom Type) (Abs Sort)
+  | CheckMetaInst MetaId
   | UnBlock MetaId
   | Guarded Constraint ProblemId
   | IsEmpty Range Type
@@ -1017,6 +1018,7 @@ instance Free Constraint where
       HasBiggerSort s       -> freeVars' s
       HasPTSRule a s        -> freeVars' (a , s)
       UnquoteTactic _ t h g -> freeVars' (t, (h, g))
+      CheckMetaInst m       -> mempty
 
 instance TermLike Constraint where
   foldTerm f = \case
@@ -1036,6 +1038,7 @@ instance TermLike Constraint where
       CheckFunDef _ _ _ _    -> mempty
       HasBiggerSort s        -> foldTerm f s
       HasPTSRule a s         -> foldTerm f (a, s)
+      CheckMetaInst m        -> mempty
   traverseTermM f c = __IMPOSSIBLE__ -- Not yet implemented
 
 
@@ -1074,6 +1077,22 @@ dirToCmp :: (Comparison -> a -> a -> c) -> CompareDirection -> a -> a -> c
 dirToCmp cont DirEq  = cont CmpEq
 dirToCmp cont DirLeq = cont CmpLeq
 dirToCmp cont DirGeq = flip $ cont CmpLeq
+
+-- | We can either compare two terms at a given type, or compare two
+--   types without knowing (or caring about) their sorts.
+data CompareAs
+  = AsTermsOf Type
+  | AsTypes
+  deriving (Data, Show)
+
+instance Free CompareAs where
+  freeVars' (AsTermsOf a) = freeVars' a
+  freeVars' AsTypes       = mempty
+
+instance TermLike CompareAs where
+  foldTerm f (AsTermsOf a) = foldTerm f a
+  foldTerm f AsTypes       = mempty
+  traverseTermM f c = __IMPOSSIBLE__ -- not yet implemented
 
 ---------------------------------------------------------------------------
 -- * Open things
@@ -1455,9 +1474,16 @@ data NLPat
 type PElims = [Elim' NLPat]
 
 data NLPType = NLPType
-  { nlpTypeLevel :: NLPat  -- always PTerm or PVar (with all bound variables in scope)
-  , nlpTypeUnEl  :: NLPat
+  { nlpTypeSort :: NLPSort
+  , nlpTypeUnEl :: NLPat
   } deriving (Data, Show)
+
+data NLPSort
+  = PType NLPat
+  | PProp NLPat
+  | PInf
+  | PSizeUniv
+  deriving (Data, Show)
 
 type RewriteRules = [RewriteRule]
 
@@ -1755,7 +1781,7 @@ data Defn = Axiom -- ^ Postulate
               --   forcing translation.
             , funTreeless       :: Maybe Compiled
               -- ^ Intermediate representation for compiler backends.
-            , funCovering :: [Closure Clause]
+            , funCovering       :: [Clause]
               -- ^ Covering clauses computed by coverage checking.
               --   Erased by (IApply) confluence checking(?)
             , funInv            :: FunctionInverse
@@ -2225,42 +2251,45 @@ type Statistics = Map String Integer
 -- ** Trace
 ---------------------------------------------------------------------------
 
-data Call = CheckClause Type A.SpineClause
-          | CheckPattern A.Pattern Telescope Type
-          | CheckLetBinding A.LetBinding
-          | InferExpr A.Expr
-          | CheckExprCall Comparison A.Expr Type
-          | CheckDotPattern A.Expr Term
-          | CheckPatternShadowing A.SpineClause
-          | CheckProjection Range QName Type
-          | IsTypeCall A.Expr Sort
-          | IsType_ A.Expr
-          | InferVar Name
-          | InferDef QName
-          | CheckArguments Range [NamedArg A.Expr] Type (Maybe Type)
-          | CheckTargetType Range Type Type
-          | CheckDataDef Range QName [A.LamBinding] [A.Constructor]
-          | CheckRecDef Range QName [A.LamBinding] [A.Constructor]
-          | CheckConstructor QName Telescope Sort A.Constructor
-          | CheckConstructorFitsIn QName Type Sort
-          | CheckFunDefCall Range QName [A.Clause]
-          | CheckPragma Range A.Pragma
-          | CheckPrimitive Range QName A.Expr
-          | CheckIsEmpty Range Type
-          | CheckConfluence QName QName
-          | CheckWithFunctionType Type
-          | CheckSectionApplication Range ModuleName A.ModuleApplication
-          | CheckNamedWhere ModuleName
-          | ScopeCheckExpr C.Expr
-          | ScopeCheckDeclaration NiceDeclaration
-          | ScopeCheckLHS C.QName C.Pattern
-          | NoHighlighting
-          | ModuleContents  -- ^ Interaction command: show module contents.
-          | SetRange Range  -- ^ used by 'setCurrentRange'
-    deriving Data
+data Call
+  = CheckClause Type A.SpineClause
+  | CheckLHS A.SpineLHS
+  | CheckPattern A.Pattern Telescope Type
+  | CheckLetBinding A.LetBinding
+  | InferExpr A.Expr
+  | CheckExprCall Comparison A.Expr Type
+  | CheckDotPattern A.Expr Term
+  | CheckProjection Range QName Type
+  | IsTypeCall A.Expr Sort
+  | IsType_ A.Expr
+  | InferVar Name
+  | InferDef QName
+  | CheckArguments Range [NamedArg A.Expr] Type (Maybe Type)
+  | CheckMetaSolution Range MetaId Type Term
+  | CheckTargetType Range Type Type
+  | CheckDataDef Range QName [A.LamBinding] [A.Constructor]
+  | CheckRecDef Range QName [A.LamBinding] [A.Constructor]
+  | CheckConstructor QName Telescope Sort A.Constructor
+  | CheckConstructorFitsIn QName Type Sort
+  | CheckFunDefCall Range QName [A.Clause]
+  | CheckPragma Range A.Pragma
+  | CheckPrimitive Range QName A.Expr
+  | CheckIsEmpty Range Type
+  | CheckConfluence QName QName
+  | CheckWithFunctionType Type
+  | CheckSectionApplication Range ModuleName A.ModuleApplication
+  | CheckNamedWhere ModuleName
+  | ScopeCheckExpr C.Expr
+  | ScopeCheckDeclaration NiceDeclaration
+  | ScopeCheckLHS C.QName C.Pattern
+  | NoHighlighting
+  | ModuleContents  -- ^ Interaction command: show module contents.
+  | SetRange Range  -- ^ used by 'setCurrentRange'
+  deriving Data
 
 instance Pretty Call where
     pretty CheckClause{}             = "CheckClause"
+    pretty CheckLHS{}                = "CheckLHS"
     pretty CheckPattern{}            = "CheckPattern"
     pretty InferExpr{}               = "InferExpr"
     pretty CheckExprCall{}           = "CheckExprCall"
@@ -2271,6 +2300,7 @@ instance Pretty Call where
     pretty InferVar{}                = "InferVar"
     pretty InferDef{}                = "InferDef"
     pretty CheckArguments{}          = "CheckArguments"
+    pretty CheckMetaSolution{}       = "CheckMetaSolution"
     pretty CheckTargetType{}         = "CheckTargetType"
     pretty CheckDataDef{}            = "CheckDataDef"
     pretty CheckRecDef{}             = "CheckRecDef"
@@ -2285,7 +2315,6 @@ instance Pretty Call where
     pretty ScopeCheckDeclaration{}   = "ScopeCheckDeclaration"
     pretty ScopeCheckLHS{}           = "ScopeCheckLHS"
     pretty CheckDotPattern{}         = "CheckDotPattern"
-    pretty CheckPatternShadowing{}   = "CheckPatternShadowing"
     pretty SetRange{}                = "SetRange"
     pretty CheckSectionApplication{} = "CheckSectionApplication"
     pretty CheckIsEmpty{}            = "CheckIsEmpty"
@@ -2295,6 +2324,7 @@ instance Pretty Call where
 
 instance HasRange Call where
     getRange (CheckClause _ c)               = getRange c
+    getRange (CheckLHS lhs)                  = getRange lhs
     getRange (CheckPattern p _ _)            = getRange p
     getRange (InferExpr e)                   = getRange e
     getRange (CheckExprCall _ e _)           = getRange e
@@ -2305,6 +2335,7 @@ instance HasRange Call where
     getRange (InferVar x)                    = getRange x
     getRange (InferDef f)                    = getRange f
     getRange (CheckArguments r _ _ _)        = r
+    getRange (CheckMetaSolution r _ _ _)     = r
     getRange (CheckTargetType r _ _)         = r
     getRange (CheckDataDef i _ _ _)          = getRange i
     getRange (CheckRecDef i _ _ _)           = getRange i
@@ -2319,7 +2350,6 @@ instance HasRange Call where
     getRange (ScopeCheckDeclaration d)       = getRange d
     getRange (ScopeCheckLHS _ p)             = getRange p
     getRange (CheckDotPattern e _)           = getRange e
-    getRange (CheckPatternShadowing c)       = getRange c
     getRange (SetRange r)                    = r
     getRange (CheckSectionApplication r _ _) = r
     getRange (CheckIsEmpty r _)              = r
@@ -2816,7 +2846,9 @@ instance Free Candidate where
 data Warning
   = NicifierIssue            DeclarationWarning
   | TerminationIssue         [TerminationError]
-  | UnreachableClauses       QName [[NamedArg DeBruijnPattern]]
+  | UnreachableClauses       QName [Range]
+  -- ^ `UnreachableClauses f rs` means that the clauses in `f` whose ranges are rs
+  --   are unreachable
   | CoverageIssue            QName [(Telescope, [NamedArg DeBruijnPattern])]
   -- ^ `CoverageIssue f pss` means that `pss` are not covered in `f`
   | CoverageNoExactSplit     QName [Clause]
@@ -3149,7 +3181,7 @@ data TypeError
         | VariableIsErased Name
         | VariableIsOfUnusableCohesion Name Cohesion
 --        | UnequalLevel Comparison Term Term  -- UNUSED
-        | UnequalTerms Comparison Term Term Type
+        | UnequalTerms Comparison Term Term CompareAs
         | UnequalTypes Comparison Type Type
 --      | UnequalTelescopes Comparison Telescope Telescope -- UNUSED
         | UnequalRelevance Comparison Term Term
@@ -3973,6 +4005,12 @@ instance KillRange NLPat where
 
 instance KillRange NLPType where
   killRange (NLPType s a) = killRange2 NLPType s a
+
+instance KillRange NLPSort where
+  killRange (PType l) = killRange1 PType l
+  killRange (PProp l) = killRange1 PProp l
+  killRange PInf      = PInf
+  killRange PSizeUniv = PSizeUniv
 
 instance KillRange RewriteRule where
   killRange (RewriteRule q gamma f es rhs t) =

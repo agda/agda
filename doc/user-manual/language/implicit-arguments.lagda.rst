@@ -4,6 +4,8 @@
   module language.implicit-arguments (A B : Set) (C : A → Set) where
 
   open import Agda.Builtin.Equality
+  open import Agda.Builtin.Unit using (⊤)
+  open import Agda.Builtin.Nat using (Nat; zero; suc)
 
   _is-the-same-as_ = _≡_
 
@@ -60,7 +62,7 @@ Another example:
 Note how the first argument to ``_==_`` is left implicit.
 Similarly, we may leave out the implicit arguments ``A``, ``x``, and ``y`` in an
 application of ``subst``.
-To give an implicit argument explicitly, enclose in curly braces.
+To give an implicit argument explicitly, enclose it in curly braces.
 The following two expressions are equivalent:
 
 ..
@@ -196,6 +198,31 @@ The ``∀`` (or ``forall``) syntax for function types also has implicit variants
   ① = refl
   ② = refl
   ③ = refl
+
+
+In very special situations it makes sense to declare *unnamed* hidden arguments
+``{A} → B``.  In the following ``example``, the hidden argument to ``scons`` of type
+``zero ≤ zero`` can be solved by η-expansion, since this type reduces to ``⊤``.
+
+..
+  ::
+  module UnnamedImplicit where
+
+::
+
+    data ⊥ : Set where
+
+    _≤_ : Nat → Nat → Set
+    zero ≤ _      = ⊤
+    suc m ≤ zero  = ⊥
+    suc m ≤ suc n = m ≤ n
+
+    data SList (bound : Nat) : Set where
+      []    : SList bound
+      scons : (head : Nat) → {head ≤ bound} → (tail : SList head) → SList bound
+
+    example : SList zero
+    example = scons zero []
 
 There are no restrictions on when a function space can be implicit.
 Internally, explicit and implicit function spaces are treated in the same way.

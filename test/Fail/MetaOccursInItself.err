@@ -1,5 +1,5 @@
 Failed to solve the following constraints:
-  [16] _A_11 =< List _A_11 : Set
+  [16] _A_11 =< List _A_11
 Unsolved metas at the following locations:
   MetaOccursInItself.agda:18,9-10
   MetaOccursInItself.agda:18,18-19
