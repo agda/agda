@@ -111,6 +111,8 @@ errorWarnings = Set.fromList
   , SafeFlagNoPositivityCheck_
   , SafeFlagPolarity_
   , SafeFlagNoUniverseCheck_
+  , SafeFlagInjective_
+  , SafeFlagNoCoverageCheck_
   , TerminationIssue_
   , UnsolvedMetaVariables_
   , UnsolvedInteractionMetas_
@@ -185,8 +187,10 @@ data WarningName
   | PragmaCompileErased_
   | RewriteMaybeNonConfluent_
   | RewriteNonConfluent_
-  | SafeFlagNoPositivityCheck_
+  | SafeFlagInjective_
+  | SafeFlagNoCoverageCheck_
   | SafeFlagNonTerminating_
+  | SafeFlagNoPositivityCheck_
   | SafeFlagNoUniverseCheck_
   | SafeFlagPolarity_
   | SafeFlagPostulate_
@@ -304,6 +308,8 @@ warningNameDescription w = case w of
   PragmaCompileErased_             -> "`COMPILE' pragma targeting an erased symbol."
   RewriteMaybeNonConfluent_      -> "Failed confluence checks while computing overlap."
   RewriteNonConfluent_           -> "Failed confluence checks while joining critical pairs."
+  SafeFlagInjective_               -> "`INJECTIVE' pragmas with the safe flag."
+  SafeFlagNoCoverageCheck_         -> "`NON_COVERING` pragmas with the safe flag."
   SafeFlagNonTerminating_          -> "`NON_TERMINATING' pragmas with the safe flag."
   SafeFlagNoPositivityCheck_       -> "`NO_POSITIVITY_CHECK' pragmas with the safe flag."
   SafeFlagNoUniverseCheck_         -> "`NO_UNIVERSE_CHECK' pragmas with the safe flag."

@@ -2895,6 +2895,8 @@ data Warning
   | SafeFlagNoPositivityCheck
   | SafeFlagPolarity
   | SafeFlagNoUniverseCheck
+  | SafeFlagNoCoverageCheck
+  | SafeFlagInjective
   | ParseWarning             ParseWarning
   | LibraryWarning           LibWarning
   | DeprecationWarning String String String
@@ -2949,6 +2951,8 @@ warningName w = case w of
   SafeFlagPolarity             -> SafeFlagPolarity_
   SafeFlagPostulate{}          -> SafeFlagPostulate_
   SafeFlagPragma{}             -> SafeFlagPragma_
+  SafeFlagInjective            -> SafeFlagInjective_
+  SafeFlagNoCoverageCheck      -> SafeFlagNoCoverageCheck_
   SafeFlagWithoutKFlagPrimEraseEquality -> SafeFlagWithoutKFlagPrimEraseEquality_
   WithoutKFlagPrimEraseEquality -> WithoutKFlagPrimEraseEquality_
   SafeFlagTerminating          -> SafeFlagTerminating_

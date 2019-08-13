@@ -1274,38 +1274,69 @@ niceDecls warn ds ret = setCurrentRange ds $ computeFixitiesAndPolarities warn d
 
 instance {-# OVERLAPPING #-} ToAbstract [C.Declaration] [A.Declaration] where
   toAbstract ds = do
-    -- When --safe is active the termination checker (Issue 586) and
-    -- positivity checker (Issue 1614) may not be switched off, and
-    -- polarities may not be assigned.
-    ds <- ifM (Lens.getSafeMode <$> commandLineOptions)
-              (mapM (noNoTermCheck >=> noNoPositivityCheck >=> noPolarity >=> noNoUniverseCheck) ds)
-              (return ds)
+    -- When --safe is active the termination checker (Issue 586),
+    -- positivity checker (Issue 1614) and the coverage checker
+    -- may not be switched off, and polarities may not be assigned.
+    ds <- ifM (Lens.getSafeMode <$> pragmaOptions)
+               {- then -} (mapM noUnsafePragma ds)
+               {- else -} (return ds)
+
     niceDecls DoWarn ds toAbstract
    where
-    -- ASR (31 December 2015). We don't pattern-match on
-    -- @NoTerminationCheck@ because the @NO_TERMINATION_CHECK@ pragma
-    -- was removed. See Issue 1763.
-    noNoTermCheck :: C.Declaration -> TCM C.Declaration
-    noNoTermCheck d@(C.Pragma (C.TerminationCheckPragma r NonTerminating)) =
-      d <$ (setCurrentRange d $ warning SafeFlagNonTerminating)
-    noNoTermCheck d@(C.Pragma (C.TerminationCheckPragma r Terminating)) =
-      d <$ (setCurrentRange d $ warning SafeFlagTerminating)
-    noNoTermCheck d = return d
 
-    noNoPositivityCheck :: C.Declaration -> TCM C.Declaration
-    noNoPositivityCheck d@(C.Pragma (C.NoPositivityCheckPragma _)) =
-      d <$ (setCurrentRange d $ warning SafeFlagNoPositivityCheck)
-    noNoPositivityCheck d = return d
+     -- We need to dig deep into a declaration, otherwise it is possible
+     -- to hide an illegal pragma in a block. Cf. Issue #3983
+     noUnsafePragma :: C.Declaration -> TCM C.Declaration
+     noUnsafePragma = \case
+       C.Pragma pr                         -> warnUnsafePragma pr
+       C.RecordDef r n ind eta ins lams ds -> C.RecordDef r n ind eta ins lams <$> mapM noUnsafePragma ds
+       C.Record r n ind eta ins lams e ds  -> C.Record r n ind eta ins lams e <$> mapM noUnsafePragma ds
+       C.Mutual r ds                       -> C.Mutual r <$> mapM noUnsafePragma ds
+       C.Abstract r ds                     -> C.Abstract r <$> mapM noUnsafePragma ds
+       C.Private r o ds                    -> C.Private r o <$> mapM noUnsafePragma ds
+       C.InstanceB r ds                    -> C.InstanceB r <$> mapM noUnsafePragma ds
+       C.Macro r ds                        -> C.Macro r <$> mapM noUnsafePragma ds
+       d -> pure d
 
-    noPolarity :: C.Declaration -> TCM C.Declaration
-    noPolarity d@(C.Pragma C.PolarityPragma{}) =
-      d <$ (setCurrentRange d $ warning SafeFlagPolarity)
-    noPolarity d                               = return d
+     warnUnsafePragma :: C.Pragma -> TCM C.Declaration
+     warnUnsafePragma pr = C.Pragma pr <$ case unsafePragma pr of
+       Nothing -> pure ()
+       Just w  -> setCurrentRange pr $ warning w
 
-    noNoUniverseCheck :: C.Declaration -> TCM C.Declaration
-    noNoUniverseCheck d@(C.Pragma (C.NoUniverseCheckPragma _)) =
-      d <$ (setCurrentRange d $ warning SafeFlagNoUniverseCheck)
-    noNoUniverseCheck d = return d
+     unsafePragma :: C.Pragma -> Maybe Warning
+     unsafePragma = \case
+       C.NoCoverageCheckPragma{}    -> Just SafeFlagNoCoverageCheck
+       C.NoPositivityCheckPragma{}  -> Just SafeFlagNoPositivityCheck
+       C.PolarityPragma{}           -> Just SafeFlagPolarity
+       C.NoUniverseCheckPragma{}    -> Just SafeFlagNoUniverseCheck
+       C.InjectivePragma{}          -> Just SafeFlagInjective
+       C.TerminationCheckPragma _ m -> case m of
+         NonTerminating       -> Just SafeFlagNonTerminating
+         Terminating          -> Just SafeFlagTerminating
+         TerminationCheck     -> Nothing
+         TerminationMeasure{} -> Nothing
+         -- ASR (31 December 2015). We don't pattern-match on
+         -- @NoTerminationCheck@ because the @NO_TERMINATION_CHECK@ pragma
+         -- was removed. See Issue #1763.
+         NoTerminationCheck -> Nothing
+       -- exhaustive match to get told by ghc we should have a look at this
+       -- when we add new pragmas.
+       C.OptionsPragma{}    -> Nothing
+       C.BuiltinPragma{}    -> Nothing
+       C.ForeignPragma{}    -> Nothing
+       C.StaticPragma{}     -> Nothing
+       C.InlinePragma{}     -> Nothing
+       C.ImpossiblePragma{} -> Nothing
+       C.EtaPragma{}        -> Nothing
+       C.WarningOnUsage{}   -> Nothing
+       C.WarningOnImport{}  -> Nothing
+       C.DisplayPragma{}    -> Nothing
+       C.CatchallPragma{}   -> Nothing
+       -- @RewritePragma@ already requires --rewriting which is incompatible with --safe
+       C.RewritePragma{}    -> Nothing
+       -- @CompilePragma@ already handled in the nicifier
+       C.CompilePragma{}    -> Nothing
+
 
 newtype LetDefs = LetDefs [C.Declaration]
 newtype LetDef = LetDef NiceDeclaration

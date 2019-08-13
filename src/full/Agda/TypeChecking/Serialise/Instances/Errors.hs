@@ -47,6 +47,8 @@ instance EmbPrj Warning where
   icod_ SafeFlagNoPositivityCheck    = __IMPOSSIBLE__
   icod_ SafeFlagPolarity             = __IMPOSSIBLE__
   icod_ SafeFlagNoUniverseCheck      = __IMPOSSIBLE__
+  icod_ SafeFlagNoCoverageCheck      = __IMPOSSIBLE__
+  icod_ SafeFlagInjective            = __IMPOSSIBLE__
   icod_ (ParseWarning a)             = __IMPOSSIBLE__
   icod_ (DeprecationWarning a b c)   = icodeN 6 DeprecationWarning a b c
   icod_ (NicifierIssue a)            = icodeN 7 NicifierIssue a
