@@ -21,7 +21,7 @@ import Agda.Utils.Functor
 import Agda.Utils.Maybe
 import Agda.Utils.Tuple
 
--- | @implicitArgs n expand t@ generates up to @n@ implicit arguments
+-- | @implicitArgs n expand t@ generates up to @n@ implicit argument
 --   metas (unbounded if @n<0@), as long as @t@ is a function type
 --   and @expand@ holds on the hiding info of its domain.
 
