@@ -11,8 +11,8 @@ data Nat (i : Size) : Set where
 fix : ∀ {C : Size → Set}
   → (∀{i} → (∀ {j : Size< i} → Nat j -> C j) → Nat i → C i)
   → ∀{i} → Nat i → C i
-fix t zero    = t (fix t) zero
-fix t (suc n) = t (fix t) (suc n)
+fix t zero    = t (λ m → fix t m) zero
+fix t (suc n) = t (λ m → fix t m) (suc n)
 
 case : ∀ {i} {C : Set} (n : Nat i) (z : C) (s : ∀ {j : Size< i} → Nat j → C) → C
 case zero    z s = z

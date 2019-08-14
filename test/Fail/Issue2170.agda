@@ -29,7 +29,7 @@ open Irr
 -- each of its fields, which is used to produce a DontCare.
 
 bizarre : Irr (Σ (Bool → Irr Bool) (λ i → Σ (Irr Bool → Bool) (λ u → (a : Bool) → u (i a) ≡ a)))
-bizarre = irr (irr , unirr , λ a → refl)  -- Should not pass
+bizarre = irr ((λ a → irr a) , (λ i → unirr i) , λ a → refl)  -- Should not pass
 
 -- Expected error:
 -- .(a) != a of type Bool
