@@ -14,7 +14,7 @@ open import Data.Bool
 open import Data.Bool.Properties
 open import Data.Empty
 open import Data.List as List
-open import Data.List.Any as Any using (Any; here; there)
+open import Data.List.Relation.Unary.Any as Any using (Any; here; there)
 import Data.List.Categorical
 open import Data.Product as Prod hiding (swap)
 open import Data.Product.Function.NonDependent.Propositional
@@ -22,7 +22,7 @@ open import Data.Product.Function.NonDependent.Propositional
 open import Data.Product.Relation.Binary.Pointwise.NonDependent
 import Data.Product.Function.Dependent.Propositional as Σ
 open import Data.Sum as Sum using (_⊎_; inj₁; inj₂; [_,_]′)
-open import Data.Sum.Relation.Pointwise
+open import Data.Sum.Relation.Binary.Pointwise
 open import Data.Sum.Function.Propositional using (_⊎-cong_)
 open import Function
 open import Function.Equality using (_⟨$⟩_)
