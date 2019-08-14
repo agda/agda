@@ -34,6 +34,8 @@ import Agda.Syntax.Parser
 import Agda.Syntax.Parser.Literate (literateExtsShortList)
 import Agda.Syntax.Position
 
+import Agda.Interaction.Options ( optLocalInterfaces )
+
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Benchmark (billTo)
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
@@ -44,6 +46,7 @@ import Agda.Utils.Applicative ( (?$>) )
 import Agda.Utils.Except
 import Agda.Utils.FileName
 import Agda.Utils.List ( stripSuffix )
+import Agda.Utils.Monad ( ifM )
 import Agda.Utils.Impossible
 import Agda.Version ( version )
 
@@ -69,10 +72,12 @@ mkInterfaceFile fp = do
 -- | Converts an Agda file name to the corresponding interface file
 --   name. Note that we do not guarantee that the file exists.
 
-toIFile :: SourceFile -> IO AbsolutePath
+toIFile :: SourceFile -> TCM AbsolutePath
 toIFile (SourceFile src) = do
   let fp = filePath src
-  mroot <- findProjectRoot (takeDirectory fp)
+  mroot <- ifM (optLocalInterfaces <$> commandLineOptions)
+               {- then -} (pure Nothing)
+               {- else -} (liftIO $ findProjectRoot $ takeDirectory fp)
   pure $ replaceModuleExtension ".agdai" $ case mroot of
     Nothing   -> src
     Just root ->
@@ -166,7 +171,7 @@ findFile'' dirs m modFile =
 findInterfaceFile'
   :: SourceFile                 -- ^ Path to the source file
   -> TCM (Maybe InterfaceFile)  -- ^ Maybe path to the interface file
-findInterfaceFile' fp = liftIO $ mkInterfaceFile =<< toIFile fp
+findInterfaceFile' fp = liftIO . mkInterfaceFile =<< toIFile fp
 
 -- | Finds the interface file corresponding to a given top-level
 -- module file. The returned paths are absolute.

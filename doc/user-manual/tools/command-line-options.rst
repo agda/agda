@@ -107,6 +107,11 @@ Imports and libraries
       Ignore *all* interface files, including builtin and primitive
       modules; only use this if you know what you are doing!
 
+:samp:`--local-interfaces`
+      Read and write interface files next to the Agda files they
+      correspond to (i.e. do not attempt to regroup them in a
+      :samp:`_build/` directory at the project's root).
+
 :samp:`--include-path={DIR} -i={DIR}`
       Look for imports in
       :samp:`{DIR}`

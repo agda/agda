@@ -118,6 +118,7 @@ data CommandLineOptions = Options
   , optCSSFile          :: Maybe FilePath
   , optIgnoreInterfaces :: Bool
   , optIgnoreAllInterfaces :: Bool
+  , optLocalInterfaces     :: Bool
   , optPragmaOptions    :: PragmaOptions
   , optOnlyScopeChecking :: Bool
     -- ^ Should the top-level module only be scope-checked, and not
@@ -232,6 +233,7 @@ defaultOptions = Options
   , optCSSFile          = Nothing
   , optIgnoreInterfaces = False
   , optIgnoreAllInterfaces = False
+  , optLocalInterfaces     = False
   , optPragmaOptions    = defaultPragmaOptions
   , optOnlyScopeChecking = False
   , optWithCompiler      = Nothing
@@ -515,6 +517,9 @@ ignoreInterfacesFlag o = return $ o { optIgnoreInterfaces = True }
 
 ignoreAllInterfacesFlag :: Flag CommandLineOptions
 ignoreAllInterfacesFlag o = return $ o { optIgnoreAllInterfaces = True }
+
+localInterfacesFlag :: Flag CommandLineOptions
+localInterfacesFlag o = return $ o { optLocalInterfaces = True }
 
 allowUnsolvedFlag :: Flag PragmaOptions
 allowUnsolvedFlag o = do
@@ -831,6 +836,8 @@ standardOptions =
                     "generate a Dot file with a module dependency graph"
     , Option []     ["ignore-interfaces"] (NoArg ignoreInterfacesFlag)
                     "ignore interface files (re-type check everything)"
+    , Option []     ["local-interfaces"] (NoArg localInterfacesFlag)
+                    "put interface files next to the Agda files they correspond to"
     , Option ['i']  ["include-path"] (ReqArg includeFlag "DIR")
                     "look for imports in DIR"
     , Option ['l']  ["library"] (ReqArg libraryFlag "LIB")
