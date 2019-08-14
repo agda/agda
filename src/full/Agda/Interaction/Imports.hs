@@ -382,7 +382,7 @@ getInterface' x isMain msi =
                      Just si -> return $ hashText (siSource si)
         ifaceH  <- case cached of
             Nothing -> do
-              mifile <- liftIO $ toIFile file
+              mifile <- toIFile file
               fmap fst <$> getInterfaceFileHashes mifile
             Just i  -> return $ Just $ iSourceHash i
         let unchanged = Just sourceH == ifaceH
@@ -512,7 +512,7 @@ getStoredInterface x file isMain msi = do
   -- Examine the hash of the interface file. If it is different from the
   -- stored version (in stDecodedModules), or if there is no stored version,
   -- read and decode it. Otherwise use the stored version.
-  ifile <- liftIO $ toIFile file
+  ifile <- toIFile file
   let ifp = filePath ifile
   h <- fmap snd <$> getInterfaceFileHashes ifile
   mm <- getDecodedModule x
@@ -982,7 +982,7 @@ createInterface file mname isMain msi =
         reportSLn "import.iface.create" 7 "Actually calling writeInterface."
         -- The file was successfully type-checked (and no warnings were
         -- encountered), so the interface should be written out.
-        ifile <- liftIO $ toIFile file
+        ifile <- toIFile file
         writeInterface ifile i
     reportSLn "import.iface.create" 7 "Finished (or skipped) writing to interface file."
 
