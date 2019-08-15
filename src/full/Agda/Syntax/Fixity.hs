@@ -188,7 +188,7 @@ data NotationSection = NotationSection
   , sectKind      :: NotationKind
     -- ^ For non-sectioned operators this should match the notation's
     -- 'notationKind'.
-  , sectLevel     :: Maybe PrecedenceLevel
+  , sectLevel     :: Maybe FixityLevel
     -- ^ Effective precedence level. 'Nothing' for closed notations.
   , sectIsSection :: Bool
     -- ^ 'False' for non-sectioned operators.
@@ -209,11 +209,13 @@ noSection n = NotationSection
 
 -- | Precedence levels for operators.
 
-data PrecedenceLevel
+type PrecedenceLevel = Integer
+
+data FixityLevel
   = Unrelated
     -- ^ No fixity declared.
-  | Related !Integer
-    -- ^ Fixity level declared as the @Integer@.
+  | Related !PrecedenceLevel
+    -- ^ Fixity level declared as the number.
   deriving (Eq, Ord, Show, Data)
 
 -- | Associativity.
@@ -226,7 +228,7 @@ data Associativity = NonAssoc | LeftAssoc | RightAssoc
 data Fixity = Fixity
   { fixityRange :: Range
     -- ^ Range of the whole fixity declaration.
-  , fixityLevel :: !PrecedenceLevel
+  , fixityLevel :: !FixityLevel
   , fixityAssoc :: !Associativity
   }
   deriving (Data, Show)
@@ -383,7 +385,7 @@ _notaFixity f r = f (notaFixity r) <&> \x -> r { notaFixity = x }
 _fixityAssoc :: Lens' Associativity Fixity
 _fixityAssoc f r = f (fixityAssoc r) <&> \x -> r { fixityAssoc = x }
 
-_fixityLevel :: Lens' PrecedenceLevel Fixity
+_fixityLevel :: Lens' FixityLevel Fixity
 _fixityLevel f r = f (fixityLevel r) <&> \x -> r { fixityLevel = x }
 
 ------------------------------------------------------------------------

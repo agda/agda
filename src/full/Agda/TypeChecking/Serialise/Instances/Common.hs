@@ -341,7 +341,7 @@ instance EmbPrj Agda.Syntax.Fixity.Associativity where
     valu [2] = valuN NonAssoc
     valu _   = malformed
 
-instance EmbPrj Agda.Syntax.Fixity.PrecedenceLevel where
+instance EmbPrj Agda.Syntax.Fixity.FixityLevel where
   icod_ Unrelated   = icodeN' Unrelated
   icod_ (Related a) = icodeN' Related a
 

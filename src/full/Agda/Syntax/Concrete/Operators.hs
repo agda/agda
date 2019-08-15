@@ -8,6 +8,7 @@
     It also contains the function that puts parenthesis back given the
     precedence of the context.
 -}
+
 module Agda.Syntax.Concrete.Operators
     ( parseApplication
     , parseModuleApplication
@@ -321,7 +322,7 @@ buildParsers r flat kind exprNames = do
 
         -- The triples have the form (level, operators). The lowest
         -- level comes first.
-        relatedOperators :: [(Integer, [NotationSection])]
+        relatedOperators :: [(PrecedenceLevel, [NotationSection])]
         relatedOperators =
           map (\((l, ns) : rest) -> (l, ns ++ concat (map snd rest))) .
           List.groupBy ((==) `on` fst) .
@@ -389,7 +390,7 @@ buildParsers r flat kind exprNames = do
 
     return (parseSections, everything, g)
     where
-        level :: NewNotation -> PrecedenceLevel
+        level :: NewNotation -> FixityLevel
         level = fixityLevel . notaFixity
 
         nonfix, isinfix, isprefix, ispostfix :: NewNotation -> Bool
@@ -408,7 +409,7 @@ buildParsers r flat kind exprNames = do
              &&
           fixityAssoc (notaFixity (sectNotation s)) == ass
 
-        mkP :: Either Integer Integer
+        mkP :: PrecedenceKey
                -- ^ Memoisation key.
             -> ParseSections
             -> Parser e e

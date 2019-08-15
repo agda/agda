@@ -6,7 +6,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 
 module Agda.Syntax.Concrete.Operators.Parser.Monad
-  ( MemoKey(..)
+  ( MemoKey(..), PrecedenceKey
   , Parser
   , parse
   , sat'
@@ -22,17 +22,20 @@ import GHC.Generics (Generic)
 import Text.PrettyPrint.HughesPJ
 
 import Agda.Syntax.Common
+import Agda.Syntax.Fixity (PrecedenceLevel)
 import qualified Agda.Utils.Parser.MemoisedCPS as Parser
 
 -- | Memoisation keys.
 
-data MemoKey = NodeK      (Either Integer Integer)
-             | PostLeftsK (Either Integer Integer)
-             | PreRightsK (Either Integer Integer)
+data MemoKey = NodeK      PrecedenceKey
+             | PostLeftsK PrecedenceKey
+             | PreRightsK PrecedenceKey
              | TopK
              | AppK
              | NonfixK
   deriving (Eq, Show, Generic)
+
+type PrecedenceKey = Either PrecedenceLevel PrecedenceLevel
 
 instance Hashable MemoKey
 
