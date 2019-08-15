@@ -209,7 +209,7 @@ noSection n = NotationSection
 
 -- | Precedence levels for operators.
 
-type PrecedenceLevel = Integer
+type PrecedenceLevel = Double
 
 data FixityLevel
   = Unrelated

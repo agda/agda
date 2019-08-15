@@ -247,7 +247,7 @@ coreBuiltins =
   , builtinAssocNon                          |-> BuiltinDataCons tassoc
     -- Precedence
   , builtinPrecedence                        |-> BuiltinData tset [builtinPrecRelated, builtinPrecUnrelated]
-  , builtinPrecRelated                       |-> BuiltinDataCons (tint --> tprec)
+  , builtinPrecRelated                       |-> BuiltinDataCons (tfloat --> tprec)
   , builtinPrecUnrelated                     |-> BuiltinDataCons tprec
     -- Fixity
   , builtinFixity                            |-> BuiltinData tset [builtinFixityFixity]
@@ -396,7 +396,6 @@ coreBuiltins =
         tterm      = el primAgdaTerm
         terrorpart = el primAgdaErrorPart
         tnat       = el primNat
-        tint       = el primInteger
         tword64    = el primWord64
         tinteger   = el primInteger
         tfloat     = el primFloat

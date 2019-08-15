@@ -386,11 +386,12 @@ beginImpDir : {- empty -}   {% pushLexState imp_dir }
     Helper rules
  --------------------------------------------------------------------------}
 
--- An integer. Used in fixity declarations.
-Int :: { Integer }
-Int : literal   {% case $1 of {
-                     LitNat _ i -> return i;
-                     _          -> parseError $ "Expected integer"
+-- A float. Used in fixity declarations.
+Float :: { Double }
+Float : literal {% case $1 of {
+                     LitNat   _ i -> return (fromInteger i);
+                     LitFloat _ i -> return i;
+                     _            -> parseError $ "Expected floating point number"
                    }
                 }
 
@@ -1248,9 +1249,9 @@ RecordConstructorName :                  'constructor' Id        { ($2, NotInsta
 
 -- Fixity declarations.
 Infix :: { Declaration }
-Infix : 'infix'  Int SpaceBIds  { Infix (Fixity (getRange ($1,$3)) (Related $2) NonAssoc)   $3 }
-      | 'infixl' Int SpaceBIds  { Infix (Fixity (getRange ($1,$3)) (Related $2) LeftAssoc)  $3 }
-      | 'infixr' Int SpaceBIds  { Infix (Fixity (getRange ($1,$3)) (Related $2) RightAssoc) $3 }
+Infix : 'infix'  Float SpaceBIds  { Infix (Fixity (getRange ($1,$3)) (Related $2) NonAssoc)   $3 }
+      | 'infixl' Float SpaceBIds  { Infix (Fixity (getRange ($1,$3)) (Related $2) LeftAssoc)  $3 }
+      | 'infixr' Float SpaceBIds  { Infix (Fixity (getRange ($1,$3)) (Related $2) RightAssoc) $3 }
 
 -- Field declarations.
 Fields :: { Declaration }

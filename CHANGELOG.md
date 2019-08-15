@@ -42,6 +42,13 @@ Language
 
 ### Syntax
 
+* Fractional precedence levels are now supported, see issue
+  [#3991](https://github.com/agda/agda/issues/3991). Example:
+  ```agda
+  infix 3.14 _<_
+  ```
+  Note that this includes a respective change in the reflected Agda syntax.
+
 * Implicit non-dependent function spaces `{A} → B` and `{{A}} → B` are now supported.
 
 * Idiom brackets

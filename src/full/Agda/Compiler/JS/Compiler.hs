@@ -487,7 +487,7 @@ litqname q =
     litAssoc RightAssoc = String "right-assoc"
 
     litPrec Unrelated   = String "unrelated"
-    litPrec (Related l) = Integer l
+    litPrec (Related l) = Double l
 
 --------------------------------------------------
 -- Writing out an ECMAScript module

@@ -19,6 +19,7 @@ import Agda.Syntax.Position
 
 import Agda.Interaction.Options.IORefs (UnicodeOrAscii(..), unicodeOrAscii)
 
+import Agda.Utils.Float (toStringWithoutDotZero)
 import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.Maybe
@@ -636,7 +637,7 @@ instance Pretty Pragma where
 
 instance Pretty Fixity where
     pretty (Fixity _ Unrelated   _)   = __IMPOSSIBLE__
-    pretty (Fixity _ (Related n) ass) = s <+> text (show n)
+    pretty (Fixity _ (Related d) ass) = s <+> text (toStringWithoutDotZero d)
       where
       s = case ass of
             LeftAssoc  -> "infixl"
