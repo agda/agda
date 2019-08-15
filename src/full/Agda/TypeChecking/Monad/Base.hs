@@ -243,6 +243,7 @@ data PostScopeState = PostScopeState
   , stPostFreshInt            :: !Int
   , stPostFreshNameId         :: !NameId
   , stPostAreWeCaching        :: !Bool
+  , stPostPostponeInstanceSearch :: !Bool
   , stPostConsideringInstance :: !Bool
   , stPostInstantiateBlocking :: !Bool
     -- ^ Should we instantiate away blocking metas?
@@ -377,6 +378,7 @@ initPostScopeState = PostScopeState
   , stPostFreshInt             = 0
   , stPostFreshNameId           = NameId 0 0
   , stPostAreWeCaching         = False
+  , stPostPostponeInstanceSearch = False
   , stPostConsideringInstance  = False
   , stPostInstantiateBlocking  = False
   }
@@ -622,6 +624,11 @@ stAreWeCaching :: Lens' Bool TCState
 stAreWeCaching f s =
   f (stPostAreWeCaching (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostAreWeCaching = x}}
+
+stPostponeInstanceSearch :: Lens' Bool TCState
+stPostponeInstanceSearch f s =
+  f (stPostPostponeInstanceSearch (stPostScopeState s)) <&>
+  \x -> s {stPostScopeState = (stPostScopeState s) {stPostPostponeInstanceSearch = x}}
 
 stConsideringInstance :: Lens' Bool TCState
 stConsideringInstance f s =
