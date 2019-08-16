@@ -22,7 +22,6 @@ import GHC.Generics (Generic)
 import Text.PrettyPrint.HughesPJ
 
 import Agda.Syntax.Common
-import Agda.Syntax.Fixity (PrecedenceLevel)
 import qualified Agda.Utils.Parser.MemoisedCPS as Parser
 
 -- | Memoisation keys.

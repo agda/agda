@@ -4,12 +4,10 @@
 -}
 module Agda.Syntax.Fixity where
 
-import Prelude hiding (concatMap)
+import Prelude hiding (null)
 
 import Control.DeepSeq
 
-import Data.Foldable
-import Data.Function
 import qualified Data.List as List
 import Data.Maybe
 import Data.Set (Set)
@@ -25,9 +23,13 @@ import Agda.Syntax.Notation
 
 import Agda.Utils.Lens
 import Agda.Utils.List
+import Agda.Utils.Null
 import Agda.Utils.Pretty
 
 import Agda.Utils.Impossible
+
+-- The Fixity data type is now defined in Agda.Syntax.Common.
+-- Andreas, 2019-08-16, issue #1346
 
 -- * Notation coupled with 'Fixity'
 
@@ -44,6 +46,13 @@ data Fixity' = Fixity'
 
 instance Eq Fixity' where
   Fixity' f n _ == Fixity' f' n' _ = f == f' && n == n'
+
+instance Null Fixity' where
+  null (Fixity' f n _) = null f && null n
+  empty = noFixity'
+
+noFixity' :: Fixity'
+noFixity' = Fixity' noFixity noNotation noRange
 
 -- | Decorating something with @Fixity'@.
 data ThingWithFixity x = ThingWithFixity x Fixity'
@@ -113,9 +122,6 @@ syntaxOf (Name _ _ xs)   = mkSyn 0 xs
     mkSyn n []          = []
     mkSyn n (Hole : xs) = NormalHole noRange (defaultNamedArg $ unranged n) : mkSyn (1 + n) xs
     mkSyn n (Id x : xs) = IdPart (unranged x) : mkSyn n xs
-
-noFixity' :: Fixity'
-noFixity' = Fixity' noFixity noNotation noRange
 
 -- | Merges 'NewNotation's that have the same precedence level and
 -- notation, with two exceptions:
@@ -204,48 +210,6 @@ noSection n = NotationSection
   , sectLevel     = Just (fixityLevel (notaFixity n))
   , sectIsSection = False
   }
-
--- * Fixity
-
--- | Precedence levels for operators.
-
-type PrecedenceLevel = Double
-
-data FixityLevel
-  = Unrelated
-    -- ^ No fixity declared.
-  | Related !PrecedenceLevel
-    -- ^ Fixity level declared as the number.
-  deriving (Eq, Ord, Show, Data)
-
--- | Associativity.
-
-data Associativity = NonAssoc | LeftAssoc | RightAssoc
-   deriving (Eq, Ord, Show, Data)
-
--- | Fixity of operators.
-
-data Fixity = Fixity
-  { fixityRange :: Range
-    -- ^ Range of the whole fixity declaration.
-  , fixityLevel :: !FixityLevel
-  , fixityAssoc :: !Associativity
-  }
-  deriving (Data, Show)
-
-instance Eq Fixity where
-  f1 == f2 = compare f1 f2 == EQ
-
-instance Ord Fixity where
-  compare = compare `on` (\f -> (fixityLevel f, fixityAssoc f))
-
--- For @instance Pretty Fixity@, see Agda.Syntax.Concrete.Pretty
-
-noFixity :: Fixity
-noFixity = Fixity noRange Unrelated NonAssoc
-
-defaultFixity :: Fixity
-defaultFixity = Fixity noRange (Related 20) NonAssoc
 
 -- | Do we prefer parens around arguments like @λ x → x@ or not?
 --   See 'lamBrackets'.
@@ -365,11 +329,8 @@ piBrackets _  = True
 roundFixBrackets :: PrecedenceStack -> Bool
 roundFixBrackets ps = DotPatternCtx == headPrecedence ps
 
-instance HasRange Fixity where
-  getRange = fixityRange
-
-instance KillRange Fixity where
-  killRange f = f { fixityRange = noRange }
+instance NFData Fixity' where
+  rnf (Fixity' _ a _) = rnf a
 
 instance KillRange Fixity' where
   killRange (Fixity' f n r) = killRange3 Fixity' f n r
@@ -377,31 +338,7 @@ instance KillRange Fixity' where
 instance KillRange x => KillRange (ThingWithFixity x) where
   killRange (ThingWithFixity c f) = ThingWithFixity (killRange c) f
 
--- * Some lenses
+-- | Lens for 'Fixity' in 'NewNotation'.
 
 _notaFixity :: Lens' Fixity NewNotation
 _notaFixity f r = f (notaFixity r) <&> \x -> r { notaFixity = x }
-
-_fixityAssoc :: Lens' Associativity Fixity
-_fixityAssoc f r = f (fixityAssoc r) <&> \x -> r { fixityAssoc = x }
-
-_fixityLevel :: Lens' FixityLevel Fixity
-_fixityLevel f r = f (fixityLevel r) <&> \x -> r { fixityLevel = x }
-
-------------------------------------------------------------------------
--- * Printing
-------------------------------------------------------------------------
-
--- deriving instance Show Fixity'
-
-------------------------------------------------------------------------
--- * NFData instances
-------------------------------------------------------------------------
-
-instance NFData Fixity' where
-  rnf (Fixity' _ a _) = rnf a
-
--- | Ranges are not forced.
-
-instance NFData Fixity where
-  rnf (Fixity _ _ _) = ()

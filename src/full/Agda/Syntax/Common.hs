@@ -12,6 +12,7 @@ module Agda.Syntax.Common where
 import Prelude hiding (null)
 
 import Control.DeepSeq
+import Control.Arrow ((&&&))
 
 #if __GLASGOW_HASKELL__ < 804
 import Data.Semigroup hiding (Arg)
@@ -1985,9 +1986,79 @@ instance Pretty InteractionId where
 
 instance KillRange InteractionId where killRange = id
 
------------------------------------------------------------------------------
+---------------------------------------------------------------------------
+-- * Fixity
+---------------------------------------------------------------------------
+
+-- | Precedence levels for operators.
+
+type PrecedenceLevel = Double
+
+data FixityLevel
+  = Unrelated
+    -- ^ No fixity declared.
+  | Related !PrecedenceLevel
+    -- ^ Fixity level declared as the number.
+  deriving (Eq, Ord, Show, Data)
+
+instance Null FixityLevel where
+  null Unrelated = True
+  null Related{} = False
+  empty = Unrelated
+
+-- | Associativity.
+
+data Associativity = NonAssoc | LeftAssoc | RightAssoc
+   deriving (Eq, Ord, Show, Data)
+
+-- | Fixity of operators.
+
+data Fixity = Fixity
+  { fixityRange :: Range
+    -- ^ Range of the whole fixity declaration.
+  , fixityLevel :: !FixityLevel
+  , fixityAssoc :: !Associativity
+  }
+  deriving (Data, Show)
+
+-- For @instance Pretty Fixity@, see Agda.Syntax.Concrete.Pretty
+
+instance Eq Fixity where
+  f1 == f2 = compare f1 f2 == EQ
+
+instance Ord Fixity where
+  compare = compare `on` (fixityLevel &&& fixityAssoc)
+
+instance Null Fixity where
+  null  = null . fixityLevel
+  empty = noFixity
+
+noFixity :: Fixity
+noFixity = Fixity noRange Unrelated NonAssoc
+
+defaultFixity :: Fixity
+defaultFixity = Fixity noRange (Related 20) NonAssoc
+
+instance HasRange Fixity where
+  getRange = fixityRange
+
+instance KillRange Fixity where
+  killRange f = f { fixityRange = noRange }
+
+instance NFData Fixity where
+  rnf (Fixity _ _ _) = ()     -- Ranges are not forced, the other fields are strict.
+
+-- lenses
+
+_fixityAssoc :: Lens' Associativity Fixity
+_fixityAssoc f r = f (fixityAssoc r) <&> \x -> r { fixityAssoc = x }
+
+_fixityLevel :: Lens' FixityLevel Fixity
+_fixityLevel f r = f (fixityLevel r) <&> \x -> r { fixityLevel = x }
+
+---------------------------------------------------------------------------
 -- * Import directive
------------------------------------------------------------------------------
+---------------------------------------------------------------------------
 
 -- | The things you are allowed to say when you shuffle names between name
 --   spaces (i.e. in @import@, @namespace@, or @open@ declarations).
