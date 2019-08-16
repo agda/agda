@@ -53,18 +53,13 @@ import Agda.Utils.Pretty
 
 import Agda.Utils.Impossible
 
+---------------------------------------------------------------------------
 -- * The scope checking monad
+---------------------------------------------------------------------------
 
 -- | To simplify interaction between scope checking and type checking (in
 --   particular when chasing imports), we use the same monad.
 type ScopeM = TCM
-
--- * Errors
-
-isDatatypeModule :: ReadTCState m => A.ModuleName -> m (Maybe DataOrRecord)
-isDatatypeModule m = do
-   scopeDatatypeModule . Map.findWithDefault __IMPOSSIBLE__ m <$> useScope scopeModules
-
 
 -- Debugging
 
@@ -73,8 +68,13 @@ printLocals v s = verboseS "scope.top" v $ do
   locals <- getLocalVars
   reportSLn "scope.top" v $ s ++ " " ++ prettyShow locals
 
-
+---------------------------------------------------------------------------
 -- * General operations
+---------------------------------------------------------------------------
+
+isDatatypeModule :: ReadTCState m => A.ModuleName -> m (Maybe DataOrRecord)
+isDatatypeModule m = do
+   scopeDatatypeModule . Map.findWithDefault __IMPOSSIBLE__ m <$> useScope scopeModules
 
 useScope :: ReadTCState m => Lens' a ScopeInfo -> m a
 useScope l = useR $ stScope . l
@@ -224,7 +224,9 @@ bindVarsToBind = do
   printLocals 10 "bound variables:"
   modifyScope_ $ setVarsToBind []
 
+---------------------------------------------------------------------------
 -- * Names
+---------------------------------------------------------------------------
 
 -- | Create a fresh abstract name from a concrete name.
 --
@@ -267,8 +269,9 @@ freshConcreteName r i s = do
     UnknownName -> return cname
     _           -> freshConcreteName r (i+1) s
 
-
+---------------------------------------------------------------------------
 -- * Resolving names
+---------------------------------------------------------------------------
 
 -- | Look up the abstract name referred to by a given concrete name.
 resolveName :: C.QName -> ScopeM ResolvedName
@@ -394,7 +397,9 @@ getNotation x ns = do
         [n] -> n
         _   -> __IMPOSSIBLE__
 
+---------------------------------------------------------------------------
 -- * Binding names
+---------------------------------------------------------------------------
 
 -- | Bind a variable.
 bindVariable
@@ -455,7 +460,9 @@ bindQModule :: Access -> C.QName -> A.ModuleName -> ScopeM ()
 bindQModule acc q m = modifyCurrentScope $ \s ->
   s { scopeImports = Map.insert q m (scopeImports s) }
 
+---------------------------------------------------------------------------
 -- * Module manipulation operations
+---------------------------------------------------------------------------
 
 -- | Clear the scope of any no names.
 stripNoNames :: ScopeM ()
@@ -608,6 +615,10 @@ copyScope oldc new0 s = (inScopeBecause (Applied oldc) *** memoToScopeInfo) <$> 
               s0 <- lift $ getNamedScope x
               s  <- withCurrentModule' y $ copy y s0
               lift $ modifyNamedScope y (const s)
+
+---------------------------------------------------------------------------
+-- * Import directives
+---------------------------------------------------------------------------
 
 -- | Apply an import directive and check that all the names mentioned actually
 --   exist.
@@ -768,6 +779,9 @@ mapRenaming
   -> Renaming' n2 m2  -- ^ Renaming after  translation (2).
 mapRenaming src tgt (Renaming from to fixity r) =
   Renaming (lookupImportedName from src) (lookupImportedName to tgt) fixity r
+---------------------------------------------------------------------------
+-- * Opening a module
+---------------------------------------------------------------------------
 
 data OpenKind = LetOpenModule | TopOpenModule
 
