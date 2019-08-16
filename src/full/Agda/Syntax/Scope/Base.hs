@@ -710,23 +710,26 @@ applyImportDirective dir@(ImportDirective{ impRenaming }) s
 
     -- Restrict scope by directive.
     useOrHide :: UsingOrHiding -> Scope -> Scope
-    useOrHide (UsingOnly  xs) = filterNames elem xs
+    useOrHide (UsingOnly  xs) = filterNames Set.member xs
        -- Filter scope, keeping only xs.
-    useOrHide (HidingOnly xs) = filterNames notElem $ xs ++ map renFrom impRenaming
+    useOrHide (HidingOnly xs) = filterNames Set.notMember $ map renFrom impRenaming ++ xs
        -- Filter out xs and the to be renamed names from scope.
 
     -- Filter scope by (`rel` xs).
-    filterNames :: (C.Name -> [C.Name] -> Bool) -> [C.ImportedName] ->
+    -- O(n * log (length xs)).
+    filterNames :: (C.Name -> Set C.Name -> Bool) -> [C.ImportedName] ->
                    Scope -> Scope
-    filterNames rel xs = filterScope (`rel` ds) (`rel` ms)
+    filterNames rel xs = filterScope (`rel` Set.fromList ds) (`rel` Set.fromList ms)
       where
-        ds = [ x | ImportedName   x <- xs ]
-        ms = [ m | ImportedModule m <- xs ]
+        (ds, ms) = partitionEithers $ for xs $ \case
+          ImportedName   x -> Left x
+          ImportedModule m -> Right m
 
     -- Apply a renaming to a scope.
+    -- O(n * (log n + log (length rho))).
     rename :: [C.Renaming] -> Scope -> Scope
-    rename rho = mapScope_ (Map.mapMaybeKeys (`lookup` drho))
-                           (Map.mapMaybeKeys (`lookup` mrho))
+    rename rho = mapScope_ (Map.mapMaybeKeys (`Map.lookup` Map.fromList drho))
+                           (Map.mapMaybeKeys (`Map.lookup` Map.fromList mrho))
                            id
       where
         (drho, mrho) = partitionEithers $ for rho $ \case
