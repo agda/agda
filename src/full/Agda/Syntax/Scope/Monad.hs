@@ -740,45 +740,61 @@ applyImportDirectiveM m (ImportDirective rng usn' hdn' ren' public) scope = do
       where resolve :: Ord a => err -> a -> Map a [b] -> Either err b
             resolve err x m = maybe (Left err) (Right . head) $ Map.lookup x m
 
-
--- | A finite map for @ImportedName@s.
-lookupImportedName
-  :: (Eq a, Eq b)
-  => ImportedName' a b
-  -> [ImportedName' (a,c) (b,d)]
-  -> ImportedName' c d
-lookupImportedName (ImportedName x) = loop where
-  loop [] = __IMPOSSIBLE__
-  loop (ImportedName (y,z) : _) | x == y = ImportedName z
-  loop (_ : ns) = loop ns
-lookupImportedName (ImportedModule x) = loop where
-  loop [] = __IMPOSSIBLE__
-  loop (ImportedModule (y,z) : _) | x == y = ImportedModule z
-  loop (_ : ns) = loop ns
-
 -- | Translation of @ImportDirective@.
 mapImportDir
-  :: (Eq n1, Eq m1)
+  :: (Ord n1, Ord m1)
   => [ImportedName' (n1,n2) (m1,m2)]  -- ^ Translation of imported names.
   -> [ImportedName' (n1,n2) (m1,m2)]  -- ^ Translation of names defined by this import.
   -> ImportDirective' n1 m1
   -> ImportDirective' n2 m2
-mapImportDir src tgt (ImportDirective r u h ren open) =
+mapImportDir src0 tgt0 (ImportDirective r u h ren open) =
   ImportDirective r
-    (mapUsing (map (`lookupImportedName` src)) u)
-    (map (`lookupImportedName` src) h)
+    (mapUsing (map (lookupImportedName src)) u)
+    (map (lookupImportedName src) h)
     (map (mapRenaming src tgt) ren)
     open
+  where
+  src = importedNameMapFromList src0
+  tgt = importedNameMapFromList tgt0
+
+-- | A finite map for @ImportedName@s.
+
+data ImportedNameMap n1 n2 m1 m2 = ImportedNameMap
+  { inameMap   :: Map n1 n2
+  , imoduleMap :: Map m1 m2
+  }
+
+-- | Create a 'ImportedNameMap'.
+importedNameMapFromList
+  :: (Ord n1, Ord m1)
+  => [ImportedName' (n1,n2) (m1,m2)]
+  -> ImportedNameMap n1 n2 m1 m2
+importedNameMapFromList = foldr (flip add) $ ImportedNameMap Map.empty Map.empty
+  where
+  add (ImportedNameMap nm mm) = \case
+    ImportedName   (x,y) -> ImportedNameMap (Map.insert x y nm) mm
+    ImportedModule (x,y) -> ImportedNameMap nm (Map.insert x y mm)
+
+-- | Apply a 'ImportedNameMap'.
+lookupImportedName
+  :: (Ord n1, Ord m1)
+  => ImportedNameMap n1 n2 m1 m2
+  -> ImportedName' n1 m1
+  -> ImportedName' n2 m2
+lookupImportedName (ImportedNameMap nm mm) = \case
+    ImportedName   x -> ImportedName   $ Map.findWithDefault __IMPOSSIBLE__ x nm
+    ImportedModule x -> ImportedModule $ Map.findWithDefault __IMPOSSIBLE__ x mm
 
 -- | Translation of @Renaming@.
 mapRenaming
-  ::  (Eq n1, Eq m1)
-  => [ImportedName' (n1,n2) (m1,m2)]  -- ^ Translation of 'renFrom' names and module names.
-  -> [ImportedName' (n1,n2) (m1,m2)]  -- ^ Translation of 'rento'   names and module names.
+  ::  (Ord n1, Ord m1)
+  => ImportedNameMap n1 n2 m1 m2  -- ^ Translation of 'renFrom' names and module names.
+  -> ImportedNameMap n1 n2 m1 m2  -- ^ Translation of 'rento'   names and module names.
   -> Renaming' n1 m1  -- ^ Renaming before translation (1).
   -> Renaming' n2 m2  -- ^ Renaming after  translation (2).
 mapRenaming src tgt (Renaming from to fixity r) =
-  Renaming (lookupImportedName from src) (lookupImportedName to tgt) fixity r
+  Renaming (lookupImportedName src from) (lookupImportedName tgt to) fixity r
+
 ---------------------------------------------------------------------------
 -- * Opening a module
 ---------------------------------------------------------------------------
