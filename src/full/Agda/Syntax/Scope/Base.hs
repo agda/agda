@@ -717,8 +717,8 @@ applyImportDirective dir s = mergeScope usedOrHidden renamed
                            id
       where
         (drho, mrho) = partitionEithers $ for rho $ \case
-          Renaming (ImportedName   x) (ImportedName   y) _ -> Left  (x,y)
-          Renaming (ImportedModule x) (ImportedModule y) _ -> Right (x,y)
+          Renaming (ImportedName   x) (ImportedName   y) _TODO _ -> Left  (x,y)
+          Renaming (ImportedModule x) (ImportedModule y) _TODO _ -> Right (x,y)
           _ -> __IMPOSSIBLE__
 
         ren r x = fromMaybe x $ lookup x r

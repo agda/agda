@@ -1068,7 +1068,14 @@ Renamings
 
 Renaming :: { Renaming }
 Renaming
-    : ImportName_ 'to' Id { Renaming $1 (setImportedName $1 $3) (getRange $2) }
+    : ImportName_ 'to' RenamingTarget { Renaming $1 (setImportedName $1 (snd $3)) (fst $3) (getRange $2) }
+
+RenamingTarget :: { (Maybe Fixity, Name) }
+RenamingTarget
+    : Id                 { (Nothing, $1) }
+    | 'infix'  Float Id  { (Just (Fixity (getRange ($1,$3)) (Related $2) NonAssoc)  , $3) }
+    | 'infixl' Float Id  { (Just (Fixity (getRange ($1,$3)) (Related $2) LeftAssoc) , $3) }
+    | 'infixr' Float Id  { (Just (Fixity (getRange ($1,$3)) (Related $2) RightAssoc), $3) }
 
 -- We need a special imported name here, since we have to trigger
 -- the imp_dir state exactly one token before the 'to'

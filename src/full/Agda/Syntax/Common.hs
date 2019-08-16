@@ -2115,6 +2115,8 @@ data Renaming' n m = Renaming
     -- ^ Rename from this name.
   , renTo      :: ImportedName' n m
     -- ^ To this one.  Must be same kind as 'renFrom'.
+  , renFixity  :: Maybe Fixity
+    -- ^ New fixity of 'renTo' (optional).
   , renToRange :: Range
     -- ^ The range of the \"to\" keyword.  Retained for highlighting purposes.
   }
@@ -2147,7 +2149,7 @@ instance (KillRange a, KillRange b) => KillRange (Using' a b) where
   killRange UseEverything = UseEverything
 
 instance (KillRange a, KillRange b) => KillRange (Renaming' a b) where
-  killRange (Renaming i n _) = killRange2 (\i n -> Renaming i n noRange) i n
+  killRange (Renaming i n mf _to) = killRange3 (\ i n mf -> Renaming i n mf noRange) i n mf
 
 instance (KillRange a, KillRange b) => KillRange (ImportedName' a b) where
   killRange (ImportedModule n) = killRange1 ImportedModule n
@@ -2167,7 +2169,7 @@ instance (NFData a, NFData b) => NFData (Using' a b) where
 -- | Ranges are not forced.
 
 instance (NFData a, NFData b) => NFData (Renaming' a b) where
-  rnf (Renaming a b _) = rnf a `seq` rnf b
+  rnf (Renaming a b c _) = rnf a `seq` rnf b `seq` rnf c
 
 instance (NFData a, NFData b) => NFData (ImportedName' a b) where
   rnf (ImportedModule a) = rnf a
