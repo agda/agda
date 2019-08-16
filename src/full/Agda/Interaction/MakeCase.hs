@@ -6,10 +6,11 @@ import Prelude hiding (mapM, mapM_, null)
 
 import Control.Monad hiding (mapM, mapM_, forM)
 
+import Data.Either
 import qualified Data.Map as Map
 import qualified Data.List as List
 import Data.Maybe
-import Data.Traversable
+import Data.Traversable (mapM, forM)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Position
@@ -295,7 +296,7 @@ makeCase hole rng s = withInteractionId hole $ do
     reportSLn "interaction.case" 30 $ "parsedVariables: " ++ show (zip xs vars)
     -- Variables that are not in scope yet are brought into scope (@toShow@)
     -- The other variables are split on (@toSplit@).
-    let (toShow, toSplit) = flip mapEither (zip xs vars) $ \ ((x,nis), s) ->
+    let (toShow, toSplit) = partitionEithers $ for (zip xs vars) $ \ ((x,nis), s) ->
           if (nis == C.NotInScope) then Left x else Right x
     let sc = makePatternVarsVisible toShow $ clauseToSplitClause clause
     scs <- split f toSplit sc

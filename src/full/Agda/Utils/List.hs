@@ -135,17 +135,6 @@ updateAt _ f [] = []
 updateAt 0 f (a : as) = f a : as
 updateAt n f (a : as) = a : updateAt (n-1) f as
 
--- | A generalized version of @partition@.
---   (Cf. @mapMaybe@ vs. @filter@).
-mapEither :: (a -> Either b c) -> [a] -> ([b],[c])
-{-# INLINE mapEither #-}
-mapEither f xs = foldr (deal f) ([],[]) xs
-
-deal :: (a -> Either b c) -> a -> ([b],[c]) -> ([b],[c])
-deal f a ~(bs,cs) = case f a of
-  Left  b -> (b:bs, cs)
-  Right c -> (bs, c:cs)
-
 -- | Split off the largest suffix whose elements satisfy a predicate.
 --
 --   @spanEnd p xs = (ys, zs)@
