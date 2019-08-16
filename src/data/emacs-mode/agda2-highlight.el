@@ -460,8 +460,8 @@ If `agda2-highlight-face-groups' is nil."
 (defvar agda2-highlight-faces
   '((keyword                . agda2-highlight-keyword-face)
     (comment                . font-lock-comment-face)
-    (background             . font-lock-comment-face)
-    (markup                 . font-lock-comment-face)
+    (background             . default)
+    (markup                 . font-lock-comment-delimiter-face)
     (string                 . agda2-highlight-string-face)
     (number                 . agda2-highlight-number-face)
     (symbol                 . agda2-highlight-symbol-face)
