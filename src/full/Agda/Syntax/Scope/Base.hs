@@ -257,6 +257,8 @@ data NameSpace = NameSpace
       , nsModules :: ModulesInScope
         -- ^ Maps concrete module names to a list of abstract module names.
       , nsInScope :: InScopeSet
+        -- ^ All abstract names targeted by a concrete name in scope.
+        --   Computed by 'recomputeInScopeSets'.
       }
   deriving (Data, Eq, Show)
 
@@ -570,8 +572,9 @@ zipScope_ fd fm fs = zipScope (const fd) (const fm) (const fs)
 recomputeInScopeSets :: Scope -> Scope
 recomputeInScopeSets = updateScopeNameSpaces (map $ second recomputeInScope)
   where
-    recomputeInScope ns = ns { nsInScope = Set.unions $ map (Set.fromList . map anameName)
-                                         $ Map.elems $ nsNames ns }
+    recomputeInScope ns = ns { nsInScope = allANames $ nsNames ns }
+    allANames :: NamesInScope -> InScopeSet
+    allANames = Set.fromList . map anameName . concat . Map.elems
 
 -- | Filter a scope keeping only concrete names matching the predicates.
 --   The first predicate is applied to the names and the second to the modules.
