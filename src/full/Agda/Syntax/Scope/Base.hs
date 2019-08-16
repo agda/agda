@@ -674,54 +674,65 @@ addModuleToScope acc x m s = mergeScope s s1
     s1 = setScopeAccess acc $ setNameSpace PublicNS ns emptyScope
     ns = emptyNameSpace { nsModules = Map.singleton x [m] }
 
--- When we get here we cannot have both using and hiding
-type UsingOrHiding = Either C.Using [C.ImportedName]
+-- | When we get here we cannot have both @using@ and @hiding@.
+data UsingOrHiding
+  = UsingOnly  [C.ImportedName]
+  | HidingOnly [C.ImportedName]
 
 usingOrHiding :: C.ImportDirective -> UsingOrHiding
 usingOrHiding i =
   case (using i, hiding i) of
-    (UseEverything, xs) -> Right xs
-    (u, [])             -> Left u
+    (UseEverything, ys) -> HidingOnly ys
+    (Using xs     , []) -> UsingOnly  xs
     _                   -> __IMPOSSIBLE__
 
--- | Apply an 'ImportDirective' to a scope.
+-- | Apply an 'ImportDirective' to a scope:
+--
+--   1. rename keys (C.Name) according to @renaming@;
+--
+--   2. for untouched keys, either of
+--
+--      a) remove keys according to @hiding@, or
+--      b) filter keys according to @using@.
+--
+--   Both steps could be done in one pass, by first preparing key-filtering
+--   functions @C.Name -> Maybe C.Name@ for defined names and module names.
+--   However, the penalty of doing it in two passes should not be too high.
+--   (Doubling the run time.)
 applyImportDirective :: C.ImportDirective -> Scope -> Scope
-applyImportDirective dir s = mergeScope usedOrHidden renamed
+applyImportDirective dir@(ImportDirective{ impRenaming }) s
+  | null dir  = s  -- Since each run of applyImportDirective rebuilds the scope
+                   -- with cost O(n log n) time, it makes sense to test for the identity.
+  | otherwise = mergeScope
+      (useOrHide (usingOrHiding dir) s) -- Names kept via using/hiding.
+      (rename impRenaming s)            -- Things kept (under a different name) via renaming.
   where
-    usedOrHidden = useOrHide (hideLHS (impRenaming dir) $ usingOrHiding dir) s
-    renamed      = rename (impRenaming dir) $ useOrHide useRenamedThings s
 
-    useRenamedThings = Left $ Using $ map renFrom $ impRenaming dir
-
-    hideLHS :: [C.Renaming] -> UsingOrHiding -> UsingOrHiding
-    hideLHS _   i@(Left _) = i
-    hideLHS ren (Right xs) = Right $ xs ++ map renFrom ren
-
+    -- Restrict scope by directive.
     useOrHide :: UsingOrHiding -> Scope -> Scope
-    useOrHide (Right xs)        s = filterNames notElem notElem xs s
-    useOrHide (Left (Using xs)) s = filterNames elem    elem    xs s
-    useOrHide _                 _ = __IMPOSSIBLE__
+    useOrHide (UsingOnly  xs) = filterNames elem xs
+       -- Filter scope, keeping only xs.
+    useOrHide (HidingOnly xs) = filterNames notElem $ xs ++ map renFrom impRenaming
+       -- Filter out xs and the to be renamed names from scope.
 
-    filterNames :: (C.Name -> [C.Name] -> Bool) ->
-                   (C.Name -> [C.Name] -> Bool) ->
-                   [C.ImportedName] -> Scope -> Scope
-    filterNames pd pm xs = filterScope (`pd` ds) (`pm` ms)
+    -- Filter scope by (`rel` xs).
+    filterNames :: (C.Name -> [C.Name] -> Bool) -> [C.ImportedName] ->
+                   Scope -> Scope
+    filterNames rel xs = filterScope (`rel` ds) (`rel` ms)
       where
         ds = [ x | ImportedName   x <- xs ]
         ms = [ m | ImportedModule m <- xs ]
 
-    -- Renaming
+    -- Apply a renaming to a scope.
     rename :: [C.Renaming] -> Scope -> Scope
-    rename rho = mapScope_ (Map.mapKeys $ ren drho)
-                           (Map.mapKeys $ ren mrho)
+    rename rho = mapScope_ (Map.mapMaybeKeys (`lookup` drho))
+                           (Map.mapMaybeKeys (`lookup` mrho))
                            id
       where
         (drho, mrho) = partitionEithers $ for rho $ \case
           Renaming (ImportedName   x) (ImportedName   y) _TODO _ -> Left  (x,y)
           Renaming (ImportedModule x) (ImportedModule y) _TODO _ -> Right (x,y)
           _ -> __IMPOSSIBLE__
-
-        ren r x = fromMaybe x $ lookup x r
 
 -- | Rename the abstract names in a scope.
 renameCanonicalNames :: Map A.QName A.QName -> Map A.ModuleName A.ModuleName ->

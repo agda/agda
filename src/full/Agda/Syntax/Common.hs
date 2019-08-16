@@ -2071,7 +2071,27 @@ data ImportDirective' n m = ImportDirective
   }
   deriving (Data, Eq)
 
-data Using' n m = UseEverything | Using [ImportedName' n m]
+-- | @null@ for import directives holds when everything is imported unchanged
+--   (no names are hidden or renamed).
+instance Null (ImportDirective' n m) where
+  null = \case
+    ImportDirective _ UseEverything [] [] _ -> True
+    _ -> False
+  empty = defaultImportDir
+
+-- | Default is directive is @private@ (use everything, but do not export).
+defaultImportDir :: ImportDirective' n m
+defaultImportDir = ImportDirective noRange UseEverything [] [] False
+
+-- | @isDefaultImportDir@ implies @null@, but not the other way round.
+isDefaultImportDir :: ImportDirective' n m -> Bool
+isDefaultImportDir dir = null dir && not (publicOpen dir)
+
+-- | The @using@ clause of import directive.
+
+data Using' n m
+  = UseEverything              -- ^ No @using@ clause given.
+  | Using [ImportedName' n m]  -- ^ @using@ the specified names.
   deriving (Data, Eq)
 
 instance Semigroup (Using' n m) where
@@ -2083,13 +2103,10 @@ instance Monoid (Using' n m) where
   mempty  = UseEverything
   mappend = (<>)
 
--- | Default is directive is @private@ (use everything, but do not export).
-defaultImportDir :: ImportDirective' n m
-defaultImportDir = ImportDirective noRange UseEverything [] [] False
-
-isDefaultImportDir :: ImportDirective' n m -> Bool
-isDefaultImportDir (ImportDirective _ UseEverything [] [] False) = True
-isDefaultImportDir _                                             = False
+instance Null (Using' n m) where
+  null UseEverything = True
+  null Using{}       = False
+  empty = mempty
 
 -- | An imported name can be a module or a defined name.
 data ImportedName' n m
