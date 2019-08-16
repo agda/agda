@@ -8,6 +8,8 @@ import Control.Arrow (first,second)
 import Control.Monad.State hiding (forM, mapM)
 
 import Data.Function
+import Data.IntSet (IntSet)
+import qualified Data.IntSet as IntSet
 import qualified Data.List as List
 import Data.Maybe
 import Data.Traversable (forM, mapM)
@@ -287,7 +289,7 @@ checkFunDefS t ai delayed extlam with i name withSub cs = do
         -- also add an absurd clause for the cases not needed.
         (cs,sys) <- if not isSystem then return (cs, Nothing) else do
                  fullType <- flip abstract t <$> getContextTelescope
-                 sys <- inTopContext $ checkSystemCoverage name isOneIxs fullType cs
+                 sys <- inTopContext $ checkSystemCoverage name (IntSet.toList isOneIxs) fullType cs
                  tel <- getContextTelescope
                  let c = Clause
                        { clauseFullRange = noRange
@@ -554,16 +556,17 @@ checkSystemCoverage _ _ t cs = __IMPOSSIBLE__
 
 
 -- * Info that is needed after all clauses have been processed.
+
 data ClausesPostChecks = CPC
-    { cpcPartialSplits :: [Int]
+    { cpcPartialSplits :: IntSet
       -- ^ Which argument indexes have a partial split.
     }
 
 instance Semigroup ClausesPostChecks where
-  (<>) (CPC xs) (CPC xs') = CPC (List.nub $ mappend xs xs')
+  CPC xs <> CPC xs' = CPC (IntSet.union xs xs')
 
 instance Monoid ClausesPostChecks where
-  mempty  = CPC []
+  mempty  = CPC empty
   mappend = (<>)
 
 -- | Type check a function clause.
