@@ -57,6 +57,26 @@ prop_chop_intercalate =
 prop_distinct_fastDistinct :: [Integer] -> Bool
 prop_distinct_fastDistinct xs = distinct xs == fastDistinct xs
 
+-- To test duplicates, we distinguish them with a decoration by some small natural number.
+
+data Decorate a = Decorate (Positive (Small Int)) a
+  deriving (Show)
+
+instance Eq a => Eq (Decorate a) where
+  (==) = (==) `on` (\ (Decorate _ a) -> a)
+
+instance Ord a => Ord (Decorate a) where
+  compare = compare `on` (\ (Decorate _ a) -> a)
+
+instance Arbitrary a => Arbitrary (Decorate a) where
+  arbitrary = Decorate <$> arbitrary <*> arbitrary
+
+prop_allDuplicates :: [Decorate (Positive Int)] -> Bool
+prop_allDuplicates xs = allDuplicates xs `sameList` sort (xs \\ nub xs)
+  where
+  sameList xs ys = and $ zipWith same xs ys
+  same (Decorate i a) (Decorate j b) = i == j && a == b
+
 prop_groupBy' :: (Bool -> Bool -> Bool) -> [Bool] -> Property
 prop_groupBy' p xs =
   classify (length xs - length gs >= 3) "interesting" $

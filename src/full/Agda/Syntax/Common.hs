@@ -2108,6 +2108,11 @@ instance Null (Using' n m) where
   null Using{}       = False
   empty = mempty
 
+mapUsing :: ([ImportedName' n1 m1] -> [ImportedName' n2 m2]) -> Using' n1 m1 -> Using' n2 m2
+mapUsing f = \case
+  UseEverything -> UseEverything
+  Using xs      -> Using $ f xs
+
 -- | An imported name can be a module or a defined name.
 data ImportedName' n m
   = ImportedModule  m  -- ^ Imported module name of type @m@.

@@ -619,39 +619,44 @@ applyImportDirectiveM
 applyImportDirectiveM m (ImportDirective rng usn' hdn' ren' public) scope = do
 
     -- We start by checking that all of the names talked about in the import
-    -- directive do exist. If some do not then we remove them and raise a warning.
-
-    let (missingExports, namesA) = checkExist $ fromUsing usn' ++ hdn' ++ map renFrom ren'
+    -- directive do exist.  If some do not then we remove them and raise a warning.
+    let usingList = fromUsing usn'
+    let (missingExports, namesA) = checkExist $ usingList ++ hdn' ++ map renFrom ren'
     unless (null missingExports) $ setCurrentRange rng $ do
       reportSLn "scope.import.apply" 20 $ "non existing names: " ++ prettyShow missingExports
       warning $ ModuleDoesntExport m missingExports
 
-    -- We can now define a cleaned-up version of the input
-    let usn = fromUsing usn' List.\\ missingExports
-    let hdn = hdn' List.\\ missingExports
-    let ren = filter (\ r -> renFrom r `notElem` missingExports) ren'
-    let dir = (\ u -> ImportDirective rng u hdn ren public)
-            $ case usn' of { Using{} -> Using usn; _ -> UseEverything }
+    -- We can now define a cleaned-up version of the import directive.
+    let notMissing = (`Set.notMember` Set.fromList missingExports)  -- #3997, efficient lookup in missingExports
+    let usn = filter notMissing usingList        -- remove missingExports from usn'
+    let hdn = filter notMissing hdn'             -- remove missingExports from hdn'
+    let ren = filter (notMissing . renFrom) ren'                   -- and from ren'
+    let dir = ImportDirective rng (mapUsing (const usn) usn') hdn ren public
 
-    -- As well as convenient shorthands for defined names and names brought into scope
-    let names = map renFrom ren ++ hdn ++ usn
+    -- Convenient shorthands for defined names and names brought into scope:
+    let names        = map renFrom ren ++ hdn ++ usn
     let definedNames = map renTo ren
-    let targetNames = usn ++ definedNames
+    let targetNames  = usn ++ definedNames
 
-    let extraModules =
-          [ x | ImportedName x <- names
-              , let mx = ImportedModule x
-              , notElem mx missingExports
-              , notElem mx names
-              ]
-        dir' = addExtraModules extraModules dir
+    -- Efficient test of (`elem` names):
+    let inNames      = (`Set.member` Set.fromList names)
 
-    dir' <- sanityCheck dir' names
+    -- Efficient test of whether a module import should be added to the import
+    -- of a definition (like a data or record definition).
+    let extra x = and
+          [ inNames       $ ImportedName   x
+          , notMissing    $ ImportedModule x
+          , not . inNames $ ImportedModule x
+              -- The last test implies that @hiding (module M)@ prevents @module M@
+              -- from entering the @using@ list in @addExtraModule@.
+          ]
+
+    dir' <- sanityCheck (not . inNames) $ addExtraModules extra dir
 
     -- Check for duplicate imports in a single import directive.
     -- @dup@ : To be imported names that are mentioned more than once.
-    let dup = targetNames List.\\ List.nub targetNames
-    unless (null dup) $ typeError $ DuplicateImports m dup
+    unlessNull (allDuplicates targetNames) $ \ dup ->
+      typeError $ DuplicateImports m dup
 
     -- Apply the import directive.
     let scope' = applyImportDirective dir' scope
@@ -672,38 +677,42 @@ applyImportDirectiveM m (ImportDirective rng usn' hdn' ren' public) scope = do
   where
     -- | Names in the @using@ directive
     fromUsing :: Using' a b -> [ImportedName' a b]
-    fromUsing u = case u of
+    fromUsing = \case
       Using  xs     -> xs
       UseEverything -> []
 
-    sanityCheck dir names =
-      case (using dir, hiding dir) of
-        (Using xs, ys) -> do
-          let uselessHiding = [ x | x@ImportedName{} <- ys ] ++
-                              [ x | x@(ImportedModule y) <- ys, ImportedName y `notElem` names ]
-          unless (null uselessHiding) $ typeError $ GenericError $ "Hiding " ++ List.intercalate ", " (map prettyShow uselessHiding)
-                                                                ++ " has no effect"
+    -- If both @using@ and @hiding@ directive are present,
+    -- the hiding directive may only contain modules whose twins are mentioned.
+    sanityCheck notMentioned = \case
+      dir@(ImportDirective{ using = Using{}, hiding = ys }) -> do
+          let useless = \case
+                ImportedName{}   -> True
+                ImportedModule y -> notMentioned (ImportedName y)
+          unlessNull (filter useless ys) $ \ uselessHiding -> do
+            typeError $ GenericError $ unwords $
+              [ "Hiding"
+              , List.intercalate ", " $ map prettyShow uselessHiding
+              , "has no effect"
+              ]
+          -- We can empty @hiding@ now, since there is an explicit @using@ directive
+          -- and @hiding@ served its purpose to prevent modules to enter the @Using@ list.
           return dir{ hiding = [] }
-        _ -> return dir
+      dir -> return dir
 
-    addExtraModules :: [C.Name] -> C.ImportDirective -> C.ImportDirective
+    addExtraModules :: (C.Name -> Bool) -> C.ImportDirective -> C.ImportDirective
     addExtraModules extra dir =
-      dir{ using =
-              case using dir of
-                Using xs      -> Using $ concatMap addExtra xs
-                UseEverything -> UseEverything
-         , hiding      = concatMap addExtra      (hiding dir)
-         , impRenaming = concatMap extraRenaming (impRenaming dir)
+      dir{ using       = mapUsing (concatMap addExtra) $ using dir
+         , hiding      = concatMap addExtra            $ hiding dir
+         , impRenaming = concatMap extraRenaming       $ impRenaming dir
          }
       where
-        addExtra f@(ImportedName y) | y `elem` extra = [f, ImportedModule y]
+        addExtra f@(ImportedName y) | extra y = [f, ImportedModule y]
         addExtra m = [m]
 
-        extraRenaming r@(Renaming from to _fixity rng) =
-          case (from, to) of
-            (ImportedName y, ImportedName z) | y `elem` extra ->
-              [r, Renaming (ImportedModule y) (ImportedModule z) Nothing rng]
-            _ -> [r]
+        extraRenaming = \case
+          r@(Renaming (ImportedName y) (ImportedName z) _fixity rng) | extra y ->
+             [ r , Renaming (ImportedModule y) (ImportedModule z) Nothing rng ]
+          r -> [r]
 
     -- | Names and modules (abstract) in scope before the import.
     namesInScope   = (allNamesInScope scope :: ThingsInScope AbstractName)
@@ -745,18 +754,10 @@ mapImportDir
   -> ImportDirective' n2 m2
 mapImportDir src tgt (ImportDirective r u h ren open) =
   ImportDirective r
-    (mapUsing src u)
+    (mapUsing (map (`lookupImportedName` src)) u)
     (map (`lookupImportedName` src) h)
-    (map (mapRenaming src tgt) ren) open
-
--- | Translation of @Using or Hiding@.
-mapUsing
-  :: (Eq n1, Eq m1)
-  => [ImportedName' (n1,n2) (m1,m2)] -- ^ Translation of names in @using@ or @hiding@ list.
-  -> Using' n1 m1
-  -> Using' n2 m2
-mapUsing src UseEverything = UseEverything
-mapUsing src (Using  xs) = Using $ map (`lookupImportedName` src) xs
+    (map (mapRenaming src tgt) ren)
+    open
 
 -- | Translation of @Renaming@.
 mapRenaming

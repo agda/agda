@@ -320,13 +320,24 @@ allEqual :: Eq a => [a] -> Bool
 allEqual []       = True
 allEqual (x : xs) = all (== x) xs
 
--- | Returns an (arbitrary) representative for each list element
+-- | O(n log n).
+--   Returns an (arbitrary) representative for each list element
 --   that occurs more than once.
 duplicates :: Ord a => [a] -> [a]
 duplicates = mapMaybe dup . Bag.groups . Bag.fromList
   where
     dup (a : _ : _) = Just a
     dup _           = Nothing
+
+-- | O(n log n).
+--   Remove the first representative for each list element.
+--   Thus, returns all duplicate copies.
+--
+--   @allDuplicates xs == sort $ xs \\ nub xs@.
+allDuplicates :: Ord a => [a] -> [a]
+allDuplicates = concat . map (drop 1 . reverse) . Bag.groups . Bag.fromList
+  -- The reverse is necessary to actually remove the
+  -- *first* occurrence of each element.
 
 -- | A variant of 'List.groupBy' which applies the predicate to consecutive
 -- pairs.
