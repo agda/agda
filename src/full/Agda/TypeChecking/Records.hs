@@ -64,7 +64,7 @@ orderFields r fill axs fs = do
   where
     xs        = map unArg axs           -- official  fields (accord. record type)
     ys        = map fst fs              -- provided  fields
-    duplicate = ys List.\\ List.nub ys  -- duplicate fields
+    duplicate = duplicates ys           -- duplicate fields
     alien     = ys List.\\ xs           -- spurious  fields
     missing   = xs List.\\ ys           -- missing   fields
 

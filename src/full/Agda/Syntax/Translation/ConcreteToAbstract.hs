@@ -27,7 +27,6 @@ import Control.Monad.Reader hiding (mapM)
 
 import Data.Foldable (Foldable, traverse_)
 import Data.Traversable (mapM, traverse)
-import Data.List ((\\), nub, foldl')
 import Data.Set (Set)
 import Data.Map (Map)
 import qualified Data.List as List
@@ -1586,9 +1585,8 @@ instance ToAbstract NiceDeclaration A.Declaration where
           gvars <- bindGeneralizablesIfInserted o ax
           -- Check for duplicate constructors
           do cs <- mapM conName cons
-             let dups = nub $ cs \\ nub cs
-                 bad  = filter (`elem` dups) cs
-             unless (distinct cs) $
+             unlessNull (duplicates cs) $ \ dups -> do
+               let bad = filter (`elem` dups) cs
                setCurrentRange bad $
                  typeError $ DuplicateConstructors dups
 
@@ -1646,9 +1644,8 @@ instance ToAbstract NiceDeclaration A.Declaration where
                    C.FieldSig _ f _ -> f
                    _ -> __IMPOSSIBLE__
                  _ -> Nothing
-           let dups = nub $ fs \\ nub fs
-               bad  = filter (`elem` dups) fs
-           unless (distinct fs) $
+           unlessNull (duplicates fs) $ \ dups -> do
+             let bad = filter (`elem` dups) fs
              setCurrentRange bad $
                typeError $ DuplicateFields dups
         bindModule p x m
@@ -1808,7 +1805,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
          let err = "Dot or equality patterns are not allowed in pattern synonyms. Maybe use '_' instead."
          p <- noDotorEqPattern err p
          as <- (traverse . mapM) (unVarName <=< resolveName . C.QName) as
-         unlessNull (patternVars p \\ map unArg as) $ \ xs -> do
+         unlessNull (patternVars p List.\\ map unArg as) $ \ xs -> do
            typeError . GenericDocError =<< do
              "Unbound variables in pattern synonym: " <+>
                sep (map prettyA xs)
@@ -2561,7 +2558,7 @@ toAbstractOpApp op ns es = do
     op <- toAbstract (OldQName op (Just ns))
     es <- left (notaFixity nota) nonBindingParts es
     -- Prepend the generated section binders (if any).
-    let body = foldl' app op es
+    let body = List.foldl' app op es
     return $ foldr (A.Lam (ExprRange (getRange body))) body binders
   where
     -- Build an application in the abstract syntax, with correct Range.
