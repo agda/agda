@@ -75,6 +75,28 @@ data NewNotation = NewNotation
     -- syntax declaration).
   } deriving Show
 
+-- Lens focusing on Fixity'
+
+class LensFixity' a where
+  lensFixity' :: Lens' Fixity' a
+
+instance LensFixity' Fixity' where
+  lensFixity' = id
+
+instance LensFixity' (ThingWithFixity a) where
+  lensFixity' f (ThingWithFixity a fix') = ThingWithFixity a <$> f fix'
+
+-- Lens focusing on Fixity
+
+instance LensFixity Fixity' where
+  lensFixity f fix' = f (theFixity fix') <&> \ fx -> fix' { theFixity = fx }
+
+instance LensFixity NewNotation where
+  lensFixity f nota = f (notaFixity nota) <&> \ fx -> nota { notaFixity = fx }
+
+instance LensFixity (ThingWithFixity a) where
+  lensFixity = lensFixity' . lensFixity
+
 -- | If an operator has no specific notation, then it is computed from
 -- its name.
 namesToNotation :: QName -> A.Name -> NewNotation

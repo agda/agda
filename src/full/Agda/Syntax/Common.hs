@@ -2056,6 +2056,12 @@ _fixityAssoc f r = f (fixityAssoc r) <&> \x -> r { fixityAssoc = x }
 _fixityLevel :: Lens' FixityLevel Fixity
 _fixityLevel f r = f (fixityLevel r) <&> \x -> r { fixityLevel = x }
 
+class LensFixity a where
+  lensFixity :: Lens' Fixity a
+
+instance LensFixity Fixity where
+  lensFixity = id
+
 ---------------------------------------------------------------------------
 -- * Import directive
 ---------------------------------------------------------------------------

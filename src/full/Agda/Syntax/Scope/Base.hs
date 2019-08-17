@@ -390,6 +390,9 @@ instance Eq AbstractName where
 instance Ord AbstractName where
   compare = compare `on` anameName
 
+instance LensFixity AbstractName where
+  lensFixity = lensAnameName . lensFixity
+
 -- | Van Laarhoven lens on 'anameName'.
 lensAnameName :: Functor m => (A.QName -> m A.QName) -> AbstractName -> m AbstractName
 lensAnameName f am = f (anameName am) <&> \ m -> am { anameName = m }
@@ -745,14 +748,28 @@ applyImportDirective dir@(ImportDirective{ impRenaming }) s
     -- Apply a renaming to a scope.
     -- O(n * (log n + log (length rho))).
     rename :: [C.Renaming] -> Scope -> Scope
-    rename rho = mapScope_ (Map.mapMaybeKeys (AssocList.apply drho))
+    rename rho = mapScope_ (updateFxs .
+                            Map.mapMaybeKeys (AssocList.apply drho))
                            (Map.mapMaybeKeys (AssocList.apply mrho))
                            id
       where
         (drho, mrho) = partitionEithers $ for rho $ \case
-          Renaming (ImportedName   x) (ImportedName   y) _TODO _ -> Left  (x,y)
-          Renaming (ImportedModule x) (ImportedModule y) _TODO _ -> Right (x,y)
+          Renaming (ImportedName   x) (ImportedName   y) _fx _ -> Left  (x, y)
+          Renaming (ImportedModule x) (ImportedModule y) _fx _ -> Right (x, y)
           _ -> __IMPOSSIBLE__
+
+        fixities :: AssocList C.Name Fixity
+        fixities = (`mapMaybe` rho) $ \case
+          Renaming _ (ImportedName y) (Just fx)  _ -> Just (y, fx)
+          _ -> Nothing
+
+        -- Update fixities of abstract names targeted by renamed imported identifies.
+        updateFxs :: NamesInScope -> NamesInScope
+        updateFxs m = foldl upd m fixities
+          where
+          -- Update fixity of all abstract names targeted by concrete name y.
+          upd m (y, fx) = Map.adjust (map $ set lensFixity fx) y m
+
 
 -- | Rename the abstract names in a scope.
 renameCanonicalNames :: Map A.QName A.QName -> Map A.ModuleName A.ModuleName ->
