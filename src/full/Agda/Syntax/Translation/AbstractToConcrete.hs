@@ -1321,7 +1321,7 @@ instance ToConcrete A.Pattern C.Pattern where
         -- Erase @v@ to a concrete name and resolve it back to check whether
         -- we have a conflicting field name.
         cn <- toConcreteName v
-        runExceptT (tryResolveName [FldName] Nothing (C.QName cn)) >>= \case
+        runExceptT (tryResolveName (someKindsOfNames [FldName]) Nothing (C.QName cn)) >>= \case
           -- If we do then we print .(v) rather than .v
           Right FieldName{} -> do
             reportSLn "print.dotted" 50 $ "Wrapping ambiguous name " ++ show (nameConcrete v)

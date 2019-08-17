@@ -301,6 +301,8 @@ inNameSpace = case inScopeTag :: InScopeTag a of
 
 -- | For the sake of parsing left-hand sides, we distinguish
 --   constructor and record field names from defined names.
+
+-- Note: order does matter in this enumeration, see 'isDefName'.
 data KindOfName
   = ConName                  -- ^ Constructor name.
   | FldName                  -- ^ Record field name.
@@ -318,14 +320,31 @@ data KindOfName
   | PrimName                 -- ^ Name of a @primitive@.
   | OtherDefName             -- ^ A @DefName@, but either other kind or don't know which kind.
   -- End @DefName@.  Keep these together in sequence, for sake of @isDefName@!
-  deriving (Eq, Show, Data, Enum, Bounded)
+  deriving (Eq, Ord, Show, Data, Enum, Bounded)
 
 isDefName :: KindOfName -> Bool
-isDefName = (`elem` [DataName .. OtherDefName])
+isDefName = (>= DataName)
 
--- | A list containing all name kinds.
-allKindsOfNames :: [KindOfName]
-allKindsOfNames = [minBound..maxBound]
+-- | A set of 'KindOfName', for the sake of 'elemKindsOfNames'.
+data KindsOfNames
+  = AllKindsOfNames
+  | SomeKindsOfNames   (Set KindOfName)  -- ^ Only these kinds.
+  | ExceptKindsOfNames (Set KindOfName)  -- ^ All but these Kinds.
+
+elemKindsOfNames :: KindOfName -> KindsOfNames -> Bool
+elemKindsOfNames k = \case
+  AllKindsOfNames       -> True
+  SomeKindsOfNames   ks -> k `Set.member` ks
+  ExceptKindsOfNames ks -> k `Set.notMember` ks
+
+allKindsOfNames :: KindsOfNames
+allKindsOfNames = AllKindsOfNames
+
+someKindsOfNames :: [KindOfName] -> KindsOfNames
+someKindsOfNames = SomeKindsOfNames . Set.fromList
+
+exceptKindsOfNames :: [KindOfName] -> KindsOfNames
+exceptKindsOfNames = ExceptKindsOfNames . Set.fromList
 
 -- | Where does a name come from?
 --

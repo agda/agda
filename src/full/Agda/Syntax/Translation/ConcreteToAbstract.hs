@@ -565,7 +565,7 @@ data APatName = VarPatName A.Name
 instance ToAbstract PatName APatName where
   toAbstract (PatName x ns) = do
     reportSLn "scope.pat" 10 $ "checking pattern name: " ++ prettyShow x
-    rx <- resolveName' [ConName, PatternSynName] ns x
+    rx <- resolveName' (someKindsOfNames [ConName, PatternSynName]) ns x
           -- Andreas, 2013-03-21 ignore conflicting names which cannot
           -- be meant since we are in a pattern
     case (rx, x) of

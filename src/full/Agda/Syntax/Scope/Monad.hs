@@ -284,14 +284,14 @@ resolveName = resolveName' allKindsOfNames Nothing
 --   Then, we can ignore conflicting definitions of that name
 --   of a different kind. (See issue 822.)
 resolveName' ::
-  [KindOfName] -> Maybe (Set A.Name) -> C.QName -> ScopeM ResolvedName
+  KindsOfNames -> Maybe (Set A.Name) -> C.QName -> ScopeM ResolvedName
 resolveName' kinds names x = runExceptT (tryResolveName kinds names x) >>= \case
   Left ys  -> typeError $ AmbiguousName x ys
   Right x' -> return x'
 
 tryResolveName
   :: (ReadTCState m, MonadError (NonemptyList A.QName) m)
-  => [KindOfName] -> Maybe (Set A.Name) -> C.QName
+  => KindsOfNames -> Maybe (Set A.Name) -> C.QName
   -> m ResolvedName
 tryResolveName kinds names x = do
   scope <- getScope
@@ -313,7 +313,7 @@ tryResolveName kinds names x = do
     -- Case: we do not have a local variable x.
     Nothing -> do
       -- Consider only names of one of the given kinds
-      let filtKind = filter $ \ y -> anameKind (fst y) `elem` kinds
+      let filtKind = filter $ \ y -> anameKind (fst y) `elemKindsOfNames` kinds
       -- Consider only names in the given set of names
           filtName = filter $ \ y -> maybe True (Set.member (aName (fst y))) names
       caseListNe (filtKind $ filtName $ scopeLookup' x scope) (return UnknownName) $ \ case

@@ -19,7 +19,7 @@ import qualified Agda.Syntax.Concrete as C
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
-import Agda.Syntax.Scope.Base  ( ResolvedName(..), BindingSource(..), KindOfName(..), allKindsOfNames )
+import Agda.Syntax.Scope.Base  ( ResolvedName(..), BindingSource(..), KindOfName(..), exceptKindsOfNames )
 import Agda.Syntax.Scope.Monad ( resolveName' )
 import Agda.Syntax.Translation.InternalToAbstract
 
@@ -109,13 +109,11 @@ parseVariables f tel ii rng ss = do
             "Cannot split on variable " ++ s ++
             ", because let-declarations may not be defined by pattern-matching"
 
+      let cname = C.QName $ C.Name r C.InScope $ C.stringNameParts s
+      -- Note: the range in the concrete name is only approximate.
       -- Jesper, 2018-12-19: Don't consider generalizable names since
       -- they can be shadowed by hidden variables.
-      let kinds = List.delete GeneralizeName allKindsOfNames
-          cname = C.QName $ C.Name r C.InScope $ C.stringNameParts s
-      -- Note: the range in the concrete name is only approximate.
-      resName <- resolveName' kinds Nothing cname
-      case resName of
+      resolveName' (exceptKindsOfNames [GeneralizeName]) Nothing cname >>= \case
 
         -- Fail if s is a name, but not of a variable.
         DefinedName{}       -> failNotVar
