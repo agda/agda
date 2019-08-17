@@ -462,16 +462,21 @@ editDistance xs ys = editD 0 0
   tbl :: Array (Int,Int) Int
   tbl = array ((0,0), (n,m)) [ ((i, j), editD' i j) | i <- [0..n], j <- [0..m] ]
   editD' i j =
-    case (xssA Array.! i, yssA Array.! j) of
-      ([], ys) -> length ys
-      (xs, []) -> length xs
-      (x : xs, y : ys)
-        | x == y    -> editD (i + 1) (j + 1)
-        | otherwise -> 1 + minimum [ editD (i + 1) j, editD i (j + 1), editD (i + 1) (j + 1) ]
-  xss = List.tails xs
-  yss = List.tails ys
-  n   = length xss - 1
-  m   = length yss - 1
-  xssA, yssA :: Array Int [a]
-  xssA = listArray (0,n) xss
-  yssA = listArray (0,m) yss
+    case (compare i n, compare j m) of
+      -- Interior
+      (LT, LT)
+        | xsA Array.! i == ysA Array.! j
+                    -> editD i' j'
+        | otherwise -> 1 + minimum [ editD i' j, editD i j', editD i' j' ]
+      -- Border: one list is empty
+      (EQ, LT)      ->  m - j
+      (LT, EQ)      ->  n - i
+      -- Corner (EQ, EQ): both lists are empty
+      _             -> 0
+      -- GT cases are impossible.
+    where (i',j') = (i+1, j+1)
+  n   = length xs
+  m   = length ys
+  xsA, ysA :: Array Int a
+  xsA = listArray (0,n-1) xs
+  ysA = listArray (0,m-1) ys
