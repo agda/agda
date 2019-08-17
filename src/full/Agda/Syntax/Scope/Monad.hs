@@ -638,7 +638,7 @@ applyImportDirectiveM m (ImportDirective rng usn' hdn' ren' public) scope = do
       warning $ ModuleDoesntExport m missingExports
 
     -- We can now define a cleaned-up version of the import directive.
-    let notMissing = (`Set.notMember` Set.fromList missingExports)  -- #3997, efficient lookup in missingExports
+    let notMissing = not . (missingExports `hasElem`)  -- #3997, efficient lookup in missingExports
     let usn = filter notMissing usingList        -- remove missingExports from usn'
     let hdn = filter notMissing hdn'             -- remove missingExports from hdn'
     let ren = filter (notMissing . renFrom) ren'                   -- and from ren'
@@ -650,7 +650,7 @@ applyImportDirectiveM m (ImportDirective rng usn' hdn' ren' public) scope = do
     let targetNames  = usn ++ definedNames
 
     -- Efficient test of (`elem` names):
-    let inNames      = (`Set.member` Set.fromList names)
+    let inNames      = (names `hasElem`)
 
     -- Efficient test of whether a module import should be added to the import
     -- of a definition (like a data or record definition).

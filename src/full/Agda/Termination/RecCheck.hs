@@ -28,15 +28,14 @@ import Agda.Syntax.Internal.Defs
 import Agda.TypeChecking.Monad
 
 import Agda.Utils.Functor ((<.>))
-import Agda.Utils.Pretty (prettyShow)
+import Agda.Utils.List    (hasElem)
+import Agda.Utils.Pretty  (prettyShow)
 
 recursive :: [QName] -> TCM Bool
 recursive names = do
-  graph <- zip names <$> mapM (Set.toList <.> recDef include) names
+  graph <- zip names <$> mapM (Set.toList <.> recDef (names `hasElem`)) names
   reportSLn "rec.graph" 20 $ show graph
   return $ cyclic graph
-  where
-    include = (`Set.member` Set.fromList names)
 
 -- | A graph is cyclic if it has any strongly connected component.
 cyclic :: [(QName, [QName])] -> Bool

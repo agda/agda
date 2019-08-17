@@ -411,6 +411,17 @@ chopWhen p xs =
 -- * List as sets
 ---------------------------------------------------------------------------
 
+-- | Check membership for the same list often.
+--   Use partially applied to create membership predicate
+--   @hasElem xs :: a -> Bool@.
+--
+--   * First time: @O(n log n)@ in the worst case.
+--   * Subsequently: @O(log n)@.
+--
+--   Specification: @hasElem xs == (`elem` xs)@.
+hasElem :: Ord a => [a] -> a -> Bool
+hasElem xs = (`Set.member` Set.fromList xs)
+
 -- | Check whether a list is sorted.
 -- O(n).
 --

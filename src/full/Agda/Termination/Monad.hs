@@ -47,6 +47,7 @@ import Agda.Utils.Except ( MonadError )
 import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.Lens
+import Agda.Utils.List   ( hasElem )
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Monoid
@@ -451,7 +452,7 @@ isCoinductiveProjection mustBeRecursive q = liftTCM $ do
                   , addContext tel $ prettyTCM core
                   ]
                 when (null mut) __IMPOSSIBLE__
-                names <- anyDefs (`Set.member` Set.fromList mut) =<< normalise (map (snd . unDom) tel', core)
+                names <- anyDefs (mut `hasElem`) =<< normalise (map (snd . unDom) tel', core)
                 reportSDoc "term.guardedness" 40 $
                   "found" <+> if null names then "none" else sep (map prettyTCM $ Set.toList names)
                 return $ not $ null names

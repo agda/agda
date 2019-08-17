@@ -728,6 +728,7 @@ test-suite agda-tests
                     , Internal.TypeChecking.SizedTypes
                     , Internal.TypeChecking.SizedTypes.Syntax
                     , Internal.TypeChecking.SizedTypes.WarshallSolver
+                    , Internal.Utils.AssocList
                     , Internal.Utils.Bag
                     , Internal.Utils.BiMap
                     , Internal.Utils.Cluster

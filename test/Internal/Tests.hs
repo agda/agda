@@ -32,6 +32,7 @@ import qualified Internal.TypeChecking.Positivity.Occurrence       as Occurrence
 import qualified Internal.TypeChecking.Rules.LHS.Problem           as LHSProblem   ( tests )
 import qualified Internal.TypeChecking.SizedTypes                  as SizedTypes   ( tests )
 import qualified Internal.TypeChecking.Substitute                  as Substitute   ( tests )
+import qualified Internal.Utils.AssocList                          as UtilAList    ( tests )
 import qualified Internal.Utils.Bag                                as UtilBag      ( tests )
 import qualified Internal.Utils.BiMap                              as UtilBiMap    ( tests )
 import qualified Internal.Utils.Cluster                            as UtilClust    ( tests )
@@ -79,6 +80,7 @@ tests = testGroup "Internal"
   , LHSProblem.tests
   , SizedTypes.tests
   , Substitute.tests
+  , UtilAList.tests
   , UtilBag.tests
   , UtilBiMap.tests
   , UtilClust.tests

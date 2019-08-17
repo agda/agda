@@ -728,8 +728,8 @@ applyImportDirective dir@(ImportDirective{ impRenaming }) s
     -- Apply a renaming to a scope.
     -- O(n * (log n + log (length rho))).
     rename :: [C.Renaming] -> Scope -> Scope
-    rename rho = mapScope_ (Map.mapMaybeKeys (`Map.lookup` Map.fromList drho))
-                           (Map.mapMaybeKeys (`Map.lookup` Map.fromList mrho))
+    rename rho = mapScope_ (Map.mapMaybeKeys (AssocList.apply drho))
+                           (Map.mapMaybeKeys (AssocList.apply mrho))
                            id
       where
         (drho, mrho) = partitionEithers $ for rho $ \case
