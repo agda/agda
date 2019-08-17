@@ -17,27 +17,38 @@ import qualified Agda.Utils.Bag as Bag
 import Agda.Utils.Function (applyWhen)
 import Agda.Utils.Tuple
 
+---------------------------------------------------------------------------
+-- * Variants of list case, cons, head, tail, init, last
+---------------------------------------------------------------------------
+
 -- | Append a single element at the end.
 --   Time: O(length); use only on small lists.
 snoc :: [a] -> a -> [a]
 snoc xs x = xs ++ [x]
 
 -- | Case distinction for lists, with list first.
+--   O(1).
+--
 --   Cf. 'Agda.Utils.Null.ifNull'.
 caseList :: [a] -> b -> (a -> [a] -> b) -> b
 caseList xs n c = listCase n c xs
 
 -- | Case distinction for lists, with list first.
+--   O(1).
+--
 --   Cf. 'Agda.Utils.Null.ifNull'.
 caseListM :: Monad m => m [a] -> m b -> (a -> [a] -> m b) -> m b
 caseListM mxs n c = listCase n c =<< mxs
 
 -- | Case distinction for lists, with list last.
+--   O(1).
+--
 listCase :: b -> (a -> [a] -> b) -> [a] -> b
 listCase n c []     = n
 listCase n c (x:xs) = c x xs
 
 -- | Head function (safe). Returns a default value on empty lists.
+--   O(1).
 --
 -- > headWithDefault 42 []      = 42
 -- > headWithDefault 42 [1,2,3] = 1
@@ -45,19 +56,23 @@ headWithDefault :: a -> [a] -> a
 headWithDefault def = fromMaybe def . listToMaybe
 
 -- | Tail function (safe).
+--   O(1).
 tailMaybe :: [a] -> Maybe [a]
 tailMaybe = fmap snd . uncons
 
 -- | Tail function (safe).  Returns a default list on empty lists.
+--   O(1).
 tailWithDefault :: [a] -> [a] -> [a]
 tailWithDefault def = fromMaybe def . tailMaybe
 
 -- | Last element (safe).
+--   O(n).
 lastMaybe :: [a] -> Maybe a
 lastMaybe [] = Nothing
 lastMaybe xs = Just $ last xs
 
 -- | Last two elements (safe).
+--   O(n).
 last2 :: [a] -> Maybe (a, a)
 last2 (x : y : xs) = Just $ loop x y xs
   where
@@ -66,8 +81,11 @@ last2 (x : y : xs) = Just $ loop x y xs
 last2 _ = Nothing
 
 -- | Drop from the end of a list.
+--   O(length).
+--
 --   @dropEnd n = reverse . drop n . reverse@
---   (Forces the whole list even for @n==0@.)
+--
+--   Forces the whole list even for @n==0@.
 dropEnd :: forall a. Int -> [a] -> [a]
 dropEnd n = snd . foldr f (n, [])
   where
@@ -75,32 +93,44 @@ dropEnd n = snd . foldr f (n, [])
   f x (n, xs) = (n-1, applyWhen (n <= 0) (x:) xs)
 
 -- | Opposite of cons @(:)@, safe.
+--   O(1).
 uncons :: [a] -> Maybe (a, [a])
 uncons []     = Nothing
 uncons (x:xs) = Just (x,xs)
 
--- | Maybe cons.   @mcons ma as = maybeToList ma ++ as@
+-- | Maybe cons.
+--   O(1).
+--   @mcons ma as = maybeToList ma ++ as@
 mcons :: Maybe a -> [a] -> [a]
 mcons ma as = maybe as (:as) ma
 
 -- | 'init' and 'last' in one go, safe.
+--   O(n).
 initLast :: [a] -> Maybe ([a],a)
 initLast []     = Nothing
 initLast (a:as) = Just $ loop a as where
   loop a []      = ([], a)
   loop a (b : bs) = mapFst (a:) $ loop b bs
 
--- | init, safe.
+-- | @init@, safe.
+--   O(n).
 initMaybe :: [a] -> Maybe [a]
 initMaybe = fmap fst . initLast
 
+---------------------------------------------------------------------------
+-- * Lookup and indexing
+---------------------------------------------------------------------------
+
 -- | Lookup function (partially safe).
+--   O(min n index).
 (!!!) :: [a] -> Int -> Maybe a
 []       !!! _         = Nothing
 (x : _)  !!! 0         = Just x
 (_ : xs) !!! n         = xs !!! (n - 1)
 
 -- | Lookup function with default value for index out of range.
+--   O(min n index).
+--
 --   The name is chosen akin to 'Data.List.genericIndex'.
 indexWithDefault :: a -> [a] -> Int -> a
 indexWithDefault a []       _ = a
@@ -108,34 +138,50 @@ indexWithDefault a (x : _)  0 = x
 indexWithDefault a (_ : xs) n = indexWithDefault a xs (n - 1)
 
 -- | Find an element satisfying a predicate and return it with its index.
+--   O(n) in the worst case, e.g. @findWithIndex f xs = Nothing@.
+--
 --   TODO: more efficient implementation!?
 findWithIndex :: (a -> Bool) -> [a] -> Maybe (a, Int)
 findWithIndex p as = listToMaybe $ filter (p . fst) $ zip as [0..]
 
--- | downFrom n = [n-1,..1,0]
+-- | @downFrom n = [n-1,..1,0]@.
+--   O(n).
 downFrom :: Integral a => a -> [a]
 downFrom n | n <= 0     = []
            | otherwise = let n' = n-1 in n' : downFrom n'
 
+---------------------------------------------------------------------------
+-- * Update
+---------------------------------------------------------------------------
+
 -- | Update the first element of a list, if it exists.
+--   O(1).
 updateHead :: (a -> a) -> [a] -> [a]
 updateHead f [] = []
 updateHead f (a : as) = f a : as
 
 -- | Update the last element of a list, if it exists.
+--   O(n).
 updateLast :: (a -> a) -> [a] -> [a]
 updateLast f [] = []
 updateLast f [a] = [f a]
 updateLast f (a : as@(_ : _)) = a : updateLast f as
 
 -- | Update nth element of a list, if it exists.
+--   @O(min index n)@.
+--
 --   Precondition: the index is >= 0.
 updateAt :: Int -> (a -> a) -> [a] -> [a]
 updateAt _ f [] = []
 updateAt 0 f (a : as) = f a : as
 updateAt n f (a : as) = a : updateAt (n-1) f as
 
+---------------------------------------------------------------------------
+-- * Sublist extraction and partitioning
+---------------------------------------------------------------------------
+
 -- | Split off the largest suffix whose elements satisfy a predicate.
+--   O(n).
 --
 --   @spanEnd p xs = (ys, zs)@
 --   where @xs = ys ++ zs@
@@ -150,6 +196,9 @@ spanEnd p = snd . foldr f (True, ([], []))
 
 -- | A generalized version of @takeWhile@.
 --   (Cf. @mapMaybe@ vs. @filter@).
+--   @O(length . takeWhileJust f).
+--
+--   @takeWhileJust f = fst . spanJust f@.
 takeWhileJust :: (a -> Maybe b) -> [a] -> [b]
 takeWhileJust p = loop
   where
@@ -157,6 +206,7 @@ takeWhileJust p = loop
     loop _ = []
 
 -- | A generalized version of @span@.
+--   @O(length . fst . spanJust f)@.
 spanJust :: (a -> Maybe b) -> [a] -> ([b], [a])
 spanJust p = loop
   where
@@ -164,9 +214,11 @@ spanJust p = loop
     loop as                       = ([], as)
 
 -- | Partition a list into 'Nothing's and 'Just's.
---   @'mapMaybe' f = snd . partitionMaybe f@.
+--   O(n).
 --
 --   @partitionMaybe f = partitionEithers . map (\ a -> maybe (Left a) Right (f a))@
+--
+--   Note: @'mapMaybe' f = snd . partitionMaybe f@.
 partitionMaybe :: (a -> Maybe b) -> [a] -> ([a], [b])
 partitionMaybe f = loop
   where
@@ -177,11 +229,13 @@ partitionMaybe f = loop
 
 -- | Like 'filter', but additionally return the last partition
 --   of the list where the predicate is @False@ everywhere.
+--   O(n).
 filterAndRest :: (a -> Bool) -> [a] -> ([a],[a])
 filterAndRest p = mapMaybeAndRest $ \ a -> if p a then Just a else Nothing
 
 -- | Like 'mapMaybe', but additionally return the last partition
 --   of the list where the function always returns @Nothing@.
+--   O(n).
 mapMaybeAndRest :: (a -> Maybe b) -> [a] -> ([b],[a])
 mapMaybeAndRest f = loop [] where
   loop acc = \case
@@ -190,6 +244,7 @@ mapMaybeAndRest f = loop [] where
          | otherwise     -> loop (x:acc) xs
 
 -- | Drops from both lists simultaneously until one list is empty.
+--   O(min n m).
 dropCommon :: [a] -> [b] -> ([a],[b])
 dropCommon (x : xs) (y : ys) = dropCommon xs ys
 dropCommon xs ys = (xs, ys)
@@ -198,11 +253,16 @@ dropCommon xs ys = (xs, ys)
 isSublistOf :: Eq a => [a] -> [a] -> Bool
 isSublistOf = List.isSubsequenceOf
 
+---------------------------------------------------------------------------
+-- * Prefix and suffix
+---------------------------------------------------------------------------
+
 type Prefix a = [a]
 type Suffix a = [a]
 
 -- | Check if a list has a given prefix. If so, return the list
 --   minus the prefix.
+--   O(length prefix).
 stripPrefixBy :: (a -> a -> Bool) -> Prefix a -> [a] -> Maybe (Suffix a)
 stripPrefixBy eq = loop
   where
@@ -213,6 +273,7 @@ stripPrefixBy eq = loop
     | otherwise = Nothing
 
 -- | @stripSuffix suf xs = Just pre@ iff @xs = pre ++ suf@.
+-- O(n).
 stripSuffix :: Eq a => Suffix a -> [a] -> Maybe (Prefix a)
 stripSuffix [] = Just
 stripSuffix s  = stripReversedSuffix (reverse s)
@@ -220,6 +281,7 @@ stripSuffix s  = stripReversedSuffix (reverse s)
 type ReversedSuffix a = [a]
 
 -- | @stripReversedSuffix rsuf xs = Just pre@ iff @xs = pre ++ reverse suf@.
+--   O(n).
 stripReversedSuffix :: forall a. Eq a => ReversedSuffix a -> [a] -> Maybe (Prefix a)
 stripReversedSuffix rs = final . foldr step (SSSStrip rs)
   where
@@ -246,8 +308,13 @@ data StrSufSt a
   | SSSStrip (ReversedSuffix a) -- ^ "Negative string" to remove from end. List may be empty.
   | SSSResult [a]               -- ^ "Positive string" (result). Non-empty list.
 
+---------------------------------------------------------------------------
+-- * Chunks
+---------------------------------------------------------------------------
+
 -- | Split a list into sublists. Generalisation of the prelude function
 --   @words@.
+--   O(n).
 --
 --   > words xs == wordsBy isSpace xs
 wordsBy :: (a -> Bool) -> [a] -> [[a]]
@@ -261,6 +328,7 @@ wordsBy p xs = yesP xs
                 (ys,zs) = break p xs
 
 -- | Chop up a list in chunks of a given length.
+-- O(n).
 chop :: Int -> [a] -> [[a]]
 chop _ [] = []
 chop n xs = ys : chop n zs
@@ -269,6 +337,8 @@ chop n xs = ys : chop n zs
 -- | Chop a list at the positions when the predicate holds. Contrary to
 --   'wordsBy', consecutive separator elements will result in an empty segment
 --   in the result.
+--   O(n).
+--
 --    > intercalate [x] (chopWhen (== x) xs) == xs
 chopWhen :: (a -> Bool) -> [a] -> [[a]]
 chopWhen p [] = []
@@ -279,11 +349,17 @@ chopWhen p xs =
     (w, _ : ys) -> w : chopWhen p ys
 
 -- | All ways of removing one element from a list.
+--   O(n²).
 holes :: [a] -> [(a, [a])]
 holes []     = []
 holes (x:xs) = (x, xs) : map (second (x:)) (holes xs)
 
+---------------------------------------------------------------------------
+-- * List as sets
+---------------------------------------------------------------------------
+
 -- | Check whether a list is sorted.
+-- O(n).
 --
 -- Assumes that the 'Ord' instance implements a partial order.
 
@@ -291,38 +367,41 @@ sorted :: Ord a => [a] -> Bool
 sorted [] = True
 sorted xs = and $ zipWith (<=) xs (tail xs)
 
--- | Check whether all elements in a list are distinct from each
--- other. Assumes that the 'Eq' instance stands for an equivalence
--- relation.
+-- | Check whether all elements in a list are distinct from each other.
+--   Assumes that the 'Eq' instance stands for an equivalence relation.
+--
+--   O(n²) in the worst case @distinct xs == True@.
 distinct :: Eq a => [a] -> Bool
 distinct []     = True
 distinct (x:xs) = x `notElem` xs && distinct xs
 
 -- | An optimised version of 'distinct'.
+--   O(n log n).
 --
--- Precondition: The list's length must fit in an 'Int'.
+--   Precondition: The list's length must fit in an 'Int'.
 
 fastDistinct :: Ord a => [a] -> Bool
 fastDistinct xs = Set.size (Set.fromList xs) == length xs
 
 -- | Checks if all the elements in the list are equal. Assumes that
--- the 'Eq' instance stands for an equivalence relation.
+--   the 'Eq' instance stands for an equivalence relation.
+--   O(n).
 allEqual :: Eq a => [a] -> Bool
 allEqual []       = True
 allEqual (x : xs) = all (== x) xs
 
--- | O(n log n).
---   Returns an (arbitrary) representative for each list element
+-- | Returns an (arbitrary) representative for each list element
 --   that occurs more than once.
+--   O(n log n).
 duplicates :: Ord a => [a] -> [a]
 duplicates = mapMaybe dup . Bag.groups . Bag.fromList
   where
     dup (a : _ : _) = Just a
     dup _           = Nothing
 
--- | O(n log n).
---   Remove the first representative for each list element.
+-- | Remove the first representative for each list element.
 --   Thus, returns all duplicate copies.
+--   O(n log n).
 --
 --   @allDuplicates xs == sort $ xs \\ nub xs@.
 allDuplicates :: Ord a => [a] -> [a]
@@ -332,7 +411,7 @@ allDuplicates = concat . map (drop 1 . reverse) . Bag.groups . Bag.fromList
 
 -- | A variant of 'List.groupBy' which applies the predicate to consecutive
 -- pairs.
-
+-- O(n).
 groupBy' :: (a -> a -> Bool) -> [a] -> [[a]]
 groupBy' _ []           = []
 groupBy' p xxs@(x : xs) = grp x $ zipWith (\x y -> (p x y, y)) xxs xs
@@ -344,7 +423,7 @@ groupBy' p xxs@(x : xs) = grp x $ zipWith (\x y -> (p x y, y)) xxs xs
                    ((_, z) : zs) -> grp z zs
 
 -- | @'groupOn' f = 'groupBy' (('==') \`on\` f) '.' 'List.sortBy' ('compare' \`on\` f)@.
-
+-- O(n log n).
 groupOn :: Ord b => (a -> b) -> [a] -> [[a]]
 groupOn f = List.groupBy ((==) `on` f) . List.sortBy (compare `on` f)
 
@@ -356,7 +435,7 @@ splitExactlyAt n []       = Nothing
 splitExactlyAt n (x : xs) = mapFst (x :) <$> splitExactlyAt (n-1) xs
 
 -- | A generalised variant of 'elemIndex'.
-
+-- O(n).
 genericElemIndex :: (Eq a, Integral i) => a -> [a] -> Maybe i
 genericElemIndex x xs =
   listToMaybe $
@@ -365,7 +444,12 @@ genericElemIndex x xs =
   zip [0..] $
   map (== x) xs
 
+---------------------------------------------------------------------------
+-- * Zipping
+---------------------------------------------------------------------------
+
 -- | Requires both lists to have the same length.
+--   O(n).
 --
 --   Otherwise, @Nothing@ is returned.
 
@@ -379,6 +463,7 @@ zipWith' f = loop
 
 -- | Like 'zipWith' but keep the rest of the second list as-is
 --   (in case the second list is longer).
+-- O(n).
 --
 -- @
 --   zipWithKeepRest f as bs == zipWith f as bs ++ drop (length as) bs
@@ -402,6 +487,7 @@ zipWithKeepRest f = loop
 
 
 -- | Efficient variant of 'nubBy' for finite lists.
+-- O(n log n)
 --
 -- Specification:
 --
@@ -417,6 +503,7 @@ nubOn tag =
   . zip [1..]
 
 -- | Efficient variant of 'nubBy' for finite lists.
+-- O(n log n).
 --
 -- Specification: For each list @xs@ there is a list @ys@ which is a
 -- permutation of @xs@ such that
@@ -430,16 +517,22 @@ uniqOn :: Ord b => (a -> b) -> [a] -> [a]
 uniqOn key = Map.elems . Map.fromList . map (\ a -> (key a, a))
 
 -- | Compute the common suffix of two lists.
+--   O(n + m).
 commonSuffix :: Eq a => [a] -> [a] -> [a]
 commonSuffix xs ys = reverse $ (commonPrefix `on` reverse) xs ys
 
 -- | Compute the common prefix of two lists.
+--   O(min n m).
 commonPrefix :: Eq a => [a] -> [a] -> [a]
 commonPrefix [] _ = []
 commonPrefix _ [] = []
 commonPrefix (x:xs) (y:ys)
   | x == y    = x : commonPrefix xs ys
   | otherwise = []
+
+---------------------------------------------------------------------------
+-- * Edit distance
+---------------------------------------------------------------------------
 
 -- | Implemented using tree recursion, don't run me at home!
 --   O(3^(min n m)).
