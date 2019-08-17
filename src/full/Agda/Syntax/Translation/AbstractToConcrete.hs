@@ -1360,7 +1360,7 @@ instance ToConcrete A.Pattern C.Pattern where
       -- we take off the exceeding arguments first
       -- and apply them pointwise with C.AppP later.
       let (args1, args2) = splitAt (numHoles x) args
-      let funCtx = if null args2 then id else withPrecedence FunctionCtx
+      let funCtx = applyUnless (null args2) (withPrecedence FunctionCtx)
       tryToRecoverPatternSynP (f args) $ funCtx (tryToRecoverOpAppP $ f args1) >>= \case
         Just c  -> applyTo args2 c
         Nothing -> applyTo args . C.IdentP =<< toConcrete x

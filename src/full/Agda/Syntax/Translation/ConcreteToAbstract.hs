@@ -1227,7 +1227,7 @@ instance ToAbstract (TopLevel [C.Declaration]) TopLevelInfo where
           outsideDecls <- toAbstract outsideDecls
           (insideScope, insideDecls) <- scopeCheckModule r m am tel $
              toAbstract insideDecls
-          let scope = mapScopeInfo (restrictLocalPrivate am) insideScope
+          let scope = over scopeModules (fmap $ restrictLocalPrivate am) insideScope
           setScope scope
           return $ TopLevelInfo (outsideDecls ++ insideDecls) scope
 

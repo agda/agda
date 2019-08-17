@@ -37,6 +37,7 @@ import qualified Agda.Utils.AssocList as AssocList
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List
+import Agda.Utils.Maybe (filterMaybe)
 import Agda.Utils.NonemptyList
 import Agda.Utils.Null
 import Agda.Utils.Pretty
@@ -104,8 +105,8 @@ data ScopeInfo = ScopeInfo
       , _scopeInverseName   :: NameMap
       , _scopeInverseModule :: ModuleMap
       , _scopeInScope       :: InScopeSet
-      , _scopeFixities      :: C.Fixities    -- ^ Maps concrete names to fixities
-      , _scopePolarities    :: C.Polarities  -- ^ Maps concrete names to polarities
+      , _scopeFixities      :: C.Fixities    -- ^ Maps concrete names C.Name to fixities
+      , _scopePolarities    :: C.Polarities  -- ^ Maps concrete names C.Name to polarities
       }
   deriving (Data, Show)
 
@@ -238,9 +239,6 @@ updateScopeLocals = over scopeLocals
 
 setScopeLocals :: LocalVars -> ScopeInfo -> ScopeInfo
 setScopeLocals = set scopeLocals
-
-mapScopeInfo :: (Scope -> Scope) -> ScopeInfo -> ScopeInfo
-mapScopeInfo = over scopeModules . fmap
 
 ------------------------------------------------------------------------
 -- * Name spaces
@@ -777,12 +775,14 @@ restrictPrivate s = setNameSpace PrivateNS emptyNameSpace
 
 -- | Remove private things from the given module from a scope.
 restrictLocalPrivate :: ModuleName -> Scope -> Scope
-restrictLocalPrivate m = mapScope' PrivateNS (Map.mapMaybe rName) (Map.mapMaybe rMod)
-                                             (Set.filter (not . (`isInModule` m)))
+restrictLocalPrivate m =
+  mapScope' PrivateNS
+    (Map.mapMaybe rName)
+    (Map.mapMaybe rMod)
+    (Set.filter (not . (`isInModule` m)))
   where
-    check p x = x <$ guard (p x)
-    rName as = check (not . null) $ filter (not . (`isInModule`    m) . anameName) as
-    rMod  as = check (not . null) $ filter (not . (`isSubModuleOf` m) . amodName)  as
+    rName as = filterMaybe (not . null) $ filter (not . (`isInModule`    m) . anameName) as
+    rMod  as = filterMaybe (not . null) $ filter (not . (`isSubModuleOf` m) . amodName)  as
 
 -- | Remove names that can only be used qualified (when opening a scope)
 removeOnlyQualified :: Scope -> Scope
