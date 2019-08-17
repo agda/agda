@@ -205,6 +205,22 @@ Language
   one wakes up all constraints mentioning the given meta-variables,
   and then tries to solve all awake constraints.
 
+### Warnings
+
+* New warning for a variable shadowing another in a telescope. If the two
+  variables are introduced in different telescopes then the warning is not
+  raised.
+
+  ```agda
+  f : {a : Level} {A : Set a} (a : A) → A   -- warning raised: repeated a
+  g : {a : Level} {A : Set a} → (a : A) → A -- warning not raised: two distinct telescopes
+  ```
+
+  Note that this warning is turned off by default (you can use
+  `-WShadowingInTelescope` or `--warning ShadowingInTelescope` to turn
+  it on, `-Wall` would also naturally work).
+
+
 Emacs mode
 ----------
 

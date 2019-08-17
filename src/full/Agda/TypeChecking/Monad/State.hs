@@ -173,11 +173,11 @@ setScope :: ScopeInfo -> TCM ()
 setScope scope = modifyScope (const scope)
 
 -- | Modify the current scope without updating the inverse maps.
-modifyScope_ :: (ScopeInfo -> ScopeInfo) -> TCM ()
+modifyScope_ :: MonadTCState m => (ScopeInfo -> ScopeInfo) -> m ()
 modifyScope_ f = stScope `modifyTCLens` f
 
 -- | Modify the current scope.
-modifyScope :: (ScopeInfo -> ScopeInfo) -> TCM ()
+modifyScope :: MonadTCState m => (ScopeInfo -> ScopeInfo) -> m ()
 modifyScope f = modifyScope_ (recomputeInverseScopeMaps . f)
 
 -- | Run a computation in a modified scope.

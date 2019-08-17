@@ -207,6 +207,7 @@ data DeclarationWarning
       -- ^ A {-\# TERMINATING \#-} and {-\# NON_TERMINATING \#-} pragma
       --   that does not apply to any function.
   | MissingDefinitions [Name]
+  | ShadowingInTelescope [(Name, [Range])]
   | NotAllowedInMutual Range String
   | PolarityPragmasButNotPostulates [Name]
   | PragmaNoTerminationCheck Range
@@ -238,6 +239,7 @@ declarationWarningName dw = case dw of
   InvalidNoUniverseCheckPragma{}    -> InvalidNoUniverseCheckPragma_
   InvalidTerminationCheckPragma{}   -> InvalidTerminationCheckPragma_
   MissingDefinitions{}              -> MissingDefinitions_
+  ShadowingInTelescope{}            -> ShadowingInTelescope_
   NotAllowedInMutual{}              -> NotAllowedInMutual_
   PolarityPragmasButNotPostulates{} -> PolarityPragmasButNotPostulates_
   PragmaNoTerminationCheck{}        -> PragmaNoTerminationCheck_
@@ -298,6 +300,7 @@ instance HasRange DeclarationWarning where
   getRange (InvalidNoUniverseCheckPragma r)     = r
   getRange (PragmaNoTerminationCheck r)         = r
   getRange (PragmaCompiled r)                   = r
+  getRange (ShadowingInTelescope ns)            = getRange ns
 
 instance HasRange NiceDeclaration where
   getRange (Axiom r _ _ _ _ _ _)           = r
@@ -426,6 +429,10 @@ instance Pretty DeclarationWarning where
     pwords "Pragma {-# NO_TERMINATION_CHECK #-} has been removed.  To skip the termination check, label your definitions either as {-# TERMINATING #-} or {-# NON_TERMINATING #-}."
   pretty (PragmaCompiled _) = fsep $
     pwords "COMPILE pragma not allowed in safe mode."
+  pretty (ShadowingInTelescope nrs) = fsep $
+    pwords "Shadowing in telescope, repeated variables:"
+    ++ punctuate comma (map (pretty . fst) nrs)
+
 
 declName :: NiceDeclaration -> String
 declName Axiom{}             = "Postulates"

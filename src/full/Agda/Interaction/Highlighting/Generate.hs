@@ -676,19 +676,20 @@ warningHighlighting w = case tcWarning w of
     UselessAbstract{}    -> deadcodeHighlighting $ getRange w
     UselessInstance{}    -> deadcodeHighlighting $ getRange w
     UselessPrivate{}     -> deadcodeHighlighting $ getRange w
+    ShadowingInTelescope nrs -> Fold.foldMap (shadowingTelHighlighting . snd) nrs
     -- TODO: explore highlighting opportunities here!
-    EmptyPrimitive{} -> mempty
-    InvalidCatchallPragma{} -> mempty
-    InvalidNoPositivityCheckPragma{} -> mempty
-    InvalidNoUniverseCheckPragma{} -> mempty
-    InvalidTerminationCheckPragma{} -> mempty
-    MissingDefinitions{} -> mempty
+    EmptyPrimitive{}                  -> mempty
+    InvalidCatchallPragma{}           -> mempty
+    InvalidNoPositivityCheckPragma{}  -> mempty
+    InvalidNoUniverseCheckPragma{}    -> mempty
+    InvalidTerminationCheckPragma{}   -> mempty
+    MissingDefinitions{}              -> mempty
     PolarityPragmasButNotPostulates{} -> mempty
-    PragmaNoTerminationCheck{} -> mempty
-    PragmaCompiled{} -> mempty
-    UnknownFixityInMixfixDecl{} -> mempty
-    UnknownNamesInFixityDecl{} -> mempty
-    UnknownNamesInPolarityPragmas{} -> mempty
+    PragmaNoTerminationCheck{}        -> mempty
+    PragmaCompiled{}                  -> mempty
+    UnknownFixityInMixfixDecl{}       -> mempty
+    UnknownNamesInFixityDecl{}        -> mempty
+    UnknownNamesInPolarityPragmas{}   -> mempty
 
 
 -- | Generate syntax highlighting for termination errors.
@@ -721,6 +722,11 @@ coverageErrorHighlighting :: Range -> File
 coverageErrorHighlighting r = singleton (rToR $ P.continuousPerLine r) m
   where m = parserBased { otherAspects = Set.singleton CoverageProblem }
 
+shadowingTelHighlighting :: [Range] -> File
+shadowingTelHighlighting =
+  -- we do not want to highlight the one variable in scope as deadcode
+  -- so we take the @init@ segment of the ranges in question
+  Fold.foldMap deadcodeHighlighting . init
 
 catchallHighlighting :: Range -> File
 catchallHighlighting r = singleton (rToR $ P.continuousPerLine r) m

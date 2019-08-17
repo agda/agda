@@ -39,6 +39,7 @@ import Agda.TypeChecking.Monad.Trace ( setCurrentRange )
 import Agda.TypeChecking.Positivity.Occurrence (Occurrence)
 import Agda.TypeChecking.Warnings ( warning )
 
+import Agda.Utils.Applicative ((?$>))
 import qualified Agda.Utils.AssocList as AssocList
 import Agda.Utils.Except
 import Agda.Utils.Functor
@@ -81,10 +82,10 @@ useScope l = useR $ stScope . l
 getCurrentModule :: ReadTCState m => m A.ModuleName
 getCurrentModule = setRange noRange <$> useScope scopeCurrent
 
-setCurrentModule :: A.ModuleName -> ScopeM ()
+setCurrentModule :: MonadTCState m => A.ModuleName -> m ()
 setCurrentModule m = modifyScope $ set scopeCurrent m
 
-withCurrentModule :: A.ModuleName -> ScopeM a -> ScopeM a
+withCurrentModule :: (ReadTCState m, MonadTCState m) => A.ModuleName -> m a -> m a
 withCurrentModule new action = do
   old <- getCurrentModule
   setCurrentModule new
@@ -175,6 +176,38 @@ setLocalVars vars = modifyLocalVars $ const vars
 -- | Run a computation without changing the local variables.
 withLocalVars :: ScopeM a -> ScopeM a
 withLocalVars = bracket_ getLocalVars setLocalVars
+
+-- | Check that the newly added variable have unique names
+
+withCheckNoShadowing :: ScopeM a -> ScopeM a
+withCheckNoShadowing m = do
+  lvars0 <- getLocalVars
+  v <- m
+  lvars1 <- getLocalVars
+  checkNoShadowing lvars0 lvars1
+  pure v
+
+checkNoShadowing :: LocalVars  -- ^ Old local scope
+                 -> LocalVars  -- ^ New local scope
+                 -> ScopeM ()
+checkNoShadowing old new = do
+  -- LocalVars is currnently an AssocList so the difference between
+  -- two local scope is the left part of the new one.
+  let diff = dropEnd (length old) new
+  let nameParts = mapMaybe extractConcreteNameParts $ AssocList.keys diff
+  let conflicts = Map.filter atLeastTwo $ Map.fromListWith (++) nameParts
+  unless (Map.null conflicts) $ do
+    warning $ NicifierIssue $ ShadowingInTelescope
+            $ Map.toList conflicts
+
+  where
+
+    extractConcreteNameParts :: C.Name -> Maybe (C.Name, [Range])
+    extractConcreteNameParts n = not (isUnderscore n) ?$> (n, [getRange n])
+
+    atLeastTwo :: [a] -> Bool
+    atLeastTwo (_ : _ : _) = True
+    atLeastTwo _ = False
 
 getVarsToBind :: ScopeM LocalVars
 getVarsToBind = useScope scopeVarsToBind

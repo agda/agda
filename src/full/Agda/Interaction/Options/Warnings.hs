@@ -124,6 +124,7 @@ usualWarnings :: Set WarningName
 usualWarnings = allWarnings Set.\\ Set.fromList
               [ UnknownFixityInMixfixDecl_
               , CoverageNoExactSplit_
+              , ShadowingInTelescope_
               ]
 
 -- | The @WarningName@ data enumeration is meant to have a one-to-one correspondance
@@ -155,6 +156,7 @@ data WarningName
   | PolarityPragmasButNotPostulates_
   | PragmaCompiled_
   | PragmaNoTerminationCheck_
+  | ShadowingInTelescope_
   | UnknownFixityInMixfixDecl_
   | UnknownNamesInFixityDecl_
   | UnknownNamesInPolarityPragmas_
@@ -271,6 +273,7 @@ warningNameDescription w = case w of
   PolarityPragmasButNotPostulates_ -> "Polarity pragmas for non-postulates."
   PragmaCompiled_                  -> "'COMPILE' pragmas not allowed in safe mode."
   PragmaNoTerminationCheck_        -> "`NO_TERMINATION_CHECK' pragmas are deprecated"
+  ShadowingInTelescope_            -> "Repeated variable name in telescope."
   UnknownFixityInMixfixDecl_       -> "Mixfix names without an associated fixity declaration."
   UnknownNamesInFixityDecl_        -> "Names not declared in the same scope as their syntax or fixity declaration."
   UnknownNamesInPolarityPragmas_   -> "Names not declared in the same scope as their polarity pragmas."

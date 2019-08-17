@@ -124,6 +124,7 @@ instance EmbPrj DeclarationWarning where
     PragmaCompiled r                  -> icodeN 21 PragmaCompiled r
     EmptyPrimitive a                  -> icodeN 22 EmptyPrimitive a
     EmptyField r                      -> icodeN 23 EmptyField r
+    ShadowingInTelescope nrs          -> icodeN 24 ShadowingInTelescope nrs
 
   value = vcase $ \case
     [0, a]   -> valuN UnknownNamesInFixityDecl a
@@ -150,6 +151,7 @@ instance EmbPrj DeclarationWarning where
     [21,a]   -> valuN PragmaCompiled a
     [22,a]   -> valuN EmptyPrimitive a
     [23,r]   -> valuN EmptyField r
+    [24,nrs] -> valuN ShadowingInTelescope nrs
     _ -> malformed
 
 instance EmbPrj LibWarning where
