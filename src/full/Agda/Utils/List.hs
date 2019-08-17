@@ -2,7 +2,7 @@
 
 module Agda.Utils.List where
 
-import Control.Arrow (first)
+import Control.Arrow (first, second)
 
 import Data.Array (Array, array, listArray)
 import qualified Data.Array as Array
@@ -14,7 +14,7 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 
 import qualified Agda.Utils.Bag as Bag
-
+import Agda.Utils.Function (applyWhen)
 import Agda.Utils.Tuple
 
 -- | Append a single element at the end.
@@ -72,9 +72,7 @@ dropEnd :: forall a. Int -> [a] -> [a]
 dropEnd n = snd . foldr f (n, [])
   where
   f :: a -> (Int, [a]) -> (Int, [a])
-  f x (n, xs)
-    | n <= 0    = (0, x:xs)
-    | otherwise = (n-1, xs)
+  f x (n, xs) = (n-1, applyWhen (n <= 0) (x:) xs)
 
 -- | Opposite of cons @(:)@, safe.
 uncons :: [a] -> Maybe (a, [a])
@@ -281,7 +279,7 @@ chopWhen p xs =
 -- | All ways of removing one element from a list.
 holes :: [a] -> [(a, [a])]
 holes []     = []
-holes (x:xs) = (x, xs) : map (id -*- (x:)) (holes xs)
+holes (x:xs) = (x, xs) : map (second (x:)) (holes xs)
 
 -- | Check whether a list is sorted.
 --
