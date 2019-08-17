@@ -4,6 +4,8 @@ module Agda.Utils.List where
 
 import Control.Arrow (first)
 
+import Data.Array (Array, array, listArray)
+import qualified Data.Array as Array
 import Data.Functor ((<$>))
 import Data.Function
 import qualified Data.List as List
@@ -439,6 +441,8 @@ commonPrefix (x:xs) (y:ys)
   | x == y    = x : commonPrefix xs ys
   | otherwise = []
 
+-- | Implemented using tree recursion, don't run me at home!
+--   O(3^(min n m)).
 editDistanceSpec :: Eq a => [a] -> [a] -> Int
 editDistanceSpec [] ys = length ys
 editDistanceSpec xs [] = length xs
@@ -448,16 +452,26 @@ editDistanceSpec (x : xs) (y : ys)
                             , editDistanceSpec xs (y : ys)
                             , editDistanceSpec xs ys ]
 
-editDistance :: Eq a => [a] -> [a] -> Int
+-- | Implemented using dynamic programming and @Data.Array@.
+--   O(n*m).
+editDistance :: forall a. Eq a => [a] -> [a] -> Int
 editDistance xs ys = editD 0 0
-  where xss = List.tails xs
-        yss = List.tails ys
-        tbl = Map.fromList [ ((i, j), editD' i j) | i <- [0..length xss - 1], j <- [0..length yss - 1] ]
-        editD i j = tbl Map.! (i, j)
-        editD' i j =
-          case (xss !! i, yss !! j) of
-            ([], ys) -> length ys
-            (xs, []) -> length xs
-            (x : xs, y : ys)
-              | x == y    -> editD (i + 1) (j + 1)
-              | otherwise -> 1 + minimum [ editD (i + 1) j, editD i (j + 1), editD (i + 1) (j + 1) ]
+  where
+  editD i j = tbl Array.! (i, j)
+  -- Tabulate editD' in immutable boxed array (content computed lazily).
+  tbl :: Array (Int,Int) Int
+  tbl = array ((0,0), (n,m)) [ ((i, j), editD' i j) | i <- [0..n], j <- [0..m] ]
+  editD' i j =
+    case (xssA Array.! i, yssA Array.! j) of
+      ([], ys) -> length ys
+      (xs, []) -> length xs
+      (x : xs, y : ys)
+        | x == y    -> editD (i + 1) (j + 1)
+        | otherwise -> 1 + minimum [ editD (i + 1) j, editD i (j + 1), editD (i + 1) (j + 1) ]
+  xss = List.tails xs
+  yss = List.tails ys
+  n   = length xss - 1
+  m   = length yss - 1
+  xssA, yssA :: Array Int [a]
+  xssA = listArray (0,n) xss
+  yssA = listArray (0,m) yss
