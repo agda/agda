@@ -165,6 +165,8 @@ spanJust p = loop
 
 -- | Partition a list into 'Nothing's and 'Just's.
 --   @'mapMaybe' f = snd . partitionMaybe f@.
+--
+--   @partitionMaybe f = partitionEithers . map (\ a -> maybe (Left a) Right (f a))@
 partitionMaybe :: (a -> Maybe b) -> [a] -> ([a], [b])
 partitionMaybe f = loop
   where

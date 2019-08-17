@@ -6,6 +6,7 @@ module Internal.Utils.List ( tests ) where
 
 import Agda.Utils.List
 
+import Data.Either (partitionEithers)
 import Data.Function
 import Data.List
 
@@ -38,6 +39,10 @@ prop_updateAt (NonNegative n) f as = updateAt n f as == spec_updateAt n f as
 prop_spanEnd_split   p xs = let (ys, zs) = spanEnd p xs in xs == ys ++ zs
 prop_spanEnd_holds   p xs = let (ys, zs) = spanEnd p xs in all p zs
 prop_spanEnd_maximal p xs = let (ys, zs) = spanEnd p xs in maybe True (not . p) (lastMaybe ys)
+
+prop_partitionMaybe :: (Int -> Maybe Bool) -> [Int] -> Bool
+prop_partitionMaybe f as = partitionMaybe f as == partitionEithers (map f' as)
+  where f' a = maybe (Left a) Right $ f a
 
 prop_mapMaybeAndRest_Nothing as = mapMaybeAndRest (const Nothing) as == ([] :: [Int],as)
 prop_mapMaybeAndRest_Just    as = mapMaybeAndRest Just            as == (as,[])
