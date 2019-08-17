@@ -430,6 +430,8 @@ Individual warnings can be turned on and off by ``-W {Name}`` and ``-W
       ``TERMINATING`` pragmas with the safe flag.
 :samp:`SafeFlagWithoutKFlagPrimEraseEquality`
       ``primEraseEquality`` used with the safe and without-K flags.
+:samp:`ShadowingInTelescope`
+      Repeated variable name in telescope.
 :samp:`TerminationIssue`
       Failed termination checks.
 :samp:`UnknownFixityInMixfixDecl`

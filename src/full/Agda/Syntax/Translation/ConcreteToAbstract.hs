@@ -869,11 +869,14 @@ instance ToAbstract C.Expr A.Expr where
         return $ A.Fun (ExprRange r) e1 e2
 
   -- Dependent function type
-      e0@(C.Pi tel e) ->
+      e0@(C.Pi tel e) -> do
+        lvars0 <- getLocalVars
         localToAbstract tel $ \tel -> do
-        e    <- toAbstractCtx TopCtx e
-        let info = ExprRange (getRange e0)
-        return $ A.Pi info tel e
+          lvars1 <- getLocalVars
+          checkNoShadowing lvars0 lvars1
+          e <- toAbstractCtx TopCtx e
+          let info = ExprRange (getRange e0)
+          return $ A.Pi info tel e
 
   -- Sorts
       C.Set _    -> return $ A.Set (ExprRange $ getRange e) 0
@@ -1523,13 +1526,14 @@ instance ToAbstract NiceDeclaration A.Declaration where
     C.NiceRecSig r p a _pc _uc x ls t -> do
       ensureNoLetStms ls
       withLocalVars $ do
-        -- Minor hack: record types don't have indices so we include t when
-        -- computing generalised parameters, but in the type checker any named
-        -- generalizable arguments in the sort should be bound variables.
-        (ls', _) <- toAbstract (GenTelAndType (map makeDomainFull ls) t)
-        t'  <- toAbstract t
-        f   <- getConcreteFixity x
-        x'  <- freshAbstractQName f x
+        (ls', _) <- withCheckNoShadowing $
+          -- Minor hack: record types don't have indices so we include t when
+          -- computing generalised parameters, but in the type checker any named
+          -- generalizable arguments in the sort should be bound variables.
+          toAbstract (GenTelAndType (map makeDomainFull ls) t)
+        t' <- toAbstract t
+        f  <- getConcreteFixity x
+        x' <- freshAbstractQName f x
         bindName' p RecName (GeneralizedVarsMetadata $ generalizeTelVars ls') x x'
         return [ A.RecSig (mkDefInfo x f p a r) x' ls' t' ]
 
@@ -1537,7 +1541,8 @@ instance ToAbstract NiceDeclaration A.Declaration where
         reportSLn "scope.data.sig" 20 ("checking DataSig for " ++ prettyShow x)
         ensureNoLetStms ls
         withLocalVars $ do
-          ls' <- toAbstract $ GenTel $ map makeDomainFull ls
+          ls' <- withCheckNoShadowing $
+            toAbstract $ GenTel $ map makeDomainFull ls
           t'  <- toAbstract $ C.Generalized t
           f  <- getConcreteFixity x
           x' <- freshAbstractQName f x
