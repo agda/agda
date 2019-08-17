@@ -727,7 +727,9 @@ libraryFlag s o = return $ o { optLibraries = optLibraries o ++ [s] }
 overrideLibrariesFileFlag :: String -> Flag CommandLineOptions
 overrideLibrariesFileFlag s o = do
   ifM (liftIO $ doesFileExist s)
-    {-then-} (return $ o { optOverrideLibrariesFile = Just s })
+    {-then-} (return $ o { optOverrideLibrariesFile = Just s
+                         , optUseLibs = True
+                         })
     {-else-} (throwError $ "Libraries file not found: " ++ s)
 
 noDefaultLibsFlag :: Flag CommandLineOptions
