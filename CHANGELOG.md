@@ -49,6 +49,15 @@ Language
   ```
   Note that this includes a respective change in the reflected Agda syntax.
 
+* Fixities can now be changed during import in a `renaming` directive, see issue
+  [#1346](https://github.com/agda/agda/issues/1346). Example:
+  ```agda
+  open M using (_∙_)
+  open M renaming (_∙_ to infixl 10 _*_)
+  ```
+  After this, `_∙_` is in scope with its original fixity, and as `_*_` as left
+  associative operator of precedence 10.
+
 * Implicit non-dependent function spaces `{A} → B` and `{{A}} → B` are now supported.
 
 * Idiom brackets
