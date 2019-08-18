@@ -1,3 +1,4 @@
+{-# LANGUAGE BangPatterns       #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE GADTs              #-}
 
@@ -225,6 +226,24 @@ scopePolarities :: Lens' C.Polarities ScopeInfo
 scopePolarities f s =
   f (_scopePolarities s) <&>
   \x -> s { _scopePolarities = x }
+
+scopeFixitiesAndPolarities :: Lens' (C.Fixities, C.Polarities) ScopeInfo
+scopeFixitiesAndPolarities f s =
+  f' (_scopeFixities s) (_scopePolarities s) <&>
+  \ (fixs, pols) -> s { _scopeFixities = fixs, _scopePolarities = pols }
+  where
+  -- Andreas, 2019-08-18: strict matching avoids space leak, see #1829.
+  f' !fixs !pols = f (fixs, pols)
+  -- Andrea comments on https://github.com/agda/agda/issues/1829#issuecomment-522312084
+  -- on a naive version without the bang patterns:
+  --
+  -- useScope (because of useR) forces the result of projecting the
+  -- lens, this usually prevents retaining the whole structure when we
+  -- only need a field.  However your combined lens adds an extra layer
+  -- of laziness with the pairs, so the actual projections remain
+  -- unforced.
+  --
+  -- I guess scopeFixitiesAndPolarities could add some strictness when building the pair?
 
 -- | Lens for 'scopeVarsToBind'.
 updateVarsToBind :: (LocalVars -> LocalVars) -> ScopeInfo -> ScopeInfo

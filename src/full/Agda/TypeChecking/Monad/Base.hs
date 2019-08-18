@@ -3483,6 +3483,12 @@ instance MonadTCEnv ReduceM where
   askTC   = ReduceM redEnv
   localTC = onReduceEnv . mapRedEnv
 
+-- Andrea comments (https://github.com/agda/agda/issues/1829#issuecomment-522312084):
+--
+--   useR forces the result of projecting the lens,
+--   this usually prevents retaining the whole structure when we only need a field.
+--
+-- This fixes (or contributes to the fix of) the space leak issue #1829 (caching).
 useR :: (ReadTCState m) => Lens' a TCState -> m a
 useR l = do
   !x <- (^.l) <$> getTCState

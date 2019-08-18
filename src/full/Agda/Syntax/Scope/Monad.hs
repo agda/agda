@@ -364,13 +364,14 @@ instance MonadFixityError ScopeM where
 -- | Collect the fixity/syntax declarations and polarity pragmas from the list
 --   of declarations and store them in the scope.
 computeFixitiesAndPolarities :: DoWarn -> [C.Declaration] -> ScopeM a -> ScopeM a
-computeFixitiesAndPolarities warn ds ret = do
-  (fixs0, pols0) <- (,) <$> useScope scopeFixities <*> useScope scopePolarities
-  (fixs, pols)   <- fixitiesAndPolarities warn ds
-  modifyScope $ set scopeFixities fixs . set scopePolarities pols
-  x <- ret
-  modifyScope $ set scopeFixities fixs0 . set scopePolarities pols0
-  return x
+computeFixitiesAndPolarities warn ds cont = do
+  fp <- fixitiesAndPolarities warn ds
+  -- Andreas, 2019-08-16:
+  -- Since changing fixities and polarities does not affect the name sets,
+  -- we do not need to invoke @modifyScope@ here
+  -- (which does @recomputeInverseScopeMaps@).
+  -- A simple @locallyScope@ is sufficient.
+  locallyScope scopeFixitiesAndPolarities (const fp) cont
 
 -- | Get the notation of a name. The name is assumed to be in scope.
 getNotation
