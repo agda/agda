@@ -387,11 +387,11 @@ beginImpDir : {- empty -}   {% pushLexState imp_dir }
  --------------------------------------------------------------------------}
 
 -- A float. Used in fixity declarations.
-Float :: { Double }
-Float : literal {% case $1 of {
-                     LitNat   _ i -> return (fromInteger i);
-                     LitFloat _ i -> return i;
-                     _            -> parseError $ "Expected floating point number"
+Float :: { Ranged Double }
+Float : literal {% case $1 of
+                   { LitNat   r i -> return $ Ranged r $ fromInteger i
+                   ; LitFloat r i -> return $ Ranged r i
+                   ; _            -> parseError $ "Expected floating point number"
                    }
                 }
 
@@ -1073,9 +1073,9 @@ Renaming
 RenamingTarget :: { (Maybe Fixity, Name) }
 RenamingTarget
     : Id                 { (Nothing, $1) }
-    | 'infix'  Float Id  { (Just (Fixity (getRange ($1,$3)) (Related $2) NonAssoc)  , $3) }
-    | 'infixl' Float Id  { (Just (Fixity (getRange ($1,$3)) (Related $2) LeftAssoc) , $3) }
-    | 'infixr' Float Id  { (Just (Fixity (getRange ($1,$3)) (Related $2) RightAssoc), $3) }
+    | 'infix'  Float Id  { (Just (Fixity (getRange ($1,$2)) (Related $ rangedThing $2) NonAssoc)  , $3) }
+    | 'infixl' Float Id  { (Just (Fixity (getRange ($1,$2)) (Related $ rangedThing $2) LeftAssoc) , $3) }
+    | 'infixr' Float Id  { (Just (Fixity (getRange ($1,$2)) (Related $ rangedThing $2) RightAssoc), $3) }
 
 -- We need a special imported name here, since we have to trigger
 -- the imp_dir state exactly one token before the 'to'
@@ -1256,9 +1256,9 @@ RecordConstructorName :                  'constructor' Id        { ($2, NotInsta
 
 -- Fixity declarations.
 Infix :: { Declaration }
-Infix : 'infix'  Float SpaceBIds  { Infix (Fixity (getRange ($1,$3)) (Related $2) NonAssoc)   $3 }
-      | 'infixl' Float SpaceBIds  { Infix (Fixity (getRange ($1,$3)) (Related $2) LeftAssoc)  $3 }
-      | 'infixr' Float SpaceBIds  { Infix (Fixity (getRange ($1,$3)) (Related $2) RightAssoc) $3 }
+Infix : 'infix'  Float SpaceBIds  { Infix (Fixity (getRange ($1,$2,$3)) (Related $ rangedThing $2) NonAssoc)   $3 }
+      | 'infixl' Float SpaceBIds  { Infix (Fixity (getRange ($1,$2,$3)) (Related $ rangedThing $2) LeftAssoc)  $3 }
+      | 'infixr' Float SpaceBIds  { Infix (Fixity (getRange ($1,$2,$3)) (Related $ rangedThing $2) RightAssoc) $3 }
 
 -- Field declarations.
 Fields :: { Declaration }

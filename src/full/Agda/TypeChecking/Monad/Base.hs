@@ -2913,6 +2913,8 @@ data Warning
     --   `old` is deprecated, use `new` instead. This will be an error in Agda `version`.
   | UserWarning String
     -- ^ User-defined warning (e.g. to mention that a name is deprecated)
+  | FixityInRenamingModule (NonemptyList Range)
+    -- ^ Fixity of modules cannot be changed via renaming (since modules have no fixity).
   | ModuleDoesntExport C.QName [C.ImportedName]
     -- ^ Some imported names are not actually exported by the source module
   | InfectiveImport String ModuleName
@@ -2952,6 +2954,7 @@ warningName w = case w of
   GenericWarning{}             -> GenericWarning_
   InversionDepthReached{}      -> InversionDepthReached_
   ModuleDoesntExport{}         -> ModuleDoesntExport_
+  FixityInRenamingModule{}     -> FixityInRenamingModule_
   NotStrictlyPositive{}        -> NotStrictlyPositive_
   OldBuiltin{}                 -> OldBuiltin_
   SafeFlagNoPositivityCheck    -> SafeFlagNoPositivityCheck_

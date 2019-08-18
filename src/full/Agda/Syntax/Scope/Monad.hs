@@ -35,7 +35,7 @@ import Agda.Syntax.Scope.Base as A
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Monad.State
-import Agda.TypeChecking.Monad.Trace ( setCurrentRange )
+import Agda.TypeChecking.Monad.Trace
 import Agda.TypeChecking.Positivity.Occurrence (Occurrence)
 import Agda.TypeChecking.Warnings ( warning )
 
@@ -48,7 +48,7 @@ import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null (unlessNull)
-import Agda.Utils.NonemptyList
+import Agda.Utils.NonemptyList as NonemptyList
 import Agda.Utils.Pretty
 
 import Agda.Utils.Impossible
@@ -618,6 +618,18 @@ copyScope oldc new0 s = (inScopeBecause (Applied oldc) *** memoToScopeInfo) <$> 
 -- * Import directives
 ---------------------------------------------------------------------------
 
+-- | Warn about useless fixity declarations in @renaming@ directives.
+checkNoFixityInRenamingModule :: [C.Renaming] -> ScopeM ()
+checkNoFixityInRenamingModule ren = do
+  whenJust (NonemptyList.fromList $ mapMaybe rangeOfUselessInfix ren) $ \ rs -> do
+    traceCall (SetRange $ getRange rs) $ do
+      warning $ FixityInRenamingModule rs
+  where
+  rangeOfUselessInfix :: C.Renaming -> Maybe Range
+  rangeOfUselessInfix = \case
+    Renaming ImportedModule{} _ mfx _ -> getRange <$> mfx
+    _ -> Nothing
+
 -- | Apply an import directive and check that all the names mentioned actually
 --   exist.
 applyImportDirectiveM
@@ -626,6 +638,10 @@ applyImportDirectiveM
   -> Scope                             -- ^ Input scope.
   -> ScopeM (A.ImportDirective, Scope) -- ^ Scope-checked description, output scope.
 applyImportDirectiveM m (ImportDirective rng usn' hdn' ren' public) scope = do
+
+    -- Modules names do not come with fixities, thus, we should complain if the
+    -- user supplied fixity annotations to renaming-module clauses.
+    checkNoFixityInRenamingModule ren'
 
     -- We start by checking that all of the names talked about in the import
     -- directive do exist.  If some do not then we remove them and raise a warning.

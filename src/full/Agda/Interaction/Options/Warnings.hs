@@ -177,6 +177,7 @@ data WarningName
   | InstanceNoOutputTypeName_
   | InversionDepthReached_
   | ModuleDoesntExport_
+  | FixityInRenamingModule_
   | NotStrictlyPositive_
   | OldBuiltin_
   | PragmaCompileErased_
@@ -296,6 +297,7 @@ warningNameDescription w = case w of
   InstanceWithExplicitArg_         -> "`instance` declarations with explicit arguments are never considered by instance search."
   InversionDepthReached_           -> "Inversions of pattern-matching failed due to exhausted inversion depth."
   ModuleDoesntExport_              -> "Imported name is not actually exported."
+  FixityInRenamingModule_          -> "Found fixity annotation in renaming directive for module."
   NotStrictlyPositive_             -> "Failed strict positivity checks."
   OldBuiltin_                      -> "Deprecated `BUILTIN' pragmas."
   PragmaCompileErased_             -> "`COMPILE' pragma targeting an erased symbol."

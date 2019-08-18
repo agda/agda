@@ -757,16 +757,24 @@ instance (Pretty a, Pretty b) => Pretty (ImportDirective' a b) where
 
             rename [] = empty
             rename xs = hsep [ "renaming"
-                             , parens $ fsep $ punctuate ";" $ map pr xs
+                             , parens $ fsep $ punctuate ";" $ map pretty xs
                              ]
-
-            pr r = hsep [ pretty (renFrom r), "to", pretty (renTo r) ]
 
 instance (Pretty a, Pretty b) => Pretty (Using' a b) where
     pretty UseEverything = empty
     pretty (Using xs)    =
         "using" <+> parens (fsep $ punctuate ";" $ map pretty xs)
 
+instance (Pretty a, Pretty b) => Pretty (Renaming' a b) where
+    pretty (Renaming from to mfx _r) = hsep
+      [ pretty from
+      , "to"
+      , maybe empty pretty mfx
+      , case to of
+          ImportedName a   -> pretty a
+          ImportedModule b -> pretty b   -- don't print "module" here
+      ]
+
 instance (Pretty a, Pretty b) => Pretty (ImportedName' a b) where
-    pretty (ImportedName x)     = pretty x
-    pretty (ImportedModule x)   = "module" <+> pretty x
+    pretty (ImportedName   a) = pretty a
+    pretty (ImportedModule b) = "module" <+> pretty b

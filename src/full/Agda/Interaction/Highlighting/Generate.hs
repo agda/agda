@@ -627,6 +627,7 @@ warningHighlighting w = case tcWarning w of
   UnsolvedMetaVariables rs   -> metasHighlighting rs
   AbsurdPatternRequiresNoRHS{} -> deadcodeHighlighting $ getRange w
   ModuleDoesntExport{}         -> deadcodeHighlighting $ getRange w
+  FixityInRenamingModule rs    -> Fold.foldMap deadcodeHighlighting rs
   -- expanded catch-all case to get a warning for new constructors
   CantGeneralizeOverSorts{}  -> mempty
   UnsolvedInteractionMetas{} -> mempty
