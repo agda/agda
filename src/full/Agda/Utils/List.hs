@@ -463,8 +463,8 @@ duplicates = mapMaybe dup . Bag.groups . Bag.fromList
 --   @allDuplicates xs == sort $ xs \\ nub xs@.
 allDuplicates :: Ord a => [a] -> [a]
 allDuplicates = concat . map (drop 1 . reverse) . Bag.groups . Bag.fromList
-  -- The reverse is necessary to actually remove the
-  -- *first* occurrence of each element.
+  -- The reverse is necessary to actually remove the *first* occurrence
+  -- of each element.
 
 -- | Efficient variant of 'nubBy' for finite lists.
 -- O(n log n)
