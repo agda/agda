@@ -180,6 +180,10 @@ modifyScope_ f = stScope `modifyTCLens` f
 modifyScope :: MonadTCState m => (ScopeInfo -> ScopeInfo) -> m ()
 modifyScope f = modifyScope_ (recomputeInverseScopeMaps . f)
 
+-- | Get a part of the current scope.
+useScope :: ReadTCState m => Lens' a ScopeInfo -> m a
+useScope l = useR $ stScope . l
+
 -- | Run a computation in a modified scope.
 locallyScope :: ReadTCState m => Lens' a ScopeInfo -> (a -> a) -> m b -> m b
 locallyScope l = locallyTCState $ stScope . l

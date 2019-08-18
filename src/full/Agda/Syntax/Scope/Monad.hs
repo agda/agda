@@ -76,9 +76,6 @@ isDatatypeModule :: ReadTCState m => A.ModuleName -> m (Maybe DataOrRecord)
 isDatatypeModule m = do
    scopeDatatypeModule . Map.findWithDefault __IMPOSSIBLE__ m <$> useScope scopeModules
 
-useScope :: ReadTCState m => Lens' a ScopeInfo -> m a
-useScope l = useR $ stScope . l
-
 getCurrentModule :: ReadTCState m => m A.ModuleName
 getCurrentModule = setRange noRange <$> useScope scopeCurrent
 
