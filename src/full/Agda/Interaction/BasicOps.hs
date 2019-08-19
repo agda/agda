@@ -401,7 +401,8 @@ outputFormId (OutputForm _ _ o) = out o
       PostponedCheckFunDef{}     -> __IMPOSSIBLE__
 
 instance Reify ProblemConstraint (Closure (OutputForm Expr Expr)) where
-  reify (PConstr pids cl) = enterClosure cl $ \c -> buildClosure =<< (OutputForm (getRange c) (Set.toList pids) <$> reify c)
+  reify (PConstr pids cl) = withClosure cl $ \ c ->
+    OutputForm (getRange c) (Set.toList pids) <$> reify c
 
 reifyElimToExpr :: MonadReify m => I.Elim -> m Expr
 reifyElimToExpr e = case e of
@@ -442,7 +443,7 @@ instance Reify Constraint (OutputConstraint Expr Expr) where
           BlockedConst t -> do
             e  <- reify t
             return $ Assign m' e
-          PostponedTypeCheckingProblem cl _ -> enterClosure cl $ \p -> case p of
+          PostponedTypeCheckingProblem cl _ -> enterClosure cl $ \case
             CheckExpr cmp e a -> do
                 a  <- reify a
                 return $ TypedAssign m' e a

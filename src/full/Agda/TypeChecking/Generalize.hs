@@ -178,7 +178,7 @@ computeGeneralization genRecMeta nameMap allmetas = postponeInstanceConstraints 
   let canGeneralize x | isConstrained x = return False
       canGeneralize x = do
           mv   <- lookupMeta x
-          msub <- enterClosure (miClosRange $ mvInfo mv) $ \ _ ->
+          msub <- enterClosure mv $ \ _ ->
                     checkpointSubstitution' cp
           let sameContext =
                 -- We can only generalize if the metavariable takes the context variables of the
@@ -320,7 +320,7 @@ pruneUnsolvedMetas genRecName genRecCon genTel genRecFields interactionPoints is
     prePrune x = do
       cp <- viewTC eCurrentCheckpoint
       mv <- lookupMeta x
-      (i, _A) <- enterClosure (miClosRange $ mvInfo mv) $ \ _ -> do
+      (i, _A) <- enterClosure mv $ \ _ -> do
         δ <- checkpointSubstitution cp
         _A <- case mvJudgement mv of
                 IsSort{}  -> return Nothing
@@ -360,7 +360,7 @@ pruneUnsolvedMetas genRecName genRecCon genTel genRecFields interactionPoints is
           , "uρ⁻¹ =" <+> pretty uρ' ]
 
         -- To solve it we enter the context of x again
-        enterClosure (miClosRange $ mvInfo mv) $ \ _ -> do
+        enterClosure mv $ \ _ -> do
           -- v is x applied to the context variables
           v <- case _A of
                  Nothing -> Sort . MetaS x . map Apply <$> getMetaContextArgs mv
@@ -374,7 +374,7 @@ pruneUnsolvedMetas genRecName genRecCon genTel genRecFields interactionPoints is
       mv <- lookupMeta x
       -- The reason we are doing all this inside the closure of x is so that if x is an interaction
       -- meta we get the right context for the pruned interaction meta.
-      enterClosure (miClosRange $ mvInfo mv) $ \ _ ->
+      enterClosure mv $ \ _ ->
         -- If we can't find the generalized record, it's already been pruned and we don't have to do
         -- anything.
         whenJustM (findGenRec mv) $ \ i -> do
