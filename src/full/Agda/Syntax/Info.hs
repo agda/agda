@@ -168,6 +168,9 @@ instance KillRange DefInfo where
 instance LensIsAbstract DefInfo where
   lensIsAbstract f i = (f $! defAbstract i) <&> \ a -> i { defAbstract = a }
 
+instance AnyIsAbstract DefInfo where
+  anyIsAbstract = defAbstract
+
 
 {--------------------------------------------------------------------------
     General declaration information
