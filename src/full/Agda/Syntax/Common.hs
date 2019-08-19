@@ -19,7 +19,8 @@ import Data.Semigroup hiding (Arg)
 #endif
 import Data.ByteString.Char8 (ByteString)
 import qualified Data.ByteString.Char8 as ByteString
-import Data.Foldable ()
+import Data.Foldable (Foldable)
+import qualified Data.Foldable as Fold
 import Data.Function
 import Data.Hashable (Hashable(..))
 import qualified Data.Strict.Maybe as Strict
@@ -1814,6 +1815,8 @@ data DataOrRecord = IsData | IsRecord
 data IsInfix = InfixDef | PrefixDef
     deriving (Data, Show, Eq, Ord)
 
+-- ** private blocks, public imports
+
 -- | Access modifier.
 data Access
   = PrivateAccess Origin
@@ -1839,9 +1842,21 @@ instance HasRange Access where
 instance KillRange Access where
   killRange = id
 
--- | Abstract or concrete
+-- ** abstract blocks
+
+-- | Abstract or concrete.
 data IsAbstract = AbstractDef | ConcreteDef
     deriving (Data, Show, Eq, Ord)
+
+-- | Semigroup computes if any of several is an 'AbstractDef'.
+instance Semigroup IsAbstract where
+  AbstractDef <> _ = AbstractDef
+  ConcreteDef <> a = a
+
+-- | Default is 'ConcreteDef'.
+instance Monoid IsAbstract where
+  mempty  = ConcreteDef
+  mappend = (<>)
 
 instance KillRange IsAbstract where
   killRange = id
@@ -1851,6 +1866,21 @@ class LensIsAbstract a where
 
 instance LensIsAbstract IsAbstract where
   lensIsAbstract = id
+
+-- | Is any element of a collection an 'AbstractDef'.
+class AnyIsAbstract a where
+  anyIsAbstract :: a -> IsAbstract
+
+  default anyIsAbstract :: (Foldable t, AnyIsAbstract b, t b ~ a) => a -> IsAbstract
+  anyIsAbstract = Fold.foldMap anyIsAbstract
+
+instance AnyIsAbstract IsAbstract where
+  anyIsAbstract = id
+
+instance AnyIsAbstract a => AnyIsAbstract [a] where
+instance AnyIsAbstract a => AnyIsAbstract (Maybe a) where
+
+-- ** instance blocks
 
 -- | Is this definition eligible for instance search?
 data IsInstance = InstanceDef | NotInstanceDef

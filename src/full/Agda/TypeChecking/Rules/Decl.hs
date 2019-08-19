@@ -27,6 +27,7 @@ import Agda.Syntax.Literal
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
+import Agda.TypeChecking.Monad.Benchmark (MonadBench, Phase)
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 
 import Agda.TypeChecking.Constraints
@@ -189,8 +190,13 @@ checkDecl d = setCurrentRange d $ do
                                   -- Open and PatternSynDef are just artifacts
                                   -- from the concrete syntax, retained for
                                   -- highlighting purposes.
-      A.UnquoteDecl mi i x e   -> checkUnquoteDecl mi i x e
-      A.UnquoteDef i x e       -> impossible $ checkUnquoteDef i x e
+      -- Andreas, 2019-08-19, issue #4010, observe @abstract@ also for unquoting.
+      -- TODO: is it possible that some of the unquoted declarations/definitions
+      -- are abstract and some are not?  Then allowing all to look into abstract things,
+      -- as we do here, will leak information about the implementation of abstract things.
+      -- TODO: Benchmarking for unquote.
+      A.UnquoteDecl mi is xs e -> checkMaybeAbstractly is $ checkUnquoteDecl mi is xs e
+      A.UnquoteDef is xs e     -> impossible $ checkMaybeAbstractly is $ checkUnquoteDef is xs e
 
     whenNothingM (asksTC envMutualBlock) $ do
 
@@ -218,16 +224,22 @@ checkDecl d = setCurrentRange d $ do
     checkSig i x gtel t = checkTypeSignature' (Just gtel) $
       A.Axiom A.NoFunSig i defaultArgInfo Nothing x t
 
+    -- | Switch maybe to abstract mode, benchmark, and debug print bracket.
+    check :: forall m i a
+          . ( MonadTCEnv m, MonadPretty m, MonadDebug m, MonadBench Phase m
+            , AnyIsAbstract i )
+          => QName -> i -> m a -> m a
     check x i m = Bench.billTo [Bench.Definition x] $ do
       reportSDoc "tc.decl" 5 $ ("Checking" <+> prettyTCM x) <> "."
-      reportSLn "tc.decl.abstract" 25 $ show (Info.defAbstract i)
-      r <- abstract (Info.defAbstract i) m
+      reportSLn "tc.decl.abstract" 25 $ show $ anyIsAbstract i
+      r <- checkMaybeAbstractly i m
       reportSDoc "tc.decl" 5 $ ("Checked" <+> prettyTCM x) <> "."
       return r
 
-    -- Concrete definitions cannot use information about abstract things.
-    abstract ConcreteDef = inConcreteMode
-    abstract AbstractDef = inAbstractMode
+    -- | Switch to AbstractMode if any of the i is AbstractDef.
+    checkMaybeAbstractly :: forall m i a . ( MonadTCEnv m , AnyIsAbstract i )
+                         => i -> m a -> m a
+    checkMaybeAbstractly = localTC . set lensIsAbstract . anyIsAbstract
 
 -- Some checks that should be run at the end of a mutual block. The
 -- set names contains the names defined in the mutual block.
