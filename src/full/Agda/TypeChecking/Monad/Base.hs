@@ -1327,7 +1327,7 @@ instance LensClosure Range MetaVariable where
 instance LensIsAbstract TCEnv where
   lensIsAbstract f env =
      -- Andreas, 2019-08-19
-     -- $! to space leaks like #1829
+     -- Using $! to prevent space leaks like #1829.
      -- This can crash when trying to get IsAbstract from IgnoreAbstractMode.
     (f $! fromMaybe __IMPOSSIBLE__ (aModeToDef $ envAbstractMode env))
     <&> \ a -> env { envAbstractMode = aDefToMode a }
