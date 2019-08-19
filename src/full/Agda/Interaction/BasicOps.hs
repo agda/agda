@@ -118,8 +118,12 @@ giveExpr force mii mi e = do
       ctx <- getContextArgs
       t' <- t `piApplyM` permute (takeP (length ctx) $ mvPermutation mv) ctx
       traceCall (CheckExprCall CmpLeq e t') $ do
-        reportSDoc "interaction.give" 20 $
-          "give: instantiated meta type =" TP.<+> prettyTCM t'
+        reportSDoc "interaction.give" 20 $ do
+          a <- asksTC envAbstractMode
+          TP.hsep
+            [ TP.text ("give(" ++ show a ++ "): instantiated meta type =")
+            , prettyTCM t'
+            ]
         v <- checkExpr e t'
         case mvInstantiation mv of
 

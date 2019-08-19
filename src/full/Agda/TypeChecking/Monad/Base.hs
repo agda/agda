@@ -939,7 +939,16 @@ instance Show a => Show (Closure a) where
   show cl = "Closure { clValue = " ++ show (clValue cl) ++ " }"
 
 instance HasRange a => HasRange (Closure a) where
-    getRange = getRange . clValue
+  getRange = getRange . clValue
+
+class LensClosure a b | b -> a where
+  lensClosure :: Lens' (Closure a) b
+
+instance LensClosure a (Closure a) where
+  lensClosure = id
+
+instance LensTCEnv (Closure a) where
+  lensTCEnv f cl = (f $! clEnv cl) <&> \ env -> cl { clEnv = env }
 
 buildClosure :: (MonadTCEnv m, ReadTCState m) => a -> m (Closure a)
 buildClosure x = do
@@ -1301,6 +1310,23 @@ getMetaModality = envModality . getMetaEnv
 
 metaFrozen :: Lens' Frozen MetaVariable
 metaFrozen f mv = f (mvFrozen mv) <&> \ x -> mv { mvFrozen = x }
+
+instance LensClosure Range MetaInfo where
+  lensClosure f mi = (f $! miClosRange mi) <&> \ cl -> mi { miClosRange = cl }
+
+instance LensIsAbstract TCEnv where
+  lensIsAbstract f env =
+     -- Andreas, 2019-08-19
+     -- $! to space leaks like #1829
+     -- This can crash when trying to get IsAbstract from IgnoreAbstractMode.
+    (f $! fromMaybe __IMPOSSIBLE__ (aModeToDef $ envAbstractMode env))
+    <&> \ a -> env { envAbstractMode = aDefToMode a }
+
+instance LensIsAbstract (Closure a) where
+  lensIsAbstract = lensTCEnv . lensIsAbstract
+
+instance LensIsAbstract MetaInfo where
+  lensIsAbstract = lensClosure . lensIsAbstract
 
 ---------------------------------------------------------------------------
 -- ** Interaction meta variables
@@ -2639,6 +2665,12 @@ initEnv = TCEnv { envContext             = []
                 , envActiveBackendName      = Nothing
                 }
 
+class LensTCEnv a where
+  lensTCEnv :: Lens' TCEnv a
+
+instance LensTCEnv TCEnv where
+  lensTCEnv = id
+
 instance LensModality TCEnv where
   -- Cohesion shouldn't have an environment component.
   getModality = setCohesion defaultCohesion . envModality
@@ -2818,10 +2850,10 @@ aDefToMode :: IsAbstract -> AbstractMode
 aDefToMode AbstractDef = AbstractMode
 aDefToMode ConcreteDef = ConcreteMode
 
-aModeToDef :: AbstractMode -> IsAbstract
-aModeToDef AbstractMode = AbstractDef
-aModeToDef ConcreteMode = ConcreteDef
-aModeToDef _ = __IMPOSSIBLE__
+aModeToDef :: AbstractMode -> Maybe IsAbstract
+aModeToDef AbstractMode = Just AbstractDef
+aModeToDef ConcreteMode = Just ConcreteDef
+aModeToDef _ = Nothing
 
 ---------------------------------------------------------------------------
 -- ** Insertion of implicit arguments

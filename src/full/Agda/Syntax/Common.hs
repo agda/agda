@@ -1846,6 +1846,12 @@ data IsAbstract = AbstractDef | ConcreteDef
 instance KillRange IsAbstract where
   killRange = id
 
+class LensIsAbstract a where
+  lensIsAbstract :: Lens' IsAbstract a
+
+instance LensIsAbstract IsAbstract where
+  lensIsAbstract = id
+
 -- | Is this definition eligible for instance search?
 data IsInstance = InstanceDef | NotInstanceDef
     deriving (Data, Show, Eq, Ord)
