@@ -44,9 +44,12 @@ constructorForm v = do
   ms <- getBuiltin' builtinSuc
   return $ fromMaybe v $ constructorForm' mz ms v
 
-enterClosure :: Closure a -> (a -> ReduceM b) -> ReduceM b
-enterClosure (Closure sig env scope cps x) f = localR (mapRedEnvSt inEnv inState) (f x)
-  where
+enterClosure :: LensClosure a c => c -> (a -> ReduceM b) -> ReduceM b
+enterClosure c | Closure _sig env scope cps x <- c ^. lensClosure = \case
+  -- The \case is a hack to correctly associate the where block to the rhs
+  -- rather than to the expression in the pattern guard.
+  f -> localR (mapRedEnvSt inEnv inState) (f x)
+    where
     inEnv   e = env
     inState s =
       -- TODO: use the signature here? would that fix parts of issue 118?

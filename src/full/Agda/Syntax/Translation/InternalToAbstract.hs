@@ -535,7 +535,7 @@ reifyTerm expandAnonDefs0 v0 = do
           mv <- lookupMeta x
           (msub1,meta_tel,msub2) <- do
             local_chkpt <- viewTC eCurrentCheckpoint
-            (chkpt, tel, msub2) <- enterClosure (getMetaInfo mv) $ \ _ ->
+            (chkpt, tel, msub2) <- enterClosure mv $ \ _ ->
                                (,,) <$> viewTC eCurrentCheckpoint
                                     <*> getContextTelescope
                                     <*> viewTC (eCheckpoints . key local_chkpt)

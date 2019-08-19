@@ -1311,8 +1311,18 @@ getMetaModality = envModality . getMetaEnv
 metaFrozen :: Lens' Frozen MetaVariable
 metaFrozen f mv = f (mvFrozen mv) <&> \ x -> mv { mvFrozen = x }
 
+_mvInfo :: Lens' MetaInfo MetaVariable
+_mvInfo f mv = (f $! mvInfo mv) <&> \ mi -> mv { mvInfo = mi }
+
+-- Lenses onto Closure Range
+
 instance LensClosure Range MetaInfo where
   lensClosure f mi = (f $! miClosRange mi) <&> \ cl -> mi { miClosRange = cl }
+
+instance LensClosure Range MetaVariable where
+  lensClosure = _mvInfo . lensClosure
+
+-- Lenses onto IsAbstract
 
 instance LensIsAbstract TCEnv where
   lensIsAbstract f env =
