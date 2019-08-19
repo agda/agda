@@ -411,11 +411,9 @@ highlight_ hlmod d = do
 checkTermination_ :: A.Declaration -> TCM ()
 checkTermination_ d = Bench.billTo [Bench.Termination] $ do
   reportSLn "tc.decl" 20 $ "checkDecl: checking termination..."
-  termErrs <- termDecl d
-  -- If there are some termination errors, we collect them in the
-  -- state. The termination checker already marked non-terminating
-  -- functions as such.
-  unless (null termErrs) $ do
+  -- If there are some termination errors, we throw a warning.
+  -- The termination checker already marked non-terminating functions as such.
+  unlessNullM (termDecl d) $ \ termErrs -> do
     warning $ TerminationIssue termErrs
 
 -- | Check a set of mutual names for positivity.
@@ -425,9 +423,8 @@ checkPositivity_ mi names = Bench.billTo [Bench.Positivity] $ do
   reportSLn "tc.decl" 20 $ "checkDecl: checking positivity..."
   checkStrictlyPositive mi names
 
-  -- Andreas, 2012-02-13: Polarity computation uses info from
-  -- positivity check, so it needs happen after positivity
-  -- check.
+  -- Andreas, 2012-02-13: Polarity computation uses information from the
+  -- positivity check, so it needs happen after the positivity check.
   computePolarity $ Set.toList names
 
 -- | Check that all coinductive records are actually recursive.

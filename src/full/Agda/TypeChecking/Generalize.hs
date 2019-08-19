@@ -4,6 +4,8 @@ module Agda.TypeChecking.Generalize
   , generalizeType'
   , generalizeTelescope ) where
 
+import Prelude hiding (null)
+
 import Control.Arrow (first)
 import Control.Monad
 import Data.IntSet (IntSet)
@@ -44,6 +46,7 @@ import Agda.Utils.Impossible
 import Agda.Utils.List   (hasElem)
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
+import Agda.Utils.Null
 import Agda.Utils.Size
 import Agda.Utils.Permutation
 
@@ -52,7 +55,7 @@ import Agda.Utils.Permutation
 generalizeTelescope :: Map QName Name -> (forall a. (Telescope -> TCM a) -> TCM a) -> ([Maybe Name] -> Telescope -> TCM a) -> TCM a
 generalizeTelescope vars typecheckAction ret | Map.null vars = typecheckAction (ret [])
 generalizeTelescope vars typecheckAction ret = billTo [Typing, Generalize] $ withGenRecVar $ \ genRecMeta -> do
-  let s = Set.fromList (Map.keys vars)
+  let s = Map.keysSet vars
   ((cxtNames, tel, letbinds), namedMetas, allmetas) <-
     createMetasAndTypeCheck s $ typecheckAction $ \ tel -> do
       cxt <- take (size tel) <$> getContext
@@ -169,9 +172,8 @@ computeGeneralization genRecMeta nameMap allmetas = postponeInstanceConstraints 
       nongeneralizableOpen                      = filter isOpen nongeneralizable
 
   -- Issue 3301: We can't generalize over sorts
-  case openSortMetas of
-    [] -> return ()
-    ms -> warning $ CantGeneralizeOverSorts (map fst ms)
+  unlessNull openSortMetas $ \ ms ->
+    warning $ CantGeneralizeOverSorts $ map fst ms
 
   -- Any meta in the solution of a generalizable meta should be generalized over (if possible).
   cp <- viewTC eCurrentCheckpoint
