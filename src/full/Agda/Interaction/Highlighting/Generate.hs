@@ -684,7 +684,6 @@ warningHighlighting w = case tcWarning w of
     InvalidNoUniverseCheckPragma{}   -> deadcodeHighlighting $ getRange w
     InvalidTerminationCheckPragma{}  -> deadcodeHighlighting $ getRange w
     InvalidCoverageCheckPragma{}     -> deadcodeHighlighting $ getRange w
-    EmptyPrimitive{}                 -> deadcodeHighlighting $ getRange w
     ShadowingInTelescope nrs -> Fold.foldMap (shadowingTelHighlighting . snd) nrs
     -- TODO: explore highlighting opportunities here!
     InvalidCatchallPragma{}           -> mempty
