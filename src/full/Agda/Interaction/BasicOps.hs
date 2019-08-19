@@ -98,7 +98,13 @@ parseExprIn ii rng s = do
     updateMetaVarRange mId rng
     mi  <- getMetaInfo <$> lookupMeta mId
     e   <- parseExpr rng s
-    concreteToAbstract (clScope mi) e
+    -- Andreas, 2019-08-19, issue #4007
+    -- We need to be in the TCEnv of the meta variable
+    -- such that the scope checker can label the clause
+    -- of a parsed extended lambda as IsAbstract if the
+    -- interaction point was created in AbstractMode.
+    withMetaInfo mi $
+      concreteToAbstract (clScope mi) e
 
 giveExpr :: UseForce -> Maybe InteractionId -> MetaId -> Expr -> TCM ()
 -- When translator from internal to abstract is given, this function might return
