@@ -108,10 +108,9 @@ giveExpr force mii mi e = do
     -- In the context (incl. signature) of the meta variable,
     -- type check expression and assign meta
     withMetaInfo (getMetaInfo mv) $ do
-      metaTypeCheck mv (mvJudgement mv)
-  where
-    metaTypeCheck mv IsSort{}      = __IMPOSSIBLE__
-    metaTypeCheck mv (HasType _ t) = do
+      let t = case mvJudgement mv of
+                IsSort{}    -> __IMPOSSIBLE__
+                HasType _ t -> t
       reportSDoc "interaction.give" 20 $
         "give: meta type =" TP.<+> prettyTCM t
       -- Here, we must be in the same context where the meta was created.
