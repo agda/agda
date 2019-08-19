@@ -127,8 +127,6 @@ checkDecls :: [A.Declaration] -> TCM ()
 checkDecls ds = do
   reportSLn "tc.decl" 45 $ "Checking " ++ show (length ds) ++ " declarations..."
   mapM_ checkDecl ds
-  -- Andreas, 2011-05-30, unfreezing moved to Interaction/Imports
-  -- whenM onTopLevel unfreezeMetas
 
 -- | Type check a single declaration.
 
@@ -138,10 +136,6 @@ checkDecl d = setCurrentRange d $ do
     debugPrintDecl d
     reportSDoc "tc.decl" 90 $ (text . show) (deepUnscopeDecl d)
     reportSDoc "tc.decl" 10 $ prettyA d  -- Might loop, see e.g. Issue 1597
-
-    -- Issue 418 fix: freeze metas before checking an abstract thing
-    -- when_ isAbstract freezeMetas -- WAS IN PLACE 2012-2016, but too crude
-    -- applyWhen isAbstract withFreezeMetas $ do -- WRONG
 
     let -- What kind of final checks/computations should be performed
         -- if we're not inside a mutual block?
@@ -230,8 +224,6 @@ checkDecl d = setCurrentRange d $ do
       r <- abstract (Info.defAbstract i) m
       reportSDoc "tc.decl" 5 $ ("Checked" <+> prettyTCM x) <> "."
       return r
-
-    isAbstract = fmap Info.defAbstract (A.getDefInfo d) == Just AbstractDef
 
     -- Concrete definitions cannot use information about abstract things.
     abstract ConcreteDef = inConcreteMode
@@ -631,9 +623,6 @@ checkAxiom' gentel funSig i info0 mp x e = whenAbstractFreezeMetasAfter i $ do
     -- Do not default size metas to ∞ in local type signatures
     checkingWhere <- asksTC envCheckingWhere
     solveSizeConstraints $ if checkingWhere then DontDefaultToInfty else DefaultToInfty
-
-  -- Andreas, 2011-05-31, that freezing below is probably wrong:
-  -- when_ (Info.defAbstract i == AbstractDef) $ freezeMetas
 
 -- | Type check a primitive function declaration.
 checkPrimitive :: Info.DefInfo -> QName -> A.Expr -> TCM ()

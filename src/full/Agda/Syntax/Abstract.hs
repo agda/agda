@@ -191,32 +191,6 @@ data Declaration
   | ScopedDecl ScopeInfo [Declaration]  -- ^ scope annotation
   deriving (Data, Show)
 
-class GetDefInfo a where
-  getDefInfo :: a -> Maybe DefInfo
-
-instance GetDefInfo Declaration where
-  getDefInfo = \case
-    Axiom _ i _ _ _ _        -> Just i
-    Generalize _ i _ _ _     -> Just i
-    Field i _ _              -> Just i
-    Primitive i _ _          -> Just i
-    Mutual{}                 -> Nothing
-    Section{}                -> Nothing
-    Apply{}                  -> Nothing
-    Import{}                 -> Nothing
-    Pragma{}                 -> Nothing
-    Open{}                   -> Nothing
-    FunDef i _ _ _           -> Just i
-    DataSig i _ _ _          -> Just i
-    DataDef i _ _ _ _        -> Just i
-    RecSig i _ _ _           -> Just i
-    RecDef i _ _ _ _ _ _ _ _ -> Just i
-    PatternSynDef{}          -> Nothing
-    UnquoteDecl _ is _ _     -> Nothing  -- Andreas, 2019-08-19: TODO: is Nothing correct here?
-    UnquoteDef is _ _        -> Nothing  -- This was a catch-all, but there are DefInfos (list is).
-    ScopedDecl _ (d:_)       -> getDefInfo d
-    ScopedDecl _ []          -> Nothing
-
 type ImportDirective = ImportDirective' QName ModuleName
 type Renaming        = Renaming'        QName ModuleName
 type ImportedName    = ImportedName'    QName ModuleName
