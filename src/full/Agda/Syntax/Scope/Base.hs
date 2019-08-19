@@ -70,6 +70,9 @@ data NameSpaceId
                      --   Used for qualified constructors.
   deriving (Data, Eq, Bounded, Enum, Show)
 
+allNameSpaces :: [NameSpaceId]
+allNameSpaces = [minBound..maxBound]
+
 type ScopeNameSpaces = [(NameSpaceId, NameSpace)]
 
 localNameSpace :: Access -> NameSpaceId
@@ -464,6 +467,9 @@ instance Pretty ResolvedName where
 mergeNames :: Eq a => ThingsInScope a -> ThingsInScope a -> ThingsInScope a
 mergeNames = Map.unionWith List.union
 
+mergeNamesMany :: Eq a => [ThingsInScope a] -> ThingsInScope a
+mergeNamesMany = Map.unionsWith List.union
+
 ------------------------------------------------------------------------
 -- * Operations on name spaces
 ------------------------------------------------------------------------
@@ -514,7 +520,9 @@ emptyScope :: Scope
 emptyScope = Scope
   { scopeName           = noModuleName
   , scopeParents        = []
-  , scopeNameSpaces     = [ (nsid, emptyNameSpace) | nsid <- [minBound..maxBound] ]
+  , scopeNameSpaces     = [ (nsid, emptyNameSpace) | nsid <- allNameSpaces ]
+      -- Note (Andreas, 2019-08-19):  Cannot have [] here because
+      -- zipScope assumes all NameSpaces to be present and in the same order.
   , scopeImports        = Map.empty
   , scopeDatatypeModule = Nothing
   }
@@ -624,12 +632,12 @@ filterScope pd pm = recomputeInScopeSets .  mapScope_ (Map.filterKeys pd) (Map.f
 
 -- | Return all names in a scope.
 allNamesInScope :: InScope a => Scope -> ThingsInScope a
-allNamesInScope = namesInScope [minBound..maxBound]
+allNamesInScope = mergeNamesMany . map (inNameSpace . snd) . scopeNameSpaces
 
 allNamesInScope' :: InScope a => Scope -> ThingsInScope (a, Access)
 allNamesInScope' s =
-  foldr1 mergeNames [ map (, nameSpaceAccess ns) <$> namesInScope [ns] s
-                    | ns <- [minBound..maxBound] ]
+  mergeNamesMany [ map (, nameSpaceAccess nsId) <$> inNameSpace ns
+                 | (nsId, ns) <- scopeNameSpaces s ]
 
 -- | Returns the scope's non-private names.
 exportedNamesInScope :: InScope a => Scope -> ThingsInScope a
@@ -637,10 +645,14 @@ exportedNamesInScope = namesInScope [PublicNS, ImportedNS, OnlyQualifiedNS]
 
 namesInScope :: InScope a => [NameSpaceId] -> Scope -> ThingsInScope a
 namesInScope ids s =
-  foldr1 mergeNames [ inNameSpace (scopeNameSpace nsid s) | nsid <- ids ]
+  mergeNamesMany [ inNameSpace (scopeNameSpace nsid s) | nsid <- ids ]
 
 allThingsInScope :: Scope -> NameSpace
-allThingsInScope = thingsInScope [minBound..maxBound]
+allThingsInScope s =
+  NameSpace { nsNames   = allNamesInScope s
+            , nsModules = allNamesInScope s
+            , nsInScope = Set.unions $ map (nsInScope . snd) $ scopeNameSpaces s
+            }
 
 thingsInScope :: [NameSpaceId] -> Scope -> NameSpace
 thingsInScope fs s =
@@ -1190,8 +1202,8 @@ instance Pretty Scope where
   pretty (scope@Scope{ scopeName = name, scopeParents = parents, scopeImports = imps }) =
     vcat $
       [ "scope" <+> pretty name ] ++ ind (
-        concat [ blockOfLines (pretty nsid) $ prettyNameSpace $ scopeNameSpace nsid scope
-               | nsid <- [minBound..maxBound] ]
+        concat [ blockOfLines (pretty nsid) $ prettyNameSpace ns
+               | (nsid, ns) <- scopeNameSpaces scope ]
       ++ blockOfLines "imports"
            (case Map.keys imps of [] -> []; ks -> [ prettyList ks ])
       )
