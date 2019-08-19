@@ -38,7 +38,7 @@ like
 `Scheme <https://en.wikipedia.org/wiki/Scheme_%28programming_language%29>`_. In
 such languages, if ``f`` is a function, one can apply it to anything,
 including itself. This makes it easy to write programs (almost all
-programs are wellformed), but it also makes it easy to write erroneous
+programs are well formed), but it also makes it easy to write erroneous
 programs. Programs will raise exceptions or loop forever. And it is
 very difficult to analyse where the problems are.
 
