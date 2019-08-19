@@ -21,7 +21,7 @@ import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Generic
 import Agda.Syntax.Internal.MetaVars
-import Agda.Syntax.Position (killRange)
+import Agda.Syntax.Position (getRange, killRange)
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
@@ -129,7 +129,10 @@ assignTerm x tel v = do
 -- | Skip frozen check.  Used for eta expanding frozen metas.
 assignTermTCM' :: MetaId -> [Arg ArgName] -> Term -> TCM ()
 assignTermTCM' x tel v = do
-    reportSLn "tc.meta.assign" 70 $ prettyShow x ++ " := " ++ show v ++ "\n  in " ++ show tel
+    reportSDoc "tc.meta.assign" 70 $ vcat
+      [ "assignTerm" <+> prettyTCM x <+> " := " <+> prettyTCM v
+      , nest 2 $ "tel =" <+> prettyList_ (map (text . unArg) tel)
+      ]
      -- verify (new) invariants
     whenM (not <$> asksTC envAssignMetas) __IMPOSSIBLE__
 
@@ -157,6 +160,8 @@ newSortMeta =
   -- else (no universe polymorphism)
   $ do i   <- createMetaInfo
        x   <- newMeta Instantiable i normalMetaPriority (idP 0) $ IsSort () __DUMMY_TYPE__
+       reportSDoc "tc.meta.new" 50 $
+         "new sort meta" <+> prettyTCM x
        return $ MetaS x []
 
 -- | Create a sort meta that may be instantiated with 'Inf' (Setω).
@@ -383,10 +388,11 @@ blockTermOnProblem t v pid =
         -- constraint solving a bit more robust against instantiation order.
         -- Andreas, 2015-05-22: DontRunMetaOccursCheck to avoid Issue585-17.
         (m', v) <- newValueMeta DontRunMetaOccursCheck t
+        reportSDoc "tc.meta.blocked" 30 $ "setting twin of" <+> prettyTCM m' <+> "to be" <+> prettyTCM x
         updateMetaVar m' (\ mv -> mv { mvTwin = Just x })
         i   <- fresh
         -- This constraint is woken up when unblocking, so it doesn't need a problem id.
-        cmp <- buildProblemConstraint_ (ValueCmp CmpEq t v (MetaV x es))
+        cmp <- buildProblemConstraint_ (ValueCmp CmpEq (AsTermsOf t) v (MetaV x es))
         listenToMeta (CheckConstraint i cmp) x
         return v
 
@@ -426,6 +432,10 @@ postponeTypeCheckingProblem p unblock = do
   m   <- newMeta' (PostponedTypeCheckingProblem cl unblock)
                   Instantiable i normalMetaPriority (idP (size tel))
          $ HasType () $ telePi_ tel t
+  inTopContext $ reportSDoc "tc.meta.postponed" 20 $ vcat
+    [ "new meta" <+> prettyTCM m <+> ":" <+> prettyTCM (telePi_ tel t)
+    , "for postponed typechecking problem" <+> prettyTCM p
+    ]
 
   -- Create the meta that we actually return
   -- Andreas, 2012-03-15
@@ -436,7 +446,7 @@ postponeTypeCheckingProblem p unblock = do
   -- non-terminating solutions.
   es  <- map Apply <$> getContextArgs
   (_, v) <- newValueMeta DontRunMetaOccursCheck t
-  cmp <- buildProblemConstraint_ (ValueCmp CmpEq t v (MetaV m es))
+  cmp <- buildProblemConstraint_ (ValueCmp CmpEq (AsTermsOf t) v (MetaV m es))
   i   <- liftTCM fresh
   listenToMeta (CheckConstraint i cmp) m
   addConstraint (UnBlock m)
@@ -576,11 +586,14 @@ etaExpandBlocked (Blocked m t)  = do
 assignWrapper :: (MonadMetaSolver m, MonadConstraint m, MonadError TCErr m, MonadDebug m, HasOptions m)
               => CompareDirection -> MetaId -> Elims -> Term -> m () -> m ()
 assignWrapper dir x es v doAssign = do
-  ifNotM (asksTC envAssignMetas) patternViolation $ {- else -} do
+  ifNotM (asksTC envAssignMetas) dontAssign $ {- else -} do
     reportSDoc "tc.meta.assign" 10 $ do
       "term" <+> prettyTCM (MetaV x es) <+> text (":" ++ show dir) <+> prettyTCM v
     nowSolvingConstraints doAssign `finally` solveAwakeConstraints
 
+  where dontAssign = do
+          reportSLn "tc.meta.assign" 10 "don't assign metas"
+          patternViolation
 
 -- | Miller pattern unification:
 --
@@ -936,7 +949,6 @@ assignMeta' m x t n ids v = do
     -- (no longer from ids which may not be the complete variable list
     -- any more)
     reportSDoc "tc.meta.assign" 15 $ "type of meta =" <+> prettyTCM t
-    reportSDoc "tc.meta.assign" 70 $ "type of meta =" <+> text (show t)
 
     (telv@(TelV tel' a),bs) <- telViewUpToPathBoundary n t
     reportSDoc "tc.meta.assign" 30 $ "tel'  =" <+> prettyTCM tel'
@@ -955,15 +967,8 @@ assignMeta' m x t n ids v = do
     whenM (optDoubleCheck <$> pragmaOptions) $ noConstraints $ dontAssignMetas $ do
       m <- lookupMeta x
       reportSDoc "tc.meta.check" 30 $ "double checking solution"
-      addContext tel' $ case mvJudgement m of
-        HasType{} -> do
-          reportSDoc "tc.meta.check" 30 $ nest 2 $
-            prettyTCM v' <+> " : " <+> prettyTCM a
-          checkInternal v' a
-        IsSort{}  -> void $ do
-          reportSDoc "tc.meta.check" 30 $ nest 2 $
-            prettyTCM v' <+> " is a sort"
-          checkSort defaultAction =<< shouldBeSort (El __DUMMY_SORT__ v')
+      catchConstraint (CheckMetaInst x) $
+        addContext tel' $ checkSolutionForMeta x m v' a
 
     reportSDoc "tc.meta.assign" 10 $
       "solving" <+> prettyTCM x <+> ":=" <+> prettyTCM vsol
@@ -981,6 +986,42 @@ assignMeta' m x t n ids v = do
           equalTermOnFace (neg `apply1` r) t x v
           equalTermOnFace r  t y v
         return v
+
+-- | Check that the instantiation of the given metavariable fits the
+--   type of the metavariable. If the metavariable is not yet
+--   instantiated, add a constraint to check the instantiation later.
+checkMetaInst :: MetaId -> TCM ()
+checkMetaInst x = do
+  m <- lookupMeta x
+  let postpone = addConstraint $ CheckMetaInst x
+  case mvInstantiation m of
+    BlockedConst{} -> postpone
+    PostponedTypeCheckingProblem{} -> postpone
+    Open{} -> postpone
+    OpenInstance{} -> postpone
+    InstV xs v -> do
+      let n = size xs
+          t = jMetaType $ mvJudgement m
+      (telv@(TelV tel a),bs) <- telViewUpToPathBoundary n t
+      catchConstraint (CheckMetaInst x) $ addContext tel $ checkSolutionForMeta x m v a
+
+-- | Check that the instantiation of the metavariable with the given
+--   term is well-typed.
+checkSolutionForMeta :: MetaId -> MetaVariable -> Term -> Type -> TCM ()
+checkSolutionForMeta x m v a = do
+  reportSDoc "tc.meta.check" 30 $ "checking solution for meta" <+> prettyTCM x
+  case mvJudgement m of
+    HasType{} -> do
+      reportSDoc "tc.meta.check" 30 $ nest 2 $
+        prettyTCM x <+> " : " <+> prettyTCM a <+> ":=" <+> prettyTCM v
+      traceCall (CheckMetaSolution (getRange m) x a v) $
+        checkInternal v a
+    IsSort{}  -> void $ do
+      reportSDoc "tc.meta.check" 30 $ nest 2 $
+        prettyTCM x <+> ":=" <+> prettyTCM v <+> " is a sort"
+      s <- shouldBeSort (El __DUMMY_SORT__ v)
+      traceCall (CheckMetaSolution (getRange m) x (sort (univSort Nothing s)) (Sort s)) $
+        checkSort defaultAction s
 
 -- | Turn the assignment problem @_X args <= SizeLt u@ into
 -- @_X args = SizeLt (_Y args)@ and constraint
@@ -1015,13 +1056,13 @@ subtypingForSizeLt dir   x mvar t args v cont = do
           -- Note: no eta-expansion of new meta possible/necessary.
           -- Add the size constraint @y args `dir` u@.
           let yArgs = MetaV y $ map Apply args
-          addConstraint $ dirToCmp (`ValueCmp` size) dir yArgs u
+          addConstraint $ dirToCmp (`ValueCmp` (AsTermsOf size)) dir yArgs u
           -- We continue with the new assignment problem, and install
           -- an exception handler, since we created a meta and a constraint,
           -- so we cannot fall back to the original handler.
           let xArgs = MetaV x $ map Apply args
               v'    = Def qSizeLt [Apply $ Arg ai yArgs]
-              c     = dirToCmp (`ValueCmp` sizeUniv) dir xArgs v'
+              c     = dirToCmp (`ValueCmp` (AsTermsOf sizeUniv)) dir xArgs v'
           catchConstraint c $ cont v'
         _ -> fallback
 

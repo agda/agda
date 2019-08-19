@@ -21,6 +21,8 @@ import Control.Monad.Trans.Maybe
 import Data.Either (partitionEithers)
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
+import Data.IntSet (IntSet)
+import qualified Data.IntSet as IntSet
 import Data.List (findIndex)
 import qualified Data.List as List
 import Data.Monoid ( Monoid, mempty, mappend )
@@ -301,13 +303,9 @@ problemAllVariables problem =
 --
 -- Precondition: The problem has to be solved.
 
-noShadowingOfConstructors
-  :: Call -- ^ Trace, e.g., @CheckPatternShadowing clause@
-  -> [ProblemEq] -> TCM ()
-noShadowingOfConstructors mkCall eqs =
-  traceCall mkCall $ mapM_ noShadowing eqs
-  where
-  noShadowing (ProblemEq p _ (Dom{domInfo = info, unDom = El _ a})) = case snd $ asView p of
+noShadowingOfConstructors :: ProblemEq -> TCM ()
+noShadowingOfConstructors (ProblemEq p _ (Dom{domInfo = info, unDom = El _ a})) =
+  case snd $ asView p of
    A.WildP       {} -> return ()
    A.AbsurdP     {} -> return ()
    A.DotP        {} -> return ()
@@ -651,7 +649,7 @@ data LHSResult = LHSResult
     -- ^ As-bindings from the left-hand side. Return instead of bound since we
     -- want them in where's and right-hand sides, but not in with-clauses
     -- (Issue 2303).
-  , lhsPartialSplit :: [Int]
+  , lhsPartialSplit :: IntSet
     -- ^ have we done a partial split?
   }
 
@@ -673,7 +671,7 @@ instance InstantiateFull LHSResult where
 
 checkLeftHandSide :: forall a.
      Call
-     -- ^ Trace, e.g. @CheckPatternShadowing clause@
+     -- ^ Trace, e.g. 'CheckLHS' or 'CheckPattern'.
   -> Maybe QName
      -- ^ The name of the definition we are checking.
   -> [NamedArg A.Pattern]
@@ -688,7 +686,9 @@ checkLeftHandSide :: forall a.
   -> (LHSResult -> TCM a)
      -- ^ Continuation.
   -> TCM a
-checkLeftHandSide c f ps a withSub' strippedPats = Bench.billToCPS [Bench.Typing, Bench.CheckLHS] $ \ ret -> do
+checkLeftHandSide call f ps a withSub' strippedPats =
+ Bench.billToCPS [Bench.Typing, Bench.CheckLHS] $
+ traceCallCPS call $ \ ret -> do
 
   -- To allow module parameters to be refined by matching, we're adding the
   -- context arguments as wildcard patterns and extending the type with the
@@ -716,7 +716,7 @@ checkLeftHandSide c f ps a withSub' strippedPats = Bench.billToCPS [Bench.Typing
         delta <- forceTranslateTelescope delta qs0
 
         addContext delta $ do
-          noShadowingOfConstructors c eqs
+          mapM_ noShadowingOfConstructors eqs
           noPatternMatchingOnCodata qs0
 
         -- Compute substitution from the out patterns @qs0@
@@ -782,7 +782,7 @@ checkLeftHandSide c f ps a withSub' strippedPats = Bench.billToCPS [Bench.Typing
 
         let hasAbsurd = not . null $ absurds
 
-        let lhsResult = LHSResult (length cxt) delta qs hasAbsurd b patSub asb (catMaybes psplit)
+        let lhsResult = LHSResult (length cxt) delta qs hasAbsurd b patSub asb (IntSet.fromList $ catMaybes psplit)
 
         -- Debug output
         reportSDoc "tc.lhs.top" 10 $

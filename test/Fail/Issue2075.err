@@ -1,4 +1,4 @@
-Issue2075.agda:5,1-19
+Issue2075.agda:5,1-13
 Unexpected implicit argument
-when checking that the clause F {x = unit} = Set has type
-Unit → Set₁
+when checking the clause left hand side
+F {x = unit}

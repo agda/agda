@@ -1,8 +1,9 @@
 
 module Agda.Utils.Map where
 
-import Prelude hiding (map, lookup, mapM)
-import Data.Map as Map
+import Data.Map (Map)
+import qualified Data.Map as Map
+import Data.Maybe (mapMaybe)
 
 
 -- UNUSED Liang-Ting Chen (05-07-2019)
@@ -32,10 +33,10 @@ import Data.Map as Map
 --             z <- clash k x y
 --             return $ insert k z m
 --         Nothing -> return $ insert k x m
---
--- -- * Non-monadic map operations
--- ---------------------------------------------------------------------------
---
+
+-- * Non-monadic map operations
+---------------------------------------------------------------------------
+
 -- UNUSED Liang-Ting Chen (05-07-2019)
 -- -- | Big conjunction over a map.
 -- allWithKey :: (k -> a -> Bool) -> Map k a -> Bool
@@ -43,7 +44,12 @@ import Data.Map as Map
 
 -- | Filter a map based on the keys.
 filterKeys :: (k -> Bool) -> Map k a -> Map k a
-filterKeys p = filterWithKey (const . p)
+filterKeys p = Map.filterWithKey (const . p)
+
+-- | O(n log n).  Rebuilds the map from scratch.
+--   Not worse than 'Map.mapKeys'.
+mapMaybeKeys :: (Ord k1, Ord k2) => (k1 -> Maybe k2) -> Map k1 a -> Map k2 a
+mapMaybeKeys f = Map.fromList . mapMaybe (\ (k,a) -> (,a) <$> f k) . Map.toList
 
 -- UNUSED Liang-Ting Chen (05-07-2019)
 -- -- | Unzip a map.

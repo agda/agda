@@ -278,8 +278,6 @@ instance LensSort a => LensSort (Dom a) where
 instance LensSort a => LensSort (Arg a) where
   lensSort = traverseF . lensSort
 
-instance LensSort a => LensSort (Abs a) where
-  lensSort = traverseF . lensSort
 
 -- | Sequence of types. An argument of the first type is bound in later types
 --   and so on.

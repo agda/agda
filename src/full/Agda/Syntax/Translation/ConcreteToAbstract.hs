@@ -27,7 +27,6 @@ import Control.Monad.Reader hiding (mapM)
 
 import Data.Foldable (Foldable, traverse_)
 import Data.Traversable (mapM, traverse)
-import Data.List ((\\), nub, foldl')
 import Data.Set (Set)
 import Data.Map (Map)
 import qualified Data.List as List
@@ -566,7 +565,7 @@ data APatName = VarPatName A.Name
 instance ToAbstract PatName APatName where
   toAbstract (PatName x ns) = do
     reportSLn "scope.pat" 10 $ "checking pattern name: " ++ prettyShow x
-    rx <- resolveName' [ConName, PatternSynName] ns x
+    rx <- resolveName' (someKindsOfNames [ConName, PatternSynName]) ns x
           -- Andreas, 2013-03-21 ignore conflicting names which cannot
           -- be meant since we are in a pattern
     case (rx, x) of
@@ -869,11 +868,14 @@ instance ToAbstract C.Expr A.Expr where
         return $ A.Fun (ExprRange r) e1 e2
 
   -- Dependent function type
-      e0@(C.Pi tel e) ->
+      e0@(C.Pi tel e) -> do
+        lvars0 <- getLocalVars
         localToAbstract tel $ \tel -> do
-        e    <- toAbstractCtx TopCtx e
-        let info = ExprRange (getRange e0)
-        return $ A.Pi info tel e
+          lvars1 <- getLocalVars
+          checkNoShadowing lvars0 lvars1
+          e <- toAbstractCtx TopCtx e
+          let info = ExprRange (getRange e0)
+          return $ A.Pi info tel e
 
   -- Sorts
       C.Set _    -> return $ A.Set (ExprRange $ getRange e) 0
@@ -1225,7 +1227,7 @@ instance ToAbstract (TopLevel [C.Declaration]) TopLevelInfo where
           outsideDecls <- toAbstract outsideDecls
           (insideScope, insideDecls) <- scopeCheckModule r m am tel $
              toAbstract insideDecls
-          let scope = mapScopeInfo (restrictLocalPrivate am) insideScope
+          let scope = over scopeModules (fmap $ restrictLocalPrivate am) insideScope
           setScope scope
           return $ TopLevelInfo (outsideDecls ++ insideDecls) scope
 
@@ -1554,13 +1556,14 @@ instance ToAbstract NiceDeclaration A.Declaration where
     C.NiceRecSig r p a _pc _uc x ls t -> do
       ensureNoLetStms ls
       withLocalVars $ do
-        -- Minor hack: record types don't have indices so we include t when
-        -- computing generalised parameters, but in the type checker any named
-        -- generalizable arguments in the sort should be bound variables.
-        (ls', _) <- toAbstract (GenTelAndType (map makeDomainFull ls) t)
-        t'  <- toAbstract t
-        f   <- getConcreteFixity x
-        x'  <- freshAbstractQName f x
+        (ls', _) <- withCheckNoShadowing $
+          -- Minor hack: record types don't have indices so we include t when
+          -- computing generalised parameters, but in the type checker any named
+          -- generalizable arguments in the sort should be bound variables.
+          toAbstract (GenTelAndType (map makeDomainFull ls) t)
+        t' <- toAbstract t
+        f  <- getConcreteFixity x
+        x' <- freshAbstractQName f x
         bindName' p RecName (GeneralizedVarsMetadata $ generalizeTelVars ls') x x'
         return [ A.RecSig (mkDefInfo x f p a r) x' ls' t' ]
 
@@ -1568,7 +1571,8 @@ instance ToAbstract NiceDeclaration A.Declaration where
         reportSLn "scope.data.sig" 20 ("checking DataSig for " ++ prettyShow x)
         ensureNoLetStms ls
         withLocalVars $ do
-          ls' <- toAbstract $ GenTel $ map makeDomainFull ls
+          ls' <- withCheckNoShadowing $
+            toAbstract $ GenTel $ map makeDomainFull ls
           t'  <- toAbstract $ C.Generalized t
           f  <- getConcreteFixity x
           x' <- freshAbstractQName f x
@@ -1612,9 +1616,8 @@ instance ToAbstract NiceDeclaration A.Declaration where
           gvars <- bindGeneralizablesIfInserted o ax
           -- Check for duplicate constructors
           do cs <- mapM conName cons
-             let dups = nub $ cs \\ nub cs
-                 bad  = filter (`elem` dups) cs
-             unless (distinct cs) $
+             unlessNull (duplicates cs) $ \ dups -> do
+               let bad = filter (`elem` dups) cs
                setCurrentRange bad $
                  typeError $ DuplicateConstructors dups
 
@@ -1672,9 +1675,8 @@ instance ToAbstract NiceDeclaration A.Declaration where
                    C.FieldSig _ f _ -> f
                    _ -> __IMPOSSIBLE__
                  _ -> Nothing
-           let dups = nub $ fs \\ nub fs
-               bad  = filter (`elem` dups) fs
-           unless (distinct fs) $
+           unlessNull (duplicates fs) $ \ dups -> do
+             let bad = filter (`elem` dups) fs
              setCurrentRange bad $
                typeError $ DuplicateFields dups
         bindModule p x m
@@ -1834,7 +1836,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
          let err = "Dot or equality patterns are not allowed in pattern synonyms. Maybe use '_' instead."
          p <- noDotorEqPattern err p
          as <- (traverse . mapM) (unVarName <=< resolveName . C.QName) as
-         unlessNull (patternVars p \\ map unArg as) $ \ xs -> do
+         unlessNull (patternVars p List.\\ map unArg as) $ \ xs -> do
            typeError . GenericDocError =<< do
              "Unbound variables in pattern synonym: " <+>
                sep (map prettyA xs)
@@ -2584,7 +2586,7 @@ toAbstractOpApp op ns es = do
     op <- toAbstract (OldQName op (Just ns))
     es <- left (notaFixity nota) nonBindingParts es
     -- Prepend the generated section binders (if any).
-    let body = foldl' app op es
+    let body = List.foldl' app op es
     return $ foldr (A.Lam (ExprRange (getRange body))) body binders
   where
     -- Build an application in the abstract syntax, with correct Range.

@@ -1,3 +1,3 @@
 Issue2494-pattern-instance.agda:17,28-32
-Blue !=< Red of type Set
+Blue !=< Red
 when checking that the expression blue has type Red

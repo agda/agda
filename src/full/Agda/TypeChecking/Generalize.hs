@@ -41,6 +41,7 @@ import Agda.Utils.Benchmark
 import Agda.Utils.Except
 import Agda.Utils.Functor
 import Agda.Utils.Impossible
+import Agda.Utils.List   (hasElem)
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Size
@@ -220,7 +221,7 @@ computeGeneralization genRecMeta nameMap allmetas = postponeInstanceConstraints 
 
   let (alsoGeneralize, reallyDontGeneralize) = partition (`Set.member` inherited) $ map fst nongeneralizableOpen
       generalizeOver   = map fst generalizableOpen ++ alsoGeneralize
-      shouldGeneralize = (`Set.member` Set.fromList generalizeOver)
+      shouldGeneralize = (generalizeOver `hasElem`)
 
   -- Sort metas in dependency order. Include open metas that we are not
   -- generalizing over, since they will need to be pruned appropriately (see

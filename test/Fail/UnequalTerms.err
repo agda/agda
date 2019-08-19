@@ -1,3 +1,3 @@
 UnequalTerms.agda:8,8-11
-One !=< Zero of type Set
+One !=< Zero
 when checking that the expression one has type Zero

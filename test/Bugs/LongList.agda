@@ -11,6 +11,8 @@ postulate
   Bool : Set
   t : Bool
 
+-- The following list should type check faster
+
 long : List Bool
 long =
  t ∷ t ∷ t ∷ t ∷ t ∷ t ∷ t ∷ t ∷ t ∷ t ∷ t ∷ t ∷ t ∷ t ∷ t ∷ t ∷ t ∷ t ∷ t ∷

@@ -119,8 +119,13 @@ instance MentionsMeta Constraint where
     UnquoteTactic bl tac hole goal -> case bl of
       Nothing -> False
       Just m  -> HashSet.member m xs
+    CheckMetaInst m     -> True   -- TODO
     where
       mm v = mentionsMetas xs v
+
+instance MentionsMeta CompareAs where
+  mentionsMetas xs (AsTermsOf a) = mentionsMetas xs a
+  mentionsMetas xs AsTypes       = False
 
 -- instance (Ord k, MentionsMeta e) => MentionsMeta (Map k e) where
 --   mentionsMeta = traverse mentionsMeta

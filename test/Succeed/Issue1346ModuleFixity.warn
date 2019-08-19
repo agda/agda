@@ -1,0 +1,13 @@
+Issue1346ModuleFixity.agda:8,27-34
+Modules do not have fixity
+when scope checking the declaration
+  open import Agda.Builtin.Equality using ()
+                                    renaming (module _≡_ to infix 4 _~_)
+
+———— All done; warnings encountered ————————————————————————
+
+Issue1346ModuleFixity.agda:8,27-34
+Modules do not have fixity
+when scope checking the declaration
+  open import Agda.Builtin.Equality using ()
+                                    renaming (module _≡_ to infix 4 _~_)

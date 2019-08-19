@@ -19,3 +19,4 @@ newNamedValueMeta :: MonadMetaSolver m => RunMetaOccursCheck -> String -> Type -
 newNamedValueMeta':: MonadMetaSolver m => RunMetaOccursCheck -> String -> Type -> m (MetaId, Term)
 newTelMeta        :: MonadMetaSolver m => Telescope -> m Args
 newSortMeta       :: TCM Sort
+checkMetaInst     :: MetaId -> TCM ()

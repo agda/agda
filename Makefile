@@ -219,7 +219,7 @@ TAGS :
 quick : install-O0-bin quicktest
 
 .PHONY : test
-test : check-whitespace succeed fail interaction examples library-test interactive latex-html-test api-test internal-tests benchmark-without-logs compiler-test lib-succeed lib-interaction user-manual-test test-size-solver
+test : check-whitespace succeed fail bugs interaction examples library-test interactive latex-html-test api-test internal-tests benchmark-without-logs compiler-test lib-succeed lib-interaction user-manual-test test-size-solver
 
 .PHONY : quicktest
 quicktest : succeed fail
@@ -266,6 +266,13 @@ fail :
 	@echo "======================= Suite of failing tests ======================="
 	@echo "======================================================================"
 	@AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Fail
+
+.PHONY : fail
+bugs :
+	@echo "======================================================================"
+	@echo "======================= Suite of tests for bugs ======================"
+	@echo "======================================================================"
+	@AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Bugs
 
 .PHONY : latex-html-test
 latex-html-test :

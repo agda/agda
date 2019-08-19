@@ -218,6 +218,11 @@ instance Instantiate Constraint where
   instantiate' (HasBiggerSort a)    = HasBiggerSort <$> instantiate' a
   instantiate' (HasPTSRule a b)     = uncurry HasPTSRule <$> instantiate' (a,b)
   instantiate' (UnquoteTactic m t h g) = UnquoteTactic m <$> instantiate' t <*> instantiate' h <*> instantiate' g
+  instantiate' c@CheckMetaInst{}    = return c
+
+instance Instantiate CompareAs where
+  instantiate' (AsTermsOf a) = AsTermsOf <$> instantiate' a
+  instantiate' AsTypes       = return AsTypes
 
 instance Instantiate e => Instantiate (Map k e) where
     instantiate' = traverse instantiate'
@@ -256,6 +261,10 @@ instance IsMeta Level where
 instance IsMeta Sort where
   isMeta (MetaS m _) = return $ Just m
   isMeta _           = return Nothing
+
+instance IsMeta CompareAs where
+  isMeta (AsTermsOf a) = isMeta a
+  isMeta AsTypes       = return Nothing
 
 -- | Case on whether a term is blocked on a meta (or is a meta).
 --   That means it can change its shape when the meta is instantiated.
@@ -770,6 +779,11 @@ instance Reduce Constraint where
   reduce' (HasBiggerSort a)     = HasBiggerSort <$> reduce' a
   reduce' (HasPTSRule a b)      = uncurry HasPTSRule <$> reduce' (a,b)
   reduce' (UnquoteTactic m t h g) = UnquoteTactic m <$> reduce' t <*> reduce' h <*> reduce' g
+  reduce' c@CheckMetaInst{}     = return c
+
+instance Reduce CompareAs where
+  reduce' (AsTermsOf a) = AsTermsOf <$> reduce' a
+  reduce' AsTypes       = return AsTypes
 
 instance Reduce e => Reduce (Map k e) where
     reduce' = traverse reduce'
@@ -912,7 +926,7 @@ instance Simplify Constraint where
     return $ ValueCmp cmp t u v
   simplify' (ValueCmpOnFace cmp p t u v) = do
     ((p,t),u,v) <- simplify' ((p,t),u,v)
-    return $ ValueCmp cmp t u v
+    return $ ValueCmp cmp (AsTermsOf t) u v
   simplify' (ElimCmp cmp fs t v as bs) =
     ElimCmp cmp fs <$> simplify' t <*> simplify' v <*> simplify' as <*> simplify' bs
   simplify' (LevelCmp cmp u v)    = uncurry (LevelCmp cmp) <$> simplify' (u,v)
@@ -928,6 +942,11 @@ instance Simplify Constraint where
   simplify' (HasBiggerSort a)     = HasBiggerSort <$> simplify' a
   simplify' (HasPTSRule a b)      = uncurry HasPTSRule <$> simplify' (a,b)
   simplify' (UnquoteTactic m t h g) = UnquoteTactic m <$> simplify' t <*> simplify' h <*> simplify' g
+  simplify' c@CheckMetaInst{}     = return c
+
+instance Simplify CompareAs where
+  simplify' (AsTermsOf a) = AsTermsOf <$> simplify' a
+  simplify' AsTypes       = return AsTypes
 
 instance Simplify Bool where
   simplify' = return
@@ -1085,6 +1104,11 @@ instance Normalise Constraint where
   normalise' (HasBiggerSort a)     = HasBiggerSort <$> normalise' a
   normalise' (HasPTSRule a b)      = uncurry HasPTSRule <$> normalise' (a,b)
   normalise' (UnquoteTactic m t h g) = UnquoteTactic m <$> normalise' t <*> normalise' h <*> normalise' g
+  normalise' c@CheckMetaInst{}     = return c
+
+instance Normalise CompareAs where
+  normalise' (AsTermsOf a) = AsTermsOf <$> normalise' a
+  normalise' AsTypes       = return AsTypes
 
 instance Normalise Bool where
   normalise' = return
@@ -1296,6 +1320,11 @@ instance InstantiateFull Constraint where
     HasBiggerSort a     -> HasBiggerSort <$> instantiateFull' a
     HasPTSRule a b      -> uncurry HasPTSRule <$> instantiateFull' (a,b)
     UnquoteTactic m t g h -> UnquoteTactic m <$> instantiateFull' t <*> instantiateFull' g <*> instantiateFull' h
+    c@CheckMetaInst{}   -> return c
+
+instance InstantiateFull CompareAs where
+  instantiateFull' (AsTermsOf a) = AsTermsOf <$> instantiateFull' a
+  instantiateFull' AsTypes       = return AsTypes
 
 instance (InstantiateFull a) => InstantiateFull (Elim' a) where
   instantiateFull' (Apply v) = Apply <$> instantiateFull' v
@@ -1341,9 +1370,15 @@ instance InstantiateFull NLPat where
   instantiateFull' (PTerm x)  = PTerm <$> instantiateFull' x
 
 instance InstantiateFull NLPType where
-  instantiateFull' (NLPType l a) = NLPType
-    <$> instantiateFull' l
+  instantiateFull' (NLPType s a) = NLPType
+    <$> instantiateFull' s
     <*> instantiateFull' a
+
+instance InstantiateFull NLPSort where
+  instantiateFull' (PType x) = PType <$> instantiateFull' x
+  instantiateFull' (PProp x) = PProp <$> instantiateFull' x
+  instantiateFull' PInf      = return PInf
+  instantiateFull' PSizeUniv = return PSizeUniv
 
 instance InstantiateFull RewriteRule where
   instantiateFull' (RewriteRule q gamma f ps rhs t) =
@@ -1373,10 +1408,10 @@ instance InstantiateFull Defn where
       DataOrRecSig{} -> return d
       GeneralizableVar{} -> return d
       AbstractDefn d -> AbstractDefn <$> instantiateFull' d
-      Function{ funClauses = cs, funCompiled = cc, funInv = inv, funExtLam = extLam } -> do
-        (cs, cc, inv) <- instantiateFull' (cs, cc, inv)
+      Function{ funClauses = cs, funCompiled = cc, funCovering = cov, funInv = inv, funExtLam = extLam } -> do
+        (cs, cc, cov, inv) <- instantiateFull' (cs, cc, cov, inv)
         extLam <- instantiateFull' extLam
-        return $ d { funClauses = cs, funCompiled = cc, funInv = inv, funExtLam = extLam }
+        return $ d { funClauses = cs, funCompiled = cc, funCovering = cov, funInv = inv, funExtLam = extLam }
       Datatype{ dataSort = s, dataClause = cl } -> do
         s  <- instantiateFull' s
         cl <- instantiateFull' cl

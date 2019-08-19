@@ -24,6 +24,8 @@ import {-# SOURCE #-} Agda.Syntax.Fixity
 import Agda.Syntax.Concrete.Name (IsNoName(..), NumHoles(..), NameInScope(..), LensInScope(..))
 import qualified Agda.Syntax.Concrete.Name as C
 
+import Agda.Utils.Functor
+import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.NonemptyList
 import Agda.Utils.Pretty
@@ -34,13 +36,15 @@ import Agda.Utils.Impossible
 -- | A name is a unique identifier and a suggestion for a concrete name. The
 --   concrete name contains the source location (if any) of the name. The
 --   source location of the binding site is also recorded.
-data Name = Name { nameId          :: !NameId
-                 , nameConcrete    :: C.Name
-                 , nameBindingSite :: Range
-                 , nameFixity      :: Fixity'
-                 , nameIsRecordName :: Bool
-                 }
-    deriving Data
+data Name = Name
+  { nameId           :: !NameId
+  , nameConcrete     :: C.Name
+  , nameBindingSite  :: Range
+  , nameFixity       :: Fixity'
+  , nameIsRecordName :: Bool
+      -- ^ Is this the name of the invisible record variable `self`?
+      --   Should not be printed or displayed in the context, see issue #3584.
+  } deriving Data
 
 -- | Useful for debugging scoping problems
 uglyShowName :: Name -> String
@@ -287,6 +291,33 @@ instance NumHoles QName where
 -- | We can have an instance for ambiguous names as all share a common concrete name.
 instance NumHoles AmbiguousQName where
   numHoles = numHoles . headAmbQ
+
+------------------------------------------------------------------------
+-- * name lenses
+------------------------------------------------------------------------
+
+lensQNameName :: Lens' Name QName
+lensQNameName f (QName m n) = QName m <$> f n
+
+------------------------------------------------------------------------
+-- * LensFixity' instances
+------------------------------------------------------------------------
+
+instance LensFixity' Name where
+  lensFixity' f n = f (nameFixity n) <&> \ fix' -> n { nameFixity = fix' }
+
+instance LensFixity' QName where
+  lensFixity' = lensQNameName . lensFixity'
+
+------------------------------------------------------------------------
+-- * LensFixity instances
+------------------------------------------------------------------------
+
+instance LensFixity Name where
+  lensFixity = lensFixity' . lensFixity
+
+instance LensFixity QName where
+  lensFixity = lensFixity' . lensFixity
 
 ------------------------------------------------------------------------
 -- * LensInScope instances

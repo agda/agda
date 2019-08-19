@@ -11,13 +11,13 @@ Agda is a dependently typed programming language. It is an extension
 of Martin-Löf's type theory, and is the latest in the tradition of
 languages developed in the programming logic group at Chalmers.  Other
 languages in this tradition are `Alf
-<http://www.cs.chalmers.se/~bengt/papers/alfengine.pdf>`_, `Alfa
-<http://www.cs.chalmers.se/~hallgren/Alfa/>`_, `Agda 1
-<http://unit.aist.go.jp/cvs/Agda/>`_, `Cayenne
-<http://www.cs.chalmers.se/~augustss/cayenne/index.html>`_.  Some
-other loosely related languages are `Coq <http://coq.inria.fr/>`_,
+<http://www.cse.chalmers.se/~bengt/papers/alfengine.pdf>`_, `Alfa
+<http://www.cse.chalmers.se/~hallgren/Alfa/>`_, `Agda 1
+<https://sourceforge.net/projects/agda/>`_, `Cayenne
+<https://en.wikipedia.org/wiki/Cayenne_(programming_language)>`_.  Some
+other loosely related languages are `Coq <https://coq.inria.fr/>`_,
 `Epigram <http://www.e-pig.org/>`_, and `Idris
-<http://idris-lang.org/>`_.
+<https://idris-lang.org/>`_.
 
 Because of strong typing and dependent types, Agda can be used as a
 proof assistant, allowing to prove mathematical theorems (in a
@@ -32,19 +32,19 @@ Typing for programmers
 Type theory is concerned both with programming and logic. We see the
 type system as a way to express syntactic correctness. A type correct
 program has a meaning.
-`Lisp <http://en.wikipedia.org/wiki/Lisp_%28programming_language%29>`_
+`Lisp <https://en.wikipedia.org/wiki/Lisp_%28programming_language%29>`_
 is a totally untyped programming language, and so are its derivatives
 like
-`Scheme <http://en.wikipedia.org/wiki/Scheme_%28programming_language%29>`_. In
+`Scheme <https://en.wikipedia.org/wiki/Scheme_%28programming_language%29>`_. In
 such languages, if ``f`` is a function, one can apply it to anything,
 including itself. This makes it easy to write programs (almost all
 programs are wellformed), but it also makes it easy to write erroneous
 programs. Programs will raise exceptions or loop forever. And it is
 very difficult to analyse where the problems are.
 
-`Haskell <http://www.haskell.org/>`_ or
-`ML <http://en.wikipedia.org/wiki/ML_%28programming_language%29>`_ and
-its derivatives like `Standard ML <http://en.wikipedia.org/wiki/Standard_ML>`_ and
+`Haskell <https://www.haskell.org/>`_ or
+`ML <https://en.wikipedia.org/wiki/ML_%28programming_language%29>`_ and
+its derivatives like `Standard ML <https://en.wikipedia.org/wiki/Standard_ML>`_ and
 `Caml <http://caml.inria.fr/>`_ are typed languages, where functions
 come with a type expressing what type of arguments the program expects
 and what the result type is.
@@ -52,7 +52,7 @@ and what the result type is.
 Between these two families of languages come languages, which may or
 may not have a typing discipline. Most imperative languages do not
 come with a rich type system. For example,
-`C <http://en.wikipedia.org/wiki/C_%28programming_language%29>`_ is
+`C <https://en.wikipedia.org/wiki/C_%28programming_language%29>`_ is
 typed, but very loosely (almost everything is an integer, or a
 variant thereof).  Moreover, the typing system does not allow the
 definition of trees or graphs without using pointers.
@@ -120,7 +120,7 @@ Dependent types and logic
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Thanks to the `Curry-Howard
-correspondence <http://en.wikipedia.org/wiki/Curry_Howard>`_, one can
+correspondence <https://en.wikipedia.org/wiki/Curry_Howard>`_, one can
 express a logical specification using dependent types. Using only
 typing, it is for example possible to define
 

@@ -388,11 +388,12 @@ beginImpDir : {- empty -}   {% pushLexState imp_dir }
     Helper rules
  --------------------------------------------------------------------------}
 
--- An integer. Used in fixity declarations.
-Int :: { Integer }
-Int : literal   {% case $1 of {
-                     LitNat _ i -> return i;
-                     _          -> parseError $ "Expected integer"
+-- A float. Used in fixity declarations.
+Float :: { Ranged Double }
+Float : literal {% case $1 of
+                   { LitNat   r i -> return $ Ranged r $ fromInteger i
+                   ; LitFloat r i -> return $ Ranged r i
+                   ; _            -> parseError $ "Expected floating point number"
                    }
                 }
 
@@ -618,9 +619,9 @@ Expr :: { Expr }
 Expr
   : TeleArrow Expr                      { Pi $1 $2 }
   | Application3 '->' Expr              { Fun (getRange ($1,$2,$3))
-                                              (defaultArg $ RawApp (getRange $1) $1)
+                                              (defaultArg $ rawAppUnlessSingleton (getRange $1) $1)
                                               $3 }
-  | Attributes1 Application3 '->' Expr  {% applyAttrs $1 (defaultArg $ RawApp (getRange ($1,$2)) $2) <&> \ dom ->
+  | Attributes1 Application3 '->' Expr  {% applyAttrs $1 (defaultArg $ rawAppUnlessSingleton (getRange ($1,$2)) $2) <&> \ dom ->
                                              Fun (getRange ($1,$2,$3,$4)) dom $4 }
   | Expr1 '=' Expr                      { Equal (getRange ($1, $2, $3)) $1 $3 }
   | Expr1 %prec LOWEST                  { $1 }
@@ -1069,7 +1070,14 @@ Renamings
 
 Renaming :: { Renaming }
 Renaming
-    : ImportName_ 'to' Id { Renaming $1 (setImportedName $1 $3) (getRange $2) }
+    : ImportName_ 'to' RenamingTarget { Renaming $1 (setImportedName $1 (snd $3)) (fst $3) (getRange $2) }
+
+RenamingTarget :: { (Maybe Fixity, Name) }
+RenamingTarget
+    : Id                 { (Nothing, $1) }
+    | 'infix'  Float Id  { (Just (Fixity (getRange ($1,$2)) (Related $ rangedThing $2) NonAssoc)  , $3) }
+    | 'infixl' Float Id  { (Just (Fixity (getRange ($1,$2)) (Related $ rangedThing $2) LeftAssoc) , $3) }
+    | 'infixr' Float Id  { (Just (Fixity (getRange ($1,$2)) (Related $ rangedThing $2) RightAssoc), $3) }
 
 -- We need a special imported name here, since we have to trigger
 -- the imp_dir state exactly one token before the 'to'
@@ -1250,9 +1258,9 @@ RecordConstructorName :                  'constructor' Id        { ($2, NotInsta
 
 -- Fixity declarations.
 Infix :: { Declaration }
-Infix : 'infix'  Int SpaceBIds  { Infix (Fixity (getRange ($1,$3)) (Related $2) NonAssoc)   $3 }
-      | 'infixl' Int SpaceBIds  { Infix (Fixity (getRange ($1,$3)) (Related $2) LeftAssoc)  $3 }
-      | 'infixr' Int SpaceBIds  { Infix (Fixity (getRange ($1,$3)) (Related $2) RightAssoc) $3 }
+Infix : 'infix'  Float SpaceBIds  { Infix (Fixity (getRange ($1,$2,$3)) (Related $ rangedThing $2) NonAssoc)   $3 }
+      | 'infixl' Float SpaceBIds  { Infix (Fixity (getRange ($1,$2,$3)) (Related $ rangedThing $2) LeftAssoc)  $3 }
+      | 'infixr' Float SpaceBIds  { Infix (Fixity (getRange ($1,$2,$3)) (Related $ rangedThing $2) RightAssoc) $3 }
 
 -- Field declarations.
 Fields :: { Declaration }
@@ -1984,6 +1992,15 @@ isName s (_,s')
 -- | Build a forall pi (forall x y z -> ...)
 forallPi :: [LamBinding] -> Expr -> Expr
 forallPi bs e = Pi (map addType bs) e
+
+-- | Builds a 'RawApp' from 'Range' and 'Expr' list, unless the list
+-- is a single expression.  In the latter case, just the 'Expr' is
+-- returned.
+rawAppUnlessSingleton :: Range -> [Expr] -> Expr
+rawAppUnlessSingleton r = \case
+  []  -> __IMPOSSIBLE__
+  [e] -> e
+  es  -> RawApp r es
 
 -- | Converts lambda bindings to typed bindings.
 addType :: LamBinding -> TypedBinding

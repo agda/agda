@@ -11,25 +11,6 @@ Installation and infrastructure
   file is present). If there is no project root then the interface file
   is written alongside the module it corresponds to.
 
-API
-----
-* Removed module `Agda.Utils.HashMap`. It only re-exported `Data.HashMap.Strict`
-  from the package `unordered-containers`. Use `Data.HashMap.Strict` instead.
-
-* Removed module `Agda.Utils.Char`. It used to provide functions converting a
-  `Char` in base 8, 10, and 16 to the corresponding `Int`. Use `digitToInt` in
-  `Data.Char` instead. The rest of module was about Unicode test which was not
-  used.
-
-* `Agda.Utils.List` no longer provides `headMaybe`.
-  Use `listToMaybe` in `Data.Maybe` instead.
-
-* `Agda.Utils.Either` no longer provides `mapEither`. Use `bimap` in
-  `Data.Bifunctor` instead.
-
-* `Agda.Utils.Map` no longer provides `unionWithM`, `insertWithKeyM`,
-  `allWithKey`, `unzip`, and `unzip3`.
-
 Pragmas and options
 -------------------
 
@@ -62,90 +43,28 @@ Pragmas and options
   be placed before the function (or the block of mutually defined functions)
   which the user knows to be partial.
 
-GHC Backend
------------
-
-* Types which have a COMPILE GHC pragma are no longer erased
-  [[Issue #3732](https://github.com/agda/agda/issues/3732)].
-
-  ```agda
-  data I : Set where
-    bar : I
-
-  {-# FOREIGN GHC data I = Bar     #-}
-  {-# COMPILE GHC I = data I (Bar) #-}
-
-  data S : Set where
-    foo :  I → S
-
-  {-# FOREIGN GHC data S = Foo I #-}
-  {-# COMPILE GHC S = data S (Foo) #-}
-  ```
-  Previously [[Issue #2921](https://github.com/agda/agda/issues/2921)],
-  the last binding was incorrect, since the argument of
-  singleton type `I` was erased from the constructor `foo` during
-  compilation.  The required shape of `S` was previously
-  ```
-  {-# FOREIGN GHC data S = Foo #-}
-  ```
-  i.e., constructor `Foo` had to have no arguments.
-
-  For the sake of transparency, Haskell constructors bound to
-  Agda constructors now take the same arguments.
-  This is especially important if Haskell bindings are to be
-  produced automatically by third party tool.
-
 Language
 --------
 
-### Builtins
-
-* New primitives
-
-  ```agda
-  primWord64ToNatInjective    : ∀ a b → primWord64ToNat a ≡ primWord64ToNat b → a ≡ b
-
-  primFloatToWord64           : Float → Word64
-  primFloatToWord64Injective  : ∀ a b → primFloatToWord64 a ≡ primFloatToWord64 b → a ≡ b
-
-  primMetaToNat               : Meta → Nat
-  primMetaToNatInjective      : ∀ a b → primMetaToNat a ≡ primMetaToNat b → a ≡ b
-
-  primQNameToWord64s          : Name → Word64 × Word64
-  primQNameToWord64sInjective : ∀ a b → primQNameToWord64s a ≡ primQNameToWord64s b → a ≡ b
-  ```
-
-  These can be used to define safe decidable propositional equality, see issue [agda-stdlib#698](https://github.com/agda/agda-stdlib/issues/698).
-
-* New Primitive for showing Natural numbers:
-
-  ```agda
-  primShowNat : Nat → String
-  ```
-
-  placed in Agda.Builtin.String.
-
-* New primitives for asking Agda to try to solve constraints [[Issue
-  #3791](https://github.com/agda/agda/issues/3791)]:
-
-  ```agda
-  solveConstraints           : TC ⊤
-  solveConstraintsMentioning : List Meta → TC ⊤
-  ```
-
-  The former one tries to solve all constraints, whereas the latter
-  one wakes up all constraints mentioning the given meta-variables,
-  and then tries to solve all awake constraints.
-
-### Modalities
-
-* New Flat Modality
-
-  New modality `@♭/@flat` (previously only available in the branch "flat").
-  An idempotent comonadic modality modeled after spatial/crisp type thepry.
-  See "Flat Modality" in the documentation for more.
-
 ### Syntax
+
+* Fractional precedence levels are now supported, see issue
+  [#3991](https://github.com/agda/agda/issues/3991). Example:
+  ```agda
+  infix 3.14 _<_
+  ```
+  Note that this includes a respective change in the reflected Agda syntax.
+
+* Fixities can now be changed during import in a `renaming` directive, see issue
+  [#1346](https://github.com/agda/agda/issues/1346). Example:
+  ```agda
+  open M using (_∙_)
+  open M renaming (_∙_ to infixl 10 _*_)
+  ```
+  After this, `_∙_` is in scope with its original fixity, and as `_*_` as left
+  associative operator of precedence 10.
+
+* Implicit non-dependent function spaces `{A} → B` and `{{A}} → B` are now supported.
 
 * Idiom brackets
 
@@ -187,9 +106,9 @@ Language
   ... | pn = rhs
   ```
 
-* Irrefutable patterns in telescopes
+* Record patterns in telescopes
 
-  Users can now use irrefutable patterns in telescope and lambda abstractions.
+  Users can now use record patterns in telescope and lambda abstractions.
   The type of the second projection from a dependent pair is the prototypical
   example It can be defined as follows:
 
@@ -212,6 +131,20 @@ Language
   eta : (p@(a , b) : Σ A B) → p ≡ (a , b)
   eta p = refl
   ```
+
+* Absurd match in a do block
+  The last expression in a do block can now also be an absurd match `() <- f`.
+
+* `{{-` is now lexed as `{ {-` rather than `{{ -`,
+  see issue [#3962](https://github.com/agda/agda/issues/3962).
+
+### Modalities
+
+* New Flat Modality
+
+  New modality `@♭/@flat` (previously only available in the branch "flat").
+  An idempotent comonadic modality modeled after spatial/crisp type thepry.
+  See "Flat Modality" in the documentation for more.
 
 ### Termination checking
 
@@ -248,10 +181,117 @@ Language
   example₂ : (depth : Nat) {@(tactic search depth) x : A} → B
   ```
 
+### Builtins
+
+* New primitives
+
+  ```agda
+  primWord64ToNatInjective    : ∀ a b → primWord64ToNat a ≡ primWord64ToNat b → a ≡ b
+
+  primFloatToWord64           : Float → Word64
+  primFloatToWord64Injective  : ∀ a b → primFloatToWord64 a ≡ primFloatToWord64 b → a ≡ b
+
+  primMetaToNat               : Meta → Nat
+  primMetaToNatInjective      : ∀ a b → primMetaToNat a ≡ primMetaToNat b → a ≡ b
+
+  primQNameToWord64s          : Name → Word64 × Word64
+  primQNameToWord64sInjective : ∀ a b → primQNameToWord64s a ≡ primQNameToWord64s b → a ≡ b
+  ```
+
+  These can be used to define safe decidable propositional equality, see issue [agda-stdlib#698](https://github.com/agda/agda-stdlib/issues/698).
+
+* New Primitive for showing Natural numbers:
+
+  ```agda
+  primShowNat : Nat → String
+  ```
+
+  placed in Agda.Builtin.String.
+
+* New primitives for asking Agda to try to solve constraints [[Issue
+  #3791](https://github.com/agda/agda/issues/3791)]:
+
+  ```agda
+  solveConstraints           : TC ⊤
+  solveConstraintsMentioning : List Meta → TC ⊤
+  ```
+
+  The former one tries to solve all constraints, whereas the latter
+  one wakes up all constraints mentioning the given meta-variables,
+  and then tries to solve all awake constraints.
+
+### Warnings
+
+* New warning for a variable shadowing another in a telescope. If the two
+  variables are introduced in different telescopes then the warning is not
+  raised.
+
+  ```agda
+  f : {a : Level} {A : Set a} (a : A) → A   -- warning raised: repeated a
+  g : {a : Level} {A : Set a} → (a : A) → A -- warning not raised: two distinct telescopes
+  ```
+
+  Note that this warning is turned off by default (you can use
+  `-WShadowingInTelescope` or `--warning ShadowingInTelescope` to turn
+  it on, `-Wall` would also naturally work).
+
+
 Emacs mode
 ----------
 
 * Agda input method: new key bindings `\ G h` and `\ G H` for `η` and `H` (capital η).
+
+GHC Backend
+-----------
+
+* Types which have a COMPILE GHC pragma are no longer erased
+  [[Issue #3732](https://github.com/agda/agda/issues/3732)].
+
+  ```agda
+  data I : Set where
+    bar : I
+
+  {-# FOREIGN GHC data I = Bar     #-}
+  {-# COMPILE GHC I = data I (Bar) #-}
+
+  data S : Set where
+    foo :  I → S
+
+  {-# FOREIGN GHC data S = Foo I #-}
+  {-# COMPILE GHC S = data S (Foo) #-}
+  ```
+  Previously [[Issue #2921](https://github.com/agda/agda/issues/2921)],
+  the last binding was incorrect, since the argument of
+  singleton type `I` was erased from the constructor `foo` during
+  compilation.  The required shape of `S` was previously
+  ```
+  {-# FOREIGN GHC data S = Foo #-}
+  ```
+  i.e., constructor `Foo` had to have no arguments.
+
+  For the sake of transparency, Haskell constructors bound to
+  Agda constructors now take the same arguments.
+  This is especially important if Haskell bindings are to be
+  produced automatically by third party tool.
+
+API
+----
+* Removed module `Agda.Utils.HashMap`. It only re-exported `Data.HashMap.Strict`
+  from the package `unordered-containers`. Use `Data.HashMap.Strict` instead.
+
+* Removed module `Agda.Utils.Char`. It used to provide functions converting a
+  `Char` in base 8, 10, and 16 to the corresponding `Int`. Use `digitToInt` in
+  `Data.Char` instead. The rest of module was about Unicode test which was not
+  used.
+
+* `Agda.Utils.List` no longer provides `headMaybe`.
+  Use `listToMaybe` in `Data.Maybe` instead.
+
+* `Agda.Utils.Either` no longer provides `mapEither`. Use `bimap` in
+  `Data.Bifunctor` instead.
+
+* `Agda.Utils.Map` no longer provides `unionWithM`, `insertWithKeyM`,
+  `allWithKey`, `unzip`, and `unzip3`.
 
 
 Release notes for Agda version 2.6.0.1

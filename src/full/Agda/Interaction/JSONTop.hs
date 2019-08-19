@@ -146,8 +146,9 @@ jsonifyResponse (Resp_GiveAction i giveResult) = return $ encode $ object
   , "interactionPoint"  .= i
   , "giveResult"        .= giveResult
   ]
-jsonifyResponse (Resp_MakeCase variant clauses) = return $ encode $ object
+jsonifyResponse (Resp_MakeCase i variant clauses) = return $ encode $ object
   [ "kind"          .= String "MakeCase"
+  , "interactionPoint"  .= i
   , "variant"       .= variant
   , "clauses"       .= clauses
   ]

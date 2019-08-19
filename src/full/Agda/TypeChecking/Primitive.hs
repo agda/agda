@@ -204,9 +204,9 @@ instance ToTerm Associativity where
         LeftAssoc  -> lassoc
         RightAssoc -> rassoc
 
-instance ToTerm PrecedenceLevel where
+instance ToTerm FixityLevel where
   toTerm = do
-    (iToTm :: Integer -> Term) <- toTerm
+    (iToTm :: PrecedenceLevel -> Term) <- toTerm
     related   <- primPrecRelated
     unrelated <- primPrecUnrelated
     return $ \ p ->

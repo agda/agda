@@ -242,7 +242,7 @@ insert the character "NOT A SUBSET OF" (``⊄``).
 typing the name of a character, then you need to start all over
 again. If you find this terribly annoying, then you can use `Abbrev
 mode
-<http://wiki.portal.chalmers.se/agda/pmwiki.php?n=Main.Abbreviation>`_
+<https://wiki.portal.chalmers.se/agda/pmwiki.php?n=Main.Abbreviation>`_
 instead. However, note that Abbrev mode cannot be used in the
 minibuffer, which is used to give input to many Agda and Emacs
 commands.)

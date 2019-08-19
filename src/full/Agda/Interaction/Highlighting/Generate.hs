@@ -618,13 +618,16 @@ warningHighlighting :: TCWarning -> File
 warningHighlighting w = case tcWarning w of
   TerminationIssue terrs     -> terminationErrorHighlighting terrs
   NotStrictlyPositive d ocs  -> positivityErrorHighlighting d ocs
-  UnreachableClauses{}       -> deadcodeHighlighting $ getRange w
+  -- #3965 highlight each unreachable clause independently: they
+  -- may be interleaved with actually reachable clauses!
+  UnreachableClauses _ rs    -> Fold.foldMap deadcodeHighlighting rs
   CoverageIssue{}            -> coverageErrorHighlighting $ getRange w
   CoverageNoExactSplit{}     -> catchallHighlighting $ getRange w
   UnsolvedConstraints cs     -> constraintsHighlighting cs
   UnsolvedMetaVariables rs   -> metasHighlighting rs
   AbsurdPatternRequiresNoRHS{} -> deadcodeHighlighting $ getRange w
   ModuleDoesntExport{}         -> deadcodeHighlighting $ getRange w
+  FixityInRenamingModule rs    -> Fold.foldMap deadcodeHighlighting rs
   -- expanded catch-all case to get a warning for new constructors
   CantGeneralizeOverSorts{}  -> mempty
   UnsolvedInteractionMetas{} -> mempty
@@ -670,6 +673,7 @@ warningHighlighting w = case tcWarning w of
     EmptyMacro{}                     -> deadcodeHighlighting $ getRange w
     EmptyMutual{}                    -> deadcodeHighlighting $ getRange w
     EmptyPostulate{}                 -> deadcodeHighlighting $ getRange w
+    EmptyPrimitive{}                 -> deadcodeHighlighting $ getRange w
     EmptyPrivate{}                   -> deadcodeHighlighting $ getRange w
     EmptyGeneralize{}                -> deadcodeHighlighting $ getRange w
     EmptyField{}                     -> deadcodeHighlighting $ getRange w
@@ -681,15 +685,16 @@ warningHighlighting w = case tcWarning w of
     InvalidTerminationCheckPragma{}  -> deadcodeHighlighting $ getRange w
     InvalidCoverageCheckPragma{}     -> deadcodeHighlighting $ getRange w
     EmptyPrimitive{}                 -> deadcodeHighlighting $ getRange w
+    ShadowingInTelescope nrs -> Fold.foldMap (shadowingTelHighlighting . snd) nrs
     -- TODO: explore highlighting opportunities here!
-    InvalidCatchallPragma{} -> mempty
-    MissingDefinitions{} -> mempty
+    InvalidCatchallPragma{}           -> mempty
+    MissingDefinitions{}              -> mempty
     PolarityPragmasButNotPostulates{} -> mempty
-    PragmaNoTerminationCheck{} -> mempty
-    PragmaCompiled{} -> mempty
-    UnknownFixityInMixfixDecl{} -> mempty
-    UnknownNamesInFixityDecl{} -> mempty
-    UnknownNamesInPolarityPragmas{} -> mempty
+    PragmaNoTerminationCheck{}        -> mempty
+    PragmaCompiled{}                  -> mempty
+    UnknownFixityInMixfixDecl{}       -> mempty
+    UnknownNamesInFixityDecl{}        -> mempty
+    UnknownNamesInPolarityPragmas{}   -> mempty
 
 
 -- | Generate syntax highlighting for termination errors.
@@ -722,6 +727,11 @@ coverageErrorHighlighting :: Range -> File
 coverageErrorHighlighting r = singleton (rToR $ P.continuousPerLine r) m
   where m = parserBased { otherAspects = Set.singleton CoverageProblem }
 
+shadowingTelHighlighting :: [Range] -> File
+shadowingTelHighlighting =
+  -- we do not want to highlight the one variable in scope as deadcode
+  -- so we take the @init@ segment of the ranges in question
+  Fold.foldMap deadcodeHighlighting . init
 
 catchallHighlighting :: Range -> File
 catchallHighlighting r = singleton (rToR $ P.continuousPerLine r) m

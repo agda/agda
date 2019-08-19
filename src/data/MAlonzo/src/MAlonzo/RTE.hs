@@ -27,8 +27,9 @@ coe = unsafeCoerce
 data QName = QName { nameId, moduleId :: Integer, qnameString :: String, qnameFixity :: Fixity }
 
 data Assoc      = NonAssoc | LeftAssoc | RightAssoc
-data Precedence = Unrelated | Related Integer
+data Precedence = Unrelated | Related PrecedenceLevel
 data Fixity     = Fixity Assoc Precedence
+type PrecedenceLevel = Double
 
 instance Eq QName where
   QName a b _ _ == QName c d _ _ = (a, b) == (c, d)

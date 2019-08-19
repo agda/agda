@@ -96,7 +96,10 @@ setLibraryPaths root o =
   setLibraryIncludes =<< addDefaultLibraries root o
 
 setLibraryIncludes :: CommandLineOptions -> TCM CommandLineOptions
-setLibraryIncludes o = do
+setLibraryIncludes o
+  | or [ not $ optUseLibs o
+       , optShowVersion o ] = pure o
+  | otherwise = do
     let libs = optLibraries o
     installed <- libToTCM $ getInstalledLibraries (optOverrideLibrariesFile o)
     paths     <- libToTCM $ libraryIncludePaths (optOverrideLibrariesFile o) installed libs

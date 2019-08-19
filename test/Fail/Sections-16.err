@@ -1,3 +1,3 @@
 Sections-16.agda:16,8-10
-D !=< B.D of type Set
+D !=< B.D
 when checking that the expression !_ has type B.D

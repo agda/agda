@@ -19,6 +19,7 @@ import System.FilePath
 #ifdef mingw32_HOST_OS
 import Control.Exception (bracket)
 import System.Win32 (findFirstFile, findClose, getFindDataFileName)
+import Agda.Utils.Monad
 #endif
 
 import Data.Text (Text)
@@ -26,7 +27,6 @@ import qualified Data.Text as Text
 import Data.Function
 import Data.Hashable (Hashable)
 import Data.Data (Data)
-
 
 import Agda.Utils.Pretty
 

@@ -958,7 +958,7 @@ performKill kills m a = do
       [ "actual killing"
       , nest 2 $ vcat
         [ "new meta:" <+> pretty m'
-        , "kills   :" <+> text (show kills)
+        , "kills   :" <+> prettyList_ (map (text . show . unArg) kills)
         , "inst    :" <+> pretty m <+> ":=" <+> prettyTCM u
         ]
       ]

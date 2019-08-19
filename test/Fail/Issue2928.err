@@ -1,3 +1,4 @@
 Issue2928.agda:6,3-7
 Cannot eliminate type  Set → R  with projection  R.f
-when checking that the clause f .R.f = Set has type Set → R
+when checking the clause left hand side
+f .R.f

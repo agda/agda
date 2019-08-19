@@ -17,9 +17,8 @@ module Agda.Utils.Tuple
   , List2(..)
   ) where
 
-
-import Data.Bifunctor
-
+import Control.Arrow  ((&&&))
+import Data.Bifunctor (bimap, first, second)
 import Data.Tuple (swap)
 
 infix 2 -*-
@@ -39,7 +38,7 @@ mapSnd = second
 
 -- | Lifted pairing.
 (/\) :: (a -> b) -> (a -> c) -> a -> (b,c)
-(f /\ g) x = (f x, g x)
+(/\) = (&&&)
 
 -- * Triple (stolen from Data.Tuple.HT)
 

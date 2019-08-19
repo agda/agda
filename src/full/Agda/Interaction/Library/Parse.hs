@@ -45,6 +45,7 @@ import Agda.Utils.Applicative
 import Agda.Utils.Except ( MonadError(throwError), ExceptT, runExceptT )
 import Agda.Utils.IO ( catchIO )
 import Agda.Utils.Lens
+import Agda.Utils.List   ( duplicates )
 import Agda.Utils.String ( ltrim )
 
 -- | Parser monad: Can throw @String@ error messages, and collects
@@ -156,7 +157,7 @@ checkFields fields fs = do
       -- Missing fields.
       missing   = mandatory List.\\ fs
       -- Duplicate fields.
-      dup       = fs List.\\ List.nub fs
+      dup       = duplicates fs
       -- Plural s for error message.
       s xs      = if length xs > 1 then "s" else ""
       list xs   = List.intercalate ", " [ "'" ++ f ++ "'" | f <- xs ]

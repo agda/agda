@@ -12,7 +12,7 @@ module Agda.Syntax.Concrete
   , module Agda.Syntax.Concrete.Name
   , appView, AppView(..)
   , isSingleIdentifierP, removeSingletonRawAppP
-  , isPattern, isBinderP
+  , isPattern, isAbsurdP, isBinderP
     -- * Bindings
   , Binder'(..)
   , Binder
@@ -549,31 +549,54 @@ removeSingletonRawAppP p = case p of
 
 isPattern :: Expr -> Maybe Pattern
 isPattern = \case
-  Ident x                 -> return $ IdentP x
-  App _ e1 e2             -> AppP <$> isPattern e1 <*> mapM (mapM isPattern) e2
-  Paren r e               -> ParenP r <$> isPattern e
-  Underscore r _          -> return $ WildP r
-  Absurd r                -> return $ AbsurdP r
-  As r x e                -> AsP r x <$> isPattern e
-  Dot r (HiddenArg _ e)   -> return $ HiddenP r $ fmap (DotP r) e
-  Dot r e                 -> return $ DotP r e
-  Lit l                   -> return $ LitP l
-  HiddenArg r e           -> HiddenP r <$> mapM isPattern e
-  InstanceArg r e         -> InstanceP r <$> mapM isPattern e
-  RawApp r es             -> RawAppP r <$> mapM isPattern es
-  Quote r                 -> return $ QuoteP r
-  Equal r e1 e2           -> return $ EqualP r [(e1, e2)]
-  Ellipsis r              -> return $ EllipsisP r
-  Rec r es                -> do
+  Ident x         -> return $ IdentP x
+  App _ e1 e2     -> AppP <$> isPattern e1 <*> mapM (mapM isPattern) e2
+  Paren r e       -> ParenP r <$> isPattern e
+  Underscore r _  -> return $ WildP r
+  Absurd r        -> return $ AbsurdP r
+  As r x e        -> pushUnderBracesP r (AsP r x) <$> isPattern e
+  Dot r e         -> return $ pushUnderBracesE r (DotP r) e
+  Lit l           -> return $ LitP l
+  HiddenArg r e   -> HiddenP r <$> mapM isPattern e
+  InstanceArg r e -> InstanceP r <$> mapM isPattern e
+  RawApp r es     -> RawAppP r <$> mapM isPattern es
+  Quote r         -> return $ QuoteP r
+  Equal r e1 e2   -> return $ EqualP r [(e1, e2)]
+  Ellipsis r      -> return $ EllipsisP r
+  Rec r es        -> do
     fs <- mapM maybeLeft es
     RecP r <$> mapM (mapM isPattern) fs
   -- WithApp has already lost the range information of the bars '|'
-  WithApp r e es          -> do
+  WithApp r e es  -> do
     p  <- isPattern e
     ps <- forM es $ \ e -> do
       p <- isPattern e
       pure $ defaultNamedArg $ WithP (getRange e) p   -- TODO #2822: Range!
     return $ foldl AppP p ps
+  _ -> Nothing
+
+  where
+
+    pushUnderBracesP :: Range -> (Pattern -> Pattern) -> (Pattern -> Pattern)
+    pushUnderBracesP r f = \case
+      HiddenP _ p   -> HiddenP r (fmap f p)
+      InstanceP _ p -> InstanceP r (fmap f p)
+      p             -> f p
+
+    pushUnderBracesE :: Range -> (Expr -> Pattern) -> (Expr -> Pattern)
+    pushUnderBracesE r f = \case
+      HiddenArg _ p   -> HiddenP r (fmap f p)
+      InstanceArg _ p -> InstanceP r (fmap f p)
+      p               -> f p
+
+isAbsurdP :: Pattern -> Maybe (Range, Hiding)
+isAbsurdP = \case
+  AbsurdP r      -> pure (r, NotHidden)
+  AsP _ _      p -> isAbsurdP p
+  ParenP _     p -> isAbsurdP p
+  RawAppP _ [p]  -> isAbsurdP p
+  HiddenP   _ np -> (Hidden <$)              <$> isAbsurdP (namedThing np)
+  InstanceP _ np -> (Instance YesOverlap <$) <$> isAbsurdP (namedThing np)
   _ -> Nothing
 
 isBinderP :: Pattern -> Maybe Binder

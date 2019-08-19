@@ -1,3 +1,4 @@
+{-# LANGUAGE BangPatterns       #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE GADTs              #-}
 
@@ -37,6 +38,7 @@ import qualified Agda.Utils.AssocList as AssocList
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List
+import Agda.Utils.Maybe (filterMaybe)
 import Agda.Utils.NonemptyList
 import Agda.Utils.Null
 import Agda.Utils.Pretty
@@ -104,8 +106,8 @@ data ScopeInfo = ScopeInfo
       , _scopeInverseName   :: NameMap
       , _scopeInverseModule :: ModuleMap
       , _scopeInScope       :: InScopeSet
-      , _scopeFixities      :: C.Fixities    -- ^ Maps concrete names to fixities
-      , _scopePolarities    :: C.Polarities  -- ^ Maps concrete names to polarities
+      , _scopeFixities      :: C.Fixities    -- ^ Maps concrete names C.Name to fixities
+      , _scopePolarities    :: C.Polarities  -- ^ Maps concrete names C.Name to polarities
       }
   deriving (Data, Show)
 
@@ -225,6 +227,24 @@ scopePolarities f s =
   f (_scopePolarities s) <&>
   \x -> s { _scopePolarities = x }
 
+scopeFixitiesAndPolarities :: Lens' (C.Fixities, C.Polarities) ScopeInfo
+scopeFixitiesAndPolarities f s =
+  f' (_scopeFixities s) (_scopePolarities s) <&>
+  \ (fixs, pols) -> s { _scopeFixities = fixs, _scopePolarities = pols }
+  where
+  -- Andreas, 2019-08-18: strict matching avoids space leak, see #1829.
+  f' !fixs !pols = f (fixs, pols)
+  -- Andrea comments on https://github.com/agda/agda/issues/1829#issuecomment-522312084
+  -- on a naive version without the bang patterns:
+  --
+  -- useScope (because of useR) forces the result of projecting the
+  -- lens, this usually prevents retaining the whole structure when we
+  -- only need a field.  However your combined lens adds an extra layer
+  -- of laziness with the pairs, so the actual projections remain
+  -- unforced.
+  --
+  -- I guess scopeFixitiesAndPolarities could add some strictness when building the pair?
+
 -- | Lens for 'scopeVarsToBind'.
 updateVarsToBind :: (LocalVars -> LocalVars) -> ScopeInfo -> ScopeInfo
 updateVarsToBind = over scopeVarsToBind
@@ -238,9 +258,6 @@ updateScopeLocals = over scopeLocals
 
 setScopeLocals :: LocalVars -> ScopeInfo -> ScopeInfo
 setScopeLocals = set scopeLocals
-
-mapScopeInfo :: (Scope -> Scope) -> ScopeInfo -> ScopeInfo
-mapScopeInfo = over scopeModules . fmap
 
 ------------------------------------------------------------------------
 -- * Name spaces
@@ -257,6 +274,8 @@ data NameSpace = NameSpace
       , nsModules :: ModulesInScope
         -- ^ Maps concrete module names to a list of abstract module names.
       , nsInScope :: InScopeSet
+        -- ^ All abstract names targeted by a concrete name in scope.
+        --   Computed by 'recomputeInScopeSets'.
       }
   deriving (Data, Eq, Show)
 
@@ -299,6 +318,8 @@ inNameSpace = case inScopeTag :: InScopeTag a of
 
 -- | For the sake of parsing left-hand sides, we distinguish
 --   constructor and record field names from defined names.
+
+-- Note: order does matter in this enumeration, see 'isDefName'.
 data KindOfName
   = ConName                  -- ^ Constructor name.
   | FldName                  -- ^ Record field name.
@@ -316,14 +337,31 @@ data KindOfName
   | PrimName                 -- ^ Name of a @primitive@.
   | OtherDefName             -- ^ A @DefName@, but either other kind or don't know which kind.
   -- End @DefName@.  Keep these together in sequence, for sake of @isDefName@!
-  deriving (Eq, Show, Data, Enum, Bounded)
+  deriving (Eq, Ord, Show, Data, Enum, Bounded)
 
 isDefName :: KindOfName -> Bool
-isDefName = (`elem` [DataName .. OtherDefName])
+isDefName = (>= DataName)
 
--- | A list containing all name kinds.
-allKindsOfNames :: [KindOfName]
-allKindsOfNames = [minBound..maxBound]
+-- | A set of 'KindOfName', for the sake of 'elemKindsOfNames'.
+data KindsOfNames
+  = AllKindsOfNames
+  | SomeKindsOfNames   (Set KindOfName)  -- ^ Only these kinds.
+  | ExceptKindsOfNames (Set KindOfName)  -- ^ All but these Kinds.
+
+elemKindsOfNames :: KindOfName -> KindsOfNames -> Bool
+elemKindsOfNames k = \case
+  AllKindsOfNames       -> True
+  SomeKindsOfNames   ks -> k `Set.member` ks
+  ExceptKindsOfNames ks -> k `Set.notMember` ks
+
+allKindsOfNames :: KindsOfNames
+allKindsOfNames = AllKindsOfNames
+
+someKindsOfNames :: [KindOfName] -> KindsOfNames
+someKindsOfNames = SomeKindsOfNames . Set.fromList
+
+exceptKindsOfNames :: [KindOfName] -> KindsOfNames
+exceptKindsOfNames = ExceptKindsOfNames . Set.fromList
 
 -- | Where does a name come from?
 --
@@ -370,6 +408,9 @@ instance Eq AbstractName where
 
 instance Ord AbstractName where
   compare = compare `on` anameName
+
+instance LensFixity AbstractName where
+  lensFixity = lensAnameName . lensFixity
 
 -- | Van Laarhoven lens on 'anameName'.
 lensAnameName :: Functor m => (A.QName -> m A.QName) -> AbstractName -> m AbstractName
@@ -570,8 +611,9 @@ zipScope_ fd fm fs = zipScope (const fd) (const fm) (const fs)
 recomputeInScopeSets :: Scope -> Scope
 recomputeInScopeSets = updateScopeNameSpaces (map $ second recomputeInScope)
   where
-    recomputeInScope ns = ns { nsInScope = Set.unions $ map (Set.fromList . map anameName)
-                                         $ Map.elems $ nsNames ns }
+    recomputeInScope ns = ns { nsInScope = allANames $ nsNames ns }
+    allANames :: NamesInScope -> InScopeSet
+    allANames = Set.fromList . map anameName . concat . Map.elems
 
 -- | Filter a scope keeping only concrete names matching the predicates.
 --   The first predicate is applied to the names and the second to the modules.
@@ -671,54 +713,82 @@ addModuleToScope acc x m s = mergeScope s s1
     s1 = setScopeAccess acc $ setNameSpace PublicNS ns emptyScope
     ns = emptyNameSpace { nsModules = Map.singleton x [m] }
 
--- When we get here we cannot have both using and hiding
-type UsingOrHiding = Either C.Using [C.ImportedName]
+-- | When we get here we cannot have both @using@ and @hiding@.
+data UsingOrHiding
+  = UsingOnly  [C.ImportedName]
+  | HidingOnly [C.ImportedName]
 
 usingOrHiding :: C.ImportDirective -> UsingOrHiding
 usingOrHiding i =
   case (using i, hiding i) of
-    (UseEverything, xs) -> Right xs
-    (u, [])             -> Left u
+    (UseEverything, ys) -> HidingOnly ys
+    (Using xs     , []) -> UsingOnly  xs
     _                   -> __IMPOSSIBLE__
 
--- | Apply an 'ImportDirective' to a scope.
+-- | Apply an 'ImportDirective' to a scope:
+--
+--   1. rename keys (C.Name) according to @renaming@;
+--
+--   2. for untouched keys, either of
+--
+--      a) remove keys according to @hiding@, or
+--      b) filter keys according to @using@.
+--
+--   Both steps could be done in one pass, by first preparing key-filtering
+--   functions @C.Name -> Maybe C.Name@ for defined names and module names.
+--   However, the penalty of doing it in two passes should not be too high.
+--   (Doubling the run time.)
 applyImportDirective :: C.ImportDirective -> Scope -> Scope
-applyImportDirective dir s = mergeScope usedOrHidden renamed
+applyImportDirective dir@(ImportDirective{ impRenaming }) s
+  | null dir  = s  -- Since each run of applyImportDirective rebuilds the scope
+                   -- with cost O(n log n) time, it makes sense to test for the identity.
+  | otherwise = mergeScope
+      (useOrHide (usingOrHiding dir) s) -- Names kept via using/hiding.
+      (rename impRenaming s)            -- Things kept (under a different name) via renaming.
   where
-    usedOrHidden = useOrHide (hideLHS (impRenaming dir) $ usingOrHiding dir) s
-    renamed      = rename (impRenaming dir) $ useOrHide useRenamedThings s
 
-    useRenamedThings = Left $ Using $ map renFrom $ impRenaming dir
-
-    hideLHS :: [C.Renaming] -> UsingOrHiding -> UsingOrHiding
-    hideLHS _   i@(Left _) = i
-    hideLHS ren (Right xs) = Right $ xs ++ map renFrom ren
-
+    -- Restrict scope by directive.
     useOrHide :: UsingOrHiding -> Scope -> Scope
-    useOrHide (Right xs)        s = filterNames notElem notElem xs s
-    useOrHide (Left (Using xs)) s = filterNames elem    elem    xs s
-    useOrHide _                 _ = __IMPOSSIBLE__
+    useOrHide (UsingOnly  xs) = filterNames Set.member xs
+       -- Filter scope, keeping only xs.
+    useOrHide (HidingOnly xs) = filterNames Set.notMember $ map renFrom impRenaming ++ xs
+       -- Filter out xs and the to be renamed names from scope.
 
-    filterNames :: (C.Name -> [C.Name] -> Bool) ->
-                   (C.Name -> [C.Name] -> Bool) ->
-                   [C.ImportedName] -> Scope -> Scope
-    filterNames pd pm xs = filterScope (`pd` ds) (`pm` ms)
+    -- Filter scope by (`rel` xs).
+    -- O(n * log (length xs)).
+    filterNames :: (C.Name -> Set C.Name -> Bool) -> [C.ImportedName] ->
+                   Scope -> Scope
+    filterNames rel xs = filterScope (`rel` Set.fromList ds) (`rel` Set.fromList ms)
       where
-        ds = [ x | ImportedName   x <- xs ]
-        ms = [ m | ImportedModule m <- xs ]
+        (ds, ms) = partitionEithers $ for xs $ \case
+          ImportedName   x -> Left x
+          ImportedModule m -> Right m
 
-    -- Renaming
+    -- Apply a renaming to a scope.
+    -- O(n * (log n + log (length rho))).
     rename :: [C.Renaming] -> Scope -> Scope
-    rename rho = mapScope_ (Map.mapKeys $ ren drho)
-                           (Map.mapKeys $ ren mrho)
+    rename rho = mapScope_ (updateFxs .
+                            Map.mapMaybeKeys (AssocList.apply drho))
+                           (Map.mapMaybeKeys (AssocList.apply mrho))
                            id
       where
         (drho, mrho) = partitionEithers $ for rho $ \case
-          Renaming (ImportedName   x) (ImportedName   y) _ -> Left  (x,y)
-          Renaming (ImportedModule x) (ImportedModule y) _ -> Right (x,y)
+          Renaming (ImportedName   x) (ImportedName   y) _fx _ -> Left  (x, y)
+          Renaming (ImportedModule x) (ImportedModule y) _fx _ -> Right (x, y)
           _ -> __IMPOSSIBLE__
 
-        ren r x = fromMaybe x $ lookup x r
+        fixities :: AssocList C.Name Fixity
+        fixities = (`mapMaybe` rho) $ \case
+          Renaming _ (ImportedName y) (Just fx)  _ -> Just (y, fx)
+          _ -> Nothing
+
+        -- Update fixities of abstract names targeted by renamed imported identifies.
+        updateFxs :: NamesInScope -> NamesInScope
+        updateFxs m = foldl upd m fixities
+          where
+          -- Update fixity of all abstract names targeted by concrete name y.
+          upd m (y, fx) = Map.adjust (map $ set lensFixity fx) y m
+
 
 -- | Rename the abstract names in a scope.
 renameCanonicalNames :: Map A.QName A.QName -> Map A.ModuleName A.ModuleName ->
@@ -741,12 +811,14 @@ restrictPrivate s = setNameSpace PrivateNS emptyNameSpace
 
 -- | Remove private things from the given module from a scope.
 restrictLocalPrivate :: ModuleName -> Scope -> Scope
-restrictLocalPrivate m = mapScope' PrivateNS (Map.mapMaybe rName) (Map.mapMaybe rMod)
-                                             (Set.filter (not . (`isInModule` m)))
+restrictLocalPrivate m =
+  mapScope' PrivateNS
+    (Map.mapMaybe rName)
+    (Map.mapMaybe rMod)
+    (Set.filter (not . (`isInModule` m)))
   where
-    check p x = x <$ guard (p x)
-    rName as = check (not . null) $ filter (not . (`isInModule`    m) . anameName) as
-    rMod  as = check (not . null) $ filter (not . (`isSubModuleOf` m) . amodName)  as
+    rName as = filterMaybe (not . null) $ filter (not . (`isInModule`    m) . anameName) as
+    rMod  as = filterMaybe (not . null) $ filter (not . (`isSubModuleOf` m) . amodName)  as
 
 -- | Remove names that can only be used qualified (when opening a scope)
 removeOnlyQualified :: Scope -> Scope

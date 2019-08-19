@@ -404,7 +404,8 @@ reifyElimToExpr e = case e of
     appl s v = A.App defaultAppInfo_ (A.Lit (LitString noRange s)) $ fmap unnamed v
 
 instance Reify Constraint (OutputConstraint Expr Expr) where
-    reify (ValueCmp cmp t u v)   = CmpInType cmp <$> reify t <*> reify u <*> reify v
+    reify (ValueCmp cmp (AsTermsOf t) u v) = CmpInType cmp <$> reify t <*> reify u <*> reify v
+    reify (ValueCmp cmp AsTypes u v) = CmpTypes cmp <$> reify u <*> reify v
     reify (ValueCmpOnFace cmp p t u v) = CmpInType cmp <$> (reify =<< ty) <*> reify (lam_o u) <*> reify (lam_o v)
       where
         lam_o = I.Lam (setRelevance Irrelevant defaultArgInfo) . NoAbs "_"
@@ -468,6 +469,10 @@ instance Reify Constraint (OutputConstraint Expr Expr) where
     reify (HasPTSRule a b) = do
       (a,(x,b)) <- reify (unDom a,b)
       return $ PTSInstance a b
+    reify (CheckMetaInst m) = do
+      t <- jMetaType . mvJudgement <$> lookupMeta m
+      OfType <$> reify (MetaV m []) <*> reify t
+
 
 instance (Pretty a, Pretty b) => Pretty (OutputForm a b) where
   pretty (OutputForm r pids c)

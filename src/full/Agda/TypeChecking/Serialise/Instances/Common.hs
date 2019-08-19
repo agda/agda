@@ -330,7 +330,7 @@ instance (EmbPrj a, EmbPrj b) => EmbPrj (ImportedName' a b) where
     valu [2, a] = valuN ImportedName a
     valu _ = malformed
 
-instance EmbPrj Agda.Syntax.Fixity.Associativity where
+instance EmbPrj Associativity where
   icod_ LeftAssoc  = icodeN' LeftAssoc
   icod_ RightAssoc = icodeN 1 RightAssoc
   icod_ NonAssoc   = icodeN 2 NonAssoc
@@ -341,7 +341,7 @@ instance EmbPrj Agda.Syntax.Fixity.Associativity where
     valu [2] = valuN NonAssoc
     valu _   = malformed
 
-instance EmbPrj Agda.Syntax.Fixity.PrecedenceLevel where
+instance EmbPrj FixityLevel where
   icod_ Unrelated   = icodeN' Unrelated
   icod_ (Related a) = icodeN' Related a
 
@@ -350,7 +350,7 @@ instance EmbPrj Agda.Syntax.Fixity.PrecedenceLevel where
     valu [a] = valuN Related a
     valu _   = malformed
 
-instance EmbPrj Agda.Syntax.Fixity.Fixity where
+instance EmbPrj Fixity where
   icod_ (Fixity a b c) = icodeN' Fixity a b c
 
   value = valueN Fixity

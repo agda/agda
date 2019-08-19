@@ -130,6 +130,7 @@ usualWarnings :: Set WarningName
 usualWarnings = allWarnings Set.\\ Set.fromList
               [ UnknownFixityInMixfixDecl_
               , CoverageNoExactSplit_
+              , ShadowingInTelescope_
               ]
 
 -- | The @WarningName@ data enumeration is meant to have a one-to-one correspondance
@@ -162,6 +163,7 @@ data WarningName
   | PolarityPragmasButNotPostulates_
   | PragmaCompiled_
   | PragmaNoTerminationCheck_
+  | ShadowingInTelescope_
   | UnknownFixityInMixfixDecl_
   | UnknownNamesInFixityDecl_
   | UnknownNamesInPolarityPragmas_
@@ -182,6 +184,7 @@ data WarningName
   | InstanceNoOutputTypeName_
   | InversionDepthReached_
   | ModuleDoesntExport_
+  | FixityInRenamingModule_
   | NotStrictlyPositive_
   | OldBuiltin_
   | PragmaCompileErased_
@@ -281,6 +284,7 @@ warningNameDescription w = case w of
   PolarityPragmasButNotPostulates_ -> "Polarity pragmas for non-postulates."
   PragmaCompiled_                  -> "'COMPILE' pragmas not allowed in safe mode."
   PragmaNoTerminationCheck_        -> "`NO_TERMINATION_CHECK' pragmas are deprecated"
+  ShadowingInTelescope_            -> "Repeated variable name in telescope."
   UnknownFixityInMixfixDecl_       -> "Mixfix names without an associated fixity declaration."
   UnknownNamesInFixityDecl_        -> "Names not declared in the same scope as their syntax or fixity declaration."
   UnknownNamesInPolarityPragmas_   -> "Names not declared in the same scope as their polarity pragmas."
@@ -303,6 +307,7 @@ warningNameDescription w = case w of
   InstanceWithExplicitArg_         -> "`instance` declarations with explicit arguments are never considered by instance search."
   InversionDepthReached_           -> "Inversions of pattern-matching failed due to exhausted inversion depth."
   ModuleDoesntExport_              -> "Imported name is not actually exported."
+  FixityInRenamingModule_          -> "Found fixity annotation in renaming directive for module."
   NotStrictlyPositive_             -> "Failed strict positivity checks."
   OldBuiltin_                      -> "Deprecated `BUILTIN' pragmas."
   PragmaCompileErased_             -> "`COMPILE' pragma targeting an erased symbol."

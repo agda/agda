@@ -208,7 +208,7 @@ boundedSizeMetaHook v tel0 a = do
         v <- sizeSuc 1 $ raise (size tel) v `apply` teleArgs tel
         -- compareSizes CmpLeq v u
         size <- sizeType
-        addConstraint $ ValueCmp CmpLeq size v u
+        addConstraint $ ValueCmp CmpLeq (AsTermsOf size) v u
     _ -> return ()
 
 -- | @trySizeUniv cmp t m n x els1 y els2@
@@ -222,7 +222,7 @@ boundedSizeMetaHook v tel0 a = do
 --   If it does not succeed it reports failure of conversion check.
 trySizeUniv
   :: MonadConversion m
-  => Comparison -> Type -> Term -> Term
+  => Comparison -> CompareAs -> Term -> Term
   -> QName -> Elims -> QName -> Elims -> m ()
 trySizeUniv cmp t m n x els1 y els2 = do
   let failure = typeError $ UnequalTerms cmp m n t
@@ -349,8 +349,8 @@ compareSizeViews cmp s1' s2' = do
         u <- unDeepSizeView s1
         v <- unDeepSizeView s2
         cont u v
-      failure = withUnView $ \ u v -> typeError $ UnequalTerms cmp u v size
-      continue cmp = withUnView $ compareAtom cmp size
+      failure = withUnView $ \ u v -> typeError $ UnequalTerms cmp u v (AsTermsOf size)
+      continue cmp = withUnView $ compareAtom cmp (AsTermsOf size)
   case (cmp, s1, s2) of
     (CmpLeq, _,            DSizeInf)   -> return ()
     (CmpEq,  DSizeInf,     DSizeInf)   -> return ()
@@ -379,8 +379,8 @@ compareSizeViews cmp s1' s2' = do
 giveUp :: (MonadConversion m) => Comparison -> Type -> Term -> Term -> m ()
 giveUp cmp size u v =
   ifM (asksTC envAssignMetas)
-    {-then-} (addConstraint $ ValueCmp CmpLeq size u v)
-    {-else-} (typeError $ UnequalTerms cmp u v size)
+    {-then-} (addConstraint $ ValueCmp CmpLeq (AsTermsOf size) u v)
+    {-else-} (typeError $ UnequalTerms cmp u v (AsTermsOf size))
 
 -- | Checked whether a size constraint is trivial (like @X <= X+1@).
 trivial :: (MonadConversion m) => Term -> Term -> m Bool
@@ -408,7 +408,7 @@ isSizeProblem pid = andM . map (isSizeConstraint . theConstraint) =<< getConstra
 
 -- | Test is a constraint speaks about sizes.
 isSizeConstraint :: (HasOptions m, HasBuiltins m) => Closure Constraint -> m Bool
-isSizeConstraint Closure{ clValue = ValueCmp _ s _ _ } = isJust <$> isSizeType s
+isSizeConstraint Closure{ clValue = ValueCmp _ (AsTermsOf s) _ _ } = isJust <$> isSizeType s
 isSizeConstraint _ = return False
 
 -- | Take out all size constraints (DANGER!).
@@ -416,7 +416,7 @@ takeSizeConstraints :: TCM [Closure Constraint]
 takeSizeConstraints = do
   test <- isSizeTypeTest
   let sizeConstraint :: Closure Constraint -> Bool
-      sizeConstraint cl@Closure{ clValue = ValueCmp CmpLeq s _ _ }
+      sizeConstraint cl@Closure{ clValue = ValueCmp CmpLeq (AsTermsOf s) _ _ }
               | isJust (test $ unEl s) = True
       sizeConstraint _ = False
   cs <- filter sizeConstraint . map theConstraint <$> getAllConstraints
@@ -428,7 +428,7 @@ getSizeConstraints :: TCM [Closure Constraint]
 getSizeConstraints = do
   test <- isSizeTypeTest
   let sizeConstraint :: Closure Constraint -> Bool
-      sizeConstraint cl@Closure{ clValue = ValueCmp CmpLeq s _ _ }
+      sizeConstraint cl@Closure{ clValue = ValueCmp CmpLeq (AsTermsOf s) _ _ }
               | isJust (test $ unEl s) = True
       sizeConstraint _ = False
   filter sizeConstraint . map theConstraint <$> getAllConstraints

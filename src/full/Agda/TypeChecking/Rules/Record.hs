@@ -602,7 +602,7 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
         let bodyMod = case rel of
               Relevant   -> id
               NonStrict  -> id
-              Irrelevant -> DontCare
+              Irrelevant -> dontCare
 
         let -- Andreas, 2010-09-09: comment for existing code
             -- split the telescope into parameters (ptel) and the type or the record

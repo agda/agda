@@ -110,9 +110,7 @@ data ModuleInfo = ModuleInfo
   , minfoDirective :: Maybe ImportDirective
     -- ^ Retained for @abstractToConcrete@ of 'ModuleMacro'.
   }
-  deriving (Data, Eq)
-
-deriving instance Show ModuleInfo
+  deriving (Data, Eq, Show)
 
 instance HasRange ModuleInfo where
   getRange = minfoRange

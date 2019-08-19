@@ -41,14 +41,23 @@ instance PrettyTCM CallInfo where
       else call $$ nest 2 ("(at" <+> prettyTCM r) <> ")"
 
 instance PrettyTCM Call where
-  prettyTCM c = withContextPrecedence TopCtx $ case c of
+  prettyTCM = withContextPrecedence TopCtx . \case
+
     CheckClause t cl -> do
-      reportSLn "error.checkclause" 60 $ "prettyTCM CheckClause: cl = " ++ show (deepUnscope cl)
-      clc <- abstractToConcrete_ cl
-      reportSLn "error.checkclause" 40 $ "cl (Concrete) = " ++ show clc
+
+      verboseS  "error.checkclause" 40 $ do
+        reportSLn "error.checkclause" 60 $ "prettyTCM CheckClause: cl = " ++ show (deepUnscope cl)
+        clc <- abstractToConcrete_ cl
+        reportSLn "error.checkclause" 40 $ "cl (Concrete) = " ++ show clc
+
       fsep $
         pwords "when checking that the clause"
         ++ [prettyA cl] ++ pwords "has type" ++ [prettyTCM t]
+
+    CheckLHS lhs -> vcat $
+      [ fsep $ pwords "when checking the clause left hand side"
+      , prettyA lhs
+      ]
 
     CheckPattern p tel t -> addContext tel $ fsep $
       pwords "when checking that the pattern"
@@ -82,6 +91,11 @@ instance PrettyTCM Call where
       pwords (P.singPlural es "is a valid argument" "are valid arguments") ++
       pwords "to a function of type" ++
       [prettyTCM t0]
+
+    CheckMetaSolution r m a v -> fsep $
+      pwords "when checking that the solution" ++ [prettyTCM v] ++
+      pwords "of metavariable" ++ [prettyTCM m] ++
+      pwords "has the expected type" ++ [prettyTCM a]
 
     CheckTargetType r infTy expTy -> sep
       [ "when checking that the inferred type of an application"
@@ -125,9 +139,6 @@ instance PrettyTCM Call where
     CheckDotPattern e v -> fsep $
       pwords "when checking that the given dot pattern" ++ [prettyA e] ++
       pwords "matches the inferred value" ++ [prettyTCM v]
-
-    CheckPatternShadowing c -> fsep $
-      pwords "when checking the clause" ++ [prettyA c]
 
     CheckNamedWhere m -> fsep $
       pwords "when checking the named where block" ++ [prettyA m]
@@ -176,4 +187,6 @@ instance PrettyTCM Call where
 
     where
     hPretty :: MonadPretty m => Arg (Named_ Expr) -> m Doc
-    hPretty a = withContextPrecedence (ArgumentCtx PreferParen) $ pretty =<< abstractToConcreteHiding a a
+    hPretty a = do
+      withContextPrecedence (ArgumentCtx PreferParen) $
+        pretty =<< abstractToConcreteHiding a a

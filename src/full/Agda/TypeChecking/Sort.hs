@@ -1,3 +1,4 @@
+{-# LANGUAGE ScopedTypeVariables #-}
 
 -- | This module contains the rules for Agda's sort system viewed as a pure
 --   type system (pts). The specification of a pts consists of a set
@@ -22,6 +23,9 @@ module Agda.TypeChecking.Sort where
 
 import Control.Monad
 
+import Data.Functor
+import Data.Maybe
+
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 
@@ -30,14 +34,21 @@ import {-# SOURCE #-} Agda.TypeChecking.Conversion
 import {-# SOURCE #-} Agda.TypeChecking.MetaVars () -- instance only
 
 import Agda.TypeChecking.Monad.Base
+import Agda.TypeChecking.Monad.Builtin (HasBuiltins)
 import Agda.TypeChecking.Monad.Constraints (addConstraint, MonadConstraint)
 import Agda.TypeChecking.Monad.Context
 import Agda.TypeChecking.Monad.Debug
+import Agda.TypeChecking.Monad.MetaVars (metaType)
+import Agda.TypeChecking.Monad.Signature (HasConstInfo(..), applyDef)
 import Agda.TypeChecking.Pretty ()
+import Agda.TypeChecking.ProjectionLike (elimView)
+import Agda.TypeChecking.Records (getDefType)
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
+import Agda.TypeChecking.Telescope
 
 import Agda.Utils.Except
+import Agda.Utils.Impossible
 import Agda.Utils.Lens
 
 -- | Infer the sort of another sort. If we can compute the bigger sort
@@ -109,12 +120,13 @@ hasPTSRule a b = void $ inferPiSort a b
 -- | Recursively check that an iterated function type constructed by @telePi@
 --   is well-sorted.
 checkTelePiSort :: Type -> TCM ()
-checkTelePiSort (El s (Pi a b)) = do
-  -- Since the function type is assumed to be constructed by @telePi@,
-  -- we already know that @s == piSort (getSort a) (getSort <$> b)@,
-  -- so we just check that this sort is well-formed.
-  hasPTSRule a (getSort <$> b)
-  underAbstraction a b checkTelePiSort
+-- Jesper, 2019-07-27: This is currently doing nothing (see comment in inferPiSort)
+--checkTelePiSort (El s (Pi a b)) = do
+--  -- Since the function type is assumed to be constructed by @telePi@,
+--  -- we already know that @s == piSort (getSort a) (getSort <$> b)@,
+--  -- so we just check that this sort is well-formed.
+--  hasPTSRule a (getSort <$> b)
+--  underAbstraction a b checkTelePiSort
 checkTelePiSort _ = return ()
 
 ifIsSort :: (MonadReduce m) => Type -> (Sort -> m a) -> m a -> m a
@@ -129,3 +141,45 @@ shouldBeSort
   :: (MonadReduce m, MonadTCEnv m, ReadTCState m, MonadError TCErr m)
   => Type -> m Sort
 shouldBeSort t = ifIsSort t return (typeError $ ShouldBeASort t)
+
+-- | Reconstruct the sort of a type.
+--
+--   Precondition: given term is a well-sorted type.
+sortOf
+  :: forall m. (MonadReduce m, MonadTCEnv m, HasBuiltins m, HasConstInfo m)
+  => Term -> m Sort
+sortOf t = elimView True t >>= \case
+  Pi a b     -> return $ piSort a (getSort <$> b)
+  Sort s     -> do
+    ui <- univInf
+    return $ univSort ui s
+  Var i es   -> do
+    a <- typeOfBV i
+    sortOfE a (Var i) es
+  Def f es   -> do
+    a <- defType <$> getConstInfo f
+    sortOfE a (Def f) es
+  MetaV x es -> do
+    a <- metaType x
+    sortOfE a (MetaV x) es
+  Lam{}      -> __IMPOSSIBLE__
+  Con{}      -> __IMPOSSIBLE__
+  Lit{}      -> __IMPOSSIBLE__
+  Level{}    -> __IMPOSSIBLE__
+  DontCare{} -> __IMPOSSIBLE__
+  Dummy s _  -> __IMPOSSIBLE_VERBOSE__ s
+
+  where
+    sortOfE :: Type -> (Elims -> Term) -> Elims -> m Sort
+    sortOfE a hd []     = ifIsSort a return __IMPOSSIBLE__
+    sortOfE a hd (e:es) = case e of
+      Apply (Arg ai v) -> ifNotPiType a __IMPOSSIBLE__ $ \b c -> do
+        sortOfE (c `absApp` v) (hd . (e:)) es
+      Proj o f -> do
+        a <- reduce a
+        ~(El _ (Pi b c)) <- fromMaybe __IMPOSSIBLE__ <$> getDefType f a
+        hd' <- applyE <$> applyDef o f (argFromDom b $> hd [])
+        sortOfE (c `absApp` (hd [])) hd' es
+      IApply x y r -> do
+        (b , c) <- fromMaybe __IMPOSSIBLE__ <$> isPath a
+        sortOfE (c `absApp` r) (hd . (e:)) es
