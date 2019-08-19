@@ -516,7 +516,7 @@ instance ToAbstract (NewName C.Name) A.Name where
     return y
 
 instance ToAbstract (NewName C.BoundName) A.BindName where
-  toAbstract (NewName b BName{ boundName = x, bnameFixity = fx }) = do
+  toAbstract NewName{ newBinder = b, newName = BName{ boundName = x, bnameFixity = fx }} = do
     y <- freshAbstractName fx x
     bindVariable b x y
     return $ A.BindName y
@@ -770,7 +770,7 @@ scopeCheckExtendedLam r cs = do
       return $ A.ExtendedLam (ExprRange r) di qname' cs
     _ -> __IMPOSSIBLE__
 
-  where
+-- | Scope check an expression.
 
 instance ToAbstract C.Expr A.Expr where
   toAbstract e =
