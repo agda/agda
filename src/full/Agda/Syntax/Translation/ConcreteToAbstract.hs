@@ -720,7 +720,10 @@ scopeCheckExtendedLam r cs = do
   -- Find an unused name for the extended lambda definition.
   cname <- freshConcreteName r 0 extendedLambdaName
   name  <- freshAbstractName_ cname
-  reportSLn "scope.extendedLambda" 10 $ "new extended lambda name: " ++ prettyShow name
+  a <- asksTC (^. lensIsAbstract)
+  reportSDoc "scope.extendedLambda" 10 $ vcat
+    [ text $ "new extended lambda name (" ++ show a ++ "): " ++ prettyShow name
+    ]
   verboseS "scope.extendedLambda" 60 $ do
     forM_ cs $ \ c -> do
       reportSLn "scope.extendedLambda" 60 $ "extended lambda lhs: " ++ show (C.lamLHS c)
@@ -728,7 +731,6 @@ scopeCheckExtendedLam r cs = do
   bindName (PrivateAccess Inserted) FunName cname qname
 
   -- Compose a function definition and scope check it.
-  a <- aModeToDef <$> asksTC envAbstractMode
   let
     insertApp :: C.Pattern -> ScopeM C.Pattern
     insertApp (C.RawAppP r es) = return $ C.RawAppP r $ IdentP (C.QName cname) : es

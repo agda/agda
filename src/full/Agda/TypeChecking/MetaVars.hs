@@ -49,8 +49,8 @@ import Agda.Utils.Except
   , MonadError(throwError)
   , runExceptT
   )
-
 import Agda.Utils.Function
+import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
@@ -264,7 +264,7 @@ newValueMetaCtx' frozen b a tel perm vs = do
   let t     = telePi_ tel a
   x <- newMeta frozen i normalMetaPriority perm (HasType () t)
   reportSDoc "tc.meta.new" 50 $ fsep
-    [ "new meta:"
+    [ text $ "new meta (" ++ show (i ^. lensIsAbstract) ++ "):"
     , nest 2 $ prettyTCM vs <+> "|-"
     , nest 2 $ pretty x <+> ":" <+> prettyTCM t
     ]
