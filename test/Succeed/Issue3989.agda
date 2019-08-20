@@ -29,3 +29,7 @@ h = g _ where
 
   g : ∀ a → Set a → Set a
   g a z = z
+
+
+i : (Set → Set → Set) → (∀ _ _ → _)
+i f = f
