@@ -30,6 +30,45 @@ cache:
 
 matrix:
   include:
+
+    # Andreas, 2019-08-20, run faster test first.
+    # The just-compilation tests using stackage are the fastest.
+    # This allows for quick feedback should compilation break on one of the ghc versions.
+
+    - env: TEST=STACKAGE GHC_VER=8.6.5 BUILD=STACK ARGS="--stack-yaml stack-8.6.5.yaml --system-ghc"
+      addons:
+        apt:
+          packages:
+            - ghc-8.6.5
+          sources:
+            - hvr-ghc
+
+    - env: TEST=STACKAGE GHC_VER=8.4.4 BUILD=STACK ARGS="--stack-yaml stack-8.4.4.yaml --system-ghc"
+      addons:
+        apt:
+          packages:
+            - ghc-8.4.4
+          sources:
+            - hvr-ghc
+
+    - env: TEST=STACKAGE GHC_VER=8.2.2 BUILD=STACK ARGS="--stack-yaml stack-8.2.2.yaml --system-ghc"
+      addons:
+        apt:
+          packages:
+            - ghc-8.2.2
+          sources:
+            - hvr-ghc
+
+    - env: TEST=STACKAGE GHC_VER=8.0.2 BUILD=STACK ARGS="--stack-yaml stack-8.0.2.yaml --system-ghc"
+      addons:
+        apt:
+          packages:
+            - ghc-8.0.2
+          sources:
+            - hvr-ghc
+
+    # The builds involving the testsuite are run second.
+
     - env: TEST=MAIN GHC_VER=8.6.5 BUILD=CABAL CABAL_VER=2.4
       addons:
         apt:
@@ -70,37 +109,7 @@ matrix:
           sources:
             - hvr-ghc
 
-    - env: TEST=STACKAGE GHC_VER=8.6.5 BUILD=STACK ARGS="--stack-yaml stack-8.6.5.yaml --system-ghc"
-      addons:
-        apt:
-          packages:
-            - ghc-8.6.5
-          sources:
-            - hvr-ghc
-
-    - env: TEST=STACKAGE GHC_VER=8.4.4 BUILD=STACK ARGS="--stack-yaml stack-8.4.4.yaml --system-ghc"
-      addons:
-        apt:
-          packages:
-            - ghc-8.4.4
-          sources:
-            - hvr-ghc
-
-    - env: TEST=STACKAGE GHC_VER=8.2.2 BUILD=STACK ARGS="--stack-yaml stack-8.2.2.yaml --system-ghc"
-      addons:
-        apt:
-          packages:
-            - ghc-8.2.2
-          sources:
-            - hvr-ghc
-
-    - env: TEST=STACKAGE GHC_VER=8.0.2 BUILD=STACK ARGS="--stack-yaml stack-8.0.2.yaml --system-ghc"
-      addons:
-        apt:
-          packages:
-            - ghc-8.0.2
-          sources:
-            - hvr-ghc
+    # Finally, test documentation: haddock, user-manual.
 
     # Since `stack haddock` compiles Agda but `cabal haddock` does
     # not, this test is faster using `BUILD=CABAL` [Issue #2188].
