@@ -32,7 +32,8 @@ matrix:
   include:
 
     # Andreas, 2019-08-20, run faster test first.
-    # The just-compilation tests using stackage are the fastest.
+
+    # The just-compilation tests using stackage fast (< 10 min).
     # This allows for quick feedback should compilation break on one of the ghc versions.
 
     - env: TEST=STACKAGE GHC_VER=8.6.5 BUILD=STACK ARGS="--stack-yaml stack-8.6.5.yaml --system-ghc"
@@ -67,7 +68,13 @@ matrix:
           sources:
             - hvr-ghc
 
-    # The builds involving the testsuite are run second.
+    # Converting the user manual to html and pdf is fast (< 2min).
+
+    - env: TEST=USER_MANUAL BUILD=NOTHING
+      language: python
+      python: "3.4"
+
+    # The builds involving the testsuite (60-80min) are run then.
 
     - env: TEST=MAIN GHC_VER=8.6.5 BUILD=CABAL CABAL_VER=2.4
       addons:
@@ -121,10 +128,6 @@ matrix:
             - ghc-8.6.5
           sources:
             - hvr-ghc
-
-    - env: TEST=USER_MANUAL BUILD=NOTHING
-      language: python
-      python: "3.4"
 
   allow_failures:
     # - env: TEST=USER_MANUAL BUILD=NOTHING
