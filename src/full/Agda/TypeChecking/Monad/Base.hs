@@ -3790,15 +3790,14 @@ instance MonadIO m => Fail.MonadFail (TCMT m) where
   fail = internalError
 
 instance MonadIO m => MonadIO (TCMT m) where
-  liftIO m = TCM $ \s e -> do
-               let r = envRange e
-               liftIO $ wrap s r $ do
-                 x <- m
-                 x `seq` return x
+  liftIO m = TCM $ \ s env -> do
+    liftIO $ wrap s (envRange env) $ do
+      x <- m
+      x `seq` return x
     where
-      wrap s r m = E.catch m $ \e -> do
+      wrap s r m = E.catch m $ \ err -> do
         s <- readIORef s
-        E.throwIO $ IOException s r e
+        E.throwIO $ IOException s r err
 
 instance MonadIO m => MonadTCEnv (TCMT m) where
   askTC             = TCM $ \ _ e -> return e
@@ -3812,10 +3811,10 @@ instance MonadIO m => ReadTCState (TCMT m) where
   getTCState = getTC
   locallyTCState l f = bracket_ (useTC l <* modifyTCLens l f) (setTCLens l)
 
-instance MonadError TCErr (TCMT IO) where
+instance MonadError TCErr TCM where
   throwError = liftIO . E.throwIO
-  catchError m h = TCM $ \r e -> do
-    oldState <- liftIO (readIORef r)
+  catchError m h = TCM $ \ r e -> do  -- now we are in the IO monad
+    oldState <- readIORef r
     unTCM m r e `E.catch` \err -> do
       -- Reset the state, but do not forget changes to the persistent
       -- component. Not for pattern violations.
@@ -3856,8 +3855,8 @@ runIM :: IM a -> TCM a
 runIM = mapTCMT (Haskeline.runInputT Haskeline.defaultSettings)
 
 instance MonadError TCErr IM where
-  throwError = liftIO . E.throwIO
-  catchError m h = mapTCMT liftIO $ runIM m `catchError` (runIM . h)
+  throwError     = liftIO . E.throwIO
+  catchError m h = liftTCM $ runIM m `catchError` (runIM . h)
 
 -- | Preserve the state of the failing computation.
 catchError_ :: TCM a -> (TCErr -> TCM a) -> TCM a
