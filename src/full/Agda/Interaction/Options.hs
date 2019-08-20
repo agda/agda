@@ -6,7 +6,7 @@ module Agda.Interaction.Options
     , PragmaOptions(..)
     , OptionsPragma
     , Flag, OptM, runOptM, OptDescr(..), ArgDescr(..)
-    , Verbosity
+    , Verbosity, VerboseKey, VerboseLevel
     , HtmlHighlight(..)
     , WarningMode(..)
     , checkOpts
@@ -77,7 +77,9 @@ import Paths_Agda ( getDataFileName )
 
 -- OptDescr is a Functor --------------------------------------------------
 
-type Verbosity = Trie String Int
+type VerboseKey   = String
+type VerboseLevel = Int
+type Verbosity    = Trie VerboseKey VerboseLevel
 
 data HtmlHighlight = HighlightAll | HighlightCode | HighlightAuto
   deriving (Show, Eq)
