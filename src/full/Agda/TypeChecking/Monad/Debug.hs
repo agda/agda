@@ -36,13 +36,13 @@ import qualified Agda.Utils.Trie as Trie
 import Agda.Utils.Impossible
 
 class (Functor m, Applicative m, Monad m) => MonadDebug m where
-  displayDebugMessage :: VerboseLevel -> String -> m ()
-  displayDebugMessage n s = traceDebugMessage n s $ return ()
+  displayDebugMessage :: VerboseKey -> VerboseLevel -> String -> m ()
+  displayDebugMessage k n s = traceDebugMessage k n s $ return ()
 
-  traceDebugMessage :: VerboseLevel -> String -> m a -> m a
-  traceDebugMessage n s cont = displayDebugMessage n s >> cont
+  traceDebugMessage :: VerboseKey -> VerboseLevel -> String -> m a -> m a
+  traceDebugMessage k n s cont = displayDebugMessage k n s >> cont
 
-  formatDebugMessage  :: VerboseKey -> VerboseLevel -> TCM Doc -> m String
+  formatDebugMessage :: VerboseKey -> VerboseLevel -> TCM Doc -> m String
 
   getVerbosity :: m Verbosity
 
@@ -81,10 +81,10 @@ catchAndPrintImpossible k n m = catchImpossibleJust catchMe m $ \ imposs -> do
 
 instance MonadDebug TCM where
 
-  displayDebugMessage n s = do
+  displayDebugMessage k n s = do
     -- Andreas, 2019-08-20, issue #4016:
     -- Force any lazy 'Impossible' exceptions to the surface and handle them.
-    s  <- liftIO . catchAndPrintImpossible "??" n . E.evaluate . DeepSeq.force $ s
+    s  <- liftIO . catchAndPrintImpossible k n . E.evaluate . DeepSeq.force $ s
     cb <- getsTC $ stInteractionOutputCallback . stPersistentState
     cb (Resp_RunningInfo n s)
 
@@ -100,22 +100,22 @@ instance MonadDebug TCM where
         ]
 
   verboseBracket k n s = applyWhenVerboseS k n $ \ m -> do
-    openVerboseBracket n s
-    m `finally` closeVerboseBracket n
+    openVerboseBracket k n s
+    m `finally` closeVerboseBracket k n
 
 instance MonadDebug m => MonadDebug (ExceptT e m) where
-  displayDebugMessage n s = lift $ displayDebugMessage n s
+  displayDebugMessage k n s = lift $ displayDebugMessage k n s
   formatDebugMessage k n d = lift $ formatDebugMessage k n d
   getVerbosity = lift getVerbosity
   isDebugPrinting = lift isDebugPrinting
   nowDebugPrinting = mapExceptT nowDebugPrinting
   verboseBracket k n s = applyWhenVerboseS k n $ \m -> do
     mapExceptT (verboseBracket k n s) m `catchError` \err -> do
-      closeVerboseBracket n
+      closeVerboseBracket k n
       throwError err
 
 instance MonadDebug m => MonadDebug (ListT m) where
-  displayDebugMessage n s = lift $ displayDebugMessage n s
+  displayDebugMessage k n s = lift $ displayDebugMessage k n s
   formatDebugMessage k n d = lift $ formatDebugMessage k n d
   getVerbosity = lift getVerbosity
   isDebugPrinting = lift isDebugPrinting
@@ -124,7 +124,7 @@ instance MonadDebug m => MonadDebug (ListT m) where
     -- TODO: this may close the bracket any number of times
 
 instance MonadDebug m => MonadDebug (MaybeT m) where
-  displayDebugMessage n s = lift $ displayDebugMessage n s
+  displayDebugMessage k n s = lift $ displayDebugMessage k n s
   formatDebugMessage k n d = lift $ formatDebugMessage k n d
   getVerbosity = lift getVerbosity
   isDebugPrinting = lift isDebugPrinting
@@ -132,10 +132,10 @@ instance MonadDebug m => MonadDebug (MaybeT m) where
   verboseBracket k n s = applyWhenVerboseS k n $ \m -> MaybeT $ do
     verboseBracket k n s (runMaybeT m) >>= \case
       Just result -> return $ Just result
-      Nothing     -> closeVerboseBracket n >> return Nothing
+      Nothing     -> closeVerboseBracket k n >> return Nothing
 
 instance MonadDebug m => MonadDebug (ReaderT r m) where
-  displayDebugMessage n s = lift $ displayDebugMessage n s
+  displayDebugMessage k n s = lift $ displayDebugMessage k n s
   formatDebugMessage k n d = lift $ formatDebugMessage k n d
   getVerbosity = lift getVerbosity
   isDebugPrinting = lift isDebugPrinting
@@ -143,7 +143,7 @@ instance MonadDebug m => MonadDebug (ReaderT r m) where
   verboseBracket k n s = mapReaderT $ verboseBracket k n s
 
 instance MonadDebug m => MonadDebug (StateT s m) where
-  displayDebugMessage n s = lift $ displayDebugMessage n s
+  displayDebugMessage k n s = lift $ displayDebugMessage k n s
   formatDebugMessage k n d = lift $ formatDebugMessage k n d
   getVerbosity = lift getVerbosity
   isDebugPrinting = lift isDebugPrinting
@@ -151,7 +151,7 @@ instance MonadDebug m => MonadDebug (StateT s m) where
   verboseBracket k n s = mapStateT $ verboseBracket k n s
 
 instance (MonadDebug m, Monoid w) => MonadDebug (WriterT w m) where
-  displayDebugMessage n s = lift $ displayDebugMessage n s
+  displayDebugMessage k n s = lift $ displayDebugMessage k n s
   formatDebugMessage k n d = lift $ formatDebugMessage k n d
   getVerbosity = lift getVerbosity
   isDebugPrinting = lift isDebugPrinting
@@ -182,7 +182,7 @@ instance ReportS Doc       where reportS k n = reportSLn  k n . render
 -- | Conditionally println debug string.
 {-# SPECIALIZE reportSLn :: VerboseKey -> VerboseLevel -> String -> TCM () #-}
 reportSLn :: MonadDebug m => VerboseKey -> VerboseLevel -> String -> m ()
-reportSLn k n s = verboseS k n $ displayDebugMessage n $ s ++ "\n"
+reportSLn k n s = verboseS k n $ displayDebugMessage k n $ s ++ "\n"
 
 __IMPOSSIBLE_VERBOSE__ :: (HasCallStack, MonadDebug m) => String -> m a
 __IMPOSSIBLE_VERBOSE__ s = do { reportSLn "impossible" 10 s ; throwImpossible err }
@@ -194,7 +194,7 @@ __IMPOSSIBLE_VERBOSE__ s = do { reportSLn "impossible" 10 s ; throwImpossible er
 {-# SPECIALIZE reportSDoc :: VerboseKey -> VerboseLevel -> TCM Doc -> TCM () #-}
 reportSDoc :: MonadDebug m => VerboseKey -> VerboseLevel -> TCM Doc -> m ()
 reportSDoc k n d = verboseS k n $ do
-  displayDebugMessage n . (++ "\n") =<< formatDebugMessage k n (locallyTC eIsDebugPrinting (const True) d)
+  displayDebugMessage k n . (++ "\n") =<< formatDebugMessage k n (locallyTC eIsDebugPrinting (const True) d)
 
 unlessDebugPrinting :: MonadDebug m => m () -> m ()
 unlessDebugPrinting = unlessM isDebugPrinting
@@ -221,19 +221,19 @@ instance TraceS [Doc]     where traceS k n = traceSLn  k n . render . vcat
 instance TraceS Doc       where traceS k n = traceSLn  k n . render
 
 traceSLn :: MonadDebug m => VerboseKey -> VerboseLevel -> String -> m a -> m a
-traceSLn k n s = applyWhenVerboseS k n $ traceDebugMessage n $ s ++ "\n"
+traceSLn k n s = applyWhenVerboseS k n $ traceDebugMessage k n $ s ++ "\n"
 
 -- | Conditionally render debug 'Doc', print it, and then continue.
 traceSDoc :: MonadDebug m => VerboseKey -> VerboseLevel -> TCM Doc -> m a -> m a
 traceSDoc k n d = applyWhenVerboseS k n $ \cont -> do
   s <- formatDebugMessage k n $ locallyTC eIsDebugPrinting (const True) d
-  traceDebugMessage n (s ++ "\n") cont
+  traceDebugMessage k n (s ++ "\n") cont
 
-openVerboseBracket :: MonadDebug m => VerboseLevel -> String -> m ()
-openVerboseBracket n s = displayDebugMessage n $ "{ " ++ s ++ "\n"
+openVerboseBracket :: MonadDebug m => VerboseKey -> VerboseLevel -> String -> m ()
+openVerboseBracket k n s = displayDebugMessage k n $ "{ " ++ s ++ "\n"
 
-closeVerboseBracket :: MonadDebug m => VerboseLevel -> m ()
-closeVerboseBracket n = displayDebugMessage n "}\n"
+closeVerboseBracket :: MonadDebug m => VerboseKey -> VerboseLevel -> m ()
+closeVerboseBracket k n = displayDebugMessage k n "}\n"
 
 
 ------------------------------------------------------------------------
