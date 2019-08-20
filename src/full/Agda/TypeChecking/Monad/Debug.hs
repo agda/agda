@@ -65,12 +65,15 @@ instance MonadDebug TCM where
     cb (Resp_RunningInfo n s)
 
   formatDebugMessage k n d = liftTCM $
-    show <$> d `catchError` \ err ->
-      (\ s -> (sep $ map text
-                 [ "Printing debug message"
-                 , k  ++ ":" ++show n
-                 , "failed due to error:" ]) $$
-              (nest 2 $ text s)) <$> prettyError err
+    render <$> d `catchError` \ err -> do
+      prettyError err <&> \ s -> vcat
+        [ sep $ map text
+          [ "Printing debug message"
+          , k  ++ ":" ++ show n
+          , "failed due to error:"
+          ]
+        , nest 2 $ text s
+        ]
 
   verboseBracket k n s = applyWhenVerboseS k n $ \ m -> do
     openVerboseBracket n s
