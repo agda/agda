@@ -230,7 +230,7 @@ instance HasOptions AbsToCon where
   commandLineOptions = AbsToCon commandLineOptions
 
 instance MonadDebug AbsToCon where
-  displayDebugMessage n s = AbsToCon $ displayDebugMessage n s
+  displayDebugMessage k n s = AbsToCon $ displayDebugMessage k n s
   formatDebugMessage k n s = AbsToCon $ formatDebugMessage k n s
   verboseBracket k n s m = AbsToCon $ verboseBracket k n s $ unAbsToCon m
 

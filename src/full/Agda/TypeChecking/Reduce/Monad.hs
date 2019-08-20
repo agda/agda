@@ -89,10 +89,10 @@ isInstantiatedMeta i = do
 
 instance MonadDebug ReduceM where
 
-  traceDebugMessage n s cont = do
+  traceDebugMessage k n s cont = do
     ReduceEnv env st <- askR
     unsafePerformIO $ do
-      _ <- runTCM env st $ displayDebugMessage n s
+      _ <- runTCM env st $ displayDebugMessage k n s
       return $ cont
 
   formatDebugMessage k n d = do
@@ -102,7 +102,7 @@ instance MonadDebug ReduceM where
       return $ return s
 
   verboseBracket k n s = applyWhenVerboseS k n $
-    bracket_ (openVerboseBracket n s) (const $ closeVerboseBracket n)
+    bracket_ (openVerboseBracket k n s) (const $ closeVerboseBracket k n)
 
 instance HasConstInfo ReduceM where
   getRewriteRulesFor = defaultGetRewriteRulesFor getTCState

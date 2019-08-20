@@ -6,11 +6,11 @@ import Agda.TypeChecking.Monad.Base
 import Agda.Utils.Pretty
 
 class (Functor m, Applicative m, Monad m) => MonadDebug m where
-  displayDebugMessage :: VerboseLevel -> String -> m ()
-  displayDebugMessage n s = traceDebugMessage n s $ return ()
+  displayDebugMessage :: VerboseKey -> VerboseLevel -> String -> m ()
+  displayDebugMessage k n s = traceDebugMessage k n s $ return ()
 
-  traceDebugMessage :: VerboseLevel -> String -> m a -> m a
-  traceDebugMessage n s cont = displayDebugMessage n s >> cont
+  traceDebugMessage :: VerboseKey -> VerboseLevel -> String -> m a -> m a
+  traceDebugMessage k n s cont = displayDebugMessage k n s >> cont
 
   formatDebugMessage  :: VerboseKey -> VerboseLevel -> TCM Doc -> m String
 
