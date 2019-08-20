@@ -414,7 +414,7 @@ bindName' :: Access -> KindOfName -> NameMetadata -> C.Name -> A.QName -> ScopeM
 bindName' acc kind meta x y = do
   when (isNoName x) $ modifyScopes $ Map.map $ removeNameFromScope PrivateNS x
   r  <- resolveName (C.QName x)
-  ys <- case r of
+  y' <- case r of
     -- Binding an anonymous declaration always succeeds.
     -- In case it's not the first one, we simply remove the one that came before
     _ | isNoName x      -> success
@@ -425,9 +425,9 @@ bindName' acc kind meta x y = do
     PatternSynResName n -> ambiguous PatternSynName n
     UnknownName         -> success
   let ns = if isNoName x then PrivateNS else localNameSpace acc
-  modifyCurrentScope $ addNamesToScope ns x ys
+  modifyCurrentScope $ addNameToScope ns x y'
   where
-    success = return [ AbsName y kind Defined meta ]
+    success = return $ AbsName y kind Defined meta
     clash   = typeError . ClashingDefinition (C.QName x)
 
     ambiguous k ds =

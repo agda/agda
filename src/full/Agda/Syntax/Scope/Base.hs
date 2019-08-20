@@ -559,13 +559,12 @@ mapScope_ :: (NamesInScope   -> NamesInScope  ) ->
 mapScope_ fd fm fs = mapScope (const fd) (const fm) (const fs)
 
 -- | Same as 'mapScope' but applies the function only on the given name space.
-mapScope' :: NameSpaceId -> (NamesInScope   -> NamesInScope  ) ->
-                            (ModulesInScope -> ModulesInScope) ->
-                            (InScopeSet    -> InScopeSet     ) ->
-                            Scope -> Scope
-mapScope' i fd fm fs = mapScope (\ j -> if i == j then fd else id)
-                                (\ j -> if i == j then fm else id)
-                                (\ j -> if i == j then fs else id)
+mapScopeNS :: NameSpaceId
+           -> (NamesInScope   -> NamesInScope  )
+           -> (ModulesInScope -> ModulesInScope)
+           -> (InScopeSet    -> InScopeSet     )
+           -> Scope -> Scope
+mapScopeNS nsid fd fm fs = modifyNameSpace nsid $ mapNameSpace fd fm fs
 
 -- | Map monadic functions over the names and modules in a scope.
 mapScopeM :: Applicative m =>
@@ -697,33 +696,24 @@ setNameSpace nsid ns = modifyNameSpace nsid $ const ns
 modifyNameSpace :: NameSpaceId -> (NameSpace -> NameSpace) -> Scope -> Scope
 modifyNameSpace nsid f = updateScopeNameSpaces $ AssocList.updateAt nsid f
 
--- | Add names to a scope.
-addNamesToScope :: NameSpaceId -> C.Name -> [AbstractName] -> Scope -> Scope
-addNamesToScope acc x ys s = mergeScope s s1
-  where
-    s1 = setScopeAccess acc $ setNameSpace PublicNS ns emptyScope
-    ns = emptyNameSpace { nsNames   = Map.singleton x ys
-                        , nsInScope = Set.fromList (map anameName ys) }
-
 -- | Add a name to a scope.
 addNameToScope :: NameSpaceId -> C.Name -> AbstractName -> Scope -> Scope
-addNameToScope acc x y s = addNamesToScope acc x [y] s
+addNameToScope nsid x y =
+  mapScopeNS nsid
+    (Map.insertWith (flip List.union) x [y])  -- bind name x ↦ y
+    id                                        -- no change to modules
+    (Set.insert $ anameName y)                -- y is in scope now
 
 -- | Remove a name from a scope. Caution: does not update the nsInScope set.
 --   This is only used by rebindName and in that case we add the name right
 --   back (but with a different kind).
 removeNameFromScope :: NameSpaceId -> C.Name -> Scope -> Scope
-removeNameFromScope ns x s = mapScope remove (const id) (const id) s
-  where
-    remove ns' | ns' /= ns = id
-               | otherwise = Map.delete x
+removeNameFromScope nsid x = mapScopeNS nsid (Map.delete x) id id
 
 -- | Add a module to a scope.
 addModuleToScope :: NameSpaceId -> C.Name -> AbstractModule -> Scope -> Scope
-addModuleToScope acc x m s = mergeScope s s1
-  where
-    s1 = setScopeAccess acc $ setNameSpace PublicNS ns emptyScope
-    ns = emptyNameSpace { nsModules = Map.singleton x [m] }
+addModuleToScope nsid x m = mapScopeNS nsid id addM id
+  where addM = Map.insertWith (flip List.union) x [m]
 
 -- | When we get here we cannot have both @using@ and @hiding@.
 data UsingOrHiding
@@ -824,7 +814,7 @@ restrictPrivate s = setNameSpace PrivateNS emptyNameSpace
 -- | Remove private things from the given module from a scope.
 restrictLocalPrivate :: ModuleName -> Scope -> Scope
 restrictLocalPrivate m =
-  mapScope' PrivateNS
+  mapScopeNS PrivateNS
     (Map.mapMaybe rName)
     (Map.mapMaybe rMod)
     (Set.filter (not . (`isInModule` m)))
