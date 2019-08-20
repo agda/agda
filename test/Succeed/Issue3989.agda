@@ -33,3 +33,13 @@ h = g _ where
 
 i : (Set → Set → Set) → (∀ _ _ → _)
 i f = f
+
+module Issue2284Examples where
+
+  badλ : Set → Set → Set
+  badλ = λ x x → x
+
+  postulate
+    bad₁ : (A A : Set) → Set
+    bad₂ : (A : Set) (A : A) → Set
+    ok : (A : Set) → (A : A) → Set
