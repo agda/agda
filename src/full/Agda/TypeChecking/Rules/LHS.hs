@@ -560,10 +560,9 @@ checkPatternLinearity eqs = do
         ]
       case p of
         A.VarP x -> do
-          verboseS "tc.lhs.linear" 60 $ do
+          reportSLn "tc.lhs.linear" 60 $
             let y = A.unBind x
-            reportSLn "tc.lhs.linear" 60 $
-              "pattern variable " ++ show (A.nameConcrete y) ++ " with id " ++ show (A.nameId y)
+            in "pattern variable " ++ show (A.nameConcrete y) ++ " with id " ++ show (A.nameId y)
           case Map.lookup x vars of
             Just v -> do
               noConstraints $ equalTerm (unDom a) u v

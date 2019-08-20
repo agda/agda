@@ -719,8 +719,7 @@ checkPragma r p =
 checkMutual :: Info.MutualInfo -> [A.Declaration] -> TCM (MutualId, Set QName)
 checkMutual i ds = inMutualBlock $ \ blockId -> do
 
-  verboseS "tc.decl.mutual" 20 $ do
-    reportSDoc "tc.decl.mutual" 20 $ vcat $
+  reportSDoc "tc.decl.mutual" 20 $ vcat $
       (("Checking mutual block" <+> text (show blockId)) <> ":") :
       map (nest 2 . prettyA) ds
 

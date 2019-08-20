@@ -540,9 +540,7 @@ etaExpandMetaTCM kinds m = whenM (asksTC envAssignMetas `and2M` isEtaExpandable 
                     -- Andreas, 2019-03-18, AIM XXIX, issue #3597
                     -- When meta is frozen instantiate it with in-turn frozen metas.
                     inTopContext $ do
-                      verboseS "tc.meta.eta" 15 $ do
-                        du <- prettyTCM u
-                        reportSDoc "tc.meta.eta" 15 $ sep
+                      reportSDoc "tc.meta.eta" 15 $ sep
                           [ "eta expanding: " <+> pretty m <+> " --> "
                           , nest 2 $ prettyTCM u
                           ]
