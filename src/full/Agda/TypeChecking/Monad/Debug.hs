@@ -6,6 +6,8 @@ module Agda.TypeChecking.Monad.Debug
 
 import GHC.Stack (HasCallStack, freezeCallStack, callStack)
 
+import qualified Control.Exception as E
+import qualified Control.DeepSeq as DeepSeq (force)
 import Control.Monad.Reader
 import Control.Monad.State
 import Control.Monad.Trans.Maybe
@@ -60,13 +62,33 @@ class (Functor m, Applicative m, Monad m) => MonadDebug m where
   -- | Print brackets around debug messages issued by a computation.
   verboseBracket :: VerboseKey -> VerboseLevel -> String -> m a -> m a
 
+-- | During printing, catch internal errors of kind 'Impossible' and print them.
+catchAndPrintImpossible
+  :: (CatchImpossible m, Monad m)
+  => VerboseKey -> VerboseLevel -> m String -> m String
+catchAndPrintImpossible k n m = catchImpossibleJust catchMe m $ \ imposs -> do
+  return $ render $ vcat
+    [ text $ "Debug printing " ++ k ++ ":" ++ show n ++ " failed due to exception:"
+    , vcat $ map (nest 2 . text) $ lines $ show imposs
+    ]
+  where
+  -- | Exception filter: Catch only the 'Impossible' exception during debug printing.
+  catchMe :: Impossible -> Maybe Impossible
+  catchMe = filterMaybe $ \case
+    Impossible{}            -> True
+    Unreachable{}           -> False
+    ImpMissingDefinitions{} -> False
+
 instance MonadDebug TCM where
 
-  displayDebugMessage n s = liftTCM $ do
+  displayDebugMessage n s = do
+    -- Andreas, 2019-08-20, issue #4016:
+    -- Force any lazy 'Impossible' exceptions to the surface and handle them.
+    s  <- liftIO . catchAndPrintImpossible "??" n . E.evaluate . DeepSeq.force $ s
     cb <- getsTC $ stInteractionOutputCallback . stPersistentState
     cb (Resp_RunningInfo n s)
 
-  formatDebugMessage k n d = liftTCM $
+  formatDebugMessage k n d = catchAndPrintImpossible k n $ do
     render <$> d `catchError` \ err -> do
       prettyError err <&> \ s -> vcat
         [ sep $ map text

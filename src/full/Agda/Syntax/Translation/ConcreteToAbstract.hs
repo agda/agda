@@ -759,6 +759,9 @@ scopeCheckExtendedLam r cs = do
     --       _ -> __IMPOSSIBLE__
     --   __IMPOSSIBLE__
 
+  -- Andreas, 2019-08-20
+  -- Keep the following __IMPOSSIBLE__, which is triggered by -v scope.decl.trace:80,
+  -- for testing issue #4016.
   d <- C.FunDef r [] a NotInstanceDef __IMPOSSIBLE__ cname <$> do
           forM cs $ \ (LamClause lhs rhs wh ca) -> do -- wh == NoWhere, see parser for more info
             lhs' <- mapLhsOriginalPatternM insertApp lhs
@@ -1454,7 +1457,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
       [ "scope checking declaration"
       , "  " ++  prettyShow d
       ] $
-    traceS "scope.decl.trace" 80
+    traceS "scope.decl.trace" 80  -- keep this debug message for testing issue #4016
       [ "scope checking declaration (raw)"
       , "  " ++  show d
       ] $

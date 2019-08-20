@@ -3826,6 +3826,19 @@ instance MonadError TCErr TCM where
             writeIORef r $ oldState { stPersistentState = stPersistentState newState }
       unTCM (h err) r e
 
+-- | Like 'catchError', but resets the state completely before running the handler.
+--   This means it also loses changes to the 'stPersistentState'.
+--
+--   The intended use is to catch internal errors during debug printing.
+--   In debug printing, we are not expecting state changes.
+instance CatchImpossible TCM where
+  catchImpossibleJust f m h = TCM $ \ r e -> do
+    -- save the state
+    s <- readIORef r
+    catchImpossibleJust f (unTCM m r e) $ \ err -> do
+      writeIORef r s
+      unTCM (h err) r e
+
 instance MonadIO m => MonadReduce (TCMT m) where
   liftReduce = liftTCM . runReduceM
 
