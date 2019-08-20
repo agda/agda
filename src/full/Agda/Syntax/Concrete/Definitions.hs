@@ -430,7 +430,7 @@ instance Pretty DeclarationWarning where
   pretty (PragmaCompiled _) = fsep $
     pwords "COMPILE pragma not allowed in safe mode."
   pretty (ShadowingInTelescope nrs) = fsep $
-    pwords "Shadowing in telescope, repeated variables:"
+    pwords "Shadowing in telescope, repeated variable names:"
     ++ punctuate comma (map (pretty . fst) nrs)
 
 
