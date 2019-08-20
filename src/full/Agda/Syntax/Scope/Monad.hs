@@ -39,7 +39,6 @@ import Agda.TypeChecking.Monad.Trace
 import Agda.TypeChecking.Positivity.Occurrence (Occurrence)
 import Agda.TypeChecking.Warnings ( warning )
 
-import Agda.Utils.Applicative ((?$>))
 import qualified Agda.Utils.AssocList as AssocList
 import Agda.Utils.Except
 import Agda.Utils.Functor
@@ -174,15 +173,11 @@ setLocalVars vars = modifyLocalVars $ const vars
 withLocalVars :: ScopeM a -> ScopeM a
 withLocalVars = bracket_ getLocalVars setLocalVars
 
--- | Check that the newly added variable have unique names
+-- | Check that the newly added variable have unique names.
 
 withCheckNoShadowing :: ScopeM a -> ScopeM a
-withCheckNoShadowing m = do
-  lvars0 <- getLocalVars
-  v <- m
-  lvars1 <- getLocalVars
-  checkNoShadowing lvars0 lvars1
-  pure v
+withCheckNoShadowing = bracket_ getLocalVars $ \ lvarsOld ->
+  checkNoShadowing lvarsOld =<< getLocalVars
 
 checkNoShadowing :: LocalVars  -- ^ Old local scope
                  -> LocalVars  -- ^ New local scope
@@ -191,16 +186,16 @@ checkNoShadowing old new = do
   -- LocalVars is currnently an AssocList so the difference between
   -- two local scope is the left part of the new one.
   let diff = dropEnd (length old) new
-  let nameParts = mapMaybe extractName $ AssocList.keys diff
-  let conflicts = Map.filter atLeastTwo $ Map.fromListWith (++) nameParts
-  unless (Map.null conflicts) $ do
-    warning $ NicifierIssue $ ShadowingInTelescope
-            $ Map.toList conflicts
-
+  -- Filter out the underscores.
+  let newNames = filter (not . isNoName) $ AssocList.keys diff
+  -- Associate each name to its occurrences.
+  let nameOccs = Map.toList $ Map.fromListWith (++) $ map pairWithRange newNames
+  -- Warn if we have two or more occurrences of the same name.
+  unlessNull (filter (atLeastTwo . snd) nameOccs) $ \ conflicts -> do
+    warning $ NicifierIssue $ ShadowingInTelescope conflicts
   where
-
-    extractName :: C.Name -> Maybe (C.Name, [Range])
-    extractName n = not (isNoName n) ?$> (n, [getRange n])
+    pairWithRange :: C.Name -> (C.Name, [Range])
+    pairWithRange n = (n, [getRange n])
 
     atLeastTwo :: [a] -> Bool
     atLeastTwo (_ : _ : _) = True
