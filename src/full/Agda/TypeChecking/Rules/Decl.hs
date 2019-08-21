@@ -666,13 +666,6 @@ checkPrimitive i x e =
                   , primInv      = NotInjective
                   , primCompiled = Nothing }
 
-assertCurrentModule :: QName -> String -> TCM ()
-assertCurrentModule x err =
-  do def <- getConstInfo x
-     m <- currentModule
-     let m' = qnameModule $ defName def
-     unless (m == m' || isSubModuleOf m' m) $ typeError $ GenericError err
-
 -- | Check a pragma.
 checkPragma :: Range -> A.Pragma -> TCM ()
 checkPragma r p =
@@ -681,9 +674,11 @@ checkPragma r p =
         A.BuiltinNoDefPragma b x -> bindBuiltinNoDef b x
         A.RewritePragma q -> addRewriteRule q
         A.CompilePragma b x s -> do
-          assertCurrentModule x $
-              "COMPILE pragmas must appear in the same module " ++
-              "as their corresponding definitions,"
+          -- Check that x resides in the same module (or a child) as the pragma.
+          x' <- defName <$> getConstInfo x  -- Get the canonical name of x.
+          unlessM ((x' `isInModule`) <$> currentModule) $
+            typeError $ GenericError $
+              "COMPILE pragmas must appear in the same module as their corresponding definitions,"
           addPragma b x s
         A.StaticPragma x -> do
           def <- getConstInfo x
