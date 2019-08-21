@@ -35,13 +35,13 @@ findMentions norm rg nm = do
   -- We separate the strings from the names by a rough analysis
   -- and then parse and resolve the names in the current scope
   let (userSubStrings, nms) = partitionEithers $ isString <$> words nm
-  rnms <- mapM (parseName rg >=> resolveName) nms
+  rnms <- mapM (resolveName <=< parseName rg) nms
   let userIdentifiers = fmap (fmap anameName . anames) rnms
 
   -- We then collect all the things in scope, by name.
   -- Issue #2381: We explicitly filter out pattern synonyms because they
   -- don't have a type. Looking it up makes Agda panic!
-  snms <- fmap (nsNames . allThingsInScope) $ currentModule >>= getNamedScope
+  snms <- fmap (nsNames . allThingsInScope) $ getNamedScope =<< currentModule
   let namesInScope = filter ((PatternSynName /=) . anameKind . snd)
                    $ concatMap (uncurry $ map . (,)) $ Map.toList snms
 
