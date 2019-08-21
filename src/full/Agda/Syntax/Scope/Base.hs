@@ -819,8 +819,8 @@ restrictLocalPrivate m =
     (Map.mapMaybe rMod)
     (Set.filter (not . (`isInModule` m)))
   where
-    rName as = filterMaybe (not . null) $ filter (not . (`isInModule`    m) . anameName) as
-    rMod  as = filterMaybe (not . null) $ filter (not . (`isSubModuleOf` m) . amodName)  as
+    rName as = filterMaybe (not . null) $ filter (not . (`isInModule`        m) . anameName) as
+    rMod  as = filterMaybe (not . null) $ filter (not . (`isLtChildModuleOf` m) . amodName)  as
 
 -- | Remove names that can only be used qualified (when opening a scope)
 removeOnlyQualified :: Scope -> Scope
