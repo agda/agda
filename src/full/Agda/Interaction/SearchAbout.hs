@@ -52,11 +52,9 @@ findMentions norm rg nm = do
   -- criteria.
   ress <- forM namesInScope $ \ (x, n) -> do
     t <- normalForm norm =<< typeOfConst (anameName n)
-    let namesInT = Set.toList $ namesIn t
-    let defName  = prettyShow x
     return $ do
-      guard $ all (`isInfixOf` defName)   userSubStrings
-      guard $ all (any (`elem` namesInT)) userIdentifiers
+      guard $ all (`isInfixOf` prettyShow x) userSubStrings
+      guard $ all (any (`Set.member` namesIn t)) userIdentifiers
       return (x, t)
   return $ concat ress
 

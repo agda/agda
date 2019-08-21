@@ -1571,7 +1571,7 @@ data RewriteRule = RewriteRule
 
 data Definition = Defn
   { defArgInfo        :: ArgInfo -- ^ Hiding should not be used.
-  , defName           :: QName
+  , defName           :: QName   -- ^ The canonical name, used e.g. in compilation.
   , defType           :: Type    -- ^ Type of the lifted definition.
   , defPolarity       :: [Polarity]
     -- ^ Variance information on arguments of the definition.
