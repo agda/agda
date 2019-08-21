@@ -724,7 +724,8 @@ checkMutual i ds = inMutualBlock $ \ blockId -> do
       map (nest 2 . prettyA) ds
 
   insertMutualBlockInfo blockId i
-  localTC (\e -> e { envTerminationCheck = () <$ Info.mutualTermCheck i }) $
+  localTC ( set eTerminationCheck (() <$ Info.mutualTerminationCheck i)
+          . set eCoverageCheck (Info.mutualCoverageCheck i)) $
     mapM_ checkDecl ds
 
   (blockId, ) . mutualNames <$> lookupMutualBlock blockId

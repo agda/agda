@@ -37,6 +37,12 @@ Pragmas and options
 
 * New pragma option `--no-flat-split` disables pattern matching on `@♭` arguments.
 
+* New pragma option `--allow-incomplete-matches`. It is similar to
+  `--allow-unsolved-metas`: modules containing partial function definitions
+  can be imported. Its local equivalent is is the `NON_COVERING` pragma to
+  be placed before the function (or the block of mutually defined functions)
+  which the user knows to be partial.
+
 Language
 --------
 

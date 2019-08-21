@@ -18,6 +18,8 @@ Here is a list of the features ``--safe`` is incompatible with:
 
 * ``--allow-unsolved-metas``; forces Agda to accept unfinished proofs.
 
+* ``--allow-incomplete-matches``; forces Agda to accept unfinished proofs.
+
 * ``--no-positivity-check``; makes it possible to write non-terminating
   programs by structural "induction" on non strictly positive datatypes.
 

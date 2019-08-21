@@ -626,6 +626,7 @@ instance Pretty Pragma where
         NonTerminating         -> "NON_TERMINATING"
         Terminating            -> "TERMINATING"
         TerminationMeasure _ x -> hsep $ ["MEASURE", pretty x]
+    pretty (NoCoverageCheckPragma _) = "NON_COVERING"
     pretty (WarningOnUsage _ nm str) = hsep [ "WARNING_ON_USAGE", pretty nm, text str ]
     pretty (WarningOnImport _ str)   = hsep [ "WARNING_ON_IMPORT", text str ]
     pretty (CatchallPragma _) = "CATCHALL"

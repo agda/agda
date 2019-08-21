@@ -1,0 +1,17 @@
+Issue3983.agda:7,3-22
+Cannot use TERMINATING pragma with safe flag.
+Issue3983.agda:13,3-22
+Cannot use TERMINATING pragma with safe flag.
+Issue3983.agda:19,3-22
+Cannot use TERMINATING pragma with safe flag.
+Issue3983.agda:24,3-22
+Cannot use TERMINATING pragma with safe flag.
+Issue3983.agda:30,3-22
+Cannot use TERMINATING pragma with safe flag.
+Issue3983.agda:24,3-22
+Cannot use TERMINATING pragma with safe flag.
+when scope checking the declaration
+  record I where
+    {-# TERMINATING #-}
+    i : ⊥
+    i = f

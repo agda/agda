@@ -47,6 +47,8 @@ instance EmbPrj Warning where
   icod_ SafeFlagNoPositivityCheck    = __IMPOSSIBLE__
   icod_ SafeFlagPolarity             = __IMPOSSIBLE__
   icod_ SafeFlagNoUniverseCheck      = __IMPOSSIBLE__
+  icod_ SafeFlagNoCoverageCheck      = __IMPOSSIBLE__
+  icod_ SafeFlagInjective            = __IMPOSSIBLE__
   icod_ (ParseWarning a)             = __IMPOSSIBLE__
   icod_ (DeprecationWarning a b c)   = icodeN 6 DeprecationWarning a b c
   icod_ (NicifierIssue a)            = icodeN 7 NicifierIssue a
@@ -127,6 +129,7 @@ instance EmbPrj DeclarationWarning where
     EmptyPrimitive a                  -> icodeN 22 EmptyPrimitive a
     EmptyField r                      -> icodeN 23 EmptyField r
     ShadowingInTelescope nrs          -> icodeN 24 ShadowingInTelescope nrs
+    InvalidCoverageCheckPragma r      -> icodeN 25 InvalidCoverageCheckPragma r
 
   value = vcase $ \case
     [0, a]   -> valuN UnknownNamesInFixityDecl a
@@ -154,6 +157,7 @@ instance EmbPrj DeclarationWarning where
     [22,a]   -> valuN EmptyPrimitive a
     [23,r]   -> valuN EmptyField r
     [24,nrs] -> valuN ShadowingInTelescope nrs
+    [25,r]   -> valuN InvalidCoverageCheckPragma r
     _ -> malformed
 
 instance EmbPrj LibWarning where
@@ -187,12 +191,12 @@ instance EmbPrj Doc where
 
 instance EmbPrj PragmaOptions where
   icod_ = \case
-    PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y z aa bb cc dd ee ff gg hh ii jj kk ll mm nn oo pp qq ->
-      icodeN' PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y z aa bb cc dd ee ff gg hh ii jj kk ll mm nn oo pp qq
+    PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y z aa bb cc dd ee ff gg hh ii jj kk ll mm nn oo pp qq rr ->
+      icodeN' PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y z aa bb cc dd ee ff gg hh ii jj kk ll mm nn oo pp qq rr
 
   value = vcase $ \case
-    [a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u, v, w, x, y, z, aa, bb, cc, dd, ee, ff, gg, hh, ii, jj, kk, ll, mm, nn, oo, pp, qq] ->
-      valuN PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y z aa bb cc dd ee ff gg hh ii jj kk ll mm nn oo pp qq
+    [a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u, v, w, x, y, z, aa, bb, cc, dd, ee, ff, gg, hh, ii, jj, kk, ll, mm, nn, oo, pp, qq, rr] ->
+      valuN PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y z aa bb cc dd ee ff gg hh ii jj kk ll mm nn oo pp qq rr
     _ -> malformed
 
 instance EmbPrj WarningMode where

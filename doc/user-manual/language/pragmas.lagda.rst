@@ -32,6 +32,8 @@ Index of pragmas
 
 * :ref:`NON_TERMINATING <non_terminating_pragma>`
 
+* :samp:`NON_COVERING`
+
 * :ref:`POLARITY <polarity_pragma>`
 
 * :ref:`STATIC <built-ins>`

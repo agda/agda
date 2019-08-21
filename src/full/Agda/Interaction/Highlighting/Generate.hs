@@ -649,6 +649,8 @@ warningHighlighting w = case tcWarning w of
   SafeFlagNonTerminating     -> mempty
   SafeFlagTerminating        -> mempty
   SafeFlagWithoutKFlagPrimEraseEquality -> mempty
+  SafeFlagInjective          -> mempty
+  SafeFlagNoCoverageCheck    -> mempty
   WithoutKFlagPrimEraseEquality -> mempty
   SafeFlagNoPositivityCheck  -> mempty
   SafeFlagPolarity           -> mempty
@@ -665,25 +667,26 @@ warningHighlighting w = case tcWarning w of
     -- we intentionally override the binding of `w` here so that our pattern of
     -- using `getRange w` still yields the most precise range information we
     -- can get.
-    NotAllowedInMutual{} -> deadcodeHighlighting $ getRange w
-    EmptyAbstract{}      -> deadcodeHighlighting $ getRange w
-    EmptyInstance{}      -> deadcodeHighlighting $ getRange w
-    EmptyMacro{}         -> deadcodeHighlighting $ getRange w
-    EmptyMutual{}        -> deadcodeHighlighting $ getRange w
-    EmptyPostulate{}     -> deadcodeHighlighting $ getRange w
-    EmptyPrivate{}       -> deadcodeHighlighting $ getRange w
-    EmptyGeneralize{}    -> deadcodeHighlighting $ getRange w
-    EmptyField{}         -> deadcodeHighlighting $ getRange w
-    UselessAbstract{}    -> deadcodeHighlighting $ getRange w
-    UselessInstance{}    -> deadcodeHighlighting $ getRange w
-    UselessPrivate{}     -> deadcodeHighlighting $ getRange w
+    NotAllowedInMutual{}             -> deadcodeHighlighting $ getRange w
+    EmptyAbstract{}                  -> deadcodeHighlighting $ getRange w
+    EmptyInstance{}                  -> deadcodeHighlighting $ getRange w
+    EmptyMacro{}                     -> deadcodeHighlighting $ getRange w
+    EmptyMutual{}                    -> deadcodeHighlighting $ getRange w
+    EmptyPostulate{}                 -> deadcodeHighlighting $ getRange w
+    EmptyPrimitive{}                 -> deadcodeHighlighting $ getRange w
+    EmptyPrivate{}                   -> deadcodeHighlighting $ getRange w
+    EmptyGeneralize{}                -> deadcodeHighlighting $ getRange w
+    EmptyField{}                     -> deadcodeHighlighting $ getRange w
+    UselessAbstract{}                -> deadcodeHighlighting $ getRange w
+    UselessInstance{}                -> deadcodeHighlighting $ getRange w
+    UselessPrivate{}                 -> deadcodeHighlighting $ getRange w
+    InvalidNoPositivityCheckPragma{} -> deadcodeHighlighting $ getRange w
+    InvalidNoUniverseCheckPragma{}   -> deadcodeHighlighting $ getRange w
+    InvalidTerminationCheckPragma{}  -> deadcodeHighlighting $ getRange w
+    InvalidCoverageCheckPragma{}     -> deadcodeHighlighting $ getRange w
     ShadowingInTelescope nrs -> Fold.foldMap (shadowingTelHighlighting . snd) nrs
     -- TODO: explore highlighting opportunities here!
-    EmptyPrimitive{}                  -> mempty
     InvalidCatchallPragma{}           -> mempty
-    InvalidNoPositivityCheckPragma{}  -> mempty
-    InvalidNoUniverseCheckPragma{}    -> mempty
-    InvalidTerminationCheckPragma{}   -> mempty
     MissingDefinitions{}              -> mempty
     PolarityPragmasButNotPostulates{} -> mempty
     PragmaNoTerminationCheck{}        -> mempty

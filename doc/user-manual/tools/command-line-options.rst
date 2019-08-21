@@ -197,6 +197,10 @@ Errors and warnings
       Succeed and create interface file
       regardless of unsolved meta variables (see :ref:`metavariables`)
 
+:samp:`--allow-incomplete-matches`
+      Succeed and create interface file
+      regardless of incomplete pattern-matching definitions
+
 :samp:`--no-positivity-check`
       Do not warn about not strictly positive
       data types (see :ref:`positivity-checking`)
@@ -507,6 +511,7 @@ again, the source file is re-typechecked instead:
 * ``--termination-depth``
 * ``--no-unicode``
 * ``--allow-unsolved-metas``
+* ``--allow-incomplete-matches``
 * ``--no-positivity-check``
 * ``--no-termination-check``
 * ``--type-in-type``

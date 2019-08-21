@@ -196,15 +196,16 @@ instance KillRange DeclInfo where
  --------------------------------------------------------------------------}
 
 data MutualInfo = MutualInfo
-  { mutualTermCheck       :: TerminationCheck Name
-  , mutualPositivityCheck :: PositivityCheck
-  , mutualRange           :: Range
+  { mutualTerminationCheck :: TerminationCheck Name
+  , mutualCoverageCheck    :: CoverageCheck
+  , mutualPositivityCheck  :: PositivityCheck
+  , mutualRange            :: Range
   }
   deriving (Data, Show, Eq)
 
 -- | Default value for 'MutualInfo'.
 instance Null MutualInfo where
-  empty = MutualInfo TerminationCheck True noRange
+  empty = MutualInfo TerminationCheck YesCoverageCheck YesPositivityCheck noRange
 
 instance HasRange MutualInfo where
   getRange = mutualRange

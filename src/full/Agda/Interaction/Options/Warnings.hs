@@ -9,6 +9,7 @@ module Agda.Interaction.Options.Warnings
        , usualWarnings
        , noWarnings
        , unsolvedWarnings
+       , incompleteMatchWarnings
        , errorWarnings
        , defaultWarningMode
        , warningModeUpdate
@@ -90,6 +91,9 @@ unsolvedWarnings = Set.fromList
                  , UnsolvedConstraints_
                  ]
 
+incompleteMatchWarnings :: Set WarningName
+incompleteMatchWarnings = Set.fromList [ CoverageIssue_ ]
+
 errorWarnings :: Set WarningName
 errorWarnings = Set.fromList
   [ CoverageIssue_
@@ -107,6 +111,8 @@ errorWarnings = Set.fromList
   , SafeFlagNoPositivityCheck_
   , SafeFlagPolarity_
   , SafeFlagNoUniverseCheck_
+  , SafeFlagInjective_
+  , SafeFlagNoCoverageCheck_
   , TerminationIssue_
   , UnsolvedMetaVariables_
   , UnsolvedInteractionMetas_
@@ -148,6 +154,7 @@ data WarningName
   | EmptyPrivate_
   | EmptyRewritePragma_
   | InvalidCatchallPragma_
+  | InvalidCoverageCheckPragma_
   | InvalidNoPositivityCheckPragma_
   | InvalidNoUniverseCheckPragma_
   | InvalidTerminationCheckPragma_
@@ -183,8 +190,10 @@ data WarningName
   | PragmaCompileErased_
   | RewriteMaybeNonConfluent_
   | RewriteNonConfluent_
-  | SafeFlagNoPositivityCheck_
+  | SafeFlagInjective_
+  | SafeFlagNoCoverageCheck_
   | SafeFlagNonTerminating_
+  | SafeFlagNoPositivityCheck_
   | SafeFlagNoUniverseCheck_
   | SafeFlagPolarity_
   | SafeFlagPostulate_
@@ -266,6 +275,7 @@ warningNameDescription w = case w of
   EmptyPrivate_                    -> "Empty `private' blocks."
   EmptyRewritePragma_              -> "Empty `REWRITE' pragmas."
   InvalidCatchallPragma_           -> "`CATCHALL' pragmas before a non-function clause."
+  InvalidCoverageCheckPragma_      -> "Coverage checking pragmas before non-function or `mutual' blocks."
   InvalidNoPositivityCheckPragma_  -> "No positivity checking pragmas before non-`data', `record' or `mutual' blocks."
   InvalidNoUniverseCheckPragma_    -> "No universe checking pragmas before non-`data' or `record' declaration."
   InvalidTerminationCheckPragma_   -> "Termination checking pragmas before non-function or `mutual' blocks."
@@ -303,6 +313,8 @@ warningNameDescription w = case w of
   PragmaCompileErased_             -> "`COMPILE' pragma targeting an erased symbol."
   RewriteMaybeNonConfluent_      -> "Failed confluence checks while computing overlap."
   RewriteNonConfluent_           -> "Failed confluence checks while joining critical pairs."
+  SafeFlagInjective_               -> "`INJECTIVE' pragmas with the safe flag."
+  SafeFlagNoCoverageCheck_         -> "`NON_COVERING` pragmas with the safe flag."
   SafeFlagNonTerminating_          -> "`NON_TERMINATING' pragmas with the safe flag."
   SafeFlagNoPositivityCheck_       -> "`NO_POSITIVITY_CHECK' pragmas with the safe flag."
   SafeFlagNoUniverseCheck_         -> "`NO_UNIVERSE_CHECK' pragmas with the safe flag."

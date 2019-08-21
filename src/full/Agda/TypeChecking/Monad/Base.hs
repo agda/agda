@@ -188,6 +188,8 @@ data PreScopeState = PreScopeState
     -- ^ Locally defined @UserWarning@s, to be stored in the @Interface@
   , stPreWarningOnImport      :: !(Maybe String)
     -- ^ Whether the current module should raise a warning when opened
+  , stPreImportedPartialDefs :: !(Set QName)
+    -- ^ Imported partial definitions, not to be stored in the @Interface@
   }
 
 type DisambiguatedNames = IntMap A.QName
@@ -250,6 +252,8 @@ data PostScopeState = PostScopeState
     -- ^ Should we instantiate away blocking metas?
     --   This can produce ill-typed terms but they are often more readable. See issue #3606.
     --   Best set to True only for calls to pretty*/reify to limit unwanted reductions.
+  , stPostLocalPartialDefs    :: !(Set QName)
+    -- ^ Local partial definitions, to be stored in the @Interface@
   }
 
 -- | A mutual block of names in the signature.
@@ -349,6 +353,7 @@ initPreScopeState = PreScopeState
   , stPreImportedUserWarnings = Map.empty
   , stPreLocalUserWarnings    = Map.empty
   , stPreWarningOnImport      = Nothing
+  , stPreImportedPartialDefs  = Set.empty
   }
 
 initPostScopeState :: PostScopeState
@@ -382,6 +387,7 @@ initPostScopeState = PostScopeState
   , stPostPostponeInstanceSearch = False
   , stPostConsideringInstance  = False
   , stPostInstantiateBlocking  = False
+  , stPostLocalPartialDefs     = Set.empty
   }
 
 initState :: TCState
@@ -479,6 +485,22 @@ stWarningOnImport :: Lens' (Maybe String) TCState
 stWarningOnImport f s =
   f (stPreWarningOnImport (stPreScopeState s)) <&>
   \ x -> s {stPreScopeState = (stPreScopeState s) {stPreWarningOnImport = x}}
+
+stImportedPartialDefs :: Lens' (Set QName) TCState
+stImportedPartialDefs f s =
+  f (stPreImportedPartialDefs (stPreScopeState s)) <&>
+  \ x -> s {stPreScopeState = (stPreScopeState s) {stPreImportedPartialDefs = x}}
+
+stLocalPartialDefs :: Lens' (Set QName) TCState
+stLocalPartialDefs f s =
+  f (stPostLocalPartialDefs (stPostScopeState s)) <&>
+  \ x -> s {stPostScopeState = (stPostScopeState s) {stPostLocalPartialDefs = x}}
+
+getPartialDefs :: ReadTCState m => m (Set QName)
+getPartialDefs = do
+  ipd <- useR stImportedPartialDefs
+  lpd <- useR stLocalPartialDefs
+  return $ ipd `Set.union` lpd
 
 stBackends :: Lens' [Backend] TCState
 stBackends f s =
@@ -888,6 +910,7 @@ data Interface = Interface
     --   from options set directly in the file).
   , iPatternSyns     :: A.PatternSynDefns
   , iWarnings        :: [TCWarning]
+  , iPartialDefs     :: Set QName
   }
   deriving Show
 
@@ -895,7 +918,7 @@ instance Pretty Interface where
   pretty (Interface
             sourceH source fileT importedM moduleN scope insideS signature
             display userwarn importwarn builtin foreignCode highlighting pragmaO
-            oUsed patternS warnings) =
+            oUsed patternS warnings partialdefs) =
 
     hang "Interface" 2 $ vcat
       [ "source hash:"         <+> (pretty . show) sourceH
@@ -916,6 +939,7 @@ instance Pretty Interface where
       , "options used:"        <+> (pretty . show) oUsed
       , "pattern syns:"        <+> (pretty . show) patternS
       , "warnings:"            <+> (pretty . show) warnings
+      , "partial definitions:" <+> (pretty . show) partialdefs
       ]
 
 -- | Combines the source hash and the (full) hashes of the imported modules.
@@ -2505,6 +2529,7 @@ data TCEnv =
           , envImportPath          :: [C.TopLevelModuleName] -- ^ to detect import cycles
           , envMutualBlock         :: Maybe MutualId -- ^ the current (if any) mutual block
           , envTerminationCheck    :: TerminationCheck ()  -- ^ are we inside the scope of a termination pragma
+          , envCoverageCheck       :: CoverageCheck        -- ^ are we inside the scope of a coverage pragma
           , envSolvingConstraints  :: Bool
                 -- ^ Are we currently in the process of solving active constraints?
           , envCheckingWhere       :: Bool
@@ -2630,6 +2655,7 @@ initEnv = TCEnv { envContext             = []
                 , envImportPath          = []
                 , envMutualBlock         = Nothing
                 , envTerminationCheck    = TerminationCheck
+                , envCoverageCheck       = YesCoverageCheck
                 , envSolvingConstraints  = False
                 , envCheckingWhere       = False
                 , envActiveProblems      = Set.empty
@@ -2729,6 +2755,9 @@ eMutualBlock f e = f (envMutualBlock e) <&> \ x -> e { envMutualBlock = x }
 
 eTerminationCheck :: Lens' (TerminationCheck ()) TCEnv
 eTerminationCheck f e = f (envTerminationCheck e) <&> \ x -> e { envTerminationCheck = x }
+
+eCoverageCheck :: Lens' CoverageCheck TCEnv
+eCoverageCheck f e = f (envCoverageCheck e) <&> \ x -> e { envCoverageCheck = x }
 
 eSolvingConstraints :: Lens' Bool TCEnv
 eSolvingConstraints f e = f (envSolvingConstraints e) <&> \ x -> e { envSolvingConstraints = x }
@@ -2948,6 +2977,8 @@ data Warning
   | SafeFlagNoPositivityCheck
   | SafeFlagPolarity
   | SafeFlagNoUniverseCheck
+  | SafeFlagNoCoverageCheck
+  | SafeFlagInjective
   | ParseWarning             ParseWarning
   | LibraryWarning           LibWarning
   | DeprecationWarning String String String
@@ -3005,6 +3036,8 @@ warningName w = case w of
   SafeFlagPolarity             -> SafeFlagPolarity_
   SafeFlagPostulate{}          -> SafeFlagPostulate_
   SafeFlagPragma{}             -> SafeFlagPragma_
+  SafeFlagInjective            -> SafeFlagInjective_
+  SafeFlagNoCoverageCheck      -> SafeFlagNoCoverageCheck_
   SafeFlagWithoutKFlagPrimEraseEquality -> SafeFlagWithoutKFlagPrimEraseEquality_
   WithoutKFlagPrimEraseEquality -> WithoutKFlagPrimEraseEquality_
   SafeFlagTerminating          -> SafeFlagTerminating_
@@ -3049,16 +3082,6 @@ instance Eq TCWarning where
 
 equalHeadConstructors :: Warning -> Warning -> Bool
 equalHeadConstructors = (==) `on` toConstr
-
-getPartialDefs :: ReadTCState tcm => tcm [QName]
-getPartialDefs = do
-  tcst <- getTCState
-  return $ mapMaybe (extractQName . tcWarning)
-         $ tcst ^. stTCWarnings where
-
-    extractQName :: Warning -> Maybe QName
-    extractQName (CoverageIssue f _) = Just f
-    extractQName _                   = Nothing
 
 ---------------------------------------------------------------------------
 -- * Type checking errors
