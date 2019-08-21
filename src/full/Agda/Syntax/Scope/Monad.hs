@@ -579,8 +579,7 @@ copyScope oldc new0 s = (inScopeBecause (Applied oldc) *** memoToScopeInfo) <$> 
             -- Ulf (issue 1985): If copying a reexported module we put it at the
             -- top-level, to make sure we don't mess up the invariant that all
             -- (abstract) names M.f share the argument telescope of M.
-            let newM | x `isSubModuleOf` old = newL
-                     | otherwise             = mnameToList new0
+            let newM = if x `isLtChildModuleOf` old then newL else mnameToList new0
 
             y <- do
                -- Andreas, Jesper, 2015-07-02: Issue 1597
@@ -823,9 +822,9 @@ openModule :: OpenKind -> Maybe A.ModuleName  -> C.QName -> C.ImportDirective ->
 openModule kind mam cm dir = do
   current <- getCurrentModule
   m <- caseMaybe mam (amodName <$> resolveModule cm) return
-  let acc | not (publicOpen dir)      = PrivateNS
-          | m `isSubModuleOf` current = PublicNS
-          | otherwise                 = ImportedNS
+  let acc | not (publicOpen dir)          = PrivateNS
+          | m `isLtChildModuleOf` current = PublicNS
+          | otherwise                     = ImportedNS
 
   -- Get the scope exported by module to be opened.
   (adir, s') <- applyImportDirectiveM cm dir . inScopeBecause (Opened cm) .

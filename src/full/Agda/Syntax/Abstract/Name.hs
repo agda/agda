@@ -229,13 +229,23 @@ qualify_ = qualify noModuleName
 -- | Is the name an operator?
 
 isOperator :: QName -> Bool
-isOperator q = C.isOperator (nameConcrete (qnameName q))
+isOperator = C.isOperator . nameConcrete . qnameName
 
-isSubModuleOf :: ModuleName -> ModuleName -> Bool
-isSubModuleOf x y = xs /= ys && isPrefixOf ys xs
-  where
-    xs = mnameToList x
-    ys = mnameToList y
+-- | Is the first module a weak parent of the second?
+isLeParentModuleOf :: ModuleName -> ModuleName -> Bool
+isLeParentModuleOf = isPrefixOf `on` mnameToList
+
+-- | Is the first module a proper parent of the second?
+isLtParentModuleOf :: ModuleName -> ModuleName -> Bool
+isLtParentModuleOf x y = isJust $ (stripPrefixBy (==) `on` mnameToList) x y
+
+-- | Is the first module a weak child of the second?
+isLeChildModuleOf :: ModuleName -> ModuleName -> Bool
+isLeChildModuleOf = flip isLeParentModuleOf
+
+-- | Is the first module a proper child of the second?
+isLtChildModuleOf :: ModuleName -> ModuleName -> Bool
+isLtChildModuleOf = flip isLtParentModuleOf
 
 isInModule :: QName -> ModuleName -> Bool
 isInModule q m = mnameToList m `isPrefixOf` qnameToList q
