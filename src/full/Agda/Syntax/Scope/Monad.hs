@@ -191,7 +191,7 @@ checkNoShadowing old new = do
   -- LocalVars is currnently an AssocList so the difference between
   -- two local scope is the left part of the new one.
   let diff = dropEnd (length old) new
-  let nameParts = mapMaybe extractConcreteNameParts $ AssocList.keys diff
+  let nameParts = mapMaybe extractName $ AssocList.keys diff
   let conflicts = Map.filter atLeastTwo $ Map.fromListWith (++) nameParts
   unless (Map.null conflicts) $ do
     warning $ NicifierIssue $ ShadowingInTelescope
@@ -199,8 +199,8 @@ checkNoShadowing old new = do
 
   where
 
-    extractConcreteNameParts :: C.Name -> Maybe (C.Name, [Range])
-    extractConcreteNameParts n = not (isUnderscore n) ?$> (n, [getRange n])
+    extractName :: C.Name -> Maybe (C.Name, [Range])
+    extractName n = not (isNoName n) ?$> (n, [getRange n])
 
     atLeastTwo :: [a] -> Bool
     atLeastTwo (_ : _ : _) = True

@@ -516,7 +516,7 @@ instance ToAbstract (NewName C.Name) A.Name where
     return y
 
 instance ToAbstract (NewName C.BoundName) A.BindName where
-  toAbstract (NewName b BName{ boundName = x, bnameFixity = fx }) = do
+  toAbstract NewName{ newBinder = b, newName = BName{ boundName = x, bnameFixity = fx }} = do
     y <- freshAbstractName fx x
     bindVariable b x y
     return $ A.BindName y
@@ -720,7 +720,10 @@ scopeCheckExtendedLam r cs = do
   -- Find an unused name for the extended lambda definition.
   cname <- freshConcreteName r 0 extendedLambdaName
   name  <- freshAbstractName_ cname
-  reportSLn "scope.extendedLambda" 10 $ "new extended lambda name: " ++ prettyShow name
+  a <- asksTC (^. lensIsAbstract)
+  reportSDoc "scope.extendedLambda" 10 $ vcat
+    [ text $ "new extended lambda name (" ++ show a ++ "): " ++ prettyShow name
+    ]
   verboseS "scope.extendedLambda" 60 $ do
     forM_ cs $ \ c -> do
       reportSLn "scope.extendedLambda" 60 $ "extended lambda lhs: " ++ show (C.lamLHS c)
@@ -728,7 +731,6 @@ scopeCheckExtendedLam r cs = do
   bindName (PrivateAccess Inserted) FunName cname qname
 
   -- Compose a function definition and scope check it.
-  a <- aModeToDef <$> asksTC envAbstractMode
   let
     insertApp :: C.Pattern -> ScopeM C.Pattern
     insertApp (C.RawAppP r es) = return $ C.RawAppP r $ IdentP (C.QName cname) : es
@@ -757,6 +759,9 @@ scopeCheckExtendedLam r cs = do
     --       _ -> __IMPOSSIBLE__
     --   __IMPOSSIBLE__
 
+  -- Andreas, 2019-08-20
+  -- Keep the following __IMPOSSIBLE__, which is triggered by -v scope.decl.trace:80,
+  -- for testing issue #4016.
   d <- C.FunDef r [] a NotInstanceDef __IMPOSSIBLE__ __IMPOSSIBLE__ cname <$> do
           forM cs $ \ (LamClause lhs rhs wh ca) -> do -- wh == NoWhere, see parser for more info
             lhs' <- mapLhsOriginalPatternM insertApp lhs
@@ -770,7 +775,7 @@ scopeCheckExtendedLam r cs = do
       return $ A.ExtendedLam (ExprRange r) di qname' cs
     _ -> __IMPOSSIBLE__
 
-  where
+-- | Scope check an expression.
 
 instance ToAbstract C.Expr A.Expr where
   toAbstract e =
@@ -1483,7 +1488,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
       [ "scope checking declaration"
       , "  " ++  prettyShow d
       ] $
-    traceS "scope.decl.trace" 80
+    traceS "scope.decl.trace" 80  -- keep this debug message for testing issue #4016
       [ "scope checking declaration (raw)"
       , "  " ++  show d
       ] $

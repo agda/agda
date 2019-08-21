@@ -650,7 +650,7 @@ makeBuildEasier =
         , "-e", "s/cpphs >=[^,]*/cpphs/"
         , "-e", "s/alex >=[^,]*/alex/"
         , "-e", "s/geniplate[^,]*/geniplate-mirror/"
-        , "-e", "s/-Werror//g"
+        , "-e", "s/-Werror(=.*)?//g"
         , cabalFile
         ]
       return ()

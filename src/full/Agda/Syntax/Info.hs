@@ -21,6 +21,7 @@ import Agda.Syntax.Fixity
 import Agda.Syntax.Scope.Base (ScopeInfo, emptyScopeInfo)
 
 import Agda.Utils.Function
+import Agda.Utils.Functor
 import Agda.Utils.Null
 
 {--------------------------------------------------------------------------
@@ -163,6 +164,13 @@ instance SetRange DefInfo where
 
 instance KillRange DefInfo where
   killRange i = i { defInfo = killRange $ defInfo i }
+
+instance LensIsAbstract DefInfo where
+  lensIsAbstract f i = (f $! defAbstract i) <&> \ a -> i { defAbstract = a }
+
+instance AnyIsAbstract DefInfo where
+  anyIsAbstract = defAbstract
+
 
 {--------------------------------------------------------------------------
     General declaration information

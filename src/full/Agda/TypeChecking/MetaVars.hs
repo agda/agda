@@ -49,8 +49,8 @@ import Agda.Utils.Except
   , MonadError(throwError)
   , runExceptT
   )
-
 import Agda.Utils.Function
+import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
@@ -264,7 +264,7 @@ newValueMetaCtx' frozen b a tel perm vs = do
   let t     = telePi_ tel a
   x <- newMeta frozen i normalMetaPriority perm (HasType () t)
   reportSDoc "tc.meta.new" 50 $ fsep
-    [ "new meta:"
+    [ text $ "new meta (" ++ show (i ^. lensIsAbstract) ++ "):"
     , nest 2 $ prettyTCM vs <+> "|-"
     , nest 2 $ pretty x <+> ":" <+> prettyTCM t
     ]
@@ -540,9 +540,7 @@ etaExpandMetaTCM kinds m = whenM (asksTC envAssignMetas `and2M` isEtaExpandable 
                     -- Andreas, 2019-03-18, AIM XXIX, issue #3597
                     -- When meta is frozen instantiate it with in-turn frozen metas.
                     inTopContext $ do
-                      verboseS "tc.meta.eta" 15 $ do
-                        du <- prettyTCM u
-                        reportSDoc "tc.meta.eta" 15 $ sep
+                      reportSDoc "tc.meta.eta" 15 $ sep
                           [ "eta expanding: " <+> pretty m <+> " --> "
                           , nest 2 $ prettyTCM u
                           ]

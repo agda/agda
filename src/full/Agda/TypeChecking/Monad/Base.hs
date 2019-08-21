@@ -963,7 +963,16 @@ instance Show a => Show (Closure a) where
   show cl = "Closure { clValue = " ++ show (clValue cl) ++ " }"
 
 instance HasRange a => HasRange (Closure a) where
-    getRange = getRange . clValue
+  getRange = getRange . clValue
+
+class LensClosure a b | b -> a where
+  lensClosure :: Lens' (Closure a) b
+
+instance LensClosure a (Closure a) where
+  lensClosure = id
+
+instance LensTCEnv (Closure a) where
+  lensTCEnv f cl = (f $! clEnv cl) <&> \ env -> cl { clEnv = env }
 
 buildClosure :: (MonadTCEnv m, ReadTCState m) => a -> m (Closure a)
 buildClosure x = do
@@ -1325,6 +1334,33 @@ getMetaModality = envModality . getMetaEnv
 
 metaFrozen :: Lens' Frozen MetaVariable
 metaFrozen f mv = f (mvFrozen mv) <&> \ x -> mv { mvFrozen = x }
+
+_mvInfo :: Lens' MetaInfo MetaVariable
+_mvInfo f mv = (f $! mvInfo mv) <&> \ mi -> mv { mvInfo = mi }
+
+-- Lenses onto Closure Range
+
+instance LensClosure Range MetaInfo where
+  lensClosure f mi = (f $! miClosRange mi) <&> \ cl -> mi { miClosRange = cl }
+
+instance LensClosure Range MetaVariable where
+  lensClosure = _mvInfo . lensClosure
+
+-- Lenses onto IsAbstract
+
+instance LensIsAbstract TCEnv where
+  lensIsAbstract f env =
+     -- Andreas, 2019-08-19
+     -- Using $! to prevent space leaks like #1829.
+     -- This can crash when trying to get IsAbstract from IgnoreAbstractMode.
+    (f $! fromMaybe __IMPOSSIBLE__ (aModeToDef $ envAbstractMode env))
+    <&> \ a -> env { envAbstractMode = aDefToMode a }
+
+instance LensIsAbstract (Closure a) where
+  lensIsAbstract = lensTCEnv . lensIsAbstract
+
+instance LensIsAbstract MetaInfo where
+  lensIsAbstract = lensClosure . lensIsAbstract
 
 ---------------------------------------------------------------------------
 -- ** Interaction meta variables
@@ -2665,6 +2701,12 @@ initEnv = TCEnv { envContext             = []
                 , envActiveBackendName      = Nothing
                 }
 
+class LensTCEnv a where
+  lensTCEnv :: Lens' TCEnv a
+
+instance LensTCEnv TCEnv where
+  lensTCEnv = id
+
 instance LensModality TCEnv where
   -- Cohesion shouldn't have an environment component.
   getModality = setCohesion defaultCohesion . envModality
@@ -2847,10 +2889,10 @@ aDefToMode :: IsAbstract -> AbstractMode
 aDefToMode AbstractDef = AbstractMode
 aDefToMode ConcreteDef = ConcreteMode
 
-aModeToDef :: AbstractMode -> IsAbstract
-aModeToDef AbstractMode = AbstractDef
-aModeToDef ConcreteMode = ConcreteDef
-aModeToDef _ = __IMPOSSIBLE__
+aModeToDef :: AbstractMode -> Maybe IsAbstract
+aModeToDef AbstractMode = Just AbstractDef
+aModeToDef ConcreteMode = Just ConcreteDef
+aModeToDef _ = Nothing
 
 ---------------------------------------------------------------------------
 -- ** Insertion of implicit arguments
@@ -3771,15 +3813,14 @@ instance MonadIO m => Fail.MonadFail (TCMT m) where
   fail = internalError
 
 instance MonadIO m => MonadIO (TCMT m) where
-  liftIO m = TCM $ \s e -> do
-               let r = envRange e
-               liftIO $ wrap s r $ do
-                 x <- m
-                 x `seq` return x
+  liftIO m = TCM $ \ s env -> do
+    liftIO $ wrap s (envRange env) $ do
+      x <- m
+      x `seq` return x
     where
-      wrap s r m = E.catch m $ \e -> do
+      wrap s r m = E.catch m $ \ err -> do
         s <- readIORef s
-        E.throwIO $ IOException s r e
+        E.throwIO $ IOException s r err
 
 instance MonadIO m => MonadTCEnv (TCMT m) where
   askTC             = TCM $ \ _ e -> return e
@@ -3793,10 +3834,10 @@ instance MonadIO m => ReadTCState (TCMT m) where
   getTCState = getTC
   locallyTCState l f = bracket_ (useTC l <* modifyTCLens l f) (setTCLens l)
 
-instance MonadError TCErr (TCMT IO) where
+instance MonadError TCErr TCM where
   throwError = liftIO . E.throwIO
-  catchError m h = TCM $ \r e -> do
-    oldState <- liftIO (readIORef r)
+  catchError m h = TCM $ \ r e -> do  -- now we are in the IO monad
+    oldState <- readIORef r
     unTCM m r e `E.catch` \err -> do
       -- Reset the state, but do not forget changes to the persistent
       -- component. Not for pattern violations.
@@ -3806,6 +3847,19 @@ instance MonadError TCErr (TCMT IO) where
           liftIO $ do
             newState <- readIORef r
             writeIORef r $ oldState { stPersistentState = stPersistentState newState }
+      unTCM (h err) r e
+
+-- | Like 'catchError', but resets the state completely before running the handler.
+--   This means it also loses changes to the 'stPersistentState'.
+--
+--   The intended use is to catch internal errors during debug printing.
+--   In debug printing, we are not expecting state changes.
+instance CatchImpossible TCM where
+  catchImpossibleJust f m h = TCM $ \ r e -> do
+    -- save the state
+    s <- readIORef r
+    catchImpossibleJust f (unTCM m r e) $ \ err -> do
+      writeIORef r s
       unTCM (h err) r e
 
 instance MonadIO m => MonadReduce (TCMT m) where
@@ -3837,8 +3891,8 @@ runIM :: IM a -> TCM a
 runIM = mapTCMT (Haskeline.runInputT Haskeline.defaultSettings)
 
 instance MonadError TCErr IM where
-  throwError = liftIO . E.throwIO
-  catchError m h = mapTCMT liftIO $ runIM m `catchError` (runIM . h)
+  throwError     = liftIO . E.throwIO
+  catchError m h = liftTCM $ runIM m `catchError` (runIM . h)
 
 -- | Preserve the state of the failing computation.
 catchError_ :: TCM a -> (TCErr -> TCM a) -> TCM a
