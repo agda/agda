@@ -702,7 +702,10 @@ toAbstractDot prec e = do
 toAbstractLam :: Range -> [C.LamBinding] -> C.Expr -> Precedence -> ScopeM A.Expr
 toAbstractLam r bs e ctx = do
   -- Translate the binders
+  lvars0 <- getLocalVars
   localToAbstract (map (C.DomainFull . makeDomainFull) bs) $ \ bs -> do
+    lvars1 <- getLocalVars
+    checkNoShadowing lvars0 lvars1
     -- Translate the body
     e <- toAbstractCtx ctx e
     -- We have at least one binder.  Get first @b@ and rest @bs@.
