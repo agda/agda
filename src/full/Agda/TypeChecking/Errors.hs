@@ -726,8 +726,9 @@ instance PrettyTCM TypeError where
       , prettyTCM q
       ] ++ pwords "is abstract, thus, not in scope here"
 
-    NotInScope xs -> prettyTCM (NotInScopeW xs)
-      -- ^ using the warning version to avoid code duplication
+    NotInScope xs ->
+      -- using the warning version to avoid code duplication
+      prettyTCM (NotInScopeW xs)
 
     NoSuchModule x -> fsep $ pwords "No module" ++ [pretty x] ++ pwords "in scope"
 
